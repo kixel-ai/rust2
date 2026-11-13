@@ -5,9 +5,7 @@ import type * as Error from "./core/error.Error.ts";
 import type * as Coded from "./errors.Coded.ts";
 
 export function fmt$fmt_Debug(self: Transported, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Transported";
-	const _4: rs.Fmt = (f: rs.Formatter) => self._0.fmt$Debug(f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Transported", [(f: rs.Formatter) => self._0.fmt$Debug(f)]);
 }
 
 /** A boxed `Coded`, forwarding `Error` to it, as moq's boxed transport error does. */

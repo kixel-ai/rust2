@@ -114,7 +114,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				if !library::is_std(tcx, def_id) || !matches!(owner.as_str(), "ptr" | "NonNull") || name != "cast" {
 					return None;
 				}
-				let mut types = gargs.skip_binder().types();
+				let gargs = gargs.skip_binder();
+				let mut types = gargs.types();
 				Some((&args.first()?.node, types.next()?, types.next()?))
 			};
 			assigns.chain(call())
@@ -128,7 +129,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	pub(super) fn alloc_cast_call(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
-		gargs: ty::GenericArgsRef<'tcx>,
+		gargs: ty::GenericArgs<'tcx>,
 		args: &[Spanned<Operand<'tcx>>],
 		span: Span,
 		out: &mut Vec<Stmt>,

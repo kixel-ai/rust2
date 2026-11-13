@@ -10,13 +10,197 @@
 //! renamed the same way. An addition passes: a new item, method, trait impl, or a
 //! variant of an enum another crate cannot match exhaustively.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use rustc_span::{DUMMY_SP, Span};
 
 use crate::abi::{Abi, Ty};
 use crate::ir::{Access, Api, Constant, Function, Literal, On, Opaque, Traits, Type};
 use crate::merge::{self, Maps};
+
+/// Each language's public names, keyed by the item's kind and Rust path.
+pub type Names = BTreeMap<String, BTreeMap<String, String>>;
+
+/// A generator's names for exported types, translated from C keys to stable item keys.
+pub fn types(abi: &Abi<'_>, classes: &std::collections::HashMap<String, String>) -> BTreeMap<String, String> {
+	let api = abi.api;
+	let records = api.records.iter().enumerate().map(|(i, r)| (abi.record(i), &r.shown));
+	let enums = api
+		.enums
+		.iter()
+		.enumerate()
+		.map(|(i, e)| (abi.enumeration(i), &e.shown));
+	let objects = api.objects.iter().enumerate().map(|(i, o)| (abi.object(i), &o.shown));
+	let callbacks = api
+		.callbacks
+		.iter()
+		.enumerate()
+		.map(|(i, c)| (abi.callback(i), &c.path));
+	records
+		.chain(enums)
+		.chain(objects)
+		.chain(callbacks)
+		.filter_map(|(c, path)| classes.get(&c).map(|name| (type_key(path), name.clone())))
+		.collect()
+}
+
+/// Record names made for enum variants by a generator's collision rules.
+///
+/// `variant` gives a variant's name by its enum's C name and its Rust name, if it has one.
+pub fn variants(abi: &Abi<'_>, names: &mut BTreeMap<String, String>, variant: impl Fn(&str, &str) -> Option<String>) {
+	for (i, e) in abi.api.enums.iter().enumerate() {
+		for v in &e.variants {
+			if let Some(name) = variant(&abi.enumeration(i), &v.name) {
+				names.insert(format!("{} / variant {}", type_key(&e.shown), v.name), name);
+			}
+		}
+	}
+}
+
+/// Record the final public name of a function or field accessor.
+pub fn function(names: &mut BTreeMap<String, String>, function: &Function, name: &str) {
+	names.insert(function_key(function), name.to_string());
+}
+
+/// The shared exception identity after references lose ownership. `Abi::key` already folds
+/// references and borrowed strings everywhere but a tuple, which `Abi::spell` spells itself.
+pub fn error_key(abi: &Abi<'_>, ty: &Type) -> String {
+	fn owned(ty: &Type) -> Type {
+		match ty {
+			Type::Ref(_, inner) => owned(inner),
+			Type::Tuple(elements) => Type::Tuple(elements.iter().map(owned).collect()),
+			ty => ty.clone(),
+		}
+	}
+	format!("error {}", abi.spell(&owned(ty)))
+}
+
+/// Compare the names the generators actually emitted, retaining the current item's span.
+///
+/// An item whose C name `base_api`, the baseline's API, gave it changed is already a structural
+/// break, so its binding names, which follow from the C name, are not reported again.
+pub fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'_>) -> Vec<Break> {
+	let api = abi.api;
+	let index = Index::with(abi);
+	let baseline = Index::new(base_api, &abi.prefix);
+	let maps = baseline.maps(&index);
+	let mut renamed: BTreeSet<String> = baseline
+		.entries
+		.iter()
+		.filter(|(key, entry)| index.entries.get(*key).is_some_and(|now| now.c != entry.c))
+		.map(|(key, _)| key.clone())
+		.collect();
+	renamed.extend(baseline.tuples.iter().filter_map(|(spelled, (c, _))| {
+		index
+			.tuples
+			.get(spelled)
+			.filter(|(now, _)| now != c)
+			.map(|_| format!("tuple {spelled}"))
+	}));
+	let mut locations: BTreeMap<String, (Span, String)> = index
+		.entries
+		.iter()
+		.map(|(key, entry)| (key.clone(), (entry.span, entry.what.clone())))
+		.collect();
+	for (spelled, (_, span)) in &index.tuples {
+		locations.insert(format!("tuple {spelled}"), (*span, format!("tuple `{spelled}`")));
+	}
+	for callback in &api.callbacks {
+		for method in &callback.methods {
+			locations.insert(
+				function_key(method),
+				(method.span, format!("fn `{}`", method.shown.join("::"))),
+			);
+		}
+	}
+	let functions = api
+		.functions
+		.iter()
+		.chain(api.records.iter().flat_map(|r| &r.methods))
+		.chain(api.enums.iter().flat_map(|e| &e.methods))
+		.chain(api.objects.iter().flat_map(|o| &o.methods));
+	for function in functions {
+		let mut record = |err: &Type| {
+			let key = error_key(abi, err);
+			locations.entry(key.clone()).or_insert((
+				function.span,
+				format!("exception class for `{}`", key.strip_prefix("error ").unwrap()),
+			));
+		};
+		if let Some(err) = &function.err {
+			record(err);
+		}
+		for param in &function.params {
+			crate::ir::each(&param.ty, &mut |ty| {
+				if let Type::Closure(closure) = ty
+					&& let Some(err) = &closure.err
+				{
+					record(err);
+				}
+			});
+		}
+	}
+	let homes = api
+		.records
+		.iter()
+		.map(|r| (&r.home, r.span))
+		.chain(api.enums.iter().map(|e| (&e.home, e.span)))
+		.chain(api.objects.iter().map(|o| (&o.home, o.span)))
+		.chain(api.callbacks.iter().map(|c| (&c.home, c.span)))
+		.chain(api.functions.iter().map(|f| (&f.home, f.span)))
+		.chain(api.constants.iter().map(|c| (&c.home, c.span)));
+	for krate in &api.crates {
+		locations.insert(format!("crate {krate}"), (DUMMY_SP, format!("crate `{krate}`")));
+	}
+	for (home, span) in homes {
+		locations.insert(
+			format!("crate {}", home.krate),
+			(span, format!("crate `{}`", home.krate)),
+		);
+	}
+	let mut breaks = Vec::new();
+	for (language, names) in base {
+		for (key, old) in names {
+			let owner = key.split_once(" / ").map_or(key.as_str(), |(owner, _)| owner);
+			let Some((span, what)) = locations.get(owner) else {
+				continue;
+			};
+			if renamed.contains(owner) {
+				continue;
+			}
+			let new = now.get(language).and_then(|names| names.get(key));
+			// Missing parts need a name diagnostic unless the owner's structural change
+			// already reports the break, such as a removed variant or changed signature.
+			if new.is_none()
+				&& key != owner
+				&& baseline
+					.entries
+					.get(owner)
+					.zip(index.entries.get(owner))
+					.is_some_and(|(old, new)| !changed(&baseline, &index, &maps, &old.item, &new.item).is_empty())
+			{
+				continue;
+			}
+			if new != Some(old) {
+				let change = match new {
+					Some(new) => format!("is now `{new}`"),
+					None => "is no longer exported".to_string(),
+				};
+				let suffix = key.strip_prefix(owner).unwrap_or("");
+				let suffix = match suffix.strip_prefix(" / omitted ") {
+					Some("") => " / overload with all Rust parameters".to_string(),
+					Some(indices) => format!(" / overload omitting Rust parameter indices {indices} (zero-based)"),
+					None => suffix.to_string(),
+				};
+				breaks.push(Break {
+					span: *span,
+					what: format!("{}{}: its {language} name `{old}` {change}", what, suffix),
+				});
+			}
+		}
+	}
+	breaks
+}
 
 /// An item the export's API breaks the baseline's at: where, and how.
 pub struct Break {
@@ -145,7 +329,12 @@ struct Index<'a> {
 
 impl<'a> Index<'a> {
 	fn new(api: &'a Api, prefix: &str) -> Self {
-		let abi = Abi::new(api, prefix);
+		Self::with(&Abi::new(api, prefix))
+	}
+
+	/// The index of `abi`'s API, reusing its C names.
+	fn with(abi: &Abi<'a>) -> Self {
+		let api = abi.api;
 		let mut entries = BTreeMap::new();
 		let shown = |shown: &[String]| shown.join("::");
 		let mut types = Vec::new();
@@ -220,6 +409,7 @@ impl<'a> Index<'a> {
 				on: callback.on,
 				owner: None,
 			};
+
 			entries.insert(type_key(&callback.path), entry);
 		}
 		for function in &api.functions {
@@ -333,11 +523,12 @@ impl<'a> Entry<'a> {
 }
 
 /// A type's key: one for every kind, so a type that becomes another kind is changed.
-fn type_key(path: &[String]) -> String {
+pub fn type_key(path: &[String]) -> String {
 	format!("type {}", path.join("::"))
 }
 
-fn function_key(function: &Function) -> String {
+/// A function or accessor identity, independent of its generated name.
+pub fn function_key(function: &Function) -> String {
 	let kind = match function.access {
 		Access::Field { set: false, .. } => "get",
 		Access::Field { set: true, .. } => "set",
@@ -605,4 +796,152 @@ fn signature(ours: &Function, theirs: &Function) -> Vec<String> {
 		changes.push("how it exports".to_string());
 	}
 	changes
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::ir::{Home, Int, Record};
+
+	fn api() -> Api {
+		Api {
+			records: vec![],
+			enums: vec![],
+			objects: vec![],
+			callbacks: vec![],
+			functions: vec![Function {
+				path: vec!["lock".into(), "check".into()],
+				shown: vec!["lock".into(), "check".into()],
+				span: DUMMY_SP,
+				on: On::ALL,
+				docs: String::new(),
+				receiver: None,
+				params: vec![],
+				units: vec![],
+				ok: Type::Unit,
+				err: None,
+				future: false,
+				eager: false,
+				task: None,
+				collect: false,
+				lends: false,
+				access: Access::Call,
+				instance: None,
+				home: Home {
+					krate: "lock_a".into(),
+					outside: 1,
+				},
+			}],
+			constants: vec![],
+			crates: vec!["lock_a".into(), "lock_b".into()],
+			targets: vec!["host".into()],
+		}
+	}
+
+	fn record(name: &str, krate: &str) -> Record {
+		Record {
+			path: vec!["lock".into(), name.into()],
+			shown: vec!["lock".into(), name.into()],
+			home: Home {
+				krate: krate.into(),
+				outside: 1,
+			},
+			args: vec![],
+			span: DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			fields: vec![],
+			tuple: false,
+			methods: vec![],
+			traits: Traits::default(),
+		}
+	}
+
+	#[test]
+	fn tuple_c_rename_is_reported_once() {
+		let mut base = api();
+		base.objects.push(crate::ir::Object {
+			path: vec!["lock".into(), "A_B".into()],
+			shown: vec!["lock".into(), "A_B".into()],
+			home: Home {
+				krate: "lock_a".into(),
+				outside: 1,
+			},
+			args: vec![],
+			span: DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			sync: true,
+			copy: false,
+			shared: false,
+			lifetimes: 0,
+			methods: vec![],
+			traits: Traits::default(),
+			foreign: false,
+			opaque: false,
+		});
+		base.functions[0].ok = Type::Option(Box::new(Type::Tuple(vec![Type::Object(0), Type::Int(Int::U64)])));
+		let old = crate::swift::generate(&Abi::new(&base, "lock"), "lock", 0).unwrap();
+		let mut now = base.clone();
+		now.records.push(record("B_u64", "lock_a"));
+		let mut object = now.objects[0].clone();
+		object.path[1] = "A".into();
+		object.shown = object.path.clone();
+		now.objects.push(object);
+		let mut function = now.functions[0].clone();
+		function.path[1] = "extra".into();
+		function.shown = function.path.clone();
+		function.ok = Type::Option(Box::new(Type::Tuple(vec![Type::Object(1), Type::Record(0)])));
+		now.functions.push(function);
+		let abi = Abi::new(&now, "lock");
+		let new = crate::swift::generate(&abi, "lock", 0).unwrap();
+		let key = "tuple (A_B, u64)";
+		assert_ne!(old.names[key], new.names[key]);
+		let structural = breaks(&base, &now, "lock");
+		assert_eq!(structural.len(), 1);
+		assert!(structural[0].what.contains("its C name"));
+		let extra = name_breaks(
+			&BTreeMap::from([("Swift".into(), old.names)]),
+			&BTreeMap::from([("Swift".into(), new.names)]),
+			&base,
+			&abi,
+		);
+		assert!(
+			extra.is_empty(),
+			"{:?}",
+			extra.iter().map(|b| &b.what).collect::<Vec<_>>()
+		);
+	}
+
+	#[test]
+	fn go_error_owner_is_locked() {
+		let mut base = api();
+		base.records = vec![record("A", "lock_a"), record("B", "lock_b")];
+		base.functions[0].err = Some(Type::Tuple(vec![Type::Record(0), Type::Record(1)]));
+		let old = crate::go::generate(&Abi::new(&base, "lock"), "lock", 0, "lock").unwrap();
+		let mut now = base.clone();
+		now.crates.reverse();
+		let abi = Abi::new(&now, "lock");
+		let new = crate::go::generate(&abi, "lock", 0, "lock").unwrap();
+		let wrapper = |files: &Vec<(String, String)>| {
+			files
+				.iter()
+				.find(|(_, code)| code.contains("type TupleABError struct"))
+				.unwrap()
+				.0
+				.clone()
+		};
+		assert_eq!(wrapper(&old.files), "b/b.go");
+		assert_eq!(wrapper(&new.files), "a/a.go");
+		assert!(breaks(&base, &now, "lock").is_empty());
+		let changes = name_breaks(
+			&BTreeMap::from([("Go".into(), old.names)]),
+			&BTreeMap::from([("Go".into(), new.names)]),
+			&base,
+			&abi,
+		);
+		assert_eq!(changes.len(), 1);
+		assert!(changes[0].what.contains("lock_b"));
+		assert!(changes[0].what.contains("lock_a"));
+	}
 }

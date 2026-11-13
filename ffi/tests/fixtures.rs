@@ -3,7 +3,11 @@
 //! and, shrunk by R8, on Android, from Python by `tests/api.py`, from Swift by
 //! `tests/api.swift`, from Go by `tests/api.go`, and from Dart by `tests/api.dart`, whose
 //! transcripts must match the fixture's own script run natively.
-//! The reject fixture's export must fail at each item it cannot export.
+//! The reject fixture's export must fail at each item it cannot export, and generated
+//! type shapes round-trip in every language ([`shapes`]).
+
+#[path = "fixtures/shapes.rs"]
+mod shapes;
 
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsString;
@@ -339,7 +343,7 @@ fn api_cpp() {
 	for (standard, plain) in [(17, true), (20, false), (23, true)] {
 		let exe = scratch().join("api").join(format!("api-c++{standard}{EXE_SUFFIX}"));
 		run(&mut cxx(
-			api,
+			&api.link(),
 			standard,
 			plain,
 			&manifest_dir().join("tests").join("api.cpp"),
@@ -400,7 +404,7 @@ fn api_cpp() {
 		let src = scratch().join("api").join(format!("alone-{header}.cpp"));
 		std::fs::write(&src, format!("#include \"api/{header}\"\nint main() {{}}\n")).unwrap();
 		let exe = scratch().join("api").join(format!("alone-{header}{EXE_SUFFIX}"));
-		run(&mut cxx(api, 17, true, &src, &exe));
+		run(&mut cxx(&api.link(), 17, true, &src, &exe));
 	}
 
 	// A C++ program whose header names another contract than its library's aborts at load.
@@ -411,7 +415,7 @@ fn api_cpp() {
 	)
 	.unwrap();
 	let contract = scratch().join("api").join(format!("contract{EXE_SUFFIX}"));
-	run(&mut cxx(api, 17, false, &mismatched, &contract));
+	run(&mut cxx(&api.link(), 17, false, &mismatched, &contract));
 	let output = Command::new(&contract).output().unwrap();
 	assert!(!output.status.success(), "a mismatched contract did not abort");
 	let stderr = String::from_utf8_lossy(&output.stderr);
@@ -465,11 +469,29 @@ fn cpp_strict(api: &Api) {
 	}
 }
 
-/// A build of the C++ `src` against the api library into `exe`, at C++`standard`, with
+/// What a program links of an export: its headers, its static library, and what that
+/// links besides.
+struct Link<'a> {
+	include: PathBuf,
+	staticlib: PathBuf,
+	native: &'a [String],
+}
+
+impl Api {
+	fn link(&self) -> Link<'_> {
+		Link {
+			include: self.out.join("include"),
+			staticlib: self.staticlib(),
+			native: &self.native,
+		}
+	}
+}
+
+/// A build of the C++ `src` against the `link`ed library into `exe`, at C++`standard`, with
 /// exceptions and RTTI off if `plain`, and warnings as errors: by `CXX` or the platform's
 /// compiler, given MSVC's flags where the target is MSVC's.
-fn cxx(api: &Api, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command {
-	let include = api.out.join("include");
+fn cxx(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command {
+	let include = &link.include;
 	if cfg!(target_env = "msvc") {
 		// cl from a developer environment. Its C++23 is `c++latest`; its objects go beside `exe`.
 		let mut cmd = Command::new(std::env::var_os("CXX").unwrap_or_else(|| "cl".into()));
@@ -494,7 +516,7 @@ fn cxx(api: &Api, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command 
 		let mut out = OsString::from("-Fe");
 		out.push(exe);
 		cmd.arg("-I").arg(include).arg(src).arg(obj).arg(out);
-		cmd.arg("-link").arg(api.staticlib()).args(&api.native);
+		cmd.arg("-link").arg(&link.staticlib).args(link.native);
 		return cmd;
 	}
 	let mut cmd = Command::new(std::env::var_os("CXX").unwrap_or_else(|| "c++".into()));
@@ -515,8 +537,8 @@ fn cxx(api: &Api, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command 
 	])
 	.arg(include)
 	.arg(src)
-	.arg(api.staticlib())
-	.args(&api.native)
+	.arg(&link.staticlib)
+	.args(link.native)
 	.arg("-o")
 	.arg(exe);
 	cmd
@@ -980,7 +1002,13 @@ fn api_dart() {
 	let generated = api.out.join("dart");
 	run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&generated));
 	let lib = api.lib.join(PYTHON_LIB);
-	let exe = dart_compile(&dir, &generated, &lib, &manifest_dir().join("tests").join("api.dart"));
+	let exe = dart_compile(
+		"api",
+		&dir,
+		&generated,
+		&lib,
+		&manifest_dir().join("tests").join("api.dart"),
+	);
 	let dart = run(&mut dart_run(&exe, &[]));
 	assert_eq!(
 		String::from_utf8_lossy(&dart.stdout),
@@ -1034,7 +1062,7 @@ fn api_dart() {
 		"import 'package:api/api.dart' as api;\n\nvoid main() => api.dropped();\n",
 	)
 	.unwrap();
-	let exe = dart_compile(&contract, &contract, &lib, &main);
+	let exe = dart_compile("api", &contract, &contract, &lib, &main);
 	let output = dart_run(&exe, &[]).output().unwrap();
 	assert!(!output.status.success(), "a mismatched contract did not fail");
 	let stderr = String::from_utf8_lossy(&output.stderr);
@@ -1045,9 +1073,9 @@ fn api_dart() {
 }
 
 /// `main` compiled into a kernel snapshot in `dir`, importing the generated Dart in
-/// `package` as `package:api/api.dart`, whose native asset is the shared library `lib`: as
-/// a package's build hook would bundle it, which `dart compile` has no flag for.
-fn dart_compile(dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
+/// `package` as `package:<name>/<name>.dart`, whose native asset is the shared library
+/// `lib`: as a package's build hook would bundle it, which `dart compile` has no flag for.
+fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
 	let sdk = std::fs::canonicalize(which("dart"))
 		.unwrap()
 		.parent()
@@ -1059,7 +1087,7 @@ fn dart_compile(dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf 
 	std::fs::write(
 		&config,
 		format!(
-			"{{\"configVersion\": 2, \"packages\": [{{\"name\": \"api\", \"rootUri\": \"{root}/\", \"packageUri\": \"./\"}}]}}\n"
+			"{{\"configVersion\": 2, \"packages\": [{{\"name\": \"{name}\", \"rootUri\": \"{root}/\", \"packageUri\": \"./\"}}]}}\n"
 		),
 	)
 	.unwrap();
@@ -1076,7 +1104,7 @@ fn dart_compile(dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf 
 	std::fs::write(
 		&assets,
 		format!(
-			"format-version: [1, 0, 0]\nnative-assets:\n  {os}_{arch}:\n    \"package:api/api.dart\": [absolute, {:?}]\n",
+			"format-version: [1, 0, 0]\nnative-assets:\n  {os}_{arch}:\n    \"package:{name}/{name}.dart\": [absolute, {:?}]\n",
 			lib.display().to_string()
 		),
 	)
@@ -1125,11 +1153,15 @@ fn url(dir: &Path) -> String {
 
 /// The static libraries of swift-collections' modules the generated Swift imports, which
 /// `just ffi swift-collections` builds beside their modules, where [`swiftc`] finds them.
+/// Built once, since two tests running the recipe at once race on its checkout and build.
 fn swift_collections() -> Vec<PathBuf> {
-	run(Command::new("just")
-		.arg("--justfile")
-		.arg(manifest_dir().join("justfile"))
-		.arg("swift-collections"));
+	static BUILT: OnceLock<()> = OnceLock::new();
+	BUILT.get_or_init(|| {
+		run(Command::new("just")
+			.arg("--justfile")
+			.arg(manifest_dir().join("justfile"))
+			.arg("swift-collections"));
+	});
 	let build = collections_dir();
 	["BasicContainers", "InternalCollectionsUtilities", "SpanPreview"]
 		.iter()
@@ -1424,10 +1456,32 @@ fn relative_target() {
 		.env("CARGO_TARGET_DIR", "build")
 		.output()
 		.expect("running rust2-ffi");
+	// The fixture's config leaves out items that export, which the census fails on, after
+	// writing itself: only on those, and on a field whose method of its name is refused,
+	// not on that method.
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(!output.status.success(), "the census passed:\n{stderr}");
+	let errors: Vec<&str> = stderr
+		.lines()
+		.filter(|line| line.starts_with("error: rust2-ffi:"))
+		.collect();
 	assert!(
-		output.status.success(),
-		"the census failed:\n{}",
-		String::from_utf8_lossy(&output.stderr)
+		errors.iter().all(|error| error.ends_with(", which exports")),
+		"the census failed otherwise:\n{stderr}"
+	);
+	assert!(
+		errors.contains(
+			&"error: rust2-ffi: exclude `field@Retry::jitter` in the config leaves out `field@Retry::jitter`, which exports"
+		),
+		"the census does not fail on `field@Retry::jitter`:\n{stderr}"
+	);
+	assert!(
+		!errors.iter().any(|error| error.contains("exclude `Retry::jitter`")),
+		"the census fails on `Retry::jitter`:\n{stderr}"
+	);
+	assert!(
+		!errors.iter().any(|error| error.contains("exclude `among`")),
+		"the census fails on `among`, which Swift refuses:\n{stderr}"
 	);
 	let text = std::fs::read_to_string(census.join("api-fixture.md")).unwrap();
 	for line in [
@@ -1435,8 +1489,34 @@ fn relative_target() {
 		"- `Void`: object no export returns",
 		"- `release`: type C never holds `Lease`",
 		"- `Unnamed`: generic type no export instantiates",
+		// An exclude that names what exports, by its generic or instance path or as a field,
+		// even where a method of the field's name is refused.
+		"## Excluded by the config, though it exports",
+		"- `Timed`: `Timed<bytes::Bytes>`",
+		"- `Pair<u8, api::Size>::swap`: `Pair<u8, api::Size>::swap`",
+		"- `Slot<u32>::value`: `Slot<u32>::value`",
+		"- `field@Retry::jitter`: `field@Retry::jitter`",
+		"- `Stack::depth_past<api::polar::Point>`: `Stack::depth_past<api::polar::Point>`",
 	] {
 		assert!(text.contains(line), "the census lists no `{line}`:\n{text}");
+	}
+	let exporting = text
+		.split("## Excluded by the config, though it exports")
+		.nth(1)
+		.unwrap();
+	let exporting = exporting.split("\n## ").next().unwrap();
+	// Not one that names only what is refused or no export returns.
+	for refused in [
+		"- `Copied`",
+		"- `Sample`",
+		"- `Queued`",
+		"- `Layer`",
+		"- `Retry::jitter`",
+	] {
+		assert!(
+			!exporting.contains(refused),
+			"the census lists `{refused}` as exporting:\n{exporting}"
+		);
 	}
 	assert!(dir.join("build").exists());
 }
@@ -1490,11 +1570,57 @@ fn errors(output: &Output) -> Vec<String> {
 	errors
 }
 
+/// Cleanup must refuse a baseline anywhere below a replaced directory.
+fn lock_baseline_cleanup() {
+	let dir = scratch().join("lock-cleanup");
+	let base = dir.join("base");
+	let output = export("lock", &base, &[], &[]);
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let before = std::fs::read(base.join("api.json")).unwrap();
+	for replaced in ["go", "include/lock"] {
+		let out = dir.join(replaced.replace('/', "-"));
+		let baseline = out.join(replaced).join("nested/baseline.json");
+		std::fs::create_dir_all(baseline.parent().unwrap()).unwrap();
+		std::fs::write(&baseline, &before).unwrap();
+		let args = ["--baseline".as_ref(), baseline.as_os_str()];
+		let output = exporter("lock", &out, &[], &args, &[]).output().unwrap();
+		assert!(!output.status.success(), "export deleted baseline inside {replaced}");
+		assert_eq!(std::fs::read(&baseline).unwrap(), before);
+		assert!(String::from_utf8_lossy(&output.stderr).contains("export replaces"));
+	}
+}
+
+/// Adding a thrown type can remove a Swift overload without changing its Rust function.
+fn lock_swift_removed_overload() {
+	let dir = scratch().join("lock-overload");
+	let base = dir.join("base");
+	let output = export("lock", &base, &[], &[]);
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let baseline = base.join("api.json");
+	let args = ["--baseline".as_ref(), baseline.as_os_str()];
+	let out = dir.join("thrown");
+	let _ = std::fs::remove_dir_all(&out);
+	let output = exporter("lock", &out, &[], &args, &["--features", "thrown"])
+		.output()
+		.unwrap();
+	assert!(!output.status.success(), "removed Swift overload passed the lock");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains(
+			"overload omitting Rust parameter indices 0 (zero-based): its Swift name `debugDescription` is no longer exported"
+		),
+		"{stderr}"
+	);
+	assert!(!out.join("api.json").exists());
+}
+
 /// The lock fixture exported for wasm32, staged, and the host, then again against that
 /// export's API as the baseline: with `next`, which must fail at each break, and with
 /// `added`, which must pass.
 #[test]
 fn lock() {
+	lock_baseline_cleanup();
+	lock_swift_removed_overload();
 	let dir = scratch().join("lock");
 	let targets = [WASM, host()];
 	let output = export("lock", &dir.join("base"), &targets, &[]);
@@ -1505,6 +1631,51 @@ fn lock() {
 	);
 	let baseline = dir.join("base").join("api.json");
 	let before = std::fs::read(&baseline).unwrap();
+	let json: serde_json::Value = serde_json::from_slice(&before).unwrap();
+	for language in ["C++", "Kotlin", "Swift", "Dart", "Python", "Go"] {
+		assert!(
+			json["names"][language]["const lock::DEPTH"].is_string(),
+			"{language} constant name missing"
+		);
+	}
+	for missing in ["all", "Dart"] {
+		let mut bad = json.clone();
+		if missing == "all" {
+			bad.as_object_mut().unwrap().remove("names");
+		} else {
+			bad["names"].as_object_mut().unwrap().remove(missing);
+		}
+		let path = dir.join(format!("missing-{missing}.json"));
+		std::fs::write(&path, serde_json::to_vec(&bad).unwrap()).unwrap();
+		let args = ["--baseline".as_ref(), path.as_os_str()];
+		let out = dir.join(format!("missing-{missing}"));
+		let _ = std::fs::remove_dir_all(&out);
+		let output = exporter("lock", &out, &targets, &args, &[]).output().unwrap();
+		assert!(!output.status.success());
+		assert_eq!(
+			String::from_utf8_lossy(&output.stderr)
+				.matches("baseline lacks")
+				.count(),
+			1
+		);
+		assert!(!out.exists(), "a baseline without names wrote {}", out.display());
+	}
+	// A baseline from before names were kept still has its structure checked.
+	let path = dir.join("missing-all.json");
+	let args = ["--baseline".as_ref(), path.as_os_str()];
+	let out = dir.join("missing-next");
+	let _ = std::fs::remove_dir_all(&out);
+	let output = exporter("lock", &out, &targets, &args, &["--features", "next"])
+		.output()
+		.unwrap();
+	assert!(!out.exists(), "a refused export wrote {}", out.display());
+	assert!(!output.status.success());
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(stderr.contains("baseline lacks binding names"), "{stderr}");
+	assert!(
+		stderr.contains("the API breaks the baseline at fn `lock::removed`: it is removed"),
+		"no structural break against a baseline without names:\n{stderr}"
+	);
 	let args = ["--baseline".as_ref(), baseline.as_os_str()];
 	let itself = exporter("lock", &dir.join("base"), &targets, &args, &[])
 		.output()
@@ -1580,6 +1751,87 @@ fn lock() {
 		"an addition broke the baseline:\n{}",
 		String::from_utf8_lossy(&added.stderr)
 	);
+	let names = locked("names");
+	assert!(!names.status.success(), "binding renames passed the lock");
+	let stderr = String::from_utf8_lossy(&names.stderr);
+	for language in ["Kotlin", "Swift", "Go", "Dart", "Python"] {
+		assert!(
+			stderr.contains(&format!(
+				"its {language} name `GraphicsEncoderFinish` is now `GraphicsEncoder_Finish`"
+			)),
+			"missing class rename for {language}:\n{stderr}"
+		);
+	}
+	for (language, old, new) in [
+		("Kotlin", "smoothStep", "smoothStep_"),
+		("Swift", "smoothStep", "smoothStep_"),
+		("Dart", "smoothStep", "smoothStep_"),
+		("Python", "smooth_step", "smooth_step_"),
+		("Go", "SmoothStep", "SmoothStep_"),
+	] {
+		assert!(
+			stderr.contains(&format!("its {language} name `{old}` is now `{new}`")),
+			"missing member rename for {language}:\n{stderr}"
+		);
+	}
+
+	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	assert!(!dir.join("names/api.json").exists());
+	let members = locked("members");
+	assert!(!members.status.success());
+	let stderr = String::from_utf8_lossy(&members.stderr);
+	assert!(
+		stderr.contains("its C++ name `value` is now `value_`"),
+		"C++ member rename missing:\n{stderr}"
+	);
+	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	let wrappers = locked("wrappers");
+	assert!(!wrappers.status.success());
+	let stderr = String::from_utf8_lossy(&wrappers.stderr);
+	for text in [
+		"its Kotlin name `StringException` is now `StringException_`",
+		"its Python name `StringException` is now `StringException_`",
+		"its Swift name `StringError` is now `StringError_`",
+		"its Dart name `StringException` is now `StringException_`",
+		"its Dart name `ShapeCircle` is now `ShapeCircle_`",
+		"its Go name `ModeFast` is now `ModeFast_`",
+		"its Go name `GoString` is now `GoString_`",
+		"/ overload omitting Rust parameter indices 0 (zero-based): its Swift name `debugDescription` is now `debugDescription_`",
+	] {
+		assert!(stderr.contains(text), "missing {text}:\n{stderr}");
+	}
+	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	let defaults = locked("defaults");
+	assert!(!defaults.status.success(), "a Go Default rename passed the lock");
+	let stderr = String::from_utf8_lossy(&defaults.stderr);
+	assert!(
+		stderr.contains("type `lock::Meter` / Default: its Go name `MeterDefault` is now `MeterDefault_`"),
+		"Go Default rename missing:\n{stderr}"
+	);
+	let closure_base = dir.join("closure-base");
+	let output = export("lock", &closure_base, &targets, &["--features", "closures"]);
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let closure_baseline = closure_base.join("api.json");
+	let args = ["--baseline".as_ref(), closure_baseline.as_os_str()];
+	let output = exporter(
+		"lock",
+		&dir.join("closure-break"),
+		&targets,
+		&args,
+		&["--features", "closures,wrappers"],
+	)
+	.output()
+	.unwrap();
+	assert!(!output.status.success());
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	for language in ["Kotlin", "Python", "Dart"] {
+		assert!(
+			stderr.contains(&format!(
+				"exception class for `string`: its {language} name `StringException` is now `StringException_`"
+			)),
+			"{stderr}"
+		);
+	}
 	let next = locked("next");
 	assert!(!next.status.success(), "breaking the baseline passed");
 	assert!(

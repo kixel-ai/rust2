@@ -110,7 +110,7 @@ final class Queue: TaskExecutor, @unchecked Sendable {
 	}
 
 	func launch(_ body: @escaping @Sendable () async throws -> Void) {
-		Task(executorPreference: self, operation: body)
+		_ = Task(executorPreference: self, operation: body)
 	}
 }
 

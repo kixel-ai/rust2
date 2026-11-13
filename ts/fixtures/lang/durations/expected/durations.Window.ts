@@ -3,12 +3,7 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug(self: Window, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Window";
-	const _4: string = "start";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.durationDebug(self.start, f);
-	const _7: string = "len";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(self.len, f, rs.durationDebug);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Window start len", [(f: rs.Formatter) => rs.durationDebug(self.start, f), (f: rs.Formatter) => rs.fmtOption(self.len, f, rs.durationDebug)]);
 }
 
 export function default$Default(): Window {

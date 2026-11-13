@@ -463,13 +463,13 @@ pub fn std_impl<'tcx>(
 		}
 		ty::Adt(adt, args)
 			if tr == Trait::Debug
-				&& let Some(e) = iter_debug(b, adt.did(), args, &value, &f, span) =>
+				&& let Some(e) = iter_debug(b, adt.did(), *args, &value, &f, span) =>
 		{
 			e
 		}
 		ty::Adt(adt, args)
 			if tr == Trait::Debug
-				&& let Some(e) = adaptor_debug(b, adt.did(), args, &value, &f, span) =>
+				&& let Some(e) = adaptor_debug(b, adt.did(), *args, &value, &f, span) =>
 		{
 			e
 		}
@@ -527,7 +527,7 @@ pub fn std_impl<'tcx>(
 			(Std::ControlFlow, Trait::Debug) => {
 				let go = b.fmt_fn(tr, args.type_at(1), span);
 				let stop = b.fmt_fn(tr, args.type_at(0), span);
-				match library::Flow::of(tcx, args) {
+				match library::Flow::of(tcx, *args) {
 					library::Flow::Other => rs("controlFlow", vec![value, f, go, stop]),
 					library::Flow::Result => rs("controlFlow", vec![value, f, go, stop, Expr::lit("true")]),
 					library::Flow::Option => {
@@ -699,7 +699,7 @@ pub fn std_impl<'tcx>(
 fn iter_debug<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	did: DefId,
-	args: ty::GenericArgsRef<'tcx>,
+	args: ty::GenericArgs<'tcx>,
 	value: &Expr,
 	f: &Expr,
 	span: Span,
@@ -938,7 +938,7 @@ fn iter_debug<'tcx>(
 fn adaptor_debug<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	did: DefId,
-	args: ty::GenericArgsRef<'tcx>,
+	args: ty::GenericArgs<'tcx>,
 	value: &Expr,
 	f: &Expr,
 	span: Span,

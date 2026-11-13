@@ -260,7 +260,22 @@ export function places(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, _52);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(x & 0xff, y & 0xff, pair.a & 0xff, pair.b & 0xff, bytes[0], bytes[1])));
+	const dst = out;
+	const byte2 = x & 0xff;
+	const byte3 = y & 0xff;
+	const byte4 = pair.a & 0xff;
+	const byte5 = pair.b & 0xff;
+	const byte6 = bytes[0];
+	const byte7 = bytes[1];
+	rs.byteVecReserve(dst, 6 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte2;
+	dst.data[pos + 1] = byte3;
+	dst.data[pos + 2] = byte4;
+	dst.data[pos + 3] = byte5;
+	dst.data[pos + 4] = byte6;
+	dst.data[pos + 5] = byte7;
+	dst.length = dst.length + 6;
 }
 
 /**
@@ -335,7 +350,20 @@ export function nested(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const outer: Outer.Outer = slot;
 	const inner2: Inner.Inner = outer.inner;
 	const pair2: [rs.u32, rs.u32] = outer.pair;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(inner2.a & 0xff, inner2.b & 0xff, pair2[0] & 0xff, pair2[1] & 0xff, outer.n & 0xff)));
+	const dst = out;
+	const byte2 = inner2.a & 0xff;
+	const byte3 = inner2.b & 0xff;
+	const byte4 = pair2[0] & 0xff;
+	const byte5 = pair2[1] & 0xff;
+	const byte6 = outer.n & 0xff;
+	rs.byteVecReserve(dst, 5 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte2;
+	dst.data[pos + 1] = byte3;
+	dst.data[pos + 2] = byte4;
+	dst.data[pos + 3] = byte5;
+	dst.data[pos + 4] = byte6;
+	dst.length = dst.length + 5;
 }
 
 /**
@@ -367,11 +395,28 @@ export function copies(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _35: [rs.u8, rs.u8] = snapshot(v);
 		const before: rs.u8 = _35[0];
 		const after: rs.u8 = _35[1];
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(y[0] & 0xff, copy$mem_MaybeUninit_array_u32(x)[0] & 0xff, h.at0[0] & 0xff, g.at0[0] & 0xff, option_mapOr$078vnqn(old, 0, (o: Pair.Pair): rs.u8 => {
+		const dst = out;
+		const byte2 = y[0] & 0xff;
+		const byte3 = copy$mem_MaybeUninit_array_u32(x)[0] & 0xff;
+		const byte4 = h.at0[0] & 0xff;
+		const byte5 = g.at0[0] & 0xff;
+		const byte6 = option_mapOr$078vnqn(old, 0, (o: Pair.Pair): rs.u8 => {
 			return o.a & 0xff;
-		}), option_mapOr$078vnqn(copy$Option_pointers_Pair(held), 0, (o2: Pair.Pair): rs.u8 => {
+		});
+		const byte7 = option_mapOr$078vnqn(copy$Option_pointers_Pair(held), 0, (o2: Pair.Pair): rs.u8 => {
 			return o2.a & 0xff;
-		}), before, after)));
+		});
+		rs.byteVecReserve(dst, 8 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte2;
+		dst.data[pos + 1] = byte3;
+		dst.data[pos + 2] = byte4;
+		dst.data[pos + 3] = byte5;
+		dst.data[pos + 4] = byte6;
+		dst.data[pos + 5] = byte7;
+		dst.data[pos + 6] = before;
+		dst.data[pos + 7] = after;
+		dst.length = dst.length + 8;
 	}
 }
 
@@ -1490,21 +1535,6 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _528!: boolean;
 	let _536!: boolean;
 	let _538!: boolean;
-	const _322: (a0: rs.Slice<boolean>) => rs.u8 = (b: rs.Slice<boolean>): rs.u8 => {
-		return rs.iterFold(rs.iterSlice(rs.sliceItems(b)), 0, (acc: rs.u8, _33: boolean): rs.u8 => {
-			return ((acc << 1) & 0xff) | (_33 ? 1 : 0);
-		});
-	};
-	const _455: (a0: rs.Slice<boolean>) => rs.u8 = (b3: rs.Slice<boolean>): rs.u8 => {
-		return rs.iterFold(rs.iterSlice(rs.sliceItems(b3)), 0, (acc2: rs.u8, _36: boolean): rs.u8 => {
-			return ((acc2 << 1) & 0xff) | (_36 ? 1 : 0);
-		});
-	};
-	const _588: (a0: rs.Slice<boolean>) => rs.u8 = (b5: rs.Slice<boolean>): rs.u8 => {
-		return rs.iterFold(rs.iterSlice(rs.sliceItems(b5)), 0, (acc3: rs.u8, _38: boolean): rs.u8 => {
-			return ((acc3 << 1) & 0xff) | (_38 ? 1 : 0);
-		});
-	};
 	for (const n of rs.byteSliceView(data)) {
 		const pair: Paired.Paired = { _0: n, _1: ~n & 0xff };
 		const at: Paired.Paired = pair;
@@ -1731,10 +1761,12 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _289: boolean = (nest8.inner.maybe as Paired.Paired | undefined) !== nest8.inner.held as Paired.Paired;
 		const pointer11 = other2;
 		const optional: boolean[] = [_284, _289, (nest8.inner.maybe as Paired.Paired | undefined) === (pointer11 === rs.NULL ? undefined : pointer11), (nest8.inner.maybe as Paired.Paired | undefined) === none, none === undefined, (nest8.inner.seen as Paired.Paired) === nest8.inner.at as Paired.Paired, (nest8.inner.seen as Paired.Paired) !== null_, null_ === rs.NULL];
-		const _323: rs.u8 = _322(rs.sliceFrom(same));
-		const _328: rs.u8 = _322(rs.sliceFrom(apart));
-		const part = rs.sliceFrom(optional);
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_323, _328, _322(part))), undefined, true);
+		const _322: (a0: rs.Slice<boolean>) => rs.u8 = (b: rs.Slice<boolean>): rs.u8 => {
+			return rs.iterFold(rs.iterSlice(rs.sliceItems(b)), 0, (acc: rs.u8, _33: boolean): rs.u8 => {
+				return ((acc << 1) & 0xff) | (_33 ? 1 : 0);
+			});
+		};
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_322(rs.sliceFrom(same)), _322(rs.sliceFrom(apart)), _322(rs.sliceFrom(optional)))), undefined, true);
 		const other3: rs.ByteSlice = rs.byteSliceFrom(otherBytes);
 		const at10: rs.ByteSlice = rs.byteSliceFrom(bytes);
 		const pointer12 = at10;
@@ -1818,10 +1850,12 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _437: boolean = rs.eqOption(rs.byteSliceSame)(_439, _442);
 		const _447: rs.ByteSlice | undefined = nest9.inner.seen as rs.ByteSlice;
 		const optional2: boolean[] = [_417, _422, _427, _431, _434, _437, !rs.eqOption(rs.byteSliceSame)(_447, null_2), rs.eqOption(rs.byteSliceSame)(null_2, rs.NULL)];
-		const _456: rs.u8 = _455(rs.sliceFrom(same2));
-		const _461: rs.u8 = _455(rs.sliceFrom(apart2));
-		const part2 = rs.sliceFrom(optional2);
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_456, _461, _455(part2))), undefined, true);
+		const _455: (a0: rs.Slice<boolean>) => rs.u8 = (b3: rs.Slice<boolean>): rs.u8 => {
+			return rs.iterFold(rs.iterSlice(rs.sliceItems(b3)), 0, (acc2: rs.u8, _36: boolean): rs.u8 => {
+				return ((acc2 << 1) & 0xff) | (_36 ? 1 : 0);
+			});
+		};
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_455(rs.sliceFrom(same2)), _455(rs.sliceFrom(apart2)), _455(rs.sliceFrom(optional2)))), undefined, true);
 		const other4: Housed.Housed<rs.u8> = otherWrap;
 		const at12: Housed.Housed<rs.u8> = wrap;
 		const pointer16 = at12;
@@ -1896,10 +1930,12 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _555: boolean = (nest10.inner.maybe as Housed.Housed<rs.u8> | undefined) !== nest10.inner.held as Housed.Housed<rs.u8>;
 		const pointer19 = other4;
 		const optional3: boolean[] = [_550, _555, (nest10.inner.maybe as Housed.Housed<rs.u8> | undefined) === (pointer19 === rs.NULL ? undefined : pointer19), (nest10.inner.maybe as Housed.Housed<rs.u8> | undefined) === none3, none3 === undefined, (nest10.inner.seen as Housed.Housed<rs.u8>) === nest10.inner.at as Housed.Housed<rs.u8>, (nest10.inner.seen as Housed.Housed<rs.u8>) !== null_3, null_3 === rs.NULL];
-		const _589: rs.u8 = _588(rs.sliceFrom(same3));
-		const _594: rs.u8 = _588(rs.sliceFrom(apart3));
-		const part3 = rs.sliceFrom(optional3);
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_589, _594, _588(part3))), undefined, true);
+		const _588: (a0: rs.Slice<boolean>) => rs.u8 = (b5: rs.Slice<boolean>): rs.u8 => {
+			return rs.iterFold(rs.iterSlice(rs.sliceItems(b5)), 0, (acc3: rs.u8, _38: boolean): rs.u8 => {
+				return ((acc3 << 1) & 0xff) | (_38 ? 1 : 0);
+			});
+		};
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_588(rs.sliceFrom(same3)), _588(rs.sliceFrom(apart3)), _588(rs.sliceFrom(optional3)))), undefined, true);
 	}
 }
 
@@ -3481,8 +3517,8 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let end: rs.Place<rs.u32> = rs.NULL;
 	end = rs.ptrAdd(at, 1);
 	rs.byteVecPush(out, rs.ptrOffsetFrom(end, at) & 0xff);
-	const _296: Nothing.Nothing = {};
-	rs.byteVecPush(out, nothingTag(_296, bits));
+	const _294: Nothing.Nothing = {};
+	rs.byteVecPush(out, nothingTag(_294, bits));
 	arc2[Symbol.dispose]();
 	arc[Symbol.dispose]();
 }
@@ -3939,7 +3975,14 @@ export function genericUnions(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			const v: rs.u32 = _22[0];
 			const tag: rs.u8 = _22[1];
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(v).reverse()));
+			const dst = out;
+			rs.byteVecReserve(dst, 4 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = v & 255;
+			dst.data[pos + 1] = (v >>> 8) & 255;
+			dst.data[pos + 2] = (v >>> 16) & 255;
+			dst.data[pos + 3] = (v >>> 24) & 255;
+			dst.length = dst.length + 4;
 			rs.byteVecPush(out, tag);
 		}
 		const iter3: rs.Iter<[rs.u8, rs.u8]> = rs.iterSlice(copy$array_tuple2_u8_u8(either$u8(byte, rs.u8WrappingMul(byte, 3), i & 0xff)));

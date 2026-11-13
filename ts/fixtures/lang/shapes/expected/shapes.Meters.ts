@@ -14,7 +14,21 @@ export function area$shapes_Area(self: Meters): rs.u64 {
 /** A default method, monomorphized for each type. */
 export function describe$shapes_Area(self: Meters, out: rs.ByteVec): void {
 	rs.byteVecPush(out, 170);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(self._0)));
+	const dst = out;
+	const word = self._0;
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word3 >>> 24) & 255;
+	dst.data[pos + 1] = (word3 >>> 16) & 255;
+	dst.data[pos + 2] = (word3 >>> 8) & 255;
+	dst.data[pos + 3] = word3 & 255;
+	dst.data[pos + 4] = (word2 >>> 24) & 255;
+	dst.data[pos + 5] = (word2 >>> 16) & 255;
+	dst.data[pos + 6] = (word2 >>> 8) & 255;
+	dst.data[pos + 7] = word2 & 255;
+	dst.length = dst.length + 8;
 }
 
 //# sourceMappingURL=shapes.Meters.ts.map

@@ -28,12 +28,48 @@ export function putF64(out: rs.ByteVec, x: rs.f64): void {
 	} else {
 		x2 = NaN;
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.f64ToBits(x2))));
+	const dst = out;
+	const word = rs.f64ToBits(x2);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word3 >>> 24) & 255;
+	dst.data[pos + 1] = (word3 >>> 16) & 255;
+	dst.data[pos + 2] = (word3 >>> 8) & 255;
+	dst.data[pos + 3] = word3 & 255;
+	dst.data[pos + 4] = (word2 >>> 24) & 255;
+	dst.data[pos + 5] = (word2 >>> 16) & 255;
+	dst.data[pos + 6] = (word2 >>> 8) & 255;
+	dst.data[pos + 7] = word2 & 255;
+	dst.length = dst.length + 8;
 }
 
 export function putDuration(out: rs.ByteVec, d: rs.Duration): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.durationAsSecs(d))));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.durationSubsecNanos(d))));
+	const dst = out;
+	const word = rs.durationAsSecs(d);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word3 >>> 24) & 255;
+	dst.data[pos + 1] = (word3 >>> 16) & 255;
+	dst.data[pos + 2] = (word3 >>> 8) & 255;
+	dst.data[pos + 3] = word3 & 255;
+	dst.data[pos + 4] = (word2 >>> 24) & 255;
+	dst.data[pos + 5] = (word2 >>> 16) & 255;
+	dst.data[pos + 6] = (word2 >>> 8) & 255;
+	dst.data[pos + 7] = word2 & 255;
+	dst.length = dst.length + 8;
+	const dst2 = out;
+	const word4 = rs.durationSubsecNanos(d);
+	rs.byteVecReserve(dst2, 4 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+	dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+	dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+	dst2.data[pos2 + 3] = word4 & 255;
+	dst2.length = dst2.length + 4;
 }
 
 /** What `try_from_secs_f64` made, or its error printed both ways. */
@@ -94,18 +130,146 @@ export function floats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		c = c % a;
 		putF64(out, c);
 	} else if (_10 === 1) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(rs.u8FromF64(a))));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(rs.u16FromF64(a))));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u32FromF64(a))));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.u64FromF64(a))));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(rs.u128FromF64(a))));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(rs.usizeFromF64(a))));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(rs.i8FromF64(a))));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(rs.i16FromF64(a))));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(rs.i32FromF64(a))));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(rs.i64FromF64(a))));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(rs.i128FromF64(a))));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(rs.isizeFromF64(a))));
+		const dst = out;
+		const word = rs.u8FromF64(a);
+		rs.byteVecReserve(dst, 1 as rs.usize);
+		dst.data[dst.length + 0] = word & 255;
+		dst.length = dst.length + 1;
+		const dst2 = out;
+		const word2 = rs.u16FromF64(a);
+		rs.byteVecReserve(dst2, 2 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word2 >>> 8) & 255;
+		dst2.data[pos2 + 1] = word2 & 255;
+		dst2.length = dst2.length + 2;
+		const dst3 = out;
+		const word3 = rs.u32FromF64(a);
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (word3 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word3 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word3 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word3 & 255;
+		dst3.length = dst3.length + 4;
+		const dst4 = out;
+		const word4 = rs.u64FromF64(a);
+		const word5 = rs.intWord(word4, 0);
+		const word6 = rs.intWord(word4, 32);
+		rs.byteVecReserve(dst4, 8 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word6 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word6 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word6 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word6 & 255;
+		dst4.data[pos4 + 4] = (word5 >>> 24) & 255;
+		dst4.data[pos4 + 5] = (word5 >>> 16) & 255;
+		dst4.data[pos4 + 6] = (word5 >>> 8) & 255;
+		dst4.data[pos4 + 7] = word5 & 255;
+		dst4.length = dst4.length + 8;
+		const dst5 = out;
+		const word7 = rs.u128FromF64(a);
+		const word8 = rs.intWord(word7, 0);
+		const word9 = rs.intWord(word7, 32);
+		const word10 = rs.intWord(word7, 64);
+		const word11 = rs.intWord(word7, 96);
+		rs.byteVecReserve(dst5, 16 as rs.usize);
+		const pos5 = dst5.length;
+		dst5.data[pos5 + 0] = (word11 >>> 24) & 255;
+		dst5.data[pos5 + 1] = (word11 >>> 16) & 255;
+		dst5.data[pos5 + 2] = (word11 >>> 8) & 255;
+		dst5.data[pos5 + 3] = word11 & 255;
+		dst5.data[pos5 + 4] = (word10 >>> 24) & 255;
+		dst5.data[pos5 + 5] = (word10 >>> 16) & 255;
+		dst5.data[pos5 + 6] = (word10 >>> 8) & 255;
+		dst5.data[pos5 + 7] = word10 & 255;
+		dst5.data[pos5 + 8] = (word9 >>> 24) & 255;
+		dst5.data[pos5 + 9] = (word9 >>> 16) & 255;
+		dst5.data[pos5 + 10] = (word9 >>> 8) & 255;
+		dst5.data[pos5 + 11] = word9 & 255;
+		dst5.data[pos5 + 12] = (word8 >>> 24) & 255;
+		dst5.data[pos5 + 13] = (word8 >>> 16) & 255;
+		dst5.data[pos5 + 14] = (word8 >>> 8) & 255;
+		dst5.data[pos5 + 15] = word8 & 255;
+		dst5.length = dst5.length + 16;
+		const dst6 = out;
+		const word12 = rs.usizeFromF64(a);
+		rs.byteVecReserve(dst6, 4 as rs.usize);
+		const pos6 = dst6.length;
+		dst6.data[pos6 + 0] = (word12 >>> 24) & 255;
+		dst6.data[pos6 + 1] = (word12 >>> 16) & 255;
+		dst6.data[pos6 + 2] = (word12 >>> 8) & 255;
+		dst6.data[pos6 + 3] = word12 & 255;
+		dst6.length = dst6.length + 4;
+		const dst7 = out;
+		const word13 = rs.i8FromF64(a);
+		rs.byteVecReserve(dst7, 1 as rs.usize);
+		dst7.data[dst7.length + 0] = word13 & 255;
+		dst7.length = dst7.length + 1;
+		const dst8 = out;
+		const word14 = rs.i16FromF64(a);
+		rs.byteVecReserve(dst8, 2 as rs.usize);
+		const pos8 = dst8.length;
+		dst8.data[pos8 + 0] = (word14 >>> 8) & 255;
+		dst8.data[pos8 + 1] = word14 & 255;
+		dst8.length = dst8.length + 2;
+		const dst9 = out;
+		const word15 = rs.i32FromF64(a);
+		rs.byteVecReserve(dst9, 4 as rs.usize);
+		const pos9 = dst9.length;
+		dst9.data[pos9 + 0] = (word15 >>> 24) & 255;
+		dst9.data[pos9 + 1] = (word15 >>> 16) & 255;
+		dst9.data[pos9 + 2] = (word15 >>> 8) & 255;
+		dst9.data[pos9 + 3] = word15 & 255;
+		dst9.length = dst9.length + 4;
+		const dst10 = out;
+		const word16 = rs.i64FromF64(a);
+		const word17 = rs.intWord(word16, 0);
+		const word18 = rs.intWord(word16, 32);
+		rs.byteVecReserve(dst10, 8 as rs.usize);
+		const pos10 = dst10.length;
+		dst10.data[pos10 + 0] = (word18 >>> 24) & 255;
+		dst10.data[pos10 + 1] = (word18 >>> 16) & 255;
+		dst10.data[pos10 + 2] = (word18 >>> 8) & 255;
+		dst10.data[pos10 + 3] = word18 & 255;
+		dst10.data[pos10 + 4] = (word17 >>> 24) & 255;
+		dst10.data[pos10 + 5] = (word17 >>> 16) & 255;
+		dst10.data[pos10 + 6] = (word17 >>> 8) & 255;
+		dst10.data[pos10 + 7] = word17 & 255;
+		dst10.length = dst10.length + 8;
+		const dst11 = out;
+		const word19 = rs.i128FromF64(a);
+		const word20 = rs.intWord(word19, 0);
+		const word21 = rs.intWord(word19, 32);
+		const word22 = rs.intWord(word19, 64);
+		const word23 = rs.intWord(word19, 96);
+		rs.byteVecReserve(dst11, 16 as rs.usize);
+		const pos11 = dst11.length;
+		dst11.data[pos11 + 0] = (word23 >>> 24) & 255;
+		dst11.data[pos11 + 1] = (word23 >>> 16) & 255;
+		dst11.data[pos11 + 2] = (word23 >>> 8) & 255;
+		dst11.data[pos11 + 3] = word23 & 255;
+		dst11.data[pos11 + 4] = (word22 >>> 24) & 255;
+		dst11.data[pos11 + 5] = (word22 >>> 16) & 255;
+		dst11.data[pos11 + 6] = (word22 >>> 8) & 255;
+		dst11.data[pos11 + 7] = word22 & 255;
+		dst11.data[pos11 + 8] = (word21 >>> 24) & 255;
+		dst11.data[pos11 + 9] = (word21 >>> 16) & 255;
+		dst11.data[pos11 + 10] = (word21 >>> 8) & 255;
+		dst11.data[pos11 + 11] = word21 & 255;
+		dst11.data[pos11 + 12] = (word20 >>> 24) & 255;
+		dst11.data[pos11 + 13] = (word20 >>> 16) & 255;
+		dst11.data[pos11 + 14] = (word20 >>> 8) & 255;
+		dst11.data[pos11 + 15] = word20 & 255;
+		dst11.length = dst11.length + 16;
+		const dst12 = out;
+		const word24 = rs.isizeFromF64(a);
+		rs.byteVecReserve(dst12, 4 as rs.usize);
+		const pos12 = dst12.length;
+		dst12.data[pos12 + 0] = (word24 >>> 24) & 255;
+		dst12.data[pos12 + 1] = (word24 >>> 16) & 255;
+		dst12.data[pos12 + 2] = (word24 >>> 8) & 255;
+		dst12.data[pos12 + 3] = word24 & 255;
+		dst12.length = dst12.length + 4;
 	} else if (_10 === 2) {
 		const wide: Uint8Array = rs.bytes(16);
 		const n: rs.usize = rs.min(data.length, 16);
@@ -119,8 +283,46 @@ export function floats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			putF64(out, _163);
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.u64FromF64(rs.u64ToF64(rs.u64Cast(v))))));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(rs.i128FromF64(rs.i128ToF64(rs.i128Cast(v))))));
+		const dst13 = out;
+		const word25 = rs.u64FromF64(rs.u64ToF64(rs.u64Cast(v)));
+		const word26 = rs.intWord(word25, 0);
+		const word27 = rs.intWord(word25, 32);
+		rs.byteVecReserve(dst13, 8 as rs.usize);
+		const pos13 = dst13.length;
+		dst13.data[pos13 + 0] = (word27 >>> 24) & 255;
+		dst13.data[pos13 + 1] = (word27 >>> 16) & 255;
+		dst13.data[pos13 + 2] = (word27 >>> 8) & 255;
+		dst13.data[pos13 + 3] = word27 & 255;
+		dst13.data[pos13 + 4] = (word26 >>> 24) & 255;
+		dst13.data[pos13 + 5] = (word26 >>> 16) & 255;
+		dst13.data[pos13 + 6] = (word26 >>> 8) & 255;
+		dst13.data[pos13 + 7] = word26 & 255;
+		dst13.length = dst13.length + 8;
+		const dst14 = out;
+		const word28 = rs.i128FromF64(rs.i128ToF64(rs.i128Cast(v)));
+		const word29 = rs.intWord(word28, 0);
+		const word30 = rs.intWord(word28, 32);
+		const word31 = rs.intWord(word28, 64);
+		const word32 = rs.intWord(word28, 96);
+		rs.byteVecReserve(dst14, 16 as rs.usize);
+		const pos14 = dst14.length;
+		dst14.data[pos14 + 0] = (word32 >>> 24) & 255;
+		dst14.data[pos14 + 1] = (word32 >>> 16) & 255;
+		dst14.data[pos14 + 2] = (word32 >>> 8) & 255;
+		dst14.data[pos14 + 3] = word32 & 255;
+		dst14.data[pos14 + 4] = (word31 >>> 24) & 255;
+		dst14.data[pos14 + 5] = (word31 >>> 16) & 255;
+		dst14.data[pos14 + 6] = (word31 >>> 8) & 255;
+		dst14.data[pos14 + 7] = word31 & 255;
+		dst14.data[pos14 + 8] = (word30 >>> 24) & 255;
+		dst14.data[pos14 + 9] = (word30 >>> 16) & 255;
+		dst14.data[pos14 + 10] = (word30 >>> 8) & 255;
+		dst14.data[pos14 + 11] = word30 & 255;
+		dst14.data[pos14 + 12] = (word29 >>> 24) & 255;
+		dst14.data[pos14 + 13] = (word29 >>> 16) & 255;
+		dst14.data[pos14 + 14] = (word29 >>> 8) & 255;
+		dst14.data[pos14 + 15] = word29 & 255;
+		dst14.length = dst14.length + 16;
 	} else if (_10 === 3) {
 		const iter4: rs.Iter<rs.f64> = rs.iterSlice([Math.floor(a), Math.ceil(a), Math.trunc(a), rs.f64Round(a), rs.f64RoundTiesEven(a), rs.f64Fract(a), Math.abs(a), rs.f64Signum(a), Math.sqrt(a), 1 / a, a * 57.29577951308232, a * 0.017453292519943295]);
 		while (true) {
@@ -181,10 +383,66 @@ export function floats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}));
 	} else if (_10 === 6) {
 		if (!Number.isNaN(a)) {
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.f64ToBits(a))));
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.f64ToBeBytes(a)));
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.f64ToLeBytes(a)));
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.f64ToLeBytes(a)));
+			const dst15 = out;
+			const word33 = rs.f64ToBits(a);
+			const word34 = rs.intWord(word33, 0);
+			const word35 = rs.intWord(word33, 32);
+			rs.byteVecReserve(dst15, 8 as rs.usize);
+			const pos15 = dst15.length;
+			dst15.data[pos15 + 0] = (word35 >>> 24) & 255;
+			dst15.data[pos15 + 1] = (word35 >>> 16) & 255;
+			dst15.data[pos15 + 2] = (word35 >>> 8) & 255;
+			dst15.data[pos15 + 3] = word35 & 255;
+			dst15.data[pos15 + 4] = (word34 >>> 24) & 255;
+			dst15.data[pos15 + 5] = (word34 >>> 16) & 255;
+			dst15.data[pos15 + 6] = (word34 >>> 8) & 255;
+			dst15.data[pos15 + 7] = word34 & 255;
+			dst15.length = dst15.length + 8;
+			const dst16 = out;
+			const word36 = rs.f64ToBits(a);
+			const word37 = rs.intWord(word36, 0);
+			const word38 = rs.intWord(word36, 32);
+			rs.byteVecReserve(dst16, 8 as rs.usize);
+			const pos16 = dst16.length;
+			dst16.data[pos16 + 0] = (word38 >>> 24) & 255;
+			dst16.data[pos16 + 1] = (word38 >>> 16) & 255;
+			dst16.data[pos16 + 2] = (word38 >>> 8) & 255;
+			dst16.data[pos16 + 3] = word38 & 255;
+			dst16.data[pos16 + 4] = (word37 >>> 24) & 255;
+			dst16.data[pos16 + 5] = (word37 >>> 16) & 255;
+			dst16.data[pos16 + 6] = (word37 >>> 8) & 255;
+			dst16.data[pos16 + 7] = word37 & 255;
+			dst16.length = dst16.length + 8;
+			const dst17 = out;
+			const word39 = rs.f64ToBits(a);
+			const word40 = rs.intWord(word39, 0);
+			const word41 = rs.intWord(word39, 32);
+			rs.byteVecReserve(dst17, 8 as rs.usize);
+			const pos17 = dst17.length;
+			dst17.data[pos17 + 0] = word40 & 255;
+			dst17.data[pos17 + 1] = (word40 >>> 8) & 255;
+			dst17.data[pos17 + 2] = (word40 >>> 16) & 255;
+			dst17.data[pos17 + 3] = (word40 >>> 24) & 255;
+			dst17.data[pos17 + 4] = word41 & 255;
+			dst17.data[pos17 + 5] = (word41 >>> 8) & 255;
+			dst17.data[pos17 + 6] = (word41 >>> 16) & 255;
+			dst17.data[pos17 + 7] = (word41 >>> 24) & 255;
+			dst17.length = dst17.length + 8;
+			const dst18 = out;
+			const word42 = rs.f64ToBits(a);
+			const word43 = rs.intWord(word42, 0);
+			const word44 = rs.intWord(word42, 32);
+			rs.byteVecReserve(dst18, 8 as rs.usize);
+			const pos18 = dst18.length;
+			dst18.data[pos18 + 0] = word43 & 255;
+			dst18.data[pos18 + 1] = (word43 >>> 8) & 255;
+			dst18.data[pos18 + 2] = (word43 >>> 16) & 255;
+			dst18.data[pos18 + 3] = (word43 >>> 24) & 255;
+			dst18.data[pos18 + 4] = word44 & 255;
+			dst18.data[pos18 + 5] = (word44 >>> 8) & 255;
+			dst18.data[pos18 + 6] = (word44 >>> 16) & 255;
+			dst18.data[pos18 + 7] = (word44 >>> 24) & 255;
+			dst18.length = dst18.length + 8;
 			const be: Uint8Array = rs.f64ToBeBytes(a);
 			const le: Uint8Array = rs.f64ToLeBytes(a);
 			const iter9: rs.Iter<rs.f64> = rs.iterSlice([rs.f64FromBeBytes(be), rs.f64FromLeBytes(le), rs.f64FromLeBytes(le)]);
@@ -240,7 +498,21 @@ export function floats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			putF64(out, _377);
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.f64ToBits(rs.f64FromBits({ hi: 0xfff80000, lo: 0x123 } as rs.u64)))));
+		const dst19 = out;
+		const word45 = rs.f64ToBits(rs.f64FromBits({ hi: 0xfff80000, lo: 0x123 } as rs.u64));
+		const word46 = rs.intWord(word45, 0);
+		const word47 = rs.intWord(word45, 32);
+		rs.byteVecReserve(dst19, 8 as rs.usize);
+		const pos19 = dst19.length;
+		dst19.data[pos19 + 0] = (word47 >>> 24) & 255;
+		dst19.data[pos19 + 1] = (word47 >>> 16) & 255;
+		dst19.data[pos19 + 2] = (word47 >>> 8) & 255;
+		dst19.data[pos19 + 3] = word47 & 255;
+		dst19.data[pos19 + 4] = (word46 >>> 24) & 255;
+		dst19.data[pos19 + 5] = (word46 >>> 16) & 255;
+		dst19.data[pos19 + 6] = (word46 >>> 8) & 255;
+		dst19.data[pos19 + 7] = word46 & 255;
+		dst19.length = dst19.length + 8;
 		rs.byteVecPush(out, rs.f64IsSignNegative(rs.f64FromBits({ hi: 0xfff80000, lo: 0x123 } as rs.u64)) ? 1 : 0);
 		const v2: rs.f64[] = [a, b, 0.5];
 		putF64(out, rs.iterSum(rs.iterSlice(v2), rs.f64Add, -0.0));
@@ -276,74 +548,70 @@ export function mulAdds(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	let _52!: [rs.f64, rs.f64, rs.f64];
 	let _102!: rs.f64;
 	let ea4!: rs.i64;
-	b0: {
-		if (!(rs.u8Rem(kind, 2) === 0)) {
-			let state: rs.u64 = rs.u64Or(takeBits(data)[0], 1);
-			let iterStart: rs.i32 = 0;
-			const iterEnd: rs.i32 = 32;
-			while (true) {
-				if (!(iterStart++ < iterEnd)) {
-					break b0;
-				}
-				const r: rs.u64 = step(rs.place(() => state, (value) => state = value));
-				const pick: (a0: rs.u32, a1: rs.u64) => rs.i64 = (shift: rs.u32, n: rs.u64): rs.i64 => {
-					return rs.i64Cast(rs.u64Rem(rs.u64Shr(r, shift), n));
-				};
-				const ea: rs.i64 = rs.i64Sub(pick(8, 64), 32);
-				const e: rs.i64 = rs.i64Sub(pick(16, 64), 32);
-				const a2: rs.f64 = near(step(rs.place(() => state, (value2) => state = value2)), ea);
-				const b2: rs.f64 = near(step(rs.place(() => state, (value3) => state = value3)), rs.i64Sub(e, ea));
-				const c2: rs.u64 = step(rs.place(() => state, (value4) => state = value4));
-				const _53: rs.u64 = rs.u64Rem(r, 6);
-				if (_53 === 0) {
-					_52 = [rs.f64FromBits(r), rs.f64FromBits(step(rs.place(() => state, (value5) => state = value5))), rs.f64FromBits(c2)] as [rs.f64, rs.f64, rs.f64];
-				} else if (_53 === 1) {
-					_52 = [a2, b2, -(a2 * b2)] as [rs.f64, rs.f64, rs.f64];
-				} else if (_53 === 2) {
-					if (!(rs.u64Shr(r, 63) === 0)) {
-						const c4: rs.f64 = near(c2, e);
-						_52 = [a2, (rs.f64NextUp(Math.abs(c4)) - Math.abs(c4)) * 0.5 / a2, c4] as [rs.f64, rs.f64, rs.f64];
-					} else {
-						const p: rs.f64 = Math.abs(a2 * b2);
-						const _70: rs.usize = rs.i64Low(pick(24, 5));
-						if (!(_70 < 5)) {
-							rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _70);
-						}
-						const half: rs.f64 = [0.5, -0.5, 0.25, -0.75, 1.5][_70];
-						_52 = [a2, b2, (rs.f64NextUp(p) - p) * half] as [rs.f64, rs.f64, rs.f64];
-					}
-				} else if (_53 === 3) {
-					const ea2: rs.i64 = rs.i64Sub(pick(24, 1000), 500);
-					const e2: rs.i64 = rs.i64Sub(-1000, pick(40, 100));
-					const _97: [rs.f64, rs.f64] = [near(r, ea2), near(c2, rs.i64Sub(e2, ea2))];
-					const a4: rs.f64 = _97[0];
-					const b4: rs.f64 = _97[1];
-					if (!(rs.u64Shr(r, 63) === 0)) {
-						_102 = near(rs.u64Shr(c2, 1), rs.i64Sub(rs.i64Add(e2, pick(48, 60)), 30));
-					} else {
-						_102 = -(a4 * b4);
-					}
-					_52 = [a4, b4, _102] as [rs.f64, rs.f64, rs.f64];
-				} else if (_53 === 4) {
-					const ea3: rs.i64 = rs.i64Add(990, pick(24, 60));
-					const a5: rs.f64 = near(r, ea3);
-					const b5: rs.f64 = near(c2, rs.i64Sub(rs.i64Add(rs.i64Sub(1023, ea3), pick(40, 4)), 1));
-					_52 = [a5, b5, rs.f64Copysign(near(rs.u64Shr(c2, 1), rs.i64Add(1020, pick(48, 4))), -(a5 * b5))] as [rs.f64, rs.f64, rs.f64];
+	if (!(rs.u8Rem(kind, 2) === 0)) {
+		let state: rs.u64 = rs.u64Or(takeBits(data)[0], 1);
+		let iterStart: rs.i32 = 0;
+		const iterEnd: rs.i32 = 32;
+		while (iterStart++ < iterEnd) {
+			const r: rs.u64 = step(rs.place(() => state, (value) => state = value));
+			const pick: (a0: rs.u32, a1: rs.u64) => rs.i64 = (shift: rs.u32, n: rs.u64): rs.i64 => {
+				return rs.i64Cast(rs.u64Rem(rs.u64Shr(r, shift), n));
+			};
+			const ea: rs.i64 = rs.i64Sub(pick(8, 64), 32);
+			const e: rs.i64 = rs.i64Sub(pick(16, 64), 32);
+			const a2: rs.f64 = near(step(rs.place(() => state, (value2) => state = value2)), ea);
+			const b2: rs.f64 = near(step(rs.place(() => state, (value3) => state = value3)), rs.i64Sub(e, ea));
+			const c2: rs.u64 = step(rs.place(() => state, (value4) => state = value4));
+			const _53: rs.u64 = rs.u64Rem(r, 6);
+			if (_53 === 0) {
+				_52 = [rs.f64FromBits(r), rs.f64FromBits(step(rs.place(() => state, (value5) => state = value5))), rs.f64FromBits(c2)] as [rs.f64, rs.f64, rs.f64];
+			} else if (_53 === 1) {
+				_52 = [a2, b2, -(a2 * b2)] as [rs.f64, rs.f64, rs.f64];
+			} else if (_53 === 2) {
+				if (!(rs.u64Shr(r, 63) === 0)) {
+					const c4: rs.f64 = near(c2, e);
+					_52 = [a2, (rs.f64NextUp(Math.abs(c4)) - Math.abs(c4)) * 0.5 / a2, c4] as [rs.f64, rs.f64, rs.f64];
 				} else {
-					if (!(rs.u64Shr(r, 63) === 0)) {
-						ea4 = rs.i64Sub(pick(24, 1000), 500);
-					} else {
-						ea4 = rs.i64Add(990, pick(24, 10));
+					const p: rs.f64 = Math.abs(a2 * b2);
+					const _70: rs.usize = rs.i64Low(pick(24, 5));
+					if (!(_70 < 5)) {
+						rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _70);
 					}
-					const _161: [rs.f64, rs.f64] = [near(r, ea4), near(c2, rs.i64Sub(rs.i64Sub(rs.i64Add(-968, pick(40, 8)), 4), ea4))];
-					const a6: rs.f64 = _161[0];
-					const b6: rs.f64 = _161[1];
-					const p2: rs.f64 = Math.abs(a6 * b6);
-					_52 = [a6, b6, (rs.f64NextUp(p2) - p2) * 0.5] as [rs.f64, rs.f64, rs.f64];
+					const half: rs.f64 = [0.5, -0.5, 0.25, -0.75, 1.5][_70];
+					_52 = [a2, b2, (rs.f64NextUp(p) - p) * half] as [rs.f64, rs.f64, rs.f64];
 				}
-				putMulAdd(out, _52[0], _52[1], _52[2]);
+			} else if (_53 === 3) {
+				const ea2: rs.i64 = rs.i64Sub(pick(24, 1000), 500);
+				const e2: rs.i64 = rs.i64Sub(-1000, pick(40, 100));
+				const _97: [rs.f64, rs.f64] = [near(r, ea2), near(c2, rs.i64Sub(e2, ea2))];
+				const a4: rs.f64 = _97[0];
+				const b4: rs.f64 = _97[1];
+				if (!(rs.u64Shr(r, 63) === 0)) {
+					_102 = near(rs.u64Shr(c2, 1), rs.i64Sub(rs.i64Add(e2, pick(48, 60)), 30));
+				} else {
+					_102 = -(a4 * b4);
+				}
+				_52 = [a4, b4, _102] as [rs.f64, rs.f64, rs.f64];
+			} else if (_53 === 4) {
+				const ea3: rs.i64 = rs.i64Add(990, pick(24, 60));
+				const a5: rs.f64 = near(r, ea3);
+				const b5: rs.f64 = near(c2, rs.i64Sub(rs.i64Add(rs.i64Sub(1023, ea3), pick(40, 4)), 1));
+				_52 = [a5, b5, rs.f64Copysign(near(rs.u64Shr(c2, 1), rs.i64Add(1020, pick(48, 4))), -(a5 * b5))] as [rs.f64, rs.f64, rs.f64];
+			} else {
+				if (!(rs.u64Shr(r, 63) === 0)) {
+					ea4 = rs.i64Sub(pick(24, 1000), 500);
+				} else {
+					ea4 = rs.i64Add(990, pick(24, 10));
+				}
+				const _161: [rs.f64, rs.f64] = [near(r, ea4), near(c2, rs.i64Sub(rs.i64Sub(rs.i64Add(-968, pick(40, 8)), 4), ea4))];
+				const a6: rs.f64 = _161[0];
+				const b6: rs.f64 = _161[1];
+				const p2: rs.f64 = Math.abs(a6 * b6);
+				_52 = [a6, b6, (rs.f64NextUp(p2) - p2) * 0.5] as [rs.f64, rs.f64, rs.f64];
 			}
+			putMulAdd(out, _52[0], _52[1], _52[2]);
 		}
+	} else {
 		const _9: [rs.f64, rs.ByteSlice] = take(data);
 		const a: rs.f64 = _9[0];
 		const _12: [rs.f64, rs.ByteSlice] = take(_9[1]);
@@ -383,49 +651,44 @@ export function formats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	const _6: [rs.f64, rs.ByteSlice] = take(data);
 	const a: rs.f64 = _6[0];
 	const p: rs.usize = option_unwrapOr$1fr498u(rs.byteSliceFirst(_6[1]), 0) as rs.usize;
-	b0: {
-		const w: rs.usize = rs.usizeDiv(p, 4);
-		const _13: rs.u8 = rs.u8Rem(kind, 5);
-		if (_13 === 0) {
-			const args17 = [(f: rs.Formatter) => rs.f64Display(a, f), (f: rs.Formatter) => rs.f64Debug(a, f), (f: rs.Formatter) => rs.f64LowerExp(a, f), (f: rs.Formatter) => rs.f64UpperExp(a, f), rs.fmtCount(p)];
-			put(out, rs.fmtFormat([args17[0], " ", args17[1], " ", args17[2], " ", args17[3], " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[0]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[1]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[2]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[3]), " ", rs.fmtSpec({ plus: true }, args17[0]), " ", rs.fmtSpec({ plus: true }, args17[1]), " ", rs.fmtSpec({ plus: true, precision: rs.fmtCountOf(args17[4]) }, args17[2])]).v);
-			const args18 = [(f: rs.Formatter) => rs.f64Display(a, f), (f: rs.Formatter) => rs.f64LowerExp(a, f), (f: rs.Formatter) => rs.f64Debug(a, f), (f: rs.Formatter) => rs.f64UpperExp(a, f), rs.fmtCount(w), rs.fmtCount(p)];
-			put(out, rs.fmtFormat([rs.fmtSpec({ zero: true, width: 8, precision: 3 }, args18[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 12 }, args18[1]), "|", rs.fmtSpec({ align: "<", width: 9 }, args18[0]), "|", rs.fmtSpec({ align: "^", width: 12 }, args18[2]), "|", rs.fmtSpec({ fill: "*", align: ">", width: 10, precision: 1 }, args18[0]), "|", rs.fmtSpec({ alternate: true }, args18[2]), "|", rs.fmtSpec({ debugHex: "x" }, args18[2]), "|", rs.fmtSpec({ fill: "-", align: "^", plus: true, width: 15, precision: 2 }, args18[3]), "|", rs.fmtSpec({ zero: true, width: 10 }, args18[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 10 }, args18[2]), "|", rs.fmtSpec({ align: ">", width: rs.fmtCountOf(args18[4]), precision: rs.fmtCountOf(args18[5]) }, args18[0]), "|", rs.fmtSpec({ fill: "é", align: "<", width: rs.fmtCountOf(args18[4]) }, args18[2])]).v);
-			put(out, rs.fmtToString((f: rs.Formatter) => rs.f64Display(a, f)).v);
-		} else if (_13 === 1) {
-			const args16 = [(f: rs.Formatter) => rs.f64Display(a, f), (f: rs.Formatter) => rs.f64LowerExp(a, f), (f: rs.Formatter) => rs.f64Debug(a, f)];
-			put(out, rs.fmtFormat([rs.fmtSpec({ precision: 1100 }, args16[0]), " ", rs.fmtSpec({ precision: 800 }, args16[1]), " ", rs.fmtSpec({ precision: 1100 }, args16[2]), " ", rs.fmtSpec({ precision: 65535 }, args16[0])]).v);
-		} else if (_13 === 2) {
-			const _72: [rs.f64, rs.ByteSlice] = take(_6[1]);
-			const b: rs.f64 = _72[0];
-			const c: rs.f64 = take(_72[1])[0];
-			putF64(out, rs.f64Clamp(a, b, c));
-		} else if (_13 === 3) {
-			const _78: rs.f64 | undefined = a * 0.5;
-			const _80: rs.Vec<rs.f64> = rs.vecFrom([a, -0.0, 1e-7, 1e16, NaN]);
-			const part = { level: a, peak: _78, history: _80 };
-			const args15 = [(f: rs.Formatter) => Reading.fmt$fmt_Debug(part, f)];
-			put(out, rs.fmtFormat([args15[0], "|", rs.fmtSpec({ alternate: true }, args15[0]), "|", rs.fmtSpec({ precision: 2 }, args15[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 12 }, args15[0])]).v);
-		} else {
-			let state: rs.u64 = rs.u64Or(takeBits(data)[0], 1);
-			let iterStart: rs.i32 = 0;
-			const iterEnd: rs.i32 = 64;
-			while (iterStart++ < iterEnd) {
-				const x: rs.f64 = rs.f64FromBits(step(rs.place(() => state, (value) => state = value)));
-				const args13 = [(f: rs.Formatter) => rs.f64Display(x, f), (f: rs.Formatter) => rs.f64Debug(x, f), (f: rs.Formatter) => rs.f64LowerExp(x, f)];
-				put(out, rs.fmtFormat([args13[0], " ", args13[1], " ", args13[2]]).v);
-			}
-			let iterStart2: rs.i32 = 0;
-			const iterEnd2: rs.i32 = 64;
-			while (true) {
-				if (!(iterStart2++ < iterEnd2)) {
-					break b0;
-				}
-				const r2: rs.u64 = step(rs.place(() => state, (value2) => state = value2));
-				const x2: rs.f64 = rs.u64ToF64(rs.u64Shr(r2, 11)) / rs.u64ToF64(rs.u64Shl(1, rs.u64Add(rs.u64Rem(r2, 24), 1)));
-				const args14 = [(f: rs.Formatter) => rs.f64Debug(x2, f), (f: rs.Formatter) => rs.f64LowerExp(x2, f)];
-				put(out, rs.fmtFormat([args14[0], " ", args14[1]]).v);
-			}
+	const w: rs.usize = rs.usizeDiv(p, 4);
+	const _13: rs.u8 = rs.u8Rem(kind, 5);
+	if (_13 === 0) {
+		const args17 = [(f: rs.Formatter) => rs.f64Display(a, f), (f: rs.Formatter) => rs.f64Debug(a, f), (f: rs.Formatter) => rs.f64LowerExp(a, f), (f: rs.Formatter) => rs.f64UpperExp(a, f), rs.fmtCount(p)];
+		put(out, rs.fmtFormat([args17[0], " ", args17[1], " ", args17[2], " ", args17[3], " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[0]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[1]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[2]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[3]), " ", rs.fmtSpec({ plus: true }, args17[0]), " ", rs.fmtSpec({ plus: true }, args17[1]), " ", rs.fmtSpec({ plus: true, precision: rs.fmtCountOf(args17[4]) }, args17[2])]).v);
+		const args18 = [(f: rs.Formatter) => rs.f64Display(a, f), (f: rs.Formatter) => rs.f64LowerExp(a, f), (f: rs.Formatter) => rs.f64Debug(a, f), (f: rs.Formatter) => rs.f64UpperExp(a, f), rs.fmtCount(w), rs.fmtCount(p)];
+		put(out, rs.fmtFormat([rs.fmtSpec({ zero: true, width: 8, precision: 3 }, args18[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 12 }, args18[1]), "|", rs.fmtSpec({ align: "<", width: 9 }, args18[0]), "|", rs.fmtSpec({ align: "^", width: 12 }, args18[2]), "|", rs.fmtSpec({ fill: "*", align: ">", width: 10, precision: 1 }, args18[0]), "|", rs.fmtSpec({ alternate: true }, args18[2]), "|", rs.fmtSpec({ debugHex: "x" }, args18[2]), "|", rs.fmtSpec({ fill: "-", align: "^", plus: true, width: 15, precision: 2 }, args18[3]), "|", rs.fmtSpec({ zero: true, width: 10 }, args18[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 10 }, args18[2]), "|", rs.fmtSpec({ align: ">", width: rs.fmtCountOf(args18[4]), precision: rs.fmtCountOf(args18[5]) }, args18[0]), "|", rs.fmtSpec({ fill: "é", align: "<", width: rs.fmtCountOf(args18[4]) }, args18[2])]).v);
+		put(out, rs.fmtToString((f: rs.Formatter) => rs.f64Display(a, f)).v);
+	} else if (_13 === 1) {
+		const args16 = [(f: rs.Formatter) => rs.f64Display(a, f), (f: rs.Formatter) => rs.f64LowerExp(a, f), (f: rs.Formatter) => rs.f64Debug(a, f)];
+		put(out, rs.fmtFormat([rs.fmtSpec({ precision: 1100 }, args16[0]), " ", rs.fmtSpec({ precision: 800 }, args16[1]), " ", rs.fmtSpec({ precision: 1100 }, args16[2]), " ", rs.fmtSpec({ precision: 65535 }, args16[0])]).v);
+	} else if (_13 === 2) {
+		const _72: [rs.f64, rs.ByteSlice] = take(_6[1]);
+		const b: rs.f64 = _72[0];
+		const c: rs.f64 = take(_72[1])[0];
+		putF64(out, rs.f64Clamp(a, b, c));
+	} else if (_13 === 3) {
+		const _78: rs.f64 | undefined = a * 0.5;
+		const _80: rs.Vec<rs.f64> = rs.vecFrom([a, -0.0, 1e-7, 1e16, NaN]);
+		const part = { level: a, peak: _78, history: _80 };
+		const args15 = [(f: rs.Formatter) => Reading.fmt$fmt_Debug(part, f)];
+		put(out, rs.fmtFormat([args15[0], "|", rs.fmtSpec({ alternate: true }, args15[0]), "|", rs.fmtSpec({ precision: 2 }, args15[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 12 }, args15[0])]).v);
+	} else {
+		let state: rs.u64 = rs.u64Or(takeBits(data)[0], 1);
+		let iterStart: rs.i32 = 0;
+		const iterEnd: rs.i32 = 64;
+		while (iterStart++ < iterEnd) {
+			const x: rs.f64 = rs.f64FromBits(step(rs.place(() => state, (value) => state = value)));
+			const args13 = [(f: rs.Formatter) => rs.f64Display(x, f), (f: rs.Formatter) => rs.f64Debug(x, f), (f: rs.Formatter) => rs.f64LowerExp(x, f)];
+			put(out, rs.fmtFormat([args13[0], " ", args13[1], " ", args13[2]]).v);
+		}
+		let iterStart2: rs.i32 = 0;
+		const iterEnd2: rs.i32 = 64;
+		while (iterStart2++ < iterEnd2) {
+			const r2: rs.u64 = step(rs.place(() => state, (value2) => state = value2));
+			const x2: rs.f64 = rs.u64ToF64(rs.u64Shr(r2, 11)) / rs.u64ToF64(rs.u64Shl(1, rs.u64Add(rs.u64Rem(r2, 24), 1)));
+			const args14 = [(f: rs.Formatter) => rs.f64Debug(x2, f), (f: rs.Formatter) => rs.f64LowerExp(x2, f)];
+			put(out, rs.fmtFormat([args14[0], " ", args14[1]]).v);
 		}
 	}
 }
@@ -436,47 +699,42 @@ export function formats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
  */
 export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _60!: rs.usize;
-	b0: {
-		const _4: rs.u8 = rs.u8Rem(kind, 3);
-		if (_4 === 0) {
-			const _6: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(data);
-			if (_6.ok) {
-				one(_6.value, out);
-			}
-		} else if (_4 === 1) {
-			const s: rs.String = rs.stringNew();
-			for (const b of rs.byteSliceView(data)) {
-				const _21: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 46, 101, 69, 43, 45, 95, 105, 110, 102, 73, 78, 70, 116, 121, 84, 89, 97, 32));
-				const _22: rs.usize = rs.usizeRem(b as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 46, 101, 69, 43, 45, 95, 105, 110, 102, 73, 78, 70, 116, 121, 84, 89, 97, 32)).length);
-				rs.idx(_21, _22);
-				rs.stringPush(s, _21.data[_21.start + _22] as rs.char);
-			}
-			one(s.v, out);
-		} else {
-			let state: rs.u64 = rs.u64Or(takeBits(data)[0], 1);
-			let iterStart: rs.i32 = 0;
-			const iterEnd: rs.i32 = 16;
-			while (true) {
-				if (!(iterStart++ < iterEnd)) {
-					break b0;
+	const _4: rs.u8 = rs.u8Rem(kind, 3);
+	if (_4 === 0) {
+		const _6: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(data);
+		if (_6.ok) {
+			one(_6.value, out);
+		}
+	} else if (_4 === 1) {
+		const s: rs.String = rs.stringNew();
+		for (const b of rs.byteSliceView(data)) {
+			const _21: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 46, 101, 69, 43, 45, 95, 105, 110, 102, 73, 78, 70, 116, 121, 84, 89, 97, 32));
+			const _22: rs.usize = rs.usizeRem(b as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 46, 101, 69, 43, 45, 95, 105, 110, 102, 73, 78, 70, 116, 121, 84, 89, 97, 32)).length);
+			rs.idx(_21, _22);
+			rs.stringPush(s, _21.data[_21.start + _22] as rs.char);
+		}
+		one(s.v, out);
+	} else {
+		let state: rs.u64 = rs.u64Or(takeBits(data)[0], 1);
+		let iterStart: rs.i32 = 0;
+		const iterEnd: rs.i32 = 16;
+		while (iterStart++ < iterEnd) {
+			const r: rs.u64 = step(rs.place(() => state, (value) => state = value));
+			const len: rs.usize = rs.u64Low(rs.u64Add(rs.u64Rem(r, 40), 1));
+			const point: rs.usize = rs.usizeRem(rs.u64Low(rs.u64Shr(r, 8)), rs.usizeAdd(len, 1));
+			const s2: rs.String = rs.stringNew();
+			let iterStart2: rs.usize = 0;
+			const iterEnd2: rs.usize = len;
+			while ((_60 = iterStart2++) < iterEnd2) {
+				if (_60 === point) {
+					rs.stringPush(s2, 46);
 				}
-				const r: rs.u64 = step(rs.place(() => state, (value) => state = value));
-				const len: rs.usize = rs.u64Low(rs.u64Add(rs.u64Rem(r, 40), 1));
-				const point: rs.usize = rs.usizeRem(rs.u64Low(rs.u64Shr(r, 8)), rs.usizeAdd(len, 1));
-				const s2: rs.String = rs.stringNew();
-				let iterStart2: rs.usize = 0;
-				const iterEnd2: rs.usize = len;
-				while ((_60 = iterStart2++) < iterEnd2) {
-					if (_60 === point) {
-						rs.stringPush(s2, 46);
-					}
-					const _69: rs.char = rs.u8Add(48, rs.u64Low(rs.u64Rem(step(rs.place(() => state, (value2) => state = value2)), 10)) & 0xff) as rs.char;
-					rs.stringPush(s2, _69);
-				}
-				const _85: rs.i64 = rs.i64Sub(rs.i64Cast(rs.u64Rem(rs.u64Shr(r, 16), 700)), 350);
-				const args3 = [(f: rs.Formatter) => rs.fmtPad(f, s2.v), (f: rs.Formatter) => rs.i64Display(_85, f)];
-				one(rs.fmtFormat([args3[0], "e", args3[1]]).v, out);
+				const _69: rs.char = rs.u8Add(48, rs.u64Low(rs.u64Rem(step(rs.place(() => state, (value2) => state = value2)), 10)) & 0xff) as rs.char;
+				rs.stringPush(s2, _69);
 			}
+			const _85: rs.i64 = rs.i64Sub(rs.i64Cast(rs.u64Rem(rs.u64Shr(r, 16), 700)), 350);
+			const args3 = [(f: rs.Formatter) => rs.fmtPad(f, s2.v), (f: rs.Formatter) => rs.i64Display(_85, f)];
+			one(rs.fmtFormat([args3[0], "e", args3[1]]).v, out);
 		}
 	}
 }

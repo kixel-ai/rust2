@@ -14,6 +14,7 @@ mod alloc;
 mod call;
 pub mod coroutine;
 mod decided;
+mod encode;
 pub mod glue;
 pub(super) mod holders;
 mod inline;
@@ -97,7 +98,7 @@ pub fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>
 pub fn fn_value<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	def_id: rustc_hir::def_id::DefId,
-	args: ty::GenericArgsRef<'tcx>,
+	args: ty::GenericArgs<'tcx>,
 	span: Span,
 ) -> Expr {
 	let tcx = b.t.tcx;
@@ -1933,6 +1934,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		// A loop's own labels first, which its header's `break` names.
 		step::for_of(&mut out);
 		inline::inline_temps(&mut out, &self.shared);
+		if encode::lower(&mut out, self.b) {
+			inline::inline_temps(&mut out, &self.shared);
+		}
 		// A loop can start by leaving now that what it tests is folded in.
 		cfg::tidy_loops(&mut out);
 		out
@@ -3553,7 +3557,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				ty::Tuple(tys) => stack.extend(tys.iter()),
 				ty::Array(elem, _) | ty::Slice(elem) => stack.push(*elem),
 				ty::Adt(adt, args) if self.b.t.own(adt.did()) => {
-					stack.extend(adt.all_fields().map(|field| self.b.t.field_ty(field.did, args)))
+					stack.extend(adt.all_fields().map(|field| self.b.t.field_ty(field.did, *args)))
 				}
 				ty::Adt(_, args) => stack.extend(args.types()),
 				ty::Closure(..) | ty::CoroutineClosure(..) => {
@@ -3592,7 +3596,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					) =>
 			{
 				adt.all_fields()
-					.any(|field| self.holds_behind(self.b.t.field_ty(field.did, args), part))
+					.any(|field| self.holds_behind(self.b.t.field_ty(field.did, *args), part))
 			}
 			_ => self.b.t.holds(self.b.t.typing_env_pub(), ty, part),
 		}
@@ -3674,7 +3678,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 					}
 					stack.extend(
 						adt.all_fields()
-							.map(|field| (field_ty(self.tcx, env, field.did, args), depth + 1)),
+							.map(|field| (field_ty(self.tcx, env, field.did, *args), depth + 1)),
 					);
 				}
 			}
@@ -4338,9 +4342,7 @@ fn parts_of(value: &Expr, slices: &FxHashSet<crate::ts::FieldId>) -> Option<Vec<
 	match value {
 		Expr::Array(items) => Some(items.clone()),
 		Expr::As(inner, _) => parts_of(inner, slices),
-		Expr::Call(f, items) if matches!(&**f, Expr::Member(base, crate::ts::Key::Name(of)) if of == "of" && matches!(&**base, Expr::Ident(u) if u == "Uint8Array")) => {
-			Some(items.clone())
-		}
+		_ if encode::literal(value).is_some() => Some(encode::literal(value).unwrap().to_vec()),
 		// A byte slice field held as its parts, `slices` its bytes', is one operand.
 		Expr::Object(props) => {
 			let mut parts = Vec::with_capacity(props.len());

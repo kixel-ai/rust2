@@ -16,7 +16,7 @@ import { drop as dispose, dropAll, partPlace, type Pending } from "./rs/task.ts"
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./rs/alloc.ts";
 import { AtIndex } from "./rs/collections.ts";
 import { escapeDebug } from "./rs/char.ts";
-import { byteSliceUtf8Chunks, String as RsString, strFromUtf8Unchecked, stringClone, stringCloneFrom, stringFrom, stringLen, stringNew, stringOf, stringPush, stringPushStr, stringWithCapacity } from "./rs/str.ts";
+import { byteSliceUtf8Chunks, String as RsString, strFromUtf8Unchecked, strGet, stringClone, stringCloneFrom, stringFrom, stringLen, stringNew, stringOf, stringPush, stringPushStr, stringWithCapacity } from "./rs/str.ts";
 export * from "./rs/alloc.ts";
 export * from "./rs/any.ts";
 export * from "./rs/ascii.ts";
@@ -2195,7 +2195,8 @@ export function byteSliceRange(s: ByteSlice, start: number, end: number = s.leng
 
 /** `IoSlice::advance` of the one at `p`: its bytes past the first `n`, which panics past its end. */
 export function ioSliceAdvance(p: Place<ByteSlice>, n: number, at?: Location): void {
-	p.v = byteSliceRange(p.v, n, undefined, at);
+	if (n > p.v.length) panic("mid > len", at);
+	p.v = new ByteSlice(p.v.data, p.v.start + n, p.v.length - n);
 }
 
 /**
@@ -3640,27 +3641,40 @@ export function fmtDebugList(f: Formatter): DebugList {
 	return { fmt: f, result: f.out.writeStr("["), hasFields: false };
 }
 
-/** `debug_struct_fields_finish`, which derived `Debug` calls past five fields. */
+/** A struct's `Debug` of its name, each field's, and their values, as the runtime's impls write it. */
 export function fmtDebugStructFields(f: Formatter, name: string, names: readonly string[], values: readonly Fmt[]): FmtResult {
-	if (names.length !== values.length) {
-		assertFailed(
-			"==",
-			(f) => usizeDisplay(names.length, f),
-			(f) => usizeDisplay(values.length, f),
-			undefined,
-			"debug_struct_fields",
-		);
-	}
 	const builder = fmtDebugStruct(f, name);
 	names.forEach((field, i) => debugStructField(builder, field, values[i]));
 	return debugStructFinish(builder);
 }
 
-/** `debug_tuple_fields_finish`, which derived `Debug` calls past five fields. */
+/** A tuple struct's `Debug` of its name and its fields' values. */
 export function fmtDebugTupleFields(f: Formatter, name: string, values: readonly Fmt[]): FmtResult {
 	const builder = fmtDebugTuple(f, name);
 	for (const value of values) debugTupleField(builder, value);
 	return debugTupleFinish(builder);
+}
+
+/**
+ * `Formatter::debug_struct_fields_finish`, which derived `Debug` calls with the type's name,
+ * then each field's, separated by spaces: a name alone is a tuple struct's.
+ */
+export function fmtDebugFields(f: Formatter, names: string, values: readonly Fmt[]): FmtResult {
+	const [name, ...fields] = names.split(" ");
+	if (fields.length === 0) return fmtDebugTupleFields(f, name, values);
+	const builder = fmtDebugStruct(f, name);
+	values.forEach((value, i) => {
+		if (i >= fields.length) panic("called `Option::unwrap()` on a `None` value", "debug_struct_fields");
+		debugStructField(builder, fields[i], value);
+	});
+	return debugStructFinish(builder);
+}
+
+/** `Formatter::debug_c_like_enum_write_str`: the word of `names` from byte `start`. */
+export function fmtDebugEnum(f: Formatter, names: string, start: usize): FmtResult {
+	const rest = strGet(names, start);
+	if (rest === undefined) panic("called `Option::unwrap()` on a `None` value", "debug_enum");
+	return f.out.writeStr(rest.split(" ", 1)[0]);
 }
 
 /** `fmt::DebugStruct`. */

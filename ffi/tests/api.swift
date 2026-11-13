@@ -695,6 +695,15 @@ func script() {
 	print("boxed \(boxedName(boxedCounter("b")).map { "Some(\"\($0)\")" } ?? "None") \(boxedName(nil) ?? "None") \(boxedCounter(nil) == nil)")
 	print("less \(less(5, 2))")
 	print("sums \(sums([[1, 2], [], [3]]))")
+	print("least \(least([[3, 1], [], [2]]).map { "\($0)" }.joined(separator: " "))")
+	numbers("edges", Numbers.edges())
+	numbers("reversed", Numbers.edges().reversed())
+	let edges = Numbers.edges()
+	let nan = Measure.new(Double.nan, false)
+	print("float equal \(edges == edges) \(edges == Numbers.edges()) \(Numbers.zero(true) == Numbers.zero(false)) \(nan == nan) \(Measure.new(-0.0, true) == Measure.new(0.0, false))")
+	print("sum u32 \(sumU32([])) \(sumU32([UInt32.max, UInt32.max, 2]))")
+	print("doubled i64 \(doubledI64([Int64.min, -1, 0, Int64.max]))")
+	print("boxed floats \(boxedFloats([-0.0, Double(bitPattern: 0x7ff8_0000_0000_0001)]).map(\.bitPattern))")
 	let sum = summed([Point(x: 1, y: 2), Point(x: -4, y: 6)])
 	let noneSum = summed([])
 	print("summed \(sum.x) \(sum.y) \(noneSum.x) \(noneSum.y)")
@@ -803,6 +812,20 @@ func script() {
 		print("hop \(nextHop(hop).map { "Some(\($0))" } ?? "None")")
 	}
 	print("farther hop \(fartherHop(PairNonZeroU16(left: 3, right: .max)))")
+}
+
+/// Print each of `n`'s lists, its floats as their bits, as transcript.rs does.
+func numbers(_ what: String, _ n: Numbers) {
+	print("\(what) u16 \(n.u16s)")
+	print("\(what) u32 \(n.u32s)")
+	print("\(what) u64 \(n.u64s)")
+	print("\(what) i8 \(n.i8s)")
+	print("\(what) i16 \(n.i16s)")
+	print("\(what) i32 \(n.i32s)")
+	print("\(what) i64 \(n.i64s)")
+	print("\(what) f32 \(n.f32s.map(\.bitPattern))")
+	print("\(what) f64 \(n.f64s.map(\.bitPattern))")
+	print("\(what) some \(n.some.map { "Some(\($0))" } ?? "None")")
 }
 
 func printTail(_ read: () throws -> (Data, UInt64)) {
