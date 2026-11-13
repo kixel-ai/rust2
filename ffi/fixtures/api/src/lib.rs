@@ -2233,6 +2233,88 @@ pub fn sums(rows: Vec<Vec<u32>>) -> Vec<u32> {
 	rows.iter().map(|row| row.iter().sum()).collect()
 }
 
+/// A list of each fixed-width integer and float type, each crossing as one block.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Numbers {
+	pub u16s: Vec<u16>,
+	pub u32s: Box<[u32]>,
+	pub u64s: Vec<u64>,
+	pub i8s: Vec<i8>,
+	pub i16s: Vec<i16>,
+	pub i32s: Vec<i32>,
+	pub i64s: Vec<i64>,
+	pub f32s: Vec<f32>,
+	pub f64s: Vec<f64>,
+	pub some: Option<Vec<i32>>,
+}
+
+impl Numbers {
+	/// Each type's edges: its least, 0, 1, and its greatest; for floats, also -0.0, the
+	/// least subnormal, the infinities, and a NaN with a payload.
+	pub fn edges() -> Self {
+		Self {
+			u16s: vec![0, 1, u16::MAX],
+			u32s: Box::new([0, 1, u32::MAX]),
+			u64s: vec![0, 1, u64::MAX],
+			i8s: vec![i8::MIN, -1, 0, 1, i8::MAX],
+			i16s: vec![i16::MIN, -1, 0, 1, i16::MAX],
+			i32s: vec![i32::MIN, -1, 0, 1, i32::MAX],
+			i64s: vec![i64::MIN, -1, 0, 1, i64::MAX],
+			f32s: vec![
+				f32::MIN,
+				-0.0,
+				f32::from_bits(1),
+				f32::MAX,
+				f32::NEG_INFINITY,
+				f32::INFINITY,
+				f32::from_bits(0x7fc0_0001),
+			],
+			f64s: vec![
+				f64::MIN,
+				-0.0,
+				f64::from_bits(1),
+				f64::MAX,
+				f64::NEG_INFINITY,
+				f64::INFINITY,
+				f64::from_bits(0x7ff8_0000_0000_0001),
+			],
+			some: Some(Vec::new()),
+		}
+	}
+
+	/// Each list reversed, and `some` too where present.
+	pub fn reversed(mut self) -> Self {
+		self.u16s.reverse();
+		self.u32s.reverse();
+		self.u64s.reverse();
+		self.i8s.reverse();
+		self.i16s.reverse();
+		self.i32s.reverse();
+		self.i64s.reverse();
+		self.f32s.reverse();
+		self.f64s.reverse();
+		if let Some(some) = &mut self.some {
+			some.reverse();
+		}
+		self
+	}
+}
+
+/// The sum of `items`, borrowed in place.
+pub fn sum_u32(items: &[u32]) -> u64 {
+	items.iter().map(|&v| u64::from(v)).sum()
+}
+
+/// `items` doubled, wrapping, from a borrowed slice.
+pub fn doubled_i64(items: &[i64]) -> Vec<i64> {
+	items.iter().map(|v| v.wrapping_mul(2)).collect()
+}
+
+/// `items` back as Rust took them, boxed.
+pub fn boxed_floats(items: Box<[f64]>) -> Box<[f64]> {
+	items
+}
+
 /// The points added up, from anything that iterates them.
 pub fn summed(points: impl IntoIterator<Item = Point>) -> Point {
 	points.into_iter().fold(Point::default(), |sum, p| sum.offset(p.x, p.y))

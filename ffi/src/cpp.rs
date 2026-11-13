@@ -212,6 +212,8 @@ impl<'a> Header<'a> {
 	fn arena(&self, ty: &Type) -> bool {
 		let api = self.abi.api;
 		match ty {
+			// A block crosses in place.
+			Type::List(..) if ty.block().is_some() => false,
 			Type::List(..) => true,
 			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => self.arena(inner),
 			Type::Tuple(elements) => elements.iter().any(|e| self.arena(e)),
@@ -259,6 +261,7 @@ impl<'a> Header<'a> {
 				e.to_string()
 			}
 			Type::Waker => format!("{d}::give({d}::access::raw({e}))"),
+			Type::List(_, inner) if ty.block().is_some() => format!("{d}::block<::{}>({e})", abi.list(inner)),
 			Type::List(_, inner) => {
 				let x = format!("x{}_", lists(inner));
 				format!(
@@ -323,6 +326,11 @@ impl<'a> Header<'a> {
 			Type::U128 | Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				e.to_string()
 			}
+			Type::List(_, inner) if ty.block().is_some() => format!(
+				"{d}::lift_block<{}>({e}, &::{}_free)",
+				self.owned(inner),
+				abi.list(inner)
+			),
 			Type::List(_, inner) => {
 				let c = format!("c{}_", lists(inner));
 				format!(

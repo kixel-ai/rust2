@@ -4220,7 +4220,7 @@ impl<'tcx> Collector<'tcx> {
 						if borrows(&item) && !matches!(pos, Pos::Return | Pos::Returned) {
 							return Err(why("slice of references", elem.to_string()));
 						}
-						Type::List(Collection::Vec, Box::new(item))
+						Type::List(Collection::Slice, Box::new(item))
 					}
 					ty::Dynamic(..) => return Err(why("trait object", inner.to_string())),
 					// A returned `&Waker` crosses as its clone, as any borrowed return does.
@@ -4412,6 +4412,18 @@ impl<'tcx> Collector<'tcx> {
 					match inner.kind() {
 						ty::Dynamic(preds, ..) => {
 							return self.dynamic(preds.principal_def_id(), Dyn::Box, inner, pos);
+						}
+						// A boxed slice crosses as a `Vec`'s array does, but of bytes, which
+						// no buffer form takes.
+						ty::Slice(elem) if *elem == tcx.types.u8 => {
+							return Err(why("boxed slice of bytes", ty.to_string()));
+						}
+						ty::Slice(elem) => {
+							let item = self.ty(*elem, pos.inner())?;
+							if borrows(&item) && !matches!(pos, Pos::Return | Pos::Returned) {
+								return Err(why("boxed slice of references", elem.to_string()));
+							}
+							Type::List(Collection::Box, Box::new(item))
 						}
 						_ => Type::Box(Box::new(self.ty(inner, pos.inner())?)),
 					}

@@ -66,6 +66,8 @@ fn foreign_path(path: &[String]) -> String {
 fn collection(c: Collection) -> String {
 	match c {
 		Collection::Vec => "::std::vec::Vec".to_string(),
+		Collection::Box => "::std::boxed::Box".to_string(),
+		Collection::Slice => unreachable!("a slice is spelled `[T]`"),
 		Collection::BTreeSet => "::std::collections::BTreeSet".to_string(),
 		Collection::BTreeMap => "::std::collections::BTreeMap".to_string(),
 		Collection::JsonMap => format!("::{}::Map", foreign("serde_json")),
@@ -443,6 +445,8 @@ impl Gen<'_> {
 				(Collection::BTreeMap | Collection::JsonMap, Type::Tuple(pair)) => {
 					format!("{}<{}, {}>", collection(*c), self.rust(&pair[0]), self.rust(&pair[1]))
 				}
+				(Collection::Box, _) => format!("{}<[{}]>", collection(*c), self.rust(inner)),
+				(Collection::Slice, _) => format!("[{}]", self.rust(inner)),
 				_ => format!("{}<{}>", collection(*c), self.rust(inner)),
 			},
 			Type::Option(inner) => format!("Option<{}>", self.rust(inner)),
@@ -479,13 +483,23 @@ impl Gen<'_> {
 			Type::SocketAddr(Family::V6) => format!("{e}.lift_v6(w)"),
 			Type::Waker => format!("{e}.lift()"),
 			Type::Future | Type::Reader => format!("{e}.lift(w)"),
-			Type::List(c, inner) => format!(
-				"unsafe {{ {e}.items(w) }}.iter().map(|c| {}).collect::<{}<{}>>()",
-				self.lift(inner, "(*c)"),
-				collection(*c),
+			// A block is copied out whole.
+			Type::List(c, _) if ty.block().is_some() => format!(
+				"{}::from(unsafe {{ {e}.items(w) }})",
 				match c {
-					Collection::BTreeMap | Collection::JsonMap => "_, _",
-					Collection::Vec | Collection::BTreeSet => "_",
+					Collection::Box => "::std::boxed::Box::<[_]>",
+					// A slice no call borrows in place is lifted into a `Vec`, lent as one.
+					_ => "::std::vec::Vec::<_>",
+				}
+			),
+			Type::List(c, inner) => format!(
+				"unsafe {{ {e}.items(w) }}.iter().map(|c| {}).collect::<{}>()",
+				self.lift(inner, "(*c)"),
+				match c {
+					Collection::BTreeMap | Collection::JsonMap => format!("{}<_, _>", collection(*c)),
+					Collection::Box => format!("{}<[_]>", collection(*c)),
+					Collection::Vec | Collection::Slice => format!("{}<_>", collection(Collection::Vec)),
+					Collection::BTreeSet => format!("{}<_>", collection(*c)),
 				}
 			),
 			// A foreign enum's option converts into its filter, as `tracing::LevelFilter`.
@@ -659,6 +673,11 @@ impl Gen<'_> {
 			Type::Duration => format!("rt::Duration::lower({e})"),
 			Type::Array(n) => format!("{} {{ items: {e} }}", self.abi.array(*n)),
 			Type::SocketAddr(_) => format!("rt::SocketAddr::lower(::std::net::SocketAddr::from({e}))"),
+			// A block hands over its own allocation.
+			Type::List(Collection::Box, _) if ty.block().is_some() => {
+				format!("rt::List::owned(::std::vec::Vec::from({e}))")
+			}
+			Type::List(..) if ty.block().is_some() => format!("rt::List::owned({e})"),
 			Type::List(_, inner) => format!(
 				"rt::List::owned(::std::iter::IntoIterator::into_iter({e}).map(|v| {}).collect())",
 				self.lower(inner, "v")
@@ -1314,6 +1333,10 @@ impl Gen<'_> {
 				(Type::Path, Mutability::Not, false) => {
 					(format!("let {local} = unsafe {{ {c}.path(w) }};"), local.to_string())
 				}
+				// A slice of a block is borrowed in place, as bytes are.
+				(list @ Type::List(Collection::Slice, _), Mutability::Not, false) if list.block().is_some() => {
+					(format!("let {local} = unsafe {{ {c}.items(w) }};"), local.to_string())
+				}
 				(inner, m, _) => {
 					let (binding, pass) = match m {
 						Mutability::Mut => ("let mut", format!("&mut {local}")),
@@ -1701,6 +1724,7 @@ fn owned(ok: &Type) -> (Type, Option<String>) {
 			Type::Str => Type::String,
 			Type::Slice => Type::Vec,
 			Type::Path => Type::PathBuf,
+			Type::List(Collection::Slice, item) => Type::List(Collection::Vec, item.clone()),
 			inner => inner.clone(),
 		}),
 		_ => None,

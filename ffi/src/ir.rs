@@ -411,8 +411,8 @@ pub enum Type {
 	/// `std::net::SocketAddr`, or `SocketAddrV4` or `SocketAddrV6` for one family.
 	SocketAddr(Family),
 	/// A collection of `T`, which C passes and returns as an array of its items: `Vec<T>` of
-	/// any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]` too; a set;
-	/// or a map, whose `T` is the tuple of a key and its value.
+	/// any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]` too; a boxed
+	/// slice; a set; or a map, whose `T` is the tuple of a key and its value.
 	List(Collection, Box<Type>),
 	/// `std::task::Waker`, only as a parameter taken by value or a return: a returned
 	/// `&Waker` is its clone, and a returned `Context` its waker's.
@@ -467,8 +467,12 @@ pub struct Closure {
 /// The Rust collection a [`Type::List`] is, which Rust builds from its items in order.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Collection {
-	/// `Vec<T>`, or behind a reference, `[T]`.
+	/// `Vec<T>`
 	Vec,
+	/// `[T]`, only behind a reference.
+	Slice,
+	/// `Box<[T]>`
+	Box,
 	/// `std::collections::BTreeSet<T>`
 	BTreeSet,
 	/// `std::collections::BTreeMap<K, V>`
@@ -571,6 +575,21 @@ impl Type {
 		match self {
 			Type::Ref(_, inner) | Type::Box(inner) => inner.base(),
 			ty => ty,
+		}
+	}
+
+	/// The element of a list that crosses as one block of its C values, which a binding
+	/// holds as the language's primitive array: a `Vec`, slice, or boxed slice of a
+	/// fixed-width integer or a float. `usize` and `isize` differ in width by target, so no
+	/// one array type holds them on every target.
+	pub fn block(&self) -> Option<&Type> {
+		match self {
+			Type::List(Collection::Vec | Collection::Slice | Collection::Box, inner) => match &**inner {
+				Type::Int(Int::Usize | Int::Isize) => None,
+				Type::Int(_) | Type::F32 | Type::F64 => Some(inner),
+				_ => None,
+			},
+			_ => None,
 		}
 	}
 

@@ -39,6 +39,59 @@ void print(const char *before, const api::buf &buf, const char *after) {
 	std::printf("%s%.*s%s", before, static_cast<int>(buf.size()), reinterpret_cast<const char *>(buf.data()), after);
 }
 
+// Print a list as Rust's `{:?}` does, each item as `show` spells it.
+template <typename T, typename F> static void print_list(const std::vector<T> &list, F show) {
+	std::printf("[");
+	for (size_t i = 0; i < list.size(); i++) {
+		std::printf(i ? ", %s" : "%s", show(list[i]).c_str());
+	}
+	std::printf("]");
+}
+
+static uint64_t f64_bits(double f) {
+	uint64_t bits;
+	std::memcpy(&bits, &f, sizeof bits);
+	return bits;
+}
+
+static double f64_from(uint64_t bits) {
+	double f;
+	std::memcpy(&f, &bits, sizeof f);
+	return f;
+}
+
+static uint32_t f32_bits(float f) {
+	uint32_t bits;
+	std::memcpy(&bits, &f, sizeof bits);
+	return bits;
+}
+
+// Print each of `n`'s lists, its floats as their bits, as transcript.rs does.
+static void numbers(const char *what, const api::Numbers &n) {
+	auto line = [&](const char *name, const auto &list, auto show) {
+		std::printf("%s %s ", what, name);
+		print_list(list, show);
+		std::printf("\n");
+	};
+	auto num = [](auto v) { return std::to_string(v); };
+	line("u16", n.u16s, num);
+	line("u32", n.u32s, num);
+	line("u64", n.u64s, num);
+	line("i8", n.i8s, [](int8_t v) { return std::to_string(int(v)); });
+	line("i16", n.i16s, num);
+	line("i32", n.i32s, num);
+	line("i64", n.i64s, num);
+	line("f32", n.f32s, [](float v) { return std::to_string(f32_bits(v)); });
+	line("f64", n.f64s, [](double v) { return std::to_string(f64_bits(v)); });
+	if (n.some) {
+		std::printf("%s some Some(", what);
+		print_list(*n.some, num);
+		std::printf(")\n");
+	} else {
+		std::printf("%s some None\n", what);
+	}
+}
+
 // A reader of bytes in memory, which Rust reads and seeks.
 struct memory {
 	std::string bytes;
@@ -892,6 +945,16 @@ int script() {
 
 	auto sums = api::sums({{1, 2}, {}, {3}});
 	std::printf("sums [%u, %u, %u]\n", sums[0], sums[1], sums[2]);
+	numbers("edges", api::Numbers::edges());
+	numbers("reversed", api::Numbers::edges().reversed());
+	std::printf("sum u32 %llu %llu\n", static_cast<unsigned long long>(api::sum_u32({})),
+	            static_cast<unsigned long long>(api::sum_u32({UINT32_MAX, UINT32_MAX, 2})));
+	std::printf("doubled i64 ");
+	print_list(api::doubled_i64({INT64_MIN, -1, 0, INT64_MAX}), [](int64_t v) { return std::to_string(v); });
+	std::printf("\n");
+	std::printf("boxed floats ");
+	print_list(api::boxed_floats({-0.0, f64_from(0x7ff8000000000001)}), [](double v) { return std::to_string(f64_bits(v)); });
+	std::printf("\n");
 	auto summed = api::summed({{1, 2}, {-4, 6}});
 	auto none_summed = api::summed({});
 	std::printf("summed %d %d %d %d\n", summed.x, summed.y, none_summed.x, none_summed.y);
@@ -1437,7 +1500,8 @@ int lifetimes() {
 	{
 		std::uint32_t before = api::dropped();
 		api::Gauge a = api::Gauge::new_(4);
-		std::optional<api::Gauge> made(a);
+		// On the heap, where GCC 16 sees no use of an uninitialized `optional`.
+		auto made = std::make_unique<api::Gauge>(a);
 		api::Gauge_later_future later = made->later();
 		api::waker waker([]() {});
 		check(!later.poll(waker), "a future pends");

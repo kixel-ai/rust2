@@ -794,6 +794,22 @@ public:
 	}
 };
 
+// The numbers of `items` as the C array `C`, in place: never null, so an empty one is
+// told apart from a missing one.
+template <class C, class T>
+C block(const ::std::vector<T> &items) {
+	static const T empty{};
+	return C{items.empty() ? &empty : items.data(), items.size(), nullptr};
+}
+
+// The C array of numbers `c` Rust returned, copied whole, then freed.
+template <class T, class C, class Free>
+::std::vector<T> lift_block(C c, Free free) {
+	::std::vector<T> out(c.ptr, c.ptr + c.len);
+	free(c);
+	return out;
+}
+
 // The C array `c` Rust returned, as `T`s each lifted by `lift`, which takes what its
 // element holds; `free` then frees the array alone.
 template <class T, class C, class F, class Free>
