@@ -1635,7 +1635,7 @@ impl<'a> Gen<'a> {
 		let ok = strip_refs(&function.ok);
 		let err = function.err.as_ref().map(strip_refs);
 		let exception = err.as_ref().map(|e| self.exception(e));
-		if let Some((_, poll, free)) = &export.future {
+		if let Some(abi::Future { poll, free, .. }) = &export.future {
 			let poll_outs = &poll.params[2..];
 			let (decl, ptrs, value) = self.outs(
 				poll_outs,

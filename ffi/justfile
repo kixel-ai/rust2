@@ -39,6 +39,10 @@ shapes:
 android:
     cargo test --locked --test fixtures -- --ignored --exact api_android
 
+# Run the api fixture's C and C++ scripts under AddressSanitizer and ThreadSanitizer, and its glue's C ABI under Miri, in the sanitize shell: nix develop .#sanitize.
+sanitize:
+    cargo test --locked --test fixtures -- --ignored --exact api_asan api_tsan api_miri
+
 # Apply formatters without changing program behavior.
 fix:
     cargo clippy --locked --fix --allow-staged --allow-dirty --all-targets

@@ -122,6 +122,24 @@ jobs:
       - name: Clang
         run: nix develop .#clang --command bash -c 'export CC=gcc; just ffi test cpp && just ffi moq-cpp'
 
+  # The api fixture's C and C++ scripts against glue built under AddressSanitizer and
+  # ThreadSanitizer, and its C ABI driven from Rust under Miri.
+  ffi-sanitize:
+    name: Export to C under sanitizers and Miri
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Sanitize
+        run: nix develop .#sanitize --command just ffi sanitize
+
   # The C++ header with the compilers the job above lacks, through the same checks, the
   # Python on the platforms the job above lacks, and on macOS the Swift with Apple's
   # toolchain.
@@ -155,7 +173,7 @@ jobs:
       # No Nix: its dev shell would replace the system compiler under test. The runner's
       # rustup installs rust-toolchain.toml's channel.
       - name: Install just
-        uses: taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68 # v2.88.1
+        uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
         with:
           tool: just
 
@@ -278,7 +296,7 @@ jobs:
   # schedule, which runs main, gets the write token: a dispatch can run any branch.
   report:
     name: Report
-    needs: [gate, ts, bench, ffi, ffi-cpp, ffi-android, ffi-bench, census]
+    needs: [gate, ts, bench, ffi, ffi-sanitize, ffi-cpp, ffi-android, ffi-bench, census]
     if: ${{ !cancelled() && github.event_name == 'schedule' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
