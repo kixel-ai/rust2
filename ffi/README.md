@@ -18,7 +18,8 @@ is a nightly. The package is the facade: once rustc has checked its library, it 
 reachable from the crate root, following `pub use` re-exports of other crates' items and
 modules, and exports it by fixed rules, or refuses it with a compile error at its span.
 So a facade such as moq-ffi exports several crates into one library by re-exporting what
-it ships, and a type no path from its root reaches is refused. The prefix of every C name
+it ships; a type a signature names that no path from its root reaches exports by its
+public path in its own crate ([Rules](#rules)). The prefix of every C name
 is the library's crate name, Cargo's `[lib] name`, which defaults to the package's name in
 snake case. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
 beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate makes a
@@ -65,7 +66,17 @@ export nothing of their own. A re-export of the standard library's item is refus
 its types map by role. A `pub use` of a whole crate, as in `pub use rustls;` or
 `pub use web_transport_proto as proto;`, is refused once at that `pub use`, since it puts
 every release of that crate in the facade's API; a glob of its root, `pub use dep::*;`,
-re-exports its items instead, which export. A type no path reaches is refused.
+re-exports its items instead, which export.
+
+A type an export's signature names that no path from the root reaches, as moq-net's
+`dial_tcp` returns kio's `Pending`, exports by its shortest public path in its own crate,
+`<prefix>::<crate>::<path>`, through that crate's modules and re-exports, with what its own
+signatures name in turn. This holds whether or not the facade re-exports anything else of
+that crate. The glue depends on that crate directly, as the facade resolves it; a crate
+another of its name shares, the facade's root names, or another registry serves is not
+reached. A crate only signatures reach keeps the roles of one no export is: its error in a
+`Result` crosses as its message, and its type behind an `Arc` as an opaque handle, refused
+bare. A type no public path names stays refused.
 
 | Rust | C |
 | --- | --- |

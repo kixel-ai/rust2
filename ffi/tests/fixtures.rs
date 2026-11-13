@@ -1242,8 +1242,10 @@ fn go_package_names() {
 }
 
 /// A type a signature names that the root does not reach, as moq-net's `kio::Pending`,
-/// exports by its public path in its own crate, through a re-export or a module; one no public
-/// path names stays refused.
+/// exports by its public path in its own crate, through a re-export or a module, even from a
+/// crate the facade re-exports nothing from; one no public path names stays refused. Such a
+/// crate's error still crosses as its message, and its type an `Arc` holds stays an opaque
+/// handle, refused bare.
 #[test]
 fn unreached_types() {
 	let package = package("unreached_types");
@@ -1253,13 +1255,32 @@ fn unreached_types() {
 			(
 				"Cargo.toml",
 				"[package]\nname = \"unreached_types\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"pkg\"\n\n\
-				[dependencies]\nkio = { package = \"unreached-kio\", path = \"kio\" }\n\n[workspace]\nexclude = [\"kio\"]\n",
+				[dependencies]\nkio = { package = \"unreached-kio\", path = \"kio\" }\n\
+				net = { package = \"unreached-net\", path = \"net\" }\n\n[workspace]\nexclude = [\"kio\", \"net\"]\n",
 			),
 			(
 				"src/lib.rs",
 				"pub use kio::Ready;\n\npub fn pending() -> kio::Pending {\n\tkio::Pending(1)\n}\n\n\
 				pub fn version() -> kio::version::Version {\n\tkio::version::Version { major: 2 }\n}\n\n\
-				pub fn seal() -> kio::Sealed {\n\tkio::sealed()\n}\n",
+				pub fn seal() -> kio::Sealed {\n\tkio::sealed()\n}\n\n\
+				pub fn connect() -> Result<net::Link, net::Fault> {\n\tnet::connect()\n}\n\n\
+				pub fn handle() -> std::sync::Arc<net::Handle> {\n\tstd::sync::Arc::new(net::Handle(4))\n}\n\n\
+				pub fn bare(handle: &net::Handle) -> u32 {\n\thandle.0\n}\n\n\
+				pub fn opaque() -> Result<(), net::Opaque> {\n\tErr(net::Opaque)\n}\n\n\
+				pub fn closed() -> net::Closed {\n\tnet::closed()\n}\n",
+			),
+			(
+				"net/Cargo.toml",
+				"[package]\nname = \"unreached-net\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"net\"\n",
+			),
+			(
+				"net/src/lib.rs",
+				"mod link {\n\tpub struct Link(pub u32);\n\n\timpl Link {\n\t\tpub fn id(&self) -> u32 {\n\t\t\tself.0\n\t\t}\n\t}\n}\n\n\
+				pub use link::Link;\n\npub struct Handle(pub u32);\n\n#[derive(Debug)]\npub struct Fault;\n\n\
+				impl std::fmt::Display for Fault {\n\tfn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n\t\tf.write_str(\"fault\")\n\t}\n}\n\n\
+				pub struct Opaque;\n\nmod closed {\n\tpub struct Closed;\n}\n\npub type Closed = closed::Closed;\n\n\
+				pub fn closed() -> closed::Closed {\n\tclosed::Closed\n}\n\n\
+				pub fn connect() -> Result<Link, Fault> {\n\tOk(Link(1))\n}\n",
 			),
 			(
 				"kio/Cargo.toml",
@@ -1275,7 +1296,11 @@ fn unreached_types() {
 		],
 	);
 	// The export builds, naming `kio`'s types through its own dependency on `kio`.
-	std::fs::write(package.join("ffi.toml"), "exclude = [\"seal\"]\n").unwrap();
+	std::fs::write(
+		package.join("ffi.toml"),
+		"exclude = [\"seal\", \"bare\", \"opaque\", \"closed\"]\n",
+	)
+	.unwrap();
 	let out = package.join("out");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--config")
@@ -1285,6 +1310,11 @@ fn unreached_types() {
 		.env("CARGO_TARGET_DIR", package.join("build")));
 	let glue = std::fs::read_to_string(out.join("src/lib.rs")).unwrap();
 	assert!(glue.contains("::kio_reached::Pending"), "{glue}");
+	// `net`'s error crosses as its message, and its `Arc` as an opaque handle.
+	assert!(
+		glue.contains("::net_reached::Link") && !glue.contains("Fault") && !glue.contains("net_reached::Handle"),
+		"{glue}"
+	);
 	run(cargo()
 		.arg("build")
 		.arg("--manifest-path")
@@ -1300,17 +1330,16 @@ fn unreached_types() {
 		.env("CARGO_TARGET_DIR", package.join("build")));
 	let moved = scratch().join("unreached_types-moved");
 	let _ = std::fs::remove_dir_all(&moved);
-	for dir in ["src", "kio"] {
+	for dir in ["src", "kio", "net"] {
 		copy_dir(&package.join(dir), &moved.join(dir));
 	}
 	for file in ["Cargo.toml", "ffi.toml"] {
 		std::fs::copy(package.join(file), moved.join(file)).unwrap();
 	}
-	std::fs::write(
-		moved.join("src/lib.rs"),
-		"pub use kio::Ready;\n\npub fn seal() -> kio::Sealed {\n\tkio::sealed()\n}\n",
-	)
-	.unwrap();
+	let lib = std::fs::read_to_string(package.join("src/lib.rs")).unwrap();
+	let (head, rest) = lib.split_once("pub fn pending").unwrap();
+	let rest = &rest[rest.find("pub fn seal").unwrap()..];
+	std::fs::write(moved.join("src/lib.rs"), format!("{head}{rest}")).unwrap();
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--config")
 		.arg(moved.join("ffi.toml"))
@@ -1341,8 +1370,18 @@ fn unreached_types() {
 		String::from_utf8_lossy(&output.stderr)
 	);
 	let report = std::fs::read_to_string(census.join("unreached_types.md")).unwrap();
-	// `Pending` and `Version` export; `Sealed` alone is refused, though an alias names it.
-	assert!(report.contains("| Types | 2 | 0 |"), "{report}");
+	// `Pending`, `Version`, and `Link` export; `Sealed` alone is refused as unreached, though
+	// an alias names it.
+	assert!(report.contains("| Types | 3 | 0 |"), "{report}");
+	// A type an `Arc` holds, a `Result`'s error without `Display`, and one no public path
+	// names stay refused as foreign.
+	for refused in [
+		"fn `bare` at src/lib.rs:23:1: foreign type `net::Handle`",
+		"fn `opaque` at src/lib.rs:27:1: foreign type `net::Opaque`",
+		"fn `closed` at src/lib.rs:31:1: foreign type `net::closed::Closed`",
+	] {
+		assert!(report.contains(refused), "{report}");
+	}
 	assert!(
 		report.contains("fn `seal` at src/lib.rs:11:1: type not reachable from the crate root `kio::sealed::Sealed`"),
 		"{report}"

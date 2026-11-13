@@ -583,6 +583,9 @@ fn main() {
 	println!("nudge {} {}", point.x, point.y);
 	let config = api::secure("h3");
 	println!("secure {} {}", api::alpn_lent(&config), api::alpn(config.clone()));
+	let session = api::resume("h3", 60).unwrap();
+	println!("resume {} {}", session.alpn(), session.lifetime().seconds);
+	println!("resume err {}", api::resume("", 60).err().unwrap());
 	let mut meters = api::Meters::new();
 	let first = meters.first();
 	first.add(2);
