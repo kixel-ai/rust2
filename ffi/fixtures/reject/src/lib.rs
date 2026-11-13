@@ -1026,3 +1026,18 @@ pub fn hazard(hazard: Box<dyn Hazard>) -> u32 {
 pub fn wide_non_zero(n: std::num::NonZero<u128>) -> u128 {
 	n.get()
 }
+
+/// A future whose output is an `impl Trait` hiding no object, which the glue cannot name.
+pub async fn hidden_answer() -> impl Copy {
+	1_u32
+}
+
+/// A collected iterator whose items are an `impl Trait` hiding no object.
+pub fn hidden_items() -> impl Iterator<Item = impl Copy> {
+	[1_u32].into_iter()
+}
+
+/// An `impl Trait` hiding an `Option`, which the glue cannot take apart.
+pub fn hidden_option() -> impl Clone {
+	Some(1_u32)
+}

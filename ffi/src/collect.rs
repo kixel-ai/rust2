@@ -2886,29 +2886,38 @@ impl<'tcx> Collector<'tcx> {
 			_ => output,
 		};
 		// The glue cannot name an `impl Trait`'s hidden type, so one in a return that maps
-		// crosses only as what the glue passes on whole, an object's handle; a future and a
-		// collected iterator map apart.
+		// crosses only as what the glue passes on whole, an object's handle. A future and a
+		// collected iterator are taken apart instead, so it is what their output or items
+		// name that crosses.
 		let unrevealed = sig.output();
-		let opaques = (unrevealed.walk().filter_map(|arg| arg.as_type()))
-			.filter(|ty| {
-				matches!(
-					ty.kind(),
-					ty::Alias(
-						_,
-						ty::AliasTy {
-							kind: ty::AliasTyKind::Opaque { .. },
-							..
-						}
-					)
-				)
-			})
-			.filter(|&ty| ok.is_ok() && !(ty == unrevealed && (future || collect)));
-		for ty in opaques {
-			let hidden = normalize(ty);
-			if !matches!(hidden.kind(), ty::Adt(adt, args)
-				if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))))
-			{
-				errs.push(why("opaque type", ty.to_string()));
+		let mut named = if ok.is_ok() { vec![unrevealed] } else { Vec::new() };
+		while let Some(ty) = named.pop() {
+			for ty in ty.walk().filter_map(|arg| arg.as_type()) {
+				let ty::Alias(
+					_,
+					ty::AliasTy {
+						kind: ty::AliasTyKind::Opaque { def_id },
+						args,
+						..
+					},
+				) = ty.kind()
+				else {
+					continue;
+				};
+				if ty == unrevealed && (future || collect) {
+					let bounds = tcx.explicit_item_bounds(*def_id).skip_binder();
+					named.extend(bounds.iter().filter_map(|&(clause, _)| {
+						let term = clause.as_projection_clause()?.skip_binder().term.as_type()?;
+						Some(ty::EarlyBinder::bind(tcx, term).instantiate(tcx, args).skip_norm_wip())
+					}));
+					continue;
+				}
+				let hidden = normalize(ty);
+				if !matches!(hidden.kind(), ty::Adt(adt, args)
+					if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))))
+				{
+					errs.push(why("opaque type", ty.to_string()));
+				}
 			}
 		}
 		let lends = matches!(ok, Ok(Type::Ref(Mutability::Not, ref inner)) if matches!(**inner, Type::Object(_)))
