@@ -899,7 +899,7 @@ impl<'a> Gen<'a> {
 				Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e});"),
 				Type::List(..) => {
 					let c = self.c_name(inner);
-					let w = self.writer(&c, inner);
+					let w = self.writer(&c, inner.base());
 					format!("{w}({e}, {dst}, a_);")
 				}
 				_ => {

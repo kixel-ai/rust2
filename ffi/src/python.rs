@@ -646,7 +646,18 @@ impl<'a> Gen<'a> {
 		if let Some(name) = self.converters.get(&key) {
 			return name.clone();
 		}
-		let name = format!("{c}_{}", self.converters.len() + 2);
+		// A numbered name must miss every converter's: each struct's own, and the others numbered.
+		let taken = |name: &str| {
+			abi.options.contains_key(name)
+				|| abi.lists.contains_key(name)
+				|| abi.tuples.contains_key(name)
+				|| abi.ranges.contains_key(name)
+				|| self.converters.values().any(|n| n == name)
+		};
+		let name = (self.converters.len() + 2..)
+			.map(|k| format!("{c}_{k}"))
+			.find(|name| !taken(name))
+			.expect("some number is free");
 		self.converters.insert(key, name.clone());
 		match strip_refs(ty) {
 			Type::Option(_) => self.option(&name, &c, &held[0]),
