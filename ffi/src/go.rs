@@ -2402,8 +2402,14 @@ impl<'a> Gen<'a> {
 				// An eager call runs Rust, and any callback it makes, before its future
 				// exists, and a callback may cancel the context: so it is made, then the
 				// context checked, then polled, never started.
-				body.push(format!("f_ := C.{c_name}({})\ndefer C.{}(f_)", args.join(", "), free.name));
-				body.push(format!("if err_ := ctx.Err(); err_ != nil {{\n\treturn {zeros}err_\n}}"));
+				body.push(format!(
+					"f_ := C.{c_name}({})\ndefer C.{}(f_)",
+					args.join(", "),
+					free.name
+				));
+				body.push(format!(
+					"if err_ := ctx.Err(); err_ != nil {{\n\treturn {zeros}err_\n}}"
+				));
 				body.push(format!("poll_ := func(w_ cWaker) (bool, error) {{\n{polled}\n}}"));
 				body.push("done_, err_ := poll_(cWaker{})\nif !done_ {\n\terr_ = await_(ctx, poll_)\n}".to_string());
 			} else {
