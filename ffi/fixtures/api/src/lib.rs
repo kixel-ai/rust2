@@ -181,6 +181,31 @@ impl Clash {
 	}
 }
 
+/// A record whose field is named as the Kotlin package, which a qualifier in its methods'
+/// bodies would resolve to.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Packaged {
+	pub api: u32,
+}
+
+impl Packaged {
+	/// The point at `api` on both axes.
+	pub fn point(&self) -> Point {
+		Point {
+			x: self.api as i32,
+			y: self.api as i32,
+		}
+	}
+
+	/// The shape of `api`'s parity.
+	pub fn shape(&self) -> Shape {
+		match self.api % 2 {
+			0 => Shape::Square,
+			_ => Shape::Circle,
+		}
+	}
+}
+
 /// An enum whose variant `Init` names an initializer in Swift, and the C union member
 /// holding its data.
 #[derive(Clone, Copy, Debug, PartialEq)]

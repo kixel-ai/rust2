@@ -1290,6 +1290,7 @@ fun clash() {
 	check(all[0].point() == p && all[3].point() == null, "clash point")
 	check(Clash.of(2.5) == Clash.Double(2.5), "clash of")
 	check(Clash.at(p) == Clash.Point(p), "clash at")
+	check(Packaged(3u).point() == Point(3, 3) && Packaged(3u).shape() == Shape.CIRCLE, "a field named as the package")
 	check(Clash.String("hi").bytes().toByteArray().decodeToString() == "hi", "clash bytes")
 	val out = Mut(0u)
 	check(Clash.Int(4).describe("t", 3u, Shape.SQUARE, out) == "t Int(4) 3 Square" && out.value == 6u, "clash describe")

@@ -60,6 +60,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		fresh: 0,
 		params: Vec::new(),
 		tuples: BTreeSet::new(),
+		aliases: std::cell::RefCell::new(BTreeSet::new()),
 		dispatchers: Vec::new(),
 		suspends: false,
 		reads: false,
@@ -91,6 +92,10 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	);
 	for import in IMPORTS {
 		let _ = writeln!(kotlin, "import {import}");
+	}
+	for name in g.aliases.borrow().iter() {
+		// An alias hides the name it renames from the file, so the name is imported too.
+		let _ = writeln!(kotlin, "import {p}.{name}\nimport {p}.{name} as _{name}");
 	}
 	kotlin.push('\n');
 	kotlin.push_str(
@@ -445,6 +450,8 @@ struct Gen<'a> {
 	params: Vec<String>,
 	/// The arities a tuple class is written for: one, and past `Triple`.
 	tuples: BTreeSet<usize>,
+	/// The binding's own top-level names the code reaches through [`Gen::own`]'s `_` alias.
+	aliases: std::cell::RefCell<BTreeSet<String>>,
 	/// The Kotlin functions the glue calls, which the rules keep.
 	dispatchers: Vec<String>,
 	/// Whether the function being written suspends, so a future it takes runs in its
@@ -484,9 +491,9 @@ impl<'a> Gen<'a> {
 		self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c)))
 	}
 
-	/// [`Gen::class`] qualified by the binding's package, as every type and constructor
-	/// the generated code names is: a variant class nested in a sealed class shadows a
-	/// bare name inside its body, and no local takes the package's name.
+	/// [`Gen::class`] through its `_` alias, as every type and constructor the generated
+	/// code names is: a variant class nested in a sealed class shadows a bare name inside
+	/// its body, and a field or parameter named as the package would shadow a qualifier.
 	fn qualified(&self, c: &str) -> String {
 		self.own(&self.class(c))
 	}
@@ -494,7 +501,6 @@ impl<'a> Gen<'a> {
 	/// The Kotlin type `kt` without the qualifiers [`Gen::kt`] adds to builtins and the
 	/// binding's own types, as it read before it qualified them.
 	fn unqualified(&self, kt: &str) -> String {
-		let own = format!("{}.", self.abi.prefix);
 		let mut out = String::new();
 		let mut rest = kt;
 		while !rest.is_empty() {
@@ -502,7 +508,10 @@ impl<'a> Gen<'a> {
 				.chars()
 				.next_back()
 				.is_none_or(|c| !c.is_alphanumeric() && c != '_' && c != '.');
-			if at_word && let Some(after) = rest.strip_prefix(own.as_str()) {
+			if at_word
+				&& let Some(after) = rest.strip_prefix('_')
+				&& after.starts_with(|c: char| c.is_ascii_uppercase())
+			{
 				rest = after;
 			} else if at_word
 				&& let Some(after) = rest.strip_prefix("kotlin.")
@@ -520,9 +529,11 @@ impl<'a> Gen<'a> {
 		out
 	}
 
-	/// The runtime's top-level `name`, qualified by the binding's package.
+	/// The top-level `name` of the binding's own, by its alias `_<name>`, which the file
+	/// imports: no exported name, in Pascal or camel case, starts with `_` and a letter.
 	fn own(&self, name: &str) -> String {
-		format!("{}.{name}", self.abi.prefix)
+		self.aliases.borrow_mut().insert(name.to_string());
+		format!("_{name}")
 	}
 
 	/// The top-level Kotlin name `what` takes, `name` unless that is taken.
@@ -1651,7 +1662,7 @@ impl<'a> Gen<'a> {
 			let member = member(&abi::snake(method.name()), &[]);
 			crate::lock::function(&mut self.locked, method, &member);
 			members.push(format!("fun {member}"));
-			let params: Vec<String> = (method.params.iter().zip(locals(&method.params, &self.abi.prefix)))
+			let params: Vec<String> = (method.params.iter().zip(locals(&method.params)))
 				.map(|(p, name)| format!("{name}: {}", self.kt_param(&p.ty)))
 				.collect();
 			let ret = self.kt(&method.ok);
@@ -1945,7 +1956,7 @@ impl<'a> Gen<'a> {
 		taken: &[String],
 	) -> Option<String> {
 		let abi = self.abi;
-		self.params = locals(&function.params, &self.abi.prefix);
+		self.params = locals(&function.params);
 		let export = abi.export(function, owner);
 		// The JVM slots of the 255 a method takes left past what each C parameter takes
 		// unflattened and a future's waker: what flattening records, then the slots a
@@ -2979,14 +2990,10 @@ fn camel(name: &str) -> String {
 
 /// The Kotlin names of parameters, in camel case, [`abi::distinct`], and quoted if a
 /// keyword.
-fn locals(params: &[Param], prefix: &str) -> Vec<String> {
-	// A parameter named as the package would shadow the qualifier every type and
-	// constructor the body names takes, so it takes a trailing `_`.
-	let names = params.iter().map(|p| match camel(&p.name) {
-		name if name == prefix => format!("{name}_"),
-		name => name,
-	});
-	(abi::distinct(names).iter()).map(|name| kw(name)).collect()
+fn locals(params: &[Param]) -> Vec<String> {
+	(abi::distinct(params.iter().map(|p| camel(&p.name))).iter())
+		.map(|name| kw(name))
+		.collect()
 }
 
 /// A field's Kotlin name.
