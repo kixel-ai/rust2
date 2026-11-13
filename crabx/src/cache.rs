@@ -35,7 +35,11 @@ impl Record {
 		let name = format!("{krate}{extension}");
 		let mut matching = self.bins.iter().filter(|bin| bin.eq_ignore_ascii_case(&name));
 		if let Some(bin) = matching.next() {
-			ensure!(matching.next().is_none(), "several binaries match the crate name; choose --bin NAME: {}", self.bins.join(", "));
+			ensure!(
+				matching.next().is_none(),
+				"several binaries match the crate name; choose --bin NAME: {}",
+				self.bins.join(", ")
+			);
 			return Ok(bin);
 		}
 		match self.bins.as_slice() {
