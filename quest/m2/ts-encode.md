@@ -5,7 +5,7 @@
 [rust2-ts](/ts/README.md) translates `to_be_bytes`, `to_le_bytes`, and a literal byte
 array that flow only into `extend_from_slice` or `put_slice` as direct stores, with no
 typed array made per write. On the 2026-11-12 nightly
-([run 43246857664](https://github.com/moq-dev/rust2/actions/runs/43246857664), Chromium) a
+([run 43246857664](https://github.com/kixel-ai/rust2/actions/runs/43246857664), Chromium) a
 QUIC varint encode costs 13.6 ns at one byte, 56.2 at two, and 194 at eight, against
 wasm's 4.84, 9.14, and 9.65, and a video frame encode 289 against 33.7.
 

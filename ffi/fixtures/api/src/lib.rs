@@ -2,6 +2,7 @@
 
 use std::borrow::Cow;
 use std::fmt;
+use std::num::NonZero;
 use std::ops::{Bound, Range, RangeBounds};
 use std::sync::{Arc, Mutex, Weak};
 use std::task::{Context, Poll, Waker};
@@ -2703,4 +2704,51 @@ pub mod clash {
 		let b = b.map_or(0, |((x, y, z),)| u32::from(x) + u32::from(y) + z);
 		a + b
 	}
+}
+
+/// One `NonZero` of each integer, each crossing as its integer.
+#[derive(Clone, Copy, Debug)]
+pub struct NonZeros {
+	pub u8: NonZero<u8>,
+	pub u16: NonZero<u16>,
+	pub u32: NonZero<u32>,
+	pub u64: NonZero<u64>,
+	pub usize: NonZero<usize>,
+	pub i8: NonZero<i8>,
+	pub i16: NonZero<i16>,
+	pub i32: NonZero<i32>,
+	pub i64: NonZero<i64>,
+	pub isize: NonZero<isize>,
+}
+
+/// Each integer's extreme `NonZero`: its max, or a signed one's min.
+pub fn non_zeros() -> NonZeros {
+	NonZeros {
+		u8: NonZero::<u8>::MAX,
+		u16: NonZero::<u16>::MAX,
+		u32: NonZero::<u32>::MAX,
+		u64: NonZero::<u64>::MAX,
+		usize: NonZero::<usize>::MAX,
+		i8: NonZero::<i8>::MIN,
+		i16: NonZero::<i16>::MIN,
+		i32: NonZero::<i32>::MIN,
+		i64: NonZero::<i64>::MIN,
+		isize: NonZero::<isize>::MIN,
+	}
+}
+
+/// `non_zeros` as Rust's `Debug` spells it, once it crossed back.
+pub fn describe_non_zeros(non_zeros: NonZeros) -> String {
+	format!("{non_zeros:?}")
+}
+
+/// The hop after `hop`, or `None` past the last, as moq's `Client::with_peer_hop` counts.
+pub fn next_hop(hop: Option<NonZero<u64>>) -> Option<NonZero<u64>> {
+	hop?.checked_add(1)
+}
+
+/// The farther of two hops, boxed: a `NonZero` as a generic instance's argument and
+/// behind a `Box`.
+pub fn farther_hop(hops: Pair<NonZero<u16>>) -> Box<NonZero<u16>> {
+	Box::new(hops.left.max(hops.right))
 }

@@ -214,6 +214,7 @@ fn api_c() {
 			"plain variant",
 			"api_is_family: the variant is not on this library's target",
 		),
+		("zero", "api_next_hop: a NonZero is zero"),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
 		assert!(!output.status.success(), "{case} did not abort");
