@@ -1295,13 +1295,18 @@ fn relative_target() {
 	// not on that method.
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(!output.status.success(), "the census passed:\n{stderr}");
-	let errors: Vec<&str> = stderr.lines().filter(|line| line.starts_with("error: rust2-ffi:")).collect();
+	let errors: Vec<&str> = stderr
+		.lines()
+		.filter(|line| line.starts_with("error: rust2-ffi:"))
+		.collect();
 	assert!(
 		errors.iter().all(|error| error.ends_with(", which exports")),
 		"the census failed otherwise:\n{stderr}"
 	);
 	assert!(
-		errors.contains(&"error: rust2-ffi: exclude `field@Retry::jitter` in the config leaves out `field@Retry::jitter`, which exports"),
+		errors.contains(
+			&"error: rust2-ffi: exclude `field@Retry::jitter` in the config leaves out `field@Retry::jitter`, which exports"
+		),
 		"the census does not fail on `field@Retry::jitter`:\n{stderr}"
 	);
 	assert!(
