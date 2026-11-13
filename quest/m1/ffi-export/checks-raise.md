@@ -37,9 +37,9 @@ What the code does today:
   ([the binding benchmark](/bench/ffi/README.md)).
 - Kotlin and Go keep a hold count of their own beside the runtime's, so a call costs four
   atomic operations per handle. Swift keeps one only for its classes since
-  [#697](https://github.com/moq-dev/rust2/pull/697), and traps on a closed handle
+  [#697](https://github.com/kixel-ai/rust2/pull/697), and traps on a closed handle
   (`rt.swift`'s `hold`). The bindings' counts go; the runtime's status replaces them.
-- [#700](https://github.com/moq-dev/rust2/pull/700) added a fourth check, an item called
+- [#700](https://github.com/kixel-ai/rust2/pull/700) added a fourth check, an item called
   on a target the library is not built for, which traps in Swift (`ffi/src/swift.rs`) and
   panics in Go (`ffi/src/go.rs`). AGENTS.md lists three; add it there with this change.
 - Swift's `async throws` and throwing functions already exist for `Result`; a call that
