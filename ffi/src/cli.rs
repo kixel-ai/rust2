@@ -287,14 +287,106 @@ fn facade(manifest: &Path, target: &str, picks: &Picks<'_>) -> Result<(config::P
 }
 
 /// The `[patch]` the glue's workspace resolves the exports by as the check did, wherever
-/// it builds, as TOML with each path absolute.
+/// it builds, as TOML with each path absolute, and the `[profile]` the exports build with.
 fn overrides(metadata: &Metadata, top: &Package) -> Result<String, String> {
-	let patch = patch(metadata, top)?;
+	let (patch, built) = patch(metadata, top)?;
 	let mut overrides = toml::Table::new();
 	if !patch.is_empty() {
 		overrides.insert("patch".to_string(), patch.into());
 	}
-	toml::to_string(&overrides).map_err(|err| format!("writing the patches: {err}"))
+	let manifest = metadata.workspace_root.join("Cargo.toml");
+	let source = std::fs::read_to_string(&manifest).map_err(|err| format!("reading {}: {err}", manifest.display()))?;
+	if let Some(profile) = profile(&manifest, &source, &metadata.packages, &built)? {
+		overrides.insert("profile".to_string(), profile.into());
+	}
+	toml::to_string(&overrides).map_err(|err| format!("writing the patches and profiles: {err}"))
+}
+
+/// The workspace's `[profile]` table, so the glue builds as the consumer ships. A
+/// per-package override of a package the library builds is carried, and one of another
+/// package of the workspace's resolve, such as a tool's dependency, dropped, since the
+/// glue's workspace would not resolve it. One naming no package at all is an error at its
+/// line: cargo only warns, and the consumer's intent would silently not apply.
+fn profile(
+	manifest: &Path,
+	source: &str,
+	packages: &[Package],
+	built: &BTreeSet<&str>,
+) -> Result<Option<toml::Table>, String> {
+	let spanned = toml::de::DeTable::parse(source).map_err(|err| format!("{}: {err}", manifest.display()))?;
+	let Some(spanned) = spanned.get_ref().get("profile") else {
+		return Ok(None);
+	};
+	let at = |span: std::ops::Range<usize>| {
+		let line = source[..span.start].matches('\n').count() + 1;
+		format!("{}:{line}", manifest.display())
+	};
+	let toml::de::DeValue::Table(spanned) = spanned.get_ref() else {
+		return Err(format!("{}: `profile` is not a table", at(spanned.span())));
+	};
+	let table: toml::Table = toml::from_str(source).map_err(|err| format!("{}: {err}", manifest.display()))?;
+	let mut profiles = table
+		.get("profile")
+		.and_then(|p| p.as_table())
+		.cloned()
+		.unwrap_or_default();
+	for (name, profile) in spanned {
+		let name = name.get_ref().as_ref();
+		let toml::de::DeValue::Table(profile) = profile.get_ref() else {
+			return Err(format!("{}: `profile.{name}` is not a table", at(profile.span())));
+		};
+		let Some(overrides) = profile.get("package") else {
+			continue;
+		};
+		let toml::de::DeValue::Table(overrides) = overrides.get_ref() else {
+			return Err(format!(
+				"{}: `profile.{name}.package` is not a table",
+				at(overrides.span())
+			));
+		};
+		let carried = profiles[name]["package"].as_table_mut().expect("a table parsed as one");
+		for spec in overrides.keys() {
+			let spec_str = spec.get_ref().as_ref();
+			let mut matched = Vec::new();
+			for package in packages {
+				if matches(spec_str, package)? {
+					matched.push(package);
+				}
+			}
+			if matched.is_empty() {
+				return Err(format!(
+					"{}: `profile.{name}.package.{spec_str}` names no package the workspace resolves",
+					at(spec.span())
+				));
+			}
+			if !matched.iter().any(|p| built.contains(p.id.as_str())) {
+				carried.remove(spec_str);
+			}
+		}
+		if carried.is_empty() {
+			profiles[name]
+				.as_table_mut()
+				.expect("a table parsed as one")
+				.remove("package");
+		}
+	}
+	Ok(Some(profiles))
+}
+
+/// Whether the package spec of a profile override, `*`, `name`, or `name@version`, names
+/// `package`.
+fn matches(spec: &str, package: &Package) -> Result<bool, String> {
+	if spec == "*" {
+		return Ok(true);
+	}
+	let (name, version) = spec.split_once(['@', ':']).map_or((spec, None), |(n, v)| (n, Some(v)));
+	if name.contains(['/', '#']) {
+		return Err(format!(
+			"the profile override `{spec}` names a package by URL, which the export's library cannot carry"
+		));
+	}
+	let exact = |v: &str| package.version == v || package.version.starts_with(&format!("{v}."));
+	Ok(package.name == name && version.is_none_or(exact))
 }
 
 /// Each patch cargo applied in resolving what `top` builds with on any platform, wherever
@@ -302,7 +394,8 @@ fn overrides(metadata: &Metadata, top: &Package) -> Result<String, String> {
 /// dependency resolved to a package of another source than the one it names was patched,
 /// or `[replace]`d by a package of the same version, which a patch resolves to alike; it
 /// is keyed by the URL of the source it names, which reads the same without that config.
-fn patch(metadata: &Metadata, top: &Package) -> Result<toml::Table, String> {
+/// Also the IDs of every package the library builds.
+fn patch<'a>(metadata: &'a Metadata, top: &'a Package) -> Result<(toml::Table, BTreeSet<&'a str>), String> {
 	let packages: BTreeMap<&str, &Package> = metadata.packages.iter().map(|p| (p.id.as_str(), p)).collect();
 	let nodes: BTreeMap<&str, &Node> = metadata.resolve.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
 	let mut patch = toml::Table::new();
@@ -378,7 +471,7 @@ fn patch(metadata: &Metadata, top: &Package) -> Result<toml::Table, String> {
 			}
 		}
 	}
-	Ok(patch)
+	Ok((patch, seen))
 }
 
 /// The `[patch]` key of a source as `cargo metadata` spells it.
