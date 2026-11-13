@@ -7,7 +7,7 @@ use rustc_driver::Callbacks;
 use rustc_session::EarlyDiagCtxt;
 use rustc_session::config::ErrorOutputType;
 
-const BUG_REPORT_URL: &str = "https://github.com/moq-dev/rust2/issues/new";
+const BUG_REPORT_URL: &str = "https://github.com/kixel-ai/rust2/issues/new";
 
 /// Whether cargo ran this binary as its wrapper, which it does with the rustc it would
 /// have run as the first argument.

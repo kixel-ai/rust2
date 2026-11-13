@@ -663,7 +663,7 @@ impl<'a> Gen<'a> {
 			Type::Array(n) => format!("[{n}]byte"),
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool => "bool".to_string(),
-			Type::Int(int) => go_int(*int).to_string(),
+			Type::Int(int) | Type::NonZero(int) => go_int(*int).to_string(),
 			Type::F32 => "float32".to_string(),
 			Type::F64 => "float64".to_string(),
 			Type::Char => "rune".to_string(),
@@ -724,7 +724,7 @@ impl<'a> Gen<'a> {
 	fn zero(&mut self, ty: &Type) -> String {
 		match ty {
 			Type::Bool => "false".to_string(),
-			Type::Int(_) | Type::F32 | Type::F64 | Type::Char | Type::Duration => "0".to_string(),
+			Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char | Type::Duration => "0".to_string(),
 			Type::Str | Type::String | Type::Path | Type::PathBuf => "\"\"".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => format!("{}{{}}", self.qualify(Packages::RT, "Bytes")),
 			Type::Enum(i) if self.abi.api.enums[*i].plain() => "0".to_string(),
@@ -835,7 +835,7 @@ impl<'a> Gen<'a> {
 			Type::Slice | Type::Vec | Type::Bytes => format!("a_.bufView({e})"),
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool => format!("C.bool({e})"),
-			Type::Int(int) => format!("C.{}({e})", c_int(*int)),
+			Type::Int(int) | Type::NonZero(int) => format!("C.{}({e})", c_int(*int)),
 			Type::F32 => format!("C.float({e})"),
 			Type::F64 => format!("C.double({e})"),
 			Type::Char => format!("C.uint32_t({e})"),
@@ -967,7 +967,7 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("liftString_({e})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("liftBytes_({e})"),
 			Type::Bool => format!("bool({e})"),
-			Type::Int(int) => format!("{}({e})", go_int(*int)),
+			Type::Int(int) | Type::NonZero(int) => format!("{}({e})", go_int(*int)),
 			Type::F32 => format!("float32({e})"),
 			Type::F64 => format!("float64({e})"),
 			Type::Char => format!("rune({e})"),
@@ -1231,7 +1231,7 @@ impl<'a> Gen<'a> {
 			Type::Bounds(int) => format!("(Bound<{0}>, Bound<{0}>)", int.rust()),
 			Type::Option(inner) => format!("Option<{}>", self.describe(inner)),
 			Type::List(_, inner) => format!("Vec<{}>", self.describe(inner)),
-			Type::Int(int) => int.rust().to_string(),
+			Type::Int(int) | Type::NonZero(int) => int.rust().to_string(),
 			Type::Ref(_, inner) | Type::Box(inner) => self.describe(inner),
 			other => format!("{other:?}"),
 		}
@@ -1930,7 +1930,7 @@ impl<'a> Gen<'a> {
 	/// The C value of a scalar `e` of type `ty` a callback returns, needing no arena.
 	fn lower_scalar(&mut self, ty: &Type, e: &str) -> String {
 		match ty {
-			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 | Type::Char => self.lower(ty, e),
+			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char => self.lower(ty, e),
 			Type::Enum(i) if self.abi.api.enums[*i].plain() => self.lower(ty, e),
 			other => unreachable!("a callback returns a scalar, not {other:?}"),
 		}

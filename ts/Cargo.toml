@@ -34,7 +34,7 @@ resolver = "3"
 [workspace.package]
 edition = "2024"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/moq-dev/rust2"
+repository = "https://github.com/kixel-ai/rust2"
 
 [workspace.lints.rust]
 # What rust2-ts sets where it translates, for a safe twin of `unsafe`.
