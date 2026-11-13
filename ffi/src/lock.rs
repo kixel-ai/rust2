@@ -240,23 +240,31 @@ impl<'a> Index<'a> {
 		let mut tuples: BTreeMap<String, (String, Span)> = (abi.tuples.iter())
 			.map(|(c, elements)| (abi.spell(&Type::Tuple(elements.clone())), (c.clone(), DUMMY_SP)))
 			.collect();
+		// Each item that names a type, with its span: a function by its signature, a
+		// record or enum by its fields.
 		let functions = (api.functions.iter())
 			.chain(api.records.iter().flat_map(|r| &r.methods))
 			.chain(api.enums.iter().flat_map(|e| &e.methods))
-			.chain(api.objects.iter().flat_map(|o| &o.methods));
-		for function in functions {
-			let types = function
-				.params
-				.iter()
-				.map(|p| &p.ty)
-				.chain([&function.ok])
-				.chain(&function.err);
+			.chain(api.objects.iter().flat_map(|o| &o.methods))
+			.chain(api.callbacks.iter().flat_map(|c| &c.methods))
+			.map(|f| {
+				let types: Vec<&Type> = f.params.iter().map(|p| &p.ty).chain([&f.ok]).chain(&f.err).collect();
+				(f.span, types)
+			});
+		let records = (api.records.iter()).map(|r| (r.span, r.fields.iter().map(|f| &f.ty).collect()));
+		let enums = (api.enums.iter()).map(|e| {
+			(
+				e.span,
+				e.variants.iter().flat_map(|v| &v.fields).map(|f| &f.ty).collect(),
+			)
+		});
+		for (at, types) in functions.chain(records).chain(enums) {
 			for ty in types {
 				crate::ir::each(ty, &mut |ty| {
 					if let Type::Tuple(elements) = ty {
 						let name = abi.tuple(elements);
 						if let Some((_, span)) = tuples.values_mut().find(|(c, span)| *c == name && span.is_dummy()) {
-							*span = function.span;
+							*span = at;
 						}
 					}
 				});

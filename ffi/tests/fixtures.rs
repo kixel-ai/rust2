@@ -1389,6 +1389,42 @@ fn lock() {
 		before,
 		"the export overwrote its baseline"
 	);
+	let linked = dir.join("linked");
+	let _ = std::fs::remove_dir_all(&linked);
+	std::fs::create_dir_all(&linked).unwrap();
+	std::fs::hard_link(&baseline, linked.join("api.json")).unwrap();
+	let args = ["--baseline".as_ref(), baseline.as_os_str()];
+	let link = exporter("lock", &linked, &targets, &args, &[])
+		.output()
+		.expect("running rust2-ffi");
+	assert!(
+		!link.status.success(),
+		"a hard-linked baseline the export would overwrite passed"
+	);
+	assert_eq!(
+		std::fs::read(&baseline).unwrap(),
+		before,
+		"the export overwrote its hard-linked baseline"
+	);
+	// Every path starts with the library's name, so a baseline of another library breaks.
+	let renamed = dir.join("renamed.json");
+	std::fs::write(
+		&renamed,
+		String::from_utf8(before.clone())
+			.unwrap()
+			.replace("\"lock\"", "\"other\""),
+	)
+	.unwrap();
+	let args = ["--baseline".as_ref(), renamed.as_os_str()];
+	let other = exporter("lock", &dir.join("renamed"), &targets, &args, &[])
+		.output()
+		.expect("running rust2-ffi");
+	assert!(!other.status.success(), "a baseline of another library passed");
+	let stderr = String::from_utf8_lossy(&other.stderr);
+	assert!(
+		stderr.contains("library `other`: it is now `lock`"),
+		"no library error:\n{stderr}"
+	);
 	let locked = |feature: &str| {
 		let args = ["--baseline".as_ref(), baseline.as_os_str()];
 		exporter("lock", &dir.join(feature), &targets, &args, &["--features", feature])

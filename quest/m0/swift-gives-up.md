@@ -10,8 +10,7 @@ closure" check in `ffi/tests/api.swift` no longer fails intermittently.
 Found while validating [#740](https://github.com/kixel-ai/rust2/pull/740) on 2026-11-13:
 `just ffi test --test fixtures` failed `api_swift` there in 2 of 4 runs, and at `main`
 `7008d1d3` in 1 of 5, each time with `"futures" failed: Rust gives up on an async closure`.
-The test passes alone. It also failed once in `just ci` on
-[#739](https://github.com/kixel-ai/rust2/pull/739) and passed three reruns alone.
+The test passes alone.
 
 Two races fit, and the fix covers both:
 

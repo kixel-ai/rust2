@@ -67,9 +67,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	if let Some(baseline) = &own.baseline {
 		// The export's own api.json would silently replace the baseline it passed.
 		let api = output.1.join(crate::driver::API_FILE);
-		if let (Ok(a), Ok(b)) = (std::fs::canonicalize(baseline), std::fs::canonicalize(&api))
-			&& a == b
-		{
+		if same_file(baseline, &api) {
 			return Err(format!(
 				"--baseline {} is the api.json the export writes: commit the baseline outside --out\n\n{USAGE}",
 				baseline.display()
@@ -609,6 +607,19 @@ struct Dependency {
 struct Target {
 	name: String,
 	kind: Vec<String>,
+}
+
+/// Whether `a` and `b` are one file, through a symlink or a hard link.
+fn same_file(a: &Path, b: &Path) -> bool {
+	#[cfg(unix)]
+	{
+		use std::os::unix::fs::MetadataExt;
+		matches!((std::fs::metadata(a), std::fs::metadata(b)), (Ok(a), Ok(b)) if (a.dev(), a.ino()) == (b.dev(), b.ino()))
+	}
+	#[cfg(not(unix))]
+	{
+		matches!((std::fs::canonicalize(a), std::fs::canonicalize(b)), (Ok(a), Ok(b)) if a == b)
+	}
 }
 
 #[cfg(test)]
