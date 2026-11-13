@@ -1,4 +1,5 @@
-//! rust2-lint: fail a build whose generics cost its codegen more than a budget.
+//! rust2-lint: fail a build whose generics cost its codegen more than a budget, or
+//! report what they cost.
 //!
 //! The binary is two programs, as rust2-ts is. Run directly, it is the CLI: it runs a
 //! cargo command with itself as `RUSTC_WRAPPER`. Run by cargo as that wrapper, it is
@@ -34,6 +35,9 @@ const TOOL: &str = "rust2-lint";
 /// Carries the mono budget from the CLI to the wrapper.
 const BUDGET: &str = "RUST2_MONO_BUDGET";
 
+/// Set when `--report` replaces the budget with a report.
+const REPORT: &str = "RUST2_MONO_REPORT";
+
 /// Carries the directories of the local packages, whose crates the wrapper checks.
 const LOCAL: &str = "RUST2_LOCAL_PACKAGES";
 
@@ -43,7 +47,7 @@ const DEFAULT_BUDGET: u64 = 50_000;
 
 fn usage() -> String {
 	format!(
-		"usage: {TOOL} [--mono-budget <statements>] -- <cargo command>
+		"usage: {TOOL} [--mono-budget <statements> | --report] -- <cargo command>
 
 Runs the cargo command, such as `test --no-run -p <package>`, with this binary as
 rustc, into its own target directory. A crate of a local package, a workspace member
@@ -54,9 +58,14 @@ the generic's own:
   #[cfg_attr(rust2, rust2::mono_budget(limit = <statements>, reason = \"<why>\"))]
 
 A generic whose copies cost at most {} statements each only forwards, and passes.
+A generic from std or a dependency fails at the local function that instantiates it.
+
+With --report, nothing fails: each local crate warns of every generic past {}% of its
+codegen, heaviest first.
 Every crate compiles with `--cfg rust2` and the `rust2` tool registered. The command
 must build: `cargo check` collects no mono items.",
-		mono::THIN
+		mono::THIN,
+		mono::SHARE,
 	)
 }
 
@@ -77,11 +86,16 @@ fn main() -> ExitCode {
 /// Run the cargo command in `args`, with this binary as rustc.
 fn cli(args: &[String]) -> Result<ExitCode, String> {
 	let mut budget = DEFAULT_BUDGET;
+	let mut report = false;
 	let mut rest = args;
 	let command = loop {
 		match rest {
 			[flag, value, tail @ ..] if flag == "--mono-budget" => {
 				budget = parse_budget(value)?;
+				rest = tail;
+			}
+			[flag, tail @ ..] if flag == "--report" => {
+				report = true;
 				rest = tail;
 			}
 			[flag, ..] if flag == "-h" || flag == "--help" => {
@@ -99,6 +113,7 @@ fn cli(args: &[String]) -> Result<ExitCode, String> {
 		.env("RUSTC_WRAPPER", exe)
 		.env("CARGO_TARGET_DIR", cargo::target_dir(TOOL, manifest(command))?)
 		.env(BUDGET, budget.to_string())
+		.env(REPORT, if report { "1" } else { "" })
 		.env(LOCAL, local_packages(&program, resolution(command))?)
 		.status()
 		.map_err(|err| format!("running cargo: {err}"))?;
@@ -174,11 +189,16 @@ fn job(_: &[String], added: &mut Vec<String>) -> Result<Option<rustc::Job>, Stri
 	// fingerprint.
 	let dir = std::env::var_os("CARGO_MANIFEST_DIR");
 	let checked = dir.is_some_and(|dir| std::env::split_paths(&local).any(|local| local == Path::new(&dir)));
-	let budget = match checked {
-		false => None,
-		true => Some(parse_budget(&budget.to_string_lossy())?),
+	let mode = match (
+		checked,
+		std::env::var_os(REPORT).is_some_and(|report| !report.is_empty()),
+	) {
+		(false, _) => None,
+		(true, true) => Some(mono::Mode::Report),
+		(true, false) => Some(mono::Mode::Check(parse_budget(&budget.to_string_lossy())?)),
 	};
-	Ok(Some(Box::new(Lint { budget })))
+	let local = std::env::split_paths(&local).collect();
+	Ok(Some(Box::new(Lint { mode, local })))
 }
 
 /// The directories of the packages cargo builds from local source, workspace members and
@@ -214,19 +234,24 @@ fn local_packages(program: &OsStr, resolution: Vec<&String>) -> Result<OsString,
 /// Checks the crate's `rust2` attributes, and its mono budget once rustc has collected
 /// its mono items.
 struct Lint {
-	/// The crate-wide mono budget, for a local package.
-	budget: Option<u64>,
+	/// The crate-wide mono budget or a report, for a local package.
+	mode: Option<mono::Mode>,
+	/// The directories of the local packages.
+	local: Vec<PathBuf>,
 }
 
 impl Callbacks for Lint {
 	fn after_expansion<'tcx>(&mut self, _compiler: &Compiler, tcx: TyCtxt<'tcx>) -> Compilation {
-		if let Some(budget) = self.budget {
-			// Cargo rebuilds the crate when the budget changes, as it does for `env!`.
-			let value = Symbol::intern(&budget.to_string());
+		if let Some(mode) = self.mode {
+			// Cargo rebuilds the crate when the mode changes, as it does for `env!`.
+			let (key, value) = match mode {
+				mono::Mode::Check(budget) => (BUDGET, budget.to_string()),
+				mono::Mode::Report => (REPORT, "1".into()),
+			};
 			tcx.sess
 				.env_depinfo
 				.borrow_mut()
-				.insert((Symbol::intern(BUDGET), Some(value)));
+				.insert((Symbol::intern(key), Some(Symbol::intern(&value))));
 		}
 		Compilation::Continue
 	}
@@ -236,18 +261,18 @@ impl Callbacks for Lint {
 		if tcx.dcx().has_errors().is_some() {
 			return Compilation::Stop;
 		}
-		let Some(budget) = self.budget else {
+		let Some(mode) = self.mode else {
 			return Compilation::Continue;
 		};
 		if !tcx.sess.opts.output_types.should_codegen() {
 			tcx.dcx().err(format!(
-				"{TOOL}: the mono budget needs mono items, which `cargo check` never collects: build instead"
+				"{TOOL}: the mono budget and its report need mono items, which `cargo check` never collects: build instead"
 			));
 			return Compilation::Stop;
 		}
 		// Codegen would collect them next; the timer counts only the lint's own work.
 		let _ = tcx.collect_and_partition_mono_items(());
-		tcx.sess.time("mono_budget", || mono::check(tcx, budget));
+		tcx.sess.time("mono_budget", || mono::check(tcx, mode, &self.local));
 		match tcx.dcx().has_errors() {
 			Some(_) => Compilation::Stop,
 			None => Compilation::Continue,

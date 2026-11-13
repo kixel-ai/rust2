@@ -31,3 +31,14 @@ calls!(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19);
 pub fn once() -> u64 {
 	exec::block(exec::fat(|x| x * 2))
 }
+
+/// Sorts 20 ways, so std's sort, which no one here can edit, is copied 20 times.
+#[cfg(feature = "sorted")]
+pub fn sorted(v: &mut [u64]) {
+	macro_rules! sorts {
+		($($n:literal)*) => {
+			$(v.sort_by_key(|x| x.wrapping_mul($n));)*
+		};
+	}
+	sorts!(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19);
+}

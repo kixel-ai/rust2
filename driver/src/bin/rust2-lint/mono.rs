@@ -12,7 +12,9 @@ use rustc_hir::def::DefKind;
 use rustc_middle::mono::{CollectionMode, MonoItem};
 use rustc_middle::ty::{GenericArgsRef, Instance, InstanceKind, TyCtxt};
 use rustc_span::def_id::DefId;
-use rustc_span::{Span, Symbol};
+use rustc_span::{FileName, Span, Symbol};
+
+use std::path::PathBuf;
 
 /// The statements a copy may cost and still only forward: pin a future and hand it to a
 /// non-generic body, as an executor's entry point does in about 60. A generic whose every
@@ -43,28 +45,47 @@ impl Cost<'_> {
 	}
 }
 
-/// Fail on every generic the crate instantiates whose copies cost more than `budget`
-/// statements, or than its own attribute allows.
-pub fn check(tcx: TyCtxt<'_>, budget: u64) {
+/// The share of the crate's codegen, in percent, past which `--report` names a generic.
+pub const SHARE: u64 = 1;
+
+/// What the lint does with the generics' costs.
+#[derive(Clone, Copy)]
+pub enum Mode {
+	/// Fail on every generic over its budget, the crate-wide one unless it sets its own.
+	Check(u64),
+	/// Warn on every generic past [`SHARE`] of the crate's codegen, failing none.
+	Report,
+}
+
+/// Fail on, or report, the generics the crate instantiates by what their copies cost.
+/// `local` holds the directories of the packages a user can edit: a generic outside them,
+/// from std or a dependency, is reported at the local function that instantiates it.
+pub fn check(tcx: TyCtxt<'_>, mode: Mode, local: &[PathBuf]) {
 	let instances = instances(tcx);
+	let mut total = 0;
 	let mut costs: FxHashMap<DefId, Cost<'_>> = FxHashMap::default();
 	for &instance in &instances {
+		let size = tcx.size_estimate(instance) as u64;
+		total += size;
 		let generic = tcx.typeck_root_def_id(instance.def_id());
 		let generics = tcx.generics_of(generic);
 		if !generics.requires_monomorphization(tcx) {
 			continue;
 		}
 		let copy = instance.args.truncate_to(tcx, generics);
-		*costs.entry(generic).or_default().copies.entry(copy).or_default() += tcx.size_estimate(instance) as u64;
+		*costs.entry(generic).or_default().copies.entry(copy).or_default() += size;
 	}
 	let mut over: Vec<(DefId, Cost<'_>, u64)> = costs
 		.into_iter()
 		.filter(|(_, cost)| cost.largest() > THIN)
 		.filter_map(|(generic, cost)| {
-			let limit = match limit(tcx, generic) {
-				Some(Ok(limit)) => limit,
-				Some(Err(())) => return None,
-				None => budget,
+			let limit = match mode {
+				Mode::Report => total * SHARE / 100,
+				Mode::Check(budget) => match limit(tcx, generic) {
+					Some(Ok(limit)) => limit,
+					Some(Err(())) => return None,
+					None => budget,
+				},
 			};
 			(cost.statements() > limit).then_some((generic, cost, limit))
 		})
@@ -73,32 +94,103 @@ pub fn check(tcx: TyCtxt<'_>, budget: u64) {
 		return;
 	}
 	over.sort_by_cached_key(|(generic, cost, _)| (std::cmp::Reverse(cost.statements()), tcx.def_path_str(*generic)));
-	let callers = callers(tcx, &instances, over.iter().map(|(generic, _, _)| *generic).collect());
+	let callers = callers(tcx, &instances);
+	let editable = |def: DefId| editable(tcx, def, local);
 	for (generic, cost, limit) in over {
-		let mut err = tcx.dcx().struct_span_err(
-			tcx.def_span(generic),
-			format!(
-				"`{}` costs {} MIR statements in {} copies of up to {} each, over its mono budget of {limit}",
-				tcx.def_path_str(generic),
-				cost.statements(),
-				cost.copies.len(),
-				cost.largest(),
-			),
+		let path = tcx.def_path_str(generic);
+		let size = format!(
+			"`{path}` costs {} MIR statements in {} copies of up to {} each",
+			cost.statements(),
+			cost.copies.len(),
+			cost.largest(),
 		);
-		let mut callers: Vec<_> = callers.get(&generic).into_iter().flatten().collect();
-		callers.sort_by_cached_key(|(caller, (copies, _))| (std::cmp::Reverse(*copies), tcx.def_path_str(**caller)));
-		for (caller, (copies, span)) in callers.iter().take(CALLERS) {
+		let (span, through) = match editable(generic) {
+			true => (tcx.def_span(generic), None),
+			false => match origin(&callers, generic, &editable) {
+				Some((caller, span)) => (span, Some(caller)),
+				None => (tcx.def_span(generic), None),
+			},
+		};
+		let through = through.map(|caller| format!(", instantiated through `{}`", tcx.def_path_str(caller)));
+		let through = through.unwrap_or_default();
+		let mut err = match mode {
+			Mode::Check(_) => tcx
+				.dcx()
+				.struct_span_err(span, format!("{size}{through}, over its mono budget of {limit}")),
+			Mode::Report => tcx.dcx().struct_span_warn(
+				span,
+				format!(
+					"{size}{through}: {}% of the crate's {total}",
+					cost.statements() * 100 / total.max(1)
+				),
+			),
+		};
+		let mut direct: Vec<_> = callers.get(&generic).into_iter().flatten().collect();
+		direct.sort_by_cached_key(|(caller, (copies, _))| (std::cmp::Reverse(*copies), tcx.def_path_str(**caller)));
+		for (caller, (copies, span)) in direct.iter().take(CALLERS) {
 			err.span_note(*span, format!("`{}` instantiates {copies}", tcx.def_path_str(**caller)));
 		}
-		if callers.len() > CALLERS {
-			err.note(format!("and {} more callers", callers.len() - CALLERS));
+		if direct.len() > CALLERS {
+			err.note(format!("and {} more callers", direct.len() - CALLERS));
 		}
-		err.help(format!(
-			"make it forward to a non-generic function, or give it its own budget with `#[cfg_attr(rust2, {}(limit = <statements>, reason = \"<why>\"))]`",
-			ATTRIBUTE.join("::"),
-		));
+		if matches!(mode, Mode::Check(_)) {
+			err.help(match editable(generic) {
+				true => format!(
+					"make it forward to a non-generic function, or give it its own budget with `#[cfg_attr(rust2, {}(limit = <statements>, reason = \"<why>\"))]`",
+					ATTRIBUTE.join("::"),
+				),
+				false => "call it with fewer types, or through a non-generic function of your own".into(),
+			});
+		}
 		err.emit();
 	}
+}
+
+/// Whether `def` is defined in a package the user can edit.
+fn editable(tcx: TyCtxt<'_>, def: DefId, local: &[PathBuf]) -> bool {
+	if def.is_local() {
+		return true;
+	}
+	match tcx.sess.source_map().span_to_filename(tcx.def_span(def)) {
+		FileName::Real(name) => name
+			.local_path()
+			// Cargo names a workspace member's files from the workspace root, rustc's directory.
+			.and_then(|path| std::path::absolute(path).ok())
+			.is_some_and(|path| local.iter().any(|dir| path.starts_with(dir))),
+		_ => false,
+	}
+}
+
+/// The nearest editable function that instantiates `generic`, through any chain of
+/// callers, and where it does: the place a user can change how often it is copied.
+fn origin(
+	callers: &FxHashMap<DefId, FxHashMap<DefId, (u64, Span)>>,
+	generic: DefId,
+	editable: &impl Fn(DefId) -> bool,
+) -> Option<(DefId, Span)> {
+	let mut seen = FxHashSet::from_iter([generic]);
+	let mut next = vec![generic];
+	while !next.is_empty() {
+		let mut found: Option<(u64, DefId, Span)> = None;
+		let mut up = Vec::new();
+		for callee in std::mem::take(&mut next) {
+			for (&caller, &(copies, span)) in callers.get(&callee).into_iter().flatten() {
+				if editable(caller) {
+					// The heaviest caller at the nearest depth, then the first by span.
+					if found.is_none_or(|(most, _, at)| copies > most || (copies == most && span.lo() < at.lo())) {
+						found = Some((copies, caller, span));
+					}
+				} else if seen.insert(caller) {
+					up.push(caller);
+				}
+			}
+		}
+		if let Some((_, caller, span)) = found {
+			return Some((caller, span));
+		}
+		next = up;
+	}
+	None
 }
 
 /// Every function body the crate codegens, once each, but the shims rustc makes.
@@ -114,12 +206,11 @@ fn instances(tcx: TyCtxt<'_>) -> FxHashSet<Instance<'_>> {
 		.collect()
 }
 
-/// For each of `generics`, the functions outside it that instantiate it: how many
-/// copies each, and where the first is.
+/// For each function the crate codegens, the functions outside it that instantiate it:
+/// how many copies each, and where the first is.
 fn callers<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	instances: &FxHashSet<Instance<'tcx>>,
-	generics: FxHashSet<DefId>,
 ) -> FxHashMap<DefId, FxHashMap<DefId, (u64, Span)>> {
 	let mut callers: FxHashMap<DefId, FxHashMap<DefId, (u64, Span)>> = FxHashMap::default();
 	for &instance in instances {
@@ -131,7 +222,7 @@ fn callers<'tcx>(
 		for item in used {
 			let MonoItem::Fn(callee) = item.node else { continue };
 			let generic = callee.def_id();
-			if generic == caller || !generics.contains(&generic) {
+			if generic == caller {
 				continue;
 			}
 			let (copies, _) = callers

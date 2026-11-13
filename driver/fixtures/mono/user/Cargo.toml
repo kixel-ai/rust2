@@ -9,6 +9,7 @@ budgeted = []
 fat = []
 thin = []
 uneven = []
+sorted = []
 
 [dependencies]
 exec = { path = "../exec" }

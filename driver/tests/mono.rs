@@ -215,3 +215,47 @@ fn check_fails() {
 	assert!(!output.status.success(), "{err}");
 	assert!(err.contains("`cargo check` never collects"), "{err}");
 }
+
+#[test]
+fn a_std_generic_fails_at_its_local_caller() {
+	let build = ["--", "build", "--package", "user", "--features", "sorted"];
+	let output = lint(&target("sorted"), &[&["--mono-budget", "1000"][..], &build].concat());
+	let err = stderr(&output);
+	assert!(!output.status.success(), "{err}");
+	// Every error is at the local function that sorts, none in std.
+	let errors: Vec<&str> = err.split("error: `").skip(1).collect();
+	assert!(!errors.is_empty(), "{err}");
+	let at = format!(
+		"user/src/lib.rs:{}:",
+		line_of("user/src/lib.rs", "\t\t\t$(v.sort_by_key")
+	);
+	for error in &errors {
+		let primary = error
+			.lines()
+			.find(|line| line.trim_start().starts_with("-->"))
+			.expect(error);
+		assert!(primary.contains(&at), "{err}");
+		assert!(error.contains("instantiated through `sorted`"), "{err}");
+	}
+}
+
+#[test]
+fn report_ranks_without_failing() {
+	let build = ["--", "build", "--package", "user", "--features", "fat,sorted"];
+	let target = target("report");
+	for run in ["first", "fresh"] {
+		let output = lint(&target, &[&["--report"][..], &build].concat());
+		let err = stderr(&output);
+		assert!(output.status.success(), "{run}: {err}");
+		// Cargo replays a fresh crate's warnings, so a rerun reports the same.
+		let fat = err.find("warning: `exec::fat` costs ").expect(&err);
+		assert!(err[fat..].contains("% of the crate's "), "{err}");
+		let warnings: Vec<u64> = err
+			.split("warning: `")
+			.skip(1)
+			.filter_map(|w| w.split(" costs ").nth(1)?.split(' ').next()?.parse().ok())
+			.collect();
+		assert!(warnings.len() > 1, "{err}");
+		assert!(warnings.is_sorted_by(|a, b| a >= b), "heaviest first: {err}");
+	}
+}
