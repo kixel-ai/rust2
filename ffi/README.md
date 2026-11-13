@@ -389,8 +389,8 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
 `<prefix>.kt` is Kotlin for the JVM and Android over the crate's JNI functions, which
 `--features kotlin` builds into the same library, loaded by `System.loadLibrary`. It needs
 kotlinx-coroutines. Each value crosses JNI as a scalar, a handle as a `Long`, bytes passed
-in as a `ByteArray`, bytes returned as their owner, and anything else encoded into a
-`ByteArray` as its C struct holds it.
+in as a `ByteArray`, bytes returned as their owner, a block of numbers as its primitive
+array, and anything else encoded into a `ByteArray` as its C struct holds it.
 
 - **Names** are in a package of the prefix: types in PascalCase without it, members in
   camelCase without their type's name (`moq.TrackProducer.appendGroup`). Pascal case
@@ -432,8 +432,15 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
 - A **path** is a `String`: one Rust returns that is not UTF-8 throws. A `SocketAddr`,
   `SocketAddrV4`, or `SocketAddrV6` is a `java.net.InetSocketAddress`, which must be
   resolved and, for `V4` or `V6`, of that family; one Rust returns with an IPv6 flow
-  label, which Java does not keep, throws. A `Vec<T>` or `&[T]` is a `List`, and passing
-  a `Vec` by value closes each object in it once the call returns.
+  label, which Java does not keep, throws. A `Vec<T>`, `&[T]`, or `Box<[T]>` of a
+  fixed-width integer or a float is Kotlin's primitive array of it: `ByteArray`,
+  `ShortArray`, `IntArray`, or `LongArray` for `i8` through `i64`, `UShortArray`,
+  `UIntArray`, or `ULongArray` for `u16` through `u64`, which a caller uses under
+  `@OptIn(ExperimentalUnsignedTypes::class)`, and `FloatArray` or `DoubleArray`. It
+  crosses whole: passed or returned directly, in one JNI array copy, and inside another
+  value, in one bulk copy into or out of its encoding. A record or variant holding one
+  compares and hashes it by its contents, as Rust does. Any other `Vec<T>` or `&[T]` is
+  a `List`, and passing a `Vec` by value closes each object in it once the call returns.
 - **Traits** are interfaces; once Rust drops an implementation, it is closed if
   `AutoCloseable`.
 - **Closures** are function types, which Rust calls from any thread: one lent for a call

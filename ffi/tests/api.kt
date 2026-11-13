@@ -4,6 +4,8 @@
 // With an argument, it instead checks the futures' semantics, or breaks a contract, which
 // must fail.
 
+@file:OptIn(ExperimentalUnsignedTypes::class)
+
 import api.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executor
@@ -28,6 +30,20 @@ class PrintLog : Log, AutoCloseable {
 
 	// Rust closes it once it drops the implementation.
 	override fun close() = println("freed")
+}
+
+// Print each of `n`'s lists, its floats as their bits, as transcript.rs does.
+fun numbers(what: String, n: Numbers) {
+	println("$what u16 ${n.u16s.contentToString()}")
+	println("$what u32 ${n.u32s.contentToString()}")
+	println("$what u64 ${n.u64s.contentToString()}")
+	println("$what i8 ${n.i8s.contentToString()}")
+	println("$what i16 ${n.i16s.contentToString()}")
+	println("$what i32 ${n.i32s.contentToString()}")
+	println("$what i64 ${n.i64s.contentToString()}")
+	println("$what f32 ${n.f32s.map { it.toRawBits().toUInt() }}")
+	println("$what f64 ${n.f64s.map { it.toRawBits().toULong() }}")
+	println("$what some ${n.some?.let { "Some(${it.contentToString()})" } ?: "None"}")
 }
 
 fun bound(b: BoundU64): String = when (b.kind) {
@@ -420,7 +436,7 @@ fun script() {
 	val v4 = java.net.InetSocketAddress(java.net.InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)), 8080)
 	val loopback = ByteArray(16).also { it[15] = 1 }
 	val v6 = java.net.InetSocketAddress(java.net.Inet6Address.getByAddress(null, loopback, 3), 443)
-	println("ports ${ports(listOf(v4, v6))}")
+	println("ports ${ports(listOf(v4, v6)).contentToString()}")
 	val peer = Peer(v6, listOf("a", "b")).next("c")
 	println("peer ${peer.debug()} ${peer.aliases().joinToString(", ", "[", "]") { "\"$it\"" }}")
 	val file = file("dir", "f\\'\"\t")
@@ -485,7 +501,19 @@ fun script() {
 	println("held ${listOf(heldCount(Tuple1(Counter.new("h", 4u))), heldCount(null)).joinToString(" ") { if (it == null) "None" else "Some($it)" }}")
 	println("boxed ${boxedName(boxedCounter("b"))?.let { "Some(\"$it\")" }} ${boxedName(null) ?: "None"} ${boxedCounter(null) == null}")
 	println("less ${less(5u, 2u)}")
-	println("sums ${sums(listOf(listOf(1u, 2u), emptyList(), listOf(3u)))}")
+	println("sums ${sums(listOf(uintArrayOf(1u, 2u), UIntArray(0), uintArrayOf(3u))).contentToString()}")
+	numbers("edges", Numbers.edges())
+	numbers("reversed", Numbers.edges().reversed())
+	val edges = Numbers.edges()
+	check(edges == Numbers.edges() && edges.hashCode() == Numbers.edges().hashCode(), "records of arrays compare by contents")
+	check(edges.reversed().reversed() == edges, "every edge value crosses both ways exactly")
+	check(edges.copy(some = null).reversed().some == null, "a missing array stays missing")
+	check(edges.copy(some = IntArray(0)).reversed().some?.size == 0, "an empty array is no missing one")
+	check(edges.copy(some = intArrayOf(Int.MIN_VALUE, 7)).reversed().some.contentEquals(intArrayOf(7, Int.MIN_VALUE)), "an array in an option crosses in a record")
+	println("sum u32 ${sumU32(UIntArray(0))} ${sumU32(uintArrayOf(UInt.MAX_VALUE, UInt.MAX_VALUE, 2u))}")
+	println("doubled i64 ${doubledI64(longArrayOf(Long.MIN_VALUE, -1, 0, Long.MAX_VALUE)).contentToString()}")
+	val floats = boxedFloats(doubleArrayOf(-0.0, Double.fromBits(0x7ff8000000000001L)))
+	println("boxed floats ${floats.map { it.toRawBits().toULong() }}")
 	val summed = summed(listOf(Point(1, 2), Point(-4, 6)))
 	val noneSummed = summed(emptyList())
 	println("summed ${summed.x} ${summed.y} ${noneSummed.x} ${noneSummed.y}")
