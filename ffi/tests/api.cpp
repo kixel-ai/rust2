@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <cstdio>
 #include <cstring>
@@ -947,6 +948,14 @@ int script() {
 	std::printf("sums [%u, %u, %u]\n", sums[0], sums[1], sums[2]);
 	numbers("edges", api::Numbers::edges());
 	numbers("reversed", api::Numbers::edges().reversed());
+	{
+		auto edges = api::Numbers::edges();
+		auto nan = api::Reading::new_(std::nan(""), false);
+		auto same = [](bool b) { return b ? "true" : "false"; };
+		std::printf("float equal %s %s %s %s %s\n", same(edges == edges), same(edges == api::Numbers::edges()),
+		            same(api::Numbers::zero(true) == api::Numbers::zero(false)), same(nan == nan),
+		            same(api::Reading::new_(-0.0, true) == api::Reading::new_(0.0, false)));
+	}
 	std::printf("sum u32 %llu %llu\n", static_cast<unsigned long long>(api::sum_u32({})),
 	            static_cast<unsigned long long>(api::sum_u32({UINT32_MAX, UINT32_MAX, 2})));
 	std::printf("doubled i64 ");

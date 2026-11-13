@@ -2283,6 +2283,23 @@ impl Numbers {
 		}
 	}
 
+	/// Only the float lists hold anything: one zero each, negative when `negative` is.
+	pub fn zero(negative: bool) -> Self {
+		let zero = if negative { -0.0 } else { 0.0 };
+		Self {
+			u16s: Vec::new(),
+			u32s: Box::new([]),
+			u64s: Vec::new(),
+			i8s: Vec::new(),
+			i16s: Vec::new(),
+			i32s: Vec::new(),
+			i64s: Vec::new(),
+			f32s: vec![zero as f32],
+			f64s: vec![zero],
+			some: None,
+		}
+	}
+
 	/// Each list reversed, and `some` too where present.
 	pub fn reversed(mut self) -> Self {
 		self.u16s.reverse();
@@ -2298,6 +2315,23 @@ impl Numbers {
 			some.reverse();
 		}
 		self
+	}
+}
+
+/// A float beside a record of float lists, both compared as Rust's `==` compares floats.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Reading {
+	pub value: f64,
+	pub numbers: Numbers,
+}
+
+impl Reading {
+	/// `value` beside [`Numbers::zero`] of `negative`.
+	pub fn new(value: f64, negative: bool) -> Self {
+		Self {
+			value,
+			numbers: Numbers::zero(negative),
+		}
 	}
 }
 

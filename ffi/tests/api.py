@@ -10,6 +10,7 @@ import asyncio
 import datetime
 import gc
 import io
+import math
 import os
 import struct
 import sys
@@ -596,6 +597,10 @@ def script():
 	print(f"sums {api.sums(rows).tolist()}")
 	numbers("edges", api.Numbers.edges())
 	numbers("reversed", api.Numbers.edges().reversed())
+	edges = api.Numbers.edges()
+	nan = api.Reading.new(math.nan, False)
+	equal = [edges == edges, edges == api.Numbers.edges(), api.Numbers.zero(True) == api.Numbers.zero(False), nan == nan, api.Reading.new(-0.0, True) == api.Reading.new(0.0, False)]
+	print("float equal " + " ".join(str(e).lower() for e in equal))
 	print(f"sum u32 {api.sum_u32(array.array('I'))} {api.sum_u32(array.array('I', [2**32 - 1, 2**32 - 1, 2]))}")
 	print(f"doubled i64 {api.doubled_i64(array.array('q', [-(2**63), -1, 0, 2**63 - 1])).tolist()}")
 	floats = api.boxed_floats(array.array("d", struct.pack("=dQ", -0.0, 0x7FF8000000000001)))

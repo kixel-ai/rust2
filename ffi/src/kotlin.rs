@@ -446,6 +446,13 @@ impl<'a> Gen<'a> {
 
 	/// The class of a tuple of `n`, of one or past `Triple`, written once, its fields named
 	/// as `Triple`'s.
+	/// Whether a value of `ty` must compare through [`contents`] to match Rust's `==`: it holds
+	/// a primitive array, which a data class compares by identity, or a float, which it
+	/// compares by `Double.equals` after `===`, so NaN equals itself and -0.0 differs from 0.0.
+	fn by_contents(&self, ty: &Type) -> bool {
+		holds_block(ty) || self.abi.api.holds_float(ty)
+	}
+
 	fn tuple(&mut self, n: usize) -> String {
 		let name = format!("Tuple{n}");
 		if self.tuples.insert(n) {
@@ -453,9 +460,10 @@ impl<'a> Gen<'a> {
 			let fields: Vec<String> = (0..n).map(|k| format!("\tval {}: T{},\n", ordinal(k), k + 1)).collect();
 			let _ = write!(
 				self.types,
-				"/** A tuple of {n}, as `Pair` and `Triple` are of two and three. */\ndata class {name}<{}>(\n{})\n\n",
+				"/** A tuple of {n}, as `Pair` and `Triple` are of two and three. */\ndata class {name}<{}>(\n{}) {{\n{}}}\n\n",
 				params.join(", "),
-				fields.concat()
+				fields.concat(),
+				contents(&format!("{name}<{}>", vec!["*"; n].join(", ")), &(0..n).map(ordinal).collect::<Vec<_>>())
 			);
 		}
 		name
@@ -1156,8 +1164,8 @@ impl<'a> Gen<'a> {
 				}
 			}
 		}
-		// A data class compares arrays by identity, and Rust by their contents.
-		if record.fields.iter().any(|f| holds_block(&f.ty)) {
+		// A data class compares arrays by identity and floats by their bits, and Rust both by IEEE `==`.
+		if record.fields.iter().any(|f| self.by_contents(&f.ty)) {
 			body.push(contents(
 				&name,
 				&fields.iter().map(|(f, _)| f.clone()).collect::<Vec<_>>(),
@@ -1342,7 +1350,7 @@ impl<'a> Gen<'a> {
 					));
 				}
 				false => {
-					let body = match variant.fields.iter().any(|f| holds_block(&f.ty)) {
+					let body = match variant.fields.iter().any(|f| self.by_contents(&f.ty)) {
 						true => {
 							let names: Vec<String> = variant.fields.iter().map(|f| field_name(&f.name)).collect();
 							format!(" {{\n{}\t}}", indent(&contents(&vname, &names)))
@@ -2320,7 +2328,7 @@ fn contents(name: &str, fields: &[String]) -> String {
 	)
 }
 
-/// Whether `ty` holds a block anywhere, which Kotlin compares by its contents.
+/// Whether `ty` holds a block anywhere.
 fn holds_block(ty: &Type) -> bool {
 	match ty {
 		_ if ty.block().is_some() => true,

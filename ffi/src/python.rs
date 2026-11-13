@@ -61,6 +61,13 @@ const TAKEN: &[&str] = &[
 	"_array",
 	"_asyncio",
 	"_dataclass",
+	"_same",
+	"_all",
+	"_dict",
+	"_list",
+	"_tuple",
+	"_type",
+	"_zip",
 	"_datetime",
 	"_enum",
 	"_socket",
@@ -170,15 +177,35 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		from builtins import AttributeError as _AttributeError\n\
 		from builtins import Exception as _Exception\n\
 		from builtins import ValueError as _ValueError\n\
+		from builtins import all as _all\n\
 		from builtins import bytes as _bytes\n\
+		from builtins import dict as _dict\n\
 		from builtins import isinstance as _isinstance\n\
 		from builtins import len as _len\n\
+		from builtins import list as _list\n\
 		from builtins import property as _property\n\
 		from builtins import staticmethod as _staticmethod\n\
 		from builtins import str as _str\n\
+		from builtins import tuple as _tuple\n\
+		from builtins import type as _type\n\
+		from builtins import zip as _zip\n\
 		from dataclasses import dataclass as _dataclass\n\n\
 		_get_running_loop = _asyncio.get_running_loop\n\
 		_T = _typing.TypeVar(\"_T\")\n\n\n\
+		def _same(a: object, b: object, /) -> bool:\n\
+		\t\"\"\"Whether a and b are equal as Rust's `==` compares them: never by identity, so a NaN\n\
+		\tequals nothing, while a list's, tuple's, or dict's own `==` takes an item as equal to itself.\"\"\"\n\
+		\tif _isinstance(a, (_list, _tuple)):\n\
+		\t\txs = _typing.cast(\"_typing.Sequence[object]\", a)\n\
+		\t\tys = _typing.cast(\"_typing.Sequence[object]\", b)\n\
+		\t\treturn _type(xs) is _type(ys) and _len(xs) == _len(ys) and _all(_same(x, y) for x, y in _zip(xs, ys))\n\
+		\tif _isinstance(a, _dict):\n\
+		\t\tif not _isinstance(b, _dict):\n\
+		\t\t\treturn False\n\
+		\t\tm = _typing.cast(\"_typing.Mapping[object, object]\", a)\n\
+		\t\tn = _typing.cast(\"_typing.Mapping[object, object]\", b)\n\
+		\t\treturn m.keys() == n.keys() and _all(_same(v, n[k]) for k, v in m.items())\n\
+		\treturn a == b\n\n\n\
 		def _load() -> object:\n\
 		\timport importlib.machinery\n\
 		\timport importlib.util\n\
@@ -961,6 +988,9 @@ impl<'a> Gen<'a> {
 		let owner = Ty::Struct(c.clone());
 		let data: Vec<String> = record.fields.iter().map(|f| field_name(&f.name)).collect();
 		self.methods(&record.methods, (&ty, &owner, &rust), &data, &[], &mut body);
+		if record.fields.iter().any(|f| abi.api.holds_float(&f.ty)) {
+			body.python.push(ieee_eq(&name, &data));
+		}
 		let fields: String = record
 			.fields
 			.iter()
@@ -1094,6 +1124,10 @@ impl<'a> Gen<'a> {
 				.collect();
 			let fields = match fields.is_empty() {
 				true => "\tpass\n".to_string(),
+				false if variant.fields.iter().any(|f| abi.api.holds_float(&f.ty)) => {
+					let names: Vec<String> = variant.fields.iter().map(|f| field_name(&f.name)).collect();
+					format!("{fields}\n{}", ieee_eq(&class, &names))
+				}
 				false => fields,
 			};
 			let _ = write!(
@@ -1921,4 +1955,15 @@ fn number(ty: &Type) -> &'static str {
 		Type::F64 => "f64",
 		other => unreachable!("{other:?} is no block's number"),
 	}
+}
+
+/// The `__eq__` of the dataclass `class` of `fields`, comparing as Rust's `==` does. A
+/// dataclass's own compares tuples of its fields, which take a value as equal to itself, so
+/// a NaN it holds would equal itself.
+fn ieee_eq(class: &str, fields: &[String]) -> String {
+	let same: Vec<String> = fields.iter().map(|f| format!(" and _same(self.{f}, other.{f})")).collect();
+	format!(
+		"\tdef __eq__(self, other: object) -> bool:\n\t\treturn _isinstance(other, {class}){}\n",
+		same.concat()
+	)
 }

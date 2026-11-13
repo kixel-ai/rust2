@@ -598,6 +598,9 @@ Future<void> script() async {
   );
   numbers('edges', api.Numbers.edges());
   numbers('reversed', api.Numbers.edges().reversed());
+  final edges = api.Numbers.edges();
+  final nan = api.Reading.new_(double.nan, false);
+  print('float equal ${edges == edges} ${edges == api.Numbers.edges()} ${api.Numbers.zero(true) == api.Numbers.zero(false)} ${nan == nan} ${api.Reading.new_(-0.0, true) == api.Reading.new_(0.0, false)}');
   print('sum u32 ${api.sumU32(Uint32List(0))} ${api.sumU32(Uint32List.fromList([0xffffffff, 0xffffffff, 2]))}');
   print('doubled i64 ${api.doubledI64(Int64List.fromList([-0x8000000000000000, -1, 0, 0x7fffffffffffffff]))}');
   final floats = api.boxedFloats(Float64List.fromList([-0.0, f64(0x7ff8000000000001)]));

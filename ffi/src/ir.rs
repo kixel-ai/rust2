@@ -22,6 +22,32 @@ pub struct Api {
 }
 
 impl Api {
+	/// Whether a value of `ty` holds a float anywhere, its records' and enums' included, so a
+	/// language comparing it itself must use IEEE `==`, as Rust does: NaN unequal even to
+	/// itself, and -0.0 equal to 0.0.
+	pub fn holds_float(&self, ty: &Type) -> bool {
+		self.floats(ty, &mut std::collections::HashSet::new())
+	}
+
+	fn floats(&self, ty: &Type, seen: &mut std::collections::HashSet<(bool, usize)>) -> bool {
+		match ty {
+			Type::F32 | Type::F64 => true,
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => {
+				self.floats(inner, seen)
+			}
+			Type::Tuple(elements) => elements.iter().any(|e| self.floats(e, seen)),
+			// A type already seen is being looked through, so it adds nothing new.
+			Type::Record(i) => seen.insert((false, *i)) && self.records[*i].fields.iter().any(|f| self.floats(&f.ty, seen)),
+			Type::Enum(i) => {
+				seen.insert((true, *i))
+					&& (self.enums[*i].variants.iter())
+						.flat_map(|v| &v.fields)
+						.any(|f| self.floats(&f.ty, seen))
+			}
+			_ => false,
+		}
+	}
+
 	/// Whether an item on `on` is on every target the API serves.
 	pub fn everywhere(&self, on: On) -> bool {
 		on.0 & self.all().0 == self.all().0

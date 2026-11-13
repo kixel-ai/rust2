@@ -618,6 +618,17 @@ fn main() {
 	println!("sums {:?}", api::sums(vec![vec![1, 2], Vec::new(), vec![3]]));
 	numbers("edges", &api::Numbers::edges());
 	numbers("reversed", &api::Numbers::edges().reversed());
+	let edges = api::Numbers::edges();
+	let nan = api::Reading::new(f64::NAN, false);
+	println!(
+		"float equal {} {} {} {} {}",
+		// Each value against itself, which a NaN it holds makes unequal.
+		PartialEq::eq(&edges, &edges),
+		edges == api::Numbers::edges(),
+		api::Numbers::zero(true) == api::Numbers::zero(false),
+		PartialEq::eq(&nan, &nan),
+		api::Reading::new(-0.0, true) == api::Reading::new(0.0, false)
+	);
 	println!(
 		"sum u32 {} {}",
 		api::sum_u32(&[]),
