@@ -2,7 +2,8 @@
 
 ## Goal
 
-Every case of [the binding benchmark](/bench/ffi/README.md), in every language, reports to
+Every single-threaded case of [the binding benchmark](/bench/ffi/README.md), in every language,
+reports to
 [CodSpeed](https://app.codspeed.io/kixel-ai) under its CPU simulation, so main keeps a history
 and each PR that can move a binding's cost gets a comment with its change per case. Today the
 numbers exist only in the nightly's summary, on a loaded host, and each
@@ -45,6 +46,9 @@ Guidance:
   hooks wrap it, and keep the nightly's wall and CPU tables as they are.
 - Running `nix develop` itself under Valgrind costs minutes: enter the bench shell first and
   run CodSpeed's CLI inside it, or show the action's wrapping costs nothing.
+- [Concurrent calls](/quest/m1/ffi-speed/concurrent-calls.md)' contention cases stay out:
+  simulation runs one thread at a time, so it would report a contention number that measures
+  no contention.
 - A column added later, such as [the TypeScript one](/quest/m2/wasm/backend.md), joins under
   the same A/A rule.
 - Update [the benchmark's README](/bench/ffi/README.md) and the
