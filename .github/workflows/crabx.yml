@@ -65,58 +65,9 @@ jobs:
   build:
     needs: discover
     if: needs.discover.outputs.any == 'true'
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.discover.outputs.builds) }}
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
-    steps:
-      # Read new job identity fields through JSON until actionlint knows their types.
-      - id: identity
-        env:
-          JOB: ${{ toJSON(job) }}
-        shell: bash
-        run: |
-          for field in workflow_repository workflow_sha workflow_ref; do
-            value=$(jq -er --arg field "$field" '.[$field] | select(type == "string" and length > 0)' <<< "$JOB")
-            echo "$field=$value" >> "$GITHUB_OUTPUT"
-          done
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          ref: ${{ matrix.sha }}
-          path: source
-          submodules: recursive
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ steps.identity.outputs.workflow_repository }}
-          ref: ${{ steps.identity.outputs.workflow_sha }}
-          path: pipeline
-          persist-credentials: false
-      - name: Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: '3.13'
-      - name: Rust target
-        env:
-          TARGET: ${{ matrix.target }}
-        run: rustup target add "$TARGET"
-        working-directory: source/${{ matrix.path }}
-      - name: Linux linker and glibc 2.28 sysroot
-        if: runner.os == 'Linux'
-        run: python3 -m pip install cargo-zigbuild ziglang
-      - name: Build every binary and archive
-        env:
-          ITEM: ${{ toJSON(matrix) }}
-          TARGET: ${{ matrix.target }}
-        run: python3 pipeline/.github/crabx/pipeline.py build
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: crabx-${{ matrix.name }}-${{ matrix.version }}-${{ matrix.target }}
-          path: archives/*.tgz
-          if-no-files-found: error
+    uses: ./.github/workflows/crabx-build.yml
+    with:
+      builds: ${{ needs.discover.outputs.builds }}
 
   publish:
     needs: [discover, build]
