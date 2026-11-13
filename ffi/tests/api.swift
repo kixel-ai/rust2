@@ -976,16 +976,20 @@ func futures() {
 		check(got.value == 10, "an async closure's end wakes Rust")
 	}
 	do {
+		// Its task runs on another thread, so only a closure that waits is sure to pend at
+		// Rust's first poll: an empty one may return first, as a ready Rust future does.
+		let (stream, gate) = AsyncStream<Void>.makeStream()
 		let threw = Cell(false)
 		q.launch {
 			do {
-				try await within(0) {}
+				try await within(0) { for await _ in stream { break } }
 			} catch is Api.Error {
 				threw.value = true
 			}
 		}
 		q.drain()
 		check(threw.value, "Rust gives up on an async closure")
+		gate.finish()
 	}
 	do {
 		let started = Cell(false)
