@@ -52,7 +52,9 @@ fn run(cmd: &mut Command) -> Output {
 /// Export the fixture `name` into `out` for `targets` into one binding, else the host,
 /// with these cargo args, returning what the exporter printed.
 fn export(name: &str, out: &Path, targets: &[&str], cargo: &[&str]) -> Output {
-	exporter(name, out, targets, &[], cargo).output().expect("running rust2-ffi")
+	exporter(name, out, targets, &[], cargo)
+		.output()
+		.expect("running rust2-ffi")
 }
 
 /// The export of the fixture `name`, with `args` for rust2-ffi besides.
@@ -1390,7 +1392,10 @@ fn lock() {
 	);
 	let next = locked("next");
 	assert!(!next.status.success(), "breaking the baseline passed");
-	assert!(!dir.join("next").join("api.json").exists(), "a broken export wrote its API");
+	assert!(
+		!dir.join("next").join("api.json").exists(),
+		"a broken export wrote its API"
+	);
 	let errors = errors(&next).join("\n") + "\n";
 	let expected = manifest_dir().join("fixtures/lock/expected.txt");
 	if std::env::var_os("UPDATE_EXPECT").is_some() {
