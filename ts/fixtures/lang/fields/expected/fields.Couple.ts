@@ -4,13 +4,9 @@ import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug(self: Couple, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const arg = new rs.ByteSlice(self.headData, self.headStart, self.headLen);
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(arg), f, rs.u8Debug);
+	const _4: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(arg), f, rs.u8Debug);
 	const arg2 = new rs.ByteSlice(self.wordData, self.wordStart, self.wordLen);
-	const _3: string = "Couple";
-	const _4: string = "head";
-	const _7: string = "word";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(arg2), f, rs.u8Debug);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Couple head word", [_4, (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(arg2), f, rs.u8Debug)]);
 }
 
 export function eq$cmp_PartialEq(self: Couple, other: Couple): boolean {

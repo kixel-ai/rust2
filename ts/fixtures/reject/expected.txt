@@ -248,6 +248,7 @@ fixtures/reject/src/pointers.rs:cell_reassigned+2:15: a raw pointer to `std::cel
 fixtures/reject/src/pointers.rs:cell_replaced+2:15: a raw pointer to `(u32, u32)` in `std::cell::UnsafeCell<(u32, u32)>`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:cell_taken+2:15: a raw pointer to `std::cell::UnsafeCell<u32>` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:closure_replaced+3:19: a raw pointer to `(u32, u32)` in `pointers::Lane`, which the crate may put another object in place of
+fixtures/reject/src/pointers.rs:cyclic_pointed+1:17: `Weak::as_ptr` of a `pointers::Cyclic` that `Rc::new_cyclic` makes, whose JS object isn't there to point at until its closure returns
 fixtures/reject/src/pointers.rs:element_pointer+2:10: a raw pointer to `(u32, u32)` in an element, a payload, or a union field, which is not supported yet
 fixtures/reject/src/pointers.rs:element_to_array+1:13: a cast from a pointer to `u32` to one to `[u32; 2]`, which reads the bytes of one type as another
 fixtures/reject/src/pointers.rs:elements_replaced+2:10: a raw pointer to `[u32; 3]` in a variable assigned again while it may point there
@@ -301,6 +302,7 @@ fixtures/reject/src/pointers.rs:variable_cloned_into+2:10: a raw pointer to `(u3
 fixtures/reject/src/pointers.rs:variable_reassigned+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:variable_replaced+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:variable_swapped+3:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
+fixtures/reject/src/pointers.rs:weak_slice+1:4: `Weak::as_ptr` of `[u32]`, whose length JS keeps nowhere for a `Weak::new` unsized to one
 fixtures/reject/src/pointers.rs:written_bytes+2:3: `write_bytes` of a pointer to `u32`, whose bytes JS keeps as a value
 fixtures/reject/src/pointers.rs:written_bytes+3:16: a write reaching past a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/rebound.rs:bytes_compared_rebound+2:19: a reference to `[u8; 4]`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there

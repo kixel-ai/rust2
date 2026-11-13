@@ -184,6 +184,8 @@ const VERBATIM: &[&str] = &[
 	"UpperExp",
 	"Vec::into_flattened",
 	"Vec::splice",
+	"Weak::as_ptr",
+	"Weak::new",
 	"alloc",
 	"array::from_ref",
 	"as_chunks",

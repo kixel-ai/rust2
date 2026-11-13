@@ -1,5 +1,5 @@
 //! Items rust2-ffi cannot export: each is a compile error at its span.
-#![feature(allocator_api, pattern)]
+#![feature(pattern)]
 use std::collections::HashMap;
 
 /// A tuple of references taken: C lends nothing inside a value.
@@ -738,7 +738,7 @@ pub fn lent() -> impl Iterator<Item = u8> {
 /// A pattern of the crate's own, whose searcher a split runs as it is read.
 struct Slash;
 
-impl std::str::pattern::Pattern for Slash {
+unsafe impl std::str::pattern::Pattern for Slash {
 	type Searcher<'a> = std::str::pattern::CharSearcher<'a>;
 
 	fn into_searcher(self, haystack: &str) -> std::str::pattern::CharSearcher<'_> {
@@ -890,10 +890,14 @@ impl Tally {
 	}
 }
 
-/// A waiter made from a waker only by an `unsafe` function.
+/// A waiter made from a waker only by an `unsafe` function, exported through a safe one.
 pub struct Risky(std::task::Waker);
 
 impl Risky {
+	pub fn idle() -> Self {
+		Self(std::task::Waker::noop().clone())
+	}
+
 	/// # Safety
 	///
 	/// Nothing, in this fixture.
@@ -967,7 +971,63 @@ pub enum Top {
 	Large = u128::MAX,
 }
 
+/// An `unsafe fn`, whose preconditions safe foreign code cannot uphold.
+pub unsafe fn raw(x: u32) -> u32 {
+	x
+}
+
+/// A C-variadic definition, whose variadic arguments C would silently drop.
+pub unsafe extern "C" fn sum(n: u32, _args: ...) -> u32 {
+	n
+}
+
+/// A custom-ABI function, which nothing can call from Rust.
+#[unsafe(naked)]
+pub unsafe extern "custom" fn custom() {
+	core::arch::naked_asm!("ret")
+}
+
+/// A value with an `unsafe` method.
+pub struct Raw;
+
+impl Raw {
+	/// A value to call it on.
+	pub fn new() -> Self {
+		Self
+	}
+
+	/// An `unsafe` inherent method.
+	pub unsafe fn peek(&self) -> u32 {
+		0
+	}
+}
+
+/// An `unsafe trait`, which foreign code would implement without upholding its contract.
+pub unsafe trait Trusted: Send + Sync {
+	fn get(&self) -> u32;
+}
+
+/// A trait with an `unsafe` method.
+pub trait Hazard: Send + Sync {
+	unsafe fn risk(&self) -> u32;
+}
+
+/// Takes the `unsafe trait`, so its foreign implementation would be exported.
+pub fn trust(trusted: Box<dyn Trusted>) -> u32 {
+	trusted.get()
+}
+
+/// Takes the trait with an `unsafe` method.
+pub fn hazard(hazard: Box<dyn Hazard>) -> u32 {
+	unsafe { hazard.risk() }
+}
+
 /// A `NonZero` of a 128-bit integer, which no integer of C's holds.
 pub fn wide_non_zero(n: std::num::NonZero<u128>) -> u128 {
 	n.get()
+}
+
+/// A boxed slice of bytes, which no buffer form takes.
+pub fn boxed_bytes(bytes: Box<[u8]>) -> usize {
+	bytes.len()
 }

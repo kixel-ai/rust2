@@ -6,8 +6,8 @@
 
 import { type ByteSlice, type Debug, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugStructFields, fmtDebugTuple, fmtOption, fmtOwned, fmtPad, fmtSpec, fmtUnit, fmtWriteFmt, OK, Ok, type Place, panic, panicFmt, type Result, Slice } from "../rs.ts";
 import { type char, type u8, type u16, u16Debug, u16LowerHex, type u32, u32UpperHex, type usize, usizeDisplay } from "./int.ts";
-import { type Clones, DONE, type Done, Iter, iterFlatMap, iterHeld, type SizeHint } from "./iter.ts";
-import { type String as RsString, strChars, stringCased } from "./str.ts";
+import { type Clones, DONE, type Done, Iter, iterFlatMap, iterFlattenParts, iterHeld, type SizeHint } from "./iter.ts";
+import { type String as RsString, strChars, stringCased, stringExtendChars, stringNew, stringPush, stringReserve } from "./str.ts";
 import { drop as dispose } from "./task.ts";
 import { ALPHABETIC, CASE_IGNORABLE, LOWERCASE, NUMERIC, TITLECASE, TO_LOWERCASE, TO_LOWERCASE_MULTI, TO_UPPERCASE, TO_UPPERCASE_MULTI, UNPRINTABLE, UPPERCASE } from "./unicode.ts";
 import type { Location } from "./location.ts";
@@ -270,7 +270,7 @@ class CaseMapping extends Chars {
 
 /** `EscapeUnicode`, `EscapeDefault`, and `EscapeDebug`: std's `EscapeIterInner` of what it writes. */
 class Escape extends Chars {
-	// Whether it is `escape_debug`'s char as it is, which std writes even once it has yielded it.
+	// Whether it is `escape_debug`'s char as it is, which std writes only until it yields it.
 	readonly #literal: boolean;
 
 	constructor(chars: readonly char[], literal: boolean) {
@@ -285,9 +285,10 @@ class Escape extends Chars {
 		return it;
 	}
 
-	/** The literal char by `write_char`, else what is still alive by one `write_str`. */
+	/** The literal char by `write_char` while it is alive, else what is still alive by one `write_str`. */
 	display(f: Formatter): FmtResult {
-		return this.#literal ? f.out.writeChar(this.chars[0]) : f.out.writeStr(this.rest());
+		if (!this.#literal) return f.out.writeStr(this.rest());
+		return this.front < this.back ? f.out.writeChar(this.chars[0]) : OK;
 	}
 
 	debug(f: Formatter, name: string): FmtResult {
@@ -349,6 +350,32 @@ export function strEscapeUnicode(s: string): Iter<char> {
 /** `str::escape_default`: each char's `escape_default`, as std's `flat_map` of them. */
 export function strEscapeDefault(s: string): Iter<char> {
 	return iterFlatMap(strChars(s), charEscapeDefault, undefined, true);
+}
+
+/**
+ * `String`'s `Extend` of a `str::escape_default`, as std specializes it: room for what its
+ * parts say they have left, then each, with room for ten bytes before each char of its
+ * source that escapes as `\u{..}`.
+ */
+export function stringExtendEscapeDefault(s: RsString, it: Iter<char>): RsString {
+	const [front, source, back] = iterFlattenParts(it);
+	const lower = (part: Iter<unknown> | undefined) => part?.sizeHint()[0] ?? 0;
+	stringReserve(s, (lower(front) + lower(source) + lower(back)) as usize);
+	if (front !== undefined) stringExtendChars(s, front);
+	if (source !== undefined) {
+		for (let escape = source.next(); escape !== DONE; escape = source.next()) {
+			const chars = escape as Iter<char>;
+			if (chars.sizeHint()[0] > 2) stringReserve(s, 10 as usize);
+			for (let c = chars.next(); c !== DONE; c = chars.next()) stringPush(s, c);
+		}
+	}
+	if (back !== undefined) stringExtendChars(s, back);
+	return s;
+}
+
+/** `to_string` and `collect` of a `str::escape_default`, as std specializes them: `stringExtendEscapeDefault` of a new `String` by a clone. */
+export function stringFromEscapeDefault(it: Iter<char>): RsString {
+	return stringExtendEscapeDefault(stringNew(), it.clone());
 }
 
 /** `str::escape_debug`: each char's `escape_debug`, as std's `flat_map` of them. */

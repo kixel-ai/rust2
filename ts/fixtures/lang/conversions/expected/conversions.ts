@@ -5999,10 +5999,9 @@ export function measured(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const wide: rs.Vec<rs.u64> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u64 => {
 		return _2 as rs.u64;
 	}), undefined, 8, true);
-	const _8: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): rs.char => {
+	const text: rs.String = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): rs.char => {
 		return _25 as rs.char;
-	});
-	const text: rs.String = rs.stringExtendChars(rs.stringNew(), _8);
+	}));
 	Named.make$conversions_Value(data, 0);
 	const _13: rs.usize = rs.byteSliceRange(data, 0, 0).length;
 	rs.byteSliceRange(data, 0, 0);
@@ -6055,7 +6054,11 @@ export function pointed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const p: rs.ByteSlice = rs.byteSliceFrom(a);
 	p.data[p.start] = p.data[p.start] ^ 16;
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(a));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a[1])));
+	const dst = out;
+	const byte = a[1];
+	rs.byteVecReserve(dst, 1 as rs.usize);
+	dst.data[dst.length + 0] = byte;
+	dst.length = dst.length + 1;
 }
 
 /**
@@ -6591,10 +6594,9 @@ export function referenced$u8(data: rs.ByteSlice, out: rs.ByteVec): void {
  * `Vec`s behind `&`, `&mut`, and a reference to one, as moq's buffers reach them.
  */
 export function referencedBytes(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _4: rs.Iter<rs.char> = rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4), (_2: rs.u8): rs.char => {
+	const text: rs.String = rs.stringFromChars(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4), (_2: rs.u8): rs.char => {
 		return _2 as rs.char;
-	});
-	const text: rs.String = rs.stringExtendChars(rs.stringNew(), _4);
+	}));
 	const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
 	readBytes$ref_str(text.v, out);
 	readBytes$ref_String(text, out);

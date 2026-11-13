@@ -407,8 +407,7 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const fromRef4: string = s.v;
 		const fromString: string = rs.stringClone(s).v;
 		const into2: string = rs.stringClone(s).v;
-		const _655: rs.Iter<rs.char> = rs.iterRev(rs.strChars(s.v));
-		const collected4: string = rs.stringExtendChars(rs.stringNew(), _655).v;
+		const collected4: string = rs.stringFromChars(rs.iterRev(rs.strChars(s.v))).v;
 		const empty4: string = "";
 		put(out, fromRef4);
 		put(out, fromString);

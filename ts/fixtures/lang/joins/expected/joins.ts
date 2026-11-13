@@ -69,9 +69,10 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		bytes(rs.byteSlicesJoin(rs.sliceFrom(boxed.items)), out);
 		bytes(rs.byteSlicesJoin(rs.sliceFrom(boxed.items), rs.byteSliceFrom(Uint8Array.of(sep))), out);
 		bytes(rs.byteSlicesJoin(rs.sliceFrom(boxed.items), seps), out);
-		bytes(rs.byteSlicesJoin(rs.sliceFrom([])), out);
-		bytes(rs.byteSlicesJoin(rs.sliceFrom([]), rs.byteSliceFrom(Uint8Array.of(sep))), out);
-		bytes(rs.byteSlicesJoin(rs.sliceFrom([]), seps), out);
+		const _71: rs.ByteSlice[] = [];
+		bytes(rs.byteSlicesJoin(rs.sliceFrom(_71)), out);
+		bytes(rs.byteSlicesJoin(rs.sliceFrom(_71), rs.byteSliceFrom(Uint8Array.of(sep))), out);
+		bytes(rs.byteSlicesJoin(rs.sliceFrom(_71), seps), out);
 	} else if (_26 === 1) {
 		const at: (a0: rs.usize) => rs.u8 = (i5: rs.usize): rs.u8 => {
 			return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i5), i5 & 0xff);
@@ -98,8 +99,9 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(zeros.items, rs.byteSliceFrom)), undefined, rs.byteSliceFrom), out);
 		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(zeros.items, rs.byteSliceFrom)), rs.byteSliceFrom(Uint8Array.of(sep)), rs.byteSliceFrom), out);
 		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(zeros.items, rs.byteSliceFrom)), seps, rs.byteSliceFrom), out);
-		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom([], rs.byteSliceFrom)), undefined, rs.byteSliceFrom), out);
-		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom([], rs.byteSliceFrom)), rs.byteSliceFrom(Uint8Array.of(sep)), rs.byteSliceFrom), out);
+		const _138: Uint8Array[] = [];
+		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(_138, rs.byteSliceFrom)), undefined, rs.byteSliceFrom), out);
+		bytes(rs.byteSlicesJoin(rs.arraySliceAsSlice(rs.arraySliceFrom(_138, rs.byteSliceFrom)), rs.byteSliceFrom(Uint8Array.of(sep)), rs.byteSliceFrom), out);
 	} else if (_26 === 2) {
 		const sep2: rs.u16 = (((sep as rs.u16) << 8) & 0xffff) | 1;
 		const wide: rs.Vec<rs.Vec<rs.u16>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(parts)), (p5: rs.ByteSlice): rs.Vec<rs.u16> => {
@@ -200,8 +202,9 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _428: rs.Slice<string> = rs.sliceFrom(borrowed.items);
 		const _430: string = sep4.v;
 		put(out, rs.strsJoin(rs.sliceItems(_428), _430).v);
-		put(out, rs.strsJoin([], "").v);
-		const _443: rs.Slice<rs.String> = rs.sliceFrom([]);
+		const _432: rs.String[] = [];
+		put(out, rs.strsJoin(_432, "").v);
+		const _443: rs.Slice<rs.String> = rs.sliceFrom(_432);
 		const _445: string = sep4.v;
 		put(out, rs.strsJoin(rs.sliceItems(_443), _445).v);
 	} else if (_26 === 5) {

@@ -3,7 +3,7 @@
 //
 // usage: bun main.ts --translated <dir> --wasm <file> --native <bin> --moq <checkout>
 //                    --task <dir> --task-wasm <file> --task-native <bin>
-//                    --out <dir> [--sample-ms 2] [--rounds 25] [--seed <u32>] [--route <name>=<dir>]
+//                    --out <dir> [--sample-ms 2] [--rounds 25] [--seed <u32>] [--route <name>=<dir>] [--filter <prefix>]
 //
 // The task fixture's async handoff runs beside the codec, against moq's way with promises.
 // `--route` times the translations in another run's `--out` as one more route, for A/B runs.
@@ -38,6 +38,7 @@ const { values: args } = parseArgs({
 		rounds: { type: "string", default: "25" },
 		seed: { type: "string" },
 		route: { type: "string" },
+		filter: { type: "string" },
 	},
 	strict: true,
 });
@@ -186,7 +187,8 @@ function expected(input: Uint8Array): Uint8Array {
 	if (!(output instanceof Uint8Array)) throw new Error(`native Rust traps on ${hex(input)}`);
 	return output;
 }
-const list = workloads(expected);
+const list = workloads(expected).filter((w) => w.name.startsWith(args.filter ?? ""));
+if (list.length === 0) throw new Error(`--filter ${args.filter} matches no codec workloads`);
 const handoffList = handoffs();
 const config: Config = {
 	sampleMs,

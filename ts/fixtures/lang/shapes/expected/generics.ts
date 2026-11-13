@@ -85,11 +85,45 @@ export function methods(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const args13 = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_shapes_Point(point, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_u8(byte, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_generics_Wrap_fmt_Pair(nested, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_shapes_Shape(shape, f)];
 	put(out, rs.fmtFormat([args13[0], " ", args13[1], " ", args13[2], " ", args13[3]]).v);
 	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => Wrap.fmt$fmt_Debug_generics_Wrap_fmt_Pair(nested, f))]).v);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(Wrap.double$u8(byte))));
+	const dst = out;
+	const word = Wrap.double$u8(byte);
+	rs.byteVecReserve(dst, 2 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 8) & 255;
+	dst.data[pos + 1] = word & 255;
+	dst.length = dst.length + 2;
 	rs.byteVecPush(out, Wrap.get$u8(byte));
 	rs.byteVecPush(out, Wrap.get$fmt_Pair(Wrap.get$generics_Wrap_fmt_Pair(nested))._0);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(Wrap.scaled$shapes_Meters(meters))));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(Wrap.scaled$shapes_Shape(shape))));
+	const dst2 = out;
+	const word2 = Wrap.scaled$shapes_Meters(meters);
+	const word3 = rs.intWord(word2, 0);
+	const word4 = rs.intWord(word2, 32);
+	rs.byteVecReserve(dst2, 8 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+	dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+	dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+	dst2.data[pos2 + 3] = word4 & 255;
+	dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+	dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+	dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+	dst2.data[pos2 + 7] = word3 & 255;
+	dst2.length = dst2.length + 8;
+	const dst3 = out;
+	const word5 = Wrap.scaled$shapes_Shape(shape);
+	const word6 = rs.intWord(word5, 0);
+	const word7 = rs.intWord(word5, 32);
+	rs.byteVecReserve(dst3, 8 as rs.usize);
+	const pos3 = dst3.length;
+	dst3.data[pos3 + 0] = (word7 >>> 24) & 255;
+	dst3.data[pos3 + 1] = (word7 >>> 16) & 255;
+	dst3.data[pos3 + 2] = (word7 >>> 8) & 255;
+	dst3.data[pos3 + 3] = word7 & 255;
+	dst3.data[pos3 + 4] = (word6 >>> 24) & 255;
+	dst3.data[pos3 + 5] = (word6 >>> 16) & 255;
+	dst3.data[pos3 + 6] = (word6 >>> 8) & 255;
+	dst3.data[pos3 + 7] = word6 & 255;
+	dst3.length = dst3.length + 8;
 	Wrap.describe$shapes_Area_shapes_Meters(meters, out);
 	Wrap.describe$shapes_Area_shapes_Shape(shape, out);
 	const mapped: Wrap.Wrap<Pair.Pair> = Wrap.map$u8_fmt_Pair_generics_methods_closure1(byte, (b: rs.u8): Pair.Pair => {
@@ -126,7 +160,13 @@ export function methods(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _237: Wrap.Wrap<rs.i16> | undefined = Tagged.first$generics_Either_u8_u16_i16(tagged);
 	const args18 = [(f: rs.Formatter) => Tagged.fmt$fmt_Debug_generics_Either_u8_u16_i16(tagged, f), (f: rs.Formatter) => rs.fmtOption(_237, f, (value: Wrap.Wrap<rs.i16>, f: rs.Formatter) => Wrap.fmt$fmt_Debug_i16(value, f))];
 	put(out, rs.fmtFormat([args18[0], " ", args18[1]]).v);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(tagged.inner.value)));
+	const dst4 = out;
+	const word8 = tagged.inner.value;
+	rs.byteVecReserve(dst4, 2 as rs.usize);
+	const pos4 = dst4.length;
+	dst4.data[pos4 + 0] = (word8 >>> 8) & 255;
+	dst4.data[pos4 + 1] = word8 & 255;
+	dst4.length = dst4.length + 2;
 	rs.byteVecPush(out, option_unwrapOr$1fr498u(Either.left$u8_u16(tagged.key), 0));
 }
 
@@ -321,8 +361,16 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function units(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const parked: Parked.Parked<undefined> = Parked.new$unit();
-	for (const b of rs.byteSliceView(data)) {
-		const _12: rs.usize = rs.usizeRem(b >> 4 as rs.usize, rs.sliceFrom([undefined]).length);
+	const iterS: Uint8Array = rs.byteSliceView(data);
+	let iterI: number = 0;
+	while (true) {
+		const _8: rs.u8 | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
+		const _3: undefined[] = [undefined];
+		if (_8 === rs.DONE) {
+			break;
+		}
+		const b: rs.u8 = _8;
+		const _12: rs.usize = rs.usizeRem(b >> 4 as rs.usize, rs.sliceFrom(_3).length);
 		if (!(_12 < 1)) {
 			rs.panic("index out of bounds: the len is " + 1 + " but the index is " + _12);
 		}

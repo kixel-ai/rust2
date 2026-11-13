@@ -21,6 +21,22 @@ final class PrintLog: Log {
 	}
 }
 
+/// A Log that cancels a task at each line, and counts them.
+final class CancelLog: Log, @unchecked Sendable {
+	let task: Cell<Task<Void, Swift.Error>?>
+	let lines = Cell(0)
+
+	init(_ task: Cell<Task<Void, Swift.Error>?>) {
+		self.task = task
+	}
+
+	func log(_: UInt8, _: String) -> Bool {
+		task.value?.cancel()
+		lines.value += 1
+		return true
+	}
+}
+
 func bound(_ b: BoundU64) -> String {
 	switch b {
 	case .included(let n): return "Included(\(n))"
@@ -657,6 +673,15 @@ func script() {
 	print("boxed \(boxedName(boxedCounter("b")).map { "Some(\"\($0)\")" } ?? "None") \(boxedName(nil) ?? "None") \(boxedCounter(nil) == nil)")
 	print("less \(less(5, 2))")
 	print("sums \(sums([[1, 2], [], [3]]))")
+	print("least \(least([[3, 1], [], [2]]).map { "\($0)" }.joined(separator: " "))")
+	numbers("edges", Numbers.edges())
+	numbers("reversed", Numbers.edges().reversed())
+	let edges = Numbers.edges()
+	let nan = Measure.new(Double.nan, false)
+	print("float equal \(edges == edges) \(edges == Numbers.edges()) \(Numbers.zero(true) == Numbers.zero(false)) \(nan == nan) \(Measure.new(-0.0, true) == Measure.new(0.0, false))")
+	print("sum u32 \(sumU32([])) \(sumU32([UInt32.max, UInt32.max, 2]))")
+	print("doubled i64 \(doubledI64([Int64.min, -1, 0, Int64.max]))")
+	print("boxed floats \(boxedFloats([-0.0, Double(bitPattern: 0x7ff8_0000_0000_0001)]).map(\.bitPattern))")
 	let sum = summed([Point(x: 1, y: 2), Point(x: -4, y: 6)])
 	let noneSum = summed([])
 	print("summed \(sum.x) \(sum.y) \(noneSum.x) \(noneSum.y)")
@@ -765,6 +790,20 @@ func script() {
 		print("hop \(nextHop(hop).map { "Some(\($0))" } ?? "None")")
 	}
 	print("farther hop \(fartherHop(PairNonZeroU16(left: 3, right: .max)))")
+}
+
+/// Print each of `n`'s lists, its floats as their bits, as transcript.rs does.
+func numbers(_ what: String, _ n: Numbers) {
+	print("\(what) u16 \(n.u16s)")
+	print("\(what) u32 \(n.u32s)")
+	print("\(what) u64 \(n.u64s)")
+	print("\(what) i8 \(n.i8s)")
+	print("\(what) i16 \(n.i16s)")
+	print("\(what) i32 \(n.i32s)")
+	print("\(what) i64 \(n.i64s)")
+	print("\(what) f32 \(n.f32s.map(\.bitPattern))")
+	print("\(what) f64 \(n.f64s.map(\.bitPattern))")
+	print("\(what) some \(n.some.map { "Some(\($0))" } ?? "None")")
 }
 
 func printTail(_ read: () throws -> (Data, UInt64)) {
@@ -932,6 +971,24 @@ func futures() {
 		check(text(payload) == "ready", "a cancelled task's receive takes nothing")
 	}
 
+	// An eager call whose callback cancels its task while it makes its future is never
+	// polled: only the eager half logs.
+	do {
+		let task = Cell<Task<Void, Swift.Error>?>(nil)
+		let log = CancelLog(task)
+		let threw = Cell(false)
+		task.value = q.launch {
+			do {
+				_ = try await emitLater(log, Data([1, 2]))
+			} catch is CancellationError {
+				threw.value = true
+			}
+		}
+		q.drain()
+		check(threw.value, "an eager call cancelled as it makes its future throws")
+		check(log.lines.value == 2, "an eager call cancelled as it makes its future is never polled")
+	}
+
 	// Cancelling a task that waits for no wake resumes it.
 	do {
 		let threw = Cell(false)
@@ -980,19 +1037,19 @@ func futures() {
 		until { q.drain(); return got.value != 0 }
 		check(got.value == 10, "an async closure's end wakes Rust")
 	}
+	// The closure waits, so it pends whether or not its task has run yet, and the check
+	// waits for the throw, wherever the task resumes.
 	do {
+		let (stream, _) = AsyncStream<Void>.makeStream()
 		let threw = Cell(false)
-		let gate = AsyncStream<Void>.makeStream()
 		q.launch {
 			do {
-				// An empty closure can finish before Rust polls it, legitimately succeeding.
-				// Keep this one pending so a zero-poll limit must exercise the error path.
-				try await within(0) { for await _ in gate.stream {} }
+				try await within(0) { for await _ in stream { break } }
 			} catch is Api.Error {
 				threw.value = true
 			}
 		}
-		q.drain()
+		until { q.drain(); return threw.value }
 		check(threw.value, "Rust gives up on an async closure")
 	}
 	do {

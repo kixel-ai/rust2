@@ -491,14 +491,13 @@ impl Header<'_> {
 			));
 		}
 		self.out.push_str(&comment(docs.trim(), ""));
-		if let Some((handle, poll, free)) = &export.future {
+		if let Some(future) = &export.future {
+			let handle = &future.handle;
 			self.line(format!("typedef struct {handle} {handle};"));
-			let call = self.prototype(&export.call);
-			let poll = self.prototype(poll);
-			let free = self.prototype(free);
-			self.line(call);
-			self.line(poll);
-			self.line(free);
+			for sig in [&export.call, &future.start, &future.poll, &future.free] {
+				let prototype = self.prototype(sig);
+				self.line(prototype);
+			}
 			return;
 		}
 		let call = self.prototype(&export.call);

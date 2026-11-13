@@ -47,6 +47,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("small::copies", crate::small::copies),
 		("small::zero", crate::small::zero),
 		("small::waiters", crate::small::waiters),
+		("buf::scalar_encodes", crate::buf::scalar_encodes),
 	]
 }
 

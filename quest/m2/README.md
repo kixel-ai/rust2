@@ -25,11 +25,11 @@ holds the gate; until it reports, translator work is only what the gate needs.
 Decided with the maintainer on 2026-11-12, in the quest audit:
 
 - ✅ The translator gets a performance pass before the gate judges it:
-  [multi-byte encodes](/quest/m2/ts-encode.md) and
+  multi-byte encodes (now written in place) and
   [iterator adaptors](/quest/m2/ts-iter-adaptors.md), which
   [the gate's measurement](/quest/m2/wasm/routes.md) requires, and
-  [a spike of the per-call crossing](/quest/m2/wasm/crossing-spike.md), which says before
-  the backend lands whether wasm's lead survives it. On the 2026-11-12 nightly
+  [the per-call crossing report](https://github.com/kixel-ai/rust2/pull/760), which finds
+  no clear varint lead in Chrome but a remaining lead on frames and async. On the 2026-11-12 nightly
   ([run 43246857664](https://github.com/kixel-ai/rust2/actions/runs/43246857664), Chromium)
   the translation ran about 5 times wasm's time on compute, geometric mean over 82 rows.
   Rejected: the spike alone, with fixes frozen behind the gate; judging the translator as

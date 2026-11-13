@@ -7,7 +7,7 @@ import * as Point from "./shapes.Point.ts";
 import * as Shape from "./shapes.Shape.ts";
 
 export function fmt$fmt_Debug(self: Nested, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const names: rs.Slice<string> = rs.sliceFrom(["name", "point", "shape", "tags", "pairs", "maybe", "none", "result", "list", "tuple", "single", "empty", "unit", "boxed"]);
+	const names: string = "Nested name point shape tags pairs maybe none result list tuple single empty unit boxed";
 	const _7: rs.Fmt = (f: rs.Formatter) => rs.fmtStr(self.name.v, f);
 	const _9: rs.Fmt = (f: rs.Formatter) => Point.fmt$fmt_Debug(self.point, f);
 	const _11: rs.Fmt = (f: rs.Formatter) => Shape.fmt$fmt_Debug(self.shape, f);
@@ -17,8 +17,7 @@ export function fmt$fmt_Debug(self: Nested, f: rs.Formatter): rs.Result<undefine
 	const _19: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(self.none, f, rs.u8Debug);
 	const _21: rs.Fmt = (f: rs.Formatter) => rs.fmtResult(self.result, f, rs.u8Debug, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f));
 	const _24: rs.Slice<rs.i16> = rs.sliceFrom(self.list);
-	const values: rs.Slice<rs.Fmt> = rs.sliceFrom([_7, _9, _11, _13, _15, _17, _19, _21, (f: rs.Formatter) => rs.fmtList(rs.sliceItems(_24), f, rs.i16Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(self.tuple[0], f), (f: rs.Formatter) => rs.fmtBool(self.tuple[1], f), (f: rs.Formatter) => rs.fmtStr(self.tuple[2], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(self.single[0], f)], f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(self.empty), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtUnit(self.unit, f), (f: rs.Formatter) => Kind.fmt$fmt_Debug(self.boxed, f)]);
-	return rs.fmtDebugStructFields(f, "Nested", rs.sliceItems(names), rs.sliceItems(values));
+	return rs.fmtDebugFields(f, names, [_7, _9, _11, _13, _15, _17, _19, _21, (f: rs.Formatter) => rs.fmtList(rs.sliceItems(_24), f, rs.i16Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(self.tuple[0], f), (f: rs.Formatter) => rs.fmtBool(self.tuple[1], f), (f: rs.Formatter) => rs.fmtStr(self.tuple[2], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(self.single[0], f)], f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(self.empty), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtUnit(self.unit, f), (f: rs.Formatter) => Kind.fmt$fmt_Debug(self.boxed, f)]);
 }
 
 export interface Nested {

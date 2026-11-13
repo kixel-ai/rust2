@@ -5,7 +5,9 @@
 //! or composite returns constructed by a Kotlin factory over scoped native memory.
 //! The codec (also used for parameters) is little-endian, field by field, as the C
 //! struct holds it, with a buffer as its length (-1 for none) and its bytes, and an array
-//! as its length (-1 for none) and its elements. Bytes Rust returns cross copied when short,
+//! as its length (-1 for none) and its elements; a record passed or returned directly
+//! crosses its scalars as parameters, or through Kotlin's `long[]` slots, apart from the
+//! rest. Bytes Rust returns cross copied when short,
 //! and otherwise as their owner, which a Kotlin `Bytes` reads through a call each until the
 //! GC collects it.
 
@@ -143,6 +145,102 @@ pub fn bytes(env: *mut JNIEnv, array: jbyteArray) -> Option<Vec<u8>> {
 		((**env).v1_2.GetByteArrayRegion)(env, array, 0, len, bytes.as_mut_ptr().cast());
 		bytes.set_len(len as usize);
 		Some(bytes)
+	}
+}
+
+/// A number Kotlin holds in the primitive array of its width, which crosses JNI whole.
+pub trait Prim: Copy {
+	/// Copy `len` of `array`'s numbers into `into`.
+	///
+	/// # Safety
+	/// `array` is a live array of this width holding `len`, and `into` has room for them.
+	unsafe fn get(env: *mut JNIEnv, array: jarray, len: jsize, into: *mut Self);
+
+	/// A new array of `len` numbers.
+	///
+	/// # Safety
+	/// `env` is this thread's.
+	unsafe fn new(env: *mut JNIEnv, len: jsize) -> jarray;
+
+	/// Copy `len` numbers from `from` into `array`.
+	///
+	/// # Safety
+	/// `array` is a live array of this width holding `len`, and `from` holds them.
+	unsafe fn set(env: *mut JNIEnv, array: jarray, len: jsize, from: *const Self);
+}
+
+macro_rules! prim {
+	($($t:ty: $get:ident, $new:ident, $set:ident;)*) => {$(
+		impl Prim for $t {
+			unsafe fn get(env: *mut JNIEnv, array: jarray, len: jsize, into: *mut Self) {
+				// SAFETY: the caller's contract.
+				unsafe { ((**env).v1_2.$get)(env, array, 0, len, into.cast()) }
+			}
+
+			unsafe fn new(env: *mut JNIEnv, len: jsize) -> jarray {
+				// SAFETY: the caller's contract.
+				unsafe { ((**env).v1_2.$new)(env, len) }
+			}
+
+			unsafe fn set(env: *mut JNIEnv, array: jarray, len: jsize, from: *const Self) {
+				// SAFETY: the caller's contract.
+				unsafe { ((**env).v1_2.$set)(env, array, 0, len, from.cast()) }
+			}
+		}
+	)*};
+}
+
+prim! {
+	i8: GetByteArrayRegion, NewByteArray, SetByteArrayRegion;
+	u16: GetShortArrayRegion, NewShortArray, SetShortArrayRegion;
+	i16: GetShortArrayRegion, NewShortArray, SetShortArrayRegion;
+	u32: GetIntArrayRegion, NewIntArray, SetIntArrayRegion;
+	i32: GetIntArrayRegion, NewIntArray, SetIntArrayRegion;
+	u64: GetLongArrayRegion, NewLongArray, SetLongArrayRegion;
+	i64: GetLongArrayRegion, NewLongArray, SetLongArrayRegion;
+	f32: GetFloatArrayRegion, NewFloatArray, SetFloatArrayRegion;
+	f64: GetDoubleArrayRegion, NewDoubleArray, SetDoubleArrayRegion;
+}
+
+/// A primitive array's numbers, copied in one call.
+pub fn block<T: Prim>(env: *mut JNIEnv, array: jarray) -> Vec<T> {
+	if array.is_null() {
+		rt::fail("jni", "a primitive array is null");
+	}
+	// SAFETY: `array` is a live array of `T`'s width the call was given.
+	unsafe {
+		let len = ((**env).v1_2.GetArrayLength)(env, array);
+		let mut items = Vec::<T>::with_capacity(len as usize);
+		T::get(env, array, len, items.as_mut_ptr());
+		items.set_len(len as usize);
+		items
+	}
+}
+
+/// `items` as the C array a call takes, which keeps them.
+pub fn list<T: Copy>(items: &[T]) -> rt::List<T> {
+	rt::List {
+		ptr: items.as_ptr(),
+		len: items.len(),
+		owner: std::ptr::null_mut(),
+	}
+}
+
+/// A new primitive array of the numbers Rust returned, which it frees once copied.
+pub fn new_block<T: Prim>(env: *mut JNIEnv, list: rt::List<T>) -> jarray {
+	// SAFETY: an array Rust returned, freed here once copied.
+	unsafe {
+		let items = list.items("jni");
+		let Ok(len) = jsize::try_from(items.len()) else {
+			rt::fail("jni", "an array is too long for a Kotlin array")
+		};
+		let array = T::new(env, len);
+		if array.is_null() {
+			fail(env, "jni", "a primitive array is out of memory");
+		}
+		T::set(env, array, len, items.as_ptr());
+		list.free("jni", |_| {});
+		array
 	}
 }
 
@@ -328,6 +426,14 @@ pub unsafe fn lent(env: *mut JNIEnv, buf: rt::Buf) -> jbyteArray {
 		// SAFETY: the caller's contract.
 		false => array(env, unsafe { buf.bytes("jni") }),
 	}
+}
+
+/// Set the first of Kotlin's `long[]` `slots` to `values`: a returned record's scalars,
+/// which cross with no `byte[]` to allocate and decode. Slots shorter than `values` throw.
+pub fn slots(env: *mut JNIEnv, slots: jlongArray, values: &[i64]) {
+	// SAFETY: `env` is this thread's, `slots` a live `long[]` the call was given, and
+	// `values` holds `values.len()` longs, which a record's few scalars fit a `jsize`.
+	unsafe { ((**env).v1_2.SetLongArrayRegion)(env, slots, 0, values.len() as jsize, values.as_ptr()) }
 }
 
 /// A global reference to a Kotlin value, which Rust may hold on any thread.

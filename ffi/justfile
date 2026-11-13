@@ -31,9 +31,17 @@ check:
 test *args:
     cargo test --locked {{ args }}
 
+# Round-trip every sampled type shape in every language, as the nightly does; the gate runs a subset.
+shapes:
+    cargo test --locked --test fixtures shapes::nightly -- --ignored
+
 # Shrink the api fixture's Kotlin with R8 and its generated rules, and run its test on the Android device adb reaches, in the Android shell (nix develop .#android) with ANDROID_HOME and ANDROID_NDK_HOME set.
 android:
     cargo test --locked --test fixtures -- --ignored --exact api_android
+
+# Run the api fixture's C and C++ scripts under AddressSanitizer and ThreadSanitizer, and its glue's C ABI under Miri, in the sanitize shell: nix develop .#sanitize.
+sanitize:
+    cargo test --locked --test fixtures -- --ignored --exact api_asan api_tsan api_miri
 
 # Apply formatters without changing program behavior.
 fix:
@@ -46,7 +54,7 @@ fix:
 run *args:
     cargo run --locked --quiet -- {{ args }}
 
-# Census the stand-in facade moq/ffi.toml exports into target/census/moq-ffi.md, from the pinned moq revision or a checkout.
+# Census the stand-in facade moq/ffi.toml exports into target/census/moq-ffi.md, from the pinned moq revision or a checkout, failing when moq/ffi.toml excludes an item that exports.
 census checkout="": (standin checkout)
     cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --census target/census
 
