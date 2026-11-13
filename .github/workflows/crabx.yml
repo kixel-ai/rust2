@@ -86,7 +86,6 @@ jobs:
     concurrency:
       group: crabx-${{ github.repository }}-${{ matrix.tag }}
       cancel-in-progress: false
-      queue: max
     steps:
       # Read new job identity fields through JSON until actionlint knows their types.
       - id: identity
