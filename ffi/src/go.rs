@@ -131,8 +131,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 		.filter_map(|f| f.err.as_ref());
 	for err in errors {
 		let key = abi.key(err);
-		if let Some((name, _)) = thrown.iter().find(|(_, (_, ty))| abi.key(ty) == key) {
-			locked.insert(crate::lock::error_key(abi, err), name.clone());
+		if let Some((name, (home, _))) = thrown.iter().find(|(_, (_, ty))| abi.key(ty) == key) {
+			locked.insert(crate::lock::error_key(abi, err), format!("{home}::{name}"));
 		}
 	}
 	let variants = variants(abi, &types, &classes, &thrown);

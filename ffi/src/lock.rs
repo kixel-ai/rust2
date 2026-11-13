@@ -82,12 +82,20 @@ pub fn error_key(abi: &Abi<'_>, ty: &Type) -> String {
 pub fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'_>) -> Vec<Break> {
 	let api = abi.api;
 	let index = Index::with(abi);
-	let renamed: BTreeSet<String> = Index::new(base_api, &abi.prefix)
+	let baseline = Index::new(base_api, &abi.prefix);
+	let mut renamed: BTreeSet<String> = baseline
 		.entries
-		.into_iter()
-		.filter(|(key, entry)| index.entries.get(key).is_some_and(|now| now.c != entry.c))
-		.map(|(key, _)| key)
+		.iter()
+		.filter(|(key, entry)| index.entries.get(*key).is_some_and(|now| now.c != entry.c))
+		.map(|(key, _)| key.clone())
 		.collect();
+	renamed.extend(baseline.tuples.iter().filter_map(|(spelled, (c, _))| {
+		index
+			.tuples
+			.get(spelled)
+			.filter(|(now, _)| now != c)
+			.map(|_| format!("tuple {spelled}"))
+	}));
 	let mut locations: BTreeMap<String, (Span, String)> = index
 		.entries
 		.iter()
@@ -761,4 +769,152 @@ fn signature(ours: &Function, theirs: &Function) -> Vec<String> {
 		changes.push("how it exports".to_string());
 	}
 	changes
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::ir::{Home, Int, Record};
+
+	fn api() -> Api {
+		Api {
+			records: vec![],
+			enums: vec![],
+			objects: vec![],
+			callbacks: vec![],
+			functions: vec![Function {
+				path: vec!["lock".into(), "check".into()],
+				shown: vec!["lock".into(), "check".into()],
+				span: DUMMY_SP,
+				on: On::ALL,
+				docs: String::new(),
+				receiver: None,
+				params: vec![],
+				units: vec![],
+				ok: Type::Unit,
+				err: None,
+				future: false,
+				eager: false,
+				task: None,
+				collect: false,
+				lends: false,
+				access: Access::Call,
+				instance: None,
+				home: Home {
+					krate: "lock_a".into(),
+					outside: 1,
+				},
+			}],
+			constants: vec![],
+			crates: vec!["lock_a".into(), "lock_b".into()],
+			targets: vec!["host".into()],
+		}
+	}
+
+	fn record(name: &str, krate: &str) -> Record {
+		Record {
+			path: vec!["lock".into(), name.into()],
+			shown: vec!["lock".into(), name.into()],
+			home: Home {
+				krate: krate.into(),
+				outside: 1,
+			},
+			args: vec![],
+			span: DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			fields: vec![],
+			tuple: false,
+			methods: vec![],
+			traits: Traits::default(),
+		}
+	}
+
+	#[test]
+	fn tuple_c_rename_is_reported_once() {
+		let mut base = api();
+		base.objects.push(crate::ir::Object {
+			path: vec!["lock".into(), "A_B".into()],
+			shown: vec!["lock".into(), "A_B".into()],
+			home: Home {
+				krate: "lock_a".into(),
+				outside: 1,
+			},
+			args: vec![],
+			span: DUMMY_SP,
+			on: On::ALL,
+			docs: String::new(),
+			sync: true,
+			copy: false,
+			shared: false,
+			lifetimes: 0,
+			methods: vec![],
+			traits: Traits::default(),
+			foreign: false,
+			opaque: false,
+		});
+		base.functions[0].ok = Type::Option(Box::new(Type::Tuple(vec![Type::Object(0), Type::Int(Int::U64)])));
+		let old = crate::swift::generate(&Abi::new(&base, "lock"), "lock", 0).unwrap();
+		let mut now = base.clone();
+		now.records.push(record("B_u64", "lock_a"));
+		let mut object = now.objects[0].clone();
+		object.path[1] = "A".into();
+		object.shown = object.path.clone();
+		now.objects.push(object);
+		let mut function = now.functions[0].clone();
+		function.path[1] = "extra".into();
+		function.shown = function.path.clone();
+		function.ok = Type::Option(Box::new(Type::Tuple(vec![Type::Object(1), Type::Record(0)])));
+		now.functions.push(function);
+		let abi = Abi::new(&now, "lock");
+		let new = crate::swift::generate(&abi, "lock", 0).unwrap();
+		let key = "tuple (A_B, u64)";
+		assert_ne!(old.names[key], new.names[key]);
+		let structural = breaks(&base, &now, "lock");
+		assert_eq!(structural.len(), 1);
+		assert!(structural[0].what.contains("its C name"));
+		let extra = name_breaks(
+			&BTreeMap::from([("Swift".into(), old.names)]),
+			&BTreeMap::from([("Swift".into(), new.names)]),
+			&base,
+			&abi,
+		);
+		assert!(
+			extra.is_empty(),
+			"{:?}",
+			extra.iter().map(|b| &b.what).collect::<Vec<_>>()
+		);
+	}
+
+	#[test]
+	fn go_error_owner_is_locked() {
+		let mut base = api();
+		base.records = vec![record("A", "lock_a"), record("B", "lock_b")];
+		base.functions[0].err = Some(Type::Tuple(vec![Type::Record(0), Type::Record(1)]));
+		let old = crate::go::generate(&Abi::new(&base, "lock"), "lock", 0, "lock").unwrap();
+		let mut now = base.clone();
+		now.crates.reverse();
+		let abi = Abi::new(&now, "lock");
+		let new = crate::go::generate(&abi, "lock", 0, "lock").unwrap();
+		let wrapper = |files: &Vec<(String, String)>| {
+			files
+				.iter()
+				.find(|(_, code)| code.contains("type TupleABError struct"))
+				.unwrap()
+				.0
+				.clone()
+		};
+		assert_eq!(wrapper(&old.files), "b/b.go");
+		assert_eq!(wrapper(&new.files), "a/a.go");
+		assert!(breaks(&base, &now, "lock").is_empty());
+		let changes = name_breaks(
+			&BTreeMap::from([("Go".into(), old.names)]),
+			&BTreeMap::from([("Go".into(), new.names)]),
+			&base,
+			&abi,
+		);
+		assert_eq!(changes.len(), 1);
+		assert!(changes[0].what.contains("lock_b"));
+		assert!(changes[0].what.contains("lock_a"));
+	}
 }
