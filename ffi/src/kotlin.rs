@@ -1415,7 +1415,7 @@ impl<'a> Gen<'a> {
 		let words = opaque.words();
 		let (head, write, read) = match word(opaque) {
 			true => (
-				format!("@JvmInline\nvalue class {name} internal constructor(internal val bits: Long)"),
+				format!("@kotlin.jvm.JvmInline\nvalue class {name} internal constructor(internal val bits: Long)"),
 				"\tw.i64(v.bits)\n".to_string(),
 				format!("{name}(r.i64())"),
 			),

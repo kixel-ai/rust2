@@ -234,8 +234,9 @@ where it was while its file is unchanged.
 
 - **Handles** are `Arc`s, and a call borrows the value as Rust's receiver or parameter
   does, checked at run time: shared for `&T`, exclusive for `&mut T`, and moved out for
-  `T`, after which the handle is only freed. A `Copy` object, one with a `pub` field or a
-  `pub` method taking `&mut self`, is copied out instead, leaving its handle as it was. A
+  `T`, after which the handle is only freed. A `Copy` object, one with a `pub` field, a
+  `pub` method taking `&mut self`, or bytes its value decides are initialized, as an
+  `Option<u32>` in it does, is copied out instead, leaving its handle as it was. A
   value that is not `Sync` is shared on one thread at a time, and held exclusively by a
   future, which may be polled on any thread. A borrow Rust would
   refuse at compile time aborts, naming the function, as does a null or moved-out handle:
@@ -484,9 +485,11 @@ out, with only its other fields encoded.
   or for one with data a sealed class of a data class per variant. `Display` is
   `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`. An **opaque
   value** is a class with an internal constructor, so only Rust makes one: of no more than
-  8 bytes on every target, and no padding, a value class over a `Long`, which allocates
-  nothing; otherwise one over a `LongArray`, whose `==` is Rust's, and whose `hashCode`
-  is 0, since none Kotlin computes agrees with it.
+  8 bytes on every target, with no padding, fields of integers, `bool`s, and `char`s alone, nested or not, and a
+  derived or std `PartialEq`, a value class over a `Long`, compared by its bits, which
+  allocates nothing unless Kotlin boxes it, as in a `List` or a nullable; otherwise one over
+  a `LongArray`, whose `==` is Rust's, and whose `hashCode` is 0, since none Kotlin
+  computes agrees with it.
 - **Bytes** passed in are a `ByteArray`, copied, as are those Rust lends a closure or trait
   method. Bytes Rust returns, or a record holds, are a `Bytes`, read only through `size`,
   `get`, `slice`, `copyInto`, and `toByteArray()`, so no view of Rust's memory escapes and
