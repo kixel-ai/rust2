@@ -499,7 +499,7 @@ impl<'a> Gen<'a> {
 			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "Unit".to_string(),
 			Type::Bool => "Boolean".to_string(),
-			Type::Int(int) => kt_int(*int).to_string(),
+			Type::Int(int) | Type::NonZero(int) => kt_int(*int).to_string(),
 			Type::F32 => "Float".to_string(),
 			Type::F64 => "Double".to_string(),
 			Type::Char => "Int".to_string(),
@@ -554,7 +554,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Bool => format!("{w}.bool({e})"),
-			Type::Int(int) => {
+			Type::Int(int) | Type::NonZero(int) => {
 				let (method, _) = wire_int(*int);
 				format!("{w}.{method}({})", to_signed(*int, e))
 			}
@@ -620,7 +620,7 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Unit => "Unit".to_string(),
 			Type::Bool => format!("{r}.bool()"),
-			Type::Int(int) => {
+			Type::Int(int) | Type::NonZero(int) => {
 				let (method, _) = wire_int(*int);
 				from_signed(*int, &format!("{r}.{method}()"))
 			}

@@ -16,6 +16,11 @@ continues, and for which crates.
 
 ## Plan
 
+The [per-item crossing spike](https://github.com/kixel-ai/rust2/pull/760) finds no clear
+varint lead in Chrome, with frames and async still favoring wasm and Firefox medians
+favoring wasm throughout; it recommends no backend design or priority change, since
+the hand-written byte boundary and per-call task setup do not measure generated bindings.
+
 Decided with the maintainer on 2026-11-09, in the quest audit:
 
 - ✅ WASM ships, and TypeScript must beat it: rust2-ts is "an experiment to see if it can be
