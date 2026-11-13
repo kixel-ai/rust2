@@ -183,6 +183,81 @@ throughput 170 MB/s against 105. Python's getter costs 47 ns against 63, its rec
 97 against 1,120, and 100 B throughput 138 MB/s against 12.1. So Python meets BoltFFI's
 and Kotlin's calls trail it by 2 to 4 times, behind JNI's per-call cost and the hold count.
 
+## Consumer release profile
+
+Measured on fedora on 2026-11-12, through `quest gate`, with the same pinned
+moq stand-in and three rounds. The exported workspace now carries moq's release
+profile: fat LTO, one codegen unit, and `strip = "symbols"`. Its package override
+keeps debuginfo-only stripping for the moq-ffi dependency. Panic behavior is unchanged.
+The older tables above remain the default-profile baseline; host load and intervening
+generator changes prevent attributing every difference to LTO alone.
+
+### Calls (ns per call, CPU time; load average)
+
+| call | Rust | C | C++ | moq-c | Kotlin | Python | Swift | Go | Dart |
+|---|---|---|---|---|---|---|---|---|---|
+| `track.is_closed()`, a handle call | 7.9 (17) | 15 (17) | 15 (16) |  | 60 (15) | 58 (14) | 24 (13) | 45 (12) | 41 (11) |
+| `demand.sequence()`, a u64 getter | 0.2 (17) | 7.6 (17) | 7.6 (16) |  | 40 (15) | 49 (14) | 7.9 (13) | 38 (12) | 25 (11) |
+| `track.largest()`, a record return | 16 (17) | 24 (17) | 24 (16) |  | 150 (15) | 104 (14) | 33 (13) | 63 (12) | 49 (11) |
+| `track.info()`, an object return | 1.0 (17) | 25 (17) | 25 (16) |  | 190 (15) | 100 (14) | 34 (13) | 184 (12) | 208 (11) |
+| `group.write_frame(at, frame)`, 100 B | 141 (17) | 148 (17) | 148 (16) |  | 240 (15) | 201 (14) | 178 (13) | 244 (12) | 213 (11) |
+| the same, with a new `Timestamp` each | 140 (17) | 162 (17) | 166 (16) | 199 (15) | 360 (15) | 372 (14) | 209 (13) | 430 (12) | 433 (11) |
+| a 100 B frame written and read, ready | 216 (17) | 293 (17) | 308 (16) |  | 590 (15) | 608 (14) | 441 (13) | 642 (12) | 721 (11) |
+| the same, read after a wake | 332 (17) | 428 (17) | 447 (16) |  | 1,460 (15) | 7,414 (14) | 10,023 (13) | 3,676 (12) | 1,628 (11) |
+| `frame.payload`, 100 B | 14 (17) | 22 (17) | 25 (16) |  | 60 (15) | 176 (14) | 69 (13) | 116 (12) | 60 (11) |
+
+### Throughput (MB per CPU second, write plus ready read; load average)
+
+| frame | Rust | C | C++ | Kotlin | Python | Swift | Go | Dart |
+|---|---|---|---|---|---|---|---|---|
+| 100 B | 481 (17) | 329 (17) | 308 (16) | 118 (15) | 120 (14) | 209 (13) | 131 (12) | 134 (11) |
+| 1 KiB | 3,285 (17) | 2,421 (17) | 2,319 (16) | 1,677 (15) | 1,056 (14) | 1,491 (13) | 899 (12) | 1,107 (11) |
+| 16 KiB | 17,210 (17) | 15,604 (17) | 17,081 (16) | 6,554 (15) | 9,508 (14) | 5,074 (13) | 4,205 (12) | 8,353 (11) |
+| 64 KiB | 6,562 (17) | 16,278 (17) | 14,699 (16) | 3,277 (15) | 14,664 (14) | 6,035 (13) | 8,951 (12) | 11,329 (11) |
+| 1 MiB | 13,758 (17) | 14,106 (17) | 12,541 (16) | 5,243 (15) | 13,183 (14) | 13,543 (13) | 7,577 (12) | 17,641 (11) |
+
+### Calls (ns per call, wall time; load average)
+
+| call | Rust | C | C++ | moq-c | Kotlin | Python | Swift | Go | Dart |
+|---|---|---|---|---|---|---|---|---|---|
+| `track.is_closed()`, a handle call | 8.0 (17) | 15 (17) | 15 (16) |  | 31 (15) | 58 (14) | 24 (13) | 45 (12) | 38 (11) |
+| `demand.sequence()`, a u64 getter | 0.2 (17) | 7.6 (17) | 7.6 (16) |  | 23 (15) | 49 (14) | 7.9 (13) | 38 (12) | 25 (11) |
+| `track.largest()`, a record return | 16 (17) | 24 (17) | 24 (16) |  | 74 (15) | 104 (14) | 33 (13) | 61 (12) | 49 (11) |
+| `track.info()`, an object return | 1.0 (17) | 25 (17) | 25 (16) |  | 80 (15) | 100 (14) | 34 (13) | 170 (12) | 208 (11) |
+| `group.write_frame(at, frame)`, 100 B | 141 (17) | 149 (17) | 149 (16) |  | 233 (15) | 201 (14) | 179 (13) | 242 (12) | 213 (11) |
+| the same, with a new `Timestamp` each | 141 (17) | 163 (17) | 167 (16) | 200 (15) | 321 (15) | 373 (14) | 209 (13) | 407 (12) | 431 (11) |
+| a 100 B frame written and read, ready | 217 (17) | 294 (17) | 310 (16) |  | 499 (15) | 609 (14) | 442 (13) | 622 (12) | 722 (11) |
+| the same, read after a wake | 334 (17) | 430 (17) | 451 (16) |  | 1,442 (15) | 7,436 (14) | 3,218 (13) | 2,980 (12) | 1,629 (11) |
+| `frame.payload`, 100 B | 14 (17) | 22 (17) | 25 (16) |  | 61 (15) | 177 (14) | 69 (13) | 98 (12) | 60 (11) |
+
+### Throughput (MB/s, write plus ready read; load average)
+
+| frame | Rust | C | C++ | Kotlin | Python | Swift | Go | Dart |
+|---|---|---|---|---|---|---|---|---|
+| 100 B | 479 (17) | 328 (17) | 306 (16) | 176 (15) | 120 (14) | 208 (13) | 137 (12) | 134 (11) |
+| 1 KiB | 3,276 (17) | 2,412 (17) | 2,306 (16) | 1,560 (15) | 1,053 (14) | 1,486 (13) | 1,068 (12) | 1,122 (11) |
+| 16 KiB | 17,154 (17) | 15,558 (17) | 17,048 (16) | 11,063 (15) | 9,451 (14) | 5,045 (13) | 4,596 (12) | 8,346 (11) |
+| 64 KiB | 6,544 (17) | 16,232 (17) | 14,568 (16) | 8,295 (15) | 14,643 (14) | 6,015 (13) | 12,256 (12) | 11,776 (11) |
+| 1 MiB | 13,719 (17) | 14,061 (17) | 12,458 (16) | 7,168 (15) | 13,156 (14) | 13,517 (13) | 8,328 (12) | 17,742 (11) |
+
+### Size
+
+| binding | files | raw | gzip | Rust glue, raw / gzip |
+|---|---|---|---|---|
+| C | 1 | 1,633 KiB | 242 KiB | 2,408 KiB / 133 KiB |
+| C++ | 1 | 2,865 KiB | 320 KiB | none |
+| Kotlin | 2 | 2,472 KiB | 358 KiB | 1,697 KiB / 77 KiB |
+| Python | 1 | 1,454 KiB | 225 KiB | 3,756 KiB / 293 KiB |
+| Swift | 3 | 2,141 KiB | 300 KiB | none |
+| Go | 23 | 3,538 KiB | 432 KiB | none |
+| Dart | 1 | 4,019 KiB | 375 KiB | 1,643 KiB / 62 KiB |
+
+| native library | as built | stripped |
+|---|---|---|
+| `libmoq.a`, the C ABI that C, C++, Swift, and Go link | 98,510 KiB | 58,787 KiB |
+| `libmoq.so`, with the Kotlin and Dart glue | 39,847 KiB | 39,847 KiB |
+| `python/libmoq.so`, the CPython extension | 35,277 KiB | 35,277 KiB |
+
 ## BoltFFI comparison
 
 The targets. Before forking UniFFI, moq compared it with [BoltFFI](https://github.com/boltffi/boltffi) 0.31.1 on a slice of moq-ffi bound by each generator, measured from Python and Kotlin with a Rust floor.
