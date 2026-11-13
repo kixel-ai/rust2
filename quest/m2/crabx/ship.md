@@ -22,5 +22,3 @@ Recommendations:
 ## Required
 
 - [Pipeline release](/quest/m2/crabx/pipeline-release.md) - the verified workflow release
-
-- [The runner](/quest/m2/crabx/runner.md) - what ships

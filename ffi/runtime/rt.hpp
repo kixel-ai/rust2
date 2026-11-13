@@ -778,17 +778,22 @@ public:
 	// `items` as the C array `C`, each lowered by `lower`: never null, so an empty one is
 	// told apart from a missing one. Each item is mutable where `items` is, so a handle
 	// moved in can be owned alone.
+	// The array is no `std::vector`, whose `bool` form holds no array, and `items` may be
+	// one, whose items are proxies rather than references.
 	template <class C, class R, class F>
 	C list(R &items, F lower) {
 		using E = ::std::remove_const_t<::std::remove_pointer_t<decltype(C{}.ptr)>>;
-		auto array = ::std::make_shared<::std::vector<E>>();
-		array->reserve(items.size());
-		for (auto &item : items) {
-			array->push_back(lower(item));
-		}
 		static const E empty{};
-		const E *ptr = array->empty() ? &empty : array->data();
-		::std::size_t len = array->size();
+		::std::size_t len = items.size();
+		if (len == 0) {
+			return C{&empty, 0, nullptr};
+		}
+		::std::shared_ptr<E[]> array(new E[len]);
+		::std::size_t i = 0;
+		for (auto &&item : items) {
+			array[i++] = lower(item);
+		}
+		const E *ptr = array.get();
 		held_.push_back(::std::move(array));
 		return C{ptr, len, nullptr};
 	}

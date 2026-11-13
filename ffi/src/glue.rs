@@ -6,7 +6,7 @@
 //! receiver or parameter is, or moved out of when taken by value.
 
 use std::fmt::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::abi::{self, Abi, CFG, Ty};
 use crate::config::Package;
@@ -115,18 +115,60 @@ pub struct Crate<'a> {
 	pub patch: &'a str,
 }
 
+/// Generated files and the names checked before any file is written.
+pub struct Output {
+	pub names: crate::lock::Names,
+	files: Vec<(PathBuf, String)>,
+	/// Directories an earlier export wrote, which may name crates or packages this one has not.
+	stale: Vec<PathBuf>,
+}
+
+impl Output {
+	fn file(&mut self, path: &Path, text: &str) {
+		self.files.push((path.to_path_buf(), text.to_string()));
+	}
+
+	/// Refuse a baseline below a directory this export removes before writing.
+	pub fn check_baseline(&self, baseline: &Path) -> Result<(), String> {
+		let baseline =
+			std::fs::canonicalize(baseline).map_err(|err| format!("reading {}: {err}", baseline.display()))?;
+		for dir in &self.stale {
+			if baseline.starts_with(resolve(dir)?) {
+				return Err(format!(
+					"--baseline {} lies inside {} which the export replaces: commit the baseline outside --out",
+					baseline.display(),
+					dir.display()
+				));
+			}
+		}
+		Ok(())
+	}
+
+	/// Write a validated export, removing stale C++ headers and Go packages from an earlier one.
+	pub fn write(self) -> Result<crate::lock::Names, String> {
+		for dir in self.stale.iter().filter(|dir| dir.exists()) {
+			std::fs::remove_dir_all(dir).map_err(|err| format!("removing {}: {err}", dir.display()))?;
+		}
+		for (path, text) in self.files {
+			crate::driver::write(&path, &text)?;
+		}
+		Ok(self.names)
+	}
+}
+
 impl Crate<'_> {
 	/// The facade's package name.
 	fn packages(&self) -> String {
 		self.facade.name.clone()
 	}
 
-	/// Write the crate into `out`: `Cargo.toml`, `src/`, `include/<prefix>.h` and `.hpp`,
+	/// Write the crate into `out`: `Cargo.toml`, `src/`, `include/<prefix>.h`, `.hpp`, and a
+	/// `.hpp` per crate in `include/<prefix>/`,
 	/// `kotlin/<prefix>.kt`, whose JNI functions the crate's `kotlin` feature builds,
 	/// `python/<prefix>.py`, whose CPython extension its `python` feature builds,
 	/// `swift/<prefix>.swift` with the clang module it imports the header through, and
 	/// `go/<prefix>.go`, and `dart/<prefix>.dart`, whose glue its `dart` feature builds.
-	pub fn write(&self, out: &Path) -> Result<(), String> {
+	pub fn generate(&self, out: &Path) -> Result<Output, String> {
 		// Cargo unifies in what the facade enables in its dependencies.
 		let facade = self.facade;
 		let mut features: Vec<String> = facade.features.iter().map(|f| format!("{f:?}")).collect();
@@ -209,13 +251,29 @@ impl Crate<'_> {
 			lib = self.abi.prefix,
 		);
 		let (header, contract) = crate::c::header(self.abi, &self.packages());
-		let cpp = crate::cpp::header(self.abi, &self.packages())?;
+		let cpp = crate::cpp::headers(self.abi, &self.packages())?;
 		let kotlin = crate::kotlin::generate(self.abi, &self.packages(), contract)?;
 		let python = crate::python::generate(self.abi, &self.packages(), contract)?;
 		let swift = crate::swift::generate(self.abi, &self.packages(), contract)?;
 		let (module, go_mod) = go_module(out, &self.abi.prefix)?;
 		let go = crate::go::generate(self.abi, &self.packages(), contract, &module)?;
 		let dart = crate::dart::generate(self.abi, &self.packages(), contract)?;
+		let names = [
+			("C++", cpp.names),
+			("Kotlin", kotlin.names),
+			("Python", python.names),
+			("Swift", swift.names),
+			("Go", go.names),
+			("Dart", dart.names),
+		]
+		.into_iter()
+		.map(|(language, names)| (language.to_string(), names))
+		.collect();
+		let mut output = Output {
+			names,
+			files: Vec::new(),
+			stale: vec![out.join("include").join(&self.abi.prefix), out.join("go")],
+		};
 		let mut generator = Gen {
 			abi: self.abi,
 			packages: self.packages(),
@@ -226,50 +284,49 @@ impl Crate<'_> {
 			out: String::new(),
 		};
 		generator.lib();
-		crate::driver::write(&out.join("Cargo.toml"), &manifest)?;
-		crate::driver::write(&out.join("src/lib.rs"), &generator.out)?;
-		crate::driver::write(&out.join("build.rs"), &build(&self.abi.api.targets))?;
-		crate::driver::write(&out.join("src/rt.rs"), RUNTIME)?;
-		crate::driver::write(&out.join("include").join(format!("{}.h", self.abi.prefix)), &header)?;
-		crate::driver::write(&out.join("include").join(format!("{}.hpp", self.abi.prefix)), &cpp)?;
-		crate::driver::write(&out.join("src/jni/mod.rs"), &kotlin.glue)?;
-		crate::driver::write(&out.join("src/jni/rt.rs"), crate::kotlin::GLUE_RUNTIME)?;
-		crate::driver::write(
+		output.file(&out.join("Cargo.toml"), &manifest);
+		output.file(&out.join("src/lib.rs"), &generator.out);
+		output.file(&out.join("build.rs"), &build(&self.abi.api.targets));
+		output.file(&out.join("src/rt.rs"), RUNTIME);
+		output.file(&out.join("include").join(format!("{}.h", self.abi.prefix)), &header);
+		for (path, header) in &cpp.files {
+			output.file(&out.join("include").join(path), header);
+		}
+		output.file(&out.join("src/jni/mod.rs"), &kotlin.glue);
+		output.file(&out.join("src/jni/rt.rs"), crate::kotlin::GLUE_RUNTIME);
+		output.file(
 			&out.join("kotlin").join(format!("{}.kt", self.abi.prefix)),
 			&kotlin.kotlin,
-		)?;
-		crate::driver::write(
+		);
+		output.file(
 			&out.join("kotlin").join(format!("{}.pro", self.abi.prefix)),
 			&kotlin.rules,
-		)?;
-		crate::driver::write(&out.join("src/python/mod.rs"), &python.glue)?;
-		crate::driver::write(&out.join("src/python/rt.rs"), crate::python::GLUE_RUNTIME)?;
-		crate::driver::write(
+		);
+		output.file(&out.join("src/python/mod.rs"), &python.glue);
+		output.file(&out.join("src/python/rt.rs"), crate::python::GLUE_RUNTIME);
+		output.file(
 			&out.join("python").join(format!("{}.py", self.abi.prefix)),
 			&python.python,
-		)?;
-		crate::driver::write(&out.join("src/dart/mod.rs"), &dart.glue)?;
-		crate::driver::write(&out.join("src/dart/runtime.rs"), crate::dart::GLUE_RUNTIME)?;
-		crate::driver::write(&out.join("dart").join(format!("{}.dart", self.abi.prefix)), &dart.dart)?;
+		);
+		output.file(&out.join("src/dart/mod.rs"), &dart.glue);
+		output.file(&out.join("src/dart/runtime.rs"), crate::dart::GLUE_RUNTIME);
+		output.file(&out.join("dart").join(format!("{}.dart", self.abi.prefix)), &dart.dart);
 		let swift_dir = out.join("swift");
-		crate::driver::write(&swift_dir.join(format!("{}.swift", self.abi.prefix)), &swift.swift)?;
-		crate::driver::write(&swift_dir.join("module.modulemap"), &swift.modulemap)?;
-		crate::driver::write(
+		output.file(&swift_dir.join(format!("{}.swift", self.abi.prefix)), &swift.swift);
+		output.file(&swift_dir.join("module.modulemap"), &swift.modulemap);
+		output.file(
 			&swift_dir.join(format!("{}_atomics.h", self.abi.prefix)),
 			&swift.atomics,
-		)?;
+		);
 		// What an earlier export wrote may name packages this one has not.
 		let go_dir = out.join("go");
-		if go_dir.exists() {
-			std::fs::remove_dir_all(&go_dir).map_err(|err| format!("removing {}: {err}", go_dir.display()))?;
-		}
 		if let Some(go_mod) = go_mod {
-			crate::driver::write(&go_dir.join("go.mod"), &go_mod)?;
+			output.file(&go_dir.join("go.mod"), &go_mod);
 		}
-		for (path, text) in go {
-			crate::driver::write(&go_dir.join(path), &text)?;
+		for (path, text) in go.files {
+			output.file(&go_dir.join(path), &text);
 		}
-		Ok(())
+		Ok(output)
 	}
 }
 
@@ -313,11 +370,31 @@ fn module_path(path: &Path) -> Result<String, String> {
 		.ok_or_else(|| format!("{} declares no module", path.display()))
 }
 
+/// Resolve existing symlinks and missing path components without creating output.
+fn resolve(path: &Path) -> Result<PathBuf, String> {
+	// Resolved without creating it, since an export the lock refuses writes nothing.
+	let absolute = std::path::absolute(path).map_err(|err| format!("reading {}: {err}", path.display()))?;
+	let mut out = PathBuf::new();
+	for component in absolute.components() {
+		if component == std::path::Component::ParentDir {
+			out.pop();
+		} else {
+			out.push(component);
+			if out
+				.try_exists()
+				.map_err(|err| format!("reading {}: {err}", out.display()))?
+			{
+				out = std::fs::canonicalize(&out).map_err(|err| format!("reading {}: {err}", path.display()))?;
+			}
+		}
+	}
+	Ok(out)
+}
+
 /// The import path of `<out>/go`, from the `go.mod` of the module above it, or else the
 /// module `prefix`, with the `go.mod` declaring it there.
 fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), String> {
-	std::fs::create_dir_all(out).map_err(|err| format!("creating {}: {err}", out.display()))?;
-	let out = std::fs::canonicalize(out).map_err(|err| format!("reading {}: {err}", out.display()))?;
+	let out = resolve(out)?;
 	for dir in out.ancestors() {
 		let path = dir.join("go.mod");
 		if !path.is_file() {
@@ -1007,7 +1084,12 @@ impl Gen<'_> {
 					.fields
 					.iter()
 					.zip(&bindings)
-					.map(|(f, b)| format!("{}: {b}", f.name))
+					// A field named as its binding is, `f0`, takes the shorthand, which
+					// the lint would ask for.
+					.map(|(f, b)| match f.name == *b {
+						true => b.clone(),
+						false => format!("{}: {b}", f.name),
+					})
 					.collect();
 				format!("{path} {{ {} }}", fields.join(", "))
 			}
@@ -1359,6 +1441,18 @@ impl Gen<'_> {
 					format!("let {local} = {};", self.lift(ty, c)),
 					format!("{local}.as_deref()"),
 				),
+				// A lifted `Vec` lends itself or, by coercion to the parameter's type, its slice,
+				// since a borrowed `Vec` and a slice share their type.
+				(Type::List(Collection::Vec, _), _) => {
+					let (binding, borrow) = match m {
+						Mutability::Mut => ("let mut", "&mut"),
+						Mutability::Not => ("let", "&"),
+					};
+					(
+						format!("{binding} {local} = {};", self.lift(ty, c)),
+						format!("match {borrow} {local} {{ Some(v) => Some(v), None => None }}"),
+					)
+				}
 				_ => (
 					format!("let {local} = {};", self.lift(ty, c)),
 					format!("{local}.as_ref()"),
@@ -1615,7 +1709,7 @@ impl Gen<'_> {
 			));
 		}
 		let body = stmts.join("\n\t");
-		if let Some((_, poll, free)) = &export.future {
+		if let Some(abi::Future { start, poll, free, .. }) = &export.future {
 			// A function that is not `async` runs when called, and what it returns
 			// borrows nothing, so it is called now; an `async fn` runs when polled.
 			let (now, later) = match (function.eager, &function.task) {
@@ -1647,10 +1741,15 @@ impl Gen<'_> {
 				.enumerate()
 				.map(|(n, out)| format!("let {out} = outs[{n}];\n\t\t\t"))
 				.collect();
-			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}{now}\n\trt::Future::new(async move {{\n\t\tlet result = {later};\n\t\t::std::boxed::Box::new(move |outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\t\tlet _ = (outs, err);\n\t\t\t{bind}{}\n\t\t}}) as rt::Done\n\t}})\n}}\n",
-				params.join(", "),
+			// The make's body, emitted again inside `<fn>_start` so its aborts name the
+			// function C called.
+			let make = format!(
+				"{body}{now}\n\trt::Future::new(async move {{ {later} }}, move |result, outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\tlet _ = (outs, err);\n\t\t{bind}{}\n\t}})",
 				self.finish(function, &ok, ("v", "rt::READY", "rt::ERROR"))
+			);
+			self.export(format!(
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{make}\n}}\n",
+				params.join(", "),
 			));
 			let poll_params: Vec<String> = poll.params[2..]
 				.iter()
@@ -1671,6 +1770,17 @@ impl Gen<'_> {
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}(future: *mut rt::Future) {{\n\tunsafe {{ rt::Future::free(future) }}\n}}\n",
 				free.name
+			));
+			// The call and its first poll in one: most futures are ready at once.
+			let start_params: Vec<String> = (params.iter().cloned())
+				.chain(poll_params)
+				.chain(["future: *mut *mut rt::Future".to_string()])
+				.collect();
+			self.export(format!(
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}({}) -> i32 {{\n\tlet w = \"{}\";\n\tlet _ = w;\n\tlet made = {{\n\t{make}\n\t}};\n\tunsafe {{ rt::Future::start(made, &[{outs}], {err}, future, w) }}\n}}\n",
+				start.name,
+				start_params.join(", "),
+				start.name
 			));
 			return;
 		}
@@ -1727,5 +1837,54 @@ fn owned(ok: &Type) -> (Type, Option<String>) {
 			Some(ty) => (ty, Some("::std::borrow::ToOwned::to_owned(v)".to_string())),
 			None => (ok.clone(), None),
 		},
+	}
+}
+
+#[test]
+fn go_module_resolves_missing_parent() {
+	struct RemoveOnDrop(PathBuf);
+	impl Drop for RemoveOnDrop {
+		fn drop(&mut self) {
+			let _ = std::fs::remove_dir_all(&self.0);
+		}
+	}
+	let root = std::env::current_dir()
+		.unwrap()
+		.join(".tmp")
+		.join(format!("go-module-{}", std::process::id()));
+	let _ = std::fs::remove_dir_all(&root);
+	std::fs::create_dir_all(root.parent().unwrap()).unwrap();
+	std::fs::create_dir(&root).unwrap();
+	let _cleanup = RemoveOnDrop(root.clone());
+	std::fs::write(root.join("go.mod"), "module example.com/lock\n\ngo 1.24\n").unwrap();
+	let output = root.join("new/../bind");
+	assert_eq!(
+		go_module(&output, "lock").unwrap(),
+		("example.com/lock/bind/go".into(), None)
+	);
+	assert!(!root.join("new").exists());
+	assert!(!root.join("bind").exists());
+	let baseline = root.join("baseline.json");
+	std::fs::write(&baseline, "{}").unwrap();
+	let mut generated = Output {
+		names: Default::default(),
+		files: vec![],
+		stale: vec![output.join("go")],
+	};
+	assert!(generated.check_baseline(&baseline).is_ok());
+	assert!(!root.join("new").exists());
+	assert!(!root.join("bind").exists());
+	#[cfg(unix)]
+	{
+		std::os::unix::fs::symlink(&root, root.join("alias")).unwrap();
+		generated.stale = vec![root.join("alias/new/..")];
+		assert!(
+			generated
+				.check_baseline(&baseline)
+				.unwrap_err()
+				.contains("export replaces")
+		);
+		std::os::unix::fs::symlink(&baseline, root.join("baseline-link.json")).unwrap();
+		assert!(generated.check_baseline(&root.join("baseline-link.json")).is_err());
 	}
 }

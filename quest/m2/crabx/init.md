@@ -9,5 +9,3 @@ The workflow it writes takes no inputs.
 ## Required
 
 - [Pipeline release](/quest/m2/crabx/pipeline-release.md) - a verified version tag to pin
-
-- [The runner](/quest/m2/crabx/runner.md) - the binary `init` is a subcommand of

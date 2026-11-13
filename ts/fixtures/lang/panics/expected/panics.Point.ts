@@ -3,12 +3,7 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug(self: Point, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Point";
-	const _4: string = "x";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.x, f);
-	const _7: string = "y";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.y, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Point x y", [(f: rs.Formatter) => rs.u8Debug(self.x, f), (f: rs.Formatter) => rs.u8Debug(self.y, f)]);
 }
 
 export function default$Default(): Point {

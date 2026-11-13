@@ -43,13 +43,12 @@ export function picked(first: rs.u8, caller: rs.Location): rs.Location {
 
 /** A closure is no `#[track_caller]` function, so it gives its own calls'. */
 export function inClosure(_caller: rs.Location): [rs.Location, rs.Location] {
-	const _1: () => rs.Location = (): rs.Location => {
-		return { file: "fixtures/lang/panics/src/located.rs", line: 47, col: 18 };
-	};
 	const _2: () => rs.Location = (): rs.Location => {
 		return here({ file: "fixtures/lang/panics/src/located.rs", line: 48, col: 21 });
 	};
-	return [_1(), _2()] as [rs.Location, rs.Location];
+	return [((): rs.Location => {
+		return { file: "fixtures/lang/panics/src/located.rs", line: 47, col: 18 };
+	})(), _2()] as [rs.Location, rs.Location];
 }
 
 /** A default, untracked, of the tracked method. */
@@ -78,12 +77,6 @@ export function lines(out: rs.ByteVec, at: rs.Slice<rs.Location>): void {
 
 /** Calls of `#[track_caller]` functions, and `Location::caller` itself. */
 export function called(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _24: (a0: rs.u8) => rs.Location = (n: rs.u8): rs.Location => {
-		if (!(rs.u8Rem(n, 2) === 0)) {
-			return outer({ file: "fixtures/lang/panics/src/located.rs", line: 139, col: 61 });
-		}
-		return here({ file: "fixtures/lang/panics/src/located.rs", line: 139, col: 45 });
-	};
 	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 	const _7: rs.u8 = rs.u8Rem(kind, 6);
 	if (_7 === 0) {
@@ -91,7 +84,12 @@ export function called(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		lines(out, rs.sliceFrom([{ file: "fixtures/lang/panics/src/located.rs", line: 134, col: 19 }, here({ file: "fixtures/lang/panics/src/located.rs", line: 134, col: 39 }), outer({ file: "fixtures/lang/panics/src/located.rs", line: 134, col: 47 }), _11[0], _11[1], plain(), picked(first, { file: "fixtures/lang/panics/src/located.rs", line: 134, col: 71 })]));
 	} else if (_7 === 1) {
 		const _23: [rs.Location, rs.Location] = inClosure({ file: "fixtures/lang/panics/src/located.rs", line: 138, col: 33 });
-		lines(out, rs.sliceFrom([_23[0], _23[1], _24(first), ((): rs.Location => {
+		lines(out, rs.sliceFrom([_23[0], _23[1], ((n: rs.u8): rs.Location => {
+			if (!(rs.u8Rem(n, 2) === 0)) {
+				return outer({ file: "fixtures/lang/panics/src/located.rs", line: 139, col: 61 });
+			}
+			return here({ file: "fixtures/lang/panics/src/located.rs", line: 139, col: 45 });
+		})(first), ((): rs.Location => {
 			return { file: "fixtures/lang/panics/src/located.rs", line: 140, col: 53 };
 		})()]));
 	} else if (_7 === 2) {

@@ -5,10 +5,7 @@ import { DROPPED } from "./errors.ts";
 import { set$1ljkjlf, get$0q7640n } from "./std/thread/local.ts";
 
 export function fmt$fmt_Debug(self: Leaf, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Leaf";
-	const _4: string = "code";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.code, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5));
+	return rs.fmtDebugFields(f, "Leaf code", [(f: rs.Formatter) => rs.u8Debug(self.code, f)]);
 }
 
 /** The crate's error without a source of its own, which counts its drops. */

@@ -184,8 +184,14 @@ const SITES: &[(&str, &str, &str, &str)] = &[
 	(
 		"debug_struct_fields",
 		"core/src/fmt/mod.rs",
-		"pub fn debug_struct_fields_finish",
-		"assert_eq!(",
+		"let name = names.next()",
+		"unwrap()",
+	),
+	(
+		"debug_enum",
+		"core/src/fmt/mod.rs",
+		"pub fn debug_c_like_enum_write_str",
+		"unwrap()",
 	),
 	(
 		"exact_len",
@@ -445,8 +451,8 @@ const CALLEES: &[(&str, &str, &str, &str)] = &[
 	(
 		"io::io_slice::advance",
 		"core/src/io/io_slice/repr_generic.rs",
-		"pub(crate) fn advance(&mut self, n: usize)",
-		"[n..]",
+		"pub(crate) const fn advance(&mut self, n: usize)",
+		"split_at(",
 	),
 	(
 		"io::io_slice::advance_slices",

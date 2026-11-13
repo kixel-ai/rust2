@@ -8,19 +8,9 @@ export function fmt$fmt_Debug(self: Shape, f: rs.Formatter): rs.Result<undefined
 		return rs.fmtWriteStr(f, "Dot");
 	}
 	if (self.tag === "Line") {
-		const _7: string = "Line";
-		const _8: rs.Fmt = (f: rs.Formatter) => Point.fmt$fmt_Debug(self._0, f);
-		const _9: rs.Fmt = (f: rs.Formatter) => Point.fmt$fmt_Debug(self._1, f);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.debugTupleField(rs.fmtDebugTuple(f, _7), _8), _9));
+		return rs.fmtDebugFields(f, "Line", [(f: rs.Formatter) => Point.fmt$fmt_Debug(self._0, f), (f: rs.Formatter) => Point.fmt$fmt_Debug(self._1, f)]);
 	}
-	const _14: string = "Rect";
-	const _15: string = "corner";
-	const _16: rs.Fmt = (f: rs.Formatter) => Point.fmt$fmt_Debug(self.corner, f);
-	const _17: string = "width";
-	const _18: rs.Fmt = (f: rs.Formatter) => rs.u16Debug(self.width, f);
-	const _19: string = "height";
-	const _20: rs.Fmt = (f: rs.Formatter) => rs.u16Debug(self.height, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _14), _15, _16), _17, _18), _19, _20));
+	return rs.fmtDebugFields(f, "Rect corner width height", [(f: rs.Formatter) => Point.fmt$fmt_Debug(self.corner, f), (f: rs.Formatter) => rs.u16Debug(self.width, f), (f: rs.Formatter) => rs.u16Debug(self.height, f)]);
 }
 
 export function eq$cmp_PartialEq(self: Shape, other: Shape): boolean {

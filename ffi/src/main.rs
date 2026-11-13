@@ -7,6 +7,7 @@
 
 #![feature(rustc_private)]
 
+extern crate rustc_abi;
 extern crate rustc_ast;
 extern crate rustc_attr_ir;
 extern crate rustc_data_structures;
@@ -35,6 +36,7 @@ mod glue;
 mod go;
 mod ir;
 mod kotlin;
+mod lock;
 mod merge;
 mod python;
 mod swift;
