@@ -359,10 +359,17 @@ fn module_path(path: &Path) -> Result<String, String> {
 fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), String> {
 	// Resolved without creating it, since an export the lock refuses writes nothing.
 	let absolute = std::path::absolute(out).map_err(|err| format!("reading {}: {err}", out.display()))?;
-	let existing = absolute.ancestors().find(|dir| dir.exists()).expect("the root exists");
-	let out = std::fs::canonicalize(existing)
-		.map_err(|err| format!("reading {}: {err}", existing.display()))?
-		.join(absolute.strip_prefix(existing).expect("an ancestor holds it"));
+	let mut out = PathBuf::new();
+	for component in absolute.components() {
+		if component == std::path::Component::ParentDir {
+			out.pop();
+		} else {
+			out.push(component);
+			if out.exists() {
+				out = std::fs::canonicalize(&out).map_err(|err| format!("reading {}: {err}", out.display()))?;
+			}
+		}
+	}
 	for dir in out.ancestors() {
 		let path = dir.join("go.mod");
 		if !path.is_file() {
@@ -1789,4 +1796,22 @@ fn owned(ok: &Type) -> (Type, Option<String>) {
 			None => (ok.clone(), None),
 		},
 	}
+}
+
+#[test]
+fn go_module_resolves_missing_parent() {
+	let root = std::env::current_dir()
+		.unwrap()
+		.join(".tmp")
+		.join(format!("go-module-{}", std::process::id()));
+	std::fs::create_dir_all(&root).unwrap();
+	std::fs::write(root.join("go.mod"), "module example.com/lock\n\ngo 1.24\n").unwrap();
+	let output = root.join("new/../bind");
+	assert_eq!(
+		go_module(&output, "lock").unwrap(),
+		("example.com/lock/bind/go".into(), None)
+	);
+	assert!(!root.join("new").exists());
+	assert!(!root.join("bind").exists());
+	std::fs::remove_dir_all(root).unwrap();
 }
