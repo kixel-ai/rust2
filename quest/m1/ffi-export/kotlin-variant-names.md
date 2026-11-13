@@ -24,3 +24,9 @@ and the binding's own as `<prefix>.*`, and reach the runtime's objects through n
 start with `_`, as `_eq` does, since a field shadows a qualifier in an expression. This
 keeps each variant its Rust name. Renaming a colliding variant with a trailing `_`, as
 top-level types are, is smaller but renames a variant whenever a type of its name is added.
+
+Settled with the maintainer on 2026-11-13: ✅ keep this quest (rejected: drop it), and ✅
+qualify every type name the generated Kotlin writes and reach runtime objects through
+`_`-prefixed names no exported name can produce, as #743's `_eq` does. Rejected: renaming
+a clashing variant with a trailing `_`, which makes exported names unstable and trips the
+API lock.
