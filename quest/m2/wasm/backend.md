@@ -82,8 +82,9 @@ Open, for the maintainer once the implementer has the facts:
     generated binding implement each import the module declares with the web API for it.
     The import names are then a detail between the generated `.wasm` and its generated
     binding, not a WASI contract, and nothing of WASI ships;
-  - a web std of rustc's own: none exists. On 2026-11-12 rustc's platform support lists
-    no web target, only the tier-3, `no_std` `wasm32-none-component`;
+  - a web std of rustc's own: none exists. On 2026-11-12 the platform support page on
+    rust-lang/rust's `master` lists no web target, only the tier-3, `no_std`
+    `wasm32-none-component`, added on 2026-10-15 and so in no nightly up to the pin;
   - the crate calls `web-time` or js-sys itself, a source change AGENTS.md calls a gap, and
     one that brings wasm-bindgen back;
   - a patched std built with `-Zbuild-std`, which is hand-rolling what upstream maintains.

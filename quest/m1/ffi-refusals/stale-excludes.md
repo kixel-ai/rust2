@@ -2,9 +2,9 @@
 
 ## Goal
 
-`ffi/moq/ffi.toml` excludes only what the export refuses: the nightly fails when an
-exclude names an item that now exports or names nothing, so the list shrinks as the
-exporter grows and `just ffi moq` builds everything that maps.
+`ffi/moq/ffi.toml` excludes only what the export refuses: a new check fails the nightly
+when an exclude names an item that now exports, so the list shrinks as the exporter grows
+and `just ffi moq` builds everything that maps.
 
 ## Plan
 
@@ -20,8 +20,11 @@ more name nothing exported ([the pin bump](/quest/m1/ffi-refusals/moq-pin.md)). 
 both again first.
 
 - Drop every exclude the census does not need.
-- The census already prints the config that exports what maps; the nightly's moq job
-  fails when `ffi/moq/ffi.toml` differs from it.
+- Nothing enforces this today. The exporter rejects only an exclude that names nothing
+  exported (`ffi/src/driver.rs`), and `nightly.yml` runs the census, summarizes it, and
+  uploads it without comparing. Add the comparison: the census already prints the config
+  that exports what maps, and the nightly's moq job fails when `ffi/moq/ffi.toml` differs
+  from it.
 - The file goes with [the epic](/quest/m1/ffi-refusals/README.md); until then it is
   exact.
 

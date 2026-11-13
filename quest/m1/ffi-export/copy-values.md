@@ -32,7 +32,8 @@ and Dart share one source across them.
   at load, which allocates a small array per value in Kotlin where a `Long` is free;
   refusing a type whose layout differs between targets, which would make moq change the
   type, against "rust2 asks moq for no source changes".
-- The IR carries no layout today: nothing in `ffi/src` reads a size or an alignment. The
+- The IR carries no type's layout today: `ffi/src/collect.rs` reads a scalar's size and
+  the target's pointer width, and nothing records a struct's size or alignment. The
   staged API (`--api`) gains each such type's size and alignment per target, and the merge
   reads them.
 

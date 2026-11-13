@@ -4,8 +4,8 @@
 
 [The build-speed benchmark](/bench/build/README.md)'s reference report comes from the
 bare-metal `nixos` runner, so its "instructions vs base" column holds numbers, and it
-measures two levers already in the pinned nightly that it does not yet:
-cargo's `-Zprofile-hint-mostly-unused` and `-Zembed-metadata`.
+measures two levers already in the pinned nightly that it does not yet: cargo's
+`hint-mostly-unused` profile setting on dependencies, and `-Zembed-metadata`.
 
 ## Plan
 
@@ -20,6 +20,9 @@ build-speed levers.
   matched to the cores.
 - The queue runner is the same host: schedule the benchmark so it never runs beside a
   queue build, and say how.
+- `-Zprofile-hint-mostly-unused` alone changes nothing: it only allows the
+  `hint-mostly-unused` profile setting, which the variant must also set, for the
+  dependencies and not moq's own crates.
 - Add each lever as a variant in [corpus.toml](/bench/build/corpus.toml). The audit
   diffed `rustc -Z help` between the 2026-10-22 pin and the 2026-11-12 nightly and found
   no new build-speed flag, so no pin bump is needed for these.
