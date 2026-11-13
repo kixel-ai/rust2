@@ -38,86 +38,92 @@ instead of woken.
 
 ## rust2-ffi
 
-Measured 2026-11-10 at rust2 `7383790d` plus this harness, moq `ffcb7cd9`, on an Intel
-Core Ultra 7 270K Plus (24 threads), Linux, **on a loaded shared host**: the 1-minute load
-average, in parentheses beside each number, ran 22 to 29 throughout, so each cell is the
-median of 5 rounds. CPU time leaves out time the program waited preempted, so it moves less
-under load than wall time, but caches and SMT siblings stay shared; take the CPU tables
-first. Rust 1.101.0-nightly 2026-10-14 (the export's default `release` profile, no LTO), GCC 16.2.0,
-CPython 3.14.8, OpenJDK 21.0.12.1 with Kotlin 2.4.21 and kotlinx-coroutines 1.10.2,
-Swift 6.3.3, Go 1.26.10, Dart 3.13.0.
+Measured 2026-11-13 at rust2 `534ef663`, moq `ffcb7cd9`, on an Intel Core Ultra 7 270K
+Plus (24 threads), Linux, on a quiet host: the 1-minute load average, in parentheses
+beside each number, ran 2 to 3, and each cell is the median of 3 rounds. CPU time leaves
+out time the program waited preempted, so take the CPU tables first. Rust
+1.101.0-nightly 2026-10-14 (the export's default `release` profile, no LTO), GCC 16.2.0,
+CPython 3.14.10, OpenJDK 21.0.13 with Kotlin 2.4.21 and kotlinx-coroutines 1.10.2, Swift
+6.4, Go 1.27.3, Dart 3.13.0.
+
+Against main (`7008d1d3`) at the same load, measured in turn four times, a 100 B write
+costs C 4 to 6 ns less, and Swift 6 and Dart 10 more in every pair: per-call cost, since
+each copies a 100 B frame as often as main does. Kotlin and Go each moved within the 15 to
+25 ns its own runs spread, so no row resolves the copy Kotlin lost at 100 B or 1 KiB.
+Bytes Rust returned and a binding passes back cross with no copy, which `ffi/tests`
+checks by address and by drop count.
 
 CPU time counts every thread of the process: the JVM's JIT and GC threads, Go's GC, and the
 Swift global executor's workers. So Kotlin's CPU column runs above its wall column, and
-Swift's woken read spends 16.6 us of CPU for 5.7 us of wall. Throughput from 16 KiB up is
-bound by memory bandwidth, which the host's load shares: its cells moved 2x between runs,
-the Rust floor's included, so read only the 100 B and 1 KiB rows as the bindings' cost.
+Swift's woken read spends 14.1 us of CPU for 4.8 us of wall. Throughput from 16 KiB up is
+bound by memory bandwidth: its cells moved up to 3x between runs even on this quiet host,
+so read only the 100 B and 1 KiB rows as the bindings' cost.
 
 ### Calls (ns per call, CPU time; load average)
 
 | call | Rust | C | C++ | moq-c | Kotlin | Python | Swift | Go | Dart |
 |---|---|---|---|---|---|---|---|---|---|
-| `track.is_closed()`, a handle call | 9.1 (26) | 18 (25) | 18 (26) |  | 60 (26) | 53 (25) | 26 (27) | 49 (26) | 47 (26) |
-| `demand.sequence()`, a u64 getter | 0.4 (26) | 10 (25) | 10 (26) |  | 50 (26) | 47 (25) | 18 (27) | 41 (26) | 29 (26) |
-| `track.largest()`, a record return | 18 (26) | 31 (25) | 31 (26) |  | 230 (26) | 97 (25) | 36 (27) | 76 (26) | 56 (26) |
-| `track.info()`, an object return | 1.1 (26) | 25 (25) | 25 (26) |  | 210 (26) | 97 (25) | 50 (27) | 263 (26) | 242 (26) |
-| `group.write_frame(at, frame)`, 100 B | 132 (26) | 148 (25) | 161 (26) |  | 230 (26) | 196 (25) | 194 (27) | 270 (26) | 209 (26) |
-| the same, with a new `Timestamp` each | 133 (26) | 169 (25) | 177 (26) | 267 (28) | 480 (26) | 336 (25) | 221 (27) | 526 (26) | 454 (26) |
-| a 100 B frame written and read, ready | 205 (26) | 303 (25) | 337 (26) |  | 690 (26) | 560 (25) | 509 (27) | 841 (26) | 735 (26) |
-| the same, read after a wake | 329 (26) | 427 (25) | 461 (26) |  | 1,630 (26) | 6,912 (25) | 16,580 (27) | 4,711 (26) | 1,776 (26) |
-| `frame.payload`, 100 B | 11 (26) | 23 (25) | 24 (26) |  | 70 (26) | 150 (25) | 96 (27) | 165 (26) | 67 (26) |
+| `track.is_closed()`, a handle call | 9.0 (3) | 18 (3) | 18 (3) |  | 60 (3) | 55 (3) | 26 (3) | 47 (3) | 45 (3) |
+| `demand.sequence()`, a u64 getter | 0.4 (3) | 10 (3) | 10 (3) |  | 50 (3) | 49 (3) | 9.9 (3) | 38 (3) | 28 (3) |
+| `track.largest()`, a record return | 18 (3) | 28 (3) | 29 (3) |  | 150 (3) | 99 (3) | 36 (3) | 69 (3) | 55 (3) |
+| `track.info()`, an object return | 1.1 (3) | 31 (3) | 29 (3) |  | 190 (3) | 104 (3) | 38 (3) | 195 (3) | 239 (3) |
+| `group.write_frame(at, frame)`, 100 B | 121 (3) | 143 (3) | 148 (3) |  | 240 (3) | 198 (3) | 179 (3) | 285 (3) | 214 (3) |
+| the same, with a new `Timestamp` each | 122 (3) | 162 (3) | 170 (3) | 219 (3) | 390 (3) | 339 (3) | 208 (3) | 470 (3) | 455 (3) |
+| a 100 B frame written and read, ready | 194 (3) | 301 (3) | 327 (3) |  | 650 (3) | 552 (3) | 471 (3) | 721 (3) | 739 (3) |
+| the same, read after a wake | 308 (3) | 444 (3) | 450 (3) |  | 1,590 (3) | 6,917 (3) | 14,061 (3) | 4,765 (3) | 1,665 (3) |
+| `frame.payload`, 100 B | 10 (3) | 20 (3) | 25 (3) |  | 70 (3) | 155 (3) | 85 (3) | 128 (3) | 68 (3) |
 
 ### Throughput (MB per CPU second, write plus ready read; load average)
 
 | frame | Rust | C | C++ | Kotlin | Python | Swift | Go | Dart |
 |---|---|---|---|---|---|---|---|---|
-| 100 B | 472 (26) | 303 (25) | 300 (26) | 105 (26) | 138 (25) | 162 (27) | 106 (26) | 120 (26) |
-| 1 KiB | 3,444 (26) | 2,394 (25) | 2,267 (26) | 1,341 (26) | 1,240 (25) | 1,135 (27) | 713 (26) | 991 (26) |
-| 16 KiB | 7,324 (26) | 14,822 (25) | 6,923 (26) | 6,554 (26) | 9,460 (25) | 2,156 (27) | 1,820 (26) | 5,536 (26) |
-| 64 KiB | 2,552 (26) | 10,612 (25) | 6,441 (26) | 3,277 (26) | 9,468 (25) | 2,206 (27) | 2,382 (26) | 6,574 (26) |
-| 1 MiB | 3,647 (26) | 3,596 (25) | 5,546 (26) | 3,146 (26) | 3,464 (25) | 3,354 (27) | 2,767 (26) | 3,812 (26) |
+| 100 B | 563 (3) | 326 (3) | 297 (3) | 118 (3) | 138 (3) | 170 (3) | 114 (3) | 126 (3) |
+| 1 KiB | 4,148 (3) | 2,823 (3) | 2,589 (3) | 1,341 (3) | 1,319 (3) | 1,218 (3) | 765 (3) | 1,104 (3) |
+| 16 KiB | 11,331 (3) | 10,982 (3) | 11,715 (3) | 6,554 (3) | 8,784 (3) | 2,434 (3) | 1,648 (3) | 5,682 (3) |
+| 64 KiB | 2,679 (3) | 8,637 (3) | 8,763 (3) | 2,185 (3) | 9,079 (3) | 2,522 (3) | 2,351 (3) | 6,767 (3) |
+| 1 MiB | 3,742 (3) | 3,785 (3) | 6,300 (3) | 3,146 (3) | 3,586 (3) | 3,531 (3) | 4,357 (3) | 3,926 (3) |
 
 ### Calls (ns per call, wall time; load average)
 
 | call | Rust | C | C++ | moq-c | Kotlin | Python | Swift | Go | Dart |
 |---|---|---|---|---|---|---|---|---|---|
-| `track.is_closed()`, a handle call | 9.1 (26) | 18 (25) | 18 (26) |  | 32 (26) | 53 (25) | 26 (27) | 48 (26) | 42 (26) |
-| `demand.sequence()`, a u64 getter | 0.4 (26) | 10 (25) | 10 (26) |  | 24 (26) | 47 (25) | 18 (27) | 41 (26) | 28 (26) |
-| `track.largest()`, a record return | 18 (26) | 31 (25) | 31 (26) |  | 113 (26) | 97 (25) | 37 (27) | 73 (26) | 56 (26) |
-| `track.info()`, an object return | 1.1 (26) | 25 (25) | 25 (26) |  | 137 (26) | 97 (25) | 50 (27) | 255 (26) | 243 (26) |
-| `group.write_frame(at, frame)`, 100 B | 132 (26) | 148 (25) | 161 (26) |  | 239 (26) | 196 (25) | 194 (27) | 274 (26) | 208 (26) |
-| the same, with a new `Timestamp` each | 133 (26) | 172 (25) | 178 (26) | 233 (27) | 331 (26) | 336 (25) | 224 (27) | 539 (26) | 447 (26) |
-| a 100 B frame written and read, ready | 205 (26) | 303 (25) | 341 (26) |  | 544 (26) | 560 (25) | 517 (27) | 903 (26) | 731 (26) |
-| the same, read after a wake | 330 (26) | 431 (25) | 474 (26) |  | 1,600 (26) | 6,912 (25) | 5,697 (27) | 5,061 (26) | 1,766 (26) |
-| `frame.payload`, 100 B | 11 (26) | 23 (25) | 24 (26) |  | 70 (26) | 150 (25) | 96 (27) | 150 (26) | 67 (26) |
+| `track.is_closed()`, a handle call | 9.0 (3) | 18 (3) | 18 (3) |  | 31 (3) | 55 (3) | 26 (3) | 46 (3) | 41 (3) |
+| `demand.sequence()`, a u64 getter | 0.4 (3) | 10 (3) | 10 (3) |  | 24 (3) | 49 (3) | 9.9 (3) | 38 (3) | 28 (3) |
+| `track.largest()`, a record return | 18 (3) | 28 (3) | 29 (3) |  | 74 (3) | 99 (3) | 36 (3) | 65 (3) | 54 (3) |
+| `track.info()`, an object return | 1.1 (3) | 31 (3) | 29 (3) |  | 89 (3) | 104 (3) | 38 (3) | 181 (3) | 238 (3) |
+| `group.write_frame(at, frame)`, 100 B | 122 (3) | 143 (3) | 148 (3) |  | 236 (3) | 198 (3) | 179 (3) | 280 (3) | 211 (3) |
+| the same, with a new `Timestamp` each | 122 (3) | 162 (3) | 170 (3) | 219 (3) | 331 (3) | 339 (3) | 208 (3) | 445 (3) | 445 (3) |
+| a 100 B frame written and read, ready | 194 (3) | 301 (3) | 327 (3) |  | 540 (3) | 552 (3) | 471 (3) | 694 (3) | 732 (3) |
+| the same, read after a wake | 308 (3) | 444 (3) | 450 (3) |  | 1,574 (3) | 6,918 (3) | 4,757 (3) | 3,740 (3) | 1,652 (3) |
+| `frame.payload`, 100 B | 10 (3) | 20 (3) | 25 (3) |  | 67 (3) | 155 (3) | 85 (3) | 115 (3) | 67 (3) |
 
 ### Throughput (MB/s, write plus ready read; load average)
 
 | frame | Rust | C | C++ | Kotlin | Python | Swift | Go | Dart |
 |---|---|---|---|---|---|---|---|---|
-| 100 B | 472 (26) | 299 (25) | 290 (26) | 170 (26) | 138 (25) | 162 (27) | 105 (26) | 121 (26) |
-| 1 KiB | 3,444 (26) | 2,394 (25) | 2,267 (26) | 1,384 (26) | 1,239 (25) | 1,135 (27) | 769 (26) | 1,019 (26) |
-| 16 KiB | 7,324 (26) | 14,824 (25) | 6,923 (26) | 8,822 (26) | 9,464 (25) | 2,156 (27) | 2,072 (26) | 5,618 (26) |
-| 64 KiB | 2,552 (26) | 10,612 (25) | 5,466 (26) | 6,048 (26) | 9,469 (25) | 2,206 (27) | 2,622 (26) | 6,679 (26) |
-| 1 MiB | 3,647 (26) | 3,591 (25) | 5,253 (26) | 3,369 (26) | 3,464 (25) | 3,353 (27) | 2,693 (26) | 3,861 (26) |
+| 100 B | 563 (3) | 326 (3) | 297 (3) | 166 (3) | 138 (3) | 169 (3) | 121 (3) | 127 (3) |
+| 1 KiB | 4,144 (3) | 2,823 (3) | 2,589 (3) | 1,404 (3) | 1,319 (3) | 1,218 (3) | 872 (3) | 1,130 (3) |
+| 16 KiB | 11,330 (3) | 10,982 (3) | 11,715 (3) | 6,096 (3) | 8,784 (3) | 2,433 (3) | 2,196 (3) | 5,729 (3) |
+| 64 KiB | 2,679 (3) | 8,637 (3) | 8,762 (3) | 6,651 (3) | 9,079 (3) | 2,522 (3) | 2,429 (3) | 6,971 (3) |
+| 1 MiB | 3,742 (3) | 3,785 (3) | 6,298 (3) | 3,346 (3) | 3,586 (3) | 3,530 (3) | 4,847 (3) | 3,995 (3) |
 
 ### Size
 
 | binding | files | raw | gzip | Rust glue, raw / gzip |
 |---|---|---|---|---|
-| C | 1 | 1,604 KiB | 235 KiB | 2,346 KiB / 125 KiB |
-| C++ | 1 | 2,664 KiB | 299 KiB | none |
-| Kotlin | 2 | 2,373 KiB | 318 KiB | 1,649 KiB / 72 KiB |
-| Python | 1 | 1,424 KiB | 217 KiB | 3,678 KiB / 282 KiB |
-| Swift | 3 | 2,231 KiB | 295 KiB | none |
-| Go | 19 | 3,429 KiB | 404 KiB | none |
-| Dart | 1 | 3,921 KiB | 360 KiB | 1,606 KiB / 59 KiB |
+| C | 1 | 1,633 KiB | 242 KiB | 2,416 KiB / 134 KiB |
+| C++ | 1 | 2,865 KiB | 320 KiB | none |
+| Kotlin | 2 | 2,498 KiB | 361 KiB | 1,720 KiB / 79 KiB |
+| Python | 1 | 1,454 KiB | 225 KiB | 3,762 KiB / 294 KiB |
+| Swift | 3 | 2,147 KiB | 302 KiB | none |
+| Go | 23 | 3,554 KiB | 435 KiB | none |
+| Dart | 1 | 4,034 KiB | 376 KiB | 1,643 KiB / 62 KiB |
 
 | native library | as built | stripped |
 |---|---|---|
-| `libmoq.a`, the C ABI that C, C++, Swift, and Go link | 191,403 KiB | 102,985 KiB |
-| `libmoq.so`, with the Kotlin and Dart glue | 60,222 KiB | 45,126 KiB |
-| `python/libmoq.so`, the CPython extension | 54,694 KiB | 41,023 KiB |
+| `libmoq.a`, the C ABI that C, C++, Swift, and Go link | 193,455 KiB | 104,224 KiB |
+| `libmoq.so`, with the Kotlin and Dart glue | 61,361 KiB | 46,029 KiB |
+| `python/libmoq.so`, the CPython extension | 56,145 KiB | 42,166 KiB |
 
 The stand-in exports all of moq-net, kio, and moq-pattern, and hang, moq-mux, and
 moq-tokio's session side, far more than moq-ffi's UniFFI interface, so its sizes do not
@@ -129,7 +135,8 @@ the export's default `release` build, which links all of moq's crates; "stripped
 
 ### What a call spends
 
-From the CPU tables, read against the code each call runs. In order of what it costs moq's
+From the CPU tables of 2026-11-10, measured at a load average of 22 to 29, read against
+the code each call runs. In order of what it costs moq's
 frame path:
 
 1. **A handle per frame timestamp.** `Timestamp` is `Copy` in Rust, but its private fields
