@@ -53,6 +53,9 @@ recommendations below are a starting point, not settled.
   cache may already make its compile cheap, which the measurement shows.
 - An mtime check is not enough on its own: the exporter's rewrite moves mtimes, and a
   stale program that passes would hide a real break, so key on content.
+- A test that edits a cached output must edit a copy: `api_kotlin`'s contract-mismatch
+  case rewrites `Native.class` in place, so a run that stops before restoring it would
+  leave every later run reusing the broken class.
 - A death test runs the same cached program; caching its build changes nothing about
   what it asserts.
 
