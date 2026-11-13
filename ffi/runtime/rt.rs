@@ -1383,8 +1383,8 @@ impl Future {
 	}
 
 	/// Make the future's first poll, with no waker: on `READY` or `ERROR` the result is
-	/// written and the future freed, and on `PENDING` its handle goes through `handle`, for
-	/// C to poll with a waker and free.
+	/// written, the future freed, and null written through `handle`; on `PENDING` its
+	/// handle goes there, for C to poll with a waker and free.
 	///
 	/// # Safety
 	/// `future` is a handle `new` just made, `handle` is null, which aborts, or points
@@ -1410,8 +1410,11 @@ impl Future {
 		match result {
 			// SAFETY: the caller's contract.
 			PENDING => unsafe { handle.write(future) },
-			// SAFETY: it finished, and C never sees its handle.
-			_ => unsafe { Self::free(future) },
+			// SAFETY: it finished; null tells C there is no handle, and `free` takes it.
+			_ => unsafe {
+				handle.write(std::ptr::null_mut());
+				Self::free(future)
+			},
 		}
 		result
 	}

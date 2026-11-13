@@ -131,9 +131,10 @@ static bool started_futures(void) {
 	api_waker waker = {.wake = wake, .drop = drop, .data = NULL};
 	uint32_t out = 0;
 
-	/* Ready at once: the result is written, the future freed, and no handle returned. */
+	/* Ready at once: the result is written, the future freed, and the handle nulled
+	 * over what the caller left in it. */
 	foreign now = {.ready = 1};
-	api_after_future *after = NULL;
+	api_after_future *after = (api_after_future *)&out;
 	bool ok = api_after_start(foreign_future(&now), 4, &out, &after) == API_POLL_READY;
 	ok = ok && out == 8 && !after && now.polls == 1 && now.freed;
 
@@ -157,9 +158,9 @@ static bool started_futures(void) {
 	api_after_future_free(after);
 	ok = ok && dropped.freed && !dropped.waker.wake;
 
-	/* Failed at once: the error is written, and no handle returned. */
+	/* Failed at once: the error is written, and the handle nulled. */
 	foreign never = {.ready = 1000};
-	api_within_future *within = NULL;
+	api_within_future *within = (api_within_future *)&out;
 	api_Error err;
 	ok = ok && api_within_start(0, foreign_future(&never), &err, &within) == API_POLL_ERROR;
 	ok = ok && err.tag == API_ERROR_OVERFLOW && !within && never.freed;
@@ -1701,6 +1702,11 @@ static int broken(const char *which) {
 	} else if (strcmp(which, "future") == 0) {
 		/* A future with no poll. */
 		api_after((api_foreign_future){0}, 1);
+	} else if (strcmp(which, "started") == 0) {
+		/* A future with no poll, through a start, which the abort names. */
+		uint32_t out;
+		api_after_future *after;
+		api_after_start((api_foreign_future){0}, 1, &out, &after);
 	} else if (strcmp(which, "start") == 0) {
 		/* A start with nowhere to put the handle of a future that pends. */
 		uint32_t out;

@@ -138,6 +138,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 const TAKEN: &[&str] = &[
 	"Array",
 	"Bool",
+	"CancellationError",
 	"Comparable",
 	"CustomDebugStringConvertible",
 	"CustomStringConvertible",
@@ -1627,9 +1628,10 @@ impl<'a> Gen<'a> {
 			let mut code = inner;
 			for arg in args.iter().rev() {
 				if let Some((open, close)) = &arg.open {
+					// An opener may hold several `try`s, as a lent closure's two do.
 					let open = match throws {
-						true => open.as_str(),
-						false => open.strip_prefix("try ").unwrap_or(open),
+						true => open.clone(),
+						false => open.replace("try ", ""),
 					};
 					let lines = code.lines().count();
 					// A closure of one line returns its value; of more, its own `return` does.

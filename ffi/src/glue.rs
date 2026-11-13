@@ -1647,10 +1647,15 @@ impl Gen<'_> {
 				.enumerate()
 				.map(|(n, out)| format!("let {out} = outs[{n}];\n\t\t\t"))
 				.collect();
-			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}{now}\n\trt::Future::new(async move {{ {later} }}, move |result, outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\tlet _ = (outs, err);\n\t\t{bind}{}\n\t}})\n}}\n",
-				params.join(", "),
+			// The make's body, emitted again inside `<fn>_start` so its aborts name the
+			// function C called.
+			let make = format!(
+				"{body}{now}\n\trt::Future::new(async move {{ {later} }}, move |result, outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\tlet _ = (outs, err);\n\t\t{bind}{}\n\t}})",
 				self.finish(function, &ok, ("v", "rt::READY", "rt::ERROR"))
+			);
+			self.export(format!(
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{make}\n}}\n",
+				params.join(", "),
 			));
 			let poll_params: Vec<String> = poll.params[2..]
 				.iter()
@@ -1673,18 +1678,14 @@ impl Gen<'_> {
 				free.name
 			));
 			// The call and its first poll in one: most futures are ready at once.
-			let forwarded: Vec<&str> = (params.iter())
-				.map(|p| p.split(':').next().expect("a parameter's name"))
-				.collect();
 			let start_params: Vec<String> = (params.iter().cloned())
 				.chain(poll_params)
 				.chain(["future: *mut *mut rt::Future".to_string()])
 				.collect();
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}({}) -> i32 {{\n\tunsafe {{ rt::Future::start({name}({}), &[{outs}], {err}, future, \"{}\") }}\n}}\n",
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}({}) -> i32 {{\n\tlet w = \"{}\";\n\tlet _ = w;\n\tlet made = {{\n\t{make}\n\t}};\n\tunsafe {{ rt::Future::start(made, &[{outs}], {err}, future, w) }}\n}}\n",
 				start.name,
 				start_params.join(", "),
-				forwarded.join(", "),
 				start.name
 			));
 			return;
