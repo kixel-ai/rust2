@@ -130,34 +130,37 @@ fn buffers() {
 #[test]
 fn channel() {
 	let counts = Counts::default();
+	// One waker, copied: Miri may give each reification of `wake` its own address, so a
+	// waker made anew per poll would never match the one a future keeps.
+	let w = waker(&counts);
 	unsafe {
 		let channel = api_Channel_new();
 		let recv = api_Channel_recv(channel);
 		let mut payload = rt::Buf::NONE;
-		assert_eq!(api_Channel_recv_poll(recv, waker(&counts), &mut payload), rt::PENDING);
+		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::PENDING);
 		api_Channel_send(channel, view("hi"));
 		assert_eq!(counts.wakes.load(Ordering::SeqCst), 1);
-		assert_eq!(api_Channel_recv_poll(recv, waker(&counts), &mut payload), rt::READY);
+		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::READY);
 		assert_eq!(take(payload), "hi");
 		api_Channel_recv_future_free(recv);
 
 		// A send from another thread wakes the poll's waker there.
 		let recv = api_Channel_recv(channel);
-		assert_eq!(api_Channel_recv_poll(recv, waker(&counts), &mut payload), rt::PENDING);
+		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::PENDING);
 		api_Channel_send_from_thread(channel, view("far"));
 		assert_eq!(counts.wakes.load(Ordering::SeqCst), 2);
-		assert_eq!(api_Channel_recv_poll(recv, waker(&counts), &mut payload), rt::READY);
+		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::READY);
 		assert_eq!(take(payload), "far");
 		api_Channel_recv_future_free(recv);
 
 		// Cancelled while pending, it frees what it held, its waker included.
 		let recv = api_Channel_recv(channel);
-		assert_eq!(api_Channel_recv_poll(recv, waker(&counts), &mut payload), rt::PENDING);
+		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::PENDING);
 		api_Channel_recv_future_free(recv);
 		api_Channel_free(channel);
 	}
-	// Each poll hands Rust its waker, which it drops once it is done with it.
-	assert_eq!(counts.drops.load(Ordering::SeqCst), 5);
+	// A repeated waker is kept rather than lifted anew: one drop per future.
+	assert_eq!(counts.drops.load(Ordering::SeqCst), 3);
 }
 
 #[test]
