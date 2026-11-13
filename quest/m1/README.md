@@ -8,7 +8,7 @@ builds its bindings with today.
 ## Plan
 
 Decided with the maintainer on 2026-10-25, from the
-[spike](https://github.com/moq-dev/rust2/pull/41): the [exporter](/ffi/README.md), which
+[spike](https://github.com/kixel-ai/rust2/pull/41): the [exporter](/ffi/README.md), which
 turns a crate's `pub` API into bindings with no attributes, replaces the UniFFI fork,
 whose feature quests are folded into the [exporter's](/quest/m1/ffi-export/README.md).
 

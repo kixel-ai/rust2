@@ -38,7 +38,7 @@ What the audit found, each a place native Rust would have gone on:
   raises.
 - Integers: a Dart `u64` past `i64` reads negative; a Kotlin `usize` past a 32-bit
   target's aborts (`ffi/runtime/jni.rs`'s `narrow`) since
-  [#689](https://github.com/moq-dev/rust2/pull/689); and a Go `*big.Int` outside `u128`
+  [#689](https://github.com/kixel-ai/rust2/pull/689); and a Go `*big.Int` outside `u128`
   panics (`ffi_cgo.go`).
 - `Hash`: Dart's `hashCode` throws on a `PartialEq` type and Kotlin's returns 0; the IR
   carries no `Hash`. Export it where the type implements it.
