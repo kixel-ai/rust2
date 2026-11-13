@@ -109,8 +109,15 @@ final class Queue: TaskExecutor, @unchecked Sendable {
 		}
 	}
 
+	/// Run `body` as a task that prefers this queue, counting an error it throws as a failure.
 	func launch(_ body: @escaping @Sendable () async throws -> Void) {
-		Task(executorPreference: self, operation: body)
+		Task(executorPreference: self) {
+			do {
+				try await body()
+			} catch {
+				expect(false, "a launched task threw \(error)")
+			}
+		}
 	}
 }
 
