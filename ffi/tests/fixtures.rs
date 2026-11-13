@@ -1301,6 +1301,12 @@ fn relative_target() {
 		"- `Void`: object no export returns",
 		"- `release`: type C never holds `Lease`",
 		"- `Unnamed`: generic type no export instantiates",
+		// An exclude that names what exports, generic and instance keys alike, but not one
+		// that names only what is refused.
+		"## Excluded by the config, though it exports",
+		"- `Layer`: `Layer`",
+		"- `Timed`: `Timed`, `Timed<bytes::Bytes>`",
+		"- `Pair<u8, api::Size>::swap`: `Pair<u8, api::Size>::swap`",
 	] {
 		assert!(text.contains(line), "the census lists no `{line}`:\n{text}");
 	}

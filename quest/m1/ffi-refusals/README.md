@@ -74,7 +74,7 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   [#710](https://github.com/moq-dev/rust2/pull/710), yet the Goal is not reached: the
   2026-11-11 nightly census
   ([run 43038758163](https://github.com/moq-dev/rust2/actions/runs/43038758163)) still
-  refuses 94 items and 5 types at the pin, behind `ffi/moq/ffi.toml`'s 100 excludes, and
+  refuses 94 items and 5 types at the pin, behind `ffi/moq/ffi.toml`'s then 100 excludes, and
   moq's `main` adds the 36 errors [the pin bump](/quest/m1/ffi-refusals/moq-pin.md)
   measured. So each construct left has a child again:
   [`NonZero`](/quest/m1/ffi-refusals/nonzero.md) and

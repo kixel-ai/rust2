@@ -95,6 +95,9 @@ pub struct Facade<'a> {
 	pub package: &'a str,
 	/// Paths from its root the config leaves out.
 	pub exclude: &'a [String],
+	/// Paths from its root a census checks, without leaving out what they name: each
+	/// item one names is recorded in [`Report::audited`].
+	pub audit: &'a [String],
 }
 
 /// What collection found in the facade, by paths from its root.
@@ -115,6 +118,8 @@ pub struct Report {
 	pub unheld: Vec<(String, Why)>,
 	/// Excluded paths, and how many items each left out.
 	pub excluded: Vec<(String, usize)>,
+	/// A census's audited paths, and the path of each item one names.
+	pub audited: Vec<(String, Vec<String>)>,
 	/// Type aliases, which export nothing of their own.
 	pub aliases: Vec<String>,
 }
@@ -302,6 +307,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 				hidden: Vec::new(),
 				unheld: Vec::new(),
 				excluded: facade.exclude.iter().map(|path| (path.clone(), 0)).collect(),
+				audited: facade.audit.iter().map(|path| (path.clone(), Vec::new())).collect(),
 				aliases: Vec::new(),
 			},
 			instances: Vec::new(),
@@ -536,6 +542,12 @@ impl<'tcx> Collector<'tcx> {
 			if let Some((_, count)) = report.excluded.iter_mut().find(|(excluded, _)| *excluded == key) {
 				*count += 1;
 				return true;
+			}
+		}
+		for (_, key) in config::keys(&path[1..]) {
+			if let Some((_, named)) = report.audited.iter_mut().find(|(audited, _)| *audited == key) {
+				named.push(path[1..].join("::"));
+				break;
 			}
 		}
 		false

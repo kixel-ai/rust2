@@ -184,6 +184,26 @@ pub fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn Fn(Span
 			let _ = writeln!(out, "- `{path}`: {count} items");
 		}
 	}
+	// An exclude that names what exports leaves out more than the export needs. A member
+	// of a refused type does not export either.
+	let refused: Vec<&str> = (collected.refusals.iter().map(|r| r.path.as_str()))
+		.chain(collected.unheld.iter().map(|(path, _)| path.as_str()))
+		.collect();
+	let under = |path: &str| {
+		(refused.iter()).any(|r| path == *r || path.strip_prefix(r).is_some_and(|rest| rest.starts_with("::")))
+	};
+	let mut exporting = String::new();
+	for (exclude, named) in &collected.audited {
+		let mut exported: Vec<&str> = named.iter().map(String::as_str).filter(|path| !under(path)).collect();
+		exported.sort();
+		exported.dedup();
+		if !exported.is_empty() {
+			let _ = writeln!(exporting, "- `{exclude}`: `{}`", exported.join("`, `"));
+		}
+	}
+	if !exporting.is_empty() {
+		let _ = writeln!(out, "\n## Excluded by the config, though it exports\n\n{exporting}");
+	}
 	if !collected.hidden.is_empty() {
 		let _ = writeln!(out, "\n## `#[doc(hidden)]`, left out\n");
 		for path in &collected.hidden {

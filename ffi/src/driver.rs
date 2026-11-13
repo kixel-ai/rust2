@@ -136,6 +136,11 @@ impl Callbacks for Export {
 				Output::Census(_) => &[],
 				Output::Dir(_) | Output::Api(_) => &self.config.exclude,
 			},
+			// It lists instead each item one names that exports.
+			audit: match self.output {
+				Output::Census(_) => &self.config.exclude,
+				Output::Dir(_) | Output::Api(_) => &[],
+			},
 		};
 		let collected = collect::collect(tcx, &facade);
 		let report = &collected.report;
