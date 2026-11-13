@@ -35,8 +35,9 @@ fn setup(temp: &Path, name: &str) -> std::path::PathBuf {
                 assert!(args.iter().any(|arg| arg == "--locked"));
                 let target = args.iter().position(|arg| arg == "--target").unwrap();
                 assert_eq!(args[target + 1], std::env::var_os("CRABX_TEST_TARGET").unwrap());
-                let version = args.iter().position(|arg| arg == "--version").unwrap();
-                assert_eq!(args[version + 1], "=1.2.3");
+                if let Some(version) = args.iter().position(|arg| arg == "--version") {
+                    assert_eq!(args[version + 1], "=1.2.3");
+                }
                 let root = args.iter().position(|arg| arg == "--root").unwrap();
                 let root = std::path::Path::new(&args[root + 1]);
                 std::fs::copy(std::env::current_exe().unwrap(), root.join("bin/tool")).unwrap();
@@ -184,4 +185,42 @@ fn exec_preserves_signals_and_incomplete_cache_is_an_error() {
 			.unwrap()
 			.contains("missing or invalid cached binary")
 	);
+}
+
+#[test]
+fn unpinned_build_reuses_pinned_entry_and_reports_refresh_errors() {
+	let temp = tempfile::tempdir().unwrap();
+	setup(temp.path(), "fixture");
+	let root = cache(temp.path())
+		.join("crabx/v1")
+		.join(binstalk::TARGET)
+		.join("build/fixture");
+	fs::create_dir_all(&root).unwrap();
+	// Hold the refresh lock to synchronize detached updaters without sleeps or network.
+	let lock = fs::File::create(root.join("refresh.lock")).unwrap();
+	lock.lock().unwrap();
+	for krate in ["fixture@1.2.3", "fixture"] {
+		let output = crabx(temp.path())
+			.args(["--build", krate])
+			.env("CARGO", temp.path().join("helper"))
+			.env("CRABX_TEST_TARGET", binstalk::TARGET)
+			.output()
+			.unwrap();
+		assert_eq!(
+			output.status.code(),
+			Some(37),
+			"{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+	}
+	assert_eq!(fs::read_to_string(root.join("latest")).unwrap(), "1.2.3");
+	fs::write(root.join("refresh-error"), "fixture update failure").unwrap();
+	let output = crabx(temp.path())
+		.args(["--build", "fixture"])
+		.env("CARGO", "must-not-run")
+		.output()
+		.unwrap();
+	assert_eq!(output.status.code(), Some(37));
+	assert!(String::from_utf8_lossy(&output.stderr).contains("fixture update failure"));
+	assert!(!root.join("refresh-error").exists());
 }

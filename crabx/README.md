@@ -46,11 +46,10 @@ loudly. Build and quickinstall entries cannot satisfy the default author's-relea
 policy.
 
 An unpinned invocation runs its cached version immediately and starts a detached
-sparse-index refresh for the next invocation. The refresh retains the newest stable,
+sparse-index refresh and installation for the next invocation. The refresh retains the newest stable,
 non-yanked version, never a prerelease. A yank can select an older version. Only one
 refresh per crate and policy runs at a time. Network errors leave the cached version
-available and are reported on the next invocation. The next run downloads a newly
-discovered version.
+available and are reported on the next invocation. A newly discovered version becomes current only after installation succeeds.
 
 Unix uses `exec`, preserving the PID, arguments, standard streams, signals, and exit
 status. Windows starts the program with inherited console and standard streams and

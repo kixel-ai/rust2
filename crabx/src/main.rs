@@ -29,7 +29,7 @@ fn run(args: cli::Args) -> Result<()> {
 	let spec = cli::Spec::parse(krate)?;
 	let cache = cache::Cache::new(&spec, args.mode())?;
 	if args.refresh {
-		if let Err(error) = network::runtime()?.block_on(network::refresh(&cache, &spec)) {
+		if let Err(error) = network::runtime()?.block_on(network::refresh(&cache, &spec, &args)) {
 			network::refresh_error(&cache, &error)?;
 			return Err(error);
 		}
@@ -49,7 +49,9 @@ fn run(args: cli::Args) -> Result<()> {
 	let path = cache.version(&record.version).join("bin").join(binary);
 	if spec.version.is_none() {
 		// The updater owns no terminal handles and never delays this invocation.
-		network::spawn_refresh(&spec, &args)?;
+		if let Err(error) = network::spawn_refresh(&spec, &args) {
+			eprintln!("crabx: could not start background update: {error:#}");
+		}
 	}
 	execute(path, args.command.into_iter().skip(1).collect())
 }

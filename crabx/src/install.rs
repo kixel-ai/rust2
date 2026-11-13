@@ -34,6 +34,7 @@ pub async fn resolve(cache: &Cache, spec: &Spec, args: &Args) -> Result<Record> 
 		);
 		fetch(
 			stage.path(),
+			cache,
 			&Spec {
 				name: spec.name.clone(),
 				version,
@@ -42,15 +43,11 @@ pub async fn resolve(cache: &Cache, spec: &Spec, args: &Args) -> Result<Record> 
 		)
 		.await?
 	};
-	record.binary(args.bin.as_deref(), &spec.name)?;
 	cache::atomic(&stage.path().join("record.json"), &serde_json::to_vec(&record)?)?;
 	let destination = cache.version(&record.version);
-	ensure!(
-		!destination.try_exists()?,
-		"cache destination already exists: {}",
-		destination.display()
-	);
-	fs::rename(stage.path(), &destination)?;
+	if cache.load(&record.version)?.is_none() {
+		fs::rename(stage.path(), &destination)?;
+	}
 	if spec.version.is_none() && cache.latest()?.is_none_or(|v| v <= record.version) {
 		cache.set_latest(&record.version)?;
 	}
@@ -65,7 +62,7 @@ struct Package {
 	bins: Vec<(String, bool)>,
 }
 
-async fn fetch(stage: &Path, spec: &Spec, quickinstall: bool) -> Result<Record> {
+async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> Result<Record> {
 	let client = remote::Client::new(
 		concat!("crabx/", env!("CARGO_PKG_VERSION")),
 		None,
@@ -91,6 +88,9 @@ async fn fetch(stage: &Path, spec: &Spec, quickinstall: bool) -> Result<Record> 
 	);
 	let version = package.version().clone();
 	ensure!(req.matches(&version), "registry returned a different version");
+	if let Some(record) = cache.load(&version)? {
+		return Ok(record);
+	}
 	let repository = package.repository().map(str::to_owned);
 	let meta = package.metadata.take().and_then(|m| m.binstall).unwrap_or_default();
 	let mut names = BTreeSet::new();

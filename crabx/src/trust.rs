@@ -18,7 +18,8 @@ struct Page {
 
 #[derive(Deserialize)]
 struct Attestation {
-	bundle: Bundle,
+	bundle: Option<Bundle>,
+	bundle_url: Option<reqwest::Url>,
 }
 
 fn one_attestation<'de, D: serde::Deserializer<'de>>(
@@ -78,9 +79,27 @@ pub async fn verify(receipt: &Receipt, version: &Version, stage: &Path) -> Resul
 			break;
 		}
 		if let Some(attestation) = page.attestations {
+			let bundle = match attestation.bundle {
+				Some(bundle) => bundle,
+				None => {
+					let url = attestation
+						.bundle_url
+						.context("attestation has neither bundle nor bundle_url")?;
+					ensure!(
+						matches!(url.scheme(), "https" | "http")
+							&& url.username().is_empty()
+							&& url.password().is_none(),
+						"invalid attestation bundle URL"
+					);
+					// External bundle storage receives no GitHub credential.
+					let response = client.get(url).send().await?.error_for_status()?;
+					let file = network::spool(response, stage).await?;
+					serde_json::from_reader(BufReader::new(File::open(file.path())?))?
+				}
+			};
 			// GitHub's timestamp-only trust domain has its own CA and TSA. A
 			// public-good bundle cannot lose its log and verify under that CA.
-			let github = attestation.bundle.verification_material.tlog_entries.is_empty();
+			let github = bundle.verification_material.tlog_entries.is_empty();
 			let root = &mut roots[usize::from(github)];
 			if root.is_none() {
 				*root = Some(if github {
@@ -92,7 +111,7 @@ pub async fn verify(receipt: &Receipt, version: &Version, stage: &Path) -> Resul
 			let verifier = Verifier::new(root.as_ref().context("no Sigstore trust root")?)?;
 			verify_bundle(
 				&verifier,
-				&attestation.bundle,
+				&bundle,
 				Artifact {
 					digest: &digest,
 					repo: &repo,
@@ -257,11 +276,11 @@ fn release(bundle: &Bundle) -> Result<Option<Release>> {
 
 fn repository(value: &str) -> Result<Option<String>> {
 	let url = reqwest::Url::parse(value).context("invalid crate repository URL")?;
-	if url.host_str() != Some("github.com") {
+	if !matches!(url.host_str(), Some("github.com" | "www.github.com")) {
 		return Ok(None);
 	}
 	ensure!(
-		url.scheme() == "https" && url.username().is_empty() && url.password().is_none(),
+		matches!(url.scheme(), "https" | "http") && url.username().is_empty() && url.password().is_none(),
 		"invalid GitHub repository URL"
 	);
 	let mut segments = url.path_segments().context("repository has no path")?;
@@ -443,7 +462,11 @@ mod tests {
 		);
 		assert!(repository("https://gitlab.com/a/b").unwrap().is_none());
 		assert!(repository("https://github.com/a").is_err());
-		assert!(repository("http://github.com/a/b").is_err());
+		assert_eq!(repository("http://github.com/a/b").unwrap().as_deref(), Some("a/b"));
+		assert_eq!(
+			repository("https://www.github.com/a/b").unwrap().as_deref(),
+			Some("a/b")
+		);
 		let mut claims = sigstore_verify::crypto::FulcioCiClaims::default();
 		claims.source_repository_uri = Some("https://github.com/a/b".into());
 		claims.build_signer_uri = Some("https://github.com/a/b/.github/workflows/release.yml@refs/tags/v1.2.3".into());

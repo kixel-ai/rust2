@@ -63,21 +63,45 @@ fn index_path(name: &str) -> String {
 	}
 }
 
-pub async fn refresh(cache: &Cache, spec: &Spec) -> Result<()> {
+pub async fn refresh(cache: &Cache, spec: &Spec, args: &Args) -> Result<()> {
 	ensure!(spec.version.is_none(), "only unpinned crates can refresh");
 	let Some(_lock) = cache.try_refresh_lock()? else {
 		return Ok(());
 	};
-	let response = client()?
-		.get(format!("https://index.crates.io/{}", index_path(&spec.name)))
-		.send()
-		.await?
-		.error_for_status()?;
+	let etag_path = cache.root.join("index-etag");
+	let mut request = client()?.get(format!("https://index.crates.io/{}", index_path(&spec.name)));
+	match fs::read_to_string(&etag_path) {
+		Ok(etag) => {
+			request = request.header(reqwest::header::IF_NONE_MATCH, etag);
+		}
+		Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+		Err(e) => return Err(e.into()),
+	}
+	let response = request.send().await?.error_for_status()?;
+	if response.status() == reqwest::StatusCode::NOT_MODIFIED {
+		return Ok(());
+	}
+	let etag = response.headers().get(reqwest::header::ETAG).cloned();
 	let file = spool(response, &cache.root).await?;
 	let version = latest(BufReader::new(File::open(file.path())?))?;
-	// Refreshes are serialized. A yank can make the latest usable version older.
+	// Publish only an installed version, retaining the working entry on failure.
+	crate::install::resolve(
+		cache,
+		&Spec {
+			name: spec.name.clone(),
+			version: Some(version.clone()),
+		},
+		args,
+	)
+	.await?;
 	let _lock = cache.lock()?;
 	cache.set_latest(&version)?;
+	// Remember a validator only after installation, so failures remain retryable.
+	if let Some(etag) = etag {
+		cache::atomic(&etag_path, etag.as_bytes())?;
+	} else if etag_path.try_exists()? {
+		fs::remove_file(etag_path)?;
+	}
 	Ok(())
 }
 
