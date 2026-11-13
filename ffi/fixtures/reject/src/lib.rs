@@ -890,10 +890,14 @@ impl Tally {
 	}
 }
 
-/// A waiter made from a waker only by an `unsafe` function.
+/// A waiter made from a waker only by an `unsafe` function, exported through a safe one.
 pub struct Risky(std::task::Waker);
 
 impl Risky {
+	pub fn idle() -> Self {
+		Self(std::task::Waker::noop().clone())
+	}
+
 	/// # Safety
 	///
 	/// Nothing, in this fixture.
