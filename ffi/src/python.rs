@@ -501,7 +501,7 @@ impl<'a> Gen<'a> {
 			Type::List(..) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => {
-					let m = match matches!(**inner, Type::Ref(..)) {
+					let m = match abi.api.objects[*i].copy || matches!(**inner, Type::Ref(..)) {
 						true => "false",
 						false => m,
 					};
@@ -532,7 +532,13 @@ impl<'a> Gen<'a> {
 				true => format!("rt::member_in({o}, {})", self.t(&abi.enumeration(*i))),
 				false => format!("r_{}({o}, s)", abi.enumeration(*i)),
 			},
-			Type::Object(i) => format!("rt::hold({o}, {}, s, {m})", self.t(&abi.object(*i))),
+			Type::Object(i) => {
+				let m = match abi.api.objects[*i].copy {
+					true => "false",
+					false => m,
+				};
+				format!("rt::hold({o}, {}, s, {m})", self.t(&abi.object(*i)))
+			}
 			Type::Callback(i, _) => {
 				let c = abi.callback(*i);
 				format!(

@@ -8,11 +8,11 @@
 //! handle, freed in `deinit`, so Swift's compiler checks each move and borrow Rust makes:
 //! `self` is `consuming`, `&mut self` `mutating`, a parameter `consuming`, `borrowing`, or
 //! `inout`, a tuple holding one a struct of its own, and an array of them swift-collections'
-//! `UniqueArray`. An object thrown as an error is a final class instead, since `Swift.Error`
-//! requires a copyable type, whose handle a call holds at run time. A record is a struct,
-//! and a `Copy` type with private fields a struct over the bytes of its C struct, which
-//! only Rust makes or reads; an enum a Swift enum, with
-//! its data as associated values; a trait a protocol; a closure a function type; a future
+//! `UniqueArray`. An object that is `Copy`, which only one C may change is, or thrown as an
+//! error is a final class instead, since `Swift.Error` requires a copyable type, whose
+//! handle a call holds at run time. A record is a struct, and any other `Copy` type with
+//! private fields a struct over the bytes of its C struct, which only Rust makes or reads;
+//! an enum a Swift enum, with its data as associated values; a trait a protocol; a closure a function type; a future
 //! an `async` function; an error a thrown `Swift.Error`. The runtime they share,
 //! [`runtime/rt.swift`](../runtime/rt.swift), holds the classes' handles, the arena a call
 //! lowers nested values into, and the signal a future parks on.
@@ -207,7 +207,7 @@ struct Gen<'a> {
 	thrown: BTreeMap<String, Type>,
 	/// The exported types thrown as errors, which conform to `Swift.Error`.
 	conforms: BTreeSet<String>,
-	/// The objects that are noncopyable structs: each but those thrown.
+	/// The objects that are noncopyable structs: each but those `Copy` or thrown.
 	structs: BTreeSet<usize>,
 	fresh: usize,
 	/// The targets of the item being written, whose calls check theirs.
@@ -293,11 +293,11 @@ impl<'a> Gen<'a> {
 	}
 
 	/// Whether passing `ty` moves the value of a class's handle out, so the call closes it:
-	/// by value, boxed, or in an `Option`, a list, or a tuple, and never through a
-	/// reference. A struct needs no close: Swift's compiler ends it.
+	/// by value, boxed, or in an `Option`, a list, or a tuple, unless `Copy`, and never
+	/// through a reference. A struct needs no close: Swift's compiler ends it.
 	fn moved(&self, ty: &Type) -> bool {
 		match ty {
-			Type::Object(i) => !self.structs.contains(i),
+			Type::Object(i) => !self.abi.api.objects[*i].copy && !self.structs.contains(i),
 			Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => self.moved(inner),
 			Type::Tuple(elements) => elements.iter().any(|ty| self.moved(ty)),
 			_ => false,
@@ -1468,7 +1468,8 @@ impl<'a> Gen<'a> {
 				Ty::Handle { .. } => {
 					arg.open = Some((format!("{tr}self.handle.with {{ h_ in"), "}".to_string()));
 					arg.exprs.push("h_".to_string());
-					if receiver == Receiver::Owned {
+					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
+					if receiver == Receiver::Owned && !copy {
 						arg.after.push("self.handle.close()".to_string());
 					}
 				}
@@ -1851,7 +1852,7 @@ fn lent_option(structs: &BTreeSet<usize>, ty: &Type) -> bool {
 	matches!(ty, Type::Option(inner) if matches!(&**inner, Type::Ref(Mutability::Not, object) if unique(structs, object)))
 }
 
-/// The objects Swift holds as noncopyable structs: each but those thrown
+/// The objects Swift holds as noncopyable structs: each but those `Copy`, and those thrown
 /// as errors, which `Swift.Error` requires be copyable.
 fn structs(abi: &Abi<'_>) -> BTreeSet<usize> {
 	let api = abi.api;
@@ -1864,7 +1865,9 @@ fn structs(abi: &Abi<'_>) -> BTreeSet<usize> {
 			_ => None,
 		})
 		.collect();
-	(0..api.objects.len()).filter(|i| !thrown.contains(i)).collect()
+	(0..api.objects.len())
+		.filter(|i| !api.objects[*i].copy && !thrown.contains(i))
+		.collect()
 }
 
 /// `ty` returned: a borrow is returned as a clone, so owned.

@@ -522,7 +522,14 @@ impl Gen<'_> {
 			Type::Object(i) if self.abi.api.objects[*i].opaque => {
 				format!("unsafe {{ rt::Object::<rt::Opaque>::take({e}, w) }}.arc(w)")
 			}
-			Type::Object(i) => format!("unsafe {{ rt::Object::<{}>::take({e}, w) }}", self.object_path(*i)),
+			Type::Object(i) => match self.abi.api.objects[*i].copy {
+				true => format!(
+					"*unsafe {{ rt::Object::<{}>::{}({e}, w) }}",
+					self.object_path(*i),
+					self.shared(*i)
+				),
+				false => format!("unsafe {{ rt::Object::<{}>::take({e}, w) }}", self.object_path(*i)),
+			},
 			Type::Callback(i, form) => abi::dyn_wrap(*form, &format!("Foreign_{}({e})", self.abi.callback(*i))),
 			Type::Closure(closure) => self.closure(closure, e),
 			Type::Range(_) => format!("{e}.lift()"),

@@ -903,6 +903,22 @@ static int script(void) {
 	printf("wrapped %llu %s\n", (unsigned long long)api_Moment_millis(&wrapped),
 		   api_Moment_eq(&moment, &shifted) ? "true" : "false");
 
+	/* A `Copy` type changed in place is a handle, which a call taking it by value copies. */
+	api_Score *score = api_Score_of(2);
+	api_Score *step = api_Score_of(3);
+	api_Score_add(score, step);
+	api_Score_add(score, step);
+	api_Score *doubled_score = api_Score_doubled(step);
+	printf("score %llu %llu %llu\n", (unsigned long long)api_Score_count(score),
+		   (unsigned long long)api_Score_count(doubled_score), (unsigned long long)api_Score_count(step));
+	api_Weighted weighted = {.score = api_Score_clone(step), .weight = 4};
+	printf("weighted %llu %llu\n", (unsigned long long)api_Weighted_total(&weighted),
+		   (unsigned long long)(api_Score_count(weighted.score) + api_Score_count(step)));
+	api_Weighted_free(&weighted);
+	api_Score_free(doubled_score);
+	api_Score_free(step);
+	api_Score_free(score);
+
 	static const api_Log_vtable print_log = {.free = log_free, .log = log_line};
 	uint8_t levels[] = {1, 2, 3, 4};
 	api_buf lines = {.ptr = levels, .len = sizeof levels};

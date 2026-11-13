@@ -318,6 +318,19 @@ fn main() {
 	println!("shifted {} {}", shifted.millis(), shifted == moment.after(500));
 	println!("wrapped {} {}", moment.after(u64::MAX).millis(), moment == shifted);
 
+	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	let mut score = api::Score::of(2);
+	let step = api::Score::of(3);
+	score.add(step);
+	score.add(step);
+	println!("score {} {} {}", score.count(), step.doubled().count(), step.count());
+	let weighted = api::Weighted { score: step, weight: 4 };
+	println!(
+		"weighted {} {}",
+		weighted.total(),
+		weighted.score.count() + step.count()
+	);
+
 	println!("kept {}", api::emit(Print, vec![1, 2, 3, 4]));
 	let logger = Logger::new(Box::new(Print));
 	println!("write {}", logger.write("hi"));

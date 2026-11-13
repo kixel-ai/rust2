@@ -6,6 +6,9 @@ fixtures/reject/src/lib.rs:1016:1: rust2-ffi: cannot export fn `trust`: trait ob
 fixtures/reject/src/lib.rs:1021:1: rust2-ffi: cannot export fn `hazard`: trait object `dyn Hazard`; exclude it in the config to leave it out
 	fixtures/reject/src/lib.rs:1011:1: note: C cannot implement `Hazard`: unsafe fn `risk`
 fixtures/reject/src/lib.rs:1026:1: rust2-ffi: cannot export fn `wide_non_zero`: NonZero `u128`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1048:1: rust2-ffi: cannot export fn `wrap`: returned object that borrows `View<'_>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1064:1: rust2-ffi: cannot export fn `picked`: closure signature `&'static Mark`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1069:1: rust2-ffi: cannot export fn `maybe_picked`: closure signature `std::option::Option<&'static Mark>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:106:2: rust2-ffi: cannot export method `Text::later`: returned object that borrows `impl std::future::Future<Output = Text<'_>>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:112:1: rust2-ffi: cannot export fn `forever`: 'static borrow `&'static [u8]`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:118:1: rust2-ffi: cannot export fn `boxed`: reference inside a parameter `std::boxed::Box<&str>`; exclude it in the config to leave it out

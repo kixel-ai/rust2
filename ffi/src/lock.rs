@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 use rustc_span::{DUMMY_SP, Span};
 
 use crate::abi::{Abi, Ty};
-use crate::ir::{Access, Api, Constant, Function, Literal, On, Traits, Type};
+use crate::ir::{Access, Api, Constant, Function, Literal, On, Opaque, Traits, Type};
 use crate::merge::{self, Maps};
 
 /// An item the export's API breaks the baseline's at: where, and how.
@@ -369,14 +369,22 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 	match (*ours, *theirs) {
 		(Item::Record(i), Item::Record(j)) => {
 			traits(b.records[i].traits, n.records[j].traits);
-			// An opaque value's bytes are its C struct, which every binding sizes.
-			if let (Some(o), Some(p)) = (b.records[i].opaque, n.records[j].opaque)
-				&& (o.size, o.align) != (p.size, p.align)
-			{
-				changes.push(format!(
-					"its bytes: {} aligned to {}, and now {} aligned to {}",
-					o.size, o.align, p.size, p.align
-				));
+			// An opaque value's bytes are its C struct, which every binding sizes, and
+			// whether a word holds it and compares it is Kotlin's type for it.
+			if let (Some(o), Some(p)) = (b.records[i].opaque, n.records[j].opaque) {
+				if (o.size, o.align) != (p.size, p.align) {
+					changes.push(format!(
+						"its bytes: {} aligned to {}, and now {} aligned to {}",
+						o.size, o.align, p.size, p.align
+					));
+				}
+				let held = |o: Opaque| match o.compared() {
+					true => "a word compared by its bits",
+					false => "bytes compared by Rust",
+				};
+				if o.compared() != p.compared() {
+					changes.push(format!("how it is held: {}, and now {}", held(o), held(p)));
+				}
 			}
 			let mut ours = merge::bare_record(&b.records[i]);
 			maps.fields(&mut ours.fields);

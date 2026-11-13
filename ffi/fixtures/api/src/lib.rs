@@ -981,6 +981,48 @@ pub fn shifted(moment: Moment, shift: impl Fn(Moment) -> Moment) -> Moment {
 	shift(moment)
 }
 
+/// A running count, as moq's `stats::Traffic`: `Copy` with private fields, but changed in
+/// place through `&mut self`, which a copy could not write back, so a handle. A call taking
+/// one by value copies it out of its handle, leaving the caller's as it was.
+#[derive(Clone, Copy, Debug)]
+pub struct Score {
+	count: u64,
+}
+
+impl Score {
+	pub fn of(count: u64) -> Self {
+		Self { count }
+	}
+
+	pub fn count(&self) -> u64 {
+		self.count
+	}
+
+	/// Adds `other`'s count to this one, as Rust copies `other`.
+	pub fn add(&mut self, other: Score) {
+		self.count = self.count.wrapping_add(other.count);
+	}
+
+	/// Twice the count, as Rust copies `self`.
+	pub fn doubled(self) -> Score {
+		Self {
+			count: self.count.wrapping_mul(2),
+		}
+	}
+}
+
+/// A score and its weight: a record holding a `Copy` handle, copied in and out.
+pub struct Weighted {
+	pub score: Score,
+	pub weight: u32,
+}
+
+impl Weighted {
+	pub fn total(&self) -> u64 {
+		self.score.count.wrapping_mul(u64::from(self.weight))
+	}
+}
+
 /// A stamp and a count: a record holding a value only Rust makes, whose method reads it.
 pub struct Stamped {
 	pub at: Stamp,

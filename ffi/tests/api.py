@@ -324,6 +324,15 @@ def script():
 	except TypeError:
 		pass
 
+	# A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	score = api.Score.of(2)
+	increment = api.Score.of(3)
+	score.add(increment)
+	score.add(increment)
+	print(f"score {score.count()} {increment.doubled().count()} {increment.count()}")
+	weighted = api.Weighted(increment, 4)
+	print(f"weighted {weighted.total()} {weighted.score.count() + increment.count()}")
+
 	print(f"kept {api.emit(PrintLog(), bytes([1, 2, 3, 4]))}")
 	logger = api.Logger.new(PrintLog())
 	print(f"write {flag(logger.write('hi'))}")

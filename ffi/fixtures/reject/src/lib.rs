@@ -1026,3 +1026,46 @@ pub fn hazard(hazard: Box<dyn Hazard>) -> u32 {
 pub fn wide_non_zero(n: std::num::NonZero<u128>) -> u128 {
 	n.get()
 }
+
+/// A `Copy` view of bytes it borrows, held across as its bytes.
+#[derive(Clone, Copy)]
+pub struct View<'a> {
+	bytes: &'a [u8],
+}
+
+impl View<'_> {
+	pub fn len(&self) -> usize {
+		self.bytes.len()
+	}
+}
+
+/// A view of nothing, which borrows nothing, so an export returns a `View`.
+pub fn empty_view() -> View<'static> {
+	View { bytes: &[] }
+}
+
+/// Returns a value that borrows its parameter, which C could keep past the borrow.
+pub fn wrap(bytes: &[u8]) -> View<'_> {
+	View { bytes }
+}
+
+/// A `Copy` mark held across as its bytes.
+#[derive(Clone, Copy)]
+pub struct Mark {
+	at: u64,
+}
+
+/// A mark at `at`, so an export returns one.
+pub fn mark(at: u64) -> Mark {
+	Mark { at }
+}
+
+/// A closure returning a borrowed value, which C has no reference to hand back.
+pub fn picked(pick: impl Fn() -> &'static Mark) -> u64 {
+	pick().at
+}
+
+/// The same, in an `Option`.
+pub fn maybe_picked(pick: impl Fn() -> Option<&'static Mark>) -> u64 {
+	pick().map_or(0, |mark| mark.at)
+}

@@ -1334,6 +1334,7 @@ impl<'tcx> Collector<'tcx> {
 						*i = api.objects.len();
 						let ty = tcx.type_of(def_id).instantiate(tcx, site.args).skip_norm_wip();
 						let sync = implements(tcx, ty, def_id, sym::Sync);
+						let copy = implements(tcx, ty, def_id, sym::Copy);
 						let lifetimes = tcx.generics_of(def_id).own_counts().lifetimes;
 						api.objects.push(Object {
 							path,
@@ -1344,6 +1345,7 @@ impl<'tcx> Collector<'tcx> {
 							on: On::ALL,
 							docs,
 							sync,
+							copy,
 							shared: false,
 							lifetimes,
 							methods: Vec::new(),
@@ -1465,6 +1467,7 @@ impl<'tcx> Collector<'tcx> {
 					tcx.def_path_str(def_id)
 				),
 				sync: true,
+				copy: false,
 				shared: true,
 				lifetimes: 0,
 				methods: Vec::new(),
@@ -1585,6 +1588,7 @@ impl<'tcx> Collector<'tcx> {
 			on: On::ALL,
 			docs: docs.to_string(),
 			sync: true,
+			copy: implements(tcx, self_ty, def_id, sym::Copy),
 			shared: traits.clone && self.clone_shares(self_ty, def_id),
 			lifetimes: 0,
 			methods,
@@ -3584,14 +3588,16 @@ impl<'tcx> Collector<'tcx> {
 			}
 			_ => (ret, None),
 		};
-		// What C hands Rust: a scalar, a `String`, or an opaque value or an `Option` of one.
+		// What C hands Rust: a scalar, a `String`, or an opaque value or an `Option` of one,
+		// owned, as C has no reference to hand back.
+		let owned = |ty: Ty<'tcx>, mapped: &Type| !matches!(mapped, Type::Ref(..)) && copied(ty, mapped);
 		let ok = match self.ty(ok, Pos::Return) {
 			Ok(mapped)
 				if foreign_return(&mapped)
 					|| mapped == Type::String
 					|| match (&mapped, ok.kind()) {
-						(Type::Option(inner), ty::Adt(_, args)) => copied(args.type_at(0), inner),
-						(mapped, _) => copied(ok, mapped),
+						(Type::Option(inner), ty::Adt(_, args)) => owned(args.type_at(0), inner),
+						(mapped, _) => owned(ok, mapped),
 					} =>
 			{
 				mapped
@@ -4055,7 +4061,8 @@ impl<'tcx> Collector<'tcx> {
 		for ty in ty.walk().filter_map(|arg| arg.as_type()) {
 			match ty.kind() {
 				ty::Ref(region, ..) => lent.push(*region),
-				ty::Adt(adt, args) if matches!(self.decl(adt.did(), args), Some(Decl::Object(_))) => {
+				// An object or an opaque value holds what its lifetime parameters name.
+				ty::Adt(adt, args) if matches!(self.decl(adt.did(), args), Some(Decl::Object(_) | Decl::Value(_))) => {
 					held.extend(args.regions())
 				}
 				// An `impl Future` holds what its bounds name, as an `async fn` its output.
@@ -4634,8 +4641,8 @@ impl<'tcx> Collector<'tcx> {
 					match self.decls.get(&key) {
 						Some(Decl::Record(i) | Decl::Value(i)) => Type::Record(*i),
 						Some(Decl::Enum(i)) => Type::Enum(*i),
-						// A value holds only values.
-						Some(Decl::Object(_)) if pos == Pos::Field => {
+						// A value holds only values, and handles it can copy.
+						Some(Decl::Object(_)) if pos == Pos::Field && !implements(tcx, ty, did, sym::Copy) => {
 							return Err(why("object in a value", name));
 						}
 						Some(Decl::Object(i)) => Type::Object(*i),

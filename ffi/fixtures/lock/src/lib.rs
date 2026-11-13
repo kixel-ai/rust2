@@ -223,3 +223,24 @@ impl Tick {
 		self.late
 	}
 }
+
+/// A `Copy` value in a word, whose `PartialEq` `next` writes by hand, so Kotlin can no
+/// longer compare its bits.
+#[derive(Clone, Copy)]
+#[cfg_attr(not(feature = "next"), derive(PartialEq))]
+pub struct Beat {
+	at: u32,
+}
+
+#[cfg(feature = "next")]
+impl PartialEq for Beat {
+	fn eq(&self, other: &Self) -> bool {
+		self.at / 2 == other.at / 2
+	}
+}
+
+impl Beat {
+	pub fn new(at: u32) -> Self {
+		Self { at }
+	}
+}

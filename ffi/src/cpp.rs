@@ -147,14 +147,14 @@ impl<'a> Header<'a> {
 		match ty {
 			Type::Option(inner) if Abi::is_buf(inner) => format!("::std::optional<::{}::view>", self.ns),
 			// Moved out of, each handle as a handle taken by value is.
-			Type::Option(inner) if matches!(inner.base(), Type::List(_, elem) if moves(elem)) => {
+			Type::Option(inner) if matches!(inner.base(), Type::List(_, elem) if moves(abi, elem)) => {
 				format!("::std::optional<{}>", self.items(inner.base()))
 			}
 			Type::Option(inner) if matches!(inner.base(), Type::List(..)) => {
 				format!("const ::std::optional<{}> &", self.items(inner.base()))
 			}
 			// Moved out of, each handle as a handle taken by value is.
-			Type::List(_, inner) if moves(inner) => self.items(ty),
+			Type::List(_, inner) if moves(abi, inner) => self.items(ty),
 			Type::List(..) => format!("const {} &", self.items(ty)),
 			Type::Option(inner) => match &**inner {
 				// Lent, or copied out: a pointer, null for none.
@@ -165,8 +165,9 @@ impl<'a> Header<'a> {
 					};
 					format!("{constant}{} *", self.owned(object))
 				}
+				Type::Object(i) if abi.api.objects[*i].copy => format!("const {} *", self.owned(inner)),
 				// Moved out of, as a handle taken by value is.
-				_ if moves(inner) => format!("::std::optional<{}>", self.held(inner)),
+				_ if moves(abi, inner) => format!("::std::optional<{}>", self.held(inner)),
 				_ => format!("const ::std::optional<{}> &", self.held(inner)),
 			},
 			Type::Waker => format!("const ::{}::waker &", self.ns),
@@ -175,12 +176,13 @@ impl<'a> Header<'a> {
 				crate::ir::Mutability::Mut => format!("{} &", self.owned(inner)),
 			},
 			Type::Ref(_, inner) | Type::Box(inner) => self.param(inner),
+			Type::Object(i) if abi.api.objects[*i].copy => format!("const {} &", self.owned(ty)),
 			Type::Record(_) | Type::Array(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				format!("const {} &", self.owned(ty))
 			}
 			Type::Enum(i) if !abi.api.enums[*i].plain() => format!("const {} &", self.owned(ty)),
 			// Moved out of, each handle as a handle taken by value is.
-			Type::Tuple(_) if moves(ty) => self.held(ty),
+			Type::Tuple(_) if moves(abi, ty) => self.held(ty),
 			Type::Tuple(_) => format!("const {} &", self.held(ty)),
 			ty => self.owned(ty),
 		}
@@ -289,7 +291,8 @@ impl<'a> Header<'a> {
 				true => format!("static_cast<::{}>({e})", abi.enumeration(*i)),
 				false => format!("{d}::lower({e})"),
 			},
-			// Moved out.
+			// A `Copy` value is copied out, and any other moved out.
+			Type::Object(i) if abi.api.objects[*i].copy => format!("{d}::access::raw({e})"),
 			Type::Object(_) => format!("{d}::access::own({e})"),
 			Type::Callback(..) => format!("{d}::lower(::std::move({e}))"),
 			Type::Closure(..) | Type::Future | Type::Reader => {
@@ -469,9 +472,14 @@ impl<'a> Header<'a> {
 		}
 
 		// Every class and struct, declared so any signature may name it.
-		for i in 0..api.records.len() {
+		for (i, record) in api.records.iter().enumerate() {
 			let name = self.global(&self.name(&abi.record(i)));
-			self.line(format!("struct {name};"));
+			// The key its definition uses, which MSVC's C4099 and Clang's
+			// `-Wmismatched-tags` require match.
+			match record.opaque {
+				Some(_) => self.line(format!("class {name};")),
+				None => self.line(format!("struct {name};")),
+			}
 		}
 		for i in 0..api.objects.len() {
 			let name = self.global(&self.name(&abi.object(i)));
@@ -1149,7 +1157,9 @@ impl<'a> Header<'a> {
 			let (_, ty) = c_params.next().expect("a method has its receiver");
 			match (ty, free) {
 				// Moved out of, as a handle taken by value is.
-				(Ty::Handle { .. }, _) if receiver == Some(Receiver::Owned) => args.push("raw_.own()".to_string()),
+				(Ty::Handle { name, .. }, _) if receiver == Some(Receiver::Owned) && !copy(abi, name) => {
+					args.push("raw_.own()".to_string())
+				}
 				(Ty::Handle { .. }, _) => args.push("raw_.get()".to_string()),
 				(_, false) => {
 					let ty = record(abi, owner_c.as_deref().expect("a member method has its record"));
@@ -1279,7 +1289,7 @@ impl<'a> Header<'a> {
 			(Some(Receiver::Ref), _) => " const".to_string(),
 			(Some(Receiver::Mut), _) => String::new(),
 			(Some(Receiver::Owned), _) => match owner {
-				Some(Ty::Handle { .. }) => " &&".to_string(),
+				Some(Ty::Handle { name, .. }) if !copy(abi, name) => " &&".to_string(),
 				_ => " const".to_string(),
 			},
 		};
@@ -1390,6 +1400,7 @@ impl<'a> Header<'a> {
 						Type::Ref(crate::ir::Mutability::Mut, _) => {
 							format!("::{}::borrow<{}>(l{k}_.get())", self.ns, self.owned(object))
 						}
+						// A `Copy` object Rust copied for the call, which its class reads in place.
 						_ => format!("::std::as_const(l{k}_.get())"),
 					});
 				}
@@ -1550,13 +1561,18 @@ fn record(abi: &Abi<'_>, c: &str) -> Type {
 
 /// Whether passing `ty` moves a handle out of a `Vec`, `Option`, or tuple, as a handle
 /// taken by value is.
-fn moves(ty: &Type) -> bool {
+fn moves(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
-		Type::Object(_) => true,
-		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moves(inner),
-		Type::Tuple(elements) => elements.iter().any(moves),
+		Type::Object(i) => !abi.api.objects[*i].copy,
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moves(abi, inner),
+		Type::Tuple(elements) => elements.iter().any(|e| moves(abi, e)),
 		_ => false,
 	}
+}
+
+/// Whether the object named `c` in C is `Copy`.
+fn copy(abi: &Abi<'_>, c: &str) -> bool {
+	(0..abi.api.objects.len()).any(|i| abi.api.objects[i].copy && abi.object(i) == c)
 }
 
 /// `ty` returned: a borrow is returned as a clone, so owned.

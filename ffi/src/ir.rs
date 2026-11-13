@@ -152,6 +152,13 @@ impl Opaque {
 		self.size <= 8
 	}
 
+	/// Whether a language may hold it in a word and compare that word: it fits one and is
+	/// dense, so values Rust calls equal have equal bits. Kotlin's type for it turns on
+	/// this, so a change of it breaks Kotlin's compiled callers.
+	pub fn compared(&self) -> bool {
+		self.word() && self.dense
+	}
+
 	/// The bytes of each unit its C struct holds it in, by its alignment, at most 8.
 	pub fn unit(&self) -> u64 {
 		self.align.clamp(1, 8)
@@ -233,6 +240,10 @@ pub struct Object {
 	pub docs: String,
 	/// Whether it is `Sync`: if not, `&self` borrows it on one thread at a time.
 	pub sync: bool,
+	/// Whether it is `Copy`, which only one with a `pub` field or a `&mut self` method
+	/// is, any other being a value: taken by value, it is copied out of its handle, as
+	/// Rust copies it, rather than moved out.
+	pub copy: bool,
 	/// Whether copies of its handle may share one value, since no call tells that apart
 	/// from `Clone` but by an `Arc`'s or `Rc`'s count: it is `Clone` and `Sync`, its clone owns no state that changes
 	/// behind `&` or counts clones, and no export borrows it mutably.

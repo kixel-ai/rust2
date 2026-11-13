@@ -72,7 +72,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | a struct whose fields are all `pub`, not `#[non_exhaustive]`, which map, with no `Drop` of its own | a record: a struct, copied across |
 | an enum with variants whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
 | any other type that is `Copy` and `Send`, with no `pub` field and no `pub` method taking `&mut self`, such as moq's `Timestamp` or std's `Instant` | an opaque value: a struct of its bytes, copied across, which only Rust makes or reads; one no export returns is left out, since C could never make one |
-| any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free` |
+| any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, since C may change it in place, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
 | a `pub` field of an object | a getter returning a copy, and a setter assigning in place, as `x.field = value` does |
@@ -131,7 +131,7 @@ maps, which may name more. Inference finishes before any type is mapped, so mapp
 never adds an instance. An instance that holds an instance of a type inside it, such as
 `Cell<Cell<u8>>`, is refused, as it could name ever deeper ones.
 
-A record or enum holds only values: one with a field that does not map,
+A record or enum holds only values and `Copy` handles: one with a field that does not map,
 or that holds itself, is an object instead, and the census lists it. A borrowed return is
 returned as a clone, so it must be `Clone`, and a handle in it is a new handle to the
 clone, but for an object a `&self` method of an object returns borrowed from its receiver
@@ -225,7 +225,9 @@ where it was while its file is unchanged.
 
 - **Handles** are `Arc`s, and a call borrows the value as Rust's receiver or parameter
   does, checked at run time: shared for `&T`, exclusive for `&mut T`, and moved out for
-  `T`, after which the handle is only freed. A value that is not `Sync` is shared on one thread at a time, and held exclusively by a
+  `T`, after which the handle is only freed. A `Copy` object, one with a `pub` field or a
+  `pub` method taking `&mut self`, is copied out instead, leaving its handle as it was. A
+  value that is not `Sync` is shared on one thread at a time, and held exclusively by a
   future, which may be polled on any thread. A borrow Rust would
   refuse at compile time aborts, naming the function, as does a null or moved-out handle:
   there is no Rust caller to return an error to. A setter borrows as `&mut T` and takes
@@ -630,8 +632,9 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   `clamped()`, `clamped(low:)`, `clamped(high:)` and `clamped(low:high:)`, up to two per
   function; `Option<&mut T>` is `inout T?`. `Clone` is `clone()`, and `PartialEq` is `==`, which Swift 6.4 makes
   `Equatable`; `Display` is `description` and `Debug` `debugDescription`, which Swift
-  conforms no noncopyable type to yet. An object thrown as an error, which `Swift.Error`
-  requires be copyable, is a final class instead, whose handle a call
+  conforms no noncopyable type to yet. A `Copy` object, which Rust copies where it takes
+  one by value, and an object thrown as an error, which `Swift.Error` requires be
+  copyable, are final classes instead, whose handle a call
   holds until it returns, and moving its value out closes it, after which a call traps. A
   field is a computed property, `firstGet`, and its setter a function, `firstSet(value)`,
   named as the C ones, since setting an object moves it in, which an assignment would hide.

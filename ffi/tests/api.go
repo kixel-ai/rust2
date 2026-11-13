@@ -418,6 +418,17 @@ func script() {
 	fmt.Printf("shifted %d %t\n", shifted.Millis(), shifted.Equal(moment.After(500)))
 	fmt.Printf("wrapped %d %t\n", moment.After(math.MaxUint64).Millis(), moment.Equal(shifted))
 
+	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	score := api.ScoreOf(2)
+	step := api.ScoreOf(3)
+	ok(score.Add(step))
+	ok(score.Add(step))
+	fmt.Printf("score %d %d %d\n", must(score.Count()), must(must(step.Doubled()).Count()), must(step.Count()))
+	weighted := api.Weighted{Score: step, Weight: 4}
+	fmt.Printf("weighted %d %d\n", must(weighted.Total()), must(weighted.Score.Count())+must(step.Count()))
+	score.Close()
+	step.Close()
+
 	// Rust frees the implementation once it drops it, releasing Go's.
 	fmt.Printf("kept %d\n", api.Emit(printLog{}, []byte{1, 2, 3, 4}))
 	logger := api.NewLogger(printLog{})

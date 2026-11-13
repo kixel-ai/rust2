@@ -406,6 +406,15 @@ func script() {
 	print("shifted \(shifted.millis()) \(shifted == moment.after(500))")
 	print("wrapped \(moment.after(UInt64.max).millis()) \(moment == shifted)")
 
+	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	let score = Score.of(2)
+	let step = Score.of(3)
+	score.add(step)
+	score.add(step)
+	print("score \(score.count()) \(step.doubled().count()) \(step.count())")
+	let weighted = Weighted(score: step, weight: 4)
+	print("weighted \(weighted.total()) \(weighted.score.count() + step.count())")
+
 	// Bound first, so Swift's reference is gone before the print.
 	let kept = emit(PrintLog(), Data([1, 2, 3, 4]))
 	print("kept \(kept)")

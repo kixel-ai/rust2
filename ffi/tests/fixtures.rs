@@ -386,14 +386,23 @@ fn cxx(api: &Api, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command 
 	if plain {
 		cmd.args(["-fno-exceptions", "-fno-rtti"]);
 	}
-	// -Wshadow stands in for MSVC's warnings that a name hides another.
-	cmd.args(["-pedantic", "-Wall", "-Wextra", "-Wshadow", "-Werror", "-I"])
-		.arg(include)
-		.arg(src)
-		.arg(api.staticlib())
-		.args(&api.native)
-		.arg("-o")
-		.arg(exe);
+	// -Wshadow stands in for MSVC's warnings that a name hides another, and
+	// -Wmismatched-tags for C4099, a class declared `struct` or a struct `class`.
+	cmd.args([
+		"-pedantic",
+		"-Wall",
+		"-Wextra",
+		"-Wshadow",
+		"-Wmismatched-tags",
+		"-Werror",
+		"-I",
+	])
+	.arg(include)
+	.arg(src)
+	.arg(api.staticlib())
+	.args(&api.native)
+	.arg("-o")
+	.arg(exe);
 	cmd
 }
 

@@ -260,6 +260,15 @@ fun script() {
 	println("shifted ${shifted.millis()} ${shifted == moment.after(500u)}")
 	println("wrapped ${moment.after(ULong.MAX_VALUE).millis()} ${moment == shifted}")
 
+	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	val score = Score.of(2u)
+	val step = Score.of(3u)
+	score.add(step)
+	score.add(step)
+	println("score ${score.count()} ${step.doubled().count()} ${step.count()}")
+	val weighted = Weighted(step, 4u)
+	println("weighted ${weighted.total()} ${weighted.score.count() + step.count()}")
+
 	println("kept ${emit(PrintLog(), byteArrayOf(1, 2, 3, 4))}")
 	Logger.new(PrintLog()).use { logger -> println("write ${logger.write("hi")}") }
 	println("dropped")

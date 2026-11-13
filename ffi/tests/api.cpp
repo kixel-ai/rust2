@@ -532,6 +532,17 @@ int script() {
 		std::printf("wrapped %llu %s\n", ull(moment.after(UINT64_MAX).millis()), yes(moment == shifted));
 	}
 
+	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	{
+		api::Score score = api::Score::of(2);
+		api::Score step = api::Score::of(3);
+		score.add(step);
+		score.add(step);
+		std::printf("score %llu %llu %llu\n", ull(score.count()), ull(step.doubled().count()), ull(step.count()));
+		api::Weighted weighted{step.clone(), 4};
+		std::printf("weighted %llu %llu\n", ull(weighted.total()), ull(weighted.score.count() + step.count()));
+	}
+
 	std::uint8_t levels[] = {1, 2, 3, 4};
 	std::printf("kept %u\n", api::emit(std::make_unique<print_log>(), api::view(levels, sizeof levels)));
 	{

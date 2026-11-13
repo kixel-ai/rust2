@@ -1898,7 +1898,7 @@ impl<'a> Gen<'a> {
 			Type::Box(inner) => self.close(inner, e),
 			Type::Tuple(elements) => {
 				let closes: Vec<String> = (elements.iter().enumerate())
-					.filter(|(_, ty)| moved(ty))
+					.filter(|(_, ty)| moved(self.abi, ty))
 					.map(|(k, ty)| self.close(ty, &format!("{e}.${}", k + 1)))
 					.collect();
 				closes.join(" ")
@@ -1969,7 +1969,8 @@ impl<'a> Gen<'a> {
 			match c {
 				Ty::Handle { .. } => {
 					args.push("a_.hold(this)".to_string());
-					if receiver == Receiver::Owned {
+					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
+					if receiver == Receiver::Owned && !copy {
 						// Qualified, apart from a parameter named `close`.
 						after.push("this.close();".to_string());
 					}
@@ -2012,7 +2013,7 @@ impl<'a> Gen<'a> {
 				continue;
 			}
 			params.push(format!("{} {name}", self.dt(&param.ty)));
-			if moved(&param.ty) {
+			if moved(abi, &param.ty) {
 				after.push(self.close(&param.ty, &name));
 			}
 			match (&param.ty, c) {
@@ -2353,12 +2354,12 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 }
 
 /// Whether passing `ty` moves an object's value out: by value, boxed, or in an `Option`,
-/// a list, or a tuple, and never through a reference.
-fn moved(ty: &Type) -> bool {
+/// a list, or a tuple, unless `Copy`, and never through a reference.
+fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
-		Type::Object(_) => true,
-		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(inner),
-		Type::Tuple(elements) => elements.iter().any(moved),
+		Type::Object(i) => !abi.api.objects[*i].copy,
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
+		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
 		_ => false,
 	}
 }

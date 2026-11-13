@@ -751,7 +751,7 @@ impl<'a> Gen<'a> {
 					false => format!("{e}.handle.hold {{ {h} ->"),
 				});
 				// Taken by value, the value moves out, leaving the handle only to free.
-				if moved(ty) {
+				if moved(abi, ty) {
 					arg.after.push(match option {
 						true => format!("{e}?.close()"),
 						false => format!("{e}.close()"),
@@ -788,7 +788,7 @@ impl<'a> Gen<'a> {
 			Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => {
 				let w = self.fresh("w");
 				// Taken by value, each object in a list moves out, as one passed alone does.
-				if moved(ty) {
+				if moved(abi, ty) {
 					let close = self.close(ty, e);
 					arg.after.push(close);
 				}
@@ -1847,7 +1847,8 @@ impl<'a> Gen<'a> {
 					arg.open = Some(format!("this.handle.hold {{ {h} ->"));
 					arg.exprs.push(h);
 					arg.rust_args.push(format!("{p} as usize as _"));
-					if receiver == Receiver::Owned {
+					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
+					if receiver == Receiver::Owned && !copy {
 						arg.after.push("this.close()".to_string());
 					}
 					arg
@@ -2177,7 +2178,7 @@ impl<'a> Gen<'a> {
 			Type::Tuple(elements) => {
 				let t = self.fresh("t");
 				let closes: Vec<String> = (elements.iter().enumerate())
-					.filter(|(_, ty)| moved(ty))
+					.filter(|(_, ty)| moved(self.abi, ty))
 					.map(|(k, ty)| self.close(ty, &format!("{t}.{}", ordinal(k))))
 					.collect();
 				format!("{e}.let {{ {t} -> {} }}", closes.join("; "))
@@ -2304,12 +2305,12 @@ fn bytes(ty: &Type) -> bool {
 }
 
 /// Whether passing `ty` moves an object's value out: by value, boxed, or in an `Option`,
-/// and never through a reference.
-fn moved(ty: &Type) -> bool {
+/// unless `Copy`, and never through a reference.
+fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
-		Type::Object(_) => true,
-		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(inner),
-		Type::Tuple(elements) => elements.iter().any(moved),
+		Type::Object(i) => !abi.api.objects[*i].copy,
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
+		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
 		_ => false,
 	}
 }
@@ -2391,7 +2392,7 @@ fn holder(opaque: &Opaque) -> &'static str {
 /// Whether Kotlin holds `opaque` in a `Long`, with no allocation: it fits one and is
 /// dense, so values Rust calls equal have equal bits, as the value class compares them.
 fn word(opaque: &Opaque) -> bool {
-	opaque.word() && opaque.dense
+	opaque.compared()
 }
 
 /// The Rust expression taking the opaque value Kotlin passed as `p`, as its C struct.

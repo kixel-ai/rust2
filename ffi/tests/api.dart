@@ -329,6 +329,15 @@ Future<void> script() async {
   print('shifted ${shifted.millis()} ${shifted == moment.after(500)}');
   print('wrapped ${moment.after(-1).millis()} ${moment == shifted}');
 
+  // A `Copy` type changed in place is a handle, which a call taking it by value copies.
+  final score = api.Score.of(2);
+  final increment = api.Score.of(3);
+  score.add(increment);
+  score.add(increment);
+  print('score ${score.count()} ${increment.doubled().count()} ${increment.count()}');
+  final weighted = api.Weighted(score: increment, weight: 4);
+  print('weighted ${weighted.total()} ${weighted.score.count() + increment.count()}');
+
   print('kept ${api.emit(PrintLog(), bytes([1, 2, 3, 4]))}');
   final logger = api.Logger(PrintLog());
   print('write ${logger.write('hi')}');
