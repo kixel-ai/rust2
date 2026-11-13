@@ -360,6 +360,11 @@ fn main() {
 	if let Poll::Ready(payload) = recv.as_mut().poll(&mut cx) {
 		println!("recv {}", String::from_utf8_lossy(&payload));
 	}
+	// The send happens at the call, and the future borrows the channel and the tag.
+	let mut tagged = pin!(channel.tagged("tag"));
+	if let Poll::Ready(text) = tagged.as_mut().poll(&mut cx) {
+		println!("tagged {text}");
+	}
 	channel.send(Bytes::from_static(b"sized"));
 	let mut sized = pin!(channel.recv_sized());
 	if let Poll::Ready((payload, len)) = sized.as_mut().poll(&mut cx) {
@@ -583,12 +588,22 @@ fn main() {
 	println!("nudge {} {}", point.x, point.y);
 	let config = api::secure("h3");
 	println!("secure {} {}", api::alpn_lent(&config), api::alpn(config.clone()));
+	let cert = api::certify(b"der");
+	let chain = vec![api::certify(b"a"), api::certify(b"bc")];
+	println!(
+		"cert {} {} {}",
+		api::cert_len(&cert),
+		String::from_utf8_lossy(&api::cert_der(cert)),
+		api::chain_len(chain)
+	);
 	let mut meters = api::Meters::new();
 	let first = meters.first();
 	first.add(2);
 	println!("lent {} {}", first.add(3), meters.first().count());
 	meters.clear();
 	println!("cleared {}", meters.first().count());
+	meters.last.add(4);
+	println!("field lent {}", meters.last.add(1));
 	let tallies = api::Tallies::new();
 	tallies.first().bump();
 	println!("tallied {}", tallies.first().bump());

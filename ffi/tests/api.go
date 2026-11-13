@@ -27,6 +27,7 @@ import (
 	"api/rt"
 	"api/serdejson"
 	"api/std"
+	"api/tls"
 	"api/tracingcore"
 	"api/url"
 )
@@ -451,6 +452,8 @@ func script() {
 	cancel()
 	check(errors.Is(channel.SendLater(cancelled, []byte("eager")), context.Canceled), "a cancelled call returns its context's error")
 	fmt.Printf("recv %s\n", must(channel.Recv(ctx)).Copy())
+	// The send happens at the call, and the future borrows the channel and the tag.
+	fmt.Printf("tagged %s\n", must(channel.Tagged(ctx, "tag")))
 	channel.Send([]byte("sized"))
 	sized, size, err := channel.RecvSized(ctx)
 	check(err == nil, "recv sized")
@@ -631,12 +634,18 @@ func script() {
 	fmt.Printf("nudge %d %d\n", nudged.X, nudged.Y)
 	config := api.Secure("h3")
 	fmt.Printf("secure %s %s\n", must(api.AlpnLent(config)), must(api.Alpn(must(config.Clone()))))
+	cert := api.Certify([]byte("der"))
+	certLen := must(api.CertLen(cert))
+	fmt.Printf("cert %d %s %d\n", certLen, must(api.CertDer(cert)).Copy(), must(api.ChainLen([]*tls.Cert{api.Certify([]byte("a")), api.Certify([]byte("bc"))})))
 	meters := api.NewMeters()
 	meter := must(meters.First())
 	_ = must(meter.Add(2))
 	fmt.Printf("lent %d %d\n", must(meter.Add(3)), must(must(meters.First()).Count()))
 	ok(meters.Clear())
 	fmt.Printf("cleared %d\n", must(must(meters.First()).Count()))
+	lastMeter := must(meters.LastGet())
+	_ = must(lastMeter.Add(4))
+	fmt.Printf("field lent %d\n", must(lastMeter.Add(1)))
 	tallies := api.NewTallies()
 	_ = must(must(tallies.First()).Bump())
 	fmt.Printf("tallied %d\n", must(must(tallies.First()).Bump()))

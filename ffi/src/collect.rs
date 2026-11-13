@@ -2475,13 +2475,11 @@ impl<'tcx> Collector<'tcx> {
 			Err(why) => return vec![(Err(why), shown.clone(), false)],
 		};
 		let mut functions = Vec::new();
-		if shown.iter().any(|s| s.contains("connect_with")) { eprintln!("DEBUG {shown:?} instances {}", instances.len()); }
 		for instance in &instances {
 			let Some(shown) = self.shown(shown, instance) else {
 				continue;
 			};
 			let function = self.function(def_id, path.clone(), shown.clone(), self_ty, instance);
-			if shown.iter().any(|s| s.contains("connect_with")) { eprintln!("DEBUG fn {:?} {:?}", function.as_ref().err().map(|w| w.len()), function.as_ref().ok().map(|f| (f.params.iter().map(|p| format!("{:?}", p.ty)).collect::<Vec<_>>(), f.on.clone()))); }
 			functions.push((function, shown, !instance.named.is_empty()));
 		}
 		functions

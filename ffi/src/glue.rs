@@ -1599,11 +1599,19 @@ impl Gen<'_> {
 			args.push(arg);
 		}
 		// Each owned argument the call lends moves to the heap, where it stays while the
-		// future borrows it.
+		// future borrows it, and the call reborrows it through the reference it is now.
 		for local in &held {
 			stmts.push(format!(
 				"let {local}_held = rt::Pinned::new({local});\n\tlet {local} = unsafe {{ {local}_held.get() }};"
 			));
+		}
+		for arg in &mut args {
+			if let Some(local) = held
+				.iter()
+				.find(|l| *arg == format!("&{l}") || *arg == format!("&mut {l}"))
+			{
+				*arg = arg.replacen(local.as_str(), &format!("*{local}"), 1);
+			}
 		}
 		// A future made of a `Poll` calls the function at each poll, passing the poll's
 		// context, or a value made from its waker and kept until the next poll, so what that

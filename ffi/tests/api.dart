@@ -361,6 +361,8 @@ Future<void> script() async {
   // The send happens at the call: the future is dropped unawaited.
   channel.sendLater(utf8.encode('eager'));
   print('recv ${text(await channel.recv())}');
+  // The send happens at the call, and the future borrows the channel and the tag.
+  print('tagged ${await channel.tagged('tag')}');
   channel.send(utf8.encode('sized'));
   final (payload, size) = await channel.recvSized();
   print('sized ${text(payload)} $size');
@@ -535,6 +537,9 @@ Future<void> script() async {
   print('nudge ${nudged.value.x} ${nudged.value.y}');
   final config = api.secure('h3');
   print('secure ${api.alpnLent(config)} ${api.alpn(config.clone())}');
+  final cert = api.certify(utf8.encode('der'));
+  final certLen = api.certLen(cert);
+  print('cert $certLen ${text(api.certDer(cert))} ${api.chainLen([api.certify(utf8.encode('a')), api.certify(utf8.encode('bc'))])}');
   config.close();
   final meters = api.Meters();
   final lentMeter = meters.first();
@@ -543,6 +548,10 @@ Future<void> script() async {
   lentMeter.close();
   meters.clear();
   print('cleared ${meters.first().count()}');
+  final lastMeter = meters.lastGet;
+  lastMeter.add(4);
+  print('field lent ${lastMeter.add(1)}');
+  lastMeter.close();
   meters.close();
   final tallies = api.Tallies();
   tallies.first().bump();

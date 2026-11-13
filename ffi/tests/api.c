@@ -949,6 +949,13 @@ static int script(void) {
 		print("recv ", payload, "\n");
 	}
 	api_Channel_recv_future_free(recv);
+	/* The send happens at the call, and the future borrows the channel and the tag. */
+	api_Channel_tagged_future *tagging = api_Channel_tagged(channel, str("tag"));
+	api_buf tagged_text;
+	if (api_Channel_tagged_poll(tagging, waker, &tagged_text) == API_POLL_READY) {
+		print("tagged ", tagged_text, "\n");
+	}
+	api_Channel_tagged_future_free(tagging);
 	api_Channel_send(channel, str("sized"));
 	api_Channel_recv_sized_future *sized = api_Channel_recv_sized(channel);
 	size_t len;
@@ -1291,6 +1298,15 @@ static int script(void) {
 	print("", api_alpn(config_copy), "\n");
 	api_tls_Config_free(config_copy);
 	api_tls_Config_free(config);
+	/* Another crate's value by value: an opaque handle, lent or taken back. */
+	api_tls_Cert *cert = api_certify(str("der"));
+	printf("cert %llu ", (unsigned long long)api_cert_len(cert));
+	print("", api_cert_der(cert), " ");
+	api_tls_Cert_free(cert);
+	api_tls_Cert *chain[2] = {api_certify(str("a")), api_certify(str("bc"))};
+	printf("%llu\n", (unsigned long long)api_chain_len((api_vec_tls_Cert){.ptr = chain, .len = 2}));
+	api_tls_Cert_free(chain[0]);
+	api_tls_Cert_free(chain[1]);
 	/* A borrow of a meter that is not Clone, lent from its owner's handle. */
 	{
 		api_Meters *lender = api_Meters_new();
@@ -1305,6 +1321,11 @@ static int script(void) {
 		again = api_Meters_first(lender);
 		printf("cleared %llu\n", (unsigned long long)api_Meter_count(again));
 		api_Meter_free(again);
+		/* A field that is not Clone, lent as a method's borrowed return is. */
+		api_Meter *last = api_Meters_last_get(lender);
+		api_Meter_add(last, 4);
+		printf("field lent %llu\n", (unsigned long long)api_Meter_add(last, 1));
+		api_Meter_free(last);
 		api_Meters_free(lender);
 		/* One lent from a handle that is not Sync, on one thread at a time. */
 		api_Tallies *tallies = api_Tallies_new();
@@ -1584,7 +1605,7 @@ static int script(void) {
 	api_Token_free(twice);
 
 	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	if (drops != 12) {
+	if (drops != 13) {
 		return 1;
 	}
 	return closures() && foreign_futures() ? 0 : 1;

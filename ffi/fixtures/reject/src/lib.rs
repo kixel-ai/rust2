@@ -118,7 +118,7 @@ pub struct Size {
 }
 
 /// Another crate's type that is not `Send`, which no handle may hold.
-pub fn measure(local: dep::Local) -> u32 {
+pub fn measure(local: tls::Local) -> u32 {
 	local.get()
 }
 

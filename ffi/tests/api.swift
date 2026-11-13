@@ -442,6 +442,8 @@ func script() {
 		// The send happens at the call, before the future is first polled.
 		try await channel.sendLater(Data("eager".utf8))
 		print("recv \(text(try await channel.recv()))")
+		// The send happens at the call, and the future borrows the channel and the tag.
+		print("tagged \(try await channel.tagged("tag"))")
 		channel.send(Data("sized".utf8))
 		let (payload, size) = try await channel.recvSized()
 		print("sized \(text(payload)) \(size)")
@@ -634,12 +636,22 @@ func script() {
 	do {
 		let config = secure("h3")
 		print("secure \(alpnLent(config)) \(alpn(config.clone()))")
+		let cert = certify(Data("der".utf8))
+		let certLength = certLen(cert)
+		let der = text(certDer(cert))
+		var chain = UniqueArray<TlsCert>()
+		chain.append(certify(Data("a".utf8)))
+		chain.append(certify(Data("bc".utf8)))
+		print("cert \(certLength) \(der) \(chainLen(chain))")
 		var meters = Meters.new()
 		let first = meters.first()
 		_ = first.add(2)
 		print("lent \(first.add(3)) \(meters.first().count())")
 		meters.clear()
 		print("cleared \(meters.first().count())")
+		let last = meters.lastGet
+		_ = last.add(4)
+		print("field lent \(last.add(1))")
 		let tallies = Tallies.new()
 		_ = tallies.first().bump()
 		print("tallied \(tallies.first().bump())")

@@ -292,6 +292,8 @@ fun script() {
 		// The send happens at the call: the future is dropped unawaited.
 		channel.sendLater("eager".encodeToByteArray())
 		println("recv ${channel.recv().text()}")
+		// The send happens at the call, and the future borrows the channel and the tag.
+		println("tagged ${channel.tagged("tag")}")
 		channel.send("sized".encodeToByteArray())
 		val (payload, size) = channel.recvSized()
 		println("sized ${payload.text()} $size")
@@ -462,6 +464,9 @@ fun script() {
 	nudge(nudged, 3)
 	println("nudge ${nudged.value.x} ${nudged.value.y}")
 	secure("h3").use { config -> println("secure ${alpnLent(config)} ${alpn(config.clone())}") }
+	val cert = certify("der".encodeToByteArray())
+	val certLen = certLen(cert)
+	println("cert $certLen ${certDer(cert).text()} ${chainLen(listOf(certify("a".encodeToByteArray()), certify("bc".encodeToByteArray())))}")
 	Meters.new().use { meters ->
 		meters.first().use { first ->
 			first.add(2uL)
@@ -469,6 +474,10 @@ fun script() {
 		}
 		meters.clear()
 		println("cleared ${meters.first().use { it.count() }}")
+		meters.lastGet.use { last ->
+			last.add(4uL)
+			println("field lent ${last.add(1uL)}")
+		}
 	}
 	Tallies.new().use { tallies ->
 		tallies.first().use { it.bump() }

@@ -1409,6 +1409,7 @@ fn relative_target() {
 		"- `Lease`: object no export returns",
 		"- `Void`: object no export returns",
 		"- `release`: type C never holds `Lease`",
+		"- `handover`: type C never holds `tls::Session`",
 		"- `Unnamed`: generic type no export instantiates",
 	] {
 		assert!(text.contains(line), "the census lists no `{line}`:\n{text}");

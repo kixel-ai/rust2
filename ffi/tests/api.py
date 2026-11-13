@@ -364,6 +364,8 @@ def script():
 		# The send happens at the call: the future is dropped unawaited.
 		channel.send_later(b"eager")
 		print(f"recv {text(await channel.recv())}")
+		# The send happens at the call, and the future borrows the channel and the tag.
+		print(f"tagged {await channel.tagged('tag')}")
 		channel.send(b"sized")
 		payload, size = await channel.recv_sized()
 		print(f"sized {text(payload)} {size}")
@@ -544,12 +546,17 @@ def script():
 	print(f"nudge {nudged.value.x} {nudged.value.y}")
 	config = api.secure("h3")
 	print(f"secure {api.alpn_lent(config)} {api.alpn(config.clone())}")
+	cert = api.certify(b"der")
+	print(f"cert {api.cert_len(cert)} {text(api.cert_der(cert))} {api.chain_len([api.certify(b'a'), api.certify(b'bc')])}")
 	meters = api.Meters.new()
 	first = meters.first()
 	first.add(2)
 	print(f"lent {first.add(3)} {meters.first().count()}")
 	meters.clear()
 	print(f"cleared {meters.first().count()}")
+	lent_last = meters.last_get
+	lent_last.add(4)
+	print(f"field lent {lent_last.add(1)}")
 	tallies = api.Tallies.new()
 	tallies.first().bump()
 	print(f"tallied {tallies.first().bump()}")

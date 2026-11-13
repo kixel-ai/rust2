@@ -40,3 +40,12 @@ impl Cert {
 pub struct Session {
 	pub id: u32,
 }
+
+/// A count that is not `Send`, which the reject fixture takes by value: no handle may hold it.
+pub struct Local(std::rc::Rc<u32>);
+
+impl Local {
+	pub fn get(&self) -> u32 {
+		*self.0
+	}
+}

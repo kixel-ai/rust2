@@ -587,6 +587,13 @@ int script() {
 				print("recv ", *payload, "\n");
 			}
 		}
+		// The send happens at the call, and the future borrows the channel and the tag.
+		{
+			api::Channel_tagged_future tagged = channel.tagged("tag");
+			if (auto text = tagged.poll(waker)) {
+				print("tagged ", *text, "\n");
+			}
+		}
 		channel.send("sized");
 		{
 			api::Channel_recv_sized_future sized = channel.recv_sized();
@@ -838,6 +845,13 @@ int script() {
 		auto config = api::secure("h3");
 		print("secure ", api::alpn_lent(config), " ");
 		print("", api::alpn(config), "\n");
+		auto cert = api::certify("der");
+		std::printf("cert %llu ", ull(api::cert_len(cert)));
+		print("", api::cert_der(std::move(cert)), " ");
+		std::vector<api::tls_Cert> chain;
+		chain.push_back(api::certify("a"));
+		chain.push_back(api::certify("bc"));
+		std::printf("%llu\n", ull(api::chain_len(std::move(chain))));
 		auto meters = api::Meters::new_();
 		auto first = meters.first();
 		first.add(2);
@@ -845,6 +859,9 @@ int script() {
 		std::printf("lent %llu %llu\n", added, ull(meters.first().count()));
 		meters.clear();
 		std::printf("cleared %llu\n", ull(meters.first().count()));
+		auto last = meters.last_get();
+		last.add(4);
+		std::printf("field lent %llu\n", ull(last.add(1)));
 		auto tallies = api::Tallies::new_();
 		tallies.first().bump();
 		std::printf("tallied %u\n", tallies.first().bump());
