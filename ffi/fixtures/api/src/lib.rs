@@ -981,6 +981,45 @@ pub fn shifted(moment: Moment, shift: impl Fn(Moment) -> Moment) -> Moment {
 	shift(moment)
 }
 
+/// A value with padding, after its `u8`: made from bytes all `0xff`, so its padding likely
+/// holds them, which the export zeroes before any language sees it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Gap {
+	wide: u64,
+	narrow: u8,
+}
+
+impl Gap {
+	pub fn new(wide: u64, narrow: u8) -> Self {
+		// SAFETY: every byte pattern is a `Gap`, whose fields are integers.
+		let mut gap: Gap = unsafe { std::mem::transmute([0xffu8; std::mem::size_of::<Gap>()]) };
+		gap.wide = wide;
+		gap.narrow = narrow;
+		gap
+	}
+
+	pub fn sum(&self) -> u64 {
+		self.wide.wrapping_add(u64::from(self.narrow))
+	}
+}
+
+/// A `Copy` type whose `None` leaves its payload's bytes uninitialized, so no padding table
+/// covers it: a handle, rather than a value.
+#[derive(Clone, Copy, Debug)]
+pub struct Berth {
+	at: Option<u32>,
+}
+
+impl Berth {
+	pub fn new(at: Option<u32>) -> Self {
+		Self { at }
+	}
+
+	pub fn at(&self) -> Option<u32> {
+		self.at
+	}
+}
+
 /// A running count, as moq's `stats::Traffic`: `Copy` with private fields, but changed in
 /// place through `&mut self`, which a copy could not write back, so a handle. A call taking
 /// one by value copies it out of its handle, leaving the caller's as it was.

@@ -379,7 +379,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 				functions: Vec::new(),
 				constants: Vec::new(),
 				crates: Vec::new(),
-				targets: vec![tcx.sess.opts.target_triple.tuple().to_string()],
+				targets: vec![target(tcx)],
 			},
 		};
 		c.walk();
@@ -844,13 +844,8 @@ impl<'tcx> Collector<'tcx> {
 	/// Whether the foreign type `did` is a value C holds as its bytes, as a `Copy` one is.
 	fn foreign_value(&self, did: DefId) -> bool {
 		let tcx = self.tcx;
-		!self.opaque(did)
-			&& implements(
-				tcx,
-				tcx.type_of(did).instantiate_identity().skip_norm_wip(),
-				did,
-				sym::Copy,
-			)
+		let ty = tcx.type_of(did).instantiate_identity().skip_norm_wip();
+		!self.opaque(did) && implements(tcx, ty, did, sym::Copy) && padding(tcx, ty).is_some()
 	}
 
 	/// Each type a signature the export maps names, bounds included, at every choice
@@ -1291,6 +1286,7 @@ impl<'tcx> Collector<'tcx> {
 							methods: Vec::new(),
 							traits: Traits::default(),
 							opaque: None,
+							padding: Default::default(),
 						});
 					}
 					Decl::Enum(i) => {
@@ -1315,6 +1311,7 @@ impl<'tcx> Collector<'tcx> {
 						let ty = tcx.type_of(def_id).instantiate(tcx, site.args).skip_norm_wip();
 						let lifetimes = tcx.generics_of(def_id).own_counts().lifetimes;
 						let opaque = opaque(tcx, ty, lifetimes, false);
+						let padding = padding(tcx, ty).expect("a value's bytes do not depend on it");
 						api.records.push(Record {
 							path,
 							home: home.clone(),
@@ -1328,6 +1325,7 @@ impl<'tcx> Collector<'tcx> {
 							methods: Vec::new(),
 							traits: Traits::default(),
 							opaque: Some(opaque),
+							padding: [(target(tcx), padding)].into(),
 						});
 					}
 					Decl::Object(i) => {
@@ -1380,6 +1378,7 @@ impl<'tcx> Collector<'tcx> {
 					self.foreign[n].1 = self.api.records.len();
 					let ty = tcx.type_of(def_id).instantiate_identity().skip_norm_wip();
 					let opaque = opaque(tcx, ty, 0, true);
+					let padding = padding(tcx, ty).expect("a value's bytes do not depend on it");
 					self.api.records.push(Record {
 						path: object.path,
 						home: object.home,
@@ -1393,6 +1392,7 @@ impl<'tcx> Collector<'tcx> {
 						methods: object.methods,
 						traits: object.traits,
 						opaque: Some(opaque),
+						padding: [(target(tcx), padding)].into(),
 					});
 				}
 				false => {
@@ -1676,11 +1676,12 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// An object, if the type can move across threads, or if it is also `Copy`, a value C
-	/// holds as its bytes, unless C changes it in place, which a copy could not write back.
-	/// Shared borrows of an object that is not `Sync` are exclusive.
+	/// holds as its bytes, unless C changes it in place, which a copy could not write back,
+	/// or which of its bytes it initializes depends on its value, so its padding could not
+	/// be zeroed. Shared borrows of an object that is not `Sync` are exclusive.
 	fn object(&self, site: &Site<'tcx>) -> Decl {
 		let (tcx, ty, def_id) = (self.tcx, self.site_ty(site), site.key.def_id);
-		let copy = implements(tcx, ty, def_id, sym::Copy) && !self.changed(def_id);
+		let copy = implements(tcx, ty, def_id, sym::Copy) && !self.changed(def_id) && padding(tcx, ty).is_some();
 		if self.orphans.contains(&site.key) {
 			let construct = match copy {
 				true => "value no export returns",
@@ -5102,6 +5103,106 @@ fn opaque<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, lifetimes: usize, foreign: bool
 		lifetimes,
 		foreign,
 	}
+}
+
+/// The target the export is collected for.
+fn target(tcx: TyCtxt<'_>) -> String {
+	tcx.sess.opts.target_triple.tuple().to_string()
+}
+
+/// The padding of `ty` on this target, as `(offset, length)` ranges, which the glue zeroes
+/// so no byte Rust leaves uninitialized reaches a language; or none when which bytes it
+/// initializes depends on its value: a union, such as `MaybeUninit`, or an enum whose
+/// variants initialize different bytes, such as `Option<u32>`, whose `None` leaves its
+/// payload uninitialized.
+fn padding<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Vec<(u64, u64)>> {
+	use rustc_abi::{FieldsShape, Variants};
+	use rustc_middle::ty::layout::{LayoutCx, TyAndLayout};
+	let env = TypingEnv::fully_monomorphized();
+	let cx = LayoutCx::new(tcx, env);
+	let ty = tcx.erase_and_anonymize_regions(ty);
+	let layout = tcx.layout_of(env.as_query_input(ty)).ok()?;
+	// Marks in `bytes` each byte at `at` on that `layout` initializes.
+	fn init<'tcx>(cx: &LayoutCx<'tcx>, layout: TyAndLayout<'tcx>, at: u64, bytes: &mut [bool]) -> Option<()> {
+		let whole = |bytes: &mut [bool]| bytes[at as usize..(at + layout.size.bytes()) as usize].fill(true);
+		match layout.ty.kind() {
+			ty::Adt(adt, _) if adt.is_union() => return None,
+			ty::Int(_)
+			| ty::Uint(_)
+			| ty::Float(_)
+			| ty::Bool
+			| ty::Char
+			| ty::RawPtr(..)
+			| ty::Ref(..)
+			| ty::FnPtr(..) => {
+				whole(bytes);
+				return Some(());
+			}
+			_ => {}
+		}
+		match &layout.variants {
+			Variants::Empty => Some(()),
+			Variants::Single { .. } => fields(cx, layout, at, bytes),
+			Variants::Multiple {
+				tag,
+				tag_field,
+				variants,
+				..
+			} => {
+				let tag_at = at + layout.fields.offset(tag_field.as_usize()).bytes();
+				let tag_len = tag.size(cx).bytes();
+				let mut each: Option<Vec<bool>> = None;
+				for variant in variants.indices() {
+					let mut mine = vec![false; bytes.len()];
+					mine[tag_at as usize..(tag_at + tag_len) as usize].fill(true);
+					fields(cx, layout.for_variant(cx, variant), at, &mut mine)?;
+					match &each {
+						Some(first) if *first != mine => return None,
+						Some(_) => {}
+						None => each = Some(mine),
+					}
+				}
+				for (byte, mine) in bytes.iter_mut().zip(each.unwrap_or_default()) {
+					*byte |= mine;
+				}
+				Some(())
+			}
+		}
+	}
+	fn fields<'tcx>(cx: &LayoutCx<'tcx>, layout: TyAndLayout<'tcx>, at: u64, bytes: &mut [bool]) -> Option<()> {
+		match &layout.fields {
+			FieldsShape::Primitive => {
+				bytes[at as usize..(at + layout.size.bytes()) as usize].fill(true);
+				Some(())
+			}
+			FieldsShape::Union(_) => None,
+			FieldsShape::Array { stride, count } => {
+				if *count > 0 {
+					let element = layout.field(cx, 0);
+					for n in 0..*count {
+						init(cx, element, at + n * stride.bytes(), bytes)?;
+					}
+				}
+				Some(())
+			}
+			FieldsShape::Arbitrary { .. } => {
+				for n in 0..layout.fields.count() {
+					init(cx, layout.field(cx, n), at + layout.fields.offset(n).bytes(), bytes)?;
+				}
+				Some(())
+			}
+		}
+	}
+	let mut bytes = vec![false; layout.size.bytes() as usize];
+	init(&cx, layout, 0, &mut bytes)?;
+	let mut ranges: Vec<(u64, u64)> = Vec::new();
+	for (n, _) in bytes.iter().enumerate().filter(|(_, init)| !**init) {
+		match ranges.last_mut() {
+			Some((start, len)) if *start + *len == n as u64 => *len += 1,
+			_ => ranges.push((n as u64, 1)),
+		}
+	}
+	Some(ranges)
 }
 
 /// Whether `ty`, the type `def_id` at some arguments, implements the std trait `item`.

@@ -1050,9 +1050,21 @@ impl Gen<'_> {
 		self.item(format!(
 			"fn lift_{name}(c: &{name}, w: &str) -> {path} {{\n\tlet _ = w;\n\tunsafe {{ c.opaque.as_ptr().cast::<{path}>().read_unaligned() }}\n}}\n"
 		));
-		// Zeroed past its own bytes, so a value with no padding has no uninitialized byte.
+		// Its padding on each target, which the write below leaves uninitialized, so no
+		// stale byte of Rust's reaches a language, which may serialize what it holds.
+		let tables: Vec<String> = (record.padding.iter())
+			.map(|(target, ranges)| {
+				let ranges: Vec<String> = ranges.iter().map(|(at, len)| format!("({at}, {len})")).collect();
+				format!(
+					"\t#[cfg({CFG} = {target:?})]\n\tconst PADDING: &[(usize, usize)] = &[{}];\n",
+					ranges.join(", ")
+				)
+			})
+			.collect();
+		self.item(format!("impl {name} {{\n{}}}\n", tables.join("\n")));
+		// Zeroed past its own bytes, and its padding zeroed after the write.
 		self.item(format!(
-			"fn lower_{name}(v: {path}) -> {name} {{\n\tlet mut c = {name} {{ opaque: [::std::mem::MaybeUninit::zeroed(); {units}] }};\n\tunsafe {{ c.opaque.as_mut_ptr().cast::<{path}>().write_unaligned(v) }};\n\tc\n}}\n"
+			"fn lower_{name}(v: {path}) -> {name} {{\n\tlet mut c = {name} {{ opaque: [::std::mem::MaybeUninit::zeroed(); {units}] }};\n\tlet at = c.opaque.as_mut_ptr();\n\tunsafe {{ at.cast::<{path}>().write_unaligned(v) }};\n\tfor &(start, len) in {name}::PADDING {{\n\t\tunsafe {{ at.cast::<u8>().add(start).write_bytes(0, len) }};\n\t}}\n\tc\n}}\n"
 		));
 		self.value_traits(&name, &path, &ty, record.traits);
 		let owner = Ty::Struct(name.clone());

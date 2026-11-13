@@ -324,6 +324,12 @@ def script():
 	except TypeError:
 		pass
 
+	# A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	gap = api.Gap.new(7, 3)
+	print(f"gap {gap.sum()} {flag(gap == api.Gap.new(7, 3))}")
+	berth = api.Berth.new(4)
+	print(f"berth Some({berth.at()}) {'None' if api.Berth.new(None).at() is None else 'Some'}")
+
 	# A `Copy` type changed in place is a handle, which a call taking it by value copies.
 	score = api.Score.of(2)
 	increment = api.Score.of(3)

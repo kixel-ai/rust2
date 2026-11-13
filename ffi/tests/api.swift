@@ -406,6 +406,12 @@ func script() {
 	print("shifted \(shifted.millis()) \(shifted == moment.after(500))")
 	print("wrapped \(moment.after(UInt64.max).millis()) \(moment == shifted)")
 
+	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	let gap = Gap.new(7, 3)
+	print("gap \(gap.sum()) \(gap == Gap.new(7, 3))")
+	let berth = Berth.new(4)
+	print("berth Some(\(berth.at()!)) \(Berth.new(nil).at() == nil ? "None" : "Some")")
+
 	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
 	let score = Score.of(2)
 	let step = Score.of(3)

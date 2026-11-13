@@ -903,6 +903,24 @@ static int script(void) {
 	printf("wrapped %llu %s\n", (unsigned long long)api_Moment_millis(&wrapped),
 		   api_Moment_eq(&moment, &shifted) ? "true" : "false");
 
+	/* A padded value crosses with its padding zeroed, and one whose bytes vary is a handle. */
+	api_Gap gap = api_Gap_new(7, 3);
+	api_Gap same_gap = api_Gap_new(7, 3);
+	printf("gap %llu %s\n", (unsigned long long)api_Gap_sum(&gap), api_Gap_eq(&gap, &same_gap) ? "true" : "false");
+	/* Its `u64` then its `u8`, so every byte past the ninth is padding Rust made `0xff`. */
+	for (size_t n = 9; n < sizeof gap; n++) {
+		if (((const unsigned char *)&gap)[n] != 0) {
+			fprintf(stderr, "gap's padding byte %zu is not zero\n", n);
+			return 1;
+		}
+	}
+	api_Berth *berth = api_Berth_new((api_option_u32){.some = true, .value = 4});
+	api_Berth *empty_berth = api_Berth_new((api_option_u32){0});
+	api_option_u32 berth_at = api_Berth_at(berth);
+	printf("berth Some(%u) %s\n", berth_at.value, api_Berth_at(empty_berth).some ? "Some" : "None");
+	api_Berth_free(empty_berth);
+	api_Berth_free(berth);
+
 	/* A `Copy` type changed in place is a handle, which a call taking it by value copies. */
 	api_Score *score = api_Score_of(2);
 	api_Score *step = api_Score_of(3);

@@ -21,6 +21,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"api/api"
 	"api/dep"
@@ -417,6 +418,28 @@ func script() {
 	shifted := api.Shifted(moment, func(m api.Moment) api.Moment { return m.After(500) })
 	fmt.Printf("shifted %d %t\n", shifted.Millis(), shifted.Equal(moment.After(500)))
 	fmt.Printf("wrapped %d %t\n", moment.After(math.MaxUint64).Millis(), moment.Equal(shifted))
+
+	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	gap := api.NewGap(7, 3)
+	fmt.Printf("gap %d %t\n", gap.Sum(), gap.Equal(api.NewGap(7, 3)))
+	// Its `u64` then its `u8`, so every byte past the ninth is padding Rust made `0xff`.
+	padding := unsafe.Slice((*byte)(unsafe.Pointer(&gap.Bytes_)), unsafe.Sizeof(gap.Bytes_))[9:]
+	for n, b := range padding {
+		if b != 0 {
+			panic(fmt.Sprintf("gap's padding byte %d is not zero", n+9))
+		}
+	}
+	four := uint32(4)
+	berth := api.NewBerth(&four)
+	empty := api.NewBerth(nil)
+	berthAt := *must(berth.At())
+	emptyAt := "Some"
+	if must(empty.At()) == nil {
+		emptyAt = "None"
+	}
+	fmt.Printf("berth Some(%d) %s\n", berthAt, emptyAt)
+	berth.Close()
+	empty.Close()
 
 	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
 	score := api.ScoreOf(2)

@@ -329,6 +329,12 @@ Future<void> script() async {
   print('shifted ${shifted.millis()} ${shifted == moment.after(500)}');
   print('wrapped ${moment.after(-1).millis()} ${moment == shifted}');
 
+  // A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+  final gap = api.Gap(7, 3);
+  print('gap ${gap.sum()} ${gap == api.Gap(7, 3)}');
+  final berth = api.Berth(4);
+  print('berth Some(${berth.at()}) ${api.Berth(null).at() == null ? 'None' : 'Some'}');
+
   // A `Copy` type changed in place is a handle, which a call taking it by value copies.
   final score = api.Score.of(2);
   final increment = api.Score.of(3);

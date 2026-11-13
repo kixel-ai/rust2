@@ -260,6 +260,12 @@ fun script() {
 	println("shifted ${shifted.millis()} ${shifted == moment.after(500u)}")
 	println("wrapped ${moment.after(ULong.MAX_VALUE).millis()} ${moment == shifted}")
 
+	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	val gap = Gap.new(7u, 3u)
+	println("gap ${gap.sum()} ${gap == Gap.new(7u, 3u)}")
+	val berth = Berth.new(4u)
+	println("berth Some(${berth.at()}) ${if (Berth.new(null).at() == null) "None" else "Some"}")
+
 	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
 	val score = Score.of(2u)
 	val step = Score.of(3u)

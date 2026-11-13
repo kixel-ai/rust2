@@ -71,7 +71,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | --- | --- |
 | a struct whose fields are all `pub`, not `#[non_exhaustive]`, which map, with no `Drop` of its own | a record: a struct, copied across |
 | an enum with variants whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
-| any other type that is `Copy` and `Send`, with no `pub` field and no `pub` method taking `&mut self`, such as moq's `Timestamp` or std's `Instant` | an opaque value: a struct of its bytes, copied across, which only Rust makes or reads; one no export returns is left out, since C could never make one |
+| any other type that is `Copy` and `Send`, with no `pub` field, no `pub` method taking `&mut self`, and no union or enum whose variants initialize different bytes, such as an `Option<u32>`, in it, such as moq's `Timestamp` or std's `Instant` | an opaque value: a struct of its bytes, copied across, which only Rust makes or reads, with its padding zeroed; one no export returns is left out, since C could never make one |
 | any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, since C may change it in place, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
@@ -238,7 +238,9 @@ where it was while its file is unchanged.
 - **Opaque values** are `typedef struct <T> { uintN_t opaque[n]; } <T>;`, the bytes of a
   `Copy` type with private fields, in units of its alignment up to 8 bytes: C copies one
   as any struct, and passes `&self` as a `const <T> *`, but never makes or changes one,
-  and frees none. Its size and alignment are the largest of the export's targets, so one
+  and frees none. Its padding is zero, from a table of each target's padding rustc's
+  layout gives, so no byte Rust left uninitialized reaches a language, which may
+  serialize what it holds. Its size and alignment are the largest of the export's targets, so one
   header serves them all, a few bytes past a 32-bit target's own. A change of size is an
   ABI change, as a record's field change is.
 - **In and out**: a `&mut` of a value is two parameters, the value passed in as one taken

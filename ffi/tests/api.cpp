@@ -532,6 +532,14 @@ int script() {
 		std::printf("wrapped %llu %s\n", ull(moment.after(UINT64_MAX).millis()), yes(moment == shifted));
 	}
 
+	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	{
+		api::Gap gap = api::Gap::new_(7, 3);
+		std::printf("gap %llu %s\n", ull(gap.sum()), yes(gap == api::Gap::new_(7, 3)));
+		api::Berth berth = api::Berth::new_(4u);
+		std::printf("berth Some(%u) %s\n", *berth.at(), api::Berth::new_(std::nullopt).at() ? "Some" : "None");
+	}
+
 	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
 	{
 		api::Score score = api::Score::of(2);

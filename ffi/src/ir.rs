@@ -126,6 +126,10 @@ pub struct Record {
 	/// For a `Copy` type with private fields, which has no `fields`: its bytes, which only
 	/// Rust reads.
 	pub opaque: Option<Opaque>,
+	/// For an opaque value, its padding on each target, by target, as `(offset, length)`
+	/// ranges, which the glue zeroes, so no byte Rust leaves uninitialized reaches a
+	/// language.
+	pub padding: std::collections::BTreeMap<String, Vec<(u64, u64)>>,
 }
 
 /// A `Copy` type held as its bytes, which every language copies and none reads.
