@@ -782,7 +782,10 @@ fn main() {
 	}
 	let near = std::num::NonZero::new(3u16).unwrap();
 	let far = std::num::NonZero::new(u16::MAX).unwrap();
-	println!("farther hop {}", api::farther_hop(Pair { left: near, right: far }).get());
+	println!(
+		"farther hop {}",
+		api::farther_hop(Pair { left: near, right: far }).get()
+	);
 }
 
 /// A reader whose reads fail, as `tests/api.c`'s broken one does: each seek lands at 0.
