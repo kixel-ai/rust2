@@ -1508,20 +1508,20 @@ static int script(void) {
 	api_Numbers others = api_Numbers_edges();
 	api_Numbers negative = api_Numbers_zero(true);
 	api_Numbers positive = api_Numbers_zero(false);
-	api_Reading nan = api_Reading_new(NAN, false);
-	api_Reading under = api_Reading_new(-0.0, true);
-	api_Reading over = api_Reading_new(0.0, false);
+	api_Measure nan = api_Measure_new(NAN, false);
+	api_Measure under = api_Measure_new(-0.0, true);
+	api_Measure over = api_Measure_new(0.0, false);
 	printf("float equal %s %s %s %s %s\n", api_Numbers_eq(&edges, &edges) ? "true" : "false",
 	       api_Numbers_eq(&edges, &others) ? "true" : "false", api_Numbers_eq(&negative, &positive) ? "true" : "false",
-	       api_Reading_eq(&nan, &nan) ? "true" : "false", api_Reading_eq(&under, &over) ? "true" : "false");
+	       api_Measure_eq(&nan, &nan) ? "true" : "false", api_Measure_eq(&under, &over) ? "true" : "false");
 	api_Numbers_free(&edges);
 	api_Numbers_free(&reversed);
 	api_Numbers_free(&others);
 	api_Numbers_free(&negative);
 	api_Numbers_free(&positive);
-	api_Reading_free(&nan);
-	api_Reading_free(&under);
-	api_Reading_free(&over);
+	api_Measure_free(&nan);
+	api_Measure_free(&under);
+	api_Measure_free(&over);
 	uint32_t totals[] = {UINT32_MAX, UINT32_MAX, 2};
 	printf("sum u32 %llu %llu\n", (unsigned long long)api_sum_u32((api_vec_u32){0}),
 	       (unsigned long long)api_sum_u32((api_vec_u32){.ptr = totals, .len = 3}));

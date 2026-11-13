@@ -2417,12 +2417,12 @@ impl Numbers {
 
 /// A float beside a record of float lists, both compared as Rust's `==` compares floats.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Reading {
+pub struct Measure {
 	pub value: f64,
 	pub numbers: Numbers,
 }
 
-impl Reading {
+impl Measure {
 	/// `value` beside [`Numbers::zero`] of `negative`.
 	pub fn new(value: f64, negative: bool) -> Self {
 		Self {

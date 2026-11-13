@@ -968,11 +968,11 @@ int script() {
 	numbers("reversed", api::Numbers::edges().reversed());
 	{
 		auto edges = api::Numbers::edges();
-		auto nan = api::Reading::new_(std::nan(""), false);
+		auto nan = api::Measure::new_(std::nan(""), false);
 		auto same = [](bool b) { return b ? "true" : "false"; };
 		std::printf("float equal %s %s %s %s %s\n", same(edges == edges), same(edges == api::Numbers::edges()),
 		            same(api::Numbers::zero(true) == api::Numbers::zero(false)), same(nan == nan),
-		            same(api::Reading::new_(-0.0, true) == api::Reading::new_(0.0, false)));
+		            same(api::Measure::new_(-0.0, true) == api::Measure::new_(0.0, false)));
 	}
 	std::printf("sum u32 %llu %llu\n", static_cast<unsigned long long>(api::sum_u32({})),
 	            static_cast<unsigned long long>(api::sum_u32({UINT32_MAX, UINT32_MAX, 2})));

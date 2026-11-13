@@ -599,8 +599,8 @@ def script():
 	numbers("edges", api.Numbers.edges())
 	numbers("reversed", api.Numbers.edges().reversed())
 	edges = api.Numbers.edges()
-	nan = api.Reading.new(math.nan, False)
-	equal = [edges == edges, edges == api.Numbers.edges(), api.Numbers.zero(True) == api.Numbers.zero(False), nan == nan, api.Reading.new(-0.0, True) == api.Reading.new(0.0, False)]
+	nan = api.Measure.new(math.nan, False)
+	equal = [edges == edges, edges == api.Numbers.edges(), api.Numbers.zero(True) == api.Numbers.zero(False), nan == nan, api.Measure.new(-0.0, True) == api.Measure.new(0.0, False)]
 	print("float equal " + " ".join(str(e).lower() for e in equal))
 	# A record compares a buffer passed in by its numbers, as Rust does, not by its own `==`.
 	held = [api.Shadowed(Elementwise(array.array("i", items)), 1, 2) for items in [[1, 2], [1, 2], [1, 3]]]

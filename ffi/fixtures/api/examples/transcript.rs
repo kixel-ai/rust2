@@ -628,7 +628,7 @@ fn main() {
 	numbers("edges", &api::Numbers::edges());
 	numbers("reversed", &api::Numbers::edges().reversed());
 	let edges = api::Numbers::edges();
-	let nan = api::Reading::new(f64::NAN, false);
+	let nan = api::Measure::new(f64::NAN, false);
 	println!(
 		"float equal {} {} {} {} {}",
 		// Each value against itself, which a NaN it holds makes unequal.
@@ -636,7 +636,7 @@ fn main() {
 		edges == api::Numbers::edges(),
 		api::Numbers::zero(true) == api::Numbers::zero(false),
 		PartialEq::eq(&nan, &nan),
-		api::Reading::new(-0.0, true) == api::Reading::new(0.0, false)
+		api::Measure::new(-0.0, true) == api::Measure::new(0.0, false)
 	);
 	println!(
 		"sum u32 {} {}",
