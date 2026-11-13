@@ -83,6 +83,7 @@ pub fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'_>) -> 
 	let api = abi.api;
 	let index = Index::with(abi);
 	let baseline = Index::new(base_api, &abi.prefix);
+	let maps = baseline.maps(&index);
 	let mut renamed: BTreeSet<String> = baseline
 		.entries
 		.iter()
@@ -168,9 +169,16 @@ pub fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'_>) -> 
 				continue;
 			}
 			let new = now.get(language).and_then(|names| names.get(key));
-			// A part of a kept item, such as a variant or an overload, that is gone went with
-			// a change the structural check reports.
-			if new.is_none() && key != owner {
+			// Missing parts need a name diagnostic unless the owner's structural change
+			// already reports the break, such as a removed variant or changed signature.
+			if new.is_none()
+				&& key != owner
+				&& baseline
+					.entries
+					.get(owner)
+					.zip(index.entries.get(owner))
+					.is_some_and(|(old, new)| !changed(&baseline, &index, &maps, &old.item, &new.item).is_empty())
+			{
 				continue;
 			}
 			if new != Some(old) {

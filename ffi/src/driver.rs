@@ -384,6 +384,9 @@ impl Export {
 			patch: &self.patch,
 		};
 		let generated = glue.generate(out)?;
+		if let Some(path) = &self.baseline {
+			generated.check_baseline(path)?;
+		}
 		let names_kept =
 			baseline.is_none_or(|(base, names)| self.locked(tcx, base, &abi, Some((names, &generated.names))));
 		if !structure_kept || !names_complete || !names_kept {

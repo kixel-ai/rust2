@@ -1481,11 +1481,56 @@ fn errors(output: &Output) -> Vec<String> {
 	errors
 }
 
+/// Cleanup must refuse a baseline anywhere below a replaced directory.
+fn lock_baseline_cleanup() {
+	let dir = scratch().join("lock-cleanup");
+	let base = dir.join("base");
+	let output = export("lock", &base, &[], &[]);
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let before = std::fs::read(base.join("api.json")).unwrap();
+	for replaced in ["go", "include/lock"] {
+		let out = dir.join(replaced.replace('/', "-"));
+		let baseline = out.join(replaced).join("nested/baseline.json");
+		std::fs::create_dir_all(baseline.parent().unwrap()).unwrap();
+		std::fs::write(&baseline, &before).unwrap();
+		let args = ["--baseline".as_ref(), baseline.as_os_str()];
+		let output = exporter("lock", &out, &[], &args, &[]).output().unwrap();
+		assert!(!output.status.success(), "export deleted baseline inside {replaced}");
+		assert_eq!(std::fs::read(&baseline).unwrap(), before);
+		assert!(String::from_utf8_lossy(&output.stderr).contains("export replaces"));
+	}
+}
+
+/// Adding a thrown type can remove a Swift overload without changing its Rust function.
+fn lock_swift_removed_overload() {
+	let dir = scratch().join("lock-overload");
+	let base = dir.join("base");
+	let output = export("lock", &base, &[], &[]);
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let baseline = base.join("api.json");
+	let args = ["--baseline".as_ref(), baseline.as_os_str()];
+	let out = dir.join("thrown");
+	let output = exporter("lock", &out, &[], &args, &["--features", "thrown"])
+		.output()
+		.unwrap();
+	assert!(!output.status.success(), "removed Swift overload passed the lock");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains(
+			"overload omitting Rust parameter indices 0 (zero-based): its Swift name `debugDescription` is no longer exported"
+		),
+		"{stderr}"
+	);
+	assert!(!out.join("api.json").exists());
+}
+
 /// The lock fixture exported for wasm32, staged, and the host, then again against that
 /// export's API as the baseline: with `next`, which must fail at each break, and with
 /// `added`, which must pass.
 #[test]
 fn lock() {
+	lock_baseline_cleanup();
+	lock_swift_removed_overload();
 	let dir = scratch().join("lock");
 	let targets = [WASM, host()];
 	let output = export("lock", &dir.join("base"), &targets, &[]);

@@ -319,3 +319,9 @@ pub fn speed(speed: Speed) -> u32 {
 		_ => 1,
 	}
 }
+
+/// Turning Meter into a Swift error removes its noncopyable optional overloads.
+#[cfg(feature = "thrown")]
+pub fn failing_meter() -> Result<(), Meter> {
+	Err(Meter::new())
+}

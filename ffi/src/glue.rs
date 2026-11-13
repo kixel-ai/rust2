@@ -128,6 +128,22 @@ impl Output {
 		self.files.push((path.to_path_buf(), text.to_string()));
 	}
 
+	/// Refuse a baseline below a directory this export removes before writing.
+	pub fn check_baseline(&self, baseline: &Path) -> Result<(), String> {
+		let baseline =
+			std::fs::canonicalize(baseline).map_err(|err| format!("reading {}: {err}", baseline.display()))?;
+		for dir in &self.stale {
+			if baseline.starts_with(resolve(dir)?) {
+				return Err(format!(
+					"--baseline {} lies inside {} which the export replaces: commit the baseline outside --out",
+					baseline.display(),
+					dir.display()
+				));
+			}
+		}
+		Ok(())
+	}
+
 	/// Write a validated export, removing stale C++ headers and Go packages from an earlier one.
 	pub fn write(self) -> Result<crate::lock::Names, String> {
 		for dir in self.stale.iter().filter(|dir| dir.exists()) {
@@ -354,22 +370,31 @@ fn module_path(path: &Path) -> Result<String, String> {
 		.ok_or_else(|| format!("{} declares no module", path.display()))
 }
 
-/// The import path of `<out>/go`, from the `go.mod` of the module above it, or else the
-/// module `prefix`, with the `go.mod` declaring it there.
-fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), String> {
+/// Resolve existing symlinks and missing path components without creating output.
+fn resolve(path: &Path) -> Result<PathBuf, String> {
 	// Resolved without creating it, since an export the lock refuses writes nothing.
-	let absolute = std::path::absolute(out).map_err(|err| format!("reading {}: {err}", out.display()))?;
+	let absolute = std::path::absolute(path).map_err(|err| format!("reading {}: {err}", path.display()))?;
 	let mut out = PathBuf::new();
 	for component in absolute.components() {
 		if component == std::path::Component::ParentDir {
 			out.pop();
 		} else {
 			out.push(component);
-			if out.exists() {
-				out = std::fs::canonicalize(&out).map_err(|err| format!("reading {}: {err}", out.display()))?;
+			if out
+				.try_exists()
+				.map_err(|err| format!("reading {}: {err}", out.display()))?
+			{
+				out = std::fs::canonicalize(&out).map_err(|err| format!("reading {}: {err}", path.display()))?;
 			}
 		}
 	}
+	Ok(out)
+}
+
+/// The import path of `<out>/go`, from the `go.mod` of the module above it, or else the
+/// module `prefix`, with the `go.mod` declaring it there.
+fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), String> {
+	let out = resolve(out)?;
 	for dir in out.ancestors() {
 		let path = dir.join("go.mod");
 		if !path.is_file() {
@@ -1800,11 +1825,20 @@ fn owned(ok: &Type) -> (Type, Option<String>) {
 
 #[test]
 fn go_module_resolves_missing_parent() {
+	struct RemoveOnDrop(PathBuf);
+	impl Drop for RemoveOnDrop {
+		fn drop(&mut self) {
+			let _ = std::fs::remove_dir_all(&self.0);
+		}
+	}
 	let root = std::env::current_dir()
 		.unwrap()
 		.join(".tmp")
 		.join(format!("go-module-{}", std::process::id()));
-	std::fs::create_dir_all(&root).unwrap();
+	let _ = std::fs::remove_dir_all(&root);
+	std::fs::create_dir_all(root.parent().unwrap()).unwrap();
+	std::fs::create_dir(&root).unwrap();
+	let _cleanup = RemoveOnDrop(root.clone());
 	std::fs::write(root.join("go.mod"), "module example.com/lock\n\ngo 1.24\n").unwrap();
 	let output = root.join("new/../bind");
 	assert_eq!(
@@ -1813,5 +1847,27 @@ fn go_module_resolves_missing_parent() {
 	);
 	assert!(!root.join("new").exists());
 	assert!(!root.join("bind").exists());
-	std::fs::remove_dir_all(root).unwrap();
+	let baseline = root.join("baseline.json");
+	std::fs::write(&baseline, "{}").unwrap();
+	let mut generated = Output {
+		names: Default::default(),
+		files: vec![],
+		stale: vec![output.join("go")],
+	};
+	assert!(generated.check_baseline(&baseline).is_ok());
+	assert!(!root.join("new").exists());
+	assert!(!root.join("bind").exists());
+	#[cfg(unix)]
+	{
+		std::os::unix::fs::symlink(&root, root.join("alias")).unwrap();
+		generated.stale = vec![root.join("alias/new/..")];
+		assert!(
+			generated
+				.check_baseline(&baseline)
+				.unwrap_err()
+				.contains("export replaces")
+		);
+		std::os::unix::fs::symlink(&baseline, root.join("baseline-link.json")).unwrap();
+		assert!(generated.check_baseline(&root.join("baseline-link.json")).is_err());
+	}
 }

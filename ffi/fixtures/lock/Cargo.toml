@@ -22,6 +22,7 @@ members = []
 wrappers = []
 closures = []
 defaults = []
+thrown = []
 
 [lints]
 workspace = true
