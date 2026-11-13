@@ -223,6 +223,104 @@ fn api_c() {
 	}
 }
 
+/// The C and C++ scripts against the glue built under AddressSanitizer, whose leak check
+/// catches what a cancelled future or a freed handle keeps.
+#[test]
+#[ignore = "needs clang and the nightly's rust-src: just ffi sanitize"]
+fn api_asan() {
+	sanitized("address");
+}
+
+/// The C and C++ scripts against the glue built under ThreadSanitizer, which catches a
+/// race between a wake on one thread and a poll on another.
+#[test]
+#[ignore = "needs clang and the nightly's rust-src: just ffi sanitize"]
+fn api_tsan() {
+	sanitized("thread");
+}
+
+/// Build the api fixture's glue, std included, under the `sanitizer`, and run the C and
+/// C++ scripts against it, built by clang under the same one.
+fn sanitized(sanitizer: &str) {
+	let api = api();
+	let dir = scratch().join("api").join(sanitizer);
+	let built = run(cargo()
+		.args(["build", "--quiet", "--locked", "-Zbuild-std", "--target", host()])
+		.arg("--manifest-path")
+		.arg(api.out.join("Cargo.toml"))
+		.arg("--target-dir")
+		.arg(dir.join("glue"))
+		.env(
+			"RUSTFLAGS",
+			format!("-D warnings -Zsanitizer={sanitizer} --print=native-static-libs"),
+		));
+	let native: Vec<String> = String::from_utf8_lossy(&built.stderr)
+		.lines()
+		.find_map(|line| line.strip_prefix("note: native-static-libs: "))
+		.expect("rustc prints the static library's native libraries")
+		.split_whitespace()
+		.map(str::to_string)
+		.collect();
+	let lib = dir.join("glue").join(host()).join("debug").join("libapi.a");
+	let tests = manifest_dir().join("tests");
+	let sanitize = format!("-fsanitize={sanitizer}");
+	// Every report fails the run, rather than only those the sanitizer deems fatal.
+	let env = [
+		("ASAN_OPTIONS", "detect_leaks=1:abort_on_error=1"),
+		("TSAN_OPTIONS", "halt_on_error=1"),
+	];
+	for (compiler, std, src, args) in [
+		("clang", "-std=c11", "api.c", &[][..]),
+		("clang++", "-std=c++17", "api.cpp", &["futures", "lifetimes"][..]),
+	] {
+		let exe = dir.join(src.replace('.', "-"));
+		run(Command::new(compiler)
+			.args([std, "-g", "-Wall", "-Wextra", "-Werror", &sanitize, "-I"])
+			.arg(api.out.join("include"))
+			.arg(tests.join(src))
+			.arg(&lib)
+			.args(&native)
+			.arg("-o")
+			.arg(&exe));
+		let output = run(Command::new(&exe).envs(env));
+		assert_eq!(
+			String::from_utf8_lossy(&output.stdout),
+			api.transcript,
+			"{src} under {sanitizer} differs from the native transcript"
+		);
+		for arg in args {
+			run(Command::new(&exe).arg(arg).envs(env));
+		}
+	}
+}
+
+/// The glue's `extern "C"` functions driven from Rust under Miri, by `tests/miri/api.rs`
+/// mounted as a test module of a copy of the export.
+#[test]
+#[ignore = "needs the nightly's miri: just ffi sanitize"]
+fn api_miri() {
+	let api = api();
+	let copy = scratch().join("api").join("miri");
+	let _ = std::fs::remove_dir_all(&copy);
+	std::fs::create_dir_all(copy.join("src")).unwrap();
+	for file in ["Cargo.toml", "Cargo.lock", "build.rs"] {
+		std::fs::copy(api.out.join(file), copy.join(file)).unwrap();
+	}
+	for file in ["rt.rs", "lib.rs"] {
+		std::fs::copy(api.out.join("src").join(file), copy.join("src").join(file)).unwrap();
+	}
+	let mut lib = std::fs::read_to_string(copy.join("src").join("lib.rs")).unwrap();
+	lib.push_str(&format!(
+		"\n#[cfg(test)]\n#[path = {:?}]\nmod miri;\n",
+		manifest_dir().join("tests").join("miri").join("api.rs")
+	));
+	std::fs::write(copy.join("src").join("lib.rs"), lib).unwrap();
+	run(cargo()
+		.args(["miri", "test", "--locked", "--lib", "--manifest-path"])
+		.arg(copy.join("Cargo.toml"))
+		.env("MIRIFLAGS", "-Zmiri-strict-provenance"));
+}
+
 /// The C++ header at each standard, with exceptions and RTTI on and off between them,
 /// runs the same script, then checks its futures' semantics and who owns each handle.
 #[test]
