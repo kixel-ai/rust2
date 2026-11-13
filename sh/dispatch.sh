@@ -97,6 +97,7 @@ check_driver() { just driver check; }
 check_ffi() { just ffi check; }
 check_go() { just go check; }
 check_ts() { just ts check; }
+test_lint() { python3 -I .github/crabx/test_pipeline.py; }
 test_sh() { python3 -I sh/dispatch.test.py; }
 test_driver() { just driver test; }
 test_ffi() { just ffi test; }
