@@ -1487,7 +1487,10 @@ fn unreached_types() {
 	// So does one returning another's, whose hidden type is revealed in full.
 	assert!(glue.contains("fn pkg_copied_again("), "{glue}");
 	// A conversion target only an `impl Into` names is reached, and taken.
-	assert!(glue.contains("rt::Object::<::conv_reached::Value>::take(p0, w)"), "{glue}");
+	assert!(
+		glue.contains("rt::Object::<::conv_reached::Value>::take(p0, w)"),
+		"{glue}"
+	);
 	assert!(glue.contains("::kio_reached::Pending"), "{glue}");
 	// `net`'s error crosses as its message, or holds `Failure`, which holds it, an object, and
 	// its `Arc` crosses as an opaque handle.
@@ -1574,7 +1577,10 @@ fn unreached_types() {
 	assert!(report.contains("- `wrap`: type C never holds `Held`"), "{report}");
 	// So is `best`, whose `impl Into<Counter> + '_` hides another `impl Trait` hiding a
 	// `Counter`, an object its handle would hold the receiver's borrow for.
-	assert!(report.contains("- `Buffer::best`: type C never holds `Counter`"), "{report}");
+	assert!(
+		report.contains("- `Buffer::best`: type C never holds `Counter`"),
+		"{report}"
+	);
 	// The glue cannot destructure a hidden type it cannot name, so only an object crosses
 	// through an `impl Trait`: `own`'s `Option` is refused, and `Own` left out with it.
 	assert!(report.contains("- `own`: type C never holds `Own`"), "{report}");
