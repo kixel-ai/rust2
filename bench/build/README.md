@@ -63,7 +63,7 @@ The body edits are functions the program runs, which ra-jit compiles.
 
 ra-jit bugs seen on moq, not reported upstream:
 
-- Async body edits in moq-net go to cargo (every `edit-async` run): "`parsed_values_given` is not compiled by ra-jit and rustc's copy is from before the edit: an instance of it does not compile", a generic of usage-argv's. The daemon then loads the workspace again: on CI such an edit took 50.6 s and 196 CPU-s, against plain cargo's 10.5 s and 14.5 CPU-s ([run](https://github.com/moq-dev/rust2/actions/runs/42351623273)).
+- Async body edits in moq-net go to cargo (every `edit-async` run): "`parsed_values_given` is not compiled by ra-jit and rustc's copy is from before the edit: an instance of it does not compile", a generic of usage-argv's. The daemon then loads the workspace again: on CI such an edit took 50.6 s and 196 CPU-s, against plain cargo's 10.5 s and 14.5 CPU-s ([run](https://github.com/kixel-ai/rust2/actions/runs/42351623273)).
 - At the previous pin (`f36c848`), `cargo ra-jit check` with no build loaded read every crate of the workspace, took minutes and GBs, and failed on errors rustc does not report (`unresolved macro moq_clock::test` in moq-net's integration tests).
 - On a library-only build, `cargo ra-jit build` returns after `cargo clean` without building anything.
 
@@ -102,7 +102,7 @@ Measured on 2026-10-25 and 2026-10-26 on a busy 32-CPU host, in billions of inst
 ## Cranelift for moq's CI
 
 Recommended on 2026-10-25: moq's CI keeps building its tests with LLVM, since 42 of its 5418 tests fail under Cranelift.
-At the pin [#646](https://github.com/moq-dev/rust2/pull/646) moved to on 2026-11-07, 58 of 6379 fail: 27 that catch a panic and 31 on the intrinsic ([rustc_codegen_cranelift#1712](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1712)). The numbers below are the 2026-10-25 run's. No retrial is planned once upstream fixes both: the saving below is the ceiling, and unwinding can only lower it.
+At the pin [#646](https://github.com/kixel-ai/rust2/pull/646) moved to on 2026-11-07, 58 of 6379 fail: 27 that catch a panic and 31 on the intrinsic ([rustc_codegen_cranelift#1712](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1712)). The numbers below are the 2026-10-25 run's. No retrial is planned once upstream fixes both: the saving below is the ceiling, and unwinding can only lower it.
 
 - 23 catch a panic, which the Cranelift backend that ships with nightly cannot unwind: it builds every panic as an abort (unwinding is a flag on cg_clif's own build, off by default: [rustc_codegen_cranelift#1567](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1567)).
 - 19 abort on an x86 SIMD intrinsic it does not implement, `llvm.x86.sse2.pmulhu.w` ([rustc_codegen_cranelift#1712](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1712), under the SIMD tracker [#171](https://github.com/rust-lang/rustc_codegen_cranelift/issues/171)). moq's CI runs on aarch64, whose intrinsics this x86 benchmark does not try.
@@ -111,7 +111,7 @@ The `cranelift` variant's `build` numbers are for that abort build too.
 Since moq moved its crypto onto rind, the variant builds rind with LLVM: its `naked_asm!` takes `sym` operands, which Cranelift cannot compile yet ([rustc_codegen_cranelift#1620](https://github.com/rust-lang/rustc_codegen_cranelift/pull/1620)).
 
 Even passing, it would save little where CI spends its time.
-CPU seconds from the [PR run](https://github.com/moq-dev/rust2/actions/runs/40235946635) (4 CPUs; an A/A control on that run stayed within 3%):
+CPU seconds from the [PR run](https://github.com/kixel-ai/rust2/actions/runs/40235946635) (4 CPUs; an A/A control on that run stayed within 3%):
 
 | CI build | nightly | cranelift | change |
 | --- | ---: | ---: | ---: |

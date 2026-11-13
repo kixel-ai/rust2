@@ -22,7 +22,7 @@ first by kind and Rust path keeps the name and each later one takes a trailing `
 old one, as `ffi/README.md` describes. With equal signatures a C caller compiles and calls
 the wrong function, and the contract hash only catches a header and library from
 different builds. Stable mangling was rejected when the naming rule was decided
-([#599](https://github.com/moq-dev/rust2/pull/599)); this catches the break instead.
+([#599](https://github.com/kixel-ai/rust2/pull/599)); this catches the break instead.
 
 - The baseline covers every target the binding serves. `--api` writes one target's API
   and refuses `--with` or a second `--target` (`ffi/src/cli.rs`), so a host-written file
