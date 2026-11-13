@@ -686,9 +686,14 @@ static int script(void) {
 	print("named Some((\"", named.value._0, "\",))\n");
 
 	/* Each lent counter is a new handle to a clone. */
-	api_Registry *registry = api_Registry_new(api_Counter_new(str("first"), 1));
+	/* A handle whose value moved in is still the caller's to free. */
+	api_Counter *moved = api_Counter_new(str("first"), 1);
+	api_Registry *registry = api_Registry_new(moved);
+	api_Counter_free(moved);
 	printf("last %s\n", api_Registry_last(registry) != NULL ? "true" : "false");
-	api_Registry_push(registry, api_Counter_new(str("last"), 2));
+	moved = api_Counter_new(str("last"), 2);
+	api_Registry_push(registry, moved);
+	api_Counter_free(moved);
 	api_Counter *first = api_Registry_first_get(registry);
 	api_Counter_add(first, 10, NULL, NULL);
 	api_Counter *lent = api_Registry_first_get(registry);
