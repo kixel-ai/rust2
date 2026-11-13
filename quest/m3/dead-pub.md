@@ -17,8 +17,19 @@ until a consumer needs it, with nothing to check it.
 - Prior art: cargo-workspace-unused-pub covers methods only and works from SCIP, which
   resolves less than the compiler; warnalyzer is unmaintained. Unused dependencies are
   solved upstream, so they are out of scope.
-- The driver already resolves every path and the exporter already walks every reachable
-  `pub` item; record uses across the workspace's crates and subtract.
+- The first throwaway HIR/typeck probe disproved simple subtraction: a generic call
+  resolves to the trait method, while its required implementation has no direct
+  reference. Deleting that implementation fails with E0046. The executable fixture
+  first checked that the implementation returns 42. See [the preliminary report](/DEAD-PUB.md).
+- Remaining: collect a reachability graph with trait-implementation obligations,
+  implicit calls (including drop), re-export and macro provenance, and references
+  from signatures and associated types. Validate it against compiler mutations
+  before treating any candidate as a deletion. A flat set of resolved paths and
+  type-dependent method references is insufficient.
+- Remaining: complete the rust2 and moq census, separate production, crate-local,
+  test-only and published API candidates, apply the complete suggestions, and
+  compare with narrow-and-retry on the same Cargo targets/features. The initial
+  probe is diagnostic evidence, not that census or a go/no-go result.
 - A published crate's `pub` item may be API with no user in the workspace: list those
   apart, by whether the crate is published.
 - Go: the workspace still checks after the suggestions, and the pass finds items the
