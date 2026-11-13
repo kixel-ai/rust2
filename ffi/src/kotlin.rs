@@ -126,7 +126,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	}
 	let _ = write!(
 		kotlin,
-		"internal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __waker_wake(raw: Long)\n\n\t@JvmStatic external fun __waker_drop(raw: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as Pollable).poll(waker)\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n{helpers}{}{}}}\n",
+		"/** The runtime's [Native.Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = Native.Eq\n\ninternal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __waker_wake(raw: Long)\n\n\t@JvmStatic external fun __waker_drop(raw: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as Pollable).poll(waker)\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n{helpers}{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -487,22 +487,20 @@ impl<'a> Gen<'a> {
 		ty.holds_block() || self.abi.api.holds_float(ty)
 	}
 
-	/// The `equals` and `hashCode` of the class `name` of `fields`, by their contents. Every
-	/// name they use is qualified, since a variant class may be named `Any`, `Int`, or `Native`.
-	fn contents(&self, name: &str, fields: &[String]) -> String {
-		let p = &self.abi.prefix;
+	/// The `equals` and `hashCode` of the class `name` of `fields`, by their contents. A variant
+	/// class may be named as anything they name, such as `Any`, `Int`, or `Native`, so they
+	/// reach the runtime through `_eq` and qualify each type; a qualifier in an expression,
+	/// such as `kotlin.`, would be shadowed by a field of its name.
+	fn contents(name: &str, fields: &[String]) -> String {
+		let this: Vec<String> = fields.iter().map(|f| format!("this.{f}")).collect();
 		let same: Vec<String> = fields
 			.iter()
-			.map(|f| format!("{p}.Native.Eq.same(this.{f}, other.{f})"))
+			.map(|f| format!("_eq.same(this.{f}, other.{f})"))
 			.collect();
 		format!(
-			"\toverride fun equals(other: kotlin.Any?): kotlin.Boolean = other is {name} && {}\n\n\toverride fun hashCode(): kotlin.Int = {p}.Native.Eq.hash(kotlin.collections.listOf<kotlin.Any?>({}))\n",
+			"\toverride fun equals(other: kotlin.Any?): kotlin.Boolean = other is {name} && {}\n\n\toverride fun hashCode(): kotlin.Int = _eq.hashOf({})\n",
 			same.join(" && "),
-			fields
-				.iter()
-				.map(|f| format!("this.{f}"))
-				.collect::<Vec<_>>()
-				.join(", ")
+			this.join(", ")
 		)
 	}
 
@@ -513,7 +511,7 @@ impl<'a> Gen<'a> {
 		if self.tuples.insert(n) {
 			let params: Vec<String> = (1..=n).map(|k| format!("T{k}")).collect();
 			let fields: Vec<String> = (0..n).map(|k| format!("\tval {}: T{},\n", ordinal(k), k + 1)).collect();
-			let contents = self.contents(
+			let contents = Self::contents(
 				&format!("{name}<{}>", vec!["*"; n].join(", ")),
 				&(0..n).map(ordinal).collect::<Vec<_>>(),
 			);
@@ -1287,7 +1285,8 @@ impl<'a> Gen<'a> {
 		}
 		// A data class compares arrays by identity and floats by their bits, and Rust both by IEEE `==`.
 		if record.fields.iter().any(|f| self.by_contents(&f.ty)) {
-			body.push(self.contents(&name, &fields.iter().map(|(f, _)| f.clone()).collect::<Vec<_>>()));
+			let fields: Vec<String> = fields.iter().map(|(f, _)| f.clone()).collect();
+			body.push(Self::contents(&name, &fields));
 		}
 		members.extend(body.iter().filter_map(|b| member_name(b)));
 		self.distinct(&rust, &members);
@@ -1471,7 +1470,7 @@ impl<'a> Gen<'a> {
 					let body = match variant.fields.iter().any(|f| self.by_contents(&f.ty)) {
 						true => {
 							let names: Vec<String> = variant.fields.iter().map(|f| field_name(&f.name)).collect();
-							format!(" {{\n{}\t}}", indent(&self.contents(&vname, &names)))
+							format!(" {{\n{}\t}}", indent(&Self::contents(&vname, &names)))
 						}
 						false => String::new(),
 					};

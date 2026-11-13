@@ -508,6 +508,7 @@ fun script() {
 	check(Shadowed(intArrayOf(1), 0u, 0u) == Shadowed(intArrayOf(1), 0u, 0u) && Shadowed(intArrayOf(1), 0u, 0u) != Shadowed(intArrayOf(2), 0u, 0u), "a field named other compares as itself")
 	check(Builtin.Any(intArrayOf(1)) == Builtin.Any(intArrayOf(1)) && Builtin.Any(intArrayOf(1)).hashCode() == Builtin.Any(intArrayOf(1)).hashCode(), "a variant named Any compares by contents")
 	check(Builtin.Native(Double.NaN) != Builtin.Native(Double.NaN) && Builtin.Int(-0.0) == Builtin.Int(0.0) && Builtin.Boolean(1.0) != Builtin.Int(1.0), "variants named as Kotlin's builtins compare as Rust's")
+	check(Qualifiers(-0.0, 1.0) == Qualifiers(0.0, 1.0) && Qualifiers(-0.0, 1.0).hashCode() == Qualifiers(0.0, 1.0).hashCode() && Qualifiers(Double.NaN, 1.0) != Qualifiers(Double.NaN, 1.0), "fields named as the package and kotlin compare as Rust's")
 	numbers("edges", Numbers.edges())
 	numbers("reversed", Numbers.edges().reversed())
 	val edges = Numbers.edges()

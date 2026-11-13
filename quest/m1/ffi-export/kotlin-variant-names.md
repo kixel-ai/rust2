@@ -14,14 +14,13 @@ Proven by an api fixture enum with such variants, built and compared in Kotlin.
 
 ## Plan
 
-[#743](https://github.com/kixel-ai/rust2/pull/743) qualified the names its generated
-`equals` and `hashCode` use (`kotlin.Any`, `kotlin.Boolean`, `kotlin.Int`, and
-`<prefix>.Native`); the rest of a sealed class's body still names types bare.
+[#743](https://github.com/kixel-ai/rust2/pull/743) kept its generated `equals` and
+`hashCode` apart: they name types qualified (`kotlin.Any`), which only a class could
+shadow, and reach the runtime through the top-level `_eq`, a name no Pascal or camel
+case name takes. The rest of a sealed class's body still names types and `Native` bare.
 
-Qualify every type and object the generated Kotlin names, builtins as
-`kotlin.*` and the binding's own as `<prefix>.*`, rather than renaming the variant, so a
-variant keeps its Rust name. Renaming a colliding variant with a trailing `_`, as
-top-level types are, is smaller but renames a variant whenever a type of its name is added. A qualifier is still shadowed by a field or variable named
-as it, such as a field `kotlin` or one named as the prefix, so the change also keeps
-generated locals and fields apart from those two names.
-
+Qualify every type the generated Kotlin names in a type position, builtins as `kotlin.*`
+and the binding's own as `<prefix>.*`, and reach the runtime's objects through names that
+start with `_`, as `_eq` does, since a field shadows a qualifier in an expression. This
+keeps each variant its Rust name. Renaming a colliding variant with a trailing `_`, as
+top-level types are, is smaller but renames a variant whenever a type of its name is added.

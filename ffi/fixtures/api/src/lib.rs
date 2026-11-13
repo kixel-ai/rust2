@@ -3029,3 +3029,11 @@ pub enum Builtin {
 	Int(f64),
 	Native(f64),
 }
+
+/// A record whose fields are named as the package and as `kotlin`, which Kotlin's
+/// generated `equals` and `hashCode` must not take for those.
+#[derive(Clone, PartialEq)]
+pub struct Qualifiers {
+	pub api: f64,
+	pub kotlin: f64,
+}

@@ -656,6 +656,9 @@ object Eq {
 
 	private fun doubleHash(v: Double): Int = if (v == 0.0) 0 else v.hashCode()
 
+	/** The hash of a class of [fields], agreeing with [same], as a list of them hashes. */
+	fun hashOf(vararg fields: Any?): Int = fields.fold(1) { h, v -> 31 * h + hash(v) }
+
 	/** A hash agreeing with [same]. */
 	fun hash(a: Any?): Int = when (a) {
 		is Float -> floatHash(a)
