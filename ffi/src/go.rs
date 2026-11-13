@@ -554,6 +554,8 @@ impl<'a> Gen<'a> {
 			func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n\
 			// cBufCopy is a copy of s Rust owns, as a reader's error returns it.\n\
 			func cBufCopy(s string) cBuf {{\n\tif len(s) == 0 {{\n\t\treturn C.{p}_buf_copy(cBuf{{}})\n\t}}\n\treturn C.{p}_buf_copy(cBuf{{ptr: (*C.uint8_t)(unsafe.Pointer(unsafe.StringData(s))), len: C.size_t(len(s))}})\n}}\n\n\
+			// cBufClone is a second owner of buf, which Rust returned, sharing its bytes.\n\
+			func cBufClone(buf cBuf) cBuf {{\n\treturn C.{p}_buf_clone(buf)\n}}\n\n\
 			// cBufsFree frees bufs, which are not empty, in one call.\n\
 			func cBufsFree(bufs []cBuf) {{\n\tC.{go}_bufs_free(&bufs[0], C.size_t(len(bufs)))\n}}\n\n\
 			func cWakerWake(w cWaker) {{\n\tC.{go}_waker_wake(w)\n}}\n\n\
@@ -709,9 +711,19 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// The Go type of a parameter of type `ty`: bytes alone or in an `Option`, which C passes
-	/// as a buffer, are a `[]byte` either way, read in place when Go passes them and copied
-	/// when Rust lends them, and anything else as [`Self::go`] has it.
+	/// The Go type of a parameter of a function Go calls: as [`Self::go`] has it, so bytes
+	/// Rust returned pass back without a copy.
+	fn go_arg(&mut self, ty: &Type) -> String {
+		match ty.buffer() {
+			Some(Type::Bytes) => self.go(&Type::Bytes),
+			Some(Type::Option(inner)) if *inner == Type::Bytes => format!("*{}", self.go(&Type::Bytes)),
+			_ => self.go_param(ty),
+		}
+	}
+
+	/// The Go type of a parameter Rust lends a callback or closure: bytes alone or in an
+	/// `Option`, which C passes as a buffer, are a `[]byte`, copied, and anything else as
+	/// [`Self::go`] has it.
 	fn go_param(&mut self, ty: &Type) -> String {
 		match ty.buffer() {
 			Some(Type::Bytes) => "[]byte".to_string(),
@@ -2241,6 +2253,8 @@ impl<'a> Gen<'a> {
 				}
 			}
 		}
+		// Past the receiver, which Rust only reads, Rust takes each buffer passed by value.
+		let take_at = prelude.len();
 		let mut params = Vec::new();
 		if function.future {
 			params.push(("ctx".to_string(), "context.Context".to_string()));
@@ -2263,7 +2277,7 @@ impl<'a> Gen<'a> {
 				args.push(self.lower(inner, &format!("(*{name})")));
 				continue;
 			}
-			params.push((name.clone(), self.go_param(&param.ty)));
+			params.push((name.clone(), self.go_arg(&param.ty)));
 			if moved(abi, &param.ty) {
 				after.push(self.close(&param.ty, &name, 0));
 			}
@@ -2307,9 +2321,9 @@ impl<'a> Gen<'a> {
 				(ty, Ty::Buf) => {
 					let call = match ty.buffer() {
 						Some(Type::String | Type::PathBuf) => format!("bufString_({name})"),
-						Some(Type::Bytes) => format!("bufBytes_({name})"),
+						Some(Type::Bytes) => format!("bufTake_({name})"),
 						Some(Type::Option(inner)) => match *inner {
-							Type::Bytes => format!("bufBytesOption_({name})"),
+							Type::Bytes => format!("bufTakeOption_({name})"),
 							_ => format!("bufStringOption_({name})"),
 						},
 						other => unreachable!("a buffer holds {other:?}"),
@@ -2347,10 +2361,15 @@ impl<'a> Gen<'a> {
 		let mut body = Vec::new();
 		if arena {
 			body.push("a_ := &arena_{}\ndefer a_.finish()".to_string());
+			prelude.insert(take_at, "a_.take = true".to_string());
 		}
 		body.extend(prelude);
 		if checked {
 			body.push(format!("if a_.err != nil {{\n\t{}\n}}", fail("a_.err")));
+		}
+		// Nothing from here fails before the call, which Rust's buffers given it go to.
+		if arena {
+			body.push("a_.made = true".to_string());
 		}
 		if !after.is_empty() {
 			match &after[..] {

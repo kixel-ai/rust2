@@ -29,6 +29,23 @@ func bufBytes_(b []byte) cBuf {
 	return cBuf{ptr: (*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(b))), len: C.size_t(len(b))}
 }
 
+// bufTake_ is b as a buffer Rust takes: Rust's own shared without a copy, or Go's memory,
+// which C reads during the call and Rust copies.
+func bufTake_(b rt.Bytes) cBuf {
+	ptr, n, owner := rt.BytesTake_(b)
+	if n == 0 {
+		return cBuf{ptr: (*C.uint8_t)(emptyPtr_())}
+	}
+	return cBuf{ptr: (*C.uint8_t)(ptr), len: C.size_t(n), owner: owner}
+}
+
+func bufTakeOption_(b *rt.Bytes) cBuf {
+	if b == nil {
+		return cBuf{}
+	}
+	return bufTake_(*b)
+}
+
 func bufStringOption_(s *string) cBuf {
 	if s == nil {
 		return cBuf{}
@@ -239,12 +256,24 @@ type arena_ struct {
 	held []held_
 	// The owners of Rust's buffers C reads.
 	kept []any
+	// Whether a buffer lowered now is passed by value, which Rust takes: set once the
+	// receiver, which Rust only reads, is lowered, and unset inside an array.
+	take bool
+	// Second owners of Rust's buffers lowered for Rust to take, freed here unless the
+	// call was made.
+	taken []cBuf
+	made  bool
 	// The first object the call takes that was closed, which fails the call before it is
 	// made.
 	err error
 }
 
 func (a *arena_) finish() {
+	if !a.made {
+		for _, buf := range a.taken {
+			cBufFree(buf)
+		}
+	}
 	for _, held := range a.held {
 		held.h.Release()
 	}
@@ -264,8 +293,15 @@ func (a *arena_) bufString(s string) cBuf {
 }
 
 // bufView is the buffer of b, which C reads during the call: Go's memory pinned, and
-// Rust's kept reachable.
+// Rust's kept reachable, or where a.take, a second owner of it, which Rust takes.
 func (a *arena_) bufView(b rt.Bytes) cBuf {
+	if a.take && b.Len() != 0 {
+		if ptr, n, owner := rt.BytesTake_(b); owner != nil {
+			buf := cBuf{ptr: (*C.uint8_t)(ptr), len: C.size_t(n), owner: owner}
+			a.taken = append(a.taken, buf)
+			return buf
+		}
+	}
 	ptr, n, owner := rt.BytesBuf_(b)
 	if n == 0 {
 		return cBuf{ptr: (*C.uint8_t)(emptyPtr_())}
@@ -313,9 +349,13 @@ func list_[T, CT any](a *arena_, items []T, lower func(T) CT) (*CT, C.size_t) {
 		return (*CT)(emptyPtr_()), 0
 	}
 	out := make([]CT, len(items))
+	// Rust only reads an array's items.
+	take := a.take
+	a.take = false
 	for i, item := range items {
 		out[i] = lower(item)
 	}
+	a.take = take
 	a.pins.Pin(&out[0])
 	return &out[0], C.size_t(len(items))
 }

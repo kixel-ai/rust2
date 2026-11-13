@@ -93,6 +93,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\tstatic func free(_ buf: Buf) {{\n\t\t{p}_buf_free(buf)\n\t}}\n\n\
 		\t/// A buffer Rust owns, holding a copy of what `view` lends.\n\
 		\tstatic func copy(_ view: Buf) -> Buf {{\n\t\t{p}_buf_copy(view)\n\t}}\n\n\
+		\t/// A second owner of `buf`, which Rust returned, sharing its bytes.\n\
+		\tstatic func clone(_ buf: Buf) -> Buf {{\n\t\t{p}_buf_clone(buf)\n\t}}\n\n\
 		\tstatic func load(_ state: UnsafeMutablePointer<Swift.Int>) -> Swift.Int {{\n\t\t{p}_atomic_load(state)\n\t}}\n\n\
 		\tstatic func store(_ state: UnsafeMutablePointer<Swift.Int>, _ value: Swift.Int) {{\n\t\t{p}_atomic_store(state, value)\n\t}}\n\n\
 		\tstatic func add(_ state: UnsafeMutablePointer<Swift.Int>, _ value: Swift.Int) -> Swift.Int {{\n\t\t{p}_atomic_add(state, value)\n\t}}\n\n\
@@ -1208,7 +1210,7 @@ impl<'a> Gen<'a> {
 			(Type::Future, _) => arg.exprs.push(format!("Native.future({e})")),
 			(ty, Ty::Buf) if Abi::is_buf(ty) || matches!(ty.base(), Type::Option(inner) if Abi::is_buf(inner)) => {
 				let b = format!("b{k}_");
-				arg.open = Some((format!("{tr}Native.view({e}) {{ {b} in"), "}".to_string()));
+				arg.open = Some((format!("{tr}Native.take({e}) {{ {b} in"), "}".to_string()));
 				arg.exprs.push(b);
 			}
 			// A struct the call borrows or consumes, so it lives until the call returns.
@@ -1524,6 +1526,8 @@ impl<'a> Gen<'a> {
 				1.min(prelude.len()),
 				"let a_ = Native.Arena()\ndefer { a_.finish() }".to_string(),
 			);
+			// Past the receiver, which Rust only reads, Rust takes each value passed.
+			prelude.push("a_.take = true".to_string());
 		}
 		let after: Vec<String> = args.iter().flat_map(|a| a.after.clone()).collect();
 		if !after.is_empty() {
