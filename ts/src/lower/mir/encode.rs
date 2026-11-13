@@ -1,11 +1,12 @@
 //! Byte arrays used only by constant reads and appends, held as scalar bytes.
 //! This runs after temporary folding, when a slice's nonescaping use is visible.
 
-use rustc_data_structures::fx::FxHashMap;
+use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 
 use super::{visit_expr, visit_stmt};
 use crate::lower::body::Body;
 use crate::ts::{Expr, Key, Stmt, StmtKind};
+use rust2_driver::cfg::Cond;
 
 fn call<'e>(e: &'e Expr, name: &str) -> Option<&'e [Expr]> {
 	match e.unlocated() {
@@ -25,7 +26,7 @@ fn append(e: &Expr) -> Option<(&str, &Expr, &Expr)> {
 	None
 }
 
-fn literal(e: &Expr) -> Option<&[Expr]> {
+pub(super) fn literal(e: &Expr) -> Option<&[Expr]> {
 	match e.unlocated() {
 		Expr::Call(f, values) if matches!(f.unlocated(), Expr::Member(base, Key::Name(n)) if n == "of" && matches!(base.unlocated(), Expr::Ident(n) if n == "Uint8Array")) => {
 			Some(values)
@@ -111,11 +112,27 @@ fn confined(body: &[Stmt], name: &str, len: usize) -> bool {
 }
 
 /// Scalar-replace nonescaping byte arrays and append their bytes directly.
-pub(super) fn lower(body: &mut Vec<Stmt>, b: &mut Body<'_, '_, '_>) {
-	let original = body.clone();
-	fuse(body, &original);
+pub(super) fn lower(body: &mut Vec<Stmt>, b: &mut Body<'_, '_, '_>) -> bool {
+	let mut candidates = false;
+	let mut counts = FxHashMap::<String, usize>::default();
+	for stmt in body.iter() {
+		visit_stmt(stmt, &mut |root| {
+			visit_expr(root, &mut |e| {
+				candidates |= size(e).is_some();
+				if let Expr::Ident(name) = e {
+					*counts.entry(name.clone()).or_default() += 1;
+				}
+			})
+		});
+	}
+	if !candidates {
+		return false;
+	}
+	fuse(body, &counts);
 	let original = body.clone();
 	list(body, &original, &mut FxHashMap::default(), b);
+	let mut spills = FxHashSet::default();
+	collect_spills(body, &original, &mut spills);
 	let mut reads = FxHashMap::<String, usize>::default();
 	for stmt in body.iter() {
 		visit_stmt(stmt, &mut |root| {
@@ -126,7 +143,38 @@ pub(super) fn lower(body: &mut Vec<Stmt>, b: &mut Body<'_, '_, '_>) {
 			})
 		});
 	}
-	unused(body, &reads);
+	unused(body, &reads, &spills);
+	!spills.is_empty() || body.len() != original.len()
+}
+
+fn collect_spills(body: &[Stmt], original: &[Stmt], out: &mut FxHashSet<String>) {
+	fn names(body: &[Stmt], out: &mut FxHashSet<String>) {
+		for stmt in body {
+			match &stmt.kind {
+				StmtKind::Decl { name, .. } => {
+					out.insert(name.clone());
+				}
+				StmtKind::If { then, els, .. } => {
+					names(then, out);
+					names(els, out);
+				}
+				StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } | StmtKind::Block { body, .. } => {
+					names(body, out)
+				}
+				StmtKind::Switch { cases, default, .. } => {
+					for (_, body) in cases {
+						names(body, out);
+					}
+					names(default, out);
+				}
+				_ => {}
+			}
+		}
+	}
+	let mut old = FxHashSet::default();
+	names(original, &mut old);
+	names(body, out);
+	out.retain(|n| !old.contains(n));
 }
 
 fn bytes(e: &Expr, b: &mut Body<'_, '_, '_>, out: &mut Vec<Stmt>) -> Vec<Expr> {
@@ -155,7 +203,16 @@ fn bytes(e: &Expr, b: &mut Body<'_, '_, '_>, out: &mut Vec<Stmt>) -> Vec<Expr> {
 			.collect()
 	};
 	// Snapshot every byte before any write or later effect, as the array did.
-	values.into_iter().map(|v| b.spill(v, "byte", out)).collect()
+	values
+		.into_iter()
+		.map(|v| {
+			if matches!(v.unlocated(), Expr::Lit(_)) {
+				v
+			} else {
+				b.spill(v, "byte", out)
+			}
+		})
+		.collect()
 }
 
 fn list(body: &mut Vec<Stmt>, original: &[Stmt], arrays: &mut FxHashMap<String, Vec<Expr>>, b: &mut Body<'_, '_, '_>) {
@@ -312,7 +369,8 @@ fn replace(e: &mut Expr, arrays: &FxHashMap<String, Vec<Expr>>) {
 }
 
 // Retain evaluation of unused array elements, including calls that can panic.
-fn unused(body: &mut [Stmt], reads: &FxHashMap<String, usize>) {
+fn unused(body: &mut Vec<Stmt>, reads: &FxHashMap<String, usize>, spills: &FxHashSet<String>) {
+	body.retain(|stmt| !matches!(&stmt.kind, StmtKind::Decl { mutable: false, name, init: Some(init), .. } if spills.contains(name) && !reads.contains_key(name) && init.pure()));
 	for stmt in body {
 		match &mut stmt.kind {
 			StmtKind::Decl {
@@ -320,28 +378,28 @@ fn unused(body: &mut [Stmt], reads: &FxHashMap<String, usize>) {
 				name,
 				init: Some(init),
 				..
-			} if !reads.contains_key(name) => {
+			} if spills.contains(name) && !reads.contains_key(name) => {
 				stmt.kind = StmtKind::Expr(init.clone());
 			}
 			StmtKind::If { then, els, .. } => {
-				unused(then, reads);
-				unused(els, reads);
+				unused(then, reads, spills);
+				unused(els, reads, spills);
 			}
 			StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } | StmtKind::Block { body, .. } => {
-				unused(body, reads)
+				unused(body, reads, spills)
 			}
 			StmtKind::Switch { cases, default, .. } => {
 				for (_, body) in cases {
-					unused(body, reads);
+					unused(body, reads, spills);
 				}
-				unused(default, reads);
+				unused(default, reads, spills);
 			}
 			_ => {}
 		}
 	}
 }
 
-fn fuse(body: &mut Vec<Stmt>, original: &[Stmt]) {
+fn fuse(body: &mut Vec<Stmt>, counts: &FxHashMap<String, usize>) {
 	// A slice temporary immediately consumed by an append may move past the read of
 	// its destination's local, whose identity the slice expression cannot change.
 	for i in (0..body.len().saturating_sub(1)).rev() {
@@ -362,12 +420,8 @@ fn fuse(body: &mut Vec<Stmt>, original: &[Stmt]) {
 		};
 		let matches = ["byteVecExtendFromSlice", "bytesMutExtend"]
 			.iter()
-			.any(|kind| matches!(call(next, kind), Some([Expr::Ident(_), slice]) if ident(slice, name)));
-		let mut uses = 0;
-		for stmt in original {
-			visit_stmt(stmt, &mut |e| uses += count(e, name));
-		}
-		if matches && uses == 1 {
+			.any(|kind| matches!(call(next, kind), Some([target, slice]) if matches!(target.unlocated(), Expr::Ident(_)) && ident(slice, name)));
+		if matches && counts.get(name) == Some(&1) {
 			let (name, init) = (name.clone(), init.clone());
 			super::subst_stmt(&mut body[i + 1], &name, &init);
 			body.remove(i);
@@ -377,17 +431,17 @@ fn fuse(body: &mut Vec<Stmt>, original: &[Stmt]) {
 	for stmt in body {
 		match &mut stmt.kind {
 			StmtKind::If { then, els, .. } => {
-				fuse(then, original);
-				fuse(els, original);
+				fuse(then, counts);
+				fuse(els, counts);
 			}
 			StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } | StmtKind::Block { body, .. } => {
-				fuse(body, original)
+				fuse(body, counts)
 			}
 			StmtKind::Switch { cases, default, .. } => {
 				for (_, body) in cases {
-					fuse(body, original);
+					fuse(body, counts);
 				}
-				fuse(default, original);
+				fuse(default, counts);
 			}
 			_ => {}
 		}

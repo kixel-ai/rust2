@@ -1934,8 +1934,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		// A loop's own labels first, which its header's `break` names.
 		step::for_of(&mut out);
 		inline::inline_temps(&mut out, &self.shared);
-		encode::lower(&mut out, self.b);
-		inline::inline_temps(&mut out, &self.shared);
+		if encode::lower(&mut out, self.b) {
+			inline::inline_temps(&mut out, &self.shared);
+		}
 		// A loop can start by leaving now that what it tests is folded in.
 		cfg::tidy_loops(&mut out);
 		out
@@ -4341,9 +4342,7 @@ fn parts_of(value: &Expr, slices: &FxHashSet<crate::ts::FieldId>) -> Option<Vec<
 	match value {
 		Expr::Array(items) => Some(items.clone()),
 		Expr::As(inner, _) => parts_of(inner, slices),
-		Expr::Call(f, items) if matches!(&**f, Expr::Member(base, crate::ts::Key::Name(of)) if of == "of" && matches!(&**base, Expr::Ident(u) if u == "Uint8Array")) => {
-			Some(items.clone())
-		}
+		_ if encode::literal(value).is_some() => Some(encode::literal(value).unwrap().to_vec()),
 		// A byte slice field held as its parts, `slices` its bytes', is one operand.
 		Expr::Object(props) => {
 			let mut parts = Vec::with_capacity(props.len());

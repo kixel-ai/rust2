@@ -243,12 +243,11 @@ export function push(out: rs.ByteVec, r: rs.Result<rs.ByteSlice, returns_Error.E
 		rs.byteVecExtendFromSlice(out, rs.byteSliceRange(r.value, 0, rs.min(r.value.length, 4)));
 	} else {
 		const dst = out;
-		const byte = 238;
-		const byte2 = returns_Error.code(r.error);
+		const byte = returns_Error.code(r.error);
 		rs.byteVecReserve(dst, 2 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
+		dst.data[pos + 0] = 238;
+		dst.data[pos + 1] = byte;
 		dst.length = dst.length + 2;
 	}
 }
@@ -279,12 +278,11 @@ export function pushNumber(out: rs.ByteVec, r: rs.Result<[rs.u64, rs.ByteSlice],
 		rs.byteVecPush(out, r.value[1].length & 0xff);
 	} else {
 		const dst2 = out;
-		const byte9 = 238;
-		const byte10 = returns_Error.code(r.error);
+		const byte9 = returns_Error.code(r.error);
 		rs.byteVecReserve(dst2, 2 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte9;
-		dst2.data[pos2 + 1] = byte10;
+		dst2.data[pos2 + 0] = 238;
+		dst2.data[pos2 + 1] = byte9;
 		dst2.length = dst2.length + 2;
 	}
 }
@@ -527,12 +525,11 @@ export function pushBig(out: rs.ByteVec, r: rs.Result<rs.u64, returns_Error.Erro
 		dst.length = dst.length + 8;
 	} else {
 		const dst2 = out;
-		const byte9 = 238;
-		const byte10 = returns_Error.code(r.error);
+		const byte9 = returns_Error.code(r.error);
 		rs.byteVecReserve(dst2, 2 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte9;
-		dst2.data[pos2 + 1] = byte10;
+		dst2.data[pos2 + 0] = 238;
+		dst2.data[pos2 + 1] = byte9;
 		dst2.length = dst2.length + 2;
 	}
 }
@@ -711,12 +708,11 @@ export function numbers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		dst6.length = dst6.length + 4;
 	} else {
 		const dst7 = out;
-		const byte39 = 238;
-		const byte40 = err8 as rs.u8;
+		const byte39 = err8 as rs.u8;
 		rs.byteVecReserve(dst7, 2 as rs.usize);
 		const pos7 = dst7.length;
-		dst7.data[pos7 + 0] = byte39;
-		dst7.data[pos7 + 1] = byte40;
+		dst7.data[pos7 + 0] = 238;
+		dst7.data[pos7 + 1] = byte39;
 		dst7.length = dst7.length + 2;
 	}
 	let rest: rs.ByteSlice = data;
@@ -907,12 +903,11 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 					rs.byteVecPush(out, _113.value.length & 0xff);
 				} else {
 					const dst3 = out;
-					const byte17 = 238;
-					const byte18 = option_unwrapOr$1fr498u(_113.error, 0);
+					const byte17 = option_unwrapOr$1fr498u(_113.error, 0);
 					rs.byteVecReserve(dst3, 2 as rs.usize);
 					const pos3 = dst3.length;
-					dst3.data[pos3 + 0] = byte17;
-					dst3.data[pos3 + 1] = byte18;
+					dst3.data[pos3 + 0] = 238;
+					dst3.data[pos3 + 1] = byte17;
 					dst3.length = dst3.length + 2;
 				}
 				const part24: rs.u16 | undefined = lead$u16(data.data, data.start, data.length);
@@ -932,37 +927,37 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 						const b3: rs.u32 = part29 as rs.u32;
 						const dst4 = out;
 						const word3 = a3;
-						const byte19 = (word3 >>> 8) & 255;
-						const byte20 = (word3 >>> 0) & 255;
+						const byte18 = (word3 >>> 8) & 255;
+						const byte19 = (word3 >>> 0) & 255;
 						rs.byteVecReserve(dst4, 2 as rs.usize);
 						const pos4 = dst4.length;
-						dst4.data[pos4 + 0] = byte19;
-						dst4.data[pos4 + 1] = byte20;
+						dst4.data[pos4 + 0] = byte18;
+						dst4.data[pos4 + 1] = byte19;
 						dst4.length = dst4.length + 2;
 						const dst5 = out;
 						const word4 = b3;
-						const byte21 = (word4 >>> 24) & 255;
-						const byte22 = (word4 >>> 16) & 255;
-						const byte23 = (word4 >>> 8) & 255;
-						const byte24 = (word4 >>> 0) & 255;
+						const byte20 = (word4 >>> 24) & 255;
+						const byte21 = (word4 >>> 16) & 255;
+						const byte22 = (word4 >>> 8) & 255;
+						const byte23 = (word4 >>> 0) & 255;
 						rs.byteVecReserve(dst5, 4 as rs.usize);
 						const pos5 = dst5.length;
-						dst5.data[pos5 + 0] = byte21;
-						dst5.data[pos5 + 1] = byte22;
-						dst5.data[pos5 + 2] = byte23;
-						dst5.data[pos5 + 3] = byte24;
+						dst5.data[pos5 + 0] = byte20;
+						dst5.data[pos5 + 1] = byte21;
+						dst5.data[pos5 + 2] = byte22;
+						dst5.data[pos5 + 3] = byte23;
 						dst5.length = dst5.length + 4;
 						rs.byteVecPush(out, part32 & 0xff);
 						break b0;
 					}
 				}
 				const dst6 = out;
-				const byte25 = ((err7 !== undefined ? rs.Err(err7 as returns_Error.Error) : rs.Ok([part24 as rs.u16, new rs.ByteSlice(part25, part26, part27)] as [rs.u16, rs.ByteSlice])) as rs.Result<[rs.u16, rs.ByteSlice], returns_Error.Error>).ok ? 1 : 0;
-				const byte26 = ((err8 !== undefined ? rs.Err(err8 as returns_Error.Error) : rs.Ok([part29 as rs.u32, new rs.ByteSlice(part30, part31, part32)] as [rs.u32, rs.ByteSlice])) as rs.Result<[rs.u32, rs.ByteSlice], returns_Error.Error>).ok ? 1 : 0;
+				const byte24 = ((err7 !== undefined ? rs.Err(err7 as returns_Error.Error) : rs.Ok([part24 as rs.u16, new rs.ByteSlice(part25, part26, part27)] as [rs.u16, rs.ByteSlice])) as rs.Result<[rs.u16, rs.ByteSlice], returns_Error.Error>).ok ? 1 : 0;
+				const byte25 = ((err8 !== undefined ? rs.Err(err8 as returns_Error.Error) : rs.Ok([part29 as rs.u32, new rs.ByteSlice(part30, part31, part32)] as [rs.u32, rs.ByteSlice])) as rs.Result<[rs.u32, rs.ByteSlice], returns_Error.Error>).ok ? 1 : 0;
 				rs.byteVecReserve(dst6, 2 as rs.usize);
 				const pos6 = dst6.length;
-				dst6.data[pos6 + 0] = byte25;
-				dst6.data[pos6 + 1] = byte26;
+				dst6.data[pos6 + 0] = byte24;
+				dst6.data[pos6 + 1] = byte25;
 				dst6.length = dst6.length + 2;
 			} else if (_7 === 5) {
 				const err5: returns_Error.Error | undefined = afterFixed(data.data, data.start, data.length);
@@ -979,23 +974,22 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				const part23: number = out$tuple2_u8_ref_slice_u8.p_1Len;
 				if (err6 === undefined) {
 					const dst7 = out;
-					const byte27 = part20 as rs.u8;
-					const byte28 = part23 & 0xff;
+					const byte26 = part20 as rs.u8;
+					const byte27 = part23 & 0xff;
 					rs.byteVecReserve(dst7, 2 as rs.usize);
 					const pos7 = dst7.length;
-					dst7.data[pos7 + 0] = byte27;
-					dst7.data[pos7 + 1] = byte28;
+					dst7.data[pos7 + 0] = byte26;
+					dst7.data[pos7 + 1] = byte27;
 					dst7.length = dst7.length + 2;
 				} else {
 					const dst8 = out;
-					const byte29 = 238;
-					const byte30 = (err6 as Wrapped.Wrapped)._0;
-					const byte31 = (err6 as Wrapped.Wrapped)._1;
+					const byte28 = (err6 as Wrapped.Wrapped)._0;
+					const byte29 = (err6 as Wrapped.Wrapped)._1;
 					rs.byteVecReserve(dst8, 3 as rs.usize);
 					const pos8 = dst8.length;
-					dst8.data[pos8 + 0] = byte29;
-					dst8.data[pos8 + 1] = byte30;
-					dst8.data[pos8 + 2] = byte31;
+					dst8.data[pos8 + 0] = 238;
+					dst8.data[pos8 + 1] = byte28;
+					dst8.data[pos8 + 2] = byte29;
 					dst8.length = dst8.length + 3;
 				}
 			} else {
@@ -1005,12 +999,12 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				const part6: number = out$tuple2_ref_slice_u8_ref_slice_u8.p_1Len;
 				if (err === undefined) {
 					const dst9 = out;
-					const byte32 = part3 & 0xff;
-					const byte33 = part6 & 0xff;
+					const byte30 = part3 & 0xff;
+					const byte31 = part6 & 0xff;
 					rs.byteVecReserve(dst9, 2 as rs.usize);
 					const pos9 = dst9.length;
-					dst9.data[pos9 + 0] = byte32;
-					dst9.data[pos9 + 1] = byte33;
+					dst9.data[pos9 + 0] = byte30;
+					dst9.data[pos9 + 1] = byte31;
 					dst9.length = dst9.length + 2;
 				} else {
 					rs.byteVecPush(out, returns_Error.code(err as returns_Error.Error));
@@ -1018,12 +1012,12 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				const _199: rs.Result<[rs.ByteSlice, rs.ByteSlice], returns_Error.Error> = new of$returns_At(at).split$Split(data);
 				if (_199.ok) {
 					const dst10 = out;
-					const byte34 = _199.value[1].length & 0xff;
-					const byte35 = _199.value[0].length & 0xff;
+					const byte32 = _199.value[1].length & 0xff;
+					const byte33 = _199.value[0].length & 0xff;
 					rs.byteVecReserve(dst10, 2 as rs.usize);
 					const pos10 = dst10.length;
-					dst10.data[pos10 + 0] = byte34;
-					dst10.data[pos10 + 1] = byte35;
+					dst10.data[pos10 + 0] = byte32;
+					dst10.data[pos10 + 1] = byte33;
 					dst10.length = dst10.length + 2;
 				} else {
 					rs.byteVecPush(out, returns_Error.code(_199.error));
@@ -1065,24 +1059,24 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				}
 				const dst11 = out;
 				const word5 = sum;
-				const byte36 = rs.intByte(word5, 56);
-				const byte37 = rs.intByte(word5, 48);
-				const byte38 = rs.intByte(word5, 40);
-				const byte39 = rs.intByte(word5, 32);
-				const byte40 = rs.intByte(word5, 24);
-				const byte41 = rs.intByte(word5, 16);
-				const byte42 = rs.intByte(word5, 8);
-				const byte43 = rs.intByte(word5, 0);
+				const byte34 = rs.intByte(word5, 56);
+				const byte35 = rs.intByte(word5, 48);
+				const byte36 = rs.intByte(word5, 40);
+				const byte37 = rs.intByte(word5, 32);
+				const byte38 = rs.intByte(word5, 24);
+				const byte39 = rs.intByte(word5, 16);
+				const byte40 = rs.intByte(word5, 8);
+				const byte41 = rs.intByte(word5, 0);
 				rs.byteVecReserve(dst11, 8 as rs.usize);
 				const pos11 = dst11.length;
-				dst11.data[pos11 + 0] = byte36;
-				dst11.data[pos11 + 1] = byte37;
-				dst11.data[pos11 + 2] = byte38;
-				dst11.data[pos11 + 3] = byte39;
-				dst11.data[pos11 + 4] = byte40;
-				dst11.data[pos11 + 5] = byte41;
-				dst11.data[pos11 + 6] = byte42;
-				dst11.data[pos11 + 7] = byte43;
+				dst11.data[pos11 + 0] = byte34;
+				dst11.data[pos11 + 1] = byte35;
+				dst11.data[pos11 + 2] = byte36;
+				dst11.data[pos11 + 3] = byte37;
+				dst11.data[pos11 + 4] = byte38;
+				dst11.data[pos11 + 5] = byte39;
+				dst11.data[pos11 + 6] = byte40;
+				dst11.data[pos11 + 7] = byte41;
 				dst11.length = dst11.length + 8;
 			}
 		} else {
@@ -1759,12 +1753,11 @@ export function put$returns_Put_f32(self: rs.f32, out: rs.ByteVec): void {
 		put$returns_Put_u32(rs.f32ToBits(self), out);
 	} else {
 		const dst = out;
-		const byte = 127;
-		const byte2 = rs.f32IsSignNegative(self) ? 1 : 0;
+		const byte = rs.f32IsSignNegative(self) ? 1 : 0;
 		rs.byteVecReserve(dst, 2 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
+		dst.data[pos + 0] = 127;
+		dst.data[pos + 1] = byte;
 		dst.length = dst.length + 2;
 	}
 }
@@ -1774,12 +1767,11 @@ export function put$returns_Put_f64(self: rs.f64, out: rs.ByteVec): void {
 		put$returns_Put_u64(rs.f64ToBits(self), out);
 	} else {
 		const dst = out;
-		const byte = 127;
-		const byte2 = rs.f64IsSignNegative(self) ? 1 : 0;
+		const byte = rs.f64IsSignNegative(self) ? 1 : 0;
 		rs.byteVecReserve(dst, 2 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
+		dst.data[pos + 0] = 127;
+		dst.data[pos + 1] = byte;
 		dst.length = dst.length + 2;
 	}
 }
@@ -1802,12 +1794,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst = out;
-		const byte = 238;
-		const byte2 = returns_Error.code(err as returns_Error.Error);
+		const byte = returns_Error.code(err as returns_Error.Error);
 		rs.byteVecReserve(dst, 2 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
+		dst.data[pos + 0] = 238;
+		dst.data[pos + 1] = byte;
 		dst.length = dst.length + 2;
 	}
 	const err2: returns_Error.Error | undefined = optU16(data.data, data.start, data.length);
@@ -1822,12 +1813,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst2 = out;
-		const byte3 = 238;
-		const byte4 = returns_Error.code(err2 as returns_Error.Error);
+		const byte2 = returns_Error.code(err2 as returns_Error.Error);
 		rs.byteVecReserve(dst2, 2 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte3;
-		dst2.data[pos2 + 1] = byte4;
+		dst2.data[pos2 + 0] = 238;
+		dst2.data[pos2 + 1] = byte2;
 		dst2.length = dst2.length + 2;
 	}
 	const err3: returns_Error.Error | undefined = optU32(data.data, data.start, data.length);
@@ -1842,12 +1832,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst3 = out;
-		const byte5 = 238;
-		const byte6 = returns_Error.code(err3 as returns_Error.Error);
+		const byte3 = returns_Error.code(err3 as returns_Error.Error);
 		rs.byteVecReserve(dst3, 2 as rs.usize);
 		const pos3 = dst3.length;
-		dst3.data[pos3 + 0] = byte5;
-		dst3.data[pos3 + 1] = byte6;
+		dst3.data[pos3 + 0] = 238;
+		dst3.data[pos3 + 1] = byte3;
 		dst3.length = dst3.length + 2;
 	}
 	const err4: returns_Error.Error | undefined = optU64(data.data, data.start, data.length);
@@ -1862,12 +1851,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst4 = out;
-		const byte7 = 238;
-		const byte8 = returns_Error.code(err4 as returns_Error.Error);
+		const byte4 = returns_Error.code(err4 as returns_Error.Error);
 		rs.byteVecReserve(dst4, 2 as rs.usize);
 		const pos4 = dst4.length;
-		dst4.data[pos4 + 0] = byte7;
-		dst4.data[pos4 + 1] = byte8;
+		dst4.data[pos4 + 0] = 238;
+		dst4.data[pos4 + 1] = byte4;
 		dst4.length = dst4.length + 2;
 	}
 	const err5: returns_Error.Error | undefined = optU128(data.data, data.start, data.length);
@@ -1882,12 +1870,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst5 = out;
-		const byte9 = 238;
-		const byte10 = returns_Error.code(err5 as returns_Error.Error);
+		const byte5 = returns_Error.code(err5 as returns_Error.Error);
 		rs.byteVecReserve(dst5, 2 as rs.usize);
 		const pos5 = dst5.length;
-		dst5.data[pos5 + 0] = byte9;
-		dst5.data[pos5 + 1] = byte10;
+		dst5.data[pos5 + 0] = 238;
+		dst5.data[pos5 + 1] = byte5;
 		dst5.length = dst5.length + 2;
 	}
 	const err6: returns_Error.Error | undefined = optUsize(data.data, data.start, data.length);
@@ -1902,12 +1889,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst6 = out;
-		const byte11 = 238;
-		const byte12 = returns_Error.code(err6 as returns_Error.Error);
+		const byte6 = returns_Error.code(err6 as returns_Error.Error);
 		rs.byteVecReserve(dst6, 2 as rs.usize);
 		const pos6 = dst6.length;
-		dst6.data[pos6 + 0] = byte11;
-		dst6.data[pos6 + 1] = byte12;
+		dst6.data[pos6 + 0] = 238;
+		dst6.data[pos6 + 1] = byte6;
 		dst6.length = dst6.length + 2;
 	}
 	const err7: returns_Error.Error | undefined = optI8(data.data, data.start, data.length);
@@ -1922,12 +1908,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst7 = out;
-		const byte13 = 238;
-		const byte14 = returns_Error.code(err7 as returns_Error.Error);
+		const byte7 = returns_Error.code(err7 as returns_Error.Error);
 		rs.byteVecReserve(dst7, 2 as rs.usize);
 		const pos7 = dst7.length;
-		dst7.data[pos7 + 0] = byte13;
-		dst7.data[pos7 + 1] = byte14;
+		dst7.data[pos7 + 0] = 238;
+		dst7.data[pos7 + 1] = byte7;
 		dst7.length = dst7.length + 2;
 	}
 	const err8: returns_Error.Error | undefined = optI16(data.data, data.start, data.length);
@@ -1942,12 +1927,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst8 = out;
-		const byte15 = 238;
-		const byte16 = returns_Error.code(err8 as returns_Error.Error);
+		const byte8 = returns_Error.code(err8 as returns_Error.Error);
 		rs.byteVecReserve(dst8, 2 as rs.usize);
 		const pos8 = dst8.length;
-		dst8.data[pos8 + 0] = byte15;
-		dst8.data[pos8 + 1] = byte16;
+		dst8.data[pos8 + 0] = 238;
+		dst8.data[pos8 + 1] = byte8;
 		dst8.length = dst8.length + 2;
 	}
 	const err9: returns_Error.Error | undefined = optI32(data.data, data.start, data.length);
@@ -1962,12 +1946,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst9 = out;
-		const byte17 = 238;
-		const byte18 = returns_Error.code(err9 as returns_Error.Error);
+		const byte9 = returns_Error.code(err9 as returns_Error.Error);
 		rs.byteVecReserve(dst9, 2 as rs.usize);
 		const pos9 = dst9.length;
-		dst9.data[pos9 + 0] = byte17;
-		dst9.data[pos9 + 1] = byte18;
+		dst9.data[pos9 + 0] = 238;
+		dst9.data[pos9 + 1] = byte9;
 		dst9.length = dst9.length + 2;
 	}
 	const err10: returns_Error.Error | undefined = optI64(data.data, data.start, data.length);
@@ -1982,12 +1965,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst10 = out;
-		const byte19 = 238;
-		const byte20 = returns_Error.code(err10 as returns_Error.Error);
+		const byte10 = returns_Error.code(err10 as returns_Error.Error);
 		rs.byteVecReserve(dst10, 2 as rs.usize);
 		const pos10 = dst10.length;
-		dst10.data[pos10 + 0] = byte19;
-		dst10.data[pos10 + 1] = byte20;
+		dst10.data[pos10 + 0] = 238;
+		dst10.data[pos10 + 1] = byte10;
 		dst10.length = dst10.length + 2;
 	}
 	const err11: returns_Error.Error | undefined = optI128(data.data, data.start, data.length);
@@ -2002,12 +1984,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst11 = out;
-		const byte21 = 238;
-		const byte22 = returns_Error.code(err11 as returns_Error.Error);
+		const byte11 = returns_Error.code(err11 as returns_Error.Error);
 		rs.byteVecReserve(dst11, 2 as rs.usize);
 		const pos11 = dst11.length;
-		dst11.data[pos11 + 0] = byte21;
-		dst11.data[pos11 + 1] = byte22;
+		dst11.data[pos11 + 0] = 238;
+		dst11.data[pos11 + 1] = byte11;
 		dst11.length = dst11.length + 2;
 	}
 	const err12: returns_Error.Error | undefined = optF32(data.data, data.start, data.length);
@@ -2022,12 +2003,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst12 = out;
-		const byte23 = 238;
-		const byte24 = returns_Error.code(err12 as returns_Error.Error);
+		const byte12 = returns_Error.code(err12 as returns_Error.Error);
 		rs.byteVecReserve(dst12, 2 as rs.usize);
 		const pos12 = dst12.length;
-		dst12.data[pos12 + 0] = byte23;
-		dst12.data[pos12 + 1] = byte24;
+		dst12.data[pos12 + 0] = 238;
+		dst12.data[pos12 + 1] = byte12;
 		dst12.length = dst12.length + 2;
 	}
 	const err13: returns_Error.Error | undefined = optF64(data.data, data.start, data.length);
@@ -2042,12 +2022,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst13 = out;
-		const byte25 = 238;
-		const byte26 = returns_Error.code(err13 as returns_Error.Error);
+		const byte13 = returns_Error.code(err13 as returns_Error.Error);
 		rs.byteVecReserve(dst13, 2 as rs.usize);
 		const pos13 = dst13.length;
-		dst13.data[pos13 + 0] = byte25;
-		dst13.data[pos13 + 1] = byte26;
+		dst13.data[pos13 + 0] = 238;
+		dst13.data[pos13 + 1] = byte13;
 		dst13.length = dst13.length + 2;
 	}
 	const err14: returns_Error.Error | undefined = optBool(data);
@@ -2062,12 +2041,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst14 = out;
-		const byte27 = 238;
-		const byte28 = returns_Error.code(err14 as returns_Error.Error);
+		const byte14 = returns_Error.code(err14 as returns_Error.Error);
 		rs.byteVecReserve(dst14, 2 as rs.usize);
 		const pos14 = dst14.length;
-		dst14.data[pos14 + 0] = byte27;
-		dst14.data[pos14 + 1] = byte28;
+		dst14.data[pos14 + 0] = 238;
+		dst14.data[pos14 + 1] = byte14;
 		dst14.length = dst14.length + 2;
 	}
 	const err15: rs.u8 | undefined = optChar(data.data, data.start, data.length);
@@ -2080,12 +2058,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst15 = out;
-		const byte29 = 238;
-		const byte30 = err15 as rs.u8;
+		const byte15 = err15 as rs.u8;
 		rs.byteVecReserve(dst15, 2 as rs.usize);
 		const pos15 = dst15.length;
-		dst15.data[pos15 + 0] = byte29;
-		dst15.data[pos15 + 1] = byte30;
+		dst15.data[pos15 + 0] = 238;
+		dst15.data[pos15 + 1] = byte15;
 		dst15.length = dst15.length + 2;
 	}
 	const tail: rs.ByteSlice = rs.byteSliceRange(data, rs.min(data.length, 1));
@@ -2101,12 +2078,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst16 = out;
-		const byte31 = 238;
-		const byte32 = returns_Error.code(err16 as returns_Error.Error);
+		const byte16 = returns_Error.code(err16 as returns_Error.Error);
 		rs.byteVecReserve(dst16, 2 as rs.usize);
 		const pos16 = dst16.length;
-		dst16.data[pos16 + 0] = byte31;
-		dst16.data[pos16 + 1] = byte32;
+		dst16.data[pos16 + 0] = 238;
+		dst16.data[pos16 + 1] = byte16;
 		dst16.length = dst16.length + 2;
 	}
 	const err17: returns_Error.Error | undefined = optLate(data.data, data.start, data.length, tail);
@@ -2121,12 +2097,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst17 = out;
-		const byte33 = 238;
-		const byte34 = returns_Error.code(err17 as returns_Error.Error);
+		const byte17 = returns_Error.code(err17 as returns_Error.Error);
 		rs.byteVecReserve(dst17, 2 as rs.usize);
 		const pos17 = dst17.length;
-		dst17.data[pos17 + 0] = byte33;
-		dst17.data[pos17 + 1] = byte34;
+		dst17.data[pos17 + 0] = 238;
+		dst17.data[pos17 + 1] = byte17;
 		dst17.length = dst17.length + 2;
 	}
 	const err18: returns_Error.Error | undefined = optFirst(data.data, data.start, data.length);
@@ -2134,14 +2109,14 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	const part20: rs.u64 = out$tuple2_Option_u8_u64.p_1;
 	if (err18 === undefined) {
 		const dst18 = out;
-		const byte35 = option_mapOr$0vxw5sq(part19, 170, (n5: rs.u8): rs.u8 => {
+		const byte18 = option_mapOr$0vxw5sq(part19, 170, (n5: rs.u8): rs.u8 => {
 			return n5;
 		});
-		const byte36 = rs.u64Low(part20) & 0xff;
+		const byte19 = rs.u64Low(part20) & 0xff;
 		rs.byteVecReserve(dst18, 2 as rs.usize);
 		const pos18 = dst18.length;
-		dst18.data[pos18 + 0] = byte35;
-		dst18.data[pos18 + 1] = byte36;
+		dst18.data[pos18 + 0] = byte18;
+		dst18.data[pos18 + 1] = byte19;
 		dst18.length = dst18.length + 2;
 	} else {
 		rs.byteVecPush(out, returns_Error.code(err18 as returns_Error.Error));
@@ -2163,14 +2138,14 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	if (err20 === undefined) {
 		const n3: rs.u16 | undefined = part23;
 		const dst19 = out;
-		const byte37 = n3 !== undefined ? 1 : 0;
-		const byte38 = (option_unwrapOr$1szdyfq(n3, 0) >> 8) & 0xff;
-		const byte39 = part26 & 0xff;
+		const byte20 = n3 !== undefined ? 1 : 0;
+		const byte21 = (option_unwrapOr$1szdyfq(n3, 0) >> 8) & 0xff;
+		const byte22 = part26 & 0xff;
 		rs.byteVecReserve(dst19, 3 as rs.usize);
 		const pos19 = dst19.length;
-		dst19.data[pos19 + 0] = byte37;
-		dst19.data[pos19 + 1] = byte38;
-		dst19.data[pos19 + 2] = byte39;
+		dst19.data[pos19 + 0] = byte20;
+		dst19.data[pos19 + 1] = byte21;
+		dst19.data[pos19 + 2] = byte22;
 		dst19.length = dst19.length + 3;
 	} else {
 		rs.byteVecPush(out, returns_Error.code(err20 as returns_Error.Error));
@@ -2193,14 +2168,14 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const x5: rs.Result<rs.u64 | undefined, returns_Error.Error> = (err21 !== undefined ? rs.Err(err21 as returns_Error.Error) : rs.Ok(part27)) as rs.Result<rs.u64 | undefined, returns_Error.Error>;
 		const y5: rs.Result<rs.u64 | undefined, returns_Error.Error> = (err22 !== undefined ? rs.Err(err22 as returns_Error.Error) : rs.Ok(part28)) as rs.Result<rs.u64 | undefined, returns_Error.Error>;
 		const dst20 = out;
-		const byte40 = x5.ok ? 1 : 0;
-		const byte41 = y5.ok ? 1 : 0;
-		const byte42 = result_eq$14w6i0g(x5, y5) ? 1 : 0;
+		const byte23 = x5.ok ? 1 : 0;
+		const byte24 = y5.ok ? 1 : 0;
+		const byte25 = result_eq$14w6i0g(x5, y5) ? 1 : 0;
 		rs.byteVecReserve(dst20, 3 as rs.usize);
 		const pos20 = dst20.length;
-		dst20.data[pos20 + 0] = byte40;
-		dst20.data[pos20 + 1] = byte41;
-		dst20.data[pos20 + 2] = byte42;
+		dst20.data[pos20 + 0] = byte23;
+		dst20.data[pos20 + 1] = byte24;
+		dst20.data[pos20 + 2] = byte25;
 		dst20.length = dst20.length + 3;
 	}
 	for (const r of rs.iterToVec(rs.iterMap(new rs.Range(0, 3), (i: rs.usize): rs.Result<rs.u64 | undefined, returns_Error.Error> => {
@@ -2218,12 +2193,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			}
 		} else {
 			const dst21 = out;
-			const byte43 = 238;
-			const byte44 = returns_Error.code(r.error);
+			const byte26 = returns_Error.code(r.error);
 			rs.byteVecReserve(dst21, 2 as rs.usize);
 			const pos21 = dst21.length;
-			dst21.data[pos21 + 0] = byte43;
-			dst21.data[pos21 + 1] = byte44;
+			dst21.data[pos21 + 0] = 238;
+			dst21.data[pos21 + 1] = byte26;
 			dst21.length = dst21.length + 2;
 		}
 	}
@@ -2250,12 +2224,11 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 	} else {
 		const dst22 = out;
-		const byte45 = 238;
-		const byte46 = returns_Error.code(_310.error);
+		const byte27 = returns_Error.code(_310.error);
 		rs.byteVecReserve(dst22, 2 as rs.usize);
 		const pos22 = dst22.length;
-		dst22.data[pos22 + 0] = byte45;
-		dst22.data[pos22 + 1] = byte46;
+		dst22.data[pos22 + 0] = 238;
+		dst22.data[pos22 + 1] = byte27;
 		dst22.length = dst22.length + 2;
 	}
 	let rest2: rs.ByteSlice = data;

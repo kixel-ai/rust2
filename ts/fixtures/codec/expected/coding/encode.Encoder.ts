@@ -106,12 +106,10 @@ export function prefixVarint(self: Encoder): Prefix.Prefix {
 /** Reserve a big-endian `u16` size prefix for the body written next; [`Self::fill`] sizes it. */
 export function prefixU16(self: Encoder): Prefix.Prefix {
 	const dst = self.buf;
-	const byte = 0;
-	const byte2 = 0;
 	rs.byteVecReserve(dst, 2 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
+	dst.data[pos + 0] = 0;
+	dst.data[pos + 1] = 0;
 	dst.length = dst.length + 2;
 	return { body: self.buf.length, kind: "U16" as PrefixKind.PrefixKind };
 }

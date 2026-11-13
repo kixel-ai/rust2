@@ -33,8 +33,19 @@ export function run(data: rs.ByteSlice): rs.ByteVec {
 	}
 	const _38: rs.u8 = shapes_Shape.sides(shape);
 	rs.byteVecPush(out, _38);
-	const _42: rs.ByteSlice = rs.byteSliceFrom(rs.u32ToBeBytes(tally_run(data)));
-	rs.byteVecExtendFromSlice(out, _42);
+	const dst = out;
+	const word = tally_run(data);
+	const byte = (word >>> 24) & 255;
+	const byte2 = (word >>> 16) & 255;
+	const byte3 = (word >>> 8) & 255;
+	const byte4 = (word >>> 0) & 255;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.length = dst.length + 4;
 	const err: rs.u8 | undefined = read(data);
 	const part2: Uint8Array = out$ref_slice_u8.pData;
 	const part3: number = out$ref_slice_u8.pStart;

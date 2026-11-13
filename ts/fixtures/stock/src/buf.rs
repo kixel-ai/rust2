@@ -1364,6 +1364,10 @@ pub fn scalar_encodes(data: &[u8], out: &mut Vec<u8>) {
 		buf.put_slice(&[data.first().copied().unwrap_or(0), 255]);
 		out.extend_from_slice(&buf);
 	}
+	let captured = lo.to_be_bytes();
+	let read = || captured[0];
+	out.push(read());
+	out.extend_from_slice(&captured);
 	let mut escaped = lo.to_be_bytes();
 	escaped.reverse();
 	out.extend_from_slice(&escaped);

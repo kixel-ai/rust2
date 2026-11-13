@@ -1358,6 +1358,16 @@ fn stock() {
 		"translating stock failed:\n{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
+	let buf = std::fs::read_to_string(out.join("buf.ts")).unwrap();
+	let encodes = buf
+		.split("export function scalarEncodes(")
+		.nth(1)
+		.expect("scalar encodes");
+	let encodes = encodes.split("export function takeU64$scalar_encodes").next().unwrap();
+	assert!(
+		!encodes.contains("rs.bytesMutExtend("),
+		"scalar BytesMut appends must write bytes directly"
+	);
 	snapshot("stock", &out);
 	// A hand-written caller, which names the cases and inputs the generated ones never reach.
 	std::fs::copy(fixture("stock").join("caller.ts"), out.join("caller.ts")).unwrap();

@@ -177,12 +177,11 @@ export function cellOption(dataData: Uint8Array, dataStart: number, dataLen: num
 				put(out, t8);
 			} else {
 				const dst = out;
-				const byte = 0;
-				const byte2 = result.error;
+				const byte = result.error;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = byte;
-				dst.data[pos + 1] = byte2;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
 				dst.length = dst.length + 2;
 			}
 		}
@@ -370,12 +369,11 @@ export function cellString(dataData: Uint8Array, dataStart: number, dataLen: num
 				put(out, t8);
 			} else {
 				const dst = out;
-				const byte = 0;
-				const byte2 = result.error;
+				const byte = result.error;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = byte;
-				dst.data[pos + 1] = byte2;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
 				dst.length = dst.length + 2;
 			}
 		}
@@ -581,12 +579,11 @@ export function cellU64(dataData: Uint8Array, dataStart: number, dataLen: number
 				put(out, t8);
 			} else {
 				const dst2 = out;
-				const byte9 = 0;
-				const byte10 = result.error;
+				const byte9 = result.error;
 				rs.byteVecReserve(dst2, 2 as rs.usize);
 				const pos2 = dst2.length;
-				dst2.data[pos2 + 0] = byte9;
-				dst2.data[pos2 + 1] = byte10;
+				dst2.data[pos2 + 0] = 0;
+				dst2.data[pos2 + 1] = byte9;
 				dst2.length = dst2.length + 2;
 			}
 		}
@@ -774,12 +771,11 @@ export function cellU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 				put(out, t8);
 			} else {
 				const dst = out;
-				const byte = 0;
-				const byte2 = result.error;
+				const byte = result.error;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = byte;
-				dst.data[pos + 1] = byte2;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
 				dst.length = dst.length + 2;
 			}
 		}
@@ -960,12 +956,11 @@ export function cellUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 				put(out, t5);
 			} else {
 				const dst = out;
-				const byte = 0;
-				const byte2 = result.error;
+				const byte = result.error;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = byte;
-				dst.data[pos + 1] = byte2;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
 				dst.length = dst.length + 2;
 			}
 		}
@@ -1152,12 +1147,11 @@ export function cellVec(dataData: Uint8Array, dataStart: number, dataLen: number
 				put(out, t8);
 			} else {
 				const dst = out;
-				const byte = 0;
-				const byte2 = result.error;
+				const byte = result.error;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = byte;
-				dst.data[pos + 1] = byte2;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
 				dst.length = dst.length + 2;
 			}
 		}
@@ -1371,12 +1365,11 @@ export function lockOption(dataData: Uint8Array, dataStart: number, dataLen: num
 				put(out, t8);
 			} else {
 				const dst = out;
-				const byte = 0;
-				const byte2 = result.error;
+				const byte = result.error;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = byte;
-				dst.data[pos + 1] = byte2;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
 				dst.length = dst.length + 2;
 			}
 		}
@@ -1564,12 +1557,11 @@ export function lockString(dataData: Uint8Array, dataStart: number, dataLen: num
 				put(out, t8);
 			} else {
 				const dst = out;
-				const byte = 0;
-				const byte2 = result.error;
+				const byte = result.error;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = byte;
-				dst.data[pos + 1] = byte2;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
 				dst.length = dst.length + 2;
 			}
 		}
@@ -1775,12 +1767,11 @@ export function lockU64(dataData: Uint8Array, dataStart: number, dataLen: number
 				put(out, t8);
 			} else {
 				const dst2 = out;
-				const byte9 = 0;
-				const byte10 = result.error;
+				const byte9 = result.error;
 				rs.byteVecReserve(dst2, 2 as rs.usize);
 				const pos2 = dst2.length;
-				dst2.data[pos2 + 0] = byte9;
-				dst2.data[pos2 + 1] = byte10;
+				dst2.data[pos2 + 0] = 0;
+				dst2.data[pos2 + 1] = byte9;
 				dst2.length = dst2.length + 2;
 			}
 		}
@@ -1968,12 +1959,11 @@ export function lockU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 				put(out, t8);
 			} else {
 				const dst = out;
-				const byte = 0;
-				const byte2 = result.error;
+				const byte = result.error;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = byte;
-				dst.data[pos + 1] = byte2;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
 				dst.length = dst.length + 2;
 			}
 		}
@@ -2154,12 +2144,11 @@ export function lockUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 				put(out, t5);
 			} else {
 				const dst = out;
-				const byte = 0;
-				const byte2 = result.error;
+				const byte = result.error;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = byte;
-				dst.data[pos + 1] = byte2;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
 				dst.length = dst.length + 2;
 			}
 		}
@@ -2346,12 +2335,11 @@ export function lockVec(dataData: Uint8Array, dataStart: number, dataLen: number
 				put(out, t8);
 			} else {
 				const dst = out;
-				const byte = 0;
-				const byte2 = result.error;
+				const byte = result.error;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = byte;
-				dst.data[pos + 1] = byte2;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
 				dst.length = dst.length + 2;
 			}
 		}
@@ -2491,12 +2479,11 @@ export function putMaybe(out: rs.ByteVec, t: rs.u8 | undefined): void {
 		rs.byteVecPush(out, 2);
 	} else {
 		const dst = out;
-		const byte = 1;
-		const byte2 = t;
+		const byte = t;
 		rs.byteVecReserve(dst, 2 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
+		dst.data[pos + 0] = 1;
+		dst.data[pos + 1] = byte;
 		dst.length = dst.length + 2;
 	}
 }

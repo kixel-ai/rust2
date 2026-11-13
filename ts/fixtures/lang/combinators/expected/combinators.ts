@@ -245,22 +245,21 @@ export function panics(a: rs.u8 | undefined, b: rs.u8 | undefined, limit: rs.u8,
 export function push(r: rs.Result<rs.u8, rs.u16>, out: rs.ByteVec): void {
 	if (r.ok) {
 		const dst = out;
-		const byte = 1;
-		const byte2 = r.value;
+		const byte = r.value;
 		rs.byteVecReserve(dst, 2 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
+		dst.data[pos + 0] = 1;
+		dst.data[pos + 1] = byte;
 		dst.length = dst.length + 2;
 	} else {
 		const dst2 = out;
 		const word = r.error;
-		const byte3 = (word >>> 8) & 255;
-		const byte4 = (word >>> 0) & 255;
+		const byte2 = (word >>> 8) & 255;
+		const byte3 = (word >>> 0) & 255;
 		rs.byteVecReserve(dst2, 2 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte3;
-		dst2.data[pos2 + 1] = byte4;
+		dst2.data[pos2 + 0] = byte2;
+		dst2.data[pos2 + 1] = byte3;
 		dst2.length = dst2.length + 2;
 	}
 }
