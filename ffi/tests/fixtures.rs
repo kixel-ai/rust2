@@ -1510,6 +1510,7 @@ fn lock_swift_removed_overload() {
 	let baseline = base.join("api.json");
 	let args = ["--baseline".as_ref(), baseline.as_os_str()];
 	let out = dir.join("thrown");
+	let _ = std::fs::remove_dir_all(&out);
 	let output = exporter("lock", &out, &[], &args, &["--features", "thrown"])
 		.output()
 		.unwrap();
