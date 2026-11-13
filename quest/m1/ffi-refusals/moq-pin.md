@@ -53,7 +53,9 @@ output, which then shared one pin. rust2-ts's pin moves in
 
 Decided with the maintainer on 2026-11-09: bump to moq's current main now, and narrow the
 Goal to the two moq-owned types. Rejected: wait for moq to fix the rest first. Not landed:
-moq's `main` fails `just ts moq` and `just ffi moq-cpp`, so the bump waits on Waiting.
+moq's `main` fails `just ts moq` and `just ffi moq-cpp`, so the bump waits on Waiting. The
+split on 2026-11-12 moved the `just ts moq` failure to
+[its own quest](/quest/m2/ts-model/moq-pin.md), so this bump waits on `just ffi moq-cpp` alone.
 
 Decided 2026-11-11 (maintainer, /quest-unblock): ✅ (a) rust2 exports a type the crate root does
 not reach by its defining path, such as `kio::Pending` and `lite::version::Version`; a type

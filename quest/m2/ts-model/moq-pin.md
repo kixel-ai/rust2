@@ -40,4 +40,3 @@ Public API: none. The translator's output changes only where moq's API does.
 ## Related
 
 - [The exporter's moq pin](/quest/m1/ffi-refusals/moq-pin.md) - the same moq `main`, bumped on its own pin
-</content>
