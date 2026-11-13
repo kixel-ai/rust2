@@ -9,7 +9,7 @@ import becoming a direct JS call, so Rust developers keep using idiomatic Rust c
 instead of JS types. web-rs's web-codecs translates end to end as a stock crate, its
 decoders and audio included, which is this quest's remaining work: the
 [encoder fixture](/ts/fixtures/encoder/Cargo.toml) proves a `VideoEncoder`'s calls on a
-copy of web-codecs' encoder ([#681](https://github.com/moq-dev/rust2/pull/681)), not on
+copy of web-codecs' encoder ([#681](https://github.com/kixel-ai/rust2/pull/681)), not on
 the crate.
 
 Non-goals: `#[wasm_bindgen]` exports, since a translation already exports the crate's `pub`
@@ -56,7 +56,7 @@ Decided with the maintainer on 2026-11-06:
   wasm32 clock over js-sys first, a moq change made only for translation.
 - ✅ Translation reads each import's JS shape from the program the macro encodes in a
   `link_section` static, not from the `extern` blocks' source. The
-  [spike](https://github.com/moq-dev/rust2/pull/638) has the measurements:
+  [spike](https://github.com/kixel-ai/rust2/pull/638) has the measurements:
   `macro_rules!`-made imports, which source reading misses, are on the encoder's path.
 - ✅ web-codecs' encoders and decoders also hand their frames and errors through tokio's
   `sync::mpsc` and `sync::watch`, which translation refused then (about 50 refusals in

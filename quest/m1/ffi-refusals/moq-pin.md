@@ -6,14 +6,14 @@ The exporter's moq pin moves to moq's current `main`, whose crates re-export no 
 included. `just ffi census` there lists no whole-crate re-export refusal. Its "type not
 reachable from the crate root" refusals are `kio::Pending` and `lite::version::Version`,
 which the exporter change below exports, and moq-quic's stats and varint types under moq-tokio's `quic::driver`,
-which [moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683) drops. At `ffcb7cd9` there were 20 such refusals (18 Guard and Side, and
+which [kixel-ai/rust2#683](https://github.com/kixel-ai/rust2/pull/683) drops. At `ffcb7cd9` there were 20 such refusals (18 Guard and Side, and
 `Version`), and 9 at moq's head on 2026-11-09, measured in
-[#676](https://github.com/moq-dev/rust2/pull/676).
+[#676](https://github.com/kixel-ai/rust2/pull/676).
 
 ## Plan
 
 Decided with the maintainer on 2026-11-07, from
-[moq-dev/rust2#655](https://github.com/moq-dev/rust2/pull/655) and
+[kixel-ai/rust2#655](https://github.com/kixel-ai/rust2/pull/655) and
 [moq-dev/moq#8233](https://github.com/moq-dev/moq/pull/8233): ✅ moq re-exports no whole
 crate, its own included: the ten first listed (moq-net's `bytes` and `kio`; `rustls` in
 moq-quic, moq-rtmp, and moq-tokio; moq-tokio's `notify`, `usage_rs`, and `http`;
@@ -46,7 +46,7 @@ re-export and re-exports `Guard`, and
 moq-tokio's `quic::driver` items, which the narrowed stand-in drops.
 
 Then bump the exporter's `moq_rev` in `ffi/justfile`, and report the census before and
-after. The last bump ([#390](https://github.com/moq-dev/rust2/pull/390)) also changed
+after. The last bump ([#390](https://github.com/kixel-ai/rust2/pull/390)) also changed
 `ffi/moq/ffi.toml`, every `ffi/moq/moq.*`, and rust2-ts's model fixture, bench, and expected
 output, which then shared one pin. rust2-ts's pin moves in
 [its own quest](/quest/m2/ts-model/moq-pin.md), so its census count is updated there.
@@ -85,5 +85,4 @@ returns that are not `Clone`.
 
 ## Required
 
-- [`NonZero`](/quest/m1/ffi-refusals/nonzero.md) - 15 of the 36 errors at moq's `main`
 - [Every refusal at moq's main](/quest/m1/ffi-refusals/moq-main.md) - the rest of them, so the bump adds no exclude

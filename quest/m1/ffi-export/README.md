@@ -12,7 +12,7 @@ moq ships. It ends once every child has merged, the last of them
 ## Plan
 
 Decided with the maintainer on 2026-10-25, from the spike
-([moq-dev/rust2#41](https://github.com/moq-dev/rust2/pull/41)): adopt the exporter, and fold
+([kixel-ai/rust2#41](https://github.com/kixel-ai/rust2/pull/41)): adopt the exporter, and fold
 the fork's paused feature quests into it.
 
 Decided with the maintainer on 2026-10-27: this is an epic, with each item a child ranked by
@@ -44,8 +44,8 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   Rejected: `#[doc(hidden)]` as the opt-out; exporting hidden items too.
 
 The Swift, Python, Go, and Dart generators landed in
-[#406](https://github.com/moq-dev/rust2/pull/406), [#407](https://github.com/moq-dev/rust2/pull/407),
-[#411](https://github.com/moq-dev/rust2/pull/411), and [#422](https://github.com/moq-dev/rust2/pull/422),
+[#406](https://github.com/kixel-ai/rust2/pull/406), [#407](https://github.com/kixel-ai/rust2/pull/407),
+[#411](https://github.com/kixel-ai/rust2/pull/411), and [#422](https://github.com/kixel-ai/rust2/pull/422),
 each generating the crate's own API in its language's idiom, as Kotlin does (decided with
 the maintainer on 2026-11-01). Only Python skips the C ABI, since a CPython extension calls
 about 40 times faster than `ctypes`; the others call C natively.
@@ -78,14 +78,13 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
 
 - ✅ The epic's closing work is a child, [ship](/quest/m1/ffi-export/ship.md), which alone
   requires [the refusals epic](/quest/m1/ffi-refusals/README.md). Rejected: the epic
-  requiring it, as [#701](https://github.com/moq-dev/rust2/pull/701) left it, since an
+  requiring it, as [#701](https://github.com/kixel-ai/rust2/pull/701) left it, since an
   epic's `Required` holds back every child, so none could start until moq's pin bump, which
   then waited on a rind release the maintainer held.
 - ✅ Every change that breaks the C ABI or a generated API is a child here, so it lands
   before moq pins: [the fused async start](/quest/m1/ffi-export/async-start.md),
-  [owned buffers](/quest/m1/ffi-export/owned-bufs.md),
-  [numeric slices](/quest/m1/ffi-export/numeric-slices.md), and
-  [the API lock](/quest/m1/ffi-export/api-lock.md). Work that changes no generated API is
+  [owned buffers](/quest/m1/ffi-export/owned-bufs.md), and
+  [numeric slices](/quest/m1/ffi-export/numeric-slices.md). Work that changes no generated API is
   [its own epic](/quest/m1/ffi-speed/README.md), which does not hold the pin.
 - Not planned: one walker emitting lift and lower instructions every generator
   implements, as wit-bindgen's `Bindgen` does. A new rule touches 19 to 38 files today,
@@ -93,7 +92,7 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   Spike it on Go once they land.
 
 Decided with the maintainer on 2026-11-02
-([moq-dev/rust2#460](https://github.com/moq-dev/rust2/pull/460)): the RSS glibc's per-thread
+([kixel-ai/rust2#460](https://github.com/kixel-ai/rust2/pull/460)): the RSS glibc's per-thread
 arenas keep under Go's lent `Bytes` is the consumer's to fix with its global allocator, as
 `ffi/README.md` documents. moq declares mimalloc in its exported crate, in its own tree.
 

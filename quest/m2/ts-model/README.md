@@ -74,12 +74,12 @@ it here, as pointer identity already translates as JS identity; that is on the g
 path.
 
 Decided with the maintainer on 2026-11-04, from a census at the bumped pin
-(moq-dev/rust2#390): the refusals no quest owned became child quests, since finished.
+(kixel-ai/rust2#390): the refusals no quest owned became child quests, since finished.
 ✅ arrayvec's `ArrayString` needs three of them (const generic types, `begin_panic`,
 `str::as_ptr`), kept separate since each lands alone; rejected: one quest for `ArrayString`.
 
 Decided with the maintainer on 2026-11-07, after three designs for addresses as identity
-([#596](https://github.com/moq-dev/rust2/pull/596)) each left values whose ids were never freed
+([#596](https://github.com/kixel-ai/rust2/pull/596)) each left values whose ids were never freed
 or pointers whose comparison disagreed with Rust after an address was reused:
 
 - ✅ Addresses stay refused: every read of a pointer's address as an integer (`as usize`,
