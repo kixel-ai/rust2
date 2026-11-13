@@ -247,14 +247,34 @@ impl Tag {
 	}
 }
 
-/// A closure kept past the call, as a `'static` bound lets it be.
-pub fn spawn(task: impl FnOnce() + Send + 'static) {
-	std::thread::spawn(task);
+/// A closure returning bytes, which C hands Rust only as a `String`.
+pub fn gather(f: impl Fn() -> Vec<u8>) -> usize {
+	f().len()
 }
 
-/// A closure the future holds past the call.
-pub async fn later(task: impl FnOnce()) {
-	task()
+/// A closure failing with an error other than a `String`.
+pub fn attempt(f: impl Fn() -> Result<u32, u8>) -> bool {
+	f().is_ok()
+}
+
+/// A reader taken by value, which C lends only behind `&mut`.
+pub fn consume(mut file: impl std::io::Read + std::io::Seek) -> bool {
+	file.read(&mut [0]).is_ok()
+}
+
+/// A reader kept past the call, as a `'static` bound lets it be.
+pub fn retain<R: std::io::Read + std::io::Seek + 'static>(file: &mut R) -> bool {
+	file.stream_position().is_ok()
+}
+
+/// A reader bound by more than C's reader can meet.
+pub fn rewrite<F: std::io::Read + std::io::Seek + std::io::Write>(file: &mut F) -> bool {
+	file.flush().is_ok()
+}
+
+/// A reader a future holds past the call.
+pub async fn read_later(file: &mut (impl std::io::Read + std::io::Seek)) -> bool {
+	file.stream_position().is_ok()
 }
 
 /// A closure bound by more than C's function can meet.
@@ -870,10 +890,14 @@ impl Tally {
 	}
 }
 
-/// A waiter made from a waker only by an `unsafe` function.
+/// A waiter made from a waker only by an `unsafe` function, exported through a safe one.
 pub struct Risky(std::task::Waker);
 
 impl Risky {
+	pub fn idle() -> Self {
+		Self(std::task::Waker::noop().clone())
+	}
+
 	/// # Safety
 	///
 	/// Nothing, in this fixture.
@@ -945,4 +969,60 @@ pub enum Huge {
 pub enum Top {
 	Small = 1,
 	Large = u128::MAX,
+}
+
+/// An `unsafe fn`, whose preconditions safe foreign code cannot uphold.
+pub unsafe fn raw(x: u32) -> u32 {
+	x
+}
+
+/// A C-variadic definition, whose variadic arguments C would silently drop.
+pub unsafe extern "C" fn sum(n: u32, _args: ...) -> u32 {
+	n
+}
+
+/// A custom-ABI function, which nothing can call from Rust.
+#[unsafe(naked)]
+pub unsafe extern "custom" fn custom() {
+	core::arch::naked_asm!("ret")
+}
+
+/// A value with an `unsafe` method.
+pub struct Raw;
+
+impl Raw {
+	/// A value to call it on.
+	pub fn new() -> Self {
+		Self
+	}
+
+	/// An `unsafe` inherent method.
+	pub unsafe fn peek(&self) -> u32 {
+		0
+	}
+}
+
+/// An `unsafe trait`, which foreign code would implement without upholding its contract.
+pub unsafe trait Trusted: Send + Sync {
+	fn get(&self) -> u32;
+}
+
+/// A trait with an `unsafe` method.
+pub trait Hazard: Send + Sync {
+	unsafe fn risk(&self) -> u32;
+}
+
+/// Takes the `unsafe trait`, so its foreign implementation would be exported.
+pub fn trust(trusted: Box<dyn Trusted>) -> u32 {
+	trusted.get()
+}
+
+/// Takes the trait with an `unsafe` method.
+pub fn hazard(hazard: Box<dyn Hazard>) -> u32 {
+	unsafe { hazard.risk() }
+}
+
+/// A `NonZero` of a 128-bit integer, which no integer of C's holds.
+pub fn wide_non_zero(n: std::num::NonZero<u128>) -> u128 {
+	n.get()
 }

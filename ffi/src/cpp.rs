@@ -10,15 +10,15 @@
 //! call tells apart but by an `Arc`'s or `Rc`'s count, a `std::shared_ptr` its copies
 //! share; a record a struct; an enum an
 //! `enum class`, or for one with data a `std::variant` of a struct per variant, with its
-//! methods free functions; a closure lent for the call a template parameter. The runtime
-//! they share, [`runtime/rt.hpp`](../runtime/rt.hpp), holds the handles, bytes, results,
-//! wakers, and futures.
+//! methods free functions; a closure, a future, or a reader C++ implements a template
+//! parameter. The runtime they share, [`runtime/rt.hpp`](../runtime/rt.hpp), holds the
+//! handles, bytes, results, wakers, futures, and readers.
 
 use std::collections::BTreeSet;
 
 use crate::abi::{self, Abi, Ty};
 use crate::c::decl;
-use crate::ir::{Function, Int, Literal, Receiver, Traits, Type};
+use crate::ir::{Closure, Function, Int, Literal, Receiver, Traits, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.hpp");
 
@@ -104,7 +104,7 @@ impl<'a> Header<'a> {
 			Type::Array(n) => format!("::std::array<::std::uint8_t, {n}>"),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
-			Type::Int(int) => cpp_int(*int).to_string(),
+			Type::Int(int) | Type::NonZero(int) => cpp_int(*int).to_string(),
 			Type::F32 => "float".to_string(),
 			Type::F64 => "double".to_string(),
 			Type::Char => "char32_t".to_string(),
@@ -122,7 +122,7 @@ impl<'a> Header<'a> {
 			Type::Enum(i) => self.q(&abi.enumeration(*i)),
 			Type::Object(i) => self.q(&abi.object(*i)),
 			Type::Callback(i, _) => format!("::std::unique_ptr<{}>", self.q(&abi.callback(*i))),
-			Type::Closure(..) | Type::Future => unreachable!("{ty:?} is a template parameter"),
+			Type::Closure(..) | Type::Future | Type::Reader => unreachable!("{ty:?} is a template parameter"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => self.q(&abi.range(ty)),
 			Type::Tuple(elements) => {
 				let elements: Vec<String> = elements.iter().map(|e| self.owned(e)).collect();
@@ -253,7 +253,7 @@ impl<'a> Header<'a> {
 			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Array(n) => format!("{d}::lower_array<::{}>({e})", abi.array(*n)),
 			Type::Unit => unreachable!("no value is unit"),
-			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
+			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("static_cast<uint32_t>({e})"),
 			Type::U128 | Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				e.to_string()
@@ -294,7 +294,9 @@ impl<'a> Header<'a> {
 			Type::Object(i) if abi.api.objects[*i].copy => format!("{d}::access::raw({e})"),
 			Type::Object(_) => format!("{d}::access::own({e})"),
 			Type::Callback(..) => format!("{d}::lower(::std::move({e}))"),
-			Type::Closure(..) | Type::Future => unreachable!("{ty:?} lowers through its template parameter"),
+			Type::Closure(..) | Type::Future | Type::Reader => {
+				unreachable!("{ty:?} lowers through its template parameter")
+			}
 			Type::Str | Type::String | Type::Slice | Type::Vec | Type::Bytes | Type::Path | Type::PathBuf => {
 				unreachable!("a buffer is above")
 			}
@@ -316,7 +318,7 @@ impl<'a> Header<'a> {
 			return format!("{d}::access::adopt({e})");
 		}
 		match ty {
-			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
+			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("static_cast<char32_t>({e})"),
 			Type::U128 | Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				e.to_string()
@@ -412,6 +414,7 @@ impl<'a> Header<'a> {
 			"cstdio",
 			"cstdlib",
 			"cstring",
+			"ios",
 			"memory",
 			"mutex",
 			"optional",
@@ -430,7 +433,7 @@ impl<'a> Header<'a> {
 		);
 		self.line(format!("namespace {ns} {{\n"));
 		self.line(format!(
-			"namespace detail {{\n\nusing c_buf = ::{p}_buf;\nusing c_waker = ::{p}_waker;\nusing c_foreign_future = ::{p}_foreign_future;\n\ninline void c_buf_free(c_buf buf) noexcept {{\n\t::{p}_buf_free(buf);\n}}\n\n}} // namespace detail\n"
+			"namespace detail {{\n\nusing c_buf = ::{p}_buf;\nusing c_waker = ::{p}_waker;\nusing c_foreign_future = ::{p}_foreign_future;\nusing c_foreign_reader = ::{p}_foreign_reader;\n\ninline void c_buf_free(c_buf buf) noexcept {{\n\t::{p}_buf_free(buf);\n}}\n\ninline c_buf c_buf_copy(c_buf view) noexcept {{\n\treturn ::{p}_buf_copy(view);\n}}\n\n}} // namespace detail\n"
 		));
 		self.out.push_str(RUNTIME);
 		self.line(format!(
@@ -1165,17 +1168,37 @@ impl<'a> Header<'a> {
 				templates.push(format!("class {f}"));
 				continue;
 			}
-			if let (Type::Closure(lent, ret), Ty::Fn(c_lent, c_ret)) = (&param.ty, c_ty) {
+			// Any reader, lent for the call.
+			if let Type::Ref(_, inner) = &param.ty
+				&& **inner == Type::Reader
+			{
+				let f = format!("F{}", templates.len());
+				params.push(format!("{f} &{name}"));
+				args.push(format!("{d}::foreign_reader({name})"));
+				templates.push(format!("class {f}"));
+				continue;
+			}
+			if let (Type::Closure(closure_), Ty::Fn(c_lent, c_ret)) = (&param.ty, c_ty) {
 				c_params.next().expect("a closure has its data");
 				let f = format!("F{}", templates.len());
 				params.push(format!("{f} &&{name}"));
 				// Named by its type, not its parameter, so no renamed parameter takes the name.
 				let trampoline = format!("c_{}_", f.to_lowercase());
-				prelude.push(self.closure(&f, &trampoline, (lent, ret), (c_lent, c_ret)));
+				prelude.push(self.closure(&f, &trampoline, closure_, (c_lent, c_ret)));
 				args.push(trampoline);
-				args.push(format!(
-					"const_cast<void *>(static_cast<const void *>(::std::addressof({name})))"
-				));
+				match closure_.kept {
+					// Moved or copied into a callable Rust owns, which it destroys through `free`.
+					true => {
+						c_params.next().expect("a kept closure has its free");
+						args.push(format!("new ::std::decay_t<{f}>(::std::forward<{f}>({name}))"));
+						args.push(format!(
+							"[](void *data_) noexcept {{ delete static_cast<::std::decay_t<{f}> *>(data_); }}"
+						));
+					}
+					false => args.push(format!(
+						"const_cast<void *>(static_cast<const void *>(::std::addressof({name})))"
+					)),
+				}
 				templates.push(format!("class {f}"));
 				continue;
 			}
@@ -1260,10 +1283,26 @@ impl<'a> Header<'a> {
 					"\n\nRust polls `{name}` from any thread until it is ready, and destroys it once done with it."
 				));
 			}
-			if let Type::Closure(lent, _) = &param.ty {
+			if let Type::Ref(_, inner) = &param.ty
+				&& **inner == Type::Reader
+			{
 				text.push_str(&format!(
-					"\n\nRust calls `{name}` only during the call, from any thread."
+					"\n\nRust reads `{name}` only during the call, from any thread, one call at a time, through `read(uint8_t *, size_t)`, returning a `result` of how many bytes it read, at most the size it was given and none only at its end, and `seek(int64_t, std::ios_base::seekdir)`, returning one of the position from the start, or, from the start past `INT64_MAX`, `seek_start(uint64_t)`, which a reader without it fails. A failure's error is anything a `view` takes, which Rust raises as an `io::Error` of that message."
 				));
+			}
+			if let Type::Closure(closure_) = &param.ty {
+				let lent = &closure_.params;
+				text.push_str(&match closure_.kept {
+					true => format!(
+						"\n\nRust keeps `{name}`, moved or copied, calls it from any thread, one call at a time, and destroys it once done with it, which may be before any call."
+					),
+					false => format!("\n\nRust calls `{name}` only during the call, from any thread."),
+				});
+				if closure_.err.is_some() {
+					text.push_str(&format!(
+						"\n`{name}` returns a `result`, or any type with its `operator bool`, `operator*`, and `error()`, such as `std::expected`, whose error is anything a `view` takes."
+					));
+				}
 				if lent.iter().any(|p| matches!(p.base(), Type::Object(_))) {
 					text.push_str(&format!(
 						"\nAn object it lends lives only for that call of `{name}`: move none out of it."
@@ -1289,9 +1328,9 @@ impl<'a> Header<'a> {
 	}
 
 	/// The trampoline C calls for a closure parameter of type `f`, as the local `local`,
-	/// taking `lent` and returning `ret`, which C declares as `c_lent` and `c_ret`: it lends
-	/// each object as its class.
-	fn closure(&self, f: &str, local: &str, (lent, ret): (&[Type], &Type), (c_lent, c_ret): (&[Ty], &Ty)) -> String {
+	/// which C declares as taking `c_lent` and returning `c_ret`: it lends each object as
+	/// its class, and gives Rust what the closure returns, an error through its out.
+	fn closure(&self, f: &str, local: &str, closure: &Closure, (c_lent, c_ret): (&[Ty], &Ty)) -> String {
 		let abi = self.abi;
 		let d = self.d();
 		let c_params: Vec<String> = std::iter::once("void *data_".to_string())
@@ -1302,14 +1341,21 @@ impl<'a> Header<'a> {
 					.map(|(k, ty)| decl(abi, ty, &format!("p{k}_"))),
 			)
 			.collect();
-		let mut body = vec![format!(
-			"auto &f_ = *static_cast<::std::remove_reference_t<{f}> *>(data_);"
-		)];
+		// A kept closure is Rust's own copy, and one lent for the call the caller's.
+		let data = match closure.kept {
+			true => format!("::std::decay_t<{f}>"),
+			false => format!("::std::remove_reference_t<{f}>"),
+		};
+		let mut body = vec![format!("auto &f_ = *static_cast<{data} *>(data_);")];
 		let mut args = Vec::new();
-		for (k, (ty, c_ty)) in lent.iter().zip(c_lent).enumerate() {
+		for (k, (ty, c_ty)) in closure.params.iter().zip(c_lent).enumerate() {
 			let p = format!("p{k}_");
 			match (ty, c_ty) {
-				(Type::Ref(m, object), Ty::Handle { name: c, constant }) => {
+				(Type::Ref(..) | Type::Object(_), Ty::Handle { name: c, constant }) => {
+					let object = match ty {
+						Type::Ref(_, object) => object,
+						_ => ty,
+					};
 					let constant = match constant {
 						true => "const ",
 						false => "",
@@ -1318,27 +1364,59 @@ impl<'a> Header<'a> {
 						"{d}::lent<{}, {constant}::{c}> l{k}_({p});",
 						self.owned(object)
 					));
-					args.push(match m {
-						crate::ir::Mutability::Not => format!("::std::as_const(l{k}_.get())"),
-						crate::ir::Mutability::Mut => {
+					args.push(match ty {
+						Type::Ref(crate::ir::Mutability::Mut, _) => {
 							format!("::{}::borrow<{}>(l{k}_.get())", self.ns, self.owned(object))
 						}
+						// A `Copy` object Rust copied for the call, which its class reads in place.
+						_ => format!("::std::as_const(l{k}_.get())"),
 					});
 				}
 				_ => args.push(self.lift_lent(ty, &p)),
 			}
 		}
 		let call = format!("f_({})", args.join(", "));
-		body.push(match ret {
-			Type::Unit => format!("{call};"),
-			ret => format!("return {};", self.lower(ret, &call)),
-		});
+		match (&closure.err, &closure.ok) {
+			(None, Type::Unit) => body.push(format!("{call};")),
+			(None, ok) => {
+				body.push(format!("auto r_ = {call};"));
+				body.push(format!("return {};", self.returned(ok, "r_")));
+			}
+			(Some(_), ok) => {
+				let err = format!("p{}_", c_lent.len() - 1);
+				body.push(format!("auto r_ = {call};"));
+				body.push(format!(
+					"if (!r_) {{\n\t\t\t*{err} = {d}::copy_bytes(r_.error());\n\t\t\treturn false;\n\t\t}}"
+				));
+				if *ok != Type::Unit {
+					body.push(format!("*p{}_ = {};", closure.params.len(), self.returned(ok, "(*r_)")));
+				}
+				body.push("return true;".to_string());
+			}
+		}
 		format!(
 			"auto {local} = []({}) noexcept -> {} {{\n\t\t{}\n\t}};",
 			c_params.join(", "),
 			decl(abi, c_ret, ""),
 			body.join("\n\t\t")
 		)
+	}
+
+	/// The C value a closure returns Rust of the C++ value `e` of type `ty`, which Rust then
+	/// owns: bytes as a buffer `<prefix>_buf_copy` made, and a `Copy` object as a new handle to
+	/// a copy, made without its `Clone`. `e` is named, so it may be read more than once.
+	fn returned(&self, ty: &Type, e: &str) -> String {
+		let abi = self.abi;
+		let d = self.d();
+		match ty {
+			ty if Abi::is_buf(ty) => format!("{d}::copy_bytes({e})"),
+			Type::Option(inner) if Abi::is_buf(inner) => format!("({e} ? {d}::copy_bytes(*{e}) : {d}::none())"),
+			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {
+				format!("({e} ? {} : nullptr)", self.returned(inner, &format!("(*{e})")))
+			}
+			Type::Object(i) => format!("::{}_copy({d}::access::raw({e}))", abi.object(*i)),
+			ty => self.lower(ty, e),
+		}
 	}
 
 	/// The operations a future's type polls with.

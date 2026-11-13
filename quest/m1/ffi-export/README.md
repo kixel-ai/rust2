@@ -5,14 +5,14 @@
 moq can pin [rust2-ffi](/ffi/README.md) and switch its bindings to it: the exporter exports
 what moq's bindings need from moq's own crates, with no attributes, no config, and no
 hand-written wrapper beyond what the census shows is genuinely new API, in every language
-moq ships. It ends once every child and blocker has merged, the flake has an `ffi` package, and the
-root `README.md` lists the generators, which is what
+moq ships. It ends once every child has merged, the last of them
+[ship](/quest/m1/ffi-export/ship.md), which is what
 [moq's wait](https://github.com/moq-dev/moq/blob/main/quest/m3/rust2-exporter.md) checks.
 
 ## Plan
 
 Decided with the maintainer on 2026-10-25, from the spike
-([moq-dev/rust2#41](https://github.com/moq-dev/rust2/pull/41)): adopt the exporter, and fold
+([kixel-ai/rust2#41](https://github.com/kixel-ai/rust2/pull/41)): adopt the exporter, and fold
 the fork's paused feature quests into it.
 
 Decided with the maintainer on 2026-10-27: this is an epic, with each item a child ranked by
@@ -39,13 +39,13 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   such object; keeping the refusal.
 - ✅ No opt-out: `#[doc(hidden)]` items stay left out, as they are no part of a crate's API,
   but no quest or PR recommends the attribute to get an item past the exporter, and moq
-  bans it ([moq's doc-hidden quest](https://github.com/moq-dev/moq/blob/main/quest/m2/api-shape/doc-hidden.md)).
+  bans it ([moq-dev/moq#8392](https://github.com/moq-dev/moq/pull/8392)).
   An item C cannot take exports by a new rule, or is refused and its signature changes.
   Rejected: `#[doc(hidden)]` as the opt-out; exporting hidden items too.
 
 The Swift, Python, Go, and Dart generators landed in
-[#406](https://github.com/moq-dev/rust2/pull/406), [#407](https://github.com/moq-dev/rust2/pull/407),
-[#411](https://github.com/moq-dev/rust2/pull/411), and [#422](https://github.com/moq-dev/rust2/pull/422),
+[#406](https://github.com/kixel-ai/rust2/pull/406), [#407](https://github.com/kixel-ai/rust2/pull/407),
+[#411](https://github.com/kixel-ai/rust2/pull/411), and [#422](https://github.com/kixel-ai/rust2/pull/422),
 each generating the crate's own API in its language's idiom, as Kotlin does (decided with
 the maintainer on 2026-11-01). Only Python skips the C ABI, since a CPython extension calls
 about 40 times faster than `ctypes`; the others call C natively.
@@ -74,18 +74,27 @@ Every generator, the [targets m3 plans](/quest/m3/README.md) included:
 - is measured, with its generated size raw and gzipped, on
   [the binding benchmark](/bench/ffi/README.md), whose `just ffi bench` covers it.
 
-What stays here once every child has merged: the flake's `ffi` package, the root
-`README.md` listing the generators, and the generator rules above moved into
-`ffi/README.md`, since this file is deleted.
+Decided with the maintainer on 2026-11-12, in the quest audit:
+
+- ✅ The epic's closing work is a child, [ship](/quest/m1/ffi-export/ship.md), which alone
+  requires [the refusals epic](/quest/m1/ffi-refusals/README.md). Rejected: the epic
+  requiring it, as [#701](https://github.com/kixel-ai/rust2/pull/701) left it, since an
+  epic's `Required` holds back every child, so none could start until moq's pin bump,
+  which waits on a rind release the maintainer holds.
+- ✅ Every change that breaks the C ABI or a generated API is a child here, so it lands
+  before moq pins: [the fused async start](/quest/m1/ffi-export/async-start.md),
+  [owned buffers](/quest/m1/ffi-export/owned-bufs.md), and
+  [numeric slices](/quest/m1/ffi-export/numeric-slices.md). Work that changes no generated API is
+  [its own epic](/quest/m1/ffi-speed/README.md), which does not hold the pin.
+- Not planned: one walker emitting lift and lower instructions every generator
+  implements, as wit-bindgen's `Bindgen` does. A new rule touches 19 to 38 files today,
+  but it would collide with the four `[L]` children that each rewrite every generator.
+  Spike it on Go once they land.
 
 Decided with the maintainer on 2026-11-02
-([moq-dev/rust2#460](https://github.com/moq-dev/rust2/pull/460)): the RSS glibc's per-thread
+([kixel-ai/rust2#460](https://github.com/kixel-ai/rust2/pull/460)): the RSS glibc's per-thread
 arenas keep under Go's lent `Bytes` is the consumer's to fix with its global allocator, as
 `ffi/README.md` documents. moq declares mimalloc in its exported crate, in its own tree.
 
 Decided with the maintainer on 2026-11-04: the exporter is configless, with opinionated
 names and defaults, and fails the export on a public item it cannot export.
-
-## Required
-
-- [Refusals](/quest/m1/ffi-refusals/README.md) - the epic that exports or leaves out every item the census refuses, which this epic ends on

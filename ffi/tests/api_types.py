@@ -2,6 +2,10 @@
 # type-checks alongside it but never runs. Each list it passes in holds one alternative of
 # a widened element type, or is no `list` at all, as a caller's own may be.
 
+import asyncio
+import datetime
+import io
+
 import api
 
 v4s: list[tuple[str, int]] = [("127.0.0.1", 8080)]
@@ -15,3 +19,32 @@ sums = api.sums(((1, 2), (3,)))
 names: tuple[str, ...] = ("a", "b")
 peer = api.Peer(v4s[0], names)
 first: str = peer.names[0]
+
+# A reader is any binary file, or a class of its own with readinto and seek.
+with open(__file__, "rb") as opened:
+	tail: tuple[memoryview, int] = api.tail(opened, 4)
+tail = api.tail(io.BytesIO(b"abc"), 1)
+
+
+class Reader:
+	def readinto(self, buffer: memoryview, /) -> int:
+		return 0
+
+	def seek(self, offset: int, whence: int = 0, /) -> int:
+		return 0
+
+
+tail = api.tail(Reader(), 1)
+
+
+# Closures returning what Rust owns, or raising the exception of their error.
+def drive(now: api.Instant, waiter: api.Waiter) -> api.Instant | None:
+	if api.since(now, now):
+		raise api.StringException("stopped")
+	return api.later(now, datetime.timedelta(milliseconds=5))
+
+
+stopped: str = asyncio.run(api.drive(api.now(), drive))
+made: str = api.made(3, lambda n: f"{n} times")
+spawned: int = api.Spawned.new(lambda: 7).join()
+polled: None = asyncio.run(api.Waiter.poll_future(asyncio.sleep(0)))

@@ -8,9 +8,11 @@
 import asyncio
 import datetime
 import gc
+import io
 import os
 import sys
 import threading
+import weakref
 
 import api
 
@@ -625,6 +627,69 @@ def script():
 		f"verbosity {flag(verbosity.level_get == api.Level.TRACE)} {api.spell(verbosity.filter())} {louder} {api.spell(api.louder(None))}"
 	)
 
+	print(f"made {api.made(3, lambda n: f'{n} times')}")
+	# A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	kept = api.Ticket.new(9)
+	given = api.reissue(api.Ticket.new(7), lambda t: api.Ticket.new(t.number() + 1)).number()
+	held = api.reissue(api.Ticket.new(7), lambda _: kept).number()
+	print(f"reissued {given} {held}, cloned {api.Ticket.clones()}")
+	# A kept closure, called on another thread after the call that took it returned.
+	print(f"spawned {api.Spawned.new(lambda: 7).join()}")
+	# A kept closure: called again at the instant it asks for, then once its waiter wakes.
+	start = api.now()
+	calls = 0
+
+	def drive(now, waiter):
+		nonlocal calls
+		calls += 1
+		match calls:
+			case 1:
+				return api.later(now, datetime.timedelta(milliseconds=5))
+			case 2:
+				print(f"drive {api.since(now, start) // ms}")
+				waiter.waker().wake()
+				return None
+			case _:
+				raise api.StringException(f"stopped after {calls}")
+
+	print(f"drive {asyncio.run(api.drive(start, drive))}")
+	for file in (io.BytesIO(b"hello world"), Broken()):
+		try:
+			tail, at = api.tail(file, 5)
+			print(f"tail {text(tail)} {at}")
+		except api.StringException as e:
+			print(f"tail error {e}")
+	# A seek from the start reaches the reader whole, past `i64::MAX`, as `Cursor` takes one.
+	try:
+		print(f"sought {api.seek_to(Far(), 2**64 - 1)}")
+	except api.StringException as e:
+		print(f"sought error {e}")
+	print(f"non zeros {api.describe_non_zeros(api.non_zeros())}")
+	for hop in [None, 1, 2**64 - 1]:
+		next = api.next_hop(hop)
+		print("hop None" if next is None else f"hop Some({next})")
+	print(f"farther hop {api.farther_hop(api.PairNonZeroU16(3, 0xFFFF))}")
+
+
+class Broken:
+	"""A reader whose reads fail, as the transcript's: each seek lands at 0."""
+
+	def readinto(self, buffer):
+		raise OSError("broken")
+
+	def seek(self, offset, whence=0):
+		return 0
+
+
+class Far:
+	"""A reader of nothing, which seeks anywhere from its start, as Rust's `Cursor` does."""
+
+	def readinto(self, buffer: memoryview, /) -> int:
+		return 0
+
+	def seek(self, offset: int, whence: int = 0, /) -> int:
+		return offset
+
 
 def futures():
 	"""The futures' semantics beyond the transcript, each checked by an assertion."""
@@ -732,8 +797,157 @@ def futures():
 	check(wakes == [threading.get_ident()], "a waker calls back on its loop's thread")
 	loop.run_until_complete(asyncio.wait_for(on_loop(), 5))
 	loop.run_until_complete(asyncio.wait_for(foreign(), 5))
+	loop.run_until_complete(asyncio.wait_for(polled(), 5))
+	loop.run_until_complete(asyncio.wait_for(kept(), 5))
 	loop.close()
+	readers()
 	print("futures ok")
+
+
+async def polled():
+	"""A poll of a waiter, made of each poll's waker, of an awaitable Rust owns and lends it
+	pinned: closed once it finishes, or once the future is dropped first."""
+	gate = asyncio.get_running_loop().create_future()
+	ran = []
+
+	async def lent():
+		await gate
+		ran.append("lent")
+
+	task = asyncio.ensure_future(api.Waiter.poll_future(lent()))
+	for _ in range(3):
+		await asyncio.sleep(0)
+	check(not task.done() and not ran, "a polled future waits on the awaitable it owns")
+	gate.set_result(None)
+	await task
+	check(ran == ["lent"], "a polled future finishes once its awaitable does")
+
+	cancelled = []
+
+	async def never():
+		try:
+			await asyncio.get_running_loop().create_future()
+		except asyncio.CancelledError:
+			cancelled.append(True)
+			raise
+
+	try:
+		await asyncio.wait_for(api.Waiter.poll_future(never()), 0.05)
+		check(False, "a polled future that never ends times out")
+	except asyncio.TimeoutError:
+		pass
+	for _ in range(3):
+		await asyncio.sleep(0)
+	check(cancelled == [True], "dropping a polled future cancels the awaitable it owns")
+
+
+class Drive:
+	"""drive's closure, which only ever waits, or stops at once."""
+
+	def __init__(self, stop):
+		self.stop = stop
+
+	def __call__(self, now, waiter):
+		if self.stop:
+			raise api.StringException("stopped")
+		return None
+
+
+async def kept():
+	"""Closures Rust keeps past the call, which it lets go of once it drops them."""
+	start = api.now()
+	stopping = Drive(True)
+	ref = weakref.ref(stopping)
+	check(await api.drive(start, stopping) == "stopped", "a kept closure's error ends its future")
+	del stopping
+	gc.collect()
+	check(ref() is None, "a finished future lets go of its closure")
+
+	# Dropped before it finishes, it lets go of the closure it kept. Cancelled without
+	# awaiting it, as a traceback through its frame would keep the closure.
+	idle = Drive(False)
+	ref = weakref.ref(idle)
+	task = asyncio.ensure_future(api.drive(start, idle))
+	for _ in range(3):
+		await asyncio.sleep(0)
+	check(not task.done(), "a drive that only waits pends")
+	task.cancel()
+	for _ in range(3):
+		await asyncio.sleep(0)
+	check(task.cancelled(), "a drive is cancelled")
+	del idle, task
+	gc.collect()
+	check(ref() is None, "a dropped future lets go of its closure")
+
+	# Refused at the call, before Rust takes it.
+	try:
+		await api.drive(start, 42)  # type: ignore[arg-type]
+		check(False, "a value that is not callable is refused")
+	except TypeError:
+		pass
+
+	# Called on Rust's own thread, after the call that took it returned.
+	threads = []
+
+	class Task:
+		def __call__(self):
+			threads.append(threading.get_ident())
+			return 9
+
+	task = Task()
+	ref = weakref.ref(task)
+	spawned = api.Spawned.new(task)
+	del task
+	check(spawned.join() == 9, "a spawned closure returns to Rust")
+	gc.collect()
+	check(threads != [threading.get_ident()] and ref() is None, "a spawned closure runs elsewhere, then is let go")
+
+	# What a closure returns, Rust owns: a copy of a string, and a clone of an object.
+	later = api.later(start, datetime.timedelta(milliseconds=7))
+	calls = 0
+
+	def ask(now, waiter):
+		nonlocal calls
+		calls += 1
+		if calls == 1:
+			return later
+		check(api.since(now, later) == datetime.timedelta(), "Rust's copy of a returned object is its value")
+		raise api.StringException("done")
+
+	check(await api.drive(start, ask) == "done", "a closure's returned object is Rust's own copy")
+	check(api.since(later, start) == datetime.timedelta(milliseconds=7), "a returned object stays the caller's")
+
+
+def readers():
+	"""Readers Rust reads and seeks during the call."""
+	data = bytes(range(256)) * 64
+	file = io.BytesIO(data)
+	tail, at = api.tail(file, 1000)
+	check(bytes(tail) == data[-1000:] and at == len(data) - 1000, "a long tail reads in several reads")
+	check(file.tell() == at, "Rust's seeks move the reader")
+
+	with open(__file__, "rb") as opened:
+		size = os.fstat(opened.fileno()).st_size
+		tail, at = api.tail(opened, 10)
+		check(len(tail) == 10 and at == size - 10, "a file opened for reading is a reader")
+
+	class Seeks(io.BytesIO):
+		def seek(self, offset, whence=0, /):
+			if whence == os.SEEK_END:
+				raise OSError("no end")
+			return super().seek(offset, whence)
+
+	try:
+		api.tail(Seeks(b"abc"), 1)
+		check(False, "a failed seek fails the call")
+	except api.StringException as e:
+		check(str(e) == "no end", "a failed seek's message crosses")
+
+	try:
+		api.tail(object(), 1)  # type: ignore[arg-type]
+		check(False, "a value with no readinto is refused")
+	except TypeError:
+		pass
 
 
 async def foreign():
@@ -1119,6 +1333,21 @@ def broken(which):
 					raise RuntimeError("a log failed")
 
 			api.emit(Threw(), bytes([1]))
+		# A kept closure raising what is not its error, on Rust's own thread.
+		case "kept threw":
+			api.Spawned.new(lambda: 1 // 0).join()
+		# A closure returning what Rust does not take.
+		case "returned":
+			api.made(1, lambda n: n)  # type: ignore[arg-type, return-value]
+		# A reader keeping a slice of Rust's buffer, which would write it once it is gone.
+		case "reader kept":
+
+			class Keeps(io.BytesIO):
+				def readinto(self, buffer, /):
+					self.kept = buffer[1:]
+					return super().readinto(buffer)
+
+			api.tail(Keeps(b"abc"), 1)
 		case _:
 			raise ValueError(f"no case {which}")
 

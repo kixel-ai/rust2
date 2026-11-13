@@ -1,9 +1,9 @@
 // The api fixture's Go test: the script fixtures/api/examples/transcript.rs runs natively,
 // through the generated Go. tests/fixtures.rs compares the transcripts.
 //
-// With an argument, it instead checks the futures' semantics, what closing and the GC
-// free, what a closed object returns, how long returned bytes live, or breaks a contract,
-// which must fail.
+// With an argument, it instead checks the futures' semantics, what Rust keeps of closures
+// and reads of readers, what closing and the GC free, what a closed object returns, how
+// long returned bytes live, or breaks a contract, which must fail.
 package main
 
 import (
@@ -750,6 +750,221 @@ func script() {
 	fmt.Printf("verbosity %t %s %s %s\n", must(verbosity.LevelGet()) == tracingcore.LevelTrace, api.Spell(must(verbosity.Filter())),
 		api.Spell(api.Louder(must(verbosity.Filter()))), api.Spell(api.Louder(nil)))
 	verbosity.Close()
+
+	fmt.Printf("made %s\n", api.Made(3, func(n uint32) string { return fmt.Sprintf("%d times", n) }))
+	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	nine, seven := api.NewTicket(9), api.NewTicket(7)
+	renewed := must(api.Reissue(seven, func(t *api.Ticket) *api.Ticket { return api.NewTicket(must(t.Number()) + 1) }))
+	copied := must(api.Reissue(seven, func(*api.Ticket) *api.Ticket { return nine }))
+	fmt.Printf("reissued %d %d, cloned %d\n", must(renewed.Number()), must(copied.Number()), api.TicketClones())
+	for _, ticket := range []*api.Ticket{copied, renewed, seven, nine} {
+		ticket.Close()
+	}
+	// A kept closure, called on another thread after the call that took it returned.
+	spawned := api.NewSpawned(func() uint32 { return 7 })
+	fmt.Printf("spawned %d\n", must(spawned.Join()))
+	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
+	driven := api.Now()
+	calls := 0
+	stopped := must(api.Drive(context.Background(), driven, func(now *std.Instant, waiter *api.Waiter) (*std.Instant, error) {
+		calls++
+		switch calls {
+		case 1:
+			return must(api.Later(now, 5*time.Millisecond)), nil
+		case 2:
+			fmt.Printf("drive %d\n", must(api.Since(now, driven)).Milliseconds())
+			must(waiter.Waker())()
+			return nil, nil
+		}
+		return nil, fmt.Errorf("stopped after %d", calls)
+	}))
+	fmt.Printf("drive %s\n", stopped)
+	driven.Close()
+	tail(strings.NewReader("hello world"))
+	tail(brokenReader{})
+	// A seek from the start reaches the reader whole, past `math.MaxInt64`, as `Cursor` takes one.
+	if at, err := api.SeekTo(farReader{}, math.MaxUint64); err != nil {
+		fmt.Printf("sought error %s\n", err)
+	} else {
+		fmt.Printf("sought %d\n", at)
+	}
+	fmt.Printf("non zeros %s\n", api.DescribeNonZeros(api.NewNonZeros()))
+	hopFirst, hopLast := uint64(1), uint64(math.MaxUint64)
+	for _, hop := range []*uint64{nil, &hopFirst, &hopLast} {
+		if next := api.NextHop(hop); next != nil {
+			fmt.Printf("hop Some(%d)\n", *next)
+		} else {
+			fmt.Println("hop None")
+		}
+	}
+	fmt.Printf("farther hop %d\n", api.FartherHop(api.PairNonZeroU16{Left: 3, Right: math.MaxUint16}))
+}
+
+// farReader is a reader whose reads fail, which seeks anywhere from its start, as Rust's
+// Cursor does.
+type farReader struct{ brokenReader }
+
+var _ rt.StartSeeker = farReader{}
+
+func (farReader) SeekStart(offset uint64) (uint64, error) {
+	return offset, nil
+}
+
+// tail prints the last 5 bytes of file, or its error.
+func tail(file io.ReadSeeker) {
+	if bytes, at, err := api.Tail(file, 5); err != nil {
+		fmt.Printf("tail error %s\n", err)
+	} else {
+		fmt.Printf("tail %s %d\n", bytes.Copy(), at)
+	}
+}
+
+// brokenReader is a reader whose reads fail, as the transcript's: each seek lands at 0.
+type brokenReader struct{}
+
+func (brokenReader) Read([]byte) (int, error) {
+	return 0, errors.New("broken")
+}
+
+func (brokenReader) Seek(int64, int) (int64, error) {
+	return 0, nil
+}
+
+// lastReader is bytes in memory whose last read returns err beside its bytes, as a Go
+// reader may.
+type lastReader struct {
+	*strings.Reader
+	err error
+}
+
+func (r lastReader) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	if err == nil && r.Reader.Len() == 0 {
+		err = r.err
+	}
+	return n, err
+}
+
+// stuckReader reads nothing and no error, forever.
+type stuckReader struct {
+	brokenReader
+}
+
+func (stuckReader) Read([]byte) (int, error) {
+	return 0, nil
+}
+
+// unseekable is a reader whose seeks fail.
+type unseekable struct {
+	brokenReader
+}
+
+func (unseekable) Seek(int64, int) (int64, error) {
+	return 0, errors.New("no seek")
+}
+
+// released waits for the GC to collect what released marks, once Rust released the closure
+// holding it.
+func released(released *atomic.Bool, what string) {
+	deadline := time.Now().Add(10 * time.Second)
+	for !released.Load() {
+		check(time.Now().Before(deadline), what)
+		runtime.GC()
+		runtime.Gosched()
+	}
+}
+
+// marked is a value whose collection sets the returned flag, for a closure to hold.
+func marked() (*[4]int, *atomic.Bool) {
+	var released atomic.Bool
+	// Larger than the tiny allocator's blocks, whose objects may never be cleaned up.
+	marker := new([4]int)
+	runtime.AddCleanup(marker, func(released *atomic.Bool) { released.Store(true) }, &released)
+	return marker, &released
+}
+
+// closures checks what Rust keeps and releases, and readers' reads, seeks, and errors.
+func closures() {
+	ctx := context.Background()
+
+	// A kept closure Rust releases once it drops it, after its thread called it.
+	{
+		marker, freed := marked()
+		spawned := api.NewSpawned(func() uint32 { return uint32(marker[0]) + 1 })
+		check(must(spawned.Join()) == 1, "a kept closure runs on Rust's thread")
+		released(freed, "Rust releases a kept closure it dropped")
+	}
+
+	// A kept closure the future holds until it is dropped, unfinished.
+	{
+		marker, freed := marked()
+		called := make(chan struct{}, 1)
+		start := api.Now()
+		cancelled, cancel := context.WithCancel(ctx)
+		done := make(chan error)
+		go func() {
+			_, err := api.Drive(cancelled, start, func(*std.Instant, *api.Waiter) (*std.Instant, error) {
+				_ = marker[0]
+				select {
+				case called <- struct{}{}:
+				default:
+				}
+				return nil, nil
+			})
+			done <- err
+		}()
+		<-called
+		for range 5 {
+			runtime.GC()
+			runtime.Gosched()
+		}
+		check(!freed.Load(), "a pending future keeps its closure")
+		cancel()
+		check(errors.Is(<-done, context.Canceled), "a cancelled drive returns its context's error")
+		released(freed, "a dropped future releases its closure")
+		start.Close()
+	}
+
+	// What a closure returns crosses: the instant it asks for, then its error.
+	{
+		start := api.Now()
+		later := must(api.Later(start, time.Second))
+		var seen []int64
+		stopped := must(api.Drive(ctx, start, func(now *std.Instant, _ *api.Waiter) (*std.Instant, error) {
+			seen = append(seen, must(api.Since(now, start)).Milliseconds())
+			if len(seen) == 1 {
+				return later, nil
+			}
+			return nil, errors.New("")
+		}))
+		check(stopped == "" && len(seen) == 2 && seen[1] == 1000, "a returned instant and an empty error cross")
+		// Rust took a clone: Go's is still its own.
+		check(must(later.Equal(later)), "a returned object stays Go's")
+		later.Close()
+		start.Close()
+	}
+
+	// A read's bytes and error both reach Rust, the error on the next read.
+	{
+		bytes, at, err := api.Tail(lastReader{strings.NewReader("hello world"), errors.New("late")}, 5)
+		check(err != nil && err.Error() == "late" && bytes.Len() == 0 && at == 0, "an error beside bytes is the next read's")
+		bytes, at, err = api.Tail(lastReader{strings.NewReader("hello world"), io.EOF}, 5)
+		check(err == nil && string(bytes.Copy()) == "world" && at == 6, "io.EOF beside bytes ends the reader")
+		_, _, err = api.Tail(stuckReader{}, 5)
+		check(err != nil && err.Error() == io.ErrNoProgress.Error(), "a reader reading nothing gives up")
+		_, _, err = api.Tail(unseekable{}, 5)
+		check(err != nil && err.Error() == "no seek", "a seek's error crosses")
+		// A file, as moq-mux's repair reads one.
+		file := must(os.CreateTemp("", "rust2-ffi-go-tail"))
+		defer os.Remove(file.Name())
+		must(file.WriteString("on disk"))
+		bytes, at, err = api.Tail(file, 4)
+		check(err == nil && string(bytes.Copy()) == "disk" && at == 3, "a file reads as a reader")
+		// Lent, never closed: the file is still the caller's.
+		check(must(file.Seek(0, io.SeekCurrent)) == 3, "Rust leaves a file it read open, where it sought")
+		file.Close()
+	}
+	fmt.Println("closures ok")
 }
 
 // futures checks the futures' semantics beyond the transcript, each by an assertion.
@@ -898,6 +1113,41 @@ func futures() {
 		cancel()
 		check(errors.Is(<-got, context.Canceled), "a cancelled call waiting on a Go function reports the cancel")
 		<-cancelled
+	}
+
+	// A waiter's poll of a Go function, made of each poll's waker, which the future owns.
+	{
+		ran := make(chan struct{}, 1)
+		ok(api.WaiterPollFuture(ctx, func(context.Context) { ran <- struct{}{} }))
+		check(len(ran) == 1, "a waiter polls a Go function to its end")
+	}
+	{
+		gate := make(chan struct{})
+		got := make(chan error)
+		go func() { got <- api.WaiterPollFuture(ctx, func(context.Context) { <-gate }) }()
+		select {
+		case <-got:
+			check(false, "a waiter's poll waits on a Go function that blocks")
+		case <-time.After(10 * time.Millisecond):
+		}
+		close(gate)
+		check(<-got == nil, "a Go function's return wakes the waiter's poll")
+	}
+	{
+		// Dropped before it finishes, it cancels the Go function it owns.
+		short, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
+		defer cancel()
+		cancelled := make(chan struct{})
+		err := api.WaiterPollFuture(short, func(c context.Context) {
+			<-c.Done()
+			close(cancelled)
+		})
+		check(errors.Is(err, context.DeadlineExceeded), "a waiter's poll ends at its deadline")
+		select {
+		case <-cancelled:
+		case <-time.After(5 * time.Second):
+			check(false, "dropping a waiter's poll cancels the Go function it owns")
+		}
 	}
 	fmt.Println("futures ok")
 }
@@ -1209,6 +1459,15 @@ func broken(which string) {
 		api.PointerBits(api.PlatformWasm{Bits: 32})
 	case "plain variant":
 		api.IsFamily(api.FamilyWasm)
+	case "nil reader":
+		api.Tail(nil, 1)
+	// An instant Go closed, which Rust cannot copy out.
+	case "returned closed":
+		start := api.Now()
+		api.Drive(context.Background(), start, func(now *std.Instant, _ *api.Waiter) (*std.Instant, error) {
+			now.Close()
+			return now, nil
+		})
 	default:
 		check(false, "no case "+which)
 	}
@@ -1232,6 +1491,8 @@ func main() {
 		closed()
 	case os.Args[1] == "bytes":
 		bytes()
+	case os.Args[1] == "closures":
+		closures()
 	default:
 		broken(os.Args[1])
 	}

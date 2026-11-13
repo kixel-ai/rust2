@@ -379,6 +379,94 @@ func GoPoll_() unsafe.Pointer {
 	return unsafe.Pointer(goPoll)
 }
 
+// GoRead_ and GoSeek_ are the C functions reading and seeking what Reader_ made.
+func GoRead_() unsafe.Pointer {
+	return unsafe.Pointer(goRead)
+}
+
+func GoSeek_() unsafe.Pointer {
+	return unsafe.Pointer(goSeek)
+}
+
+// Reader_ is r as a reader Rust reads and seeks during a call. For the generated packages:
+// use none of it.
+func Reader_(r io.ReadSeeker) any {
+	if r == nil {
+		panic("a nil io.ReadSeeker")
+	}
+	return &reader_{r: r}
+}
+
+// StartSeeker is an io.ReadSeeker that also seeks to any offset from its start, as Rust's
+// SeekFrom::Start takes a uint64, past the int64 an io.Seeker takes. Rust calls SeekStart
+// only for an offset past math.MaxInt64; a reader without it fails that seek.
+type StartSeeker interface {
+	io.ReadSeeker
+	SeekStart(offset uint64) (uint64, error)
+}
+
+// reader_ is a Go reader Rust reads and seeks one call at a time, as Rust's Read and Seek.
+type reader_ struct {
+	r io.ReadSeeker
+	// What a read returned beside bytes, which the next read returns: Rust takes a read's
+	// bytes or its error, never both.
+	err error
+}
+
+// read is a read as Rust's: none only at the end, which a Go read marks with io.EOF.
+func (r *reader_) read(p []byte) (int, error) {
+	if err := r.err; err != nil {
+		r.err = nil
+		return 0, err
+	}
+	if len(p) == 0 {
+		return 0, nil
+	}
+	// A Go read of none without an error did nothing, so it reads again, as bufio does,
+	// until it gives up.
+	for range 100 {
+		n, err := r.r.Read(p)
+		switch {
+		case n > 0:
+			if err != io.EOF {
+				r.err = err
+			}
+			return n, nil
+		case err == io.EOF:
+			return 0, nil
+		case err != nil:
+			return 0, err
+		}
+	}
+	return 0, io.ErrNoProgress
+}
+
+// seek is a seek as Rust's, whose offset from the start is offset's bits, unsigned.
+func (r *reader_) seek(offset int64, whence int) (uint64, error) {
+	if whence == io.SeekStart && offset < 0 {
+		s, ok := r.r.(StartSeeker)
+		if !ok {
+			return 0, errors.New("a seek past math.MaxInt64 of a reader that is no StartSeeker")
+		}
+		at, err := s.SeekStart(uint64(offset))
+		if err != nil {
+			return 0, err
+		}
+		r.err = nil
+		return at, nil
+	}
+	at, err := r.r.Seek(offset, whence)
+	if err != nil {
+		return 0, err
+	}
+	if at < 0 {
+		return 0, errors.New("a Go reader sought before its start")
+	}
+	// What a read returned beside bytes was where it read, which a seek leaves.
+	r.err = nil
+	return uint64(at), nil
+}
+
 // Pollable_ is run as a future Rust polls, under a context derived from parent, which
 // closing also cancels. For the generated packages: use none of it.
 func Pollable_(parent context.Context, run func(context.Context)) io.Closer {

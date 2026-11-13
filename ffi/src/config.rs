@@ -83,6 +83,8 @@ pub mod env {
 	/// The file to write the target's API into instead of exporting, absolute, for the
 	/// export of several targets to merge.
 	pub const API: &str = "RUST2_FFI_API";
+	/// The API an earlier export wrote, absolute, which the export's must not break.
+	pub const BASELINE: &str = "RUST2_FFI_BASELINE";
 	/// The other targets' APIs the export merges with its own, as a list of paths.
 	pub const MERGE: &str = "RUST2_FFI_MERGE";
 	/// The directories a staged API's spans are relative to, as a list of paths: the

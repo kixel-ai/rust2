@@ -8,7 +8,8 @@
 //! takes a trailing `_`. An object is a class owning its handle, freed once its last
 //! reference goes; a record a dataclass; an enum an `Enum`, or for
 //! one with data a class with a dataclass per variant; a trait an abstract class; a
-//! closure any callable; a future an awaitable; an error an exception. The runtime they
+//! closure any callable; a reader a `ForeignReader`; a future an awaitable; an error an
+//! exception. The runtime they
 //! share, [`runtime/rt.py`](../runtime/rt.py), holds the awaitable and the queue an event
 //! loop reads its wakes from; the glue's, [`runtime/python.rs`](../runtime/python.rs),
 //! the conversions and the types the extension defines.
@@ -75,6 +76,7 @@ const TAKEN: &[&str] = &[
 	"_Exception",
 	"_ValueError",
 	"_AttributeError",
+	"ForeignReader",
 ];
 
 /// Any buffer, as Python before 3.12's `collections.abc.Buffer` spells it.
@@ -407,7 +409,7 @@ impl<'a> Gen<'a> {
 			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "None".to_string(),
 			Type::Bool => "bool".to_string(),
-			Type::Int(_) | Type::U128 => "int".to_string(),
+			Type::Int(_) | Type::NonZero(_) | Type::U128 => "int".to_string(),
 			Type::F32 | Type::F64 => "float".to_string(),
 			Type::Char | Type::Str | Type::String | Type::Path | Type::PathBuf => "str".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "memoryview".to_string(),
@@ -419,6 +421,7 @@ impl<'a> Gen<'a> {
 			},
 			Type::List(_, inner) => format!("list[{}]", self.py_ty(inner)),
 			Type::Waker => "Waker".to_string(),
+			Type::Reader => "ForeignReader".to_string(),
 			Type::Future => "_typing.Awaitable[None]".to_string(),
 			Type::Option(inner) => format!("{} | None", self.py_ty(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.py_ty(inner),
@@ -426,7 +429,8 @@ impl<'a> Gen<'a> {
 			Type::Enum(i) => self.class(&abi.enumeration(*i)),
 			Type::Object(i) => self.class(&abi.object(*i)),
 			Type::Callback(i, _) => self.class(&abi.callback(*i)),
-			Type::Closure(params, ret) => {
+			Type::Closure(closure_) => {
+				let (params, ret) = (&closure_.params, &closure_.ok);
 				let params: Vec<String> = params.iter().map(|p| self.py_lent(p)).collect();
 				format!("_typing.Callable[[{}], {}]", params.join(", "), self.py_param(ret))
 			}
@@ -484,7 +488,7 @@ impl<'a> Gen<'a> {
 				abi.array(*n)
 			),
 			Type::Bool => format!("rt::bool_in({o})"),
-			Type::Int(int) => format!("rt::int_in::<{}>({o})", int.rust()),
+			Type::Int(int) | Type::NonZero(int) => format!("rt::int_in::<{}>({o})", int.rust()),
 			Type::F32 => format!("rt::float_in({o}).map(|f| f as f32)"),
 			Type::F64 => format!("rt::float_in({o})"),
 			Type::Char => format!("rt::char_in({o})"),
@@ -543,6 +547,7 @@ impl<'a> Gen<'a> {
 				)
 			}
 			Type::Waker => format!("rt::waker_in({o}, s)"),
+			Type::Reader => format!("rt::reader_in({o})"),
 			Type::Future => format!("rt::future_in({o}, s)"),
 			Type::Range(int) => format!("rt::range_in::<{}>({o})", int.rust()),
 			Type::Bound(_) | Type::Bounds(_) => format!("r_{}({o}, s)", abi.range(ty)),
@@ -560,8 +565,8 @@ impl<'a> Gen<'a> {
 			Type::Array(n) => format!("rt::array_out(&{v}.items, {})", self.t(&abi.array(*n))),
 			Type::Unit => "rt::none()".to_string(),
 			Type::Bool => format!("rt::bool_out({v})"),
-			Type::Int(int) if signed(*int) => format!("rt::int_out({v} as i64)"),
-			Type::Int(_) => format!("rt::uint_out({v} as u64)"),
+			Type::Int(int) | Type::NonZero(int) if signed(*int) => format!("rt::int_out({v} as i64)"),
+			Type::Int(_) | Type::NonZero(_) => format!("rt::uint_out({v} as u64)"),
 			Type::F32 | Type::F64 => format!("rt::float_out({v} as f64)"),
 			Type::Char => format!("rt::char_out({v})"),
 			Type::Str | Type::String => format!("rt::str_out({v})"),
@@ -602,7 +607,7 @@ impl<'a> Gen<'a> {
 			Type::Bound(_) | Type::Bounds(_) => format!("w_{}({v})", abi.range(ty)),
 			Type::Tuple(_) => format!("w_{}({v})", self.c_struct(ty)),
 			Type::Waker => format!("rt::waker_out({v})"),
-			Type::Callback(..) | Type::Closure(..) | Type::Future => {
+			Type::Callback(..) | Type::Closure(..) | Type::Future | Type::Reader => {
 				unreachable!("{ty:?} is no value Rust returns")
 			}
 		}
@@ -1202,6 +1207,7 @@ impl<'a> Gen<'a> {
 				(&lent, &method.ok),
 				(&c_params, &c_ret),
 				Some(&key),
+				None,
 			);
 			table.push(format!("{}: Some({trampoline})", method.name()));
 		}
@@ -1236,7 +1242,9 @@ impl<'a> Gen<'a> {
 
 	/// The Rust function C calls for a callback's method or a closure, named `trampoline`,
 	/// which calls the Python value Rust holds: for a callback, its method `key`, and for a
-	/// closure, the callable itself.
+	/// closure, the callable itself. A closure returning a `Result` writes its value
+	/// through an out, and fails with the `error` of the exception class `exception`
+	/// registers that it raises.
 	fn trampoline(
 		&mut self,
 		trampoline: &str,
@@ -1244,6 +1252,7 @@ impl<'a> Gen<'a> {
 		(lent, ret): (&[Type], &Type),
 		(c_params, c_ret): (&[Ty], &Ty),
 		key: Option<&str>,
+		exception: Option<&str>,
 	) {
 		let mut rust_params = vec!["data: *mut std::ffi::c_void".to_string()];
 		let mut args = Vec::new();
@@ -1260,16 +1269,86 @@ impl<'a> Gen<'a> {
 			Some(key) => format!("rt::call_method(data.cast(), {key}, vec![{}])", args.join(", ")),
 			None => format!("rt::call_py(data.cast(), vec![{}])", args.join(", ")),
 		};
-		let back = match c_ret {
-			Ty::Void => "Ok(())".to_string(),
-			_ => self.lift(ret, "r.ptr()", "false"),
+		let outs = &c_params[lent.len()..];
+		let (call, back) = match exception {
+			Some(exception) => {
+				let err = outs.len() - 1;
+				for (k, c) in outs.iter().enumerate() {
+					let Ty::Out(inner) = c else {
+						unreachable!("a closure's {c:?} after what it takes is an out")
+					};
+					rust_params.push(format!("out{k}: *mut {}", rust_c(self.abi, inner)));
+				}
+				let call = format!(
+					"match {call} {{\n\t\t\tOk(r) => r,\n\t\t\tErr(rt::Raised) => {{\n\t\t\t\tout{err}.write(rt::closure_error({exception})?);\n\t\t\t\treturn Ok(false);\n\t\t\t}}\n\t\t}}"
+				);
+				let back = match err {
+					0 => "Ok(true)".to_string(),
+					_ => format!("out0.write({}?);\n\t\tOk(true)", self.given(ret, "r.ptr()")),
+				};
+				(call, back)
+			}
+			None => {
+				let back = match c_ret {
+					Ty::Void => "Ok(())".to_string(),
+					_ => self.given(ret, "r.ptr()"),
+				};
+				(format!("{call}?"), back)
+			}
 		};
 		let rust_ret = rust_c(self.abi, c_ret);
 		let _ = write!(
 			self.glue,
-			"unsafe extern \"C\" fn {trampoline}({}) -> {rust_ret} {{\n\trt::upcall(\"{what}\", || unsafe {{\n\t\tlet s = &mut rt::Scope::default();\n\t\tlet r = {call}?;\n\t\t{back}\n\t}})\n}}\n\n",
+			"unsafe extern \"C\" fn {trampoline}({}) -> {rust_ret} {{\n\trt::upcall(\"{what}\", || unsafe {{\n\t\tlet s = &mut rt::Scope::default();\n\t\tlet r = {call};\n\t\t{back}\n\t}})\n}}\n\n",
 			rust_params.join(", "),
 		);
+	}
+
+	/// The glue's expression, an `R<C>`, of the Python object `o` a closure returns as the
+	/// C value of `ty` that Rust then owns: a string copied, as `<prefix>_buf_copy` makes
+	/// one, and a new handle to a copy of an object, made without its `Clone`, so the Python
+	/// object keeps its own.
+	fn given(&mut self, ty: &Type, o: &str) -> String {
+		let abi = self.abi;
+		match ty {
+			Type::String => format!("rt::str_given({o})"),
+			Type::Object(i) => format!(
+				"rt::hold({o}, {}, s, false).map(|h| crate::{}_copy(h))",
+				self.t(&abi.object(*i)),
+				abi.object(*i)
+			),
+			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {
+				let some = self.given(inner, o);
+				format!("(if rt::is_none({o}) {{ Ok(std::ptr::null()) }} else {{ {some} }})")
+			}
+			_ => self.lift(ty, o, "false"),
+		}
+	}
+
+	/// The registry's index of the exception class an error of type `e` raises.
+	fn exception(&mut self, e: &Type) -> String {
+		let name = self.thrown(e);
+		self.t(&format!("exc_{name}"))
+	}
+
+	/// The name of the exception class an error of type `e` raises, made once per type.
+	fn thrown(&mut self, e: &Type) -> String {
+		let py = self.py_ty(e);
+		// Named for Rust's type, as Python's `str` reads as no type of its own.
+		let name = match e {
+			Type::Str | Type::String => "StringException".to_string(),
+			_ => format!("{}Exception", pascal_type(&py)),
+		};
+		match self.thrown.get(&name) {
+			Some(thrown) => thrown.clone(),
+			None => {
+				let thrown = self.claim(&name, format!("the exception of `{py}`"));
+				self.thrown.insert(name, thrown.clone());
+				self.exceptions.insert(thrown.clone(), e.clone());
+				self.register(&format!("exc_{thrown}"), thrown.clone());
+				thrown
+			}
+		}
 	}
 
 	/// The glue's expression, an `R<Obj>`, of a buffer `p` Rust lends for a call: text
@@ -1459,19 +1538,25 @@ impl<'a> Gen<'a> {
 					c_args.push(format!("p{n}"));
 					written.push((n, (**inner).clone()));
 				}
-				(Type::Closure(lent, ret), Ty::Fn(c_lent, c_ret)) => {
+				(Type::Closure(closure_), Ty::Fn(c_lent, c_ret)) => {
 					c_params.next().expect("a closure has its data");
 					let trampoline = format!("py_{c_name}_{}", abi::escape(&param.name));
 					closures.push((
-						lent.clone(),
-						(**ret).clone(),
+						(**closure_).clone(),
 						c_lent.clone(),
 						(**c_ret).clone(),
 						trampoline.clone(),
 					));
-					stmts.push(format!("let p{n} = rt::closure(a[{n}])?;"));
 					c_args.push(format!("Some({trampoline})"));
 					c_args.push(format!("p{n}"));
+					match closure_.kept {
+						true => {
+							c_params.next().expect("a kept closure has its free");
+							stmts.push(format!("let p{n} = rt::kept(a[{n}], s)?;"));
+							c_args.push("Some(rt::free_closure)".to_string());
+						}
+						false => stmts.push(format!("let p{n} = rt::closure(a[{n}])?;")),
+					}
 				}
 				_ => {
 					stmts.push(format!(
@@ -1483,33 +1568,23 @@ impl<'a> Gen<'a> {
 			}
 			n += 1;
 		}
-		for (lent, ret, c_lent, c_ret, trampoline) in closures {
-			self.trampoline(&trampoline, &c_name, (&lent, &ret), (&c_lent, &c_ret), None);
+		for (closure_, c_lent, c_ret, trampoline) in closures {
+			let exception = closure_.err.as_ref().map(|e| self.exception(e));
+			self.trampoline(
+				&trampoline,
+				&c_name,
+				(&closure_.params, &closure_.ok),
+				(&c_lent, &c_ret),
+				None,
+				exception.as_deref(),
+			);
 		}
 		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
 
 		// The outs follow the unstripped return: a borrowed tuple is one struct, not its elements.
 		let ok = strip_refs(&function.ok);
 		let err = function.err.as_ref().map(strip_refs);
-		let exception = err.as_ref().map(|e| {
-			let py = self.py_ty(e);
-			// Named for Rust's type, as Python's `str` reads as no type of its own.
-			let name = match e {
-				Type::Str | Type::String => "StringException".to_string(),
-				_ => format!("{}Exception", pascal_type(&py)),
-			};
-			let name = match self.thrown.get(&name) {
-				Some(thrown) => thrown.clone(),
-				None => {
-					let thrown = self.claim(&name, format!("the exception of `{py}`"));
-					self.thrown.insert(name, thrown.clone());
-					self.exceptions.insert(thrown.clone(), e.clone());
-					self.register(&format!("exc_{thrown}"), thrown.clone());
-					thrown
-				}
-			};
-			self.t(&format!("exc_{name}"))
-		});
+		let exception = err.as_ref().map(|e| self.exception(e));
 		if let Some((_, poll, free)) = &export.future {
 			let poll_outs = &poll.params[2..];
 			let (decl, ptrs, value) = self.outs(
@@ -1549,16 +1624,33 @@ impl<'a> Gen<'a> {
 		// The Python.
 		let mut text = function.docs.clone();
 		for param in &function.params {
-			if let Type::Closure(lent, _) = &param.ty {
-				let name = param_name(&param.name);
-				text.push_str(&format!(
-					"\n\nRust calls `{name}` only during the call, from any thread."
-				));
+			let name = param_name(&param.name);
+			if let Type::Closure(closure_) = &param.ty {
+				let lent = &closure_.params;
+				match closure_.kept {
+					true => text.push_str(&format!(
+						"\n\nRust keeps `{name}` past the call, and calls it from any thread, one call at a time, until it lets go of it."
+					)),
+					false => text.push_str(&format!(
+						"\n\nRust calls `{name}` only during the call, from any thread."
+					)),
+				}
 				if lent.iter().any(|p| matches!(p.base(), Type::Object(_))) {
 					text.push_str(&format!(
 						"\nAn object it lends lives only for that call of `{name}`: keep none past it."
 					));
 				}
+				if let Some(err) = &closure_.err {
+					let name = self.thrown(err);
+					text.push_str(&format!(
+						"\nTo fail, it raises `{name}`, whose error Rust takes; any other exception aborts."
+					));
+				}
+			}
+			if param.ty == Type::Ref(crate::ir::Mutability::Mut, Box::new(Type::Reader)) {
+				text.push_str(&format!(
+					"\n\nRust reads and seeks `{name}` only during the call, from any thread, one call at a time: an `OSError` either raises fails Rust's read or seek with its message."
+				));
 			}
 		}
 		let body = stmts.join("\n\t\t");

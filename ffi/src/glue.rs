@@ -11,7 +11,7 @@ use std::path::Path;
 use crate::abi::{self, Abi, CFG, Ty};
 use crate::config::Package;
 use crate::ir::{
-	Access, Collection, Family, Function, Literal, Mutability, On, Receiver, Task, TaskKind, Traits, Type,
+	Access, Closure, Collection, Family, Function, Literal, Mutability, On, Receiver, Task, TaskKind, Traits, Type,
 };
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
@@ -98,6 +98,7 @@ pub fn rs(ty: &Ty) -> String {
 		Ty::Future(_) => "*mut rt::Future".to_string(),
 		Ty::Waker => "rt::Waker".to_string(),
 		Ty::ForeignFuture => "rt::ForeignFuture".to_string(),
+		Ty::ForeignReader => "rt::ForeignReader".to_string(),
 		Ty::Out(inner) => format!("*mut {}", rs(inner)),
 		Ty::In(inner) => format!("*const {}", rs(inner)),
 		Ty::Fn(params, ret) => {
@@ -458,6 +459,7 @@ impl Gen<'_> {
 			Type::Unit => "()".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(int) => int.rust().to_string(),
+			Type::NonZero(int) => format!("::std::num::NonZero<{}>", int.rust()),
 			Type::U128 => "u128".to_string(),
 			Type::F32 => "f32".to_string(),
 			Type::F64 => "f64".to_string(),
@@ -503,6 +505,9 @@ impl Gen<'_> {
 			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => e.to_string(),
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
+			Type::NonZero(_) => {
+				format!("::std::num::NonZero::new({e}).unwrap_or_else(|| rt::fail(w, \"a NonZero is zero\"))")
+			}
 			Type::Char => format!("rt::char({e}, w)"),
 			Type::Str | Type::String => format!("unsafe {{ {e}.str(w) }}.to_owned()"),
 			Type::Slice | Type::Vec => format!("unsafe {{ {e}.bytes(w) }}.to_vec()"),
@@ -514,7 +519,7 @@ impl Gen<'_> {
 			Type::SocketAddr(Family::V4) => format!("{e}.lift_v4(w)"),
 			Type::SocketAddr(Family::V6) => format!("{e}.lift_v6(w)"),
 			Type::Waker => format!("{e}.lift()"),
-			Type::Future => format!("{e}.lift(w)"),
+			Type::Future | Type::Reader => format!("{e}.lift(w)"),
 			Type::List(c, inner) => format!(
 				"unsafe {{ {e}.items(w) }}.iter().map(|c| {}).collect::<{}<{}>>()",
 				self.lift(inner, "(*c)"),
@@ -558,7 +563,7 @@ impl Gen<'_> {
 				false => format!("unsafe {{ rt::Object::<{}>::take({e}, w) }}", self.object_path(*i)),
 			},
 			Type::Callback(i, form) => abi::dyn_wrap(*form, &format!("Foreign_{}({e})", self.abi.callback(*i))),
-			Type::Closure(params, ret) => self.closure(params, ret, e),
+			Type::Closure(closure) => self.closure(closure, e),
 			Type::Range(_) => format!("{e}.lift()"),
 			Type::Bound(_) | Type::Bounds(_) => format!("{e}.lift(w)"),
 			Type::Tuple(elements) => {
@@ -571,40 +576,96 @@ impl Gen<'_> {
 		}
 	}
 
-	/// The Rust closure calling the function C lends as `e`, with its data `e_data`, which
-	/// lends each object the closure takes as a handle for that call.
-	fn closure(&self, params: &[Type], ret: &Type, e: &str) -> String {
-		let typed: Vec<String> = (params.iter().enumerate())
+	/// The Rust closure calling the function C implements as `e`, with its data `e_data`,
+	/// which lends each object the closure takes as a handle for that call. A kept one frees
+	/// its data with `e_free` once dropped.
+	fn closure(&self, closure: &Closure, e: &str) -> String {
+		let typed: Vec<String> = (closure.params.iter().enumerate())
 			.map(|(n, ty)| format!("c{n}: {}", self.rust(ty)))
 			.collect();
-		// Each object the closure takes, and how it is lent.
+		// Each object the closure takes, and how it is lent: a `Copy` one by value too.
 		let lent = |ty: &Type| match ty {
 			Type::Ref(m, inner) => match (&**inner, m) {
-				(&Type::Object(i), Mutability::Mut) => Some((i, "lend_mut")),
-				(&Type::Object(i), Mutability::Not) if self.abi.api.objects[i].sync => Some((i, "lend")),
-				(&Type::Object(i), Mutability::Not) => Some((i, "lend_local")),
+				(&Type::Object(i), Mutability::Mut) => Some((i, "lend_mut", "")),
+				(&Type::Object(i), Mutability::Not) if self.abi.api.objects[i].sync => Some((i, "lend", "")),
+				(&Type::Object(i), Mutability::Not) => Some((i, "lend_local", "")),
 				_ => None,
 			},
+			&Type::Object(i) if self.abi.api.objects[i].sync => Some((i, "lend", "&")),
+			&Type::Object(i) => Some((i, "lend_local", "&")),
 			_ => None,
 		};
-		let args: Vec<String> = std::iter::once("data.get()".to_string())
-			.chain(params.iter().enumerate().map(|(n, ty)| match lent(ty) {
+		let mut args: Vec<String> = std::iter::once("data.get()".to_string())
+			.chain(closure.params.iter().enumerate().map(|(n, ty)| match lent(ty) {
 				Some(_) => format!("h{n}"),
 				None => self.view(ty, &format!("c{n}")),
 			}))
 			.collect();
+		// A `Result` writes its value and its error through out pointers.
+		let mut outs = String::new();
+		if let Some(err) = &closure.err {
+			if closure.ok != Type::Unit {
+				outs.push_str(&format!(
+					"let mut out = ::std::mem::MaybeUninit::<{}>::zeroed();\n\t\t\t",
+					rs(&self.abi.ty(&closure.ok))
+				));
+				args.push("out.as_mut_ptr()".to_string());
+			}
+			outs.push_str(&format!(
+				"let mut err = ::std::mem::MaybeUninit::<{}>::zeroed();\n\t\t\t",
+				rs(&self.abi.ty(err))
+			));
+			args.push("err.as_mut_ptr()".to_string());
+		}
 		let mut call = format!("unsafe {{ f({}) }}", args.join(", "));
-		for (n, ty) in params.iter().enumerate().rev() {
-			if let Some((i, lend)) = lent(ty) {
-				call = format!("rt::Object::<{}>::{lend}(c{n}, w, |h{n}| {call})", self.object_path(i));
+		for (n, ty) in closure.params.iter().enumerate().rev() {
+			if let Some((i, lend, by)) = lent(ty) {
+				call = format!(
+					"rt::Object::<{}>::{lend}({by}c{n}, w, |h{n}| {call})",
+					self.object_path(i)
+				);
 			}
 		}
+		let ret = self.rust(&closure.ok);
+		let (ret, lifted) = match &closure.err {
+			None => (ret, self.returned(&closure.ok, "result")),
+			Some(err) => {
+				let ok = match closure.ok {
+					Type::Unit => "()".to_string(),
+					_ => self.returned(&closure.ok, "unsafe { out.assume_init() }"),
+				};
+				(
+					format!("::std::result::Result<{ret}, {}>", self.rust(err)),
+					format!(
+						"match result {{\n\t\t\t\ttrue => Ok({ok}),\n\t\t\t\tfalse => Err({}),\n\t\t\t}}",
+						self.returned(err, "unsafe { err.assume_init() }")
+					),
+				)
+			}
+		};
+		let data = match closure.kept {
+			true => format!("rt::Kept::new({e}_data, {e}_free)"),
+			false => format!("rt::Data::new({e}_data)"),
+		};
 		format!(
-			"{{\n\t\tlet f = {e}.unwrap_or_else(|| rt::fail(w, \"a function is null\"));\n\t\tlet data = rt::Data::new({e}_data);\n\t\tmove |{}| -> {} {{\n\t\t\tlet result = {call};\n\t\t\t{}\n\t\t}}\n\t}}",
+			"{{\n\t\tlet f = {e}.unwrap_or_else(|| rt::fail(w, \"a function is null\"));\n\t\tlet data = {data};\n\t\tmove |{}| -> {ret} {{\n\t\t\t{outs}let result = {call};\n\t\t\t{lifted}\n\t\t}}\n\t}}",
 			typed.join(", "),
-			self.rust(ret),
-			self.lift(ret, "result"),
 		)
+	}
+
+	/// The Rust value a closure C implements returned as the C value `e`, which Rust then
+	/// owns: a buffer `<prefix>_buf_copy` made, or a handle, out of which it copies a
+	/// `Copy` object before freeing it.
+	fn returned(&self, ty: &Type, e: &str) -> String {
+		match ty {
+			Type::String => format!("unsafe {{ {e}.take_string(w) }}"),
+			Type::Object(i) => format!("unsafe {{ rt::Object::<{}>::returned({e}, w) }}", self.object_path(*i)),
+			Type::Option(inner) => format!(
+				"{{ let r = {e}; if r.is_null() {{ None }} else {{ Some({}) }} }}",
+				self.returned(inner, "r")
+			),
+			ty => self.lift(ty, e),
+		}
 	}
 
 	/// Whether an option of `ty` may be a foreign enum's filter, such as `tracing::LevelFilter`
@@ -627,6 +688,7 @@ impl Gen<'_> {
 			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "()".to_string(),
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
+			Type::NonZero(_) => format!("({e}).get()"),
 			Type::Char => format!("{e} as u32"),
 			Type::Str => format!("rt::Buf::string({e}.to_owned())"),
 			Type::String => format!("rt::Buf::string({e})"),
@@ -678,7 +740,7 @@ impl Gen<'_> {
 			Type::Object(_) => format!("rt::Object::new({e})"),
 			Type::Callback(..) | Type::Closure(..) => unreachable!("a callback is never returned"),
 			Type::Waker => format!("rt::Waker::lower({e})"),
-			Type::Future => unreachable!("a foreign future is never returned"),
+			Type::Future | Type::Reader => unreachable!("{ty:?} is never returned"),
 			Type::Range(_) => format!("rt::Range::lower({e})"),
 			Type::Bound(_) => format!("rt::Bound::lower({e})"),
 			Type::Bounds(_) => format!("rt::Bounds::lower({e})"),
@@ -772,6 +834,9 @@ impl Gen<'_> {
 			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_buf_free(buf: rt::Buf) {{\n\tunsafe {{ buf.free() }}\n}}\n"
 		));
 		self.line(format!(
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_buf_copy(view: rt::Buf) -> rt::Buf {{\n\trt::Buf::vec(unsafe {{ view.bytes(\"{p}_buf_copy\") }}.to_vec())\n}}\n"
+		));
+		self.line(format!(
 			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_contract() -> u64 {{\n\t0x{:016x}\n}}\n",
 			self.contract
 		));
@@ -848,6 +913,11 @@ impl Gen<'_> {
 			self.traits(&name, &path, object.traits, |e| {
 				format!("unsafe {{ rt::Object::<{path}>::{borrow}({e}, w) }}")
 			});
+			if self.abi.copies.contains(&i) {
+				self.export(format!(
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_copy(this: *const ::std::ffi::c_void) -> *const ::std::ffi::c_void {{\n\tlet w = \"{name}_copy\";\n\trt::Object::new(*unsafe {{ rt::Object::<{path}>::{borrow}(this, w) }})\n}}\n"
+				));
+			}
 			let owner = Ty::Handle {
 				name: name.clone(),
 				constant: false,
@@ -1465,9 +1535,13 @@ impl Gen<'_> {
 			let place = places.next().expect("a place for each parameter");
 			let (_, c_ty) = c_params.next().expect("a C parameter for each");
 			params.push(format!("p{n}: {}", rs(c_ty)));
-			if let Type::Closure(..) = param.ty {
+			if let Type::Closure(closure) = &param.ty {
 				let (_, data) = c_params.next().expect("a lent function's data");
 				params.push(format!("p{n}_data: {}", rs(data)));
+				if closure.kept {
+					let (_, free) = c_params.next().expect("a kept function's free");
+					params.push(format!("p{n}_free: {}", rs(free)));
+				}
 			}
 			let (stmt, arg) = match &function.task {
 				// A context made of C's waker, lent for the call.
@@ -1489,6 +1563,12 @@ impl Gen<'_> {
 				_ if param.interned => (
 					format!("let a{n} = rt::intern(unsafe {{ p{n}.str(w) }});"),
 					format!("a{n}"),
+				),
+				// A future made of a `Poll` owns a future C implements, and lends it pinned to
+				// each poll.
+				Some(_) if function.future && param.ty == Type::Future => (
+					format!("let mut a{n} = p{n}.lift(w);"),
+					format!("::std::pin::Pin::new(&mut a{n})"),
 				),
 				_ => self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future),
 			};

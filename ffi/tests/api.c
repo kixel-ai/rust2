@@ -105,7 +105,246 @@ static bool foreign_futures(void) {
 	ok = ok && api_within_poll(within, waker, &err) == API_POLL_PENDING;
 	ok = ok && api_within_poll(within, waker, &err) == API_POLL_READY && twice.polls == 2;
 	api_within_future_free(within);
-	return ok && twice.freed;
+	ok = ok && twice.freed;
+
+	/* A poll of a waiter, made of each poll's waker, of a future C implements, which the
+	 * future owns and lends it pinned: freed once it finishes. */
+	foreign lent = {.ready = 2};
+	api_Waiter_poll_future_future *polled = api_Waiter_poll_future(foreign_future(&lent));
+	ok = ok && api_Waiter_poll_future_poll(polled, waker) == API_POLL_PENDING && lent.waker.wake;
+	woken = wakes;
+	lent.waker.wake(lent.waker.data);
+	ok = ok && wakes == woken + 1 && !lent.freed;
+	ok = ok && api_Waiter_poll_future_poll(polled, waker) == API_POLL_READY && lent.polls == 2 && lent.freed;
+	api_Waiter_poll_future_future_free(polled);
+
+	/* Dropped before it finishes, it frees the future it owns. */
+	foreign dropped = {.ready = 1000};
+	polled = api_Waiter_poll_future(foreign_future(&dropped));
+	ok = ok && api_Waiter_poll_future_poll(polled, waker) == API_POLL_PENDING;
+	api_Waiter_poll_future_future_free(polled);
+	return ok && dropped.freed && !dropped.waker.wake;
+}
+
+/* made's closure: a string it hands Rust, as api_buf_copy made it. */
+static api_buf made_times(void *data, uint32_t n) {
+	(void)data;
+	char text[32];
+	snprintf(text, sizeof text, "%u times", (unsigned)n);
+	return api_buf_copy(str(text));
+}
+
+/* reissue's closures: a new ticket, and a copy of one C keeps, each Rust's to free. */
+static api_Ticket *reissue_next(void *data, const api_Ticket *ticket) {
+	(void)data;
+	return api_Ticket_new(api_Ticket_number(ticket) + 1);
+}
+
+static api_Ticket *reissue_kept(void *data, const api_Ticket *ticket) {
+	(void)ticket;
+	return api_Ticket_copy(data);
+}
+
+static uint32_t spawned_task(void *data) {
+	(void)data;
+	return 7;
+}
+
+static void spawned_free(void *data) {
+	*(bool *)data = true;
+}
+
+/* made's closure, returning a view of bytes Rust does not own. */
+static api_buf made_view(void *data, uint32_t n) {
+	(void)data;
+	(void)n;
+	return str("viewed");
+}
+
+/* drive's closure, as the transcript's: asks for a later instant, then waits for its
+ * waiter, which it wakes, then stops. Rust frees it once it drops it. */
+typedef struct {
+	int calls;
+	const api_Instant *start;
+	bool freed;
+} driver;
+
+static bool drive_poll(void *data, const api_Instant *now, const api_Waiter *waiter, api_Instant **out, api_buf *err) {
+	driver *d = data;
+	d->calls++;
+	if (d->calls == 1) {
+		*out = api_later(now, (api_duration){.secs = 0, .nanos = 5000000});
+		return true;
+	}
+	if (d->calls == 2) {
+		api_duration since = api_since(now, d->start);
+		printf("drive %llu\n", (unsigned long long)(since.secs * 1000 + since.nanos / 1000000));
+		api_waker returned = api_Waiter_waker(waiter);
+		returned.wake(returned.data);
+		returned.drop(returned.data);
+		*out = NULL;
+		return true;
+	}
+	char text[32];
+	snprintf(text, sizeof text, "stopped after %d", d->calls);
+	*err = api_buf_copy(str(text));
+	return false;
+}
+
+/* A drive that only ever waits. */
+static bool drive_idle(void *data, const api_Instant *now, const api_Waiter *waiter, api_Instant **out, api_buf *err) {
+	(void)data;
+	(void)now;
+	(void)waiter;
+	(void)err;
+	*out = NULL;
+	return true;
+}
+
+static void drive_free(void *data) {
+	driver *d = data;
+	d->freed = true;
+}
+
+/* A reader of bytes in memory. */
+typedef struct {
+	const char *bytes;
+	size_t len;
+	size_t at;
+} memory;
+
+static bool memory_read(void *data, uint8_t *buf, size_t len, size_t *n, api_buf *err) {
+	memory *m = data;
+	(void)err;
+	size_t left = m->len - m->at;
+	*n = len < left ? len : left;
+	if (*n > 0) {
+		memcpy(buf, m->bytes + m->at, *n);
+	}
+	m->at += *n;
+	return true;
+}
+
+static bool memory_seek(void *data, int whence, int64_t offset, uint64_t *position, api_buf *err) {
+	memory *m = data;
+	if (whence == SEEK_SET) {
+		/* Anywhere from the start, as Rust's `Cursor` lands. */
+		m->at = (size_t)(uint64_t)offset;
+		*position = m->at;
+		return true;
+	}
+	int64_t base = whence == SEEK_CUR ? (int64_t)m->at : (int64_t)m->len;
+	if (base + offset < 0) {
+		*err = api_buf_copy(str("before the start"));
+		return false;
+	}
+	m->at = (size_t)(base + offset);
+	*position = m->at;
+	return true;
+}
+
+/* A reader whose reads fail, as the transcript's: each seek lands at 0. */
+static bool broken_read(void *data, uint8_t *buf, size_t len, size_t *n, api_buf *err) {
+	(void)data;
+	(void)buf;
+	(void)len;
+	(void)n;
+	*err = api_buf_copy(str("broken"));
+	return false;
+}
+
+static bool broken_seek(void *data, int whence, int64_t offset, uint64_t *position, api_buf *err) {
+	(void)data;
+	(void)whence;
+	(void)offset;
+	(void)err;
+	*position = 0;
+	return true;
+}
+
+static void tail(api_foreign_reader reader) {
+	api_buf bytes;
+	uint64_t at;
+	api_buf err;
+	if (api_tail(reader, 5, &bytes, &at, &err)) {
+		print("tail ", bytes, "");
+		printf(" %llu\n", (unsigned long long)at);
+	} else {
+		print("tail error ", err, "\n");
+	}
+}
+
+/* Closures C implements that Rust keeps or that return what Rust then owns, and readers
+ * C implements: whether each behaved. */
+static bool closures(void) {
+	print("made ", api_made(3, made_times, NULL), "\n");
+
+	/* A closure taking and returning `Copy` objects copies them, never running their `Clone`. */
+	api_Ticket *kept = api_Ticket_new(9);
+	api_Ticket *seven = api_Ticket_new(7);
+	api_Ticket *given = api_reissue(seven, reissue_next, NULL);
+	api_Ticket *held = api_reissue(seven, reissue_kept, kept);
+	printf("reissued %u %u, cloned %u\n", (unsigned)api_Ticket_number(given), (unsigned)api_Ticket_number(held),
+		(unsigned)api_Ticket_clones());
+	api_Ticket_free(held);
+	api_Ticket_free(given);
+	api_Ticket_free(seven);
+	api_Ticket_free(kept);
+
+	/* A kept closure, called on another thread after the call that took it returned. */
+	bool spawned_freed = false;
+	api_Spawned *spawned = api_Spawned_new(spawned_task, &spawned_freed, spawned_free);
+	printf("spawned %u\n", (unsigned)api_Spawned_join(spawned));
+	api_Spawned_free(spawned);
+	if (!spawned_freed) {
+		return false;
+	}
+
+	api_waker waker = {.wake = wake, .drop = drop, .data = NULL};
+	api_Instant *start = api_now();
+	driver d = {.start = start};
+	api_drive_future *drive = api_drive(start, drive_poll, &d, drive_free);
+	api_buf stopped;
+	int woken = wakes;
+	while (api_drive_poll(drive, waker, &stopped) == API_POLL_PENDING) {
+	}
+	print("drive ", stopped, "\n");
+	bool ok = d.freed && wakes == woken + 1;
+	api_drive_future_free(drive);
+
+	/* Dropped before it finishes, it frees the closure it kept. */
+	driver idle = {.start = start};
+	drive = api_drive(start, drive_idle, &idle, drive_free);
+	ok = ok && api_drive_poll(drive, waker, &stopped) == API_POLL_PENDING && !idle.freed;
+	api_drive_future_free(drive);
+	ok = ok && idle.freed;
+	api_Instant_free(start);
+
+	memory hello = {.bytes = "hello world", .len = 11};
+	tail((api_foreign_reader){.read = memory_read, .seek = memory_seek, .data = &hello});
+	tail((api_foreign_reader){.read = broken_read, .seek = broken_seek, .data = NULL});
+
+	/* A seek from the start reaches the reader whole, past INT64_MAX, as `Cursor` takes one. */
+	uint64_t landed = 0;
+	api_buf landed_err;
+	if (api_seek_to((api_foreign_reader){.read = memory_read, .seek = memory_seek, .data = &hello}, UINT64_MAX, &landed,
+			&landed_err)) {
+		printf("sought %llu\n", (unsigned long long)landed);
+	} else {
+		print("sought error ", landed_err, "\n");
+	}
+	print("non zeros ", api_describe_non_zeros(api_non_zeros()), "\n");
+	api_option_u64 hops[] = {{0}, {.some = true, .value = 1}, {.some = true, .value = UINT64_MAX}};
+	for (size_t i = 0; i < sizeof hops / sizeof hops[0]; i++) {
+		api_option_u64 hop = api_next_hop(hops[i]);
+		if (hop.some) {
+			printf("hop Some(%llu)\n", (unsigned long long)hop.value);
+		} else {
+			printf("hop None\n");
+		}
+	}
+	printf("farther hop %u\n", (unsigned)api_farther_hop((api_Pair_non_zero_u16){.left = 3, .right = UINT16_MAX}));
+	return ok;
 }
 
 /* The Log callback: keeps even levels. */
@@ -1359,7 +1598,7 @@ static int script(void) {
 	if (drops != 12) {
 		return 1;
 	}
-	return foreign_futures() ? 0 : 1;
+	return closures() && foreign_futures() ? 0 : 1;
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */
@@ -1406,6 +1645,13 @@ static int broken(const char *which) {
 	} else if (strcmp(which, "null") == 0) {
 		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0));
 		api_Registry_edit(registry, NULL, NULL);
+	} else if (strcmp(which, "returned") == 0) {
+		api_made(1, made_view, NULL);
+	} else if (strcmp(which, "reader") == 0) {
+		api_buf bytes;
+		uint64_t at;
+		api_buf err;
+		api_tail((api_foreign_reader){0}, 1, &bytes, &at, &err);
 	} else if (strcmp(which, "bound") == 0) {
 		api_count((api_bounds_u64){.start = {.kind = (api_bound)3}});
 	} else if (strcmp(which, "socket") == 0) {
@@ -1425,6 +1671,8 @@ static int broken(const char *which) {
 		api_pointer_bits((api_Platform){.tag = API_PLATFORM_WASM, .wasm = {.bits = 32}});
 	} else if (strcmp(which, "plain variant") == 0) {
 		api_is_family(API_FAMILY_WASM);
+	} else if (strcmp(which, "zero") == 0) {
+		api_next_hop((api_option_u64){.some = true, .value = 0});
 	}
 	return 0;
 }

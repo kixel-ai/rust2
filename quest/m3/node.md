@@ -15,7 +15,8 @@ numbers in the PR.
 Decided with the maintainer on 2026-11-09, in the quest audit: ✅ planned in m3 before a
 consumer asks ([m3](/quest/m3/README.md#plan)).
 
-- rust2-wasm already loads in Node, Bun, and Deno, so a native addon must earn its cost
+- rust2-wasm will load in Node and Bun once [its backend](/quest/m2/wasm/backend.md)
+  lands, so a native addon must earn its cost
   (a 3,000 to 5,000 line generator, and a binary per platform) in speed or in what wasm
   cannot do: threads, sockets, and the file system, which a library such as moq-tokio
   needs for native QUIC.
@@ -26,6 +27,15 @@ consumer asks ([m3](/quest/m3/README.md#plan)).
   annotation-based.
 - Node-API is ABI-stable across Node versions and is what Bun and Deno load too, so one
   addon serves all three.
+
+- Open, found by the 2026-11-12 audit: the Goal lands the addon only where it beats both
+  others on speed, while this Plan also lets it earn its cost in what wasm cannot do, and
+  names a third outcome, a thin generated TypeScript file over `node:ffi`. Recommended:
+  the Goal takes all three outcomes (the addon generator, the thin file, or deletion),
+  judged on speed where every route runs a workload and on capability where the web
+  target refuses the crate at export. The maintainer confirms before this starts.
+- The generated API is the one [the gate](/quest/m2/wasm/README.md) settled on
+  2026-11-12: a module of functions per type, not classes.
 
 Public API: the generated TypeScript API and the `node` feature, if it lands.
 

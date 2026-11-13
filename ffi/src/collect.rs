@@ -29,8 +29,8 @@ use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _
 
 use crate::config;
 use crate::ir::{
-	Access, Api, Callback, Collection, Constant, Dyn, Enum, Family, Field, Function, Home, Int, Literal, Mutability,
-	Object, On, Param, Path, Receiver, Record, Task, TaskKind, Traits, Type, Variant,
+	Access, Api, Callback, Closure, Collection, Constant, Dyn, Enum, Family, Field, Function, Home, Int, Literal,
+	Mutability, Object, On, Param, Path, Receiver, Record, Task, TaskKind, Traits, Type, Variant,
 };
 
 /// Why something is refused: a construct, ranked by the census, and what it names.
@@ -70,6 +70,56 @@ fn why(construct: &'static str, detail: impl Into<String>) -> Why {
 		detail: detail.into(),
 		note: None,
 	}
+}
+
+/// Why a function cannot be called from safe foreign code, if it cannot: a C-variadic
+/// one, or one whose ABI Rust cannot call (custom, interrupt, or GPU kernel), under its
+/// own construct, else any `unsafe fn`, whose preconditions no binding can check.
+fn unsafety(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Why> {
+	let sig = tcx.fn_sig(def_id).skip_binder().skip_binder();
+	if sig.c_variadic() {
+		Some(why("C-variadic function", ""))
+	} else if uncallable(sig.abi()) {
+		Some(why("uncallable ABI", sig.abi().to_string()))
+	} else if sig.safety().is_unsafe() {
+		Some(why("unsafe fn", ""))
+	} else {
+		None
+	}
+}
+
+/// Whether Rust refuses to call a function of this ABI directly, as rustc's own call check
+/// does for `CanonAbi::{Custom, Interrupt(_), GpuKernel}`.
+fn uncallable(abi: rustc_abi::ExternAbi) -> bool {
+	use rustc_abi::ExternAbi::*;
+	matches!(
+		abi,
+		Custom
+			| X86Interrupt
+			| RiscvInterruptM
+			| RiscvInterruptS
+			| Msp430Interrupt
+			| AvrInterrupt
+			| AvrNonBlockingInterrupt
+			| GpuKernel
+			| PtxKernel
+	)
+}
+
+/// Why foreign code cannot implement a trait soundly, if it cannot: an `unsafe trait`, or
+/// a required method foreign code would implement without the caller's preconditions.
+fn trait_unsafety(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Why> {
+	if tcx.trait_def(def_id).safety.is_unsafe() {
+		return Some(why("unsafe trait", ""));
+	}
+	(tcx.associated_items(def_id).in_definition_order())
+		.filter(|item| item.is_fn() && !item.defaultness(tcx).has_value())
+		.find_map(|item| {
+			unsafety(tcx, item.def_id).map(|why| Why {
+				detail: item.name().to_string(),
+				..why
+			})
+		})
 }
 
 /// An item the export refuses, with every reason found.
@@ -861,8 +911,9 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// Why the first argument an instance is named by cannot map as [`Self::arg`] requires:
-	/// a type that is not `()`, a primitive, `String`, `Bytes`, `Duration`, a foreign
-	/// object, or an export's type, or a const that is not a `bool` or integer.
+	/// a type that is not `()`, a primitive, `String`, `Bytes`, `Duration`, a `NonZero` of
+	/// an exported integer, a foreign object, or an export's type, or a const that is not
+	/// a `bool` or integer.
 	fn unarguable(&self, site: &Site<'tcx>) -> Option<Why> {
 		let tcx = self.tcx;
 		let mut args = Self::shown_args(site.args, site.explicit).into_iter();
@@ -876,6 +927,9 @@ impl<'tcx> Collector<'tcx> {
 				ty::Tuple(list) => !list.is_empty(),
 				ty::Bool | ty::Char | ty::Float(_) => false,
 				ty::Int(_) | ty::Uint(_) => int(ty).is_none(),
+				ty::Adt(adt, args) if tcx.is_diagnostic_item(rustc_span::Symbol::intern("NonZero"), adt.did()) => {
+					int(args.type_at(0)).is_none()
+				}
 				ty::Adt(adt, _) => {
 					tcx.lang_items().string() != Some(adt.did())
 						&& self.bytes != Some(adt.did())
@@ -1664,6 +1718,7 @@ impl<'tcx> Collector<'tcx> {
 			Type::Unit
 			| Type::Bool
 			| Type::Int(_)
+			| Type::NonZero(_)
 			| Type::F32
 			| Type::F64
 			| Type::Char
@@ -1721,7 +1776,8 @@ impl<'tcx> Collector<'tcx> {
 					}
 					// A closure's objects are lent to C for each call of it.
 					for param in &function.params {
-						if let Type::Closure(params, _) = &param.ty {
+						if let Type::Closure(closure_) = &param.ty {
+							let params = &closure_.params;
 							params.iter().for_each(|ty| returns(api, ty, &mut reached));
 						}
 					}
@@ -1890,6 +1946,13 @@ impl<'tcx> Collector<'tcx> {
 				let decl = self.decls.get(&site.key).cloned();
 				// A trait exports only as what C implements: one it cannot implement is no
 				// part of C's API, while a signature that takes one from C is refused.
+				// An unsafe contract is not something C lacks but something it cannot keep.
+				if kind == DefKind::Trait
+					&& let Some(why) = trait_unsafety(tcx, def_id)
+				{
+					self.refuse(&site.shown, "trait", span, vec![why]);
+					continue;
+				}
 				if let (Some(Decl::Refused(why)), DefKind::Trait) = (&decl, kind) {
 					let (report, rest) = self.report(&site.shown);
 					report.traits.push((rest, why.clone()));
@@ -2303,6 +2366,10 @@ impl<'tcx> Collector<'tcx> {
 	fn callback(&mut self, def_id: DefId, path: &[String]) -> Result<Vec<Function>, Vec<Why>> {
 		let tcx = self.tcx;
 		let mut errs = Vec::new();
+		// Foreign code would implement it without upholding the contract it documents.
+		if tcx.trait_def(def_id).safety.is_unsafe() {
+			errs.push(why("unsafe trait", ""));
+		}
 		// It may already cover the foreign implementation, which could not then implement it.
 		if !tcx.trait_impls_of(def_id).blanket_impls().is_empty() {
 			errs.push(why("trait with a blanket impl", ""));
@@ -2348,7 +2415,14 @@ impl<'tcx> Collector<'tcx> {
 							errs.push(why("trait method without &self", name.to_string()))
 						}
 						Ok(function) => methods.push(function),
-						Err(why) => errs.extend(why),
+						// A per-method reason names its method, as `trait_unsafety` does.
+						Err(why) => errs.extend(why.into_iter().map(|why| match why.construct {
+							"unsafe fn" | "C-variadic function" | "uncallable ABI" => Why {
+								detail: name.to_string(),
+								..why
+							},
+							_ => why,
+						})),
 					}
 				}
 				// An `impl Trait` return's own type: the method refuses it.
@@ -2401,16 +2475,22 @@ impl<'tcx> Collector<'tcx> {
 		instance: &Instantiation<'tcx>,
 	) -> Result<Function, Vec<Why>> {
 		let tcx = self.tcx;
+		if let Some(why) = unsafety(tcx, def_id) {
+			return Err(vec![why]);
+		}
 		let mut errs = Vec::new();
 		let args = instance.args;
-		// Each kept parameter takes a lent closure, if an `Fn` trait bounds it, or else the
-		// foreign implementation `instantiate` kept it for.
+		// Each kept parameter takes a closure, if an `Fn` trait bounds it, a reader, if
+		// `io::Read` and `io::Seek` do, or else the foreign implementation `instantiate` kept
+		// it for.
 		let mut impls = Vec::new();
 		for &param in &instance.kept {
-			let taken = self.closure(def_id, param, args).unwrap_or_else(|| {
-				let callback = self.taken(def_id, param).expect("a kept parameter takes a callback");
-				Ok(Type::Callback(callback, Dyn::Impl))
-			});
+			let taken = (self.closure(def_id, param, args))
+				.or_else(|| self.reader(def_id, param, args))
+				.unwrap_or_else(|| {
+					let callback = self.taken(def_id, param).expect("a kept parameter takes a callback");
+					Ok(Type::Callback(callback, Dyn::Impl))
+				});
 			match taken {
 				Ok(taken) => impls.push((param, taken)),
 				Err(why) => errs.push(why),
@@ -2516,6 +2596,15 @@ impl<'tcx> Collector<'tcx> {
 			tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(ty))
 				.unwrap_or(ty)
 		};
+		let callback = tcx.def_kind(tcx.parent(def_id)) == DefKind::Trait;
+		let mut output = normalize(sig.output());
+		// A returned `Poll` is a future's: each time C polls the future, it calls the function
+		// with the poll's context, so the future owns every other argument and passes it again.
+		let polled = match output.kind() {
+			ty::Adt(adt, args) if !callback && tcx.is_lang_item(adt.did(), LangItem::Poll) => Some(args.type_at(0)),
+			_ => None,
+		};
+		let mut tasks = Vec::new();
 		let mut inputs = sig.inputs().iter().copied().map(normalize).enumerate();
 		let receiver = match has_self {
 			false => None,
@@ -2524,6 +2613,16 @@ impl<'tcx> Collector<'tcx> {
 				let self_ty = self_ty.map(normalize);
 				match ty.kind() {
 					_ if Some(ty) == self_ty => Some(Receiver::Owned),
+					// A poll of the object its task is made into, as kio's `Waiter::poll_future`
+					// is, takes it from the future, as it would a parameter.
+					ty::Ref(_, inner, _)
+						if Some(*inner) == self_ty
+							&& polled.is_some()
+							&& let Some(kind) = self.task(ty, true) =>
+					{
+						tasks.push(Task { at: 0, kind });
+						None
+					}
 					ty::Ref(_, inner, m) if Some(*inner) == self_ty => Some(match m {
 						ty::Mutability::Not => Receiver::Ref,
 						ty::Mutability::Mut => Receiver::Mut,
@@ -2535,14 +2634,8 @@ impl<'tcx> Collector<'tcx> {
 				}
 			}
 		};
-		let callback = tcx.def_kind(tcx.parent(def_id)) == DefKind::Trait;
-		let mut output = normalize(sig.output());
-		// A returned `Poll` is a future's: each time C polls the future, it calls the function
-		// with the poll's context, so the future owns every other argument and passes it again.
-		let polled = match output.kind() {
-			ty::Adt(adt, args) if !callback && tcx.is_lang_item(adt.did(), LangItem::Poll) => Some(args.type_at(0)),
-			_ => None,
-		};
+		// Where Rust's parameters after `self` start: at `self`, when the task takes its place.
+		let first = usize::from(receiver.is_some());
 		let again = |ty: Ty<'tcx>| ty.is_ref() || tcx.type_is_copy_modulo_regions(env, ty);
 		if polled.is_some()
 			&& receiver == Some(Receiver::Owned)
@@ -2551,14 +2644,13 @@ impl<'tcx> Collector<'tcx> {
 		{
 			errs.push(why("poll taking self by value", self_ty.to_string()));
 		}
-		let mut tasks = Vec::new();
 		let mut params = Vec::new();
 		let mut units = Vec::new();
 		for (i, ty) in inputs {
 			// C passes nothing for `()`, the one value of its type. A callback's stays
 			// refused: the glue's implementation of its trait names every parameter.
 			if ty.is_unit() && !callback {
-				units.push(i - usize::from(has_self));
+				units.push(i - first);
 				continue;
 			}
 			let name = names
@@ -2575,9 +2667,15 @@ impl<'tcx> Collector<'tcx> {
 						interned: false,
 					});
 				}
-				tasks.push(Task {
-					at: i - usize::from(has_self),
-					kind,
+				tasks.push(Task { at: i - first, kind });
+				continue;
+			}
+			// The future owns a future C implements, which it lends pinned to each poll.
+			if polled.is_some() && self.pinned_future(ty) {
+				params.push(Param {
+					name,
+					ty: Type::Future,
+					interned: false,
 				});
 				continue;
 			}
@@ -2641,7 +2739,20 @@ impl<'tcx> Collector<'tcx> {
 			if task.is_some() {
 				errs.push(why("Context of a function returning a future", ""));
 			}
-			if !self.is_send(output, env) {
+			// What the call passes for a kept parameter, a closure, reader, or foreign
+			// implementation, is `Send` and `Sync`, as the future holding it may be too.
+			let kept: Vec<Ty<'tcx>> = self.impls.borrow().iter().map(|&(param, _)| param).collect();
+			let marked = (kept.into_iter())
+				.flat_map(|param| [sym::Send, sym::Sync].map(|item| (param, item)))
+				.filter_map(|(param, item)| {
+					let tr = tcx.get_diagnostic_item(item)?;
+					Some(ty::Upcast::upcast(ty::TraitRef::new(tcx, tr, [param]), tcx))
+				});
+			let kept = TypingEnv::new(
+				ty::ParamEnv::new(tcx, env.param_env.caller_bounds().chain(marked)),
+				env.typing_mode(),
+			);
+			if !self.is_send(output, kept) {
 				errs.push(why("future not Send", ""));
 			}
 			// Called at once, the future must outlive the arguments the call borrowed.
@@ -2655,6 +2766,10 @@ impl<'tcx> Collector<'tcx> {
 		// write back.
 		if future && params.iter().any(|p: &Param| p.ty.written()) {
 			errs.push(why("&mut of a value in a future", ""));
+		}
+		// A reader is lent for the call, which a future outlives.
+		if future && params.iter().any(|p: &Param| *p.ty.base() == Type::Reader) {
+			errs.push(why("reader lent to a future", ""));
 		}
 		// An iterator no other rule maps crosses as the array of its items, all taken at
 		// the call, as `collect` takes them, when no caller could tell; a future's stays
@@ -2782,7 +2897,9 @@ impl<'tcx> Collector<'tcx> {
 					choices = next;
 					continue;
 				}
-				GenericArgKind::Type(param) if self.lent(def_id, param) => {
+				GenericArgKind::Type(param)
+					if self.lent(def_id, param) || self.reader(def_id, param, &base).is_some() =>
+				{
 					kept.push(param);
 					continue;
 				}
@@ -3376,9 +3493,9 @@ impl<'tcx> Collector<'tcx> {
 			.any(|ty| matches!(ty.kind(), ty::Adt(adt, _) if self.exported(adt.did().krate)))
 	}
 
-	/// The closure a type parameter takes, if an `Fn` trait bounds it: one the callee calls
-	/// only during the call, which C lends as a function. A closure that may outlive the
-	/// call, by a lifetime bound or by what the function returns, is refused.
+	/// The closure a type parameter takes, if an `Fn` trait bounds it, which C implements as
+	/// a function: lent for the call, or kept past it, by a lifetime bound or by what the
+	/// function returns, until Rust frees it.
 	fn closure(&self, def_id: DefId, param: Ty<'tcx>, base: &[ty::GenericArg<'tcx>]) -> Option<Result<Type, Why>> {
 		let tcx = self.tcx;
 		let clauses = tcx.clauses_of(def_id).instantiate(tcx, tcx.mk_args(base)).clauses;
@@ -3388,17 +3505,6 @@ impl<'tcx> Collector<'tcx> {
 		let mut ret = None;
 		let mut kept = false;
 		let mut other = Vec::new();
-		// Whether a bound on another type names it, such as `T: From<F>`.
-		let mentions = |clause: ty::Clause<'tcx>| {
-			let args: Vec<ty::GenericArg<'tcx>> = match (clause.as_trait_clause(), clause.as_projection_clause()) {
-				(Some(pred), _) => pred.skip_binder().trait_ref.args.to_vec(),
-				(_, Some(pred)) => (pred.skip_binder().projection_term.args.iter())
-					.chain(pred.skip_binder().term.as_type().map(Into::into))
-					.collect(),
-				_ => Vec::new(),
-			};
-			args.iter().any(|arg| arg.walk().any(|arg| arg == param.into()))
-		};
 		for &clause in &clauses {
 			if let Some(pred) = clause.as_trait_clause()
 				&& pred.self_ty().skip_binder() == param
@@ -3418,7 +3524,7 @@ impl<'tcx> Collector<'tcx> {
 				&& pred.skip_binder().0 == param
 			{
 				kept = true;
-			} else if mentions(clause) {
+			} else if mentions(clause, param) {
 				other.push(clause.to_string());
 			}
 		}
@@ -3429,9 +3535,10 @@ impl<'tcx> Collector<'tcx> {
 		let sig = tcx.fn_sig(def_id).instantiate(tcx, tcx.mk_args(base)).skip_norm_wip();
 		// An `async fn`'s future, or a returned `impl Trait`, captures it.
 		kept |= sig.skip_binder().output().walk().any(|arg| arg == param.into());
-		if kept {
-			return Some(Err(why("closure kept past the call", param.to_string())));
-		}
+		// A `Copy` object, which C lends as its handle and hands back as a new one.
+		let env = TypingEnv::post_analysis(tcx, def_id);
+		let copied =
+			|ty: Ty<'tcx>, mapped: &Type| matches!(mapped, Type::Object(_)) && tcx.type_is_copy_modulo_regions(env, ty);
 		// Each parameter makes its own closure, which one type parameter cannot name twice.
 		if sig
 			.skip_binder()
@@ -3459,11 +3566,13 @@ impl<'tcx> Collector<'tcx> {
 			}
 			match self.ty(input, Pos::Param) {
 				// An object is lent as a handle for the call, but an opaque one, whose
-				// handle holds no `Arc` to lend.
+				// handle holds no `Arc` to lend; so is a `Copy` one taken by value, which C
+				// copies to keep.
 				Ok(ty)
 					if foreign_arg(&ty)
 						|| matches!(&ty, Type::Ref(_, inner) if matches!(**inner, Type::Object(_)))
-							&& !matches!(input.kind(), ty::Ref(_, inner, _) if self.opaque_arc(*inner).is_some()) =>
+							&& !matches!(input.kind(), ty::Ref(_, inner, _) if self.opaque_arc(*inner).is_some())
+						|| copied(input, &ty) =>
 				{
 					params.push(ty)
 				}
@@ -3471,12 +3580,81 @@ impl<'tcx> Collector<'tcx> {
 				Err(why) => return Some(Err(why)),
 			}
 		}
-		let ret = match ret.map(|ret| self.ty(ret, Pos::Return)) {
-			Some(Ok(ret)) if foreign_return(&ret) => ret,
-			Some(Err(why)) => return Some(Err(why)),
-			_ => return Some(Err(why("closure signature", param.to_string()))),
+		let Some(ret) = ret else {
+			return Some(Err(why("closure signature", param.to_string())));
 		};
-		Some(Ok(Type::Closure(params, Box::new(ret))))
+		// A `Result` is its value and its error, as a function's is.
+		let (ok, err) = match ret.kind() {
+			ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Result, adt.did()) => {
+				(args.type_at(0), Some(args.type_at(1)))
+			}
+			_ => (ret, None),
+		};
+		// What C hands Rust: a value, a `String`, or a `Copy` object or an `Option` of one.
+		let ok = match self.ty(ok, Pos::Return) {
+			Ok(mapped)
+				if foreign_return(&mapped)
+					|| mapped == Type::String
+					|| match (&mapped, ok.kind()) {
+						(Type::Option(inner), ty::Adt(_, args)) => copied(args.type_at(0), inner),
+						(mapped, _) => copied(ok, mapped),
+					} =>
+			{
+				mapped
+			}
+			Ok(_) => return Some(Err(why("closure signature", ret.to_string()))),
+			Err(why) => return Some(Err(why)),
+		};
+		let err = match err.map(|err| self.ty(err, Pos::Return)) {
+			None => None,
+			Some(Ok(Type::String)) => Some(Type::String),
+			Some(Ok(_)) => return Some(Err(why("closure signature", ret.to_string()))),
+			Some(Err(why)) => return Some(Err(why)),
+		};
+		Some(Ok(Type::Closure(Box::new(Closure { params, ok, err, kept }))))
+	}
+
+	/// The reader a type parameter takes, if `io::Read` and `io::Seek` bound it: one C
+	/// implements, which Rust reads and seeks only during the call. One bounded otherwise,
+	/// but by what that implementation meets, or kept past the call, is refused.
+	fn reader(&self, def_id: DefId, param: Ty<'tcx>, base: &[ty::GenericArg<'tcx>]) -> Option<Result<Type, Why>> {
+		let tcx = self.tcx;
+		let item = |name: &str| tcx.get_diagnostic_item(rustc_span::Symbol::intern(name));
+		let (read, seek) = (item("IoRead")?, item("IoSeek")?);
+		let clauses = tcx.clauses_of(def_id).instantiate(tcx, tcx.mk_args(base)).clauses;
+		let mut bounds = Vec::new();
+		let mut other = Vec::new();
+		let mut kept = false;
+		for clause in clauses.iter().map(|clause| clause.skip_norm_wip()) {
+			if let Some(pred) = clause.as_trait_clause()
+				&& pred.self_ty().skip_binder() == param
+			{
+				bounds.push(pred.def_id());
+			} else if let Some(pred) = clause.as_type_outlives_clause()
+				&& pred.skip_binder().0 == param
+			{
+				kept = true;
+			} else if mentions(clause, param) {
+				other.push(clause.to_string());
+			}
+		}
+		if !bounds.contains(&read) || !bounds.contains(&seek) {
+			return None;
+		}
+		other.extend(
+			(bounds.iter())
+				.filter(|&&tr| tr != read && tr != seek && !marker(tcx, tr))
+				.map(|&tr| tcx.def_path_str(tr)),
+		);
+		if !other.is_empty() {
+			return Some(Err(why("reader bound", other.join(" + "))));
+		}
+		let sig = tcx.fn_sig(def_id).instantiate(tcx, tcx.mk_args(base)).skip_norm_wip();
+		kept |= sig.skip_binder().output().walk().any(|arg| arg == param.into());
+		if kept {
+			return Some(Err(why("reader kept past the call", param.to_string())));
+		}
+		Some(Ok(Type::Reader))
 	}
 
 	/// The trait a type parameter may take a foreign implementation of: one bounded by a
@@ -3533,6 +3711,15 @@ impl<'tcx> Collector<'tcx> {
 			tcx.adt_def(lang.pin_type()?),
 			tcx.mk_args(&[boxed.into()]),
 		))
+	}
+
+	/// Whether `ty` is `Pin<&mut F>` of [`Self::foreign_future`], as a poll of a future
+	/// takes it.
+	fn pinned_future(&self, ty: Ty<'tcx>) -> bool {
+		let tcx = self.tcx;
+		matches!(ty.kind(), ty::Adt(adt, args)
+			if tcx.lang_items().pin_type() == Some(adt.did())
+				&& matches!(args.type_at(0).kind(), ty::Ref(_, inner, ty::Mutability::Mut) if self.is_foreign_future(*inner)))
 	}
 
 	/// Whether `ty` is [`Self::foreign_future`], whatever its lifetime.
@@ -4236,6 +4423,15 @@ impl<'tcx> Collector<'tcx> {
 					{
 						Type::Waker
 					}
+					// A reader C implements, lent for the call.
+					ty::Param(_)
+						if pos == Pos::Param
+							&& *m == ty::Mutability::Mut
+							&& (self.impls.borrow().iter())
+								.any(|(param, taken)| param == inner && *taken == Type::Reader) =>
+					{
+						Type::Reader
+					}
 					_ => self.ty(
 						*inner,
 						match pos {
@@ -4342,6 +4538,8 @@ impl<'tcx> Collector<'tcx> {
 					Type::Bytes
 				} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("Duration"), did) {
 					Type::Duration
+				} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("NonZero"), did) {
+					Type::NonZero(int(args.type_at(0)).ok_or_else(|| why("NonZero", args.type_at(0).to_string()))?)
 				} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("PathBuf"), did) {
 					Type::PathBuf
 				} else if let Some(family) = (tcx.lang_items().sized_trait().map(|d| d.krate) == Some(did.krate))
@@ -4506,6 +4704,7 @@ impl<'tcx> Collector<'tcx> {
 			ty::Slice(_) | ty::Str => return Err(why("unsized type", ty.to_string())),
 			ty::Dynamic(..) => return Err(why("trait object", ty.to_string())),
 			ty::Param(_) => match self.impls.borrow().iter().find(|(param, _)| *param == ty) {
+				Some((_, Type::Reader)) => return Err(why("reader not lent as &mut", ty.to_string())),
 				Some((_, taken)) if pos == Pos::Param => taken.clone(),
 				_ => return Err(why("type parameter", ty.to_string())),
 			},
@@ -4564,7 +4763,14 @@ enum Pos {
 /// copied by it if kept.
 fn foreign_arg(ty: &Type) -> bool {
 	match ty {
-		Type::Bool | Type::Int(_) | Type::F32 | Type::F64 | Type::Char | Type::Duration | Type::SocketAddr(_) => true,
+		Type::Bool
+		| Type::Int(_)
+		| Type::NonZero(_)
+		| Type::F32
+		| Type::F64
+		| Type::Char
+		| Type::Duration
+		| Type::SocketAddr(_) => true,
 		Type::String | Type::Vec | Type::Bytes | Type::PathBuf => true,
 		Type::Ref(Mutability::Not, inner) => matches!(**inner, Type::Str | Type::Slice | Type::Path),
 		Type::Option(inner) => foreign_arg(inner),
@@ -4621,7 +4827,12 @@ fn renumber(ty: &mut Type, gone: usize) {
 		Type::Object(o) if *o > gone => *o -= 1,
 		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => renumber(inner, gone),
 		Type::Tuple(elements) => elements.iter_mut().for_each(|ty| renumber(ty, gone)),
-		Type::Closure(params, ret) => params.iter_mut().chain([&mut **ret]).for_each(|ty| renumber(ty, gone)),
+		Type::Closure(closure) => (closure
+			.params
+			.iter_mut()
+			.chain([&mut closure.ok])
+			.chain(&mut closure.err))
+		.for_each(|ty| renumber(ty, gone)),
 		_ => {}
 	}
 }
@@ -4640,7 +4851,9 @@ fn unshare(api: &mut Api) {
 			}
 			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => borrowed(inner, out),
 			Type::Tuple(elements) => elements.iter().for_each(|ty| borrowed(ty, out)),
-			Type::Closure(params, ret) => params.iter().chain([&**ret]).for_each(|ty| borrowed(ty, out)),
+			Type::Closure(closure) => {
+				(closure.params.iter().chain([&closure.ok]).chain(&closure.err)).for_each(|ty| borrowed(ty, out))
+			}
 			_ => {}
 		}
 	}
@@ -4671,7 +4884,9 @@ fn names(ty: &Type, named: &Type) -> bool {
 		|| match ty {
 			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => names(inner, named),
 			Type::Tuple(elements) => elements.iter().any(|ty| names(ty, named)),
-			Type::Closure(params, ret) => params.iter().chain([&**ret]).any(|ty| names(ty, named)),
+			Type::Closure(closure) => {
+				(closure.params.iter().chain([&closure.ok]).chain(&closure.err)).any(|ty| names(ty, named))
+			}
 			_ => false,
 		}
 }
@@ -4700,7 +4915,7 @@ fn lends_inside(ty: &Type) -> bool {
 fn foreign_return(ty: &Type) -> bool {
 	matches!(
 		ty,
-		Type::Unit | Type::Bool | Type::Int(_) | Type::F32 | Type::F64 | Type::Char
+		Type::Unit | Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char
 	)
 }
 
@@ -4802,11 +5017,28 @@ fn must_outlive<'tcx>(implied: &[ty::Clause<'tcx>], param: Ty<'tcx>) -> bool {
 		.any(|pred| pred.skip_binder().0 == param)
 }
 
+/// Whether a bound on another type names `param`, such as `T: From<F>`.
+fn mentions<'tcx>(clause: ty::Clause<'tcx>, param: Ty<'tcx>) -> bool {
+	let args: Vec<ty::GenericArg<'tcx>> = match (clause.as_trait_clause(), clause.as_projection_clause()) {
+		(Some(pred), _) => pred.skip_binder().trait_ref.args.to_vec(),
+		(_, Some(pred)) => (pred.skip_binder().projection_term.args.iter())
+			.chain(pred.skip_binder().term.as_type().map(Into::into))
+			.collect(),
+		_ => Vec::new(),
+	};
+	args.iter().any(|arg| arg.walk().any(|arg| arg == param.into()))
+}
+
 fn marker(tcx: TyCtxt<'_>, tr: DefId) -> bool {
 	[sym::Send, sym::Sync]
 		.iter()
 		.any(|&item| tcx.is_diagnostic_item(item, tr))
-		|| [tcx.lang_items().sized_trait(), tcx.lang_items().meta_sized_trait()].contains(&Some(tr))
+		|| [
+			tcx.lang_items().sized_trait(),
+			tcx.lang_items().meta_sized_trait(),
+			tcx.lang_items().unpin_trait(),
+		]
+		.contains(&Some(tr))
 }
 
 /// Whether `ty`, the type `def_id` at some arguments, implements the std trait `item`.

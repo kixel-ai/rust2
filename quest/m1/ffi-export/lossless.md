@@ -20,7 +20,8 @@ What the audit found, each a place native Rust would have gone on:
 
 - `Duration`: Python's `timedelta` and Dart's `Duration` truncate to the microsecond and
   clamp (`ffi/runtime/python.rs`, `rt.dart`); Go's `time.Duration` panics on a negative
-  one or past 292 years (`ffi_cgo.go`); Kotlin's maps past `i64` seconds to `INFINITE`
+  one or past 292 years (`ffi_cgo.go`); Swift traps on a negative `Swift.Duration` or one
+  past `Duration::MAX` (`rt.swift`); Kotlin's maps past `i64` seconds to `INFINITE`
   and back to `i64::MAX` seconds (`rt.kt`). Seconds and nanoseconds, as std holds them,
   cross exactly. moq's switch also asks that Go stop panicking on a negative one and that
   a duration field default to zero
@@ -35,8 +36,10 @@ What the audit found, each a place native Rust would have gone on:
   invalid `char` aborts from Kotlin's `Int`, Go's `rune`, and C++'s `char32_t`. A value
   the language's own type allows and Rust's does not is checked in the binding, which
   raises.
-- Integers: a Dart `u64` past `i64` reads negative, and Kotlin's `usize` crosses as `u64`
-  and is cast, truncating on a 32-bit ABI.
+- Integers: a Dart `u64` past `i64` reads negative; a Kotlin `usize` past a 32-bit
+  target's aborts (`ffi/runtime/jni.rs`'s `narrow`) since
+  [#689](https://github.com/kixel-ai/rust2/pull/689); and a Go `*big.Int` outside `u128`
+  panics (`ffi_cgo.go`).
 - `Hash`: Dart's `hashCode` throws on a `PartialEq` type and Kotlin's returns 0; the IR
   carries no `Hash`. Export it where the type implements it.
 

@@ -1,9 +1,9 @@
 // What each generated package converts its C types with, which cgo makes its own, after
-// the generated code names the export's C types as cBuf, cWaker, cForeignFuture, cU128,
-// cDuration, and cAddr, its buffer's free as cBufFree, and the runtime's callbacks into Go
-// as goCall, goRelease, and goPoll:
-// the arena a call lowers nested values into, values across the C ABI, and what a future
-// waits on.
+// the generated code names the export's C types as cBuf, cWaker, cForeignFuture,
+// cForeignReader, cU128, cDuration, and cAddr, its buffer's free and copy as cBufFree and
+// cBufCopy, and the runtime's callbacks into Go as goCall, goRelease, goPoll, goRead, and
+// goSeek: the arena a call lowers nested values into, values across the C ABI, and what a
+// future waits on.
 
 // emptyBuf_ is where a present but empty buffer or array points: C reads a null pointer as
 // None. Aligned for any element.
@@ -354,6 +354,12 @@ func waker_(wake func()) cWaker {
 // drops the future, finished or not.
 func future_(ctx context.Context, run func(context.Context)) cForeignFuture {
 	return cForeignFuture{poll: goPoll, free: goRelease, data: give_(rt.Pollable_(ctx, run))}
+}
+
+// reader_ is the reader Rust reads and seeks during the call, through the handle k of what
+// rt.Reader_ made, which the call deletes once it returns.
+func reader_(k *cgo.Handle) cForeignReader {
+	return cForeignReader{read: goRead, seek: goSeek, data: unsafe.Pointer(k)}
 }
 
 // await_ polls a future until poll reports it finished, returning its error, or ctx's

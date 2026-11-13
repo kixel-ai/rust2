@@ -23,7 +23,8 @@ The spike refuses each of these with its span (`go/fixtures/reject/expected.txt`
 - **std's collections:** `HashMap`, `BTreeMap`, `VecDeque`, translated from std's MIR or
   bound to the runtime as rust2-ts's are. The reject fixture holds no case for them yet.
 - **Statics and pointers the fixture also refuses:** a `static mut`, a static with
-  interior mutability such as an atomic, and `NonNull` ([go/README.md](/go/README.md)).
+  interior mutability such as an atomic, and `NonNull` (`go/src/lower/library.rs`), without
+  which no `Rc` or `Arc` translates.
 
 The translation targets the host, 64-bit `usize`; a 32-bit Go target needs its own
 translation.
@@ -34,7 +35,7 @@ failed speed result deletes `go/`, so planning the constructs earlier would be w
 The last coverage child reruns `just go bench` against speed's bar, every `stream/`
 workload within 2x of cgo, since constructs such as `Vec::capacity` change what the
 stream workload runs. Speed reached the bar on 2026-11-07 in
-[moq-dev/rust2#643](https://github.com/moq-dev/rust2/pull/643), but the epic is parked
+[kixel-ai/rust2#643](https://github.com/kixel-ai/rust2/pull/643), but the epic is parked
 until a consumer needs pure Go, so the split waits for that too.
 
 - ✅ Gate on speed, split later.

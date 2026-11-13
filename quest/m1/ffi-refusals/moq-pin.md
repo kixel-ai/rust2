@@ -6,14 +6,14 @@ The moq pin moves to moq's current `main`, whose crates re-export no whole crate
 included. `just ffi census` there lists no whole-crate re-export refusal. Its "type not
 reachable from the crate root" refusals were `kio::Pending` and moq-tokio's `cli::Deprecated`,
 which the exporter change below exports, `lite::version::Version`, which no public path names, and moq-quic's stats and varint types under moq-tokio's `quic::driver`,
-which [moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683) drops. At `ffcb7cd9` there were 20 such refusals (18 Guard and Side, and
+which [kixel-ai/rust2#683](https://github.com/kixel-ai/rust2/pull/683) drops. At `ffcb7cd9` there were 20 such refusals (18 Guard and Side, and
 `Version`), and 9 at moq's head on 2026-11-09, measured in
-[#676](https://github.com/moq-dev/rust2/pull/676).
+[#676](https://github.com/kixel-ai/rust2/pull/676).
 
 ## Plan
 
 Decided with the maintainer on 2026-11-07, from
-[moq-dev/rust2#655](https://github.com/moq-dev/rust2/pull/655) and
+[kixel-ai/rust2#655](https://github.com/kixel-ai/rust2/pull/655) and
 [moq-dev/moq#8233](https://github.com/moq-dev/moq/pull/8233): ✅ moq re-exports no whole
 crate, its own included: the ten first listed (moq-net's `bytes` and `kio`; `rustls` in
 moq-quic, moq-rtmp, and moq-tokio; moq-tokio's `notify`, `usage_rs`, and `http`;
@@ -46,7 +46,7 @@ moq-tokio's `quic::driver` items, which the narrowed stand-in drops.
 
 Then bump the pin in `ts/fixtures/model/Cargo.toml`, which `ts/justfile`'s `moq_rev` reads,
 and report the census before and after. The last bump
-([#390](https://github.com/moq-dev/rust2/pull/390)) also changed `ffi/moq/ffi.toml`, every
+([#390](https://github.com/kixel-ai/rust2/pull/390)) also changed `ffi/moq/ffi.toml`, every
 `ffi/moq/moq.*`, and rust2-ts's model fixture, bench, and expected output, which share the
 pin: run `just ts census` too, and update the count in the
 [model epic](/quest/m2/ts-model/README.md).
@@ -79,13 +79,21 @@ returns that are not `Clone`.
 - moq-dev/moq: `rind` builds for wasm32. moq-net depends on `rind`, whose md5 inline asm has
   no wasm32 arm, so `just ts moq <checkout>` fails at moq's `main`. Done when it passes there.
   The fix merged in rind's `main` ([moq-dev/rind#543](https://github.com/moq-dev/rind/pull/543))
-  and ships in rind 0.4.0, whose release PR
-  ([moq-dev/rind#511](https://github.com/moq-dev/rind/pull/511)) the maintainer picked to merge
-  on 2026-11-12; then [moq-dev/moq#8432](https://github.com/moq-dev/moq/pull/8432) moves moq to
-  rind 0.4. On 2026-11-12 moq `6936f0a` still locks rind 0.3.1.
+  and ships in rind 0.4.0. Its release PR
+  ([moq-dev/rind#511](https://github.com/moq-dev/rind/pull/511)) stays unmerged on purpose,
+  as rind's `quest/m2/api/release-0.4.md` decides, until the CPU-check removal, the benchmark
+  refresh, and moq's move are ready (reconfirmed by the maintainer on 2026-11-12); then
+  [moq-dev/moq#8432](https://github.com/moq-dev/moq/pull/8432) moves moq to rind 0.4. Check:
+  `cargo search rind` shows 0.4.0. On 2026-11-12 moq `c681b7a` still locks rind 0.3.1, and
+  rind 0.3.2, tagged 2026-11-08, predates the fix.
 - moq-dev/moq: moq-tokio builds without tripping `recursion_depth_exceeding_limit` (an
   overflow proving `Send` on `Instrumented<...>`), which `just ffi moq-cpp <checkout>` denies.
-  Done when it passes at moq's `main`. Still failing on 2026-11-12 at moq `6936f0a`, at
-  `rs/moq-tokio/src/client.rs:735`, on the `Instrumented<...>` from
+  Done when it passes at moq's `main`. Still failing on 2026-11-12 at moq `c681b7a`, at
+  `rs/moq-tokio/src/client.rs:748`, on the `Instrumented<...>` from
   `tokio::spawn(panic::isolate(time::run(driver)).instrument(..))`, and in the moq-ffi facade
   on `moq_net::Driver: Sync`.
+
+## Required
+
+- [Own pin](/quest/m1/ffi-refusals/own-pin.md) - the exporter's pin moves without rust2-ts's, which ends the wait on `rind` for wasm32
+- [Every refusal at moq's main](/quest/m1/ffi-refusals/moq-main.md) - the rest of them, so the bump adds no exclude

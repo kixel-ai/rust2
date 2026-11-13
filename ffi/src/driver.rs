@@ -19,7 +19,6 @@ use rustc_span::{FileName, Span, sym};
 
 use crate::abi::Abi;
 use crate::config::{self, Config};
-use crate::ir::Api;
 use crate::{census, collect, glue, merge};
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
@@ -42,6 +41,9 @@ pub fn run(args: Vec<String>) -> ExitCode {
 	})
 }
 
+/// The file in the export that holds its API, which `--baseline` reads back.
+pub const API_FILE: &str = "api.json";
+
 /// Compiles the facade, exporting its API after analysis.
 struct Export {
 	/// Each crate the facade builds with, as [`config::env::CRATES`] has them.
@@ -57,6 +59,8 @@ struct Export {
 	merge: Vec<PathBuf>,
 	/// The directories a staged API's spans are relative to.
 	roots: Vec<PathBuf>,
+	/// The API an earlier export wrote, which this one's must not break.
+	baseline: Option<PathBuf>,
 }
 
 /// What the job writes.
@@ -114,6 +118,7 @@ impl Export {
 			.map(str::to_string)
 			.collect();
 		let patch = std::env::var(config::env::PATCH).map_err(|_| format!("{} is unset", config::env::PATCH))?;
+<<<<<<< HEAD
 		let crates = std::env::var(config::env::CRATES).map_err(|_| format!("{} is unset", config::env::CRATES))?;
 		let crates: toml::Table = crates
 			.parse()
@@ -124,6 +129,11 @@ impl Export {
 				_ => Err(format!("{} is malformed: {lib}", config::env::CRATES)),
 			})
 			.collect::<Result<_, String>>()?;
+=======
+		let baseline = std::env::var_os(config::env::BASELINE)
+			.filter(|p| !p.is_empty())
+			.map(PathBuf::from);
+>>>>>>> origin/main
 		Ok(Some(Self {
 			crates,
 			config,
@@ -132,6 +142,7 @@ impl Export {
 			patch,
 			merge,
 			roots,
+			baseline,
 		}))
 	}
 }
@@ -144,8 +155,8 @@ impl Callbacks for Export {
 		let facade = collect::Facade {
 			root: self.facade.root(),
 			package: &self.facade.name,
-			// A census counts the whole API, whatever the config leaves out.
 			crates: &self.crates,
+			// A census counts the whole API, whatever the config leaves out.
 			exclude: match self.output {
 				Output::Census(_) => &[],
 				Output::Dir(_) | Output::Api(_) => &self.config.exclude,
@@ -189,8 +200,8 @@ impl Callbacks for Export {
 			Output::Api(_) if tcx.dcx().has_errors().is_some() => Ok(()),
 			Output::Api(path) => target.write(path, tcx.sess.source_map(), &self.roots),
 			Output::Dir(out) => match self.merged(tcx, target) {
-				Some(api) => self.export(tcx, &api, out),
-				None => Ok(()),
+				Some(api) if self.locked(tcx, &api) => self.export(tcx, api, out),
+				_ => Ok(()),
 			},
 		};
 		if let Err(err) = written {
@@ -203,11 +214,11 @@ impl Callbacks for Export {
 impl Export {
 	/// This target's API merged with the other targets', or none once a difference
 	/// between two of them is an error.
-	fn merged(&self, tcx: TyCtxt<'_>, ours: merge::Target) -> Option<Api> {
+	fn merged(&self, tcx: TyCtxt<'_>, ours: merge::Target) -> Option<merge::Target> {
 		if self.merge.is_empty() {
-			return Some(ours.api);
+			return Some(ours);
 		}
-		let mut apis = vec![ours.api];
+		let mut apis = vec![ours.api.clone()];
 		let mut unmergeable = false;
 		for path in &self.merge {
 			let theirs = match merge::Target::read(path, tcx.sess.source_map(), &self.roots) {
@@ -274,11 +285,49 @@ impl Export {
 			};
 			err.emit();
 		}
-		differs.is_empty().then_some(api)
+		differs.is_empty().then_some(merge::Target { api, ..ours })
+	}
+
+	/// Whether `ours` keeps the baseline's API, if there is one, emitting each break of it.
+	fn locked(&self, tcx: TyCtxt<'_>, ours: &merge::Target) -> bool {
+		let Some(path) = &self.baseline else {
+			return true;
+		};
+		let base = match merge::Target::read(path, tcx.sess.source_map(), &self.roots) {
+			Ok(base) => base,
+			Err(err) => {
+				tcx.dcx().err(format!("rust2-ffi: the baseline: {err}"));
+				return false;
+			}
+		};
+		if base.package != ours.package {
+			tcx.dcx().err(format!(
+				"rust2-ffi: the baseline {} is package `{}`'s API, not `{}`'s",
+				path.display(),
+				base.package,
+				ours.package
+			));
+			return false;
+		}
+		let breaks = crate::lock::breaks(&base.api, &ours.api, &self.facade.lib);
+		let help = format!(
+			"to accept the break, export without --baseline and replace {} with the export's {API_FILE}",
+			path.display()
+		);
+		for b in &breaks {
+			let what = format!("rust2-ffi: the API breaks the baseline at {}", b.what);
+			let err = match b.span.is_dummy() {
+				true => tcx.dcx().struct_err(what),
+				false => tcx.dcx().struct_span_err(b.span, what),
+			};
+			err.with_help(help.clone()).emit();
+		}
+		breaks.is_empty()
 	}
 
 	/// Write the export of `api` into `out`, or fail on two items that share a C name.
-	fn export(&self, tcx: TyCtxt<'_>, api: &Api, out: &Path) -> Result<(), String> {
+	fn export(&self, tcx: TyCtxt<'_>, target: merge::Target, out: &Path) -> Result<(), String> {
+		let api = &target.api;
 		let abi = Abi::new(api, &self.facade.lib);
 		for (name, (first, first_span), (second, second_span)) in &abi.clashes {
 			tcx.dcx()
@@ -304,7 +353,8 @@ impl Export {
 			patch: &self.patch,
 			crates: &self.crates,
 		};
-		glue.write(out)
+		glue.write(out)?;
+		target.write(&out.join(API_FILE), tcx.sess.source_map(), &self.roots)
 	}
 }
 

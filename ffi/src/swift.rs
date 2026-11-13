@@ -26,7 +26,7 @@ use std::fmt::Write;
 use rustc_span::Span;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
+use crate::ir::{Access, Closure, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.swift");
 
@@ -81,6 +81,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\ttypealias Buf = {p}_buf\n\
 		\ttypealias CWaker = {p}_waker\n\
 		\ttypealias CForeignFuture = {p}_foreign_future\n\
+		\ttypealias CForeignReader = {p}_foreign_reader\n\
 		\ttypealias CU128 = {p}_u128\n\
 		\ttypealias CDuration = {p}_duration\n\
 		\ttypealias CAddr = {p}_socket_addr\n\n\
@@ -90,6 +91,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\t/// Traps unless the library's target is among those of `on`, as the item `what` is.\n\
 		\tstatic func on(_ on: Swift.UInt64, _ what: Swift.String) {{\n\t\tif (on >> target) & 1 == 0 {{\n\t\t\tfatalError(\"\\(what): it is not on this library's target\")\n\t\t}}\n\t}}\n\n\
 		\tstatic func free(_ buf: Buf) {{\n\t\t{p}_buf_free(buf)\n\t}}\n\n\
+		\t/// A buffer Rust owns, holding a copy of what `view` lends.\n\
+		\tstatic func copy(_ view: Buf) -> Buf {{\n\t\t{p}_buf_copy(view)\n\t}}\n\n\
 		\tstatic func load(_ state: UnsafeMutablePointer<Swift.Int>) -> Swift.Int {{\n\t\t{p}_atomic_load(state)\n\t}}\n\n\
 		\tstatic func store(_ state: UnsafeMutablePointer<Swift.Int>, _ value: Swift.Int) {{\n\t\t{p}_atomic_store(state, value)\n\t}}\n\n\
 		\tstatic func add(_ state: UnsafeMutablePointer<Swift.Int>, _ value: Swift.Int) -> Swift.Int {{\n\t\t{p}_atomic_add(state, value)\n\t}}\n\n\
@@ -147,6 +150,8 @@ const TAKEN: &[&str] = &[
 	"OpaquePointer",
 	"Optional",
 	"Sendable",
+	"SeekOrigin",
+	"SeekableReader",
 	"SocketAddr",
 	"StaticString",
 	"Swift",
@@ -306,7 +311,7 @@ impl<'a> Gen<'a> {
 			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "Void".to_string(),
 			Type::Bool => "Swift.Bool".to_string(),
-			Type::Int(int) => sw_int(*int).to_string(),
+			Type::Int(int) | Type::NonZero(int) => sw_int(*int).to_string(),
 			Type::F32 => "Swift.Float".to_string(),
 			Type::F64 => "Swift.Double".to_string(),
 			Type::Char => "Swift.Unicode.Scalar".to_string(),
@@ -318,6 +323,7 @@ impl<'a> Gen<'a> {
 			Type::List(_, inner) if self.unique(inner) => format!("UniqueArray<{}>", self.sw(inner)),
 			Type::List(_, inner) => format!("[{}]", self.sw(inner)),
 			Type::Waker => "@Sendable () -> Void".to_string(),
+			Type::Reader => "some SeekableReader".to_string(),
 			Type::Future => "@Sendable () async -> Void".to_string(),
 			Type::Option(inner) => format!("{}?", self.sw(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.sw(inner),
@@ -325,11 +331,16 @@ impl<'a> Gen<'a> {
 			Type::Enum(i) => self.class(&abi.enumeration(*i)),
 			Type::Object(i) => self.class(&abi.object(*i)),
 			Type::Callback(i, _) => format!("any {}", self.class(&abi.callback(*i))),
-			Type::Closure(params, ret) => {
+			Type::Closure(closure_) => {
+				let (params, ret) = (&closure_.params, &closure_.ok);
 				let params: Vec<String> = (params.iter())
 					.map(|p| format!("{}{}", self.ownership(p), self.sw(p)))
 					.collect();
-				format!("@Sendable ({}) -> {}", params.join(", "), self.sw(ret))
+				let throws = match closure_.err {
+					Some(_) => " throws",
+					None => "",
+				};
+				format!("@Sendable ({}){throws} -> {}", params.join(", "), self.sw(ret))
 			}
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => self.class(&abi.range(ty)),
 			Type::Tuple(elements) => match &elements[..] {
@@ -409,7 +420,7 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
-			Type::Int(int) => lower_int(*int, e),
+			Type::Int(int) | Type::NonZero(int) => lower_int(*int, e),
 			Type::Char => format!("{e}.value"),
 			Type::U128 => format!("Native.u128({e})"),
 			Type::Array(_) => format!("{e}._c"),
@@ -490,7 +501,7 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => format!("Native.path({e})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("Native.data({e})"),
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
-			Type::Int(int) => lift_int(*int, e),
+			Type::Int(int) | Type::NonZero(int) => lift_int(*int, e),
 			Type::Char => format!("Native.scalar({e})"),
 			Type::U128 => format!("Native.u128({e})"),
 			Type::Array(n) => format!("{}(_c: {e})", Abi::array_class(*n)),
@@ -642,7 +653,7 @@ impl<'a> Gen<'a> {
 			let sw = self.sw(ty);
 			let _ = write!(
 				self.types,
-				"/// A `{}` Rust returned as an error.\npublic struct {name}: Swift.Error, CustomStringConvertible {{\n\tpublic let error: {sw}\n\n\tpublic var description: Swift.String {{\n\t\t\"\\(error)\"\n\t}}\n}}\n\n",
+				"/// A `{}` Rust returned as an error, or a closure throws for Rust to return.\npublic struct {name}: Swift.Error, CustomStringConvertible {{\n\tpublic let error: {sw}\n\n\tpublic init(error: {sw}) {{\n\t\tself.error = error\n\t}}\n\n\tpublic var description: Swift.String {{\n\t\t\"\\(error)\"\n\t}}\n}}\n\n",
 				sw.trim_start_matches("Swift.")
 			);
 		}
@@ -1168,7 +1179,15 @@ impl<'a> Gen<'a> {
 			arg.after.push(self.close(ty, e));
 		}
 		match (ty, c) {
-			(Type::Closure(lent, ret), Ty::Fn(..)) => {
+			// Rust keeps the closure, boxed, until it calls `free`.
+			(Type::Closure(closure_), Ty::Fn(..)) if closure_.kept => {
+				let sw = self.sw(ty);
+				arg.exprs.push(self.trampoline(ty, closure_));
+				arg.exprs.push(format!("Native.Box<{sw}>.give({e})"));
+				arg.exprs
+					.push(format!("{{ data_ in Native.Box<{sw}>.release(data_) }}"));
+			}
+			(Type::Closure(closure_), Ty::Fn(..)) => {
 				let (f, g, d) = (format!("f{k}_"), format!("g{k}_"), format!("d{k}_"));
 				arg.open = Some((
 					format!(
@@ -1176,8 +1195,13 @@ impl<'a> Gen<'a> {
 					),
 					"}\n}".to_string(),
 				));
-				arg.exprs.push(self.trampoline(ty, lent, ret));
+				arg.exprs.push(self.trampoline(ty, closure_));
 				arg.exprs.push(d);
+			}
+			(Type::Ref(_, inner), Ty::ForeignReader) if **inner == Type::Reader => {
+				let r = format!("r{k}_");
+				arg.open = Some((format!("{tr}Native.reader(&{e}) {{ {r} in"), "}".to_string()));
+				arg.exprs.push(r);
 			}
 			(Type::Callback(i, _), _) => arg.exprs.push(format!("Native.lower_{}({e})", abi.callback(*i))),
 			(Type::Waker, _) => arg.exprs.push(format!("Native.waker({e})")),
@@ -1209,16 +1233,20 @@ impl<'a> Gen<'a> {
 		(arg, arena)
 	}
 
-	/// The C function C calls for a closure of type `ty`, lent for a call, taking `lent`
-	/// and returning `ret`: it lends each object as its type, ended once it returns. A
-	/// struct lent `&mut` is `inout`, which Swift may assign another value; Rust's stays
-	/// its own, so that traps.
-	fn trampoline(&mut self, ty: &Type, lent: &[Type], ret: &Type) -> String {
+	/// The C function C calls for `closure`, of type `ty`, lent for a call or kept boxed:
+	/// it lends each object as its type, ended once it returns, and copies one taken by
+	/// value. A struct lent `&mut` is `inout`, which Swift may assign another value; Rust's
+	/// stays its own, so that traps. What it returns or throws is Rust's to own.
+	fn trampoline(&mut self, ty: &Type, closure: &Closure) -> String {
+		let (lent, ret) = (&closure.params, &closure.ok);
 		let ps: Vec<String> = (0..lent.len()).map(|k| format!("p{k}_")).collect();
-		let mut body = vec![format!(
-			"let f_ = data_!.assumingMemoryBound(to: ({}).self).pointee",
-			self.sw(ty)
-		)];
+		let mut body = vec![match closure.kept {
+			true => format!("let f_ = Native.Box<{}>.unbox(data_)", self.sw(ty)),
+			false => format!(
+				"let f_ = data_!.assumingMemoryBound(to: ({}).self).pointee",
+				self.sw(ty)
+			),
+		}];
 		let mut args = Vec::new();
 		let mut ends = Vec::new();
 		for (k, (ty, p)) in lent.iter().zip(&ps).enumerate() {
@@ -1247,25 +1275,75 @@ impl<'a> Gen<'a> {
 					body.push(format!("defer {{ {l}.handle.end() }}"));
 					args.push(l);
 				}
+				// A `Copy` object, which Swift's class holds a copy of.
+				Type::Object(i) => args.push(format!("{}(raw: {}_copy({p}))", self.sw(ty), self.abi.object(*i))),
 				ty => args.push(self.lift_lent(ty, p)),
-			}
-		}
-		let call = format!("f_({})", args.join(", "));
-		match (ret, ends.is_empty()) {
-			(Type::Unit, _) => {
-				body.push(call);
-				body.extend(ends);
-			}
-			(ret, true) => body.push(format!("return {}", self.lower(ret, &call))),
-			(ret, false) => {
-				body.push(format!("let r_ = {call}"));
-				body.extend(ends);
-				body.push(format!("return {}", self.lower(ret, "r_")));
 			}
 		}
 		let mut params = vec!["data_".to_string()];
 		params.extend(ps);
+		let call = format!("f_({})", args.join(", "));
+		match (&closure.err, ret, ends.is_empty()) {
+			(Some(_), ret, _) => {
+				// A `Void` binding is a warning, which the build makes an error.
+				let mut done = vec![if *ret == Type::Unit {
+					format!("try {call}")
+				} else {
+					format!("let r_ = try {call}")
+				}];
+				done.extend(ends.iter().cloned());
+				if *ret != Type::Unit {
+					done.push(format!("ok_!.pointee = {}", self.returned(ret, "r_")));
+					params.push("ok_".to_string());
+				}
+				done.push("return true".to_string());
+				let mut failed = ends;
+				// A `StringError`'s description is its string, so Rust's error returns as it was.
+				failed.push("err_!.pointee = Native.owned(\"\\(error)\")".to_string());
+				failed.push("return false".to_string());
+				params.push("err_".to_string());
+				body.push(format!(
+					"do {{\n\t\t{}\n\t}} catch {{\n\t\t{}\n\t}}",
+					done.join("\n\t\t"),
+					failed.join("\n\t\t")
+				));
+			}
+			(None, Type::Unit, _) => {
+				body.push(call);
+				body.extend(ends);
+			}
+			(None, ret, true) => body.push(format!("return {}", self.returned(ret, &call))),
+			(None, ret, false) => {
+				body.push(format!("let r_ = {call}"));
+				body.extend(ends);
+				body.push(format!("return {}", self.returned(ret, "r_")));
+			}
+		}
 		format!("{{ {} in\n\t{}\n}}", params.join(", "), body.join("\n\t"))
+	}
+
+	/// The C value of `e`, of type `ty`, which a closure returns for Rust to own: a scalar
+	/// as it is, text in a buffer `buf_copy` made, and a copy of an object's handle.
+	fn returned(&mut self, ty: &Type, e: &str) -> String {
+		let abi = self.abi;
+		match ty {
+			Type::Str | Type::String => format!("Native.owned({e})"),
+			// Kept alive while its handle is copied: once `.handle` is read, ARC may release
+			// the object, whose deinit would free the handle first.
+			Type::Object(i) => format!(
+				"withExtendedLifetime({e}) {{ r_ in r_.handle.with {{ {}_copy($0) }} }}",
+				abi.object(*i)
+			),
+			Type::Option(inner) => match &**inner {
+				Type::Str | Type::String => format!("({e}.map {{ Native.owned($0) }} ?? Native.none)"),
+				Type::Object(i) => format!(
+					"withExtendedLifetime({e}) {{ r_ in r_?.handle.with {{ {}_copy($0) }} ?? nil }}",
+					abi.object(*i)
+				),
+				_ => self.lower(ty, e),
+			},
+			ty => self.lower(ty, e),
+		}
 	}
 
 	/// `function`'s Swift forms and their member names, members of `owner` (whose IR type
@@ -1386,8 +1464,11 @@ impl<'a> Gen<'a> {
 		let names = locals(&function.params);
 		for (k, (param, name)) in function.params.iter().zip(&names).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
-			if let Type::Closure(..) = param.ty {
+			if let Type::Closure(closure_) = &param.ty {
 				c_params.next().expect("a closure has its data");
+				if closure_.kept {
+					c_params.next().expect("a kept closure has its free");
+				}
 			}
 			if left.contains(&k) {
 				args.push(Arg {
@@ -1413,6 +1494,9 @@ impl<'a> Gen<'a> {
 				(true, _) => "inout ",
 				// Rust keeps the waker past the call.
 				(false, Type::Waker | Type::Future) => "@escaping ",
+				(false, Type::Closure(closure_)) if closure_.kept => "@escaping ",
+				// Rust reads and seeks the reader in place.
+				(false, Type::Ref(_, inner)) if **inner == Type::Reader => "inout ",
 				(false, _) => self.ownership(&param.ty),
 			};
 			params.push(format!("_ {name}: {ownership}{}", self.sw(&param.ty)));
@@ -1553,11 +1637,18 @@ impl<'a> Gen<'a> {
 			text.push_str(&format!("\n\nWithout `{}`, as Rust's `None`.", unquote(&names[*k])));
 		}
 		for (param, name) in function.params.iter().zip(&names) {
-			if let Type::Closure(lent, _) = &param.ty {
-				text.push_str(&format!(
-					"\n\nRust calls `{}` only during the call, from any thread.",
-					unquote(name)
-				));
+			if let Type::Closure(closure_) = &param.ty {
+				let lent = &closure_.params;
+				text.push_str(&match closure_.kept {
+					true => format!(
+						"\n\nRust keeps `{}` past the call, calls it from any thread, one call at a time, and releases it once it drops it.",
+						unquote(name)
+					),
+					false => format!(
+						"\n\nRust calls `{}` only during the call, from any thread.",
+						unquote(name)
+					),
+				});
 				if lent.iter().any(|p| matches!(p.base(), Type::Object(_))) {
 					text.push_str(&format!(
 						"\nAn object it lends lives only for that call of `{}`: keep none past it.",

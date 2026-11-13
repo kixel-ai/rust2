@@ -548,6 +548,108 @@ fun script() {
 		verbosity.levelSet(Level.TRACE)
 		println("verbosity ${verbosity.levelGet == Level.TRACE} ${spell(verbosity.filter())} ${spell(louder(verbosity.filter()))} ${spell(louder(null))}")
 	}
+
+	println("made ${made(3u) { n -> "$n times" }}")
+	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	val nine = Ticket.new(9u)
+	val given = reissue(Ticket.new(7u)) { t -> Ticket.new(t.number() + 1u) }.number()
+	val held = reissue(Ticket.new(7u)) { nine }.number()
+	println("reissued $given $held, cloned ${Ticket.clones()}")
+	// A kept closure, called on another thread after the call that took it returned.
+	println("spawned ${Spawned.new { 7u }.join()}")
+	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
+	now().use { start ->
+		var calls = 0
+		val stopped = runBlocking {
+			drive(start) { now, waiter ->
+				calls += 1
+				when (calls) {
+					1 -> later(now, 5.milliseconds)
+					2 -> {
+						println("drive ${since(now, start).inWholeMilliseconds}")
+						waiter.waker().let { waker ->
+							waker.wake()
+							(waker as AutoCloseable).close()
+						}
+						null
+					}
+					else -> throw StringException("stopped after $calls")
+				}
+			}
+		}
+		println("drive $stopped")
+	}
+	for (file in listOf(Memory("hello world".encodeToByteArray()), Broken())) {
+		try {
+			val (tail, at) = tail(file, 5u)
+			println("tail ${tail.text()} $at")
+		} catch (e: StringException) {
+			println("tail error ${e.error}")
+		}
+	}
+	// A seek from the start reaches the reader whole, past `Long.MAX_VALUE`, as `Cursor` takes one.
+	try {
+		println("sought ${seekTo(Far(), ULong.MAX_VALUE)}")
+	} catch (e: StringException) {
+		println("sought error ${e.error}")
+	}
+	println("non zeros ${describeNonZeros(nonZeros())}")
+	for (hop in listOf(null, 1UL, ULong.MAX_VALUE)) {
+		println("hop ${nextHop(hop)?.let { "Some($it)" } ?: "None"}")
+	}
+	println("farther hop ${fartherHop(PairNonZeroU16(3u, UShort.MAX_VALUE))}")
+}
+
+// A channel whose reads fail, which seeks anywhere from its start, as Rust's `Cursor` does.
+class Far : Broken(), StartSeekable {
+	override fun seekStart(offset: ULong): ULong = offset
+}
+
+// A channel over bytes in memory, as Rust's `Cursor` reads them.
+class Memory(private val bytes: ByteArray) : java.nio.channels.SeekableByteChannel {
+	private var at = 0L
+
+	override fun read(dst: java.nio.ByteBuffer): Int {
+		if (at >= bytes.size) return -1
+		val n = minOf(dst.remaining().toLong(), bytes.size - at).toInt()
+		dst.put(bytes, at.toInt(), n)
+		at += n
+		return n
+	}
+
+	override fun write(src: java.nio.ByteBuffer): Int = throw java.nio.channels.NonWritableChannelException()
+
+	override fun position(): Long = at
+
+	override fun position(newPosition: Long) = apply { at = newPosition }
+
+	override fun size(): Long = bytes.size.toLong()
+
+	override fun truncate(size: Long) = throw java.nio.channels.NonWritableChannelException()
+
+	override fun isOpen() = true
+
+	override fun close() {}
+}
+
+// A channel whose reads fail, as the native script's broken reader's do: each seek lands
+// at 0.
+open class Broken : java.nio.channels.SeekableByteChannel {
+	override fun read(dst: java.nio.ByteBuffer): Int = throw java.io.IOException("broken")
+
+	override fun write(src: java.nio.ByteBuffer): Int = throw java.nio.channels.NonWritableChannelException()
+
+	override fun position(): Long = 0
+
+	override fun position(newPosition: Long) = this
+
+	override fun size(): Long = 0
+
+	override fun truncate(size: Long) = throw java.nio.channels.NonWritableChannelException()
+
+	override fun isOpen() = true
+
+	override fun close() {}
 }
 
 /** A path's UTF-8 bytes as Rust's `escape_ascii` prints them. */
@@ -730,7 +832,76 @@ fun futures() {
 		q.drain()
 		check(result == "cancelled", "a caller's cancel the lambda sees reports the cancel")
 	}
+
+	// A lambda a poll borrows, which the future it makes owns: polled until it ends, and
+	// cancelled with the call.
+	run {
+		val gate = CompletableDeferred<Unit>()
+		var done = false
+		scope.launch {
+			Waiter.pollFuture { gate.await() }
+			done = true
+		}
+		q.drain()
+		check(!done, "a poll of a lambda that suspends waits")
+		gate.complete(Unit)
+		q.drain()
+		check(done, "a borrowed lambda's end finishes the poll")
+	}
+	run {
+		var cancelled = false
+		val job = scope.launch {
+			Waiter.pollFuture {
+				try {
+					awaitCancellation()
+				} finally {
+					cancelled = true
+				}
+			}
+		}
+		q.drain()
+		check(!cancelled, "a lambda a poll borrows runs until Rust drops it")
+		job.cancel()
+		q.drain()
+		check(cancelled, "cancelling the poll cancels the lambda it borrows")
+	}
+
+	// Rust lets go of a closure it keeps once it drops it, done or not, so the GC collects it.
+	released(spawned(9u), "a spawned closure is released once it ran")
+	run {
+		val (job, weak) = idle(scope)
+		q.drain()
+		check(weak.get() != null, "a closure a pending future keeps stays held")
+		job.cancel()
+		q.drain()
+		released(weak, "a closure a cancelled future kept is released")
+	}
 	println("futures ok")
+}
+
+// A closure Spawned keeps, which returns [n], once Spawned ran it.
+fun spawned(n: UInt): java.lang.ref.WeakReference<Any> {
+	val task = { n }
+	check(Spawned.new(task).join() == n, "a kept closure runs on Rust's thread")
+	return java.lang.ref.WeakReference(task)
+}
+
+// A drive whose closure waits for a wake that never comes, launched on [scope].
+fun idle(scope: CoroutineScope): Pair<kotlinx.coroutines.Job, java.lang.ref.WeakReference<Any>> {
+	val start = now()
+	val poll = { _: Instant, _: Waiter -> start.let { null } }
+	val job = scope.launch { drive(start, poll) }
+	return Pair(job, java.lang.ref.WeakReference(poll))
+}
+
+// Collect until [weak] is gone, as once Rust lets go of the closure it held.
+fun released(weak: java.lang.ref.WeakReference<*>, what: String) {
+	val deadline = System.nanoTime() + 10.seconds.inWholeNanoseconds
+	while (weak.get() != null) {
+		check(System.nanoTime() < deadline, what)
+		Runtime.getRuntime().gc()
+		Thread.sleep(1)
+	}
 }
 
 // Each breaks a contract, which must fail with a message naming it.
@@ -770,6 +941,17 @@ fun broken(which: String) {
 		)
 		// No String holds a path that is not UTF-8.
 		"stray" -> stray()
+		// Any exception but a closure's own error, and a reader's IOException, aborts.
+		"closure threw" -> made(1u) { throw IllegalStateException("a make failed") }
+		"closure failed" -> now().use { start ->
+			runBlocking { drive(start) { _, _ -> throw IllegalStateException("a poll failed") } }
+		}
+		"reader threw" -> tail(
+			object : Broken() {
+				override fun read(dst: java.nio.ByteBuffer): Int = throw IllegalStateException("a read failed")
+			},
+			1u,
+		)
 		"callback threw" -> emit(
 			object : Log {
 				override fun log(level: UByte, line: String): Boolean = throw IllegalStateException("a log failed")
