@@ -631,6 +631,12 @@ func script() {
 	fmt.Printf("nudge %d %d\n", nudged.X, nudged.Y)
 	config := api.Secure("h3")
 	fmt.Printf("secure %s %s\n", must(api.AlpnLent(config)), must(api.Alpn(must(config.Clone()))))
+	session := must(api.Resume("h3", 60))
+	fmt.Printf("resume %s %d\n", must(session.Alpn()), must(session.Lifetime()).Seconds)
+	session.Close()
+	if _, err := api.Resume("", 60); err != nil {
+		fmt.Printf("resume err %s\n", err)
+	}
 	meters := api.NewMeters()
 	meter := must(meters.First())
 	_ = must(meter.Add(2))

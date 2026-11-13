@@ -1302,6 +1302,20 @@ static int script(void) {
 	print("", api_alpn(config_copy), "\n");
 	api_tls_Config_free(config_copy);
 	api_tls_Config_free(config);
+	/* Another crate's type only signatures name, exported by its path there, and its error,
+	 * which crosses as its message. */
+	api_tls_Session *session;
+	api_buf session_err;
+	if (!api_resume(str("h3"), 60, &session, &session_err)) {
+		return 1;
+	}
+	print("resume ", api_tls_Session_alpn(session), " ");
+	printf("%u\n", api_tls_Session_lifetime(session).seconds);
+	api_tls_Session_free(session);
+	if (api_resume(str(""), 60, &session, &session_err)) {
+		return 1;
+	}
+	print("resume err ", session_err, "\n");
 	/* A borrow of a meter that is not Clone, lent from its owner's handle. */
 	{
 		api_Meters *lender = api_Meters_new();

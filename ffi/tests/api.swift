@@ -634,6 +634,15 @@ func script() {
 	do {
 		let config = secure("h3")
 		print("secure \(alpnLent(config)) \(alpn(config.clone()))")
+		let session = try! resume("h3", 60)
+		print("resume \(session.alpn()) \(session.lifetime().seconds)")
+		do {
+			_ = try resume("", 60)
+		} catch let e as StringError {
+			print("resume err \(e.error)")
+		} catch {
+			check(false, "resume throws its message")
+		}
 		var meters = Meters.new()
 		let first = meters.first()
 		_ = first.add(2)

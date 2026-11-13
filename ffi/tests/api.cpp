@@ -838,6 +838,10 @@ int script() {
 		auto config = api::secure("h3");
 		print("secure ", api::alpn_lent(config), " ");
 		print("", api::alpn(config), "\n");
+		auto session = api::resume("h3", 60);
+		print("resume ", session.value().alpn(), " ");
+		std::printf("%u\n", unsigned(session.value().lifetime().seconds));
+		print("resume err ", api::resume("", 60).error(), "\n");
 		auto meters = api::Meters::new_();
 		auto first = meters.first();
 		first.add(2);

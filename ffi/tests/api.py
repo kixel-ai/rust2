@@ -544,6 +544,12 @@ def script():
 	print(f"nudge {nudged.value.x} {nudged.value.y}")
 	config = api.secure("h3")
 	print(f"secure {api.alpn_lent(config)} {api.alpn(config.clone())}")
+	session = api.resume("h3", 60)
+	print(f"resume {session.alpn()} {session.lifetime().seconds}")
+	try:
+		api.resume("", 60)
+	except api.StringException as e:
+		print(f"resume err {e.error}")
 	meters = api.Meters.new()
 	first = meters.first()
 	first.add(2)
