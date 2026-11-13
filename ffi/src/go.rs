@@ -82,9 +82,12 @@ impl Packages {
 				name.insert_str(0, "crate");
 			}
 			name += count;
-			// A name Go, cgo, or the runtime takes, or an earlier crate's, takes a trailing
-			// `_`, which no crate's name keeps.
-			while ["C", "main"].contains(&name.as_str()) || keyword(&name) || by_crate.values().any(|(n, _)| *n == name)
+			// A name Go, cgo, or the runtime takes, or one an earlier crate's matches ignoring
+			// case, as a case-insensitive filesystem would, takes a trailing `_`, which no
+			// crate's name keeps.
+			while ["C", "main"].contains(&name.as_str())
+				|| keyword(&name)
+				|| by_crate.values().any(|(n, _)| n.eq_ignore_ascii_case(&name))
 			{
 				name.push('_');
 			}
@@ -96,6 +99,13 @@ impl Packages {
 	fn name(&self, krate: &str) -> &str {
 		&self.by_crate[krate].0
 	}
+}
+
+/// Each crate's Go package name, by crate, which also names its C++ header.
+pub fn packages(abi: &Abi<'_>) -> BTreeMap<String, String> {
+	let mut by_crate = Packages::new(abi, "").by_crate;
+	by_crate.remove(Packages::RT);
+	by_crate.into_iter().map(|(krate, (name, _))| (krate, name)).collect()
 }
 
 /// The Go for `abi`, whose header's contract is `contract`, as each file under `go/` by its
