@@ -294,6 +294,15 @@ class Bytes private constructor(
 \t\treturn destination
 \t}
 
+\t/** What holds the bytes, kept alive across a call passing them: Kotlin's array or Rust's buffer. */
+\tinternal val held: Any? get() = array ?: lent
+
+\t/** Rust's owner of the bytes, which a call passing them shares without a copy, or 0 for Kotlin's. */
+\tinternal val owner: Long get() = lent?.owner ?: 0L
+
+\t/** Where the bytes start in what holds them. */
+\tinternal val start: Int get() = offset
+
 \t/** The bytes, copied. */
 \tfun toByteArray(): ByteArray = array?.copyOfRange(offset, offset + size) ?: copyInto(ByteArray(size))
 
@@ -510,11 +519,10 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// The Kotlin type of a parameter of type `ty`, either way: its bytes, alone or in an
-	/// `Option` or a list, are a `ByteArray`, copied.
+	/// The Kotlin type of a parameter of type `ty`, either way: one Rust writes back is a
+	/// `Mut`.
 	fn kt_param(&mut self, ty: &Type) -> String {
 		match ty {
-			Type::Slice | Type::Vec | Type::Bytes => "ByteArray".to_string(),
 			Type::List(_, inner) => format!("kotlin.collections.List<{}>", self.kt_param(inner)),
 			Type::Option(inner) => format!("{}?", self.kt_param(inner)),
 			Type::Ref(_, inner) if ty.written() => format!("Mut<{}>", self.kt_param(inner)),
@@ -608,7 +616,7 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String => format!("{r}.string()!!"),
 			Type::Path | Type::PathBuf => format!("{r}.path()!!"),
 			Type::Slice | Type::Vec | Type::Bytes if owned => format!("{r}.owned()!!"),
-			Type::Slice | Type::Vec | Type::Bytes => format!("{r}.bytes()!!"),
+			Type::Slice | Type::Vec | Type::Bytes => format!("{r}.lent()!!"),
 			Type::U128 => format!("{r}.u128()"),
 			Type::Array(n) => format!("{}({r}.raw({n}))", Abi::array_class(*n)),
 			Type::Duration => format!("{r}.duration()"),
@@ -632,7 +640,7 @@ impl<'a> Gen<'a> {
 					)
 				}
 				base if Abi::is_buf(base) && owned => format!("{r}.owned()"),
-				base if Abi::is_buf(base) => format!("{r}.bytes()"),
+				base if Abi::is_buf(base) => format!("{r}.lent()"),
 				_ => format!("(if ({r}.bool()) {} else null)", self.read(inner, r, owned)),
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.read(inner, r, owned),
@@ -680,8 +688,8 @@ impl<'a> Gen<'a> {
 			Ty::Buf => match (decode(ty), matches!(ty.base(), Type::Option(_)), lent) {
 				(Some(decode), true, _) => format!("{e}?.{decode}"),
 				(Some(decode), false, _) => format!("{e}!!.{decode}"),
-				(None, true, true) => e.to_string(),
-				(None, false, true) => format!("{e}!!"),
+				(None, true, true) => format!("{e}?.let {{ Bytes(it) }}"),
+				(None, false, true) => format!("Bytes({e}!!)"),
 				(None, true, false) => format!("Native.owned({e})"),
 				(None, false, false) => format!("Native.owned({e})!!"),
 			},
@@ -760,15 +768,43 @@ impl<'a> Gen<'a> {
 				arg.exprs.push(h);
 				arg.rust_args.push(format!("{p} as usize as _"));
 			}
-			Ty::Buf => {
-				let option = matches!(ty.base(), Type::Option(_));
-				arg.exprs.push(match (string(ty), option) {
-					(true, true) => format!("{e}?.encodeToByteArray()"),
-					(true, false) => format!("{e}.encodeToByteArray()"),
-					(false, _) => e.to_string(),
+			// Text crosses as a `byte[]`, copied into a buffer Rust takes.
+			Ty::Buf if string(ty) => {
+				arg.exprs.push(match matches!(ty.base(), Type::Option(_)) {
+					true => format!("{e}?.encodeToByteArray()"),
+					false => format!("{e}.encodeToByteArray()"),
 				});
-				arg.rust_pre.push(format!("let b{p} = rt::bytes(env, {p});"));
-				arg.rust_args.push(format!("rt::view(&b{p})"));
+				arg.rust_pre.push(format!("let b{p} = rt::taken(env, {p});"));
+				arg.rust_args.push(format!("b{p}"));
+			}
+			// Bytes cross as what holds them, Rust's owner or 0, where they start, and how
+			// many, or -1 for none: Rust takes a copy of Kotlin's, or shares its own.
+			Ty::Buf => {
+				arg.jni
+					.splice(arg.jni.len() - 1.., ["jobject", "jlong", "jint", "jint"]);
+				arg.native.splice(
+					arg.native.len() - 1..,
+					["Any?", "Long", "Int", "Int"].map(str::to_string),
+				);
+				let (q, r, s) = (format!("p{n}"), format!("p{}", *n + 1), format!("p{}", *n + 2));
+				*n += 3;
+				arg.exprs.extend(match matches!(ty.base(), Type::Option(_)) {
+					true => [
+						format!("{e}?.held"),
+						format!("{e}?.owner ?: 0L"),
+						format!("{e}?.start ?: 0"),
+						format!("{e}?.size ?: -1"),
+					],
+					false => [
+						format!("{e}.held"),
+						format!("{e}.owner"),
+						format!("{e}.start"),
+						format!("{e}.size"),
+					],
+				});
+				arg.rust_pre
+					.push(format!("let b{p} = unsafe {{ rt::passed(env, {p}, {q}, {r}, {s}) }};"));
+				arg.rust_args.push(format!("b{p}"));
 			}
 			Ty::Struct(name) if matches!(ty.base(), Type::Callback(..)) => {
 				arg.exprs.push(e.to_string());
@@ -788,7 +824,12 @@ impl<'a> Gen<'a> {
 				arg.inside.push(value);
 				arg.exprs.push(format!("{w}.finish()"));
 				arg.rust_pre.push(format!(
-					"let b{p} = rt::bytes(env, {p}).unwrap_or_default();\n\t\tlet mut r{p} = rt::Reader::new(&b{p});\n\t\tlet a{p} = r{p}.get();"
+					"let b{p} = rt::bytes(env, {p}).unwrap_or_default();\n\t\tlet mut r{p} = rt::Reader::{}(&b{p});\n\t\tlet a{p} = r{p}.get();",
+					// Read through a pointer, Rust keeps nothing of it.
+					match c {
+						Ty::In(_) => "new",
+						_ => "taking",
+					}
 				));
 				arg.rust_args.push(match c {
 					Ty::In(_) => format!("&a{p}"),
@@ -1957,7 +1998,7 @@ impl<'a> Gen<'a> {
 			// What Rust wrote back comes first, read whether or not the call failed.
 			for (name, ty) in &written {
 				let read = self.read_value(ty, &r);
-				lines.push(format!("{name}.value = {}", to_param(ty, &read)));
+				lines.push(format!("{name}.value = {read}"));
 			}
 			lines.extend(self.lift_result(&ok, err.as_ref(), exception.as_deref(), &r));
 			value = match lines.is_empty() {
@@ -2178,40 +2219,6 @@ impl<'a> Gen<'a> {
 			lines.push(self.read_value(ok, r));
 		}
 		lines
-	}
-}
-
-/// The Kotlin parameter value of the value `e` of type `ty` read back: bytes, which a
-/// parameter takes as a `ByteArray`, copied out of each `Bytes` read, wherever they are.
-fn to_param(ty: &Type, e: &str) -> String {
-	match ty {
-		_ if !holds_bytes(ty) => e.to_string(),
-		Type::Slice | Type::Vec | Type::Bytes => format!("{e}.toByteArray()"),
-		Type::Box(inner) | Type::Ref(_, inner) => to_param(inner, e),
-		Type::Option(inner) => format!("{e}?.let {{ v -> {} }}", to_param(inner, "v")),
-		Type::List(_, inner) => format!("{e}.map {{ v -> {} }}", to_param(inner, "v")),
-		Type::Tuple(elements) => {
-			let converted: Vec<String> = (elements.iter().enumerate())
-				.map(|(k, ty)| to_param(ty, &format!("t.{}", ordinal(k))))
-				.collect();
-			let make = match elements.len() {
-				2 => "kotlin.Pair".to_string(),
-				3 => "kotlin.Triple".to_string(),
-				n => format!("Tuple{n}"),
-			};
-			format!("{e}.let {{ t -> {make}({}) }}", converted.join(", "))
-		}
-		_ => e.to_string(),
-	}
-}
-
-/// Whether `ty` holds bytes anywhere a parameter's form of it differs from a returned one's.
-fn holds_bytes(ty: &Type) -> bool {
-	match ty {
-		Type::Slice | Type::Vec | Type::Bytes => true,
-		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => holds_bytes(inner),
-		Type::Tuple(elements) => elements.iter().any(holds_bytes),
-		_ => false,
 	}
 }
 
