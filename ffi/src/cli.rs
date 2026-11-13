@@ -403,7 +403,10 @@ fn matches(spec: &str, package: &Package) -> Result<bool, String> {
 		));
 	}
 	// An omitted build field, like an omitted minor or patch, matches any.
-	let core = package.version.split_once('+').map_or(package.version.as_str(), |(core, _)| core);
+	let core = package
+		.version
+		.split_once('+')
+		.map_or(package.version.as_str(), |(core, _)| core);
 	let exact = |v: &str| package.version == v || core == v || core.starts_with(&format!("{v}."));
 	Ok(package.name == name && version.is_none_or(exact))
 }
