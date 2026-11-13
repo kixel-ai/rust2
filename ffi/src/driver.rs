@@ -293,10 +293,17 @@ impl Export {
 			));
 			return Err(());
 		}
+		Ok(Some(base))
+	}
+
+	/// The baseline's binding names, or an error if it lacks any language's. A baseline from
+	/// before names were kept still has its structure checked first, so its re-export accepts
+	/// no break that check would have reported.
+	fn baseline_names<'b>(&self, tcx: TyCtxt<'_>, base: &'b merge::Target) -> Option<&'b crate::lock::Names> {
 		let Some(names) = &base.names else {
 			tcx.dcx()
 				.err("rust2-ffi: the baseline lacks binding names; export it again with this rust2-ffi");
-			return Err(());
+			return None;
 		};
 		if ["C++", "Kotlin", "Swift", "Go", "Dart", "Python"]
 			.iter()
@@ -304,24 +311,24 @@ impl Export {
 		{
 			tcx.dcx()
 				.err("rust2-ffi: the baseline lacks a binding's name table; export it again with this rust2-ffi");
-			return Err(());
+			return None;
 		}
-		Ok(Some(base))
+		Some(names)
 	}
 
-	/// Compare one compatibility layer against the already validated baseline.
+	/// Compare one compatibility layer against the baseline: its structure, or with `names`,
+	/// the baseline's binding names and the export's, the names the generators made.
 	fn locked(
 		&self,
 		tcx: TyCtxt<'_>,
 		base: &merge::Target,
-		ours: &merge::Target,
-		now_names: Option<&crate::lock::Names>,
+		abi: &Abi<'_>,
+		names: Option<(&crate::lock::Names, &crate::lock::Names)>,
 	) -> bool {
-		let names = base.names.as_ref().expect("validated baseline");
 		let path = self.baseline.as_ref().expect("baseline supplied");
-		let breaks = match now_names {
-			None => crate::lock::breaks(&base.api, &ours.api, &self.facade.lib),
-			Some(now) => crate::lock::name_breaks(names, now, &ours.api, &self.facade.lib),
+		let breaks = match names {
+			None => crate::lock::breaks(&base.api, abi.api, &self.facade.lib),
+			Some((then, now)) => crate::lock::name_breaks(then, now, &base.api, abi),
 		};
 		let help = format!(
 			"to accept the break, export without --baseline and replace {} with the export's {API_FILE}",
@@ -362,9 +369,14 @@ impl Export {
 			Ok(base) => base,
 			Err(()) => return Ok(()),
 		};
-		let structure_kept = baseline
-			.as_ref()
-			.is_none_or(|base| self.locked(tcx, base, &target, None));
+		let structure_kept = baseline.as_ref().is_none_or(|base| self.locked(tcx, base, &abi, None));
+		let baseline = match &baseline {
+			None => None,
+			Some(base) => match self.baseline_names(tcx, base) {
+				Some(names) => Some((base, names)),
+				None => return Ok(()),
+			},
+		};
 		if !can_generate {
 			return Ok(());
 		}
@@ -374,9 +386,8 @@ impl Export {
 			patch: &self.patch,
 		};
 		let generated = glue.generate(out)?;
-		let names_kept = baseline
-			.as_ref()
-			.is_none_or(|base| self.locked(tcx, base, &target, Some(&generated.names)));
+		let names_kept =
+			baseline.is_none_or(|(base, names)| self.locked(tcx, base, &abi, Some((names, &generated.names))));
 		if !structure_kept || !names_kept {
 			return Ok(());
 		}

@@ -112,11 +112,23 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 	let mut locked = crate::lock::types(abi, &types);
 	let classes = classes(abi, &types);
 	let thrown = thrown(abi, &classes);
-	for (name, (_, ty)) in &thrown {
-		locked.insert(crate::lock::error_key(abi, ty), name.clone());
+	// Every error a function returns, under each spelling that shares its exception.
+	let api = abi.api;
+	let errors = (api.records.iter().flat_map(|r| &r.methods))
+		.chain(api.enums.iter().flat_map(|e| &e.methods))
+		.chain(api.objects.iter().flat_map(|o| &o.methods))
+		.chain(&api.functions)
+		.filter_map(|f| f.err.as_ref());
+	for err in errors {
+		let key = abi.key(err);
+		if let Some((name, _)) = thrown.iter().find(|(_, (_, ty))| abi.key(ty) == key) {
+			locked.insert(crate::lock::error_key(abi, err), name.clone());
+		}
 	}
 	let variants = variants(abi, &types, &classes, &thrown);
-	crate::lock::variants(abi, &mut locked, &variants);
+	crate::lock::variants(abi, &mut locked, |c, v| {
+		variants.get(&(c.to_string(), v.to_string())).cloned()
+	});
 	// What each package's types, their variants and tables, and its errors take.
 	let mut taken: BTreeMap<String, BTreeSet<String>> = classes.clone();
 	for ((c, _), name) in &variants {
@@ -1642,6 +1654,17 @@ impl<'a> Gen<'a> {
 		let mut statics = Vec::new();
 		if let Some(mut default) = default {
 			default.name = self.claim(&default.name, format!("`{rust}`'s Default"));
+			let api = self.abi.api;
+			let shown = match ty {
+				Type::Record(i) => &api.records[*i].shown,
+				Type::Enum(i) => &api.enums[*i].shown,
+				Type::Object(i) => &api.objects[*i].shown,
+				_ => unreachable!("only an exported type has members"),
+			};
+			self.locked.insert(
+				format!("{} / Default", crate::lock::type_key(shown)),
+				default.name.clone(),
+			);
 			statics.push(default);
 		}
 		let pkg = self.pkg;
@@ -2853,11 +2876,12 @@ fn package_names_are_locked() {
 	let new = generate(&Abi::new(&api, "lock"), "lock", 0, "lock").unwrap();
 	assert_eq!(new.names["crate lock_foobar"], "foobar_");
 	assert!(new.files.iter().any(|(path, _)| path == "foobar_/foobar_.go"));
+	let base = api.clone();
 	let breaks = crate::lock::name_breaks(
 		&BTreeMap::from([("Go".into(), old.names)]),
 		&BTreeMap::from([("Go".into(), new.names)]),
-		&api,
-		"lock",
+		&base,
+		&Abi::new(&api, "lock"),
 	);
 	assert_eq!(breaks.len(), 1);
 	assert!(breaks[0].what.contains("its Go name `foobar` is now `foobar_`"));

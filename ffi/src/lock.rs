@@ -10,7 +10,7 @@
 //! renamed the same way. An addition passes: a new item, method, trait impl, or a
 //! variant of an enum another crate cannot match exhaustively.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use rustc_span::{DUMMY_SP, Span};
 
@@ -45,15 +45,13 @@ pub fn types(abi: &Abi<'_>, classes: &std::collections::HashMap<String, String>)
 }
 
 /// Record names made for enum variants by a generator's collision rules.
-pub fn variants(
-	abi: &Abi<'_>,
-	names: &mut BTreeMap<String, String>,
-	variants: &std::collections::HashMap<(String, String), String>,
-) {
+///
+/// `variant` gives a variant's name by its enum's C name and its Rust name, if it has one.
+pub fn variants(abi: &Abi<'_>, names: &mut BTreeMap<String, String>, variant: impl Fn(&str, &str) -> Option<String>) {
 	for (i, e) in abi.api.enums.iter().enumerate() {
 		for v in &e.variants {
-			if let Some(name) = variants.get(&(abi.enumeration(i), v.name.clone())) {
-				names.insert(format!("{} / variant {}", type_key(&e.shown), v.name), name.clone());
+			if let Some(name) = variant(&abi.enumeration(i), &v.name) {
+				names.insert(format!("{} / variant {}", type_key(&e.shown), v.name), name);
 			}
 		}
 	}
@@ -81,9 +79,18 @@ pub fn error_key(abi: &Abi<'_>, ty: &Type) -> String {
 }
 
 /// Compare the names the generators actually emitted, retaining the current item's span.
-pub fn name_breaks(base: &Names, now: &Names, api: &Api, prefix: &str) -> Vec<Break> {
-	let index = Index::new(api, prefix);
-	let abi = Abi::new(api, prefix);
+///
+/// An item whose C name `base_api`, the baseline's API, gave it changed is already a structural
+/// break, so its binding names, which follow from the C name, are not reported again.
+pub fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'_>) -> Vec<Break> {
+	let api = abi.api;
+	let index = Index::with(abi);
+	let renamed: BTreeSet<String> = Index::new(base_api, &abi.prefix)
+		.entries
+		.into_iter()
+		.filter(|(key, entry)| index.entries.get(key).is_some_and(|now| now.c != entry.c))
+		.map(|(key, _)| key)
+		.collect();
 	let mut locations: BTreeMap<String, (Span, String)> = index
 		.entries
 		.iter()
@@ -108,7 +115,7 @@ pub fn name_breaks(base: &Names, now: &Names, api: &Api, prefix: &str) -> Vec<Br
 		.chain(api.objects.iter().flat_map(|o| &o.methods));
 	for function in functions {
 		let mut record = |err: &Type| {
-			let key = error_key(&abi, err);
+			let key = error_key(abi, err);
 			locations.entry(key.clone()).or_insert((
 				function.span,
 				format!("exception class for `{}`", key.strip_prefix("error ").unwrap()),
@@ -152,6 +159,9 @@ pub fn name_breaks(base: &Names, now: &Names, api: &Api, prefix: &str) -> Vec<Br
 			let Some((span, what)) = locations.get(owner) else {
 				continue;
 			};
+			if renamed.contains(owner) {
+				continue;
+			}
 			let new = now.get(language).and_then(|names| names.get(key));
 			if new != Some(old) {
 				let change = match new {
@@ -299,7 +309,12 @@ struct Index<'a> {
 
 impl<'a> Index<'a> {
 	fn new(api: &'a Api, prefix: &str) -> Self {
-		let abi = Abi::new(api, prefix);
+		Self::with(&Abi::new(api, prefix))
+	}
+
+	/// The index of `abi`'s API, reusing its C names.
+	fn with(abi: &Abi<'a>) -> Self {
+		let api = abi.api;
 		let mut entries = BTreeMap::new();
 		let shown = |shown: &[String]| shown.join("::");
 		let mut types = Vec::new();

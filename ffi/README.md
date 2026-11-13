@@ -213,8 +213,10 @@ an item's docs may change. The check runs once, on the API every language is gen
 it compares C's names and the C++, Kotlin, Python, Swift, Go, and Dart generators' own
 public names. A clash that renames a kept class, function, or member reports its language
 and old and new names at the item's span. Staged `--api` files have no binding names; a
-baseline must be a complete export. Re-export an older baseline without name tables with
-this version before using it.
+baseline must be a complete export. An older baseline without name tables still has its
+structure checked, reporting each break before the error that it lacks names, so its
+re-export with this version accepts no break that check would have caught. A binding
+rename that follows from a C rename is reported once, as the C rename.
 
 The baseline is a lockfile, not config: the consumer commits it beside `Cargo.lock`, the
 export reads it only to compare, and the export is the same with or without it. It refuses a

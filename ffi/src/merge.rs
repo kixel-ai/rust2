@@ -18,7 +18,7 @@ use crate::ir::{Api, Callback, Constant, Enum, Field, Function, Home, Object, On
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Target {
 	/// Names are present only in a complete export, after all targets merge.
-	#[serde(default)]
+	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub names: Option<crate::lock::Names>,
 	/// The facade's package, which every target's must share.
 	pub package: String,

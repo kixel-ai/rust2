@@ -1408,6 +1408,25 @@ fn lock() {
 			1
 		);
 	}
+	// A baseline from before names were kept still has its structure checked.
+	let path = dir.join("missing-all.json");
+	let args = ["--baseline".as_ref(), path.as_os_str()];
+	let output = exporter(
+		"lock",
+		&dir.join("missing-next"),
+		&targets,
+		&args,
+		&["--features", "next"],
+	)
+	.output()
+	.unwrap();
+	assert!(!output.status.success());
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(stderr.contains("baseline lacks binding names"), "{stderr}");
+	assert!(
+		stderr.contains("the API breaks the baseline at fn `lock::removed`: it is removed"),
+		"no structural break against a baseline without names:\n{stderr}"
+	);
 	let args = ["--baseline".as_ref(), baseline.as_os_str()];
 	let itself = exporter("lock", &dir.join("base"), &targets, &args, &[])
 		.output()
@@ -1516,6 +1535,13 @@ fn lock() {
 		assert!(stderr.contains(text), "missing {text}:\n{stderr}");
 	}
 	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	let defaults = locked("defaults");
+	assert!(!defaults.status.success(), "a Go Default rename passed the lock");
+	let stderr = String::from_utf8_lossy(&defaults.stderr);
+	assert!(
+		stderr.contains("type `lock::Meter` / Default: its Go name `MeterDefault` is now `MeterDefault_`"),
+		"Go Default rename missing:\n{stderr}"
+	);
 	let closure_base = dir.join("closure-base");
 	let output = export("lock", &closure_base, &targets, &["--features", "closures"]);
 	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));

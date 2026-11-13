@@ -297,3 +297,9 @@ impl FieldName {
 		meter.map_or(0, Meter::total)
 	}
 }
+
+/// Claims Go's name for `Meter`'s `Default` constructor, since types claim theirs first.
+#[cfg(feature = "defaults")]
+pub struct MeterDefault {
+	pub value: u32,
+}

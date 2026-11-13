@@ -89,16 +89,11 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	};
 	g.locked = crate::lock::types(abi, &g.classes);
 	g.variants = g.variants(&taken);
-	for (i, e) in abi.api.enums.iter().enumerate() {
-		for v in &e.variants {
-			if let Some(name) = g.variants.get(&(g.class(&abi.enumeration(i)), v.name.clone())) {
-				g.locked.insert(
-					format!("{} / variant {}", crate::lock::type_key(&e.shown), v.name),
-					name.clone(),
-				);
-			}
-		}
-	}
+	let mut locked = std::mem::take(&mut g.locked);
+	crate::lock::variants(abi, &mut locked, |c, v| {
+		g.variants.get(&(g.class(c), v.to_string())).cloned()
+	});
+	g.locked = locked;
 	let types: Vec<String> = (g.classes.keys())
 		.map(|c| g.class(c))
 		.chain(g.variants.values().cloned())

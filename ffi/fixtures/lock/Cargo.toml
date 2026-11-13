@@ -21,6 +21,7 @@ names = []
 members = []
 wrappers = []
 closures = []
+defaults = []
 
 [lints]
 workspace = true
