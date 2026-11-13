@@ -3,9 +3,12 @@
 ## Goal
 
 Work that waits on evidence or has no consumer yet: two waits on upstream's build-speed
-levers, the translator's features that wait on [the gate](/quest/m2/wasm/README.md), the
-binding targets planned ahead of a consumer, what waits on moq, and
-[crabx's GitHub App](/quest/m3/crabx-app.md).
+levers ([relink](/quest/m3/relink.md) and [TPDE](/quest/m3/tpde.md)) and
+[the benchmark on bare metal](/quest/m3/bench-metal.md), the translator's features that
+wait on [the gate](/quest/m2/wasm/README.md), the binding targets planned ahead of a
+consumer, what waits on moq, [crabx's GitHub App](/quest/m3/crabx-app.md), and two spikes
+of what a rustc driver can do for any crate: [a crates.io census](/quest/m3/crates-census.md)
+and [a dead `pub` finder](/quest/m3/dead-pub.md).
 
 ## Plan
 
@@ -13,8 +16,10 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
 
 - ✅ Until [the gate](/quest/m2/wasm/README.md) reports, translator work is only what the
   gate needs. The quests here that no consumer calls wait on it:
-  [no `ts.toml`](/quest/m3/ts-configless.md) and
-  [browser APIs through wasm-bindgen](/quest/m3/ts-wasm-bindgen/README.md). This
+  [no `ts.toml`](/quest/m3/ts-configless.md),
+  [browser APIs through wasm-bindgen](/quest/m3/ts-wasm-bindgen/README.md), and
+  [type-checking with tsrs](/quest/m3/ts-tsrs.md), which the 2026-11-12 audit found
+  ready with no link to the gate. This
   supersedes, until then, the 2026-10-27 decision that rust2 aims to support all of std,
   so a generic std gap was planned here even when moq never calls it. Rejected:
   continuing as before; freezing the model's work too.
@@ -24,6 +29,27 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   [the exporter epic](/quest/m1/ffi-export/README.md), so it copies the settled C ABI,
   types, and checks. Rejected: none until a consumer asks. Not planned: Java without
   Kotlin (the JNI library serves it, and Android has no FFM API), Ruby, PHP, Elixir, Lua, and game engines.
+
+Decided with the maintainer on 2026-11-12, in the quest audit:
+
+- ✅ [TPDE](/quest/m3/tpde.md) moves here from m4: it is an upstream build-speed lever the
+  benchmark measures, which is what m3 holds, and the nearest of them to clearing.
+  Rejected: m4.
+- ✅ The Cranelift retrial is deleted. `bench/build/README.md` already holds its verdict:
+  12% less CPU cold and 4% warm, on CI that is usually warm, and enabling unwinding can
+  only shrink that. Its two upstream waits
+  ([rustc_codegen_cranelift#1567](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1567)
+  and [#1712](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1712)) were
+  still open. Rejected: keeping it with the ceiling stated.
+- ✅ Two spikes join with no consumer waiting:
+  [the crates.io census](/quest/m3/crates-census.md) and
+  [the dead `pub` finder](/quest/m3/dead-pub.md). Considered and left out: a build doctor
+  that ranks why an edit rebuilt slowly, which conflicts with build speed keeping only
+  what costs nothing; a cancel-safety report for exported futures, likely mostly false
+  positives; a general semver checker, which cargo-semver-checks is taking into cargo; a
+  Rust generator over the C ABI as a rebuild firewall; and driver-generated derives,
+  since proc macros measured 0.2% of a clean build
+  ([#64](https://github.com/moq-dev/rust2/pull/64)).
 
 Decided with the maintainer on 2026-11-07, the unsafe policy, to stop one-off fixes for
 ever rarer `unsafe`:

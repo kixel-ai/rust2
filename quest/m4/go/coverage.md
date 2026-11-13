@@ -23,7 +23,8 @@ The spike refuses each of these with its span (`go/fixtures/reject/expected.txt`
 - **std's collections:** `HashMap`, `BTreeMap`, `VecDeque`, translated from std's MIR or
   bound to the runtime as rust2-ts's are. The reject fixture holds no case for them yet.
 - **Statics and pointers the fixture also refuses:** a `static mut`, a static with
-  interior mutability such as an atomic, and `NonNull` ([go/README.md](/go/README.md)).
+  interior mutability such as an atomic, and `NonNull` (`go/src/lower/library.rs`), without
+  which no `Rc` or `Arc` translates.
 
 The translation targets the host, 64-bit `usize`; a 32-bit Go target needs its own
 translation.

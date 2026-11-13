@@ -10,16 +10,18 @@ Ownership stays automatic: a dropped object is still freed without a call from t
 ## Plan
 
 - Profile first: split the cost between the handle allocation, Go's `runtime.AddCleanup`,
-  Dart's `NativeFinalizer.attach`, and the crossing, and fix what dominates.
-- Candidates, recommended in this order once profiled: allocate the wrapper and its cleanup
-  argument together, so registration allocates nothing more; in Dart, attach with an
-  `externalSize` of 0 and a shared token object; in Go, register one cleanup per handle on
-  a pointer the wrapper already holds rather than a fresh closure.
+  Dart's `Dart_NewFinalizableHandle`, and the crossing, and fix what dominates.
+- Two candidates this quest first listed are already how the code works, found by the
+  2026-11-12 audit: Dart objects use `Dart_NewFinalizableHandle` with a size of 0
+  (`ffi/runtime/dart.rs`), and Go registers one cleanup with the handle as its argument
+  (`ffi/src/go.rs`'s `own_`). So take candidates from the profile. One left: allocate the
+  wrapper and its handle together, so a return allocates once.
 - Explicit `Close` stays, and the cleanup stays as the backstop; dropping it is refused,
   since a missed `Close` would leak.
 - Re-measure the bench's object return and stamped write.
 
 ## Related
 
+- [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - rewrites the same handle word; profile after it lands, or the baselines move
 - [Copy values](/quest/m1/ffi-export/copy-values.md) - removes the per-frame `Timestamp`
   object, the other half of Go's and Dart's stamped write

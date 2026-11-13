@@ -41,6 +41,30 @@ Decided with the maintainer on 2026-11-07, settling
 
 The spike ([moq-dev/rust2#410](https://github.com/moq-dev/rust2/pull/410)) translated
 moq's codec held to rust2-ts's bar: 35,273 codec cases and 124,193 integer cases match
-native Rust, panics included. It runs 2 to 113 times slower than cgo on batched loops,
-and beats it only on a single short call, where cgo's crossing dominates. Stripped, it
-adds 324 KB to a Go binary where cgo adds 1.15 MB and a libc dependency.
+native Rust, panics included. On 2026-11-01 it ran 2 to 113 times slower than cgo on
+batched loops, which #643 above superseded. Stripped, it adds 324 KB to a Go binary where
+cgo adds 1.15 MB and a libc dependency.
+
+Decided with the maintainer on 2026-11-12, in the quest audit:
+
+- ✅ `go/` leaves the merge gate for the nightly
+  ([its quest](/quest/m0/go-nightly.md)). Rejected: keeping it in the gate; deleting
+  `go/`, which stays rejected.
+- ✅ The four Go API quests planned from
+  [#614](https://github.com/moq-dev/rust2/pull/614)'s follow-ups are folded in here as
+  notes, since none can start while the epic is parked and each rewrote the same
+  `go/fixtures/items`. Their full text is in git history, last at `bf5ca258`, under
+  `quest/m4/go/`. When the epic resumes, plan them again in this order:
+  - `runtime-names.md` first, since it settles the package boundary the others name
+    against: the runtime becomes its own Go package, so a crate's `Result` or
+    `Formatter` cannot collide with it. The audit found its cost understated: generated
+    code names 76 unexported runtime functions and 19 unexported types that would have
+    to be exported.
+  - `enums.md`: an exported tag, a constant, and a constructor per variant, so another
+    package can build and match a `pub enum`. Its scope must add the runtime's own
+    `Option`, `Result`, and `Ordering`, which have an unexported `tag` and no exported
+    constructor (`go/runtime/rt.go`).
+  - `trait-impls.md`: `Display` as `String()`, `Debug` as `GoString()`, `PartialEq` as
+    `Equal`, and a naming rule for every other trait's methods.
+  - `alias-methods.md`: a private generic type's methods reached only through a
+    specialized alias (`pub type Byte = Value<u8>`), which #614 refuses.

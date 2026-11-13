@@ -7,15 +7,8 @@ leaves out and lists in the census what C can never hold, so `just ffi census` l
 refusals at the moq pin and `ffi.toml` is deleted: the exporter reads no config, and an
 item it cannot export fails the export with a span.
 
-What stays here once every child has merged: `ffi/moq/ffi.toml`, the `--config` flag,
-`RUST2_FFI_CONFIG`, and `config.rs`'s `Config` and `exclude` are deleted, with the
-fixtures' `ffi/fixtures/api/ffi.toml` and `ffi/fixtures/reject/ffi.toml` and the exclude
-tests in `ffi/tests/fixtures.rs`; `ffi/README.md` and the recipes stop naming them.
-`config.rs`'s `Package` and environment constants stay. Also deleted: the `--config`
-parsing rust2-ffi takes from `driver/src/cargo.rs`, which already has `parse_configless`;
-`go/bench/ffi.toml` and the `--config` in `go/justfile`'s bench recipe, whose `package`
-and `prefix` keys `config.rs` already rejects; and "exclude it in the config" in
-`ffi/src/driver.rs`'s refusal notes and `ffi/fixtures/reject/expected.txt`.
+The epic ends with [the config's deletion](/quest/m1/ffi-refusals/no-config.md), its last
+child.
 
 ## Plan
 
@@ -70,5 +63,27 @@ include the moq-tokio items narrowing drops; each child measures again once it l
 only because a type they name is refused, and clear with it. After the stand-in narrows
 ([moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683)), the census refuses 130
 items, 41 of them in moq-tokio, and 6 types.
+
+Decided with the maintainer on 2026-11-12, in the quest audit:
+
+- ✅ The exporter pins moq on its own, apart from rust2-ts's pin
+  ([own pin](/quest/m1/ffi-refusals/own-pin.md)), so its bump no longer waits on rind
+  building for wasm32, which only the translator needs. Rejected: one pin for both, at the
+  cost of two revisions to bump.
+- The last per-construct child landed in
+  [#710](https://github.com/moq-dev/rust2/pull/710), yet the Goal is not reached: the
+  2026-11-11 nightly census
+  ([run 43038758163](https://github.com/moq-dev/rust2/actions/runs/43038758163)) still
+  refuses 94 items and 5 types at the pin, behind `ffi/moq/ffi.toml`'s 100 excludes, and
+  moq's `main` adds the 36 errors [the pin bump](/quest/m1/ffi-refusals/moq-pin.md)
+  measured. So each construct left has a child again:
+  [`NonZero`](/quest/m1/ffi-refusals/nonzero.md),
+  [the rest at moq's main](/quest/m1/ffi-refusals/moq-main.md), and
+  [the excludes that hide what exports](/quest/m1/ffi-refusals/stale-excludes.md); the
+  bump is then only the bump. The types refused for not being `Send` (`clock::Entered`,
+  `clock::Rng`, `catalog::Guard`) clear with [not-send](/quest/m1/ffi-export/not-send.md).
+- ✅ The closing work is a child, [no config](/quest/m1/ffi-refusals/no-config.md), as
+  [the exporter epic's](/quest/m1/ffi-export/ship.md) is: an epic's `Required` would hold
+  back every child, and this epic's end needs not-send, which is another epic's.
 
 Public API: the exporter's command line and the C API of every item that exports.
