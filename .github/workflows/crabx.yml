@@ -105,7 +105,7 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: crabx-${{ matrix.tag }}-*
+          pattern: crabx-${{ matrix.name }}@${{ matrix.version }}@*
           merge-multiple: true
           path: archives
       - name: Record the actual published source commit
