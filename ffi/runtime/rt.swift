@@ -353,6 +353,12 @@ extension Native {
 		return try UnsafeBufferPointer(start: ptr, count: len).map(lift)
 	}
 
+	/// The C array of numbers Rust returned, copied whole.
+	static func block<T>(_ ptr: UnsafePointer<T>?, _ len: Int) -> [T] {
+		guard let ptr else { return [] }
+		return Array(UnsafeBufferPointer(start: ptr, count: len))
+	}
+
 	/// As `list`, of items Swift cannot copy.
 	static func unique<C, T: ~Copyable>(
 		_ ptr: UnsafePointer<C>?, _ len: Int, _ lift: (C) throws -> T
@@ -518,6 +524,14 @@ extension Native {
 			return (UnsafePointer(array), items.count)
 		}
 
+		/// `items`, numbers, as a C array copied whole: never null, as `list`'s.
+		func block<T>(_ items: [T]) -> (UnsafePointer<T>, Int) {
+			let array = UnsafeMutablePointer<T>.allocate(capacity: Swift.max(items.count, 1))
+			blocks.append(UnsafeMutableRawPointer(array))
+			_ = UnsafeMutableBufferPointer(start: array, count: items.count).initialize(from: items)
+			return (UnsafePointer(array), items.count)
+		}
+
 		/// As `list`, of items Swift cannot copy, each borrowed.
 		func unique<T: ~Copyable, C>(
 			_ items: borrowing UniqueArray<T>, _ lower: (borrowing T) throws -> C
@@ -675,10 +689,6 @@ extension Native {
 		return { owner.raw.wake?(owner.raw.data) }
 	}
 
-	/// The waker of a future's first poll, which wakes nothing: a poll that pends polls
-	/// again with its signal's.
-	static var idle: CWaker { CWaker(wake: nil, drop: nil, data: nil) }
-
 	/// What a future parks on: it latches a wake that lands between a poll that pends and
 	/// the park, so the next poll sees it.
 	final class Signal: @unchecked Sendable {
@@ -733,20 +743,39 @@ extension Native {
 		}
 	}
 
-	/// Await the future `raw`: poll it until `poll` returns its output, then free it. A
-	/// cancelled task frees it unfinished, which cancels it in Rust and loses nothing, and
-	/// throws `CancellationError`. Its first poll makes no signal, which only a future
-	/// that pends needs.
+	/// The call that starts a future and polls it once, whose output, if ready, has the
+	/// type `T` names.
+	static func start<T: ~Copyable>(_: T.Type, _ call: () throws -> T?) rethrows -> T? {
+		try call()
+	}
+
+	/// Await the future `raw` an eager call made, unpolled, as `run` does, but take nothing,
+	/// even what is ready, if the task is cancelled already, and poll first with no waker.
+	static func made<T: ~Copyable>(
+		_ raw: OpaquePointer?, _ free: @convention(c) (OpaquePointer?) -> Void,
+		_ poll: (OpaquePointer?, CWaker) throws -> T?
+	) async throws -> T {
+		do {
+			try Task.checkCancellation()
+			if let output = try poll(raw, CWaker(wake: nil, drop: nil, data: nil)) {
+				free(raw)
+				return output
+			}
+		} catch {
+			free(raw)
+			throw error
+		}
+		return try await run(raw, free, poll)
+	}
+
+	/// Await the future `raw`, whose first poll pended: poll it until `poll` returns its
+	/// output, then free it. A cancelled task frees it unfinished, which cancels it in Rust
+	/// and loses nothing, and throws `CancellationError`.
 	static func run<T: ~Copyable>(
 		_ raw: OpaquePointer?, _ free: @convention(c) (OpaquePointer?) -> Void,
 		_ poll: (OpaquePointer?, CWaker) throws -> T?
 	) async throws -> T {
 		defer { free(raw) }
-		// A task cancelled already takes nothing, even what is ready.
-		try Task.checkCancellation()
-		if let output = try poll(raw, idle) {
-			return output
-		}
 		let signal = Signal()
 		var given = false
 		// The handler's operation returns only a copyable result, so it leaves through this.

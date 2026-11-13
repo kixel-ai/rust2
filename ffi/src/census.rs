@@ -10,8 +10,15 @@ use crate::abi::Clash;
 use crate::collect::{Refusal, Report};
 use crate::ir::{Access, Api, Function};
 
-/// The census of the facade as Markdown; `at` locates a span.
-pub fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn Fn(Span) -> String) -> String {
+/// The census of the facade as Markdown, listing `exporting`, each exclude whose item
+/// would export and its paths; `at` locates a span.
+pub fn render(
+	api: &Api,
+	collected: &Report,
+	exporting: &[(String, Vec<String>)],
+	clashes: &[Clash],
+	at: &dyn Fn(Span) -> String,
+) -> String {
 	let records = &api.records;
 	let enums = &api.enums;
 	let objects: Vec<_> = api.objects.iter().filter(|o| !o.foreign).collect();
@@ -182,6 +189,12 @@ pub fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn Fn(Span
 		let _ = writeln!(out, "\n## Excluded by the config\n");
 		for (path, count) in &collected.excluded {
 			let _ = writeln!(out, "- `{path}`: {count} items");
+		}
+	}
+	if !exporting.is_empty() {
+		let _ = writeln!(out, "\n## Excluded by the config, though it exports\n");
+		for (exclude, exported) in exporting {
+			let _ = writeln!(out, "- `{exclude}`: `{}`", exported.join("`, `"));
 		}
 	}
 	if !collected.hidden.is_empty() {

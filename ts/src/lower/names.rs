@@ -45,14 +45,14 @@ impl<'tcx> Translator<'_, 'tcx> {
 				// The references after the arguments, which no spelling of a type ends in, so
 				// `&mut Take<T>`'s differ from `Take<&mut T>`'s.
 				ty::Adt(_, adt_args) if owned => {
-					parts.extend(args(tcx, adt_args));
+					parts.extend(args(tcx, adt_args.as_slice()));
 					parts.extend(refs);
 				}
 				_ => parts.push(ty(tcx, self_ty)),
 			}
 		}
 		let own = tcx.generics_of(def_id).parent_count;
-		parts.extend(args(tcx, &instance.args[own..]));
+		parts.extend(args(tcx, &instance.args.as_slice()[own..]));
 		parts.join("_")
 	}
 
@@ -214,7 +214,9 @@ pub fn ty<'tcx>(tcx: TyCtxt<'tcx>, t: Ty<'tcx>) -> String {
 	let parts: Vec<String> = match t.kind() {
 		// Its arguments, but not defaults such as a `Vec`'s allocator.
 		ty::Adt(adt, adt_args) => {
-			let adt_args = tcx.generics_of(adt.did()).own_args_no_defaults(tcx, adt_args);
+			let adt_args = tcx
+				.generics_of(adt.did())
+				.own_args_no_defaults(tcx, adt_args.as_slice());
 			defined(tcx, adt.did(), adt_args)
 		}
 		ty::Ref(_, inner, mutability) => vec![reference(*mutability).into(), ty(tcx, *inner)],
@@ -254,7 +256,7 @@ pub fn ty<'tcx>(tcx: TyCtxt<'tcx>, t: Ty<'tcx>) -> String {
 		ty::Closure(def_id, closure) => defined(tcx, *def_id, closure.as_closure().parent_args()),
 		ty::Coroutine(def_id, coroutine) => defined(tcx, *def_id, coroutine.as_coroutine().parent_args()),
 		ty::CoroutineClosure(def_id, closure) => defined(tcx, *def_id, closure.as_coroutine_closure().parent_args()),
-		ty::FnDef(def_id, fn_args) => defined(tcx, *def_id, fn_args.skip_binder()),
+		ty::FnDef(def_id, fn_args) => defined(tcx, *def_id, fn_args.skip_binder().as_tcx_slice()),
 		_ => vec![t.to_string().replace(|c: char| !c.is_alphanumeric(), "")],
 	};
 	parts.join("_")
@@ -311,7 +313,7 @@ fn reference(mutability: ty::Mutability) -> &'static str {
 pub fn trait_name<'tcx>(tcx: TyCtxt<'tcx>, trait_ref: ty::TraitRef<'tcx>) -> String {
 	let trait_args = tcx
 		.generics_of(trait_ref.def_id)
-		.own_args_no_defaults(tcx, trait_ref.args);
+		.own_args_no_defaults(tcx, trait_ref.args.as_slice());
 	std::iter::once(path(tcx, trait_ref.def_id))
 		.chain(args(tcx, trait_args))
 		.collect::<Vec<_>>()
