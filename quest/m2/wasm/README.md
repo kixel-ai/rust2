@@ -30,11 +30,43 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   [the WASI target](/quest/m3/wasi.md) serves hosts with no JavaScript, in m3 as the
   other targets planned ahead of a consumer are. Rejected: one `wasm32-wasip1` module for
   both, with the binding implementing its imports.
-- ✅ m2, with per-target export in m1. Rejected: all of
-  it in m1; all of it in m2.
+- ✅ m2, with per-target export in m1, which landed in
+  [#689](https://github.com/moq-dev/rust2/pull/689) and
+  [#700](https://github.com/moq-dev/rust2/pull/700). Rejected: all of it in m1; all of it
+  in m2.
 - ✅ Until the gate reports, translator work is only what the gate needs: the model's
   remaining refusals and the benchmark. [m3](/quest/m3/README.md#plan) records what waits.
   Rejected: continuing every translator quest in parallel; freezing the model's work too.
+
+Decided with the maintainer on 2026-11-12, in the quest audit:
+
+- ✅ The gate measures what it names. The audit found the benchmark could not: every
+  route was one `run(&[u8]) -> Vec<u8>` call per sample, so no handle, record, or future
+  crossed and the boundary was paid once; startup was timed nowhere; and the wasm route
+  was built release at `opt-level = "z"` while the translation came from the dev profile,
+  with overflow checks and debug assertions on. So
+  [the backend](/quest/m2/wasm/backend.md) adds a TypeScript column to
+  [the binding benchmark](/bench/ffi/README.md), whose cases cross handles, records,
+  objects, reads, and payloads, and [the measurement](/quest/m2/wasm/routes.md) adds the
+  translation of the same cases, a cold start, and matching build profiles. Rejected:
+  startup and profiles only, with compute-only workloads; rewording the gate to what the
+  benchmark measured.
+- ✅ One TypeScript API for both routes, the translator's: a module of functions per type,
+  called as `Decoder.slice(dec, 4)`, plain objects for records, an object with
+  `[Symbol.dispose]` only for what drops, which in wasm is the handle, and a `Promise`
+  from a root async function. `ts/README.md`'s design measured free functions, classes,
+  and a class facade within noise of each other on speed, and free functions 13 to 21%
+  smaller gzipped than classes on its two callers (8.3 and 7.5 KB against 9.5), since no
+  bundler drops a class's unused methods; the facade was the largest. A consumer then swaps routes per
+  crate with no source change. Rejected: the binding's classes for both, as the other
+  languages' bindings have; a surface per route.
+- Open, with no owner yet: the gate's own deliverable, moq-net running in a browser
+  through rust2-wasm, needs a transport adapter over WebTransport, and
+  [the backend](/quest/m2/wasm/backend.md) recommends refusing a crate that imports
+  browser APIs. moq's tree plans none of it. Plan it with moq's tree before the gate's
+  last child lands.
+- Deno is in the Goal and tested by no child, and is not in the flake. The backend tests
+  it or the Goal drops it.
 
 The gate sets no threshold, as the other benchmarks set none: rust2-go's "within 2x of
 cgo" was the maintainer's call from its report too. It compares every workload all routes

@@ -10,7 +10,8 @@ back to LLVM.
 
 ## Plan
 
-Decided with the maintainer on 2026-11-07: m4.
+Decided with the maintainer on 2026-11-07: m4. Decided with the maintainer on 2026-11-12,
+in the quest audit: ✅ m3, with upstream's other build-speed levers (rejected: m4).
 
 What it targets, from the subset-compiler report
 ([moq-dev/rust2#615](https://github.com/moq-dev/rust2/pull/615)) at moq main:
@@ -27,9 +28,13 @@ instructions by 16% clean and 25% on the non-incremental edit.
 - Recommended: `-Zllvm-tpde=try`, which falls back to LLVM per module where
   TPDE fails (inline and global assembly, SIMD, sanitizers); `=only` fails the
   build instead. Report the fallback count.
-- Recommended: list it in the nightly moq job in
-  [bench.yml](/.github/workflows/bench.yml) beside `cranelift`, since upstream
-  plans to optimize the TPDE path after it lands.
+- Recommended: list it in the moq job in [bench.yml](/.github/workflows/bench.yml)
+  beside `cranelift`. That job runs only on dispatch or a harness change since
+  [#686](https://github.com/moq-dev/rust2/pull/686), so a later upstream gain shows only
+  at the next pin bump.
+- The nightly bump here is the benchmark's own (`flake.nix`'s `rust-bin.nightly`), a
+  corpus change that lands apart from the variant (`bench/build/corpus.toml`).
+  [Relink](/quest/m3/relink.md) needs the same bump once its flags reach nightly.
 
 ## Waiting
 
@@ -37,4 +42,9 @@ instructions by 16% clean and 25% on the non-incremental edit.
   adds `-Zllvm-tpde`. Check that it merged and that a nightly from
   `rust-bin.nightly` in `flake.nix` accepts the flag: `rustc -Z help` lists
   `llvm-tpde`, and a `-Zllvm-tpde=only` build of a hello world succeeds, since
-  a shipped toolchain may build without TPDE.
+  a shipped toolchain may build without TPDE. On 2026-11-12 the PR is open, approved, and
+  waiting on bors. Its review says installation does not install the TPDE plugin, on
+  purpose, and the plugin builds only with `rust.tpde = true` in `bootstrap.toml`, so
+  the merge alone will not clear this: a nightly must also ship the plugin, which
+  [rust-lang/rust-project-goals#802](https://github.com/rust-lang/rust-project-goals/issues/802)
+  tracks.

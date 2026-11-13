@@ -20,11 +20,19 @@ consumer asks ([m3](/quest/m3/README.md#plan)).
   which this should match so one application's code calls either.
 - The JS runtime is single-threaded while Rust wakes from any thread, so a wake posts to
   the runtime's `CallInvoker`, never polling inside the wake, as every other binding's does.
-- Open: whether rust2-wasm can serve React Native instead. Check first whether Hermes
-  runs WebAssembly, which the audit did not verify; ubrn generating JSI C++ suggests it
-  does not. If it does, measure it as [the Node quest](/quest/m3/node.md) does for Node,
-  and write the JSI module only if it wins or wasm cannot run the library (moq's native
-  QUIC needs sockets).
+- rust2-wasm cannot serve React Native: Hermes runs no WebAssembly. Checked by the
+  2026-11-12 audit: [facebook/hermes#429](https://github.com/facebook/hermes/issues/429)
+  is still open, and Hermes's default branch has no WebAssembly source in its VM. So the
+  JSI module is the route.
+- It follows every generator's rules ([the exporter epic](/quest/m1/ffi-export/README.md)):
+  the contract check at load, bulk payloads, native futures, a `ffi/moq/moq.*` run, and a
+  column on [the binding benchmark](/bench/ffi/README.md).
+- Open: every other target runs its `tests/api.*` in the merge gate, and this Goal tests
+  only nightly, on an emulator and a simulator. A host-side test needs Hermes in the
+  flake, which nixpkgs does not package. Recommended: accept nightly only, and say so in
+  the Goal. The maintainer confirms before this starts.
+- The generated API is the one [the gate](/quest/m2/wasm/README.md) settled on
+  2026-11-12: a module of functions per type, not classes.
 
 Public API: the generated module's TypeScript API.
 

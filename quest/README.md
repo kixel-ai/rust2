@@ -13,8 +13,9 @@ consumer: rust2-wasm, moq's browser route, the TypeScript translator, an experim
 that has to beat it, and [crabx](/quest/m2/crabx/README.md), prebuilt Rust CLIs without
 a toolchain. m3 holds work that waits on evidence or has no consumer yet:
 upstream's build-speed levers, which the [build-speed benchmark](/bench/build/README.md)
-measures, the translator's features that wait on that gate, the binding targets
-planned ahead of a consumer, and crabx's GitHub App. m4 holds long-term research.
+measures, the translator's features that wait on [the gate](/quest/m2/wasm/README.md),
+the binding targets planned ahead of a consumer, what waits on moq, and crabx's GitHub
+App. m4 holds long-term research.
 
 Decided with the maintainer on 2026-11-09, in the quest audit, the goal: one Rust code
 base callable from any language or framework, with no manual wrappers or annotations.

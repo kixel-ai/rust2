@@ -102,7 +102,7 @@ Measured on 2026-10-25 and 2026-10-26 on a busy 32-CPU host, in billions of inst
 ## Cranelift for moq's CI
 
 Recommended on 2026-10-25: moq's CI keeps building its tests with LLVM, since 42 of its 5418 tests fail under Cranelift.
-At the pin [#646](https://github.com/moq-dev/rust2/pull/646) moved to on 2026-11-07, 58 of 6379 fail: 27 that catch a panic and 31 on the intrinsic ([cranelift-unwind](/quest/m3/cranelift-unwind.md)). The numbers below are the 2026-10-25 run's.
+At the pin [#646](https://github.com/moq-dev/rust2/pull/646) moved to on 2026-11-07, 58 of 6379 fail: 27 that catch a panic and 31 on the intrinsic ([rustc_codegen_cranelift#1712](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1712)). The numbers below are the 2026-10-25 run's. No retrial is planned once upstream fixes both: the saving below is the ceiling, and unwinding can only lower it.
 
 - 23 catch a panic, which the Cranelift backend that ships with nightly cannot unwind: it builds every panic as an abort (unwinding is a flag on cg_clif's own build, off by default: [rustc_codegen_cranelift#1567](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1567)).
 - 19 abort on an x86 SIMD intrinsic it does not implement, `llvm.x86.sse2.pmulhu.w` ([rustc_codegen_cranelift#171](https://github.com/rust-lang/rustc_codegen_cranelift/issues/171)). moq's CI runs on aarch64, whose intrinsics this x86 benchmark does not try.

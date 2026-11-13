@@ -85,3 +85,9 @@ returns that are not `Clone`.
   `rs/moq-tokio/src/client.rs:748`, on the `Instrumented<...>` from
   `tokio::spawn(panic::isolate(time::run(driver)).instrument(..))`, and in the moq-ffi facade
   on `moq_net::Driver: Sync`.
+
+## Required
+
+- [Own pin](/quest/m1/ffi-refusals/own-pin.md) - the exporter's pin moves without rust2-ts's, which ends the wait on `rind` for wasm32
+- [`NonZero`](/quest/m1/ffi-refusals/nonzero.md) - 15 of the 36 errors at moq's `main`
+- [Every refusal at moq's main](/quest/m1/ffi-refusals/moq-main.md) - the rest of them, so the bump adds no exclude

@@ -39,8 +39,11 @@ measurement on [the benchmark](/quest/m2/wasm/routes.md):
   was lent. Bytes passed in are copied once into memory the call frees. Text is one
   `TextDecoder` or `TextEncoder` call; JS string builtins do not help UTF-8 held in
   linear memory.
-- A handle is an integer in a class with `[Symbol.dispose]`, and a `FinalizationRegistry`
-  frees one never disposed, as the other languages' garbage collectors do.
+- A handle is an integer in an object whose only method is `[Symbol.dispose]`, and a
+  `FinalizationRegistry` frees one never disposed, as the other languages' garbage
+  collectors do. Measure a returned object with and without the registry: the same
+  pattern is what [object ownership](/quest/m1/ffi-speed/object-ownership.md) found
+  costing ten times a C return in Go and Dart.
 - A future is a `Promise`: the binding polls once at the call, and an imported `wake`
   schedules the next poll on a microtask, never inside the wake. Cancelling frees the
   future and loses nothing. JSPI is not needed, since no Rust code blocks on JS.
@@ -50,7 +53,25 @@ measurement on [the benchmark](/quest/m2/wasm/routes.md):
 - A struct passed by value is passed indirectly in wasm's C ABI, which the binding must
   match from the target's layouts, not the host's.
 
+Decided with the maintainer on 2026-11-12, in the quest audit
+([the epic](/quest/m2/wasm/README.md) records the reasons):
+
+- ✅ The binding's API is the translator's shape, not a class per type: a module of
+  functions per type that take the handle first, plain objects for records, and a
+  `Promise` from an async function, so one caller's code runs on either route and a
+  bundler drops the glue of every function it never calls. Rejected: classes with
+  methods, as this quest first planned and the other languages' bindings have.
+- ✅ This quest adds a TypeScript column to [the binding benchmark](/bench/ffi/README.md),
+  in Node and a browser, as every generator is measured. Its stand-in must build for
+  wasm32, which moq-tokio does not: export the crates of it that do, and say which.
+
 Open, for the maintainer once the implementer has the facts:
+
+- How a 64-bit integer crosses. A wasm `i64` reaches JavaScript as a `bigint`, which
+  `ts/README.md` measured 8 to 65% slower than the translator's numbers-while-safe form on
+  the codec, and both routes must share one type for a caller to swap them. Recommended:
+  the translator's branded `rs.u64`, converted at the boundary, with the conversion's
+  cost on the benchmark's u64 getter row.
 
 - How a stock crate's `std::time::Instant::now` becomes `performance.now`. moq-net
   reaches it: `Timestamp::now` reads kio's clock, whose fallback is `Instant::now`. std
@@ -61,17 +82,19 @@ Open, for the maintainer once the implementer has the facts:
     generated binding implement each import the module declares with the web API for it.
     The import names are then a detail between the generated `.wasm` and its generated
     binding, not a WASI contract, and nothing of WASI ships;
-  - a web std of rustc's own, should one exist: the audit's survey reported a tier-3
-    `wasm32-component-web` target among Rust's 2026 project goals, which this plan did
-    not verify; check before choosing;
+  - a web std of rustc's own: none exists. On 2026-11-12 rustc's platform support lists
+    no web target, only the tier-3, `no_std` `wasm32-none-component`;
   - the crate calls `web-time` or js-sys itself, a source change AGENTS.md calls a gap, and
     one that brings wasm-bindgen back;
   - a patched std built with `-Zbuild-std`, which is hand-rolling what upstream maintains.
   Recommended: the first, measured for size against `wasm32-unknown-unknown` on the
   fixture. Whichever is chosen, what has no web API (the file system, sockets, the
   environment, a process) is refused at export, at the span of the call that reaches it,
-  as rust2-ts already reads every body's MIR, rather than failing when the module loads
-  or the call runs.
+  rather than failing when the module loads or the call runs. That needs every reachable
+  body's MIR, which rust2-ts reads through its own MIR sysroot (`ts/src/profile.toml`,
+  `ts/src/cli.rs`) and the exporter does not read at all today: size it before starting,
+  and split it out if it is most of the work, since [WASI](/quest/m3/wasi.md) needs the
+  same.
 - How a crate that itself imports browser APIs through wasm-bindgen (web-sys) exports.
   Recommended: refuse it at the import's span until a consumer needs both.
 
