@@ -873,6 +873,11 @@ impl<'a> Header<'a> {
 				let owner = Ty::Struct(c.clone());
 				let mut taken = fields.clone();
 				taken.push(name.clone());
+				// An opaque value's bytes are its private member `c_`.
+				if record.opaque.is_some() {
+					taken.push("c_".to_string());
+					members.push("c_".to_string());
+				}
 				for method in &record.methods {
 					let (decl, member) = self.function(method, Some(&owner), Some((&taken, Owner::Member)));
 					body.push(decl);

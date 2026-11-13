@@ -332,6 +332,7 @@ const TAKEN: &[&str] = &[
 	"Float",
 	"Int",
 	"Long",
+	"LongArray",
 	"Short",
 	"StartSeekable",
 	"String",

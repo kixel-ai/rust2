@@ -818,15 +818,30 @@ pub fn array_out(items: &[u8], index: usize) -> R<Obj> {
 	call_py(ty(index), vec![bytes])
 }
 
+/// A `Value`'s header, before its bytes.
+#[repr(C)]
+struct ValueHead {
+	ob_base: PyVarObject,
+	/// The class registered at this index made it: Python can reassign `__class__`, to
+	/// any class of `Value`'s layout, whose bytes may be fewer or another type's.
+	index: usize,
+}
+
 /// The `Copy` value a `Value` of the class registered at `index` holds, which only Rust
 /// made: Python makes none, as `Value` disallows it.
 pub fn value_in<T: Copy>(obj: *mut PyObject, index: usize) -> R<T> {
 	if !is(obj, index) {
 		return expected(obj, index);
 	}
-	// SAFETY: the GIL is held, and `obj` a `Value` `value_out` made of a `T`, which its
-	// class always holds; `T` is a struct of `MaybeUninit` units.
-	unsafe { Ok(obj.cast::<u8>().add(size_of::<PyVarObject>()).cast::<T>().read_unaligned()) }
+	// SAFETY: the GIL is held, and `obj` a `Value`; once its index matches, one
+	// `value_out` made of a `T`, which its class always holds; `T` is a struct of
+	// `MaybeUninit` units.
+	unsafe {
+		if (*obj.cast::<ValueHead>()).index != index {
+			return expected(obj, index);
+		}
+		Ok(obj.cast::<u8>().add(size_of::<ValueHead>()).cast::<T>().read_unaligned())
+	}
 }
 
 /// A new `Value` of the class registered at `index`, holding `value` in place.
@@ -837,7 +852,8 @@ pub fn value_out<T: Copy>(index: usize, value: T) -> R<Obj> {
 	unsafe {
 		let alloc: allocfunc = std::mem::transmute(PyType_GetSlot(class.cast(), Py_tp_alloc));
 		let obj = Obj::new(alloc(class.cast(), size_of::<T>() as Py_ssize_t))?;
-		obj.ptr().cast::<u8>().add(size_of::<PyVarObject>()).cast::<T>().write_unaligned(value);
+		(*obj.ptr().cast::<ValueHead>()).index = index;
+		obj.ptr().cast::<u8>().add(size_of::<ValueHead>()).cast::<T>().write_unaligned(value);
 		Ok(obj)
 	}
 }
@@ -1442,6 +1458,8 @@ pub unsafe extern "C" fn free_callback(data: *mut c_void) {
 #[repr(C)]
 pub struct Handle {
 	ob_base: PyObject,
+	/// The class registered at this index made it: Python can reassign `__class__`.
+	index: usize,
 	raw: *const c_void,
 	/// What frees the handle: none for one Rust lends, or once freed.
 	free: Option<unsafe extern "C" fn(*const c_void)>,
@@ -1484,6 +1502,7 @@ fn handle(raw: *const c_void, index: usize, free: Option<unsafe extern "C" fn(*c
 			return Err(Raised);
 		};
 		let handle = obj.ptr().cast::<Handle>();
+		(*handle).index = index;
 		(*handle).raw = raw;
 		(*handle).free = free;
 		(*handle).holds = 0;
@@ -1499,6 +1518,9 @@ pub fn hold(obj: *mut PyObject, index: usize, s: &mut Scope, moved: bool) -> R<*
 	let handle = obj.cast::<Handle>();
 	// SAFETY: an object of a class that subclasses `Object`, and the GIL is held.
 	unsafe {
+		if (*handle).index != index {
+			return expected(obj, index);
+		}
 		if (*handle).closed {
 			return value_error(&format!("{} is closed", type_name(ty(index))));
 		}
@@ -2580,7 +2602,7 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 			slot(0, null_mut()),
 		])?;
 		// Its items are a value's bytes, past the header.
-		add_sized(module, &VALUE_BASE, c"Value", size_of::<PyVarObject>(), 1, base, &mut [
+		add_sized(module, &VALUE_BASE, c"Value", size_of::<ValueHead>(), 1, base, &mut [
 			slot(
 				Py_tp_doc,
 				c"A Rust `Copy` value's bytes, which only Rust makes or reads.".as_ptr().cast_mut().cast(),

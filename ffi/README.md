@@ -574,8 +574,8 @@ caller imports it with no ignores.
 - **Closures** are any callable, which Rust calls from any thread, one call at a time,
   taking the GIL: one lent for a call only during the call, and one Rust keeps until it
   drops it, when it lets go of its reference. An object it lends is closed once that call
-  of it returns. What it returns Rust owns: a `str` is copied,
-  and an object's handle cloned, so the caller's stays its own. One returning a `Result`
+  of it returns. What it returns Rust owns: a `str` is copied, and an opaque value's
+  bytes, so the caller's stays its own. One returning a `Result`
   fails by raising the exception of its error, such as `StringException(message)`, whose
   `error` Rust takes. Any other exception a closure or trait method raises prints its
   traceback and aborts, since Rust has nowhere to unwind it to.
@@ -787,8 +787,8 @@ reads a go.mod.
   which releases it to the GC. An object it lends by reference is closed once the func
   returns. A `Result` returns an `error`
   last, whose `Error()` crosses as Rust's `String`. What it returns crosses as Rust's: a
-  `string` copied, and an object as a clone of its handle, so the func keeps its own; a
-  closed one panics.
+  `string` copied, and an opaque value as its bytes, so the func keeps its own; a zero one
+  panics.
 - **Readers**, `Read + Seek` behind `&mut`, are an `io.ReadSeeker`, such as an `*os.File`,
   which Rust reads and seeks only during the call, one call at a time, and never closes.
   A read of bytes and an error hands Rust the bytes, then the error on the next read, as

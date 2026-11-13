@@ -1197,6 +1197,14 @@ def values():
 	raises(OverflowError, lambda: api.scaled(2**128, 1), "an int past u128 raises")
 	raises(OverflowError, lambda: api.scaled(-1, 1), "a negative int for a u128 raises")
 
+	# An object reclassed in Python is still what Rust made: its methods refuse it.
+	stamp = api.Stamp.from_millis(5)
+	stamp.__class__ = api.Moment
+	raises(TypeError, lambda: stamp.millis(), "a Stamp reclassed as a Moment is no Moment")
+	counter = api.Counter.new("r", 1)
+	counter.__class__ = api.Berth
+	raises(TypeError, lambda: counter.at(), "a Counter reclassed as a Berth is no Berth")
+
 	# A borrowed tuple is one C value, not one out per element.
 	check(api.corner(True) == (1, 1), "a borrowed tuple returns whole")
 	raises(api.ErrorException, lambda: api.corner(False), "a borrowed tuple's error raises")

@@ -1003,6 +1003,23 @@ impl Gap {
 	}
 }
 
+/// A value named as Kotlin's `LongArray`, which holds a value's words, with a method named
+/// as C++'s member holding its bytes: each generator keeps its own apart.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LongArray {
+	words: [u64; 2],
+}
+
+impl LongArray {
+	pub fn new(low: u64, high: u64) -> Self {
+		LongArray { words: [low, high] }
+	}
+
+	pub fn c_(&self) -> u64 {
+		self.words[0].wrapping_add(self.words[1])
+	}
+}
+
 /// A `Copy` type whose `None` leaves its payload's bytes uninitialized, so no padding table
 /// covers it: a handle, rather than a value.
 #[derive(Clone, Copy, Debug)]
