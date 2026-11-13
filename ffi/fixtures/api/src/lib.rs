@@ -52,6 +52,65 @@ pub fn has_text(note: Note) -> bool {
 	note.text.is_some()
 }
 
+/// A reading: a field of each scalar kind at the edge of its range, a nested record, and
+/// text, so a binding that passes a record's scalars apart from its other fields passes each
+/// exactly.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Reading {
+	pub ok: bool,
+	pub level: f32,
+	pub ratio: f64,
+	pub mark: char,
+	pub shape: Shape,
+	pub at: Point,
+	pub note: String,
+	pub count: u64,
+	pub offset: i8,
+	pub len: usize,
+	pub tag: u16,
+}
+
+impl Reading {
+	/// The reading after this one, by its `tag`.
+	pub fn next(&self) -> Option<Reading> {
+		reading(u32::from(u16::MAX - self.tag) + 1)
+	}
+}
+
+/// The reading `n`, or none for 0.
+pub fn reading(n: u32) -> Option<Reading> {
+	(n != 0).then(|| Reading {
+		ok: n % 2 == 1,
+		level: -(n as f32) / 2.0,
+		ratio: f64::MAX / f64::from(n),
+		mark: char::from_u32(0x10FFFF - n).unwrap_or(char::REPLACEMENT_CHARACTER),
+		shape: match n % 2 {
+			1 => Shape::Circle,
+			_ => Shape::Square,
+		},
+		at: Point {
+			x: i32::MIN + n as i32,
+			y: -(n as i32),
+		},
+		note: format!("reading {n}"),
+		count: u64::MAX - u64::from(n),
+		offset: i8::MIN.wrapping_add(n as i8),
+		len: usize::MAX - n as usize,
+		tag: u16::MAX - n as u16,
+	})
+}
+
+/// The `Debug` form of `reading(n)`, or empty for none, which a binding compares its own
+/// copy's with.
+pub fn reading_debug(n: u32) -> String {
+	reading(n).map_or_else(String::new, |r| format!("{r:?}"))
+}
+
+/// `reading`, passed through Rust and back.
+pub fn reading_echo(reading: Reading) -> Reading {
+	reading
+}
+
 /// A plain enumeration.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Shape {
