@@ -1418,7 +1418,8 @@ fn unreached_types() {
 				pub fn closed() -> net::Closed {\n\tnet::closed()\n}\n\n\
 				pub enum Failure {\n\tNet(net::Fault),\n}\n\npub fn fail() -> Failure {\n\tFailure::Net(net::Fault)\n}\n\n\
 				pub struct Buffer(Vec<u32>);\n\nimpl Buffer {\n\tpub fn new() -> Self {\n\t\tSelf(vec![1])\n\t}\n\n\
-				\tpub fn drain(&mut self) -> impl Iterator<Item = u32> + '_ {\n\t\tnet::drain(&mut self.0)\n\t}\n}\n",
+				\tpub fn drain(&mut self) -> impl Iterator<Item = u32> + '_ {\n\t\tnet::drain(&mut self.0)\n\t}\n}\n\n\
+				pub fn copied(items: &[u32]) -> impl Iterator<Item = u32> + '_ {\n\titems.iter().copied()\n}\n",
 			),
 			(
 				"net/Cargo.toml",
@@ -1464,6 +1465,8 @@ fn unreached_types() {
 		.arg(&out)
 		.env("CARGO_TARGET_DIR", package.join("build")));
 	let glue = std::fs::read_to_string(out.join("src/lib.rs")).unwrap();
+	// An `impl Iterator + '_` collected at the call holds no borrow past it.
+	assert!(glue.contains("fn pkg_copied("), "{glue}");
 	assert!(glue.contains("::kio_reached::Pending"), "{glue}");
 	// `net`'s error crosses as its message, or holds `Failure`, which holds it, an object, and
 	// its `Arc` crosses as an opaque handle.
