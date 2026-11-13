@@ -181,7 +181,6 @@ Future<Map<String, Span>> round() async {
   }
   out['payload'] = per(start);
   last!.close();
-  at.close();
   track.close();
   broadcast.close();
   return out;

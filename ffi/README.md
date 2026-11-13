@@ -510,9 +510,8 @@ caller imports it with no ignores.
   of upper-case members, or for one with data a class of a dataclass per variant,
   `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
   `default()`. Constants are module or class attributes, made anew on each read unless a
-  literal. An **opaque value** is a slotted class holding its bytes as `bytes`, which only
-  Rust makes or reads: making one raises `TypeError`, and bytes of another length raise
-  `ValueError` where Rust would read them.
+  literal. An **opaque value** is a class of the runtime's `Value`, which holds its bytes
+  in place, so only Rust makes or reads one: making one raises `TypeError`.
 - **Bytes** passed in are any buffer, `bytes | bytearray | memoryview`: `bytes` is read in
   place, and others, which Python may change while Rust reads, are copied. Bytes Rust
   returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it

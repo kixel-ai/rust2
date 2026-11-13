@@ -114,8 +114,7 @@ func drive(driver *net.OriginDriver) <-chan error {
 			}
 			var deadline <-chan time.Time
 			if next != nil {
-				deadline = time.After(must(next.SaturatingDurationSince(kio.ClockNow())))
-				next.Close()
+				deadline = time.After(next.SaturatingDurationSince(kio.ClockNow()))
 			}
 			select {
 			case <-woken:
@@ -252,7 +251,7 @@ func script() {
 	})
 	ranges := []net.TrackRange{net.TrackRangeLive(), groups}
 	ranged := must(must(net.TrackSubscriptionDefault().WithRanges(ranges)).RangesGet())
-	expect(slices.EqualFunc(ranged, ranges, func(a, b net.TrackRange) bool { return must(a.Equal(b)) }), "a subscription keeps its ranges")
+	expect(slices.EqualFunc(ranged, ranges, func(a, b net.TrackRange) bool { return a.Equal(b) }), "a subscription keeps its ranges")
 	expect(groups.Start == net.TrackAnchorAbsolute{V0: 2}, "groups start at their first")
 	expect(groups.End != nil && *groups.End == net.TrackAnchorAbsolute{V0: 6}, "groups end before their end")
 

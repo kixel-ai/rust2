@@ -151,7 +151,6 @@ fun round(): Map<String, Span> {
 		repeat(N) { sum += read.payloadGet[0] }
 	}
 	out["payload"] = per(start)
-	at.close()
 	track.close()
 	broadcast.close()
 	sink += sum

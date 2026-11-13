@@ -955,11 +955,7 @@ impl<'a> Gen<'a> {
 		let ty = Type::Record(i);
 		let mut body = Body::default();
 		if record.opaque.is_some() {
-			body.python.push("\t__slots__ = (\"_bytes\",)\n".to_string());
-			// Rust makes one without calling it.
-			body.python.push(format!(
-				"\tdef __init__(self) -> None:\n\t\traise TypeError(\"only Rust makes a {name}\")\n"
-			));
+			body.python.push("\t__slots__ = ()\n".to_string());
 		}
 		self.traits(&ty, &c, record.traits, &mut body);
 		let owner = Ty::Struct(c.clone());
@@ -972,14 +968,13 @@ impl<'a> Gen<'a> {
 			);
 			let _ = write!(
 				self.py,
-				"class {name}:\n{}{}\n\n",
+				"class {name}(_n.Value):\n{}{}\n\n",
 				docstring(text.trim(), "\t"),
 				body.members().join("\n")
 			);
-			let key = self.key("_bytes");
 			let _ = write!(
 				self.glue,
-				"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope) -> R<crate::{c}> {{\n\trt::opaque_in(rt::field(o, {t}, {key}, s)?)\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::record({t}, vec![({key}, rt::opaque_out(v))])\n}}\n\n"
+				"fn r_{c}(o: *mut PyObject, _s: &mut rt::Scope) -> R<crate::{c}> {{\n\trt::value_in(o, {t})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::value_out({t}, v)\n}}\n\n"
 			);
 			return;
 		}

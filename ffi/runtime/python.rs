@@ -818,35 +818,27 @@ pub fn array_out(items: &[u8], index: usize) -> R<Obj> {
 	call_py(ty(index), vec![bytes])
 }
 
-/// An opaque value's C struct, from the `bytes` of exactly its size its class holds.
-pub fn opaque_in<T: Copy>(obj: *mut PyObject) -> R<T> {
-	// SAFETY: the GIL is held, and `obj` is live; `T` is a struct of `MaybeUninit` units,
-	// any bytes of which are one.
-	unsafe {
-		if PyBytes_Check(obj) == 0 {
-			return expected_named(obj, "bytes");
-		}
-		let mut ptr: *mut c_char = null_mut();
-		let mut len = 0;
-		if PyBytes_AsStringAndSize(obj, &mut ptr, &mut len) != 0 {
-			return Err(Raised);
-		}
-		if len as usize != size_of::<T>() {
-			return value_error(&format!("{len} bytes, not {}", size_of::<T>()));
-		}
-		Ok(ptr.cast::<T>().read_unaligned())
+/// The `Copy` value a `Value` of the class registered at `index` holds, which only Rust
+/// made: Python makes none, as `Value` disallows it.
+pub fn value_in<T: Copy>(obj: *mut PyObject, index: usize) -> R<T> {
+	if !is(obj, index) {
+		return expected(obj, index);
 	}
+	// SAFETY: the GIL is held, and `obj` a `Value` `value_out` made of a `T`, which its
+	// class always holds; `T` is a struct of `MaybeUninit` units.
+	unsafe { Ok(obj.cast::<u8>().add(size_of::<PyVarObject>()).cast::<T>().read_unaligned()) }
 }
 
-/// The `bytes` an opaque value's class holds of its C struct. Its padding crosses as the
-/// bytes it holds, which Python never reads but to hand back.
-pub fn opaque_out<T: Copy>(value: T) -> R<Obj> {
-	// SAFETY: the GIL is held, and `value` is `size_of::<T>()` bytes.
+/// A new `Value` of the class registered at `index`, holding `value` in place.
+pub fn value_out<T: Copy>(index: usize, value: T) -> R<Obj> {
+	let class = ty(index);
+	// SAFETY: the GIL is held, `class` subclasses `Value`, whose items are its bytes, and
+	// the object is `size_of::<T>()` of them past its header.
 	unsafe {
-		Obj::new(PyBytes_FromStringAndSize(
-			(&raw const value).cast(),
-			size_of::<T>() as Py_ssize_t,
-		))
+		let alloc: allocfunc = std::mem::transmute(PyType_GetSlot(class.cast(), Py_tp_alloc));
+		let obj = Obj::new(alloc(class.cast(), size_of::<T>() as Py_ssize_t))?;
+		obj.ptr().cast::<u8>().add(size_of::<PyVarObject>()).cast::<T>().write_unaligned(value);
+		Ok(obj)
 	}
 }
 
@@ -2382,6 +2374,7 @@ fn is_type(obj: *mut PyObject, slot: &std::sync::OnceLock<Static>) -> bool {
 }
 
 static OBJECT: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
+static VALUE_BASE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
 static FUTURE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
 static QUEUE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
 static NODE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
@@ -2506,13 +2499,30 @@ unsafe fn add_type(
 	flags: u64,
 	slots: &mut [PyType_Slot],
 ) -> R<()> {
+	// SAFETY: the caller's contract.
+	unsafe { add_sized(module, cell, name, size, 0, flags, slots) }
+}
+
+/// [`add_type`], of objects each `itemsize` bytes longer per item.
+///
+/// # Safety
+/// As [`add_type`]'s.
+unsafe fn add_sized(
+	module: *mut PyObject,
+	cell: &std::sync::OnceLock<Static>,
+	name: &CStr,
+	size: usize,
+	itemsize: usize,
+	flags: u64,
+	slots: &mut [PyType_Slot],
+) -> R<()> {
 	let qualified = format!("{}.{}\0", module_name(module), name.to_str().expect("ASCII"));
 	// Python keeps the name for the type's life.
 	let qualified: &'static str = Box::leak(qualified.into_boxed_str());
 	let mut spec = PyType_Spec {
 		name: qualified.as_ptr().cast(),
 		basicsize: size as c_int,
-		itemsize: 0,
+		itemsize: itemsize as c_int,
 		flags: (Py_TPFLAGS_DEFAULT as u64 | flags) as _,
 		slots: slots.as_mut_ptr(),
 	};
@@ -2566,6 +2576,14 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 			slot(
 				Py_tp_doc,
 				c"An object owning a Rust value's handle, freed once the last reference to it goes.".as_ptr().cast_mut().cast(),
+			),
+			slot(0, null_mut()),
+		])?;
+		// Its items are a value's bytes, past the header.
+		add_sized(module, &VALUE_BASE, c"Value", size_of::<PyVarObject>(), 1, base, &mut [
+			slot(
+				Py_tp_doc,
+				c"A Rust `Copy` value's bytes, which only Rust makes or reads.".as_ptr().cast_mut().cast(),
 			),
 			slot(0, null_mut()),
 		])?;

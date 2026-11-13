@@ -57,7 +57,6 @@ Future<moq.Error> drive(moq.OriginDriver driver) {
       final next = driver.poll(moq.clockNow(), waiter);
       if (next != null) {
         deadline = Timer(next.saturatingDurationSince(moq.clockNow()), poll);
-        next.close();
       }
     } on moq.Error catch (e) {
       waiter.close();
