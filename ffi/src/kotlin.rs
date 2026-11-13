@@ -463,7 +463,10 @@ impl<'a> Gen<'a> {
 				"/** A tuple of {n}, as `Pair` and `Triple` are of two and three. */\ndata class {name}<{}>(\n{}) {{\n{}}}\n\n",
 				params.join(", "),
 				fields.concat(),
-				contents(&format!("{name}<{}>", vec!["*"; n].join(", ")), &(0..n).map(ordinal).collect::<Vec<_>>())
+				contents(
+					&format!("{name}<{}>", vec!["*"; n].join(", ")),
+					&(0..n).map(ordinal).collect::<Vec<_>>()
+				)
 			);
 		}
 		name

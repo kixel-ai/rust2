@@ -37,7 +37,9 @@ impl Api {
 			}
 			Type::Tuple(elements) => elements.iter().any(|e| self.floats(e, seen)),
 			// A type already seen is being looked through, so it adds nothing new.
-			Type::Record(i) => seen.insert((false, *i)) && self.records[*i].fields.iter().any(|f| self.floats(&f.ty, seen)),
+			Type::Record(i) => {
+				seen.insert((false, *i)) && self.records[*i].fields.iter().any(|f| self.floats(&f.ty, seen))
+			}
 			Type::Enum(i) => {
 				seen.insert((true, *i))
 					&& (self.enums[*i].variants.iter())

@@ -1961,7 +1961,10 @@ fn number(ty: &Type) -> &'static str {
 /// dataclass's own compares tuples of its fields, which take a value as equal to itself, so
 /// a NaN it holds would equal itself.
 fn ieee_eq(class: &str, fields: &[String]) -> String {
-	let same: Vec<String> = fields.iter().map(|f| format!(" and _same(self.{f}, other.{f})")).collect();
+	let same: Vec<String> = fields
+		.iter()
+		.map(|f| format!(" and _same(self.{f}, other.{f})"))
+		.collect();
 	format!(
 		"\tdef __eq__(self, other: object) -> bool:\n\t\treturn _isinstance(other, {class}){}\n",
 		same.concat()
