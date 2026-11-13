@@ -735,7 +735,9 @@ reads a go.mod.
   `time.Duration`: a negative one passed in, or one Rust returns past its 292 years,
   panics. A socket address is a `netip.AddrPort`, whose zone names an IPv6 scope by its
   number or its interface's name; one Rust returns with an IPv6 flow label, which
-  `netip` does not keep, panics. A `Vec<T>` or `&[T]` is a `[]T`.
+  `netip` does not keep, panics. A `Vec<T>`, `&[T]`, or `Box<[T]>` is a `[]T`; one of a
+  fixed-width integer or a float is lent in place, pinned for the call, as bytes are, and
+  one Rust returns is copied out whole.
 - **Errors**: a `Result` returns an `error` last. An exported error type is returned as
   itself, implementing `error` with its `Display`, else its `Debug`, and any other in a struct
   `<T>Error{Value}`, such as `rt.StringError`, in the package of the last crate a type

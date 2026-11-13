@@ -54,6 +54,28 @@ func list[T any](items []T, show func(T) string) string {
 	return "[" + strings.Join(shown, ", ") + "]"
 }
 
+func f64Bits(f float64) string {
+	return number(math.Float64bits(f))
+}
+
+// numbers prints each of n's lists, its floats as their bits, as transcript.rs does.
+func numbers(what string, n api.Numbers) {
+	fmt.Printf("%s u16 %s\n", what, list(n.U16s, number))
+	fmt.Printf("%s u32 %s\n", what, list(n.U32s, number))
+	fmt.Printf("%s u64 %s\n", what, list(n.U64s, number))
+	fmt.Printf("%s i8 %s\n", what, list(n.I8s, number))
+	fmt.Printf("%s i16 %s\n", what, list(n.I16s, number))
+	fmt.Printf("%s i32 %s\n", what, list(n.I32s, number))
+	fmt.Printf("%s i64 %s\n", what, list(n.I64s, number))
+	fmt.Printf("%s f32 %s\n", what, list(n.F32s, func(f float32) string { return number(math.Float32bits(f)) }))
+	fmt.Printf("%s f64 %s\n", what, list(n.F64s, f64Bits))
+	if n.Some == nil {
+		fmt.Printf("%s some None\n", what)
+	} else {
+		fmt.Printf("%s some Some(%s)\n", what, list(*n.Some, number))
+	}
+}
+
 func quoted(s string) string {
 	return fmt.Sprintf("%q", s)
 }
@@ -665,6 +687,22 @@ func script() {
 	fmt.Printf("boxed Some(%q) %s %t\n", *must(api.BoxedName(api.BoxedCounter(&b))), unnamed, api.BoxedCounter(nil) == nil)
 	fmt.Printf("less %d\n", api.Less(5, 2))
 	fmt.Printf("sums %s\n", list(api.Sums([][]uint32{{1, 2}, {}, {3}}), number))
+	numbers("edges", api.NumbersEdges())
+	numbers("reversed", api.NumbersEdges().Reversed())
+	fmt.Printf("sum u32 %d %d\n", api.SumU32(nil), api.SumU32([]uint32{math.MaxUint32, math.MaxUint32, 2}))
+	fmt.Printf("doubled i64 %s\n", list(api.DoubledI64([]int64{math.MinInt64, -1, 0, math.MaxInt64}), number))
+	floats := api.BoxedFloats([]float64{math.Copysign(0, -1), math.Float64frombits(0x7ff8_0000_0000_0001)})
+	fmt.Printf("boxed floats %s\n", list(floats, f64Bits))
+	// A block lends a sub-slice in place, and Rust's `None` and empty `Some` stay apart.
+	framed := []uint32{9, 1, 2, 9}
+	check(api.SumU32(framed[1:3]) == 3, "a sub-slice lends only its own items")
+	edges := api.NumbersEdges()
+	edges.Some = nil
+	check(edges.Reversed().Some == nil, "a nil block in an option is None")
+	edges.Some = &[]int32{}
+	check(edges.Reversed().Some != nil && len(*edges.Reversed().Some) == 0, "an empty block in an option is Some")
+	edges.Some = &[]int32{1, 2}
+	check(list(*edges.Reversed().Some, number) == "[2, 1]", "a block in an option crosses whole")
 	sum := api.Summed([]api.Point{{X: 1, Y: 2}, {X: -4, Y: 6}})
 	none := api.Summed(nil)
 	fmt.Printf("summed %d %d %d %d\n", sum.X, sum.Y, none.X, none.Y)
