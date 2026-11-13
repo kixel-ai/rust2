@@ -946,6 +946,15 @@ int script() {
 
 	auto sums = api::sums({{1, 2}, {}, {3}});
 	std::printf("sums [%u, %u, %u]\n", sums[0], sums[1], sums[2]);
+	{
+		// Fields named as an `operator==`'s argument might be.
+		api::Shadowed one{{1}, 2, 3};
+		api::Shadowed two{{1}, 2, 4};
+		if (!(one == one) || one == two || !(one != two)) {
+			std::fprintf(stderr, "a record with fields named other, a, and b compares wrong\n");
+			std::abort();
+		}
+	}
 	std::printf("least");
 	for (const auto &set : api::least({{3, 1}, {}, {2}})) {
 		std::printf(" [");

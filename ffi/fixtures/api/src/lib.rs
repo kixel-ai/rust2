@@ -2249,6 +2249,8 @@ pub fn split_last(mut items: Vec<i32>) -> (Vec<i32>, u32) {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Shadowed {
 	pub other: Vec<i32>,
+	pub a: u8,
+	pub b: u8,
 }
 
 /// A list of each fixed-width integer and float type, each crossing as one block.

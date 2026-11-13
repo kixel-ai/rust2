@@ -505,7 +505,7 @@ fun script() {
 	println("least ${least(listOf(listOf(3u, 1u), listOf(), listOf(2u))).joinToString(" ")}")
 	check(splitLast(intArrayOf(1, 2, -3)) == splitLast(intArrayOf(1, 2, -3)), "a tuple holding an array compares by contents")
 	check(splitLast(intArrayOf(1, 2, -3)).hashCode() == splitLast(intArrayOf(1, 2, -3)).hashCode(), "a tuple holding an array hashes by contents")
-	check(Shadowed(intArrayOf(1)) == Shadowed(intArrayOf(1)) && Shadowed(intArrayOf(1)) != Shadowed(intArrayOf(2)), "a field named other compares as itself")
+	check(Shadowed(intArrayOf(1), 0u, 0u) == Shadowed(intArrayOf(1), 0u, 0u) && Shadowed(intArrayOf(1), 0u, 0u) != Shadowed(intArrayOf(2), 0u, 0u), "a field named other compares as itself")
 	numbers("edges", Numbers.edges())
 	numbers("reversed", Numbers.edges().reversed())
 	val edges = Numbers.edges()

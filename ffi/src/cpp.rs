@@ -861,15 +861,15 @@ impl<'a> Header<'a> {
 				let mut members = fields.clone();
 				let t = record.traits;
 				if t.eq {
-					// Its argument ends in `_`, as generated names do, since a field may be `other`.
+					// Friends, whose arguments, unlike a member's, shadow no field of any name.
 					body.push(format!(
-						"\tbool operator==(const {name} &other_) const;\n\tbool operator!=(const {name} &other_) const {{\n\t\treturn !(*this == other_);\n\t}}"
+						"\tfriend bool operator==(const {name} &a, const {name} &b);\n\tfriend bool operator!=(const {name} &a, const {name} &b) {{\n\t\treturn !(a == b);\n\t}}"
 					));
 					self.def(format!(
-						"inline bool {name}::operator==(const {name} &other_) const {{\n{}\tauto c_a_ = {};\n\tauto c_b_ = {};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n",
+						"inline bool operator==(const {name} &a, const {name} &b) {{\n{}\tauto c_a_ = {};\n\tauto c_b_ = {};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n",
 						self.scope([ty]),
-						self.lower(ty, "*this"),
-						self.lower(ty, "other_"),
+						self.lower(ty, "a"),
+						self.lower(ty, "b"),
 					));
 				}
 				self.traits(&name, &c, t, Some(ty), &mut body, &mut members);
