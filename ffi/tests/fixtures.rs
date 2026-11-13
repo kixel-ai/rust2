@@ -474,8 +474,8 @@ fn api_android() {
 	// reaches, which R8 shrinks and renames, keeping only what the rules keep: the
 	// generated ones, and those kotlinx-coroutines' jar holds, which an app's build reads
 	// from it. Kotlin's annotations are on an app's classpath, not in its dex. The
-	// script's functions that hold lent bytes in their own frame are kept too, as R8 would
-	// inline them into their caller, whose frame ART's interpreter keeps reaching the bytes.
+	// script's functions marked `OwnFrame` are kept too, as R8 would inline them into their
+	// caller, whose frame ART's interpreter keeps reaching what they held.
 	let jar = dir.join("app.jar");
 	run(kotlinc(&out, &jar).arg("-include-runtime"));
 	run(Command::new("jar")
@@ -487,7 +487,7 @@ fn api_android() {
 	std::fs::write(
 		&app,
 		format!(
-			"-keep class ApiKt {{ public static void main(java.lang.String[]); static *** lentAround(); static *** lentToBudget*(...); }}\n-dontwarn org.jetbrains.annotations.**\n-printusage {}\n",
+			"-keep class ApiKt {{ public static void main(java.lang.String[]); @OwnFrame static <methods>; }}\n-dontwarn org.jetbrains.annotations.**\n-printusage {}\n",
 			dir.join("usage.txt").display()
 		),
 	)
