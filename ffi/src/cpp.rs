@@ -1410,6 +1410,9 @@ impl<'a> Header<'a> {
 		// may throw, by allocating.
 		let mut taken = false;
 		let mut throwing = Vec::new();
+		// The kept closures among them, each by its argument and its type, which a hoisted
+		// one holds in a `unique_ptr` until the call, so a later throw frees it.
+		let mut kept = Vec::new();
 		for param in &function.params {
 			let (_, c_ty) = c_params.next().expect("each parameter has its C one");
 			let name = parameter(&param.name, |name| {
@@ -1448,6 +1451,7 @@ impl<'a> Header<'a> {
 					true => {
 						c_params.next().expect("a kept closure has its free");
 						throwing.push(args.len());
+						kept.push((args.len(), f.clone()));
 						args.push(format!("new ::std::decay_t<{f}>(::std::forward<{f}>({name}))"));
 						args.push(format!(
 							"[](void *data_) noexcept {{ delete static_cast<::std::decay_t<{f}> *>(data_); }}"
@@ -1468,12 +1472,24 @@ impl<'a> Header<'a> {
 			}
 			args.push(self.arg(&param.ty, &name));
 		}
-		// Arguments evaluate in no set order, so those that may throw run first: Rust's bytes
-		// are taken only once nothing left before the call can throw and leak them.
-		if taken {
+		// Arguments evaluate in no set order, so those that may throw run first, and the call
+		// itself throws nothing: Rust's bytes are taken, and a kept closure's allocation
+		// released to Rust, only once nothing left before the call can throw and leak them.
+		if taken || throwing.len() > 1 {
 			for &i in &throwing {
-				prelude.push(format!("auto c_arg{i}_ = {};", args[i]));
-				args[i] = format!("c_arg{i}_");
+				match kept.iter().find(|(k, _)| *k == i) {
+					Some((_, f)) => {
+						prelude.push(format!(
+							"::std::unique_ptr<::std::decay_t<{f}>> c_arg{i}_({});",
+							args[i]
+						));
+						args[i] = format!("c_arg{i}_.release()");
+					}
+					None => {
+						prelude.push(format!("auto c_arg{i}_ = {};", args[i]));
+						args[i] = format!("c_arg{i}_");
+					}
+				}
 			}
 		}
 		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
