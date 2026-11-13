@@ -1318,7 +1318,13 @@ fn relative_target() {
 		.unwrap();
 	let exporting = exporting.split("\n## ").next().unwrap();
 	// Not one that names only what is refused or no export returns.
-	for refused in ["- `Copied`", "- `Sample`", "- `Queued`", "- `Layer`", "- `Retry::jitter`"] {
+	for refused in [
+		"- `Copied`",
+		"- `Sample`",
+		"- `Queued`",
+		"- `Layer`",
+		"- `Retry::jitter`",
+	] {
 		assert!(
 			!exporting.contains(refused),
 			"the census lists `{refused}` as exporting:\n{exporting}"

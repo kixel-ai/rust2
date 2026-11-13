@@ -201,7 +201,7 @@ fn exporting(api: &Api, audited: &[(String, Vec<String>)]) -> Vec<(String, Vec<S
 	let mut add = |path: &[String]| {
 		paths.insert(path[1..].join("::"));
 	};
-	let mut methods = |methods: &[ir::Function], add: &mut dyn FnMut(&[String])| {
+	let methods = |methods: &[ir::Function], add: &mut dyn FnMut(&[String])| {
 		for f in methods {
 			match f.access {
 				// A field is checked by `field@` and, unless a method or constant takes its
