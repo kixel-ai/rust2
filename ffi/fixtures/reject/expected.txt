@@ -117,4 +117,5 @@ fixtures/reject/src/lib.rs:958:1: rust2-ffi: cannot export enum `Huge`: discrimi
 	fixtures/reject/src/lib.rs:960:2: note: has this discriminant
 fixtures/reject/src/lib.rs:965:1: rust2-ffi: cannot export enum `Top`: discriminant outside `i32` `Large = 340282366920938463463374607431768211455`; exclude it in the config to leave it out
 	fixtures/reject/src/lib.rs:967:2: note: has this discriminant
-fixtures/reject/src/lib.rs:971:1: rust2-ffi: cannot export fn `boxed_bytes`: boxed slice of bytes `std::boxed::Box<[u8]>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:971:1: rust2-ffi: cannot export fn `wide_non_zero`: NonZero `u128`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:976:1: rust2-ffi: cannot export fn `boxed_bytes`: boxed slice of bytes `std::boxed::Box<[u8]>`; exclude it in the config to leave it out

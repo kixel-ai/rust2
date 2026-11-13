@@ -52,7 +52,7 @@ jobs:
   # reports its own context failed or cancelled, which fails the group.
   build:
     name: Queue build
-    uses: moq-dev/rust2/.github/workflows/queue-build.yml@main
+    uses: kixel-ai/rust2/.github/workflows/queue-build.yml@main
 
   # The merge queue still builds every group with the jobs above; this only
   # satisfies the PR-side requirement, as a pull_request run's skipped job does.

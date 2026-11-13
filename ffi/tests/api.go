@@ -826,6 +826,16 @@ func script() {
 	} else {
 		fmt.Printf("sought %d\n", at)
 	}
+	fmt.Printf("non zeros %s\n", api.DescribeNonZeros(api.NewNonZeros()))
+	hopFirst, hopLast := uint64(1), uint64(math.MaxUint64)
+	for _, hop := range []*uint64{nil, &hopFirst, &hopLast} {
+		if next := api.NextHop(hop); next != nil {
+			fmt.Printf("hop Some(%d)\n", *next)
+		} else {
+			fmt.Println("hop None")
+		}
+	}
+	fmt.Printf("farther hop %d\n", api.FartherHop(api.PairNonZeroU16{Left: 3, Right: math.MaxUint16}))
 }
 
 // farReader is a reader whose reads fail, which seeks anywhere from its start, as Rust's

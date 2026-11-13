@@ -967,6 +967,11 @@ pub enum Top {
 	Large = u128::MAX,
 }
 
+/// A `NonZero` of a 128-bit integer, which no integer of C's holds.
+pub fn wide_non_zero(n: std::num::NonZero<u128>) -> u128 {
+	n.get()
+}
+
 /// A boxed slice of bytes, which no buffer form takes.
 pub fn boxed_bytes(bytes: Box<[u8]>) -> usize {
 	bytes.len()

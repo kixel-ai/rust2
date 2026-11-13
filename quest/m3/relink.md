@@ -9,10 +9,10 @@ variant on moq's edits.
 ## Plan
 
 It is the one upstream lever the moq-net edit leaves room for. The figures below are from
-moq before its poll-first rewrite: [#646](https://github.com/moq-dev/rust2/pull/646) has
+moq before its poll-first rewrite: [#646](https://github.com/kixel-ai/rust2/pull/646) has
 since moved the benchmark's pin past it, and numbers across a pin bump do not compare, so
 measure again before relying on them. The benchmark's
-attribution ([run](https://github.com/moq-dev/rust2/actions/runs/40093020939))
+attribution ([run](https://github.com/kixel-ai/rust2/actions/runs/40093020939))
 puts 4.5 s of that edit's 6.95 s critical path in crates rebuilt only because
 moq-net changed, 0.6 s of it the final link that would remain. Cranelift and
 the parallel frontend move the edit within noise; the backend is 6% of its
@@ -37,7 +37,7 @@ What decides whether this lever ever pays on moq:
   the pinned nightly, and a different rust#156940 hash, so a cutoff keyed on
   either needs that fixed first.
 
-The [semantic API hash replay](https://github.com/moq-dev/rust2/pull/62)
+The [semantic API hash replay](https://github.com/kixel-ai/rust2/pull/62)
 (2026-10-25) hashed only what a dependent can reach and observe, over the same
 edits. Differential tests show it sound, and it held on 18 of 250 non-test
 edits under moq's dev profile (17 of 169 on PR branches, 1 of 81 squash merges):

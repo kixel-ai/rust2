@@ -786,6 +786,19 @@ fn main() {
 		Ok(at) => println!("sought {at}"),
 		Err(err) => println!("sought error {err}"),
 	}
+	println!("non zeros {}", api::describe_non_zeros(api::non_zeros()));
+	for hop in [None, Some(1), Some(u64::MAX)] {
+		println!(
+			"hop {:?}",
+			api::next_hop(hop.and_then(std::num::NonZero::new)).map(|h| h.get())
+		);
+	}
+	let near = std::num::NonZero::new(3u16).unwrap();
+	let far = std::num::NonZero::new(u16::MAX).unwrap();
+	println!(
+		"farther hop {}",
+		api::farther_hop(Pair { left: near, right: far }).get()
+	);
 }
 
 /// Print each of `numbers`' lists, its floats as their bits.
