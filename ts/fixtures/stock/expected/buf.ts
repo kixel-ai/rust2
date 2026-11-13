@@ -2356,9 +2356,6 @@ export function far(dataData: Uint8Array, dataStart: number, dataLen: number, ou
  * no other handle holds it, and the `Bytes` taken back takes it only then too.
  */
 export function reclaims(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
-	const _60: (a0: rs.BytesMut, a1: rs.ByteVec) => undefined = (buf2: rs.BytesMut, out2: rs.ByteVec): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u32ToBeBytes(buf2.cap as rs.u32).reverse()));
-	};
 	if (dataLen === 4) {
 		const cap: rs.u8 = dataData[dataStart];
 		const kept: rs.u8 = dataData[dataStart + 1];
@@ -2390,6 +2387,9 @@ export function reclaims(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			clone = undefined;
 			lib_drop$Option_bytes_Bytes(taken3);
 		}
+		const _60: (a0: rs.BytesMut, a1: rs.ByteVec) => undefined = (buf2: rs.BytesMut, out2: rs.ByteVec): undefined => {
+			rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u32ToBeBytes(buf2.cap as rs.u32).reverse()));
+		};
 		rs.byteVecPush(out, rs.bytesMutTryReclaim(buf, add2) ? 1 : 0);
 		_60(buf, out);
 		rs.bytesMutReserve(buf, rs.usizeMul(add2, 2));
@@ -3561,10 +3561,11 @@ export function chunkWrite(chunk: rs.ByteSlice, op: rs.u8, n: rs.u8, out: rs.Byt
 			while (true) {
 				const _28: [rs.usize, rs.u8] | rs.Done = iter.next();
 				if (_28 === rs.DONE) {
-					break b1;
+					break;
 				}
 				UninitSlice.writeByte(chunk, _28[0], _28[1]);
 			}
+			break b1;
 		}
 		if (_20 === 1) {
 			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(chunk, { end: k }, { file: "fixtures/stock/src/buf.rs", line: 702, col: 19 }), rs.byteVecSlice(src));

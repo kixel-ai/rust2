@@ -751,15 +751,6 @@ export function loops(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _65!: rs.u64;
 	let _124!: rs.i32;
 	let _136!: rs.i8;
-	const _158: (a0: rs.u8) => rs.u8 = (x3: rs.u8): rs.u8 => {
-		while (true) {
-			if (!(x3 < 10)) {
-				x3 = rs.u8Div(x3, 3);
-			} else {
-				return x3;
-			}
-		}
-	};
 	const stack: rs.ByteVec = rs.byteSliceToByteVec(data);
 	let popped: rs.u32 = 0;
 	while (true) {
@@ -861,7 +852,15 @@ export function loops(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(tailBreak(data))));
 	rs.byteVecPush(out, armLoop(data));
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(position$u8(data.data, data.start, data.length, 0) as rs.u32)));
-	rs.byteVecPush(out, _158(rs.u8Mul(data.length & 0xff, 7)));
+	rs.byteVecPush(out, ((x3: rs.u8): rs.u8 => {
+		while (true) {
+			if (!(x3 < 10)) {
+				x3 = rs.u8Div(x3, 3);
+			} else {
+				return x3;
+			}
+		}
+	})(rs.u8Mul(data.length & 0xff, 7)));
 	drain(data.data, data.start, data.length, out);
 	rs.byteVecPush(out, returnedLoop(data));
 	branchLoops(data, out);
@@ -873,17 +872,16 @@ export function loops(data: rs.ByteSlice, out: rs.ByteVec): void {
  * inputs run every case to its end.
  */
 export function diverging(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _15: (a0: rs.u8) => rs.u8 = (b2: rs.u8): rs.u8 => {
-		if (!(b2 === 253)) {
-			return rs.u8Div(b2, 3);
-		}
-		rs.panicFmt(["closure ", (f: rs.Formatter) => rs.u8Display(b2, f)]);
-	};
 	const head: rs.ByteSlice = rs.byteSliceRange(data, 0, rs.min(data.length, 2));
 	const b: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(head), 0);
 	rs.byteVecPush(out, returnedNever(b, data.length));
 	rs.byteVecPush(out, brokenNever(head.data, head.start, head.length));
-	rs.byteVecPush(out, _15(b));
+	rs.byteVecPush(out, ((b2: rs.u8): rs.u8 => {
+		if (!(b2 === 253)) {
+			return rs.u8Div(b2, 3);
+		}
+		rs.panicFmt(["closure ", (f: rs.Formatter) => rs.u8Display(b2, f)]);
+	})(b));
 	rs.byteVecPush(out, guardedReturn(head.data, head.start, head.length));
 	rs.byteVecPush(out, boundNever(head.data, head.start, head.length, out));
 	rs.byteVecPush(out, closureNever(b));
@@ -1089,14 +1087,11 @@ export function branchLoops(data: rs.ByteSlice, out: rs.ByteVec): void {
 				const b: rs.u8 = w.data[w.start + 1];
 				if (a > b) {
 					let n: rs.u8 = a;
-					while (true) {
-						if (!(n <= b)) {
-							n = rs.u8Sub(n, 1);
-							rs.byteVecPush(out, n);
-						} else {
-							break b2;
-						}
+					while (!(n <= b)) {
+						n = rs.u8Sub(n, 1);
+						rs.byteVecPush(out, n);
 					}
+					break b2;
 				}
 			}
 			if (w.length >= 1) {
@@ -1379,7 +1374,8 @@ export function patterns(data: rs.ByteSlice, out: rs.ByteVec): void {
 		v = either.error;
 	}
 	rs.byteVecPush(out, v);
-	rs.byteVecPush(out, rs.u8Add(rs.byteSliceFrom(Uint8Array.of()).length & 0xff, rs.iterSum(rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(Uint8Array.of()))), rs.u8Add, 0)));
+	const _113: Uint8Array = Uint8Array.of();
+	rs.byteVecPush(out, rs.u8Add(rs.byteSliceFrom(_113).length & 0xff, rs.iterSum(rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(_113))), rs.u8Add, 0)));
 	const bytes: Uint8Array = Uint8Array.of(data.length & 0xff, 1, 2);
 	const slice = rs.byteSliceRange(rs.byteSliceFrom(bytes), 1, 3);
 	slice.data[slice.start] = 9;
@@ -2248,7 +2244,9 @@ export function apply$shapes_closures_closure1(f: (a0: rs.u32) => rs.u32, v: rs.
 /** Options, results, `?`, and strings. */
 export function library(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let parsed!: rs.Result<rs.u8, string>;
-	const _3: (a0: rs.u8, a1: rs.u8) => rs.u8 | undefined = (a2: rs.u8, b2: rs.u8): rs.u8 | undefined => {
+	const a: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
+	const b: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(data, 1), 0);
+	rs.byteVecPush(out, option_unwrapOr$1fr498u(((a2: rs.u8, b2: rs.u8): rs.u8 | undefined => {
 		const _4: rs.u8 | undefined = rs.u8CheckedAdd(a2, b2);
 		if (_4 !== undefined) {
 			const _83: rs.u8 | undefined = rs.u8CheckedMul(_4, 2);
@@ -2258,8 +2256,23 @@ export function library(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return undefined;
 		}
 		return undefined;
-	};
-	const _30: (a0: rs.u8) => rs.Poll<rs.Result<rs.u8, rs.u8>> = (a3: rs.u8): rs.Poll<rs.Result<rs.u8, rs.u8>> => {
+	})(a, b), 255));
+	if (a === 0) {
+		parsed = rs.Err("zero");
+	} else {
+		parsed = rs.Ok(a);
+	}
+	const mapped: rs.Result<rs.u8, rs.u8> = result_mapErr$0hqg57m(result_map$1yblbjf(parsed, (n6: rs.u8): rs.u8 => {
+		return rs.u8Div(n6, 2);
+	}), (e4: string): rs.u8 => {
+		return rs.stringLen(e4) & 0xff;
+	});
+	if (mapped.ok) {
+		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(0, mapped.value)));
+	} else {
+		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(1, mapped.error)));
+	}
+	const _32: rs.Poll<rs.Result<rs.u8, rs.u8>> = ((a3: rs.u8): rs.Poll<rs.Result<rs.u8, rs.u8>> => {
 		let half2!: rs.Result<rs.u8, Dir.Dir>;
 		const _45: Dir.Dir | undefined = dir(a3);
 		b0: {
@@ -2276,26 +2289,7 @@ export function library(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return rs.Ok(_132.value);
 		}
 		return rs.Err(from$convert_From_shapes_Dir_u8((_132 as { ok: false; error: Dir.Dir }).error));
-	};
-	const a: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const b: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(data, 1), 0);
-	rs.byteVecPush(out, option_unwrapOr$1fr498u(_3(a, b), 255));
-	if (a === 0) {
-		parsed = rs.Err("zero");
-	} else {
-		parsed = rs.Ok(a);
-	}
-	const mapped: rs.Result<rs.u8, rs.u8> = result_mapErr$0hqg57m(result_map$1yblbjf(parsed, (n7: rs.u8): rs.u8 => {
-		return rs.u8Div(n7, 2);
-	}), (e4: string): rs.u8 => {
-		return rs.stringLen(e4) & 0xff;
-	});
-	if (mapped.ok) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(0, mapped.value)));
-	} else {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(1, mapped.error)));
-	}
-	const _32: rs.Poll<rs.Result<rs.u8, rs.u8>> = _30(b);
+	})(b);
 	if (_32 !== rs.Pending) {
 		if (_32.ok) {
 			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(2, _32.value)));

@@ -116,7 +116,7 @@ impl<'tcx> Translator<'tcx> {
 		&mut self,
 		mapped: Mapped,
 		ty: Ty<'tcx>,
-		args: ty::GenericArgsRef<'tcx>,
+		args: ty::GenericArgs<'tcx>,
 		span: Span,
 		generic: bool,
 	) -> String {
@@ -250,7 +250,7 @@ impl<'tcx> Translator<'tcx> {
 	}
 
 	/// A field's Go type in its ADT's declaration, over the ADT's type parameters.
-	fn field_ty(&mut self, field: DefId, identity: ty::GenericArgsRef<'tcx>, span: Span) -> String {
+	fn field_ty(&mut self, field: DefId, identity: ty::GenericArgs<'tcx>, span: Span) -> String {
 		let tcx = self.tcx;
 		let fty = tcx.type_of(field).instantiate(tcx, identity).skip_norm_wip();
 		let fty =

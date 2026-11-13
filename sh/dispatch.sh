@@ -30,8 +30,10 @@ declare -A scope=(
     # the driver's front end.
     [driver]='^(driver/|ts/rust-toolchain\.toml$)'
     [ffi]='^(ffi/|driver/|ts/rust-toolchain\.toml$)'
-    # go's codec fixture includes ts's codec sources.
-    [go]='^(go/|driver/|ts/rust-toolchain\.toml$|ts/fixtures/codec/)'
+    # The parked go translator runs on its own diff only; its shared inputs
+    # (the driver, ts's toolchain and codec fixture) reach it in the nightly's
+    # `just gate`, whose failure issue reports a break.
+    [go]='^go/'
     [ts]='^(ts|driver)/'
 )
 # Cheapest first, so a lint fails before the builds start.
@@ -58,16 +60,22 @@ else
     } | sort -u)
 
     # A path no module claims is a shared input, such as the flake, a
-    # toolchain, the root justfile, .github, or this map, so it
-    # selects everything. A new project selects everything until it is mapped.
+    # toolchain, the root justfile, .github, or this map, so it selects
+    # every module but the parked go, which only its own diff selects. A new
+    # project selects everything until it is mapped.
     claimed=$lints
     for module in "${modules[@]}"; do
         [[ -z "${scope[$module]}" ]] || claimed+="|${scope[$module]}"
     done
     shared=$(grep -vE "$claimed" <<<"$changed" | grep . || true)
     if [[ -n "$shared" ]]; then
-        echo "$action: running everything for $(paste -sd ' ' <<<"$shared")" >&2
-        selected=("${modules[@]}")
+        echo "$action: running everything but the parked go for $(paste -sd ' ' <<<"$shared")" >&2
+        # Everything but the parked go, which only its own diff selects.
+        for module in "${modules[@]}"; do
+            if [[ "$module" != go ]] || grep -qE "${scope[go]}" <<<"$changed"; then
+                selected+=("$module")
+            fi
+        done
     else
         for module in "${modules[@]}"; do
             pattern=${scope[$module]}

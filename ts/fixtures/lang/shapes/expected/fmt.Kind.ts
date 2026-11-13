@@ -13,16 +13,9 @@ export function fmt$fmt_Debug(self: Kind, f: rs.Formatter): rs.Result<undefined,
 		return rs.fmtWriteStr(f, "Bare");
 	}
 	if (self.tag === "One") {
-		const _8: string = "One";
-		const _9: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self._0, f);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _8), _9));
+		return rs.fmtDebugFields(f, "One", [(f: rs.Formatter) => rs.u8Debug(self._0, f)]);
 	}
-	const _13: string = "Many";
-	const _14: string = "count";
-	const _15: rs.Fmt = (f: rs.Formatter) => rs.u32Debug(self.count, f);
-	const _16: string = "items";
-	const _17: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(self.items), f, rs.u8Debug);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _13), _14, _15), _16, _17));
+	return rs.fmtDebugFields(f, "Many count items", [(f: rs.Formatter) => rs.u32Debug(self.count, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(self.items), f, rs.u8Debug)]);
 }
 
 export type Kind =
