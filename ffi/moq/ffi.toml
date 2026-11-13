@@ -1,7 +1,8 @@
 # What the export refuses at the pinned revision, by paths from the stand-in facade that
 # `just ffi standin` writes, as `just ffi census` lists it: the API a hand-written wrapper
 # still has to cover. `kio` is moq-net's re-export of all of kio, of which moq-ffi ships
-# only what the facade re-exports.
+# only what the facade re-exports. `mp4_atom` is the crate mux's `container::fmp4::Error`
+# names in a variant, which reaches its every box.
 exclude = [
     "bytes",
     "Client::connect<moq::transport::memory::Session>",
