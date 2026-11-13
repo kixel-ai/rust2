@@ -93,7 +93,10 @@ const COVERED: &[(&str, &str)] = &[
 	("Closure", "the positions lent_N, peek_N, and made_N"),
 	("Range", "Range"),
 	("Bound", "Bound"),
-	("Bounds", "none: the form of an impl RangeBounds parameter, which no value has"),
+	(
+		"Bounds",
+		"none: the form of an impl RangeBounds parameter, which no value has",
+	),
 	("Tuple", "Tuple"),
 	("Const", "none: a const argument, which no value has"),
 ];
@@ -268,7 +271,10 @@ impl Emit {
 			Shape::Buf => ("bytes::Bytes".into(), "bytes::Bytes::from(r.bytes())".into()),
 			Shape::Duration => ("std::time::Duration".into(), "r.duration()".into()),
 			Shape::Array(n) => (format!("[u8; {n}]"), "std::array::from_fn(|_| r.next() as u8)".into()),
-			Shape::PathBuf => ("std::path::PathBuf".into(), "std::path::PathBuf::from(r.string())".into()),
+			Shape::PathBuf => (
+				"std::path::PathBuf".into(),
+				"std::path::PathBuf::from(r.string())".into(),
+			),
 			Shape::SocketAddr(family) => (format!("std::net::{family}"), format!("r.{}()", family.to_lowercase())),
 			Shape::Range(int) => (
 				format!("std::ops::Range<{int}>"),
@@ -288,11 +294,17 @@ impl Emit {
 			Shape::Url => ("url::Url".into(), "r.url()".into()),
 			Shape::Option(inner) => {
 				let (ty, make) = self.shape(inner);
-				(format!("Option<{ty}>"), format!("match r.below(4) {{ 0 => None, _ => Some({make}) }}"))
+				(
+					format!("Option<{ty}>"),
+					format!("match r.below(4) {{ 0 => None, _ => Some({make}) }}"),
+				)
 			}
 			Shape::Vec(inner) => {
 				let (ty, make) = self.shape(inner);
-				(format!("Vec<{ty}>"), format!("(0..r.below(4)).map(|_| {make}).collect()"))
+				(
+					format!("Vec<{ty}>"),
+					format!("(0..r.below(4)).map(|_| {make}).collect()"),
+				)
 			}
 			Shape::Set(inner) => {
 				let (ty, make) = self.shape(inner);
@@ -582,7 +594,10 @@ fn emit(name: &str, shapes: &[Shape]) -> Crate {
 		"[package]\nname = \"{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\npublish = false\n\n\
 		[dependencies]\nbytes = \"1\"\nserde_json = \"1\"\nurl = \"2\"\n\n[workspace]\n"
 	);
-	super::write_all(&dir, &[("Cargo.toml", &manifest), ("src/lib.rs", &lib), ("ffi.toml", "")]);
+	super::write_all(
+		&dir,
+		&[("Cargo.toml", &manifest), ("src/lib.rs", &lib), ("ffi.toml", "")],
+	);
 	// The api fixture's versions, resolved offline.
 	std::fs::copy(manifest_dir().join("Cargo.lock"), dir.join("Cargo.lock")).unwrap();
 
@@ -590,7 +605,10 @@ fn emit(name: &str, shapes: &[Shape]) -> Crate {
 	let exported = |item: Item, n: usize| !refused.iter().any(|path| *path == item.name(n));
 	let mut excludes: Vec<&String> = refused.iter().collect();
 	excludes.sort();
-	let config = excludes.iter().map(|path| format!("    \"{path}\",\n")).collect::<String>();
+	let config = excludes
+		.iter()
+		.map(|path| format!("    \"{path}\",\n"))
+		.collect::<String>();
 	std::fs::write(dir.join("ffi.toml"), format!("exclude = [\n{config}]\n")).unwrap();
 
 	let mut calls = Vec::new();
@@ -701,7 +719,6 @@ fn ir_covered() {
 	);
 }
 
-
 /// The shapes' crate, exported and built once for each language's test.
 struct Built {
 	krate: Crate,
@@ -788,8 +805,10 @@ impl Built {
 	/// one.
 	fn known(&self, language: &str) -> Vec<usize> {
 		let mut known = Vec::new();
-		for (_, what, skips, quest) in KNOWN.iter().filter(|(l, ..)| *l == language) {
-			let matched: Vec<usize> = (0..self.krate.shapes.len()).filter(|&n| skips(&self.krate.shapes[n])).collect();
+		for Known { what, skips, quest, .. } in KNOWN.iter().filter(|k| k.language == language) {
+			let matched: Vec<usize> = (0..self.krate.shapes.len())
+				.filter(|&n| skips(&self.krate.shapes[n]))
+				.collect();
 			// The gate's subset may hold none of an entry's shapes; the nightly's holds each.
 			assert!(
 				!matched.is_empty() || self.name() != "sampled",
@@ -862,7 +881,9 @@ fn bytes(shape: &Shape) -> bool {
 }
 
 fn ipv6(shape: &Shape) -> bool {
-	within(shape, &|s| matches!(s, Shape::SocketAddr("SocketAddr" | "SocketAddrV6")))
+	within(shape, &|s| {
+		matches!(s, Shape::SocketAddr("SocketAddr" | "SocketAddrV6"))
+	})
 }
 
 /// A collection whose items are bytes or tuples holding them, which C++ takes as views.
@@ -884,16 +905,71 @@ fn single(shape: &Shape) -> bool {
 /// The round trips a binding gets wrong today, each the quest's to fix: the language, what
 /// it gets wrong, the shapes it skips for it, and the quest. An entry matching no shape
 /// fails, so the fix deletes it.
-const KNOWN: &[(&str, &str, fn(&Shape) -> bool, &str)] = &[
-	("python", "a Duration's nanoseconds", duration, "/quest/m1/ffi-export/lossless.md"),
-	("dart", "a Duration's nanoseconds", duration, "/quest/m1/ffi-export/lossless.md"),
-	("kotlin", "a Duration's nanoseconds past 146 years", duration, "/quest/m1/ffi-export/lossless.md"),
-	("kotlin", "an IPv6 flow label", ipv6, "/quest/m1/ffi-export/lossless.md"),
-	("kotlin", "returned bytes passed back", bytes, "/quest/m1/ffi-export/owned-bufs.md"),
-	("go", "an IPv6 flow label", ipv6, "/quest/m1/ffi-export/lossless.md"),
-	("go", "returned bytes passed back", bytes, "/quest/m1/ffi-export/owned-bufs.md"),
-	("kotlin", "a returned tuple of one passed back", single, "/quest/m1/ffi-export/round-trips.md"),
-	("cpp", "a returned collection of bytes passed back", viewed_items, "/quest/m1/ffi-export/round-trips.md"),
+/// A round trip a binding gets wrong today.
+struct Known {
+	language: &'static str,
+	what: &'static str,
+	/// Whether a shape holds what it gets wrong, which the language's driver skips.
+	skips: fn(&Shape) -> bool,
+	/// The quest that fixes it.
+	quest: &'static str,
+}
+
+const KNOWN: &[Known] = &[
+	Known {
+		language: "python",
+		what: "a Duration's nanoseconds",
+		skips: duration,
+		quest: "/quest/m1/ffi-export/lossless.md",
+	},
+	Known {
+		language: "dart",
+		what: "a Duration's nanoseconds",
+		skips: duration,
+		quest: "/quest/m1/ffi-export/lossless.md",
+	},
+	Known {
+		language: "kotlin",
+		what: "a Duration's nanoseconds past 146 years",
+		skips: duration,
+		quest: "/quest/m1/ffi-export/lossless.md",
+	},
+	Known {
+		language: "kotlin",
+		what: "an IPv6 flow label",
+		skips: ipv6,
+		quest: "/quest/m1/ffi-export/lossless.md",
+	},
+	Known {
+		language: "kotlin",
+		what: "returned bytes passed back",
+		skips: bytes,
+		quest: "/quest/m1/ffi-export/owned-bufs.md",
+	},
+	Known {
+		language: "kotlin",
+		what: "a returned tuple of one passed back",
+		skips: single,
+		quest: "/quest/m1/ffi-export/round-trips.md",
+	},
+	Known {
+		language: "go",
+		what: "an IPv6 flow label",
+		skips: ipv6,
+		quest: "/quest/m1/ffi-export/lossless.md",
+	},
+	Known {
+		language: "go",
+		what: "returned bytes passed back",
+		skips: bytes,
+		quest: "/quest/m1/ffi-export/owned-bufs.md",
+	},
+	Known {
+		language: "cpp",
+		what: "a returned collection of bytes passed back",
+		skips: viewed_items,
+		quest: "/quest/m1/ffi-export/round-trips.md",
+	},
 ];
 
 /// A function the C header declares: each parameter's type and name.
@@ -931,9 +1007,12 @@ fn prototype(header: &str, function: &str) -> Proto {
 			let param = param.trim();
 			match param.find("(*") {
 				// A function pointer: `R (*f)(void *data, P)`, named `f`.
-				Some(at) => (param.to_string(), param[at + 2..at + 2 + param[at + 2..].find(')').unwrap()].to_string()),
+				Some(at) => (
+					param.to_string(),
+					param[at + 2..at + 2 + param[at + 2..].find(')').unwrap()].to_string(),
+				),
 				None => {
-					let split = param.rfind(|c: char| c == ' ' || c == '*').unwrap() + 1;
+					let split = param.rfind([' ', '*']).unwrap() + 1;
 					(param[..split].trim().to_string(), param[split..].to_string())
 				}
 			}
@@ -1003,7 +1082,11 @@ fn c(built: &Built, calls: &[Call]) -> String {
 	let mut defined = std::collections::BTreeSet::new();
 	for call in calls {
 		let label = call.label();
-		let (Call::Echo(n, seed) | Call::Lent(n, seed) | Call::Peek(n, seed) | Call::Made(n, seed) | Call::Later(n, seed)) = *call;
+		let (Call::Echo(n, seed)
+		| Call::Lent(n, seed)
+		| Call::Peek(n, seed)
+		| Call::Made(n, seed)
+		| Call::Later(n, seed)) = *call;
 		let make = proto(Item::Make, n);
 		let digest = proto(Item::Digest, n);
 		let digested = digest.param("v").to_string();
@@ -1014,10 +1097,18 @@ fn c(built: &Built, calls: &[Call]) -> String {
 				let echo = proto(Item::Echo, n);
 				block += &make.call(&fname(Item::Make), &[format!("{seed}u")], echo.param("v"), "a", None);
 				block += &echo.call(&fname(Item::Echo), &["a".into()], &digested, "b", None);
-				let _ = writeln!(block, "\t\tprintf(\"{label} %\" PRIu64 \"\\n\", {}(b));", fname(Item::Digest));
+				let _ = writeln!(
+					block,
+					"\t\tprintf(\"{label} %\" PRIu64 \"\\n\", {}(b));",
+					fname(Item::Digest)
+				);
 			}
 			Call::Lent(..) | Call::Peek(..) => {
-				let item = if matches!(call, Call::Lent(..)) { Item::Lent } else { Item::Peek };
+				let item = if matches!(call, Call::Lent(..)) {
+					Item::Lent
+				} else {
+					Item::Peek
+				};
 				if defined.insert(item.name(n)) {
 					let (_, param) = proto(item, n).pointer("f");
 					let _ = writeln!(
@@ -1073,7 +1164,11 @@ fn c(built: &Built, calls: &[Call]) -> String {
 				);
 				block += &polled;
 				let _ = writeln!(block, "\t\t{future}_free(f);");
-				let _ = writeln!(block, "\t\tprintf(\"{label} %\" PRIu64 \"\\n\", {}(b));", fname(Item::Digest));
+				let _ = writeln!(
+					block,
+					"\t\tprintf(\"{label} %\" PRIu64 \"\\n\", {}(b));",
+					fname(Item::Digest)
+				);
 			}
 		}
 		let _ = writeln!(body, "\t{{\n{block}\t}}");
@@ -1093,13 +1188,19 @@ fn cpp(built: &Built, calls: &[Call]) -> String {
 			Call::Lent(n, seed) => {
 				format!("{name}::lent_{n}({seed}u, [](auto v) {{ return {name}::digest_{n}(std::move(v)); }})")
 			}
-			Call::Peek(n, seed) => format!("{name}::peek_{n}({seed}u, [](auto &&v) {{ return {name}::digest_{n}(v); }})"),
-			Call::Made(n, seed) => format!("{name}::made_{n}({seed}u, [](std::uint64_t s) {{ return {name}::make_{n}(s); }})"),
+			Call::Peek(n, seed) => {
+				format!("{name}::peek_{n}({seed}u, [](auto &&v) {{ return {name}::digest_{n}(v); }})")
+			}
+			Call::Made(n, seed) => {
+				format!("{name}::made_{n}({seed}u, [](std::uint64_t s) {{ return {name}::make_{n}(s); }})")
+			}
 			Call::Later(n, seed) => format!("{name}::digest_{n}({name}::later_{n}({name}::make_{n}({seed}u)).get())"),
 		};
 		let _ = writeln!(body, "\tstd::cout << \"{} \" << {value} << '\\n';", call.label());
 	}
-	format!("#include <cstdint>\n#include <iostream>\n#include <utility>\n\n#include \"{name}.hpp\"\n\nint main() {{\n{body}}}\n")
+	format!(
+		"#include <cstdint>\n#include <iostream>\n#include <utility>\n\n#include \"{name}.hpp\"\n\nint main() {{\n{body}}}\n"
+	)
 }
 
 /// Each shape's calls in a function of its own, so no function grows past a compiler's
@@ -1188,7 +1289,9 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 	let mut body = String::new();
 	// How the generated `func` returns: its values, and whether an error follows them.
 	let results = |function: &str| -> (usize, bool) {
-		let at = source.find(&format!("\nfunc {function}(")).unwrap_or_else(|| panic!("the Go declares {function}"));
+		let at = source
+			.find(&format!("\nfunc {function}("))
+			.unwrap_or_else(|| panic!("the Go declares {function}"));
 		let line = source[at + 1..].lines().next().unwrap();
 		let mut depth = 0;
 		let mut close = 0;
@@ -1259,11 +1362,19 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 			}
 			Call::Lent(_, seed) | Call::Peek(_, seed) => {
 				let item = if matches!(call, Call::Lent(..)) { "Lent" } else { "Peek" };
-				let lift = if results(&format!("Digest{n}")).1 { "liftErr" } else { "lift" };
+				let lift = if results(&format!("Digest{n}")).1 {
+					"liftErr"
+				} else {
+					"lift"
+				};
 				format!("s.{item}{n}({seed}, {lift}(s.Digest{n}))")
 			}
 			Call::Made(_, seed) => {
-				let lift = if results(&format!("Make{n}")).1 { "liftErr" } else { "lift" };
+				let lift = if results(&format!("Make{n}")).1 {
+					"liftErr"
+				} else {
+					"lift"
+				};
 				format!("s.Made{n}({seed}, {lift}(s.Make{n}))")
 			}
 			Call::Later(_, seed) => {
@@ -1370,10 +1481,12 @@ fn round_trip(built: &Built, language: &str) {
 		"python" => {
 			let main = dir.join("main.py");
 			std::fs::write(&main, python(built, calls)).unwrap();
-			run(Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()))
-				.args(["-P", "-X", "dev", "-W", "error"])
-				.arg(&main)
-				.env("PYTHONPATH", built.out.join("python")))
+			run(
+				Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()))
+					.args(["-P", "-X", "dev", "-W", "error"])
+					.arg(&main)
+					.env("PYTHONPATH", built.out.join("python")),
+			)
 		}
 		"swift" => {
 			let module = built.out.join("swift");
@@ -1395,7 +1508,11 @@ fn round_trip(built: &Built, language: &str) {
 			super::copy_dir(&built.out.join("go"), &export);
 			std::fs::create_dir_all(dir.join("include")).unwrap();
 			let header = format!("{name}.h");
-			std::fs::copy(built.out.join("include").join(&header), dir.join("include").join(&header)).unwrap();
+			std::fs::copy(
+				built.out.join("include").join(&header),
+				dir.join("include").join(&header),
+			)
+			.unwrap();
 			let source = std::fs::read_to_string(export.join(&name).join(format!("{name}.go"))).unwrap();
 			let rt = std::fs::read_to_string(export.join("rt").join("types.go")).unwrap_or_default();
 			std::fs::write(dir.join("main.go"), go(built, calls, &source, &rt)).unwrap();

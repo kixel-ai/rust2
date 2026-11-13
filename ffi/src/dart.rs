@@ -1861,7 +1861,11 @@ impl<'a> Gen<'a> {
 	fn close(&mut self, ty: &Type, e: &str) -> String {
 		// A local named apart from `e`, which may be a parameter named `v`, and from the
 		// local an outer level declared, which Dart would read before it is declared.
-		let v: String = e.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '_' }).collect::<String>() + "_";
+		let v: String = e
+			.chars()
+			.map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+			.collect::<String>()
+			+ "_";
 		match ty {
 			Type::Option(inner) => {
 				let close = self.close(inner, &v);

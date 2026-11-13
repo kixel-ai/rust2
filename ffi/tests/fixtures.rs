@@ -859,7 +859,13 @@ fn api_dart() {
 	let generated = api.out.join("dart");
 	run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&generated));
 	let lib = api.lib.join(PYTHON_LIB);
-	let exe = dart_compile("api", &dir, &generated, &lib, &manifest_dir().join("tests").join("api.dart"));
+	let exe = dart_compile(
+		"api",
+		&dir,
+		&generated,
+		&lib,
+		&manifest_dir().join("tests").join("api.dart"),
+	);
 	let dart = run(&mut dart_run(&exe, &[]));
 	assert_eq!(
 		String::from_utf8_lossy(&dart.stdout),
