@@ -4152,7 +4152,24 @@ impl<'tcx> Collector<'tcx> {
 					},
 				) => {
 					let tcx = self.tcx;
-					for &(clause, _) in tcx.explicit_item_bounds(*def_id).skip_binder() {
+					let bounds = tcx.explicit_item_bounds(*def_id).skip_binder();
+					// Any other `impl Trait + 'a` holds `'a`, as `impl Iterator + '_` over a
+					// borrow of its receiver does; a future's borrows are checked apart.
+					let future = (bounds.iter()).any(|&(clause, _)| {
+						clause
+							.as_trait_clause()
+							.is_some_and(|tr| tcx.is_lang_item(tr.def_id(), LangItem::Future))
+					});
+					if !future {
+						for &(clause, _) in bounds {
+							if let Some(outlives) = clause.as_type_outlives_clause() {
+								let region =
+									ty::EarlyBinder::bind(tcx, outlives.skip_binder().1).instantiate(tcx, args);
+								held.push(region.skip_norm_wip());
+							}
+						}
+					}
+					for &(clause, _) in bounds {
 						let term = clause
 							.as_projection_clause()
 							.and_then(|p| p.skip_binder().term.as_type());

@@ -1416,7 +1416,9 @@ fn unreached_types() {
 				pub fn bare(handle: &net::Handle) -> u32 {\n\thandle.0\n}\n\n\
 				pub fn opaque() -> Result<(), net::Opaque> {\n\tErr(net::Opaque)\n}\n\n\
 				pub fn closed() -> net::Closed {\n\tnet::closed()\n}\n\n\
-				pub enum Failure {\n\tNet(net::Fault),\n}\n\npub fn fail() -> Failure {\n\tFailure::Net(net::Fault)\n}\n",
+				pub enum Failure {\n\tNet(net::Fault),\n}\n\npub fn fail() -> Failure {\n\tFailure::Net(net::Fault)\n}\n\n\
+				pub struct Buffer(Vec<u32>);\n\nimpl Buffer {\n\tpub fn new() -> Self {\n\t\tSelf(vec![1])\n\t}\n\n\
+				\tpub fn drain(&mut self) -> impl Iterator<Item = u32> + '_ {\n\t\tnet::drain(&mut self.0)\n\t}\n}\n",
 			),
 			(
 				"net/Cargo.toml",
@@ -1430,7 +1432,10 @@ fn unreached_types() {
 				impl std::error::Error for Fault {}\n\n\
 				pub struct Opaque;\n\nmod closed {\n\tpub struct Closed;\n}\n\npub type Closed = closed::Closed;\n\n\
 				pub fn closed() -> closed::Closed {\n\tclosed::Closed\n}\n\n\
-				pub fn connect() -> Result<Link, Fault> {\n\tOk(Link(1))\n}\n",
+				pub fn connect() -> Result<Link, Fault> {\n\tOk(Link(1))\n}\n\n\
+				pub struct Drain<'a>(&'a mut Vec<u32>);\n\n\
+				pub fn drain(items: &mut Vec<u32>) -> Drain<'_> {\n\tDrain(items)\n}\n\n\
+				impl Iterator for Drain<'_> {\n\ttype Item = u32;\n\n\tfn next(&mut self) -> Option<u32> {\n\t\tself.0.pop()\n\t}\n}\n",
 			),
 			(
 				"kio/Cargo.toml",
@@ -1521,10 +1526,10 @@ fn unreached_types() {
 		String::from_utf8_lossy(&output.stderr)
 	);
 	let report = std::fs::read_to_string(census.join("unreached_types.md")).unwrap();
-	// `Pending`, `Version`, `Link`, and `Failure` export; `Sealed` alone is refused as
-	// unreached, though an alias names it. `net`'s error in `Failure` is never reached, so
+	// `Pending`, `Version`, `Link`, `Failure`, and `Buffer` export; `Sealed` alone is refused
+	// as unreached, though an alias names it. `net`'s error in `Failure` is never reached, so
 	// `Failure` is an object.
-	assert!(report.contains("| Types | 4 | 0 |"), "{report}");
+	assert!(report.contains("| Types | 5 | 0 |"), "{report}");
 	assert!(report.contains("- `Failure`: foreign type `net::Fault`"), "{report}");
 	// A type an `Arc` holds, a `Result`'s error without `Display`, and one no public path
 	// names stay refused as foreign.
@@ -1535,6 +1540,9 @@ fn unreached_types() {
 	] {
 		assert!(report.contains(refused), "{report}");
 	}
+	// `impl Iterator + '_` lends a borrow of the receiver, so `drain` is refused and `Drain`
+	// left out with it, rather than glue that does not build.
+	assert!(report.contains("- `Buffer::drain`: type C never holds `net::Drain`"), "{report}");
 	assert!(
 		report.contains("fn `seal` at src/lib.rs:11:1: type not reachable from the crate root `kio::sealed::Sealed`"),
 		"{report}"
