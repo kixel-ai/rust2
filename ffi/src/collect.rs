@@ -3641,10 +3641,11 @@ impl<'tcx> Collector<'tcx> {
 		// A `Copy` object, which C lends as its handle and hands back as a new one; not one
 		// an opaque handle holds, which the closure would take as the handle's `rt::Owned`.
 		let env = TypingEnv::post_analysis(tcx, def_id);
-		let copied =
-			|ty: Ty<'tcx>, mapped: &Type| {
-				matches!(mapped, Type::Object(_)) && self.opaque_value(ty).is_none() && tcx.type_is_copy_modulo_regions(env, ty)
-			};
+		let copied = |ty: Ty<'tcx>, mapped: &Type| {
+			matches!(mapped, Type::Object(_))
+				&& self.opaque_value(ty).is_none()
+				&& tcx.type_is_copy_modulo_regions(env, ty)
+		};
 		// Each parameter makes its own closure, which one type parameter cannot name twice.
 		if sig
 			.skip_binder()
@@ -4179,7 +4180,10 @@ impl<'tcx> Collector<'tcx> {
 		(tcx.explicit_item_bounds(*def_id).skip_binder().iter())
 			.filter_map(|&(clause, _)| clause.as_projection_clause()?.skip_binder().term.as_type())
 			.map(|term| ty::EarlyBinder::bind(tcx, term).instantiate(tcx, args).skip_norm_wip())
-			.any(|term| term.walk().any(|arg| arg.as_region().is_some_and(|r| !statics.contains(&r))))
+			.any(|term| {
+				term.walk()
+					.any(|arg| arg.as_region().is_some_and(|r| !statics.contains(&r)))
+			})
 	}
 
 	/// The lifetimes in `ty`: those its objects take, then those it borrows with.
