@@ -4,9 +4,10 @@
 
 The broken-contract cases in [`ffi/tests/fixtures.rs`](/ffi/tests/fixtures.rs), which
 spawn each binding's test program and assert it aborts, still assert the abort and its
-message, but on Linux the kernel never hands the dying child to the host's core handler:
-no core is written or stored, `systemd-coredump` does not start, and the journal gets no
-crash entry.
+message, but on Linux no core is written or stored. Except for Kotlin's cases on `java`,
+the kernel never hands the dying child to the host's core handler: `systemd-coredump` does
+not start and the journal gets no crash entry. Kotlin's aborts still start the handler and
+log one CRIT entry each, but write no core.
 
 ## Plan
 
@@ -52,7 +53,8 @@ Decided with the maintainer on 2026-11-13:
 
 Verify on the real surface: run `just test` for the ffi fixtures on Linux and compare
 `coredumpctl list` and `journalctl -p crit` over the run before and after; the
-after-run should show no entries from the test programs.
+after-run should show no cores from the test programs, and no CRIT entries except one per
+Kotlin abort on `java`.
 
 ## Hosts
 
