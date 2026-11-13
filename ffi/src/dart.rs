@@ -27,7 +27,7 @@ use std::fmt::Write;
 
 use crate::abi::{self, Abi, Sig, Ty, pascal};
 use crate::glue::rs;
-use crate::ir::{Access, Closure, Family, Function, Int, Literal, On, Receiver, Type};
+use crate::ir::{Access, Closure, Family, Function, Int, Literal, On, Type};
 use crate::kotlin::strip_refs;
 
 const RUNTIME: &str = include_str!("../runtime/rt.dart");
@@ -1602,9 +1602,17 @@ impl<'a> Gen<'a> {
 		};
 		let (own, free) = self.owned(&c, &owner);
 		let mut members = vec!["close".to_string()];
+		let checked = abi.checked[i];
 		let mut body = vec![format!(
-			"\t{name}._(ffi.Pointer<ffi.Void> raw) : super(raw, true) {{\n\t\t_own = {own}(this, raw);\n\t}}\n\n\t{name}._lent(ffi.Pointer<ffi.Void> raw) : super(raw, false);\n\n\t@override\n\tString get _type => '{name}';\n\n\t@override\n\tvoid _free() => {free}(_n.home, _own, this, _raw);\n"
+			"\t{name}._(ffi.Pointer<ffi.Void> raw) : super(raw, true, {checked}) {{\n\t\t_own = {own}(this, raw);\n\t}}\n\n\t{name}._lent(ffi.Pointer<ffi.Void> raw) : super(raw, false, {checked});\n\n\t@override\n\tString get _type => '{name}';\n\n\t@override\n\tvoid _free() => {free}(_n.home, _own, this, _raw);\n"
 		)];
+		if checked {
+			let what = format!("{c}_drop");
+			let f = self.served_fn(&what, vec![owner.clone(), Ty::Out(Box::new(Ty::Status))], Ty::Void);
+			body.push(format!(
+				"\t@override\n\tvoid _drop() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\tfinal s_ = a_<ffi.Int32>()..value = 0;\n\t\t\t{f}(_n.home, _raw, s_);\n\t\t\t_status(s_.value, '{what}');\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+			));
+		}
 		self.traits(&ty, &c, object.traits, &mut body, &mut members);
 		self.methods(&object.methods, &owner, &ty, &mut body, &mut members);
 		self.distinct(&rust, &members);
@@ -1892,30 +1900,6 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// The Dart statements closing each object the value `e` of type `ty` holds, once a
-	/// call moved them out.
-	fn close(&mut self, ty: &Type, e: &str) -> String {
-		match ty {
-			Type::Option(inner) => {
-				let close = self.close(inner, "v");
-				format!("{{ final v = {e}; if (v != null) {{ {close} }} }}")
-			}
-			Type::Box(inner) => self.close(inner, e),
-			Type::Tuple(elements) => {
-				let closes: Vec<String> = (elements.iter().enumerate())
-					.filter(|(_, ty)| moved(self.abi, ty))
-					.map(|(k, ty)| self.close(ty, &format!("{e}.${}", k + 1)))
-					.collect();
-				closes.join(" ")
-			}
-			Type::List(_, inner) => {
-				let close = self.close(inner, "v");
-				format!("for (final v in {e}) {{ {close} }}")
-			}
-			_ => format!("{e}.close();"),
-		}
-	}
-
 	/// `function`'s Dart form and its member name, a member of `owner` (whose IR type is
 	/// `owner_ty`) if it has one.
 	fn function(
@@ -1966,19 +1950,13 @@ impl<'a> Gen<'a> {
 		let receiver = function.receiver.filter(|_| owner.is_some());
 		let mut pre = Vec::new();
 		let mut args: Vec<String> = Vec::new();
-		let mut after = Vec::new();
 		let mut c_params = export.call.params.iter();
-		if let Some(receiver) = receiver {
+		if receiver.is_some() {
 			let (_, c) = c_params.next().expect("a method has its receiver");
 			let ty = owner_ty.expect("a method has its type").clone();
 			match c {
 				Ty::Handle { .. } => {
 					args.push("a_.hold(this)".to_string());
-					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
-					if receiver == Receiver::Owned && !copy {
-						// Qualified, apart from a parameter named `close`.
-						after.push("this.close();".to_string());
-					}
 				}
 				Ty::In(inner) => {
 					let (stmts, ptr) = self.value_ptr(&ty, inner, "this");
@@ -2018,9 +1996,6 @@ impl<'a> Gen<'a> {
 				continue;
 			}
 			params.push(format!("{} {name}", self.dt(&param.ty)));
-			if moved(abi, &param.ty) {
-				after.push(self.close(&param.ty, &name));
-			}
 			match (&param.ty, c) {
 				(Type::Closure(closure_), Ty::Fn(..)) => {
 					c_params.next().expect("a closure has its data");
@@ -2137,7 +2112,6 @@ impl<'a> Gen<'a> {
 			if status {
 				inner.push(check.clone());
 			}
-			inner.extend(after.clone());
 			body.push(format!(
 				"final a_ = _Arena();\ntry {{\n{}\n}} finally {{\n\ta_.end();\n}}",
 				indent(&inner.join("\n"))
@@ -2165,7 +2139,6 @@ impl<'a> Gen<'a> {
 					inner.push(format!("final ok_ = {call};"));
 					checked(&mut inner);
 					inner.extend(writes);
-					inner.extend(after.clone());
 					let ready = match ok {
 						Type::Unit => "return;".to_string(),
 						_ => format!("return {};", self.lift_outs(&function.ok, ok)),
@@ -2182,21 +2155,18 @@ impl<'a> Gen<'a> {
 					inner.push(format!("{call};"));
 					checked(&mut inner);
 					inner.extend(writes);
-					inner.extend(after.clone());
 				}
 				// A value C returns beside what Rust wrote back is its return, as with none.
 				(None, ok) if outs.len() > writes.len() => {
 					inner.push(format!("{call};"));
 					checked(&mut inner);
 					inner.extend(writes);
-					inner.extend(after.clone());
 					inner.push(format!("return {};", self.lift_outs(&function.ok, ok)));
 				}
 				(None, ok) => {
 					inner.push(format!("final r_ = {call};"));
 					checked(&mut inner);
 					inner.extend(writes);
-					inner.extend(after.clone());
 					inner.push(format!("return {};", self.lift(ok, "r_")));
 				}
 			}
@@ -2375,17 +2345,6 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 	match thrown {
 		Thrown::Itself => lifted.to_string(),
 		Thrown::Wrapped(name) => format!("{name}({lifted})"),
-	}
-}
-
-/// Whether passing `ty` moves an object's value out: by value, boxed, or in an `Option`,
-/// a list, or a tuple, unless `Copy`, and never through a reference.
-fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
-	match ty {
-		Type::Object(i) => !abi.api.objects[*i].copy,
-		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
-		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
-		_ => false,
 	}
 }
 

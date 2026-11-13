@@ -874,8 +874,8 @@ fn api_dart() {
 		run(&mut dart_run(&exe, &[case]));
 	}
 	for (case, message) in [
-		("moved", "Bad state: Counter is closed"),
-		("boxed moved", "Bad state: Node is closed"),
+		("moved", "Bad state: api_Counter_get: a handle's value was moved out"),
+		("boxed moved", "Bad state: api_Node_sum: a handle's value was moved out"),
 		("lent kept", "Bad state: Counter is closed"),
 		(
 			"lent moved",
