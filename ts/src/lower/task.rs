@@ -138,7 +138,11 @@ pub fn call<'tcx>(
 	let owned_std = self_std.filter(|_| self_ty.is_some_and(|t| !t.is_ref()));
 	let e = match (owner, name) {
 		("Arc" | "Rc", "new") => Expr::New(Box::new(Expr::Rs("Arc".into())), args),
-		("Arc" | "Rc", "new_cyclic") => Expr::rs("arcNewCyclic", args),
+		("Arc" | "Rc", "new_cyclic") => {
+			let of = if owner == "Arc" { "Arc" } else { "Rc" };
+			b.t.cyclic(of, call.args.type_at(0));
+			Expr::rs("arcNewCyclic", args)
+		}
 		// JS erases the pin.
 		("Arc" | "Rc", "pin") => Expr::New(Box::new(Expr::Rs("Arc".into())), args),
 		// The object of one of a trait object, which every pointer to it shares. A `dyn Any`'s
@@ -216,10 +220,19 @@ pub fn call<'tcx>(
 		("RawWakerVTable", "new") => Expr::rs("wakerVTable", args),
 		("AsRef", "as_ref") if self_std == Some(Std::Arc) => first(args).member("value"),
 		("Arc" | "Rc", "downgrade") | ("Weak", "new") => Expr::New(Box::new(Expr::Rs("Weak".into())), args),
-		// The value of the last strong one, which its count says, and else its `None`.
+		// The value of the last strong one, which its count says, and else its `None`. It
+		// moves out of its allocation, which a `Weak` may keep: a new object where pointers
+		// to it compare, as `make_mut` moves it.
 		("Arc" | "Rc", "into_inner") => {
-			let none = b.t.none_arg(call.args.type_at(0));
-			Expr::rs("arcIntoInner", args.into_iter().chain(none).collect())
+			let value = call.args.type_at(0);
+			let none = b.t.none_arg(value);
+			let moved = b.t.held_addressed(value).then(|| b.t.shim(value, call.span)).flatten();
+			let mut args = args;
+			match moved {
+				Some(moved) => args.extend([none.unwrap_or_else(Expr::undefined), moved]),
+				None => args.extend(none),
+			}
+			Expr::rs("arcIntoInner", args)
 		}
 		("Arc" | "Rc", "strong_count") => first(args).member("strong"),
 		("Arc" | "Rc", "weak_count") => first(args).member("weak"),

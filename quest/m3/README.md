@@ -6,9 +6,8 @@ Work that waits on evidence or has no consumer yet: two waits on upstream's buil
 levers ([relink](/quest/m3/relink.md) and [TPDE](/quest/m3/tpde.md)) and
 [the benchmark on bare metal](/quest/m3/bench-metal.md), the translator's features that
 wait on [the gate](/quest/m2/wasm/README.md), the binding targets planned ahead of a
-consumer, what waits on moq, [crabx's GitHub App](/quest/m3/crabx-app.md), and two spikes
-of what a rustc driver can do for any crate: [a crates.io census](/quest/m3/crates-census.md)
-and [a dead `pub` finder](/quest/m3/dead-pub.md).
+consumer, what waits on moq, [crabx's GitHub App](/quest/m3/crabx-app.md), and
+[the public-visibility audit](/quest/m3/pub-audit.md).
 
 ## Plan
 
@@ -41,15 +40,22 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   ([rustc_codegen_cranelift#1567](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1567)
   and [#1712](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1712)) were
   still open. Rejected: keeping it with the ceiling stated.
-- ✅ Two spikes join with no consumer waiting:
-  [the crates.io census](/quest/m3/crates-census.md) and
-  [the dead `pub` finder](/quest/m3/dead-pub.md). Considered and left out: a build doctor
+- ✅ [The dead `pub` spike](https://github.com/kixel-ai/rust2/pull/763) joins with no consumer waiting. Considered and left out: a build doctor
   that ranks why an edit rebuilt slowly, which conflicts with build speed keeping only
   what costs nothing; a cancel-safety report for exported futures, likely mostly false
   positives; a general semver checker, which cargo-semver-checks is taking into cargo; a
   Rust generator over the C ABI as a rebuild firewall; and driver-generated derives,
   since proc macros measured 0.2% of a clean build
   ([#64](https://github.com/kixel-ai/rust2/pull/64)).
+
+The [dead `pub` spike](https://github.com/kixel-ai/rust2/pull/763) finished on
+2026-11-13 with a go for a compiler-validated audit that preserves original resolved
+references, planned in [the public-visibility audit](/quest/m3/pub-audit.md). The raw
+graph still fails moq publicity checks. A compiler-only narrowing loop can silently
+redirect method dispatch: the native fixture changes 99 to 3, while the graph
+retains the original method. Neither alone is an automatic cleanup tool, and
+neither establishes the absence of external API consumers. The PR holds the census,
+collective mutation checks and comparison.
 
 Decided with the maintainer on 2026-11-07, the unsafe policy, to stop one-off fixes for
 ever rarer `unsafe`:

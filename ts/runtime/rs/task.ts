@@ -231,12 +231,15 @@ export function arcClone<T>(arc: Arc<T>): Arc<T> {
 
 /**
  * `Arc::into_inner`: the value of the last strong `Arc`, after which its `Weak`s no
- * longer upgrade, or else `none`, with `arc` no longer counted.
+ * longer upgrade, or else `none`, with `arc` no longer counted. The value leaves its
+ * allocation, copied by `moved` where a pointer to it could tell the two apart.
  */
 export function arcIntoInner<T>(arc: Arc<T>): T | undefined;
-export function arcIntoInner<T>(arc: Arc<T>, none: None): T | None;
-export function arcIntoInner<T>(arc: Arc<T>, none?: None): T | None | undefined {
-	return --arc.strong === 0 ? arc.value : none;
+export function arcIntoInner<T>(arc: Arc<T>, none: None, moved?: (value: T) => T): T | None;
+export function arcIntoInner<T>(arc: Arc<T>, none: undefined, moved: (value: T) => T): T | undefined;
+export function arcIntoInner<T>(arc: Arc<T>, none?: None, moved?: (value: T) => T): T | None | undefined {
+	if (--arc.strong !== 0) return none;
+	return moved === undefined ? arc.value : moved(arc.value);
 }
 
 /** `Arc::get_mut`: `arc`'s value, if no other `Arc` or `Weak` shares it. */
@@ -464,6 +467,15 @@ export function weakUpgrade<T>(weak: Weak<T>): Arc<T> | undefined {
 	if (weak.arc.strong === 0) return undefined;
 	const arc = arcClone(weak.arc as Arc<never>);
 	return weak.view === undefined ? arc : weak.view(arc);
+}
+
+/**
+ * The `Arc` whose value `Weak::as_ptr` points at, as `upgrade` would view it, whether or not
+ * any strong one is left: `undefined` for `Weak::new`'s, which has none.
+ */
+export function weakArc<T>(weak: Weak<T>): Arc<T> | undefined {
+	if (weak.arc === DANGLING) return undefined;
+	return weak.view === undefined ? (weak.arc as Arc<T>) : weak.view(weak.arc as Arc<never>);
 }
 
 /** `Weak::clone`. */

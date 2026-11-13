@@ -4,6 +4,10 @@ A rustc driver that exports a crate's `pub` API as a C ABI and a C header, with 
 attributes in the Rust source.
 Every language's generator but Python's builds on the C ABI.
 
+It targets facades written for the exporter's mapping rules. A stock crate's
+whole public API is not generally exportable: generic and borrow signatures can
+be refused, and the census also lists API items left out by those rules.
+
 ```bash
 rust2-ffi --config ffi.toml (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [--baseline api.json] [-- cargo args]
 ```
@@ -934,6 +938,7 @@ just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi census   # census each into target/census
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
+nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan and TSan, and its C ABI under Miri
 ```
 
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
@@ -980,6 +985,10 @@ The `lock` test exports the `lock` fixture for wasm32, staged, and the host, the
 against that export's `api.json`: its `added` feature only adds and must pass, and its `next`
 feature breaks the API twice for each kind of break, once in an item only wasm32 has, each
 error matching `fixtures/lock/expected.txt`.
+`just ffi sanitize`, run nightly, rebuilds the `api` export with std under AddressSanitizer
+and then ThreadSanitizer, runs `tests/api.c` and `tests/api.cpp` against it, and matches
+their output to the native transcript; it then drives the C ABI from `tests/miri/api.rs`
+under Miri with strict provenance.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. `moq/moq.c` publishes and subscribes to a moq-net
 track in one process, polling each read, scopes an origin to moq-pattern's patterns and
