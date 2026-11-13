@@ -1447,15 +1447,13 @@ fn round_trip(built: &Built, language: &str) {
 		"cpp" => {
 			let main = dir.join("main.cpp");
 			std::fs::write(&main, cpp(built, calls)).unwrap();
-			let cxx = std::env::var_os("CXX").unwrap_or_else(|| "c++".into());
-			run(Command::new(cxx)
-				.args(["-std=c++17", "-Wall", "-Wextra", "-Werror", "-I"])
-				.arg(built.out.join("include"))
-				.arg(&main)
-				.arg(built.staticlib())
-				.args(&built.native)
-				.arg("-o")
-				.arg(&exe));
+			// The api fixture's build, so MSVC's runner builds it with cl.
+			let link = super::Link {
+				include: built.out.join("include"),
+				staticlib: built.staticlib(),
+				native: &built.native,
+			};
+			run(&mut super::cxx(&link, 17, false, &main, &exe));
 			run(&mut Command::new(&exe))
 		}
 		"kotlin" => {

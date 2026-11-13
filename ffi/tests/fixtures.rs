@@ -243,7 +243,7 @@ fn api_cpp() {
 	for (standard, plain) in [(17, true), (20, false), (23, true)] {
 		let exe = scratch().join("api").join(format!("api-c++{standard}{EXE_SUFFIX}"));
 		run(&mut cxx(
-			api,
+			&api.link(),
 			standard,
 			plain,
 			&manifest_dir().join("tests").join("api.cpp"),
@@ -299,7 +299,7 @@ fn api_cpp() {
 	)
 	.unwrap();
 	let contract = scratch().join("api").join(format!("contract{EXE_SUFFIX}"));
-	run(&mut cxx(api, 17, false, &mismatched, &contract));
+	run(&mut cxx(&api.link(), 17, false, &mismatched, &contract));
 	let output = Command::new(&contract).output().unwrap();
 	assert!(!output.status.success(), "a mismatched contract did not abort");
 	let stderr = String::from_utf8_lossy(&output.stderr);
@@ -353,11 +353,29 @@ fn cpp_strict(api: &Api) {
 	}
 }
 
-/// A build of the C++ `src` against the api library into `exe`, at C++`standard`, with
+/// What a program links of an export: its headers, its static library, and what that
+/// links besides.
+struct Link<'a> {
+	include: PathBuf,
+	staticlib: PathBuf,
+	native: &'a [String],
+}
+
+impl Api {
+	fn link(&self) -> Link<'_> {
+		Link {
+			include: self.out.join("include"),
+			staticlib: self.staticlib(),
+			native: &self.native,
+		}
+	}
+}
+
+/// A build of the C++ `src` against the `link`ed library into `exe`, at C++`standard`, with
 /// exceptions and RTTI off if `plain`, and warnings as errors: by `CXX` or the platform's
 /// compiler, given MSVC's flags where the target is MSVC's.
-fn cxx(api: &Api, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command {
-	let include = api.out.join("include");
+fn cxx(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command {
+	let include = &link.include;
 	if cfg!(target_env = "msvc") {
 		// cl from a developer environment. Its C++23 is `c++latest`; its objects go beside `exe`.
 		let mut cmd = Command::new(std::env::var_os("CXX").unwrap_or_else(|| "cl".into()));
@@ -382,7 +400,7 @@ fn cxx(api: &Api, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command 
 		let mut out = OsString::from("-Fe");
 		out.push(exe);
 		cmd.arg("-I").arg(include).arg(src).arg(obj).arg(out);
-		cmd.arg("-link").arg(api.staticlib()).args(&api.native);
+		cmd.arg("-link").arg(&link.staticlib).args(link.native);
 		return cmd;
 	}
 	let mut cmd = Command::new(std::env::var_os("CXX").unwrap_or_else(|| "c++".into()));
@@ -394,8 +412,8 @@ fn cxx(api: &Api, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command 
 	cmd.args(["-pedantic", "-Wall", "-Wextra", "-Wshadow", "-Werror", "-I"])
 		.arg(include)
 		.arg(src)
-		.arg(api.staticlib())
-		.args(&api.native)
+		.arg(&link.staticlib)
+		.args(link.native)
 		.arg("-o")
 		.arg(exe);
 	cmd
