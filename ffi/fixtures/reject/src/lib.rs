@@ -185,6 +185,26 @@ pub fn mint(f: impl FnOnce() -> tls::Token) -> u32 {
 	f().0
 }
 
+/// Returns another crate's `Copy` value, which a handle holds.
+pub fn token() -> tls::Token {
+	tls::Token(2)
+}
+
+/// Borrows a slice of them, whose handles C would have to give up.
+pub fn spent(tokens: &[tls::Token]) -> u32 {
+	tokens.iter().map(|t| t.0).sum()
+}
+
+/// Returns another crate's value, which a handle holds.
+pub fn issue() -> tls::Cert {
+	tls::Cert::new(b"der")
+}
+
+/// Takes what converts into it, which only inference could name in the glue.
+pub fn adopt(cert: impl Into<tls::Cert>) -> usize {
+	cert.into().der().len()
+}
+
 impl<T> Cell<T> {
 	pub fn new(value: T) -> Self {
 		Self(value)
