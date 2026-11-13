@@ -38,11 +38,16 @@ What the 2026-10-15 to 2026-11-12 run learned:
 - Expansion and std moved more than the compiler did, and only the differential tests
   caught it: derived `Debug` passes the type's and fields' names joined by spaces and,
   past four variants, indexes a joined string (`debug_c_like_enum_write_str`);
-  `vec![x; n]` calls `from_elem_global`; `panic!()`, `unreachable!()`,
-  `unimplemented!()`, and `todo!()` call `*_default_msg`; `String`'s char collects reserve
-  the size hint exactly, and `str::escape_default` specializes them; `Fuse` forwards
-  `advance_back_by`; `EscapeDebug` drops its char once yielded; `IoSlice::advance` and
-  `Ready` reword their panics; `Pattern` is an `unsafe trait`, and `Allocator` is stable.
+  `vec![x; n]` calls `from_elem_global`, and `vec::from_elem` became a stable wrapper over
+  it; `panic!()`, `unreachable!()`, `unimplemented!()`, and `todo!()` call
+  `*_default_msg`; `String`'s char collects reserve the size hint exactly, and
+  `str::escape_default` specializes them; `Fuse` forwards `advance_back_by`;
+  `EscapeDebug` drops its char once yielded; `IoSlice::advance` and `Ready` reword their
+  panics; `Pattern` is an `unsafe trait`, and `Allocator` is stable.
+- The tests missed one change that the review found: `Skip::advance_by(0)` takes no step,
+  which only a non-fused iterator shows. Diff `rust-src`'s `library/` between the two
+  toolchains and check each runtime-mirrored change against the ts and go runtimes,
+  rather than trusting a green differential run.
 - `go/`'s port added 41 lines and removed 35 over 7 files, all of them derived `Debug` or
   the mechanical renames, against `ts/`'s 380 and 302 over 36.
 
