@@ -159,9 +159,7 @@ fn round() -> Vec<(String, (f64, f64))> {
 		}
 		group.finish().unwrap();
 	}
-	let woken = per(start, n);
-	out.push(("woken".into(), woken));
-	out.push(("loop".into(), woken));
+	out.push(("woken".into(), per(start, n)));
 
 	// The payload as a binding hands it over: a new owner of the frame's bytes.
 	let last = last.unwrap();

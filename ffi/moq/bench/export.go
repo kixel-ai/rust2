@@ -86,6 +86,21 @@ func throughput(ctx context.Context, track *net.TrackProducer, subscriber *net.T
 	return span{1e3 / ns.wall, 1e3 / ns.cpu}
 }
 
+// pendingContext reports only after the binding polls pending with a real waker,
+// like the watched context in the future correctness tests. The writer cannot
+// race the initial poll. It is never cancelled, so Done still returns nil.
+type pendingContext struct {
+	context.Context
+	parked chan struct{}
+	waits  int
+}
+
+func (c *pendingContext) Done() <-chan struct{} {
+	c.waits++
+	c.parked <- struct{}{}
+	return nil
+}
+
 type result struct {
 	name  string
 	value span
@@ -204,10 +219,11 @@ func round() []result {
 	}
 	out = append(out, result{"woken", per(start, n)})
 
-	// One writer and the calling reader live for the whole case. A permit bounds
-	// the writer to one frame ahead; it can race the reader's first poll.
+	// One writer and the calling reader live for the whole case. Each write
+	// waits until the read has pended with its waker registered.
 	start = now()
 	permits := make(chan struct{})
+	pending := &pendingContext{Context: ctx, parked: permits}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -225,13 +241,15 @@ func round() []result {
 	for range groups {
 		reader := must(subscriber.RecvGroup(ctx))
 		for range frames {
-			permits <- struct{}{}
-			must(reader.ReadFrame(ctx)).Close()
+			must(reader.ReadFrame(pending)).Close()
 		}
 		reader.Close()
 		permits <- struct{}{}
 	}
 	<-done
+	if pending.waits != n {
+		panic("each loop read must pend exactly once")
+	}
 	out = append(out, result{"loop", per(start, n)})
 
 	for _, size := range sizes {

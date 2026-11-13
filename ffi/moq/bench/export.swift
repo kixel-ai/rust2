@@ -224,7 +224,7 @@ func round() throws -> ([(String, Span)], Int) {
 		}
 		send.finish()
 		try await writer.value
-		out.append(("loop-global", per(start)))
+		out.append(("loop", per(start)))
 
 		var sum = 0
 		for size in sizes {
@@ -271,7 +271,7 @@ func round() throws -> ([(String, Span)], Int) {
 		try group.finish()
 	}
 	precondition(done.value == true)
-	out.append(("loop", per(start)))
+	out.append(("drained", per(start)))
 
 	// The last frame's 100 bytes, copied into a Data, and one of them read.
 	start = now()

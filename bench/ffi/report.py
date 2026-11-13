@@ -36,8 +36,8 @@ CALLS = [
 	("stamped", "the same, with a new `Timestamp` each"),
 	("ready", "a 100 B frame written and read, ready"),
 	("woken", "the same, read after a wake"),
-	("loop", "the same, one reader and writer for all frames"),
-	("loop-global", "the Swift reader loop on the global executor"),
+	("loop", "one managed reader and writer, including their handoff"),
+	("drained", "Swift only: one reader on a drained executor, no writer handoff"),
 	("payload", "`frame.payload`, 100 B"),
 ]
 

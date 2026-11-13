@@ -27,8 +27,8 @@ the run's summary; nothing fails on a number.
 | stamped write | the same with a new `Timestamp` per frame, as a caller holding a `u64` must | none |
 | ready read | a 100 B frame written, then read through a new future ready at its first poll | `await noop_async()`, plus a write |
 | woken read | a read started before its frame is written, as the language starts work concurrently, so it suspends and the write's wake resumes it | `await yield_once()`, plus a write |
-| reader loop | one reader lives for all groups; Swift is drained to suspension on its preferred executor, other managed languages include one permit handoff per frame | none |
-| Swift global loop | the same long-lived reader on Swift's global pool, with a permit handoff per frame | none |
+| reader loop | one reader and writer live for all groups, including their handoff; Go waits for a real pending poll before writing | none |
+| Swift drained reader | a separate executor diagnostic: one reader drained before each write, without a writer task or permit handoff | none |
 | payload | `frame.payload` of 100 B, handed to the language | none |
 | throughput | groups of 100 frames written and read, each payload's first byte touched, about 64 MiB | throughput |
 
@@ -38,18 +38,24 @@ coroutine in Kotlin; and an eager call in Dart. So it measures a task's start an
 wake, and in Swift, Python, and Go, a read the scheduler had not yet started is ready
 instead of woken.
 
-The `loop` case removes task creation per frame. In Go, Kotlin, Python, and Dart one
-writer waits for a permit before each write, and for acknowledgement before advancing
-groups, so a slow reader cannot lose its group. The channel or stream handoff is included;
-Go's writer can race the first poll. Swift uses one task on a preferred executor that
-this thread drains until its queue is empty before each write, then drains again until
-the frame is consumed. Its per-frame count assertions prove that the read suspended and
-that the write woke it. This is the same executor mechanism the Swift correctness tests
-use. C, C++, and Rust already manually poll in one loop; `loop` repeats their `woken` floor.
+The `loop` case removes task creation per frame: one reader loops over all groups and
+one writer supplies them. Kotlin, Python, Dart, and Swift include a permit handoff per
+frame and an acknowledgement before advancing groups, bounding queued work. Swift runs
+on its default global pool. Its writer can race the read's first poll, so this is a
+streaming workload, not an isolated measurement of every read suspending.
 
-Swift also keeps `loop-global`: one long-lived reader and writer on the default global
-pool, with one permit handoff per frame. The write can race the first poll there. Neither
-this case nor the old task-per-read case guarantees every read suspended.
+Go uses the same pending-context notification as its future correctness tests: `Done`
+notifies the writer only after a poll has pended with its real waker registered. It
+returns nil because this benchmark never cancels. The writer cannot race that poll;
+the final count asserts exactly one pending notification per frame. Go's measured
+handoff is thus after registration, rather than before the call as in the other loops.
+
+Swift also reports `drained`, a separate diagnostic on a preferred executor. This thread
+drains one reader to suspension before each write, then drains it until that frame is
+consumed, checking the count on both sides. It has no writer task or permit handoff and
+must not be ranked against the managed `loop` row. C, C++, and Rust's existing `woken`
+cases already manually poll in one loop; they remain the native floor, without printing
+the same measurement twice under another name.
 
 ## Long-lived reader measurement
 
@@ -67,48 +73,49 @@ frame (write plus read); CPU includes every process thread:
 | Kotlin, runBlocking | 1.88 / 1.94 | 1.80 / 1.83 |
 | Dart, isolate | 2.41 / 2.40 | 2.78 / 2.77 |
 | Swift, global pool | 5.14 / 18.88 | 4.30 / 9.50 |
-| Swift, drained preferred executor | no task per frame | 1.22 / 1.21 |
-| Go, before the nil-context wait change | 4.87 / 6.68 | 3.07 / 3.57 |
+| Go, pending notification before every write | 5.54 / 7.70 | 3.41 / 4.26 |
 
-The preferred-executor Swift loop was measured separately with the new harness. Its
-contemporaneous global-loop median was 4.40 / 9.63 us, consistent with the baseline.
-A separate counted run recorded 1,010,000 initial pending polls and 1,010,000 polls that
-pended with a real waker: all one million reads plus the 10,000 group receives. The
-counted run did not supply timing results. By contrast, the counted global-loop run had
-only about 40% of calls pend with a real waker; instrumentation can affect this ratio.
-The structural suspension check in the drained loop needs no instrumentation.
+Go's row uses five fresh rounds after replacing the racing permit with the pending
+notification. Its `loop` verifies all one million reads actually pended with a real
+waker. The other managed rows use the original streaming protocol and include its
+handoff; differences in scheduling mean these numbers are workload costs, not a precise
+ranking of the bindings' wake primitives.
+
+Swift's separate `drained` diagnostic measured **1.22 / 1.21 us**, while its
+contemporaneous default-global loop measured 4.40 / 9.63 us. A separate instrumented
+run recorded 1,010,000 initial pending polls and 1,010,000 polls pending with a real
+waker: all one million reads plus 10,000 group receives. Instrumentation supplied no
+timing results. The global-loop counted run had only about 40% of calls pend with a real
+waker; instrumentation can affect that ratio. The drained loop's structural suspension
+check needs no instrumentation. This diagnostic establishes that the binding honors
+the preferred executor; it does not establish that Swift is faster than other languages.
 
 `perf record -F 499 -g` on the original full Swift program attributed 55.5% of sampled
 cycles to the dispatch-worker subtree, including 43.4% under its semaphore-wait path.
 Kernel addresses were restricted, so kernel function names are unresolved. A separate
 language-only control using the same permit stream, an NSLock-protected continuation
-mailbox, and no Rust measured 3.78 / 8.87 us (median of five after warmup). This is evidence
-that the global executor and the permit handoff dominate that case, not a precise
-subtraction of binding costs: the mailbox uses a lock, while the binding uses atomics.
-Swift's binding already supports the caller's preferred executor and needs no runtime
-change. Forcing a different executor would change caller behavior.
+mailbox, and no Rust measured 3.78 / 8.87 us (median of five after warmup). This supports
+the global executor and permit handoff as the dominant cost. The control's lock differs
+from the binding's atomics, so it cannot give a precise subtraction of binding costs.
 
-Go's profile showed scheduling, cgo transitions, and `selectgo`. A context whose `Done`
-is nil now waits directly on the wake channel, avoiding a select with a permanently nil
-case. Cancellable contexts keep the select and the cancellation check before repolling.
-Five alternating before/after runs on nixos, with the same Go compiler and Rust library:
+Go's profile showed scheduling, cgo transitions, and `selectgo`. An experiment replaced
+its nil-`Done` select with a direct receive. On the original racing loop, five
+alternating pairs suggested a 6% improvement (3.10 to 2.91 us wall). Repeating five
+alternating pairs after forcing every read to pend instead measured **3.41 / 4.26 us
+before and 3.84 / 4.93 us after**. The benefit did not survive the stricter workload,
+so the experiment was dropped. The generated Go wait remains unchanged.
 
-| Go case | before, wall / CPU | after, wall / CPU |
-|---|---|---|
-| ready | 0.860 / 0.880 | 0.855 / 0.878 |
-| task per read | 4.910 / 6.741 | 4.739 / 6.508 |
-| reader loop | 3.096 / 3.616 | 2.914 / 3.397 |
-
-The loop's wall and CPU medians drop about 6%. Four paired rounds improved; one had a
-scheduler outlier in both variants and regressed. Go's result is close to Dart's loop,
-while the confirmed-woken Swift loop is below Kotlin's and Dart's. The remaining Swift
-global-pool cost is a scheduler cost, not a reason to move Rust polling into a wake
-callback or resume the caller on another executor. No performance threshold is a gate.
+The investigation found no supported runtime change that removes Swift's native pool
+cost while preserving the caller's scheduling. The default Swift loop remains above
+Kotlin's and Dart's. Close the optimization investigation on that explicit limitation,
+rather than promise equal absolute costs across different language schedulers. Future
+measurements retain both the default workload and the isolated executor diagnostic;
+no threshold is an acceptance gate and no runtime speedup is claimed.
 
 The async-start design in [kixel-ai/rust2#741](https://github.com/kixel-ai/rust2/pull/741)
 was still unmerged during these runs. It removes ready-call crossings; a pending call
-still polls again to register its real waker. These changes preserve that design and
-use the stock public binding APIs.
+still polls again to register its real waker. The harness preserves that design and
+uses the stock public binding APIs.
 
 ## rust2-ffi
 
