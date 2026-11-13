@@ -987,6 +987,60 @@ impl<T> Object<T> {
 		Ok(())
 	}
 
+	/// Borrow a `Copy` value shared until `takes` drops, so [`Self::held`] copies it out
+	/// once the call's moves commit, and no check after them can fail.
+	///
+	/// # Safety
+	/// As [`Self::reserve`].
+	pub unsafe fn hold<'a>(handle: *const c_void, takes: &mut Takes<'a>, what: &str) -> Result<(), Status>
+	where
+		T: Sync,
+	{
+		// SAFETY: the caller's contract.
+		let object = unsafe { Self::get(handle, what) };
+		object.acquire()?;
+		takes.held.push((handle, Self::unhold));
+		Ok(())
+	}
+
+	/// [`Self::hold`], for a value that is not `Sync`.
+	///
+	/// # Safety
+	/// As [`Self::reserve`].
+	pub unsafe fn hold_local<'a>(handle: *const c_void, takes: &mut Takes<'a>, what: &str) -> Result<(), Status> {
+		// SAFETY: the caller's contract.
+		let object = unsafe { Self::get(handle, what) };
+		object.acquire_local()?;
+		takes.held.push((handle, Self::unhold_local));
+		Ok(())
+	}
+
+	/// # Safety
+	/// [`Self::hold`] borrowed `handle`'s value, and this ends that borrow.
+	unsafe fn unhold(handle: *const c_void) {
+		// SAFETY: the caller's contract.
+		unsafe { &*handle.cast::<Self>() }.release();
+	}
+
+	/// # Safety
+	/// [`Self::hold_local`] borrowed `handle`'s value, and this ends that borrow.
+	unsafe fn unhold_local(handle: *const c_void) {
+		// SAFETY: the caller's contract.
+		unsafe { &*handle.cast::<Self>() }.release_local();
+	}
+
+	/// A copy of the value [`Self::hold`] or [`Self::hold_local`] borrowed.
+	///
+	/// # Safety
+	/// One of them borrowed `handle`'s value into a `Takes` not yet dropped.
+	pub unsafe fn held(handle: *const c_void) -> T
+	where
+		T: Copy,
+	{
+		// SAFETY: the caller's contract: the borrow excludes every write.
+		unsafe { *(*handle.cast::<Self>()).value() }
+	}
+
 	/// Move out the value [`Self::take`] reserved, leaving the handle to be freed.
 	///
 	/// # Safety
@@ -1069,11 +1123,13 @@ impl<T> Drop for Object<T> {
 }
 
 /// The values a call reserved to move out, given back unless it commits: so a call whose
-/// later check fails moved nothing. A call's first few allocate nothing.
+/// later check fails moved nothing. A call's first few allocate nothing. It also holds the
+/// `Copy` values the call copies out borrowed until it drops, after they are copied.
 #[derive(Default)]
 pub struct Takes<'a> {
 	first: [Option<&'a AtomicUsize>; 2],
 	rest: Vec<&'a AtomicUsize>,
+	held: Vec<(*const c_void, unsafe fn(*const c_void))>,
 }
 
 impl<'a> Takes<'a> {
@@ -1085,7 +1141,7 @@ impl<'a> Takes<'a> {
 	}
 
 	/// Keep every value reserved, for the call to move out.
-	pub fn commit(mut self) {
+	pub fn commit(&mut self) {
 		self.first = [None; 2];
 		self.rest.clear();
 	}
@@ -1095,6 +1151,10 @@ impl Drop for Takes<'_> {
 	fn drop(&mut self) {
 		for state in self.first.iter().flatten().chain(&self.rest) {
 			state.store(0, Ordering::Release);
+		}
+		for (handle, unhold) in self.held.drain(..) {
+			// SAFETY: `hold` or `hold_local` borrowed it, for this to end.
+			unsafe { unhold(handle) };
 		}
 	}
 }

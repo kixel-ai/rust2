@@ -1688,6 +1688,57 @@ static int statuses(void) {
 	api_Meter_free(first);
 	api_Meters_free(meters);
 
+	/* A counter moved in beside a dropped ticket, alone or held in a record or an enum, is
+	 * refused before the move, so the counter is still there; once every ticket is live,
+	 * the call moves it. */
+	api_Counter *admitted = api_Counter_new(str("a"), 5);
+	api_Ticket *ticket = api_Ticket_new(3);
+	api_Ticket *dropped = api_Ticket_new(4);
+	api_Ticket_drop(dropped, NULL);
+	api_Choice picked = {.tag = API_CHOICE_PICKED, .picked = {._0 = ticket}};
+	api_Choice empty = {.tag = API_CHOICE_EMPTY};
+	api_tuple_Counter_Ticket_Seat_Choice entries[] = {
+		{admitted, dropped, {ticket, 1}, empty},
+		{admitted, ticket, {dropped, 1}, empty},
+		{admitted, ticket, {ticket, 1}, {.tag = API_CHOICE_PICKED, .picked = {._0 = dropped}}},
+	};
+	for (size_t i = 0; i < sizeof(entries) / sizeof(entries[0]); i++) {
+		status = 0;
+		api_admit(entries[i], &status);
+		uint64_t still = api_Counter_get(admitted, NULL);
+		if (status != API_STATUS_MOVED || still != 5) {
+			fprintf(stderr, "admitting beside a dropped ticket %zu wrote %d, leaving %llu\n", i, status, (unsigned long long)still);
+			failed = 1;
+		}
+	}
+	status = 0;
+	uint64_t sum = api_admit((api_tuple_Counter_Ticket_Seat_Choice){admitted, ticket, {ticket, 1}, picked}, &status);
+	if (status != 0 || sum != 14) {
+		fprintf(stderr, "admitting wrote %d, summing %llu\n", status, (unsigned long long)sum);
+		failed = 1;
+	}
+	api_Counter_get(admitted, &status);
+	if (status != API_STATUS_MOVED) {
+		fprintf(stderr, "a counter admitted wrote %d\n", status);
+		failed = 1;
+	}
+	/* A record's method lifts the handle its receiver holds, failing as a call does. */
+	status = 0;
+	api_Seat seat = {dropped, 2};
+	api_Seat_number(&seat, &status);
+	if (status != API_STATUS_MOVED) {
+		fprintf(stderr, "a seat's number with a dropped ticket wrote %d\n", status);
+		failed = 1;
+	}
+	status = 0;
+	if (api_choose(empty, &status) != 0 || api_choose(picked, &status) != 3 || status != 0) {
+		fprintf(stderr, "choosing wrote %d\n", status);
+		failed = 1;
+	}
+	api_Counter_free(admitted);
+	api_Ticket_free(ticket);
+	api_Ticket_free(dropped);
+
 	status = 0;
 	api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0), NULL);
 	if (!api_Registry_edit(registry, move_lent_status, &status, NULL)) {

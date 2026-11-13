@@ -926,12 +926,22 @@ impl<'a> Abi<'a> {
 	/// Whether a call of `function`, a method of `owner` if it has one, can fail a check of
 	/// a handle it borrows or moves, so it takes a `status` to write why.
 	pub fn status(&self, function: &Function, owner: Option<&Ty>) -> bool {
-		let receiver = match (function.receiver, owner) {
-			(Some(_), Some(Ty::Handle { name, .. })) => (0..self.api.objects.len()).find(|&i| &self.object(i) == name),
-			_ => None,
-		};
-		let mut handles: Vec<usize> = receiver.into_iter().collect();
+		let mut handles = Vec::new();
 		let mut seen = Vec::new();
+		match (function.receiver, owner) {
+			(Some(_), Some(Ty::Handle { name, .. })) => {
+				handles.extend((0..self.api.objects.len()).find(|&i| &self.object(i) == name))
+			}
+			// A record's or enum's receiver lifts each handle it holds.
+			(Some(_), Some(owner)) => {
+				let records = (0..self.api.records.len()).map(Type::Record);
+				let enums = (0..self.api.enums.len()).map(Type::Enum);
+				if let Some(ty) = records.chain(enums).find(|ty| &self.ty(ty) == owner) {
+					self.api.handles(&ty, &mut handles, &mut seen);
+				}
+			}
+			_ => {}
+		}
 		for param in &function.params {
 			self.api.handles(&param.ty, &mut handles, &mut seen);
 		}
@@ -1061,6 +1071,10 @@ impl<'a> Abi<'a> {
 		}
 		for constant in ["CONTRACT", "POLL_PENDING", "POLL_READY", "POLL_ERROR", "ATOMICS_H"] {
 			let name = format!("{}_{constant}", self.prefix.to_uppercase());
+			self.claim(name, "the runtime".to_string(), crate_span, None);
+		}
+		for (status, _) in STATUSES {
+			let name = format!("{}_STATUS_{}", self.prefix.to_uppercase(), status.to_uppercase());
 			self.claim(name, "the runtime".to_string(), crate_span, None);
 		}
 		let mut types: Vec<&Type> = Vec::new();

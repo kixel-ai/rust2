@@ -423,26 +423,62 @@ impl Gen<'_> {
 		self.abi.value_status(ty)
 	}
 
-	/// Whether `ty` moves an object's value out of its handle, as passed by value.
+	/// Whether `ty` moves an object's value out of its handle, as passed by value, held
+	/// alone or in any value.
 	fn moves(&self, ty: &Type) -> bool {
+		self.holds(ty, &|i| !self.abi.api.objects[i].copy, &mut Vec::new())
+	}
+
+	/// Whether lifting `ty` within a moved argument reserves anything into `takes`: a value
+	/// it moves out, or a checked `Copy` one it copies.
+	fn reserves(&self, ty: &Type) -> bool {
+		let pick = |i: usize| !self.abi.api.objects[i].copy || self.abi.checked[i];
+		self.holds(ty, &pick, &mut Vec::new())
+	}
+
+	/// Whether a value of `ty`, passed by value, holds an object whose index `pick` picks.
+	fn holds(&self, ty: &Type, pick: &dyn Fn(usize) -> bool, seen: &mut Vec<(bool, usize)>) -> bool {
+		let api = self.abi.api;
 		match ty {
-			Type::Object(i) => !self.abi.api.objects[*i].copy,
-			Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => self.moves(inner),
-			Type::Tuple(elements) => elements.iter().any(|ty| self.moves(ty)),
+			Type::Object(i) => pick(*i),
+			Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => self.holds(inner, pick, seen),
+			Type::Tuple(elements) => elements.iter().any(|ty| self.holds(ty, pick, seen)),
+			Type::Record(i) if !seen.contains(&(false, *i)) => {
+				seen.push((false, *i));
+				(api.records[*i].fields.iter()).any(|f| self.holds(&f.ty, pick, seen))
+			}
+			Type::Enum(i) if !seen.contains(&(true, *i)) => {
+				seen.push((true, *i));
+				(api.enums[*i].variants.iter().flat_map(|v| &v.fields)).any(|f| self.holds(&f.ty, pick, seen))
+			}
 			_ => false,
 		}
 	}
 
-	/// The statement reserving each value an argument `e` of type `ty` moves out, into
-	/// `takes`, so the move happens only once every check passed.
+	/// The statement reserving into `takes` each value an argument `e` of type `ty` moves
+	/// out, and borrowing each checked `Copy` one it copies, so the move happens only once
+	/// every check passed, and no check after it can fail.
 	fn reserve(&self, ty: &Type, e: &str) -> String {
 		match ty {
-			Type::Object(i) => {
+			Type::Object(i) if !self.abi.api.objects[*i].copy => {
 				self.checked(&format!(
-					"unsafe {{ rt::Object::<{}>::reserve({e}, &mut takes, w) }}",
+					"unsafe {{ rt::Object::<{}>::reserve({e}, takes, w) }}",
 					self.object_path(*i)
 				)) + ";"
 			}
+			Type::Object(i) if self.abi.checked[*i] => {
+				let hold = match self.abi.api.objects[*i].sync {
+					true => "hold",
+					false => "hold_local",
+				};
+				self.checked(&format!(
+					"unsafe {{ rt::Object::<{}>::{hold}({e}, takes, w) }}",
+					self.object_path(*i)
+				)) + ";"
+			}
+			Type::Object(_) => String::new(),
+			Type::Record(i) => self.checked(&format!("reserve_{}(&{e}, takes, w)", self.abi.record(*i))) + ";",
+			Type::Enum(i) => self.checked(&format!("reserve_{}(&{e}, takes, w)", self.abi.enumeration(*i))) + ";",
 			Type::Box(inner) => self.reserve(inner, e),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(_) => format!("if !{e}.is_null() {{ {} }}", self.reserve(inner, e)),
@@ -454,7 +490,7 @@ impl Gen<'_> {
 				self.reserve(inner, "(*c)")
 			),
 			Type::Tuple(elements) => (elements.iter().enumerate())
-				.filter(|(_, ty)| self.moves(ty))
+				.filter(|(_, ty)| self.reserves(ty))
 				.map(|(n, ty)| self.reserve(ty, &format!("{e}._{n}")))
 				.collect::<Vec<_>>()
 				.join(" "),
@@ -552,7 +588,7 @@ impl Gen<'_> {
 				};
 				let lifted = self.lift(inner, "(*c)");
 				// A failed check inside returns from the closure each item lifts in.
-				let fails = self.checks(inner) || (self.moves(inner) && !self.reserved.get());
+				let fails = !self.reserved.get() && (self.checks(inner) || self.moves(inner));
 				match self.checking.get() && fails {
 					true => format!(
 						"unsafe {{ {e}.items(w) }}.iter().map(|c| -> ::std::result::Result<_, rt::Status> {{ Ok({lifted}) }}).collect::<::std::result::Result<{}<{args}>, rt::Status>>()?",
@@ -581,6 +617,13 @@ impl Gen<'_> {
 			},
 			Type::Box(inner) => format!("::std::boxed::Box::new({})", self.lift(inner, e)),
 			Type::Ref(_, inner) => self.lift(inner, e),
+			// Reserved, its checked copies passed their checks.
+			Type::Record(i) if self.reserved.get() && self.reserves(ty) => {
+				format!("lift_{}_taken(&{e}, w)", self.abi.record(*i))
+			}
+			Type::Enum(i) if self.reserved.get() && self.reserves(ty) => {
+				format!("lift_{}_taken(&{e}, w)", self.abi.enumeration(*i))
+			}
 			Type::Record(i) => match self.checks(ty) {
 				true => self.checked(&format!("lift_{}(&{e}, w)", self.abi.record(*i))),
 				false => format!("lift_{}(&{e}, w)", self.abi.record(*i)),
@@ -599,6 +642,8 @@ impl Gen<'_> {
 				let value = match (object.copy, self.reserved.get()) {
 					// One no export can misuse is copied out uncounted, as it is borrowed.
 					(true, _) if !self.abi.checked[*i] => format!("*unsafe {{ rt::Object::<{path}>::peek({e}, w) }}"),
+					// Reserved, it is borrowed until the call's moves are made.
+					(true, true) => format!("unsafe {{ rt::Object::<{path}>::held({e}) }}"),
 					(true, _) => format!(
 						"*{}",
 						self.checked(&format!(
@@ -1206,6 +1251,29 @@ impl Gen<'_> {
 				.collect();
 			self.item(format!("fn free_{name}(c: {name}) {{\n\t{}\n}}\n", frees.join("\n\t")));
 		}
+		if self.reserves(&ty) {
+			self.checking.set(true);
+			let reserves: Vec<String> = (record.fields.iter().enumerate())
+				.filter(|(_, f)| self.reserves(&f.ty))
+				.map(|(n, f)| self.reserve(&f.ty, &format!("c.f{n}")))
+				.collect();
+			self.checking.set(false);
+			self.reserved.set(true);
+			let lifted: Vec<String> = (record.fields.iter().enumerate())
+				.map(|(n, f)| self.lift(&f.ty, &format!("c.f{n}")))
+				.collect();
+			self.reserved.set(false);
+			let build = match record.tuple {
+				true => format!("{path}({})", lifted.join(", ")),
+				false => {
+					let fields: Vec<String> = (record.fields.iter().zip(&lifted))
+						.map(|(f, l)| format!("{}: {l}", f.name))
+						.collect();
+					format!("{path} {{ {} }}", fields.join(", "))
+				}
+			};
+			self.reserved_helpers(&name, &path, &reserves.join("\n\t"), &build);
+		}
 		self.value_traits(&name, &path, &ty, record.traits);
 		let owner = Ty::Struct(name.clone());
 		for method in &record.methods {
@@ -1304,7 +1372,11 @@ impl Gen<'_> {
 					);
 				}
 				if variant.fields.is_empty() {
-					let _ = write!(lift, "{arm}\n\t\t{n} => {pattern},");
+					let lifted = match checks {
+						true => format!("Ok({pattern})"),
+						false => pattern.clone(),
+					};
+					let _ = write!(lift, "{arm}\n\t\t{n} => {lifted},");
 					let _ = write!(
 						lower,
 						"{arm}\n\t\t{pattern} => {name} {{ tag: {n}, u: unsafe {{ ::std::mem::zeroed() }} }},"
@@ -1381,11 +1453,77 @@ impl Gen<'_> {
 				));
 			}
 		}
+		if !e.plain() && self.reserves(&ty) {
+			let mut reserve = String::new();
+			let mut lift = String::new();
+			for (n, variant) in e.variants.iter().enumerate() {
+				let arm = self.arm(variant.on);
+				let fields = |lifted: &[String]| match (variant.fields.is_empty(), variant.tuple) {
+					(true, _) => format!("{path}::{}", variant.name),
+					(false, true) => format!("{path}::{}({})", variant.name, lifted.join(", ")),
+					(false, false) => {
+						let fields: Vec<String> = (variant.fields.iter().zip(lifted))
+							.map(|(f, l)| format!("{}: {l}", f.name))
+							.collect();
+						format!("{path}::{} {{ {} }}", variant.name, fields.join(", "))
+					}
+				};
+				if let Some(cfg) = self.cfg(variant.on) {
+					let missing = format!(
+						"\n\t\t#[cfg(not({cfg}))]\n\t\t{n} => rt::fail(w, \"the variant is not on this library's target\"),"
+					);
+					reserve.push_str(&missing);
+					lift.push_str(&missing);
+				}
+				if variant.fields.is_empty() {
+					let _ = write!(lift, "{arm}\n\t\t{n} => {},", fields(&[]));
+					continue;
+				}
+				self.checking.set(true);
+				let reserves: Vec<String> = (variant.fields.iter().enumerate())
+					.filter(|(_, f)| self.reserves(&f.ty))
+					.map(|(k, f)| self.reserve(&f.ty, &format!("p.f{k}")))
+					.collect();
+				self.checking.set(false);
+				if !reserves.is_empty() {
+					let _ = write!(
+						reserve,
+						"{arm}\n\t\t{n} => {{\n\t\t\tlet p = unsafe {{ c.u.v{n} }};\n\t\t\t{}\n\t\t}}",
+						reserves.join("\n\t\t\t")
+					);
+				}
+				self.reserved.set(true);
+				let lifted: Vec<String> = (variant.fields.iter().enumerate())
+					.map(|(k, f)| self.lift(&f.ty, &format!("p.f{k}")))
+					.collect();
+				self.reserved.set(false);
+				let _ = write!(
+					lift,
+					"{arm}\n\t\t{n} => {{\n\t\t\tlet p = unsafe {{ c.u.v{n} }};\n\t\t\t{}\n\t\t}}",
+					fields(&lifted)
+				);
+			}
+			let reserve = format!("match c.tag {{{reserve}\n\t\t_ => {{}}\n\t}}");
+			let build = format!("match c.tag {{{lift}\n\t\t_ => rt::fail(w, \"an enum tag is invalid\"),\n\t}}");
+			self.reserved_helpers(&name, &path, &reserve, &build);
+		}
 		self.value_traits(&name, &path, &ty, e.traits);
 		let owner = self.abi.ty(&ty);
 		for method in &e.methods {
 			self.function(method, Some((&owner, ty.clone())));
 		}
+	}
+
+	/// A record's or data enum's helpers for a moved argument holding one: `reserve_<name>`,
+	/// running `reserve`, which reserves into `takes` what it moves out and borrows what it
+	/// copies, and `lift_<name>_taken`, which makes `build` of what was reserved, unchecked.
+	fn reserved_helpers(&mut self, name: &str, path: &str, reserve: &str, build: &str) {
+		self.item(format!(
+			"fn reserve_{name}(c: &{name}, takes: &mut rt::Takes<'_>, w: &str) -> ::std::result::Result<(), rt::Status> {{\n\tlet _ = (c, &takes, w);\n\t{reserve}\n\tOk(())\n}}\n"
+		));
+		self.item(format!(
+			"fn lift_{name}_taken(c: &{name}, w: &str) -> {path} {{\n\tlet _ = w;\n\t{build}\n}}\n"
+		));
 	}
 
 	/// A callback: its table of foreign functions, and the Rust type that implements the
@@ -1780,12 +1918,20 @@ impl Gen<'_> {
 		let mut stmts = {
 			let mut all = stmts;
 			all.extend(checks);
-			if !reserves.is_empty() {
-				all.insert(0, "let mut takes = rt::Takes::default();".to_string());
+			let reserved = !reserves.is_empty();
+			if reserved {
+				all.insert(
+					0,
+					"let mut reserved = rt::Takes::default();\n\tlet takes = &mut reserved;".to_string(),
+				);
 				all.extend(reserves);
 				all.push("takes.commit();".to_string());
 			}
 			all.extend(moves);
+			// The copies are made, so their borrows end before the call runs.
+			if reserved {
+				all.push("drop(reserved);".to_string());
+			}
 			all
 		};
 		// A future made of a `Poll` calls the function at each poll, passing the poll's

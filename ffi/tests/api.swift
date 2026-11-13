@@ -633,6 +633,19 @@ func script() {
 		} catch {
 			check(false, "api_reasons threw \(error)")
 		}
+		// A call that throws before Rust runs changes none of its arguments: it closes no
+		// class it would move, and writes back no value Rust would.
+		let live = refusal("live")
+		var mixed = UniqueArray<TupleCounterRefusal>()
+		mixed.append(TupleCounterRefusal(Counter.new("e", 5), live))
+		mixed.append(TupleCounterRefusal(Counter.new("f", 6), kept))
+		check((try? reasons(mixed, nil)) == nil, "api_reasons of a closed Refusal beside a live one throws")
+		check(try! live.description == "refused: live", "a refused call leaves the class it would move open")
+		var at = Point(x: 1, y: 2)
+		check((try? nudgeBy(&at, kept)) == nil, "api_nudge_by of a closed Refusal throws")
+		check(at == Point(x: 1, y: 2), "a refused call writes nothing back")
+		try! nudgeBy(&at, live)
+		check(at == Point(x: 5, y: 6), "a call writes back what Rust left")
 		// Each optional borrowed parameter is an overload with and without its label.
 		let one = Counter.new("one", 1)
 		check(

@@ -1637,8 +1637,20 @@ impl<'a> Gen<'a> {
 			args.push(arg);
 		}
 		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
+		// What runs once the call returns, gated on its checks passing when it can fail one:
+		// a failed check, or an argument whose lowering throws, leaves every argument as it
+		// was, as Rust ran nothing.
+		let ran =
+			status && (function.params.iter().any(|p| p.ty.written()) || args.iter().any(|a| !a.after.is_empty()));
+		if ran {
+			prelude.push("var c_ran_ = false".to_string());
+		}
+		let gate = |stmts: &str| match ran {
+			true => format!("defer {{ if c_ran_ {{ {stmts} }} }}"),
+			false => format!("defer {{ {stmts} }}"),
+		};
 		// Each value passed for `&mut` takes what Rust wrote back, once the call's own
-		// access to it ends, on every path, a throw included.
+		// access to it ends, on every path the call ran, a throw included.
 		let mut written = Vec::new();
 		for (param, name) in function.params.iter().zip(&names).filter(|(p, _)| p.ty.written()) {
 			let out = Abi::written(function, &abi::escape(&param.name));
@@ -1648,7 +1660,7 @@ impl<'a> Gen<'a> {
 				.expect("a written parameter has its out");
 			prelude.push(self.out_decl(&out, ty));
 			let lifted = self.lift(param.ty.base(), &format!("c_{out}_"));
-			prelude.push(format!("defer {{ {name} = {lifted} }}"));
+			prelude.push(gate(&format!("{name} = {lifted}")));
 			written.push(out);
 		}
 		if arena {
@@ -1659,7 +1671,7 @@ impl<'a> Gen<'a> {
 		}
 		let after: Vec<String> = args.iter().flat_map(|a| a.after.clone()).collect();
 		if !after.is_empty() {
-			prelude.push(format!("defer {{ {} }}", after.join("; ")));
+			prelude.push(gate(&after.join("; ")));
 		}
 		let exprs: Vec<String> = args.iter().flat_map(|a| a.exprs.clone()).collect();
 
@@ -1678,7 +1690,10 @@ impl<'a> Gen<'a> {
 				inner.push("var c_status_: Swift.Int32 = 0".to_string());
 				(
 					vec!["&c_status_".to_string()],
-					Some(format!("try Native.status(c_status_, \"{c_name}\")")),
+					Some(match ran {
+						true => format!("try Native.status(c_status_, \"{c_name}\")\nc_ran_ = true"),
+						false => format!("try Native.status(c_status_, \"{c_name}\")"),
+					}),
 				)
 			}
 			false => (Vec::new(), None),

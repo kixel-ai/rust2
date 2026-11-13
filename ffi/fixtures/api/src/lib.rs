@@ -738,6 +738,46 @@ pub fn seat(ticket: Ticket, row: u32) -> Seat {
 	Seat { ticket, row }
 }
 
+impl Seat {
+	/// Its ticket's number: a record's method whose receiver holds a checked object.
+	pub fn number(&self) -> u32 {
+		self.ticket.number
+	}
+}
+
+/// The counter's value plus the number of each ticket beside it: a counter moved in
+/// beside copied checked objects, alone and held in a record and an enum.
+pub fn admit(entry: (Counter, Ticket, Seat, Choice)) -> u64 {
+	let (counter, ticket, seat, choice) = entry;
+	counter.value + u64::from(ticket.number + seat.ticket.number + choose(choice))
+}
+
+/// A ticket picked, or none: a data enum with an empty variant beside a checked object.
+pub enum Choice {
+	Empty,
+	Picked(Ticket),
+}
+
+/// The number of the ticket picked, or 0.
+pub fn choose(choice: Choice) -> u32 {
+	match choice {
+		Choice::Empty => 0,
+		Choice::Picked(ticket) => ticket.number,
+	}
+}
+
+/// An enum named as the runtime's status, whose constants C would name as its statuses.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Status {
+	Moved,
+	Kept,
+}
+
+/// Whether `status` is `Kept`.
+pub fn is_kept(status: Status) -> bool {
+	status == Status::Kept
+}
+
 /// What `check` returns, a closure with no value but its error.
 pub fn attempt(check: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
 	check()
@@ -2165,6 +2205,12 @@ pub fn push_counted(entry: &mut (Vec<u8>, u32), byte: u8) -> u32 {
 pub fn nudge(point: &mut Point, by: i32) {
 	point.x += by;
 	point.y += by;
+}
+
+/// Nudge `point` by the length of `refusal`'s reason: a value Rust writes back beside an
+/// object a check of can fail.
+pub fn nudge_by(point: &mut Point, refusal: &Refusal) {
+	nudge(point, i32::try_from(refusal.reason.len()).unwrap_or(i32::MAX));
 }
 
 /// A config of a crate no export is, behind an `Arc`, as moq-tokio's listener returns
