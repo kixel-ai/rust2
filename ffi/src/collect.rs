@@ -2235,7 +2235,7 @@ impl<'tcx> Collector<'tcx> {
 			// A field that is an object but not `Clone` is lent from the receiver's handle,
 			// as a method's borrowed return of one is.
 			let lends = !self.is_clone(ty)
-				&& matches!(ty.kind(), ty::Adt(adt, args) if matches!(self.decl(adt.did(), args), Some(Decl::Object(_))));
+				&& matches!(ty.kind(), ty::Adt(adt, args) if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))));
 			let mapped = {
 				self.lending.set(lends);
 				let get = self.ty(read, Pos::Return);
