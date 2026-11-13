@@ -64,6 +64,10 @@ const TAKEN: &[&str] = &[
 	"_same",
 	"_all",
 	"_dict",
+	"_float",
+	"_int",
+	"_memoryview",
+	"_TypeError",
 	"_list",
 	"_tuple",
 	"_type",
@@ -177,13 +181,17 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		import weakref as _weakref\n\
 		from builtins import AttributeError as _AttributeError\n\
 		from builtins import Exception as _Exception\n\
+		from builtins import TypeError as _TypeError\n\
 		from builtins import ValueError as _ValueError\n\
 		from builtins import all as _all\n\
 		from builtins import bytes as _bytes\n\
 		from builtins import dict as _dict\n\
+		from builtins import float as _float\n\
+		from builtins import int as _int\n\
 		from builtins import isinstance as _isinstance\n\
 		from builtins import len as _len\n\
 		from builtins import list as _list\n\
+		from builtins import memoryview as _memoryview\n\
 		from builtins import property as _property\n\
 		from builtins import staticmethod as _staticmethod\n\
 		from builtins import str as _str\n\
@@ -206,7 +214,14 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\t\tm = _typing.cast(\"_typing.Mapping[object, object]\", a)\n\
 		\t\tn = _typing.cast(\"_typing.Mapping[object, object]\", b)\n\
 		\t\treturn m.keys() == n.keys() and _all(_same(v, n[k]) for k, v in m.items())\n\
-		\treturn a == b\n\n\n\
+		\tif a is None or b is None or _isinstance(a, (_int, _float, _str)):\n\
+		\t\treturn a == b\n\
+		\ttry:\n\
+		\t\t# Any buffer, through a memoryview, which compares numbers as Rust does, where\n\
+		\t\t# numpy's own `==` compares item by item into another array.\n\
+		\t\treturn _memoryview(_typing.cast(\"bytes\", a)) == _memoryview(_typing.cast(\"bytes\", b))\n\
+		\texcept _TypeError:\n\
+		\t\treturn a == b\n\n\n\
 		def _load() -> object:\n\
 		\timport importlib.machinery\n\
 		\timport importlib.util\n\
@@ -1003,7 +1018,7 @@ impl<'a> Gen<'a> {
 		let owner = Ty::Struct(c.clone());
 		let data: Vec<String> = record.fields.iter().map(|f| field_name(&f.name)).collect();
 		self.methods(&record.methods, (&ty, &owner, &rust), &data, &[], &mut body);
-		if record.fields.iter().any(|f| abi.api.holds_float(&f.ty)) {
+		if record.fields.iter().any(|f| own_eq(abi, &f.ty)) {
 			body.python.push(ieee_eq(&name, &data));
 		}
 		let fields: String = record
@@ -1139,7 +1154,7 @@ impl<'a> Gen<'a> {
 				.collect();
 			let fields = match fields.is_empty() {
 				true => "\tpass\n".to_string(),
-				false if variant.fields.iter().any(|f| abi.api.holds_float(&f.ty)) => {
+				false if variant.fields.iter().any(|f| own_eq(abi, &f.ty)) => {
 					let names: Vec<String> = variant.fields.iter().map(|f| field_name(&f.name)).collect();
 					format!("{fields}\n{}", ieee_eq(&class, &names))
 				}
@@ -1972,9 +1987,15 @@ fn number(ty: &Type) -> &'static str {
 	}
 }
 
+/// Whether a record or variant holding `ty` needs [`ieee_eq`]: `ty` holds a float, or a
+/// block, which may be a buffer passed in whose own `==` compares item by item.
+fn own_eq(abi: &Abi, ty: &Type) -> bool {
+	abi.api.holds_float(ty) || ty.holds_block()
+}
+
 /// The `__eq__` of the dataclass `class` of `fields`, comparing as Rust's `==` does. A
 /// dataclass's own compares tuples of its fields, which take a value as equal to itself, so
-/// a NaN it holds would equal itself.
+/// a NaN it holds would equal itself, and a numpy array it holds would raise.
 fn ieee_eq(class: &str, fields: &[String]) -> String {
 	let same: Vec<String> = fields
 		.iter()

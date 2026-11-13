@@ -602,6 +602,9 @@ def script():
 	nan = api.Reading.new(math.nan, False)
 	equal = [edges == edges, edges == api.Numbers.edges(), api.Numbers.zero(True) == api.Numbers.zero(False), nan == nan, api.Reading.new(-0.0, True) == api.Reading.new(0.0, False)]
 	print("float equal " + " ".join(str(e).lower() for e in equal))
+	# A record compares a buffer passed in by its numbers, as Rust does, not by its own `==`.
+	held = [api.Shadowed(Elementwise(array.array("i", items)), 1, 2) for items in [[1, 2], [1, 2], [1, 3]]]
+	check(held[0] == held[1] and not held[0] == held[2], "a record compares a buffer by its numbers")
 	print(f"sum u32 {api.sum_u32(array.array('I'))} {api.sum_u32(array.array('I', [2**32 - 1, 2**32 - 1, 2]))}")
 	print(f"doubled i64 {api.doubled_i64(array.array('q', [-(2**63), -1, 0, 2**63 - 1])).tolist()}")
 	floats = api.boxed_floats(array.array("d", struct.pack("=dQ", -0.0, 0x7FF8000000000001)))
@@ -706,6 +709,24 @@ def script():
 		next = api.next_hop(hop)
 		print("hop None" if next is None else f"hop Some({next})")
 	print(f"farther hop {api.farther_hop(api.PairNonZeroU16(3, 0xFFFF))}")
+
+
+class Elementwise:
+	"""A buffer whose `==` compares item by item into an object of no truth, as numpy's does."""
+
+	def __init__(self, items):
+		self.items = items
+
+	def __buffer__(self, flags):
+		return memoryview(self.items)
+
+	def __eq__(self, other):
+		return NoTruth()
+
+
+class NoTruth:
+	def __bool__(self):
+		raise ValueError("the truth value of an array is ambiguous")
 
 
 class Broken:

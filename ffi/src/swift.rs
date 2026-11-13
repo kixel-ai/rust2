@@ -167,6 +167,7 @@ const TAKEN: &[&str] = &[
 	"Unmanaged",
 	"UnsafeBufferPointer",
 	"UnsafeContinuation",
+	"UnsafeMutableBufferPointer",
 	"UnsafeMutablePointer",
 	"UnsafeMutableRawPointer",
 	"UnsafePointer",

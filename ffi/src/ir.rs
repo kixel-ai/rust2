@@ -625,6 +625,16 @@ impl Type {
 		}
 	}
 
+	/// Whether this type holds a block anywhere but in a record or enum, which compare their own.
+	pub fn holds_block(&self) -> bool {
+		match self {
+			_ if self.block().is_some() => true,
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => inner.holds_block(),
+			Type::Tuple(elements) => elements.iter().any(Type::holds_block),
+			_ => false,
+		}
+	}
+
 	/// Which lists this type holds are blocks, outermost first: `b` for a block, `l` for
 	/// another list, and `t` and `e` around a tuple's elements; empty when none is a block.
 	/// One C struct serves types that differ only there, such as `Vec<Vec<u32>>` and

@@ -2741,6 +2741,18 @@ pub struct StartSeekable {
 	pub at: u64,
 }
 
+/// Whether two floats are equal as `1`, named as the helper Kotlin's records compare through.
+pub fn same(a: f64, b: f64) -> i32 {
+	i32::from(a == b)
+}
+
+/// A count of doubles, named as Kotlin's primitive array of them: Kotlin's name takes a
+/// trailing `_`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DoubleArray {
+	pub len: u32,
+}
+
 pub mod clash {
 	/// A pitch in hertz, whose name Pascal case cannot tell from `TONE`'s.
 	#[derive(Clone, Copy, Debug, PartialEq)]

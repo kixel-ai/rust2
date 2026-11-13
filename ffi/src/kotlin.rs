@@ -329,17 +329,25 @@ const TAKEN: &[&str] = &[
 	"Byte",
 	"ByteArray",
 	"Double",
+	"DoubleArray",
 	"Exception",
 	"Float",
+	"FloatArray",
 	"Int",
+	"IntArray",
 	"Long",
+	"LongArray",
 	"Short",
+	"ShortArray",
 	"StartSeekable",
 	"String",
 	"UByte",
 	"UInt",
+	"UIntArray",
 	"ULong",
+	"ULongArray",
 	"UShort",
+	"UShortArray",
 	"Unit",
 	"check",
 	"error",
@@ -450,7 +458,7 @@ impl<'a> Gen<'a> {
 	/// a primitive array, which a data class compares by identity, or a float, which it
 	/// compares by `Double.equals` after `===`, so NaN equals itself and -0.0 differs from 0.0.
 	fn by_contents(&self, ty: &Type) -> bool {
-		holds_block(ty) || self.abi.api.holds_float(ty)
+		ty.holds_block() || self.abi.api.holds_float(ty)
 	}
 
 	fn tuple(&mut self, n: usize) -> String {
@@ -2333,10 +2341,10 @@ fn block(elem: &Type) -> Block {
 fn contents(name: &str, fields: &[String]) -> String {
 	let same: Vec<String> = fields
 		.iter()
-		.map(|f| format!("Native.same(this.{f}, other.{f})"))
+		.map(|f| format!("Native.Eq.same(this.{f}, other.{f})"))
 		.collect();
 	format!(
-		"\toverride fun equals(other: Any?): Boolean = other is {name} && {}\n\n\toverride fun hashCode(): Int = Native.hash(kotlin.collections.listOf<Any?>({}))\n",
+		"\toverride fun equals(other: Any?): Boolean = other is {name} && {}\n\n\toverride fun hashCode(): Int = Native.Eq.hash(kotlin.collections.listOf<Any?>({}))\n",
 		same.join(" && "),
 		fields
 			.iter()
@@ -2344,16 +2352,6 @@ fn contents(name: &str, fields: &[String]) -> String {
 			.collect::<Vec<_>>()
 			.join(", ")
 	)
-}
-
-/// Whether `ty` holds a block anywhere.
-fn holds_block(ty: &Type) -> bool {
-	match ty {
-		_ if ty.block().is_some() => true,
-		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => holds_block(inner),
-		Type::Tuple(elements) => elements.iter().any(holds_block),
-		_ => false,
-	}
 }
 
 /// Whether `ty` holds bytes anywhere a parameter's form of it differs from a returned one's.
