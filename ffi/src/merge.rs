@@ -345,6 +345,16 @@ impl Merged {
 				.unwrap_or(self.api.crates.len());
 			self.api.crates.insert(at, krate.clone());
 		}
+		for reached in api.reached {
+			match self.api.reached.iter_mut().find(|r| r.krate == reached.krate) {
+				Some(ours) => {
+					ours.targets.extend(reached.targets);
+					ours.targets.sort();
+					ours.targets.dedup();
+				}
+				None => self.api.reached.push(reached),
+			}
+		}
 		for (record, at) in api.records.into_iter().zip(maps.records) {
 			let Some(ours) = self.api.records.get(at) else {
 				self.api.records.push(record);
@@ -741,6 +751,7 @@ mod tests {
 			functions: Vec::new(),
 			constants: Vec::new(),
 			crates: ["a", "c"].map(String::from).to_vec(),
+			reached: Vec::new(),
 			targets: ["x", "y"].map(String::from).to_vec(),
 		};
 		let Err(cycle) = order_crates(&api) else {

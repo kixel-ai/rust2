@@ -95,6 +95,8 @@ pub struct Facade<'a> {
 	pub package: &'a str,
 	/// Paths from its root the config leaves out.
 	pub exclude: &'a [String],
+	/// The dependency the glue names each crate it builds with by, by its crate name.
+	pub crates: &'a std::collections::BTreeMap<String, String>,
 }
 
 /// What collection found in the facade, by paths from its root.
@@ -208,6 +210,13 @@ struct Collector<'tcx> {
 	range_bounds: Option<DefId>,
 	/// Objects no export returns, left out.
 	orphans: rustc_data_structures::fx::FxHashSet<Key<'tcx>>,
+	/// Types a signature names that the root does not reach, each exported by its public
+	/// path in its own crate.
+	reach: Vec<DefId>,
+	/// The glue's dependency on each crate, as [`Facade::crates`].
+	dependencies: std::collections::BTreeMap<String, String>,
+	/// Such types this pass met that `reach` lacks.
+	unreached: std::cell::RefCell<Vec<DefId>>,
 	api: Api,
 }
 
@@ -284,7 +293,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 		};
 		keys.insert(krate, key);
 	}
-	let pass = |orphans: &rustc_data_structures::fx::FxHashSet<Key<'tcx>>| {
+	let pass = |orphans: &rustc_data_structures::fx::FxHashSet<Key<'tcx>>, reach: &[DefId]| {
 		let mut c = Collector {
 			tcx,
 			items: Vec::new(),
@@ -318,6 +327,9 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			bound,
 			range_bounds,
 			orphans: orphans.clone(),
+			reach: reach.to_vec(),
+			dependencies: facade.crates.clone(),
+			unreached: Default::default(),
 			api: Api {
 				records: Vec::new(),
 				enums: Vec::new(),
@@ -326,6 +338,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 				functions: Vec::new(),
 				constants: Vec::new(),
 				crates: Vec::new(),
+				reached: Vec::new(),
 				targets: vec![tcx.sess.opts.target_triple.tuple().to_string()],
 			},
 		};
@@ -354,18 +367,28 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 		c
 	};
 	// Leaving out an object no export returns leaves out what takes it, which may leave another
-	// object no export returns, so collection repeats until it refuses no more.
+	// object no export returns, so collection repeats until it refuses no more. A type the
+	// root does not reach is walked from its defining path in the next pass, whose
+	// signatures may name more.
 	let mut orphans = rustc_data_structures::fx::FxHashSet::default();
+	let mut reach = Vec::new();
 	loop {
-		let c = pass(&orphans);
+		let c = pass(&orphans, &reach);
 		let more = c.orphans();
-		if more.is_empty() {
+		let unreached = c.unreached.take();
+		if more.is_empty() && unreached.is_empty() {
 			return Collected {
 				api: c.api,
 				report: c.report,
 			};
 		}
-		orphans.extend(more);
+		// A newly reached type may return an object marked an orphan, so those start over.
+		if unreached.is_empty() {
+			orphans.extend(more);
+		} else {
+			reach.extend(unreached);
+			orphans.clear();
+		}
 	}
 }
 
@@ -1150,6 +1173,100 @@ impl<'tcx> Collector<'tcx> {
 				}
 			}
 		}
+		self.walk_reach(&seen);
+	}
+
+	/// Walk each type in `reach` the root did not, by its public path in its own crate, as if
+	/// a module of the facade re-exported that crate's root.
+	fn walk_reach(&mut self, seen: &rustc_data_structures::fx::FxHashSet<DefId>) {
+		let tcx = self.tcx;
+		for def_id in self.reach.clone() {
+			if seen.contains(&def_id) {
+				continue;
+			}
+			let mut path = vec![self.report.root.clone()];
+			if !def_id.is_local() {
+				path.push(tcx.crate_name(def_id.krate).to_string());
+			}
+			let own = self.crate_path(def_id).expect("a reached type has a path in its crate");
+			let outside = path.len();
+			if !def_id.is_local() && !self.api.reached.iter().any(|r| r.krate == path[1]) {
+				self.api.reached.push(crate::ir::Reached {
+					krate: path[1].clone(),
+					targets: self.api.targets.clone(),
+				});
+			}
+			path.extend(own);
+			if self.exclude(&path) {
+				self.left_out.insert(def_id, "excluded type");
+				continue;
+			}
+			if tcx.is_doc_hidden(def_id) {
+				let (report, rest) = self.report(&path);
+				report.hidden.push(rest);
+				self.left_out.insert(def_id, "doc(hidden) type");
+				continue;
+			}
+			if !self.crates.contains(&def_id.krate) {
+				self.crates.push(def_id.krate);
+			}
+			self.outside.insert(def_id, outside);
+			self.items.push((def_id, path));
+		}
+	}
+
+	/// Whether `def_id` exports by its public path in its own crate. Another crate's must be
+	/// the only crate of its name, named by none of the facade's root items, and one the glue
+	/// can depend on, so its path names it there.
+	fn reachable(&self, def_id: DefId) -> bool {
+		let tcx = self.tcx;
+		if self.crate_path(def_id).is_none() {
+			return false;
+		}
+		if def_id.is_local() {
+			return true;
+		}
+		let name = tcx.crate_name(def_id.krate);
+		let root = tcx.module_children_local(LOCAL_CRATE.as_def_id().expect_local());
+		self.keys[&def_id.krate] == name.as_str()
+			&& !root.iter().any(|child| child.ident.name == name)
+			&& self.dependencies.contains_key(name.as_str())
+	}
+
+	/// The shortest public path to `def_id` from its own crate's root, through that crate's
+	/// modules and re-exports, as `kio::Pending` names one defined in a private module.
+	fn crate_path(&self, def_id: DefId) -> Option<Vec<String>> {
+		let tcx = self.tcx;
+		let root = def_id.krate.as_def_id();
+		let mut seen = rustc_data_structures::fx::FxHashSet::default();
+		let mut queue = VecDeque::from([(root, Vec::new())]);
+		while let Some((module, path)) = queue.pop_front() {
+			let children = match module.as_local() {
+				Some(local) => tcx.module_children_local(local),
+				None => tcx.module_children(module),
+			};
+			for child in children {
+				let Res::Def(kind, id) = child.res else {
+					continue;
+				};
+				if !child.vis.is_public()
+					|| child.ident.name == rustc_span::kw::Underscore
+					|| id.krate != def_id.krate
+					|| (kind == DefKind::Mod && tcx.is_doc_hidden(id))
+				{
+					continue;
+				}
+				let mut path = path.clone();
+				path.push(child.ident.to_string());
+				if id == def_id {
+					return Some(path);
+				}
+				if kind == DefKind::Mod && seen.insert(id) {
+					queue.push_back((id, path));
+				}
+			}
+		}
+		None
 	}
 
 	/// Decide how each type and trait is exported, before any signature names one.
@@ -4471,6 +4588,13 @@ impl<'tcx> Collector<'tcx> {
 									format!("`{}` exports only at the instances it infers", strip_args(tcx, did));
 								why.note = Some((tcx.def_span(did), note));
 								return Err(why);
+							}
+							// One public in its own crate exports by that path, in the next pass.
+							if !self.reach.contains(&did) && self.reachable(did) {
+								let mut unreached = self.unreached.borrow_mut();
+								if !unreached.contains(&did) {
+									unreached.push(did);
+								}
 							}
 							return Err(why("type not reachable from the crate root", name));
 						}
