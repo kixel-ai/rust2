@@ -50,7 +50,3 @@ is the limit and no exact type exists at a call's speed, such as a Python `int` 
 
 Public API: every generated API's types for durations, addresses, paths, and text
 (breaking), and the runtimes' conversion helpers.
-
-## Required
-
-- [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - how a binding raises, which the checked conversions and invalid text use

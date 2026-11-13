@@ -104,4 +104,3 @@ Public API: the TypeScript binding's shape, and the name of the web target.
 ## Required
 
 - [Lossless binding types](/quest/m1/ffi-export/lossless.md) - the types a new binding copies are the exact ones
-- [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - the one accounting a new binding copies raises

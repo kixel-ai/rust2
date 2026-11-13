@@ -452,15 +452,15 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   such as a function's or an exception's, takes a trailing `_` where a type, the runtime, or
   an earlier name has it. A keyword is quoted in backticks, and a member named as one Kotlin
   gives its type takes a trailing `_`. A constructor such as `new` stays a companion function: `Counter.new(1)`.
-- **Objects** are classes owning their handle, `AutoCloseable`. Of a checked type,
-  `close()` drops the value through Rust's own `_drop`, as Rust's `drop` would: a call
-  after it throws as for a value moved out, and one while a call borrows the value throws
-  instead, as Rust refuses that drop, leaving the value to a later `close()`. Of any other
-  type, `close()` frees the handle, and throws while a call holds it; a call after it
-  throws. Either way the handle itself is freed once the GC collects the object, on a
-  daemon thread a phantom reference queue feeds, so each call passes its object to keep
-  it reachable. A `self` method, or passing the object by value, moves its value out,
-  after which a call throws. `Clone` is `clone()`, and `PartialEq` is `equals`.
+- **Objects** are classes owning their handle, `AutoCloseable`, which each call holds
+  until it returns, so the handle is freed only once no call holds it; a call after
+  `close()` throws. Of a checked type, `close()` drops the value through Rust's own
+  `_drop`, as Rust's `drop` would, and throws instead while a call borrows the value, as
+  Rust refuses that drop, leaving the value to a later `close()`. Of any other type,
+  `close()` frees the handle, and throws while a call holds it. One never closed is freed
+  once the GC collects it, on a daemon thread a phantom reference queue feeds. A `self`
+  method, or passing the object by value, moves its value out and closes it once the call
+  returns. `Clone` is `clone()`, and `PartialEq` is `equals`.
   A field is a `val`, `firstGet`, and its setter a function, `firstSet(value)`, named as
   the C ones, since setting an object moves it in and closes its handle, which an
   assignment would hide.
@@ -752,18 +752,18 @@ reads a go.mod.
   named as a Go keyword, a predeclared name, or a package the code uses, take a trailing
   `_` too, as does a variant's or error's name or any other in a package that another
   there, or the runtime's, takes.
-- **Objects** are pointers to structs owning their handle, each an `io.Closer`. Of a
-  checked type, `Close()` drops the value through Rust's own `_drop`, as Rust's `drop`
-  would: a call after it returns an error matching `rt.ErrClosed`, as for a value moved
-  out, and a `Close()` while a call on another goroutine borrows the value returns one
-  matching `rt.ErrBorrowed` instead, as Rust refuses that drop, leaving the value to a
-  later `Close()`. Of any other type, `Close()` frees the handle, and returns an error
-  matching `rt.ErrBorrowed` while a call holds it. A second `Close()` does nothing, and the
-  handle itself is freed once the GC collects the object, through `runtime.AddCleanup`. A
-  call that meets a closed object, as its receiver or anywhere in its arguments, returns an
-  error matching `rt.ErrClosed`, so every such call returns an `error`; `String()` and
-  `GoString()`, which return none, return the error's text. A `self` method, or passing
-  the object by value, moves its value out. `Clone` is `Clone()`, and a `pub` field a getter, `FirstGet()`,
+- **Objects** are pointers to structs owning their handle, each an `io.Closer`, which
+  each call holds until it returns, so the handle is freed only once no call holds it. Of
+  a checked type, `Close()` drops the value through Rust's own `_drop`, as Rust's `drop`
+  would, and returns an error matching `rt.ErrBorrowed` instead while a call on another
+  goroutine borrows the value, as Rust refuses that drop, leaving the value to a later
+  `Close()`. Of any other type, `Close()` frees the handle, and returns an error matching
+  `rt.ErrBorrowed` while a call holds it. A second `Close()` does nothing, and one never
+  closed is freed once the GC collects it, through `runtime.AddCleanup`. A call that meets
+  a closed object, as its receiver or anywhere in its arguments, returns an error matching
+  `rt.ErrClosed`, so every such call returns an `error`; `String()` and `GoString()`,
+  which return none, return the error's text. A `self` method, or passing the object by
+  value, moves its value out and closes it once the call returns. `Clone` is `Clone()`, and a `pub` field a getter, `FirstGet()`,
   and a setter, `FirstSet(v)`.
 - **Checks**: a borrow or move Rust's rules refuse returns an error naming the function
   and the rule, before any Rust code runs, so the call changed nothing: one matching `rt.ErrClosed` for a value moved out, or a lent

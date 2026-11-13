@@ -157,41 +157,59 @@ frame path:
 7. **The binding's own call.** Over C's getter: Swift adds 8 ns (its hold count's two
    atomics, since dropped from all but its classes, as below), Kotlin 14 wall (JNI and its hold count), Dart 19 (an `_Arena` per call and
    its hold), Go 31 (cgo, `defer`, and its hold), and Python 37 (argument parsing and the
-   GIL released and taken back, so Rust may call Python from another thread); each hold
-   count is since dropped for a checked type, as below. BoltFFI's
+   GIL released and taken back, so Rust may call Python from another thread); Python's and
+   Dart's hold counts are since dropped for a checked type, as below. BoltFFI's
    Python getter, which holds the GIL, measured 63 ns.
 
 ### Per-handle baseline
 
-For [checks-raise](/quest/m1/ffi-export/checks-raise.md)'s one accounting: the u64
-getter is one borrowed handle and nothing else, so its row less Rust's 0.4 ns is what a
-handle costs a call. Measured 2026-11-13 on desktop at a load average of 2.4 to 4.1,
-main at `7b0958b3` against [#730](https://github.com/kixel-ai/rust2/pull/730), run
-alternately: 12 rounds of main and 6 of #730, median wall ns (CPU ns where it differs).
-#730 drops the hold counts Kotlin, Go, Python, and Dart kept beside the runtime's, so a
-checked call borrows through the runtime's two atomics alone, and close drops the value
-through Rust, leaving the handle to the GC.
+For [#730](https://github.com/kixel-ai/rust2/pull/730)'s one accounting: the u64 getter
+is one borrowed handle and nothing else, so its row less Rust's 0.4 ns is what a handle
+costs a call. Measured 2026-11-13 on desktop at a load average of 2.4 to 4.1, main at
+`7b0958b3` against #730 before Go and Kotlin took their counts back, run alternately: 12
+rounds of main and 6 of #730, median wall ns (CPU ns where it differs). #730 drops the hold
+counts Python and Dart kept beside the runtime's for a checked type, so its call borrows
+through the runtime's two atomics alone, and close drops the value through Rust.
 
-| row | C | Kotlin | Python | Swift | Go | Dart |
-|---|---|---|---|---|---|---|
-| handle call, main | 18 | 31 (60) | 54 | 26 | 47 | 41 (45) |
-| handle call, #730 | 18 | 24 (45) | 53 | 26 | 40 | 42 (45) |
-| u64 getter, main | 10 | 23 (45) | 48 | 10 | 39 | 27 |
-| u64 getter, #730 | 10 | 15 (30) | 47 | 10 | 33 | 28 |
-| object return, main | 29 | 87 (190) | 99 | 37 | 183 (198) | 238 |
-| object return, #730 | 30 | 94 (190) | 98 | 38 | 691 (2,080) | 214 |
-| stamped write, main | 159 | 310 (340) | 337 | 205 | 429 (447) | 433 |
-| stamped write, #730 | 168 | 613 (2,165) | 332 | 212 | 1,061 (2,533) | 450 |
+| row | C | Python | Swift | Dart |
+|---|---|---|---|---|
+| handle call, main | 18 | 54 | 26 | 41 (45) |
+| handle call, #730 | 18 | 53 | 26 | 42 (45) |
+| u64 getter, main | 10 | 48 | 10 | 27 |
+| u64 getter, #730 | 10 | 47 | 10 | 28 |
+| object return, main | 29 | 99 | 37 | 238 |
+| object return, #730 | 30 | 98 | 38 | 214 |
+| stamped write, main | 159 | 337 | 205 | 433 |
+| stamped write, #730 | 168 | 332 | 212 | 450 |
 
-The getter and the handle call gain what the counts cost: 8 ns in Kotlin and 5 to 7 in
-Go. The object return and the stamped write lose more in Go and Kotlin: a handle closed or
-moved out of is freed only once the GC finds its object unreachable, so its cleanup, or
-its phantom reference, stays registered, where a count let close free it at once. Go's
-object return with `Close` also stopping the cleanup, unsafe without a count, measured
-205 ns, so the cleanup is the whole loss. Dart's checked calls first lost 4 ns to a
-status allocated per call, now one cell per isolate. Swift's getter costs C's since it
-dropped its hold count for each noncopyable object (2026-11-11). A change to the
-accounting moves these rows; measure them at the load beside them.
+Go and Kotlin dropped theirs too at first, and gained 5 to 8 ns on the getter, but a
+handle closed or moved out of was then freed only once the GC found its object
+unreachable, which kept Go's cleanup and Kotlin's phantom reference registered: Go's
+object return went from 183 to 691 ns and its stamped write from 429 to 1,061, Kotlin's
+stamped write from 310 to 613. So each still counts its calls, freeing the handle once a
+close or a move leaves no call holding it. Measured 2026-11-13 on nixos (AMD, 32 threads)
+at a load average of 28 to 47, main at `e9cca797` against #730, 10 runs of each program
+alternating, median wall ns:
+
+| row | Kotlin | Go |
+|---|---|---|
+| handle call, main | 13 | 35 |
+| handle call, #730 | 14 | 49 |
+| u64 getter, main | 12 | 34 |
+| u64 getter, #730 | 11 | 50 |
+| object return, main | 156 | 261 |
+| object return, #730 | 66 | 317 |
+| stamped write, main | 457 | 745 |
+| stamped write, #730 | 441 | 835 |
+
+Kotlin's rows match main's within the noise: its object return's fastest runs took 57 and
+60 ns. Go's checked call allocates its status,
+since cgo moves to the heap a local whose address it passes C, which costs 6 ns in a
+cgo call alone; its close calls Rust's `_drop`, a second crossing an object return and a
+stamped write pay. Dart's checked calls first lost 4 ns to a status allocated per call,
+now one cell per isolate. Swift's getter costs C's since it dropped its hold count for
+each noncopyable object (2026-11-11). A change to the accounting moves these rows;
+measure them at the load beside them.
 
 ### Against the targets
 

@@ -20,7 +20,7 @@ an assert is fine "where a language has no concept of something being thread loc
 
 - The handle records its owner thread, and each call compares it: no atomics, so it costs
   less than a `Sync` type's borrow. The wrong thread
-  [raises](/quest/m1/ffi-export/checks-raise.md).
+  raises, as each failed check does.
 - A free from another thread never drops the value there. GC finalizers run elsewhere:
   Kotlin's phantom-reference daemon thread, Go's `runtime.AddCleanup` goroutine, Python's
   collector, Swift's `deinit` on the releasing thread, and Dart's finalizer with no
@@ -49,7 +49,3 @@ an assert is fine "where a language has no concept of something being thread loc
   check.
 
 Public API: the items that now export, and Swift's `Sendable` conformances (breaking).
-
-## Required
-
-- [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - the wrong-thread check raises through the same accounting

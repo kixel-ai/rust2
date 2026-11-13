@@ -20,7 +20,6 @@ then see change. A sibling planned later adds itself to `Required` here.
 ## Required
 
 - [Refusals](/quest/m1/ffi-refusals/README.md) - the census lists no refusals at the moq pin, and `ffi.toml` is gone
-- [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - which generated functions throw
 - [Lossless binding types](/quest/m1/ffi-export/lossless.md) - the types of durations, addresses, paths, and text
 - [Copy types cross by value](/quest/m1/ffi-export/copy-values.md) - how a `Copy` type is held in every language
 - [Not Send](/quest/m1/ffi-export/not-send.md) - the types and futures that export checked by thread
