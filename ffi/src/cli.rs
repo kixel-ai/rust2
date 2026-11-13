@@ -349,7 +349,7 @@ fn profile(
 			let spec_str = spec.get_ref().as_ref();
 			let mut matched = Vec::new();
 			for package in packages {
-				if matches(spec_str, package)? {
+				if matches(spec_str, package).map_err(|err| format!("{}: {err}", at(spec.span())))? {
 					matched.push(package);
 				}
 			}
