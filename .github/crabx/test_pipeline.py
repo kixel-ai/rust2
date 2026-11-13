@@ -50,6 +50,11 @@ class Pipeline(unittest.TestCase):
                     return {"object": {"type": "commit", "sha": sha}}
             with patch.object(p, "api", side_effect=api):
                 self.assertEqual(p.tag(ITEM), expected)
+        # A crate named like a version tag still needs its own tag to match.
+        vtool = {**ITEM, "name": "vtool"}
+        with patch.object(p, "api", side_effect=lambda path, **kwargs: {"object": {"type": "commit", "sha": "b" * 40}} if path == "git/ref/tags/vtool-v1.2.3" else None):
+            with self.assertRaisesRegex(ValueError, "does not point"):
+                p.tag(vtool)
 
     def test_registry_metadata(self):
         manifest = f'[package]\nname="demo"\nversion="1.2.3"\nrepository="{REPO}"\n[[bin]]\nname="demo"\n'.encode()
@@ -105,6 +110,8 @@ class Pipeline(unittest.TestCase):
                     with patch.object(p, "run", side_effect=[json.dumps(metadata), ""]) as run:
                         p.build(ITEM, target)
                     self.assertEqual(run.call_args_list[1].args[-1], target + (".2.28" if "linux" in target else ""))
+                    args = run.call_args_list[1].args
+                    self.assertEqual(args[args.index("--package") + 1], "demo@1.2.3")
                     root = f"demo-{target}-v1.2.3"
                     with tarfile.open(Path("archives", root + ".tgz")) as archive:
                         self.assertEqual(sorted(archive.getnames()), [f"{root}/demo{exe}", f"{root}/tool{exe}"])

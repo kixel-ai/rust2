@@ -75,7 +75,7 @@ def tag(item):
             seen.add(obj["sha"])
             obj = api("git/tags/" + obj["sha"])["object"]
         if obj["type"] != "commit" or obj["sha"] != item["sha"]:
-            if name.startswith("v"):
+            if name == f"v{item['version']}":
                 continue
             raise ValueError(f"{name} does not point to published commit {item['sha']}")
         found.append(name)
@@ -174,7 +174,8 @@ def build(item, target):
         raise ValueError("crate has no binaries")
     command = ["cargo-zigbuild", "zigbuild"] if "linux" in target else ["cargo", "build"]
     build_target = target + ".2.28" if "linux" in target else target
-    run(*command, "--locked", "--release", "--bins", "--all-features", "--manifest-path", manifest, "--target", build_target, cwd=str(Path(manifest).parent))
+    # A workspace root's manifest would otherwise build its default members.
+    run(*command, "--locked", "--release", "--package", f"{item['name']}@{item['version']}", "--bins", "--all-features", "--manifest-path", manifest, "--target", build_target, cwd=str(Path(manifest).parent))
     out = Path("archives")
     out.mkdir(exist_ok=True)
     root = asset(item, target).removesuffix(".tgz")
