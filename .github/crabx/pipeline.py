@@ -144,7 +144,7 @@ def build(item, target):
     safe(item["name"])
     safe(item["version"])
     manifest = str((Path("source") / item["path"] / "Cargo.toml").resolve())
-    metadata = json.loads(run("cargo", "metadata", "--no-deps", "--format-version=1", "--manifest-path", manifest, cwd=str(Path(manifest).parent)))
+    metadata = json.loads(run("cargo", "metadata", "--locked", "--no-deps", "--format-version=1", "--manifest-path", manifest, cwd=str(Path(manifest).parent)))
     packages = [p for p in metadata["packages"] if p["name"] == item["name"] and p["version"] == item["version"]]
     if len(packages) != 1:
         raise ValueError("published crate does not match checked-out commit")
