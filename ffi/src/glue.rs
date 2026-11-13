@@ -1007,7 +1007,12 @@ impl Gen<'_> {
 					.fields
 					.iter()
 					.zip(&bindings)
-					.map(|(f, b)| format!("{}: {b}", f.name))
+					// A field named as its binding is, `f0`, takes the shorthand, which
+					// the lint would ask for.
+					.map(|(f, b)| match f.name == *b {
+						true => b.clone(),
+						false => format!("{}: {b}", f.name),
+					})
 					.collect();
 				format!("{path} {{ {} }}", fields.join(", "))
 			}

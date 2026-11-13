@@ -6,6 +6,7 @@
 //! The reject fixture's export must fail at each item it cannot export, and generated
 //! type shapes round-trip in every language ([`shapes`]).
 
+#[path = "fixtures/shapes.rs"]
 mod shapes;
 
 use std::env::consts::EXE_SUFFIX;
@@ -858,7 +859,7 @@ fn api_dart() {
 	let generated = api.out.join("dart");
 	run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&generated));
 	let lib = api.lib.join(PYTHON_LIB);
-	let exe = dart_compile(&dir, &generated, &lib, &manifest_dir().join("tests").join("api.dart"));
+	let exe = dart_compile("api", &dir, &generated, &lib, &manifest_dir().join("tests").join("api.dart"));
 	let dart = run(&mut dart_run(&exe, &[]));
 	assert_eq!(
 		String::from_utf8_lossy(&dart.stdout),
@@ -912,7 +913,7 @@ fn api_dart() {
 		"import 'package:api/api.dart' as api;\n\nvoid main() => api.dropped();\n",
 	)
 	.unwrap();
-	let exe = dart_compile(&contract, &contract, &lib, &main);
+	let exe = dart_compile("api", &contract, &contract, &lib, &main);
 	let output = dart_run(&exe, &[]).output().unwrap();
 	assert!(!output.status.success(), "a mismatched contract did not fail");
 	let stderr = String::from_utf8_lossy(&output.stderr);
@@ -923,9 +924,9 @@ fn api_dart() {
 }
 
 /// `main` compiled into a kernel snapshot in `dir`, importing the generated Dart in
-/// `package` as `package:api/api.dart`, whose native asset is the shared library `lib`: as
-/// a package's build hook would bundle it, which `dart compile` has no flag for.
-fn dart_compile(dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
+/// `package` as `package:<name>/<name>.dart`, whose native asset is the shared library
+/// `lib`: as a package's build hook would bundle it, which `dart compile` has no flag for.
+fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
 	let sdk = std::fs::canonicalize(which("dart"))
 		.unwrap()
 		.parent()
@@ -937,7 +938,7 @@ fn dart_compile(dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf 
 	std::fs::write(
 		&config,
 		format!(
-			"{{\"configVersion\": 2, \"packages\": [{{\"name\": \"api\", \"rootUri\": \"{root}/\", \"packageUri\": \"./\"}}]}}\n"
+			"{{\"configVersion\": 2, \"packages\": [{{\"name\": \"{name}\", \"rootUri\": \"{root}/\", \"packageUri\": \"./\"}}]}}\n"
 		),
 	)
 	.unwrap();
@@ -954,7 +955,7 @@ fn dart_compile(dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf 
 	std::fs::write(
 		&assets,
 		format!(
-			"format-version: [1, 0, 0]\nnative-assets:\n  {os}_{arch}:\n    \"package:api/api.dart\": [absolute, {:?}]\n",
+			"format-version: [1, 0, 0]\nnative-assets:\n  {os}_{arch}:\n    \"package:{name}/{name}.dart\": [absolute, {:?}]\n",
 			lib.display().to_string()
 		),
 	)

@@ -1848,10 +1848,13 @@ impl<'a> Gen<'a> {
 	/// The Dart statements closing each object the value `e` of type `ty` holds, once a
 	/// call moved them out.
 	fn close(&mut self, ty: &Type, e: &str) -> String {
+		// A local named apart from `e`, which may be a parameter named `v`, and from the
+		// local an outer level declared, which Dart would read before it is declared.
+		let v: String = e.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '_' }).collect::<String>() + "_";
 		match ty {
 			Type::Option(inner) => {
-				let close = self.close(inner, "v");
-				format!("{{ final v = {e}; if (v != null) {{ {close} }} }}")
+				let close = self.close(inner, &v);
+				format!("{{ final {v} = {e}; if ({v} != null) {{ {close} }} }}")
 			}
 			Type::Box(inner) => self.close(inner, e),
 			Type::Tuple(elements) => {
@@ -1862,8 +1865,8 @@ impl<'a> Gen<'a> {
 				closes.join(" ")
 			}
 			Type::List(_, inner) => {
-				let close = self.close(inner, "v");
-				format!("for (final v in {e}) {{ {close} }}")
+				let close = self.close(inner, &v);
+				format!("for (final {v} in {e}) {{ {close} }}")
 			}
 			_ => format!("{e}.close();"),
 		}
