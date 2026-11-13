@@ -59,8 +59,9 @@ else
     } | sort -u)
 
     # A path no module claims is a shared input, such as the flake, a
-    # toolchain, the root justfile, .github, or this map, so it
-    # selects everything. A new project selects everything until it is mapped.
+    # toolchain, the root justfile, .github, or this map, so it selects
+    # every module but the parked go, which only its own diff selects. A new
+    # project selects everything until it is mapped.
     claimed=$lints
     for module in "${modules[@]}"; do
         [[ -z "${scope[$module]}" ]] || claimed+="|${scope[$module]}"
