@@ -5,7 +5,7 @@
 
 use rustc_abi::{FieldIdx, VariantIdx};
 use rustc_middle::mir::{Operand, Place, ProjectionElem};
-use rustc_middle::ty::{self, GenericArgsRef, Instance, Ty, TyCtxt};
+use rustc_middle::ty::{self, GenericArgs, Instance, Ty, TyCtxt};
 use rustc_span::{Span, Spanned};
 
 use super::{Fx, Slot};
@@ -257,7 +257,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn call_def(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
-		gargs: GenericArgsRef<'tcx>,
+		gargs: GenericArgs<'tcx>,
 		args: &[Spanned<Operand<'tcx>>],
 		result: Ty<'tcx>,
 		span: Span,
@@ -430,7 +430,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn std_places(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
-		gargs: GenericArgsRef<'tcx>,
+		gargs: GenericArgs<'tcx>,
 		result: Ty<'tcx>,
 		span: Span,
 	) -> Option<Expr> {
@@ -564,7 +564,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn intercept(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
-		gargs: GenericArgsRef<'tcx>,
+		gargs: GenericArgs<'tcx>,
 		args: &[Spanned<Operand<'tcx>>],
 		dest: Place<'tcx>,
 		span: Span,
@@ -1785,7 +1785,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn fmt_write(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
-		gargs: GenericArgsRef<'tcx>,
+		gargs: GenericArgs<'tcx>,
 		args: &[Spanned<Operand<'tcx>>],
 		dest: Place<'tcx>,
 		span: Span,
@@ -2159,7 +2159,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn index(
 		&mut self,
 		name: &str,
-		gargs: GenericArgsRef<'tcx>,
+		gargs: GenericArgs<'tcx>,
 		args: &[Spanned<Operand<'tcx>>],
 		dest: Place<'tcx>,
 		span: Span,
@@ -2418,7 +2418,7 @@ fn int_named(name: &str) -> Option<Int> {
 /// How a `ControlFlow` type is represented.
 fn flow<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Flow {
 	match ty.kind() {
-		ty::Adt(_, args) => Flow::of(tcx, args),
+		ty::Adt(_, args) => Flow::of(tcx, *args),
 		_ => unreachable!("checked by the caller"),
 	}
 }
@@ -2442,7 +2442,7 @@ pub fn control_flow_test<'tcx>(
 	let ty::Adt(_, args) = ty.kind() else {
 		unreachable!("checked by the caller")
 	};
-	Flow::test(fx.b.t, args, scrut.clone(), continues)
+	Flow::test(fx.b.t, *args, scrut.clone(), continues)
 }
 
 /// A field of a `ControlFlow`: `Continue`'s value, or `Break`'s, which for `?` is the

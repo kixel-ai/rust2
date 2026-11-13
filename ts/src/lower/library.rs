@@ -7,7 +7,7 @@
 
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::DefId;
-use rustc_middle::ty::{self, GenericArgsRef, Instance, Ty, TyCtxt, TypingEnv};
+use rustc_middle::ty::{self, CallerBoundsIterator as _, GenericArgs, Instance, Ty, TyCtxt, TypingEnv};
 use rustc_span::Span;
 
 use super::body::Body;
@@ -446,7 +446,7 @@ pub enum Flow {
 
 impl Flow {
 	/// The representation of a `ControlFlow` with `args`, its break's type first.
-	pub fn of<'tcx>(tcx: TyCtxt<'tcx>, args: GenericArgsRef<'tcx>) -> Self {
+	pub fn of<'tcx>(tcx: TyCtxt<'tcx>, args: GenericArgs<'tcx>) -> Self {
 		let ty::Adt(adt, residual) = args.type_at(0).kind() else {
 			return Self::Other;
 		};
@@ -460,7 +460,7 @@ impl Flow {
 	}
 
 	/// The test that `value`, a `ControlFlow` with `args`, continues, or breaks.
-	pub fn test<'tcx>(t: &Translator<'_, 'tcx>, args: GenericArgsRef<'tcx>, value: Expr, continues: bool) -> Expr {
+	pub fn test<'tcx>(t: &Translator<'_, 'tcx>, args: GenericArgs<'tcx>, value: Expr, continues: bool) -> Expr {
 		match (Self::of(t.tcx, args), continues) {
 			(Self::Result | Self::Other, true) => value.member("ok"),
 			(Self::Result | Self::Other, false) => value.member("ok").not(),
@@ -574,7 +574,7 @@ pub fn wrapped<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 					return None;
 				}
 				let field = adt.non_enum_variant().fields.iter().next()?;
-				Some(field.ty(tcx, args).skip_norm_wip())
+				Some(field.ty(tcx, *args).skip_norm_wip())
 			}
 		},
 		_ => None,
@@ -705,9 +705,9 @@ pub fn is_std(tcx: TyCtxt<'_>, did: DefId) -> bool {
 pub fn referent<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	def_id: DefId,
-	gargs: GenericArgsRef<'tcx>,
+	gargs: GenericArgs<'tcx>,
 	instance: Instance<'tcx>,
-) -> Option<GenericArgsRef<'tcx>> {
+) -> Option<GenericArgs<'tcx>> {
 	let tr = tcx.trait_of_assoc(def_id)?;
 	// A method the impl leaves to its trait's default, as `Ord::max` is, is not forwarded.
 	let imp = tcx.impl_of_assoc(instance.def_id())?;
@@ -721,7 +721,7 @@ pub fn referent<'tcx>(
 		_ if hasher => 1,
 		_ => return None,
 	};
-	let mut args = gargs.to_vec();
+	let mut args = gargs.as_slice().to_vec();
 	for arg in &mut args[..operands] {
 		let ty = arg.as_type()?;
 		*arg = match ty.kind() {
@@ -835,7 +835,7 @@ fn clone_only_copies<'tcx>(t: &super::Translator<'_, 'tcx>, env: TypingEnv<'tcx>
 			derived
 				&& adt
 					.all_fields()
-					.all(|field| clone_only_copies(t, env, super::copy::field_ty(tcx, env, field.did, args)))
+					.all(|field| clone_only_copies(t, env, super::copy::field_ty(tcx, env, field.did, *args)))
 		}
 		_ => false,
 	}
@@ -905,9 +905,9 @@ pub fn from_mir<'tcx>(t: &Translator<'_, 'tcx>, env: TypingEnv<'tcx>, instance: 
 pub fn callee_args<'tcx>(
 	t: &Translator<'_, 'tcx>,
 	def_id: DefId,
-	args: GenericArgsRef<'tcx>,
+	args: GenericArgs<'tcx>,
 	callee: impl Fn(DefId) -> bool,
-) -> Option<GenericArgsRef<'tcx>> {
+) -> Option<GenericArgs<'tcx>> {
 	let tcx = t.tcx;
 	let env = t.typing_env_pub();
 	let instance = Instance::try_resolve(tcx, env, def_id, args).ok()??;
@@ -1042,7 +1042,7 @@ pub struct Call<'tcx> {
 	/// The function as written, before resolving a trait method to its impl.
 	pub def_id: DefId,
 	/// Its generic arguments: the impl's or trait's, then the function's.
-	pub args: GenericArgsRef<'tcx>,
+	pub args: GenericArgs<'tcx>,
 	pub span: Span,
 }
 
@@ -1232,7 +1232,7 @@ pub(super) fn sentinel_option<'tcx>(t: &Translator<'_, 'tcx>, call: &Call<'tcx>)
 	let tcx = t.tcx;
 	let sig = tcx.fn_sig(call.def_id).instantiate_identity().skip_norm_wip();
 	let sig = tcx.instantiate_bound_regions_with_erased(sig);
-	let bounds = tcx.param_env(call.def_id).caller_bounds();
+	let bounds = tcx.param_env(call.def_id).caller_bounds().all_clauses(tcx).iter();
 	let bound_args = bounds.flat_map(|clause| {
 		let trait_args = clause.as_trait_clause().map(|c| c.skip_binder().trait_ref.args);
 		let projection = clause.as_projection_clause().map(|c| c.skip_binder());
@@ -1368,7 +1368,7 @@ fn called_closures<'tcx>(
 		if lent {
 			continue;
 		}
-		let index = call.args[..param.index as usize]
+		let index = call.args.as_slice()[..param.index as usize]
 			.iter()
 			.filter(|a| a.as_type().is_some())
 			.count();
@@ -1403,6 +1403,8 @@ fn called_closures<'tcx>(
 fn called_by<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, input: Ty<'tcx>) -> Option<ty::ClosureKind> {
 	tcx.param_env(def_id)
 		.caller_bounds()
+		.all_clauses(tcx)
+		.iter()
 		.filter_map(|p| p.as_trait_clause())
 		.filter(|t| t.self_ty().skip_binder() == input)
 		.filter_map(|t| match std_path(tcx, t.def_id()).as_slice() {
@@ -3109,7 +3111,7 @@ fn mapping<'tcx>(
 			};
 			let str = class(b, Ty::new_static_str(tcx))?;
 			let string = tcx.lang_items().string()?;
-			let string = class(b, Ty::new_adt(tcx, tcx.adt_def(string), ty::List::empty()))?;
+			let string = class(b, Ty::new_adt(tcx, tcx.adt_def(string), ty::GenericArgs::empty()))?;
 			Expr::rs("hookPayload", vec![args.pop()?, str, string])
 		}
 		("PanicHookInfo", "payload_as_str") => args.pop()?.member("text"),
@@ -3151,7 +3153,7 @@ fn mapping<'tcx>(
 		("mem", "align_of") => {
 			let env = b.t.typing_env_pub();
 			let layout = tcx.layout_of(env.as_query_input(targ(gargs, 0))).ok()?;
-			Expr::lit(layout.align.abi.bytes().to_string())
+			Expr::lit(layout.align.bytes().to_string())
 		}
 		// rustc's answers for the instance, which a JS value that drops nothing, such as a
 		// `String`'s, leaves as they are.
@@ -3175,7 +3177,7 @@ fn mapping<'tcx>(
 			let layout = tcx.layout_of(env.as_query_input(elem)).ok()?;
 			let size = layout.size.bytes();
 			match (name.as_str(), len) {
-				("align_of_val", _) => Expr::lit(layout.align.abi.bytes().to_string()),
+				("align_of_val", _) => Expr::lit(layout.align.bytes().to_string()),
 				(_, None) => Expr::lit(size.to_string()),
 				(_, Some(len)) if size == 1 => len,
 				(_, Some(len)) => len.binary("*", Expr::lit(size.to_string())),
@@ -3410,7 +3412,7 @@ pub fn be_word(int: Int, values: Vec<Expr>) -> Expr {
 }
 
 /// The `n`th type among a call's generic arguments, skipping lifetimes.
-pub fn targ<'tcx>(gargs: GenericArgsRef<'tcx>, n: usize) -> Ty<'tcx> {
+pub fn targ<'tcx>(gargs: GenericArgs<'tcx>, n: usize) -> Ty<'tcx> {
 	gargs.types().nth(n).expect("a type argument")
 }
 

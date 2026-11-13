@@ -107,7 +107,7 @@ fn refused_in<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>, seen:
 				return Some(format!("which runs `{}`'s `Drop` impl,", path(tcx, adt.did())));
 			}
 			for field in adt.all_fields() {
-				let fty = field.ty(tcx, args).skip_norm_wip();
+				let fty = field.ty(tcx, *args).skip_norm_wip();
 				let fty = tcx.normalize_erasing_regions(env, ty::Unnormalized::new_wip(fty));
 				if let Some(why) = refused_in(tcx, env, fty, seen) {
 					return Some(why);
@@ -608,7 +608,7 @@ fn intrinsic<'tcx>(
 			let layout = tcx.layout_of(fx.t_env().as_query_input(ty)).ok()?;
 			let n = match name.as_str() {
 				"size_of" => layout.size.bytes(),
-				_ => layout.align.abi.bytes(),
+				_ => layout.align.bytes(),
 			};
 			expr(format!("uint({n})"))
 		}

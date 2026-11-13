@@ -198,7 +198,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			}
 			ty::Tuple(tys) => Some((tys.to_vec(), false)),
 			ty::Adt(adt, args) if adt.is_struct() && Std::of(self.tcx, adt.did()).is_none() && self.own(adt.did()) => {
-				Some((adt.all_fields().map(|f| self.field_ty(f.did, args)).collect(), false))
+				Some((adt.all_fields().map(|f| self.field_ty(f.did, *args)).collect(), false))
 			}
 			_ => None,
 		}
@@ -272,7 +272,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
 				Some(Std::MaybeUninit | Std::ManuallyDrop) => self.empty(args.type_at(0)),
 				Some(_) => false,
-				None => adt.is_struct() && adt.all_fields().all(|f| self.empty(self.field_ty(f.did, args))),
+				None => adt.is_struct() && adt.all_fields().all(|f| self.empty(self.field_ty(f.did, *args))),
 			},
 			_ => false,
 		}
@@ -336,12 +336,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						let plain = self.plain(info.sym);
 						let values = (adt.non_enum_variant().fields.iter())
 							.map(|f| {
-								let t = self.field_ty(f.did, args);
+								let t = self.field_ty(f.did, *args);
 								let value = match plain {
 									true => self.shell(t, span),
 									false => self.uninit(t, span),
 								};
-								self.field_value(value, adt.did(), f.did, args, span)
+								self.field_value(value, adt.did(), f.did, *args, span)
 							})
 							.collect();
 						self.construct(info.sym, &ctor, &fields, values)
@@ -362,7 +362,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 pub fn from_reference<'tcx>(
 	tcx: ty::TyCtxt<'tcx>,
 	def_id: rustc_hir::def_id::DefId,
-	args: ty::GenericArgsRef<'tcx>,
+	args: ty::GenericArgs<'tcx>,
 ) -> bool {
 	let Some((owner, name)) = super::library::key(tcx, def_id) else {
 		return false;
@@ -492,7 +492,7 @@ pub fn lends(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
 /// Whether std's `def_id` with `args` is one that only makes a pointer or points one
 /// elsewhere, reads through it, or drops what it points at, as this module maps them, or
 /// an atomic's, which holds a pointer as a value, so it gives no part another object.
-pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args: ty::GenericArgsRef<'tcx>) -> bool {
+pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args: ty::GenericArgs<'tcx>) -> bool {
 	let keeps = matches!(
 		super::library::key(tcx, def_id),
 		Some((owner, name)) if matches!(
@@ -527,11 +527,7 @@ pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args
 /// own iterator's that its `next` reads through, an `IoSlice`'s and a `&mut` to a slice of
 /// them, which `advance` and `advance_slices` move, and a well-known crate's, such as a
 /// `Bytes` that `Buf::advance` moves past its front.
-fn takes_place<'tcx>(
-	t: &Translator<'_, 'tcx>,
-	def_id: rustc_hir::def_id::DefId,
-	args: ty::GenericArgsRef<'tcx>,
-) -> bool {
+fn takes_place<'tcx>(t: &Translator<'_, 'tcx>, def_id: rustc_hir::def_id::DefId, args: ty::GenericArgs<'tcx>) -> bool {
 	matches!(
 		super::library::key(t.tcx, def_id),
 		Some((owner, name)) if matches!(owner.as_str(), "MaybeUninit" | "ManuallyDrop" | "IoSlice")
@@ -553,7 +549,7 @@ fn takes_place<'tcx>(
 pub fn pointees<'tcx>(
 	t: &Translator<'_, 'tcx>,
 	def_id: rustc_hir::def_id::DefId,
-	args: ty::GenericArgsRef<'tcx>,
+	args: ty::GenericArgs<'tcx>,
 ) -> Vec<bool> {
 	let takes_place = takes_place(t, def_id, args);
 	let sig = t.tcx.fn_sig(def_id).instantiate_identity().skip_norm_wip();
@@ -1293,7 +1289,7 @@ pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'t
 	let (tcx, env) = (b.t.tcx, b.t.typing_env_pub());
 	let key = |t: Ty<'tcx>| Expr::Str(tcx.erase_and_anonymize_regions(t).to_string());
 	let align = |t: Ty<'tcx>| {
-		let align = tcx.layout_of(env.as_query_input(t)).map_or(1, |l| l.align.abi.bytes());
+		let align = tcx.layout_of(env.as_query_input(t)).map_or(1, |l| l.align.bytes());
 		Expr::lit(align.to_string())
 	};
 	if b.t.identity_pointee(into) {

@@ -9,7 +9,7 @@
 //! stores is its own copy, as in Rust.
 
 use rustc_hir::def_id::DefId;
-use rustc_middle::ty::{self, GenericArgsRef, Instance, Ty};
+use rustc_middle::ty::{self, CallerBoundsIterator as _, GenericArgs, Instance, Ty};
 use rustc_span::Span;
 
 use super::Translator;
@@ -416,7 +416,7 @@ fn lookup_ty<'tcx>(b: &Body<'_, '_, 'tcx>, std: Std, call: &Call<'tcx>, owner: &
 		) => {
 			let tcx = b.t.tcx;
 			let imp = tcx.inherent_impl_of_assoc(call.def_id)?;
-			call.args[tcx.generics_of(imp).count()..]
+			call.args.as_slice()[tcx.generics_of(imp).count()..]
 				.iter()
 				.find_map(|a| a.as_type())
 		}
@@ -549,7 +549,7 @@ fn impl_self_ty<'tcx>(b: &Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> Ty<'tcx> {
 	let generics = tcx.generics_of(imp).count();
 	let ty = tcx
 		.type_of(imp)
-		.instantiate(tcx, &call.args[..generics])
+		.instantiate(tcx, &call.args.as_slice()[..generics])
 		.skip_norm_wip();
 	tcx.instantiate_bound_regions_with_erased(ty::Binder::dummy(ty))
 }
@@ -598,7 +598,7 @@ fn peel_by<'tcx>(
 	b: &Body<'_, '_, 'tcx>,
 	f: DefId,
 	mut ty: Ty<'tcx>,
-	args: impl Fn(Ty<'tcx>) -> GenericArgsRef<'tcx>,
+	args: impl Fn(Ty<'tcx>) -> GenericArgs<'tcx>,
 ) -> Ty<'tcx> {
 	while let Some(inner) = pointee(b, ty)
 		&& !own_impl(b, f, args(ty))
@@ -636,7 +636,7 @@ fn peel_hash<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>) -> Ty
 }
 
 /// Whether `f` with `args` resolves to an impl other than std's.
-fn own_impl<'tcx>(b: &Body<'_, '_, 'tcx>, f: DefId, args: GenericArgsRef<'tcx>) -> bool {
+fn own_impl<'tcx>(b: &Body<'_, '_, 'tcx>, f: DefId, args: GenericArgs<'tcx>) -> bool {
 	let tcx = b.t.tcx;
 	Instance::try_resolve(tcx, b.t.typing_env_pub(), f, args)
 		.ok()
@@ -1739,7 +1739,7 @@ fn own_ord<'tcx>(
 				|| !derived("PartialEq", "eq", &[ty.into(), ty.into()])
 				|| adt
 					.all_fields()
-					.any(|f| own_ord(b, f.ty(tcx, args).skip_norm_wip(), seen))
+					.any(|f| own_ord(b, f.ty(tcx, *args).skip_norm_wip(), seen))
 		}
 		// Which compare nothing they name.
 		ty::RawPtr(..) | ty::FnPtr(..) => false,
@@ -3014,6 +3014,8 @@ fn range_input<'tcx>(b: &Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> (usize, Ty<'t
 	let (input, target) = tcx
 		.param_env(call.def_id)
 		.caller_bounds()
+		.all_clauses(tcx)
+		.iter()
 		.find_map(|clause| {
 			let tr = clause.as_trait_clause()?.skip_binder().trait_ref;
 			let input = sig.inputs().iter().position(|&ty| ty == tr.self_ty())?;

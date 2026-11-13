@@ -510,7 +510,7 @@ fn atomic<'tcx>(
 	let generics = tcx.generics_of(imp).count();
 	let atomic = tcx
 		.type_of(imp)
-		.instantiate(tcx, &call.args[..generics])
+		.instantiate(tcx, &call.args.as_slice()[..generics])
 		.skip_norm_wip();
 	let pointee = match atomic.kind() {
 		ty::Adt(_, atomic_args) => match atomic_args.type_at(0).kind() {
@@ -691,7 +691,7 @@ fn once<'tcx>(
 	let generics = tcx.generics_of(imp).count();
 	let cell = tcx
 		.type_of(imp)
-		.instantiate(tcx, &call.args[..generics])
+		.instantiate(tcx, &call.args.as_slice()[..generics])
 		.skip_norm_wip();
 	let inner = call.args.type_at(0);
 	let none = b.t.none_arg(inner);

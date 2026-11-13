@@ -21,7 +21,7 @@ use rustc_middle::mir::{
 	StatementKind, TerminatorKind,
 };
 use rustc_middle::traits::ImplSource;
-use rustc_middle::ty::{self, GenericArgsRef, Instance, Interner as _, Ty, TypeVisitableExt, TypingEnv};
+use rustc_middle::ty::{self, GenericArgs, Instance, Interner as _, Ty, TypeVisitableExt, TypingEnv};
 use rustc_mir_dataflow::impls::MaybeLiveLocals;
 use rustc_mir_dataflow::{Analysis, ResultsCursor};
 use rustc_span::Spanned;
@@ -84,7 +84,7 @@ pub(in crate::lower) struct Memo<'tcx> {
 	/// or a thread-local; or `None` if anywhere else.
 	returned: FxHashMap<DefId, Option<Vec<Source<'tcx>>>>,
 	/// Whether std's function or impl, given these arguments, is [`Trace::inert`].
-	inert: FxHashMap<(DefId, GenericArgsRef<'tcx>), bool>,
+	inert: FxHashMap<(DefId, GenericArgs<'tcx>), bool>,
 }
 
 /// The locals that may hold a pointer, and where one may escape them.
@@ -443,7 +443,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 
 	/// The crate's function a call of `def_id` with `args` runs, if its body translates and
 	/// takes its arguments as it declares them, which a closure's doesn't.
-	fn read_fn(&self, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> Option<DefId> {
+	fn read_fn(&self, def_id: DefId, args: ty::GenericArgs<'tcx>) -> Option<DefId> {
 		let tcx = self.t.tcx;
 		let instance = Instance::try_resolve(tcx, self.env, def_id, args).ok()??;
 		let ty::InstanceKind::Item(did) = instance.def else {
@@ -514,7 +514,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	fn leaves(
 		&self,
 		def_id: DefId,
-		gargs: ty::GenericArgsRef<'tcx>,
+		gargs: ty::GenericArgs<'tcx>,
 		args: &[Spanned<Operand<'tcx>>],
 		given: &[Ty<'tcx>],
 	) -> bool {
@@ -526,7 +526,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	}
 
 	/// Whether a call of `def_id` with `args` runs std's code, calling none of the crate's.
-	fn runs_std(&self, def_id: DefId, gargs: ty::GenericArgsRef<'tcx>, args: &[Spanned<Operand<'tcx>>]) -> bool {
+	fn runs_std(&self, def_id: DefId, gargs: ty::GenericArgs<'tcx>, args: &[Spanned<Operand<'tcx>>]) -> bool {
 		if self.translated(def_id, gargs) {
 			return false;
 		}
@@ -549,7 +549,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	/// calls nothing, as `Sized` or `Send`, or is met by std's own impl, inert in turn. Code
 	/// generic over a type calls its methods only through its bounds, so an iterator over
 	/// slots of the crate's type, bound by none, runs none of it.
-	fn inert(&self, did: DefId, args: GenericArgsRef<'tcx>) -> bool {
+	fn inert(&self, did: DefId, args: GenericArgs<'tcx>) -> bool {
 		let tcx = self.t.tcx;
 		let key = (did, args);
 		if let Some(&inert) = self.memo.borrow().inert.get(&key) {
@@ -594,7 +594,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	/// and whose drop runs none of the crate's code. It runs the crate's code only as its
 	/// element's `Clone`, which it gives the value it moves into the vector last, never the
 	/// memory it returns, and which returns no pointer std's code could keep.
-	fn repeats(&self, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> bool {
+	fn repeats(&self, def_id: DefId, args: ty::GenericArgs<'tcx>) -> bool {
 		let tcx = self.t.tcx;
 		crate::lower::library::is_std(tcx, def_id)
 			&& matches!(crate::lower::library::key(tcx, def_id), Some((owner, name)) if owner == "vec" && name == "from_elem")
@@ -623,7 +623,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	}
 
 	/// Whether a call of `def_id` with `args` runs a function whose body translates.
-	fn translated(&self, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> bool {
+	fn translated(&self, def_id: DefId, args: ty::GenericArgs<'tcx>) -> bool {
 		match Instance::try_resolve(self.t.tcx, self.env, def_id, args) {
 			Ok(Some(instance)) => self.t.lowers(self.env, instance) || self.t.dispatches(instance),
 			_ => false,
@@ -716,7 +716,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 				}
 				ty::Adt(adt, args) if crate::lower::library::is_std(tcx, adt.did()) => stack.extend(args.types()),
 				ty::Adt(adt, args) => {
-					stack.extend(adt.all_fields().map(|field| field_ty(tcx, self.env, field.did, args)))
+					stack.extend(adt.all_fields().map(|field| field_ty(tcx, self.env, field.did, *args)))
 				}
 				_ => return true,
 			}
@@ -751,7 +751,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 				ty::Adt(adt, _) if raw_carrier(tcx, adt.did()) => return true,
 				ty::Adt(adt, args) if crate::lower::library::is_std(tcx, adt.did()) => stack.extend(args.types()),
 				ty::Adt(adt, args) => {
-					stack.extend(adt.all_fields().map(|field| field_ty(tcx, self.env, field.did, args)))
+					stack.extend(adt.all_fields().map(|field| field_ty(tcx, self.env, field.did, *args)))
 				}
 				_ => return true,
 			}
@@ -793,7 +793,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 				}
 				ty::Adt(adt, args) => stack.extend(
 					adt.all_fields()
-						.map(|field| field_ty(self.t.tcx, self.env, field.did, args)),
+						.map(|field| field_ty(self.t.tcx, self.env, field.did, *args)),
 				),
 				ty::Param(_) if !params => {}
 				_ => return true,
@@ -971,7 +971,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 			ty::Tuple(tys) => tys.to_vec(),
 			ty::Adt(adt, args) => adt
 				.all_fields()
-				.map(|field| field_ty(self.t.tcx, self.env, field.did, args))
+				.map(|field| field_ty(self.t.tcx, self.env, field.did, *args))
 				.collect(),
 			_ => return None,
 		})
@@ -1023,14 +1023,14 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 							.fields
 							.iter_enumerated()
 							.filter(|&(i, _)| i != field)
-							.map(|(_, f)| field_ty(tcx, self.env, f.did, args)),
+							.map(|(_, f)| field_ty(tcx, self.env, f.did, *args)),
 					);
 				}
 				(ProjectionElem::Downcast(_, at), ty::Adt(adt, args)) => beside.extend(
 					adt.variants()
 						.iter_enumerated()
 						.filter(|&(i, _)| i != at)
-						.flat_map(|(_, v)| v.fields.iter().map(|f| field_ty(tcx, self.env, f.did, args))),
+						.flat_map(|(_, v)| v.fields.iter().map(|f| field_ty(tcx, self.env, f.did, *args))),
 				),
 				(
 					ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } | ProjectionElem::Subslice { .. },
@@ -1051,7 +1051,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 
 	/// The body a call of std's `def_id` with `args`, given `count` arguments, runs, over its
 	/// own generics; `None` if it takes another count, as a closure's call does.
-	fn generic(&self, def_id: DefId, args: GenericArgsRef<'tcx>, count: usize) -> Option<Generic<'tcx>> {
+	fn generic(&self, def_id: DefId, args: GenericArgs<'tcx>, count: usize) -> Option<Generic<'tcx>> {
 		let tcx = self.t.tcx;
 		let instance = Instance::try_resolve(tcx, self.env, def_id, args).ok()??;
 		let ty::InstanceKind::Item(did) = instance.def else {
@@ -1099,7 +1099,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	fn returned_mask(
 		&self,
 		def_id: DefId,
-		args: GenericArgsRef<'tcx>,
+		args: GenericArgs<'tcx>,
 		count: usize,
 		given: &[(usize, Mask<'tcx>)],
 	) -> Mask<'tcx> {
@@ -1136,7 +1136,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	fn reached_masks(
 		&self,
 		def_id: DefId,
-		args: GenericArgsRef<'tcx>,
+		args: GenericArgs<'tcx>,
 		count: usize,
 		mask: Mask<'tcx>,
 		into: Option<usize>,
@@ -1460,7 +1460,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 		clippy::type_complexity,
 		reason = "a call's function, its generic arguments, and its arguments"
 	)]
-	fn lent_to(&self, lent: Local) -> Option<Vec<(DefId, GenericArgsRef<'tcx>, &'x [Spanned<Operand<'tcx>>])>> {
+	fn lent_to(&self, lent: Local) -> Option<Vec<(DefId, GenericArgs<'tcx>, &'x [Spanned<Operand<'tcx>>])>> {
 		let (mir, tcx) = (self.mir, self.t.tcx);
 		let ty = mir.local_decls[lent].ty;
 		let borrowed = ty.builtin_deref(true)?;
@@ -1641,7 +1641,7 @@ impl<'tcx> Held<'tcx> {
 /// A call of std's code over type parameters, as the body it runs declares it.
 struct Generic<'tcx> {
 	/// The arguments for the body's generics.
-	args: GenericArgsRef<'tcx>,
+	args: GenericArgs<'tcx>,
 	/// Its parameters' types, over its generics.
 	inputs: &'tcx [Ty<'tcx>],
 	/// Its result's type, over its generics.
