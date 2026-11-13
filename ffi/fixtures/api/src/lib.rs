@@ -2264,6 +2264,14 @@ pub fn prefixed(payload: &[u8], prefix: Option<&[u8]>) -> Vec<u8> {
 	[prefix.unwrap_or_default(), payload].concat()
 }
 
+/// The sum of `a`, `b`, and `c`, if any: a list owned, then lent as a slice and as itself.
+pub fn sum_lists(a: Vec<i32>, b: Option<&[i32]>, c: Option<&Vec<i32>>) -> i32 {
+	a.iter()
+		.chain(b.unwrap_or_default())
+		.chain(c.into_iter().flatten())
+		.sum()
+}
+
 /// `point`'s coordinates summed, or 0 for none: an optional value, lent shared.
 pub fn coordinates(point: Option<&Point>) -> i32 {
 	point.map_or(0, |point| point.x + point.y)

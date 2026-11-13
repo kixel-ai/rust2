@@ -3,7 +3,11 @@
 //! and, shrunk by R8, on Android, from Python by `tests/api.py`, from Swift by
 //! `tests/api.swift`, from Go by `tests/api.go`, and from Dart by `tests/api.dart`, whose
 //! transcripts must match the fixture's own script run natively.
-//! The reject fixture's export must fail at each item it cannot export.
+//! The reject fixture's export must fail at each item it cannot export, and generated
+//! type shapes round-trip in every language ([`shapes`]).
+
+#[path = "fixtures/shapes.rs"]
+mod shapes;
 
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsString;
@@ -339,7 +343,7 @@ fn api_cpp() {
 	for (standard, plain) in [(17, true), (20, false), (23, true)] {
 		let exe = scratch().join("api").join(format!("api-c++{standard}{EXE_SUFFIX}"));
 		run(&mut cxx(
-			api,
+			&api.link(),
 			standard,
 			plain,
 			&manifest_dir().join("tests").join("api.cpp"),
@@ -400,7 +404,7 @@ fn api_cpp() {
 		let src = scratch().join("api").join(format!("alone-{header}.cpp"));
 		std::fs::write(&src, format!("#include \"api/{header}\"\nint main() {{}}\n")).unwrap();
 		let exe = scratch().join("api").join(format!("alone-{header}{EXE_SUFFIX}"));
-		run(&mut cxx(api, 17, true, &src, &exe));
+		run(&mut cxx(&api.link(), 17, true, &src, &exe));
 	}
 
 	// A C++ program whose header names another contract than its library's aborts at load.
@@ -411,7 +415,7 @@ fn api_cpp() {
 	)
 	.unwrap();
 	let contract = scratch().join("api").join(format!("contract{EXE_SUFFIX}"));
-	run(&mut cxx(api, 17, false, &mismatched, &contract));
+	run(&mut cxx(&api.link(), 17, false, &mismatched, &contract));
 	let output = Command::new(&contract).output().unwrap();
 	assert!(!output.status.success(), "a mismatched contract did not abort");
 	let stderr = String::from_utf8_lossy(&output.stderr);
@@ -465,11 +469,29 @@ fn cpp_strict(api: &Api) {
 	}
 }
 
-/// A build of the C++ `src` against the api library into `exe`, at C++`standard`, with
+/// What a program links of an export: its headers, its static library, and what that
+/// links besides.
+struct Link<'a> {
+	include: PathBuf,
+	staticlib: PathBuf,
+	native: &'a [String],
+}
+
+impl Api {
+	fn link(&self) -> Link<'_> {
+		Link {
+			include: self.out.join("include"),
+			staticlib: self.staticlib(),
+			native: &self.native,
+		}
+	}
+}
+
+/// A build of the C++ `src` against the `link`ed library into `exe`, at C++`standard`, with
 /// exceptions and RTTI off if `plain`, and warnings as errors: by `CXX` or the platform's
 /// compiler, given MSVC's flags where the target is MSVC's.
-fn cxx(api: &Api, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command {
-	let include = api.out.join("include");
+fn cxx(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command {
+	let include = &link.include;
 	if cfg!(target_env = "msvc") {
 		// cl from a developer environment. Its C++23 is `c++latest`; its objects go beside `exe`.
 		let mut cmd = Command::new(std::env::var_os("CXX").unwrap_or_else(|| "cl".into()));
@@ -494,7 +516,7 @@ fn cxx(api: &Api, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command 
 		let mut out = OsString::from("-Fe");
 		out.push(exe);
 		cmd.arg("-I").arg(include).arg(src).arg(obj).arg(out);
-		cmd.arg("-link").arg(api.staticlib()).args(&api.native);
+		cmd.arg("-link").arg(&link.staticlib).args(link.native);
 		return cmd;
 	}
 	let mut cmd = Command::new(std::env::var_os("CXX").unwrap_or_else(|| "c++".into()));
@@ -506,8 +528,8 @@ fn cxx(api: &Api, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command 
 	cmd.args(["-pedantic", "-Wall", "-Wextra", "-Wshadow", "-Werror", "-I"])
 		.arg(include)
 		.arg(src)
-		.arg(api.staticlib())
-		.args(&api.native)
+		.arg(&link.staticlib)
+		.args(link.native)
 		.arg("-o")
 		.arg(exe);
 	cmd
@@ -971,7 +993,13 @@ fn api_dart() {
 	let generated = api.out.join("dart");
 	run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&generated));
 	let lib = api.lib.join(PYTHON_LIB);
-	let exe = dart_compile(&dir, &generated, &lib, &manifest_dir().join("tests").join("api.dart"));
+	let exe = dart_compile(
+		"api",
+		&dir,
+		&generated,
+		&lib,
+		&manifest_dir().join("tests").join("api.dart"),
+	);
 	let dart = run(&mut dart_run(&exe, &[]));
 	assert_eq!(
 		String::from_utf8_lossy(&dart.stdout),
@@ -1025,7 +1053,7 @@ fn api_dart() {
 		"import 'package:api/api.dart' as api;\n\nvoid main() => api.dropped();\n",
 	)
 	.unwrap();
-	let exe = dart_compile(&contract, &contract, &lib, &main);
+	let exe = dart_compile("api", &contract, &contract, &lib, &main);
 	let output = dart_run(&exe, &[]).output().unwrap();
 	assert!(!output.status.success(), "a mismatched contract did not fail");
 	let stderr = String::from_utf8_lossy(&output.stderr);
@@ -1036,9 +1064,9 @@ fn api_dart() {
 }
 
 /// `main` compiled into a kernel snapshot in `dir`, importing the generated Dart in
-/// `package` as `package:api/api.dart`, whose native asset is the shared library `lib`: as
-/// a package's build hook would bundle it, which `dart compile` has no flag for.
-fn dart_compile(dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
+/// `package` as `package:<name>/<name>.dart`, whose native asset is the shared library
+/// `lib`: as a package's build hook would bundle it, which `dart compile` has no flag for.
+fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
 	let sdk = std::fs::canonicalize(which("dart"))
 		.unwrap()
 		.parent()
@@ -1050,7 +1078,7 @@ fn dart_compile(dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf 
 	std::fs::write(
 		&config,
 		format!(
-			"{{\"configVersion\": 2, \"packages\": [{{\"name\": \"api\", \"rootUri\": \"{root}/\", \"packageUri\": \"./\"}}]}}\n"
+			"{{\"configVersion\": 2, \"packages\": [{{\"name\": \"{name}\", \"rootUri\": \"{root}/\", \"packageUri\": \"./\"}}]}}\n"
 		),
 	)
 	.unwrap();
@@ -1067,7 +1095,7 @@ fn dart_compile(dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf 
 	std::fs::write(
 		&assets,
 		format!(
-			"format-version: [1, 0, 0]\nnative-assets:\n  {os}_{arch}:\n    \"package:api/api.dart\": [absolute, {:?}]\n",
+			"format-version: [1, 0, 0]\nnative-assets:\n  {os}_{arch}:\n    \"package:{name}/{name}.dart\": [absolute, {:?}]\n",
 			lib.display().to_string()
 		),
 	)
@@ -1116,11 +1144,15 @@ fn url(dir: &Path) -> String {
 
 /// The static libraries of swift-collections' modules the generated Swift imports, which
 /// `just ffi swift-collections` builds beside their modules, where [`swiftc`] finds them.
+/// Built once, since two tests running the recipe at once race on its checkout and build.
 fn swift_collections() -> Vec<PathBuf> {
-	run(Command::new("just")
-		.arg("--justfile")
-		.arg(manifest_dir().join("justfile"))
-		.arg("swift-collections"));
+	static BUILT: OnceLock<()> = OnceLock::new();
+	BUILT.get_or_init(|| {
+		run(Command::new("just")
+			.arg("--justfile")
+			.arg(manifest_dir().join("justfile"))
+			.arg("swift-collections"));
+	});
 	let build = collections_dir();
 	["BasicContainers", "InternalCollectionsUtilities", "SpanPreview"]
 		.iter()
