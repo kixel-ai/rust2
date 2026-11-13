@@ -18,7 +18,8 @@ pub struct Api {
 	/// The crates items belong to, each after every crate it depends on.
 	pub crates: Vec<String>,
 	/// The crates the facade does not re-export whose types an export names, which the
-	/// glue depends on directly.
+	/// glue depends on directly. An API from before it reached none.
+	#[serde(default)]
 	pub reached: Vec<Reached>,
 	/// The targets it serves, sorted: one for a single target's, several merged.
 	pub targets: Vec<String>,
