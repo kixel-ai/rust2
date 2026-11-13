@@ -426,7 +426,9 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
 `--features kotlin` builds into the same library, loaded by `System.loadLibrary`. It needs
 kotlinx-coroutines. Each value crosses JNI as a scalar, a handle as a `Long`, bytes passed
 in as a `ByteArray`, bytes returned as their owner, and anything else encoded into a
-`ByteArray` as its C struct holds it.
+`ByteArray` as its C struct holds it. A record a call takes or returns directly, or in an
+`Option` returned, crosses as its scalars, a nested record's included, as JNI parameters
+in and through a `LongArray` each thread keeps out, with only its other fields encoded.
 
 - **Names** are in a package of the prefix: types in PascalCase without it, members in
   camelCase without their type's name (`moq.TrackProducer.appendGroup`). Pascal case

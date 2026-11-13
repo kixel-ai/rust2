@@ -16,6 +16,8 @@
 //! A value crosses JNI as a scalar, a handle as a `long`, bytes passed in as a `byte[]`,
 //! bytes returned as their owner, which a `Bytes` reads through a call each, or encoded
 //! into a `byte[]` field by field as its C struct holds it, so each call is one crossing.
+//! A record passed or returned directly crosses as its scalars instead, parameters in and
+//! a thread's `long[]` slots out, with only its other fields encoded.
 //! An object never closed, and Rust's bytes, are freed once the GC collects them.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -1922,7 +1924,14 @@ impl<'a> Gen<'a> {
 				exprs.push(a.clone());
 				self.slots = self.slots.max(slots.len());
 			}
-			Flat { option, a, r, slots, puts, make }
+			Flat {
+				option,
+				a,
+				r,
+				slots,
+				puts,
+				make,
+			}
 		});
 		// The native call, closing what it moves out once it returns.
 		let call = match after.is_empty() {
@@ -2049,7 +2058,11 @@ impl<'a> Gen<'a> {
 			}
 			if !flat.slots.is_empty() {
 				params.push(("jlongArray", "LongArray"));
-				body.push(format!("rt::slots(env, p{}, &[{}]);", params.len() - 1, flat.slots.join(", ")));
+				body.push(format!(
+					"rt::slots(env, p{}, &[{}]);",
+					params.len() - 1,
+					flat.slots.join(", ")
+				));
 			}
 			if rest {
 				body.push("let mut w = rt::Writer::default();".to_string());
@@ -2314,7 +2327,7 @@ impl<'a> Gen<'a> {
 					*n += 1;
 					let (jni, native, kt, rust) = match ty {
 						Type::Bool => ("jboolean", "Boolean", e, p),
-						Type::Int(int) => {
+						Type::Int(int) | Type::NonZero(int) => {
 							let (jni, native) = jni_type(&Ty::Int(*int), ty);
 							(jni, native, to_signed(*int, &e), from_jni(*int, &p))
 						}
@@ -2341,7 +2354,13 @@ impl<'a> Gen<'a> {
 	/// The Kotlin value of the record `i` Rust returned as the C value `v`: each scalar,
 	/// nested records' too, from the next of the slots `a` the glue sets with `slots`, and
 	/// each other field from `r`, which the glue writes with `puts`, in field order.
-	fn flat_out(&mut self, i: usize, v: &str, (a, slots): (&str, &mut Vec<String>), (r, puts): (&str, &mut Vec<String>)) -> String {
+	fn flat_out(
+		&mut self,
+		i: usize,
+		v: &str,
+		(a, slots): (&str, &mut Vec<String>),
+		(r, puts): (&str, &mut Vec<String>),
+	) -> String {
 		let abi = self.abi;
 		let mut fields = Vec::new();
 		for (k, field) in abi.api.records[i].fields.iter().enumerate() {
@@ -2352,7 +2371,7 @@ impl<'a> Gen<'a> {
 					let slot = format!("{a}[{}]", slots.len());
 					let (rust, kt) = match ty {
 						Type::Bool => (format!("{v} as i64"), format!("({slot} != 0L)")),
-						Type::Int(int) => {
+						Type::Int(int) | Type::NonZero(int) => {
 							let narrow = match jni_int(*int) {
 								"jbyte" => format!("{slot}.toByte()"),
 								"jshort" => format!("{slot}.toShort()"),
@@ -2361,7 +2380,10 @@ impl<'a> Gen<'a> {
 							};
 							(format!("{v} as i64"), from_signed(*int, &narrow))
 						}
-						Type::F32 => (format!("{v}.to_bits() as i64"), format!("Float.fromBits({slot}.toInt())")),
+						Type::F32 => (
+							format!("{v}.to_bits() as i64"),
+							format!("Float.fromBits({slot}.toInt())"),
+						),
 						Type::F64 => (format!("{v}.to_bits() as i64"), format!("Double.fromBits({slot})")),
 						Type::Char => (format!("{v} as i64"), format!("{slot}.toInt()")),
 						Type::Enum(e) => {
@@ -2386,7 +2408,7 @@ impl<'a> Gen<'a> {
 /// Whether a record's field of type `ty` crosses as a JNI scalar of its own.
 fn scalar(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
-		Type::Bool | Type::Int(_) | Type::F32 | Type::F64 | Type::Char => true,
+		Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char => true,
 		Type::Enum(i) => abi.api.enums[*i].plain(),
 		_ => false,
 	}

@@ -4,7 +4,9 @@
 //! A value Kotlin passes is a JNI scalar, a handle as a `long`, its bytes as a `byte[]`,
 //! or anything else encoded into a `byte[]`: little-endian, field by field, as the C
 //! struct holds it, with a buffer as its length (-1 for none) and its bytes, and an array
-//! as its length (-1 for none) and its elements. Bytes Rust returns cross copied when short,
+//! as its length (-1 for none) and its elements; a record passed or returned directly
+//! crosses its scalars as parameters, or through Kotlin's `long[]` slots, apart from the
+//! rest. Bytes Rust returns cross copied when short,
 //! and otherwise as their owner, which a Kotlin `Bytes` reads through a call each until the
 //! GC collects it.
 

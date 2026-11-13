@@ -10,8 +10,10 @@ other object shares. On [the binding benchmark](/bench/ffi/README.md) Kotlin's w
 ## Plan
 
 Found by the 2026-11-12 audit; neither cost is another quest's:
-[records](/quest/m1/ffi-speed/kotlin-records.md) covers records only, and
-[object ownership](/quest/m1/ffi-speed/object-ownership.md) Go and Dart only.
+[object ownership](/quest/m1/ffi-speed/object-ownership.md) covers Go and Dart only.
+A record returned directly already crosses as its scalars through a thread's `LongArray`
+slots (`Native.__slots`); a `Result` or a future of one still encodes, so carry the slots
+over to it here.
 
 - Today any call with an out pointer returns a `jbyteArray` that Kotlin re-reads through
   `Native.Reader`, on success too (`ffi/src/kotlin.rs`, `ffi/runtime/jni.rs`). Return the
