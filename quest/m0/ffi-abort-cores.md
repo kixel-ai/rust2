@@ -7,7 +7,8 @@ spawn each binding's test program and assert it aborts, still assert the abort a
 message, but on Linux no core is written or stored. Except for Kotlin's cases on `java`,
 the kernel never hands the dying child to the host's core handler: `systemd-coredump` does
 not start and the journal gets no crash entry. Kotlin's aborts still start the handler and
-log one CRIT entry each, but write no core.
+log one CRIT entry each, but write no core. That holds only for crash handlers that respect
+the core-size limit, such as `systemd-coredump`, the one measured on fedora.
 
 ## Plan
 
@@ -33,7 +34,8 @@ What disabling the core does, measured on fedora (kernel 7.3, systemd 262, a pip
 
 Each test program already routes its broken cases through one `broken(case)` entry, so
 marking itself non-dumpable there is one call per language on Linux: `prctl` in C and
-C++, `ctypes` in Python, `Glibc.prctl` in Swift, `syscall`/`unix.Prctl` in Go, and FFI in
+C++, `ctypes` in Python, Swift however its implementer reaches `prctl` (its variadic
+`Glibc.prctl` may need a small fixed-arity C wrapper), `syscall`/`unix.Prctl` in Go, and FFI in
 Dart. Kotlin runs on JDK 21, whose foreign-function API is still a preview there, so the
 JVM cannot make the call without `--enable-preview`.
 [#730](https://github.com/kixel-ai/rust2/pull/730) turns many Kotlin, Python, Dart and
@@ -49,6 +51,10 @@ Decided with the maintainer on 2026-11-13:
   `RLIMIT_CORE` at 0 for every case from one spawn helper, since every crash would still
   start `systemd-coredump` and log a CRIT entry; an `LD_PRELOAD` shim, for the build
   artifact it adds). Kotlin keeps one CRIT entry per abort and no core.
+- Swift's `prctl`: ✅ no plan change; the implementer decides how Swift reaches `prctl`,
+  such as a small fixed-arity C wrapper (rejected: naming the shim in the plan now).
+- Kotlin's no-core claim: ✅ holds only for crash handlers that respect the core-size
+  limit, such as `systemd-coredump` (rejected: no change).
 - Milestone: ✅ m0 (rejected: m1), since every agent's `just test` pays this.
 
 Verify on the real surface: run `just test` for the ffi fixtures on Linux and compare
