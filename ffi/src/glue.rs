@@ -1034,7 +1034,12 @@ impl Gen<'_> {
 					.fields
 					.iter()
 					.zip(&bindings)
-					.map(|(f, b)| format!("{}: {b}", f.name))
+					// A field named as its binding is, `f0`, takes the shorthand, which
+					// the lint would ask for.
+					.map(|(f, b)| match f.name == *b {
+						true => b.clone(),
+						false => format!("{}: {b}", f.name),
+					})
 					.collect();
 				format!("{path} {{ {} }}", fields.join(", "))
 			}
@@ -1390,6 +1395,18 @@ impl Gen<'_> {
 					format!("let {local} = {};", self.lift(ty, c)),
 					format!("{local}.as_deref()"),
 				),
+				// A lifted `Vec` lends itself or, by coercion to the parameter's type, its slice,
+				// since a borrowed `Vec` and a slice share their type.
+				(Type::List(Collection::Vec | Collection::Slice, _), _) => {
+					let (binding, borrow) = match m {
+						Mutability::Mut => ("let mut", "&mut"),
+						Mutability::Not => ("let", "&"),
+					};
+					(
+						format!("{binding} {local} = {};", self.lift(ty, c)),
+						format!("match {borrow} {local} {{ Some(v) => Some(v), None => None }}"),
+					)
+				}
 				_ => (
 					format!("let {local} = {};", self.lift(ty, c)),
 					format!("{local}.as_ref()"),

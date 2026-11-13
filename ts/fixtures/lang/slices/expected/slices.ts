@@ -1328,26 +1328,11 @@ export function ranges(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _305!: rs.u8;
 	let _344!: rs.u8;
 	let _352!: rs.u8;
-	const _46: (a0: rs.Slice<rs.u32>) => rs.u8 = (s2: rs.Slice<rs.u32>): rs.u8 => {
-		return rs.iterFold(rs.iterSlice(rs.sliceItems(s2)), s2.length & 0xff, (acc: rs.u8, _32: rs.u32): rs.u8 => {
-			return rs.u8WrappingMul(acc, 31) ^ ((_32 >>> 5) & 0xff);
-		});
-	};
-	const _329: (a0: rs.usize, a1: rs.u8) => rs.RangeBound<rs.usize> = (x2: rs.usize, k: rs.u8): rs.RangeBound<rs.usize> => {
-		const _42: rs.u8 = rs.u8Rem(k, 3);
-		if (_42 === 0) {
-			return { tag: "Included", _0: x2 } as rs.RangeBound<rs.usize>;
-		}
-		if (_42 === 1) {
-			return { tag: "Excluded", _0: x2 } as rs.RangeBound<rs.usize>;
-		}
-		return { tag: "Unbounded" } as rs.RangeBound<rs.usize>;
-	};
 	if (data.length >= 2) {
 		const reach: rs.usize = rs.usizeAdd(rs.byteSliceRange(data, 2).length, 2);
-		const at: (a0: rs.u8) => rs.usize = (x3: rs.u8): rs.usize => {
-			if (!(x3 === 255)) {
-				return rs.usizeRem(x3 as rs.usize, reach);
+		const at: (a0: rs.u8) => rs.usize = (x: rs.u8): rs.usize => {
+			if (!(x === 255)) {
+				return rs.usizeRem(x as rs.usize, reach);
 			}
 			return 4294967295;
 		};
@@ -1373,6 +1358,11 @@ export function ranges(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			_39[0].v = rs.u32Mul(_39[1] as rs.u32, 65599);
 		}
+		const _46: (a0: rs.Slice<rs.u32>) => rs.u8 = (s2: rs.Slice<rs.u32>): rs.u8 => {
+			return rs.iterFold(rs.iterSlice(rs.sliceItems(s2)), s2.length & 0xff, (acc: rs.u8, _38: rs.u32): rs.u8 => {
+				return rs.u8WrappingMul(acc, 31) ^ ((_38 >>> 5) & 0xff);
+			});
+		};
 		const _47: rs.u8 = rs.u8Rem(kind, 8);
 		if (_47 === 0) {
 			const _53: rs.RangeInclusive<rs.usize> = new rs.RangeInclusive(a, b, rs.usizeStep);
@@ -1617,6 +1607,16 @@ export function ranges(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const bounds11 = rs.sliceIndexBounds(_328, slice6.length);
 			rs.byteVecPush(out, digest(rs.byteSliceRange(slice6, bounds11[0], bounds11[1])));
 		} else if (_47 === 5) {
+			const _329: (a0: rs.usize, a1: rs.u8) => rs.RangeBound<rs.usize> = (x3: rs.usize, k: rs.u8): rs.RangeBound<rs.usize> => {
+				const _410: rs.u8 = rs.u8Rem(k, 3);
+				if (_410 === 0) {
+					return { tag: "Included", _0: x3 } as rs.RangeBound<rs.usize>;
+				}
+				if (_410 === 1) {
+					return { tag: "Excluded", _0: x3 } as rs.RangeBound<rs.usize>;
+				}
+				return { tag: "Unbounded" } as rs.RangeBound<rs.usize>;
+			};
 			const part4 = rs.byteSliceRange(data, 2).length & 0xff;
 			const _333: rs.RangeBound<rs.usize> = _329(a, part4);
 			const _332: [rs.RangeBound<rs.usize>, rs.RangeBound<rs.usize>] = [_333, _329(b, rs.u8Div(kind, 8))];
@@ -2078,11 +2078,6 @@ export function runs$0(data: rs.ByteSlice): rs.u8 {
  * and array, which later writes to what it cloned leave as they were.
  */
 export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _11: (a0: rs.Slice<Noisy.Noisy>) => rs.u8 = (s: rs.Slice<Noisy.Noisy>): rs.u8 => {
-		return rs.iterFold(rs.iterSlice(rs.sliceItems(s)), s.length & 0xff, (acc: rs.u8, x: Noisy.Noisy): rs.u8 => {
-			return rs.u8WrappingMul(acc, 31) ^ x.tag;
-		});
-	};
 	const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
 	const words: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
 		return rs.u16Mul(_2 as rs.u16, 257);
@@ -2090,6 +2085,11 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const items: rs.Vec<Noisy.Noisy> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_26: rs.u8): Noisy.Noisy => {
 		return new Noisy.Noisy(_26);
 	}), undefined, 1, true);
+	const _11: (a0: rs.Slice<Noisy.Noisy>) => rs.u8 = (s: rs.Slice<Noisy.Noisy>): rs.u8 => {
+		return rs.iterFold(rs.iterSlice(rs.sliceItems(s)), s.length & 0xff, (acc: rs.u8, x: Noisy.Noisy): rs.u8 => {
+			return rs.u8WrappingMul(acc, 31) ^ x.tag;
+		});
+	};
 	const _13: rs.u8 = rs.u8Rem(kind, 4);
 	if (_13 === 0) {
 		const _17: [rs.ArraySlice<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(data, 2);
@@ -2229,11 +2229,6 @@ export function runsMut$0(data: rs.ByteSlice): rs.u8 {
  * does one the slice's own writes follow; and at none, which panics.
  */
 export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _11: (a0: rs.Slice<Item.Item>) => rs.u8 = (s: rs.Slice<Item.Item>): rs.u8 => {
-		return rs.iterFold(rs.iterSlice(rs.sliceItems(s)), s.length & 0xff, (acc: rs.u8, x: Item.Item): rs.u8 => {
-			return rs.u8WrappingMul(acc, 31) ^ x.tag;
-		});
-	};
 	const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
 	const words: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
 		return rs.u16Mul(_2 as rs.u16, 257);
@@ -2241,6 +2236,11 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	const items: rs.Vec<Item.Item> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): Item.Item => {
 		return new Item.Item(_22);
 	}), undefined, 1, true);
+	const _11: (a0: rs.Slice<Item.Item>) => rs.u8 = (s: rs.Slice<Item.Item>): rs.u8 => {
+		return rs.iterFold(rs.iterSlice(rs.sliceItems(s)), s.length & 0xff, (acc: rs.u8, x: Item.Item): rs.u8 => {
+			return rs.u8WrappingMul(acc, 31) ^ x.tag;
+		});
+	};
 	const _12: rs.u8 = rs.u8Rem(kind, 5);
 	if (_12 === 0) {
 		const _16: [rs.ArraySlice<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteVecSlice(bytes), 3);

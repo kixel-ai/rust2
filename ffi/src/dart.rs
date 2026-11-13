@@ -72,6 +72,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		structs: BTreeMap::new(),
 		natives: BTreeMap::new(),
 		helpers: BTreeMap::new(),
+		writers: HashMap::new(),
+		readers: HashMap::new(),
 		types: String::new(),
 		top: String::new(),
 		glue: String::new(),
@@ -375,6 +377,12 @@ struct Gen<'a> {
 	natives: BTreeMap<String, String>,
 	/// The conversions, polls, and trampolines, by name.
 	helpers: BTreeMap<String, String>,
+	/// Each writer's name, by the type it writes: types of one C struct, such as a `Vec` of
+	/// `SocketAddrV4` and one of `SocketAddr`, check what they write apart.
+	writers: HashMap<Type, String>,
+	/// Each reader's name, by the type it reads: types of one C struct, such as
+	/// `Vec<Vec<u32>>` and `Vec<BTreeSet<u32>>`, which Dart holds differently, read apart.
+	readers: HashMap<Type, String>,
 	/// The types, then the top-level functions and constants.
 	types: String,
 	top: String,
@@ -896,7 +904,7 @@ impl<'a> Gen<'a> {
 				Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e});"),
 				Type::List(..) => {
 					let c = self.c_name(inner);
-					let w = self.writer(&c, inner);
+					let w = self.writer(&c, inner.base());
 					format!("{w}({e}, {dst}, a_);")
 				}
 				_ => {
@@ -930,12 +938,17 @@ impl<'a> Gen<'a> {
 
 	/// The function writing a Dart value of type `ty` into the C struct `c`.
 	fn writer(&mut self, c: &str, ty: &Type) -> String {
-		// One C struct serves types told apart by which lists are blocks, which Dart holds
-		// differently, such as `Vec<Vec<u32>>` and `Vec<BTreeSet<u32>>`.
-		let name = format!("_w{}_{c}", ty.shape());
-		if self.helpers.contains_key(&name) {
-			return name;
+		if let Some(name) = self.writers.get(ty) {
+			return name.clone();
 		}
+		let mut name = format!("_w_{c}");
+		for k in 2.. {
+			if !self.helpers.contains_key(&name) {
+				break;
+			}
+			name = format!("_w_{c}_{k}");
+		}
+		self.writers.insert(ty.clone(), name.clone());
 		self.helpers.insert(name.clone(), String::new());
 		let class = self.struct_class(&Ty::Struct(c.to_string()));
 		let dt = self.dt(ty);
@@ -1042,10 +1055,17 @@ impl<'a> Gen<'a> {
 	/// The function reading a Dart value of type `ty` out of the C struct `c`, owning what
 	/// it holds.
 	fn reader(&mut self, c: &str, ty: &Type) -> String {
-		let name = format!("_r{}_{c}", ty.shape());
-		if self.helpers.contains_key(&name) {
-			return name;
+		if let Some(name) = self.readers.get(ty) {
+			return name.clone();
 		}
+		let mut name = format!("_r_{c}");
+		for k in 2.. {
+			if !self.helpers.contains_key(&name) {
+				break;
+			}
+			name = format!("_r_{c}_{k}");
+		}
+		self.readers.insert(ty.clone(), name.clone());
 		self.helpers.insert(name.clone(), String::new());
 		let abi = self.abi;
 		let dt = self.dt(ty);
@@ -1870,10 +1890,17 @@ impl<'a> Gen<'a> {
 	/// The Dart statements closing each object the value `e` of type `ty` holds, once a
 	/// call moved them out.
 	fn close(&mut self, ty: &Type, e: &str) -> String {
+		// A local named apart from `e`, which may be a parameter named `v`, and from the
+		// local an outer level declared, which Dart would read before it is declared.
+		let v: String = e
+			.chars()
+			.map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+			.collect::<String>()
+			+ "_";
 		match ty {
 			Type::Option(inner) => {
-				let close = self.close(inner, "v");
-				format!("{{ final v = {e}; if (v != null) {{ {close} }} }}")
+				let close = self.close(inner, &v);
+				format!("{{ final {v} = {e}; if ({v} != null) {{ {close} }} }}")
 			}
 			Type::Box(inner) => self.close(inner, e),
 			Type::Tuple(elements) => {
@@ -1884,8 +1911,8 @@ impl<'a> Gen<'a> {
 				closes.join(" ")
 			}
 			Type::List(_, inner) => {
-				let close = self.close(inner, "v");
-				format!("for (final v in {e}) {{ {close} }}")
+				let close = self.close(inner, &v);
+				format!("for (final {v} in {e}) {{ {close} }}")
 			}
 			_ => format!("{e}.close();"),
 		}

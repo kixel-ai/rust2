@@ -10,29 +10,11 @@ export function clone$Clone_String(self: Tagged<rs.String>): Tagged<rs.String> {
 }
 
 export function fmt$fmt_Debug_String(self: Tagged<rs.String>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tagged";
-	const _4: string = "n";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.n, f);
-	const _7: string = "of";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtWriteFmt(f, ["PhantomData<", "alloc::string::String", ">"]);
-	const _10: string = "pin";
-	const _11: rs.Fmt = (f: rs.Formatter) => rs.fmtWriteStr(f, "PhantomPinned");
-	const _13: string = "unit";
-	const _14: rs.Fmt = (f: rs.Formatter) => rs.fmtUnit(self.unit, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8), _10, _11), _13, _14));
+	return rs.fmtDebugFields(f, "Tagged n of pin unit", [(f: rs.Formatter) => rs.u8Debug(self.n, f), (f: rs.Formatter) => rs.fmtWriteFmt(f, ["PhantomData<", "alloc::string::String", ">"]), (f: rs.Formatter) => rs.fmtWriteStr(f, "PhantomPinned"), (f: rs.Formatter) => rs.fmtUnit(self.unit, f)]);
 }
 
 export function fmt$fmt_Debug_u8(self: Tagged<rs.u8>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tagged";
-	const _4: string = "n";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.n, f);
-	const _7: string = "of";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtWriteFmt(f, ["PhantomData<", "u8", ">"]);
-	const _10: string = "pin";
-	const _11: rs.Fmt = (f: rs.Formatter) => rs.fmtWriteStr(f, "PhantomPinned");
-	const _13: string = "unit";
-	const _14: rs.Fmt = (f: rs.Formatter) => rs.fmtUnit(self.unit, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8), _10, _11), _13, _14));
+	return rs.fmtDebugFields(f, "Tagged n of pin unit", [(f: rs.Formatter) => rs.u8Debug(self.n, f), (f: rs.Formatter) => rs.fmtWriteFmt(f, ["PhantomData<", "u8", ">"]), (f: rs.Formatter) => rs.fmtWriteStr(f, "PhantomPinned"), (f: rs.Formatter) => rs.fmtUnit(self.unit, f)]);
 }
 
 export function default$Default_String(): Tagged<rs.String> {

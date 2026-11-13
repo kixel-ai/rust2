@@ -3,75 +3,51 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug_i128(self: Tick<rs.i128>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tick";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.i128Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Tick", [(f: rs.Formatter) => rs.i128Debug(self._0, f)]);
 }
 
 export function fmt$fmt_Debug_i16(self: Tick<rs.i16>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tick";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.i16Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Tick", [(f: rs.Formatter) => rs.i16Debug(self._0, f)]);
 }
 
 export function fmt$fmt_Debug_i32(self: Tick<rs.i32>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tick";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.i32Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Tick", [(f: rs.Formatter) => rs.i32Debug(self._0, f)]);
 }
 
 export function fmt$fmt_Debug_i64(self: Tick<rs.i64>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tick";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.i64Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Tick", [(f: rs.Formatter) => rs.i64Debug(self._0, f)]);
 }
 
 export function fmt$fmt_Debug_i8(self: Tick<rs.i8>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tick";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.i8Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Tick", [(f: rs.Formatter) => rs.i8Debug(self._0, f)]);
 }
 
 export function fmt$fmt_Debug_isize(self: Tick<rs.isize>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tick";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.isizeDebug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Tick", [(f: rs.Formatter) => rs.isizeDebug(self._0, f)]);
 }
 
 export function fmt$fmt_Debug_u128(self: Tick<rs.u128>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tick";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.u128Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Tick", [(f: rs.Formatter) => rs.u128Debug(self._0, f)]);
 }
 
 export function fmt$fmt_Debug_u16(self: Tick<rs.u16>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tick";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.u16Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Tick", [(f: rs.Formatter) => rs.u16Debug(self._0, f)]);
 }
 
 export function fmt$fmt_Debug_u32(self: Tick<rs.u32>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tick";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.u32Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Tick", [(f: rs.Formatter) => rs.u32Debug(self._0, f)]);
 }
 
 export function fmt$fmt_Debug_u64(self: Tick<rs.u64>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tick";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.u64Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Tick", [(f: rs.Formatter) => rs.u64Debug(self._0, f)]);
 }
 
 export function fmt$fmt_Debug_u8(self: Tick<rs.u8>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tick";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Tick", [(f: rs.Formatter) => rs.u8Debug(self._0, f)]);
 }
 
 export function fmt$fmt_Debug_usize(self: Tick<rs.usize>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tick";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.usizeDebug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Tick", [(f: rs.Formatter) => rs.usizeDebug(self._0, f)]);
 }
 
 export function default$Default_i128(): Tick<rs.i128> {

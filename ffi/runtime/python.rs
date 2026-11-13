@@ -979,15 +979,16 @@ pub fn lent_bytes(buf: rt::Buf) -> R<Obj> {
 }
 
 /// A path's bytes, from a `str`, `bytes`, or `os.PathLike`, as `os.fsencode` encodes it,
-/// so a name a Unix path holds that is not UTF-8 crosses as it came.
+/// so a name a Unix path holds that is not UTF-8 crosses as it came, and so does a NUL,
+/// which a Rust path holds and `PyUnicode_FSConverter` refuses.
 pub fn path_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Buf> {
-	let mut encoded: *mut PyObject = null_mut();
-	// SAFETY: the GIL is held, and `obj` is live; the converter writes a new `bytes`.
+	// SAFETY: the GIL is held, and `obj` is live; each call returns a new reference.
 	unsafe {
-		if PyUnicode_FSConverter(obj, (&raw mut encoded).cast()) == 0 {
-			return Err(Raised);
-		}
-		let encoded = s.keep(Obj::new(encoded)?);
+		let path = s.keep(Obj::new(PyOS_FSPath(obj))?);
+		let encoded = match PyBytes_Check(path) != 0 {
+			true => path,
+			false => s.keep(Obj::new(PyUnicode_EncodeFSDefault(path))?),
+		};
 		let mut ptr: *mut c_char = null_mut();
 		let mut len = 0;
 		if PyBytes_AsStringAndSize(encoded, &mut ptr, &mut len) != 0 {

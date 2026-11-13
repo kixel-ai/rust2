@@ -13,7 +13,7 @@ use rustc_middle::mir::visit::{MutatingUseContext, PlaceContext, Visitor};
 use rustc_middle::mir::{
 	self, BasicBlock, Local, Location, Operand, ProjectionElem, Rvalue, StatementKind, TerminatorKind,
 };
-use rustc_middle::ty::{self, GenericArgsRef};
+use rustc_middle::ty::{self, GenericArgs};
 use rustc_span::Spanned;
 
 use super::{Fx, Slot};
@@ -75,7 +75,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	pub(super) fn stray(
 		&self,
 		def_id: rustc_hir::def_id::DefId,
-		gargs: GenericArgsRef<'tcx>,
+		gargs: GenericArgs<'tcx>,
 		args: &[Spanned<Operand<'tcx>>],
 	) -> Option<String> {
 		if !library::is_std(self.tcx, def_id) {
@@ -667,7 +667,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					let ok_call = match &data.terminator().kind {
 						TerminatorKind::Call { func, args, .. } => {
 							let rest = args.iter().skip(1).any(|a| read(&a.node));
-							let own = |def_id, gargs: GenericArgsRef<'tcx>| {
+							let own = |def_id, gargs: GenericArgs<'tcx>| {
 								library::inherent_std(self.tcx, def_id) == Some(Std::Bytes)
 									|| (self.tcx.trait_of_assoc(def_id).is_some()
 										&& gargs
@@ -884,11 +884,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	pub(super) fn def_call(
 		&self,
 		local: Local,
-	) -> Option<(
-		rustc_hir::def_id::DefId,
-		GenericArgsRef<'tcx>,
-		&[Spanned<Operand<'tcx>>],
-	)> {
+	) -> Option<(rustc_hir::def_id::DefId, GenericArgs<'tcx>, &[Spanned<Operand<'tcx>>])> {
 		let bb = self.def_block(local)?;
 		let TerminatorKind::Call { func, args, .. } = &self.mir.basic_blocks[bb].terminator().kind else {
 			return None;

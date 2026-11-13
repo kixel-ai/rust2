@@ -1367,11 +1367,18 @@ pub fn next_packet(packet: Packet) -> Packet {
 pub struct Retry {
 	pub limit: Option<u32>,
 	pub delay: Option<u32>,
+	/// Its field exports, but the method of its name is refused, so the config excludes
+	/// both, and the census lists only `field@Retry::jitter` as excluding what exports.
+	pub jitter: u32,
 }
 
 impl Retry {
 	pub fn new(limit: Option<u32>) -> Self {
-		Self { limit, delay: None }
+		Self {
+			limit,
+			delay: None,
+			jitter: 0,
+		}
 	}
 
 	pub fn limit(&self) -> u32 {
@@ -1384,6 +1391,11 @@ impl Retry {
 
 	pub fn set_limit(&mut self, limit: u32) {
 		self.limit = Some(limit);
+	}
+
+	/// The jitter capped by `cap`, if any: a nested `Option`, which the export refuses.
+	pub fn jitter(&self, cap: Option<Box<Option<u32>>>) -> u32 {
+		cap.and_then(|cap| *cap).map_or(self.jitter, |cap| self.jitter.min(cap))
 	}
 }
 
@@ -2264,6 +2276,14 @@ pub fn prefixed(payload: &[u8], prefix: Option<&[u8]>) -> Vec<u8> {
 	[prefix.unwrap_or_default(), payload].concat()
 }
 
+/// The sum of `a`, `b`, and `c`, if any: a list owned, then lent as a slice and as itself.
+pub fn sum_lists(a: Vec<i32>, b: Option<&[i32]>, c: Option<&Vec<i32>>) -> i32 {
+	a.iter()
+		.chain(b.unwrap_or_default())
+		.chain(c.into_iter().flatten())
+		.sum()
+}
+
 /// `point`'s coordinates summed, or 0 for none: an optional value, lent shared.
 pub fn coordinates(point: Option<&Point>) -> i32 {
 	point.map_or(0, |point| point.x + point.y)
@@ -2964,6 +2984,11 @@ pub fn next_hop(hop: Option<NonZero<u64>>) -> Option<NonZero<u64>> {
 /// behind a `Box`.
 pub fn farther_hop(hops: Pair<NonZero<u16>>) -> Box<NonZero<u16>> {
 	Box::new(hops.left.max(hops.right))
+}
+
+/// Three optional borrowed counters, past what Swift takes, so the config leaves it out.
+pub fn among(first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
+	[first, second, third].into_iter().flatten().map(|c| c.value).sum()
 }
 
 /// A record named as C++'s `==` names its first argument, which must not hide it.

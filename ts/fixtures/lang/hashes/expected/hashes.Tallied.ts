@@ -15,12 +15,7 @@ export function clone$Clone(self: Tallied): Tallied {
 }
 
 export function fmt$fmt_Debug(self: Tallied, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tallied";
-	const _4: string = "tag";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.tag, f);
-	const _7: string = "state";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtWriteStr(f, "BuildHasherDefault");
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Tallied tag state", [(f: rs.Formatter) => rs.u8Debug(self.tag, f), (f: rs.Formatter) => rs.fmtWriteStr(f, "BuildHasherDefault")]);
 }
 
 export function eq$cmp_PartialEq(self: Tallied, other: Tallied): boolean {

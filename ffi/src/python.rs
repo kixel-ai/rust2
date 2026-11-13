@@ -119,10 +119,10 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		types: RUNTIME_TYPES.iter().map(|t| t.to_string()).collect(),
 		index: BTreeMap::new(),
 		keys: BTreeSet::new(),
-		helpers: BTreeSet::new(),
 		exceptions: BTreeMap::new(),
 		thrown: HashMap::new(),
 		names: BTreeMap::new(),
+		converters: HashMap::new(),
 		errors: Vec::new(),
 		on: On::ALL,
 	};
@@ -389,14 +389,16 @@ struct Gen<'a> {
 	index: BTreeMap<String, usize>,
 	/// The attribute names the glue reads and sets.
 	keys: BTreeSet<String>,
-	/// The list, option, and tuple helpers written, by the name [`Gen::helper`] gives them.
-	helpers: BTreeSet<String>,
 	/// The exception class of each error type, by name.
 	exceptions: BTreeMap<String, Type>,
 	/// Each exception class's name, by the name it would take but for a clash.
 	thrown: HashMap<String, String>,
 	/// Each module-level Python name, with what claimed it.
 	names: BTreeMap<String, String>,
+	/// The suffix of the glue's `r_` and `w_` of each option, tuple, and list type by
+	/// its C struct and what the struct holds: types of one struct, such as a `Vec` of
+	/// `SocketAddrV4` and one of `SocketAddr`, convert apart.
+	converters: HashMap<(String, Vec<Type>), String>,
 	errors: Vec<String>,
 	/// The targets of the item being written, whose native functions check theirs.
 	on: On,
@@ -549,7 +551,7 @@ impl<'a> Gen<'a> {
 			Type::Duration => format!("rt::duration_in({o})"),
 			Type::SocketAddr(family) => format!("rt::addr_in({o}, {})", family_of(*family)),
 			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_in::<{}>({o}, s)", number(inner)),
-			Type::List(..) => format!("r_{}({o}, s, {m})", self.helper(ty)),
+			Type::List(..) => format!("r_{}({o}, s, {m})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => {
 					let m = match abi.api.objects[*i].copy || matches!(**inner, Type::Ref(..)) {
@@ -566,7 +568,7 @@ impl<'a> Gen<'a> {
 					let some = self.lift(inner, o, m);
 					format!("(if rt::is_none({o}) {{ Ok(crate::rt::List::NONE) }} else {{ {some} }})")
 				}
-				_ => format!("r_{}({o}, s, {m})", self.helper(ty)),
+				_ => format!("r_{}({o}, s, {m})", self.converter(ty)),
 			},
 			Type::Box(inner) => self.lift(inner, o, m),
 			Type::Ref(_, inner) => self.lift(inner, o, "false"),
@@ -602,7 +604,7 @@ impl<'a> Gen<'a> {
 			Type::Future => format!("rt::future_in({o}, s)"),
 			Type::Range(int) => format!("rt::range_in::<{}>({o})", int.rust()),
 			Type::Bound(_) | Type::Bounds(_) => format!("r_{}({o}, s)", abi.range(ty)),
-			Type::Tuple(_) => format!("r_{}({o}, s, {m})", self.helper(ty)),
+			Type::Tuple(_) => format!("r_{}({o}, s, {m})", self.converter(ty)),
 			Type::Unit | Type::Closure(..) => unreachable!("{ty:?} is no value Python passes"),
 		}
 	}
@@ -627,7 +629,7 @@ impl<'a> Gen<'a> {
 			Type::Duration => format!("rt::duration_out({v})"),
 			Type::SocketAddr(_) => format!("rt::addr_out({v})"),
 			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_out::<{}>({v})", number(inner)),
-			Type::List(..) => format!("w_{}({v})", self.helper(ty)),
+			Type::List(..) => format!("w_{}({v})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => format!(
 					"rt::object_opt({v}, {}, crate::{}_free)",
@@ -638,7 +640,7 @@ impl<'a> Gen<'a> {
 					let some = self.lower(inner, "v");
 					format!("{{ let v = {v}; if v.is_none() {{ rt::none() }} else {{ {some} }} }}")
 				}
-				_ => format!("w_{}({v})", self.helper(ty)),
+				_ => format!("w_{}({v})", self.converter(ty)),
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.lower(inner, v),
 			Type::Record(_) => format!("w_{}({v})", self.c_struct(ty)),
@@ -657,7 +659,7 @@ impl<'a> Gen<'a> {
 				format!("{{ let r = {v}; rt::range_out({start}, {end}) }}")
 			}
 			Type::Bound(_) | Type::Bounds(_) => format!("w_{}({v})", abi.range(ty)),
-			Type::Tuple(_) => format!("w_{}({v})", self.helper(ty)),
+			Type::Tuple(_) => format!("w_{}({v})", self.converter(ty)),
 			Type::Waker => format!("rt::waker_out({v})"),
 			Type::Callback(..) | Type::Closure(..) | Type::Future | Type::Reader => {
 				unreachable!("{ty:?} is no value Rust returns")
@@ -671,6 +673,52 @@ impl<'a> Gen<'a> {
 			Ty::Struct(name) => name,
 			other => unreachable!("{ty:?} crosses as {other:?}, no struct"),
 		}
+	}
+
+	/// The suffix of the glue's `r_` and `w_` converting the option, tuple, or list `ty`,
+	/// written here the first time, so a block's struct gets no item-by-item glue: its C
+	/// struct's name for the type the struct was made for, else a name of its own.
+	fn converter(&mut self, ty: &Type) -> String {
+		let abi = self.abi;
+		let c = self.c_struct(ty);
+		let (held, made): (Vec<Type>, Vec<Type>) = match strip_refs(ty) {
+			Type::Option(inner) => (vec![*inner], vec![abi.options[&c].clone()]),
+			Type::List(_, elem) => (vec![*elem], vec![abi.lists[&c].clone()]),
+			Type::Tuple(elements) => (elements, abi.tuples[&c].clone()),
+			other => unreachable!("{other:?} has no converter"),
+		};
+		let held: Vec<Type> = held.iter().map(strip_refs).collect();
+		let key = (c.clone(), held.clone());
+		if let Some(name) = self.converters.get(&key) {
+			return name.clone();
+		}
+		// A numbered name must miss every converter's: each type's own, and the others numbered.
+		let taken = |name: &str| {
+			abi.options.contains_key(name)
+				|| abi.lists.contains_key(name)
+				|| abi.tuples.contains_key(name)
+				|| abi.ranges.contains_key(name)
+				|| abi.arrays.contains_key(name)
+				|| (0..abi.api.records.len()).any(|i| abi.record(i) == name)
+				|| (0..abi.api.enums.len()).any(|i| abi.enumeration(i) == name)
+				|| (0..abi.api.objects.len()).any(|i| abi.object(i) == name)
+				|| self.converters.values().any(|n| n == name)
+		};
+		let made: Vec<Type> = made.iter().map(strip_refs).collect();
+		let name = match held == made {
+			true => c.clone(),
+			false => (self.converters.len() + 2..)
+				.map(|k| format!("{c}_{k}"))
+				.find(|name| !taken(name))
+				.expect("some number is free"),
+		};
+		self.converters.insert(key, name.clone());
+		match strip_refs(ty) {
+			Type::Option(_) => self.option(&name, &c, &held[0]),
+			Type::List(..) => self.list(&name, &c, &held[0]),
+			_ => self.tuple(&name, &c, &held),
+		}
+		name
 	}
 
 	fn write(&mut self) {
@@ -799,29 +847,8 @@ impl<'a> Gen<'a> {
 		);
 	}
 
-	/// The name of the `r_` and `w_` glue of `ty`, a list, option, or tuple struct, written
-	/// the first time: its C struct's, with which lists it holds are blocks, since one C
-	/// struct serves types a block tells apart, as `Vec<Vec<u32>>` and `Vec<BTreeSet<u32>>`.
-	fn helper(&mut self, ty: &Type) -> String {
-		let ty = strip_refs(ty);
-		let c = self.c_struct(&ty);
-		let name = match ty.shape() {
-			shape if shape.is_empty() => c.clone(),
-			shape => format!("{c}_{shape}"),
-		};
-		if self.helpers.insert(name.clone()) {
-			match &ty {
-				Type::List(_, elem) => self.list(&c, &name, elem),
-				Type::Option(inner) => self.option(&c, &name, inner),
-				Type::Tuple(elements) => self.tuple(&c, &name, elements),
-				other => unreachable!("{other:?} has no helper"),
-			}
-		}
-		name
-	}
-
-	/// The glue of an option struct.
-	fn option(&mut self, c: &str, name: &str, inner: &Type) {
+	/// The glue of an option struct `c` holding `inner`, as `r_<name>` and `w_<name>`.
+	fn option(&mut self, name: &str, c: &str, inner: &Type) {
 		let read = self.lift(inner, "o", "m");
 		let write = self.lower(inner, "v.value");
 		let _ = write!(
@@ -831,8 +858,8 @@ impl<'a> Gen<'a> {
 		);
 	}
 
-	/// The glue of a tuple struct, element by element.
-	fn tuple(&mut self, c: &str, name: &str, elements: &[Type]) {
+	/// The glue of a tuple struct `c`, element by element, as `r_<name>` and `w_<name>`.
+	fn tuple(&mut self, name: &str, c: &str, elements: &[Type]) {
 		let n = elements.len();
 		let mut reads = Vec::new();
 		let mut fields = Vec::new();
@@ -852,8 +879,8 @@ impl<'a> Gen<'a> {
 		);
 	}
 
-	/// The glue of a `Vec`'s array.
-	fn list(&mut self, c: &str, name: &str, elem: &Type) {
+	/// The glue of a `Vec`'s array `c`, as `r_<name>` and `w_<name>`.
+	fn list(&mut self, name: &str, c: &str, elem: &Type) {
 		let read = self.lift(elem, "o", "m");
 		let write = self.lower(elem, "e");
 		let _ = write!(

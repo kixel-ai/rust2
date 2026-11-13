@@ -9,10 +9,7 @@ export function clone$Clone(self: Rest): Rest {
 }
 
 export function fmt$fmt_Debug(self: Rest, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Rest";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.fmtRangeFull(self._0, f);
-	const _6: rs.Fmt = (f: rs.Formatter) => rs.fmtWriteStr(f, "Empty");
-	return rs.debugTupleFinish(rs.debugTupleField(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4), _6));
+	return rs.fmtDebugFields(f, "Rest", [(f: rs.Formatter) => rs.fmtRangeFull(self._0, f), (f: rs.Formatter) => rs.fmtWriteStr(f, "Empty")]);
 }
 
 export function default$Default(): Rest {

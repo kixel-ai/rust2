@@ -100,11 +100,6 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 	let _215!: Any.Any;
 	let _439!: boolean;
 	let _534!: rs.TypeId;
-	const _628: (a0: WithId.WithId, a1: WithId.WithId) => rs.Ordering = (k: WithId.WithId, l: WithId.WithId): rs.Ordering => {
-		const _63: rs.Vec<rs.u128> = words(k.id);
-		const _9: rs.Vec<rs.u128> = words(l.id);
-		return rs.orderingThen(rs.cmpSlice(rs.cmp)(_63, _9), rs.cmp(k.n, l.n));
-	};
 	if (dataLen >= 2) {
 		const _10: [rs.u8, rs.u8] = [dataData[dataStart], dataData[dataStart + 1]];
 		const a: rs.u8 = _10[0];
@@ -227,26 +222,26 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 		const _312: boolean = rs.iterAll(pairs(), (_213: [rs.usize, rs.TypeId, rs.usize, rs.TypeId]): boolean => {
 			const x5: rs.TypeId = _213[1];
 			const y4: rs.TypeId = _213[3];
-			const _613: rs.Ordering = rs.typeIdCmp(x5, y4);
-			const _1211: rs.Vec<rs.u128> = words(x5);
+			const _66: rs.Ordering = rs.typeIdCmp(x5, y4);
+			const _1210: rs.Vec<rs.u128> = words(x5);
 			const _145: rs.Vec<rs.u128> = words(y4);
-			return _613 === rs.cmpSlice(rs.cmp)(_1211, _145);
+			return _66 === rs.cmpSlice(rs.cmp)(_1210, _145);
 		});
 		const _317: boolean = rs.iterAll(pairs(), (_224: [rs.usize, rs.TypeId, rs.usize, rs.TypeId]): boolean => {
 			const x6: rs.TypeId = _224[1];
 			const y5: rs.TypeId = _224[3];
-			const _614: rs.Ordering | undefined = rs.typeIdCmp(x6, y5);
-			const _136: rs.Vec<rs.u128> = words(x6);
+			const _613: rs.Ordering | undefined = rs.typeIdCmp(x6, y5);
+			const _134: rs.Vec<rs.u128> = words(x6);
 			const _154: rs.Vec<rs.u128> = words(y5);
-			return _614 === rs.cmpSlice(rs.cmp)(_136, _154) as rs.Ordering | undefined;
+			return _613 === rs.cmpSlice(rs.cmp)(_134, _154) as rs.Ordering | undefined;
 		});
 		const _322: boolean = rs.iterAll(pairs(), (_225: [rs.usize, rs.TypeId, rs.usize, rs.TypeId]): boolean => {
 			const x7: rs.TypeId = _225[1];
 			const y6: rs.TypeId = _225[3];
-			const _616: boolean = rs.typeIdCmp(x7, y6) === -1;
+			const _614: boolean = rs.typeIdCmp(x7, y6) === -1;
 			const _1112: rs.Vec<rs.u128> = words(x7);
-			const _138: rs.Vec<rs.u128> = words(y6);
-			if (!(_616 === (rs.cmpSlice(rs.cmp)(_1112, _138) === -1))) {
+			const _137: rs.Vec<rs.u128> = words(y6);
+			if (!(_614 === (rs.cmpSlice(rs.cmp)(_1112, _137) === -1))) {
 				return false;
 			}
 			const order2 = rs.typeIdCmp(x7, y6);
@@ -336,10 +331,10 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 		rs.sliceSort(rs.sliceFrom(sorted.items), rs.cmpLt(rs.typeIdCmp), 16, true);
 		const ordered: boolean = rs.iterAll(rs.sliceWindows(rs.sliceFrom(sorted.items), 2), (w4: rs.Slice<rs.TypeId>): boolean => {
 			rs.idx(w4, 0);
-			const _422: rs.Vec<rs.u128> = words(w4.data[w4.start]);
+			const _421: rs.Vec<rs.u128> = words(w4.data[w4.start]);
 			rs.idx(w4, 1);
-			const _109: rs.Vec<rs.u128> = words(w4.data[w4.start + 1]);
-			return rs.cmpSlice(rs.cmp)(_422, _109) === -1;
+			const _108: rs.Vec<rs.u128> = words(w4.data[w4.start + 1]);
+			return rs.cmpSlice(rs.cmp)(_421, _108) === -1;
 		});
 		const _556: rs.Iter<rs.TypeId> = rs.iterChain(rs.iterSlice(ids), rs.iterSlice(found));
 		const set: rs.BTreeSet<rs.TypeId> = rs.btreeExtendKeys(rs.btreeNew(rs.typeIdCmp) as rs.BTreeSet<rs.TypeId>, _556, true, undefined, undefined, 16, true);
@@ -357,6 +352,11 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 		}
 		const keys: WithId.WithId[] = [{ id: x2, n: a }, { id: y, n: b }, { id: x2, n: b }];
 		const _636: rs.Slice<WithId.WithId> = rs.sliceFrom(keys);
+		const _628: (a0: WithId.WithId, a1: WithId.WithId) => rs.Ordering = (k: WithId.WithId, l: WithId.WithId): rs.Ordering => {
+			const _616: rs.Vec<rs.u128> = words(k.id);
+			const _95: rs.Vec<rs.u128> = words(l.id);
+			return rs.orderingThen(rs.cmpSlice(rs.cmp)(_616, _95), rs.cmp(k.n, l.n));
+		};
 		const part11 = rs.iterToVec(rs.iterMap(rs.iterFlatMap(rs.iterSlice(keys), (k2: WithId.WithId): rs.Iter<[WithId.WithId, WithId.WithId]> => {
 			return rs.iterMap(rs.iterSlice(rs.sliceItems(_636)), (l2: WithId.WithId): [WithId.WithId, WithId.WithId] => {
 				return [k2, l2] as [WithId.WithId, WithId.WithId];

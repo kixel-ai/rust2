@@ -3,9 +3,7 @@
 import * as rs from "../../../rs.ts";
 
 export function fmt$fmt_Debug(self: RecvError, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "RecvError";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.fmtUnit(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "RecvError", [(f: rs.Formatter) => rs.fmtUnit(self._0, f)]);
 }
 
 /** Error produced when receiving a change notification. */

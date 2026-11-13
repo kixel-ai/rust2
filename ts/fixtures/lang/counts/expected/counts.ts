@@ -152,7 +152,7 @@ export function arcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const log: rs.Arc<rs.Mutex<rs.ByteVec>> = new rs.Arc(new rs.Mutex(new rs.ByteVec()));
 	const strong: rs.Vec<rs.Arc<Noisy.Noisy>> = new rs.Vec();
 	const weak: rs.Vec<rs.Weak<Noisy.Noisy>> = new rs.Vec();
-	l1: for (const op of rs.byteSliceView(data)) {
+	for (const op of rs.byteSliceView(data)) {
 		const pick: rs.usize = op >> 4 as rs.usize;
 		const _19: rs.u8 = rs.u8Rem(op, 12);
 		if (_19 === 0) {
@@ -270,13 +270,7 @@ export function arcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, _171.strong & 0xff);
 			rs.byteVecPush(out, _171.weak & 0xff);
 		}
-		const iterS3: rs.Weak<Noisy.Noisy>[] = weak.items;
-		let iterI3: number = 0;
-		while (true) {
-			const _184: rs.Weak<Noisy.Noisy> | rs.Done = iterI3 < iterS3.length ? iterS3[iterI3++] : rs.DONE;
-			if (_184 === rs.DONE) {
-				continue l1;
-			}
+		for (const _184 of weak.items) {
 			rs.byteVecPush(out, _184.arc.strong & 0xff);
 			rs.byteVecPush(out, rs.weakWeakCount(_184) & 0xff);
 		}
@@ -1360,7 +1354,7 @@ export function rcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const log: rs.Arc<rs.Mutex<rs.ByteVec>> = new rs.Arc(new rs.Mutex(new rs.ByteVec()));
 	const strong: rs.Vec<rs.Arc<Noisy.Noisy>> = new rs.Vec();
 	const weak: rs.Vec<rs.Weak<Noisy.Noisy>> = new rs.Vec();
-	l1: for (const op of rs.byteSliceView(data)) {
+	for (const op of rs.byteSliceView(data)) {
 		const pick: rs.usize = op >> 4 as rs.usize;
 		const _19: rs.u8 = rs.u8Rem(op, 12);
 		if (_19 === 0) {
@@ -1478,13 +1472,7 @@ export function rcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, _171.strong & 0xff);
 			rs.byteVecPush(out, _171.weak & 0xff);
 		}
-		const iterS3: rs.Weak<Noisy.Noisy>[] = weak.items;
-		let iterI3: number = 0;
-		while (true) {
-			const _184: rs.Weak<Noisy.Noisy> | rs.Done = iterI3 < iterS3.length ? iterS3[iterI3++] : rs.DONE;
-			if (_184 === rs.DONE) {
-				continue l1;
-			}
+		for (const _184 of weak.items) {
 			rs.byteVecPush(out, _184.arc.strong & 0xff);
 			rs.byteVecPush(out, rs.weakWeakCount(_184) & 0xff);
 		}
