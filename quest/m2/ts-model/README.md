@@ -8,6 +8,11 @@ calls (kio, with its clock, and moq-pattern), as it translates the codec today, 
 
 ## Plan
 
+Decided with the maintainer on 2026-11-12, when the exporter's pin was split off: ✅ the model
+fixture's moq pin bumps in its own quest, [moq-pin](/quest/m2/ts-model/moq-pin.md), apart from
+the exporter's, and that quest updates this epic's census count. Rejected: one bump for both
+pins, which holds the exporter behind rind.
+
 Decided with the maintainer on 2026-11-09, in the quest audit: ✅ WASM ships, and the
 translation must beat it. [rust2-wasm](/quest/m2/wasm/README.md) is moq's browser route,
 and its gate compares this translation against it; moq adopts the translation only where

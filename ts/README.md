@@ -1288,7 +1288,7 @@ so adding, removing, or reordering a case changes no other case's inputs.
   Bun bundles a caller of `Decoder.u8` and `Decoder.new` through `import * as Decoder`,
   which must keep only those and what they call.
 - `model` depends on moq-net at the moq pin, its `rev`, which `just ts moq` and
-  `just ts census` check out too, and translates with it as one program. It is a
+  `just ts census` check out, and translates with it as one program. It is a
   workspace of its own, so its lockfile keeps moq's checkout out of the package's inputs. Its harness
   runs what of the model translates with nothing refused or bound, `Timestamp` and
   `Timescale`: their constructors, conversions, `u128` reads, sums, differences,
