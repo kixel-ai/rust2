@@ -78,31 +78,43 @@ pub async fn refresh(cache: &Cache, spec: &Spec, args: &Args) -> Result<()> {
 		Err(e) => return Err(e.into()),
 	}
 	let response = request.send().await?.error_for_status()?;
-	if response.status() == reqwest::StatusCode::NOT_MODIFIED {
-		return Ok(());
+	Update { cache, spec, args }.apply(response).await
+}
+
+struct Update<'a> {
+	cache: &'a Cache,
+	spec: &'a Spec,
+	args: &'a Args,
+}
+
+impl Update<'_> {
+	async fn apply(&self, response: Response) -> Result<()> {
+		if response.status() == reqwest::StatusCode::NOT_MODIFIED {
+			return Ok(());
+		}
+		let etag = response.headers().get(reqwest::header::ETAG).cloned();
+		let file = spool(response, &self.cache.root).await?;
+		let version = latest(BufReader::new(File::open(file.path())?))?;
+		// Publish only an installed version, retaining the working entry on failure.
+		crate::install::resolve(
+			self.cache,
+			&Spec {
+				name: self.spec.name.clone(),
+				version: Some(version.clone()),
+			},
+			self.args,
+		)
+		.await?;
+		let _lock = self.cache.lock()?;
+		self.cache.set_latest(&version)?;
+		// Remember a validator only after installation, so failures remain retryable.
+		if let Some(etag) = etag {
+			cache::atomic(&self.cache.root.join("index-etag"), etag.as_bytes())?;
+		} else if self.cache.root.join("index-etag").try_exists()? {
+			fs::remove_file(self.cache.root.join("index-etag"))?;
+		}
+		Ok(())
 	}
-	let etag = response.headers().get(reqwest::header::ETAG).cloned();
-	let file = spool(response, &cache.root).await?;
-	let version = latest(BufReader::new(File::open(file.path())?))?;
-	// Publish only an installed version, retaining the working entry on failure.
-	crate::install::resolve(
-		cache,
-		&Spec {
-			name: spec.name.clone(),
-			version: Some(version.clone()),
-		},
-		args,
-	)
-	.await?;
-	let _lock = cache.lock()?;
-	cache.set_latest(&version)?;
-	// Remember a validator only after installation, so failures remain retryable.
-	if let Some(etag) = etag {
-		cache::atomic(&etag_path, etag.as_bytes())?;
-	} else if etag_path.try_exists()? {
-		fs::remove_file(etag_path)?;
-	}
-	Ok(())
 }
 
 pub fn spawn_refresh(spec: &Spec, args: &Args) -> Result<()> {
@@ -170,6 +182,75 @@ pub fn report_refresh_error(cache: &Cache) -> Result<()> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn update_publishes_only_installed_versions_and_commits_etag_last() {
+		use clap::Parser;
+		fn response(status: &str, body: &str) -> Response {
+			let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+			let address = listener.local_addr().unwrap();
+			let wire = format!(
+				"HTTP/1.1 {status}\r\nContent-Length: {}\r\nETag: new-validator\r\nConnection: close\r\n\r\n{body}",
+				body.len()
+			);
+			let server = std::thread::spawn(move || {
+				let (mut stream, _) = listener.accept().unwrap();
+				let mut request = [0; 4096];
+				stream.read(&mut request).unwrap();
+				stream.write_all(wire.as_bytes()).unwrap();
+			});
+			let result = runtime()
+				.unwrap()
+				.block_on(reqwest::Client::new().get(format!("http://{address}")).send())
+				.unwrap();
+			server.join().unwrap();
+			result
+		}
+		let temp = tempfile::tempdir().unwrap();
+		let cache = Cache {
+			root: temp.path().to_owned(),
+		};
+		let spec = Spec::parse("fixture").unwrap();
+		let args = Args::parse_from(["crabx", "fixture"]);
+		let update = Update {
+			cache: &cache,
+			spec: &spec,
+			args: &args,
+		};
+		cache.set_latest(&Version::new(1, 0, 0)).unwrap();
+		let etag = cache.root.join("index-etag");
+		fs::write(&etag, "old-validator").unwrap();
+		let version = Version::new(2, 0, 0);
+		// An incomplete entry fails before network discovery.
+		fs::create_dir(cache.version(&version)).unwrap();
+		let index = r#"{"vers":"2.0.0","yanked":false}"#;
+		assert!(
+			runtime()
+				.unwrap()
+				.block_on(update.apply(response("200 OK", index)))
+				.is_err()
+		);
+		assert_eq!(cache.latest().unwrap(), Some(Version::new(1, 0, 0)));
+		assert_eq!(fs::read_to_string(&etag).unwrap(), "old-validator");
+		fs::create_dir(cache.version(&version).join("bin")).unwrap();
+		fs::write(cache.version(&version).join("bin/tool"), "fixture").unwrap();
+		fs::write(
+			cache.version(&version).join("record.json"),
+			r#"{"version":"2.0.0","bins":["tool"],"source":"fixture"}"#,
+		)
+		.unwrap();
+		runtime()
+			.unwrap()
+			.block_on(update.apply(response("200 OK", index)))
+			.unwrap();
+		assert_eq!(cache.latest().unwrap(), Some(version));
+		assert_eq!(fs::read_to_string(&etag).unwrap(), "new-validator");
+		runtime()
+			.unwrap()
+			.block_on(update.apply(response("304 Not Modified", "")))
+			.unwrap();
+		assert_eq!(fs::read_to_string(&etag).unwrap(), "new-validator");
+	}
 
 	#[test]
 	fn sparse_index_selects_semver_instead_of_line_order() {

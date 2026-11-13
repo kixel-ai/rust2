@@ -94,7 +94,7 @@ pub async fn verify(receipt: &Receipt, version: &Version, stage: &Path) -> Resul
 					// External bundle storage receives no GitHub credential.
 					let response = client.get(url).send().await?.error_for_status()?;
 					let file = network::spool(response, stage).await?;
-					serde_json::from_reader(BufReader::new(File::open(file.path())?))?
+					external_bundle(file.path())?
 				}
 			};
 			// GitHub's timestamp-only trust domain has its own CA and TSA. A
@@ -130,6 +130,19 @@ pub async fn verify(receipt: &Receipt, version: &Version, stage: &Path) -> Resul
 	} else {
 		Ok("author release (no published attestation)".into())
 	}
+}
+
+// Raw Snappy copy tags expand at most 64 bytes per tag. Bound allocation by
+// the compressed input, rather than trusting its advertised output length.
+fn external_bundle(path: &Path) -> Result<Bundle> {
+	let compressed = std::fs::read(path)?;
+	let length = snap::raw::decompress_len(&compressed)?;
+	ensure!(
+		length <= compressed.len().saturating_mul(64),
+		"invalid Snappy expansion"
+	);
+	let json = snap::raw::Decoder::new().decompress_vec(&compressed)?;
+	Ok(serde_json::from_slice(&json)?)
 }
 
 // Tokens are sent only to the fixed, validated GitHub API origin, never to
@@ -351,6 +364,17 @@ impl Artifact<'_> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn external_bundles_decode_raw_snappy_and_reject_corruption() {
+		let temp = tempfile::NamedTempFile::new().unwrap();
+		let json = include_bytes!("../tests/data/github-attestation.json");
+		let compressed = snap::raw::Encoder::new().compress_vec(json).unwrap();
+		std::fs::write(temp.path(), compressed).unwrap();
+		external_bundle(temp.path()).unwrap();
+		std::fs::write(temp.path(), b"invalid snappy").unwrap();
+		assert!(external_bundle(temp.path()).is_err());
+	}
 
 	#[test]
 	fn github_cursor_pagination_preserves_the_cursor_and_api_boundary() {
