@@ -146,6 +146,9 @@ pub struct Facade<'a> {
 	pub package: &'a str,
 	/// Paths from its root the config leaves out.
 	pub exclude: &'a [String],
+	/// Paths from its root a census checks, without leaving out what they name: each
+	/// path one names is recorded in [`Report::audited`], as the exclude would have checked it.
+	pub audit: &'a [String],
 }
 
 /// What collection found in the facade, by paths from its root.
@@ -166,6 +169,8 @@ pub struct Report {
 	pub unheld: Vec<(String, Why)>,
 	/// Excluded paths, and how many items each left out.
 	pub excluded: Vec<(String, usize)>,
+	/// A census's audited paths, and each path one names, whether or not that item exports.
+	pub audited: Vec<(String, Vec<String>)>,
 	/// Type aliases, which export nothing of their own.
 	pub aliases: Vec<String>,
 }
@@ -353,6 +358,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 				hidden: Vec::new(),
 				unheld: Vec::new(),
 				excluded: facade.exclude.iter().map(|path| (path.clone(), 0)).collect(),
+				audited: facade.audit.iter().map(|path| (path.clone(), Vec::new())).collect(),
 				aliases: Vec::new(),
 			},
 			instances: Vec::new(),
@@ -579,14 +585,21 @@ impl<'tcx> Collector<'tcx> {
 		self.crates.contains(&krate)
 	}
 
-	/// Whether the config excludes `path`, counting the exclusion. A member of an instance
-	/// is left out by its instance's path or its type's, which leaves it out of each.
+	/// Whether the config excludes `path`, counting the exclusion, or else recording it under
+	/// each audited path that names it. A member of an instance is left out by its instance's
+	/// path or its type's, which leaves it out of each.
 	fn exclude(&mut self, path: &[String]) -> bool {
 		let report = &mut self.report;
 		for (_, key) in config::keys(&path[1..]) {
 			if let Some((_, count)) = report.excluded.iter_mut().find(|(excluded, _)| *excluded == key) {
 				*count += 1;
 				return true;
+			}
+		}
+		// Under every key that names it, so one census lists a broad exclude beside a narrow one.
+		for (_, key) in config::keys(&path[1..]) {
+			if let Some((_, named)) = report.audited.iter_mut().find(|(audited, _)| *audited == key) {
+				named.push(path[1..].join("::"));
 			}
 		}
 		false

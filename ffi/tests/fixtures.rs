@@ -1447,10 +1447,32 @@ fn relative_target() {
 		.env("CARGO_TARGET_DIR", "build")
 		.output()
 		.expect("running rust2-ffi");
+	// The fixture's config leaves out items that export, which the census fails on, after
+	// writing itself: only on those, and on a field whose method of its name is refused,
+	// not on that method.
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(!output.status.success(), "the census passed:\n{stderr}");
+	let errors: Vec<&str> = stderr
+		.lines()
+		.filter(|line| line.starts_with("error: rust2-ffi:"))
+		.collect();
 	assert!(
-		output.status.success(),
-		"the census failed:\n{}",
-		String::from_utf8_lossy(&output.stderr)
+		errors.iter().all(|error| error.ends_with(", which exports")),
+		"the census failed otherwise:\n{stderr}"
+	);
+	assert!(
+		errors.contains(
+			&"error: rust2-ffi: exclude `field@Retry::jitter` in the config leaves out `field@Retry::jitter`, which exports"
+		),
+		"the census does not fail on `field@Retry::jitter`:\n{stderr}"
+	);
+	assert!(
+		!errors.iter().any(|error| error.contains("exclude `Retry::jitter`")),
+		"the census fails on `Retry::jitter`:\n{stderr}"
+	);
+	assert!(
+		!errors.iter().any(|error| error.contains("exclude `among`")),
+		"the census fails on `among`, which Swift refuses:\n{stderr}"
 	);
 	let text = std::fs::read_to_string(census.join("api-fixture.md")).unwrap();
 	for line in [
@@ -1458,8 +1480,34 @@ fn relative_target() {
 		"- `Void`: object no export returns",
 		"- `release`: type C never holds `Lease`",
 		"- `Unnamed`: generic type no export instantiates",
+		// An exclude that names what exports, by its generic or instance path or as a field,
+		// even where a method of the field's name is refused.
+		"## Excluded by the config, though it exports",
+		"- `Timed`: `Timed<bytes::Bytes>`",
+		"- `Pair<u8, api::Size>::swap`: `Pair<u8, api::Size>::swap`",
+		"- `Slot<u32>::value`: `Slot<u32>::value`",
+		"- `field@Retry::jitter`: `field@Retry::jitter`",
+		"- `Stack::depth_past<api::polar::Point>`: `Stack::depth_past<api::polar::Point>`",
 	] {
 		assert!(text.contains(line), "the census lists no `{line}`:\n{text}");
+	}
+	let exporting = text
+		.split("## Excluded by the config, though it exports")
+		.nth(1)
+		.unwrap();
+	let exporting = exporting.split("\n## ").next().unwrap();
+	// Not one that names only what is refused or no export returns.
+	for refused in [
+		"- `Copied`",
+		"- `Sample`",
+		"- `Queued`",
+		"- `Layer`",
+		"- `Retry::jitter`",
+	] {
+		assert!(
+			!exporting.contains(refused),
+			"the census lists `{refused}` as exporting:\n{exporting}"
+		);
 	}
 	assert!(dir.join("build").exists());
 }

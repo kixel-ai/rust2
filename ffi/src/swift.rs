@@ -23,8 +23,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
-use rustc_span::Span;
-
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::ir::{Access, Closure, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
 
@@ -1835,11 +1833,11 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 /// overloads.
 const MAX_OPTIONAL: usize = 2;
 
-/// Each function or method Swift cannot export, with its span and why, which the driver
+/// Each function or method Swift cannot export, and why, which the driver
 /// refuses before any language is generated: one taking more optional borrowed structs
 /// than [`MAX_OPTIONAL`], or returning an error that holds one, which `Swift.Error`
 /// requires be copyable.
-pub fn refusals(abi: &Abi<'_>) -> Vec<(Span, String)> {
+pub fn refusals<'a>(abi: &Abi<'a>) -> Vec<(&'a Function, String)> {
 	let structs = structs(abi);
 	let api = abi.api;
 	let methods = (api.records.iter().flat_map(|r| &r.methods))
@@ -1853,7 +1851,7 @@ pub fn refusals(abi: &Abi<'_>) -> Vec<(Span, String)> {
 			.count();
 		if optional > MAX_OPTIONAL {
 			refusals.push((
-				function.span,
+				function,
 				format!(
 					"{what}: {optional} optional borrowed objects, past the {MAX_OPTIONAL} Swift takes, which overloads each with and without it since its optional holds an object only by consuming it"
 				),
@@ -1861,7 +1859,7 @@ pub fn refusals(abi: &Abi<'_>) -> Vec<(Span, String)> {
 		}
 		if function.err.as_ref().is_some_and(|err| unique(&structs, err)) {
 			refusals.push((
-				function.span,
+				function,
 				format!("{what}: error holding an object Swift cannot copy, as `Swift.Error` requires"),
 			));
 		}
