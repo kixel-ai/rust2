@@ -4,7 +4,7 @@ description = "Export a crate's pub API as a C ABI and header"
 version = "0.0.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/moq-dev/rust2"
+repository = "https://github.com/kixel-ai/rust2"
 # Distributed through the flake: it only builds on the pinned nightly.
 publish = false
 

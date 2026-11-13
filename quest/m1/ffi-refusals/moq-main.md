@@ -22,7 +22,7 @@ can never hold is left out and listed.
 - Recommended for a third-party type by value: an opaque handle with none of its API, as
   the `Arc` form already is, since the value moves into the handle exactly.
 - Recommended for the borrowing future of a non-async fn: the rule async fns' borrowing
-  futures already follow ([#710](https://github.com/moq-dev/rust2/pull/710)).
+  futures already follow ([#710](https://github.com/kixel-ai/rust2/pull/710)).
 - No exclude is added to `ffi/moq/ffi.toml` to pass.
 
 Public API: the generated API of each item that newly exports.

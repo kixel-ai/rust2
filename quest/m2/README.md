@@ -30,12 +30,12 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   [the gate's measurement](/quest/m2/wasm/routes.md) requires, and
   [a spike of the per-call crossing](/quest/m2/wasm/crossing-spike.md), which says before
   the backend lands whether wasm's lead survives it. On the 2026-11-12 nightly
-  ([run 43246857664](https://github.com/moq-dev/rust2/actions/runs/43246857664), Chromium)
+  ([run 43246857664](https://github.com/kixel-ai/rust2/actions/runs/43246857664), Chromium)
   the translation ran about 5 times wasm's time on compute, geometric mean over 82 rows.
   Rejected: the spike alone, with fixes frozen behind the gate; judging the translator as
   it stands.
 - ✅ [The model epic](/quest/m2/ts-model/README.md) moves to m3 with a `Required` on the
-  gate, since once [#722](https://github.com/moq-dev/rust2/pull/722) merges its only
+  gate, since once [#722](https://github.com/kixel-ai/rust2/pull/722) merges its only
   content is a wait on moq, which m3 holds. Not moved yet: #722 holds its branch, and
   `quest mv` refuses a claimed quest. Rejected: keeping it in m2.
 
