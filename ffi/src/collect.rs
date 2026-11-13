@@ -838,8 +838,9 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// Why the first argument an instance is named by cannot map as [`Self::arg`] requires:
-	/// a type that is not `()`, a primitive, `String`, `Bytes`, `Duration`, a foreign
-	/// object, or an export's type, or a const that is not a `bool` or integer.
+	/// a type that is not `()`, a primitive, `String`, `Bytes`, `Duration`, a `NonZero` of
+	/// an exported integer, a foreign object, or an export's type, or a const that is not
+	/// a `bool` or integer.
 	fn unarguable(&self, site: &Site<'tcx>) -> Option<Why> {
 		let tcx = self.tcx;
 		let mut args = Self::shown_args(site.args, site.explicit).into_iter();
