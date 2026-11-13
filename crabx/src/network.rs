@@ -195,8 +195,15 @@ mod tests {
 			);
 			let server = std::thread::spawn(move || {
 				let (mut stream, _) = listener.accept().unwrap();
-				let mut request = [0; 4096];
-				stream.read(&mut request).unwrap();
+				let mut reader = BufReader::new(&mut stream);
+				let mut line = String::new();
+				loop {
+					line.clear();
+					assert!(std::io::BufRead::read_line(&mut reader, &mut line).unwrap() > 0);
+					if line == "\r\n" {
+						break;
+					}
+				}
 				stream.write_all(wire.as_bytes()).unwrap();
 			});
 			let result = runtime()
