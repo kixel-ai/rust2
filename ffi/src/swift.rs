@@ -141,6 +141,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 const TAKEN: &[&str] = &[
 	"Array",
 	"Bool",
+	"Bytes",
 	"Comparable",
 	"CustomDebugStringConvertible",
 	"CustomStringConvertible",

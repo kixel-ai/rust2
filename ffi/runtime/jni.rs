@@ -137,9 +137,61 @@ pub fn bytes(env: *mut JNIEnv, array: jbyteArray) -> Option<Vec<u8>> {
 	}
 }
 
-/// A `byte[]`'s bytes, copied into a buffer Rust takes, or none for null.
-pub fn taken(env: *mut JNIEnv, array: jbyteArray) -> rt::Buf {
-	bytes(env, array).map_or(rt::Buf::NONE, rt::Buf::vec)
+/// A `String`'s UTF-8, encoded once into a buffer Rust takes, or none for null.
+pub fn text(env: *mut JNIEnv, text: jstring) -> rt::Buf {
+	match text.is_null() {
+		true => rt::Buf::NONE,
+		false => rt::Buf::vec(utf8(env, text)),
+	}
+}
+
+/// A live `String`'s UTF-8, as Kotlin's `encodeToByteArray` encodes it: a lone surrogate
+/// is `?`. JNI's own UTF-8 is modified, which differs for NUL and past the BMP, so the
+/// UTF-16 is read a chunk at a time and encoded here.
+fn utf8(env: *mut JNIEnv, text: jstring) -> Vec<u8> {
+	const CHUNK: usize = 1024;
+	// SAFETY: `text` is a live `String` the call was given.
+	let len = unsafe { ((**env).v1_2.GetStringLength)(env, text) } as usize;
+	let mut out = Vec::with_capacity(len);
+	let mut chunk = [0u16; CHUNK];
+	let mut at = 0;
+	while at < len {
+		let n = (len - at).min(CHUNK);
+		// SAFETY: `at + n` is within the string, and `chunk` holds `n`.
+		unsafe { ((**env).v1_2.GetStringRegion)(env, text, at as jint, n as jint, chunk.as_mut_ptr()) };
+		let mut units = &chunk[..n];
+		// A pair split across chunks is read whole with the next.
+		if at + n < len && (0xD800..0xDC00).contains(&units[n - 1]) {
+			units = &units[..n - 1];
+		}
+		at += units.len();
+		for c in char::decode_utf16(units.iter().copied()) {
+			match c {
+				Ok(c) if c.is_ascii() => out.push(c as u8),
+				Ok(c) => out.extend_from_slice(c.encode_utf8(&mut [0; 4]).as_bytes()),
+				Err(_) => out.push(b'?'),
+			}
+		}
+	}
+	out
+}
+
+/// `len` bytes of a live `byte[]` from `start`, copied, failing loud past its end, which
+/// Kotlin's `Bytes` checks first.
+fn region(env: *mut JNIEnv, array: jbyteArray, start: jint, len: jint) -> Vec<u8> {
+	let Ok(n) = usize::try_from(len) else {
+		rt::fail("jni", "bytes passed have a negative length")
+	};
+	let mut bytes = Vec::<u8>::with_capacity(n);
+	// SAFETY: `array` is a live `byte[]`; JNI checks the range, throwing past its end.
+	unsafe {
+		((**env).v1_2.GetByteArrayRegion)(env, array, start, len, bytes.as_mut_ptr().cast());
+		if ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, "jni", "bytes passed are past their array's end");
+		}
+		bytes.set_len(n);
+	}
+	bytes
 }
 
 /// Bytes Kotlin passes as a `Bytes` holds them, for Rust to take: none where `len` is -1,
@@ -163,16 +215,7 @@ pub unsafe fn passed(env: *mut JNIEnv, held: jobject, owner: jlong, start: jint,
 		// SAFETY: as above.
 		return unsafe { buf.share("jni") };
 	}
-	let Ok(n) = usize::try_from(len) else {
-		rt::fail("jni", "bytes passed have a negative length")
-	};
-	let mut bytes = Vec::<u8>::with_capacity(n);
-	// SAFETY: `held` is a live `byte[]` the call was given, whose range `Bytes` checked.
-	unsafe {
-		((**env).v1_2.GetByteArrayRegion)(env, held, start, len, bytes.as_mut_ptr().cast());
-		bytes.set_len(n);
-	}
-	rt::Buf::vec(bytes)
+	rt::Buf::vec(region(env, held, start, len))
 }
 
 /// A new `byte[]` holding `bytes`.
@@ -667,27 +710,58 @@ pub unsafe fn drop_returned(raw: jlong) {
 pub struct Reader<'a> {
 	bytes: &'a [u8],
 	arrays: Vec<Box<dyn std::any::Any>>,
+	/// The call's thread, and the arrays and text the encoding names by place.
+	env: *mut JNIEnv,
+	refs: jobjectArray,
 	/// Whether the value read is one Rust takes, so Rust's own bytes in it, outside an
 	/// array, cross as a second owner of them rather than a view.
 	take: bool,
 }
 
 impl<'a> Reader<'a> {
-	/// A reader of a value Rust only reads, as through a pointer.
-	pub fn new(bytes: &'a [u8]) -> Self {
+	/// A reader of a value Rust only reads, as through a pointer, whose encoding names
+	/// the objects of `refs` by place.
+	pub fn new(env: *mut JNIEnv, bytes: &'a [u8], refs: jobjectArray) -> Self {
 		Self {
 			bytes,
 			arrays: Vec::new(),
+			env,
+			refs,
 			take: false,
 		}
 	}
 
 	/// A reader of a value passed by value, which Rust takes.
-	pub fn taking(bytes: &'a [u8]) -> Self {
+	pub fn taking(env: *mut JNIEnv, bytes: &'a [u8], refs: jobjectArray) -> Self {
 		Self {
 			take: true,
-			..Self::new(bytes)
+			..Self::new(env, bytes, refs)
 		}
+	}
+
+	/// Bytes made once by `make` from the object at `at` of `refs`: taken where the reader
+	/// takes, else kept until it drops and read in place.
+	fn referred(&mut self, at: i32, make: impl FnOnce(*mut JNIEnv, jobject) -> Vec<u8>) -> rt::Buf {
+		let env = self.env;
+		if self.refs.is_null() {
+			fail(env, "jni", "an encoded value names an object, but none were passed");
+		}
+		// SAFETY: `refs` is the live `Object[]` the call was given; JNI throws past its end.
+		let object = unsafe { ((**env).v1_2.GetObjectArrayElement)(env, self.refs, at) };
+		// SAFETY: as above.
+		if object.is_null() || unsafe { ((**env).v1_2.ExceptionCheck)(env) } {
+			fail(env, "jni", "an encoded value names no object");
+		}
+		let bytes = make(env, object);
+		// SAFETY: a local reference made here.
+		unsafe { ((**env).v1_2.DeleteLocalRef)(env, object) };
+		if self.take {
+			return rt::Buf::vec(bytes);
+		}
+		let view = rt::Buf::view(&bytes);
+		// The vector's heap block, which the view reads, stays put as the box moves.
+		self.arrays.push(Box::new(bytes));
+		view
 	}
 
 	fn take(&mut self, n: usize) -> &'a [u8] {
@@ -867,6 +941,15 @@ impl Wire for rt::Buf {
 					},
 				}
 			}
+			KOTLIN => {
+				let at = r.get::<i32>();
+				let (start, len) = (r.get::<i32>(), r.get::<i32>());
+				r.referred(at, |env, array| region(env, array, start, len))
+			}
+			TEXT => {
+				let at = r.get::<i32>();
+				r.referred(at, utf8)
+			}
 			len => match usize::try_from(len) {
 				Ok(len) => rt::Buf::view(r.take(len)),
 				Err(_) => rt::Buf::NONE,
@@ -896,6 +979,14 @@ pub struct Owned<T>(pub T);
 
 /// What precedes a lent buffer's owner where an encoded one's length would.
 const LENT: i32 = -2;
+
+/// What precedes the place in a call's objects of Kotlin's `byte[]`, then where its bytes
+/// start and how many, where an encoded buffer's length would.
+const KOTLIN: i32 = -3;
+
+/// What precedes the place in a call's objects of Kotlin's `String` where an encoded
+/// buffer's length would.
+const TEXT: i32 = -4;
 
 impl Wire for Owned<rt::Buf> {
 	fn read(_: &mut Reader<'_>) -> Self {

@@ -768,13 +768,12 @@ impl<'a> Gen<'a> {
 				arg.exprs.push(h);
 				arg.rust_args.push(format!("{p} as usize as _"));
 			}
-			// Text crosses as a `byte[]`, copied into a buffer Rust takes.
+			// Text crosses as the `String`, encoded once into a buffer Rust takes.
 			Ty::Buf if string(ty) => {
-				arg.exprs.push(match matches!(ty.base(), Type::Option(_)) {
-					true => format!("{e}?.encodeToByteArray()"),
-					false => format!("{e}.encodeToByteArray()"),
-				});
-				arg.rust_pre.push(format!("let b{p} = rt::taken(env, {p});"));
+				*arg.jni.last_mut().expect("pushed above") = "jstring";
+				*arg.native.last_mut().expect("pushed above") = "String?".to_string();
+				arg.exprs.push(e.to_string());
+				arg.rust_pre.push(format!("let b{p} = rt::text(env, {p});"));
 				arg.rust_args.push(format!("b{p}"));
 			}
 			// Bytes cross as what holds them, Rust's owner or 0, where they start, and how
@@ -822,9 +821,15 @@ impl<'a> Gen<'a> {
 				arg.open = Some(format!("Native.Writer().use {{ {w} ->"));
 				let value = self.write_value(ty, &w, e);
 				arg.inside.push(value);
+				// Then the arrays and text it names, which Rust copies from once.
+				arg.jni.push("jobjectArray");
+				arg.native.push("kotlin.Array<Any?>?".to_string());
+				let q = format!("p{n}");
+				*n += 1;
 				arg.exprs.push(format!("{w}.finish()"));
+				arg.exprs.push(format!("{w}.refs()"));
 				arg.rust_pre.push(format!(
-					"let b{p} = rt::bytes(env, {p}).unwrap_or_default();\n\t\tlet mut r{p} = rt::Reader::{}(&b{p});\n\t\tlet a{p} = r{p}.get();",
+					"let b{p} = rt::bytes(env, {p}).unwrap_or_default();\n\t\tlet mut r{p} = rt::Reader::{}(env, &b{p}, {q});\n\t\tlet a{p} = r{p}.get();",
 					// Read through a pointer, Rust keeps nothing of it.
 					match c {
 						Ty::In(_) => "new",
@@ -1037,10 +1042,9 @@ impl<'a> Gen<'a> {
 		let bare = self.bare(c).to_string();
 		let object = matches!(ty, Type::Object(_));
 		// The receiver as the glue takes it: a handle, held for the call, or encoded.
-		let (jni_self, native_self, open, arg, rust_self) = match object {
+		let (params, open, arg, rust_self): (&[(&str, &str)], _, _, _) = match object {
 			true => (
-				"jlong",
-				"Long",
+				&[("jlong", "Long")],
 				"handle.hold { h ->".to_string(),
 				"h".to_string(),
 				"p0 as usize as _".to_string(),
@@ -1048,18 +1052,17 @@ impl<'a> Gen<'a> {
 			false => {
 				let write = self.write_value(ty, "w", "this");
 				(
-					"jbyteArray",
-					"ByteArray",
+					&[("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
 					format!("Native.Writer().use {{ w ->\n\t\t{write}"),
-					"w.finish()".to_string(),
-					"&rt::Reader::new(&rt::bytes(env, p0).unwrap_or_default()).get()".to_string(),
+					"w.finish(), w.refs()".to_string(),
+					"&rt::Reader::new(env, &rt::bytes(env, p0).unwrap_or_default(), p1).get()".to_string(),
 				)
 			}
 		};
 		let unary = |g: &mut Self, suffix: &str, sig: &str| {
 			g.native(
 				&format!("{bare}_{suffix}"),
-				&[(jni_self, native_self)],
+				params,
 				("jbyteArray", "ByteArray?"),
 				&format!("rt::owned(env, crate::{c}_{suffix}({rust_self}))"),
 			);
@@ -1806,7 +1809,7 @@ impl<'a> Gen<'a> {
 		if let Some(receiver) = receiver {
 			let (_, c) = c_params.next().expect("a method has its receiver");
 			let ty = owner_ty.expect("a method has its type").clone();
-			let mut arg = match c {
+			let arg = match c {
 				Ty::Handle { .. } => {
 					let mut arg = Arg::default();
 					let p = format!("p{n}");
@@ -1826,7 +1829,6 @@ impl<'a> Gen<'a> {
 				}
 				_ => self.arg(&ty, c, "this", &mut n, None),
 			};
-			arg.native.truncate(1);
 			args.push(arg);
 		}
 		let mut kt_params = Vec::new();

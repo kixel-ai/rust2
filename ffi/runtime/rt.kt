@@ -46,17 +46,6 @@ class Writer {
 		b.putDouble(v)
 	}
 
-	/** Bytes as their length, or -1 for none, then the bytes. */
-	fun bytes(v: ByteArray?) {
-		if (v == null) {
-			i32(-1)
-			return
-		}
-		room(4 + v.size)
-		b.putInt(v.size)
-		b.put(v)
-	}
-
 	/** Bytes of a length both sides know, such as an array's. */
 	fun raw(v: ByteArray) {
 		room(v.size)
@@ -64,9 +53,10 @@ class Writer {
 	}
 
 	/**
-	 * Bytes a record holds: Kotlin's as [bytes] writes a `ByteArray`, and Rust's as [LENT],
-	 * their owner, where they start, and their length, which Rust reads in place, kept
-	 * until [release].
+	 * Bytes a record holds, or -1 for none: Kotlin's as [KOTLIN], their array's place in
+	 * [refs], where they start, and their length, which Rust copies once from the array, and
+	 * Rust's as [LENT], their owner, where they start, and their length, which Rust reads in
+	 * place, kept until [release].
 	 */
 	fun bytes(v: Bytes?) {
 		if (v == null) {
@@ -74,8 +64,8 @@ class Writer {
 			return
 		}
 		val owner = v.owner
+		room(20)
 		if (owner != 0L) {
-			room(20)
 			b.putInt(LENT)
 			b.putLong(owner)
 			b.putInt(v.start)
@@ -83,13 +73,34 @@ class Writer {
 			(kept ?: java.util.ArrayList<Any?>().also { kept = it }).add(v.held)
 			return
 		}
-		room(4 + v.size)
+		b.putInt(KOTLIN)
+		b.putInt(ref(v.held))
+		b.putInt(v.start)
 		b.putInt(v.size)
-		v.copyInto(b.array(), b.position())
-		b.position(b.position() + v.size)
 	}
 
-	fun string(v: String?) = bytes(v?.encodeToByteArray())
+	/** Text as [TEXT] and its place in [refs], which Rust encodes once from, or -1 for none. */
+	fun string(v: String?) {
+		if (v == null) {
+			i32(-1)
+			return
+		}
+		room(8)
+		b.putInt(TEXT)
+		b.putInt(ref(v))
+	}
+
+	private var objects: java.util.ArrayList<Any?>? = null
+
+	// The place in [refs] of [v], added to it.
+	private fun ref(v: Any?): Int {
+		val objects = objects ?: java.util.ArrayList<Any?>().also { objects = it }
+		objects.add(v)
+		return objects.size - 1
+	}
+
+	/** The arrays and text the encoding refers to, which Rust reads in the call, or null for none. */
+	fun refs(): kotlin.Array<Any?>? = objects?.toArray()
 
 	/** An address as Rust's `SocketAddr` holds it, which an unresolved one has no form of. */
 	fun socketAddr(v: java.net.InetSocketAddress) {
@@ -399,6 +410,12 @@ private class Free(lent: Lent, private val owner: Long) : Cleanup(lent) {
 
 /** What precedes a lent buffer's owner and length where an encoded one's length would. */
 const val LENT = -2
+
+/** What precedes the place of Kotlin's array of bytes in a writer's `refs`, where an encoded one's length would. */
+const val KOTLIN = -3
+
+/** What precedes the place of Kotlin's text in a writer's `refs`, where an encoded one's length would. */
+const val TEXT = -4
 
 /** Bytes a call returned: copied, lent by the owner and length a `LongArray` holds, or null for none. */
 fun owned(given: Any?): Bytes? = when (given) {

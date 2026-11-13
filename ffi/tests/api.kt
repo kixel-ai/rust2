@@ -959,7 +959,25 @@ fun broken(which: String) {
 // What frees what: an object's close, or the GC once it is collected if never closed, and
 // Rust's bytes only the GC, once no Bytes reaching them is reachable. Rust's bytes up to
 // 1 KiB cross copied, freed at the call, and longer ones lent.
+// Kotlin's text and bytes, which Rust copies or encodes once from where Kotlin keeps them:
+// each reads back as Kotlin's own encoder has it, at a call's top level and in a record.
+fun encoded() {
+	val texts = listOf(
+		"", "a\u0000b", "é\u4e2d\uD83D\uDE00", "\uD800x", "x\uDC00", "end\uD83D", "\uDE00\uD83D",
+		"a".repeat(1023) + "\uD83D\uDE00", "a".repeat(1023) + "\uD83Dz", "\u4e2d\uD83D\uDE00".repeat(1500),
+	)
+	for (text in texts) {
+		val expected = text.encodeToByteArray().decodeToString()
+		check(greet(text, Shape.SQUARE) == "hello $expected, a Square", "text crosses as its UTF-8")
+		check(tickName(Label(text, null, null)) == expected, "a record's text crosses as its UTF-8")
+	}
+	val body = ByteArray(300) { it.toByte() }
+	val sliced = nextPacket(Packet(1u, Bytes(body).slice(7, 290))).payload
+	check(sliced.toByteArray().contentEquals(body.copyOfRange(7, 290)), "a slice of Kotlin's bytes in a record crosses")
+}
+
 fun owned() {
+	encoded()
 	budgeted()
 	for (n in 1023..1025) {
 		val payload = ByteArray(n) { it.toByte() }

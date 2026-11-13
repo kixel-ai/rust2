@@ -412,18 +412,20 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
 - **Records** are data classes, compared by their fields, and **enums** an `enum class`,
   or for one with data a sealed class of a data class per variant. `Display` is
   `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`.
-- **Bytes** passed in are a `ByteArray`, copied, as are those Rust lends a closure or trait
-  method. Bytes Rust returns, or a record holds, are a `Bytes`, read only through `size`,
+- **Bytes** are a `Bytes`. Passed in, Rust's own are shared with no copy, and Kotlin's,
+  which `Bytes(ByteArray)` holds without a copy, are copied once into a buffer Rust takes,
+  at a call's top level or in a record; those Rust lends a closure or trait method are
+  copied. A `Bytes` is read only through `size`,
   `get`, `slice`, `copyInto`, and `toByteArray()`, so no view of Rust's memory escapes and
   no read meets it freed. Up to 1 KiB are copied, which costs less than the GC's cleanup;
   longer ones stay in Rust's buffer, each read a JNI call that passes the buffer's owner,
   which JNI keeps reachable until the call returns, and are freed once the GC finds no
   `Bytes` reaching them, slices included. The GC sees none of Rust's buffers, so at most
   64 MiB are lent at once, freed or not; past that, longer ones are copied too, and that
-  garbage in Kotlin's heap runs the GC, which frees them. `Bytes(ByteArray)` holds
-  Kotlin's for a record passed in. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
+  garbage in Kotlin's heap runs the GC, which frees them. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
   record holding bytes does too; Rust's lent ones are copied across in one call to compare.
-  Strings are `String`, `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
+  Strings are `String`, passed in as their UTF-16, which Rust encodes once into UTF-8 as
+  `encodeToByteArray` does, a lone surrogate as `?`; `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
   target's range, `Option<T>` `T?`, a tuple `Pair`,
   `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
   holding it, whose message is its `Display`. A `[u8; N]` is a generated `ArrayU8x<N>`,
