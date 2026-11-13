@@ -130,7 +130,7 @@ impl<'a> Header<'a> {
 			Type::Array(n) => format!("::std::array<::std::uint8_t, {n}>"),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
-			Type::Int(int) => cpp_int(*int).to_string(),
+			Type::Int(int) | Type::NonZero(int) => cpp_int(*int).to_string(),
 			Type::F32 => "float".to_string(),
 			Type::F64 => "double".to_string(),
 			Type::Char => "char32_t".to_string(),
@@ -279,7 +279,7 @@ impl<'a> Header<'a> {
 			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Array(n) => format!("{d}::lower_array<::{}>({e})", abi.array(*n)),
 			Type::Unit => unreachable!("no value is unit"),
-			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
+			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("static_cast<uint32_t>({e})"),
 			Type::U128 | Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				e.to_string()
@@ -344,7 +344,7 @@ impl<'a> Header<'a> {
 			return format!("{d}::access::adopt({e})");
 		}
 		match ty {
-			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
+			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("static_cast<char32_t>({e})"),
 			Type::U128 | Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				e.to_string()

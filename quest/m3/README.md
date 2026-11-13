@@ -49,7 +49,7 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   positives; a general semver checker, which cargo-semver-checks is taking into cargo; a
   Rust generator over the C ABI as a rebuild firewall; and driver-generated derives,
   since proc macros measured 0.2% of a clean build
-  ([#64](https://github.com/moq-dev/rust2/pull/64)).
+  ([#64](https://github.com/kixel-ai/rust2/pull/64)).
 
 Decided with the maintainer on 2026-11-07, the unsafe policy, to stop one-off fixes for
 ever rarer `unsafe`:
@@ -69,12 +69,12 @@ ever rarer `unsafe`:
 5. ✅ Where translation can't see where an `unsafe` pointer came from, a loud run-time
    check stands in for the refusal, the exception AGENTS.md names: `ptrUnerase`,
    `offset_from` across arrays, `AtIndex.reach`, and raw slices of a field's byte
-   (decided 2026-11-07 in [#661](https://github.com/moq-dev/rust2/pull/661) and
-   [#621](https://github.com/moq-dev/rust2/pull/621)). Safe code gets no such check: it
+   (decided 2026-11-07 in [#661](https://github.com/kixel-ai/rust2/pull/661) and
+   [#621](https://github.com/kixel-ai/rust2/pull/621)). Safe code gets no such check: it
    translates exactly or is refused.
 
 Rejected: an unsafe std gap with no consumer becoming its own quest, as
 `MaybeUninit::zeroed`, `Rc::new_uninit`, and `ptr::write_bytes` would have
-([#647](https://github.com/moq-dev/rust2/pull/647)), or as `Vec::from_raw_parts`'s adopted
-storage did ([#635](https://github.com/moq-dev/rust2/pull/635)); and a second, byte-backed
+([#647](https://github.com/kixel-ai/rust2/pull/647)), or as `Vec::from_raw_parts`'s adopted
+storage did ([#635](https://github.com/kixel-ai/rust2/pull/635)); and a second, byte-backed
 memory model for values whose address is reinterpreted, without a consumer.
