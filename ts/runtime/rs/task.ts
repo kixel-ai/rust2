@@ -1724,12 +1724,12 @@ export class Ready<T> implements Future<T> {
 	}
 
 	poll(_cx: Context): Poll<T> {
-		return this.#take("`Ready` polled after completion", "ready_poll");
+		return this.#take("`Ready` should not be polled after completion", "ready_poll");
 	}
 
 	/** `into_inner`, which consumes it. */
 	intoInner(): T {
-		return this.#take("Called `into_inner()` on `Ready` after completion", "ready_into_inner");
+		return this.#take("`into_inner()` should not be called on `Ready` after completion", "ready_into_inner");
 	}
 
 	#take(message: string, at: string): T {

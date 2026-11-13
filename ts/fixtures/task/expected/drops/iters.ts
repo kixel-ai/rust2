@@ -661,11 +661,6 @@ export function extended(log: Log.Log, id: rs.u32): void {
  * two `TrustedLen` sides of unlike lengths reads neither.
  */
 export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
-	const _12: (a0: rs.Ordering | undefined) => rs.i8 = (o: rs.Ordering | undefined): rs.i8 => {
-		return option_mapOr$16nkz0h(o, 9, (o2: rs.Ordering): rs.i8 => {
-			return o2;
-		});
-	};
 	let _283: boolean = false;
 	const key: (a0: rs.u32) => Key.Key = (n: rs.u32): Key.Key => {
 		return Key.new(rs.u32Add(id, n), Log.clone$Clone(log));
@@ -682,6 +677,11 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(ns2)), (_26: rs.u32): Guard.Guard => {
 			return guard(_26);
 		}), undefined, 8, true);
+	};
+	const _12: (a0: rs.Ordering | undefined) => rs.i8 = (o: rs.Ordering | undefined): rs.i8 => {
+		return option_mapOr$16nkz0h(o, 9, (o2: rs.Ordering): rs.i8 => {
+			return o2;
+		});
 	};
 	const c: Guard.Guard = guard(10);
 	_283 = true;

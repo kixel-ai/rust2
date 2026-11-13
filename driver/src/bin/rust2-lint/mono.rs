@@ -5,12 +5,13 @@
 //! part of the copy of the function that defines it. A generic fails when that total
 //! exceeds its budget, unless every copy is thin enough to only forward.
 
-use rustc_ast::LitKind;
-use rustc_attr_ir::Attribute;
+use rustc_ast::token::Delimiter;
+use rustc_ast::{LitKind, MetaItemKind};
+use rustc_attr_ir::{AttrArgs, AttrItem, Attribute};
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_hir::def::DefKind;
 use rustc_middle::mono::{CollectionMode, MonoItem};
-use rustc_middle::ty::{GenericArgsRef, Instance, InstanceKind, TyCtxt};
+use rustc_middle::ty::{GenericArgs, Instance, InstanceKind, TyCtxt};
 use rustc_span::def_id::DefId;
 use rustc_span::{Span, Symbol};
 
@@ -30,7 +31,7 @@ const ATTRIBUTE: [&str; 2] = ["rust2", "mono_budget"];
 struct Cost<'tcx> {
 	/// The MIR statements of each copy, its closures' included, by the generic's arguments:
 	/// a closure's own arguments start with them.
-	copies: FxHashMap<GenericArgsRef<'tcx>, u64>,
+	copies: FxHashMap<GenericArgs<'tcx>, u64>,
 }
 
 impl Cost<'_> {
@@ -147,9 +148,9 @@ fn callers<'tcx>(
 
 /// The budget `generic`'s own attribute sets, if it has one.
 fn limit(tcx: TyCtxt<'_>, generic: DefId) -> Option<Result<u64, ()>> {
-	let attr = tcx.get_attrs_by_path(generic, &ATTRIBUTE.map(Symbol::intern)).next()?;
+	let attr = tcx.tool_attrs(generic, &ATTRIBUTE.map(Symbol::intern)).next()?;
 	Some(parse(attr).map_err(|err| {
-		tcx.dcx().span_err(attr.span(), err);
+		tcx.dcx().span_err(attr.span, err);
 	}))
 }
 
@@ -160,12 +161,16 @@ pub fn check_attributes(tcx: TyCtxt<'_>) {
 	let [tool, name] = ATTRIBUTE.map(Symbol::intern);
 	for owner in tcx.hir_crate_items(()).owners() {
 		for (local_id, attrs) in tcx.hir_attr_map(owner).map.iter() {
-			for attr in attrs.iter().filter(|attr| attr.path().first() == Some(&tool)) {
-				let path = attr.path();
-				if path.as_slice() != [tool, name] {
+			let tools = attrs.iter().filter_map(|attr| match attr {
+				Attribute::Tool(item) => Some(&**item),
+				_ => None,
+			});
+			for attr in tools.filter(|attr| attr.path.segments.first() == Some(&tool)) {
+				let path = &attr.path.segments;
+				if **path != [tool, name] {
 					let path: Vec<&str> = path.iter().map(Symbol::as_str).collect();
 					tcx.dcx()
-						.span_err(attr.span(), format!("unknown attribute `{}`", path.join("::")));
+						.span_err(attr.span, format!("unknown attribute `{}`", path.join("::")));
 					continue;
 				}
 				let def = owner.def_id.to_def_id();
@@ -177,7 +182,7 @@ pub fn check_attributes(tcx: TyCtxt<'_>) {
 					false => Err(format!("`{}` goes on a generic function", ATTRIBUTE.join("::"))),
 				};
 				if let Err(err) = checked {
-					tcx.dcx().span_err(attr.span(), err);
+					tcx.dcx().span_err(attr.span, err);
 				}
 			}
 		}
@@ -185,10 +190,16 @@ pub fn check_attributes(tcx: TyCtxt<'_>) {
 }
 
 /// The limit a budget attribute sets.
-fn parse(attr: &Attribute) -> Result<u64, String> {
+fn parse(attr: &AttrItem) -> Result<u64, String> {
 	let mut limit = None;
 	let mut reason = false;
-	for item in attr.meta_item_list().unwrap_or_default() {
+	let list = match &attr.args {
+		AttrArgs::Delimited(args) if args.delim == Delimiter::Parenthesis => {
+			MetaItemKind::list_from_tokens(args.tokens.clone())
+		}
+		_ => None,
+	};
+	for item in list.unwrap_or_default() {
 		let arg = item
 			.meta_item()
 			.and_then(|meta| Some((meta.name()?, &meta.name_value_literal()?.kind)));

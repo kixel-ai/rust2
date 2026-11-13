@@ -127,9 +127,6 @@ export function cmps(dataData: Uint8Array, dataStart: number, dataLen: number, o
  * and sorted: each test std makes, and each item or key it drops.
  */
 export function sorted(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _77: () => Item.Item = (): Item.Item => {
-		return item(200, 0);
-	};
 	const ascending: rs.ByteVec = rs.byteSliceToByteVec(data);
 	rs.sliceSort(rs.byteVecSlice(ascending), rs.keyLt((b: rs.u8): rs.u8 => {
 		return rs.u8Rem(b, 8);
@@ -168,12 +165,15 @@ export function sorted(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return true;
 		}, undefined, rs.drop) ? 1 : 0);
 		rs.byteVecPush(out, rs.iterIsSortedBy(rs.iterMap(items(), (x3: Item.Item): rs.u8 => {
-			const _09: rs.u8 = x3.key;
+			const _08: rs.u8 = x3.key;
 			x3[Symbol.dispose]();
-			return _09;
+			return _08;
 		}), rs.cmpLe(rs.cmpReverse(rs.cmp))) ? 1 : 0);
 		rs.byteVecPush(out, rs.iterIsSortedBy(rs.vecIntoIter(rs.iterToVec(items(), undefined, 2, true), rs.drop), Item.le$cmp_PartialOrd, true, rs.drop) ? 1 : 0);
 		flush(out);
+		const _77: () => Item.Item = (): Item.Item => {
+			return item(200, 0);
+		};
 		const _82: [Item.Item, Item.Item, Item.Item, Item.Item] = [_77(), _77(), _77(), _77()];
 		const g: Item.Item = _82[0];
 		const h: Item.Item = _82[1];
@@ -887,14 +887,6 @@ export function held(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		return rs.Pending;
 	};
-	const _296: (a0: rs.VecDeque<Part.Part>) => rs.VecDeque<rs.f64> = (d3: rs.VecDeque<Part.Part>): rs.VecDeque<rs.f64> => {
-		return rs.dequeFromVec(rs.iterToVec(rs.iterMap(rs.dequeIter(d3), (p2: Part.Part): rs.f64 => {
-			if (!(p2.key === 7)) {
-				return p2.key as rs.f64;
-			}
-			return NaN;
-		}), undefined, 8, true), 8) as rs.VecDeque<rs.f64>;
-	};
 	const iter: rs.Iter<[rs.usize, rs.ByteSlice]> = rs.iterEnumerate(rs.byteSliceWindows(data, 2));
 	while (true) {
 		const _10: [rs.usize, rs.ByteSlice] | rs.Done = iter.next();
@@ -1011,6 +1003,14 @@ export function held(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _288: rs.Vec<rs.VecDeque<Part.Part>> = rs.vecFrom([e]);
 			const _292: rs.Vec<rs.VecDeque<Part.Part>> = rs.vecFrom([d]);
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_277, rs.cmpSlice(rs.cmpDeque(Part.cmp$cmp_Ord))(_288, _292) & 0xff)), undefined, true);
+			const _296: (a0: rs.VecDeque<Part.Part>) => rs.VecDeque<rs.f64> = (d3: rs.VecDeque<Part.Part>): rs.VecDeque<rs.f64> => {
+				return rs.dequeFromVec(rs.iterToVec(rs.iterMap(rs.dequeIter(d3), (p2: Part.Part): rs.f64 => {
+					if (!(p2.key === 7)) {
+						return p2.key as rs.f64;
+					}
+					return NaN;
+				}), undefined, 8, true), 8) as rs.VecDeque<rs.f64>;
+			};
 			const _301: rs.VecDeque<rs.f64> = _296(d);
 			const _306: rs.VecDeque<rs.f64> = _296(e);
 			rs.byteVecPush(out, order(rs.cmpDeque(rs.f64PartialCmp)(_301, _306)));
