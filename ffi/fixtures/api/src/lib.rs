@@ -3019,3 +3019,13 @@ impl c {
 		c { value }
 	}
 }
+
+/// An enum whose variants are named as what a Kotlin variant class's `equals` and
+/// `hashCode` name, which must not take the variants for them.
+#[derive(Clone, PartialEq)]
+pub enum Builtin {
+	Any(Vec<i32>),
+	Boolean(f64),
+	Int(f64),
+	Native(f64),
+}

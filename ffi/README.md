@@ -252,7 +252,7 @@ where it was while its file is unchanged.
   caller passing ever-new strings grows the set without bound.
 - **Arrays** of a `Vec` are a pointer, a length, and an owner, as a buffer is: passed
   in, Rust copies each element out of C's array, or for a slice of a fixed-width integer
-  other than `u8`, which is bytes, or of a float, borrows C's array in place for the call, and a binding passes its language's
+  other than `u8`, which is bytes, or `u128`, or of a float, borrows C's array in place for the call, and a binding passes its language's
   array of those numbers as one block; returned, `<prefix>_vec_<T>_free` frees
   the array and its first `len` elements, so a binding that takes the elements sets
   `len` to 0 first. A null pointer is `None`, so C passes a non-null one for `Some` of
@@ -399,7 +399,7 @@ packages place it in.
   lives only as long as the bytes it views, and a `view` lent to a callback only for the
   call; reading one past that is C++'s own undefined behavior, which Clang's `-Wdangling`
   refuses for a view or `str()` of a temporary `buf`. A `Vec<T>` is a `std::vector`, passed in place
-  when of a fixed-width integer other than `u8` (bytes) or of a float, of `view`s for bytes passed in, a socket address `socket_addr`, the C struct, and a `u128`
+  when of a fixed-width integer other than `u8` (bytes) or `u128` or of a float, of `view`s for bytes passed in, a socket address `socket_addr`, the C struct, and a `u128`
   `u128`, the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error. A `[u8; N]` is a `std::array<std::uint8_t, N>`.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
@@ -492,7 +492,7 @@ out, with only its other fields encoded.
   `SocketAddrV4`, or `SocketAddrV6` is a `java.net.InetSocketAddress`, which must be
   resolved and, for `V4` or `V6`, of that family; one Rust returns with an IPv6 flow
   label, which Java does not keep, throws. A `Vec<T>`, `&[T]`, or `Box<[T]>` of a
-  fixed-width integer other than `u8` (bytes), or of a float, is Kotlin's primitive array of it: `ByteArray`,
+  fixed-width integer other than `u8` (bytes) or `u128`, or of a float, is Kotlin's primitive array of it: `ByteArray`,
   `ShortArray`, `IntArray`, or `LongArray` for `i8` through `i64`, `UShortArray`,
   `UIntArray`, or `ULongArray` for `u16` through `u64`, which a caller uses under
   `@OptIn(ExperimentalUnsignedTypes::class)`, and `FloatArray` or `DoubleArray`. It
@@ -587,8 +587,8 @@ caller imports it with no ignores.
   A `Vec<T>` or `&[T]` Rust returns is a `list`, and passed in is any iterable other than a `str`,
   annotated `Iterable`, or `Sequence` in a record, which keeps it. Passing a `Vec` by value closes
   each object in it.
-  A `Vec<T>`, `&[T]`, or `Box<[T]>` of a fixed-width integer or float, `u8` (bytes), `usize`,
-  and `isize` aside, Rust returns as an `array.array` of its typecode, filled in one copy; the extension
+  A `Vec<T>`, `&[T]`, or `Box<[T]>` of a fixed-width integer or float, `u8` (bytes), `u128`,
+  `usize`, and `isize` aside, Rust returns as an `array.array` of its typecode, filled in one copy; the extension
   fails to load where a typecode is not exactly as wide as its Rust type. Passed in, it is
   any buffer of exactly those numbers in native byte order, one dimension and C-contiguous, such as an
   `array.array`, a `memoryview` cast to their format, or a numpy array, copied once, since
@@ -685,7 +685,7 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   `SocketAddrV4`, or `SocketAddrV6` is the runtime's `SocketAddr`, its IP's 4 or 16 bytes
   and its port, flow label, and scope, whose family Rust checks. A `Vec<T>`, `&[T]`, or
   `Box<[T]>` is an array, or a `UniqueArray` of objects; one of a fixed-width integer
-  other than `u8` (bytes), or of a float, is copied across whole, with no call per item.
+  other than `u8` (bytes) or `u128`, or of a float, is copied across whole, with no call per item.
 - **Traits** are `Sendable` protocols, which Rust releases once it drops an implementation.
 - **Closures** are `@Sendable` function types, which Rust calls from any thread, one call
   at a time. One lent for a call Rust calls only during the call; one Rust keeps is
@@ -797,7 +797,7 @@ reads a go.mod.
   panics. A socket address is a `netip.AddrPort`, whose zone names an IPv6 scope by its
   number or its interface's name; one Rust returns with an IPv6 flow label, which
   `netip` does not keep, panics. A `Vec<T>`, `&[T]`, or `Box<[T]>` is a `[]T`; one of a
-  fixed-width integer other than `u8` (bytes), or of a float, is lent in place, pinned for the call, as bytes are, and
+  fixed-width integer other than `u8` (bytes) or `u128`, or of a float, is lent in place, pinned for the call, as bytes are, and
   one Rust returns is copied out whole.
 - **Errors**: a `Result` returns an `error` last. An exported error type is returned as
   itself, implementing `error` with its `Display`, else its `Debug`, and any other in a struct
@@ -885,7 +885,7 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   returns is copied into a `String`. A path is a `String`, and one Rust returns that is
   not UTF-8 aborts, since a throw would leave the rest of a list or record being lifted
   unfreed. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
-  `List<T>`, except one of a fixed-width integer other than `u8` (bytes) or of a float, or a `Box<[T]>` of one, which
+  `List<T>`, except one of a fixed-width integer other than `u8` (bytes) or `u128` or of a float, or a `Box<[T]>` of one, which
   is the `dart:typed_data` list of its width, such as a `Uint32List` or `Float64List`:
   copied whole into the call's memory passed in, and out of Rust's returned. A
   `Uint64List` holds a `u64`'s bits, so one past `i64`'s range reads negative, as a `u64`

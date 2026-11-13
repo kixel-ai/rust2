@@ -480,29 +480,48 @@ impl<'a> Gen<'a> {
 		abi::claim(&mut self.names, taken, name, what)
 	}
 
-	/// The class of a tuple of `n`, of one or past `Triple`, written once, its fields named
-	/// as `Triple`'s.
-	/// Whether a value of `ty` must compare through [`contents`] to match Rust's `==`: it holds
+	/// Whether a value of `ty` must compare through [`Gen::contents`] to match Rust's `==`: it holds
 	/// a primitive array, which a data class compares by identity, or a float, which it
 	/// compares by `Double.equals` after `===`, so NaN equals itself and -0.0 differs from 0.0.
 	fn by_contents(&self, ty: &Type) -> bool {
 		ty.holds_block() || self.abi.api.holds_float(ty)
 	}
 
+	/// The `equals` and `hashCode` of the class `name` of `fields`, by their contents. Every
+	/// name they use is qualified, since a variant class may be named `Any`, `Int`, or `Native`.
+	fn contents(&self, name: &str, fields: &[String]) -> String {
+		let p = &self.abi.prefix;
+		let same: Vec<String> = fields
+			.iter()
+			.map(|f| format!("{p}.Native.Eq.same(this.{f}, other.{f})"))
+			.collect();
+		format!(
+			"\toverride fun equals(other: kotlin.Any?): kotlin.Boolean = other is {name} && {}\n\n\toverride fun hashCode(): kotlin.Int = {p}.Native.Eq.hash(kotlin.collections.listOf<kotlin.Any?>({}))\n",
+			same.join(" && "),
+			fields
+				.iter()
+				.map(|f| format!("this.{f}"))
+				.collect::<Vec<_>>()
+				.join(", ")
+		)
+	}
+
+	/// The class of a tuple of `n`: of one, of two or three that must compare by
+	/// [`Gen::by_contents`], or past `Triple`. It is written once, its fields named as `Triple`'s.
 	fn tuple(&mut self, n: usize) -> String {
 		let name = format!("Tuple{n}");
 		if self.tuples.insert(n) {
 			let params: Vec<String> = (1..=n).map(|k| format!("T{k}")).collect();
 			let fields: Vec<String> = (0..n).map(|k| format!("\tval {}: T{},\n", ordinal(k), k + 1)).collect();
+			let contents = self.contents(
+				&format!("{name}<{}>", vec!["*"; n].join(", ")),
+				&(0..n).map(ordinal).collect::<Vec<_>>(),
+			);
 			let _ = write!(
 				self.types,
-				"/** A tuple of {n}, as `Pair` and `Triple` are of two and three. */\ndata class {name}<{}>(\n{}) {{\n{}}}\n\n",
+				"/** A tuple of {n}, as `Pair` and `Triple` are of two and three. */\ndata class {name}<{}>(\n{}) {{\n{contents}}}\n\n",
 				params.join(", "),
 				fields.concat(),
-				contents(
-					&format!("{name}<{}>", vec!["*"; n].join(", ")),
-					&(0..n).map(ordinal).collect::<Vec<_>>()
-				)
 			);
 		}
 		name
@@ -1268,10 +1287,7 @@ impl<'a> Gen<'a> {
 		}
 		// A data class compares arrays by identity and floats by their bits, and Rust both by IEEE `==`.
 		if record.fields.iter().any(|f| self.by_contents(&f.ty)) {
-			body.push(contents(
-				&name,
-				&fields.iter().map(|(f, _)| f.clone()).collect::<Vec<_>>(),
-			));
+			body.push(self.contents(&name, &fields.iter().map(|(f, _)| f.clone()).collect::<Vec<_>>()));
 		}
 		members.extend(body.iter().filter_map(|b| member_name(b)));
 		self.distinct(&rust, &members);
@@ -1455,7 +1471,7 @@ impl<'a> Gen<'a> {
 					let body = match variant.fields.iter().any(|f| self.by_contents(&f.ty)) {
 						true => {
 							let names: Vec<String> = variant.fields.iter().map(|f| field_name(&f.name)).collect();
-							format!(" {{\n{}\t}}", indent(&contents(&vname, &names)))
+							format!(" {{\n{}\t}}", indent(&self.contents(&vname, &names)))
 						}
 						false => String::new(),
 					};
@@ -2630,23 +2646,6 @@ fn block(elem: &Type) -> Block {
 		rust,
 		reader,
 	}
-}
-
-/// The `equals` and `hashCode` of the class `name` of `fields`, by their contents.
-fn contents(name: &str, fields: &[String]) -> String {
-	let same: Vec<String> = fields
-		.iter()
-		.map(|f| format!("Native.Eq.same(this.{f}, other.{f})"))
-		.collect();
-	format!(
-		"\toverride fun equals(other: Any?): Boolean = other is {name} && {}\n\n\toverride fun hashCode(): Int = Native.Eq.hash(kotlin.collections.listOf<Any?>({}))\n",
-		same.join(" && "),
-		fields
-			.iter()
-			.map(|f| format!("this.{f}"))
-			.collect::<Vec<_>>()
-			.join(", ")
-	)
 }
 
 /// Whether `ty` holds bytes anywhere a parameter's form of it differs from a returned one's.
