@@ -64,3 +64,30 @@ impl Local {
 		*self.0
 	}
 }
+
+/// An error that borrows and takes a type parameter, so no handle holds it: it crosses as
+/// its message.
+#[derive(Debug)]
+pub struct Wrapped<'a, T>(pub &'a str, pub T);
+
+impl<T> std::fmt::Display for Wrapped<'_, T> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_str(self.0)
+	}
+}
+
+/// A future that is not an `impl Future`, resolving to what it borrows; its type
+/// parameter keeps any handle from holding it.
+pub struct Lend<'a, T>(pub &'a str, pub std::marker::PhantomData<T>);
+
+impl<'a, T> std::future::Future for Lend<'a, T> {
+	type Output = &'a str;
+
+	fn poll(self: std::pin::Pin<&mut Self>, _: &mut std::task::Context<'_>) -> std::task::Poll<&'a str> {
+		std::task::Poll::Ready(self.0)
+	}
+}
+
+/// A `Copy` token, which an opaque handle holds by value.
+#[derive(Clone, Copy, Debug)]
+pub struct Token(pub u32);

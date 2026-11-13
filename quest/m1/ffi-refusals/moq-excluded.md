@@ -14,21 +14,23 @@ future, and a lent object field in place: 11 items.
 [The epic](/quest/m1/ffi-refusals/README.md)'s decisions apply: rust2 asks moq for no
 source change, and what C can never hold is left out and listed. Measure again first.
 
+The maintainer kept this quest on 2026-11-13 and accepted each recommendation below as its plan.
+
 - `std::io::Error` taken by value (`accept::Failure::classify`, `accept::Health::failed`)
-  and `std::net::IpAddr` (`quic::demux::Datagram::local`). Recommended: `IpAddr` crosses
+  and `std::net::IpAddr` (`quic::demux::Datagram::local`). Decided: `IpAddr` crosses
   as `SocketAddr` already does, by family; `io::Error` as an opaque handle, as another
   crate's value now is, with the standard library no longer exempt.
 - Trait objects: `quic::Controller`'s `Arc<dyn moq_congestion::Factory + Send + Sync>`
   field and `tls::Serve::resolver`'s `Arc<dyn rustls::server::ResolvesServerCert>`.
-  Recommended: an opaque handle to the `Arc`, as another crate's `Arc` already is.
+  Decided: an opaque handle to the `Arc`, as another crate's `Arc` already is.
 - Generic parameters: `server::Request::within` (`impl Future`),
   `websocket::Listener::with_protocols` (`impl IntoIterator<Item: AsRef<str>>`),
   `tcp::TlsAcceptor::offered` (`impl Iterator`), and `tcp::TlsAcceptor::accept` (an IO
-  stream). Recommended: `AsRef<str>` items as strings and an `Iterator` parameter as the
+  stream). Decided: `AsRef<str>` items as strings and an `Iterator` parameter as the
   array of its items, as returns already are; a foreign future as #705's is; the IO
   stream left out as what C can never hold, since no export returns one.
 - `server::Config::websocket`, a borrowed `Option` of a listener that is not `Clone`.
-  Recommended: lent as `Some` of a handle, as a bare field now is.
+  Decided: lent as `Some` of a handle, as a bare field now is.
 - `server::Listener::accept_with`'s future is not `Send`. Left out today as what C can
   never hold, since it takes a `qmux::Session` no export returns once the excludes go;
   confirm the census lists it so.

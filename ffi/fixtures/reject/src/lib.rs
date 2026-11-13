@@ -165,6 +165,26 @@ pub fn echo(tag: &str) -> impl std::future::Future<Output = &str> + '_ {
 	async move { tag }
 }
 
+/// As `echo`, but the output borrows only inside an error that crosses as its message.
+pub fn blame(tag: &str) -> impl std::future::Future<Output = Result<u32, tls::Wrapped<'_, u8>>> + '_ {
+	async move { Err(tls::Wrapped(tag, 0)) }
+}
+
+/// As `echo`, but through a future that is not an `impl Future`.
+pub fn resolve(tag: &str) -> tls::Lend<'_, u8> {
+	tls::Lend(tag, std::marker::PhantomData)
+}
+
+/// A closure taking a `Copy` value of another crate's, which a handle holds.
+pub fn spend(f: impl FnOnce(tls::Token) -> u32) -> u32 {
+	f(tls::Token(1))
+}
+
+/// A closure returning one.
+pub fn mint(f: impl FnOnce() -> tls::Token) -> u32 {
+	f().0
+}
+
 impl<T> Cell<T> {
 	pub fn new(value: T) -> Self {
 		Self(value)

@@ -2853,8 +2853,7 @@ impl<'tcx> Collector<'tcx> {
 			}
 			// An eager future holds what it borrows only until it completes, so its output
 			// may borrow none of it.
-			let (held, lent) = self.lifetimes(unbound.output());
-			if eager && borrows && held.iter().chain(&lent).any(|region| !statics.contains(region)) {
+			if eager && borrows && self.output_borrows(unbound.output(), inner, &statics) {
 				errs.push(why(
 					"borrowing output of a future from a function that is not async",
 					inner.to_string(),
@@ -3639,10 +3638,13 @@ impl<'tcx> Collector<'tcx> {
 		let sig = tcx.fn_sig(def_id).instantiate(tcx, tcx.mk_args(base)).skip_norm_wip();
 		// An `async fn`'s future, or a returned `impl Trait`, captures it.
 		kept |= sig.skip_binder().output().walk().any(|arg| arg == param.into());
-		// A `Copy` object, which C lends as its handle and hands back as a new one.
+		// A `Copy` object, which C lends as its handle and hands back as a new one; not one
+		// an opaque handle holds, which the closure would take as the handle's `rt::Owned`.
 		let env = TypingEnv::post_analysis(tcx, def_id);
 		let copied =
-			|ty: Ty<'tcx>, mapped: &Type| matches!(mapped, Type::Object(_)) && tcx.type_is_copy_modulo_regions(env, ty);
+			|ty: Ty<'tcx>, mapped: &Type| {
+				matches!(mapped, Type::Object(_)) && self.opaque_value(ty).is_none() && tcx.type_is_copy_modulo_regions(env, ty)
+			};
 		// Each parameter makes its own closure, which one type parameter cannot name twice.
 		if sig
 			.skip_binder()
@@ -4156,6 +4158,28 @@ impl<'tcx> Collector<'tcx> {
 			},
 			_ => None,
 		}
+	}
+
+	/// Whether the output of the future `future` may name a lifetime outside `statics`,
+	/// whatever type holds it: an `impl Future`'s by what its bounds name; another future's,
+	/// whose lifetimes `output` has erased, by naming any at all.
+	fn output_borrows(&self, future: Ty<'tcx>, output: Ty<'tcx>, statics: &[ty::Region<'tcx>]) -> bool {
+		let tcx = self.tcx;
+		let ty::Alias(
+			_,
+			ty::AliasTy {
+				kind: ty::AliasTyKind::Opaque { def_id },
+				args,
+				..
+			},
+		) = future.kind()
+		else {
+			return output.walk().any(|arg| arg.as_region().is_some());
+		};
+		(tcx.explicit_item_bounds(*def_id).skip_binder().iter())
+			.filter_map(|&(clause, _)| clause.as_projection_clause()?.skip_binder().term.as_type())
+			.map(|term| ty::EarlyBinder::bind(tcx, term).instantiate(tcx, args).skip_norm_wip())
+			.any(|term| term.walk().any(|arg| arg.as_region().is_some_and(|r| !statics.contains(&r))))
 	}
 
 	/// The lifetimes in `ty`: those its objects take, then those it borrows with.
