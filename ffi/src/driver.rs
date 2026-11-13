@@ -206,6 +206,7 @@ impl Callbacks for Export {
 		}
 		// Refusals still let the export go on to report each clash, but write nothing.
 		let target = merge::Target {
+			names: None,
 			package: self.facade.name.clone(),
 			features: self.facade.features.clone(),
 			exclude: self.config.exclude.clone(),
@@ -216,7 +217,7 @@ impl Callbacks for Export {
 			Output::Api(_) if tcx.dcx().has_errors().is_some() => Ok(()),
 			Output::Api(path) => target.write(path, tcx.sess.source_map(), &self.roots),
 			Output::Dir(out) => match self.merged(tcx, target) {
-				Some(api) if self.locked(tcx, &api) => self.export(tcx, api, out),
+				Some(api) => self.export(tcx, api, out),
 				_ => Ok(()),
 			},
 		};
@@ -365,16 +366,16 @@ impl Export {
 		differs.is_empty().then_some(merge::Target { api, ..ours })
 	}
 
-	/// Whether `ours` keeps the baseline's API, if there is one, emitting each break of it.
-	fn locked(&self, tcx: TyCtxt<'_>, ours: &merge::Target) -> bool {
+	/// Read and validate the baseline once before comparing either compatibility layer.
+	fn baseline(&self, tcx: TyCtxt<'_>, ours: &merge::Target) -> Result<Option<merge::Target>, ()> {
 		let Some(path) = &self.baseline else {
-			return true;
+			return Ok(None);
 		};
 		let base = match merge::Target::read(path, tcx.sess.source_map(), &self.roots) {
 			Ok(base) => base,
 			Err(err) => {
 				tcx.dcx().err(format!("rust2-ffi: the baseline: {err}"));
-				return false;
+				return Err(());
 			}
 		};
 		if base.package != ours.package {
@@ -384,9 +385,45 @@ impl Export {
 				base.package,
 				ours.package
 			));
-			return false;
+			return Err(());
 		}
-		let breaks = crate::lock::breaks(&base.api, &ours.api, &self.facade.lib);
+		Ok(Some(base))
+	}
+
+	/// The baseline's binding names, or an error if it lacks any language's. A baseline from
+	/// before names were kept still has its structure checked first, so its re-export accepts
+	/// no break that check would have reported.
+	fn baseline_names<'b>(&self, tcx: TyCtxt<'_>, base: &'b merge::Target) -> Option<&'b crate::lock::Names> {
+		let Some(names) = &base.names else {
+			tcx.dcx()
+				.err("rust2-ffi: the baseline lacks binding names; export it again with this rust2-ffi");
+			return None;
+		};
+		if ["C++", "Kotlin", "Swift", "Go", "Dart", "Python"]
+			.iter()
+			.any(|language| !names.contains_key(*language))
+		{
+			tcx.dcx()
+				.err("rust2-ffi: the baseline lacks a binding's name table; export it again with this rust2-ffi");
+			return None;
+		}
+		Some(names)
+	}
+
+	/// Compare one compatibility layer against the baseline: its structure, or with `names`,
+	/// the baseline's binding names and the export's, the names the generators made.
+	fn locked(
+		&self,
+		tcx: TyCtxt<'_>,
+		base: &merge::Target,
+		abi: &Abi<'_>,
+		names: Option<(&crate::lock::Names, &crate::lock::Names)>,
+	) -> bool {
+		let path = self.baseline.as_ref().expect("baseline supplied");
+		let breaks = match names {
+			None => crate::lock::breaks(&base.api, abi.api, &self.facade.lib),
+			Some((then, now)) => crate::lock::name_breaks(then, now, &base.api, abi),
+		};
 		let help = format!(
 			"to accept the break, export without --baseline and replace {} with the export's {API_FILE}",
 			path.display()
@@ -403,7 +440,7 @@ impl Export {
 	}
 
 	/// Write the export of `api` into `out`, or fail on two items that share a C name.
-	fn export(&self, tcx: TyCtxt<'_>, target: merge::Target, out: &Path) -> Result<(), String> {
+	fn export(&self, tcx: TyCtxt<'_>, mut target: merge::Target, out: &Path) -> Result<(), String> {
 		let api = &target.api;
 		let abi = Abi::new(api, &self.facade.lib);
 		for (name, (first, first_span), (second, second_span)) in &abi.clashes {
@@ -421,7 +458,18 @@ impl Export {
 				format!("rust2-ffi: {why}; exclude it in the config to leave it out"),
 			);
 		}
-		if tcx.dcx().has_errors().is_some() {
+		let can_generate = tcx.dcx().has_errors().is_none();
+		let baseline = match self.baseline(tcx, &target) {
+			Ok(base) => base,
+			Err(()) => return Ok(()),
+		};
+		let structure_kept = baseline.as_ref().is_none_or(|base| self.locked(tcx, base, &abi, None));
+		// A baseline without names fails the export, but the generators still run, so their
+		// own refusals show now rather than after the baseline is exported again.
+		let names = baseline.as_ref().map(|base| self.baseline_names(tcx, base));
+		let names_complete = names.is_none_or(|names| names.is_some());
+		let baseline = baseline.as_ref().zip(names.flatten());
+		if !can_generate {
 			return Ok(());
 		}
 		let glue = glue::Crate {
@@ -430,7 +478,17 @@ impl Export {
 			patch: &self.patch,
 			crates: &self.crates,
 		};
-		glue.write(out)?;
+		let generated = glue.generate(out)?;
+		if let Some(path) = &self.baseline {
+			generated.check_baseline(path)?;
+		}
+		let names_kept =
+			baseline.is_none_or(|(base, names)| self.locked(tcx, base, &abi, Some((names, &generated.names))));
+		if !structure_kept || !names_complete || !names_kept {
+			return Ok(());
+		}
+		target.names = Some(generated.write()?);
+
 		target.write(&out.join(API_FILE), tcx.sess.source_map(), &self.roots)
 	}
 }

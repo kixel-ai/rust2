@@ -1041,3 +1041,8 @@ pub fn hidden_items() -> impl Iterator<Item = impl Copy> {
 pub fn hidden_option() -> impl Clone {
 	Some(1_u32)
 }
+
+/// A boxed slice of bytes, which no buffer form takes.
+pub fn boxed_bytes(bytes: Box<[u8]>) -> usize {
+	bytes.len()
+}

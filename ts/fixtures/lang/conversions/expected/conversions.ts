@@ -6054,7 +6054,11 @@ export function pointed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const p: rs.ByteSlice = rs.byteSliceFrom(a);
 	p.data[p.start] = p.data[p.start] ^ 16;
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(a));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a[1])));
+	const dst = out;
+	const byte = a[1];
+	rs.byteVecReserve(dst, 1 as rs.usize);
+	dst.data[dst.length + 0] = byte;
+	dst.length = dst.length + 1;
 }
 
 /**

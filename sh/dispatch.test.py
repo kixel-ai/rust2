@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 DISPATCH = Path(__file__).with_name("dispatch.sh").resolve()
-EVERYTHING = ["lint", "quest", "sh", "driver", "ffi", "go", "ts"]
+EVERYTHING = ["lint", "quest", "sh", "crabx", "driver", "ffi", "go", "ts"]
 # A shared input runs everything but the parked go, which only `just gate` and
 # its own diff select.
 SHARED = [m for m in EVERYTHING if m != "go"]
@@ -73,6 +73,8 @@ class SelectTests(unittest.TestCase):
             (["ts/fixtures/codec/src/lib.rs"], ["lint", "ts"]),
             (["quest/m0/example.md"], ["lint", "quest"]),
             (["sh/dispatch.test.py"], ["lint", "sh"]),
+            (["crabx/src/main.rs"], ["lint", "crabx"]),
+            (["crabx/vendor/binstalk-fetchers/src/lib.rs"], ["lint", "crabx"]),
             (["ts/src/lib.rs", "ffi/src/lib.rs"], ["lint", "ffi", "ts"]),
         ):
             with self.subTest(paths=paths):

@@ -621,6 +621,39 @@ fn main() {
 	);
 	println!("less {}", api::less(5, 2));
 	println!("sums {:?}", api::sums(vec![vec![1, 2], Vec::new(), vec![3]]));
+	let least = api::least(vec![[3, 1].into(), Default::default(), [2].into()]);
+	println!(
+		"least {}",
+		least
+			.iter()
+			.map(|set| format!("{:?}", set.iter().collect::<Vec<_>>()))
+			.collect::<Vec<_>>()
+			.join(" ")
+	);
+	numbers("edges", &api::Numbers::edges());
+	numbers("reversed", &api::Numbers::edges().reversed());
+	let edges = api::Numbers::edges();
+	let nan = api::Measure::new(f64::NAN, false);
+	println!(
+		"float equal {} {} {} {} {}",
+		// Each value against itself, which a NaN it holds makes unequal.
+		PartialEq::eq(&edges, &edges),
+		edges == api::Numbers::edges(),
+		api::Numbers::zero(true) == api::Numbers::zero(false),
+		PartialEq::eq(&nan, &nan),
+		api::Measure::new(-0.0, true) == api::Measure::new(0.0, false)
+	);
+	println!(
+		"sum u32 {} {}",
+		api::sum_u32(&[]),
+		api::sum_u32(&[u32::MAX, u32::MAX, 2])
+	);
+	println!("doubled i64 {:?}", api::doubled_i64(&[i64::MIN, -1, 0, i64::MAX]));
+	let floats = api::boxed_floats(Box::new([-0.0, f64::from_bits(0x7ff8_0000_0000_0001)]));
+	println!(
+		"boxed floats {:?}",
+		floats.iter().map(|f| f.to_bits()).collect::<Vec<_>>()
+	);
 	let summed = api::summed([Point { x: 1, y: 2 }, Point { x: -4, y: 6 }]);
 	let none = api::summed([]);
 	println!("summed {} {} {} {}", summed.x, summed.y, none.x, none.y);
@@ -791,6 +824,26 @@ fn main() {
 		"farther hop {}",
 		api::farther_hop(Pair { left: near, right: far }).get()
 	);
+}
+
+/// Print each of `numbers`' lists, its floats as their bits.
+fn numbers(what: &str, numbers: &api::Numbers) {
+	println!("{what} u16 {:?}", numbers.u16s);
+	println!("{what} u32 {:?}", numbers.u32s);
+	println!("{what} u64 {:?}", numbers.u64s);
+	println!("{what} i8 {:?}", numbers.i8s);
+	println!("{what} i16 {:?}", numbers.i16s);
+	println!("{what} i32 {:?}", numbers.i32s);
+	println!("{what} i64 {:?}", numbers.i64s);
+	println!(
+		"{what} f32 {:?}",
+		numbers.f32s.iter().map(|f| f.to_bits()).collect::<Vec<_>>()
+	);
+	println!(
+		"{what} f64 {:?}",
+		numbers.f64s.iter().map(|f| f.to_bits()).collect::<Vec<_>>()
+	);
+	println!("{what} some {:?}", numbers.some);
 }
 
 /// A reader whose reads fail, as `tests/api.c`'s broken one does: each seek lands at 0.

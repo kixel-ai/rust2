@@ -20,7 +20,3 @@ these builds.
 
 - cargo-bins/cargo-binstall: maintainers answer #2749. If they accept, send the PR; once
   a release carries it, bump binstalk in crabx and drop the patch. Check the issue.
-
-## Required
-
-- [The runner](/quest/m2/crabx/runner.md) - carries the patch this removes

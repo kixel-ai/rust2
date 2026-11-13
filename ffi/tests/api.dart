@@ -12,6 +12,32 @@ import 'dart:typed_data';
 
 import 'package:api/api.dart' as api;
 
+/// The unsigned value of a `u64`'s bits, which Dart's `int` reads as signed.
+String u64(int v) => BigInt.from(v).toUnsigned(64).toString();
+
+/// The `f64` of `bits`.
+double f64(int bits) => (Uint64List(1)..[0] = bits).buffer.asFloat64List()[0];
+
+/// Each float's bits, as transcript.rs prints them.
+String bits32(Float32List v) => Uint32List.fromList(v.buffer.asUint32List(v.offsetInBytes, v.length)).toString();
+
+String bits64(Float64List v) => '[${v.buffer.asUint64List(v.offsetInBytes, v.length).map(u64).join(', ')}]';
+
+/// Print each of `n`'s lists, its floats as their bits, as transcript.rs does.
+void numbers(String what, api.Numbers n) {
+  print('$what u16 ${n.u16s}');
+  print('$what u32 ${n.u32s}');
+  print('$what u64 [${n.u64s.map(u64).join(', ')}]');
+  print('$what i8 ${n.i8s}');
+  print('$what i16 ${n.i16s}');
+  print('$what i32 ${n.i32s}');
+  print('$what i64 ${n.i64s}');
+  print('$what f32 ${bits32(n.f32s)}');
+  print('$what f64 ${bits64(n.f64s)}');
+  final some = n.some;
+  print('$what some ${some == null ? 'None' : 'Some($some)'}');
+}
+
 /// The Log callback: keeps even levels.
 final class PrintLog extends api.Log {
   @override
@@ -576,11 +602,21 @@ Future<void> script() async {
   print('less ${api.less(5, 2)}');
   print(
     'sums ${api.sums([
-      [1, 2],
-      [],
-      [3],
+      Uint32List.fromList([1, 2]),
+      Uint32List(0),
+      Uint32List.fromList([3]),
     ])}',
   );
+  print('least ${api.least([[3, 1], [], [2]]).join(' ')}');
+  numbers('edges', api.Numbers.edges());
+  numbers('reversed', api.Numbers.edges().reversed());
+  final edges = api.Numbers.edges();
+  final nan = api.Measure.new_(double.nan, false);
+  print('float equal ${edges == edges} ${edges == api.Numbers.edges()} ${api.Numbers.zero(true) == api.Numbers.zero(false)} ${nan == nan} ${api.Measure.new_(-0.0, true) == api.Measure.new_(0.0, false)}');
+  print('sum u32 ${api.sumU32(Uint32List(0))} ${api.sumU32(Uint32List.fromList([0xffffffff, 0xffffffff, 2]))}');
+  print('doubled i64 ${api.doubledI64(Int64List.fromList([-0x8000000000000000, -1, 0, 0x7fffffffffffffff]))}');
+  final floats = api.boxedFloats(Float64List.fromList([-0.0, f64(0x7ff8000000000001)]));
+  print('boxed floats ${bits64(floats)}');
   final summed = api.summed([const api.Point(x: 1, y: 2), const api.Point(x: -4, y: 6)]);
   final noneSummed = api.summed([]);
   print('summed ${summed.x} ${summed.y} ${noneSummed.x} ${noneSummed.y}');
@@ -1181,6 +1217,24 @@ void bounds() {
   check(api.extended(longest, Duration.zero) == longest, 'the longest Duration');
 
   check(api.ports([api.SocketAddr(InternetAddress('::1'), 65535)]).single == 65535, 'the last port');
+  // A block crosses whole: an empty one stays apart from none, and a u64 keeps its bits.
+  api.Numbers blocks(Int32List? some) => api.Numbers(
+    u16s: Uint16List(0),
+    u32s: Uint32List(0),
+    u64s: Uint64List.fromList([-1]),
+    i8s: Int8List(0),
+    i16s: Int16List(0),
+    i32s: Int32List(0),
+    i64s: Int64List(0),
+    f32s: Float32List(0),
+    f64s: Float64List(0),
+    some: some,
+  );
+  check(blocks(null).reversed().some == null, 'no block crosses as none');
+  check(blocks(Int32List(0)).reversed().some?.isEmpty == true, 'an empty block crosses as itself');
+  check(blocks(null).reversed().u64s.single == -1, 'u64::MAX crosses as its bits');
+  final big = Uint32List.fromList(List.generate(1000, (i) => i));
+  check(api.sumU32(big) == 499500, 'a thousand u32s cross whole');
   throws<RangeError>(() => api.ports([api.SocketAddr(InternetAddress('::1'), 65536)]), 'a port past u16');
   throws<RangeError>(() => api.ports([api.SocketAddr(InternetAddress('::1'), 1, scopeId: -1)]), 'a negative scope');
   throws<RangeError>(

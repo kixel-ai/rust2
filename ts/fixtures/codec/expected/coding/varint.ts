@@ -101,26 +101,47 @@ export function writeQuic(value: rs.u64, out: rs.ByteVec): rs.Result<undefined, 
 		}
 		if (hi === 0) {
 			if (lo < 16384) {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(16384 | (lo & 0xffff))));
+				const dst = out;
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = ((16384 | (lo & 0xffff)) >>> 8) & 255;
+				dst.data[pos + 1] = (16384 | (lo & 0xffff)) & 255;
+				dst.length = dst.length + 2;
 				break b1;
 			}
 		}
 		if (hi === 0) {
 			if (lo < 1073741824) {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes((2147483648 | lo) >>> 0)));
+				const dst2 = out;
+				rs.byteVecReserve(dst2, 4 as rs.usize);
+				const pos2 = dst2.length;
+				dst2.data[pos2 + 0] = ((2147483648 | lo) >>> 0 >>> 24) & 255;
+				dst2.data[pos2 + 1] = ((2147483648 | lo) >>> 0 >>> 16) & 255;
+				dst2.data[pos2 + 2] = ((2147483648 | lo) >>> 0 >>> 8) & 255;
+				dst2.data[pos2 + 3] = ((2147483648 | lo) >>> 0) & 255;
+				dst2.length = dst2.length + 4;
 				break b1;
 			}
 		}
 		if (!(hi < 1073741824)) {
 			return rs.Err({});
 		}
-		const _42: Uint8Array = rs.u32ToBeBytes((3221225472 | hi) >>> 0);
-		const a: rs.u8 = _42[0];
-		const b: rs.u8 = _42[1];
-		const c: rs.u8 = _42[2];
-		const d: rs.u8 = _42[3];
-		const _48: Uint8Array = rs.u32ToBeBytes(lo);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a, b, c, d, _48[0], _48[1], _48[2], _48[3])));
+		const a: rs.u8 = ((3221225472 | hi) >>> 0 >>> 24) & 255;
+		const b: rs.u8 = ((3221225472 | hi) >>> 0 >>> 16) & 255;
+		const c: rs.u8 = ((3221225472 | hi) >>> 0 >>> 8) & 255;
+		const d: rs.u8 = ((3221225472 | hi) >>> 0) & 255;
+		const dst3 = out;
+		rs.byteVecReserve(dst3, 8 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = a;
+		dst3.data[pos3 + 1] = b;
+		dst3.data[pos3 + 2] = c;
+		dst3.data[pos3 + 3] = d;
+		dst3.data[pos3 + 4] = (lo >>> 24) & 255;
+		dst3.data[pos3 + 5] = (lo >>> 16) & 255;
+		dst3.data[pos3 + 6] = (lo >>> 8) & 255;
+		dst3.data[pos3 + 7] = lo & 255;
+		dst3.length = dst3.length + 8;
 	}
 	return rs.OK;
 }
@@ -129,12 +150,11 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 	const _5: [rs.u32, rs.u32] = toHalves(value);
 	const hi: rs.u32 = _5[0];
 	const lo: rs.u32 = _5[1];
-	const _10: Uint8Array = rs.u32ToBeBytes(lo);
 	b0: {
-		const a: rs.u8 = _10[0];
-		const b: rs.u8 = _10[1];
-		const c: rs.u8 = _10[2];
-		const d: rs.u8 = _10[3];
+		const a: rs.u8 = (lo >>> 24) & 255;
+		const b: rs.u8 = (lo >>> 16) & 255;
+		const c: rs.u8 = (lo >>> 8) & 255;
+		const d: rs.u8 = lo & 255;
 		if (hi === 0) {
 			if (lo < 128) {
 				rs.byteVecPush(out, d);
@@ -143,36 +163,92 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 		}
 		if (hi === 0) {
 			if (lo < 16384) {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(128 | c, d)));
+				const dst = out;
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = 128 | c;
+				dst.data[pos + 1] = d;
+				dst.length = dst.length + 2;
 				break b0;
 			}
 		}
 		if (hi === 0) {
 			if (lo < 2097152) {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(192 | b, c, d)));
+				const dst2 = out;
+				rs.byteVecReserve(dst2, 3 as rs.usize);
+				const pos2 = dst2.length;
+				dst2.data[pos2 + 0] = 192 | b;
+				dst2.data[pos2 + 1] = c;
+				dst2.data[pos2 + 2] = d;
+				dst2.length = dst2.length + 3;
 				break b0;
 			}
 		}
 		if (hi === 0) {
 			if (lo < 268435456) {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(224 | a, b, c, d)));
+				const dst3 = out;
+				rs.byteVecReserve(dst3, 4 as rs.usize);
+				const pos3 = dst3.length;
+				dst3.data[pos3 + 0] = 224 | a;
+				dst3.data[pos3 + 1] = b;
+				dst3.data[pos3 + 2] = c;
+				dst3.data[pos3 + 3] = d;
+				dst3.length = dst3.length + 4;
 				break b0;
 			}
 		}
 		if (!(hi < 8)) {
 			if (!(hi < 1024)) {
 				if (!(hi < 16777216)) {
-					const _87: Uint8Array = rs.u32ToBeBytes(hi);
-					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(255, _87[0], _87[1], _87[2], _87[3], a, b, c, d)));
+					const dst4 = out;
+					rs.byteVecReserve(dst4, 9 as rs.usize);
+					const pos4 = dst4.length;
+					dst4.data[pos4 + 0] = 255;
+					dst4.data[pos4 + 1] = (hi >>> 24) & 255;
+					dst4.data[pos4 + 2] = (hi >>> 16) & 255;
+					dst4.data[pos4 + 3] = (hi >>> 8) & 255;
+					dst4.data[pos4 + 4] = hi & 255;
+					dst4.data[pos4 + 5] = a;
+					dst4.data[pos4 + 6] = b;
+					dst4.data[pos4 + 7] = c;
+					dst4.data[pos4 + 8] = d;
+					dst4.length = dst4.length + 9;
 				} else {
-					const _78: Uint8Array = rs.u32ToBeBytes(hi);
-					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(254, _78[1], _78[2], _78[3], a, b, c, d)));
+					const dst5 = out;
+					rs.byteVecReserve(dst5, 8 as rs.usize);
+					const pos5 = dst5.length;
+					dst5.data[pos5 + 0] = 254;
+					dst5.data[pos5 + 1] = (hi >>> 16) & 255;
+					dst5.data[pos5 + 2] = (hi >>> 8) & 255;
+					dst5.data[pos5 + 3] = hi & 255;
+					dst5.data[pos5 + 4] = a;
+					dst5.data[pos5 + 5] = b;
+					dst5.data[pos5 + 6] = c;
+					dst5.data[pos5 + 7] = d;
+					dst5.length = dst5.length + 8;
 				}
 			} else {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(248 | ((hi >>> 8) & 0xff), hi & 0xff, a, b, c, d)));
+				const dst6 = out;
+				rs.byteVecReserve(dst6, 6 as rs.usize);
+				const pos6 = dst6.length;
+				dst6.data[pos6 + 0] = 248 | ((hi >>> 8) & 0xff);
+				dst6.data[pos6 + 1] = hi & 0xff;
+				dst6.data[pos6 + 2] = a;
+				dst6.data[pos6 + 3] = b;
+				dst6.data[pos6 + 4] = c;
+				dst6.data[pos6 + 5] = d;
+				dst6.length = dst6.length + 6;
 			}
 		} else {
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(240 | (hi & 0xff), a, b, c, d)));
+			const dst7 = out;
+			rs.byteVecReserve(dst7, 5 as rs.usize);
+			const pos7 = dst7.length;
+			dst7.data[pos7 + 0] = 240 | (hi & 0xff);
+			dst7.data[pos7 + 1] = a;
+			dst7.data[pos7 + 2] = b;
+			dst7.data[pos7 + 3] = c;
+			dst7.data[pos7 + 4] = d;
+			dst7.length = dst7.length + 5;
 		}
 	}
 }

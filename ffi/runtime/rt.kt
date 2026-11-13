@@ -63,6 +63,48 @@ class Writer {
 		b.put(v)
 	}
 
+	/** A block of numbers: its length, then each little-endian, copied in one call. */
+	fun block(v: ByteArray) {
+		room(4 + v.size)
+		b.putInt(v.size)
+		b.put(v)
+	}
+
+	fun block(v: ShortArray) {
+		room(4 + v.size * 2)
+		b.putInt(v.size)
+		b.asShortBuffer().put(v)
+		b.position(b.position() + v.size * 2)
+	}
+
+	fun block(v: IntArray) {
+		room(4 + v.size * 4)
+		b.putInt(v.size)
+		b.asIntBuffer().put(v)
+		b.position(b.position() + v.size * 4)
+	}
+
+	fun block(v: LongArray) {
+		room(4 + v.size * 8)
+		b.putInt(v.size)
+		b.asLongBuffer().put(v)
+		b.position(b.position() + v.size * 8)
+	}
+
+	fun block(v: FloatArray) {
+		room(4 + v.size * 4)
+		b.putInt(v.size)
+		b.asFloatBuffer().put(v)
+		b.position(b.position() + v.size * 4)
+	}
+
+	fun block(v: DoubleArray) {
+		room(4 + v.size * 8)
+		b.putInt(v.size)
+		b.asDoubleBuffer().put(v)
+		b.position(b.position() + v.size * 8)
+	}
+
 	/** Bytes a record holds, as [bytes] writes a `ByteArray`. */
 	fun bytes(v: Bytes?) {
 		if (v == null) {
@@ -166,6 +208,34 @@ class Reader(bytes: ByteArray) {
 
 	/** `n` bytes, of a length both sides know, such as an array's. */
 	fun raw(n: Int): ByteArray = ByteArray(n).also { b.get(it) }
+
+	/** A block of [n] numbers, copied in one call. */
+	fun i8s(n: Int): ByteArray = ByteArray(n).also { b.get(it) }
+
+	fun i16s(n: Int): ShortArray = ShortArray(n).also {
+		b.asShortBuffer().get(it)
+		b.position(b.position() + n * 2)
+	}
+
+	fun i32s(n: Int): IntArray = IntArray(n).also {
+		b.asIntBuffer().get(it)
+		b.position(b.position() + n * 4)
+	}
+
+	fun i64s(n: Int): LongArray = LongArray(n).also {
+		b.asLongBuffer().get(it)
+		b.position(b.position() + n * 8)
+	}
+
+	fun f32s(n: Int): FloatArray = FloatArray(n).also {
+		b.asFloatBuffer().get(it)
+		b.position(b.position() + n * 4)
+	}
+
+	fun f64s(n: Int): DoubleArray = DoubleArray(n).also {
+		b.asDoubleBuffer().get(it)
+		b.position(b.position() + n * 8)
+	}
 
 	fun bytes(): ByteArray? {
 		val n = b.getInt()
@@ -550,5 +620,61 @@ suspend fun <T> await(
 	} finally {
 		free(raw)
 		__waker_free(node)
+	}
+}
+
+/**
+ * Equality as Rust's `==` has it, apart from the exported functions, which a nested object's
+ * members never overload.
+ */
+object Eq {
+	/**
+	 * Whether [a] and [b] are equal as Rust's `==` compares them: primitive arrays, lists, and
+	 * tuples by their contents, and floats by IEEE `==`, so NaN equals nothing and -0.0 equals
+	 * 0.0, where `equals` and `contentEquals` compare a float's bits.
+	 */
+	fun same(a: Any?, b: Any?): Boolean = when {
+		a is Float && b is Float -> a == b
+		a is Double && b is Double -> a == b
+		a is kotlin.collections.List<*> && b is kotlin.collections.List<*> -> a.size == b.size && a.indices.all { same(a[it], b[it]) }
+		a is kotlin.Pair<*, *> && b is kotlin.Pair<*, *> -> same(a.first, b.first) && same(a.second, b.second)
+		a is kotlin.Triple<*, *, *> && b is kotlin.Triple<*, *, *> -> same(a.first, b.first) && same(a.second, b.second) && same(a.third, b.third)
+		a is FloatArray && b is FloatArray -> a.size == b.size && a.indices.all { a[it] == b[it] }
+		a is DoubleArray && b is DoubleArray -> a.size == b.size && a.indices.all { a[it] == b[it] }
+		a is ByteArray && b is ByteArray -> a.contentEquals(b)
+		a is ShortArray && b is ShortArray -> a.contentEquals(b)
+		a is IntArray && b is IntArray -> a.contentEquals(b)
+		a is LongArray && b is LongArray -> a.contentEquals(b)
+		a is UShortArray && b is UShortArray -> a.contentEquals(b)
+		a is UIntArray && b is UIntArray -> a.contentEquals(b)
+		a is ULongArray && b is ULongArray -> a.contentEquals(b)
+		else -> a == b
+	}
+
+	/** A float's hash agreeing with [same]: -0.0 hashes as 0.0. */
+	private fun floatHash(v: Float): Int = if (v == 0.0f) 0 else v.hashCode()
+
+	private fun doubleHash(v: Double): Int = if (v == 0.0) 0 else v.hashCode()
+
+	/** The hash of a class of [fields], agreeing with [same], as a list of them hashes. */
+	fun hashOf(vararg fields: Any?): Int = fields.fold(1) { h, v -> 31 * h + hash(v) }
+
+	/** A hash agreeing with [same]. */
+	fun hash(a: Any?): Int = when (a) {
+		is Float -> floatHash(a)
+		is Double -> doubleHash(a)
+		is kotlin.collections.List<*> -> a.fold(1) { h, v -> 31 * h + hash(v) }
+		is kotlin.Pair<*, *> -> 31 * hash(a.first) + hash(a.second)
+		is kotlin.Triple<*, *, *> -> 31 * (31 * hash(a.first) + hash(a.second)) + hash(a.third)
+		is FloatArray -> a.fold(1) { h, v -> 31 * h + floatHash(v) }
+		is DoubleArray -> a.fold(1) { h, v -> 31 * h + doubleHash(v) }
+		is ByteArray -> a.contentHashCode()
+		is ShortArray -> a.contentHashCode()
+		is IntArray -> a.contentHashCode()
+		is LongArray -> a.contentHashCode()
+		is UShortArray -> a.contentHashCode()
+		is UIntArray -> a.contentHashCode()
+		is ULongArray -> a.contentHashCode()
+		else -> a?.hashCode() ?: 0
 	}
 }

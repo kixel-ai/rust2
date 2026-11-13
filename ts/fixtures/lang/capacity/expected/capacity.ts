@@ -10,7 +10,15 @@ import { unwrapOrElse$128e309 as result_unwrapOrElse$128e309, unwrapOrElse$02f6i
 
 /** A length or capacity, as four bytes. */
 export function put(out: rs.ByteVec, n: rs.usize): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(n as rs.u32).reverse()));
+	const dst = out;
+	const word = n as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word & 255;
+	dst.data[pos + 1] = (word >>> 8) & 255;
+	dst.data[pos + 2] = (word >>> 16) & 255;
+	dst.data[pos + 3] = (word >>> 24) & 255;
+	dst.length = dst.length + 4;
 }
 
 /** A length and a capacity, as four bytes each. */

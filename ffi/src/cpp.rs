@@ -28,12 +28,19 @@ use crate::ir::{Closure, Function, Int, Literal, Receiver, Traits, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.hpp");
 
-/// The headers for `abi`, by their paths under `include/`: the umbrella `<prefix>.hpp`,
-/// the shared `<prefix>/rt.hpp`, and a `<prefix>/<package>.hpp` per crate; or the members
-/// two items name alike.
-pub fn headers(abi: &Abi<'_>, packages: &str) -> Result<Vec<(String, String)>, String> {
+/// The generated C++ headers and their public names.
+pub struct Output {
+	/// Each header by its path under `include/`.
+	pub files: Vec<(String, String)>,
+	pub names: BTreeMap<String, String>,
+}
+
+/// The headers for `abi`: the umbrella `<prefix>.hpp`, the shared `<prefix>/rt.hpp`, and a
+/// `<prefix>/<package>.hpp` per crate; or the members two items name alike.
+pub fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 	let p = &abi.prefix;
 	let mut h = Header {
+		locked: BTreeMap::new(),
 		abi,
 		ns: p.clone(),
 		krate: String::new(),
@@ -44,6 +51,19 @@ pub fn headers(abi: &Abi<'_>, packages: &str) -> Result<Vec<(String, String)>, S
 		globals: runtime_names().map(str::to_string).collect(),
 		errors: Vec::new(),
 	};
+	// A C++ class is named by its C name alone.
+	let api = abi.api;
+	let classes = (0..api.records.len())
+		.map(|i| abi.record(i))
+		.chain((0..api.enums.len()).map(|i| abi.enumeration(i)))
+		.chain((0..api.objects.len()).map(|i| abi.object(i)))
+		.chain((0..api.callbacks.len()).map(|i| abi.callback(i)))
+		.map(|c| {
+			let name = h.name(&c);
+			(c, name)
+		})
+		.collect();
+	h.locked = crate::lock::types(abi, &classes);
 	let mut headers = vec![(format!("{p}/rt.hpp"), h.shared(packages))];
 	let guard = format!("{}_HPP", p.to_uppercase());
 	let mut umbrella = format!(
@@ -57,7 +77,10 @@ pub fn headers(abi: &Abi<'_>, packages: &str) -> Result<Vec<(String, String)>, S
 	umbrella.push_str(&format!("\n#endif // {guard}\n"));
 	headers.insert(0, (format!("{p}.hpp"), umbrella));
 	match h.errors.is_empty() {
-		true => Ok(headers),
+		true => Ok(Output {
+			files: headers,
+			names: h.locked,
+		}),
 		false => Err(h.errors.join("\n")),
 	}
 }
@@ -72,6 +95,7 @@ enum Owner {
 }
 
 struct Header<'a> {
+	locked: BTreeMap<String, String>,
 	abi: &'a Abi<'a>,
 	ns: String,
 	/// The crate whose header this writes, or none for the shared one.
@@ -113,6 +137,14 @@ impl<'a> Header<'a> {
 	/// The namespace's `detail`, qualified.
 	fn d(&self) -> String {
 		format!("::{}::detail", self.ns)
+	}
+
+	/// The names of `==`'s two arguments, apart from every name in the namespace, which
+	/// they would hide.
+	fn operands(&self) -> (String, String) {
+		let a = parameter("a", |n| self.globals.contains(n));
+		let b = parameter("b", |n| self.globals.contains(n) || n == a);
+		(a, b)
 	}
 
 	/// `name`, declared in the namespace.
@@ -238,6 +270,8 @@ impl<'a> Header<'a> {
 	fn arena(&self, ty: &Type) -> bool {
 		let api = self.abi.api;
 		match ty {
+			// A block crosses in place.
+			Type::List(..) if ty.block().is_some() => false,
 			Type::List(..) => true,
 			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => self.arena(inner),
 			Type::Tuple(elements) => elements.iter().any(|e| self.arena(e)),
@@ -285,6 +319,7 @@ impl<'a> Header<'a> {
 				e.to_string()
 			}
 			Type::Waker => format!("{d}::give({d}::access::raw({e}))"),
+			Type::List(_, inner) if ty.block().is_some() => format!("{d}::block<::{}>({e})", abi.list(inner)),
 			Type::List(_, inner) => {
 				let x = format!("x{}_", lists(inner));
 				format!(
@@ -349,6 +384,11 @@ impl<'a> Header<'a> {
 			Type::U128 | Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				e.to_string()
 			}
+			Type::List(_, inner) if ty.block().is_some() => format!(
+				"{d}::lift_block<{}>({e}, &::{}_free)",
+				self.owned(inner),
+				abi.list(inner)
+			),
 			Type::List(_, inner) => {
 				let c = format!("c{}_", lists(inner));
 				format!(
@@ -588,6 +628,8 @@ impl<'a> Header<'a> {
 				Literal::Int(int, _) => cpp_int(int),
 			};
 			let name = self.name(&abi.name(&constant.path));
+			self.locked
+				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			self.line(format!(
 				"{}inline constexpr {ty} {name} = {};",
 				docs(&constant.docs, ""),
@@ -814,8 +856,9 @@ impl<'a> Header<'a> {
 			members.push(clone);
 		}
 		if t.eq {
+			let (a, b) = self.operands();
 			body.push(format!(
-				"\tfriend bool operator==(const {name} &a, const {name} &b) {{\n\t\treturn ::{c}_eq(a.raw_.get(), b.raw_.get());\n\t}}\n\tfriend bool operator!=(const {name} &a, const {name} &b) {{\n\t\treturn !(a == b);\n\t}}"
+				"\tfriend bool operator==(const {name} &{a}, const {name} &{b}) {{\n\t\treturn ::{c}_eq({a}.raw_.get(), {b}.raw_.get());\n\t}}\n\tfriend bool operator!=(const {name} &{a}, const {name} &{b}) {{\n\t\treturn !({a} == {b});\n\t}}"
 			));
 		}
 		self.traits(&name, &c, t, None, &mut body, &mut members);
@@ -914,6 +957,7 @@ impl<'a> Header<'a> {
 			if member == name {
 				member.push('_');
 			}
+			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
 			let constant = match method.receiver {
 				Some(Receiver::Mut) => "",
@@ -1019,14 +1063,16 @@ impl<'a> Header<'a> {
 				let mut members = fields.clone();
 				let t = record.traits;
 				if t.eq {
+					// Friends, whose arguments, unlike a member's, shadow no field of any name.
+					let (a, b) = self.operands();
 					body.push(format!(
-						"\tbool operator==(const {name} &other) const;\n\tbool operator!=(const {name} &other) const {{\n\t\treturn !(*this == other);\n\t}}"
+						"\tfriend bool operator==(const {name} &{a}, const {name} &{b});\n\tfriend bool operator!=(const {name} &{a}, const {name} &{b}) {{\n\t\treturn !({a} == {b});\n\t}}"
 					));
 					self.def(format!(
-						"inline bool {name}::operator==(const {name} &other) const {{\n{}\tauto c_a_ = {};\n\tauto c_b_ = {};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n",
+						"inline bool operator==(const {name} &{a}, const {name} &{b}) {{\n{}\tauto c_a_ = {};\n\tauto c_b_ = {};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n",
 						self.scope([ty]),
-						self.lower(ty, "*this"),
-						self.lower(ty, "other"),
+						self.lower(ty, &a),
+						self.lower(ty, &b),
 					));
 				}
 				self.traits(&name, &c, t, Some(ty), &mut body, &mut members);
@@ -1081,14 +1127,15 @@ impl<'a> Header<'a> {
 		let ty = Type::Enum(i);
 		let param = self.param(&ty);
 		let lifted = self.lift(&ty, "c_ret_");
+		let (a, b) = self.operands();
 		let lower = |e: &str| self.lower(&ty, e);
-		let (a, b, this) = (lower("a"), lower("b"), lower("self"));
+		let (lower_a, lower_b, this) = (lower(&a), lower(&b), lower("self"));
 		let scope = self.scope([&ty]);
 		let t = e.traits;
 		if t.eq {
-			let (a_, b_) = (declare(&param, "a"), declare(&param, "b"));
+			let (a_, b_) = (declare(&param, &a), declare(&param, &b));
 			self.def(format!(
-				"inline bool operator==({a_}, {b_}) {{\n{scope}\tauto c_a_ = {a};\n\tauto c_b_ = {b};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n\ninline bool operator!=({a_}, {b_}) {{\n\treturn !(a == b);\n}}\n"
+				"inline bool operator==({a_}, {b_}) {{\n{scope}\tauto c_a_ = {lower_a};\n\tauto c_b_ = {lower_b};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n\ninline bool operator!=({a_}, {b_}) {{\n\treturn !({a} == {b});\n}}\n"
 			));
 		}
 		for (on, trait_name) in [(t.display, "to_string"), (t.debug, "debug")] {
@@ -1288,6 +1335,7 @@ impl<'a> Header<'a> {
 			(Some((taken, Owner::Member)), Some(owner)) => self.member(&export.call.name, owner, taken),
 			_ => self.name(&export.call.name),
 		};
+		crate::lock::function(&mut self.locked, function, &member);
 		let free = !matches!(class, Some((_, Owner::Member)));
 		let ret = match &export.future {
 			Some(future) => self.q(&future.handle),
