@@ -73,10 +73,11 @@ frame (write plus read); CPU includes every process thread:
 | Kotlin, runBlocking | 1.88 / 1.94 | 1.80 / 1.83 |
 | Dart, isolate | 2.41 / 2.40 | 2.78 / 2.77 |
 | Swift, global pool | 5.14 / 18.88 | 4.30 / 9.50 |
-| Go, pending notification before every write | 5.54 / 7.70 | 3.41 / 4.26 |
+| Go | 5.54 / 7.70 | 3.41 / 4.26 |
 
-Go's row uses five fresh rounds after replacing the racing permit with the pending
-notification. Its `loop` verifies all one million reads actually pended with a real
+Go's row uses five fresh rounds. Its task-per-read column uses a goroutine and
+`runtime.Gosched()` before each write; only its reader-loop column uses the pending
+notification in place of the racing permit. Its `loop` verifies all one million reads actually pended with a real
 waker. The other managed rows use the original streaming protocol and include its
 handoff; differences in scheduling mean these numbers are workload costs, not a precise
 ranking of the bindings' wake primitives.
