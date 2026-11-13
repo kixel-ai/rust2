@@ -17,6 +17,7 @@ import (
 	"net/netip"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1042,7 +1043,7 @@ func futures() {
 		check(<-got == "held", "the waiting call ends as it would")
 		check(other.Close() == nil, "Close passes once no call borrows it")
 		_, err = other.Recv(ctx)
-		check(errors.Is(err, rt.ErrClosed) && err.Error() == "api_Channel_recv: a handle's value was moved out", "a call after Close fails")
+		check(errors.Is(err, rt.ErrClosed) && err.Error() == "Channel is closed", "a call after Close fails")
 		sender.Close()
 	}
 
@@ -1213,36 +1214,31 @@ func uncollected(n uint32, what string) {
 }
 
 // closed checks that every call taking a closed object returns ErrClosed, however it was
-// closed, and that a second Close does nothing: as Rust's check of a moved value for one
-// Rust checks, and as Go's own for one whose calls only borrow it.
+// closed, and that a second Close does nothing.
 func closed() {
 	ctx := context.Background()
 	isClosed := func(err error, want, what string) {
 		check(errors.Is(err, rt.ErrClosed) && err.Error() == want, fmt.Sprintf("%s: %v", what, err))
 	}
-	moved := func(function string) string {
-		return function + ": a handle's value was moved out"
-	}
-
 	// A method, a trait's, and a field's accessors.
 	c := api.NewCounter("c", 1)
 	check(c.Close() == nil && c.Close() == nil, "Close, then again, passes")
 	_, err := c.Get()
-	isClosed(err, moved("api_Counter_get"), "a method of a closed object")
+	isClosed(err, "Counter is closed", "a method of a closed object")
 	_, err = c.Clone()
-	isClosed(err, moved("api_Counter_clone"), "Clone of a closed object")
-	check(c.GoString() == moved("api_Counter_debug"), "GoString of a closed object is the error")
+	isClosed(err, "Counter is closed", "Clone of a closed object")
+	check(c.GoString() == "Counter is closed", "GoString of a closed object is the error")
 	tally := api.NewTally()
 	tally.Close()
 	_, err = api.NewTally().Equal(tally)
-	isClosed(err, moved("api_Tally_eq"), "Equal with a closed object")
+	isClosed(err, "Tally is closed", "Equal with a closed object")
 	registry := must(api.NewRegistry(api.NewCounter("first", 1)))
 	registry.Close()
 	_, err = registry.FirstGet()
-	isClosed(err, moved("api_Registry_first_get"), "a field's getter of a closed object")
+	isClosed(err, "Registry is closed", "a field's getter of a closed object")
 	// A call that fails moves nothing in.
 	second := api.NewCounter("second", 2)
-	isClosed(registry.FirstSet(second), moved("api_Registry_first_set"), "a field's setter of a closed object")
+	isClosed(registry.FirstSet(second), "Registry is closed", "a field's setter of a closed object")
 	check(must(second.Get()) == 2, "a failed call leaves what it would move")
 
 	// A record's method, whose receiver holds an object.
@@ -1255,27 +1251,27 @@ func closed() {
 
 	// An argument, alone, or nested where the call holds it through its arena.
 	_, err = api.BumpBoth(api.NewTally(), tally)
-	isClosed(err, moved("api_bump_both"), "a closed argument")
+	isClosed(err, "Tally is closed", "a closed argument")
 	open := api.NewCounter("open", 3)
 	_, err = api.Worth(&[]*api.Counter{open, c}, nil)
-	isClosed(err, moved("api_worth"), "a closed object in a list")
+	isClosed(err, "Counter is closed", "a closed object in a list")
 	check(must(open.Get()) == 3, "a failed call leaves the rest of a list")
 
 	// An async call.
 	channel := api.NewChannel()
 	channel.Close()
 	_, err = channel.Recv(ctx)
-	isClosed(err, moved("api_Channel_recv"), "an async call of a closed object")
+	isClosed(err, "Channel is closed", "an async call of a closed object")
 
 	// Moved by a call, plain or boxed, or closed once the callback it was lent to returned.
 	taken := api.NewCounter("m", 0)
 	must(taken.IntoLabel(nil))
 	_, err = taken.Get()
-	isClosed(err, moved("api_Counter_get"), "a method of a moved object")
+	isClosed(err, "Counter is closed", "a method of a moved object")
 	tail := must(api.NewNode(1, nil))
 	must(api.NewNode(2, tail))
 	_, err = tail.Sum()
-	isClosed(err, moved("api_Node_sum"), "a method of a boxed moved object")
+	isClosed(err, "Node is closed", "a method of a boxed moved object")
 	var kept *api.Counter
 	must(must(api.NewRegistry(api.NewCounter("c", 0))).Edit(func(counter *api.Counter) bool {
 		kept = counter
@@ -1290,21 +1286,23 @@ func closed() {
 	race(latch, func() (bool, error) {
 		v, err := latch.Get()
 		return err == nil && *v == 5, err
-	}, "Latch is closed", "Latch: a handle is already borrowed")
+	}, []string{"Latch is closed"}, "Latch: a handle is already borrowed")
 	before := api.Dropped()
 	token := api.NewToken(5)
 	race(token, func() (bool, error) {
 		id, err := token.IdGet()
 		return id == 5, err
-	}, moved("api_Token_id_get"), "api_Token_drop: a handle is already borrowed")
+	}, []string{"Token is closed", "api_Token_id_get: a handle's value was moved out"}, "api_Token_drop: a handle is already borrowed")
 	check(api.Dropped() == before+1, "Close racing calls drops Rust's value once")
 	fmt.Println("closed ok")
 }
 
 // race closes c while 8 goroutines call call on it: each call runs on the live value or,
-// once c is closed, fails with closed; a Close a running call beats fails with borrowed, as
-// Rust refuses a drop under a borrow, and changes nothing, so the next tries again.
-func race(c interface{ Close() error }, call func() (bool, error), closed, borrowed string) {
+// once c is closed, fails with one of closed, which for a value Rust checks includes its
+// moved check, met by a call that held the handle before Close; a Close a running call
+// beats fails with borrowed, as Rust refuses a drop under a borrow, and changes nothing, so
+// the next tries again.
+func race(c interface{ Close() error }, call func() (bool, error), closed []string, borrowed string) {
 	var wg sync.WaitGroup
 	var ran, failed atomic.Int64
 	for range 8 {
@@ -1314,7 +1312,7 @@ func race(c interface{ Close() error }, call func() (bool, error), closed, borro
 			for {
 				live, err := call()
 				if err != nil {
-					check(errors.Is(err, rt.ErrClosed) && err.Error() == closed, fmt.Sprintf("a call racing Close: %v", err))
+					check(errors.Is(err, rt.ErrClosed) && slices.Contains(closed, err.Error()), fmt.Sprintf("a call racing Close: %v", err))
 					failed.Add(1)
 					return
 				}

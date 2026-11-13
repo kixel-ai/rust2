@@ -58,13 +58,11 @@ func (e closedError_) Is(target error) bool {
 	return target == ErrClosed
 }
 
-// Handle_ is what an object owns, or is lent for a call. One of a value Rust checks, which
-// drop drops, is Rust's alone to account: Close drops the value as Rust's own drop does,
-// failing while a call borrows it, a call after it fails as Rust's check of a moved value
-// does, and the handle is freed once the GC collects the object, which each call keeps
-// reachable. Any other counts its calls: Close frees it then, failing while a call holds
-// it, and a call after it returns ErrClosed. For the generated packages, which share it:
-// use none of it.
+// Handle_ is what an object owns, or is lent for a call: each call holds it, so it is
+// freed only once no call does, and a call after Close returns ErrClosed. Close of one
+// whose value Rust checks, which drop drops, drops the value as Rust's own drop does,
+// failing while a call borrows it in Rust; of any other, it fails while a call holds it.
+// For the generated packages, which share it: use none of it.
 type Handle_ struct {
 	raw   unsafe.Pointer
 	state atomic.Int64
@@ -78,7 +76,7 @@ type Handle_ struct {
 }
 
 // NewHandle_ is a handle of raw, which free frees, or nil for one Rust lends, and drop
-// drops the value of, or nil for one Go counts.
+// drops the value of, or nil for one Rust does not check.
 func NewHandle_(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(unsafe.Pointer) error, name string) *Handle_ {
 	h := &Handle_{raw: raw, free: free, drop: drop, name: name}
 	h.state.Store(held_)
@@ -87,9 +85,6 @@ func NewHandle_(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(unsafe.
 
 // Hold is the handle, held until Release, or nil once closed.
 func (h *Handle_) Hold() unsafe.Pointer {
-	if h.drop != nil {
-		return h.raw
-	}
 	for {
 		n := h.state.Load()
 		if n&closed_ != 0 {
@@ -108,7 +103,7 @@ func (h *Handle_) Closed() error {
 
 // Release gives up a call's hold.
 func (h *Handle_) Release() {
-	if h.drop == nil && h.state.Add(-held_) < held_ && h.free != nil {
+	if h.state.Add(-held_) < held_ && h.free != nil {
 		h.free(h.raw)
 	}
 }
@@ -116,7 +111,17 @@ func (h *Handle_) Release() {
 // Close closes h as Handle_ says; again, it does nothing.
 func (h *Handle_) Close() error {
 	if h.drop != nil {
-		return h.drop(h.raw)
+		raw := h.Hold()
+		if raw == nil {
+			return nil
+		}
+		err := h.drop(raw)
+		h.Release()
+		if err != nil {
+			return err
+		}
+		h.Moved()
+		return nil
 	}
 	for {
 		n := h.state.Load()
@@ -137,18 +142,20 @@ func (h *Handle_) Close() error {
 	}
 }
 
-// Collected frees an owned handle once the GC collects its object: at once if Rust
-// accounts it, since no call runs on an object nothing reaches, or else once no call holds
-// it.
-func (h *Handle_) Collected() {
-	if h.drop != nil {
-		h.free(h.raw)
-		return
-	}
+// Moved closes an owned handle a call moved the value out of, or Close dropped, freeing it
+// once no call holds it.
+func (h *Handle_) Moved() {
+	// A cleanup left registered until the GC slows each one registered after it.
+	h.Cleanup.Stop()
 	h.abandon()
 }
 
-// abandon gives up the owner's hold of a counted one, freeing it once no call holds it.
+// Collected frees an owned handle the GC collected the object of, once no call holds it.
+func (h *Handle_) Collected() {
+	h.abandon()
+}
+
+// abandon gives up the owner's hold, freeing it once no call holds it.
 func (h *Handle_) abandon() {
 	for {
 		n := h.state.Load()

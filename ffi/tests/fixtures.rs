@@ -591,14 +591,8 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 	run(&mut vm(&["futures"]));
 	run(&mut vm(&["owned"]));
 	for (case, message) in [
-		(
-			"moved",
-			"IllegalStateException: api_Counter_get: a handle's value was moved out",
-		),
-		(
-			"boxed moved",
-			"IllegalStateException: api_Node_sum: a handle's value was moved out",
-		),
+		("moved", "IllegalStateException: Counter is closed"),
+		("boxed moved", "IllegalStateException: Node is closed"),
 		("lent kept", "Counter is closed"),
 		(
 			"lent moved",
@@ -1099,7 +1093,7 @@ fn api_go() {
 			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("nil reader", "a nil io.ReadSeeker"),
-		("returned closed", "api_Instant_copy: a handle's value was moved out"),
+		("returned closed", "Instant is closed"),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
 		("outlived", OUTLIVED),
 		("text", "api_greet: a string is not UTF-8"),

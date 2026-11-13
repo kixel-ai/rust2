@@ -25,7 +25,7 @@ use std::hash::Hasher;
 use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Family, Function, Int, Literal, Mutability, On, Param, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.kt");
 pub const GLUE_RUNTIME: &str = include_str!("../runtime/jni.rs");
@@ -553,7 +553,7 @@ impl<'a> Gen<'a> {
 				format!("{e}.let {{ {l} -> {w}.i32({l}.size); for ({v} in {l}) {{ {item} }} }}")
 			}
 			Type::Option(inner) => match inner.base() {
-				Type::Object(_) => format!("{w}.handle({e}?.handle, {e})"),
+				Type::Object(_) => format!("{w}.handle({e}?.handle)"),
 				base if Abi::is_buf(base) => self.write_value(base, w, e),
 				// None is a length of -1.
 				Type::List(..) => {
@@ -573,7 +573,7 @@ impl<'a> Gen<'a> {
 				true => format!("{w}.i32({e}.value)"),
 				false => format!("w_{}({w}, {e})", abi.enumeration(*i)),
 			},
-			Type::Object(_) => format!("{w}.handle({e}.handle, {e})"),
+			Type::Object(_) => format!("{w}.handle({e}.handle)"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("w_{}({w}, {e})", abi.range(ty)),
 			Type::Tuple(elements) => {
 				let t = self.fresh("t");
@@ -696,37 +696,19 @@ impl<'a> Gen<'a> {
 	/// The Kotlin expression passing `e` of type `ty` back to Rust as the C type `c`, as a
 	/// callback or closure returns it: a scalar, a string's bytes, or a new handle to a
 	/// copy of a `Copy` object, made without its `Clone`, or 0 for none, which Rust frees.
-	fn lower_ret(&mut self, c: &Ty, ty: &Type, e: &str) -> String {
+	fn lower_ret(&self, c: &Ty, ty: &Type, e: &str) -> String {
 		match c {
 			Ty::Int(int) => to_signed(*int, e),
 			Ty::Buf => format!("{e}.encodeToByteArray()"),
 			Ty::Handle { name, .. } => {
 				let clone = format!("Native.{}_copy", self.bare(name));
-				let r = self.fresh("r");
-				let kept = match self.abi.value_status(ty) {
-					true => format!(", {r}"),
-					false => String::new(),
-				};
 				match ty {
-					Type::Option(_) => {
-						format!("{e}?.let {{ {r} -> {r}.handle.hold {{ h -> {clone}(h{kept}) }} }} ?: 0L")
-					}
-					_ => format!("{e}.let {{ {r} -> {r}.handle.hold {{ h -> {clone}(h{kept}) }} }}"),
+					Type::Option(_) => format!("{e}?.handle?.hold {{ h -> {clone}(h) }} ?: 0L"),
+					_ => format!("{e}.handle.hold {{ h -> {clone}(h) }}"),
 				}
 			}
 			_ => e.to_string(),
 		}
-	}
-
-	/// Pass `e` to the native method as one more parameter the glue ignores, which JNI
-	/// keeps reachable until the call returns: the owner of a checked object's handle, or
-	/// a list of them, whose collection would free the handle while Rust reads it. A fence
-	/// on every JVM and Android level, where `Reference.reachabilityFence` needs API 28.
-	fn keep(&mut self, arg: &mut Arg, e: &str, n: &mut usize) {
-		*n += 1;
-		arg.jni.push("jobject");
-		arg.native.push("Any?".to_string());
-		arg.exprs.push(e.to_string());
 	}
 
 	/// How Kotlin passes the value `e` of IR type `ty` as the C parameter `c`, named
@@ -768,13 +750,15 @@ impl<'a> Gen<'a> {
 					true => format!("Native.hold({e}?.handle) {{ {h} ->"),
 					false => format!("{e}.handle.hold {{ {h} ->"),
 				});
+				// Taken by value, the value moves out, leaving the handle only to free.
+				if moved(abi, ty) {
+					arg.after.push(match option {
+						true => format!("{e}?.handle?.abandon()"),
+						false => format!("{e}.handle.abandon()"),
+					});
+				}
 				arg.exprs.push(h);
 				arg.rust_args.push(format!("{p} as usize as _"));
-				// Taken by value, the value moves out, which Rust's check accounts. One of a
-				// checked object passes its owner too, kept reachable through the call.
-				if abi.value_status(ty) {
-					self.keep(&mut arg, e, n);
-				}
 			}
 			Ty::Buf => {
 				let option = matches!(ty.base(), Type::Option(_));
@@ -794,6 +778,11 @@ impl<'a> Gen<'a> {
 			}
 			Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => {
 				let w = self.fresh("w");
+				// Taken by value, each object in a list moves out, as one passed alone does.
+				if moved(abi, ty) {
+					let close = self.close(ty, e);
+					arg.after.push(close);
+				}
 				arg.open = Some(format!("Native.Writer().use {{ {w} ->"));
 				let value = self.write_value(ty, &w, e);
 				arg.inside.push(value);
@@ -805,10 +794,6 @@ impl<'a> Gen<'a> {
 					Ty::In(_) => format!("&a{p}"),
 					_ => format!("a{p}"),
 				});
-				// The owners of the checked objects encoded, kept reachable through the call.
-				if abi.value_status(ty) {
-					self.keep(&mut arg, &format!("{w}.kept"), n);
-				}
 			}
 			Ty::Fn(..) => {
 				let trampoline = trampoline.expect("a closure has its trampoline");
@@ -1039,18 +1024,10 @@ impl<'a> Gen<'a> {
 			),
 			false => format!("let ret = {call};\n\t\t{then}"),
 		};
-		// What keeps the owners of its checked handles reachable through the call.
-		let (keep, kept): (&[(&str, &str)], &str) = match (status, object) {
-			(false, _) => (&[], ""),
-			(true, true) => (&[("jobject", "Any?")], ", this"),
-			(true, false) => (&[("jobject", "Any?")], ", w.kept"),
-		};
-		let mut unary_params = vec![(jni_self, native_self)];
-		unary_params.extend_from_slice(keep);
 		let unary = |g: &mut Self, suffix: &str, sig: &str| {
 			g.native(
 				&format!("{bare}_{suffix}"),
-				&unary_params,
+				&[(jni_self, native_self)],
 				("jbyteArray", "ByteArray?"),
 				&checked(
 					&format!("crate::{c}_{suffix}({rust_self})"),
@@ -1058,7 +1035,7 @@ impl<'a> Gen<'a> {
 					"rt::owned(env, ret)",
 				),
 			);
-			format!("\t{sig} = {open}\n\t\tNative.{bare}_{suffix}({arg}{kept})!!.decodeToString()\n\t}}\n")
+			format!("\t{sig} = {open}\n\t\tNative.{bare}_{suffix}({arg})!!.decodeToString()\n\t}}\n")
 		};
 		if t.display {
 			// Final, so a data class variant of a sealed class keeps it rather than making
@@ -1077,7 +1054,7 @@ impl<'a> Gen<'a> {
 		{
 			self.native(
 				&format!("{bare}_copy"),
-				&[&[("jlong", "Long")], keep].concat(),
+				&[("jlong", "Long")],
 				("jlong", "Long"),
 				&checked(
 					&format!("crate::{c}_copy(p0 as usize as _)"),
@@ -1089,7 +1066,7 @@ impl<'a> Gen<'a> {
 		if object && t.clone {
 			self.native(
 				&format!("{bare}_clone"),
-				&[&[("jlong", "Long")], keep].concat(),
+				&[("jlong", "Long")],
 				("jlong", "Long"),
 				&checked(
 					&format!("crate::{c}_clone(p0 as usize as _)"),
@@ -1098,35 +1075,22 @@ impl<'a> Gen<'a> {
 				),
 			);
 			body.push(format!(
-				"\t/** A new handle to a clone. */\n\tfun clone(): {class} = handle.hold {{ h -> {class}(Native.{bare}_clone(h{kept})) }}\n"
+				"\t/** A new handle to a clone. */\n\tfun clone(): {class} = handle.hold {{ h -> {class}(Native.{bare}_clone(h)) }}\n"
 			));
 		}
 		if object && t.eq {
-			let (params, b, other) = match status {
-				true => (
-					vec![
-						("jlong", "Long"),
-						("jobject", "Any?"),
-						("jlong", "Long"),
-						("jobject", "Any?"),
-					],
-					"p2",
-					", other",
-				),
-				false => (vec![("jlong", "Long"), ("jlong", "Long")], "p1", ""),
-			};
 			self.native(
 				&format!("{bare}_eq"),
-				&params,
+				&[("jlong", "Long"), ("jlong", "Long")],
 				("jboolean", "Boolean"),
 				&checked(
-					&format!("crate::{c}_eq(p0 as usize as _, {b} as usize as _)"),
+					&format!("crate::{c}_eq(p0 as usize as _, p1 as usize as _)"),
 					&format!("{c}_eq"),
 					"ret",
 				),
 			);
 			body.push(format!(
-				"\toverride fun equals(other: Any?): Boolean =\n\t\tother is {class} && handle.hold {{ a -> other.handle.hold {{ b -> Native.{bare}_eq(a{kept}, b{other}) }} }}\n\n\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): Int = 0\n"
+				"\toverride fun equals(other: Any?): Boolean =\n\t\tother is {class} && handle.hold {{ a -> other.handle.hold {{ b -> Native.{bare}_eq(a, b) }} }}\n\n\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): Int = 0\n"
 			));
 		}
 		if t.default {
@@ -1443,18 +1407,18 @@ impl<'a> Gen<'a> {
 			true => {
 				self.native(
 					&format!("{bare}_drop"),
-					&[("jlong", "Long"), ("jobject", "Any?")],
+					&[("jlong", "Long")],
 					("()", "Unit"),
 					&format!(
 						"let mut status = 0;\n\t\tcrate::{c}_drop(p0 as usize as _, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::raise(env, status, \"{c}_drop\");\n\t\t}}"
 					),
 				);
 				format!(
-					"\tinternal val handle = Native.Handle(this, raw, if (lent) null else Native.Drop {{ Native.{bare}_free(it) }}, \"{name}\", if (lent) null else Native.Close {{ h, o -> Native.{bare}_drop(h, o) }})\n\n\t/** Drop the value now, as Rust's drop does: a call after this throws, and one still running makes this throw. */\n\toverride fun close() = handle.close(this)\n"
+					"\tinternal val handle = Native.Handle(this, raw, if (lent) null else Native.Drop {{ Native.{bare}_free(it) }}, \"{name}\", if (lent) null else Native.Close {{ Native.{bare}_drop(it) }})\n\n\t/** Drop the value now, as Rust's drop does, and free the handle once no call holds it: a call after this throws, and one still borrowing the value makes this throw. */\n\toverride fun close() = handle.close()\n"
 				)
 			}
 			false => format!(
-				"\tinternal val handle = Native.Handle(this, raw, if (lent) null else Native.Drop {{ Native.{bare}_free(it) }}, \"{name}\")\n\n\t/** Free the handle now: a call after this throws, and one still running makes this throw. */\n\toverride fun close() = handle.close(this)\n"
+				"\tinternal val handle = Native.Handle(this, raw, if (lent) null else Native.Drop {{ Native.{bare}_free(it) }}, \"{name}\")\n\n\t/** Free the handle now: a call after this throws, and one still running makes this throw. */\n\toverride fun close() = handle.close()\n"
 			),
 		}];
 		let mut statics = Vec::new();
@@ -1838,7 +1802,7 @@ impl<'a> Gen<'a> {
 		let mut c_params = export.call.params.iter();
 		self.suspends = export.future.is_some();
 		let receiver = function.receiver.filter(|_| owner.is_some());
-		if receiver.is_some() {
+		if let Some(receiver) = receiver {
 			let (_, c) = c_params.next().expect("a method has its receiver");
 			let ty = owner_ty.expect("a method has its type").clone();
 			let mut arg = match c {
@@ -1853,15 +1817,15 @@ impl<'a> Gen<'a> {
 					arg.open = Some(format!("this.handle.hold {{ {h} ->"));
 					arg.exprs.push(h);
 					arg.rust_args.push(format!("{p} as usize as _"));
-					// A `self` method moves the value out, which Rust's check accounts.
-					if abi.value_status(&ty) {
-						self.keep(&mut arg, "this", &mut n);
+					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
+					if receiver == Receiver::Owned && !copy {
+						arg.after.push("this.handle.abandon()".to_string());
 					}
 					arg
 				}
 				_ => self.arg(&ty, c, "this", &mut n, None),
 			};
-			arg.native.truncate(arg.jni.len());
+			arg.native.truncate(1);
 			args.push(arg);
 		}
 		let mut kt_params = Vec::new();
@@ -2180,6 +2144,33 @@ impl<'a> Gen<'a> {
 		Some(indent_by(&code, indent_level))
 	}
 
+	/// The Kotlin statement closing each handle the value `e` of type `ty` holds, once a
+	/// call moved their values out.
+	fn close(&mut self, ty: &Type, e: &str) -> String {
+		match ty {
+			Type::Option(inner) => {
+				let v = self.fresh("v");
+				let close = self.close(inner, &v);
+				format!("{e}?.let {{ {v} -> {close} }}")
+			}
+			Type::Box(inner) => self.close(inner, e),
+			Type::Tuple(elements) => {
+				let t = self.fresh("t");
+				let closes: Vec<String> = (elements.iter().enumerate())
+					.filter(|(_, ty)| moved(self.abi, ty))
+					.map(|(k, ty)| self.close(ty, &format!("{t}.{}", ordinal(k))))
+					.collect();
+				format!("{e}.let {{ {t} -> {} }}", closes.join("; "))
+			}
+			Type::List(_, inner) => {
+				let v = self.fresh("v");
+				let close = self.close(inner, &v);
+				format!("{e}.forEach {{ {v} -> {close} }}")
+			}
+			_ => format!("{e}.handle.abandon()"),
+		}
+	}
+
 	/// The glue's out values for `outs`, of a function returning `ok` or `err`, the
 	/// pointers the C call takes after its parameters, and the statements writing them,
 	/// `ok` saying whether it returned ok.
@@ -2288,6 +2279,17 @@ fn bytes(ty: &Type) -> bool {
 	match ty {
 		Type::Slice | Type::Vec | Type::Bytes => true,
 		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => bytes(inner),
+		_ => false,
+	}
+}
+
+/// Whether passing `ty` moves an object's value out: by value, boxed, or in an `Option`,
+/// a list, or a tuple, unless `Copy`, and never through a reference.
+fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
+	match ty {
+		Type::Object(i) => !abi.api.objects[*i].copy,
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
+		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
 		_ => false,
 	}
 }

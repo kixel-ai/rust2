@@ -38,7 +38,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Closure, Family, Function, Home, Int, Literal, On, Param, Type};
+use crate::ir::{Access, Closure, Family, Function, Home, Int, Literal, On, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
 const CONVERSIONS: &str = include_str!("../runtime/ffi_cgo.go");
@@ -1850,23 +1850,25 @@ impl<'a> Gen<'a> {
 		let name = self.named(&ty).1;
 		let rust = abi.api.rust(&object.path, &object.args);
 		let handle = self.qualify(Packages::RT, "Handle_");
-		let (text, close) = match abi.checked[i] {
-			true => (
-				"a handle the GC frees once it collects it",
-				"// Close drops the value now, as Rust's drop does: a call after it fails, and Close fails\n\
-				// while a call borrows it, changing nothing.\n",
-			),
-			false => (
-				"a handle Close frees, or else the GC once it collects it",
+		let close = match abi.checked[i] {
+			true => {
+				"// Close drops the value now, as Rust's drop does, and frees the handle once no call holds\n\
+				// it: a call after it fails, and Close fails while a call borrows the value, changing\n\
+				// nothing.\n"
+			}
+			false => {
 				"// Close frees the handle now, rather than once the GC collects it: a call after it fails,\n\
-				// and Close fails while a call holds it, changing nothing.\n",
-			),
+				// and Close fails while a call holds it, changing nothing.\n"
+			}
 		};
-		let text = format!("{name} is `{rust}`, {text}.\n\n{}", object.docs);
+		let text = format!(
+			"{name} is `{rust}`, a handle Close frees, or else the GC once it collects it.\n\n{}",
+			object.docs
+		);
 		let _ = write!(
 			self.types,
 			"{}type {name} struct {{\n\t// Handle_ is the handle it owns, for the generated packages: use none of it.\n\tHandle_ *{handle}\n}}\n\n\
-			{close}func (self *{name}) Close() error {{\n\terr := self.Handle_.Close()\n\truntime.KeepAlive(self)\n\treturn err\n}}\n\n",
+			{close}func (self *{name}) Close() error {{\n\treturn self.Handle_.Close()\n}}\n\n",
 			docs(text.trim(), "")
 		);
 		let mut members = vec!["Close".to_string(), "Handle_".to_string()];
@@ -2161,6 +2163,34 @@ impl<'a> Gen<'a> {
 		});
 	}
 
+	/// The Go statement closing each handle the value `e` of type `ty` holds, once a call
+	/// moved their values out.
+	fn close(&self, ty: &Type, e: &str, depth: usize) -> String {
+		match ty {
+			Type::Option(inner) => match inner.base() {
+				Type::Object(_) => format!("if {e} != nil {{ {e}.Handle_.Moved() }}"),
+				_ => {
+					let v = format!("v{depth}_");
+					format!("if {e} != nil {{ {v} := *{e}; {} }}", self.close(inner, &v, depth + 1))
+				}
+			},
+			Type::Box(inner) => self.close(inner, e, depth),
+			Type::Tuple(elements) if elements.len() == 1 => self.close(&elements[0], e, depth),
+			Type::Tuple(elements) => {
+				let closes: Vec<String> = (elements.iter().enumerate())
+					.filter(|(_, ty)| moved(self.abi, ty))
+					.map(|(k, ty)| self.close(ty, &format!("{e}.V{k}"), depth))
+					.collect();
+				closes.join("; ")
+			}
+			Type::List(_, inner) => {
+				let v = format!("v{depth}_");
+				format!("for _, {v} := range {e} {{ {} }}", self.close(inner, &v, depth + 1))
+			}
+			_ => format!("{e}.Handle_.Moved()"),
+		}
+	}
+
 	/// `function`'s Go form: a method of `owner` (whose IR type is `owner_ty`) if it has one
 	/// and a receiver, or else a function of the package.
 	fn function(&mut self, function: &Function, owner: Option<&Ty>, owner_ty: Option<&Type>) -> Method {
@@ -2230,8 +2260,7 @@ impl<'a> Gen<'a> {
 		let everywhere = abi.api.everywhere(function.on);
 		let closable = receiver.is_some() && owner_ty.is_some_and(|ty| self.holds(ty))
 			|| function.params.iter().any(|p| self.holds(&p.ty))
-			|| status
-			|| !everywhere;
+			|| status || !everywhere;
 		if function.err.is_some() || function.future || closable {
 			results.push("error".to_string());
 		}
@@ -2245,12 +2274,14 @@ impl<'a> Gen<'a> {
 		};
 
 		let mut prelude: Vec<String> = Vec::new();
+		// What closes each handle a call moved the value out of, once it passed its checks.
+		let mut moves: Vec<String> = Vec::new();
 		let mut checked = false;
 		let mut arena = false;
 		let mut args: Vec<String> = Vec::new();
 		let mut c_params = export.call.params.iter();
 		let mut go_receiver = None;
-		if receiver.is_some() {
+		if let Some(receiver) = receiver {
 			let (_, c) = c_params.next().expect("a method has its receiver");
 			let ty = owner_ty.expect("a method has its type").clone();
 			let go = self.go(&ty);
@@ -2262,6 +2293,10 @@ impl<'a> Gen<'a> {
 						fail("self.Handle_.Closed()")
 					));
 					args.push(format!("(*C.{name})(h_)"));
+					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
+					if receiver == Receiver::Owned && !copy {
+						moves.push("self.Handle_.Moved()".to_string());
+					}
 				}
 				_ => {
 					let c = match abi.ty(&ty) {
@@ -2303,6 +2338,9 @@ impl<'a> Gen<'a> {
 				continue;
 			}
 			params.push((name.clone(), self.go_param(&param.ty)));
+			if moved(abi, &param.ty) {
+				moves.push(self.close(&param.ty, &name, 0));
+			}
 			match (&param.ty, c) {
 				(Type::Closure(closure), _) => {
 					let trampoline = self.trampoline(&param.ty, closure);
@@ -2387,8 +2425,13 @@ impl<'a> Gen<'a> {
 				"{}(int32(c_status_), \"{c_name}\")",
 				self.qualify(Packages::RT, "Status_")
 			);
-			format!("if c_status_ != 0 {{\n\t{}\n}}", fail(&error))
+			let mut failed = format!("if c_status_ != 0 {{\n\t{}\n}}", fail(&error));
+			for moved in &moves {
+				failed = format!("{failed}\n{moved}");
+			}
+			failed
 		});
+		assert!(status || moves.is_empty(), "{c_name} moves a value Rust checks");
 		let mut body = Vec::new();
 		if status {
 			body.push(format!("var c_status_ C.{}", abi.rt("status")));
@@ -2642,6 +2685,17 @@ fn poll_ready(abi: &Abi<'_>) -> String {
 
 fn poll_error(abi: &Abi<'_>) -> String {
 	format!("C.{}_POLL_ERROR", abi.prefix.to_uppercase())
+}
+
+/// Whether passing `ty` moves an object's value out: by value, boxed, or in an `Option`,
+/// a list, or a tuple, unless `Copy`, and never through a reference.
+fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
+	match ty {
+		Type::Object(i) => !abi.api.objects[*i].copy,
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
+		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
+		_ => false,
+	}
 }
 
 /// `ty` returned: a borrow is returned as a clone, so owned.
