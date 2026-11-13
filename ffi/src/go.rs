@@ -82,9 +82,12 @@ impl Packages {
 				name.insert_str(0, "crate");
 			}
 			name += count;
-			// A name Go, cgo, or the runtime takes, or an earlier crate's, takes a trailing
-			// `_`, which no crate's name keeps.
-			while ["C", "main"].contains(&name.as_str()) || keyword(&name) || by_crate.values().any(|(n, _)| *n == name)
+			// A name Go, cgo, or the runtime takes, or one an earlier crate's matches ignoring
+			// case, as a case-insensitive filesystem would, takes a trailing `_`, which no
+			// crate's name keeps.
+			while ["C", "main"].contains(&name.as_str())
+				|| keyword(&name)
+				|| by_crate.values().any(|(n, _)| n.eq_ignore_ascii_case(&name))
 			{
 				name.push('_');
 			}
