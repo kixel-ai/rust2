@@ -278,6 +278,20 @@ fn api_cpp() {
 		cpp_strict(api);
 	}
 
+	// Each crate's header builds alone, needing only the headers it includes.
+	let headers = std::fs::read_dir(api.out.join("include").join("api")).unwrap();
+	let mut headers: Vec<String> = headers
+		.map(|entry| entry.unwrap().file_name().into_string().unwrap())
+		.collect();
+	headers.sort();
+	assert!(headers.len() > 2, "the api fixture has a header per crate: {headers:?}");
+	for header in headers {
+		let src = scratch().join("api").join(format!("alone-{header}.cpp"));
+		std::fs::write(&src, format!("#include \"api/{header}\"\nint main() {{}}\n")).unwrap();
+		let exe = scratch().join("api").join(format!("alone-{header}{EXE_SUFFIX}"));
+		run(&mut cxx(api, 17, true, &src, &exe));
+	}
+
 	// A C++ program whose header names another contract than its library's aborts at load.
 	let mismatched = scratch().join("api").join("contract.cpp");
 	std::fs::write(
@@ -291,7 +305,7 @@ fn api_cpp() {
 	assert!(!output.status.success(), "a mismatched contract did not abort");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
-		stderr.contains("api.hpp and the library are from different builds"),
+		stderr.contains("api/rt.hpp and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
 }

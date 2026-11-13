@@ -121,7 +121,8 @@ impl Crate<'_> {
 		self.facade.name.clone()
 	}
 
-	/// Write the crate into `out`: `Cargo.toml`, `src/`, `include/<prefix>.h` and `.hpp`,
+	/// Write the crate into `out`: `Cargo.toml`, `src/`, `include/<prefix>.h`, `.hpp`, and a
+	/// `.hpp` per crate in `include/<prefix>/`,
 	/// `kotlin/<prefix>.kt`, whose JNI functions the crate's `kotlin` feature builds,
 	/// `python/<prefix>.py`, whose CPython extension its `python` feature builds,
 	/// `swift/<prefix>.swift` with the clang module it imports the header through, and
@@ -209,7 +210,7 @@ impl Crate<'_> {
 			lib = self.abi.prefix,
 		);
 		let (header, contract) = crate::c::header(self.abi, &self.packages());
-		let cpp = crate::cpp::header(self.abi, &self.packages())?;
+		let cpp = crate::cpp::headers(self.abi, &self.packages())?;
 		let kotlin = crate::kotlin::generate(self.abi, &self.packages(), contract)?;
 		let python = crate::python::generate(self.abi, &self.packages(), contract)?;
 		let swift = crate::swift::generate(self.abi, &self.packages(), contract)?;
@@ -231,7 +232,14 @@ impl Crate<'_> {
 		crate::driver::write(&out.join("build.rs"), &build(&self.abi.api.targets))?;
 		crate::driver::write(&out.join("src/rt.rs"), RUNTIME)?;
 		crate::driver::write(&out.join("include").join(format!("{}.h", self.abi.prefix)), &header)?;
-		crate::driver::write(&out.join("include").join(format!("{}.hpp", self.abi.prefix)), &cpp)?;
+		// What an earlier export wrote may name crates this one has not.
+		let cpp_dir = out.join("include").join(&self.abi.prefix);
+		if cpp_dir.exists() {
+			std::fs::remove_dir_all(&cpp_dir).map_err(|err| format!("removing {}: {err}", cpp_dir.display()))?;
+		}
+		for (path, header) in &cpp {
+			crate::driver::write(&out.join("include").join(path), header)?;
+		}
 		crate::driver::write(&out.join("src/jni/mod.rs"), &kotlin.glue)?;
 		crate::driver::write(&out.join("src/jni/rt.rs"), crate::kotlin::GLUE_RUNTIME)?;
 		crate::driver::write(

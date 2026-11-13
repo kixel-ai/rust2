@@ -36,7 +36,7 @@ to what the library builds with on any platform, read off cargo's resolution, wh
 it was declared (the manifest, cargo's config, `--config`, or the environment), keyed by
 its source's URL.
 A `[replace]` from the source it replaces, which no `[patch]` can carry, is an error.
-Beside the C header, `include/<prefix>.hpp` holds the same API in C++,
+Beside the C header, `include/<prefix>.hpp` holds the same API in C++, over a header per crate,
 `kotlin/<prefix>.kt` holds it in Kotlin, over JNI functions the crate builds with
 `--features kotlin`, and `kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what
 those functions look up by name. `python/<prefix>.py` holds it in Python, over a CPython
@@ -296,7 +296,16 @@ dropped for the other target's span where the file differs.
 ## C++
 
 `<prefix>.hpp` is header-only C++ over the C header, for C++17, 20, and 23, with
-exceptions and RTTI on or off: it throws nothing and reads no type information.
+exceptions and RTTI on or off: it throws nothing and reads no type information. It
+includes a header per crate whose items the facade exports, `<prefix>/<crate>.hpp`, which a
+translation unit may include alone to pay only for that crate and those it names: moq's
+`#include "moq/net.hpp"` parses in under half the memory of `moq.hpp`. A crate's header is
+named as [its Go package](#go) is, with a trailing `_` where the shared `rt` or an earlier
+crate's takes the name. Each includes the shared `<prefix>/rt.hpp`, which holds the runtime
+and declares every type, so a class declares a method that belongs to a later crate, as an
+instance naming that crate's type does, and that crate's header defines it; and the headers
+of the crates its items name, each before it in Cargo's order, so none includes another in
+a cycle. An item's crate is the one Go's packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is

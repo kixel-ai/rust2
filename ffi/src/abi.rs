@@ -514,6 +514,25 @@ impl<'a> Abi<'a> {
 			.collect()
 	}
 
+	/// The name of `krate`'s package, Go's or C++'s header, before either keeps it apart
+	/// from its language's names: the crate's name without the prefix and its `_`, and with
+	/// no other `_` (moq-mux's is `mux`). A crate the prefix's strip leaves no leading letter,
+	/// such as `moq_2d` or a lib `moq_` beside `moq`, keeps the prefix, a name whose first
+	/// digit no letter precedes, such as `_2d`, follows `crate`, and a later crate of an
+	/// earlier one's name takes its count after it.
+	pub fn package(&self, krate: &str) -> String {
+		let (base, count) = krate.split_once('#').unwrap_or((krate, ""));
+		let strip = format!("{}_", self.prefix);
+		let letter = |name: &String| name.starts_with(|c: char| c.is_alphabetic());
+		let mut name = Some(base.strip_prefix(&strip).unwrap_or(base).replace('_', ""))
+			.filter(letter)
+			.unwrap_or_else(|| base.replace('_', ""));
+		if !letter(&name) {
+			name.insert_str(0, "crate");
+		}
+		name + count
+	}
+
 	/// The prefixed name of a runtime item: `buf` is `moq_buf`.
 	pub fn rt(&self, name: &str) -> String {
 		format!("{}_{name}", self.prefix)
