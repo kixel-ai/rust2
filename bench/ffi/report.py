@@ -36,6 +36,7 @@ CALLS = [
 	("stamped", "the same, with a new `Timestamp` each"),
 	("ready", "a 100 B frame written and read, ready"),
 	("woken", "the same, read after a wake"),
+	("loop", "the same, one reader and writer for all frames"),
 	("payload", "`frame.payload`, 100 B"),
 ]
 

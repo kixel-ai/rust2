@@ -27,6 +27,7 @@ the run's summary; nothing fails on a number.
 | stamped write | the same with a new `Timestamp` per frame, as a caller holding a `u64` must | none |
 | ready read | a 100 B frame written, then read through a new future ready at its first poll | `await noop_async()`, plus a write |
 | woken read | a read started before its frame is written, as the language starts work concurrently, so it suspends and the write's wake resumes it | `await yield_once()`, plus a write |
+| reader loop | one reader and one writer live for all groups, with one permit per frame; includes the permit handoff | none |
 | payload | `frame.payload` of 100 B, handed to the language | none |
 | throughput | groups of 100 frames written and read, each payload's first byte touched, about 64 MiB | throughput |
 
@@ -35,6 +36,45 @@ A woken read starts its read the language's own way: by polling in C, C++, and R
 coroutine in Kotlin; and an eager call in Dart. So it measures a task's start and its
 wake, and in Swift, Python, and Go, a read the scheduler had not yet started is ready
 instead of woken.
+
+The `loop` case removes task creation per frame: one reader loops over all groups and a
+single writer waits for a permit before each write. The reader grants the next permit
+only after consuming the previous frame, so there is at most one outstanding frame.
+The permit's channel or stream handoff is included. In Swift and Go the writer can race
+the read's first poll, so this is a streaming measurement, not proof that every read
+suspended. C, C++, and Rust already poll in one loop without creating tasks; their
+`loop` row repeats their `woken` measurement as the manual-poll floor.
+
+## Long-lived reader measurement
+
+Measured 2026-11-13 on fedora, at `a37b3951` plus the reader-loop harness, moq
+`ffcb7cd9`. Built with `just ffi bench-build`, rebuilt the changed language harnesses, then ran
+`just ffi bench-run 3`, all through `quest gate nix develop .#bench`. Medians below are
+microseconds per 100 B frame (write plus read). The writer waits for the reader to
+acknowledge consuming the entire group before advancing, so a slow reader cannot lose it.
+
+| language | task per read, wall / CPU | reader loop, wall / CPU | loop load |
+|---|---|---|---|
+| rust | 0.38 / 0.38 | 0.38 / 0.38 | 28 |
+| c | 0.59 / 0.57 | 0.59 / 0.57 | 28 |
+| cpp | 0.64 / 0.58 | 0.64 / 0.58 | 28 |
+| kotlin | 2.14 / 2.18 | 1.94 / 1.98 | 31 |
+| python | 11.99 / 11.25 | 9.68 / 9.21 | 35 |
+| swift | 5.59 / 14.61 | 5.58 / 7.30 | 40 |
+| go | 4.91 / 6.10 | 3.71 / 3.62 | 35 |
+| dart | 1.96 / 1.94 | 2.11 / 2.10 | 31 |
+
+The loop reduces Go's wall cost and roughly halves Swift's CPU cost, but Swift's wall
+cost remains similar. The loop still costs more than Kotlin's and Dart's on this loaded
+host. These results do not establish that task creation alone explains the gap, or that
+changing the runtime would close it: the permit handoff is included and the languages
+ran sequentially under different loads. Profile the remaining wake and handoff costs
+before changing the generated runtimes. The quest stays open.
+
+The async-start design in [kixel-ai/rust2#741](https://github.com/kixel-ai/rust2/pull/741)
+was still unmerged during this run. It removes ready-call crossings; a pending call
+still polls again to register its real waker. This harness uses stock public bindings
+and will measure that pending path once the design lands.
 
 ## rust2-ffi
 

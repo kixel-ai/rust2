@@ -172,6 +172,36 @@ func round() throws -> ([(String, Span)], Int) {
 		}
 		out.append(("woken", per(start)))
 
+		// A single writer task serves the calling reader for the whole case.
+		// Only one permit is outstanding. The write can race the first poll.
+		start = now()
+		let (permits, send) = AsyncStream<Void>.makeStream()
+		let writer = Task {
+			var next = permits.makeAsyncIterator()
+			for _ in 0..<groups {
+				var group = try track.appendGroup()
+				for _ in 0..<frames {
+					let permit: Void? = await next.next()
+					precondition(permit != nil)
+					try group.writeFrame(at, frame)
+				}
+				let consumed: Void? = await next.next()
+				precondition(consumed != nil)
+				try group.finish()
+			}
+		}
+		for _ in 0..<groups {
+			var reader = try await subscriber.recvGroup()!
+			for _ in 0..<frames {
+				send.yield(())
+				_ = try await reader.readFrame()!
+			}
+			send.yield(())
+		}
+		send.finish()
+		try await writer.value
+		out.append(("loop", per(start)))
+
 		var sum = 0
 		for size in sizes {
 			let (mbps, read) = try await throughput(track, &subscriber, at, size)

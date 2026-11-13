@@ -204,6 +204,36 @@ func round() []result {
 	}
 	out = append(out, result{"woken", per(start, n)})
 
+	// One writer and the calling reader live for the whole case. A permit bounds
+	// the writer to one frame ahead; it can race the reader's first poll.
+	start = now()
+	permits := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for range groups {
+			group := must(track.AppendGroup())
+			for range frames {
+				<-permits
+				check(group.WriteFrame(at, frame))
+			}
+			<-permits // Keep this group until its reader has consumed every frame.
+			check(group.Finish())
+			group.Close()
+		}
+	}()
+	for range groups {
+		reader := must(subscriber.RecvGroup(ctx))
+		for range frames {
+			permits <- struct{}{}
+			must(reader.ReadFrame(ctx)).Close()
+		}
+		reader.Close()
+		permits <- struct{}{}
+	}
+	<-done
+	out = append(out, result{"loop", per(start, n)})
+
 	for _, size := range sizes {
 		out = append(out, result{fmt.Sprintf("mbps:%d", size), throughput(ctx, track, subscriber, at, size)})
 	}

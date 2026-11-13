@@ -211,8 +211,8 @@ void round(bool print) {
 	sink = sum;
 
 	if (print) {
-		const char *names[] = {"call", "getter", "record", "object", "stamped", "write", "ready", "woken", "payload"};
-		span values[] = {call, getter, record, object, stamped, write, read, woken, payload};
+		const char *names[] = {"call", "getter", "record", "object", "stamped", "write", "ready", "woken", "loop", "payload"};
+		span values[] = {call, getter, record, object, stamped, write, read, woken, woken, payload};
 		for (std::size_t i = 0; i < std::size(names); i++) {
 			std::printf("%s\t%f\t%f\n", names[i], values[i].wall, values[i].cpu);
 		}

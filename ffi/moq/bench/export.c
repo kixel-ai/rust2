@@ -282,8 +282,8 @@ static void round_(int print) {
 	moq_broadcast_Producer_free(broadcast);
 
 	if (print) {
-		const char *names[] = {"call", "getter", "record", "object", "stamped", "write", "ready", "woken", "payload"};
-		span values[] = {call, getter, record, object, stamped, write, ready, woken, payload_};
+		const char *names[] = {"call", "getter", "record", "object", "stamped", "write", "ready", "woken", "loop", "payload"};
+		span values[] = {call, getter, record, object, stamped, write, ready, woken, woken, payload_};
 		for (size_t i = 0; i < sizeof names / sizeof names[0]; i++) {
 			printf("%s\t%f\t%f\n", names[i], values[i].wall, values[i].cpu);
 		}
