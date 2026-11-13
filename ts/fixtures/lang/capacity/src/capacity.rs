@@ -684,7 +684,7 @@ pub fn strings(first: u8, steps: &[u8], out: &mut Vec<u8>) {
 	for step in steps.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
 		let c = CHARS[usize::from(arg) % CHARS.len()];
-		match op % 53 {
+		match op % 54 {
 			0 => s.push(c),
 			1 => s.push_str(text(arg)),
 			2 => s.reserve(amount(arg, s.len(), 1)),
@@ -834,6 +834,21 @@ pub fn strings(first: u8, steps: &[u8], out: &mut Vec<u8>) {
 					0 => escape.to_string(),
 					_ => escape.collect(),
 				};
+			}
+			// Through a wrapper whose `into_iter` is one, which std's `Extend` reads as any
+			// other iterator of chars: it specializes on the type it is given.
+			53 => {
+				struct Escaped<'a>(&'a str);
+				impl<'a> IntoIterator for Escaped<'a> {
+					type Item = char;
+					type IntoIter = std::str::EscapeDefault<'a>;
+					fn into_iter(self) -> Self::IntoIter {
+						self.0.escape_default()
+					}
+				}
+				let mut grown = String::new();
+				grown.extend(Escaped(&s));
+				s = grown;
 			}
 			_ => {}
 		}

@@ -876,7 +876,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					return done(Expr::rs("stringExtendArray", vec![s, items]), true);
 				}
 				done(
-					crate::lower::iter::string_extend(self.b, s, items, item, iter, span)?,
+					crate::lower::iter::string_extend(self.b, s, items, item, (source, iter), span)?,
 					true,
 				)
 			}

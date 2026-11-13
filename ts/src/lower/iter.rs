@@ -2233,7 +2233,7 @@ fn collect<'tcx>(
 					let drops = iter_drops(b, from, span);
 					Expr::rs("stringFromChars", tail(vec![iter], vec![drops]))
 				}
-				_ => string_extend(b, Expr::rs("stringNew", vec![]), iter, item, from, span)?,
+				_ => string_extend(b, Expr::rs("stringNew", vec![]), iter, item, (from, from), span)?,
 			};
 			Some(match std {
 				Std::Box => s.member("v"),
@@ -2276,18 +2276,19 @@ pub(super) fn str_array(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Array(elem, _) if elem.is_ref() && elem.peel_refs().is_str())
 }
 
-/// `s` extended by `items`, an iterator of type `iter` of `item`s, as `String`'s `Extend`
-/// reads it, by `for_each`: of chars, through any `&`, or of text, a `&str`, `String`,
-/// `Box<str>`, or `Cow<str>`.
+/// `s` extended by `items`, an iterator of type `iter` of `item`s made of a `source`, as
+/// `String`'s `Extend` reads it, by `for_each`: of chars, through any `&`, or of text, a
+/// `&str`, `String`, `Box<str>`, or `Cow<str>`. std specializes on `source`'s own type,
+/// so a wrapper whose `into_iter` is a `str::EscapeDefault` is read as any other.
 pub(super) fn string_extend<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	s: Expr,
 	items: Expr,
 	item: Ty<'tcx>,
-	iter: Ty<'tcx>,
+	(source, iter): (Ty<'tcx>, Ty<'tcx>),
 	span: Span,
 ) -> Option<Expr> {
-	if str_escape_default(b.t, iter) {
+	if str_escape_default(b.t, source) {
 		return Some(Expr::rs("stringExtendEscapeDefault", vec![s, items]));
 	}
 	let extend = if text_items(b.t, item)? {

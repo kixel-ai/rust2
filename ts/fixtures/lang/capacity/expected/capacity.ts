@@ -2,6 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { copy$array_ref_str, copy$array_u64, copy$array_usize, copy$tuple2_u64_u8, of$String } from "./lib.ts";
+import * as Escaped$strings from "./capacity.Escaped$strings.ts";
 import * as Holds from "./capacity.Holds.ts";
 import { then$1b5wr43, then$0tujtct, then$0svbdod, then$17csa2h, then$0g2g1ls } from "./core/bool.ts";
 import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOr$05jq4mv as option_unwrapOr$05jq4mv, unwrapOrDefault$0avqj0t as option_unwrapOrDefault$0avqj0t, map$1n6i7tn as option_map$1n6i7tn, map$12r4ivp as option_map$12r4ivp, map$03x2fqt as option_map$03x2fqt, map$1o9z3sm as option_map$1o9z3sm, map$1d4d0v7 as option_map$1d4d0v7, mapOr$0yzb10z as option_mapOr$0yzb10z, mapOr$1d4bp7c as option_mapOr$1d4bp7c, mapOr$0z4nmg2 as option_mapOr$0z4nmg2 } from "./core/option.ts";
@@ -3774,7 +3775,7 @@ export function strings(first: rs.u8, steps: rs.ByteSlice, out: rs.ByteVec): voi
 			rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _56);
 		}
 		const c: rs.char = [97, 233, 20013, 128512][_56];
-		const _64: rs.u8 = rs.u8Rem(op, 53);
+		const _64: rs.u8 = rs.u8Rem(op, 54);
 		if (_64 === 0) {
 			rs.stringPush(s, c);
 		} else if (_64 === 1) {
@@ -3981,6 +3982,11 @@ export function strings(first: rs.u8, steps: rs.ByteSlice, out: rs.ByteVec): voi
 				_525 = rs.stringFromEscapeDefault(escape);
 			}
 			s = _525;
+		} else if (_64 === 53) {
+			const grown2: rs.String = rs.stringNew();
+			const _532: Escaped$strings.Escaped = { _0: s.v };
+			rs.stringExtendChars(grown2, Escaped$strings.intoIter$strings_iter_IntoIterator(_532));
+			s = grown2;
 		}
 		sized(out, s.len, s.cap);
 	}

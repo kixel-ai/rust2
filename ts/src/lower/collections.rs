@@ -2207,7 +2207,7 @@ pub fn extend<'tcx>(
 	}
 	let std = b.t.std_of(coll)?;
 	if std == Std::String {
-		return super::iter::string_extend(b, target, items, item, iter, span);
+		return super::iter::string_extend(b, target, items, item, (iter, iter), span);
 	}
 	// Of a `TrustedLen` iterator into a vector, by `for_each`, reserving its upper bound first.
 	let trusted = super::iter::implements(b.t, iter, "TrustedLen");
