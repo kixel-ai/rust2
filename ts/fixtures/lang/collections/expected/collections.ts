@@ -1283,16 +1283,13 @@ export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		bumps.items[at6]._0 = bumps.items[at6]._0 ^ 255;
 	}
 	const dst = out;
-	const byte = a;
-	const byte2 = b;
-	const byte3 = listed.items[rs.idx(listed.items, 1)][0];
-	const byte4 = a;
+	const byte = listed.items[rs.idx(listed.items, 1)][0];
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = a;
+	dst.data[pos + 1] = b;
+	dst.data[pos + 2] = byte;
+	dst.data[pos + 3] = a;
 	dst.length = dst.length + 4;
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(repeated.items), rs.iterSlice(again.items)), (t2: [rs.u8, rs.u8]): rs.u8 => {
 		return t2[1];

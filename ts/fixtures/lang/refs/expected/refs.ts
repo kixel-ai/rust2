@@ -1222,25 +1222,23 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const b6: rs.u8 = _545[0][1];
 		const x3: rs.u32 = _545[1];
 		const dst5 = out;
-		const byte15 = a;
-		const byte16 = b6;
 		rs.byteVecReserve(dst5, 2 as rs.usize);
 		const pos5 = dst5.length;
-		dst5.data[pos5 + 0] = byte15;
-		dst5.data[pos5 + 1] = byte16;
+		dst5.data[pos5 + 0] = a;
+		dst5.data[pos5 + 1] = b6;
 		dst5.length = dst5.length + 2;
 		const dst6 = out;
 		const word4 = x3;
-		const byte17 = (word4 >>> 24) & 255;
-		const byte18 = (word4 >>> 16) & 255;
-		const byte19 = (word4 >>> 8) & 255;
-		const byte20 = (word4 >>> 0) & 255;
+		const byte15 = (word4 >>> 24) & 255;
+		const byte16 = (word4 >>> 16) & 255;
+		const byte17 = (word4 >>> 8) & 255;
+		const byte18 = (word4 >>> 0) & 255;
 		rs.byteVecReserve(dst6, 4 as rs.usize);
 		const pos6 = dst6.length;
-		dst6.data[pos6 + 0] = byte17;
-		dst6.data[pos6 + 1] = byte18;
-		dst6.data[pos6 + 2] = byte19;
-		dst6.data[pos6 + 3] = byte20;
+		dst6.data[pos6 + 0] = byte15;
+		dst6.data[pos6 + 1] = byte16;
+		dst6.data[pos6 + 2] = byte17;
+		dst6.data[pos6 + 3] = byte18;
 		dst6.length = dst6.length + 4;
 	}
 	const _560: rs.Iter<[rs.u8, [rs.u8, rs.u8]]> = rs.hashIter(hash);
@@ -1251,14 +1249,14 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 			break;
 		}
 		const dst7 = out;
-		const byte21 = _564[0];
-		const byte22 = _564[1][0];
-		const byte23 = _564[1][1];
+		const byte19 = _564[0];
+		const byte20 = _564[1][0];
+		const byte21 = _564[1][1];
 		rs.byteVecReserve(dst7, 3 as rs.usize);
 		const pos7 = dst7.length;
-		dst7.data[pos7 + 0] = byte21;
-		dst7.data[pos7 + 1] = byte22;
-		dst7.data[pos7 + 2] = byte23;
+		dst7.data[pos7 + 0] = byte19;
+		dst7.data[pos7 + 1] = byte20;
+		dst7.data[pos7 + 2] = byte21;
 		dst7.length = dst7.length + 3;
 	}
 	const iter35: rs.Iter<[rs.u8, rs.u32]> = rs.btreeIter(tree);
@@ -1272,16 +1270,16 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, k3);
 		const dst8 = out;
 		const word5 = x5;
-		const byte24 = (word5 >>> 24) & 255;
-		const byte25 = (word5 >>> 16) & 255;
-		const byte26 = (word5 >>> 8) & 255;
-		const byte27 = (word5 >>> 0) & 255;
+		const byte22 = (word5 >>> 24) & 255;
+		const byte23 = (word5 >>> 16) & 255;
+		const byte24 = (word5 >>> 8) & 255;
+		const byte25 = (word5 >>> 0) & 255;
 		rs.byteVecReserve(dst8, 4 as rs.usize);
 		const pos8 = dst8.length;
-		dst8.data[pos8 + 0] = byte24;
-		dst8.data[pos8 + 1] = byte25;
-		dst8.data[pos8 + 2] = byte26;
-		dst8.data[pos8 + 3] = byte27;
+		dst8.data[pos8 + 0] = byte22;
+		dst8.data[pos8 + 1] = byte23;
+		dst8.data[pos8 + 2] = byte24;
+		dst8.data[pos8 + 3] = byte25;
 		dst8.length = dst8.length + 4;
 	}
 	const iter36: rs.Iter<rs.u32> = rs.dequeIntoIter(queue);
@@ -1292,16 +1290,16 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		const dst9 = out;
 		const word6 = _590;
-		const byte28 = (word6 >>> 24) & 255;
-		const byte29 = (word6 >>> 16) & 255;
-		const byte30 = (word6 >>> 8) & 255;
-		const byte31 = (word6 >>> 0) & 255;
+		const byte26 = (word6 >>> 24) & 255;
+		const byte27 = (word6 >>> 16) & 255;
+		const byte28 = (word6 >>> 8) & 255;
+		const byte29 = (word6 >>> 0) & 255;
 		rs.byteVecReserve(dst9, 4 as rs.usize);
 		const pos9 = dst9.length;
-		dst9.data[pos9 + 0] = byte28;
-		dst9.data[pos9 + 1] = byte29;
-		dst9.data[pos9 + 2] = byte30;
-		dst9.data[pos9 + 3] = byte31;
+		dst9.data[pos9 + 0] = byte26;
+		dst9.data[pos9 + 1] = byte27;
+		dst9.data[pos9 + 2] = byte28;
+		dst9.data[pos9 + 3] = byte29;
 		dst9.length = dst9.length + 4;
 	}
 }
@@ -1340,22 +1338,21 @@ export function kept(data: rs.ByteSlice, out: rs.ByteVec): void {
 	r = y;
 	held.at = y;
 	const dst = out;
-	const byte = part;
-	const byte2 = _44.n;
-	const byte3 = y.pair.n;
-	const byte4 = _82.pair.n;
-	const byte5 = copied.pair.n;
-	const byte6 = _48.pair.n;
-	const byte7 = copied.pair.n;
+	const byte = _44.n;
+	const byte2 = y.pair.n;
+	const byte3 = _82.pair.n;
+	const byte4 = copied.pair.n;
+	const byte5 = _48.pair.n;
+	const byte6 = copied.pair.n;
 	rs.byteVecReserve(dst, 7 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
-	dst.data[pos + 4] = byte5;
-	dst.data[pos + 5] = byte6;
-	dst.data[pos + 6] = byte7;
+	dst.data[pos + 0] = part;
+	dst.data[pos + 1] = byte;
+	dst.data[pos + 2] = byte2;
+	dst.data[pos + 3] = byte3;
+	dst.data[pos + 4] = byte4;
+	dst.data[pos + 5] = byte5;
+	dst.data[pos + 6] = byte6;
 	dst.length = dst.length + 7;
 	const _73: rs.u8 = part ^ _44.n;
 	const _77: rs.usize = i;
@@ -1363,16 +1360,15 @@ export function kept(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _77);
 	}
 	const dst2 = out;
-	const byte8 = _73;
-	const byte9 = v[_77];
-	const byte10 = r.pair.n;
-	const byte11 = held.at.pair.n;
+	const byte7 = v[_77];
+	const byte8 = r.pair.n;
+	const byte9 = held.at.pair.n;
 	rs.byteVecReserve(dst2, 4 as rs.usize);
 	const pos2 = dst2.length;
-	dst2.data[pos2 + 0] = byte8;
-	dst2.data[pos2 + 1] = byte9;
-	dst2.data[pos2 + 2] = byte10;
-	dst2.data[pos2 + 3] = byte11;
+	dst2.data[pos2 + 0] = _73;
+	dst2.data[pos2 + 1] = byte7;
+	dst2.data[pos2 + 2] = byte8;
+	dst2.data[pos2 + 3] = byte9;
 	dst2.length = dst2.length + 4;
 }
 

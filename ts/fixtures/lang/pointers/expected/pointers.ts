@@ -406,8 +406,6 @@ export function copies(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const byte7 = option_mapOr$078vnqn(copy$Option_pointers_Pair(held), 0, (o2: Pair.Pair): rs.u8 => {
 			return o2.a & 0xff;
 		});
-		const byte8 = before;
-		const byte9 = after;
 		rs.byteVecReserve(dst, 8 as rs.usize);
 		const pos = dst.length;
 		dst.data[pos + 0] = byte2;
@@ -416,8 +414,8 @@ export function copies(data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst.data[pos + 3] = byte5;
 		dst.data[pos + 4] = byte6;
 		dst.data[pos + 5] = byte7;
-		dst.data[pos + 6] = byte8;
-		dst.data[pos + 7] = byte9;
+		dst.data[pos + 6] = before;
+		dst.data[pos + 7] = after;
 		dst.length = dst.length + 8;
 	}
 }

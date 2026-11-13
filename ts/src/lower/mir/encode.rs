@@ -130,7 +130,9 @@ pub(super) fn lower(body: &mut Vec<Stmt>, b: &mut Body<'_, '_, '_>) -> bool {
 	}
 	fuse(body, &counts);
 	let original = body.clone();
-	list(body, &original, &mut FxHashMap::default(), b);
+	let mut immutable = FxHashSet::default();
+	names(&original, &mut immutable, true);
+	list(body, &original, &mut immutable, &mut FxHashMap::default(), b);
 	let mut spills = FxHashSet::default();
 	collect_spills(body, &original, &mut spills);
 	let mut reads = FxHashMap::<String, usize>::default();
@@ -147,37 +149,42 @@ pub(super) fn lower(body: &mut Vec<Stmt>, b: &mut Body<'_, '_, '_>) -> bool {
 	!spills.is_empty() || body.len() != original.len()
 }
 
-fn collect_spills(body: &[Stmt], original: &[Stmt], out: &mut FxHashSet<String>) {
-	fn names(body: &[Stmt], out: &mut FxHashSet<String>) {
-		for stmt in body {
-			match &stmt.kind {
-				StmtKind::Decl { name, .. } => {
-					out.insert(name.clone());
-				}
-				StmtKind::If { then, els, .. } => {
-					names(then, out);
-					names(els, out);
-				}
-				StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } | StmtKind::Block { body, .. } => {
-					names(body, out)
-				}
-				StmtKind::Switch { cases, default, .. } => {
-					for (_, body) in cases {
-						names(body, out);
-					}
-					names(default, out);
-				}
-				_ => {}
+fn names(body: &[Stmt], out: &mut FxHashSet<String>, immutable: bool) {
+	for stmt in body {
+		match &stmt.kind {
+			StmtKind::Decl { name, mutable, .. } if !immutable || !mutable => {
+				out.insert(name.clone());
 			}
+			StmtKind::If { then, els, .. } => {
+				names(then, out, immutable);
+				names(els, out, immutable);
+			}
+			StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } | StmtKind::Block { body, .. } => {
+				names(body, out, immutable)
+			}
+			StmtKind::Switch { cases, default, .. } => {
+				for (_, body) in cases {
+					names(body, out, immutable);
+				}
+				names(default, out, immutable);
+			}
+			_ => {}
 		}
 	}
+}
+
+fn collect_spills(body: &[Stmt], original: &[Stmt], out: &mut FxHashSet<String>) {
 	let mut old = FxHashSet::default();
-	names(original, &mut old);
-	names(body, out);
+	names(original, &mut old, false);
+	names(body, out, false);
 	out.retain(|n| !old.contains(n));
 }
 
-fn bytes(e: &Expr, b: &mut Body<'_, '_, '_>, out: &mut Vec<Stmt>) -> Vec<Expr> {
+fn stable(e: &Expr, immutable: &FxHashSet<String>) -> bool {
+	matches!(e.unlocated(), Expr::Lit(_)) || matches!(e.unlocated(), Expr::Ident(n) if immutable.contains(n))
+}
+
+fn bytes(e: &Expr, immutable: &mut FxHashSet<String>, b: &mut Body<'_, '_, '_>, out: &mut Vec<Stmt>) -> Vec<Expr> {
 	let values = if let Some(values) = literal(e) {
 		values.to_vec()
 	} else {
@@ -202,20 +209,30 @@ fn bytes(e: &Expr, b: &mut Body<'_, '_, '_>, out: &mut Vec<Stmt>) -> Vec<Expr> {
 			})
 			.collect()
 	};
-	// Snapshot every byte before any write or later effect, as the array did.
+	// Snapshot bytes before any later effect, except literals and immutable locals.
 	values
 		.into_iter()
 		.map(|v| {
-			if matches!(v.unlocated(), Expr::Lit(_)) {
+			if stable(&v, immutable) {
 				v
 			} else {
-				b.spill(v, "byte", out)
+				let value = b.spill(v, "byte", out);
+				if let Expr::Ident(name) = &value {
+					immutable.insert(name.clone());
+				}
+				value
 			}
 		})
 		.collect()
 }
 
-fn list(body: &mut Vec<Stmt>, original: &[Stmt], arrays: &mut FxHashMap<String, Vec<Expr>>, b: &mut Body<'_, '_, '_>) {
+fn list(
+	body: &mut Vec<Stmt>,
+	original: &[Stmt],
+	immutable: &mut FxHashSet<String>,
+	arrays: &mut FxHashMap<String, Vec<Expr>>,
+	b: &mut Body<'_, '_, '_>,
+) {
 	let mut out = Vec::new();
 	for mut stmt in std::mem::take(body) {
 		if let StmtKind::Decl {
@@ -229,30 +246,30 @@ fn list(body: &mut Vec<Stmt>, original: &[Stmt], arrays: &mut FxHashMap<String, 
 		{
 			let mut init = init.clone();
 			replace(&mut init, arrays);
-			arrays.insert(name.clone(), bytes(&init, b, &mut out));
+			arrays.insert(name.clone(), bytes(&init, immutable, b, &mut out));
 			continue;
 		}
 		match &mut stmt.kind {
 			StmtKind::Expr(e) | StmtKind::Return(Some(e)) | StmtKind::Decl { init: Some(e), .. } => replace(e, arrays),
 			StmtKind::If { cond, then, els } => {
 				replace(cond, arrays);
-				list(then, original, arrays, b);
-				list(els, original, arrays, b);
+				list(then, original, immutable, arrays, b);
+				list(els, original, immutable, arrays, b);
 			}
 			StmtKind::While { cond, body, .. } | StmtKind::ForOf { iter: cond, body, .. } => {
 				replace(cond, arrays);
-				list(body, original, arrays, b);
+				list(body, original, immutable, arrays, b);
 			}
-			StmtKind::Block { body, .. } => list(body, original, arrays, b),
+			StmtKind::Block { body, .. } => list(body, original, immutable, arrays, b),
 			StmtKind::Switch {
 				disc, cases, default, ..
 			} => {
 				replace(disc, arrays);
 				for (value, body) in cases {
 					replace(value, arrays);
-					list(body, original, arrays, b);
+					list(body, original, immutable, arrays, b);
 				}
-				list(default, original, arrays, b);
+				list(default, original, immutable, arrays, b);
 			}
 			_ => {}
 		}
@@ -264,10 +281,14 @@ fn list(body: &mut Vec<Stmt>, original: &[Stmt], arrays: &mut FxHashMap<String, 
 			&& let Some((kind, target, array)) = append(e)
 			&& (size(array).is_some() || matches!(array.unlocated(), Expr::Ident(n) if arrays.contains_key(n)))
 		{
-			let target = b.spill(target.clone(), "dst", &mut out);
+			let target = if stable(target, immutable) {
+				target.clone()
+			} else {
+				b.spill(target.clone(), "dst", &mut out)
+			};
 			let values = match array.unlocated() {
 				Expr::Ident(n) => arrays[n].clone(),
-				_ => bytes(array, b, &mut out),
+				_ => bytes(array, immutable, b, &mut out),
 			};
 			let len = Expr::lit(values.len().to_string());
 			let mutable = kind == "bytesMutExtend";
@@ -444,6 +465,50 @@ fn fuse(body: &mut Vec<Stmt>, counts: &FxHashMap<String, usize>) {
 				fuse(default, counts);
 			}
 			_ => {}
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn snapshots_only_skip_immutable_values() {
+		let decl = |name: &str, mutable| {
+			StmtKind::Decl {
+				name: name.into(),
+				mutable,
+				ty: None,
+				init: Some(Expr::lit("1")),
+			}
+			.at(None)
+		};
+		let mut immutable = FxHashSet::default();
+		names(&[decl("constant", false), decl("variable", true)], &mut immutable, true);
+		assert!(stable(&Expr::ident("constant"), &immutable));
+		assert!(stable(&Expr::lit("42"), &immutable));
+		assert!(!stable(&Expr::ident("variable"), &immutable));
+		assert!(!stable(&Expr::ident("parameter"), &immutable));
+		assert!(!stable(&Expr::ident("constant").member("data"), &immutable));
+	}
+
+	#[test]
+	fn confinement_excludes_writes_and_captures() {
+		let read = Expr::ident("bytes").index(Expr::lit("0"));
+		let stmt = |e| StmtKind::Expr(e).at(None);
+		assert!(confined(&[stmt(read.clone())], "bytes", 2));
+		for e in [
+			read.clone().assign(Expr::lit("42")),
+			Expr::Postfix(Box::new(read.clone()), "++"),
+			Expr::Lambda(vec![], Box::new(read.clone())),
+			Expr::Arrow(
+				vec![],
+				crate::ts::Type::Builtin("number"),
+				vec![StmtKind::Return(Some(read)).at(None)],
+			),
+		] {
+			assert!(!confined(&[stmt(e)], "bytes", 2));
 		}
 	}
 }

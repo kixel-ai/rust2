@@ -132,12 +132,10 @@ export function map(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const b: rs.u8 = _174[0][1];
 		const v2: rs.u32 = _174[1];
 		const dst = out;
-		const byte = a;
-		const byte2 = b;
 		rs.byteVecReserve(dst, 2 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
+		dst.data[pos + 0] = a;
+		dst.data[pos + 1] = b;
 		dst.length = dst.length + 2;
 		put(out, v2 as rs.usize);
 	}

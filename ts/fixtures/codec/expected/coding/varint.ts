@@ -149,24 +149,16 @@ export function writeQuic(value: rs.u64, out: rs.ByteVec): rs.Result<undefined, 
 		const byte13 = (word4 >>> 8) & 255;
 		const byte14 = (word4 >>> 0) & 255;
 		const dst3 = out;
-		const byte15 = a;
-		const byte16 = b;
-		const byte17 = c;
-		const byte18 = d;
-		const byte19 = byte11;
-		const byte20 = byte12;
-		const byte21 = byte13;
-		const byte22 = byte14;
 		rs.byteVecReserve(dst3, 8 as rs.usize);
 		const pos3 = dst3.length;
-		dst3.data[pos3 + 0] = byte15;
-		dst3.data[pos3 + 1] = byte16;
-		dst3.data[pos3 + 2] = byte17;
-		dst3.data[pos3 + 3] = byte18;
-		dst3.data[pos3 + 4] = byte19;
-		dst3.data[pos3 + 5] = byte20;
-		dst3.data[pos3 + 6] = byte21;
-		dst3.data[pos3 + 7] = byte22;
+		dst3.data[pos3 + 0] = a;
+		dst3.data[pos3 + 1] = b;
+		dst3.data[pos3 + 2] = c;
+		dst3.data[pos3 + 3] = d;
+		dst3.data[pos3 + 4] = byte11;
+		dst3.data[pos3 + 5] = byte12;
+		dst3.data[pos3 + 6] = byte13;
+		dst3.data[pos3 + 7] = byte14;
 		dst3.length = dst3.length + 8;
 	}
 	return rs.OK;
@@ -196,11 +188,10 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 			if (lo < 16384) {
 				const dst = out;
 				const byte5 = 128 | c;
-				const byte6 = d;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
 				dst.data[pos + 0] = byte5;
-				dst.data[pos + 1] = byte6;
+				dst.data[pos + 1] = d;
 				dst.length = dst.length + 2;
 				break b0;
 			}
@@ -208,14 +199,12 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 		if (hi === 0) {
 			if (lo < 2097152) {
 				const dst2 = out;
-				const byte7 = 192 | b;
-				const byte8 = c;
-				const byte9 = d;
+				const byte6 = 192 | b;
 				rs.byteVecReserve(dst2, 3 as rs.usize);
 				const pos2 = dst2.length;
-				dst2.data[pos2 + 0] = byte7;
-				dst2.data[pos2 + 1] = byte8;
-				dst2.data[pos2 + 2] = byte9;
+				dst2.data[pos2 + 0] = byte6;
+				dst2.data[pos2 + 1] = c;
+				dst2.data[pos2 + 2] = d;
 				dst2.length = dst2.length + 3;
 				break b0;
 			}
@@ -223,16 +212,13 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 		if (hi === 0) {
 			if (lo < 268435456) {
 				const dst3 = out;
-				const byte10 = 224 | a;
-				const byte11 = b;
-				const byte12 = c;
-				const byte13 = d;
+				const byte7 = 224 | a;
 				rs.byteVecReserve(dst3, 4 as rs.usize);
 				const pos3 = dst3.length;
-				dst3.data[pos3 + 0] = byte10;
-				dst3.data[pos3 + 1] = byte11;
-				dst3.data[pos3 + 2] = byte12;
-				dst3.data[pos3 + 3] = byte13;
+				dst3.data[pos3 + 0] = byte7;
+				dst3.data[pos3 + 1] = b;
+				dst3.data[pos3 + 2] = c;
+				dst3.data[pos3 + 3] = d;
 				dst3.length = dst3.length + 4;
 				break b0;
 			}
@@ -241,88 +227,65 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 			if (!(hi < 1024)) {
 				if (!(hi < 16777216)) {
 					const word2 = hi;
-					const byte14 = (word2 >>> 24) & 255;
-					const byte15 = (word2 >>> 16) & 255;
-					const byte16 = (word2 >>> 8) & 255;
-					const byte17 = (word2 >>> 0) & 255;
+					const byte8 = (word2 >>> 24) & 255;
+					const byte9 = (word2 >>> 16) & 255;
+					const byte10 = (word2 >>> 8) & 255;
+					const byte11 = (word2 >>> 0) & 255;
 					const dst4 = out;
-					const byte18 = byte14;
-					const byte19 = byte15;
-					const byte20 = byte16;
-					const byte21 = byte17;
-					const byte22 = a;
-					const byte23 = b;
-					const byte24 = c;
-					const byte25 = d;
 					rs.byteVecReserve(dst4, 9 as rs.usize);
 					const pos4 = dst4.length;
 					dst4.data[pos4 + 0] = 255;
-					dst4.data[pos4 + 1] = byte18;
-					dst4.data[pos4 + 2] = byte19;
-					dst4.data[pos4 + 3] = byte20;
-					dst4.data[pos4 + 4] = byte21;
-					dst4.data[pos4 + 5] = byte22;
-					dst4.data[pos4 + 6] = byte23;
-					dst4.data[pos4 + 7] = byte24;
-					dst4.data[pos4 + 8] = byte25;
+					dst4.data[pos4 + 1] = byte8;
+					dst4.data[pos4 + 2] = byte9;
+					dst4.data[pos4 + 3] = byte10;
+					dst4.data[pos4 + 4] = byte11;
+					dst4.data[pos4 + 5] = a;
+					dst4.data[pos4 + 6] = b;
+					dst4.data[pos4 + 7] = c;
+					dst4.data[pos4 + 8] = d;
 					dst4.length = dst4.length + 9;
 				} else {
 					const word3 = hi;
-					const byte27 = (word3 >>> 16) & 255;
-					const byte28 = (word3 >>> 8) & 255;
-					const byte29 = (word3 >>> 0) & 255;
+					const byte13 = (word3 >>> 16) & 255;
+					const byte14 = (word3 >>> 8) & 255;
+					const byte15 = (word3 >>> 0) & 255;
 					const dst5 = out;
-					const byte30 = byte27;
-					const byte31 = byte28;
-					const byte32 = byte29;
-					const byte33 = a;
-					const byte34 = b;
-					const byte35 = c;
-					const byte36 = d;
 					rs.byteVecReserve(dst5, 8 as rs.usize);
 					const pos5 = dst5.length;
 					dst5.data[pos5 + 0] = 254;
-					dst5.data[pos5 + 1] = byte30;
-					dst5.data[pos5 + 2] = byte31;
-					dst5.data[pos5 + 3] = byte32;
-					dst5.data[pos5 + 4] = byte33;
-					dst5.data[pos5 + 5] = byte34;
-					dst5.data[pos5 + 6] = byte35;
-					dst5.data[pos5 + 7] = byte36;
+					dst5.data[pos5 + 1] = byte13;
+					dst5.data[pos5 + 2] = byte14;
+					dst5.data[pos5 + 3] = byte15;
+					dst5.data[pos5 + 4] = a;
+					dst5.data[pos5 + 5] = b;
+					dst5.data[pos5 + 6] = c;
+					dst5.data[pos5 + 7] = d;
 					dst5.length = dst5.length + 8;
 				}
 			} else {
 				const dst6 = out;
-				const byte37 = 248 | ((hi >>> 8) & 0xff);
-				const byte38 = hi & 0xff;
-				const byte39 = a;
-				const byte40 = b;
-				const byte41 = c;
-				const byte42 = d;
+				const byte16 = 248 | ((hi >>> 8) & 0xff);
+				const byte17 = hi & 0xff;
 				rs.byteVecReserve(dst6, 6 as rs.usize);
 				const pos6 = dst6.length;
-				dst6.data[pos6 + 0] = byte37;
-				dst6.data[pos6 + 1] = byte38;
-				dst6.data[pos6 + 2] = byte39;
-				dst6.data[pos6 + 3] = byte40;
-				dst6.data[pos6 + 4] = byte41;
-				dst6.data[pos6 + 5] = byte42;
+				dst6.data[pos6 + 0] = byte16;
+				dst6.data[pos6 + 1] = byte17;
+				dst6.data[pos6 + 2] = a;
+				dst6.data[pos6 + 3] = b;
+				dst6.data[pos6 + 4] = c;
+				dst6.data[pos6 + 5] = d;
 				dst6.length = dst6.length + 6;
 			}
 		} else {
 			const dst7 = out;
-			const byte43 = 240 | (hi & 0xff);
-			const byte44 = a;
-			const byte45 = b;
-			const byte46 = c;
-			const byte47 = d;
+			const byte18 = 240 | (hi & 0xff);
 			rs.byteVecReserve(dst7, 5 as rs.usize);
 			const pos7 = dst7.length;
-			dst7.data[pos7 + 0] = byte43;
-			dst7.data[pos7 + 1] = byte44;
-			dst7.data[pos7 + 2] = byte45;
-			dst7.data[pos7 + 3] = byte46;
-			dst7.data[pos7 + 4] = byte47;
+			dst7.data[pos7 + 0] = byte18;
+			dst7.data[pos7 + 1] = a;
+			dst7.data[pos7 + 2] = b;
+			dst7.data[pos7 + 3] = c;
+			dst7.data[pos7 + 4] = d;
 			dst7.length = dst7.length + 5;
 		}
 	}
