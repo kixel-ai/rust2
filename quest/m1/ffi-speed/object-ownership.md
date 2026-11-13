@@ -17,7 +17,9 @@ Ownership stays automatic: a dropped object is still freed without a call from t
   (`ffi/src/go.rs`'s `own_`). So take candidates from the profile. One left: allocate the
   wrapper and its handle together, so a return allocates once.
 - Explicit `Close` stays, and the cleanup stays as the backstop; dropping it is refused,
-  since a missed `Close` would leak.
+  since a missed `Close` would leak. Since checks-raise (#730), a checked type's `Close`
+  drops the value through Rust's `_drop` and keeps no hold count of its own, so the
+  cleanup alone frees the handle; profile from there.
 - Re-measure the bench's object return and stamped write.
 
 ## Related

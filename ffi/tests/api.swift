@@ -1020,7 +1020,8 @@ func futures() {
 				threw.value = true
 			}
 		}
-		q.drain()
+		// The task's resumption with the error may reach the queue after one drain ends.
+		until { q.drain(); return threw.value }
 		check(threw.value, "Rust gives up on an async closure")
 		gate.finish()
 	}
