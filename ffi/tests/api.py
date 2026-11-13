@@ -164,6 +164,8 @@ def script():
 	board = api.Board.new([("low", api.Counter.new("l", 1)), ("high", api.Counter.new("h", 9))])
 	ranked = board.ranked()
 	print("ranked " + ", ".join(f"{name} {counter.name()} {counter.get()}" for name, counter in ranked))
+	best = board.best()
+	print(f"best {best.name()} {best.get()}")
 	# A map crosses as its pairs and a set as its items, which Rust collects in order, each
 	# key once, the last kept.
 	atlas = api.Atlas([("b", api.Point(1, 1)), ("ab", api.Point(2, 3)), ("b", api.Point(4, 4))], [3, 1, 3])

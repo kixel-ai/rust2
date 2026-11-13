@@ -102,6 +102,7 @@ fun script() {
 		val ranked = board.ranked()
 		println("ranked ${ranked.joinToString(", ") { (name, counter) -> "$name ${counter.name()} ${counter.get()}" }}")
 		ranked.forEach { it.second.close() }
+		board.best().use { println("best ${it.name()} ${it.get()}") }
 	}
 	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
 	// key once, the last kept.

@@ -640,6 +640,10 @@ static int script(void) {
 	}
 	printf("\n");
 	api_vec_tuple_string_Counter_free(ranked);
+	api_Counter *best = api_Board_best(board);
+	print("best ", api_Counter_name(best), " ");
+	printf("%llu\n", (unsigned long long)api_Counter_get(best));
+	api_Counter_free(best);
 	api_Board_free(board);
 	/* A map crosses as its pairs and a set as its items, which Rust collects in order, each
 	 * key once, the last kept. */

@@ -120,6 +120,8 @@ fn main() {
 		.map(|(name, counter)| format!("{name} {} {}", counter.name(), counter.get()))
 		.collect();
 	println!("ranked {}", ranked.join(", "));
+	let best: Counter = board.best().into();
+	println!("best {} {}", best.name(), best.get());
 	let atlas = api::Atlas {
 		points: [("b", 1, 1), ("ab", 2, 3), ("b", 4, 4)]
 			.into_iter()

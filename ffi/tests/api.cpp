@@ -291,6 +291,9 @@ int script() {
 			std::printf("%llu", ull(counter.get()));
 		}
 		std::printf("\n");
+		auto best = board.best();
+		print("best ", best.name(), " ");
+		std::printf("%llu\n", ull(best.get()));
 	}
 	{
 		// A map crosses as its pairs and a set as its items, which Rust collects in order,

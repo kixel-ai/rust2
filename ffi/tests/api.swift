@@ -253,6 +253,8 @@ func script() {
 	let board = Board.new(ranks)
 	let ranked = board.ranked()
 	print("ranked \(listed(ranked) { "\($0._0) \($0._1.name()) \($0._1.get())" })")
+	let best = board.best()
+	print("best \(best.name()) \(best.get())")
 	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
 	// key once, the last kept.
 	let atlas = Atlas(points: [("b", Point(x: 1, y: 1)), ("ab", Point(x: 2, y: 3)), ("b", Point(x: 4, y: 4))], ids: [3, 1, 3])

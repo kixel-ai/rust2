@@ -350,6 +350,12 @@ impl Board {
 		ranked.sort_by_key(|(_, counter)| std::cmp::Reverse(counter.get()));
 		ranked.into_iter()
 	}
+
+	/// Its highest counter, through an `impl Trait` that captures no borrow of the board, so
+	/// it crosses as the counter's handle.
+	pub fn best(&self) -> impl Into<Counter> + use<> {
+		(self.counters.values().max_by_key(|counter| counter.get()).cloned()).unwrap_or_default()
+	}
 }
 
 /// Points by name and the ids in use, as hang's renditions and moq-mux's selections: a map

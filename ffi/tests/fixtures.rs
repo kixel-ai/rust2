@@ -1419,7 +1419,10 @@ fn unreached_types() {
 				pub enum Failure {\n\tNet(net::Fault),\n}\n\npub fn fail() -> Failure {\n\tFailure::Net(net::Fault)\n}\n\n\
 				pub struct Buffer(Vec<u32>);\n\nimpl Buffer {\n\tpub fn new() -> Self {\n\t\tSelf(vec![1])\n\t}\n\n\
 				\tpub fn drain(&mut self) -> impl Iterator<Item = u32> + '_ {\n\t\tnet::drain(&mut self.0)\n\t}\n}\n\n\
-				pub fn copied(items: &[u32]) -> impl Iterator<Item = u32> + '_ {\n\titems.iter().copied()\n}\n",
+				pub fn copied(items: &[u32]) -> impl Iterator<Item = u32> + '_ {\n\titems.iter().copied()\n}\n\n\
+				#[derive(Clone)]\npub struct Held<'a>(&'a u32);\n\nimpl Held<'_> {\n\tpub fn get(&self) -> u32 {\n\t\t*self.0\n\t}\n}\n\n\
+				pub fn wrap(x: &u32) -> impl Clone + '_ {\n\tSome(Held(x))\n}\n\n#[derive(Clone)]\npub struct Own(u32);\n\nimpl Own {\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n\npub fn own() -> impl Clone {\n\tSome(Own(1))\n}\n\n\
+				impl Buffer {\n\tpub fn first(&self) -> impl Clone + '_ {\n\t\tOwn(self.0[0])\n\t}\n}\n",
 			),
 			(
 				"net/Cargo.toml",
@@ -1454,7 +1457,7 @@ fn unreached_types() {
 	// The export builds, naming `kio`'s types through its own dependency on `kio`.
 	std::fs::write(
 		package.join("ffi.toml"),
-		"exclude = [\"seal\", \"bare\", \"opaque\", \"closed\"]\n",
+		"exclude = [\"seal\", \"bare\", \"opaque\", \"closed\", \"own\", \"Buffer::first\"]\n",
 	)
 	.unwrap();
 	let out = package.join("out");
@@ -1544,11 +1547,16 @@ fn unreached_types() {
 		assert!(report.contains(refused), "{report}");
 	}
 	// `impl Iterator + '_` lends a borrow of the receiver, so `drain` is refused and `Drain`
-	// left out with it, rather than glue that does not build.
+	// left out with it, rather than glue that does not build; so is `wrap`, whose hidden
+	// `Option` holds a borrowing `Held`.
 	assert!(
 		report.contains("- `Buffer::drain`: type C never holds `net::Drain`"),
 		"{report}"
 	);
+	assert!(report.contains("- `wrap`: type C never holds `Held`"), "{report}");
+	// The glue cannot destructure a hidden type it cannot name, so only an object crosses
+	// through an `impl Trait`: `own`'s `Option` is refused, and `Own` left out with it.
+	assert!(report.contains("- `own`: type C never holds `Own`"), "{report}");
 	assert!(
 		report.contains("fn `seal` at src/lib.rs:11:1: type not reachable from the crate root `kio::sealed::Sealed`"),
 		"{report}"

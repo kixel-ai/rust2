@@ -2885,6 +2885,32 @@ impl<'tcx> Collector<'tcx> {
 			ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Result, adt.did()) => args.type_at(0),
 			_ => output,
 		};
+		// The glue cannot name an `impl Trait`'s hidden type, so one in a return that maps
+		// crosses only as what the glue passes on whole, an object's handle; a future and a
+		// collected iterator map apart.
+		let unrevealed = sig.output();
+		let opaques = (unrevealed.walk().filter_map(|arg| arg.as_type()))
+			.filter(|ty| {
+				matches!(
+					ty.kind(),
+					ty::Alias(
+						_,
+						ty::AliasTy {
+							kind: ty::AliasTyKind::Opaque { .. },
+							..
+						}
+					)
+				)
+			})
+			.filter(|&ty| ok.is_ok() && !(ty == unrevealed && (future || collect)));
+		for ty in opaques {
+			let hidden = normalize(ty);
+			if !matches!(hidden.kind(), ty::Adt(adt, args)
+				if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))))
+			{
+				errs.push(why("opaque type", ty.to_string()));
+			}
+		}
 		let lends = matches!(ok, Ok(Type::Ref(Mutability::Not, ref inner)) if matches!(**inner, Type::Object(_)))
 			&& !self.is_clone(ok_ty.peel_refs());
 		let ok = ok.map_err(|why| errs.push(why)).ok();
@@ -4163,14 +4189,16 @@ impl<'tcx> Collector<'tcx> {
 					});
 					if !future {
 						let hidden = tcx.type_of(*def_id).instantiate(tcx, args).skip_norm_wip();
-						// Its regions may be the signature's bound ones, which a key never names.
-						// Only the hidden type itself crosses as a handle; an iterator of objects
-						// is collected at the call.
+						// One whose hidden type is an object crosses as its handle, which the glue
+						// keeps as the opaque type itself, so it holds every lifetime it captures,
+						// even one its hidden type does not borrow; one collected at the call holds
+						// nothing past it, and any other is refused. Looked up with regions erased,
+						// since they may be the signature's bound ones, which a key never names.
 						let erased = ty::fold_regions(tcx, hidden, |_, _| tcx.lifetimes.re_erased);
 						let object = matches!(erased.kind(), ty::Adt(adt, args)
 							if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))));
 						if object {
-							held.extend(hidden.walk().filter_map(|arg| arg.as_region()));
+							held.extend(args.iter().flat_map(|arg| arg.walk()).filter_map(|arg| arg.as_region()));
 						}
 					}
 					for &(clause, _) in bounds {
