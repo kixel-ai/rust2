@@ -17,7 +17,9 @@ takes hours).
 
 - Time the export apart from moq's own build of the same crates, so the table shows what
   the exporter adds, not what cargo costs anyway.
-- Report it like the rest of that report: medians over the rounds beside the load
-  average, no threshold.
+- Today `bench-build` exports and builds once, and only `bench-run` repeats over rounds. To
+  report medians beside the load average as the rest of the report does, time the export
+  and a clean build of the generated crate in each round, with its target emptied first so
+  cargo serves nothing from cache. No threshold.
 
 Public API: none.

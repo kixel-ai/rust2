@@ -29,9 +29,12 @@ Decided with the maintainer on 2026-11-12, in `/quest-plan`:
   Run the same commit twice: a language whose numbers move between the two leaves CodSpeed,
   with both runs' numbers in the PR and the reason in the README. JVM, Go, and Dart runtimes
   under Valgrind are the likely movers.
-- ✅ Runs on pushes to main, its baseline, and on PRs that change `ffi/`, `bench/ffi/`, or the
-  flake (rejected: every PR; main and dispatch only). It stays out of the merge gate, in its
-  own workflow, with `id-token: write` for CodSpeed's OIDC upload scoped to that job.
+- ✅ Runs on pushes to main, its baseline, and on PRs that change what `just ffi bench`
+  reads (rejected: every PR; main and dispatch only): `ffi/`, `bench/ffi/`, the flake, the
+  workflow itself, and what `ffi/` takes from `ts/`, the moq pin `ts/justfile` reads from
+  `ts/fixtures/model/Cargo.toml` and `ts/rust-toolchain.toml`, which
+  `ffi/rust-toolchain.toml` links to. It stays out of the merge gate, in its own workflow,
+  with `id-token: write` for CodSpeed's OIDC upload scoped to that job.
 
 Guidance:
 
