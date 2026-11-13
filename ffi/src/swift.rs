@@ -417,6 +417,27 @@ impl<'a> Gen<'a> {
 		}
 	}
 
+	/// Whether lowering a `ty` nested in another value can throw: it holds a class whose
+	/// value a move takes, closing its handle.
+	fn throwing(&self, ty: &Type) -> bool {
+		let mut handles = Vec::new();
+		self.abi.api.handles(ty, &mut handles, &mut Vec::new());
+		handles.into_iter().any(|i| self.held(i))
+	}
+
+	/// Whether object `i` is a class a move may close, whose hold for a call can fail.
+	fn held(&self, i: usize) -> bool {
+		self.abi.traits_status(i) && !self.unique(&Type::Object(i))
+	}
+
+	/// `lowered`, a lowering in a function that cannot throw, trapping instead.
+	fn trapping(lowered: String) -> String {
+		match lowered.contains("try ") {
+			true => format!("try! {lowered}"),
+			false => lowered,
+		}
+	}
+
 	/// The arena argument a value's `_lower` takes, if it needs one.
 	fn arena_arg(&self, ty: &Type) -> &'static str {
 		match self.arena(ty) {
@@ -452,8 +473,13 @@ impl<'a> Gen<'a> {
 					true => "unique",
 					false => "list",
 				};
+				// A hold that throws makes the list's lowering throw.
+				let t = match item.contains("try ") {
+					true => "try ",
+					false => "",
+				};
 				format!(
-					"Native.vec(a_.{list}({e}) {{ {x} in {item} }}, {}.init(ptr:len:owner:))",
+					"Native.vec({t}a_.{list}({e}) {{ {x} in {item} }}, {}.init(ptr:len:owner:))",
 					abi.list(inner)
 				)
 			}
@@ -471,26 +497,40 @@ impl<'a> Gen<'a> {
 						)
 					}
 				};
-				format!("Native.option({e}, {{ {v} in {some} }}, {none})")
+				let t = match some.contains("try ") {
+					true => "try ",
+					false => "",
+				};
+				format!("{t}Native.option({e}, {{ {v} in {some} }}, {none})")
 			}
 			Type::Option(inner) => match inner.base() {
+				Type::Object(i) if self.held(*i) => format!("try a_.held({e}?.handle)"),
 				Type::Object(_) => format!("a_.hold({e}?.handle)"),
 				_ if Abi::is_buf(inner) => format!("a_.buf({e})"),
 				Type::List(_, elem) => {
 					let v = self.fresh("v");
 					let some = self.lower(inner, &v);
-					format!("({e}.map {{ {v} in {some} }} ?? {}())", abi.list(elem))
+					let t = if some.contains("try ") { "try " } else { "" };
+					format!("({t}{e}.map {{ {v} in {some} }} ?? {}())", abi.list(elem))
 				}
 				_ => {
 					let c = abi.option(inner);
 					let v = self.fresh("v");
 					let some = self.lower(inner, &v);
-					format!("({e}.map {{ {v} in {c}(some: true, value: {some}) }} ?? {c}())")
+					let t = if some.contains("try ") { "try " } else { "" };
+					format!("({t}{e}.map {{ {v} in {c}(some: true, value: {some}) }} ?? {c}())")
 				}
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.lower(inner, e),
-			Type::Record(_) | Type::Enum(_) => format!("{e}._lower({})", self.arena_arg(ty)),
+			Type::Record(_) | Type::Enum(_) => {
+				let t = match self.throwing(ty) {
+					true => "try ",
+					false => "",
+				};
+				format!("{t}{e}._lower({})", self.arena_arg(ty))
+			}
 			Type::Object(_) if self.unique(ty) => format!("{e}.handle"),
+			Type::Object(i) if self.held(*i) => format!("try a_.held({e}.handle)"),
 			Type::Object(_) => format!("a_.hold({e}.handle)"),
 			Type::Callback(i, _) => format!("Native.lower_{}({e})", abi.callback(*i)),
 			Type::Tuple(elements) => {
@@ -753,84 +793,125 @@ impl<'a> Gen<'a> {
 		let name = self.sw(ty);
 		let object = matches!(ty, Type::Object(_));
 		let unique = self.unique(ty);
-		// A failed check aborts with its message, as none of these can throw.
-		let nil = match ty {
-			Type::Object(i) if self.abi.traits_status(*i) => ", nil",
-			_ => "",
+		// One whose checks can fail throws, so conforms to no protocol of these, whose
+		// requirements cannot throw; any other's checks never fail.
+		let status = self.abi.traits_status_of(ty);
+		let on = self.on(self.on, c, "\n\t\t");
+		// The statements lowering a value receiver for the function `what`.
+		let value = |what: &str| {
+			let arena = match self.arena(ty) {
+				true => format!("let a_ = Native.Arena(\"{what}\")\n\t\tdefer {{ a_.finish() }}\n\t\t"),
+				false => String::new(),
+			};
+			format!("{on}Native.check()\n\t\t{arena}")
 		};
-		// The receiver: a struct's handle, a class's held, or the value lowered.
-		let (open, this, close) = match object {
-			true if unique => (String::new(), "self.handle", ""),
-			true => ("self.handle.with { h_ in ".to_string(), "h_", " }"),
-			false => {
-				let arena = match self.arena(ty) {
-					true => "let a_ = Native.Arena()\n\t\tdefer { a_.finish() }\n\t\t",
-					false => "",
-				};
-				(
+		let lower = match self.throwing(ty) {
+			true => format!("try self._lower({})", self.arena_arg(ty)),
+			false => format!("self._lower({})", self.arena_arg(ty)),
+		};
+		// The statements calling `call`, the C call with its arguments, unclosed, of the
+		// function `what`, returning `lift` of its result.
+		let call = |call: &str, what: &str, lift: &dyn Fn(&str) -> String| match status {
+			true => format!(
+				"var s_: Swift.Int32 = 0\n\t\tlet r_ = {call}, &s_)\n\t\ttry Native.status(s_, \"{what}\")\n\t\treturn {}",
+				lift("r_")
+			),
+			false => format!("return {}", lift(&format!("{call})"))),
+		};
+		// The body calling `{c}_<suffix>` of the receiver, returning `lift` of its result.
+		let unary = |suffix: &str, lift: &dyn Fn(&str) -> String| {
+			let what = format!("{c}_{suffix}");
+			match (object, unique) {
+				(true, true) => call(&format!("{what}(self.handle"), &what, lift),
+				(true, false) => {
+					let with = match status {
+						true => format!("try self.handle.with(\"{what}\")"),
+						false => "self.handle.with".to_string(),
+					};
 					format!(
-						"{}Native.check()\n\t\t{arena}var c_ = self._lower({})\n\t\treturn ",
-						self.on(self.on, c, "\n\t\t"),
-						self.arena_arg(ty)
-					),
-					"&c_",
-					"",
-				)
+						"return {with} {{ h_ in\n\t\t\t{}\n\t\t}}",
+						call(&format!("{what}(h_"), &what, lift).replace("\n\t\t", "\n\t\t\t")
+					)
+				}
+				(false, _) => format!(
+					"{}var c_ = {lower}\n\t\t{}",
+					value(&what),
+					call(&format!("{what}(&c_"), &what, lift)
+				),
 			}
 		};
-		let text = |open: &str, call: &str| match object {
-			true => format!("Native.string({open}{call}{close})"),
-			false => format!("{open}Native.string({call})"),
+		let throws = match status {
+			true => " throws",
+			false => "",
 		};
+		// A property's body, in a getter that throws if the call can.
+		let getter = |body: String| match status {
+			true => format!("get throws {{\n\t\t\t{}\n\t\t}}", body.replace("\n\t\t", "\n\t\t\t")),
+			false => body,
+		};
+		let text = |r: &str| format!("Native.string({r})");
 		if t.display {
-			protocols.push("CustomStringConvertible");
+			if !status {
+				protocols.push("CustomStringConvertible");
+			}
 			members.push("description".to_string());
 			body.push(format!(
 				"\tpublic var description: Swift.String {{\n\t\t{}\n\t}}\n",
-				text(&open, &format!("{c}_to_string({this}{nil})"))
+				getter(unary("to_string", &text))
 			));
 		}
 		if t.debug {
-			protocols.push("CustomDebugStringConvertible");
+			if !status {
+				protocols.push("CustomDebugStringConvertible");
+			}
 			members.push("debugDescription".to_string());
 			body.push(format!(
 				"\t/// Rust's `Debug` form.\n\tpublic var debugDescription: Swift.String {{\n\t\t{}\n\t}}\n",
-				text(&open, &format!("{c}_debug({this}{nil})"))
+				getter(unary("debug", &text))
 			));
 		}
 		if object && t.clone {
 			members.push("clone".to_string());
-			let raw = match unique {
-				true => format!("{c}_clone(self.handle{nil})"),
-				false => format!("self.handle.with {{ {c}_clone($0{nil}) }}"),
-			};
+			let lift = |r: &str| format!("{name}(raw: {r})");
 			body.push(format!(
-				"\t/// A new handle to a clone.\n\tpublic func clone() -> {name} {{\n\t\t{name}(raw: {raw})\n\t}}\n"
+				"\t/// A new handle to a clone.\n\tpublic func clone(){throws} -> {name} {{\n\t\t{}\n\t}}\n",
+				unary("clone", &lift)
 			));
 		}
 		if t.eq {
-			protocols.push("Equatable");
-			let compare = match object {
-				true if unique => format!("{c}_eq(a.handle, b.handle{nil})"),
-				true => format!("a.handle.with {{ a_ in b.handle.with {{ b_ in {c}_eq(a_, b_{nil}) }} }}"),
-				false => {
-					let arena = match self.arena(ty) {
-						true => "let a_ = Native.Arena()\n\t\tdefer { a_.finish() }\n\t\t",
-						false => "",
+			if !status {
+				protocols.push("Equatable");
+			}
+			let what = format!("{c}_eq");
+			let same = |r: &str| r.to_string();
+			let compare = match (object, unique) {
+				(true, true) => call(&format!("{what}(a.handle, b.handle"), &what, &same),
+				(true, false) => {
+					let with = |h: &str| match status {
+						true => format!("try {h}.handle.with(\"{what}\")"),
+						false => format!("{h}.handle.with"),
 					};
-					let arg = self.arena_arg(ty);
 					format!(
-						"{}Native.check()\n\t\t{arena}var ca_ = a._lower({arg})\n\t\tvar cb_ = b._lower({arg})\n\t\treturn {c}_eq(&ca_, &cb_)",
-						self.on(self.on, c, "\n\t\t")
+						"return {} {{ a_ in {} {{ b_ in\n\t\t\t{}\n\t\t}} }}",
+						with("a"),
+						with("b"),
+						call(&format!("{what}(a_, b_"), &what, &same).replace("\n\t\t", "\n\t\t\t")
 					)
 				}
+				(false, _) => format!(
+					"{}var ca_ = {}\n\t\tvar cb_ = {}\n\t\t{}",
+					value(&what),
+					lower.replacen("self.", "a.", 1),
+					lower.replacen("self.", "b.", 1),
+					call(&format!("{what}(&ca_, &cb_"), &what, &same)
+				),
 			};
 			let borrowing = match unique {
 				true => "borrowing ",
 				false => "",
 			};
 			body.push(format!(
-				"\tpublic static func == (a: {borrowing}{name}, b: {borrowing}{name}) -> Swift.Bool {{\n\t\t{compare}\n\t}}\n"
+				"\tpublic static func == (a: {borrowing}{name}, b: {borrowing}{name}){throws} -> Swift.Bool {{\n\t\t{compare}\n\t}}\n"
 			));
 		}
 		if t.default {
@@ -916,8 +997,12 @@ impl<'a> Gen<'a> {
 			"\tstatic func _lift(_ c: {c}) -> {name} {{\n\t\t{name}({})\n\t}}\n",
 			lifted.join(", ")
 		));
+		let throws = match self.throwing(&ty) {
+			true => " throws",
+			false => "",
+		};
 		body.push(format!(
-			"\tfunc _lower({arena}) -> {c} {{\n\t\t{c}({})\n\t}}\n",
+			"\tfunc _lower({arena}){throws} -> {c} {{\n\t\t{c}({})\n\t}}\n",
 			lowered.join(", ")
 		));
 		let text = format!("{rust}\n\n{}", record.docs);
@@ -1023,7 +1108,11 @@ impl<'a> Gen<'a> {
 				lowers.join("\n")
 			),
 			false => format!(
-				"\tfunc _lower({arena}) -> {c} {{\n\t\tvar c = {c}()\n\t\tswitch self {{\n{}\n\t\t}}\n\t\treturn c\n\t}}\n",
+				"\tfunc _lower({arena}){} -> {c} {{\n\t\tvar c = {c}()\n\t\tswitch self {{\n{}\n\t\t}}\n\t\treturn c\n\t}}\n",
+				match self.throwing(&ty) {
+					true => " throws",
+					false => "",
+				},
 				lowers.join("\n")
 			),
 		});
@@ -1121,7 +1210,7 @@ impl<'a> Gen<'a> {
 			let call = format!("Box<any {name}>.unbox(data).{member}({})", args.join(", "));
 			let call = match method.ok {
 				Type::Unit => call,
-				_ => self.lower(&method.ok, &call),
+				_ => Self::trapping(self.lower(&method.ok, &call)),
 			};
 			let mut closure_params = vec!["data".to_string()];
 			closure_params.extend(ps);
@@ -1368,9 +1457,9 @@ impl<'a> Gen<'a> {
 					abi.object(*i),
 					self.nil(*i)
 				),
-				_ => self.lower(ty, e),
+				_ => Self::trapping(self.lower(ty, e)),
 			},
-			ty => self.lower(ty, e),
+			ty => Self::trapping(self.lower(ty, e)),
 		}
 	}
 
@@ -1493,7 +1582,11 @@ impl<'a> Gen<'a> {
 				}
 				_ => {
 					arena |= self.arena(&ty);
-					prelude.push(format!("var c_self_ = self._lower({})", self.arena_arg(&ty)));
+					let t = match self.throwing(&ty) {
+						true => "try ",
+						false => "",
+					};
+					prelude.push(format!("var c_self_ = {t}self._lower({})", self.arena_arg(&ty)));
 					arg.exprs.push("&c_self_".to_string());
 				}
 			}
@@ -1561,7 +1654,7 @@ impl<'a> Gen<'a> {
 		if arena {
 			prelude.insert(
 				1.min(prelude.len()),
-				"let a_ = Native.Arena()\ndefer { a_.finish() }".to_string(),
+				format!("let a_ = Native.Arena(\"{c_name}\")\ndefer {{ a_.finish() }}"),
 			);
 		}
 		let after: Vec<String> = args.iter().flat_map(|a| a.after.clone()).collect();

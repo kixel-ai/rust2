@@ -504,11 +504,16 @@ extension Native {
 		return try handle.with(what, body)
 	}
 
-	/// What a call lowers nested values into, kept until it returns: copied bytes, arrays,
-	/// and the handles it holds.
+	/// What a call of `what` lowers nested values into, kept until it returns: copied
+	/// bytes, arrays, and the handles it holds.
 	final class Arena {
 		private var blocks: [UnsafeMutableRawPointer] = []
 		private var held: [Handle] = []
+		private let what: StaticString
+
+		init(_ what: StaticString) {
+			self.what = what
+		}
 
 		func copy(_ bytes: UnsafeRawBufferPointer) -> Buf {
 			guard bytes.count > 0 else {
@@ -537,6 +542,7 @@ extension Native {
 			text.map { buf($0) } ?? none
 		}
 
+		/// The handle of a `Copy` object, which nothing closes, held until the call returns.
 		func hold(_ handle: Handle) -> OpaquePointer? {
 			let raw = handle.hold()
 			held.append(handle)
@@ -545,6 +551,20 @@ extension Native {
 
 		func hold(_ handle: Handle?) -> OpaquePointer? {
 			handle.map { hold($0) } ?? nil
+		}
+
+		/// The handle of an object a move may have closed, held until the call returns, or
+		/// a throw for the call if it is closed.
+		func held(_ handle: Handle) throws -> OpaquePointer? {
+			guard handle.held() else {
+				throw CheckError(function: "\(what)", message: "\(handle.type) is closed")
+			}
+			held.append(handle)
+			return handle.raw
+		}
+
+		func held(_ handle: Handle?) throws -> OpaquePointer? {
+			try handle.map { try held($0) } ?? nil
 		}
 
 		/// `items` as a C array, each lowered by `lower`: never null, so an empty one is

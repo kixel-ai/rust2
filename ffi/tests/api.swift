@@ -37,6 +37,18 @@ func text(_ data: Data) -> String {
 	String(decoding: data, as: UTF8.self)
 }
 
+/// Check that `body` throws for the call `function` of a Refusal a move closed.
+func closed(_ function: String, _ body: () throws -> Void) {
+	do {
+		try body()
+		check(false, "\(function) of a closed Refusal throws")
+	} catch let e as CheckError {
+		check(e.function == function && e.message == "Refusal is closed", "\(function) threw \(e)")
+	} catch {
+		check(false, "\(function) threw \(error)")
+	}
+}
+
 /// The refusal `refuse` throws for `reason`: a class, since Swift throws it.
 func refusal(_ reason: String) -> Refusal {
 	do {
@@ -190,10 +202,10 @@ func script() {
 	try! c.rename("d")
 	print("name \(try! c.name())")
 	print("is d \(try! c.`is`("d"))")
-	var copy = c.clone()
+	var copy = try! c.clone()
 	_ = try! copy.add(1)
 	print("clone \(try! copy.get()) original \(try! c.get())")
-	print("debug \(c.debugDescription)")
+	print("debug \(try! c.debugDescription)")
 	let label = try! c.intoLabel(p)
 	print("label \(debug(label))")
 	print("note \(hasText(Note(text: ""))) \(hasText(Note(text: nil)))")
@@ -296,7 +308,7 @@ func script() {
 
 	let name = Name.owned("a")
 	var joined = try! name.join(Name.owned("b"))
-	print("joined \(try! joined.asStr()) \(joined.debugDescription) \(joined == name)")
+	print("joined \(try! joined.asStr()) \(try! joined.debugDescription) \(try! joined == name)")
 	try! joined.rename("c")
 	print("renamed \(try! joined.asStr())")
 	let long = try! longer(joined, Name.owned("dd"))
@@ -476,7 +488,7 @@ func script() {
 
 	let tally = Tally.new()
 	_ = try! tally.bump()
-	print("tally \(try! tally.bump()) \(tally == tally)")
+	print("tally \(try! tally.bump()) \(try! tally == tally)")
 	print("both \(try! bumpBoth(tally, tally))")
 	print("peek \(try! peek(tally) { lent in try! lent.bump() })")
 
@@ -564,9 +576,9 @@ func script() {
 
 	// Foreign types: a URL parsed from text, socket addresses, OS paths, and `Vec`s.
 	let base = try! Url.parse("https://example.com/a/b")
-	print("url \(base.description) host \(try! host(base).map { "Some(\"\($0)\")" } ?? "None")")
-	let url = try! resolve(base.clone(), "c?d")
-	print("resolve \(url.description) \(url == base)")
+	print("url \(try! base.description) host \(try! host(base).map { "Some(\"\($0)\")" } ?? "None")")
+	let url = try! resolve(try! base.clone(), "c?d")
+	print("resolve \(try! url.description) \(try! url == base)")
 	do {
 		_ = try Url.parse("no scheme")
 	} catch let e as StringError {
@@ -605,6 +617,22 @@ func script() {
 				== "a refused: x, b refused: y",
 			"reasons moves a struct and a class out of a list and an option"
 		)
+		// A class a move closed throws for each later call, as a receiver or nested.
+		let kept = refusal("z")
+		var moved = UniqueArray<TupleCounterRefusal>()
+		moved.append(TupleCounterRefusal(Counter.new("c", 3), kept))
+		_ = try! reasons(moved, nil)
+		closed("api_Refusal_to_string") { _ = try kept.description }
+		var again = UniqueArray<TupleCounterRefusal>()
+		again.append(TupleCounterRefusal(Counter.new("d", 4), kept))
+		do {
+			_ = try reasons(again, nil)
+			check(false, "api_reasons of a closed Refusal throws")
+		} catch let e as CheckError {
+			check(e.function == "api_reasons" && e.message == "Refusal is closed", "api_reasons threw \(e)")
+		} catch {
+			check(false, "api_reasons threw \(error)")
+		}
 		// Each optional borrowed parameter is an overload with and without its label.
 		let one = Counter.new("one", 1)
 		check(
@@ -714,7 +742,7 @@ func script() {
 	let millis = { (d: Swift.Duration) in d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000 }
 	let began = now()
 	let ended = try! later(began, .milliseconds(1500))
-	print("instants \(millis(try! since(ended, began))) \(millis(try! since(began, ended))) \(try! began == later(began, .zero)) \(began == ended)")
+	print("instants \(millis(try! since(ended, began))) \(millis(try! since(began, ended))) \(try! began == later(began, .zero)) \(try! began == ended)")
 	// tracing's level, and its filter as an optional level whose nil is `OFF`.
 	var verbosity = Verbosity.new(.warn)
 	print("verbosity \(spell(try! verbosity.filter())) \(spell(louder(try! verbosity.filter())))")
@@ -951,7 +979,7 @@ func futures() {
 		let sender: Channel
 		do {
 			let other = Channel.new()
-			sender = other.clone()
+			sender = try! other.clone()
 			q.launch { got.value = text(try await other.recv()) }
 			q.drain()
 		}
@@ -1179,13 +1207,6 @@ func broken(_ which: String) {
 		_ = try! stray()
 	case "lent stray":
 		try! visitStray { _ in }
-	// A class moved into Rust, which Swift still holds: the call closes its handle.
-	case "refusal moved":
-		let kept = refusal("z")
-		var pairs = UniqueArray<TupleCounterRefusal>()
-		pairs.append(TupleCounterRefusal(Counter.new("a", 1), kept))
-		_ = try! reasons(pairs, nil)
-		_ = kept.description
 	// The file serves wasm32 too, whose items the host's library lacks.
 	case "target":
 		_ = try! wasmOnly()
