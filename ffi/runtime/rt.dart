@@ -491,8 +491,9 @@ final class _Arena implements ffi.Allocator {
   }
 
   /// `bytes`, never a null pointer, so an empty one is told apart from none. Where Rust
-  /// [take]s them, a buffer it owns: a second owner of bytes Rust lent, else a copy into
-  /// a buffer of its own. Else a view: of bytes Rust lent, in place, else of a copy here.
+  /// [take]s them, a buffer it owns: a second owner of bytes Rust lent, else from
+  /// [_takeFrom] bytes a copy into a buffer of its own. Else a view: of bytes Rust lent, in
+  /// place, else of a copy here, which Rust copies again where it keeps them.
   void bytes(_Buf dst, typed.Uint8List? bytes, bool take) {
     if (bytes == null) {
       dst.ptr = ffi.nullptr;
@@ -500,7 +501,8 @@ final class _Arena implements ffi.Allocator {
       dst.owner = ffi.nullptr;
       return;
     }
-    final lent = _n.lentBytes[bytes];
+    // Only a list longer than [_lend] can be Rust's.
+    final lent = bytes.length > _lend ? _n.lentBytes[bytes] : null;
     if (lent != null) {
       dst.ptr = ffi.Pointer.fromAddress(lent.ptr);
       dst.len = bytes.length;
@@ -513,7 +515,7 @@ final class _Arena implements ffi.Allocator {
       }
       return;
     }
-    if (take) {
+    if (take && bytes.length >= _takeFrom) {
       final buf = _dartBuf(bytes.length);
       buf.ptr.asTypedList(bytes.length).setAll(0, bytes);
       _give(dst, buf);
@@ -526,7 +528,8 @@ final class _Arena implements ffi.Allocator {
     dst.owner = ffi.nullptr;
   }
 
-  /// `text`'s UTF-8, copied: into a buffer Rust owns where it [take]s it.
+  /// `text`'s UTF-8, copied: into a buffer Rust owns where it [take]s it, from [_takeFrom]
+  /// bytes.
   void string(_Buf dst, String? text, bool take) {
     if (text == null) {
       bytes(dst, null, take);
@@ -546,7 +549,7 @@ final class _Arena implements ffi.Allocator {
       bytes(dst, convert.utf8.encode(text), take);
       return;
     }
-    if (take) {
+    if (take && n >= _takeFrom) {
       final buf = _dartBuf(n);
       buf.ptr.asTypedList(n).setAll(0, units);
       _give(dst, buf);
@@ -559,6 +562,12 @@ final class _Arena implements ffi.Allocator {
     dst.owner = ffi.nullptr;
   }
 }
+
+/// Dart's own bytes Rust takes from this long are copied into a buffer Rust allocates, and
+/// shorter ones onto the arena's stack, which Rust copies again: on the binding benchmark,
+/// the call to allocate Rust's buffer costs more than the second copy of 100 bytes, and
+/// less than that of 1 KiB.
+const _takeFrom = 1024;
 
 extension on _Arena {
   /// Write `buf`, Rust's own, to `dst`, freed unless the call takes it.

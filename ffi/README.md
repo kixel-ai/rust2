@@ -803,8 +803,10 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 - **Integers** are `int`. A narrower one passed in throws a `RangeError` when out of its
   range, and a `u64` passes its 64 bits, so one past `i64`'s range is negative in Dart.
   A `char` is a `String` of one Unicode scalar.
-- **Bytes** a call takes are a `Uint8List`, and text a `String`, each copied into a
-  buffer the call frees. Bytes Rust returns are a `Uint8List` owned by Dart's memory
+- **Bytes** a call takes are a `Uint8List`, and text a `String`. Rust keeps Dart's own
+  with one copy from 1 KiB, into a buffer Rust takes, and with two below, since allocating
+  Rust's buffer costs more there than the second copy; a lent `Uint8List` Rust returned
+  passes back as a second owner of Rust's buffer, with no copy. Bytes Rust returns are a `Uint8List` owned by Dart's memory
   manager: up to 64 KiB copied, with Rust's freed at the call, and a longer one an
   unmodifiable view of Rust's buffer, freed once neither it nor any view of it is
   reachable, so no view outlives its memory. A lent view costs a finalizer and charges the
