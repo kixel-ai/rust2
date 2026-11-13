@@ -44,12 +44,12 @@ re-export and re-exports `Guard`, and
 `pub use kio;`), `lite::version::Version`, which was already unreachable at the pin, and
 moq-tokio's `quic::driver` items, which the narrowed stand-in drops.
 
-Then bump the pin in `ts/fixtures/model/Cargo.toml`, which `ts/justfile`'s `moq_rev` reads,
-and report the census before and after. The last bump
-([#390](https://github.com/moq-dev/rust2/pull/390)) also changed `ffi/moq/ffi.toml`, every
-`ffi/moq/moq.*`, and rust2-ts's model fixture, bench, and expected output, which share the
-pin: run `just ts census` too, and update the count in the
-[model epic](/quest/m2/ts-model/README.md).
+Then bump both pins: the exporter's `moq_rev` in `ffi/justfile`, and rust2-ts's in
+`ts/fixtures/model/Cargo.toml`, which `ts/justfile`'s `moq_rev` reads. Report the census
+before and after. The last bump ([#390](https://github.com/moq-dev/rust2/pull/390)) also
+changed `ffi/moq/ffi.toml`, every `ffi/moq/moq.*`, and rust2-ts's model fixture, bench, and
+expected output, which then shared one pin: run `just ts census` too, and update the count
+in the [model epic](/quest/m2/ts-model/README.md).
 
 Decided with the maintainer on 2026-11-09: bump to moq's current main now, and narrow the
 Goal to the two moq-owned types. Rejected: wait for moq to fix the rest first. Not landed:
@@ -69,8 +69,10 @@ returns that are not `Clone`.
 
 ## Waiting
 
-- moq-dev/moq: `rind` builds for wasm32. moq-net depends on `rind`, whose md5 inline asm has
-  no wasm32 arm, so `just ts moq <checkout>` fails at moq's `main`. Done when it passes there.
+- moq-dev/moq: `rind` builds for wasm32, which only rust2-ts's pin in
+  `ts/fixtures/model/Cargo.toml` needs, not the exporter's in `ffi/justfile`. moq-net depends
+  on `rind`, whose md5 inline asm has no wasm32 arm, so `just ts moq <checkout>` fails at
+  moq's `main`. Done when it passes there.
   The fix merged in rind's `main` ([moq-dev/rind#543](https://github.com/moq-dev/rind/pull/543))
   and ships in rind 0.4.0. Its release PR
   ([moq-dev/rind#511](https://github.com/moq-dev/rind/pull/511)) stays unmerged on purpose,
@@ -88,6 +90,5 @@ returns that are not `Clone`.
 
 ## Required
 
-- [Own pin](/quest/m1/ffi-refusals/own-pin.md) - the exporter's pin moves without rust2-ts's, which ends the wait on `rind` for wasm32
 - [`NonZero`](/quest/m1/ffi-refusals/nonzero.md) - 15 of the 36 errors at moq's `main`
 - [Every refusal at moq's main](/quest/m1/ffi-refusals/moq-main.md) - the rest of them, so the bump adds no exclude

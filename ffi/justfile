@@ -10,9 +10,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 cargo_shim := if env("RUST2_CARGO_SHIM", "") == "" { "" } else { env("RUST2_CARGO_SHIM") + ":" }
 export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { cargo_shim + env("RUST2_TS_TOOLCHAIN") / "bin:" + env("PATH") }
 
-# The moq revision these recipes export by default: `just ts`'s, so both follow one moq.
-# just's own path is quoted wherever bash runs it: on Windows, its backslashes are escapes.
-moq_rev := shell(quote(just_executable()) + " --justfile ../ts/justfile --evaluate moq_rev")
+# The moq revision these recipes export by default. It is the exporter's own pin, apart from
+# the model fixture's in ts/fixtures/model/Cargo.toml, so bumping one does not wait on the other.
+moq_rev := "ffcb7cd9748422daa30e935ec464108b5a8ebb71"
 
 # swift-collections 1.7.5, whose `UniqueArray` the generated Swift imports.
 swift_collections_rev := "f96b909e1a9e469620bc5037c1e24e00153f376f"
