@@ -72,6 +72,56 @@ fn why(construct: &'static str, detail: impl Into<String>) -> Why {
 	}
 }
 
+/// Why a function cannot be called from safe foreign code, if it cannot: a C-variadic
+/// one, or one whose ABI Rust cannot call (custom, interrupt, or GPU kernel), under its
+/// own construct, else any `unsafe fn`, whose preconditions no binding can check.
+fn unsafety(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Why> {
+	let sig = tcx.fn_sig(def_id).skip_binder().skip_binder();
+	if sig.c_variadic() {
+		Some(why("C-variadic function", ""))
+	} else if uncallable(sig.abi()) {
+		Some(why("uncallable ABI", sig.abi().to_string()))
+	} else if sig.safety().is_unsafe() {
+		Some(why("unsafe fn", ""))
+	} else {
+		None
+	}
+}
+
+/// Whether Rust refuses to call a function of this ABI directly, as rustc's own call check
+/// does for `CanonAbi::{Custom, Interrupt(_), GpuKernel}`.
+fn uncallable(abi: rustc_abi::ExternAbi) -> bool {
+	use rustc_abi::ExternAbi::*;
+	matches!(
+		abi,
+		Custom
+			| X86Interrupt
+			| RiscvInterruptM
+			| RiscvInterruptS
+			| Msp430Interrupt
+			| AvrInterrupt
+			| AvrNonBlockingInterrupt
+			| GpuKernel
+			| PtxKernel
+	)
+}
+
+/// Why foreign code cannot implement a trait soundly, if it cannot: an `unsafe trait`, or
+/// a required method foreign code would implement without the caller's preconditions.
+fn trait_unsafety(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Why> {
+	if tcx.trait_def(def_id).safety.is_unsafe() {
+		return Some(why("unsafe trait", ""));
+	}
+	(tcx.associated_items(def_id).in_definition_order())
+		.filter(|item| item.is_fn() && !item.defaultness(tcx).has_value())
+		.find_map(|item| {
+			unsafety(tcx, item.def_id).map(|why| Why {
+				detail: item.name().to_string(),
+				..why
+			})
+		})
+}
+
 /// An item the export refuses, with every reason found.
 pub struct Refusal {
 	/// Its path from its crate's root.
@@ -1792,6 +1842,13 @@ impl<'tcx> Collector<'tcx> {
 				let decl = self.decls.get(&site.key).cloned();
 				// A trait exports only as what C implements: one it cannot implement is no
 				// part of C's API, while a signature that takes one from C is refused.
+				// An unsafe contract is not something C lacks but something it cannot keep.
+				if kind == DefKind::Trait
+					&& let Some(why) = trait_unsafety(tcx, def_id)
+				{
+					self.refuse(&site.shown, "trait", span, vec![why]);
+					continue;
+				}
 				if let (Some(Decl::Refused(why)), DefKind::Trait) = (&decl, kind) {
 					let (report, rest) = self.report(&site.shown);
 					report.traits.push((rest, why.clone()));
@@ -2205,6 +2262,10 @@ impl<'tcx> Collector<'tcx> {
 	fn callback(&mut self, def_id: DefId, path: &[String]) -> Result<Vec<Function>, Vec<Why>> {
 		let tcx = self.tcx;
 		let mut errs = Vec::new();
+		// Foreign code would implement it without upholding the contract it documents.
+		if tcx.trait_def(def_id).safety.is_unsafe() {
+			errs.push(why("unsafe trait", ""));
+		}
 		// It may already cover the foreign implementation, which could not then implement it.
 		if !tcx.trait_impls_of(def_id).blanket_impls().is_empty() {
 			errs.push(why("trait with a blanket impl", ""));
@@ -2250,7 +2311,14 @@ impl<'tcx> Collector<'tcx> {
 							errs.push(why("trait method without &self", name.to_string()))
 						}
 						Ok(function) => methods.push(function),
-						Err(why) => errs.extend(why),
+						// A per-method reason names its method, as `trait_unsafety` does.
+						Err(why) => errs.extend(why.into_iter().map(|why| match why.construct {
+							"unsafe fn" | "C-variadic function" | "uncallable ABI" => Why {
+								detail: name.to_string(),
+								..why
+							},
+							_ => why,
+						})),
 					}
 				}
 				// An `impl Trait` return's own type: the method refuses it.
@@ -2303,6 +2371,9 @@ impl<'tcx> Collector<'tcx> {
 		instance: &Instantiation<'tcx>,
 	) -> Result<Function, Vec<Why>> {
 		let tcx = self.tcx;
+		if let Some(why) = unsafety(tcx, def_id) {
+			return Err(vec![why]);
+		}
 		let mut errs = Vec::new();
 		let args = instance.args;
 		// Each kept parameter takes a closure, if an `Fn` trait bounds it, a reader, if

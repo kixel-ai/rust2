@@ -5,7 +5,7 @@ attributes in the Rust source.
 Every language's generator but Python's builds on the C ABI.
 
 ```bash
-rust2-ffi --config ffi.toml (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [-- cargo args]
+rust2-ffi --config ffi.toml (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [--baseline api.json] [-- cargo args]
 ```
 
 It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
@@ -184,6 +184,41 @@ the spans of its items, instead of exporting; an export elsewhere adds it with
 package, features, and `exclude`, from the same sources: a staged span's file is relative
 to the workspace's root or cargo's home, so a checkout at another path keeps it, and is
 dropped for the other target's span where the file differs.
+
+## The API lock
+
+Each export writes its API, merged across every target it serves, to `api.json` in `--out`,
+in the format `--api` writes. `--baseline file` fails the export, writing nothing, where its
+API breaks the one in `file`, with an error at each item that names how:
+
+- an item removed, or no longer on one of the baseline's targets, and a target the baseline
+  serves that the export does not;
+- a function's receiver, parameter, return, error, or asyncness changed, a constant's type
+  changed, a trait method added or changed, or a trait impl such as `Clone` dropped;
+- a record's or variant's field added, removed, moved, or of another type, a variant
+  removed or of another value or, in an enum with fields, at another place, which is its C
+  tag, one added to an enum another crate matches exhaustively, and an enum gaining its
+  first variant with fields or losing its last, which changes it between a C enum and a
+  struct;
+- the library's name, which every C name starts with;
+- a C name that now names another item: since a name depends on every item exported
+  ([The C ABI](#the-c-abi)), adding `audio::encoder_finish` renames `audio_encoder::finish`
+  to `moq_audio_encoder_finish_`, and a C caller of the old name would call the new item.
+  A tuple's struct, known by its Rust spelling, is renamed the same way when another
+  tuple's elements run together into its name.
+
+An item is known by its kind and Rust path, as `exclude` names it. An addition passes: a new
+item, method, trait impl, or a variant of a `#[non_exhaustive]` enum. A constant's value and
+an item's docs may change. The check runs once, on the API every language is generated from;
+it covers C's names, while a language's own names for a clash its generator renames are not
+compared.
+
+The baseline is a lockfile, not config: the consumer commits it beside `Cargo.lock`, the
+export reads it only to compare, and the export is the same with or without it. It refuses a
+baseline that is the `api.json` it would write. To accept a
+break, export without `--baseline` and commit the `api.json` it writes. Its spans are relative
+to the workspace and cargo's home, as a staged API's are, so a removed item's error points
+where it was while its file is unchanged.
 
 ## The C ABI
 
@@ -943,6 +978,10 @@ build must fail its contract check. The `target` test exports a package for the 
 binding, which builds for each, and staged with `--api` and `--with`; a build for a target
 not exported fails, and items that differ between the two are refused, naming both.
 The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
+The `lock` test exports the `lock` fixture for wasm32, staged, and the host, then again
+against that export's `api.json`: its `added` feature only adds and must pass, and its `next`
+feature breaks the API twice for each kind of break, once in an item only wasm32 has, each
+error matching `fixtures/lock/expected.txt`.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. `moq/moq.c` publishes and subscribes to a moq-net
 track in one process, polling each read, scopes an origin to moq-pattern's patterns and

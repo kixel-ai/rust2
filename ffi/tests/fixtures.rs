@@ -52,18 +52,26 @@ fn run(cmd: &mut Command) -> Output {
 /// Export the fixture `name` into `out` for `targets` into one binding, else the host,
 /// with these cargo args, returning what the exporter printed.
 fn export(name: &str, out: &Path, targets: &[&str], cargo: &[&str]) -> Output {
+	exporter(name, out, targets, &[], cargo)
+		.output()
+		.expect("running rust2-ffi")
+}
+
+/// The export of the fixture `name`, with `args` for rust2-ffi besides.
+fn exporter(name: &str, out: &Path, targets: &[&str], args: &[&std::ffi::OsStr], cargo: &[&str]) -> Command {
 	let fixture = manifest_dir().join("fixtures").join(name);
-	Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+	let mut command = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"));
+	command
 		.arg("--config")
 		.arg(fixture.join("ffi.toml"))
 		.arg("--out")
 		.arg(out)
 		.args(targets.iter().flat_map(|target| ["--target", target]))
+		.args(args)
 		.arg("--")
 		.args(cargo)
-		.env("CARGO_TARGET_DIR", scratch().join(name).join("build"))
-		.output()
-		.expect("running rust2-ffi")
+		.env("CARGO_TARGET_DIR", scratch().join(name).join("build"));
+	command
 }
 
 /// The api fixture, exported and built once for each language's test.
@@ -1357,8 +1365,23 @@ fn reject() {
 	let out = scratch().join("reject").join("out");
 	let output = export("reject", &out, &[], &[]);
 	assert!(!output.status.success(), "exporting reject succeeded");
+	let errors = errors(&output);
+	let expected = std::fs::read_to_string(manifest_dir().join("fixtures/reject/expected.txt")).unwrap();
+	if std::env::var_os("UPDATE_EXPECT").is_some() {
+		std::fs::write(
+			manifest_dir().join("fixtures/reject/expected.txt"),
+			errors.join("\n") + "\n",
+		)
+		.unwrap();
+		return;
+	}
+	assert_eq!(errors.join("\n") + "\n", expected);
+}
+
+/// Each of rust2-ffi's errors the export printed, sorted: at its span, then each of its
+/// notes at its own.
+fn errors(output: &Output) -> Vec<String> {
 	let stderr = String::from_utf8_lossy(&output.stderr);
-	// Each error at its span, then each of its notes at its own.
 	let lines: Vec<&str> = stderr.lines().collect();
 	let at = |i: usize| {
 		lines[i + 1..]
@@ -1383,16 +1406,95 @@ fn reject() {
 		}
 	}
 	errors.sort();
-	let expected = std::fs::read_to_string(manifest_dir().join("fixtures/reject/expected.txt")).unwrap();
+	errors
+}
+
+/// The lock fixture exported for wasm32, staged, and the host, then again against that
+/// export's API as the baseline: with `next`, which must fail at each break, and with
+/// `added`, which must pass.
+#[test]
+fn lock() {
+	let dir = scratch().join("lock");
+	let targets = [WASM, host()];
+	let output = export("lock", &dir.join("base"), &targets, &[]);
+	assert!(
+		output.status.success(),
+		"exporting failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let baseline = dir.join("base").join("api.json");
+	let before = std::fs::read(&baseline).unwrap();
+	let args = ["--baseline".as_ref(), baseline.as_os_str()];
+	let itself = exporter("lock", &dir.join("base"), &targets, &args, &[])
+		.output()
+		.expect("running rust2-ffi");
+	assert!(!itself.status.success(), "a baseline the export would overwrite passed");
+	assert_eq!(
+		std::fs::read(&baseline).unwrap(),
+		before,
+		"the export overwrote its baseline"
+	);
+	let linked = dir.join("linked");
+	let _ = std::fs::remove_dir_all(&linked);
+	std::fs::create_dir_all(&linked).unwrap();
+	std::fs::hard_link(&baseline, linked.join("api.json")).unwrap();
+	let args = ["--baseline".as_ref(), baseline.as_os_str()];
+	let link = exporter("lock", &linked, &targets, &args, &[])
+		.output()
+		.expect("running rust2-ffi");
+	assert!(
+		!link.status.success(),
+		"a hard-linked baseline the export would overwrite passed"
+	);
+	assert_eq!(
+		std::fs::read(&baseline).unwrap(),
+		before,
+		"the export overwrote its hard-linked baseline"
+	);
+	// Every path starts with the library's name, so a baseline of another library breaks.
+	let renamed = dir.join("renamed.json");
+	std::fs::write(
+		&renamed,
+		String::from_utf8(before.clone())
+			.unwrap()
+			.replace("\"lock\"", "\"other\""),
+	)
+	.unwrap();
+	let args = ["--baseline".as_ref(), renamed.as_os_str()];
+	let other = exporter("lock", &dir.join("renamed"), &targets, &args, &[])
+		.output()
+		.expect("running rust2-ffi");
+	assert!(!other.status.success(), "a baseline of another library passed");
+	let stderr = String::from_utf8_lossy(&other.stderr);
+	assert!(
+		stderr.contains("library `other`: it is now `lock`"),
+		"no library error:\n{stderr}"
+	);
+	let locked = |feature: &str| {
+		let args = ["--baseline".as_ref(), baseline.as_os_str()];
+		exporter("lock", &dir.join(feature), &targets, &args, &["--features", feature])
+			.output()
+			.expect("running rust2-ffi")
+	};
+	let added = locked("added");
+	assert!(
+		added.status.success(),
+		"an addition broke the baseline:\n{}",
+		String::from_utf8_lossy(&added.stderr)
+	);
+	let next = locked("next");
+	assert!(!next.status.success(), "breaking the baseline passed");
+	assert!(
+		!dir.join("next").join("api.json").exists(),
+		"a broken export wrote its API"
+	);
+	let errors = errors(&next).join("\n") + "\n";
+	let expected = manifest_dir().join("fixtures/lock/expected.txt");
 	if std::env::var_os("UPDATE_EXPECT").is_some() {
-		std::fs::write(
-			manifest_dir().join("fixtures/reject/expected.txt"),
-			errors.join("\n") + "\n",
-		)
-		.unwrap();
+		std::fs::write(&expected, errors).unwrap();
 		return;
 	}
-	assert_eq!(errors.join("\n") + "\n", expected);
+	assert_eq!(errors, std::fs::read_to_string(expected).unwrap());
 }
 
 /// The C library builds the facade's dependencies with what the facade enables in them,
