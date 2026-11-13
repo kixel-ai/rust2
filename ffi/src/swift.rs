@@ -610,6 +610,10 @@ impl<'a> Gen<'a> {
 		// Each named before any is written, since one tuple's fields may name another.
 		for c in tuples.keys() {
 			let name = self.claim(&self.class(c), &[], format!("the tuple `{c}`"));
+			self.locked.insert(
+				format!("tuple {}", abi.spell(&Type::Tuple(tuples[c].clone()))),
+				name.clone(),
+			);
 			self.classes.insert(c.clone(), name);
 		}
 		for (c, elements) in &tuples {
@@ -1764,8 +1768,7 @@ impl<'a> Gen<'a> {
 					None => {
 						let name = format!("{}Error", pascal(&key));
 						let name = self.claim(&name, &[], format!("the error type `{}`", self.sw(err)));
-						self.locked
-							.insert(format!("error {}", self.abi.spell(err)), name.clone());
+						self.locked.insert(crate::lock::error_key(self.abi, err), name.clone());
 						self.thrown.insert(name.clone(), err.clone());
 						name
 					}

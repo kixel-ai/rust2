@@ -64,21 +64,64 @@ pub fn function(names: &mut BTreeMap<String, String>, function: &Function, name:
 	names.insert(function_key(function), name.to_string());
 }
 
+/// The shared exception identity after references and borrowed strings lose ownership.
+pub fn error_key(abi: &Abi<'_>, ty: &Type) -> String {
+	fn owned(ty: &Type) -> Type {
+		match ty {
+			Type::Ref(_, inner) => owned(inner),
+			Type::Str => Type::String,
+			Type::Option(inner) => Type::Option(Box::new(owned(inner))),
+			Type::Box(inner) => Type::Box(Box::new(owned(inner))),
+			Type::List(c, inner) => Type::List(*c, Box::new(owned(inner))),
+			Type::Tuple(elements) => Type::Tuple(elements.iter().map(owned).collect()),
+			ty => ty.clone(),
+		}
+	}
+	format!("error {}", abi.spell(&owned(ty)))
+}
+
 /// Compare the names the generators actually emitted, retaining the current item's span.
 pub fn name_breaks(base: &Names, now: &Names, api: &Api, prefix: &str) -> Vec<Break> {
 	let index = Index::new(api, prefix);
 	let abi = Abi::new(api, prefix);
+	let mut locations: BTreeMap<String, (Span, String)> = index
+		.entries
+		.iter()
+		.map(|(key, entry)| (key.clone(), (entry.span, entry.what.clone())))
+		.collect();
+	for (spelled, (_, span)) in &index.tuples {
+		locations.insert(format!("tuple {spelled}"), (*span, format!("tuple `{spelled}`")));
+	}
+	for callback in &api.callbacks {
+		for method in &callback.methods {
+			locations.insert(
+				function_key(method),
+				(method.span, format!("fn `{}`", method.shown.join("::"))),
+			);
+		}
+	}
+	let functions = api
+		.functions
+		.iter()
+		.chain(api.records.iter().flat_map(|r| &r.methods))
+		.chain(api.enums.iter().flat_map(|e| &e.methods))
+		.chain(api.objects.iter().flat_map(|o| &o.methods));
+	for function in functions {
+		if let Some(err) = &function.err {
+			let key = error_key(&abi, err);
+			locations.entry(key.clone()).or_insert((
+				function.span,
+				format!("exception class for `{}`", key.strip_prefix("error ").unwrap()),
+			));
+		}
+	}
 	let mut breaks = Vec::new();
 	for (language, names) in base {
 		for (key, old) in names {
 			let owner = key.split_once(" / ").map_or(key.as_str(), |(owner, _)| owner);
-			let entry = index.entries.get(owner).or_else(|| {
-				let spelled = key.strip_prefix("error ")?;
-				index.entries.values().find(
-					|entry| matches!(entry.item, Item::Function(f) if f.err.as_ref().is_some_and(|ty| abi.spell(ty) == spelled)),
-				)
-			});
-			let Some(entry) = entry else { continue };
+			let Some((span, what)) = locations.get(owner) else {
+				continue;
+			};
 			let new = now.get(language).and_then(|names| names.get(key));
 			if new != Some(old) {
 				let change = match new {
@@ -86,10 +129,10 @@ pub fn name_breaks(base: &Names, now: &Names, api: &Api, prefix: &str) -> Vec<Br
 					None => "is no longer exported".to_string(),
 				};
 				breaks.push(Break {
-					span: entry.span,
+					span: *span,
 					what: format!(
 						"{}{}: its {language} name `{old}` {change}",
-						entry.what,
+						what,
 						key.strip_prefix(owner).unwrap_or("")
 					),
 				});
@@ -301,12 +344,7 @@ impl<'a> Index<'a> {
 				on: callback.on,
 				owner: None,
 			};
-			for method in &callback.methods {
-				entries.insert(
-					function_key(method),
-					Entry::function(method, String::new(), Some(type_key(&callback.path))),
-				);
-			}
+
 			entries.insert(type_key(&callback.path), entry);
 		}
 		for function in &api.functions {

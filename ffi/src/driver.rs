@@ -273,7 +273,7 @@ impl Export {
 	}
 
 	/// Whether `ours` keeps the baseline's API, if there is one, emitting each break of it.
-	fn locked(&self, tcx: TyCtxt<'_>, ours: &merge::Target, now_names: &crate::lock::Names) -> bool {
+	fn locked(&self, tcx: TyCtxt<'_>, ours: &merge::Target, now_names: Option<&crate::lock::Names>) -> bool {
 		let Some(path) = &self.baseline else {
 			return true;
 		};
@@ -298,13 +298,18 @@ impl Export {
 				.err("rust2-ffi: the baseline lacks binding names; export it again with this rust2-ffi");
 			return false;
 		};
-		if now_names.keys().any(|language| !names.contains_key(language)) {
+		if ["C++", "Kotlin", "Swift", "Go", "Dart", "Python"]
+			.iter()
+			.any(|language| !names.contains_key(*language))
+		{
 			tcx.dcx()
 				.err("rust2-ffi: the baseline lacks a binding's name table; export it again with this rust2-ffi");
 			return false;
 		}
-		let mut breaks = crate::lock::breaks(&base.api, &ours.api, &self.facade.lib);
-		breaks.extend(crate::lock::name_breaks(names, now_names, &ours.api, &self.facade.lib));
+		let breaks = match now_names {
+			None => crate::lock::breaks(&base.api, &ours.api, &self.facade.lib),
+			Some(now) => crate::lock::name_breaks(names, now, &ours.api, &self.facade.lib),
+		};
 		let help = format!(
 			"to accept the break, export without --baseline and replace {} with the export's {API_FILE}",
 			path.display()
@@ -339,7 +344,9 @@ impl Export {
 				format!("rust2-ffi: {why}; exclude it in the config to leave it out"),
 			);
 		}
-		if tcx.dcx().has_errors().is_some() {
+		let can_generate = tcx.dcx().has_errors().is_none();
+		let structure_kept = self.locked(tcx, &target, None);
+		if !can_generate {
 			return Ok(());
 		}
 		let glue = glue::Crate {
@@ -348,11 +355,11 @@ impl Export {
 			patch: &self.patch,
 		};
 		let generated = glue.generate(out)?;
-		if !self.locked(tcx, &target, &generated.names) {
+		let names_kept = self.locked(tcx, &target, Some(&generated.names));
+		if !structure_kept || !names_kept {
 			return Ok(());
 		}
-		target.names = Some(generated.names.clone());
-		generated.write()?;
+		target.names = Some(generated.write()?);
 
 		target.write(&out.join(API_FILE), tcx.sess.source_map(), &self.roots)
 	}

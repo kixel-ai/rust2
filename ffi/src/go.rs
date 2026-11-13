@@ -113,7 +113,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 	let classes = classes(abi, &types);
 	let thrown = thrown(abi, &classes);
 	for (name, (_, ty)) in &thrown {
-		locked.insert(format!("error {}", abi.spell(ty)), name.clone());
+		locked.insert(crate::lock::error_key(abi, ty), name.clone());
 	}
 	let variants = variants(abi, &types, &classes, &thrown);
 	crate::lock::variants(abi, &mut locked, &variants);

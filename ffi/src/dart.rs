@@ -89,7 +89,16 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	};
 	g.locked = crate::lock::types(abi, &g.classes);
 	g.variants = g.variants(&taken);
-	crate::lock::variants(abi, &mut g.locked, &g.variants);
+	for (i, e) in abi.api.enums.iter().enumerate() {
+		for v in &e.variants {
+			if let Some(name) = g.variants.get(&(g.class(&abi.enumeration(i)), v.name.clone())) {
+				g.locked.insert(
+					format!("{} / variant {}", crate::lock::type_key(&e.shown), v.name),
+					name.clone(),
+				);
+			}
+		}
+	}
 	let types: Vec<String> = (g.classes.keys())
 		.map(|c| g.class(c))
 		.chain(g.variants.values().cloned())
@@ -2220,7 +2229,11 @@ impl<'a> Gen<'a> {
 			}
 			member.push('_');
 		};
-		crate::lock::function(&mut self.locked, function, &member);
+		crate::lock::function(
+			&mut self.locked,
+			function,
+			member.trim_start_matches("static ").trim_start_matches("new ").trim(),
+		);
 
 		let code = format!("{}{head} {{\n{code_body}\n}}\n", docs(text.trim(), ""));
 		Some((code, member))
@@ -2293,8 +2306,7 @@ impl<'a> Gen<'a> {
 					None => {
 						let dt = self.dt(err);
 						let name = self.claim(&format!("{}Exception", pascal(&key)), format!("the error type `{dt}`"));
-						self.locked
-							.insert(format!("error {}", self.abi.spell(err)), name.clone());
+						self.locked.insert(crate::lock::error_key(self.abi, err), name.clone());
 						self.thrown.insert(name.clone(), err.clone());
 						name
 					}

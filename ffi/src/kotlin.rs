@@ -1692,7 +1692,7 @@ impl<'a> Gen<'a> {
 		}
 		let name = format!("{}Exception", kt.replace(['?', '<', '>', ',', ' ', '.'], ""));
 		let name = self.claim(&name, format!("the exception of `{kt}`"));
-		self.locked.insert(format!("error {}", self.abi.spell(e)), name.clone());
+		self.locked.insert(crate::lock::error_key(self.abi, e), name.clone());
 		self.exceptions.insert(name.clone(), e.clone());
 		self.thrown.insert(kt, name.clone());
 		name

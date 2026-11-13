@@ -221,3 +221,51 @@ pub fn smoothStep() -> u32 {
 pub fn smooth_step() -> u32 {
 	1
 }
+
+/// Adding a field changes a C++ method's name without changing its C symbol.
+#[repr(C)]
+pub struct Members {
+	pub other: u32,
+	#[cfg(feature = "members")]
+	pub value: u32,
+}
+
+impl Members {
+	pub fn value(&self) -> u32 {
+		self.other
+	}
+}
+
+#[cfg(feature = "added")]
+pub fn failing_borrowed() -> Result<u32, &'static str> {
+	Err("failure")
+}
+
+/// Error wrappers and variants occupy their own language namespaces.
+pub fn failing() -> Result<u32, String> {
+	Err("failure".to_string())
+}
+
+#[cfg(feature = "wrappers")]
+pub struct StringException {
+	pub value: u32,
+}
+#[cfg(feature = "wrappers")]
+pub struct StringError {
+	pub value: u32,
+}
+#[cfg(feature = "wrappers")]
+pub struct ShapeCircle {
+	pub value: u32,
+}
+#[cfg(feature = "wrappers")]
+pub struct ModeFast {
+	pub value: u32,
+}
+
+#[repr(C)]
+#[cfg_attr(feature = "wrappers", derive(Debug))]
+#[allow(non_snake_case)]
+pub struct FieldName {
+	pub GoString: u32,
+}

@@ -1355,8 +1355,7 @@ impl<'a> Gen<'a> {
 			None => {
 				let thrown = self.claim(&name, format!("the exception of `{py}`"));
 				self.thrown.insert(name, thrown.clone());
-				self.locked
-					.insert(format!("error {}", self.abi.spell(e)), thrown.clone());
+				self.locked.insert(crate::lock::error_key(self.abi, e), thrown.clone());
 				self.exceptions.insert(thrown.clone(), e.clone());
 				self.register(&format!("exc_{thrown}"), thrown.clone());
 				thrown

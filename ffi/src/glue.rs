@@ -128,7 +128,7 @@ impl Output {
 	}
 
 	/// Write a validated export, removing stale Go packages from an earlier export.
-	pub fn write(self) -> Result<(), String> {
+	pub fn write(self) -> Result<crate::lock::Names, String> {
 		if self.go_dir.exists() {
 			std::fs::remove_dir_all(&self.go_dir)
 				.map_err(|err| format!("removing {}: {err}", self.go_dir.display()))?;
@@ -136,7 +136,7 @@ impl Output {
 		for (path, text) in self.files {
 			crate::driver::write(&path, &text)?;
 		}
-		Ok(())
+		Ok(self.names)
 	}
 }
 

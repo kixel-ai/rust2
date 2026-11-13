@@ -1380,6 +1380,29 @@ fn lock() {
 	);
 	let baseline = dir.join("base").join("api.json");
 	let before = std::fs::read(&baseline).unwrap();
+	let json: serde_json::Value = serde_json::from_slice(&before).unwrap();
+	for language in ["C++", "Kotlin", "Swift", "Dart", "Python", "Go"] {
+		assert!(
+			json["names"][language]["const lock::DEPTH"].is_string(),
+			"{language} constant name missing"
+		);
+	}
+	for missing in ["all", "Dart"] {
+		let mut bad = json.clone();
+		if missing == "all" {
+			bad.as_object_mut().unwrap().remove("names");
+		} else {
+			bad["names"].as_object_mut().unwrap().remove(missing);
+		}
+		let path = dir.join(format!("missing-{missing}.json"));
+		std::fs::write(&path, serde_json::to_vec(&bad).unwrap()).unwrap();
+		let args = ["--baseline".as_ref(), path.as_os_str()];
+		let output = exporter("lock", &dir.join(format!("missing-{missing}")), &targets, &args, &[])
+			.output()
+			.unwrap();
+		assert!(!output.status.success());
+		assert!(String::from_utf8_lossy(&output.stderr).contains("baseline lacks"));
+	}
 	let args = ["--baseline".as_ref(), baseline.as_os_str()];
 	let itself = exporter("lock", &dir.join("base"), &targets, &args, &[])
 		.output()
@@ -1449,12 +1472,44 @@ fn lock() {
 			"missing class rename for {language}:\n{stderr}"
 		);
 	}
-	assert!(
-		stderr.contains("its Kotlin name `smoothStep` is now `smoothStep_`"),
-		"missing member rename:\n{stderr}"
-	);
+	for (language, old, new) in [
+		("Kotlin", "smoothStep", "smoothStep_"),
+		("Swift", "smoothStep", "smoothStep_"),
+		("Dart", "smoothStep", "smoothStep_"),
+		("Python", "smooth_step", "smooth_step_"),
+		("Go", "SmoothStep", "SmoothStep_"),
+	] {
+		assert!(
+			stderr.contains(&format!("its {language} name `{old}` is now `{new}`")),
+			"missing member rename for {language}:\n{stderr}"
+		);
+	}
+
 	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
 	assert!(!dir.join("names/api.json").exists());
+	let members = locked("members");
+	assert!(!members.status.success());
+	let stderr = String::from_utf8_lossy(&members.stderr);
+	assert!(
+		stderr.contains("its C++ name `value` is now `value_`"),
+		"C++ member rename missing:\n{stderr}"
+	);
+	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	let wrappers = locked("wrappers");
+	assert!(!wrappers.status.success());
+	let stderr = String::from_utf8_lossy(&wrappers.stderr);
+	for text in [
+		"its Kotlin name `StringException` is now `StringException_`",
+		"its Python name `StringException` is now `StringException_`",
+		"its Swift name `StringError` is now `StringError_`",
+		"its Dart name `StringException` is now `StringException_`",
+		"its Dart name `ShapeCircle` is now `ShapeCircle_`",
+		"its Go name `ModeFast` is now `ModeFast_`",
+		"its Go name `GoString` is now `GoString_`",
+	] {
+		assert!(stderr.contains(text), "missing {text}:\n{stderr}");
+	}
+	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
 	let next = locked("next");
 	assert!(!next.status.success(), "breaking the baseline passed");
 	assert!(

@@ -18,6 +18,8 @@ next = []
 added = []
 # Renames binding items while keeping every C name.
 names = []
+members = []
+wrappers = []
 
 [lints]
 workspace = true
