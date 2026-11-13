@@ -6,7 +6,7 @@
 thread that made it: a call, poll, or drop from another thread never runs Rust code on
 that value there. Three of moq's own are refused for it at moq `ffcb7cd9`: `clock::Entered`,
 `clock::Rng`, and `catalog::Guard`
-([#675](https://github.com/moq-dev/rust2/pull/675)). Proven per language by a fixture
+([#675](https://github.com/kixel-ai/rust2/pull/675)). Proven per language by a fixture
 type holding an `Rc`, called, awaited, and dropped from a second thread.
 
 ## Plan
@@ -36,7 +36,7 @@ an assert is fine "where a language has no concept of something being thread loc
   `@unchecked Sendable`, `ffi/src/swift.rs`). Confinement is not thread affinity, though:
   a Swift actor's jobs run on any thread of its pool, and a Dart isolate need not keep its
   OS thread, while Rust cannot tell an `Rc` from a guard pinned to its thread, as
-  [#675](https://github.com/moq-dev/rust2/pull/675) calls moq's three. So a `!Send` value needs the check or the owner thread below in
+  [#675](https://github.com/kixel-ai/rust2/pull/675) calls moq's three. So a `!Send` value needs the check or the owner thread below in
   Swift and Dart too, unless an executor pinned to the owner thread holds it; test a call
   after a suspension, and through Dart's relay.
 - Where a language has no stable thread, a Rust-owned thread holds the value and runs

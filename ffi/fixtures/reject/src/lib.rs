@@ -1021,3 +1021,8 @@ pub fn trust(trusted: Box<dyn Trusted>) -> u32 {
 pub fn hazard(hazard: Box<dyn Hazard>) -> u32 {
 	unsafe { hazard.risk() }
 }
+
+/// A `NonZero` of a 128-bit integer, which no integer of C's holds.
+pub fn wide_non_zero(n: std::num::NonZero<u128>) -> u128 {
+	n.get()
+}
