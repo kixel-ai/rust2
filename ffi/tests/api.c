@@ -1591,7 +1591,67 @@ static int script(void) {
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */
+/* A counter a closure was lent, which it fails to move out, then reads as it was. */
+static bool move_lent_status(void *data, api_Counter *counter) {
+	api_status *status = data;
+	api_Counter_into_label(counter, (api_option_Point){0}, status);
+	return *status == API_STATUS_LENT && api_Counter_get(counter, NULL) == 0;
+}
+
+/* Each check a call fails writes its status through a non-null one, and changes nothing. */
+static int statuses(void) {
+	int failed = 0;
+	api_status status = 0;
+	api_Channel *channel = api_Channel_new();
+	api_Channel_send(channel, str("x"), NULL);
+	api_Channel_recv_future *recv = api_Channel_recv(channel, NULL);
+	api_Channel_clear(channel, &status);
+	if (status != API_STATUS_BORROWED || strcmp(api_status_message(status), "a handle is already borrowed") != 0) {
+		fprintf(stderr, "a clear during a recv wrote %d\n", status);
+		failed = 1;
+	}
+	/* The recv still has what was sent, and once it ends the clear passes. */
+	api_waker waker = {0};
+	api_buf payload;
+	if (api_Channel_recv_poll(recv, waker, &payload) != API_POLL_READY || payload.len != 1) {
+		fprintf(stderr, "a failed clear changed the channel\n");
+		failed = 1;
+	}
+	api_buf_free(payload);
+	api_Channel_recv_future_free(recv);
+	status = 0;
+	api_Channel_clear(channel, &status);
+	if (status != 0) {
+		fprintf(stderr, "a clear after the recv wrote %d\n", status);
+		failed = 1;
+	}
+	api_Channel_free(channel);
+
+	status = 0;
+	api_Meters *meters = api_Meters_new();
+	api_Meter *first = api_Meters_first(meters, NULL);
+	api_Meters_clear(meters, NULL);
+	if (api_Meter_count(first, &status) != 0 || status != API_STATUS_OUTLIVED) {
+		fprintf(stderr, "a meter that outlived its meters wrote %d\n", status);
+		failed = 1;
+	}
+	api_Meter_free(first);
+	api_Meters_free(meters);
+
+	status = 0;
+	api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0), NULL);
+	if (!api_Registry_edit(registry, move_lent_status, &status, NULL)) {
+		fprintf(stderr, "a lent counter moved out wrote %d\n", status);
+		failed = 1;
+	}
+	api_Registry_free(registry);
+	return failed;
+}
+
 static int broken(const char *which) {
+	if (strcmp(which, "statuses") == 0) {
+		return statuses();
+	}
 	if (strcmp(which, "moved") == 0) {
 		api_Counter *c = api_Counter_new(str("c"), 0);
 		api_Label label = api_Counter_into_label(c, (api_option_Point){0}, NULL);

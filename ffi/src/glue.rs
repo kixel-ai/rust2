@@ -966,7 +966,10 @@ impl Gen<'_> {
 			// Each borrows its handles shared, which fails only as a call can.
 			let status = self.abi.traits_status(i).then_some("status");
 			self.checking.set(status.is_some());
-			let borrowing = |e: &str| self.checked(&format!("unsafe {{ rt::Object::<{path}>::{borrow}({e}, w) }}"));
+			let borrowing = |e: &str| match status {
+				Some(_) => self.checked(&format!("unsafe {{ rt::Object::<{path}>::{borrow}({e}, w) }}")),
+				None => format!("unsafe {{ rt::Object::<{path}>::peek({e}, w) }}"),
+			};
 			let copy = borrowing("this");
 			let borrowing: Vec<String> = ["this", "a", "b"].into_iter().map(borrowing).collect();
 			self.checking.set(false);
@@ -1533,6 +1536,13 @@ impl Gen<'_> {
 			true => "let mut",
 			false => "let",
 		};
+		// A type no export can misuse is borrowed shared for a call uncounted.
+		if !exclusive && !future && !self.abi.checked[i] {
+			return (
+				binding,
+				format!("unsafe {{ rt::Object::<{}>::peek({c}, w) }}", self.object_path(i)),
+			);
+		}
 		(
 			binding,
 			self.checked(&format!(

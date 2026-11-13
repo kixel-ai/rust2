@@ -146,8 +146,8 @@ pub const STATUSES: [(&str, &str); 6] = [
 /// value is not `Sync`, so a borrow on another thread fails; an export borrows it
 /// exclusively or moves it out, so a borrow beside another call's fails; or a handle to
 /// it is lent, by a call returning a borrow or to a closure or trait for a call, so a use
-/// past the lend fails. Every other object's handles are only ever borrowed shared, which
-/// never fails.
+/// past the lend fails, as may a trait's method returning it. Every other object's handles
+/// are only ever borrowed shared, which never fails, so a call borrows them uncounted.
 fn checked(api: &Api) -> Vec<bool> {
 	/// Mark each object a parameter of type `ty` borrows exclusively, moves, or lends,
 	/// `owned` when `ty` is passed by value rather than behind a shared reference.
@@ -164,6 +164,8 @@ fn checked(api: &Api) -> Vec<bool> {
 			Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => param(api, inner, owned, checked),
 			Type::Tuple(elements) => elements.iter().for_each(|ty| param(api, ty, owned, checked)),
 			Type::Closure(closure) => closure.params.iter().for_each(|ty| lent(api, ty, checked)),
+			// A record or data enum passed by value moves each object it holds.
+			Type::Record(_) | Type::Enum(_) if owned => lent(api, ty, checked),
 			_ => {}
 		}
 	}
@@ -190,8 +192,11 @@ fn checked(api: &Api) -> Vec<bool> {
 			lent(api, &f.ok, &mut checked);
 		}
 	}
+	// What an implementation is lent, and what it hands Rust, which moves it out.
 	for method in api.callbacks.iter().flat_map(|c| &c.methods) {
 		method.params.iter().for_each(|p| lent(api, &p.ty, &mut checked));
+		lent(api, &method.ok, &mut checked);
+		method.err.iter().for_each(|err| lent(api, err, &mut checked));
 	}
 	checked
 }

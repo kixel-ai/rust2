@@ -158,8 +158,9 @@ item that target compiles works exactly, and no other does:
 - A function, method, or constructor only some targets have is declared everywhere. On
   another target, the library defines it to fail, and the binding checks the library's
   target before calling it, raising the language's own error, as for a closed object:
-  `UnsupportedOperationException` in Kotlin, `NotImplementedError` in Python, a trap in
-  Swift, a panic in Go, and `UnsupportedError` in Dart. C and C++ abort with the message.
+  `UnsupportedOperationException` in Kotlin, `NotImplementedError` in Python, a
+  `CheckError` thrown in Swift, an error matching `errors.ErrUnsupported` returned in Go,
+  and `UnsupportedError` in Dart. C and C++ abort with the message.
 - So does a variant only some targets have, when a value holding it crosses into a target
   without it. A record's fields cross whole, so one whose fields differ between targets
   is refused, as below.
@@ -190,13 +191,19 @@ dropped for the other target's span where the file differs.
   does, checked at run time: shared for `&T`, exclusive for `&mut T`, and moved out for
   `T`, after which the handle is only freed. A `Copy` value is copied out instead, and a
   value that is not `Sync` is shared on one thread at a time, and held exclusively by a
-  future, which may be polled on any thread. A borrow Rust would
-  refuse at compile time aborts, naming the function, as does a null or moved-out handle:
-  there is no Rust caller to return an error to. A setter borrows as `&mut T` and takes
+  future, which may be polled on any thread. A borrow Rust would refuse at compile time,
+  or a moved-out handle, fails the call before any Rust code runs, so it changes nothing:
+  a function whose handles can fail a check takes a trailing `<prefix>_status *status`,
+  through which it writes the `<PREFIX>_STATUS_*` that failed, returning a zeroed value,
+  and `<prefix>_status_message` names it. A NULL `status` aborts with the message, naming
+  the function, as C++ passes; each other binding raises its language's own error, as
+  below. A null handle aborts. Only a type some export can misuse is checked: one that is
+  not `Sync`, or that an export borrows as `&mut`, moves out, or lends a closure; a call
+  borrowing none of those takes no `status`. A setter borrows as `&mut T` and takes
   its value as `T`, so it writes the value the handle holds, or the one Rust lent it,
   while a getter's copy is C's own: a nested field is got, set, and set back. A type
   whose C++ copies share one value has `_borrowed`, true while a call or future borrows
-  it, so moving it out would abort.
+  it, so moving it out would fail.
 - **In and out**: a `&mut` of a value is two parameters, the value passed in as one taken
   by value is, and a `<name>_out` pointer, through which Rust writes what the call left in
   it on every path, its errors included. C keeps what it passed, and frees what Rust wrote
@@ -204,9 +211,9 @@ dropped for the other target's span where the file differs.
   assigned what Rust wrote; Kotlin, Python, and Dart take a `Mut` holding the value, whose
   `value` Rust's write replaces, before any error raises.
 - **Lent handles** borrow from the handle a call lent them from: each use holds that one
-  shared and aborts, naming the function, once it was since borrowed exclusively, moved
-  out, or freed, which Rust's borrow checker would refuse. Borrowing a lent handle
-  exclusively aborts too, as Rust lent it shared.
+  shared and fails with `<PREFIX>_STATUS_OUTLIVED` once it was since borrowed exclusively,
+  moved out, or freed, which Rust's borrow checker would refuse. Borrowing a lent handle
+  exclusively, or moving it out, fails with `<PREFIX>_STATUS_LENT`, as Rust lent it.
 - **Interned strings**: a `&str` a function needs for `'static`, as `Path::from_static`
   does, is leaked once per distinct content and reused for every later equal one, so a
   caller passing ever-new strings grows the set without bound.
@@ -321,6 +328,8 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   run-time check, since Clang does not track a returned handle class.
   No export keeps a view or reference past its call, so none carries
   `[[clang::lifetime_capture_by]]`; the first that does adds it.
+- **Checks**: a call passes no `status`, so a borrow or move Rust's rules refuse aborts
+  with its message, naming the function, as C's does with a NULL one.
 - **Sharing** stands in for `clone` where no call can tell the two apart but by counting
   an `Arc`'s or `Rc`'s clones, which the exporter decides at compile time. A type's copies share when it is `Clone`; `Sync`,
   since one that is not is borrowed on one thread at a time, which copies on two threads
@@ -409,6 +418,9 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   A field is a `val`, `firstGet`, and its setter a function, `firstSet(value)`, named as
   the C ones, since setting an object moves it in and closes its handle, which an
   assignment would hide.
+- **Checks**: a borrow or move Rust's rules refuse, such as a `&mut` borrow of an object
+  another call borrows, or a move out of one a closure was lent, throws an
+  `IllegalStateException` naming the function and the rule, before any Rust code runs, so the call changed nothing.
 - **Records** are data classes, compared by their fields, and **enums** an `enum class`,
   or for one with data a sealed class of a data class per variant. `Display` is
   `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`.
@@ -498,6 +510,9 @@ caller imports it with no ignores.
   after which a call raises `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable. A field is a
   property, `first_get`, and its setter a method, `first_set(value)`, named as the C ones,
   since setting an object moves it in and closes it, which an assignment would hide.
+- **Checks**: a borrow or move Rust's rules refuse raises, naming the function and the rule,
+  before any Rust code runs, so the call changed nothing: `ValueError` for a value moved out, or a lent object that outlived the one it
+  borrows from, as for a closed object, and `RuntimeError` for any other.
 - **Records** are slotted dataclasses, compared by their fields, and **enums** an `Enum`
   of upper-case members, or for one with data a class of a dataclass per variant,
   `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
@@ -587,10 +602,17 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   `Equatable`; `Display` is `description` and `Debug` `debugDescription`, which Swift
   conforms no noncopyable type to yet. An object that is `Copy`, or thrown as an error,
   which `Swift.Error` requires be copyable, is a final class instead, whose handle a call
-  holds until it returns, and moving its value out closes it, after which a call traps. A
+  holds until it returns, and moving its value out closes it, after which a call throws. A
   field is a computed property, `firstGet`, and its setter a function, `firstSet(value)`,
   named as the C ones, since setting an object moves it in, which an assignment would hide.
   An object is `Sendable`, since Rust checks each borrow at run time.
+- **Checks**: a borrow or move Rust's rules refuse at run time, such as a borrow of a value
+  that is not `Sync` on a second thread, throws a `CheckError`, holding the function and
+  the rule, before any Rust code runs, so the call changed nothing. So every function whose objects can fail a check `throws`, and a
+  field read stays a property whose getter throws, except one of a noncopyable value,
+  whose getter Swift cannot let throw, which is a method, `firstGet()`. `description`,
+  `debugDescription`, `==`, `clone()`, and a copy a closure returns, which cannot throw,
+  trap instead.
 - **Records** are structs and **enums** Swift enums, with a variant's data as associated
   values, all `Sendable`. `PartialEq` is `==`, through Rust's; `Display` is `description`,
   `Debug` `debugDescription`, and `Default` a static `default()`.
@@ -688,6 +710,12 @@ reads a go.mod.
   and `GoString()`, which return none, return its text. A `self` method, or passing the object by value, closes
   it once the call returns. `Clone` is `Clone()`, and a `pub` field a getter, `FirstGet()`,
   and a setter, `FirstSet(v)`.
+- **Checks**: a borrow or move Rust's rules refuse returns an error naming the function
+  and the rule, before any Rust code runs, so the call changed nothing: one matching `rt.ErrClosed` for a value moved out, or a lent
+  object that outlived the one it borrows from, and `rt.ErrBorrowed` for any other. So
+  every function whose objects can fail a check returns an `error`. `String()`,
+  `GoString()`, and what a closure returns have none to return, so they abort with the
+  message.
 - **Records** are structs, and **plain enums** an `int32` type with a constant per
   variant (`ShapeSquare`). An enum with data is an interface each variant's struct
   implements (`EventMoved{V0: p}`), sealed so only the package's do; its methods are the
@@ -789,6 +817,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   send an object to another, so no `close()` races a call. A `self` method, or passing the
   object by value, closes it once the call returns. `Clone` is `clone()`, and a `pub`
   field a getter and a setter.
+- **Checks**: a borrow or move Rust's rules refuse throws a `StateError` naming the
+  function and the rule, before any Rust code runs, so the call changed nothing.
 - **Records** are final classes with a named, required parameter per field, and
   positional fields are `$0`, `$1`, and so on. **Plain enums** are Dart enums, and an enum
   with data a sealed class with a final class per variant (`EventMoved`), so a `switch`

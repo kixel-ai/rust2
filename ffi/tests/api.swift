@@ -283,7 +283,7 @@ func script() {
 	let by: UInt64 = 5
 	let edited = try! registry.edit { counter in
 		_ = try! counter.add(by)
-		return try! counter.edited() && try! counter.get() == 6
+		return try! counter.edited() && counter.get() == 6
 	}
 	print("edit \(edited) \(try! registry.firstGet().get())")
 	// A setter moves an object in, as assignment does, closing its handle.
@@ -608,8 +608,8 @@ func script() {
 		// Each optional borrowed parameter is an overload with and without its label.
 		let one = Counter.new("one", 1)
 		check(
-			try! two.clamped() == 2 && try! two.clamped(low: three!) == 3 && try! two.clamped(high: one) == 1
-				&& try! two.clamped(low: one, high: three!) == 2,
+			try! two.clamped() == 2 && two.clamped(low: three!) == 3 && two.clamped(high: one) == 1
+				&& two.clamped(low: one, high: three!) == 2,
 			"clamped overloads each optional borrow"
 		)
 		print("add_to \(try! two.addTo(&three)) \(try! two.addTo(&none)) \(try! three!.get())")
@@ -688,7 +688,7 @@ func script() {
 		check(false, "parse throws its message")
 	}
 	let site = try! Site.new(base)
-	print("site \(site.homeGet.description) \(site.homeGet.description)")
+	print("site \(try! site.homeGet().description) \(try! site.homeGet().description)")
 
 	// Slices, passed in and returned as clones, and the socket address of each family.
 	print("shapes \(Shape.ALL) greetings \(GREETINGS)")
@@ -714,7 +714,7 @@ func script() {
 	let millis = { (d: Swift.Duration) in d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000 }
 	let began = now()
 	let ended = try! later(began, .milliseconds(1500))
-	print("instants \(millis(try! since(ended, began))) \(millis(try! since(began, ended))) \(began == try! later(began, .zero)) \(began == ended)")
+	print("instants \(millis(try! since(ended, began))) \(millis(try! since(began, ended))) \(try! began == later(began, .zero)) \(began == ended)")
 	// tracing's level, and its filter as an optional level whose nil is `OFF`.
 	var verbosity = Verbosity.new(.warn)
 	print("verbosity \(spell(try! verbosity.filter())) \(spell(louder(try! verbosity.filter())))")

@@ -176,6 +176,8 @@ fn api_c() {
 		api.transcript,
 		"the C transcript differs from the native one"
 	);
+	// A non-null status takes each failed check, which changed nothing.
+	run(Command::new(&exe).arg("statuses"));
 
 	// Each broken contract aborts, naming the function and what broke.
 	for (case, message) in [
@@ -585,13 +587,13 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		("lent kept", "Counter is closed"),
 		(
 			"lent moved",
-			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+			"IllegalStateException: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("callback threw", "api::Log::log: a call into Kotlin threw"),
 		("closure threw", "api_made: a call into Kotlin threw"),
 		("closure failed", "api_drive: a call into Kotlin threw"),
 		("reader threw", "SeekableByteChannel.read: a call into Kotlin threw"),
-		("outlived", OUTLIVED),
+		("outlived", "IllegalStateException: api_Meter_count: a handle lent from another outlived it"),
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 	] {
@@ -642,11 +644,11 @@ fn api_python() {
 		("lent held", "Counter: a call still holds it when its lend ends"),
 		(
 			"lent moved",
-			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+			"RuntimeError: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("callback threw", "api::Log::log: a call into Python raised"),
 		("foreign cancelled", "a future Rust polls raised"),
-		("outlived", OUTLIVED),
+		("outlived", "ValueError: api_Meter_count: a handle lent from another outlived it"),
 		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
 		("kept threw", "api_Spawned_new: a call into Python raised"),
 		("returned", "api_made: a call into Python raised"),
@@ -862,7 +864,7 @@ fn api_dart() {
 		("lent kept", "Bad state: Counter is closed"),
 		(
 			"lent moved",
-			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+			"Bad state: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("callback threw", "api::Log::log: a call into Dart threw"),
 		(
@@ -873,7 +875,7 @@ fn api_dart() {
 			"reader threw",
 			"a reader's seek: a call into Dart threw Bad state: a seek failed",
 		),
-		("outlived", OUTLIVED),
+		("outlived", "Bad state: api_Meter_count: a handle lent from another outlived it"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),

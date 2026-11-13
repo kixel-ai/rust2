@@ -826,6 +826,20 @@ impl<T> Object<T> {
 		Ok(Shared { object })
 	}
 
+	/// Borrow the value shared for a call, uncounted: no export borrows a value of its type
+	/// exclusively, moves it out, or lends it, and it is `Sync`, so no borrow can conflict
+	/// with this one, which costs no atomic operation.
+	///
+	/// # Safety
+	/// As [`Self::borrow`], for such a type alone.
+	pub unsafe fn peek<'a>(handle: *const c_void, what: &str) -> Peek<'a, T>
+	where
+		T: Sync,
+	{
+		// SAFETY: the caller's contract.
+		Peek(unsafe { &*Self::get(handle, what).value() })
+	}
+
 	/// Borrow a value that is not `Sync` shared for a call: any number of times on one
 	/// thread, as Rust allows, and on no other thread meanwhile.
 	///
@@ -1072,6 +1086,16 @@ impl<T> Deref for Shared<'_, T> {
 impl<T> Drop for Shared<'_, T> {
 	fn drop(&mut self) {
 		self.object.release();
+	}
+}
+
+/// [`Object::peek`]'s borrow, which ends with nothing to release.
+pub struct Peek<'a, T>(&'a T);
+
+impl<T> Deref for Peek<'_, T> {
+	type Target = T;
+	fn deref(&self) -> &T {
+		self.0
 	}
 }
 
