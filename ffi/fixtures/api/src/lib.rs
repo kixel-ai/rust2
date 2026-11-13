@@ -2752,3 +2752,8 @@ pub fn next_hop(hop: Option<NonZero<u64>>) -> Option<NonZero<u64>> {
 pub fn farther_hop(hops: Pair<NonZero<u16>>) -> Box<NonZero<u16>> {
 	Box::new(hops.left.max(hops.right))
 }
+
+/// Three optional borrowed counters, past what Swift takes, so the config leaves it out.
+pub fn among(first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
+	[first, second, third].into_iter().flatten().map(|c| c.value).sum()
+}

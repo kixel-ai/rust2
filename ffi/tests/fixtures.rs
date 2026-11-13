@@ -1322,6 +1322,10 @@ fn relative_target() {
 		!errors.iter().any(|error| error.contains("exclude `Retry::jitter`")),
 		"the census fails on `Retry::jitter`:\n{stderr}"
 	);
+	assert!(
+		!errors.iter().any(|error| error.contains("exclude `among`")),
+		"the census fails on `among`, which Swift refuses:\n{stderr}"
+	);
 	let text = std::fs::read_to_string(census.join("api-fixture.md")).unwrap();
 	for line in [
 		"- `Lease`: object no export returns",

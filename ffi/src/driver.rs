@@ -155,7 +155,9 @@ impl Callbacks for Export {
 		let report = &collected.report;
 		if let Output::Census(dir) = &self.output {
 			let abi = Abi::new(&collected.api, &self.facade.lib);
-			let exporting = exporting(&collected.api, &report.audited);
+			// What Swift refuses needs its exclude, as the export says, so it is not exporting.
+			let swift: FxHashSet<_> = crate::swift::refusals(&abi).into_iter().map(|(span, _)| span).collect();
+			let exporting = exporting(&collected.api, &report.audited, &swift);
 			let text = census::render(&collected.api, report, &exporting, &abi.clashes, &|span| at(tcx, span));
 			// A census reports what a crate uses, but a missed instance is the exporter's bug.
 			for refusal in &report.refusals {
@@ -210,15 +212,19 @@ impl Callbacks for Export {
 
 /// Each exclude whose item would export without it, and that item's paths: what an
 /// exclude checked, from [`collect::Report::audited`], that the census's API holds by the
-/// same path.
-fn exporting(api: &Api, audited: &[(String, Vec<String>)]) -> Vec<(String, Vec<String>)> {
+/// same path, except a function at one of the `refused` spans.
+fn exporting(
+	api: &Api,
+	audited: &[(String, Vec<String>)],
+	refused: &FxHashSet<Span>,
+) -> Vec<(String, Vec<String>)> {
 	// Every path an exported item is checked by, from the facade's root, as the walk checks it.
 	let mut paths = FxHashSet::default();
 	let mut add = |path: &[String]| {
 		paths.insert(path[1..].join("::"));
 	};
 	let methods = |methods: &[ir::Function], add: &mut dyn FnMut(&[String])| {
-		for f in methods {
+		for f in methods.iter().filter(|f| !refused.contains(&f.span)) {
 			match f.access {
 				// A field is checked by `field@` and, unless a method or constant takes its
 				// name, by its path, which then names that method or constant instead.
