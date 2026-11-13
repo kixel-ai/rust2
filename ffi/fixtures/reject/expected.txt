@@ -1,3 +1,12 @@
+fixtures/reject/src/lib.rs:1000:2: rust2-ffi: cannot export method `Raw::peek`: unsafe fn; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1006:1: rust2-ffi: cannot export trait `Trusted`: unsafe trait; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1011:1: rust2-ffi: cannot export trait `Hazard`: unsafe fn `risk`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1016:1: rust2-ffi: cannot export fn `trust`: trait object `dyn Trusted`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:1006:1: note: C cannot implement `Trusted`: unsafe trait
+fixtures/reject/src/lib.rs:1021:1: rust2-ffi: cannot export fn `hazard`: trait object `dyn Hazard`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:1011:1: note: C cannot implement `Hazard`: unsafe fn `risk`
+fixtures/reject/src/lib.rs:1026:1: rust2-ffi: cannot export fn `wide_non_zero`: NonZero `u128`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1031:1: rust2-ffi: cannot export fn `boxed_bytes`: boxed slice of bytes `std::boxed::Box<[u8]>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:106:2: rust2-ffi: cannot export method `Text::later`: returned object that borrows `impl std::future::Future<Output = Text<'_>>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:112:1: rust2-ffi: cannot export fn `forever`: 'static borrow `&'static [u8]`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:118:1: rust2-ffi: cannot export fn `boxed`: reference inside a parameter `std::boxed::Box<&str>`; exclude it in the config to leave it out
@@ -105,17 +114,19 @@ fixtures/reject/src/lib.rs:861:2: rust2-ffi: cannot export method `Keeper::check
 fixtures/reject/src/lib.rs:872:9: rust2-ffi: cannot export use `dep`: re-export of a whole crate `dep`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:875:9: rust2-ffi: cannot export use `renamed`: re-export of a whole crate `dep`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:886:2: rust2-ffi: cannot export method `Tally::poll_bump`: `&mut self` of a value; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:906:1: rust2-ffi: cannot export fn `poll_risky`: Poll with no Context or waiter parameter `std::task::Poll<()>`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:922:1: rust2-ffi: cannot export fn `poll_loose`: Poll with no Context or waiter parameter `std::task::Poll<()>`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:929:1: rust2-ffi: cannot export fn `among`: 3 optional borrowed objects, past the 2 Swift takes, which overloads each with and without it since its optional holds an object only by consuming it; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:935:1: rust2-ffi: cannot export fn `wrapped`: error holding an object Swift cannot copy, as `Swift.Error` requires; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:940:1: rust2-ffi: cannot export fn `sum_pair`: array of an element other than u8 `[u16; 2]`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:945:1: rust2-ffi: cannot export fn `empty`: empty array `[u8; 0]`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:951:1: rust2-ffi: cannot export enum `Wide`: discriminant outside `i32` `Large = 1099511627776`; exclude it in the config to leave it out
-	fixtures/reject/src/lib.rs:953:2: note: has this discriminant
-fixtures/reject/src/lib.rs:958:1: rust2-ffi: cannot export enum `Huge`: discriminant outside `i32` `Large = 18446744073709551616`; exclude it in the config to leave it out
-	fixtures/reject/src/lib.rs:960:2: note: has this discriminant
-fixtures/reject/src/lib.rs:965:1: rust2-ffi: cannot export enum `Top`: discriminant outside `i32` `Large = 340282366920938463463374607431768211455`; exclude it in the config to leave it out
-	fixtures/reject/src/lib.rs:967:2: note: has this discriminant
-fixtures/reject/src/lib.rs:971:1: rust2-ffi: cannot export fn `wide_non_zero`: NonZero `u128`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:976:1: rust2-ffi: cannot export fn `boxed_bytes`: boxed slice of bytes `std::boxed::Box<[u8]>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:904:2: rust2-ffi: cannot export method `Risky::new`: unsafe fn; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:910:1: rust2-ffi: cannot export fn `poll_risky`: Poll with no Context or waiter parameter `std::task::Poll<()>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:926:1: rust2-ffi: cannot export fn `poll_loose`: Poll with no Context or waiter parameter `std::task::Poll<()>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:933:1: rust2-ffi: cannot export fn `among`: 3 optional borrowed objects, past the 2 Swift takes, which overloads each with and without it since its optional holds an object only by consuming it; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:939:1: rust2-ffi: cannot export fn `wrapped`: error holding an object Swift cannot copy, as `Swift.Error` requires; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:944:1: rust2-ffi: cannot export fn `sum_pair`: array of an element other than u8 `[u16; 2]`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:949:1: rust2-ffi: cannot export fn `empty`: empty array `[u8; 0]`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:955:1: rust2-ffi: cannot export enum `Wide`: discriminant outside `i32` `Large = 1099511627776`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:957:2: note: has this discriminant
+fixtures/reject/src/lib.rs:962:1: rust2-ffi: cannot export enum `Huge`: discriminant outside `i32` `Large = 18446744073709551616`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:964:2: note: has this discriminant
+fixtures/reject/src/lib.rs:969:1: rust2-ffi: cannot export enum `Top`: discriminant outside `i32` `Large = 340282366920938463463374607431768211455`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:971:2: note: has this discriminant
+fixtures/reject/src/lib.rs:975:1: rust2-ffi: cannot export fn `raw`: unsafe fn; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:980:1: rust2-ffi: cannot export fn `sum`: C-variadic function; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:986:1: rust2-ffi: cannot export fn `custom`: uncallable ABI `"custom"`; exclude it in the config to leave it out
