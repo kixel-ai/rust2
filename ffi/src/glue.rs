@@ -461,17 +461,20 @@ impl Gen<'_> {
 		}
 	}
 
-	/// The Rust value of type `ty` that the C value `e` holds, copied out of it.
-	fn lift(&self, ty: &Type, e: &str) -> String {
+	/// The Rust value of type `ty` that the C value `e` holds. `take` is the Rust `bool`
+	/// whether `e` was handed over, as a value passed by value is, so a buffer in it with an
+	/// owner is taken without a copy; else what it holds is copied out, and it stays the
+	/// caller's.
+	fn lift(&self, ty: &Type, e: &str, take: &str) -> String {
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => e.to_string(),
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("rt::char({e}, w)"),
-			Type::Str | Type::String => format!("unsafe {{ {e}.str(w) }}.to_owned()"),
-			Type::Slice | Type::Vec => format!("unsafe {{ {e}.bytes(w) }}.to_vec()"),
-			Type::Bytes => format!("::bytes::Bytes::copy_from_slice(unsafe {{ {e}.bytes(w) }})"),
-			Type::Path | Type::PathBuf => format!("unsafe {{ {e}.path(w) }}.to_path_buf()"),
+			Type::Str | Type::String => format!("unsafe {{ {e}.string_in(w, {take}) }}"),
+			Type::Slice | Type::Vec => format!("unsafe {{ {e}.vec_in(w, {take}) }}"),
+			Type::Bytes => format!("unsafe {{ {e}.bytes_in(w, {take}) }}"),
+			Type::Path | Type::PathBuf => format!("unsafe {{ {e}.path_in(w, {take}) }}"),
 			Type::U128 => format!("{e}.lift()"),
 			Type::Array(_) => format!("{e}.items"),
 			Type::Duration | Type::SocketAddr(Family::Any) => format!("{e}.lift(w)"),
@@ -481,7 +484,8 @@ impl Gen<'_> {
 			Type::Future | Type::Reader => format!("{e}.lift(w)"),
 			Type::List(c, inner) => format!(
 				"unsafe {{ {e}.items(w) }}.iter().map(|c| {}).collect::<{}<{}>>()",
-				self.lift(inner, "(*c)"),
+				// An array's items are behind its pointer, so only read.
+				self.lift(inner, "(*c)", "false"),
 				collection(*c),
 				match c {
 					Collection::BTreeMap | Collection::JsonMap => "_, _",
@@ -491,24 +495,27 @@ impl Gen<'_> {
 			// A foreign enum's option converts into its filter, as `tracing::LevelFilter`.
 			Type::Option(inner) if self.filtered(inner) => format!(
 				"::std::convert::From::from(if {e}.some {{ Some({}) }} else {{ None }})",
-				self.lift(inner, &format!("{e}.value"))
+				self.lift(inner, &format!("{e}.value"), take)
 			),
 			Type::Option(inner) => match inner.base() {
-				Type::Object(_) => format!("if {e}.is_null() {{ None }} else {{ Some({}) }}", self.lift(inner, e)),
+				Type::Object(_) => format!(
+					"if {e}.is_null() {{ None }} else {{ Some({}) }}",
+					self.lift(inner, e, take)
+				),
 				base if Abi::nullable(base) => {
-					format!("if {e}.is_none() {{ None }} else {{ Some({}) }}", self.lift(inner, e))
+					format!("if {e}.is_none() {{ None }} else {{ Some({}) }}", self.lift(inner, e, take))
 				}
 				_ => format!(
 					"if {e}.some {{ Some({}) }} else {{ None }}",
-					self.lift(inner, &format!("{e}.value"))
+					self.lift(inner, &format!("{e}.value"), take)
 				),
 			},
-			Type::Box(inner) => format!("::std::boxed::Box::new({})", self.lift(inner, e)),
-			Type::Ref(_, inner) => self.lift(inner, e),
-			Type::Record(i) => format!("lift_{}(&{e}, w)", self.abi.record(*i)),
+			Type::Box(inner) => format!("::std::boxed::Box::new({})", self.lift(inner, e, take)),
+			Type::Ref(_, inner) => self.lift(inner, e, take),
+			Type::Record(i) => format!("lift_{}(&{e}, w, {take})", self.abi.record(*i)),
 			Type::Enum(i) => match self.abi.api.enums[*i].plain() {
 				true => format!("lift_{}({e}, w)", self.abi.enumeration(*i)),
-				false => format!("lift_{}(&{e}, w)", self.abi.enumeration(*i)),
+				false => format!("lift_{}(&{e}, w, {take})", self.abi.enumeration(*i)),
 			},
 			Type::Object(i) if self.abi.api.objects[*i].opaque => {
 				format!("unsafe {{ rt::Object::<rt::Opaque>::take({e}, w) }}.arc(w)")
@@ -528,7 +535,7 @@ impl Gen<'_> {
 			Type::Tuple(elements) => {
 				// The trailing comma makes `(x,)` a tuple, not parentheses.
 				let lifted: Vec<String> = (elements.iter().enumerate())
-					.map(|(n, ty)| format!("{},", self.lift(ty, &format!("{e}._{n}"))))
+					.map(|(n, ty)| format!("{},", self.lift(ty, &format!("{e}._{n}"), take)))
 					.collect();
 				format!("({})", lifted.concat())
 			}
@@ -623,7 +630,7 @@ impl Gen<'_> {
 				"{{ let r = {e}; if r.is_null() {{ None }} else {{ Some({}) }} }}",
 				self.returned(inner, "r")
 			),
-			ty => self.lift(ty, e),
+			ty => self.lift(ty, e, "true"),
 		}
 	}
 
@@ -795,6 +802,9 @@ impl Gen<'_> {
 			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_buf_copy(view: rt::Buf) -> rt::Buf {{\n\trt::Buf::vec(unsafe {{ view.bytes(\"{p}_buf_copy\") }}.to_vec())\n}}\n"
 		));
 		self.line(format!(
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_buf_clone(buf: rt::Buf) -> rt::Buf {{\n\tunsafe {{ buf.share(\"{p}_buf_clone\") }}\n}}\n"
+		));
+		self.line(format!(
 			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_contract() -> u64 {{\n\t0x{:016x}\n}}\n",
 			self.contract
 		));
@@ -927,9 +937,10 @@ impl Gen<'_> {
 	/// The functions every value type has: its std traits, read through a pointer, and
 	/// `free`.
 	fn value_traits(&mut self, name: &str, path: &str, ty: &Type, traits: Traits) {
-		let lift = self.lift(ty, "unsafe { *this }");
-		let lift_a = self.lift(ty, "unsafe { *a }");
-		let lift_b = self.lift(ty, "unsafe { *b }");
+		// Each is read through a pointer, so the caller keeps it.
+		let lift = self.lift(ty, "unsafe { *this }", "false");
+		let lift_a = self.lift(ty, "unsafe { *a }", "false");
+		let lift_b = self.lift(ty, "unsafe { *b }", "false");
 		let c = rs(&self.abi.ty(ty));
 		if traits.eq {
 			self.export(format!(
@@ -977,7 +988,7 @@ impl Gen<'_> {
 			.fields
 			.iter()
 			.enumerate()
-			.map(|(n, f)| self.lift(&f.ty, &format!("c.f{n}")))
+			.map(|(n, f)| self.lift(&f.ty, &format!("c.f{n}"), "take"))
 			.collect();
 		let build = match record.tuple {
 			true => format!("{path}({})", lifted.join(", ")),
@@ -992,7 +1003,7 @@ impl Gen<'_> {
 			}
 		};
 		self.item(format!(
-			"fn lift_{name}(c: &{name}, w: &str) -> {path} {{\n\tlet _ = w;\n\t{build}\n}}\n"
+			"fn lift_{name}(c: &{name}, w: &str, take: bool) -> {path} {{\n\tlet _ = (w, take);\n\t{build}\n}}\n"
 		));
 		let bindings: Vec<String> = (0..record.fields.len()).map(|n| format!("f{n}")).collect();
 		let pattern = match record.tuple {
@@ -1134,7 +1145,7 @@ impl Gen<'_> {
 					.fields
 					.iter()
 					.enumerate()
-					.map(|(k, f)| self.lift(&f.ty, &format!("p.f{k}")))
+					.map(|(k, f)| self.lift(&f.ty, &format!("p.f{k}"), "take"))
 					.collect();
 				let build = match variant.tuple {
 					true => format!("{path}::{}({})", variant.name, lifted.join(", ")),
@@ -1178,7 +1189,7 @@ impl Gen<'_> {
 				}
 			}
 			self.item(format!(
-				"fn lift_{name}(c: &{name}, w: &str) -> {path} {{\n\tmatch c.tag {{{lift}\n\t\t_ => rt::fail(w, \"an enum tag is invalid\"),\n\t}}\n}}\n"
+				"fn lift_{name}(c: &{name}, w: &str, take: bool) -> {path} {{\n\tlet _ = take;\n\tmatch c.tag {{{lift}\n\t\t_ => rt::fail(w, \"an enum tag is invalid\"),\n\t}}\n}}\n"
 			));
 			self.item(format!(
 				"fn lower_{name}(v: {path}) -> {name} {{\n\tmatch v {{{lower}{wildcard}\n\t}}\n}}\n"
@@ -1241,7 +1252,7 @@ impl Gen<'_> {
 				params.iter().map(|p| format!(", {p}")).collect::<String>(),
 				self.rust(&method.ok),
 				args.join(", "),
-				self.lift(&method.ok, "result"),
+				self.lift(&method.ok, "result", "true"),
 			);
 		}
 		self.line(format!("#[repr(C)]\npub struct {name}_vtable {{\n{table}}}\n"));
@@ -1305,21 +1316,22 @@ impl Gen<'_> {
 					};
 					(format!("{binding} {local} = {borrow};"), pass)
 				}
+				// Borrowed for the call: held, freeing a buffer it took once the call returns.
 				(Type::Str, Mutability::Not, false) => {
-					(format!("let {local} = unsafe {{ {c}.str(w) }};"), local.to_string())
+					(format!("let {local} = unsafe {{ {c}.hold(w) }};"), format!("{local}.str(w)"))
 				}
 				(Type::Slice, Mutability::Not, false) => {
-					(format!("let {local} = unsafe {{ {c}.bytes(w) }};"), local.to_string())
+					(format!("let {local} = unsafe {{ {c}.hold(w) }};"), format!("{local}.bytes()"))
 				}
 				(Type::Path, Mutability::Not, false) => {
-					(format!("let {local} = unsafe {{ {c}.path(w) }};"), local.to_string())
+					(format!("let {local} = unsafe {{ {c}.hold(w) }};"), format!("{local}.path(w)"))
 				}
 				(inner, m, _) => {
 					let (binding, pass) = match m {
 						Mutability::Mut => ("let mut", format!("&mut {local}")),
 						Mutability::Not => ("let", format!("&{local}")),
 					};
-					(format!("{binding} {local} = {};", self.lift(inner, c)), pass)
+					(format!("{binding} {local} = {};", self.lift(inner, c, "true")), pass)
 				}
 			},
 			// `Some` of a borrow, lent as the borrow alone is: a null handle or buffer is `None`.
@@ -1338,28 +1350,28 @@ impl Gen<'_> {
 				}
 				(Type::Str | Type::Slice | Type::Path, false) => {
 					let view = match &**inner {
-						Type::Str => "str",
-						Type::Slice => "bytes",
-						_ => "path",
+						Type::Str => "v.str(w)",
+						Type::Slice => "v.bytes()",
+						_ => "v.path(w)",
 					};
 					(
 						format!(
-							"let {local} = if {c}.is_none() {{ None }} else {{ Some(unsafe {{ {c}.{view}(w) }}) }};"
+							"let {local} = if {c}.is_none() {{ None }} else {{ Some(unsafe {{ {c}.hold(w) }}) }};"
 						),
-						local.to_string(),
+						format!("{local}.as_ref().map(|v| {view})"),
 					)
 				}
 				// A future owns its arguments, so it lends a buffer's owned form.
 				(Type::Str | Type::Slice | Type::Path, true) => (
-					format!("let {local} = {};", self.lift(ty, c)),
+					format!("let {local} = {};", self.lift(ty, c, "true")),
 					format!("{local}.as_deref()"),
 				),
 				_ => (
-					format!("let {local} = {};", self.lift(ty, c)),
+					format!("let {local} = {};", self.lift(ty, c, "true")),
 					format!("{local}.as_ref()"),
 				),
 			},
-			_ => (format!("let {local} = {};", self.lift(ty, c)), local.to_string()),
+			_ => (format!("let {local} = {};", self.lift(ty, c, "true")), local.to_string()),
 		}
 	}
 
@@ -1474,7 +1486,8 @@ impl Gen<'_> {
 					args.push(arg);
 				}
 				value => {
-					stmts.push(format!("let a_self = {};", self.lift(value, "unsafe { *this }")));
+					// Read through a pointer, so the caller keeps it.
+					stmts.push(format!("let a_self = {};", self.lift(value, "unsafe { *this }", "false")));
 					args.push(match receiver {
 						Receiver::Owned => "a_self".to_string(),
 						_ => "&a_self".to_string(),
@@ -1519,7 +1532,7 @@ impl Gen<'_> {
 					)
 				}
 				_ if param.interned => (
-					format!("let a{n} = rt::intern(unsafe {{ p{n}.str(w) }});"),
+					format!("let a{n} = rt::intern(unsafe {{ p{n}.hold(w) }}.str(w));"),
 					format!("a{n}"),
 				),
 				// A future made of a `Poll` owns a future C implements, and lends it pinned to

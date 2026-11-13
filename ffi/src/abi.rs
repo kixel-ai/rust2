@@ -899,6 +899,7 @@ impl<'a> Abi<'a> {
 			"foreign_future",
 			"foreign_reader",
 			"buf_copy",
+			"buf_clone",
 			"poll",
 			"view",
 			"borrow",
