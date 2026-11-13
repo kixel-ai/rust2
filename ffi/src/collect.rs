@@ -535,7 +535,7 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// Whether the config excludes `path`, counting the exclusion, or else recording it under
-	/// the audited path that names it. A member of an instance is left out by its instance's
+	/// each audited path that names it. A member of an instance is left out by its instance's
 	/// path or its type's, which leaves it out of each.
 	fn exclude(&mut self, path: &[String]) -> bool {
 		let report = &mut self.report;
@@ -545,10 +545,10 @@ impl<'tcx> Collector<'tcx> {
 				return true;
 			}
 		}
+		// Under every key that names it, so one census lists a broad exclude beside a narrow one.
 		for (_, key) in config::keys(&path[1..]) {
 			if let Some((_, named)) = report.audited.iter_mut().find(|(audited, _)| *audited == key) {
 				named.push(path[1..].join("::"));
-				break;
 			}
 		}
 		false
