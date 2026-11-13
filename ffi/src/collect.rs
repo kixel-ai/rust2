@@ -3218,8 +3218,12 @@ impl<'tcx> Collector<'tcx> {
 		}
 		candidates.extend(self.vec_of(tcx.types.u8).map(|ty| (ty, None)));
 		// `impl Into<Arc<str>>` takes a `String` too, which maps where `Arc<str>` does not.
+		// Not another crate's type a handle holds: the glue never names it, so nothing would
+		// fix the call's type argument.
 		candidates.retain(|&(candidate, _)| {
-			self.at(def_id, param, base, candidate).is_some() && self.maps(candidate, Pos::Param)
+			self.at(def_id, param, base, candidate).is_some()
+				&& self.maps(candidate, Pos::Param)
+				&& !(candidate.walk().filter_map(|arg| arg.as_type())).any(|ty| self.is_opaque(ty))
 		});
 		// Two sources that C passes as one buffer but that hold different values, as a
 		// `String` and a `Vec<u8>` do, leave the caller no say in which conversion runs. Forms
@@ -4266,14 +4270,15 @@ impl<'tcx> Collector<'tcx> {
 		}
 	}
 
-	/// Whether `ty` holds an object that is not `Copy`, which a copy would duplicate.
+	/// Whether `ty` holds a handle a copy would duplicate: an object that is not `Copy`, or any opaque one.
 	fn holds_handle(&self, ty: Ty<'tcx>) -> bool {
 		let tcx = self.tcx;
 		ty.walk().filter_map(|arg| arg.as_type()).any(|ty| match ty.kind() {
 			ty::Adt(adt, args) => {
-				let object = matches!(self.decl(adt.did(), args), Some(Decl::Object(_)))
-					|| self.foreign.iter().any(|&(ty, _)| ty == adt.did());
-				object && !implements(tcx, ty, adt.did(), sym::Copy)
+				// An opaque handle is never copied, even of a `Copy` value: lifting takes it.
+				let opaque = self.foreign.iter().any(|&(ty, _)| ty == adt.did());
+				let object = matches!(self.decl(adt.did(), args), Some(Decl::Object(_)));
+				opaque || object && !implements(tcx, ty, adt.did(), sym::Copy)
 			}
 			_ => false,
 		})
