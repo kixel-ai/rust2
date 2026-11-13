@@ -407,7 +407,10 @@ fn matches(spec: &str, package: &Package) -> Result<bool, String> {
 		.version
 		.split_once('+')
 		.map_or(package.version.as_str(), |(core, _)| core);
-	let exact = |v: &str| package.version == v || core == v || core.starts_with(&format!("{v}."));
+	let numbers = core.split_once('-').map_or(core, |(numbers, _)| numbers);
+	// A prerelease is matched whole, never as a prefix.
+	let exact =
+		|v: &str| package.version == v || core == v || (!v.contains('-') && numbers.starts_with(&format!("{v}.")));
 	Ok(package.name == name && version.is_none_or(exact))
 }
 
