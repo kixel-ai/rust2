@@ -23,7 +23,7 @@ pub async fn resolve(cache: &Cache, spec: &Spec, args: &Args) -> Result<Record> 
 	if let Some(record) = version.as_ref().map(|v| cache.load(v)).transpose()?.flatten() {
 		return Ok(record);
 	}
-	let stage = tempfile::tempdir_in(&cache.root)?;
+	let stage = cache.stage()?;
 	fs::create_dir(stage.path().join("bin"))?;
 	let record = if args.build {
 		build(stage.path(), spec, version.as_ref())?
@@ -134,8 +134,9 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 		_ => None,
 	};
 	let mut candidates = Vec::new();
-	for (name, data) in std::iter::once((package.name.clone(), data.clone())).chain(alternate) {
-		for target in host_targets() {
+	let targets = host_targets()
+		.into_iter()
+		.map(|target| -> Result<Arc<TargetDataErased>> {
 			let target_related_info = TargetTriple::from_str(&target)?;
 			let meta = package.meta.merge_overrides(
 				package
@@ -143,11 +144,15 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 					.overrides
 					.get_matching(&target, &target_related_info.cfgs()),
 			);
-			let target: Arc<TargetDataErased> = Arc::new(TargetData {
+			Ok(Arc::new(TargetData {
 				target,
 				meta,
 				target_related_info,
-			});
+			}))
+		})
+		.collect::<Result<Vec<_>>>()?;
+	for (name, data) in std::iter::once((package.name.clone(), data.clone())).chain(alternate) {
+		for target in &targets {
 			if !disabled(&target, Strategy::CrateMetaData) {
 				candidates.push((
 					name.clone(),
@@ -155,7 +160,7 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 						client.clone(),
 						gh.clone(),
 						data.clone(),
-						target,
+						target.clone(),
 						SignaturePolicy::IfPresent,
 					),
 				));
@@ -163,19 +168,7 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 		}
 	}
 	if quickinstall {
-		for target in host_targets() {
-			let target_related_info = TargetTriple::from_str(&target)?;
-			let meta = package.meta.merge_overrides(
-				package
-					.meta
-					.overrides
-					.get_matching(&target, &target_related_info.cfgs()),
-			);
-			let target: Arc<TargetDataErased> = Arc::new(TargetData {
-				target,
-				meta,
-				target_related_info,
-			});
+		for target in &targets {
 			if !disabled(&target, Strategy::QuickInstall) {
 				candidates.push((
 					package.name.clone(),
@@ -183,7 +176,7 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 						client.clone(),
 						gh.clone(),
 						data.clone(),
-						target,
+						target.clone(),
 						SignaturePolicy::Require,
 					),
 				));
@@ -359,7 +352,7 @@ fn build(stage: &std::path::Path, spec: &Spec, version: Option<&Version>) -> Res
 	let key = installs.installs.keys().next().context("cargo installed no crate")?;
 	let mut parts = key.split_whitespace();
 	ensure!(
-		parts.next() == Some(spec.name.as_str()),
+		parts.next().is_some_and(|name| name.eq_ignore_ascii_case(&spec.name)),
 		"cargo installed the wrong crate"
 	);
 	let actual = Version::parse(parts.next().context("cargo omitted the version")?)?;

@@ -12,6 +12,8 @@ Options go before the crate. Everything after it, including flags, spaces, and
 non-UTF-8 arguments on Unix, goes to the downloaded binary. A crate with several
 binaries uses the one named after the crate, or its only binary. Otherwise choose
 `--bin NAME`.
+Crate names are case-insensitive and share one lowercase cache key. Binary names
+passed through `--bin` retain their spelling.
 
 crabx uses binstalk's release discovery, archive layouts, and signature verification.
 It never installs into `~/.cargo/bin`. Missing prebuilt assets are an error. Pass
@@ -45,6 +47,9 @@ Caches live in the operating system's user cache directory, under
 published atomically under a per-crate lock. An incomplete or corrupt entry fails
 loudly. Build and quickinstall entries cannot satisfy the default author's-release
 policy.
+The next uncached installation removes abandoned `install-*` staging directories
+under that lock. Malformed refresh state also fails with its path; delete that file
+to reset update tracking. Pinned invocations do not read refresh state.
 
 An unpinned invocation runs its cached version immediately and starts a detached
 sparse-index refresh and installation for the next invocation. The refresh retains the newest stable,

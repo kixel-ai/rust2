@@ -131,7 +131,7 @@ fn pinned_cache_matches_direct_execution_without_cargo_or_network() {
 	];
 	let direct = Command::new(temp.path().join("helper")).args(&args).output().unwrap();
 	let child = crabx(temp.path())
-		.arg("fixture@1.2.3")
+		.arg("FiXtUrE@1.2.3")
 		.args(&args)
 		.env("PATH", "")
 		.env("HTTPS_PROXY", "http://127.0.0.1:1")
@@ -244,4 +244,12 @@ fn unpinned_build_reuses_pinned_entry_and_reports_refresh_errors() {
 	let output = crabx(temp.path()).args(["--build", "fixture"]).output().unwrap();
 	assert_eq!(output.status.code(), Some(37));
 	assert!(!String::from_utf8_lossy(&output.stderr).contains("fixture update failure"));
+	fs::write(root.join("refresh.json"), "malformed").unwrap();
+	let output = crabx(temp.path()).args(["--build", "fixture"]).output().unwrap();
+	assert_eq!(output.status.code(), Some(1));
+	let diagnostic = String::from_utf8_lossy(&output.stderr);
+	assert!(diagnostic.contains("corrupt refresh state"));
+	assert!(diagnostic.contains(&root.join("refresh.json").display().to_string()));
+	let output = crabx(temp.path()).args(["--build", "fixture@1.2.3"]).output().unwrap();
+	assert_eq!(output.status.code(), Some(37));
 }

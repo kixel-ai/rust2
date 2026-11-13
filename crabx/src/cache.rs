@@ -114,6 +114,24 @@ impl Cache {
 		Ok(file)
 	}
 
+	/// Create staging space while holding the installation lock.
+	pub fn stage(&self) -> Result<tempfile::TempDir> {
+		// The caller holds the install lock, so any earlier staging directory
+		// has lost its owner. Published version directories have semver names.
+		for entry in fs::read_dir(&self.root)? {
+			let entry = entry?;
+			if entry
+				.file_name()
+				.to_str()
+				.is_some_and(|name| name.starts_with("install-"))
+				&& entry.file_type()?.is_dir()
+			{
+				fs::remove_dir_all(entry.path())?;
+			}
+		}
+		Ok(tempfile::Builder::new().prefix("install-").tempdir_in(&self.root)?)
+	}
+
 	pub fn try_refresh_lock(&self) -> Result<Option<File>> {
 		let file = File::options()
 			.create(true)
@@ -193,5 +211,20 @@ mod tests {
 		for name in ["../evil", "C:evil", "a/b", "a\\b", ".", "..", ""] {
 			assert!(!valid_binary(name));
 		}
+	}
+
+	#[test]
+	fn staging_reclaims_interrupted_installs_and_preserves_versions() {
+		let temp = tempfile::tempdir().unwrap();
+		let cache = Cache {
+			root: temp.path().to_owned(),
+		};
+		let _lock = cache.lock().unwrap();
+		fs::create_dir_all(cache.root.join("install-orphan/bin")).unwrap();
+		fs::create_dir(cache.root.join("1.2.3")).unwrap();
+		let stage = cache.stage().unwrap();
+		assert!(stage.path().is_dir());
+		assert!(!cache.root.join("install-orphan").exists());
+		assert!(cache.root.join("1.2.3").is_dir());
 	}
 }
