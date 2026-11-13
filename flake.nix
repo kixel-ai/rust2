@@ -149,37 +149,6 @@
                 # The tests need node, tsc, and wasm builds: `just ts test` runs them.
                 doCheck = false;
               };
-          # The mono budget lint, on the same nightly for the same reasons.
-          rust2-lint =
-            (pkgs.makeRustPlatform {
-              cargo = tsToolchain;
-              rustc = tsToolchain;
-            }).buildRustPackage
-              {
-                pname = "rust2-lint";
-                version = "0.0.0";
-                src = pkgs.lib.fileset.toSource {
-                  root = ./driver;
-                  fileset = pkgs.lib.fileset.unions [
-                    ./driver/Cargo.toml
-                    ./driver/Cargo.lock
-                    ./driver/src
-                  ];
-                };
-                cargoLock.lockFile = ./driver/Cargo.lock;
-                cargoBuildFlags = [
-                  "--bin"
-                  "rust2-lint"
-                ];
-                RUSTFLAGS = "-C link-args=-Wl,-rpath,${tsToolchain}/lib";
-                nativeBuildInputs = [ pkgs.makeWrapper ];
-                postInstall = ''
-                  wrapProgram $out/bin/rust2-lint --set-default CARGO ${tsToolchain}/bin/cargo
-                '';
-                # `just driver test` runs the fixtures.
-                doCheck = false;
-              };
-
           # rust2-ffi's generated async Kotlin needs coroutines on the
           # classpath; nixpkgs has no jar.
           kotlinx-coroutines = pkgs.fetchurl {
@@ -191,7 +160,6 @@
           packages = {
             quest = quest-cli;
             ts = rust2-ts;
-            lint = rust2-lint;
           }
           # ra-jit and its toolchain for the benchmark's ra-jit variants, which build it
           # only when they run: it compiles from source. ra-jit skips Intel macOS.
