@@ -86,7 +86,21 @@ export function liteVersion(selector: rs.u8): lite_version_Version.Version {
 }
 
 export function putU64(out: rs.ByteVec, value: rs.u64): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(value)));
+	const dst = out;
+	const word = value;
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word3 >>> 24) & 255;
+	dst.data[pos + 1] = (word3 >>> 16) & 255;
+	dst.data[pos + 2] = (word3 >>> 8) & 255;
+	dst.data[pos + 3] = word3 & 255;
+	dst.data[pos + 4] = (word2 >>> 24) & 255;
+	dst.data[pos + 5] = (word2 >>> 16) & 255;
+	dst.data[pos + 6] = (word2 >>> 8) & 255;
+	dst.data[pos + 7] = word2 & 255;
+	dst.length = dst.length + 8;
 }
 
 export function putUsize(out: rs.ByteVec, value: rs.usize): void {
@@ -231,7 +245,12 @@ export function decodeStep(r: Decoder.Decoder, step: rs.u8, out: rs.ByteVec): rs
 		const part11: rs.u16 | undefined = Decoder.u16(r);
 		const err7: DecodeError.DecodeError | undefined = part11 === undefined ? out$u16.err as DecodeError.DecodeError : undefined;
 		if (err7 === undefined) {
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(part11 as rs.u16)));
+			const dst = out;
+			rs.byteVecReserve(dst, 2 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = ((part11 as rs.u16) >>> 8) & 255;
+			dst.data[pos + 1] = (part11 as rs.u16) & 255;
+			dst.length = dst.length + 2;
 		} else {
 			return rs.Err(err7 as DecodeError.DecodeError);
 		}
