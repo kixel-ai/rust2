@@ -4163,7 +4163,15 @@ impl<'tcx> Collector<'tcx> {
 					});
 					if !future {
 						let hidden = tcx.type_of(*def_id).instantiate(tcx, args).skip_norm_wip();
-						held.extend(self.lifetimes(hidden).0);
+						// Its regions may be the signature's bound ones, which a key never names.
+						// Only the hidden type itself crosses as a handle; an iterator of objects
+						// is collected at the call.
+						let erased = ty::fold_regions(tcx, hidden, |_, _| tcx.lifetimes.re_erased);
+						let object = matches!(erased.kind(), ty::Adt(adt, args)
+							if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))));
+						if object {
+							held.extend(hidden.walk().filter_map(|arg| arg.as_region()));
+						}
 					}
 					for &(clause, _) in bounds {
 						let term = clause
