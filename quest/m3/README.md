@@ -6,8 +6,8 @@ Work that waits on evidence or has no consumer yet: two waits on upstream's buil
 levers ([relink](/quest/m3/relink.md) and [TPDE](/quest/m3/tpde.md)) and
 [the benchmark on bare metal](/quest/m3/bench-metal.md), the translator's features that
 wait on [the gate](/quest/m2/wasm/README.md), the binding targets planned ahead of a
-consumer, what waits on moq, [crabx's GitHub App](/quest/m3/crabx-app.md), and a spike
-of what a rustc driver can do for any crate: [a crates.io census](/quest/m3/crates-census.md).
+consumer, what waits on moq, [crabx's GitHub App](/quest/m3/crabx-app.md), and
+[the public-visibility audit](/quest/m3/pub-audit.md).
 
 ## Plan
 
@@ -40,9 +40,7 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   ([rustc_codegen_cranelift#1567](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1567)
   and [#1712](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1712)) were
   still open. Rejected: keeping it with the ceiling stated.
-- ✅ Two spikes join with no consumer waiting:
-  [the crates.io census](/quest/m3/crates-census.md) and
-  [the dead `pub` spike](https://github.com/kixel-ai/rust2/pull/763). Considered and left out: a build doctor
+- ✅ [The dead `pub` spike](https://github.com/kixel-ai/rust2/pull/763) joins with no consumer waiting. Considered and left out: a build doctor
   that ranks why an edit rebuilt slowly, which conflicts with build speed keeping only
   what costs nothing; a cancel-safety report for exported futures, likely mostly false
   positives; a general semver checker, which cargo-semver-checks is taking into cargo; a
