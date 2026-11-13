@@ -1142,7 +1142,37 @@ def owned():
 	del cycle
 	gc.collect()
 	check(api.dropped() == before + 5, "the cycle collector frees what a cycle held")
+	forwarding()
 	print("owned ok")
+
+
+def forwarding():
+	"""Rust's bytes, read and passed back, cross in place: whole, sliced, kept while passed
+	on, and in a record. The token's drop shows no copy stood in for them: it comes once,
+	only when the last view of the bytes Rust put it in goes."""
+	loop = asyncio.new_event_loop()
+	channel = api.Channel.new()
+	before = api.dropped()
+	payload = api.token_bytes(3, 64)
+	channel.send(payload)
+	del payload
+	payload = loop.run_until_complete(channel.recv())
+	channel.send(payload[1:63])
+	del payload
+	payload = loop.run_until_complete(channel.recv())
+	check(bytes(payload) == bytes([3]) * 62, "a slice of Rust's bytes crosses as itself")
+	channel.send(payload)
+	kept = loop.run_until_complete(channel.recv())
+	del payload
+	packet = api.next_packet(api.Packet(1, kept))
+	del kept
+	check(api.dropped() == before and len(packet.payload) == 62, "Rust's bytes cross back without a copy")
+	del packet
+	check(api.dropped() == before + 1, "Rust's bytes drop once, with their last view")
+	# Bytes of Python's own cross copied once, and a view of Rust's only read stays theirs.
+	packet = api.next_packet(api.Packet(1, bytearray(b"abc")))
+	check(bytes(packet.payload) == b"abc", "a bytearray crosses copied")
+	loop.close()
 
 
 def values():
