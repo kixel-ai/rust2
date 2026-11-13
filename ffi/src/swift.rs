@@ -23,7 +23,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
-use rustc_span::Span;
 
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::ir::{Access, Closure, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
