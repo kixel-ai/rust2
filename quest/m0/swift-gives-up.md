@@ -12,8 +12,17 @@ Found while validating [#740](https://github.com/kixel-ai/rust2/pull/740) on 202
 `7008d1d3` in 1 of 5, each time with `"futures" failed: Rust gives up on an async closure`.
 The test passes alone.
 
-The check reads `threw` after a single `q.drain()`, so it fails if the task's resumption
-with `within(0)`'s `Overflow` error reaches the queue after `drain` returned, as it can
-when the Rust future is polled off the queue. The check above it already waits with
-`until { q.drain(); return got.value != 0 }`; confirm the race first, such as by delaying
-the resumption, then wait the same way rather than retrying the test.
+Two races fit, and the fix covers both:
+
+- The closure is empty, so it can finish before the budget runs out: `Pollable.poll` in
+  `ffi/runtime/rt.swift` starts the closure's Task and then loads `done` again, and
+  `Within::poll` in `ffi/fixtures/api/src/lib.rs` polls the inner future before checking
+  its budget. When the Task finishes in that window, `within(0) {}` returns `Ok(())` and
+  nothing throws. The closure must stay pending, such as by awaiting a stream nothing
+  yields to, as the check above it does.
+- The check reads `threw` after a single `q.drain()`, so it also fails if the task's
+  resumption with the `Overflow` error reaches the queue after `drain` returned. The check
+  above it waits with `until { q.drain(); return got.value != 0 }`; wait the same way.
+
+Confirm which one fails before fixing, such as by delaying the closure's Task or the
+resumption, and fix the test's timing rather than retrying it.
