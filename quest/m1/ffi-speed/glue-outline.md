@@ -11,10 +11,16 @@ the 2026-11-12 audit on the api fixture's default release build, with `nm -S`: D
 
 ## Plan
 
-- Dart: keep the check for no relays and the call inline, and move the relay loop into
-  one `#[inline(never)]` function taking `&mut dyn FnMut()`.
-- Python: split `call` into non-generic enter and leave halves around the inlined call.
-- Report the fixture's and moq's stripped sizes before and after, and the bench's handle
-  call in both languages, which must not slow.
+- Python: `call` stays inline. Splitting it into non-generic halves shrinks the stripped
+  library to 1,932,952 bytes, but adds 26 instructions to each handle call, which the
+  handle call must not do. The split is in commit `24500300`, reverted by the next commit.
 
 Public API: none.
+
+## Waiting
+
+- Maintainer: keep the Python glue's `call` inline, or take the split. The split saves
+  236,744 bytes, 11% of the Python library, and costs 26 instructions per handle call
+  (1,768 to 1,794 under callgrind, on `Counter.edited()`). Recommendation: keep it inline,
+  since the handle call must not slow and the library's size is the lesser cost. To take
+  the split, restore `ffi/runtime/python.rs` from `git show 24500300:ffi/runtime/python.rs`.
