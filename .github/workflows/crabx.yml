@@ -20,9 +20,9 @@ jobs:
     steps:
       - name: Require a public repository
         env:
-          PRIVATE: ${{ github.event.repository.private }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if [[ "$PRIVATE" != false ]]; then
+          if [[ "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" != false ]]; then
             echo '::error::The crabx pipeline supports public repositories only.'
             exit 1
           fi
@@ -84,8 +84,9 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.discover.outputs.releases) }}
     concurrency:
-      group: crabx-${{ github.repository }}-${{ matrix.name }}-${{ matrix.version }}
+      group: crabx-${{ github.repository }}-${{ matrix.tag }}
       cancel-in-progress: false
+      queue: max
     steps:
       # Read new job identity fields through JSON until actionlint knows their types.
       - id: identity
@@ -105,7 +106,7 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: crabx-${{ matrix.name }}-${{ matrix.version }}-*
+          pattern: crabx-${{ matrix.tag }}-*
           merge-multiple: true
           path: archives
       - name: Record the actual published source commit

@@ -83,13 +83,19 @@ def published(name, version):
     req = urllib.request.Request(url, headers={"User-Agent": "crabx-release-pipeline"})
     wanted = {f"{name}-{version}/Cargo.toml", f"{name}-{version}/.cargo_vcs_info.json"}
     files = {}
+    implicit_bin = False
     with urllib.request.urlopen(req) as response, tarfile.open(fileobj=response, mode="r|gz") as archive:
         for member in archive:
+            relative = member.name.removeprefix(f"{name}-{version}/")
+            if member.isfile() and (relative == "src/main.rs" or (relative.startswith("src/bin/") and (relative.count("/") == 2 and relative.endswith(".rs") or relative.count("/") == 3 and relative.endswith("/main.rs")))):
+                implicit_bin = True
             if member.name in wanted:
                 if not member.isfile() or member.name in files:
                     raise ValueError("invalid or duplicate crate metadata")
                 files[member.name] = archive.extractfile(member).read()
     manifest = tomllib.loads(files[f"{name}-{version}/Cargo.toml"].decode())
+    if not manifest.get("bin") and implicit_bin and manifest["package"].get("autobins", True):
+        manifest["bin"] = [{"name": name}]
     if not manifest.get("bin"):
         return manifest, None
     vcs = json.loads(files[f"{name}-{version}/.cargo_vcs_info.json"])
@@ -118,13 +124,13 @@ def discover():
     repo = "https://github.com/" + os.environ["GITHUB_REPOSITORY"]
     for name in sorted(names):
         info = request(f"https://crates.io/api/v1/crates/{name}", missing=True)
-        if info is None or info["crate"].get("repository", "").removesuffix("/").removesuffix(".git").lower() != repo.lower():
+        if info is None or (info["crate"].get("repository") or "").removesuffix("/").removesuffix(".git").lower() != repo.lower():
             continue
         for version in info["versions"]:
             if version["yanked"] or datetime.datetime.fromisoformat(version["created_at"].replace("Z", "+00:00")) < since:
                 continue
             manifest, item = published(name, safe(version["num"]))
-            if manifest["package"].get("repository", "").removesuffix("/").removesuffix(".git").lower() != repo.lower():
+            if (manifest["package"].get("repository") or "").removesuffix("/").removesuffix(".git").lower() != repo.lower():
                 continue
             if not manifest.get("bin"):
                 continue
@@ -173,7 +179,7 @@ def publish(item):
         raise ValueError("release tag changed since discovery")
     release = api("releases/tags/" + urllib.parse.quote(name, safe=""), missing=True)
     if release is None:
-        release = api("releases", data={"tag_name": name, "target_commitish": item["sha"], "name": name, "prerelease": "-" in item["version"], "make_latest": "false"})
+        release = api("releases", data={"tag_name": name, "target_commitish": item["sha"], "name": name, "prerelease": "-" in item["version"].split("+", 1)[0], "make_latest": "false"})
     existing = json.loads(run("gh", "api", "--paginate", "--slurp", f"repos/{os.environ['GITHUB_REPOSITORY']}/releases/{release['id']}/assets"))
     existing = {a["name"]: a for page in existing for a in page}
     for target, _ in TARGETS:

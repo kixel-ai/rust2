@@ -52,6 +52,33 @@ class Pipeline(unittest.TestCase):
                     self.assertEqual(item["sha"], ITEM["sha"])
                     self.assertEqual(manifest["package"]["version"], ITEM["version"])
 
+    def test_null_repository(self):
+        with patch.dict(os.environ, {"GITHUB_REPOSITORY": "example/demo", "CALLER_WORKFLOW": "example/demo/.github/workflows/binaries.yml@main"}), patch.object(p, "run", side_effect=["2026-01-01T00:00:00+00:00", "Cargo.toml"]), patch.object(Path, "read_text", return_value='[package]\nname="demo"'), patch.object(p, "request", return_value={"crate": {"repository": None}}):
+            self.assertEqual(p.discover(), [])
+
+    def test_implicit_binary(self):
+        for source, autobins, expected in (("src/main.rs", True, True), ("src/bin/tool.rs", True, True), ("src/bin/tool/main.rs", True, True), ("src/lib.rs", True, False), ("src/main.rs", False, False)):
+            archive = io.BytesIO()
+            with tarfile.open(fileobj=archive, mode="w:gz") as tar:
+                for name, value in {
+                    "Cargo.toml": f'[package]\nname="demo"\nversion="1.2.3"\nautobins={str(autobins).lower()}\n'.encode(),
+                    ".cargo_vcs_info.json": json.dumps({"git": {"sha1": ITEM["sha"]}}).encode(),
+                    source: b"fn main() {}",
+                }.items():
+                    info = tarfile.TarInfo("demo-1.2.3/" + name)
+                    info.size = len(value)
+                    tar.addfile(info, io.BytesIO(value))
+            archive.seek(0)
+            with patch.object(p.urllib.request, "urlopen", return_value=archive):
+                self.assertEqual(p.published("demo", "1.2.3")[1] is not None, expected)
+
+    def test_release_kind(self):
+        for version, prerelease in (("1.0.0+build-5", False), ("1.0.0-rc.1+build-5", True)):
+            item = {**ITEM, "version": version}
+            with patch.dict(os.environ, {"GITHUB_REPOSITORY": "example/demo"}), patch.object(p, "tag", return_value=ITEM["tag"]), patch.object(p, "api", side_effect=[None, {"id": 7}]) as api, patch.object(p, "run", return_value="[[]]"), patch.object(Path, "is_file", return_value=True):
+                p.publish(item)
+            self.assertEqual(api.call_args.kwargs["data"]["prerelease"], prerelease)
+
     def test_partial_release_recovery(self):
         first = p.asset(ITEM, p.TARGETS[0][0])
         existing = [[{"name": first}, {"name": "unrelated.txt"}]]
