@@ -174,11 +174,11 @@ pub(super) fn lower(body: &mut Vec<Stmt>, b: &mut Body<'_, '_, '_>) -> bool {
 	if !candidates {
 		return false;
 	}
-	fuse(body, &counts);
+	let mut immutable = FxHashSet::default();
+	names(body, &mut immutable, true);
+	fuse(body, &counts, &immutable);
 	let original = body.clone();
 	let uses = tally(&original);
-	let mut immutable = FxHashSet::default();
-	names(&original, &mut immutable, true);
 	list(body, &uses, &mut immutable, &mut FxHashMap::default(), b);
 	let mut spills = FxHashSet::default();
 	collect_spills(body, &original, &mut spills);
@@ -466,9 +466,14 @@ fn unused(body: &mut Vec<Stmt>, reads: &FxHashMap<String, usize>, spills: &FxHas
 	}
 }
 
-fn fuse(body: &mut Vec<Stmt>, counts: &FxHashMap<String, usize>) {
+/// Whether evaluating `e` runs no code that could rebind a local, as a closure can.
+fn inert(e: &Expr) -> bool {
+	e.pure() || literal(e).is_some_and(|v| v.iter().all(inert)) || integer(e).is_some_and(|(_, v, _, _)| inert(v))
+}
+
+fn fuse(body: &mut Vec<Stmt>, counts: &FxHashMap<String, usize>, immutable: &FxHashSet<String>) {
 	// A slice temporary immediately consumed by an append may move past the read of
-	// its destination's local, whose identity the slice expression cannot change.
+	// its destination's local, when the slice expression cannot rebind that local.
 	for i in (0..body.len().saturating_sub(1)).rev() {
 		let StmtKind::Decl {
 			mutable: false,
@@ -479,15 +484,15 @@ fn fuse(body: &mut Vec<Stmt>, counts: &FxHashMap<String, usize>) {
 		else {
 			continue;
 		};
-		if call(init, "byteSliceFrom").is_none() {
+		let Some([array]) = call(init, "byteSliceFrom") else {
 			continue;
-		}
+		};
 		let StmtKind::Expr(next) = &body[i + 1].kind else {
 			continue;
 		};
 		let matches = ["byteVecExtendFromSlice", "bytesMutExtend"]
 			.iter()
-			.any(|kind| matches!(call(next, kind), Some([target, slice]) if matches!(target.unlocated(), Expr::Ident(_)) && ident(slice, name)));
+			.any(|kind| matches!(call(next, kind), Some([target, slice]) if matches!(target.unlocated(), Expr::Ident(t) if immutable.contains(t) || inert(array)) && ident(slice, name)));
 		if matches && counts.get(name) == Some(&1) {
 			let (name, init) = (name.clone(), init.clone());
 			super::subst_stmt(&mut body[i + 1], &name, &init);
@@ -498,17 +503,17 @@ fn fuse(body: &mut Vec<Stmt>, counts: &FxHashMap<String, usize>) {
 	for stmt in body {
 		match &mut stmt.kind {
 			StmtKind::If { then, els, .. } => {
-				fuse(then, counts);
-				fuse(els, counts);
+				fuse(then, counts, immutable);
+				fuse(els, counts, immutable);
 			}
 			StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } | StmtKind::Block { body, .. } => {
-				fuse(body, counts)
+				fuse(body, counts, immutable)
 			}
 			StmtKind::Switch { cases, default, .. } => {
 				for (_, body) in cases {
-					fuse(body, counts);
+					fuse(body, counts, immutable);
 				}
-				fuse(default, counts);
+				fuse(default, counts, immutable);
 			}
 			_ => {}
 		}

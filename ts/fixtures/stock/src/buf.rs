@@ -1384,4 +1384,12 @@ pub fn scalar_encodes(data: &[u8], out: &mut Vec<u8>) {
 	out.push(unread[1]);
 	out.push(unread[2]);
 	out.push(calls);
+	// A closure that makes the array rebinds the destination first.
+	let mut dst = Vec::new();
+	let bytes = (|| {
+		dst = vec![9];
+		[1u8, lo as u8]
+	})();
+	dst.extend_from_slice(&bytes);
+	out.extend_from_slice(&dst);
 }
