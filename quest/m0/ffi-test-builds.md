@@ -21,9 +21,8 @@ warm run should not write at all. No single PR caused it: the fixtures have rebu
 everything since they were added.
 
 Decided with the maintainer on 2026-11-13: ✅ add this quest, under the host's write
-cuts. The milestone was not asked; it is in m0 under this milestone's own rule, what every
-agent pays for on each run, as [kixel-ai/rust2#767](https://github.com/kixel-ai/rust2/pull/767)'s
-ffi-abort-cores quest was.
+cuts; milestone ✅ m0 (rejected: m1), since every agent's `just test` pays these writes and
+the wait.
 
 What is already true, from reading the code on 2026-11-13:
 
