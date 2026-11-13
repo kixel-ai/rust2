@@ -96,7 +96,12 @@ fn trait_unsafety(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Why> {
 	}
 	(tcx.associated_items(def_id).in_definition_order())
 		.filter(|item| item.is_fn() && !item.defaultness(tcx).has_value())
-		.find_map(|item| unsafety(tcx, item.def_id).map(|why| Why { detail: item.name().to_string(), ..why }))
+		.find_map(|item| {
+			unsafety(tcx, item.def_id).map(|why| Why {
+				detail: item.name().to_string(),
+				..why
+			})
+		})
 }
 
 /// An item the export refuses, with every reason found.
