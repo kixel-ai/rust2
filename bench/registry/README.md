@@ -41,6 +41,20 @@ inspection on Windows, including transitive native dependencies. Stable ABI alon
 does not establish OS portability. The generated extension requests abi3-py311,
 so the wheel uses cp311-abi3 and Requires-Python >=3.11.
 
+Linux x86_64 execution passed on 2026-11-13 with CPython 3.14.10: the built
+`api_fixture-0.0.0-cp311-abi3-linux_x86_64.whl` installed into a fresh uv-created
+virtual environment with no index or dependencies. Running from a clean directory
+with `-I` matched the native Rust transcript byte for byte and passed futures,
+ownership, values and calls. A separate ZIP inspection checked RECORD coverage,
+file sizes and SHA-256 hashes. The full `quest gate nix develop --command just ci`
+passed, including the exporter's existing Python and Swift differential tests.
+
+The export includes host and wasm32 API descriptions, as the existing fixture
+suite does: its values test checks that wasm32-only calls are refused on the host.
+Only the host native library is packaged. Initial export attempts exposed missing
+CACHEDIR.TAG markers in imported local build artifacts; restoring those markers
+allowed the unchanged exporter to run. No cache tools or checks were disabled.
+
 macOS execution is unverified: this session's host is Linux and `ssh kixtop uname
 -a` timed out. Do not delete moq's release workflows on this evidence.
 

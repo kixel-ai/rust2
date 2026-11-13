@@ -14,13 +14,14 @@ fixture's script. It says what the full version would take for the other registr
 Implementation in progress: [packaging spike](/bench/registry/README.md) and
 `.github/workflows/registry.yml` build the api fixture into native wheels and a
 host-only macOS XCFramework with a Swift source package. Keep this quest until
-the installed-wheel differential consumer and the macOS SwiftPM consumer have
-both run successfully. The Linux host cannot execute xcodebuild, and kixtop was
+the macOS SwiftPM consumer has run successfully. The Linux x86_64 wheel
+consumer passed on CPython 3.14.10, including the native transcript and futures,
+ownership, values and calls. The Linux host cannot execute xcodebuild, and kixtop was
 unreachable on 2026-11-13. The workflow has not been executed in this session.
 The report recommends templates because registry namespace ownership cannot be
 inferred from Cargo metadata; it does not claim moq's workflows can be deleted.
 
-Remaining: exercise the reusable call and both clean artifact consumers, record
+Remaining: exercise the reusable call and macOS clean artifact consumer, record
 the actual results, then finish the report and delete this quest. Do not publish
 the fixture or infer successful packaging from lint alone.
 
