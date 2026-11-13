@@ -500,7 +500,7 @@ final class _Arena implements ffi.Allocator {
       dst.owner = ffi.nullptr;
       return;
     }
-    final _Lent? lent = null;
+    final lent = _n.lentBytes[bytes];
     if (lent != null) {
       dst.ptr = ffi.Pointer.fromAddress(lent.ptr);
       dst.len = bytes.length;

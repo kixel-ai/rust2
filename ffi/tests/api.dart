@@ -1174,10 +1174,15 @@ Future<void> forwarded() async {
 /// nothing else keeps.
 @pragma('vm:never-inline')
 Future<Uint8List> relay(api.Channel channel) async {
-  channel.send(api.tokenBytes(5, 65537));
-  final received = await channel.recv();
-  return api.nextPacket(api.Packet(seq: 1, payload: received)).payload;
+  send(channel);
+  return carry(await channel.recv());
 }
+
+@pragma('vm:never-inline')
+void send(api.Channel channel) => channel.send(api.tokenBytes(5, 65537));
+
+@pragma('vm:never-inline')
+Uint8List carry(Uint8List payload) => api.nextPacket(api.Packet(seq: 1, payload: payload)).payload;
 
 /// A view of returned bytes, whose list nothing else keeps.
 @pragma('vm:never-inline')
