@@ -100,7 +100,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `tracing::Level` | `<prefix>_Level`: a C enum of its five levels, `TRACE` to `ERROR` |
 | `tracing::level_filters::LevelFilter` | `Option<tracing::Level>`, whose `None` is `OFF` |
 | `serde_json::Value` | an object `<prefix>_Json`, made by `<prefix>_Json_parse` from JSON text, which fails with serde_json's message, and read back by `_to_text`; its contents are the caller's JSON library's to read |
-| `Vec<T>` and `&[T]` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned |
+| `Vec<T>`, `&[T]`, and `Box<[T]>` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned; a boxed slice of bytes is refused |
 | `BTreeSet<T>`, `BTreeMap<K, V>`, and `serde_json::Map` | as `Vec<T>`, `Vec<(K, V)>`, and `Vec<(String, serde_json::Value)>`: its items in order, from which Rust builds it, keeping the last of a key |
 | a returned iterator, such as `slice::Iter` or an `impl Iterator`, that no other rule maps, outside a future, made of core's and alloc's iterators over a slice, string, `Option`, `Result`, or collection, or serde_json's `map::Iter`, `IntoIter`, `Keys`, or `Values`, through `rev`, `chain`, `flatten`, `fuse`, `enumerate`, `peekable`, `copied`, `cloned`, or `filter`, with no trait object inside; a closure or function inside, such as `filter`'s predicate or `split`'s pattern, must drop nothing, and a `filter` only items whose drop runs nothing | what `collect::<Vec<_>>()` makes of it: every item, taken at the call, so a closure inside runs on every item, not only those a caller stopping early would reach |
 | `Waker`, taken by value | `<prefix>_waker`, as a future's poll takes it |
@@ -211,7 +211,9 @@ dropped for the other target's span where the file differs.
   does, is leaked once per distinct content and reused for every later equal one, so a
   caller passing ever-new strings grows the set without bound.
 - **Arrays** of a `Vec` are a pointer, a length, and an owner, as a buffer is: passed
-  in, Rust copies each element out of C's array; returned, `<prefix>_vec_<T>_free` frees
+  in, Rust copies each element out of C's array, or for a slice of a fixed-width integer
+  or float, borrows C's array in place for the call, and a binding passes its language's
+  array of those numbers as one block; returned, `<prefix>_vec_<T>_free` frees
   the array and its first `len` elements, so a binding that takes the elements sets
   `len` to 0 first. A null pointer is `None`, so C passes a non-null one for `Some` of
   an empty array.
@@ -344,8 +346,8 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   from. From C++20, either converts to `std::span<const std::uint8_t>`. A `view` or span
   lives only as long as the bytes it views, and a `view` lent to a callback only for the
   call; reading one past that is C++'s own undefined behavior, which Clang's `-Wdangling`
-  refuses for a view or `str()` of a temporary `buf`. A `Vec<T>` is a `std::vector`, of
-  `view`s for bytes passed in, a socket address `socket_addr`, the C struct, and a `u128`
+  refuses for a view or `str()` of a temporary `buf`. A `Vec<T>` is a `std::vector`, passed in place
+  when of a fixed-width integer or float, of `view`s for bytes passed in, a socket address `socket_addr`, the C struct, and a `u128`
   `u128`, the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error. A `[u8; N]` is a `std::array<std::uint8_t, N>`.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.

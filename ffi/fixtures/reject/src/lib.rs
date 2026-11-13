@@ -966,3 +966,8 @@ pub enum Top {
 	Small = 1,
 	Large = u128::MAX,
 }
+
+/// A boxed slice of bytes, which no buffer form takes.
+pub fn boxed_bytes(bytes: Box<[u8]>) -> usize {
+	bytes.len()
+}

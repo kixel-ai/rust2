@@ -618,10 +618,17 @@ fn main() {
 	println!("sums {:?}", api::sums(vec![vec![1, 2], Vec::new(), vec![3]]));
 	numbers("edges", &api::Numbers::edges());
 	numbers("reversed", &api::Numbers::edges().reversed());
-	println!("sum u32 {} {}", api::sum_u32(&[]), api::sum_u32(&[u32::MAX, u32::MAX, 2]));
+	println!(
+		"sum u32 {} {}",
+		api::sum_u32(&[]),
+		api::sum_u32(&[u32::MAX, u32::MAX, 2])
+	);
 	println!("doubled i64 {:?}", api::doubled_i64(&[i64::MIN, -1, 0, i64::MAX]));
 	let floats = api::boxed_floats(Box::new([-0.0, f64::from_bits(0x7ff8_0000_0000_0001)]));
-	println!("boxed floats {:?}", floats.iter().map(|f| f.to_bits()).collect::<Vec<_>>());
+	println!(
+		"boxed floats {:?}",
+		floats.iter().map(|f| f.to_bits()).collect::<Vec<_>>()
+	);
 	let summed = api::summed([Point { x: 1, y: 2 }, Point { x: -4, y: 6 }]);
 	let none = api::summed([]);
 	println!("summed {} {} {} {}", summed.x, summed.y, none.x, none.y);
@@ -790,8 +797,14 @@ fn numbers(what: &str, numbers: &api::Numbers) {
 	println!("{what} i16 {:?}", numbers.i16s);
 	println!("{what} i32 {:?}", numbers.i32s);
 	println!("{what} i64 {:?}", numbers.i64s);
-	println!("{what} f32 {:?}", numbers.f32s.iter().map(|f| f.to_bits()).collect::<Vec<_>>());
-	println!("{what} f64 {:?}", numbers.f64s.iter().map(|f| f.to_bits()).collect::<Vec<_>>());
+	println!(
+		"{what} f32 {:?}",
+		numbers.f32s.iter().map(|f| f.to_bits()).collect::<Vec<_>>()
+	);
+	println!(
+		"{what} f64 {:?}",
+		numbers.f64s.iter().map(|f| f.to_bits()).collect::<Vec<_>>()
+	);
 	println!("{what} some {:?}", numbers.some);
 }
 
