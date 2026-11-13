@@ -3168,8 +3168,11 @@ impl<'tcx> Collector<'tcx> {
 			let tr = bound.def_id();
 			let target = || bound.skip_binder().trait_ref.args.type_at(1);
 			if tcx.is_diagnostic_item(sym::Into, tr) || tcx.is_diagnostic_item(sym::AsRef, tr) {
-				// An `Into` target that does not map takes what converts into it instead.
-				let sources = (tcx.is_diagnostic_item(sym::Into, tr) && !self.maps(target(), Pos::Param))
+				// An `Into` target that does not map takes what converts into it instead. The
+				// signature names the target, so unlike a candidate only tried, mapping it reaches
+				// it by its public path in its own crate.
+				let maps = (self.inferring && self.names_export(target())) || self.ty(target(), Pos::Param).is_ok();
+				let sources = (tcx.is_diagnostic_item(sym::Into, tr) && !maps)
 					.then(|| self.sources(def_id, target(), outlives))
 					.transpose()?;
 				let sources = (sources.into_iter().flatten()).map(|(x, outlives, imp)| (x, outlives, Some(imp)));
@@ -4197,7 +4200,19 @@ impl<'tcx> Collector<'tcx> {
 							.is_some_and(|tr| tcx.is_lang_item(tr.def_id(), LangItem::Future))
 					});
 					if !future {
-						let hidden = tcx.type_of(*def_id).instantiate(tcx, args).skip_norm_wip();
+						// Revealed through each `impl Trait` it returns in turn, as `function` reveals it.
+						let mut hidden = tcx.type_of(*def_id).instantiate(tcx, args).skip_norm_wip();
+						while let ty::Alias(
+							_,
+							ty::AliasTy {
+								kind: ty::AliasTyKind::Opaque { def_id },
+								args,
+								..
+							},
+						) = hidden.kind()
+						{
+							hidden = tcx.type_of(*def_id).instantiate(tcx, args).skip_norm_wip();
+						}
 						// One whose hidden type is an object crosses as its handle, which the glue
 						// keeps as the opaque type itself, so it holds every lifetime it captures,
 						// even one its hidden type does not borrow; one collected at the call holds

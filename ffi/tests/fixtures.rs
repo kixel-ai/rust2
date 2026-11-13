@@ -1404,7 +1404,8 @@ fn unreached_types() {
 				"Cargo.toml",
 				"[package]\nname = \"unreached_types\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"pkg\"\n\n\
 				[dependencies]\nkio = { package = \"unreached-kio\", path = \"kio\" }\n\
-				net = { package = \"unreached-net\", path = \"net\" }\n\n[workspace]\nexclude = [\"kio\", \"net\"]\n",
+				net = { package = \"unreached-net\", path = \"net\" }\n\
+				conv = { package = \"unreached-conv\", path = \"conv\" }\n\n[workspace]\nexclude = [\"kio\", \"net\", \"conv\"]\n",
 			),
 			(
 				"src/lib.rs",
@@ -1422,7 +1423,12 @@ fn unreached_types() {
 				pub fn copied(items: &[u32]) -> impl Iterator<Item = u32> + '_ {\n\titems.iter().copied()\n}\n\n\
 				#[derive(Clone)]\npub struct Held<'a>(&'a u32);\n\nimpl Held<'_> {\n\tpub fn get(&self) -> u32 {\n\t\t*self.0\n\t}\n}\n\n\
 				pub fn wrap(x: &u32) -> impl Clone + '_ {\n\tSome(Held(x))\n}\n\n#[derive(Clone)]\npub struct Own(u32);\n\nimpl Own {\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n\npub fn own() -> impl Clone {\n\tSome(Own(1))\n}\n\n\
-				impl Buffer {\n\tpub fn first(&self) -> impl Clone + '_ {\n\t\tOwn(self.0[0])\n\t}\n}\n",
+				impl Buffer {\n\tpub fn first(&self) -> impl Clone + '_ {\n\t\tOwn(self.0[0])\n\t}\n}\n\n\
+				pub struct Counter(u32);\n\nimpl Counter {\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n\n\
+				impl Buffer {\n\tfn counter(&self) -> impl Into<Counter> + '_ {\n\t\tCounter(self.0[0])\n\t}\n\n\
+				\tpub fn best(&self) -> impl Into<Counter> + '_ {\n\t\tself.counter()\n\t}\n}\n\n\
+				pub fn copied_again(items: &[u32]) -> impl Iterator<Item = u32> + '_ {\n\tcopied(items)\n}\n\n\
+				pub fn take(value: impl Into<conv::Value>) -> u32 {\n\tvalue.into().get()\n}\n",
 			),
 			(
 				"net/Cargo.toml",
@@ -1440,6 +1446,14 @@ fn unreached_types() {
 				pub struct Drain<'a>(&'a mut Vec<u32>);\n\n\
 				pub fn drain(items: &mut Vec<u32>) -> Drain<'_> {\n\tDrain(items)\n}\n\n\
 				impl Iterator for Drain<'_> {\n\ttype Item = u32;\n\n\tfn next(&mut self) -> Option<u32> {\n\t\tself.0.pop()\n\t}\n}\n",
+			),
+			(
+				"conv/Cargo.toml",
+				"[package]\nname = \"unreached-conv\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"conv\"\n",
+			),
+			(
+				"conv/src/lib.rs",
+				"pub struct Value(u32);\n\nimpl Value {\n\tpub fn new(n: u32) -> Self {\n\t\tSelf(n)\n\t}\n\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n",
 			),
 			(
 				"kio/Cargo.toml",
@@ -1470,6 +1484,10 @@ fn unreached_types() {
 	let glue = std::fs::read_to_string(out.join("src/lib.rs")).unwrap();
 	// An `impl Iterator + '_` collected at the call holds no borrow past it.
 	assert!(glue.contains("fn pkg_copied("), "{glue}");
+	// So does one returning another's, whose hidden type is revealed in full.
+	assert!(glue.contains("fn pkg_copied_again("), "{glue}");
+	// A conversion target only an `impl Into` names is reached, and taken.
+	assert!(glue.contains("rt::Object::<::conv_reached::Value>::take(p0, w)"), "{glue}");
 	assert!(glue.contains("::kio_reached::Pending"), "{glue}");
 	// `net`'s error crosses as its message, or holds `Failure`, which holds it, an object, and
 	// its `Arc` crosses as an opaque handle.
@@ -1492,7 +1510,7 @@ fn unreached_types() {
 		.env("CARGO_TARGET_DIR", package.join("build")));
 	let moved = scratch().join("unreached_types-moved");
 	let _ = std::fs::remove_dir_all(&moved);
-	for dir in ["src", "kio", "net"] {
+	for dir in ["src", "kio", "net", "conv"] {
 		copy_dir(&package.join(dir), &moved.join(dir));
 	}
 	for file in ["Cargo.toml", "ffi.toml"] {
@@ -1532,10 +1550,10 @@ fn unreached_types() {
 		String::from_utf8_lossy(&output.stderr)
 	);
 	let report = std::fs::read_to_string(census.join("unreached_types.md")).unwrap();
-	// `Pending`, `Version`, `Link`, `Failure`, and `Buffer` export; `Sealed` alone is refused
-	// as unreached, though an alias names it. `net`'s error in `Failure` is never reached, so
-	// `Failure` is an object.
-	assert!(report.contains("| Types | 5 | 0 |"), "{report}");
+	// `Pending`, `Version`, `Link`, `Failure`, `Buffer`, and `conv::Value` export; `Sealed`
+	// alone is refused as unreached, though an alias names it. `net`'s error in `Failure` is
+	// never reached, so `Failure` is an object.
+	assert!(report.contains("| Types | 6 | 0 |"), "{report}");
 	assert!(report.contains("- `Failure`: foreign type `net::Fault`"), "{report}");
 	// A type an `Arc` holds, a `Result`'s error without `Display`, and one no public path
 	// names stay refused as foreign.
@@ -1554,6 +1572,9 @@ fn unreached_types() {
 		"{report}"
 	);
 	assert!(report.contains("- `wrap`: type C never holds `Held`"), "{report}");
+	// So is `best`, whose `impl Into<Counter> + '_` hides another `impl Trait` hiding a
+	// `Counter`, an object its handle would hold the receiver's borrow for.
+	assert!(report.contains("- `Buffer::best`: type C never holds `Counter`"), "{report}");
 	// The glue cannot destructure a hidden type it cannot name, so only an object crosses
 	// through an `impl Trait`: `own`'s `Option` is refused, and `Own` left out with it.
 	assert!(report.contains("- `own`: type C never holds `Own`"), "{report}");
