@@ -1009,11 +1009,13 @@ func futures() {
 		until { q.drain(); return got.value != 0 }
 		check(got.value == 10, "an async closure's end wakes Rust")
 	}
+	// The closure waits, so it pends whether or not its task has run yet.
 	do {
+		let (stream, _) = AsyncStream<Void>.makeStream()
 		let threw = Cell(false)
 		q.launch {
 			do {
-				try await within(0) {}
+				try await within(0) { for await _ in stream { break } }
 			} catch is Api.Error {
 				threw.value = true
 			}
