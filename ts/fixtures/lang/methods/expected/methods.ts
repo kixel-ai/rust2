@@ -5,13 +5,6 @@ import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1ocvprc as option_map$
 
 /** Apply method `kind` to operands taken from `data`: two of the type, and a `u32`. */
 export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _22: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v4: rs.u8): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u8ToBeBytes(v4)));
-		rs.byteVecPush(out2, rs.u8FromBeBytes(rs.u8ToBeBytes(v4)) === v4 ? 1 : 0);
-	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out3: rs.ByteVec, v5: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u32ToBeBytes(v5)));
-	};
 	const byte: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
@@ -26,20 +19,27 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}));
 	const o: rs.i8 = (b << 24) >> 24;
 	const k: rs.u32 = rs.u32Rem(n, 3 * 8);
-	const putOpt: (a0: rs.ByteVec, a1: rs.u8 | undefined) => undefined = (out4: rs.ByteVec, v6: rs.u8 | undefined): undefined => {
-		if (v6 === undefined) {
-			rs.byteVecPush(out4, 0);
+	const _22: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v4: rs.u8): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u8ToBeBytes(v4)));
+		rs.byteVecPush(out2, rs.u8FromBeBytes(rs.u8ToBeBytes(v4)) === v4 ? 1 : 0);
+	};
+	const putOpt: (a0: rs.ByteVec, a1: rs.u8 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.u8 | undefined): undefined => {
+		if (v5 === undefined) {
+			rs.byteVecPush(out3, 0);
 		} else {
-			const v7: rs.u8 = v6;
-			rs.byteVecPush(out4, 1);
-			_22(out4, v7);
+			const v6: rs.u8 = v5;
+			rs.byteVecPush(out3, 1);
+			_22(out3, v6);
 		}
 	};
-	const putPair: (a0: rs.ByteVec, a1: [rs.u8, boolean]) => undefined = (out5: rs.ByteVec, _37: [rs.u8, boolean]): undefined => {
-		const v8: rs.u8 = _37[0];
+	const putPair: (a0: rs.ByteVec, a1: [rs.u8, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.u8, boolean]): undefined => {
+		const v7: rs.u8 = _37[0];
 		const over: boolean = _37[1];
-		_22(out5, v8);
-		rs.byteVecPush(out5, over ? 1 : 0);
+		_22(out4, v7);
+		rs.byteVecPush(out4, over ? 1 : 0);
+	};
+	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out5, rs.byteSliceFrom(rs.u32ToBeBytes(v8)));
 	};
 	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
 		if (v9 === undefined) {
@@ -475,13 +475,6 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply method `kind` to operands taken from `data`: two of the type, and a `u32`. */
 export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _22: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v4: rs.u16): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u16ToBeBytes(v4)));
-		rs.byteVecPush(out2, rs.u16FromBeBytes(rs.u16ToBeBytes(v4)) === v4 ? 1 : 0);
-	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out3: rs.ByteVec, v5: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u32ToBeBytes(v5)));
-	};
 	const byte: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
@@ -496,20 +489,27 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}));
 	const o: rs.i16 = (b << 16) >> 16;
 	const k: rs.u32 = rs.u32Rem(n, 3 * 16);
-	const putOpt: (a0: rs.ByteVec, a1: rs.u16 | undefined) => undefined = (out4: rs.ByteVec, v6: rs.u16 | undefined): undefined => {
-		if (v6 === undefined) {
-			rs.byteVecPush(out4, 0);
+	const _22: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v4: rs.u16): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u16ToBeBytes(v4)));
+		rs.byteVecPush(out2, rs.u16FromBeBytes(rs.u16ToBeBytes(v4)) === v4 ? 1 : 0);
+	};
+	const putOpt: (a0: rs.ByteVec, a1: rs.u16 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.u16 | undefined): undefined => {
+		if (v5 === undefined) {
+			rs.byteVecPush(out3, 0);
 		} else {
-			const v7: rs.u16 = v6;
-			rs.byteVecPush(out4, 1);
-			_22(out4, v7);
+			const v6: rs.u16 = v5;
+			rs.byteVecPush(out3, 1);
+			_22(out3, v6);
 		}
 	};
-	const putPair: (a0: rs.ByteVec, a1: [rs.u16, boolean]) => undefined = (out5: rs.ByteVec, _37: [rs.u16, boolean]): undefined => {
-		const v8: rs.u16 = _37[0];
+	const putPair: (a0: rs.ByteVec, a1: [rs.u16, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.u16, boolean]): undefined => {
+		const v7: rs.u16 = _37[0];
 		const over: boolean = _37[1];
-		_22(out5, v8);
-		rs.byteVecPush(out5, over ? 1 : 0);
+		_22(out4, v7);
+		rs.byteVecPush(out4, over ? 1 : 0);
+	};
+	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out5, rs.byteSliceFrom(rs.u32ToBeBytes(v8)));
 	};
 	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
 		if (v9 === undefined) {
@@ -945,13 +945,6 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply method `kind` to operands taken from `data`: two of the type, and a `u32`. */
 export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _22: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v4: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u32ToBeBytes(v4)));
-		rs.byteVecPush(out2, rs.u32FromBeBytes(rs.u32ToBeBytes(v4)) === v4 ? 1 : 0);
-	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out3: rs.ByteVec, v5: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u32ToBeBytes(v5)));
-	};
 	const byte: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
@@ -966,20 +959,27 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}));
 	const o: rs.i32 = b | 0;
 	const k: rs.u32 = rs.u32Rem(n, 3 * 32);
-	const putOpt: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out4: rs.ByteVec, v6: rs.u32 | undefined): undefined => {
-		if (v6 === undefined) {
-			rs.byteVecPush(out4, 0);
+	const _22: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v4: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u32ToBeBytes(v4)));
+		rs.byteVecPush(out2, rs.u32FromBeBytes(rs.u32ToBeBytes(v4)) === v4 ? 1 : 0);
+	};
+	const putOpt: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.u32 | undefined): undefined => {
+		if (v5 === undefined) {
+			rs.byteVecPush(out3, 0);
 		} else {
-			const v7: rs.u32 = v6;
-			rs.byteVecPush(out4, 1);
-			_22(out4, v7);
+			const v6: rs.u32 = v5;
+			rs.byteVecPush(out3, 1);
+			_22(out3, v6);
 		}
 	};
-	const putPair: (a0: rs.ByteVec, a1: [rs.u32, boolean]) => undefined = (out5: rs.ByteVec, _37: [rs.u32, boolean]): undefined => {
-		const v8: rs.u32 = _37[0];
+	const putPair: (a0: rs.ByteVec, a1: [rs.u32, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.u32, boolean]): undefined => {
+		const v7: rs.u32 = _37[0];
 		const over: boolean = _37[1];
-		_22(out5, v8);
-		rs.byteVecPush(out5, over ? 1 : 0);
+		_22(out4, v7);
+		rs.byteVecPush(out4, over ? 1 : 0);
+	};
+	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out5, rs.byteSliceFrom(rs.u32ToBeBytes(v8)));
 	};
 	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
 		if (v9 === undefined) {
@@ -1415,13 +1415,6 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply method `kind` to operands taken from `data`: two of the type, and a `u32`. */
 export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _22: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v4: rs.u64): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u64ToBeBytes(v4)));
-		rs.byteVecPush(out2, rs.u64Eq(rs.u64FromBeBytes(rs.u64ToBeBytes(v4)), v4) ? 1 : 0);
-	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out3: rs.ByteVec, v5: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u32ToBeBytes(v5)));
-	};
 	const byte: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
@@ -1436,20 +1429,27 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}));
 	const o: rs.i64 = rs.i64Cast(b);
 	const k: rs.u32 = rs.u32Rem(n, 3 * 64);
-	const putOpt: (a0: rs.ByteVec, a1: rs.u64 | undefined) => undefined = (out4: rs.ByteVec, v6: rs.u64 | undefined): undefined => {
-		if (v6 === undefined) {
-			rs.byteVecPush(out4, 0);
+	const _22: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v4: rs.u64): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u64ToBeBytes(v4)));
+		rs.byteVecPush(out2, rs.u64Eq(rs.u64FromBeBytes(rs.u64ToBeBytes(v4)), v4) ? 1 : 0);
+	};
+	const putOpt: (a0: rs.ByteVec, a1: rs.u64 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.u64 | undefined): undefined => {
+		if (v5 === undefined) {
+			rs.byteVecPush(out3, 0);
 		} else {
-			const v7: rs.u64 = v6;
-			rs.byteVecPush(out4, 1);
-			_22(out4, v7);
+			const v6: rs.u64 = v5;
+			rs.byteVecPush(out3, 1);
+			_22(out3, v6);
 		}
 	};
-	const putPair: (a0: rs.ByteVec, a1: [rs.u64, boolean]) => undefined = (out5: rs.ByteVec, _37: [rs.u64, boolean]): undefined => {
-		const v8: rs.u64 = _37[0];
+	const putPair: (a0: rs.ByteVec, a1: [rs.u64, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.u64, boolean]): undefined => {
+		const v7: rs.u64 = _37[0];
 		const over: boolean = _37[1];
-		_22(out5, v8);
-		rs.byteVecPush(out5, over ? 1 : 0);
+		_22(out4, v7);
+		rs.byteVecPush(out4, over ? 1 : 0);
+	};
+	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out5, rs.byteSliceFrom(rs.u32ToBeBytes(v8)));
 	};
 	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
 		if (v9 === undefined) {
@@ -1885,13 +1885,6 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply method `kind` to operands taken from `data`: two of the type, and a `u32`. */
 export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _22: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v4: rs.u128): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v4)));
-		rs.byteVecPush(out2, rs.u128Eq(rs.u128FromBeBytes(rs.u128ToBeBytes(v4)), v4) ? 1 : 0);
-	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out3: rs.ByteVec, v5: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u32ToBeBytes(v5)));
-	};
 	const byte: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
@@ -1906,20 +1899,27 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}));
 	const o: rs.i128 = rs.i128Cast(b);
 	const k: rs.u32 = rs.u32Rem(n, 3 * 128);
-	const putOpt: (a0: rs.ByteVec, a1: rs.u128 | undefined) => undefined = (out4: rs.ByteVec, v6: rs.u128 | undefined): undefined => {
-		if (v6 === undefined) {
-			rs.byteVecPush(out4, 0);
+	const _22: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v4: rs.u128): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v4)));
+		rs.byteVecPush(out2, rs.u128Eq(rs.u128FromBeBytes(rs.u128ToBeBytes(v4)), v4) ? 1 : 0);
+	};
+	const putOpt: (a0: rs.ByteVec, a1: rs.u128 | undefined) => undefined = (out3: rs.ByteVec, v5: rs.u128 | undefined): undefined => {
+		if (v5 === undefined) {
+			rs.byteVecPush(out3, 0);
 		} else {
-			const v7: rs.u128 = v6;
-			rs.byteVecPush(out4, 1);
-			_22(out4, v7);
+			const v6: rs.u128 = v5;
+			rs.byteVecPush(out3, 1);
+			_22(out3, v6);
 		}
 	};
-	const putPair: (a0: rs.ByteVec, a1: [rs.u128, boolean]) => undefined = (out5: rs.ByteVec, _37: [rs.u128, boolean]): undefined => {
-		const v8: rs.u128 = _37[0];
+	const putPair: (a0: rs.ByteVec, a1: [rs.u128, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.u128, boolean]): undefined => {
+		const v7: rs.u128 = _37[0];
 		const over: boolean = _37[1];
-		_22(out5, v8);
-		rs.byteVecPush(out5, over ? 1 : 0);
+		_22(out4, v7);
+		rs.byteVecPush(out4, over ? 1 : 0);
+	};
+	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out5, rs.byteSliceFrom(rs.u32ToBeBytes(v8)));
 	};
 	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
 		if (v9 === undefined) {
@@ -2355,13 +2355,6 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply method `kind` to operands taken from `data`: two of the type, and a `u32`. */
 export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _22: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v4: rs.usize): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.usizeToBeBytes(v4)));
-		rs.byteVecPush(out2, rs.usizeFromBeBytes(rs.usizeToBeBytes(v4)) === v4 ? 1 : 0);
-	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out3: rs.ByteVec, v5: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u32ToBeBytes(v5)));
-	};
 	const byte: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
@@ -2376,20 +2369,27 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}));
 	const o: rs.isize = b | 0;
 	const k: rs.u32 = rs.u32Rem(n, 3 * 32);
-	const putOpt: (a0: rs.ByteVec, a1: rs.usize | undefined) => undefined = (out4: rs.ByteVec, v6: rs.usize | undefined): undefined => {
-		if (v6 === undefined) {
-			rs.byteVecPush(out4, 0);
+	const _22: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v4: rs.usize): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.usizeToBeBytes(v4)));
+		rs.byteVecPush(out2, rs.usizeFromBeBytes(rs.usizeToBeBytes(v4)) === v4 ? 1 : 0);
+	};
+	const putOpt: (a0: rs.ByteVec, a1: rs.usize | undefined) => undefined = (out3: rs.ByteVec, v5: rs.usize | undefined): undefined => {
+		if (v5 === undefined) {
+			rs.byteVecPush(out3, 0);
 		} else {
-			const v7: rs.usize = v6;
-			rs.byteVecPush(out4, 1);
-			_22(out4, v7);
+			const v6: rs.usize = v5;
+			rs.byteVecPush(out3, 1);
+			_22(out3, v6);
 		}
 	};
-	const putPair: (a0: rs.ByteVec, a1: [rs.usize, boolean]) => undefined = (out5: rs.ByteVec, _37: [rs.usize, boolean]): undefined => {
-		const v8: rs.usize = _37[0];
+	const putPair: (a0: rs.ByteVec, a1: [rs.usize, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.usize, boolean]): undefined => {
+		const v7: rs.usize = _37[0];
 		const over: boolean = _37[1];
-		_22(out5, v8);
-		rs.byteVecPush(out5, over ? 1 : 0);
+		_22(out4, v7);
+		rs.byteVecPush(out4, over ? 1 : 0);
+	};
+	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v8: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out5, rs.byteSliceFrom(rs.u32ToBeBytes(v8)));
 	};
 	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v9: rs.u32 | undefined): undefined => {
 		if (v9 === undefined) {
@@ -2825,13 +2825,6 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply method `kind` to operands taken from `data`: two of the type, and a `u32`. */
 export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _22: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v8: rs.i8): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i8ToBeBytes(v8)));
-		rs.byteVecPush(out2, rs.i8FromBeBytes(rs.i8ToBeBytes(v8)) === v8 ? 1 : 0);
-	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out3: rs.ByteVec, v9: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u32ToBeBytes(v9)));
-	};
 	const byte: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
@@ -2846,20 +2839,27 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}));
 	const o: rs.u8 = b & 0xff;
 	const k: rs.u32 = rs.u32Rem(n, 3 * 8);
-	const putOpt: (a0: rs.ByteVec, a1: rs.i8 | undefined) => undefined = (out4: rs.ByteVec, v10: rs.i8 | undefined): undefined => {
-		if (v10 === undefined) {
-			rs.byteVecPush(out4, 0);
+	const _22: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v8: rs.i8): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i8ToBeBytes(v8)));
+		rs.byteVecPush(out2, rs.i8FromBeBytes(rs.i8ToBeBytes(v8)) === v8 ? 1 : 0);
+	};
+	const putOpt: (a0: rs.ByteVec, a1: rs.i8 | undefined) => undefined = (out3: rs.ByteVec, v9: rs.i8 | undefined): undefined => {
+		if (v9 === undefined) {
+			rs.byteVecPush(out3, 0);
 		} else {
-			const v11: rs.i8 = v10;
-			rs.byteVecPush(out4, 1);
-			_22(out4, v11);
+			const v10: rs.i8 = v9;
+			rs.byteVecPush(out3, 1);
+			_22(out3, v10);
 		}
 	};
-	const putPair: (a0: rs.ByteVec, a1: [rs.i8, boolean]) => undefined = (out5: rs.ByteVec, _37: [rs.i8, boolean]): undefined => {
-		const v12: rs.i8 = _37[0];
+	const putPair: (a0: rs.ByteVec, a1: [rs.i8, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.i8, boolean]): undefined => {
+		const v11: rs.i8 = _37[0];
 		const over3: boolean = _37[1];
-		_22(out5, v12);
-		rs.byteVecPush(out5, over3 ? 1 : 0);
+		_22(out4, v11);
+		rs.byteVecPush(out4, over3 ? 1 : 0);
+	};
+	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v12: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out5, rs.byteSliceFrom(rs.u32ToBeBytes(v12)));
 	};
 	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v13: rs.u32 | undefined): undefined => {
 		if (v13 === undefined) {
@@ -3281,13 +3281,6 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply method `kind` to operands taken from `data`: two of the type, and a `u32`. */
 export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _22: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v8: rs.i16): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i16ToBeBytes(v8)));
-		rs.byteVecPush(out2, rs.i16FromBeBytes(rs.i16ToBeBytes(v8)) === v8 ? 1 : 0);
-	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out3: rs.ByteVec, v9: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u32ToBeBytes(v9)));
-	};
 	const byte: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
@@ -3302,20 +3295,27 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}));
 	const o: rs.u16 = b & 0xffff;
 	const k: rs.u32 = rs.u32Rem(n, 3 * 16);
-	const putOpt: (a0: rs.ByteVec, a1: rs.i16 | undefined) => undefined = (out4: rs.ByteVec, v10: rs.i16 | undefined): undefined => {
-		if (v10 === undefined) {
-			rs.byteVecPush(out4, 0);
+	const _22: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v8: rs.i16): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i16ToBeBytes(v8)));
+		rs.byteVecPush(out2, rs.i16FromBeBytes(rs.i16ToBeBytes(v8)) === v8 ? 1 : 0);
+	};
+	const putOpt: (a0: rs.ByteVec, a1: rs.i16 | undefined) => undefined = (out3: rs.ByteVec, v9: rs.i16 | undefined): undefined => {
+		if (v9 === undefined) {
+			rs.byteVecPush(out3, 0);
 		} else {
-			const v11: rs.i16 = v10;
-			rs.byteVecPush(out4, 1);
-			_22(out4, v11);
+			const v10: rs.i16 = v9;
+			rs.byteVecPush(out3, 1);
+			_22(out3, v10);
 		}
 	};
-	const putPair: (a0: rs.ByteVec, a1: [rs.i16, boolean]) => undefined = (out5: rs.ByteVec, _37: [rs.i16, boolean]): undefined => {
-		const v12: rs.i16 = _37[0];
+	const putPair: (a0: rs.ByteVec, a1: [rs.i16, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.i16, boolean]): undefined => {
+		const v11: rs.i16 = _37[0];
 		const over3: boolean = _37[1];
-		_22(out5, v12);
-		rs.byteVecPush(out5, over3 ? 1 : 0);
+		_22(out4, v11);
+		rs.byteVecPush(out4, over3 ? 1 : 0);
+	};
+	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v12: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out5, rs.byteSliceFrom(rs.u32ToBeBytes(v12)));
 	};
 	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v13: rs.u32 | undefined): undefined => {
 		if (v13 === undefined) {
@@ -3737,13 +3737,6 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply method `kind` to operands taken from `data`: two of the type, and a `u32`. */
 export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _22: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v8: rs.i32): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i32ToBeBytes(v8)));
-		rs.byteVecPush(out2, rs.i32FromBeBytes(rs.i32ToBeBytes(v8)) === v8 ? 1 : 0);
-	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out3: rs.ByteVec, v9: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u32ToBeBytes(v9)));
-	};
 	const byte: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
@@ -3758,20 +3751,27 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}));
 	const o: rs.u32 = b >>> 0;
 	const k: rs.u32 = rs.u32Rem(n, 3 * 32);
-	const putOpt: (a0: rs.ByteVec, a1: rs.i32 | undefined) => undefined = (out4: rs.ByteVec, v10: rs.i32 | undefined): undefined => {
-		if (v10 === undefined) {
-			rs.byteVecPush(out4, 0);
+	const _22: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v8: rs.i32): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i32ToBeBytes(v8)));
+		rs.byteVecPush(out2, rs.i32FromBeBytes(rs.i32ToBeBytes(v8)) === v8 ? 1 : 0);
+	};
+	const putOpt: (a0: rs.ByteVec, a1: rs.i32 | undefined) => undefined = (out3: rs.ByteVec, v9: rs.i32 | undefined): undefined => {
+		if (v9 === undefined) {
+			rs.byteVecPush(out3, 0);
 		} else {
-			const v11: rs.i32 = v10;
-			rs.byteVecPush(out4, 1);
-			_22(out4, v11);
+			const v10: rs.i32 = v9;
+			rs.byteVecPush(out3, 1);
+			_22(out3, v10);
 		}
 	};
-	const putPair: (a0: rs.ByteVec, a1: [rs.i32, boolean]) => undefined = (out5: rs.ByteVec, _37: [rs.i32, boolean]): undefined => {
-		const v12: rs.i32 = _37[0];
+	const putPair: (a0: rs.ByteVec, a1: [rs.i32, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.i32, boolean]): undefined => {
+		const v11: rs.i32 = _37[0];
 		const over3: boolean = _37[1];
-		_22(out5, v12);
-		rs.byteVecPush(out5, over3 ? 1 : 0);
+		_22(out4, v11);
+		rs.byteVecPush(out4, over3 ? 1 : 0);
+	};
+	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v12: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out5, rs.byteSliceFrom(rs.u32ToBeBytes(v12)));
 	};
 	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v13: rs.u32 | undefined): undefined => {
 		if (v13 === undefined) {
@@ -4193,13 +4193,6 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply method `kind` to operands taken from `data`: two of the type, and a `u32`. */
 export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _22: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v8: rs.i64): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i64ToBeBytes(v8)));
-		rs.byteVecPush(out2, rs.i64Eq(rs.i64FromBeBytes(rs.i64ToBeBytes(v8)), v8) ? 1 : 0);
-	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out3: rs.ByteVec, v9: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u32ToBeBytes(v9)));
-	};
 	const byte: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
@@ -4214,20 +4207,27 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}));
 	const o: rs.u64 = rs.u64Cast(b);
 	const k: rs.u32 = rs.u32Rem(n, 3 * 64);
-	const putOpt: (a0: rs.ByteVec, a1: rs.i64 | undefined) => undefined = (out4: rs.ByteVec, v10: rs.i64 | undefined): undefined => {
-		if (v10 === undefined) {
-			rs.byteVecPush(out4, 0);
+	const _22: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v8: rs.i64): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i64ToBeBytes(v8)));
+		rs.byteVecPush(out2, rs.i64Eq(rs.i64FromBeBytes(rs.i64ToBeBytes(v8)), v8) ? 1 : 0);
+	};
+	const putOpt: (a0: rs.ByteVec, a1: rs.i64 | undefined) => undefined = (out3: rs.ByteVec, v9: rs.i64 | undefined): undefined => {
+		if (v9 === undefined) {
+			rs.byteVecPush(out3, 0);
 		} else {
-			const v11: rs.i64 = v10;
-			rs.byteVecPush(out4, 1);
-			_22(out4, v11);
+			const v10: rs.i64 = v9;
+			rs.byteVecPush(out3, 1);
+			_22(out3, v10);
 		}
 	};
-	const putPair: (a0: rs.ByteVec, a1: [rs.i64, boolean]) => undefined = (out5: rs.ByteVec, _37: [rs.i64, boolean]): undefined => {
-		const v12: rs.i64 = _37[0];
+	const putPair: (a0: rs.ByteVec, a1: [rs.i64, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.i64, boolean]): undefined => {
+		const v11: rs.i64 = _37[0];
 		const over3: boolean = _37[1];
-		_22(out5, v12);
-		rs.byteVecPush(out5, over3 ? 1 : 0);
+		_22(out4, v11);
+		rs.byteVecPush(out4, over3 ? 1 : 0);
+	};
+	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v12: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out5, rs.byteSliceFrom(rs.u32ToBeBytes(v12)));
 	};
 	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v13: rs.u32 | undefined): undefined => {
 		if (v13 === undefined) {
@@ -4649,13 +4649,6 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply method `kind` to operands taken from `data`: two of the type, and a `u32`. */
 export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _22: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v8: rs.i128): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v8)));
-		rs.byteVecPush(out2, rs.i128Eq(rs.i128FromBeBytes(rs.i128ToBeBytes(v8)), v8) ? 1 : 0);
-	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out3: rs.ByteVec, v9: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u32ToBeBytes(v9)));
-	};
 	const byte: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
@@ -4670,20 +4663,27 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}));
 	const o: rs.u128 = rs.u128Cast(b);
 	const k: rs.u32 = rs.u32Rem(n, 3 * 128);
-	const putOpt: (a0: rs.ByteVec, a1: rs.i128 | undefined) => undefined = (out4: rs.ByteVec, v10: rs.i128 | undefined): undefined => {
-		if (v10 === undefined) {
-			rs.byteVecPush(out4, 0);
+	const _22: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v8: rs.i128): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v8)));
+		rs.byteVecPush(out2, rs.i128Eq(rs.i128FromBeBytes(rs.i128ToBeBytes(v8)), v8) ? 1 : 0);
+	};
+	const putOpt: (a0: rs.ByteVec, a1: rs.i128 | undefined) => undefined = (out3: rs.ByteVec, v9: rs.i128 | undefined): undefined => {
+		if (v9 === undefined) {
+			rs.byteVecPush(out3, 0);
 		} else {
-			const v11: rs.i128 = v10;
-			rs.byteVecPush(out4, 1);
-			_22(out4, v11);
+			const v10: rs.i128 = v9;
+			rs.byteVecPush(out3, 1);
+			_22(out3, v10);
 		}
 	};
-	const putPair: (a0: rs.ByteVec, a1: [rs.i128, boolean]) => undefined = (out5: rs.ByteVec, _37: [rs.i128, boolean]): undefined => {
-		const v12: rs.i128 = _37[0];
+	const putPair: (a0: rs.ByteVec, a1: [rs.i128, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.i128, boolean]): undefined => {
+		const v11: rs.i128 = _37[0];
 		const over3: boolean = _37[1];
-		_22(out5, v12);
-		rs.byteVecPush(out5, over3 ? 1 : 0);
+		_22(out4, v11);
+		rs.byteVecPush(out4, over3 ? 1 : 0);
+	};
+	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v12: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out5, rs.byteSliceFrom(rs.u32ToBeBytes(v12)));
 	};
 	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v13: rs.u32 | undefined): undefined => {
 		if (v13 === undefined) {
@@ -5105,13 +5105,6 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply method `kind` to operands taken from `data`: two of the type, and a `u32`. */
 export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _22: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v8: rs.isize): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.isizeToBeBytes(v8)));
-		rs.byteVecPush(out2, rs.isizeFromBeBytes(rs.isizeToBeBytes(v8)) === v8 ? 1 : 0);
-	};
-	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out3: rs.ByteVec, v9: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u32ToBeBytes(v9)));
-	};
 	const byte: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
@@ -5126,20 +5119,27 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}));
 	const o: rs.usize = b >>> 0;
 	const k: rs.u32 = rs.u32Rem(n, 3 * 32);
-	const putOpt: (a0: rs.ByteVec, a1: rs.isize | undefined) => undefined = (out4: rs.ByteVec, v10: rs.isize | undefined): undefined => {
-		if (v10 === undefined) {
-			rs.byteVecPush(out4, 0);
+	const _22: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v8: rs.isize): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.isizeToBeBytes(v8)));
+		rs.byteVecPush(out2, rs.isizeFromBeBytes(rs.isizeToBeBytes(v8)) === v8 ? 1 : 0);
+	};
+	const putOpt: (a0: rs.ByteVec, a1: rs.isize | undefined) => undefined = (out3: rs.ByteVec, v9: rs.isize | undefined): undefined => {
+		if (v9 === undefined) {
+			rs.byteVecPush(out3, 0);
 		} else {
-			const v11: rs.isize = v10;
-			rs.byteVecPush(out4, 1);
-			_22(out4, v11);
+			const v10: rs.isize = v9;
+			rs.byteVecPush(out3, 1);
+			_22(out3, v10);
 		}
 	};
-	const putPair: (a0: rs.ByteVec, a1: [rs.isize, boolean]) => undefined = (out5: rs.ByteVec, _37: [rs.isize, boolean]): undefined => {
-		const v12: rs.isize = _37[0];
+	const putPair: (a0: rs.ByteVec, a1: [rs.isize, boolean]) => undefined = (out4: rs.ByteVec, _37: [rs.isize, boolean]): undefined => {
+		const v11: rs.isize = _37[0];
 		const over3: boolean = _37[1];
-		_22(out5, v12);
-		rs.byteVecPush(out5, over3 ? 1 : 0);
+		_22(out4, v11);
+		rs.byteVecPush(out4, over3 ? 1 : 0);
+	};
+	const _27: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out5: rs.ByteVec, v12: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out5, rs.byteSliceFrom(rs.u32ToBeBytes(v12)));
 	};
 	const putOptU32: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out6: rs.ByteVec, v13: rs.u32 | undefined): undefined => {
 		if (v13 === undefined) {

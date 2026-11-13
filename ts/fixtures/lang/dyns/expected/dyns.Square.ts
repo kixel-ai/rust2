@@ -24,10 +24,7 @@ export function tally$dyns_Shape(self: Square, sum: rs.Place<rs.u32>): void {
 }
 
 export function fmt$fmt_Debug(self: Square, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Square";
-	const _4: string = "side";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.u16Debug(self.side, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5));
+	return rs.fmtDebugFields(f, "Square side", [(f: rs.Formatter) => rs.u16Debug(self.side, f)]);
 }
 
 export interface Square {

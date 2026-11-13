@@ -826,11 +826,6 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	let c3!: rs.ByteCow;
 	let c4!: rs.Cow<rs.ByteVec>;
 	let _157!: rs.Cow<rs.ByteVec>;
-	const _32: (a0: rs.Slice<Tally.Tally>) => rs.ByteVec = (items: rs.Slice<Tally.Tally>): rs.ByteVec => {
-		return rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.sliceItems(items)), (t: Tally.Tally): rs.u8 => {
-			return t._0;
-		}), undefined, true);
-	};
 	const _6: [boolean, boolean] = [(kind & 1) !== 0, (kind & 2) !== 0];
 	const intoOwned: boolean = _6[0];
 	const fromOwned: boolean = _6[1];
@@ -849,6 +844,11 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		const second: rs.Vec<Tally.Tally> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(right)), (_27: rs.u8): Tally.Tally => {
 			return new Tally.Tally(_27, log);
 		}), undefined, 8, true);
+		const _32: (a0: rs.Slice<Tally.Tally>) => rs.ByteVec = (items: rs.Slice<Tally.Tally>): rs.ByteVec => {
+			return rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.sliceItems(items)), (t: Tally.Tally): rs.u8 => {
+				return t._0;
+			}), undefined, true);
+		};
 		if (!intoOwned) {
 			c = new rs.Borrowed(rs.sliceFrom(first.items));
 		} else {

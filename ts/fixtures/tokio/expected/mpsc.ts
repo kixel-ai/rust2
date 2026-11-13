@@ -182,13 +182,13 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 			const item2: Item.Item = mpsc_State.item(s);
 			_522 = true;
 			const _60: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
-			b24: {
+			b25: {
 				if (_60 !== undefined) {
 					if (_60.tag === "Bounded") {
 						const tx3: rs.MpscSender<Item.Item> = _60._0;
 						_522 = false;
 						Executor.spawn$mpsc_step_run_closure4(s.exec, new stepRunFuture$closure4(tx3, arg, item2));
-						break b24;
+						break b25;
 					}
 				}
 				if (_60 !== undefined) {
@@ -203,7 +203,7 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 			const first: Item.Item = mpsc_State.item(s);
 			_524 = true;
 			const _69: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
-			b20: {
+			b21: {
 				if (_69 !== undefined) {
 					if (_69.tag === "Bounded") {
 						const tx4: rs.MpscSender<Item.Item> = _69._0;
@@ -211,7 +211,7 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 						const sent: rs.usize = rs.usizeRem(arg >> 4 as rs.usize, 3);
 						_524 = false;
 						Executor.spawn$mpsc_step_run_closure5(s.exec, new stepRunFuture$closure5(tx4, n, first, sent));
-						break b20;
+						break b21;
 					}
 				}
 				if (_69 !== undefined) {
@@ -258,7 +258,7 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 				s.owned.items[at5] = undefined;
 				const permit2: rs.MpscOwnedPermit<Item.Item> = rs.optionExpect(taken2, "live");
 				const _134: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, 0);
-				b12: {
+				b13: {
 					if (_134 !== undefined) {
 						if (_134.tag === "Bounded") {
 							const tx6: rs.MpscSender<Item.Item> = _134._0;
@@ -273,7 +273,7 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 							const args42 = [(f: rs.Formatter) => rs.fmtBool(_145, f), (f: rs.Formatter) => rs.fmtBool(_149, f)];
 							note(rs.fmtFormat(["same ", args42[0], " ", args42[1]]));
 							tx6[Symbol.dispose]();
-							break b12;
+							break b13;
 						}
 					}
 					if (_134 !== undefined) {

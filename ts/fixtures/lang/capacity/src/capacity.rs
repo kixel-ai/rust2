@@ -678,7 +678,7 @@ pub fn strings(first: u8, steps: &[u8], out: &mut Vec<u8>) {
 	for step in steps.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
 		let c = CHARS[usize::from(arg) % CHARS.len()];
-		match op % 49 {
+		match op % 53 {
 			0 => s.push(c),
 			1 => s.push_str(text(arg)),
 			2 => s.reserve(amount(arg, s.len(), 1)),
@@ -809,6 +809,25 @@ pub fn strings(first: u8, steps: &[u8], out: &mut Vec<u8>) {
 				lent.borrow_mut().make_ascii_uppercase();
 				let shared: &dyn Borrow<str> = &s;
 				put(out, shared.borrow().len());
+			}
+			// `str::escape_default` by std's own `ToString`, `FromIterator`, and `Extend`, which
+			// reserve by its parts, and each `\u{..}` by ten bytes.
+			49 => s = s.escape_default().to_string(),
+			50 => s = s.escape_default().collect(),
+			51 => {
+				let mut grown = String::with_capacity(usize::from(arg % 8));
+				grown.extend(s.escape_default());
+				s = grown;
+			}
+			// With an escape begun, which its front part holds.
+			52 => {
+				let mut escape = s.escape_default();
+				escape.next();
+				escape.next();
+				s = match arg & 1 {
+					0 => escape.to_string(),
+					_ => escape.collect(),
+				};
 			}
 			_ => {}
 		}

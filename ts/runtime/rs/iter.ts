@@ -973,6 +973,12 @@ export function iterFlatMap<T, U, V>(it: Iter<T>, f: (item: T) => U, into?: (val
 	return new FlattenIter(new MapIter(it, f), into ?? (itself as (value: U) => Iter<V>), fused, size, oneShot);
 }
 
+/** A `flatten`'s or `flat_map`'s front iterator, source, and back iterator, as std's `into_parts` gives them. */
+export function iterFlattenParts<V>(it: Iter<V>): [Iter<V> | undefined, Iter<unknown> | undefined, Iter<V> | undefined] {
+	if (!(it instanceof FlattenIter)) throw new TypeError("iterFlattenParts of an iterator that is not a flatten");
+	return [it.front, it.outer, it.back];
+}
+
 /**
  * `flatten`: `into` makes each item an iterator, as `IntoIterator` does, `fused` is as
  * `flat_map`'s, `size` is each item's length if it is an array, and `oneShot` says each
@@ -4527,6 +4533,14 @@ class FuseIter<T> extends Iter<T> implements Disposable {
 
 	override nextBack(): T | Done {
 		return this.inner === undefined ? DONE : this.clear(this.inner.nextBack());
+	}
+
+	/** std's: its iterator's, dropped if it falls short unless it is fused. */
+	override advanceBackBy(n: number, drop?: Drop<T>): number {
+		if (this.inner === undefined) return n;
+		const left = this.inner.advanceBackBy(n, drop);
+		if (left !== 0) this.clear(DONE);
+		return left;
 	}
 
 	override len(): number {

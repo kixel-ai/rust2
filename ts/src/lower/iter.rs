@@ -2226,6 +2226,13 @@ fn collect<'tcx>(
 					let drops = iter_drops(b, from, span);
 					Expr::rs("stringFromStrings", tail(vec![iter], vec![drops]))
 				}
+				// std's own for a `str::escape_default`, and room for the least the iterator
+				// says it has for any other of chars, but not of `&char`s.
+				_ if str_escape_default(b.t, from) => Expr::rs("stringFromEscapeDefault", vec![iter]),
+				_ if item.is_char() => {
+					let drops = iter_drops(b, from, span);
+					Expr::rs("stringFromChars", tail(vec![iter], vec![drops]))
+				}
 				_ => string_extend(b, Expr::rs("stringNew", vec![]), iter, item, from, span)?,
 			};
 			Some(match std {
@@ -2280,6 +2287,9 @@ pub(super) fn string_extend<'tcx>(
 	iter: Ty<'tcx>,
 	span: Span,
 ) -> Option<Expr> {
+	if str_escape_default(b.t, iter) {
+		return Some(Expr::rs("stringExtendEscapeDefault", vec![s, items]));
+	}
 	let extend = if text_items(b.t, item)? {
 		"stringExtend"
 	} else {
@@ -2287,6 +2297,12 @@ pub(super) fn string_extend<'tcx>(
 	};
 	let drops = iter_drops(b, iter, span);
 	Some(Expr::rs(extend, tail(vec![s, items], vec![drops])))
+}
+
+/// Whether `ty` is `str::EscapeDefault`, which `String`'s `Extend`, `FromIterator`, and
+/// `ToString` reserve for by its parts.
+pub(super) fn str_escape_default<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
+	matches!(ty.kind(), ty::Adt(adt, _) if library::std_path(t.tcx, adt.did()) == ["str", "iter", "EscapeDefault"])
 }
 
 /// Whether a `String` extends by `item`s of text, a `&str`, `String`, `Box<str>`, or

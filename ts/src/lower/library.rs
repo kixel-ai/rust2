@@ -3274,6 +3274,9 @@ fn mapping<'tcx>(
 			let value = args.pop()?;
 			let size = match ty.kind() {
 				ty::Adt(..) if textual(tcx, ty) && !string(tcx, ty) => return Some(string_from(text(tcx, ty, value))),
+				ty::Adt(..) if super::iter::str_escape_default(b.t, ty) => {
+					return Some(Expr::rs("stringFromEscapeDefault", vec![value]));
+				}
 				ty::Adt(..) if b.t.std_of(ty) == Some(Std::Arguments) => {
 					return Some(Expr::rs("fmtFormat", vec![value]));
 				}

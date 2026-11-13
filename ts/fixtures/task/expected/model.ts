@@ -1164,7 +1164,8 @@ export function temporaries(log: Log.Log, id: rs.u32): void {
 	Guard.note(head, "head");
 	Guard.note(rest[1], "rest");
 	guard(1090)[Symbol.dispose]();
-	const part2 = rs.sliceFrom([]).length;
+	const _87: Guard.Guard[] = [];
+	const part2 = rs.sliceFrom(_87).length;
 	Log.note(log, rs.fmtFormat(["empty ", (f: rs.Formatter) => rs.usizeDisplay(part2, f)]));
 	const captured = guard(1100);
 	const part3 = rs.closure((): rs.u32 => {
