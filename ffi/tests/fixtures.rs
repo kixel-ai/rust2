@@ -1435,6 +1435,23 @@ fn lock() {
 		stderr.contains("library `other`: it is now `lock`"),
 		"no library error:\n{stderr}"
 	);
+	// A baseline an earlier export wrote, before records had their padding, still reads.
+	let older = dir.join("older.json");
+	let mut json = String::from_utf8(before.clone()).unwrap();
+	while let Some(at) = json.find(",\"padding\":{") {
+		let end = at + json[at..].find('}').unwrap() + 1;
+		json.replace_range(at..end, "");
+	}
+	std::fs::write(&older, json).unwrap();
+	let args = ["--baseline".as_ref(), older.as_os_str()];
+	let read = exporter("lock", &dir.join("older"), &targets, &args, &[])
+		.output()
+		.expect("running rust2-ffi");
+	assert!(
+		read.status.success(),
+		"a baseline without padding failed:\n{}",
+		String::from_utf8_lossy(&read.stderr)
+	);
 	let locked = |feature: &str| {
 		let args = ["--baseline".as_ref(), baseline.as_os_str()];
 		exporter("lock", &dir.join(feature), &targets, &args, &["--features", feature])

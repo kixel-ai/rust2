@@ -128,7 +128,8 @@ pub struct Record {
 	pub opaque: Option<Opaque>,
 	/// For an opaque value, its padding on each target, by target, as `(offset, length)`
 	/// ranges, which the glue zeroes, so no byte Rust leaves uninitialized reaches a
-	/// language.
+	/// language. A baseline written before it existed has none, as its records had.
+	#[serde(default)]
 	pub padding: std::collections::BTreeMap<String, Vec<(u64, u64)>>,
 }
 
