@@ -72,6 +72,22 @@ fn why(construct: &'static str, detail: impl Into<String>) -> Why {
 	}
 }
 
+/// Why a function cannot be called from safe foreign code, if it cannot: a C-variadic
+/// or custom-ABI one under its own construct, else any `unsafe fn`, whose preconditions
+/// no binding can check.
+fn unsafety(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Why> {
+	let sig = tcx.fn_sig(def_id).skip_binder().skip_binder();
+	if sig.c_variadic() {
+		Some(why("C-variadic function", ""))
+	} else if sig.abi() == rustc_abi::ExternAbi::Custom {
+		Some(why("custom ABI", ""))
+	} else if sig.safety().is_unsafe() {
+		Some(why("unsafe fn", ""))
+	} else {
+		None
+	}
+}
+
 /// An item the export refuses, with every reason found.
 pub struct Refusal {
 	/// Its path from its crate's root.
@@ -2187,6 +2203,10 @@ impl<'tcx> Collector<'tcx> {
 	fn callback(&mut self, def_id: DefId, path: &[String]) -> Result<Vec<Function>, Vec<Why>> {
 		let tcx = self.tcx;
 		let mut errs = Vec::new();
+		// Foreign code would implement it without upholding the contract it documents.
+		if tcx.trait_def(def_id).safety.is_unsafe() {
+			errs.push(why("unsafe trait", ""));
+		}
 		// It may already cover the foreign implementation, which could not then implement it.
 		if !tcx.trait_impls_of(def_id).blanket_impls().is_empty() {
 			errs.push(why("trait with a blanket impl", ""));
@@ -2285,6 +2305,9 @@ impl<'tcx> Collector<'tcx> {
 		instance: &Instantiation<'tcx>,
 	) -> Result<Function, Vec<Why>> {
 		let tcx = self.tcx;
+		if let Some(why) = unsafety(tcx, def_id) {
+			return Err(vec![why]);
+		}
 		let mut errs = Vec::new();
 		let args = instance.args;
 		// Each kept parameter takes a closure, if an `Fn` trait bounds it, a reader, if

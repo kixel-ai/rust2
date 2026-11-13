@@ -966,3 +966,46 @@ pub enum Top {
 	Small = 1,
 	Large = u128::MAX,
 }
+
+/// An `unsafe fn`, whose preconditions safe foreign code cannot uphold.
+pub unsafe fn raw(x: u32) -> u32 {
+	x
+}
+
+/// A C-variadic definition, whose variadic arguments C would silently drop.
+pub unsafe extern "C" fn sum(n: u32, mut args: ...) -> u32 {
+	(0..n).map(|_| unsafe { args.arg::<u32>() }).sum()
+}
+
+/// A custom-ABI function, which nothing can call from Rust.
+#[unsafe(naked)]
+pub unsafe extern "custom" fn custom() {
+	core::arch::naked_asm!("ret")
+}
+
+/// A value with an `unsafe` method.
+pub struct Raw;
+
+impl Raw {
+	/// An `unsafe` inherent method.
+	pub unsafe fn peek(&self) -> u32 {
+		0
+	}
+}
+
+/// An `unsafe trait`, which foreign code would implement without upholding its contract.
+pub unsafe trait Trusted {
+	/// A method of it.
+	fn get(&self) -> u32;
+}
+
+/// A trait with an `unsafe` method.
+pub trait Risky {
+	/// An `unsafe` trait method.
+	unsafe fn risk(&self) -> u32;
+}
+
+/// Takes each trait, so its foreign implementation is exported.
+pub fn trust(trusted: &dyn Trusted, risky: &dyn Risky) -> u32 {
+	trusted.get() + unsafe { risky.risk() }
+}
