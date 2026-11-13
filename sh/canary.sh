@@ -7,6 +7,7 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 nix flake update rust-overlay
+# shellcheck disable=SC2016 # the Nix expression interpolates, not the shell
 version=$(nix eval --raw --impure --expr '
   let
     flake = builtins.getFlake (toString ./.);
@@ -16,7 +17,9 @@ version=$(nix eval --raw --impure --expr '
     };
     file = (builtins.fromTOML (builtins.readFile ./ts/rust-toolchain.toml)).toolchain;
   in
-  (pkgs.rust-bin.selectLatestNightlyWith (t: t.minimal.override {
+  # fromRustupToolchainFile, which builds the dev shell, uses the default profile
+  # when the file names none: check the same one, so the two agree.
+  (pkgs.rust-bin.selectLatestNightlyWith (t: t.${file.profile or "default"}.override {
     extensions = file.components;
     targets = file.targets;
   })).version')
