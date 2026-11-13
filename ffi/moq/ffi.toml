@@ -15,6 +15,7 @@ exclude = [
     "hang::container::Frame::encode",
     "hang::moq_net",
     "kio",
+    "mp4_atom",
     "mux::catalog::Guard",
     "mux::catalog::Producer::modify",
     "mux::catalog::Producer<moq::mux::catalog::hang::Extra>::modify",

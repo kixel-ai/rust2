@@ -76,7 +76,9 @@ that crate. The glue depends on that crate directly, as the facade resolves it; 
 another of its name shares, the facade's root names, or another registry serves is not
 reached. A crate only signatures reach keeps the roles of one no export is: its error in a
 `Result` crosses as its message, and its type behind an `Arc` as an opaque handle, refused
-bare. A type no public path names stays refused.
+bare. Its errors, the types implementing `std::error::Error`, are never reached, so an
+exported error holding one is an object, as it was. A type no public path names stays
+refused.
 
 | Rust | C |
 | --- | --- |

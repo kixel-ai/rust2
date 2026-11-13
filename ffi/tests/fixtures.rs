@@ -1267,7 +1267,8 @@ fn unreached_types() {
 				pub fn handle() -> std::sync::Arc<net::Handle> {\n\tstd::sync::Arc::new(net::Handle(4))\n}\n\n\
 				pub fn bare(handle: &net::Handle) -> u32 {\n\thandle.0\n}\n\n\
 				pub fn opaque() -> Result<(), net::Opaque> {\n\tErr(net::Opaque)\n}\n\n\
-				pub fn closed() -> net::Closed {\n\tnet::closed()\n}\n",
+				pub fn closed() -> net::Closed {\n\tnet::closed()\n}\n\n\
+				pub enum Failure {\n\tNet(net::Fault),\n}\n\npub fn fail() -> Failure {\n\tFailure::Net(net::Fault)\n}\n",
 			),
 			(
 				"net/Cargo.toml",
@@ -1278,6 +1279,7 @@ fn unreached_types() {
 				"mod link {\n\tpub struct Link(pub u32);\n\n\timpl Link {\n\t\tpub fn id(&self) -> u32 {\n\t\t\tself.0\n\t\t}\n\t}\n}\n\n\
 				pub use link::Link;\n\npub struct Handle(pub u32);\n\n#[derive(Debug)]\npub struct Fault;\n\n\
 				impl std::fmt::Display for Fault {\n\tfn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n\t\tf.write_str(\"fault\")\n\t}\n}\n\n\
+				impl std::error::Error for Fault {}\n\n\
 				pub struct Opaque;\n\nmod closed {\n\tpub struct Closed;\n}\n\npub type Closed = closed::Closed;\n\n\
 				pub fn closed() -> closed::Closed {\n\tclosed::Closed\n}\n\n\
 				pub fn connect() -> Result<Link, Fault> {\n\tOk(Link(1))\n}\n",
@@ -1310,7 +1312,8 @@ fn unreached_types() {
 		.env("CARGO_TARGET_DIR", package.join("build")));
 	let glue = std::fs::read_to_string(out.join("src/lib.rs")).unwrap();
 	assert!(glue.contains("::kio_reached::Pending"), "{glue}");
-	// `net`'s error crosses as its message, and its `Arc` as an opaque handle.
+	// `net`'s error crosses as its message, or holds `Failure`, which holds it, an object, and
+	// its `Arc` crosses as an opaque handle.
 	assert!(
 		glue.contains("::net_reached::Link") && !glue.contains("Fault") && !glue.contains("net_reached::Handle"),
 		"{glue}"
@@ -1370,9 +1373,11 @@ fn unreached_types() {
 		String::from_utf8_lossy(&output.stderr)
 	);
 	let report = std::fs::read_to_string(census.join("unreached_types.md")).unwrap();
-	// `Pending`, `Version`, and `Link` export; `Sealed` alone is refused as unreached, though
-	// an alias names it.
-	assert!(report.contains("| Types | 3 | 0 |"), "{report}");
+	// `Pending`, `Version`, `Link`, and `Failure` export; `Sealed` alone is refused as
+	// unreached, though an alias names it. `net`'s error in `Failure` is never reached, so
+	// `Failure` is an object.
+	assert!(report.contains("| Types | 4 | 0 |"), "{report}");
+	assert!(report.contains("- `Failure`: foreign type `net::Fault`"), "{report}");
 	// A type an `Arc` holds, a `Result`'s error without `Display`, and one no public path
 	// names stay refused as foreign.
 	for refused in [

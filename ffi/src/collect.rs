@@ -630,8 +630,8 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// Whether the walk from the root reached an item of `krate`. A crate only signatures
-	/// reach keeps the roles of one no export is: its error crosses as its message, and an
-	/// `Arc` of its type as an opaque handle.
+	/// reach keeps the roles of one no export is: its errors are never reached, one in a
+	/// `Result` crossing as its message, and an `Arc` of its type crosses as an opaque handle.
 	fn walked(&self, krate: CrateNum) -> bool {
 		self.crates[..self.walked].contains(&krate)
 	}
@@ -1280,12 +1280,6 @@ impl<'tcx> Collector<'tcx> {
 			}
 			let own = self.crate_path(def_id).expect("a reached type has a path in its crate");
 			let outside = path.len();
-			if !def_id.is_local() && !self.api.reached.iter().any(|r| r.krate == path[1]) {
-				self.api.reached.push(crate::ir::Reached {
-					krate: path[1].clone(),
-					targets: self.api.targets.clone(),
-				});
-			}
 			path.extend(own);
 			if self.exclude(&path) {
 				self.left_out.insert(def_id, "excluded type");
@@ -1296,6 +1290,13 @@ impl<'tcx> Collector<'tcx> {
 				report.hidden.push(rest);
 				self.left_out.insert(def_id, "doc(hidden) type");
 				continue;
+			}
+			// The glue depends on its crate only once a type of it is walked.
+			if !def_id.is_local() && !self.api.reached.iter().any(|r| r.krate == path[1]) {
+				self.api.reached.push(crate::ir::Reached {
+					krate: path[1].clone(),
+					targets: self.api.targets.clone(),
+				});
 			}
 			if !self.crates.contains(&def_id.krate) {
 				self.crates.push(def_id.krate);
@@ -4691,8 +4692,13 @@ impl<'tcx> Collector<'tcx> {
 					}
 				} else if !self.walked(did.krate) && (self.erring.get() || !self.reach.contains(&did)) {
 					// One public in its own crate exports by that path, in the next pass, unless
-					// it is an error, which crosses as its message.
-					if !self.erring.get() && !self.reach.contains(&did) && self.reachable(did) {
+					// it is an error: one in a `Result` crosses as its message, and one elsewhere,
+					// such as in an exported error's variant, stays refused.
+					if !self.erring.get()
+						&& !self.reach.contains(&did)
+						&& self.reachable(did)
+						&& !implements(tcx, ty, did, rustc_span::Symbol::intern("Error"))
+					{
 						self.reached(did);
 					}
 					return Err(why("foreign type", strip_args(tcx, did)));
