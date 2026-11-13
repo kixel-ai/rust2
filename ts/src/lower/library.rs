@@ -3053,7 +3053,10 @@ fn mapping<'tcx>(
 		}
 		("panicking", "panic") => Expr::rs("panic", [args, hook_at(b)].concat()),
 		// `panic!()`, `unreachable!()`, `unimplemented!()`, and `todo!()` without a message.
-		("panicking", "panic_default_msg" | "unreachable_default_msg" | "unimplemented_default_msg" | "todo_default_msg") => {
+		(
+			"panicking",
+			"panic_default_msg" | "unreachable_default_msg" | "unimplemented_default_msg" | "todo_default_msg",
+		) => {
 			let message = match name.as_str() {
 				"panic_default_msg" => "explicit panic",
 				"unreachable_default_msg" => "internal error: entered unreachable code",

@@ -397,9 +397,12 @@ pub fn call_with<'tcx>(
 		"<core::fmt::Formatter>::debug_struct_fields_finish" => {
 			expr(format!("{}.debugFields({}, {})", a[0], a[1], a[2]))
 		}
-		k if k.starts_with("<core::fmt::Formatter>::debug_struct_field") && k.ends_with("_finish") => {
-			expr(format!("{}.debugFields({}, []fmtDyn{{{}}})", a[0], a[1], a[2..].join(", ")))
-		}
+		k if k.starts_with("<core::fmt::Formatter>::debug_struct_field") && k.ends_with("_finish") => expr(format!(
+			"{}.debugFields({}, []fmtDyn{{{}}})",
+			a[0],
+			a[1],
+			a[2..].join(", ")
+		)),
 		"<core::fmt::Formatter>::debug_c_like_enum_write_str" => {
 			expr(format!("{}.debugEnum({}, {})", a[0], a[1], a[2]))
 		}
