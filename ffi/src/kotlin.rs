@@ -1977,7 +1977,7 @@ impl<'a> Gen<'a> {
 		// The JVM slots of the 255 a method takes left past what each C parameter takes
 		// unflattened and a future's waker: what flattening records, then the slots a
 		// returned record crosses in, may spend.
-		let unflattened: usize = export.call.params.iter().map(|(_, c)| c_slots(c)).sum();
+		let unflattened: usize = export.call.params.iter().map(|(_, c)| c_slots(abi, c)).sum();
 		self.room = 255usize.saturating_sub(unflattened + usize::from(export.future.is_some()));
 		let c_name = export.call.name.clone();
 		let bare = self.bare(&c_name).to_string();
@@ -2656,10 +2656,12 @@ fn weight(abi: &Abi<'_>, i: usize) -> usize {
 }
 
 /// The JVM parameter slots the C parameter `c` takes as a native method's: two for a
-/// `long` or `double`, none for what never crosses, and one for anything else.
-fn c_slots(c: &Ty) -> usize {
+/// `long` or `double`, as an opaque value Kotlin holds in a word is, none for what never
+/// crosses, and one for anything else.
+fn c_slots(abi: &Abi<'_>, c: &Ty) -> usize {
 	match c {
 		Ty::Void | Ty::Out(_) | Ty::Data | Ty::Poll => 0,
+		Ty::Struct(_) | Ty::In(_) if opaque_of(abi, c).is_some_and(|o| word(&o)) => 2,
 		Ty::Int(int) if jni_int(*int) == "jlong" => 2,
 		Ty::F64 | Ty::Handle { .. } | Ty::Future(_) => 2,
 		_ => 1,

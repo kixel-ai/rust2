@@ -1041,8 +1041,16 @@ fun readings() {
 	}
 }
 
+/** A call near the JVM's 255 parameter slots, which a record's flattening must not pass. */
+fun crowding() {
+	val r = reading(1u)!!
+	val sum = crowded(r, Stamp.fromMillis(2uL), Stamp.fromMillis(3uL), 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL)
+	check(sum == r.count + 2uL + 3uL + 119uL, "a crowded call crosses every parameter: $sum")
+}
+
 fun owned() {
 	readings()
+	crowding()
 	budgeted()
 	for (n in 1023..1025) {
 		val payload = ByteArray(n) { it.toByte() }
