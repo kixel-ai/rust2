@@ -439,10 +439,12 @@ impl Gen<'_> {
 	/// `takes`, so the move happens only once every check passed.
 	fn reserve(&self, ty: &Type, e: &str) -> String {
 		match ty {
-			Type::Object(i) => self.checked(&format!(
-				"unsafe {{ rt::Object::<{}>::reserve({e}, &mut takes, w) }}",
-				self.object_path(*i)
-			)) + ";",
+			Type::Object(i) => {
+				self.checked(&format!(
+					"unsafe {{ rt::Object::<{}>::reserve({e}, &mut takes, w) }}",
+					self.object_path(*i)
+				)) + ";"
+			}
 			Type::Box(inner) => self.reserve(inner, e),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(_) => format!("if !{e}.is_null() {{ {} }}", self.reserve(inner, e)),
@@ -595,7 +597,10 @@ impl Gen<'_> {
 				let value = match (object.copy, self.reserved.get()) {
 					(true, _) => format!(
 						"*{}",
-						self.checked(&format!("unsafe {{ rt::Object::<{path}>::{}({e}, w) }}", self.shared(*i)))
+						self.checked(&format!(
+							"unsafe {{ rt::Object::<{path}>::{}({e}, w) }}",
+							self.shared(*i)
+						))
 					),
 					(false, true) => format!("unsafe {{ rt::Object::<{path}>::taken({e}) }}"),
 					(false, false) => self.checked(&format!("unsafe {{ rt::Object::<{path}>::take({e}, w) }}")),
@@ -976,7 +981,14 @@ impl Gen<'_> {
 			self.traits(&name, &path, object.traits, status, &borrowing);
 			if self.abi.copies.contains(&i) {
 				let (param, body) = match status {
-					Some(status) => (format!(", {status}: *mut i32"), wrap(Some(status), "*const ::std::ffi::c_void", &format!("rt::Object::new(*{copy})"))),
+					Some(status) => (
+						format!(", {status}: *mut i32"),
+						wrap(
+							Some(status),
+							"*const ::std::ffi::c_void",
+							&format!("rt::Object::new(*{copy})"),
+						),
+					),
 					None => (String::new(), format!("rt::Object::new(*{copy})")),
 				};
 				self.export(format!(
@@ -1123,7 +1135,10 @@ impl Gen<'_> {
 			}
 		};
 		let (ret, build) = match checks {
-			true => (format!("::std::result::Result<{path}, rt::Status>"), format!("Ok({build})")),
+			true => (
+				format!("::std::result::Result<{path}, rt::Status>"),
+				format!("Ok({build})"),
+			),
 			false => (path.clone(), build),
 		};
 		self.item(format!(
@@ -1664,7 +1679,11 @@ impl Gen<'_> {
 					args.push(made.2);
 				}
 				value => {
-					let made = (String::new(), format!("let a_self = {};", self.lift(value, "unsafe { *this }")), String::new());
+					let made = (
+						String::new(),
+						format!("let a_self = {};", self.lift(value, "unsafe { *this }")),
+						String::new(),
+					);
 					sort(value, &made);
 					args.push(match receiver {
 						Receiver::Owned => "a_self".to_string(),

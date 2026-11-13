@@ -1445,7 +1445,9 @@ impl<'a> Gen<'a> {
 				vec![name.clone(), "error".to_string()],
 				format!(
 					"{open}{}return own_{c}(r_), nil",
-					checked(&format!("C.{c}_clone({this})"), &format!("{c}_clone"), &|e| format!("nil, {e}"))
+					checked(&format!("C.{c}_clone({this})"), &format!("{c}_clone"), &|e| format!(
+						"nil, {e}"
+					))
 				),
 			));
 		}
@@ -2394,7 +2396,10 @@ impl<'a> Gen<'a> {
 		// A failed check writes its status, whose error the call returns.
 		let failed = status.then(|| {
 			args.push("&c_status_".to_string());
-			let error = format!("{}(int32(c_status_), \"{c_name}\")", self.qualify(Packages::RT, "Status_"));
+			let error = format!(
+				"{}(int32(c_status_), \"{c_name}\")",
+				self.qualify(Packages::RT, "Status_")
+			);
 			format!("if c_status_ != 0 {{\n\t{}\n}}", fail(&error))
 		});
 		let mut body = Vec::new();

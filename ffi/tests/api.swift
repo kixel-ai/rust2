@@ -1110,24 +1110,24 @@ func owned() {
 #if MOVED
 func moved() {
 	let c = Counter.new("c", 0)
-	_ = c.intoLabel(nil)
-	_ = c.get()
+	_ = try! c.intoLabel(nil)
+	_ = try! c.get()
 }
 #endif
 
 #if BOXED_MOVED
 func boxedMoved() {
-	let tail = Node.new(1, nil)
-	_ = Node.new(2, tail)
-	_ = tail.sum()
+	let tail = try! Node.new(1, nil)
+	_ = try! Node.new(2, tail)
+	_ = try! tail.sum()
 }
 #endif
 
 #if LENT_MOVED
 func lentMoved() {
-	var registry = Registry.new(Counter.new("c", 0))
-	_ = registry.edit { counter in
-		_ = counter.intoLabel(nil)
+	var registry = try! Registry.new(Counter.new("c", 0))
+	_ = try! registry.edit { counter in
+		_ = try! counter.intoLabel(nil)
 		return false
 	}
 }
@@ -1141,7 +1141,7 @@ final class Kept: @unchecked Sendable {
 
 func lentKept() {
 	let kept = Kept()
-	_ = peek(Tally.new()) { lent in
+	_ = try! peek(Tally.new()) { lent in
 		kept.tally = lent
 		return 0
 	}
@@ -1156,7 +1156,16 @@ func broken(_ which: String) {
 		var meters = Meters.new()
 		let first = try! meters.first()
 		try! meters.clear()
-		_ = try! first.count()
+		do {
+			_ = try first.count()
+		} catch let e as CheckError {
+			// Rust ran nothing, so its meters still clear.
+			check(e.function == "api_Meter_count", "a check names its function")
+			try! meters.clear()
+			fatalError(e.description)
+		} catch {
+			check(false, "a failed check throws a CheckError")
+		}
 	// An IPv6 address where Rust takes `SocketAddrV4`.
 	case "family":
 		let any = SocketAddr(ip: Array(repeating: 0, count: 16), port: 1)

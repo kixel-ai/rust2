@@ -1469,7 +1469,10 @@ impl<'a> Gen<'a> {
 			prelude.push("Native.check()".to_string());
 		}
 		if !everywhere {
-			prelude.push(format!("try Native.on({}, \"{c_name}\")", function.on.0 & abi.api.all().0));
+			prelude.push(format!(
+				"try Native.on({}, \"{c_name}\")",
+				function.on.0 & abi.api.all().0
+			));
 		}
 		let mut arena = false;
 		let mut args: Vec<Arg> = Vec::new();
@@ -1589,7 +1592,10 @@ impl<'a> Gen<'a> {
 		};
 		let tail;
 		if let Some((_, poll, free)) = &export.future {
-			let call = format!("{c_name}({})", exprs.iter().chain(&status_arg).cloned().collect::<Vec<_>>().join(", "));
+			let call = format!(
+				"{c_name}({})",
+				exprs.iter().chain(&status_arg).cloned().collect::<Vec<_>>().join(", ")
+			);
 			match &check {
 				Some(check) => {
 					inner.push(format!("let f_ = {call}"));
@@ -1751,8 +1757,7 @@ impl<'a> Gen<'a> {
 		let var = function.params.is_empty() && !throws;
 		// A field read stays a property though a check of its handle may fail, which throws
 		// from its getter, unless Swift cannot copy its value, whose getter cannot throw.
-		let getter =
-			throws && !function.future && function.err.is_none() && everywhere && !self.unique(&function.ok);
+		let getter = throws && !function.future && function.err.is_none() && everywhere && !self.unique(&function.ok);
 		let var = match (function.access, receiver) {
 			(Access::Field { set: false, .. }, Some(_)) => {
 				function.params.is_empty() && (!throws || getter) && mutation.is_empty()
@@ -2154,7 +2159,8 @@ mod tests {
 			let decl = decl.trim_end_matches('{').trim();
 			let (name, conforms) = decl.split_once(':').unwrap_or((decl, ""));
 			let names = std::iter::once(name).chain(conforms.split(','));
-			for name in names.map(str::trim).filter(|n| !n.is_empty() && !n.starts_with('@')) {
+			// A qualified name, such as `Swift.Error`, cannot clash.
+			for name in (names.map(str::trim)).filter(|n| !n.is_empty() && !n.starts_with('@') && !n.contains('.')) {
 				assert!(TAKEN.contains(&name), "the runtime's `{name}` is not in TAKEN");
 			}
 		}

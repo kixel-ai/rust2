@@ -111,7 +111,10 @@ pub struct Sig {
 impl Sig {
 	/// The `status` parameter it takes last, if a call can fail a check of a handle.
 	pub fn status(&self) -> Option<&str> {
-		self.params.last().filter(|(_, ty)| is_status(ty)).map(|(name, _)| name.as_str())
+		self.params
+			.last()
+			.filter(|(_, ty)| is_status(ty))
+			.map(|(name, _)| name.as_str())
 	}
 }
 

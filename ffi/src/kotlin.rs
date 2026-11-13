@@ -1029,7 +1029,11 @@ impl<'a> Gen<'a> {
 				&format!("{bare}_{suffix}"),
 				&[(jni_self, native_self)],
 				("jbyteArray", "ByteArray?"),
-				&checked(&format!("crate::{c}_{suffix}({rust_self})"), &format!("{c}_{suffix}"), "rt::owned(env, ret)"),
+				&checked(
+					&format!("crate::{c}_{suffix}({rust_self})"),
+					&format!("{c}_{suffix}"),
+					"rt::owned(env, ret)",
+				),
 			);
 			format!("\t{sig} = {open}\n\t\tNative.{bare}_{suffix}({arg})!!.decodeToString()\n\t}}\n")
 		};
@@ -1052,7 +1056,11 @@ impl<'a> Gen<'a> {
 				&format!("{bare}_copy"),
 				&[("jlong", "Long")],
 				("jlong", "Long"),
-				&checked(&format!("crate::{c}_copy(p0 as usize as _)"), &format!("{c}_copy"), "ret as usize as jlong"),
+				&checked(
+					&format!("crate::{c}_copy(p0 as usize as _)"),
+					&format!("{c}_copy"),
+					"ret as usize as jlong",
+				),
 			);
 		}
 		if object && t.clone {
@@ -1060,7 +1068,11 @@ impl<'a> Gen<'a> {
 				&format!("{bare}_clone"),
 				&[("jlong", "Long")],
 				("jlong", "Long"),
-				&checked(&format!("crate::{c}_clone(p0 as usize as _)"), &format!("{c}_clone"), "ret as usize as jlong"),
+				&checked(
+					&format!("crate::{c}_clone(p0 as usize as _)"),
+					&format!("{c}_clone"),
+					"ret as usize as jlong",
+				),
 			);
 			body.push(format!(
 				"\t/** A new handle to a clone. */\n\tfun clone(): {class} = handle.hold {{ h -> {class}(Native.{bare}_clone(h)) }}\n"
@@ -1071,7 +1083,11 @@ impl<'a> Gen<'a> {
 				&format!("{bare}_eq"),
 				&[("jlong", "Long"), ("jlong", "Long")],
 				("jboolean", "Boolean"),
-				&checked(&format!("crate::{c}_eq(p0 as usize as _, p1 as usize as _)"), &format!("{c}_eq"), "ret"),
+				&checked(
+					&format!("crate::{c}_eq(p0 as usize as _, p1 as usize as _)"),
+					&format!("{c}_eq"),
+					"ret",
+				),
 			);
 			body.push(format!(
 				"\toverride fun equals(other: Any?): Boolean =\n\t\tother is {class} && handle.hold {{ a -> other.handle.hold {{ b -> Native.{bare}_eq(a, b) }} }}\n\n\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): Int = 0\n"

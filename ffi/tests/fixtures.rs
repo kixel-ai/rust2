@@ -593,7 +593,10 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		("closure threw", "api_made: a call into Kotlin threw"),
 		("closure failed", "api_drive: a call into Kotlin threw"),
 		("reader threw", "SeekableByteChannel.read: a call into Kotlin threw"),
-		("outlived", "IllegalStateException: api_Meter_count: a handle lent from another outlived it"),
+		(
+			"outlived",
+			"IllegalStateException: api_Meter_count: a handle lent from another outlived it",
+		),
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 	] {
@@ -648,7 +651,10 @@ fn api_python() {
 		),
 		("callback threw", "api::Log::log: a call into Python raised"),
 		("foreign cancelled", "a future Rust polls raised"),
-		("outlived", "ValueError: api_Meter_count: a handle lent from another outlived it"),
+		(
+			"outlived",
+			"ValueError: api_Meter_count: a handle lent from another outlived it",
+		),
 		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
 		("kept threw", "api_Spawned_new: a call into Python raised"),
 		("returned", "api_made: a call into Python raised"),
@@ -875,7 +881,10 @@ fn api_dart() {
 			"reader threw",
 			"a reader's seek: a call into Dart threw Bad state: a seek failed",
 		),
-		("outlived", "Bad state: api_Meter_count: a handle lent from another outlived it"),
+		(
+			"outlived",
+			"Bad state: api_Meter_count: a handle lent from another outlived it",
+		),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),

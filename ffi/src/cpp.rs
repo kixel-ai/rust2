@@ -669,7 +669,7 @@ impl<'a> Header<'a> {
 				"\tfriend bool operator==(const {name} &a, const {name} &b) {{\n\t\treturn ::{c}_eq(a.raw_.get(), b.raw_.get(){status});\n\t}}\n\tfriend bool operator!=(const {name} &a, const {name} &b) {{\n\t\treturn !(a == b);\n\t}}"
 			));
 		}
-		self.traits(&name, &c, t, None, status, &mut body, &mut members);
+		self.traits(&name, &c, t, Ok(status), &mut body, &mut members);
 		let owner = Ty::Handle {
 			name: c.clone(),
 			constant: false,
@@ -689,19 +689,23 @@ impl<'a> Header<'a> {
 	}
 
 	/// The members a type's std traits export beyond its operators: an object's, which
-	/// holds a handle, or a record's, `value`, which is lowered.
+	/// holds a handle and passes each call `Ok` of its status argument, or a record's, of
+	/// type `Err`, which is lowered.
 	fn traits(
 		&mut self,
 		name: &str,
 		c: &str,
 		t: Traits,
-		value: Option<&Type>,
-		status: &str,
+		of: Result<&str, &Type>,
 		body: &mut Vec<String>,
 		members: &mut Vec<String>,
 	) {
 		let ns = self.ns.clone();
 		let d = self.d();
+		let (value, status) = match of {
+			Ok(status) => (None, status),
+			Err(ty) => (Some(ty), ""),
+		};
 		let object = value.is_none();
 		let callable = match object {
 			true => "RUST2_FFI_CALLABLE ",
@@ -875,7 +879,7 @@ impl<'a> Header<'a> {
 						self.lower(ty, "other"),
 					));
 				}
-				self.traits(&name, &c, t, Some(ty), "", &mut body, &mut members);
+				self.traits(&name, &c, t, Err(ty), &mut body, &mut members);
 				let owner = Ty::Struct(c.clone());
 				let mut taken = fields.clone();
 				taken.push(name.clone());
