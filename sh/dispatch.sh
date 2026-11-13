@@ -29,8 +29,10 @@ declare -A scope=(
     # the driver's front end.
     [driver]='^(driver/|ts/rust-toolchain\.toml$)'
     [ffi]='^(ffi/|driver/|ts/rust-toolchain\.toml$)'
-    # go's codec fixture includes ts's codec sources.
-    [go]='^(go/|driver/|ts/rust-toolchain\.toml$|ts/fixtures/codec/)'
+    # The parked go translator runs on its own diff only; its shared inputs
+    # (the driver, ts's toolchain and codec fixture) reach it in the nightly's
+    # `just gate`, whose failure issue reports a break.
+    [go]='^go/'
     [ts]='^(ts|driver)/'
 )
 # Cheapest first, so a lint fails before the builds start.
@@ -66,7 +68,10 @@ else
     shared=$(grep -vE "$claimed" <<<"$changed" | grep . || true)
     if [[ -n "$shared" ]]; then
         echo "$action: running everything for $(paste -sd ' ' <<<"$shared")" >&2
-        selected=("${modules[@]}")
+        # Everything but the parked go, which only its own diff selects.
+        for module in "${modules[@]}"; do
+            [[ "$module" == go ]] || selected+=("$module")
+        done
     else
         for module in "${modules[@]}"; do
             pattern=${scope[$module]}
