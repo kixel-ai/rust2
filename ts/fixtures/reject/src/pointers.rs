@@ -598,6 +598,16 @@ pub fn cyclic_pointed(w: &std::rc::Weak<Cyclic>, c: &Cyclic) -> bool {
 	std::ptr::eq(w.as_ptr(), c)
 }
 
+/// A generic `Weak`'s pointer, which the census leaves to an instance to refuse.
+pub fn cyclic_any<T>(w: &std::rc::Weak<T>, c: &T) -> bool {
+	std::ptr::eq(w.as_ptr(), c)
+}
+
+/// A generic `Rc::new_cyclic`, which the census leaves to an instance to refuse by.
+pub fn cyclic_any_made<T>(t: T) -> std::rc::Rc<T> {
+	std::rc::Rc::new_cyclic(|_| t)
+}
+
 /// A `Weak`'s pointer to a slice, which a `Weak::new` unsized to one has a length of.
 pub fn weak_slice(w: &std::sync::Weak<[u32]>) -> *const [u32] {
 	w.as_ptr()
