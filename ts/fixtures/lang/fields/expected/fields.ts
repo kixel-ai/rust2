@@ -63,7 +63,14 @@ export function fields(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	s.bufData = swapped.data;
 	s.bufStart = swapped.start;
 	s.bufLen = swapped.length;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(r2.bufLen & 0xff, s.bufLen & 0xff)));
+	const dst = out;
+	const byte = r2.bufLen & 0xff;
+	const byte2 = s.bufLen & 0xff;
+	rs.byteVecReserve(dst, 2 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.length = dst.length + 2;
 	skipInto(rs.place(() => new rs.ByteSlice(s.bufData, s.bufStart, s.bufLen), (value): void => {
 		s.bufData = value.data;
 		s.bufStart = value.start;
@@ -93,7 +100,16 @@ export function fields(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		p.headData = _119.data;
 		p.headStart = _119.start;
 		p.headLen = _119.length;
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(p.headLen & 0xff, q.headLen & 0xff, Couple.eq$cmp_PartialEq(p, q) ? 1 : 0)));
+		const dst2 = out;
+		const byte3 = p.headLen & 0xff;
+		const byte4 = q.headLen & 0xff;
+		const byte5 = Couple.eq$cmp_PartialEq(p, q) ? 1 : 0;
+		rs.byteVecReserve(dst2, 3 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = byte3;
+		dst2.data[pos2 + 1] = byte4;
+		dst2.data[pos2 + 2] = byte5;
+		dst2.length = dst2.length + 3;
 		rs.byteVecExtendFromSlice(out, new rs.ByteSlice(q.wordData, q.wordStart, q.wordLen));
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => Couple.fmt$fmt_Debug(p, f)]).v));
 	}
@@ -113,7 +129,19 @@ export function fields(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _195: Scanner.Scanner = SCANNER;
 	rs.byteVecExtendFromSlice(out, new rs.ByteSlice(_195.bufData, _195.bufStart, _195.bufLen));
 	rs.byteVecPush(out, SCANNER.read & 0xff);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(Labeled.sum$u8(new Labeled.Labeled(kind, data.data, data.start, data.length))).reverse()));
+	const dst3 = out;
+	const word = Labeled.sum$u8(new Labeled.Labeled(kind, data.data, data.start, data.length));
+	const byte6 = (word >>> 0) & 255;
+	const byte7 = (word >>> 8) & 255;
+	const byte8 = (word >>> 16) & 255;
+	const byte9 = (word >>> 24) & 255;
+	rs.byteVecReserve(dst3, 4 as rs.usize);
+	const pos3 = dst3.length;
+	dst3.data[pos3 + 0] = byte6;
+	dst3.data[pos3 + 1] = byte7;
+	dst3.data[pos3 + 2] = byte8;
+	dst3.data[pos3 + 3] = byte9;
+	dst3.length = dst3.length + 4;
 	const g: Sentry.Sentry = new Sentry.Sentry(data.data, data.start, data.length, out);
 	const _208: rs.ByteSlice = rs.byteSliceRange(new rs.ByteSlice(g.bufData, g.bufStart, g.bufLen), rs.min(g.bufLen, 2));
 	g.bufData = _208.data;

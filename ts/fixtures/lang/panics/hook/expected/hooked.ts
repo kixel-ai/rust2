@@ -193,7 +193,15 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		rs.byteVecPush(out, rs.precondition(rs.u8CheckedAdd(rs.optionUnwrap(rs.nonZero(rs.max(n, 200)), undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 130, col: 68 }), rs.max(n, 100)), "u8::unchecked_add cannot overflow", { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/num/nonzero.rs", line: 2662, col: 1 }));
 	} else if (_10 === 35) {
 		const x: rs.i16 = rs.optionUnwrap(rs.nonZero(rs.max(n, 200) as rs.i16), undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 133, col: 67 });
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(rs.precondition(rs.i16CheckedMul(x, x), "i16::unchecked_mul cannot overflow", { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/num/nonzero.rs", line: 2773, col: 1 }))));
+		const dst = out;
+		const word = rs.precondition(rs.i16CheckedMul(x, x), "i16::unchecked_mul cannot overflow", { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/num/nonzero.rs", line: 2773, col: 1 });
+		const byte = (word >>> 8) & 255;
+		const byte2 = (word >>> 0) & 255;
+		rs.byteVecReserve(dst, 2 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.length = dst.length + 2;
 	} else {
 		rs.byteVecPush(out, rs.hashLen(rs.hashWithCapacity(4294967295, 469762048) as rs.HashMap<rs.u8, rs.u8>) & 0xff);
 	}

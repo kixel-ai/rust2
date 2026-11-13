@@ -112,9 +112,17 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const it: rs.Iter<[rs.u8, rs.u16]> = rs.hashIter(map);
 		rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(it)) & 0xff);
 		rs.byteVecPush(out, rs.iterToOption(it.next()) === undefined ? 1 : 0);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(rs.iterSum(rs.iterMap(rs.hashValues(map), (v5: rs.u16): rs.u16 => {
+		const dst = out;
+		const word2 = rs.iterSum(rs.iterMap(rs.hashValues(map), (v5: rs.u16): rs.u16 => {
 			return rs.u16Rem(v5, 256);
-		}), rs.u16Add, 0))));
+		}), rs.u16Add, 0);
+		const byte = (word2 >>> 8) & 255;
+		const byte2 = (word2 >>> 0) & 255;
+		rs.byteVecReserve(dst, 2 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.length = dst.length + 2;
 		const _80: rs.Iter<[rs.u8, rs.u16]> = rs.iterMap(rs.hashIter(map), (_231: [rs.u8, rs.u16]): [rs.u8, rs.u16] => {
 			return [_231[0], _231[1]] as [rs.u8, rs.u16];
 		});
@@ -125,7 +133,15 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 				break;
 			}
 			rs.byteVecPush(out, _86[0]);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(_86[1])));
+			const dst2 = out;
+			const word3 = _86[1];
+			const byte3 = (word3 >>> 8) & 255;
+			const byte4 = (word3 >>> 0) & 255;
+			rs.byteVecReserve(dst2, 2 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = byte3;
+			dst2.data[pos2 + 1] = byte4;
+			dst2.length = dst2.length + 2;
 		}
 		rs.hashClear(map);
 		rs.byteVecPush(out, rs.hashLen(map) & 0xff);
@@ -156,7 +172,27 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			if (_142 === rs.DONE) {
 				break;
 			}
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(_142)));
+			const dst3 = out;
+			const word4 = _142;
+			const byte5 = rs.intByte(word4, 56);
+			const byte6 = rs.intByte(word4, 48);
+			const byte7 = rs.intByte(word4, 40);
+			const byte8 = rs.intByte(word4, 32);
+			const byte9 = rs.intByte(word4, 24);
+			const byte10 = rs.intByte(word4, 16);
+			const byte11 = rs.intByte(word4, 8);
+			const byte12 = rs.intByte(word4, 0);
+			rs.byteVecReserve(dst3, 8 as rs.usize);
+			const pos3 = dst3.length;
+			dst3.data[pos3 + 0] = byte5;
+			dst3.data[pos3 + 1] = byte6;
+			dst3.data[pos3 + 2] = byte7;
+			dst3.data[pos3 + 3] = byte8;
+			dst3.data[pos3 + 4] = byte9;
+			dst3.data[pos3 + 5] = byte10;
+			dst3.data[pos3 + 6] = byte11;
+			dst3.data[pos3 + 7] = byte12;
+			dst3.length = dst3.length + 8;
 			rs.byteVecPush(out, rs.hashIndex(map2, _142));
 		}
 		const _155: rs.u8 | undefined = rs.byteSliceFirst(data);
@@ -637,7 +673,27 @@ export function sets(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (_313 === rs.DONE) {
 				break;
 			}
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(_313)));
+			const dst = out;
+			const word = _313;
+			const byte = rs.intByte(word, 56);
+			const byte2 = rs.intByte(word, 48);
+			const byte3 = rs.intByte(word, 40);
+			const byte4 = rs.intByte(word, 32);
+			const byte5 = rs.intByte(word, 24);
+			const byte6 = rs.intByte(word, 16);
+			const byte7 = rs.intByte(word, 8);
+			const byte8 = rs.intByte(word, 0);
+			rs.byteVecReserve(dst, 8 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = byte;
+			dst.data[pos + 1] = byte2;
+			dst.data[pos + 2] = byte3;
+			dst.data[pos + 3] = byte4;
+			dst.data[pos + 4] = byte5;
+			dst.data[pos + 5] = byte6;
+			dst.data[pos + 6] = byte7;
+			dst.data[pos + 7] = byte8;
+			dst.length = dst.length + 8;
 		}
 	}
 }
@@ -800,7 +856,15 @@ export function btreeMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 				break;
 			}
 			rs.byteVecPush(out, rankByte(_261[0]));
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(_261[1].n)));
+			const dst = out;
+			const word = _261[1].n;
+			const byte = (word >>> 8) & 255;
+			const byte2 = (word >>> 0) & 255;
+			rs.byteVecReserve(dst, 2 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = byte;
+			dst.data[pos + 1] = byte2;
+			dst.length = dst.length + 2;
 		}
 		const iter8: rs.Iter<[[rs.u8, rs.u8], rs.u8]> = rs.btreeIter(pairs);
 		while (true) {
@@ -818,7 +882,27 @@ export function btreeMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			if (_295 === rs.DONE) {
 				break;
 			}
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(_295[0])));
+			const dst2 = out;
+			const word2 = _295[0];
+			const byte3 = rs.intByte(word2, 56);
+			const byte4 = rs.intByte(word2, 48);
+			const byte5 = rs.intByte(word2, 40);
+			const byte6 = rs.intByte(word2, 32);
+			const byte7 = rs.intByte(word2, 24);
+			const byte8 = rs.intByte(word2, 16);
+			const byte9 = rs.intByte(word2, 8);
+			const byte10 = rs.intByte(word2, 0);
+			rs.byteVecReserve(dst2, 8 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = byte3;
+			dst2.data[pos2 + 1] = byte4;
+			dst2.data[pos2 + 2] = byte5;
+			dst2.data[pos2 + 3] = byte6;
+			dst2.data[pos2 + 4] = byte7;
+			dst2.data[pos2 + 5] = byte8;
+			dst2.data[pos2 + 6] = byte9;
+			dst2.data[pos2 + 7] = byte10;
+			dst2.length = dst2.length + 8;
 			rs.byteVecPush(out, _295[1]);
 		}
 	} else if (_4 === 2) {
@@ -1198,7 +1282,18 @@ export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const at6 = rs.idx(bumps.items, rs.usizeSub(n, 1));
 		bumps.items[at6]._0 = bumps.items[at6]._0 ^ 255;
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a, b, listed.items[rs.idx(listed.items, 1)][0], a)));
+	const dst = out;
+	const byte = a;
+	const byte2 = b;
+	const byte3 = listed.items[rs.idx(listed.items, 1)][0];
+	const byte4 = a;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.length = dst.length + 4;
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(repeated.items), rs.iterSlice(again.items)), (t2: [rs.u8, rs.u8]): rs.u8 => {
 		return t2[1];
 	}), undefined, true);
@@ -1292,7 +1387,18 @@ export function stores(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(v.items), (p: [rs.u8, rs.u8]): Uint8Array => {
 		return Uint8Array.of(p[0], p[1]);
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(changed[0], changed[1], old[0], old[1])));
+	const dst = out;
+	const byte = changed[0];
+	const byte2 = changed[1];
+	const byte3 = old[0];
+	const byte4 = old[1];
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.length = dst.length + 4;
 	const tally: Tally.Tally = { n: a as rs.u16 };
 	const q: rs.VecDeque<Tally.Tally> = rs.dequeNew(2) as rs.VecDeque<Tally.Tally>;
 	rs.dequePushBack(q, copy$collections_Tally(tally));
@@ -1340,7 +1446,18 @@ export function stores(data: rs.ByteSlice, out: rs.ByteVec): void {
 	holders.items.push({ pair: copy$tuple2_u8_u8(pair) });
 	const at9 = rs.idx(holders.items, 1);
 	holders.items[at9].pair[1] = holders.items[at9].pair[1] ^ 2;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(boxed[0], boxed[1], holders.items[rs.idx(holders.items, 0)].pair[1], holders.items[rs.idx(holders.items, 1)].pair[1])));
+	const dst2 = out;
+	const byte5 = boxed[0];
+	const byte6 = boxed[1];
+	const byte7 = holders.items[rs.idx(holders.items, 0)].pair[1];
+	const byte8 = holders.items[rs.idx(holders.items, 1)].pair[1];
+	rs.byteVecReserve(dst2, 4 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = byte5;
+	dst2.data[pos2 + 1] = byte6;
+	dst2.data[pos2 + 2] = byte7;
+	dst2.data[pos2 + 3] = byte8;
+	dst2.length = dst2.length + 4;
 	rs.byteVecPush(out, bump({ pair: copy$tuple2_u8_u8(pair) }));
 	const held: Holder.Holder = hold(pair);
 	held.pair[1] = held.pair[1] ^ 4;
@@ -1348,8 +1465,22 @@ export function stores(data: rs.ByteSlice, out: rs.ByteVec): void {
 	holders.items.push(_142);
 	const at12 = rs.idx(holders.items, 2);
 	holders.items[at12].pair[0] = holders.items[at12].pair[0] ^ 8;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(held.pair[1], holders.items[rs.idx(holders.items, 2)].pair[0])));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(pair[0], pair[1])));
+	const dst3 = out;
+	const byte9 = held.pair[1];
+	const byte10 = holders.items[rs.idx(holders.items, 2)].pair[0];
+	rs.byteVecReserve(dst3, 2 as rs.usize);
+	const pos3 = dst3.length;
+	dst3.data[pos3 + 0] = byte9;
+	dst3.data[pos3 + 1] = byte10;
+	dst3.length = dst3.length + 2;
+	const dst4 = out;
+	const byte11 = pair[0];
+	const byte12 = pair[1];
+	rs.byteVecReserve(dst4, 2 as rs.usize);
+	const pos4 = dst4.length;
+	dst4.data[pos4 + 0] = byte11;
+	dst4.data[pos4 + 1] = byte12;
+	dst4.length = dst4.length + 2;
 }
 
 export function get$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(self: rs.HashMap<rs.u8, rs.String | undefined>, k: rs.u8): rs.String | undefined | rs.None {

@@ -316,6 +316,12 @@ fn compare(wasm: &Path, out: &Path, entry: &str, cases: u32, glue: Option<&Path>
 #[test]
 fn codec() {
 	let out = translated("codec");
+	let varint = std::fs::read_to_string(out.join("coding/varint.ts")).unwrap();
+	assert!(
+		!varint.contains("ToBeBytes(") && !varint.contains("Uint8Array.of("),
+		"varint encodes must write scalar bytes without allocating arrays"
+	);
+
 	snapshot("codec", &out);
 	std::fs::write(out.join("shake.ts"), SHAKE).unwrap();
 	std::fs::copy(fixture("codec").join("caller.ts"), out.join("caller.ts")).unwrap();

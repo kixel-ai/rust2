@@ -237,37 +237,177 @@ export function hash$zeros_Tagged_String(value: Tagged.Tagged<rs.String>): rs.u6
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$marker_PhantomData_u64(value: undefined, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$marker_PhantomData_u64(value)).reverse()));
+	const dst = out;
+	const word = hash$marker_PhantomData_u64(value);
+	const byte = rs.intByte(word, 0);
+	const byte2 = rs.intByte(word, 8);
+	const byte3 = rs.intByte(word, 16);
+	const byte4 = rs.intByte(word, 24);
+	const byte5 = rs.intByte(word, 32);
+	const byte6 = rs.intByte(word, 40);
+	const byte7 = rs.intByte(word, 48);
+	const byte8 = rs.intByte(word, 56);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.data[pos + 4] = byte5;
+	dst.data[pos + 5] = byte6;
+	dst.data[pos + 6] = byte7;
+	dst.data[pos + 7] = byte8;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$marker_PhantomPinned(value: undefined, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$marker_PhantomPinned(value)).reverse()));
+	const dst = out;
+	const word = hash$marker_PhantomPinned(value);
+	const byte = rs.intByte(word, 0);
+	const byte2 = rs.intByte(word, 8);
+	const byte3 = rs.intByte(word, 16);
+	const byte4 = rs.intByte(word, 24);
+	const byte5 = rs.intByte(word, 32);
+	const byte6 = rs.intByte(word, 40);
+	const byte7 = rs.intByte(word, 48);
+	const byte8 = rs.intByte(word, 56);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.data[pos + 4] = byte5;
+	dst.data[pos + 5] = byte6;
+	dst.data[pos + 6] = byte7;
+	dst.data[pos + 7] = byte8;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$ops_RangeFull(value: undefined, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$ops_RangeFull(value)).reverse()));
+	const dst = out;
+	const word = hash$ops_RangeFull(value);
+	const byte = rs.intByte(word, 0);
+	const byte2 = rs.intByte(word, 8);
+	const byte3 = rs.intByte(word, 16);
+	const byte4 = rs.intByte(word, 24);
+	const byte5 = rs.intByte(word, 32);
+	const byte6 = rs.intByte(word, 40);
+	const byte7 = rs.intByte(word, 48);
+	const byte8 = rs.intByte(word, 56);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.data[pos + 4] = byte5;
+	dst.data[pos + 5] = byte6;
+	dst.data[pos + 6] = byte7;
+	dst.data[pos + 7] = byte8;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$u8(value: rs.u8, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$u8(value)).reverse()));
+	const dst = out;
+	const word = hash$u8(value);
+	const byte = rs.intByte(word, 0);
+	const byte2 = rs.intByte(word, 8);
+	const byte3 = rs.intByte(word, 16);
+	const byte4 = rs.intByte(word, 24);
+	const byte5 = rs.intByte(word, 32);
+	const byte6 = rs.intByte(word, 40);
+	const byte7 = rs.intByte(word, 48);
+	const byte8 = rs.intByte(word, 56);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.data[pos + 4] = byte5;
+	dst.data[pos + 5] = byte6;
+	dst.data[pos + 6] = byte7;
+	dst.data[pos + 7] = byte8;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$unit(value: undefined, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$unit(value)).reverse()));
+	const dst = out;
+	const word = hash$unit(value);
+	const byte = rs.intByte(word, 0);
+	const byte2 = rs.intByte(word, 8);
+	const byte3 = rs.intByte(word, 16);
+	const byte4 = rs.intByte(word, 24);
+	const byte5 = rs.intByte(word, 32);
+	const byte6 = rs.intByte(word, 40);
+	const byte7 = rs.intByte(word, 48);
+	const byte8 = rs.intByte(word, 56);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.data[pos + 4] = byte5;
+	dst.data[pos + 5] = byte6;
+	dst.data[pos + 6] = byte7;
+	dst.data[pos + 7] = byte8;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$zeros_Names(value: Names.Names, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$zeros_Names(value)).reverse()));
+	const dst = out;
+	const word = hash$zeros_Names(value);
+	const byte = rs.intByte(word, 0);
+	const byte2 = rs.intByte(word, 8);
+	const byte3 = rs.intByte(word, 16);
+	const byte4 = rs.intByte(word, 24);
+	const byte5 = rs.intByte(word, 32);
+	const byte6 = rs.intByte(word, 40);
+	const byte7 = rs.intByte(word, 48);
+	const byte8 = rs.intByte(word, 56);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.data[pos + 4] = byte5;
+	dst.data[pos + 5] = byte6;
+	dst.data[pos + 6] = byte7;
+	dst.data[pos + 7] = byte8;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$zeros_Tagged_String(value: Tagged.Tagged<rs.String>, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$zeros_Tagged_String(value)).reverse()));
+	const dst = out;
+	const word = hash$zeros_Tagged_String(value);
+	const byte = rs.intByte(word, 0);
+	const byte2 = rs.intByte(word, 8);
+	const byte3 = rs.intByte(word, 16);
+	const byte4 = rs.intByte(word, 24);
+	const byte5 = rs.intByte(word, 32);
+	const byte6 = rs.intByte(word, 40);
+	const byte7 = rs.intByte(word, 48);
+	const byte8 = rs.intByte(word, 56);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.data[pos + 4] = byte5;
+	dst.data[pos + 5] = byte6;
+	dst.data[pos + 6] = byte7;
+	dst.data[pos + 7] = byte8;
+	dst.length = dst.length + 8;
 }
 
 /** The impls `#[derive]` calls on `PhantomData`, `PhantomPinned`, and `()` fields. */

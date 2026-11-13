@@ -80,11 +80,67 @@ export function takeTimestamp(data: rs.ByteSlice): [rs.Result<Timestamp.Timestam
 }
 
 export function putU64(out: rs.ByteVec, value: rs.u64): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(value)));
+	const dst = out;
+	const word = value;
+	const byte = rs.intByte(word, 56);
+	const byte2 = rs.intByte(word, 48);
+	const byte3 = rs.intByte(word, 40);
+	const byte4 = rs.intByte(word, 32);
+	const byte5 = rs.intByte(word, 24);
+	const byte6 = rs.intByte(word, 16);
+	const byte7 = rs.intByte(word, 8);
+	const byte8 = rs.intByte(word, 0);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.data[pos + 4] = byte5;
+	dst.data[pos + 5] = byte6;
+	dst.data[pos + 6] = byte7;
+	dst.data[pos + 7] = byte8;
+	dst.length = dst.length + 8;
 }
 
 export function putU128(out: rs.ByteVec, value: rs.u128): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(value)));
+	const dst = out;
+	const word = value;
+	const byte = rs.intByte(word, 120);
+	const byte2 = rs.intByte(word, 112);
+	const byte3 = rs.intByte(word, 104);
+	const byte4 = rs.intByte(word, 96);
+	const byte5 = rs.intByte(word, 88);
+	const byte6 = rs.intByte(word, 80);
+	const byte7 = rs.intByte(word, 72);
+	const byte8 = rs.intByte(word, 64);
+	const byte9 = rs.intByte(word, 56);
+	const byte10 = rs.intByte(word, 48);
+	const byte11 = rs.intByte(word, 40);
+	const byte12 = rs.intByte(word, 32);
+	const byte13 = rs.intByte(word, 24);
+	const byte14 = rs.intByte(word, 16);
+	const byte15 = rs.intByte(word, 8);
+	const byte16 = rs.intByte(word, 0);
+	rs.byteVecReserve(dst, 16 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.data[pos + 4] = byte5;
+	dst.data[pos + 5] = byte6;
+	dst.data[pos + 6] = byte7;
+	dst.data[pos + 7] = byte8;
+	dst.data[pos + 8] = byte9;
+	dst.data[pos + 9] = byte10;
+	dst.data[pos + 10] = byte11;
+	dst.data[pos + 11] = byte12;
+	dst.data[pos + 12] = byte13;
+	dst.data[pos + 13] = byte14;
+	dst.data[pos + 14] = byte15;
+	dst.data[pos + 15] = byte16;
+	dst.length = dst.length + 16;
 }
 
 /** Text callers see, such as a `Debug` or `Display`, ended by a zero byte. */
@@ -291,7 +347,19 @@ export function durations(data: rs.ByteSlice, out: rs.ByteVec): void {
 	putResult$moq_net_Timestamp_harness_durations_closure0(out, takeTimestamp(_8[1])[0], (out2: rs.ByteVec, time2: Timestamp.Timestamp): undefined => {
 		const duration2: rs.Duration = time_from$convert_From_moq_net_Timestamp_time_Duration(time2);
 		putU64(out2, rs.durationAsSecs(duration2));
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u32ToBeBytes(rs.durationSubsecNanos(duration2))));
+		const dst = out2;
+		const word = rs.durationSubsecNanos(duration2);
+		const byte = (word >>> 24) & 255;
+		const byte2 = (word >>> 16) & 255;
+		const byte3 = (word >>> 8) & 255;
+		const byte4 = (word >>> 0) & 255;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.data[pos + 2] = byte3;
+		dst.data[pos + 3] = byte4;
+		dst.length = dst.length + 4;
 	});
 }
 

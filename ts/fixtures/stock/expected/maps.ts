@@ -23,7 +23,19 @@ import * as Seeded from "./maps.Seeded.ts";
 
 /** A length, capacity, or value, as four bytes. */
 export function put(out: rs.ByteVec, n: rs.usize): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(n as rs.u32).reverse()));
+	const dst = out;
+	const word = n as rs.u32;
+	const byte = (word >>> 0) & 255;
+	const byte2 = (word >>> 8) & 255;
+	const byte3 = (word >>> 16) & 255;
+	const byte4 = (word >>> 24) & 255;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.length = dst.length + 4;
 }
 
 /**
@@ -119,7 +131,14 @@ export function map(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const a: rs.u8 = _174[0][0];
 		const b: rs.u8 = _174[0][1];
 		const v2: rs.u32 = _174[1];
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a, b)));
+		const dst = out;
+		const byte = a;
+		const byte2 = b;
+		rs.byteVecReserve(dst, 2 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.length = dst.length + 2;
 		put(out, v2 as rs.usize);
 	}
 	const set2: rs.Vec<rs.String> = rs.iterToVec(rs.hashKeys(set), "next", 12);
@@ -1354,11 +1373,51 @@ export function defaultHasher(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	put(out, rs.hashLen(set));
 	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashOne(rs.hasher(), [first, 0] as [rs.u8, rs.u8], rs.hashTuple([rs.hash8, rs.hash8]))).reverse()));
+	const dst = out;
+	const word = rs.hashOne(rs.hasher(), [first, 0] as [rs.u8, rs.u8], rs.hashTuple([rs.hash8, rs.hash8]));
+	const byte = rs.intByte(word, 0);
+	const byte2 = rs.intByte(word, 8);
+	const byte3 = rs.intByte(word, 16);
+	const byte4 = rs.intByte(word, 24);
+	const byte5 = rs.intByte(word, 32);
+	const byte6 = rs.intByte(word, 40);
+	const byte7 = rs.intByte(word, 48);
+	const byte8 = rs.intByte(word, 56);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.data[pos + 4] = byte5;
+	dst.data[pos + 5] = byte6;
+	dst.data[pos + 6] = byte7;
+	dst.data[pos + 7] = byte8;
+	dst.length = dst.length + 8;
 	rs.hashClone(set, undefined, undefined, (_a0: undefined): undefined => {
 		return undefined;
 	}).s as undefined;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashOne(rs.hasher(), first, rs.hash8)).reverse()));
+	const dst2 = out;
+	const word2 = rs.hashOne(rs.hasher(), first, rs.hash8);
+	const byte9 = rs.intByte(word2, 0);
+	const byte10 = rs.intByte(word2, 8);
+	const byte11 = rs.intByte(word2, 16);
+	const byte12 = rs.intByte(word2, 24);
+	const byte13 = rs.intByte(word2, 32);
+	const byte14 = rs.intByte(word2, 40);
+	const byte15 = rs.intByte(word2, 48);
+	const byte16 = rs.intByte(word2, 56);
+	rs.byteVecReserve(dst2, 8 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = byte9;
+	dst2.data[pos2 + 1] = byte10;
+	dst2.data[pos2 + 2] = byte11;
+	dst2.data[pos2 + 3] = byte12;
+	dst2.data[pos2 + 4] = byte13;
+	dst2.data[pos2 + 5] = byte14;
+	dst2.data[pos2 + 6] = byte15;
+	dst2.data[pos2 + 7] = byte16;
+	dst2.length = dst2.length + 8;
 	rs.byteVecPush(out, true ? 1 : 0);
 	const _79: rs.HashMap<[rs.u8, rs.u8], rs.u32> = rs.hashClone(pairs, undefined, undefined, (_a02: undefined): undefined => {
 		return undefined;

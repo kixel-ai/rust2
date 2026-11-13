@@ -14,6 +14,7 @@ mod alloc;
 mod call;
 pub mod coroutine;
 mod decided;
+mod encode;
 pub mod glue;
 pub(super) mod holders;
 mod inline;
@@ -1932,6 +1933,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		cfg::tidy_loops(&mut out);
 		// A loop's own labels first, which its header's `break` names.
 		step::for_of(&mut out);
+		inline::inline_temps(&mut out, &self.shared);
+		encode::lower(&mut out, self.b);
 		inline::inline_temps(&mut out, &self.shared);
 		// A loop can start by leaving now that what it tests is folded in.
 		cfg::tidy_loops(&mut out);

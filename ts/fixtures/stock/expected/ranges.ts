@@ -25,8 +25,32 @@ import * as RangeSet from "./rangemap/set.RangeSet.ts";
 
 /** A range's bounds, as eight bytes. */
 export function put(out: rs.ByteVec, start: rs.u64, end: rs.u64): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u64Low(start)).reverse()));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u64Low(end)).reverse()));
+	const dst = out;
+	const word = rs.u64Low(start);
+	const byte = (word >>> 0) & 255;
+	const byte2 = (word >>> 8) & 255;
+	const byte3 = (word >>> 16) & 255;
+	const byte4 = (word >>> 24) & 255;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.length = dst.length + 4;
+	const dst2 = out;
+	const word2 = rs.u64Low(end);
+	const byte5 = (word2 >>> 0) & 255;
+	const byte6 = (word2 >>> 8) & 255;
+	const byte7 = (word2 >>> 16) & 255;
+	const byte8 = (word2 >>> 24) & 255;
+	rs.byteVecReserve(dst2, 4 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = byte5;
+	dst2.data[pos2 + 1] = byte6;
+	dst2.data[pos2 + 2] = byte7;
+	dst2.data[pos2 + 3] = byte8;
+	dst2.length = dst2.length + 4;
 }
 
 /** Each range of `ranges`, then a marker. */

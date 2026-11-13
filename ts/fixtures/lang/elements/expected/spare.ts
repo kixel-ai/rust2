@@ -13,7 +13,19 @@ export function of$spare_Item_u32(n: rs.u8): rs.u32 {
 }
 
 export function put$spare_Item_u32(self: rs.u32, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(self).reverse()));
+	const dst = out;
+	const word = self;
+	const byte = (word >>> 0) & 255;
+	const byte2 = (word >>> 8) & 255;
+	const byte3 = (word >>> 16) & 255;
+	const byte4 = (word >>> 24) & 255;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.data[pos + 2] = byte3;
+	dst.data[pos + 3] = byte4;
+	dst.length = dst.length + 4;
 }
 
 export function of$spare_Item_String(n: rs.u8): rs.String {
@@ -65,7 +77,19 @@ export function state$Option_u16(v: rs.Vec<rs.u16 | undefined>, out: rs.ByteVec)
 		if (_13 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_13 as rs.u32).reverse()));
+		const dst = out;
+		const word = _13 as rs.u32;
+		const byte = (word >>> 0) & 255;
+		const byte2 = (word >>> 8) & 255;
+		const byte3 = (word >>> 16) & 255;
+		const byte4 = (word >>> 24) & 255;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.data[pos + 2] = byte3;
+		dst.data[pos + 3] = byte4;
+		dst.length = dst.length + 4;
 	}
 	rs.byteVecPush(out, rs.atomicLoad(DROPS, 0));
 	for (const _31 of v.items) {
@@ -83,7 +107,19 @@ export function state$String(v: rs.Vec<rs.String>, out: rs.ByteVec): void {
 		if (_13 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_13 as rs.u32).reverse()));
+		const dst = out;
+		const word = _13 as rs.u32;
+		const byte = (word >>> 0) & 255;
+		const byte2 = (word >>> 8) & 255;
+		const byte3 = (word >>> 16) & 255;
+		const byte4 = (word >>> 24) & 255;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.data[pos + 2] = byte3;
+		dst.data[pos + 3] = byte4;
+		dst.length = dst.length + 4;
 	}
 	rs.byteVecPush(out, rs.atomicLoad(DROPS, 0));
 	for (const _31 of v.items) {
@@ -101,7 +137,19 @@ export function state$Vec_u8(v: rs.Vec<rs.ByteVec>, out: rs.ByteVec): void {
 		if (_13 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_13 as rs.u32).reverse()));
+		const dst = out;
+		const word = _13 as rs.u32;
+		const byte = (word >>> 0) & 255;
+		const byte2 = (word >>> 8) & 255;
+		const byte3 = (word >>> 16) & 255;
+		const byte4 = (word >>> 24) & 255;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.data[pos + 2] = byte3;
+		dst.data[pos + 3] = byte4;
+		dst.length = dst.length + 4;
 	}
 	rs.byteVecPush(out, rs.atomicLoad(DROPS, 0));
 	for (const _31 of v.items) {
@@ -119,7 +167,19 @@ export function state$spare_Noted(v: rs.Vec<Noted.Noted>, out: rs.ByteVec): void
 		if (_13 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_13 as rs.u32).reverse()));
+		const dst = out;
+		const word = _13 as rs.u32;
+		const byte = (word >>> 0) & 255;
+		const byte2 = (word >>> 8) & 255;
+		const byte3 = (word >>> 16) & 255;
+		const byte4 = (word >>> 24) & 255;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.data[pos + 2] = byte3;
+		dst.data[pos + 3] = byte4;
+		dst.length = dst.length + 4;
 	}
 	rs.byteVecPush(out, rs.atomicLoad(DROPS, 0));
 	for (const _31 of v.items) {
@@ -137,7 +197,19 @@ export function state$spare_Pair(v: rs.Vec<Pair.Pair>, out: rs.ByteVec): void {
 		if (_13 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_13 as rs.u32).reverse()));
+		const dst = out;
+		const word = _13 as rs.u32;
+		const byte = (word >>> 0) & 255;
+		const byte2 = (word >>> 8) & 255;
+		const byte3 = (word >>> 16) & 255;
+		const byte4 = (word >>> 24) & 255;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.data[pos + 2] = byte3;
+		dst.data[pos + 3] = byte4;
+		dst.length = dst.length + 4;
 	}
 	rs.byteVecPush(out, rs.atomicLoad(DROPS, 0));
 	for (const _31 of v.items) {
@@ -155,7 +227,19 @@ export function state$tuple2_u8_u32(v: rs.Vec<[rs.u8, rs.u32]>, out: rs.ByteVec)
 		if (_13 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_13 as rs.u32).reverse()));
+		const dst = out;
+		const word = _13 as rs.u32;
+		const byte = (word >>> 0) & 255;
+		const byte2 = (word >>> 8) & 255;
+		const byte3 = (word >>> 16) & 255;
+		const byte4 = (word >>> 24) & 255;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.data[pos + 2] = byte3;
+		dst.data[pos + 3] = byte4;
+		dst.length = dst.length + 4;
 	}
 	rs.byteVecPush(out, rs.atomicLoad(DROPS, 0));
 	for (const _31 of v.items) {
@@ -173,7 +257,19 @@ export function state$u32(v: rs.Vec<rs.u32>, out: rs.ByteVec): void {
 		if (_13 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_13 as rs.u32).reverse()));
+		const dst = out;
+		const word = _13 as rs.u32;
+		const byte = (word >>> 0) & 255;
+		const byte2 = (word >>> 8) & 255;
+		const byte3 = (word >>> 16) & 255;
+		const byte4 = (word >>> 24) & 255;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.data[pos + 2] = byte3;
+		dst.data[pos + 3] = byte4;
+		dst.length = dst.length + 4;
 	}
 	rs.byteVecPush(out, rs.atomicLoad(DROPS, 0));
 	for (const _31 of v.items) {

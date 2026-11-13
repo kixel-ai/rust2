@@ -26,7 +26,19 @@ export function putChar(out: rs.ByteVec, c: rs.char | undefined): void {
 	if (c === undefined) {
 		rs.byteVecPush(out, 255);
 	} else {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(c as rs.u32)));
+		const dst = out;
+		const word = c as rs.u32;
+		const byte = (word >>> 24) & 255;
+		const byte2 = (word >>> 16) & 255;
+		const byte3 = (word >>> 8) & 255;
+		const byte4 = (word >>> 0) & 255;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.data[pos + 2] = byte3;
+		dst.data[pos + 3] = byte4;
+		dst.length = dst.length + 4;
 	}
 }
 
@@ -34,7 +46,19 @@ export function putOffset(out: rs.ByteVec, i: rs.usize | undefined): void {
 	if (i === undefined) {
 		rs.byteVecPush(out, 254);
 	} else {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(i as rs.u32)));
+		const dst = out;
+		const word = i as rs.u32;
+		const byte = (word >>> 24) & 255;
+		const byte2 = (word >>> 16) & 255;
+		const byte3 = (word >>> 8) & 255;
+		const byte4 = (word >>> 0) & 255;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.data[pos + 2] = byte3;
+		dst.data[pos + 3] = byte4;
+		dst.length = dst.length + 4;
 	}
 }
 
@@ -660,10 +684,12 @@ export function edits(kind: rs.u8, dataData: Uint8Array, dataStart: number, data
 			break;
 		}
 		rs.idx(_18, 0);
-		const _25: Uint8Array = Uint8Array.of(_18.data[_18.start], option_unwrapOr$1fr498u(rs.byteSliceGet(_18, 1), 0), option_unwrapOr$1fr498u(rs.byteSliceGet(_18, 2), 16));
-		const op: rs.u8 = _25[0];
-		const a: rs.u8 = _25[1];
-		const b: rs.u8 = _25[2];
+		const byte = _18.data[_18.start];
+		const byte2 = option_unwrapOr$1fr498u(rs.byteSliceGet(_18, 1), 0);
+		const byte3 = option_unwrapOr$1fr498u(rs.byteSliceGet(_18, 2), 16);
+		const op: rs.u8 = byte;
+		const a: rs.u8 = byte2;
+		const b: rs.u8 = byte3;
 		const _39: rs.u8 = rs.u8Div(op, 64);
 		if (_39 === 0) {
 			edit(named.name, op, a, b, out);
@@ -1353,11 +1379,14 @@ export function drains(kind: rs.u8, dataData: Uint8Array, dataStart: number, dat
 			break;
 		}
 		rs.idx(_18, 0);
-		const _26: Uint8Array = Uint8Array.of(_18.data[_18.start], option_unwrapOr$1fr498u(rs.byteSliceGet(_18, 1), 0), option_unwrapOr$1fr498u(rs.byteSliceGet(_18, 2), 16), option_unwrapOr$1fr498u(rs.byteSliceGet(_18, 3), 0));
-		const form: rs.u8 = _26[0];
-		const a: rs.u8 = _26[1];
-		const b: rs.u8 = _26[2];
-		const steps: rs.u8 = _26[3];
+		const byte = _18.data[_18.start];
+		const byte2 = option_unwrapOr$1fr498u(rs.byteSliceGet(_18, 1), 0);
+		const byte3 = option_unwrapOr$1fr498u(rs.byteSliceGet(_18, 2), 16);
+		const byte4 = option_unwrapOr$1fr498u(rs.byteSliceGet(_18, 3), 0);
+		const form: rs.u8 = byte;
+		const a: rs.u8 = byte2;
+		const b: rs.u8 = byte3;
+		const steps: rs.u8 = byte4;
 		const _44: rs.u8 = rs.u8Rem(rs.u8Div(form, 32), 4);
 		if (_44 === 0) {
 			drainBy(named.name, form, a, b, steps, out);
@@ -1854,7 +1883,15 @@ export function unicode(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const args13 = [(f: rs.Formatter) => rs.debugStructFinishNonExhaustive(rs.fmtDebugStruct(f, "EncodeUtf16"))];
 		put(out, rs.fmtFormat([args13[0], "|", rs.fmtSpec({ alternate: true }, args13[0]), "|", rs.fmtSpec({ align: ">", width: 30 }, args13[0])]).v);
 		walk$str_EncodeUtf16(out, it.clone(), (out2: rs.ByteVec, u: rs.u16): undefined => {
-			rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u16ToBeBytes(u)));
+			const dst = out2;
+			const word = u;
+			const byte = (word >>> 8) & 255;
+			const byte2 = (word >>> 0) & 255;
+			rs.byteVecReserve(dst, 2 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = byte;
+			dst.data[pos + 1] = byte2;
+			dst.length = dst.length + 2;
 		});
 		const units: rs.Vec<rs.u16> = rs.iterToVec(it, "next", 2);
 		const each4: rs.Vec<rs.usize> = rs.iterToVec(rs.iterMap(rs.iterMap(rs.iterSlice(words.items), (a0: string): rs.Iter<rs.u16> => {

@@ -38,7 +38,15 @@ export function u8(self: Encoder, v: rs.u8): void {
 
 /** Write a big-endian `u16`. */
 export function u16(self: Encoder, v: rs.u16): void {
-	rs.byteVecExtendFromSlice(self.buf, rs.byteSliceFrom(rs.u16ToBeBytes(v)));
+	const dst = self.buf;
+	const word = v;
+	const byte = (word >>> 8) & 255;
+	const byte2 = (word >>> 0) & 255;
+	rs.byteVecReserve(dst, 2 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.length = dst.length + 2;
 }
 
 /** Write a bool as a 0 or 1 byte. */
@@ -97,7 +105,14 @@ export function prefixVarint(self: Encoder): Prefix.Prefix {
 
 /** Reserve a big-endian `u16` size prefix for the body written next; [`Self::fill`] sizes it. */
 export function prefixU16(self: Encoder): Prefix.Prefix {
-	rs.byteVecExtendFromSlice(self.buf, rs.byteSliceFrom(Uint8Array.of(0, 0)));
+	const dst = self.buf;
+	const byte = 0;
+	const byte2 = 0;
+	rs.byteVecReserve(dst, 2 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.length = dst.length + 2;
 	return { body: self.buf.length, kind: "U16" as PrefixKind.PrefixKind };
 }
 

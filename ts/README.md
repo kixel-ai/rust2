@@ -1090,6 +1090,12 @@ they need.
   188-byte packets, measured the copy at 430 ns a packet in Node, 84 in Bun, 1930 in
   Chrome, and 800 in Firefox, against 280, 114, 1300, and 375 for the hand-written
   route's `slice`.
+- A byte array made by `to_be_bytes`, `to_le_bytes`, or a literal is held as scalar
+  bytes when its only uses are fixed byte reads and whole appends to a `Vec<u8>` or
+  `BytesMut`. An append reserves once and writes into the destination's storage,
+  including a `BytesMut`'s offset, without making a typed array or slice per write.
+  Sources and literal elements are evaluated once, before any store. An array that
+  escapes, is mutated, or is captured by a closure keeps its storage.
 - A local built of byte slices and scalars, in tuples, `Option`s, `Result`s, and
   `ControlFlow`s, is a JS value per part: a slice's `data`, `start`, and `length`, and an
   enum's variant as a flag, when nothing borrows or writes into it and only std's splits,

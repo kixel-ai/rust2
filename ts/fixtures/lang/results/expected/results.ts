@@ -658,9 +658,17 @@ export function optionSlices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 					return ((b3 as rs.u16) << 4) & 0xffff;
 				});
 				rs.sliceFill(wide === undefined ? rs.sliceFrom([]) : rs.sliceOfPlace(rs.place(() => wide as rs.u16, (value3) => wide = value3)), 4660, undefined);
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(rs.iterFold(rs.iterSlice(rs.sliceItems(rs.optionAsSlice(wide))), 0, (a: rs.u16, w: rs.u16): rs.u16 => {
+				const dst = out;
+				const word = rs.iterFold(rs.iterSlice(rs.sliceItems(rs.optionAsSlice(wide))), 0, (a: rs.u16, w: rs.u16): rs.u16 => {
 					return a ^ w;
-				}))));
+				});
+				const byte = (word >>> 8) & 255;
+				const byte2 = (word >>> 0) & 255;
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = byte;
+				dst.data[pos + 1] = byte2;
+				dst.length = dst.length + 2;
 				const wides: Array<rs.u16 | undefined> = [wide, option_map$0zvojrv(some(1), (a0: rs.u8): rs.u16 => {
 					return a0 as rs.u16;
 				}), option_map$0ydco3f(some(2), (b4: rs.u8): rs.u16 => {
@@ -696,7 +704,15 @@ export function optionSlices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 					if (_90 === rs.DONE) {
 						break b0;
 					}
-					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(option_unwrapOr$1szdyfq(_90, 61166))));
+					const dst2 = out;
+					const word2 = option_unwrapOr$1szdyfq(_90, 61166);
+					const byte3 = (word2 >>> 8) & 255;
+					const byte4 = (word2 >>> 0) & 255;
+					rs.byteVecReserve(dst2, 2 as rs.usize);
+					const pos2 = dst2.length;
+					dst2.data[pos2 + 0] = byte3;
+					dst2.data[pos2 + 1] = byte4;
+					dst2.length = dst2.length + 2;
 				}
 			}
 			if (_5 === 2) {

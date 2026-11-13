@@ -28,7 +28,15 @@ export function optional$edits_Named(n: Named.Named): Named.Named | undefined {
 
 export function putU16s(out: rs.ByteVec, v: rs.Slice<rs.u16>): void {
 	for (const _5 of rs.sliceItems(v)) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(_5)));
+		const dst = out;
+		const word = _5;
+		const byte = (word >>> 8) & 255;
+		const byte2 = (word >>> 0) & 255;
+		rs.byteVecReserve(dst, 2 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.length = dst.length + 2;
 	}
 	rs.byteVecPush(out, 254);
 }
@@ -494,7 +502,14 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const v4: rs.ByteVec = rs.byteSliceToByteVec(_61);
 			const seen2: rs.ByteVec = new rs.ByteVec();
 			rs.byteVecDedupByMut(v4, (a3: rs.Place<rs.u8>, b8: rs.Place<rs.u8>): boolean => {
-				rs.byteVecExtendFromSlice(seen2, rs.byteSliceFrom(Uint8Array.of(a3.v, b8.v)));
+				const dst = seen2;
+				const byte = a3.v;
+				const byte2 = b8.v;
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = byte;
+				dst.data[pos + 1] = byte2;
+				dst.length = dst.length + 2;
 				b8.v = rs.u8WrappingAdd(b8.v, 1);
 				return rs.u8Div(a3.v, 32) === rs.u8Div(b8.v, 32);
 			});
