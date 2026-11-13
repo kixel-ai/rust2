@@ -88,6 +88,10 @@ class SelectTests(unittest.TestCase):
         self.change("ts/rust-toolchain.toml")
         self.assertEqual(self.select(), ["lint", "driver", "ffi", "ts"])
 
+    def test_a_go_diff_with_a_shared_input_still_selects_go(self):
+        self.change("go/src/lib.rs", "flake.nix")
+        self.assertEqual(self.select(), EVERYTHING)
+
     def test_lint_only_paths_select_only_the_lints(self):
         for path in ("bench/ffi/run.sh", "README.md", ".claude/settings.json"):
             with self.subTest(path=path):

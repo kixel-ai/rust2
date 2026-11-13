@@ -67,10 +67,12 @@ else
     done
     shared=$(grep -vE "$claimed" <<<"$changed" | grep . || true)
     if [[ -n "$shared" ]]; then
-        echo "$action: running everything for $(paste -sd ' ' <<<"$shared")" >&2
+        echo "$action: running everything but the parked go for $(paste -sd ' ' <<<"$shared")" >&2
         # Everything but the parked go, which only its own diff selects.
         for module in "${modules[@]}"; do
-            [[ "$module" == go ]] || selected+=("$module")
+            if [[ "$module" != go ]] || grep -qE "${scope[go]}" <<<"$changed"; then
+                selected+=("$module")
+            fi
         done
     else
         for module in "${modules[@]}"; do
