@@ -8,6 +8,8 @@ The documented caller and crabx init can then pin a real pipeline release.
 
 ## Plan
 
+- Maintainer decision (2026-11-13): ✅ keep this follow-up (rejected: drop).
+
 - Dispatch `.github/workflows/crabx-test.yml` on the landed commit. Verify all six
   target archives contain both fixture binaries and that `gh attestation verify`
   accepts each archive with the reusable workflow as signer. PR fixture runs stay

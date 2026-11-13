@@ -83,6 +83,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.discover.outputs.releases) }}
+      # Each run contributes at most one pending publisher to a shared tag.
+      max-parallel: 1
     concurrency:
       group: crabx-${{ github.repository }}-${{ matrix.tag }}
       cancel-in-progress: false

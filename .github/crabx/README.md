@@ -40,9 +40,13 @@ the caller's GitHub repository. Missing or dirty VCS metadata, invalid paths,
 mismatched version tags, and build failures stop the run. An existing annotated
 or lightweight `name-vVERSION` or `vVERSION` tag must point to Cargo's recorded
 commit. When neither exists, publishing creates `name-vVERSION` there.
-Existing release assets are preserved. Publishing is serialized per crate and
-version across trigger refs. Unrelated assets are preserved, and no release is
-made latest merely because it was backfilled.
+Existing release assets are preserved. Publishing is serialized per release tag
+across trigger refs. Each run publishes
+one crate at a time, so crates sharing a tag cannot replace pending jobs within
+that run. GitHub retains only one pending publisher per tag across runs; a newer
+run backfills the same missing archives if it supersedes an older pending job.
+Unrelated assets are preserved, and no release is made latest merely because it
+was backfilled.
 
 Build jobs have read-only tokens and no OIDC permission. Only the publishing job
 attests the downloaded archives and writes releases; it never runs crate code.
