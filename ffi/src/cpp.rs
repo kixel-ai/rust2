@@ -506,7 +506,7 @@ impl<'a> Header<'a> {
 		let futures = self.functions();
 		for (function, owner) in &futures {
 			let export = abi.export(function, owner.as_ref());
-			if let Some((handle, _, _)) = &export.future {
+			if let Some(abi::Future { handle, .. }) = &export.future {
 				let name = self.global(&self.name(handle));
 				self.line(format!(
 					"namespace detail {{\nstruct {name}_op;\n}}\nusing {name} = ::{ns}::future<detail::{name}_op>;"
@@ -1111,7 +1111,7 @@ impl<'a> Header<'a> {
 		};
 		let free = !matches!(class, Some((_, Owner::Member)));
 		let ret = match &export.future {
-			Some((handle, _, _)) => self.q(handle),
+			Some(future) => self.q(&future.handle),
 			None => self.output(function),
 		};
 		let mut params: Vec<String> = Vec::new();
@@ -1219,7 +1219,7 @@ impl<'a> Header<'a> {
 		}
 		let call = format!("::{}({})", export.call.name, args.join(", "));
 		let mut body = prelude;
-		if let Some((handle, _, _)) = &export.future {
+		if let Some(abi::Future { handle, .. }) = &export.future {
 			body.push(format!("return {d}::access::wrap<{}>({call});", self.q(handle)));
 		} else {
 			let (declared, ok, err) = self.outs(function, &outs, &ret);
@@ -1423,7 +1423,7 @@ impl<'a> Header<'a> {
 	fn future(&mut self, function: &Function, owner: Option<&Ty>) {
 		let abi = self.abi;
 		let export = abi.export(function, owner);
-		let Some((handle, poll, free)) = &export.future else {
+		let Some(abi::Future { handle, poll, free, .. }) = &export.future else {
 			return;
 		};
 		let name = self.name(handle);

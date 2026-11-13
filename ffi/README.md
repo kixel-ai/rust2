@@ -84,7 +84,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
-| `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it; a function that is not `async` runs at the call, as in Rust |
+| `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it, and `f_start` makes it and polls it once, returning a handle only if it pends; a function that is not `async` runs at the call, as in Rust |
 | a function returning `Poll<T>` that polls through a `&Context`, a `&mut Context`, or a reference to an object exactly one associated function makes from a `Waker` alone, of a type with no generic parameters, such as kio's `Waiter`, which may be the method's own `&self`, as `Waiter::poll_future`'s is | a future of `T`, as an `async fn`'s: each poll calls the function again with the poll's context, or with an object made from its waker and kept until the next poll, so what it registers stays registered; each other parameter taken by value must be `Copy`; a method polling through its own `&self` is a function without one |
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
@@ -221,7 +221,10 @@ dropped for the other target's span where the file differs.
   A poll that finishes writes the result through the poll's own out pointers, so a
   cancelled read never loses a value. The future reuses the last waker when given the same
   one again, and owns what it borrowed: the handle it was called on stays borrowed until
-  it finishes or is freed.
+  it finishes or is freed. `_start` is the call and a first poll with no waker in one:
+  a future ready at once costs one call and no handle, and one that pends writes its
+  handle through the last parameter, which must not be null. A null waker wakes nothing
+  and costs no allocation, and a future is one allocation.
 - **Wakers** move into Rust, which calls `drop` once it lets go of the last clone, so a
   state machine polled with a waker, such as moq's `Driver`s through kio's `Waiter`, runs
   from the caller's event loop. Rust may call `wake` and `drop` from any thread, as a
@@ -627,9 +630,9 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   as its `io::Error`'s message.
 - **Futures** are `async throws` functions, which resume on the task's executor, never
   inside a wake. Cancelling the task frees the future, losing nothing, and throws
-  `CancellationError`. Each call is its own future, so it has one poller. The call polls it
-  once before suspending, and makes the signal it parks on only if that poll pends; the
-  signal latches a wake that lands before it parks.
+  `CancellationError`. Each call is its own future, so it has one poller. The call makes
+  and polls it in one crossing, `_start`, before suspending, and makes the signal it parks
+  on only if that poll pends; the signal latches a wake that lands before it parks.
 - A **future Swift implements** is an `@escaping @Sendable () async -> Void`, which Rust's
   first poll runs as a task of its own. Rust dropping it cancels the task, and one dropped
   before it starts never runs. A poll lent one, such as `Waiter.pollFuture`, is a static
@@ -744,8 +747,8 @@ reads a go.mod.
   a reader that is also an `rt.StartSeeker`, as `io.Copy` uses an `io.WriterTo`, and fails
   in any other. Their errors cross as their messages.
 - **Futures** are calls taking a `context.Context` first, which block until the future is
-  ready. The call polls it once before it waits, and makes the waker it waits on only if
-  that poll pends; a wake from any thread signals the waiting goroutine, which polls
+  ready. The call makes and polls it in one crossing, `_start`, before it waits, and
+  makes the waker it waits on only if that poll pends; a wake from any thread signals the waiting goroutine, which polls
   again, so a wake never polls inside Rust, and one that lands before the wait is kept. A
   context done before the call, or while it waits, returns its error and frees the future,
   which cancels it in Rust and loses nothing: the next call takes what it would have.
@@ -836,8 +839,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   throws aborts.
 - **Futures** are `Cancelable<T>`, a `Future<T>` completed on the isolate that made it:
   an extension type on Dart's own future, which `await` takes its shortest path through.
-  The call polls it once, returning it complete if that poll finished, and makes a waker
-  only if it pends. A wake, from any
+  The call makes and polls it in one crossing, `_start`, returning it complete if that
+  poll finished, and makes a waker only if it pends. A wake, from any
   thread, posts to the isolate's port, and its event loop polls again, so a wake never
   polls inside Rust, and one that lands during a poll is kept. `cancel()` frees the
   future unless it finished, which cancels it in Rust and loses nothing: the next call

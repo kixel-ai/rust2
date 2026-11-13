@@ -192,6 +192,7 @@ fn api_c() {
 		("family", "api_nexts: an IPv6 socket address where IPv4 is taken"),
 		("array", "api_vec_u16_free: an array is not as Rust returned it"),
 		("future", "api_after: a future's poll is null"),
+		("start", "api_yielded_start: a future's handle pointer is null"),
 		("lent", "api_Registry_edit: a lent handle was freed"),
 		(
 			"lent moved",
