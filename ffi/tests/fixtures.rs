@@ -1310,10 +1310,16 @@ fn relative_target() {
 	] {
 		assert!(text.contains(line), "the census lists no `{line}`:\n{text}");
 	}
-	let exporting = text.split("## Excluded by the config, though it exports").nth(1).unwrap();
+	let exporting = text
+		.split("## Excluded by the config, though it exports")
+		.nth(1)
+		.unwrap();
 	let exporting = exporting.split("\n## ").next().unwrap();
 	for refused in ["- `Copied`", "- `Sample`", "- `Queued`"] {
-		assert!(!exporting.contains(refused), "the census lists `{refused}` as exporting:\n{exporting}");
+		assert!(
+			!exporting.contains(refused),
+			"the census lists `{refused}` as exporting:\n{exporting}"
+		);
 	}
 	assert!(dir.join("build").exists());
 }

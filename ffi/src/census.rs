@@ -197,7 +197,9 @@ pub fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn Fn(Span
 	let under = |path: &str| {
 		let bare = path.strip_prefix("field@").unwrap_or(path);
 		(left_out.iter()).any(|r| {
-			[path, bare].iter().any(|path| *path == *r || path.strip_prefix(r).is_some_and(|rest| rest.starts_with("::")))
+			[path, bare]
+				.iter()
+				.any(|path| *path == *r || path.strip_prefix(r).is_some_and(|rest| rest.starts_with("::")))
 		})
 	};
 	let mut exporting = String::new();
