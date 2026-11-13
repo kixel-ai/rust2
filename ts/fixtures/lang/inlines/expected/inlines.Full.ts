@@ -3,9 +3,7 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug_3(self: Full, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Full";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.fmtStr(self._0.v, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Full", [(f: rs.Formatter) => rs.fmtStr(self._0.v, f)]);
 }
 
 /** What didn't fit in a [`Text`], and the capacity it didn't fit in. */

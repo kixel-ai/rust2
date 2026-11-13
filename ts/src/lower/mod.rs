@@ -39,7 +39,7 @@ use std::collections::VecDeque;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{CrateNum, DefId, LocalDefId};
 use rustc_middle::ty::{
-	self, AdtDef, EarlyBinder, GenericArgsRef, Instance, InstanceKind, Ty, TyCtxt, TypeVisitableExt, TypingEnv,
+	self, AdtDef, EarlyBinder, GenericArgs, Instance, InstanceKind, Ty, TyCtxt, TypeVisitableExt, TypingEnv,
 };
 use rustc_span::Span;
 
@@ -264,6 +264,12 @@ pub struct Translator<'a, 'tcx> {
 	compared: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
 	/// Those this run compared.
 	comparing: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
+	/// The values `Arc::new_cyclic` and `Rc::new_cyclic` make, by `Arc` or `Rc` and their
+	/// storage.
+	cyclic: rustc_data_structures::fx::FxHashSet<(&'static str, Ty<'tcx>)>,
+	/// Each `Weak::as_ptr` of a value JS keeps as an object, by `Arc` or `Rc` and its
+	/// storage, with its refusal, should `new_cyclic` make one.
+	weak_pointers: Vec<(&'static str, Ty<'tcx>, Span, String)>,
 	/// Whether the runs before reached a `panic::set_hook`, so every panic carries the
 	/// `rs.Location` its hook reads.
 	pub hooked: bool,
@@ -275,7 +281,7 @@ pub struct Translator<'a, 'tcx> {
 	object_classes: rustc_data_structures::fx::FxHashMap<(Ty<'tcx>, dynamic::Held), dynamic::Class>,
 	/// The trait method, with its arguments, each of those classes' methods calls, by class
 	/// and name.
-	class_methods: rustc_data_structures::fx::FxHashMap<(SymId, String), (DefId, GenericArgsRef<'tcx>)>,
+	class_methods: rustc_data_structures::fx::FxHashMap<(SymId, String), (DefId, GenericArgs<'tcx>)>,
 	/// The class of each coroutine instance.
 	pub coroutines: rustc_data_structures::fx::FxHashMap<Instance<'tcx>, mir::coroutine::Info<'tcx>>,
 	/// Whether [`Self::ty`] is typing a variable: see [`Self::held_ty`].
@@ -458,6 +464,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				&& t.comparing.is_subset(&t.compared)
 				&& (t.hooked || !t.hooking)
 			{
+				t.refuse_cyclic_pointers();
 				return Some((t, out));
 			}
 			read = std::mem::take(&mut t.read);
@@ -467,6 +474,39 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			compared = std::mem::take(&mut t.compared);
 			compared.extend(t.comparing.drain());
 			hooked |= t.hooking;
+		}
+	}
+
+	/// Note an `of::new_cyclic` of a `ty`, an `Arc` or `Rc` as `of` says, whose value isn't
+	/// there until its closure returns.
+	pub fn cyclic(&mut self, of: &'static str, ty: Ty<'tcx>) {
+		// Only an instance decides what a parameter is.
+		if self.polymorphic() && ty.has_param() {
+			return;
+		}
+		self.cyclic.insert((of, copy::storage(self.tcx, ty)));
+	}
+
+	/// Note a `Weak::as_ptr` at `span` of a `ty` JS keeps as an object, of an `Arc` or `Rc`
+	/// as `of` says, which has no object to point at while `new_cyclic` makes it.
+	pub fn weak_pointer(&mut self, ty: Ty<'tcx>, of: &'static str, span: Span) {
+		if self.polymorphic() && ty.has_param() {
+			return;
+		}
+		let msg = format!(
+			"`Weak::as_ptr` of a `{ty}` that `{of}::new_cyclic` makes, whose JS object isn't there to point at until its closure returns"
+		);
+		let (span, msg) = self.sited(span, msg);
+		self.weak_pointers.push((of, copy::storage(self.tcx, ty), span, msg));
+	}
+
+	/// Refuse each `Weak::as_ptr` of a type `new_cyclic` makes, once the run has reached
+	/// every `new_cyclic`.
+	fn refuse_cyclic_pointers(&mut self) {
+		for (of, ty, span, msg) in std::mem::take(&mut self.weak_pointers) {
+			if self.cyclic.iter().any(|&(by, made)| by == of && made == ty) {
+				self.refuse(span, msg);
+			}
 		}
 	}
 
@@ -542,6 +582,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			cloning: Default::default(),
 			compared,
 			comparing: Default::default(),
+			cyclic: Default::default(),
+			weak_pointers: Vec::new(),
 			hooked,
 			hooking: false,
 			held: false,
@@ -1030,14 +1072,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		})
 	}
 
-	pub fn subst<T: ty::TypeFoldable<TyCtxt<'tcx>>>(&self, args: GenericArgsRef<'tcx>, value: T) -> T {
+	pub fn subst<T: ty::TypeFoldable<TyCtxt<'tcx>>>(&self, args: GenericArgs<'tcx>, value: T) -> T {
 		self.tcx
 			.instantiate_and_normalize_erasing_regions(args, self.typing_env(), EarlyBinder::bind(self.tcx, value))
 	}
 
 	/// `def_id`'s signature for `args`, with what its projections name, as `Deref::deref`'s
 	/// `&Self::Target`, where they resolve: a census's call over type parameters may leave one.
-	pub fn sig(&self, def_id: DefId, args: GenericArgsRef<'tcx>) -> ty::FnSig<'tcx> {
+	pub fn sig(&self, def_id: DefId, args: GenericArgs<'tcx>) -> ty::FnSig<'tcx> {
 		let sig = self.tcx.fn_sig(def_id).instantiate(self.tcx, args).skip_norm_wip();
 		let sig = self.tcx.instantiate_bound_regions_with_erased(sig);
 		self.tcx
@@ -1059,7 +1101,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether a call of `def_id` with `args` runs a function whose body translates, the
 	/// crate's own or std's from its MIR, rather than a mapping.
-	pub fn translated(&self, def_id: DefId, args: GenericArgsRef<'tcx>) -> bool {
+	pub fn translated(&self, def_id: DefId, args: GenericArgs<'tcx>) -> bool {
 		match Instance::try_resolve(self.tcx, self.typing_env(), def_id, args) {
 			Ok(Some(instance)) => self.lowers(self.typing_env(), instance) || self.dispatches(instance),
 			_ => false,
@@ -1083,7 +1125,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether a call of `def_id` with `args` runs std's mapping, which takes a `&mut`
 	/// parameter as what it points at, rather than a body that translates or a binding's export.
-	pub fn mapped(&self, def_id: DefId, args: GenericArgsRef<'tcx>) -> bool {
+	pub fn mapped(&self, def_id: DefId, args: GenericArgs<'tcx>) -> bool {
 		match Instance::try_resolve(self.tcx, self.typing_env(), def_id, args) {
 			Ok(Some(instance)) => {
 				!self.lowers(self.typing_env(), instance)
@@ -1096,7 +1138,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Whether a call of `def_id` with `args` calls a binding's export.
-	pub fn binds(&self, def_id: DefId, args: GenericArgsRef<'tcx>) -> bool {
+	pub fn binds(&self, def_id: DefId, args: GenericArgs<'tcx>) -> bool {
 		match Instance::try_resolve(self.tcx, self.typing_env(), def_id, args) {
 			Ok(Some(instance)) => self.bound_module(instance).is_some(),
 			_ => false,
@@ -1627,7 +1669,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					.collect();
 				Type::Func(params, Box::new(self.future_ty(sig.return_ty, span)))
 			}
-			ty::Adt(adt, args) => self.adt_ty(*adt, args, span),
+			ty::Adt(adt, args) => self.adt_ty(*adt, *args, span),
 			ty::Pat(base, _) => self.ty(*base, span),
 			ty::Coroutine(_, args) => self.future_ty(args.as_coroutine().return_ty(), span),
 			ty::Dynamic(..) if let Some(output) = self.dyn_future(ty) => self.future_ty(output, span),
@@ -1707,7 +1749,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					)
 				})
 			}
-			library::Std::ControlFlow if library::Flow::of(self.tcx, args) == library::Flow::Option => {
+			library::Std::ControlFlow if library::Flow::of(self.tcx, *args) == library::Flow::Option => {
 				let erased = self.erases_to(args.type_at(1));
 				(erased.undefined && erased.none)
 					.then(|| format!("`{ty}` is not supported: its break and its continue would both be `rs.None`"))
@@ -1731,7 +1773,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 	}
 
-	fn adt_ty(&mut self, adt: AdtDef<'tcx>, args: GenericArgsRef<'tcx>, span: Span) -> Type {
+	fn adt_ty(&mut self, adt: AdtDef<'tcx>, args: GenericArgs<'tcx>, span: Span) -> Type {
 		let tcx = self.tcx;
 		if let Some(vec) = smallvec::as_vec(tcx, Ty::new_adt(tcx, adt, args)) {
 			return self.ty(vec, span);
@@ -2030,7 +2072,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The TypeScript type arguments of an instance of the crate's generic `adt` with `args`,
 	/// by the name of the parameter each is: one per type parameter, then one per projection
 	/// typing its fields named, which is what the projection normalizes to at `args`.
-	fn instance_params(&mut self, adt: DefId, args: GenericArgsRef<'tcx>, span: Span) -> Vec<(String, Type)> {
+	fn instance_params(&mut self, adt: DefId, args: GenericArgs<'tcx>, span: Span) -> Vec<(String, Type)> {
 		let mut params = self.own_args(adt, args, span);
 		let instance = Ty::new_adt(self.tcx, self.tcx.adt_def(adt), args);
 		if !self.enter_instance(instance, span) {
@@ -2043,7 +2085,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The TypeScript type of each type argument of an instance of `adt`, by its parameter.
-	fn own_args(&mut self, adt: DefId, args: GenericArgsRef<'tcx>, span: Span) -> Vec<(String, Type)> {
+	fn own_args(&mut self, adt: DefId, args: GenericArgs<'tcx>, span: Span) -> Vec<(String, Type)> {
 		(self.tcx.generics_of(adt).own_params.iter())
 			.filter(|param| matches!(param.kind, ty::GenericParamDefKind::Type { .. }))
 			.map(|param| {
@@ -2057,7 +2099,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// What each projection typing the crate's generic `adt`'s fields named normalizes to at
 	/// `args`, by its parameter.
-	fn projection_args(&mut self, adt: DefId, args: GenericArgsRef<'tcx>, span: Span) -> Vec<(String, Type)> {
+	fn projection_args(&mut self, adt: DefId, args: GenericArgs<'tcx>, span: Span) -> Vec<(String, Type)> {
 		let (projections, names): (Vec<Ty<'tcx>>, Vec<String>) = self.defined(adt).projections.iter().cloned().unzip();
 		let env = self.defining.map_or(self.typing_env(), |(_, env)| env);
 		let tcx = self.tcx;
@@ -2107,7 +2149,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		value: ts::Expr,
 		adt: DefId,
 		field: DefId,
-		args: GenericArgsRef<'tcx>,
+		args: GenericArgs<'tcx>,
 		span: Span,
 	) -> ts::Expr {
 		let defined = match self.instanced_fields.get(&field) {
@@ -2124,7 +2166,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// `read`, of `field` of an instance with `args`, cast to what the instance holds there
 	/// where the definition types a form in it that only an instance decides.
-	pub fn held_field(&mut self, read: ts::Expr, field: DefId, args: GenericArgsRef<'tcx>, span: Span) -> ts::Expr {
+	pub fn held_field(&mut self, read: ts::Expr, field: DefId, args: GenericArgs<'tcx>, span: Span) -> ts::Expr {
 		if !self.instanced_fields.contains_key(&field) {
 			return read;
 		}
@@ -2136,7 +2178,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// if it can't: a part its definition, or that of an instance it holds, types that this
 	/// instance represents otherwise (see [`defined::Decides`]), or that can't tell its values
 	/// apart at all.
-	fn generic_erasure(&mut self, adt: AdtDef<'tcx>, args: GenericArgsRef<'tcx>, span: Span) -> Option<String> {
+	fn generic_erasure(&mut self, adt: AdtDef<'tcx>, args: GenericArgs<'tcx>, span: Span) -> Option<String> {
 		let tcx = self.tcx;
 		let env = self.defining.map_or(self.typing_env(), |(_, env)| env);
 		// Each its definition typed, which leaves out what types nothing, such as a `PhantomData`.
@@ -2152,7 +2194,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	fn decided_conflict(
 		&mut self,
 		adt: AdtDef<'tcx>,
-		args: GenericArgsRef<'tcx>,
+		args: GenericArgs<'tcx>,
 		decided: &defined::Decided<'tcx>,
 		span: Span,
 	) -> Option<String> {
@@ -2185,7 +2227,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			let (ty::Adt(_, at), ty::Adt(_, typed)) = (held.kind(), part.kind()) else {
 				return None;
 			};
-			return (library::Flow::of(tcx, at) != library::Flow::of(tcx, typed)).then(|| {
+			return (library::Flow::of(tcx, *at) != library::Flow::of(tcx, *typed)).then(|| {
 				format!(
 					"`{ty}` is not supported: its field `{field}` is `{part}`, typed as a result that breaks with `{inner}`, which `{held}` is not, as it breaks with what `?` makes"
 				)
@@ -2372,7 +2414,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					undefined: true,
 					..Erased::default()
 				},
-				Some(library::Std::ControlFlow) if library::Flow::of(self.tcx, args) == library::Flow::Option => {
+				Some(library::Std::ControlFlow) if library::Flow::of(self.tcx, *args) == library::Flow::Option => {
 					self.erases_to(args.type_at(1)).option()
 				}
 				_ => Erased::default(),
@@ -2440,7 +2482,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			.tcx
 			.get_all_attrs(def_id)
 			.iter()
-			.filter_map(|attr| attr.doc_str())
+			.filter_map(|attr| rustc_ast::attr::AttributeExt::doc_str_and_fragment_kind(attr).map(|(doc, ..)| doc))
 			.map(|doc| doc.to_string())
 			.collect();
 		let doc = lines.join("\n");

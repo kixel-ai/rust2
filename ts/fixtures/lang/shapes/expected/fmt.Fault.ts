@@ -9,21 +9,12 @@ export function fmt$fmt_Debug(self: Fault, f: rs.Formatter): rs.Result<undefined
 		return rs.fmtWriteStr(f, "Short");
 	}
 	if (self.tag === "Code") {
-		const _6: string = "Code";
-		const _7: rs.Fmt = (f: rs.Formatter) => rs.u16Debug(self._0, f);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _6), _7));
+		return rs.fmtDebugFields(f, "Code", [(f: rs.Formatter) => rs.u16Debug(self._0, f)]);
 	}
 	if (self.tag === "TooLarge") {
-		const _11: string = "TooLarge";
-		const _12: string = "size";
-		const _13: rs.Fmt = (f: rs.Formatter) => rs.usizeDebug(self.size, f);
-		const _14: string = "max";
-		const _15: rs.Fmt = (f: rs.Formatter) => rs.usizeDebug(self.max, f);
-		return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _11), _12, _13), _14, _15));
+		return rs.fmtDebugFields(f, "TooLarge size max", [(f: rs.Formatter) => rs.usizeDebug(self.size, f), (f: rs.Formatter) => rs.usizeDebug(self.max, f)]);
 	}
-	const _18: string = "At";
-	const _19: rs.Fmt = (f: rs.Formatter) => Pair.fmt$fmt_Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _18), _19));
+	return rs.fmtDebugFields(f, "At", [(f: rs.Formatter) => Pair.fmt$fmt_Debug(self._0, f)]);
 }
 
 /**

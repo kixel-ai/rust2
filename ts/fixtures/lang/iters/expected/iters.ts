@@ -11,6 +11,7 @@ import * as Bumped from "./iters.Bumped.ts";
 import * as Countdown from "./iters.Countdown.ts";
 import * as Doubled from "./iters.Doubled.ts";
 import * as Evens from "./iters.Evens.ts";
+import * as Flicker from "./iters.Flicker.ts";
 import * as Gaps from "./iters.Gaps.ts";
 import * as Halving from "./iters.Halving.ts";
 import * as Held from "./iters.Held.ts";
@@ -27,141 +28,133 @@ import * as Wrapper from "./iters.Wrapper.ts";
 
 /** Adaptor chains over the input bytes, each consumed one way. */
 export function adaptors(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	b0: {
-		const _4: rs.u8 = rs.u8Rem(kind, 8);
-		if (_4 === 0) {
-			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_217: rs.u8): rs.u8 => {
-				return rs.u8Div(_217, 2);
-			}), (b11: rs.u8): boolean => {
-				return rs.u8Rem(b11, 3) !== 0;
-			}), "next")));
-			for (const _18 of rs.iterToVec(rs.iterFilterMap(rs.iterSlice(rs.byteSliceView(data)), (_218: rs.u8): rs.u16 | undefined => {
-				const b12: rs.u8 = _218;
-				return thenSome$1gvhopg(b12 < 100, rs.u16Mul(b12 as rs.u16, 200));
-			}), "next", 2).items) {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(_18)));
+	const _4: rs.u8 = rs.u8Rem(kind, 8);
+	if (_4 === 0) {
+		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_217: rs.u8): rs.u8 => {
+			return rs.u8Div(_217, 2);
+		}), (b11: rs.u8): boolean => {
+			return rs.u8Rem(b11, 3) !== 0;
+		}), "next")));
+		for (const _18 of rs.iterToVec(rs.iterFilterMap(rs.iterSlice(rs.byteSliceView(data)), (_218: rs.u8): rs.u16 | undefined => {
+			const b12: rs.u8 = _218;
+			return thenSome$1gvhopg(b12 < 100, rs.u16Mul(b12 as rs.u16, 200));
+		}), "next", 2).items) {
+			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(_18)));
+		}
+	} else if (_4 === 1) {
+		const iter2: rs.Iter<[rs.usize, rs.u8]> = rs.iterStepBy(rs.iterSkip(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), 1), 2);
+		while (true) {
+			const _32: [rs.usize, rs.u8] | rs.Done = iter2.next();
+			if (_32 === rs.DONE) {
+				break;
 			}
-		} else {
-			if (_4 === 1) {
-				const iter2: rs.Iter<[rs.usize, rs.u8]> = rs.iterStepBy(rs.iterSkip(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), 1), 2);
-				while (true) {
-					const _32: [rs.usize, rs.u8] | rs.Done = iter2.next();
-					if (_32 === rs.DONE) {
-						break;
-					}
-					const i: rs.usize = _32[0];
-					const b: rs.u8 = _32[1];
-					rs.byteVecPush(out, i & 0xff);
-					rs.byteVecPush(out, b);
-				}
-				const iter3: rs.Iter<[rs.usize, rs.u8]> = rs.iterTake(rs.iterEnumerate(rs.iterRev(rs.iterSlice(rs.byteSliceView(data)))), 3);
-				while (true) {
-					const _46: [rs.usize, rs.u8] | rs.Done = iter3.next();
-					if (_46 === rs.DONE) {
-						break b0;
-					}
-					rs.byteVecPush(out, (_46[0] & 0xff) ^ _46[1]);
-				}
+			const i: rs.usize = _32[0];
+			const b: rs.u8 = _32[1];
+			rs.byteVecPush(out, i & 0xff);
+			rs.byteVecPush(out, b);
+		}
+		const iter3: rs.Iter<[rs.usize, rs.u8]> = rs.iterTake(rs.iterEnumerate(rs.iterRev(rs.iterSlice(rs.byteSliceView(data)))), 3);
+		while (true) {
+			const _46: [rs.usize, rs.u8] | rs.Done = iter3.next();
+			if (_46 === rs.DONE) {
+				break;
 			}
-			if (_4 === 2) {
-				const mid: number = rs.usizeDiv(data.length, 2);
-				if (mid > data.length) {
-					rs.panic("mid > len");
+			rs.byteVecPush(out, (_46[0] & 0xff) ^ _46[1]);
+		}
+	} else if (_4 === 2) {
+		const mid: number = rs.usizeDiv(data.length, 2);
+		if (mid > data.length) {
+			rs.panic("mid > len");
+		}
+		const front: rs.ByteSlice = new rs.ByteSlice(data.data, data.start, mid);
+		const back: rs.ByteSlice = new rs.ByteSlice(data.data, data.start + mid, data.length - mid);
+		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterMap(rs.iterZip(rs.iterSlice(rs.byteSliceView(front)), rs.iterRev(rs.iterSlice(rs.byteSliceView(back))), "len"), (_216: [rs.u8, rs.u8]): rs.u8 => {
+			return _216[0] ^ _216[1];
+		}), undefined, true)));
+		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterRev(rs.iterChain(rs.iterSlice(rs.byteSliceView(front)), rs.iterSlice(rs.byteSliceView(back)))), undefined, true)));
+	} else if (_4 === 3) {
+		const taken: rs.ByteVec = rs.iterToByteVec(rs.iterTakeWhile(rs.iterSlice(rs.byteSliceView(data)), (_213: rs.u8): boolean => {
+			return _213 !== 0;
+		}), "next");
+		const skipped: rs.ByteVec = rs.iterToByteVec(rs.iterSkipWhile(rs.iterSlice(rs.byteSliceView(data)), (_214: rs.u8): boolean => {
+			return _214 < 128;
+		}), "next");
+		const mapped: rs.ByteVec = rs.iterToByteVec(rs.iterMapWhile(rs.iterSlice(rs.byteSliceView(data)), (_215: rs.u8): rs.u8 | undefined => {
+			return rs.u8CheckedAdd(_215, 64);
+		}), "next");
+		rs.byteVecPush(out, taken.length & 0xff);
+		rs.byteVecPush(out, skipped.length & 0xff);
+		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(mapped));
+	} else if (_4 === 4) {
+		const words: rs.Vec<rs.ByteVec> = chunksByZero$iters_ChunksByZero_slice_u8(data);
+		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterFlatMap(rs.iterSlice(words.items), (w: rs.ByteVec): rs.Iter<rs.u8> => {
+			return rs.iterRev(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(w))));
+		}, undefined, true), "next")));
+		rs.iterExtendBytes(out, rs.iterRev(rs.iterFlatten(rs.iterMap(rs.iterSlice(words.items), (w2: rs.ByteVec): rs.Iter<rs.u8> => {
+			return rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(w2))), (_212: rs.u8): rs.u8 => {
+				return rs.u8WrappingAdd(_212, 3);
+			});
+		}), undefined, true)), "next");
+	} else if (_4 === 5) {
+		const it: rs.Peekable<rs.u8> = rs.iterPeekable(rs.iterSlice(rs.byteSliceView(data)));
+		while (true) {
+			const _118: rs.u8 | rs.Done = it.next();
+			if (_118 !== rs.DONE) {
+				const b2: rs.u8 = _118;
+				let run: rs.u8 = 1;
+				while (rs.peekableNextIf(it, (_211: rs.u8): boolean => {
+					return _211 === b2;
+				}) !== undefined) {
+					run = rs.u8Add(run, 1);
 				}
-				const front: rs.ByteSlice = new rs.ByteSlice(data.data, data.start, mid);
-				const back: rs.ByteSlice = new rs.ByteSlice(data.data, data.start + mid, data.length - mid);
-				rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterMap(rs.iterZip(rs.iterSlice(rs.byteSliceView(front)), rs.iterRev(rs.iterSlice(rs.byteSliceView(back))), "len"), (_216: [rs.u8, rs.u8]): rs.u8 => {
-					return _216[0] ^ _216[1];
-				}), undefined, true)));
-				rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterRev(rs.iterChain(rs.iterSlice(rs.byteSliceView(front)), rs.iterSlice(rs.byteSliceView(back)))), undefined, true)));
-			} else if (_4 === 3) {
-				const taken: rs.ByteVec = rs.iterToByteVec(rs.iterTakeWhile(rs.iterSlice(rs.byteSliceView(data)), (_213: rs.u8): boolean => {
-					return _213 !== 0;
-				}), "next");
-				const skipped: rs.ByteVec = rs.iterToByteVec(rs.iterSkipWhile(rs.iterSlice(rs.byteSliceView(data)), (_214: rs.u8): boolean => {
-					return _214 < 128;
-				}), "next");
-				const mapped: rs.ByteVec = rs.iterToByteVec(rs.iterMapWhile(rs.iterSlice(rs.byteSliceView(data)), (_215: rs.u8): rs.u8 | undefined => {
-					return rs.u8CheckedAdd(_215, 64);
-				}), "next");
-				rs.byteVecPush(out, taken.length & 0xff);
-				rs.byteVecPush(out, skipped.length & 0xff);
-				rs.byteVecExtendFromSlice(out, rs.byteVecSlice(mapped));
-			} else if (_4 === 4) {
-				const words: rs.Vec<rs.ByteVec> = chunksByZero$iters_ChunksByZero_slice_u8(data);
-				rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterFlatMap(rs.iterSlice(words.items), (w: rs.ByteVec): rs.Iter<rs.u8> => {
-					return rs.iterRev(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(w))));
-				}, undefined, true), "next")));
-				rs.iterExtendBytes(out, rs.iterRev(rs.iterFlatten(rs.iterMap(rs.iterSlice(words.items), (w2: rs.ByteVec): rs.Iter<rs.u8> => {
-					return rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(w2))), (_212: rs.u8): rs.u8 => {
-						return rs.u8WrappingAdd(_212, 3);
-					});
-				}), undefined, true)), "next");
+				rs.byteVecPush(out, b2);
+				rs.byteVecPush(out, run);
+				const _133: rs.u8 | undefined = rs.peekablePeek(it);
+				if (_133 !== undefined) {
+					rs.byteVecPush(out, _133);
+				}
 			} else {
-				if (_4 === 5) {
-					const it: rs.Peekable<rs.u8> = rs.iterPeekable(rs.iterSlice(rs.byteSliceView(data)));
-					while (true) {
-						const _118: rs.u8 | rs.Done = it.next();
-						if (_118 !== rs.DONE) {
-							const b2: rs.u8 = _118;
-							let run: rs.u8 = 1;
-							while (rs.peekableNextIf(it, (_211: rs.u8): boolean => {
-								return _211 === b2;
-							}) !== undefined) {
-								run = rs.u8Add(run, 1);
-							}
-							rs.byteVecPush(out, b2);
-							rs.byteVecPush(out, run);
-							const _133: rs.u8 | undefined = rs.peekablePeek(it);
-							if (_133 !== undefined) {
-								rs.byteVecPush(out, _133);
-							}
-						} else {
-							break b0;
-						}
-					}
-				}
-				if (_4 === 6) {
-					const it2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
-					rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterTake(rs.iterBorrow(it2), 2), undefined, true)));
-					rs.byteVecPush(out, it2.len() & 0xff);
-					const _152: rs.u8 | undefined = rs.iterToOption(it2.nextBack());
-					if (_152 === undefined) {
-						rs.byteVecPush(out, 238);
-					} else {
-						rs.byteVecPush(out, _152);
-					}
-					rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterStepBy(rs.iterRev(it2), 3), "next")));
-				} else {
-					const pairs: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Uint8Array => {
-						const b3: rs.u8 = _2;
-						return Uint8Array.of(b3, ~b3 & 0xff);
-					}), undefined, 2, true);
-					const copies: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterCopied(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), rs.byteSliceToArray), undefined, 2, true);
-					if (!(copies.items.length === 0)) {
-						const _174: rs.ByteSlice = rs.byteSliceFrom(copies.items[rs.idx(copies.items, 0)]);
-						_174.data[_174.start] = 85;
-					}
-					const iter4: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), rs.arraySliceIter(rs.arraySliceFrom(copies.items, rs.byteSliceFrom)));
-					while (true) {
-						const _187: rs.ByteSlice | rs.Done = iter4.next();
-						if (_187 === rs.DONE) {
-							break;
-						}
-						rs.byteVecExtendFromSlice(out, _187);
-					}
-					const v2: rs.Vec<rs.u16> = new rs.Vec();
-					const _196: rs.Iter<rs.u16> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.u16 => {
-						return rs.u16Add(_22 as rs.u16, 1);
-					});
-					rs.iterExtend(v2, _196, undefined, 2, true);
-					rs.byteVecPush(out, v2.items.length & 0xff);
-					rs.iterExtendBytes(out, rs.iterFilter(rs.iterSlice(rs.byteSliceView(data)), (_210: rs.u8): boolean => {
-						return _210 > 128;
-					}), "next");
-				}
+				break;
 			}
 		}
+	} else if (_4 === 6) {
+		const it2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterTake(rs.iterBorrow(it2), 2), undefined, true)));
+		rs.byteVecPush(out, it2.len() & 0xff);
+		const _152: rs.u8 | undefined = rs.iterToOption(it2.nextBack());
+		if (_152 === undefined) {
+			rs.byteVecPush(out, 238);
+		} else {
+			rs.byteVecPush(out, _152);
+		}
+		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterStepBy(rs.iterRev(it2), 3), "next")));
+	} else {
+		const pairs: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Uint8Array => {
+			const b3: rs.u8 = _2;
+			return Uint8Array.of(b3, ~b3 & 0xff);
+		}), undefined, 2, true);
+		const copies: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterCopied(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), rs.byteSliceToArray), undefined, 2, true);
+		if (!(copies.items.length === 0)) {
+			const _174: rs.ByteSlice = rs.byteSliceFrom(copies.items[rs.idx(copies.items, 0)]);
+			_174.data[_174.start] = 85;
+		}
+		const iter4: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), rs.arraySliceIter(rs.arraySliceFrom(copies.items, rs.byteSliceFrom)));
+		while (true) {
+			const _187: rs.ByteSlice | rs.Done = iter4.next();
+			if (_187 === rs.DONE) {
+				break;
+			}
+			rs.byteVecExtendFromSlice(out, _187);
+		}
+		const v2: rs.Vec<rs.u16> = new rs.Vec();
+		const _196: rs.Iter<rs.u16> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.u16 => {
+			return rs.u16Add(_22 as rs.u16, 1);
+		});
+		rs.iterExtend(v2, _196, undefined, 2, true);
+		rs.byteVecPush(out, v2.items.length & 0xff);
+		rs.iterExtendBytes(out, rs.iterFilter(rs.iterSlice(rs.byteSliceView(data)), (_210: rs.u8): boolean => {
+			return _210 > 128;
+		}), "next");
 	}
 }
 
@@ -422,14 +415,6 @@ export function peekedOthers(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return _33.data[_33.start];
 		});
 	};
-	const _158: (a0: rs.Vec<rs.u16> | undefined) => rs.u8 = (v: rs.Vec<rs.u16> | undefined): rs.u8 => {
-		return option_mapOr$127irwp(v, 170, (v2: rs.Vec<rs.u16>): rs.u8 => {
-			return v2.items.length & 0xff;
-		});
-	};
-	const _159: (a0: rs.u8) => rs.Vec<rs.u16> = (b2: rs.u8): rs.Vec<rs.u16> => {
-		return rs.vecFromElem(((rs.u8Rem(b2, 2) as rs.u16) << 9) & 0xffff, rs.u8Rem(b2, 3) as rs.usize, undefined);
-	};
 	const words: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.String => {
 		return _3(_2);
 	}), undefined, 12, true);
@@ -480,12 +465,12 @@ export function peekedOthers(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _107: rs.Vec<string> = rs.vecFrom([first.v]);
 	const part9 = option_map$1wdw03s(rs.peekableNextIfEq(it4, _107, (a011: rs.Vec<rs.String>, a16: rs.Vec<string>): boolean => {
 		return rs.eqSlice(rs.eqStr)(a011, a16);
-	}), (v3: rs.Vec<rs.String>): string => {
-		return v3.items[rs.idx(v3.items, 0)].v;
+	}), (v: rs.Vec<rs.String>): string => {
+		return v.items[rs.idx(v.items, 0)].v;
 	});
 	rs.byteVecPush(out, _4(part9));
-	const part10 = option_map$1wdw03s(rs.iterToOption(it4.next()), (v4: rs.Vec<rs.String>): string => {
-		return v4.items[rs.idx(v4.items, 0)].v;
+	const part10 = option_map$1wdw03s(rs.iterToOption(it4.next()), (v2: rs.Vec<rs.String>): string => {
+		return v2.items[rs.idx(v2.items, 0)].v;
 	});
 	rs.byteVecPush(out, _4(part10));
 	const it5: rs.Peekable<rs.StrCow> = rs.iterPeekable(rs.iterMap(rs.iterSlice(words.items), (w3: rs.String): rs.StrCow => {
@@ -505,6 +490,14 @@ export function peekedOthers(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return rs.eqStr(a014, rs.strCowStr(a18));
 	}));
 	rs.byteVecPush(out, _4(part13));
+	const _158: (a0: rs.Vec<rs.u16> | undefined) => rs.u8 = (v3: rs.Vec<rs.u16> | undefined): rs.u8 => {
+		return option_mapOr$127irwp(v3, 170, (v4: rs.Vec<rs.u16>): rs.u8 => {
+			return v4.items.length & 0xff;
+		});
+	};
+	const _159: (a0: rs.u8) => rs.Vec<rs.u16> = (b4: rs.u8): rs.Vec<rs.u16> => {
+		return rs.vecFromElem(((rs.u8Rem(b4, 2) as rs.u16) << 9) & 0xffff, rs.u8Rem(b4, 3) as rs.usize, undefined);
+	};
 	const it7: rs.Peekable<rs.Vec<rs.u16>> = rs.iterPeekable(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_26: rs.u8): rs.Vec<rs.u16> => {
 		return _159(_26);
 	}));
@@ -1045,16 +1038,6 @@ export function ranked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		return 0;
 	};
-	const _55: (a0: Tilt.Tilt | undefined) => rs.u8 = (t: Tilt.Tilt | undefined): rs.u8 => {
-		return option_mapOr$0p9po8x(t, 255, (t2: Tilt.Tilt): rs.u8 => {
-			return t2._0;
-		});
-	};
-	const _72: (a0: rs.u8) => [rs.u8, rs.u8 | undefined] = (b3: rs.u8): [rs.u8, rs.u8 | undefined] => {
-		return [rs.u8Rem(b3, 4), filter$0hq86nl(rs.u8Div(b3, 4), (b4: rs.u8): boolean => {
-			return rs.u8Rem(b4, 3) !== 0;
-		})] as [rs.u8, rs.u8 | undefined];
-	};
 	const items: () => rs.Iter<[rs.usize, rs.u8]> = (): rs.Iter<[rs.usize, rs.u8]> => {
 		return rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
 	};
@@ -1094,6 +1077,11 @@ export function ranked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return [rs.u8Rem(b11, 2) === 0, { _0: rs.u8Rem(b11, 8) }] as [boolean, Tilt.Tilt];
 		}, rs.cmpLt(rs.cmpTuple<[boolean, Tilt.Tilt], rs.Ordering | undefined>([rs.cmp, Tilt.partialCmp$cmp_PartialOrd])));
 		_4(out, part2);
+		const _55: (a0: Tilt.Tilt | undefined) => rs.u8 = (t6: Tilt.Tilt | undefined): rs.u8 => {
+			return option_mapOr$0p9po8x(t6, 255, (t7: Tilt.Tilt): rs.u8 => {
+				return t7._0;
+			});
+		};
 		const part3 = rs.iterMinByKey(rs.iterSlice(tilts.items), (_214: Tilt.Tilt): Tilt.Tilt | undefined => {
 			return _214;
 		}, rs.cmpLt(rs.cmpReverse(rs.cmpOption(Tilt.partialCmp$cmp_PartialOrd))));
@@ -1104,6 +1092,11 @@ export function ranked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}, rs.cmpLt(rs.cmpTuple<[Tilt.Tilt, rs.u8], rs.Ordering | undefined>([rs.cmpReverse(Tilt.partialCmp$cmp_PartialOrd), rs.cmp])));
 		rs.byteVecPush(out, _55(part4));
 	} else if (_10 === 2) {
+		const _72: (a0: rs.u8) => [rs.u8, rs.u8 | undefined] = (b6: rs.u8): [rs.u8, rs.u8 | undefined] => {
+			return [rs.u8Rem(b6, 4), filter$0hq86nl(rs.u8Div(b6, 4), (b7: rs.u8): boolean => {
+				return rs.u8Rem(b7, 3) !== 0;
+			})] as [rs.u8, rs.u8 | undefined];
+		};
 		const iter: rs.Iter<[rs.u8, rs.u8 | undefined] | undefined> = rs.iterSlice([rs.iterMax(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_210: rs.u8): [rs.u8, rs.u8 | undefined] => {
 			return _72(_210);
 		}), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8 | undefined], rs.Ordering | undefined>([rs.cmp, rs.cmpReverse(rs.cmpOption(rs.cmp))]))), rs.iterMin(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_211: rs.u8): [rs.u8, rs.u8 | undefined] => {
@@ -1121,11 +1114,11 @@ export function ranked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(best[0], option_unwrapOr$1fr498u(best[1], 255))));
 			}
 		}
-		rs.byteVecPush(out, option_mapOr$0p9po8x(rs.iterMax(rs.iterSlice(tilts.items), rs.cmpLt(Tilt.partialCmp$cmp_PartialOrd)), 255, (t6: Tilt.Tilt): rs.u8 => {
-			return t6._0;
+		rs.byteVecPush(out, option_mapOr$0p9po8x(rs.iterMax(rs.iterSlice(tilts.items), rs.cmpLt(Tilt.partialCmp$cmp_PartialOrd)), 255, (t4: Tilt.Tilt): rs.u8 => {
+			return t4._0;
 		}));
-		rs.byteVecPush(out, option_mapOr$0p9po8x(rs.iterMin(rs.iterSlice(tilts.items), rs.cmpLt(Tilt.partialCmp$cmp_PartialOrd)), 255, (t7: Tilt.Tilt): rs.u8 => {
-			return t7._0;
+		rs.byteVecPush(out, option_mapOr$0p9po8x(rs.iterMin(rs.iterSlice(tilts.items), rs.cmpLt(Tilt.partialCmp$cmp_PartialOrd)), 255, (t5: Tilt.Tilt): rs.u8 => {
+			return t5._0;
 		}));
 	} else {
 		rs.byteVecPush(out, option_mapOr$188iunt(rs.iterRposition(rs.iterSlice(rs.byteSliceView(data)), (_28: rs.u8): boolean => {
@@ -1139,18 +1132,18 @@ export function ranked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const seen: rs.ByteVec = new rs.ByteVec();
 		const rest: rs.Iter<Tilt.Tilt> = rs.iterSlice(tilts.items);
 		rest.next();
-		rs.byteVecPush(out, option_mapOr$188iunt(rs.iterRposition(rest, (t3: Tilt.Tilt): boolean => {
-			rs.byteVecPush(seen, t3._0);
-			return t3._0 === 2;
+		rs.byteVecPush(out, option_mapOr$188iunt(rs.iterRposition(rest, (t: Tilt.Tilt): boolean => {
+			rs.byteVecPush(seen, t._0);
+			return t._0 === 2;
 		}), 255, (i3: rs.usize): rs.u8 => {
 			return i3 & 0xff;
 		}));
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(seen));
 		rs.byteVecPush(out, rest.len() & 0xff);
-		rs.byteVecPush(out, option_mapOr$0p9po8x(rs.iterRfind(rest, (t4: Tilt.Tilt): boolean => {
-			return t4._0 > 3;
-		}), 255, (t5: Tilt.Tilt): rs.u8 => {
-			return t5._0;
+		rs.byteVecPush(out, option_mapOr$0p9po8x(rs.iterRfind(rest, (t2: Tilt.Tilt): boolean => {
+			return t2._0 > 3;
+		}), 255, (t3: Tilt.Tilt): rs.u8 => {
+			return t3._0;
 		}));
 		rs.byteVecPush(out, rest.len() & 0xff);
 	}
@@ -1299,22 +1292,16 @@ export function fullRange(out: rs.ByteVec): undefined {
 
 /** Iterators of `Option`, which keep each `None` apart from their end. */
 export function options(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _83: (a0: rs.u8, a1: rs.ByteVec) => rs.u8 | undefined = (b2: rs.u8, calls2: rs.ByteVec): rs.u8 | undefined => {
-		rs.byteVecPush(calls2, b2);
-		return option_map$1yjmt5m(rs.u8CheckedSub(b2, 1), (b3: rs.u8): rs.u8 => {
-			return rs.u8Div(b3, 2);
-		});
-	};
-	const all: rs.Vec<rs.u8 | undefined> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b4: rs.u8): rs.u8 | undefined => {
-		if (!(rs.u8Rem(b4, 3) === 0)) {
-			return b4;
+	const all: rs.Vec<rs.u8 | undefined> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b2: rs.u8): rs.u8 | undefined => {
+		if (!(rs.u8Rem(b2, 3) === 0)) {
+			return b2;
 		}
 		return undefined;
 	}), undefined, 2, true);
 	rs.byteVecPush(out, all.items.length & 0xff);
-	const iter: rs.Iter<rs.u8 | undefined> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b5: rs.u8): rs.u8 | undefined => {
-		if (!(rs.u8Rem(b5, 3) === 0)) {
-			return b5;
+	const iter: rs.Iter<rs.u8 | undefined> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b3: rs.u8): rs.u8 | undefined => {
+		if (!(rs.u8Rem(b3, 3) === 0)) {
+			return b3;
 		}
 		return undefined;
 	});
@@ -1330,18 +1317,18 @@ export function options(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, item);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterFlatten(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b6: rs.u8): rs.u8 | undefined => {
-		if (!(rs.u8Rem(b6, 3) === 0)) {
-			return b6;
+	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterFlatten(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b4: rs.u8): rs.u8 | undefined => {
+		if (!(rs.u8Rem(b4, 3) === 0)) {
+			return b4;
 		}
 		return undefined;
 	}), (value: rs.u8 | undefined) => rs.iterOption(value), true, undefined, true), "next")));
 	rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterSlice(all.items), (o: rs.u8 | undefined): boolean => {
 		return o !== undefined;
 	})) & 0xff);
-	rs.byteVecPush(out, option_unwrapOr$1fr498u(second$iter_Map_slice_Iter_u8_iters_options_closure0(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b7: rs.u8): rs.u8 | undefined => {
-		if (!(rs.u8Rem(b7, 3) === 0)) {
-			return b7;
+	rs.byteVecPush(out, option_unwrapOr$1fr498u(second$iter_Map_slice_Iter_u8_iters_options_closure0(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b5: rs.u8): rs.u8 | undefined => {
+		if (!(rs.u8Rem(b5, 3) === 0)) {
+			return b5;
 		}
 		return undefined;
 	})), 205));
@@ -1372,6 +1359,12 @@ export function options(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(gappy)) & 0xff);
 	rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterToOption(gappy.next()), 238));
 	const calls: rs.ByteVec = new rs.ByteVec();
+	const _83: (a0: rs.u8, a1: rs.ByteVec) => rs.u8 | undefined = (b6: rs.u8, calls2: rs.ByteVec): rs.u8 | undefined => {
+		rs.byteVecPush(calls2, b6);
+		return option_map$1yjmt5m(rs.u8CheckedSub(b6, 1), (b7: rs.u8): rs.u8 => {
+			return rs.u8Div(b7, 2);
+		});
+	};
 	const first2: rs.u8 | undefined = rs.byteSliceFirst(data);
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(rs.iterTake(rs.iterSuccessors(first2, (b8: rs.u8): rs.u8 | undefined => {
 		return _83(b8, calls);
@@ -1493,14 +1486,16 @@ export function optionItems(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterE3: number = nested.items.length;
 	while (iterI7 < iterE3) {
 		const _94: number = iterI7++;
-		if (iterS7[_94] !== rs.None) {
-			if (iterS7[_94] !== undefined) {
-				iterS7[_94] = rs.u8WrappingAdd(iterS7[_94], 1);
-				continue;
+		b20: {
+			if (iterS7[_94] !== rs.None) {
+				if (iterS7[_94] !== undefined) {
+					iterS7[_94] = rs.u8WrappingAdd(iterS7[_94], 1);
+					break b20;
+				}
 			}
-		}
-		if (iterS7[_94] !== rs.None) {
-			iterS7[_94] = 166;
+			if (iterS7[_94] !== rs.None) {
+				iterS7[_94] = 166;
+			}
 		}
 	}
 	for (const _111 of words.items) {
@@ -1519,15 +1514,18 @@ export function optionItems(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecPush(out, _138);
 	}
-	for (const a2 of rs.vecFrom(nested.items.slice()).items) {
-		if (a2 !== rs.None) {
-			if (a2 !== undefined) {
-				rs.byteVecPush(out, a2);
-				continue;
+	for (const _144 of rs.vecFrom(nested.items.slice()).items) {
+		b29: {
+			const a2: rs.u8 | undefined | rs.None = _144;
+			if (a2 !== rs.None) {
+				if (a2 !== undefined) {
+					rs.byteVecPush(out, a2);
+					break b29;
+				}
 			}
-		}
-		if (a2 === rs.None) {
-			rs.byteVecPush(out, 170);
+			if (a2 === rs.None) {
+				rs.byteVecPush(out, 170);
+			}
 		}
 	}
 	const itS: Array<rs.u8 | undefined | rs.None> = nested.items;
@@ -1937,111 +1935,6 @@ export function at$u8(items: rs.ByteSlice, i: rs.usize): rs.u8 | undefined {
  */
 export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _18!: [rs.ByteSlice, rs.ByteSlice];
-	const _45: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2: [rs.u8, rs.u8]): rs.u8 => {
-		return _2[0] ^ _2[1];
-	};
-	const _94: (a0: [rs.u8, rs.u8]) => rs.u8 = (_23: [rs.u8, rs.u8]): rs.u8 => {
-		return _23[0] ^ _23[1];
-	};
-	const _144: (a0: [rs.u8, rs.u8]) => rs.u8 = (_25: [rs.u8, rs.u8]): rs.u8 => {
-		return _25[0] ^ _25[1];
-	};
-	const _194: (a0: [rs.u8, rs.u8]) => rs.u8 = (_27: [rs.u8, rs.u8]): rs.u8 => {
-		return _27[0] ^ _27[1];
-	};
-	const _240: (a0: [rs.u8, rs.u8]) => rs.u8 = (_211: [rs.u8, rs.u8]): rs.u8 => {
-		return _211[0] ^ _211[1];
-	};
-	const _401: (a0: [rs.u8, rs.u8]) => rs.u8 = (_214: [rs.u8, rs.u8]): rs.u8 => {
-		return _214[0] ^ _214[1];
-	};
-	const _452: (a0: [rs.u8, rs.u8]) => rs.u8 = (_216: [rs.u8, rs.u8]): rs.u8 => {
-		return _216[0] ^ _216[1];
-	};
-	const _504: (a0: [rs.u8, rs.u8]) => rs.u8 = (_219: [rs.u8, rs.u8]): rs.u8 => {
-		return _219[0] ^ _219[1];
-	};
-	const _556: (a0: [rs.u8, rs.u8]) => rs.u8 = (_222: [rs.u8, rs.u8]): rs.u8 => {
-		return _222[0] ^ _222[1];
-	};
-	const _604: (a0: [rs.u8, rs.u8]) => rs.u8 = (_225: [rs.u8, rs.u8]): rs.u8 => {
-		return _225[0] ^ _225[1];
-	};
-	const _783: (a0: [rs.u8, rs.u8]) => rs.u8 = (_228: [rs.u8, rs.u8]): rs.u8 => {
-		return _228[0] ^ _228[1];
-	};
-	const _836: (a0: [rs.u8, rs.u8]) => rs.u8 = (_235: [rs.u8, rs.u8]): rs.u8 => {
-		return _235[0] ^ _235[1];
-	};
-	const _890: (a0: [rs.u8, rs.u8]) => rs.u8 = (_239: [rs.u8, rs.u8]): rs.u8 => {
-		return _239[0] ^ _239[1];
-	};
-	const _944: (a0: [rs.u8, rs.u8]) => rs.u8 = (_249: [rs.u8, rs.u8]): rs.u8 => {
-		return _249[0] ^ _249[1];
-	};
-	const _994: (a0: [rs.u8, rs.u8]) => rs.u8 = (_257: [rs.u8, rs.u8]): rs.u8 => {
-		return _257[0] ^ _257[1];
-	};
-	const _1187: (a0: [rs.u8, rs.u8]) => rs.u8 = (_260: [rs.u8, rs.u8]): rs.u8 => {
-		return _260[0] ^ _260[1];
-	};
-	const _1238: (a0: [rs.u8, rs.u8]) => rs.u8 = (_262: [rs.u8, rs.u8]): rs.u8 => {
-		return _262[0] ^ _262[1];
-	};
-	const _1290: (a0: [rs.u8, rs.u8]) => rs.u8 = (_265: [rs.u8, rs.u8]): rs.u8 => {
-		return _265[0] ^ _265[1];
-	};
-	const _1342: (a0: [rs.u8, rs.u8]) => rs.u8 = (_268: [rs.u8, rs.u8]): rs.u8 => {
-		return _268[0] ^ _268[1];
-	};
-	const _1390: (a0: [rs.u8, rs.u8]) => rs.u8 = (_271: [rs.u8, rs.u8]): rs.u8 => {
-		return _271[0] ^ _271[1];
-	};
-	const _1567: (a0: [rs.u8, rs.u8]) => rs.u8 = (_284: [rs.u8, rs.u8]): rs.u8 => {
-		return _284[0] ^ _284[1];
-	};
-	const _1618: (a0: [rs.u8, rs.u8]) => rs.u8 = (_288: [rs.u8, rs.u8]): rs.u8 => {
-		return _288[0] ^ _288[1];
-	};
-	const _1670: (a0: [rs.u8, rs.u8]) => rs.u8 = (_296: [rs.u8, rs.u8]): rs.u8 => {
-		return _296[0] ^ _296[1];
-	};
-	const _1722: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2107: [rs.u8, rs.u8]): rs.u8 => {
-		return _2107[0] ^ _2107[1];
-	};
-	const _1770: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2115: [rs.u8, rs.u8]): rs.u8 => {
-		return _2115[0] ^ _2115[1];
-	};
-	const _1946: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2118: [rs.u8, rs.u8]): rs.u8 => {
-		return _2118[0] ^ _2118[1];
-	};
-	const _1996: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2120: [rs.u8, rs.u8]): rs.u8 => {
-		return _2120[0] ^ _2120[1];
-	};
-	const _2047: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2123: [rs.u8, rs.u8]): rs.u8 => {
-		return _2123[0] ^ _2123[1];
-	};
-	const _2098: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2126: [rs.u8, rs.u8]): rs.u8 => {
-		return _2126[0] ^ _2126[1];
-	};
-	const _2145: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2129: [rs.u8, rs.u8]): rs.u8 => {
-		return _2129[0] ^ _2129[1];
-	};
-	const _2320: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2132: [rs.u8, rs.u8]): rs.u8 => {
-		return _2132[0] ^ _2132[1];
-	};
-	const _2377: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2140: [rs.u8, rs.u8]): rs.u8 => {
-		return _2140[0] ^ _2140[1];
-	};
-	const _2435: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2144: [rs.u8, rs.u8]): rs.u8 => {
-		return _2144[0] ^ _2144[1];
-	};
-	const _2493: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2154: [rs.u8, rs.u8]): rs.u8 => {
-		return _2154[0] ^ _2154[1];
-	};
-	const _2547: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2162: [rs.u8, rs.u8]): rs.u8 => {
-		return _2162[0] ^ _2162[1];
-	};
 	const mid: number = rs.usizeRem(kind >> 5 as rs.usize, rs.usizeAdd(data.length, 1));
 	if (mid > data.length) {
 		rs.panic("mid > len");
@@ -2054,8 +1947,8 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const a2: rs.ByteSlice = _18[0];
 	const b2: rs.ByteSlice = _18[1];
 	const other: boolean = (kind & 4) !== 0;
-	const n: rs.usize = option_mapOr$1d4bp7c(rs.byteSliceFirst(data), 0, (_2165: rs.u8): rs.usize => {
-		return rs.usizeRem(_2165 as rs.usize, 4);
+	const n: rs.usize = option_mapOr$1d4bp7c(rs.byteSliceFirst(data), 0, (_2: rs.u8): rs.usize => {
+		return rs.usizeRem(_2 as rs.usize, 4);
 	});
 	const log: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
 	const _28: rs.u8 = rs.u8Rem(kind, 4);
@@ -2063,19 +1956,22 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if ((kind & 16) === 0) {
 			const _31: rs.usize = rs.usizeRem(rs.usizeDiv(data.length, 8), 5);
 			if (_31 === 0) {
-				const z: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21148: rs.u8): rs.u8 => {
-					const x603: rs.u8 = _21148;
+				const z: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21147: rs.u8): rs.u8 => {
+					const x602: rs.u8 = _21147;
 					const _6355: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6355.value, x603 ^ 1);
+					rs.byteVecPush(_6355.value, x602 ^ 1);
 					rs.refMutRelease(_6355);
-					return x603;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21149: rs.u8): rs.u8 => {
-					const x604: rs.u8 = _21149;
+					return x602;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21148: rs.u8): rs.u8 => {
+					const x603: rs.u8 = _21148;
 					const _6356: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6356.value, x604 ^ 2);
+					rs.byteVecPush(_6356.value, x603 ^ 2);
 					rs.refMutRelease(_6356);
-					return x604;
+					return x603;
 				}), [true, true]);
+				const _45: (a0: [rs.u8, rs.u8]) => rs.u8 = (_21149: [rs.u8, rs.u8]): rs.u8 => {
+					return _21149[0] ^ _21149[1];
+				};
 				const _46: rs.usize = rs.usizeRem(data.length, 8);
 				if (_46 === 0) {
 					rs.byteVecPush(out, rs.iterCount(z) & 0xff);
@@ -2125,25 +2021,28 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					}));
 				}
 			} else if (_31 === 1) {
-				const z3: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21137: rs.u8): rs.u8 => {
-					const x591: rs.u8 = _21137;
+				const z3: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21135: rs.u8): rs.u8 => {
+					const x589: rs.u8 = _21135;
 					const _6351: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6351.value, x591 ^ 1);
+					rs.byteVecPush(_6351.value, x589 ^ 1);
 					rs.refMutRelease(_6351);
-					return x591;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21138: rs.u8): rs.u8 => {
-					const x592: rs.u8 = _21138;
+					return x589;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21136: rs.u8): rs.u8 => {
+					const x590: rs.u8 = _21136;
 					const _6352: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6352.value, x592 ^ 2);
+					rs.byteVecPush(_6352.value, x590 ^ 2);
 					rs.refMutRelease(_6352);
-					return x592;
+					return x590;
 				}), [true, true]);
+				const _94: (a0: [rs.u8, rs.u8]) => rs.u8 = (_21137: [rs.u8, rs.u8]): rs.u8 => {
+					return _21137[0] ^ _21137[1];
+				};
 				const _95: rs.usize = rs.usizeRem(data.length, 8);
 				if (_95 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBox(z3)) & 0xff);
 				} else if (_95 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z3)), 238, (_21147: [rs.u8, rs.u8]): rs.u8 => {
-						return _21147[0] ^ _21147[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z3)), 238, (_21146: [rs.u8, rs.u8]): rs.u8 => {
+						return _21146[0] ^ _21146[1];
 					}));
 				} else if (_95 === 2) {
 					const _102: (a0: [rs.u8, rs.u8]) => undefined = (p75: [rs.u8, rs.u8]): undefined => {
@@ -2151,12 +2050,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBox(z3), _102);
 				} else if (_95 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z3), (_21146: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_21146[0] as rs.u32, _21146[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z3), (_21145: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_21145[0] as rs.u32, _21145[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_95 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z3), (_21145: [rs.u8, rs.u8]): rs.u8 => {
-						return _21145[0] ^ _21145[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z3), (_21144: [rs.u8, rs.u8]): rs.u8 => {
+						return _21144[0] ^ _21144[1];
 					}), "next")), undefined, true);
 				} else if (_95 === 5) {
 					const _110: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc34: rs.u8, p74: [rs.u8, rs.u8]): rs.u8 => {
@@ -2164,50 +2063,53 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBox(z3), 0, _110));
 				} else if (_95 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z3), (_21144: [rs.u8, rs.u8]): rs.u8 => {
-						return _21144[0] ^ _21144[1];
-					}), (x599: rs.u8): boolean => {
-						return x599 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z3), (_21143: [rs.u8, rs.u8]): rs.u8 => {
+						return _21143[0] ^ _21143[1];
+					}), (x598: rs.u8): boolean => {
+						return x598 === 0;
 					}) ? 1 : 0);
 				} else {
 					const z4: rs.Iter<[rs.u8, rs.u8]> = z3;
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z4), (_21139: [rs.u8, rs.u8]): boolean => {
-						return _21139[0] > _21139[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z4), (_21138: [rs.u8, rs.u8]): boolean => {
+						return _21138[0] > _21138[1];
 					}), 238, (i41: rs.usize): rs.u8 => {
 						return i41 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z4), (_21140: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_21140[0], 3) === 0;
-					}), 238, (_21141: [rs.u8, rs.u8]): rs.u8 => {
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z4), (_21139: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_21139[0], 3) === 0;
+					}), 238, (_21140: [rs.u8, rs.u8]): rs.u8 => {
+						return _21140[0] ^ _21140[1];
+					}));
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z4), n), 238, (_21141: [rs.u8, rs.u8]): rs.u8 => {
 						return _21141[0] ^ _21141[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z4), n), 238, (_21142: [rs.u8, rs.u8]): rs.u8 => {
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z4.next()), 238, (_21142: [rs.u8, rs.u8]): rs.u8 => {
 						return _21142[0] ^ _21142[1];
-					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z4.next()), 238, (_21143: [rs.u8, rs.u8]): rs.u8 => {
-						return _21143[0] ^ _21143[1];
 					}));
 				}
 			} else if (_31 === 2) {
-				const z5: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21126: rs.u8): rs.u8 => {
-					const x579: rs.u8 = _21126;
+				const z5: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21123: rs.u8): rs.u8 => {
+					const x576: rs.u8 = _21123;
 					const _6347: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6347.value, x579 ^ 1);
+					rs.byteVecPush(_6347.value, x576 ^ 1);
 					rs.refMutRelease(_6347);
-					return x579;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21127: rs.u8): rs.u8 => {
-					const x580: rs.u8 = _21127;
+					return x576;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21124: rs.u8): rs.u8 => {
+					const x577: rs.u8 = _21124;
 					const _6348: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6348.value, x580 ^ 2);
+					rs.byteVecPush(_6348.value, x577 ^ 2);
 					rs.refMutRelease(_6348);
-					return x580;
+					return x577;
 				}), [true, true]), n);
+				const _144: (a0: [rs.u8, rs.u8]) => rs.u8 = (_21125: [rs.u8, rs.u8]): rs.u8 => {
+					return _21125[0] ^ _21125[1];
+				};
 				const _145: rs.usize = rs.usizeRem(data.length, 8);
 				if (_145 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBox(z5)) & 0xff);
 				} else if (_145 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z5)), 238, (_21136: [rs.u8, rs.u8]): rs.u8 => {
-						return _21136[0] ^ _21136[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z5)), 238, (_21134: [rs.u8, rs.u8]): rs.u8 => {
+						return _21134[0] ^ _21134[1];
 					}));
 				} else if (_145 === 2) {
 					const _152: (a0: [rs.u8, rs.u8]) => undefined = (p73: [rs.u8, rs.u8]): undefined => {
@@ -2215,12 +2117,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBox(z5), _152);
 				} else if (_145 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z5), (_21135: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_21135[0] as rs.u32, _21135[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z5), (_21133: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_21133[0] as rs.u32, _21133[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_145 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z5), (_21134: [rs.u8, rs.u8]): rs.u8 => {
-						return _21134[0] ^ _21134[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z5), (_21132: [rs.u8, rs.u8]): rs.u8 => {
+						return _21132[0] ^ _21132[1];
 					}), "next")), undefined, true);
 				} else if (_145 === 5) {
 					const _160: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc33: rs.u8, p72: [rs.u8, rs.u8]): rs.u8 => {
@@ -2228,50 +2130,53 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBox(z5), 0, _160));
 				} else if (_145 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z5), (_21133: [rs.u8, rs.u8]): rs.u8 => {
-						return _21133[0] ^ _21133[1];
-					}), (x587: rs.u8): boolean => {
-						return x587 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z5), (_21131: [rs.u8, rs.u8]): rs.u8 => {
+						return _21131[0] ^ _21131[1];
+					}), (x585: rs.u8): boolean => {
+						return x585 === 0;
 					}) ? 1 : 0);
 				} else {
 					const z6: rs.Iter<[rs.u8, rs.u8]> = z5;
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z6), (_21128: [rs.u8, rs.u8]): boolean => {
-						return _21128[0] > _21128[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z6), (_21126: [rs.u8, rs.u8]): boolean => {
+						return _21126[0] > _21126[1];
 					}), 238, (i40: rs.usize): rs.u8 => {
 						return i40 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z6), (_21129: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_21129[0], 3) === 0;
-					}), 238, (_21130: [rs.u8, rs.u8]): rs.u8 => {
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z6), (_21127: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_21127[0], 3) === 0;
+					}), 238, (_21128: [rs.u8, rs.u8]): rs.u8 => {
+						return _21128[0] ^ _21128[1];
+					}));
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z6), n), 238, (_21129: [rs.u8, rs.u8]): rs.u8 => {
+						return _21129[0] ^ _21129[1];
+					}));
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z6.next()), 238, (_21130: [rs.u8, rs.u8]): rs.u8 => {
 						return _21130[0] ^ _21130[1];
-					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z6), n), 238, (_21131: [rs.u8, rs.u8]): rs.u8 => {
-						return _21131[0] ^ _21131[1];
-					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z6.next()), 238, (_21132: [rs.u8, rs.u8]): rs.u8 => {
-						return _21132[0] ^ _21132[1];
 					}));
 				}
 			} else if (_31 === 3) {
-				const _184: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21115: rs.u8): rs.u8 => {
-					const x567: rs.u8 = _21115;
+				const _184: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21111: rs.u8): rs.u8 => {
+					const x563: rs.u8 = _21111;
 					const _6343: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6343.value, x567 ^ 1);
+					rs.byteVecPush(_6343.value, x563 ^ 1);
 					rs.refMutRelease(_6343);
-					return x567;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21116: rs.u8): rs.u8 => {
-					const x568: rs.u8 = _21116;
+					return x563;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21112: rs.u8): rs.u8 => {
+					const x564: rs.u8 = _21112;
 					const _6344: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6344.value, x568 ^ 2);
+					rs.byteVecPush(_6344.value, x564 ^ 2);
 					rs.refMutRelease(_6344);
-					return x568;
+					return x564;
 				}), [true, true]);
+				const _194: (a0: [rs.u8, rs.u8]) => rs.u8 = (_21113: [rs.u8, rs.u8]): rs.u8 => {
+					return _21113[0] ^ _21113[1];
+				};
 				const _195: rs.usize = rs.usizeRem(data.length, 8);
 				if (_195 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_184)))) & 0xff);
 				} else if (_195 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_184)))), 238, (_21125: [rs.u8, rs.u8]): rs.u8 => {
-						return _21125[0] ^ _21125[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_184)))), 238, (_21122: [rs.u8, rs.u8]): rs.u8 => {
+						return _21122[0] ^ _21122[1];
 					}));
 				} else if (_195 === 2) {
 					const _202: (a0: [rs.u8, rs.u8]) => undefined = (p71: [rs.u8, rs.u8]): undefined => {
@@ -2279,12 +2184,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_184))), _202);
 				} else if (_195 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_184))), (_21124: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_21124[0] as rs.u32, _21124[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_184))), (_21121: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_21121[0] as rs.u32, _21121[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_195 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_184))), (_21123: [rs.u8, rs.u8]): rs.u8 => {
-						return _21123[0] ^ _21123[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_184))), (_21120: [rs.u8, rs.u8]): rs.u8 => {
+						return _21120[0] ^ _21120[1];
 					}), "next")), undefined, true);
 				} else if (_195 === 5) {
 					const _210: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc32: rs.u8, p70: [rs.u8, rs.u8]): rs.u8 => {
@@ -2292,49 +2197,52 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_184))), 0, _210));
 				} else if (_195 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_184))), (_21122: [rs.u8, rs.u8]): rs.u8 => {
-						return _21122[0] ^ _21122[1];
-					}), (x575: rs.u8): boolean => {
-						return x575 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_184))), (_21119: [rs.u8, rs.u8]): rs.u8 => {
+						return _21119[0] ^ _21119[1];
+					}), (x572: rs.u8): boolean => {
+						return x572 === 0;
 					}) ? 1 : 0);
 				} else {
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_184), (_21117: [rs.u8, rs.u8]): boolean => {
-						return _21117[0] > _21117[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_184), (_21114: [rs.u8, rs.u8]): boolean => {
+						return _21114[0] > _21114[1];
 					}), 238, (i39: rs.usize): rs.u8 => {
 						return i39 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_184), (_21118: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_21118[0], 3) === 0;
-					}), 238, (_21119: [rs.u8, rs.u8]): rs.u8 => {
-						return _21119[0] ^ _21119[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_184), (_21115: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_21115[0], 3) === 0;
+					}), 238, (_21116: [rs.u8, rs.u8]): rs.u8 => {
+						return _21116[0] ^ _21116[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_184), n), 238, (_21120: [rs.u8, rs.u8]): rs.u8 => {
-						return _21120[0] ^ _21120[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_184), n), 238, (_21117: [rs.u8, rs.u8]): rs.u8 => {
+						return _21117[0] ^ _21117[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_184.next()), 238, (_21121: [rs.u8, rs.u8]): rs.u8 => {
-						return _21121[0] ^ _21121[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_184.next()), 238, (_21118: [rs.u8, rs.u8]): rs.u8 => {
+						return _21118[0] ^ _21118[1];
 					}));
 				}
 			} else {
-				const _229: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21104: rs.u8): rs.u8 => {
-					const x555: rs.u8 = _21104;
+				const _229: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21099: rs.u8): rs.u8 => {
+					const x550: rs.u8 = _21099;
 					const _6339: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6339.value, x555 ^ 1);
+					rs.byteVecPush(_6339.value, x550 ^ 1);
 					rs.refMutRelease(_6339);
-					return x555;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21105: rs.u8): rs.u8 => {
-					const x556: rs.u8 = _21105;
+					return x550;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21100: rs.u8): rs.u8 => {
+					const x551: rs.u8 = _21100;
 					const _6340: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6340.value, x556 ^ 2);
+					rs.byteVecPush(_6340.value, x551 ^ 2);
 					rs.refMutRelease(_6340);
-					return x556;
+					return x551;
 				}), [true, true]), n);
+				const _240: (a0: [rs.u8, rs.u8]) => rs.u8 = (_21101: [rs.u8, rs.u8]): rs.u8 => {
+					return _21101[0] ^ _21101[1];
+				};
 				const _241: rs.usize = rs.usizeRem(data.length, 8);
 				if (_241 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_229)))) & 0xff);
 				} else if (_241 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_229)))), 238, (_21114: [rs.u8, rs.u8]): rs.u8 => {
-						return _21114[0] ^ _21114[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_229)))), 238, (_21110: [rs.u8, rs.u8]): rs.u8 => {
+						return _21110[0] ^ _21110[1];
 					}));
 				} else if (_241 === 2) {
 					const _248: (a0: [rs.u8, rs.u8]) => undefined = (p69: [rs.u8, rs.u8]): undefined => {
@@ -2342,12 +2250,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_229))), _248);
 				} else if (_241 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_229))), (_21113: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_21113[0] as rs.u32, _21113[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_229))), (_21109: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_21109[0] as rs.u32, _21109[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_241 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_229))), (_21112: [rs.u8, rs.u8]): rs.u8 => {
-						return _21112[0] ^ _21112[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_229))), (_21108: [rs.u8, rs.u8]): rs.u8 => {
+						return _21108[0] ^ _21108[1];
 					}), "next")), undefined, true);
 				} else if (_241 === 5) {
 					const _256: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc31: rs.u8, p68: [rs.u8, rs.u8]): rs.u8 => {
@@ -2355,151 +2263,151 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_229))), 0, _256));
 				} else if (_241 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_229))), (_21111: [rs.u8, rs.u8]): rs.u8 => {
-						return _21111[0] ^ _21111[1];
-					}), (x563: rs.u8): boolean => {
-						return x563 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_229))), (_21107: [rs.u8, rs.u8]): rs.u8 => {
+						return _21107[0] ^ _21107[1];
+					}), (x559: rs.u8): boolean => {
+						return x559 === 0;
 					}) ? 1 : 0);
 				} else {
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_229), (_21106: [rs.u8, rs.u8]): boolean => {
-						return _21106[0] > _21106[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_229), (_21102: [rs.u8, rs.u8]): boolean => {
+						return _21102[0] > _21102[1];
 					}), 238, (i38: rs.usize): rs.u8 => {
 						return i38 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_229), (_21107: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_21107[0], 3) === 0;
-					}), 238, (_21108: [rs.u8, rs.u8]): rs.u8 => {
-						return _21108[0] ^ _21108[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_229), (_21103: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_21103[0], 3) === 0;
+					}), 238, (_21104: [rs.u8, rs.u8]): rs.u8 => {
+						return _21104[0] ^ _21104[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_229), n), 238, (_21109: [rs.u8, rs.u8]): rs.u8 => {
-						return _21109[0] ^ _21109[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_229), n), 238, (_21105: [rs.u8, rs.u8]): rs.u8 => {
+						return _21105[0] ^ _21105[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_229.next()), 238, (_21110: [rs.u8, rs.u8]): rs.u8 => {
-						return _21110[0] ^ _21110[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_229.next()), 238, (_21106: [rs.u8, rs.u8]): rs.u8 => {
+						return _21106[0] ^ _21106[1];
 					}));
 				}
 			}
 		} else {
 			const _274: rs.usize = rs.usizeRem(data.length, 8);
 			if (_274 === 0) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21101: rs.u8): rs.u8 => {
-					const x552: rs.u8 = _21101;
+				rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21096: rs.u8): rs.u8 => {
+					const x547: rs.u8 = _21096;
 					const _6337: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6337.value, x552 ^ 1);
+					rs.byteVecPush(_6337.value, x547 ^ 1);
 					rs.refMutRelease(_6337);
-					return x552;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21102: rs.u8): rs.u8 => {
-					const x553: rs.u8 = _21102;
+					return x547;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21097: rs.u8): rs.u8 => {
+					const x548: rs.u8 = _21097;
 					const _6338: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6338.value, x553 ^ 2);
+					rs.byteVecPush(_6338.value, x548 ^ 2);
 					rs.refMutRelease(_6338);
-					return x553;
-				}), [true, true]), (_21103: [rs.u8, rs.u8]): boolean => {
-					return rs.u8Rem(_21103[0], 2) === 0;
+					return x548;
+				}), [true, true]), (_21098: [rs.u8, rs.u8]): boolean => {
+					return rs.u8Rem(_21098[0], 2) === 0;
 				})) & 0xff);
 			} else if (_274 === 1) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterFilterMap(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21098: rs.u8): rs.u8 => {
-					const x549: rs.u8 = _21098;
+				rs.byteVecPush(out, rs.iterCount(rs.iterFilterMap(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21093: rs.u8): rs.u8 => {
+					const x544: rs.u8 = _21093;
 					const _6335: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6335.value, x549 ^ 1);
+					rs.byteVecPush(_6335.value, x544 ^ 1);
 					rs.refMutRelease(_6335);
-					return x549;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21099: rs.u8): rs.u8 => {
-					const x550: rs.u8 = _21099;
+					return x544;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21094: rs.u8): rs.u8 => {
+					const x545: rs.u8 = _21094;
 					const _6336: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6336.value, x550 ^ 2);
+					rs.byteVecPush(_6336.value, x545 ^ 2);
 					rs.refMutRelease(_6336);
-					return x550;
-				}), [true, true]), (_21100: [rs.u8, rs.u8]): rs.u8 | undefined => {
-					return rs.u8CheckedSub(_21100[0], _21100[1]);
+					return x545;
+				}), [true, true]), (_21095: [rs.u8, rs.u8]): rs.u8 | undefined => {
+					return rs.u8CheckedSub(_21095[0], _21095[1]);
 				})) & 0xff);
 			} else if (_274 === 2) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterSkipWhile(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21095: rs.u8): rs.u8 => {
-					const x546: rs.u8 = _21095;
+				rs.byteVecPush(out, rs.iterCount(rs.iterSkipWhile(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21090: rs.u8): rs.u8 => {
+					const x541: rs.u8 = _21090;
 					const _6333: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6333.value, x546 ^ 1);
+					rs.byteVecPush(_6333.value, x541 ^ 1);
 					rs.refMutRelease(_6333);
-					return x546;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21096: rs.u8): rs.u8 => {
-					const x547: rs.u8 = _21096;
+					return x541;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21091: rs.u8): rs.u8 => {
+					const x542: rs.u8 = _21091;
 					const _6334: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6334.value, x547 ^ 2);
+					rs.byteVecPush(_6334.value, x542 ^ 2);
 					rs.refMutRelease(_6334);
-					return x547;
-				}), [true, true]), (_21097: [rs.u8, rs.u8]): boolean => {
-					return _21097[0] < 128;
+					return x542;
+				}), [true, true]), (_21092: [rs.u8, rs.u8]): boolean => {
+					return _21092[0] < 128;
 				})) & 0xff);
 			} else if (_274 === 3) {
-				rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(rs.iterMap(rs.iterEnumerate(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21092: rs.u8): rs.u8 => {
-					const x544: rs.u8 = _21092;
+				rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(rs.iterMap(rs.iterEnumerate(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21087: rs.u8): rs.u8 => {
+					const x539: rs.u8 = _21087;
 					const _6331: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6331.value, x544 ^ 1);
+					rs.byteVecPush(_6331.value, x539 ^ 1);
 					rs.refMutRelease(_6331);
-					return x544;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21093: rs.u8): rs.u8 => {
-					const x545: rs.u8 = _21093;
+					return x539;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21088: rs.u8): rs.u8 => {
+					const x540: rs.u8 = _21088;
 					const _6332: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6332.value, x545 ^ 2);
+					rs.byteVecPush(_6332.value, x540 ^ 2);
 					rs.refMutRelease(_6332);
-					return x545;
-				}), [true, true])), (_21094: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
-					return _21094[0] & 0xff;
+					return x540;
+				}), [true, true])), (_21089: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
+					return _21089[0] & 0xff;
 				})), 238));
 			} else if (_274 === 4) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterChain(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21090: rs.u8): rs.u8 => {
-					const x542: rs.u8 = _21090;
+				rs.byteVecPush(out, rs.iterCount(rs.iterChain(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21085: rs.u8): rs.u8 => {
+					const x537: rs.u8 = _21085;
 					const _6329: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6329.value, x542 ^ 1);
+					rs.byteVecPush(_6329.value, x537 ^ 1);
 					rs.refMutRelease(_6329);
-					return x542;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21091: rs.u8): rs.u8 => {
-					const x543: rs.u8 = _21091;
+					return x537;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21086: rs.u8): rs.u8 => {
+					const x538: rs.u8 = _21086;
 					const _6330: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6330.value, x543 ^ 2);
+					rs.byteVecPush(_6330.value, x538 ^ 2);
 					rs.refMutRelease(_6330);
-					return x543;
+					return x538;
 				}), [true, true]), rs.iterSlice([[1, 2] as [rs.u8, rs.u8]]))) & 0xff);
 			} else if (_274 === 5) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterTake(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21088: rs.u8): rs.u8 => {
-					const x540: rs.u8 = _21088;
+				rs.byteVecPush(out, rs.iterCount(rs.iterTake(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21083: rs.u8): rs.u8 => {
+					const x535: rs.u8 = _21083;
 					const _6327: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6327.value, x540 ^ 1);
+					rs.byteVecPush(_6327.value, x535 ^ 1);
 					rs.refMutRelease(_6327);
-					return x540;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21089: rs.u8): rs.u8 => {
-					const x541: rs.u8 = _21089;
+					return x535;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21084: rs.u8): rs.u8 => {
+					const x536: rs.u8 = _21084;
 					const _6328: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6328.value, x541 ^ 2);
+					rs.byteVecPush(_6328.value, x536 ^ 2);
 					rs.refMutRelease(_6328);
-					return x541;
+					return x536;
 				}), [true, true]), n, undefined, true)) & 0xff);
 			} else if (_274 === 6) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21086: rs.u8): rs.u8 => {
-					const x538: rs.u8 = _21086;
+				rs.byteVecPush(out, rs.iterCount(rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21081: rs.u8): rs.u8 => {
+					const x533: rs.u8 = _21081;
 					const _6325: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6325.value, x538 ^ 1);
+					rs.byteVecPush(_6325.value, x533 ^ 1);
 					rs.refMutRelease(_6325);
-					return x538;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21087: rs.u8): rs.u8 => {
-					const x539: rs.u8 = _21087;
+					return x533;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21082: rs.u8): rs.u8 => {
+					const x534: rs.u8 = _21082;
 					const _6326: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6326.value, x539 ^ 2);
+					rs.byteVecPush(_6326.value, x534 ^ 2);
 					rs.refMutRelease(_6326);
-					return x539;
+					return x534;
 				}), [true, true]), n)) & 0xff);
 			} else {
-				const p: rs.Peekable<[rs.u8, rs.u8]> = rs.iterPeekable(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21084: rs.u8): rs.u8 => {
-					const x536: rs.u8 = _21084;
+				const p: rs.Peekable<[rs.u8, rs.u8]> = rs.iterPeekable(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_21079: rs.u8): rs.u8 => {
+					const x531: rs.u8 = _21079;
 					const _6323: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6323.value, x536 ^ 1);
+					rs.byteVecPush(_6323.value, x531 ^ 1);
 					rs.refMutRelease(_6323);
-					return x536;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21085: rs.u8): rs.u8 => {
-					const x537: rs.u8 = _21085;
+					return x531;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_21080: rs.u8): rs.u8 => {
+					const x532: rs.u8 = _21080;
 					const _6324: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6324.value, x537 ^ 2);
+					rs.byteVecPush(_6324.value, x532 ^ 2);
 					rs.refMutRelease(_6324);
-					return x537;
+					return x532;
 				}), [true, true]));
 				rs.byteVecPush(out, (rs.peekablePeek(p) !== undefined ? 1 : 0) ^ (rs.iterCount(p) & 0xff));
 			}
@@ -2509,87 +2417,93 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			if ((kind & 16) === 0) {
 				const _385: rs.usize = rs.usizeRem(rs.usizeDiv(data.length, 8), 5);
 				if (_385 === 0) {
-					const z7: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21073: rs.u8): rs.u8 => {
-						const x524: rs.u8 = _21073;
+					const z7: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21067: rs.u8): rs.u8 => {
+						const x518: rs.u8 = _21067;
 						const _6319: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6319.value, x524 ^ 3);
+						rs.byteVecPush(_6319.value, x518 ^ 3);
 						rs.refMutRelease(_6319);
-						return x524;
-					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21074: rs.u8): rs.u8 => {
-						const x525: rs.u8 = _21074;
+						return x518;
+					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21068: rs.u8): rs.u8 => {
+						const x519: rs.u8 = _21068;
 						const _6320: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6320.value, x525 ^ 4);
+						rs.byteVecPush(_6320.value, x519 ^ 4);
 						rs.refMutRelease(_6320);
-						return x525;
+						return x519;
 					}), "len");
+					const _401: (a0: [rs.u8, rs.u8]) => rs.u8 = (_21069: [rs.u8, rs.u8]): rs.u8 => {
+						return _21069[0] ^ _21069[1];
+					};
 					const _402: rs.usize = rs.usizeRem(data.length, 8);
 					if (_402 === 0) {
 						rs.byteVecPush(out, rs.iterCount(z7) & 0xff);
 					} else if (_402 === 1) {
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(z7), 238, (_21083: [rs.u8, rs.u8]): rs.u8 => {
-							return _21083[0] ^ _21083[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(z7), 238, (_21078: [rs.u8, rs.u8]): rs.u8 => {
+							return _21078[0] ^ _21078[1];
 						}));
 					} else if (_402 === 2) {
 						rs.iterForEach(z7, (p67: [rs.u8, rs.u8]): undefined => {
 							rs.byteVecPush(out, _401(p67));
 						});
 					} else if (_402 === 3) {
-						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(z7, (_21082: [rs.u8, rs.u8]): rs.u32 => {
-							return rs.u32Add(_21082[0] as rs.u32, _21082[1] as rs.u32);
+						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(z7, (_21077: [rs.u8, rs.u8]): rs.u32 => {
+							return rs.u32Add(_21077[0] as rs.u32, _21077[1] as rs.u32);
 						}), rs.u32Add, 0)).reverse()), undefined, true);
 					} else if (_402 === 4) {
-						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(z7, (_21081: [rs.u8, rs.u8]): rs.u8 => {
-							return _21081[0] ^ _21081[1];
+						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(z7, (_21076: [rs.u8, rs.u8]): rs.u8 => {
+							return _21076[0] ^ _21076[1];
 						}), undefined, true)), undefined, true);
 					} else if (_402 === 5) {
 						rs.byteVecPush(out, rs.iterFold(z7, 0, (acc30: rs.u8, p66: [rs.u8, rs.u8]): rs.u8 => {
 							return rs.u8WrappingMul(acc30, 3) ^ _401(p66);
 						}));
 					} else if (_402 === 6) {
-						rs.byteVecPush(out, rs.iterAny(rs.iterMap(z7, (_21080: [rs.u8, rs.u8]): rs.u8 => {
-							return _21080[0] ^ _21080[1];
-						}), (x532: rs.u8): boolean => {
-							return x532 === 0;
+						rs.byteVecPush(out, rs.iterAny(rs.iterMap(z7, (_21075: [rs.u8, rs.u8]): rs.u8 => {
+							return _21075[0] ^ _21075[1];
+						}), (x527: rs.u8): boolean => {
+							return x527 === 0;
 						}) ? 1 : 0);
 					} else {
 						const z8: rs.Iter<[rs.u8, rs.u8]> = z7;
-						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(z8, (_21075: [rs.u8, rs.u8]): boolean => {
-							return _21075[0] > _21075[1];
+						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(z8, (_21070: [rs.u8, rs.u8]): boolean => {
+							return _21070[0] > _21070[1];
 						}), 238, (i36: rs.usize): rs.u8 => {
 							return i36 & 0xff;
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(z8, (_21076: [rs.u8, rs.u8]): boolean => {
-							return rs.u8Rem(_21076[0], 3) === 0;
-						}), 238, (_21077: [rs.u8, rs.u8]): rs.u8 => {
-							return _21077[0] ^ _21077[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(z8, (_21071: [rs.u8, rs.u8]): boolean => {
+							return rs.u8Rem(_21071[0], 3) === 0;
+						}), 238, (_21072: [rs.u8, rs.u8]): rs.u8 => {
+							return _21072[0] ^ _21072[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z8, n), 238, (_21078: [rs.u8, rs.u8]): rs.u8 => {
-							return _21078[0] ^ _21078[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z8, n), 238, (_21073: [rs.u8, rs.u8]): rs.u8 => {
+							return _21073[0] ^ _21073[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z8.next()), 238, (_21079: [rs.u8, rs.u8]): rs.u8 => {
-							return _21079[0] ^ _21079[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z8.next()), 238, (_21074: [rs.u8, rs.u8]): rs.u8 => {
+							return _21074[0] ^ _21074[1];
 						}));
 					}
 				} else if (_385 === 1) {
-					const z9: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21062: rs.u8): rs.u8 => {
-						const x512: rs.u8 = _21062;
+					const z9: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21055: rs.u8): rs.u8 => {
+						const x505: rs.u8 = _21055;
 						const _6315: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6315.value, x512 ^ 3);
+						rs.byteVecPush(_6315.value, x505 ^ 3);
 						rs.refMutRelease(_6315);
-						return x512;
-					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21063: rs.u8): rs.u8 => {
-						const x513: rs.u8 = _21063;
+						return x505;
+					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21056: rs.u8): rs.u8 => {
+						const x506: rs.u8 = _21056;
 						const _6316: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6316.value, x513 ^ 4);
+						rs.byteVecPush(_6316.value, x506 ^ 4);
 						rs.refMutRelease(_6316);
-						return x513;
+						return x506;
 					}), "len");
+					const _452: (a0: [rs.u8, rs.u8]) => rs.u8 = (_21057: [rs.u8, rs.u8]): rs.u8 => {
+						return _21057[0] ^ _21057[1];
+					};
 					const _453: rs.usize = rs.usizeRem(data.length, 8);
 					if (_453 === 0) {
 						rs.byteVecPush(out, rs.iterCount(rs.iterBox(z9)) & 0xff);
 					} else if (_453 === 1) {
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z9)), 238, (_21072: [rs.u8, rs.u8]): rs.u8 => {
-							return _21072[0] ^ _21072[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z9)), 238, (_21066: [rs.u8, rs.u8]): rs.u8 => {
+							return _21066[0] ^ _21066[1];
 						}));
 					} else if (_453 === 2) {
 						const _460: (a0: [rs.u8, rs.u8]) => undefined = (p65: [rs.u8, rs.u8]): undefined => {
@@ -2597,12 +2511,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.iterForEach(rs.iterBox(z9), _460);
 					} else if (_453 === 3) {
-						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z9), (_21071: [rs.u8, rs.u8]): rs.u32 => {
-							return rs.u32Add(_21071[0] as rs.u32, _21071[1] as rs.u32);
+						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z9), (_21065: [rs.u8, rs.u8]): rs.u32 => {
+							return rs.u32Add(_21065[0] as rs.u32, _21065[1] as rs.u32);
 						}), rs.u32Add, 0)).reverse()), undefined, true);
 					} else if (_453 === 4) {
-						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z9), (_21070: [rs.u8, rs.u8]): rs.u8 => {
-							return _21070[0] ^ _21070[1];
+						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z9), (_21064: [rs.u8, rs.u8]): rs.u8 => {
+							return _21064[0] ^ _21064[1];
 						}), "next")), undefined, true);
 					} else if (_453 === 5) {
 						const _468: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc29: rs.u8, p64: [rs.u8, rs.u8]): rs.u8 => {
@@ -2610,50 +2524,53 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.byteVecPush(out, rs.iterFold(rs.iterBox(z9), 0, _468));
 					} else if (_453 === 6) {
-						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z9), (_21069: [rs.u8, rs.u8]): rs.u8 => {
-							return _21069[0] ^ _21069[1];
-						}), (x520: rs.u8): boolean => {
-							return x520 === 0;
+						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z9), (_21063: [rs.u8, rs.u8]): rs.u8 => {
+							return _21063[0] ^ _21063[1];
+						}), (x514: rs.u8): boolean => {
+							return x514 === 0;
 						}) ? 1 : 0);
 					} else {
 						const z10: rs.Iter<[rs.u8, rs.u8]> = z9;
-						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z10), (_21064: [rs.u8, rs.u8]): boolean => {
-							return _21064[0] > _21064[1];
+						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z10), (_21058: [rs.u8, rs.u8]): boolean => {
+							return _21058[0] > _21058[1];
 						}), 238, (i35: rs.usize): rs.u8 => {
 							return i35 & 0xff;
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z10), (_21065: [rs.u8, rs.u8]): boolean => {
-							return rs.u8Rem(_21065[0], 3) === 0;
-						}), 238, (_21066: [rs.u8, rs.u8]): rs.u8 => {
-							return _21066[0] ^ _21066[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z10), (_21059: [rs.u8, rs.u8]): boolean => {
+							return rs.u8Rem(_21059[0], 3) === 0;
+						}), 238, (_21060: [rs.u8, rs.u8]): rs.u8 => {
+							return _21060[0] ^ _21060[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z10), n), 238, (_21067: [rs.u8, rs.u8]): rs.u8 => {
-							return _21067[0] ^ _21067[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z10), n), 238, (_21061: [rs.u8, rs.u8]): rs.u8 => {
+							return _21061[0] ^ _21061[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z10.next()), 238, (_21068: [rs.u8, rs.u8]): rs.u8 => {
-							return _21068[0] ^ _21068[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z10.next()), 238, (_21062: [rs.u8, rs.u8]): rs.u8 => {
+							return _21062[0] ^ _21062[1];
 						}));
 					}
 				} else if (_385 === 2) {
-					const z11: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21051: rs.u8): rs.u8 => {
-						const x500: rs.u8 = _21051;
+					const z11: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21043: rs.u8): rs.u8 => {
+						const x492: rs.u8 = _21043;
 						const _6311: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6311.value, x500 ^ 3);
+						rs.byteVecPush(_6311.value, x492 ^ 3);
 						rs.refMutRelease(_6311);
-						return x500;
-					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21052: rs.u8): rs.u8 => {
-						const x501: rs.u8 = _21052;
+						return x492;
+					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21044: rs.u8): rs.u8 => {
+						const x493: rs.u8 = _21044;
 						const _6312: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6312.value, x501 ^ 4);
+						rs.byteVecPush(_6312.value, x493 ^ 4);
 						rs.refMutRelease(_6312);
-						return x501;
+						return x493;
 					}), "len"), n);
+					const _504: (a0: [rs.u8, rs.u8]) => rs.u8 = (_21045: [rs.u8, rs.u8]): rs.u8 => {
+						return _21045[0] ^ _21045[1];
+					};
 					const _505: rs.usize = rs.usizeRem(data.length, 8);
 					if (_505 === 0) {
 						rs.byteVecPush(out, rs.iterCount(rs.iterBox(z11)) & 0xff);
 					} else if (_505 === 1) {
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z11)), 238, (_21061: [rs.u8, rs.u8]): rs.u8 => {
-							return _21061[0] ^ _21061[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z11)), 238, (_21054: [rs.u8, rs.u8]): rs.u8 => {
+							return _21054[0] ^ _21054[1];
 						}));
 					} else if (_505 === 2) {
 						const _512: (a0: [rs.u8, rs.u8]) => undefined = (p63: [rs.u8, rs.u8]): undefined => {
@@ -2661,12 +2578,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.iterForEach(rs.iterBox(z11), _512);
 					} else if (_505 === 3) {
-						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z11), (_21060: [rs.u8, rs.u8]): rs.u32 => {
-							return rs.u32Add(_21060[0] as rs.u32, _21060[1] as rs.u32);
+						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z11), (_21053: [rs.u8, rs.u8]): rs.u32 => {
+							return rs.u32Add(_21053[0] as rs.u32, _21053[1] as rs.u32);
 						}), rs.u32Add, 0)).reverse()), undefined, true);
 					} else if (_505 === 4) {
-						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z11), (_21059: [rs.u8, rs.u8]): rs.u8 => {
-							return _21059[0] ^ _21059[1];
+						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z11), (_21052: [rs.u8, rs.u8]): rs.u8 => {
+							return _21052[0] ^ _21052[1];
 						}), "next")), undefined, true);
 					} else if (_505 === 5) {
 						const _520: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc28: rs.u8, p62: [rs.u8, rs.u8]): rs.u8 => {
@@ -2674,50 +2591,53 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.byteVecPush(out, rs.iterFold(rs.iterBox(z11), 0, _520));
 					} else if (_505 === 6) {
-						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z11), (_21058: [rs.u8, rs.u8]): rs.u8 => {
-							return _21058[0] ^ _21058[1];
-						}), (x508: rs.u8): boolean => {
-							return x508 === 0;
+						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z11), (_21051: [rs.u8, rs.u8]): rs.u8 => {
+							return _21051[0] ^ _21051[1];
+						}), (x501: rs.u8): boolean => {
+							return x501 === 0;
 						}) ? 1 : 0);
 					} else {
 						const z12: rs.Iter<[rs.u8, rs.u8]> = z11;
-						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z12), (_21053: [rs.u8, rs.u8]): boolean => {
-							return _21053[0] > _21053[1];
+						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z12), (_21046: [rs.u8, rs.u8]): boolean => {
+							return _21046[0] > _21046[1];
 						}), 238, (i34: rs.usize): rs.u8 => {
 							return i34 & 0xff;
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z12), (_21054: [rs.u8, rs.u8]): boolean => {
-							return rs.u8Rem(_21054[0], 3) === 0;
-						}), 238, (_21055: [rs.u8, rs.u8]): rs.u8 => {
-							return _21055[0] ^ _21055[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z12), (_21047: [rs.u8, rs.u8]): boolean => {
+							return rs.u8Rem(_21047[0], 3) === 0;
+						}), 238, (_21048: [rs.u8, rs.u8]): rs.u8 => {
+							return _21048[0] ^ _21048[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z12), n), 238, (_21056: [rs.u8, rs.u8]): rs.u8 => {
-							return _21056[0] ^ _21056[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z12), n), 238, (_21049: [rs.u8, rs.u8]): rs.u8 => {
+							return _21049[0] ^ _21049[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z12.next()), 238, (_21057: [rs.u8, rs.u8]): rs.u8 => {
-							return _21057[0] ^ _21057[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z12.next()), 238, (_21050: [rs.u8, rs.u8]): rs.u8 => {
+							return _21050[0] ^ _21050[1];
 						}));
 					}
 				} else if (_385 === 3) {
-					const _544: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21040: rs.u8): rs.u8 => {
-						const x488: rs.u8 = _21040;
+					const _544: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21031: rs.u8): rs.u8 => {
+						const x479: rs.u8 = _21031;
 						const _6307: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6307.value, x488 ^ 3);
+						rs.byteVecPush(_6307.value, x479 ^ 3);
 						rs.refMutRelease(_6307);
-						return x488;
-					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21041: rs.u8): rs.u8 => {
-						const x489: rs.u8 = _21041;
+						return x479;
+					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21032: rs.u8): rs.u8 => {
+						const x480: rs.u8 = _21032;
 						const _6308: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6308.value, x489 ^ 4);
+						rs.byteVecPush(_6308.value, x480 ^ 4);
 						rs.refMutRelease(_6308);
-						return x489;
+						return x480;
 					}), "len");
+					const _556: (a0: [rs.u8, rs.u8]) => rs.u8 = (_21033: [rs.u8, rs.u8]): rs.u8 => {
+						return _21033[0] ^ _21033[1];
+					};
 					const _557: rs.usize = rs.usizeRem(data.length, 8);
 					if (_557 === 0) {
 						rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_544)))) & 0xff);
 					} else if (_557 === 1) {
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_544)))), 238, (_21050: [rs.u8, rs.u8]): rs.u8 => {
-							return _21050[0] ^ _21050[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_544)))), 238, (_21042: [rs.u8, rs.u8]): rs.u8 => {
+							return _21042[0] ^ _21042[1];
 						}));
 					} else if (_557 === 2) {
 						const _564: (a0: [rs.u8, rs.u8]) => undefined = (p61: [rs.u8, rs.u8]): undefined => {
@@ -2725,12 +2645,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.iterForEach(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_544))), _564);
 					} else if (_557 === 3) {
-						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_544))), (_21049: [rs.u8, rs.u8]): rs.u32 => {
-							return rs.u32Add(_21049[0] as rs.u32, _21049[1] as rs.u32);
+						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_544))), (_21041: [rs.u8, rs.u8]): rs.u32 => {
+							return rs.u32Add(_21041[0] as rs.u32, _21041[1] as rs.u32);
 						}), rs.u32Add, 0)).reverse()), undefined, true);
 					} else if (_557 === 4) {
-						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_544))), (_21048: [rs.u8, rs.u8]): rs.u8 => {
-							return _21048[0] ^ _21048[1];
+						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_544))), (_21040: [rs.u8, rs.u8]): rs.u8 => {
+							return _21040[0] ^ _21040[1];
 						}), "next")), undefined, true);
 					} else if (_557 === 5) {
 						const _572: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc27: rs.u8, p60: [rs.u8, rs.u8]): rs.u8 => {
@@ -2738,49 +2658,52 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.byteVecPush(out, rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_544))), 0, _572));
 					} else if (_557 === 6) {
-						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_544))), (_21047: [rs.u8, rs.u8]): rs.u8 => {
-							return _21047[0] ^ _21047[1];
-						}), (x496: rs.u8): boolean => {
-							return x496 === 0;
+						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_544))), (_21039: [rs.u8, rs.u8]): rs.u8 => {
+							return _21039[0] ^ _21039[1];
+						}), (x488: rs.u8): boolean => {
+							return x488 === 0;
 						}) ? 1 : 0);
 					} else {
-						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_544), (_21042: [rs.u8, rs.u8]): boolean => {
-							return _21042[0] > _21042[1];
+						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_544), (_21034: [rs.u8, rs.u8]): boolean => {
+							return _21034[0] > _21034[1];
 						}), 238, (i33: rs.usize): rs.u8 => {
 							return i33 & 0xff;
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_544), (_21043: [rs.u8, rs.u8]): boolean => {
-							return rs.u8Rem(_21043[0], 3) === 0;
-						}), 238, (_21044: [rs.u8, rs.u8]): rs.u8 => {
-							return _21044[0] ^ _21044[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_544), (_21035: [rs.u8, rs.u8]): boolean => {
+							return rs.u8Rem(_21035[0], 3) === 0;
+						}), 238, (_21036: [rs.u8, rs.u8]): rs.u8 => {
+							return _21036[0] ^ _21036[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_544), n), 238, (_21045: [rs.u8, rs.u8]): rs.u8 => {
-							return _21045[0] ^ _21045[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_544), n), 238, (_21037: [rs.u8, rs.u8]): rs.u8 => {
+							return _21037[0] ^ _21037[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_544.next()), 238, (_21046: [rs.u8, rs.u8]): rs.u8 => {
-							return _21046[0] ^ _21046[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_544.next()), 238, (_21038: [rs.u8, rs.u8]): rs.u8 => {
+							return _21038[0] ^ _21038[1];
 						}));
 					}
 				} else {
-					const _591: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21029: rs.u8): rs.u8 => {
-						const x476: rs.u8 = _21029;
+					const _591: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21019: rs.u8): rs.u8 => {
+						const x466: rs.u8 = _21019;
 						const _6303: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6303.value, x476 ^ 3);
+						rs.byteVecPush(_6303.value, x466 ^ 3);
 						rs.refMutRelease(_6303);
-						return x476;
-					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21030: rs.u8): rs.u8 => {
-						const x477: rs.u8 = _21030;
+						return x466;
+					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21020: rs.u8): rs.u8 => {
+						const x467: rs.u8 = _21020;
 						const _6304: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6304.value, x477 ^ 4);
+						rs.byteVecPush(_6304.value, x467 ^ 4);
 						rs.refMutRelease(_6304);
-						return x477;
+						return x467;
 					}), "len"), n);
+					const _604: (a0: [rs.u8, rs.u8]) => rs.u8 = (_21021: [rs.u8, rs.u8]): rs.u8 => {
+						return _21021[0] ^ _21021[1];
+					};
 					const _605: rs.usize = rs.usizeRem(data.length, 8);
 					if (_605 === 0) {
 						rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_591)))) & 0xff);
 					} else if (_605 === 1) {
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_591)))), 238, (_21039: [rs.u8, rs.u8]): rs.u8 => {
-							return _21039[0] ^ _21039[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_591)))), 238, (_21030: [rs.u8, rs.u8]): rs.u8 => {
+							return _21030[0] ^ _21030[1];
 						}));
 					} else if (_605 === 2) {
 						const _612: (a0: [rs.u8, rs.u8]) => undefined = (p59: [rs.u8, rs.u8]): undefined => {
@@ -2788,12 +2711,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.iterForEach(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_591))), _612);
 					} else if (_605 === 3) {
-						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_591))), (_21038: [rs.u8, rs.u8]): rs.u32 => {
-							return rs.u32Add(_21038[0] as rs.u32, _21038[1] as rs.u32);
+						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_591))), (_21029: [rs.u8, rs.u8]): rs.u32 => {
+							return rs.u32Add(_21029[0] as rs.u32, _21029[1] as rs.u32);
 						}), rs.u32Add, 0)).reverse()), undefined, true);
 					} else if (_605 === 4) {
-						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_591))), (_21037: [rs.u8, rs.u8]): rs.u8 => {
-							return _21037[0] ^ _21037[1];
+						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_591))), (_21028: [rs.u8, rs.u8]): rs.u8 => {
+							return _21028[0] ^ _21028[1];
 						}), "next")), undefined, true);
 					} else if (_605 === 5) {
 						const _620: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc26: rs.u8, p58: [rs.u8, rs.u8]): rs.u8 => {
@@ -2801,151 +2724,151 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.byteVecPush(out, rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_591))), 0, _620));
 					} else if (_605 === 6) {
-						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_591))), (_21036: [rs.u8, rs.u8]): rs.u8 => {
-							return _21036[0] ^ _21036[1];
-						}), (x484: rs.u8): boolean => {
-							return x484 === 0;
+						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_591))), (_21027: [rs.u8, rs.u8]): rs.u8 => {
+							return _21027[0] ^ _21027[1];
+						}), (x475: rs.u8): boolean => {
+							return x475 === 0;
 						}) ? 1 : 0);
 					} else {
-						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_591), (_21031: [rs.u8, rs.u8]): boolean => {
-							return _21031[0] > _21031[1];
+						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_591), (_21022: [rs.u8, rs.u8]): boolean => {
+							return _21022[0] > _21022[1];
 						}), 238, (i32: rs.usize): rs.u8 => {
 							return i32 & 0xff;
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_591), (_21032: [rs.u8, rs.u8]): boolean => {
-							return rs.u8Rem(_21032[0], 3) === 0;
-						}), 238, (_21033: [rs.u8, rs.u8]): rs.u8 => {
-							return _21033[0] ^ _21033[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_591), (_21023: [rs.u8, rs.u8]): boolean => {
+							return rs.u8Rem(_21023[0], 3) === 0;
+						}), 238, (_21024: [rs.u8, rs.u8]): rs.u8 => {
+							return _21024[0] ^ _21024[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_591), n), 238, (_21034: [rs.u8, rs.u8]): rs.u8 => {
-							return _21034[0] ^ _21034[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_591), n), 238, (_21025: [rs.u8, rs.u8]): rs.u8 => {
+							return _21025[0] ^ _21025[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_591.next()), 238, (_21035: [rs.u8, rs.u8]): rs.u8 => {
-							return _21035[0] ^ _21035[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_591.next()), 238, (_21026: [rs.u8, rs.u8]): rs.u8 => {
+							return _21026[0] ^ _21026[1];
 						}));
 					}
 				}
 			} else {
 				const _638: rs.usize = rs.usizeRem(data.length, 8);
 				if (_638 === 0) {
-					rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21026: rs.u8): rs.u8 => {
-						const x473: rs.u8 = _21026;
+					rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21016: rs.u8): rs.u8 => {
+						const x463: rs.u8 = _21016;
 						const _6301: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6301.value, x473 ^ 3);
+						rs.byteVecPush(_6301.value, x463 ^ 3);
 						rs.refMutRelease(_6301);
-						return x473;
-					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21027: rs.u8): rs.u8 => {
-						const x474: rs.u8 = _21027;
+						return x463;
+					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21017: rs.u8): rs.u8 => {
+						const x464: rs.u8 = _21017;
 						const _6302: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6302.value, x474 ^ 4);
+						rs.byteVecPush(_6302.value, x464 ^ 4);
 						rs.refMutRelease(_6302);
-						return x474;
-					}), "len"), (_21028: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_21028[0], 2) === 0;
+						return x464;
+					}), "len"), (_21018: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_21018[0], 2) === 0;
 					})) & 0xff);
 				} else if (_638 === 1) {
-					rs.byteVecPush(out, rs.iterCount(rs.iterFilterMap(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21023: rs.u8): rs.u8 => {
-						const x470: rs.u8 = _21023;
+					rs.byteVecPush(out, rs.iterCount(rs.iterFilterMap(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21013: rs.u8): rs.u8 => {
+						const x460: rs.u8 = _21013;
 						const _6299: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6299.value, x470 ^ 3);
+						rs.byteVecPush(_6299.value, x460 ^ 3);
 						rs.refMutRelease(_6299);
-						return x470;
-					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21024: rs.u8): rs.u8 => {
-						const x471: rs.u8 = _21024;
+						return x460;
+					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21014: rs.u8): rs.u8 => {
+						const x461: rs.u8 = _21014;
 						const _6300: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6300.value, x471 ^ 4);
+						rs.byteVecPush(_6300.value, x461 ^ 4);
 						rs.refMutRelease(_6300);
-						return x471;
-					}), "len"), (_21025: [rs.u8, rs.u8]): rs.u8 | undefined => {
-						return rs.u8CheckedSub(_21025[0], _21025[1]);
+						return x461;
+					}), "len"), (_21015: [rs.u8, rs.u8]): rs.u8 | undefined => {
+						return rs.u8CheckedSub(_21015[0], _21015[1]);
 					})) & 0xff);
 				} else if (_638 === 2) {
-					rs.byteVecPush(out, rs.iterCount(rs.iterSkipWhile(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21020: rs.u8): rs.u8 => {
-						const x467: rs.u8 = _21020;
+					rs.byteVecPush(out, rs.iterCount(rs.iterSkipWhile(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21010: rs.u8): rs.u8 => {
+						const x457: rs.u8 = _21010;
 						const _6297: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6297.value, x467 ^ 3);
+						rs.byteVecPush(_6297.value, x457 ^ 3);
 						rs.refMutRelease(_6297);
-						return x467;
-					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21021: rs.u8): rs.u8 => {
-						const x468: rs.u8 = _21021;
+						return x457;
+					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21011: rs.u8): rs.u8 => {
+						const x458: rs.u8 = _21011;
 						const _6298: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6298.value, x468 ^ 4);
+						rs.byteVecPush(_6298.value, x458 ^ 4);
 						rs.refMutRelease(_6298);
-						return x468;
-					}), "len"), (_21022: [rs.u8, rs.u8]): boolean => {
-						return _21022[0] < 128;
+						return x458;
+					}), "len"), (_21012: [rs.u8, rs.u8]): boolean => {
+						return _21012[0] < 128;
 					})) & 0xff);
 				} else if (_638 === 3) {
-					rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(rs.iterMap(rs.iterEnumerate(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21017: rs.u8): rs.u8 => {
-						const x465: rs.u8 = _21017;
+					rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(rs.iterMap(rs.iterEnumerate(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21007: rs.u8): rs.u8 => {
+						const x455: rs.u8 = _21007;
 						const _6295: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6295.value, x465 ^ 3);
+						rs.byteVecPush(_6295.value, x455 ^ 3);
 						rs.refMutRelease(_6295);
-						return x465;
-					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21018: rs.u8): rs.u8 => {
-						const x466: rs.u8 = _21018;
+						return x455;
+					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21008: rs.u8): rs.u8 => {
+						const x456: rs.u8 = _21008;
 						const _6296: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6296.value, x466 ^ 4);
+						rs.byteVecPush(_6296.value, x456 ^ 4);
 						rs.refMutRelease(_6296);
-						return x466;
-					}), "len")), (_21019: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
-						return _21019[0] & 0xff;
+						return x456;
+					}), "len")), (_21009: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
+						return _21009[0] & 0xff;
 					})), 238));
 				} else if (_638 === 4) {
-					rs.byteVecPush(out, rs.iterCount(rs.iterChain(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21015: rs.u8): rs.u8 => {
-						const x463: rs.u8 = _21015;
+					rs.byteVecPush(out, rs.iterCount(rs.iterChain(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21005: rs.u8): rs.u8 => {
+						const x453: rs.u8 = _21005;
 						const _6293: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6293.value, x463 ^ 3);
+						rs.byteVecPush(_6293.value, x453 ^ 3);
 						rs.refMutRelease(_6293);
-						return x463;
-					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21016: rs.u8): rs.u8 => {
-						const x464: rs.u8 = _21016;
+						return x453;
+					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21006: rs.u8): rs.u8 => {
+						const x454: rs.u8 = _21006;
 						const _6294: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6294.value, x464 ^ 4);
+						rs.byteVecPush(_6294.value, x454 ^ 4);
 						rs.refMutRelease(_6294);
-						return x464;
+						return x454;
 					}), "len"), rs.iterSlice([[1, 2] as [rs.u8, rs.u8]]))) & 0xff);
 				} else if (_638 === 5) {
-					rs.byteVecPush(out, rs.iterCount(rs.iterTake(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21013: rs.u8): rs.u8 => {
-						const x461: rs.u8 = _21013;
+					rs.byteVecPush(out, rs.iterCount(rs.iterTake(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21003: rs.u8): rs.u8 => {
+						const x451: rs.u8 = _21003;
 						const _6291: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6291.value, x461 ^ 3);
+						rs.byteVecPush(_6291.value, x451 ^ 3);
 						rs.refMutRelease(_6291);
-						return x461;
-					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21014: rs.u8): rs.u8 => {
-						const x462: rs.u8 = _21014;
+						return x451;
+					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21004: rs.u8): rs.u8 => {
+						const x452: rs.u8 = _21004;
 						const _6292: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6292.value, x462 ^ 4);
+						rs.byteVecPush(_6292.value, x452 ^ 4);
 						rs.refMutRelease(_6292);
-						return x462;
+						return x452;
 					}), "len"), n)) & 0xff);
 				} else if (_638 === 6) {
-					rs.byteVecPush(out, rs.iterCount(rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21011: rs.u8): rs.u8 => {
-						const x459: rs.u8 = _21011;
+					rs.byteVecPush(out, rs.iterCount(rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21001: rs.u8): rs.u8 => {
+						const x449: rs.u8 = _21001;
 						const _6289: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6289.value, x459 ^ 3);
+						rs.byteVecPush(_6289.value, x449 ^ 3);
 						rs.refMutRelease(_6289);
-						return x459;
-					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21012: rs.u8): rs.u8 => {
-						const x460: rs.u8 = _21012;
+						return x449;
+					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21002: rs.u8): rs.u8 => {
+						const x450: rs.u8 = _21002;
 						const _6290: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6290.value, x460 ^ 4);
+						rs.byteVecPush(_6290.value, x450 ^ 4);
 						rs.refMutRelease(_6290);
-						return x460;
+						return x450;
 					}), "len"), n)) & 0xff);
 				} else {
-					const p2: rs.Peekable<[rs.u8, rs.u8]> = rs.iterPeekable(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_21009: rs.u8): rs.u8 => {
-						const x457: rs.u8 = _21009;
+					const p2: rs.Peekable<[rs.u8, rs.u8]> = rs.iterPeekable(rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2999: rs.u8): rs.u8 => {
+						const x447: rs.u8 = _2999;
 						const _6287: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6287.value, x457 ^ 3);
+						rs.byteVecPush(_6287.value, x447 ^ 3);
 						rs.refMutRelease(_6287);
-						return x457;
-					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21010: rs.u8): rs.u8 => {
-						const x458: rs.u8 = _21010;
+						return x447;
+					}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_21000: rs.u8): rs.u8 => {
+						const x448: rs.u8 = _21000;
 						const _6288: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6288.value, x458 ^ 4);
+						rs.byteVecPush(_6288.value, x448 ^ 4);
 						rs.refMutRelease(_6288);
-						return x458;
+						return x448;
 					}), "len"));
 					rs.byteVecPush(out, (rs.peekablePeek(p2) !== undefined ? 1 : 0) ^ (rs.iterCount(p2) & 0xff));
 				}
@@ -2953,87 +2876,93 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if ((kind & 16) === 0) {
 			const _765: rs.usize = rs.usizeRem(rs.usizeDiv(data.length, 8), 5);
 			if (_765 === 0) {
-				const z13: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2998: rs.u8): rs.u8 => {
-					const x445: rs.u8 = _2998;
+				const z13: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2987: rs.u8): rs.u8 => {
+					const x434: rs.u8 = _2987;
 					const _6283: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6283.value, x445 ^ 5);
+					rs.byteVecPush(_6283.value, x434 ^ 5);
 					rs.refMutRelease(_6283);
-					return x445;
-				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2999: rs.u8): rs.u8 => {
-					const x446: rs.u8 = _2999;
+					return x434;
+				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2988: rs.u8): rs.u8 => {
+					const x435: rs.u8 = _2988;
 					const _6284: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6284.value, x446 ^ 6);
+					rs.byteVecPush(_6284.value, x435 ^ 6);
 					rs.refMutRelease(_6284);
-					return x446;
+					return x435;
 				}), "len");
+				const _783: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2989: [rs.u8, rs.u8]): rs.u8 => {
+					return _2989[0] ^ _2989[1];
+				};
 				const _784: rs.usize = rs.usizeRem(data.length, 8);
 				if (_784 === 0) {
 					rs.byteVecPush(out, rs.iterCount(z13) & 0xff);
 				} else if (_784 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(z13), 238, (_21008: [rs.u8, rs.u8]): rs.u8 => {
-						return _21008[0] ^ _21008[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(z13), 238, (_2998: [rs.u8, rs.u8]): rs.u8 => {
+						return _2998[0] ^ _2998[1];
 					}));
 				} else if (_784 === 2) {
 					rs.iterForEach(z13, (p57: [rs.u8, rs.u8]): undefined => {
 						rs.byteVecPush(out, _783(p57));
 					});
 				} else if (_784 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(z13, (_21007: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_21007[0] as rs.u32, _21007[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(z13, (_2997: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2997[0] as rs.u32, _2997[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_784 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(z13, (_21006: [rs.u8, rs.u8]): rs.u8 => {
-						return _21006[0] ^ _21006[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(z13, (_2996: [rs.u8, rs.u8]): rs.u8 => {
+						return _2996[0] ^ _2996[1];
 					}), undefined, true)), undefined, true);
 				} else if (_784 === 5) {
 					rs.byteVecPush(out, rs.iterFold(z13, 0, (acc25: rs.u8, p56: [rs.u8, rs.u8]): rs.u8 => {
 						return rs.u8WrappingMul(acc25, 3) ^ _783(p56);
 					}));
 				} else if (_784 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(z13, (_21005: [rs.u8, rs.u8]): rs.u8 => {
-						return _21005[0] ^ _21005[1];
-					}), (x453: rs.u8): boolean => {
-						return x453 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(z13, (_2995: [rs.u8, rs.u8]): rs.u8 => {
+						return _2995[0] ^ _2995[1];
+					}), (x443: rs.u8): boolean => {
+						return x443 === 0;
 					}) ? 1 : 0);
 				} else {
 					const z14: rs.Iter<[rs.u8, rs.u8]> = z13;
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(z14, (_21000: [rs.u8, rs.u8]): boolean => {
-						return _21000[0] > _21000[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(z14, (_2990: [rs.u8, rs.u8]): boolean => {
+						return _2990[0] > _2990[1];
 					}), 238, (i30: rs.usize): rs.u8 => {
 						return i30 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(z14, (_21001: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_21001[0], 3) === 0;
-					}), 238, (_21002: [rs.u8, rs.u8]): rs.u8 => {
-						return _21002[0] ^ _21002[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(z14, (_2991: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2991[0], 3) === 0;
+					}), 238, (_2992: [rs.u8, rs.u8]): rs.u8 => {
+						return _2992[0] ^ _2992[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z14, n), 238, (_21003: [rs.u8, rs.u8]): rs.u8 => {
-						return _21003[0] ^ _21003[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z14, n), 238, (_2993: [rs.u8, rs.u8]): rs.u8 => {
+						return _2993[0] ^ _2993[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z14.next()), 238, (_21004: [rs.u8, rs.u8]): rs.u8 => {
-						return _21004[0] ^ _21004[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z14.next()), 238, (_2994: [rs.u8, rs.u8]): rs.u8 => {
+						return _2994[0] ^ _2994[1];
 					}));
 				}
 			} else if (_765 === 1) {
-				const z15: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2987: rs.u8): rs.u8 => {
-					const x433: rs.u8 = _2987;
+				const z15: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2975: rs.u8): rs.u8 => {
+					const x421: rs.u8 = _2975;
 					const _6279: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6279.value, x433 ^ 5);
+					rs.byteVecPush(_6279.value, x421 ^ 5);
 					rs.refMutRelease(_6279);
-					return x433;
-				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2988: rs.u8): rs.u8 => {
-					const x434: rs.u8 = _2988;
+					return x421;
+				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2976: rs.u8): rs.u8 => {
+					const x422: rs.u8 = _2976;
 					const _6280: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6280.value, x434 ^ 6);
+					rs.byteVecPush(_6280.value, x422 ^ 6);
 					rs.refMutRelease(_6280);
-					return x434;
+					return x422;
 				}), "len");
+				const _836: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2977: [rs.u8, rs.u8]): rs.u8 => {
+					return _2977[0] ^ _2977[1];
+				};
 				const _837: rs.usize = rs.usizeRem(data.length, 8);
 				if (_837 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBox(z15)) & 0xff);
 				} else if (_837 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z15)), 238, (_2997: [rs.u8, rs.u8]): rs.u8 => {
-						return _2997[0] ^ _2997[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z15)), 238, (_2986: [rs.u8, rs.u8]): rs.u8 => {
+						return _2986[0] ^ _2986[1];
 					}));
 				} else if (_837 === 2) {
 					const _844: (a0: [rs.u8, rs.u8]) => undefined = (p55: [rs.u8, rs.u8]): undefined => {
@@ -3041,12 +2970,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBox(z15), _844);
 				} else if (_837 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z15), (_2996: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_2996[0] as rs.u32, _2996[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z15), (_2985: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2985[0] as rs.u32, _2985[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_837 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z15), (_2995: [rs.u8, rs.u8]): rs.u8 => {
-						return _2995[0] ^ _2995[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z15), (_2984: [rs.u8, rs.u8]): rs.u8 => {
+						return _2984[0] ^ _2984[1];
 					}), "next")), undefined, true);
 				} else if (_837 === 5) {
 					const _852: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc24: rs.u8, p54: [rs.u8, rs.u8]): rs.u8 => {
@@ -3054,50 +2983,53 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBox(z15), 0, _852));
 				} else if (_837 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z15), (_2994: [rs.u8, rs.u8]): rs.u8 => {
-						return _2994[0] ^ _2994[1];
-					}), (x441: rs.u8): boolean => {
-						return x441 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z15), (_2983: [rs.u8, rs.u8]): rs.u8 => {
+						return _2983[0] ^ _2983[1];
+					}), (x430: rs.u8): boolean => {
+						return x430 === 0;
 					}) ? 1 : 0);
 				} else {
 					const z16: rs.Iter<[rs.u8, rs.u8]> = z15;
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z16), (_2989: [rs.u8, rs.u8]): boolean => {
-						return _2989[0] > _2989[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z16), (_2978: [rs.u8, rs.u8]): boolean => {
+						return _2978[0] > _2978[1];
 					}), 238, (i29: rs.usize): rs.u8 => {
 						return i29 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z16), (_2990: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2990[0], 3) === 0;
-					}), 238, (_2991: [rs.u8, rs.u8]): rs.u8 => {
-						return _2991[0] ^ _2991[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z16), (_2979: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2979[0], 3) === 0;
+					}), 238, (_2980: [rs.u8, rs.u8]): rs.u8 => {
+						return _2980[0] ^ _2980[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z16), n), 238, (_2992: [rs.u8, rs.u8]): rs.u8 => {
-						return _2992[0] ^ _2992[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z16), n), 238, (_2981: [rs.u8, rs.u8]): rs.u8 => {
+						return _2981[0] ^ _2981[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z16.next()), 238, (_2993: [rs.u8, rs.u8]): rs.u8 => {
-						return _2993[0] ^ _2993[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z16.next()), 238, (_2982: [rs.u8, rs.u8]): rs.u8 => {
+						return _2982[0] ^ _2982[1];
 					}));
 				}
 			} else if (_765 === 2) {
-				const z17: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2976: rs.u8): rs.u8 => {
-					const x421: rs.u8 = _2976;
+				const z17: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2963: rs.u8): rs.u8 => {
+					const x408: rs.u8 = _2963;
 					const _6275: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6275.value, x421 ^ 5);
+					rs.byteVecPush(_6275.value, x408 ^ 5);
 					rs.refMutRelease(_6275);
-					return x421;
-				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2977: rs.u8): rs.u8 => {
-					const x422: rs.u8 = _2977;
+					return x408;
+				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2964: rs.u8): rs.u8 => {
+					const x409: rs.u8 = _2964;
 					const _6276: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6276.value, x422 ^ 6);
+					rs.byteVecPush(_6276.value, x409 ^ 6);
 					rs.refMutRelease(_6276);
-					return x422;
+					return x409;
 				}), "len"), n);
+				const _890: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2965: [rs.u8, rs.u8]): rs.u8 => {
+					return _2965[0] ^ _2965[1];
+				};
 				const _891: rs.usize = rs.usizeRem(data.length, 8);
 				if (_891 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBox(z17)) & 0xff);
 				} else if (_891 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z17)), 238, (_2986: [rs.u8, rs.u8]): rs.u8 => {
-						return _2986[0] ^ _2986[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z17)), 238, (_2974: [rs.u8, rs.u8]): rs.u8 => {
+						return _2974[0] ^ _2974[1];
 					}));
 				} else if (_891 === 2) {
 					const _898: (a0: [rs.u8, rs.u8]) => undefined = (p53: [rs.u8, rs.u8]): undefined => {
@@ -3105,12 +3037,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBox(z17), _898);
 				} else if (_891 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z17), (_2985: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_2985[0] as rs.u32, _2985[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z17), (_2973: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2973[0] as rs.u32, _2973[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_891 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z17), (_2984: [rs.u8, rs.u8]): rs.u8 => {
-						return _2984[0] ^ _2984[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z17), (_2972: [rs.u8, rs.u8]): rs.u8 => {
+						return _2972[0] ^ _2972[1];
 					}), "next")), undefined, true);
 				} else if (_891 === 5) {
 					const _906: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc23: rs.u8, p52: [rs.u8, rs.u8]): rs.u8 => {
@@ -3118,50 +3050,53 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBox(z17), 0, _906));
 				} else if (_891 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z17), (_2983: [rs.u8, rs.u8]): rs.u8 => {
-						return _2983[0] ^ _2983[1];
-					}), (x429: rs.u8): boolean => {
-						return x429 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z17), (_2971: [rs.u8, rs.u8]): rs.u8 => {
+						return _2971[0] ^ _2971[1];
+					}), (x417: rs.u8): boolean => {
+						return x417 === 0;
 					}) ? 1 : 0);
 				} else {
 					const z18: rs.Iter<[rs.u8, rs.u8]> = z17;
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z18), (_2978: [rs.u8, rs.u8]): boolean => {
-						return _2978[0] > _2978[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z18), (_2966: [rs.u8, rs.u8]): boolean => {
+						return _2966[0] > _2966[1];
 					}), 238, (i28: rs.usize): rs.u8 => {
 						return i28 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z18), (_2979: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2979[0], 3) === 0;
-					}), 238, (_2980: [rs.u8, rs.u8]): rs.u8 => {
-						return _2980[0] ^ _2980[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z18), (_2967: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2967[0], 3) === 0;
+					}), 238, (_2968: [rs.u8, rs.u8]): rs.u8 => {
+						return _2968[0] ^ _2968[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z18), n), 238, (_2981: [rs.u8, rs.u8]): rs.u8 => {
-						return _2981[0] ^ _2981[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z18), n), 238, (_2969: [rs.u8, rs.u8]): rs.u8 => {
+						return _2969[0] ^ _2969[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z18.next()), 238, (_2982: [rs.u8, rs.u8]): rs.u8 => {
-						return _2982[0] ^ _2982[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z18.next()), 238, (_2970: [rs.u8, rs.u8]): rs.u8 => {
+						return _2970[0] ^ _2970[1];
 					}));
 				}
 			} else if (_765 === 3) {
-				const _930: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2965: rs.u8): rs.u8 => {
-					const x409: rs.u8 = _2965;
+				const _930: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2951: rs.u8): rs.u8 => {
+					const x395: rs.u8 = _2951;
 					const _6271: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6271.value, x409 ^ 5);
+					rs.byteVecPush(_6271.value, x395 ^ 5);
 					rs.refMutRelease(_6271);
-					return x409;
-				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2966: rs.u8): rs.u8 => {
-					const x410: rs.u8 = _2966;
+					return x395;
+				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2952: rs.u8): rs.u8 => {
+					const x396: rs.u8 = _2952;
 					const _6272: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6272.value, x410 ^ 6);
+					rs.byteVecPush(_6272.value, x396 ^ 6);
 					rs.refMutRelease(_6272);
-					return x410;
+					return x396;
 				}), "len");
+				const _944: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2953: [rs.u8, rs.u8]): rs.u8 => {
+					return _2953[0] ^ _2953[1];
+				};
 				const _945: rs.usize = rs.usizeRem(data.length, 8);
 				if (_945 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_930)))) & 0xff);
 				} else if (_945 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_930)))), 238, (_2975: [rs.u8, rs.u8]): rs.u8 => {
-						return _2975[0] ^ _2975[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_930)))), 238, (_2962: [rs.u8, rs.u8]): rs.u8 => {
+						return _2962[0] ^ _2962[1];
 					}));
 				} else if (_945 === 2) {
 					const _952: (a0: [rs.u8, rs.u8]) => undefined = (p51: [rs.u8, rs.u8]): undefined => {
@@ -3169,12 +3104,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_930))), _952);
 				} else if (_945 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_930))), (_2974: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_2974[0] as rs.u32, _2974[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_930))), (_2961: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2961[0] as rs.u32, _2961[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_945 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_930))), (_2973: [rs.u8, rs.u8]): rs.u8 => {
-						return _2973[0] ^ _2973[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_930))), (_2960: [rs.u8, rs.u8]): rs.u8 => {
+						return _2960[0] ^ _2960[1];
 					}), "next")), undefined, true);
 				} else if (_945 === 5) {
 					const _960: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc22: rs.u8, p50: [rs.u8, rs.u8]): rs.u8 => {
@@ -3182,49 +3117,52 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_930))), 0, _960));
 				} else if (_945 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_930))), (_2972: [rs.u8, rs.u8]): rs.u8 => {
-						return _2972[0] ^ _2972[1];
-					}), (x417: rs.u8): boolean => {
-						return x417 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_930))), (_2959: [rs.u8, rs.u8]): rs.u8 => {
+						return _2959[0] ^ _2959[1];
+					}), (x404: rs.u8): boolean => {
+						return x404 === 0;
 					}) ? 1 : 0);
 				} else {
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_930), (_2967: [rs.u8, rs.u8]): boolean => {
-						return _2967[0] > _2967[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_930), (_2954: [rs.u8, rs.u8]): boolean => {
+						return _2954[0] > _2954[1];
 					}), 238, (i27: rs.usize): rs.u8 => {
 						return i27 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_930), (_2968: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2968[0], 3) === 0;
-					}), 238, (_2969: [rs.u8, rs.u8]): rs.u8 => {
-						return _2969[0] ^ _2969[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_930), (_2955: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2955[0], 3) === 0;
+					}), 238, (_2956: [rs.u8, rs.u8]): rs.u8 => {
+						return _2956[0] ^ _2956[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_930), n), 238, (_2970: [rs.u8, rs.u8]): rs.u8 => {
-						return _2970[0] ^ _2970[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_930), n), 238, (_2957: [rs.u8, rs.u8]): rs.u8 => {
+						return _2957[0] ^ _2957[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_930.next()), 238, (_2971: [rs.u8, rs.u8]): rs.u8 => {
-						return _2971[0] ^ _2971[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_930.next()), 238, (_2958: [rs.u8, rs.u8]): rs.u8 => {
+						return _2958[0] ^ _2958[1];
 					}));
 				}
 			} else {
-				const _979: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2954: rs.u8): rs.u8 => {
-					const x397: rs.u8 = _2954;
+				const _979: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2939: rs.u8): rs.u8 => {
+					const x382: rs.u8 = _2939;
 					const _6267: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6267.value, x397 ^ 5);
+					rs.byteVecPush(_6267.value, x382 ^ 5);
 					rs.refMutRelease(_6267);
-					return x397;
-				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2955: rs.u8): rs.u8 => {
-					const x398: rs.u8 = _2955;
+					return x382;
+				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2940: rs.u8): rs.u8 => {
+					const x383: rs.u8 = _2940;
 					const _6268: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6268.value, x398 ^ 6);
+					rs.byteVecPush(_6268.value, x383 ^ 6);
 					rs.refMutRelease(_6268);
-					return x398;
+					return x383;
 				}), "len"), n);
+				const _994: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2941: [rs.u8, rs.u8]): rs.u8 => {
+					return _2941[0] ^ _2941[1];
+				};
 				const _995: rs.usize = rs.usizeRem(data.length, 8);
 				if (_995 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_979)))) & 0xff);
 				} else if (_995 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_979)))), 238, (_2964: [rs.u8, rs.u8]): rs.u8 => {
-						return _2964[0] ^ _2964[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_979)))), 238, (_2950: [rs.u8, rs.u8]): rs.u8 => {
+						return _2950[0] ^ _2950[1];
 					}));
 				} else if (_995 === 2) {
 					const _1002: (a0: [rs.u8, rs.u8]) => undefined = (p49: [rs.u8, rs.u8]): undefined => {
@@ -3232,12 +3170,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_979))), _1002);
 				} else if (_995 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_979))), (_2963: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_2963[0] as rs.u32, _2963[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_979))), (_2949: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2949[0] as rs.u32, _2949[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_995 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_979))), (_2962: [rs.u8, rs.u8]): rs.u8 => {
-						return _2962[0] ^ _2962[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_979))), (_2948: [rs.u8, rs.u8]): rs.u8 => {
+						return _2948[0] ^ _2948[1];
 					}), "next")), undefined, true);
 				} else if (_995 === 5) {
 					const _1010: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc21: rs.u8, p48: [rs.u8, rs.u8]): rs.u8 => {
@@ -3245,151 +3183,151 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_979))), 0, _1010));
 				} else if (_995 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_979))), (_2961: [rs.u8, rs.u8]): rs.u8 => {
-						return _2961[0] ^ _2961[1];
-					}), (x405: rs.u8): boolean => {
-						return x405 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_979))), (_2947: [rs.u8, rs.u8]): rs.u8 => {
+						return _2947[0] ^ _2947[1];
+					}), (x391: rs.u8): boolean => {
+						return x391 === 0;
 					}) ? 1 : 0);
 				} else {
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_979), (_2956: [rs.u8, rs.u8]): boolean => {
-						return _2956[0] > _2956[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_979), (_2942: [rs.u8, rs.u8]): boolean => {
+						return _2942[0] > _2942[1];
 					}), 238, (i26: rs.usize): rs.u8 => {
 						return i26 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_979), (_2957: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2957[0], 3) === 0;
-					}), 238, (_2958: [rs.u8, rs.u8]): rs.u8 => {
-						return _2958[0] ^ _2958[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_979), (_2943: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2943[0], 3) === 0;
+					}), 238, (_2944: [rs.u8, rs.u8]): rs.u8 => {
+						return _2944[0] ^ _2944[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_979), n), 238, (_2959: [rs.u8, rs.u8]): rs.u8 => {
-						return _2959[0] ^ _2959[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_979), n), 238, (_2945: [rs.u8, rs.u8]): rs.u8 => {
+						return _2945[0] ^ _2945[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_979.next()), 238, (_2960: [rs.u8, rs.u8]): rs.u8 => {
-						return _2960[0] ^ _2960[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_979.next()), 238, (_2946: [rs.u8, rs.u8]): rs.u8 => {
+						return _2946[0] ^ _2946[1];
 					}));
 				}
 			}
 		} else {
 			const _1028: rs.usize = rs.usizeRem(data.length, 8);
 			if (_1028 === 0) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2951: rs.u8): rs.u8 => {
-					const x394: rs.u8 = _2951;
+				rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2936: rs.u8): rs.u8 => {
+					const x379: rs.u8 = _2936;
 					const _6265: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6265.value, x394 ^ 5);
+					rs.byteVecPush(_6265.value, x379 ^ 5);
 					rs.refMutRelease(_6265);
-					return x394;
-				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2952: rs.u8): rs.u8 => {
-					const x395: rs.u8 = _2952;
+					return x379;
+				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2937: rs.u8): rs.u8 => {
+					const x380: rs.u8 = _2937;
 					const _6266: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6266.value, x395 ^ 6);
+					rs.byteVecPush(_6266.value, x380 ^ 6);
 					rs.refMutRelease(_6266);
-					return x395;
-				}), "len"), (_2953: [rs.u8, rs.u8]): boolean => {
-					return rs.u8Rem(_2953[0], 2) === 0;
+					return x380;
+				}), "len"), (_2938: [rs.u8, rs.u8]): boolean => {
+					return rs.u8Rem(_2938[0], 2) === 0;
 				})) & 0xff);
 			} else if (_1028 === 1) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterFilterMap(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2948: rs.u8): rs.u8 => {
-					const x391: rs.u8 = _2948;
+				rs.byteVecPush(out, rs.iterCount(rs.iterFilterMap(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2933: rs.u8): rs.u8 => {
+					const x376: rs.u8 = _2933;
 					const _6263: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6263.value, x391 ^ 5);
+					rs.byteVecPush(_6263.value, x376 ^ 5);
 					rs.refMutRelease(_6263);
-					return x391;
-				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2949: rs.u8): rs.u8 => {
-					const x392: rs.u8 = _2949;
+					return x376;
+				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2934: rs.u8): rs.u8 => {
+					const x377: rs.u8 = _2934;
 					const _6264: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6264.value, x392 ^ 6);
+					rs.byteVecPush(_6264.value, x377 ^ 6);
 					rs.refMutRelease(_6264);
-					return x392;
-				}), "len"), (_2950: [rs.u8, rs.u8]): rs.u8 | undefined => {
-					return rs.u8CheckedSub(_2950[0], _2950[1]);
+					return x377;
+				}), "len"), (_2935: [rs.u8, rs.u8]): rs.u8 | undefined => {
+					return rs.u8CheckedSub(_2935[0], _2935[1]);
 				})) & 0xff);
 			} else if (_1028 === 2) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterSkipWhile(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2945: rs.u8): rs.u8 => {
-					const x388: rs.u8 = _2945;
+				rs.byteVecPush(out, rs.iterCount(rs.iterSkipWhile(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2930: rs.u8): rs.u8 => {
+					const x373: rs.u8 = _2930;
 					const _6261: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6261.value, x388 ^ 5);
+					rs.byteVecPush(_6261.value, x373 ^ 5);
 					rs.refMutRelease(_6261);
-					return x388;
-				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2946: rs.u8): rs.u8 => {
-					const x389: rs.u8 = _2946;
+					return x373;
+				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2931: rs.u8): rs.u8 => {
+					const x374: rs.u8 = _2931;
 					const _6262: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6262.value, x389 ^ 6);
+					rs.byteVecPush(_6262.value, x374 ^ 6);
 					rs.refMutRelease(_6262);
-					return x389;
-				}), "len"), (_2947: [rs.u8, rs.u8]): boolean => {
-					return _2947[0] < 128;
+					return x374;
+				}), "len"), (_2932: [rs.u8, rs.u8]): boolean => {
+					return _2932[0] < 128;
 				})) & 0xff);
 			} else if (_1028 === 3) {
-				rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(rs.iterMap(rs.iterEnumerate(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2942: rs.u8): rs.u8 => {
-					const x386: rs.u8 = _2942;
+				rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(rs.iterMap(rs.iterEnumerate(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2927: rs.u8): rs.u8 => {
+					const x371: rs.u8 = _2927;
 					const _6259: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6259.value, x386 ^ 5);
+					rs.byteVecPush(_6259.value, x371 ^ 5);
 					rs.refMutRelease(_6259);
-					return x386;
-				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2943: rs.u8): rs.u8 => {
-					const x387: rs.u8 = _2943;
+					return x371;
+				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2928: rs.u8): rs.u8 => {
+					const x372: rs.u8 = _2928;
 					const _6260: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6260.value, x387 ^ 6);
+					rs.byteVecPush(_6260.value, x372 ^ 6);
 					rs.refMutRelease(_6260);
-					return x387;
-				}), "len")), (_2944: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
-					return _2944[0] & 0xff;
+					return x372;
+				}), "len")), (_2929: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
+					return _2929[0] & 0xff;
 				})), 238));
 			} else if (_1028 === 4) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterChain(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2940: rs.u8): rs.u8 => {
-					const x384: rs.u8 = _2940;
+				rs.byteVecPush(out, rs.iterCount(rs.iterChain(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2925: rs.u8): rs.u8 => {
+					const x369: rs.u8 = _2925;
 					const _6257: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6257.value, x384 ^ 5);
+					rs.byteVecPush(_6257.value, x369 ^ 5);
 					rs.refMutRelease(_6257);
-					return x384;
-				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2941: rs.u8): rs.u8 => {
-					const x385: rs.u8 = _2941;
+					return x369;
+				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2926: rs.u8): rs.u8 => {
+					const x370: rs.u8 = _2926;
 					const _6258: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6258.value, x385 ^ 6);
+					rs.byteVecPush(_6258.value, x370 ^ 6);
 					rs.refMutRelease(_6258);
-					return x385;
+					return x370;
 				}), "len"), rs.iterSlice([[1, 2] as [rs.u8, rs.u8]]))) & 0xff);
 			} else if (_1028 === 5) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterTake(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2938: rs.u8): rs.u8 => {
-					const x382: rs.u8 = _2938;
+				rs.byteVecPush(out, rs.iterCount(rs.iterTake(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2923: rs.u8): rs.u8 => {
+					const x367: rs.u8 = _2923;
 					const _6255: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6255.value, x382 ^ 5);
+					rs.byteVecPush(_6255.value, x367 ^ 5);
 					rs.refMutRelease(_6255);
-					return x382;
-				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2939: rs.u8): rs.u8 => {
-					const x383: rs.u8 = _2939;
+					return x367;
+				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2924: rs.u8): rs.u8 => {
+					const x368: rs.u8 = _2924;
 					const _6256: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6256.value, x383 ^ 6);
+					rs.byteVecPush(_6256.value, x368 ^ 6);
 					rs.refMutRelease(_6256);
-					return x383;
+					return x368;
 				}), "len"), n)) & 0xff);
 			} else if (_1028 === 6) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterSkip(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2936: rs.u8): rs.u8 => {
-					const x380: rs.u8 = _2936;
+				rs.byteVecPush(out, rs.iterCount(rs.iterSkip(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2921: rs.u8): rs.u8 => {
+					const x365: rs.u8 = _2921;
 					const _6253: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6253.value, x380 ^ 5);
+					rs.byteVecPush(_6253.value, x365 ^ 5);
 					rs.refMutRelease(_6253);
-					return x380;
-				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2937: rs.u8): rs.u8 => {
-					const x381: rs.u8 = _2937;
+					return x365;
+				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2922: rs.u8): rs.u8 => {
+					const x366: rs.u8 = _2922;
 					const _6254: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6254.value, x381 ^ 6);
+					rs.byteVecPush(_6254.value, x366 ^ 6);
 					rs.refMutRelease(_6254);
-					return x381;
+					return x366;
 				}), "len"), n)) & 0xff);
 			} else {
-				const p3: rs.Peekable<[rs.u8, rs.u8]> = rs.iterPeekable(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2934: rs.u8): rs.u8 => {
-					const x378: rs.u8 = _2934;
+				const p3: rs.Peekable<[rs.u8, rs.u8]> = rs.iterPeekable(rs.iterZip(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2919: rs.u8): rs.u8 => {
+					const x363: rs.u8 = _2919;
 					const _6251: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6251.value, x378 ^ 5);
+					rs.byteVecPush(_6251.value, x363 ^ 5);
 					rs.refMutRelease(_6251);
-					return x378;
-				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2935: rs.u8): rs.u8 => {
-					const x379: rs.u8 = _2935;
+					return x363;
+				}), rs.iterSlice(rs.byteSliceView(b2))), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2920: rs.u8): rs.u8 => {
+					const x364: rs.u8 = _2920;
 					const _6252: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6252.value, x379 ^ 6);
+					rs.byteVecPush(_6252.value, x364 ^ 6);
 					rs.refMutRelease(_6252);
-					return x379;
+					return x364;
 				}), "len"));
 				rs.byteVecPush(out, (rs.peekablePeek(p3) !== undefined ? 1 : 0) ^ (rs.iterCount(p3) & 0xff));
 			}
@@ -3399,83 +3337,89 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			if ((kind & 16) === 0) {
 				const _1171: rs.usize = rs.usizeRem(rs.usizeDiv(data.length, 8), 5);
 				if (_1171 === 0) {
-					const z19: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x366: rs.u8): rs.u8 => {
+					const z19: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x350: rs.u8): rs.u8 => {
 						const _6247: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6247.value, x366 ^ 7);
+						rs.byteVecPush(_6247.value, x350 ^ 7);
 						rs.refMutRelease(_6247);
-						return x366;
-					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x367: rs.u8): rs.u8 => {
+						return x350;
+					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x351: rs.u8): rs.u8 => {
 						const _6248: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6248.value, x367 ^ 8);
+						rs.byteVecPush(_6248.value, x351 ^ 8);
 						rs.refMutRelease(_6248);
-						return x367;
+						return x351;
 					}), "index");
+					const _1187: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2909: [rs.u8, rs.u8]): rs.u8 => {
+						return _2909[0] ^ _2909[1];
+					};
 					const _1188: rs.usize = rs.usizeRem(data.length, 8);
 					if (_1188 === 0) {
 						rs.byteVecPush(out, rs.iterCount(z19) & 0xff);
 					} else if (_1188 === 1) {
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(z19), 238, (_2933: [rs.u8, rs.u8]): rs.u8 => {
-							return _2933[0] ^ _2933[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(z19), 238, (_2918: [rs.u8, rs.u8]): rs.u8 => {
+							return _2918[0] ^ _2918[1];
 						}));
 					} else if (_1188 === 2) {
 						rs.iterForEach(z19, (p47: [rs.u8, rs.u8]): undefined => {
 							rs.byteVecPush(out, _1187(p47));
 						});
 					} else if (_1188 === 3) {
-						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(z19, (_2932: [rs.u8, rs.u8]): rs.u32 => {
-							return rs.u32Add(_2932[0] as rs.u32, _2932[1] as rs.u32);
+						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(z19, (_2917: [rs.u8, rs.u8]): rs.u32 => {
+							return rs.u32Add(_2917[0] as rs.u32, _2917[1] as rs.u32);
 						}), rs.u32Add, 0)).reverse()), undefined, true);
 					} else if (_1188 === 4) {
-						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(z19, (_2931: [rs.u8, rs.u8]): rs.u8 => {
-							return _2931[0] ^ _2931[1];
+						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(z19, (_2916: [rs.u8, rs.u8]): rs.u8 => {
+							return _2916[0] ^ _2916[1];
 						}), "index", true, 1)), undefined, true);
 					} else if (_1188 === 5) {
 						rs.byteVecPush(out, rs.iterFold(z19, 0, (acc20: rs.u8, p46: [rs.u8, rs.u8]): rs.u8 => {
 							return rs.u8WrappingMul(acc20, 3) ^ _1187(p46);
 						}));
 					} else if (_1188 === 6) {
-						rs.byteVecPush(out, rs.iterAny(rs.iterMap(z19, (_2930: [rs.u8, rs.u8]): rs.u8 => {
-							return _2930[0] ^ _2930[1];
-						}), (x374: rs.u8): boolean => {
-							return x374 === 0;
+						rs.byteVecPush(out, rs.iterAny(rs.iterMap(z19, (_2915: [rs.u8, rs.u8]): rs.u8 => {
+							return _2915[0] ^ _2915[1];
+						}), (x359: rs.u8): boolean => {
+							return x359 === 0;
 						}) ? 1 : 0);
 					} else {
 						const z20: rs.Iter<[rs.u8, rs.u8]> = z19;
-						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(z20, (_2925: [rs.u8, rs.u8]): boolean => {
-							return _2925[0] > _2925[1];
+						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(z20, (_2910: [rs.u8, rs.u8]): boolean => {
+							return _2910[0] > _2910[1];
 						}), 238, (i24: rs.usize): rs.u8 => {
 							return i24 & 0xff;
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(z20, (_2926: [rs.u8, rs.u8]): boolean => {
-							return rs.u8Rem(_2926[0], 3) === 0;
-						}), 238, (_2927: [rs.u8, rs.u8]): rs.u8 => {
-							return _2927[0] ^ _2927[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(z20, (_2911: [rs.u8, rs.u8]): boolean => {
+							return rs.u8Rem(_2911[0], 3) === 0;
+						}), 238, (_2912: [rs.u8, rs.u8]): rs.u8 => {
+							return _2912[0] ^ _2912[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z20, n), 238, (_2928: [rs.u8, rs.u8]): rs.u8 => {
-							return _2928[0] ^ _2928[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z20, n), 238, (_2913: [rs.u8, rs.u8]): rs.u8 => {
+							return _2913[0] ^ _2913[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z20.next()), 238, (_2929: [rs.u8, rs.u8]): rs.u8 => {
-							return _2929[0] ^ _2929[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z20.next()), 238, (_2914: [rs.u8, rs.u8]): rs.u8 => {
+							return _2914[0] ^ _2914[1];
 						}));
 					}
 				} else if (_1171 === 1) {
-					const z21: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x354: rs.u8): rs.u8 => {
+					const z21: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x337: rs.u8): rs.u8 => {
 						const _6243: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6243.value, x354 ^ 7);
+						rs.byteVecPush(_6243.value, x337 ^ 7);
 						rs.refMutRelease(_6243);
-						return x354;
-					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x355: rs.u8): rs.u8 => {
+						return x337;
+					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x338: rs.u8): rs.u8 => {
 						const _6244: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6244.value, x355 ^ 8);
+						rs.byteVecPush(_6244.value, x338 ^ 8);
 						rs.refMutRelease(_6244);
-						return x355;
+						return x338;
 					}), "index");
+					const _1238: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2899: [rs.u8, rs.u8]): rs.u8 => {
+						return _2899[0] ^ _2899[1];
+					};
 					const _1239: rs.usize = rs.usizeRem(data.length, 8);
 					if (_1239 === 0) {
 						rs.byteVecPush(out, rs.iterCount(rs.iterBox(z21)) & 0xff);
 					} else if (_1239 === 1) {
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z21)), 238, (_2924: [rs.u8, rs.u8]): rs.u8 => {
-							return _2924[0] ^ _2924[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z21)), 238, (_2908: [rs.u8, rs.u8]): rs.u8 => {
+							return _2908[0] ^ _2908[1];
 						}));
 					} else if (_1239 === 2) {
 						const _1246: (a0: [rs.u8, rs.u8]) => undefined = (p45: [rs.u8, rs.u8]): undefined => {
@@ -3483,12 +3427,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.iterForEach(rs.iterBox(z21), _1246);
 					} else if (_1239 === 3) {
-						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z21), (_2923: [rs.u8, rs.u8]): rs.u32 => {
-							return rs.u32Add(_2923[0] as rs.u32, _2923[1] as rs.u32);
+						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z21), (_2907: [rs.u8, rs.u8]): rs.u32 => {
+							return rs.u32Add(_2907[0] as rs.u32, _2907[1] as rs.u32);
 						}), rs.u32Add, 0)).reverse()), undefined, true);
 					} else if (_1239 === 4) {
-						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z21), (_2922: [rs.u8, rs.u8]): rs.u8 => {
-							return _2922[0] ^ _2922[1];
+						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z21), (_2906: [rs.u8, rs.u8]): rs.u8 => {
+							return _2906[0] ^ _2906[1];
 						}), "next")), undefined, true);
 					} else if (_1239 === 5) {
 						const _1254: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc19: rs.u8, p44: [rs.u8, rs.u8]): rs.u8 => {
@@ -3496,48 +3440,51 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.byteVecPush(out, rs.iterFold(rs.iterBox(z21), 0, _1254));
 					} else if (_1239 === 6) {
-						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z21), (_2921: [rs.u8, rs.u8]): rs.u8 => {
-							return _2921[0] ^ _2921[1];
-						}), (x362: rs.u8): boolean => {
-							return x362 === 0;
+						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z21), (_2905: [rs.u8, rs.u8]): rs.u8 => {
+							return _2905[0] ^ _2905[1];
+						}), (x346: rs.u8): boolean => {
+							return x346 === 0;
 						}) ? 1 : 0);
 					} else {
 						const z22: rs.Iter<[rs.u8, rs.u8]> = z21;
-						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z22), (_2916: [rs.u8, rs.u8]): boolean => {
-							return _2916[0] > _2916[1];
+						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z22), (_2900: [rs.u8, rs.u8]): boolean => {
+							return _2900[0] > _2900[1];
 						}), 238, (i23: rs.usize): rs.u8 => {
 							return i23 & 0xff;
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z22), (_2917: [rs.u8, rs.u8]): boolean => {
-							return rs.u8Rem(_2917[0], 3) === 0;
-						}), 238, (_2918: [rs.u8, rs.u8]): rs.u8 => {
-							return _2918[0] ^ _2918[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z22), (_2901: [rs.u8, rs.u8]): boolean => {
+							return rs.u8Rem(_2901[0], 3) === 0;
+						}), 238, (_2902: [rs.u8, rs.u8]): rs.u8 => {
+							return _2902[0] ^ _2902[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z22), n), 238, (_2919: [rs.u8, rs.u8]): rs.u8 => {
-							return _2919[0] ^ _2919[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z22), n), 238, (_2903: [rs.u8, rs.u8]): rs.u8 => {
+							return _2903[0] ^ _2903[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z22.next()), 238, (_2920: [rs.u8, rs.u8]): rs.u8 => {
-							return _2920[0] ^ _2920[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z22.next()), 238, (_2904: [rs.u8, rs.u8]): rs.u8 => {
+							return _2904[0] ^ _2904[1];
 						}));
 					}
 				} else if (_1171 === 2) {
-					const z23: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x342: rs.u8): rs.u8 => {
+					const z23: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x324: rs.u8): rs.u8 => {
 						const _6239: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6239.value, x342 ^ 7);
+						rs.byteVecPush(_6239.value, x324 ^ 7);
 						rs.refMutRelease(_6239);
-						return x342;
-					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x343: rs.u8): rs.u8 => {
+						return x324;
+					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x325: rs.u8): rs.u8 => {
 						const _6240: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6240.value, x343 ^ 8);
+						rs.byteVecPush(_6240.value, x325 ^ 8);
 						rs.refMutRelease(_6240);
-						return x343;
+						return x325;
 					}), "index"), n);
+					const _1290: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2889: [rs.u8, rs.u8]): rs.u8 => {
+						return _2889[0] ^ _2889[1];
+					};
 					const _1291: rs.usize = rs.usizeRem(data.length, 8);
 					if (_1291 === 0) {
 						rs.byteVecPush(out, rs.iterCount(rs.iterBox(z23)) & 0xff);
 					} else if (_1291 === 1) {
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z23)), 238, (_2915: [rs.u8, rs.u8]): rs.u8 => {
-							return _2915[0] ^ _2915[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z23)), 238, (_2898: [rs.u8, rs.u8]): rs.u8 => {
+							return _2898[0] ^ _2898[1];
 						}));
 					} else if (_1291 === 2) {
 						const _1298: (a0: [rs.u8, rs.u8]) => undefined = (p43: [rs.u8, rs.u8]): undefined => {
@@ -3545,12 +3492,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.iterForEach(rs.iterBox(z23), _1298);
 					} else if (_1291 === 3) {
-						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z23), (_2914: [rs.u8, rs.u8]): rs.u32 => {
-							return rs.u32Add(_2914[0] as rs.u32, _2914[1] as rs.u32);
+						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z23), (_2897: [rs.u8, rs.u8]): rs.u32 => {
+							return rs.u32Add(_2897[0] as rs.u32, _2897[1] as rs.u32);
 						}), rs.u32Add, 0)).reverse()), undefined, true);
 					} else if (_1291 === 4) {
-						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z23), (_2913: [rs.u8, rs.u8]): rs.u8 => {
-							return _2913[0] ^ _2913[1];
+						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z23), (_2896: [rs.u8, rs.u8]): rs.u8 => {
+							return _2896[0] ^ _2896[1];
 						}), "next")), undefined, true);
 					} else if (_1291 === 5) {
 						const _1306: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc18: rs.u8, p42: [rs.u8, rs.u8]): rs.u8 => {
@@ -3558,48 +3505,51 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.byteVecPush(out, rs.iterFold(rs.iterBox(z23), 0, _1306));
 					} else if (_1291 === 6) {
-						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z23), (_2912: [rs.u8, rs.u8]): rs.u8 => {
-							return _2912[0] ^ _2912[1];
-						}), (x350: rs.u8): boolean => {
-							return x350 === 0;
+						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z23), (_2895: [rs.u8, rs.u8]): rs.u8 => {
+							return _2895[0] ^ _2895[1];
+						}), (x333: rs.u8): boolean => {
+							return x333 === 0;
 						}) ? 1 : 0);
 					} else {
 						const z24: rs.Iter<[rs.u8, rs.u8]> = z23;
-						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z24), (_2907: [rs.u8, rs.u8]): boolean => {
-							return _2907[0] > _2907[1];
+						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z24), (_2890: [rs.u8, rs.u8]): boolean => {
+							return _2890[0] > _2890[1];
 						}), 238, (i22: rs.usize): rs.u8 => {
 							return i22 & 0xff;
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z24), (_2908: [rs.u8, rs.u8]): boolean => {
-							return rs.u8Rem(_2908[0], 3) === 0;
-						}), 238, (_2909: [rs.u8, rs.u8]): rs.u8 => {
-							return _2909[0] ^ _2909[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z24), (_2891: [rs.u8, rs.u8]): boolean => {
+							return rs.u8Rem(_2891[0], 3) === 0;
+						}), 238, (_2892: [rs.u8, rs.u8]): rs.u8 => {
+							return _2892[0] ^ _2892[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z24), n), 238, (_2910: [rs.u8, rs.u8]): rs.u8 => {
-							return _2910[0] ^ _2910[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z24), n), 238, (_2893: [rs.u8, rs.u8]): rs.u8 => {
+							return _2893[0] ^ _2893[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z24.next()), 238, (_2911: [rs.u8, rs.u8]): rs.u8 => {
-							return _2911[0] ^ _2911[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z24.next()), 238, (_2894: [rs.u8, rs.u8]): rs.u8 => {
+							return _2894[0] ^ _2894[1];
 						}));
 					}
 				} else if (_1171 === 3) {
-					const _1330: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x330: rs.u8): rs.u8 => {
+					const _1330: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x311: rs.u8): rs.u8 => {
 						const _6235: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6235.value, x330 ^ 7);
+						rs.byteVecPush(_6235.value, x311 ^ 7);
 						rs.refMutRelease(_6235);
-						return x330;
-					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x331: rs.u8): rs.u8 => {
+						return x311;
+					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x312: rs.u8): rs.u8 => {
 						const _6236: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6236.value, x331 ^ 8);
+						rs.byteVecPush(_6236.value, x312 ^ 8);
 						rs.refMutRelease(_6236);
-						return x331;
+						return x312;
 					}), "index");
+					const _1342: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2879: [rs.u8, rs.u8]): rs.u8 => {
+						return _2879[0] ^ _2879[1];
+					};
 					const _1343: rs.usize = rs.usizeRem(data.length, 8);
 					if (_1343 === 0) {
 						rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1330)))) & 0xff);
 					} else if (_1343 === 1) {
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1330)))), 238, (_2906: [rs.u8, rs.u8]): rs.u8 => {
-							return _2906[0] ^ _2906[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1330)))), 238, (_2888: [rs.u8, rs.u8]): rs.u8 => {
+							return _2888[0] ^ _2888[1];
 						}));
 					} else if (_1343 === 2) {
 						const _1350: (a0: [rs.u8, rs.u8]) => undefined = (p41: [rs.u8, rs.u8]): undefined => {
@@ -3607,12 +3557,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.iterForEach(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1330))), _1350);
 					} else if (_1343 === 3) {
-						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1330))), (_2905: [rs.u8, rs.u8]): rs.u32 => {
-							return rs.u32Add(_2905[0] as rs.u32, _2905[1] as rs.u32);
+						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1330))), (_2887: [rs.u8, rs.u8]): rs.u32 => {
+							return rs.u32Add(_2887[0] as rs.u32, _2887[1] as rs.u32);
 						}), rs.u32Add, 0)).reverse()), undefined, true);
 					} else if (_1343 === 4) {
-						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1330))), (_2904: [rs.u8, rs.u8]): rs.u8 => {
-							return _2904[0] ^ _2904[1];
+						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1330))), (_2886: [rs.u8, rs.u8]): rs.u8 => {
+							return _2886[0] ^ _2886[1];
 						}), "next")), undefined, true);
 					} else if (_1343 === 5) {
 						const _1358: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc17: rs.u8, p40: [rs.u8, rs.u8]): rs.u8 => {
@@ -3620,47 +3570,50 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.byteVecPush(out, rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1330))), 0, _1358));
 					} else if (_1343 === 6) {
-						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1330))), (_2903: [rs.u8, rs.u8]): rs.u8 => {
-							return _2903[0] ^ _2903[1];
-						}), (x338: rs.u8): boolean => {
-							return x338 === 0;
+						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1330))), (_2885: [rs.u8, rs.u8]): rs.u8 => {
+							return _2885[0] ^ _2885[1];
+						}), (x320: rs.u8): boolean => {
+							return x320 === 0;
 						}) ? 1 : 0);
 					} else {
-						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_1330), (_2898: [rs.u8, rs.u8]): boolean => {
-							return _2898[0] > _2898[1];
+						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_1330), (_2880: [rs.u8, rs.u8]): boolean => {
+							return _2880[0] > _2880[1];
 						}), 238, (i21: rs.usize): rs.u8 => {
 							return i21 & 0xff;
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_1330), (_2899: [rs.u8, rs.u8]): boolean => {
-							return rs.u8Rem(_2899[0], 3) === 0;
-						}), 238, (_2900: [rs.u8, rs.u8]): rs.u8 => {
-							return _2900[0] ^ _2900[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_1330), (_2881: [rs.u8, rs.u8]): boolean => {
+							return rs.u8Rem(_2881[0], 3) === 0;
+						}), 238, (_2882: [rs.u8, rs.u8]): rs.u8 => {
+							return _2882[0] ^ _2882[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_1330), n), 238, (_2901: [rs.u8, rs.u8]): rs.u8 => {
-							return _2901[0] ^ _2901[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_1330), n), 238, (_2883: [rs.u8, rs.u8]): rs.u8 => {
+							return _2883[0] ^ _2883[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_1330.next()), 238, (_2902: [rs.u8, rs.u8]): rs.u8 => {
-							return _2902[0] ^ _2902[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_1330.next()), 238, (_2884: [rs.u8, rs.u8]): rs.u8 => {
+							return _2884[0] ^ _2884[1];
 						}));
 					}
 				} else {
-					const _1377: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x318: rs.u8): rs.u8 => {
+					const _1377: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x298: rs.u8): rs.u8 => {
 						const _6231: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6231.value, x318 ^ 7);
+						rs.byteVecPush(_6231.value, x298 ^ 7);
 						rs.refMutRelease(_6231);
-						return x318;
-					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x319: rs.u8): rs.u8 => {
+						return x298;
+					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x299: rs.u8): rs.u8 => {
 						const _6232: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6232.value, x319 ^ 8);
+						rs.byteVecPush(_6232.value, x299 ^ 8);
 						rs.refMutRelease(_6232);
-						return x319;
+						return x299;
 					}), "index"), n);
+					const _1390: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2869: [rs.u8, rs.u8]): rs.u8 => {
+						return _2869[0] ^ _2869[1];
+					};
 					const _1391: rs.usize = rs.usizeRem(data.length, 8);
 					if (_1391 === 0) {
 						rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1377)))) & 0xff);
 					} else if (_1391 === 1) {
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1377)))), 238, (_2897: [rs.u8, rs.u8]): rs.u8 => {
-							return _2897[0] ^ _2897[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1377)))), 238, (_2878: [rs.u8, rs.u8]): rs.u8 => {
+							return _2878[0] ^ _2878[1];
 						}));
 					} else if (_1391 === 2) {
 						const _1398: (a0: [rs.u8, rs.u8]) => undefined = (p39: [rs.u8, rs.u8]): undefined => {
@@ -3668,12 +3621,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.iterForEach(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1377))), _1398);
 					} else if (_1391 === 3) {
-						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1377))), (_2896: [rs.u8, rs.u8]): rs.u32 => {
-							return rs.u32Add(_2896[0] as rs.u32, _2896[1] as rs.u32);
+						rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1377))), (_2877: [rs.u8, rs.u8]): rs.u32 => {
+							return rs.u32Add(_2877[0] as rs.u32, _2877[1] as rs.u32);
 						}), rs.u32Add, 0)).reverse()), undefined, true);
 					} else if (_1391 === 4) {
-						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1377))), (_2895: [rs.u8, rs.u8]): rs.u8 => {
-							return _2895[0] ^ _2895[1];
+						rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1377))), (_2876: [rs.u8, rs.u8]): rs.u8 => {
+							return _2876[0] ^ _2876[1];
 						}), "next")), undefined, true);
 					} else if (_1391 === 5) {
 						const _1406: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc16: rs.u8, p38: [rs.u8, rs.u8]): rs.u8 => {
@@ -3681,135 +3634,135 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						};
 						rs.byteVecPush(out, rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1377))), 0, _1406));
 					} else if (_1391 === 6) {
-						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1377))), (_2894: [rs.u8, rs.u8]): rs.u8 => {
-							return _2894[0] ^ _2894[1];
-						}), (x326: rs.u8): boolean => {
-							return x326 === 0;
+						rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1377))), (_2875: [rs.u8, rs.u8]): rs.u8 => {
+							return _2875[0] ^ _2875[1];
+						}), (x307: rs.u8): boolean => {
+							return x307 === 0;
 						}) ? 1 : 0);
 					} else {
-						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_1377), (_2889: [rs.u8, rs.u8]): boolean => {
-							return _2889[0] > _2889[1];
+						rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_1377), (_2870: [rs.u8, rs.u8]): boolean => {
+							return _2870[0] > _2870[1];
 						}), 238, (i20: rs.usize): rs.u8 => {
 							return i20 & 0xff;
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_1377), (_2890: [rs.u8, rs.u8]): boolean => {
-							return rs.u8Rem(_2890[0], 3) === 0;
-						}), 238, (_2891: [rs.u8, rs.u8]): rs.u8 => {
-							return _2891[0] ^ _2891[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_1377), (_2871: [rs.u8, rs.u8]): boolean => {
+							return rs.u8Rem(_2871[0], 3) === 0;
+						}), 238, (_2872: [rs.u8, rs.u8]): rs.u8 => {
+							return _2872[0] ^ _2872[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_1377), n), 238, (_2892: [rs.u8, rs.u8]): rs.u8 => {
-							return _2892[0] ^ _2892[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_1377), n), 238, (_2873: [rs.u8, rs.u8]): rs.u8 => {
+							return _2873[0] ^ _2873[1];
 						}));
-						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_1377.next()), 238, (_2893: [rs.u8, rs.u8]): rs.u8 => {
-							return _2893[0] ^ _2893[1];
+						rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_1377.next()), 238, (_2874: [rs.u8, rs.u8]): rs.u8 => {
+							return _2874[0] ^ _2874[1];
 						}));
 					}
 				}
 			} else {
 				const _1424: rs.usize = rs.usizeRem(data.length, 8);
 				if (_1424 === 0) {
-					rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x315: rs.u8): rs.u8 => {
+					rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x295: rs.u8): rs.u8 => {
 						const _6229: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6229.value, x315 ^ 7);
+						rs.byteVecPush(_6229.value, x295 ^ 7);
 						rs.refMutRelease(_6229);
-						return x315;
-					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x316: rs.u8): rs.u8 => {
+						return x295;
+					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x296: rs.u8): rs.u8 => {
 						const _6230: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6230.value, x316 ^ 8);
+						rs.byteVecPush(_6230.value, x296 ^ 8);
 						rs.refMutRelease(_6230);
-						return x316;
-					}), "index"), (_2888: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2888[0], 2) === 0;
+						return x296;
+					}), "index"), (_2868: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2868[0], 2) === 0;
 					})) & 0xff);
 				} else if (_1424 === 1) {
-					rs.byteVecPush(out, rs.iterCount(rs.iterFilterMap(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x312: rs.u8): rs.u8 => {
+					rs.byteVecPush(out, rs.iterCount(rs.iterFilterMap(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x292: rs.u8): rs.u8 => {
 						const _6227: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6227.value, x312 ^ 7);
+						rs.byteVecPush(_6227.value, x292 ^ 7);
 						rs.refMutRelease(_6227);
-						return x312;
-					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x313: rs.u8): rs.u8 => {
+						return x292;
+					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x293: rs.u8): rs.u8 => {
 						const _6228: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6228.value, x313 ^ 8);
+						rs.byteVecPush(_6228.value, x293 ^ 8);
 						rs.refMutRelease(_6228);
-						return x313;
-					}), "index"), (_2887: [rs.u8, rs.u8]): rs.u8 | undefined => {
-						return rs.u8CheckedSub(_2887[0], _2887[1]);
+						return x293;
+					}), "index"), (_2867: [rs.u8, rs.u8]): rs.u8 | undefined => {
+						return rs.u8CheckedSub(_2867[0], _2867[1]);
 					})) & 0xff);
 				} else if (_1424 === 2) {
-					rs.byteVecPush(out, rs.iterCount(rs.iterSkipWhile(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x309: rs.u8): rs.u8 => {
+					rs.byteVecPush(out, rs.iterCount(rs.iterSkipWhile(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x289: rs.u8): rs.u8 => {
 						const _6225: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6225.value, x309 ^ 7);
+						rs.byteVecPush(_6225.value, x289 ^ 7);
 						rs.refMutRelease(_6225);
-						return x309;
-					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x310: rs.u8): rs.u8 => {
+						return x289;
+					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x290: rs.u8): rs.u8 => {
 						const _6226: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6226.value, x310 ^ 8);
+						rs.byteVecPush(_6226.value, x290 ^ 8);
 						rs.refMutRelease(_6226);
-						return x310;
-					}), "index"), (_2886: [rs.u8, rs.u8]): boolean => {
-						return _2886[0] < 128;
+						return x290;
+					}), "index"), (_2866: [rs.u8, rs.u8]): boolean => {
+						return _2866[0] < 128;
 					})) & 0xff);
 				} else if (_1424 === 3) {
-					rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(rs.iterMap(rs.iterEnumerate(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x307: rs.u8): rs.u8 => {
+					rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(rs.iterMap(rs.iterEnumerate(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x287: rs.u8): rs.u8 => {
 						const _6223: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6223.value, x307 ^ 7);
+						rs.byteVecPush(_6223.value, x287 ^ 7);
 						rs.refMutRelease(_6223);
-						return x307;
-					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x308: rs.u8): rs.u8 => {
+						return x287;
+					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x288: rs.u8): rs.u8 => {
 						const _6224: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6224.value, x308 ^ 8);
+						rs.byteVecPush(_6224.value, x288 ^ 8);
 						rs.refMutRelease(_6224);
-						return x308;
-					}), "index")), (_2885: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
-						return _2885[0] & 0xff;
+						return x288;
+					}), "index")), (_2865: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
+						return _2865[0] & 0xff;
 					})), 238));
 				} else if (_1424 === 4) {
-					rs.byteVecPush(out, rs.iterCount(rs.iterChain(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x305: rs.u8): rs.u8 => {
+					rs.byteVecPush(out, rs.iterCount(rs.iterChain(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x285: rs.u8): rs.u8 => {
 						const _6221: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6221.value, x305 ^ 7);
+						rs.byteVecPush(_6221.value, x285 ^ 7);
 						rs.refMutRelease(_6221);
-						return x305;
-					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x306: rs.u8): rs.u8 => {
+						return x285;
+					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x286: rs.u8): rs.u8 => {
 						const _6222: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6222.value, x306 ^ 8);
+						rs.byteVecPush(_6222.value, x286 ^ 8);
 						rs.refMutRelease(_6222);
-						return x306;
+						return x286;
 					}), "index"), rs.iterSlice([[1, 2] as [rs.u8, rs.u8]]))) & 0xff);
 				} else if (_1424 === 5) {
-					rs.byteVecPush(out, rs.iterCount(rs.iterTake(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x303: rs.u8): rs.u8 => {
+					rs.byteVecPush(out, rs.iterCount(rs.iterTake(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x283: rs.u8): rs.u8 => {
 						const _6219: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6219.value, x303 ^ 7);
+						rs.byteVecPush(_6219.value, x283 ^ 7);
 						rs.refMutRelease(_6219);
-						return x303;
-					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x304: rs.u8): rs.u8 => {
+						return x283;
+					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x284: rs.u8): rs.u8 => {
 						const _6220: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6220.value, x304 ^ 8);
+						rs.byteVecPush(_6220.value, x284 ^ 8);
 						rs.refMutRelease(_6220);
-						return x304;
+						return x284;
 					}), "index"), n)) & 0xff);
 				} else if (_1424 === 6) {
-					rs.byteVecPush(out, rs.iterCount(rs.iterSkip(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x301: rs.u8): rs.u8 => {
+					rs.byteVecPush(out, rs.iterCount(rs.iterSkip(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x281: rs.u8): rs.u8 => {
 						const _6217: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6217.value, x301 ^ 7);
+						rs.byteVecPush(_6217.value, x281 ^ 7);
 						rs.refMutRelease(_6217);
-						return x301;
-					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x302: rs.u8): rs.u8 => {
+						return x281;
+					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x282: rs.u8): rs.u8 => {
 						const _6218: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6218.value, x302 ^ 8);
+						rs.byteVecPush(_6218.value, x282 ^ 8);
 						rs.refMutRelease(_6218);
-						return x302;
+						return x282;
 					}), "index"), n)) & 0xff);
 				} else {
-					const p4: rs.Peekable<[rs.u8, rs.u8]> = rs.iterPeekable(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x299: rs.u8): rs.u8 => {
+					const p4: rs.Peekable<[rs.u8, rs.u8]> = rs.iterPeekable(rs.iterZip(rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), (x279: rs.u8): rs.u8 => {
 						const _6215: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6215.value, x299 ^ 7);
+						rs.byteVecPush(_6215.value, x279 ^ 7);
 						rs.refMutRelease(_6215);
-						return x299;
-					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x300: rs.u8): rs.u8 => {
+						return x279;
+					}), rs.iterMap(rs.byteVecIntoIter(rs.byteSliceToByteVec(b2)), (x280: rs.u8): rs.u8 => {
 						const _6216: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-						rs.byteVecPush(_6216.value, x300 ^ 8);
+						rs.byteVecPush(_6216.value, x280 ^ 8);
 						rs.refMutRelease(_6216);
-						return x300;
+						return x280;
 					}), "index"));
 					rs.byteVecPush(out, (rs.peekablePeek(p4) !== undefined ? 1 : 0) ^ (rs.iterCount(p4) & 0xff));
 				}
@@ -3817,85 +3770,91 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if ((kind & 16) === 0) {
 			const _1551: rs.usize = rs.usizeRem(rs.usizeDiv(data.length, 8), 5);
 			if (_1551 === 0) {
-				const z25: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x287: rs.u8): rs.u8 => {
+				const z25: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x266: rs.u8): rs.u8 => {
 					const _6211: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6211.value, x287 ^ 9);
+					rs.byteVecPush(_6211.value, x266 ^ 9);
 					rs.refMutRelease(_6211);
-					return x287;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2875: rs.u8): rs.u8 => {
-					const x288: rs.u8 = _2875;
+					return x266;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2854: rs.u8): rs.u8 => {
+					const x267: rs.u8 = _2854;
 					const _6212: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6212.value, x288 ^ 10);
+					rs.byteVecPush(_6212.value, x267 ^ 10);
 					rs.refMutRelease(_6212);
-					return x288;
+					return x267;
 				}), "index");
+				const _1567: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2855: [rs.u8, rs.u8]): rs.u8 => {
+					return _2855[0] ^ _2855[1];
+				};
 				const _1568: rs.usize = rs.usizeRem(data.length, 8);
 				if (_1568 === 0) {
 					rs.byteVecPush(out, rs.iterCount(z25) & 0xff);
 				} else if (_1568 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(z25), 238, (_2884: [rs.u8, rs.u8]): rs.u8 => {
-						return _2884[0] ^ _2884[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(z25), 238, (_2864: [rs.u8, rs.u8]): rs.u8 => {
+						return _2864[0] ^ _2864[1];
 					}));
 				} else if (_1568 === 2) {
 					rs.iterForEach(z25, (p37: [rs.u8, rs.u8]): undefined => {
 						rs.byteVecPush(out, _1567(p37));
 					});
 				} else if (_1568 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(z25, (_2883: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_2883[0] as rs.u32, _2883[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(z25, (_2863: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2863[0] as rs.u32, _2863[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_1568 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(z25, (_2882: [rs.u8, rs.u8]): rs.u8 => {
-						return _2882[0] ^ _2882[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(z25, (_2862: [rs.u8, rs.u8]): rs.u8 => {
+						return _2862[0] ^ _2862[1];
 					}), "index", true, 1)), undefined, true);
 				} else if (_1568 === 5) {
 					rs.byteVecPush(out, rs.iterFold(z25, 0, (acc15: rs.u8, p36: [rs.u8, rs.u8]): rs.u8 => {
 						return rs.u8WrappingMul(acc15, 3) ^ _1567(p36);
 					}));
 				} else if (_1568 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(z25, (_2881: [rs.u8, rs.u8]): rs.u8 => {
-						return _2881[0] ^ _2881[1];
-					}), (x295: rs.u8): boolean => {
-						return x295 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(z25, (_2861: [rs.u8, rs.u8]): rs.u8 => {
+						return _2861[0] ^ _2861[1];
+					}), (x275: rs.u8): boolean => {
+						return x275 === 0;
 					}) ? 1 : 0);
 				} else {
 					const z26: rs.Iter<[rs.u8, rs.u8]> = z25;
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(z26, (_2876: [rs.u8, rs.u8]): boolean => {
-						return _2876[0] > _2876[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(z26, (_2856: [rs.u8, rs.u8]): boolean => {
+						return _2856[0] > _2856[1];
 					}), 238, (i18: rs.usize): rs.u8 => {
 						return i18 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(z26, (_2877: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2877[0], 3) === 0;
-					}), 238, (_2878: [rs.u8, rs.u8]): rs.u8 => {
-						return _2878[0] ^ _2878[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(z26, (_2857: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2857[0], 3) === 0;
+					}), 238, (_2858: [rs.u8, rs.u8]): rs.u8 => {
+						return _2858[0] ^ _2858[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z26, n), 238, (_2879: [rs.u8, rs.u8]): rs.u8 => {
-						return _2879[0] ^ _2879[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z26, n), 238, (_2859: [rs.u8, rs.u8]): rs.u8 => {
+						return _2859[0] ^ _2859[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z26.next()), 238, (_2880: [rs.u8, rs.u8]): rs.u8 => {
-						return _2880[0] ^ _2880[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z26.next()), 238, (_2860: [rs.u8, rs.u8]): rs.u8 => {
+						return _2860[0] ^ _2860[1];
 					}));
 				}
 			} else if (_1551 === 1) {
-				const z27: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x275: rs.u8): rs.u8 => {
+				const z27: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x253: rs.u8): rs.u8 => {
 					const _6207: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6207.value, x275 ^ 9);
+					rs.byteVecPush(_6207.value, x253 ^ 9);
 					rs.refMutRelease(_6207);
-					return x275;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2865: rs.u8): rs.u8 => {
-					const x276: rs.u8 = _2865;
+					return x253;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2843: rs.u8): rs.u8 => {
+					const x254: rs.u8 = _2843;
 					const _6208: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6208.value, x276 ^ 10);
+					rs.byteVecPush(_6208.value, x254 ^ 10);
 					rs.refMutRelease(_6208);
-					return x276;
+					return x254;
 				}), "index");
+				const _1618: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2844: [rs.u8, rs.u8]): rs.u8 => {
+					return _2844[0] ^ _2844[1];
+				};
 				const _1619: rs.usize = rs.usizeRem(data.length, 8);
 				if (_1619 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBox(z27)) & 0xff);
 				} else if (_1619 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z27)), 238, (_2874: [rs.u8, rs.u8]): rs.u8 => {
-						return _2874[0] ^ _2874[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z27)), 238, (_2853: [rs.u8, rs.u8]): rs.u8 => {
+						return _2853[0] ^ _2853[1];
 					}));
 				} else if (_1619 === 2) {
 					const _1626: (a0: [rs.u8, rs.u8]) => undefined = (p35: [rs.u8, rs.u8]): undefined => {
@@ -3903,12 +3862,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBox(z27), _1626);
 				} else if (_1619 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z27), (_2873: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_2873[0] as rs.u32, _2873[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z27), (_2852: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2852[0] as rs.u32, _2852[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_1619 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z27), (_2872: [rs.u8, rs.u8]): rs.u8 => {
-						return _2872[0] ^ _2872[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z27), (_2851: [rs.u8, rs.u8]): rs.u8 => {
+						return _2851[0] ^ _2851[1];
 					}), "next")), undefined, true);
 				} else if (_1619 === 5) {
 					const _1634: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc14: rs.u8, p34: [rs.u8, rs.u8]): rs.u8 => {
@@ -3916,49 +3875,52 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBox(z27), 0, _1634));
 				} else if (_1619 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z27), (_2871: [rs.u8, rs.u8]): rs.u8 => {
-						return _2871[0] ^ _2871[1];
-					}), (x283: rs.u8): boolean => {
-						return x283 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z27), (_2850: [rs.u8, rs.u8]): rs.u8 => {
+						return _2850[0] ^ _2850[1];
+					}), (x262: rs.u8): boolean => {
+						return x262 === 0;
 					}) ? 1 : 0);
 				} else {
 					const z28: rs.Iter<[rs.u8, rs.u8]> = z27;
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z28), (_2866: [rs.u8, rs.u8]): boolean => {
-						return _2866[0] > _2866[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z28), (_2845: [rs.u8, rs.u8]): boolean => {
+						return _2845[0] > _2845[1];
 					}), 238, (i17: rs.usize): rs.u8 => {
 						return i17 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z28), (_2867: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2867[0], 3) === 0;
-					}), 238, (_2868: [rs.u8, rs.u8]): rs.u8 => {
-						return _2868[0] ^ _2868[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z28), (_2846: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2846[0], 3) === 0;
+					}), 238, (_2847: [rs.u8, rs.u8]): rs.u8 => {
+						return _2847[0] ^ _2847[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z28), n), 238, (_2869: [rs.u8, rs.u8]): rs.u8 => {
-						return _2869[0] ^ _2869[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z28), n), 238, (_2848: [rs.u8, rs.u8]): rs.u8 => {
+						return _2848[0] ^ _2848[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z28.next()), 238, (_2870: [rs.u8, rs.u8]): rs.u8 => {
-						return _2870[0] ^ _2870[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z28.next()), 238, (_2849: [rs.u8, rs.u8]): rs.u8 => {
+						return _2849[0] ^ _2849[1];
 					}));
 				}
 			} else if (_1551 === 2) {
-				const z29: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x263: rs.u8): rs.u8 => {
+				const z29: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x240: rs.u8): rs.u8 => {
 					const _6203: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6203.value, x263 ^ 9);
+					rs.byteVecPush(_6203.value, x240 ^ 9);
 					rs.refMutRelease(_6203);
-					return x263;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2855: rs.u8): rs.u8 => {
-					const x264: rs.u8 = _2855;
+					return x240;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2832: rs.u8): rs.u8 => {
+					const x241: rs.u8 = _2832;
 					const _6204: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6204.value, x264 ^ 10);
+					rs.byteVecPush(_6204.value, x241 ^ 10);
 					rs.refMutRelease(_6204);
-					return x264;
+					return x241;
 				}), "index"), n);
+				const _1670: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2833: [rs.u8, rs.u8]): rs.u8 => {
+					return _2833[0] ^ _2833[1];
+				};
 				const _1671: rs.usize = rs.usizeRem(data.length, 8);
 				if (_1671 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBox(z29)) & 0xff);
 				} else if (_1671 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z29)), 238, (_2864: [rs.u8, rs.u8]): rs.u8 => {
-						return _2864[0] ^ _2864[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z29)), 238, (_2842: [rs.u8, rs.u8]): rs.u8 => {
+						return _2842[0] ^ _2842[1];
 					}));
 				} else if (_1671 === 2) {
 					const _1678: (a0: [rs.u8, rs.u8]) => undefined = (p33: [rs.u8, rs.u8]): undefined => {
@@ -3966,12 +3928,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBox(z29), _1678);
 				} else if (_1671 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z29), (_2863: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_2863[0] as rs.u32, _2863[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z29), (_2841: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2841[0] as rs.u32, _2841[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_1671 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z29), (_2862: [rs.u8, rs.u8]): rs.u8 => {
-						return _2862[0] ^ _2862[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z29), (_2840: [rs.u8, rs.u8]): rs.u8 => {
+						return _2840[0] ^ _2840[1];
 					}), "next")), undefined, true);
 				} else if (_1671 === 5) {
 					const _1686: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc13: rs.u8, p32: [rs.u8, rs.u8]): rs.u8 => {
@@ -3979,49 +3941,52 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBox(z29), 0, _1686));
 				} else if (_1671 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z29), (_2861: [rs.u8, rs.u8]): rs.u8 => {
-						return _2861[0] ^ _2861[1];
-					}), (x271: rs.u8): boolean => {
-						return x271 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z29), (_2839: [rs.u8, rs.u8]): rs.u8 => {
+						return _2839[0] ^ _2839[1];
+					}), (x249: rs.u8): boolean => {
+						return x249 === 0;
 					}) ? 1 : 0);
 				} else {
 					const z30: rs.Iter<[rs.u8, rs.u8]> = z29;
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z30), (_2856: [rs.u8, rs.u8]): boolean => {
-						return _2856[0] > _2856[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z30), (_2834: [rs.u8, rs.u8]): boolean => {
+						return _2834[0] > _2834[1];
 					}), 238, (i16: rs.usize): rs.u8 => {
 						return i16 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z30), (_2857: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2857[0], 3) === 0;
-					}), 238, (_2858: [rs.u8, rs.u8]): rs.u8 => {
-						return _2858[0] ^ _2858[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z30), (_2835: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2835[0], 3) === 0;
+					}), 238, (_2836: [rs.u8, rs.u8]): rs.u8 => {
+						return _2836[0] ^ _2836[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z30), n), 238, (_2859: [rs.u8, rs.u8]): rs.u8 => {
-						return _2859[0] ^ _2859[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z30), n), 238, (_2837: [rs.u8, rs.u8]): rs.u8 => {
+						return _2837[0] ^ _2837[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z30.next()), 238, (_2860: [rs.u8, rs.u8]): rs.u8 => {
-						return _2860[0] ^ _2860[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z30.next()), 238, (_2838: [rs.u8, rs.u8]): rs.u8 => {
+						return _2838[0] ^ _2838[1];
 					}));
 				}
 			} else if (_1551 === 3) {
-				const _1710: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x251: rs.u8): rs.u8 => {
+				const _1710: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x227: rs.u8): rs.u8 => {
 					const _6199: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6199.value, x251 ^ 9);
+					rs.byteVecPush(_6199.value, x227 ^ 9);
 					rs.refMutRelease(_6199);
-					return x251;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2845: rs.u8): rs.u8 => {
-					const x252: rs.u8 = _2845;
+					return x227;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2821: rs.u8): rs.u8 => {
+					const x228: rs.u8 = _2821;
 					const _6200: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6200.value, x252 ^ 10);
+					rs.byteVecPush(_6200.value, x228 ^ 10);
 					rs.refMutRelease(_6200);
-					return x252;
+					return x228;
 				}), "index");
+				const _1722: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2822: [rs.u8, rs.u8]): rs.u8 => {
+					return _2822[0] ^ _2822[1];
+				};
 				const _1723: rs.usize = rs.usizeRem(data.length, 8);
 				if (_1723 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1710)))) & 0xff);
 				} else if (_1723 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1710)))), 238, (_2854: [rs.u8, rs.u8]): rs.u8 => {
-						return _2854[0] ^ _2854[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1710)))), 238, (_2831: [rs.u8, rs.u8]): rs.u8 => {
+						return _2831[0] ^ _2831[1];
 					}));
 				} else if (_1723 === 2) {
 					const _1730: (a0: [rs.u8, rs.u8]) => undefined = (p31: [rs.u8, rs.u8]): undefined => {
@@ -4029,12 +3994,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1710))), _1730);
 				} else if (_1723 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1710))), (_2853: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_2853[0] as rs.u32, _2853[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1710))), (_2830: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2830[0] as rs.u32, _2830[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_1723 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1710))), (_2852: [rs.u8, rs.u8]): rs.u8 => {
-						return _2852[0] ^ _2852[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1710))), (_2829: [rs.u8, rs.u8]): rs.u8 => {
+						return _2829[0] ^ _2829[1];
 					}), "next")), undefined, true);
 				} else if (_1723 === 5) {
 					const _1738: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc12: rs.u8, p30: [rs.u8, rs.u8]): rs.u8 => {
@@ -4042,48 +4007,51 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1710))), 0, _1738));
 				} else if (_1723 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1710))), (_2851: [rs.u8, rs.u8]): rs.u8 => {
-						return _2851[0] ^ _2851[1];
-					}), (x259: rs.u8): boolean => {
-						return x259 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1710))), (_2828: [rs.u8, rs.u8]): rs.u8 => {
+						return _2828[0] ^ _2828[1];
+					}), (x236: rs.u8): boolean => {
+						return x236 === 0;
 					}) ? 1 : 0);
 				} else {
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_1710), (_2846: [rs.u8, rs.u8]): boolean => {
-						return _2846[0] > _2846[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_1710), (_2823: [rs.u8, rs.u8]): boolean => {
+						return _2823[0] > _2823[1];
 					}), 238, (i15: rs.usize): rs.u8 => {
 						return i15 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_1710), (_2847: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2847[0], 3) === 0;
-					}), 238, (_2848: [rs.u8, rs.u8]): rs.u8 => {
-						return _2848[0] ^ _2848[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_1710), (_2824: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2824[0], 3) === 0;
+					}), 238, (_2825: [rs.u8, rs.u8]): rs.u8 => {
+						return _2825[0] ^ _2825[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_1710), n), 238, (_2849: [rs.u8, rs.u8]): rs.u8 => {
-						return _2849[0] ^ _2849[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_1710), n), 238, (_2826: [rs.u8, rs.u8]): rs.u8 => {
+						return _2826[0] ^ _2826[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_1710.next()), 238, (_2850: [rs.u8, rs.u8]): rs.u8 => {
-						return _2850[0] ^ _2850[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_1710.next()), 238, (_2827: [rs.u8, rs.u8]): rs.u8 => {
+						return _2827[0] ^ _2827[1];
 					}));
 				}
 			} else {
-				const _1757: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x239: rs.u8): rs.u8 => {
+				const _1757: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x214: rs.u8): rs.u8 => {
 					const _6195: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6195.value, x239 ^ 9);
+					rs.byteVecPush(_6195.value, x214 ^ 9);
 					rs.refMutRelease(_6195);
-					return x239;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2835: rs.u8): rs.u8 => {
-					const x240: rs.u8 = _2835;
+					return x214;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2810: rs.u8): rs.u8 => {
+					const x215: rs.u8 = _2810;
 					const _6196: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6196.value, x240 ^ 10);
+					rs.byteVecPush(_6196.value, x215 ^ 10);
 					rs.refMutRelease(_6196);
-					return x240;
+					return x215;
 				}), "index"), n);
+				const _1770: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2811: [rs.u8, rs.u8]): rs.u8 => {
+					return _2811[0] ^ _2811[1];
+				};
 				const _1771: rs.usize = rs.usizeRem(data.length, 8);
 				if (_1771 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1757)))) & 0xff);
 				} else if (_1771 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1757)))), 238, (_2844: [rs.u8, rs.u8]): rs.u8 => {
-						return _2844[0] ^ _2844[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1757)))), 238, (_2820: [rs.u8, rs.u8]): rs.u8 => {
+						return _2820[0] ^ _2820[1];
 					}));
 				} else if (_1771 === 2) {
 					const _1778: (a0: [rs.u8, rs.u8]) => undefined = (p29: [rs.u8, rs.u8]): undefined => {
@@ -4091,12 +4059,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1757))), _1778);
 				} else if (_1771 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1757))), (_2843: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_2843[0] as rs.u32, _2843[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1757))), (_2819: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2819[0] as rs.u32, _2819[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_1771 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1757))), (_2842: [rs.u8, rs.u8]): rs.u8 => {
-						return _2842[0] ^ _2842[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1757))), (_2818: [rs.u8, rs.u8]): rs.u8 => {
+						return _2818[0] ^ _2818[1];
 					}), "next")), undefined, true);
 				} else if (_1771 === 5) {
 					const _1786: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc11: rs.u8, p28: [rs.u8, rs.u8]): rs.u8 => {
@@ -4104,143 +4072,143 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1757))), 0, _1786));
 				} else if (_1771 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1757))), (_2841: [rs.u8, rs.u8]): rs.u8 => {
-						return _2841[0] ^ _2841[1];
-					}), (x247: rs.u8): boolean => {
-						return x247 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_1757))), (_2817: [rs.u8, rs.u8]): rs.u8 => {
+						return _2817[0] ^ _2817[1];
+					}), (x223: rs.u8): boolean => {
+						return x223 === 0;
 					}) ? 1 : 0);
 				} else {
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_1757), (_2836: [rs.u8, rs.u8]): boolean => {
-						return _2836[0] > _2836[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_1757), (_2812: [rs.u8, rs.u8]): boolean => {
+						return _2812[0] > _2812[1];
 					}), 238, (i14: rs.usize): rs.u8 => {
 						return i14 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_1757), (_2837: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2837[0], 3) === 0;
-					}), 238, (_2838: [rs.u8, rs.u8]): rs.u8 => {
-						return _2838[0] ^ _2838[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_1757), (_2813: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2813[0], 3) === 0;
+					}), 238, (_2814: [rs.u8, rs.u8]): rs.u8 => {
+						return _2814[0] ^ _2814[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_1757), n), 238, (_2839: [rs.u8, rs.u8]): rs.u8 => {
-						return _2839[0] ^ _2839[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_1757), n), 238, (_2815: [rs.u8, rs.u8]): rs.u8 => {
+						return _2815[0] ^ _2815[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_1757.next()), 238, (_2840: [rs.u8, rs.u8]): rs.u8 => {
-						return _2840[0] ^ _2840[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_1757.next()), 238, (_2816: [rs.u8, rs.u8]): rs.u8 => {
+						return _2816[0] ^ _2816[1];
 					}));
 				}
 			}
 		} else {
 			const _1804: rs.usize = rs.usizeRem(data.length, 8);
 			if (_1804 === 0) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x236: rs.u8): rs.u8 => {
+				rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x211: rs.u8): rs.u8 => {
 					const _6193: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6193.value, x236 ^ 9);
+					rs.byteVecPush(_6193.value, x211 ^ 9);
 					rs.refMutRelease(_6193);
-					return x236;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2833: rs.u8): rs.u8 => {
-					const x237: rs.u8 = _2833;
+					return x211;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2808: rs.u8): rs.u8 => {
+					const x212: rs.u8 = _2808;
 					const _6194: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6194.value, x237 ^ 10);
+					rs.byteVecPush(_6194.value, x212 ^ 10);
 					rs.refMutRelease(_6194);
-					return x237;
-				}), "index"), (_2834: [rs.u8, rs.u8]): boolean => {
-					return rs.u8Rem(_2834[0], 2) === 0;
+					return x212;
+				}), "index"), (_2809: [rs.u8, rs.u8]): boolean => {
+					return rs.u8Rem(_2809[0], 2) === 0;
 				})) & 0xff);
 			} else if (_1804 === 1) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterFilterMap(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x233: rs.u8): rs.u8 => {
+				rs.byteVecPush(out, rs.iterCount(rs.iterFilterMap(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x208: rs.u8): rs.u8 => {
 					const _6191: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6191.value, x233 ^ 9);
+					rs.byteVecPush(_6191.value, x208 ^ 9);
 					rs.refMutRelease(_6191);
-					return x233;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2831: rs.u8): rs.u8 => {
-					const x234: rs.u8 = _2831;
+					return x208;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2806: rs.u8): rs.u8 => {
+					const x209: rs.u8 = _2806;
 					const _6192: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6192.value, x234 ^ 10);
+					rs.byteVecPush(_6192.value, x209 ^ 10);
 					rs.refMutRelease(_6192);
-					return x234;
-				}), "index"), (_2832: [rs.u8, rs.u8]): rs.u8 | undefined => {
-					return rs.u8CheckedSub(_2832[0], _2832[1]);
+					return x209;
+				}), "index"), (_2807: [rs.u8, rs.u8]): rs.u8 | undefined => {
+					return rs.u8CheckedSub(_2807[0], _2807[1]);
 				})) & 0xff);
 			} else if (_1804 === 2) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterSkipWhile(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x230: rs.u8): rs.u8 => {
+				rs.byteVecPush(out, rs.iterCount(rs.iterSkipWhile(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x205: rs.u8): rs.u8 => {
 					const _6189: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6189.value, x230 ^ 9);
+					rs.byteVecPush(_6189.value, x205 ^ 9);
 					rs.refMutRelease(_6189);
-					return x230;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2829: rs.u8): rs.u8 => {
-					const x231: rs.u8 = _2829;
+					return x205;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2804: rs.u8): rs.u8 => {
+					const x206: rs.u8 = _2804;
 					const _6190: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6190.value, x231 ^ 10);
+					rs.byteVecPush(_6190.value, x206 ^ 10);
 					rs.refMutRelease(_6190);
-					return x231;
-				}), "index"), (_2830: [rs.u8, rs.u8]): boolean => {
-					return _2830[0] < 128;
+					return x206;
+				}), "index"), (_2805: [rs.u8, rs.u8]): boolean => {
+					return _2805[0] < 128;
 				})) & 0xff);
 			} else if (_1804 === 3) {
-				rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(rs.iterMap(rs.iterEnumerate(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x228: rs.u8): rs.u8 => {
+				rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(rs.iterMap(rs.iterEnumerate(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x203: rs.u8): rs.u8 => {
 					const _6187: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6187.value, x228 ^ 9);
+					rs.byteVecPush(_6187.value, x203 ^ 9);
 					rs.refMutRelease(_6187);
-					return x228;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2827: rs.u8): rs.u8 => {
-					const x229: rs.u8 = _2827;
+					return x203;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2802: rs.u8): rs.u8 => {
+					const x204: rs.u8 = _2802;
 					const _6188: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6188.value, x229 ^ 10);
+					rs.byteVecPush(_6188.value, x204 ^ 10);
 					rs.refMutRelease(_6188);
-					return x229;
-				}), "index")), (_2828: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
-					return _2828[0] & 0xff;
+					return x204;
+				}), "index")), (_2803: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
+					return _2803[0] & 0xff;
 				})), 238));
 			} else if (_1804 === 4) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterChain(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x226: rs.u8): rs.u8 => {
+				rs.byteVecPush(out, rs.iterCount(rs.iterChain(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x201: rs.u8): rs.u8 => {
 					const _6185: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6185.value, x226 ^ 9);
+					rs.byteVecPush(_6185.value, x201 ^ 9);
 					rs.refMutRelease(_6185);
-					return x226;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2826: rs.u8): rs.u8 => {
-					const x227: rs.u8 = _2826;
+					return x201;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2801: rs.u8): rs.u8 => {
+					const x202: rs.u8 = _2801;
 					const _6186: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6186.value, x227 ^ 10);
+					rs.byteVecPush(_6186.value, x202 ^ 10);
 					rs.refMutRelease(_6186);
-					return x227;
+					return x202;
 				}), "index"), rs.iterSlice([[1, 2] as [rs.u8, rs.u8]]))) & 0xff);
 			} else if (_1804 === 5) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterTake(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x224: rs.u8): rs.u8 => {
+				rs.byteVecPush(out, rs.iterCount(rs.iterTake(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x199: rs.u8): rs.u8 => {
 					const _6183: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6183.value, x224 ^ 9);
+					rs.byteVecPush(_6183.value, x199 ^ 9);
 					rs.refMutRelease(_6183);
-					return x224;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2825: rs.u8): rs.u8 => {
-					const x225: rs.u8 = _2825;
+					return x199;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2800: rs.u8): rs.u8 => {
+					const x200: rs.u8 = _2800;
 					const _6184: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6184.value, x225 ^ 10);
+					rs.byteVecPush(_6184.value, x200 ^ 10);
 					rs.refMutRelease(_6184);
-					return x225;
+					return x200;
 				}), "index"), n)) & 0xff);
 			} else if (_1804 === 6) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x222: rs.u8): rs.u8 => {
+				rs.byteVecPush(out, rs.iterCount(rs.iterSkip(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x197: rs.u8): rs.u8 => {
 					const _6181: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6181.value, x222 ^ 9);
+					rs.byteVecPush(_6181.value, x197 ^ 9);
 					rs.refMutRelease(_6181);
-					return x222;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2824: rs.u8): rs.u8 => {
-					const x223: rs.u8 = _2824;
+					return x197;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2799: rs.u8): rs.u8 => {
+					const x198: rs.u8 = _2799;
 					const _6182: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6182.value, x223 ^ 10);
+					rs.byteVecPush(_6182.value, x198 ^ 10);
 					rs.refMutRelease(_6182);
-					return x223;
+					return x198;
 				}), "index"), n)) & 0xff);
 			} else {
-				const p5: rs.Peekable<[rs.u8, rs.u8]> = rs.iterPeekable(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x220: rs.u8): rs.u8 => {
+				const p5: rs.Peekable<[rs.u8, rs.u8]> = rs.iterPeekable(rs.iterZip(rs.iterMap(rs.iterSkip(rs.byteVecIntoIter(rs.byteSliceToByteVec(a2)), 1), (x195: rs.u8): rs.u8 => {
 					const _6179: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6179.value, x220 ^ 9);
+					rs.byteVecPush(_6179.value, x195 ^ 9);
 					rs.refMutRelease(_6179);
-					return x220;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2823: rs.u8): rs.u8 => {
-					const x221: rs.u8 = _2823;
+					return x195;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2798: rs.u8): rs.u8 => {
+					const x196: rs.u8 = _2798;
 					const _6180: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6180.value, x221 ^ 10);
+					rs.byteVecPush(_6180.value, x196 ^ 10);
 					rs.refMutRelease(_6180);
-					return x221;
+					return x196;
 				}), "index"));
 				rs.byteVecPush(out, (rs.peekablePeek(p5) !== undefined ? 1 : 0) ^ (rs.iterCount(p5) & 0xff));
 			}
@@ -4249,91 +4217,97 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if ((kind & 16) === 0) {
 			const _1931: rs.usize = rs.usizeRem(rs.usizeDiv(data.length, 8), 5);
 			if (_1931 === 0) {
-				const z31: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2811: rs.u8): rs.u8 => {
-					const x208: rs.u8 = _2811;
+				const z31: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2785: rs.u8): rs.u8 => {
+					const x182: rs.u8 = _2785;
 					const _6175: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6175.value, x208 ^ 11);
+					rs.byteVecPush(_6175.value, x182 ^ 11);
 					rs.refMutRelease(_6175);
-					return x208;
-				}), (_2812: rs.u8): boolean => {
+					return x182;
+				}), (_2786: rs.u8): boolean => {
 					return true;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2813: rs.u8): rs.u8 => {
-					const x209: rs.u8 = _2813;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2787: rs.u8): rs.u8 => {
+					const x183: rs.u8 = _2787;
 					const _6176: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6176.value, x209 ^ 12);
+					rs.byteVecPush(_6176.value, x183 ^ 12);
 					rs.refMutRelease(_6176);
-					return x209;
+					return x183;
 				}));
+				const _1946: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2788: [rs.u8, rs.u8]): rs.u8 => {
+					return _2788[0] ^ _2788[1];
+				};
 				const _1947: rs.usize = rs.usizeRem(data.length, 8);
 				if (_1947 === 0) {
 					rs.byteVecPush(out, rs.iterCount(z31) & 0xff);
 				} else if (_1947 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(z31), 238, (_2822: [rs.u8, rs.u8]): rs.u8 => {
-						return _2822[0] ^ _2822[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(z31), 238, (_2797: [rs.u8, rs.u8]): rs.u8 => {
+						return _2797[0] ^ _2797[1];
 					}));
 				} else if (_1947 === 2) {
 					rs.iterForEach(z31, (p27: [rs.u8, rs.u8]): undefined => {
 						rs.byteVecPush(out, _1946(p27));
 					});
 				} else if (_1947 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(z31, (_2821: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_2821[0] as rs.u32, _2821[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(z31, (_2796: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2796[0] as rs.u32, _2796[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_1947 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(z31, (_2820: [rs.u8, rs.u8]): rs.u8 => {
-						return _2820[0] ^ _2820[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(z31, (_2795: [rs.u8, rs.u8]): rs.u8 => {
+						return _2795[0] ^ _2795[1];
 					}), "next")), undefined, true);
 				} else if (_1947 === 5) {
 					rs.byteVecPush(out, rs.iterFold(z31, 0, (acc10: rs.u8, p26: [rs.u8, rs.u8]): rs.u8 => {
 						return rs.u8WrappingMul(acc10, 3) ^ _1946(p26);
 					}));
 				} else if (_1947 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(z31, (_2819: [rs.u8, rs.u8]): rs.u8 => {
-						return _2819[0] ^ _2819[1];
-					}), (x216: rs.u8): boolean => {
-						return x216 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(z31, (_2794: [rs.u8, rs.u8]): rs.u8 => {
+						return _2794[0] ^ _2794[1];
+					}), (x191: rs.u8): boolean => {
+						return x191 === 0;
 					}) ? 1 : 0);
 				} else {
 					const z32: rs.Iter<[rs.u8, rs.u8]> = z31;
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(z32, (_2814: [rs.u8, rs.u8]): boolean => {
-						return _2814[0] > _2814[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(z32, (_2789: [rs.u8, rs.u8]): boolean => {
+						return _2789[0] > _2789[1];
 					}), 238, (i12: rs.usize): rs.u8 => {
 						return i12 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(z32, (_2815: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2815[0], 3) === 0;
-					}), 238, (_2816: [rs.u8, rs.u8]): rs.u8 => {
-						return _2816[0] ^ _2816[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(z32, (_2790: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2790[0], 3) === 0;
+					}), 238, (_2791: [rs.u8, rs.u8]): rs.u8 => {
+						return _2791[0] ^ _2791[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z32, n), 238, (_2817: [rs.u8, rs.u8]): rs.u8 => {
-						return _2817[0] ^ _2817[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z32, n), 238, (_2792: [rs.u8, rs.u8]): rs.u8 => {
+						return _2792[0] ^ _2792[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z32.next()), 238, (_2818: [rs.u8, rs.u8]): rs.u8 => {
-						return _2818[0] ^ _2818[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z32.next()), 238, (_2793: [rs.u8, rs.u8]): rs.u8 => {
+						return _2793[0] ^ _2793[1];
 					}));
 				}
 			} else if (_1931 === 1) {
-				const z33: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2799: rs.u8): rs.u8 => {
-					const x196: rs.u8 = _2799;
+				const z33: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2772: rs.u8): rs.u8 => {
+					const x169: rs.u8 = _2772;
 					const _6171: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6171.value, x196 ^ 11);
+					rs.byteVecPush(_6171.value, x169 ^ 11);
 					rs.refMutRelease(_6171);
-					return x196;
-				}), (_2800: rs.u8): boolean => {
+					return x169;
+				}), (_2773: rs.u8): boolean => {
 					return true;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2801: rs.u8): rs.u8 => {
-					const x197: rs.u8 = _2801;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2774: rs.u8): rs.u8 => {
+					const x170: rs.u8 = _2774;
 					const _6172: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6172.value, x197 ^ 12);
+					rs.byteVecPush(_6172.value, x170 ^ 12);
 					rs.refMutRelease(_6172);
-					return x197;
+					return x170;
 				}));
+				const _1996: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2775: [rs.u8, rs.u8]): rs.u8 => {
+					return _2775[0] ^ _2775[1];
+				};
 				const _1997: rs.usize = rs.usizeRem(data.length, 8);
 				if (_1997 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBox(z33)) & 0xff);
 				} else if (_1997 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z33)), 238, (_2810: [rs.u8, rs.u8]): rs.u8 => {
-						return _2810[0] ^ _2810[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z33)), 238, (_2784: [rs.u8, rs.u8]): rs.u8 => {
+						return _2784[0] ^ _2784[1];
 					}));
 				} else if (_1997 === 2) {
 					const _2004: (a0: [rs.u8, rs.u8]) => undefined = (p25: [rs.u8, rs.u8]): undefined => {
@@ -4341,12 +4315,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBox(z33), _2004);
 				} else if (_1997 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z33), (_2809: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_2809[0] as rs.u32, _2809[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z33), (_2783: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2783[0] as rs.u32, _2783[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_1997 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z33), (_2808: [rs.u8, rs.u8]): rs.u8 => {
-						return _2808[0] ^ _2808[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z33), (_2782: [rs.u8, rs.u8]): rs.u8 => {
+						return _2782[0] ^ _2782[1];
 					}), "next")), undefined, true);
 				} else if (_1997 === 5) {
 					const _2012: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc9: rs.u8, p24: [rs.u8, rs.u8]): rs.u8 => {
@@ -4354,52 +4328,55 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBox(z33), 0, _2012));
 				} else if (_1997 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z33), (_2807: [rs.u8, rs.u8]): rs.u8 => {
-						return _2807[0] ^ _2807[1];
-					}), (x204: rs.u8): boolean => {
-						return x204 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z33), (_2781: [rs.u8, rs.u8]): rs.u8 => {
+						return _2781[0] ^ _2781[1];
+					}), (x178: rs.u8): boolean => {
+						return x178 === 0;
 					}) ? 1 : 0);
 				} else {
 					const z34: rs.Iter<[rs.u8, rs.u8]> = z33;
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z34), (_2802: [rs.u8, rs.u8]): boolean => {
-						return _2802[0] > _2802[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z34), (_2776: [rs.u8, rs.u8]): boolean => {
+						return _2776[0] > _2776[1];
 					}), 238, (i11: rs.usize): rs.u8 => {
 						return i11 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z34), (_2803: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2803[0], 3) === 0;
-					}), 238, (_2804: [rs.u8, rs.u8]): rs.u8 => {
-						return _2804[0] ^ _2804[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z34), (_2777: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2777[0], 3) === 0;
+					}), 238, (_2778: [rs.u8, rs.u8]): rs.u8 => {
+						return _2778[0] ^ _2778[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z34), n), 238, (_2805: [rs.u8, rs.u8]): rs.u8 => {
-						return _2805[0] ^ _2805[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z34), n), 238, (_2779: [rs.u8, rs.u8]): rs.u8 => {
+						return _2779[0] ^ _2779[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z34.next()), 238, (_2806: [rs.u8, rs.u8]): rs.u8 => {
-						return _2806[0] ^ _2806[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z34.next()), 238, (_2780: [rs.u8, rs.u8]): rs.u8 => {
+						return _2780[0] ^ _2780[1];
 					}));
 				}
 			} else if (_1931 === 2) {
-				const z35: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2787: rs.u8): rs.u8 => {
-					const x184: rs.u8 = _2787;
+				const z35: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2758: rs.u8): rs.u8 => {
+					const x156: rs.u8 = _2758;
 					const _6167: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6167.value, x184 ^ 11);
+					rs.byteVecPush(_6167.value, x156 ^ 11);
 					rs.refMutRelease(_6167);
-					return x184;
-				}), (_2788: rs.u8): boolean => {
+					return x156;
+				}), (_2760: rs.u8): boolean => {
 					return true;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2789: rs.u8): rs.u8 => {
-					const x185: rs.u8 = _2789;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2761: rs.u8): rs.u8 => {
+					const x157: rs.u8 = _2761;
 					const _6168: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6168.value, x185 ^ 12);
+					rs.byteVecPush(_6168.value, x157 ^ 12);
 					rs.refMutRelease(_6168);
-					return x185;
+					return x157;
 				})), n);
+				const _2047: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2762: [rs.u8, rs.u8]): rs.u8 => {
+					return _2762[0] ^ _2762[1];
+				};
 				const _2048: rs.usize = rs.usizeRem(data.length, 8);
 				if (_2048 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBox(z35)) & 0xff);
 				} else if (_2048 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z35)), 238, (_2798: [rs.u8, rs.u8]): rs.u8 => {
-						return _2798[0] ^ _2798[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z35)), 238, (_2771: [rs.u8, rs.u8]): rs.u8 => {
+						return _2771[0] ^ _2771[1];
 					}));
 				} else if (_2048 === 2) {
 					const _2055: (a0: [rs.u8, rs.u8]) => undefined = (p23: [rs.u8, rs.u8]): undefined => {
@@ -4407,12 +4384,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBox(z35), _2055);
 				} else if (_2048 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z35), (_2797: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_2797[0] as rs.u32, _2797[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z35), (_2770: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2770[0] as rs.u32, _2770[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_2048 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z35), (_2796: [rs.u8, rs.u8]): rs.u8 => {
-						return _2796[0] ^ _2796[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z35), (_2769: [rs.u8, rs.u8]): rs.u8 => {
+						return _2769[0] ^ _2769[1];
 					}), "next")), undefined, true);
 				} else if (_2048 === 5) {
 					const _2063: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc8: rs.u8, p22: [rs.u8, rs.u8]): rs.u8 => {
@@ -4420,52 +4397,55 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBox(z35), 0, _2063));
 				} else if (_2048 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z35), (_2795: [rs.u8, rs.u8]): rs.u8 => {
-						return _2795[0] ^ _2795[1];
-					}), (x192: rs.u8): boolean => {
-						return x192 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z35), (_2768: [rs.u8, rs.u8]): rs.u8 => {
+						return _2768[0] ^ _2768[1];
+					}), (x165: rs.u8): boolean => {
+						return x165 === 0;
 					}) ? 1 : 0);
 				} else {
 					const z36: rs.Iter<[rs.u8, rs.u8]> = z35;
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z36), (_2790: [rs.u8, rs.u8]): boolean => {
-						return _2790[0] > _2790[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z36), (_2763: [rs.u8, rs.u8]): boolean => {
+						return _2763[0] > _2763[1];
 					}), 238, (i10: rs.usize): rs.u8 => {
 						return i10 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z36), (_2791: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2791[0], 3) === 0;
-					}), 238, (_2792: [rs.u8, rs.u8]): rs.u8 => {
-						return _2792[0] ^ _2792[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z36), (_2764: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2764[0], 3) === 0;
+					}), 238, (_2765: [rs.u8, rs.u8]): rs.u8 => {
+						return _2765[0] ^ _2765[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z36), n), 238, (_2793: [rs.u8, rs.u8]): rs.u8 => {
-						return _2793[0] ^ _2793[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z36), n), 238, (_2766: [rs.u8, rs.u8]): rs.u8 => {
+						return _2766[0] ^ _2766[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z36.next()), 238, (_2794: [rs.u8, rs.u8]): rs.u8 => {
-						return _2794[0] ^ _2794[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z36.next()), 238, (_2767: [rs.u8, rs.u8]): rs.u8 => {
+						return _2767[0] ^ _2767[1];
 					}));
 				}
 			} else if (_1931 === 3) {
-				const _2087: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2775: rs.u8): rs.u8 => {
-					const x172: rs.u8 = _2775;
+				const _2087: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2706: rs.u8): rs.u8 => {
+					const x143: rs.u8 = _2706;
 					const _6163: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6163.value, x172 ^ 11);
+					rs.byteVecPush(_6163.value, x143 ^ 11);
 					rs.refMutRelease(_6163);
-					return x172;
-				}), (_2776: rs.u8): boolean => {
+					return x143;
+				}), (_2716: rs.u8): boolean => {
 					return true;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2777: rs.u8): rs.u8 => {
-					const x173: rs.u8 = _2777;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2721: rs.u8): rs.u8 => {
+					const x144: rs.u8 = _2721;
 					const _6164: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6164.value, x173 ^ 12);
+					rs.byteVecPush(_6164.value, x144 ^ 12);
 					rs.refMutRelease(_6164);
-					return x173;
+					return x144;
 				}));
+				const _2098: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2726: [rs.u8, rs.u8]): rs.u8 => {
+					return _2726[0] ^ _2726[1];
+				};
 				const _2099: rs.usize = rs.usizeRem(data.length, 8);
 				if (_2099 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2087)))) & 0xff);
 				} else if (_2099 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2087)))), 238, (_2786: [rs.u8, rs.u8]): rs.u8 => {
-						return _2786[0] ^ _2786[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2087)))), 238, (_2755: [rs.u8, rs.u8]): rs.u8 => {
+						return _2755[0] ^ _2755[1];
 					}));
 				} else if (_2099 === 2) {
 					const _2106: (a0: [rs.u8, rs.u8]) => undefined = (p21: [rs.u8, rs.u8]): undefined => {
@@ -4473,12 +4453,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2087))), _2106);
 				} else if (_2099 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2087))), (_2785: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_2785[0] as rs.u32, _2785[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2087))), (_2750: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2750[0] as rs.u32, _2750[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_2099 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2087))), (_2784: [rs.u8, rs.u8]): rs.u8 => {
-						return _2784[0] ^ _2784[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2087))), (_2749: [rs.u8, rs.u8]): rs.u8 => {
+						return _2749[0] ^ _2749[1];
 					}), "next")), undefined, true);
 				} else if (_2099 === 5) {
 					const _2114: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc7: rs.u8, p20: [rs.u8, rs.u8]): rs.u8 => {
@@ -4486,51 +4466,54 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2087))), 0, _2114));
 				} else if (_2099 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2087))), (_2783: [rs.u8, rs.u8]): rs.u8 => {
-						return _2783[0] ^ _2783[1];
-					}), (x180: rs.u8): boolean => {
-						return x180 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2087))), (_2747: [rs.u8, rs.u8]): rs.u8 => {
+						return _2747[0] ^ _2747[1];
+					}), (x152: rs.u8): boolean => {
+						return x152 === 0;
 					}) ? 1 : 0);
 				} else {
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_2087), (_2778: [rs.u8, rs.u8]): boolean => {
-						return _2778[0] > _2778[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_2087), (_2727: [rs.u8, rs.u8]): boolean => {
+						return _2727[0] > _2727[1];
 					}), 238, (i9: rs.usize): rs.u8 => {
 						return i9 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_2087), (_2779: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2779[0], 3) === 0;
-					}), 238, (_2780: [rs.u8, rs.u8]): rs.u8 => {
-						return _2780[0] ^ _2780[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_2087), (_2734: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2734[0], 3) === 0;
+					}), 238, (_2739: [rs.u8, rs.u8]): rs.u8 => {
+						return _2739[0] ^ _2739[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_2087), n), 238, (_2781: [rs.u8, rs.u8]): rs.u8 => {
-						return _2781[0] ^ _2781[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_2087), n), 238, (_2744: [rs.u8, rs.u8]): rs.u8 => {
+						return _2744[0] ^ _2744[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_2087.next()), 238, (_2782: [rs.u8, rs.u8]): rs.u8 => {
-						return _2782[0] ^ _2782[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_2087.next()), 238, (_2745: [rs.u8, rs.u8]): rs.u8 => {
+						return _2745[0] ^ _2745[1];
 					}));
 				}
 			} else {
-				const _2133: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2763: rs.u8): rs.u8 => {
-					const x160: rs.u8 = _2763;
+				const _2133: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2618: rs.u8): rs.u8 => {
+					const x130: rs.u8 = _2618;
 					const _6159: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6159.value, x160 ^ 11);
+					rs.byteVecPush(_6159.value, x130 ^ 11);
 					rs.refMutRelease(_6159);
-					return x160;
-				}), (_2764: rs.u8): boolean => {
+					return x130;
+				}), (_2623: rs.u8): boolean => {
 					return true;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2765: rs.u8): rs.u8 => {
-					const x161: rs.u8 = _2765;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2633: rs.u8): rs.u8 => {
+					const x131: rs.u8 = _2633;
 					const _6160: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6160.value, x161 ^ 12);
+					rs.byteVecPush(_6160.value, x131 ^ 12);
 					rs.refMutRelease(_6160);
-					return x161;
+					return x131;
 				})), n);
+				const _2145: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2638: [rs.u8, rs.u8]): rs.u8 => {
+					return _2638[0] ^ _2638[1];
+				};
 				const _2146: rs.usize = rs.usizeRem(data.length, 8);
 				if (_2146 === 0) {
 					rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2133)))) & 0xff);
 				} else if (_2146 === 1) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2133)))), 238, (_2774: [rs.u8, rs.u8]): rs.u8 => {
-						return _2774[0] ^ _2774[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2133)))), 238, (_2701: [rs.u8, rs.u8]): rs.u8 => {
+						return _2701[0] ^ _2701[1];
 					}));
 				} else if (_2146 === 2) {
 					const _2153: (a0: [rs.u8, rs.u8]) => undefined = (p19: [rs.u8, rs.u8]): undefined => {
@@ -4538,12 +4521,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.iterForEach(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2133))), _2153);
 				} else if (_2146 === 3) {
-					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2133))), (_2773: [rs.u8, rs.u8]): rs.u32 => {
-						return rs.u32Add(_2773[0] as rs.u32, _2773[1] as rs.u32);
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2133))), (_2696: [rs.u8, rs.u8]): rs.u32 => {
+						return rs.u32Add(_2696[0] as rs.u32, _2696[1] as rs.u32);
 					}), rs.u32Add, 0)).reverse()), undefined, true);
 				} else if (_2146 === 4) {
-					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2133))), (_2772: [rs.u8, rs.u8]): rs.u8 => {
-						return _2772[0] ^ _2772[1];
+					rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2133))), (_2684: [rs.u8, rs.u8]): rs.u8 => {
+						return _2684[0] ^ _2684[1];
 					}), "next")), undefined, true);
 				} else if (_2146 === 5) {
 					const _2161: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc6: rs.u8, p18: [rs.u8, rs.u8]): rs.u8 => {
@@ -4551,167 +4534,167 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					};
 					rs.byteVecPush(out, rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2133))), 0, _2161));
 				} else if (_2146 === 6) {
-					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2133))), (_2771: [rs.u8, rs.u8]): rs.u8 => {
-						return _2771[0] ^ _2771[1];
-					}), (x168: rs.u8): boolean => {
-						return x168 === 0;
+					rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2133))), (_2679: [rs.u8, rs.u8]): rs.u8 => {
+						return _2679[0] ^ _2679[1];
+					}), (x139: rs.u8): boolean => {
+						return x139 === 0;
 					}) ? 1 : 0);
 				} else {
-					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_2133), (_2766: [rs.u8, rs.u8]): boolean => {
-						return _2766[0] > _2766[1];
+					rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_2133), (_2643: [rs.u8, rs.u8]): boolean => {
+						return _2643[0] > _2643[1];
 					}), 238, (i8: rs.usize): rs.u8 => {
 						return i8 & 0xff;
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_2133), (_2767: [rs.u8, rs.u8]): boolean => {
-						return rs.u8Rem(_2767[0], 3) === 0;
-					}), 238, (_2768: [rs.u8, rs.u8]): rs.u8 => {
-						return _2768[0] ^ _2768[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_2133), (_2654: [rs.u8, rs.u8]): boolean => {
+						return rs.u8Rem(_2654[0], 3) === 0;
+					}), 238, (_2659: [rs.u8, rs.u8]): rs.u8 => {
+						return _2659[0] ^ _2659[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_2133), n), 238, (_2769: [rs.u8, rs.u8]): rs.u8 => {
-						return _2769[0] ^ _2769[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_2133), n), 238, (_2664: [rs.u8, rs.u8]): rs.u8 => {
+						return _2664[0] ^ _2664[1];
 					}));
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_2133.next()), 238, (_2770: [rs.u8, rs.u8]): rs.u8 => {
-						return _2770[0] ^ _2770[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_2133.next()), 238, (_2674: [rs.u8, rs.u8]): rs.u8 => {
+						return _2674[0] ^ _2674[1];
 					}));
 				}
 			}
 		} else {
 			const _2179: rs.usize = rs.usizeRem(data.length, 8);
 			if (_2179 === 0) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2758: rs.u8): rs.u8 => {
-					const x157: rs.u8 = _2758;
+				rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2593: rs.u8): rs.u8 => {
+					const x127: rs.u8 = _2593;
 					const _6157: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6157.value, x157 ^ 11);
+					rs.byteVecPush(_6157.value, x127 ^ 11);
 					rs.refMutRelease(_6157);
-					return x157;
-				}), (_2760: rs.u8): boolean => {
+					return x127;
+				}), (_2598: rs.u8): boolean => {
 					return true;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2761: rs.u8): rs.u8 => {
-					const x158: rs.u8 = _2761;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2603: rs.u8): rs.u8 => {
+					const x128: rs.u8 = _2603;
 					const _6158: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6158.value, x158 ^ 12);
+					rs.byteVecPush(_6158.value, x128 ^ 12);
 					rs.refMutRelease(_6158);
-					return x158;
-				})), (_2762: [rs.u8, rs.u8]): boolean => {
-					return rs.u8Rem(_2762[0], 2) === 0;
+					return x128;
+				})), (_2613: [rs.u8, rs.u8]): boolean => {
+					return rs.u8Rem(_2613[0], 2) === 0;
 				})) & 0xff);
 			} else if (_2179 === 1) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterFilterMap(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2747: rs.u8): rs.u8 => {
-					const x154: rs.u8 = _2747;
+				rs.byteVecPush(out, rs.iterCount(rs.iterFilterMap(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2569: rs.u8): rs.u8 => {
+					const x124: rs.u8 = _2569;
 					const _6155: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6155.value, x154 ^ 11);
+					rs.byteVecPush(_6155.value, x124 ^ 11);
 					rs.refMutRelease(_6155);
-					return x154;
-				}), (_2749: rs.u8): boolean => {
+					return x124;
+				}), (_2572: rs.u8): boolean => {
 					return true;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2750: rs.u8): rs.u8 => {
-					const x155: rs.u8 = _2750;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2575: rs.u8): rs.u8 => {
+					const x125: rs.u8 = _2575;
 					const _6156: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6156.value, x155 ^ 12);
+					rs.byteVecPush(_6156.value, x125 ^ 12);
 					rs.refMutRelease(_6156);
-					return x155;
-				})), (_2755: [rs.u8, rs.u8]): rs.u8 | undefined => {
-					return rs.u8CheckedSub(_2755[0], _2755[1]);
+					return x125;
+				})), (_2578: [rs.u8, rs.u8]): rs.u8 | undefined => {
+					return rs.u8CheckedSub(_2578[0], _2578[1]);
 				})) & 0xff);
 			} else if (_2179 === 2) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterSkipWhile(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2734: rs.u8): rs.u8 => {
-					const x151: rs.u8 = _2734;
+				rs.byteVecPush(out, rs.iterCount(rs.iterSkipWhile(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2546: rs.u8): rs.u8 => {
+					const x121: rs.u8 = _2546;
 					const _6153: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6153.value, x151 ^ 11);
+					rs.byteVecPush(_6153.value, x121 ^ 11);
 					rs.refMutRelease(_6153);
-					return x151;
-				}), (_2739: rs.u8): boolean => {
+					return x121;
+				}), (_2556: rs.u8): boolean => {
 					return true;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2744: rs.u8): rs.u8 => {
-					const x152: rs.u8 = _2744;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2564: rs.u8): rs.u8 => {
+					const x122: rs.u8 = _2564;
 					const _6154: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6154.value, x152 ^ 12);
+					rs.byteVecPush(_6154.value, x122 ^ 12);
 					rs.refMutRelease(_6154);
-					return x152;
-				})), (_2745: [rs.u8, rs.u8]): boolean => {
-					return _2745[0] < 128;
+					return x122;
+				})), (_2567: [rs.u8, rs.u8]): boolean => {
+					return _2567[0] < 128;
 				})) & 0xff);
 			} else if (_2179 === 3) {
-				rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(rs.iterMap(rs.iterEnumerate(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2716: rs.u8): rs.u8 => {
-					const x149: rs.u8 = _2716;
+				rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(rs.iterMap(rs.iterEnumerate(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2524: rs.u8): rs.u8 => {
+					const x119: rs.u8 = _2524;
 					const _6151: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6151.value, x149 ^ 11);
+					rs.byteVecPush(_6151.value, x119 ^ 11);
 					rs.refMutRelease(_6151);
-					return x149;
-				}), (_2721: rs.u8): boolean => {
+					return x119;
+				}), (_2527: rs.u8): boolean => {
 					return true;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2726: rs.u8): rs.u8 => {
-					const x150: rs.u8 = _2726;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2536: rs.u8): rs.u8 => {
+					const x120: rs.u8 = _2536;
 					const _6152: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6152.value, x150 ^ 12);
+					rs.byteVecPush(_6152.value, x120 ^ 12);
 					rs.refMutRelease(_6152);
-					return x150;
-				}))), (_2727: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
-					return _2727[0] & 0xff;
+					return x120;
+				}))), (_2541: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
+					return _2541[0] & 0xff;
 				})), 238));
 			} else if (_2179 === 4) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterChain(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2696: rs.u8): rs.u8 => {
-					const x147: rs.u8 = _2696;
+				rs.byteVecPush(out, rs.iterCount(rs.iterChain(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2515: rs.u8): rs.u8 => {
+					const x117: rs.u8 = _2515;
 					const _6149: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6149.value, x147 ^ 11);
+					rs.byteVecPush(_6149.value, x117 ^ 11);
 					rs.refMutRelease(_6149);
-					return x147;
-				}), (_2701: rs.u8): boolean => {
+					return x117;
+				}), (_2518: rs.u8): boolean => {
 					return true;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2706: rs.u8): rs.u8 => {
-					const x148: rs.u8 = _2706;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2521: rs.u8): rs.u8 => {
+					const x118: rs.u8 = _2521;
 					const _6150: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6150.value, x148 ^ 12);
+					rs.byteVecPush(_6150.value, x118 ^ 12);
 					rs.refMutRelease(_6150);
-					return x148;
+					return x118;
 				})), rs.iterSlice([[1, 2] as [rs.u8, rs.u8]]))) & 0xff);
 			} else if (_2179 === 5) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterTake(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2674: rs.u8): rs.u8 => {
-					const x145: rs.u8 = _2674;
+				rs.byteVecPush(out, rs.iterCount(rs.iterTake(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2502: rs.u8): rs.u8 => {
+					const x115: rs.u8 = _2502;
 					const _6147: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6147.value, x145 ^ 11);
+					rs.byteVecPush(_6147.value, x115 ^ 11);
 					rs.refMutRelease(_6147);
-					return x145;
-				}), (_2679: rs.u8): boolean => {
+					return x115;
+				}), (_2510: rs.u8): boolean => {
 					return true;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2684: rs.u8): rs.u8 => {
-					const x146: rs.u8 = _2684;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2513: rs.u8): rs.u8 => {
+					const x116: rs.u8 = _2513;
 					const _6148: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6148.value, x146 ^ 12);
+					rs.byteVecPush(_6148.value, x116 ^ 12);
 					rs.refMutRelease(_6148);
-					return x146;
+					return x116;
 				})), n)) & 0xff);
 			} else if (_2179 === 6) {
-				rs.byteVecPush(out, rs.iterCount(rs.iterSkip(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2654: rs.u8): rs.u8 => {
-					const x143: rs.u8 = _2654;
+				rs.byteVecPush(out, rs.iterCount(rs.iterSkip(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2482: rs.u8): rs.u8 => {
+					const x113: rs.u8 = _2482;
 					const _6145: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6145.value, x143 ^ 11);
+					rs.byteVecPush(_6145.value, x113 ^ 11);
 					rs.refMutRelease(_6145);
-					return x143;
-				}), (_2659: rs.u8): boolean => {
+					return x113;
+				}), (_2487: rs.u8): boolean => {
 					return true;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2664: rs.u8): rs.u8 => {
-					const x144: rs.u8 = _2664;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2492: rs.u8): rs.u8 => {
+					const x114: rs.u8 = _2492;
 					const _6146: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6146.value, x144 ^ 12);
+					rs.byteVecPush(_6146.value, x114 ^ 12);
 					rs.refMutRelease(_6146);
-					return x144;
+					return x114;
 				})), n)) & 0xff);
 			} else {
-				const p6: rs.Peekable<[rs.u8, rs.u8]> = rs.iterPeekable(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2633: rs.u8): rs.u8 => {
-					const x141: rs.u8 = _2633;
+				const p6: rs.Peekable<[rs.u8, rs.u8]> = rs.iterPeekable(rs.iterZip(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2470: rs.u8): rs.u8 => {
+					const x111: rs.u8 = _2470;
 					const _6143: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6143.value, x141 ^ 11);
+					rs.byteVecPush(_6143.value, x111 ^ 11);
 					rs.refMutRelease(_6143);
-					return x141;
-				}), (_2638: rs.u8): boolean => {
+					return x111;
+				}), (_2473: rs.u8): boolean => {
 					return true;
-				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2643: rs.u8): rs.u8 => {
-					const x142: rs.u8 = _2643;
+				}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b2)), (_2474: rs.u8): rs.u8 => {
+					const x112: rs.u8 = _2474;
 					const _6144: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_6144.value, x142 ^ 12);
+					rs.byteVecPush(_6144.value, x112 ^ 12);
 					rs.refMutRelease(_6144);
-					return x142;
+					return x112;
 				})));
 				rs.byteVecPush(out, (rs.peekablePeek(p6) !== undefined ? 1 : 0) ^ (rs.iterCount(p6) & 0xff));
 			}
@@ -4719,103 +4702,109 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if ((kind & 16) === 0) {
 		const _2298: rs.usize = rs.usizeRem(rs.usizeDiv(data.length, 8), 5);
 		if (_2298 === 0) {
-			const z37: rs.Iter<[rs.u8, rs.u8]> = rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2556: rs.u8): rs.u8 => {
-				const x127: rs.u8 = _2556;
+			const z37: rs.Iter<[rs.u8, rs.u8]> = rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2416: rs.u8): rs.u8 => {
+				const x96: rs.u8 = _2416;
 				const _6137: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6137.value, x127 ^ 13);
+				rs.byteVecPush(_6137.value, x96 ^ 13);
 				rs.refMutRelease(_6137);
-				return x127;
-			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2564: rs.u8): rs.u8 => {
-				const x128: rs.u8 = _2564;
+				return x96;
+			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2424: rs.u8): rs.u8 => {
+				const x97: rs.u8 = _2424;
 				const _6138: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6138.value, x128 ^ 14);
+				rs.byteVecPush(_6138.value, x97 ^ 14);
 				rs.refMutRelease(_6138);
-				return x128;
-			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2567: rs.u8): rs.u8 => {
-				const x129: rs.u8 = _2567;
+				return x97;
+			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2429: rs.u8): rs.u8 => {
+				const x98: rs.u8 = _2429;
 				const _6139: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6139.value, x129 ^ 15);
+				rs.byteVecPush(_6139.value, x98 ^ 15);
 				rs.refMutRelease(_6139);
-				return x129;
-			}), "len"), (_2569: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
-				return [_2569[0][0] ^ _2569[1], _2569[0][1]] as [rs.u8, rs.u8];
+				return x98;
+			}), "len"), (_2434: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
+				return [_2434[0][0] ^ _2434[1], _2434[0][1]] as [rs.u8, rs.u8];
 			});
+			const _2320: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2444: [rs.u8, rs.u8]): rs.u8 => {
+				return _2444[0] ^ _2444[1];
+			};
 			const _2321: rs.usize = rs.usizeRem(data.length, 8);
 			if (_2321 === 0) {
 				rs.byteVecPush(out, rs.iterCount(z37) & 0xff);
 			} else if (_2321 === 1) {
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(z37), 238, (_2623: [rs.u8, rs.u8]): rs.u8 => {
-					return _2623[0] ^ _2623[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(z37), 238, (_2469: [rs.u8, rs.u8]): rs.u8 => {
+					return _2469[0] ^ _2469[1];
 				}));
 			} else if (_2321 === 2) {
 				rs.iterForEach(z37, (p17: [rs.u8, rs.u8]): undefined => {
 					rs.byteVecPush(out, _2320(p17));
 				});
 			} else if (_2321 === 3) {
-				rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(z37, (_2618: [rs.u8, rs.u8]): rs.u32 => {
-					return rs.u32Add(_2618[0] as rs.u32, _2618[1] as rs.u32);
+				rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(z37, (_2466: [rs.u8, rs.u8]): rs.u32 => {
+					return rs.u32Add(_2466[0] as rs.u32, _2466[1] as rs.u32);
 				}), rs.u32Add, 0)).reverse()), undefined, true);
 			} else if (_2321 === 4) {
-				rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(z37, (_2613: [rs.u8, rs.u8]): rs.u8 => {
-					return _2613[0] ^ _2613[1];
+				rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(z37, (_2465: [rs.u8, rs.u8]): rs.u8 => {
+					return _2465[0] ^ _2465[1];
 				}), undefined, true)), undefined, true);
 			} else if (_2321 === 5) {
 				rs.byteVecPush(out, rs.iterFold(z37, 0, (acc5: rs.u8, p16: [rs.u8, rs.u8]): rs.u8 => {
 					return rs.u8WrappingMul(acc5, 3) ^ _2320(p16);
 				}));
 			} else if (_2321 === 6) {
-				rs.byteVecPush(out, rs.iterAny(rs.iterMap(z37, (_2603: [rs.u8, rs.u8]): rs.u8 => {
-					return _2603[0] ^ _2603[1];
-				}), (x137: rs.u8): boolean => {
-					return x137 === 0;
+				rs.byteVecPush(out, rs.iterAny(rs.iterMap(z37, (_2462: [rs.u8, rs.u8]): rs.u8 => {
+					return _2462[0] ^ _2462[1];
+				}), (x107: rs.u8): boolean => {
+					return x107 === 0;
 				}) ? 1 : 0);
 			} else {
 				const z38: rs.Iter<[rs.u8, rs.u8]> = z37;
-				rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(z38, (_2572: [rs.u8, rs.u8]): boolean => {
-					return _2572[0] > _2572[1];
+				rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(z38, (_2452: [rs.u8, rs.u8]): boolean => {
+					return _2452[0] > _2452[1];
 				}), 238, (i6: rs.usize): rs.u8 => {
 					return i6 & 0xff;
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(z38, (_2575: [rs.u8, rs.u8]): boolean => {
-					return rs.u8Rem(_2575[0], 3) === 0;
-				}), 238, (_2578: [rs.u8, rs.u8]): rs.u8 => {
-					return _2578[0] ^ _2578[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(z38, (_2455: [rs.u8, rs.u8]): boolean => {
+					return rs.u8Rem(_2455[0], 3) === 0;
+				}), 238, (_2457: [rs.u8, rs.u8]): rs.u8 => {
+					return _2457[0] ^ _2457[1];
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z38, n), 238, (_2593: [rs.u8, rs.u8]): rs.u8 => {
-					return _2593[0] ^ _2593[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z38, n), 238, (_2458: [rs.u8, rs.u8]): rs.u8 => {
+					return _2458[0] ^ _2458[1];
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z38.next()), 238, (_2598: [rs.u8, rs.u8]): rs.u8 => {
-					return _2598[0] ^ _2598[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z38.next()), 238, (_2461: [rs.u8, rs.u8]): rs.u8 => {
+					return _2461[0] ^ _2461[1];
 				}));
 			}
 		} else if (_2298 === 1) {
-			const z39: rs.Iter<[rs.u8, rs.u8]> = rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2487: rs.u8): rs.u8 => {
-				const x113: rs.u8 = _2487;
+			const z39: rs.Iter<[rs.u8, rs.u8]> = rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2371: rs.u8): rs.u8 => {
+				const x81: rs.u8 = _2371;
 				const _6131: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6131.value, x113 ^ 13);
+				rs.byteVecPush(_6131.value, x81 ^ 13);
 				rs.refMutRelease(_6131);
-				return x113;
-			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2492: rs.u8): rs.u8 => {
-				const x114: rs.u8 = _2492;
+				return x81;
+			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2376: rs.u8): rs.u8 => {
+				const x82: rs.u8 = _2376;
 				const _6132: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6132.value, x114 ^ 14);
+				rs.byteVecPush(_6132.value, x82 ^ 14);
 				rs.refMutRelease(_6132);
-				return x114;
-			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2502: rs.u8): rs.u8 => {
-				const x115: rs.u8 = _2502;
+				return x82;
+			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2386: rs.u8): rs.u8 => {
+				const x83: rs.u8 = _2386;
 				const _6133: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6133.value, x115 ^ 15);
+				rs.byteVecPush(_6133.value, x83 ^ 15);
 				rs.refMutRelease(_6133);
-				return x115;
-			}), "len"), (_2510: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
-				return [_2510[0][0] ^ _2510[1], _2510[0][1]] as [rs.u8, rs.u8];
+				return x83;
+			}), "len"), (_2394: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
+				return [_2394[0][0] ^ _2394[1], _2394[0][1]] as [rs.u8, rs.u8];
 			});
+			const _2377: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2397: [rs.u8, rs.u8]): rs.u8 => {
+				return _2397[0] ^ _2397[1];
+			};
 			const _2378: rs.usize = rs.usizeRem(data.length, 8);
 			if (_2378 === 0) {
 				rs.byteVecPush(out, rs.iterCount(rs.iterBox(z39)) & 0xff);
 			} else if (_2378 === 1) {
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z39)), 238, (_2546: [rs.u8, rs.u8]): rs.u8 => {
-					return _2546[0] ^ _2546[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z39)), 238, (_2415: [rs.u8, rs.u8]): rs.u8 => {
+					return _2415[0] ^ _2415[1];
 				}));
 			} else if (_2378 === 2) {
 				const _2385: (a0: [rs.u8, rs.u8]) => undefined = (p15: [rs.u8, rs.u8]): undefined => {
@@ -4823,12 +4812,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				};
 				rs.iterForEach(rs.iterBox(z39), _2385);
 			} else if (_2378 === 3) {
-				rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z39), (_2541: [rs.u8, rs.u8]): rs.u32 => {
-					return rs.u32Add(_2541[0] as rs.u32, _2541[1] as rs.u32);
+				rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z39), (_2412: [rs.u8, rs.u8]): rs.u32 => {
+					return rs.u32Add(_2412[0] as rs.u32, _2412[1] as rs.u32);
 				}), rs.u32Add, 0)).reverse()), undefined, true);
 			} else if (_2378 === 4) {
-				rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z39), (_2536: [rs.u8, rs.u8]): rs.u8 => {
-					return _2536[0] ^ _2536[1];
+				rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z39), (_2411: [rs.u8, rs.u8]): rs.u8 => {
+					return _2411[0] ^ _2411[1];
 				}), "next")), undefined, true);
 			} else if (_2378 === 5) {
 				const _2393: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc4: rs.u8, p14: [rs.u8, rs.u8]): rs.u8 => {
@@ -4836,58 +4825,61 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				};
 				rs.byteVecPush(out, rs.iterFold(rs.iterBox(z39), 0, _2393));
 			} else if (_2378 === 6) {
-				rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z39), (_2527: [rs.u8, rs.u8]): rs.u8 => {
-					return _2527[0] ^ _2527[1];
-				}), (x123: rs.u8): boolean => {
-					return x123 === 0;
+				rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z39), (_2408: [rs.u8, rs.u8]): rs.u8 => {
+					return _2408[0] ^ _2408[1];
+				}), (x92: rs.u8): boolean => {
+					return x92 === 0;
 				}) ? 1 : 0);
 			} else {
 				const z40: rs.Iter<[rs.u8, rs.u8]> = z39;
-				rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z40), (_2513: [rs.u8, rs.u8]): boolean => {
-					return _2513[0] > _2513[1];
+				rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z40), (_2399: [rs.u8, rs.u8]): boolean => {
+					return _2399[0] > _2399[1];
 				}), 238, (i5: rs.usize): rs.u8 => {
 					return i5 & 0xff;
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z40), (_2515: [rs.u8, rs.u8]): boolean => {
-					return rs.u8Rem(_2515[0], 3) === 0;
-				}), 238, (_2518: [rs.u8, rs.u8]): rs.u8 => {
-					return _2518[0] ^ _2518[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z40), (_2400: [rs.u8, rs.u8]): boolean => {
+					return rs.u8Rem(_2400[0], 3) === 0;
+				}), 238, (_2403: [rs.u8, rs.u8]): rs.u8 => {
+					return _2403[0] ^ _2403[1];
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z40), n), 238, (_2521: [rs.u8, rs.u8]): rs.u8 => {
-					return _2521[0] ^ _2521[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z40), n), 238, (_2404: [rs.u8, rs.u8]): rs.u8 => {
+					return _2404[0] ^ _2404[1];
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z40.next()), 238, (_2524: [rs.u8, rs.u8]): rs.u8 => {
-					return _2524[0] ^ _2524[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z40.next()), 238, (_2407: [rs.u8, rs.u8]): rs.u8 => {
+					return _2407[0] ^ _2407[1];
 				}));
 			}
 		} else if (_2298 === 2) {
-			const z41: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2452: rs.u8): rs.u8 => {
-				const x99: rs.u8 = _2452;
+			const z41: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2329: rs.u8): rs.u8 => {
+				const x66: rs.u8 = _2329;
 				const _6125: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6125.value, x99 ^ 13);
+				rs.byteVecPush(_6125.value, x66 ^ 13);
 				rs.refMutRelease(_6125);
-				return x99;
-			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2455: rs.u8): rs.u8 => {
-				const x100: rs.u8 = _2455;
+				return x66;
+			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2337: rs.u8): rs.u8 => {
+				const x67: rs.u8 = _2337;
 				const _6126: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6126.value, x100 ^ 14);
+				rs.byteVecPush(_6126.value, x67 ^ 14);
 				rs.refMutRelease(_6126);
-				return x100;
-			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2457: rs.u8): rs.u8 => {
-				const x101: rs.u8 = _2457;
+				return x67;
+			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2340: rs.u8): rs.u8 => {
+				const x68: rs.u8 = _2340;
 				const _6127: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6127.value, x101 ^ 15);
+				rs.byteVecPush(_6127.value, x68 ^ 15);
 				rs.refMutRelease(_6127);
-				return x101;
-			}), "len"), (_2458: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
-				return [_2458[0][0] ^ _2458[1], _2458[0][1]] as [rs.u8, rs.u8];
+				return x68;
+			}), "len"), (_2342: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
+				return [_2342[0][0] ^ _2342[1], _2342[0][1]] as [rs.u8, rs.u8];
 			}), n);
+			const _2435: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2343: [rs.u8, rs.u8]): rs.u8 => {
+				return _2343[0] ^ _2343[1];
+			};
 			const _2436: rs.usize = rs.usizeRem(data.length, 8);
 			if (_2436 === 0) {
 				rs.byteVecPush(out, rs.iterCount(rs.iterBox(z41)) & 0xff);
 			} else if (_2436 === 1) {
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z41)), 238, (_2482: [rs.u8, rs.u8]): rs.u8 => {
-					return _2482[0] ^ _2482[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBox(z41)), 238, (_2366: [rs.u8, rs.u8]): rs.u8 => {
+					return _2366[0] ^ _2366[1];
 				}));
 			} else if (_2436 === 2) {
 				const _2443: (a0: [rs.u8, rs.u8]) => undefined = (p13: [rs.u8, rs.u8]): undefined => {
@@ -4895,12 +4887,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				};
 				rs.iterForEach(rs.iterBox(z41), _2443);
 			} else if (_2436 === 3) {
-				rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z41), (_2474: [rs.u8, rs.u8]): rs.u32 => {
-					return rs.u32Add(_2474[0] as rs.u32, _2474[1] as rs.u32);
+				rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBox(z41), (_2359: [rs.u8, rs.u8]): rs.u32 => {
+					return rs.u32Add(_2359[0] as rs.u32, _2359[1] as rs.u32);
 				}), rs.u32Add, 0)).reverse()), undefined, true);
 			} else if (_2436 === 4) {
-				rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z41), (_2473: [rs.u8, rs.u8]): rs.u8 => {
-					return _2473[0] ^ _2473[1];
+				rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBox(z41), (_2358: [rs.u8, rs.u8]): rs.u8 => {
+					return _2358[0] ^ _2358[1];
 				}), "next")), undefined, true);
 			} else if (_2436 === 5) {
 				const _2451: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc3: rs.u8, p12: [rs.u8, rs.u8]): rs.u8 => {
@@ -4908,58 +4900,61 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				};
 				rs.byteVecPush(out, rs.iterFold(rs.iterBox(z41), 0, _2451));
 			} else if (_2436 === 6) {
-				rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z41), (_2470: [rs.u8, rs.u8]): rs.u8 => {
-					return _2470[0] ^ _2470[1];
-				}), (x109: rs.u8): boolean => {
-					return x109 === 0;
+				rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBox(z41), (_2355: [rs.u8, rs.u8]): rs.u8 => {
+					return _2355[0] ^ _2355[1];
+				}), (x77: rs.u8): boolean => {
+					return x77 === 0;
 				}) ? 1 : 0);
 			} else {
 				const z42: rs.Iter<[rs.u8, rs.u8]> = z41;
-				rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z42), (_2461: [rs.u8, rs.u8]): boolean => {
-					return _2461[0] > _2461[1];
+				rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(z42), (_2346: [rs.u8, rs.u8]): boolean => {
+					return _2346[0] > _2346[1];
 				}), 238, (i4: rs.usize): rs.u8 => {
 					return i4 & 0xff;
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z42), (_2462: [rs.u8, rs.u8]): boolean => {
-					return rs.u8Rem(_2462[0], 3) === 0;
-				}), 238, (_2465: [rs.u8, rs.u8]): rs.u8 => {
-					return _2465[0] ^ _2465[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(z42), (_2347: [rs.u8, rs.u8]): boolean => {
+					return rs.u8Rem(_2347[0], 3) === 0;
+				}), 238, (_2350: [rs.u8, rs.u8]): rs.u8 => {
+					return _2350[0] ^ _2350[1];
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z42), n), 238, (_2466: [rs.u8, rs.u8]): rs.u8 => {
-					return _2466[0] ^ _2466[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(z42), n), 238, (_2351: [rs.u8, rs.u8]): rs.u8 => {
+					return _2351[0] ^ _2351[1];
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z42.next()), 238, (_2469: [rs.u8, rs.u8]): rs.u8 => {
-					return _2469[0] ^ _2469[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z42.next()), 238, (_2354: [rs.u8, rs.u8]): rs.u8 => {
+					return _2354[0] ^ _2354[1];
 				}));
 			}
 		} else if (_2298 === 3) {
-			const _2475: rs.Iter<[rs.u8, rs.u8]> = rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2400: rs.u8): rs.u8 => {
-				const x85: rs.u8 = _2400;
+			const _2475: rs.Iter<[rs.u8, rs.u8]> = rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2262: rs.u8): rs.u8 => {
+				const x51: rs.u8 = _2262;
 				const _6119: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6119.value, x85 ^ 13);
+				rs.byteVecPush(_6119.value, x51 ^ 13);
 				rs.refMutRelease(_6119);
-				return x85;
-			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2403: rs.u8): rs.u8 => {
-				const x86: rs.u8 = _2403;
+				return x51;
+			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2271: rs.u8): rs.u8 => {
+				const x52: rs.u8 = _2271;
 				const _6120: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6120.value, x86 ^ 14);
+				rs.byteVecPush(_6120.value, x52 ^ 14);
 				rs.refMutRelease(_6120);
-				return x86;
-			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2404: rs.u8): rs.u8 => {
-				const x87: rs.u8 = _2404;
+				return x52;
+			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2275: rs.u8): rs.u8 => {
+				const x53: rs.u8 = _2275;
 				const _6121: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6121.value, x87 ^ 15);
+				rs.byteVecPush(_6121.value, x53 ^ 15);
 				rs.refMutRelease(_6121);
-				return x87;
-			}), "len"), (_2407: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
-				return [_2407[0][0] ^ _2407[1], _2407[0][1]] as [rs.u8, rs.u8];
+				return x53;
+			}), "len"), (_2276: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
+				return [_2276[0][0] ^ _2276[1], _2276[0][1]] as [rs.u8, rs.u8];
 			});
+			const _2493: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2282: [rs.u8, rs.u8]): rs.u8 => {
+				return _2282[0] ^ _2282[1];
+			};
 			const _2494: rs.usize = rs.usizeRem(data.length, 8);
 			if (_2494 === 0) {
 				rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2475)))) & 0xff);
 			} else if (_2494 === 1) {
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2475)))), 238, (_2444: [rs.u8, rs.u8]): rs.u8 => {
-					return _2444[0] ^ _2444[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2475)))), 238, (_2319: [rs.u8, rs.u8]): rs.u8 => {
+					return _2319[0] ^ _2319[1];
 				}));
 			} else if (_2494 === 2) {
 				const _2501: (a0: [rs.u8, rs.u8]) => undefined = (p11: [rs.u8, rs.u8]): undefined => {
@@ -4967,12 +4962,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				};
 				rs.iterForEach(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2475))), _2501);
 			} else if (_2494 === 3) {
-				rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2475))), (_2434: [rs.u8, rs.u8]): rs.u32 => {
-					return rs.u32Add(_2434[0] as rs.u32, _2434[1] as rs.u32);
+				rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2475))), (_2314: [rs.u8, rs.u8]): rs.u32 => {
+					return rs.u32Add(_2314[0] as rs.u32, _2314[1] as rs.u32);
 				}), rs.u32Add, 0)).reverse()), undefined, true);
 			} else if (_2494 === 4) {
-				rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2475))), (_2429: [rs.u8, rs.u8]): rs.u8 => {
-					return _2429[0] ^ _2429[1];
+				rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2475))), (_2309: [rs.u8, rs.u8]): rs.u8 => {
+					return _2309[0] ^ _2309[1];
 				}), "next")), undefined, true);
 			} else if (_2494 === 5) {
 				const _2509: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc2: rs.u8, p10: [rs.u8, rs.u8]): rs.u8 => {
@@ -4980,57 +4975,60 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				};
 				rs.byteVecPush(out, rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2475))), 0, _2509));
 			} else if (_2494 === 6) {
-				rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2475))), (_2424: [rs.u8, rs.u8]): rs.u8 => {
-					return _2424[0] ^ _2424[1];
-				}), (x95: rs.u8): boolean => {
-					return x95 === 0;
+				rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2475))), (_2303: [rs.u8, rs.u8]): rs.u8 => {
+					return _2303[0] ^ _2303[1];
+				}), (x62: rs.u8): boolean => {
+					return x62 === 0;
 				}) ? 1 : 0);
 			} else {
-				rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_2475), (_2408: [rs.u8, rs.u8]): boolean => {
-					return _2408[0] > _2408[1];
+				rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_2475), (_2286: [rs.u8, rs.u8]): boolean => {
+					return _2286[0] > _2286[1];
 				}), 238, (i3: rs.usize): rs.u8 => {
 					return i3 & 0xff;
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_2475), (_2411: [rs.u8, rs.u8]): boolean => {
-					return rs.u8Rem(_2411[0], 3) === 0;
-				}), 238, (_2412: [rs.u8, rs.u8]): rs.u8 => {
-					return _2412[0] ^ _2412[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_2475), (_2287: [rs.u8, rs.u8]): boolean => {
+					return rs.u8Rem(_2287[0], 3) === 0;
+				}), 238, (_2289: [rs.u8, rs.u8]): rs.u8 => {
+					return _2289[0] ^ _2289[1];
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_2475), n), 238, (_2415: [rs.u8, rs.u8]): rs.u8 => {
-					return _2415[0] ^ _2415[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_2475), n), 238, (_2291: [rs.u8, rs.u8]): rs.u8 => {
+					return _2291[0] ^ _2291[1];
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_2475.next()), 238, (_2416: [rs.u8, rs.u8]): rs.u8 => {
-					return _2416[0] ^ _2416[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_2475.next()), 238, (_2292: [rs.u8, rs.u8]): rs.u8 => {
+					return _2292[0] ^ _2292[1];
 				}));
 			}
 		} else {
-			const _2528: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2350: rs.u8): rs.u8 => {
-				const x71: rs.u8 = _2350;
+			const _2528: rs.Iter<[rs.u8, rs.u8]> = rs.iterSkip(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2170: rs.u8): rs.u8 => {
+				const x36: rs.u8 = _2170;
 				const _6113: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6113.value, x71 ^ 13);
+				rs.byteVecPush(_6113.value, x36 ^ 13);
 				rs.refMutRelease(_6113);
-				return x71;
-			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2351: rs.u8): rs.u8 => {
-				const x72: rs.u8 = _2351;
+				return x36;
+			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2173: rs.u8): rs.u8 => {
+				const x37: rs.u8 = _2173;
 				const _6114: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6114.value, x72 ^ 14);
+				rs.byteVecPush(_6114.value, x37 ^ 14);
 				rs.refMutRelease(_6114);
-				return x72;
-			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2354: rs.u8): rs.u8 => {
-				const x73: rs.u8 = _2354;
+				return x37;
+			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2176: rs.u8): rs.u8 => {
+				const x38: rs.u8 = _2176;
 				const _6115: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6115.value, x73 ^ 15);
+				rs.byteVecPush(_6115.value, x38 ^ 15);
 				rs.refMutRelease(_6115);
-				return x73;
-			}), "len"), (_2355: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
-				return [_2355[0][0] ^ _2355[1], _2355[0][1]] as [rs.u8, rs.u8];
+				return x38;
+			}), "len"), (_2190: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
+				return [_2190[0][0] ^ _2190[1], _2190[0][1]] as [rs.u8, rs.u8];
 			}), n);
+			const _2547: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2194: [rs.u8, rs.u8]): rs.u8 => {
+				return _2194[0] ^ _2194[1];
+			};
 			const _2548: rs.usize = rs.usizeRem(data.length, 8);
 			if (_2548 === 0) {
 				rs.byteVecPush(out, rs.iterCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2528)))) & 0xff);
 			} else if (_2548 === 1) {
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2528)))), 238, (_2399: [rs.u8, rs.u8]): rs.u8 => {
-					return _2399[0] ^ _2399[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2528)))), 238, (_2258: [rs.u8, rs.u8]): rs.u8 => {
+					return _2258[0] ^ _2258[1];
 				}));
 			} else if (_2548 === 2) {
 				const _2555: (a0: [rs.u8, rs.u8]) => undefined = (p9: [rs.u8, rs.u8]): undefined => {
@@ -5038,12 +5036,12 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				};
 				rs.iterForEach(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2528))), _2555);
 			} else if (_2548 === 3) {
-				rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2528))), (_2397: [rs.u8, rs.u8]): rs.u32 => {
-					return rs.u32Add(_2397[0] as rs.u32, _2397[1] as rs.u32);
+				rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2528))), (_2247: [rs.u8, rs.u8]): rs.u32 => {
+					return rs.u32Add(_2247[0] as rs.u32, _2247[1] as rs.u32);
 				}), rs.u32Add, 0)).reverse()), undefined, true);
 			} else if (_2548 === 4) {
-				rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2528))), (_2394: [rs.u8, rs.u8]): rs.u8 => {
-					return _2394[0] ^ _2394[1];
+				rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2528))), (_2243: [rs.u8, rs.u8]): rs.u8 => {
+					return _2243[0] ^ _2243[1];
 				}), "next")), undefined, true);
 			} else if (_2548 === 5) {
 				const _2563: (a0: rs.u8, a1: [rs.u8, rs.u8]) => rs.u8 = (acc: rs.u8, p8: [rs.u8, rs.u8]): rs.u8 => {
@@ -5051,215 +5049,215 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				};
 				rs.byteVecPush(out, rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2528))), 0, _2563));
 			} else if (_2548 === 6) {
-				rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2528))), (_2386: [rs.u8, rs.u8]): rs.u8 => {
-					return _2386[0] ^ _2386[1];
-				}), (x81: rs.u8): boolean => {
-					return x81 === 0;
+				rs.byteVecPush(out, rs.iterAny(rs.iterMap(rs.iterBorrow(rs.iterBox(rs.iterBorrow(_2528))), (_2234: [rs.u8, rs.u8]): rs.u8 => {
+					return _2234[0] ^ _2234[1];
+				}), (x47: rs.u8): boolean => {
+					return x47 === 0;
 				}) ? 1 : 0);
 			} else {
-				rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_2528), (_2358: [rs.u8, rs.u8]): boolean => {
-					return _2358[0] > _2358[1];
+				rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(rs.iterBox(_2528), (_2203: [rs.u8, rs.u8]): boolean => {
+					return _2203[0] > _2203[1];
 				}), 238, (i2: rs.usize): rs.u8 => {
 					return i2 & 0xff;
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_2528), (_2359: [rs.u8, rs.u8]): boolean => {
-					return rs.u8Rem(_2359[0], 3) === 0;
-				}), 238, (_2366: [rs.u8, rs.u8]): rs.u8 => {
-					return _2366[0] ^ _2366[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterFind(rs.iterBox(_2528), (_2207: [rs.u8, rs.u8]): boolean => {
+					return rs.u8Rem(_2207[0], 3) === 0;
+				}), 238, (_2216: [rs.u8, rs.u8]): rs.u8 => {
+					return _2216[0] ^ _2216[1];
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_2528), n), 238, (_2371: [rs.u8, rs.u8]): rs.u8 => {
-					return _2371[0] ^ _2371[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(rs.iterBox(_2528), n), 238, (_2220: [rs.u8, rs.u8]): rs.u8 => {
+					return _2220[0] ^ _2220[1];
 				}));
-				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_2528.next()), 238, (_2376: [rs.u8, rs.u8]): rs.u8 => {
-					return _2376[0] ^ _2376[1];
+				rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(_2528.next()), 238, (_2230: [rs.u8, rs.u8]): rs.u8 => {
+					return _2230[0] ^ _2230[1];
 				}));
 			}
 		}
 	} else {
 		const _2581: rs.usize = rs.usizeRem(data.length, 8);
 		if (_2581 === 0) {
-			rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2340: rs.u8): rs.u8 => {
-				const x66: rs.u8 = _2340;
+			rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2144: rs.u8): rs.u8 => {
+				const x31: rs.u8 = _2144;
 				const _6109: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6109.value, x66 ^ 13);
+				rs.byteVecPush(_6109.value, x31 ^ 13);
 				rs.refMutRelease(_6109);
-				return x66;
-			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2342: rs.u8): rs.u8 => {
-				const x67: rs.u8 = _2342;
+				return x31;
+			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2154: rs.u8): rs.u8 => {
+				const x32: rs.u8 = _2154;
 				const _6110: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6110.value, x67 ^ 14);
+				rs.byteVecPush(_6110.value, x32 ^ 14);
 				rs.refMutRelease(_6110);
-				return x67;
-			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2343: rs.u8): rs.u8 => {
-				const x68: rs.u8 = _2343;
+				return x32;
+			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2162: rs.u8): rs.u8 => {
+				const x33: rs.u8 = _2162;
 				const _6111: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6111.value, x68 ^ 15);
+				rs.byteVecPush(_6111.value, x33 ^ 15);
 				rs.refMutRelease(_6111);
-				return x68;
-			}), "len"), (_2346: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
-				return [_2346[0][0] ^ _2346[1], _2346[0][1]] as [rs.u8, rs.u8];
-			}), (_2347: [rs.u8, rs.u8]): boolean => {
-				return rs.u8Rem(_2347[0], 2) === 0;
+				return x33;
+			}), "len"), (_2165: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
+				return [_2165[0][0] ^ _2165[1], _2165[0][1]] as [rs.u8, rs.u8];
+			}), (_2167: [rs.u8, rs.u8]): boolean => {
+				return rs.u8Rem(_2167[0], 2) === 0;
 			})) & 0xff);
 		} else if (_2581 === 1) {
-			rs.byteVecPush(out, rs.iterCount(rs.iterFilterMap(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2309: rs.u8): rs.u8 => {
-				const x61: rs.u8 = _2309;
+			rs.byteVecPush(out, rs.iterCount(rs.iterFilterMap(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2123: rs.u8): rs.u8 => {
+				const x26: rs.u8 = _2123;
 				const _6105: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6105.value, x61 ^ 13);
+				rs.byteVecPush(_6105.value, x26 ^ 13);
 				rs.refMutRelease(_6105);
-				return x61;
-			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2314: rs.u8): rs.u8 => {
-				const x62: rs.u8 = _2314;
+				return x26;
+			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2126: rs.u8): rs.u8 => {
+				const x27: rs.u8 = _2126;
 				const _6106: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6106.value, x62 ^ 14);
+				rs.byteVecPush(_6106.value, x27 ^ 14);
 				rs.refMutRelease(_6106);
-				return x62;
-			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2319: rs.u8): rs.u8 => {
-				const x63: rs.u8 = _2319;
+				return x27;
+			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2129: rs.u8): rs.u8 => {
+				const x28: rs.u8 = _2129;
 				const _6107: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6107.value, x63 ^ 15);
+				rs.byteVecPush(_6107.value, x28 ^ 15);
 				rs.refMutRelease(_6107);
-				return x63;
-			}), "len"), (_2329: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
-				return [_2329[0][0] ^ _2329[1], _2329[0][1]] as [rs.u8, rs.u8];
-			}), (_2337: [rs.u8, rs.u8]): rs.u8 | undefined => {
-				return rs.u8CheckedSub(_2337[0], _2337[1]);
+				return x28;
+			}), "len"), (_2132: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
+				return [_2132[0][0] ^ _2132[1], _2132[0][1]] as [rs.u8, rs.u8];
+			}), (_2140: [rs.u8, rs.u8]): rs.u8 | undefined => {
+				return rs.u8CheckedSub(_2140[0], _2140[1]);
 			})) & 0xff);
 		} else if (_2581 === 2) {
-			rs.byteVecPush(out, rs.iterCount(rs.iterSkipWhile(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2287: rs.u8): rs.u8 => {
-				const x56: rs.u8 = _2287;
+			rs.byteVecPush(out, rs.iterCount(rs.iterSkipWhile(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_296: rs.u8): rs.u8 => {
+				const x21: rs.u8 = _296;
 				const _6101: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6101.value, x56 ^ 13);
+				rs.byteVecPush(_6101.value, x21 ^ 13);
 				rs.refMutRelease(_6101);
-				return x56;
-			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2289: rs.u8): rs.u8 => {
-				const x57: rs.u8 = _2289;
+				return x21;
+			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2107: rs.u8): rs.u8 => {
+				const x22: rs.u8 = _2107;
 				const _6102: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6102.value, x57 ^ 14);
+				rs.byteVecPush(_6102.value, x22 ^ 14);
 				rs.refMutRelease(_6102);
-				return x57;
-			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2291: rs.u8): rs.u8 => {
-				const x58: rs.u8 = _2291;
+				return x22;
+			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2115: rs.u8): rs.u8 => {
+				const x23: rs.u8 = _2115;
 				const _6103: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_6103.value, x58 ^ 15);
+				rs.byteVecPush(_6103.value, x23 ^ 15);
 				rs.refMutRelease(_6103);
-				return x58;
-			}), "len"), (_2292: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
-				return [_2292[0][0] ^ _2292[1], _2292[0][1]] as [rs.u8, rs.u8];
-			}), (_2303: [rs.u8, rs.u8]): boolean => {
-				return _2303[0] < 128;
+				return x23;
+			}), "len"), (_2118: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
+				return [_2118[0][0] ^ _2118[1], _2118[0][1]] as [rs.u8, rs.u8];
+			}), (_2120: [rs.u8, rs.u8]): boolean => {
+				return _2120[0] < 128;
 			})) & 0xff);
 		} else if (_2581 === 3) {
-			rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(rs.iterMap(rs.iterEnumerate(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2271: rs.u8): rs.u8 => {
-				const x52: rs.u8 = _2271;
+			rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(rs.iterMap(rs.iterEnumerate(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_265: rs.u8): rs.u8 => {
+				const x17: rs.u8 = _265;
 				const _682: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_682.value, x52 ^ 13);
+				rs.byteVecPush(_682.value, x17 ^ 13);
 				rs.refMutRelease(_682);
-				return x52;
-			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2275: rs.u8): rs.u8 => {
-				const x53: rs.u8 = _2275;
+				return x17;
+			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_268: rs.u8): rs.u8 => {
+				const x18: rs.u8 = _268;
 				const _692: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_692.value, x53 ^ 14);
+				rs.byteVecPush(_692.value, x18 ^ 14);
 				rs.refMutRelease(_692);
-				return x53;
-			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2276: rs.u8): rs.u8 => {
-				const x54: rs.u8 = _2276;
+				return x18;
+			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_271: rs.u8): rs.u8 => {
+				const x19: rs.u8 = _271;
 				const _697: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_697.value, x54 ^ 15);
+				rs.byteVecPush(_697.value, x19 ^ 15);
 				rs.refMutRelease(_697);
-				return x54;
-			}), "len"), (_2282: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
-				return [_2282[0][0] ^ _2282[1], _2282[0][1]] as [rs.u8, rs.u8];
-			})), (_2286: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
-				return _2286[0] & 0xff;
+				return x19;
+			}), "len"), (_284: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
+				return [_284[0][0] ^ _284[1], _284[0][1]] as [rs.u8, rs.u8];
+			})), (_288: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
+				return _288[0] & 0xff;
 			})), 238));
 		} else if (_2581 === 4) {
-			rs.byteVecPush(out, rs.iterCount(rs.iterChain(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2243: rs.u8): rs.u8 => {
-				const x48: rs.u8 = _2243;
+			rs.byteVecPush(out, rs.iterCount(rs.iterChain(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_249: rs.u8): rs.u8 => {
+				const x13: rs.u8 = _249;
 				const _654: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_654.value, x48 ^ 13);
+				rs.byteVecPush(_654.value, x13 ^ 13);
 				rs.refMutRelease(_654);
-				return x48;
-			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2247: rs.u8): rs.u8 => {
-				const x49: rs.u8 = _2247;
+				return x13;
+			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_257: rs.u8): rs.u8 => {
+				const x14: rs.u8 = _257;
 				const _663: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_663.value, x49 ^ 14);
+				rs.byteVecPush(_663.value, x14 ^ 14);
 				rs.refMutRelease(_663);
-				return x49;
-			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2258: rs.u8): rs.u8 => {
-				const x50: rs.u8 = _2258;
+				return x14;
+			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_260: rs.u8): rs.u8 => {
+				const x15: rs.u8 = _260;
 				const _668: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_668.value, x50 ^ 15);
+				rs.byteVecPush(_668.value, x15 ^ 15);
 				rs.refMutRelease(_668);
-				return x50;
-			}), "len"), (_2262: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
-				return [_2262[0][0] ^ _2262[1], _2262[0][1]] as [rs.u8, rs.u8];
+				return x15;
+			}), "len"), (_262: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
+				return [_262[0][0] ^ _262[1], _262[0][1]] as [rs.u8, rs.u8];
 			}), rs.iterSlice([[1, 2] as [rs.u8, rs.u8]]))) & 0xff);
 		} else if (_2581 === 5) {
-			rs.byteVecPush(out, rs.iterCount(rs.iterTake(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2216: rs.u8): rs.u8 => {
-				const x44: rs.u8 = _2216;
+			rs.byteVecPush(out, rs.iterCount(rs.iterTake(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_225: rs.u8): rs.u8 => {
+				const x9: rs.u8 = _225;
 				const _629: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_629.value, x44 ^ 13);
+				rs.byteVecPush(_629.value, x9 ^ 13);
 				rs.refMutRelease(_629);
-				return x44;
-			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2220: rs.u8): rs.u8 => {
-				const x45: rs.u8 = _2220;
+				return x9;
+			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_228: rs.u8): rs.u8 => {
+				const x10: rs.u8 = _228;
 				const _632: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_632.value, x45 ^ 14);
+				rs.byteVecPush(_632.value, x10 ^ 14);
 				rs.refMutRelease(_632);
-				return x45;
-			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2230: rs.u8): rs.u8 => {
-				const x46: rs.u8 = _2230;
+				return x10;
+			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_235: rs.u8): rs.u8 => {
+				const x11: rs.u8 = _235;
 				const _635: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_635.value, x46 ^ 15);
+				rs.byteVecPush(_635.value, x11 ^ 15);
 				rs.refMutRelease(_635);
-				return x46;
-			}), "len"), (_2234: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
-				return [_2234[0][0] ^ _2234[1], _2234[0][1]] as [rs.u8, rs.u8];
+				return x11;
+			}), "len"), (_239: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
+				return [_239[0][0] ^ _239[1], _239[0][1]] as [rs.u8, rs.u8];
 			}), n)) & 0xff);
 		} else if (_2581 === 6) {
-			rs.byteVecPush(out, rs.iterCount(rs.iterSkip(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2190: rs.u8): rs.u8 => {
-				const x40: rs.u8 = _2190;
+			rs.byteVecPush(out, rs.iterCount(rs.iterSkip(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_214: rs.u8): rs.u8 => {
+				const x5: rs.u8 = _214;
 				const _613: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_613.value, x40 ^ 13);
+				rs.byteVecPush(_613.value, x5 ^ 13);
 				rs.refMutRelease(_613);
-				return x40;
-			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2194: rs.u8): rs.u8 => {
-				const x41: rs.u8 = _2194;
+				return x5;
+			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_216: rs.u8): rs.u8 => {
+				const x6: rs.u8 = _216;
 				const _621: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_621.value, x41 ^ 14);
+				rs.byteVecPush(_621.value, x6 ^ 14);
 				rs.refMutRelease(_621);
-				return x41;
-			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2203: rs.u8): rs.u8 => {
-				const x42: rs.u8 = _2203;
+				return x6;
+			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_219: rs.u8): rs.u8 => {
+				const x7: rs.u8 = _219;
 				const _624: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_624.value, x42 ^ 15);
+				rs.byteVecPush(_624.value, x7 ^ 15);
 				rs.refMutRelease(_624);
-				return x42;
-			}), "len"), (_2207: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
-				return [_2207[0][0] ^ _2207[1], _2207[0][1]] as [rs.u8, rs.u8];
+				return x7;
+			}), "len"), (_222: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
+				return [_222[0][0] ^ _222[1], _222[0][1]] as [rs.u8, rs.u8];
 			}), n)) & 0xff);
 		} else {
-			const p7: rs.Peekable<[rs.u8, rs.u8]> = rs.iterPeekable(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_2167: rs.u8): rs.u8 => {
-				const x36: rs.u8 = _2167;
+			const p7: rs.Peekable<[rs.u8, rs.u8]> = rs.iterPeekable(rs.iterMap(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a2)), (_23: rs.u8): rs.u8 => {
+				const x: rs.u8 = _23;
 				const _62: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_62.value, x36 ^ 13);
+				rs.byteVecPush(_62.value, x ^ 13);
 				rs.refMutRelease(_62);
-				return x36;
-			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_2170: rs.u8): rs.u8 => {
-				const x37: rs.u8 = _2170;
+				return x;
+			}), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(b2))), (_25: rs.u8): rs.u8 => {
+				const x2: rs.u8 = _25;
 				const _65: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_65.value, x37 ^ 14);
+				rs.byteVecPush(_65.value, x2 ^ 14);
 				rs.refMutRelease(_65);
-				return x37;
-			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_2173: rs.u8): rs.u8 => {
-				const x38: rs.u8 = _2173;
+				return x2;
+			}), "len"), rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(a2))), (_27: rs.u8): rs.u8 => {
+				const x3: rs.u8 = _27;
 				const _67: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_67.value, x38 ^ 15);
+				rs.byteVecPush(_67.value, x3 ^ 15);
 				rs.refMutRelease(_67);
-				return x38;
-			}), "len"), (_2176: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
-				return [_2176[0][0] ^ _2176[1], _2176[0][1]] as [rs.u8, rs.u8];
+				return x3;
+			}), "len"), (_211: [[rs.u8, rs.u8], rs.u8]): [rs.u8, rs.u8] => {
+				return [_211[0][0] ^ _211[1], _211[0][1]] as [rs.u8, rs.u8];
 			}));
 			rs.byteVecPush(out, (rs.peekablePeek(p7) !== undefined ? 1 : 0) ^ (rs.iterCount(p7) & 0xff));
 		}
@@ -5276,38 +5274,29 @@ export function zips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * reads no item it never yields from a side that does not log, nor through `nth` it skips.
  */
 export function zipsBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _20: (a0: rs.ByteSlice) => rs.u8 = (c: rs.ByteSlice): rs.u8 => {
-		return c.length & 0xff;
-	};
-	const _30: (a0: [rs.u8, rs.u8]) => rs.u8 = (_2: [rs.u8, rs.u8]): rs.u8 => {
-		return _2[0] ^ _2[1];
-	};
-	const _79: (a0: [rs.u8, [rs.u8, rs.usize]]) => rs.u8 = (_23: [rs.u8, [rs.u8, rs.usize]]): rs.u8 => {
-		return _23[0] ^ _23[1][0] ^ (_23[1][1] & 0xff);
-	};
-	const _127: (a0: [rs.u8, rs.u8]) => rs.u8 = (_27: [rs.u8, rs.u8]): rs.u8 => {
-		return _27[0] ^ _27[1];
-	};
-	const _176: (a0: [rs.u8, rs.u8]) => rs.u8 = (_210: [rs.u8, rs.u8]): rs.u8 => {
-		return _210[0] ^ _210[1];
-	};
-	const split: rs.usize = rs.usizeRem(option_mapOr$1d4bp7c(rs.byteSliceFirst(data), 0, (_211: rs.u8): rs.usize => {
-		return _211 as rs.usize;
+	const split: rs.usize = rs.usizeRem(option_mapOr$1d4bp7c(rs.byteSliceFirst(data), 0, (_2: rs.u8): rs.usize => {
+		return _2 as rs.usize;
 	}), rs.usizeAdd(data.length, 1));
 	if (split > data.length) {
 		rs.panic("mid > len");
 	}
 	const n: rs.usize = kind >> 5 as rs.usize;
 	const log: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
+	const _20: (a0: rs.ByteSlice) => rs.u8 = (c: rs.ByteSlice): rs.u8 => {
+		return c.length & 0xff;
+	};
 	const _21: rs.u8 = rs.u8Rem(kind, 8);
 	if (_21 === 0) {
-		const z: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start, split))), (_262: rs.u8): rs.u8 => {
-			const x25: rs.u8 = _262;
+		const z: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start, split))), (_261: rs.u8): rs.u8 => {
+			const x24: rs.u8 = _261;
 			const _621: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_621.value, x25 ^ 1);
+			rs.byteVecPush(_621.value, x24 ^ 1);
 			rs.refMutRelease(_621);
-			return x25;
+			return x24;
 		}), rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start + split, data.length - split))), [true, false]);
+		const _30: (a0: [rs.u8, rs.u8]) => rs.u8 = (_262: [rs.u8, rs.u8]): rs.u8 => {
+			return _262[0] ^ _262[1];
+		};
 		if ((kind & 8) !== 0) {
 			rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z.next()), 238, (_263: [rs.u8, rs.u8]): rs.u8 => {
 				return _263[0] ^ _263[1];
@@ -5339,21 +5328,24 @@ export function zipsBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			return _271[0] ^ _271[1];
 		}));
 	} else if (_21 === 1) {
-		const z2: rs.Iter<[rs.u8, [rs.u8, rs.usize]]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start, split))), rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start + split, data.length - split))), (_248: rs.u8): rs.u8 => {
-			const x20: rs.u8 = _248;
-			const _616: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_616.value, x20 ^ 2);
-			rs.refMutRelease(_616);
-			return x20;
+		const z2: rs.Iter<[rs.u8, [rs.u8, rs.usize]]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start, split))), rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start + split, data.length - split))), (_245: rs.u8): rs.u8 => {
+			const x18: rs.u8 = _245;
+			const _615: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			rs.byteVecPush(_615.value, x18 ^ 2);
+			rs.refMutRelease(_615);
+			return x18;
 		}), new rs.Range(0, data.length), [true, false]), [false, true]);
+		const _79: (a0: [rs.u8, [rs.u8, rs.usize]]) => rs.u8 = (_247: [rs.u8, [rs.u8, rs.usize]]): rs.u8 => {
+			return _247[0] ^ _247[1][0] ^ (_247[1][1] & 0xff);
+		};
 		if ((kind & 8) !== 0) {
-			rs.byteVecPush(out, option_mapOr$1r07vli(rs.iterToOption(z2.next()), 238, (_254: [rs.u8, [rs.u8, rs.usize]]): rs.u8 => {
-				return _254[0] ^ _254[1][0] ^ (_254[1][1] & 0xff);
+			rs.byteVecPush(out, option_mapOr$1r07vli(rs.iterToOption(z2.next()), 238, (_248: [rs.u8, [rs.u8, rs.usize]]): rs.u8 => {
+				return _248[0] ^ _248[1][0] ^ (_248[1][1] & 0xff);
 			}));
 		}
 		if ((kind & 16) !== 0) {
-			rs.byteVecPush(out, option_mapOr$1r07vli(rs.iterNth(z2, n), 238, (_257: [rs.u8, [rs.u8, rs.usize]]): rs.u8 => {
-				return _257[0] ^ _257[1][0] ^ (_257[1][1] & 0xff);
+			rs.byteVecPush(out, option_mapOr$1r07vli(rs.iterNth(z2, n), 238, (_254: [rs.u8, [rs.u8, rs.usize]]): rs.u8 => {
+				return _254[0] ^ _254[1][0] ^ (_254[1][1] & 0xff);
 			}));
 		}
 		while (true) {
@@ -5365,39 +5357,42 @@ export function zipsBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 					return u7 & 0xff;
 				}))), undefined, true);
 				if ((kind & 24) === 24) {
-					rs.byteVecPush(out, option_mapOr$1r07vli(rs.iterToOption(z2.next()), 238, (_258: [rs.u8, [rs.u8, rs.usize]]): rs.u8 => {
-						return _258[0] ^ _258[1][0] ^ (_258[1][1] & 0xff);
+					rs.byteVecPush(out, option_mapOr$1r07vli(rs.iterToOption(z2.next()), 238, (_257: [rs.u8, [rs.u8, rs.usize]]): rs.u8 => {
+						return _257[0] ^ _257[1][0] ^ (_257[1][1] & 0xff);
 					}));
 				}
 			} else {
 				break;
 			}
 		}
-		rs.byteVecPush(out, option_mapOr$1r07vli(rs.iterToOption(z2.next()), 238, (_261: [rs.u8, [rs.u8, rs.usize]]): rs.u8 => {
-			return _261[0] ^ _261[1][0] ^ (_261[1][1] & 0xff);
+		rs.byteVecPush(out, option_mapOr$1r07vli(rs.iterToOption(z2.next()), 238, (_258: [rs.u8, [rs.u8, rs.usize]]): rs.u8 => {
+			return _258[0] ^ _258[1][0] ^ (_258[1][1] & 0xff);
 		}));
 	} else if (_21 === 2) {
-		const z3: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start, split))), (_239: rs.u8): rs.u8 => {
-			const x14: rs.u8 = _239;
+		const z3: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start, split))), (_235: rs.u8): rs.u8 => {
+			const x11: rs.u8 = _235;
+			const _613: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			rs.byteVecPush(_613.value, x11 ^ 3);
+			rs.refMutRelease(_613);
+			return x11;
+		}), rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start + split, data.length - split))), (_237: rs.u8): rs.u8 => {
+			const x12: rs.u8 = _237;
 			const _614: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_614.value, x14 ^ 3);
+			rs.byteVecPush(_614.value, x12 ^ 4);
 			rs.refMutRelease(_614);
-			return x14;
-		}), rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start + split, data.length - split))), (_240: rs.u8): rs.u8 => {
-			const x15: rs.u8 = _240;
-			const _615: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_615.value, x15 ^ 4);
-			rs.refMutRelease(_615);
-			return x15;
+			return x12;
 		}), [true, true]);
+		const _127: (a0: [rs.u8, rs.u8]) => rs.u8 = (_238: [rs.u8, rs.u8]): rs.u8 => {
+			return _238[0] ^ _238[1];
+		};
 		if ((kind & 8) !== 0) {
-			rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z3.next()), 238, (_242: [rs.u8, rs.u8]): rs.u8 => {
-				return _242[0] ^ _242[1];
+			rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z3.next()), 238, (_239: [rs.u8, rs.u8]): rs.u8 => {
+				return _239[0] ^ _239[1];
 			}));
 		}
 		if ((kind & 16) !== 0) {
-			rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z3, n), 238, (_244: [rs.u8, rs.u8]): rs.u8 => {
-				return _244[0] ^ _244[1];
+			rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z3, n), 238, (_240: [rs.u8, rs.u8]): rs.u8 => {
+				return _240[0] ^ _240[1];
 			}));
 		}
 		while (true) {
@@ -5409,39 +5404,42 @@ export function zipsBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 					return u6 & 0xff;
 				}))), undefined, true);
 				if ((kind & 24) === 24) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z3.next()), 238, (_245: [rs.u8, rs.u8]): rs.u8 => {
-						return _245[0] ^ _245[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z3.next()), 238, (_242: [rs.u8, rs.u8]): rs.u8 => {
+						return _242[0] ^ _242[1];
 					}));
 				}
 			} else {
 				break;
 			}
 		}
-		rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z3.next()), 238, (_247: [rs.u8, rs.u8]): rs.u8 => {
-			return _247[0] ^ _247[1];
+		rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z3.next()), 238, (_244: [rs.u8, rs.u8]): rs.u8 => {
+			return _244[0] ^ _244[1];
 		}));
 	} else if (_21 === 3) {
-		const z4: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start, split)))), (_226: rs.u8): rs.u8 => {
-			const x8: rs.u8 = _226;
+		const z4: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start, split)))), (_215: rs.u8): rs.u8 => {
+			const x4: rs.u8 = _215;
+			const _611: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			rs.byteVecPush(_611.value, x4 ^ 5);
+			rs.refMutRelease(_611);
+			return x4;
+		}), rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start + split, data.length - split))), (_216: rs.u8): rs.u8 => {
+			const x5: rs.u8 = _216;
 			const _612: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_612.value, x8 ^ 5);
+			rs.byteVecPush(_612.value, x5 ^ 6);
 			rs.refMutRelease(_612);
-			return x8;
-		}), rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start + split, data.length - split))), (_229: rs.u8): rs.u8 => {
-			const x9: rs.u8 = _229;
-			const _613: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_613.value, x9 ^ 6);
-			rs.refMutRelease(_613);
-			return x9;
+			return x5;
 		}), "len");
+		const _176: (a0: [rs.u8, rs.u8]) => rs.u8 = (_217: [rs.u8, rs.u8]): rs.u8 => {
+			return _217[0] ^ _217[1];
+		};
 		if ((kind & 8) !== 0) {
-			rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z4.next()), 238, (_232: [rs.u8, rs.u8]): rs.u8 => {
-				return _232[0] ^ _232[1];
+			rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z4.next()), 238, (_223: [rs.u8, rs.u8]): rs.u8 => {
+				return _223[0] ^ _223[1];
 			}));
 		}
 		if ((kind & 16) !== 0) {
-			rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z4, n), 238, (_235: [rs.u8, rs.u8]): rs.u8 => {
-				return _235[0] ^ _235[1];
+			rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterNth(z4, n), 238, (_226: [rs.u8, rs.u8]): rs.u8 => {
+				return _226[0] ^ _226[1];
 			}));
 		}
 		while (true) {
@@ -5453,20 +5451,20 @@ export function zipsBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 					return u5 & 0xff;
 				}))), undefined, true);
 				if ((kind & 24) === 24) {
-					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z4.next()), 238, (_237: [rs.u8, rs.u8]): rs.u8 => {
-						return _237[0] ^ _237[1];
+					rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z4.next()), 238, (_229: [rs.u8, rs.u8]): rs.u8 => {
+						return _229[0] ^ _229[1];
 					}));
 				}
 			} else {
 				break;
 			}
 		}
-		rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z4.next()), 238, (_238: [rs.u8, rs.u8]): rs.u8 => {
-			return _238[0] ^ _238[1];
+		rs.byteVecPush(out, option_mapOr$1h9hu6n(rs.iterToOption(z4.next()), 238, (_232: [rs.u8, rs.u8]): rs.u8 => {
+			return _232[0] ^ _232[1];
 		}));
 	} else if (_21 === 4) {
-		const at: (a0: [rs.usize, [rs.u8, rs.ByteSlice]]) => rs.u8 = (_223: [rs.usize, [rs.u8, rs.ByteSlice]]): rs.u8 => {
-			return (_223[0] & 0xff) ^ _223[1][0] ^ _20(_223[1][1]);
+		const at: (a0: [rs.usize, [rs.u8, rs.ByteSlice]]) => rs.u8 = (_214: [rs.usize, [rs.u8, rs.ByteSlice]]): rs.u8 => {
+			return (_214[0] & 0xff) ^ _214[1][0] ^ _20(_214[1][1]);
 		};
 		const z5: rs.Iter<[rs.usize, [rs.u8, rs.ByteSlice]]> = rs.iterZip(new rs.Range(0, split), rs.iterZip(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start + split, data.length - split))), rs.byteSliceChunks(data, 2), [false, false]), [false, false]);
 		const at2: (a0: [rs.usize, [rs.u8, rs.ByteSlice]]) => rs.u8 = at;
@@ -5493,10 +5491,10 @@ export function zipsBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}
 		rs.byteVecPush(out, option_mapOr$17ts8jj(rs.iterToOption(z5.next()), 238, at2));
 	} else if (_21 === 5) {
-		const at3: (a0: [rs.ByteSlice, [rs.usize, rs.u8]]) => rs.u8 = (_217: [rs.ByteSlice, [rs.usize, rs.u8]]): rs.u8 => {
-			const i4: rs.usize = _217[1][0];
-			const y5: rs.u8 = _217[1][1];
-			return _20(_217[0]) ^ (i4 & 0xff) ^ y5;
+		const at3: (a0: [rs.ByteSlice, [rs.usize, rs.u8]]) => rs.u8 = (_211: [rs.ByteSlice, [rs.usize, rs.u8]]): rs.u8 => {
+			const i3: rs.usize = _211[1][0];
+			const y: rs.u8 = _211[1][1];
+			return _20(_211[0]) ^ (i3 & 0xff) ^ y;
 		};
 		const z6: rs.Iter<[rs.ByteSlice, [rs.usize, rs.u8]]> = rs.iterZip(rs.byteSliceChunks(new rs.ByteSlice(data.data, data.start, split), 2), rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start + split, data.length - split)))), [false, false]);
 		const at4: (a0: [rs.ByteSlice, [rs.usize, rs.u8]]) => rs.u8 = at3;
@@ -5524,14 +5522,14 @@ export function zipsBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		rs.byteVecPush(out, option_mapOr$0llggqq(rs.iterToOption(z6.next()), 238, at4));
 	} else if (_21 === 6) {
 		const logged: (a0: rs.ByteSlice) => rs.ByteSlice = (c2: rs.ByteSlice): rs.ByteSlice => {
-			const _68: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			const _712: rs.u8 = _20(c2);
-			rs.byteVecPush(_68.value, _712);
-			rs.refMutRelease(_68);
+			const _65: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			const _711: rs.u8 = _20(c2);
+			rs.byteVecPush(_65.value, _711);
+			rs.refMutRelease(_65);
 			return c2;
 		};
-		const at5: (a0: [rs.u8, rs.ByteSlice]) => rs.u8 = (_216: [rs.u8, rs.ByteSlice]): rs.u8 => {
-			return _216[0] ^ _20(_216[1]);
+		const at5: (a0: [rs.u8, rs.ByteSlice]) => rs.u8 = (_210: [rs.u8, rs.ByteSlice]): rs.u8 => {
+			return _210[0] ^ _20(_210[1]);
 		};
 		const z7: rs.Iter<[rs.u8, rs.ByteSlice]> = rs.iterZip(new rs.Range(split & 0xff, data.length & 0xff), rs.iterMap(rs.byteSliceChunks(new rs.ByteSlice(data.data, data.start, split), 3), logged), [false, true]);
 		const at6: (a0: [rs.u8, rs.ByteSlice]) => rs.u8 = at5;
@@ -5558,16 +5556,16 @@ export function zipsBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}
 		rs.byteVecPush(out, option_mapOr$1ifh11y(rs.iterToOption(z7.next()), 238, at6));
 	} else {
-		const logged2: (a0: [rs.usize, rs.u8]) => rs.u8 = (_214: [rs.usize, rs.u8]): rs.u8 => {
-			const i2: rs.usize = _214[0];
-			const x5: rs.u8 = _214[1];
-			const _710: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_710.value, i2 & 0xff);
-			rs.refMutRelease(_710);
-			return x5;
+		const logged2: (a0: [rs.usize, rs.u8]) => rs.u8 = (_23: [rs.usize, rs.u8]): rs.u8 => {
+			const i: rs.usize = _23[0];
+			const x: rs.u8 = _23[1];
+			const _76: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			rs.byteVecPush(_76.value, i & 0xff);
+			rs.refMutRelease(_76);
+			return x;
 		};
-		const at7: (a0: [rs.u8, [rs.usize, rs.ByteSlice]]) => rs.u8 = (_215: [rs.u8, [rs.usize, rs.ByteSlice]]): rs.u8 => {
-			return _215[0] ^ (_215[1][0] & 0xff) ^ _20(_215[1][1]);
+		const at7: (a0: [rs.u8, [rs.usize, rs.ByteSlice]]) => rs.u8 = (_27: [rs.u8, [rs.usize, rs.ByteSlice]]): rs.u8 => {
+			return _27[0] ^ (_27[1][0] & 0xff) ^ _20(_27[1][1]);
 		};
 		const z8: rs.Iter<[rs.u8, [rs.usize, rs.ByteSlice]]> = rs.iterZip(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(data.data, data.start, split)))), logged2), rs.iterEnumerate(rs.byteSliceChunks(new rs.ByteSlice(data.data, data.start + split, data.length - split), 2)), [true, false]);
 		const at8: (a0: [rs.u8, [rs.usize, rs.ByteSlice]]) => rs.u8 = at7;
@@ -5681,49 +5679,45 @@ export function rangeFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$char_iters_chars_closure0(start: rs.char, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.char, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.char]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.charStep), "len");
-			while (true) {
-				const _13: [rs.u8, rs.char] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.char = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.char]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.charStep), "len");
+		while (true) {
+			const _13: [rs.u8, rs.char] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.char = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.charStep), "len"), (_26: [rs.u8, rs.char]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.char = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.char, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.charStep), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.char, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.char = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.charStep), "len"), (_26: [rs.u8, rs.char]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.char = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.char, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.charStep), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.char, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.charStep), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.char, rs.u8]): undefined => {
-				const x3: rs.char = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.char = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.charStep), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.char, rs.u8]): undefined => {
+			const x3: rs.char = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -5734,49 +5728,45 @@ export function fromTop$char_iters_chars_closure0(start: rs.char, data: rs.ByteS
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$i128_iters_range_froms_closure10(start: rs.i128, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.i128, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.i128]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i128Step), "len");
-			while (true) {
-				const _13: [rs.u8, rs.i128] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.i128 = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.i128]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i128Step), "len");
+		while (true) {
+			const _13: [rs.u8, rs.i128] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.i128 = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i128Step), "len"), (_26: [rs.u8, rs.i128]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.i128 = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.i128, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.i128Step), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.i128, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.i128 = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i128Step), "len"), (_26: [rs.u8, rs.i128]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.i128 = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.i128, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.i128Step), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.i128, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.i128Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.i128, rs.u8]): undefined => {
-				const x3: rs.i128 = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.i128 = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.i128Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.i128, rs.u8]): undefined => {
+			const x3: rs.i128 = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -5787,49 +5777,45 @@ export function fromTop$i128_iters_range_froms_closure10(start: rs.i128, data: r
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$i16_iters_range_froms_closure7(start: rs.i16, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.i16, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.i16]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i16Step), "len");
-			while (true) {
-				const _13: [rs.u8, rs.i16] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.i16 = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.i16]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i16Step), "len");
+		while (true) {
+			const _13: [rs.u8, rs.i16] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.i16 = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i16Step), "len"), (_26: [rs.u8, rs.i16]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.i16 = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.i16, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.i16Step), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.i16, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.i16 = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i16Step), "len"), (_26: [rs.u8, rs.i16]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.i16 = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.i16, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.i16Step), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.i16, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.i16Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.i16, rs.u8]): undefined => {
-				const x3: rs.i16 = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.i16 = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.i16Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.i16, rs.u8]): undefined => {
+			const x3: rs.i16 = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -5840,49 +5826,45 @@ export function fromTop$i16_iters_range_froms_closure7(start: rs.i16, data: rs.B
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$i32_iters_range_froms_closure8(start: rs.i32, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.i32, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.i32]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i32Step), "len");
-			while (true) {
-				const _13: [rs.u8, rs.i32] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.i32 = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.i32]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i32Step), "len");
+		while (true) {
+			const _13: [rs.u8, rs.i32] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.i32 = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i32Step), "len"), (_26: [rs.u8, rs.i32]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.i32 = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.i32, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.i32Step), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.i32, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.i32 = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i32Step), "len"), (_26: [rs.u8, rs.i32]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.i32 = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.i32, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.i32Step), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.i32, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.i32Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.i32, rs.u8]): undefined => {
-				const x3: rs.i32 = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.i32 = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.i32Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.i32, rs.u8]): undefined => {
+			const x3: rs.i32 = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -5893,49 +5875,45 @@ export function fromTop$i32_iters_range_froms_closure8(start: rs.i32, data: rs.B
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$i64_iters_range_froms_closure9(start: rs.i64, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.i64, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.i64]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i64Step), "len");
-			while (true) {
-				const _13: [rs.u8, rs.i64] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.i64 = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.i64]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i64Step), "len");
+		while (true) {
+			const _13: [rs.u8, rs.i64] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.i64 = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i64Step), "len"), (_26: [rs.u8, rs.i64]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.i64 = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.i64, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.i64Step), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.i64, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.i64 = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i64Step), "len"), (_26: [rs.u8, rs.i64]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.i64 = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.i64, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.i64Step), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.i64, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.i64Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.i64, rs.u8]): undefined => {
-				const x3: rs.i64 = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.i64 = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.i64Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.i64, rs.u8]): undefined => {
+			const x3: rs.i64 = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -5946,49 +5924,45 @@ export function fromTop$i64_iters_range_froms_closure9(start: rs.i64, data: rs.B
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$i8_iters_range_froms_closure6(start: rs.i8, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.i8, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.i8]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i8Step), "len");
-			while (true) {
-				const _13: [rs.u8, rs.i8] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.i8 = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.i8]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i8Step), "len");
+		while (true) {
+			const _13: [rs.u8, rs.i8] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.i8 = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i8Step), "len"), (_26: [rs.u8, rs.i8]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.i8 = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.i8, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.i8Step), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.i8, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.i8 = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.i8Step), "len"), (_26: [rs.u8, rs.i8]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.i8 = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.i8, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.i8Step), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.i8, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.i8Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.i8, rs.u8]): undefined => {
-				const x3: rs.i8 = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.i8 = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.i8Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.i8, rs.u8]): undefined => {
+			const x3: rs.i8 = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -5999,49 +5973,45 @@ export function fromTop$i8_iters_range_froms_closure6(start: rs.i8, data: rs.Byt
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$isize_iters_range_froms_closure11(start: rs.isize, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.isize, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.isize]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.isizeStep), "len");
-			while (true) {
-				const _13: [rs.u8, rs.isize] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.isize = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.isize]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.isizeStep), "len");
+		while (true) {
+			const _13: [rs.u8, rs.isize] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.isize = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.isizeStep), "len"), (_26: [rs.u8, rs.isize]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.isize = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.isize, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.isizeStep), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.isize, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.isize = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.isizeStep), "len"), (_26: [rs.u8, rs.isize]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.isize = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.isize, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.isizeStep), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.isize, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.isizeStep), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.isize, rs.u8]): undefined => {
-				const x3: rs.isize = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.isize = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.isizeStep), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.isize, rs.u8]): undefined => {
+			const x3: rs.isize = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -6052,49 +6022,45 @@ export function fromTop$isize_iters_range_froms_closure11(start: rs.isize, data:
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$u128_iters_range_froms_closure13(start: rs.u128, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.u128, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.u128]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u128Step), "len");
-			while (true) {
-				const _13: [rs.u8, rs.u128] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.u128 = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.u128]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u128Step), "len");
+		while (true) {
+			const _13: [rs.u8, rs.u128] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.u128 = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u128Step), "len"), (_26: [rs.u8, rs.u128]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.u128 = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.u128, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.u128Step), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.u128, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.u128 = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u128Step), "len"), (_26: [rs.u8, rs.u128]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.u128 = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.u128, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.u128Step), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.u128, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.u128Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.u128, rs.u8]): undefined => {
-				const x3: rs.u128 = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.u128 = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.u128Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.u128, rs.u8]): undefined => {
+			const x3: rs.u128 = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -6105,49 +6071,45 @@ export function fromTop$u128_iters_range_froms_closure13(start: rs.u128, data: r
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$u128_iters_range_froms_closure4(start: rs.u128, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.u128, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.u128]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u128Step), "len");
-			while (true) {
-				const _13: [rs.u8, rs.u128] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.u128 = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.u128]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u128Step), "len");
+		while (true) {
+			const _13: [rs.u8, rs.u128] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.u128 = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u128Step), "len"), (_26: [rs.u8, rs.u128]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.u128 = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.u128, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.u128Step), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.u128, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.u128 = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u128Step), "len"), (_26: [rs.u8, rs.u128]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.u128 = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.u128, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.u128Step), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.u128, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.u128Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.u128, rs.u8]): undefined => {
-				const x3: rs.u128 = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.u128 = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.u128Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.u128, rs.u8]): undefined => {
+			const x3: rs.u128 = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -6158,49 +6120,45 @@ export function fromTop$u128_iters_range_froms_closure4(start: rs.u128, data: rs
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$u16_iters_range_froms_closure1(start: rs.u16, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.u16, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.u16]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u16Step), "len");
-			while (true) {
-				const _13: [rs.u8, rs.u16] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.u16 = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.u16]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u16Step), "len");
+		while (true) {
+			const _13: [rs.u8, rs.u16] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.u16 = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u16Step), "len"), (_26: [rs.u8, rs.u16]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.u16 = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.u16, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.u16Step), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.u16, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.u16 = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u16Step), "len"), (_26: [rs.u8, rs.u16]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.u16 = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.u16, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.u16Step), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.u16, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.u16Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.u16, rs.u8]): undefined => {
-				const x3: rs.u16 = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.u16 = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.u16Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.u16, rs.u8]): undefined => {
+			const x3: rs.u16 = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -6211,49 +6169,45 @@ export function fromTop$u16_iters_range_froms_closure1(start: rs.u16, data: rs.B
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$u32_iters_range_froms_closure2(start: rs.u32, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.u32, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.u32]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u32Step), "len");
-			while (true) {
-				const _13: [rs.u8, rs.u32] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.u32 = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.u32]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u32Step), "len");
+		while (true) {
+			const _13: [rs.u8, rs.u32] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.u32 = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u32Step), "len"), (_26: [rs.u8, rs.u32]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.u32 = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.u32, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.u32Step), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.u32, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.u32 = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u32Step), "len"), (_26: [rs.u8, rs.u32]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.u32 = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.u32, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.u32Step), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.u32, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.u32Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.u32, rs.u8]): undefined => {
-				const x3: rs.u32 = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.u32 = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.u32Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.u32, rs.u8]): undefined => {
+			const x3: rs.u32 = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -6264,49 +6218,45 @@ export function fromTop$u32_iters_range_froms_closure2(start: rs.u32, data: rs.B
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$u64_iters_range_froms_closure12(start: rs.u64, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.u64, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.u64]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u64Step), "len");
-			while (true) {
-				const _13: [rs.u8, rs.u64] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.u64 = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.u64]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u64Step), "len");
+		while (true) {
+			const _13: [rs.u8, rs.u64] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.u64 = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u64Step), "len"), (_26: [rs.u8, rs.u64]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.u64 = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.u64, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.u64Step), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.u64, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.u64 = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u64Step), "len"), (_26: [rs.u8, rs.u64]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.u64 = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.u64, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.u64Step), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.u64, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.u64Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.u64, rs.u8]): undefined => {
-				const x3: rs.u64 = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.u64 = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.u64Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.u64, rs.u8]): undefined => {
+			const x3: rs.u64 = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -6317,49 +6267,45 @@ export function fromTop$u64_iters_range_froms_closure12(start: rs.u64, data: rs.
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$u64_iters_range_froms_closure3(start: rs.u64, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.u64, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.u64]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u64Step), "len");
-			while (true) {
-				const _13: [rs.u8, rs.u64] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.u64 = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.u64]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u64Step), "len");
+		while (true) {
+			const _13: [rs.u8, rs.u64] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.u64 = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u64Step), "len"), (_26: [rs.u8, rs.u64]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.u64 = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.u64, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.u64Step), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.u64, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.u64 = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u64Step), "len"), (_26: [rs.u8, rs.u64]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.u64 = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.u64, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.u64Step), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.u64, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.u64Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.u64, rs.u8]): undefined => {
-				const x3: rs.u64 = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.u64 = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.u64Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.u64, rs.u8]): undefined => {
+			const x3: rs.u64 = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -6370,49 +6316,45 @@ export function fromTop$u64_iters_range_froms_closure3(start: rs.u64, data: rs.B
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$u8_iters_range_froms_closure0(start: rs.u8, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.u8, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u8Step), "len");
-			while (true) {
-				const _13: [rs.u8, rs.u8] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.u8 = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u8Step), "len");
+		while (true) {
+			const _13: [rs.u8, rs.u8] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.u8 = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u8Step), "len"), (_26: [rs.u8, rs.u8]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.u8 = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.u8Step), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.u8, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.u8 = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.u8Step), "len"), (_26: [rs.u8, rs.u8]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.u8 = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.u8Step), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.u8, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.u8Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.u8, rs.u8]): undefined => {
-				const x3: rs.u8 = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.u8 = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.u8Step), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.u8, rs.u8]): undefined => {
+			const x3: rs.u8 = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -6423,49 +6365,45 @@ export function fromTop$u8_iters_range_froms_closure0(start: rs.u8, data: rs.Byt
  * of two `TrustedLen` iterators reads only as many pairs as the data has.
  */
 export function fromTop$usize_iters_range_froms_closure5(start: rs.usize, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec, put: (a0: rs.usize, a1: rs.ByteVec) => undefined): void {
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(how, 4);
-		if (_6 === 0) {
-			const iter: rs.Iter<[rs.u8, rs.usize]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.usizeStep), "len");
-			while (true) {
-				const _13: [rs.u8, rs.usize] | rs.Done = iter.next();
-				if (_13 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _13[0];
-				const x: rs.usize = _13[1];
-				rs.byteVecPush(out, b);
-				put(x, out);
+	const _6: rs.u8 = rs.u8Rem(how, 4);
+	if (_6 === 0) {
+		const iter: rs.Iter<[rs.u8, rs.usize]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.usizeStep), "len");
+		while (true) {
+			const _13: [rs.u8, rs.usize] | rs.Done = iter.next();
+			if (_13 === rs.DONE) {
+				break;
 			}
+			const b: rs.u8 = _13[0];
+			const x: rs.usize = _13[1];
+			rs.byteVecPush(out, b);
+			put(x, out);
 		}
-		if (_6 === 1) {
-			rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.usizeStep), "len"), (_26: [rs.u8, rs.usize]): undefined => {
-				const b4: rs.u8 = _26[0];
-				const x4: rs.usize = _26[1];
-				rs.byteVecPush(out, b4);
-				put(x4, out);
-			});
-		} else {
-			if (_6 === 2) {
-				const iter2: rs.Iter<[rs.usize, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.usizeStep), rs.iterSlice(rs.byteSliceView(data)), "len");
-				while (true) {
-					const _31: [rs.usize, rs.u8] | rs.Done = iter2.next();
-					if (_31 === rs.DONE) {
-						break b0;
-					}
-					const x2: rs.usize = _31[0];
-					const b2: rs.u8 = _31[1];
-					put(x2, out);
-					rs.byteVecPush(out, b2);
-				}
+	} else if (_6 === 1) {
+		rs.iterForEach(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), new rs.RangeFrom(start, rs.usizeStep), "len"), (_26: [rs.u8, rs.usize]): undefined => {
+			const b4: rs.u8 = _26[0];
+			const x4: rs.usize = _26[1];
+			rs.byteVecPush(out, b4);
+			put(x4, out);
+		});
+	} else if (_6 === 2) {
+		const iter2: rs.Iter<[rs.usize, rs.u8]> = rs.iterZip(new rs.RangeFrom(start, rs.usizeStep), rs.iterSlice(rs.byteSliceView(data)), "len");
+		while (true) {
+			const _31: [rs.usize, rs.u8] | rs.Done = iter2.next();
+			if (_31 === rs.DONE) {
+				break;
 			}
-			rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.usizeStep), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.usize, rs.u8]): undefined => {
-				const x3: rs.usize = _2[0];
-				const b3: rs.u8 = _2[1];
-				put(x3, out);
-				rs.byteVecPush(out, b3);
-			});
+			const x2: rs.usize = _31[0];
+			const b2: rs.u8 = _31[1];
+			put(x2, out);
+			rs.byteVecPush(out, b2);
 		}
+	} else {
+		rs.iterForEach(rs.iterZip(new rs.RangeFrom(start, rs.usizeStep), rs.iterSlice(rs.byteSliceView(data)), "len"), (_2: [rs.usize, rs.u8]): undefined => {
+			const x3: rs.usize = _2[0];
+			const b3: rs.u8 = _2[1];
+			put(x3, out);
+			rs.byteVecPush(out, b3);
+		});
 	}
 }
 
@@ -6474,10 +6412,10 @@ export function fromTop$usize_iters_range_froms_closure5(start: rs.usize, data: 
  * `char::MAX`, past which `start..` panics.
  */
 export function chars(a: rs.u8, data: rs.ByteSlice, how: rs.u8, out: rs.ByteVec): void {
+	const near: rs.u32 = rs.u8Rem(a, 4) as rs.u32;
 	const _8: (a0: rs.char, a1: rs.ByteVec) => undefined = (c2: rs.char, out2: rs.ByteVec): undefined => {
 		rs.iterExtendBytes(out2, rs.iterSlice(rs.u32ToBeBytes(c2 as rs.u32).reverse()), undefined, true);
 	};
-	const near: rs.u32 = rs.u8Rem(a, 4) as rs.u32;
 	const gap: rs.char = rs.optionUnwrap(rs.charFromU32(rs.u32Add(55293, near)));
 	fromTop$char_iters_chars_closure0(gap, data, how, out, (c3: rs.char, out3: rs.ByteVec): undefined => {
 		rs.iterExtendBytes(out3, rs.iterSlice(rs.u32ToBeBytes(c3 as rs.u32).reverse()), undefined, true);
@@ -6553,8 +6491,7 @@ export function adapted(a: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return _24[0] ^ (_24[1] & 0xff);
 	}), undefined, true);
 	rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterTake(rs.iterStepBy(new rs.RangeFrom(lo, rs.u8Step), 3), 4), "next")), undefined, true);
-	const _71: rs.Iter<rs.char> = rs.iterTake(new rs.RangeFrom(97, rs.charStep), rs.usizeRem(n, 6));
-	rs.iterExtendBytes(out, rs.strBytes(rs.stringExtendChars(rs.stringNew(), _71).v), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.stringFromChars(rs.iterTake(new rs.RangeFrom(97, rs.charStep), rs.usizeRem(n, 6))).v), undefined, true);
 	const _77: [rs.usize, rs.usize | undefined] = rs.iterZip(it(), new rs.RangeFrom(lo, rs.u8Step), "len").sizeHint();
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_77[0] & 0xff, option_mapOr$188iunt(_77[1], 238, (h: rs.usize): rs.u8 => {
 		return h & 0xff;
@@ -8583,14 +8520,14 @@ export function boundsContain$usize_ops_Range_usize(r: rs.Range<rs.usize>, x: rs
 export function stepped$char(table: rs.Slice<rs.char>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.char | undefined;
+	const _6: [rs.char, rs.char] = bounded$char(table, at, out);
+	const a: rs.char = _6[0];
+	const b: rs.char = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.char, rs.char] = bounded$char(table, at, out);
-	const a: rs.char = _6[0];
-	const b: rs.char = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.char> = new rs.Range(a, b, rs.charStep);
 		rs.rangeHash(rs.hash32)(_52, h2);
@@ -8677,14 +8614,14 @@ export function stepped$char(table: rs.Slice<rs.char>, at: rs.usize[], out: rs.B
 export function stepped$i128(table: rs.Slice<rs.i128>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.i128 | undefined;
+	const _6: [rs.i128, rs.i128] = bounded$i128(table, at, out);
+	const a: rs.i128 = _6[0];
+	const b: rs.i128 = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.i128, rs.i128] = bounded$i128(table, at, out);
-	const a: rs.i128 = _6[0];
-	const b: rs.i128 = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.i128> = new rs.Range(a, b, rs.i128Step);
 		rs.rangeHash(rs.hashI128)(_52, h2);
@@ -8771,14 +8708,14 @@ export function stepped$i128(table: rs.Slice<rs.i128>, at: rs.usize[], out: rs.B
 export function stepped$i16(table: rs.Slice<rs.i16>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.i16 | undefined;
+	const _6: [rs.i16, rs.i16] = bounded$i16(table, at, out);
+	const a: rs.i16 = _6[0];
+	const b: rs.i16 = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.i16, rs.i16] = bounded$i16(table, at, out);
-	const a: rs.i16 = _6[0];
-	const b: rs.i16 = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.i16> = new rs.Range(a, b);
 		rs.rangeHash(rs.hashI16)(_52, h2);
@@ -8865,14 +8802,14 @@ export function stepped$i16(table: rs.Slice<rs.i16>, at: rs.usize[], out: rs.Byt
 export function stepped$i32(table: rs.Slice<rs.i32>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.i32 | undefined;
+	const _6: [rs.i32, rs.i32] = bounded$i32(table, at, out);
+	const a: rs.i32 = _6[0];
+	const b: rs.i32 = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.i32, rs.i32] = bounded$i32(table, at, out);
-	const a: rs.i32 = _6[0];
-	const b: rs.i32 = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.i32> = new rs.Range(a, b);
 		rs.rangeHash(rs.hashI32)(_52, h2);
@@ -8959,14 +8896,14 @@ export function stepped$i32(table: rs.Slice<rs.i32>, at: rs.usize[], out: rs.Byt
 export function stepped$i64(table: rs.Slice<rs.i64>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.i64 | undefined;
+	const _6: [rs.i64, rs.i64] = bounded$i64(table, at, out);
+	const a: rs.i64 = _6[0];
+	const b: rs.i64 = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.i64, rs.i64] = bounded$i64(table, at, out);
-	const a: rs.i64 = _6[0];
-	const b: rs.i64 = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.i64> = new rs.Range(a, b, rs.i64Step);
 		rs.rangeHash(rs.hashI64)(_52, h2);
@@ -9053,14 +8990,14 @@ export function stepped$i64(table: rs.Slice<rs.i64>, at: rs.usize[], out: rs.Byt
 export function stepped$i8(table: rs.Slice<rs.i8>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.i8 | undefined;
+	const _6: [rs.i8, rs.i8] = bounded$i8(table, at, out);
+	const a: rs.i8 = _6[0];
+	const b: rs.i8 = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.i8, rs.i8] = bounded$i8(table, at, out);
-	const a: rs.i8 = _6[0];
-	const b: rs.i8 = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.i8> = new rs.Range(a, b);
 		rs.rangeHash(rs.hashI8)(_52, h2);
@@ -9147,14 +9084,14 @@ export function stepped$i8(table: rs.Slice<rs.i8>, at: rs.usize[], out: rs.ByteV
 export function stepped$isize(table: rs.Slice<rs.isize>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.isize | undefined;
+	const _6: [rs.isize, rs.isize] = bounded$isize(table, at, out);
+	const a: rs.isize = _6[0];
+	const b: rs.isize = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.isize, rs.isize] = bounded$isize(table, at, out);
-	const a: rs.isize = _6[0];
-	const b: rs.isize = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.isize> = new rs.Range(a, b);
 		rs.rangeHash(rs.hashIsize)(_52, h2);
@@ -9241,14 +9178,14 @@ export function stepped$isize(table: rs.Slice<rs.isize>, at: rs.usize[], out: rs
 export function stepped$num_NonZero_u128(table: rs.Slice<rs.u128>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.u128 | undefined;
+	const _6: [rs.u128, rs.u128] = bounded$num_NonZero_u128(table, at, out);
+	const a: rs.u128 = _6[0];
+	const b: rs.u128 = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.u128, rs.u128] = bounded$num_NonZero_u128(table, at, out);
-	const a: rs.u128 = _6[0];
-	const b: rs.u128 = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.u128> = new rs.Range(a, b, rs.nonZeroStep(rs.u128Step, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128));
 		rs.rangeHash(rs.hash128)(_52, h2);
@@ -9335,14 +9272,14 @@ export function stepped$num_NonZero_u128(table: rs.Slice<rs.u128>, at: rs.usize[
 export function stepped$num_NonZero_u64(table: rs.Slice<rs.u64>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.u64 | undefined;
+	const _6: [rs.u64, rs.u64] = bounded$num_NonZero_u64(table, at, out);
+	const a: rs.u64 = _6[0];
+	const b: rs.u64 = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.u64, rs.u64] = bounded$num_NonZero_u64(table, at, out);
-	const a: rs.u64 = _6[0];
-	const b: rs.u64 = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.u64> = new rs.Range(a, b, rs.nonZeroStep(rs.u64Step, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64));
 		rs.rangeHash(rs.hash64)(_52, h2);
@@ -9429,14 +9366,14 @@ export function stepped$num_NonZero_u64(table: rs.Slice<rs.u64>, at: rs.usize[],
 export function stepped$num_NonZero_u8(table: rs.Slice<rs.u8>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.u8 | undefined;
+	const _6: [rs.u8, rs.u8] = bounded$num_NonZero_u8(table, at, out);
+	const a: rs.u8 = _6[0];
+	const b: rs.u8 = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.u8, rs.u8] = bounded$num_NonZero_u8(table, at, out);
-	const a: rs.u8 = _6[0];
-	const b: rs.u8 = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.u8> = new rs.Range(a, b);
 		rs.rangeHash(rs.hash8)(_52, h2);
@@ -9523,14 +9460,14 @@ export function stepped$num_NonZero_u8(table: rs.Slice<rs.u8>, at: rs.usize[], o
 export function stepped$num_NonZero_usize(table: rs.Slice<rs.usize>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.usize | undefined;
+	const _6: [rs.usize, rs.usize] = bounded$num_NonZero_usize(table, at, out);
+	const a: rs.usize = _6[0];
+	const b: rs.usize = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.usize, rs.usize] = bounded$num_NonZero_usize(table, at, out);
-	const a: rs.usize = _6[0];
-	const b: rs.usize = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.usize> = new rs.Range(a, b);
 		rs.rangeHash(rs.hashUsize)(_52, h2);
@@ -9617,14 +9554,14 @@ export function stepped$num_NonZero_usize(table: rs.Slice<rs.usize>, at: rs.usiz
 export function stepped$u128(table: rs.Slice<rs.u128>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.u128 | undefined;
+	const _6: [rs.u128, rs.u128] = bounded$u128(table, at, out);
+	const a: rs.u128 = _6[0];
+	const b: rs.u128 = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.u128, rs.u128] = bounded$u128(table, at, out);
-	const a: rs.u128 = _6[0];
-	const b: rs.u128 = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.u128> = new rs.Range(a, b, rs.u128Step);
 		rs.rangeHash(rs.hash128)(_52, h2);
@@ -9711,14 +9648,14 @@ export function stepped$u128(table: rs.Slice<rs.u128>, at: rs.usize[], out: rs.B
 export function stepped$u16(table: rs.Slice<rs.u16>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.u16 | undefined;
+	const _6: [rs.u16, rs.u16] = bounded$u16(table, at, out);
+	const a: rs.u16 = _6[0];
+	const b: rs.u16 = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.u16, rs.u16] = bounded$u16(table, at, out);
-	const a: rs.u16 = _6[0];
-	const b: rs.u16 = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.u16> = new rs.Range(a, b);
 		rs.rangeHash(rs.hash16)(_52, h2);
@@ -9805,14 +9742,14 @@ export function stepped$u16(table: rs.Slice<rs.u16>, at: rs.usize[], out: rs.Byt
 export function stepped$u32(table: rs.Slice<rs.u32>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.u32 | undefined;
+	const _6: [rs.u32, rs.u32] = bounded$u32(table, at, out);
+	const a: rs.u32 = _6[0];
+	const b: rs.u32 = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.u32, rs.u32] = bounded$u32(table, at, out);
-	const a: rs.u32 = _6[0];
-	const b: rs.u32 = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.u32> = new rs.Range(a, b);
 		rs.rangeHash(rs.hash32)(_52, h2);
@@ -9899,14 +9836,14 @@ export function stepped$u32(table: rs.Slice<rs.u32>, at: rs.usize[], out: rs.Byt
 export function stepped$u64(table: rs.Slice<rs.u64>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.u64 | undefined;
+	const _6: [rs.u64, rs.u64] = bounded$u64(table, at, out);
+	const a: rs.u64 = _6[0];
+	const b: rs.u64 = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.u64, rs.u64] = bounded$u64(table, at, out);
-	const a: rs.u64 = _6[0];
-	const b: rs.u64 = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.u64> = new rs.Range(a, b, rs.u64Step);
 		rs.rangeHash(rs.hash64)(_52, h2);
@@ -9993,14 +9930,14 @@ export function stepped$u64(table: rs.Slice<rs.u64>, at: rs.usize[], out: rs.Byt
 export function stepped$u8(table: rs.ByteSlice, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.u8 | undefined;
+	const _6: [rs.u8, rs.u8] = bounded$u8(table, at, out);
+	const a: rs.u8 = _6[0];
+	const b: rs.u8 = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.u8, rs.u8] = bounded$u8(table, at, out);
-	const a: rs.u8 = _6[0];
-	const b: rs.u8 = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.u8> = new rs.Range(a, b);
 		rs.rangeHash(rs.hash8)(_52, h2);
@@ -10087,14 +10024,14 @@ export function stepped$u8(table: rs.ByteSlice, at: rs.usize[], out: rs.ByteVec)
 export function stepped$usize(table: rs.Slice<rs.usize>, at: rs.usize[], out: rs.ByteVec): void {
 	let _20!: rs.i32;
 	let read!: rs.usize | undefined;
+	const _6: [rs.usize, rs.usize] = bounded$usize(table, at, out);
+	const a: rs.usize = _6[0];
+	const b: rs.usize = _6[1];
 	const _7: (a0: (a0: rs.Hasher) => undefined) => Uint8Array = (value: (a0: rs.Hasher) => undefined): Uint8Array => {
 		const h: rs.Hasher = rs.hasher();
 		value(h);
 		return rs.u64ToBeBytes(rs.hashFinish(h)).reverse();
 	};
-	const _6: [rs.usize, rs.usize] = bounded$usize(table, at, out);
-	const a: rs.usize = _6[0];
-	const b: rs.usize = _6[1];
 	const part2 = (h2: rs.Hasher): undefined => {
 		const _52: rs.Range<rs.usize> = new rs.Range(a, b);
 		rs.rangeHash(rs.hashUsize)(_52, h2);
@@ -10189,11 +10126,6 @@ export function compares(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	let r5!: rs.u8;
 	let r6!: rs.u8;
 	let r7!: rs.u8;
-	const _23: (a0: rs.Ordering | undefined) => rs.u8 = (o: rs.Ordering | undefined): rs.u8 => {
-		return option_mapOr$14runhi(o, 9, (o2: rs.Ordering): rs.u8 => {
-			return o2 & 0xff;
-		});
-	};
 	const log: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
 	const other: rs.ByteVec = rs.byteSliceToByteVec(data);
 	const _8: rs.u8 = rs.u8Rem(kind >> 4, 4);
@@ -10209,6 +10141,11 @@ export function compares(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			}
 		}
 	}
+	const _23: (a0: rs.Ordering | undefined) => rs.u8 = (o: rs.Ordering | undefined): rs.u8 => {
+		return option_mapOr$14runhi(o, 9, (o2: rs.Ordering): rs.u8 => {
+			return o2 & 0xff;
+		});
+	};
 	const _24: rs.u8 = kind >> 6;
 	if (_24 === 0) {
 		let calls: rs.u8 = 0;
@@ -11493,147 +11430,142 @@ export function byValue(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	const logged: () => Logged.Logged = (): Logged.Logged => {
 		return new Logged.Logged(rs.u8Rem(at(2), 5), log);
 	};
-	b0: {
-		const _18: rs.u8 = rs.u8Rem(kind, 13);
-		if (_18 === 0) {
-			rs.iterExtendBytes(out, rs.iterMap(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), (n14: rs.u8): rs.u8 => {
-				return rs.u8Mul(n14, 3);
-			}), "next");
-		} else if (_18 === 1) {
-			rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterFilter(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), (n13: rs.u8): boolean => {
-				return rs.u8Rem(n13, 2) === 0;
-			}), "next")), undefined, true);
-		} else if (_18 === 2) {
-			const _26: Ticks.Ticks = ticks();
-			rs.iterExtendBytes(out, rs.iterMap(rs.iterZip(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), rs.iterFrom({ v: _26 }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v))), (_215: [rs.u8, rs.u8]): rs.u8 => {
-				return _215[0] ^ _215[1];
-			}), "next");
-		} else if (_18 === 3) {
-			const _30: Ticks.Ticks = ticks();
-			const _32: Logged.Logged = logged();
-			rs.iterExtendBytes(out, rs.iterMap(rs.iterZip(rs.iterFrom({ v: _30 }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v)), rs.iterFrom(_32, Logged.next$iter_Iterator, rs.drop)), (_214: [rs.u8, rs.u8]): rs.u8 => {
-				return rs.u8Add(_214[0], _214[1]);
-			}), "next");
-		} else if (_18 === 4) {
-			const _36: Ticks.Ticks = ticks();
-			rs.iterExtendBytes(out, rs.iterChain(rs.iterChain(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), rs.iterFrom({ v: _36 }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v))), rs.iterFrom(logged(), Logged.next$iter_Iterator, rs.drop)), "next");
-		} else {
-			if (_18 === 5) {
-				let iter: Ticks.Ticks = ticks();
-				while (true) {
-					const _44: rs.u8 | rs.Done = Ticks.next$iter_Iterator(rs.place(() => iter, (value11) => iter = value11));
-					if (_44 === rs.DONE) {
-						break;
-					}
-					const n: rs.u8 = _44;
-					const _51: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-					rs.byteVecPush(_51.value, n);
-					rs.refMutRelease(_51);
-				}
-				drop$iters_Ticks(iter);
-				let iter2: Phase.Phase = phase;
-				while (true) {
-					const _55: rs.u8 | rs.Done = Phase.next$iter_Iterator(rs.place(() => iter2, (value12) => iter2 = value12));
-					if (_55 === rs.DONE) {
-						break b0;
-					}
-					rs.byteVecPush(out, _55);
-				}
+	const _18: rs.u8 = rs.u8Rem(kind, 13);
+	if (_18 === 0) {
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), (n14: rs.u8): rs.u8 => {
+			return rs.u8Mul(n14, 3);
+		}), "next");
+	} else if (_18 === 1) {
+		rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterFilter(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), (n13: rs.u8): boolean => {
+			return rs.u8Rem(n13, 2) === 0;
+		}), "next")), undefined, true);
+	} else if (_18 === 2) {
+		const _26: Ticks.Ticks = ticks();
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterZip(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), rs.iterFrom({ v: _26 }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v))), (_215: [rs.u8, rs.u8]): rs.u8 => {
+			return _215[0] ^ _215[1];
+		}), "next");
+	} else if (_18 === 3) {
+		const _30: Ticks.Ticks = ticks();
+		const _32: Logged.Logged = logged();
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterZip(rs.iterFrom({ v: _30 }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v)), rs.iterFrom(_32, Logged.next$iter_Iterator, rs.drop)), (_214: [rs.u8, rs.u8]): rs.u8 => {
+			return rs.u8Add(_214[0], _214[1]);
+		}), "next");
+	} else if (_18 === 4) {
+		const _36: Ticks.Ticks = ticks();
+		rs.iterExtendBytes(out, rs.iterChain(rs.iterChain(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), rs.iterFrom({ v: _36 }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v))), rs.iterFrom(logged(), Logged.next$iter_Iterator, rs.drop)), "next");
+	} else if (_18 === 5) {
+		let iter: Ticks.Ticks = ticks();
+		while (true) {
+			const _44: rs.u8 | rs.Done = Ticks.next$iter_Iterator(rs.place(() => iter, (value11) => iter = value11));
+			if (_44 === rs.DONE) {
+				break;
 			}
-			if (_18 === 6) {
-				rs.byteVecPush(out, Phase.count$iter_Iterator(phase) & 0xff);
-				rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.ownedLast(rs.iterFrom({ v: Phase.of(at(1)) }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) })), 238));
-				rs.byteVecPush(out, rs.iterFold(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), 1, (acc: rs.u8, n12: rs.u8): rs.u8 => {
-					return acc ^ n12;
-				}, true));
-				rs.byteVecPush(out, Phase.sizeHint$iter_Iterator(phase)[0] & 0xff);
-				rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterToOption(rs.iterRev(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) })).next()), 238));
-			} else if (_18 === 7) {
-				rs.byteVecPush(out, rs.ownedCount(rs.iterFrom({ v: ticks() }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v))) & 0xff);
-				rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.ownedLast(rs.iterFrom({ v: ticks() }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v))), 238));
-				rs.byteVecPush(out, rs.iterSum(rs.iterFrom({ v: ticks() }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v)), rs.u8Add, 0, true));
-				let _100: Ticks.Ticks = ticks();
-				rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterNth(rs.iterFrom(rs.place(() => _100, (value10) => _100 = value10), Ticks.next$iter_Iterator), 1), 238));
-				drop$iters_Ticks(_100);
-				rs.byteVecPush(out, rs.ownedCount(rs.iterTake(rs.iterFrom(logged(), Logged.next$iter_Iterator, rs.drop), 2)) & 0xff);
-			} else if (_18 === 8) {
-				const v2: rs.ByteVec = rs.byteVecFrom(Uint8Array.of(at(3)));
-				const _115: Ticks.Ticks = ticks();
-				rs.iterExtendBytes(v2, rs.iterFrom({ v: _115 }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v)), "next");
-				rs.iterExtendBytes(v2, rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), "next");
-				rs.iterExtendBytes(out, rs.byteVecIntoIter(v2), undefined, true);
-			} else if (_18 === 9) {
-				const bag: Bag.Bag = { _0: at(0), _1: at(1) };
-				const iter3: rs.Iter<rs.u8> = Bag.intoIter$iter_IntoIterator(bag);
-				while (true) {
-					const _130: rs.u8 | rs.Done = iter3.next();
-					if (_130 === rs.DONE) {
-						break;
-					}
-					rs.byteVecPush(out, _130);
-				}
-				rs.iterExtendBytes(out, rs.iterMap(rs.iterEnumerate(rs.iterMap(Bag.intoIter$iter_IntoIterator(bag), (n10: rs.u8): rs.u8 => {
-					return rs.u8Add(n10, 1);
-				})), (_210: [rs.usize, rs.u8]): rs.u8 => {
-					return (_210[0] & 0xff) ^ _210[1];
-				}), "next");
-			} else if (_18 === 10) {
-				it = rs.iterPeekable(rs.iterMap(rs.iterFrom({ v: ticks() }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v)), (n9: rs.u8): rs.u8 => {
-					return rs.u8Mul(n9, 2);
-				}));
-				rs.iterExtendBytes(out, rs.iterOption(rs.iterToOption(it.next())), undefined, true);
-				rs.iterExtendBytes(out, rs.iterOption(rs.peekablePeek(it)), undefined, true);
-				rs.drop(it);
-				const _155: Logged.Logged = logged();
-				const _157: Ticks.Ticks = ticks();
-				const it2: rs.Iter<rs.u8> = rs.iterSkip(rs.iterChain(rs.iterFrom(_155, Logged.next$iter_Iterator, rs.drop), rs.iterFrom({ v: _157 }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v))), 1);
-				rs.iterExtendBytes(out, rs.iterOption(rs.iterToOption(it2.next())), undefined, true);
-				const _165: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_165.value, 170);
-				rs.refMutRelease(_165);
-				rs.drop(it2);
-			} else if (_18 === 11) {
-				const _169: rs.Iter<rs.u8> = rs.iterRev(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }));
-				for (const _172 of rs.iterToVec(rs.iterZip(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), _169), "next", 2).items) {
-					rs.byteVecPush(out, rs.u8Add(rs.u8Mul(_172[0], 16), _172[1]));
-				}
-				rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterMax(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), rs.lt, true), 238));
-				const _188: Phase.Phase = Phase.of(at(1));
-				rs.byteVecPush(out, rs.iterEq(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), rs.iterFrom({ v: _188 }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), rs.same, undefined, true, true) ? 1 : 0);
-				rs.iterExtendBytes(out, rs.iterTake(rs.iterCycle(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), { v: (it: rs.Place<Phase.Phase>) => ({ v: it.v }) }), rs.u8Rem(at(1), 8) as rs.usize), "next");
-			} else {
-				let p: Phase.Phase = phase;
-				rs.iterExtendBytes(out, rs.iterOption(rs.iterNth(rs.iterFrom(rs.place(() => p, (value) => p = value), Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), 0)), undefined, true);
-				rs.byteVecPush(out, rs.iterAny(rs.iterFrom(rs.place(() => p, (value2) => p = value2), Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), (n5: rs.u8): boolean => {
-					return n5 === 1;
-				}) ? 1 : 0);
-				rs.iterExtendBytes(out, rs.iterTake(rs.iterMap(rs.iterFrom(rs.place(() => p, (value3) => p = value3), Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), (n6: rs.u8): rs.u8 => {
-					return rs.u8Add(n6, 16);
-				}), 1), "next");
-				rs.byteVecPush(out, rs.iterFrom(rs.place(() => p, (value4) => p = value4), Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }).sizeHint()[0] & 0xff);
-				const _224: rs.u8 | rs.Done = Phase.next$iter_Iterator(rs.place(() => p, (value5) => p = value5));
-				if (_224 !== rs.DONE) {
-					rs.byteVecPush(out, _224);
-				}
-				const lent: rs.Place<Phase.Phase> = rs.place(() => p, (value6) => p = value6);
-				rs.iterExtendBytes(out, rs.iterOption(rs.iterNth(rs.iterFrom(lent, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), 0)), undefined, true);
-				rs.byteVecPush(out, rs.iterFrom(lent, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }).sizeHint()[0] & 0xff);
-				rs.iterExtendBytes(out, rs.iterFrom({ v: p }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), "next");
-				let t: Ticks.Ticks = ticks();
-				rs.iterExtendBytes(out, rs.iterOption(rs.iterFind(rs.iterFrom(rs.place(() => t, (value7) => t = value7), Ticks.next$iter_Iterator), (n7: rs.u8): boolean => {
-					return rs.u8Rem(n7, 2) === 0;
-				})), undefined, true);
-				rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(rs.iterPosition(rs.iterFrom(rs.place(() => t, (value8) => t = value8), Ticks.next$iter_Iterator), (n8: rs.u8): boolean => {
-					return n8 === 0;
-				}), (i2: rs.usize): rs.u8 => {
-					return i2 & 0xff;
-				})), undefined, true);
-				rs.iterExtendBytes(out, rs.iterMap(rs.iterZip(rs.iterFrom(rs.place(() => t, (value9) => t = value9), Ticks.next$iter_Iterator), rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) })), (_27: [rs.u8, rs.u8]): rs.u8 => {
-					return rs.u8Mul(_27[0], _27[1]);
-				}), "next");
-				rs.iterExtendBytes(out, rs.iterFrom({ v: t }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v)), "next");
-			}
+			const n: rs.u8 = _44;
+			const _51: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			rs.byteVecPush(_51.value, n);
+			rs.refMutRelease(_51);
 		}
+		drop$iters_Ticks(iter);
+		let iter2: Phase.Phase = phase;
+		while (true) {
+			const _55: rs.u8 | rs.Done = Phase.next$iter_Iterator(rs.place(() => iter2, (value12) => iter2 = value12));
+			if (_55 === rs.DONE) {
+				break;
+			}
+			rs.byteVecPush(out, _55);
+		}
+	} else if (_18 === 6) {
+		rs.byteVecPush(out, Phase.count$iter_Iterator(phase) & 0xff);
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.ownedLast(rs.iterFrom({ v: Phase.of(at(1)) }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) })), 238));
+		rs.byteVecPush(out, rs.iterFold(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), 1, (acc: rs.u8, n12: rs.u8): rs.u8 => {
+			return acc ^ n12;
+		}, true));
+		rs.byteVecPush(out, Phase.sizeHint$iter_Iterator(phase)[0] & 0xff);
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterToOption(rs.iterRev(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) })).next()), 238));
+	} else if (_18 === 7) {
+		rs.byteVecPush(out, rs.ownedCount(rs.iterFrom({ v: ticks() }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v))) & 0xff);
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.ownedLast(rs.iterFrom({ v: ticks() }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v))), 238));
+		rs.byteVecPush(out, rs.iterSum(rs.iterFrom({ v: ticks() }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v)), rs.u8Add, 0, true));
+		let _100: Ticks.Ticks = ticks();
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterNth(rs.iterFrom(rs.place(() => _100, (value10) => _100 = value10), Ticks.next$iter_Iterator), 1), 238));
+		drop$iters_Ticks(_100);
+		rs.byteVecPush(out, rs.ownedCount(rs.iterTake(rs.iterFrom(logged(), Logged.next$iter_Iterator, rs.drop), 2)) & 0xff);
+	} else if (_18 === 8) {
+		const v2: rs.ByteVec = rs.byteVecFrom(Uint8Array.of(at(3)));
+		const _115: Ticks.Ticks = ticks();
+		rs.iterExtendBytes(v2, rs.iterFrom({ v: _115 }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v)), "next");
+		rs.iterExtendBytes(v2, rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), "next");
+		rs.iterExtendBytes(out, rs.byteVecIntoIter(v2), undefined, true);
+	} else if (_18 === 9) {
+		const bag: Bag.Bag = { _0: at(0), _1: at(1) };
+		const iter3: rs.Iter<rs.u8> = Bag.intoIter$iter_IntoIterator(bag);
+		while (true) {
+			const _130: rs.u8 | rs.Done = iter3.next();
+			if (_130 === rs.DONE) {
+				break;
+			}
+			rs.byteVecPush(out, _130);
+		}
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterEnumerate(rs.iterMap(Bag.intoIter$iter_IntoIterator(bag), (n10: rs.u8): rs.u8 => {
+			return rs.u8Add(n10, 1);
+		})), (_210: [rs.usize, rs.u8]): rs.u8 => {
+			return (_210[0] & 0xff) ^ _210[1];
+		}), "next");
+	} else if (_18 === 10) {
+		it = rs.iterPeekable(rs.iterMap(rs.iterFrom({ v: ticks() }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v)), (n9: rs.u8): rs.u8 => {
+			return rs.u8Mul(n9, 2);
+		}));
+		rs.iterExtendBytes(out, rs.iterOption(rs.iterToOption(it.next())), undefined, true);
+		rs.iterExtendBytes(out, rs.iterOption(rs.peekablePeek(it)), undefined, true);
+		rs.drop(it);
+		const _155: Logged.Logged = logged();
+		const _157: Ticks.Ticks = ticks();
+		const it2: rs.Iter<rs.u8> = rs.iterSkip(rs.iterChain(rs.iterFrom(_155, Logged.next$iter_Iterator, rs.drop), rs.iterFrom({ v: _157 }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v))), 1);
+		rs.iterExtendBytes(out, rs.iterOption(rs.iterToOption(it2.next())), undefined, true);
+		const _165: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+		rs.byteVecPush(_165.value, 170);
+		rs.refMutRelease(_165);
+		rs.drop(it2);
+	} else if (_18 === 11) {
+		const _169: rs.Iter<rs.u8> = rs.iterRev(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }));
+		for (const _172 of rs.iterToVec(rs.iterZip(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), _169), "next", 2).items) {
+			rs.byteVecPush(out, rs.u8Add(rs.u8Mul(_172[0], 16), _172[1]));
+		}
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterMax(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), rs.lt, true), 238));
+		const _188: Phase.Phase = Phase.of(at(1));
+		rs.byteVecPush(out, rs.iterEq(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), rs.iterFrom({ v: _188 }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), rs.same, undefined, true, true) ? 1 : 0);
+		rs.iterExtendBytes(out, rs.iterTake(rs.iterCycle(rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), { v: (it: rs.Place<Phase.Phase>) => ({ v: it.v }) }), rs.u8Rem(at(1), 8) as rs.usize), "next");
+	} else {
+		let p: Phase.Phase = phase;
+		rs.iterExtendBytes(out, rs.iterOption(rs.iterNth(rs.iterFrom(rs.place(() => p, (value) => p = value), Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), 0)), undefined, true);
+		rs.byteVecPush(out, rs.iterAny(rs.iterFrom(rs.place(() => p, (value2) => p = value2), Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), (n5: rs.u8): boolean => {
+			return n5 === 1;
+		}) ? 1 : 0);
+		rs.iterExtendBytes(out, rs.iterTake(rs.iterMap(rs.iterFrom(rs.place(() => p, (value3) => p = value3), Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), (n6: rs.u8): rs.u8 => {
+			return rs.u8Add(n6, 16);
+		}), 1), "next");
+		rs.byteVecPush(out, rs.iterFrom(rs.place(() => p, (value4) => p = value4), Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }).sizeHint()[0] & 0xff);
+		const _224: rs.u8 | rs.Done = Phase.next$iter_Iterator(rs.place(() => p, (value5) => p = value5));
+		if (_224 !== rs.DONE) {
+			rs.byteVecPush(out, _224);
+		}
+		const lent: rs.Place<Phase.Phase> = rs.place(() => p, (value6) => p = value6);
+		rs.iterExtendBytes(out, rs.iterOption(rs.iterNth(rs.iterFrom(lent, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), 0)), undefined, true);
+		rs.byteVecPush(out, rs.iterFrom(lent, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }).sizeHint()[0] & 0xff);
+		rs.iterExtendBytes(out, rs.iterFrom({ v: p }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) }), "next");
+		let t: Ticks.Ticks = ticks();
+		rs.iterExtendBytes(out, rs.iterOption(rs.iterFind(rs.iterFrom(rs.place(() => t, (value7) => t = value7), Ticks.next$iter_Iterator), (n7: rs.u8): boolean => {
+			return rs.u8Rem(n7, 2) === 0;
+		})), undefined, true);
+		rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(rs.iterPosition(rs.iterFrom(rs.place(() => t, (value8) => t = value8), Ticks.next$iter_Iterator), (n8: rs.u8): boolean => {
+			return n8 === 0;
+		}), (i2: rs.usize): rs.u8 => {
+			return i2 & 0xff;
+		})), undefined, true);
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterZip(rs.iterFrom(rs.place(() => t, (value9) => t = value9), Ticks.next$iter_Iterator), rs.iterFrom({ v: phase }, Phase.next$iter_Iterator, undefined, { hint: (it: rs.Place<Phase.Phase>) => Phase.sizeHint$iter_Iterator(it.v), count: (it: rs.Place<Phase.Phase>) => Phase.count$iter_Iterator(it.v), back: (it: rs.Place<Phase.Phase>) => rs.iterFromOption(Phase.nextBack$iter_DoubleEndedIterator(it)) })), (_27: [rs.u8, rs.u8]): rs.u8 => {
+			return rs.u8Mul(_27[0], _27[1]);
+		}), "next");
+		rs.iterExtendBytes(out, rs.iterFrom({ v: t }, Ticks.next$iter_Iterator, (it: rs.Place<Ticks.Ticks>) => drop$iters_Ticks(it.v)), "next");
 	}
 	const _258: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log);
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_258.value));
@@ -11704,6 +11636,32 @@ export function heldFields(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 				return a0 as rs.u32;
 			}), rs.u32Add, 0));
 		}, out);
+	}
+}
+
+/**
+ * Adaptors over an iterator that is not fused, advanced through a `Chain`'s `nth`: a
+ * `skip`, which takes no step while advanced by none, and a `fuse` advanced from the back,
+ * which drops its iterator once it falls short. Then what each still yields.
+ */
+export function unfused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	const flicker: () => Flicker.Flicker = (): Flicker.Flicker => {
+		return { dataData: data.data, dataStart: data.start, dataLen: data.length, calls: 0 };
+	};
+	const n: rs.usize = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 3) as rs.usize;
+	const _11: rs.u8 = rs.u8Rem(kind, 3);
+	if (_11 === 0) {
+		const s: rs.Iter<rs.u8> = rs.iterSkip(rs.iterFrom(flicker(), Flicker.next$iter_Iterator, undefined, { back: (it: Flicker.Flicker) => rs.iterFromOption(Flicker.nextBack$iter_DoubleEndedIterator(it)) }), 1);
+		rs.iterExtendBytes(out, rs.iterOption(rs.iterNth(rs.iterChain(rs.iterBorrow(s), rs.iterSlice(Uint8Array.of(153))), n)), undefined, true);
+		rs.iterExtendBytes(out, s, "next");
+	} else if (_11 === 1) {
+		const r: rs.Iter<rs.u8> = rs.iterRev(rs.iterFuse(rs.iterFrom(flicker(), Flicker.next$iter_Iterator, undefined, { back: (it: Flicker.Flicker) => rs.iterFromOption(Flicker.nextBack$iter_DoubleEndedIterator(it)) })));
+		rs.iterExtendBytes(out, rs.iterOption(rs.iterNth(rs.iterChain(rs.iterBorrow(r), rs.iterSlice(Uint8Array.of(153))), n)), undefined, true);
+		rs.iterExtendBytes(out, r, "next");
+	} else {
+		const f: rs.Iter<rs.u8> = rs.iterFuse(rs.iterFrom(flicker(), Flicker.next$iter_Iterator, undefined, { back: (it: Flicker.Flicker) => rs.iterFromOption(Flicker.nextBack$iter_DoubleEndedIterator(it)) }));
+		rs.iterExtendBytes(out, rs.iterOption(rs.iterNthBack(f, n)), undefined, true);
+		rs.iterExtendBytes(out, f, "next");
 	}
 }
 

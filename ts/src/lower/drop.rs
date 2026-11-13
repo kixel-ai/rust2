@@ -126,10 +126,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					{
 						args.types().any(|t| self.drops(t))
 					}
-					false => self.fields_drop(*adt, args, true),
+					false => self.fields_drop(*adt, *args, true),
 				},
 				Some(_) => false,
-				None if self.crates.translates(adt.did()) => adt.has_dtor(tcx) || self.fields_drop(*adt, args, true),
+				None if self.crates.translates(adt.did()) => adt.has_dtor(tcx) || self.fields_drop(*adt, *args, true),
 				None => false,
 			},
 			ty::Tuple(tys) => tys.iter().any(|t| self.drops(t)),
@@ -170,7 +170,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether any field of `adt` with `args` drops, counting one of a type parameter only
 	/// if `params`.
-	pub fn fields_drop(&mut self, adt: AdtDef<'tcx>, args: ty::GenericArgsRef<'tcx>, params: bool) -> bool {
+	pub fn fields_drop(&mut self, adt: AdtDef<'tcx>, args: ty::GenericArgs<'tcx>, params: bool) -> bool {
 		let tcx = self.tcx;
 		let env = self.typing_env_pub();
 		adt.all_fields().any(|field| {
@@ -218,7 +218,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				None | Some(Std::Peekable) if self.std_iter(ty) => self.closures_held(ty),
 				Some(_) => false,
 				None if self.shared_glue(*adt) => {
-					if !self.glue_all(ty, *adt, args, Asked::Disposable(glue.is_some()), |t, held| {
+					if !self.glue_all(ty, *adt, *args, Asked::Disposable(glue.is_some()), |t, held| {
 						t.disposable(held, glue)
 					}) {
 						return false;
@@ -254,7 +254,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		&mut self,
 		ty: Ty<'tcx>,
 		adt: AdtDef<'tcx>,
-		args: ty::GenericArgsRef<'tcx>,
+		args: ty::GenericArgs<'tcx>,
 		asked: Asked,
 		f: impl Fn(&mut Self, Ty<'tcx>) -> bool,
 	) -> bool {
@@ -318,7 +318,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// What a generic struct's glue drops through, at an instance with `args`: each type
 	/// argument, and what each projection from them its fields name is there.
-	fn glue_held(&mut self, adt: AdtDef<'tcx>, args: ty::GenericArgsRef<'tcx>) -> Vec<Ty<'tcx>> {
+	fn glue_held(&mut self, adt: AdtDef<'tcx>, args: ty::GenericArgs<'tcx>) -> Vec<Ty<'tcx>> {
 		let mut held: Vec<Ty<'tcx>> = args.types().collect();
 		if self.crates.translates(adt.did()) {
 			let env = self.typing_env_pub();
@@ -506,7 +506,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Some(Std::Context) => false,
 				Some(_) => true,
 				// Its glue, if an instance that drops gave it one, drops its type parameters' fields.
-				None if adt.is_struct() => self.glue_all(ty, *adt, args, Asked::Inert, |t, held| t.inert(held)),
+				None if adt.is_struct() => self.glue_all(ty, *adt, *args, Asked::Inert, |t, held| t.inert(held)),
 				None => true,
 			},
 			_ => true,

@@ -1,6 +1,6 @@
 #!/usr/bin/env just --justfile
 #
-# The driver front end and rust2-lint, invoked from the repo root as `just driver <recipe>`.
+# The driver front end, invoked from the repo root as `just driver <recipe>`.
 # Its own workspace on ts/rust-toolchain.toml's nightly, which the dev shell exports as
 # RUST2_TS_TOOLCHAIN; without it, rustup reads the same file through the link here.
 
@@ -13,13 +13,12 @@ export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { car
 default:
     @just --list
 
-# Lint and format-check the driver front end, rust2-lint, and its fixtures.
+# Lint and format-check the driver front end.
 check:
     cargo clippy --locked --all-targets -- -D warnings
     cargo fmt --all --check
-    cargo fmt --all --check --manifest-path fixtures/mono/Cargo.toml
 
-# Run rust2-lint on its fixtures.
+# Run the driver front end's tests.
 test *args:
     cargo test --locked {{ args }}
 
@@ -27,8 +26,4 @@ test *args:
 fix:
     cargo clippy --locked --fix --allow-staged --allow-dirty --all-targets
     cargo fmt --all
-    cargo fmt --all --manifest-path fixtures/mono/Cargo.toml
 
-# Run rust2-lint: `just driver lint -- test --no-run -p <package>`.
-lint *args:
-    cargo run --locked --quiet --release -- {{ args }}

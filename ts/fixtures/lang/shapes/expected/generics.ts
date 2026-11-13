@@ -321,8 +321,16 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function units(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const parked: Parked.Parked<undefined> = Parked.new$unit();
-	for (const b of rs.byteSliceView(data)) {
-		const _12: rs.usize = rs.usizeRem(b >> 4 as rs.usize, rs.sliceFrom([undefined]).length);
+	const iterS: Uint8Array = rs.byteSliceView(data);
+	let iterI: number = 0;
+	while (true) {
+		const _8: rs.u8 | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
+		const _3: undefined[] = [undefined];
+		if (_8 === rs.DONE) {
+			break;
+		}
+		const b: rs.u8 = _8;
+		const _12: rs.usize = rs.usizeRem(b >> 4 as rs.usize, rs.sliceFrom(_3).length);
 		if (!(_12 < 1)) {
 			rs.panic("index out of bounds: the len is " + 1 + " but the index is " + _12);
 		}

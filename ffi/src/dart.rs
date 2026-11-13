@@ -72,6 +72,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		structs: BTreeMap::new(),
 		natives: BTreeMap::new(),
 		helpers: BTreeMap::new(),
+		writers: HashMap::new(),
 		types: String::new(),
 		top: String::new(),
 		glue: String::new(),
@@ -375,6 +376,9 @@ struct Gen<'a> {
 	natives: BTreeMap<String, String>,
 	/// The conversions, polls, and trampolines, by name.
 	helpers: BTreeMap<String, String>,
+	/// Each writer's name, by the type it writes: types of one C struct, such as a `Vec` of
+	/// `SocketAddrV4` and one of `SocketAddr`, check what they write apart.
+	writers: HashMap<Type, String>,
 	/// The types, then the top-level functions and constants.
 	types: String,
 	top: String,
@@ -895,7 +899,7 @@ impl<'a> Gen<'a> {
 				Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e});"),
 				Type::List(..) => {
 					let c = self.c_name(inner);
-					let w = self.writer(&c, inner);
+					let w = self.writer(&c, inner.base());
 					format!("{w}({e}, {dst}, a_);")
 				}
 				_ => {
@@ -929,10 +933,17 @@ impl<'a> Gen<'a> {
 
 	/// The function writing a Dart value of type `ty` into the C struct `c`.
 	fn writer(&mut self, c: &str, ty: &Type) -> String {
-		let name = format!("_w_{c}");
-		if self.helpers.contains_key(&name) {
-			return name;
+		if let Some(name) = self.writers.get(ty) {
+			return name.clone();
 		}
+		let mut name = format!("_w_{c}");
+		for k in 2.. {
+			if !self.helpers.contains_key(&name) {
+				break;
+			}
+			name = format!("_w_{c}_{k}");
+		}
+		self.writers.insert(ty.clone(), name.clone());
 		self.helpers.insert(name.clone(), String::new());
 		let class = self.struct_class(&Ty::Struct(c.to_string()));
 		let dt = self.dt(ty);
@@ -1848,10 +1859,17 @@ impl<'a> Gen<'a> {
 	/// The Dart statements closing each object the value `e` of type `ty` holds, once a
 	/// call moved them out.
 	fn close(&mut self, ty: &Type, e: &str) -> String {
+		// A local named apart from `e`, which may be a parameter named `v`, and from the
+		// local an outer level declared, which Dart would read before it is declared.
+		let v: String = e
+			.chars()
+			.map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+			.collect::<String>()
+			+ "_";
 		match ty {
 			Type::Option(inner) => {
-				let close = self.close(inner, "v");
-				format!("{{ final v = {e}; if (v != null) {{ {close} }} }}")
+				let close = self.close(inner, &v);
+				format!("{{ final {v} = {e}; if ({v} != null) {{ {close} }} }}")
 			}
 			Type::Box(inner) => self.close(inner, e),
 			Type::Tuple(elements) => {
@@ -1862,8 +1880,8 @@ impl<'a> Gen<'a> {
 				closes.join(" ")
 			}
 			Type::List(_, inner) => {
-				let close = self.close(inner, "v");
-				format!("for (final v in {e}) {{ {close} }}")
+				let close = self.close(inner, &v);
+				format!("for (final {v} in {e}) {{ {close} }}")
 			}
 			_ => format!("{e}.close();"),
 		}
@@ -2040,7 +2058,7 @@ impl<'a> Gen<'a> {
 
 		let mut body = Vec::new();
 		let ret_type;
-		if let Some((_, poll, free)) = &export.future {
+		if let Some(abi::Future { start, poll, free, .. }) = &export.future {
 			ret_type = format!("Cancelable<{ok_dt}>");
 			// The poll, which completes the future.
 			let mut poll_args = vec!["_n.home".to_string(), "f".to_string(), "w".to_string()];
@@ -2057,13 +2075,14 @@ impl<'a> Gen<'a> {
 				_ => self.lift_outs(&function.ok, &ok),
 			};
 			let mut cases = vec![format!("\t\tcase 1:\n\t\t\tc._ready({ready});\n\t\t\treturn true;")];
+			let mut started = vec![format!("case 1:\n\tc_._ready({ready});")];
 			if let (Some(err), Some(thrown)) = (&err, &thrown) {
 				let lifted = self.lift(err, &self.out_value("err", poll_outs.last().map(|(_, t)| t)));
-				cases.push(format!(
-					"\t\tcase 2:\n\t\t\tc._error({});\n\t\t\treturn true;",
-					thrown_value(thrown, &lifted)
-				));
+				let error = thrown_value(thrown, &lifted);
+				cases.push(format!("\t\tcase 2:\n\t\t\tc._error({error});\n\t\t\treturn true;"));
+				started.push(format!("case 2:\n\tc_._error({error});"));
 			}
+			started.push("default:\n\tc_._f = o_f_.value;".to_string());
 			let poll_name = format!("_p_{c_name}");
 			self.helpers.insert(
 				poll_name.clone(),
@@ -2074,15 +2093,29 @@ impl<'a> Gen<'a> {
 					cases.iter().map(|c| c.replace("\n\t\t", "\n\t\t\t").replacen("\t\tcase", "\t\t\tcase", 1)).collect::<Vec<_>>().join("\n")
 				),
 			);
-			body.push("final ffi.Pointer<ffi.Void> f_;".to_string());
+			// The call and its first poll in one, which completes the call if ready, or else
+			// leaves it the future to poll.
+			let start_fn = self.served(start);
+			let mut start_args = args.clone();
 			let mut inner = pre.clone();
-			inner.push(format!("f_ = {call_fn}({});", args.join(", ")));
+			for (n, ty) in &poll_outs {
+				inner.push(self.out_decl(n, ty));
+				start_args.push(format!("o_{n}"));
+			}
+			inner.push("final o_f_ = a_<ffi.Pointer<ffi.Void>>();".to_string());
+			start_args.push("o_f_".to_string());
+			inner.push(format!(
+				"switch ({start_fn}({})) {{\n{}\n}}",
+				start_args.join(", "),
+				indent(&started.join("\n"))
+			));
 			inner.extend(after.clone());
+			body.push(format!("final c_ = _Call<{ok_dt}>._({free_fn}, {poll_name});"));
 			body.push(format!(
 				"final a_ = _Arena();\ntry {{\n{}\n}} finally {{\n\ta_.end();\n}}",
 				indent(&inner.join("\n"))
 			));
-			body.push(format!("return _call<{ok_dt}>(f_, {free_fn}, {poll_name});"));
+			body.push("return _call(c_);".to_string());
 		} else {
 			ret_type = ok_dt.clone();
 			let mut inner = pre.clone();

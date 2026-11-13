@@ -3,12 +3,7 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug(self: Made, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Made";
-	const _4: string = "n";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.u64Debug(self.n, f);
-	const _7: string = "tag";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtStr(self.tag.v, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Made n tag", [(f: rs.Formatter) => rs.u64Debug(self.n, f), (f: rs.Formatter) => rs.fmtStr(self.tag.v, f)]);
 }
 
 /** A type of the crate's own, whose `Default` impl is no zero value. */

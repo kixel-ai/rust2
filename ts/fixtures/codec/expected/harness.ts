@@ -584,10 +584,9 @@ export function errors(dataData: Uint8Array, dataStart: number, dataLen: number,
 				err = DecodeError.from$convert_From_coding_varint_BoundsExceeded({});
 			} else {
 				if (_10 === 6) {
-					const arg = {};
-					const _26: rs.String = rs.fmtToString((f: rs.Formatter) => BoundsExceeded.fmt$fmt_Display(arg, f));
-					const arg2 = {};
-					const args7 = [(f: rs.Formatter) => BoundsExceeded.fmt$fmt_Debug(arg2, f)];
+					const _24: BoundsExceeded.BoundsExceeded = {};
+					const _26: rs.String = rs.fmtToString((f: rs.Formatter) => BoundsExceeded.fmt$fmt_Display(_24, f));
+					const args7 = [(f: rs.Formatter) => BoundsExceeded.fmt$fmt_Debug(_24, f)];
 					putText(out, _26, rs.fmtFormat([args7[0], " ", rs.fmtSpec({ alternate: true }, args7[0])]));
 					break b0;
 				}
