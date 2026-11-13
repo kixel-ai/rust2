@@ -156,7 +156,10 @@ impl Callbacks for Export {
 		if let Output::Census(dir) = &self.output {
 			let abi = Abi::new(&collected.api, &self.facade.lib);
 			// What Swift refuses needs its exclude, as the export says, so it is not exporting.
-			let swift: FxHashSet<_> = crate::swift::refusals(&abi).into_iter().map(|(span, _)| span).collect();
+			let swift: FxHashSet<_> = crate::swift::refusals(&abi)
+				.into_iter()
+				.map(|(f, _)| f.shown.clone())
+				.collect();
 			let exporting = exporting(&collected.api, &report.audited, &swift);
 			let text = census::render(&collected.api, report, &exporting, &abi.clashes, &|span| at(tcx, span));
 			// A census reports what a crate uses, but a missed instance is the exporter's bug.
@@ -212,15 +215,20 @@ impl Callbacks for Export {
 
 /// Each exclude whose item would export without it, and that item's paths: what an
 /// exclude checked, from [`collect::Report::audited`], that the census's API holds by the
-/// same path, except a function at one of the `refused` spans.
-fn exporting(api: &Api, audited: &[(String, Vec<String>)], refused: &FxHashSet<Span>) -> Vec<(String, Vec<String>)> {
+/// same path, except a function `refused` names by its shown path, since a generic's
+/// instances share a span but Swift may refuse only some.
+fn exporting(
+	api: &Api,
+	audited: &[(String, Vec<String>)],
+	refused: &FxHashSet<ir::Path>,
+) -> Vec<(String, Vec<String>)> {
 	// Every path an exported item is checked by, from the facade's root, as the walk checks it.
 	let mut paths = FxHashSet::default();
 	let mut add = |path: &[String]| {
 		paths.insert(path[1..].join("::"));
 	};
 	let methods = |methods: &[ir::Function], add: &mut dyn FnMut(&[String])| {
-		for f in methods.iter().filter(|f| !refused.contains(&f.span)) {
+		for f in methods.iter().filter(|f| !refused.contains(&f.shown)) {
 			match f.access {
 				// A field is checked by `field@` and, unless a method or constant takes its
 				// name, by its path, which then names that method or constant instead.
@@ -393,9 +401,9 @@ impl Export {
 				.with_span_note(*first_span, format!("{first} is here"))
 				.emit();
 		}
-		for (span, why) in crate::swift::refusals(&abi) {
+		for (function, why) in crate::swift::refusals(&abi) {
 			tcx.dcx().span_err(
-				span,
+				function.span,
 				format!("rust2-ffi: {why}; exclude it in the config to leave it out"),
 			);
 		}
