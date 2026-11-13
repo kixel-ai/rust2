@@ -191,32 +191,28 @@ fn exec_preserves_signals_and_incomplete_cache_is_an_error() {
 }
 
 #[test]
-fn unpinned_build_reuses_pinned_entry_and_reports_refresh_errors() {
+fn cached_runs_report_diagnostics_once_and_pins_ignore_corrupt_refresh_state() {
 	let temp = tempfile::tempdir().unwrap();
 	setup(temp.path(), "fixture");
 	let root = cache(temp.path())
 		.join("crabx/v1")
 		.join(binstalk::TARGET)
 		.join("build/fixture");
-	fs::create_dir_all(&root).unwrap();
-	// Hold the refresh lock to synchronize detached updaters without sleeps or network.
-	let lock = fs::File::create(root.join("refresh.lock")).unwrap();
-	lock.lock().unwrap();
-	for krate in ["fixture@1.2.3", "fixture"] {
-		let output = crabx(temp.path())
-			.args(["--build", krate])
-			.env("CARGO", temp.path().join("helper"))
-			.env("CRABX_TEST_TARGET", binstalk::TARGET)
-			.output()
-			.unwrap();
-		assert_eq!(
-			output.status.code(),
-			Some(37),
-			"{}",
-			String::from_utf8_lossy(&output.stderr)
-		);
-	}
-	assert_eq!(fs::read_to_string(root.join("latest")).unwrap(), "1.2.3");
+	// A pin starts no updater. Seed latest before the first unpinned invocation,
+	// so no earlier detached process can own the diagnostic lock.
+	let output = crabx(temp.path())
+		.args(["--build", "fixture@1.2.3"])
+		.env("CARGO", temp.path().join("helper"))
+		.env("CRABX_TEST_TARGET", binstalk::TARGET)
+		.output()
+		.unwrap();
+	assert_eq!(
+		output.status.code(),
+		Some(37),
+		"{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	fs::write(root.join("latest"), "1.2.3").unwrap();
 	let retry_at = std::time::SystemTime::now() + std::time::Duration::from_secs(1800);
 	fs::write(
 		root.join("refresh.json"),
@@ -234,7 +230,6 @@ fn unpinned_build_reuses_pinned_entry_and_reports_refresh_errors() {
 		.unwrap(),
 	)
 	.unwrap();
-	drop(lock);
 	let output = crabx(temp.path())
 		.args(["--build", "fixture"])
 		.env("CARGO", "must-not-run")
@@ -247,12 +242,18 @@ fn unpinned_build_reuses_pinned_entry_and_reports_refresh_errors() {
 	let output = crabx(temp.path()).args(["--build", "fixture"]).output().unwrap();
 	assert_eq!(output.status.code(), Some(37));
 	assert!(!String::from_utf8_lossy(&output.stderr).contains("fixture update failure"));
+
+	// Corruption needs a fresh cache too: the diagnostic invocations above
+	// may still have detached updaters, which legitimately defer a claim.
+	let corrupt = tempfile::tempdir().unwrap();
+	let root = setup(corrupt.path(), "fixture");
+	fs::write(root.join("latest"), "1.2.3").unwrap();
 	fs::write(root.join("refresh.json"), "malformed").unwrap();
-	let output = crabx(temp.path()).args(["--build", "fixture"]).output().unwrap();
+	let output = crabx(corrupt.path()).arg("fixture").output().unwrap();
 	assert_eq!(output.status.code(), Some(1));
 	let diagnostic = String::from_utf8_lossy(&output.stderr);
 	assert!(diagnostic.contains("corrupt refresh state"));
 	assert!(diagnostic.contains(&root.join("refresh.json").display().to_string()));
-	let output = crabx(temp.path()).args(["--build", "fixture@1.2.3"]).output().unwrap();
+	let output = crabx(corrupt.path()).arg("fixture@1.2.3").output().unwrap();
 	assert_eq!(output.status.code(), Some(37));
 }
