@@ -59,8 +59,20 @@ const TAKEN: &[&str] = &[
 	"_PENDING",
 	"_consts",
 	"_abc",
+	"_array",
 	"_asyncio",
 	"_dataclass",
+	"_same",
+	"_all",
+	"_dict",
+	"_float",
+	"_int",
+	"_memoryview",
+	"_TypeError",
+	"_list",
+	"_tuple",
+	"_type",
+	"_zip",
 	"_datetime",
 	"_enum",
 	"_socket",
@@ -161,6 +173,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\"\"\"The pub API of {packages}, over the CPython extension built into the library beside this file.\"\"\"\n\n\
 		from __future__ import annotations\n\n\
 		import abc as _abc\n\
+		import array as _array\n\
 		import asyncio as _asyncio\n\
 		import datetime as _datetime\n\
 		import enum as _enum\n\
@@ -171,16 +184,47 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		import weakref as _weakref\n\
 		from builtins import AttributeError as _AttributeError\n\
 		from builtins import Exception as _Exception\n\
+		from builtins import TypeError as _TypeError\n\
 		from builtins import ValueError as _ValueError\n\
+		from builtins import all as _all\n\
 		from builtins import bytes as _bytes\n\
+		from builtins import dict as _dict\n\
+		from builtins import float as _float\n\
+		from builtins import int as _int\n\
 		from builtins import isinstance as _isinstance\n\
 		from builtins import len as _len\n\
+		from builtins import list as _list\n\
+		from builtins import memoryview as _memoryview\n\
 		from builtins import property as _property\n\
 		from builtins import staticmethod as _staticmethod\n\
 		from builtins import str as _str\n\
+		from builtins import tuple as _tuple\n\
+		from builtins import type as _type\n\
+		from builtins import zip as _zip\n\
 		from dataclasses import dataclass as _dataclass\n\n\
 		_get_running_loop = _asyncio.get_running_loop\n\
 		_T = _typing.TypeVar(\"_T\")\n\n\n\
+		def _same(a: object, b: object, /) -> bool:\n\
+		\t\"\"\"Whether a and b are equal as Rust's `==` compares them: never by identity, so a NaN\n\
+		\tequals nothing, while a list's, tuple's, or dict's own `==` takes an item as equal to itself.\"\"\"\n\
+		\tif _isinstance(a, (_list, _tuple)):\n\
+		\t\txs = _typing.cast(\"_typing.Sequence[object]\", a)\n\
+		\t\tys = _typing.cast(\"_typing.Sequence[object]\", b)\n\
+		\t\treturn _type(xs) is _type(ys) and _len(xs) == _len(ys) and _all(_same(x, y) for x, y in _zip(xs, ys))\n\
+		\tif _isinstance(a, _dict):\n\
+		\t\tif not _isinstance(b, _dict):\n\
+		\t\t\treturn False\n\
+		\t\tm = _typing.cast(\"_typing.Mapping[object, object]\", a)\n\
+		\t\tn = _typing.cast(\"_typing.Mapping[object, object]\", b)\n\
+		\t\treturn m.keys() == n.keys() and _all(_same(v, n[k]) for k, v in m.items())\n\
+		\tif a is None or b is None or _isinstance(a, (_int, _float, _str)):\n\
+		\t\treturn a == b\n\
+		\ttry:\n\
+		\t\t# Any buffer, through a memoryview, which compares numbers as Rust does, where\n\
+		\t\t# numpy's own `==` compares item by item into another array.\n\
+		\t\treturn _memoryview(_typing.cast(\"bytes\", a)) == _memoryview(_typing.cast(\"bytes\", b))\n\
+		\texcept _TypeError:\n\
+		\t\treturn a == b\n\n\n\
 		def _load() -> object:\n\
 		\timport importlib.machinery\n\
 		\timport importlib.util\n\
@@ -432,6 +476,7 @@ impl<'a> Gen<'a> {
 				Family::V6 => V6.to_string(),
 				Family::Any => format!("{V4} | {V6}"),
 			},
+			Type::List(_, inner) if ty.block().is_some() => format!("_array.array[{}]", self.py_ty(inner)),
 			Type::List(_, inner) => format!("list[{}]", self.py_ty(inner)),
 			Type::Waker => "Waker".to_string(),
 			Type::Reader => "ForeignReader".to_string(),
@@ -478,6 +523,8 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => "str".to_string(),
 			// Python's own IPv6 address may leave out its flowinfo and scope_id.
 			Type::SocketAddr(Family::V6) => format!("{V4} | {V6}"),
+			// Any buffer of its numbers, as numpy's arrays are too.
+			Type::List(..) if ty.block().is_some() => format!("{} | memoryview", self.py_ty(ty)),
 			Type::List(_, inner) => format!("{list}[{}]", self.py_in(inner, list)),
 			Type::Option(inner) => format!("{} | None", self.py_in(inner, list)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.py_in(inner, list),
@@ -511,6 +558,7 @@ impl<'a> Gen<'a> {
 			Type::U128 => format!("rt::u128_in({o})"),
 			Type::Duration => format!("rt::duration_in({o})"),
 			Type::SocketAddr(family) => format!("rt::addr_in({o}, {})", family_of(*family)),
+			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_in::<{}>({o}, s)", number(inner)),
 			Type::List(..) => format!("r_{}({o}, s, {m})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => {
@@ -588,6 +636,7 @@ impl<'a> Gen<'a> {
 			Type::U128 => format!("rt::u128_out({v})"),
 			Type::Duration => format!("rt::duration_out({v})"),
 			Type::SocketAddr(_) => format!("rt::addr_out({v})"),
+			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_out::<{}>({v})", number(inner)),
 			Type::List(..) => format!("w_{}({v})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => format!(
@@ -634,9 +683,9 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// The suffix of the glue's `r_` and `w_` converting the option, tuple, or list `ty`:
-	/// its C struct's name for the type the struct was made for, which [`Self::write`]
-	/// writes, else a name of its own, written here once.
+	/// The suffix of the glue's `r_` and `w_` converting the option, tuple, or list `ty`,
+	/// written here the first time, so a block's struct gets no item-by-item glue: its C
+	/// struct's name for the type the struct was made for, else a name of its own.
 	fn converter(&mut self, ty: &Type) -> String {
 		let abi = self.abi;
 		let c = self.c_struct(ty);
@@ -646,10 +695,7 @@ impl<'a> Gen<'a> {
 			Type::Tuple(elements) => (elements, abi.tuples[&c].clone()),
 			other => unreachable!("{other:?} has no converter"),
 		};
-		let made: Vec<Type> = made.iter().map(strip_refs).collect();
-		if held.iter().map(strip_refs).eq(made.iter().cloned()) {
-			return c;
-		}
+		let held: Vec<Type> = held.iter().map(strip_refs).collect();
 		let key = (c.clone(), held.clone());
 		if let Some(name) = self.converters.get(&key) {
 			return name.clone();
@@ -666,10 +712,14 @@ impl<'a> Gen<'a> {
 				|| (0..abi.api.objects.len()).any(|i| abi.object(i) == name)
 				|| self.converters.values().any(|n| n == name)
 		};
-		let name = (self.converters.len() + 2..)
-			.map(|k| format!("{c}_{k}"))
-			.find(|name| !taken(name))
-			.expect("some number is free");
+		let made: Vec<Type> = made.iter().map(strip_refs).collect();
+		let name = match held == made {
+			true => c.clone(),
+			false => (self.converters.len() + 2..)
+				.map(|k| format!("{c}_{k}"))
+				.find(|name| !taken(name))
+				.expect("some number is free"),
+		};
 		self.converters.insert(key, name.clone());
 		match strip_refs(ty) {
 			Type::Option(_) => self.option(&name, &c, &held[0]),
@@ -693,12 +743,6 @@ impl<'a> Gen<'a> {
 		for (c, ty) in &abi.ranges.clone() {
 			self.range(c, ty);
 		}
-		for (c, inner) in &abi.options.clone() {
-			self.option(c, c, inner);
-		}
-		for (c, elements) in &abi.tuples.clone() {
-			self.tuple(c, c, elements);
-		}
 		for (c, n) in &abi.arrays {
 			let name = Abi::array_class(*n);
 			self.register(c, name.clone());
@@ -706,9 +750,6 @@ impl<'a> Gen<'a> {
 				self.py,
 				"class {name}(_bytes):\n\t\"\"\"A Rust `[u8; {n}]`: exactly {n} bytes.\"\"\"\n\n\t__slots__ = ()\n\n\tdef __new__(cls, value: {BUFFER}) -> _typing.Self:\n\t\tself = _bytes.__new__(cls, value)\n\t\tif _len(self) != {n}:\n\t\t\traise _ValueError(f\"{{_len(self)}} bytes, not {n}\")\n\t\treturn self\n\n\n"
 			);
-		}
-		for (c, elem) in &abi.lists.clone() {
-			self.list(c, c, elem);
 		}
 		for constant in &api.constants {
 			let name = self.bare(&abi.name(&constant.path)).to_uppercase();
@@ -1014,6 +1055,9 @@ impl<'a> Gen<'a> {
 		let owner = Ty::Struct(c.clone());
 		let data: Vec<String> = record.fields.iter().map(|f| field_name(&f.name)).collect();
 		self.methods(&record.methods, (&ty, &owner, &rust), &data, &[], &mut body);
+		if record.fields.iter().any(|f| own_eq(abi, &f.ty)) {
+			body.python.push(ieee_eq(&name, &data));
+		}
 		let fields: String = record
 			.fields
 			.iter()
@@ -1147,6 +1191,10 @@ impl<'a> Gen<'a> {
 				.collect();
 			let fields = match fields.is_empty() {
 				true => "\tpass\n".to_string(),
+				false if variant.fields.iter().any(|f| own_eq(abi, &f.ty)) => {
+					let names: Vec<String> = variant.fields.iter().map(|f| field_name(&f.name)).collect();
+					format!("{fields}\n{}", ieee_eq(&class, &names))
+				}
 				false => fields,
 			};
 			let _ = write!(
@@ -1969,4 +2017,34 @@ fn docstring(docs: &str, indent: &str) -> String {
 	}
 	out.push_str("\"\"\"\n");
 	out
+}
+
+/// The Rust type of a block's number.
+fn number(ty: &Type) -> &'static str {
+	match ty {
+		Type::Int(int) => int.rust(),
+		Type::F32 => "f32",
+		Type::F64 => "f64",
+		other => unreachable!("{other:?} is no block's number"),
+	}
+}
+
+/// Whether a record or variant holding `ty` needs [`ieee_eq`]: `ty` holds a float, or a
+/// block, which may be a buffer passed in whose own `==` compares item by item.
+fn own_eq(abi: &Abi, ty: &Type) -> bool {
+	abi.api.holds_float(ty) || ty.holds_block()
+}
+
+/// The `__eq__` of the dataclass `class` of `fields`, comparing as Rust's `==` does. A
+/// dataclass's own compares tuples of its fields, which take a value as equal to itself, so
+/// a NaN it holds would equal itself, and a numpy array it holds would raise.
+fn ieee_eq(class: &str, fields: &[String]) -> String {
+	let same: Vec<String> = fields
+		.iter()
+		.map(|f| format!(" and _same(self.{f}, other.{f})"))
+		.collect();
+	format!(
+		"\tdef __eq__(self, other: object) -> bool:\n\t\treturn _isinstance(other, {class}){}\n",
+		same.concat()
+	)
 }

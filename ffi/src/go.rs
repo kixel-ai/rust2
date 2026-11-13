@@ -38,7 +38,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Closure, Family, Function, Home, Int, Literal, On, Param, Receiver, Type};
+use crate::ir::{Access, Closure, Collection, Family, Function, Home, Int, Literal, On, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
 const CONVERSIONS: &str = include_str!("../runtime/ffi_cgo.go");
@@ -985,11 +985,18 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// The helper lowering a `[]elem` into the C array struct `c`.
+	/// The helper lowering a `[]elem` into the C array struct `c`: a block of numbers lent
+	/// in place, pinned, as bytes are.
 	fn lower_list(&mut self, c: &str, elem: &Type) {
 		let elem = elem.clone();
 		self.helper(&format!("lower_{c}"), |g| {
 			let go = g.go(&elem);
+			if block(&elem) {
+				let elem_c = g.c_go(&g.abi.ty(&elem));
+				return format!(
+					"func lower_{c}(a_ *arena_, v []{go}) C.{c} {{\n\tptr, n := block_[{go}, {elem_c}](a_, v)\n\treturn C.{c}{{ptr: ptr, len: n}}\n}}\n\n"
+				);
+			}
 			let item = g.lower(&elem, "x");
 			let elem_c = g.c_go(&g.abi.ty(&elem));
 			format!(
@@ -1102,6 +1109,12 @@ impl<'a> Gen<'a> {
 		let elem = elem.clone();
 		self.helper(&format!("lift_{c}"), |g| {
 			let go = g.go(&elem);
+			// A block of numbers is copied out whole.
+			if block(&elem) {
+				return format!(
+					"func lift_{c}(c C.{c}) []{go} {{\n\tv := liftBlock_[{go}](c.ptr, c.len)\n\tC.{c}_free(c)\n\treturn v\n}}\n\n"
+				);
+			}
 			let item = g.lift(&elem, "x");
 			let elem_c = g.c_go(&g.abi.ty(&elem));
 			format!(
@@ -2689,6 +2702,11 @@ fn poll_ready(abi: &Abi<'_>) -> String {
 
 fn poll_error(abi: &Abi<'_>) -> String {
 	format!("C.{}_POLL_ERROR", abi.prefix.to_uppercase())
+}
+
+/// Whether a list of `elem` crosses as one block, whose Go type is laid out as its C type.
+fn block(elem: &Type) -> bool {
+	Type::List(Collection::Vec, Box::new(elem.clone())).block().is_some()
 }
 
 /// Whether passing `ty` moves an object's value out: by value, boxed, or in an `Option`,
