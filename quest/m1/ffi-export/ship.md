@@ -28,5 +28,4 @@ then see change. A sibling planned later adds itself to `Required` here.
 - [Export moq for every target](/quest/m1/ffi-export/moq-targets.md) - one binding across the targets moq ships
 - [Fused async start](/quest/m1/ffi-export/async-start.md) - every future's C signature
 - [Owned buffers](/quest/m1/ffi-export/owned-bufs.md) - what a buffer's owner means on the way in
-- [Numeric slices](/quest/m1/ffi-export/numeric-slices.md) - the types of numeric slices and vectors
 - [API lock](/quest/m1/ffi-export/api-lock.md) - the check moq's releases run on the exported names

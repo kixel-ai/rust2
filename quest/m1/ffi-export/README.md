@@ -84,7 +84,7 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
 - ✅ Every change that breaks the C ABI or a generated API is a child here, so it lands
   before moq pins: [the fused async start](/quest/m1/ffi-export/async-start.md),
   [owned buffers](/quest/m1/ffi-export/owned-bufs.md),
-  [numeric slices](/quest/m1/ffi-export/numeric-slices.md), and
+  numeric slices ([#743](https://github.com/kixel-ai/rust2/pull/743)), and
   [the API lock](/quest/m1/ffi-export/api-lock.md). Work that changes no generated API is
   [its own epic](/quest/m1/ffi-speed/README.md), which does not hold the pin.
 - Not planned: one walker emitting lift and lower instructions every generator

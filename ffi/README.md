@@ -441,8 +441,9 @@ array, and anything else encoded into a `ByteArray` as its C struct holds it.
   `UIntArray`, or `ULongArray` for `u16` through `u64`, which a caller uses under
   `@OptIn(ExperimentalUnsignedTypes::class)`, and `FloatArray` or `DoubleArray`. It
   crosses whole: passed or returned directly, in one JNI array copy, and inside another
-  value, in one bulk copy into or out of its encoding. A record or variant holding one
-  compares and hashes it by its contents, as Rust does. Any other `Vec<T>` or `&[T]` is
+  value, in one bulk copy into or out of its encoding. A record, variant, or tuple holding
+  one, or a float anywhere, compares and hashes it by its contents and its floats by IEEE
+  `==`, as Rust does: NaN equals nothing, itself included, and -0.0 equals 0.0. Any other `Vec<T>` or `&[T]` is
   a `List`, and passing a `Vec` by value closes each object in it once the call returns.
 - **Traits** are interfaces; once Rust drops an implementation, it is closed if
   `AutoCloseable`.
@@ -508,7 +509,8 @@ caller imports it with no ignores.
   after which a call raises `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable. A field is a
   property, `first_get`, and its setter a method, `first_set(value)`, named as the C ones,
   since setting an object moves it in and closes it, which an assignment would hide.
-- **Records** are slotted dataclasses, compared by their fields, and **enums** an `Enum`
+- **Records** are slotted dataclasses, compared by their fields, a float by IEEE `==` even
+  against itself, as Rust does, and **enums** an `Enum`
   of upper-case members, or for one with data a class of a dataclass per variant,
   `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
   `default()`. Constants are module or class attributes, made anew on each read unless a
