@@ -187,8 +187,10 @@ and Kotlin's calls trail it by 2 to 4 times, behind JNI's per-call cost and the 
 
 Measured on fedora on 2026-11-12, through `quest gate`, with the same pinned
 moq stand-in and three rounds. The exported workspace now carries moq's release
-profile: fat LTO, one codegen unit, and `strip = "symbols"`. Its package override
-keeps debuginfo-only stripping for the moq-ffi dependency. Panic behavior is unchanged.
+profile: fat LTO, one codegen unit, and `strip = "symbols"`. Its package override,
+`strip = "debuginfo"` for moq-ffi, was then carried only onto the facade's rlib, so
+these artifacts got `strip = "symbols"`; the export now also gives it to the glue
+package that builds them. Panic behavior is unchanged.
 A paired build of the generated crate with Kotlin and Dart enabled took 404 s with
 this profile and 107 s after removing the profile tables (297 s longer, 3.8 times).
 Both used fresh target directories and the warm mbx compiler cache, so these are

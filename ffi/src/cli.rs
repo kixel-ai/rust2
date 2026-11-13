@@ -296,7 +296,7 @@ fn overrides(metadata: &Metadata, top: &Package) -> Result<String, String> {
 	}
 	let manifest = metadata.workspace_root.join("Cargo.toml");
 	let source = std::fs::read_to_string(&manifest).map_err(|err| format!("reading {}: {err}", manifest.display()))?;
-	if let Some(profile) = profile(&manifest, &source, &metadata.packages, &built)? {
+	if let Some(profile) = profile(&manifest, &source, &metadata.packages, top, &built)? {
 		overrides.insert("profile".to_string(), profile.into());
 	}
 	toml::to_string(&overrides).map_err(|err| format!("writing the patches and profiles: {err}"))
@@ -307,11 +307,13 @@ fn overrides(metadata: &Metadata, top: &Package) -> Result<String, String> {
 /// package of the workspace's resolve, such as a tool's dependency, dropped, since the
 /// glue's workspace would not resolve it. One naming no package at all is an error at its
 /// line: cargo only warns, and the consumer's intent would silently not apply. So is `*`,
-/// which would newly reach the workspace's own crates.
+/// which would newly reach the workspace's own crates. The facade's own override also
+/// goes to the glue package, which builds the artifact the facade shipped.
 fn profile(
 	manifest: &Path,
 	source: &str,
 	packages: &[Package],
+	top: &Package,
 	built: &BTreeSet<&str>,
 ) -> Result<Option<toml::Table>, String> {
 	let spanned = toml::de::DeTable::parse(source).map_err(|err| format!("{}: {err}", manifest.display()))?;
@@ -370,6 +372,15 @@ fn profile(
 			}
 			if !matched.iter().any(|p| built.contains(p.id.as_str())) {
 				carried.remove(spec_str);
+			} else if matched.iter().any(|p| p.id == top.id) {
+				let glue = format!("{}-ffi", top.name);
+				let value = carried[spec_str].clone();
+				if carried.insert(glue.clone(), value).is_some() {
+					return Err(format!(
+						"{}: `profile.{name}.package.{spec_str}` is a second override of the exported crate, which its glue package `{glue}` takes",
+						at(spec.span())
+					));
+				}
 			}
 		}
 		if carried.is_empty() {
@@ -386,12 +397,14 @@ fn profile(
 /// `package`.
 fn matches(spec: &str, package: &Package) -> Result<bool, String> {
 	let (name, version) = spec.split_once(['@', ':']).map_or((spec, None), |(n, v)| (n, Some(v)));
-	if name.contains(['/', '#']) {
+	if spec.contains(['/', '#']) {
 		return Err(format!(
 			"the profile override `{spec}` names a package by URL, which the export's library cannot carry"
 		));
 	}
-	let exact = |v: &str| package.version == v || package.version.starts_with(&format!("{v}."));
+	// An omitted build field, like an omitted minor or patch, matches any.
+	let core = package.version.split_once('+').map_or(package.version.as_str(), |(core, _)| core);
+	let exact = |v: &str| package.version == v || core == v || core.starts_with(&format!("{v}."));
 	Ok(package.name == name && version.is_none_or(exact))
 }
 

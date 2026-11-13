@@ -2252,6 +2252,11 @@ fn profiled() {
 		Some(2),
 		"{manifest}"
 	);
+	assert_eq!(
+		glue["profile"]["dev"]["package"]["profiled-ffi"]["opt-level"].as_integer(),
+		Some(2),
+		"{manifest}"
+	);
 	assert!(!manifest.contains("rust2-ffi-profiled-dev"), "{manifest}");
 	files("missing");
 	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
