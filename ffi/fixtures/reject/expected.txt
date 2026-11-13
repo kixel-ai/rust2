@@ -1,4 +1,6 @@
 fixtures/reject/src/lib.rs:1000:2: rust2-ffi: cannot export method `Raw::peek`: unsafe fn; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1006:1: rust2-ffi: cannot export trait `Trusted`: unsafe trait; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1011:1: rust2-ffi: cannot export trait `Hazard`: unsafe fn `risk`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:1016:1: rust2-ffi: cannot export fn `trust`: trait object `dyn Trusted`; exclude it in the config to leave it out
 	fixtures/reject/src/lib.rs:1006:1: note: C cannot implement `Trusted`: unsafe trait
 fixtures/reject/src/lib.rs:1021:1: rust2-ffi: cannot export fn `hazard`: trait object `dyn Hazard`; exclude it in the config to leave it out

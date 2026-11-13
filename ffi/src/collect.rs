@@ -88,6 +88,17 @@ fn unsafety(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Why> {
 	}
 }
 
+/// Why foreign code cannot implement a trait soundly, if it cannot: an `unsafe trait`, or
+/// a required method foreign code would implement without the caller's preconditions.
+fn trait_unsafety(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Why> {
+	if tcx.trait_def(def_id).safety.is_unsafe() {
+		return Some(why("unsafe trait", ""));
+	}
+	(tcx.associated_items(def_id).in_definition_order())
+		.filter(|item| item.is_fn() && !item.defaultness(tcx).has_value())
+		.find_map(|item| unsafety(tcx, item.def_id).map(|why| Why { detail: item.name().to_string(), ..why }))
+}
+
 /// An item the export refuses, with every reason found.
 pub struct Refusal {
 	/// Its path from its crate's root.
@@ -1790,6 +1801,13 @@ impl<'tcx> Collector<'tcx> {
 				let decl = self.decls.get(&site.key).cloned();
 				// A trait exports only as what C implements: one it cannot implement is no
 				// part of C's API, while a signature that takes one from C is refused.
+				// An unsafe contract is not something C lacks but something it cannot keep.
+				if kind == DefKind::Trait
+					&& let Some(why) = trait_unsafety(tcx, def_id)
+				{
+					self.refuse(&site.shown, "trait", span, vec![why]);
+					continue;
+				}
 				if let (Some(Decl::Refused(why)), DefKind::Trait) = (&decl, kind) {
 					let (report, rest) = self.report(&site.shown);
 					report.traits.push((rest, why.clone()));
