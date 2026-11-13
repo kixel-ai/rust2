@@ -16,9 +16,10 @@
 //! [`runtime/rt.swift`](../runtime/rt.swift), holds the classes' handles, the arena a call
 //! lowers nested values into, and the signal a future parks on.
 //!
-//! A call passes bytes and text at its top level as views of Swift's own memory, and
-//! returned bytes are `Data` lending Rust's buffer, so neither is copied; nested in another
-//! value, bytes passed in are copied into the call's arena.
+//! Bytes are the runtime's `Bytes`: those Rust returned lend its buffer, and pass back to
+//! Rust as a second owner of it, so neither way copies them. Swift's own bytes and text
+//! pass as views of Swift's memory at a call's top level, which Rust copies once where it
+//! keeps them; nested in another value, they are copied once into a buffer Rust takes.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
@@ -135,8 +136,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 
 /// The standard library's names the runtime and the generated code use unqualified, which
 /// an exported type or function would shadow, and `Swift`, which qualifies the rest. The
-/// runtime's own are the C ABI's: `Native` and `SocketAddr` are claimed as
-/// `<prefix>_native` and `<prefix>_socket_addr`.
+/// runtime's own are the C ABI's: `Native`, `Bytes`, and `SocketAddr` are claimed as
+/// `<prefix>_native`, `<prefix>_bytes`, and `<prefix>_socket_addr`.
 const TAKEN: &[&str] = &[
 	"Array",
 	"Bool",
@@ -318,7 +319,7 @@ impl<'a> Gen<'a> {
 			Type::F64 => "Swift.Double".to_string(),
 			Type::Char => "Swift.Unicode.Scalar".to_string(),
 			Type::Str | Type::String | Type::Path | Type::PathBuf => "Swift.String".to_string(),
-			Type::Slice | Type::Vec | Type::Bytes => "Data".to_string(),
+			Type::Slice | Type::Vec | Type::Bytes => "Bytes".to_string(),
 			Type::U128 => "U128".to_string(),
 			Type::Duration => "Swift.Duration".to_string(),
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
@@ -501,7 +502,7 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Str | Type::String => format!("Native.string({e})"),
 			Type::Path | Type::PathBuf => format!("Native.path({e})"),
-			Type::Slice | Type::Vec | Type::Bytes => format!("Native.data({e})"),
+			Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes({e})"),
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
 			Type::Int(int) => lift_int(*int, e),
 			Type::Char => format!("Native.scalar({e})"),
@@ -527,7 +528,7 @@ impl<'a> Gen<'a> {
 				Type::Object(_) => format!("{e}.map {{ {}(raw: $0) }}", self.sw(inner)),
 				Type::Str | Type::String => format!("Native.string(option: {e})"),
 				Type::Path | Type::PathBuf => format!("Native.path(option: {e})"),
-				Type::Slice | Type::Vec | Type::Bytes => format!("Native.data(option: {e})"),
+				Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes(option: {e})"),
 				Type::List(..) => format!(
 					"({e}.ptr == nil ? nil : {} as {}?)",
 					self.lift(inner, e),
@@ -565,11 +566,11 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Str | Type::String => format!("Native.string(lent: {e})"),
 			Type::Path | Type::PathBuf => format!("Native.path(lent: {e})"),
-			Type::Slice | Type::Vec | Type::Bytes => format!("Native.data(lent: {e})"),
+			Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes(lent: {e})"),
 			Type::Option(inner) => match inner.base() {
 				Type::Str | Type::String => format!("Native.string(lentOption: {e})"),
 				Type::Path | Type::PathBuf => format!("Native.path(lentOption: {e})"),
-				Type::Slice | Type::Vec | Type::Bytes => format!("Native.data(lentOption: {e})"),
+				Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes(lentOption: {e})"),
 				_ => self.lift(ty, e),
 			},
 			Type::Ref(_, inner) => self.lift_lent(inner, e),

@@ -21,6 +21,69 @@ public struct SocketAddr: Hashable, Sendable {
 	}
 }
 
+/// Bytes as Rust holds them: Rust's stay in the buffer it returned, shared without a copy
+/// by every `Bytes` and slice reading them and passed back to Rust uncopied, and Swift's are
+/// a `Data`. Rust's are never lent as a `Data`, so nothing writes into the buffer Rust shares.
+public struct Bytes: Swift.Hashable, Swift.Sendable, Swift.RandomAccessCollection {
+	// The bytes: Swift's, or a view of Rust's buffer that keeps `owner` alive.
+	let storage: Data
+	// Rust's buffer holding the bytes, or nil for Swift's.
+	let owner: Native.Owner?
+
+	init(storage: Data, owner: Native.Owner?) {
+		self.storage = storage
+		self.owner = owner
+	}
+
+	/// No bytes.
+	public init() {
+		self.init(storage: Data(), owner: nil)
+	}
+
+	/// `data`'s bytes, sharing its storage as `Data` does: a call passing them lends them to
+	/// Rust, which copies them where it keeps them.
+	public init(_ data: Data) {
+		self.init(storage: data, owner: nil)
+	}
+
+	/// `bytes`, copied.
+	public init(_ bytes: some Swift.Sequence<Swift.UInt8>) {
+		self.init(Data(bytes))
+	}
+
+	/// The bytes as a `Data`: Swift's as they are, and Rust's copied.
+	public var data: Data {
+		owner == nil ? storage : Data(storage)
+	}
+
+	/// Indices count from the bytes sliced from, as `Data`'s do.
+	public var startIndex: Swift.Int { storage.startIndex }
+	public var endIndex: Swift.Int { storage.endIndex }
+
+	public subscript(i: Swift.Int) -> Swift.UInt8 {
+		storage[i]
+	}
+
+	/// The bytes in `bounds`, sharing these without a copy.
+	public subscript(bounds: Swift.Range<Swift.Int>) -> Bytes {
+		Bytes(storage: storage[bounds], owner: owner)
+	}
+
+	/// Run `body` with the bytes in place, which it must not keep.
+	public func withUnsafeBytes<R>(_ body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R {
+		try storage.withUnsafeBytes(body)
+	}
+
+	/// Whether `a` and `b` hold the same bytes, wherever each keeps them.
+	public static func == (a: Bytes, b: Bytes) -> Swift.Bool {
+		a.storage == b.storage
+	}
+
+	public func hash(into hasher: inout Swift.Hasher) {
+		storage.hash(into: &hasher)
+	}
+}
+
 /// A Rust `u128`, as its two halves, until the deployment target allows Swift's `UInt128`.
 public struct U128: Hashable, Comparable, Sendable, CustomStringConvertible {
 	public var high: UInt64
@@ -173,20 +236,19 @@ extension Native {
 
 	static var none: Buf { Buf(ptr: nil, len: 0, owner: nil) }
 
-	/// `bytes` as a view C reads during `body`, without a copy. Foundation's closure
-	/// returns only a copyable result, so `body`'s leaves through an optional.
+	/// `bytes` as a view C reads during `body`, without a copy. `Data`'s closure returns
+	/// only a copyable result, so `body`'s leaves through an optional.
 	@inline(__always)
-	static func view<R: ~Copyable>(_ bytes: Data, _ body: (Buf) throws -> R) rethrows -> R {
+	static func view<R: ~Copyable>(_ bytes: Bytes, _ body: (Buf) throws -> R) rethrows -> R {
 		var result: R? = nil
-		try bytes.withUnsafeBytes { raw in
-			let ptr = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) ?? UnsafePointer(empty)
-			result = try body(Buf(ptr: ptr, len: raw.count, owner: nil))
+		try bytes.storage.withUnsafeBytes { raw in
+			result = try body(view(raw))
 		}
 		return result.take()!
 	}
 
 	@inline(__always)
-	static func view<R: ~Copyable>(_ bytes: Data?, _ body: (Buf) throws -> R) rethrows -> R {
+	static func view<R: ~Copyable>(_ bytes: Bytes?, _ body: (Buf) throws -> R) rethrows -> R {
 		guard let bytes else { return try body(none) }
 		return try view(bytes, body)
 	}
@@ -197,7 +259,7 @@ extension Native {
 		var text = text
 		var result: R? = nil
 		try text.withUTF8 { utf8 in
-			result = try body(Buf(ptr: utf8.baseAddress ?? UnsafePointer(empty), len: utf8.count, owner: nil))
+			result = try body(view(UnsafeRawBufferPointer(utf8)))
 		}
 		return result.take()!
 	}
@@ -208,88 +270,65 @@ extension Native {
 		return try view(text, body)
 	}
 
-	/// Bytes Rust returned, lent to `Data` without a copy and freed with it, noted in
-	/// `lent` while it lives so a call passing it back passes Rust's buffer.
-	static func data(_ buf: Buf) -> Data {
+	/// A view of `raw`, never null, so empty bytes read as present.
+	@inline(__always)
+	static func view(_ raw: UnsafeRawBufferPointer) -> Buf {
+		Buf(
+			ptr: raw.baseAddress?.assumingMemoryBound(to: UInt8.self) ?? UnsafePointer(empty), len: raw.count,
+			owner: nil)
+	}
+
+	/// The buffer Rust returned that `Bytes` read, freed once no `Bytes` does.
+	final class Owner: @unchecked Swift.Sendable {
+		let buf: Buf
+
+		init(_ buf: Buf) {
+			self.buf = buf
+		}
+
+		deinit {
+			Native.free(buf)
+		}
+
+		/// A second owner of `buf`, narrowed to `raw`, its bytes some `Bytes` reads, which
+		/// Rust takes.
+		func share(_ raw: UnsafeRawBufferPointer) -> Buf {
+			var shared = Native.clone(buf)
+			shared.ptr = raw.baseAddress!.assumingMemoryBound(to: UInt8.self)
+			shared.len = raw.count
+			return shared
+		}
+	}
+
+	/// Bytes Rust returned, lent to `Bytes` without a copy and freed with the last one.
+	static func bytes(_ buf: Buf) -> Bytes {
 		guard let ptr = buf.ptr, buf.len > 0 else {
 			free(buf)
-			return Data()
+			return Bytes()
 		}
-		lent.add(buf)
-		return Data(
+		let owner = Owner(buf)
+		let storage = Data(
 			bytesNoCopy: UnsafeMutableRawPointer(mutating: ptr), count: buf.len,
-			deallocator: .custom { _, _ in
-				lent.remove(buf)
-				free(buf)
-			})
+			deallocator: .custom { _, _ in withExtendedLifetime(owner) {} })
+		// `Data` copies a few bytes inline, freeing Rust's buffer at once: those are Swift's.
+		let lent = storage.withUnsafeBytes { $0.baseAddress == UnsafeRawPointer(ptr) }
+		return Bytes(storage: storage, owner: lent ? owner : nil)
 	}
 
-	/// The buffers Rust returned that a live `Data` lends, by where their bytes start. A
-	/// `Data` hides what holds its bytes, so the address is what tells Rust's apart: while
-	/// the `Data` lives, no other memory starts there.
-	final class Lent: @unchecked Swift.Sendable {
-		private var bufs: [UnsafeRawPointer: Buf] = [:]
-		// A spin lock, held only for a lookup: Foundation's lock is missing where only
-		// FoundationEssentials is.
-		private let lock: UnsafeMutablePointer<Swift.Int> = {
-			let lock = UnsafeMutablePointer<Swift.Int>.allocate(capacity: 1)
-			lock.initialize(to: 0)
-			return lock
-		}()
-
-		private func locked<R>(_ body: () -> R) -> R {
-			while Native.swap(lock, 0, 1) != 0 {}
-			defer { Native.store(lock, 0) }
-			return body()
-		}
-
-		func add(_ buf: Buf) {
-			locked { bufs[UnsafeRawPointer(buf.ptr!)] = buf }
-		}
-
-		/// Forget `buf`, unless a later buffer of the same bytes took its place.
-		func remove(_ buf: Buf) {
-			locked {
-				let start = UnsafeRawPointer(buf.ptr!)
-				if bufs[start]?.owner == buf.owner {
-					bufs[start] = nil
-				}
-			}
-		}
-
-		/// A second owner of the buffer Rust returned whose bytes `bytes` are, narrowed to
-		/// them, or nil for any other memory, such as a slice or a copy.
-		func clone(_ bytes: UnsafeRawBufferPointer) -> Buf? {
-			guard let start = bytes.baseAddress else { return nil }
-			return locked {
-				guard let buf = bufs[start], bytes.count <= buf.len else { return nil }
-				var clone = Native.clone(buf)
-				clone.len = bytes.count
-				return clone
-			}
-		}
+	static func bytes(option buf: Buf) -> Bytes? {
+		buf.ptr == nil ? nil : bytes(buf)
 	}
 
-	static let lent = Lent()
-
-	/// `bytes` as a buffer Rust takes during `body`: a second owner of Rust's own, which a
-	/// `Data` it returned lends, or else a view, which Rust copies.
+	/// `bytes` as a buffer Rust takes during `body`: a second owner of Rust's own, or a view
+	/// of Swift's, which Rust copies.
 	@inline(__always)
-	static func take<R: ~Copyable>(_ bytes: Data, _ body: (Buf) throws -> R) rethrows -> R {
-		var result: R? = nil
-		try bytes.withUnsafeBytes { raw in
-			let buf =
-				lent.clone(raw)
-				?? Buf(
-					ptr: raw.baseAddress?.assumingMemoryBound(to: UInt8.self) ?? UnsafePointer(empty), len: raw.count,
-					owner: nil)
-			result = try body(buf)
-		}
-		return result.take()!
+	static func take<R: ~Copyable>(_ bytes: Bytes, _ body: (Buf) throws -> R) rethrows -> R {
+		guard let owner = bytes.owner, !bytes.isEmpty else { return try view(bytes, body) }
+		return try body(bytes.storage.withUnsafeBytes { owner.share($0) })
 	}
 
 	@inline(__always)
-	static func take<R: ~Copyable>(_ bytes: Data?, _ body: (Buf) throws -> R) rethrows -> R {
+	static func take<R: ~Copyable>(_ bytes: Bytes?, _ body: (Buf) throws -> R) rethrows -> R {
 		guard let bytes else { return try body(none) }
 		return try take(bytes, body)
 	}
@@ -305,17 +344,13 @@ extension Native {
 		try view(text, body)
 	}
 
-	static func data(option buf: Buf) -> Data? {
-		buf.ptr == nil ? nil : data(buf)
-	}
-
 	/// Bytes C lends a callback for its call, copied.
-	static func data(lent buf: Buf) -> Data {
-		buf.len == 0 ? Data() : Data(bytes: buf.ptr!, count: buf.len)
+	static func bytes(lent buf: Buf) -> Bytes {
+		buf.len == 0 ? Bytes() : Bytes(Data(bytes: buf.ptr!, count: buf.len))
 	}
 
-	static func data(lentOption buf: Buf) -> Data? {
-		buf.ptr == nil ? nil : data(lent: buf)
+	static func bytes(lentOption buf: Buf) -> Bytes? {
+		buf.ptr == nil ? nil : bytes(lent: buf)
 	}
 
 	/// Text Rust returned, copied, then freed.
@@ -571,14 +606,11 @@ extension Native {
 
 		/// `bytes` for Rust to read, copied here, or where `take`, Rust's own: a second owner
 		/// of a buffer it returned, else a copy it owns, which it takes without another.
-		func buf(_ bytes: Data) -> Buf {
-			bytes.withUnsafeBytes { raw in
+		func buf(_ bytes: Bytes) -> Buf {
+			bytes.storage.withUnsafeBytes { raw in
 				guard take else { return copy(raw) }
-				return lent.clone(raw)
-					?? Native.copy(
-						Buf(
-							ptr: raw.baseAddress?.assumingMemoryBound(to: UInt8.self) ?? UnsafePointer(empty),
-							len: raw.count, owner: nil))
+				if let owner = bytes.owner, raw.count > 0 { return owner.share(raw) }
+				return Native.copy(view(raw))
 			}
 		}
 
@@ -586,11 +618,11 @@ extension Native {
 			var text = text
 			return text.withUTF8 { utf8 in
 				guard take else { return copy(UnsafeRawBufferPointer(utf8)) }
-				return Native.copy(Buf(ptr: utf8.baseAddress ?? UnsafePointer(empty), len: utf8.count, owner: nil))
+				return Native.copy(view(UnsafeRawBufferPointer(utf8)))
 			}
 		}
 
-		func buf(_ bytes: Data?) -> Buf {
+		func buf(_ bytes: Bytes?) -> Buf {
 			bytes.map { buf($0) } ?? none
 		}
 

@@ -594,9 +594,12 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
 - **Records** are structs and **enums** Swift enums, with a variant's data as associated
   values, all `Sendable`. `PartialEq` is `==`, through Rust's; `Display` is `description`,
   `Debug` `debugDescription`, and `Default` a static `default()`.
-- **Bytes** are `Data`. Passed in at a call's top level, Rust reads Swift's own; nested in
-  another value, they are copied in. Bytes Rust returns lend its buffer until Swift
-  releases the `Data`, though `Data` copies a few bytes inline, freeing Rust's at once.
+- **Bytes** are the runtime's `Bytes`, a `RandomAccessCollection` of `UInt8` whose slices
+  are `Bytes` too. Bytes Rust returns lend its buffer until Swift releases the last `Bytes`
+  or slice reading it, and pass back to Rust as a second owner of it, with no copy. Swift's
+  own, made with `Bytes(data)` or from any sequence of bytes, Rust copies once where it
+  keeps them. `bytes.data` is a `Data`: Swift's as they are, and Rust's copied, so nothing
+  writes into a buffer Rust shares.
   Strings are `String`, copied, `char` `Unicode.Scalar`, `usize` `UInt`, `Option<T>` `T?`,
   a tuple a Swift tuple, though a tuple of one is its element, `u128` a `U128` of its
   `high` and `low` halves until the deployment target allows `UInt128`, and `Duration`
