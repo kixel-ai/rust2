@@ -151,9 +151,9 @@ def build(item, target):
     bins = [safe(t["name"]) for t in packages[0]["targets"] if "bin" in t["kind"]]
     if not bins:
         raise ValueError("crate has no binaries")
-    command = "zigbuild" if "linux" in target else "build"
+    command = ["cargo-zigbuild", "zigbuild"] if "linux" in target else ["cargo", "build"]
     build_target = target + ".2.28" if "linux" in target else target
-    run("cargo", command, "--locked", "--release", "--bins", "--all-features", "--manifest-path", manifest, "--target", build_target, cwd=str(Path(manifest).parent))
+    run(*command, "--locked", "--release", "--bins", "--all-features", "--manifest-path", manifest, "--target", build_target, cwd=str(Path(manifest).parent))
     out = Path("archives")
     out.mkdir(exist_ok=True)
     root = asset(item, target).removesuffix(".tgz")
