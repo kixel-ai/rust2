@@ -37,3 +37,4 @@ Public API: how every generated API holds these types (breaking).
 ## Related
 
 - [Kotlin values without a LongArray](/quest/m1/ffi-speed/kotlin-values.md) - how Kotlin holds the bytes this writes back
+- [Opaque values cross with zeroed padding](/quest/m1/ffi-export/value-padding.md) - zeroes what a value's bytes leave uninitialized
