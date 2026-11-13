@@ -137,12 +137,42 @@ pub fn bytes(env: *mut JNIEnv, array: jbyteArray) -> Option<Vec<u8>> {
 	}
 }
 
-/// A view of `bytes`, or a null view for none.
-pub fn view(bytes: &Option<Vec<u8>>) -> rt::Buf {
-	match bytes {
-		Some(bytes) => rt::Buf::view(bytes),
-		None => rt::Buf::NONE,
+/// A `byte[]`'s bytes, copied into a buffer Rust takes, or none for null.
+pub fn taken(env: *mut JNIEnv, array: jbyteArray) -> rt::Buf {
+	bytes(env, array).map_or(rt::Buf::NONE, rt::Buf::vec)
+}
+
+/// Bytes Kotlin passes as a `Bytes` holds them, for Rust to take: none where `len` is -1,
+/// else those from `start` of what a non-zero `owner` holds, shared without a copy, or of
+/// the `byte[]` `held`, copied once.
+///
+/// # Safety
+/// A non-zero `owner` came from [`hand`], and `held` keeps it from being freed.
+pub unsafe fn passed(env: *mut JNIEnv, held: jobject, owner: jlong, start: jint, len: jint) -> rt::Buf {
+	if len == -1 {
+		return rt::Buf::NONE;
 	}
+	if owner != 0 {
+		// SAFETY: the caller's contract.
+		let bytes = unsafe { range(owner, start, len) };
+		let buf = rt::Buf {
+			ptr: bytes.as_ptr(),
+			len: bytes.len(),
+			owner: owner as usize as _,
+		};
+		// SAFETY: as above.
+		return unsafe { buf.share("jni") };
+	}
+	let Ok(n) = usize::try_from(len) else {
+		rt::fail("jni", "bytes passed have a negative length")
+	};
+	let mut bytes = Vec::<u8>::with_capacity(n);
+	// SAFETY: `held` is a live `byte[]` the call was given, whose range `Bytes` checked.
+	unsafe {
+		((**env).v1_2.GetByteArrayRegion)(env, held, start, len, bytes.as_mut_ptr().cast());
+		bytes.set_len(n);
+	}
+	rt::Buf::vec(bytes)
 }
 
 /// A new `byte[]` holding `bytes`.
@@ -637,11 +667,27 @@ pub unsafe fn drop_returned(raw: jlong) {
 pub struct Reader<'a> {
 	bytes: &'a [u8],
 	arrays: Vec<Box<dyn std::any::Any>>,
+	/// Whether the value read is one Rust takes, so Rust's own bytes in it, outside an
+	/// array, cross as a second owner of them rather than a view.
+	take: bool,
 }
 
 impl<'a> Reader<'a> {
+	/// A reader of a value Rust only reads, as through a pointer.
 	pub fn new(bytes: &'a [u8]) -> Self {
-		Self { bytes, arrays: Vec::new() }
+		Self {
+			bytes,
+			arrays: Vec::new(),
+			take: false,
+		}
+	}
+
+	/// A reader of a value passed by value, which Rust takes.
+	pub fn taking(bytes: &'a [u8]) -> Self {
+		Self {
+			take: true,
+			..Self::new(bytes)
+		}
 	}
 
 	fn take(&mut self, n: usize) -> &'a [u8] {
@@ -799,11 +845,32 @@ impl Wire for rt::Waker {
 }
 
 impl Wire for rt::Buf {
-	/// A view of the encoded bytes, which outlive the call.
+	/// A view of the encoded bytes, or after [`LENT`] of those Rust lent Kotlin, in place,
+	/// either of which outlives the call.
 	fn read(r: &mut Reader<'_>) -> Self {
-		match usize::try_from(r.get::<i32>()) {
-			Ok(len) => rt::Buf::view(r.take(len)),
-			Err(_) => rt::Buf::NONE,
+		match r.get::<i32>() {
+			LENT => {
+				let owner = r.get::<i64>();
+				let (start, len) = (r.get::<i32>(), r.get::<i32>());
+				// SAFETY: an owner Kotlin keeps from being freed until the call returns.
+				let bytes = unsafe { range(owner, start, len) };
+				let view = rt::Buf::view(bytes);
+				match r.take {
+					false => view,
+					// SAFETY: as above.
+					true => unsafe {
+						rt::Buf {
+							owner: owner as usize as _,
+							..view
+						}
+						.share("jni")
+					},
+				}
+			}
+			len => match usize::try_from(len) {
+				Ok(len) => rt::Buf::view(r.take(len)),
+				Err(_) => rt::Buf::NONE,
+			},
 		}
 	}
 
@@ -939,7 +1006,10 @@ impl<T: Wire + Copy + 'static> Wire for rt::List<T> {
 		let Ok(len) = usize::try_from(r.get::<i32>()) else {
 			return Self::NONE;
 		};
+		// Rust only reads an array's items.
+		let take = std::mem::replace(&mut r.take, false);
 		let items: Box<[T]> = (0..len).map(|_| r.get()).collect();
+		r.take = take;
 		let list = Self {
 			ptr: items.as_ptr(),
 			len,

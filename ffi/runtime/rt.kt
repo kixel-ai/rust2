@@ -63,10 +63,24 @@ class Writer {
 		b.put(v)
 	}
 
-	/** Bytes a record holds, as [bytes] writes a `ByteArray`. */
+	/**
+	 * Bytes a record holds: Kotlin's as [bytes] writes a `ByteArray`, and Rust's as [LENT],
+	 * their owner, where they start, and their length, which Rust reads in place, kept
+	 * until [release].
+	 */
 	fun bytes(v: Bytes?) {
 		if (v == null) {
 			i32(-1)
+			return
+		}
+		val owner = v.owner
+		if (owner != 0L) {
+			room(20)
+			b.putInt(LENT)
+			b.putLong(owner)
+			b.putInt(v.start)
+			b.putInt(v.size)
+			(kept ?: java.util.ArrayList<Any?>().also { kept = it }).add(v.held)
 			return
 		}
 		room(4 + v.size)
@@ -119,6 +133,9 @@ class Writer {
 
 	private var held: java.util.ArrayList<Handle>? = null
 
+	// What holds Rust's bytes encoded in place, which the GC must not free before [release].
+	private var kept: java.util.ArrayList<Any?>? = null
+
 	/** An object's handle, held until [release], or 0 for none. */
 	fun handle(v: Handle?) {
 		if (v == null) {
@@ -134,6 +151,7 @@ class Writer {
 	/** Release the handles encoded, once the call that reads them returns. */
 	fun release() {
 		held?.forEach { it.release() }
+		java.lang.ref.Reference.reachabilityFence(kept)
 	}
 
 	/** Run [block] with this writer, releasing its handles once it returns. */
@@ -174,6 +192,9 @@ class Reader(bytes: ByteArray) {
 		b.get(v)
 		return v
 	}
+
+	/** Bytes Rust lent a call, copied, or null for none. */
+	fun lent(): Bytes? = bytes()?.let { Bytes(it) }
 
 	/** Bytes Rust handed over, copied or lent by their owner, or null for none. */
 	fun owned(): Bytes? = when (val n = b.getInt()) {
