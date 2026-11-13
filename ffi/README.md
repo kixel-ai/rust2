@@ -4,6 +4,10 @@ A rustc driver that exports a crate's `pub` API as a C ABI and a C header, with 
 attributes in the Rust source.
 Every language's generator but Python's builds on the C ABI.
 
+It targets facades written for the exporter's mapping rules. A stock crate's
+whole public API is not generally exportable: generic and borrow signatures can
+be refused, and the census also lists API items left out by those rules.
+
 ```bash
 rust2-ffi --config ffi.toml (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [--baseline api.json] [-- cargo args]
 ```
