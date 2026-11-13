@@ -1513,9 +1513,9 @@ fn lock() {
 		let path = dir.join(format!("missing-{missing}.json"));
 		std::fs::write(&path, serde_json::to_vec(&bad).unwrap()).unwrap();
 		let args = ["--baseline".as_ref(), path.as_os_str()];
-		let output = exporter("lock", &dir.join(format!("missing-{missing}")), &targets, &args, &[])
-			.output()
-			.unwrap();
+		let out = dir.join(format!("missing-{missing}"));
+		let _ = std::fs::remove_dir_all(&out);
+		let output = exporter("lock", &out, &targets, &args, &[]).output().unwrap();
 		assert!(!output.status.success());
 		assert_eq!(
 			String::from_utf8_lossy(&output.stderr)
@@ -1523,19 +1523,17 @@ fn lock() {
 				.count(),
 			1
 		);
+		assert!(!out.exists(), "a baseline without names wrote {}", out.display());
 	}
 	// A baseline from before names were kept still has its structure checked.
 	let path = dir.join("missing-all.json");
 	let args = ["--baseline".as_ref(), path.as_os_str()];
-	let output = exporter(
-		"lock",
-		&dir.join("missing-next"),
-		&targets,
-		&args,
-		&["--features", "next"],
-	)
-	.output()
-	.unwrap();
+	let out = dir.join("missing-next");
+	let _ = std::fs::remove_dir_all(&out);
+	let output = exporter("lock", &out, &targets, &args, &["--features", "next"])
+		.output()
+		.unwrap();
+	assert!(!out.exists(), "a refused export wrote {}", out.display());
 	assert!(!output.status.success());
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(stderr.contains("baseline lacks binding names"), "{stderr}");

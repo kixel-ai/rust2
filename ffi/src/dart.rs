@@ -2239,11 +2239,7 @@ impl<'a> Gen<'a> {
 			}
 			member.push('_');
 		};
-		crate::lock::function(
-			&mut self.locked,
-			function,
-			member.trim_start_matches("static ").trim_start_matches("new ").trim(),
-		);
+		crate::lock::function(&mut self.locked, function, &member);
 
 		let code = format!("{}{head} {{\n{code_body}\n}}\n", docs(text.trim(), ""));
 		Some((code, member))

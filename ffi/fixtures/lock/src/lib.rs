@@ -303,3 +303,19 @@ impl FieldName {
 pub struct MeterDefault {
 	pub value: u32,
 }
+
+/// A variant `next` renames: only the structural check reports it, not each binding's name.
+pub enum Speed {
+	#[cfg(not(feature = "next"))]
+	Fast,
+	#[cfg(feature = "next")]
+	Quick,
+	Slow,
+}
+
+pub fn speed(speed: Speed) -> u32 {
+	match speed {
+		Speed::Slow => 0,
+		_ => 1,
+	}
+}

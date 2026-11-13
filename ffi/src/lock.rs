@@ -62,15 +62,12 @@ pub fn function(names: &mut BTreeMap<String, String>, function: &Function, name:
 	names.insert(function_key(function), name.to_string());
 }
 
-/// The shared exception identity after references and borrowed strings lose ownership.
+/// The shared exception identity after references lose ownership. `Abi::key` already folds
+/// references and borrowed strings everywhere but a tuple, which `Abi::spell` spells itself.
 pub fn error_key(abi: &Abi<'_>, ty: &Type) -> String {
 	fn owned(ty: &Type) -> Type {
 		match ty {
 			Type::Ref(_, inner) => owned(inner),
-			Type::Str => Type::String,
-			Type::Option(inner) => Type::Option(Box::new(owned(inner))),
-			Type::Box(inner) => Type::Box(Box::new(owned(inner))),
-			Type::List(c, inner) => Type::List(*c, Box::new(owned(inner))),
 			Type::Tuple(elements) => Type::Tuple(elements.iter().map(owned).collect()),
 			ty => ty.clone(),
 		}
@@ -163,6 +160,11 @@ pub fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'_>) -> 
 				continue;
 			}
 			let new = now.get(language).and_then(|names| names.get(key));
+			// A part of a kept item, such as a variant or an overload, that is gone went with
+			// a change the structural check reports.
+			if new.is_none() && key != owner {
+				continue;
+			}
 			if new != Some(old) {
 				let change = match new {
 					Some(new) => format!("is now `{new}`"),

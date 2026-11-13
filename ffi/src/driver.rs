@@ -370,13 +370,11 @@ impl Export {
 			Err(()) => return Ok(()),
 		};
 		let structure_kept = baseline.as_ref().is_none_or(|base| self.locked(tcx, base, &abi, None));
-		let baseline = match &baseline {
-			None => None,
-			Some(base) => match self.baseline_names(tcx, base) {
-				Some(names) => Some((base, names)),
-				None => return Ok(()),
-			},
-		};
+		// A baseline without names fails the export, but the generators still run, so their
+		// own refusals show now rather than after the baseline is exported again.
+		let names = baseline.as_ref().map(|base| self.baseline_names(tcx, base));
+		let names_complete = names.is_none_or(|names| names.is_some());
+		let baseline = baseline.as_ref().zip(names.flatten());
 		if !can_generate {
 			return Ok(());
 		}
@@ -388,7 +386,7 @@ impl Export {
 		let generated = glue.generate(out)?;
 		let names_kept =
 			baseline.is_none_or(|(base, names)| self.locked(tcx, base, &abi, Some((names, &generated.names))));
-		if !structure_kept || !names_kept {
+		if !structure_kept || !names_complete || !names_kept {
 			return Ok(());
 		}
 		target.names = Some(generated.write()?);

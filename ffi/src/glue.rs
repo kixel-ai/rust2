@@ -357,8 +357,12 @@ fn module_path(path: &Path) -> Result<String, String> {
 /// The import path of `<out>/go`, from the `go.mod` of the module above it, or else the
 /// module `prefix`, with the `go.mod` declaring it there.
 fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), String> {
-	std::fs::create_dir_all(out).map_err(|err| format!("creating {}: {err}", out.display()))?;
-	let out = std::fs::canonicalize(out).map_err(|err| format!("reading {}: {err}", out.display()))?;
+	// Resolved without creating it, since an export the lock refuses writes nothing.
+	let absolute = std::path::absolute(out).map_err(|err| format!("reading {}: {err}", out.display()))?;
+	let existing = absolute.ancestors().find(|dir| dir.exists()).expect("the root exists");
+	let out = std::fs::canonicalize(existing)
+		.map_err(|err| format!("reading {}: {err}", existing.display()))?
+		.join(absolute.strip_prefix(existing).expect("an ancestor holds it"));
 	for dir in out.ancestors() {
 		let path = dir.join("go.mod");
 		if !path.is_file() {

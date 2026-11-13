@@ -51,9 +51,13 @@ pub fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 		globals: runtime_names().map(str::to_string).collect(),
 		errors: Vec::new(),
 	};
-	let classes = abi
-		.classes(|_| (String::new(), 0), |_| false)
-		.into_keys()
+	// A C++ class is named by its C name alone.
+	let api = abi.api;
+	let classes = (0..api.records.len())
+		.map(|i| abi.record(i))
+		.chain((0..api.enums.len()).map(|i| abi.enumeration(i)))
+		.chain((0..api.objects.len()).map(|i| abi.object(i)))
+		.chain((0..api.callbacks.len()).map(|i| abi.callback(i)))
 		.map(|c| {
 			let name = h.name(&c);
 			(c, name)

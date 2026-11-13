@@ -2928,13 +2928,13 @@ fn package_names_are_locked() {
 		crates: vec!["lock_foobar".into()],
 		targets: vec!["host".into()],
 	};
+	let base = api.clone();
 	let old = generate(&Abi::new(&api, "lock"), "lock", 0, "lock").unwrap();
 	assert_eq!(old.names["crate lock_foobar"], "foobar");
 	api.crates.insert(0, "lock_foo_bar".into());
 	let new = generate(&Abi::new(&api, "lock"), "lock", 0, "lock").unwrap();
 	assert_eq!(new.names["crate lock_foobar"], "foobar_");
 	assert!(new.files.iter().any(|(path, _)| path == "foobar_/foobar_.go"));
-	let base = api.clone();
 	let breaks = crate::lock::name_breaks(
 		&BTreeMap::from([("Go".into(), old.names)]),
 		&BTreeMap::from([("Go".into(), new.names)]),
