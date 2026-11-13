@@ -25,7 +25,3 @@ shapes and a new rule touches 19 to 38 files.
   asks the exporter which shapes export.
 
 Public API: none.
-
-## Related
-
-- [The C ABI under sanitizers](/quest/m1/ffi-speed/sanitizers.md) - the second proof, of memory and threads, on the same glue

@@ -16,6 +16,8 @@
 //! A value crosses JNI as a scalar, a handle as a `long`, bytes passed in as a `byte[]`,
 //! bytes returned as their owner, which a `Bytes` reads through a call each, or encoded
 //! into a `byte[]` field by field as its C struct holds it, so each call is one crossing.
+//! A record passed or returned directly crosses as its scalars instead, parameters in and
+//! a thread's `long[]` slots out, with only its other fields encoded.
 //! An object never closed, and Rust's bytes, are freed once the GC collects them.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -61,6 +63,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		reads: false,
 		fails: false,
 		on: On::ALL,
+		slots: 0,
+		room: 0,
 	};
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
@@ -103,6 +107,13 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	if g.reads {
 		helpers.push_str(READS);
 		looked.extend(["__read", "__seek", "__io_error"]);
+	}
+	if g.slots > 0 {
+		let _ = write!(
+			helpers,
+			"\t/** This thread's slots a returned record's scalars cross in, read before its next call. */\n\t// A field, not a function, so no exported function's name can clash with it.\n\t@JvmField val __slots = object : java.lang.ThreadLocal<kotlin.LongArray>() {{\n\t\t// Not `withInitial`, which Android lacks before API 26.\n\t\toverride fun initialValue() = kotlin.LongArray({n})\n\t}}\n\n",
+			n = g.slots
+		);
 	}
 	if g.fails {
 		let thrown = g.thrown.get("String").expect("a closure's error is a String");
@@ -354,6 +365,18 @@ fn taken(name: &str) -> bool {
 	tuple || TAKEN.contains(&name)
 }
 
+/// How a function returns a record directly: in an `Option` or not, the slots `a` its
+/// scalars cross in and what the glue sets each to, the reader `r` of its other fields and
+/// the glue's writes of them, and the Kotlin value made of both.
+struct Flat {
+	option: bool,
+	a: String,
+	r: String,
+	slots: Vec<String>,
+	puts: Vec<String>,
+	make: String,
+}
+
 /// How a function's Kotlin form is held.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Place {
@@ -416,6 +439,11 @@ struct Gen<'a> {
 	fails: bool,
 	/// The targets of the item being written, whose native methods check theirs.
 	on: On,
+	/// The most scalars a returned record crosses in, which each thread's slots hold.
+	slots: usize,
+	/// The JVM parameter slots the function being written may still spend on a record's
+	/// scalars.
+	room: usize,
 }
 
 impl<'a> Gen<'a> {
@@ -781,6 +809,37 @@ impl<'a> Gen<'a> {
 			Ty::Struct(_) | Ty::In(_) if let Some(opaque) = opaque_of(abi, c) => {
 				arg.exprs.push(format!("{e}.{}", holder(&opaque)));
 				arg.rust_pre.push(format!("let a{p} = {};", from_kotlin(&opaque, &p)));
+				arg.rust_args.push(match c {
+					Ty::In(_) => format!("&a{p}"),
+					_ => format!("a{p}"),
+				});
+			}
+			// A record crosses as its scalars, and its other fields encoded into one `byte[]`.
+			// Only while the call's JVM parameters stay within the 255 slots a method takes.
+			Ty::Struct(_) | Ty::In(_)
+				if let Type::Record(i) = ty.base()
+					&& let Some(left) = self.room.checked_sub(weight(abi, *i).saturating_sub(1)) =>
+			{
+				self.room = left;
+				arg.jni.clear();
+				arg.native.clear();
+				*n -= 1;
+				let (w, r) = (self.fresh("w"), format!("r{p}"));
+				let mut writes = Vec::new();
+				let value = self.flat_in(*i, e, (&mut arg, n), (&w, &mut writes), &r);
+				if rest(abi, *i) {
+					let b = format!("p{n}");
+					*n += 1;
+					arg.jni.push("jbyteArray");
+					arg.native.push("ByteArray".to_string());
+					arg.open = Some(format!("Native.Writer().use {{ {w} ->"));
+					arg.inside.extend(writes);
+					arg.exprs.push(format!("{w}.finish()"));
+					arg.rust_pre.push(format!(
+						"let b{p} = rt::bytes(env, {b}).unwrap_or_default();\n\t\tlet mut {r} = rt::Reader::new(&b{p});"
+					));
+				}
+				arg.rust_pre.push(format!("let a{p} = {value};"));
 				arg.rust_args.push(match c {
 					Ty::In(_) => format!("&a{p}"),
 					_ => format!("a{p}"),
@@ -1796,6 +1855,11 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		self.params = locals(&function.params);
 		let export = abi.export(function, owner);
+		// The JVM slots of the 255 a method takes left past what each C parameter takes
+		// unflattened and a future's waker: what flattening records, then the slots a
+		// returned record crosses in, may spend.
+		let unflattened: usize = export.call.params.iter().map(|(_, c)| c_slots(c)).sum();
+		self.room = 255usize.saturating_sub(unflattened + usize::from(export.future.is_some()));
 		let c_name = export.call.name.clone();
 		let bare = self.bare(&c_name).to_string();
 		let owner_c = match owner {
@@ -1836,7 +1900,7 @@ impl<'a> Gen<'a> {
 		if let Some(receiver) = receiver {
 			let (_, c) = c_params.next().expect("a method has its receiver");
 			let ty = owner_ty.expect("a method has its type").clone();
-			let mut arg = match c {
+			let arg = match c {
 				Ty::Handle { .. } => {
 					let mut arg = Arg::default();
 					let p = format!("p{n}");
@@ -1856,7 +1920,6 @@ impl<'a> Gen<'a> {
 				}
 				_ => self.arg(&ty, c, "this", &mut n, None),
 			};
-			arg.native.truncate(1);
 			args.push(arg);
 		}
 		let mut kt_params = Vec::new();
@@ -1928,6 +1991,33 @@ impl<'a> Gen<'a> {
 		let ret_kt = self.kt(&ok);
 		let err = function.err.as_ref().map(strip_refs);
 		let exception = err.as_ref().map(|e| self.exception(e));
+		// A record returned directly crosses as its scalars, set into slots the call takes,
+		// and its other fields encoded into the `byte[]` it returns.
+		let flat = match (&export.future, outs.is_empty()) {
+			(None, true) if self.room > 0 => returned_record(&ok),
+			_ => None,
+		};
+		let flat = flat.map(|(i, option)| {
+			let (a, r) = (self.fresh("a"), self.fresh("r"));
+			let (mut slots, mut puts) = (Vec::new(), Vec::new());
+			let v = match option {
+				true => "ret.value",
+				false => "ret",
+			};
+			let make = self.flat_out(i, v, (&a, &mut slots), (&r, &mut puts));
+			if !slots.is_empty() {
+				exprs.push(a.clone());
+				self.slots = self.slots.max(slots.len());
+			}
+			Flat {
+				option,
+				a,
+				r,
+				slots,
+				puts,
+				make,
+			}
+		});
 		// The native call, closing what it moves out once it returns.
 		let call = match after.is_empty() {
 			true => format!("Native.{bare}({})", exprs.join(", ")),
@@ -1941,7 +2031,7 @@ impl<'a> Gen<'a> {
 			let args: Vec<&str> = args.iter().map(|a| a.as_str()).collect();
 			format!("crate::{c_name}({})", args.join(", "))
 		};
-		if let Some((_, poll, free)) = &export.future {
+		if let Some(abi::Future { poll, free, .. }) = &export.future {
 			// The call makes the future and polls it once, returning its result if ready, or
 			// else the future, which a native poll and free take.
 			let poll_bare = self.bare(&poll.name).to_string();
@@ -2037,6 +2127,59 @@ impl<'a> Gen<'a> {
 					"Native.Reader({call}).let {{ {r} ->\n{}}}",
 					lines.iter().map(|l| format!("\t{l}\n")).collect::<String>()
 				),
+			};
+		} else if let Some(flat) = flat {
+			let mut params: Vec<(&str, &str)> = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect();
+			let rest = !flat.puts.is_empty();
+			let mut body = vec![rust_pre.join("\n\t\t"), format!("let ret = {};", rust_call(&[]))];
+			if flat.option {
+				body.push(format!(
+					"if !ret.some {{\n\t\t\treturn {};\n\t\t}}",
+					match rest {
+						true => "std::ptr::null_mut()",
+						false => "false",
+					}
+				));
+			}
+			// Encoding the other fields can drop an owner whose Kotlin `close()` returns a
+			// record of its own into this thread's slots, so the slots are written after.
+			if rest {
+				body.push("let mut w = rt::Writer::default();".to_string());
+				body.extend(flat.puts.iter().map(|p| format!("{p};")));
+			}
+			if !flat.slots.is_empty() {
+				params.push(("jlongArray", "kotlin.LongArray"));
+				body.push(format!(
+					"rt::slots(env, p{}, &[{}]);",
+					params.len() - 1,
+					flat.slots.join(", ")
+				));
+			}
+			if rest {
+				body.push("w.array(env)".to_string());
+			} else if flat.option {
+				body.push("true".to_string());
+			}
+			let ret = match (rest, flat.option) {
+				(false, false) => ("()", "Unit"),
+				(false, true) => ("jboolean", "Boolean"),
+				(true, false) => ("jbyteArray", "ByteArray"),
+				(true, true) => ("jbyteArray", "ByteArray?"),
+			};
+			self.native(&bare, &params, ret, &body.join("\n\t\t"));
+			let (make, r) = (&flat.make, &flat.r);
+			let made = match (rest, flat.option) {
+				(false, false) => format!("{call}.let {{ {make} }}"),
+				(false, true) => format!("if ({call}) {make} else null"),
+				(true, false) => format!("Native.Reader({call}).let {{ {r} -> {make} }}"),
+				(true, true) => {
+					let b = self.fresh("b");
+					format!("{call}?.let {{ {b} -> Native.Reader({b}).let {{ {r} -> {make} }} }}")
+				}
+			};
+			value = match flat.slots.is_empty() {
+				true => made,
+				false => format!("Native.__slots.get()!!.let {{ {} -> {made} }}", flat.a),
 			};
 		} else {
 			let c_ret = export.call.ret.clone();
@@ -2250,6 +2393,158 @@ impl<'a> Gen<'a> {
 			lines.push(self.read_value(ok, r));
 		}
 		lines
+	}
+
+	/// The glue's C value of the record `i` Kotlin passes as `e`: each scalar, nested
+	/// records' too, a JNI parameter `arg` gains, numbered from `n`, and each other field
+	/// read from `r`, which Kotlin writes into `w` with `writes`, in field order.
+	fn flat_in(
+		&mut self,
+		i: usize,
+		e: &str,
+		(arg, n): (&mut Arg, &mut usize),
+		(w, writes): (&str, &mut Vec<String>),
+		r: &str,
+	) -> String {
+		let abi = self.abi;
+		let mut fields = Vec::new();
+		for (k, field) in abi.api.records[i].fields.iter().enumerate() {
+			let e = format!("{e}.{}", field_name(&field.name));
+			let value = match &field.ty {
+				Type::Record(j) => self.flat_in(*j, &e, (&mut *arg, &mut *n), (w, &mut *writes), r),
+				ty if scalar(abi, ty) => {
+					let p = format!("p{n}");
+					*n += 1;
+					let (jni, native, kt, rust) = match ty {
+						Type::Bool => ("jboolean", "Boolean", e, p),
+						Type::Int(int) | Type::NonZero(int) => {
+							let (jni, native) = jni_type(abi, &Ty::Int(*int), ty);
+							(jni, native, to_signed(*int, &e), from_jni(*int, &p))
+						}
+						Type::F32 => ("jfloat", "Float", e, p),
+						Type::F64 => ("jdouble", "Double", e, p),
+						Type::Char => ("jint", "Int", e, format!("{p} as u32")),
+						_ => ("jint", "Int", format!("{e}.value"), p),
+					};
+					arg.jni.push(jni);
+					arg.native.push(native.to_string());
+					arg.exprs.push(kt);
+					rust
+				}
+				ty => {
+					writes.push(self.write_value(ty, w, &e));
+					format!("{r}.get()")
+				}
+			};
+			fields.push(format!("f{k}: {value}"));
+		}
+		format!("crate::{} {{ {} }}", abi.record(i), fields.join(", "))
+	}
+
+	/// The Kotlin value of the record `i` Rust returned as the C value `v`: each scalar,
+	/// nested records' too, from the next of the slots `a` the glue sets with `slots`, and
+	/// each other field from `r`, which the glue writes with `puts`, in field order.
+	fn flat_out(
+		&mut self,
+		i: usize,
+		v: &str,
+		(a, slots): (&str, &mut Vec<String>),
+		(r, puts): (&str, &mut Vec<String>),
+	) -> String {
+		let abi = self.abi;
+		let mut fields = Vec::new();
+		for (k, field) in abi.api.records[i].fields.iter().enumerate() {
+			let v = format!("{v}.f{k}");
+			fields.push(match &field.ty {
+				Type::Record(j) => self.flat_out(*j, &v, (a, &mut *slots), (r, &mut *puts)),
+				ty if scalar(abi, ty) => {
+					let slot = format!("{a}[{}]", slots.len());
+					let (rust, kt) = match ty {
+						Type::Bool => (format!("{v} as i64"), format!("({slot} != 0L)")),
+						Type::Int(int) | Type::NonZero(int) => {
+							let narrow = match jni_int(*int) {
+								"jbyte" => format!("{slot}.toByte()"),
+								"jshort" => format!("{slot}.toShort()"),
+								"jint" => format!("{slot}.toInt()"),
+								_ => slot,
+							};
+							(format!("{v} as i64"), from_signed(*int, &narrow))
+						}
+						Type::F32 => (
+							format!("{v}.to_bits() as i64"),
+							format!("Float.fromBits({slot}.toInt())"),
+						),
+						Type::F64 => (format!("{v}.to_bits() as i64"), format!("Double.fromBits({slot})")),
+						Type::Char => (format!("{v} as i64"), format!("{slot}.toInt()")),
+						Type::Enum(e) => {
+							let class = self.class(&abi.enumeration(*e));
+							(format!("{v} as i64"), format!("{class}.of({slot}.toInt())"))
+						}
+						_ => unreachable!("{ty:?} is no scalar"),
+					};
+					slots.push(rust);
+					kt
+				}
+				ty => {
+					puts.push(put(ty, &v));
+					self.read_value(ty, r)
+				}
+			});
+		}
+		format!("{}({})", self.class(&abi.record(i)), fields.join(", "))
+	}
+}
+
+/// Whether a record's field of type `ty` crosses as a JNI scalar of its own.
+fn scalar(abi: &Abi<'_>, ty: &Type) -> bool {
+	match ty {
+		Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char => true,
+		Type::Enum(i) => abi.api.enums[*i].plain(),
+		_ => false,
+	}
+}
+
+/// Whether the record `i`, or one it nests, holds a field that crosses encoded.
+fn rest(abi: &Abi<'_>, i: usize) -> bool {
+	abi.api.records[i].fields.iter().any(|f| match &f.ty {
+		Type::Record(j) => rest(abi, *j),
+		ty => !scalar(abi, ty),
+	})
+}
+
+/// The JVM parameter slots the record `i` takes flattened: two for each `long` or `double`
+/// scalar, one for any other, and one for the `byte[]` of its other fields, if any.
+fn weight(abi: &Abi<'_>, i: usize) -> usize {
+	let fields = abi.api.records[i].fields.iter().map(|f| match &f.ty {
+		Type::Record(j) => weight(abi, *j) - usize::from(rest(abi, *j)),
+		Type::F64 => 2,
+		Type::Int(int) | Type::NonZero(int) if jni_int(*int) == "jlong" => 2,
+		ty if scalar(abi, ty) => 1,
+		_ => 0,
+	});
+	fields.sum::<usize>() + usize::from(rest(abi, i))
+}
+
+/// The JVM parameter slots the C parameter `c` takes as a native method's: two for a
+/// `long` or `double`, none for what never crosses, and one for anything else.
+fn c_slots(c: &Ty) -> usize {
+	match c {
+		Ty::Void | Ty::Out(_) | Ty::Data | Ty::Poll => 0,
+		Ty::Int(int) if jni_int(*int) == "jlong" => 2,
+		Ty::F64 | Ty::Handle { .. } | Ty::Future(_) => 2,
+		_ => 1,
+	}
+}
+
+/// The record a function returns directly, and whether in an `Option`.
+fn returned_record(ok: &Type) -> Option<(usize, bool)> {
+	match ok.base() {
+		Type::Record(i) => Some((*i, false)),
+		Type::Option(inner) => match inner.base() {
+			Type::Record(i) => Some((*i, true)),
+			_ => None,
+		},
+		_ => None,
 	}
 }
 

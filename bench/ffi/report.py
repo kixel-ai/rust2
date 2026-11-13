@@ -44,7 +44,7 @@ SIZES = [100, 1024, 16384, 65536, 1048576]
 # Each binding's generated files, and its Rust glue in the export's crate, under the export.
 BINDINGS = [
 	("C", ["include/moq.h"], ["src/lib.rs", "src/rt.rs"]),
-	("C++", ["include/moq.hpp"], []),
+	("C++", ["include/moq.hpp", "include/moq"], []),
 	("Kotlin", ["kotlin/moq.kt", "kotlin/moq.pro"], ["src/jni"]),
 	("Python", ["python/moq.py"], ["src/python"]),
 	("Swift", ["swift"], []),
