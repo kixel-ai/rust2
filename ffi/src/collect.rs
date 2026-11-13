@@ -2899,9 +2899,10 @@ impl<'tcx> Collector<'tcx> {
 				let error = args.type_at(1);
 				// Another crate's error, such as `anyhow::Error` or `io::Error`, crosses as
 				// its message, as an exported error's `Display` already reads.
-				let foreign = |mapped: &Result<Type, Why>| match mapped {
-					Err(why) => why.construct == "foreign type" || why.construct == BOTH,
-					Ok(_) => self.opaque_value(error).is_some(),
+				// One a handle holds by value is its message too, held or not.
+				let foreign = |mapped: &Result<Type, Why>| {
+					self.opaque_value(error).is_some()
+						|| matches!(mapped, Err(why) if why.construct == "foreign type" || why.construct == BOTH)
 				};
 				let err = match self.ty(error, Pos::Return) {
 					err if foreign(&err) && implements(tcx, error, def_id, rustc_span::sym::Display) => {
@@ -4558,8 +4559,10 @@ impl<'tcx> Collector<'tcx> {
 					}
 					// Returned as a clone: a handle in it is a new handle to its clone.
 					(Type::Str | Type::Slice | Type::Path, Pos::Return | Pos::Returned, _) => {}
-					// Lent from the receiver's handle, as [`Self::function`] decides.
-					(Type::Object(_), Pos::Return, Mutability::Not) if self.lending.take() => {}
+					// Lent from the receiver's handle, as [`Self::function`] decides, but for
+					// another crate's value, which a handle holds only erased and by value.
+					(Type::Object(_), Pos::Return, Mutability::Not)
+						if self.lending.take() && self.opaque_value(*inner).is_none() => {}
 					// A slice's clone is a `Vec` of its elements' clones.
 					(_, Pos::Return | Pos::Returned, _)
 						if !self.is_clone(match inner.kind() {

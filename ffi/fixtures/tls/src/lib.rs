@@ -41,6 +41,21 @@ pub struct Session {
 	pub id: u32,
 }
 
+/// Why a certificate is refused, which the api fixture's `verify` returns as its message
+/// and `blame` takes back, though no export returns one: C never holds one.
+#[derive(Debug)]
+pub struct Invalid {
+	pub reason: String,
+}
+
+impl std::fmt::Display for Invalid {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "invalid certificate: {}", self.reason)
+	}
+}
+
+impl std::error::Error for Invalid {}
+
 /// A count that is not `Send`, which the reject fixture takes by value: no handle may hold it.
 pub struct Local(std::rc::Rc<u32>);
 

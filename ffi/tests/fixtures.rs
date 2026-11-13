@@ -1420,9 +1420,12 @@ fn relative_target() {
 		"- `release`: type C never holds `Lease`",
 		"- `handover`: type C never holds `tls::Session`",
 		"- `Unnamed`: generic type no export instantiates",
+		"- `blame`: type C never holds `tls::Invalid`",
 	] {
 		assert!(text.contains(line), "the census lists no `{line}`:\n{text}");
 	}
+	// Its error a handle C never holds, `verify` still exports, the error as its message.
+	assert!(!text.contains("`verify`"), "the census lists `verify`:\n{text}");
 	assert!(dir.join("build").exists());
 }
 

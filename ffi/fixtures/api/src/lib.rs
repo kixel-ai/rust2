@@ -2208,6 +2208,22 @@ pub fn handover(session: tls::Session) -> u32 {
 	session.id
 }
 
+/// A certificate's length, or why it is refused: another crate's error, which crosses as
+/// its message though `blame` names it as a handle no export returns.
+pub fn verify(cert: &tls::Cert) -> Result<u32, tls::Invalid> {
+	match cert.der().len() {
+		0 => Err(tls::Invalid {
+			reason: "empty".to_string(),
+		}),
+		len => Ok(len as u32),
+	}
+}
+
+/// Another crate's error taken back by value, which no export returns: left out.
+pub fn blame(err: tls::Invalid) -> String {
+	err.to_string()
+}
+
 /// `text`'s length, or 0 for none: an optional borrow, lent as the borrow alone is.
 pub fn either(text: Option<&str>) -> usize {
 	text.map_or(0, str::len)

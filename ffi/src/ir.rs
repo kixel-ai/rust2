@@ -18,7 +18,8 @@ pub struct Api {
 	/// The crates items belong to, each after every crate it depends on.
 	pub crates: Vec<String>,
 	/// The crates the facade does not re-export whose types an export names, which the
-	/// glue depends on directly.
+	/// glue depends on directly. A baseline written before it has none.
+	#[serde(default)]
 	pub reached: Vec<Reached>,
 	/// The targets it serves, sorted: one for a single target's, several merged.
 	pub targets: Vec<String>,
@@ -216,8 +217,25 @@ pub struct Object {
 	/// exports: its path is the type's in its own crate, not in the facade.
 	pub foreign: bool,
 	/// What its handle holds of another crate's type, held erased, which the glue never
-	/// names: a handle with none of its API.
+	/// names: a handle with none of its API. A baseline written before the by-value form
+	/// has a `bool`, the `Arc` form's.
+	#[serde(deserialize_with = "held")]
 	pub opaque: Option<Held>,
+}
+
+/// An [`Object::opaque`], read from a baseline written before the by-value form as the
+/// `bool` the `Arc` form was.
+fn held<'de, D: serde::Deserializer<'de>>(de: D) -> Result<Option<Held>, D::Error> {
+	#[derive(serde::Deserialize)]
+	#[serde(untagged)]
+	enum Either {
+		Arc(bool),
+		Held(Option<Held>),
+	}
+	Ok(match serde::Deserialize::deserialize(de)? {
+		Either::Arc(arc) => arc.then_some(Held::Arc),
+		Either::Held(held) => held,
+	})
 }
 
 /// What an opaque handle holds of another crate's type.
@@ -281,7 +299,9 @@ pub struct Function {
 	/// `async` returning one does: the export calls it at once, and polls what it returns.
 	pub eager: bool,
 	/// For an eager future, whether what it returns borrows its arguments: the export owns
-	/// them, as it does an `async fn`'s, and keeps them until the future is dropped.
+	/// them, as it does an `async fn`'s, and keeps them until the future is dropped. A
+	/// baseline written before it has none.
+	#[serde(default)]
 	pub holds: bool,
 	/// The parameter it polls its task through, if any: C passes a waker for it or, for a
 	/// future made of a returned `Poll`, the future's poll supplies it.
@@ -612,5 +632,25 @@ impl Type {
 			Type::Option(inner) => inner.buffer().map(|buffer| Type::Option(Box::new(buffer))),
 			_ => None,
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[derive(serde::Deserialize)]
+	struct Opaque {
+		#[serde(deserialize_with = "held")]
+		opaque: Option<Held>,
+	}
+
+	#[test]
+	fn held_reads_an_earlier_baseline() {
+		let read = |json: &str| serde_json::from_str::<Opaque>(json).unwrap().opaque;
+		assert_eq!(read(r#"{"opaque":true}"#), Some(Held::Arc));
+		assert_eq!(read(r#"{"opaque":false}"#), None);
+		assert_eq!(read(r#"{"opaque":"Value"}"#), Some(Held::Value));
+		assert_eq!(read(r#"{"opaque":null}"#), None);
 	}
 }

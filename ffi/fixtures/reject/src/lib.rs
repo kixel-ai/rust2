@@ -117,6 +117,35 @@ pub struct Size {
 	pub bytes: u64,
 }
 
+/// An object holding another crate's session, which C holds as a handle.
+pub struct Link {
+	session: tls::Session,
+}
+
+impl Link {
+	pub fn new() -> Self {
+		Self {
+			session: tls::Session { id: 1 },
+		}
+	}
+
+	/// Not lent: a handle holds another crate's value only erased, and by value.
+	pub fn session(&self) -> &tls::Session {
+		&self.session
+	}
+
+	/// What makes the session a value C holds.
+	pub fn take(self) -> tls::Session {
+		self.session
+	}
+}
+
+impl Default for Link {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 /// Another crate's type that is not `Send`, which no handle may hold.
 pub fn measure(local: tls::Local) -> u32 {
 	local.get()
