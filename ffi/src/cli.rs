@@ -374,13 +374,41 @@ fn dependency(package: &Package) -> Option<String> {
 			let url = git["git+".len()..].split('#').next().unwrap_or(git);
 			let (url, reference) = url.split_once('?').unwrap_or((url, ""));
 			let reference = match reference.split_once('=') {
-				Some((key @ ("branch" | "tag" | "rev"), value)) => format!(", {key} = {value:?}"),
+				Some((key @ ("branch" | "tag" | "rev"), value)) => format!(", {key} = {:?}", decode(value)?),
 				Some(_) => return None,
 				None => String::new(),
 			};
 			Some(format!("package = {name:?}, git = {url:?}{reference}"))
 		}
 		Some(_) => None,
+	}
+}
+
+/// `value` with each `%XX` cargo's source id escapes, as in `?branch=feature%2Fpending`,
+/// decoded, or `None` if it is malformed.
+fn decode(value: &str) -> Option<String> {
+	let mut bytes = Vec::with_capacity(value.len());
+	let mut rest = value.as_bytes();
+	while let [first, tail @ ..] = rest {
+		if *first == b'%' {
+			let hex = std::str::from_utf8(tail.get(..2)?).ok()?;
+			bytes.push(u8::from_str_radix(hex, 16).ok()?);
+			rest = &tail[2..];
+		} else {
+			bytes.push(*first);
+			rest = tail;
+		}
+	}
+	String::from_utf8(bytes).ok()
+}
+
+#[cfg(test)]
+mod decode_tests {
+	#[test]
+	fn decodes_a_branch() {
+		assert_eq!(super::decode("feature%2Fpending").as_deref(), Some("feature/pending"));
+		assert_eq!(super::decode("main").as_deref(), Some("main"));
+		assert_eq!(super::decode("bad%2"), None);
 	}
 }
 
