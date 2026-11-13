@@ -35,7 +35,11 @@ Cargo manifest; the library's distinct `api` name is respected. The fixture is
 fixtures own semantic differential tests; these consumers check that packaging
 preserves the generated API and runtime loading.
 
-The native wheel tag only claims the build host's platform. A release needs
+The native wheel tag only claims the build host's platform. Linux packaging removes
+RUNPATH and checks that the only dependencies are glibc, its loader and libgcc_s,
+with no symbol newer than Ubuntu 24.04's glibc 2.39. Anything else fails packaging.
+This is checked on each actual architecture; it is not a manylinux claim. macOS
+uses a major_0 tag (the form pip accepts on macOS 11+) and the host architecture. A release needs
 manylinux builds and auditwheel repair on Linux, delocate on macOS, and DLL
 inspection on Windows, including transitive native dependencies. Stable ABI alone
 does not establish OS portability. The generated extension requests abi3-py311,
@@ -94,6 +98,13 @@ templates are the recommended no-go outcome even if both artifact consumers pass
 - [NuGet native assets](https://learn.microsoft.com/nuget/create-packages/native-files-in-net-packages).
 - [Dart hooks](https://dart.dev/tools/hooks) and [publishing](https://dart.dev/tools/pub/publishing).
 - [Go module publishing](https://go.dev/doc/modules/developing).
+
+The nightly workflow calls the same reusable workflow, outside the merge gate.
+Consumer workspaces are unique per run attempt, including on self-hosted runners.
+Builders replace their own generated output; Swift consumers create a fresh package
+beside the artifact regardless of the invoking directory. Rust's reported native
+link libraries become SwiftPM linker settings; unrecognized flags fail packaging.
+The collections revision is read from ffi/justfile and carried inside the package.
 
 Registry requirements checked on 2026-11-13. The table is a design assessment,
 not a claim that any of those unimplemented publishers was exercised.

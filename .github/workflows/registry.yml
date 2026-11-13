@@ -55,12 +55,17 @@ jobs:
           - runner: macos-26
             private: '["self-hosted", "macOS", "ARM64"]'
     runs-on: ${{ fromJSON(github.event.repository.private && matrix.private || format('["{0}"]', matrix.runner)) }}
+    env:
+      SPIKE_ROOT: ${{ github.workspace }}/.tmp/registry-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: ${{ env.SPIKE_ROOT }}
     steps:
       # No checkout, Rust toolchain, exporter, source paths or PYTHONPATH.
       - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           name: registry-${{ matrix.runner }}
-          path: artifacts
+          path: ${{ env.SPIKE_ROOT }}/artifacts
       - name: Install and run wheel
         run: |
           python3 -m venv env
