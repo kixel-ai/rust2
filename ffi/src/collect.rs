@@ -939,11 +939,13 @@ impl<'tcx> Collector<'tcx> {
 				ty::Bool | ty::Char | ty::Float(_) => false,
 				ty::Int(_) | ty::Uint(_) => int(ty).is_none(),
 				ty::Adt(adt, _) => {
-					tcx.lang_items().string() != Some(adt.did())
-						&& self.bytes != Some(adt.did())
-						&& !tcx.is_diagnostic_item(rustc_span::Symbol::intern("Duration"), adt.did())
-						&& !self.exported(adt.did().krate)
-						&& !self.foreign.iter().any(|&(ty, _)| ty == adt.did())
+					let mapped = tcx.lang_items().string() == Some(adt.did())
+						|| self.bytes == Some(adt.did())
+						|| tcx.is_diagnostic_item(rustc_span::Symbol::intern("Duration"), adt.did())
+						|| self.exported(adt.did().krate)
+						|| self.foreign.iter().any(|&(ty, _)| ty == adt.did());
+					// A handle holds its value erased, so no instance names its type.
+					!mapped || self.owned.contains(&adt.did())
 				}
 				_ => true,
 			};
@@ -2772,6 +2774,12 @@ impl<'tcx> Collector<'tcx> {
 			);
 			if !self.is_send(output, kept) {
 				errs.push(why("future not Send", ""));
+			}
+			// An eager future holds what it borrows only until it completes, so its output
+			// may borrow none of it.
+			let (held, lent) = self.lifetimes(sig.skip_binder().output());
+			if eager && borrows && held.iter().chain(&lent).any(|region| !statics.contains(region)) {
+				errs.push(why("borrowing output of a future from a function that is not async", inner.to_string()));
 			}
 			output = normalize(inner);
 			future = true;

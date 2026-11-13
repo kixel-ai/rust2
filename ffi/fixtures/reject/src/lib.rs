@@ -125,6 +125,17 @@ pub fn measure(local: tls::Local) -> u32 {
 /// A generic type, which exports at the instances its exports name.
 pub struct Cell<T>(T);
 
+/// An instance naming another crate's type that a handle holds by value, erased.
+pub fn sealed(cert: tls::Cert) -> Cell<tls::Cert> {
+	Cell(cert)
+}
+
+/// A future returned by a function that is not async, whose output borrows what the
+/// future holds only until it completes.
+pub fn echo(tag: &str) -> impl std::future::Future<Output = &str> + '_ {
+	async move { tag }
+}
+
 impl<T> Cell<T> {
 	pub fn new(value: T) -> Self {
 		Self(value)
