@@ -10,8 +10,15 @@ use crate::abi::Clash;
 use crate::collect::{Refusal, Report};
 use crate::ir::{Access, Api, Function};
 
-/// The census of the facade as Markdown; `at` locates a span.
-pub fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn Fn(Span) -> String) -> String {
+/// The census of the facade as Markdown, listing `exporting`, each exclude whose item
+/// would export and its paths; `at` locates a span.
+pub fn render(
+	api: &Api,
+	collected: &Report,
+	exporting: &[(String, Vec<String>)],
+	clashes: &[Clash],
+	at: &dyn Fn(Span) -> String,
+) -> String {
 	let records = &api.records;
 	let enums = &api.enums;
 	let objects: Vec<_> = api.objects.iter().filter(|o| !o.foreign).collect();
@@ -184,35 +191,11 @@ pub fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn Fn(Span
 			let _ = writeln!(out, "- `{path}`: {count} items");
 		}
 	}
-	// An exclude that names what exports leaves out more than the export needs. What the
-	// export leaves out otherwise does not export, nor does a member of it, and a field not
-	// shared with a method is refused without its `field@`.
-	let left_out: Vec<&str> = (collected.refusals.iter().map(|r| r.path.as_str()))
-		.chain(collected.unheld.iter().map(|(path, _)| path.as_str()))
-		.chain(collected.traits.iter().map(|(path, _)| path.as_str()))
-		.chain(collected.twins.iter().map(String::as_str))
-		.chain(collected.hidden.iter().map(String::as_str))
-		.chain(collected.aliases.iter().map(String::as_str))
-		.collect();
-	let under = |path: &str| {
-		let bare = path.strip_prefix("field@").unwrap_or(path);
-		(left_out.iter()).any(|r| {
-			[path, bare]
-				.iter()
-				.any(|path| *path == *r || path.strip_prefix(r).is_some_and(|rest| rest.starts_with("::")))
-		})
-	};
-	let mut exporting = String::new();
-	for (exclude, named) in &collected.audited {
-		let mut exported: Vec<&str> = named.iter().map(String::as_str).filter(|path| !under(path)).collect();
-		exported.sort();
-		exported.dedup();
-		if !exported.is_empty() {
-			let _ = writeln!(exporting, "- `{exclude}`: `{}`", exported.join("`, `"));
-		}
-	}
 	if !exporting.is_empty() {
-		let _ = writeln!(out, "\n## Excluded by the config, though it exports\n\n{exporting}");
+		let _ = writeln!(out, "\n## Excluded by the config, though it exports\n");
+		for (exclude, exported) in exporting {
+			let _ = writeln!(out, "- `{exclude}`: `{}`", exported.join("`, `"));
+		}
 	}
 	if !collected.hidden.is_empty() {
 		let _ = writeln!(out, "\n## `#[doc(hidden)]`, left out\n");

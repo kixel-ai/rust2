@@ -1301,12 +1301,14 @@ fn relative_target() {
 		"- `Void`: object no export returns",
 		"- `release`: type C never holds `Lease`",
 		"- `Unnamed`: generic type no export instantiates",
-		// An exclude that names what exports, generic and instance keys alike, but not one
-		// that names only what is refused.
+		// An exclude that names what exports, by its generic or instance path or as a field,
+		// even where a method of the field's name is refused.
 		"## Excluded by the config, though it exports",
-		"- `Layer`: `Layer`",
-		"- `Timed`: `Timed`, `Timed<bytes::Bytes>`",
+		"- `Timed`: `Timed<bytes::Bytes>`",
 		"- `Pair<u8, api::Size>::swap`: `Pair<u8, api::Size>::swap`",
+		"- `Slot<u32>::value`: `Slot<u32>::value`",
+		"- `field@Retry::jitter`: `field@Retry::jitter`",
+		"- `Stack::depth_past<api::polar::Point>`: `Stack::depth_past<api::polar::Point>`",
 	] {
 		assert!(text.contains(line), "the census lists no `{line}`:\n{text}");
 	}
@@ -1315,7 +1317,8 @@ fn relative_target() {
 		.nth(1)
 		.unwrap();
 	let exporting = exporting.split("\n## ").next().unwrap();
-	for refused in ["- `Copied`", "- `Sample`", "- `Queued`"] {
+	// Not one that names only what is refused or no export returns.
+	for refused in ["- `Copied`", "- `Sample`", "- `Queued`", "- `Layer`", "- `Retry::jitter`"] {
 		assert!(
 			!exporting.contains(refused),
 			"the census lists `{refused}` as exporting:\n{exporting}"

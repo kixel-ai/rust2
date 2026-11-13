@@ -1295,11 +1295,18 @@ pub fn next_packet(packet: Packet) -> Packet {
 pub struct Retry {
 	pub limit: Option<u32>,
 	pub delay: Option<u32>,
+	/// Its field exports, but the method of its name is refused, so the config excludes
+	/// both, and the census lists only `field@Retry::jitter` as excluding what exports.
+	pub jitter: u32,
 }
 
 impl Retry {
 	pub fn new(limit: Option<u32>) -> Self {
-		Self { limit, delay: None }
+		Self {
+			limit,
+			delay: None,
+			jitter: 0,
+		}
 	}
 
 	pub fn limit(&self) -> u32 {
@@ -1312,6 +1319,11 @@ impl Retry {
 
 	pub fn set_limit(&mut self, limit: u32) {
 		self.limit = Some(limit);
+	}
+
+	/// The jitter clamped to a range, a tuple, which C refuses.
+	pub fn jitter(&self, range: (u32, u32)) -> u32 {
+		self.jitter.clamp(range.0, range.1)
 	}
 }
 

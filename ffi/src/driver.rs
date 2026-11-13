@@ -19,7 +19,7 @@ use rustc_span::{FileName, Span, sym};
 
 use crate::abi::Abi;
 use crate::config::{self, Config};
-use crate::ir::Api;
+use crate::ir::{self, Api};
 use crate::{census, collect, glue, merge};
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
@@ -146,7 +146,8 @@ impl Callbacks for Export {
 		let report = &collected.report;
 		if let Output::Census(dir) = &self.output {
 			let abi = Abi::new(&collected.api, &self.facade.lib);
-			let text = census::render(&collected.api, report, &abi.clashes, &|span| at(tcx, span));
+			let exporting = exporting(&collected.api, &report.audited);
+			let text = census::render(&collected.api, report, &exporting, &abi.clashes, &|span| at(tcx, span));
 			// A census reports what a crate uses, but a missed instance is the exporter's bug.
 			for refusal in &report.refusals {
 				if refusal.why.iter().any(|why| why.construct == collect::NOT_INFERRED) {
@@ -189,6 +190,62 @@ impl Callbacks for Export {
 		}
 		stop_on_errors(tcx)
 	}
+}
+
+/// Each exclude whose item would export without it, and that item's paths: what an
+/// exclude checked, from [`collect::Report::audited`], that the census's API holds by the
+/// same path.
+fn exporting(api: &Api, audited: &[(String, Vec<String>)]) -> Vec<(String, Vec<String>)> {
+	// Every path an exported item is checked by, from the facade's root, as the walk checks it.
+	let mut paths = FxHashSet::default();
+	let mut add = |path: &[String]| {
+		paths.insert(path[1..].join("::"));
+	};
+	let mut methods = |methods: &[ir::Function], add: &mut dyn FnMut(&[String])| {
+		for f in methods {
+			match f.access {
+				// A field is checked by `field@` and, unless a method or constant takes its
+				// name, by its path, which then names that method or constant instead.
+				ir::Access::Field { shared, .. } => {
+					let mut key = f.shown.clone();
+					key[1].insert_str(0, "field@");
+					add(&key);
+					if !shared {
+						add(&f.shown);
+					}
+				}
+				_ => add(&f.shown),
+			}
+		}
+	};
+	for r in &api.records {
+		add(&r.shown);
+		methods(&r.methods, &mut add);
+	}
+	for e in &api.enums {
+		add(&e.shown);
+		methods(&e.methods, &mut add);
+	}
+	for o in &api.objects {
+		add(&o.shown);
+		methods(&o.methods, &mut add);
+	}
+	for c in &api.callbacks {
+		add(&c.path);
+		methods(&c.methods, &mut add);
+	}
+	methods(&api.functions, &mut add);
+	for c in &api.constants {
+		add(&c.path);
+	}
+	(audited.iter())
+		.filter_map(|(exclude, named)| {
+			let mut exported: Vec<String> = named.iter().filter(|path| paths.contains(*path)).cloned().collect();
+			exported.sort();
+			exported.dedup();
+			(!exported.is_empty()).then(|| (exclude.clone(), exported))
+		})
+		.collect()
 }
 
 impl Export {

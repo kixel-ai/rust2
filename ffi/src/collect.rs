@@ -96,7 +96,7 @@ pub struct Facade<'a> {
 	/// Paths from its root the config leaves out.
 	pub exclude: &'a [String],
 	/// Paths from its root a census checks, without leaving out what they name: each
-	/// item one names is recorded in [`Report::audited`].
+	/// path one names is recorded in [`Report::audited`], as the exclude would have checked it.
 	pub audit: &'a [String],
 }
 
@@ -118,7 +118,7 @@ pub struct Report {
 	pub unheld: Vec<(String, Why)>,
 	/// Excluded paths, and how many items each left out.
 	pub excluded: Vec<(String, usize)>,
-	/// A census's audited paths, and the path of each item one names.
+	/// A census's audited paths, and each path one names, whether or not that item exports.
 	pub audited: Vec<(String, Vec<String>)>,
 	/// Type aliases, which export nothing of their own.
 	pub aliases: Vec<String>,
@@ -534,15 +534,10 @@ impl<'tcx> Collector<'tcx> {
 		self.crates.contains(&krate)
 	}
 
-	/// Whether the config excludes `path`, counting the exclusion. A member of an instance
-	/// is left out by its instance's path or its type's, which leaves it out of each.
+	/// Whether the config excludes `path`, counting the exclusion, or else recording it under
+	/// the audited path that names it. A member of an instance is left out by its instance's
+	/// path or its type's, which leaves it out of each.
 	fn exclude(&mut self, path: &[String]) -> bool {
-		self.exclude_audited(path, true)
-	}
-
-	/// [`Self::exclude`], recording the item for a census's audit only if `audit`: a
-	/// module exports only through its items, each audited on its own.
-	fn exclude_audited(&mut self, path: &[String], audit: bool) -> bool {
 		let report = &mut self.report;
 		for (_, key) in config::keys(&path[1..]) {
 			if let Some((_, count)) = report.excluded.iter_mut().find(|(excluded, _)| *excluded == key) {
@@ -550,7 +545,7 @@ impl<'tcx> Collector<'tcx> {
 				return true;
 			}
 		}
-		for (_, key) in config::keys(&path[1..]).filter(|_| audit) {
+		for (_, key) in config::keys(&path[1..]) {
 			if let Some((_, named)) = report.audited.iter_mut().find(|(audited, _)| *audited == key) {
 				named.push(path[1..].join("::"));
 				break;
@@ -1117,7 +1112,7 @@ impl<'tcx> Collector<'tcx> {
 				}
 				let mut modules = modules.clone();
 				modules.push(def_id);
-				if self.exclude_audited(&path, kind != DefKind::Mod) {
+				if self.exclude(&path) {
 					self.left_out.insert(def_id, "excluded type");
 					continue;
 				}

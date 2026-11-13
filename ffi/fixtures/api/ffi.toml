@@ -3,7 +3,8 @@
 # `Rooted`, `Copied`, `Stored`, and `Layer` only convert, so their parameters take what
 # converts into them, and
 # `field@` leaves out a field alone where a method takes its path, as `Retry`'s and
-# `Slot<u8>`'s do. `Slot<u32>` has no such method, so its path alone names its field. A
+# `Slot<u8>`'s do, and `Retry::jitter` and `field@Retry::jitter` leave out a refused method
+# and its field. `Slot<u32>` has no such method, so its path alone names its field. A
 # function instance is left out by its path, as `depth_past` at `polar::Point` is.
 exclude = [
     "Copied",
@@ -15,7 +16,9 @@ exclude = [
     "Sample",
     "Scoped",
     "Slot<u32>::value",
+    "Retry::jitter",
     "field@Retry::delay",
+    "field@Retry::jitter",
     "field@Slot<u8>::value",
     "Stack::depth_past<api::polar::Point>",
     "Stored",
