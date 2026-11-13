@@ -25,7 +25,7 @@ holds the gate; until it reports, translator work is only what the gate needs.
 Decided with the maintainer on 2026-11-12, in the quest audit:
 
 - ✅ The translator gets a performance pass before the gate judges it:
-  [multi-byte encodes](/quest/m2/ts-encode.md) and
+  multi-byte encodes (now written in place) and
   [iterator adaptors](/quest/m2/ts-iter-adaptors.md), which
   [the gate's measurement](/quest/m2/wasm/routes.md) requires, and
   [the per-call crossing report](https://github.com/kixel-ai/rust2/pull/760), which finds

@@ -28,9 +28,9 @@ Public API: none. The translator's output changes only where moq's API does.
 
 - moq-dev/moq: `rind` builds for wasm32. moq-net depends on `rind`, whose md5 inline asm has
   no wasm32 arm, so `just ts moq <checkout>` fails at moq's `main`. Done when it passes there.
-  The fix merged in rind's `main` ([moq-dev/rind#543](https://github.com/moq-dev/rind/pull/543))
+  The fix merged in rind's `main` ([kixel-ai/rind#543](https://github.com/kixel-ai/rind/pull/543))
   and ships in rind 0.4.0. Its release PR
-  ([moq-dev/rind#511](https://github.com/moq-dev/rind/pull/511)) stays unmerged on purpose,
+  ([kixel-ai/rind#511](https://github.com/kixel-ai/rind/pull/511)) stays unmerged on purpose,
   as rind's `quest/m2/api/release-0.4.md` decides, until the CPU-check removal, the benchmark
   refresh, and moq's move are ready (reconfirmed by the maintainer on 2026-11-12); then
   [moq-dev/moq#8432](https://github.com/moq-dev/moq/pull/8432) moves moq to rind 0.4. Check:

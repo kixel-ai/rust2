@@ -226,9 +226,6 @@ export function hashed$wraps_Tick_usize(v: Tick.Tick<rs.usize>): rs.u64 {
  * shift amount, which may pass the width many times over.
  */
 export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v: rs.u8): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u8ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.u8 = (at: rs.usize): rs.u8 => {
 		const buf: Uint8Array = Uint8Array.of(0);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -249,6 +246,13 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 1, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v: rs.u8): undefined => {
+		const dst = out2;
+		const word = v;
+		rs.byteVecReserve(dst, 1 as rs.usize);
+		dst.data[dst.length + 0] = word & 255;
+		dst.length = dst.length + 1;
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.u8WrappingAdd(a, b);
@@ -352,7 +356,21 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
 		_30(out, part14);
 	} else if (_31 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hashed$num_Wrapping_u8(a))));
+		const dst2 = out;
+		const word2 = hashed$num_Wrapping_u8(a);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
+		rs.byteVecReserve(dst2, 8 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
+		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_u8(a), hashed$u8(a)) ? 1 : 0);
 		const _253: rs.Iter<rs.u8> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u8> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, _253, true, undefined, undefined, 1, true));
@@ -409,9 +427,6 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v: rs.u16): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u16ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.u16 = (at: rs.usize): rs.u16 => {
 		const buf: Uint8Array = rs.bytes(2);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -432,6 +447,15 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 2, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v: rs.u16): undefined => {
+		const dst = out2;
+		const word = v;
+		rs.byteVecReserve(dst, 2 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 8) & 255;
+		dst.data[pos + 1] = word & 255;
+		dst.length = dst.length + 2;
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.u16WrappingAdd(a, b);
@@ -535,7 +559,21 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
 		_30(out, part14);
 	} else if (_31 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hashed$num_Wrapping_u16(a))));
+		const dst2 = out;
+		const word2 = hashed$num_Wrapping_u16(a);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
+		rs.byteVecReserve(dst2, 8 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
+		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_u16(a), hashed$u16(a)) ? 1 : 0);
 		const _253: rs.Iter<rs.u16> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u16> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u16>, _253, true, undefined, undefined, 2, true));
@@ -592,9 +630,6 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u32ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.u32 = (at: rs.usize): rs.u32 => {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -615,6 +650,17 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 4, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v: rs.u32): undefined => {
+		const dst = out2;
+		const word = v;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.u32WrappingAdd(a, b);
@@ -718,7 +764,21 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
 		_30(out, part14);
 	} else if (_31 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hashed$num_Wrapping_u32(a))));
+		const dst2 = out;
+		const word2 = hashed$num_Wrapping_u32(a);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
+		rs.byteVecReserve(dst2, 8 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
+		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_u32(a), hashed$u32(a)) ? 1 : 0);
 		const _253: rs.Iter<rs.u32> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u32> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u32>, _253, true, undefined, undefined, 4, true));
@@ -775,9 +835,6 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v: rs.u64): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u64ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.u64 = (at: rs.usize): rs.u64 => {
 		const buf: Uint8Array = rs.bytes(8);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -798,6 +855,23 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 8, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v: rs.u64): undefined => {
+		const dst = out2;
+		const word = v;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		rs.byteVecReserve(dst, 8 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word3 >>> 24) & 255;
+		dst.data[pos + 1] = (word3 >>> 16) & 255;
+		dst.data[pos + 2] = (word3 >>> 8) & 255;
+		dst.data[pos + 3] = word3 & 255;
+		dst.data[pos + 4] = (word2 >>> 24) & 255;
+		dst.data[pos + 5] = (word2 >>> 16) & 255;
+		dst.data[pos + 6] = (word2 >>> 8) & 255;
+		dst.data[pos + 7] = word2 & 255;
+		dst.length = dst.length + 8;
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.u64WrappingAdd(a, b);
@@ -901,7 +975,21 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
 		_30(out, part14);
 	} else if (_31 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hashed$num_Wrapping_u64(a))));
+		const dst2 = out;
+		const word4 = hashed$num_Wrapping_u64(a);
+		const word5 = rs.intWord(word4, 0);
+		const word6 = rs.intWord(word4, 32);
+		rs.byteVecReserve(dst2, 8 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word6 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word6 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word6 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word6 & 255;
+		dst2.data[pos2 + 4] = (word5 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word5 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word5 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word5 & 255;
+		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_u64(a), hashed$u64(a)) ? 1 : 0);
 		const _253: rs.Iter<rs.u64> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u64> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u64>, _253, true, undefined, undefined, 8, true));
@@ -958,9 +1046,6 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v: rs.u128): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.u128 = (at: rs.usize): rs.u128 => {
 		const buf: Uint8Array = rs.bytes(16);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -981,6 +1066,33 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 16, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v: rs.u128): undefined => {
+		const dst = out2;
+		const word = v;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.u128WrappingAdd(a, b);
@@ -1084,7 +1196,21 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
 		_30(out, part14);
 	} else if (_31 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hashed$num_Wrapping_u128(a))));
+		const dst2 = out;
+		const word6 = hashed$num_Wrapping_u128(a);
+		const word7 = rs.intWord(word6, 0);
+		const word8 = rs.intWord(word6, 32);
+		rs.byteVecReserve(dst2, 8 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word8 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word8 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word8 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word8 & 255;
+		dst2.data[pos2 + 4] = (word7 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word7 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word7 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word7 & 255;
+		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_u128(a), hashed$u128(a)) ? 1 : 0);
 		const _253: rs.Iter<rs.u128> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.u128> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u128>, _253, true, undefined, undefined, 16, true));
@@ -1141,9 +1267,6 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v: rs.usize): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.usizeToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.usize = (at: rs.usize): rs.usize => {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -1164,6 +1287,17 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 4, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v: rs.usize): undefined => {
+		const dst = out2;
+		const word = v;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.usizeWrappingAdd(a, b);
@@ -1267,7 +1401,21 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
 		_30(out, part14);
 	} else if (_31 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hashed$num_Wrapping_usize(a))));
+		const dst2 = out;
+		const word2 = hashed$num_Wrapping_usize(a);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
+		rs.byteVecReserve(dst2, 8 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
+		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_usize(a), hashed$usize(a)) ? 1 : 0);
 		const _253: rs.Iter<rs.usize> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.usize> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.usize>, _253, true, undefined, undefined, 4, true));
@@ -1324,9 +1472,6 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v: rs.i8): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i8ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.i8 = (at: rs.usize): rs.i8 => {
 		const buf: Uint8Array = Uint8Array.of(0);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -1347,6 +1492,13 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 1, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v: rs.i8): undefined => {
+		const dst = out2;
+		const word = v;
+		rs.byteVecReserve(dst, 1 as rs.usize);
+		dst.data[dst.length + 0] = word & 255;
+		dst.length = dst.length + 1;
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.i8WrappingAdd(a, b);
@@ -1452,7 +1604,21 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
 		_30(out, part14);
 	} else if (_31 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hashed$num_Wrapping_i8(a))));
+		const dst2 = out;
+		const word2 = hashed$num_Wrapping_i8(a);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
+		rs.byteVecReserve(dst2, 8 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
+		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_i8(a), hashed$i8(a)) ? 1 : 0);
 		const _253: rs.Iter<rs.i8> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i8> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i8>, _253, true, undefined, undefined, 1, true));
@@ -1509,9 +1675,6 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v: rs.i16): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i16ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.i16 = (at: rs.usize): rs.i16 => {
 		const buf: Uint8Array = rs.bytes(2);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -1532,6 +1695,15 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 2, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v: rs.i16): undefined => {
+		const dst = out2;
+		const word = v;
+		rs.byteVecReserve(dst, 2 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 8) & 255;
+		dst.data[pos + 1] = word & 255;
+		dst.length = dst.length + 2;
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.i16WrappingAdd(a, b);
@@ -1637,7 +1809,21 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
 		_30(out, part14);
 	} else if (_31 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hashed$num_Wrapping_i16(a))));
+		const dst2 = out;
+		const word2 = hashed$num_Wrapping_i16(a);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
+		rs.byteVecReserve(dst2, 8 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
+		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_i16(a), hashed$i16(a)) ? 1 : 0);
 		const _253: rs.Iter<rs.i16> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i16> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i16>, _253, true, undefined, undefined, 2, true));
@@ -1694,9 +1880,6 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v: rs.i32): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i32ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.i32 = (at: rs.usize): rs.i32 => {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -1717,6 +1900,17 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 4, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v: rs.i32): undefined => {
+		const dst = out2;
+		const word = v;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.i32WrappingAdd(a, b);
@@ -1822,7 +2016,21 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
 		_30(out, part14);
 	} else if (_31 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hashed$num_Wrapping_i32(a))));
+		const dst2 = out;
+		const word2 = hashed$num_Wrapping_i32(a);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
+		rs.byteVecReserve(dst2, 8 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
+		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_i32(a), hashed$i32(a)) ? 1 : 0);
 		const _253: rs.Iter<rs.i32> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i32> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i32>, _253, true, undefined, undefined, 4, true));
@@ -1879,9 +2087,6 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v: rs.i64): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i64ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.i64 = (at: rs.usize): rs.i64 => {
 		const buf: Uint8Array = rs.bytes(8);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -1902,6 +2107,23 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 8, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v: rs.i64): undefined => {
+		const dst = out2;
+		const word = v;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		rs.byteVecReserve(dst, 8 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word3 >>> 24) & 255;
+		dst.data[pos + 1] = (word3 >>> 16) & 255;
+		dst.data[pos + 2] = (word3 >>> 8) & 255;
+		dst.data[pos + 3] = word3 & 255;
+		dst.data[pos + 4] = (word2 >>> 24) & 255;
+		dst.data[pos + 5] = (word2 >>> 16) & 255;
+		dst.data[pos + 6] = (word2 >>> 8) & 255;
+		dst.data[pos + 7] = word2 & 255;
+		dst.length = dst.length + 8;
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.i64WrappingAdd(a, b);
@@ -2007,7 +2229,21 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
 		_30(out, part14);
 	} else if (_31 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hashed$num_Wrapping_i64(a))));
+		const dst2 = out;
+		const word4 = hashed$num_Wrapping_i64(a);
+		const word5 = rs.intWord(word4, 0);
+		const word6 = rs.intWord(word4, 32);
+		rs.byteVecReserve(dst2, 8 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word6 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word6 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word6 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word6 & 255;
+		dst2.data[pos2 + 4] = (word5 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word5 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word5 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word5 & 255;
+		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_i64(a), hashed$i64(a)) ? 1 : 0);
 		const _253: rs.Iter<rs.i64> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i64> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i64>, _253, true, undefined, undefined, 8, true));
@@ -2064,9 +2300,6 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v: rs.i128): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.i128 = (at: rs.usize): rs.i128 => {
 		const buf: Uint8Array = rs.bytes(16);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -2087,6 +2320,33 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 16, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v: rs.i128): undefined => {
+		const dst = out2;
+		const word = v;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.i128WrappingAdd(a, b);
@@ -2192,7 +2452,21 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
 		_30(out, part14);
 	} else if (_31 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hashed$num_Wrapping_i128(a))));
+		const dst2 = out;
+		const word6 = hashed$num_Wrapping_i128(a);
+		const word7 = rs.intWord(word6, 0);
+		const word8 = rs.intWord(word6, 32);
+		rs.byteVecReserve(dst2, 8 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word8 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word8 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word8 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word8 & 255;
+		dst2.data[pos2 + 4] = (word7 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word7 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word7 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word7 & 255;
+		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_i128(a), hashed$i128(a)) ? 1 : 0);
 		const _253: rs.Iter<rs.i128> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.i128> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.i128>, _253, true, undefined, undefined, 16, true));
@@ -2249,9 +2523,6 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v: rs.isize): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.isizeToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.isize = (at: rs.usize): rs.isize => {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -2272,6 +2543,17 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 4, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v: rs.isize): undefined => {
+		const dst = out2;
+		const word = v;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.isizeWrappingAdd(a, b);
@@ -2377,7 +2659,21 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part14 = rs.ordClamp(a, _237, _238, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
 		_30(out, part14);
 	} else if (_31 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hashed$num_Wrapping_isize(a))));
+		const dst2 = out;
+		const word2 = hashed$num_Wrapping_isize(a);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
+		rs.byteVecReserve(dst2, 8 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
+		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Wrapping_isize(a), hashed$isize(a)) ? 1 : 0);
 		const _253: rs.Iter<rs.isize> = rs.iterSlice([a, b, c, a]);
 		const iter2: rs.Iter<rs.isize> = rs.btreeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.isize>, _253, true, undefined, undefined, 4, true));

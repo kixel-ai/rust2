@@ -2,6 +2,7 @@
 # type-checks alongside it but never runs. Each list it passes in holds one alternative of
 # a widened element type, or is no `list` at all, as a caller's own may be.
 
+import array
 import asyncio
 import datetime
 import io
@@ -9,12 +10,13 @@ import io
 import api
 
 v4s: list[tuple[str, int]] = [("127.0.0.1", 8080)]
-ports: list[int] = api.ports(v4s)
+ports: array.array[int] = api.ports(v4s)
 ports = api.ports(addr for addr in v4s)
 
-rows: list[list[int]] = [[1, 2], [3]]
-sums: list[int] = api.sums(rows)
-sums = api.sums(((1, 2), (3,)))
+rows: list[array.array[int]] = [array.array("I", [1, 2]), array.array("I", [3])]
+sums: array.array[int] = api.sums(rows)
+sums = api.sums(memoryview(row) for row in rows)
+floats: array.array[float] = api.boxed_floats(array.array("d", [0.5]))
 
 names: tuple[str, ...] = ("a", "b")
 peer = api.Peer(v4s[0], names)

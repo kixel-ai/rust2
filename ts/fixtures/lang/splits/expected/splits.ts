@@ -117,7 +117,12 @@ export function splits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const a2: rs.u8 = part7 as rs.u8;
 			const b3: rs.u16 = part8;
 			rs.byteVecPush(out, a2);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(b3)));
+			const dst = out;
+			rs.byteVecReserve(dst, 2 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = (b3 >>> 8) & 255;
+			dst.data[pos + 1] = b3 & 255;
+			dst.length = dst.length + 2;
 			rs.byteVecPush(out, opaque(new rs.ByteSlice(part9, part10, part11)));
 		} else if ((err3 as Short.Short).tag === "Empty") {
 			rs.byteVecPush(out, 240);
@@ -210,7 +215,15 @@ export function splits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (split !== undefined) {
 				const _227: rs.ByteSlice = split[0];
 				if ((_227.data[_227.start] & 1) === 0) {
-					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u32WrappingAdd(((split[0].data[split[0].start] << 24) | (split[0].data[split[0].start + 1] << 16) | (split[0].data[split[0].start + 2] << 8) | split[0].data[split[0].start + 3]) >>> 0, 3))));
+					const dst2 = out;
+					const word = rs.u32WrappingAdd(((split[0].data[split[0].start] << 24) | (split[0].data[split[0].start + 1] << 16) | (split[0].data[split[0].start + 2] << 8) | split[0].data[split[0].start + 3]) >>> 0, 3);
+					rs.byteVecReserve(dst2, 4 as rs.usize);
+					const pos2 = dst2.length;
+					dst2.data[pos2 + 0] = (word >>> 24) & 255;
+					dst2.data[pos2 + 1] = (word >>> 16) & 255;
+					dst2.data[pos2 + 2] = (word >>> 8) & 255;
+					dst2.data[pos2 + 3] = word & 255;
+					dst2.length = dst2.length + 4;
 					rs.byteVecPush(out, split[1].length & 0xff);
 					break b5;
 				}

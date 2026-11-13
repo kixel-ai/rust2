@@ -192,19 +192,14 @@ export function getMut$Vec_u8(self: List<rs.ByteVec>, key: rs.u8): rs.ByteVec | 
 }
 
 export function each$Vec_u8(self: List<rs.ByteVec>, out: rs.ByteVec): void {
-	b0: {
-		if (self.guard !== undefined) {
-			const guard: Node.Node<rs.ByteVec> = self.guard;
-			let at: Node.Node<rs.ByteVec> = guard.link.at0 as Node.Node<rs.ByteVec>;
-			while (true) {
-				if (!(at !== guard)) {
-					break b0;
-				}
-				const _13: [rs.u8, rs.ByteVec] = at.entry;
-				rs.byteVecPush(out, _13[0]);
-				rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_13[1]));
-				at = at.link.at0 as Node.Node<rs.ByteVec>;
-			}
+	if (self.guard !== undefined) {
+		const guard: Node.Node<rs.ByteVec> = self.guard;
+		let at: Node.Node<rs.ByteVec> = guard.link.at0 as Node.Node<rs.ByteVec>;
+		while (at !== guard) {
+			const _13: [rs.u8, rs.ByteVec] = at.entry;
+			rs.byteVecPush(out, _13[0]);
+			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_13[1]));
+			at = at.link.at0 as Node.Node<rs.ByteVec>;
 		}
 	}
 }

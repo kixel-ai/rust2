@@ -330,7 +330,14 @@ export function derived(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _211: Bare.Bare = {};
 	const args36 = [(f: rs.Formatter) => Braced.fmt$fmt_Debug(_208, f), (f: rs.Formatter) => Braced.fmt$fmt_Debug(_209, f), (f: rs.Formatter) => Bare.fmt$fmt_Debug(_210, f), (f: rs.Formatter) => Bare.fmt$fmt_Debug(_211, f)];
 	put(out, rs.fmtFormat([args36[0], " ", rs.fmtSpec({ alternate: true }, args36[1]), " ", args36[2], " ", rs.fmtSpec({ alternate: true }, args36[3])]).v);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(Braced.eq$cmp_PartialEq({}, {}) ? 1 : 0, Bare.eq$cmp_PartialEq({}, {}) ? 1 : 0)));
+	const dst = out;
+	const byte = Braced.eq$cmp_PartialEq({}, {}) ? 1 : 0;
+	const byte2 = Bare.eq$cmp_PartialEq({}, {}) ? 1 : 0;
+	rs.byteVecReserve(dst, 2 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.length = dst.length + 2;
 }
 
 /** `v`, logged, so an argument evaluated more than once shows. */
@@ -1040,14 +1047,13 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), undefined, 2, true), 2) as rs.VecDeque<rs.u8 | undefined>), front, back);
 	const args93 = [(f: rs.Formatter) => rs.fmtIter(part9, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), ["IntoIter"])];
 	put(out, rs.fmtFormat([args93[0], "|", rs.fmtSpec({ alternate: true }, args93[0])]).v);
-	const _253: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_28: rs.u8): rs.char => {
+	const text: rs.String = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_28: rs.u8): rs.char => {
 		const _510: rs.usize = rs.u8Rem(_28, 6) as rs.usize;
 		if (!(_510 < 6)) {
 			rs.panic("index out of bounds: the len is " + 6 + " but the index is " + _510);
 		}
 		return [97, 233, 20013, 129408, 10, 39][_510];
-	});
-	const text: rs.String = rs.stringExtendChars(rs.stringNew(), _253);
+	}));
 	const part10 = ends$iters_str_Chars(rs.strChars(text.v), front, back);
 	const args94 = [(f: rs.Formatter) => rs.fmtChars(part10, f)];
 	put(out, rs.fmtFormat([args94[0], "|", rs.fmtSpec({ alternate: true }, args94[0]), "|", rs.fmtSpec({ align: ">", width: 3 }, args94[0])]).v);
@@ -1952,14 +1958,13 @@ export function adaptors(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put(out, rs.fmtFormat([args166[0], "|", rs.fmtSpec({ alternate: true }, args166[0])]).v);
 	const part22 = ends$adaptors_iter_Zip_slice_Iter_u8_iter_Rev_slice_Iter_u8(rs.iterZip(rs.iterSlice(rs.byteSliceView(bytes)), rs.iterRev(rs.iterSlice(rs.byteSliceView(bytes))), "len"), front, back);
 	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtZip(part22, f, (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtIter(value, f, rs.u8Debug, ["Iter"]), (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtAdaptor(value, f, "Rev", (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtIter(value, f, rs.u8Debug, ["Iter"])))]).v);
-	const _509: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_213: rs.u8): rs.char => {
+	const part23 = fronts$adaptors_iter_Zip_str_Chars_slice_Iter_u8(rs.iterZip(rs.strChars(rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_213: rs.u8): rs.char => {
 		const _515: rs.usize = rs.u8Rem(_213, 4) as rs.usize;
 		if (!(_515 < 4)) {
 			rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _515);
 		}
 		return [97, 233, 20013, 129408][_515];
-	});
-	const part23 = fronts$adaptors_iter_Zip_str_Chars_slice_Iter_u8(rs.iterZip(rs.strChars(rs.stringExtendChars(rs.stringNew(), _509).v), rs.iterSlice(rs.byteSliceView(bytes))), front);
+	})).v), rs.iterSlice(rs.byteSliceView(bytes))), front);
 	const args168 = [(f: rs.Formatter) => rs.fmtZip(part23, f, rs.fmtChars, (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtIter(value, f, rs.u8Debug, ["Iter"]))];
 	put(out, rs.fmtFormat([args168[0], "|", rs.fmtSpec({ alternate: true }, args168[0])]).v);
 	const part24 = fronts$adaptors_iter_Cycle_slice_Iter_u8(rs.iterCycle(rs.iterSlice(rs.byteSliceView(bytes))), rs.usizeAdd(front, rs.u8Rem(at(2), 8) as rs.usize));
@@ -2028,14 +2033,13 @@ export function adaptors(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put(out, rs.fmtFormat([args186[0], "|", rs.fmtSpec({ alternate: true }, args186[0]), "|", rs.fmtSpec({ debugHex: "x" }, args186[0])]).v);
 	const part42 = fronts$adaptors_char_DecodeUtf16_vec_IntoIter_u16(rs.charDecodeUtf16(rs.vecIntoIter(rs.vecFrom([55296, 97, 98]))), rs.u8Rem(at(2), 3) as rs.usize);
 	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtDecodeUtf16(part42, f, (value: rs.Iter<rs.u16>, f: rs.Formatter) => rs.fmtIter(value, f, rs.u16Debug, ["IntoIter"]))]).v);
-	const _893: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_221: rs.u8): rs.char => {
+	const quoted: rs.String = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_221: rs.u8): rs.char => {
 		const _523: rs.usize = rs.u8Rem(_221, 6) as rs.usize;
 		if (!(_523 < 6)) {
 			rs.panic("index out of bounds: the len is " + 6 + " but the index is " + _523);
 		}
 		return [97, 34, 10, 769, 233, 39][_523];
-	});
-	const quoted: rs.String = rs.stringExtendChars(rs.stringNew(), _893);
+	}));
 	const part43 = fronts$adaptors_str_EscapeDebug(rs.strEscapeDebug(quoted.v), rs.usizeMul(front, 2));
 	const args188 = [(f: rs.Formatter) => rs.fmtAround(part43, f, "EscapeDebug", "inner", (value: rs.Iter<rs.char>, f: rs.Formatter) => rs.fmtFlatten(value, f, "FlatMap", (value: rs.Iter<rs.Iter<rs.char>>, f: rs.Formatter) => rs.fmtAdaptor(value, f, "Map", rs.fmtChars), (value: rs.Iter<rs.char>, f: rs.Formatter) => rs.fmtCharsDebug(value, f, "EscapeDebug")))];
 	put(out, rs.fmtFormat([args188[0], "|", rs.fmtSpec({ alternate: true }, args188[0])]).v);
@@ -3434,14 +3438,13 @@ export function sources(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), rs.usizeRem(front, 2), rs.usizeRem(back, 2));
 	const args136 = [(f: rs.Formatter) => rs.fmtOnceWith(part21, f)];
 	put(out, rs.fmtFormat([args136[0], "|", rs.fmtSpec({ alternate: true }, args136[0]), "|", rs.fmtSpec({ align: ">", width: 20 }, args136[0])]).v);
-	const _503: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_212: rs.u8): rs.char => {
+	const text: rs.String = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_212: rs.u8): rs.char => {
 		const _54: rs.usize = rs.u8Rem(_212, 5) as rs.usize;
 		if (!(_54 < 5)) {
 			rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _54);
 		}
 		return [97, 233, 20013, 129408, 10][_54];
-	});
-	const text: rs.String = rs.stringExtendChars(rs.stringNew(), _503);
+	}));
 	const part22 = ends$sources_str_CharIndices(rs.strCharIndices(text.v), front, back);
 	const args137 = [(f: rs.Formatter) => rs.fmtCharIndices(part22, f)];
 	put(out, rs.fmtFormat([args137[0], "|", rs.fmtSpec({ alternate: true }, args137[0]), "|", rs.fmtSpec({ debugHex: "x" }, args137[0])]).v);
@@ -4707,14 +4710,13 @@ export function searches(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const front: rs.usize = _6[0];
 	const back: rs.usize = _6[1];
 	const rest: rs.ByteSlice = option_unwrapOrDefault$0avqj0t(rs.byteSliceGetRange(data, 4));
-	const _23: rs.Iter<rs.char> = rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(rest)), 10), (_2: rs.u8): rs.char => {
+	const text2: string = rs.stringFromChars(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(rest)), 10), (_2: rs.u8): rs.char => {
 		const _5: rs.usize = rs.u8Rem(_2, 9) as rs.usize;
 		if (!(_5 < 9)) {
 			rs.panic("index out of bounds: the len is " + 9 + " but the index is " + _5);
 		}
 		return [97, 98, 233, 129408, 32, 10, 13, 12288, 9][_5];
-	});
-	const text2: string = rs.stringExtendChars(rs.stringNew(), _23).v;
+	})).v;
 	const _30: rs.usize = rs.u8Rem(at(2), 4) as rs.usize;
 	if (!(_30 < 4)) {
 		rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _30);
@@ -4758,14 +4760,13 @@ export function searches(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return rs.charIsWhitespace(a0);
 	}), front, back);
 	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => rs.fmtStrSearch(part16, f, "MatchIndices", "CharPredicateSearcher"))]).v);
-	const _275: rs.Iter<rs.char> = rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(rest)), 16), (_22: rs.u8): rs.char => {
+	const few2: string = rs.stringFromChars(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(rest)), 16), (_22: rs.u8): rs.char => {
 		const _53: rs.usize = rs.u8Rem(_22, 3) as rs.usize;
 		if (!(_53 < 3)) {
 			rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _53);
 		}
 		return [97, 98, 233][_53];
-	});
-	const few2: string = rs.stringExtendChars(rs.stringNew(), _275).v;
+	})).v;
 	const _291: rs.usize = rs.u8Rem(at(2), 10) as rs.usize;
 	if (!(_291 < 10)) {
 		rs.panic("index out of bounds: the len is " + 10 + " but the index is " + _291);

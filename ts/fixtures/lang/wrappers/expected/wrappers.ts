@@ -8,7 +8,21 @@ import * as Scale from "./wrappers.Scale.ts";
 import * as Tally from "./wrappers.Tally.ts";
 
 export function putU64(out: rs.ByteVec, v: rs.u64): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(v)));
+	const dst = out;
+	const word = v;
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word3 >>> 24) & 255;
+	dst.data[pos + 1] = (word3 >>> 16) & 255;
+	dst.data[pos + 2] = (word3 >>> 8) & 255;
+	dst.data[pos + 3] = word3 & 255;
+	dst.data[pos + 4] = (word2 >>> 24) & 255;
+	dst.data[pos + 5] = (word2 >>> 16) & 255;
+	dst.data[pos + 6] = (word2 >>> 8) & 255;
+	dst.data[pos + 7] = word2 & 255;
+	dst.length = dst.length + 8;
 }
 
 export function putBound(out: rs.ByteVec, b: rs.RangeBound<rs.u64>): void {
@@ -248,21 +262,21 @@ export function boundOf(kind: rs.u8, a: rs.u64): rs.RangeBound<rs.u64> {
 export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let scale!: Scale.Scale;
 	let name!: string;
+	const at: (a0: rs.usize) => rs.u8 = (i3: rs.usize): rs.u8 => {
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i3), 0);
+	};
 	const _5: (a0: rs.u8) => rs.u64 = (b3: rs.u8): rs.u64 => {
-		const _3: rs.u8 = rs.u8Rem(b3, 4);
-		if (_3 === 0) {
+		const _33: rs.u8 = rs.u8Rem(b3, 4);
+		if (_33 === 0) {
 			return b3 as rs.u64;
 		}
-		if (_3 === 1) {
+		if (_33 === 1) {
 			return rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b3 as rs.u64);
 		}
-		if (_3 === 2) {
+		if (_33 === 2) {
 			return rs.u64Add({ hi: 0x200000, lo: 0 } as rs.u64, b3 as rs.u64);
 		}
 		return rs.u64Mul(b3 as rs.u64, 7);
-	};
-	const at: (a0: rs.usize) => rs.u8 = (i3: rs.usize): rs.u8 => {
-		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i3), 0);
 	};
 	const part = at(0);
 	const _9: rs.u64 = _5(part);

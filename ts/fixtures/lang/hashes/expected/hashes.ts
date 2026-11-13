@@ -35,315 +35,945 @@ import * as Tally from "./hashes.Tally.ts";
 export function digest$Option_Option_u8(value: rs.u8 | undefined | rs.None, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashOption(rs.hashOption(rs.hash8), rs.None)(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$Option_Vec_u8(value: rs.ByteVec | undefined, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashOption(rs.hashBytes)(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$Option_array2_u8(value: Uint8Array | undefined, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashOption(rs.hashBytes)(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$Option_num_NonZero_u32(value: rs.u32 | undefined, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashOption(rs.hash32)(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$Option_u32(value: rs.u32 | undefined, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashOption(rs.hash32)(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$String(value: rs.String, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashStr(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$Vec_u16(value: rs.Vec<rs.u16>, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashInts(2)(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$Vec_u8(value: rs.ByteVec, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashBytes(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$array0_u8(value: rs.ByteSlice, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashBytes(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$array2_hashes_Dir(value: rs.Slice<Dir.Dir>, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashSlice(Dir.hash$Hash_hash_DefaultHasher as (a0: Dir.Dir, a1: rs.Hasher) => undefined)(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$array2_u8(value: rs.ByteSlice, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashBytes(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$array3_u32(value: rs.Slice<rs.u32>, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashInts(4)(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$array3_u8(value: rs.ByteSlice, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashBytes(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$bool(value: boolean, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hash8(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$char(value: rs.char, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hash32(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$cmp_Ordering(value: rs.Ordering, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashI8(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$cmp_Reverse_u16(value: rs.u16, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hash16(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$hashes_Nibble(value: Nibble.Nibble, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	Nibble.hash$Hash_hash_DefaultHasher(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$hashes_Packet(value: Packet.Packet, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	Packet.hash$Hash_hash_DefaultHasher(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$hashes_Shape(value: Shape.Shape, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	Shape.hash$Hash_hash_DefaultHasher(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$i128(value: rs.i128, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashI128(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$i16(value: rs.i16, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashI16(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$i32(value: rs.i32, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashI32(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$i64(value: rs.i64, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashI64(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$i8(value: rs.i8, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashI8(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$isize(value: rs.isize, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashIsize(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$slice_u16(value: rs.Slice<rs.u16>, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashInts(2)(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$slice_u8(value: rs.ByteSlice, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashBytes(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$str(value: string, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashStr(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$sync_Arc_Vec_u8(value: rs.Arc<rs.ByteVec>, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashArc(rs.hashBytes)(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$sync_Arc_array3_u8(value: rs.Arc<Uint8Array>, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashArc(rs.hashBytes)(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$sync_Arc_str(value: rs.Arc<string>, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashArc(rs.hashStr)(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$time_Duration(value: rs.Duration, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.durationHash(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$tuple2_array0_u8_Option_array0_u8(value: [Uint8Array, Uint8Array | undefined], out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashTuple([rs.hashBytes, rs.hashOption(rs.hashBytes)])(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$tuple2_array2_u8_array3_u8(value: [Uint8Array, Uint8Array], out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashTuple([rs.hashBytes, rs.hashBytes])(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$tuple2_hashes_Small_hashes_Small(value: [Small.Small, Small.Small], out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashTuple([Small.hash$Hash_hash_DefaultHasher as (a0: Small.Small, a1: rs.Hasher) => undefined, Small.hash$Hash_hash_DefaultHasher as (a0: Small.Small, a1: rs.Hasher) => undefined])(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$tuple2_ref_slice_u8_u8(value: [rs.ByteSlice, rs.u8], out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashTuple([rs.hashBytes, rs.hash8])(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$tuple2_ref_str_usize(value: [string, rs.usize], out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashTuple([rs.hashStr, rs.hashUsize])(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$tuple3_u8_ref_str_u64(value: [rs.u8, string, rs.u64], out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashTuple([rs.hash8, rs.hashStr, rs.hash64])(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$u128(value: rs.u128, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hash128(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$u16(value: rs.u16, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hash16(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$u32(value: rs.u32, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hash32(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$u64(value: rs.u64, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hash64(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$u8(value: rs.u8, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hash8(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$usize(value: rs.usize, out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashUsize(value, h);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+	const dst = out;
+	const word = rs.hashFinish(h);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** The bytes of `data` from `at`, as many as fit, as one big-endian number. */
@@ -471,10 +1101,38 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			} else if (_220 === 12) {
 				rs.hashWrite(rs.byteSliceRange(data, i), h);
 			} else {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+				const dst = out;
+				const word = rs.hashFinish(h);
+				const word2 = rs.intWord(word, 0);
+				const word3 = rs.intWord(word, 32);
+				rs.byteVecReserve(dst, 8 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = word2 & 255;
+				dst.data[pos + 1] = (word2 >>> 8) & 255;
+				dst.data[pos + 2] = (word2 >>> 16) & 255;
+				dst.data[pos + 3] = (word2 >>> 24) & 255;
+				dst.data[pos + 4] = word3 & 255;
+				dst.data[pos + 5] = (word3 >>> 8) & 255;
+				dst.data[pos + 6] = (word3 >>> 16) & 255;
+				dst.data[pos + 7] = (word3 >>> 24) & 255;
+				dst.length = dst.length + 8;
 			}
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
+		const dst2 = out;
+		const word4 = rs.hashFinish(h);
+		const word5 = rs.intWord(word4, 0);
+		const word6 = rs.intWord(word4, 32);
+		rs.byteVecReserve(dst2, 8 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = word5 & 255;
+		dst2.data[pos2 + 1] = (word5 >>> 8) & 255;
+		dst2.data[pos2 + 2] = (word5 >>> 16) & 255;
+		dst2.data[pos2 + 3] = (word5 >>> 24) & 255;
+		dst2.data[pos2 + 4] = word6 & 255;
+		dst2.data[pos2 + 5] = (word6 >>> 8) & 255;
+		dst2.data[pos2 + 6] = (word6 >>> 16) & 255;
+		dst2.data[pos2 + 7] = (word6 >>> 24) & 255;
+		dst2.length = dst2.length + 8;
 	}
 }
 
@@ -529,7 +1187,21 @@ export function random(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}, rs.lt), 8, true);
 	rs.sliceSort(rs.sliceFrom(keys.items), rs.lt, 8, true);
 	for (const _127 of keys.items) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(_127).reverse()));
+		const dst = out;
+		const word = _127;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		rs.byteVecReserve(dst, 8 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = word2 & 255;
+		dst.data[pos + 1] = (word2 >>> 8) & 255;
+		dst.data[pos + 2] = (word2 >>> 16) & 255;
+		dst.data[pos + 3] = (word2 >>> 24) & 255;
+		dst.data[pos + 4] = word3 & 255;
+		dst.data[pos + 5] = (word3 >>> 8) & 255;
+		dst.data[pos + 6] = (word3 >>> 16) & 255;
+		dst.data[pos + 7] = (word3 >>> 24) & 255;
+		dst.length = dst.length + 8;
 	}
 }
 
@@ -966,7 +1638,20 @@ export function own(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_58 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(_58).reverse()));
+		const dst = out;
+		const word = rs.intWord(_58, 0);
+		const word2 = rs.intWord(_58, 32);
+		rs.byteVecReserve(dst, 8 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = word & 255;
+		dst.data[pos + 1] = (word >>> 8) & 255;
+		dst.data[pos + 2] = (word >>> 16) & 255;
+		dst.data[pos + 3] = (word >>> 24) & 255;
+		dst.data[pos + 4] = word2 & 255;
+		dst.data[pos + 5] = (word2 >>> 8) & 255;
+		dst.data[pos + 6] = (word2 >>> 16) & 255;
+		dst.data[pos + 7] = (word2 >>> 24) & 255;
+		dst.length = dst.length + 8;
 	}
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(log.value));
 }
@@ -1011,7 +1696,20 @@ export function copied(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_75 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(_75).reverse()));
+		const dst = out;
+		const word = rs.intWord(_75, 0);
+		const word2 = rs.intWord(_75, 32);
+		rs.byteVecReserve(dst, 8 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = word & 255;
+		dst.data[pos + 1] = (word >>> 8) & 255;
+		dst.data[pos + 2] = (word >>> 16) & 255;
+		dst.data[pos + 3] = (word >>> 24) & 255;
+		dst.data[pos + 4] = word2 & 255;
+		dst.data[pos + 5] = (word2 >>> 8) & 255;
+		dst.data[pos + 6] = (word2 >>> 16) & 255;
+		dst.data[pos + 7] = (word2 >>> 24) & 255;
+		dst.length = dst.length + 8;
 	}
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(log.value));
 }
@@ -1076,8 +1774,36 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	const probe: Key.Key = { _0: first as rs.u16, _1: text(rs.byteSliceFrom(Uint8Array.of(first))) };
 	rs.byteVecPush(out, (keyed.s as Numbered.Numbered)._0);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashOne(new rs.OwnHasher(Numbered.buildHasher$hash_BuildHasher(keyed.s as Numbered.Numbered), Fnv.hasher$hash_Hasher), probe, rs.hashOwn(Key.hash$Hash_hashes_Fnv as (a0: Key.Key, a1: Fnv.Fnv) => undefined))).reverse()));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashOne(new rs.OwnHasher(Numbered.buildHasher$hash_BuildHasher(seen.s as Numbered.Numbered), Fnv.hasher$hash_Hasher), first, rs.hash8)).reverse()));
+	const dst = out;
+	const word = rs.hashOne(new rs.OwnHasher(Numbered.buildHasher$hash_BuildHasher(keyed.s as Numbered.Numbered), Fnv.hasher$hash_Hasher), probe, rs.hashOwn(Key.hash$Hash_hashes_Fnv as (a0: Key.Key, a1: Fnv.Fnv) => undefined));
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
+	const dst2 = out;
+	const word4 = rs.hashOne(new rs.OwnHasher(Numbered.buildHasher$hash_BuildHasher(seen.s as Numbered.Numbered), Fnv.hasher$hash_Hasher), first, rs.hash8);
+	const word5 = rs.intWord(word4, 0);
+	const word6 = rs.intWord(word4, 32);
+	rs.byteVecReserve(dst2, 8 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = word5 & 255;
+	dst2.data[pos2 + 1] = (word5 >>> 8) & 255;
+	dst2.data[pos2 + 2] = (word5 >>> 16) & 255;
+	dst2.data[pos2 + 3] = (word5 >>> 24) & 255;
+	dst2.data[pos2 + 4] = word6 & 255;
+	dst2.data[pos2 + 5] = (word6 >>> 8) & 255;
+	dst2.data[pos2 + 6] = (word6 >>> 16) & 255;
+	dst2.data[pos2 + 7] = (word6 >>> 24) & 255;
+	dst2.length = dst2.length + 8;
 	const noisy: rs.HashMap<rs.u8, Noisy.Noisy> = rs.hashNew(undefined, new Numbered.Numbered(5)) as rs.HashMap<rs.u8, Noisy.Noisy>;
 	rs.drop(rs.hashInsert(noisy, first, new Noisy.Noisy(first)));
 	const copy: rs.HashMap<rs.u8, Noisy.Noisy> = rs.hashClone(noisy, undefined, Noisy.clone$Clone, Numbered.clone$Clone);
@@ -1169,7 +1895,15 @@ export function compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Sp
 	}
 	rs.byteVecPush(out, calls.items.length & 0xff);
 	for (const _39 of calls.items) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_39)));
+		const dst = out;
+		const word = _39;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 	}
 }
 
@@ -1201,7 +1935,15 @@ export function compared$collections_HashSet_hashes_Sided_hashes_Spread(a: rs.Ha
 	}
 	rs.byteVecPush(out, calls.items.length & 0xff);
 	for (const _39 of calls.items) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_39)));
+		const dst = out;
+		const word = _39;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 	}
 }
 
@@ -1215,79 +1957,44 @@ export function compared$collections_HashSet_hashes_Sided_hashes_Spread(a: rs.Ha
  * as JS does, and maps in a `Vec` and in a type that derives `PartialEq`.
  */
 export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _8: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashSet<Sided.Sided> = (side: rs.u8, bytes: rs.ByteSlice): rs.HashSet<Sided.Sided> => {
-		const _52: Spread.Spread = { _0: side as rs.u64 };
-		const s: rs.HashSet<Sided.Sided> = rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), _52) as rs.HashSet<Sided.Sided>;
+	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
+	const map: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashMap<Sided.Sided, Sided.Sided> = (side: rs.u8, bytes: rs.ByteSlice): rs.HashMap<Sided.Sided, Sided.Sided> => {
+		const _52: Spread.Spread = { _0: rs.u64Add(rs.u64Mul(side as rs.u64, 65537), first as rs.u64) };
+		const m: rs.HashMap<Sided.Sided, Sided.Sided> = rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), _52) as rs.HashMap<Sided.Sided, Sided.Sided>;
 		const iterS: Uint8Array = rs.byteSliceView(bytes);
 		let iterI: number = 0;
 		while (true) {
-			const _9: rs.u8 | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
-			if (_9 === rs.DONE) {
-				return s;
+			const _155: rs.u8 | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
+			if (_155 === rs.DONE) {
+				return m;
 			}
-			rs.hashAdd(s, { n: _9 & 127, side });
+			const b: rs.u8 = _155;
+			const _212: Sided.Sided = { n: b & 127, side };
+			const _23: Sided.Sided = { n: b >> 6, side: rs.u8Add(side, 2) };
+			rs.hashInsert(m, _212, _23);
 		}
 	};
-	const _96: (a0: rs.ByteSlice) => rs.HashMap<rs.u8, rs.u16> = (bytes2: rs.ByteSlice): rs.HashMap<rs.u8, rs.u16> => {
-		const m: rs.HashMap<rs.u8, rs.u16> = rs.hashNew() as rs.HashMap<rs.u8, rs.u16>;
+	const _8: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashSet<Sided.Sided> = (side2: rs.u8, bytes2: rs.ByteSlice): rs.HashSet<Sided.Sided> => {
+		const _53: Spread.Spread = { _0: side2 as rs.u64 };
+		const s: rs.HashSet<Sided.Sided> = rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), _53) as rs.HashSet<Sided.Sided>;
 		const iterS2: Uint8Array = rs.byteSliceView(bytes2);
 		let iterI2: number = 0;
 		while (true) {
-			const _64: rs.u8 | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
-			if (_64 === rs.DONE) {
-				return m;
+			const _92: rs.u8 | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
+			if (_92 === rs.DONE) {
+				return s;
 			}
-			const b2: rs.u8 = _64;
-			const _102: rs.u16 = b2 as rs.u16;
-			const _113: rs.Place<rs.u16> = rs.entryOrInsertWithMut(rs.entry(m, rs.u8Rem(b2, 8)), (): rs.u16 => {
-				return 0;
-			});
-			_113.v = rs.u16Add(_113.v, _102);
-		}
-	};
-	const _123: (a0: rs.ByteSlice) => rs.HashSet<rs.String> = (bytes3: rs.ByteSlice): rs.HashSet<rs.String> => {
-		const _3: rs.Iter<rs.String> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes3)), (_2: rs.u8): rs.String => {
-			return text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(_2, 4))));
-		});
-		return rs.hashExtendKeys(rs.hashNew(rs.HASH_TEXT) as rs.HashSet<rs.String>, _3, undefined, undefined, 117440512);
-	};
-	const _175: (a0: rs.ByteSlice) => hashes_Index.Index = (bytes4: rs.ByteSlice): hashes_Index.Index => {
-		const _46: rs.Iter<[rs.u8, rs.String]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes4)), (_22: rs.u8): [rs.u8, rs.String] => {
-			const b4: rs.u8 = _22;
-			return [rs.u8Rem(b4, 8), text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(b4, 3))))] as [rs.u8, rs.String];
-		});
-		const _33: rs.HashMap<rs.u8, rs.String> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.String>, _46, undefined, undefined, undefined, 58720256);
-		const _75: rs.Iter<[rs.u8, boolean]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes4)), (_23: rs.u8): [rs.u8, boolean] => {
-			const b5: rs.u8 = _23;
-			return [rs.u8Rem(b5, 5), rs.u8Rem(b5, 2) === 0] as [rs.u8, boolean];
-		});
-		return { names: _33, seen: rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same]))) as rs.HashSet<[rs.u8, boolean]>, _75, undefined, undefined, 469762048) };
-	};
-	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const map: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashMap<Sided.Sided, Sided.Sided> = (side2: rs.u8, bytes5: rs.ByteSlice): rs.HashMap<Sided.Sided, Sided.Sided> => {
-		const _58: Spread.Spread = { _0: rs.u64Add(rs.u64Mul(side2 as rs.u64, 65537), first as rs.u64) };
-		const m2: rs.HashMap<Sided.Sided, Sided.Sided> = rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), _58) as rs.HashMap<Sided.Sided, Sided.Sided>;
-		const iterS3: Uint8Array = rs.byteSliceView(bytes5);
-		let iterI3: number = 0;
-		while (true) {
-			const _1510: rs.u8 | rs.Done = iterI3 < iterS3.length ? iterS3[iterI3++] : rs.DONE;
-			if (_1510 === rs.DONE) {
-				return m2;
-			}
-			const b6: rs.u8 = _1510;
-			const _212: Sided.Sided = { n: b6 & 127, side: side2 };
-			const _232: Sided.Sided = { n: b6 >> 6, side: rs.u8Add(side2, 2) };
-			rs.hashInsert(m2, _212, _232);
+			rs.hashAdd(s, { n: _92 & 127, side: side2 });
 		}
 	};
 	const reversed: rs.ByteVec = rs.iterToByteVec(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), undefined, true);
-	const flipped: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), (_210: [rs.usize, rs.u8]): rs.u8 => {
-		const i: rs.usize = _210[0];
-		const b7: rs.u8 = _210[1];
+	const flipped: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), (_2: [rs.usize, rs.u8]): rs.u8 => {
+		const i: rs.usize = _2[0];
+		const b3: rs.u8 = _2[1];
 		if (!(i === rs.usizeDiv(data.length, 2))) {
-			return b7;
+			return b3;
 		}
-		return b7 ^ 65;
+		return b3 ^ 65;
 	}), undefined, true);
 	const shorter: rs.ByteSlice = rs.byteSliceRange(data, 0, rs.usizeSaturatingSub(data.length, 1));
 	const left: rs.HashMap<Sided.Sided, Sided.Sided> = map(1, data);
@@ -1326,6 +2033,23 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 		compared$collections_HashSet_hashes_Sided_hashes_Spread(right2, left2, _89, out);
 	}
 	compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Spread(rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), Spread.default$Default()) as rs.HashMap<Sided.Sided, Sided.Sided>, rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), Spread.default$Default()) as rs.HashMap<Sided.Sided, Sided.Sided>, 0, out);
+	const _96: (a0: rs.ByteSlice) => rs.HashMap<rs.u8, rs.u16> = (bytes3: rs.ByteSlice): rs.HashMap<rs.u8, rs.u16> => {
+		const m2: rs.HashMap<rs.u8, rs.u16> = rs.hashNew() as rs.HashMap<rs.u8, rs.u16>;
+		const iterS3: Uint8Array = rs.byteSliceView(bytes3);
+		let iterI3: number = 0;
+		while (true) {
+			const _69: rs.u8 | rs.Done = iterI3 < iterS3.length ? iterS3[iterI3++] : rs.DONE;
+			if (_69 === rs.DONE) {
+				return m2;
+			}
+			const b4: rs.u8 = _69;
+			const _104: rs.u16 = b4 as rs.u16;
+			const _117: rs.Place<rs.u16> = rs.entryOrInsertWithMut(rs.entry(m2, rs.u8Rem(b4, 8)), (): rs.u16 => {
+				return 0;
+			});
+			_117.v = rs.u16Add(_117.v, _104);
+		}
+	};
 	const _101: rs.HashMap<rs.u8, rs.u16> = _96(data);
 	const part6 = rs.byteVecSlice(reversed);
 	const _105: rs.HashMap<rs.u8, rs.u16> = _96(part6);
@@ -1334,6 +2058,12 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part7 = rs.byteVecSlice(flipped);
 	const _118: rs.HashMap<rs.u8, rs.u16> = _96(part7);
 	rs.byteVecPush(out, !rs.hashEq(rs.same)(_114, _118) ? 1 : 0);
+	const _123: (a0: rs.ByteSlice) => rs.HashSet<rs.String> = (bytes4: rs.ByteSlice): rs.HashSet<rs.String> => {
+		const _3: rs.Iter<rs.String> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes4)), (_210: rs.u8): rs.String => {
+			return text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(_210, 4))));
+		});
+		return rs.hashExtendKeys(rs.hashNew(rs.HASH_TEXT) as rs.HashSet<rs.String>, _3, undefined, undefined, 117440512);
+	};
 	const _128: rs.HashSet<rs.String> = _123(data);
 	const part8 = rs.byteVecSlice(reversed);
 	const _132: rs.HashSet<rs.String> = _123(part8);
@@ -1349,6 +2079,18 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part11 = rs.byteVecSlice(flipped);
 	const _163: rs.Vec<rs.HashSet<rs.String>> = rs.vecFrom([_165, _123(part11)]);
 	rs.byteVecPush(out, rs.eqSeq(rs.hashEq())(_152, _163) ? 1 : 0);
+	const _175: (a0: rs.ByteSlice) => hashes_Index.Index = (bytes5: rs.ByteSlice): hashes_Index.Index => {
+		const _46: rs.Iter<[rs.u8, rs.String]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes5)), (_211: rs.u8): [rs.u8, rs.String] => {
+			const b6: rs.u8 = _211;
+			return [rs.u8Rem(b6, 8), text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(b6, 3))))] as [rs.u8, rs.String];
+		});
+		const _33: rs.HashMap<rs.u8, rs.String> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.String>, _46, undefined, undefined, undefined, 58720256);
+		const _78: rs.Iter<[rs.u8, boolean]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes5)), (_213: rs.u8): [rs.u8, boolean] => {
+			const b7: rs.u8 = _213;
+			return [rs.u8Rem(b7, 5), rs.u8Rem(b7, 2) === 0] as [rs.u8, boolean];
+		});
+		return { names: _33, seen: rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same]))) as rs.HashSet<[rs.u8, boolean]>, _78, undefined, undefined, 469762048) };
+	};
 	const _180: hashes_Index.Index = _175(data);
 	const part12 = rs.byteVecSlice(reversed);
 	rs.byteVecPush(out, hashes_Index.eq$cmp_PartialEq(_180, _175(part12)) ? 1 : 0);
@@ -1399,7 +2141,20 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_85 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(_85).reverse()));
+		const dst = out;
+		const word2 = rs.intWord(_85, 0);
+		const word3 = rs.intWord(_85, 32);
+		rs.byteVecReserve(dst, 8 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = word2 & 255;
+		dst.data[pos + 1] = (word2 >>> 8) & 255;
+		dst.data[pos + 2] = (word2 >>> 16) & 255;
+		dst.data[pos + 3] = (word2 >>> 24) & 255;
+		dst.data[pos + 4] = word3 & 255;
+		dst.data[pos + 5] = (word3 >>> 8) & 255;
+		dst.data[pos + 6] = (word3 >>> 16) & 255;
+		dst.data[pos + 7] = (word3 >>> 24) & 255;
+		dst.length = dst.length + 8;
 	}
 	const keyed: rs.HashMap<Key.Key, rs.u8> = rs.hashNew(rs.hashing(Key.hash$Hash_hash_DefaultHasher as (a0: Key.Key, a1: rs.Hasher) => undefined, Key.eq$cmp_PartialEq), undefined) as rs.HashMap<Key.Key, rs.u8>;
 	const seen: rs.HashSet<rs.u8> = rs.hashWithCapacity(data.length, 469762048, undefined, undefined) as rs.HashSet<rs.u8>;
@@ -1430,11 +2185,39 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, _147[1]);
 	}
 	const probe: Key.Key = { _0: first as rs.u16, _1: text(rs.byteSliceFrom(Uint8Array.of(first))) };
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashOne(new rs.OwnHasher(Fnv.default$Default(), Fnv.hasher$hash_Hasher), probe, rs.hashOwn(Key.hash$Hash_hashes_Fnv as (a0: Key.Key, a1: Fnv.Fnv) => undefined))).reverse()));
+	const dst2 = out;
+	const word4 = rs.hashOne(new rs.OwnHasher(Fnv.default$Default(), Fnv.hasher$hash_Hasher), probe, rs.hashOwn(Key.hash$Hash_hashes_Fnv as (a0: Key.Key, a1: Fnv.Fnv) => undefined));
+	const word5 = rs.intWord(word4, 0);
+	const word6 = rs.intWord(word4, 32);
+	rs.byteVecReserve(dst2, 8 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = word5 & 255;
+	dst2.data[pos2 + 1] = (word5 >>> 8) & 255;
+	dst2.data[pos2 + 2] = (word5 >>> 16) & 255;
+	dst2.data[pos2 + 3] = (word5 >>> 24) & 255;
+	dst2.data[pos2 + 4] = word6 & 255;
+	dst2.data[pos2 + 5] = (word6 >>> 8) & 255;
+	dst2.data[pos2 + 6] = (word6 >>> 16) & 255;
+	dst2.data[pos2 + 7] = (word6 >>> 24) & 255;
+	dst2.length = dst2.length + 8;
 	rs.hashClone(seen, undefined, undefined, (_a0: undefined): undefined => {
 		return undefined;
 	}).s as undefined;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashOne(new rs.OwnHasher(Fnv.default$Default(), Fnv.hasher$hash_Hasher), first, rs.hash8)).reverse()));
+	const dst3 = out;
+	const word7 = rs.hashOne(new rs.OwnHasher(Fnv.default$Default(), Fnv.hasher$hash_Hasher), first, rs.hash8);
+	const word8 = rs.intWord(word7, 0);
+	const word9 = rs.intWord(word7, 32);
+	rs.byteVecReserve(dst3, 8 as rs.usize);
+	const pos3 = dst3.length;
+	dst3.data[pos3 + 0] = word8 & 255;
+	dst3.data[pos3 + 1] = (word8 >>> 8) & 255;
+	dst3.data[pos3 + 2] = (word8 >>> 16) & 255;
+	dst3.data[pos3 + 3] = (word8 >>> 24) & 255;
+	dst3.data[pos3 + 4] = word9 & 255;
+	dst3.data[pos3 + 5] = (word9 >>> 8) & 255;
+	dst3.data[pos3 + 6] = (word9 >>> 16) & 255;
+	dst3.data[pos3 + 7] = (word9 >>> 24) & 255;
+	dst3.length = dst3.length + 8;
 	rs.byteVecPush(out, true ? 1 : 0);
 	const _195: rs.HashMap<Key.Key, rs.u8> = rs.hashClone(keyed, Key.clone$Clone, undefined, (_a02: undefined): undefined => {
 		return undefined;

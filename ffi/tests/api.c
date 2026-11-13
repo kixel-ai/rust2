@@ -3,6 +3,7 @@
  *
  * With an argument, it instead breaks one contract of the ABI, which must abort. */
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -16,6 +17,65 @@ static api_buf str(const char *s) {
 static void print(const char *before, api_buf buf, const char *after) {
 	printf("%s%.*s%s", before, (int)buf.len, (const char *)buf.ptr, after);
 	api_buf_free(buf);
+}
+
+/* Print each of `numbers`' lists, its floats as their bits, as transcript.rs does. */
+#define PRINT_LIST(list, fmt, cast)                                           \
+	do {                                                                  \
+		printf("[");                                                  \
+		for (size_t i_ = 0; i_ < (list).len; i_++) {                  \
+			printf(i_ ? ", " fmt : fmt, cast((list).ptr[i_]));    \
+		}                                                             \
+		printf("]");                                                  \
+	} while (0)
+
+static unsigned long long f32_bits(float f) {
+	uint32_t bits;
+	memcpy(&bits, &f, sizeof bits);
+	return bits;
+}
+
+static unsigned long long f64_bits(double f) {
+	uint64_t bits;
+	memcpy(&bits, &f, sizeof bits);
+	return bits;
+}
+
+static void numbers(const char *what, const api_Numbers *n) {
+	printf("%s u16 ", what);
+	PRINT_LIST(n->u16s, "%u", (unsigned));
+	printf("\n");
+	printf("%s u32 ", what);
+	PRINT_LIST(n->u32s, "%u", (unsigned));
+	printf("\n");
+	printf("%s u64 ", what);
+	PRINT_LIST(n->u64s, "%llu", (unsigned long long));
+	printf("\n");
+	printf("%s i8 ", what);
+	PRINT_LIST(n->i8s, "%d", (int));
+	printf("\n");
+	printf("%s i16 ", what);
+	PRINT_LIST(n->i16s, "%d", (int));
+	printf("\n");
+	printf("%s i32 ", what);
+	PRINT_LIST(n->i32s, "%d", (int));
+	printf("\n");
+	printf("%s i64 ", what);
+	PRINT_LIST(n->i64s, "%lld", (long long));
+	printf("\n");
+	printf("%s f32 ", what);
+	PRINT_LIST(n->f32s, "%llu", f32_bits);
+	printf("\n");
+	printf("%s f64 ", what);
+	PRINT_LIST(n->f64s, "%llu", f64_bits);
+	printf("\n");
+	if (n->some.ptr) {
+		printf("%s some Some(", what);
+		PRINT_LIST(n->some, "%d", (int));
+		printf(")\n");
+	} else {
+		printf("%s some None\n", what);
+	}
 }
 
 static int wakes = 0;
@@ -124,6 +184,48 @@ static bool foreign_futures(void) {
 	ok = ok && api_Waiter_poll_future_poll(polled, waker) == API_POLL_PENDING;
 	api_Waiter_poll_future_future_free(polled);
 	return ok && dropped.freed && !dropped.waker.wake;
+}
+
+/* Futures started, made and polled once in one call: whether each behaved. */
+static bool started_futures(void) {
+	api_waker waker = {.wake = wake, .drop = drop, .data = NULL};
+	uint32_t out = 0;
+
+	/* Ready at once: the result is written, the future freed, and the handle nulled
+	 * over what the caller left in it. */
+	foreign now = {.ready = 1};
+	api_after_future *after = (api_after_future *)&out;
+	bool ok = api_after_start(foreign_future(&now), 4, &out, &after) == API_POLL_READY;
+	ok = ok && out == 8 && !after && now.polls == 1 && now.freed;
+
+	/* Pending: the handle is returned, and a poll with a waker replaces the first's,
+	 * which wakes nothing. */
+	foreign later = {.ready = 3};
+	ok = ok && api_after_start(foreign_future(&later), 5, &out, &after) == API_POLL_PENDING && after;
+	later.waker.wake(later.waker.data);
+	int woken = wakes;
+	ok = ok && api_after_poll(after, waker, &out) == API_POLL_PENDING && later.polls == 2;
+	later.waker.wake(later.waker.data);
+	ok = ok && wakes == woken + 1;
+	ok = ok && api_after_poll(after, waker, &out) == API_POLL_READY && out == 10;
+	api_after_future_free(after);
+	ok = ok && later.freed;
+
+	/* Pending, then freed unfinished: the future it owns is freed with it. */
+	foreign dropped = {.ready = 1000};
+	after = NULL;
+	ok = ok && api_after_start(foreign_future(&dropped), 6, &out, &after) == API_POLL_PENDING;
+	api_after_future_free(after);
+	ok = ok && dropped.freed && !dropped.waker.wake;
+
+	/* Failed at once: the error is written, and the handle nulled. */
+	foreign never = {.ready = 1000};
+	api_within_future *within = (api_within_future *)&out;
+	api_Error err;
+	ok = ok && api_within_start(0, foreign_future(&never), &err, &within) == API_POLL_ERROR;
+	ok = ok && err.tag == API_ERROR_OVERFLOW && !within && never.freed;
+	api_Error_free(&err);
+	return ok;
 }
 
 /* made's closure: a string it hands Rust, as api_buf_copy made it. */
@@ -686,9 +788,14 @@ static int script(void) {
 	print("named Some((\"", named.value._0, "\",))\n");
 
 	/* Each lent counter is a new handle to a clone. */
-	api_Registry *registry = api_Registry_new(api_Counter_new(str("first"), 1));
+	/* A handle whose value moved in is still the caller's to free. */
+	api_Counter *moved = api_Counter_new(str("first"), 1);
+	api_Registry *registry = api_Registry_new(moved);
+	api_Counter_free(moved);
 	printf("last %s\n", api_Registry_last(registry) != NULL ? "true" : "false");
-	api_Registry_push(registry, api_Counter_new(str("last"), 2));
+	moved = api_Counter_new(str("last"), 2);
+	api_Registry_push(registry, moved);
+	api_Counter_free(moved);
 	api_Counter *first = api_Registry_first_get(registry);
 	api_Counter_add(first, 10, NULL, NULL);
 	api_Counter *lent = api_Registry_first_get(registry);
@@ -1380,6 +1487,58 @@ static int script(void) {
 	api_vec_u32 sums = api_sums((api_vec_vec_u32){.ptr = rows, .len = 3});
 	printf("sums [%u, %u, %u]\n", sums.ptr[0], sums.ptr[1], sums.ptr[2]);
 	api_vec_u32_free(sums);
+	uint32_t set0[] = {3, 1};
+	uint32_t set2[] = {2};
+	api_vec_u32 sets[] = {{.ptr = set0, .len = 2}, {.ptr = set0, .len = 0}, {.ptr = set2, .len = 1}};
+	api_vec_vec_u32 least = api_least((api_vec_vec_u32){.ptr = sets, .len = 3});
+	printf("least");
+	for (size_t i = 0; i < least.len; i++) {
+		printf(" [");
+		for (size_t j = 0; j < least.ptr[i].len; j++) {
+			printf(j ? ", %u" : "%u", least.ptr[i].ptr[j]);
+		}
+		printf("]");
+	}
+	printf("\n");
+	api_vec_vec_u32_free(least);
+	api_Numbers edges = api_Numbers_edges();
+	numbers("edges", &edges);
+	api_Numbers reversed = api_Numbers_reversed(&edges);
+	numbers("reversed", &reversed);
+	api_Numbers others = api_Numbers_edges();
+	api_Numbers negative = api_Numbers_zero(true);
+	api_Numbers positive = api_Numbers_zero(false);
+	api_Measure nan = api_Measure_new(NAN, false);
+	api_Measure under = api_Measure_new(-0.0, true);
+	api_Measure over = api_Measure_new(0.0, false);
+	printf("float equal %s %s %s %s %s\n", api_Numbers_eq(&edges, &edges) ? "true" : "false",
+	       api_Numbers_eq(&edges, &others) ? "true" : "false", api_Numbers_eq(&negative, &positive) ? "true" : "false",
+	       api_Measure_eq(&nan, &nan) ? "true" : "false", api_Measure_eq(&under, &over) ? "true" : "false");
+	api_Numbers_free(&edges);
+	api_Numbers_free(&reversed);
+	api_Numbers_free(&others);
+	api_Numbers_free(&negative);
+	api_Numbers_free(&positive);
+	api_Measure_free(&nan);
+	api_Measure_free(&under);
+	api_Measure_free(&over);
+	uint32_t totals[] = {UINT32_MAX, UINT32_MAX, 2};
+	printf("sum u32 %llu %llu\n", (unsigned long long)api_sum_u32((api_vec_u32){0}),
+	       (unsigned long long)api_sum_u32((api_vec_u32){.ptr = totals, .len = 3}));
+	int64_t doubling[] = {INT64_MIN, -1, 0, INT64_MAX};
+	api_vec_i64 doubled = api_doubled_i64((api_vec_i64){.ptr = doubling, .len = 4});
+	printf("doubled i64 ");
+	PRINT_LIST(doubled, "%lld", (long long));
+	printf("\n");
+	api_vec_i64_free(doubled);
+	uint64_t nan_bits = 0x7ff8000000000001;
+	double floats[2] = {-0.0, 0};
+	memcpy(&floats[1], &nan_bits, sizeof nan_bits);
+	api_vec_f64 boxed_floats = api_boxed_floats((api_vec_f64){.ptr = floats, .len = 2});
+	printf("boxed floats ");
+	PRINT_LIST(boxed_floats, "%llu", f64_bits);
+	printf("\n");
+	api_vec_f64_free(boxed_floats);
 	api_Point summands[] = {{.x = 1, .y = 2}, {.x = -4, .y = 6}};
 	api_Point summed = api_summed((api_vec_Point){.ptr = summands, .len = 2});
 	api_Point none_summed = api_summed((api_vec_Point){.ptr = summands, .len = 0});
@@ -1598,7 +1757,7 @@ static int script(void) {
 	if (drops != 12) {
 		return 1;
 	}
-	return closures() && foreign_futures() ? 0 : 1;
+	return closures() && foreign_futures() && started_futures() ? 0 : 1;
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */
@@ -1660,6 +1819,15 @@ static int broken(const char *which) {
 	} else if (strcmp(which, "future") == 0) {
 		/* A future with no poll. */
 		api_after((api_foreign_future){0}, 1);
+	} else if (strcmp(which, "started") == 0) {
+		/* A future with no poll, through a start, which the abort names. */
+		uint32_t out;
+		api_after_future *after;
+		api_after_start((api_foreign_future){0}, 1, &out, &after);
+	} else if (strcmp(which, "start") == 0) {
+		/* A start with nowhere to put the handle of a future that pends. */
+		uint32_t out;
+		api_yielded_start(1, &out, NULL);
 	} else if (strcmp(which, "array") == 0) {
 		api_vec_u16 ports = api_ports((api_vec_socket_addr){0});
 		ports.len = 1;

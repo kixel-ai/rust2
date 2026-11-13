@@ -306,6 +306,25 @@ func (a *arena_) hold(h *rt.Handle_, o any) unsafe.Pointer {
 	return raw
 }
 
+// block_ is items, lent in place to C as its array of CT, which T is laid out as: pinned
+// until the call returns, and never null, so an empty one is told apart from none.
+func block_[T, CT any](a *arena_, items []T) (*CT, C.size_t) {
+	if len(items) == 0 {
+		return (*CT)(emptyPtr_()), 0
+	}
+	a.pins.Pin(&items[0])
+	return (*CT)(unsafe.Pointer(&items[0])), C.size_t(len(items))
+}
+
+// liftBlock_ is a copy of the n numbers at ptr, which T is laid out as.
+func liftBlock_[T, CT any](ptr *CT, n C.size_t) []T {
+	out := make([]T, int(n))
+	if n != 0 {
+		copy(out, unsafe.Slice((*T)(unsafe.Pointer(ptr)), int(n)))
+	}
+	return out
+}
+
 // list_ is items as a C array, each lowered by lower, pinned until the call returns:
 // never null, so an empty one is told apart from a missing one.
 func list_[T, CT any](a *arena_, items []T, lower func(T) CT) (*CT, C.size_t) {
@@ -362,19 +381,13 @@ func reader_(k *cgo.Handle) cForeignReader {
 	return cForeignReader{read: goRead, seek: goSeek, data: unsafe.Pointer(k)}
 }
 
-// await_ polls a future until poll reports it finished, returning its error, or ctx's
-// once ctx is done: then the caller frees the future unfinished, which cancels it in Rust
-// and loses nothing, and the next call sees what it would have taken. Its first poll makes
-// no waker, which only a future that pends needs; a wake that lands between a poll that
-// pends and the wait is kept, so the wait returns at once.
+// await_ polls a future whose call pended until poll reports it finished, returning its
+// error, or ctx's once ctx is done: then the caller frees the future unfinished, which
+// cancels it in Rust and loses nothing, and the next call sees what it would have taken.
+// The call polled it first with no waker, which only a future that pends needs, and
+// checked ctx before its first poll; a wake that lands between a poll that pends and the
+// wait is kept, so the wait returns at once.
 func await_(ctx context.Context, poll func(cWaker) (bool, error)) error {
-	// A context done already takes nothing, even what is ready.
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if done, err := poll(cWaker{}); done {
-		return err
-	}
 	woken := make(chan struct{}, 1)
 	waker := waker_(func() {
 		select {

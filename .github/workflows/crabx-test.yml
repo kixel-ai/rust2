@@ -1,0 +1,36 @@
+name: Crabx fixture
+
+on:
+  pull_request:
+    paths:
+      - .github/crabx/**
+      - .github/workflows/crabx*.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fixture:
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/crabx.yml
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    outputs:
+      builds: ${{ steps.plan.outputs.builds }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: plan
+        run: python3 .github/crabx/pipeline.py fixture
+  pr:
+    needs: plan
+    uses: ./.github/workflows/crabx-build.yml
+    with:
+      builds: ${{ needs.plan.outputs.builds }}
