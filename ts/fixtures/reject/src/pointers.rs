@@ -585,6 +585,34 @@ pub fn arc_raw_slice(a: std::sync::Arc<[u32]>) -> *const [u32] {
 	std::sync::Arc::into_raw(a)
 }
 
+/// A value JS keeps as an object, which `new_cyclic` makes.
+pub struct Cyclic(pub u8, pub u8);
+
+/// `Rc::new_cyclic` of a `Cyclic`, while whose closure runs its JS object isn't there yet.
+pub fn cyclic_made() -> std::rc::Rc<Cyclic> {
+	std::rc::Rc::new_cyclic(|_| Cyclic(1, 2))
+}
+
+/// A `Weak`'s pointer to a `Cyclic`, which may be one `new_cyclic` is still making.
+pub fn cyclic_pointed(w: &std::rc::Weak<Cyclic>, c: &Cyclic) -> bool {
+	std::ptr::eq(w.as_ptr(), c)
+}
+
+/// A generic `Weak`'s pointer, which the census leaves to an instance to refuse.
+pub fn cyclic_any<T>(w: &std::rc::Weak<T>, c: &T) -> bool {
+	std::ptr::eq(w.as_ptr(), c)
+}
+
+/// A generic `Rc::new_cyclic`, which the census leaves to an instance to refuse by.
+pub fn cyclic_any_made<T>(t: T) -> std::rc::Rc<T> {
+	std::rc::Rc::new_cyclic(|_| t)
+}
+
+/// A `Weak`'s pointer to a slice, which a `Weak::new` unsized to one has a length of.
+pub fn weak_slice(w: &std::sync::Weak<[u32]>) -> *const [u32] {
+	w.as_ptr()
+}
+
 /// An `Rc` taken back from a raw pointer to bytes, which no `Rc` gave.
 pub fn rc_raw_bytes(p: *const [u8; 4]) -> u8 {
 	unsafe { std::rc::Rc::from_raw(p)[0] }

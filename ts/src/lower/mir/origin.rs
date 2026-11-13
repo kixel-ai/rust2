@@ -748,7 +748,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	}
 
 	/// Whether the raw pointer `op` to a value JS copies is an `Arc`'s or `Rc`'s, as
-	/// `into_raw` or `as_ptr` gives, rather than a borrow's, if the body shows where it came
+	/// `into_raw` or its or a `Weak`'s `as_ptr` gives, rather than a borrow's, if the body shows where it came
 	/// from: an `Arc`'s is the one place of its value, and a borrow's a place of its own.
 	pub(super) fn arc_pointer(&self, op: &Operand<'tcx>) -> Option<bool> {
 		let local = self.traced(op)?;
@@ -779,7 +779,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let (def_id, _, args) = self.def_call(local)?;
 		let (owner, name) = library::key(self.tcx, def_id)?;
 		match (owner.as_str(), name.as_str()) {
-			("Arc" | "Rc", "into_raw" | "as_ptr") => Some(true),
+			("Arc" | "Rc", "into_raw" | "as_ptr") | ("Weak", "as_ptr") => Some(true),
 			("ptr", "from_ref" | "from_mut") | ("From", "from") => Some(self.arc_of(&args.first()?.node).is_some()),
 			("ptr" | "NonNull", "cast_const" | "cast_mut") | ("NonNull", "as_ptr" | "new_unchecked") => {
 				self.arc_pointer(&args.first()?.node)

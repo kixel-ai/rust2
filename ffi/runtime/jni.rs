@@ -4,7 +4,9 @@
 //! A value Kotlin passes is a JNI scalar, a handle as a `long`, its bytes as a `byte[]`,
 //! or anything else encoded into a `byte[]`: little-endian, field by field, as the C
 //! struct holds it, with a buffer as its length (-1 for none) and its bytes, and an array
-//! as its length (-1 for none) and its elements. Bytes Rust returns cross copied when short,
+//! as its length (-1 for none) and its elements; a record passed or returned directly
+//! crosses its scalars as parameters, or through Kotlin's `long[]` slots, apart from the
+//! rest. Bytes Rust returns cross copied when short,
 //! and otherwise as their owner, which a Kotlin `Bytes` reads through a call each until the
 //! GC collects it.
 
@@ -415,6 +417,14 @@ pub unsafe fn lent(env: *mut JNIEnv, buf: rt::Buf) -> jbyteArray {
 		// SAFETY: the caller's contract.
 		false => array(env, unsafe { buf.bytes("jni") }),
 	}
+}
+
+/// Set the first of Kotlin's `long[]` `slots` to `values`: a returned record's scalars,
+/// which cross with no `byte[]` to allocate and decode. Slots shorter than `values` throw.
+pub fn slots(env: *mut JNIEnv, slots: jlongArray, values: &[i64]) {
+	// SAFETY: `env` is this thread's, `slots` a live `long[]` the call was given, and
+	// `values` holds `values.len()` longs, which a record's few scalars fit a `jsize`.
+	unsafe { ((**env).v1_2.SetLongArrayRegion)(env, slots, 0, values.len() as jsize, values.as_ptr()) }
 }
 
 /// A global reference to a Kotlin value, which Rust may hold on any thread.

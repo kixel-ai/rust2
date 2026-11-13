@@ -46,5 +46,4 @@ layout fields.
 ## Related
 
 - [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - a value has no handle to check, so fewer calls can fail one
-- [Kotlin records](/quest/m1/ffi-speed/kotlin-records.md) - a record holds `Copy` handles today, so its layout changes with this
 - [Cheaper returned-object ownership](/quest/m1/ffi-speed/object-ownership.md) - the other half of Go's and Dart's stamped write
