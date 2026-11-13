@@ -56,7 +56,7 @@ impl Spec {
 			bail!("version build metadata is not supported by crates.io");
 		}
 		Ok(Self {
-			name: name.to_ascii_lowercase(),
+			name: name.to_owned(),
 			version,
 		})
 	}
@@ -77,7 +77,7 @@ mod tests {
 
 	#[test]
 	fn exact_versions_and_opaque_arguments() {
-		assert_eq!(Spec::parse("Moq-Relay@1.2.3").unwrap().name, "moq-relay");
+		assert_eq!(Spec::parse("Moq-Relay@1.2.3").unwrap().name, "Moq-Relay");
 		for invalid in ["../x", "x/y", "-x", "x@^1", "x@1", "x@1.2.3@4", "x@1.2.3+other"] {
 			assert!(Spec::parse(invalid).is_err(), "{invalid}");
 		}

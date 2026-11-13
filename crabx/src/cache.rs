@@ -62,7 +62,7 @@ impl Cache {
 			.join("v1")
 			.join(binstalk::TARGET)
 			.join(mode)
-			.join(&spec.name);
+			.join(spec.name.to_ascii_lowercase());
 		Ok(Self { root })
 	}
 

@@ -12,8 +12,9 @@ Options go before the crate. Everything after it, including flags, spaces, and
 non-UTF-8 arguments on Unix, goes to the downloaded binary. A crate with several
 binaries uses the one named after the crate, or its only binary. Otherwise choose
 `--bin NAME`.
-Crate names are case-insensitive and share one lowercase cache key. Binary names
-passed through `--bin` retain their spelling.
+Registry lookups and cache keys are case-insensitive. The explicit `--build` path
+preserves the typed crate spelling for Cargo. Binary names passed through `--bin`
+retain their spelling.
 
 crabx uses binstalk's release discovery, archive layouts, and signature verification.
 It never installs into `~/.cargo/bin`. Missing prebuilt assets are an error. Pass

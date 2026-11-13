@@ -32,6 +32,8 @@ fn setup(temp: &Path, name: &str) -> std::path::PathBuf {
         fn main() {
             let args: Vec<_> = std::env::args_os().skip(1).collect();
             if args.first().is_some_and(|arg| arg == "install") {
+                let expected = std::env::var_os("CRABX_TEST_CRATE").unwrap_or_else(|| "fixture".into());
+                assert_eq!(args[1], expected);
                 assert!(args.iter().any(|arg| arg == "--locked"));
                 let target = args.iter().position(|arg| arg == "--target").unwrap();
                 assert_eq!(args[target + 1], std::env::var_os("CRABX_TEST_TARGET").unwrap());
@@ -90,8 +92,9 @@ fn build_is_explicit_host_targeted_and_separate_from_author_cache() {
 	let temp = tempfile::tempdir().unwrap();
 	setup(temp.path(), "fixture");
 	let output = crabx(temp.path())
-		.args(["--build", "fixture@1.2.3", "built argument"])
+		.args(["--build", "FiXtUrE@1.2.3", "built argument"])
 		.env("CARGO", temp.path().join("helper"))
+		.env("CRABX_TEST_CRATE", "FiXtUrE")
 		.env("CRABX_TEST_TARGET", binstalk::TARGET)
 		.env("PATH", "")
 		.output()

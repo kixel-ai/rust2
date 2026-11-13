@@ -83,7 +83,7 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 		.transpose()?
 		.unwrap_or(VersionReq::STAR);
 	let (manifest, _) = binstalk::registry::Registry::default()
-		.fetch_crate_matched(client.clone(), &spec.name, &req)
+		.fetch_crate_matched(client.clone(), &spec.name.to_ascii_lowercase(), &req)
 		.await?;
 	let mut package = manifest.package.context("crate manifest has no package")?;
 	ensure!(
