@@ -1026,3 +1026,8 @@ pub fn hazard(hazard: Box<dyn Hazard>) -> u32 {
 pub fn wide_non_zero(n: std::num::NonZero<u128>) -> u128 {
 	n.get()
 }
+
+/// A boxed slice of bytes, which no buffer form takes.
+pub fn boxed_bytes(bytes: Box<[u8]>) -> usize {
+	bytes.len()
+}

@@ -35,9 +35,17 @@ export function strings(data: rs.ByteSlice, out: rs.ByteVec): void {
 				break b2;
 			}
 			if (_23 === 2) {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_mapOr$0yzb10z(ArrayString.pop$12(s), 0, (a0: rs.char): rs.u32 => {
+				const dst = out;
+				const word = option_mapOr$0yzb10z(ArrayString.pop$12(s), 0, (a0: rs.char): rs.u32 => {
 					return a0 as rs.u32;
-				})).reverse()));
+				});
+				rs.byteVecReserve(dst, 4 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = word & 255;
+				dst.data[pos + 1] = (word >>> 8) & 255;
+				dst.data[pos + 2] = (word >>> 16) & 255;
+				dst.data[pos + 3] = (word >>> 24) & 255;
+				dst.length = dst.length + 4;
 				break b2;
 			}
 			if (_23 === 3) {
@@ -49,7 +57,15 @@ export function strings(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			if (_23 === 4) {
 				if (!ArrayString.isEmpty$12(s)) {
-					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(ArrayString.remove$12(s, 0) as rs.u32).reverse()));
+					const dst2 = out;
+					const word2 = ArrayString.remove$12(s, 0) as rs.u32;
+					rs.byteVecReserve(dst2, 4 as rs.usize);
+					const pos2 = dst2.length;
+					dst2.data[pos2 + 0] = word2 & 255;
+					dst2.data[pos2 + 1] = (word2 >>> 8) & 255;
+					dst2.data[pos2 + 2] = (word2 >>> 16) & 255;
+					dst2.data[pos2 + 3] = (word2 >>> 24) & 255;
+					dst2.length = dst2.length + 4;
 					break b2;
 				}
 			} else {

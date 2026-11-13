@@ -151,13 +151,41 @@ export function area$shapes_Area_shapes_Shape(self: Wrap<Shape.Shape>): rs.u64 {
 /** A default method, monomorphized for each type. */
 export function describe$shapes_Area_shapes_Meters(self: Wrap<Meters.Meters>, out: rs.ByteVec): void {
 	rs.byteVecPush(out, 0);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(area$shapes_Area_shapes_Meters(self))));
+	const dst = out;
+	const word = area$shapes_Area_shapes_Meters(self);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word3 >>> 24) & 255;
+	dst.data[pos + 1] = (word3 >>> 16) & 255;
+	dst.data[pos + 2] = (word3 >>> 8) & 255;
+	dst.data[pos + 3] = word3 & 255;
+	dst.data[pos + 4] = (word2 >>> 24) & 255;
+	dst.data[pos + 5] = (word2 >>> 16) & 255;
+	dst.data[pos + 6] = (word2 >>> 8) & 255;
+	dst.data[pos + 7] = word2 & 255;
+	dst.length = dst.length + 8;
 }
 
 /** A default method, monomorphized for each type. */
 export function describe$shapes_Area_shapes_Shape(self: Wrap<Shape.Shape>, out: rs.ByteVec): void {
 	rs.byteVecPush(out, 4);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(area$shapes_Area_shapes_Shape(self))));
+	const dst = out;
+	const word = area$shapes_Area_shapes_Shape(self);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word3 >>> 24) & 255;
+	dst.data[pos + 1] = (word3 >>> 16) & 255;
+	dst.data[pos + 2] = (word3 >>> 8) & 255;
+	dst.data[pos + 3] = word3 & 255;
+	dst.data[pos + 4] = (word2 >>> 24) & 255;
+	dst.data[pos + 5] = (word2 >>> 16) & 255;
+	dst.data[pos + 6] = (word2 >>> 8) & 255;
+	dst.data[pos + 7] = word2 & 255;
+	dst.length = dst.length + 8;
 }
 
 //# sourceMappingURL=generics.Wrap.ts.map

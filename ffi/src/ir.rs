@@ -44,6 +44,34 @@ impl Api {
 		}
 	}
 
+	/// Whether a value of `ty` holds a float anywhere, its records' and enums' included, so a
+	/// language comparing it itself must use IEEE `==`, as Rust does: NaN unequal even to
+	/// itself, and -0.0 equal to 0.0.
+	pub fn holds_float(&self, ty: &Type) -> bool {
+		self.floats(ty, &mut std::collections::HashSet::new())
+	}
+
+	fn floats(&self, ty: &Type, seen: &mut std::collections::HashSet<(bool, usize)>) -> bool {
+		match ty {
+			Type::F32 | Type::F64 => true,
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => {
+				self.floats(inner, seen)
+			}
+			Type::Tuple(elements) => elements.iter().any(|e| self.floats(e, seen)),
+			// A type already seen is being looked through, so it adds nothing new.
+			Type::Record(i) => {
+				seen.insert((false, *i)) && self.records[*i].fields.iter().any(|f| self.floats(&f.ty, seen))
+			}
+			Type::Enum(i) => {
+				seen.insert((true, *i))
+					&& (self.enums[*i].variants.iter())
+						.flat_map(|v| &v.fields)
+						.any(|f| self.floats(&f.ty, seen))
+			}
+			_ => false,
+		}
+	}
+
 	/// Whether an item on `on` is on every target the API serves.
 	pub fn everywhere(&self, on: On) -> bool {
 		on.0 & self.all().0 == self.all().0
@@ -437,8 +465,8 @@ pub enum Type {
 	/// `std::net::SocketAddr`, or `SocketAddrV4` or `SocketAddrV6` for one family.
 	SocketAddr(Family),
 	/// A collection of `T`, which C passes and returns as an array of its items: `Vec<T>` of
-	/// any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]` too; a set;
-	/// or a map, whose `T` is the tuple of a key and its value.
+	/// any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]` too; a boxed
+	/// slice; a set; or a map, whose `T` is the tuple of a key and its value.
 	List(Collection, Box<Type>),
 	/// `std::task::Waker`, only as a parameter taken by value or a return: a returned
 	/// `&Waker` is its clone, and a returned `Context` its waker's.
@@ -493,8 +521,12 @@ pub struct Closure {
 /// The Rust collection a [`Type::List`] is, which Rust builds from its items in order.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Collection {
-	/// `Vec<T>`, or behind a reference, `[T]`.
+	/// `Vec<T>`
 	Vec,
+	/// `[T]`, only behind a reference.
+	Slice,
+	/// `Box<[T]>`
+	Box,
 	/// `std::collections::BTreeSet<T>`
 	BTreeSet,
 	/// `std::collections::BTreeMap<K, V>`
@@ -597,6 +629,31 @@ impl Type {
 		match self {
 			Type::Ref(_, inner) | Type::Box(inner) => inner.base(),
 			ty => ty,
+		}
+	}
+
+	/// The element of a list that crosses as one block of its C values, which a binding
+	/// holds as the language's primitive array: a `Vec`, slice, or boxed slice of a
+	/// fixed-width integer or a float. `usize` and `isize` differ in width by target, so no
+	/// one array type holds them on every target.
+	pub fn block(&self) -> Option<&Type> {
+		match self {
+			Type::List(Collection::Vec | Collection::Slice | Collection::Box, inner) => match &**inner {
+				Type::Int(Int::Usize | Int::Isize) => None,
+				Type::Int(_) | Type::F32 | Type::F64 => Some(inner),
+				_ => None,
+			},
+			_ => None,
+		}
+	}
+
+	/// Whether this type holds a block anywhere but in a record or enum, which compare their own.
+	pub fn holds_block(&self) -> bool {
+		match self {
+			_ if self.block().is_some() => true,
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => inner.holds_block(),
+			Type::Tuple(elements) => elements.iter().any(Type::holds_block),
+			_ => false,
 		}
 	}
 

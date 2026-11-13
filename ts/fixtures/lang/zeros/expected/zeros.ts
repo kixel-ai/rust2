@@ -244,37 +244,135 @@ export function hash$zeros_Tagged_String(value: Tagged.Tagged<rs.String>): rs.u6
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$marker_PhantomData_u64(value: undefined, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$marker_PhantomData_u64(value)).reverse()));
+	const dst = out;
+	const word = hash$marker_PhantomData_u64(value);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$marker_PhantomPinned(value: undefined, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$marker_PhantomPinned(value)).reverse()));
+	const dst = out;
+	const word = hash$marker_PhantomPinned(value);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$ops_RangeFull(value: undefined, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$ops_RangeFull(value)).reverse()));
+	const dst = out;
+	const word = hash$ops_RangeFull(value);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$u8(value: rs.u8, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$u8(value)).reverse()));
+	const dst = out;
+	const word = hash$u8(value);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$unit(value: undefined, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$unit(value)).reverse()));
+	const dst = out;
+	const word = hash$unit(value);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$zeros_Names(value: Names.Names, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$zeros_Names(value)).reverse()));
+	const dst = out;
+	const word = hash$zeros_Names(value);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$zeros_Tagged_String(value: Tagged.Tagged<rs.String>, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$zeros_Tagged_String(value)).reverse()));
+	const dst = out;
+	const word = hash$zeros_Tagged_String(value);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** The impls `#[derive]` calls on `PhantomData`, `PhantomPinned`, and `()` fields. */

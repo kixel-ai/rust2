@@ -316,6 +316,12 @@ fn compare(wasm: &Path, out: &Path, entry: &str, cases: u32, glue: Option<&Path>
 #[test]
 fn codec() {
 	let out = translated("codec");
+	let varint = std::fs::read_to_string(out.join("coding/varint.ts")).unwrap();
+	assert!(
+		!varint.contains("ToBeBytes(") && !varint.contains("Uint8Array.of("),
+		"varint encodes must write scalar bytes without allocating arrays"
+	);
+
 	snapshot("codec", &out);
 	std::fs::write(out.join("shake.ts"), SHAKE).unwrap();
 	std::fs::copy(fixture("codec").join("caller.ts"), out.join("caller.ts")).unwrap();
@@ -1351,6 +1357,16 @@ fn stock() {
 		output.status.success(),
 		"translating stock failed:\n{}",
 		String::from_utf8_lossy(&output.stderr)
+	);
+	let buf = std::fs::read_to_string(out.join("buf.ts")).unwrap();
+	let encodes = buf
+		.split("export function scalarEncodes(")
+		.nth(1)
+		.expect("scalar encodes");
+	let encodes = encodes.split("export function takeU64$scalar_encodes").next().unwrap();
+	assert!(
+		!encodes.contains("rs.bytesMutExtend("),
+		"scalar BytesMut appends must write bytes directly"
 	);
 	snapshot("stock", &out);
 	// A hand-written caller, which names the cases and inputs the generated ones never reach.

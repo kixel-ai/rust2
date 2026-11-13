@@ -1573,11 +1573,57 @@ fn errors(output: &Output) -> Vec<String> {
 	errors
 }
 
+/// Cleanup must refuse a baseline anywhere below a replaced directory.
+fn lock_baseline_cleanup() {
+	let dir = scratch().join("lock-cleanup");
+	let base = dir.join("base");
+	let output = export("lock", &base, &[], &[]);
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let before = std::fs::read(base.join("api.json")).unwrap();
+	for replaced in ["go", "include/lock"] {
+		let out = dir.join(replaced.replace('/', "-"));
+		let baseline = out.join(replaced).join("nested/baseline.json");
+		std::fs::create_dir_all(baseline.parent().unwrap()).unwrap();
+		std::fs::write(&baseline, &before).unwrap();
+		let args = ["--baseline".as_ref(), baseline.as_os_str()];
+		let output = exporter("lock", &out, &[], &args, &[]).output().unwrap();
+		assert!(!output.status.success(), "export deleted baseline inside {replaced}");
+		assert_eq!(std::fs::read(&baseline).unwrap(), before);
+		assert!(String::from_utf8_lossy(&output.stderr).contains("export replaces"));
+	}
+}
+
+/// Adding a thrown type can remove a Swift overload without changing its Rust function.
+fn lock_swift_removed_overload() {
+	let dir = scratch().join("lock-overload");
+	let base = dir.join("base");
+	let output = export("lock", &base, &[], &[]);
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let baseline = base.join("api.json");
+	let args = ["--baseline".as_ref(), baseline.as_os_str()];
+	let out = dir.join("thrown");
+	let _ = std::fs::remove_dir_all(&out);
+	let output = exporter("lock", &out, &[], &args, &["--features", "thrown"])
+		.output()
+		.unwrap();
+	assert!(!output.status.success(), "removed Swift overload passed the lock");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains(
+			"overload omitting Rust parameter indices 0 (zero-based): its Swift name `debugDescription` is no longer exported"
+		),
+		"{stderr}"
+	);
+	assert!(!out.join("api.json").exists());
+}
+
 /// The lock fixture exported for wasm32, staged, and the host, then again against that
 /// export's API as the baseline: with `next`, which must fail at each break, and with
 /// `added`, which must pass.
 #[test]
 fn lock() {
+	lock_baseline_cleanup();
+	lock_swift_removed_overload();
 	let dir = scratch().join("lock");
 	let targets = [WASM, host()];
 	let output = export("lock", &dir.join("base"), &targets, &[]);
@@ -1588,6 +1634,51 @@ fn lock() {
 	);
 	let baseline = dir.join("base").join("api.json");
 	let before = std::fs::read(&baseline).unwrap();
+	let json: serde_json::Value = serde_json::from_slice(&before).unwrap();
+	for language in ["C++", "Kotlin", "Swift", "Dart", "Python", "Go"] {
+		assert!(
+			json["names"][language]["const lock::DEPTH"].is_string(),
+			"{language} constant name missing"
+		);
+	}
+	for missing in ["all", "Dart"] {
+		let mut bad = json.clone();
+		if missing == "all" {
+			bad.as_object_mut().unwrap().remove("names");
+		} else {
+			bad["names"].as_object_mut().unwrap().remove(missing);
+		}
+		let path = dir.join(format!("missing-{missing}.json"));
+		std::fs::write(&path, serde_json::to_vec(&bad).unwrap()).unwrap();
+		let args = ["--baseline".as_ref(), path.as_os_str()];
+		let out = dir.join(format!("missing-{missing}"));
+		let _ = std::fs::remove_dir_all(&out);
+		let output = exporter("lock", &out, &targets, &args, &[]).output().unwrap();
+		assert!(!output.status.success());
+		assert_eq!(
+			String::from_utf8_lossy(&output.stderr)
+				.matches("baseline lacks")
+				.count(),
+			1
+		);
+		assert!(!out.exists(), "a baseline without names wrote {}", out.display());
+	}
+	// A baseline from before names were kept still has its structure checked.
+	let path = dir.join("missing-all.json");
+	let args = ["--baseline".as_ref(), path.as_os_str()];
+	let out = dir.join("missing-next");
+	let _ = std::fs::remove_dir_all(&out);
+	let output = exporter("lock", &out, &targets, &args, &["--features", "next"])
+		.output()
+		.unwrap();
+	assert!(!out.exists(), "a refused export wrote {}", out.display());
+	assert!(!output.status.success());
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(stderr.contains("baseline lacks binding names"), "{stderr}");
+	assert!(
+		stderr.contains("the API breaks the baseline at fn `lock::removed`: it is removed"),
+		"no structural break against a baseline without names:\n{stderr}"
+	);
 	let args = ["--baseline".as_ref(), baseline.as_os_str()];
 	let itself = exporter("lock", &dir.join("base"), &targets, &args, &[])
 		.output()
@@ -1646,6 +1737,87 @@ fn lock() {
 		"an addition broke the baseline:\n{}",
 		String::from_utf8_lossy(&added.stderr)
 	);
+	let names = locked("names");
+	assert!(!names.status.success(), "binding renames passed the lock");
+	let stderr = String::from_utf8_lossy(&names.stderr);
+	for language in ["Kotlin", "Swift", "Go", "Dart", "Python"] {
+		assert!(
+			stderr.contains(&format!(
+				"its {language} name `GraphicsEncoderFinish` is now `GraphicsEncoder_Finish`"
+			)),
+			"missing class rename for {language}:\n{stderr}"
+		);
+	}
+	for (language, old, new) in [
+		("Kotlin", "smoothStep", "smoothStep_"),
+		("Swift", "smoothStep", "smoothStep_"),
+		("Dart", "smoothStep", "smoothStep_"),
+		("Python", "smooth_step", "smooth_step_"),
+		("Go", "SmoothStep", "SmoothStep_"),
+	] {
+		assert!(
+			stderr.contains(&format!("its {language} name `{old}` is now `{new}`")),
+			"missing member rename for {language}:\n{stderr}"
+		);
+	}
+
+	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	assert!(!dir.join("names/api.json").exists());
+	let members = locked("members");
+	assert!(!members.status.success());
+	let stderr = String::from_utf8_lossy(&members.stderr);
+	assert!(
+		stderr.contains("its C++ name `value` is now `value_`"),
+		"C++ member rename missing:\n{stderr}"
+	);
+	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	let wrappers = locked("wrappers");
+	assert!(!wrappers.status.success());
+	let stderr = String::from_utf8_lossy(&wrappers.stderr);
+	for text in [
+		"its Kotlin name `StringException` is now `StringException_`",
+		"its Python name `StringException` is now `StringException_`",
+		"its Swift name `StringError` is now `StringError_`",
+		"its Dart name `StringException` is now `StringException_`",
+		"its Dart name `ShapeCircle` is now `ShapeCircle_`",
+		"its Go name `ModeFast` is now `ModeFast_`",
+		"its Go name `GoString` is now `GoString_`",
+		"/ overload omitting Rust parameter indices 0 (zero-based): its Swift name `debugDescription` is now `debugDescription_`",
+	] {
+		assert!(stderr.contains(text), "missing {text}:\n{stderr}");
+	}
+	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	let defaults = locked("defaults");
+	assert!(!defaults.status.success(), "a Go Default rename passed the lock");
+	let stderr = String::from_utf8_lossy(&defaults.stderr);
+	assert!(
+		stderr.contains("type `lock::Meter` / Default: its Go name `MeterDefault` is now `MeterDefault_`"),
+		"Go Default rename missing:\n{stderr}"
+	);
+	let closure_base = dir.join("closure-base");
+	let output = export("lock", &closure_base, &targets, &["--features", "closures"]);
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let closure_baseline = closure_base.join("api.json");
+	let args = ["--baseline".as_ref(), closure_baseline.as_os_str()];
+	let output = exporter(
+		"lock",
+		&dir.join("closure-break"),
+		&targets,
+		&args,
+		&["--features", "closures,wrappers"],
+	)
+	.output()
+	.unwrap();
+	assert!(!output.status.success());
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	for language in ["Kotlin", "Python", "Dart"] {
+		assert!(
+			stderr.contains(&format!(
+				"exception class for `string`: its {language} name `StringException` is now `StringException_`"
+			)),
+			"{stderr}"
+		);
+	}
 	let next = locked("next");
 	assert!(!next.status.success(), "breaking the baseline passed");
 	assert!(

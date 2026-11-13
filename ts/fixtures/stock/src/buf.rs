@@ -1318,3 +1318,78 @@ impl<'a> Ops<'a> {
 		taken
 	}
 }
+
+/// Both endian orders, every integer width, scalar reads, escapes, and buffer offsets.
+pub fn scalar_encodes(data: &[u8], out: &mut Vec<u8>) {
+	fn take_u64(data: &[u8]) -> (u64, &[u8]) {
+		let mut buf = [0u8; 8];
+		let n = data.len().min(8);
+		buf[..n].copy_from_slice(&data[..n]);
+		(u64::from_be_bytes(buf), &data[n..])
+	}
+	let (lo, rest) = take_u64(data);
+	let (hi, _) = take_u64(rest);
+	let wide = (u128::from(hi) << 64) | u128::from(lo);
+	macro_rules! write {
+		($value:expr) => {{
+			let value = $value;
+			out.extend_from_slice(&value.to_be_bytes());
+			out.extend_from_slice(&value.to_le_bytes());
+			let be = value.to_be_bytes();
+			out.push(be[0]);
+			out.extend_from_slice(&be);
+			out.extend_from_slice(&be);
+		}};
+	}
+	write!(lo as u8);
+	write!(lo as i8);
+	write!(lo as u16);
+	write!(lo as i16);
+	write!(lo as u32);
+	write!(lo as i32);
+	write!(lo as usize);
+	write!(lo as isize);
+	write!(lo);
+	write!(lo as i64);
+	write!(wide);
+	write!(wide as i128);
+	write!(f32::from_bits(lo as u32));
+	write!(f64::from_bits(lo));
+	for capacity in [1, 64] {
+		let mut buf = BytesMut::with_capacity(capacity);
+		buf.put_slice(&[1, 2, 3]);
+		buf.advance(2);
+		buf.put_slice(&lo.to_le_bytes());
+		buf.extend_from_slice(&wide.to_be_bytes());
+		buf.put_slice(&[data.first().copied().unwrap_or(0), 255]);
+		out.extend_from_slice(&buf);
+	}
+	let captured = lo.to_be_bytes();
+	let read = || captured[0];
+	out.push(read());
+	out.extend_from_slice(&captured);
+	let mut escaped = lo.to_be_bytes();
+	escaped.reverse();
+	out.extend_from_slice(&escaped);
+	let mut changed = lo.to_le_bytes();
+	changed[0] = 42;
+	out.extend_from_slice(&changed);
+	// An element no read names still runs, effects and all.
+	let mut calls = 0u8;
+	let mut bump = |byte: u8| {
+		calls += 1;
+		byte
+	};
+	let unread = [bump(lo as u8), 9, (lo >> 8) as u8];
+	out.push(unread[1]);
+	out.push(unread[2]);
+	out.push(calls);
+	// A closure that makes the array rebinds the destination first.
+	let mut dst = Vec::new();
+	let bytes = (|| {
+		dst = vec![9];
+		[1u8, lo as u8]
+	})();
+	dst.extend_from_slice(&bytes);
+	out.extend_from_slice(&dst);
+}

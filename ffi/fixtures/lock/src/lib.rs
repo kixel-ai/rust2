@@ -196,3 +196,132 @@ pub fn nested(x: ((u32,), u64, u8)) -> u32 {
 pub fn flat(x: ((u32, u64), u8)) -> u32 {
 	x.0.0
 }
+
+/// Kept class whose Pascal name collides only in the bindings.
+pub mod graphics {
+	pub mod encoder {
+		pub struct Finish {
+			pub value: u32,
+		}
+	}
+
+	#[cfg(feature = "names")]
+	pub struct EncoderFinish {
+		pub value: u32,
+	}
+}
+
+#[cfg(feature = "names")]
+#[allow(non_snake_case)]
+pub fn smoothStep() -> u32 {
+	2
+}
+
+/// Kept function whose camel name is claimed by the added function first.
+pub fn smooth_step() -> u32 {
+	1
+}
+
+/// Adding a field changes a C++ method's name without changing its C symbol.
+#[repr(C)]
+pub struct Members {
+	pub other: u32,
+	#[cfg(feature = "members")]
+	pub value: u32,
+}
+
+impl Members {
+	pub fn value(&self) -> u32 {
+		self.other
+	}
+}
+
+#[cfg(feature = "added")]
+pub fn failing_borrowed() -> Result<u32, &'static str> {
+	Err("failure")
+}
+
+/// Error wrappers and variants occupy their own language namespaces.
+#[cfg(not(feature = "closures"))]
+pub fn failing() -> Result<u32, String> {
+	Err("failure".to_string())
+}
+
+#[cfg(feature = "wrappers")]
+pub struct StringException {
+	pub value: u32,
+}
+#[cfg(feature = "wrappers")]
+pub struct StringError {
+	pub value: u32,
+}
+#[cfg(feature = "wrappers")]
+pub struct ShapeCircle {
+	pub value: u32,
+}
+#[cfg(feature = "wrappers")]
+pub struct ModeFast {
+	pub value: u32,
+}
+
+#[repr(C)]
+#[cfg_attr(feature = "wrappers", derive(Debug))]
+#[allow(non_snake_case)]
+pub struct FieldName {
+	pub GoString: u32,
+}
+
+/// Different Rust integer errors reuse Python's IntException.
+pub fn failing_integer() -> Result<(), u32> {
+	Err(1)
+}
+
+impl Members {
+	#[cfg(feature = "added")]
+	pub fn failing_integer(&self) -> Result<(), u64> {
+		Err(2)
+	}
+	#[cfg(feature = "added")]
+	pub fn failing_path(&self) -> Result<(), std::path::PathBuf> {
+		Err("error".into())
+	}
+}
+
+#[cfg(feature = "closures")]
+pub fn attempt(check: impl FnOnce() -> Result<(), String>) {
+	let _ = check();
+}
+
+impl FieldName {
+	pub fn debug_description(&self, meter: Option<&Meter>) -> u64 {
+		meter.map_or(0, Meter::total)
+	}
+}
+
+/// Claims Go's name for `Meter`'s `Default` constructor, since types claim theirs first.
+#[cfg(feature = "defaults")]
+pub struct MeterDefault {
+	pub value: u32,
+}
+
+/// A variant `next` renames: only the structural check reports it, not each binding's name.
+pub enum Speed {
+	#[cfg(not(feature = "next"))]
+	Fast,
+	#[cfg(feature = "next")]
+	Quick,
+	Slow,
+}
+
+pub fn speed(speed: Speed) -> u32 {
+	match speed {
+		Speed::Slow => 0,
+		_ => 1,
+	}
+}
+
+/// Turning Meter into a Swift error removes its noncopyable optional overloads.
+#[cfg(feature = "thrown")]
+pub fn failing_meter() -> Result<(), Meter> {
+	Err(Meter::new())
+}

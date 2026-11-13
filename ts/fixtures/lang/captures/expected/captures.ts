@@ -22,7 +22,11 @@ export function u8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
 	const b: rs.u8 = ([rs.u8FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.u8, rs.ByteSlice])[0];
 	const put: (a0: rs.u8) => undefined = (v: rs.u8): undefined => {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(v)));
+		const dst = out;
+		const word = v;
+		rs.byteVecReserve(dst, 1 as rs.usize);
+		dst.data[dst.length + 0] = word & 255;
+		dst.length = dst.length + 1;
 	};
 	let n3: rs.u8 = a;
 	const part = ((): rs.u8 => {
@@ -123,7 +127,13 @@ export function u16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
 	const b: rs.u16 = ([rs.u16FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.u16, rs.ByteSlice])[0];
 	const put: (a0: rs.u16) => undefined = (v: rs.u16): undefined => {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(v)));
+		const dst = out;
+		const word = v;
+		rs.byteVecReserve(dst, 2 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 8) & 255;
+		dst.data[pos + 1] = word & 255;
+		dst.length = dst.length + 2;
 	};
 	let n3: rs.u16 = a;
 	const part = ((): rs.u16 => {
@@ -224,7 +234,15 @@ export function u32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
 	const b: rs.u32 = ([rs.u32FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.u32, rs.ByteSlice])[0];
 	const put: (a0: rs.u32) => undefined = (v: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(v)));
+		const dst = out;
+		const word = v;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 	};
 	let n3: rs.u32 = a;
 	const part = ((): rs.u32 => {
@@ -325,7 +343,21 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
 	const b: rs.u64 = ([rs.u64FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.u64, rs.ByteSlice])[0];
 	const put: (a0: rs.u64) => undefined = (v: rs.u64): undefined => {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(v)));
+		const dst = out;
+		const word = v;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		rs.byteVecReserve(dst, 8 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word3 >>> 24) & 255;
+		dst.data[pos + 1] = (word3 >>> 16) & 255;
+		dst.data[pos + 2] = (word3 >>> 8) & 255;
+		dst.data[pos + 3] = word3 & 255;
+		dst.data[pos + 4] = (word2 >>> 24) & 255;
+		dst.data[pos + 5] = (word2 >>> 16) & 255;
+		dst.data[pos + 6] = (word2 >>> 8) & 255;
+		dst.data[pos + 7] = word2 & 255;
+		dst.length = dst.length + 8;
 	};
 	let n3: rs.u64 = a;
 	const part = ((): rs.u64 => {
@@ -426,7 +458,31 @@ export function u128s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
 	const b: rs.u128 = ([rs.u128FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.u128, rs.ByteSlice])[0];
 	const put: (a0: rs.u128) => undefined = (v: rs.u128): undefined => {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(v)));
+		const dst = out;
+		const word = v;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
 	};
 	let n3: rs.u128 = a;
 	const part = ((): rs.u128 => {
@@ -527,7 +583,15 @@ export function usizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
 	const b: rs.usize = ([rs.usizeFromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.usize, rs.ByteSlice])[0];
 	const put: (a0: rs.usize) => undefined = (v: rs.usize): undefined => {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(v)));
+		const dst = out;
+		const word = v;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 	};
 	let n3: rs.usize = a;
 	const part = ((): rs.usize => {
@@ -621,7 +685,11 @@ export function i8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
 	const b: rs.i8 = ([rs.i8FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.i8, rs.ByteSlice])[0];
 	const put: (a0: rs.i8) => undefined = (v: rs.i8): undefined => {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(v)));
+		const dst = out;
+		const word = v;
+		rs.byteVecReserve(dst, 1 as rs.usize);
+		dst.data[dst.length + 0] = word & 255;
+		dst.length = dst.length + 1;
 	};
 	let n3: rs.i8 = a;
 	const part = ((): rs.i8 => {
@@ -722,7 +790,13 @@ export function i16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
 	const b: rs.i16 = ([rs.i16FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.i16, rs.ByteSlice])[0];
 	const put: (a0: rs.i16) => undefined = (v: rs.i16): undefined => {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(v)));
+		const dst = out;
+		const word = v;
+		rs.byteVecReserve(dst, 2 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 8) & 255;
+		dst.data[pos + 1] = word & 255;
+		dst.length = dst.length + 2;
 	};
 	let n3: rs.i16 = a;
 	const part = ((): rs.i16 => {
@@ -823,7 +897,15 @@ export function i32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
 	const b: rs.i32 = ([rs.i32FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.i32, rs.ByteSlice])[0];
 	const put: (a0: rs.i32) => undefined = (v: rs.i32): undefined => {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(v)));
+		const dst = out;
+		const word = v;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 	};
 	let n3: rs.i32 = a;
 	const part = ((): rs.i32 => {
@@ -924,7 +1006,21 @@ export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
 	const b: rs.i64 = ([rs.i64FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.i64, rs.ByteSlice])[0];
 	const put: (a0: rs.i64) => undefined = (v: rs.i64): undefined => {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(v)));
+		const dst = out;
+		const word = v;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		rs.byteVecReserve(dst, 8 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word3 >>> 24) & 255;
+		dst.data[pos + 1] = (word3 >>> 16) & 255;
+		dst.data[pos + 2] = (word3 >>> 8) & 255;
+		dst.data[pos + 3] = word3 & 255;
+		dst.data[pos + 4] = (word2 >>> 24) & 255;
+		dst.data[pos + 5] = (word2 >>> 16) & 255;
+		dst.data[pos + 6] = (word2 >>> 8) & 255;
+		dst.data[pos + 7] = word2 & 255;
+		dst.length = dst.length + 8;
 	};
 	let n3: rs.i64 = a;
 	const part = ((): rs.i64 => {
@@ -1025,7 +1121,31 @@ export function i128s(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
 	const b: rs.i128 = ([rs.i128FromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.i128, rs.ByteSlice])[0];
 	const put: (a0: rs.i128) => undefined = (v: rs.i128): undefined => {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(v)));
+		const dst = out;
+		const word = v;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
 	};
 	let n3: rs.i128 = a;
 	const part = ((): rs.i128 => {
@@ -1126,7 +1246,15 @@ export function isizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf2), 0, n2), rs.byteSliceRange(_20, 0, n2));
 	const b: rs.isize = ([rs.isizeFromBeBytes(buf2), rs.byteSliceRange(_20, n2)] as [rs.isize, rs.ByteSlice])[0];
 	const put: (a0: rs.isize) => undefined = (v: rs.isize): undefined => {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(v)));
+		const dst = out;
+		const word = v;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 	};
 	let n3: rs.isize = a;
 	const part = ((): rs.isize => {

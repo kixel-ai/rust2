@@ -193,7 +193,13 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		rs.byteVecPush(out, rs.precondition(rs.u8CheckedAdd(rs.optionUnwrap(rs.nonZero(rs.max(n, 200)), undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 130, col: 68 }), rs.max(n, 100)), "u8::unchecked_add cannot overflow", { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/core/src/num/nonzero.rs", line: 2895, col: 1 }));
 	} else if (_10 === 35) {
 		const x: rs.i16 = rs.optionUnwrap(rs.nonZero(rs.max(n, 200) as rs.i16), undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 133, col: 67 });
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(rs.precondition(rs.i16CheckedMul(x, x), "i16::unchecked_mul cannot overflow", { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/core/src/num/nonzero.rs", line: 3006, col: 1 }))));
+		const dst = out;
+		const word = rs.precondition(rs.i16CheckedMul(x, x), "i16::unchecked_mul cannot overflow", { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/core/src/num/nonzero.rs", line: 3006, col: 1 });
+		rs.byteVecReserve(dst, 2 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 8) & 255;
+		dst.data[pos + 1] = word & 255;
+		dst.length = dst.length + 2;
 	} else if (_10 === 36) {
 		rs.panic("not implemented", { file: "fixtures/lang/panics/src/hooked.rs", line: 136, col: 15 });
 	} else {

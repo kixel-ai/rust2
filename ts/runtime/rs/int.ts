@@ -2389,3 +2389,10 @@ export const i64ToF32 = (a: i64): f32 => (typeof a === "number" ? Math.fround(a)
 export const u128ToF32 = (a: u128): f32 => (typeof a === "number" ? Math.fround(a) : wideToF32(exact(a)));
 /** `a as f32`. */
 export const i128ToF32 = (a: i128): f32 => (typeof a === "number" ? Math.fround(a) : wideToF32(exact(a)));
+
+/** The 32 bits of an integer from `shift`, a multiple of 32, without making a byte array. */
+export function intWord(value: number | Limbs, shift: number): number {
+	if (typeof value === "number") return Math.floor(value / 2 ** shift) | 0;
+	if (shift === 0) return value.lo;
+	return "w1" in value ? (shift === 32 ? value.w1 : shift === 64 ? value.w2 : value.hi) : value.hi;
+}

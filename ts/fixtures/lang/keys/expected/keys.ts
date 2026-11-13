@@ -639,9 +639,23 @@ export function options(dataData: Uint8Array, dataStart: number, dataLen: number
 			break;
 		}
 		rs.byteVecPush(out, _352[0][0]);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(option_mapOr$1afu7tt(_352[0][1].exclude, 0, (h4: Hop.Hop): rs.u64 => {
+		const dst = out;
+		const word = option_mapOr$1afu7tt(_352[0][1].exclude, 0, (h4: Hop.Hop): rs.u64 => {
 			return h4._0;
-		}))));
+		});
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		rs.byteVecReserve(dst, 8 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word3 >>> 24) & 255;
+		dst.data[pos + 1] = (word3 >>> 16) & 255;
+		dst.data[pos + 2] = (word3 >>> 8) & 255;
+		dst.data[pos + 3] = word3 & 255;
+		dst.data[pos + 4] = (word2 >>> 24) & 255;
+		dst.data[pos + 5] = (word2 >>> 16) & 255;
+		dst.data[pos + 6] = (word2 >>> 8) & 255;
+		dst.data[pos + 7] = word2 & 255;
+		dst.length = dst.length + 8;
 		rs.byteVecPush(out, (_352[0][1].exclude !== undefined ? 1 : 0) | (((_352[0][1].local ? 1 : 0) << 1) & 0xff));
 		rs.byteVecPush(out, _352[1]);
 		rs.byteVecPush(out, rs.hashIndex(hashed, [_352[0][0], copy$keys_Horizon(_352[0][1])] as [rs.u8, Horizon.Horizon]));
@@ -814,8 +828,20 @@ export function places(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_179 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(_179[0])));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(_179[1])));
+		const dst = out;
+		const word = _179[0];
+		rs.byteVecReserve(dst, 2 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 8) & 255;
+		dst.data[pos + 1] = word & 255;
+		dst.length = dst.length + 2;
+		const dst2 = out;
+		const word2 = _179[1];
+		rs.byteVecReserve(dst2, 2 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word2 >>> 8) & 255;
+		dst2.data[pos2 + 1] = word2 & 255;
+		dst2.length = dst2.length + 2;
 	}
 	const touchy: rs.BTreeMap<Touchy.Touchy, rs.u8> = rs.btreeNew(Touchy.cmp$cmp_Ord) as rs.BTreeMap<Touchy.Touchy, rs.u8>;
 	const _195: rs.Place<rs.u8> = rs.entryOrInsertWithMut(rs.entry(touchy, { _0: data.length & 0xff }), (): rs.u8 => {
@@ -850,12 +876,34 @@ export function places(data: rs.ByteSlice, out: rs.ByteVec): void {
 			break;
 		}
 		rs.byteVecPush(out, _241[0]);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_241[1] as rs.u32)));
+		const dst3 = out;
+		const word3 = _241[1] as rs.u32;
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (word3 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word3 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word3 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word3 & 255;
+		dst3.length = dst3.length + 4;
 	}
 	let iterStart2: rs.u8 = 0;
 	const iterEnd2: rs.u8 = 7;
 	while ((_257 = iterStart2++) < iterEnd2) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(option_unwrapOr$15hbiwd(rs.hashGet(wide, _257), 0))));
+		const dst4 = out;
+		const word4 = option_unwrapOr$15hbiwd(rs.hashGet(wide, _257), 0);
+		const word5 = rs.intWord(word4, 0);
+		const word6 = rs.intWord(word4, 32);
+		rs.byteVecReserve(dst4, 8 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word6 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word6 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word6 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word6 & 255;
+		dst4.data[pos4 + 4] = (word5 >>> 24) & 255;
+		dst4.data[pos4 + 5] = (word5 >>> 16) & 255;
+		dst4.data[pos4 + 6] = (word5 >>> 8) & 255;
+		dst4.data[pos4 + 7] = word5 & 255;
+		dst4.length = dst4.length + 8;
 	}
 	const iter6: rs.Range<rs.u64> = new rs.Range(0, 6, rs.u64Step);
 	while (true) {
@@ -863,7 +911,13 @@ export function places(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_273 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(option_unwrapOr$1szdyfq(rs.hashGet(hops, { _0: _273 }), 0))));
+		const dst5 = out;
+		const word7 = option_unwrapOr$1szdyfq(rs.hashGet(hops, { _0: _273 }), 0);
+		rs.byteVecReserve(dst5, 2 as rs.usize);
+		const pos5 = dst5.length;
+		dst5.data[pos5 + 0] = (word7 >>> 8) & 255;
+		dst5.data[pos5 + 1] = word7 & 255;
+		dst5.length = dst5.length + 2;
 	}
 	const iter7: rs.Iter<[Hop.Hop, [rs.u8, rs.u8]]> = rs.btreeIter(pairs);
 	while (true) {
