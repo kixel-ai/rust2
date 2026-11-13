@@ -808,7 +808,7 @@ impl<'a> Gen<'a> {
 			// Only while the call's JVM parameters stay within the 255 slots a method takes.
 			Ty::Struct(_) | Ty::In(_)
 				if let Type::Record(i) = ty.base()
-					&& let Some(left) = self.room.checked_sub(weight(abi, *i).saturating_sub(2)) =>
+					&& let Some(left) = self.room.checked_sub(weight(abi, *i).saturating_sub(1)) =>
 			{
 				self.room = left;
 				arg.jni.clear();
@@ -1784,9 +1784,11 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		self.params = locals(&function.params);
 		let export = abi.export(function, owner);
-		// The JVM slots a native method has left past two for each C parameter and one for
-		// the slots a returned record crosses in: what flattening a record may spend.
-		self.room = 254usize.saturating_sub(2 * export.call.params.len() + 1);
+		// The JVM slots of the 255 a method takes left past what each C parameter takes
+		// unflattened, its waker, and the slots a returned record crosses in: what
+		// flattening records may spend.
+		let unflattened: usize = export.call.params.iter().map(|(_, c)| c_slots(c)).sum();
+		self.room = 255usize.saturating_sub(unflattened + 2);
 		let c_name = export.call.name.clone();
 		let bare = self.bare(&c_name).to_string();
 		let owner_c = match owner {
@@ -2445,6 +2447,17 @@ fn weight(abi: &Abi<'_>, i: usize) -> usize {
 		_ => 0,
 	});
 	fields.sum::<usize>() + usize::from(rest(abi, i))
+}
+
+/// The JVM parameter slots the C parameter `c` takes as a native method's: two for a
+/// `long` or `double`, none for what never crosses, and one for anything else.
+fn c_slots(c: &Ty) -> usize {
+	match c {
+		Ty::Void | Ty::Out(_) | Ty::Data | Ty::Poll => 0,
+		Ty::Int(int) if jni_int(*int) == "jlong" => 2,
+		Ty::F64 | Ty::Handle { .. } | Ty::Future(_) => 2,
+		_ => 1,
+	}
 }
 
 /// The record a function returns directly, and whether in an `Option`.
