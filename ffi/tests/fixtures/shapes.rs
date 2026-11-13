@@ -1385,7 +1385,7 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 		let _ = writeln!(body, "\tfmt.Println(\"{}\", {printed})", call.label());
 	}
 	format!(
-		"package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\n\ts \"{name}/{name}\"\n{import})\n\n\
+		"package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\n\ts \"{name}/{name}\"\n\t\"{name}/rt\"\n)\n\n\
 		func one[T any](v T, err ...error) T {{\n\tif len(err) > 0 && err[0] != nil {{\n\t\tpanic(err[0])\n\t}}\n\treturn v\n}}\n\n\
 		{tuples}func lift[A, B any](f func(A) B) func(A) B {{\n\treturn f\n}}\n\n\
 		func liftErr[A, B any](f func(A) (B, error)) func(A) B {{\n\treturn func(a A) B {{ return one(f(a)) }}\n}}\n\n\
@@ -1393,7 +1393,6 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 		func bytesOptIn[B any](f func(*rt.Bytes) B) func(*[]byte) B {{\n\treturn func(v *[]byte) B {{\n\t\tif v == nil {{\n\t\t\treturn f(nil)\n\t\t}}\n\t\tb := rt.NewBytes(*v)\n\t\treturn f(&b)\n\t}}\n}}\n\n\
 		func main() {{\n\tctx := context.Background()\n\t_ = ctx\n{body}}}\n",
 		name = built.name(),
-		import = format!("\t\"{}/rt\"\n", built.name()),
 	)
 }
 
