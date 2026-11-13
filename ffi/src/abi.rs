@@ -910,6 +910,7 @@ impl<'a> Abi<'a> {
 			"detail",
 			"native",
 			"bytes",
+			"input",
 			"mut",
 			"atomic_load",
 			"atomic_store",
