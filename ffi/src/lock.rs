@@ -33,6 +33,7 @@ pub fn breaks(base: &Api, now: &Api, prefix: &str) -> Vec<Break> {
 		.chain(base.objects.iter().map(|o| &o.shown))
 		.chain(base.functions.iter().map(|f| &f.shown))
 		.chain(base.constants.iter().map(|c| &c.path))
+		.chain(base.callbacks.iter().map(|c| &c.path))
 		.find_map(|path| path.first());
 	if let Some(root) = root.filter(|root| *root != prefix) {
 		return vec![Break {
