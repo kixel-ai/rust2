@@ -2260,7 +2260,8 @@ fn profiled() {
 	assert!(
 		stderr.contains("Cargo.toml:9: `profile.dev.package.missing` names no package the workspace resolves"),
 		"{stderr}"
-	);	files("*");
+	);
+	files("*");
 	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
 	assert!(!output.status.success(), "a wildcard override passed");
 	let stderr = String::from_utf8_lossy(&output.stderr);
