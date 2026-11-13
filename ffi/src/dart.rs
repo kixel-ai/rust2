@@ -776,14 +776,32 @@ impl<'a> Gen<'a> {
 		let decls: Vec<String> = (call.params.iter().enumerate())
 			.map(|(n, (_, ty))| format!(", p{n}: {}", rs(ty)))
 			.collect();
-		let args: Vec<String> = (0..call.params.len()).map(|n| format!("p{n}")).collect();
+		let mut args: Vec<String> = (0..call.params.len()).map(|n| format!("p{n}")).collect();
+		// A status the call writes reaches the isolate's one cell only once `serve` stopped
+		// serving: a call it served meanwhile, on the isolate's thread, read its own first. A
+		// null one, which aborts on a failed check, passes through.
+		let status = call.params.last().is_some_and(|(_, ty)| abi::is_status(ty));
+		let body = match status {
+			true => {
+				let cell = args.pop().expect("a status is a parameter");
+				args.push("s_".to_string());
+				format!(
+					"let mut status = 0;\n\tlet s_ = match {cell}.is_null() {{\n\t\ttrue => {cell},\n\t\tfalse => &raw mut status,\n\t}};\n\tlet r = unsafe {{ home.serve(move || crate::{}({})) }};\n\tif !{cell}.is_null() {{\n\t\tunsafe {{ *{cell} = status }};\n\t}}\n\tr",
+					call.name,
+					args.join(", ")
+				)
+			}
+			false => format!(
+				"unsafe {{ home.serve(move || crate::{}({})) }}",
+				call.name,
+				args.join(", ")
+			),
+		};
 		let _ = write!(
 			self.glue,
-			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}(home: *const c_void{}) -> {} {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || crate::{}({})) }}\n}}\n\n",
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}(home: *const c_void{}) -> {} {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\t{body}\n}}\n\n",
 			decls.concat(),
 			rs(&call.ret),
-			call.name,
-			args.join(", ")
 		);
 		let native = self.native_fn(&name, params, call.ret.clone());
 		let api = self.abi.api;

@@ -1017,6 +1017,9 @@ fun owned() {
 		"api_wasm_only" to { wasmOnly() },
 		"api_Platform.Wasm" to { pointerBits(Platform.Wasm(32u)) },
 		"api_Family.Wasm" to { isFamily(Family.WASM) },
+		"api_Page_default" to { Page.default() },
+		"api_Page_debug" to { Page(1u).debug() },
+		"api_Booth_debug" to { Booth(Ticket.new(1u)).debug() },
 	)) {
 		val thrown = runCatching(call).exceptionOrNull()
 		check(thrown is UnsupportedOperationException && thrown.message == "$what: it is not on this library's target", "$what throws: $thrown")

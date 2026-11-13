@@ -193,6 +193,10 @@ struct Arg {
 	open: Option<(String, String)>,
 	exprs: Vec<String>,
 	after: Vec<String>,
+	/// Whether an expression gives Rust a retained box, which only the call takes.
+	gives: bool,
+	/// Whether its lowering, its one expression, throws.
+	throws: bool,
 }
 
 struct Gen<'a> {
@@ -218,15 +222,18 @@ struct Gen<'a> {
 }
 
 impl<'a> Gen<'a> {
-	/// The statement that traps unless the library's target is among those of `on`, as the
-	/// item `what` is, then `then`; or `then` alone if it is on every target.
-	/// The check that the library's target is among those of `on`, as the item `what` is,
-	/// which traps, followed by `then`.
-	fn on(&self, on: On, what: &str, then: &str) -> String {
+	/// The statement that throws, if the body around it can, or else traps, unless the
+	/// library's target is among those of `on`, as the item `what` is, then `then`; or `then`
+	/// alone if it is on every target.
+	fn on(&self, on: On, what: &str, then: &str, throws: bool) -> String {
 		let api = self.abi.api;
+		let check = match throws {
+			true => "try Native.on",
+			false => "Native.onOrTrap",
+		};
 		match api.everywhere(on) {
 			true => then.to_string(),
-			false => format!("Native.onOrTrap({}, \"{what}\"){then}", on.0 & api.all().0),
+			false => format!("{check}({}, \"{what}\"){then}", on.0 & api.all().0),
 		}
 	}
 
@@ -795,14 +802,17 @@ impl<'a> Gen<'a> {
 		// One whose checks can fail throws, so conforms to no protocol of these, whose
 		// requirements cannot throw; any other's checks never fail.
 		let status = self.abi.traits_status_of(ty);
-		let on = self.on(self.on, c, "\n\t\t");
-		// The statements lowering a value receiver for the function `what`.
+		// The statements lowering a value receiver for the function `what`, which on a target
+		// the type is not on throws where it can.
 		let value = |what: &str| {
 			let arena = match self.arena(ty) {
 				true => format!("let a_ = Native.Arena(\"{what}\")\n\t\tdefer {{ a_.finish() }}\n\t\t"),
 				false => String::new(),
 			};
-			format!("{on}Native.check()\n\t\t{arena}")
+			format!(
+				"{}Native.check()\n\t\t{arena}",
+				self.on(self.on, what, "\n\t\t", status)
+			)
 		};
 		let lower = match self.throwing(ty) {
 			true => format!("try self._lower({})", self.arena_arg(ty)),
@@ -919,9 +929,15 @@ impl<'a> Gen<'a> {
 				Type::Object(_) => format!("{name}(raw: {c}_default())"),
 				_ => format!("{name}._lift({c}_default())"),
 			};
+			// A constructor the target lacks throws, as a function's call does.
+			let limited = !self.abi.api.everywhere(self.on);
+			let throws = match limited {
+				true => " throws",
+				false => "",
+			};
 			body.push(format!(
-				"\t/// Rust's `Default`.\n\tpublic static func `default`() -> {name} {{\n\t\t{}Native.check()\n\t\treturn {lift}\n\t}}\n",
-				self.on(self.on, c, "\n\t\t")
+				"\t/// Rust's `Default`.\n\tpublic static func `default`(){throws} -> {name} {{\n\t\t{}Native.check()\n\t\treturn {lift}\n\t}}\n",
+				self.on(self.on, &format!("{c}_default"), "\n\t\t", limited)
 			));
 		}
 	}
@@ -1048,7 +1064,7 @@ impl<'a> Gen<'a> {
 				false => cases.push(format!("\tcase {case}({})\n", fields.join(", "))),
 			}
 			// A value of a variant the library's target lacks is refused as it crosses.
-			let refused = self.on(variant.on, &format!("{c}.{}", variant.name), "\n\t\t\t");
+			let refused = self.on(variant.on, &format!("{c}.{}", variant.name), "\n\t\t\t", false);
 			if e.plain() {
 				lifts.push(format!("\t\tcase {tag}: return .{case}"));
 				lowers.push(format!("\t\tcase .{case}:\n\t\t\t{refused}return {tag}"));
@@ -1293,6 +1309,7 @@ impl<'a> Gen<'a> {
 				let sw = self.sw(ty);
 				arg.exprs.push(self.trampoline(ty, closure_));
 				arg.exprs.push(format!("Native.Box<{sw}>.give({e})"));
+				arg.gives = true;
 				arg.exprs
 					.push(format!("{{ data_ in Native.Box<{sw}>.release(data_) }}"));
 			}
@@ -1312,9 +1329,18 @@ impl<'a> Gen<'a> {
 				arg.open = Some((format!("{tr}Native.reader(&{e}) {{ {r} in"), "}".to_string()));
 				arg.exprs.push(r);
 			}
-			(Type::Callback(i, _), _) => arg.exprs.push(format!("Native.lower_{}({e})", abi.callback(*i))),
-			(Type::Waker, _) => arg.exprs.push(format!("Native.waker({e})")),
-			(Type::Future, _) => arg.exprs.push(format!("Native.future({e})")),
+			(Type::Callback(i, _), _) => {
+				arg.exprs.push(format!("Native.lower_{}({e})", abi.callback(*i)));
+				arg.gives = true;
+			}
+			(Type::Waker, _) => {
+				arg.exprs.push(format!("Native.waker({e})"));
+				arg.gives = true;
+			}
+			(Type::Future, _) => {
+				arg.exprs.push(format!("Native.future({e})"));
+				arg.gives = true;
+			}
 			(ty, Ty::Buf) if Abi::is_buf(ty) || matches!(ty.base(), Type::Option(inner) if Abi::is_buf(inner)) => {
 				let b = format!("b{k}_");
 				arg.open = Some((format!("{tr}Native.view({e}) {{ {b} in"), "}".to_string()));
@@ -1336,7 +1362,9 @@ impl<'a> Gen<'a> {
 			}
 			(ty, _) => {
 				arena = self.arena(ty);
-				arg.exprs.push(self.lower(ty, e));
+				let lowered = self.lower(ty, e);
+				arg.throws = lowered.contains("try ");
+				arg.exprs.push(lowered);
 			}
 		}
 		(arg, arena)
@@ -1671,6 +1699,14 @@ impl<'a> Gen<'a> {
 		let after: Vec<String> = args.iter().flat_map(|a| a.after.clone()).collect();
 		if !after.is_empty() {
 			prelude.push(gate(&after.join("; ")));
+		}
+		// A lowering that throws runs before any box is given, which the call alone would
+		// take: a throw between them would leak it.
+		if args.iter().any(|a| a.gives) {
+			for (k, arg) in args.iter_mut().enumerate().filter(|(_, a)| a.throws) {
+				prelude.push(format!("let c_arg{k}_ = {}", arg.exprs[0]));
+				arg.exprs[0] = format!("c_arg{k}_");
+			}
 		}
 		let exprs: Vec<String> = args.iter().flat_map(|a| a.exprs.clone()).collect();
 

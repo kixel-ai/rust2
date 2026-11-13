@@ -531,8 +531,10 @@ final _n = _Native();
 final class _Native {
   late final _Stack stack = _Stack();
 
-  /// Where a call that can fail a check writes the failure: one for the isolate, since a
-  /// call reads it as it returns, before any other can run, and a failure clears it.
+  /// Where a call that can fail a check writes the failure: one for the isolate, since the
+  /// glue writes it on the isolate's thread as the call returns, once it served every call
+  /// queued meanwhile, and the call reads it before any other can run, and a failure
+  /// clears it.
   late final ffi.Pointer<ffi.Int32> status = _dartAlloc(4).cast<ffi.Int32>()..value = 0;
   late final isolate.RawReceivePort _port;
   late final ffi.Pointer<ffi.Void> home;

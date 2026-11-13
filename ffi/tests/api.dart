@@ -1033,6 +1033,12 @@ void targets() {
   lacks(() => api.wasmOnly(), 'api_wasm_only');
   lacks(() => api.pointerBits(const api.PlatformWasm(bits: 32)), 'api_Platform.Wasm');
   lacks(() => api.isFamily(api.Family.wasm), 'api_Family.Wasm');
+  lacks(() => api.Page.default_(), 'api_Page_default');
+  lacks(() => const api.Page(size: 1).debug(), 'api_Page_debug');
+  lacks(() => const api.Page(size: 1) == const api.Page(size: 2), 'api_Page_eq');
+  final booth = api.Booth(ticket: api.Ticket(1));
+  lacks(() => booth.debug(), 'api_Booth_debug');
+  lacks(() => booth == api.Booth(ticket: booth.ticket), 'api_Booth_eq');
 }
 
 @pragma('vm:never-inline')

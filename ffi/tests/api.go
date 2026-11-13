@@ -770,6 +770,21 @@ func script() {
 	// A record's traits borrow the checked handle it holds.
 	front, back := must(api.NewSeat(nine, 1)), must(api.NewSeat(nine, 2))
 	fmt.Printf("seat %s %t %t\n", front.GoString(), must(front.Equal(front)), must(front.Equal(back)))
+	// The packages serve wasm32 too: the traits of a type only wasm32 has fail on the host's
+	// library as its functions do.
+	{
+		_, err := api.PageDefault()
+		check(errors.Is(err, errors.ErrUnsupported), "a Default off the target is unsupported")
+		_, err = api.Page{Size: 1}.Equal(api.Page{Size: 1})
+		check(errors.Is(err, errors.ErrUnsupported), "an Equal off the target is unsupported")
+		booth := api.Booth{Ticket: nine}
+		_, err = booth.Equal(booth)
+		check(errors.Is(err, errors.ErrUnsupported), "a checked Equal off the target is unsupported")
+		check(
+			booth.GoString() == "api_Booth_debug: it is not on this library's target",
+			"a GoString off the target reads as its error",
+		)
+	}
 	for _, ticket := range []*api.Ticket{copied, renewed, seven, nine} {
 		ticket.Close()
 	}

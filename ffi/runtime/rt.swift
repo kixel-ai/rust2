@@ -53,8 +53,6 @@ public struct U128: Hashable, Comparable, Sendable, CustomStringConvertible {
 	}
 }
 
-/// Where a seek counts its offset from, as swift-system's `FileDescriptor.SeekOrigin` and
-/// Rust's `SeekFrom` do.
 /// A call Rust's rules refuse, thrown before any Rust runs: a handle borrowed in a way
 /// the borrow checker forbids beside another call's, used once its value moved out or its
 /// lend ended, or an item called on a library whose target lacks it.
@@ -67,6 +65,8 @@ public struct CheckError: Swift.Error, CustomStringConvertible, Sendable {
 	public var description: Swift.String { "\(function): \(message)" }
 }
 
+/// Where a seek counts its offset from, as swift-system's `FileDescriptor.SeekOrigin` and
+/// Rust's `SeekFrom` do.
 public enum SeekOrigin: Sendable {
 	case start
 	case current

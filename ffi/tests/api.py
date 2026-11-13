@@ -1190,6 +1190,9 @@ def values():
 		(api.wasm_only, "api_wasm_only"),
 		(lambda: api.pointer_bits(api.Platform.Wasm(32)), "api_Platform.Wasm"),
 		(lambda: api.is_family(api.Family.WASM), "api_Family.Wasm"),
+		(api.Page.default, "api_Page_default"),
+		(lambda: repr(api.Page(size=1)), "api_Page_debug"),
+		(lambda: repr(api.Booth(ticket=api.Ticket.new(1))), "api_Booth_debug"),
 	]:
 		try:
 			f()

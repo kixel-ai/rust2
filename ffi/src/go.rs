@@ -1369,6 +1369,9 @@ impl<'a> Gen<'a> {
 		}
 		// A value holding an object fails once that object is closed, as an object does.
 		let closable = object || self.holds(ty);
+		// On a target the type is not on, only the binding makes a value of it, and each
+		// trait fails as a function the target lacks does.
+		let limited = !self.abi.api.everywhere(self.abi.on(ty));
 		// The receiver, a held handle or the value lowered, and the return of `failed`, an
 		// expression of the error, once a closed object fails the call.
 		let open = |failed: &dyn Fn(&str) -> String| match (object, arena) {
@@ -1469,7 +1472,7 @@ impl<'a> Gen<'a> {
 				true => open(&failed),
 				false => open(&|_: &str| unreachable!("a value holding no object is never closed")),
 			};
-			let (results, ok) = match closable {
+			let (results, ok) = match closable || limited {
 				true => (vec!["bool".to_string(), "error".to_string()], ", nil"),
 				false => (vec!["bool".to_string()], ""),
 			};
@@ -1485,10 +1488,10 @@ impl<'a> Gen<'a> {
 					checked(&format!("C.{c}_eq({this}, &c_other_)"), &format!("{c}_eq"), &failed)
 				),
 				(false, true) => {
-					format!("{open}c_other_ := lower_{c}(a_, other)\nreturn bool(C.{c}_eq({this}, &c_other_))")
+					format!("{open}c_other_ := lower_{c}(a_, other)\nreturn bool(C.{c}_eq({this}, &c_other_)){ok}")
 				}
 				(false, false) => {
-					format!("{open}c_other_ := lower_{c}(other)\nreturn bool(C.{c}_eq({this}, &c_other_))")
+					format!("{open}c_other_ := lower_{c}(other)\nreturn bool(C.{c}_eq({this}, &c_other_)){ok}")
 				}
 			};
 			methods.push(method(
@@ -1505,21 +1508,36 @@ impl<'a> Gen<'a> {
 				true => format!("own_{c}(C.{c}_default())"),
 				false => format!("lift_{c}(C.{c}_default())"),
 			};
+			let (results, ok) = match limited {
+				true => (vec![name.clone(), "error".to_string()], ", nil"),
+				false => (vec![name.clone()], ""),
+			};
 			Method {
 				docs: format!("{func} is Rust's Default."),
 				receiver: None,
 				name: func,
 				params: Vec::new(),
-				results: vec![name.clone()],
-				body: format!("return {lift}"),
+				results,
+				body: format!("return {lift}{ok}"),
 			}
 		});
 		let (mut methods, mut default) = (methods, default);
-		// On a target a value's type is not on, only the binding makes one, which calls in
-		// for none of these.
-		if let Some(check) = self.on(self.abi.on(ty), c) {
+		if limited {
+			let supported = self.qualify(Packages::RT, "Supported_");
+			let on = self.abi.on(ty).0 & self.abi.api.all().0;
+			let zero = self.zero(ty);
 			for method in methods.iter_mut().chain(default.as_mut()) {
-				method.body = format!("{check}\n{}", method.body);
+				let (what, failed) = match method.name.as_str() {
+					"String" => ("to_string", "err_.Error()".to_string()),
+					"GoString" => ("debug", "err_.Error()".to_string()),
+					"Clone" => ("clone", "nil, err_".to_string()),
+					"Equal" => ("eq", "false, err_".to_string()),
+					_ => ("default", format!("{zero}, err_")),
+				};
+				method.body = format!(
+					"if err_ := {supported}({on}, \"{c}_{what}\"); err_ != nil {{\n\treturn {failed}\n}}\n{}",
+					method.body
+				);
 			}
 		}
 		(methods, default)

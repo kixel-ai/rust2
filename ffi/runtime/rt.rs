@@ -565,10 +565,12 @@ pub fn char(code: u32, what: &str) -> char {
 
 const EXCLUSIVE: usize = usize::MAX;
 const TAKEN: usize = usize::MAX - 1;
+const RESERVED: usize = usize::MAX - 2;
 
 /// A value behind a handle: shared through an `Arc`, and borrowed as Rust borrows it, with
 /// the borrow checked at run time. `state` counts shared borrows, or is [`EXCLUSIVE`]
-/// while one exclusive borrow lasts, or [`TAKEN`] once the value moved out. A value that is
+/// while one exclusive borrow lasts, [`RESERVED`] while a call holds it to move out once its
+/// checks pass, or [`TAKEN`] once the value moved out. A value that is
 /// not `Sync` is shared on one thread at a time instead: `state` is that thread's id, and
 /// `depth` counts its borrows, which only that thread touches.
 pub struct Object<T> {
@@ -732,7 +734,7 @@ impl<T> Object<T> {
 		loop {
 			match state {
 				TAKEN => return Err(Status::Moved),
-				EXCLUSIVE => return Err(Status::Exclusive),
+				EXCLUSIVE | RESERVED => return Err(Status::Exclusive),
 				_ => {}
 			}
 			match self
@@ -762,7 +764,7 @@ impl<T> Object<T> {
 			Ok(_) => {}
 			Err(owner) if owner == me => {}
 			Err(TAKEN) => return Err(Status::Moved),
-			Err(EXCLUSIVE) => return Err(Status::Exclusive),
+			Err(EXCLUSIVE | RESERVED) => return Err(Status::Exclusive),
 			Err(_) => return Err(Status::Thread),
 		}
 		// SAFETY: only the thread in `state` touches `depth`.
@@ -802,7 +804,7 @@ impl<T> Object<T> {
 
 	/// Take `state` from 0 to `to`, as an exclusive borrow or a move does.
 	fn acquire_from_zero(&self, to: usize) -> Result<(), Status> {
-		if self.lender.is_some() || (to == TAKEN && !self.lent.is_null()) {
+		if self.lender.is_some() || (matches!(to, TAKEN | RESERVED) && !self.lent.is_null()) {
 			return Err(Status::Lent);
 		}
 		match self.state.compare_exchange(0, to, Ordering::Acquire, Ordering::Relaxed) {
@@ -980,7 +982,7 @@ impl<T> Object<T> {
 	pub unsafe fn reserve<'a>(handle: *const c_void, takes: &mut Takes<'a>, what: &str) -> Result<(), Status> {
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
-		object.acquire_from_zero(TAKEN)?;
+		object.acquire_from_zero(RESERVED)?;
 		// SAFETY: the state outlives `takes`, by the caller's contract; a pointer to it,
 		// so the value's type need not.
 		takes.push(unsafe { &*::std::ptr::addr_of!(object.state) });
@@ -1041,11 +1043,11 @@ impl<T> Object<T> {
 		unsafe { *(*handle.cast::<Self>()).value() }
 	}
 
-	/// Move out the value [`Self::take`] reserved, leaving the handle to be freed.
+	/// Move out the value [`Self::take`] took, or [`Self::reserve`] reserved for a call whose
+	/// `Takes` committed, leaving the handle to be freed.
 	///
 	/// # Safety
-	/// [`Self::take`] reserved `handle`'s value for a call that passed its checks, and no
-	/// other read moves it out.
+	/// One of them did so for `handle`'s value, and no other read moves it out.
 	pub unsafe fn taken(handle: *const c_void) -> T {
 		// SAFETY: the caller's contract.
 		let object = unsafe { &*handle.cast::<Self>() };
@@ -1056,8 +1058,9 @@ impl<T> Object<T> {
 
 	/// Drop the value now, as a move out would, leaving the handle to be freed: what a
 	/// binding's close does, so a later use fails as moved, as Rust refuses a use after a
-	/// drop. It fails, changing nothing, while a call or future borrows the value, as Rust
-	/// refuses a drop under a borrow, and does nothing once the value is gone. A handle a
+	/// drop. It fails, changing nothing, while a call or future borrows the value or a call
+	/// reserved it to move out, as Rust refuses a drop under a borrow, and does nothing once
+	/// the value is gone. A handle a
 	/// call returned lent from another's value only stops lending it; one lent to C for a
 	/// call fails, as Rust lent it.
 	///
@@ -1140,10 +1143,11 @@ impl<'a> Takes<'a> {
 		}
 	}
 
-	/// Keep every value reserved, for the call to move out.
+	/// Mark every value reserved moved out, for the call to move out.
 	pub fn commit(&mut self) {
-		self.first = [None; 2];
-		self.rest.clear();
+		for state in self.first.iter_mut().filter_map(Option::take).chain(self.rest.drain(..)) {
+			state.store(TAKEN, Ordering::Release);
+		}
 	}
 }
 

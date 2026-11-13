@@ -165,10 +165,14 @@ item that target compiles works exactly, and no other does:
   target before calling it, raising the language's own error, as for a closed object:
   `UnsupportedOperationException` in Kotlin, `NotImplementedError` in Python, a
   `CheckError` thrown in Swift, an error matching `errors.ErrUnsupported` returned in Go,
-  and `UnsupportedError` in Dart. C and C++ abort with the message.
+  and `UnsupportedError` in Dart. C and C++ abort with the message. A type's std traits
+  are its methods here, and its `Default` a constructor, except where the language's own
+  protocol cannot fail: Swift traps in a `description`, `debugDescription`, or `==` that
+  does not throw, and Go's `String` and `GoString` return the error's text.
 - So does a variant only some targets have, when a value holding it crosses into a target
-  without it. A record's fields cross whole, so one whose fields differ between targets
-  is refused, as below.
+  without it, except that Swift traps and Go panics, as a value's conversion there returns
+  no error. A record's fields cross whole, so one whose fields differ between targets is
+  refused, as below.
 - A type only some targets have is declared everywhere, and only those targets' items
   make or take it.
 - A constant only some targets have keeps its value everywhere, since reading it calls
@@ -235,7 +239,8 @@ where it was while its file is unchanged.
   or a moved-out handle, fails the call before any Rust code runs, so it changes nothing:
   a function whose handles can fail a check takes a trailing `<prefix>_status *status`,
   through which it writes the `<PREFIX>_STATUS_*` that failed, returning a zeroed value,
-  and `<prefix>_status_message` names it. A NULL `status` aborts with the message, naming
+  and `<prefix>_status_message` names it. A call that passes its checks leaves `*status`
+  as it was, so a caller zeroes it before each call it reads it after. A NULL `status` aborts with the message, naming
   the function, as C++ passes; each other binding raises its language's own error, as
   below. A null handle aborts. Only a type some export can misuse is checked: one that is
   not `Sync`, or that an export borrows as `&mut`, moves out, or lends a closure; a call

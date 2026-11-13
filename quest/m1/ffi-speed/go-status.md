@@ -11,22 +11,15 @@ main in [the bench](/bench/ffi/README.md#per-handle-baseline).
 
 ## Plan
 
-- Recommended: pass the stack cell's address hidden from escape analysis, as a `uintptr`
-  turned back into a pointer at the call. A goroutine inside a cgo call is never shrunk
-  (the runtime's `isShrinkStackSafe` refuses one in a syscall), and the glue writes the
-  status only when a check fails, before any Rust code runs, so before any callback into
-  Go could grow and move the stack. Make that ordering a checked invariant of the glue,
-  not a convention. The fixtures run `go vet`, which flags a `uintptr` made back into a
-  pointer.
+- ✅ Pass the stack cell's address hidden from escape analysis, as a `uintptr` turned back
+  into a pointer at the call (rejected: keep the heap allocation; decide later). Settled by
+  the maintainer 2026-11-13. A goroutine inside a cgo call is never shrunk (the runtime's
+  `isShrinkStackSafe` refuses one in a syscall), and the glue writes the status only when a
+  check fails, before any Rust code runs, so before any callback into Go could grow and
+  move the stack. The generated glue checks that ordering at run time: a status written
+  after a callback into Go began fails loudly, never silently. The fixtures run `go vet`,
+  which flags a `uintptr` made back into a pointer.
 - Rejected: a thread-local last error, refused on 2026-11-12 as hidden state a caller can
-  forget to read; a `sync.Pool` of C cells, which costs more than the allocation; Dart's
-  one cell per isolate, since goroutines share threads.
+  forget to read; a `sync.Pool` of C cells, which costs more than the allocation; one
+  shared cell, since goroutines share threads.
 - Re-measure the Go getter and handle call against main, CPU first.
-
-## Waiting
-
-- Maintainer: whether Go may pass a stack address that escape analysis cannot see, which
-  relies on the runtime never moving a stack in a cgo call before a callback, a behavior
-  cgo's documented rules do not promise. Recommended: yes, with the ordering checked in
-  the glue, as it wins back 6 ns on every checked Go call; the other way is to keep the
-  allocation.

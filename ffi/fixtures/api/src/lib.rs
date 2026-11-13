@@ -2635,6 +2635,12 @@ pub fn reasons(pairs: Vec<(Counter, Refusal)>, last: Option<(Counter, Refusal)>)
 		.join(", ")
 }
 
+/// How many of `refusals` `log` keeps, each logged at level 0: a callback the binding gives
+/// before a list whose classes a move may have closed.
+pub fn relay(log: Box<dyn Log>, refusals: Vec<Refusal>) -> u32 {
+	refusals.iter().filter(|r| log.log(0, &r.to_string())).count() as u32
+}
+
 /// Always refuses, for `reason`.
 pub fn refuse(reason: &str) -> Result<u32, Box<Refusal>> {
 	Err(Box::new(Refusal {
@@ -2719,10 +2725,24 @@ impl Worker {
 	}
 }
 
-/// A record only wasm32 has.
+/// A record only wasm32 has, whose std traits fail on another target as its functions do.
 #[cfg(target_arch = "wasm32")]
+#[derive(Debug, Default, PartialEq)]
 pub struct Page {
 	pub size: u32,
+}
+
+/// A record only wasm32 has, holding a checked object, so its std traits take a status.
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug, PartialEq)]
+pub struct Booth {
+	pub ticket: Ticket,
+}
+
+/// The number of `booth`'s ticket.
+#[cfg(target_arch = "wasm32")]
+pub fn booth_number(booth: Booth) -> u32 {
+	booth.ticket.number
 }
 
 /// wasm32's page.

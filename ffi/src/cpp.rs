@@ -255,7 +255,6 @@ impl<'a> Header<'a> {
 		}
 	}
 
-	/// The arena a body lowering each of `tys` declares, if one needs it.
 	/// The status a record's or enum's trait function takes, if a handle in it is checked:
 	/// null, so a failed check aborts, as each other call of C++'s does.
 	fn value_status(&self, ty: &Type) -> &'static str {
@@ -265,6 +264,7 @@ impl<'a> Header<'a> {
 		}
 	}
 
+	/// The arena a body lowering each of `tys` declares, if one needs it.
 	fn scope<'t>(&self, tys: impl IntoIterator<Item = &'t Type>) -> String {
 		match tys.into_iter().any(|ty| self.arena(ty)) {
 			true => format!(

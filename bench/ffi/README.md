@@ -212,7 +212,8 @@ Kotlin's rows match main's within the noise: its object return's fastest runs to
 since cgo moves to the heap a local whose address it passes C, which costs 6 ns in a
 cgo call alone; its close calls Rust's `_drop`, a second crossing an object return and a
 stamped write pay. Dart's checked calls first lost 4 ns to a status allocated per call,
-now one cell per isolate. Swift's getter costs C's since it dropped its hold count for
+now one cell per isolate, which the glue fills from the call's own once the call stopped
+serving the isolate, for 1 ns more. Swift's getter costs C's since it dropped its hold count for
 each noncopyable object (2026-11-11). A change to the accounting moves these rows;
 measure them at the load beside them.
 

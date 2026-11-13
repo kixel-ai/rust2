@@ -21,6 +21,23 @@ final class PrintLog: Log {
 	}
 }
 
+/// A Log that counts its frees.
+final class DropLog: Log {
+	let drops: Cell<Int>
+
+	init(_ drops: Cell<Int>) {
+		self.drops = drops
+	}
+
+	func log(_: UInt8, _: String) -> Bool {
+		true
+	}
+
+	deinit {
+		drops.value += 1
+	}
+}
+
 /// A Log that cancels a task at each line, and counts them.
 final class CancelLog: Log, @unchecked Sendable {
 	let task: Cell<Task<Void, Swift.Error>?>
@@ -63,6 +80,31 @@ func closed(_ function: String, _ body: () throws -> Void) {
 	} catch {
 		check(false, "\(function) threw \(error)")
 	}
+}
+
+/// Check that `body` throws the CheckError of `function`, which the library's target lacks.
+func lacks(_ function: String, _ body: () throws -> Void) {
+	do {
+		try body()
+		check(false, "\(function) throws off its target")
+	} catch let e as CheckError {
+		check(
+			e.function == function && e.message == "it is not on this library's target",
+			"\(function) threw \(e)"
+		)
+	} catch {
+		check(false, "\(function) threw \(error)")
+	}
+}
+
+/// The file serves wasm32 too: what only wasm32 has throws on the host's library, wherever
+/// Swift lets it.
+func targets() {
+	lacks("api_wasm_only") { _ = try wasmOnly() }
+	lacks("api_Page_default") { _ = try Page.default() }
+	let booth = Booth(ticket: Ticket.new(1))
+	lacks("api_Booth_debug") { _ = try booth.debugDescription }
+	lacks("api_Booth_eq") { _ = try booth == booth }
 }
 
 /// The refusal `refuse` throws for `reason`: a class, since Swift throws it.
@@ -657,6 +699,10 @@ func script() {
 		mixed.append(TupleCounterRefusal(Counter.new("f", 6), kept))
 		check((try? reasons(mixed, nil)) == nil, "api_reasons of a closed Refusal beside a live one throws")
 		check(try! live.description == "refused: live", "a refused call leaves the class it would move open")
+		// Nor does it keep a callback it gave before the throw.
+		let drops = Cell(0)
+		check((try? relay(DropLog(drops), [kept])) == nil, "api_relay of a closed Refusal throws")
+		check(drops.value == 1, "a call refused before Rust runs frees the callback it lowered")
 		var at = Point(x: 1, y: 2)
 		check((try? nudgeBy(&at, kept)) == nil, "api_nudge_by of a closed Refusal throws")
 		check(at == Point(x: 1, y: 2), "a refused call writes nothing back")
@@ -826,6 +872,7 @@ func script() {
 		print("hop \(nextHop(hop).map { "Some(\($0))" } ?? "None")")
 	}
 	print("farther hop \(fartherHop(PairNonZeroU16(left: 3, right: .max)))")
+	targets()
 }
 
 func printTail(_ read: () throws -> (Data, UInt64)) {
@@ -1262,9 +1309,8 @@ func broken(_ which: String) {
 		_ = try! stray()
 	case "lent stray":
 		try! visitStray { _ in }
-	// The file serves wasm32 too, whose items the host's library lacks.
-	case "target":
-		_ = try! wasmOnly()
+	// The file serves wasm32 too, whose items the host's library lacks, where Swift cannot
+	// throw.
 	case "variant":
 		_ = pointerBits(.wasm(bits: 32))
 	case "plain variant":

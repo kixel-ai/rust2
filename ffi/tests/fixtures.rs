@@ -948,7 +948,6 @@ fn api_swift() {
 		("outlived", OUTLIVED),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
-		("target", "api_wasm_only: it is not on this library's target"),
 		("variant", "api_Platform.Wasm: it is not on this library's target"),
 		("plain variant", "api_Family.Wasm: it is not on this library's target"),
 	] {
