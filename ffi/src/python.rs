@@ -992,7 +992,10 @@ impl<'a> Gen<'a> {
 				_ => format!("rt::attr(o, {key}, s)?"),
 			};
 			reads.push(format!("let x{n} = {read};"));
-			fields.push(format!("f{n}: {}?", self.lift(&field.ty, &format!("x{n}"), "false", "take")));
+			fields.push(format!(
+				"f{n}: {}?",
+				self.lift(&field.ty, &format!("x{n}"), "false", "take")
+			));
 			writes.push(format!("({key}, {})", self.lower(&field.ty, &format!("v.f{n}"))));
 		}
 		if record.fields.is_empty() {
@@ -1121,7 +1124,10 @@ impl<'a> Gen<'a> {
 					for (k, f) in variant.fields.iter().enumerate() {
 						let key = self.key(&field_name(&f.name));
 						binds.push(format!("let x{k} = rt::attr(o, {key}, s)?;"));
-						fields.push(format!("f{k}: {}?", self.lift(&f.ty, &format!("x{k}"), "false", "take")));
+						fields.push(format!(
+							"f{k}: {}?",
+							self.lift(&f.ty, &format!("x{k}"), "false", "take")
+						));
 						lowers.push(format!("({key}, {})", self.lower(&f.ty, &format!("p.f{k}"))));
 					}
 					reads.push(format!(
@@ -1511,12 +1517,18 @@ impl<'a> Gen<'a> {
 						Receiver::Ref => Type::Ref(crate::ir::Mutability::Not, Box::new(ty)),
 						Receiver::Mut => Type::Ref(crate::ir::Mutability::Mut, Box::new(ty)),
 					};
-					stmts.push(format!("let p{n} = {}?;", self.lift(&ty, &format!("a[{n}]"), "true", "true")));
+					stmts.push(format!(
+						"let p{n} = {}?;",
+						self.lift(&ty, &format!("a[{n}]"), "true", "true")
+					));
 					c_args.push(format!("p{n}"));
 				}
 				_ => {
 					// Read through a pointer, so Rust takes nothing of it.
-					stmts.push(format!("let p{n} = {}?;", self.lift(&ty, &format!("a[{n}]"), "false", "false")));
+					stmts.push(format!(
+						"let p{n} = {}?;",
+						self.lift(&ty, &format!("a[{n}]"), "false", "false")
+					));
 					c_args.push(format!("&p{n}"));
 				}
 			}
