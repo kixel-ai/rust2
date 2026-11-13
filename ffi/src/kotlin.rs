@@ -111,7 +111,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	if g.slots > 0 {
 		let _ = write!(
 			helpers,
-			"\t/** This thread's slots a returned record's scalars cross in, read before its next call. */\n\tprivate val __slotsLocal = object : java.lang.ThreadLocal<kotlin.LongArray>() {{\n\t\t// Not `withInitial`, which Android lacks before API 26.\n\t\toverride fun initialValue() = kotlin.LongArray({n})\n\t}}\n\n\tfun __slots(): kotlin.LongArray = __slotsLocal.get()!!\n\n",
+			"\t/** This thread's slots a returned record's scalars cross in, read before its next call. */\n\t// A field, not a function, so no exported function's name can clash with it.\n\t@JvmField val __slots = object : java.lang.ThreadLocal<kotlin.LongArray>() {{\n\t\t// Not `withInitial`, which Android lacks before API 26.\n\t\toverride fun initialValue() = kotlin.LongArray({n})\n\t}}\n\n",
 			n = g.slots
 		);
 	}
@@ -2070,6 +2070,12 @@ impl<'a> Gen<'a> {
 					}
 				));
 			}
+			// Encoding the other fields can drop an owner whose Kotlin `close()` returns a
+			// record of its own into this thread's slots, so the slots are written after.
+			if rest {
+				body.push("let mut w = rt::Writer::default();".to_string());
+				body.extend(flat.puts.iter().map(|p| format!("{p};")));
+			}
 			if !flat.slots.is_empty() {
 				params.push(("jlongArray", "kotlin.LongArray"));
 				body.push(format!(
@@ -2079,8 +2085,6 @@ impl<'a> Gen<'a> {
 				));
 			}
 			if rest {
-				body.push("let mut w = rt::Writer::default();".to_string());
-				body.extend(flat.puts.iter().map(|p| format!("{p};")));
 				body.push("w.array(env)".to_string());
 			} else if flat.option {
 				body.push("true".to_string());
@@ -2104,7 +2108,7 @@ impl<'a> Gen<'a> {
 			};
 			value = match flat.slots.is_empty() {
 				true => made,
-				false => format!("Native.__slots().let {{ {} -> {made} }}", flat.a),
+				false => format!("Native.__slots.get()!!.let {{ {} -> {made} }}", flat.a),
 			};
 		} else {
 			let c_ret = export.call.ret.clone();
