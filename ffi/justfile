@@ -46,9 +46,14 @@ fix:
 run *args:
     cargo run --locked --quiet -- {{ args }}
 
-# Census the stand-in facade moq/ffi.toml exports into target/census/moq-ffi.md, from the pinned moq revision or a checkout.
+# Census the stand-in facade moq/ffi.toml exports into target/census/moq-ffi.md, from the pinned moq revision or a checkout, failing when moq/ffi.toml excludes an item that exports.
 census checkout="": (standin checkout)
+    #!/usr/bin/env bash
+    set -euo pipefail
     cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --census target/census
+    # The exporter already rejects an exclude that names nothing exported; this rejects one that names what exports.
+    stale=$(comm -23 <(sed -n 's/^    "\(.*\)",$/\1/p' moq/ffi.toml | sort) <(sed -n '/^exclude = \[/,/^]/s/^    "\(.*\)",$/\1/p' target/census/moq-ffi.md | sort))
+    [ -z "$stale" ] || { printf 'moq/ffi.toml excludes what now exports; drop:\n%s\n' "$stale" >&2; exit 1; }
 
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
 bench checkout="": (bench-build checkout) bench-run

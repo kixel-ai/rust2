@@ -30,5 +30,4 @@ that passes them).
 ## Required
 
 - [The moq pin bump](/quest/m1/ffi-refusals/moq-pin.md) - the pin is at moq's `main`, where the census is taken
-- [No exclude hides what exports](/quest/m1/ffi-refusals/stale-excludes.md) - the list is down to what the export refuses
 - [Not Send](/quest/m1/ffi-export/not-send.md) - exports the three types the census still refuses for not being `Send`
