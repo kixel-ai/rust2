@@ -2681,3 +2681,67 @@ fn config_patched() {
 	// Built from here, where none of that config is read.
 	build_offline(&out, &root.join("glue"));
 }
+
+/// The workspace's profiles reach the glue's build, with an override of a package the
+/// library builds, but not one of a package only a test builds; an override naming no
+/// package, or `*`, is an error at its line.
+#[test]
+fn profiled() {
+	let package = package("profiled");
+	let files = |spec: &str| {
+		write_all(
+			&package,
+			&[
+				(
+					"Cargo.toml",
+					&format!(
+						"[package]\nname = \"profiled\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+						[profile.dev]\nopt-level = 1\n\n\
+						[profile.dev.package.\"{spec}\"]\nopt-level = 2\n\n\
+						[profile.dev.package.rust2-ffi-profiled-dev]\nopt-level = 3\n\n\
+						[dev-dependencies]\nrust2-ffi-profiled-dev = {{ path = \"dev\" }}\n\n\
+						[workspace]\nexclude = [\"dev\"]\n"
+					),
+				),
+				("src/lib.rs", "pub fn one() -> u32 {\n\t1\n}\n"),
+				(
+					"dev/Cargo.toml",
+					"[package]\nname = \"rust2-ffi-profiled-dev\"\nversion = \"0.0.0\"\nedition = \"2024\"\n",
+				),
+				("dev/src/lib.rs", ""),
+				("ffi.toml", ""),
+			],
+		);
+	};
+	files("profiled");
+	export_and_build(&package, &[]);
+	let manifest = std::fs::read_to_string(package.join("out/Cargo.toml")).unwrap();
+	let glue: toml::Table = toml::from_str(&manifest).unwrap();
+	assert_eq!(
+		glue["profile"]["dev"]["package"]["profiled"]["opt-level"].as_integer(),
+		Some(2),
+		"{manifest}"
+	);
+	assert_eq!(
+		glue["profile"]["dev"]["package"]["profiled-ffi"]["opt-level"].as_integer(),
+		Some(2),
+		"{manifest}"
+	);
+	assert!(!manifest.contains("rust2-ffi-profiled-dev"), "{manifest}");
+	files("missing");
+	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
+	assert!(!output.status.success(), "an override of no package passed");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("Cargo.toml:9: `profile.dev.package.missing` names no package the workspace resolves"),
+		"{stderr}"
+	);
+	files("*");
+	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
+	assert!(!output.status.success(), "a wildcard override passed");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("Cargo.toml:9: `profile.dev.package.\"*\"` would reach"),
+		"{stderr}"
+	);
+}
