@@ -4,7 +4,7 @@
 
 `just ffi moq-cpp <checkout>` at moq's `main` exports with no error and no new exclude:
 each construct the export refuses there, beyond
-[`NonZero`](/quest/m1/ffi-refusals/nonzero.md), exports by a rule or is left out as what C
+`NonZero`, which exports, either exports by a rule or is left out as what C
 can never hold. Measured on 2026-11-12 at moq `6936f0a`
 ([the pin bump](/quest/m1/ffi-refusals/moq-pin.md)): single refusals such as
 `qmux::Session` and `CertificateDer`, third-party types taken by value; a borrowing
@@ -22,7 +22,7 @@ can never hold is left out and listed.
 - Recommended for a third-party type by value: an opaque handle with none of its API, as
   the `Arc` form already is, since the value moves into the handle exactly.
 - Recommended for the borrowing future of a non-async fn: the rule async fns' borrowing
-  futures already follow ([#710](https://github.com/moq-dev/rust2/pull/710)).
+  futures already follow ([#710](https://github.com/kixel-ai/rust2/pull/710)).
 - No exclude is added to `ffi/moq/ffi.toml` to pass.
 
 Public API: the generated API of each item that newly exports.

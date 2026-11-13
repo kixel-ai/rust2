@@ -422,6 +422,7 @@ impl Gen<'_> {
 			Type::Unit => "()".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(int) => int.rust().to_string(),
+			Type::NonZero(int) => format!("::std::num::NonZero<{}>", int.rust()),
 			Type::U128 => "u128".to_string(),
 			Type::F32 => "f32".to_string(),
 			Type::F64 => "f64".to_string(),
@@ -470,6 +471,9 @@ impl Gen<'_> {
 			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => e.to_string(),
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
+			Type::NonZero(_) => {
+				format!("::std::num::NonZero::new({e}).unwrap_or_else(|| rt::fail(w, \"a NonZero is zero\"))")
+			}
 			Type::Char => format!("rt::char({e}, w)"),
 			Type::Str | Type::String => format!("unsafe {{ {e}.string_in(w, {take}) }}"),
 			Type::Slice | Type::Vec => format!("unsafe {{ {e}.vec_in(w, {take}) }}"),
@@ -657,6 +661,7 @@ impl Gen<'_> {
 			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "()".to_string(),
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
+			Type::NonZero(_) => format!("({e}).get()"),
 			Type::Char => format!("{e} as u32"),
 			Type::Str => format!("rt::Buf::string({e}.to_owned())"),
 			Type::String => format!("rt::Buf::string({e})"),
