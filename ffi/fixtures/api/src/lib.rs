@@ -2734,3 +2734,9 @@ pub fn describe_non_zeros(non_zeros: NonZeros) -> String {
 pub fn next_hop(hop: Option<NonZero<u64>>) -> Option<NonZero<u64>> {
 	hop?.checked_add(1)
 }
+
+/// The farther of two hops, boxed: a `NonZero` as a generic instance's argument and
+/// behind a `Box`.
+pub fn farther_hop(hops: Pair<NonZero<u16>>) -> Box<NonZero<u16>> {
+	Box::new(hops.left.max(hops.right))
+}

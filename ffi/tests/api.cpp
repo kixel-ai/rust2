@@ -1104,6 +1104,7 @@ int script() {
 			std::printf("hop None\n");
 		}
 	}
+	std::printf("farther hop %u\n", static_cast<unsigned>(api::farther_hop(api::Pair_non_zero_u16{3, UINT16_MAX})));
 
 	// A returned `Vec<&Token>` holds clones, which the vector drops.
 	api::Token twice = api::Token::new_(9);

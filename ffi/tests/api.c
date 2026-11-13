@@ -343,6 +343,7 @@ static bool closures(void) {
 			printf("hop None\n");
 		}
 	}
+	printf("farther hop %u\n", (unsigned)api_farther_hop((api_Pair_non_zero_u16){.left = 3, .right = UINT16_MAX}));
 	return ok;
 }
 

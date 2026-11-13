@@ -764,6 +764,7 @@ func script() {
 	for hop in [nil, 1, UInt64.max] as [UInt64?] {
 		print("hop \(nextHop(hop).map { "Some(\($0))" } ?? "None")")
 	}
+	print("farther hop \(fartherHop(PairNonZeroU16(left: 3, right: .max)))")
 }
 
 func printTail(_ read: () throws -> (Data, UInt64)) {

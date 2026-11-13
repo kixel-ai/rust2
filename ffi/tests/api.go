@@ -797,6 +797,7 @@ func script() {
 			fmt.Println("hop None")
 		}
 	}
+	fmt.Printf("farther hop %d\n", api.FartherHop(api.PairNonZeroU16{Left: 3, Right: math.MaxUint16}))
 }
 
 // farReader is a reader whose reads fail, which seeks anywhere from its start, as Rust's

@@ -651,7 +651,7 @@ impl Gen<'_> {
 			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "()".to_string(),
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
-			Type::NonZero(_) => format!("{e}.get()"),
+			Type::NonZero(_) => format!("({e}).get()"),
 			Type::Char => format!("{e} as u32"),
 			Type::Str => format!("rt::Buf::string({e}.to_owned())"),
 			Type::String => format!("rt::Buf::string({e})"),

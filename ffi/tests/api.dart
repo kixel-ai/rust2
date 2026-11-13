@@ -700,6 +700,7 @@ Future<void> script() async {
     final next = api.nextHop(hop);
     print(next == null ? 'hop None' : 'hop Some(${BigInt.from(next).toUnsigned(64)})');
   }
+  print('farther hop ${api.fartherHop(const api.PairNonZeroU16(left: 3, right: 0xFFFF))}');
 }
 
 /// A reader whose reads fail, as the transcript's: each seek lands at 0.

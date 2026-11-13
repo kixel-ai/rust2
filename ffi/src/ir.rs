@@ -59,6 +59,7 @@ impl Api {
 			Type::Unit => "()".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(int) => int.rust().to_string(),
+			Type::NonZero(int) => format!("std::num::NonZero<{}>", int.rust()),
 			Type::F32 => "f32".to_string(),
 			Type::F64 => "f64".to_string(),
 			Type::Char => "char".to_string(),

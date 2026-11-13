@@ -853,6 +853,9 @@ impl<'tcx> Collector<'tcx> {
 				ty::Tuple(list) => !list.is_empty(),
 				ty::Bool | ty::Char | ty::Float(_) => false,
 				ty::Int(_) | ty::Uint(_) => int(ty).is_none(),
+				ty::Adt(adt, args) if tcx.is_diagnostic_item(rustc_span::Symbol::intern("NonZero"), adt.did()) => {
+					int(args.type_at(0)).is_none()
+				}
 				ty::Adt(adt, _) => {
 					tcx.lang_items().string() != Some(adt.did())
 						&& self.bytes != Some(adt.did())

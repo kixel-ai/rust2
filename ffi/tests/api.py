@@ -668,6 +668,7 @@ def script():
 	for hop in [None, 1, 2**64 - 1]:
 		next = api.next_hop(hop)
 		print("hop None" if next is None else f"hop Some({next})")
+	print(f"farther hop {api.farther_hop(api.PairNonZeroU16(3, 0xFFFF))}")
 
 
 class Broken:

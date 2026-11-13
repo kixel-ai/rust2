@@ -380,6 +380,8 @@ impl<'a> Abi<'a> {
 			Type::Enum(i) => (&self.api.enums[*i].shown, &self.api.enums[*i].args),
 			Type::Object(i) => (&self.api.objects[*i].shown, &self.api.objects[*i].args),
 			Type::Ref(_, inner) | Type::Box(inner) => return self.arg_forms(inner),
+			// Apart from its integer's, which an instance of the same item may also take.
+			Type::NonZero(int) => return vec![format!("non_zero_{}", int.rust())],
 			ty => return vec![self.key(ty)],
 		};
 		let segments = self.segments(shown);
