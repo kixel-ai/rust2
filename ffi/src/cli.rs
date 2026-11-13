@@ -64,6 +64,18 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	if output.0 != config::env::OUT && own.baseline.is_some() {
 		return Err(format!("--baseline checks an export: give it with --out\n\n{USAGE}"));
 	}
+	if let Some(baseline) = &own.baseline {
+		// The export's own api.json would silently replace the baseline it passed.
+		let api = output.1.join(crate::driver::API_FILE);
+		if let (Ok(a), Ok(b)) = (std::fs::canonicalize(baseline), std::fs::canonicalize(&api))
+			&& a == b
+		{
+			return Err(format!(
+				"--baseline {} is the api.json the export writes: commit the baseline outside --out\n\n{USAGE}",
+				baseline.display()
+			));
+		}
+	}
 	if output.0 != config::env::OUT && (targets.len() > 1 || !own.with.is_empty()) {
 		return Err(format!(
 			"--census and --api write one target's: give at most one --target and no --with\n\n{USAGE}"

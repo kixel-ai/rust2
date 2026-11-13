@@ -203,6 +203,8 @@ API breaks the one in `file`, with an error at each item that names how:
 - a C name that now names another item: since a name depends on every item exported
   ([The C ABI](#the-c-abi)), adding `audio::encoder_finish` renames `audio_encoder::finish`
   to `moq_audio_encoder_finish_`, and a C caller of the old name would call the new item.
+  A tuple's struct, known by its Rust spelling, is renamed the same way when another
+  tuple's elements run together into its name.
 
 An item is known by its kind and Rust path, as `exclude` names it. An addition passes: a new
 item, method, trait impl, or a variant of a `#[non_exhaustive]` enum. A constant's value and
@@ -211,7 +213,8 @@ it covers C's names, while a language's own names for a clash its generator rena
 compared.
 
 The baseline is a lockfile, not config: the consumer commits it beside `Cargo.lock`, the
-export reads it only to compare, and the export is the same with or without it. To accept a
+export reads it only to compare, and the export is the same with or without it. It refuses a
+baseline that is the `api.json` it would write. To accept a
 break, export without `--baseline` and commit the `api.json` it writes. Its spans are relative
 to the workspace and cargo's home, as a staged API's are, so a removed item's error points
 where it was while its file is unchanged.

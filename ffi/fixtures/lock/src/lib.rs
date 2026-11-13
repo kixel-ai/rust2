@@ -186,3 +186,13 @@ pub const PAGES: i16 = 4;
 pub const LIMIT: u32 = 10;
 #[cfg(feature = "added")]
 pub const LIMIT: u32 = 20;
+
+/// A tuple whose C name, `lock_tuple_tuple_u32_u64_u8`, `next` gives another tuple too.
+pub fn nested(x: ((u32,), u64, u8)) -> u32 {
+	x.0.0
+}
+
+#[cfg(feature = "next")]
+pub fn flat(x: ((u32, u64), u8)) -> u32 {
+	x.0.0
+}

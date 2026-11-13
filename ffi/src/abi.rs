@@ -589,7 +589,7 @@ impl<'a> Abi<'a> {
 
 	/// A type by its key, with each tuple spelled as Rust spells it, which tells apart
 	/// tuples that share a C name.
-	fn spell(&self, ty: &Type) -> String {
+	pub fn spell(&self, ty: &Type) -> String {
 		match ty {
 			Type::Tuple(elements) => {
 				let elements: Vec<String> = elements.iter().map(|e| self.spell(e)).collect();

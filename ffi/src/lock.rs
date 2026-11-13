@@ -6,7 +6,8 @@
 //! that the export lacks, or has on fewer of the baseline's targets, is removed; one whose
 //! signature, fields, or variants differ is changed; and one whose C name differs is renamed,
 //! as an item added beside it makes it when their names clash, since a C caller of the old
-//! name then calls the new item. An addition passes: a new item, method, trait impl, or a
+//! name then calls the new item. A tuple's struct is known by its Rust spelling, and is
+//! renamed the same way. An addition passes: a new item, method, trait impl, or a
 //! variant of an enum another crate cannot match exhaustively.
 
 use std::collections::BTreeMap;
@@ -14,7 +15,7 @@ use std::collections::BTreeMap;
 use rustc_span::{DUMMY_SP, Span};
 
 use crate::abi::{Abi, Ty};
-use crate::ir::{Access, Api, Constant, Function, Literal, On, Traits};
+use crate::ir::{Access, Api, Constant, Function, Literal, On, Traits, Type};
 use crate::merge::{self, Maps};
 
 /// An item the export's API breaks the baseline's at: where, and how.
@@ -94,6 +95,19 @@ pub fn breaks(base: &Api, now: &Api, prefix: &str) -> Vec<Break> {
 			});
 		}
 	}
+	// A tuple the export no longer uses is no break: what used it reports its own change.
+	for (spelled, (c, _)) in &base.tuples {
+		let Some((theirs, span)) = now.tuples.get(spelled) else {
+			continue;
+		};
+		if c != theirs {
+			let mut what = format!("tuple `{spelled}`: its C name `{c}` is now `{theirs}`");
+			if let Some((other, _)) = now.tuples.iter().find(|(_, (n, _))| n == c) {
+				what += &format!(", and `{c}` names tuple `{other}`");
+			}
+			breaks.push(Break { span: *span, what });
+		}
+	}
 	breaks
 }
 
@@ -124,6 +138,9 @@ struct Entry<'a> {
 struct Index<'a> {
 	api: &'a Api,
 	entries: BTreeMap<String, Entry<'a>>,
+	/// Each tuple's struct by its Rust spelling: its C name, and a function that takes or
+	/// returns it.
+	tuples: BTreeMap<String, (String, Span)>,
 }
 
 impl<'a> Index<'a> {
@@ -220,7 +237,32 @@ impl<'a> Index<'a> {
 			};
 			entries.insert(format!("const {}", shown(&constant.path)), entry);
 		}
-		Self { api, entries }
+		let mut tuples: BTreeMap<String, (String, Span)> = (abi.tuples.iter())
+			.map(|(c, elements)| (abi.spell(&Type::Tuple(elements.clone())), (c.clone(), DUMMY_SP)))
+			.collect();
+		let functions = (api.functions.iter())
+			.chain(api.records.iter().flat_map(|r| &r.methods))
+			.chain(api.enums.iter().flat_map(|e| &e.methods))
+			.chain(api.objects.iter().flat_map(|o| &o.methods));
+		for function in functions {
+			let types = function
+				.params
+				.iter()
+				.map(|p| &p.ty)
+				.chain([&function.ok])
+				.chain(&function.err);
+			for ty in types {
+				crate::ir::each(ty, &mut |ty| {
+					if let Type::Tuple(elements) = ty {
+						let name = abi.tuple(elements);
+						if let Some((_, span)) = tuples.values_mut().find(|(c, span)| *c == name && span.is_dummy()) {
+							*span = function.span;
+						}
+					}
+				});
+			}
+		}
+		Self { api, entries, tuples }
 	}
 
 	/// The item whose C name is `c`.

@@ -1378,6 +1378,17 @@ fn lock() {
 		String::from_utf8_lossy(&output.stderr)
 	);
 	let baseline = dir.join("base").join("api.json");
+	let before = std::fs::read(&baseline).unwrap();
+	let args = ["--baseline".as_ref(), baseline.as_os_str()];
+	let itself = exporter("lock", &dir.join("base"), &targets, &args, &[])
+		.output()
+		.expect("running rust2-ffi");
+	assert!(!itself.status.success(), "a baseline the export would overwrite passed");
+	assert_eq!(
+		std::fs::read(&baseline).unwrap(),
+		before,
+		"the export overwrote its baseline"
+	);
 	let locked = |feature: &str| {
 		let args = ["--baseline".as_ref(), baseline.as_os_str()];
 		exporter("lock", &dir.join(feature), &targets, &args, &["--features", feature])
