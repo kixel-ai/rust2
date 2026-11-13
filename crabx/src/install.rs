@@ -153,7 +153,7 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 		.collect::<Result<Vec<_>>>()?;
 	for (name, data) in std::iter::once((package.name.clone(), data.clone())).chain(alternate) {
 		for target in &targets {
-			if !disabled(&target, Strategy::CrateMetaData) {
+			if !disabled(target, Strategy::CrateMetaData) {
 				candidates.push((
 					name.clone(),
 					GhCrateMeta::new(
@@ -169,7 +169,7 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 	}
 	if quickinstall {
 		for target in &targets {
-			if !disabled(&target, Strategy::QuickInstall) {
+			if !disabled(target, Strategy::QuickInstall) {
 				candidates.push((
 					package.name.clone(),
 					QuickInstall::new(

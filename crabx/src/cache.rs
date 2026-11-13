@@ -32,7 +32,10 @@ impl Record {
 				.map(String::as_str)
 				.with_context(|| format!("no binary {requested:?}; available: {}", self.bins.join(", ")));
 		}
-		if let Some(bin) = self.bins.iter().find(|bin| **bin == format!("{krate}{extension}")) {
+		let name = format!("{krate}{extension}");
+		let mut matching = self.bins.iter().filter(|bin| bin.eq_ignore_ascii_case(&name));
+		if let Some(bin) = matching.next() {
+			ensure!(matching.next().is_none(), "several binaries match the crate name; choose --bin NAME: {}", self.bins.join(", "));
 			return Ok(bin);
 		}
 		match self.bins.as_slice() {
@@ -183,8 +186,12 @@ mod tests {
 		assert!(record.binary(Some("missing"), "first").is_err());
 		assert_eq!(record.binary(Some("second"), "other").unwrap(), record.bins[1]);
 		assert_eq!(record.binary(None, "first").unwrap(), record.bins[0]);
+		assert_eq!(record.binary(None, "FiRsT").unwrap(), record.bins[0]);
 		record.bins.pop();
 		assert_eq!(record.binary(None, "other").unwrap(), record.bins[0]);
+		record.bins.push(format!("FIRST{}", std::env::consts::EXE_SUFFIX));
+		assert!(record.binary(None, "first").is_err());
+		assert_eq!(record.binary(Some("first"), "first").unwrap(), record.bins[0]);
 	}
 
 	#[test]
