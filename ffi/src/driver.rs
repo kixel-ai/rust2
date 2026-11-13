@@ -118,7 +118,6 @@ impl Export {
 			.map(str::to_string)
 			.collect();
 		let patch = std::env::var(config::env::PATCH).map_err(|_| format!("{} is unset", config::env::PATCH))?;
-<<<<<<< HEAD
 		let crates = std::env::var(config::env::CRATES).map_err(|_| format!("{} is unset", config::env::CRATES))?;
 		let crates: toml::Table = crates
 			.parse()
@@ -129,11 +128,9 @@ impl Export {
 				_ => Err(format!("{} is malformed: {lib}", config::env::CRATES)),
 			})
 			.collect::<Result<_, String>>()?;
-=======
 		let baseline = std::env::var_os(config::env::BASELINE)
 			.filter(|p| !p.is_empty())
 			.map(PathBuf::from);
->>>>>>> origin/main
 		Ok(Some(Self {
 			crates,
 			config,
