@@ -82,9 +82,12 @@ impl Packages {
 				name.insert_str(0, "crate");
 			}
 			name += count;
-			// A name Go, cgo, or the runtime takes, or an earlier crate's, takes a trailing
-			// `_`, which no crate's name keeps.
-			while ["C", "main"].contains(&name.as_str()) || keyword(&name) || by_crate.values().any(|(n, _)| *n == name)
+			// A name Go, cgo, or the runtime takes, or one an earlier crate's matches ignoring
+			// case, as a case-insensitive filesystem would, takes a trailing `_`, which no
+			// crate's name keeps.
+			while ["C", "main"].contains(&name.as_str())
+				|| keyword(&name)
+				|| by_crate.values().any(|(n, _)| n.eq_ignore_ascii_case(&name))
 			{
 				name.push('_');
 			}
@@ -96,6 +99,13 @@ impl Packages {
 	fn name(&self, krate: &str) -> &str {
 		&self.by_crate[krate].0
 	}
+}
+
+/// Each crate's Go package name, by crate, which also names its C++ header.
+pub fn packages(abi: &Abi<'_>) -> BTreeMap<String, String> {
+	let mut by_crate = Packages::new(abi, "").by_crate;
+	by_crate.remove(Packages::RT);
+	by_crate.into_iter().map(|(krate, (name, _))| (krate, name)).collect()
 }
 
 /// The Go for `abi`, whose header's contract is `contract`, as each file under `go/` by its
@@ -2419,18 +2429,23 @@ impl<'a> Gen<'a> {
 			}
 		}
 		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
-		// A failed check writes its status, whose error the call returns.
-		let failed = status.then(|| {
-			args.push("&c_status_".to_string());
-			let error = format!(
+		// A failed check writes its status, whose error the call returns; once it passed,
+		// each handle the call moved out of closes.
+		let status_error = match status {
+			true => format!(
 				"{}(int32(c_status_), \"{c_name}\")",
 				self.qualify(Packages::RT, "Status_")
-			);
-			let mut failed = format!("if c_status_ != 0 {{\n\t{}\n}}", fail(&error));
-			for moved in &moves {
-				failed = format!("{failed}\n{moved}");
+			),
+			false => String::new(),
+		};
+		let moved = moves.join("\n");
+		let failed = status.then(|| {
+			args.push("&c_status_".to_string());
+			let failed = format!("if c_status_ != 0 {{\n\t{}\n}}", fail(&status_error));
+			match moved.is_empty() {
+				true => failed,
+				false => format!("{failed}\n{moved}"),
 			}
-			failed
 		});
 		assert!(status || moves.is_empty(), "{c_name} moves a value Rust checks");
 		let mut body = Vec::new();
@@ -2445,19 +2460,21 @@ impl<'a> Gen<'a> {
 			body.push(format!("if a_.err != nil {{\n\t{}\n}}", fail("a_.err")));
 		}
 
-		if let Some((_, poll, free)) = &export.future {
-			body.push(format!("f_ := C.{c_name}({})", args.join(", ")));
-			body.extend(failed);
-			body.push(format!("defer C.{}(f_)", free.name));
+		if let Some(abi::Future {
+			handle,
+			start,
+			poll,
+			free,
+		}) = &export.future
+		{
 			let mut decls = Vec::new();
 			for (k, ty) in oks.iter().enumerate() {
 				let go = self.go(ty);
 				decls.push(format!("var r{k}_ {go}"));
 			}
+			body.extend(decls);
+			let zeros: String = (0..oks.len()).map(|k| format!("r{k}_, ")).collect();
 			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
-			let mut inner: Vec<String> = poll_outs.iter().map(|(n, ty)| self.out_decl(n, ty)).collect();
-			let mut call_args = vec!["f_".to_string(), "w_".to_string()];
-			call_args.extend(poll_outs.iter().map(|(n, _)| format!("&c_{n}_")));
 			let mut ready: Vec<String> = Vec::new();
 			for (k, ty) in oks.iter().enumerate() {
 				let out = out_name(&function.ok, k);
@@ -2469,17 +2486,76 @@ impl<'a> Gen<'a> {
 				let lifted = self.lift_err(err, "c_err_");
 				cases.push(format!("case {}:\n\treturn true, {lifted}", poll_error(abi)));
 			}
-			inner.push(format!(
-				"switch C.{}({}) {{\n{}\n}}\nreturn false, nil",
+			let cases = cases.join("\n");
+			// Lifts what a call or a poll wrote, once either reports the future finished.
+			let decls: Vec<String> = poll_outs.iter().map(|(n, ty)| self.out_decl(n, ty)).collect();
+			let ptrs: Vec<String> = poll_outs.iter().map(|(n, _)| format!("&c_{n}_")).collect();
+			let mut call_args = vec!["f_".to_string(), "w_".to_string()];
+			call_args.extend(ptrs.iter().cloned());
+			let mut polled = decls.clone();
+			polled.push(format!(
+				"switch C.{}({}) {{\n{cases}\n}}\nreturn false, nil",
 				poll.name,
-				call_args.join(", "),
-				cases.join("\n")
+				call_args.join(", ")
 			));
-			body.extend(decls);
-			body.push(format!(
-				"err_ := await_(ctx, func(w_ cWaker) (bool, error) {{\n{}\n}})",
-				indent(&inner.join("\n"))
-			));
+			let polled = indent(&polled.join("\n"));
+			if function.eager {
+				// An eager call runs Rust, and any callback it makes, before its future
+				// exists, and a callback may cancel the context: so it is made, then the
+				// context checked, then polled, never started.
+				body.push(format!("f_ := C.{c_name}({})", args.join(", ")));
+				body.extend(failed.clone());
+				body.push(format!("defer C.{}(f_)", free.name));
+				body.push(format!(
+					"if err_ := ctx.Err(); err_ != nil {{\n\treturn {zeros}err_\n}}"
+				));
+				body.push(format!("poll_ := func(w_ cWaker) (bool, error) {{\n{polled}\n}}"));
+				body.push("done_, err_ := poll_(cWaker{})\nif !done_ {\n\terr_ = await_(ctx, poll_)\n}".to_string());
+			} else {
+				// A context done already takes nothing, even what is ready: the future is made
+				// and dropped unpolled, as Rust drops one it never awaits. Making an `async fn`'s
+				// future runs nothing, so the check needs no repeat after it.
+				// What it moved out of closes once its checks passed, as the future owns it.
+				let dropped = match (status, moved.is_empty()) {
+					(true, false) => format!("\n\tif c_status_ == 0 {{\n\t\t{}\n\t}}", moved.replace('\n', "\n\t\t")),
+					_ => String::new(),
+				};
+				body.push(format!(
+					"if err_ := ctx.Err(); err_ != nil {{\n\tC.{}(C.{c_name}({})){dropped}\n\treturn {zeros}err_\n}}",
+					free.name,
+					args.join(", ")
+				));
+				// The status follows every out, and the future's handle.
+				let mut start_args = args.clone();
+				let status_arg = status.then(|| start_args.pop().expect("the status"));
+				start_args.extend(ptrs.iter().cloned());
+				start_args.push("&f_".to_string());
+				start_args.extend(status_arg);
+				let started = format!("C.{}({})", start.name, start_args.join(", "));
+				let mut inner = decls;
+				match status {
+					true => {
+						inner.push(format!(
+							"started_ := {started}\nif c_status_ != 0 {{\n\treturn true, {status_error}\n}}"
+						));
+						if !moved.is_empty() {
+							inner.push(moved.clone());
+						}
+						inner.push(format!("switch started_ {{\n{cases}\n}}\nreturn false, nil"));
+					}
+					false => inner.push(format!("switch {started} {{\n{cases}\n}}\nreturn false, nil")),
+				}
+				body.push(format!("var f_ *C.{handle}"));
+				body.push(format!(
+					"done_, err_ := func() (bool, error) {{\n{}\n}}()",
+					indent(&inner.join("\n"))
+				));
+				body.push(format!(
+					"if !done_ {{\n\tdefer C.{}(f_)\n\terr_ = await_(ctx, func(w_ cWaker) (bool, error) {{\n{}\n\t}})\n}}",
+					free.name,
+					indent(&polled)
+				));
+			}
 			let mut returns: Vec<String> = (0..oks.len()).map(|k| format!("r{k}_")).collect();
 			returns.push("err_".to_string());
 			body.push(format!("return {}", returns.join(", ")));

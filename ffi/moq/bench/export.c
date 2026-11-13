@@ -65,14 +65,14 @@ static moq_group_Consumer *recv_group(moq_track_Subscriber *subscriber) {
 	return reader;
 }
 
+/* A read ready at once: made and polled in one call, with no handle. */
 static moq_frame_Frame *read_frame(moq_group_Consumer *reader) {
-	moq_group_Consumer_read_frame_future *reading = moq_group_Consumer_read_frame(reader, NULL);
+	moq_group_Consumer_read_frame_future *reading = NULL;
 	moq_frame_Frame *read = NULL;
 	moq_Error *err = NULL;
-	if (moq_group_Consumer_read_frame_poll(reading, waker, &read, &err) != MOQ_POLL_READY || read == NULL) {
+	if (moq_group_Consumer_read_frame_start(reader, &read, &err, &reading, NULL) != MOQ_POLL_READY || read == NULL) {
 		fail("read_frame");
 	}
-	moq_group_Consumer_read_frame_future_free(reading);
 	return read;
 }
 

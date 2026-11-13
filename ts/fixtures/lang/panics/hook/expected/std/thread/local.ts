@@ -2,11 +2,11 @@
 
 import * as rs from "../../rs.ts";
 
-export function withBorrow$097wfl1(self: rs.LocalKey<rs.RefCell<rs.u8>>, f: (a0: rs.u8) => undefined): void {
+export function withBorrow$08fexrm(self: rs.LocalKey<rs.RefCell<rs.u8>>, f: (a0: rs.u8) => undefined): void {
 	const captured = f;
 	((cell: rs.RefCell<rs.u8>): undefined => {
 		const _32: (a0: rs.u8) => undefined = captured;
-		const _7: rs.RefCell<rs.u8> = rs.refCellBorrow(cell, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/std/src/thread/local.rs", line: 688, col: 34 });
+		const _7: rs.RefCell<rs.u8> = rs.refCellBorrow(cell, { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/std/src/thread/local.rs", line: 688, col: 34 });
 		_32(_7.value);
 		rs.refRelease(_7);
 	})(self.get());

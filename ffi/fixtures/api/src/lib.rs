@@ -52,6 +52,65 @@ pub fn has_text(note: Note) -> bool {
 	note.text.is_some()
 }
 
+/// A reading: a field of each scalar kind at the edge of its range, a nested record, and
+/// text, so a binding that passes a record's scalars apart from its other fields passes each
+/// exactly.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Reading {
+	pub ok: bool,
+	pub level: f32,
+	pub ratio: f64,
+	pub mark: char,
+	pub shape: Shape,
+	pub at: Point,
+	pub note: String,
+	pub count: u64,
+	pub offset: i8,
+	pub len: usize,
+	pub tag: u16,
+}
+
+impl Reading {
+	/// The reading after this one, by its `tag`.
+	pub fn next(&self) -> Option<Reading> {
+		reading(u32::from(u16::MAX - self.tag) + 1)
+	}
+}
+
+/// The reading `n`, or none for 0.
+pub fn reading(n: u32) -> Option<Reading> {
+	(n != 0).then(|| Reading {
+		ok: n % 2 == 1,
+		level: -(n as f32) / 2.0,
+		ratio: f64::MAX / f64::from(n),
+		mark: char::from_u32(0x10FFFF - n).unwrap_or(char::REPLACEMENT_CHARACTER),
+		shape: match n % 2 {
+			1 => Shape::Circle,
+			_ => Shape::Square,
+		},
+		at: Point {
+			x: i32::MIN + n as i32,
+			y: -(n as i32),
+		},
+		note: format!("reading {n}"),
+		count: u64::MAX - u64::from(n),
+		offset: i8::MIN.wrapping_add(n as i8),
+		len: usize::MAX - n as usize,
+		tag: u16::MAX - n as u16,
+	})
+}
+
+/// The `Debug` form of `reading(n)`, or empty for none, which a binding compares its own
+/// copy's with.
+pub fn reading_debug(n: u32) -> String {
+	reading(n).map_or_else(String::new, |r| format!("{r:?}"))
+}
+
+/// `reading`, passed through Rust and back.
+pub fn reading_echo(reading: Reading) -> Reading {
+	reading
+}
+
 /// A plain enumeration.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Shape {
@@ -1068,6 +1127,18 @@ fn on_thread(log: &(impl Log + ?Sized), lines: &[u8]) -> u32 {
 	})
 }
 
+/// A record named as Swift's own error a cancelled task throws, which the binding renames.
+pub struct CancellationError {
+	pub code: u32,
+}
+
+/// Each of `0..n` to `count` before it returns its future, then `n` doubled once polled,
+/// or `Overflow`: an eager, fallible future that lends a closure.
+pub fn counted(n: u32, mut count: impl FnMut(u32)) -> std::future::Ready<Result<u32, Error>> {
+	(0..n).for_each(&mut count);
+	std::future::ready(n.checked_mul(2).ok_or(Error::Overflow))
+}
+
 /// Each line to `keep` on another thread, returning how many it kept: a lent closure may
 /// run on any thread until the call returns.
 pub fn filter(lines: Vec<u8>, mut keep: impl FnMut(u8, &str) -> bool + Send) -> u32 {
@@ -1349,11 +1420,18 @@ pub fn next_packet(packet: Packet) -> Packet {
 pub struct Retry {
 	pub limit: Option<u32>,
 	pub delay: Option<u32>,
+	/// Its field exports, but the method of its name is refused, so the config excludes
+	/// both, and the census lists only `field@Retry::jitter` as excluding what exports.
+	pub jitter: u32,
 }
 
 impl Retry {
 	pub fn new(limit: Option<u32>) -> Self {
-		Self { limit, delay: None }
+		Self {
+			limit,
+			delay: None,
+			jitter: 0,
+		}
 	}
 
 	pub fn limit(&self) -> u32 {
@@ -1366,6 +1444,11 @@ impl Retry {
 
 	pub fn set_limit(&mut self, limit: u32) {
 		self.limit = Some(limit);
+	}
+
+	/// The jitter capped by `cap`, if any: a nested `Option`, which the export refuses.
+	pub fn jitter(&self, cap: Option<Box<Option<u32>>>) -> u32 {
+		cap.and_then(|cap| *cap).map_or(self.jitter, |cap| self.jitter.min(cap))
 	}
 }
 
@@ -1910,6 +1993,13 @@ impl Seed<u64> for Point {
 	}
 }
 
+/// A point scales an area of dep-fixture's by its distance from the origin along each axis.
+impl dep::Factor<u32> for Point {
+	fn factor(&self) -> u32 {
+		self.x.unsigned_abs() + self.y.unsigned_abs()
+	}
+}
+
 impl Seed<u64> for Size {
 	fn seed(&self) -> u64 {
 		u64::from(self.width) * u64::from(self.height)
@@ -2243,6 +2333,14 @@ pub async fn either_later(text: Option<&str>) -> usize {
 /// `payload` after `prefix`, if any.
 pub fn prefixed(payload: &[u8], prefix: Option<&[u8]>) -> Vec<u8> {
 	[prefix.unwrap_or_default(), payload].concat()
+}
+
+/// The sum of `a`, `b`, and `c`, if any: a list owned, then lent as a slice and as itself.
+pub fn sum_lists(a: Vec<i32>, b: Option<&[i32]>, c: Option<&Vec<i32>>) -> i32 {
+	a.iter()
+		.chain(b.unwrap_or_default())
+		.chain(c.into_iter().flatten())
+		.sum()
 }
 
 /// `point`'s coordinates summed, or 0 for none: an optional value, lent shared.
@@ -2798,4 +2896,9 @@ pub fn next_hop(hop: Option<NonZero<u64>>) -> Option<NonZero<u64>> {
 /// behind a `Box`.
 pub fn farther_hop(hops: Pair<NonZero<u16>>) -> Box<NonZero<u16>> {
 	Box::new(hops.left.max(hops.right))
+}
+
+/// Three optional borrowed counters, past what Swift takes, so the config leaves it out.
+pub fn among(first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
+	[first, second, third].into_iter().flatten().map(|c| c.value).sum()
 }

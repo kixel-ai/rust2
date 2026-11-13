@@ -146,9 +146,14 @@ frame path:
    asyncio's, as BoltFFI's Python measured 10 us. This case starts a task per read; a
    reader looping on one task would skip the start, and is what to measure before changing
    a generator.
-4. **A future per read.** A ready read costs C 155 ns over the write where Rust costs 73:
-   the future's three allocations and three crossings. Each language adds 160 (Swift) to 420 (Go) ns
-   more in its own wrapper, so the C ABI's share is not yet where a per-handle poll would pay.
+4. **A future per read.** Since `<fn>_start` makes a future and polls it in one call, a
+   ready read costs C 126 ns over the write where Rust costs 93: one crossing and one
+   allocation, down from 176 with four allocations and three crossings. Measured 2026-11-13
+   on an AMD Ryzen 9 9950X (32 threads) at a load average of 26, 12 rounds alternating with
+   the commit before, so the tables above predate it. Over their writes, Swift pays 289,
+   Go 414, Dart 522, Python 445, and Kotlin 590 (from 381, 556, 868, 659, and 615). Go's and
+   Dart's include the returned frame's ownership, about 190 and 215 ns over C's object return;
+   the rest is each language's own await.
 5. **Kotlin's record codec.** A record return costs Kotlin 113 ns wall against C's 31,
    through the byte-array codec; Swift, which reads the C struct, costs 37.
 6. **The handle borrow at the C ABI.** The u64 getter costs Rust 0.4 ns and C 10: the

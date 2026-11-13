@@ -7,7 +7,8 @@ Rust type exactly: a value passed in and returned is the same value, and no conv
 truncates, clamps, panics, traps, or aborts. A native type stands in only where it is
 exact; otherwise the runtime's own type crosses, with checked conversions to and from the
 idiomatic one that fail with the language's error. Proven in every language's `api` test
-by the edge values of each type crossing both ways.
+by the edge values of each type crossing both ways, and by deleting this quest's `KNOWN`
+entries in [the shape tests](/ffi/tests/fixtures/shapes.rs).
 
 ## Plan
 
@@ -22,7 +23,8 @@ What the audit found, each a place native Rust would have gone on:
   clamp (`ffi/runtime/python.rs`, `rt.dart`); Go's `time.Duration` panics on a negative
   one or past 292 years (`ffi_cgo.go`); Swift traps on a negative `Swift.Duration` or one
   past `Duration::MAX` (`rt.swift`); Kotlin's maps past `i64` seconds to `INFINITE`
-  and back to `i64::MAX` seconds (`rt.kt`). Seconds and nanoseconds, as std holds them,
+  and back to `i64::MAX` seconds (`rt.kt`), and past about 146 years, where
+  `kotlin.time.Duration` holds milliseconds, drops what is below one. Seconds and nanoseconds, as std holds them,
   cross exactly. moq's switch also asks that Go stop panicking on a negative one and that
   a duration field default to zero
   ([moq's quest](https://github.com/moq-dev/moq/blob/main/quest/m3/ffi-exporter.md)).

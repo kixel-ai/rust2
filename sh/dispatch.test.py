@@ -10,6 +10,9 @@ from pathlib import Path
 
 DISPATCH = Path(__file__).with_name("dispatch.sh").resolve()
 EVERYTHING = ["lint", "quest", "sh", "driver", "ffi", "go", "ts"]
+# A shared input runs everything but the parked go, which only `just gate` and
+# its own diff select.
+SHARED = [m for m in EVERYTHING if m != "go"]
 
 
 class SelectTests(unittest.TestCase):
@@ -67,7 +70,7 @@ class SelectTests(unittest.TestCase):
             (["ts/src/lib.rs"], ["lint", "ts"]),
             (["ffi/src/lib.rs"], ["lint", "ffi"]),
             (["go/src/lib.rs"], ["lint", "go"]),
-            (["ts/fixtures/codec/src/lib.rs"], ["lint", "go", "ts"]),
+            (["ts/fixtures/codec/src/lib.rs"], ["lint", "ts"]),
             (["quest/m0/example.md"], ["lint", "quest"]),
             (["sh/dispatch.test.py"], ["lint", "sh"]),
             (["ts/src/lib.rs", "ffi/src/lib.rs"], ["lint", "ffi", "ts"]),
@@ -79,11 +82,15 @@ class SelectTests(unittest.TestCase):
 
     def test_the_driver_selects_its_dependents(self):
         self.change("driver/src/lib.rs")
-        self.assertEqual(self.select(), ["lint", "driver", "ffi", "go", "ts"])
+        self.assertEqual(self.select(), ["lint", "driver", "ffi", "ts"])
 
     def test_the_shared_nightly_selects_each_project_on_it(self):
         self.change("ts/rust-toolchain.toml")
-        self.assertEqual(self.select(), ["lint", "driver", "ffi", "go", "ts"])
+        self.assertEqual(self.select(), ["lint", "driver", "ffi", "ts"])
+
+    def test_a_go_diff_with_a_shared_input_still_selects_go(self):
+        self.change("go/src/lib.rs", "flake.nix")
+        self.assertEqual(self.select(), EVERYTHING)
 
     def test_lint_only_paths_select_only_the_lints(self):
         for path in ("bench/ffi/run.sh", "README.md", ".claude/settings.json"):
@@ -109,7 +116,7 @@ class SelectTests(unittest.TestCase):
         ):
             with self.subTest(path=path):
                 self.change(path)
-                self.assertEqual(self.select(), EVERYTHING)
+                self.assertEqual(self.select(), SHARED)
                 self.git("checkout", "-q", ".")
                 self.git("clean", "-fdq")
 

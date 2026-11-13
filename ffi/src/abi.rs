@@ -130,8 +130,19 @@ pub struct Export {
 	/// The C name its path gives it, which another language names it by, as a clash in C
 	/// renames only C's.
 	pub named: String,
-	/// For a future: its handle type, its poll, and its free.
-	pub future: Option<(String, Sig, Sig)>,
+	/// For a future: its handle type and the functions over it.
+	pub future: Option<Future>,
+}
+
+/// The C functions of a future besides the call that makes it.
+pub struct Future {
+	/// The handle's type.
+	pub handle: String,
+	/// The call and its first poll in one, which writes a ready result as the poll does and
+	/// hands back the handle only if the future pends.
+	pub start: Sig,
+	pub poll: Sig,
+	pub free: Sig,
 }
 
 /// Each `<prefix>_status` a call can fail with, numbered from 1, and what it means, as
@@ -874,13 +885,23 @@ impl<'a> Abi<'a> {
 			(status, Ty::Out(Box::new(Ty::Status)))
 		});
 		if function.future {
-			params.extend(status);
 			let handle = format!("{name}_future");
 			let mut poll_params = vec![
 				("future".to_string(), Ty::Future(handle.clone())),
 				("waker".to_string(), Ty::Waker),
 			];
-			poll_params.extend(outs);
+			poll_params.extend(outs.iter().cloned());
+			// The status trails each, as every function's does.
+			let mut start_params = params.clone();
+			start_params.extend(outs);
+			start_params.push(("future".to_string(), Ty::Out(Box::new(Ty::Future(handle.clone())))));
+			start_params.extend(status.clone());
+			params.extend(status);
+			let start = Sig {
+				name: format!("{name}_start"),
+				params: start_params,
+				ret: Ty::Poll,
+			};
 			let poll = Sig {
 				name: format!("{name}_poll"),
 				params: poll_params,
@@ -897,7 +918,12 @@ impl<'a> Abi<'a> {
 					params,
 					ret: Ty::Future(handle.clone()),
 				},
-				future: Some((handle, poll, free)),
+				future: Some(Future {
+					handle,
+					start,
+					poll,
+					free,
+				}),
 				named,
 			};
 		}
@@ -1227,8 +1253,14 @@ impl<'a> Abi<'a> {
 			);
 			let own = self.own(&item, &name, segments);
 			self.claim(name.clone(), what.clone(), function.span, own);
-			if let Some((handle, poll, free)) = &export.future {
-				for made in [handle, &poll.name, &free.name] {
+			if let Some(Future {
+				handle,
+				start,
+				poll,
+				free,
+			}) = &export.future
+			{
+				for made in [handle, &start.name, &poll.name, &free.name] {
 					self.claim(made.clone(), what.clone(), function.span, Self::made(&item, &name));
 				}
 			}
