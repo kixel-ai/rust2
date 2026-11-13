@@ -196,8 +196,7 @@ export function variants(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const _35: rs.StrCow = new rs.Borrowed(s.v);
 		const _37: rs.StrCow = new rs.Borrowed(first);
 		const _38: rs.StrCow = rs.stringNew();
-		const _40: rs.Iter<rs.char> = rs.iterRev(rs.strChars(first));
-		const _39: rs.StrCow = rs.stringExtendChars(rs.stringNew(), _40);
+		const _39: rs.StrCow = rs.stringFromChars(rs.iterRev(rs.strChars(first)));
 		const iterS: rs.StrCow[] = [_27, _29, _31, _32, _35, _37, _38, new rs.Borrowed("fallback"), _39];
 		for (const _45 of iterS) {
 			rs.byteVecPush(out, borrows(_45));
@@ -247,8 +246,7 @@ export function variants(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			(c2 as rs.Borrowed<string>).slice = first;
 		}
 		if (!(c2 instanceof rs.Borrowed)) {
-			const _138: rs.Iter<rs.char> = rs.iterRev(rs.strChars(first));
-			const _137: rs.String = rs.stringExtendChars(rs.stringNew(), _138);
+			const _137: rs.String = rs.stringFromChars(rs.iterRev(rs.strChars(first)));
 			(c2 as rs.String) = _137;
 		}
 		put(out, rs.strCowStr(c2));
@@ -280,8 +278,7 @@ export function variants(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		b18: {
 			if (d instanceof rs.Borrowed) {
 				if (!((d as rs.Borrowed<string>).slice.length === 0)) {
-					const _190: rs.Iter<rs.char> = rs.iterSkip(rs.strChars((d as rs.Borrowed<string>).slice), 1);
-					_184 = rs.stringExtendChars(rs.stringNew(), _190);
+					_184 = rs.stringFromChars(rs.iterSkip(rs.strChars((d as rs.Borrowed<string>).slice), 1));
 					break b18;
 				}
 			}

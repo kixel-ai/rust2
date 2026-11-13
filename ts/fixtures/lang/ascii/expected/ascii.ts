@@ -262,10 +262,9 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, rs.strEqIgnoreAsciiCase(_124, _127) ? 1 : 0);
 			rs.byteVecPush(out, rs.strEqIgnoreAsciiCase(_124, rs.stringFrom(rs.strToAsciiUppercase(_127)).v) ? 1 : 0);
 			put(out, rs.stringFrom(rs.strToAsciiUppercase(s.v)).v);
-			const _154: rs.Iter<rs.char> = rs.iterFilter(rs.strChars(s.v), (a0: rs.char): boolean => {
+			put(out, rs.stringFromChars(rs.iterFilter(rs.strChars(s.v), (a0: rs.char): boolean => {
 				return rs.isAsciiAlphanumeric(a0);
-			});
-			put(out, rs.stringExtendChars(rs.stringNew(), _154).v);
+			})).v);
 			put(out, rs.stringFrom(rs.strToAsciiLowercase(s.v)).v);
 			put(out, rs.strTrimAsciiStart(s.v));
 			put(out, rs.strTrimAsciiEnd(s.v));

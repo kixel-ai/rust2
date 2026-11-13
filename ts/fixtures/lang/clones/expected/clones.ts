@@ -6737,14 +6737,13 @@ export function iters(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return x67;
 		}, out);
 	} else if (_9 === 3) {
-		const _111: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_273: rs.u8): rs.char => {
+		const text: rs.String = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_273: rs.u8): rs.char => {
 			const _518: rs.usize = rs.u8Rem(_273, 4) as rs.usize;
 			if (!(_518 < 4)) {
 				rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _518);
 			}
 			return [97, 233, 20013, 129408][_518];
-		});
-		const text: rs.String = rs.stringExtendChars(rs.stringNew(), _111);
+		}));
 		turns$str_Chars_clones_iters_closure53_clones_iters_closure54(rs.strChars(text.v), (it53: rs.Iter<rs.char>): rs.char | undefined => {
 			return rs.iterToOption(it53.nextBack());
 		}, plan, (c4: rs.char): rs.u8 => {
