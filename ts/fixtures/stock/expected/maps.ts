@@ -303,66 +303,63 @@ export function numbers(n: rs.HashTable<rs.u32>, kind: rs.u8, op: rs.u8, key: rs
 	const rehash: (a0: rs.u32) => rs.u64 = (e6: rs.u32): rs.u64 => {
 		return hash(kind, (e6 >>> 16) & 0xffff);
 	};
-	b0: {
-		const _12: rs.u8 = rs.u8Rem(op, 6);
-		if (_12 === 0) {
-			const drops: rs.Cell<rs.u32> = new rs.Cell(0);
-			const held: maps_Counted.Counted = new maps_Counted.Counted(drops);
-			const _18: rs.TableEntry<rs.u32> = rs.tableEntry(n, h, ours, rehash);
-			const captured = held;
-			const e: rs.TableEntry<rs.u32> = rs.tableAndModifyMut(_18, rs.closure((e8: rs.Place<rs.u32>): undefined => {
-				e8.v = rs.u32Add(e8.v, rs.u32Add(1, captured._0.v));
-				captured[Symbol.dispose]();
-			}, (): void => {
-				captured[Symbol.dispose]();
-			}), rs.drop);
-			put(out, drops.v as rs.usize);
-			put(out, rs.tableOrInsert(e, ((key as rs.u32) << 16) >>> 0).v as rs.usize);
-		} else if (_12 === 1) {
-			const _34: rs.Place<rs.u32> | undefined = rs.tableFindMut(n, h, ours);
-			if (_34 === undefined) {
-				put(out, rs.tableInsertUnique(n, h, ((key as rs.u32) << 16) >>> 0, rehash).v as rs.usize);
-			} else {
-				_34.v = rs.u32Add(_34.v, 2);
-			}
-		} else if (_12 === 2) {
-			const _46: rs.Result<rs.TableEntry<rs.u32>, rs.TableEntry<rs.u32>> = rs.tableFindEntry(n, h, ours);
-			if (_46.ok) {
-				const e2: rs.TableEntry<rs.u32> = _46.value;
-				const _49: rs.Place<rs.u32> = e2;
-				_49.v = rs.u32Add(_49.v, 3);
-				const e3: rs.Place<rs.u32> = e2;
-				e3.v = rs.u32Add(e3.v, 4);
-			}
-		} else if (_12 === 3) {
-			rs.tableRetainMut(n, (e7: rs.Place<rs.u32>): boolean => {
-				e7.v = rs.u32Add(e7.v, 5);
-				return ((e7.v & 255) >>> 0) < 200;
-			});
+	const _12: rs.u8 = rs.u8Rem(op, 6);
+	if (_12 === 0) {
+		const drops: rs.Cell<rs.u32> = new rs.Cell(0);
+		const held: maps_Counted.Counted = new maps_Counted.Counted(drops);
+		const _18: rs.TableEntry<rs.u32> = rs.tableEntry(n, h, ours, rehash);
+		const captured = held;
+		const e: rs.TableEntry<rs.u32> = rs.tableAndModifyMut(_18, rs.closure((e8: rs.Place<rs.u32>): undefined => {
+			e8.v = rs.u32Add(e8.v, rs.u32Add(1, captured._0.v));
+			captured[Symbol.dispose]();
+		}, (): void => {
+			captured[Symbol.dispose]();
+		}), rs.drop);
+		put(out, drops.v as rs.usize);
+		put(out, rs.tableOrInsert(e, ((key as rs.u32) << 16) >>> 0).v as rs.usize);
+	} else if (_12 === 1) {
+		const _34: rs.Place<rs.u32> | undefined = rs.tableFindMut(n, h, ours);
+		if (_34 === undefined) {
+			put(out, rs.tableInsertUnique(n, h, ((key as rs.u32) << 16) >>> 0, rehash).v as rs.usize);
 		} else {
-			if (_12 === 4) {
-				const iter: rs.Iter<rs.Place<rs.u32>> = rs.hashValuesMut(n);
-				while (true) {
-					const _58: rs.Place<rs.u32> | rs.Done = iter.next();
-					if (_58 === rs.DONE) {
-						break;
-					}
-					_58.v = (_58.v ^ 1) >>> 0;
-				}
-				const iter2: rs.Iter<rs.Place<rs.u32>> = rs.hashValuesMut(n);
-				while (true) {
-					const _64: rs.Place<rs.u32> | rs.Done = iter2.next();
-					if (_64 === rs.DONE) {
-						break b0;
-					}
-					_64.v = rs.u32Add(_64.v, 1);
-				}
+			_34.v = rs.u32Add(_34.v, 2);
+		}
+	} else if (_12 === 2) {
+		const _46: rs.Result<rs.TableEntry<rs.u32>, rs.TableEntry<rs.u32>> = rs.tableFindEntry(n, h, ours);
+		if (_46.ok) {
+			const e2: rs.TableEntry<rs.u32> = _46.value;
+			const _49: rs.Place<rs.u32> = e2;
+			_49.v = rs.u32Add(_49.v, 3);
+			const e3: rs.Place<rs.u32> = e2;
+			e3.v = rs.u32Add(e3.v, 4);
+		}
+	} else if (_12 === 3) {
+		rs.tableRetainMut(n, (e7: rs.Place<rs.u32>): boolean => {
+			e7.v = rs.u32Add(e7.v, 5);
+			return ((e7.v & 255) >>> 0) < 200;
+		});
+	} else if (_12 === 4) {
+		const iter: rs.Iter<rs.Place<rs.u32>> = rs.hashValuesMut(n);
+		while (true) {
+			const _58: rs.Place<rs.u32> | rs.Done = iter.next();
+			if (_58 === rs.DONE) {
+				break;
 			}
-			const _69: rs.TableEntry<rs.u32> = rs.tableEntry(n, h, ours, rehash);
-			if (rs.tableOccupied(_69)) {
-				const _72: rs.Place<rs.u32> = _69;
-				_72.v = rs.u32Add(_72.v, 6);
+			_58.v = (_58.v ^ 1) >>> 0;
+		}
+		const iter2: rs.Iter<rs.Place<rs.u32>> = rs.hashValuesMut(n);
+		while (true) {
+			const _64: rs.Place<rs.u32> | rs.Done = iter2.next();
+			if (_64 === rs.DONE) {
+				break;
 			}
+			_64.v = rs.u32Add(_64.v, 1);
+		}
+	} else {
+		const _69: rs.TableEntry<rs.u32> = rs.tableEntry(n, h, ours, rehash);
+		if (rs.tableOccupied(_69)) {
+			const _72: rs.Place<rs.u32> = _69;
+			_72.v = rs.u32Add(_72.v, 6);
 		}
 	}
 	const items: rs.Vec<rs.u32> = rs.iterToVec(rs.hashValues(n), "next", 4);
@@ -982,9 +979,6 @@ export function ends$hashlink_linked_hash_map_Values_u16_u32_maps_linked_iters_c
 export function linkedIters(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
 	let _15!: rs.u16;
 	let it!: ValuesMut.ValuesMut<rs.u16, rs.u32>;
-	const _34: (a0: [rs.u16, rs.u32]) => rs.usize = (_2: [rs.u16, rs.u32]): rs.usize => {
-		return rs.usizeAdd(rs.usizeMul(_2[0] as rs.usize, 4096), _2[1] as rs.usize);
-	};
 	let _104: boolean = false;
 	if (dataLen >= 2) {
 		const m: LinkedHashMap.LinkedHashMap<rs.u16, rs.u32, rs.RandomState> = LinkedHashMap.withHasher$u16_u32_hash_RandomState(rs.randomState());
@@ -998,6 +992,9 @@ export function linkedIters(dataData: Uint8Array, dataStart: number, dataLen: nu
 		}
 		const k: rs.usize = rs.u8Shr(dataData[dataStart + 1], 3) as rs.usize;
 		const _35: rs.u8 = rs.u8Rem(dataData[dataStart + 1], 8);
+		const _34: (a0: [rs.u16, rs.u32]) => rs.usize = (_2: [rs.u16, rs.u32]): rs.usize => {
+			return rs.usizeAdd(rs.usizeMul(_2[0] as rs.usize, 4096), _2[1] as rs.usize);
+		};
 		if (_35 === 0) {
 			ends$hashlink_linked_hash_map_Iter_u16_u32_maps_linked_iters_closure0(LinkedHashMap.iter$u16_u32_hash_RandomState(m), new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2), out, (_215: [rs.u16, rs.u32]): rs.usize => {
 				return rs.usizeAdd(rs.usizeMul(_215[0] as rs.usize, 4096), _215[1] as rs.usize);
@@ -1269,46 +1266,46 @@ export function ownFromIter(data: rs.ByteSlice, out: rs.ByteVec): void {
  * last, or of one byte flipped.
  */
 export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _22: (a0: rs.ByteSlice) => rs.HashMap<rs.u16, rs.u32> = (bytes: rs.ByteSlice): rs.HashMap<rs.u16, rs.u32> => {
-		const _3: rs.Iter<[rs.u16, rs.u32]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_2: rs.u8): [rs.u16, rs.u32] => {
-			const b: rs.u8 = _2;
-			return [rs.u8Rem(b, 8) as rs.u16, b as rs.u32] as [rs.u16, rs.u32];
-		});
-		return rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u16, rs.u32>, _3, undefined, undefined, undefined, 117440512);
-	};
 	const log: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
 	const reversed: rs.ByteVec = rs.iterToByteVec(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), undefined, true);
-	const flipped: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), (_23: [rs.usize, rs.u8]): rs.u8 => {
-		const i: rs.usize = _23[0];
-		const b2: rs.u8 = _23[1];
+	const flipped: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), (_2: [rs.usize, rs.u8]): rs.u8 => {
+		const i: rs.usize = _2[0];
+		const b: rs.u8 = _2[1];
 		if (!(i === rs.usizeDiv(data.length, 2))) {
-			return b2;
+			return b;
 		}
-		return b2 ^ 33;
+		return b ^ 33;
 	}), undefined, true);
 	const shorter: rs.ByteSlice = rs.byteSliceRange(data, 0, rs.usizeSaturatingSub(data.length, 1));
-	const pairs: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashMap<[rs.u8, boolean], rs.u8> = (seed: rs.u8, bytes2: rs.ByteSlice): rs.HashMap<[rs.u8, boolean], rs.u8> => {
-		const _54: Seeded.Seeded = new Seeded.Seeded(seed, log);
-		const m: rs.HashMap<[rs.u8, boolean], rs.u8> = rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same])), _54) as rs.HashMap<[rs.u8, boolean], rs.u8>;
-		const iterS: Uint8Array = rs.byteSliceView(bytes2);
+	const pairs: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashMap<[rs.u8, boolean], rs.u8> = (seed: rs.u8, bytes: rs.ByteSlice): rs.HashMap<[rs.u8, boolean], rs.u8> => {
+		const _53: Seeded.Seeded = new Seeded.Seeded(seed, log);
+		const m: rs.HashMap<[rs.u8, boolean], rs.u8> = rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same])), _53) as rs.HashMap<[rs.u8, boolean], rs.u8>;
+		const iterS: Uint8Array = rs.byteSliceView(bytes);
 		let iterI: number = 0;
 		while (true) {
 			const _83: rs.u8 | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
 			if (_83 === rs.DONE) {
 				return m;
 			}
-			const b3: rs.u8 = _83;
-			const _142: [rs.u8, boolean] = [rs.u8Rem(b3, 8), rs.u8Rem(b3, 3) === 0];
-			rs.hashInsert(m, _142, b3 >> 5);
+			const b2: rs.u8 = _83;
+			const _142: [rs.u8, boolean] = [rs.u8Rem(b2, 8), rs.u8Rem(b2, 3) === 0];
+			rs.hashInsert(m, _142, b2 >> 5);
 		}
 	};
-	const keys: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashSet<rs.u8> = (seed2: rs.u8, bytes3: rs.ByteSlice): rs.HashSet<rs.u8> => {
+	const keys: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashSet<rs.u8> = (seed2: rs.u8, bytes2: rs.ByteSlice): rs.HashSet<rs.u8> => {
 		const s: rs.HashSet<rs.u8> = rs.hashNew(undefined, new Seeded.Seeded(seed2, log)) as rs.HashSet<rs.u8>;
-		const _84: rs.Iter<rs.u8> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes3)), (b4: rs.u8): rs.u8 => {
-			return rs.u8Rem(b4, 16);
+		const _84: rs.Iter<rs.u8> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes2)), (b3: rs.u8): rs.u8 => {
+			return rs.u8Rem(b3, 16);
 		});
 		rs.hashExtendKeys(s, _84, undefined, undefined, 469762048);
 		return s;
+	};
+	const _22: (a0: rs.ByteSlice) => rs.HashMap<rs.u16, rs.u32> = (bytes3: rs.ByteSlice): rs.HashMap<rs.u16, rs.u32> => {
+		const _3: rs.Iter<[rs.u16, rs.u32]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes3)), (_23: rs.u8): [rs.u16, rs.u32] => {
+			const b4: rs.u8 = _23;
+			return [rs.u8Rem(b4, 8) as rs.u16, b4 as rs.u32] as [rs.u16, rs.u32];
+		});
+		return rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u16, rs.u32>, _3, undefined, undefined, undefined, 117440512);
 	};
 	const _26: [rs.HashMap<[rs.u8, boolean], rs.u8>, rs.HashSet<rs.u8>, rs.HashMap<rs.u16, rs.u32>] = [pairs(1, data), keys(1, data), _22(data)];
 	const left: rs.HashMap<[rs.u8, boolean], rs.u8> = _26[0];

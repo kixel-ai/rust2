@@ -98,7 +98,7 @@ pub fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>
 pub fn fn_value<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	def_id: rustc_hir::def_id::DefId,
-	args: ty::GenericArgsRef<'tcx>,
+	args: ty::GenericArgs<'tcx>,
 	span: Span,
 ) -> Expr {
 	let tcx = b.t.tcx;
@@ -3557,7 +3557,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				ty::Tuple(tys) => stack.extend(tys.iter()),
 				ty::Array(elem, _) | ty::Slice(elem) => stack.push(*elem),
 				ty::Adt(adt, args) if self.b.t.own(adt.did()) => {
-					stack.extend(adt.all_fields().map(|field| self.b.t.field_ty(field.did, args)))
+					stack.extend(adt.all_fields().map(|field| self.b.t.field_ty(field.did, *args)))
 				}
 				ty::Adt(_, args) => stack.extend(args.types()),
 				ty::Closure(..) | ty::CoroutineClosure(..) => {
@@ -3596,7 +3596,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					) =>
 			{
 				adt.all_fields()
-					.any(|field| self.holds_behind(self.b.t.field_ty(field.did, args), part))
+					.any(|field| self.holds_behind(self.b.t.field_ty(field.did, *args), part))
 			}
 			_ => self.b.t.holds(self.b.t.typing_env_pub(), ty, part),
 		}
@@ -3678,7 +3678,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 					}
 					stack.extend(
 						adt.all_fields()
-							.map(|field| (field_ty(self.tcx, env, field.did, args), depth + 1)),
+							.map(|field| (field_ty(self.tcx, env, field.did, *args), depth + 1)),
 					);
 				}
 			}

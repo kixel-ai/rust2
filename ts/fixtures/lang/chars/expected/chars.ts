@@ -293,8 +293,7 @@ export function walk$char_EscapeDebug(out: rs.ByteVec, it: rs.Iter<rs.char>): vo
 	const _68: rs.char | undefined = rs.iterNth(copy.clone(), 1);
 	const args11 = [(f: rs.Formatter) => rs.fmtOption(_60, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.usizeDisplay(_64, f), (f: rs.Formatter) => rs.fmtOption(_68, f, rs.fmtCharDebug)];
 	put(out, rs.fmtFormat([args11[0], "|", args11[1], "|", args11[2]]).v);
-	const _79: rs.Iter<rs.char> = it;
-	const rest: rs.String = rs.stringExtendChars(rs.stringNew(), _79);
+	const rest: rs.String = rs.stringFromChars(it);
 	const args12 = [(f: rs.Formatter) => rs.fmtPad(f, rest.v), (f: rs.Formatter) => rs.fmtCharsDisplay(copy, f)];
 	put(out, rs.fmtFormat([args12[0], "|", args12[1]]).v);
 }
@@ -319,8 +318,7 @@ export function walk$char_EscapeDefault(out: rs.ByteVec, it: rs.Iter<rs.char>): 
 	const _68: rs.char | undefined = rs.iterNth(copy.clone(), 1);
 	const args11 = [(f: rs.Formatter) => rs.fmtOption(_60, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.usizeDisplay(_64, f), (f: rs.Formatter) => rs.fmtOption(_68, f, rs.fmtCharDebug)];
 	put(out, rs.fmtFormat([args11[0], "|", args11[1], "|", args11[2]]).v);
-	const _79: rs.Iter<rs.char> = it;
-	const rest: rs.String = rs.stringExtendChars(rs.stringNew(), _79);
+	const rest: rs.String = rs.stringFromChars(it);
 	const args12 = [(f: rs.Formatter) => rs.fmtPad(f, rest.v), (f: rs.Formatter) => rs.fmtCharsDisplay(copy, f)];
 	put(out, rs.fmtFormat([args12[0], "|", args12[1]]).v);
 }
@@ -345,8 +343,7 @@ export function walk$char_EscapeUnicode(out: rs.ByteVec, it: rs.Iter<rs.char>): 
 	const _68: rs.char | undefined = rs.iterNth(copy.clone(), 1);
 	const args11 = [(f: rs.Formatter) => rs.fmtOption(_60, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.usizeDisplay(_64, f), (f: rs.Formatter) => rs.fmtOption(_68, f, rs.fmtCharDebug)];
 	put(out, rs.fmtFormat([args11[0], "|", args11[1], "|", args11[2]]).v);
-	const _79: rs.Iter<rs.char> = it;
-	const rest: rs.String = rs.stringExtendChars(rs.stringNew(), _79);
+	const rest: rs.String = rs.stringFromChars(it);
 	const args12 = [(f: rs.Formatter) => rs.fmtPad(f, rest.v), (f: rs.Formatter) => rs.fmtCharsDisplay(copy, f)];
 	put(out, rs.fmtFormat([args12[0], "|", args12[1]]).v);
 }
@@ -371,8 +368,7 @@ export function walk$char_ToLowercase(out: rs.ByteVec, it: rs.Iter<rs.char>): vo
 	const _68: rs.char | undefined = rs.iterNth(copy.clone(), 1);
 	const args11 = [(f: rs.Formatter) => rs.fmtOption(_60, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.usizeDisplay(_64, f), (f: rs.Formatter) => rs.fmtOption(_68, f, rs.fmtCharDebug)];
 	put(out, rs.fmtFormat([args11[0], "|", args11[1], "|", args11[2]]).v);
-	const _79: rs.Iter<rs.char> = it;
-	const rest: rs.String = rs.stringExtendChars(rs.stringNew(), _79);
+	const rest: rs.String = rs.stringFromChars(it);
 	const args12 = [(f: rs.Formatter) => rs.fmtPad(f, rest.v), (f: rs.Formatter) => rs.fmtCharsDisplay(copy, f)];
 	put(out, rs.fmtFormat([args12[0], "|", args12[1]]).v);
 }
@@ -397,8 +393,7 @@ export function walk$char_ToUppercase(out: rs.ByteVec, it: rs.Iter<rs.char>): vo
 	const _68: rs.char | undefined = rs.iterNth(copy.clone(), 1);
 	const args11 = [(f: rs.Formatter) => rs.fmtOption(_60, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.usizeDisplay(_64, f), (f: rs.Formatter) => rs.fmtOption(_68, f, rs.fmtCharDebug)];
 	put(out, rs.fmtFormat([args11[0], "|", args11[1], "|", args11[2]]).v);
-	const _79: rs.Iter<rs.char> = it;
-	const rest: rs.String = rs.stringExtendChars(rs.stringNew(), _79);
+	const rest: rs.String = rs.stringFromChars(it);
 	const args12 = [(f: rs.Formatter) => rs.fmtPad(f, rest.v), (f: rs.Formatter) => rs.fmtCharsDisplay(copy, f)];
 	put(out, rs.fmtFormat([args12[0], "|", args12[1]]).v);
 }
@@ -420,8 +415,7 @@ export function iters(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _15: rs.u8 = rs.u8Rem(kind, 5);
 		if (_15 === 0) {
 			walk$char_ToLowercase(out, rs.charToLowercase(c));
-			const _23: rs.Iter<rs.char> = rs.iterRev(rs.charToLowercase(c));
-			put(out, rs.stringExtendChars(rs.stringNew(), _23).v);
+			put(out, rs.stringFromChars(rs.iterRev(rs.charToLowercase(c))).v);
 		} else if (_15 === 1) {
 			walk$char_ToUppercase(out, rs.charToUppercase(c));
 			const up: rs.Iter<rs.char> = rs.charToUppercase(c);
@@ -569,14 +563,12 @@ export function decodes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			break;
 		}
 	}
-	const _94: rs.Iter<rs.char> = rs.iterMap(rs.charDecodeUtf16(rs.iterSlice([55357, 56832])), (r2: rs.Result<rs.char, rs.DecodeUtf16Error>): rs.char => {
+	const s: rs.String = rs.stringFromChars(rs.iterMap(rs.charDecodeUtf16(rs.iterSlice([55357, 56832])), (r2: rs.Result<rs.char, rs.DecodeUtf16Error>): rs.char => {
 		return result_unwrapOr$1yj84xe(r2, 65533);
-	});
-	const s: rs.String = rs.stringExtendChars(rs.stringNew(), _94);
-	const _97: rs.Iter<rs.char> = rs.iterMap(rs.charDecodeUtf16(rs.vecIntoIter(units)), (r3: rs.Result<rs.char, rs.DecodeUtf16Error>): rs.char => {
+	}));
+	const lossy: rs.String = rs.stringFromChars(rs.iterMap(rs.charDecodeUtf16(rs.vecIntoIter(units)), (r3: rs.Result<rs.char, rs.DecodeUtf16Error>): rs.char => {
 		return result_unwrapOr$1yj84xe(r3, 63);
-	});
-	const lossy: rs.String = rs.stringExtendChars(rs.stringNew(), _97);
+	}));
 	const args6 = [(f: rs.Formatter) => rs.fmtPad(f, s.v), (f: rs.Formatter) => rs.fmtPad(f, lossy.v)];
 	put(out, rs.fmtFormat([args6[0], "|", args6[1]]).v);
 }
@@ -597,8 +589,8 @@ export function converts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			if (_11 === rs.DONE) {
 				break;
 			}
-			const part3 = rs.charFromDigit(_11, radix);
-			put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part3, f, rs.fmtCharDebug)]).v);
+			const part = rs.charFromDigit(_11, radix);
+			put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part, f, rs.fmtCharDebug)]).v);
 		}
 	} else if (_6 === 1) {
 		const iter2: rs.Iter<rs.char> = rs.iterSlice([48, 57, 97, 122, 65, 90, 47, 58, 64, 91, 96, 123, 1635, 65345]);
@@ -614,11 +606,10 @@ export function converts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			const r: rs.Result<rs.char, rs.CharTryFromError> = rs.charTryFrom(n2);
 			put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(r, f, rs.fmtCharDebug, rs.fmtCharTryFromErrorDebug)]).v);
 			if (!r.ok) {
-				const part = new rs.CharTryFromError();
-				const args12 = [(f: rs.Formatter) => rs.fmtCharTryFromErrorDisplay(part, f), (f: rs.Formatter) => rs.fmtCharTryFromErrorDebug(part, f)];
+				const _59: rs.CharTryFromError = new rs.CharTryFromError();
+				const args12 = [(f: rs.Formatter) => rs.fmtCharTryFromErrorDisplay(_59, f), (f: rs.Formatter) => rs.fmtCharTryFromErrorDebug(_59, f)];
 				put(out, rs.fmtFormat([args12[0], "|", rs.fmtSpec({ align: ">", width: 45 }, args12[0]), "|", args12[1], "|", rs.fmtSpec({ alternate: true }, args12[1])]).v);
-				const _78: rs.CharTryFromError = new rs.CharTryFromError();
-				rs.byteVecPush(out, convert_eq$1efmo6b(new rs.CharTryFromError(), _78) ? 1 : 0);
+				rs.byteVecPush(out, convert_eq$1efmo6b(_59, _59) ? 1 : 0);
 			}
 			const _80: rs.char | undefined = rs.charFromU32(n2);
 			if (_80 !== undefined) {
@@ -634,11 +625,10 @@ export function converts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 					return a0 as rs.u16;
 				});
 				if (!result_and$02o4suw(w, _109).ok) {
-					const part2 = new rs.TryFromCharError();
-					const args14 = [(f: rs.Formatter) => rs.fmtTryFromCharErrorDisplay(part2, f), (f: rs.Formatter) => rs.fmtTryFromCharErrorDebug(part2, f)];
+					const _111: rs.TryFromCharError = new rs.TryFromCharError();
+					const args14 = [(f: rs.Formatter) => rs.fmtTryFromCharErrorDisplay(_111, f), (f: rs.Formatter) => rs.fmtTryFromCharErrorDebug(_111, f)];
 					put(out, rs.fmtFormat([args14[0], "|", rs.fmtSpec({ align: "<", width: 35 }, args14[0]), "|", args14[1], "|", rs.fmtSpec({ alternate: true }, args14[1])]).v);
-					const _130: rs.TryFromCharError = new rs.TryFromCharError();
-					rs.byteVecPush(out, char_eq$1g188ap(new rs.TryFromCharError(), _130) ? 1 : 0);
+					rs.byteVecPush(out, char_eq$1g188ap(_111, _111) ? 1 : 0);
 				}
 			}
 		}
@@ -678,21 +668,18 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const units: rs.usize = rs.iterSum(rs.iterMap(rs.strChars(s2), (a08: rs.char): rs.usize => {
 			return rs.charLenUtf16(a08);
 		}), rs.usizeAdd, 0);
-		const _61: rs.Iter<rs.char> = rs.iterFlatMap(rs.strChars(s2), (a09: rs.char): rs.Iter<rs.char> => {
+		const upper: rs.String = rs.stringFromChars(rs.iterFlatMap(rs.strChars(s2), (a09: rs.char): rs.Iter<rs.char> => {
 			return rs.charToUppercase(a09);
-		}, undefined, true);
-		const upper: rs.String = rs.stringExtendChars(rs.stringNew(), _61);
-		const _64: rs.Iter<rs.char> = rs.iterFlatMap(rs.strChars(s2), (a010: rs.char): rs.Iter<rs.char> => {
+		}, undefined, true));
+		const lower: rs.String = rs.stringFromChars(rs.iterFlatMap(rs.strChars(s2), (a010: rs.char): rs.Iter<rs.char> => {
 			return rs.charToLowercase(a010);
-		}, undefined, true);
-		const lower: rs.String = rs.stringExtendChars(rs.stringNew(), _64);
+		}, undefined, true));
 		const args12 = [(f: rs.Formatter) => rs.usizeDisplay(lens, f), (f: rs.Formatter) => rs.usizeDisplay(units, f), (f: rs.Formatter) => rs.fmtPad(f, upper.v), (f: rs.Formatter) => rs.fmtPad(f, lower.v)];
 		put(out, rs.fmtFormat([args12[0], "|", args12[1], "|", args12[2], "|", args12[3]]).v);
 	} else {
-		const _85: rs.Iter<rs.char> = rs.iterFlatMap(rs.strChars(s2), (a0: rs.char): rs.Iter<rs.char> => {
+		const escaped: rs.String = rs.stringFromChars(rs.iterFlatMap(rs.strChars(s2), (a0: rs.char): rs.Iter<rs.char> => {
 			return rs.charEscapeDefault(a0);
-		}, undefined, true);
-		const escaped: rs.String = rs.stringExtendChars(rs.stringNew(), _85);
+		}, undefined, true));
 		const debug: rs.String = rs.stringFromStrings(rs.iterMap(rs.iterMap(rs.strChars(s2), (a02: rs.char): rs.Iter<rs.char> => {
 			return rs.charEscapeDebug(a02);
 		}), (e: rs.Iter<rs.char>): rs.String => {

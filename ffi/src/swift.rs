@@ -23,8 +23,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
-use rustc_span::Span;
-
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::ir::{Access, Closure, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
 
@@ -33,6 +31,7 @@ const RUNTIME: &str = include_str!("../runtime/rt.swift");
 /// What the generator writes: the Swift file, the clang module map it imports the C
 /// header through, and the header of atomics that module adds.
 pub struct Output {
+	pub names: BTreeMap<String, String>,
 	pub swift: String,
 	pub modulemap: String,
 	pub atomics: String,
@@ -47,6 +46,7 @@ fn module(prefix: &str) -> String {
 /// claim alike.
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
+		locked: BTreeMap::new(),
 		abi,
 		classes: abi.classes(|_| (String::new(), 0), |name| TAKEN.contains(&name)),
 		types: String::new(),
@@ -63,6 +63,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
 	}
+	g.locked = crate::lock::types(abi, &g.classes);
 	g.write();
 	if !g.errors.is_empty() {
 		return Err(g.errors.join("\n"));
@@ -125,6 +126,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		#endif\n"
 	);
 	Ok(Output {
+		names: g.locked,
 		swift: swift + "\n",
 		modulemap,
 		atomics,
@@ -138,6 +140,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 const TAKEN: &[&str] = &[
 	"Array",
 	"Bool",
+	"CancellationError",
 	"Comparable",
 	"CustomDebugStringConvertible",
 	"CustomStringConvertible",
@@ -192,6 +195,7 @@ struct Arg {
 }
 
 struct Gen<'a> {
+	locked: BTreeMap<String, String>,
 	abi: &'a Abi<'a>,
 	/// Each exported type's name, by its C name.
 	classes: HashMap<String, String>,
@@ -605,6 +609,10 @@ impl<'a> Gen<'a> {
 		// Each named before any is written, since one tuple's fields may name another.
 		for c in tuples.keys() {
 			let name = self.claim(&self.class(c), &[], format!("the tuple `{c}`"));
+			self.locked.insert(
+				format!("tuple {}", abi.spell(&Type::Tuple(tuples[c].clone()))),
+				name.clone(),
+			);
 			self.classes.insert(c.clone(), name);
 		}
 		for (c, elements) in &tuples {
@@ -621,6 +629,8 @@ impl<'a> Gen<'a> {
 		for constant in &api.constants {
 			let name = self.bare(&abi.name(&constant.path)).to_uppercase();
 			let name = self.claim(&name, &[], format!("const `{}`", constant.path.join("::")));
+			self.locked
+				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			let (ty, value) = match constant.value {
 				Literal::Bool(b) => ("Swift.Bool".to_string(), b.to_string()),
 				Literal::Int(int, v) => (sw_int(int).to_string(), v.to_string()),
@@ -1080,6 +1090,7 @@ impl<'a> Gen<'a> {
 		let mut table = vec![format!("free: {{ data in Box<any {name}>.release(data) }}")];
 		for method in &callback.methods {
 			let member = member(&abi::snake(method.name()), &[]);
+			crate::lock::function(&mut self.locked, method, &member);
 			members.push(full(false, &member, method.params.iter().map(|_| "_".to_string())));
 			let params: Vec<String> = (method.params.iter().zip(locals(&method.params)))
 				.map(|(p, name)| format!("_ {name}: {}", self.sw(&p.ty)))
@@ -1424,7 +1435,8 @@ impl<'a> Gen<'a> {
 		};
 		// Only a future or a `Result` throws, and a future only once it is awaited.
 		let throws = function.future || function.err.is_some();
-		let tr = match function.err.is_some() && !function.future {
+		// A future's error throws from the call that starts it, as from its polls.
+		let tr = match function.err.is_some() {
 			true => "try ",
 			false => "",
 		};
@@ -1541,12 +1553,14 @@ impl<'a> Gen<'a> {
 
 		let mut inner = Vec::new();
 		let tail;
-		if let Some((_, poll, free)) = &export.future {
-			inner.push(format!("{c_name}({})", exprs.join(", ")));
+		// What a cancelled task runs instead of the start: the call alone, whose future
+		// it drops unpolled, as Rust drops one it never awaits.
+		let mut cancelled = None;
+		if let Some(abi::Future { start, poll, free, .. }) = &export.future {
+			cancelled = Some(format!("{}({c_name}({}))", free.name, exprs.join(", ")));
 			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
-			let mut body: Vec<String> = poll_outs.iter().map(|(n, ty)| self.out_decl(n, ty)).collect();
-			let mut call_args = vec!["f_".to_string(), "w_".to_string()];
-			call_args.extend(poll_outs.iter().map(|(n, _)| format!("&c_{n}_")));
+			let decls: Vec<String> = poll_outs.iter().map(|(n, ty)| self.out_decl(n, ty)).collect();
+			let ptrs: Vec<String> = poll_outs.iter().map(|(n, _)| format!("&c_{n}_")).collect();
 			let ready = match ok {
 				Type::Unit => "()".to_string(),
 				_ => self.lift_outs(&function.ok, &ok),
@@ -1562,11 +1576,23 @@ impl<'a> Gen<'a> {
 				));
 			}
 			cases.push("default: return nil".to_string());
+			let cases = cases.join("\n");
+			inner.extend(decls.iter().cloned());
+			let start_args: Vec<String> = (exprs.iter().cloned())
+				.chain(ptrs.iter().cloned())
+				.chain(["&f_".to_string()])
+				.collect();
+			inner.push(format!(
+				"switch {}({}) {{\n{cases}\n}}",
+				start.name,
+				start_args.join(", ")
+			));
+			let mut body = decls;
+			let call_args: Vec<String> = ["f_".to_string(), "w_".to_string()].into_iter().chain(ptrs).collect();
 			body.push(format!(
-				"switch {}({}) {{\n{}\n}}",
+				"switch {}({}) {{\n{cases}\n}}",
 				poll.name,
-				call_args.join(", "),
-				cases.join("\n")
+				call_args.join(", ")
 			));
 			tail = Some(format!(
 				"return try await Native.run(f_, {}) {{ f_, w_ in\n{}\n}}",
@@ -1606,27 +1632,64 @@ impl<'a> Gen<'a> {
 				}
 			}
 		}
-		// Wrap the call in each argument's closure, innermost last.
-		let mut code = inner.join("\n");
-		for arg in args.iter().rev() {
-			if let Some((open, close)) = &arg.open {
-				let lines = code.lines().count();
-				// A closure of one line returns its value; of more, its own `return` does.
-				let body = match lines > 1 || code.starts_with("return ") || code.starts_with("throw ") {
-					true => code.clone(),
-					false => format!("return {code}"),
-				};
-				code = format!("return {open}\n{}\n{close}", indent(&body));
+		// Wrap the call in each argument's closure, innermost last, each opened with `try`
+		// only where the call throws.
+		let wrap = |inner: String, throws: bool| {
+			let mut code = inner;
+			for arg in args.iter().rev() {
+				if let Some((open, close)) = &arg.open {
+					// An opener may hold several `try`s, as a lent closure's two do.
+					let open = match throws {
+						true => open.clone(),
+						false => open.replace("try ", ""),
+					};
+					let lines = code.lines().count();
+					// A closure of one line returns its value; of more, its own `return` does.
+					let body = match lines > 1 || code.starts_with("return ") || code.starts_with("throw ") {
+						true => code.clone(),
+						false => format!("return {code}"),
+					};
+					code = format!("return {open}\n{}\n{close}", indent(&body));
+				}
 			}
-		}
+			code
+		};
+		let code = wrap(inner.join("\n"), true);
 		let mut body = prelude;
 		match tail {
+			// An eager call runs Rust, and any callback it makes, before its future exists,
+			// and a callback may cancel the task: so it is made, then `Native.made` checks the
+			// task before its first poll, never started.
+			Some(tail) if function.eager => {
+				let made = wrap(format!("{c_name}({})", exprs.join(", ")), false);
+				body.push(format!("let f_ = {}", made.strip_prefix("return ").unwrap_or(&made)));
+				body.push(tail.replacen("Native.run(", "Native.made(", 1));
+			}
 			Some(tail) => {
-				let create = match code.starts_with("return ") {
-					true => code["return ".len()..].to_string(),
-					false => code,
+				let made = wrap(cancelled.expect("a future has its cancel"), false);
+				let made = made.strip_prefix("return ").unwrap_or(&made);
+				body.push(format!(
+					"// A task cancelled already takes nothing, even what is ready.\nif Task.isCancelled {{\n{}\n\tthrow CancellationError()\n}}",
+					indent(made)
+				));
+				// The call and its first poll in one: the output if ready, else the future.
+				let output = match ok {
+					Type::Unit => "Void".to_string(),
+					_ => self.sw(&ok),
 				};
-				body.push(format!("let f_ = {create}"));
+				let tr = match err.is_some() {
+					true => "try ",
+					false => "",
+				};
+				let code = match code.lines().count() > 1 || code.starts_with("return ") {
+					true => code,
+					false => format!("return {code}"),
+				};
+				body.push("var f_: OpaquePointer? = nil".to_string());
+				body.push(format!(
+					"if let r_ = {tr}Native.start(({output}).self, {{\n{}\n}}) {{\n\treturn r_\n}}",
+					indent(&code)
+				));
 				body.push(tail);
 			}
 			None => body.push(code),
@@ -1701,6 +1764,12 @@ impl<'a> Gen<'a> {
 				}
 			}
 		}
+		let omitted = left.iter().map(usize::to_string).collect::<Vec<_>>().join(",");
+		self.locked.insert(
+			format!("{} / omitted {omitted}", crate::lock::function_key(function)),
+			member.clone(),
+		);
+
 		let head = match var {
 			true => format!("public {stat}var {member}{}", ret.replacen(" -> ", ": ", 1)),
 			false => format!(
@@ -1758,6 +1827,7 @@ impl<'a> Gen<'a> {
 						name
 					}
 				};
+				self.locked.insert(crate::lock::error_key(self.abi, err), name.clone());
 				Thrown::Wrapped(name)
 			}
 		}
@@ -1782,11 +1852,11 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 /// overloads.
 const MAX_OPTIONAL: usize = 2;
 
-/// Each function or method Swift cannot export, with its span and why, which the driver
+/// Each function or method Swift cannot export, and why, which the driver
 /// refuses before any language is generated: one taking more optional borrowed structs
 /// than [`MAX_OPTIONAL`], or returning an error that holds one, which `Swift.Error`
 /// requires be copyable.
-pub fn refusals(abi: &Abi<'_>) -> Vec<(Span, String)> {
+pub fn refusals<'a>(abi: &Abi<'a>) -> Vec<(&'a Function, String)> {
 	let structs = structs(abi);
 	let api = abi.api;
 	let methods = (api.records.iter().flat_map(|r| &r.methods))
@@ -1800,7 +1870,7 @@ pub fn refusals(abi: &Abi<'_>) -> Vec<(Span, String)> {
 			.count();
 		if optional > MAX_OPTIONAL {
 			refusals.push((
-				function.span,
+				function,
 				format!(
 					"{what}: {optional} optional borrowed objects, past the {MAX_OPTIONAL} Swift takes, which overloads each with and without it since its optional holds an object only by consuming it"
 				),
@@ -1808,7 +1878,7 @@ pub fn refusals(abi: &Abi<'_>) -> Vec<(Span, String)> {
 		}
 		if function.err.as_ref().is_some_and(|err| unique(&structs, err)) {
 			refusals.push((
-				function.span,
+				function,
 				format!("{what}: error holding an object Swift cannot copy, as `Swift.Error` requires"),
 			));
 		}

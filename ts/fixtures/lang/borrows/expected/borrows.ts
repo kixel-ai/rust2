@@ -176,8 +176,8 @@ export function guards(data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (_116.ok) {
 				rs.byteVecPush(out, 254);
 			} else {
-				const part3 = new rs.BorrowMutError();
-				const args5 = [(f: rs.Formatter) => rs.borrowMutErrorDisplay(part3, f), (f: rs.Formatter) => rs.borrowMutErrorDebug(part3, f)];
+				const _119: rs.BorrowMutError = new rs.BorrowMutError();
+				const args5 = [(f: rs.Formatter) => rs.borrowMutErrorDisplay(_119, f), (f: rs.Formatter) => rs.borrowMutErrorDebug(_119, f)];
 				rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 			}
 			if (_116.ok) {
@@ -190,8 +190,8 @@ export function guards(data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (_141.ok) {
 				rs.byteVecPush(out, 254);
 			} else {
-				const part4 = new rs.BorrowError();
-				const args6 = [(f: rs.Formatter) => rs.borrowErrorDisplay(part4, f), (f: rs.Formatter) => rs.borrowErrorDebug(part4, f)];
+				const _144: rs.BorrowError = new rs.BorrowError();
+				const args6 = [(f: rs.Formatter) => rs.borrowErrorDisplay(_144, f), (f: rs.Formatter) => rs.borrowErrorDebug(_144, f)];
 				rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 			}
 			if (_141.ok) {

@@ -1959,79 +1959,44 @@ export function compared$collections_HashSet_hashes_Sided_hashes_Spread(a: rs.Ha
  * as JS does, and maps in a `Vec` and in a type that derives `PartialEq`.
  */
 export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _8: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashSet<Sided.Sided> = (side: rs.u8, bytes: rs.ByteSlice): rs.HashSet<Sided.Sided> => {
-		const _52: Spread.Spread = { _0: side as rs.u64 };
-		const s: rs.HashSet<Sided.Sided> = rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), _52) as rs.HashSet<Sided.Sided>;
+	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
+	const map: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashMap<Sided.Sided, Sided.Sided> = (side: rs.u8, bytes: rs.ByteSlice): rs.HashMap<Sided.Sided, Sided.Sided> => {
+		const _52: Spread.Spread = { _0: rs.u64Add(rs.u64Mul(side as rs.u64, 65537), first as rs.u64) };
+		const m: rs.HashMap<Sided.Sided, Sided.Sided> = rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), _52) as rs.HashMap<Sided.Sided, Sided.Sided>;
 		const iterS: Uint8Array = rs.byteSliceView(bytes);
 		let iterI: number = 0;
 		while (true) {
-			const _9: rs.u8 | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
-			if (_9 === rs.DONE) {
-				return s;
+			const _155: rs.u8 | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
+			if (_155 === rs.DONE) {
+				return m;
 			}
-			rs.hashAdd(s, { n: _9 & 127, side });
+			const b: rs.u8 = _155;
+			const _212: Sided.Sided = { n: b & 127, side };
+			const _23: Sided.Sided = { n: b >> 6, side: rs.u8Add(side, 2) };
+			rs.hashInsert(m, _212, _23);
 		}
 	};
-	const _96: (a0: rs.ByteSlice) => rs.HashMap<rs.u8, rs.u16> = (bytes2: rs.ByteSlice): rs.HashMap<rs.u8, rs.u16> => {
-		const m: rs.HashMap<rs.u8, rs.u16> = rs.hashNew() as rs.HashMap<rs.u8, rs.u16>;
+	const _8: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashSet<Sided.Sided> = (side2: rs.u8, bytes2: rs.ByteSlice): rs.HashSet<Sided.Sided> => {
+		const _53: Spread.Spread = { _0: side2 as rs.u64 };
+		const s: rs.HashSet<Sided.Sided> = rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), _53) as rs.HashSet<Sided.Sided>;
 		const iterS2: Uint8Array = rs.byteSliceView(bytes2);
 		let iterI2: number = 0;
 		while (true) {
-			const _64: rs.u8 | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
-			if (_64 === rs.DONE) {
-				return m;
+			const _92: rs.u8 | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
+			if (_92 === rs.DONE) {
+				return s;
 			}
-			const b2: rs.u8 = _64;
-			const _102: rs.u16 = b2 as rs.u16;
-			const _113: rs.Place<rs.u16> = rs.entryOrInsertWithMut(rs.entry(m, rs.u8Rem(b2, 8)), (): rs.u16 => {
-				return 0;
-			});
-			_113.v = rs.u16Add(_113.v, _102);
-		}
-	};
-	const _123: (a0: rs.ByteSlice) => rs.HashSet<rs.String> = (bytes3: rs.ByteSlice): rs.HashSet<rs.String> => {
-		const _3: rs.Iter<rs.String> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes3)), (_2: rs.u8): rs.String => {
-			return text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(_2, 4))));
-		});
-		return rs.hashExtendKeys(rs.hashNew(rs.HASH_TEXT) as rs.HashSet<rs.String>, _3, undefined, undefined, 117440512);
-	};
-	const _175: (a0: rs.ByteSlice) => hashes_Index.Index = (bytes4: rs.ByteSlice): hashes_Index.Index => {
-		const _46: rs.Iter<[rs.u8, rs.String]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes4)), (_22: rs.u8): [rs.u8, rs.String] => {
-			const b4: rs.u8 = _22;
-			return [rs.u8Rem(b4, 8), text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(b4, 3))))] as [rs.u8, rs.String];
-		});
-		const _33: rs.HashMap<rs.u8, rs.String> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.String>, _46, undefined, undefined, undefined, 58720256);
-		const _75: rs.Iter<[rs.u8, boolean]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes4)), (_23: rs.u8): [rs.u8, boolean] => {
-			const b5: rs.u8 = _23;
-			return [rs.u8Rem(b5, 5), rs.u8Rem(b5, 2) === 0] as [rs.u8, boolean];
-		});
-		return { names: _33, seen: rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same]))) as rs.HashSet<[rs.u8, boolean]>, _75, undefined, undefined, 469762048) };
-	};
-	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
-	const map: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashMap<Sided.Sided, Sided.Sided> = (side2: rs.u8, bytes5: rs.ByteSlice): rs.HashMap<Sided.Sided, Sided.Sided> => {
-		const _58: Spread.Spread = { _0: rs.u64Add(rs.u64Mul(side2 as rs.u64, 65537), first as rs.u64) };
-		const m2: rs.HashMap<Sided.Sided, Sided.Sided> = rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), _58) as rs.HashMap<Sided.Sided, Sided.Sided>;
-		const iterS3: Uint8Array = rs.byteSliceView(bytes5);
-		let iterI3: number = 0;
-		while (true) {
-			const _1510: rs.u8 | rs.Done = iterI3 < iterS3.length ? iterS3[iterI3++] : rs.DONE;
-			if (_1510 === rs.DONE) {
-				return m2;
-			}
-			const b6: rs.u8 = _1510;
-			const _212: Sided.Sided = { n: b6 & 127, side: side2 };
-			const _232: Sided.Sided = { n: b6 >> 6, side: rs.u8Add(side2, 2) };
-			rs.hashInsert(m2, _212, _232);
+			rs.hashAdd(s, { n: _92 & 127, side: side2 });
 		}
 	};
 	const reversed: rs.ByteVec = rs.iterToByteVec(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), undefined, true);
-	const flipped: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), (_210: [rs.usize, rs.u8]): rs.u8 => {
-		const i: rs.usize = _210[0];
-		const b7: rs.u8 = _210[1];
+	const flipped: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), (_2: [rs.usize, rs.u8]): rs.u8 => {
+		const i: rs.usize = _2[0];
+		const b3: rs.u8 = _2[1];
 		if (!(i === rs.usizeDiv(data.length, 2))) {
-			return b7;
+			return b3;
 		}
-		return b7 ^ 65;
+		return b3 ^ 65;
 	}), undefined, true);
 	const shorter: rs.ByteSlice = rs.byteSliceRange(data, 0, rs.usizeSaturatingSub(data.length, 1));
 	const left: rs.HashMap<Sided.Sided, Sided.Sided> = map(1, data);
@@ -2070,6 +2035,23 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 		compared$collections_HashSet_hashes_Sided_hashes_Spread(right2, left2, _89, out);
 	}
 	compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Spread(rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), Spread.default$Default()) as rs.HashMap<Sided.Sided, Sided.Sided>, rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), Spread.default$Default()) as rs.HashMap<Sided.Sided, Sided.Sided>, 0, out);
+	const _96: (a0: rs.ByteSlice) => rs.HashMap<rs.u8, rs.u16> = (bytes3: rs.ByteSlice): rs.HashMap<rs.u8, rs.u16> => {
+		const m2: rs.HashMap<rs.u8, rs.u16> = rs.hashNew() as rs.HashMap<rs.u8, rs.u16>;
+		const iterS3: Uint8Array = rs.byteSliceView(bytes3);
+		let iterI3: number = 0;
+		while (true) {
+			const _69: rs.u8 | rs.Done = iterI3 < iterS3.length ? iterS3[iterI3++] : rs.DONE;
+			if (_69 === rs.DONE) {
+				return m2;
+			}
+			const b4: rs.u8 = _69;
+			const _104: rs.u16 = b4 as rs.u16;
+			const _117: rs.Place<rs.u16> = rs.entryOrInsertWithMut(rs.entry(m2, rs.u8Rem(b4, 8)), (): rs.u16 => {
+				return 0;
+			});
+			_117.v = rs.u16Add(_117.v, _104);
+		}
+	};
 	const _101: rs.HashMap<rs.u8, rs.u16> = _96(data);
 	const part6 = rs.byteVecSlice(reversed);
 	const _105: rs.HashMap<rs.u8, rs.u16> = _96(part6);
@@ -2078,6 +2060,12 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part7 = rs.byteVecSlice(flipped);
 	const _118: rs.HashMap<rs.u8, rs.u16> = _96(part7);
 	rs.byteVecPush(out, !rs.hashEq(rs.same)(_114, _118) ? 1 : 0);
+	const _123: (a0: rs.ByteSlice) => rs.HashSet<rs.String> = (bytes4: rs.ByteSlice): rs.HashSet<rs.String> => {
+		const _3: rs.Iter<rs.String> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes4)), (_210: rs.u8): rs.String => {
+			return text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(_210, 4))));
+		});
+		return rs.hashExtendKeys(rs.hashNew(rs.HASH_TEXT) as rs.HashSet<rs.String>, _3, undefined, undefined, 117440512);
+	};
 	const _128: rs.HashSet<rs.String> = _123(data);
 	const part8 = rs.byteVecSlice(reversed);
 	const _132: rs.HashSet<rs.String> = _123(part8);
@@ -2093,6 +2081,18 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part11 = rs.byteVecSlice(flipped);
 	const _163: rs.Vec<rs.HashSet<rs.String>> = rs.vecFrom([_165, _123(part11)]);
 	rs.byteVecPush(out, rs.eqSeq(rs.hashEq())(_152, _163) ? 1 : 0);
+	const _175: (a0: rs.ByteSlice) => hashes_Index.Index = (bytes5: rs.ByteSlice): hashes_Index.Index => {
+		const _46: rs.Iter<[rs.u8, rs.String]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes5)), (_211: rs.u8): [rs.u8, rs.String] => {
+			const b6: rs.u8 = _211;
+			return [rs.u8Rem(b6, 8), text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(b6, 3))))] as [rs.u8, rs.String];
+		});
+		const _33: rs.HashMap<rs.u8, rs.String> = rs.hashExtend(rs.hashNew() as rs.HashMap<rs.u8, rs.String>, _46, undefined, undefined, undefined, 58720256);
+		const _78: rs.Iter<[rs.u8, boolean]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes5)), (_213: rs.u8): [rs.u8, boolean] => {
+			const b7: rs.u8 = _213;
+			return [rs.u8Rem(b7, 5), rs.u8Rem(b7, 2) === 0] as [rs.u8, boolean];
+		});
+		return { names: _33, seen: rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same]))) as rs.HashSet<[rs.u8, boolean]>, _78, undefined, undefined, 469762048) };
+	};
 	const _180: hashes_Index.Index = _175(data);
 	const part12 = rs.byteVecSlice(reversed);
 	rs.byteVecPush(out, hashes_Index.eq$cmp_PartialEq(_180, _175(part12)) ? 1 : 0);

@@ -77,8 +77,7 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		rs.drop(it);
 		const s: rs.String = rs.stringFrom("abcdef");
 		const _180: Spent.Spent = new Spent.Spent(guard(12), 1, 3);
-		const _178: rs.Iter<rs.char> = rs.stringDrain(s, rs.dropAfter(_180, (range14) => rs.boundsChecked(rs.boundsOf(range14, Spent.startBound$ops_RangeBounds_usize, Spent.endBound$ops_RangeBounds_usize), s.len), rs.drop));
-		const part18 = rs.stringExtendChars(rs.stringNew(), _178, true);
+		const part18 = rs.stringFromChars(rs.stringDrain(s, rs.dropAfter(_180, (range14) => rs.boundsChecked(rs.boundsOf(range14, Spent.startBound$ops_RangeBounds_usize, Spent.endBound$ops_RangeBounds_usize), s.len), rs.drop)), true);
 		Log.note(log, rs.fmtFormat(["text ", (f: rs.Formatter) => rs.fmtPad(f, part18.v)]));
 		const _190: Spent.Spent = new Spent.Spent(guard(13), 0, 1);
 		rs.stringReplaceRange(s, rs.dropAfter(_190, (range15) => rs.boundsChecked(rs.boundsOf(range15, Spent.startBound$ops_RangeBounds_usize, Spent.endBound$ops_RangeBounds_usize), s.len), rs.drop), "xy");

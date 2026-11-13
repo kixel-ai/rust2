@@ -252,22 +252,37 @@ impl Home {
 		if self.relays.load(Ordering::Acquire) == 0 {
 			return f();
 		}
-		let caller = rt::thread();
-		let done = Arc::new(AtomicBool::new(false));
 		let mut f = Some(f);
 		let mut out = None;
 		let mut run = || {
-			ACTING.set(caller);
 			let f = f.take().expect("a call runs once");
 			out = Some(std::panic::catch_unwind(AssertUnwindSafe(f)));
 		};
 		let run: &mut (dyn FnMut() + '_) = &mut run;
+		// SAFETY: the caller's contract.
+		unsafe { self.serve_relays(run) };
+		match out.expect("the call ran") {
+			Ok(result) => result,
+			Err(panic) => std::panic::resume_unwind(panic),
+		}
+	}
+
+	/// Lend `run` to a worker and run each task queued for this isolate's thread until the
+	/// worker finishes it. Not generic, so every `serve` shares this loop's code.
+	///
+	/// # Safety
+	/// Called from Dart in this isolate, and `run` makes only calls through the C ABI.
+	#[inline(never)]
+	unsafe fn serve_relays(&'static self, run: &mut (dyn FnMut() + '_)) {
+		let acting = rt::thread();
+		let done = Arc::new(AtomicBool::new(false));
 		// SAFETY: this thread waits below until `run` returned, so it outlives its use.
 		let run = Run(unsafe { std::mem::transmute(run) });
 		Worker::lend(Lent {
 			run,
 			home: self,
 			done: done.clone(),
+			acting,
 		});
 		let mut tasks = self.lock();
 		loop {
@@ -283,10 +298,6 @@ impl Home {
 			}
 		}
 		drop(tasks);
-		match out.expect("the call ran") {
-			Ok(result) => result,
-			Err(panic) => std::panic::resume_unwind(panic),
-		}
 	}
 }
 
@@ -300,11 +311,13 @@ struct Worker {
 	ready: Condvar,
 }
 
-/// A call lent to a worker, which tells `home` once `run` returned by setting `done`.
+/// A call lent to a worker, which acts as `acting` while `run` runs, and tells `home` once
+/// `run` returned by setting `done`.
 struct Lent {
 	run: Run,
 	home: &'static Home,
 	done: Arc<AtomicBool>,
+	acting: usize,
 }
 
 impl Worker {
@@ -328,13 +341,14 @@ impl Worker {
 	fn park(self: Arc<Self>) {
 		loop {
 			let mut call = self.call.lock().unwrap_or_else(|e| e.into_inner());
-			let Lent { run, home, done } = loop {
+			let Lent { run, home, done, acting } = loop {
 				match call.take() {
 					Some(lent) => break lent,
 					None => call = self.ready.wait(call).unwrap_or_else(|e| e.into_inner()),
 				}
 			};
 			drop(call);
+			ACTING.set(acting);
 			// SAFETY: the lending thread waits until `done`.
 			unsafe { (*run.0)() };
 			let tasks = home.lock();

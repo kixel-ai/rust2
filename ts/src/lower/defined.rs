@@ -10,7 +10,7 @@
 //! once every definition typed with them is.
 
 use rustc_hir::def_id::DefId;
-use rustc_middle::ty::{self, GenericArgsRef, Ty, TypeVisitableExt, TypingEnv};
+use rustc_middle::ty::{self, GenericArgs, Ty, TypeVisitableExt, TypingEnv};
 use rustc_span::Span;
 
 use super::{Adt, Translator};
@@ -75,16 +75,16 @@ pub enum Decides {
 pub struct Check<'tcx> {
 	pub adt: DefId,
 	pub decided: Decided<'tcx>,
-	pub args: GenericArgsRef<'tcx>,
+	pub args: GenericArgs<'tcx>,
 }
 
 /// `args`, over a definition's parameters, at that definition's instance `at`.
 pub fn instantiate_args<'tcx>(
 	tcx: ty::TyCtxt<'tcx>,
 	env: TypingEnv<'tcx>,
-	args: GenericArgsRef<'tcx>,
-	at: GenericArgsRef<'tcx>,
-) -> GenericArgsRef<'tcx> {
+	args: GenericArgs<'tcx>,
+	at: GenericArgs<'tcx>,
+) -> GenericArgs<'tcx> {
 	let bound = ty::EarlyBinder::bind(tcx, args);
 	tcx.try_instantiate_and_normalize_erasing_regions(at, env, bound)
 		.unwrap_or_else(|_| bound.instantiate(tcx, at).skip_norm_wip())
@@ -150,7 +150,7 @@ struct Member {
 
 struct Pending<'tcx> {
 	adt: DefId,
-	args: GenericArgsRef<'tcx>,
+	args: GenericArgs<'tcx>,
 	/// The definition typing it, and the field whose type did.
 	at: Option<(DefId, TypingEnv<'tcx>)>,
 	field: Option<DefId>,
@@ -330,7 +330,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 
 	/// The projection arguments of an instance of the crate's generic `adt` with `args`, a
 	/// definition still being typed, as a [`Type::Later`] filled in once it is complete.
-	pub(super) fn later_projections(&mut self, adt: DefId, args: GenericArgsRef<'tcx>, span: Span) -> Option<Type> {
+	pub(super) fn later_projections(&mut self, adt: DefId, args: GenericArgs<'tcx>, span: Span) -> Option<Type> {
 		let state = &mut self.defining_state;
 		let low = state.records.get(&adt)?.open?;
 		// Whatever types it is typed with it.

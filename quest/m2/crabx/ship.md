@@ -22,4 +22,3 @@ Recommendations:
 ## Required
 
 - [The pipeline](/quest/m2/crabx/pipeline.md) - builds and attests crabx's binaries
-- [The runner](/quest/m2/crabx/runner.md) - what ships

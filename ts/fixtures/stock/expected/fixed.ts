@@ -25,8 +25,7 @@ export function strings(data: rs.ByteSlice, out: rs.ByteVec): void {
 				break b2;
 			}
 			if (_23 === 1) {
-				const _31: rs.Iter<rs.char> = rs.iterRepeatN(c, b >> 5 as rs.usize);
-				const run: rs.String = rs.stringExtendChars(rs.stringNew(), _31);
+				const run: rs.String = rs.stringFromChars(rs.iterRepeatN(c, b >> 5 as rs.usize));
 				const _36: rs.Result<undefined, CapacityError.CapacityError<string>> = ArrayString.tryPushStr$12(s, run.v);
 				if (_36.ok) {
 					rs.byteVecPush(out, 0);

@@ -73,104 +73,100 @@ export function steps$ascii_EscapeDefault(e: rs.Iter<rs.u8>, data: rs.ByteSlice,
 export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _67!: rs.usize;
 	const all: rs.ByteVec = rs.iterToByteVec(new rs.RangeInclusive(0, 255, rs.u8Step), undefined, true);
-	b0: {
-		const _6: rs.u8 = rs.u8Rem(kind, 4);
-		if (_6 === 0) {
-			const iter: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(0, 255, rs.u8Step);
-			while (true) {
-				const _11: rs.u8 | rs.Done = iter.next();
-				if (_11 === rs.DONE) {
-					break b0;
-				}
-				const b: rs.u8 = _11;
-				const dst = out;
-				const word = byteTests(b);
-				rs.byteVecReserve(dst, 2 as rs.usize);
-				const pos = dst.length;
-				dst.data[pos + 0] = (word >>> 8) & 255;
-				dst.data[pos + 1] = word & 255;
-				dst.length = dst.length + 2;
-				rs.byteVecPush(out, rs.toAsciiUppercase(b));
-				rs.byteVecPush(out, rs.toAsciiLowercase(b));
-				const other: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), b ^ 32);
-				rs.byteVecPush(out, rs.eqIgnoreAsciiCase(b, other) ? 1 : 0);
-				rs.byteVecPush(out, rs.eqIgnoreAsciiCase(b, b ^ 32) ? 1 : 0);
+	const _6: rs.u8 = rs.u8Rem(kind, 4);
+	if (_6 === 0) {
+		const iter: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(0, 255, rs.u8Step);
+		while (true) {
+			const _11: rs.u8 | rs.Done = iter.next();
+			if (_11 === rs.DONE) {
+				break;
+			}
+			const b: rs.u8 = _11;
+			const dst = out;
+			const word = byteTests(b);
+			rs.byteVecReserve(dst, 2 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = (word >>> 8) & 255;
+			dst.data[pos + 1] = word & 255;
+			dst.length = dst.length + 2;
+			rs.byteVecPush(out, rs.toAsciiUppercase(b));
+			rs.byteVecPush(out, rs.toAsciiLowercase(b));
+			const other: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), b ^ 32);
+			rs.byteVecPush(out, rs.eqIgnoreAsciiCase(b, other) ? 1 : 0);
+			rs.byteVecPush(out, rs.eqIgnoreAsciiCase(b, b ^ 32) ? 1 : 0);
+		}
+	} else if (_6 === 1) {
+		const iter2: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(0, 255, rs.u8Step);
+		while (true) {
+			const _44: rs.u8 | rs.Done = iter2.next();
+			if (_44 === rs.DONE) {
+				break;
+			}
+			const b2: rs.u8 = _44;
+			let local: rs.u8 = b2;
+			local = rs.toAsciiUppercase(local);
+			rs.byteVecPush(out, local);
+			const pair: [rs.u8, rs.u8] = [b2, b2];
+			pair[1] = rs.toAsciiLowercase(pair[1]);
+			const dst2 = out;
+			const byte = pair[0];
+			const byte2 = pair[1];
+			rs.byteVecReserve(dst2, 2 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = byte;
+			dst2.data[pos2 + 1] = byte2;
+			dst2.length = dst2.length + 2;
+		}
+		const _64: rs.usize = all.length;
+		let iterStart: rs.usize = 0;
+		const iterEnd: rs.usize = _64;
+		while ((_67 = iterStart++) < iterEnd) {
+			const i: rs.usize = _67;
+			if (!(rs.usizeRem(i, 2) === 0)) {
+				const at2 = rs.idx(all, i);
+				upperByte(rs.place(() => all.data[at2], (value) => all.data[at2] = value));
+			} else {
+				const at = rs.idx(all, i);
+				all.data[at] = rs.toAsciiLowercase(all.data[at]);
 			}
 		}
-		if (_6 === 1) {
-			const iter2: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(0, 255, rs.u8Step);
-			while (true) {
-				const _44: rs.u8 | rs.Done = iter2.next();
-				if (_44 === rs.DONE) {
-					break;
-				}
-				const b2: rs.u8 = _44;
-				let local: rs.u8 = b2;
-				local = rs.toAsciiUppercase(local);
-				rs.byteVecPush(out, local);
-				const pair: [rs.u8, rs.u8] = [b2, b2];
-				pair[1] = rs.toAsciiLowercase(pair[1]);
-				const dst2 = out;
-				const byte = pair[0];
-				const byte2 = pair[1];
-				rs.byteVecReserve(dst2, 2 as rs.usize);
-				const pos2 = dst2.length;
-				dst2.data[pos2 + 0] = byte;
-				dst2.data[pos2 + 1] = byte2;
-				dst2.length = dst2.length + 2;
+		const iter4: rs.Iter<rs.Place<rs.u8>> = rs.iterSkip(rs.iterSliceMut(rs.byteVecSlice(all)), option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize);
+		while (true) {
+			const _90: rs.Place<rs.u8> | rs.Done = iter4.next();
+			if (_90 === rs.DONE) {
+				break;
 			}
-			const _64: rs.usize = all.length;
-			let iterStart: rs.usize = 0;
-			const iterEnd: rs.usize = _64;
-			while ((_67 = iterStart++) < iterEnd) {
-				const i: rs.usize = _67;
-				if (!(rs.usizeRem(i, 2) === 0)) {
-					const at2 = rs.idx(all, i);
-					upperByte(rs.place(() => all.data[at2], (value) => all.data[at2] = value));
-				} else {
-					const at = rs.idx(all, i);
-					all.data[at] = rs.toAsciiLowercase(all.data[at]);
-				}
+			_90.v = rs.toAsciiUppercase(_90.v);
+		}
+		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(all));
+	} else if (_6 === 2) {
+		const iter5: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(0, 255, rs.u8Step);
+		while (true) {
+			const _101: rs.u8 | rs.Done = iter5.next();
+			if (_101 === rs.DONE) {
+				break;
 			}
-			const iter4: rs.Iter<rs.Place<rs.u8>> = rs.iterSkip(rs.iterSliceMut(rs.byteVecSlice(all)), option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize);
-			while (true) {
-				const _90: rs.Place<rs.u8> | rs.Done = iter4.next();
-				if (_90 === rs.DONE) {
-					break;
-				}
-				_90.v = rs.toAsciiUppercase(_90.v);
+			const b3: rs.u8 = _101;
+			const e: rs.Iter<rs.u8> = rs.escapeAscii(b3);
+			const shown: rs.String = rs.stringNew();
+			const _113: rs.Iter<rs.u8> = rs.escapeAscii(b3);
+			const _115: rs.usize = rs.iterCount(e.clone());
+			const args3 = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f), (f: rs.Formatter) => rs.fmtEscapeAscii(_113, f), (f: rs.Formatter) => rs.usizeDisplay(_115, f)];
+			rs.resultUnwrap(rs.fmtWriteString(shown, [args3[0], "|", rs.fmtSpec({ align: ">", width: 6 }, args3[1]), "|", args3[2]]), rs.fmtErrorDebug);
+			put(out, shown.v);
+			rs.iterExtendBytes(out, e.clone(), "next");
+			rs.iterExtendBytes(out, rs.iterRev(e.clone()), "next");
+			rs.byteVecPush(out, rs.optionUnwrap(rs.iterLast(e.clone())));
+			rs.byteVecPush(out, rs.fmtToString((f: rs.Formatter) => rs.fmtEscapeAscii(e, f)).len & 0xff);
+		}
+	} else {
+		const iter6: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(0, 255, rs.u8Step);
+		while (true) {
+			const _149: rs.u8 | rs.Done = iter6.next();
+			if (_149 === rs.DONE) {
+				break;
 			}
-			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(all));
-		} else {
-			if (_6 === 2) {
-				const iter5: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(0, 255, rs.u8Step);
-				while (true) {
-					const _101: rs.u8 | rs.Done = iter5.next();
-					if (_101 === rs.DONE) {
-						break b0;
-					}
-					const b3: rs.u8 = _101;
-					const e: rs.Iter<rs.u8> = rs.escapeAscii(b3);
-					const shown: rs.String = rs.stringNew();
-					const _113: rs.Iter<rs.u8> = rs.escapeAscii(b3);
-					const _115: rs.usize = rs.iterCount(e.clone());
-					const args3 = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f), (f: rs.Formatter) => rs.fmtEscapeAscii(_113, f), (f: rs.Formatter) => rs.usizeDisplay(_115, f)];
-					rs.resultUnwrap(rs.fmtWriteString(shown, [args3[0], "|", rs.fmtSpec({ align: ">", width: 6 }, args3[1]), "|", args3[2]]), rs.fmtErrorDebug);
-					put(out, shown.v);
-					rs.iterExtendBytes(out, e.clone(), "next");
-					rs.iterExtendBytes(out, rs.iterRev(e.clone()), "next");
-					rs.byteVecPush(out, rs.optionUnwrap(rs.iterLast(e.clone())));
-					rs.byteVecPush(out, rs.fmtToString((f: rs.Formatter) => rs.fmtEscapeAscii(e, f)).len & 0xff);
-				}
-			}
-			const iter6: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(0, 255, rs.u8Step);
-			while (true) {
-				const _149: rs.u8 | rs.Done = iter6.next();
-				if (_149 === rs.DONE) {
-					break b0;
-				}
-				steps$ascii_EscapeDefault(rs.escapeAscii(_149), data, out);
-			}
+			steps$ascii_EscapeDefault(rs.escapeAscii(_149), data, out);
 		}
 	}
 }
@@ -317,10 +313,9 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, rs.strEqIgnoreAsciiCase(_124, _127) ? 1 : 0);
 			rs.byteVecPush(out, rs.strEqIgnoreAsciiCase(_124, rs.stringFrom(rs.strToAsciiUppercase(_127)).v) ? 1 : 0);
 			put(out, rs.stringFrom(rs.strToAsciiUppercase(s.v)).v);
-			const _154: rs.Iter<rs.char> = rs.iterFilter(rs.strChars(s.v), (a0: rs.char): boolean => {
+			put(out, rs.stringFromChars(rs.iterFilter(rs.strChars(s.v), (a0: rs.char): boolean => {
 				return rs.isAsciiAlphanumeric(a0);
-			});
-			put(out, rs.stringExtendChars(rs.stringNew(), _154).v);
+			})).v);
 			put(out, rs.stringFrom(rs.strToAsciiLowercase(s.v)).v);
 			put(out, rs.strTrimAsciiStart(s.v));
 			put(out, rs.strTrimAsciiEnd(s.v));

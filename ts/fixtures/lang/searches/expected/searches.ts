@@ -3715,8 +3715,7 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			front$tuple2_usize_ref_str_str_RMatchIndices_char(rs.strRmatchIndices(_50, String.fromCodePoint(c)), out);
 		}
 	} else if (_42 === 1) {
-		const _109: rs.Iter<rs.char> = rs.iterTake(rs.iterSkip(rs.strChars(s.v), rs.u8Div(pick, 64) as rs.usize), rs.u8Rem(rs.u8Div(pick, 16), 4) as rs.usize);
-		const needle: rs.String = rs.stringExtendChars(rs.stringNew(), _109);
+		const needle: rs.String = rs.stringFromChars(rs.iterTake(rs.iterSkip(rs.strChars(s.v), rs.u8Div(pick, 64) as rs.usize), rs.u8Rem(rs.u8Div(pick, 16), 4) as rs.usize));
 		const _125: string = s.v;
 		const _127: rs.u8 = rs.u8Rem(m, 9);
 		if (_127 === 0) {
@@ -3911,14 +3910,13 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
  * low bits of each byte, read from the end each byte's high bit picks.
  */
 export function texts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _5: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.char => {
+	const s: rs.String = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.char => {
 		const _52: rs.usize = rs.u8Rem(_2, 16) as rs.usize;
 		if (!(_52 < 16)) {
 			rs.panic("index out of bounds: the len is " + 16 + " but the index is " + _52);
 		}
 		return [10, 13, 97, 32, 9, 11, 133, 160, 5760, 8202, 8203, 8232, 12288, 65279, 233, 128512][_52];
-	});
-	const s: rs.String = rs.stringExtendChars(rs.stringNew(), _5);
+	}));
 	const _7: rs.u8 = rs.u8Rem(kind, 5);
 	if (_7 === 0) {
 		both$tuple2_usize_char_str_CharIndices(rs.strCharIndices(s.v), data, out);

@@ -2212,3 +2212,52 @@ pub fn held_fields(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		),
 	}
 }
+
+/// An iterator that is not fused: it ends once, then yields `data`, then ends for good.
+struct Flicker<'a> {
+	data: &'a [u8],
+	calls: usize,
+}
+
+impl Iterator for Flicker<'_> {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		self.calls += 1;
+		match self.calls {
+			1 => None,
+			calls => self.data.get(calls - 2).copied(),
+		}
+	}
+}
+
+impl DoubleEndedIterator for Flicker<'_> {
+	fn next_back(&mut self) -> Option<u8> {
+		self.next()
+	}
+}
+
+/// Adaptors over an iterator that is not fused, advanced through a `Chain`'s `nth`: a
+/// `skip`, which takes no step while advanced by none, and a `fuse` advanced from the back,
+/// which drops its iterator once it falls short. Then what each still yields.
+pub fn unfused(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let flicker = || Flicker { data, calls: 0 };
+	let n = usize::from(data.first().copied().unwrap_or(0) % 3);
+	match kind % 3 {
+		0 => {
+			let mut s = flicker().skip(1);
+			out.extend(s.by_ref().chain([0x99]).nth(n));
+			out.extend(s);
+		}
+		1 => {
+			let mut r = flicker().fuse().rev();
+			out.extend(r.by_ref().chain([0x99]).nth(n));
+			out.extend(r);
+		}
+		_ => {
+			let mut f = flicker().fuse();
+			out.extend(f.nth_back(n));
+			out.extend(f);
+		}
+	}
+}

@@ -71,11 +71,6 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	let _299!: rs.usize;
 	let _377!: rs.u8;
 	let _429!: rs.u8;
-	const _443: (a0: Nibble.Nibble) => rs.u64 = (n: Nibble.Nibble): rs.u64 => {
-		const h2: rs.Hasher = rs.hasher();
-		Nibble.hash$Hash_hash_DefaultHasher(n, h2);
-		return rs.hashFinish(h2);
-	};
 	const _4: rs.u8 = rs.u8Rem(kind, 4);
 	if (_4 === 0) {
 		const map: rs.HashMap<rs.u8, rs.u16> = rs.hashNew() as rs.HashMap<rs.u8, rs.u16>;
@@ -362,6 +357,11 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 				return t16.n & 0xff;
 			}));
 		}
+		const _443: (a0: Nibble.Nibble) => rs.u64 = (n: Nibble.Nibble): rs.u64 => {
+			const h2: rs.Hasher = rs.hasher();
+			Nibble.hash$Hash_hash_DefaultHasher(n, h2);
+			return rs.hashFinish(h2);
+		};
 		const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 		rs.byteVecPush(out, rs.u64Eq(_443({ _0: first }), _443({ _0: first ^ 240 })) ? 1 : 0);
 		const _461: [rs.Hasher, Tally.Tally] = [rs.hasher(), { n: first as rs.u16 }];
@@ -498,16 +498,6 @@ export function claim(map: rs.HashMap<rs.u8, Tally.Tally>, k: rs.u8, n: rs.u16):
 
 /** `HashSet` and `BTreeSet`, each with the same script. */
 export function sets(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _159: (a0: Nibble.Nibble | undefined) => rs.u8 = (n2: Nibble.Nibble | undefined): rs.u8 => {
-		return option_mapOr$0f7cus0(n2, 238, (n3: Nibble.Nibble): rs.u8 => {
-			return n3._0;
-		});
-	};
-	const _160: (a0: Nibble.Nibble | undefined) => rs.u8 = (n4: Nibble.Nibble | undefined): rs.u8 => {
-		return option_mapOr$0f7cus0(n4, 238, (n5: Nibble.Nibble): rs.u8 => {
-			return n5._0;
-		});
-	};
 	const _4: rs.u8 = rs.u8Rem(kind, 3);
 	if (_4 === 0) {
 		const hashed: rs.HashSet<rs.u16> = rs.hashNew() as rs.HashSet<rs.u16>;
@@ -577,6 +567,16 @@ export function sets(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, rs.btreeAdd(nibbles, { _0: b2 }) ? 1 : 0);
 			rs.byteVecPush(out, rs.hashAdd(seen, { _0: b2 }) ? 1 : 0);
 		}
+		const _159: (a0: Nibble.Nibble | undefined) => rs.u8 = (n2: Nibble.Nibble | undefined): rs.u8 => {
+			return option_mapOr$0f7cus0(n2, 238, (n3: Nibble.Nibble): rs.u8 => {
+				return n3._0;
+			});
+		};
+		const _160: (a0: Nibble.Nibble | undefined) => rs.u8 = (n4: Nibble.Nibble | undefined): rs.u8 => {
+			return option_mapOr$0f7cus0(n4, 238, (n5: Nibble.Nibble): rs.u8 => {
+				return n5._0;
+			});
+		};
 		const iter6: rs.Iter<rs.u8> = rs.iterRev(rs.iterSlice(rs.byteSliceView(data)));
 		while (true) {
 			const _166: rs.u8 | rs.Done = iter6.next();
@@ -4092,18 +4092,13 @@ export function each$collections_Quirky_cell_RefCell_collections_Quirky_collecti
  * `kind` picks.
  */
 export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _34: (a0: rs.Slice<Picky.Picky>, a1: rs.usize) => rs.u16 = (v: rs.Slice<Picky.Picky>, i: rs.usize): rs.u16 => {
-		return option_mapOr$0pgapuk(rs.sliceGet(v, i), 0, (p: Picky.Picky): rs.u16 => {
-			return p._0;
-		});
-	};
 	const log: rs.Cell<rs.u16> = new rs.Cell(0);
 	const _7: [rs.usize, rs.usize] = [(kind & 7) as rs.usize, ((kind >> 3) & 7) as rs.usize];
 	const byNe: rs.usize = _7[0];
 	const byEq: rs.usize = _7[1];
-	const step: (a0: rs.usize) => rs.u16 = (i2: rs.usize): rs.u16 => {
-		if (!(i2 === byEq)) {
-			if (!(i2 === byNe)) {
+	const step: (a0: rs.usize) => rs.u16 = (i: rs.usize): rs.u16 => {
+		if (!(i === byEq)) {
+			if (!(i === byNe)) {
 				return 12;
 			}
 			return 4;
@@ -4119,6 +4114,11 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	if ((kind & 64) !== 0) {
 		rs.vecPop(b);
 	}
+	const _34: (a0: rs.Slice<Picky.Picky>, a1: rs.usize) => rs.u16 = (v: rs.Slice<Picky.Picky>, i3: rs.usize): rs.u16 => {
+		return option_mapOr$0pgapuk(rs.sliceGet(v, i3), 0, (p: Picky.Picky): rs.u16 => {
+			return p._0;
+		});
+	};
 	const one: (a0: rs.Slice<Picky.Picky>, a1: rs.usize) => Picky.Picky = (v2: rs.Slice<Picky.Picky>, i4: rs.usize): Picky.Picky => {
 		return { _0: _34(v2, i4), _1: log };
 	};
@@ -4783,12 +4783,6 @@ export function cellEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
  * both by value and through references.
  */
 export function unlikeCompares(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _9: (a0: rs.Ordering | undefined, a1: rs.Cell<rs.u16>, a2: rs.ByteVec) => undefined = (o: rs.Ordering | undefined, log2: rs.Cell<rs.u16>, out2: rs.ByteVec): undefined => {
-		rs.byteVecPush(out2, option_mapOr$14runhi(o, 9, (o2: rs.Ordering): rs.u8 => {
-			return o2 & 0xff;
-		}));
-		rs.iterExtendBytes(out2, rs.iterSlice(rs.u16ToBeBytes(rs.cellReplace(log2, 0)).reverse()), undefined, true);
-	};
 	const log: rs.Cell<rs.u16> = new rs.Cell(0);
 	const lefts: () => rs.Vec<Left.Left> = (): rs.Vec<Left.Left> => {
 		return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): Left.Left => {
@@ -4797,6 +4791,12 @@ export function unlikeCompares(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec)
 	};
 	const rights_: () => rs.Vec<Right.Right> = (): rs.Vec<Right.Right> => {
 		return rights(kind, data);
+	};
+	const _9: (a0: rs.Ordering | undefined, a1: rs.Cell<rs.u16>, a2: rs.ByteVec) => undefined = (o: rs.Ordering | undefined, log2: rs.Cell<rs.u16>, out2: rs.ByteVec): undefined => {
+		rs.byteVecPush(out2, option_mapOr$14runhi(o, 9, (o2: rs.Ordering): rs.u8 => {
+			return o2 & 0xff;
+		}));
+		rs.iterExtendBytes(out2, rs.iterSlice(rs.u16ToBeBytes(rs.cellReplace(log2, 0)).reverse()), undefined, true);
 	};
 	const _12: [rs.Vec<Left.Left>, rs.Vec<Right.Right>] = [lefts(), rights_()];
 	const mine: rs.Vec<Left.Left> = _12[0];
@@ -6086,11 +6086,6 @@ export function btreeSearches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 	let range!: rs.Iter<[Probe.Probe, rs.u16]>;
 	let _159!: [Probe.Probe, rs.u16] | undefined;
 	let _452!: [Probe.Probe, Probe.Probe];
-	const _28: (a0: rs.u16 | undefined) => rs.u16 = (v: rs.u16 | undefined): rs.u16 => {
-		return option_mapOr$1wei0sy(v, 65535, (v2: rs.u16): rs.u16 => {
-			return v2;
-		});
-	};
 	const log: rs.Cell<rs.u32> = new rs.Cell(0);
 	const at: (a0: rs.usize) => rs.u8 = (i3: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i3), 0);
@@ -6106,6 +6101,11 @@ export function btreeSearches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 	};
 	const probe: (a0: rs.u8) => Probe.Probe = (b7: rs.u8): Probe.Probe => {
 		return { _0: rs.u16Add(rs.u16Mul(b7 as rs.u16, 4), b7 >> 6 as rs.u16), _1: log };
+	};
+	const _28: (a0: rs.u16 | undefined) => rs.u16 = (v: rs.u16 | undefined): rs.u16 => {
+		return option_mapOr$1wei0sy(v, 65535, (v2: rs.u16): rs.u16 => {
+			return v2;
+		});
 	};
 	b0: {
 		const _29: rs.u8 = rs.u8Rem(kind, 4);
@@ -6378,14 +6378,6 @@ export function btreeSearches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 export function btreeBorrows(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _29!: rs.usize;
 	let _199!: [rs.u8, rs.u8];
-	const _22: (a0: rs.u8) => rs.u16 = (b2: rs.u8): rs.u16 => {
-		return rs.u16Mul(b2 as rs.u16, 4) ^ 256;
-	};
-	const _23: (a0: rs.u16 | undefined) => rs.u16 = (v: rs.u16 | undefined): rs.u16 => {
-		return option_mapOr$1wei0sy(v, 65535, (v2: rs.u16): rs.u16 => {
-			return v2;
-		});
-	};
 	const log: rs.Cell<rs.u32> = new rs.Cell(0);
 	const at: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i2), 0);
@@ -6406,8 +6398,16 @@ export function btreeBorrows(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 		}
 		return { start: { _0: start, _1: log }, end: { _0: end, _1: log }, id: end ^ 256 };
 	};
-	const probe: (a0: rs.u8) => Probe.Probe = (b3: rs.u8): Probe.Probe => {
-		return { _0: rs.u16Add(rs.u16Mul(b3 as rs.u16, 4), b3 >> 6 as rs.u16), _1: log };
+	const probe: (a0: rs.u8) => Probe.Probe = (b2: rs.u8): Probe.Probe => {
+		return { _0: rs.u16Add(rs.u16Mul(b2 as rs.u16, 4), b2 >> 6 as rs.u16), _1: log };
+	};
+	const _22: (a0: rs.u8) => rs.u16 = (b3: rs.u8): rs.u16 => {
+		return rs.u16Mul(b3 as rs.u16, 4) ^ 256;
+	};
+	const _23: (a0: rs.u16 | undefined) => rs.u16 = (v: rs.u16 | undefined): rs.u16 => {
+		return option_mapOr$1wei0sy(v, 65535, (v2: rs.u16): rs.u16 => {
+			return v2;
+		});
 	};
 	const map: rs.BTreeMap<Lent.Lent, rs.u16> = rs.btreeNew(Lent.cmp$cmp_Ord) as rs.BTreeMap<Lent.Lent, rs.u16>;
 	const set: rs.BTreeSet<Lent.Lent> = rs.btreeNew(Lent.cmp$cmp_Ord) as rs.BTreeSet<Lent.Lent>;

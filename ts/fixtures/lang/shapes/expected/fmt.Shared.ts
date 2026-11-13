@@ -4,14 +4,7 @@ import * as rs from "./rs.ts";
 import * as Pair from "./fmt.Pair.ts";
 
 export function fmt$fmt_Debug(self: Shared, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Shared";
-	const _4: string = "arc";
-	const _5: rs.Fmt = (f: rs.Formatter) => Pair.fmt$fmt_Debug(self.arc.value, f);
-	const _7: string = "span";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtRange(self.span, f, rs.u16Debug);
-	const _10: string = "upto";
-	const _11: rs.Fmt = (f: rs.Formatter) => rs.fmtRangeToInclusive(self.upto, f, rs.u8Debug);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8), _10, _11));
+	return rs.fmtDebugFields(f, "Shared arc span upto", [(f: rs.Formatter) => Pair.fmt$fmt_Debug(self.arc.value, f), (f: rs.Formatter) => rs.fmtRange(self.span, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(self.upto, f, rs.u8Debug)]);
 }
 
 export class Shared {

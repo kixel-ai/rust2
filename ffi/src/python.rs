@@ -37,6 +37,7 @@ pub const GLUE_RUNTIME: &str = include_str!("../runtime/python.rs");
 /// What the generator writes: the Python module, and the Rust module of the extension it
 /// loads.
 pub struct Output {
+	pub names: BTreeMap<String, String>,
 	pub python: String,
 	pub glue: String,
 }
@@ -95,6 +96,7 @@ const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume", "W
 /// glue add, as their conversions change with no C declaration changing.
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
+		locked: BTreeMap::new(),
 		abi,
 		classes: abi.classes(|_| (String::new(), 0), |name| TAKEN.contains(&name)),
 		py: String::new(),
@@ -110,6 +112,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		exceptions: BTreeMap::new(),
 		thrown: HashMap::new(),
 		names: BTreeMap::new(),
+		converters: HashMap::new(),
 		errors: Vec::new(),
 		on: On::ALL,
 	};
@@ -119,6 +122,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
 	}
+	g.locked = crate::lock::types(abi, &g.classes);
 	g.write();
 	if !g.errors.is_empty() {
 		return Err(g.errors.join("\n"));
@@ -247,7 +251,11 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		g.members.len(),
 		g.members.iter().map(|m| format!("\t{m},\n")).collect::<String>(),
 	);
-	Ok(Output { python: body, glue })
+	Ok(Output {
+		names: g.locked,
+		python: body,
+		glue,
+	})
 }
 
 /// How a function's Python form is held.
@@ -323,6 +331,7 @@ impl Body {
 }
 
 struct Gen<'a> {
+	locked: BTreeMap<String, String>,
 	abi: &'a Abi<'a>,
 	/// Each exported type's name, by its C name.
 	classes: HashMap<String, String>,
@@ -350,6 +359,10 @@ struct Gen<'a> {
 	thrown: HashMap<String, String>,
 	/// Each module-level Python name, with what claimed it.
 	names: BTreeMap<String, String>,
+	/// The suffix of the glue's `r_` and `w_` of each option, tuple, and list type by
+	/// its C struct and what the struct holds: types of one struct, such as a `Vec` of
+	/// `SocketAddrV4` and one of `SocketAddr`, convert apart.
+	converters: HashMap<(String, Vec<Type>), String>,
 	errors: Vec<String>,
 	/// The targets of the item being written, whose native functions check theirs.
 	on: On,
@@ -498,7 +511,7 @@ impl<'a> Gen<'a> {
 			Type::U128 => format!("rt::u128_in({o})"),
 			Type::Duration => format!("rt::duration_in({o})"),
 			Type::SocketAddr(family) => format!("rt::addr_in({o}, {})", family_of(*family)),
-			Type::List(..) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
+			Type::List(..) => format!("r_{}({o}, s, {m})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => {
 					let m = match abi.api.objects[*i].copy || matches!(**inner, Type::Ref(..)) {
@@ -515,7 +528,7 @@ impl<'a> Gen<'a> {
 					let some = self.lift(inner, o, m);
 					format!("(if rt::is_none({o}) {{ Ok(crate::rt::List::NONE) }} else {{ {some} }})")
 				}
-				_ => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
+				_ => format!("r_{}({o}, s, {m})", self.converter(ty)),
 			},
 			Type::Box(inner) => self.lift(inner, o, m),
 			Type::Ref(_, inner) => self.lift(inner, o, "false"),
@@ -551,7 +564,7 @@ impl<'a> Gen<'a> {
 			Type::Future => format!("rt::future_in({o}, s)"),
 			Type::Range(int) => format!("rt::range_in::<{}>({o})", int.rust()),
 			Type::Bound(_) | Type::Bounds(_) => format!("r_{}({o}, s)", abi.range(ty)),
-			Type::Tuple(_) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
+			Type::Tuple(_) => format!("r_{}({o}, s, {m})", self.converter(ty)),
 			Type::Unit | Type::Closure(..) => unreachable!("{ty:?} is no value Python passes"),
 		}
 	}
@@ -575,7 +588,7 @@ impl<'a> Gen<'a> {
 			Type::U128 => format!("rt::u128_out({v})"),
 			Type::Duration => format!("rt::duration_out({v})"),
 			Type::SocketAddr(_) => format!("rt::addr_out({v})"),
-			Type::List(..) => format!("w_{}({v})", self.c_struct(ty)),
+			Type::List(..) => format!("w_{}({v})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => format!(
 					"rt::object_opt({v}, {}, crate::{}_free)",
@@ -586,7 +599,7 @@ impl<'a> Gen<'a> {
 					let some = self.lower(inner, "v");
 					format!("{{ let v = {v}; if v.is_none() {{ rt::none() }} else {{ {some} }} }}")
 				}
-				_ => format!("w_{}({v})", self.c_struct(ty)),
+				_ => format!("w_{}({v})", self.converter(ty)),
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.lower(inner, v),
 			Type::Record(_) => format!("w_{}({v})", self.c_struct(ty)),
@@ -605,7 +618,7 @@ impl<'a> Gen<'a> {
 				format!("{{ let r = {v}; rt::range_out({start}, {end}) }}")
 			}
 			Type::Bound(_) | Type::Bounds(_) => format!("w_{}({v})", abi.range(ty)),
-			Type::Tuple(_) => format!("w_{}({v})", self.c_struct(ty)),
+			Type::Tuple(_) => format!("w_{}({v})", self.converter(ty)),
 			Type::Waker => format!("rt::waker_out({v})"),
 			Type::Callback(..) | Type::Closure(..) | Type::Future | Type::Reader => {
 				unreachable!("{ty:?} is no value Rust returns")
@@ -619,6 +632,51 @@ impl<'a> Gen<'a> {
 			Ty::Struct(name) => name,
 			other => unreachable!("{ty:?} crosses as {other:?}, no struct"),
 		}
+	}
+
+	/// The suffix of the glue's `r_` and `w_` converting the option, tuple, or list `ty`:
+	/// its C struct's name for the type the struct was made for, which [`Self::write`]
+	/// writes, else a name of its own, written here once.
+	fn converter(&mut self, ty: &Type) -> String {
+		let abi = self.abi;
+		let c = self.c_struct(ty);
+		let (held, made): (Vec<Type>, Vec<Type>) = match strip_refs(ty) {
+			Type::Option(inner) => (vec![*inner], vec![abi.options[&c].clone()]),
+			Type::List(_, elem) => (vec![*elem], vec![abi.lists[&c].clone()]),
+			Type::Tuple(elements) => (elements, abi.tuples[&c].clone()),
+			other => unreachable!("{other:?} has no converter"),
+		};
+		let made: Vec<Type> = made.iter().map(strip_refs).collect();
+		if held.iter().map(strip_refs).eq(made.iter().cloned()) {
+			return c;
+		}
+		let key = (c.clone(), held.clone());
+		if let Some(name) = self.converters.get(&key) {
+			return name.clone();
+		}
+		// A numbered name must miss every converter's: each type's own, and the others numbered.
+		let taken = |name: &str| {
+			abi.options.contains_key(name)
+				|| abi.lists.contains_key(name)
+				|| abi.tuples.contains_key(name)
+				|| abi.ranges.contains_key(name)
+				|| abi.arrays.contains_key(name)
+				|| (0..abi.api.records.len()).any(|i| abi.record(i) == name)
+				|| (0..abi.api.enums.len()).any(|i| abi.enumeration(i) == name)
+				|| (0..abi.api.objects.len()).any(|i| abi.object(i) == name)
+				|| self.converters.values().any(|n| n == name)
+		};
+		let name = (self.converters.len() + 2..)
+			.map(|k| format!("{c}_{k}"))
+			.find(|name| !taken(name))
+			.expect("some number is free");
+		self.converters.insert(key, name.clone());
+		match strip_refs(ty) {
+			Type::Option(_) => self.option(&name, &c, &held[0]),
+			Type::List(..) => self.list(&name, &c, &held[0]),
+			_ => self.tuple(&name, &c, &held),
+		}
+		name
 	}
 
 	fn write(&mut self) {
@@ -636,10 +694,10 @@ impl<'a> Gen<'a> {
 			self.range(c, ty);
 		}
 		for (c, inner) in &abi.options.clone() {
-			self.option(c, inner);
+			self.option(c, c, inner);
 		}
 		for (c, elements) in &abi.tuples.clone() {
-			self.tuple(c, elements);
+			self.tuple(c, c, elements);
 		}
 		for (c, n) in &abi.arrays {
 			let name = Abi::array_class(*n);
@@ -650,11 +708,13 @@ impl<'a> Gen<'a> {
 			);
 		}
 		for (c, elem) in &abi.lists.clone() {
-			self.list(c, elem);
+			self.list(c, c, elem);
 		}
 		for constant in &api.constants {
 			let name = self.bare(&abi.name(&constant.path)).to_uppercase();
 			let name = self.claim(&name, format!("const `{}`", constant.path.join("::")));
+			self.locked
+				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			let value = match constant.value {
 				Literal::Bool(true) => "True".to_string(),
 				Literal::Bool(false) => "False".to_string(),
@@ -756,19 +816,19 @@ impl<'a> Gen<'a> {
 		);
 	}
 
-	/// The glue of an option struct.
-	fn option(&mut self, c: &str, inner: &Type) {
+	/// The glue of an option struct `c` holding `inner`, as `r_<name>` and `w_<name>`.
+	fn option(&mut self, name: &str, c: &str, inner: &Type) {
 		let read = self.lift(inner, "o", "m");
 		let write = self.lower(inner, "v.value");
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\tmatch rt::is_none(o) {{\n\t\ttrue => Ok(crate::{c} {{ some: false, value: unsafe {{ std::mem::zeroed() }} }}),\n\t\tfalse => Ok(crate::{c} {{ some: true, value: {}? }}),\n\t}}\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.some {{\n\t\ttrue => {write},\n\t\tfalse => rt::none(),\n\t}}\n}}\n\n",
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\tmatch rt::is_none(o) {{\n\t\ttrue => Ok(crate::{c} {{ some: false, value: unsafe {{ std::mem::zeroed() }} }}),\n\t\tfalse => Ok(crate::{c} {{ some: true, value: {}? }}),\n\t}}\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.some {{\n\t\ttrue => {write},\n\t\tfalse => rt::none(),\n\t}}\n}}\n\n",
 			read
 		);
 	}
 
-	/// The glue of a tuple struct, element by element.
-	fn tuple(&mut self, c: &str, elements: &[Type]) {
+	/// The glue of a tuple struct `c`, element by element, as `r_<name>` and `w_<name>`.
+	fn tuple(&mut self, name: &str, c: &str, elements: &[Type]) {
 		let n = elements.len();
 		let mut reads = Vec::new();
 		let mut fields = Vec::new();
@@ -781,20 +841,20 @@ impl<'a> Gen<'a> {
 		}
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::tuple(vec![{}])\n}}\n\n",
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\trt::tuple(vec![{}])\n}}\n\n",
 			reads.join("\n\t"),
 			fields.join(", "),
 			writes.join(", ")
 		);
 	}
 
-	/// The glue of a `Vec`'s array.
-	fn list(&mut self, c: &str, elem: &Type) {
+	/// The glue of a `Vec`'s array `c`, as `r_<name>` and `w_<name>`.
+	fn list(&mut self, name: &str, c: &str, elem: &Type) {
 		let read = self.lift(elem, "o", "m");
 		let write = self.lower(elem, "e");
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\trt::list_in(o, s, |o, s| {read})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::list_out(v, |e| {write})\n}}\n\n"
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\trt::list_in(o, s, |o, s| {read})\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\trt::list_out(v, |e| {write})\n}}\n\n"
 		);
 	}
 
@@ -1182,6 +1242,7 @@ impl<'a> Gen<'a> {
 		let mut table = vec!["free: Some(rt::free_callback)".to_string()];
 		for (n, method) in callback.methods.iter().enumerate() {
 			let member = member(&abi::snake(method.name()), &[]);
+			crate::lock::function(&mut self.locked, method, &member);
 			let params: Vec<String> = std::iter::once("self".to_string())
 				.chain(
 					method
@@ -1339,7 +1400,7 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String => "StringException".to_string(),
 			_ => format!("{}Exception", pascal_type(&py)),
 		};
-		match self.thrown.get(&name) {
+		let thrown = match self.thrown.get(&name) {
 			Some(thrown) => thrown.clone(),
 			None => {
 				let thrown = self.claim(&name, format!("the exception of `{py}`"));
@@ -1348,7 +1409,9 @@ impl<'a> Gen<'a> {
 				self.register(&format!("exc_{thrown}"), thrown.clone());
 				thrown
 			}
-		}
+		};
+		self.locked.insert(crate::lock::error_key(self.abi, e), thrown.clone());
+		thrown
 	}
 
 	/// The glue's expression, an `R<Obj>`, of a buffer `p` Rust lends for a call: text
@@ -1482,6 +1545,8 @@ impl<'a> Gen<'a> {
 			_ => member,
 		};
 
+		crate::lock::function(&mut self.locked, function, &member);
+
 		// The glue: each argument read, the call, and its value lowered.
 		let mut stmts = Vec::new();
 		let mut c_args = Vec::new();
@@ -1585,7 +1650,7 @@ impl<'a> Gen<'a> {
 		let ok = strip_refs(&function.ok);
 		let err = function.err.as_ref().map(strip_refs);
 		let exception = err.as_ref().map(|e| self.exception(e));
-		if let Some((_, poll, free)) = &export.future {
+		if let Some(abi::Future { poll, free, .. }) = &export.future {
 			let poll_outs = &poll.params[2..];
 			let (decl, ptrs, value) = self.outs(
 				poll_outs,

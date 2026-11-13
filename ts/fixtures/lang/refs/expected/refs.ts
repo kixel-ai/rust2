@@ -168,14 +168,6 @@ export function fill(seen: rs.Place<rs.u8 | undefined>, s: rs.String, next: rs.u
 
 export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _170!: rs.u8;
-	const _117: (a0: rs.u8 | undefined | rs.None) => rs.u8 = (o: rs.u8 | undefined | rs.None): rs.u8 => {
-		return option_mapOr$1rg5gkk(o, 221, (o2: rs.u8 | undefined): rs.u8 => {
-			return option_unwrapOr$1fr498u(o2, 238);
-		});
-	};
-	const _275: (a0: rs.Place<rs.u32>, a1: rs.u8) => undefined = (x3: rs.Place<rs.u32>, b8: rs.u8): undefined => {
-		bump(x3, b8);
-	};
 	const by: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 3);
 	let local: rs.u32 = 7;
 	bumpThrice(rs.place(() => local, (value) => local = value), by);
@@ -284,6 +276,11 @@ export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}));
 	}
 	let nested = rs.None as rs.u8 | undefined | rs.None;
+	const _117: (a0: rs.u8 | undefined | rs.None) => rs.u8 = (o: rs.u8 | undefined | rs.None): rs.u8 => {
+		return option_mapOr$1rg5gkk(o, 221, (o2: rs.u8 | undefined): rs.u8 => {
+			return option_unwrapOr$1fr498u(o2, 238);
+		});
+	};
 	const old2: rs.u8 | undefined | rs.None = nested;
 	nested = by;
 	rs.byteVecPush(out, _117(old2));
@@ -394,8 +391,17 @@ export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst8.length = dst8.length + 4;
 	}
 	let total: rs.u32 = 0;
-	for (const b7 of rs.byteSliceView(data)) {
-		_275(rs.place(() => total, (value15) => total = value15), b7);
+	const iterS4: Uint8Array = rs.byteSliceView(data);
+	let iterI4: number = 0;
+	while (true) {
+		const _278: rs.u8 | rs.Done = iterI4 < iterS4.length ? iterS4[iterI4++] : rs.DONE;
+		const _275: (a0: rs.Place<rs.u32>, a1: rs.u8) => undefined = (x3: rs.Place<rs.u32>, b9: rs.u8): undefined => {
+			bump(x3, b9);
+		};
+		if (_278 === rs.DONE) {
+			break;
+		}
+		_275(rs.place(() => total, (value15) => total = value15), _278);
 	}
 	const dst9 = out;
 	const word9 = total;

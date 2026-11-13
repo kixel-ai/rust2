@@ -12,7 +12,7 @@
 
 use rustc_abi::FieldIdx;
 use rustc_middle::ty::layout::LayoutError;
-use rustc_middle::ty::{self, AdtDef, GenericArgsRef, Ty, TypeVisitableExt, TypingEnv};
+use rustc_middle::ty::{self, AdtDef, GenericArgs, Ty, TypeVisitableExt, TypingEnv};
 use rustc_span::Span;
 
 use super::library::Std;
@@ -63,7 +63,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		&self,
 		env: TypingEnv<'tcx>,
 		adt: AdtDef<'tcx>,
-		args: GenericArgsRef<'tcx>,
+		args: GenericArgs<'tcx>,
 		typed: bool,
 	) -> Result<Overlay<'tcx>, String> {
 		self.overlay_of(env, adt, args, typed, &[])
@@ -93,7 +93,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		&self,
 		env: TypingEnv<'tcx>,
 		adt: AdtDef<'tcx>,
-		args: GenericArgsRef<'tcx>,
+		args: GenericArgs<'tcx>,
 		typed: bool,
 		open: &[bool],
 	) -> Result<Overlay<'tcx>, String> {
@@ -165,7 +165,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				adt.non_enum_variant()
 					.fields
 					.iter()
-					.map(|f| self.field_ty(f.did, args))
+					.map(|f| self.field_ty(f.did, *args))
 					.collect(),
 			),
 			_ => None,
@@ -229,7 +229,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// The slots of union `adt` with `args`, laid out the first time: none, refused, if its
 	/// fields overlap in values JS keeps apart.
-	pub fn laid_out(&mut self, adt: AdtDef<'tcx>, args: GenericArgsRef<'tcx>, span: Span) -> Overlay<'tcx> {
+	pub fn laid_out(&mut self, adt: AdtDef<'tcx>, args: GenericArgs<'tcx>, span: Span) -> Overlay<'tcx> {
 		let AdtRepr::Slots(layout) = self.adt(adt, span).repr else {
 			unreachable!("a union")
 		};
@@ -284,8 +284,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					unreachable!("a union's part is in a struct")
 				};
 				let field = &adt.non_enum_variant().fields[FieldIdx::from_usize(first)];
-				let part_ty = self.field_ty(field.did, args);
-				let read = self.held_field(Translator::read_field(value, fields[first]), field.did, args, span);
+				let part_ty = self.field_ty(field.did, *args);
+				let read = self.held_field(Translator::read_field(value, fields[first]), field.did, *args, span);
 				self.part_of(read, part_ty, rest, span)
 			}
 			_ => unreachable!("a union's part is in a tuple or a struct"),
@@ -325,14 +325,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					.non_enum_variant()
 					.fields
 					.iter()
-					.map(|f| self.field_ty(f.did, args))
+					.map(|f| self.field_ty(f.did, *args))
 					.collect();
 				let defs = &adt.non_enum_variant().fields;
 				let values = (tys.into_iter().zip(defs.iter()).enumerate())
 					.map(|(i, (t, field))| {
 						let part = within(i);
 						let value = self.of_slots(base.clone(), t, &part, span);
-						self.field_value(value, adt.did(), field.did, args, span)
+						self.field_value(value, adt.did(), field.did, *args, span)
 					})
 					.collect();
 				self.construct(info.sym, &ctor, &fields, values)
@@ -343,13 +343,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The parts of field `field` of union `adt` with `args`.
-	pub fn union_field(
-		&mut self,
-		adt: AdtDef<'tcx>,
-		args: GenericArgsRef<'tcx>,
-		field: usize,
-		span: Span,
-	) -> Vec<Part> {
+	pub fn union_field(&mut self, adt: AdtDef<'tcx>, args: GenericArgs<'tcx>, field: usize, span: Span) -> Vec<Part> {
 		self.laid_out(adt, args, span).0.swap_remove(field)
 	}
 }

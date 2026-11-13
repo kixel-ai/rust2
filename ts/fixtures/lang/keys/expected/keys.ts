@@ -536,11 +536,6 @@ export function borrows(dataData: Uint8Array, dataStart: number, dataLen: number
 /** `Option`s compared, ordered, and hashed, alone and in keys. */
 export function options(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
 	let _12!: rs.usize;
-	const _313: (a0: rs.u8) => Way.Way | undefined | rs.None = (b2: rs.u8): Way.Way | undefined | rs.None => {
-		return then$05y10ww(rs.u8Rem(b2, 5) !== 0, (): Way.Way | undefined => {
-			return way(b2);
-		});
-	};
 	const hashed: rs.HashMap<[rs.u8, Horizon.Horizon], rs.u8> = rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, Horizon.hash$Hash_hash_DefaultHasher as (a0: Horizon.Horizon, a1: rs.Hasher) => undefined]), rs.eqTuple([rs.same, Horizon.eq$cmp_PartialEq]))) as rs.HashMap<[rs.u8, Horizon.Horizon], rs.u8>;
 	const sorted: rs.BTreeMap<[rs.u8, Horizon.Horizon], rs.u8> = rs.btreeNew(rs.cmpTuple<[rs.u8, Horizon.Horizon], rs.Ordering>([rs.cmp, Horizon.cmp$cmp_Ord])) as rs.BTreeMap<[rs.u8, Horizon.Horizon], rs.u8>;
 	const ways: rs.HashMap<[Way.Way | undefined, boolean], rs.u8> = rs.hashNew(rs.hashing(rs.hashTuple([rs.hashOption(Way.hash$Hash_hash_DefaultHasher as (a0: Way.Way, a1: rs.Hasher) => undefined), rs.hash8]), rs.eqTuple([rs.eqOption(Way.eq$cmp_PartialEq), rs.same]))) as rs.HashMap<[Way.Way | undefined, boolean], rs.u8>;
@@ -620,6 +615,11 @@ export function options(dataData: Uint8Array, dataStart: number, dataLen: number
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.hashInsert(bare, _304, i & 0xff), 204));
 		const _312: Way.Way | undefined = way(d);
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.hashGet(bare, _312), 221));
+		const _313: (a0: rs.u8) => Way.Way | undefined | rs.None = (b2: rs.u8): Way.Way | undefined | rs.None => {
+			return then$05y10ww(rs.u8Rem(b2, 5) !== 0, (): Way.Way | undefined => {
+				return way(b2);
+			});
+		};
 		const _319: Way.Way | undefined | rs.None = _313(c);
 		const _316: rs.u8 = rs.hashAdd(deep, _319) ? 1 : 0;
 		const _327: Way.Way | undefined | rs.None = _313(d);

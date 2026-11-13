@@ -7,12 +7,7 @@ export function default$Default(): Listing {
 }
 
 export function fmt$fmt_Debug(self: Listing, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Listing";
-	const _4: string = "last";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(self.last, f, rs.u64Debug);
-	const _7: string = "listed";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtList(self.listed.items, f, rs.u64Debug);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Listing last listed", [(f: rs.Formatter) => rs.fmtOption(self.last, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtList(self.listed.items, f, rs.u64Debug)]);
 }
 
 /** What [`front`] lists. */
