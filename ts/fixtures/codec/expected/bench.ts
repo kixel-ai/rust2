@@ -298,10 +298,10 @@ export function ordered(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _15!: rs.u32;
 	let _28!: rs.u32;
 	let _66!: rs.u32;
+	const count2: rs.u32 = rs.u64Low(rs.u64Min(takeU64(data)[0], 65536));
 	const _10: (a0: rs.u32) => rs.u32 = (i4: rs.u32): rs.u32 => {
 		return rs.u32Rem(rs.u32Mul(i4, 40503), 1 << 16);
 	};
-	const count2: rs.u32 = rs.u64Low(rs.u64Min(takeU64(data)[0], 65536));
 	const map: rs.BTreeMap<rs.u32, rs.u32> = rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u32, rs.u32>;
 	let iterStart: rs.u32 = 0;
 	const iterEnd: rs.u32 = count2;
@@ -344,10 +344,10 @@ export function hashed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	let sum!: rs.u64;
 	let _30!: rs.u32;
 	let _51!: rs.u32;
+	const count2: rs.u32 = rs.u64Low(rs.u64Min(takeU64(data)[0], 65536));
 	const _11: (a0: rs.u32) => rs.u32 = (i4: rs.u32): rs.u32 => {
 		return rs.u32Rem(rs.u32Mul(i4, 40503), 1 << 16);
 	};
-	const count2: rs.u32 = rs.u64Low(rs.u64Min(takeU64(data)[0], 65536));
 	const map: rs.HashMap<rs.u32, rs.u32> = rs.hashNew() as rs.HashMap<rs.u32, rs.u32>;
 	let iterStart: rs.u32 = 0;
 	const iterEnd: rs.u32 = count2;

@@ -6,9 +6,7 @@ export function fmt$fmt_Debug(self: Glued, f: rs.Formatter): rs.Result<undefined
 	const arg = new rs.ByteSlice(self._0Data, self._0Start, self._0Len);
 	const _4: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(arg), f, rs.u8Debug);
 	const arg2 = new rs.ByteSlice(self._1Data, self._1Start, self._1Len);
-	const _3: string = "Glued";
-	const _6: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(arg2), f, rs.u8Debug);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4), _6));
+	return rs.fmtDebugFields(f, "Glued", [_4, (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(arg2), f, rs.u8Debug)]);
 }
 
 /** A tuple struct of two slices, one a constant's. */

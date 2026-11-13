@@ -119,7 +119,8 @@ pub struct Crate<'a> {
 pub struct Output {
 	pub names: crate::lock::Names,
 	files: Vec<(PathBuf, String)>,
-	go_dir: PathBuf,
+	/// Directories an earlier export wrote, which may name crates or packages this one has not.
+	stale: Vec<PathBuf>,
 }
 
 impl Output {
@@ -127,11 +128,10 @@ impl Output {
 		self.files.push((path.to_path_buf(), text.to_string()));
 	}
 
-	/// Write a validated export, removing stale Go packages from an earlier export.
+	/// Write a validated export, removing stale C++ headers and Go packages from an earlier one.
 	pub fn write(self) -> Result<crate::lock::Names, String> {
-		if self.go_dir.exists() {
-			std::fs::remove_dir_all(&self.go_dir)
-				.map_err(|err| format!("removing {}: {err}", self.go_dir.display()))?;
+		for dir in self.stale.iter().filter(|dir| dir.exists()) {
+			std::fs::remove_dir_all(dir).map_err(|err| format!("removing {}: {err}", dir.display()))?;
 		}
 		for (path, text) in self.files {
 			crate::driver::write(&path, &text)?;
@@ -146,7 +146,8 @@ impl Crate<'_> {
 		self.facade.name.clone()
 	}
 
-	/// Write the crate into `out`: `Cargo.toml`, `src/`, `include/<prefix>.h` and `.hpp`,
+	/// Write the crate into `out`: `Cargo.toml`, `src/`, `include/<prefix>.h`, `.hpp`, and a
+	/// `.hpp` per crate in `include/<prefix>/`,
 	/// `kotlin/<prefix>.kt`, whose JNI functions the crate's `kotlin` feature builds,
 	/// `python/<prefix>.py`, whose CPython extension its `python` feature builds,
 	/// `swift/<prefix>.swift` with the clang module it imports the header through, and
@@ -234,7 +235,7 @@ impl Crate<'_> {
 			lib = self.abi.prefix,
 		);
 		let (header, contract) = crate::c::header(self.abi, &self.packages());
-		let (cpp, cpp_names) = crate::cpp::header(self.abi, &self.packages())?;
+		let cpp = crate::cpp::headers(self.abi, &self.packages())?;
 		let kotlin = crate::kotlin::generate(self.abi, &self.packages(), contract)?;
 		let python = crate::python::generate(self.abi, &self.packages(), contract)?;
 		let swift = crate::swift::generate(self.abi, &self.packages(), contract)?;
@@ -242,7 +243,7 @@ impl Crate<'_> {
 		let go = crate::go::generate(self.abi, &self.packages(), contract, &module)?;
 		let dart = crate::dart::generate(self.abi, &self.packages(), contract)?;
 		let names = [
-			("C++", cpp_names),
+			("C++", cpp.names),
 			("Kotlin", kotlin.names),
 			("Python", python.names),
 			("Swift", swift.names),
@@ -255,7 +256,7 @@ impl Crate<'_> {
 		let mut output = Output {
 			names,
 			files: Vec::new(),
-			go_dir: out.join("go"),
+			stale: vec![out.join("include").join(&self.abi.prefix), out.join("go")],
 		};
 		let mut generator = Gen {
 			abi: self.abi,
@@ -272,7 +273,9 @@ impl Crate<'_> {
 		output.file(&out.join("build.rs"), &build(&self.abi.api.targets));
 		output.file(&out.join("src/rt.rs"), RUNTIME);
 		output.file(&out.join("include").join(format!("{}.h", self.abi.prefix)), &header);
-		output.file(&out.join("include").join(format!("{}.hpp", self.abi.prefix)), &cpp);
+		for (path, header) in &cpp.files {
+			output.file(&out.join("include").join(path), header);
+		}
 		output.file(&out.join("src/jni/mod.rs"), &kotlin.glue);
 		output.file(&out.join("src/jni/rt.rs"), crate::kotlin::GLUE_RUNTIME);
 		output.file(
@@ -1653,7 +1656,7 @@ impl Gen<'_> {
 			));
 		}
 		let body = stmts.join("\n\t");
-		if let Some((_, poll, free)) = &export.future {
+		if let Some(abi::Future { start, poll, free, .. }) = &export.future {
 			// A function that is not `async` runs when called, and what it returns
 			// borrows nothing, so it is called now; an `async fn` runs when polled.
 			let (now, later) = match (function.eager, &function.task) {
@@ -1685,10 +1688,15 @@ impl Gen<'_> {
 				.enumerate()
 				.map(|(n, out)| format!("let {out} = outs[{n}];\n\t\t\t"))
 				.collect();
-			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}{now}\n\trt::Future::new(async move {{\n\t\tlet result = {later};\n\t\t::std::boxed::Box::new(move |outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\t\tlet _ = (outs, err);\n\t\t\t{bind}{}\n\t\t}}) as rt::Done\n\t}})\n}}\n",
-				params.join(", "),
+			// The make's body, emitted again inside `<fn>_start` so its aborts name the
+			// function C called.
+			let make = format!(
+				"{body}{now}\n\trt::Future::new(async move {{ {later} }}, move |result, outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\tlet _ = (outs, err);\n\t\t{bind}{}\n\t}})",
 				self.finish(function, &ok, ("v", "rt::READY", "rt::ERROR"))
+			);
+			self.export(format!(
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{make}\n}}\n",
+				params.join(", "),
 			));
 			let poll_params: Vec<String> = poll.params[2..]
 				.iter()
@@ -1709,6 +1717,17 @@ impl Gen<'_> {
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}(future: *mut rt::Future) {{\n\tunsafe {{ rt::Future::free(future) }}\n}}\n",
 				free.name
+			));
+			// The call and its first poll in one: most futures are ready at once.
+			let start_params: Vec<String> = (params.iter().cloned())
+				.chain(poll_params)
+				.chain(["future: *mut *mut rt::Future".to_string()])
+				.collect();
+			self.export(format!(
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}({}) -> i32 {{\n\tlet w = \"{}\";\n\tlet _ = w;\n\tlet made = {{\n\t{make}\n\t}};\n\tunsafe {{ rt::Future::start(made, &[{outs}], {err}, future, w) }}\n}}\n",
+				start.name,
+				start_params.join(", "),
+				start.name
 			));
 			return;
 		}

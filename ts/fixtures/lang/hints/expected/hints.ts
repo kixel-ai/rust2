@@ -2001,14 +2001,13 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			put(out, it2.sizeHint());
 		}
 	} else if (_37 === 16) {
-		const _353: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_29: rs.u8): rs.char => {
+		const s: rs.String = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_29: rs.u8): rs.char => {
 			const _5: rs.usize = rs.u8Rem(_29, 4) as rs.usize;
 			if (!(_5 < 4)) {
 				rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _5);
 			}
 			return [97, 233, 128512, 2048][_5];
-		});
-		const s: rs.String = rs.stringExtendChars(rs.stringNew(), _353);
+		}));
 		const _355: rs.u8 = rs.u8Rem(arm, 4);
 		if (_355 === 0) {
 			walk$str_Chars(rs.strChars(s.v), steps, out);

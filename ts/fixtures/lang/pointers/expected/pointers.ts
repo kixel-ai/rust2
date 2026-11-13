@@ -1490,21 +1490,6 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _528!: boolean;
 	let _536!: boolean;
 	let _538!: boolean;
-	const _322: (a0: rs.Slice<boolean>) => rs.u8 = (b: rs.Slice<boolean>): rs.u8 => {
-		return rs.iterFold(rs.iterSlice(rs.sliceItems(b)), 0, (acc: rs.u8, _33: boolean): rs.u8 => {
-			return ((acc << 1) & 0xff) | (_33 ? 1 : 0);
-		});
-	};
-	const _455: (a0: rs.Slice<boolean>) => rs.u8 = (b3: rs.Slice<boolean>): rs.u8 => {
-		return rs.iterFold(rs.iterSlice(rs.sliceItems(b3)), 0, (acc2: rs.u8, _36: boolean): rs.u8 => {
-			return ((acc2 << 1) & 0xff) | (_36 ? 1 : 0);
-		});
-	};
-	const _588: (a0: rs.Slice<boolean>) => rs.u8 = (b5: rs.Slice<boolean>): rs.u8 => {
-		return rs.iterFold(rs.iterSlice(rs.sliceItems(b5)), 0, (acc3: rs.u8, _38: boolean): rs.u8 => {
-			return ((acc3 << 1) & 0xff) | (_38 ? 1 : 0);
-		});
-	};
 	for (const n of rs.byteSliceView(data)) {
 		const pair: Paired.Paired = { _0: n, _1: ~n & 0xff };
 		const at: Paired.Paired = pair;
@@ -1731,10 +1716,12 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _289: boolean = (nest8.inner.maybe as Paired.Paired | undefined) !== nest8.inner.held as Paired.Paired;
 		const pointer11 = other2;
 		const optional: boolean[] = [_284, _289, (nest8.inner.maybe as Paired.Paired | undefined) === (pointer11 === rs.NULL ? undefined : pointer11), (nest8.inner.maybe as Paired.Paired | undefined) === none, none === undefined, (nest8.inner.seen as Paired.Paired) === nest8.inner.at as Paired.Paired, (nest8.inner.seen as Paired.Paired) !== null_, null_ === rs.NULL];
-		const _323: rs.u8 = _322(rs.sliceFrom(same));
-		const _328: rs.u8 = _322(rs.sliceFrom(apart));
-		const part = rs.sliceFrom(optional);
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_323, _328, _322(part))), undefined, true);
+		const _322: (a0: rs.Slice<boolean>) => rs.u8 = (b: rs.Slice<boolean>): rs.u8 => {
+			return rs.iterFold(rs.iterSlice(rs.sliceItems(b)), 0, (acc: rs.u8, _33: boolean): rs.u8 => {
+				return ((acc << 1) & 0xff) | (_33 ? 1 : 0);
+			});
+		};
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_322(rs.sliceFrom(same)), _322(rs.sliceFrom(apart)), _322(rs.sliceFrom(optional)))), undefined, true);
 		const other3: rs.ByteSlice = rs.byteSliceFrom(otherBytes);
 		const at10: rs.ByteSlice = rs.byteSliceFrom(bytes);
 		const pointer12 = at10;
@@ -1818,10 +1805,12 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _437: boolean = rs.eqOption(rs.byteSliceSame)(_439, _442);
 		const _447: rs.ByteSlice | undefined = nest9.inner.seen as rs.ByteSlice;
 		const optional2: boolean[] = [_417, _422, _427, _431, _434, _437, !rs.eqOption(rs.byteSliceSame)(_447, null_2), rs.eqOption(rs.byteSliceSame)(null_2, rs.NULL)];
-		const _456: rs.u8 = _455(rs.sliceFrom(same2));
-		const _461: rs.u8 = _455(rs.sliceFrom(apart2));
-		const part2 = rs.sliceFrom(optional2);
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_456, _461, _455(part2))), undefined, true);
+		const _455: (a0: rs.Slice<boolean>) => rs.u8 = (b3: rs.Slice<boolean>): rs.u8 => {
+			return rs.iterFold(rs.iterSlice(rs.sliceItems(b3)), 0, (acc2: rs.u8, _36: boolean): rs.u8 => {
+				return ((acc2 << 1) & 0xff) | (_36 ? 1 : 0);
+			});
+		};
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_455(rs.sliceFrom(same2)), _455(rs.sliceFrom(apart2)), _455(rs.sliceFrom(optional2)))), undefined, true);
 		const other4: Housed.Housed<rs.u8> = otherWrap;
 		const at12: Housed.Housed<rs.u8> = wrap;
 		const pointer16 = at12;
@@ -1896,10 +1885,12 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _555: boolean = (nest10.inner.maybe as Housed.Housed<rs.u8> | undefined) !== nest10.inner.held as Housed.Housed<rs.u8>;
 		const pointer19 = other4;
 		const optional3: boolean[] = [_550, _555, (nest10.inner.maybe as Housed.Housed<rs.u8> | undefined) === (pointer19 === rs.NULL ? undefined : pointer19), (nest10.inner.maybe as Housed.Housed<rs.u8> | undefined) === none3, none3 === undefined, (nest10.inner.seen as Housed.Housed<rs.u8>) === nest10.inner.at as Housed.Housed<rs.u8>, (nest10.inner.seen as Housed.Housed<rs.u8>) !== null_3, null_3 === rs.NULL];
-		const _589: rs.u8 = _588(rs.sliceFrom(same3));
-		const _594: rs.u8 = _588(rs.sliceFrom(apart3));
-		const part3 = rs.sliceFrom(optional3);
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_589, _594, _588(part3))), undefined, true);
+		const _588: (a0: rs.Slice<boolean>) => rs.u8 = (b5: rs.Slice<boolean>): rs.u8 => {
+			return rs.iterFold(rs.iterSlice(rs.sliceItems(b5)), 0, (acc3: rs.u8, _38: boolean): rs.u8 => {
+				return ((acc3 << 1) & 0xff) | (_38 ? 1 : 0);
+			});
+		};
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_588(rs.sliceFrom(same3)), _588(rs.sliceFrom(apart3)), _588(rs.sliceFrom(optional3)))), undefined, true);
 	}
 }
 
@@ -2489,8 +2480,8 @@ export function distinct(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const moved: [rs.u16, rs.u8] = copy$tuple2_u16_u8(m);
 			const again: [rs.u16, rs.u8] = copy$tuple2_u16_u8(moved);
 			const swapped: [rs.u16, rs.u8] = copy$tuple2_u16_u8(n);
-			const unwrapped: rs.Arc<[rs.u16, rs.u8]> = new rs.Arc(copy$tuple2_u16_u8(option_unwrapOr$179xo1w(rs.arcIntoInner(x), [0, 1])));
-			const rewrapped: rs.Arc<Spot.Spot> = new rs.Arc(copy$pointers_Spot(option_mapOr$00zno7m(rs.arcIntoInner(q), spot, (s: Spot.Spot): Spot.Spot => {
+			const unwrapped: rs.Arc<[rs.u16, rs.u8]> = new rs.Arc(copy$tuple2_u16_u8(option_unwrapOr$179xo1w(rs.arcIntoInner(x, undefined, copy$tuple2_u16_u8), [0, 1])));
+			const rewrapped: rs.Arc<Spot.Spot> = new rs.Arc(copy$pointers_Spot(option_mapOr$00zno7m(rs.arcIntoInner(q, undefined, copy$pointers_Spot), spot, (s: Spot.Spot): Spot.Spot => {
 				return copy$pointers_Spot(s);
 			})));
 			const _238: rs.u8 = again === m ? 1 : 0;
@@ -3481,8 +3472,8 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let end: rs.Place<rs.u32> = rs.NULL;
 	end = rs.ptrAdd(at, 1);
 	rs.byteVecPush(out, rs.ptrOffsetFrom(end, at) & 0xff);
-	const _296: Nothing.Nothing = {};
-	rs.byteVecPush(out, nothingTag(_296, bits));
+	const _294: Nothing.Nothing = {};
+	rs.byteVecPush(out, nothingTag(_294, bits));
 	arc2[Symbol.dispose]();
 	arc[Symbol.dispose]();
 }

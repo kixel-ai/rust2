@@ -25,6 +25,5 @@ then see change. A sibling planned later adds itself to `Required` here.
 - [Copy types cross by value](/quest/m1/ffi-export/copy-values.md) - how a `Copy` type is held in every language
 - [Not Send](/quest/m1/ffi-export/not-send.md) - the types and futures that export checked by thread
 - [Export moq for every target](/quest/m1/ffi-export/moq-targets.md) - one binding across the targets moq ships
-- [Fused async start](/quest/m1/ffi-export/async-start.md) - every future's C signature
 - [Owned buffers](/quest/m1/ffi-export/owned-bufs.md) - what a buffer's owner means on the way in
 - [Numeric slices](/quest/m1/ffi-export/numeric-slices.md) - the types of numeric slices and vectors
