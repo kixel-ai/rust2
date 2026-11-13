@@ -27,6 +27,19 @@ pub struct Break {
 
 /// Every break of `base`, the baseline, by `now`, the export's API, both prefixed `prefix`.
 pub fn breaks(base: &Api, now: &Api, prefix: &str) -> Vec<Break> {
+	// Every path starts with the facade's root, which prefixes every C name.
+	let root = (base.records.iter().map(|r| &r.shown))
+		.chain(base.enums.iter().map(|e| &e.shown))
+		.chain(base.objects.iter().map(|o| &o.shown))
+		.chain(base.functions.iter().map(|f| &f.shown))
+		.chain(base.constants.iter().map(|c| &c.path))
+		.find_map(|path| path.first());
+	if let Some(root) = root.filter(|root| *root != prefix) {
+		return vec![Break {
+			span: DUMMY_SP,
+			what: format!("library `{root}`: it is now `{prefix}`, which every path and C name starts with"),
+		}];
+	}
 	let base = Index::new(base, prefix);
 	let now = Index::new(now, prefix);
 	let mut breaks = Vec::new();
@@ -324,11 +337,21 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 			if e.exhaustive && !f.exhaustive {
 				changes.push("it is now `#[non_exhaustive]`".to_string());
 			}
-			for variant in &e.variants {
-				let Some(other) = f.variants.iter().find(|v| v.name == variant.name) else {
+			// A plain enum is a C enum, and one with fields a struct of a tag and a payload.
+			match (e.plain(), f.plain()) {
+				(true, false) => changes.push("a variant with fields makes it a struct in C".to_string()),
+				(false, true) => changes.push("no variant has fields, which makes it an enum in C".to_string()),
+				_ => {}
+			}
+			for (at, variant) in e.variants.iter().enumerate() {
+				let Some((to, other)) = f.variants.iter().enumerate().find(|(_, v)| v.name == variant.name) else {
 					changes.push(format!("variant `{}` is removed", variant.name));
 					continue;
 				};
+				// The tag of an enum with fields is the variant's place.
+				if !e.plain() && !f.plain() && at != to {
+					changes.push(format!("variant `{}`'s tag {at} is now {to}", variant.name));
+				}
 				let mut ours = merge::bare_variant(variant);
 				maps.fields(&mut ours.fields);
 				let theirs = merge::bare_variant(other);
@@ -381,6 +404,10 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 			let mut ours = merge::bare_object(&b.objects[i]);
 			maps.types(&mut ours.args);
 			let mut theirs = merge::bare_object(&n.objects[j]);
+			// An added `Clone` may let copies of a handle share one value: what it adds.
+			if !ours.traits.clone && theirs.traits.clone && !ours.shared {
+				theirs.shared = false;
+			}
 			(ours.traits, theirs.traits) = (Traits::default(), Traits::default());
 			if ours != theirs {
 				changes.push("how it exports".to_string());

@@ -115,17 +115,49 @@ pub enum Shape {
 	Circle(u32),
 	#[cfg(feature = "next")]
 	Circle(f64),
+	Square(u32),
 }
 
+/// Its tags are its variants' places, which `next` swaps.
+#[non_exhaustive]
+pub enum Stroke {
+	#[cfg(feature = "next")]
+	Dashed(u32),
+	Solid(u32),
+	#[cfg(not(feature = "next"))]
+	Dashed(u32),
+	#[cfg(feature = "added")]
+	Dotted(u32),
+}
+
+/// A C enum, which a variant with fields in `next` makes a struct.
 #[non_exhaustive]
 pub enum Level {
 	Low,
 	#[cfg(feature = "added")]
 	High,
+	#[cfg(feature = "next")]
+	Custom(u8),
 }
 
-pub fn pick(mode: Mode, shape: Shape, size: Size, level: Level) -> u32 {
-	let _ = (shape, size, level);
+/// A handle `added` makes `Clone`, so copies of it may share one value.
+#[cfg_attr(feature = "added", derive(Clone))]
+pub struct Token {
+	id: u32,
+}
+
+impl Token {
+	pub fn new(id: u32) -> Self {
+		Self { id }
+	}
+
+	pub fn id(&self) -> u32 {
+		self.id
+	}
+}
+
+pub fn pick(mode: Mode, shape: Shape, stroke: Stroke, size: Size, level: Level) -> u32 {
+	let _ = (shape, stroke, size, level);
 	match mode {
 		Mode::Fast => 1,
 		_ => 0,

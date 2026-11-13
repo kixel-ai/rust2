@@ -195,7 +195,11 @@ API breaks the one in `file`, with an error at each item that names how:
 - a function's receiver, parameter, return, error, or asyncness changed, a constant's type
   changed, a trait method added or changed, or a trait impl such as `Clone` dropped;
 - a record's or variant's field added, removed, moved, or of another type, a variant
-  removed or of another value, or one added to an enum another crate matches exhaustively;
+  removed or of another value or, in an enum with fields, at another place, which is its C
+  tag, one added to an enum another crate matches exhaustively, and an enum gaining its
+  first variant with fields or losing its last, which changes it between a C enum and a
+  struct;
+- the library's name, which every C name starts with;
 - a C name that now names another item: since a name depends on every item exported
   ([The C ABI](#the-c-abi)), adding `audio::encoder_finish` renames `audio_encoder::finish`
   to `moq_audio_encoder_finish_`, and a C caller of the old name would call the new item.
