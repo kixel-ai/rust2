@@ -1321,9 +1321,9 @@ impl Retry {
 		self.limit = Some(limit);
 	}
 
-	/// The jitter clamped to a range, a tuple, which C refuses.
-	pub fn jitter(&self, range: (u32, u32)) -> u32 {
-		self.jitter.clamp(range.0, range.1)
+	/// The jitter capped by `cap`, if any: a nested `Option`, which the export refuses.
+	pub fn jitter(&self, cap: Option<Box<Option<u32>>>) -> u32 {
+		cap.and_then(|cap| *cap).map_or(self.jitter, |cap| self.jitter.min(cap))
 	}
 }
 
