@@ -1785,10 +1785,10 @@ impl<'a> Gen<'a> {
 		self.params = locals(&function.params);
 		let export = abi.export(function, owner);
 		// The JVM slots of the 255 a method takes left past what each C parameter takes
-		// unflattened, its waker, and the slots a returned record crosses in: what
-		// flattening records may spend.
+		// unflattened and a future's waker: what flattening records, then the slots a
+		// returned record crosses in, may spend.
 		let unflattened: usize = export.call.params.iter().map(|(_, c)| c_slots(c)).sum();
-		self.room = 255usize.saturating_sub(unflattened + 2);
+		self.room = 255usize.saturating_sub(unflattened + usize::from(export.future.is_some()));
 		let c_name = export.call.name.clone();
 		let bare = self.bare(&c_name).to_string();
 		let owner_c = match owner {
@@ -1923,7 +1923,7 @@ impl<'a> Gen<'a> {
 		// A record returned directly crosses as its scalars, set into slots the call takes,
 		// and its other fields encoded into the `byte[]` it returns.
 		let flat = match (&export.future, outs.is_empty()) {
-			(None, true) => returned_record(&ok),
+			(None, true) if self.room > 0 => returned_record(&ok),
 			_ => None,
 		};
 		let flat = flat.map(|(i, option)| {
