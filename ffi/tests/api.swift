@@ -21,6 +21,22 @@ final class PrintLog: Log {
 	}
 }
 
+/// A Log that cancels a task at each line, and counts them.
+final class CancelLog: Log, @unchecked Sendable {
+	let task: Cell<Task<Void, Swift.Error>?>
+	let lines = Cell(0)
+
+	init(_ task: Cell<Task<Void, Swift.Error>?>) {
+		self.task = task
+	}
+
+	func log(_: UInt8, _: String) -> Bool {
+		task.value?.cancel()
+		lines.value += 1
+		return true
+	}
+}
+
 func bound(_ b: BoundU64) -> String {
 	switch b {
 	case .included(let n): return "Included(\(n))"
@@ -925,6 +941,24 @@ func futures() {
 		check(threw.value, "a cancelled task's receive throws")
 		let payload = block { try await channel.recv() }
 		check(text(payload) == "ready", "a cancelled task's receive takes nothing")
+	}
+
+	// An eager call whose callback cancels its task while it makes its future is never
+	// polled: only the eager half logs.
+	do {
+		let task = Cell<Task<Void, Swift.Error>?>(nil)
+		let log = CancelLog(task)
+		let threw = Cell(false)
+		task.value = q.launch {
+			do {
+				_ = try await emitLater(log, Data([1, 2]))
+			} catch is CancellationError {
+				threw.value = true
+			}
+		}
+		q.drain()
+		check(threw.value, "an eager call cancelled as it makes its future throws")
+		check(log.lines.value == 2, "an eager call cancelled as it makes its future is never polled")
 	}
 
 	// Cancelling a task that waits for no wake resumes it.

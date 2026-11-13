@@ -365,8 +365,9 @@ func reader_(k *cgo.Handle) cForeignReader {
 // await_ polls a future whose call pended until poll reports it finished, returning its
 // error, or ctx's once ctx is done: then the caller frees the future unfinished, which
 // cancels it in Rust and loses nothing, and the next call sees what it would have taken.
-// The call polled it first with no waker, which only a future that pends needs; a wake
-// that lands between a poll that pends and the wait is kept, so the wait returns at once.
+// The call polled it first with no waker, which only a future that pends needs, and
+// checked ctx before its first poll; a wake that lands between a poll that pends and the
+// wait is kept, so the wait returns at once.
 func await_(ctx context.Context, poll func(cWaker) (bool, error)) error {
 	woken := make(chan struct{}, 1)
 	waker := waker_(func() {

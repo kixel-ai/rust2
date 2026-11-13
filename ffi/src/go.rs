@@ -2373,13 +2373,6 @@ impl<'a> Gen<'a> {
 			}
 			body.extend(decls);
 			let zeros: String = (0..oks.len()).map(|k| format!("r{k}_, ")).collect();
-			// A context done already takes nothing, even what is ready: the future is made
-			// and dropped unpolled, as Rust drops one it never awaits.
-			body.push(format!(
-				"if err_ := ctx.Err(); err_ != nil {{\n\tC.{}(C.{c_name}({}))\n\treturn {zeros}err_\n}}",
-				free.name,
-				args.join(", ")
-			));
 			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
 			let mut ready: Vec<String> = Vec::new();
 			for (k, ty) in oks.iter().enumerate() {
@@ -2396,33 +2389,52 @@ impl<'a> Gen<'a> {
 			// Lifts what a call or a poll wrote, once either reports the future finished.
 			let decls: Vec<String> = poll_outs.iter().map(|(n, ty)| self.out_decl(n, ty)).collect();
 			let ptrs: Vec<String> = poll_outs.iter().map(|(n, _)| format!("&c_{n}_")).collect();
-			let mut start_args = args.clone();
-			start_args.extend(ptrs.iter().cloned());
-			start_args.push("&f_".to_string());
-			let mut inner = decls.clone();
-			inner.push(format!(
-				"switch C.{}({}) {{\n{cases}\n}}\nreturn false, nil",
-				start.name,
-				start_args.join(", ")
-			));
-			body.push(format!("var f_ *C.{handle}"));
-			body.push(format!(
-				"done_, err_ := func() (bool, error) {{\n{}\n}}()",
-				indent(&inner.join("\n"))
-			));
 			let mut call_args = vec!["f_".to_string(), "w_".to_string()];
-			call_args.extend(ptrs);
-			let mut inner = decls;
-			inner.push(format!(
+			call_args.extend(ptrs.iter().cloned());
+			let mut polled = decls.clone();
+			polled.push(format!(
 				"switch C.{}({}) {{\n{cases}\n}}\nreturn false, nil",
 				poll.name,
 				call_args.join(", ")
 			));
-			body.push(format!(
-				"if !done_ {{\n\tdefer C.{}(f_)\n\terr_ = await_(ctx, func(w_ cWaker) (bool, error) {{\n{}\n\t}})\n}}",
-				free.name,
-				indent(&indent(&inner.join("\n")))
-			));
+			let polled = indent(&polled.join("\n"));
+			if function.eager {
+				// An eager call runs Rust, and any callback it makes, before its future
+				// exists, and a callback may cancel the context: so it is made, then the
+				// context checked, then polled, never started.
+				body.push(format!("f_ := C.{c_name}({})\ndefer C.{}(f_)", args.join(", "), free.name));
+				body.push(format!("if err_ := ctx.Err(); err_ != nil {{\n\treturn {zeros}err_\n}}"));
+				body.push(format!("poll_ := func(w_ cWaker) (bool, error) {{\n{polled}\n}}"));
+				body.push("done_, err_ := poll_(cWaker{})\nif !done_ {\n\terr_ = await_(ctx, poll_)\n}".to_string());
+			} else {
+				// A context done already takes nothing, even what is ready: the future is made
+				// and dropped unpolled, as Rust drops one it never awaits. Making an `async fn`'s
+				// future runs nothing, so the check needs no repeat after it.
+				body.push(format!(
+					"if err_ := ctx.Err(); err_ != nil {{\n\tC.{}(C.{c_name}({}))\n\treturn {zeros}err_\n}}",
+					free.name,
+					args.join(", ")
+				));
+				let mut start_args = args.clone();
+				start_args.extend(ptrs.iter().cloned());
+				start_args.push("&f_".to_string());
+				let mut inner = decls;
+				inner.push(format!(
+					"switch C.{}({}) {{\n{cases}\n}}\nreturn false, nil",
+					start.name,
+					start_args.join(", ")
+				));
+				body.push(format!("var f_ *C.{handle}"));
+				body.push(format!(
+					"done_, err_ := func() (bool, error) {{\n{}\n}}()",
+					indent(&inner.join("\n"))
+				));
+				body.push(format!(
+					"if !done_ {{\n\tdefer C.{}(f_)\n\terr_ = await_(ctx, func(w_ cWaker) (bool, error) {{\n{}\n\t}})\n}}",
+					free.name,
+					indent(&polled)
+				));
+			}
 			let mut returns: Vec<String> = (0..oks.len()).map(|k| format!("r{k}_")).collect();
 			returns.push("err_".to_string());
 			body.push(format!("return {}", returns.join(", ")));

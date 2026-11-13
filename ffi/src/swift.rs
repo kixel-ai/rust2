@@ -1645,6 +1645,14 @@ impl<'a> Gen<'a> {
 		let code = wrap(inner.join("\n"), true);
 		let mut body = prelude;
 		match tail {
+			// An eager call runs Rust, and any callback it makes, before its future exists,
+			// and a callback may cancel the task: so it is made, then `Native.made` checks the
+			// task before its first poll, never started.
+			Some(tail) if function.eager => {
+				let made = wrap(format!("{c_name}({})", exprs.join(", ")), false);
+				body.push(format!("let f_ = {}", made.strip_prefix("return ").unwrap_or(&made)));
+				body.push(tail.replacen("Native.run(", "Native.made(", 1));
+			}
 			Some(tail) => {
 				let made = wrap(cancelled.expect("a future has its cancel"), false);
 				let made = made.strip_prefix("return ").unwrap_or(&made);
@@ -1667,7 +1675,7 @@ impl<'a> Gen<'a> {
 				};
 				body.push("var f_: OpaquePointer? = nil".to_string());
 				body.push(format!(
-					"if let r_ = {tr}Native.start({output}.self, {{\n{}\n}}) {{\n\treturn r_\n}}",
+					"if let r_ = {tr}Native.start(({output}).self, {{\n{}\n}}) {{\n\treturn r_\n}}",
 					indent(&code)
 				));
 				body.push(tail);

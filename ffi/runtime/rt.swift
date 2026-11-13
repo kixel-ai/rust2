@@ -735,9 +735,28 @@ extension Native {
 		try call()
 	}
 
-	/// Await the future `raw`, whose start pended: poll it until `poll` returns its output,
-	/// then free it. A cancelled task frees it unfinished, which cancels it in Rust and
-	/// loses nothing, and throws `CancellationError`.
+	/// Await the future `raw` an eager call made, unpolled, as `run` does, but take nothing,
+	/// even what is ready, if the task is cancelled already, and poll first with no waker.
+	static func made<T: ~Copyable>(
+		_ raw: OpaquePointer?, _ free: @convention(c) (OpaquePointer?) -> Void,
+		_ poll: (OpaquePointer?, CWaker) throws -> T?
+	) async throws -> T {
+		do {
+			try Task.checkCancellation()
+			if let output = try poll(raw, CWaker(wake: nil, drop: nil, data: nil)) {
+				free(raw)
+				return output
+			}
+		} catch {
+			free(raw)
+			throw error
+		}
+		return try await run(raw, free, poll)
+	}
+
+	/// Await the future `raw`, whose first poll pended: poll it until `poll` returns its
+	/// output, then free it. A cancelled task frees it unfinished, which cancels it in Rust
+	/// and loses nothing, and throws `CancellationError`.
 	static func run<T: ~Copyable>(
 		_ raw: OpaquePointer?, _ free: @convention(c) (OpaquePointer?) -> Void,
 		_ poll: (OpaquePointer?, CWaker) throws -> T?
