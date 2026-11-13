@@ -35,11 +35,14 @@ commit of the called workflow, independently of the caller's checkout.
 
 Each run discovers tracked crate manifests, looks up crates.io versions published
 since the caller workflow was added, and fills missing target archives. Yanked
-versions and library-only crates are skipped. The published manifest must name
-the caller's GitHub repository. Missing or dirty VCS metadata, invalid paths,
-mismatched version tags, and build failures stop the run. An existing annotated
-or lightweight `name-vVERSION` or `vVERSION` tag must point to Cargo's recorded
-commit. When neither exists, publishing creates `name-vVERSION` there.
+versions, library-only crates, and crates whose crates.io or published manifest
+names another repository are skipped; the log names each skipped crate. Missing
+or dirty VCS metadata, invalid paths, and a mismatched `name-vVERSION` tag stop
+the run; yanking such a version skips it. A failed build fails the run and holds
+back its crate, while crates whose archives all built still publish. An existing
+annotated or lightweight `name-vVERSION` tag must point to Cargo's recorded
+commit; a `vVERSION` tag is used when it points there and otherwise left to
+another crate. When neither is used, publishing creates `name-vVERSION` there.
 Existing release assets are preserved. Publishing is serialized per release tag
 across trigger refs. Each run publishes
 one crate at a time, so crates sharing a tag cannot replace pending jobs within
@@ -62,8 +65,8 @@ jobs fails explicitly.
 `.github/workflows/crabx-test.yml` builds the two-binary fixture on all six targets
 on PRs with read-only permissions. A manual dispatch also attests the archives
 without creating tags or releases, and bypasses crates.io discovery. Local tests
-exercise discovery and publishing with recorded API responses and inspect and
-execute the real fixture archive. The pipeline release quest owns the first hosted attestation dispatch and pipeline
+exercise discovery, archiving, and publishing with recorded API and Cargo
+responses; the fixture workflow builds the real archives on all six targets. The pipeline release quest owns the first hosted attestation dispatch and pipeline
 release tag; the shipped crabx quest owns the first real crates.io consumer.
 
 References: [binstall archive defaults](https://github.com/cargo-bins/cargo-binstall/blob/main/SUPPORT.md),

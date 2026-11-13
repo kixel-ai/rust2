@@ -59,6 +59,9 @@ def asset(item, target):
 
 
 def tag(item):
+    # A crate's own tag must name its published commit. A bare version tag on another
+    # commit belongs to another crate of the workspace, or to none, so the crate's own
+    # tag is used instead.
     found = []
     for name in (f"{item['name']}-v{item['version']}", f"v{item['version']}"):
         ref = api("git/ref/tags/" + urllib.parse.quote(name, safe=""), missing=True)
@@ -72,12 +75,18 @@ def tag(item):
             seen.add(obj["sha"])
             obj = api("git/tags/" + obj["sha"])["object"]
         if obj["type"] != "commit" or obj["sha"] != item["sha"]:
+            if name.startswith("v"):
+                continue
             raise ValueError(f"{name} does not point to published commit {item['sha']}")
         found.append(name)
     return found[0] if found else f"{item['name']}-v{item['version']}"
 
 
-def published(name, version):
+def same_repo(url, repo):
+    return (url or "").removesuffix("/").removesuffix(".git").lower() == repo.lower()
+
+
+def published(name, version, repo):
     # Stream the archive, never extract paths supplied by the registry.
     url = f"https://static.crates.io/crates/{name}/{name}-{version}.crate"
     req = urllib.request.Request(url, headers={"User-Agent": "crabx-release-pipeline"})
@@ -96,11 +105,17 @@ def published(name, version):
     manifest = tomllib.loads(files[f"{name}-{version}/Cargo.toml"].decode())
     if not manifest.get("bin") and implicit_bin and manifest["package"].get("autobins", True):
         manifest["bin"] = [{"name": name}]
+    # Only a release of this repository's binaries needs its published source.
     if not manifest.get("bin"):
         return manifest, None
+    if not same_repo(manifest["package"].get("repository"), repo):
+        print(f"{name}@{version}: its published manifest names another repository", file=sys.stderr)
+        return manifest, None
+    if f"{name}-{version}/.cargo_vcs_info.json" not in files:
+        raise ValueError(f"{name}@{version}: published without its git commit; yank it to skip it")
     vcs = json.loads(files[f"{name}-{version}/.cargo_vcs_info.json"])
     if vcs["git"].get("dirty", False) or not re.fullmatch(r"[0-9a-f]{40}", vcs["git"]["sha1"]):
-        raise ValueError(f"{name}@{version}: dirty or invalid published commit")
+        raise ValueError(f"{name}@{version}: dirty or invalid published commit; yank it to skip it")
     path = PurePosixPath(vcs.get("path_in_vcs", ""))
     if path.is_absolute() or ".." in path.parts or "\\" in str(path):
         raise ValueError("invalid published crate path")
@@ -118,21 +133,21 @@ def discover():
     names = set()
     for path in run("git", "ls-files", "**/Cargo.toml", "Cargo.toml").splitlines():
         package = tomllib.loads(Path(path).read_text()).get("package", {})
-        if package and package.get("publish") != False:
-            names.add(safe(package["name"]))
+        # A name crates.io cannot hold, such as a template's, is no release to look up.
+        if package and package.get("publish") != False and re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", package.get("name", "")):
+            names.add(package["name"])
     items = []
     repo = "https://github.com/" + os.environ["GITHUB_REPOSITORY"]
     for name in sorted(names):
         info = request(f"https://crates.io/api/v1/crates/{name}", missing=True)
-        if info is None or (info["crate"].get("repository") or "").removesuffix("/").removesuffix(".git").lower() != repo.lower():
+        if info is None or not same_repo(info["crate"].get("repository"), repo):
+            print(f"{name}: no crates.io crate names {repo} as its repository", file=sys.stderr)
             continue
         for version in info["versions"]:
             if version["yanked"] or datetime.datetime.fromisoformat(version["created_at"].replace("Z", "+00:00")) < since:
                 continue
-            manifest, item = published(name, safe(version["num"]))
-            if (manifest["package"].get("repository") or "").removesuffix("/").removesuffix(".git").lower() != repo.lower():
-                continue
-            if not manifest.get("bin"):
+            _, item = published(name, safe(version["num"]), repo)
+            if item is None:
                 continue
             item["tag"] = tag(item)
             release = api("releases/tags/" + urllib.parse.quote(item["tag"], safe=""), missing=True)
@@ -169,11 +184,15 @@ def build(item, target):
             archive.add(Path(metadata["target_directory"]) / target / "release" / filename, arcname=root + "/" + filename)
 
 
-def publish(item):
-    # This job executes only pipeline code, never the crate's code or Cargo.
+def built(item):
     for target in item.get("targets", [t for t, _ in TARGETS]):
         if not (Path("archives") / asset(item, target)).is_file():
             raise ValueError(f"missing archive for {target}")
+
+
+def publish(item):
+    # This job executes only pipeline code, never the crate's code or Cargo.
+    built(item)
     name = tag(item)
     if name != item["tag"]:
         raise ValueError("release tag changed since discovery")
@@ -225,6 +244,8 @@ def main():
     elif mode == "build":
         build(json.loads(os.environ["ITEM"]), os.environ["TARGET"])
     elif mode == "provenance":
+        # A crate missing any archive, as when one of its builds failed, is neither attested nor published.
+        built(json.loads(os.environ["ITEM"]))
         Path("predicate.json").write_text(json.dumps(provenance(json.loads(os.environ["ITEM"]))))
     elif mode == "publish":
         publish(json.loads(os.environ["ITEM"]))

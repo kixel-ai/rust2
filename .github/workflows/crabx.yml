@@ -72,7 +72,10 @@ jobs:
   publish:
     needs: [discover, build]
     # Crate builds never run with publishing credentials. PR fixtures stay read-only.
+    # A failed build fails the run but holds back only its own crate, whose missing
+    # archive stops its publish job before attestation.
     if: >-
+      !cancelled() && needs.discover.result == 'success' &&
       needs.discover.outputs.any == 'true' &&
       github.event_name != 'pull_request'
     permissions:

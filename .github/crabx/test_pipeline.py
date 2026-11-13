@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import tarfile
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -13,6 +14,18 @@ spec = importlib.util.spec_from_file_location("pipeline", Path(__file__).with_na
 p = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(p)
 ITEM = {"name": "demo", "version": "1.2.3", "sha": "a" * 40, "path": "cli", "tag": "demo-v1.2.3"}
+REPO = "https://github.com/example/demo"
+
+
+def crate(files):
+    archive = io.BytesIO()
+    with tarfile.open(fileobj=archive, mode="w:gz") as tar:
+        for name, value in files.items():
+            info = tarfile.TarInfo("demo-1.2.3/" + name)
+            info.size = len(value)
+            tar.addfile(info, io.BytesIO(value))
+    archive.seek(0)
+    return archive
 
 
 class Pipeline(unittest.TestCase):
@@ -30,27 +43,33 @@ class Pipeline(unittest.TestCase):
         with patch.object(p, "api", return_value={"object": {"type": "commit", "sha": "b" * 40}}):
             with self.assertRaisesRegex(ValueError, "does not point"):
                 p.tag(ITEM)
+        # A bare version tag on another commit is another crate's, never this one's.
+        for sha, expected in (("b" * 40, "demo-v1.2.3"), (ITEM["sha"], "v1.2.3")):
+            def api(path, **kwargs):
+                if path == "git/ref/tags/v1.2.3":
+                    return {"object": {"type": "commit", "sha": sha}}
+            with patch.object(p, "api", side_effect=api):
+                self.assertEqual(p.tag(ITEM), expected)
 
     def test_registry_metadata(self):
+        manifest = f'[package]\nname="demo"\nversion="1.2.3"\nrepository="{REPO}"\n[[bin]]\nname="demo"\n'.encode()
         for dirty, path in ((False, "cli"), (True, "cli"), (False, "../escape"), (False, "/escape")):
-            archive = io.BytesIO()
-            with tarfile.open(fileobj=archive, mode="w:gz") as tar:
-                for name, value in {
-                    "Cargo.toml": b'[package]\nname="demo"\nversion="1.2.3"\n[[bin]]\nname="demo"\n',
-                    ".cargo_vcs_info.json": json.dumps({"git": {"sha1": ITEM["sha"], "dirty": dirty}, "path_in_vcs": path}).encode(),
-                }.items():
-                    info = tarfile.TarInfo("demo-1.2.3/" + name)
-                    info.size = len(value)
-                    tar.addfile(info, io.BytesIO(value))
-            archive.seek(0)
+            archive = crate({"Cargo.toml": manifest, ".cargo_vcs_info.json": json.dumps({"git": {"sha1": ITEM["sha"], "dirty": dirty}, "path_in_vcs": path}).encode()})
             with patch.object(p.urllib.request, "urlopen", return_value=archive):
                 if dirty or path != "cli":
                     with self.assertRaises(ValueError):
-                        p.published("demo", "1.2.3")
+                        p.published("demo", "1.2.3", REPO)
                 else:
-                    manifest, item = p.published("demo", "1.2.3")
+                    manifest_, item = p.published("demo", "1.2.3", REPO)
                     self.assertEqual(item["sha"], ITEM["sha"])
-                    self.assertEqual(manifest["package"]["version"], ITEM["version"])
+                    self.assertEqual(manifest_["package"]["version"], ITEM["version"])
+        with patch.object(p.urllib.request, "urlopen", return_value=crate({"Cargo.toml": manifest})):
+            with self.assertRaisesRegex(ValueError, "without its git commit"):
+                p.published("demo", "1.2.3", REPO)
+        # Another repository's release is skipped before its source is checked.
+        dirty = json.dumps({"git": {"sha1": ITEM["sha"], "dirty": True}}).encode()
+        with patch.object(p.urllib.request, "urlopen", return_value=crate({"Cargo.toml": manifest, ".cargo_vcs_info.json": dirty})):
+            self.assertIsNone(p.published("demo", "1.2.3", "https://github.com/example/other")[1])
 
     def test_null_repository(self):
         with patch.dict(os.environ, {"GITHUB_REPOSITORY": "example/demo", "CALLER_WORKFLOW": "example/demo/.github/workflows/binaries.yml@main"}), patch.object(p, "run", side_effect=["2026-01-01T00:00:00+00:00", "Cargo.toml"]), patch.object(Path, "read_text", return_value='[package]\nname="demo"'), patch.object(p, "request", return_value={"crate": {"repository": None}}):
@@ -58,19 +77,44 @@ class Pipeline(unittest.TestCase):
 
     def test_implicit_binary(self):
         for source, autobins, expected in (("src/main.rs", True, True), ("src/bin/tool.rs", True, True), ("src/bin/tool/main.rs", True, True), ("src/lib.rs", True, False), ("src/main.rs", False, False)):
-            archive = io.BytesIO()
-            with tarfile.open(fileobj=archive, mode="w:gz") as tar:
-                for name, value in {
-                    "Cargo.toml": f'[package]\nname="demo"\nversion="1.2.3"\nautobins={str(autobins).lower()}\n'.encode(),
-                    ".cargo_vcs_info.json": json.dumps({"git": {"sha1": ITEM["sha"]}}).encode(),
-                    source: b"fn main() {}",
-                }.items():
-                    info = tarfile.TarInfo("demo-1.2.3/" + name)
-                    info.size = len(value)
-                    tar.addfile(info, io.BytesIO(value))
-            archive.seek(0)
+            archive = crate({
+                "Cargo.toml": f'[package]\nname="demo"\nversion="1.2.3"\nrepository="{REPO}"\nautobins={str(autobins).lower()}\n'.encode(),
+                ".cargo_vcs_info.json": json.dumps({"git": {"sha1": ITEM["sha"]}}).encode(),
+                source: b"fn main() {}",
+            })
             with patch.object(p.urllib.request, "urlopen", return_value=archive):
-                self.assertEqual(p.published("demo", "1.2.3")[1] is not None, expected)
+                self.assertEqual(p.published("demo", "1.2.3", REPO)[1] is not None, expected)
+
+    def test_template_name(self):
+        with patch.dict(os.environ, {"GITHUB_REPOSITORY": "example/demo", "CALLER_WORKFLOW": "example/demo/.github/workflows/binaries.yml@main"}), patch.object(p, "run", side_effect=["2026-01-01T00:00:00+00:00", "Cargo.toml"]), patch.object(Path, "read_text", return_value='[package]\nname="{{project-name}}"'), patch.object(p, "request") as request:
+            self.assertEqual(p.discover(), [])
+        request.assert_not_called()
+
+    def test_archive_layout(self):
+        metadata = {"target_directory": "target", "packages": [{"name": "demo", "version": "1.2.3", "targets": [{"name": "demo", "kind": ["bin"]}, {"name": "tool", "kind": ["bin"]}, {"name": "demo", "kind": ["lib"]}]}]}
+        cwd = os.getcwd()
+        with tempfile.TemporaryDirectory() as tmp:
+            os.chdir(tmp)
+            try:
+                for target in ("x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"):
+                    exe = ".exe" if "windows" in target else ""
+                    release = Path("target", target, "release")
+                    release.mkdir(parents=True, exist_ok=True)
+                    for binary in ("demo", "tool"):
+                        (release / (binary + exe)).write_text(binary)
+                    with patch.object(p, "run", side_effect=[json.dumps(metadata), ""]) as run:
+                        p.build(ITEM, target)
+                    self.assertEqual(run.call_args_list[1].args[-1], target + (".2.28" if "linux" in target else ""))
+                    root = f"demo-{target}-v1.2.3"
+                    with tarfile.open(Path("archives", root + ".tgz")) as archive:
+                        self.assertEqual(sorted(archive.getnames()), [f"{root}/demo{exe}", f"{root}/tool{exe}"])
+                        self.assertEqual(archive.extractfile(f"{root}/tool{exe}").read(), b"tool")
+                # A crate missing any archive is not attested.
+                p.built({**ITEM, "targets": ["x86_64-unknown-linux-gnu"]})
+                with self.assertRaisesRegex(ValueError, "missing archive"):
+                    p.built(ITEM)
+            finally:
+                os.chdir(cwd)
 
     def test_release_kind(self):
         for version, prerelease in (("1.0.0+build-5", False), ("1.0.0-rc.1+build-5", True)):
