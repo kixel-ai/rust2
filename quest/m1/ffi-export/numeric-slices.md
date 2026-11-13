@@ -23,8 +23,8 @@ The api fixture has no numeric slice parameter, so the path is untested.
   unsigned items, and a Dart typed list whose element width matches. Where a language has
   none that is exact, such as a 128-bit item, the list stays as it is.
 - `usize` and `isize` items differ in width by target, so they stay item by item unless
-  [copy-values](/quest/m1/ffi-export/copy-values.md)'s per-target layout makes one form
-  exact on every target.
+  a per-target layout, as the staged API records for a `Copy` value's size, makes one
+  form exact on every target.
 - Add numeric slice and vector parameters, returns, and fields to the api fixture, with
   each type's edge values, and a bench case for a slice of 1,000 `u32`s in and out.
 
