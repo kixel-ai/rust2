@@ -452,6 +452,15 @@ func script() {
 	cancel()
 	check(errors.Is(channel.SendLater(cancelled, rt.NewBytes([]byte("eager"))), context.Canceled), "a cancelled call returns its context's error")
 	fmt.Printf("recv %s\n", must(channel.Recv(ctx)).Copy())
+	// An eager call whose callback cancels its context while it makes its future is never
+	// polled: only the eager half logs.
+	{
+		inner, cancel := context.WithCancel(ctx)
+		log := &cancelLog{cancel: cancel}
+		_, err := api.EmitLater(inner, log, rt.NewBytes([]byte{1, 2}))
+		check(errors.Is(err, context.Canceled), "an eager call cancelled as it makes its future returns its context's error")
+		check(log.lines.Load() == 2, "an eager call cancelled as it makes its future is never polled")
+	}
 	channel.Send(rt.NewBytes([]byte("sized")))
 	sized, size, err := channel.RecvSized(ctx)
 	check(err == nil, "recv sized")
@@ -1513,6 +1522,18 @@ func broken(which string) {
 	default:
 		check(false, "no case "+which)
 	}
+}
+
+// cancelLog cancels its context at each line, and counts them.
+type cancelLog struct {
+	cancel context.CancelFunc
+	lines  atomic.Int32
+}
+
+func (l *cancelLog) Log(uint8, string) bool {
+	l.cancel()
+	l.lines.Add(1)
+	return true
 }
 
 type panicking struct{}

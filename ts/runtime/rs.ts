@@ -282,29 +282,27 @@ export type VecOf<T> = Vec<T> | ByteVec;
 export type CowOf<T> = Cow<T> | ByteCow | Cow<T, ArraySlice<ArrayRef>>;
 
 /**
- * The pointer to element `index` of `s`, a `[T; N]` or a `Vec`'s storage. A null or
- * dangling pointer to an array is one to its first element, at the same address.
+ * The pointer to element `index` of `s`, a `[T; N]` or a `Vec`'s storage. A pointer to an
+ * array at no memory, such as a null or dangling one, is one to its first element, at the
+ * same address.
  */
 export function arrayAsPtr<T>(s: { [i: number]: T }, index = 0): Place<T> {
-	if (s === NULL) return NULL;
-	if (s === DANGLING) return DANGLING;
+	if (ptrNowhere(s)) return s as never;
 	const array = roomItems<T>(s) ?? s;
 	// Null's is `null`, which `??` would pass over.
 	const from = EMPTY.get(array) as Place<T> | undefined;
 	return from !== undefined ? from : new AtIndex(array, index);
 }
 
-/** The pointer to element `index` of `s`, or `s` if it is null or dangling, as `arrayAsPtr`'s. */
+/** The pointer to element `index` of `s`, or `s` if it points at no memory, as `arrayAsPtr`'s. */
 export function sliceAsPtr<T>(s: Slice<T>, index = 0): Place<T> {
-	if (s === NULL) return NULL;
-	if (s === DANGLING) return DANGLING;
+	if (ptrNowhere(s)) return s as never;
 	return arrayAsPtr(s.data, s.start + index);
 }
 
-/** The pointer to byte `index` of `s`, or `s` if it is null or dangling, as `sliceAsPtr`'s. */
+/** The pointer to byte `index` of `s`, or `s` if it points at no memory, as `sliceAsPtr`'s. */
 export function byteSliceAsPtr(s: ByteSlice, index = 0): Place<number> {
-	if (s === NULL) return NULL;
-	if (s === DANGLING) return DANGLING;
+	if (ptrNowhere(s)) return s as never;
 	const from = EMPTY.get(s.data) as Place<number> | undefined;
 	if (from !== undefined) return from;
 	return new AtIndex(s.data, s.start + index);
@@ -383,6 +381,12 @@ function addressAt(addr: number): Address {
 	}
 	return at;
 }
+
+/** `Weak::as_ptr` of `Weak::new`'s, which has no allocation: std's dangling address, wasm32's `usize::MAX`. */
+export const WEAK_DANGLING: never = /* @__PURE__ */ addressAt(0xffffffff) as never;
+
+/** `WEAK_DANGLING` of a `Weak<()>`, as any pointer there cast to a `*const ()` is. */
+export const WEAK_DANGLING_UNIT: Place<undefined> = /* @__PURE__ */ ptrErase(WEAK_DANGLING, "()", 1);
 
 /** A read or write through a pointer to no memory. */
 export function nowhere(): never {

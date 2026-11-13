@@ -126,6 +126,48 @@ static bool foreign_futures(void) {
 	return ok && dropped.freed && !dropped.waker.wake;
 }
 
+/* Futures started, made and polled once in one call: whether each behaved. */
+static bool started_futures(void) {
+	api_waker waker = {.wake = wake, .drop = drop, .data = NULL};
+	uint32_t out = 0;
+
+	/* Ready at once: the result is written, the future freed, and the handle nulled
+	 * over what the caller left in it. */
+	foreign now = {.ready = 1};
+	api_after_future *after = (api_after_future *)&out;
+	bool ok = api_after_start(foreign_future(&now), 4, &out, &after) == API_POLL_READY;
+	ok = ok && out == 8 && !after && now.polls == 1 && now.freed;
+
+	/* Pending: the handle is returned, and a poll with a waker replaces the first's,
+	 * which wakes nothing. */
+	foreign later = {.ready = 3};
+	ok = ok && api_after_start(foreign_future(&later), 5, &out, &after) == API_POLL_PENDING && after;
+	later.waker.wake(later.waker.data);
+	int woken = wakes;
+	ok = ok && api_after_poll(after, waker, &out) == API_POLL_PENDING && later.polls == 2;
+	later.waker.wake(later.waker.data);
+	ok = ok && wakes == woken + 1;
+	ok = ok && api_after_poll(after, waker, &out) == API_POLL_READY && out == 10;
+	api_after_future_free(after);
+	ok = ok && later.freed;
+
+	/* Pending, then freed unfinished: the future it owns is freed with it. */
+	foreign dropped = {.ready = 1000};
+	after = NULL;
+	ok = ok && api_after_start(foreign_future(&dropped), 6, &out, &after) == API_POLL_PENDING;
+	api_after_future_free(after);
+	ok = ok && dropped.freed && !dropped.waker.wake;
+
+	/* Failed at once: the error is written, and the handle nulled. */
+	foreign never = {.ready = 1000};
+	api_within_future *within = (api_within_future *)&out;
+	api_Error err;
+	ok = ok && api_within_start(0, foreign_future(&never), &err, &within) == API_POLL_ERROR;
+	ok = ok && err.tag == API_ERROR_OVERFLOW && !within && never.freed;
+	api_Error_free(&err);
+	return ok;
+}
+
 /* made's closure: a string it hands Rust, as api_buf_copy made it. */
 static api_buf made_times(void *data, uint32_t n) {
 	(void)data;
@@ -720,9 +762,14 @@ static int script(void) {
 	print("named Some((\"", named.value._0, "\",))\n");
 
 	/* Each lent counter is a new handle to a clone. */
-	api_Registry *registry = api_Registry_new(api_Counter_new(str("first"), 1));
+	/* A handle whose value moved in is still the caller's to free. */
+	api_Counter *moved = api_Counter_new(str("first"), 1);
+	api_Registry *registry = api_Registry_new(moved);
+	api_Counter_free(moved);
 	printf("last %s\n", api_Registry_last(registry) != NULL ? "true" : "false");
-	api_Registry_push(registry, api_Counter_new(str("last"), 2));
+	moved = api_Counter_new(str("last"), 2);
+	api_Registry_push(registry, moved);
+	api_Counter_free(moved);
 	api_Counter *first = api_Registry_first_get(registry);
 	api_Counter_add(first, 10, NULL, NULL);
 	api_Counter *lent = api_Registry_first_get(registry);
@@ -1630,7 +1677,7 @@ static int script(void) {
 	if (drops != 12) {
 		return 1;
 	}
-	return closures() && foreign_futures() && forwarding() ? 0 : 1;
+	return closures() && foreign_futures() && forwarding() && started_futures() ? 0 : 1;
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */
@@ -1692,6 +1739,15 @@ static int broken(const char *which) {
 	} else if (strcmp(which, "future") == 0) {
 		/* A future with no poll. */
 		api_after((api_foreign_future){0}, 1);
+	} else if (strcmp(which, "started") == 0) {
+		/* A future with no poll, through a start, which the abort names. */
+		uint32_t out;
+		api_after_future *after;
+		api_after_start((api_foreign_future){0}, 1, &out, &after);
+	} else if (strcmp(which, "start") == 0) {
+		/* A start with nowhere to put the handle of a future that pends. */
+		uint32_t out;
+		api_yielded_start(1, &out, NULL);
 	} else if (strcmp(which, "array") == 0) {
 		api_vec_u16 ports = api_ports((api_vec_socket_addr){0});
 		ports.len = 1;

@@ -62,14 +62,9 @@ extension type Cancelable<T>._(Future<T> _future) implements Future<T> {
   void cancel() => _n.calls[_future]?.cancel();
 }
 
-/// Poll `f` once with no waker, and if it pends, again with one: its future.
-Cancelable<T> _call<T>(
-  ffi.Pointer<ffi.Void> f,
-  void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>) free,
-  bool Function(ffi.Pointer<ffi.Void>, _Waker, _Call<T>) poll,
-) {
-  final call = _Call<T>._(f, free, poll);
-  call._step(_n.idle);
+/// The future of `call`, which its start completed if its first poll finished, or else
+/// left the future in Rust that pended, polled again here with a waker.
+Cancelable<T> _call<T>(_Call<T> call) {
   final first = call._first;
   if (first != null) return Cancelable._(first);
   final done = call._done = dasync.Completer<T>();
@@ -83,7 +78,8 @@ Cancelable<T> _call<T>(
 
 /// A [Cancelable]'s future in Rust, until it finishes.
 final class _Call<T> {
-  ffi.Pointer<ffi.Void> _f;
+  /// The future in Rust, once its start pended, until it finishes.
+  ffi.Pointer<ffi.Void> _f = ffi.nullptr;
   final void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>) _free;
 
   /// Poll once, completing this if it finished: whether it did.
@@ -99,7 +95,7 @@ final class _Call<T> {
   bool _polling = false;
   bool _cancelled = false;
 
-  _Call._(this._f, this._free, this._poll);
+  _Call._(this._free, this._poll);
 
   void _wake() {
     if (_f != ffi.nullptr) _step(_waker!);
@@ -596,7 +592,6 @@ final class _Native {
   late final _Stack stack = _Stack();
   late final isolate.RawReceivePort _port;
   late final ffi.Pointer<ffi.Void> home;
-  final _Waker idle = ffi.Struct.create<_Waker>();
 
   /// What a token's wake calls, and its drop.
   final Map<int, void Function()> _wakes = {};

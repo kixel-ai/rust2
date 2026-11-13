@@ -1015,6 +1015,18 @@ fn on_thread(log: &(impl Log + ?Sized), lines: &[u8]) -> u32 {
 	})
 }
 
+/// A record named as Swift's own error a cancelled task throws, which the binding renames.
+pub struct CancellationError {
+	pub code: u32,
+}
+
+/// Each of `0..n` to `count` before it returns its future, then `n` doubled once polled,
+/// or `Overflow`: an eager, fallible future that lends a closure.
+pub fn counted(n: u32, mut count: impl FnMut(u32)) -> std::future::Ready<Result<u32, Error>> {
+	(0..n).for_each(&mut count);
+	std::future::ready(n.checked_mul(2).ok_or(Error::Overflow))
+}
+
 /// Each line to `keep` on another thread, returning how many it kept: a lent closure may
 /// run on any thread until the call returns.
 pub fn filter(lines: Vec<u8>, mut keep: impl FnMut(u8, &str) -> bool + Send) -> u32 {

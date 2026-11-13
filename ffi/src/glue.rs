@@ -1638,7 +1638,7 @@ impl Gen<'_> {
 			));
 		}
 		let body = stmts.join("\n\t");
-		if let Some((_, poll, free)) = &export.future {
+		if let Some(abi::Future { start, poll, free, .. }) = &export.future {
 			// A function that is not `async` runs when called, and what it returns
 			// borrows nothing, so it is called now; an `async fn` runs when polled.
 			let (now, later) = match (function.eager, &function.task) {
@@ -1670,10 +1670,15 @@ impl Gen<'_> {
 				.enumerate()
 				.map(|(n, out)| format!("let {out} = outs[{n}];\n\t\t\t"))
 				.collect();
-			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}{now}\n\trt::Future::new(async move {{\n\t\tlet result = {later};\n\t\t::std::boxed::Box::new(move |outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\t\tlet _ = (outs, err);\n\t\t\t{bind}{}\n\t\t}}) as rt::Done\n\t}})\n}}\n",
-				params.join(", "),
+			// The make's body, emitted again inside `<fn>_start` so its aborts name the
+			// function C called.
+			let make = format!(
+				"{body}{now}\n\trt::Future::new(async move {{ {later} }}, move |result, outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\tlet _ = (outs, err);\n\t\t{bind}{}\n\t}})",
 				self.finish(function, &ok, ("v", "rt::READY", "rt::ERROR"))
+			);
+			self.export(format!(
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{make}\n}}\n",
+				params.join(", "),
 			));
 			let poll_params: Vec<String> = poll.params[2..]
 				.iter()
@@ -1694,6 +1699,17 @@ impl Gen<'_> {
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}(future: *mut rt::Future) {{\n\tunsafe {{ rt::Future::free(future) }}\n}}\n",
 				free.name
+			));
+			// The call and its first poll in one: most futures are ready at once.
+			let start_params: Vec<String> = (params.iter().cloned())
+				.chain(poll_params)
+				.chain(["future: *mut *mut rt::Future".to_string()])
+				.collect();
+			self.export(format!(
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}({}) -> i32 {{\n\tlet w = \"{}\";\n\tlet _ = w;\n\tlet made = {{\n\t{make}\n\t}};\n\tunsafe {{ rt::Future::start(made, &[{outs}], {err}, future, w) }}\n}}\n",
+				start.name,
+				start_params.join(", "),
+				start.name
 			));
 			return;
 		}

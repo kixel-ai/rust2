@@ -1913,7 +1913,7 @@ impl<'a> Gen<'a> {
 			let args: Vec<&str> = args.iter().map(|a| a.as_str()).collect();
 			format!("crate::{c_name}({})", args.join(", "))
 		};
-		if let Some((_, poll, free)) = &export.future {
+		if let Some(abi::Future { poll, free, .. }) = &export.future {
 			// The call makes the future and polls it once, returning its result if ready, or
 			// else the future, which a native poll and free take.
 			let poll_bare = self.bare(&poll.name).to_string();
