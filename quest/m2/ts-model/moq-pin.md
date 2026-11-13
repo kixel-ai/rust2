@@ -16,7 +16,7 @@ building for wasm32. Rejected: one bump for both pins, which holds the exporter 
 - Set `rev` in `ts/fixtures/model/Cargo.toml` to moq's `main`, then run `cargo update -p moq-net`
   there, as its comment says.
 - Run `just ts moq <checkout>` and `just ts census`. Regenerate `expected/`, and any `ts/bench`
-  file the new moq API changes, as the last bump ([#390](https://github.com/moq-dev/rust2/pull/390))
+  file the new moq API changes, as the last bump ([#390](https://github.com/kixel-ai/rust2/pull/390))
   did for this pin.
 - Update the census count in the [model epic](/quest/m2/ts-model/README.md) from the census at
   the new pin.
