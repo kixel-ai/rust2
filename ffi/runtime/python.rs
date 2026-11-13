@@ -361,15 +361,14 @@ impl Key {
 }
 
 /// What a call borrows from Python until it returns: the objects and copies whose memory
-/// it reads, the handles it holds and those it moves out of, and what it
-/// gives Rust, taken back if the call never happens.
+/// it reads, the lent handles it holds, and what it gives Rust, taken back if the call
+/// never happens.
 #[derive(Default)]
 pub struct Scope {
 	keep: Vec<Obj>,
 	arrays: Vec<Box<dyn std::any::Any>>,
-	/// The handles held, each with whether the call moves its value out. Inline, as a
-	/// call holds few, so holding one allocates nothing.
-	held: smallvec::SmallVec<[(Obj, bool); 4]>,
+	/// The lent handles held. Inline, as a call holds few, so holding one allocates nothing.
+	held: smallvec::SmallVec<[Obj; 4]>,
 	/// The objects Rust lends a callback, ended once it returns.
 	lent: Vec<Obj>,
 	/// Python implementations and wakers given to Rust, taken back unless the call
@@ -388,15 +387,8 @@ impl Scope {
 		ptr
 	}
 
-	/// Note that the call happened: what it moved out of is closed, and what it was given
-	/// is Rust's.
+	/// Note that the call happened: what it was given is Rust's.
 	pub fn done(&mut self) {
-		for (held, moved) in &self.held {
-			if *moved {
-				// SAFETY: a handle this scope holds, so live.
-				unsafe { close(held.ptr().cast()) };
-			}
-		}
 		self.given();
 	}
 
@@ -428,7 +420,7 @@ impl Scope {
 
 	/// The handles held, which a future keeps until it ends.
 	pub fn take_held(&mut self) -> Vec<Obj> {
-		self.held.drain(..).map(|(held, _)| held).collect()
+		self.held.drain(..).collect()
 	}
 }
 
@@ -456,7 +448,7 @@ impl Drop for Scope {
 			// SAFETY: an object [`lent`] made.
 			unsafe { end(lent.ptr().cast()) };
 		}
-		while let Some((held, _)) = self.held.pop() {
+		while let Some(held) = self.held.pop() {
 			// SAFETY: a handle this scope holds.
 			unsafe { release(held.ptr().cast()) };
 		}
@@ -1436,14 +1428,16 @@ pub unsafe extern "C" fn free_callback(data: *mut c_void) {
 }
 
 /// An object owning a handle Rust returned, or one Rust lends for a call: the instance
-/// of a class of the generated Python, which subclasses `Object`.
+/// of a class of the generated Python, which subclasses `Object`. An owned one is freed
+/// once its last reference goes, which no call outlives: Rust's own check fails a use
+/// after its value moved out. A lent one counts its calls, so its lend ends with none.
 #[repr(C)]
 pub struct Handle {
 	ob_base: PyObject,
 	raw: *const c_void,
 	/// What frees the handle: none for one Rust lends, or once freed.
 	free: Option<unsafe extern "C" fn(*const c_void)>,
-	/// The calls holding it, each of which it outlives.
+	/// The calls holding a lent one, each of which it outlives.
 	holds: usize,
 	closed: bool,
 }
@@ -1490,59 +1484,40 @@ fn handle(raw: *const c_void, index: usize, free: Option<unsafe extern "C" fn(*c
 	}
 }
 
-/// The handle `obj` owns, an object of the class registered at `index`, held for the
-/// call; `moved` when the call moves its value out, after which `obj` is closed.
-pub fn hold(obj: *mut PyObject, index: usize, s: &mut Scope, moved: bool) -> R<*const c_void> {
+/// The handle `obj` owns, an object of the class registered at `index`, for the call,
+/// which the caller's reference keeps; a lent one held until the call returns.
+pub fn hold(obj: *mut PyObject, index: usize, s: &mut Scope) -> R<*const c_void> {
 	check(obj, index)?;
 	let handle = obj.cast::<Handle>();
 	// SAFETY: an object of a class that subclasses `Object`, and the GIL is held.
 	unsafe {
+		if (*handle).free.is_some() {
+			return Ok((*handle).raw);
+		}
 		if (*handle).closed {
 			return value_error(&format!("{} is closed", type_name(ty(index))));
 		}
 		(*handle).holds += 1;
-		s.held.push((Obj::borrowed(obj), moved));
+		s.held.push(Obj::borrowed(obj));
 		Ok((*handle).raw)
 	}
 }
 
 /// [`hold`], or a null handle for `None`.
-pub fn hold_opt(obj: *mut PyObject, index: usize, s: &mut Scope, moved: bool) -> R<*const c_void> {
+pub fn hold_opt(obj: *mut PyObject, index: usize, s: &mut Scope) -> R<*const c_void> {
 	match is_none(obj) {
 		true => Ok(null()),
-		false => hold(obj, index, s, moved),
+		false => hold(obj, index, s),
 	}
 }
 
-/// Let go of a call's hold, freeing the handle if it was closed meanwhile.
+/// Let go of a call's hold of a lent handle.
 ///
 /// # Safety
 /// `handle` is live, and held.
 unsafe fn release(handle: *mut Handle) {
 	// SAFETY: the caller's contract.
-	unsafe {
-		(*handle).holds -= 1;
-		if (*handle).closed && (*handle).holds == 0 {
-			free_now(handle);
-		}
-	}
-}
-
-/// Close a handle: freed now, or once the last call holding it returns.
-///
-/// # Safety
-/// `handle` is live.
-pub unsafe fn close(handle: *mut Handle) {
-	// SAFETY: the caller's contract.
-	unsafe {
-		if (*handle).closed {
-			return;
-		}
-		(*handle).closed = true;
-		if (*handle).holds == 0 {
-			free_now(handle);
-		}
-	}
+	unsafe { (*handle).holds -= 1 };
 }
 
 /// End a lend, closing its handle, which Rust frees next: a call still holding it would
@@ -1557,7 +1532,7 @@ unsafe fn end(handle: *mut Handle) {
 			let name = type_name(Py_TYPE(handle.cast()).cast());
 			rt::fail(&name, "a call still holds it when its lend ends");
 		}
-		close(handle);
+		(*handle).closed = true;
 	}
 }
 

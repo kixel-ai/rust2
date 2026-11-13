@@ -556,7 +556,7 @@ def script():
 	print(f"chunks {[list(data(chunk)) for chunk in api.chunks(b'abcde', 2)]}")
 	counters = api.counters(["x", "y"])
 	print("counters " + ", ".join(f"{c.name()} {c.get()}" for c in counters))
-	# Each counter moves in, so Python closes it.
+	# Each counter moves in, so a later call raises.
 	print(f"worth {api.worth([counters[0]], [counters[1]])} {api.worth(None, [])}")
 	for counter in counters:
 		try:

@@ -211,7 +211,13 @@ impl Header<'_> {
 		for (i, record) in api.records.iter().enumerate() {
 			let name = abi.record(i);
 			self.line(format!("/* {} */", abi.api.rust(&record.path, &record.args)).trim_end());
-			self.value_functions(&name, Ty::Struct(name.clone()), record.traits, true);
+			self.value_functions(
+				&name,
+				Ty::Struct(name.clone()),
+				record.traits,
+				true,
+				abi.value_status(&Type::Record(i)),
+			);
 			let owner = Ty::Struct(name.clone());
 			for method in &record.methods {
 				self.function(method, Some(&owner));
@@ -225,7 +231,13 @@ impl Header<'_> {
 				continue;
 			}
 			self.line(format!("/* {} */", abi.api.rust(&e.path, &e.args)));
-			self.value_functions(&name, ty.clone(), e.traits, !e.plain());
+			self.value_functions(
+				&name,
+				ty.clone(),
+				e.traits,
+				!e.plain(),
+				abi.value_status(&Type::Enum(i)),
+			);
 			for method in &e.methods {
 				self.function(method, Some(&ty));
 			}
@@ -236,6 +248,16 @@ impl Header<'_> {
 			let docs = format!("{}\n\n{}", abi.api.rust(&object.path, &object.args), object.docs);
 			self.line(comment(docs.trim(), "").trim_end());
 			self.line(format!("void {name}_free({name} *self);"));
+			if abi.checked[i] {
+				self.line(
+					comment(
+						"Drop the value now, as a move out would, leaving the handle to free: a later call fails as moved, and a second drop does nothing. Fails while a call or future borrows the value.",
+						"",
+					)
+					.trim_end(),
+				);
+				self.line(format!("void {name}_drop({name} *self, {p}_status *status);"));
+			}
 			if object.shared {
 				self.line(format!("bool {name}_borrowed(const {name} *self);"));
 			}
@@ -401,8 +423,12 @@ impl Header<'_> {
 	}
 
 	/// The functions a value type's std traits export, and its `free` if it owns memory.
-	fn value_functions(&mut self, name: &str, ty: Ty, traits: Traits, free: bool) {
+	fn value_functions(&mut self, name: &str, ty: Ty, traits: Traits, free: bool, status: bool) {
 		let p = &self.abi.prefix;
+		let status = match status {
+			true => format!(", {p}_status *status"),
+			false => String::new(),
+		};
 		let this = self.decl(&Ty::In(Box::new(ty.clone())), "self");
 		let a = self.decl(&Ty::In(Box::new(ty.clone())), "a");
 		let b = self.decl(&Ty::In(Box::new(ty.clone())), "b");
@@ -410,13 +436,13 @@ impl Header<'_> {
 			self.line(format!("void {name}_free({name} *self);"));
 		}
 		if traits.eq {
-			self.line(format!("bool {name}_eq({a}, {b});"));
+			self.line(format!("bool {name}_eq({a}, {b}{status});"));
 		}
 		if traits.display {
-			self.line(format!("{p}_buf {name}_to_string({this});"));
+			self.line(format!("{p}_buf {name}_to_string({this}{status});"));
 		}
 		if traits.debug {
-			self.line(format!("{p}_buf {name}_debug({this});"));
+			self.line(format!("{p}_buf {name}_debug({this}{status});"));
 		}
 		if traits.default {
 			self.line(format!("{} {name}_default(void);", self.decl(&ty, "")));

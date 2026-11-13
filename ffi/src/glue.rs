@@ -420,9 +420,7 @@ impl Gen<'_> {
 
 	/// Whether lifting a value of `ty` checks a handle that can fail.
 	fn checks(&self, ty: &Type) -> bool {
-		let mut handles = Vec::new();
-		self.abi.api.handles(ty, &mut handles, &mut Vec::new());
-		handles.iter().any(|&i| self.abi.checked[i])
+		self.abi.value_status(ty)
 	}
 
 	/// Whether `ty` moves an object's value out of its handle, as passed by value.
@@ -962,6 +960,11 @@ impl Gen<'_> {
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: *const ::std::ffi::c_void) {{\n\tunsafe {{ rt::Object::<{path}>::free(this) }}\n}}\n"
 			));
+			if self.abi.checked[i] {
+				self.export(format!(
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop(this: *const ::std::ffi::c_void, status: *mut i32) {{\n\tlet w = \"{name}_drop\";\n\tif let Err(s) = unsafe {{ rt::Object::<{path}>::close(this, w) }} {{\n\t\tunsafe {{ rt::failed::<()>(status, s, w) }}\n\t}}\n}}\n"
+				));
+			}
 			if object.shared {
 				self.export(format!(
 					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_borrowed(this: *const ::std::ffi::c_void) -> bool {{\n\tunsafe {{ rt::Object::<{path}>::borrowed(this, \"{name}_borrowed\") }}\n}}\n"
@@ -1066,23 +1069,43 @@ impl Gen<'_> {
 	/// The functions every value type has: its std traits, read through a pointer, and
 	/// `free`.
 	fn value_traits(&mut self, name: &str, path: &str, ty: &Type, traits: Traits) {
+		// One holding a handle a check of can fail returns the failure through a `status`.
+		let status = self.checks(ty).then_some("status");
+		self.checking.set(status.is_some());
 		let lift = self.lift(ty, "unsafe { *this }");
 		let lift_a = self.lift(ty, "unsafe { *a }");
 		let lift_b = self.lift(ty, "unsafe { *b }");
+		self.checking.set(false);
+		let param = status.map(|s| format!(", {s}: *mut i32")).unwrap_or_default();
 		let c = rs(&self.abi.ty(ty));
 		if traits.eq {
+			let body = wrap(
+				status,
+				"bool",
+				&format!("<{path} as ::std::cmp::PartialEq>::eq(&{lift_a}, &{lift_b})"),
+			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_eq(a: *const {c}, b: *const {c}) -> bool {{\n\tlet w = \"{name}_eq\";\n\t<{path} as ::std::cmp::PartialEq>::eq(&{lift_a}, &{lift_b})\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_eq(a: *const {c}, b: *const {c}{param}) -> bool {{\n\tlet w = \"{name}_eq\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.display {
+			let body = wrap(
+				status,
+				"rt::Buf",
+				&format!("rt::Buf::string(::std::string::ToString::to_string(&{lift}))"),
+			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_to_string(this: *const {c}) -> rt::Buf {{\n\tlet w = \"{name}_to_string\";\n\trt::Buf::string(::std::string::ToString::to_string(&{lift}))\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_to_string(this: *const {c}{param}) -> rt::Buf {{\n\tlet w = \"{name}_to_string\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.debug {
+			let body = wrap(
+				status,
+				"rt::Buf",
+				&format!("rt::Buf::string(format!(\"{{:?}}\", &{lift}))"),
+			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_debug(this: *const {c}) -> rt::Buf {{\n\tlet w = \"{name}_debug\";\n\trt::Buf::string(format!(\"{{:?}}\", &{lift}))\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_debug(this: *const {c}{param}) -> rt::Buf {{\n\tlet w = \"{name}_debug\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.default {

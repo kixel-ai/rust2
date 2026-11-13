@@ -942,6 +942,22 @@ impl<'a> Abi<'a> {
 		self.checked[i]
 	}
 
+	/// Whether a record's or enum's `<T>_eq`, `_to_string`, and `_debug` take a `status`,
+	/// as each borrows the handles it holds shared.
+	pub fn value_status(&self, ty: &Type) -> bool {
+		let mut handles = Vec::new();
+		self.api.handles(ty, &mut handles, &mut Vec::new());
+		handles.iter().any(|&i| self.checked[i])
+	}
+
+	/// Whether the std trait functions of `ty`, an object, record, or enum, take a `status`.
+	pub fn traits_status_of(&self, ty: &Type) -> bool {
+		match ty {
+			Type::Object(i) => self.traits_status(*i),
+			ty => self.value_status(ty),
+		}
+	}
+
 	/// The out pointer Rust writes back the value C passed for `&mut` as parameter `name`
 	/// through, named apart from every parameter of `function`.
 	pub fn written(function: &Function, name: &str) -> String {
@@ -1115,6 +1131,14 @@ impl<'a> Abi<'a> {
 				object.span,
 				Self::made(&item, &name),
 			);
+			if self.checked[i] {
+				self.claim(
+					format!("{name}_drop"),
+					what.clone(),
+					object.span,
+					Self::made(&item, &name),
+				);
+			}
 			if object.shared {
 				self.claim(
 					format!("{name}_borrowed"),

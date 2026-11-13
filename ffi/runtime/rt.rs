@@ -1000,6 +1000,34 @@ impl<T> Object<T> {
 		unsafe { (*object.value.get()).assume_init_read() }
 	}
 
+	/// Drop the value now, as a move out would, leaving the handle to be freed: what a
+	/// binding's close does, so a later use fails as moved, as Rust refuses a use after a
+	/// drop. It fails, changing nothing, while a call or future borrows the value, as Rust
+	/// refuses a drop under a borrow, and does nothing once the value is gone. A handle a
+	/// call returned lent from another's value only stops lending it; one lent to C for a
+	/// call fails, as Rust lent it.
+	///
+	/// # Safety
+	/// As [`Self::borrow`].
+	pub unsafe fn close(handle: *const c_void, what: &str) -> Result<(), Status> {
+		// SAFETY: the caller's contract.
+		let object = unsafe { Self::get(handle, what) };
+		if !object.lent.is_null() && object.lender.is_none() {
+			return Err(Status::Lent);
+		}
+		match object.state.compare_exchange(0, TAKEN, Ordering::Acquire, Ordering::Relaxed) {
+			Ok(_) => {}
+			Err(TAKEN) => return Ok(()),
+			Err(_) => return Err(Status::Borrowed),
+		}
+		object.epoch.fetch_add(1, Ordering::Release);
+		if object.lent.is_null() {
+			// SAFETY: TAKEN excludes every other access, and `Drop` skips a taken value.
+			unsafe { (*object.value.get()).assume_init_drop() };
+		}
+		Ok(())
+	}
+
 	/// The value of a handle a closure C implements returned Rust, which copies it out and
 	/// frees the handle.
 	///

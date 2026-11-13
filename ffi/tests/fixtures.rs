@@ -582,8 +582,14 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 	run(&mut vm(&["futures"]));
 	run(&mut vm(&["owned"]));
 	for (case, message) in [
-		("moved", "Counter is closed"),
-		("boxed moved", "Node is closed"),
+		(
+			"moved",
+			"IllegalStateException: api_Counter_get: a handle's value was moved out",
+		),
+		(
+			"boxed moved",
+			"IllegalStateException: api_Node_sum: a handle's value was moved out",
+		),
 		("lent kept", "Counter is closed"),
 		(
 			"lent moved",
@@ -641,8 +647,8 @@ fn api_python() {
 		run(&mut python(&dir, &[case]));
 	}
 	for (case, message) in [
-		("moved", "ValueError: Counter is closed"),
-		("boxed moved", "ValueError: Node is closed"),
+		("moved", "ValueError: api_Counter_get: a handle's value was moved out"),
+		("boxed moved", "ValueError: api_Node_sum: a handle's value was moved out"),
 		("lent kept", "ValueError: Counter is closed"),
 		("lent held", "Counter: a call still holds it when its lend ends"),
 		(

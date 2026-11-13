@@ -750,17 +750,22 @@ fun futures() {
 		check(payload.text() == "kept", "a cancelled receive loses nothing")
 	}
 
-	// A handle closed while a call awaits on it is freed once the call ends.
+	// Closing a handle a call awaiting on it borrows throws, as Rust refuses a drop under a
+	// borrow, and changes nothing: the call ends as it would, and then the close passes.
 	run {
 		val other = Channel.new()
 		var got: String? = null
 		scope.launch { got = other.recv().text() }
 		q.drain()
 		val sender = other.clone()
-		other.close()
+		val refused = runCatching { other.close() }.exceptionOrNull()
+		check(refused is IllegalStateException && refused.message == "api_Channel_drop: a handle is already borrowed", "a close under an awaiting call throws: $refused")
 		sender.send("held".encodeToByteArray())
 		q.drain()
-		check(got == "held", "a closed handle stays held by the call awaiting on it")
+		check(got == "held", "the awaiting call ends as it would")
+		other.close()
+		val moved = runCatching { other.clear() }.exceptionOrNull()
+		check(moved is IllegalStateException && moved.message == "api_Channel_clear: a handle's value was moved out", "a call after close throws: $moved")
 		sender.close()
 	}
 
@@ -978,7 +983,7 @@ fun owned() {
 	check(dropped() == before + 1u, "closing frees at once")
 	token.close()
 	check(dropped() == before + 1u, "closing again frees nothing")
-	check(runCatching { token.idGet }.exceptionOrNull()?.message == "Token is closed", "a call after close throws")
+	check(runCatching { token.idGet }.exceptionOrNull()?.message == "api_Token_id_get: a handle's value was moved out", "a call after close throws")
 
 	// The file serves wasm32 too: what only wasm32 has throws on the host's library.
 	check(pointerBits(platform()) == 64u && pointerBits(Platform.Native(64u)) == 64u, "the host is native")
@@ -1059,30 +1064,13 @@ fun sliced(id: UInt): Bytes = tokenBytes(id, 1025u).slice(1015)
 // Frees racing calls: a close racing calls on other threads, and the GC freeing what a
 // call reads while it runs.
 fun raced() {
-	// Each call either runs, holding the handle so Rust's value outlives it, or throws.
+	// A latch's calls only borrow it, so Kotlin counts them; a token's Rust checks.
 	var before = dropped()
-	val token = Token.new(5u)
-	val ran = java.util.concurrent.atomic.AtomicInteger()
-	val failed = java.util.concurrent.atomic.AtomicInteger()
-	val callers = List(8) {
-		thread {
-			while (true) {
-				val id = try {
-					token.idGet
-				} catch (e: IllegalStateException) {
-					check(e.message == "Token is closed", "a call racing close throws")
-					failed.incrementAndGet()
-					return@thread
-				}
-				check(id == 5u, "a call racing close reads the live value")
-				ran.incrementAndGet()
-			}
-		}
-	}
-	while (ran.get() < 100) Thread.yield()
-	token.close()
-	callers.forEach { it.join() }
-	check(failed.get() == 8 && dropped() == before + 1u, "close racing calls drops Rust's value once")
+	val latch = Latch.default()
+	latch.set(5u)
+	race(latch, { it.get() == 5u }, "Latch is closed", "Latch: a handle is already borrowed")
+	race(Token.new(5u), { it.idGet == 5u }, "api_Token_id_get: a handle's value was moved out", "api_Token_drop: a handle is already borrowed")
+	check(dropped() == before + 1u, "close racing calls drops Rust's value once")
 
 	// Calls on values nothing else reaches, while another thread collects: each reads what
 	// it was given, never a buffer freed under it and reused by the next, which holds
@@ -1107,6 +1095,41 @@ fun raced() {
 	collecting.set(false)
 	collector.join()
 	collected(before + 3u * rounds, "the GC frees what each call raced")
+}
+
+// Close [made] while 8 threads call [call] on it: each call runs on the live value or, once
+// it is closed, throws [closed]; a close a running call beats throws [borrowed], as Rust
+// refuses a drop under a borrow, and changes nothing, so the next tries again.
+fun <T : AutoCloseable> race(made: T, call: (T) -> Boolean, closed: String, borrowed: String) {
+	val ran = java.util.concurrent.atomic.AtomicInteger()
+	val failed = java.util.concurrent.atomic.AtomicInteger()
+	val callers = List(8) {
+		thread {
+			while (true) {
+				val live = try {
+					call(made)
+				} catch (e: IllegalStateException) {
+					check(e.message == closed, "a call racing close throws: ${e.message}")
+					failed.incrementAndGet()
+					return@thread
+				}
+				check(live, "a call racing close reads the live value")
+				ran.incrementAndGet()
+			}
+		}
+	}
+	while (ran.get() < 100) Thread.yield()
+	while (true) {
+		try {
+			made.close()
+			break
+		} catch (e: IllegalStateException) {
+			check(e.message == borrowed, "a close racing a call throws: ${e.message}")
+		}
+	}
+	callers.forEach { it.join() }
+	check(failed.get() == 8, "every call after close throws")
+	made.close()
 }
 
 // At most 64 MiB of Rust's bytes are lent at once, freed or not, since the GC sees none of

@@ -1393,7 +1393,7 @@ impl<'a> Gen<'a> {
 			};
 		// A check each trait's borrow can fail: `String` and `GoString` return no error, so
 		// theirs aborts, as do C's.
-		let status = matches!(ty, Type::Object(i) if self.abi.traits_status(*i));
+		let status = self.abi.traits_status_of(ty);
 		let nil = match status {
 			true => ", nil",
 			false => "",

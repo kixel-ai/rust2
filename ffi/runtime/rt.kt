@@ -119,14 +119,19 @@ class Writer {
 
 	private var held: java.util.ArrayList<Handle>? = null
 
-	/** An object's handle, held until [release], or 0 for none. */
-	fun handle(v: Handle?) {
+	/** The owners of the handles encoded, which the call passes its JNI function to keep. */
+	var kept: java.util.ArrayList<Any>? = null
+		private set
+
+	/** The handle of the object [owner], held until [release], or 0 for none. */
+	fun handle(v: Handle?, owner: Any?) {
 		if (v == null) {
 			i64(0L)
 			return
 		}
 		i64(v.hold())
 		(held ?: java.util.ArrayList<Handle>().also { held = it }).add(v)
+		(kept ?: java.util.ArrayList<Any>().also { kept = it }).add(owner!!)
 	}
 
 	fun finish(): ByteArray = b.array().copyOf(b.position())
@@ -272,14 +277,23 @@ abstract class Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owner,
 }
 
 /**
- * A handle [owner] owns, or is lent for a call: each call holds it, so [close] frees it
- * only once no call does, and a call after [close] throws. An owned one is closed once
- * the GC collects [owner], if nothing closed it.
+ * A handle [owner] owns, or is lent for a call. One of a value Rust checks, which [drop]
+ * drops, is Rust's alone to account: [close] drops the value as Rust's own drop does,
+ * failing while a call borrows it, a call after it throws as Rust's check of a moved value
+ * fails, and the handle is freed once the GC collects [owner], which each call passes to
+ * its JNI function so the GC cannot collect it meanwhile. Any other counts its calls: [close]
+ * frees it then, throwing while a call holds it, and a call after it throws. An owned one
+ * is freed once the GC collects [owner], if nothing closed it.
  */
-class Handle(owner: Any, internal val raw: Long, private val free: Drop?, private val type: String) :
-	Cleanup(if (free == null) null else owner) {
-	// The holds, one for the owner until closed and one per call, shifted past a bit set
-	// once closed: one word, so a handle allocates nothing beside itself.
+class Handle(
+	owner: Any,
+	internal val raw: Long,
+	private val free: Drop?,
+	private val type: String,
+	private val drop: Close? = null,
+) : Cleanup(if (free == null) null else owner) {
+	// The holds of a counted one, one for the owner until closed and one per call, shifted
+	// past a bit set once closed: one word, so a handle allocates nothing beside itself.
 	@Volatile @JvmField internal var state = HELD
 
 	init {
@@ -287,6 +301,7 @@ class Handle(owner: Any, internal val raw: Long, private val free: Drop?, privat
 	}
 
 	fun hold(): Long {
+		if (drop != null) return raw
 		while (true) {
 			val n = state
 			kotlin.check(n and CLOSED == 0L) { "$type is closed" }
@@ -294,13 +309,18 @@ class Handle(owner: Any, internal val raw: Long, private val free: Drop?, privat
 		}
 	}
 
-	fun release() = freed(STATE.addAndGet(this, -HELD))
+	fun release() {
+		if (drop == null) freed(STATE.addAndGet(this, -HELD))
+	}
 
-	fun close() {
+	/** Close it as [Handle] says, passing [owner] to keep it reachable; again, it does nothing. */
+	fun close(owner: Any) {
+		if (drop != null) return drop.close(raw, owner)
 		while (true) {
 			val n = state
 			if (n and CLOSED != 0L) return
-			if (STATE.compareAndSet(this, n, (n or CLOSED) - HELD)) return freed((n or CLOSED) - HELD)
+			kotlin.check(n == HELD) { "$type: a handle is already borrowed" }
+			if (STATE.compareAndSet(this, n, CLOSED)) return freed(CLOSED)
 		}
 	}
 
@@ -309,8 +329,17 @@ class Handle(owner: Any, internal val raw: Long, private val free: Drop?, privat
 	 * reach the freed handle, so it throws, as Rust's own check fails once a call borrowed.
 	 */
 	fun end() {
-		close()
+		abandon()
 		kotlin.check(state == CLOSED) { "$type: a call still holds it when its lend ends" }
+	}
+
+	/** Give up the owner's hold of a counted one, freeing it once no call holds one. */
+	fun abandon() {
+		while (true) {
+			val n = state
+			if (n and CLOSED != 0L) return
+			if (STATE.compareAndSet(this, n, (n or CLOSED) - HELD)) return freed((n or CLOSED) - HELD)
+		}
 	}
 
 	// Free it once no hold is left.
@@ -318,8 +347,12 @@ class Handle(owner: Any, internal val raw: Long, private val free: Drop?, privat
 		if (n < HELD && free != null && untrack()) free.drop(raw)
 	}
 
-	// A call still holding it frees it once it returns.
-	override fun collected() = close()
+	// Nothing reaches the owner, so no call of a checked one runs; a counted one's call
+	// still holding it frees it once it returns.
+	override fun collected() = when (drop) {
+		null -> abandon()
+		else -> if (untrack()) free!!.drop(raw) else Unit
+	}
 
 	/** Run [block] with the raw handle, held until it returns. */
 	inline fun <R> hold(block: (Long) -> R): R {
@@ -345,12 +378,17 @@ class Returned(raw: Long) : Waker, AutoCloseable {
 
 	override fun wake() = handle.hold { __waker_wake(it) }
 
-	override fun close() = handle.close()
+	override fun close() = handle.abandon()
 }
 
 /** Frees a raw handle: a `fun interface`, so the handle crosses unboxed. */
 fun interface Drop {
 	fun drop(raw: Long)
+}
+
+/** Drops the value of a raw handle, passing its [owner] to keep it reachable meanwhile. */
+fun interface Close {
+	fun close(raw: Long, owner: Any)
 }
 
 /**

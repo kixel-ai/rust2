@@ -1342,7 +1342,7 @@ impl<'a> Gen<'a> {
 			false => Ty::In(Box::new(c_ty.clone())),
 		};
 		// An object whose run-time checks may fail passes each its status, which throws.
-		let status = matches!(ty, Type::Object(i) if self.abi.traits_status(*i));
+		let status = self.abi.traits_status_of(ty);
 		let params = |args: Vec<Ty>| -> Vec<Ty> {
 			let mut args = args;
 			if status {

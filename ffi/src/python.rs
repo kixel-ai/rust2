@@ -477,9 +477,8 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The glue's expression, an `R<C>`, reading the Python object `o` as the C value of
-	/// `ty`, with what it borrows held in the scope `s`; `m` is the glue's `bool`, whether
-	/// the position moves an object's value out, closing it.
-	fn lift(&mut self, ty: &Type, o: &str, m: &str) -> String {
+	/// `ty`, with what it borrows held in the scope `s`.
+	fn lift(&mut self, ty: &Type, o: &str) -> String {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
@@ -498,27 +497,21 @@ impl<'a> Gen<'a> {
 			Type::U128 => format!("rt::u128_in({o})"),
 			Type::Duration => format!("rt::duration_in({o})"),
 			Type::SocketAddr(family) => format!("rt::addr_in({o}, {})", family_of(*family)),
-			Type::List(..) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
+			Type::List(..) => format!("r_{}({o}, s)", self.c_struct(ty)),
 			Type::Option(inner) => match inner.base() {
-				Type::Object(i) => {
-					let m = match abi.api.objects[*i].copy || matches!(**inner, Type::Ref(..)) {
-						true => "false",
-						false => m,
-					};
-					format!("rt::hold_opt({o}, {}, s, {m})", self.t(&abi.object(*i)))
-				}
+				Type::Object(i) => format!("rt::hold_opt({o}, {}, s)", self.t(&abi.object(*i))),
 				base if Abi::is_buf(base) => {
-					let some = self.lift(inner, o, m);
+					let some = self.lift(inner, o);
 					format!("(if rt::is_none({o}) {{ Ok(crate::rt::Buf::NONE) }} else {{ {some} }})")
 				}
 				Type::List(..) => {
-					let some = self.lift(inner, o, m);
+					let some = self.lift(inner, o);
 					format!("(if rt::is_none({o}) {{ Ok(crate::rt::List::NONE) }} else {{ {some} }})")
 				}
-				_ => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
+				_ => format!("r_{}({o}, s)", self.c_struct(ty)),
 			},
-			Type::Box(inner) => self.lift(inner, o, m),
-			Type::Ref(_, inner) => self.lift(inner, o, "false"),
+			Type::Box(inner) => self.lift(inner, o),
+			Type::Ref(_, inner) => self.lift(inner, o),
 			Type::Record(_) => format!("r_{}({o}, s)", self.c_struct(ty)),
 			Type::Enum(i) if abi.api.enums[*i].variants.iter().any(|v| !abi.api.everywhere(v.on)) => {
 				// Checks the member a value is against the library's target.
@@ -532,13 +525,7 @@ impl<'a> Gen<'a> {
 				true => format!("rt::member_in({o}, {})", self.t(&abi.enumeration(*i))),
 				false => format!("r_{}({o}, s)", abi.enumeration(*i)),
 			},
-			Type::Object(i) => {
-				let m = match abi.api.objects[*i].copy {
-					true => "false",
-					false => m,
-				};
-				format!("rt::hold({o}, {}, s, {m})", self.t(&abi.object(*i)))
-			}
+			Type::Object(i) => format!("rt::hold({o}, {}, s)", self.t(&abi.object(*i))),
 			Type::Callback(i, _) => {
 				let c = abi.callback(*i);
 				format!(
@@ -551,7 +538,7 @@ impl<'a> Gen<'a> {
 			Type::Future => format!("rt::future_in({o}, s)"),
 			Type::Range(int) => format!("rt::range_in::<{}>({o})", int.rust()),
 			Type::Bound(_) | Type::Bounds(_) => format!("r_{}({o}, s)", abi.range(ty)),
-			Type::Tuple(_) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
+			Type::Tuple(_) => format!("r_{}({o}, s)", self.c_struct(ty)),
 			Type::Unit | Type::Closure(..) => unreachable!("{ty:?} is no value Python passes"),
 		}
 	}
@@ -758,11 +745,11 @@ impl<'a> Gen<'a> {
 
 	/// The glue of an option struct.
 	fn option(&mut self, c: &str, inner: &Type) {
-		let read = self.lift(inner, "o", "m");
+		let read = self.lift(inner, "o");
 		let write = self.lower(inner, "v.value");
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\tmatch rt::is_none(o) {{\n\t\ttrue => Ok(crate::{c} {{ some: false, value: unsafe {{ std::mem::zeroed() }} }}),\n\t\tfalse => Ok(crate::{c} {{ some: true, value: {}? }}),\n\t}}\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.some {{\n\t\ttrue => {write},\n\t\tfalse => rt::none(),\n\t}}\n}}\n\n",
+			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope) -> R<crate::{c}> {{\n\tmatch rt::is_none(o) {{\n\t\ttrue => Ok(crate::{c} {{ some: false, value: unsafe {{ std::mem::zeroed() }} }}),\n\t\tfalse => Ok(crate::{c} {{ some: true, value: {}? }}),\n\t}}\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.some {{\n\t\ttrue => {write},\n\t\tfalse => rt::none(),\n\t}}\n}}\n\n",
 			read
 		);
 	}
@@ -774,14 +761,14 @@ impl<'a> Gen<'a> {
 		let mut fields = Vec::new();
 		let mut writes = Vec::new();
 		for (k, ty) in elements.iter().enumerate() {
-			let lift = self.lift(ty, &format!("x{k}"), "m");
+			let lift = self.lift(ty, &format!("x{k}"));
 			reads.push(format!("let x{k} = rt::tuple_item(o, {k}, {n})?;"));
 			fields.push(format!("_{k}: {lift}?"));
 			writes.push(self.lower(ty, &format!("v._{k}")));
 		}
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::tuple(vec![{}])\n}}\n\n",
+			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::tuple(vec![{}])\n}}\n\n",
 			reads.join("\n\t"),
 			fields.join(", "),
 			writes.join(", ")
@@ -790,11 +777,11 @@ impl<'a> Gen<'a> {
 
 	/// The glue of a `Vec`'s array.
 	fn list(&mut self, c: &str, elem: &Type) {
-		let read = self.lift(elem, "o", "m");
+		let read = self.lift(elem, "o");
 		let write = self.lower(elem, "e");
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\trt::list_in(o, s, |o, s| {read})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::list_out(v, |e| {write})\n}}\n\n"
+			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope) -> R<crate::{c}> {{\n\trt::list_in(o, s, |o, s| {read})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::list_out(v, |e| {write})\n}}\n\n"
 		);
 	}
 
@@ -807,19 +794,15 @@ impl<'a> Gen<'a> {
 		let object = matches!(ty, Type::Object(_));
 		// The receiver as the glue reads it: a handle, held for the call, or a value.
 		let this = match object {
-			true => self.lift(
-				&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())),
-				"a[0]",
-				"false",
-			),
-			false => self.lift(ty, "a[0]", "false"),
+			true => self.lift(&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())), "a[0]"),
+			false => self.lift(ty, "a[0]"),
 		};
 		let pass = match object {
 			true => "this",
 			false => "&this",
 		};
 		// An object whose run-time checks may fail passes each its status, which raises.
-		let checked = matches!(ty, Type::Object(i) if self.abi.traits_status(*i));
+		let checked = self.abi.traits_status_of(ty);
 		let (status, arg) = match checked {
 			true => ("let mut status = 0;\n\t\t", ", &mut status"),
 			false => ("", ""),
@@ -863,11 +846,7 @@ impl<'a> Gen<'a> {
 			));
 		}
 		if object && t.eq {
-			let other = self.lift(
-				&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())),
-				"a[1]",
-				"false",
-			);
+			let other = self.lift(&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())), "a[1]");
 			self.native(
 				&format!("{bare}_eq"),
 				2,
@@ -999,7 +978,7 @@ impl<'a> Gen<'a> {
 				_ => format!("rt::attr(o, {key}, s)?"),
 			};
 			reads.push(format!("let x{n} = {read};"));
-			fields.push(format!("f{n}: {}?", self.lift(&field.ty, &format!("x{n}"), "false")));
+			fields.push(format!("f{n}: {}?", self.lift(&field.ty, &format!("x{n}"))));
 			writes.push(format!("({key}, {})", self.lower(&field.ty, &format!("v.f{n}"))));
 		}
 		if record.fields.is_empty() {
@@ -1128,7 +1107,7 @@ impl<'a> Gen<'a> {
 					for (k, f) in variant.fields.iter().enumerate() {
 						let key = self.key(&field_name(&f.name));
 						binds.push(format!("let x{k} = rt::attr(o, {key}, s)?;"));
-						fields.push(format!("f{k}: {}?", self.lift(&f.ty, &format!("x{k}"), "false")));
+						fields.push(format!("f{k}: {}?", self.lift(&f.ty, &format!("x{k}"))));
 						lowers.push(format!("({key}, {})", self.lower(&f.ty, &format!("p.f{k}"))));
 					}
 					reads.push(format!(
@@ -1326,7 +1305,7 @@ impl<'a> Gen<'a> {
 			Type::String => format!("rt::str_given({o})"),
 			// A closure's return has no caller to raise to, so a failed check aborts.
 			Type::Object(i) => format!(
-				"rt::hold({o}, {}, s, false).map(|h| crate::{}_copy(h{}))",
+				"rt::hold({o}, {}, s).map(|h| crate::{}_copy(h{}))",
 				self.t(&abi.object(*i)),
 				abi.object(*i),
 				match abi.traits_status(*i) {
@@ -1338,7 +1317,7 @@ impl<'a> Gen<'a> {
 				let some = self.given(inner, o);
 				format!("(if rt::is_none({o}) {{ Ok(std::ptr::null()) }} else {{ {some} }})")
 			}
-			_ => self.lift(ty, o, "false"),
+			_ => self.lift(ty, o),
 		}
 	}
 
@@ -1523,11 +1502,11 @@ impl<'a> Gen<'a> {
 						Receiver::Ref => Type::Ref(crate::ir::Mutability::Not, Box::new(ty)),
 						Receiver::Mut => Type::Ref(crate::ir::Mutability::Mut, Box::new(ty)),
 					};
-					stmts.push(format!("let p{n} = {}?;", self.lift(&ty, &format!("a[{n}]"), "true")));
+					stmts.push(format!("let p{n} = {}?;", self.lift(&ty, &format!("a[{n}]"))));
 					c_args.push(format!("p{n}"));
 				}
 				_ => {
-					stmts.push(format!("let p{n} = {}?;", self.lift(&ty, &format!("a[{n}]"), "false")));
+					stmts.push(format!("let p{n} = {}?;", self.lift(&ty, &format!("a[{n}]"))));
 					c_args.push(format!("&p{n}"));
 				}
 			}
@@ -1550,7 +1529,7 @@ impl<'a> Gen<'a> {
 				(Type::Ref(_, inner), _) if param.ty.written() => {
 					stmts.push(format!(
 						"let h{n} = rt::mut_value(a[{n}], s)?;\n\t\tlet p{n} = {}?;",
-						self.lift(inner, &format!("h{n}"), "true")
+						self.lift(inner, &format!("h{n}"))
 					));
 					c_args.push(format!("p{n}"));
 					written.push((n, (**inner).clone()));
@@ -1576,10 +1555,7 @@ impl<'a> Gen<'a> {
 					}
 				}
 				_ => {
-					stmts.push(format!(
-						"let p{n} = {}?;",
-						self.lift(&param.ty, &format!("a[{n}]"), "true")
-					));
+					stmts.push(format!("let p{n} = {}?;", self.lift(&param.ty, &format!("a[{n}]"))));
 					c_args.push(format!("p{n}"));
 				}
 			}
