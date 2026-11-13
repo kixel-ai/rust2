@@ -9,4 +9,3 @@ The workflow it writes takes no inputs.
 ## Required
 
 - [The pipeline](/quest/m2/crabx/pipeline.md) - the reusable workflow `init` calls
-- [The runner](/quest/m2/crabx/runner.md) - the binary `init` is a subcommand of

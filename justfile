@@ -12,6 +12,9 @@ mod go
 # The drivers' shared front end and rust2-lint, its own workspace on the TypeScript driver's nightly: `just driver <recipe>`.
 mod driver
 
+# Run a Rust CLI from a release: `just crabx <recipe>`.
+mod crabx
+
 # List the available development commands.
 default:
     @just --list
@@ -45,6 +48,7 @@ fix:
     shfmt -w bench/*/*.sh sh/*.sh
     taplo format
     nixfmt flake.nix
+    just crabx fix
     just ts fix
     just ffi fix
     just go fix
