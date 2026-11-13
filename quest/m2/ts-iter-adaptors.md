@@ -27,3 +27,13 @@ Decided with the maintainer on 2026-11-12, in the quest audit: ✅ before the ga
   not, and the report says what the profile showed instead.
 
 Public API: none.
+
+The preliminary experiment is in `bench/iter-adaptors/README.md` with the
+hand-edited route patch and exploratory harness. Chrome shows a promising
+speedup, but the original causal hypothesis is unconfirmed. Remaining work is
+native differential validation, the full `--route` benchmark in Chrome and
+Firefox, bundle-size comparison on that surface, and an isolated profile.
+
+## Waiting
+
+- Maintainer: the benchmark directly launches Chrome and Firefox, while agent instructions require only agent-browser for browser work. Recommend authorizing the benchmark CLI to launch its own browsers for this measurement, then completing the experiment before choosing compiler landing work.
