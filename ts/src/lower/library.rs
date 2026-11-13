@@ -1091,7 +1091,7 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		// over, and `fill` its value if there is no slot for it.
 		("slice", "fill" | "fill_with" | "clone_from_slice") => &[0],
 		// `vec![x; 0]` drops `x`.
-		("vec", "from_elem") => &[0],
+		("vec", "from_elem_global") => &[0],
 		// `get_or_init::<T, F>` drops its function uncalled if the cell is set.
 		("OnceCell" | "OnceLock", "get_or_init" | "get_or_try_init") => &[1],
 		// A guard's map calls its function, filtered or not.
@@ -2555,7 +2555,7 @@ fn mapping<'tcx>(
 		("Box", "assume_init") => args.pop()?,
 		// `vec![x; n]`: `n - 1` clones of `x`, then `x` itself, which the caller gives as its
 		// own, as it does whatever std keeps, or `x` dropped where `n` is 0.
-		("vec", "from_elem") => {
+		("vec", "from_elem_global") => {
 			let elem = targ(gargs, 0);
 			let mut values = args;
 			match byte(elem) {
@@ -3052,6 +3052,16 @@ fn mapping<'tcx>(
 			}
 		}
 		("panicking", "panic") => Expr::rs("panic", [args, hook_at(b)].concat()),
+		// `panic!()`, `unreachable!()`, `unimplemented!()`, and `todo!()` without a message.
+		("panicking", "panic_default_msg" | "unreachable_default_msg" | "unimplemented_default_msg" | "todo_default_msg") => {
+			let message = match name.as_str() {
+				"panic_default_msg" => "explicit panic",
+				"unreachable_default_msg" => "internal error: entered unreachable code",
+				"unimplemented_default_msg" => "not implemented",
+				_ => "not yet implemented",
+			};
+			Expr::rs("panic", [vec![Expr::Str(message.into())], hook_at(b)].concat())
+		}
 		// The harness writes a payload of text, and `Box<dyn Any>` for any other. A hook reads
 		// the payload itself: a `String`, a `&str`, or the `dyn Any` object of any other.
 		("panic", "panic_any") | ("panicking", "begin_panic") => {
@@ -3316,39 +3326,18 @@ fn mapping<'tcx>(
 			};
 			Expr::rs_of(of, &super::camel(&name)).call(args)
 		}
-		// Derived `Debug`: `debug_struct_field2_finish(f, name, "a", &a, "b", &b)`.
-		// Of slices of names and values.
-		("Formatter", "debug_struct_fields_finish" | "debug_tuple_fields_finish") => {
-			let mut values = args.into_iter();
-			let (f, type_name) = (values.next()?, values.next()?);
-			let finish = match name.as_str() {
-				"debug_struct_fields_finish" => "fmtDebugStructFields",
-				_ => "fmtDebugTupleFields",
-			};
-			Expr::rs(
-				finish,
-				[f, type_name].into_iter().chain(values.map(slice_items)).collect(),
-			)
+		// Derived `Debug`, whose names are the type's then its fields', space-separated:
+		// `debug_struct_field2_finish(f, "Point x y", &x, &y)`, past five fields of a slice.
+		("Formatter", "debug_struct_fields_finish") => {
+			let [f, names, values] = <[Expr; 3]>::try_from(args).ok()?;
+			Expr::rs("fmtDebugFields", vec![f, names, slice_items(values)])
 		}
-		("Formatter", n) if n.starts_with("debug_struct_field") || n.starts_with("debug_tuple_field") => {
-			let mut values = args.into_iter();
-			let (f, type_name) = (values.next()?, values.next()?);
-			let structure = n.starts_with("debug_struct");
-			let (of, start) = match structure {
-				true => ("debugStruct", "fmtDebugStruct"),
-				false => ("debugTuple", "fmtDebugTuple"),
-			};
-			let mut builder = Expr::rs(start, vec![f, type_name]);
-			let values: Vec<Expr> = values.collect();
-			let fields = match structure {
-				true => values.chunks(2).map(<[Expr]>::to_vec).collect::<Vec<_>>(),
-				false => values.into_iter().map(|v| vec![v]).collect(),
-			};
-			for field in fields {
-				builder = Expr::rs_of(of, "field").call([vec![builder], field].concat());
-			}
-			Expr::rs_of(of, "finish").call(vec![builder])
+		("Formatter", n) if n.starts_with("debug_struct_field") => {
+			let mut args = args.into_iter();
+			let (f, names) = (args.next()?, args.next()?);
+			Expr::rs("fmtDebugFields", vec![f, names, Expr::Array(args.collect())])
 		}
+		("Formatter", "debug_c_like_enum_write_str") => Expr::rs("fmtDebugEnum", args),
 		_ => return super::iter::call(b, call, &owner, &name, args),
 	};
 	if let Some(ty) = dropping {

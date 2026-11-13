@@ -597,7 +597,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	fn repeats(&self, def_id: DefId, args: ty::GenericArgs<'tcx>) -> bool {
 		let tcx = self.t.tcx;
 		crate::lower::library::is_std(tcx, def_id)
-			&& matches!(crate::lower::library::key(tcx, def_id), Some((owner, name)) if owner == "vec" && name == "from_elem")
+			&& matches!(crate::lower::library::key(tcx, def_id), Some((owner, name)) if owner == "vec" && name == "from_elem_global")
 			&& !self.shows_pointer(args.type_at(0))
 			&& !self.drops_own_code(args.type_at(0))
 	}

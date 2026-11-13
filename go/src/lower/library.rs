@@ -393,22 +393,15 @@ pub fn call_with<'tcx>(
 		| "<core::fmt::builders::DebugTuple>::finish"
 		| "<core::fmt::builders::DebugList>::finish" => expr(format!("{}.finish()", a[0])),
 		"<core::fmt::builders::DebugStruct>::finish_non_exhaustive" => expr(format!("{}.finishNonExhaustive()", a[0])),
-		k if k.starts_with("<core::fmt::Formatter>::debug_tuple_field") && k.ends_with("_finish") => {
-			expr(format!("{}.debugTupleFields({}, {})", a[0], a[1], a[2..].join(", ")))
-		}
+		// Derived `Debug`, whose names are the type's then its fields', space-separated.
 		"<core::fmt::Formatter>::debug_struct_fields_finish" => {
-			expr(format!("{}.debugStructFields({}, {}, {})", a[0], a[1], a[2], a[3]))
+			expr(format!("{}.debugFields({}, {})", a[0], a[1], a[2]))
 		}
 		k if k.starts_with("<core::fmt::Formatter>::debug_struct_field") && k.ends_with("_finish") => {
-			let names: Vec<&str> = a[2..].iter().step_by(2).map(String::as_str).collect();
-			let values: Vec<&str> = a[3..].iter().step_by(2).map(String::as_str).collect();
-			expr(format!(
-				"{}.debugStructFields({}, [][]uint8{{{}}}, []fmtDyn{{{}}})",
-				a[0],
-				a[1],
-				names.join(", "),
-				values.join(", ")
-			))
+			expr(format!("{}.debugFields({}, []fmtDyn{{{}}})", a[0], a[1], a[2..].join(", ")))
+		}
+		"<core::fmt::Formatter>::debug_c_like_enum_write_str" => {
+			expr(format!("{}.debugEnum({}, {})", a[0], a[1], a[2]))
 		}
 		"<str as core::fmt::Display>::fmt" => expr(format!("{}.pad({})", a[1], a[0])),
 		"<bool as core::fmt::Display>::fmt" | "<bool as core::fmt::Debug>::fmt" => expr(format!(
