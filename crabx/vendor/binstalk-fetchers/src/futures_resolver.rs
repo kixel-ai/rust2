@@ -11,28 +11,6 @@ pub struct FuturesResolver<T, E> {
 	tx: mpsc::Sender<Result<T, E>>,
 }
 
-#[cfg(test)]
-mod tests {
-	use super::*;
-
-	#[test]
-	fn success_survives_a_queued_error() {
-		crate::network::runtime().unwrap().block_on(async {
-			let mut resolver = FuturesResolver::<u8, &str>::default();
-			resolver.tx.send(Err("candidate failed")).await.unwrap();
-			let future = async { Ok(Some(42)) };
-			tokio::pin!(future);
-			let send = FuturesResolver::spawn_inner(future, resolver.tx.clone());
-			tokio::pin!(send);
-			// Poll while the error occupies the sole slot, then free it explicitly.
-			assert!(std::future::poll_fn(|cx| std::task::Poll::Ready(send.as_mut().poll(cx).is_pending())).await);
-			assert_eq!(resolver.rx.recv().await, Some(Err("candidate failed")));
-			send.await;
-			assert_eq!(resolver.resolve().await, Some(42));
-		});
-	}
-}
-
 impl<T, E> Default for FuturesResolver<T, E> {
 	fn default() -> Self {
 		// We only need the first one, so the channel is of size 1.
@@ -98,5 +76,27 @@ impl<T: Send + 'static, E: Send + Debug + 'static> FuturesResolver<T, E> {
 				}
 			}
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn success_survives_a_queued_error() {
+		crate::network::runtime().unwrap().block_on(async {
+			let mut resolver = FuturesResolver::<u8, &str>::default();
+			resolver.tx.send(Err("candidate failed")).await.unwrap();
+			let future = async { Ok(Some(42)) };
+			tokio::pin!(future);
+			let send = FuturesResolver::spawn_inner(future, resolver.tx.clone());
+			tokio::pin!(send);
+			// Poll while the error occupies the sole slot, then free it explicitly.
+			assert!(std::future::poll_fn(|cx| std::task::Poll::Ready(send.as_mut().poll(cx).is_pending())).await);
+			assert_eq!(resolver.rx.recv().await, Some(Err("candidate failed")));
+			send.await;
+			assert_eq!(resolver.resolve().await, Some(42));
+		});
 	}
 }
