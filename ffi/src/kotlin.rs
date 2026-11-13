@@ -319,8 +319,9 @@ class Bytes private constructor(
 ";
 
 /// The names the generated code uses unqualified, which no exported type or function may
-/// take. The runtime's own are the C ABI's: `Native`, `Waker`, `Bytes`, `Mut`, and `Bound`
-/// are claimed as `<prefix>_native`, `<prefix>_waker`, `<prefix>_bytes`, `<prefix>_mut`, and
+/// take, including each class of the runtime, which `Native` nests and so shadows a type of
+/// the same name inside its glue. The runtime's own are the C ABI's: `Native`, `Waker`,
+/// `Bytes`, `Mut`, and `Bound` are claimed as `<prefix>_native`, `<prefix>_waker`, `<prefix>_bytes`, `<prefix>_mut`, and
 /// `<prefix>_bound`.
 const TAKEN: &[&str] = &[
 	"Any",
@@ -328,12 +329,24 @@ const TAKEN: &[&str] = &[
 	"Boolean",
 	"Byte",
 	"ByteArray",
+	"Cleanup",
 	"Double",
+	"Drop",
 	"Exception",
+	"Failed",
 	"Float",
+	"Free",
+	"Handle",
 	"Int",
+	"Lent",
 	"Long",
+	"Pending",
+	"Pollable",
+	"Ready",
+	"Reader",
+	"Returned",
 	"Short",
+	"Signal",
 	"StartSeekable",
 	"String",
 	"UByte",
@@ -341,6 +354,7 @@ const TAKEN: &[&str] = &[
 	"ULong",
 	"UShort",
 	"Unit",
+	"Writer",
 	"check",
 	"error",
 ];
@@ -2834,4 +2848,38 @@ pub(crate) fn indent_by(code: &str, n: usize) -> String {
 		out.pop();
 	}
 	out
+}
+
+#[cfg(test)]
+mod tests {
+	/// Every class the runtime declares is taken, so an exported type of its name is renamed
+	/// rather than shadowed inside `Native`.
+	#[test]
+	fn runtime_classes_taken() {
+		for line in super::RUNTIME.lines() {
+			let words: Vec<&str> = line.split_whitespace().collect();
+			let Some(at) = words
+				.iter()
+				.position(|w| matches!(*w, "class" | "interface" | "object"))
+			else {
+				continue;
+			};
+			if at > 0 && words[at - 1] == "fun" || line.starts_with(['\t', ' ']) {
+				continue;
+			}
+			let name: String = words[at + 1]
+				.chars()
+				.take_while(|c| c.is_alphanumeric() || *c == '_')
+				.collect();
+			if words[..at].iter().all(|w| {
+				matches!(
+					*w,
+					"abstract" | "private" | "internal" | "open" | "data" | "sealed" | "fun"
+				)
+			}) && !name.is_empty()
+			{
+				assert!(super::taken(&name), "the runtime's class {name} is not in TAKEN");
+			}
+		}
+	}
 }
