@@ -8,7 +8,7 @@ use rust2_driver::cargo::{Args, Check, Output};
 
 use crate::config::{self, Config};
 
-const USAGE: &str = "usage: rust2-ffi --config <ffi.toml> (--out <dir> | --census <dir> | --api <file>) [--manifest-path <Cargo.toml>] [--target <triple>]... [--with <file>]... [-- <cargo args>]
+const USAGE: &str = "usage: rust2-ffi --config <ffi.toml> (--out <dir> | --census <dir> | --api <file>) [--manifest-path <Cargo.toml>] [--target <triple>]... [--with <file>]... [--baseline <api.json>] [-- <cargo args>]
 
 Exports the pub API of the package's library, following its `pub use` re-exports into
 other crates, as one library: a crate in <dir> that builds the C ABI, with its C header
@@ -24,6 +24,12 @@ alone.
 
 --api writes one target's API to <file> instead of exporting, for an export on another
 host, whose C toolchain the check of a target may need, to add with --with <file>.
+
+Each export writes its API, of every target it serves, to <dir>/api.json. --baseline
+fails the export where its API breaks the one an earlier export wrote there: an item
+removed, or no longer on a target; a signature, field, or variant changed; or a C name
+that now names another item. Commit api.json beside Cargo.lock as the baseline, and
+replace it to accept a break.
 
 --census writes a Markdown report, <dir>/<package>.md, of what exports and of every
 construct the export refuses, instead of exporting.";
@@ -55,6 +61,9 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		(Output::Dir(_), Some(api)) => (config::env::API, api),
 		(Output::Census(_), Some(_)) => return Err(format!("--api and --census are each an output\n\n{USAGE}")),
 	};
+	if output.0 != config::env::OUT && own.baseline.is_some() {
+		return Err(format!("--baseline checks an export: give it with --out\n\n{USAGE}"));
+	}
 	if output.0 != config::env::OUT && (targets.len() > 1 || !own.with.is_empty()) {
 		return Err(format!(
 			"--census and --api write one target's: give at most one --target and no --with\n\n{USAGE}"
@@ -72,7 +81,8 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let workspace = rust2_driver::cargo::workspace_root(Some(&args.manifest))?;
 	let roots = std::env::join_paths(std::iter::once(workspace).chain(cargo_home))
 		.map_err(|err| format!("joining the roots of spans: {err}"))?;
-	let check = |target: &str, output: (&str, &std::ffi::OsStr), merge: &std::ffi::OsStr| {
+	let baseline = own.baseline.unwrap_or_default();
+	let check = |target: &str, output: (&str, &std::ffi::OsStr), merge: &std::ffi::OsStr, baseline: &Path| {
 		Check {
 			tool: "rust2-ffi",
 			manifest: &args.manifest,
@@ -86,6 +96,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 				(config::env::PACKAGE, line.as_ref()),
 				(config::env::PATCH, patch.as_ref()),
 				(config::env::MERGE, merge),
+				(config::env::BASELINE, baseline.as_os_str()),
 				(config::env::ROOTS, roots.as_ref()),
 				output,
 			],
@@ -100,14 +111,14 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		let mut merge = own.with.clone();
 		for target in rest {
 			let staged = crate::merge::staged(&stage, target);
-			let code = check(target, (config::env::API, staged.as_os_str()), "".as_ref())?;
+			let code = check(target, (config::env::API, staged.as_os_str()), "".as_ref(), "".as_ref())?;
 			if code != ExitCode::SUCCESS {
 				return Ok(code);
 			}
 			merge.push(staged);
 		}
 		let merge = std::env::join_paths(&merge).map_err(|err| format!("joining the paths to merge: {err}"))?;
-		check(last, (output.0, output.1.as_os_str()), &merge)
+		check(last, (output.0, output.1.as_os_str()), &merge, &baseline)
 	};
 	let code = run();
 	if stage.exists() {
@@ -193,6 +204,8 @@ struct Own {
 	with: Vec<PathBuf>,
 	/// `--api`: write the target's API here instead of exporting.
 	api: Option<PathBuf>,
+	/// `--baseline`: the API an earlier export wrote, which this one's must not break.
+	baseline: Option<PathBuf>,
 }
 
 impl Own {
@@ -203,12 +216,13 @@ impl Own {
 			targets: Vec::new(),
 			with: Vec::new(),
 			api: None,
+			baseline: None,
 		};
 		let mut rest = Vec::new();
 		let mut args = args.iter();
 		while let Some(arg) = args.next() {
 			let flag = arg.as_str();
-			if !matches!(flag, "--target" | "--with" | "--api") {
+			if !matches!(flag, "--target" | "--with" | "--api" | "--baseline") {
 				// The cargo args, and the rest after them, are cargo's.
 				if flag == "--" {
 					rest.push(arg.clone());
@@ -227,6 +241,10 @@ impl Own {
 				}
 				"--target" => own.targets.push(value.clone()),
 				"--with" => own.with.push(absolute(value)?),
+				"--baseline" if own.baseline.is_some() => {
+					return Err(format!("--baseline is given twice\n\n{USAGE}"));
+				}
+				"--baseline" => own.baseline = Some(absolute(value)?),
 				_ if own.api.is_some() => return Err(format!("--api is given twice\n\n{USAGE}")),
 				_ => {
 					let api = absolute(value)?;

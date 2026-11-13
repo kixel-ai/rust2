@@ -83,9 +83,8 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   which waits on a rind release the maintainer holds.
 - ✅ Every change that breaks the C ABI or a generated API is a child here, so it lands
   before moq pins: [the fused async start](/quest/m1/ffi-export/async-start.md),
-  [owned buffers](/quest/m1/ffi-export/owned-bufs.md),
-  [numeric slices](/quest/m1/ffi-export/numeric-slices.md), and
-  [the API lock](/quest/m1/ffi-export/api-lock.md). Work that changes no generated API is
+  [owned buffers](/quest/m1/ffi-export/owned-bufs.md), and
+  [numeric slices](/quest/m1/ffi-export/numeric-slices.md). Work that changes no generated API is
   [its own epic](/quest/m1/ffi-speed/README.md), which does not hold the pin.
 - Not planned: one walker emitting lift and lower instructions every generator
   implements, as wit-bindgen's `Bindgen` does. A new rule touches 19 to 38 files today,

@@ -1,0 +1,10 @@
+fixtures/lock/src/lib.rs:106:1: rust2-ffi: the API breaks the baseline at enum `lock::Mode`: variant `Idle` is added to an exhaustive enum
+fixtures/lock/src/lib.rs:113:1: rust2-ffi: the API breaks the baseline at enum `lock::Shape`: variant `Circle`'s field `0`'s type changed
+fixtures/lock/src/lib.rs:21:2: rust2-ffi: the API breaks the baseline at const `lock::limits_max::RATE`: its C name `LOCK_LIMITS_MAX_RATE` is now `LOCK_LIMITS_MAX_RATE_`, and `LOCK_LIMITS_MAX_RATE` names const `lock::limits::MAX_RATE`
+fixtures/lock/src/lib.rs:30:1: rust2-ffi: the API breaks the baseline at fn `lock::removed`: it is removed
+fixtures/lock/src/lib.rs:36:1: rust2-ffi: the API breaks the baseline at fn `lock::portable`: it is no longer on wasm32-unknown-unknown
+fixtures/lock/src/lib.rs:46:1: rust2-ffi: the API breaks the baseline at fn `lock::scale`: its parameter `x`'s type; its return type
+fixtures/lock/src/lib.rs:66:2: rust2-ffi: the API breaks the baseline at fn `lock::Meter::add`: its parameter `n`'s type
+fixtures/lock/src/lib.rs:7:2: rust2-ffi: the API breaks the baseline at fn `lock::audio_encoder::finish`: its C name `lock_audio_encoder_finish` is now `lock_audio_encoder_finish_`, and `lock_audio_encoder_finish` names fn `lock::audio::encoder_finish`
+fixtures/lock/src/lib.rs:86:1: rust2-ffi: the API breaks the baseline at struct `lock::Size`: field `depth` is added, which every value must now give
+fixtures/lock/src/lib.rs:94:1: rust2-ffi: the API breaks the baseline at struct `lock::Canvas`: field `width`'s type changed
