@@ -2333,7 +2333,10 @@ fn ret_expr(c: &Ty, ok: &Type) -> String {
 		Ty::Waker => "rt::returned(ret)".to_string(),
 		Ty::Buf if string(ok) => "rt::owned(env, ret)".to_string(),
 		Ty::Buf => "rt::hand(env, ret)".to_string(),
-		_ => format!("{{ let mut w = rt::Writer::default(); {}; w.array(env) }}", put(ok, "ret")),
+		_ => format!(
+			"{{ let mut w = rt::Writer::default(); {}; w.array(env) }}",
+			put(ok, "ret")
+		),
 	}
 }
 
@@ -2346,7 +2349,9 @@ fn direct(outs: &[(String, Ty)], written: &[(String, Type)], ok: &Type, err: Opt
 	match outs {
 		[_] => Some(Ty::Void),
 		[(_, Ty::Out(c)), _] if !matches!(ok, Type::Tuple(e) if e.len() > 1) => match &**c {
-			Ty::Bool | Ty::Int(_) | Ty::F32 | Ty::F64 | Ty::Char | Ty::Enum(_) | Ty::Handle { .. } => Some((**c).clone()),
+			Ty::Bool | Ty::Int(_) | Ty::F32 | Ty::F64 | Ty::Char | Ty::Enum(_) | Ty::Handle { .. } => {
+				Some((**c).clone())
+			}
 			_ => None,
 		},
 		_ => None,
