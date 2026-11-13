@@ -242,6 +242,7 @@ pub fn failing_borrowed() -> Result<u32, &'static str> {
 }
 
 /// Error wrappers and variants occupy their own language namespaces.
+#[cfg(not(feature = "closures"))]
 pub fn failing() -> Result<u32, String> {
 	Err("failure".to_string())
 }
@@ -268,4 +269,31 @@ pub struct ModeFast {
 #[allow(non_snake_case)]
 pub struct FieldName {
 	pub GoString: u32,
+}
+
+/// Different Rust integer errors reuse Python's IntException.
+pub fn failing_integer() -> Result<(), u32> {
+	Err(1)
+}
+
+impl Members {
+	#[cfg(feature = "added")]
+	pub fn failing_integer(&self) -> Result<(), u64> {
+		Err(2)
+	}
+	#[cfg(feature = "added")]
+	pub fn failing_path(&self) -> Result<(), std::path::PathBuf> {
+		Err("error".into())
+	}
+}
+
+#[cfg(feature = "closures")]
+pub fn attempt(check: impl FnOnce() -> Result<(), String>) {
+	let _ = check();
+}
+
+impl FieldName {
+	pub fn debug_description(&self, meter: Option<&Meter>) -> u64 {
+		meter.map_or(0, Meter::total)
+	}
 }

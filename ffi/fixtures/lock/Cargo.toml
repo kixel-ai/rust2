@@ -20,6 +20,7 @@ added = []
 names = []
 members = []
 wrappers = []
+closures = []
 
 [lints]
 workspace = true

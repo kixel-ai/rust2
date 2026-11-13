@@ -1350,17 +1350,18 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String => "StringException".to_string(),
 			_ => format!("{}Exception", pascal_type(&py)),
 		};
-		match self.thrown.get(&name) {
+		let thrown = match self.thrown.get(&name) {
 			Some(thrown) => thrown.clone(),
 			None => {
 				let thrown = self.claim(&name, format!("the exception of `{py}`"));
 				self.thrown.insert(name, thrown.clone());
-				self.locked.insert(crate::lock::error_key(self.abi, e), thrown.clone());
 				self.exceptions.insert(thrown.clone(), e.clone());
 				self.register(&format!("exc_{thrown}"), thrown.clone());
 				thrown
 			}
-		}
+		};
+		self.locked.insert(crate::lock::error_key(self.abi, e), thrown.clone());
+		thrown
 	}
 
 	/// The glue's expression, an `R<Obj>`, of a buffer `p` Rust lends for a call: text

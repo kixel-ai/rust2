@@ -1511,10 +1511,35 @@ fn lock() {
 		"its Dart name `ShapeCircle` is now `ShapeCircle_`",
 		"its Go name `ModeFast` is now `ModeFast_`",
 		"its Go name `GoString` is now `GoString_`",
+		"/ omitted 0: its Swift name `debugDescription` is now `debugDescription_`",
 	] {
 		assert!(stderr.contains(text), "missing {text}:\n{stderr}");
 	}
 	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	let closure_base = dir.join("closure-base");
+	let output = export("lock", &closure_base, &targets, &["--features", "closures"]);
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let closure_baseline = closure_base.join("api.json");
+	let args = ["--baseline".as_ref(), closure_baseline.as_os_str()];
+	let output = exporter(
+		"lock",
+		&dir.join("closure-break"),
+		&targets,
+		&args,
+		&["--features", "closures,wrappers"],
+	)
+	.output()
+	.unwrap();
+	assert!(!output.status.success());
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	for language in ["Kotlin", "Python", "Dart"] {
+		assert!(
+			stderr.contains(&format!(
+				"exception class for `string`: its {language} name `StringException` is now `StringException_`"
+			)),
+			"{stderr}"
+		);
+	}
 	let next = locked("next");
 	assert!(!next.status.success(), "breaking the baseline passed");
 	assert!(

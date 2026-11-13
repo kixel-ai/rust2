@@ -107,13 +107,43 @@ pub fn name_breaks(base: &Names, now: &Names, api: &Api, prefix: &str) -> Vec<Br
 		.chain(api.enums.iter().flat_map(|e| &e.methods))
 		.chain(api.objects.iter().flat_map(|o| &o.methods));
 	for function in functions {
-		if let Some(err) = &function.err {
+		let mut record = |err: &Type| {
 			let key = error_key(&abi, err);
 			locations.entry(key.clone()).or_insert((
 				function.span,
 				format!("exception class for `{}`", key.strip_prefix("error ").unwrap()),
 			));
+		};
+		if let Some(err) = &function.err {
+			record(err);
 		}
+		for param in &function.params {
+			crate::ir::each(&param.ty, &mut |ty| {
+				if let Type::Closure(closure) = ty
+					&& let Some(err) = &closure.err
+				{
+					record(err);
+				}
+			});
+		}
+	}
+	let homes = api
+		.records
+		.iter()
+		.map(|r| (&r.home, r.span))
+		.chain(api.enums.iter().map(|e| (&e.home, e.span)))
+		.chain(api.objects.iter().map(|o| (&o.home, o.span)))
+		.chain(api.callbacks.iter().map(|c| (&c.home, c.span)))
+		.chain(api.functions.iter().map(|f| (&f.home, f.span)))
+		.chain(api.constants.iter().map(|c| (&c.home, c.span)));
+	for krate in &api.crates {
+		locations.insert(format!("crate {krate}"), (DUMMY_SP, format!("crate `{krate}`")));
+	}
+	for (home, span) in homes {
+		locations.insert(
+			format!("crate {}", home.krate),
+			(span, format!("crate `{}`", home.krate)),
+		);
 	}
 	let mut breaks = Vec::new();
 	for (language, names) in base {

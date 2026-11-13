@@ -1688,6 +1688,7 @@ impl<'a> Gen<'a> {
 	fn exception(&mut self, e: &Type) -> String {
 		let kt = self.kt(e);
 		if let Some(name) = self.thrown.get(&kt) {
+			self.locked.insert(crate::lock::error_key(self.abi, e), name.clone());
 			return name.clone();
 		}
 		let name = format!("{}Exception", kt.replace(['?', '<', '>', ',', ' ', '.'], ""));

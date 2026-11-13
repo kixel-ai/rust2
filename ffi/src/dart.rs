@@ -2306,11 +2306,11 @@ impl<'a> Gen<'a> {
 					None => {
 						let dt = self.dt(err);
 						let name = self.claim(&format!("{}Exception", pascal(&key)), format!("the error type `{dt}`"));
-						self.locked.insert(crate::lock::error_key(self.abi, err), name.clone());
 						self.thrown.insert(name.clone(), err.clone());
 						name
 					}
 				};
+				self.locked.insert(crate::lock::error_key(self.abi, err), name.clone());
 				Thrown::Wrapped(name)
 			}
 		}

@@ -1713,7 +1713,11 @@ impl<'a> Gen<'a> {
 				}
 			}
 		}
-		crate::lock::function(&mut self.locked, function, &member);
+		let omitted = left.iter().map(usize::to_string).collect::<Vec<_>>().join(",");
+		self.locked.insert(
+			format!("{} / omitted {omitted}", crate::lock::function_key(function)),
+			member.clone(),
+		);
 
 		let head = match var {
 			true => format!("public {stat}var {member}{}", ret.replacen(" -> ", ": ", 1)),
@@ -1768,11 +1772,11 @@ impl<'a> Gen<'a> {
 					None => {
 						let name = format!("{}Error", pascal(&key));
 						let name = self.claim(&name, &[], format!("the error type `{}`", self.sw(err)));
-						self.locked.insert(crate::lock::error_key(self.abi, err), name.clone());
 						self.thrown.insert(name.clone(), err.clone());
 						name
 					}
 				};
+				self.locked.insert(crate::lock::error_key(self.abi, err), name.clone());
 				Thrown::Wrapped(name)
 			}
 		}

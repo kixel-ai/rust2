@@ -162,6 +162,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 		errors.append(&mut g.errors);
 		tuples.extend(g.tuples.iter().copied());
 		let name = set.name(krate);
+		locked.insert(format!("crate {krate}"), name.to_string());
 		let doc = format!(
 			"// Package {name} is the pub API of the crate {krate} in {packages}, over its C ABI\n\
 			// through cgo. Link the library built with {p}.h, through CGO_LDFLAGS.\n",
@@ -2832,4 +2833,32 @@ fn indent(code: &str) -> String {
 		out.pop();
 	}
 	out
+}
+
+#[test]
+fn package_names_are_locked() {
+	let mut api = crate::ir::Api {
+		records: vec![],
+		enums: vec![],
+		objects: vec![],
+		callbacks: vec![],
+		functions: vec![],
+		constants: vec![],
+		crates: vec!["lock_foobar".into()],
+		targets: vec!["host".into()],
+	};
+	let old = generate(&Abi::new(&api, "lock"), "lock", 0, "lock").unwrap();
+	assert_eq!(old.names["crate lock_foobar"], "foobar");
+	api.crates.insert(0, "lock_foo_bar".into());
+	let new = generate(&Abi::new(&api, "lock"), "lock", 0, "lock").unwrap();
+	assert_eq!(new.names["crate lock_foobar"], "foobar_");
+	assert!(new.files.iter().any(|(path, _)| path == "foobar_/foobar_.go"));
+	let breaks = crate::lock::name_breaks(
+		&BTreeMap::from([("Go".into(), old.names)]),
+		&BTreeMap::from([("Go".into(), new.names)]),
+		&api,
+		"lock",
+	);
+	assert_eq!(breaks.len(), 1);
+	assert!(breaks[0].what.contains("its Go name `foobar` is now `foobar_`"));
 }
