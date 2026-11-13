@@ -226,9 +226,6 @@ export function hashed$wraps_Tick_usize(v: Tick.Tick<rs.usize>): rs.u64 {
  * shift amount, which may pass the width many times over.
  */
 export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v: rs.u8): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u8ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.u8 = (at: rs.usize): rs.u8 => {
 		const buf: Uint8Array = Uint8Array.of(0);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -249,6 +246,9 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 1, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v: rs.u8): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u8ToBeBytes(v)));
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.u8WrappingAdd(a, b);
@@ -409,9 +409,6 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v: rs.u16): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u16ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.u16 = (at: rs.usize): rs.u16 => {
 		const buf: Uint8Array = rs.bytes(2);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -432,6 +429,9 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 2, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v: rs.u16): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u16ToBeBytes(v)));
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.u16WrappingAdd(a, b);
@@ -592,9 +592,6 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u32ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.u32 = (at: rs.usize): rs.u32 => {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -615,6 +612,9 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 4, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u32ToBeBytes(v)));
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.u32WrappingAdd(a, b);
@@ -775,9 +775,6 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v: rs.u64): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u64ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.u64 = (at: rs.usize): rs.u64 => {
 		const buf: Uint8Array = rs.bytes(8);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -798,6 +795,9 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 8, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v: rs.u64): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u64ToBeBytes(v)));
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.u64WrappingAdd(a, b);
@@ -958,9 +958,6 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v: rs.u128): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.u128 = (at: rs.usize): rs.u128 => {
 		const buf: Uint8Array = rs.bytes(16);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -981,6 +978,9 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 16, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v: rs.u128): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v)));
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.u128WrappingAdd(a, b);
@@ -1141,9 +1141,6 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v: rs.usize): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.usizeToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.usize = (at: rs.usize): rs.usize => {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -1164,6 +1161,9 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 4, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v: rs.usize): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.usizeToBeBytes(v)));
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.usizeWrappingAdd(a, b);
@@ -1324,9 +1324,6 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v: rs.i8): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i8ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.i8 = (at: rs.usize): rs.i8 => {
 		const buf: Uint8Array = Uint8Array.of(0);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -1347,6 +1344,9 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 1, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v: rs.i8): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i8ToBeBytes(v)));
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.i8WrappingAdd(a, b);
@@ -1509,9 +1509,6 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v: rs.i16): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i16ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.i16 = (at: rs.usize): rs.i16 => {
 		const buf: Uint8Array = rs.bytes(2);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -1532,6 +1529,9 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 2, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v: rs.i16): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i16ToBeBytes(v)));
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.i16WrappingAdd(a, b);
@@ -1694,9 +1694,6 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v: rs.i32): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i32ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.i32 = (at: rs.usize): rs.i32 => {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -1717,6 +1714,9 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 4, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v: rs.i32): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i32ToBeBytes(v)));
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.i32WrappingAdd(a, b);
@@ -1879,9 +1879,6 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v: rs.i64): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i64ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.i64 = (at: rs.usize): rs.i64 => {
 		const buf: Uint8Array = rs.bytes(8);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -1902,6 +1899,9 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 8, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v: rs.i64): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i64ToBeBytes(v)));
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.i64WrappingAdd(a, b);
@@ -2064,9 +2064,6 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v: rs.i128): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.i128 = (at: rs.usize): rs.i128 => {
 		const buf: Uint8Array = rs.bytes(16);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -2087,6 +2084,9 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 16, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v: rs.i128): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v)));
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.i128WrappingAdd(a, b);
@@ -2249,9 +2249,6 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  * shift amount, which may pass the width many times over.
  */
 export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _30: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v: rs.isize): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.isizeToBeBytes(v)));
-	};
 	const take: (a0: rs.usize) => rs.isize = (at: rs.usize): rs.isize => {
 		const buf: Uint8Array = rs.bytes(4);
 		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
@@ -2272,6 +2269,9 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(3 * 4, i2)), 0);
 	};
 	const n: rs.usize = ((byte(1) << 24) | byte(0)) >>> 0 as rs.usize;
+	const _30: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v: rs.isize): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.isizeToBeBytes(v)));
+	};
 	const _31: rs.u8 = rs.u8Rem(kind, 24);
 	if (_31 === 0) {
 		const part45 = rs.isizeWrappingAdd(a, b);

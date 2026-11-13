@@ -7,12 +7,7 @@ export function clone$Clone(self: Named): Named {
 }
 
 export function fmt$fmt_Debug(self: Named, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Named";
-	const _4: string = "name";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.fmtStr(rs.strCowStr(self.name), f);
-	const _7: string = "id";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.id, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Named name id", [(f: rs.Formatter) => rs.fmtStr(rs.strCowStr(self.name), f), (f: rs.Formatter) => rs.u8Debug(self.id, f)]);
 }
 
 export function default$Default(): Named {

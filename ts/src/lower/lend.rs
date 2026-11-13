@@ -9,7 +9,7 @@
 //! is a slice on both sides: a `&T` where `T = [T; N]`, not a `T` where `T = &[T; N]`.
 
 use rustc_hir::def_id::DefId;
-use rustc_middle::ty::{self, EarlyBinder, GenericArgsRef, Instance, Ty, TypingEnv};
+use rustc_middle::ty::{self, CallerBoundsIterator as _, EarlyBinder, GenericArgs, Instance, Ty, TypingEnv};
 use rustc_span::Span;
 
 use super::Translator;
@@ -54,7 +54,7 @@ pub struct Closure<'tcx> {
 }
 
 /// What a call of std's `def_id` lends.
-pub fn plan<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRef<'tcx>) -> Plan<'tcx> {
+pub fn plan<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgs<'tcx>) -> Plan<'tcx> {
 	let tcx = t.tcx;
 	if t.translated(def_id, args) || !args.types().any(owns_array) || super::array_slice::native(tcx, def_id, args) {
 		return Plan::Untouched;
@@ -160,13 +160,15 @@ pub fn plan<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRef<
 
 /// Whether `def_id` is a method of a collection whose runtime reads the bytes it is given
 /// in either form.
-fn collection<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRef<'tcx>) -> bool {
+fn collection<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgs<'tcx>) -> bool {
 	let tcx = t.tcx;
 	// An inherent method's type, or a trait method's `Self`.
 	let coll = match tcx.inherent_impl_of_assoc(def_id) {
 		Some(imp) => {
 			let generics = tcx.generics_of(imp).count();
-			tcx.type_of(imp).instantiate(tcx, &args[..generics]).skip_norm_wip()
+			tcx.type_of(imp)
+				.instantiate(tcx, &args.as_slice()[..generics])
+				.skip_norm_wip()
 		}
 		None => match args.types().next() {
 			Some(ty) => ty.peel_refs(),
@@ -201,13 +203,13 @@ fn owns_array(ty: Ty<'_>) -> bool {
 /// `next` makes it.
 pub struct Sig<'tcx> {
 	def_id: DefId,
-	args: GenericArgsRef<'tcx>,
+	args: GenericArgs<'tcx>,
 	generic: ty::FnSig<'tcx>,
 	sig: ty::FnSig<'tcx>,
 }
 
 impl<'tcx> Sig<'tcx> {
-	pub fn of(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRef<'tcx>) -> Self {
+	pub fn of(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgs<'tcx>) -> Self {
 		let tcx = t.tcx;
 		let generic = tcx.fn_sig(def_id).instantiate_identity().skip_norm_wip();
 		let generic = normalize(
@@ -236,14 +238,15 @@ impl<'tcx> Sig<'tcx> {
 		if !matches!(f.kind(), ty::Param(_)) {
 			return None;
 		}
-		let bounds = tcx.param_env(self.def_id).caller_bounds();
-		let trait_pred = (bounds.clone().filter_map(|c| c.as_trait_clause()))
+		let env = tcx.param_env(self.def_id);
+		let bounds = || env.caller_bounds().all_clauses(tcx).iter();
+		let trait_pred = (bounds().filter_map(|c| c.as_trait_clause()))
 			.map(|p| tcx.instantiate_bound_regions_with_erased(p))
 			.find(|p| p.self_ty() == f && tcx.is_fn_trait(p.def_id()))?;
 		let ty::Tuple(params) = trait_pred.trait_ref.args.type_at(1).kind() else {
 			return None;
 		};
-		let output = (bounds.filter_map(|c| c.as_projection_clause()))
+		let output = (bounds().filter_map(|c| c.as_projection_clause()))
 			.map(|p| tcx.instantiate_bound_regions_with_erased(p))
 			.find(|p| p.self_ty() == f && tcx.is_lang_item(p.def_id(), rustc_attr_ir::LangItem::FnOnceOutput))
 			.and_then(|p| p.term.as_type());

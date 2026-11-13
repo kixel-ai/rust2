@@ -31,7 +31,9 @@ the call and never frees", so its owner is never read.
   header fails at load.
 
 Prove it in every language's `api` test with a payload read and written back, checked for
-identity of the storage where the language can see it, and re-measure the bench's write
+identity of the storage where the language can see it, delete its Kotlin and Go `KNOWN`
+entries in [the shape tests](/ffi/tests/fixtures/shapes.rs), which a returned payload
+passed back now compiles in, and re-measure the bench's write
 and throughput rows.
 
 Public API: the C ABI's meaning of an input buffer's owner (breaking), `<prefix>_buf_clone`,

@@ -82,9 +82,12 @@ impl Packages {
 				name.insert_str(0, "crate");
 			}
 			name += count;
-			// A name Go, cgo, or the runtime takes, or an earlier crate's, takes a trailing
-			// `_`, which no crate's name keeps.
-			while ["C", "main"].contains(&name.as_str()) || keyword(&name) || by_crate.values().any(|(n, _)| *n == name)
+			// A name Go, cgo, or the runtime takes, or one an earlier crate's matches ignoring
+			// case, as a case-insensitive filesystem would, takes a trailing `_`, which no
+			// crate's name keeps.
+			while ["C", "main"].contains(&name.as_str())
+				|| keyword(&name)
+				|| by_crate.values().any(|(n, _)| n.eq_ignore_ascii_case(&name))
 			{
 				name.push('_');
 			}
@@ -98,14 +101,44 @@ impl Packages {
 	}
 }
 
+/// The generated Go files and their public names.
+pub struct Output {
+	pub files: Vec<(String, String)>,
+	pub names: BTreeMap<String, String>,
+}
+
+/// Each crate's Go package name, by crate, which also names its C++ header.
+pub fn packages(abi: &Abi<'_>) -> BTreeMap<String, String> {
+	let mut by_crate = Packages::new(abi, "").by_crate;
+	by_crate.remove(Packages::RT);
+	by_crate.into_iter().map(|(krate, (name, _))| (krate, name)).collect()
+}
+
 /// The Go for `abi`, whose header's contract is `contract`, as each file under `go/` by its
 /// path there, for the module path `module` of `go/`; or the names two items claim alike.
-pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> Result<Vec<(String, String)>, String> {
+pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> Result<Output, String> {
 	let set = Packages::new(abi, module);
 	let types = abi.classes(|home| (home.krate.clone(), home.outside - 1), |_| false);
+	let mut locked = crate::lock::types(abi, &types);
 	let classes = classes(abi, &types);
 	let thrown = thrown(abi, &classes);
+	// Every error a function returns, under each spelling that shares its exception.
+	let api = abi.api;
+	let errors = (api.records.iter().flat_map(|r| &r.methods))
+		.chain(api.enums.iter().flat_map(|e| &e.methods))
+		.chain(api.objects.iter().flat_map(|o| &o.methods))
+		.chain(&api.functions)
+		.filter_map(|f| f.err.as_ref());
+	for err in errors {
+		let key = abi.key(err);
+		if let Some((name, (home, _))) = thrown.iter().find(|(_, (_, ty))| abi.key(ty) == key) {
+			locked.insert(crate::lock::error_key(abi, err), format!("{home}::{name}"));
+		}
+	}
 	let variants = variants(abi, &types, &classes, &thrown);
+	crate::lock::variants(abi, &mut locked, |c, v| {
+		variants.get(&(c.to_string(), v.to_string())).cloned()
+	});
 	// What each package's types, their variants and tables, and its errors take.
 	let mut taken: BTreeMap<String, BTreeSet<String>> = classes.clone();
 	for ((c, _), name) in &variants {
@@ -147,9 +180,11 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 	for krate in &abi.api.crates {
 		let mut g = Gen::new(abi, &set, krate, &shared);
 		g.write();
+		locked.append(&mut g.locked);
 		errors.append(&mut g.errors);
 		tuples.extend(g.tuples.iter().copied());
 		let name = set.name(krate);
+		locked.insert(format!("crate {krate}"), name.to_string());
 		let doc = format!(
 			"// Package {name} is the pub API of the crate {krate} in {packages}, over its C ABI\n\
 			// through cgo. Link the library built with {p}.h, through CGO_LDFLAGS.\n",
@@ -174,7 +209,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 	}
 	files.push(("rt/rt.go".to_string(), rt.runtime(packages, contract)));
 	files.push(("rt/types.go".to_string(), rt.file("")));
-	Ok(files)
+	Ok(Output { files, names: locked })
 }
 
 /// Each error type that is no exported type, named by its key as its C structs are, so two
@@ -348,6 +383,7 @@ fn uses(code: &str, name: &str) -> bool {
 
 /// A Go function: its doc comment, receiver, name, parameters, results, and body.
 struct Method {
+	key: Option<String>,
 	docs: String,
 	receiver: Option<String>,
 	name: String,
@@ -382,6 +418,7 @@ impl Method {
 }
 
 struct Gen<'a> {
+	locked: BTreeMap<String, String>,
 	abi: &'a Abi<'a>,
 	set: &'a Packages,
 	/// The crate whose package this is, or [`Packages::RT`].
@@ -434,6 +471,7 @@ impl<'a> Gen<'a> {
 			.map(|name| (name.clone(), "a type".to_string()))
 			.collect();
 		Self {
+			locked: BTreeMap::new(),
 			abi,
 			set,
 			pkg,
@@ -1098,6 +1136,8 @@ impl<'a> Gen<'a> {
 			let c = abi.name(&constant.path);
 			let name = rest(&abi.prefix, &c, &constant.path, &constant.home).to_uppercase();
 			let name = self.claim(&name, format!("const `{}`", constant.path.join("::")));
+			self.locked
+				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			let (ty, value) = match constant.value {
 				Literal::Bool(b) => ("bool", b.to_string()),
 				Literal::Int(int, v) => (go_int(int), v.to_string()),
@@ -1119,6 +1159,7 @@ impl<'a> Gen<'a> {
 		for function in api.functions.iter().filter(|f| mine(&f.home)) {
 			let mut method = self.function(function, None, None);
 			method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
+			crate::lock::function(&mut self.locked, function, &method.name);
 			self.top.push_str(&method.write());
 		}
 		self.moved();
@@ -1171,6 +1212,7 @@ impl<'a> Gen<'a> {
 					method.name = format!("{}{}", self.named(&ty).1, method.name);
 				}
 				method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
+				crate::lock::function(&mut self.locked, function, &method.name);
 				self.top.push_str(&method.write());
 			}
 		}
@@ -1377,6 +1419,7 @@ impl<'a> Gen<'a> {
 		};
 		let method =
 			|docs: &str, member: &str, params: Vec<(String, String)>, results: Vec<String>, body: String| Method {
+				key: None,
 				docs: docs.to_string(),
 				receiver: Some(format!("self {name}")),
 				name: member.to_string(),
@@ -1458,6 +1501,7 @@ impl<'a> Gen<'a> {
 				false => format!("lift_{c}(C.{c}_default())"),
 			};
 			Method {
+				key: None,
 				docs: format!("{func} is Rust's Default."),
 				receiver: None,
 				name: func,
@@ -1513,7 +1557,7 @@ impl<'a> Gen<'a> {
 	/// The Go names of a record's fields: each [`field_name`], with a trailing `_` while
 	/// a method its traits give it, which an interface requires by name, or an earlier
 	/// field takes it.
-	fn record_fields(&self, i: usize) -> Vec<String> {
+	fn record_fields(&mut self, i: usize) -> Vec<String> {
 		let record = &self.abi.api.records[i];
 		let t = record.traits;
 		let methods = [
@@ -1532,6 +1576,10 @@ impl<'a> Gen<'a> {
 				while !taken.insert(name.clone()) {
 					name.push('_');
 				}
+				self.locked.insert(
+					format!("{} / field {}", crate::lock::type_key(&record.shown), f.name),
+					name.clone(),
+				);
 				name
 			})
 			.collect()
@@ -1589,6 +1637,9 @@ impl<'a> Gen<'a> {
 			while !taken.insert(method.name.clone()) {
 				method.name.push('_');
 			}
+			if let Some(key) = &method.key {
+				self.locked.insert(key.clone(), method.name.clone());
+			}
 			members.push(method.name.clone());
 			self.types.push_str(&method.write());
 		}
@@ -1613,6 +1664,17 @@ impl<'a> Gen<'a> {
 		let mut statics = Vec::new();
 		if let Some(mut default) = default {
 			default.name = self.claim(&default.name, format!("`{rust}`'s Default"));
+			let api = self.abi.api;
+			let shown = match ty {
+				Type::Record(i) => &api.records[*i].shown,
+				Type::Enum(i) => &api.enums[*i].shown,
+				Type::Object(i) => &api.objects[*i].shown,
+				_ => unreachable!("only an exported type has members"),
+			};
+			self.locked.insert(
+				format!("{} / Default", crate::lock::type_key(shown)),
+				default.name.clone(),
+			);
 			statics.push(default);
 		}
 		let pkg = self.pkg;
@@ -1622,6 +1684,7 @@ impl<'a> Gen<'a> {
 				Some(_) => methods.push(method),
 				None => {
 					method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
+					crate::lock::function(&mut self.locked, function, &method.name);
 					statics.push(method);
 				}
 			}
@@ -1633,6 +1696,7 @@ impl<'a> Gen<'a> {
 				(false, false) => format!("{rust:?}"),
 			};
 			methods.push(Method {
+				key: None,
 				docs: "Error is its message, as an error Rust returned.".to_string(),
 				receiver: Some(format!("self {}", self.go(ty))),
 				name: "Error".to_string(),
@@ -1687,6 +1751,7 @@ impl<'a> Gen<'a> {
 		for method in &methods {
 			let _ = writeln!(interface, "{}\t{}", docs(method.docs.trim(), "\t"), method.signature());
 			let mut function = Method {
+				key: None,
 				docs: String::new(),
 				receiver: None,
 				name: format!("{c}_{}", abi::snake(&method.name)),
@@ -1721,6 +1786,7 @@ impl<'a> Gen<'a> {
 				args.extend(method.params.iter().map(|(n, _)| n.clone()));
 				let call = format!("{c}_{}({})", abi::snake(&method.name), args.join(", "));
 				let forward = Method {
+					key: None,
 					docs: String::new(),
 					receiver: Some(format!("self {vname}")),
 					name: method.name.clone(),
@@ -1867,6 +1933,7 @@ impl<'a> Gen<'a> {
 		let mut table = vec!["\tv.free = goRelease\n".to_string()];
 		for method in &callback.methods {
 			let member = pascal(method.name());
+			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
 			let names = self.locals(&method.params);
 			let params: Vec<String> = (method.params.iter().zip(&names))
@@ -2175,6 +2242,8 @@ impl<'a> Gen<'a> {
 			_ => member,
 		};
 
+		crate::lock::function(&mut self.locked, function, &member);
+
 		// A tuple of one returned whole is its element, written through its one out pointer.
 		// Only a tuple returned whole is written element by element.
 		let oks: Vec<Type> = match &function.ok {
@@ -2359,18 +2428,21 @@ impl<'a> Gen<'a> {
 			}
 		}
 
-		if let Some((_, poll, free)) = &export.future {
-			body.push(format!("f_ := C.{c_name}({})", args.join(", ")));
-			body.push(format!("defer C.{}(f_)", free.name));
+		if let Some(abi::Future {
+			handle,
+			start,
+			poll,
+			free,
+		}) = &export.future
+		{
 			let mut decls = Vec::new();
 			for (k, ty) in oks.iter().enumerate() {
 				let go = self.go(ty);
 				decls.push(format!("var r{k}_ {go}"));
 			}
+			body.extend(decls);
+			let zeros: String = (0..oks.len()).map(|k| format!("r{k}_, ")).collect();
 			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
-			let mut inner: Vec<String> = poll_outs.iter().map(|(n, ty)| self.out_decl(n, ty)).collect();
-			let mut call_args = vec!["f_".to_string(), "w_".to_string()];
-			call_args.extend(poll_outs.iter().map(|(n, _)| format!("&c_{n}_")));
 			let mut ready: Vec<String> = Vec::new();
 			for (k, ty) in oks.iter().enumerate() {
 				let out = out_name(&function.ok, k);
@@ -2382,17 +2454,62 @@ impl<'a> Gen<'a> {
 				let lifted = self.lift_err(err, "c_err_");
 				cases.push(format!("case {}:\n\treturn true, {lifted}", poll_error(abi)));
 			}
-			inner.push(format!(
-				"switch C.{}({}) {{\n{}\n}}\nreturn false, nil",
+			let cases = cases.join("\n");
+			// Lifts what a call or a poll wrote, once either reports the future finished.
+			let decls: Vec<String> = poll_outs.iter().map(|(n, ty)| self.out_decl(n, ty)).collect();
+			let ptrs: Vec<String> = poll_outs.iter().map(|(n, _)| format!("&c_{n}_")).collect();
+			let mut call_args = vec!["f_".to_string(), "w_".to_string()];
+			call_args.extend(ptrs.iter().cloned());
+			let mut polled = decls.clone();
+			polled.push(format!(
+				"switch C.{}({}) {{\n{cases}\n}}\nreturn false, nil",
 				poll.name,
-				call_args.join(", "),
-				cases.join("\n")
+				call_args.join(", ")
 			));
-			body.extend(decls);
-			body.push(format!(
-				"err_ := await_(ctx, func(w_ cWaker) (bool, error) {{\n{}\n}})",
-				indent(&inner.join("\n"))
-			));
+			let polled = indent(&polled.join("\n"));
+			if function.eager {
+				// An eager call runs Rust, and any callback it makes, before its future
+				// exists, and a callback may cancel the context: so it is made, then the
+				// context checked, then polled, never started.
+				body.push(format!(
+					"f_ := C.{c_name}({})\ndefer C.{}(f_)",
+					args.join(", "),
+					free.name
+				));
+				body.push(format!(
+					"if err_ := ctx.Err(); err_ != nil {{\n\treturn {zeros}err_\n}}"
+				));
+				body.push(format!("poll_ := func(w_ cWaker) (bool, error) {{\n{polled}\n}}"));
+				body.push("done_, err_ := poll_(cWaker{})\nif !done_ {\n\terr_ = await_(ctx, poll_)\n}".to_string());
+			} else {
+				// A context done already takes nothing, even what is ready: the future is made
+				// and dropped unpolled, as Rust drops one it never awaits. Making an `async fn`'s
+				// future runs nothing, so the check needs no repeat after it.
+				body.push(format!(
+					"if err_ := ctx.Err(); err_ != nil {{\n\tC.{}(C.{c_name}({}))\n\treturn {zeros}err_\n}}",
+					free.name,
+					args.join(", ")
+				));
+				let mut start_args = args.clone();
+				start_args.extend(ptrs.iter().cloned());
+				start_args.push("&f_".to_string());
+				let mut inner = decls;
+				inner.push(format!(
+					"switch C.{}({}) {{\n{cases}\n}}\nreturn false, nil",
+					start.name,
+					start_args.join(", ")
+				));
+				body.push(format!("var f_ *C.{handle}"));
+				body.push(format!(
+					"done_, err_ := func() (bool, error) {{\n{}\n}}()",
+					indent(&inner.join("\n"))
+				));
+				body.push(format!(
+					"if !done_ {{\n\tdefer C.{}(f_)\n\terr_ = await_(ctx, func(w_ cWaker) (bool, error) {{\n{}\n\t}})\n}}",
+					free.name,
+					indent(&polled)
+				));
+			}
 			let mut returns: Vec<String> = (0..oks.len()).map(|k| format!("r{k}_")).collect();
 			returns.push("err_".to_string());
 			body.push(format!("return {}", returns.join(", ")));
@@ -2522,6 +2639,7 @@ impl<'a> Gen<'a> {
 			body.insert(0, check);
 		}
 		Method {
+			key: Some(crate::lock::function_key(function)),
 			docs: text,
 			receiver: go_receiver,
 			name: member,
@@ -2796,4 +2914,33 @@ fn indent(code: &str) -> String {
 		out.pop();
 	}
 	out
+}
+
+#[test]
+fn package_names_are_locked() {
+	let mut api = crate::ir::Api {
+		records: vec![],
+		enums: vec![],
+		objects: vec![],
+		callbacks: vec![],
+		functions: vec![],
+		constants: vec![],
+		crates: vec!["lock_foobar".into()],
+		targets: vec!["host".into()],
+	};
+	let base = api.clone();
+	let old = generate(&Abi::new(&api, "lock"), "lock", 0, "lock").unwrap();
+	assert_eq!(old.names["crate lock_foobar"], "foobar");
+	api.crates.insert(0, "lock_foo_bar".into());
+	let new = generate(&Abi::new(&api, "lock"), "lock", 0, "lock").unwrap();
+	assert_eq!(new.names["crate lock_foobar"], "foobar_");
+	assert!(new.files.iter().any(|(path, _)| path == "foobar_/foobar_.go"));
+	let breaks = crate::lock::name_breaks(
+		&BTreeMap::from([("Go".into(), old.names)]),
+		&BTreeMap::from([("Go".into(), new.names)]),
+		&base,
+		&Abi::new(&api, "lock"),
+	);
+	assert_eq!(breaks.len(), 1);
+	assert!(breaks[0].what.contains("its Go name `foobar` is now `foobar_`"));
 }

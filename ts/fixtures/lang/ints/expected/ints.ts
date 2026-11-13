@@ -11,19 +11,6 @@ import * as Scaled from "./ints.Scaled.ts";
 
 /** Apply operation `op` to operands taken from `data`. */
 export function u8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v3: rs.u8): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3 as rs.u128)));
-		rs.byteVecPush(out2, rs.u8FromBeBytes(rs.u8ToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.u8 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u8 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.u8 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5 as rs.u128)));
-		}
-	};
 	const buf: Uint8Array = Uint8Array.of(0);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -41,6 +28,19 @@ export function u8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.u8 = ([rs.u8FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.u8, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 8);
+	const _68: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v3: rs.u8): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3 as rs.u128)));
+		rs.byteVecPush(out2, rs.u8FromBeBytes(rs.u8ToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.u8 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u8 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.u8 = v4;
+			rs.byteVecPush(out3, 1);
+			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5 as rs.u128)));
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.u8Add(a, b));
@@ -174,19 +174,6 @@ export function u8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function u16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v3: rs.u16): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3 as rs.u128)));
-		rs.byteVecPush(out2, rs.u16FromBeBytes(rs.u16ToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.u16 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u16 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.u16 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5 as rs.u128)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(2);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -204,6 +191,19 @@ export function u16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.u16 = ([rs.u16FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.u16, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 16);
+	const _68: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v3: rs.u16): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3 as rs.u128)));
+		rs.byteVecPush(out2, rs.u16FromBeBytes(rs.u16ToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.u16 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u16 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.u16 = v4;
+			rs.byteVecPush(out3, 1);
+			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5 as rs.u128)));
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.u16Add(a, b));
@@ -337,19 +337,6 @@ export function u16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function u32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v3: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3 as rs.u128)));
-		rs.byteVecPush(out2, rs.u32FromBeBytes(rs.u32ToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u32 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.u32 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5 as rs.u128)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(4);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -367,6 +354,19 @@ export function u32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.u32 = ([rs.u32FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.u32, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 32);
+	const _68: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v3: rs.u32): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3 as rs.u128)));
+		rs.byteVecPush(out2, rs.u32FromBeBytes(rs.u32ToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u32 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.u32 = v4;
+			rs.byteVecPush(out3, 1);
+			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5 as rs.u128)));
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.u32Add(a, b));
@@ -500,19 +500,6 @@ export function u32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function u64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v3: rs.u64): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(rs.u128Cast(v3))));
-		rs.byteVecPush(out2, rs.u64Eq(rs.u64FromBeBytes(rs.u64ToBeBytes(v3)), v3) ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.u64 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u64 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.u64 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(rs.u128Cast(v5))));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(8);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -530,6 +517,19 @@ export function u64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.u64 = ([rs.u64FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.u64, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 64);
+	const _68: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v3: rs.u64): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(rs.u128Cast(v3))));
+		rs.byteVecPush(out2, rs.u64Eq(rs.u64FromBeBytes(rs.u64ToBeBytes(v3)), v3) ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.u64 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u64 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.u64 = v4;
+			rs.byteVecPush(out3, 1);
+			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(rs.u128Cast(v5))));
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.u64Add(a, b));
@@ -663,19 +663,6 @@ export function u64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function u128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v3: rs.u128): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3)));
-		rs.byteVecPush(out2, rs.u128Eq(rs.u128FromBeBytes(rs.u128ToBeBytes(v3)), v3) ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.u128 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u128 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.u128 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(16);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -693,6 +680,19 @@ export function u128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.u128 = ([rs.u128FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.u128, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 128);
+	const _68: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v3: rs.u128): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3)));
+		rs.byteVecPush(out2, rs.u128Eq(rs.u128FromBeBytes(rs.u128ToBeBytes(v3)), v3) ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.u128 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u128 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.u128 = v4;
+			rs.byteVecPush(out3, 1);
+			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5)));
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.u128Add(a, b));
@@ -826,19 +826,6 @@ export function u128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function usizeOp(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v3: rs.usize): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3 as rs.u128)));
-		rs.byteVecPush(out2, rs.usizeFromBeBytes(rs.usizeToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.usize | undefined) => undefined = (out3: rs.ByteVec, v4: rs.usize | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.usize = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5 as rs.u128)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(4);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -856,6 +843,19 @@ export function usizeOp(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.usize = ([rs.usizeFromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.usize, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 32);
+	const _68: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v3: rs.usize): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3 as rs.u128)));
+		rs.byteVecPush(out2, rs.usizeFromBeBytes(rs.usizeToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.usize | undefined) => undefined = (out3: rs.ByteVec, v4: rs.usize | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.usize = v4;
+			rs.byteVecPush(out3, 1);
+			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5 as rs.u128)));
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.usizeAdd(a, b));
@@ -989,19 +989,6 @@ export function usizeOp(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function i8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v3: rs.i8): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3 as rs.i128)));
-		rs.byteVecPush(out2, rs.i8FromBeBytes(rs.i8ToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.i8 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i8 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.i8 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5 as rs.i128)));
-		}
-	};
 	const buf: Uint8Array = Uint8Array.of(0);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -1019,6 +1006,19 @@ export function i8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.i8 = ([rs.i8FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.i8, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 8);
+	const _68: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v3: rs.i8): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3 as rs.i128)));
+		rs.byteVecPush(out2, rs.i8FromBeBytes(rs.i8ToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.i8 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i8 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.i8 = v4;
+			rs.byteVecPush(out3, 1);
+			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5 as rs.i128)));
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.i8Add(a, b));
@@ -1152,19 +1152,6 @@ export function i8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function i16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v3: rs.i16): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3 as rs.i128)));
-		rs.byteVecPush(out2, rs.i16FromBeBytes(rs.i16ToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.i16 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i16 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.i16 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5 as rs.i128)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(2);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -1182,6 +1169,19 @@ export function i16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.i16 = ([rs.i16FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.i16, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 16);
+	const _68: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v3: rs.i16): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3 as rs.i128)));
+		rs.byteVecPush(out2, rs.i16FromBeBytes(rs.i16ToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.i16 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i16 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.i16 = v4;
+			rs.byteVecPush(out3, 1);
+			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5 as rs.i128)));
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.i16Add(a, b));
@@ -1315,19 +1315,6 @@ export function i16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function i32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v3: rs.i32): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3 as rs.i128)));
-		rs.byteVecPush(out2, rs.i32FromBeBytes(rs.i32ToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.i32 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i32 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.i32 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5 as rs.i128)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(4);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -1345,6 +1332,19 @@ export function i32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.i32 = ([rs.i32FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.i32, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 32);
+	const _68: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v3: rs.i32): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3 as rs.i128)));
+		rs.byteVecPush(out2, rs.i32FromBeBytes(rs.i32ToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.i32 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i32 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.i32 = v4;
+			rs.byteVecPush(out3, 1);
+			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5 as rs.i128)));
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.i32Add(a, b));
@@ -1478,19 +1478,6 @@ export function i32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function i64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v3: rs.i64): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(rs.i128Cast(v3))));
-		rs.byteVecPush(out2, rs.i64Eq(rs.i64FromBeBytes(rs.i64ToBeBytes(v3)), v3) ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.i64 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i64 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.i64 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(rs.i128Cast(v5))));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(8);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -1508,6 +1495,19 @@ export function i64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.i64 = ([rs.i64FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.i64, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 64);
+	const _68: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v3: rs.i64): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(rs.i128Cast(v3))));
+		rs.byteVecPush(out2, rs.i64Eq(rs.i64FromBeBytes(rs.i64ToBeBytes(v3)), v3) ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.i64 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i64 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.i64 = v4;
+			rs.byteVecPush(out3, 1);
+			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(rs.i128Cast(v5))));
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.i64Add(a, b));
@@ -1641,19 +1641,6 @@ export function i64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function i128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v3: rs.i128): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3)));
-		rs.byteVecPush(out2, rs.i128Eq(rs.i128FromBeBytes(rs.i128ToBeBytes(v3)), v3) ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.i128 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i128 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.i128 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(16);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -1671,6 +1658,19 @@ export function i128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.i128 = ([rs.i128FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.i128, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 128);
+	const _68: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v3: rs.i128): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3)));
+		rs.byteVecPush(out2, rs.i128Eq(rs.i128FromBeBytes(rs.i128ToBeBytes(v3)), v3) ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.i128 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i128 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.i128 = v4;
+			rs.byteVecPush(out3, 1);
+			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5)));
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.i128Add(a, b));
@@ -1804,19 +1804,6 @@ export function i128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function isizeOp(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v3: rs.isize): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3 as rs.i128)));
-		rs.byteVecPush(out2, rs.isizeFromBeBytes(rs.isizeToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.isize | undefined) => undefined = (out3: rs.ByteVec, v4: rs.isize | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.isize = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5 as rs.i128)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(4);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -1834,6 +1821,19 @@ export function isizeOp(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.isize = ([rs.isizeFromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.isize, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 32);
+	const _68: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v3: rs.isize): undefined => {
+		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3 as rs.i128)));
+		rs.byteVecPush(out2, rs.isizeFromBeBytes(rs.isizeToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.isize | undefined) => undefined = (out3: rs.ByteVec, v4: rs.isize | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.isize = v4;
+			rs.byteVecPush(out3, 1);
+			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5 as rs.i128)));
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.isizeAdd(a, b));
@@ -3021,2495 +3021,2481 @@ export function parses(kind: rs.u8, dataData: Uint8Array, dataStart: number, dat
 	let kind49!: rs.i32;
 	let over48!: boolean;
 	let max48!: rs.u8;
-	b0: {
-		const _4: rs.u8 = rs.u8Rem(kind, 12);
-		if (_4 === 0) {
-			if (dataLen !== 0) {
-				const first: rs.u8 = dataData[dataStart];
-				const rest: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix: rs.u32 = rs.u32Add(2, rs.u32Rem(first as rs.u32, 35));
-				const _15: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_15 === 0) {
-					const _19: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest);
-					if (_19.ok) {
-						const iter: rs.Iter<rs.char> = rs.strChars(_19.value);
-						while (true) {
-							const _25: rs.char | rs.Done = iter.next();
-							if (_25 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_25, radix), 99))));
+	const _4: rs.u8 = rs.u8Rem(kind, 12);
+	if (_4 === 0) {
+		if (dataLen !== 0) {
+			const first: rs.u8 = dataData[dataStart];
+			const rest: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix: rs.u32 = rs.u32Add(2, rs.u32Rem(first as rs.u32, 35));
+			const _15: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_15 === 0) {
+				const _19: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest);
+				if (_19.ok) {
+					const iter: rs.Iter<rs.char> = rs.strChars(_19.value);
+					while (true) {
+						const _25: rs.char | rs.Done = iter.next();
+						if (_25 === rs.DONE) {
+							break;
 						}
-						const radix2: rs.u32 = radix;
-						const _40: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_19.value, radix2);
-						if (_40.ok) {
-							const arg48 = _40.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg48, f)]).v);
-						} else {
-							const e: rs.ParseIntError = _40.error;
-							const _56: rs.IntErrorKind = e.kind;
-							if (_56 === "Empty") {
-								kind2 = 0;
-							} else if (_56 === "InvalidDigit") {
-								kind2 = 1;
-							} else if (_56 === "PosOverflow") {
-								kind2 = 2;
-							} else if (_56 === "NegOverflow") {
-								kind2 = 3;
-							} else {
-								kind2 = 4;
-							}
-							if (!(e.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over = e.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over = true;
-							}
-							const _76: rs.IntErrorKind = e.kind;
-							const args287 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _76), (f: rs.Formatter) => rs.i32Display(kind2, f), (f: rs.Formatter) => rs.fmtBool(over, f)];
-							put(out, rs.fmtFormat([args287[0], "|", args287[1], "|", args287[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args287[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args287[0]), "|", args287[3], "|", args287[4]]).v);
-						}
-						if (radix2 === 10) {
-							const parsed: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_19.value);
-							const from: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_19.value);
-							if (from.ok) {
-								max = rs.u8Mul(from.value === 255 ? 1 : 0, 4);
-							} else {
-								max = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed.ok ? 1 : 0, max));
-						}
+						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_25, radix), 99))));
 					}
-				} else if (_15 === 1) {
-					const s: rs.String = rs.stringNew();
-					for (const b of rs.byteSliceView(rest)) {
-						const _116: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _117: rs.usize = rs.usizeRem(b as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_116, _117);
-						rs.stringPush(s, _116.data[_116.start + _117] as rs.char);
-					}
-					const _128: string = s.v;
-					const radix3: rs.u32 = radix;
-					const _131: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_128, radix3);
-					if (_131.ok) {
-						const arg47 = _131.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg47, f)]).v);
+					const radix2: rs.u32 = radix;
+					const _40: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_19.value, radix2);
+					if (_40.ok) {
+						const arg48 = _40.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg48, f)]).v);
 					} else {
-						const e2: rs.ParseIntError = _131.error;
-						const _147: rs.IntErrorKind = e2.kind;
-						if (_147 === "Empty") {
-							kind3 = 0;
-						} else if (_147 === "InvalidDigit") {
-							kind3 = 1;
-						} else if (_147 === "PosOverflow") {
-							kind3 = 2;
-						} else if (_147 === "NegOverflow") {
-							kind3 = 3;
+						const e: rs.ParseIntError = _40.error;
+						const _56: rs.IntErrorKind = e.kind;
+						if (_56 === "Empty") {
+							kind2 = 0;
+						} else if (_56 === "InvalidDigit") {
+							kind2 = 1;
+						} else if (_56 === "PosOverflow") {
+							kind2 = 2;
+						} else if (_56 === "NegOverflow") {
+							kind2 = 3;
 						} else {
-							kind3 = 4;
+							kind2 = 4;
 						}
-						if (!(e2.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over2 = e2.kind !== "NegOverflow" as rs.IntErrorKind;
+						if (!(e.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over = e.kind !== "NegOverflow" as rs.IntErrorKind;
 						} else {
-							over2 = true;
+							over = true;
 						}
-						const _167: rs.IntErrorKind = e2.kind;
-						const args285 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e2, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e2, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _167), (f: rs.Formatter) => rs.i32Display(kind3, f), (f: rs.Formatter) => rs.fmtBool(over2, f)];
-						put(out, rs.fmtFormat([args285[0], "|", args285[1], "|", args285[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args285[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args285[0]), "|", args285[3], "|", args285[4]]).v);
+						const _76: rs.IntErrorKind = e.kind;
+						const args287 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _76), (f: rs.Formatter) => rs.i32Display(kind2, f), (f: rs.Formatter) => rs.fmtBool(over, f)];
+						put(out, rs.fmtFormat([args287[0], "|", args287[1], "|", args287[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args287[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args287[0]), "|", args287[3], "|", args287[4]]).v);
 					}
-					if (radix3 === 10) {
-						const parsed2: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_128);
-						const from2: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_128);
-						if (from2.ok) {
-							max2 = rs.u8Mul(from2.value === 255 ? 1 : 0, 4);
+					if (radix2 === 10) {
+						const parsed: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_19.value);
+						const from: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_19.value);
+						if (from.ok) {
+							max = rs.u8Mul(from.value === 255 ? 1 : 0, 4);
 						} else {
-							max2 = 2;
+							max = 2;
 						}
-						rs.byteVecPush(out, rs.u8Add(parsed2.ok ? 1 : 0, max2));
-					}
-				} else {
-					if (_15 === 2) {
-						const iter3: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _199: rs.u32 | rs.Done = iter3.next();
-							if (_199 === rs.DONE) {
-								break b0;
-							}
-							const radix4: rs.u32 = _199;
-							for (const _207 of edges(255, 0, 8, radix4).items) {
-								const _215: string = _207.v;
-								const radix5: rs.u32 = radix4;
-								const _218: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_215, radix5);
-								if (_218.ok) {
-									const arg46 = _218.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg46, f)]).v);
-								} else {
-									const e3: rs.ParseIntError = _218.error;
-									const _234: rs.IntErrorKind = e3.kind;
-									if (_234 === "Empty") {
-										kind4 = 0;
-									} else if (_234 === "InvalidDigit") {
-										kind4 = 1;
-									} else if (_234 === "PosOverflow") {
-										kind4 = 2;
-									} else if (_234 === "NegOverflow") {
-										kind4 = 3;
-									} else {
-										kind4 = 4;
-									}
-									if (!(e3.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over3 = e3.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over3 = true;
-									}
-									const _254: rs.IntErrorKind = e3.kind;
-									const args283 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e3, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e3, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _254), (f: rs.Formatter) => rs.i32Display(kind4, f), (f: rs.Formatter) => rs.fmtBool(over3, f)];
-									put(out, rs.fmtFormat([args283[0], "|", args283[1], "|", args283[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args283[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args283[0]), "|", args283[3], "|", args283[4]]).v);
-								}
-								if (radix5 === 10) {
-									const parsed3: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_215);
-									const from3: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_215);
-									if (from3.ok) {
-										max3 = rs.u8Mul(from3.value === 255 ? 1 : 0, 4);
-									} else {
-										max3 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed3.ok ? 1 : 0, max3));
-								}
-							}
-						}
-					}
-					const radix6: rs.u32 = ((first as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest, 1), (b24: rs.u8): boolean => {
-						return (b24 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix6), 99))));
-					}
-					if (!(rest.length > 2)) {
-						text = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text = rs.byteSliceRange(rest, 2);
-					}
-					const _310: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text), "1");
-					const radix7: rs.u32 = radix6;
-					const _315: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_310, radix7);
-					if (_315.ok) {
-						const arg45 = _315.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg45, f)]).v);
-					} else {
-						const e4: rs.ParseIntError = _315.error;
-						const _331: rs.IntErrorKind = e4.kind;
-						if (_331 === "Empty") {
-							kind5 = 0;
-						} else if (_331 === "InvalidDigit") {
-							kind5 = 1;
-						} else if (_331 === "PosOverflow") {
-							kind5 = 2;
-						} else if (_331 === "NegOverflow") {
-							kind5 = 3;
-						} else {
-							kind5 = 4;
-						}
-						if (!(e4.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over4 = e4.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over4 = true;
-						}
-						const _351: rs.IntErrorKind = e4.kind;
-						const args281 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e4, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e4, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _351), (f: rs.Formatter) => rs.i32Display(kind5, f), (f: rs.Formatter) => rs.fmtBool(over4, f)];
-						put(out, rs.fmtFormat([args281[0], "|", args281[1], "|", args281[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args281[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args281[0]), "|", args281[3], "|", args281[4]]).v);
-					}
-					if (radix7 === 10) {
-						const parsed4: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_310);
-						const from4: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_310);
-						if (from4.ok) {
-							max4 = rs.u8Mul(from4.value === 255 ? 1 : 0, 4);
-						} else {
-							max4 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed4.ok ? 1 : 0, max4));
+						rs.byteVecPush(out, rs.u8Add(parsed.ok ? 1 : 0, max));
 					}
 				}
-			}
-		} else if (_4 === 1) {
-			if (dataLen !== 0) {
-				const first2: rs.u8 = dataData[dataStart];
-				const rest2: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix8: rs.u32 = rs.u32Add(2, rs.u32Rem(first2 as rs.u32, 35));
-				const _389: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_389 === 0) {
-					const _393: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest2);
-					if (_393.ok) {
-						const iter5: rs.Iter<rs.char> = rs.strChars(_393.value);
-						while (true) {
-							const _399: rs.char | rs.Done = iter5.next();
-							if (_399 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_399, radix8), 99))));
-						}
-						const radix9: rs.u32 = radix8;
-						const _414: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_393.value, radix9);
-						if (_414.ok) {
-							const arg44 = _414.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg44, f)]).v);
-						} else {
-							const e5: rs.ParseIntError = _414.error;
-							const _430: rs.IntErrorKind = e5.kind;
-							if (_430 === "Empty") {
-								kind6 = 0;
-							} else if (_430 === "InvalidDigit") {
-								kind6 = 1;
-							} else if (_430 === "PosOverflow") {
-								kind6 = 2;
-							} else if (_430 === "NegOverflow") {
-								kind6 = 3;
-							} else {
-								kind6 = 4;
-							}
-							if (!(e5.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over5 = e5.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over5 = true;
-							}
-							const _450: rs.IntErrorKind = e5.kind;
-							const args279 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e5, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e5, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _450), (f: rs.Formatter) => rs.i32Display(kind6, f), (f: rs.Formatter) => rs.fmtBool(over5, f)];
-							put(out, rs.fmtFormat([args279[0], "|", args279[1], "|", args279[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args279[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args279[0]), "|", args279[3], "|", args279[4]]).v);
-						}
-						if (radix9 === 10) {
-							const parsed5: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_393.value);
-							const from5: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_393.value);
-							if (from5.ok) {
-								max5 = rs.u8Mul(from5.value === 65535 ? 1 : 0, 4);
-							} else {
-								max5 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed5.ok ? 1 : 0, max5));
-						}
-					}
-				} else if (_389 === 1) {
-					const s3: rs.String = rs.stringNew();
-					for (const b2 of rs.byteSliceView(rest2)) {
-						const _490: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _491: rs.usize = rs.usizeRem(b2 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_490, _491);
-						rs.stringPush(s3, _490.data[_490.start + _491] as rs.char);
-					}
-					const _502: string = s3.v;
-					const radix10: rs.u32 = radix8;
-					const _505: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_502, radix10);
-					if (_505.ok) {
-						const arg43 = _505.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg43, f)]).v);
-					} else {
-						const e6: rs.ParseIntError = _505.error;
-						const _521: rs.IntErrorKind = e6.kind;
-						if (_521 === "Empty") {
-							kind7 = 0;
-						} else if (_521 === "InvalidDigit") {
-							kind7 = 1;
-						} else if (_521 === "PosOverflow") {
-							kind7 = 2;
-						} else if (_521 === "NegOverflow") {
-							kind7 = 3;
-						} else {
-							kind7 = 4;
-						}
-						if (!(e6.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over6 = e6.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over6 = true;
-						}
-						const _541: rs.IntErrorKind = e6.kind;
-						const args277 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e6, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e6, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _541), (f: rs.Formatter) => rs.i32Display(kind7, f), (f: rs.Formatter) => rs.fmtBool(over6, f)];
-						put(out, rs.fmtFormat([args277[0], "|", args277[1], "|", args277[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args277[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args277[0]), "|", args277[3], "|", args277[4]]).v);
-					}
-					if (radix10 === 10) {
-						const parsed6: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_502);
-						const from6: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_502);
-						if (from6.ok) {
-							max6 = rs.u8Mul(from6.value === 65535 ? 1 : 0, 4);
-						} else {
-							max6 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed6.ok ? 1 : 0, max6));
-					}
+			} else if (_15 === 1) {
+				const s: rs.String = rs.stringNew();
+				for (const b of rs.byteSliceView(rest)) {
+					const _116: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _117: rs.usize = rs.usizeRem(b as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_116, _117);
+					rs.stringPush(s, _116.data[_116.start + _117] as rs.char);
+				}
+				const _128: string = s.v;
+				const radix3: rs.u32 = radix;
+				const _131: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_128, radix3);
+				if (_131.ok) {
+					const arg47 = _131.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg47, f)]).v);
 				} else {
-					if (_389 === 2) {
-						const iter7: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _573: rs.u32 | rs.Done = iter7.next();
-							if (_573 === rs.DONE) {
-								break b0;
-							}
-							const radix11: rs.u32 = _573;
-							for (const _581 of edges(65535, 0, 16, radix11).items) {
-								const _589: string = _581.v;
-								const radix12: rs.u32 = radix11;
-								const _592: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_589, radix12);
-								if (_592.ok) {
-									const arg42 = _592.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg42, f)]).v);
-								} else {
-									const e7: rs.ParseIntError = _592.error;
-									const _608: rs.IntErrorKind = e7.kind;
-									if (_608 === "Empty") {
-										kind8 = 0;
-									} else if (_608 === "InvalidDigit") {
-										kind8 = 1;
-									} else if (_608 === "PosOverflow") {
-										kind8 = 2;
-									} else if (_608 === "NegOverflow") {
-										kind8 = 3;
-									} else {
-										kind8 = 4;
-									}
-									if (!(e7.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over7 = e7.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over7 = true;
-									}
-									const _628: rs.IntErrorKind = e7.kind;
-									const args275 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e7, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e7, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _628), (f: rs.Formatter) => rs.i32Display(kind8, f), (f: rs.Formatter) => rs.fmtBool(over7, f)];
-									put(out, rs.fmtFormat([args275[0], "|", args275[1], "|", args275[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args275[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args275[0]), "|", args275[3], "|", args275[4]]).v);
-								}
-								if (radix12 === 10) {
-									const parsed7: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_589);
-									const from7: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_589);
-									if (from7.ok) {
-										max7 = rs.u8Mul(from7.value === 65535 ? 1 : 0, 4);
-									} else {
-										max7 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed7.ok ? 1 : 0, max7));
-								}
-							}
-						}
-					}
-					const radix13: rs.u32 = ((first2 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest2), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest2, 1), (b23: rs.u8): boolean => {
-						return (b23 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix13), 99))));
-					}
-					if (!(rest2.length > 2)) {
-						text2 = rs.byteSliceFrom(Uint8Array.of());
+					const e2: rs.ParseIntError = _131.error;
+					const _147: rs.IntErrorKind = e2.kind;
+					if (_147 === "Empty") {
+						kind3 = 0;
+					} else if (_147 === "InvalidDigit") {
+						kind3 = 1;
+					} else if (_147 === "PosOverflow") {
+						kind3 = 2;
+					} else if (_147 === "NegOverflow") {
+						kind3 = 3;
 					} else {
-						text2 = rs.byteSliceRange(rest2, 2);
+						kind3 = 4;
 					}
-					const _684: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text2), "1");
-					const radix14: rs.u32 = radix13;
-					const _689: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_684, radix14);
-					if (_689.ok) {
-						const arg41 = _689.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg41, f)]).v);
+					if (!(e2.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over2 = e2.kind !== "NegOverflow" as rs.IntErrorKind;
 					} else {
-						const e8: rs.ParseIntError = _689.error;
-						const _705: rs.IntErrorKind = e8.kind;
-						if (_705 === "Empty") {
-							kind9 = 0;
-						} else if (_705 === "InvalidDigit") {
-							kind9 = 1;
-						} else if (_705 === "PosOverflow") {
-							kind9 = 2;
-						} else if (_705 === "NegOverflow") {
-							kind9 = 3;
-						} else {
-							kind9 = 4;
-						}
-						if (!(e8.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over8 = e8.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over8 = true;
-						}
-						const _725: rs.IntErrorKind = e8.kind;
-						const args273 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e8, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e8, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _725), (f: rs.Formatter) => rs.i32Display(kind9, f), (f: rs.Formatter) => rs.fmtBool(over8, f)];
-						put(out, rs.fmtFormat([args273[0], "|", args273[1], "|", args273[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args273[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args273[0]), "|", args273[3], "|", args273[4]]).v);
+						over2 = true;
 					}
-					if (radix14 === 10) {
-						const parsed8: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_684);
-						const from8: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_684);
-						if (from8.ok) {
-							max8 = rs.u8Mul(from8.value === 65535 ? 1 : 0, 4);
+					const _167: rs.IntErrorKind = e2.kind;
+					const args285 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e2, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e2, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _167), (f: rs.Formatter) => rs.i32Display(kind3, f), (f: rs.Formatter) => rs.fmtBool(over2, f)];
+					put(out, rs.fmtFormat([args285[0], "|", args285[1], "|", args285[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args285[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args285[0]), "|", args285[3], "|", args285[4]]).v);
+				}
+				if (radix3 === 10) {
+					const parsed2: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_128);
+					const from2: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_128);
+					if (from2.ok) {
+						max2 = rs.u8Mul(from2.value === 255 ? 1 : 0, 4);
+					} else {
+						max2 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed2.ok ? 1 : 0, max2));
+				}
+			} else if (_15 === 2) {
+				const iter3: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _199: rs.u32 | rs.Done = iter3.next();
+					if (_199 === rs.DONE) {
+						break;
+					}
+					const radix4: rs.u32 = _199;
+					for (const _207 of edges(255, 0, 8, radix4).items) {
+						const _215: string = _207.v;
+						const radix5: rs.u32 = radix4;
+						const _218: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_215, radix5);
+						if (_218.ok) {
+							const arg46 = _218.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg46, f)]).v);
 						} else {
-							max8 = 2;
+							const e3: rs.ParseIntError = _218.error;
+							const _234: rs.IntErrorKind = e3.kind;
+							if (_234 === "Empty") {
+								kind4 = 0;
+							} else if (_234 === "InvalidDigit") {
+								kind4 = 1;
+							} else if (_234 === "PosOverflow") {
+								kind4 = 2;
+							} else if (_234 === "NegOverflow") {
+								kind4 = 3;
+							} else {
+								kind4 = 4;
+							}
+							if (!(e3.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over3 = e3.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over3 = true;
+							}
+							const _254: rs.IntErrorKind = e3.kind;
+							const args283 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e3, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e3, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _254), (f: rs.Formatter) => rs.i32Display(kind4, f), (f: rs.Formatter) => rs.fmtBool(over3, f)];
+							put(out, rs.fmtFormat([args283[0], "|", args283[1], "|", args283[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args283[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args283[0]), "|", args283[3], "|", args283[4]]).v);
 						}
-						rs.byteVecPush(out, rs.u8Add(parsed8.ok ? 1 : 0, max8));
+						if (radix5 === 10) {
+							const parsed3: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_215);
+							const from3: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_215);
+							if (from3.ok) {
+								max3 = rs.u8Mul(from3.value === 255 ? 1 : 0, 4);
+							} else {
+								max3 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed3.ok ? 1 : 0, max3));
+						}
 					}
 				}
-			}
-		} else if (_4 === 2) {
-			if (dataLen !== 0) {
-				const first3: rs.u8 = dataData[dataStart];
-				const rest3: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix15: rs.u32 = rs.u32Add(2, rs.u32Rem(first3 as rs.u32, 35));
-				const _763: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_763 === 0) {
-					const _767: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest3);
-					if (_767.ok) {
-						const iter9: rs.Iter<rs.char> = rs.strChars(_767.value);
-						while (true) {
-							const _773: rs.char | rs.Done = iter9.next();
-							if (_773 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_773, radix15), 99))));
-						}
-						const radix16: rs.u32 = radix15;
-						const _788: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_767.value, radix16);
-						if (_788.ok) {
-							const arg40 = _788.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg40, f)]).v);
-						} else {
-							const e9: rs.ParseIntError = _788.error;
-							const _804: rs.IntErrorKind = e9.kind;
-							if (_804 === "Empty") {
-								kind10 = 0;
-							} else if (_804 === "InvalidDigit") {
-								kind10 = 1;
-							} else if (_804 === "PosOverflow") {
-								kind10 = 2;
-							} else if (_804 === "NegOverflow") {
-								kind10 = 3;
-							} else {
-								kind10 = 4;
-							}
-							if (!(e9.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over9 = e9.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over9 = true;
-							}
-							const _824: rs.IntErrorKind = e9.kind;
-							const args271 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e9, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e9, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _824), (f: rs.Formatter) => rs.i32Display(kind10, f), (f: rs.Formatter) => rs.fmtBool(over9, f)];
-							put(out, rs.fmtFormat([args271[0], "|", args271[1], "|", args271[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args271[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args271[0]), "|", args271[3], "|", args271[4]]).v);
-						}
-						if (radix16 === 10) {
-							const parsed9: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_767.value);
-							const from9: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_767.value);
-							if (from9.ok) {
-								max9 = rs.u8Mul(from9.value === 4294967295 ? 1 : 0, 4);
-							} else {
-								max9 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed9.ok ? 1 : 0, max9));
-						}
-					}
-				} else if (_763 === 1) {
-					const s5: rs.String = rs.stringNew();
-					for (const b3 of rs.byteSliceView(rest3)) {
-						const _864: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _865: rs.usize = rs.usizeRem(b3 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_864, _865);
-						rs.stringPush(s5, _864.data[_864.start + _865] as rs.char);
-					}
-					const _876: string = s5.v;
-					const radix17: rs.u32 = radix15;
-					const _879: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_876, radix17);
-					if (_879.ok) {
-						const arg39 = _879.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg39, f)]).v);
-					} else {
-						const e10: rs.ParseIntError = _879.error;
-						const _895: rs.IntErrorKind = e10.kind;
-						if (_895 === "Empty") {
-							kind11 = 0;
-						} else if (_895 === "InvalidDigit") {
-							kind11 = 1;
-						} else if (_895 === "PosOverflow") {
-							kind11 = 2;
-						} else if (_895 === "NegOverflow") {
-							kind11 = 3;
-						} else {
-							kind11 = 4;
-						}
-						if (!(e10.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over10 = e10.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over10 = true;
-						}
-						const _915: rs.IntErrorKind = e10.kind;
-						const args269 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e10, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e10, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _915), (f: rs.Formatter) => rs.i32Display(kind11, f), (f: rs.Formatter) => rs.fmtBool(over10, f)];
-						put(out, rs.fmtFormat([args269[0], "|", args269[1], "|", args269[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args269[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args269[0]), "|", args269[3], "|", args269[4]]).v);
-					}
-					if (radix17 === 10) {
-						const parsed10: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_876);
-						const from10: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_876);
-						if (from10.ok) {
-							max10 = rs.u8Mul(from10.value === 4294967295 ? 1 : 0, 4);
-						} else {
-							max10 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed10.ok ? 1 : 0, max10));
-					}
+			} else {
+				const radix6: rs.u32 = ((first as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest, 1), (b24: rs.u8): boolean => {
+					return (b24 & 1) === 1;
+				})) {
+					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix6), 99))));
+				}
+				if (!(rest.length > 2)) {
+					text = rs.byteSliceFrom(Uint8Array.of());
 				} else {
-					if (_763 === 2) {
-						const iter11: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _947: rs.u32 | rs.Done = iter11.next();
-							if (_947 === rs.DONE) {
-								break b0;
-							}
-							const radix18: rs.u32 = _947;
-							for (const _955 of edges(4294967295, 0, 32, radix18).items) {
-								const _963: string = _955.v;
-								const radix19: rs.u32 = radix18;
-								const _966: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_963, radix19);
-								if (_966.ok) {
-									const arg38 = _966.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg38, f)]).v);
-								} else {
-									const e11: rs.ParseIntError = _966.error;
-									const _982: rs.IntErrorKind = e11.kind;
-									if (_982 === "Empty") {
-										kind12 = 0;
-									} else if (_982 === "InvalidDigit") {
-										kind12 = 1;
-									} else if (_982 === "PosOverflow") {
-										kind12 = 2;
-									} else if (_982 === "NegOverflow") {
-										kind12 = 3;
-									} else {
-										kind12 = 4;
-									}
-									if (!(e11.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over11 = e11.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over11 = true;
-									}
-									const _1002: rs.IntErrorKind = e11.kind;
-									const args267 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e11, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e11, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1002), (f: rs.Formatter) => rs.i32Display(kind12, f), (f: rs.Formatter) => rs.fmtBool(over11, f)];
-									put(out, rs.fmtFormat([args267[0], "|", args267[1], "|", args267[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args267[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args267[0]), "|", args267[3], "|", args267[4]]).v);
-								}
-								if (radix19 === 10) {
-									const parsed11: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_963);
-									const from11: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_963);
-									if (from11.ok) {
-										max11 = rs.u8Mul(from11.value === 4294967295 ? 1 : 0, 4);
-									} else {
-										max11 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed11.ok ? 1 : 0, max11));
-								}
-							}
-						}
-					}
-					const radix20: rs.u32 = ((first3 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest3), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest3, 1), (b22: rs.u8): boolean => {
-						return (b22 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix20), 99))));
-					}
-					if (!(rest3.length > 2)) {
-						text3 = rs.byteSliceFrom(Uint8Array.of());
+					text = rs.byteSliceRange(rest, 2);
+				}
+				const _310: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text), "1");
+				const radix7: rs.u32 = radix6;
+				const _315: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_310, radix7);
+				if (_315.ok) {
+					const arg45 = _315.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg45, f)]).v);
+				} else {
+					const e4: rs.ParseIntError = _315.error;
+					const _331: rs.IntErrorKind = e4.kind;
+					if (_331 === "Empty") {
+						kind5 = 0;
+					} else if (_331 === "InvalidDigit") {
+						kind5 = 1;
+					} else if (_331 === "PosOverflow") {
+						kind5 = 2;
+					} else if (_331 === "NegOverflow") {
+						kind5 = 3;
 					} else {
-						text3 = rs.byteSliceRange(rest3, 2);
+						kind5 = 4;
 					}
-					const _1058: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text3), "1");
-					const radix21: rs.u32 = radix20;
-					const _1063: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_1058, radix21);
-					if (_1063.ok) {
-						const arg37 = _1063.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg37, f)]).v);
+					if (!(e4.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over4 = e4.kind !== "NegOverflow" as rs.IntErrorKind;
 					} else {
-						const e12: rs.ParseIntError = _1063.error;
-						const _1079: rs.IntErrorKind = e12.kind;
-						if (_1079 === "Empty") {
-							kind13 = 0;
-						} else if (_1079 === "InvalidDigit") {
-							kind13 = 1;
-						} else if (_1079 === "PosOverflow") {
-							kind13 = 2;
-						} else if (_1079 === "NegOverflow") {
-							kind13 = 3;
-						} else {
-							kind13 = 4;
-						}
-						if (!(e12.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over12 = e12.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over12 = true;
-						}
-						const _1099: rs.IntErrorKind = e12.kind;
-						const args265 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e12, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e12, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1099), (f: rs.Formatter) => rs.i32Display(kind13, f), (f: rs.Formatter) => rs.fmtBool(over12, f)];
-						put(out, rs.fmtFormat([args265[0], "|", args265[1], "|", args265[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args265[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args265[0]), "|", args265[3], "|", args265[4]]).v);
+						over4 = true;
 					}
-					if (radix21 === 10) {
-						const parsed12: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_1058);
-						const from12: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_1058);
-						if (from12.ok) {
-							max12 = rs.u8Mul(from12.value === 4294967295 ? 1 : 0, 4);
-						} else {
-							max12 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed12.ok ? 1 : 0, max12));
+					const _351: rs.IntErrorKind = e4.kind;
+					const args281 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e4, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e4, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _351), (f: rs.Formatter) => rs.i32Display(kind5, f), (f: rs.Formatter) => rs.fmtBool(over4, f)];
+					put(out, rs.fmtFormat([args281[0], "|", args281[1], "|", args281[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args281[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args281[0]), "|", args281[3], "|", args281[4]]).v);
+				}
+				if (radix7 === 10) {
+					const parsed4: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_310);
+					const from4: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_310);
+					if (from4.ok) {
+						max4 = rs.u8Mul(from4.value === 255 ? 1 : 0, 4);
+					} else {
+						max4 = 2;
 					}
+					rs.byteVecPush(out, rs.u8Add(parsed4.ok ? 1 : 0, max4));
 				}
 			}
-		} else if (_4 === 3) {
-			if (dataLen !== 0) {
-				const first4: rs.u8 = dataData[dataStart];
-				const rest4: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix22: rs.u32 = rs.u32Add(2, rs.u32Rem(first4 as rs.u32, 35));
-				const _1137: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_1137 === 0) {
-					const _1141: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest4);
-					if (_1141.ok) {
-						const iter13: rs.Iter<rs.char> = rs.strChars(_1141.value);
-						while (true) {
-							const _1147: rs.char | rs.Done = iter13.next();
-							if (_1147 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_1147, radix22), 99))));
-						}
-						const radix23: rs.u32 = radix22;
-						const _1162: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1141.value, radix23);
-						if (_1162.ok) {
-							const arg36 = _1162.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg36, f)]).v);
-						} else {
-							const e13: rs.ParseIntError = _1162.error;
-							const _1178: rs.IntErrorKind = e13.kind;
-							if (_1178 === "Empty") {
-								kind14 = 0;
-							} else if (_1178 === "InvalidDigit") {
-								kind14 = 1;
-							} else if (_1178 === "PosOverflow") {
-								kind14 = 2;
-							} else if (_1178 === "NegOverflow") {
-								kind14 = 3;
-							} else {
-								kind14 = 4;
-							}
-							if (!(e13.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over13 = e13.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over13 = true;
-							}
-							const _1198: rs.IntErrorKind = e13.kind;
-							const args263 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e13, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e13, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1198), (f: rs.Formatter) => rs.i32Display(kind14, f), (f: rs.Formatter) => rs.fmtBool(over13, f)];
-							put(out, rs.fmtFormat([args263[0], "|", args263[1], "|", args263[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args263[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args263[0]), "|", args263[3], "|", args263[4]]).v);
-						}
-						if (radix23 === 10) {
-							const parsed13: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1141.value);
-							const from13: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1141.value);
-							if (from13.ok) {
-								max13 = rs.u8Mul(rs.u64Eq(from13.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
-							} else {
-								max13 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed13.ok ? 1 : 0, max13));
-						}
-					}
-				} else if (_1137 === 1) {
-					const s7: rs.String = rs.stringNew();
-					for (const b4 of rs.byteSliceView(rest4)) {
-						const _1238: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _1239: rs.usize = rs.usizeRem(b4 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_1238, _1239);
-						rs.stringPush(s7, _1238.data[_1238.start + _1239] as rs.char);
-					}
-					const _1250: string = s7.v;
-					const radix24: rs.u32 = radix22;
-					const _1253: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1250, radix24);
-					if (_1253.ok) {
-						const arg35 = _1253.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg35, f)]).v);
-					} else {
-						const e14: rs.ParseIntError = _1253.error;
-						const _1269: rs.IntErrorKind = e14.kind;
-						if (_1269 === "Empty") {
-							kind15 = 0;
-						} else if (_1269 === "InvalidDigit") {
-							kind15 = 1;
-						} else if (_1269 === "PosOverflow") {
-							kind15 = 2;
-						} else if (_1269 === "NegOverflow") {
-							kind15 = 3;
-						} else {
-							kind15 = 4;
-						}
-						if (!(e14.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over14 = e14.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over14 = true;
-						}
-						const _1289: rs.IntErrorKind = e14.kind;
-						const args261 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e14, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e14, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1289), (f: rs.Formatter) => rs.i32Display(kind15, f), (f: rs.Formatter) => rs.fmtBool(over14, f)];
-						put(out, rs.fmtFormat([args261[0], "|", args261[1], "|", args261[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args261[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args261[0]), "|", args261[3], "|", args261[4]]).v);
-					}
-					if (radix24 === 10) {
-						const parsed14: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1250);
-						const from14: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1250);
-						if (from14.ok) {
-							max14 = rs.u8Mul(rs.u64Eq(from14.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
-						} else {
-							max14 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed14.ok ? 1 : 0, max14));
-					}
-				} else {
-					if (_1137 === 2) {
-						const iter15: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _1321: rs.u32 | rs.Done = iter15.next();
-							if (_1321 === rs.DONE) {
-								break b0;
-							}
-							const radix25: rs.u32 = _1321;
-							for (const _1329 of edges({ hi: 0, w2: 0, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, 0, 64, radix25).items) {
-								const _1337: string = _1329.v;
-								const radix26: rs.u32 = radix25;
-								const _1340: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1337, radix26);
-								if (_1340.ok) {
-									const arg34 = _1340.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg34, f)]).v);
-								} else {
-									const e15: rs.ParseIntError = _1340.error;
-									const _1356: rs.IntErrorKind = e15.kind;
-									if (_1356 === "Empty") {
-										kind16 = 0;
-									} else if (_1356 === "InvalidDigit") {
-										kind16 = 1;
-									} else if (_1356 === "PosOverflow") {
-										kind16 = 2;
-									} else if (_1356 === "NegOverflow") {
-										kind16 = 3;
-									} else {
-										kind16 = 4;
-									}
-									if (!(e15.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over15 = e15.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over15 = true;
-									}
-									const _1376: rs.IntErrorKind = e15.kind;
-									const args259 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e15, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e15, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1376), (f: rs.Formatter) => rs.i32Display(kind16, f), (f: rs.Formatter) => rs.fmtBool(over15, f)];
-									put(out, rs.fmtFormat([args259[0], "|", args259[1], "|", args259[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args259[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args259[0]), "|", args259[3], "|", args259[4]]).v);
-								}
-								if (radix26 === 10) {
-									const parsed15: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1337);
-									const from15: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1337);
-									if (from15.ok) {
-										max15 = rs.u8Mul(rs.u64Eq(from15.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
-									} else {
-										max15 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed15.ok ? 1 : 0, max15));
-								}
-							}
-						}
-					}
-					const radix27: rs.u32 = ((first4 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest4), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest4, 1), (b21: rs.u8): boolean => {
-						return (b21 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix27), 99))));
-					}
-					if (!(rest4.length > 2)) {
-						text4 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text4 = rs.byteSliceRange(rest4, 2);
-					}
-					const _1432: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text4), "1");
-					const radix28: rs.u32 = radix27;
-					const _1437: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1432, radix28);
-					if (_1437.ok) {
-						const arg33 = _1437.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg33, f)]).v);
-					} else {
-						const e16: rs.ParseIntError = _1437.error;
-						const _1453: rs.IntErrorKind = e16.kind;
-						if (_1453 === "Empty") {
-							kind17 = 0;
-						} else if (_1453 === "InvalidDigit") {
-							kind17 = 1;
-						} else if (_1453 === "PosOverflow") {
-							kind17 = 2;
-						} else if (_1453 === "NegOverflow") {
-							kind17 = 3;
-						} else {
-							kind17 = 4;
-						}
-						if (!(e16.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over16 = e16.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over16 = true;
-						}
-						const _1473: rs.IntErrorKind = e16.kind;
-						const args257 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e16, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e16, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1473), (f: rs.Formatter) => rs.i32Display(kind17, f), (f: rs.Formatter) => rs.fmtBool(over16, f)];
-						put(out, rs.fmtFormat([args257[0], "|", args257[1], "|", args257[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args257[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args257[0]), "|", args257[3], "|", args257[4]]).v);
-					}
-					if (radix28 === 10) {
-						const parsed16: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1432);
-						const from16: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1432);
-						if (from16.ok) {
-							max16 = rs.u8Mul(rs.u64Eq(from16.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
-						} else {
-							max16 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed16.ok ? 1 : 0, max16));
-					}
-				}
-			}
-		} else if (_4 === 4) {
-			if (dataLen !== 0) {
-				const first5: rs.u8 = dataData[dataStart];
-				const rest5: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix29: rs.u32 = rs.u32Add(2, rs.u32Rem(first5 as rs.u32, 35));
-				const _1511: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_1511 === 0) {
-					const _1515: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest5);
-					if (_1515.ok) {
-						const iter17: rs.Iter<rs.char> = rs.strChars(_1515.value);
-						while (true) {
-							const _1521: rs.char | rs.Done = iter17.next();
-							if (_1521 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_1521, radix29), 99))));
-						}
-						const radix30: rs.u32 = radix29;
-						const _1536: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1515.value, radix30);
-						if (_1536.ok) {
-							const arg32 = _1536.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg32, f)]).v);
-						} else {
-							const e17: rs.ParseIntError = _1536.error;
-							const _1552: rs.IntErrorKind = e17.kind;
-							if (_1552 === "Empty") {
-								kind18 = 0;
-							} else if (_1552 === "InvalidDigit") {
-								kind18 = 1;
-							} else if (_1552 === "PosOverflow") {
-								kind18 = 2;
-							} else if (_1552 === "NegOverflow") {
-								kind18 = 3;
-							} else {
-								kind18 = 4;
-							}
-							if (!(e17.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over17 = e17.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over17 = true;
-							}
-							const _1572: rs.IntErrorKind = e17.kind;
-							const args255 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e17, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e17, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1572), (f: rs.Formatter) => rs.i32Display(kind18, f), (f: rs.Formatter) => rs.fmtBool(over17, f)];
-							put(out, rs.fmtFormat([args255[0], "|", args255[1], "|", args255[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args255[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args255[0]), "|", args255[3], "|", args255[4]]).v);
-						}
-						if (radix30 === 10) {
-							const parsed17: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1515.value);
-							const from17: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1515.value);
-							if (from17.ok) {
-								max17 = rs.u8Mul(rs.u128Eq(from17.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
-							} else {
-								max17 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed17.ok ? 1 : 0, max17));
-						}
-					}
-				} else if (_1511 === 1) {
-					const s9: rs.String = rs.stringNew();
-					for (const b5 of rs.byteSliceView(rest5)) {
-						const _1612: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _1613: rs.usize = rs.usizeRem(b5 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_1612, _1613);
-						rs.stringPush(s9, _1612.data[_1612.start + _1613] as rs.char);
-					}
-					const _1624: string = s9.v;
-					const radix31: rs.u32 = radix29;
-					const _1627: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1624, radix31);
-					if (_1627.ok) {
-						const arg31 = _1627.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg31, f)]).v);
-					} else {
-						const e18: rs.ParseIntError = _1627.error;
-						const _1643: rs.IntErrorKind = e18.kind;
-						if (_1643 === "Empty") {
-							kind19 = 0;
-						} else if (_1643 === "InvalidDigit") {
-							kind19 = 1;
-						} else if (_1643 === "PosOverflow") {
-							kind19 = 2;
-						} else if (_1643 === "NegOverflow") {
-							kind19 = 3;
-						} else {
-							kind19 = 4;
-						}
-						if (!(e18.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over18 = e18.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over18 = true;
-						}
-						const _1663: rs.IntErrorKind = e18.kind;
-						const args253 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e18, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e18, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1663), (f: rs.Formatter) => rs.i32Display(kind19, f), (f: rs.Formatter) => rs.fmtBool(over18, f)];
-						put(out, rs.fmtFormat([args253[0], "|", args253[1], "|", args253[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args253[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args253[0]), "|", args253[3], "|", args253[4]]).v);
-					}
-					if (radix31 === 10) {
-						const parsed18: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1624);
-						const from18: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1624);
-						if (from18.ok) {
-							max18 = rs.u8Mul(rs.u128Eq(from18.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
-						} else {
-							max18 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed18.ok ? 1 : 0, max18));
-					}
-				} else {
-					if (_1511 === 2) {
-						const iter19: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _1695: rs.u32 | rs.Done = iter19.next();
-							if (_1695 === rs.DONE) {
-								break b0;
-							}
-							const radix32: rs.u32 = _1695;
-							for (const _1702 of edges({ hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, 0, 128, radix32).items) {
-								const _1710: string = _1702.v;
-								const radix33: rs.u32 = radix32;
-								const _1713: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1710, radix33);
-								if (_1713.ok) {
-									const arg30 = _1713.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg30, f)]).v);
-								} else {
-									const e19: rs.ParseIntError = _1713.error;
-									const _1729: rs.IntErrorKind = e19.kind;
-									if (_1729 === "Empty") {
-										kind20 = 0;
-									} else if (_1729 === "InvalidDigit") {
-										kind20 = 1;
-									} else if (_1729 === "PosOverflow") {
-										kind20 = 2;
-									} else if (_1729 === "NegOverflow") {
-										kind20 = 3;
-									} else {
-										kind20 = 4;
-									}
-									if (!(e19.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over19 = e19.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over19 = true;
-									}
-									const _1749: rs.IntErrorKind = e19.kind;
-									const args251 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e19, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e19, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1749), (f: rs.Formatter) => rs.i32Display(kind20, f), (f: rs.Formatter) => rs.fmtBool(over19, f)];
-									put(out, rs.fmtFormat([args251[0], "|", args251[1], "|", args251[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args251[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args251[0]), "|", args251[3], "|", args251[4]]).v);
-								}
-								if (radix33 === 10) {
-									const parsed19: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1710);
-									const from19: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1710);
-									if (from19.ok) {
-										max19 = rs.u8Mul(rs.u128Eq(from19.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
-									} else {
-										max19 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed19.ok ? 1 : 0, max19));
-								}
-							}
-						}
-					}
-					const radix34: rs.u32 = ((first5 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest5), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest5, 1), (b20: rs.u8): boolean => {
-						return (b20 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix34), 99))));
-					}
-					if (!(rest5.length > 2)) {
-						text5 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text5 = rs.byteSliceRange(rest5, 2);
-					}
-					const _1805: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text5), "1");
-					const radix35: rs.u32 = radix34;
-					const _1810: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1805, radix35);
-					if (_1810.ok) {
-						const arg29 = _1810.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg29, f)]).v);
-					} else {
-						const e20: rs.ParseIntError = _1810.error;
-						const _1826: rs.IntErrorKind = e20.kind;
-						if (_1826 === "Empty") {
-							kind21 = 0;
-						} else if (_1826 === "InvalidDigit") {
-							kind21 = 1;
-						} else if (_1826 === "PosOverflow") {
-							kind21 = 2;
-						} else if (_1826 === "NegOverflow") {
-							kind21 = 3;
-						} else {
-							kind21 = 4;
-						}
-						if (!(e20.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over20 = e20.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over20 = true;
-						}
-						const _1846: rs.IntErrorKind = e20.kind;
-						const args249 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e20, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e20, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1846), (f: rs.Formatter) => rs.i32Display(kind21, f), (f: rs.Formatter) => rs.fmtBool(over20, f)];
-						put(out, rs.fmtFormat([args249[0], "|", args249[1], "|", args249[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args249[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args249[0]), "|", args249[3], "|", args249[4]]).v);
-					}
-					if (radix35 === 10) {
-						const parsed20: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1805);
-						const from20: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1805);
-						if (from20.ok) {
-							max20 = rs.u8Mul(rs.u128Eq(from20.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
-						} else {
-							max20 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed20.ok ? 1 : 0, max20));
-					}
-				}
-			}
-		} else if (_4 === 5) {
-			if (dataLen !== 0) {
-				const first6: rs.u8 = dataData[dataStart];
-				const rest6: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix36: rs.u32 = rs.u32Add(2, rs.u32Rem(first6 as rs.u32, 35));
-				const _1884: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_1884 === 0) {
-					const _1888: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest6);
-					if (_1888.ok) {
-						const iter21: rs.Iter<rs.char> = rs.strChars(_1888.value);
-						while (true) {
-							const _1894: rs.char | rs.Done = iter21.next();
-							if (_1894 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_1894, radix36), 99))));
-						}
-						const radix37: rs.u32 = radix36;
-						const _1909: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_1888.value, radix37);
-						if (_1909.ok) {
-							const arg28 = _1909.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg28, f)]).v);
-						} else {
-							const e21: rs.ParseIntError = _1909.error;
-							const _1925: rs.IntErrorKind = e21.kind;
-							if (_1925 === "Empty") {
-								kind22 = 0;
-							} else if (_1925 === "InvalidDigit") {
-								kind22 = 1;
-							} else if (_1925 === "PosOverflow") {
-								kind22 = 2;
-							} else if (_1925 === "NegOverflow") {
-								kind22 = 3;
-							} else {
-								kind22 = 4;
-							}
-							if (!(e21.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over21 = e21.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over21 = true;
-							}
-							const _1945: rs.IntErrorKind = e21.kind;
-							const args247 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e21, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e21, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1945), (f: rs.Formatter) => rs.i32Display(kind22, f), (f: rs.Formatter) => rs.fmtBool(over21, f)];
-							put(out, rs.fmtFormat([args247[0], "|", args247[1], "|", args247[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args247[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args247[0]), "|", args247[3], "|", args247[4]]).v);
-						}
-						if (radix37 === 10) {
-							const parsed21: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_1888.value);
-							const from21: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_1888.value);
-							if (from21.ok) {
-								max21 = rs.u8Mul(from21.value === 4294967295 ? 1 : 0, 4);
-							} else {
-								max21 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed21.ok ? 1 : 0, max21));
-						}
-					}
-				} else if (_1884 === 1) {
-					const s11: rs.String = rs.stringNew();
-					for (const b6 of rs.byteSliceView(rest6)) {
-						const _1985: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _1986: rs.usize = rs.usizeRem(b6 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_1985, _1986);
-						rs.stringPush(s11, _1985.data[_1985.start + _1986] as rs.char);
-					}
-					const _1997: string = s11.v;
-					const radix38: rs.u32 = radix36;
-					const _2000: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_1997, radix38);
-					if (_2000.ok) {
-						const arg27 = _2000.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg27, f)]).v);
-					} else {
-						const e22: rs.ParseIntError = _2000.error;
-						const _2016: rs.IntErrorKind = e22.kind;
-						if (_2016 === "Empty") {
-							kind23 = 0;
-						} else if (_2016 === "InvalidDigit") {
-							kind23 = 1;
-						} else if (_2016 === "PosOverflow") {
-							kind23 = 2;
-						} else if (_2016 === "NegOverflow") {
-							kind23 = 3;
-						} else {
-							kind23 = 4;
-						}
-						if (!(e22.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over22 = e22.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over22 = true;
-						}
-						const _2036: rs.IntErrorKind = e22.kind;
-						const args245 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e22, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e22, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2036), (f: rs.Formatter) => rs.i32Display(kind23, f), (f: rs.Formatter) => rs.fmtBool(over22, f)];
-						put(out, rs.fmtFormat([args245[0], "|", args245[1], "|", args245[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args245[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args245[0]), "|", args245[3], "|", args245[4]]).v);
-					}
-					if (radix38 === 10) {
-						const parsed22: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_1997);
-						const from22: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_1997);
-						if (from22.ok) {
-							max22 = rs.u8Mul(from22.value === 4294967295 ? 1 : 0, 4);
-						} else {
-							max22 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed22.ok ? 1 : 0, max22));
-					}
-				} else {
-					if (_1884 === 2) {
-						const iter23: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _2068: rs.u32 | rs.Done = iter23.next();
-							if (_2068 === rs.DONE) {
-								break b0;
-							}
-							const radix39: rs.u32 = _2068;
-							for (const _2076 of edges(4294967295, 0, 32, radix39).items) {
-								const _2084: string = _2076.v;
-								const radix40: rs.u32 = radix39;
-								const _2087: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_2084, radix40);
-								if (_2087.ok) {
-									const arg26 = _2087.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg26, f)]).v);
-								} else {
-									const e23: rs.ParseIntError = _2087.error;
-									const _2103: rs.IntErrorKind = e23.kind;
-									if (_2103 === "Empty") {
-										kind24 = 0;
-									} else if (_2103 === "InvalidDigit") {
-										kind24 = 1;
-									} else if (_2103 === "PosOverflow") {
-										kind24 = 2;
-									} else if (_2103 === "NegOverflow") {
-										kind24 = 3;
-									} else {
-										kind24 = 4;
-									}
-									if (!(e23.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over23 = e23.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over23 = true;
-									}
-									const _2123: rs.IntErrorKind = e23.kind;
-									const args243 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e23, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e23, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2123), (f: rs.Formatter) => rs.i32Display(kind24, f), (f: rs.Formatter) => rs.fmtBool(over23, f)];
-									put(out, rs.fmtFormat([args243[0], "|", args243[1], "|", args243[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args243[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args243[0]), "|", args243[3], "|", args243[4]]).v);
-								}
-								if (radix40 === 10) {
-									const parsed23: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_2084);
-									const from23: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_2084);
-									if (from23.ok) {
-										max23 = rs.u8Mul(from23.value === 4294967295 ? 1 : 0, 4);
-									} else {
-										max23 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed23.ok ? 1 : 0, max23));
-								}
-							}
-						}
-					}
-					const radix41: rs.u32 = ((first6 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest6), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest6, 1), (b19: rs.u8): boolean => {
-						return (b19 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix41), 99))));
-					}
-					if (!(rest6.length > 2)) {
-						text6 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text6 = rs.byteSliceRange(rest6, 2);
-					}
-					const _2179: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text6), "1");
-					const radix42: rs.u32 = radix41;
-					const _2184: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_2179, radix42);
-					if (_2184.ok) {
-						const arg25 = _2184.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg25, f)]).v);
-					} else {
-						const e24: rs.ParseIntError = _2184.error;
-						const _2200: rs.IntErrorKind = e24.kind;
-						if (_2200 === "Empty") {
-							kind25 = 0;
-						} else if (_2200 === "InvalidDigit") {
-							kind25 = 1;
-						} else if (_2200 === "PosOverflow") {
-							kind25 = 2;
-						} else if (_2200 === "NegOverflow") {
-							kind25 = 3;
-						} else {
-							kind25 = 4;
-						}
-						if (!(e24.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over24 = e24.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over24 = true;
-						}
-						const _2220: rs.IntErrorKind = e24.kind;
-						const args241 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e24, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e24, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2220), (f: rs.Formatter) => rs.i32Display(kind25, f), (f: rs.Formatter) => rs.fmtBool(over24, f)];
-						put(out, rs.fmtFormat([args241[0], "|", args241[1], "|", args241[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args241[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args241[0]), "|", args241[3], "|", args241[4]]).v);
-					}
-					if (radix42 === 10) {
-						const parsed24: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_2179);
-						const from24: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_2179);
-						if (from24.ok) {
-							max24 = rs.u8Mul(from24.value === 4294967295 ? 1 : 0, 4);
-						} else {
-							max24 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed24.ok ? 1 : 0, max24));
-					}
-				}
-			}
-		} else if (_4 === 6) {
-			if (dataLen !== 0) {
-				const first7: rs.u8 = dataData[dataStart];
-				const rest7: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix43: rs.u32 = rs.u32Add(2, rs.u32Rem(first7 as rs.u32, 35));
-				const _2258: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_2258 === 0) {
-					const _2262: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest7);
-					if (_2262.ok) {
-						const iter25: rs.Iter<rs.char> = rs.strChars(_2262.value);
-						while (true) {
-							const _2268: rs.char | rs.Done = iter25.next();
-							if (_2268 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_2268, radix43), 99))));
-						}
-						const radix44: rs.u32 = radix43;
-						const _2283: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2262.value, radix44);
-						if (_2283.ok) {
-							const arg24 = _2283.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg24, f)]).v);
-						} else {
-							const e25: rs.ParseIntError = _2283.error;
-							const _2299: rs.IntErrorKind = e25.kind;
-							if (_2299 === "Empty") {
-								kind26 = 0;
-							} else if (_2299 === "InvalidDigit") {
-								kind26 = 1;
-							} else if (_2299 === "PosOverflow") {
-								kind26 = 2;
-							} else if (_2299 === "NegOverflow") {
-								kind26 = 3;
-							} else {
-								kind26 = 4;
-							}
-							if (!(e25.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over25 = e25.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over25 = true;
-							}
-							const _2319: rs.IntErrorKind = e25.kind;
-							const args239 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e25, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e25, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2319), (f: rs.Formatter) => rs.i32Display(kind26, f), (f: rs.Formatter) => rs.fmtBool(over25, f)];
-							put(out, rs.fmtFormat([args239[0], "|", args239[1], "|", args239[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args239[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args239[0]), "|", args239[3], "|", args239[4]]).v);
-						}
-						if (radix44 === 10) {
-							const parsed25: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2262.value);
-							const from25: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2262.value);
-							if (from25.ok) {
-								max25 = rs.u8Mul(from25.value === 127 ? 1 : 0, 4);
-							} else {
-								max25 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed25.ok ? 1 : 0, max25));
-						}
-					}
-				} else if (_2258 === 1) {
-					const s13: rs.String = rs.stringNew();
-					for (const b7 of rs.byteSliceView(rest7)) {
-						const _2359: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _2360: rs.usize = rs.usizeRem(b7 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_2359, _2360);
-						rs.stringPush(s13, _2359.data[_2359.start + _2360] as rs.char);
-					}
-					const _2371: string = s13.v;
-					const radix45: rs.u32 = radix43;
-					const _2374: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2371, radix45);
-					if (_2374.ok) {
-						const arg23 = _2374.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg23, f)]).v);
-					} else {
-						const e26: rs.ParseIntError = _2374.error;
-						const _2390: rs.IntErrorKind = e26.kind;
-						if (_2390 === "Empty") {
-							kind27 = 0;
-						} else if (_2390 === "InvalidDigit") {
-							kind27 = 1;
-						} else if (_2390 === "PosOverflow") {
-							kind27 = 2;
-						} else if (_2390 === "NegOverflow") {
-							kind27 = 3;
-						} else {
-							kind27 = 4;
-						}
-						if (!(e26.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over26 = e26.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over26 = true;
-						}
-						const _2410: rs.IntErrorKind = e26.kind;
-						const args237 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e26, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e26, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2410), (f: rs.Formatter) => rs.i32Display(kind27, f), (f: rs.Formatter) => rs.fmtBool(over26, f)];
-						put(out, rs.fmtFormat([args237[0], "|", args237[1], "|", args237[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args237[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args237[0]), "|", args237[3], "|", args237[4]]).v);
-					}
-					if (radix45 === 10) {
-						const parsed26: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2371);
-						const from26: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2371);
-						if (from26.ok) {
-							max26 = rs.u8Mul(from26.value === 127 ? 1 : 0, 4);
-						} else {
-							max26 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed26.ok ? 1 : 0, max26));
-					}
-				} else {
-					if (_2258 === 2) {
-						const iter27: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _2442: rs.u32 | rs.Done = iter27.next();
-							if (_2442 === rs.DONE) {
-								break b0;
-							}
-							const radix46: rs.u32 = _2442;
-							for (const _2453 of edges(127, rs.u128Add(127, 1), 8, radix46).items) {
-								const _2461: string = _2453.v;
-								const radix47: rs.u32 = radix46;
-								const _2464: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2461, radix47);
-								if (_2464.ok) {
-									const arg22 = _2464.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg22, f)]).v);
-								} else {
-									const e27: rs.ParseIntError = _2464.error;
-									const _2480: rs.IntErrorKind = e27.kind;
-									if (_2480 === "Empty") {
-										kind28 = 0;
-									} else if (_2480 === "InvalidDigit") {
-										kind28 = 1;
-									} else if (_2480 === "PosOverflow") {
-										kind28 = 2;
-									} else if (_2480 === "NegOverflow") {
-										kind28 = 3;
-									} else {
-										kind28 = 4;
-									}
-									if (!(e27.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over27 = e27.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over27 = true;
-									}
-									const _2500: rs.IntErrorKind = e27.kind;
-									const args235 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e27, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e27, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2500), (f: rs.Formatter) => rs.i32Display(kind28, f), (f: rs.Formatter) => rs.fmtBool(over27, f)];
-									put(out, rs.fmtFormat([args235[0], "|", args235[1], "|", args235[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args235[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args235[0]), "|", args235[3], "|", args235[4]]).v);
-								}
-								if (radix47 === 10) {
-									const parsed27: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2461);
-									const from27: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2461);
-									if (from27.ok) {
-										max27 = rs.u8Mul(from27.value === 127 ? 1 : 0, 4);
-									} else {
-										max27 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed27.ok ? 1 : 0, max27));
-								}
-							}
-						}
-					}
-					const radix48: rs.u32 = ((first7 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest7), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest7, 1), (b18: rs.u8): boolean => {
-						return (b18 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix48), 99))));
-					}
-					if (!(rest7.length > 2)) {
-						text7 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text7 = rs.byteSliceRange(rest7, 2);
-					}
-					const _2556: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text7), "1");
-					const radix49: rs.u32 = radix48;
-					const _2561: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2556, radix49);
-					if (_2561.ok) {
-						const arg21 = _2561.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg21, f)]).v);
-					} else {
-						const e28: rs.ParseIntError = _2561.error;
-						const _2577: rs.IntErrorKind = e28.kind;
-						if (_2577 === "Empty") {
-							kind29 = 0;
-						} else if (_2577 === "InvalidDigit") {
-							kind29 = 1;
-						} else if (_2577 === "PosOverflow") {
-							kind29 = 2;
-						} else if (_2577 === "NegOverflow") {
-							kind29 = 3;
-						} else {
-							kind29 = 4;
-						}
-						if (!(e28.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over28 = e28.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over28 = true;
-						}
-						const _2597: rs.IntErrorKind = e28.kind;
-						const args233 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e28, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e28, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2597), (f: rs.Formatter) => rs.i32Display(kind29, f), (f: rs.Formatter) => rs.fmtBool(over28, f)];
-						put(out, rs.fmtFormat([args233[0], "|", args233[1], "|", args233[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args233[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args233[0]), "|", args233[3], "|", args233[4]]).v);
-					}
-					if (radix49 === 10) {
-						const parsed28: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2556);
-						const from28: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2556);
-						if (from28.ok) {
-							max28 = rs.u8Mul(from28.value === 127 ? 1 : 0, 4);
-						} else {
-							max28 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed28.ok ? 1 : 0, max28));
-					}
-				}
-			}
-		} else if (_4 === 7) {
-			if (dataLen !== 0) {
-				const first8: rs.u8 = dataData[dataStart];
-				const rest8: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix50: rs.u32 = rs.u32Add(2, rs.u32Rem(first8 as rs.u32, 35));
-				const _2635: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_2635 === 0) {
-					const _2639: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest8);
-					if (_2639.ok) {
-						const iter29: rs.Iter<rs.char> = rs.strChars(_2639.value);
-						while (true) {
-							const _2645: rs.char | rs.Done = iter29.next();
-							if (_2645 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_2645, radix50), 99))));
-						}
-						const radix51: rs.u32 = radix50;
-						const _2660: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2639.value, radix51);
-						if (_2660.ok) {
-							const arg20 = _2660.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg20, f)]).v);
-						} else {
-							const e29: rs.ParseIntError = _2660.error;
-							const _2676: rs.IntErrorKind = e29.kind;
-							if (_2676 === "Empty") {
-								kind30 = 0;
-							} else if (_2676 === "InvalidDigit") {
-								kind30 = 1;
-							} else if (_2676 === "PosOverflow") {
-								kind30 = 2;
-							} else if (_2676 === "NegOverflow") {
-								kind30 = 3;
-							} else {
-								kind30 = 4;
-							}
-							if (!(e29.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over29 = e29.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over29 = true;
-							}
-							const _2696: rs.IntErrorKind = e29.kind;
-							const args231 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e29, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e29, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2696), (f: rs.Formatter) => rs.i32Display(kind30, f), (f: rs.Formatter) => rs.fmtBool(over29, f)];
-							put(out, rs.fmtFormat([args231[0], "|", args231[1], "|", args231[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args231[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args231[0]), "|", args231[3], "|", args231[4]]).v);
-						}
-						if (radix51 === 10) {
-							const parsed29: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2639.value);
-							const from29: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2639.value);
-							if (from29.ok) {
-								max29 = rs.u8Mul(from29.value === 32767 ? 1 : 0, 4);
-							} else {
-								max29 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed29.ok ? 1 : 0, max29));
-						}
-					}
-				} else if (_2635 === 1) {
-					const s15: rs.String = rs.stringNew();
-					for (const b8 of rs.byteSliceView(rest8)) {
-						const _2736: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _2737: rs.usize = rs.usizeRem(b8 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_2736, _2737);
-						rs.stringPush(s15, _2736.data[_2736.start + _2737] as rs.char);
-					}
-					const _2748: string = s15.v;
-					const radix52: rs.u32 = radix50;
-					const _2751: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2748, radix52);
-					if (_2751.ok) {
-						const arg19 = _2751.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg19, f)]).v);
-					} else {
-						const e30: rs.ParseIntError = _2751.error;
-						const _2767: rs.IntErrorKind = e30.kind;
-						if (_2767 === "Empty") {
-							kind31 = 0;
-						} else if (_2767 === "InvalidDigit") {
-							kind31 = 1;
-						} else if (_2767 === "PosOverflow") {
-							kind31 = 2;
-						} else if (_2767 === "NegOverflow") {
-							kind31 = 3;
-						} else {
-							kind31 = 4;
-						}
-						if (!(e30.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over30 = e30.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over30 = true;
-						}
-						const _2787: rs.IntErrorKind = e30.kind;
-						const args229 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e30, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e30, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2787), (f: rs.Formatter) => rs.i32Display(kind31, f), (f: rs.Formatter) => rs.fmtBool(over30, f)];
-						put(out, rs.fmtFormat([args229[0], "|", args229[1], "|", args229[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args229[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args229[0]), "|", args229[3], "|", args229[4]]).v);
-					}
-					if (radix52 === 10) {
-						const parsed30: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2748);
-						const from30: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2748);
-						if (from30.ok) {
-							max30 = rs.u8Mul(from30.value === 32767 ? 1 : 0, 4);
-						} else {
-							max30 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed30.ok ? 1 : 0, max30));
-					}
-				} else {
-					if (_2635 === 2) {
-						const iter31: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _2819: rs.u32 | rs.Done = iter31.next();
-							if (_2819 === rs.DONE) {
-								break b0;
-							}
-							const radix53: rs.u32 = _2819;
-							for (const _2830 of edges(32767, rs.u128Add(32767, 1), 16, radix53).items) {
-								const _2838: string = _2830.v;
-								const radix54: rs.u32 = radix53;
-								const _2841: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2838, radix54);
-								if (_2841.ok) {
-									const arg18 = _2841.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg18, f)]).v);
-								} else {
-									const e31: rs.ParseIntError = _2841.error;
-									const _2857: rs.IntErrorKind = e31.kind;
-									if (_2857 === "Empty") {
-										kind32 = 0;
-									} else if (_2857 === "InvalidDigit") {
-										kind32 = 1;
-									} else if (_2857 === "PosOverflow") {
-										kind32 = 2;
-									} else if (_2857 === "NegOverflow") {
-										kind32 = 3;
-									} else {
-										kind32 = 4;
-									}
-									if (!(e31.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over31 = e31.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over31 = true;
-									}
-									const _2877: rs.IntErrorKind = e31.kind;
-									const args227 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e31, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e31, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2877), (f: rs.Formatter) => rs.i32Display(kind32, f), (f: rs.Formatter) => rs.fmtBool(over31, f)];
-									put(out, rs.fmtFormat([args227[0], "|", args227[1], "|", args227[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args227[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args227[0]), "|", args227[3], "|", args227[4]]).v);
-								}
-								if (radix54 === 10) {
-									const parsed31: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2838);
-									const from31: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2838);
-									if (from31.ok) {
-										max31 = rs.u8Mul(from31.value === 32767 ? 1 : 0, 4);
-									} else {
-										max31 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed31.ok ? 1 : 0, max31));
-								}
-							}
-						}
-					}
-					const radix55: rs.u32 = ((first8 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest8), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest8, 1), (b17: rs.u8): boolean => {
-						return (b17 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix55), 99))));
-					}
-					if (!(rest8.length > 2)) {
-						text8 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text8 = rs.byteSliceRange(rest8, 2);
-					}
-					const _2933: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text8), "1");
-					const radix56: rs.u32 = radix55;
-					const _2938: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2933, radix56);
-					if (_2938.ok) {
-						const arg17 = _2938.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg17, f)]).v);
-					} else {
-						const e32: rs.ParseIntError = _2938.error;
-						const _2954: rs.IntErrorKind = e32.kind;
-						if (_2954 === "Empty") {
-							kind33 = 0;
-						} else if (_2954 === "InvalidDigit") {
-							kind33 = 1;
-						} else if (_2954 === "PosOverflow") {
-							kind33 = 2;
-						} else if (_2954 === "NegOverflow") {
-							kind33 = 3;
-						} else {
-							kind33 = 4;
-						}
-						if (!(e32.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over32 = e32.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over32 = true;
-						}
-						const _2974: rs.IntErrorKind = e32.kind;
-						const args225 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e32, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e32, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2974), (f: rs.Formatter) => rs.i32Display(kind33, f), (f: rs.Formatter) => rs.fmtBool(over32, f)];
-						put(out, rs.fmtFormat([args225[0], "|", args225[1], "|", args225[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args225[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args225[0]), "|", args225[3], "|", args225[4]]).v);
-					}
-					if (radix56 === 10) {
-						const parsed32: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2933);
-						const from32: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2933);
-						if (from32.ok) {
-							max32 = rs.u8Mul(from32.value === 32767 ? 1 : 0, 4);
-						} else {
-							max32 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed32.ok ? 1 : 0, max32));
-					}
-				}
-			}
-		} else if (_4 === 8) {
-			if (dataLen !== 0) {
-				const first9: rs.u8 = dataData[dataStart];
-				const rest9: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix57: rs.u32 = rs.u32Add(2, rs.u32Rem(first9 as rs.u32, 35));
-				const _3012: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_3012 === 0) {
-					const _3016: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest9);
-					if (_3016.ok) {
-						const iter33: rs.Iter<rs.char> = rs.strChars(_3016.value);
-						while (true) {
-							const _3022: rs.char | rs.Done = iter33.next();
-							if (_3022 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_3022, radix57), 99))));
-						}
-						const radix58: rs.u32 = radix57;
-						const _3037: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3016.value, radix58);
-						if (_3037.ok) {
-							const arg16 = _3037.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg16, f)]).v);
-						} else {
-							const e33: rs.ParseIntError = _3037.error;
-							const _3053: rs.IntErrorKind = e33.kind;
-							if (_3053 === "Empty") {
-								kind34 = 0;
-							} else if (_3053 === "InvalidDigit") {
-								kind34 = 1;
-							} else if (_3053 === "PosOverflow") {
-								kind34 = 2;
-							} else if (_3053 === "NegOverflow") {
-								kind34 = 3;
-							} else {
-								kind34 = 4;
-							}
-							if (!(e33.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over33 = e33.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over33 = true;
-							}
-							const _3073: rs.IntErrorKind = e33.kind;
-							const args223 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e33, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e33, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3073), (f: rs.Formatter) => rs.i32Display(kind34, f), (f: rs.Formatter) => rs.fmtBool(over33, f)];
-							put(out, rs.fmtFormat([args223[0], "|", args223[1], "|", args223[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args223[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args223[0]), "|", args223[3], "|", args223[4]]).v);
-						}
-						if (radix58 === 10) {
-							const parsed33: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3016.value);
-							const from33: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3016.value);
-							if (from33.ok) {
-								max33 = rs.u8Mul(from33.value === 2147483647 ? 1 : 0, 4);
-							} else {
-								max33 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed33.ok ? 1 : 0, max33));
-						}
-					}
-				} else if (_3012 === 1) {
-					const s17: rs.String = rs.stringNew();
-					for (const b9 of rs.byteSliceView(rest9)) {
-						const _3113: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _3114: rs.usize = rs.usizeRem(b9 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_3113, _3114);
-						rs.stringPush(s17, _3113.data[_3113.start + _3114] as rs.char);
-					}
-					const _3125: string = s17.v;
-					const radix59: rs.u32 = radix57;
-					const _3128: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3125, radix59);
-					if (_3128.ok) {
-						const arg15 = _3128.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg15, f)]).v);
-					} else {
-						const e34: rs.ParseIntError = _3128.error;
-						const _3144: rs.IntErrorKind = e34.kind;
-						if (_3144 === "Empty") {
-							kind35 = 0;
-						} else if (_3144 === "InvalidDigit") {
-							kind35 = 1;
-						} else if (_3144 === "PosOverflow") {
-							kind35 = 2;
-						} else if (_3144 === "NegOverflow") {
-							kind35 = 3;
-						} else {
-							kind35 = 4;
-						}
-						if (!(e34.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over34 = e34.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over34 = true;
-						}
-						const _3164: rs.IntErrorKind = e34.kind;
-						const args221 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e34, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e34, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3164), (f: rs.Formatter) => rs.i32Display(kind35, f), (f: rs.Formatter) => rs.fmtBool(over34, f)];
-						put(out, rs.fmtFormat([args221[0], "|", args221[1], "|", args221[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args221[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args221[0]), "|", args221[3], "|", args221[4]]).v);
-					}
-					if (radix59 === 10) {
-						const parsed34: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3125);
-						const from34: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3125);
-						if (from34.ok) {
-							max34 = rs.u8Mul(from34.value === 2147483647 ? 1 : 0, 4);
-						} else {
-							max34 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed34.ok ? 1 : 0, max34));
-					}
-				} else {
-					if (_3012 === 2) {
-						const iter35: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _3196: rs.u32 | rs.Done = iter35.next();
-							if (_3196 === rs.DONE) {
-								break b0;
-							}
-							const radix60: rs.u32 = _3196;
-							for (const _3207 of edges(2147483647, rs.u128Add(2147483647, 1), 32, radix60).items) {
-								const _3215: string = _3207.v;
-								const radix61: rs.u32 = radix60;
-								const _3218: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3215, radix61);
-								if (_3218.ok) {
-									const arg14 = _3218.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg14, f)]).v);
-								} else {
-									const e35: rs.ParseIntError = _3218.error;
-									const _3234: rs.IntErrorKind = e35.kind;
-									if (_3234 === "Empty") {
-										kind36 = 0;
-									} else if (_3234 === "InvalidDigit") {
-										kind36 = 1;
-									} else if (_3234 === "PosOverflow") {
-										kind36 = 2;
-									} else if (_3234 === "NegOverflow") {
-										kind36 = 3;
-									} else {
-										kind36 = 4;
-									}
-									if (!(e35.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over35 = e35.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over35 = true;
-									}
-									const _3254: rs.IntErrorKind = e35.kind;
-									const args219 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e35, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e35, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3254), (f: rs.Formatter) => rs.i32Display(kind36, f), (f: rs.Formatter) => rs.fmtBool(over35, f)];
-									put(out, rs.fmtFormat([args219[0], "|", args219[1], "|", args219[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args219[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args219[0]), "|", args219[3], "|", args219[4]]).v);
-								}
-								if (radix61 === 10) {
-									const parsed35: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3215);
-									const from35: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3215);
-									if (from35.ok) {
-										max35 = rs.u8Mul(from35.value === 2147483647 ? 1 : 0, 4);
-									} else {
-										max35 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed35.ok ? 1 : 0, max35));
-								}
-							}
-						}
-					}
-					const radix62: rs.u32 = ((first9 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest9), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest9, 1), (b16: rs.u8): boolean => {
-						return (b16 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix62), 99))));
-					}
-					if (!(rest9.length > 2)) {
-						text9 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text9 = rs.byteSliceRange(rest9, 2);
-					}
-					const _3310: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text9), "1");
-					const radix63: rs.u32 = radix62;
-					const _3315: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3310, radix63);
-					if (_3315.ok) {
-						const arg13 = _3315.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg13, f)]).v);
-					} else {
-						const e36: rs.ParseIntError = _3315.error;
-						const _3331: rs.IntErrorKind = e36.kind;
-						if (_3331 === "Empty") {
-							kind37 = 0;
-						} else if (_3331 === "InvalidDigit") {
-							kind37 = 1;
-						} else if (_3331 === "PosOverflow") {
-							kind37 = 2;
-						} else if (_3331 === "NegOverflow") {
-							kind37 = 3;
-						} else {
-							kind37 = 4;
-						}
-						if (!(e36.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over36 = e36.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over36 = true;
-						}
-						const _3351: rs.IntErrorKind = e36.kind;
-						const args217 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e36, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e36, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3351), (f: rs.Formatter) => rs.i32Display(kind37, f), (f: rs.Formatter) => rs.fmtBool(over36, f)];
-						put(out, rs.fmtFormat([args217[0], "|", args217[1], "|", args217[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args217[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args217[0]), "|", args217[3], "|", args217[4]]).v);
-					}
-					if (radix63 === 10) {
-						const parsed36: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3310);
-						const from36: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3310);
-						if (from36.ok) {
-							max36 = rs.u8Mul(from36.value === 2147483647 ? 1 : 0, 4);
-						} else {
-							max36 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed36.ok ? 1 : 0, max36));
-					}
-				}
-			}
-		} else if (_4 === 9) {
-			if (dataLen !== 0) {
-				const first10: rs.u8 = dataData[dataStart];
-				const rest10: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix64: rs.u32 = rs.u32Add(2, rs.u32Rem(first10 as rs.u32, 35));
-				const _3389: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_3389 === 0) {
-					const _3393: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest10);
-					if (_3393.ok) {
-						const iter37: rs.Iter<rs.char> = rs.strChars(_3393.value);
-						while (true) {
-							const _3399: rs.char | rs.Done = iter37.next();
-							if (_3399 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_3399, radix64), 99))));
-						}
-						const radix65: rs.u32 = radix64;
-						const _3414: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3393.value, radix65);
-						if (_3414.ok) {
-							const arg12 = _3414.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg12, f)]).v);
-						} else {
-							const e37: rs.ParseIntError = _3414.error;
-							const _3430: rs.IntErrorKind = e37.kind;
-							if (_3430 === "Empty") {
-								kind38 = 0;
-							} else if (_3430 === "InvalidDigit") {
-								kind38 = 1;
-							} else if (_3430 === "PosOverflow") {
-								kind38 = 2;
-							} else if (_3430 === "NegOverflow") {
-								kind38 = 3;
-							} else {
-								kind38 = 4;
-							}
-							if (!(e37.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over37 = e37.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over37 = true;
-							}
-							const _3450: rs.IntErrorKind = e37.kind;
-							const args215 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e37, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e37, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3450), (f: rs.Formatter) => rs.i32Display(kind38, f), (f: rs.Formatter) => rs.fmtBool(over37, f)];
-							put(out, rs.fmtFormat([args215[0], "|", args215[1], "|", args215[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args215[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args215[0]), "|", args215[3], "|", args215[4]]).v);
-						}
-						if (radix65 === 10) {
-							const parsed37: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3393.value);
-							const from37: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3393.value);
-							if (from37.ok) {
-								max37 = rs.u8Mul(rs.i64Eq(from37.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
-							} else {
-								max37 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed37.ok ? 1 : 0, max37));
-						}
-					}
-				} else if (_3389 === 1) {
-					const s19: rs.String = rs.stringNew();
-					for (const b10 of rs.byteSliceView(rest10)) {
-						const _3490: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _3491: rs.usize = rs.usizeRem(b10 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_3490, _3491);
-						rs.stringPush(s19, _3490.data[_3490.start + _3491] as rs.char);
-					}
-					const _3502: string = s19.v;
-					const radix66: rs.u32 = radix64;
-					const _3505: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3502, radix66);
-					if (_3505.ok) {
-						const arg11 = _3505.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg11, f)]).v);
-					} else {
-						const e38: rs.ParseIntError = _3505.error;
-						const _3521: rs.IntErrorKind = e38.kind;
-						if (_3521 === "Empty") {
-							kind39 = 0;
-						} else if (_3521 === "InvalidDigit") {
-							kind39 = 1;
-						} else if (_3521 === "PosOverflow") {
-							kind39 = 2;
-						} else if (_3521 === "NegOverflow") {
-							kind39 = 3;
-						} else {
-							kind39 = 4;
-						}
-						if (!(e38.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over38 = e38.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over38 = true;
-						}
-						const _3541: rs.IntErrorKind = e38.kind;
-						const args213 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e38, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e38, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3541), (f: rs.Formatter) => rs.i32Display(kind39, f), (f: rs.Formatter) => rs.fmtBool(over38, f)];
-						put(out, rs.fmtFormat([args213[0], "|", args213[1], "|", args213[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args213[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args213[0]), "|", args213[3], "|", args213[4]]).v);
-					}
-					if (radix66 === 10) {
-						const parsed38: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3502);
-						const from38: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3502);
-						if (from38.ok) {
-							max38 = rs.u8Mul(rs.i64Eq(from38.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
-						} else {
-							max38 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed38.ok ? 1 : 0, max38));
-					}
-				} else {
-					if (_3389 === 2) {
-						const iter39: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _3573: rs.u32 | rs.Done = iter39.next();
-							if (_3573 === rs.DONE) {
-								break b0;
-							}
-							const radix67: rs.u32 = _3573;
-							for (const _3584 of edges({ hi: 0, w2: 0, w1: 0x7fffffff, lo: 0xffffffff } as rs.u128, rs.u128Add({ hi: 0, w2: 0, w1: 0x7fffffff, lo: 0xffffffff } as rs.u128, 1), 64, radix67).items) {
-								const _3592: string = _3584.v;
-								const radix68: rs.u32 = radix67;
-								const _3595: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3592, radix68);
-								if (_3595.ok) {
-									const arg10 = _3595.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg10, f)]).v);
-								} else {
-									const e39: rs.ParseIntError = _3595.error;
-									const _3611: rs.IntErrorKind = e39.kind;
-									if (_3611 === "Empty") {
-										kind40 = 0;
-									} else if (_3611 === "InvalidDigit") {
-										kind40 = 1;
-									} else if (_3611 === "PosOverflow") {
-										kind40 = 2;
-									} else if (_3611 === "NegOverflow") {
-										kind40 = 3;
-									} else {
-										kind40 = 4;
-									}
-									if (!(e39.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over39 = e39.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over39 = true;
-									}
-									const _3631: rs.IntErrorKind = e39.kind;
-									const args211 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e39, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e39, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3631), (f: rs.Formatter) => rs.i32Display(kind40, f), (f: rs.Formatter) => rs.fmtBool(over39, f)];
-									put(out, rs.fmtFormat([args211[0], "|", args211[1], "|", args211[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args211[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args211[0]), "|", args211[3], "|", args211[4]]).v);
-								}
-								if (radix68 === 10) {
-									const parsed39: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3592);
-									const from39: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3592);
-									if (from39.ok) {
-										max39 = rs.u8Mul(rs.i64Eq(from39.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
-									} else {
-										max39 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed39.ok ? 1 : 0, max39));
-								}
-							}
-						}
-					}
-					const radix69: rs.u32 = ((first10 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest10), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest10, 1), (b15: rs.u8): boolean => {
-						return (b15 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix69), 99))));
-					}
-					if (!(rest10.length > 2)) {
-						text10 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text10 = rs.byteSliceRange(rest10, 2);
-					}
-					const _3687: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text10), "1");
-					const radix70: rs.u32 = radix69;
-					const _3692: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3687, radix70);
-					if (_3692.ok) {
-						const arg9 = _3692.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg9, f)]).v);
-					} else {
-						const e40: rs.ParseIntError = _3692.error;
-						const _3708: rs.IntErrorKind = e40.kind;
-						if (_3708 === "Empty") {
-							kind41 = 0;
-						} else if (_3708 === "InvalidDigit") {
-							kind41 = 1;
-						} else if (_3708 === "PosOverflow") {
-							kind41 = 2;
-						} else if (_3708 === "NegOverflow") {
-							kind41 = 3;
-						} else {
-							kind41 = 4;
-						}
-						if (!(e40.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over40 = e40.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over40 = true;
-						}
-						const _3728: rs.IntErrorKind = e40.kind;
-						const args209 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e40, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e40, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3728), (f: rs.Formatter) => rs.i32Display(kind41, f), (f: rs.Formatter) => rs.fmtBool(over40, f)];
-						put(out, rs.fmtFormat([args209[0], "|", args209[1], "|", args209[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args209[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args209[0]), "|", args209[3], "|", args209[4]]).v);
-					}
-					if (radix70 === 10) {
-						const parsed40: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3687);
-						const from40: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3687);
-						if (from40.ok) {
-							max40 = rs.u8Mul(rs.i64Eq(from40.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
-						} else {
-							max40 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed40.ok ? 1 : 0, max40));
-					}
-				}
-			}
-		} else if (_4 === 10) {
-			if (dataLen !== 0) {
-				const first11: rs.u8 = dataData[dataStart];
-				const rest11: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix71: rs.u32 = rs.u32Add(2, rs.u32Rem(first11 as rs.u32, 35));
-				const _3766: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_3766 === 0) {
-					const _3770: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest11);
-					if (_3770.ok) {
-						const iter41: rs.Iter<rs.char> = rs.strChars(_3770.value);
-						while (true) {
-							const _3776: rs.char | rs.Done = iter41.next();
-							if (_3776 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_3776, radix71), 99))));
-						}
-						const radix72: rs.u32 = radix71;
-						const _3791: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_3770.value, radix72);
-						if (_3791.ok) {
-							const arg8 = _3791.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg8, f)]).v);
-						} else {
-							const e41: rs.ParseIntError = _3791.error;
-							const _3807: rs.IntErrorKind = e41.kind;
-							if (_3807 === "Empty") {
-								kind42 = 0;
-							} else if (_3807 === "InvalidDigit") {
-								kind42 = 1;
-							} else if (_3807 === "PosOverflow") {
-								kind42 = 2;
-							} else if (_3807 === "NegOverflow") {
-								kind42 = 3;
-							} else {
-								kind42 = 4;
-							}
-							if (!(e41.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over41 = e41.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over41 = true;
-							}
-							const _3827: rs.IntErrorKind = e41.kind;
-							const args207 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e41, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e41, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3827), (f: rs.Formatter) => rs.i32Display(kind42, f), (f: rs.Formatter) => rs.fmtBool(over41, f)];
-							put(out, rs.fmtFormat([args207[0], "|", args207[1], "|", args207[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args207[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args207[0]), "|", args207[3], "|", args207[4]]).v);
-						}
-						if (radix72 === 10) {
-							const parsed41: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_3770.value);
-							const from41: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_3770.value);
-							if (from41.ok) {
-								max41 = rs.u8Mul(rs.i128Eq(from41.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
-							} else {
-								max41 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed41.ok ? 1 : 0, max41));
-						}
-					}
-				} else if (_3766 === 1) {
-					const s21: rs.String = rs.stringNew();
-					for (const b11 of rs.byteSliceView(rest11)) {
-						const _3867: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _3868: rs.usize = rs.usizeRem(b11 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_3867, _3868);
-						rs.stringPush(s21, _3867.data[_3867.start + _3868] as rs.char);
-					}
-					const _3879: string = s21.v;
-					const radix73: rs.u32 = radix71;
-					const _3882: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_3879, radix73);
-					if (_3882.ok) {
-						const arg7 = _3882.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg7, f)]).v);
-					} else {
-						const e42: rs.ParseIntError = _3882.error;
-						const _3898: rs.IntErrorKind = e42.kind;
-						if (_3898 === "Empty") {
-							kind43 = 0;
-						} else if (_3898 === "InvalidDigit") {
-							kind43 = 1;
-						} else if (_3898 === "PosOverflow") {
-							kind43 = 2;
-						} else if (_3898 === "NegOverflow") {
-							kind43 = 3;
-						} else {
-							kind43 = 4;
-						}
-						if (!(e42.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over42 = e42.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over42 = true;
-						}
-						const _3918: rs.IntErrorKind = e42.kind;
-						const args205 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e42, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e42, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3918), (f: rs.Formatter) => rs.i32Display(kind43, f), (f: rs.Formatter) => rs.fmtBool(over42, f)];
-						put(out, rs.fmtFormat([args205[0], "|", args205[1], "|", args205[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args205[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args205[0]), "|", args205[3], "|", args205[4]]).v);
-					}
-					if (radix73 === 10) {
-						const parsed42: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_3879);
-						const from42: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_3879);
-						if (from42.ok) {
-							max42 = rs.u8Mul(rs.i128Eq(from42.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
-						} else {
-							max42 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed42.ok ? 1 : 0, max42));
-					}
-				} else {
-					if (_3766 === 2) {
-						const iter43: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _3950: rs.u32 | rs.Done = iter43.next();
-							if (_3950 === rs.DONE) {
-								break b0;
-							}
-							const radix74: rs.u32 = _3950;
-							for (const _3961 of edges({ hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, rs.u128Add({ hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, 1), 128, radix74).items) {
-								const _3969: string = _3961.v;
-								const radix75: rs.u32 = radix74;
-								const _3972: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_3969, radix75);
-								if (_3972.ok) {
-									const arg6 = _3972.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg6, f)]).v);
-								} else {
-									const e43: rs.ParseIntError = _3972.error;
-									const _3988: rs.IntErrorKind = e43.kind;
-									if (_3988 === "Empty") {
-										kind44 = 0;
-									} else if (_3988 === "InvalidDigit") {
-										kind44 = 1;
-									} else if (_3988 === "PosOverflow") {
-										kind44 = 2;
-									} else if (_3988 === "NegOverflow") {
-										kind44 = 3;
-									} else {
-										kind44 = 4;
-									}
-									if (!(e43.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over43 = e43.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over43 = true;
-									}
-									const _4008: rs.IntErrorKind = e43.kind;
-									const args203 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e43, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e43, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4008), (f: rs.Formatter) => rs.i32Display(kind44, f), (f: rs.Formatter) => rs.fmtBool(over43, f)];
-									put(out, rs.fmtFormat([args203[0], "|", args203[1], "|", args203[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args203[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args203[0]), "|", args203[3], "|", args203[4]]).v);
-								}
-								if (radix75 === 10) {
-									const parsed43: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_3969);
-									const from43: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_3969);
-									if (from43.ok) {
-										max43 = rs.u8Mul(rs.i128Eq(from43.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
-									} else {
-										max43 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed43.ok ? 1 : 0, max43));
-								}
-							}
-						}
-					}
-					const radix76: rs.u32 = ((first11 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest11), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest11, 1), (b14: rs.u8): boolean => {
-						return (b14 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix76), 99))));
-					}
-					if (!(rest11.length > 2)) {
-						text11 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text11 = rs.byteSliceRange(rest11, 2);
-					}
-					const _4064: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text11), "1");
-					const radix77: rs.u32 = radix76;
-					const _4069: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_4064, radix77);
-					if (_4069.ok) {
-						const arg5 = _4069.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg5, f)]).v);
-					} else {
-						const e44: rs.ParseIntError = _4069.error;
-						const _4085: rs.IntErrorKind = e44.kind;
-						if (_4085 === "Empty") {
-							kind45 = 0;
-						} else if (_4085 === "InvalidDigit") {
-							kind45 = 1;
-						} else if (_4085 === "PosOverflow") {
-							kind45 = 2;
-						} else if (_4085 === "NegOverflow") {
-							kind45 = 3;
-						} else {
-							kind45 = 4;
-						}
-						if (!(e44.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over44 = e44.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over44 = true;
-						}
-						const _4105: rs.IntErrorKind = e44.kind;
-						const args201 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e44, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e44, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4105), (f: rs.Formatter) => rs.i32Display(kind45, f), (f: rs.Formatter) => rs.fmtBool(over44, f)];
-						put(out, rs.fmtFormat([args201[0], "|", args201[1], "|", args201[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args201[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args201[0]), "|", args201[3], "|", args201[4]]).v);
-					}
-					if (radix77 === 10) {
-						const parsed44: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_4064);
-						const from44: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_4064);
-						if (from44.ok) {
-							max44 = rs.u8Mul(rs.i128Eq(from44.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
-						} else {
-							max44 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed44.ok ? 1 : 0, max44));
-					}
-				}
-			}
-		} else if (_4 === 11) {
-			if (dataLen !== 0) {
-				const first12: rs.u8 = dataData[dataStart];
-				const rest12: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix78: rs.u32 = rs.u32Add(2, rs.u32Rem(first12 as rs.u32, 35));
-				const _4143: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_4143 === 0) {
-					const _4147: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest12);
-					if (_4147.ok) {
-						const iter45: rs.Iter<rs.char> = rs.strChars(_4147.value);
-						while (true) {
-							const _4153: rs.char | rs.Done = iter45.next();
-							if (_4153 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_4153, radix78), 99))));
-						}
-						const radix79: rs.u32 = radix78;
-						const _4168: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4147.value, radix79);
-						if (_4168.ok) {
-							const arg4 = _4168.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg4, f)]).v);
-						} else {
-							const e45: rs.ParseIntError = _4168.error;
-							const _4184: rs.IntErrorKind = e45.kind;
-							if (_4184 === "Empty") {
-								kind46 = 0;
-							} else if (_4184 === "InvalidDigit") {
-								kind46 = 1;
-							} else if (_4184 === "PosOverflow") {
-								kind46 = 2;
-							} else if (_4184 === "NegOverflow") {
-								kind46 = 3;
-							} else {
-								kind46 = 4;
-							}
-							if (!(e45.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over45 = e45.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over45 = true;
-							}
-							const _4204: rs.IntErrorKind = e45.kind;
-							const args199 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e45, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e45, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4204), (f: rs.Formatter) => rs.i32Display(kind46, f), (f: rs.Formatter) => rs.fmtBool(over45, f)];
-							put(out, rs.fmtFormat([args199[0], "|", args199[1], "|", args199[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args199[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args199[0]), "|", args199[3], "|", args199[4]]).v);
-						}
-						if (radix79 === 10) {
-							const parsed45: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4147.value);
-							const from45: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4147.value);
-							if (from45.ok) {
-								max45 = rs.u8Mul(from45.value === 2147483647 ? 1 : 0, 4);
-							} else {
-								max45 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed45.ok ? 1 : 0, max45));
-						}
-					}
-				} else if (_4143 === 1) {
-					const s23: rs.String = rs.stringNew();
-					for (const b12 of rs.byteSliceView(rest12)) {
-						const _4244: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _4245: rs.usize = rs.usizeRem(b12 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_4244, _4245);
-						rs.stringPush(s23, _4244.data[_4244.start + _4245] as rs.char);
-					}
-					const _4256: string = s23.v;
-					const radix80: rs.u32 = radix78;
-					const _4259: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4256, radix80);
-					if (_4259.ok) {
-						const arg3 = _4259.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg3, f)]).v);
-					} else {
-						const e46: rs.ParseIntError = _4259.error;
-						const _4275: rs.IntErrorKind = e46.kind;
-						if (_4275 === "Empty") {
-							kind47 = 0;
-						} else if (_4275 === "InvalidDigit") {
-							kind47 = 1;
-						} else if (_4275 === "PosOverflow") {
-							kind47 = 2;
-						} else if (_4275 === "NegOverflow") {
-							kind47 = 3;
-						} else {
-							kind47 = 4;
-						}
-						if (!(e46.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over46 = e46.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over46 = true;
-						}
-						const _4295: rs.IntErrorKind = e46.kind;
-						const args197 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e46, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e46, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4295), (f: rs.Formatter) => rs.i32Display(kind47, f), (f: rs.Formatter) => rs.fmtBool(over46, f)];
-						put(out, rs.fmtFormat([args197[0], "|", args197[1], "|", args197[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args197[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args197[0]), "|", args197[3], "|", args197[4]]).v);
-					}
-					if (radix80 === 10) {
-						const parsed46: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4256);
-						const from46: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4256);
-						if (from46.ok) {
-							max46 = rs.u8Mul(from46.value === 2147483647 ? 1 : 0, 4);
-						} else {
-							max46 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed46.ok ? 1 : 0, max46));
-					}
-				} else {
-					if (_4143 === 2) {
-						const iter47: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _4327: rs.u32 | rs.Done = iter47.next();
-							if (_4327 === rs.DONE) {
-								break b0;
-							}
-							const radix81: rs.u32 = _4327;
-							for (const _4338 of edges(2147483647, rs.u128Add(2147483647, 1), 32, radix81).items) {
-								const _4346: string = _4338.v;
-								const radix82: rs.u32 = radix81;
-								const _4349: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4346, radix82);
-								if (_4349.ok) {
-									const arg2 = _4349.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg2, f)]).v);
-								} else {
-									const e47: rs.ParseIntError = _4349.error;
-									const _4365: rs.IntErrorKind = e47.kind;
-									if (_4365 === "Empty") {
-										kind48 = 0;
-									} else if (_4365 === "InvalidDigit") {
-										kind48 = 1;
-									} else if (_4365 === "PosOverflow") {
-										kind48 = 2;
-									} else if (_4365 === "NegOverflow") {
-										kind48 = 3;
-									} else {
-										kind48 = 4;
-									}
-									if (!(e47.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over47 = e47.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over47 = true;
-									}
-									const _4385: rs.IntErrorKind = e47.kind;
-									const args195 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e47, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e47, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4385), (f: rs.Formatter) => rs.i32Display(kind48, f), (f: rs.Formatter) => rs.fmtBool(over47, f)];
-									put(out, rs.fmtFormat([args195[0], "|", args195[1], "|", args195[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args195[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args195[0]), "|", args195[3], "|", args195[4]]).v);
-								}
-								if (radix82 === 10) {
-									const parsed47: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4346);
-									const from47: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4346);
-									if (from47.ok) {
-										max47 = rs.u8Mul(from47.value === 2147483647 ? 1 : 0, 4);
-									} else {
-										max47 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed47.ok ? 1 : 0, max47));
-								}
-							}
-						}
-					}
-					const radix83: rs.u32 = ((first12 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest12), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest12, 1), (b13: rs.u8): boolean => {
-						return (b13 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix83), 99))));
-					}
-					if (!(rest12.length > 2)) {
-						text12 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text12 = rs.byteSliceRange(rest12, 2);
-					}
-					const _4441: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text12), "1");
-					const radix84: rs.u32 = radix83;
-					const _4446: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4441, radix84);
-					if (_4446.ok) {
-						const arg = _4446.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg, f)]).v);
-					} else {
-						const e48: rs.ParseIntError = _4446.error;
-						const _4462: rs.IntErrorKind = e48.kind;
-						if (_4462 === "Empty") {
-							kind49 = 0;
-						} else if (_4462 === "InvalidDigit") {
-							kind49 = 1;
-						} else if (_4462 === "PosOverflow") {
-							kind49 = 2;
-						} else if (_4462 === "NegOverflow") {
-							kind49 = 3;
-						} else {
-							kind49 = 4;
-						}
-						if (!(e48.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over48 = e48.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over48 = true;
-						}
-						const _4482: rs.IntErrorKind = e48.kind;
-						const args193 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e48, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e48, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4482), (f: rs.Formatter) => rs.i32Display(kind49, f), (f: rs.Formatter) => rs.fmtBool(over48, f)];
-						put(out, rs.fmtFormat([args193[0], "|", args193[1], "|", args193[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args193[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args193[0]), "|", args193[3], "|", args193[4]]).v);
-					}
-					if (radix84 === 10) {
-						const parsed48: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4441);
-						const from48: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4441);
-						if (from48.ok) {
-							max48 = rs.u8Mul(from48.value === 2147483647 ? 1 : 0, 4);
-						} else {
-							max48 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed48.ok ? 1 : 0, max48));
-					}
-				}
-			}
-		} else {
-			rs.panic("internal error: entered unreachable code");
 		}
+	} else if (_4 === 1) {
+		if (dataLen !== 0) {
+			const first2: rs.u8 = dataData[dataStart];
+			const rest2: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix8: rs.u32 = rs.u32Add(2, rs.u32Rem(first2 as rs.u32, 35));
+			const _389: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_389 === 0) {
+				const _393: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest2);
+				if (_393.ok) {
+					const iter5: rs.Iter<rs.char> = rs.strChars(_393.value);
+					while (true) {
+						const _399: rs.char | rs.Done = iter5.next();
+						if (_399 === rs.DONE) {
+							break;
+						}
+						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_399, radix8), 99))));
+					}
+					const radix9: rs.u32 = radix8;
+					const _414: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_393.value, radix9);
+					if (_414.ok) {
+						const arg44 = _414.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg44, f)]).v);
+					} else {
+						const e5: rs.ParseIntError = _414.error;
+						const _430: rs.IntErrorKind = e5.kind;
+						if (_430 === "Empty") {
+							kind6 = 0;
+						} else if (_430 === "InvalidDigit") {
+							kind6 = 1;
+						} else if (_430 === "PosOverflow") {
+							kind6 = 2;
+						} else if (_430 === "NegOverflow") {
+							kind6 = 3;
+						} else {
+							kind6 = 4;
+						}
+						if (!(e5.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over5 = e5.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over5 = true;
+						}
+						const _450: rs.IntErrorKind = e5.kind;
+						const args279 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e5, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e5, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _450), (f: rs.Formatter) => rs.i32Display(kind6, f), (f: rs.Formatter) => rs.fmtBool(over5, f)];
+						put(out, rs.fmtFormat([args279[0], "|", args279[1], "|", args279[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args279[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args279[0]), "|", args279[3], "|", args279[4]]).v);
+					}
+					if (radix9 === 10) {
+						const parsed5: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_393.value);
+						const from5: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_393.value);
+						if (from5.ok) {
+							max5 = rs.u8Mul(from5.value === 65535 ? 1 : 0, 4);
+						} else {
+							max5 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed5.ok ? 1 : 0, max5));
+					}
+				}
+			} else if (_389 === 1) {
+				const s3: rs.String = rs.stringNew();
+				for (const b2 of rs.byteSliceView(rest2)) {
+					const _490: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _491: rs.usize = rs.usizeRem(b2 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_490, _491);
+					rs.stringPush(s3, _490.data[_490.start + _491] as rs.char);
+				}
+				const _502: string = s3.v;
+				const radix10: rs.u32 = radix8;
+				const _505: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_502, radix10);
+				if (_505.ok) {
+					const arg43 = _505.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg43, f)]).v);
+				} else {
+					const e6: rs.ParseIntError = _505.error;
+					const _521: rs.IntErrorKind = e6.kind;
+					if (_521 === "Empty") {
+						kind7 = 0;
+					} else if (_521 === "InvalidDigit") {
+						kind7 = 1;
+					} else if (_521 === "PosOverflow") {
+						kind7 = 2;
+					} else if (_521 === "NegOverflow") {
+						kind7 = 3;
+					} else {
+						kind7 = 4;
+					}
+					if (!(e6.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over6 = e6.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over6 = true;
+					}
+					const _541: rs.IntErrorKind = e6.kind;
+					const args277 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e6, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e6, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _541), (f: rs.Formatter) => rs.i32Display(kind7, f), (f: rs.Formatter) => rs.fmtBool(over6, f)];
+					put(out, rs.fmtFormat([args277[0], "|", args277[1], "|", args277[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args277[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args277[0]), "|", args277[3], "|", args277[4]]).v);
+				}
+				if (radix10 === 10) {
+					const parsed6: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_502);
+					const from6: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_502);
+					if (from6.ok) {
+						max6 = rs.u8Mul(from6.value === 65535 ? 1 : 0, 4);
+					} else {
+						max6 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed6.ok ? 1 : 0, max6));
+				}
+			} else if (_389 === 2) {
+				const iter7: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _573: rs.u32 | rs.Done = iter7.next();
+					if (_573 === rs.DONE) {
+						break;
+					}
+					const radix11: rs.u32 = _573;
+					for (const _581 of edges(65535, 0, 16, radix11).items) {
+						const _589: string = _581.v;
+						const radix12: rs.u32 = radix11;
+						const _592: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_589, radix12);
+						if (_592.ok) {
+							const arg42 = _592.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg42, f)]).v);
+						} else {
+							const e7: rs.ParseIntError = _592.error;
+							const _608: rs.IntErrorKind = e7.kind;
+							if (_608 === "Empty") {
+								kind8 = 0;
+							} else if (_608 === "InvalidDigit") {
+								kind8 = 1;
+							} else if (_608 === "PosOverflow") {
+								kind8 = 2;
+							} else if (_608 === "NegOverflow") {
+								kind8 = 3;
+							} else {
+								kind8 = 4;
+							}
+							if (!(e7.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over7 = e7.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over7 = true;
+							}
+							const _628: rs.IntErrorKind = e7.kind;
+							const args275 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e7, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e7, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _628), (f: rs.Formatter) => rs.i32Display(kind8, f), (f: rs.Formatter) => rs.fmtBool(over7, f)];
+							put(out, rs.fmtFormat([args275[0], "|", args275[1], "|", args275[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args275[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args275[0]), "|", args275[3], "|", args275[4]]).v);
+						}
+						if (radix12 === 10) {
+							const parsed7: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_589);
+							const from7: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_589);
+							if (from7.ok) {
+								max7 = rs.u8Mul(from7.value === 65535 ? 1 : 0, 4);
+							} else {
+								max7 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed7.ok ? 1 : 0, max7));
+						}
+					}
+				}
+			} else {
+				const radix13: rs.u32 = ((first2 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest2), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest2, 1), (b23: rs.u8): boolean => {
+					return (b23 & 1) === 1;
+				})) {
+					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix13), 99))));
+				}
+				if (!(rest2.length > 2)) {
+					text2 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text2 = rs.byteSliceRange(rest2, 2);
+				}
+				const _684: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text2), "1");
+				const radix14: rs.u32 = radix13;
+				const _689: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_684, radix14);
+				if (_689.ok) {
+					const arg41 = _689.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg41, f)]).v);
+				} else {
+					const e8: rs.ParseIntError = _689.error;
+					const _705: rs.IntErrorKind = e8.kind;
+					if (_705 === "Empty") {
+						kind9 = 0;
+					} else if (_705 === "InvalidDigit") {
+						kind9 = 1;
+					} else if (_705 === "PosOverflow") {
+						kind9 = 2;
+					} else if (_705 === "NegOverflow") {
+						kind9 = 3;
+					} else {
+						kind9 = 4;
+					}
+					if (!(e8.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over8 = e8.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over8 = true;
+					}
+					const _725: rs.IntErrorKind = e8.kind;
+					const args273 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e8, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e8, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _725), (f: rs.Formatter) => rs.i32Display(kind9, f), (f: rs.Formatter) => rs.fmtBool(over8, f)];
+					put(out, rs.fmtFormat([args273[0], "|", args273[1], "|", args273[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args273[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args273[0]), "|", args273[3], "|", args273[4]]).v);
+				}
+				if (radix14 === 10) {
+					const parsed8: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_684);
+					const from8: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_684);
+					if (from8.ok) {
+						max8 = rs.u8Mul(from8.value === 65535 ? 1 : 0, 4);
+					} else {
+						max8 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed8.ok ? 1 : 0, max8));
+				}
+			}
+		}
+	} else if (_4 === 2) {
+		if (dataLen !== 0) {
+			const first3: rs.u8 = dataData[dataStart];
+			const rest3: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix15: rs.u32 = rs.u32Add(2, rs.u32Rem(first3 as rs.u32, 35));
+			const _763: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_763 === 0) {
+				const _767: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest3);
+				if (_767.ok) {
+					const iter9: rs.Iter<rs.char> = rs.strChars(_767.value);
+					while (true) {
+						const _773: rs.char | rs.Done = iter9.next();
+						if (_773 === rs.DONE) {
+							break;
+						}
+						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_773, radix15), 99))));
+					}
+					const radix16: rs.u32 = radix15;
+					const _788: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_767.value, radix16);
+					if (_788.ok) {
+						const arg40 = _788.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg40, f)]).v);
+					} else {
+						const e9: rs.ParseIntError = _788.error;
+						const _804: rs.IntErrorKind = e9.kind;
+						if (_804 === "Empty") {
+							kind10 = 0;
+						} else if (_804 === "InvalidDigit") {
+							kind10 = 1;
+						} else if (_804 === "PosOverflow") {
+							kind10 = 2;
+						} else if (_804 === "NegOverflow") {
+							kind10 = 3;
+						} else {
+							kind10 = 4;
+						}
+						if (!(e9.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over9 = e9.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over9 = true;
+						}
+						const _824: rs.IntErrorKind = e9.kind;
+						const args271 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e9, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e9, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _824), (f: rs.Formatter) => rs.i32Display(kind10, f), (f: rs.Formatter) => rs.fmtBool(over9, f)];
+						put(out, rs.fmtFormat([args271[0], "|", args271[1], "|", args271[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args271[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args271[0]), "|", args271[3], "|", args271[4]]).v);
+					}
+					if (radix16 === 10) {
+						const parsed9: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_767.value);
+						const from9: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_767.value);
+						if (from9.ok) {
+							max9 = rs.u8Mul(from9.value === 4294967295 ? 1 : 0, 4);
+						} else {
+							max9 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed9.ok ? 1 : 0, max9));
+					}
+				}
+			} else if (_763 === 1) {
+				const s5: rs.String = rs.stringNew();
+				for (const b3 of rs.byteSliceView(rest3)) {
+					const _864: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _865: rs.usize = rs.usizeRem(b3 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_864, _865);
+					rs.stringPush(s5, _864.data[_864.start + _865] as rs.char);
+				}
+				const _876: string = s5.v;
+				const radix17: rs.u32 = radix15;
+				const _879: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_876, radix17);
+				if (_879.ok) {
+					const arg39 = _879.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg39, f)]).v);
+				} else {
+					const e10: rs.ParseIntError = _879.error;
+					const _895: rs.IntErrorKind = e10.kind;
+					if (_895 === "Empty") {
+						kind11 = 0;
+					} else if (_895 === "InvalidDigit") {
+						kind11 = 1;
+					} else if (_895 === "PosOverflow") {
+						kind11 = 2;
+					} else if (_895 === "NegOverflow") {
+						kind11 = 3;
+					} else {
+						kind11 = 4;
+					}
+					if (!(e10.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over10 = e10.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over10 = true;
+					}
+					const _915: rs.IntErrorKind = e10.kind;
+					const args269 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e10, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e10, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _915), (f: rs.Formatter) => rs.i32Display(kind11, f), (f: rs.Formatter) => rs.fmtBool(over10, f)];
+					put(out, rs.fmtFormat([args269[0], "|", args269[1], "|", args269[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args269[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args269[0]), "|", args269[3], "|", args269[4]]).v);
+				}
+				if (radix17 === 10) {
+					const parsed10: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_876);
+					const from10: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_876);
+					if (from10.ok) {
+						max10 = rs.u8Mul(from10.value === 4294967295 ? 1 : 0, 4);
+					} else {
+						max10 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed10.ok ? 1 : 0, max10));
+				}
+			} else if (_763 === 2) {
+				const iter11: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _947: rs.u32 | rs.Done = iter11.next();
+					if (_947 === rs.DONE) {
+						break;
+					}
+					const radix18: rs.u32 = _947;
+					for (const _955 of edges(4294967295, 0, 32, radix18).items) {
+						const _963: string = _955.v;
+						const radix19: rs.u32 = radix18;
+						const _966: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_963, radix19);
+						if (_966.ok) {
+							const arg38 = _966.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg38, f)]).v);
+						} else {
+							const e11: rs.ParseIntError = _966.error;
+							const _982: rs.IntErrorKind = e11.kind;
+							if (_982 === "Empty") {
+								kind12 = 0;
+							} else if (_982 === "InvalidDigit") {
+								kind12 = 1;
+							} else if (_982 === "PosOverflow") {
+								kind12 = 2;
+							} else if (_982 === "NegOverflow") {
+								kind12 = 3;
+							} else {
+								kind12 = 4;
+							}
+							if (!(e11.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over11 = e11.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over11 = true;
+							}
+							const _1002: rs.IntErrorKind = e11.kind;
+							const args267 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e11, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e11, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1002), (f: rs.Formatter) => rs.i32Display(kind12, f), (f: rs.Formatter) => rs.fmtBool(over11, f)];
+							put(out, rs.fmtFormat([args267[0], "|", args267[1], "|", args267[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args267[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args267[0]), "|", args267[3], "|", args267[4]]).v);
+						}
+						if (radix19 === 10) {
+							const parsed11: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_963);
+							const from11: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_963);
+							if (from11.ok) {
+								max11 = rs.u8Mul(from11.value === 4294967295 ? 1 : 0, 4);
+							} else {
+								max11 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed11.ok ? 1 : 0, max11));
+						}
+					}
+				}
+			} else {
+				const radix20: rs.u32 = ((first3 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest3), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest3, 1), (b22: rs.u8): boolean => {
+					return (b22 & 1) === 1;
+				})) {
+					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix20), 99))));
+				}
+				if (!(rest3.length > 2)) {
+					text3 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text3 = rs.byteSliceRange(rest3, 2);
+				}
+				const _1058: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text3), "1");
+				const radix21: rs.u32 = radix20;
+				const _1063: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_1058, radix21);
+				if (_1063.ok) {
+					const arg37 = _1063.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg37, f)]).v);
+				} else {
+					const e12: rs.ParseIntError = _1063.error;
+					const _1079: rs.IntErrorKind = e12.kind;
+					if (_1079 === "Empty") {
+						kind13 = 0;
+					} else if (_1079 === "InvalidDigit") {
+						kind13 = 1;
+					} else if (_1079 === "PosOverflow") {
+						kind13 = 2;
+					} else if (_1079 === "NegOverflow") {
+						kind13 = 3;
+					} else {
+						kind13 = 4;
+					}
+					if (!(e12.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over12 = e12.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over12 = true;
+					}
+					const _1099: rs.IntErrorKind = e12.kind;
+					const args265 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e12, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e12, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1099), (f: rs.Formatter) => rs.i32Display(kind13, f), (f: rs.Formatter) => rs.fmtBool(over12, f)];
+					put(out, rs.fmtFormat([args265[0], "|", args265[1], "|", args265[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args265[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args265[0]), "|", args265[3], "|", args265[4]]).v);
+				}
+				if (radix21 === 10) {
+					const parsed12: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_1058);
+					const from12: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_1058);
+					if (from12.ok) {
+						max12 = rs.u8Mul(from12.value === 4294967295 ? 1 : 0, 4);
+					} else {
+						max12 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed12.ok ? 1 : 0, max12));
+				}
+			}
+		}
+	} else if (_4 === 3) {
+		if (dataLen !== 0) {
+			const first4: rs.u8 = dataData[dataStart];
+			const rest4: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix22: rs.u32 = rs.u32Add(2, rs.u32Rem(first4 as rs.u32, 35));
+			const _1137: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_1137 === 0) {
+				const _1141: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest4);
+				if (_1141.ok) {
+					const iter13: rs.Iter<rs.char> = rs.strChars(_1141.value);
+					while (true) {
+						const _1147: rs.char | rs.Done = iter13.next();
+						if (_1147 === rs.DONE) {
+							break;
+						}
+						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_1147, radix22), 99))));
+					}
+					const radix23: rs.u32 = radix22;
+					const _1162: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1141.value, radix23);
+					if (_1162.ok) {
+						const arg36 = _1162.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg36, f)]).v);
+					} else {
+						const e13: rs.ParseIntError = _1162.error;
+						const _1178: rs.IntErrorKind = e13.kind;
+						if (_1178 === "Empty") {
+							kind14 = 0;
+						} else if (_1178 === "InvalidDigit") {
+							kind14 = 1;
+						} else if (_1178 === "PosOverflow") {
+							kind14 = 2;
+						} else if (_1178 === "NegOverflow") {
+							kind14 = 3;
+						} else {
+							kind14 = 4;
+						}
+						if (!(e13.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over13 = e13.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over13 = true;
+						}
+						const _1198: rs.IntErrorKind = e13.kind;
+						const args263 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e13, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e13, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1198), (f: rs.Formatter) => rs.i32Display(kind14, f), (f: rs.Formatter) => rs.fmtBool(over13, f)];
+						put(out, rs.fmtFormat([args263[0], "|", args263[1], "|", args263[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args263[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args263[0]), "|", args263[3], "|", args263[4]]).v);
+					}
+					if (radix23 === 10) {
+						const parsed13: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1141.value);
+						const from13: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1141.value);
+						if (from13.ok) {
+							max13 = rs.u8Mul(rs.u64Eq(from13.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
+						} else {
+							max13 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed13.ok ? 1 : 0, max13));
+					}
+				}
+			} else if (_1137 === 1) {
+				const s7: rs.String = rs.stringNew();
+				for (const b4 of rs.byteSliceView(rest4)) {
+					const _1238: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _1239: rs.usize = rs.usizeRem(b4 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_1238, _1239);
+					rs.stringPush(s7, _1238.data[_1238.start + _1239] as rs.char);
+				}
+				const _1250: string = s7.v;
+				const radix24: rs.u32 = radix22;
+				const _1253: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1250, radix24);
+				if (_1253.ok) {
+					const arg35 = _1253.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg35, f)]).v);
+				} else {
+					const e14: rs.ParseIntError = _1253.error;
+					const _1269: rs.IntErrorKind = e14.kind;
+					if (_1269 === "Empty") {
+						kind15 = 0;
+					} else if (_1269 === "InvalidDigit") {
+						kind15 = 1;
+					} else if (_1269 === "PosOverflow") {
+						kind15 = 2;
+					} else if (_1269 === "NegOverflow") {
+						kind15 = 3;
+					} else {
+						kind15 = 4;
+					}
+					if (!(e14.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over14 = e14.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over14 = true;
+					}
+					const _1289: rs.IntErrorKind = e14.kind;
+					const args261 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e14, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e14, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1289), (f: rs.Formatter) => rs.i32Display(kind15, f), (f: rs.Formatter) => rs.fmtBool(over14, f)];
+					put(out, rs.fmtFormat([args261[0], "|", args261[1], "|", args261[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args261[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args261[0]), "|", args261[3], "|", args261[4]]).v);
+				}
+				if (radix24 === 10) {
+					const parsed14: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1250);
+					const from14: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1250);
+					if (from14.ok) {
+						max14 = rs.u8Mul(rs.u64Eq(from14.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
+					} else {
+						max14 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed14.ok ? 1 : 0, max14));
+				}
+			} else if (_1137 === 2) {
+				const iter15: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _1321: rs.u32 | rs.Done = iter15.next();
+					if (_1321 === rs.DONE) {
+						break;
+					}
+					const radix25: rs.u32 = _1321;
+					for (const _1329 of edges({ hi: 0, w2: 0, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, 0, 64, radix25).items) {
+						const _1337: string = _1329.v;
+						const radix26: rs.u32 = radix25;
+						const _1340: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1337, radix26);
+						if (_1340.ok) {
+							const arg34 = _1340.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg34, f)]).v);
+						} else {
+							const e15: rs.ParseIntError = _1340.error;
+							const _1356: rs.IntErrorKind = e15.kind;
+							if (_1356 === "Empty") {
+								kind16 = 0;
+							} else if (_1356 === "InvalidDigit") {
+								kind16 = 1;
+							} else if (_1356 === "PosOverflow") {
+								kind16 = 2;
+							} else if (_1356 === "NegOverflow") {
+								kind16 = 3;
+							} else {
+								kind16 = 4;
+							}
+							if (!(e15.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over15 = e15.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over15 = true;
+							}
+							const _1376: rs.IntErrorKind = e15.kind;
+							const args259 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e15, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e15, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1376), (f: rs.Formatter) => rs.i32Display(kind16, f), (f: rs.Formatter) => rs.fmtBool(over15, f)];
+							put(out, rs.fmtFormat([args259[0], "|", args259[1], "|", args259[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args259[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args259[0]), "|", args259[3], "|", args259[4]]).v);
+						}
+						if (radix26 === 10) {
+							const parsed15: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1337);
+							const from15: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1337);
+							if (from15.ok) {
+								max15 = rs.u8Mul(rs.u64Eq(from15.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
+							} else {
+								max15 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed15.ok ? 1 : 0, max15));
+						}
+					}
+				}
+			} else {
+				const radix27: rs.u32 = ((first4 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest4), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest4, 1), (b21: rs.u8): boolean => {
+					return (b21 & 1) === 1;
+				})) {
+					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix27), 99))));
+				}
+				if (!(rest4.length > 2)) {
+					text4 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text4 = rs.byteSliceRange(rest4, 2);
+				}
+				const _1432: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text4), "1");
+				const radix28: rs.u32 = radix27;
+				const _1437: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1432, radix28);
+				if (_1437.ok) {
+					const arg33 = _1437.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg33, f)]).v);
+				} else {
+					const e16: rs.ParseIntError = _1437.error;
+					const _1453: rs.IntErrorKind = e16.kind;
+					if (_1453 === "Empty") {
+						kind17 = 0;
+					} else if (_1453 === "InvalidDigit") {
+						kind17 = 1;
+					} else if (_1453 === "PosOverflow") {
+						kind17 = 2;
+					} else if (_1453 === "NegOverflow") {
+						kind17 = 3;
+					} else {
+						kind17 = 4;
+					}
+					if (!(e16.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over16 = e16.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over16 = true;
+					}
+					const _1473: rs.IntErrorKind = e16.kind;
+					const args257 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e16, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e16, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1473), (f: rs.Formatter) => rs.i32Display(kind17, f), (f: rs.Formatter) => rs.fmtBool(over16, f)];
+					put(out, rs.fmtFormat([args257[0], "|", args257[1], "|", args257[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args257[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args257[0]), "|", args257[3], "|", args257[4]]).v);
+				}
+				if (radix28 === 10) {
+					const parsed16: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1432);
+					const from16: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1432);
+					if (from16.ok) {
+						max16 = rs.u8Mul(rs.u64Eq(from16.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
+					} else {
+						max16 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed16.ok ? 1 : 0, max16));
+				}
+			}
+		}
+	} else if (_4 === 4) {
+		if (dataLen !== 0) {
+			const first5: rs.u8 = dataData[dataStart];
+			const rest5: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix29: rs.u32 = rs.u32Add(2, rs.u32Rem(first5 as rs.u32, 35));
+			const _1511: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_1511 === 0) {
+				const _1515: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest5);
+				if (_1515.ok) {
+					const iter17: rs.Iter<rs.char> = rs.strChars(_1515.value);
+					while (true) {
+						const _1521: rs.char | rs.Done = iter17.next();
+						if (_1521 === rs.DONE) {
+							break;
+						}
+						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_1521, radix29), 99))));
+					}
+					const radix30: rs.u32 = radix29;
+					const _1536: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1515.value, radix30);
+					if (_1536.ok) {
+						const arg32 = _1536.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg32, f)]).v);
+					} else {
+						const e17: rs.ParseIntError = _1536.error;
+						const _1552: rs.IntErrorKind = e17.kind;
+						if (_1552 === "Empty") {
+							kind18 = 0;
+						} else if (_1552 === "InvalidDigit") {
+							kind18 = 1;
+						} else if (_1552 === "PosOverflow") {
+							kind18 = 2;
+						} else if (_1552 === "NegOverflow") {
+							kind18 = 3;
+						} else {
+							kind18 = 4;
+						}
+						if (!(e17.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over17 = e17.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over17 = true;
+						}
+						const _1572: rs.IntErrorKind = e17.kind;
+						const args255 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e17, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e17, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1572), (f: rs.Formatter) => rs.i32Display(kind18, f), (f: rs.Formatter) => rs.fmtBool(over17, f)];
+						put(out, rs.fmtFormat([args255[0], "|", args255[1], "|", args255[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args255[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args255[0]), "|", args255[3], "|", args255[4]]).v);
+					}
+					if (radix30 === 10) {
+						const parsed17: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1515.value);
+						const from17: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1515.value);
+						if (from17.ok) {
+							max17 = rs.u8Mul(rs.u128Eq(from17.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
+						} else {
+							max17 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed17.ok ? 1 : 0, max17));
+					}
+				}
+			} else if (_1511 === 1) {
+				const s9: rs.String = rs.stringNew();
+				for (const b5 of rs.byteSliceView(rest5)) {
+					const _1612: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _1613: rs.usize = rs.usizeRem(b5 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_1612, _1613);
+					rs.stringPush(s9, _1612.data[_1612.start + _1613] as rs.char);
+				}
+				const _1624: string = s9.v;
+				const radix31: rs.u32 = radix29;
+				const _1627: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1624, radix31);
+				if (_1627.ok) {
+					const arg31 = _1627.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg31, f)]).v);
+				} else {
+					const e18: rs.ParseIntError = _1627.error;
+					const _1643: rs.IntErrorKind = e18.kind;
+					if (_1643 === "Empty") {
+						kind19 = 0;
+					} else if (_1643 === "InvalidDigit") {
+						kind19 = 1;
+					} else if (_1643 === "PosOverflow") {
+						kind19 = 2;
+					} else if (_1643 === "NegOverflow") {
+						kind19 = 3;
+					} else {
+						kind19 = 4;
+					}
+					if (!(e18.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over18 = e18.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over18 = true;
+					}
+					const _1663: rs.IntErrorKind = e18.kind;
+					const args253 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e18, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e18, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1663), (f: rs.Formatter) => rs.i32Display(kind19, f), (f: rs.Formatter) => rs.fmtBool(over18, f)];
+					put(out, rs.fmtFormat([args253[0], "|", args253[1], "|", args253[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args253[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args253[0]), "|", args253[3], "|", args253[4]]).v);
+				}
+				if (radix31 === 10) {
+					const parsed18: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1624);
+					const from18: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1624);
+					if (from18.ok) {
+						max18 = rs.u8Mul(rs.u128Eq(from18.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
+					} else {
+						max18 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed18.ok ? 1 : 0, max18));
+				}
+			} else if (_1511 === 2) {
+				const iter19: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _1695: rs.u32 | rs.Done = iter19.next();
+					if (_1695 === rs.DONE) {
+						break;
+					}
+					const radix32: rs.u32 = _1695;
+					for (const _1702 of edges({ hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, 0, 128, radix32).items) {
+						const _1710: string = _1702.v;
+						const radix33: rs.u32 = radix32;
+						const _1713: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1710, radix33);
+						if (_1713.ok) {
+							const arg30 = _1713.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg30, f)]).v);
+						} else {
+							const e19: rs.ParseIntError = _1713.error;
+							const _1729: rs.IntErrorKind = e19.kind;
+							if (_1729 === "Empty") {
+								kind20 = 0;
+							} else if (_1729 === "InvalidDigit") {
+								kind20 = 1;
+							} else if (_1729 === "PosOverflow") {
+								kind20 = 2;
+							} else if (_1729 === "NegOverflow") {
+								kind20 = 3;
+							} else {
+								kind20 = 4;
+							}
+							if (!(e19.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over19 = e19.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over19 = true;
+							}
+							const _1749: rs.IntErrorKind = e19.kind;
+							const args251 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e19, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e19, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1749), (f: rs.Formatter) => rs.i32Display(kind20, f), (f: rs.Formatter) => rs.fmtBool(over19, f)];
+							put(out, rs.fmtFormat([args251[0], "|", args251[1], "|", args251[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args251[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args251[0]), "|", args251[3], "|", args251[4]]).v);
+						}
+						if (radix33 === 10) {
+							const parsed19: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1710);
+							const from19: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1710);
+							if (from19.ok) {
+								max19 = rs.u8Mul(rs.u128Eq(from19.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
+							} else {
+								max19 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed19.ok ? 1 : 0, max19));
+						}
+					}
+				}
+			} else {
+				const radix34: rs.u32 = ((first5 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest5), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest5, 1), (b20: rs.u8): boolean => {
+					return (b20 & 1) === 1;
+				})) {
+					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix34), 99))));
+				}
+				if (!(rest5.length > 2)) {
+					text5 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text5 = rs.byteSliceRange(rest5, 2);
+				}
+				const _1805: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text5), "1");
+				const radix35: rs.u32 = radix34;
+				const _1810: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1805, radix35);
+				if (_1810.ok) {
+					const arg29 = _1810.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg29, f)]).v);
+				} else {
+					const e20: rs.ParseIntError = _1810.error;
+					const _1826: rs.IntErrorKind = e20.kind;
+					if (_1826 === "Empty") {
+						kind21 = 0;
+					} else if (_1826 === "InvalidDigit") {
+						kind21 = 1;
+					} else if (_1826 === "PosOverflow") {
+						kind21 = 2;
+					} else if (_1826 === "NegOverflow") {
+						kind21 = 3;
+					} else {
+						kind21 = 4;
+					}
+					if (!(e20.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over20 = e20.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over20 = true;
+					}
+					const _1846: rs.IntErrorKind = e20.kind;
+					const args249 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e20, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e20, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1846), (f: rs.Formatter) => rs.i32Display(kind21, f), (f: rs.Formatter) => rs.fmtBool(over20, f)];
+					put(out, rs.fmtFormat([args249[0], "|", args249[1], "|", args249[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args249[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args249[0]), "|", args249[3], "|", args249[4]]).v);
+				}
+				if (radix35 === 10) {
+					const parsed20: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1805);
+					const from20: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1805);
+					if (from20.ok) {
+						max20 = rs.u8Mul(rs.u128Eq(from20.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
+					} else {
+						max20 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed20.ok ? 1 : 0, max20));
+				}
+			}
+		}
+	} else if (_4 === 5) {
+		if (dataLen !== 0) {
+			const first6: rs.u8 = dataData[dataStart];
+			const rest6: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix36: rs.u32 = rs.u32Add(2, rs.u32Rem(first6 as rs.u32, 35));
+			const _1884: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_1884 === 0) {
+				const _1888: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest6);
+				if (_1888.ok) {
+					const iter21: rs.Iter<rs.char> = rs.strChars(_1888.value);
+					while (true) {
+						const _1894: rs.char | rs.Done = iter21.next();
+						if (_1894 === rs.DONE) {
+							break;
+						}
+						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_1894, radix36), 99))));
+					}
+					const radix37: rs.u32 = radix36;
+					const _1909: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_1888.value, radix37);
+					if (_1909.ok) {
+						const arg28 = _1909.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg28, f)]).v);
+					} else {
+						const e21: rs.ParseIntError = _1909.error;
+						const _1925: rs.IntErrorKind = e21.kind;
+						if (_1925 === "Empty") {
+							kind22 = 0;
+						} else if (_1925 === "InvalidDigit") {
+							kind22 = 1;
+						} else if (_1925 === "PosOverflow") {
+							kind22 = 2;
+						} else if (_1925 === "NegOverflow") {
+							kind22 = 3;
+						} else {
+							kind22 = 4;
+						}
+						if (!(e21.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over21 = e21.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over21 = true;
+						}
+						const _1945: rs.IntErrorKind = e21.kind;
+						const args247 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e21, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e21, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1945), (f: rs.Formatter) => rs.i32Display(kind22, f), (f: rs.Formatter) => rs.fmtBool(over21, f)];
+						put(out, rs.fmtFormat([args247[0], "|", args247[1], "|", args247[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args247[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args247[0]), "|", args247[3], "|", args247[4]]).v);
+					}
+					if (radix37 === 10) {
+						const parsed21: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_1888.value);
+						const from21: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_1888.value);
+						if (from21.ok) {
+							max21 = rs.u8Mul(from21.value === 4294967295 ? 1 : 0, 4);
+						} else {
+							max21 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed21.ok ? 1 : 0, max21));
+					}
+				}
+			} else if (_1884 === 1) {
+				const s11: rs.String = rs.stringNew();
+				for (const b6 of rs.byteSliceView(rest6)) {
+					const _1985: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _1986: rs.usize = rs.usizeRem(b6 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_1985, _1986);
+					rs.stringPush(s11, _1985.data[_1985.start + _1986] as rs.char);
+				}
+				const _1997: string = s11.v;
+				const radix38: rs.u32 = radix36;
+				const _2000: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_1997, radix38);
+				if (_2000.ok) {
+					const arg27 = _2000.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg27, f)]).v);
+				} else {
+					const e22: rs.ParseIntError = _2000.error;
+					const _2016: rs.IntErrorKind = e22.kind;
+					if (_2016 === "Empty") {
+						kind23 = 0;
+					} else if (_2016 === "InvalidDigit") {
+						kind23 = 1;
+					} else if (_2016 === "PosOverflow") {
+						kind23 = 2;
+					} else if (_2016 === "NegOverflow") {
+						kind23 = 3;
+					} else {
+						kind23 = 4;
+					}
+					if (!(e22.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over22 = e22.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over22 = true;
+					}
+					const _2036: rs.IntErrorKind = e22.kind;
+					const args245 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e22, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e22, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2036), (f: rs.Formatter) => rs.i32Display(kind23, f), (f: rs.Formatter) => rs.fmtBool(over22, f)];
+					put(out, rs.fmtFormat([args245[0], "|", args245[1], "|", args245[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args245[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args245[0]), "|", args245[3], "|", args245[4]]).v);
+				}
+				if (radix38 === 10) {
+					const parsed22: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_1997);
+					const from22: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_1997);
+					if (from22.ok) {
+						max22 = rs.u8Mul(from22.value === 4294967295 ? 1 : 0, 4);
+					} else {
+						max22 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed22.ok ? 1 : 0, max22));
+				}
+			} else if (_1884 === 2) {
+				const iter23: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _2068: rs.u32 | rs.Done = iter23.next();
+					if (_2068 === rs.DONE) {
+						break;
+					}
+					const radix39: rs.u32 = _2068;
+					for (const _2076 of edges(4294967295, 0, 32, radix39).items) {
+						const _2084: string = _2076.v;
+						const radix40: rs.u32 = radix39;
+						const _2087: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_2084, radix40);
+						if (_2087.ok) {
+							const arg26 = _2087.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg26, f)]).v);
+						} else {
+							const e23: rs.ParseIntError = _2087.error;
+							const _2103: rs.IntErrorKind = e23.kind;
+							if (_2103 === "Empty") {
+								kind24 = 0;
+							} else if (_2103 === "InvalidDigit") {
+								kind24 = 1;
+							} else if (_2103 === "PosOverflow") {
+								kind24 = 2;
+							} else if (_2103 === "NegOverflow") {
+								kind24 = 3;
+							} else {
+								kind24 = 4;
+							}
+							if (!(e23.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over23 = e23.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over23 = true;
+							}
+							const _2123: rs.IntErrorKind = e23.kind;
+							const args243 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e23, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e23, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2123), (f: rs.Formatter) => rs.i32Display(kind24, f), (f: rs.Formatter) => rs.fmtBool(over23, f)];
+							put(out, rs.fmtFormat([args243[0], "|", args243[1], "|", args243[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args243[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args243[0]), "|", args243[3], "|", args243[4]]).v);
+						}
+						if (radix40 === 10) {
+							const parsed23: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_2084);
+							const from23: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_2084);
+							if (from23.ok) {
+								max23 = rs.u8Mul(from23.value === 4294967295 ? 1 : 0, 4);
+							} else {
+								max23 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed23.ok ? 1 : 0, max23));
+						}
+					}
+				}
+			} else {
+				const radix41: rs.u32 = ((first6 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest6), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest6, 1), (b19: rs.u8): boolean => {
+					return (b19 & 1) === 1;
+				})) {
+					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix41), 99))));
+				}
+				if (!(rest6.length > 2)) {
+					text6 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text6 = rs.byteSliceRange(rest6, 2);
+				}
+				const _2179: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text6), "1");
+				const radix42: rs.u32 = radix41;
+				const _2184: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_2179, radix42);
+				if (_2184.ok) {
+					const arg25 = _2184.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg25, f)]).v);
+				} else {
+					const e24: rs.ParseIntError = _2184.error;
+					const _2200: rs.IntErrorKind = e24.kind;
+					if (_2200 === "Empty") {
+						kind25 = 0;
+					} else if (_2200 === "InvalidDigit") {
+						kind25 = 1;
+					} else if (_2200 === "PosOverflow") {
+						kind25 = 2;
+					} else if (_2200 === "NegOverflow") {
+						kind25 = 3;
+					} else {
+						kind25 = 4;
+					}
+					if (!(e24.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over24 = e24.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over24 = true;
+					}
+					const _2220: rs.IntErrorKind = e24.kind;
+					const args241 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e24, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e24, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2220), (f: rs.Formatter) => rs.i32Display(kind25, f), (f: rs.Formatter) => rs.fmtBool(over24, f)];
+					put(out, rs.fmtFormat([args241[0], "|", args241[1], "|", args241[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args241[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args241[0]), "|", args241[3], "|", args241[4]]).v);
+				}
+				if (radix42 === 10) {
+					const parsed24: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_2179);
+					const from24: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_2179);
+					if (from24.ok) {
+						max24 = rs.u8Mul(from24.value === 4294967295 ? 1 : 0, 4);
+					} else {
+						max24 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed24.ok ? 1 : 0, max24));
+				}
+			}
+		}
+	} else if (_4 === 6) {
+		if (dataLen !== 0) {
+			const first7: rs.u8 = dataData[dataStart];
+			const rest7: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix43: rs.u32 = rs.u32Add(2, rs.u32Rem(first7 as rs.u32, 35));
+			const _2258: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_2258 === 0) {
+				const _2262: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest7);
+				if (_2262.ok) {
+					const iter25: rs.Iter<rs.char> = rs.strChars(_2262.value);
+					while (true) {
+						const _2268: rs.char | rs.Done = iter25.next();
+						if (_2268 === rs.DONE) {
+							break;
+						}
+						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_2268, radix43), 99))));
+					}
+					const radix44: rs.u32 = radix43;
+					const _2283: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2262.value, radix44);
+					if (_2283.ok) {
+						const arg24 = _2283.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg24, f)]).v);
+					} else {
+						const e25: rs.ParseIntError = _2283.error;
+						const _2299: rs.IntErrorKind = e25.kind;
+						if (_2299 === "Empty") {
+							kind26 = 0;
+						} else if (_2299 === "InvalidDigit") {
+							kind26 = 1;
+						} else if (_2299 === "PosOverflow") {
+							kind26 = 2;
+						} else if (_2299 === "NegOverflow") {
+							kind26 = 3;
+						} else {
+							kind26 = 4;
+						}
+						if (!(e25.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over25 = e25.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over25 = true;
+						}
+						const _2319: rs.IntErrorKind = e25.kind;
+						const args239 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e25, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e25, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2319), (f: rs.Formatter) => rs.i32Display(kind26, f), (f: rs.Formatter) => rs.fmtBool(over25, f)];
+						put(out, rs.fmtFormat([args239[0], "|", args239[1], "|", args239[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args239[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args239[0]), "|", args239[3], "|", args239[4]]).v);
+					}
+					if (radix44 === 10) {
+						const parsed25: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2262.value);
+						const from25: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2262.value);
+						if (from25.ok) {
+							max25 = rs.u8Mul(from25.value === 127 ? 1 : 0, 4);
+						} else {
+							max25 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed25.ok ? 1 : 0, max25));
+					}
+				}
+			} else if (_2258 === 1) {
+				const s13: rs.String = rs.stringNew();
+				for (const b7 of rs.byteSliceView(rest7)) {
+					const _2359: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _2360: rs.usize = rs.usizeRem(b7 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_2359, _2360);
+					rs.stringPush(s13, _2359.data[_2359.start + _2360] as rs.char);
+				}
+				const _2371: string = s13.v;
+				const radix45: rs.u32 = radix43;
+				const _2374: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2371, radix45);
+				if (_2374.ok) {
+					const arg23 = _2374.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg23, f)]).v);
+				} else {
+					const e26: rs.ParseIntError = _2374.error;
+					const _2390: rs.IntErrorKind = e26.kind;
+					if (_2390 === "Empty") {
+						kind27 = 0;
+					} else if (_2390 === "InvalidDigit") {
+						kind27 = 1;
+					} else if (_2390 === "PosOverflow") {
+						kind27 = 2;
+					} else if (_2390 === "NegOverflow") {
+						kind27 = 3;
+					} else {
+						kind27 = 4;
+					}
+					if (!(e26.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over26 = e26.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over26 = true;
+					}
+					const _2410: rs.IntErrorKind = e26.kind;
+					const args237 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e26, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e26, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2410), (f: rs.Formatter) => rs.i32Display(kind27, f), (f: rs.Formatter) => rs.fmtBool(over26, f)];
+					put(out, rs.fmtFormat([args237[0], "|", args237[1], "|", args237[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args237[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args237[0]), "|", args237[3], "|", args237[4]]).v);
+				}
+				if (radix45 === 10) {
+					const parsed26: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2371);
+					const from26: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2371);
+					if (from26.ok) {
+						max26 = rs.u8Mul(from26.value === 127 ? 1 : 0, 4);
+					} else {
+						max26 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed26.ok ? 1 : 0, max26));
+				}
+			} else if (_2258 === 2) {
+				const iter27: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _2442: rs.u32 | rs.Done = iter27.next();
+					if (_2442 === rs.DONE) {
+						break;
+					}
+					const radix46: rs.u32 = _2442;
+					for (const _2453 of edges(127, rs.u128Add(127, 1), 8, radix46).items) {
+						const _2461: string = _2453.v;
+						const radix47: rs.u32 = radix46;
+						const _2464: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2461, radix47);
+						if (_2464.ok) {
+							const arg22 = _2464.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg22, f)]).v);
+						} else {
+							const e27: rs.ParseIntError = _2464.error;
+							const _2480: rs.IntErrorKind = e27.kind;
+							if (_2480 === "Empty") {
+								kind28 = 0;
+							} else if (_2480 === "InvalidDigit") {
+								kind28 = 1;
+							} else if (_2480 === "PosOverflow") {
+								kind28 = 2;
+							} else if (_2480 === "NegOverflow") {
+								kind28 = 3;
+							} else {
+								kind28 = 4;
+							}
+							if (!(e27.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over27 = e27.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over27 = true;
+							}
+							const _2500: rs.IntErrorKind = e27.kind;
+							const args235 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e27, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e27, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2500), (f: rs.Formatter) => rs.i32Display(kind28, f), (f: rs.Formatter) => rs.fmtBool(over27, f)];
+							put(out, rs.fmtFormat([args235[0], "|", args235[1], "|", args235[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args235[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args235[0]), "|", args235[3], "|", args235[4]]).v);
+						}
+						if (radix47 === 10) {
+							const parsed27: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2461);
+							const from27: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2461);
+							if (from27.ok) {
+								max27 = rs.u8Mul(from27.value === 127 ? 1 : 0, 4);
+							} else {
+								max27 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed27.ok ? 1 : 0, max27));
+						}
+					}
+				}
+			} else {
+				const radix48: rs.u32 = ((first7 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest7), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest7, 1), (b18: rs.u8): boolean => {
+					return (b18 & 1) === 1;
+				})) {
+					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix48), 99))));
+				}
+				if (!(rest7.length > 2)) {
+					text7 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text7 = rs.byteSliceRange(rest7, 2);
+				}
+				const _2556: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text7), "1");
+				const radix49: rs.u32 = radix48;
+				const _2561: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2556, radix49);
+				if (_2561.ok) {
+					const arg21 = _2561.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg21, f)]).v);
+				} else {
+					const e28: rs.ParseIntError = _2561.error;
+					const _2577: rs.IntErrorKind = e28.kind;
+					if (_2577 === "Empty") {
+						kind29 = 0;
+					} else if (_2577 === "InvalidDigit") {
+						kind29 = 1;
+					} else if (_2577 === "PosOverflow") {
+						kind29 = 2;
+					} else if (_2577 === "NegOverflow") {
+						kind29 = 3;
+					} else {
+						kind29 = 4;
+					}
+					if (!(e28.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over28 = e28.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over28 = true;
+					}
+					const _2597: rs.IntErrorKind = e28.kind;
+					const args233 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e28, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e28, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2597), (f: rs.Formatter) => rs.i32Display(kind29, f), (f: rs.Formatter) => rs.fmtBool(over28, f)];
+					put(out, rs.fmtFormat([args233[0], "|", args233[1], "|", args233[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args233[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args233[0]), "|", args233[3], "|", args233[4]]).v);
+				}
+				if (radix49 === 10) {
+					const parsed28: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2556);
+					const from28: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2556);
+					if (from28.ok) {
+						max28 = rs.u8Mul(from28.value === 127 ? 1 : 0, 4);
+					} else {
+						max28 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed28.ok ? 1 : 0, max28));
+				}
+			}
+		}
+	} else if (_4 === 7) {
+		if (dataLen !== 0) {
+			const first8: rs.u8 = dataData[dataStart];
+			const rest8: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix50: rs.u32 = rs.u32Add(2, rs.u32Rem(first8 as rs.u32, 35));
+			const _2635: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_2635 === 0) {
+				const _2639: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest8);
+				if (_2639.ok) {
+					const iter29: rs.Iter<rs.char> = rs.strChars(_2639.value);
+					while (true) {
+						const _2645: rs.char | rs.Done = iter29.next();
+						if (_2645 === rs.DONE) {
+							break;
+						}
+						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_2645, radix50), 99))));
+					}
+					const radix51: rs.u32 = radix50;
+					const _2660: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2639.value, radix51);
+					if (_2660.ok) {
+						const arg20 = _2660.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg20, f)]).v);
+					} else {
+						const e29: rs.ParseIntError = _2660.error;
+						const _2676: rs.IntErrorKind = e29.kind;
+						if (_2676 === "Empty") {
+							kind30 = 0;
+						} else if (_2676 === "InvalidDigit") {
+							kind30 = 1;
+						} else if (_2676 === "PosOverflow") {
+							kind30 = 2;
+						} else if (_2676 === "NegOverflow") {
+							kind30 = 3;
+						} else {
+							kind30 = 4;
+						}
+						if (!(e29.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over29 = e29.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over29 = true;
+						}
+						const _2696: rs.IntErrorKind = e29.kind;
+						const args231 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e29, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e29, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2696), (f: rs.Formatter) => rs.i32Display(kind30, f), (f: rs.Formatter) => rs.fmtBool(over29, f)];
+						put(out, rs.fmtFormat([args231[0], "|", args231[1], "|", args231[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args231[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args231[0]), "|", args231[3], "|", args231[4]]).v);
+					}
+					if (radix51 === 10) {
+						const parsed29: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2639.value);
+						const from29: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2639.value);
+						if (from29.ok) {
+							max29 = rs.u8Mul(from29.value === 32767 ? 1 : 0, 4);
+						} else {
+							max29 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed29.ok ? 1 : 0, max29));
+					}
+				}
+			} else if (_2635 === 1) {
+				const s15: rs.String = rs.stringNew();
+				for (const b8 of rs.byteSliceView(rest8)) {
+					const _2736: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _2737: rs.usize = rs.usizeRem(b8 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_2736, _2737);
+					rs.stringPush(s15, _2736.data[_2736.start + _2737] as rs.char);
+				}
+				const _2748: string = s15.v;
+				const radix52: rs.u32 = radix50;
+				const _2751: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2748, radix52);
+				if (_2751.ok) {
+					const arg19 = _2751.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg19, f)]).v);
+				} else {
+					const e30: rs.ParseIntError = _2751.error;
+					const _2767: rs.IntErrorKind = e30.kind;
+					if (_2767 === "Empty") {
+						kind31 = 0;
+					} else if (_2767 === "InvalidDigit") {
+						kind31 = 1;
+					} else if (_2767 === "PosOverflow") {
+						kind31 = 2;
+					} else if (_2767 === "NegOverflow") {
+						kind31 = 3;
+					} else {
+						kind31 = 4;
+					}
+					if (!(e30.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over30 = e30.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over30 = true;
+					}
+					const _2787: rs.IntErrorKind = e30.kind;
+					const args229 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e30, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e30, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2787), (f: rs.Formatter) => rs.i32Display(kind31, f), (f: rs.Formatter) => rs.fmtBool(over30, f)];
+					put(out, rs.fmtFormat([args229[0], "|", args229[1], "|", args229[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args229[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args229[0]), "|", args229[3], "|", args229[4]]).v);
+				}
+				if (radix52 === 10) {
+					const parsed30: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2748);
+					const from30: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2748);
+					if (from30.ok) {
+						max30 = rs.u8Mul(from30.value === 32767 ? 1 : 0, 4);
+					} else {
+						max30 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed30.ok ? 1 : 0, max30));
+				}
+			} else if (_2635 === 2) {
+				const iter31: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _2819: rs.u32 | rs.Done = iter31.next();
+					if (_2819 === rs.DONE) {
+						break;
+					}
+					const radix53: rs.u32 = _2819;
+					for (const _2830 of edges(32767, rs.u128Add(32767, 1), 16, radix53).items) {
+						const _2838: string = _2830.v;
+						const radix54: rs.u32 = radix53;
+						const _2841: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2838, radix54);
+						if (_2841.ok) {
+							const arg18 = _2841.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg18, f)]).v);
+						} else {
+							const e31: rs.ParseIntError = _2841.error;
+							const _2857: rs.IntErrorKind = e31.kind;
+							if (_2857 === "Empty") {
+								kind32 = 0;
+							} else if (_2857 === "InvalidDigit") {
+								kind32 = 1;
+							} else if (_2857 === "PosOverflow") {
+								kind32 = 2;
+							} else if (_2857 === "NegOverflow") {
+								kind32 = 3;
+							} else {
+								kind32 = 4;
+							}
+							if (!(e31.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over31 = e31.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over31 = true;
+							}
+							const _2877: rs.IntErrorKind = e31.kind;
+							const args227 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e31, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e31, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2877), (f: rs.Formatter) => rs.i32Display(kind32, f), (f: rs.Formatter) => rs.fmtBool(over31, f)];
+							put(out, rs.fmtFormat([args227[0], "|", args227[1], "|", args227[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args227[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args227[0]), "|", args227[3], "|", args227[4]]).v);
+						}
+						if (radix54 === 10) {
+							const parsed31: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2838);
+							const from31: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2838);
+							if (from31.ok) {
+								max31 = rs.u8Mul(from31.value === 32767 ? 1 : 0, 4);
+							} else {
+								max31 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed31.ok ? 1 : 0, max31));
+						}
+					}
+				}
+			} else {
+				const radix55: rs.u32 = ((first8 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest8), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest8, 1), (b17: rs.u8): boolean => {
+					return (b17 & 1) === 1;
+				})) {
+					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix55), 99))));
+				}
+				if (!(rest8.length > 2)) {
+					text8 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text8 = rs.byteSliceRange(rest8, 2);
+				}
+				const _2933: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text8), "1");
+				const radix56: rs.u32 = radix55;
+				const _2938: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2933, radix56);
+				if (_2938.ok) {
+					const arg17 = _2938.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg17, f)]).v);
+				} else {
+					const e32: rs.ParseIntError = _2938.error;
+					const _2954: rs.IntErrorKind = e32.kind;
+					if (_2954 === "Empty") {
+						kind33 = 0;
+					} else if (_2954 === "InvalidDigit") {
+						kind33 = 1;
+					} else if (_2954 === "PosOverflow") {
+						kind33 = 2;
+					} else if (_2954 === "NegOverflow") {
+						kind33 = 3;
+					} else {
+						kind33 = 4;
+					}
+					if (!(e32.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over32 = e32.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over32 = true;
+					}
+					const _2974: rs.IntErrorKind = e32.kind;
+					const args225 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e32, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e32, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2974), (f: rs.Formatter) => rs.i32Display(kind33, f), (f: rs.Formatter) => rs.fmtBool(over32, f)];
+					put(out, rs.fmtFormat([args225[0], "|", args225[1], "|", args225[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args225[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args225[0]), "|", args225[3], "|", args225[4]]).v);
+				}
+				if (radix56 === 10) {
+					const parsed32: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2933);
+					const from32: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2933);
+					if (from32.ok) {
+						max32 = rs.u8Mul(from32.value === 32767 ? 1 : 0, 4);
+					} else {
+						max32 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed32.ok ? 1 : 0, max32));
+				}
+			}
+		}
+	} else if (_4 === 8) {
+		if (dataLen !== 0) {
+			const first9: rs.u8 = dataData[dataStart];
+			const rest9: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix57: rs.u32 = rs.u32Add(2, rs.u32Rem(first9 as rs.u32, 35));
+			const _3012: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_3012 === 0) {
+				const _3016: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest9);
+				if (_3016.ok) {
+					const iter33: rs.Iter<rs.char> = rs.strChars(_3016.value);
+					while (true) {
+						const _3022: rs.char | rs.Done = iter33.next();
+						if (_3022 === rs.DONE) {
+							break;
+						}
+						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_3022, radix57), 99))));
+					}
+					const radix58: rs.u32 = radix57;
+					const _3037: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3016.value, radix58);
+					if (_3037.ok) {
+						const arg16 = _3037.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg16, f)]).v);
+					} else {
+						const e33: rs.ParseIntError = _3037.error;
+						const _3053: rs.IntErrorKind = e33.kind;
+						if (_3053 === "Empty") {
+							kind34 = 0;
+						} else if (_3053 === "InvalidDigit") {
+							kind34 = 1;
+						} else if (_3053 === "PosOverflow") {
+							kind34 = 2;
+						} else if (_3053 === "NegOverflow") {
+							kind34 = 3;
+						} else {
+							kind34 = 4;
+						}
+						if (!(e33.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over33 = e33.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over33 = true;
+						}
+						const _3073: rs.IntErrorKind = e33.kind;
+						const args223 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e33, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e33, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3073), (f: rs.Formatter) => rs.i32Display(kind34, f), (f: rs.Formatter) => rs.fmtBool(over33, f)];
+						put(out, rs.fmtFormat([args223[0], "|", args223[1], "|", args223[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args223[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args223[0]), "|", args223[3], "|", args223[4]]).v);
+					}
+					if (radix58 === 10) {
+						const parsed33: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3016.value);
+						const from33: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3016.value);
+						if (from33.ok) {
+							max33 = rs.u8Mul(from33.value === 2147483647 ? 1 : 0, 4);
+						} else {
+							max33 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed33.ok ? 1 : 0, max33));
+					}
+				}
+			} else if (_3012 === 1) {
+				const s17: rs.String = rs.stringNew();
+				for (const b9 of rs.byteSliceView(rest9)) {
+					const _3113: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _3114: rs.usize = rs.usizeRem(b9 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_3113, _3114);
+					rs.stringPush(s17, _3113.data[_3113.start + _3114] as rs.char);
+				}
+				const _3125: string = s17.v;
+				const radix59: rs.u32 = radix57;
+				const _3128: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3125, radix59);
+				if (_3128.ok) {
+					const arg15 = _3128.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg15, f)]).v);
+				} else {
+					const e34: rs.ParseIntError = _3128.error;
+					const _3144: rs.IntErrorKind = e34.kind;
+					if (_3144 === "Empty") {
+						kind35 = 0;
+					} else if (_3144 === "InvalidDigit") {
+						kind35 = 1;
+					} else if (_3144 === "PosOverflow") {
+						kind35 = 2;
+					} else if (_3144 === "NegOverflow") {
+						kind35 = 3;
+					} else {
+						kind35 = 4;
+					}
+					if (!(e34.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over34 = e34.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over34 = true;
+					}
+					const _3164: rs.IntErrorKind = e34.kind;
+					const args221 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e34, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e34, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3164), (f: rs.Formatter) => rs.i32Display(kind35, f), (f: rs.Formatter) => rs.fmtBool(over34, f)];
+					put(out, rs.fmtFormat([args221[0], "|", args221[1], "|", args221[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args221[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args221[0]), "|", args221[3], "|", args221[4]]).v);
+				}
+				if (radix59 === 10) {
+					const parsed34: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3125);
+					const from34: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3125);
+					if (from34.ok) {
+						max34 = rs.u8Mul(from34.value === 2147483647 ? 1 : 0, 4);
+					} else {
+						max34 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed34.ok ? 1 : 0, max34));
+				}
+			} else if (_3012 === 2) {
+				const iter35: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _3196: rs.u32 | rs.Done = iter35.next();
+					if (_3196 === rs.DONE) {
+						break;
+					}
+					const radix60: rs.u32 = _3196;
+					for (const _3207 of edges(2147483647, rs.u128Add(2147483647, 1), 32, radix60).items) {
+						const _3215: string = _3207.v;
+						const radix61: rs.u32 = radix60;
+						const _3218: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3215, radix61);
+						if (_3218.ok) {
+							const arg14 = _3218.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg14, f)]).v);
+						} else {
+							const e35: rs.ParseIntError = _3218.error;
+							const _3234: rs.IntErrorKind = e35.kind;
+							if (_3234 === "Empty") {
+								kind36 = 0;
+							} else if (_3234 === "InvalidDigit") {
+								kind36 = 1;
+							} else if (_3234 === "PosOverflow") {
+								kind36 = 2;
+							} else if (_3234 === "NegOverflow") {
+								kind36 = 3;
+							} else {
+								kind36 = 4;
+							}
+							if (!(e35.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over35 = e35.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over35 = true;
+							}
+							const _3254: rs.IntErrorKind = e35.kind;
+							const args219 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e35, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e35, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3254), (f: rs.Formatter) => rs.i32Display(kind36, f), (f: rs.Formatter) => rs.fmtBool(over35, f)];
+							put(out, rs.fmtFormat([args219[0], "|", args219[1], "|", args219[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args219[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args219[0]), "|", args219[3], "|", args219[4]]).v);
+						}
+						if (radix61 === 10) {
+							const parsed35: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3215);
+							const from35: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3215);
+							if (from35.ok) {
+								max35 = rs.u8Mul(from35.value === 2147483647 ? 1 : 0, 4);
+							} else {
+								max35 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed35.ok ? 1 : 0, max35));
+						}
+					}
+				}
+			} else {
+				const radix62: rs.u32 = ((first9 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest9), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest9, 1), (b16: rs.u8): boolean => {
+					return (b16 & 1) === 1;
+				})) {
+					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix62), 99))));
+				}
+				if (!(rest9.length > 2)) {
+					text9 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text9 = rs.byteSliceRange(rest9, 2);
+				}
+				const _3310: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text9), "1");
+				const radix63: rs.u32 = radix62;
+				const _3315: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3310, radix63);
+				if (_3315.ok) {
+					const arg13 = _3315.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg13, f)]).v);
+				} else {
+					const e36: rs.ParseIntError = _3315.error;
+					const _3331: rs.IntErrorKind = e36.kind;
+					if (_3331 === "Empty") {
+						kind37 = 0;
+					} else if (_3331 === "InvalidDigit") {
+						kind37 = 1;
+					} else if (_3331 === "PosOverflow") {
+						kind37 = 2;
+					} else if (_3331 === "NegOverflow") {
+						kind37 = 3;
+					} else {
+						kind37 = 4;
+					}
+					if (!(e36.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over36 = e36.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over36 = true;
+					}
+					const _3351: rs.IntErrorKind = e36.kind;
+					const args217 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e36, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e36, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3351), (f: rs.Formatter) => rs.i32Display(kind37, f), (f: rs.Formatter) => rs.fmtBool(over36, f)];
+					put(out, rs.fmtFormat([args217[0], "|", args217[1], "|", args217[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args217[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args217[0]), "|", args217[3], "|", args217[4]]).v);
+				}
+				if (radix63 === 10) {
+					const parsed36: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3310);
+					const from36: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3310);
+					if (from36.ok) {
+						max36 = rs.u8Mul(from36.value === 2147483647 ? 1 : 0, 4);
+					} else {
+						max36 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed36.ok ? 1 : 0, max36));
+				}
+			}
+		}
+	} else if (_4 === 9) {
+		if (dataLen !== 0) {
+			const first10: rs.u8 = dataData[dataStart];
+			const rest10: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix64: rs.u32 = rs.u32Add(2, rs.u32Rem(first10 as rs.u32, 35));
+			const _3389: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_3389 === 0) {
+				const _3393: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest10);
+				if (_3393.ok) {
+					const iter37: rs.Iter<rs.char> = rs.strChars(_3393.value);
+					while (true) {
+						const _3399: rs.char | rs.Done = iter37.next();
+						if (_3399 === rs.DONE) {
+							break;
+						}
+						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_3399, radix64), 99))));
+					}
+					const radix65: rs.u32 = radix64;
+					const _3414: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3393.value, radix65);
+					if (_3414.ok) {
+						const arg12 = _3414.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg12, f)]).v);
+					} else {
+						const e37: rs.ParseIntError = _3414.error;
+						const _3430: rs.IntErrorKind = e37.kind;
+						if (_3430 === "Empty") {
+							kind38 = 0;
+						} else if (_3430 === "InvalidDigit") {
+							kind38 = 1;
+						} else if (_3430 === "PosOverflow") {
+							kind38 = 2;
+						} else if (_3430 === "NegOverflow") {
+							kind38 = 3;
+						} else {
+							kind38 = 4;
+						}
+						if (!(e37.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over37 = e37.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over37 = true;
+						}
+						const _3450: rs.IntErrorKind = e37.kind;
+						const args215 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e37, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e37, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3450), (f: rs.Formatter) => rs.i32Display(kind38, f), (f: rs.Formatter) => rs.fmtBool(over37, f)];
+						put(out, rs.fmtFormat([args215[0], "|", args215[1], "|", args215[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args215[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args215[0]), "|", args215[3], "|", args215[4]]).v);
+					}
+					if (radix65 === 10) {
+						const parsed37: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3393.value);
+						const from37: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3393.value);
+						if (from37.ok) {
+							max37 = rs.u8Mul(rs.i64Eq(from37.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
+						} else {
+							max37 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed37.ok ? 1 : 0, max37));
+					}
+				}
+			} else if (_3389 === 1) {
+				const s19: rs.String = rs.stringNew();
+				for (const b10 of rs.byteSliceView(rest10)) {
+					const _3490: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _3491: rs.usize = rs.usizeRem(b10 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_3490, _3491);
+					rs.stringPush(s19, _3490.data[_3490.start + _3491] as rs.char);
+				}
+				const _3502: string = s19.v;
+				const radix66: rs.u32 = radix64;
+				const _3505: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3502, radix66);
+				if (_3505.ok) {
+					const arg11 = _3505.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg11, f)]).v);
+				} else {
+					const e38: rs.ParseIntError = _3505.error;
+					const _3521: rs.IntErrorKind = e38.kind;
+					if (_3521 === "Empty") {
+						kind39 = 0;
+					} else if (_3521 === "InvalidDigit") {
+						kind39 = 1;
+					} else if (_3521 === "PosOverflow") {
+						kind39 = 2;
+					} else if (_3521 === "NegOverflow") {
+						kind39 = 3;
+					} else {
+						kind39 = 4;
+					}
+					if (!(e38.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over38 = e38.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over38 = true;
+					}
+					const _3541: rs.IntErrorKind = e38.kind;
+					const args213 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e38, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e38, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3541), (f: rs.Formatter) => rs.i32Display(kind39, f), (f: rs.Formatter) => rs.fmtBool(over38, f)];
+					put(out, rs.fmtFormat([args213[0], "|", args213[1], "|", args213[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args213[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args213[0]), "|", args213[3], "|", args213[4]]).v);
+				}
+				if (radix66 === 10) {
+					const parsed38: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3502);
+					const from38: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3502);
+					if (from38.ok) {
+						max38 = rs.u8Mul(rs.i64Eq(from38.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
+					} else {
+						max38 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed38.ok ? 1 : 0, max38));
+				}
+			} else if (_3389 === 2) {
+				const iter39: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _3573: rs.u32 | rs.Done = iter39.next();
+					if (_3573 === rs.DONE) {
+						break;
+					}
+					const radix67: rs.u32 = _3573;
+					for (const _3584 of edges({ hi: 0, w2: 0, w1: 0x7fffffff, lo: 0xffffffff } as rs.u128, rs.u128Add({ hi: 0, w2: 0, w1: 0x7fffffff, lo: 0xffffffff } as rs.u128, 1), 64, radix67).items) {
+						const _3592: string = _3584.v;
+						const radix68: rs.u32 = radix67;
+						const _3595: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3592, radix68);
+						if (_3595.ok) {
+							const arg10 = _3595.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg10, f)]).v);
+						} else {
+							const e39: rs.ParseIntError = _3595.error;
+							const _3611: rs.IntErrorKind = e39.kind;
+							if (_3611 === "Empty") {
+								kind40 = 0;
+							} else if (_3611 === "InvalidDigit") {
+								kind40 = 1;
+							} else if (_3611 === "PosOverflow") {
+								kind40 = 2;
+							} else if (_3611 === "NegOverflow") {
+								kind40 = 3;
+							} else {
+								kind40 = 4;
+							}
+							if (!(e39.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over39 = e39.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over39 = true;
+							}
+							const _3631: rs.IntErrorKind = e39.kind;
+							const args211 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e39, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e39, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3631), (f: rs.Formatter) => rs.i32Display(kind40, f), (f: rs.Formatter) => rs.fmtBool(over39, f)];
+							put(out, rs.fmtFormat([args211[0], "|", args211[1], "|", args211[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args211[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args211[0]), "|", args211[3], "|", args211[4]]).v);
+						}
+						if (radix68 === 10) {
+							const parsed39: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3592);
+							const from39: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3592);
+							if (from39.ok) {
+								max39 = rs.u8Mul(rs.i64Eq(from39.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
+							} else {
+								max39 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed39.ok ? 1 : 0, max39));
+						}
+					}
+				}
+			} else {
+				const radix69: rs.u32 = ((first10 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest10), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest10, 1), (b15: rs.u8): boolean => {
+					return (b15 & 1) === 1;
+				})) {
+					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix69), 99))));
+				}
+				if (!(rest10.length > 2)) {
+					text10 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text10 = rs.byteSliceRange(rest10, 2);
+				}
+				const _3687: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text10), "1");
+				const radix70: rs.u32 = radix69;
+				const _3692: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3687, radix70);
+				if (_3692.ok) {
+					const arg9 = _3692.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg9, f)]).v);
+				} else {
+					const e40: rs.ParseIntError = _3692.error;
+					const _3708: rs.IntErrorKind = e40.kind;
+					if (_3708 === "Empty") {
+						kind41 = 0;
+					} else if (_3708 === "InvalidDigit") {
+						kind41 = 1;
+					} else if (_3708 === "PosOverflow") {
+						kind41 = 2;
+					} else if (_3708 === "NegOverflow") {
+						kind41 = 3;
+					} else {
+						kind41 = 4;
+					}
+					if (!(e40.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over40 = e40.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over40 = true;
+					}
+					const _3728: rs.IntErrorKind = e40.kind;
+					const args209 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e40, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e40, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3728), (f: rs.Formatter) => rs.i32Display(kind41, f), (f: rs.Formatter) => rs.fmtBool(over40, f)];
+					put(out, rs.fmtFormat([args209[0], "|", args209[1], "|", args209[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args209[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args209[0]), "|", args209[3], "|", args209[4]]).v);
+				}
+				if (radix70 === 10) {
+					const parsed40: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3687);
+					const from40: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3687);
+					if (from40.ok) {
+						max40 = rs.u8Mul(rs.i64Eq(from40.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
+					} else {
+						max40 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed40.ok ? 1 : 0, max40));
+				}
+			}
+		}
+	} else if (_4 === 10) {
+		if (dataLen !== 0) {
+			const first11: rs.u8 = dataData[dataStart];
+			const rest11: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix71: rs.u32 = rs.u32Add(2, rs.u32Rem(first11 as rs.u32, 35));
+			const _3766: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_3766 === 0) {
+				const _3770: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest11);
+				if (_3770.ok) {
+					const iter41: rs.Iter<rs.char> = rs.strChars(_3770.value);
+					while (true) {
+						const _3776: rs.char | rs.Done = iter41.next();
+						if (_3776 === rs.DONE) {
+							break;
+						}
+						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_3776, radix71), 99))));
+					}
+					const radix72: rs.u32 = radix71;
+					const _3791: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_3770.value, radix72);
+					if (_3791.ok) {
+						const arg8 = _3791.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg8, f)]).v);
+					} else {
+						const e41: rs.ParseIntError = _3791.error;
+						const _3807: rs.IntErrorKind = e41.kind;
+						if (_3807 === "Empty") {
+							kind42 = 0;
+						} else if (_3807 === "InvalidDigit") {
+							kind42 = 1;
+						} else if (_3807 === "PosOverflow") {
+							kind42 = 2;
+						} else if (_3807 === "NegOverflow") {
+							kind42 = 3;
+						} else {
+							kind42 = 4;
+						}
+						if (!(e41.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over41 = e41.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over41 = true;
+						}
+						const _3827: rs.IntErrorKind = e41.kind;
+						const args207 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e41, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e41, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3827), (f: rs.Formatter) => rs.i32Display(kind42, f), (f: rs.Formatter) => rs.fmtBool(over41, f)];
+						put(out, rs.fmtFormat([args207[0], "|", args207[1], "|", args207[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args207[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args207[0]), "|", args207[3], "|", args207[4]]).v);
+					}
+					if (radix72 === 10) {
+						const parsed41: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_3770.value);
+						const from41: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_3770.value);
+						if (from41.ok) {
+							max41 = rs.u8Mul(rs.i128Eq(from41.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
+						} else {
+							max41 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed41.ok ? 1 : 0, max41));
+					}
+				}
+			} else if (_3766 === 1) {
+				const s21: rs.String = rs.stringNew();
+				for (const b11 of rs.byteSliceView(rest11)) {
+					const _3867: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _3868: rs.usize = rs.usizeRem(b11 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_3867, _3868);
+					rs.stringPush(s21, _3867.data[_3867.start + _3868] as rs.char);
+				}
+				const _3879: string = s21.v;
+				const radix73: rs.u32 = radix71;
+				const _3882: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_3879, radix73);
+				if (_3882.ok) {
+					const arg7 = _3882.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg7, f)]).v);
+				} else {
+					const e42: rs.ParseIntError = _3882.error;
+					const _3898: rs.IntErrorKind = e42.kind;
+					if (_3898 === "Empty") {
+						kind43 = 0;
+					} else if (_3898 === "InvalidDigit") {
+						kind43 = 1;
+					} else if (_3898 === "PosOverflow") {
+						kind43 = 2;
+					} else if (_3898 === "NegOverflow") {
+						kind43 = 3;
+					} else {
+						kind43 = 4;
+					}
+					if (!(e42.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over42 = e42.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over42 = true;
+					}
+					const _3918: rs.IntErrorKind = e42.kind;
+					const args205 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e42, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e42, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3918), (f: rs.Formatter) => rs.i32Display(kind43, f), (f: rs.Formatter) => rs.fmtBool(over42, f)];
+					put(out, rs.fmtFormat([args205[0], "|", args205[1], "|", args205[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args205[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args205[0]), "|", args205[3], "|", args205[4]]).v);
+				}
+				if (radix73 === 10) {
+					const parsed42: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_3879);
+					const from42: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_3879);
+					if (from42.ok) {
+						max42 = rs.u8Mul(rs.i128Eq(from42.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
+					} else {
+						max42 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed42.ok ? 1 : 0, max42));
+				}
+			} else if (_3766 === 2) {
+				const iter43: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _3950: rs.u32 | rs.Done = iter43.next();
+					if (_3950 === rs.DONE) {
+						break;
+					}
+					const radix74: rs.u32 = _3950;
+					for (const _3961 of edges({ hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, rs.u128Add({ hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, 1), 128, radix74).items) {
+						const _3969: string = _3961.v;
+						const radix75: rs.u32 = radix74;
+						const _3972: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_3969, radix75);
+						if (_3972.ok) {
+							const arg6 = _3972.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg6, f)]).v);
+						} else {
+							const e43: rs.ParseIntError = _3972.error;
+							const _3988: rs.IntErrorKind = e43.kind;
+							if (_3988 === "Empty") {
+								kind44 = 0;
+							} else if (_3988 === "InvalidDigit") {
+								kind44 = 1;
+							} else if (_3988 === "PosOverflow") {
+								kind44 = 2;
+							} else if (_3988 === "NegOverflow") {
+								kind44 = 3;
+							} else {
+								kind44 = 4;
+							}
+							if (!(e43.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over43 = e43.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over43 = true;
+							}
+							const _4008: rs.IntErrorKind = e43.kind;
+							const args203 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e43, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e43, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4008), (f: rs.Formatter) => rs.i32Display(kind44, f), (f: rs.Formatter) => rs.fmtBool(over43, f)];
+							put(out, rs.fmtFormat([args203[0], "|", args203[1], "|", args203[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args203[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args203[0]), "|", args203[3], "|", args203[4]]).v);
+						}
+						if (radix75 === 10) {
+							const parsed43: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_3969);
+							const from43: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_3969);
+							if (from43.ok) {
+								max43 = rs.u8Mul(rs.i128Eq(from43.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
+							} else {
+								max43 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed43.ok ? 1 : 0, max43));
+						}
+					}
+				}
+			} else {
+				const radix76: rs.u32 = ((first11 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest11), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest11, 1), (b14: rs.u8): boolean => {
+					return (b14 & 1) === 1;
+				})) {
+					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix76), 99))));
+				}
+				if (!(rest11.length > 2)) {
+					text11 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text11 = rs.byteSliceRange(rest11, 2);
+				}
+				const _4064: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text11), "1");
+				const radix77: rs.u32 = radix76;
+				const _4069: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_4064, radix77);
+				if (_4069.ok) {
+					const arg5 = _4069.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg5, f)]).v);
+				} else {
+					const e44: rs.ParseIntError = _4069.error;
+					const _4085: rs.IntErrorKind = e44.kind;
+					if (_4085 === "Empty") {
+						kind45 = 0;
+					} else if (_4085 === "InvalidDigit") {
+						kind45 = 1;
+					} else if (_4085 === "PosOverflow") {
+						kind45 = 2;
+					} else if (_4085 === "NegOverflow") {
+						kind45 = 3;
+					} else {
+						kind45 = 4;
+					}
+					if (!(e44.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over44 = e44.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over44 = true;
+					}
+					const _4105: rs.IntErrorKind = e44.kind;
+					const args201 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e44, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e44, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4105), (f: rs.Formatter) => rs.i32Display(kind45, f), (f: rs.Formatter) => rs.fmtBool(over44, f)];
+					put(out, rs.fmtFormat([args201[0], "|", args201[1], "|", args201[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args201[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args201[0]), "|", args201[3], "|", args201[4]]).v);
+				}
+				if (radix77 === 10) {
+					const parsed44: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_4064);
+					const from44: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_4064);
+					if (from44.ok) {
+						max44 = rs.u8Mul(rs.i128Eq(from44.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
+					} else {
+						max44 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed44.ok ? 1 : 0, max44));
+				}
+			}
+		}
+	} else if (_4 === 11) {
+		if (dataLen !== 0) {
+			const first12: rs.u8 = dataData[dataStart];
+			const rest12: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix78: rs.u32 = rs.u32Add(2, rs.u32Rem(first12 as rs.u32, 35));
+			const _4143: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_4143 === 0) {
+				const _4147: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest12);
+				if (_4147.ok) {
+					const iter45: rs.Iter<rs.char> = rs.strChars(_4147.value);
+					while (true) {
+						const _4153: rs.char | rs.Done = iter45.next();
+						if (_4153 === rs.DONE) {
+							break;
+						}
+						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_4153, radix78), 99))));
+					}
+					const radix79: rs.u32 = radix78;
+					const _4168: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4147.value, radix79);
+					if (_4168.ok) {
+						const arg4 = _4168.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg4, f)]).v);
+					} else {
+						const e45: rs.ParseIntError = _4168.error;
+						const _4184: rs.IntErrorKind = e45.kind;
+						if (_4184 === "Empty") {
+							kind46 = 0;
+						} else if (_4184 === "InvalidDigit") {
+							kind46 = 1;
+						} else if (_4184 === "PosOverflow") {
+							kind46 = 2;
+						} else if (_4184 === "NegOverflow") {
+							kind46 = 3;
+						} else {
+							kind46 = 4;
+						}
+						if (!(e45.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over45 = e45.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over45 = true;
+						}
+						const _4204: rs.IntErrorKind = e45.kind;
+						const args199 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e45, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e45, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4204), (f: rs.Formatter) => rs.i32Display(kind46, f), (f: rs.Formatter) => rs.fmtBool(over45, f)];
+						put(out, rs.fmtFormat([args199[0], "|", args199[1], "|", args199[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args199[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args199[0]), "|", args199[3], "|", args199[4]]).v);
+					}
+					if (radix79 === 10) {
+						const parsed45: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4147.value);
+						const from45: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4147.value);
+						if (from45.ok) {
+							max45 = rs.u8Mul(from45.value === 2147483647 ? 1 : 0, 4);
+						} else {
+							max45 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed45.ok ? 1 : 0, max45));
+					}
+				}
+			} else if (_4143 === 1) {
+				const s23: rs.String = rs.stringNew();
+				for (const b12 of rs.byteSliceView(rest12)) {
+					const _4244: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _4245: rs.usize = rs.usizeRem(b12 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_4244, _4245);
+					rs.stringPush(s23, _4244.data[_4244.start + _4245] as rs.char);
+				}
+				const _4256: string = s23.v;
+				const radix80: rs.u32 = radix78;
+				const _4259: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4256, radix80);
+				if (_4259.ok) {
+					const arg3 = _4259.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg3, f)]).v);
+				} else {
+					const e46: rs.ParseIntError = _4259.error;
+					const _4275: rs.IntErrorKind = e46.kind;
+					if (_4275 === "Empty") {
+						kind47 = 0;
+					} else if (_4275 === "InvalidDigit") {
+						kind47 = 1;
+					} else if (_4275 === "PosOverflow") {
+						kind47 = 2;
+					} else if (_4275 === "NegOverflow") {
+						kind47 = 3;
+					} else {
+						kind47 = 4;
+					}
+					if (!(e46.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over46 = e46.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over46 = true;
+					}
+					const _4295: rs.IntErrorKind = e46.kind;
+					const args197 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e46, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e46, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4295), (f: rs.Formatter) => rs.i32Display(kind47, f), (f: rs.Formatter) => rs.fmtBool(over46, f)];
+					put(out, rs.fmtFormat([args197[0], "|", args197[1], "|", args197[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args197[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args197[0]), "|", args197[3], "|", args197[4]]).v);
+				}
+				if (radix80 === 10) {
+					const parsed46: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4256);
+					const from46: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4256);
+					if (from46.ok) {
+						max46 = rs.u8Mul(from46.value === 2147483647 ? 1 : 0, 4);
+					} else {
+						max46 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed46.ok ? 1 : 0, max46));
+				}
+			} else if (_4143 === 2) {
+				const iter47: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _4327: rs.u32 | rs.Done = iter47.next();
+					if (_4327 === rs.DONE) {
+						break;
+					}
+					const radix81: rs.u32 = _4327;
+					for (const _4338 of edges(2147483647, rs.u128Add(2147483647, 1), 32, radix81).items) {
+						const _4346: string = _4338.v;
+						const radix82: rs.u32 = radix81;
+						const _4349: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4346, radix82);
+						if (_4349.ok) {
+							const arg2 = _4349.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg2, f)]).v);
+						} else {
+							const e47: rs.ParseIntError = _4349.error;
+							const _4365: rs.IntErrorKind = e47.kind;
+							if (_4365 === "Empty") {
+								kind48 = 0;
+							} else if (_4365 === "InvalidDigit") {
+								kind48 = 1;
+							} else if (_4365 === "PosOverflow") {
+								kind48 = 2;
+							} else if (_4365 === "NegOverflow") {
+								kind48 = 3;
+							} else {
+								kind48 = 4;
+							}
+							if (!(e47.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over47 = e47.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over47 = true;
+							}
+							const _4385: rs.IntErrorKind = e47.kind;
+							const args195 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e47, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e47, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4385), (f: rs.Formatter) => rs.i32Display(kind48, f), (f: rs.Formatter) => rs.fmtBool(over47, f)];
+							put(out, rs.fmtFormat([args195[0], "|", args195[1], "|", args195[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args195[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args195[0]), "|", args195[3], "|", args195[4]]).v);
+						}
+						if (radix82 === 10) {
+							const parsed47: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4346);
+							const from47: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4346);
+							if (from47.ok) {
+								max47 = rs.u8Mul(from47.value === 2147483647 ? 1 : 0, 4);
+							} else {
+								max47 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed47.ok ? 1 : 0, max47));
+						}
+					}
+				}
+			} else {
+				const radix83: rs.u32 = ((first12 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest12), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest12, 1), (b13: rs.u8): boolean => {
+					return (b13 & 1) === 1;
+				})) {
+					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix83), 99))));
+				}
+				if (!(rest12.length > 2)) {
+					text12 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text12 = rs.byteSliceRange(rest12, 2);
+				}
+				const _4441: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text12), "1");
+				const radix84: rs.u32 = radix83;
+				const _4446: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4441, radix84);
+				if (_4446.ok) {
+					const arg = _4446.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg, f)]).v);
+				} else {
+					const e48: rs.ParseIntError = _4446.error;
+					const _4462: rs.IntErrorKind = e48.kind;
+					if (_4462 === "Empty") {
+						kind49 = 0;
+					} else if (_4462 === "InvalidDigit") {
+						kind49 = 1;
+					} else if (_4462 === "PosOverflow") {
+						kind49 = 2;
+					} else if (_4462 === "NegOverflow") {
+						kind49 = 3;
+					} else {
+						kind49 = 4;
+					}
+					if (!(e48.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over48 = e48.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over48 = true;
+					}
+					const _4482: rs.IntErrorKind = e48.kind;
+					const args193 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e48, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e48, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4482), (f: rs.Formatter) => rs.i32Display(kind49, f), (f: rs.Formatter) => rs.fmtBool(over48, f)];
+					put(out, rs.fmtFormat([args193[0], "|", args193[1], "|", args193[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args193[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args193[0]), "|", args193[3], "|", args193[4]]).v);
+				}
+				if (radix84 === 10) {
+					const parsed48: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4441);
+					const from48: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4441);
+					if (from48.ok) {
+						max48 = rs.u8Mul(from48.value === 2147483647 ? 1 : 0, 4);
+					} else {
+						max48 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed48.ok ? 1 : 0, max48));
+				}
+			}
+		}
+	} else {
+		rs.panic("internal error: entered unreachable code");
 	}
 }
 

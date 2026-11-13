@@ -15,9 +15,7 @@ export function fmt$fmt_Debug(self: SessionError, f: rs.Formatter): rs.Result<un
 	if (self.tag === "ProtocolViolation") {
 		return rs.fmtWriteStr(f, "ProtocolViolation");
 	}
-	const _6: string = "App";
-	const _7: rs.Fmt = (f: rs.Formatter) => rs.u16Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _6), _7));
+	return rs.fmtDebugFields(f, "App", [(f: rs.Formatter) => rs.u16Debug(self._0, f)]);
 }
 
 /** moq-net's session error, trimmed to a few variants: the codec only carries it. */

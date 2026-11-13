@@ -38,5 +38,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("iters::lent", |_, data, out| iters::lent(data, out)),
 		("iters::by_value", iters::by_value),
 		("iters::held_fields", iters::held_fields),
+		("iters::unfused", iters::unfused),
 	]
 }

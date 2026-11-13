@@ -39,20 +39,12 @@ export function finish$hash_Hasher(self: Switch): rs.u64 {
 export const hasher$hash_Hasher: rs.HasherImpl<rs.Place<Switch>> = { write: write$hash_Hasher as (a0: rs.Place<Switch>, a1: rs.ByteSlice) => undefined, finish: (h: rs.Place<Switch>) => finish$hash_Hasher(h.v), u8: writeU8$hash_Hasher as (a0: rs.Place<Switch>, a1: rs.u8) => undefined };
 
 export function write$hash_Hasher(self: rs.Place<Switch>, bytes: rs.ByteSlice): void {
-	b0: {
-		if (self.v.tag === "Log") {
-			record(self.v._0, 119, bytes);
-		} else {
-			const iterS: Uint8Array = rs.byteSliceView(bytes);
-			let iterI: number = 0;
-			while (true) {
-				const _8: rs.u8 | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
-				if (_8 === rs.DONE) {
-					break b0;
-				}
-				const _12: rs.u64 = rs.u64WrappingAdd(rs.u64WrappingMul(self.v._1, 31), _8 as rs.u64);
-				self.v._1 = _12;
-			}
+	if (self.v.tag === "Log") {
+		record(self.v._0, 119, bytes);
+	} else {
+		for (const b of rs.byteSliceView(bytes)) {
+			const _12: rs.u64 = rs.u64WrappingAdd(rs.u64WrappingMul(self.v._1, 31), b as rs.u64);
+			self.v._1 = _12;
 		}
 	}
 }
