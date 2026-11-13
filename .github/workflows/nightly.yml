@@ -269,6 +269,43 @@ jobs:
           name: census
           path: ts/target/census
 
+  # Every driver on the newest nightly rust-overlay names, so the next bump's breaks are
+  # known before it starts. It fails no merge and opens no issue: the report waits on
+  # every job but this one. Each module runs after another's failure.
+  canary:
+    name: Newest nightly
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Toolchain
+        run: |
+          channel=$(sh/canary.sh)
+          echo "Canary on \`$channel\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Driver
+        run: nix develop --command bash -c 'just driver check && just driver test'
+
+      - name: Export
+        if: ${{ !cancelled() }}
+        run: nix develop --command bash -c 'just ffi check && just ffi test'
+
+      - name: Go
+        if: ${{ !cancelled() }}
+        run: nix develop --command bash -c 'just go check && just go test'
+
+      - name: TypeScript
+        if: ${{ !cancelled() }}
+        run: nix develop --command bash -c 'just ts check && just ts moq && just ts test'
+
   # A scheduled run's failure opens one issue, or comments on the one still open, and a
   # pass closes it, so a suite only this workflow runs cannot fail unseen. Only the
   # schedule, which runs main, gets the write token: a dispatch can run any branch.
