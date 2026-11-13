@@ -1608,6 +1608,14 @@ int broken(const char *which) {
 	return 0;
 }
 
+// A method of dep-fixture's `Area` at the api fixture's `Point`, which the crate header of
+// `Point`'s crate defines, though `Area`'s class declares it.
+int rehomed() {
+	api::Area area = api::Area::new_({2, 3});
+	std::printf("scaled by %llu\n", static_cast<unsigned long long>(area.scaled_Point({-3, 4}) / area.pixels()));
+	return 0;
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -1620,6 +1628,9 @@ int main(int argc, char **argv) {
 	}
 	if (argc > 1 && std::strcmp(argv[1], "lifetimes") == 0) {
 		return lifetimes();
+	}
+	if (argc > 1 && std::strcmp(argv[1], "rehomed") == 0) {
+		return rehomed();
 	}
 	if (argc > 1) {
 		return broken(argv[1]);

@@ -37,7 +37,7 @@ pub fn headers(abi: &Abi<'_>, packages: &str) -> Result<Vec<(String, String)>, S
 		abi,
 		ns: p.clone(),
 		krate: String::new(),
-		files: files(abi),
+		files: crate::go::packages(abi),
 		out: String::new(),
 		defs: String::new(),
 		defined: BTreeSet::new(),
@@ -60,22 +60,6 @@ pub fn headers(abi: &Abi<'_>, packages: &str) -> Result<Vec<(String, String)>, S
 		true => Ok(headers),
 		false => Err(h.errors.join("\n")),
 	}
-}
-
-/// Each crate's header's name, by crate: its [package](Abi::package), with a trailing `_`
-/// where the shared `rt` or an earlier crate's takes it, apart from case, which some file
-/// systems ignore.
-fn files(abi: &Abi<'_>) -> BTreeMap<String, String> {
-	let mut files = BTreeMap::new();
-	let mut taken = BTreeSet::from(["rt".to_string()]);
-	for krate in &abi.api.crates {
-		let mut name = abi.package(krate);
-		while !taken.insert(name.to_lowercase()) {
-			name.push('_');
-		}
-		files.insert(krate.clone(), name);
-	}
-	files
 }
 
 /// How a method's type holds it.

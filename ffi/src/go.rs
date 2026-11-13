@@ -67,8 +67,21 @@ impl Packages {
 
 	fn new(abi: &Abi<'_>, module: &str) -> Self {
 		let mut by_crate = BTreeMap::from([(Self::RT.to_string(), ("rt".to_string(), format!("{module}/rt")))]);
+		let strip = format!("{}_", abi.prefix);
 		for krate in &abi.api.crates {
-			let mut name = abi.package(krate);
+			// A later crate of an earlier one's name takes its count after it.
+			let (base, count) = krate.split_once('#').unwrap_or((krate, ""));
+			// A package's name is an identifier: a crate the prefix's strip leaves no leading
+			// letter, such as `moq_2d` or a lib `moq_` beside `moq`, keeps the prefix, and a
+			// name whose first digit no letter precedes, such as `_2d`, follows `crate`.
+			let letter = |name: &String| name.starts_with(|c: char| c.is_alphabetic());
+			let mut name = Some(base.strip_prefix(&strip).unwrap_or(base).replace('_', ""))
+				.filter(letter)
+				.unwrap_or_else(|| base.replace('_', ""));
+			if !letter(&name) {
+				name.insert_str(0, "crate");
+			}
+			name += count;
 			// A name Go, cgo, or the runtime takes, or an earlier crate's, takes a trailing
 			// `_`, which no crate's name keeps.
 			while ["C", "main"].contains(&name.as_str()) || keyword(&name) || by_crate.values().any(|(n, _)| *n == name)
@@ -83,6 +96,13 @@ impl Packages {
 	fn name(&self, krate: &str) -> &str {
 		&self.by_crate[krate].0
 	}
+}
+
+/// Each crate's Go package name, by crate, which also names its C++ header.
+pub fn packages(abi: &Abi<'_>) -> BTreeMap<String, String> {
+	let mut by_crate = Packages::new(abi, "").by_crate;
+	by_crate.remove(Packages::RT);
+	by_crate.into_iter().map(|(krate, (name, _))| (krate, name)).collect()
 }
 
 /// The Go for `abi`, whose header's contract is `contract`, as each file under `go/` by its

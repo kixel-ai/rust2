@@ -1856,6 +1856,13 @@ impl Seed<u64> for Point {
 	}
 }
 
+/// A point scales an area of dep-fixture's by its distance from the origin along each axis.
+impl dep::Factor<u32> for Point {
+	fn factor(&self) -> u32 {
+		self.x.unsigned_abs() + self.y.unsigned_abs()
+	}
+}
+
 impl Seed<u64> for Size {
 	fn seed(&self) -> u64 {
 		u64::from(self.width) * u64::from(self.height)

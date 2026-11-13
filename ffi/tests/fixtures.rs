@@ -244,6 +244,8 @@ fn api_cpp() {
 		);
 		run(Command::new(&exe).arg("futures"));
 		run(Command::new(&exe).arg("lifetimes"));
+		let rehomed = run(Command::new(&exe).arg("rehomed"));
+		assert_eq!(String::from_utf8_lossy(&rehomed.stdout), "scaled by 7\n");
 		for (case, message) in [
 			("moved", "api_Counter_get: a handle's value was moved out"),
 			("moved from", "api_Counter_get: a handle is null"),
@@ -1624,7 +1626,7 @@ fn configured_out() {
 			),
 			(
 				"ffi.toml",
-				"exclude = [\"Gone\", \"Kind::Gone\", \"Shape::gated\", \"Shape::gone\", \"Shape::missing\", \"Size::depth\", \"nested::Inner::gone\", \"dep::gone::Gone\", \"gone::Gone\", \"local::Gone\", \"outer::gone::Gone\"]\n",
+				"exclude = [\"Gone\", \"Kind::Gone\", \"dep::Area::scaled\", \"Shape::gated\", \"Shape::gone\", \"Shape::missing\", \"Size::depth\", \"nested::Inner::gone\", \"dep::gone::Gone\", \"gone::Gone\", \"local::Gone\", \"outer::gone::Gone\"]\n",
 			),
 		],
 	);
