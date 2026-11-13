@@ -64,6 +64,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		fails: false,
 		on: On::ALL,
 		slots: 0,
+		room: 0,
 	};
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
@@ -110,8 +111,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	if g.slots > 0 {
 		let _ = write!(
 			helpers,
-			"\t/** This thread's slots a returned record's scalars cross in, read before its next call. */\n\tprivate val __slotsLocal = ThreadLocal.withInitial {{ LongArray({}) }}\n\n\tfun __slots(): LongArray = __slotsLocal.get()\n\n",
-			g.slots
+			"\t/** This thread's slots a returned record's scalars cross in, read before its next call. */\n\tprivate val __slotsLocal = object : java.lang.ThreadLocal<kotlin.LongArray>() {{\n\t\t// Not `withInitial`, which Android lacks before API 26.\n\t\toverride fun initialValue() = kotlin.LongArray({n})\n\t}}\n\n\tfun __slots(): kotlin.LongArray = __slotsLocal.get()!!\n\n",
+			n = g.slots
 		);
 	}
 	if g.fails {
@@ -439,6 +440,9 @@ struct Gen<'a> {
 	on: On,
 	/// The most scalars a returned record crosses in, which each thread's slots hold.
 	slots: usize,
+	/// The JVM parameter slots the function being written may still spend on a record's
+	/// scalars.
+	room: usize,
 }
 
 impl<'a> Gen<'a> {
@@ -801,7 +805,12 @@ impl<'a> Gen<'a> {
 				));
 			}
 			// A record crosses as its scalars, and its other fields encoded into one `byte[]`.
-			Ty::Struct(_) | Ty::In(_) if let Type::Record(i) = ty.base() => {
+			// Only while the call's JVM parameters stay within the 255 slots a method takes.
+			Ty::Struct(_) | Ty::In(_)
+				if let Type::Record(i) = ty.base()
+					&& let Some(left) = self.room.checked_sub(weight(abi, *i).saturating_sub(2)) =>
+			{
+				self.room = left;
 				arg.jni.clear();
 				arg.native.clear();
 				*n -= 1;
@@ -1775,6 +1784,9 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		self.params = locals(&function.params);
 		let export = abi.export(function, owner);
+		// The JVM slots a native method has left past two for each C parameter and one for
+		// the slots a returned record crosses in: what flattening a record may spend.
+		self.room = 254usize.saturating_sub(2 * export.call.params.len() + 1);
 		let c_name = export.call.name.clone();
 		let bare = self.bare(&c_name).to_string();
 		let owner_c = match owner {
@@ -2057,7 +2069,7 @@ impl<'a> Gen<'a> {
 				));
 			}
 			if !flat.slots.is_empty() {
-				params.push(("jlongArray", "LongArray"));
+				params.push(("jlongArray", "kotlin.LongArray"));
 				body.push(format!(
 					"rt::slots(env, p{}, &[{}]);",
 					params.len() - 1,
@@ -2420,6 +2432,19 @@ fn rest(abi: &Abi<'_>, i: usize) -> bool {
 		Type::Record(j) => rest(abi, *j),
 		ty => !scalar(abi, ty),
 	})
+}
+
+/// The JVM parameter slots the record `i` takes flattened: two for each `long` or `double`
+/// scalar, one for any other, and one for the `byte[]` of its other fields, if any.
+fn weight(abi: &Abi<'_>, i: usize) -> usize {
+	let fields = abi.api.records[i].fields.iter().map(|f| match &f.ty {
+		Type::Record(j) => weight(abi, *j) - usize::from(rest(abi, *j)),
+		Type::F64 => 2,
+		Type::Int(int) | Type::NonZero(int) if jni_int(*int) == "jlong" => 2,
+		ty if scalar(abi, ty) => 1,
+		_ => 0,
+	});
+	fields.sum::<usize>() + usize::from(rest(abi, i))
 }
 
 /// The record a function returns directly, and whether in an `Option`.
