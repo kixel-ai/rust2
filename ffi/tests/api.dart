@@ -1143,8 +1143,9 @@ Future<void> lent() async {
     pressure();
   }
   check(api.dropped() == before + 2, 'the garbage collector frees bytes once');
-  check(big[65536] == 1, 'lent bytes read back while reachable');
+  // Read after, so `big` stays reachable and its drop counts in none of forwarded's checks.
   await forwarded();
+  check(big[65536] == 1, 'lent bytes read back while reachable');
   print('bytes ok');
 }
 

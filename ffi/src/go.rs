@@ -2255,6 +2255,10 @@ impl<'a> Gen<'a> {
 		}
 		// Past the receiver, which Rust only reads, Rust takes each buffer passed by value.
 		let take_at = prelude.len();
+		// Whether an argument is a parameter's own buffer, and the arguments converted from
+		// Go values, which may panic, such as on a nil enum.
+		let mut bufs = false;
+		let mut lowered = Vec::new();
 		let mut params = Vec::new();
 		if function.future {
 			params.push(("ctx".to_string(), "context.Context".to_string()));
@@ -2274,6 +2278,7 @@ impl<'a> Gen<'a> {
 				let inner = param.ty.base();
 				params.push((name.clone(), format!("*{}", self.go(inner))));
 				arena |= self.arena(inner);
+				lowered.push(args.len());
 				args.push(self.lower(inner, &format!("(*{name})")));
 				continue;
 			}
@@ -2307,6 +2312,7 @@ impl<'a> Gen<'a> {
 				}
 				(ty @ Type::Callback(i, _), _) => {
 					self.convert(ty);
+					lowered.push(args.len());
 					args.push(format!("lower_{}({name})", abi.callback(*i)))
 				}
 				(Type::Waker, _) => args.push(format!("waker_({name})")),
@@ -2328,6 +2334,7 @@ impl<'a> Gen<'a> {
 						},
 						other => unreachable!("a buffer holds {other:?}"),
 					};
+					bufs = true;
 					args.push(call);
 				}
 				(ty, Ty::Handle { name: c, .. }) => {
@@ -2353,6 +2360,7 @@ impl<'a> Gen<'a> {
 				}
 				(ty, _) => {
 					arena |= self.arena(ty);
+					lowered.push(args.len());
 					args.push(self.lower(ty, &name));
 				}
 			}
@@ -2366,6 +2374,14 @@ impl<'a> Gen<'a> {
 		body.extend(prelude);
 		if checked {
 			body.push(format!("if a_.err != nil {{\n\t{}\n}}", fail("a_.err")));
+		}
+		// Converted first, as a conversion may panic: then the arena frees Rust's buffers it
+		// lowered, and no parameter's own buffer is shared yet.
+		if arena || bufs {
+			for &i in &lowered {
+				body.push(format!("l{i}_ := {}", args[i]));
+				args[i] = format!("l{i}_");
+			}
 		}
 		// Nothing from here fails before the call, which Rust's buffers given it go to.
 		if arena {

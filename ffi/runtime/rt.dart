@@ -507,11 +507,12 @@ final class _Arena implements ffi.Allocator {
       dst.ptr = ffi.Pointer.fromAddress(lent.ptr);
       dst.len = bytes.length;
       dst.owner = ffi.nullptr;
+      // Reachable through the call, so its finalizer cannot free the owner under Rust,
+      // even while [_bufClone] shares it.
+      (_viewed ??= []).add(bytes);
       if (take) {
         dst.owner = ffi.Pointer.fromAddress(lent.owner);
         _give(dst, _bufClone(dst));
-      } else {
-        (_viewed ??= []).add(bytes);
       }
       return;
     }

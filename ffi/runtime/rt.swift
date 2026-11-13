@@ -66,7 +66,9 @@ public struct Bytes: Hashable, Sendable, RandomAccessCollection {
 
 	/// The bytes in `bounds`, sharing these without a copy.
 	public subscript(bounds: Swift.Range<Swift.Int>) -> Bytes {
-		Bytes(storage: storage[bounds], owner: owner)
+		let slice = storage[bounds]
+		// `Data` may copy a short slice inline: those bytes are Swift's.
+		return Bytes(storage: slice, owner: owner.flatMap { $0.holds(slice) ? $0 : nil })
 	}
 
 	/// Run `body` with the bytes in place, which it must not keep.
@@ -286,6 +288,16 @@ extension Native {
 			self.buf = buf
 		}
 
+		/// Whether `data`'s bytes lie in this buffer rather than in a copy.
+		func holds(_ data: Data) -> Swift.Bool {
+			guard let ptr = buf.ptr else { return false }
+			return data.withUnsafeBytes { raw in
+				guard let base = raw.baseAddress else { return false }
+				let start = UnsafeRawPointer(ptr)
+				return base >= start && base + raw.count <= start + buf.len
+			}
+		}
+
 		deinit {
 			Native.free(buf)
 		}
@@ -311,8 +323,7 @@ extension Native {
 			bytesNoCopy: UnsafeMutableRawPointer(mutating: ptr), count: buf.len,
 			deallocator: .custom { _, _ in Swift.withExtendedLifetime(owner) {} })
 		// `Data` copies a few bytes inline, freeing Rust's buffer at once: those are Swift's.
-		let lent = storage.withUnsafeBytes { $0.baseAddress == UnsafeRawPointer(ptr) }
-		return Bytes(storage: storage, owner: lent ? owner : nil)
+		return Bytes(storage: storage, owner: owner.holds(storage) ? owner : nil)
 	}
 
 	static func bytes(option buf: Buf) -> Bytes? {

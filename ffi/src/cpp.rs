@@ -242,6 +242,16 @@ impl<'a> Header<'a> {
 		}
 	}
 
+	/// Whether [`Self::arg`] takes Rust's bytes from a parameter of type `ty`.
+	fn takes(ty: &Type) -> bool {
+		match ty {
+			_ if Abi::is_buf(ty) => true,
+			Type::Option(inner) => Abi::is_buf(inner),
+			Type::Ref(_, inner) | Type::Box(inner) => matches!(inner.base(), Type::Option(o) if Abi::is_buf(o)),
+			_ => false,
+		}
+	}
+
 	/// The C value of parameter `e` of type `ty`: a buffer's `input`, or a value passed for
 	/// `&mut`, hands Rust's bytes over.
 	fn arg(&self, ty: &Type, e: &str) -> String {
@@ -1169,6 +1179,10 @@ impl<'a> Header<'a> {
 			_ => &[],
 		};
 		let mut names: Vec<String> = Vec::new();
+		// Whether an argument takes Rust's bytes from its parameter, and the arguments that
+		// may throw, by allocating.
+		let mut taken = false;
+		let mut throwing = Vec::new();
 		for param in &function.params {
 			let (_, c_ty) = c_params.next().expect("each parameter has its C one");
 			let name = parameter(&param.name, |name| {
@@ -1179,6 +1193,7 @@ impl<'a> Header<'a> {
 			if let Type::Future = param.ty {
 				let f = format!("F{}", templates.len());
 				params.push(format!("{f} {name}"));
+				throwing.push(args.len());
 				args.push(format!("{d}::foreign_future(::std::move({name}))"));
 				templates.push(format!("class {f}"));
 				continue;
@@ -1205,6 +1220,7 @@ impl<'a> Header<'a> {
 					// Moved or copied into a callable Rust owns, which it destroys through `free`.
 					true => {
 						c_params.next().expect("a kept closure has its free");
+						throwing.push(args.len());
 						args.push(format!("new ::std::decay_t<{f}>(::std::forward<{f}>({name}))"));
 						args.push(format!(
 							"[](void *data_) noexcept {{ delete static_cast<::std::decay_t<{f}> *>(data_); }}"
@@ -1218,7 +1234,20 @@ impl<'a> Header<'a> {
 				continue;
 			}
 			params.push(declare(&self.param(&param.ty), &name));
+			if Self::takes(&param.ty) {
+				taken = true;
+			} else if self.arena(&param.ty) {
+				throwing.push(args.len());
+			}
 			args.push(self.arg(&param.ty, &name));
+		}
+		// Arguments evaluate in no set order, so those that may throw run first: Rust's bytes
+		// are taken only once nothing left before the call can throw and leak them.
+		if taken {
+			for &i in &throwing {
+				prelude.push(format!("auto c_arg{i}_ = {};", args[i]));
+				args[i] = format!("c_arg{i}_");
+			}
 		}
 		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
 		// Each value passed for `&mut` takes what Rust wrote back, on every path.
