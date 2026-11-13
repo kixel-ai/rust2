@@ -664,6 +664,10 @@ def script():
 		print(f"sought {api.seek_to(Far(), 2**64 - 1)}")
 	except api.StringException as e:
 		print(f"sought error {e}")
+	print(f"non zeros {api.describe_non_zeros(api.non_zeros())}")
+	for hop in [None, 1, 2**64 - 1]:
+		next = api.next_hop(hop)
+		print("hop None" if next is None else f"hop Some({next})")
 
 
 class Broken:

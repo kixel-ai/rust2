@@ -760,6 +760,10 @@ func script() {
 	} catch {
 		check(false, "seekTo throws its io::Error's message")
 	}
+	print("non zeros \(describeNonZeros(nonZeros()))")
+	for hop in [nil, 1, UInt64.max] as [UInt64?] {
+		print("hop \(nextHop(hop).map { "Some(\($0))" } ?? "None")")
+	}
 }
 
 func printTail(_ read: () throws -> (Data, UInt64)) {

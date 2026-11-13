@@ -386,6 +386,9 @@ pub enum Type {
 	Unit,
 	Bool,
 	Int(Int),
+	/// `std::num::NonZero<T>` of an integer, which crosses as `T`: a zero passed in fails
+	/// the binding's check.
+	NonZero(Int),
 	/// `u128`, which C passes as its two `u64` halves.
 	U128,
 	F32,

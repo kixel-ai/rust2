@@ -773,6 +773,13 @@ fn main() {
 		Ok(at) => println!("sought {at}"),
 		Err(err) => println!("sought error {err}"),
 	}
+	println!("non zeros {}", api::describe_non_zeros(api::non_zeros()));
+	for hop in [None, Some(1), Some(u64::MAX)] {
+		println!(
+			"hop {:?}",
+			api::next_hop(hop.and_then(std::num::NonZero::new)).map(|h| h.get())
+		);
+	}
 }
 
 /// A reader whose reads fail, as `tests/api.c`'s broken one does: each seek lands at 0.

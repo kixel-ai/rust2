@@ -1547,6 +1547,7 @@ impl<'tcx> Collector<'tcx> {
 			Type::Unit
 			| Type::Bool
 			| Type::Int(_)
+			| Type::NonZero(_)
 			| Type::F32
 			| Type::F64
 			| Type::Char
@@ -4345,6 +4346,8 @@ impl<'tcx> Collector<'tcx> {
 					Type::Bytes
 				} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("Duration"), did) {
 					Type::Duration
+				} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("NonZero"), did) {
+					Type::NonZero(int(args.type_at(0)).ok_or_else(|| why("NonZero", args.type_at(0).to_string()))?)
 				} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("PathBuf"), did) {
 					Type::PathBuf
 				} else if let Some(family) = (tcx.lang_items().sized_trait().map(|d| d.krate) == Some(did.krate))
@@ -4561,7 +4564,14 @@ enum Pos {
 /// copied by it if kept.
 fn foreign_arg(ty: &Type) -> bool {
 	match ty {
-		Type::Bool | Type::Int(_) | Type::F32 | Type::F64 | Type::Char | Type::Duration | Type::SocketAddr(_) => true,
+		Type::Bool
+		| Type::Int(_)
+		| Type::NonZero(_)
+		| Type::F32
+		| Type::F64
+		| Type::Char
+		| Type::Duration
+		| Type::SocketAddr(_) => true,
 		Type::String | Type::Vec | Type::Bytes | Type::PathBuf => true,
 		Type::Ref(Mutability::Not, inner) => matches!(**inner, Type::Str | Type::Slice | Type::Path),
 		Type::Option(inner) => foreign_arg(inner),
@@ -4706,7 +4716,7 @@ fn lends_inside(ty: &Type) -> bool {
 fn foreign_return(ty: &Type) -> bool {
 	matches!(
 		ty,
-		Type::Unit | Type::Bool | Type::Int(_) | Type::F32 | Type::F64 | Type::Char
+		Type::Unit | Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char
 	)
 }
 
