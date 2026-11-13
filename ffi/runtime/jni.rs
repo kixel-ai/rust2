@@ -321,6 +321,14 @@ pub unsafe fn lent(env: *mut JNIEnv, buf: rt::Buf) -> jbyteArray {
 	}
 }
 
+/// Set the first of Kotlin's `long[]` `slots` to `values`: a returned record's scalars,
+/// which cross with no `byte[]` to allocate and decode. Slots shorter than `values` throw.
+pub fn slots(env: *mut JNIEnv, slots: jlongArray, values: &[i64]) {
+	// SAFETY: `env` is this thread's, `slots` a live `long[]` the call was given, and
+	// `values` holds `values.len()` longs, which a record's few scalars fit a `jsize`.
+	unsafe { ((**env).v1_2.SetLongArrayRegion)(env, slots, 0, values.len() as jsize, values.as_ptr()) }
+}
+
 /// A global reference to a Kotlin value, which Rust may hold on any thread.
 pub fn global(env: *mut JNIEnv, value: jobject) -> *mut c_void {
 	if value.is_null() {
