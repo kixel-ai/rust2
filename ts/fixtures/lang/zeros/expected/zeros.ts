@@ -36,7 +36,10 @@ export function none$String(): rs.String[] {
 }
 
 export function units(): Unit.Unit[] {
-	return [{}, {}, {}];
+	const item = {};
+	return Array.from({ length: 3 }, (): Unit.Unit => {
+		return item;
+	});
 }
 
 export function one(): One.One {
@@ -67,37 +70,40 @@ export function made$zeros_Unit(): Unit.Unit {
 
 /** The case `kind` picks, on `data`; each puts what it read. */
 export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _72: (a0: rs.u8) => One.One = (_2: rs.u8): One.One => {
-		return "Only" as One.One;
-	};
 	rs.atomicStore(LOG, 0, 0);
 	const n: rs.usize = data.length;
 	const _8: rs.u8 = rs.u8Rem(kind, 7);
 	if (_8 === 0) {
-		const _11: Unit.Unit = Unit.clone$Clone({});
+		const _10: Unit.Unit = {};
+		const _11: Unit.Unit = Unit.clone$Clone(_10);
 		const _13: Pair.Pair = Pair.clone$Clone(pair());
 		const _16: Unit.Unit = made$zeros_Unit();
 		phantom$u8();
-		rs.byteVecPush(out, (Unit.eq$cmp_PartialEq(_11, {}) ? 1 : 0) | (((Unit.eq$cmp_PartialEq(_13._0, _16) ? 1 : 0) << 1) & 0xff));
+		rs.byteVecPush(out, (Unit.eq$cmp_PartialEq(_11, _10) ? 1 : 0) | (((Unit.eq$cmp_PartialEq(_13._0, _16) ? 1 : 0) << 1) & 0xff));
 		const _40: One.One = One.clone$Clone("Only" as One.One);
 		const args6 = [(f: rs.Formatter) => Unit.fmt$fmt_Debug(_11, f), (f: rs.Formatter) => One.fmt$fmt_Debug(_40, f)];
 		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v), undefined, true);
 	} else if (_8 === 1) {
-		rs.byteVecPush(out, rs.iterCount(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_213: rs.u8): Uint8Array => {
+		rs.byteVecPush(out, rs.iterCount(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_212: rs.u8): Uint8Array => {
 			return Uint8Array.of();
 		})) & 0xff);
-		rs.byteVecPush(out, rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_214: rs.u8): Unit.Unit => {
+		rs.byteVecPush(out, rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_213: rs.u8): Unit.Unit => {
 			return {};
 		}), undefined, 0, true).items.length & 0xff);
-		rs.byteVecPush(out, rs.iterCount(rs.iterFlatten(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_215: rs.u8): Unit.Unit[] => {
-			return [{}, {}, {}];
+		rs.byteVecPush(out, rs.iterCount(rs.iterFlatten(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_214: rs.u8): Unit.Unit[] => {
+			const item = {};
+			return Array.from({ length: 3 }, (): Unit.Unit => {
+				return item;
+			});
 		}), (value: Unit.Unit[]) => rs.iterSlice(value), true, 3)) & 0xff);
-		rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_216: rs.u8): Pair.Pair => {
+		rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_215: rs.u8): Pair.Pair => {
 			return pair();
 		}), (p: Pair.Pair): boolean => {
 			return Unit.eq$cmp_PartialEq(p._0, { _0: {}, _1: undefined }._0);
 		})) & 0xff);
-		rs.byteVecPush(out, One.eq$cmp_PartialEq(_72(1), one()) ? 1 : 0);
+		rs.byteVecPush(out, One.eq$cmp_PartialEq(((_216: rs.u8): One.One => {
+			return "Only" as One.One;
+		})(1), one()) ? 1 : 0);
 	} else if (_8 === 2) {
 		const _87: Unit.Unit = unit();
 		const _88: rs.Slice<rs.String> = rs.sliceFrom(none$String());
@@ -109,8 +115,11 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_8 === 3) {
 		const _108: (a0: rs.u8) => rs.u8 = adder();
 		adder();
-		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_211: rs.u8): rs.u8 => {
-			return _108(_211);
+		const _110: Holds.Holds<(a0: rs.u8) => rs.u8> = new Holds.Holds((b3: rs.u8): rs.u8 => {
+			return b3 ^ 90;
+		});
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_210: rs.u8): rs.u8 => {
+			return _108(_210);
 		}), undefined, true);
 		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b5: rs.u8): rs.u8 => {
 			return rs.u8WrappingAdd(b5, 1);
@@ -120,17 +129,15 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.iterExtendBytes(out, rs.iterMap(_122, (b6: rs.u8): rs.u8 => {
 			return rs.u8WrappingAdd(b6, 1);
 		}), undefined, true);
-		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_212: rs.u8): rs.u8 => {
-			return new Holds.Holds((b: rs.u8): rs.u8 => {
-				return b ^ 90;
-			})._0(_212);
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_211: rs.u8): rs.u8 => {
+			return _110._0(_211);
 		}), undefined, true);
 	} else if (_8 === 4) {
 		new Quiet.Quiet()[Symbol.dispose]();
 		new Loud.Loud()[Symbol.dispose]();
 		loud();
 		new Loud.Loud()[Symbol.dispose]();
-		const v: rs.Vec<Loud.Loud> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_210: rs.u8): Loud.Loud => {
+		const v: rs.Vec<Loud.Loud> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_28: rs.u8): Loud.Loud => {
 			return new Loud.Loud();
 		}), undefined, 0, true);
 		rs.byteVecPush(out, v.items.length & 0xff);
@@ -141,7 +148,7 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.atomicLoad(LOG, 0))), undefined, true);
 	} else if (_8 === 5) {
 		const v2: rs.Vec<undefined> = rs.vecWithCapacity(n, 0);
-		const _154: rs.Iter<undefined> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_28: rs.u8): undefined => {});
+		const _154: rs.Iter<undefined> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_27: rs.u8): undefined => {});
 		rs.iterExtend(v2, _154, undefined, 0, true);
 		rs.byteVecPush(out, rs.vecFromElem({}, n, undefined).items.length & 0xff);
 		rs.byteVecPush(out, v2.items.length & 0xff);
@@ -160,27 +167,27 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}), n)) & 0xff);
 		let captured = n;
 		rs.iterExtendBytes(out, rs.iterFromFn((): rs.u8 | undefined => {
-			const _22: rs.usize | undefined = rs.usizeCheckedSub(captured, 1);
-			if (_22 !== undefined) {
-				captured = _22;
+			const _2: rs.usize | undefined = rs.usizeCheckedSub(captured, 1);
+			if (_2 !== undefined) {
+				captured = _2;
 				return captured & 0xff;
 			}
 			return undefined;
 		}), "next");
 		rs.iterEmpty();
-		rs.byteVecPush(out, rs.iterMap(rs.iterEmpty() as rs.Iter<rs.u8>, (b2: rs.u8): rs.u8 => {
-			return rs.u8Add(b2, 1);
+		rs.byteVecPush(out, rs.iterMap(rs.iterEmpty() as rs.Iter<rs.u8>, (b: rs.u8): rs.u8 => {
+			return rs.u8Add(b, 1);
 		}).sizeHint()[0] & 0xff);
-		rs.byteVecPush(out, rs.iterCount(rs.iterMap(rs.iterEmpty() as rs.Iter<rs.u8>, (b3: rs.u8): rs.u8 => {
-			return rs.u8Add(b3, 1);
+		rs.byteVecPush(out, rs.iterCount(rs.iterMap(rs.iterEmpty() as rs.Iter<rs.u8>, (b2: rs.u8): rs.u8 => {
+			return rs.u8Add(b2, 1);
 		})) & 0xff);
 		rs.iterEmpty();
 		rs.iterEmpty() as rs.Iter<rs.u8>;
 		rs.iterRev(rs.iterEmpty() as rs.Iter<rs.u8>);
-		rs.iterFilter(rs.iterRev(rs.iterEmpty() as rs.Iter<rs.u8>), (_23: rs.u8): boolean => {
+		rs.iterFilter(rs.iterRev(rs.iterEmpty() as rs.Iter<rs.u8>), (_22: rs.u8): boolean => {
 			return true;
 		});
-		rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterRev(rs.iterEmpty() as rs.Iter<rs.u8>), (_27: rs.u8): boolean => {
+		rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterRev(rs.iterEmpty() as rs.Iter<rs.u8>), (_23: rs.u8): boolean => {
 			return true;
 		})) & 0xff);
 	}
@@ -237,37 +244,135 @@ export function hash$zeros_Tagged_String(value: Tagged.Tagged<rs.String>): rs.u6
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$marker_PhantomData_u64(value: undefined, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$marker_PhantomData_u64(value)).reverse()));
+	const dst = out;
+	const word = hash$marker_PhantomData_u64(value);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$marker_PhantomPinned(value: undefined, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$marker_PhantomPinned(value)).reverse()));
+	const dst = out;
+	const word = hash$marker_PhantomPinned(value);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$ops_RangeFull(value: undefined, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$ops_RangeFull(value)).reverse()));
+	const dst = out;
+	const word = hash$ops_RangeFull(value);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$u8(value: rs.u8, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$u8(value)).reverse()));
+	const dst = out;
+	const word = hash$u8(value);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$unit(value: undefined, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$unit(value)).reverse()));
+	const dst = out;
+	const word = hash$unit(value);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$zeros_Names(value: Names.Names, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$zeros_Names(value)).reverse()));
+	const dst = out;
+	const word = hash$zeros_Names(value);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** [`hash`] of `value`, little-endian. */
 export function digest$zeros_Tagged_String(value: Tagged.Tagged<rs.String>, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$zeros_Tagged_String(value)).reverse()));
+	const dst = out;
+	const word = hash$zeros_Tagged_String(value);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
+	dst.length = dst.length + 8;
 }
 
 /** The impls `#[derive]` calls on `PhantomData`, `PhantomPinned`, and `()` fields. */
@@ -437,6 +542,7 @@ export function unitEq(_u: undefined, n: rs.u8): rs.u8 {
 
 /** `n` if `p`, reassigned, equals another `PhantomData`, which it always does. */
 export function rewritten(_1: undefined, n: rs.u8): rs.u8 {
+	_1 = undefined;
 	if (false) {
 		return 0;
 	}
@@ -522,16 +628,21 @@ export function writes(kind: rs.u8, _dataData: Uint8Array, _dataStart: number, d
 		rs.byteVecPush(out, (true ? 1 : 0) | ((n << 1) & 0xff));
 	} else if (_9 === 1) {
 		rs.byteVecPush(out, true ? 1 : 0);
+		const _53: Unit.Unit = {};
 		unit();
 		Unit.default$Default();
-		rs.byteVecPush(out, (Unit.eq$cmp_PartialEq({}, Unit.default$Default()) ? 1 : 0) | ((n << 1) & 0xff));
-		rs.byteVecPush(out, Defaulted.eq$cmp_PartialEq({}, Defaulted.default$Default()) ? 1 : 0);
+		const _60: Unit.Unit = Unit.default$Default();
+		rs.byteVecPush(out, (Unit.eq$cmp_PartialEq(_53, _60) ? 1 : 0) | ((n << 1) & 0xff));
+		const _71: Defaulted.Defaulted = {};
+		const _72: Defaulted.Defaulted = Defaulted.default$Default();
+		rs.byteVecPush(out, Defaulted.eq$cmp_PartialEq(_71, _72) ? 1 : 0);
 	} else if (_9 === 2) {
 		raw(1);
 		raw(2);
 		raw(3);
 		raw(4);
-		const q: Unit.Unit = {};
+		const _92: Unit.Unit = {};
+		const q: Unit.Unit = _92;
 		unit();
 		const _96: Unit.Unit = {};
 		rs.byteVecPush(out, (Unit.eq$cmp_PartialEq(q, _96) ? 1 : 0) | ((n << 1) & 0xff));
@@ -540,7 +651,9 @@ export function writes(kind: rs.u8, _dataData: Uint8Array, _dataStart: number, d
 		rs.cellReplace(_113, undefined);
 		rs.cellReplace(_113, undefined);
 		rs.cellSet(_113, undefined);
-		const units: rs.Slice<undefined> = rs.sliceFrom([undefined, undefined, undefined]);
+		const units: rs.Slice<undefined> = rs.sliceFrom(Array.from({ length: 3 }, (): undefined => {
+			return undefined;
+		}));
 		rs.sliceSwap(units, 0, n as rs.usize);
 		const v: rs.Vec<Unit.Unit> = rs.vecFromElem({}, 2, undefined);
 		rs.sliceSwap(rs.sliceFrom(v.items), 0, 1);

@@ -37,6 +37,7 @@ pub const GLUE_RUNTIME: &str = include_str!("../runtime/python.rs");
 /// What the generator writes: the Python module, and the Rust module of the extension it
 /// loads.
 pub struct Output {
+	pub names: BTreeMap<String, String>,
 	pub python: String,
 	pub glue: String,
 }
@@ -58,8 +59,20 @@ const TAKEN: &[&str] = &[
 	"_PENDING",
 	"_consts",
 	"_abc",
+	"_array",
 	"_asyncio",
 	"_dataclass",
+	"_same",
+	"_all",
+	"_dict",
+	"_float",
+	"_int",
+	"_memoryview",
+	"_TypeError",
+	"_list",
+	"_tuple",
+	"_type",
+	"_zip",
 	"_datetime",
 	"_enum",
 	"_socket",
@@ -95,6 +108,7 @@ const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume", "W
 /// glue add, as their conversions change with no C declaration changing.
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
+		locked: BTreeMap::new(),
 		abi,
 		classes: abi.classes(|_| (String::new(), 0), |name| TAKEN.contains(&name)),
 		py: String::new(),
@@ -110,6 +124,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		exceptions: BTreeMap::new(),
 		thrown: HashMap::new(),
 		names: BTreeMap::new(),
+		converters: HashMap::new(),
 		errors: Vec::new(),
 		on: On::ALL,
 	};
@@ -119,6 +134,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
 	}
+	g.locked = crate::lock::types(abi, &g.classes);
 	g.write();
 	if !g.errors.is_empty() {
 		return Err(g.errors.join("\n"));
@@ -157,6 +173,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\"\"\"The pub API of {packages}, over the CPython extension built into the library beside this file.\"\"\"\n\n\
 		from __future__ import annotations\n\n\
 		import abc as _abc\n\
+		import array as _array\n\
 		import asyncio as _asyncio\n\
 		import datetime as _datetime\n\
 		import enum as _enum\n\
@@ -167,16 +184,47 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		import weakref as _weakref\n\
 		from builtins import AttributeError as _AttributeError\n\
 		from builtins import Exception as _Exception\n\
+		from builtins import TypeError as _TypeError\n\
 		from builtins import ValueError as _ValueError\n\
+		from builtins import all as _all\n\
 		from builtins import bytes as _bytes\n\
+		from builtins import dict as _dict\n\
+		from builtins import float as _float\n\
+		from builtins import int as _int\n\
 		from builtins import isinstance as _isinstance\n\
 		from builtins import len as _len\n\
+		from builtins import list as _list\n\
+		from builtins import memoryview as _memoryview\n\
 		from builtins import property as _property\n\
 		from builtins import staticmethod as _staticmethod\n\
 		from builtins import str as _str\n\
+		from builtins import tuple as _tuple\n\
+		from builtins import type as _type\n\
+		from builtins import zip as _zip\n\
 		from dataclasses import dataclass as _dataclass\n\n\
 		_get_running_loop = _asyncio.get_running_loop\n\
 		_T = _typing.TypeVar(\"_T\")\n\n\n\
+		def _same(a: object, b: object, /) -> bool:\n\
+		\t\"\"\"Whether a and b are equal as Rust's `==` compares them: never by identity, so a NaN\n\
+		\tequals nothing, while a list's, tuple's, or dict's own `==` takes an item as equal to itself.\"\"\"\n\
+		\tif _isinstance(a, (_list, _tuple)):\n\
+		\t\txs = _typing.cast(\"_typing.Sequence[object]\", a)\n\
+		\t\tys = _typing.cast(\"_typing.Sequence[object]\", b)\n\
+		\t\treturn _type(xs) is _type(ys) and _len(xs) == _len(ys) and _all(_same(x, y) for x, y in _zip(xs, ys))\n\
+		\tif _isinstance(a, _dict):\n\
+		\t\tif not _isinstance(b, _dict):\n\
+		\t\t\treturn False\n\
+		\t\tm = _typing.cast(\"_typing.Mapping[object, object]\", a)\n\
+		\t\tn = _typing.cast(\"_typing.Mapping[object, object]\", b)\n\
+		\t\treturn m.keys() == n.keys() and _all(_same(v, n[k]) for k, v in m.items())\n\
+		\tif a is None or b is None or _isinstance(a, (_int, _float, _str)):\n\
+		\t\treturn a == b\n\
+		\ttry:\n\
+		\t\t# Any buffer, through a memoryview, which compares numbers as Rust does, where\n\
+		\t\t# numpy's own `==` compares item by item into another array.\n\
+		\t\treturn _memoryview(_typing.cast(\"bytes\", a)) == _memoryview(_typing.cast(\"bytes\", b))\n\
+		\texcept _TypeError:\n\
+		\t\treturn a == b\n\n\n\
 		def _load() -> object:\n\
 		\timport importlib.machinery\n\
 		\timport importlib.util\n\
@@ -247,7 +295,11 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		g.members.len(),
 		g.members.iter().map(|m| format!("\t{m},\n")).collect::<String>(),
 	);
-	Ok(Output { python: body, glue })
+	Ok(Output {
+		names: g.locked,
+		python: body,
+		glue,
+	})
 }
 
 /// How a function's Python form is held.
@@ -323,6 +375,7 @@ impl Body {
 }
 
 struct Gen<'a> {
+	locked: BTreeMap<String, String>,
 	abi: &'a Abi<'a>,
 	/// Each exported type's name, by its C name.
 	classes: HashMap<String, String>,
@@ -350,6 +403,10 @@ struct Gen<'a> {
 	thrown: HashMap<String, String>,
 	/// Each module-level Python name, with what claimed it.
 	names: BTreeMap<String, String>,
+	/// The suffix of the glue's `r_` and `w_` of each option, tuple, and list type by
+	/// its C struct and what the struct holds: types of one struct, such as a `Vec` of
+	/// `SocketAddrV4` and one of `SocketAddr`, convert apart.
+	converters: HashMap<(String, Vec<Type>), String>,
 	errors: Vec<String>,
 	/// The targets of the item being written, whose native functions check theirs.
 	on: On,
@@ -419,6 +476,7 @@ impl<'a> Gen<'a> {
 				Family::V6 => V6.to_string(),
 				Family::Any => format!("{V4} | {V6}"),
 			},
+			Type::List(_, inner) if ty.block().is_some() => format!("_array.array[{}]", self.py_ty(inner)),
 			Type::List(_, inner) => format!("list[{}]", self.py_ty(inner)),
 			Type::Waker => "Waker".to_string(),
 			Type::Reader => "ForeignReader".to_string(),
@@ -465,6 +523,8 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => "str".to_string(),
 			// Python's own IPv6 address may leave out its flowinfo and scope_id.
 			Type::SocketAddr(Family::V6) => format!("{V4} | {V6}"),
+			// Any buffer of its numbers, as numpy's arrays are too.
+			Type::List(..) if ty.block().is_some() => format!("{} | memoryview", self.py_ty(ty)),
 			Type::List(_, inner) => format!("{list}[{}]", self.py_in(inner, list)),
 			Type::Option(inner) => format!("{} | None", self.py_in(inner, list)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.py_in(inner, list),
@@ -500,7 +560,8 @@ impl<'a> Gen<'a> {
 			Type::U128 => format!("rt::u128_in({o})"),
 			Type::Duration => format!("rt::duration_in({o})"),
 			Type::SocketAddr(family) => format!("rt::addr_in({o}, {})", family_of(*family)),
-			Type::List(..) => format!("r_{}({o}, s, {m}, {t})", self.c_struct(ty)),
+			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_in::<{}>({o}, s)", number(inner)),
+			Type::List(..) => format!("r_{}({o}, s, {m}, {t})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => {
 					let m = match abi.api.objects[*i].copy || matches!(**inner, Type::Ref(..)) {
@@ -517,7 +578,7 @@ impl<'a> Gen<'a> {
 					let some = self.lift(inner, o, m, t);
 					format!("(if rt::is_none({o}) {{ Ok(crate::rt::List::NONE) }} else {{ {some} }})")
 				}
-				_ => format!("r_{}({o}, s, {m}, {t})", self.c_struct(ty)),
+				_ => format!("r_{}({o}, s, {m}, {t})", self.converter(ty)),
 			},
 			Type::Box(inner) => self.lift(inner, o, m, t),
 			Type::Ref(_, inner) => self.lift(inner, o, "false", t),
@@ -553,7 +614,7 @@ impl<'a> Gen<'a> {
 			Type::Future => format!("rt::future_in({o}, s)"),
 			Type::Range(int) => format!("rt::range_in::<{}>({o})", int.rust()),
 			Type::Bound(_) | Type::Bounds(_) => format!("r_{}({o}, s)", abi.range(ty)),
-			Type::Tuple(_) => format!("r_{}({o}, s, {m}, {t})", self.c_struct(ty)),
+			Type::Tuple(_) => format!("r_{}({o}, s, {m}, {t})", self.converter(ty)),
 			Type::Unit | Type::Closure(..) => unreachable!("{ty:?} is no value Python passes"),
 		}
 	}
@@ -577,7 +638,8 @@ impl<'a> Gen<'a> {
 			Type::U128 => format!("rt::u128_out({v})"),
 			Type::Duration => format!("rt::duration_out({v})"),
 			Type::SocketAddr(_) => format!("rt::addr_out({v})"),
-			Type::List(..) => format!("w_{}({v})", self.c_struct(ty)),
+			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_out::<{}>({v})", number(inner)),
+			Type::List(..) => format!("w_{}({v})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => format!(
 					"rt::object_opt({v}, {}, crate::{}_free)",
@@ -588,7 +650,7 @@ impl<'a> Gen<'a> {
 					let some = self.lower(inner, "v");
 					format!("{{ let v = {v}; if v.is_none() {{ rt::none() }} else {{ {some} }} }}")
 				}
-				_ => format!("w_{}({v})", self.c_struct(ty)),
+				_ => format!("w_{}({v})", self.converter(ty)),
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.lower(inner, v),
 			Type::Record(_) => format!("w_{}({v})", self.c_struct(ty)),
@@ -607,7 +669,7 @@ impl<'a> Gen<'a> {
 				format!("{{ let r = {v}; rt::range_out({start}, {end}) }}")
 			}
 			Type::Bound(_) | Type::Bounds(_) => format!("w_{}({v})", abi.range(ty)),
-			Type::Tuple(_) => format!("w_{}({v})", self.c_struct(ty)),
+			Type::Tuple(_) => format!("w_{}({v})", self.converter(ty)),
 			Type::Waker => format!("rt::waker_out({v})"),
 			Type::Callback(..) | Type::Closure(..) | Type::Future | Type::Reader => {
 				unreachable!("{ty:?} is no value Rust returns")
@@ -621,6 +683,52 @@ impl<'a> Gen<'a> {
 			Ty::Struct(name) => name,
 			other => unreachable!("{ty:?} crosses as {other:?}, no struct"),
 		}
+	}
+
+	/// The suffix of the glue's `r_` and `w_` converting the option, tuple, or list `ty`,
+	/// written here the first time, so a block's struct gets no item-by-item glue: its C
+	/// struct's name for the type the struct was made for, else a name of its own.
+	fn converter(&mut self, ty: &Type) -> String {
+		let abi = self.abi;
+		let c = self.c_struct(ty);
+		let (held, made): (Vec<Type>, Vec<Type>) = match strip_refs(ty) {
+			Type::Option(inner) => (vec![*inner], vec![abi.options[&c].clone()]),
+			Type::List(_, elem) => (vec![*elem], vec![abi.lists[&c].clone()]),
+			Type::Tuple(elements) => (elements, abi.tuples[&c].clone()),
+			other => unreachable!("{other:?} has no converter"),
+		};
+		let held: Vec<Type> = held.iter().map(strip_refs).collect();
+		let key = (c.clone(), held.clone());
+		if let Some(name) = self.converters.get(&key) {
+			return name.clone();
+		}
+		// A numbered name must miss every converter's: each type's own, and the others numbered.
+		let taken = |name: &str| {
+			abi.options.contains_key(name)
+				|| abi.lists.contains_key(name)
+				|| abi.tuples.contains_key(name)
+				|| abi.ranges.contains_key(name)
+				|| abi.arrays.contains_key(name)
+				|| (0..abi.api.records.len()).any(|i| abi.record(i) == name)
+				|| (0..abi.api.enums.len()).any(|i| abi.enumeration(i) == name)
+				|| (0..abi.api.objects.len()).any(|i| abi.object(i) == name)
+				|| self.converters.values().any(|n| n == name)
+		};
+		let made: Vec<Type> = made.iter().map(strip_refs).collect();
+		let name = match held == made {
+			true => c.clone(),
+			false => (self.converters.len() + 2..)
+				.map(|k| format!("{c}_{k}"))
+				.find(|name| !taken(name))
+				.expect("some number is free"),
+		};
+		self.converters.insert(key, name.clone());
+		match strip_refs(ty) {
+			Type::Option(_) => self.option(&name, &c, &held[0]),
+			Type::List(..) => self.list(&name, &c, &held[0]),
+			_ => self.tuple(&name, &c, &held),
+		}
+		name
 	}
 
 	fn write(&mut self) {
@@ -637,12 +745,6 @@ impl<'a> Gen<'a> {
 		for (c, ty) in &abi.ranges.clone() {
 			self.range(c, ty);
 		}
-		for (c, inner) in &abi.options.clone() {
-			self.option(c, inner);
-		}
-		for (c, elements) in &abi.tuples.clone() {
-			self.tuple(c, elements);
-		}
 		for (c, n) in &abi.arrays {
 			let name = Abi::array_class(*n);
 			self.register(c, name.clone());
@@ -651,12 +753,11 @@ impl<'a> Gen<'a> {
 				"class {name}(_bytes):\n\t\"\"\"A Rust `[u8; {n}]`: exactly {n} bytes.\"\"\"\n\n\t__slots__ = ()\n\n\tdef __new__(cls, value: {BUFFER}) -> _typing.Self:\n\t\tself = _bytes.__new__(cls, value)\n\t\tif _len(self) != {n}:\n\t\t\traise _ValueError(f\"{{_len(self)}} bytes, not {n}\")\n\t\treturn self\n\n\n"
 			);
 		}
-		for (c, elem) in &abi.lists.clone() {
-			self.list(c, elem);
-		}
 		for constant in &api.constants {
 			let name = self.bare(&abi.name(&constant.path)).to_uppercase();
 			let name = self.claim(&name, format!("const `{}`", constant.path.join("::")));
+			self.locked
+				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			let value = match constant.value {
 				Literal::Bool(true) => "True".to_string(),
 				Literal::Bool(false) => "False".to_string(),
@@ -758,19 +859,19 @@ impl<'a> Gen<'a> {
 		);
 	}
 
-	/// The glue of an option struct.
-	fn option(&mut self, c: &str, inner: &Type) {
+	/// The glue of an option struct `c` holding `inner`, as `r_<name>` and `w_<name>`.
+	fn option(&mut self, name: &str, c: &str, inner: &Type) {
 		let read = self.lift(inner, "o", "m", "take");
 		let write = self.lower(inner, "v.value");
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool, take: bool) -> R<crate::{c}> {{\n\tmatch rt::is_none(o) {{\n\t\ttrue => Ok(crate::{c} {{ some: false, value: unsafe {{ std::mem::zeroed() }} }}),\n\t\tfalse => Ok(crate::{c} {{ some: true, value: {}? }}),\n\t}}\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.some {{\n\t\ttrue => {write},\n\t\tfalse => rt::none(),\n\t}}\n}}\n\n",
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool, take: bool) -> R<crate::{c}> {{\n\tmatch rt::is_none(o) {{\n\t\ttrue => Ok(crate::{c} {{ some: false, value: unsafe {{ std::mem::zeroed() }} }}),\n\t\tfalse => Ok(crate::{c} {{ some: true, value: {}? }}),\n\t}}\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.some {{\n\t\ttrue => {write},\n\t\tfalse => rt::none(),\n\t}}\n}}\n\n",
 			read
 		);
 	}
 
-	/// The glue of a tuple struct, element by element.
-	fn tuple(&mut self, c: &str, elements: &[Type]) {
+	/// The glue of a tuple struct `c`, element by element, as `r_<name>` and `w_<name>`.
+	fn tuple(&mut self, name: &str, c: &str, elements: &[Type]) {
 		let n = elements.len();
 		let mut reads = Vec::new();
 		let mut fields = Vec::new();
@@ -783,21 +884,21 @@ impl<'a> Gen<'a> {
 		}
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool, take: bool) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::tuple(vec![{}])\n}}\n\n",
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool, take: bool) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\trt::tuple(vec![{}])\n}}\n\n",
 			reads.join("\n\t"),
 			fields.join(", "),
 			writes.join(", ")
 		);
 	}
 
-	/// The glue of a `Vec`'s array.
-	fn list(&mut self, c: &str, elem: &Type) {
+	/// The glue of a `Vec`'s array `c`, as `r_<name>` and `w_<name>`.
+	fn list(&mut self, name: &str, c: &str, elem: &Type) {
 		// An array's items are behind its pointer, which Rust only reads.
 		let read = self.lift(elem, "o", "m", "false");
 		let write = self.lower(elem, "e");
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool, take: bool) -> R<crate::{c}> {{\n\trt::list_in(o, s, |o, s| {read})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::list_out(v, |e| {write})\n}}\n\n"
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool, take: bool) -> R<crate::{c}> {{\n\trt::list_in(o, s, |o, s| {read})\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\trt::list_out(v, |e| {write})\n}}\n\n"
 		);
 	}
 
@@ -959,6 +1060,9 @@ impl<'a> Gen<'a> {
 		let owner = Ty::Struct(c.clone());
 		let data: Vec<String> = record.fields.iter().map(|f| field_name(&f.name)).collect();
 		self.methods(&record.methods, (&ty, &owner, &rust), &data, &[], &mut body);
+		if record.fields.iter().any(|f| own_eq(abi, &f.ty)) {
+			body.python.push(ieee_eq(&name, &data));
+		}
 		let fields: String = record
 			.fields
 			.iter()
@@ -1095,6 +1199,10 @@ impl<'a> Gen<'a> {
 				.collect();
 			let fields = match fields.is_empty() {
 				true => "\tpass\n".to_string(),
+				false if variant.fields.iter().any(|f| own_eq(abi, &f.ty)) => {
+					let names: Vec<String> = variant.fields.iter().map(|f| field_name(&f.name)).collect();
+					format!("{fields}\n{}", ieee_eq(&class, &names))
+				}
 				false => fields,
 			};
 			let _ = write!(
@@ -1193,6 +1301,7 @@ impl<'a> Gen<'a> {
 		let mut table = vec!["free: Some(rt::free_callback)".to_string()];
 		for (n, method) in callback.methods.iter().enumerate() {
 			let member = member(&abi::snake(method.name()), &[]);
+			crate::lock::function(&mut self.locked, method, &member);
 			let params: Vec<String> = std::iter::once("self".to_string())
 				.chain(
 					method
@@ -1350,7 +1459,7 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String => "StringException".to_string(),
 			_ => format!("{}Exception", pascal_type(&py)),
 		};
-		match self.thrown.get(&name) {
+		let thrown = match self.thrown.get(&name) {
 			Some(thrown) => thrown.clone(),
 			None => {
 				let thrown = self.claim(&name, format!("the exception of `{py}`"));
@@ -1359,7 +1468,9 @@ impl<'a> Gen<'a> {
 				self.register(&format!("exc_{thrown}"), thrown.clone());
 				thrown
 			}
-		}
+		};
+		self.locked.insert(crate::lock::error_key(self.abi, e), thrown.clone());
+		thrown
 	}
 
 	/// The glue's expression, an `R<Obj>`, of a buffer `p` Rust lends for a call: text
@@ -1492,6 +1603,8 @@ impl<'a> Gen<'a> {
 			(Place::Top, false) => self.claim(&member, format!("fn `{}`", function.path.join("::"))),
 			_ => member,
 		};
+
+		crate::lock::function(&mut self.locked, function, &member);
 
 		// The glue: each argument read, the call, and its value lowered.
 		let mut stmts = Vec::new();
@@ -1922,4 +2035,34 @@ fn docstring(docs: &str, indent: &str) -> String {
 	}
 	out.push_str("\"\"\"\n");
 	out
+}
+
+/// The Rust type of a block's number.
+fn number(ty: &Type) -> &'static str {
+	match ty {
+		Type::Int(int) => int.rust(),
+		Type::F32 => "f32",
+		Type::F64 => "f64",
+		other => unreachable!("{other:?} is no block's number"),
+	}
+}
+
+/// Whether a record or variant holding `ty` needs [`ieee_eq`]: `ty` holds a float, or a
+/// block, which may be a buffer passed in whose own `==` compares item by item.
+fn own_eq(abi: &Abi, ty: &Type) -> bool {
+	abi.api.holds_float(ty) || ty.holds_block()
+}
+
+/// The `__eq__` of the dataclass `class` of `fields`, comparing as Rust's `==` does. A
+/// dataclass's own compares tuples of its fields, which take a value as equal to itself, so
+/// a NaN it holds would equal itself, and a numpy array it holds would raise.
+fn ieee_eq(class: &str, fields: &[String]) -> String {
+	let same: Vec<String> = fields
+		.iter()
+		.map(|f| format!(" and _same(self.{f}, other.{f})"))
+		.collect();
+	format!(
+		"\tdef __eq__(self, other: object) -> bool:\n\t\treturn _isinstance(other, {class}){}\n",
+		same.concat()
+	)
 }

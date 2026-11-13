@@ -3,12 +3,7 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug(self: Reading, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Reading";
-	const _4: string = "level";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.f32Debug(self.level, f);
-	const _7: string = "history";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtList(self.history.items, f, rs.f32Debug);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Reading level history", [(f: rs.Formatter) => rs.f32Debug(self.level, f), (f: rs.Formatter) => rs.fmtList(self.history.items, f, rs.f32Debug)]);
 }
 
 /** A reading whose derived `Debug` writes each `f32` with the placeholder's options. */

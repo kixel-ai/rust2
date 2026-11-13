@@ -3,6 +3,7 @@
  *
  * With an argument, it instead breaks one contract of the ABI, which must abort. */
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -16,6 +17,65 @@ static api_buf str(const char *s) {
 static void print(const char *before, api_buf buf, const char *after) {
 	printf("%s%.*s%s", before, (int)buf.len, (const char *)buf.ptr, after);
 	api_buf_free(buf);
+}
+
+/* Print each of `numbers`' lists, its floats as their bits, as transcript.rs does. */
+#define PRINT_LIST(list, fmt, cast)                                           \
+	do {                                                                  \
+		printf("[");                                                  \
+		for (size_t i_ = 0; i_ < (list).len; i_++) {                  \
+			printf(i_ ? ", " fmt : fmt, cast((list).ptr[i_]));    \
+		}                                                             \
+		printf("]");                                                  \
+	} while (0)
+
+static unsigned long long f32_bits(float f) {
+	uint32_t bits;
+	memcpy(&bits, &f, sizeof bits);
+	return bits;
+}
+
+static unsigned long long f64_bits(double f) {
+	uint64_t bits;
+	memcpy(&bits, &f, sizeof bits);
+	return bits;
+}
+
+static void numbers(const char *what, const api_Numbers *n) {
+	printf("%s u16 ", what);
+	PRINT_LIST(n->u16s, "%u", (unsigned));
+	printf("\n");
+	printf("%s u32 ", what);
+	PRINT_LIST(n->u32s, "%u", (unsigned));
+	printf("\n");
+	printf("%s u64 ", what);
+	PRINT_LIST(n->u64s, "%llu", (unsigned long long));
+	printf("\n");
+	printf("%s i8 ", what);
+	PRINT_LIST(n->i8s, "%d", (int));
+	printf("\n");
+	printf("%s i16 ", what);
+	PRINT_LIST(n->i16s, "%d", (int));
+	printf("\n");
+	printf("%s i32 ", what);
+	PRINT_LIST(n->i32s, "%d", (int));
+	printf("\n");
+	printf("%s i64 ", what);
+	PRINT_LIST(n->i64s, "%lld", (long long));
+	printf("\n");
+	printf("%s f32 ", what);
+	PRINT_LIST(n->f32s, "%llu", f32_bits);
+	printf("\n");
+	printf("%s f64 ", what);
+	PRINT_LIST(n->f64s, "%llu", f64_bits);
+	printf("\n");
+	if (n->some.ptr) {
+		printf("%s some Some(", what);
+		PRINT_LIST(n->some, "%d", (int));
+		printf(")\n");
+	} else {
+		printf("%s some None\n", what);
+	}
 }
 
 static int wakes = 0;
@@ -1459,6 +1519,58 @@ static int script(void) {
 	api_vec_u32 sums = api_sums((api_vec_vec_u32){.ptr = rows, .len = 3});
 	printf("sums [%u, %u, %u]\n", sums.ptr[0], sums.ptr[1], sums.ptr[2]);
 	api_vec_u32_free(sums);
+	uint32_t set0[] = {3, 1};
+	uint32_t set2[] = {2};
+	api_vec_u32 sets[] = {{.ptr = set0, .len = 2}, {.ptr = set0, .len = 0}, {.ptr = set2, .len = 1}};
+	api_vec_vec_u32 least = api_least((api_vec_vec_u32){.ptr = sets, .len = 3});
+	printf("least");
+	for (size_t i = 0; i < least.len; i++) {
+		printf(" [");
+		for (size_t j = 0; j < least.ptr[i].len; j++) {
+			printf(j ? ", %u" : "%u", least.ptr[i].ptr[j]);
+		}
+		printf("]");
+	}
+	printf("\n");
+	api_vec_vec_u32_free(least);
+	api_Numbers edges = api_Numbers_edges();
+	numbers("edges", &edges);
+	api_Numbers reversed = api_Numbers_reversed(&edges);
+	numbers("reversed", &reversed);
+	api_Numbers others = api_Numbers_edges();
+	api_Numbers negative = api_Numbers_zero(true);
+	api_Numbers positive = api_Numbers_zero(false);
+	api_Measure nan = api_Measure_new(NAN, false);
+	api_Measure under = api_Measure_new(-0.0, true);
+	api_Measure over = api_Measure_new(0.0, false);
+	printf("float equal %s %s %s %s %s\n", api_Numbers_eq(&edges, &edges) ? "true" : "false",
+	       api_Numbers_eq(&edges, &others) ? "true" : "false", api_Numbers_eq(&negative, &positive) ? "true" : "false",
+	       api_Measure_eq(&nan, &nan) ? "true" : "false", api_Measure_eq(&under, &over) ? "true" : "false");
+	api_Numbers_free(&edges);
+	api_Numbers_free(&reversed);
+	api_Numbers_free(&others);
+	api_Numbers_free(&negative);
+	api_Numbers_free(&positive);
+	api_Measure_free(&nan);
+	api_Measure_free(&under);
+	api_Measure_free(&over);
+	uint32_t totals[] = {UINT32_MAX, UINT32_MAX, 2};
+	printf("sum u32 %llu %llu\n", (unsigned long long)api_sum_u32((api_vec_u32){0}),
+	       (unsigned long long)api_sum_u32((api_vec_u32){.ptr = totals, .len = 3}));
+	int64_t doubling[] = {INT64_MIN, -1, 0, INT64_MAX};
+	api_vec_i64 doubled = api_doubled_i64((api_vec_i64){.ptr = doubling, .len = 4});
+	printf("doubled i64 ");
+	PRINT_LIST(doubled, "%lld", (long long));
+	printf("\n");
+	api_vec_i64_free(doubled);
+	uint64_t nan_bits = 0x7ff8000000000001;
+	double floats[2] = {-0.0, 0};
+	memcpy(&floats[1], &nan_bits, sizeof nan_bits);
+	api_vec_f64 boxed_floats = api_boxed_floats((api_vec_f64){.ptr = floats, .len = 2});
+	printf("boxed floats ");
+	PRINT_LIST(boxed_floats, "%llu", f64_bits);
+	printf("\n");
+	api_vec_f64_free(boxed_floats);
 	api_Point summands[] = {{.x = 1, .y = 2}, {.x = -4, .y = 6}};
 	api_Point summed = api_summed((api_vec_Point){.ptr = summands, .len = 2});
 	api_Point none_summed = api_summed((api_vec_Point){.ptr = summands, .len = 0});

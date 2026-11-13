@@ -105,10 +105,11 @@ export function lists(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 						while (true) {
 							const _144: rs.Place<rs.u8> | rs.Done = iter3.next();
 							if (_144 === rs.DONE) {
-								continue l1;
+								break;
 							}
 							_144.v = rs.intRotateLeft(_144.v, 1, 8, false);
 						}
+						continue l1;
 					}
 				}
 			}

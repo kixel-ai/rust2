@@ -14,7 +14,7 @@ export function clone$Clone_u8(self: Runs<rs.u8>): Runs<rs.u8> {
 }
 
 export function fmt$fmt_Debug_u16(self: Runs<rs.u16>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const names: rs.Slice<string> = rs.sliceFrom(["array", "list", "view", "boxed", "cow", "pairs", "maybe"]);
+	const names: string = "Runs array list view boxed cow pairs maybe";
 	const _8: rs.Slice<rs.u16> = rs.sliceFrom(self.array as rs.u16[]);
 	const arg = self.list as rs.Vec<rs.u16>;
 	const _9: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg.items, f, rs.u16Debug);
@@ -27,12 +27,11 @@ export function fmt$fmt_Debug_u16(self: Runs<rs.u16>, f: rs.Formatter): rs.Resul
 	const arg5 = self.pairs as rs.Vec<rs.u16[]>;
 	const _17: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg5.items, f, (value: rs.u16[], f: rs.Formatter) => rs.fmtList(value, f, rs.u16Debug));
 	const arg6 = self.maybe as rs.Vec<rs.u16> | undefined;
-	const values: rs.Slice<rs.Fmt> = rs.sliceFrom([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(_8), f, rs.u16Debug), _9, _11, _13, _15, _17, (f: rs.Formatter) => rs.fmtOption(arg6, f, (value: rs.Vec<rs.u16>, f: rs.Formatter) => rs.fmtList(value.items, f, rs.u16Debug))]);
-	return rs.fmtDebugStructFields(f, "Runs", rs.sliceItems(names), rs.sliceItems(values));
+	return rs.fmtDebugFields(f, names, [(f: rs.Formatter) => rs.fmtList(rs.sliceItems(_8), f, rs.u16Debug), _9, _11, _13, _15, _17, (f: rs.Formatter) => rs.fmtOption(arg6, f, (value: rs.Vec<rs.u16>, f: rs.Formatter) => rs.fmtList(value.items, f, rs.u16Debug))]);
 }
 
 export function fmt$fmt_Debug_u8(self: Runs<rs.u8>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const names: rs.Slice<string> = rs.sliceFrom(["array", "list", "view", "boxed", "cow", "pairs", "maybe"]);
+	const names: string = "Runs array list view boxed cow pairs maybe";
 	const _8: rs.ByteSlice = rs.byteSliceFrom(self.array as Uint8Array);
 	const arg = self.list as rs.ByteVec;
 	const _9: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(arg), f, rs.u8Debug);
@@ -45,8 +44,7 @@ export function fmt$fmt_Debug_u8(self: Runs<rs.u8>, f: rs.Formatter): rs.Result<
 	const arg5 = self.pairs as rs.Vec<Uint8Array>;
 	const _17: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg5.items, f, (value: Uint8Array, f: rs.Formatter) => rs.fmtList(value, f, rs.u8Debug));
 	const arg6 = self.maybe as rs.ByteVec | undefined;
-	const values: rs.Slice<rs.Fmt> = rs.sliceFrom([(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_8), f, rs.u8Debug), _9, _11, _13, _15, _17, (f: rs.Formatter) => rs.fmtOption(arg6, f, (value: rs.ByteVec, f: rs.Formatter) => rs.fmtList(rs.byteVecView(value), f, rs.u8Debug))]);
-	return rs.fmtDebugStructFields(f, "Runs", rs.sliceItems(names), rs.sliceItems(values));
+	return rs.fmtDebugFields(f, names, [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_8), f, rs.u8Debug), _9, _11, _13, _15, _17, (f: rs.Formatter) => rs.fmtOption(arg6, f, (value: rs.ByteVec, f: rs.Formatter) => rs.fmtList(rs.byteVecView(value), f, rs.u8Debug))]);
 }
 
 export function eq$cmp_PartialEq_u16(self: Runs<rs.u16>, other: Runs<rs.u16>): boolean {

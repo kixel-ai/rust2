@@ -838,6 +838,157 @@ pub fn bytes_out(buf: rt::Buf) -> R<Obj> {
 	}
 }
 
+/// A number whose lists cross as one block: an `array.array` of the typecode `CODE`,
+/// whose C type CPython's `array` checks at load is exactly as wide, and which a buffer's
+/// format matches by its `KIND` of number and width.
+pub trait Number: Copy + 'static {
+	const CODE: &'static CStr;
+	const KIND: Kind;
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+	Signed,
+	Unsigned,
+	Float,
+}
+
+macro_rules! number {
+	($($ty:ty => $code:literal $kind:ident),*) => {
+		$(impl Number for $ty {
+			const CODE: &'static CStr = $code;
+			const KIND: Kind = Kind::$kind;
+		})*
+
+		/// Each number's typecode and width, which the module checks as it loads.
+		const NUMBERS: &[(&CStr, usize)] = &[$(($code, size_of::<$ty>())),*];
+	};
+}
+
+number!(
+	u16 => c"H" Unsigned, u32 => c"I" Unsigned, u64 => c"Q" Unsigned,
+	i8 => c"b" Signed, i16 => c"h" Signed, i32 => c"i" Signed, i64 => c"q" Signed,
+	f32 => c"f" Float, f64 => c"d" Float
+);
+
+/// `array.array`, and its `frombytes`.
+static ARRAY: std::sync::OnceLock<(Static, Static)> = std::sync::OnceLock::new();
+
+/// The kind of number a buffer's `struct` format holds, if a single native one: its byte
+/// order the host's, its width the buffer's own `itemsize`.
+fn kind(format: &[u8]) -> Option<Kind> {
+	let native: &[u8] = match cfg!(target_endian = "little") {
+		true => b"@=<",
+		false => b"@=>!",
+	};
+	let code = match format {
+		[order, code] if native.contains(order) => *code,
+		[code] => *code,
+		_ => return None,
+	};
+	match code {
+		b'b' | b'h' | b'i' | b'l' | b'q' | b'n' => Some(Kind::Signed),
+		b'B' | b'H' | b'I' | b'L' | b'Q' | b'N' => Some(Kind::Unsigned),
+		b'f' | b'd' => Some(Kind::Float),
+		_ => None,
+	}
+}
+
+/// The numbers of any object with the buffer protocol whose items are exactly `T`s, one
+/// dimension and C-contiguous, such as an `array.array`, a `memoryview` cast to their
+/// format, or a numpy array: copied once, as the call runs without the GIL and another
+/// thread could write them while Rust reads.
+pub fn block_in<T: Number>(obj: *mut PyObject, s: &mut Scope) -> R<rt::List<T>> {
+	// SAFETY: the GIL is held, and `obj` is live.
+	unsafe {
+		// SAFETY: `Py_buffer` is plain data, which the call fills.
+		let mut view: Py_buffer = std::mem::zeroed();
+		if PyObject_GetBuffer(obj, &mut view, PyBUF_C_CONTIGUOUS | PyBUF_FORMAT) != 0 {
+			return Err(Raised);
+		}
+		let format: &[u8] = match view.format.is_null() {
+			true => b"B",
+			false => CStr::from_ptr(view.format).to_bytes(),
+		};
+		let exact = view.ndim == 1 && kind(format) == Some(T::KIND) && view.itemsize as usize == size_of::<T>();
+		if !exact {
+			let format = String::from_utf8_lossy(format).into_owned();
+			let (ndim, itemsize) = (view.ndim, view.itemsize);
+			PyBuffer_Release(&mut view);
+			return type_error(&format!(
+				"expected a buffer of '{}', got {ndim} dimensions of '{format}' {itemsize} bytes wide",
+				T::CODE.to_string_lossy()
+			));
+		}
+		let len = view.len as usize / size_of::<T>();
+		let mut items = Vec::<T>::with_capacity(len);
+		// A byte copy, as the buffer need not be aligned for `T`.
+		std::ptr::copy_nonoverlapping(view.buf.cast_const().cast::<u8>(), items.as_mut_ptr().cast::<u8>(), len * size_of::<T>());
+		items.set_len(len);
+		PyBuffer_Release(&mut view);
+		let items = Box::new(items);
+		let list = rt::List {
+			ptr: items.as_ptr(),
+			len: items.len(),
+			owner: null_mut(),
+		};
+		s.arrays.push(items);
+		Ok(list)
+	}
+}
+
+/// Numbers Rust returned, as an `array.array` of their typecode, filled in one copy.
+pub fn block_out<T: Number>(list: rt::List<T>) -> R<Obj> {
+	let out = (|| {
+		let (array, frombytes) = ARRAY.get().expect("loaded");
+		// SAFETY: the GIL is held.
+		let code = unsafe { Obj::new(PyUnicode_FromString(T::CODE.as_ptr())) };
+		let out = call_py(array.ptr(), vec![code])?;
+		if list.len > 0 {
+			// SAFETY: an array Rust returned, live until it is freed below.
+			let view = unsafe {
+				Obj::new(PyMemoryView_FromMemory(
+					list.ptr.cast_mut().cast(),
+					(list.len * size_of::<T>()) as Py_ssize_t,
+					PyBUF_READ,
+				))
+			};
+			// SAFETY: the GIL is held, and `out` is live.
+			call_py(frombytes.ptr(), vec![Ok(unsafe { Obj::borrowed(out.ptr()) }), view])?;
+		}
+		Ok(out)
+	})();
+	// SAFETY: an array Rust returned, of numbers, which hold nothing.
+	unsafe { list.free("python", |_| {}) };
+	out
+}
+
+/// Note `array.array`, failing unless each number's typecode is exactly as wide.
+unsafe fn arrays() -> R<()> {
+	// SAFETY: the GIL is held.
+	unsafe {
+		let module = Obj::new(PyImport_ImportModule(c"array".as_ptr()))?;
+		let array = Obj::new(PyObject_GetAttrString(module.ptr(), c"array".as_ptr()))?;
+		let frombytes = Obj::new(PyObject_GetAttrString(array.ptr(), c"frombytes".as_ptr()))?;
+		for &(code, size) in NUMBERS {
+			let empty = call_py(array.ptr(), vec![Obj::new(PyUnicode_FromString(code.as_ptr()))])?;
+			let width = Obj::new(PyObject_GetAttrString(empty.ptr(), c"itemsize".as_ptr()))?;
+			let width = PyLong_AsSsize_t(width.ptr());
+			if width != size as Py_ssize_t {
+				return raise(
+					PyExc_ImportError,
+					&format!(
+						"array typecode '{}' is {width} bytes wide here, not {size}",
+						code.to_string_lossy()
+					),
+				);
+			}
+		}
+		let _ = ARRAY.set((Static(array), Static(frombytes)));
+	}
+	Ok(())
+}
+
 /// A `[u8; N]`, from `bytes` of exactly `N`, as its class holds them.
 pub fn array_in<const N: usize>(obj: *mut PyObject) -> R<[u8; N]> {
 	// SAFETY: the GIL is held, and `obj` is live.
@@ -874,15 +1025,16 @@ pub fn lent_bytes(buf: rt::Buf) -> R<Obj> {
 }
 
 /// A path's bytes, from a `str`, `bytes`, or `os.PathLike`, as `os.fsencode` encodes it,
-/// so a name a Unix path holds that is not UTF-8 crosses as it came.
+/// so a name a Unix path holds that is not UTF-8 crosses as it came, and so does a NUL,
+/// which a Rust path holds and `PyUnicode_FSConverter` refuses.
 pub fn path_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Buf> {
-	let mut encoded: *mut PyObject = null_mut();
-	// SAFETY: the GIL is held, and `obj` is live; the converter writes a new `bytes`.
+	// SAFETY: the GIL is held, and `obj` is live; each call returns a new reference.
 	unsafe {
-		if PyUnicode_FSConverter(obj, (&raw mut encoded).cast()) == 0 {
-			return Err(Raised);
-		}
-		let encoded = s.keep(Obj::new(encoded)?);
+		let path = s.keep(Obj::new(PyOS_FSPath(obj))?);
+		let encoded = match PyBytes_Check(path) != 0 {
+			true => path,
+			false => s.keep(Obj::new(PyUnicode_EncodeFSDefault(path))?),
+		};
 		let mut ptr: *mut c_char = null_mut();
 		let mut len = 0;
 		if PyBytes_AsStringAndSize(encoded, &mut ptr, &mut len) != 0 {
@@ -2640,6 +2792,7 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 		let asyncio = Obj::new(PyImport_ImportModule(c"asyncio".as_ptr()))?;
 		let get = Obj::new(PyObject_GetAttrString(asyncio.ptr(), c"_get_running_loop".as_ptr()))?;
 		let _ = GET_RUNNING_LOOP.set(Static(get));
+		arrays()?;
 	}
 	Ok(())
 }

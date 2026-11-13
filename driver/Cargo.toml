@@ -1,11 +1,11 @@
 [package]
 name = "rust2-driver"
-description = "The rustc driver front end that rust2's drivers share, and rust2-lint"
+description = "The rustc driver front end that rust2's drivers share"
 version = "0.0.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/kixel-ai/rust2"
-# A path dependency of the drivers, and rust2-lint through the flake: it only builds on
+# A path dependency of the drivers: it only builds on
 # their pinned nightly.
 publish = false
 
@@ -13,8 +13,6 @@ publish = false
 rustc_private = true
 
 [dependencies]
-serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.154"
 
 # Its own workspace, apart from the repo's, on the drivers' nightly: rust-toolchain.toml
 # links ts's pin, which flake.nix reads.

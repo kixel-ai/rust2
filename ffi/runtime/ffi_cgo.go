@@ -342,6 +342,25 @@ func (a *arena_) hold(h *rt.Handle_, o any) unsafe.Pointer {
 	return raw
 }
 
+// block_ is items, lent in place to C as its array of CT, which T is laid out as: pinned
+// until the call returns, and never null, so an empty one is told apart from none.
+func block_[T, CT any](a *arena_, items []T) (*CT, C.size_t) {
+	if len(items) == 0 {
+		return (*CT)(emptyPtr_()), 0
+	}
+	a.pins.Pin(&items[0])
+	return (*CT)(unsafe.Pointer(&items[0])), C.size_t(len(items))
+}
+
+// liftBlock_ is a copy of the n numbers at ptr, which T is laid out as.
+func liftBlock_[T, CT any](ptr *CT, n C.size_t) []T {
+	out := make([]T, int(n))
+	if n != 0 {
+		copy(out, unsafe.Slice((*T)(unsafe.Pointer(ptr)), int(n)))
+	}
+	return out
+}
+
 // list_ is items as a C array, each lowered by lower, pinned until the call returns:
 // never null, so an empty one is told apart from a missing one.
 func list_[T, CT any](a *arena_, items []T, lower func(T) CT) (*CT, C.size_t) {

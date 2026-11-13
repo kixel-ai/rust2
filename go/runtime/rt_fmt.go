@@ -5,6 +5,7 @@ package rt
 
 import (
 	"strconv"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -516,20 +517,29 @@ func (b *DebugBuilder) finishNonExhaustive() fmtResult {
 	return f.writeStr([]uint8(" { .. }"))
 }
 
-func (f *Formatter) debugTupleFields(name []uint8, values ...fmtDyn) fmtResult {
-	b := f.debugTuple(name)
-	for _, v := range values {
-		b.field(nil, v)
+// debugFields is derived Debug's `debug_struct_fields_finish`: names holds the type's
+// name, then each field's, separated by spaces, and a name alone is a tuple struct's.
+func (f *Formatter) debugFields(names []uint8, values []fmtDyn) fmtResult {
+	words := strings.Split(string(names), " ")
+	if len(words) == 1 {
+		b := f.debugTuple(names)
+		for _, v := range values {
+			b.field(nil, v)
+		}
+		return b.finish()
+	}
+	b := f.debugStruct([]uint8(words[0]))
+	for i, v := range values {
+		b.field([]uint8(words[i+1]), v)
 	}
 	return b.finish()
 }
 
-func (f *Formatter) debugStructFields(name []uint8, names [][]uint8, values []fmtDyn) fmtResult {
-	b := f.debugStruct(name)
-	for i := range names {
-		b.field(names[i], values[i])
-	}
-	return b.finish()
+// debugEnum is derived Debug's `debug_c_like_enum_write_str`: the variant's name is the
+// word of the space-separated names that starts at start.
+func (f *Formatter) debugEnum(names []uint8, start uint) fmtResult {
+	name, _, _ := strings.Cut(string(names[start:]), " ")
+	return f.writeStr([]uint8(name))
 }
 
 // then runs each step while the last succeeded, as `?` does.

@@ -4,6 +4,8 @@
 // With an argument, it instead checks the futures' semantics, or breaks a contract, which
 // must fail.
 
+@file:OptIn(ExperimentalUnsignedTypes::class)
+
 import api.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executor
@@ -28,6 +30,20 @@ class PrintLog : Log, AutoCloseable {
 
 	// Rust closes it once it drops the implementation.
 	override fun close() = println("freed")
+}
+
+// Print each of `n`'s lists, its floats as their bits, as transcript.rs does.
+fun numbers(what: String, n: Numbers) {
+	println("$what u16 ${n.u16s.contentToString()}")
+	println("$what u32 ${n.u32s.contentToString()}")
+	println("$what u64 ${n.u64s.contentToString()}")
+	println("$what i8 ${n.i8s.contentToString()}")
+	println("$what i16 ${n.i16s.contentToString()}")
+	println("$what i32 ${n.i32s.contentToString()}")
+	println("$what i64 ${n.i64s.contentToString()}")
+	println("$what f32 ${n.f32s.map { it.toRawBits().toUInt() }}")
+	println("$what f64 ${n.f64s.map { it.toRawBits().toULong() }}")
+	println("$what some ${n.some?.let { "Some(${it.contentToString()})" } ?: "None"}")
 }
 
 fun bound(b: BoundU64): String = when (b.kind) {
@@ -420,7 +436,7 @@ fun script() {
 	val v4 = java.net.InetSocketAddress(java.net.InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)), 8080)
 	val loopback = ByteArray(16).also { it[15] = 1 }
 	val v6 = java.net.InetSocketAddress(java.net.Inet6Address.getByAddress(null, loopback, 3), 443)
-	println("ports ${ports(listOf(v4, v6))}")
+	println("ports ${ports(listOf(v4, v6)).contentToString()}")
 	val peer = Peer(v6, listOf("a", "b")).next("c")
 	println("peer ${peer.debug()} ${peer.aliases().joinToString(", ", "[", "]") { "\"$it\"" }}")
 	val file = file("dir", "f\\'\"\t")
@@ -485,7 +501,34 @@ fun script() {
 	println("held ${listOf(heldCount(Tuple1(Counter.new("h", 4u))), heldCount(null)).joinToString(" ") { if (it == null) "None" else "Some($it)" }}")
 	println("boxed ${boxedName(boxedCounter("b"))?.let { "Some(\"$it\")" }} ${boxedName(null) ?: "None"} ${boxedCounter(null) == null}")
 	println("less ${less(5u, 2u)}")
-	println("sums ${sums(listOf(listOf(1u, 2u), emptyList(), listOf(3u)))}")
+	println("sums ${sums(listOf(uintArrayOf(1u, 2u), UIntArray(0), uintArrayOf(3u))).contentToString()}")
+	println("least ${least(listOf(listOf(3u, 1u), listOf(), listOf(2u))).joinToString(" ")}")
+	check(splitLast(intArrayOf(1, 2, -3)) == splitLast(intArrayOf(1, 2, -3)), "a tuple holding an array compares by contents")
+	check(splitLast(intArrayOf(1, 2, -3)).hashCode() == splitLast(intArrayOf(1, 2, -3)).hashCode(), "a tuple holding an array hashes by contents")
+	check(Shadowed(intArrayOf(1), 0u, 0u) == Shadowed(intArrayOf(1), 0u, 0u) && Shadowed(intArrayOf(1), 0u, 0u) != Shadowed(intArrayOf(2), 0u, 0u), "a field named other compares as itself")
+	check(Builtin.Any(intArrayOf(1)) == Builtin.Any(intArrayOf(1)) && Builtin.Any(intArrayOf(1)).hashCode() == Builtin.Any(intArrayOf(1)).hashCode(), "a variant named Any compares by contents")
+	check(Builtin.Native(Double.NaN) != Builtin.Native(Double.NaN) && Builtin.Int(-0.0) == Builtin.Int(0.0) && Builtin.Boolean(1.0) != Builtin.Int(1.0), "variants named as Kotlin's builtins compare as Rust's")
+	check(Qualifiers(-0.0, 1.0) == Qualifiers(0.0, 1.0) && Qualifiers(-0.0, 1.0).hashCode() == Qualifiers(0.0, 1.0).hashCode() && Qualifiers(Double.NaN, 1.0) != Qualifiers(Double.NaN, 1.0), "fields named as the package and kotlin compare as Rust's")
+	numbers("edges", Numbers.edges())
+	numbers("reversed", Numbers.edges().reversed())
+	val edges = Numbers.edges()
+	val nan = Measure.new(Double.NaN, false)
+	println("float equal ${edges == edges} ${edges == Numbers.edges()} ${Numbers.zero(true) == Numbers.zero(false)} ${nan == nan} ${Measure.new(-0.0, true) == Measure.new(0.0, false)}")
+	check(Numbers.zero(true).hashCode() == Numbers.zero(false).hashCode(), "a negative zero hashes as zero does")
+	check(Measure.new(-0.0, true).hashCode() == Measure.new(0.0, false).hashCode(), "a negative zero hashes as zero does in a nested record")
+	val ints = edges.copy(f32s = FloatArray(0), f64s = DoubleArray(0))
+	val same = Numbers.edges().copy(f32s = FloatArray(0), f64s = DoubleArray(0))
+	check(ints == same && ints.hashCode() == same.hashCode(), "records of arrays compare by contents")
+	val back = edges.reversed().reversed()
+	check(back.copy(f32s = FloatArray(0), f64s = DoubleArray(0)) == ints, "every integer edge value crosses both ways exactly")
+	check(back.f32s.map { it.toRawBits() } == edges.f32s.map { it.toRawBits() } && back.f64s.map { it.toRawBits() } == edges.f64s.map { it.toRawBits() }, "every float edge value crosses both ways exactly")
+	check(edges.copy(some = null).reversed().some == null, "a missing array stays missing")
+	check(edges.copy(some = IntArray(0)).reversed().some?.size == 0, "an empty array is no missing one")
+	check(edges.copy(some = intArrayOf(Int.MIN_VALUE, 7)).reversed().some.contentEquals(intArrayOf(7, Int.MIN_VALUE)), "an array in an option crosses in a record")
+	println("sum u32 ${sumU32(UIntArray(0))} ${sumU32(uintArrayOf(UInt.MAX_VALUE, UInt.MAX_VALUE, 2u))}")
+	println("doubled i64 ${doubledI64(longArrayOf(Long.MIN_VALUE, -1, 0, Long.MAX_VALUE)).contentToString()}")
+	val floats = boxedFloats(doubleArrayOf(-0.0, Double.fromBits(0x7ff8000000000001L)))
+	println("boxed floats ${floats.map { it.toRawBits().toULong() }}")
 	val summed = summed(listOf(Point(1, 2), Point(-4, 6)))
 	val noneSummed = summed(emptyList())
 	println("summed ${summed.x} ${summed.y} ${noneSummed.x} ${noneSummed.y}")
@@ -981,8 +1024,24 @@ fun encoded() {
 	check(sliced.toByteArray().contentEquals(body.copyOfRange(7, 290)), "a slice of Kotlin's bytes in a record crosses")
 }
 
+/** A record's scalars cross apart from its other fields, each exactly, both ways. */
+fun readings() {
+	check(reading(0u) == null && readingDebug(0u) == "", "no reading crosses as none")
+	for (n in listOf(1u, 2u, 3u, 127u)) {
+		val r = reading(n)!!
+		check(r.debug() == readingDebug(n), "reading $n crosses as Rust holds it: ${r.debug()}")
+		check(r.count == ULong.MAX_VALUE - n && r.len == ULong.MAX_VALUE - n && r.tag == (UShort.MAX_VALUE - n.toUShort()).toUShort(), "reading $n's unsigned scalars")
+		check(r.at.x == Int.MIN_VALUE + n.toInt() && r.offset == (Byte.MIN_VALUE + n.toInt()).toByte(), "reading $n's signed scalars")
+		check(r.level == -n.toFloat() / 2 && r.ratio == Double.MAX_VALUE / n.toDouble() && r.mark == 0x10FFFF - n.toInt(), "reading $n's floats and char")
+		check(r.ok == (n % 2u == 1u) && r.shape == (if (n % 2u == 1u) Shape.CIRCLE else Shape.SQUARE) && r.note == "reading $n", "reading $n's bool, enum, and text")
+		check(readingEcho(r) == r, "reading $n crosses back")
+		check(r.next() == reading(n + 1u), "reading $n's receiver crosses")
+	}
+}
+
 fun owned() {
 	encoded()
+	readings()
 	budgeted()
 	for (n in 1023..1025) {
 		val payload = ByteArray(n) { it.toByte() }

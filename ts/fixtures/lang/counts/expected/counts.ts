@@ -133,7 +133,16 @@ export function addressedArcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 		}
 		const at8 = rs.idx(strong.items, rs.usizeRem(pick, strong.items.length));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(strong.items[at8].value[0], strong.items[at8].value[1], strong.items[at8].strong & 0xff)));
+		const dst = out;
+		const byte = strong.items[at8].value[0];
+		const byte2 = strong.items[at8].value[1];
+		const byte3 = strong.items[at8].strong & 0xff;
+		rs.byteVecReserve(dst, 3 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.data[pos + 2] = byte3;
+		dst.length = dst.length + 3;
 	}
 	unit[Symbol.dispose]();
 	unread[Symbol.dispose]();
@@ -152,7 +161,7 @@ export function arcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const log: rs.Arc<rs.Mutex<rs.ByteVec>> = new rs.Arc(new rs.Mutex(new rs.ByteVec()));
 	const strong: rs.Vec<rs.Arc<Noisy.Noisy>> = new rs.Vec();
 	const weak: rs.Vec<rs.Weak<Noisy.Noisy>> = new rs.Vec();
-	l1: for (const op of rs.byteSliceView(data)) {
+	for (const op of rs.byteSliceView(data)) {
 		const pick: rs.usize = op >> 4 as rs.usize;
 		const _19: rs.u8 = rs.u8Rem(op, 12);
 		if (_19 === 0) {
@@ -270,13 +279,7 @@ export function arcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, _171.strong & 0xff);
 			rs.byteVecPush(out, _171.weak & 0xff);
 		}
-		const iterS3: rs.Weak<Noisy.Noisy>[] = weak.items;
-		let iterI3: number = 0;
-		while (true) {
-			const _184: rs.Weak<Noisy.Noisy> | rs.Done = iterI3 < iterS3.length ? iterS3[iterI3++] : rs.DONE;
-			if (_184 === rs.DONE) {
-				continue l1;
-			}
+		for (const _184 of weak.items) {
 			rs.byteVecPush(out, _184.arc.strong & 0xff);
 			rs.byteVecPush(out, rs.weakWeakCount(_184) & 0xff);
 		}
@@ -792,13 +795,29 @@ export function uniqueArcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			} else {
 				const pinned: rs.Arc<rs.u8> = new rs.Arc(op);
 				const held: rs.Arc<rs.u8> | undefined = rs.arcClone(strong.items[rs.idx(strong.items, pick)]);
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(pinned.value, option_unwrapOr$1fr498u(option_asDeref$1l62o5g(held), 251))));
+				const dst = out;
+				const byte = pinned.value;
+				const byte2 = option_unwrapOr$1fr498u(option_asDeref$1l62o5g(held), 251);
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = byte;
+				dst.data[pos + 1] = byte2;
+				dst.length = dst.length + 2;
 				rs.drop(held);
 				pinned[Symbol.dispose]();
 			}
 		}
 		const at8 = rs.idx(strong.items, rs.usizeRem(pick, strong.items.length));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(strong.items[at8].value, strong.items[at8].strong & 0xff, strong.items[at8].weak & 0xff)));
+		const dst2 = out;
+		const byte3 = strong.items[at8].value;
+		const byte4 = strong.items[at8].strong & 0xff;
+		const byte5 = strong.items[at8].weak & 0xff;
+		rs.byteVecReserve(dst2, 3 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = byte3;
+		dst2.data[pos2 + 1] = byte4;
+		dst2.data[pos2 + 2] = byte5;
+		dst2.length = dst2.length + 3;
 	}
 	for (const _110 of weak.items) {
 		rs.byteVecPush(out, option_mapOr$1gfk3jk(rs.weakUpgrade(_110), 253, (s: rs.Arc<rs.u8>): rs.u8 => {
@@ -826,7 +845,14 @@ export function uniqueArcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.refMutRelease(_147);
 	const _154: ArcReleasing.ArcReleasing = rs.arcMakeMut(rs.place(() => first, (value6) => first = value6), ArcReleasing.clone$Clone, rs.drop);
 	_154.id = _154.id ^ 64;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(first.value.id, first.strong & 0xff)));
+	const dst3 = out;
+	const byte6 = first.value.id;
+	const byte7 = first.strong & 0xff;
+	rs.byteVecReserve(dst3, 2 as rs.usize);
+	const pos3 = dst3.length;
+	dst3.data[pos3 + 0] = byte6;
+	dst3.data[pos3 + 1] = byte7;
+	dst3.length = dst3.length + 2;
 	const _170: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_170.value));
 	rs.refRelease(_170);
@@ -946,7 +972,16 @@ export function addressedRcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 		}
 		const at8 = rs.idx(strong.items, rs.usizeRem(pick, strong.items.length));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(strong.items[at8].value[0], strong.items[at8].value[1], strong.items[at8].strong & 0xff)));
+		const dst = out;
+		const byte = strong.items[at8].value[0];
+		const byte2 = strong.items[at8].value[1];
+		const byte3 = strong.items[at8].strong & 0xff;
+		rs.byteVecReserve(dst, 3 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = byte;
+		dst.data[pos + 1] = byte2;
+		dst.data[pos + 2] = byte3;
+		dst.length = dst.length + 3;
 	}
 	unit[Symbol.dispose]();
 	unread[Symbol.dispose]();
@@ -1360,7 +1395,7 @@ export function rcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const log: rs.Arc<rs.Mutex<rs.ByteVec>> = new rs.Arc(new rs.Mutex(new rs.ByteVec()));
 	const strong: rs.Vec<rs.Arc<Noisy.Noisy>> = new rs.Vec();
 	const weak: rs.Vec<rs.Weak<Noisy.Noisy>> = new rs.Vec();
-	l1: for (const op of rs.byteSliceView(data)) {
+	for (const op of rs.byteSliceView(data)) {
 		const pick: rs.usize = op >> 4 as rs.usize;
 		const _19: rs.u8 = rs.u8Rem(op, 12);
 		if (_19 === 0) {
@@ -1478,13 +1513,7 @@ export function rcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, _171.strong & 0xff);
 			rs.byteVecPush(out, _171.weak & 0xff);
 		}
-		const iterS3: rs.Weak<Noisy.Noisy>[] = weak.items;
-		let iterI3: number = 0;
-		while (true) {
-			const _184: rs.Weak<Noisy.Noisy> | rs.Done = iterI3 < iterS3.length ? iterS3[iterI3++] : rs.DONE;
-			if (_184 === rs.DONE) {
-				continue l1;
-			}
+		for (const _184 of weak.items) {
 			rs.byteVecPush(out, _184.arc.strong & 0xff);
 			rs.byteVecPush(out, rs.weakWeakCount(_184) & 0xff);
 		}
@@ -1605,13 +1634,29 @@ export function uniqueRcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			} else {
 				const pinned: rs.Arc<rs.u8> = new rs.Arc(op);
 				const held: rs.Arc<rs.u8> | undefined = rs.arcClone(strong.items[rs.idx(strong.items, pick)]);
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(pinned.value, option_unwrapOr$1fr498u(option_asDeref$1l62o5g(held), 251))));
+				const dst = out;
+				const byte = pinned.value;
+				const byte2 = option_unwrapOr$1fr498u(option_asDeref$1l62o5g(held), 251);
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = byte;
+				dst.data[pos + 1] = byte2;
+				dst.length = dst.length + 2;
 				rs.drop(held);
 				pinned[Symbol.dispose]();
 			}
 		}
 		const at8 = rs.idx(strong.items, rs.usizeRem(pick, strong.items.length));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(strong.items[at8].value, strong.items[at8].strong & 0xff, strong.items[at8].weak & 0xff)));
+		const dst2 = out;
+		const byte3 = strong.items[at8].value;
+		const byte4 = strong.items[at8].strong & 0xff;
+		const byte5 = strong.items[at8].weak & 0xff;
+		rs.byteVecReserve(dst2, 3 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = byte3;
+		dst2.data[pos2 + 1] = byte4;
+		dst2.data[pos2 + 2] = byte5;
+		dst2.length = dst2.length + 3;
 	}
 	for (const _110 of weak.items) {
 		rs.byteVecPush(out, option_mapOr$1gfk3jk(rs.weakUpgrade(_110), 253, (s: rs.Arc<rs.u8>): rs.u8 => {
@@ -1639,7 +1684,14 @@ export function uniqueRcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.refMutRelease(_147);
 	const _154: RcReleasing.RcReleasing = rs.arcMakeMut(rs.place(() => first, (value6) => first = value6), RcReleasing.clone$Clone, rs.drop);
 	_154.id = _154.id ^ 64;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(first.value.id, first.strong & 0xff)));
+	const dst3 = out;
+	const byte6 = first.value.id;
+	const byte7 = first.strong & 0xff;
+	rs.byteVecReserve(dst3, 2 as rs.usize);
+	const pos3 = dst3.length;
+	dst3.data[pos3 + 0] = byte6;
+	dst3.data[pos3 + 1] = byte7;
+	dst3.length = dst3.length + 2;
 	const _170: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_170.value));
 	rs.refRelease(_170);

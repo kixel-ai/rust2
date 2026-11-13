@@ -485,6 +485,12 @@ extension Native {
 		return try UnsafeBufferPointer(start: ptr, count: len).map(lift)
 	}
 
+	/// The C array of numbers Rust returned, copied whole.
+	static func block<T>(_ ptr: UnsafePointer<T>?, _ len: Int) -> [T] {
+		guard let ptr else { return [] }
+		return Array(UnsafeBufferPointer(start: ptr, count: len))
+	}
+
 	/// As `list`, of items Swift cannot copy.
 	static func unique<C, T: ~Copyable>(
 		_ ptr: UnsafePointer<C>?, _ len: Int, _ lift: (C) throws -> T
@@ -663,6 +669,14 @@ extension Native {
 			for (i, item) in items.enumerated() {
 				(array + i).initialize(to: try lower(item))
 			}
+			return (UnsafePointer(array), items.count)
+		}
+
+		/// `items`, numbers, as a C array copied whole: never null, as `list`'s.
+		func block<T>(_ items: [T]) -> (UnsafePointer<T>, Int) {
+			let array = UnsafeMutablePointer<T>.allocate(capacity: Swift.max(items.count, 1))
+			blocks.append(UnsafeMutableRawPointer(array))
+			_ = UnsafeMutableBufferPointer(start: array, count: items.count).initialize(from: items)
 			return (UnsafePointer(array), items.count)
 		}
 

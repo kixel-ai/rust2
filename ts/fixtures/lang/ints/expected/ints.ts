@@ -11,19 +11,6 @@ import * as Scaled from "./ints.Scaled.ts";
 
 /** Apply operation `op` to operands taken from `data`. */
 export function u8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v3: rs.u8): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3 as rs.u128)));
-		rs.byteVecPush(out2, rs.u8FromBeBytes(rs.u8ToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.u8 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u8 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.u8 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5 as rs.u128)));
-		}
-	};
 	const buf: Uint8Array = Uint8Array.of(0);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -41,6 +28,66 @@ export function u8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.u8 = ([rs.u8FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.u8, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 8);
+	const _68: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v3: rs.u8): undefined => {
+		const dst = out2;
+		const word = v3 as rs.u128;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
+		rs.byteVecPush(out2, rs.u8FromBeBytes(rs.u8ToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.u8 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u8 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.u8 = v4;
+			rs.byteVecPush(out3, 1);
+			const dst2 = out3;
+			const word6 = rs.intWord(v5 as rs.u128, 0);
+			const word7 = rs.intWord(v5 as rs.u128, 32);
+			const word8 = rs.intWord(v5 as rs.u128, 64);
+			const word9 = rs.intWord(v5 as rs.u128, 96);
+			rs.byteVecReserve(dst2, 16 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (word9 >>> 24) & 255;
+			dst2.data[pos2 + 1] = (word9 >>> 16) & 255;
+			dst2.data[pos2 + 2] = (word9 >>> 8) & 255;
+			dst2.data[pos2 + 3] = word9 & 255;
+			dst2.data[pos2 + 4] = (word8 >>> 24) & 255;
+			dst2.data[pos2 + 5] = (word8 >>> 16) & 255;
+			dst2.data[pos2 + 6] = (word8 >>> 8) & 255;
+			dst2.data[pos2 + 7] = word8 & 255;
+			dst2.data[pos2 + 8] = (word7 >>> 24) & 255;
+			dst2.data[pos2 + 9] = (word7 >>> 16) & 255;
+			dst2.data[pos2 + 10] = (word7 >>> 8) & 255;
+			dst2.data[pos2 + 11] = word7 & 255;
+			dst2.data[pos2 + 12] = (word6 >>> 24) & 255;
+			dst2.data[pos2 + 13] = (word6 >>> 16) & 255;
+			dst2.data[pos2 + 14] = (word6 >>> 8) & 255;
+			dst2.data[pos2 + 15] = word6 & 255;
+			dst2.length = dst2.length + 16;
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.u8Add(a, b));
@@ -86,9 +133,25 @@ export function u8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part10 = rs.u8WrappingSub(a, b);
 		_68(out, part10);
 	} else if (_70 === 18) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u8LeadingOnes(a))));
+		const dst3 = out;
+		const word10 = rs.u8LeadingOnes(a);
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (word10 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word10 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word10 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word10 & 255;
+		dst3.length = dst3.length + 4;
 	} else if (_70 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u8LeadingZeros(a))));
+		const dst4 = out;
+		const word11 = rs.u8LeadingZeros(a);
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word11 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word11 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word11 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word11 & 255;
+		dst4.length = dst4.length + 4;
 	} else if (_70 === 20) {
 		_68(out, rs.max(a, b));
 	} else if (_70 === 21) {
@@ -146,14 +209,38 @@ export function u8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const v2: rs.u8 = _229;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u8TrailingZeros(v2))));
+			const dst5 = out;
+			const word12 = rs.u8TrailingZeros(v2);
+			rs.byteVecReserve(dst5, 4 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = (word12 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word12 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word12 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word12 & 255;
+			dst5.length = dst5.length + 4;
 			const _238: rs.u8 | undefined = rs.nonZero(v2);
 			if (_238 === undefined) {
 				rs.byteVecPush(out, 255);
 			} else {
 				const n4: rs.u8 = _238;
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u8TrailingZeros(n4))));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u8LeadingZeros(n4))));
+				const dst6 = out;
+				const word13 = rs.u8TrailingZeros(n4);
+				rs.byteVecReserve(dst6, 4 as rs.usize);
+				const pos6 = dst6.length;
+				dst6.data[pos6 + 0] = (word13 >>> 24) & 255;
+				dst6.data[pos6 + 1] = (word13 >>> 16) & 255;
+				dst6.data[pos6 + 2] = (word13 >>> 8) & 255;
+				dst6.data[pos6 + 3] = word13 & 255;
+				dst6.length = dst6.length + 4;
+				const dst7 = out;
+				const word14 = rs.u8LeadingZeros(n4);
+				rs.byteVecReserve(dst7, 4 as rs.usize);
+				const pos7 = dst7.length;
+				dst7.data[pos7 + 0] = (word14 >>> 24) & 255;
+				dst7.data[pos7 + 1] = (word14 >>> 16) & 255;
+				dst7.data[pos7 + 2] = (word14 >>> 8) & 255;
+				dst7.data[pos7 + 3] = word14 & 255;
+				dst7.length = dst7.length + 4;
 			}
 		}
 	} else {
@@ -174,19 +261,6 @@ export function u8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function u16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v3: rs.u16): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3 as rs.u128)));
-		rs.byteVecPush(out2, rs.u16FromBeBytes(rs.u16ToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.u16 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u16 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.u16 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5 as rs.u128)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(2);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -204,6 +278,66 @@ export function u16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.u16 = ([rs.u16FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.u16, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 16);
+	const _68: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v3: rs.u16): undefined => {
+		const dst = out2;
+		const word = v3 as rs.u128;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
+		rs.byteVecPush(out2, rs.u16FromBeBytes(rs.u16ToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.u16 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u16 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.u16 = v4;
+			rs.byteVecPush(out3, 1);
+			const dst2 = out3;
+			const word6 = rs.intWord(v5 as rs.u128, 0);
+			const word7 = rs.intWord(v5 as rs.u128, 32);
+			const word8 = rs.intWord(v5 as rs.u128, 64);
+			const word9 = rs.intWord(v5 as rs.u128, 96);
+			rs.byteVecReserve(dst2, 16 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (word9 >>> 24) & 255;
+			dst2.data[pos2 + 1] = (word9 >>> 16) & 255;
+			dst2.data[pos2 + 2] = (word9 >>> 8) & 255;
+			dst2.data[pos2 + 3] = word9 & 255;
+			dst2.data[pos2 + 4] = (word8 >>> 24) & 255;
+			dst2.data[pos2 + 5] = (word8 >>> 16) & 255;
+			dst2.data[pos2 + 6] = (word8 >>> 8) & 255;
+			dst2.data[pos2 + 7] = word8 & 255;
+			dst2.data[pos2 + 8] = (word7 >>> 24) & 255;
+			dst2.data[pos2 + 9] = (word7 >>> 16) & 255;
+			dst2.data[pos2 + 10] = (word7 >>> 8) & 255;
+			dst2.data[pos2 + 11] = word7 & 255;
+			dst2.data[pos2 + 12] = (word6 >>> 24) & 255;
+			dst2.data[pos2 + 13] = (word6 >>> 16) & 255;
+			dst2.data[pos2 + 14] = (word6 >>> 8) & 255;
+			dst2.data[pos2 + 15] = word6 & 255;
+			dst2.length = dst2.length + 16;
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.u16Add(a, b));
@@ -249,9 +383,25 @@ export function u16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part10 = rs.u16WrappingSub(a, b);
 		_68(out, part10);
 	} else if (_70 === 18) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u16LeadingOnes(a))));
+		const dst3 = out;
+		const word10 = rs.u16LeadingOnes(a);
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (word10 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word10 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word10 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word10 & 255;
+		dst3.length = dst3.length + 4;
 	} else if (_70 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u16LeadingZeros(a))));
+		const dst4 = out;
+		const word11 = rs.u16LeadingZeros(a);
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word11 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word11 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word11 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word11 & 255;
+		dst4.length = dst4.length + 4;
 	} else if (_70 === 20) {
 		_68(out, rs.max(a, b));
 	} else if (_70 === 21) {
@@ -309,14 +459,38 @@ export function u16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const v2: rs.u16 = _229;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u16TrailingZeros(v2))));
+			const dst5 = out;
+			const word12 = rs.u16TrailingZeros(v2);
+			rs.byteVecReserve(dst5, 4 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = (word12 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word12 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word12 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word12 & 255;
+			dst5.length = dst5.length + 4;
 			const _238: rs.u16 | undefined = rs.nonZero(v2);
 			if (_238 === undefined) {
 				rs.byteVecPush(out, 255);
 			} else {
 				const n4: rs.u16 = _238;
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u16TrailingZeros(n4))));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u16LeadingZeros(n4))));
+				const dst6 = out;
+				const word13 = rs.u16TrailingZeros(n4);
+				rs.byteVecReserve(dst6, 4 as rs.usize);
+				const pos6 = dst6.length;
+				dst6.data[pos6 + 0] = (word13 >>> 24) & 255;
+				dst6.data[pos6 + 1] = (word13 >>> 16) & 255;
+				dst6.data[pos6 + 2] = (word13 >>> 8) & 255;
+				dst6.data[pos6 + 3] = word13 & 255;
+				dst6.length = dst6.length + 4;
+				const dst7 = out;
+				const word14 = rs.u16LeadingZeros(n4);
+				rs.byteVecReserve(dst7, 4 as rs.usize);
+				const pos7 = dst7.length;
+				dst7.data[pos7 + 0] = (word14 >>> 24) & 255;
+				dst7.data[pos7 + 1] = (word14 >>> 16) & 255;
+				dst7.data[pos7 + 2] = (word14 >>> 8) & 255;
+				dst7.data[pos7 + 3] = word14 & 255;
+				dst7.length = dst7.length + 4;
 			}
 		}
 	} else {
@@ -337,19 +511,6 @@ export function u16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function u32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v3: rs.u32): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3 as rs.u128)));
-		rs.byteVecPush(out2, rs.u32FromBeBytes(rs.u32ToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u32 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.u32 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5 as rs.u128)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(4);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -367,6 +528,66 @@ export function u32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.u32 = ([rs.u32FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.u32, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 32);
+	const _68: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v3: rs.u32): undefined => {
+		const dst = out2;
+		const word = v3 as rs.u128;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
+		rs.byteVecPush(out2, rs.u32FromBeBytes(rs.u32ToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.u32 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u32 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.u32 = v4;
+			rs.byteVecPush(out3, 1);
+			const dst2 = out3;
+			const word6 = rs.intWord(v5 as rs.u128, 0);
+			const word7 = rs.intWord(v5 as rs.u128, 32);
+			const word8 = rs.intWord(v5 as rs.u128, 64);
+			const word9 = rs.intWord(v5 as rs.u128, 96);
+			rs.byteVecReserve(dst2, 16 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (word9 >>> 24) & 255;
+			dst2.data[pos2 + 1] = (word9 >>> 16) & 255;
+			dst2.data[pos2 + 2] = (word9 >>> 8) & 255;
+			dst2.data[pos2 + 3] = word9 & 255;
+			dst2.data[pos2 + 4] = (word8 >>> 24) & 255;
+			dst2.data[pos2 + 5] = (word8 >>> 16) & 255;
+			dst2.data[pos2 + 6] = (word8 >>> 8) & 255;
+			dst2.data[pos2 + 7] = word8 & 255;
+			dst2.data[pos2 + 8] = (word7 >>> 24) & 255;
+			dst2.data[pos2 + 9] = (word7 >>> 16) & 255;
+			dst2.data[pos2 + 10] = (word7 >>> 8) & 255;
+			dst2.data[pos2 + 11] = word7 & 255;
+			dst2.data[pos2 + 12] = (word6 >>> 24) & 255;
+			dst2.data[pos2 + 13] = (word6 >>> 16) & 255;
+			dst2.data[pos2 + 14] = (word6 >>> 8) & 255;
+			dst2.data[pos2 + 15] = word6 & 255;
+			dst2.length = dst2.length + 16;
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.u32Add(a, b));
@@ -412,9 +633,25 @@ export function u32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part10 = rs.u32WrappingSub(a, b);
 		_68(out, part10);
 	} else if (_70 === 18) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u32LeadingOnes(a))));
+		const dst3 = out;
+		const word10 = rs.u32LeadingOnes(a);
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (word10 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word10 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word10 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word10 & 255;
+		dst3.length = dst3.length + 4;
 	} else if (_70 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u32LeadingZeros(a))));
+		const dst4 = out;
+		const word11 = rs.u32LeadingZeros(a);
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word11 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word11 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word11 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word11 & 255;
+		dst4.length = dst4.length + 4;
 	} else if (_70 === 20) {
 		_68(out, rs.max(a, b));
 	} else if (_70 === 21) {
@@ -472,14 +709,38 @@ export function u32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const v2: rs.u32 = _229;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u32TrailingZeros(v2))));
+			const dst5 = out;
+			const word12 = rs.u32TrailingZeros(v2);
+			rs.byteVecReserve(dst5, 4 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = (word12 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word12 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word12 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word12 & 255;
+			dst5.length = dst5.length + 4;
 			const _238: rs.u32 | undefined = rs.nonZero(v2);
 			if (_238 === undefined) {
 				rs.byteVecPush(out, 255);
 			} else {
 				const n4: rs.u32 = _238;
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u32TrailingZeros(n4))));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u32LeadingZeros(n4))));
+				const dst6 = out;
+				const word13 = rs.u32TrailingZeros(n4);
+				rs.byteVecReserve(dst6, 4 as rs.usize);
+				const pos6 = dst6.length;
+				dst6.data[pos6 + 0] = (word13 >>> 24) & 255;
+				dst6.data[pos6 + 1] = (word13 >>> 16) & 255;
+				dst6.data[pos6 + 2] = (word13 >>> 8) & 255;
+				dst6.data[pos6 + 3] = word13 & 255;
+				dst6.length = dst6.length + 4;
+				const dst7 = out;
+				const word14 = rs.u32LeadingZeros(n4);
+				rs.byteVecReserve(dst7, 4 as rs.usize);
+				const pos7 = dst7.length;
+				dst7.data[pos7 + 0] = (word14 >>> 24) & 255;
+				dst7.data[pos7 + 1] = (word14 >>> 16) & 255;
+				dst7.data[pos7 + 2] = (word14 >>> 8) & 255;
+				dst7.data[pos7 + 3] = word14 & 255;
+				dst7.length = dst7.length + 4;
 			}
 		}
 	} else {
@@ -500,19 +761,6 @@ export function u32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function u64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v3: rs.u64): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(rs.u128Cast(v3))));
-		rs.byteVecPush(out2, rs.u64Eq(rs.u64FromBeBytes(rs.u64ToBeBytes(v3)), v3) ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.u64 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u64 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.u64 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(rs.u128Cast(v5))));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(8);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -530,6 +778,67 @@ export function u64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.u64 = ([rs.u64FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.u64, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 64);
+	const _68: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v3: rs.u64): undefined => {
+		const dst = out2;
+		const word = rs.u128Cast(v3);
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
+		rs.byteVecPush(out2, rs.u64Eq(rs.u64FromBeBytes(rs.u64ToBeBytes(v3)), v3) ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.u64 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u64 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.u64 = v4;
+			rs.byteVecPush(out3, 1);
+			const dst2 = out3;
+			const word6 = rs.u128Cast(v5);
+			const word7 = rs.intWord(word6, 0);
+			const word8 = rs.intWord(word6, 32);
+			const word9 = rs.intWord(word6, 64);
+			const word10 = rs.intWord(word6, 96);
+			rs.byteVecReserve(dst2, 16 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (word10 >>> 24) & 255;
+			dst2.data[pos2 + 1] = (word10 >>> 16) & 255;
+			dst2.data[pos2 + 2] = (word10 >>> 8) & 255;
+			dst2.data[pos2 + 3] = word10 & 255;
+			dst2.data[pos2 + 4] = (word9 >>> 24) & 255;
+			dst2.data[pos2 + 5] = (word9 >>> 16) & 255;
+			dst2.data[pos2 + 6] = (word9 >>> 8) & 255;
+			dst2.data[pos2 + 7] = word9 & 255;
+			dst2.data[pos2 + 8] = (word8 >>> 24) & 255;
+			dst2.data[pos2 + 9] = (word8 >>> 16) & 255;
+			dst2.data[pos2 + 10] = (word8 >>> 8) & 255;
+			dst2.data[pos2 + 11] = word8 & 255;
+			dst2.data[pos2 + 12] = (word7 >>> 24) & 255;
+			dst2.data[pos2 + 13] = (word7 >>> 16) & 255;
+			dst2.data[pos2 + 14] = (word7 >>> 8) & 255;
+			dst2.data[pos2 + 15] = word7 & 255;
+			dst2.length = dst2.length + 16;
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.u64Add(a, b));
@@ -575,9 +884,25 @@ export function u64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part10 = rs.u64WrappingSub(a, b);
 		_68(out, part10);
 	} else if (_70 === 18) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u64LeadingOnes(a))));
+		const dst3 = out;
+		const word11 = rs.u64LeadingOnes(a);
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (word11 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word11 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word11 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word11 & 255;
+		dst3.length = dst3.length + 4;
 	} else if (_70 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u64LeadingZeros(a))));
+		const dst4 = out;
+		const word12 = rs.u64LeadingZeros(a);
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word12 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word12 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word12 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word12 & 255;
+		dst4.length = dst4.length + 4;
 	} else if (_70 === 20) {
 		_68(out, rs.u64Max(a, b));
 	} else if (_70 === 21) {
@@ -635,14 +960,38 @@ export function u64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const v2: rs.u64 = _229;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u64TrailingZeros(v2))));
+			const dst5 = out;
+			const word13 = rs.u64TrailingZeros(v2);
+			rs.byteVecReserve(dst5, 4 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = (word13 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word13 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word13 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word13 & 255;
+			dst5.length = dst5.length + 4;
 			const _238: rs.u64 | undefined = rs.nonZero(v2);
 			if (_238 === undefined) {
 				rs.byteVecPush(out, 255);
 			} else {
 				const n4: rs.u64 = _238;
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u64TrailingZeros(n4))));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u64LeadingZeros(n4))));
+				const dst6 = out;
+				const word14 = rs.u64TrailingZeros(n4);
+				rs.byteVecReserve(dst6, 4 as rs.usize);
+				const pos6 = dst6.length;
+				dst6.data[pos6 + 0] = (word14 >>> 24) & 255;
+				dst6.data[pos6 + 1] = (word14 >>> 16) & 255;
+				dst6.data[pos6 + 2] = (word14 >>> 8) & 255;
+				dst6.data[pos6 + 3] = word14 & 255;
+				dst6.length = dst6.length + 4;
+				const dst7 = out;
+				const word15 = rs.u64LeadingZeros(n4);
+				rs.byteVecReserve(dst7, 4 as rs.usize);
+				const pos7 = dst7.length;
+				dst7.data[pos7 + 0] = (word15 >>> 24) & 255;
+				dst7.data[pos7 + 1] = (word15 >>> 16) & 255;
+				dst7.data[pos7 + 2] = (word15 >>> 8) & 255;
+				dst7.data[pos7 + 3] = word15 & 255;
+				dst7.length = dst7.length + 4;
 			}
 		}
 	} else {
@@ -663,19 +1012,6 @@ export function u64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function u128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v3: rs.u128): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3)));
-		rs.byteVecPush(out2, rs.u128Eq(rs.u128FromBeBytes(rs.u128ToBeBytes(v3)), v3) ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.u128 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u128 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.u128 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(16);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -693,6 +1029,66 @@ export function u128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.u128 = ([rs.u128FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.u128, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 128);
+	const _68: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v3: rs.u128): undefined => {
+		const dst = out2;
+		const word = v3;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
+		rs.byteVecPush(out2, rs.u128Eq(rs.u128FromBeBytes(rs.u128ToBeBytes(v3)), v3) ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.u128 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.u128 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.u128 = v4;
+			rs.byteVecPush(out3, 1);
+			const dst2 = out3;
+			const word6 = rs.intWord(v5, 0);
+			const word7 = rs.intWord(v5, 32);
+			const word8 = rs.intWord(v5, 64);
+			const word9 = rs.intWord(v5, 96);
+			rs.byteVecReserve(dst2, 16 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (word9 >>> 24) & 255;
+			dst2.data[pos2 + 1] = (word9 >>> 16) & 255;
+			dst2.data[pos2 + 2] = (word9 >>> 8) & 255;
+			dst2.data[pos2 + 3] = word9 & 255;
+			dst2.data[pos2 + 4] = (word8 >>> 24) & 255;
+			dst2.data[pos2 + 5] = (word8 >>> 16) & 255;
+			dst2.data[pos2 + 6] = (word8 >>> 8) & 255;
+			dst2.data[pos2 + 7] = word8 & 255;
+			dst2.data[pos2 + 8] = (word7 >>> 24) & 255;
+			dst2.data[pos2 + 9] = (word7 >>> 16) & 255;
+			dst2.data[pos2 + 10] = (word7 >>> 8) & 255;
+			dst2.data[pos2 + 11] = word7 & 255;
+			dst2.data[pos2 + 12] = (word6 >>> 24) & 255;
+			dst2.data[pos2 + 13] = (word6 >>> 16) & 255;
+			dst2.data[pos2 + 14] = (word6 >>> 8) & 255;
+			dst2.data[pos2 + 15] = word6 & 255;
+			dst2.length = dst2.length + 16;
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.u128Add(a, b));
@@ -738,9 +1134,25 @@ export function u128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part10 = rs.u128WrappingSub(a, b);
 		_68(out, part10);
 	} else if (_70 === 18) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u128LeadingOnes(a))));
+		const dst3 = out;
+		const word10 = rs.u128LeadingOnes(a);
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (word10 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word10 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word10 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word10 & 255;
+		dst3.length = dst3.length + 4;
 	} else if (_70 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u128LeadingZeros(a))));
+		const dst4 = out;
+		const word11 = rs.u128LeadingZeros(a);
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word11 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word11 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word11 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word11 & 255;
+		dst4.length = dst4.length + 4;
 	} else if (_70 === 20) {
 		_68(out, rs.u128Max(a, b));
 	} else if (_70 === 21) {
@@ -798,14 +1210,38 @@ export function u128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const v2: rs.u128 = _229;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u128TrailingZeros(v2))));
+			const dst5 = out;
+			const word12 = rs.u128TrailingZeros(v2);
+			rs.byteVecReserve(dst5, 4 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = (word12 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word12 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word12 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word12 & 255;
+			dst5.length = dst5.length + 4;
 			const _238: rs.u128 | undefined = rs.nonZero(v2);
 			if (_238 === undefined) {
 				rs.byteVecPush(out, 255);
 			} else {
 				const n4: rs.u128 = _238;
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u128TrailingZeros(n4))));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u128LeadingZeros(n4))));
+				const dst6 = out;
+				const word13 = rs.u128TrailingZeros(n4);
+				rs.byteVecReserve(dst6, 4 as rs.usize);
+				const pos6 = dst6.length;
+				dst6.data[pos6 + 0] = (word13 >>> 24) & 255;
+				dst6.data[pos6 + 1] = (word13 >>> 16) & 255;
+				dst6.data[pos6 + 2] = (word13 >>> 8) & 255;
+				dst6.data[pos6 + 3] = word13 & 255;
+				dst6.length = dst6.length + 4;
+				const dst7 = out;
+				const word14 = rs.u128LeadingZeros(n4);
+				rs.byteVecReserve(dst7, 4 as rs.usize);
+				const pos7 = dst7.length;
+				dst7.data[pos7 + 0] = (word14 >>> 24) & 255;
+				dst7.data[pos7 + 1] = (word14 >>> 16) & 255;
+				dst7.data[pos7 + 2] = (word14 >>> 8) & 255;
+				dst7.data[pos7 + 3] = word14 & 255;
+				dst7.length = dst7.length + 4;
 			}
 		}
 	} else {
@@ -826,19 +1262,6 @@ export function u128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function usizeOp(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v3: rs.usize): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u128ToBeBytes(v3 as rs.u128)));
-		rs.byteVecPush(out2, rs.usizeFromBeBytes(rs.usizeToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.usize | undefined) => undefined = (out3: rs.ByteVec, v4: rs.usize | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.usize = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.u128ToBeBytes(v5 as rs.u128)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(4);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -856,6 +1279,66 @@ export function usizeOp(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.usize = ([rs.usizeFromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.usize, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 32);
+	const _68: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v3: rs.usize): undefined => {
+		const dst = out2;
+		const word = v3 as rs.u128;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
+		rs.byteVecPush(out2, rs.usizeFromBeBytes(rs.usizeToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.usize | undefined) => undefined = (out3: rs.ByteVec, v4: rs.usize | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.usize = v4;
+			rs.byteVecPush(out3, 1);
+			const dst2 = out3;
+			const word6 = rs.intWord(v5 as rs.u128, 0);
+			const word7 = rs.intWord(v5 as rs.u128, 32);
+			const word8 = rs.intWord(v5 as rs.u128, 64);
+			const word9 = rs.intWord(v5 as rs.u128, 96);
+			rs.byteVecReserve(dst2, 16 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (word9 >>> 24) & 255;
+			dst2.data[pos2 + 1] = (word9 >>> 16) & 255;
+			dst2.data[pos2 + 2] = (word9 >>> 8) & 255;
+			dst2.data[pos2 + 3] = word9 & 255;
+			dst2.data[pos2 + 4] = (word8 >>> 24) & 255;
+			dst2.data[pos2 + 5] = (word8 >>> 16) & 255;
+			dst2.data[pos2 + 6] = (word8 >>> 8) & 255;
+			dst2.data[pos2 + 7] = word8 & 255;
+			dst2.data[pos2 + 8] = (word7 >>> 24) & 255;
+			dst2.data[pos2 + 9] = (word7 >>> 16) & 255;
+			dst2.data[pos2 + 10] = (word7 >>> 8) & 255;
+			dst2.data[pos2 + 11] = word7 & 255;
+			dst2.data[pos2 + 12] = (word6 >>> 24) & 255;
+			dst2.data[pos2 + 13] = (word6 >>> 16) & 255;
+			dst2.data[pos2 + 14] = (word6 >>> 8) & 255;
+			dst2.data[pos2 + 15] = word6 & 255;
+			dst2.length = dst2.length + 16;
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.usizeAdd(a, b));
@@ -901,9 +1384,25 @@ export function usizeOp(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part10 = rs.usizeWrappingSub(a, b);
 		_68(out, part10);
 	} else if (_70 === 18) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.usizeLeadingOnes(a))));
+		const dst3 = out;
+		const word10 = rs.usizeLeadingOnes(a);
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (word10 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word10 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word10 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word10 & 255;
+		dst3.length = dst3.length + 4;
 	} else if (_70 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.usizeLeadingZeros(a))));
+		const dst4 = out;
+		const word11 = rs.usizeLeadingZeros(a);
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word11 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word11 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word11 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word11 & 255;
+		dst4.length = dst4.length + 4;
 	} else if (_70 === 20) {
 		_68(out, rs.max(a, b));
 	} else if (_70 === 21) {
@@ -961,14 +1460,38 @@ export function usizeOp(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const v2: rs.usize = _229;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.usizeTrailingZeros(v2))));
+			const dst5 = out;
+			const word12 = rs.usizeTrailingZeros(v2);
+			rs.byteVecReserve(dst5, 4 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = (word12 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word12 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word12 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word12 & 255;
+			dst5.length = dst5.length + 4;
 			const _238: rs.usize | undefined = rs.nonZero(v2);
 			if (_238 === undefined) {
 				rs.byteVecPush(out, 255);
 			} else {
 				const n4: rs.usize = _238;
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.usizeTrailingZeros(n4))));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.usizeLeadingZeros(n4))));
+				const dst6 = out;
+				const word13 = rs.usizeTrailingZeros(n4);
+				rs.byteVecReserve(dst6, 4 as rs.usize);
+				const pos6 = dst6.length;
+				dst6.data[pos6 + 0] = (word13 >>> 24) & 255;
+				dst6.data[pos6 + 1] = (word13 >>> 16) & 255;
+				dst6.data[pos6 + 2] = (word13 >>> 8) & 255;
+				dst6.data[pos6 + 3] = word13 & 255;
+				dst6.length = dst6.length + 4;
+				const dst7 = out;
+				const word14 = rs.usizeLeadingZeros(n4);
+				rs.byteVecReserve(dst7, 4 as rs.usize);
+				const pos7 = dst7.length;
+				dst7.data[pos7 + 0] = (word14 >>> 24) & 255;
+				dst7.data[pos7 + 1] = (word14 >>> 16) & 255;
+				dst7.data[pos7 + 2] = (word14 >>> 8) & 255;
+				dst7.data[pos7 + 3] = word14 & 255;
+				dst7.length = dst7.length + 4;
 			}
 		}
 	} else {
@@ -989,19 +1512,6 @@ export function usizeOp(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function i8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v3: rs.i8): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3 as rs.i128)));
-		rs.byteVecPush(out2, rs.i8FromBeBytes(rs.i8ToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.i8 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i8 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.i8 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5 as rs.i128)));
-		}
-	};
 	const buf: Uint8Array = Uint8Array.of(0);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -1019,6 +1529,66 @@ export function i8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.i8 = ([rs.i8FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.i8, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 8);
+	const _68: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v3: rs.i8): undefined => {
+		const dst = out2;
+		const word = v3 as rs.i128;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
+		rs.byteVecPush(out2, rs.i8FromBeBytes(rs.i8ToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.i8 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i8 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.i8 = v4;
+			rs.byteVecPush(out3, 1);
+			const dst2 = out3;
+			const word6 = rs.intWord(v5 as rs.i128, 0);
+			const word7 = rs.intWord(v5 as rs.i128, 32);
+			const word8 = rs.intWord(v5 as rs.i128, 64);
+			const word9 = rs.intWord(v5 as rs.i128, 96);
+			rs.byteVecReserve(dst2, 16 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (word9 >>> 24) & 255;
+			dst2.data[pos2 + 1] = (word9 >>> 16) & 255;
+			dst2.data[pos2 + 2] = (word9 >>> 8) & 255;
+			dst2.data[pos2 + 3] = word9 & 255;
+			dst2.data[pos2 + 4] = (word8 >>> 24) & 255;
+			dst2.data[pos2 + 5] = (word8 >>> 16) & 255;
+			dst2.data[pos2 + 6] = (word8 >>> 8) & 255;
+			dst2.data[pos2 + 7] = word8 & 255;
+			dst2.data[pos2 + 8] = (word7 >>> 24) & 255;
+			dst2.data[pos2 + 9] = (word7 >>> 16) & 255;
+			dst2.data[pos2 + 10] = (word7 >>> 8) & 255;
+			dst2.data[pos2 + 11] = word7 & 255;
+			dst2.data[pos2 + 12] = (word6 >>> 24) & 255;
+			dst2.data[pos2 + 13] = (word6 >>> 16) & 255;
+			dst2.data[pos2 + 14] = (word6 >>> 8) & 255;
+			dst2.data[pos2 + 15] = word6 & 255;
+			dst2.length = dst2.length + 16;
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.i8Add(a, b));
@@ -1064,9 +1634,25 @@ export function i8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part10 = rs.i8WrappingSub(a, b);
 		_68(out, part10);
 	} else if (_70 === 18) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i8LeadingOnes(a))));
+		const dst3 = out;
+		const word10 = rs.i8LeadingOnes(a);
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (word10 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word10 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word10 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word10 & 255;
+		dst3.length = dst3.length + 4;
 	} else if (_70 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i8LeadingZeros(a))));
+		const dst4 = out;
+		const word11 = rs.i8LeadingZeros(a);
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word11 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word11 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word11 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word11 & 255;
+		dst4.length = dst4.length + 4;
 	} else if (_70 === 20) {
 		_68(out, rs.max(a, b));
 	} else if (_70 === 21) {
@@ -1124,14 +1710,38 @@ export function i8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const v2: rs.i8 = _233;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i8TrailingZeros(v2))));
+			const dst5 = out;
+			const word12 = rs.i8TrailingZeros(v2);
+			rs.byteVecReserve(dst5, 4 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = (word12 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word12 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word12 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word12 & 255;
+			dst5.length = dst5.length + 4;
 			const _242: rs.i8 | undefined = rs.nonZero(v2);
 			if (_242 === undefined) {
 				rs.byteVecPush(out, 255);
 			} else {
 				const n4: rs.i8 = _242;
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i8TrailingZeros(n4))));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i8LeadingZeros(n4))));
+				const dst6 = out;
+				const word13 = rs.i8TrailingZeros(n4);
+				rs.byteVecReserve(dst6, 4 as rs.usize);
+				const pos6 = dst6.length;
+				dst6.data[pos6 + 0] = (word13 >>> 24) & 255;
+				dst6.data[pos6 + 1] = (word13 >>> 16) & 255;
+				dst6.data[pos6 + 2] = (word13 >>> 8) & 255;
+				dst6.data[pos6 + 3] = word13 & 255;
+				dst6.length = dst6.length + 4;
+				const dst7 = out;
+				const word14 = rs.i8LeadingZeros(n4);
+				rs.byteVecReserve(dst7, 4 as rs.usize);
+				const pos7 = dst7.length;
+				dst7.data[pos7 + 0] = (word14 >>> 24) & 255;
+				dst7.data[pos7 + 1] = (word14 >>> 16) & 255;
+				dst7.data[pos7 + 2] = (word14 >>> 8) & 255;
+				dst7.data[pos7 + 3] = word14 & 255;
+				dst7.length = dst7.length + 4;
 			}
 		}
 	} else {
@@ -1152,19 +1762,6 @@ export function i8Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function i16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v3: rs.i16): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3 as rs.i128)));
-		rs.byteVecPush(out2, rs.i16FromBeBytes(rs.i16ToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.i16 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i16 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.i16 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5 as rs.i128)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(2);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -1182,6 +1779,66 @@ export function i16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.i16 = ([rs.i16FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.i16, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 16);
+	const _68: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v3: rs.i16): undefined => {
+		const dst = out2;
+		const word = v3 as rs.i128;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
+		rs.byteVecPush(out2, rs.i16FromBeBytes(rs.i16ToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.i16 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i16 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.i16 = v4;
+			rs.byteVecPush(out3, 1);
+			const dst2 = out3;
+			const word6 = rs.intWord(v5 as rs.i128, 0);
+			const word7 = rs.intWord(v5 as rs.i128, 32);
+			const word8 = rs.intWord(v5 as rs.i128, 64);
+			const word9 = rs.intWord(v5 as rs.i128, 96);
+			rs.byteVecReserve(dst2, 16 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (word9 >>> 24) & 255;
+			dst2.data[pos2 + 1] = (word9 >>> 16) & 255;
+			dst2.data[pos2 + 2] = (word9 >>> 8) & 255;
+			dst2.data[pos2 + 3] = word9 & 255;
+			dst2.data[pos2 + 4] = (word8 >>> 24) & 255;
+			dst2.data[pos2 + 5] = (word8 >>> 16) & 255;
+			dst2.data[pos2 + 6] = (word8 >>> 8) & 255;
+			dst2.data[pos2 + 7] = word8 & 255;
+			dst2.data[pos2 + 8] = (word7 >>> 24) & 255;
+			dst2.data[pos2 + 9] = (word7 >>> 16) & 255;
+			dst2.data[pos2 + 10] = (word7 >>> 8) & 255;
+			dst2.data[pos2 + 11] = word7 & 255;
+			dst2.data[pos2 + 12] = (word6 >>> 24) & 255;
+			dst2.data[pos2 + 13] = (word6 >>> 16) & 255;
+			dst2.data[pos2 + 14] = (word6 >>> 8) & 255;
+			dst2.data[pos2 + 15] = word6 & 255;
+			dst2.length = dst2.length + 16;
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.i16Add(a, b));
@@ -1227,9 +1884,25 @@ export function i16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part10 = rs.i16WrappingSub(a, b);
 		_68(out, part10);
 	} else if (_70 === 18) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i16LeadingOnes(a))));
+		const dst3 = out;
+		const word10 = rs.i16LeadingOnes(a);
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (word10 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word10 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word10 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word10 & 255;
+		dst3.length = dst3.length + 4;
 	} else if (_70 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i16LeadingZeros(a))));
+		const dst4 = out;
+		const word11 = rs.i16LeadingZeros(a);
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word11 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word11 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word11 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word11 & 255;
+		dst4.length = dst4.length + 4;
 	} else if (_70 === 20) {
 		_68(out, rs.max(a, b));
 	} else if (_70 === 21) {
@@ -1287,14 +1960,38 @@ export function i16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const v2: rs.i16 = _233;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i16TrailingZeros(v2))));
+			const dst5 = out;
+			const word12 = rs.i16TrailingZeros(v2);
+			rs.byteVecReserve(dst5, 4 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = (word12 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word12 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word12 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word12 & 255;
+			dst5.length = dst5.length + 4;
 			const _242: rs.i16 | undefined = rs.nonZero(v2);
 			if (_242 === undefined) {
 				rs.byteVecPush(out, 255);
 			} else {
 				const n4: rs.i16 = _242;
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i16TrailingZeros(n4))));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i16LeadingZeros(n4))));
+				const dst6 = out;
+				const word13 = rs.i16TrailingZeros(n4);
+				rs.byteVecReserve(dst6, 4 as rs.usize);
+				const pos6 = dst6.length;
+				dst6.data[pos6 + 0] = (word13 >>> 24) & 255;
+				dst6.data[pos6 + 1] = (word13 >>> 16) & 255;
+				dst6.data[pos6 + 2] = (word13 >>> 8) & 255;
+				dst6.data[pos6 + 3] = word13 & 255;
+				dst6.length = dst6.length + 4;
+				const dst7 = out;
+				const word14 = rs.i16LeadingZeros(n4);
+				rs.byteVecReserve(dst7, 4 as rs.usize);
+				const pos7 = dst7.length;
+				dst7.data[pos7 + 0] = (word14 >>> 24) & 255;
+				dst7.data[pos7 + 1] = (word14 >>> 16) & 255;
+				dst7.data[pos7 + 2] = (word14 >>> 8) & 255;
+				dst7.data[pos7 + 3] = word14 & 255;
+				dst7.length = dst7.length + 4;
 			}
 		}
 	} else {
@@ -1315,19 +2012,6 @@ export function i16Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function i32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v3: rs.i32): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3 as rs.i128)));
-		rs.byteVecPush(out2, rs.i32FromBeBytes(rs.i32ToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.i32 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i32 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.i32 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5 as rs.i128)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(4);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -1345,6 +2029,66 @@ export function i32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.i32 = ([rs.i32FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.i32, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 32);
+	const _68: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v3: rs.i32): undefined => {
+		const dst = out2;
+		const word = v3 as rs.i128;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
+		rs.byteVecPush(out2, rs.i32FromBeBytes(rs.i32ToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.i32 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i32 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.i32 = v4;
+			rs.byteVecPush(out3, 1);
+			const dst2 = out3;
+			const word6 = rs.intWord(v5 as rs.i128, 0);
+			const word7 = rs.intWord(v5 as rs.i128, 32);
+			const word8 = rs.intWord(v5 as rs.i128, 64);
+			const word9 = rs.intWord(v5 as rs.i128, 96);
+			rs.byteVecReserve(dst2, 16 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (word9 >>> 24) & 255;
+			dst2.data[pos2 + 1] = (word9 >>> 16) & 255;
+			dst2.data[pos2 + 2] = (word9 >>> 8) & 255;
+			dst2.data[pos2 + 3] = word9 & 255;
+			dst2.data[pos2 + 4] = (word8 >>> 24) & 255;
+			dst2.data[pos2 + 5] = (word8 >>> 16) & 255;
+			dst2.data[pos2 + 6] = (word8 >>> 8) & 255;
+			dst2.data[pos2 + 7] = word8 & 255;
+			dst2.data[pos2 + 8] = (word7 >>> 24) & 255;
+			dst2.data[pos2 + 9] = (word7 >>> 16) & 255;
+			dst2.data[pos2 + 10] = (word7 >>> 8) & 255;
+			dst2.data[pos2 + 11] = word7 & 255;
+			dst2.data[pos2 + 12] = (word6 >>> 24) & 255;
+			dst2.data[pos2 + 13] = (word6 >>> 16) & 255;
+			dst2.data[pos2 + 14] = (word6 >>> 8) & 255;
+			dst2.data[pos2 + 15] = word6 & 255;
+			dst2.length = dst2.length + 16;
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.i32Add(a, b));
@@ -1390,9 +2134,25 @@ export function i32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part10 = rs.i32WrappingSub(a, b);
 		_68(out, part10);
 	} else if (_70 === 18) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i32LeadingOnes(a))));
+		const dst3 = out;
+		const word10 = rs.i32LeadingOnes(a);
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (word10 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word10 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word10 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word10 & 255;
+		dst3.length = dst3.length + 4;
 	} else if (_70 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i32LeadingZeros(a))));
+		const dst4 = out;
+		const word11 = rs.i32LeadingZeros(a);
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word11 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word11 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word11 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word11 & 255;
+		dst4.length = dst4.length + 4;
 	} else if (_70 === 20) {
 		_68(out, rs.max(a, b));
 	} else if (_70 === 21) {
@@ -1450,14 +2210,38 @@ export function i32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const v2: rs.i32 = _233;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i32TrailingZeros(v2))));
+			const dst5 = out;
+			const word12 = rs.i32TrailingZeros(v2);
+			rs.byteVecReserve(dst5, 4 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = (word12 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word12 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word12 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word12 & 255;
+			dst5.length = dst5.length + 4;
 			const _242: rs.i32 | undefined = rs.nonZero(v2);
 			if (_242 === undefined) {
 				rs.byteVecPush(out, 255);
 			} else {
 				const n4: rs.i32 = _242;
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i32TrailingZeros(n4))));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i32LeadingZeros(n4))));
+				const dst6 = out;
+				const word13 = rs.i32TrailingZeros(n4);
+				rs.byteVecReserve(dst6, 4 as rs.usize);
+				const pos6 = dst6.length;
+				dst6.data[pos6 + 0] = (word13 >>> 24) & 255;
+				dst6.data[pos6 + 1] = (word13 >>> 16) & 255;
+				dst6.data[pos6 + 2] = (word13 >>> 8) & 255;
+				dst6.data[pos6 + 3] = word13 & 255;
+				dst6.length = dst6.length + 4;
+				const dst7 = out;
+				const word14 = rs.i32LeadingZeros(n4);
+				rs.byteVecReserve(dst7, 4 as rs.usize);
+				const pos7 = dst7.length;
+				dst7.data[pos7 + 0] = (word14 >>> 24) & 255;
+				dst7.data[pos7 + 1] = (word14 >>> 16) & 255;
+				dst7.data[pos7 + 2] = (word14 >>> 8) & 255;
+				dst7.data[pos7 + 3] = word14 & 255;
+				dst7.length = dst7.length + 4;
 			}
 		}
 	} else {
@@ -1478,19 +2262,6 @@ export function i32Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function i64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v3: rs.i64): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(rs.i128Cast(v3))));
-		rs.byteVecPush(out2, rs.i64Eq(rs.i64FromBeBytes(rs.i64ToBeBytes(v3)), v3) ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.i64 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i64 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.i64 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(rs.i128Cast(v5))));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(8);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -1508,6 +2279,67 @@ export function i64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.i64 = ([rs.i64FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.i64, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 64);
+	const _68: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v3: rs.i64): undefined => {
+		const dst = out2;
+		const word = rs.i128Cast(v3);
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
+		rs.byteVecPush(out2, rs.i64Eq(rs.i64FromBeBytes(rs.i64ToBeBytes(v3)), v3) ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.i64 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i64 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.i64 = v4;
+			rs.byteVecPush(out3, 1);
+			const dst2 = out3;
+			const word6 = rs.i128Cast(v5);
+			const word7 = rs.intWord(word6, 0);
+			const word8 = rs.intWord(word6, 32);
+			const word9 = rs.intWord(word6, 64);
+			const word10 = rs.intWord(word6, 96);
+			rs.byteVecReserve(dst2, 16 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (word10 >>> 24) & 255;
+			dst2.data[pos2 + 1] = (word10 >>> 16) & 255;
+			dst2.data[pos2 + 2] = (word10 >>> 8) & 255;
+			dst2.data[pos2 + 3] = word10 & 255;
+			dst2.data[pos2 + 4] = (word9 >>> 24) & 255;
+			dst2.data[pos2 + 5] = (word9 >>> 16) & 255;
+			dst2.data[pos2 + 6] = (word9 >>> 8) & 255;
+			dst2.data[pos2 + 7] = word9 & 255;
+			dst2.data[pos2 + 8] = (word8 >>> 24) & 255;
+			dst2.data[pos2 + 9] = (word8 >>> 16) & 255;
+			dst2.data[pos2 + 10] = (word8 >>> 8) & 255;
+			dst2.data[pos2 + 11] = word8 & 255;
+			dst2.data[pos2 + 12] = (word7 >>> 24) & 255;
+			dst2.data[pos2 + 13] = (word7 >>> 16) & 255;
+			dst2.data[pos2 + 14] = (word7 >>> 8) & 255;
+			dst2.data[pos2 + 15] = word7 & 255;
+			dst2.length = dst2.length + 16;
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.i64Add(a, b));
@@ -1553,9 +2385,25 @@ export function i64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part10 = rs.i64WrappingSub(a, b);
 		_68(out, part10);
 	} else if (_70 === 18) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i64LeadingOnes(a))));
+		const dst3 = out;
+		const word11 = rs.i64LeadingOnes(a);
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (word11 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word11 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word11 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word11 & 255;
+		dst3.length = dst3.length + 4;
 	} else if (_70 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i64LeadingZeros(a))));
+		const dst4 = out;
+		const word12 = rs.i64LeadingZeros(a);
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word12 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word12 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word12 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word12 & 255;
+		dst4.length = dst4.length + 4;
 	} else if (_70 === 20) {
 		_68(out, rs.i64Max(a, b));
 	} else if (_70 === 21) {
@@ -1613,14 +2461,38 @@ export function i64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const v2: rs.i64 = _233;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i64TrailingZeros(v2))));
+			const dst5 = out;
+			const word13 = rs.i64TrailingZeros(v2);
+			rs.byteVecReserve(dst5, 4 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = (word13 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word13 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word13 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word13 & 255;
+			dst5.length = dst5.length + 4;
 			const _242: rs.i64 | undefined = rs.nonZero(v2);
 			if (_242 === undefined) {
 				rs.byteVecPush(out, 255);
 			} else {
 				const n4: rs.i64 = _242;
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i64TrailingZeros(n4))));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i64LeadingZeros(n4))));
+				const dst6 = out;
+				const word14 = rs.i64TrailingZeros(n4);
+				rs.byteVecReserve(dst6, 4 as rs.usize);
+				const pos6 = dst6.length;
+				dst6.data[pos6 + 0] = (word14 >>> 24) & 255;
+				dst6.data[pos6 + 1] = (word14 >>> 16) & 255;
+				dst6.data[pos6 + 2] = (word14 >>> 8) & 255;
+				dst6.data[pos6 + 3] = word14 & 255;
+				dst6.length = dst6.length + 4;
+				const dst7 = out;
+				const word15 = rs.i64LeadingZeros(n4);
+				rs.byteVecReserve(dst7, 4 as rs.usize);
+				const pos7 = dst7.length;
+				dst7.data[pos7 + 0] = (word15 >>> 24) & 255;
+				dst7.data[pos7 + 1] = (word15 >>> 16) & 255;
+				dst7.data[pos7 + 2] = (word15 >>> 8) & 255;
+				dst7.data[pos7 + 3] = word15 & 255;
+				dst7.length = dst7.length + 4;
 			}
 		}
 	} else {
@@ -1641,19 +2513,6 @@ export function i64Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function i128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v3: rs.i128): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3)));
-		rs.byteVecPush(out2, rs.i128Eq(rs.i128FromBeBytes(rs.i128ToBeBytes(v3)), v3) ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.i128 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i128 | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.i128 = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(16);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -1671,6 +2530,66 @@ export function i128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.i128 = ([rs.i128FromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.i128, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 128);
+	const _68: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v3: rs.i128): undefined => {
+		const dst = out2;
+		const word = v3;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
+		rs.byteVecPush(out2, rs.i128Eq(rs.i128FromBeBytes(rs.i128ToBeBytes(v3)), v3) ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.i128 | undefined) => undefined = (out3: rs.ByteVec, v4: rs.i128 | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.i128 = v4;
+			rs.byteVecPush(out3, 1);
+			const dst2 = out3;
+			const word6 = rs.intWord(v5, 0);
+			const word7 = rs.intWord(v5, 32);
+			const word8 = rs.intWord(v5, 64);
+			const word9 = rs.intWord(v5, 96);
+			rs.byteVecReserve(dst2, 16 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (word9 >>> 24) & 255;
+			dst2.data[pos2 + 1] = (word9 >>> 16) & 255;
+			dst2.data[pos2 + 2] = (word9 >>> 8) & 255;
+			dst2.data[pos2 + 3] = word9 & 255;
+			dst2.data[pos2 + 4] = (word8 >>> 24) & 255;
+			dst2.data[pos2 + 5] = (word8 >>> 16) & 255;
+			dst2.data[pos2 + 6] = (word8 >>> 8) & 255;
+			dst2.data[pos2 + 7] = word8 & 255;
+			dst2.data[pos2 + 8] = (word7 >>> 24) & 255;
+			dst2.data[pos2 + 9] = (word7 >>> 16) & 255;
+			dst2.data[pos2 + 10] = (word7 >>> 8) & 255;
+			dst2.data[pos2 + 11] = word7 & 255;
+			dst2.data[pos2 + 12] = (word6 >>> 24) & 255;
+			dst2.data[pos2 + 13] = (word6 >>> 16) & 255;
+			dst2.data[pos2 + 14] = (word6 >>> 8) & 255;
+			dst2.data[pos2 + 15] = word6 & 255;
+			dst2.length = dst2.length + 16;
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.i128Add(a, b));
@@ -1716,9 +2635,25 @@ export function i128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part10 = rs.i128WrappingSub(a, b);
 		_68(out, part10);
 	} else if (_70 === 18) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i128LeadingOnes(a))));
+		const dst3 = out;
+		const word10 = rs.i128LeadingOnes(a);
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (word10 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word10 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word10 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word10 & 255;
+		dst3.length = dst3.length + 4;
 	} else if (_70 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i128LeadingZeros(a))));
+		const dst4 = out;
+		const word11 = rs.i128LeadingZeros(a);
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word11 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word11 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word11 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word11 & 255;
+		dst4.length = dst4.length + 4;
 	} else if (_70 === 20) {
 		_68(out, rs.i128Max(a, b));
 	} else if (_70 === 21) {
@@ -1776,14 +2711,38 @@ export function i128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const v2: rs.i128 = _233;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i128TrailingZeros(v2))));
+			const dst5 = out;
+			const word12 = rs.i128TrailingZeros(v2);
+			rs.byteVecReserve(dst5, 4 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = (word12 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word12 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word12 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word12 & 255;
+			dst5.length = dst5.length + 4;
 			const _242: rs.i128 | undefined = rs.nonZero(v2);
 			if (_242 === undefined) {
 				rs.byteVecPush(out, 255);
 			} else {
 				const n4: rs.i128 = _242;
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i128TrailingZeros(n4))));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.i128LeadingZeros(n4))));
+				const dst6 = out;
+				const word13 = rs.i128TrailingZeros(n4);
+				rs.byteVecReserve(dst6, 4 as rs.usize);
+				const pos6 = dst6.length;
+				dst6.data[pos6 + 0] = (word13 >>> 24) & 255;
+				dst6.data[pos6 + 1] = (word13 >>> 16) & 255;
+				dst6.data[pos6 + 2] = (word13 >>> 8) & 255;
+				dst6.data[pos6 + 3] = word13 & 255;
+				dst6.length = dst6.length + 4;
+				const dst7 = out;
+				const word14 = rs.i128LeadingZeros(n4);
+				rs.byteVecReserve(dst7, 4 as rs.usize);
+				const pos7 = dst7.length;
+				dst7.data[pos7 + 0] = (word14 >>> 24) & 255;
+				dst7.data[pos7 + 1] = (word14 >>> 16) & 255;
+				dst7.data[pos7 + 2] = (word14 >>> 8) & 255;
+				dst7.data[pos7 + 3] = word14 & 255;
+				dst7.length = dst7.length + 4;
 			}
 		}
 	} else {
@@ -1804,19 +2763,6 @@ export function i128Op(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Apply operation `op` to operands taken from `data`. */
 export function isizeOp(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _68: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v3: rs.isize): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.i128ToBeBytes(v3 as rs.i128)));
-		rs.byteVecPush(out2, rs.isizeFromBeBytes(rs.isizeToBeBytes(v3)) === v3 ? 1 : 0);
-	};
-	const _69: (a0: rs.ByteVec, a1: rs.isize | undefined) => undefined = (out3: rs.ByteVec, v4: rs.isize | undefined): undefined => {
-		if (v4 === undefined) {
-			rs.byteVecPush(out3, 0);
-		} else {
-			const v5: rs.isize = v4;
-			rs.byteVecPush(out3, 1);
-			rs.byteVecExtendFromSlice(out3, rs.byteSliceFrom(rs.i128ToBeBytes(v5 as rs.i128)));
-		}
-	};
 	const buf: Uint8Array = rs.bytes(4);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
@@ -1834,6 +2780,66 @@ export function isizeOp(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf3), 0, n3), rs.byteSliceRange(_40, 0, n3));
 	const c: rs.isize = ([rs.isizeFromBeBytes(buf3), rs.byteSliceRange(_40, n3)] as [rs.isize, rs.ByteSlice])[0];
 	const shift: rs.u32 = rs.u32Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(_40), 0) as rs.u32, 2 * 32);
+	const _68: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v3: rs.isize): undefined => {
+		const dst = out2;
+		const word = v3 as rs.i128;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
+		rs.byteVecReserve(dst, 16 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
+		dst.length = dst.length + 16;
+		rs.byteVecPush(out2, rs.isizeFromBeBytes(rs.isizeToBeBytes(v3)) === v3 ? 1 : 0);
+	};
+	const _69: (a0: rs.ByteVec, a1: rs.isize | undefined) => undefined = (out3: rs.ByteVec, v4: rs.isize | undefined): undefined => {
+		if (v4 === undefined) {
+			rs.byteVecPush(out3, 0);
+		} else {
+			const v5: rs.isize = v4;
+			rs.byteVecPush(out3, 1);
+			const dst2 = out3;
+			const word6 = rs.intWord(v5 as rs.i128, 0);
+			const word7 = rs.intWord(v5 as rs.i128, 32);
+			const word8 = rs.intWord(v5 as rs.i128, 64);
+			const word9 = rs.intWord(v5 as rs.i128, 96);
+			rs.byteVecReserve(dst2, 16 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (word9 >>> 24) & 255;
+			dst2.data[pos2 + 1] = (word9 >>> 16) & 255;
+			dst2.data[pos2 + 2] = (word9 >>> 8) & 255;
+			dst2.data[pos2 + 3] = word9 & 255;
+			dst2.data[pos2 + 4] = (word8 >>> 24) & 255;
+			dst2.data[pos2 + 5] = (word8 >>> 16) & 255;
+			dst2.data[pos2 + 6] = (word8 >>> 8) & 255;
+			dst2.data[pos2 + 7] = word8 & 255;
+			dst2.data[pos2 + 8] = (word7 >>> 24) & 255;
+			dst2.data[pos2 + 9] = (word7 >>> 16) & 255;
+			dst2.data[pos2 + 10] = (word7 >>> 8) & 255;
+			dst2.data[pos2 + 11] = word7 & 255;
+			dst2.data[pos2 + 12] = (word6 >>> 24) & 255;
+			dst2.data[pos2 + 13] = (word6 >>> 16) & 255;
+			dst2.data[pos2 + 14] = (word6 >>> 8) & 255;
+			dst2.data[pos2 + 15] = word6 & 255;
+			dst2.length = dst2.length + 16;
+		}
+	};
 	const _70: rs.u8 = rs.u8Rem(op, 32);
 	if (_70 === 0) {
 		_68(out, rs.isizeAdd(a, b));
@@ -1879,9 +2885,25 @@ export function isizeOp(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part10 = rs.isizeWrappingSub(a, b);
 		_68(out, part10);
 	} else if (_70 === 18) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.isizeLeadingOnes(a))));
+		const dst3 = out;
+		const word10 = rs.isizeLeadingOnes(a);
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (word10 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word10 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word10 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word10 & 255;
+		dst3.length = dst3.length + 4;
 	} else if (_70 === 19) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.isizeLeadingZeros(a))));
+		const dst4 = out;
+		const word11 = rs.isizeLeadingZeros(a);
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word11 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word11 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word11 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word11 & 255;
+		dst4.length = dst4.length + 4;
 	} else if (_70 === 20) {
 		_68(out, rs.max(a, b));
 	} else if (_70 === 21) {
@@ -1939,14 +2961,38 @@ export function isizeOp(op: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const v2: rs.isize = _233;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.isizeTrailingZeros(v2))));
+			const dst5 = out;
+			const word12 = rs.isizeTrailingZeros(v2);
+			rs.byteVecReserve(dst5, 4 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = (word12 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word12 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word12 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word12 & 255;
+			dst5.length = dst5.length + 4;
 			const _242: rs.isize | undefined = rs.nonZero(v2);
 			if (_242 === undefined) {
 				rs.byteVecPush(out, 255);
 			} else {
 				const n4: rs.isize = _242;
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.isizeTrailingZeros(n4))));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.isizeLeadingZeros(n4))));
+				const dst6 = out;
+				const word13 = rs.isizeTrailingZeros(n4);
+				rs.byteVecReserve(dst6, 4 as rs.usize);
+				const pos6 = dst6.length;
+				dst6.data[pos6 + 0] = (word13 >>> 24) & 255;
+				dst6.data[pos6 + 1] = (word13 >>> 16) & 255;
+				dst6.data[pos6 + 2] = (word13 >>> 8) & 255;
+				dst6.data[pos6 + 3] = word13 & 255;
+				dst6.length = dst6.length + 4;
+				const dst7 = out;
+				const word14 = rs.isizeLeadingZeros(n4);
+				rs.byteVecReserve(dst7, 4 as rs.usize);
+				const pos7 = dst7.length;
+				dst7.data[pos7 + 0] = (word14 >>> 24) & 255;
+				dst7.data[pos7 + 1] = (word14 >>> 16) & 255;
+				dst7.data[pos7 + 2] = (word14 >>> 8) & 255;
+				dst7.data[pos7 + 3] = word14 & 255;
+				dst7.length = dst7.length + 4;
 			}
 		}
 	} else {
@@ -1970,7 +3016,31 @@ export function i8Neg(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = Uint8Array.of(0);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(rs.i8Neg(([rs.i8FromBeBytes(buf), rs.byteSliceRange(data, n)] as [rs.i8, rs.ByteSlice])[0]) as rs.i128)));
+	const dst = out;
+	const word = rs.i8Neg(([rs.i8FromBeBytes(buf), rs.byteSliceRange(data, n)] as [rs.i8, rs.ByteSlice])[0]) as rs.i128;
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	const word4 = rs.intWord(word, 64);
+	const word5 = rs.intWord(word, 96);
+	rs.byteVecReserve(dst, 16 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word5 >>> 24) & 255;
+	dst.data[pos + 1] = (word5 >>> 16) & 255;
+	dst.data[pos + 2] = (word5 >>> 8) & 255;
+	dst.data[pos + 3] = word5 & 255;
+	dst.data[pos + 4] = (word4 >>> 24) & 255;
+	dst.data[pos + 5] = (word4 >>> 16) & 255;
+	dst.data[pos + 6] = (word4 >>> 8) & 255;
+	dst.data[pos + 7] = word4 & 255;
+	dst.data[pos + 8] = (word3 >>> 24) & 255;
+	dst.data[pos + 9] = (word3 >>> 16) & 255;
+	dst.data[pos + 10] = (word3 >>> 8) & 255;
+	dst.data[pos + 11] = word3 & 255;
+	dst.data[pos + 12] = (word2 >>> 24) & 255;
+	dst.data[pos + 13] = (word2 >>> 16) & 255;
+	dst.data[pos + 14] = (word2 >>> 8) & 255;
+	dst.data[pos + 15] = word2 & 255;
+	dst.length = dst.length + 16;
 }
 
 /** Negate, which overflows at the minimum. */
@@ -1978,7 +3048,31 @@ export function i16Neg(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(2);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(rs.i16Neg(([rs.i16FromBeBytes(buf), rs.byteSliceRange(data, n)] as [rs.i16, rs.ByteSlice])[0]) as rs.i128)));
+	const dst = out;
+	const word = rs.i16Neg(([rs.i16FromBeBytes(buf), rs.byteSliceRange(data, n)] as [rs.i16, rs.ByteSlice])[0]) as rs.i128;
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	const word4 = rs.intWord(word, 64);
+	const word5 = rs.intWord(word, 96);
+	rs.byteVecReserve(dst, 16 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word5 >>> 24) & 255;
+	dst.data[pos + 1] = (word5 >>> 16) & 255;
+	dst.data[pos + 2] = (word5 >>> 8) & 255;
+	dst.data[pos + 3] = word5 & 255;
+	dst.data[pos + 4] = (word4 >>> 24) & 255;
+	dst.data[pos + 5] = (word4 >>> 16) & 255;
+	dst.data[pos + 6] = (word4 >>> 8) & 255;
+	dst.data[pos + 7] = word4 & 255;
+	dst.data[pos + 8] = (word3 >>> 24) & 255;
+	dst.data[pos + 9] = (word3 >>> 16) & 255;
+	dst.data[pos + 10] = (word3 >>> 8) & 255;
+	dst.data[pos + 11] = word3 & 255;
+	dst.data[pos + 12] = (word2 >>> 24) & 255;
+	dst.data[pos + 13] = (word2 >>> 16) & 255;
+	dst.data[pos + 14] = (word2 >>> 8) & 255;
+	dst.data[pos + 15] = word2 & 255;
+	dst.length = dst.length + 16;
 }
 
 /** Negate, which overflows at the minimum. */
@@ -1986,7 +3080,31 @@ export function i32Neg(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(4);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(rs.i32Neg(([rs.i32FromBeBytes(buf), rs.byteSliceRange(data, n)] as [rs.i32, rs.ByteSlice])[0]) as rs.i128)));
+	const dst = out;
+	const word = rs.i32Neg(([rs.i32FromBeBytes(buf), rs.byteSliceRange(data, n)] as [rs.i32, rs.ByteSlice])[0]) as rs.i128;
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	const word4 = rs.intWord(word, 64);
+	const word5 = rs.intWord(word, 96);
+	rs.byteVecReserve(dst, 16 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word5 >>> 24) & 255;
+	dst.data[pos + 1] = (word5 >>> 16) & 255;
+	dst.data[pos + 2] = (word5 >>> 8) & 255;
+	dst.data[pos + 3] = word5 & 255;
+	dst.data[pos + 4] = (word4 >>> 24) & 255;
+	dst.data[pos + 5] = (word4 >>> 16) & 255;
+	dst.data[pos + 6] = (word4 >>> 8) & 255;
+	dst.data[pos + 7] = word4 & 255;
+	dst.data[pos + 8] = (word3 >>> 24) & 255;
+	dst.data[pos + 9] = (word3 >>> 16) & 255;
+	dst.data[pos + 10] = (word3 >>> 8) & 255;
+	dst.data[pos + 11] = word3 & 255;
+	dst.data[pos + 12] = (word2 >>> 24) & 255;
+	dst.data[pos + 13] = (word2 >>> 16) & 255;
+	dst.data[pos + 14] = (word2 >>> 8) & 255;
+	dst.data[pos + 15] = word2 & 255;
+	dst.length = dst.length + 16;
 }
 
 /** Negate, which overflows at the minimum. */
@@ -1994,7 +3112,31 @@ export function i64Neg(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(8);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(rs.i128Cast(rs.i64Neg(([rs.i64FromBeBytes(buf), rs.byteSliceRange(data, n)] as [rs.i64, rs.ByteSlice])[0])))));
+	const dst = out;
+	const word = rs.i128Cast(rs.i64Neg(([rs.i64FromBeBytes(buf), rs.byteSliceRange(data, n)] as [rs.i64, rs.ByteSlice])[0]));
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	const word4 = rs.intWord(word, 64);
+	const word5 = rs.intWord(word, 96);
+	rs.byteVecReserve(dst, 16 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word5 >>> 24) & 255;
+	dst.data[pos + 1] = (word5 >>> 16) & 255;
+	dst.data[pos + 2] = (word5 >>> 8) & 255;
+	dst.data[pos + 3] = word5 & 255;
+	dst.data[pos + 4] = (word4 >>> 24) & 255;
+	dst.data[pos + 5] = (word4 >>> 16) & 255;
+	dst.data[pos + 6] = (word4 >>> 8) & 255;
+	dst.data[pos + 7] = word4 & 255;
+	dst.data[pos + 8] = (word3 >>> 24) & 255;
+	dst.data[pos + 9] = (word3 >>> 16) & 255;
+	dst.data[pos + 10] = (word3 >>> 8) & 255;
+	dst.data[pos + 11] = word3 & 255;
+	dst.data[pos + 12] = (word2 >>> 24) & 255;
+	dst.data[pos + 13] = (word2 >>> 16) & 255;
+	dst.data[pos + 14] = (word2 >>> 8) & 255;
+	dst.data[pos + 15] = word2 & 255;
+	dst.length = dst.length + 16;
 }
 
 /** Negate, which overflows at the minimum. */
@@ -2002,7 +3144,31 @@ export function i128Neg(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(16);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(rs.i128Neg(([rs.i128FromBeBytes(buf), rs.byteSliceRange(data, n)] as [rs.i128, rs.ByteSlice])[0]))));
+	const dst = out;
+	const word = rs.i128Neg(([rs.i128FromBeBytes(buf), rs.byteSliceRange(data, n)] as [rs.i128, rs.ByteSlice])[0]);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	const word4 = rs.intWord(word, 64);
+	const word5 = rs.intWord(word, 96);
+	rs.byteVecReserve(dst, 16 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word5 >>> 24) & 255;
+	dst.data[pos + 1] = (word5 >>> 16) & 255;
+	dst.data[pos + 2] = (word5 >>> 8) & 255;
+	dst.data[pos + 3] = word5 & 255;
+	dst.data[pos + 4] = (word4 >>> 24) & 255;
+	dst.data[pos + 5] = (word4 >>> 16) & 255;
+	dst.data[pos + 6] = (word4 >>> 8) & 255;
+	dst.data[pos + 7] = word4 & 255;
+	dst.data[pos + 8] = (word3 >>> 24) & 255;
+	dst.data[pos + 9] = (word3 >>> 16) & 255;
+	dst.data[pos + 10] = (word3 >>> 8) & 255;
+	dst.data[pos + 11] = word3 & 255;
+	dst.data[pos + 12] = (word2 >>> 24) & 255;
+	dst.data[pos + 13] = (word2 >>> 16) & 255;
+	dst.data[pos + 14] = (word2 >>> 8) & 255;
+	dst.data[pos + 15] = word2 & 255;
+	dst.length = dst.length + 16;
 }
 
 /** Negate, which overflows at the minimum. */
@@ -2010,7 +3176,31 @@ export function isizeNeg(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const buf: Uint8Array = rs.bytes(4);
 	const n: rs.usize = rs.min(data.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data, 0, n));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(rs.isizeNeg(([rs.isizeFromBeBytes(buf), rs.byteSliceRange(data, n)] as [rs.isize, rs.ByteSlice])[0]) as rs.i128)));
+	const dst = out;
+	const word = rs.isizeNeg(([rs.isizeFromBeBytes(buf), rs.byteSliceRange(data, n)] as [rs.isize, rs.ByteSlice])[0]) as rs.i128;
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	const word4 = rs.intWord(word, 64);
+	const word5 = rs.intWord(word, 96);
+	rs.byteVecReserve(dst, 16 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word5 >>> 24) & 255;
+	dst.data[pos + 1] = (word5 >>> 16) & 255;
+	dst.data[pos + 2] = (word5 >>> 8) & 255;
+	dst.data[pos + 3] = word5 & 255;
+	dst.data[pos + 4] = (word4 >>> 24) & 255;
+	dst.data[pos + 5] = (word4 >>> 16) & 255;
+	dst.data[pos + 6] = (word4 >>> 8) & 255;
+	dst.data[pos + 7] = word4 & 255;
+	dst.data[pos + 8] = (word3 >>> 24) & 255;
+	dst.data[pos + 9] = (word3 >>> 16) & 255;
+	dst.data[pos + 10] = (word3 >>> 8) & 255;
+	dst.data[pos + 11] = word3 & 255;
+	dst.data[pos + 12] = (word2 >>> 24) & 255;
+	dst.data[pos + 13] = (word2 >>> 16) & 255;
+	dst.data[pos + 14] = (word2 >>> 8) & 255;
+	dst.data[pos + 15] = word2 & 255;
+	dst.length = dst.length + 16;
 }
 
 /** Cast a value of type `from` to type `to`, both indexes into the twelve types. */
@@ -2024,51 +3214,167 @@ export function cast(from: rs.u8, to: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 		const _25: rs.u8 = rs.u8Rem(to, 12);
 		if (_25 === 0) {
 			const v2: rs.u8 = v;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(v2)));
+			const dst = out;
+			rs.byteVecReserve(dst, 1 as rs.usize);
+			dst.data[dst.length + 0] = v2 & 255;
+			dst.length = dst.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u8Display(v2, f), 0).v));
 		} else if (_25 === 1) {
 			const v3: rs.u16 = v as rs.u16;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(v3)));
+			const dst2 = out;
+			rs.byteVecReserve(dst2, 2 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (v3 >>> 8) & 255;
+			dst2.data[pos2 + 1] = v3 & 255;
+			dst2.length = dst2.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u16Display(v3, f), 0).v));
 		} else if (_25 === 2) {
 			const v4: rs.u32 = v as rs.u32;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(v4)));
+			const dst3 = out;
+			rs.byteVecReserve(dst3, 4 as rs.usize);
+			const pos3 = dst3.length;
+			dst3.data[pos3 + 0] = (v4 >>> 24) & 255;
+			dst3.data[pos3 + 1] = (v4 >>> 16) & 255;
+			dst3.data[pos3 + 2] = (v4 >>> 8) & 255;
+			dst3.data[pos3 + 3] = v4 & 255;
+			dst3.length = dst3.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u32Display(v4, f), 0).v));
 		} else if (_25 === 3) {
 			const v5: rs.u64 = v as rs.u64;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(v5)));
+			const dst4 = out;
+			const word = rs.intWord(v5, 0);
+			const word2 = rs.intWord(v5, 32);
+			rs.byteVecReserve(dst4, 8 as rs.usize);
+			const pos4 = dst4.length;
+			dst4.data[pos4 + 0] = (word2 >>> 24) & 255;
+			dst4.data[pos4 + 1] = (word2 >>> 16) & 255;
+			dst4.data[pos4 + 2] = (word2 >>> 8) & 255;
+			dst4.data[pos4 + 3] = word2 & 255;
+			dst4.data[pos4 + 4] = (word >>> 24) & 255;
+			dst4.data[pos4 + 5] = (word >>> 16) & 255;
+			dst4.data[pos4 + 6] = (word >>> 8) & 255;
+			dst4.data[pos4 + 7] = word & 255;
+			dst4.length = dst4.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u64Display(v5, f), 0).v));
 		} else if (_25 === 4) {
 			const v6: rs.u128 = v as rs.u128;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(v6)));
+			const dst5 = out;
+			const word3 = rs.intWord(v6, 0);
+			const word4 = rs.intWord(v6, 32);
+			const word5 = rs.intWord(v6, 64);
+			const word6 = rs.intWord(v6, 96);
+			rs.byteVecReserve(dst5, 16 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = (word6 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word6 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word6 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word6 & 255;
+			dst5.data[pos5 + 4] = (word5 >>> 24) & 255;
+			dst5.data[pos5 + 5] = (word5 >>> 16) & 255;
+			dst5.data[pos5 + 6] = (word5 >>> 8) & 255;
+			dst5.data[pos5 + 7] = word5 & 255;
+			dst5.data[pos5 + 8] = (word4 >>> 24) & 255;
+			dst5.data[pos5 + 9] = (word4 >>> 16) & 255;
+			dst5.data[pos5 + 10] = (word4 >>> 8) & 255;
+			dst5.data[pos5 + 11] = word4 & 255;
+			dst5.data[pos5 + 12] = (word3 >>> 24) & 255;
+			dst5.data[pos5 + 13] = (word3 >>> 16) & 255;
+			dst5.data[pos5 + 14] = (word3 >>> 8) & 255;
+			dst5.data[pos5 + 15] = word3 & 255;
+			dst5.length = dst5.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u128Display(v6, f), 0).v));
 		} else if (_25 === 5) {
 			const v7: rs.usize = v as rs.usize;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(v7)));
+			const dst6 = out;
+			rs.byteVecReserve(dst6, 4 as rs.usize);
+			const pos6 = dst6.length;
+			dst6.data[pos6 + 0] = (v7 >>> 24) & 255;
+			dst6.data[pos6 + 1] = (v7 >>> 16) & 255;
+			dst6.data[pos6 + 2] = (v7 >>> 8) & 255;
+			dst6.data[pos6 + 3] = v7 & 255;
+			dst6.length = dst6.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(v7, f), 0).v));
 		} else if (_25 === 6) {
 			const v8: rs.i8 = (v << 24) >> 24;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(v8)));
+			const dst7 = out;
+			rs.byteVecReserve(dst7, 1 as rs.usize);
+			dst7.data[dst7.length + 0] = v8 & 255;
+			dst7.length = dst7.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i8Display(v8, f), 3).v));
 		} else if (_25 === 7) {
 			const v9: rs.i16 = v as rs.i16;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(v9)));
+			const dst8 = out;
+			rs.byteVecReserve(dst8, 2 as rs.usize);
+			const pos8 = dst8.length;
+			dst8.data[pos8 + 0] = (v9 >>> 8) & 255;
+			dst8.data[pos8 + 1] = v9 & 255;
+			dst8.length = dst8.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i16Display(v9, f), 5).v));
 		} else if (_25 === 8) {
 			const v10: rs.i32 = v as rs.i32;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(v10)));
+			const dst9 = out;
+			rs.byteVecReserve(dst9, 4 as rs.usize);
+			const pos9 = dst9.length;
+			dst9.data[pos9 + 0] = (v10 >>> 24) & 255;
+			dst9.data[pos9 + 1] = (v10 >>> 16) & 255;
+			dst9.data[pos9 + 2] = (v10 >>> 8) & 255;
+			dst9.data[pos9 + 3] = v10 & 255;
+			dst9.length = dst9.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i32Display(v10, f), 10).v));
 		} else if (_25 === 9) {
 			const v11: rs.i64 = v as rs.i64;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(v11)));
+			const dst10 = out;
+			const word7 = rs.intWord(v11, 0);
+			const word8 = rs.intWord(v11, 32);
+			rs.byteVecReserve(dst10, 8 as rs.usize);
+			const pos10 = dst10.length;
+			dst10.data[pos10 + 0] = (word8 >>> 24) & 255;
+			dst10.data[pos10 + 1] = (word8 >>> 16) & 255;
+			dst10.data[pos10 + 2] = (word8 >>> 8) & 255;
+			dst10.data[pos10 + 3] = word8 & 255;
+			dst10.data[pos10 + 4] = (word7 >>> 24) & 255;
+			dst10.data[pos10 + 5] = (word7 >>> 16) & 255;
+			dst10.data[pos10 + 6] = (word7 >>> 8) & 255;
+			dst10.data[pos10 + 7] = word7 & 255;
+			dst10.length = dst10.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i64Display(v11, f), 19).v));
 		} else if (_25 === 10) {
 			const v12: rs.i128 = v as rs.i128;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(v12)));
+			const dst11 = out;
+			const word9 = rs.intWord(v12, 0);
+			const word10 = rs.intWord(v12, 32);
+			const word11 = rs.intWord(v12, 64);
+			const word12 = rs.intWord(v12, 96);
+			rs.byteVecReserve(dst11, 16 as rs.usize);
+			const pos11 = dst11.length;
+			dst11.data[pos11 + 0] = (word12 >>> 24) & 255;
+			dst11.data[pos11 + 1] = (word12 >>> 16) & 255;
+			dst11.data[pos11 + 2] = (word12 >>> 8) & 255;
+			dst11.data[pos11 + 3] = word12 & 255;
+			dst11.data[pos11 + 4] = (word11 >>> 24) & 255;
+			dst11.data[pos11 + 5] = (word11 >>> 16) & 255;
+			dst11.data[pos11 + 6] = (word11 >>> 8) & 255;
+			dst11.data[pos11 + 7] = word11 & 255;
+			dst11.data[pos11 + 8] = (word10 >>> 24) & 255;
+			dst11.data[pos11 + 9] = (word10 >>> 16) & 255;
+			dst11.data[pos11 + 10] = (word10 >>> 8) & 255;
+			dst11.data[pos11 + 11] = word10 & 255;
+			dst11.data[pos11 + 12] = (word9 >>> 24) & 255;
+			dst11.data[pos11 + 13] = (word9 >>> 16) & 255;
+			dst11.data[pos11 + 14] = (word9 >>> 8) & 255;
+			dst11.data[pos11 + 15] = word9 & 255;
+			dst11.length = dst11.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i128Display(v12, f), 39).v));
 		} else {
 			const v13: rs.isize = v as rs.isize;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(v13)));
+			const dst12 = out;
+			rs.byteVecReserve(dst12, 4 as rs.usize);
+			const pos12 = dst12.length;
+			dst12.data[pos12 + 0] = (v13 >>> 24) & 255;
+			dst12.data[pos12 + 1] = (v13 >>> 16) & 255;
+			dst12.data[pos12 + 2] = (v13 >>> 8) & 255;
+			dst12.data[pos12 + 3] = v13 & 255;
+			dst12.length = dst12.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.isizeDisplay(v13, f), 10).v));
 		}
 	} else if (_5 === 1) {
@@ -2079,51 +3385,167 @@ export function cast(from: rs.u8, to: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 		const _165: rs.u8 = rs.u8Rem(to, 12);
 		if (_165 === 0) {
 			const v15: rs.u8 = v14 & 0xff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(v15)));
+			const dst13 = out;
+			rs.byteVecReserve(dst13, 1 as rs.usize);
+			dst13.data[dst13.length + 0] = v15 & 255;
+			dst13.length = dst13.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u8Display(v15, f), 0).v));
 		} else if (_165 === 1) {
 			const v16: rs.u16 = v14;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(v16)));
+			const dst14 = out;
+			rs.byteVecReserve(dst14, 2 as rs.usize);
+			const pos14 = dst14.length;
+			dst14.data[pos14 + 0] = (v16 >>> 8) & 255;
+			dst14.data[pos14 + 1] = v16 & 255;
+			dst14.length = dst14.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u16Display(v16, f), 0).v));
 		} else if (_165 === 2) {
 			const v17: rs.u32 = v14 as rs.u32;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(v17)));
+			const dst15 = out;
+			rs.byteVecReserve(dst15, 4 as rs.usize);
+			const pos15 = dst15.length;
+			dst15.data[pos15 + 0] = (v17 >>> 24) & 255;
+			dst15.data[pos15 + 1] = (v17 >>> 16) & 255;
+			dst15.data[pos15 + 2] = (v17 >>> 8) & 255;
+			dst15.data[pos15 + 3] = v17 & 255;
+			dst15.length = dst15.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u32Display(v17, f), 0).v));
 		} else if (_165 === 3) {
 			const v18: rs.u64 = v14 as rs.u64;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(v18)));
+			const dst16 = out;
+			const word13 = rs.intWord(v18, 0);
+			const word14 = rs.intWord(v18, 32);
+			rs.byteVecReserve(dst16, 8 as rs.usize);
+			const pos16 = dst16.length;
+			dst16.data[pos16 + 0] = (word14 >>> 24) & 255;
+			dst16.data[pos16 + 1] = (word14 >>> 16) & 255;
+			dst16.data[pos16 + 2] = (word14 >>> 8) & 255;
+			dst16.data[pos16 + 3] = word14 & 255;
+			dst16.data[pos16 + 4] = (word13 >>> 24) & 255;
+			dst16.data[pos16 + 5] = (word13 >>> 16) & 255;
+			dst16.data[pos16 + 6] = (word13 >>> 8) & 255;
+			dst16.data[pos16 + 7] = word13 & 255;
+			dst16.length = dst16.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u64Display(v18, f), 0).v));
 		} else if (_165 === 4) {
 			const v19: rs.u128 = v14 as rs.u128;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(v19)));
+			const dst17 = out;
+			const word15 = rs.intWord(v19, 0);
+			const word16 = rs.intWord(v19, 32);
+			const word17 = rs.intWord(v19, 64);
+			const word18 = rs.intWord(v19, 96);
+			rs.byteVecReserve(dst17, 16 as rs.usize);
+			const pos17 = dst17.length;
+			dst17.data[pos17 + 0] = (word18 >>> 24) & 255;
+			dst17.data[pos17 + 1] = (word18 >>> 16) & 255;
+			dst17.data[pos17 + 2] = (word18 >>> 8) & 255;
+			dst17.data[pos17 + 3] = word18 & 255;
+			dst17.data[pos17 + 4] = (word17 >>> 24) & 255;
+			dst17.data[pos17 + 5] = (word17 >>> 16) & 255;
+			dst17.data[pos17 + 6] = (word17 >>> 8) & 255;
+			dst17.data[pos17 + 7] = word17 & 255;
+			dst17.data[pos17 + 8] = (word16 >>> 24) & 255;
+			dst17.data[pos17 + 9] = (word16 >>> 16) & 255;
+			dst17.data[pos17 + 10] = (word16 >>> 8) & 255;
+			dst17.data[pos17 + 11] = word16 & 255;
+			dst17.data[pos17 + 12] = (word15 >>> 24) & 255;
+			dst17.data[pos17 + 13] = (word15 >>> 16) & 255;
+			dst17.data[pos17 + 14] = (word15 >>> 8) & 255;
+			dst17.data[pos17 + 15] = word15 & 255;
+			dst17.length = dst17.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u128Display(v19, f), 0).v));
 		} else if (_165 === 5) {
 			const v20: rs.usize = v14 as rs.usize;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(v20)));
+			const dst18 = out;
+			rs.byteVecReserve(dst18, 4 as rs.usize);
+			const pos18 = dst18.length;
+			dst18.data[pos18 + 0] = (v20 >>> 24) & 255;
+			dst18.data[pos18 + 1] = (v20 >>> 16) & 255;
+			dst18.data[pos18 + 2] = (v20 >>> 8) & 255;
+			dst18.data[pos18 + 3] = v20 & 255;
+			dst18.length = dst18.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(v20, f), 0).v));
 		} else if (_165 === 6) {
 			const v21: rs.i8 = (v14 << 24) >> 24;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(v21)));
+			const dst19 = out;
+			rs.byteVecReserve(dst19, 1 as rs.usize);
+			dst19.data[dst19.length + 0] = v21 & 255;
+			dst19.length = dst19.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i8Display(v21, f), 3).v));
 		} else if (_165 === 7) {
 			const v22: rs.i16 = (v14 << 16) >> 16;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(v22)));
+			const dst20 = out;
+			rs.byteVecReserve(dst20, 2 as rs.usize);
+			const pos20 = dst20.length;
+			dst20.data[pos20 + 0] = (v22 >>> 8) & 255;
+			dst20.data[pos20 + 1] = v22 & 255;
+			dst20.length = dst20.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i16Display(v22, f), 5).v));
 		} else if (_165 === 8) {
 			const v23: rs.i32 = v14 as rs.i32;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(v23)));
+			const dst21 = out;
+			rs.byteVecReserve(dst21, 4 as rs.usize);
+			const pos21 = dst21.length;
+			dst21.data[pos21 + 0] = (v23 >>> 24) & 255;
+			dst21.data[pos21 + 1] = (v23 >>> 16) & 255;
+			dst21.data[pos21 + 2] = (v23 >>> 8) & 255;
+			dst21.data[pos21 + 3] = v23 & 255;
+			dst21.length = dst21.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i32Display(v23, f), 10).v));
 		} else if (_165 === 9) {
 			const v24: rs.i64 = v14 as rs.i64;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(v24)));
+			const dst22 = out;
+			const word19 = rs.intWord(v24, 0);
+			const word20 = rs.intWord(v24, 32);
+			rs.byteVecReserve(dst22, 8 as rs.usize);
+			const pos22 = dst22.length;
+			dst22.data[pos22 + 0] = (word20 >>> 24) & 255;
+			dst22.data[pos22 + 1] = (word20 >>> 16) & 255;
+			dst22.data[pos22 + 2] = (word20 >>> 8) & 255;
+			dst22.data[pos22 + 3] = word20 & 255;
+			dst22.data[pos22 + 4] = (word19 >>> 24) & 255;
+			dst22.data[pos22 + 5] = (word19 >>> 16) & 255;
+			dst22.data[pos22 + 6] = (word19 >>> 8) & 255;
+			dst22.data[pos22 + 7] = word19 & 255;
+			dst22.length = dst22.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i64Display(v24, f), 19).v));
 		} else if (_165 === 10) {
 			const v25: rs.i128 = v14 as rs.i128;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(v25)));
+			const dst23 = out;
+			const word21 = rs.intWord(v25, 0);
+			const word22 = rs.intWord(v25, 32);
+			const word23 = rs.intWord(v25, 64);
+			const word24 = rs.intWord(v25, 96);
+			rs.byteVecReserve(dst23, 16 as rs.usize);
+			const pos23 = dst23.length;
+			dst23.data[pos23 + 0] = (word24 >>> 24) & 255;
+			dst23.data[pos23 + 1] = (word24 >>> 16) & 255;
+			dst23.data[pos23 + 2] = (word24 >>> 8) & 255;
+			dst23.data[pos23 + 3] = word24 & 255;
+			dst23.data[pos23 + 4] = (word23 >>> 24) & 255;
+			dst23.data[pos23 + 5] = (word23 >>> 16) & 255;
+			dst23.data[pos23 + 6] = (word23 >>> 8) & 255;
+			dst23.data[pos23 + 7] = word23 & 255;
+			dst23.data[pos23 + 8] = (word22 >>> 24) & 255;
+			dst23.data[pos23 + 9] = (word22 >>> 16) & 255;
+			dst23.data[pos23 + 10] = (word22 >>> 8) & 255;
+			dst23.data[pos23 + 11] = word22 & 255;
+			dst23.data[pos23 + 12] = (word21 >>> 24) & 255;
+			dst23.data[pos23 + 13] = (word21 >>> 16) & 255;
+			dst23.data[pos23 + 14] = (word21 >>> 8) & 255;
+			dst23.data[pos23 + 15] = word21 & 255;
+			dst23.length = dst23.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i128Display(v25, f), 39).v));
 		} else {
 			const v26: rs.isize = v14 as rs.isize;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(v26)));
+			const dst24 = out;
+			rs.byteVecReserve(dst24, 4 as rs.usize);
+			const pos24 = dst24.length;
+			dst24.data[pos24 + 0] = (v26 >>> 24) & 255;
+			dst24.data[pos24 + 1] = (v26 >>> 16) & 255;
+			dst24.data[pos24 + 2] = (v26 >>> 8) & 255;
+			dst24.data[pos24 + 3] = v26 & 255;
+			dst24.length = dst24.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.isizeDisplay(v26, f), 10).v));
 		}
 	} else if (_5 === 2) {
@@ -2134,51 +3556,167 @@ export function cast(from: rs.u8, to: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 		const _305: rs.u8 = rs.u8Rem(to, 12);
 		if (_305 === 0) {
 			const v28: rs.u8 = v27 & 0xff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(v28)));
+			const dst25 = out;
+			rs.byteVecReserve(dst25, 1 as rs.usize);
+			dst25.data[dst25.length + 0] = v28 & 255;
+			dst25.length = dst25.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u8Display(v28, f), 0).v));
 		} else if (_305 === 1) {
 			const v29: rs.u16 = v27 & 0xffff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(v29)));
+			const dst26 = out;
+			rs.byteVecReserve(dst26, 2 as rs.usize);
+			const pos26 = dst26.length;
+			dst26.data[pos26 + 0] = (v29 >>> 8) & 255;
+			dst26.data[pos26 + 1] = v29 & 255;
+			dst26.length = dst26.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u16Display(v29, f), 0).v));
 		} else if (_305 === 2) {
 			const v30: rs.u32 = v27;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(v30)));
+			const dst27 = out;
+			rs.byteVecReserve(dst27, 4 as rs.usize);
+			const pos27 = dst27.length;
+			dst27.data[pos27 + 0] = (v30 >>> 24) & 255;
+			dst27.data[pos27 + 1] = (v30 >>> 16) & 255;
+			dst27.data[pos27 + 2] = (v30 >>> 8) & 255;
+			dst27.data[pos27 + 3] = v30 & 255;
+			dst27.length = dst27.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u32Display(v30, f), 0).v));
 		} else if (_305 === 3) {
 			const v31: rs.u64 = v27 as rs.u64;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(v31)));
+			const dst28 = out;
+			const word25 = rs.intWord(v31, 0);
+			const word26 = rs.intWord(v31, 32);
+			rs.byteVecReserve(dst28, 8 as rs.usize);
+			const pos28 = dst28.length;
+			dst28.data[pos28 + 0] = (word26 >>> 24) & 255;
+			dst28.data[pos28 + 1] = (word26 >>> 16) & 255;
+			dst28.data[pos28 + 2] = (word26 >>> 8) & 255;
+			dst28.data[pos28 + 3] = word26 & 255;
+			dst28.data[pos28 + 4] = (word25 >>> 24) & 255;
+			dst28.data[pos28 + 5] = (word25 >>> 16) & 255;
+			dst28.data[pos28 + 6] = (word25 >>> 8) & 255;
+			dst28.data[pos28 + 7] = word25 & 255;
+			dst28.length = dst28.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u64Display(v31, f), 0).v));
 		} else if (_305 === 4) {
 			const v32: rs.u128 = v27 as rs.u128;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(v32)));
+			const dst29 = out;
+			const word27 = rs.intWord(v32, 0);
+			const word28 = rs.intWord(v32, 32);
+			const word29 = rs.intWord(v32, 64);
+			const word30 = rs.intWord(v32, 96);
+			rs.byteVecReserve(dst29, 16 as rs.usize);
+			const pos29 = dst29.length;
+			dst29.data[pos29 + 0] = (word30 >>> 24) & 255;
+			dst29.data[pos29 + 1] = (word30 >>> 16) & 255;
+			dst29.data[pos29 + 2] = (word30 >>> 8) & 255;
+			dst29.data[pos29 + 3] = word30 & 255;
+			dst29.data[pos29 + 4] = (word29 >>> 24) & 255;
+			dst29.data[pos29 + 5] = (word29 >>> 16) & 255;
+			dst29.data[pos29 + 6] = (word29 >>> 8) & 255;
+			dst29.data[pos29 + 7] = word29 & 255;
+			dst29.data[pos29 + 8] = (word28 >>> 24) & 255;
+			dst29.data[pos29 + 9] = (word28 >>> 16) & 255;
+			dst29.data[pos29 + 10] = (word28 >>> 8) & 255;
+			dst29.data[pos29 + 11] = word28 & 255;
+			dst29.data[pos29 + 12] = (word27 >>> 24) & 255;
+			dst29.data[pos29 + 13] = (word27 >>> 16) & 255;
+			dst29.data[pos29 + 14] = (word27 >>> 8) & 255;
+			dst29.data[pos29 + 15] = word27 & 255;
+			dst29.length = dst29.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u128Display(v32, f), 0).v));
 		} else if (_305 === 5) {
 			const v33: rs.usize = v27 as rs.usize;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(v33)));
+			const dst30 = out;
+			rs.byteVecReserve(dst30, 4 as rs.usize);
+			const pos30 = dst30.length;
+			dst30.data[pos30 + 0] = (v33 >>> 24) & 255;
+			dst30.data[pos30 + 1] = (v33 >>> 16) & 255;
+			dst30.data[pos30 + 2] = (v33 >>> 8) & 255;
+			dst30.data[pos30 + 3] = v33 & 255;
+			dst30.length = dst30.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(v33, f), 0).v));
 		} else if (_305 === 6) {
 			const v34: rs.i8 = (v27 << 24) >> 24;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(v34)));
+			const dst31 = out;
+			rs.byteVecReserve(dst31, 1 as rs.usize);
+			dst31.data[dst31.length + 0] = v34 & 255;
+			dst31.length = dst31.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i8Display(v34, f), 3).v));
 		} else if (_305 === 7) {
 			const v35: rs.i16 = (v27 << 16) >> 16;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(v35)));
+			const dst32 = out;
+			rs.byteVecReserve(dst32, 2 as rs.usize);
+			const pos32 = dst32.length;
+			dst32.data[pos32 + 0] = (v35 >>> 8) & 255;
+			dst32.data[pos32 + 1] = v35 & 255;
+			dst32.length = dst32.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i16Display(v35, f), 5).v));
 		} else if (_305 === 8) {
 			const v36: rs.i32 = v27 | 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(v36)));
+			const dst33 = out;
+			rs.byteVecReserve(dst33, 4 as rs.usize);
+			const pos33 = dst33.length;
+			dst33.data[pos33 + 0] = (v36 >>> 24) & 255;
+			dst33.data[pos33 + 1] = (v36 >>> 16) & 255;
+			dst33.data[pos33 + 2] = (v36 >>> 8) & 255;
+			dst33.data[pos33 + 3] = v36 & 255;
+			dst33.length = dst33.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i32Display(v36, f), 10).v));
 		} else if (_305 === 9) {
 			const v37: rs.i64 = v27 as rs.i64;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(v37)));
+			const dst34 = out;
+			const word31 = rs.intWord(v37, 0);
+			const word32 = rs.intWord(v37, 32);
+			rs.byteVecReserve(dst34, 8 as rs.usize);
+			const pos34 = dst34.length;
+			dst34.data[pos34 + 0] = (word32 >>> 24) & 255;
+			dst34.data[pos34 + 1] = (word32 >>> 16) & 255;
+			dst34.data[pos34 + 2] = (word32 >>> 8) & 255;
+			dst34.data[pos34 + 3] = word32 & 255;
+			dst34.data[pos34 + 4] = (word31 >>> 24) & 255;
+			dst34.data[pos34 + 5] = (word31 >>> 16) & 255;
+			dst34.data[pos34 + 6] = (word31 >>> 8) & 255;
+			dst34.data[pos34 + 7] = word31 & 255;
+			dst34.length = dst34.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i64Display(v37, f), 19).v));
 		} else if (_305 === 10) {
 			const v38: rs.i128 = v27 as rs.i128;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(v38)));
+			const dst35 = out;
+			const word33 = rs.intWord(v38, 0);
+			const word34 = rs.intWord(v38, 32);
+			const word35 = rs.intWord(v38, 64);
+			const word36 = rs.intWord(v38, 96);
+			rs.byteVecReserve(dst35, 16 as rs.usize);
+			const pos35 = dst35.length;
+			dst35.data[pos35 + 0] = (word36 >>> 24) & 255;
+			dst35.data[pos35 + 1] = (word36 >>> 16) & 255;
+			dst35.data[pos35 + 2] = (word36 >>> 8) & 255;
+			dst35.data[pos35 + 3] = word36 & 255;
+			dst35.data[pos35 + 4] = (word35 >>> 24) & 255;
+			dst35.data[pos35 + 5] = (word35 >>> 16) & 255;
+			dst35.data[pos35 + 6] = (word35 >>> 8) & 255;
+			dst35.data[pos35 + 7] = word35 & 255;
+			dst35.data[pos35 + 8] = (word34 >>> 24) & 255;
+			dst35.data[pos35 + 9] = (word34 >>> 16) & 255;
+			dst35.data[pos35 + 10] = (word34 >>> 8) & 255;
+			dst35.data[pos35 + 11] = word34 & 255;
+			dst35.data[pos35 + 12] = (word33 >>> 24) & 255;
+			dst35.data[pos35 + 13] = (word33 >>> 16) & 255;
+			dst35.data[pos35 + 14] = (word33 >>> 8) & 255;
+			dst35.data[pos35 + 15] = word33 & 255;
+			dst35.length = dst35.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i128Display(v38, f), 39).v));
 		} else {
 			const v39: rs.isize = v27 | 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(v39)));
+			const dst36 = out;
+			rs.byteVecReserve(dst36, 4 as rs.usize);
+			const pos36 = dst36.length;
+			dst36.data[pos36 + 0] = (v39 >>> 24) & 255;
+			dst36.data[pos36 + 1] = (v39 >>> 16) & 255;
+			dst36.data[pos36 + 2] = (v39 >>> 8) & 255;
+			dst36.data[pos36 + 3] = v39 & 255;
+			dst36.length = dst36.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.isizeDisplay(v39, f), 10).v));
 		}
 	} else if (_5 === 3) {
@@ -2189,51 +3727,167 @@ export function cast(from: rs.u8, to: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 		const _445: rs.u8 = rs.u8Rem(to, 12);
 		if (_445 === 0) {
 			const v41: rs.u8 = rs.u64Low(v40) & 0xff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(v41)));
+			const dst37 = out;
+			rs.byteVecReserve(dst37, 1 as rs.usize);
+			dst37.data[dst37.length + 0] = v41 & 255;
+			dst37.length = dst37.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u8Display(v41, f), 0).v));
 		} else if (_445 === 1) {
 			const v42: rs.u16 = rs.u64Low(v40) & 0xffff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(v42)));
+			const dst38 = out;
+			rs.byteVecReserve(dst38, 2 as rs.usize);
+			const pos38 = dst38.length;
+			dst38.data[pos38 + 0] = (v42 >>> 8) & 255;
+			dst38.data[pos38 + 1] = v42 & 255;
+			dst38.length = dst38.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u16Display(v42, f), 0).v));
 		} else if (_445 === 2) {
 			const v43: rs.u32 = rs.u64Low(v40);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(v43)));
+			const dst39 = out;
+			rs.byteVecReserve(dst39, 4 as rs.usize);
+			const pos39 = dst39.length;
+			dst39.data[pos39 + 0] = (v43 >>> 24) & 255;
+			dst39.data[pos39 + 1] = (v43 >>> 16) & 255;
+			dst39.data[pos39 + 2] = (v43 >>> 8) & 255;
+			dst39.data[pos39 + 3] = v43 & 255;
+			dst39.length = dst39.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u32Display(v43, f), 0).v));
 		} else if (_445 === 3) {
 			const v44: rs.u64 = v40;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(v44)));
+			const dst40 = out;
+			const word37 = rs.intWord(v44, 0);
+			const word38 = rs.intWord(v44, 32);
+			rs.byteVecReserve(dst40, 8 as rs.usize);
+			const pos40 = dst40.length;
+			dst40.data[pos40 + 0] = (word38 >>> 24) & 255;
+			dst40.data[pos40 + 1] = (word38 >>> 16) & 255;
+			dst40.data[pos40 + 2] = (word38 >>> 8) & 255;
+			dst40.data[pos40 + 3] = word38 & 255;
+			dst40.data[pos40 + 4] = (word37 >>> 24) & 255;
+			dst40.data[pos40 + 5] = (word37 >>> 16) & 255;
+			dst40.data[pos40 + 6] = (word37 >>> 8) & 255;
+			dst40.data[pos40 + 7] = word37 & 255;
+			dst40.length = dst40.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u64Display(v44, f), 0).v));
 		} else if (_445 === 4) {
 			const v45: rs.u128 = rs.u128Cast(v40);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(v45)));
+			const dst41 = out;
+			const word39 = rs.intWord(v45, 0);
+			const word40 = rs.intWord(v45, 32);
+			const word41 = rs.intWord(v45, 64);
+			const word42 = rs.intWord(v45, 96);
+			rs.byteVecReserve(dst41, 16 as rs.usize);
+			const pos41 = dst41.length;
+			dst41.data[pos41 + 0] = (word42 >>> 24) & 255;
+			dst41.data[pos41 + 1] = (word42 >>> 16) & 255;
+			dst41.data[pos41 + 2] = (word42 >>> 8) & 255;
+			dst41.data[pos41 + 3] = word42 & 255;
+			dst41.data[pos41 + 4] = (word41 >>> 24) & 255;
+			dst41.data[pos41 + 5] = (word41 >>> 16) & 255;
+			dst41.data[pos41 + 6] = (word41 >>> 8) & 255;
+			dst41.data[pos41 + 7] = word41 & 255;
+			dst41.data[pos41 + 8] = (word40 >>> 24) & 255;
+			dst41.data[pos41 + 9] = (word40 >>> 16) & 255;
+			dst41.data[pos41 + 10] = (word40 >>> 8) & 255;
+			dst41.data[pos41 + 11] = word40 & 255;
+			dst41.data[pos41 + 12] = (word39 >>> 24) & 255;
+			dst41.data[pos41 + 13] = (word39 >>> 16) & 255;
+			dst41.data[pos41 + 14] = (word39 >>> 8) & 255;
+			dst41.data[pos41 + 15] = word39 & 255;
+			dst41.length = dst41.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u128Display(v45, f), 0).v));
 		} else if (_445 === 5) {
 			const v46: rs.usize = rs.u64Low(v40);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(v46)));
+			const dst42 = out;
+			rs.byteVecReserve(dst42, 4 as rs.usize);
+			const pos42 = dst42.length;
+			dst42.data[pos42 + 0] = (v46 >>> 24) & 255;
+			dst42.data[pos42 + 1] = (v46 >>> 16) & 255;
+			dst42.data[pos42 + 2] = (v46 >>> 8) & 255;
+			dst42.data[pos42 + 3] = v46 & 255;
+			dst42.length = dst42.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(v46, f), 0).v));
 		} else if (_445 === 6) {
 			const v47: rs.i8 = (rs.u64Low(v40) << 24) >> 24;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(v47)));
+			const dst43 = out;
+			rs.byteVecReserve(dst43, 1 as rs.usize);
+			dst43.data[dst43.length + 0] = v47 & 255;
+			dst43.length = dst43.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i8Display(v47, f), 3).v));
 		} else if (_445 === 7) {
 			const v48: rs.i16 = (rs.u64Low(v40) << 16) >> 16;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(v48)));
+			const dst44 = out;
+			rs.byteVecReserve(dst44, 2 as rs.usize);
+			const pos44 = dst44.length;
+			dst44.data[pos44 + 0] = (v48 >>> 8) & 255;
+			dst44.data[pos44 + 1] = v48 & 255;
+			dst44.length = dst44.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i16Display(v48, f), 5).v));
 		} else if (_445 === 8) {
 			const v49: rs.i32 = rs.u64Low(v40) | 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(v49)));
+			const dst45 = out;
+			rs.byteVecReserve(dst45, 4 as rs.usize);
+			const pos45 = dst45.length;
+			dst45.data[pos45 + 0] = (v49 >>> 24) & 255;
+			dst45.data[pos45 + 1] = (v49 >>> 16) & 255;
+			dst45.data[pos45 + 2] = (v49 >>> 8) & 255;
+			dst45.data[pos45 + 3] = v49 & 255;
+			dst45.length = dst45.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i32Display(v49, f), 10).v));
 		} else if (_445 === 9) {
 			const v50: rs.i64 = rs.i64Cast(v40);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(v50)));
+			const dst46 = out;
+			const word43 = rs.intWord(v50, 0);
+			const word44 = rs.intWord(v50, 32);
+			rs.byteVecReserve(dst46, 8 as rs.usize);
+			const pos46 = dst46.length;
+			dst46.data[pos46 + 0] = (word44 >>> 24) & 255;
+			dst46.data[pos46 + 1] = (word44 >>> 16) & 255;
+			dst46.data[pos46 + 2] = (word44 >>> 8) & 255;
+			dst46.data[pos46 + 3] = word44 & 255;
+			dst46.data[pos46 + 4] = (word43 >>> 24) & 255;
+			dst46.data[pos46 + 5] = (word43 >>> 16) & 255;
+			dst46.data[pos46 + 6] = (word43 >>> 8) & 255;
+			dst46.data[pos46 + 7] = word43 & 255;
+			dst46.length = dst46.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i64Display(v50, f), 19).v));
 		} else if (_445 === 10) {
 			const v51: rs.i128 = rs.i128Cast(v40);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(v51)));
+			const dst47 = out;
+			const word45 = rs.intWord(v51, 0);
+			const word46 = rs.intWord(v51, 32);
+			const word47 = rs.intWord(v51, 64);
+			const word48 = rs.intWord(v51, 96);
+			rs.byteVecReserve(dst47, 16 as rs.usize);
+			const pos47 = dst47.length;
+			dst47.data[pos47 + 0] = (word48 >>> 24) & 255;
+			dst47.data[pos47 + 1] = (word48 >>> 16) & 255;
+			dst47.data[pos47 + 2] = (word48 >>> 8) & 255;
+			dst47.data[pos47 + 3] = word48 & 255;
+			dst47.data[pos47 + 4] = (word47 >>> 24) & 255;
+			dst47.data[pos47 + 5] = (word47 >>> 16) & 255;
+			dst47.data[pos47 + 6] = (word47 >>> 8) & 255;
+			dst47.data[pos47 + 7] = word47 & 255;
+			dst47.data[pos47 + 8] = (word46 >>> 24) & 255;
+			dst47.data[pos47 + 9] = (word46 >>> 16) & 255;
+			dst47.data[pos47 + 10] = (word46 >>> 8) & 255;
+			dst47.data[pos47 + 11] = word46 & 255;
+			dst47.data[pos47 + 12] = (word45 >>> 24) & 255;
+			dst47.data[pos47 + 13] = (word45 >>> 16) & 255;
+			dst47.data[pos47 + 14] = (word45 >>> 8) & 255;
+			dst47.data[pos47 + 15] = word45 & 255;
+			dst47.length = dst47.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i128Display(v51, f), 39).v));
 		} else {
 			const v52: rs.isize = rs.u64Low(v40) | 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(v52)));
+			const dst48 = out;
+			rs.byteVecReserve(dst48, 4 as rs.usize);
+			const pos48 = dst48.length;
+			dst48.data[pos48 + 0] = (v52 >>> 24) & 255;
+			dst48.data[pos48 + 1] = (v52 >>> 16) & 255;
+			dst48.data[pos48 + 2] = (v52 >>> 8) & 255;
+			dst48.data[pos48 + 3] = v52 & 255;
+			dst48.length = dst48.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.isizeDisplay(v52, f), 10).v));
 		}
 	} else if (_5 === 4) {
@@ -2244,51 +3898,167 @@ export function cast(from: rs.u8, to: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 		const _585: rs.u8 = rs.u8Rem(to, 12);
 		if (_585 === 0) {
 			const v54: rs.u8 = rs.u128Low(v53) & 0xff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(v54)));
+			const dst49 = out;
+			rs.byteVecReserve(dst49, 1 as rs.usize);
+			dst49.data[dst49.length + 0] = v54 & 255;
+			dst49.length = dst49.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u8Display(v54, f), 0).v));
 		} else if (_585 === 1) {
 			const v55: rs.u16 = rs.u128Low(v53) & 0xffff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(v55)));
+			const dst50 = out;
+			rs.byteVecReserve(dst50, 2 as rs.usize);
+			const pos50 = dst50.length;
+			dst50.data[pos50 + 0] = (v55 >>> 8) & 255;
+			dst50.data[pos50 + 1] = v55 & 255;
+			dst50.length = dst50.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u16Display(v55, f), 0).v));
 		} else if (_585 === 2) {
 			const v56: rs.u32 = rs.u128Low(v53);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(v56)));
+			const dst51 = out;
+			rs.byteVecReserve(dst51, 4 as rs.usize);
+			const pos51 = dst51.length;
+			dst51.data[pos51 + 0] = (v56 >>> 24) & 255;
+			dst51.data[pos51 + 1] = (v56 >>> 16) & 255;
+			dst51.data[pos51 + 2] = (v56 >>> 8) & 255;
+			dst51.data[pos51 + 3] = v56 & 255;
+			dst51.length = dst51.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u32Display(v56, f), 0).v));
 		} else if (_585 === 3) {
 			const v57: rs.u64 = rs.u64Cast(v53);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(v57)));
+			const dst52 = out;
+			const word49 = rs.intWord(v57, 0);
+			const word50 = rs.intWord(v57, 32);
+			rs.byteVecReserve(dst52, 8 as rs.usize);
+			const pos52 = dst52.length;
+			dst52.data[pos52 + 0] = (word50 >>> 24) & 255;
+			dst52.data[pos52 + 1] = (word50 >>> 16) & 255;
+			dst52.data[pos52 + 2] = (word50 >>> 8) & 255;
+			dst52.data[pos52 + 3] = word50 & 255;
+			dst52.data[pos52 + 4] = (word49 >>> 24) & 255;
+			dst52.data[pos52 + 5] = (word49 >>> 16) & 255;
+			dst52.data[pos52 + 6] = (word49 >>> 8) & 255;
+			dst52.data[pos52 + 7] = word49 & 255;
+			dst52.length = dst52.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u64Display(v57, f), 0).v));
 		} else if (_585 === 4) {
 			const v58: rs.u128 = v53;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(v58)));
+			const dst53 = out;
+			const word51 = rs.intWord(v58, 0);
+			const word52 = rs.intWord(v58, 32);
+			const word53 = rs.intWord(v58, 64);
+			const word54 = rs.intWord(v58, 96);
+			rs.byteVecReserve(dst53, 16 as rs.usize);
+			const pos53 = dst53.length;
+			dst53.data[pos53 + 0] = (word54 >>> 24) & 255;
+			dst53.data[pos53 + 1] = (word54 >>> 16) & 255;
+			dst53.data[pos53 + 2] = (word54 >>> 8) & 255;
+			dst53.data[pos53 + 3] = word54 & 255;
+			dst53.data[pos53 + 4] = (word53 >>> 24) & 255;
+			dst53.data[pos53 + 5] = (word53 >>> 16) & 255;
+			dst53.data[pos53 + 6] = (word53 >>> 8) & 255;
+			dst53.data[pos53 + 7] = word53 & 255;
+			dst53.data[pos53 + 8] = (word52 >>> 24) & 255;
+			dst53.data[pos53 + 9] = (word52 >>> 16) & 255;
+			dst53.data[pos53 + 10] = (word52 >>> 8) & 255;
+			dst53.data[pos53 + 11] = word52 & 255;
+			dst53.data[pos53 + 12] = (word51 >>> 24) & 255;
+			dst53.data[pos53 + 13] = (word51 >>> 16) & 255;
+			dst53.data[pos53 + 14] = (word51 >>> 8) & 255;
+			dst53.data[pos53 + 15] = word51 & 255;
+			dst53.length = dst53.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u128Display(v58, f), 0).v));
 		} else if (_585 === 5) {
 			const v59: rs.usize = rs.u128Low(v53);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(v59)));
+			const dst54 = out;
+			rs.byteVecReserve(dst54, 4 as rs.usize);
+			const pos54 = dst54.length;
+			dst54.data[pos54 + 0] = (v59 >>> 24) & 255;
+			dst54.data[pos54 + 1] = (v59 >>> 16) & 255;
+			dst54.data[pos54 + 2] = (v59 >>> 8) & 255;
+			dst54.data[pos54 + 3] = v59 & 255;
+			dst54.length = dst54.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(v59, f), 0).v));
 		} else if (_585 === 6) {
 			const v60: rs.i8 = (rs.u128Low(v53) << 24) >> 24;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(v60)));
+			const dst55 = out;
+			rs.byteVecReserve(dst55, 1 as rs.usize);
+			dst55.data[dst55.length + 0] = v60 & 255;
+			dst55.length = dst55.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i8Display(v60, f), 3).v));
 		} else if (_585 === 7) {
 			const v61: rs.i16 = (rs.u128Low(v53) << 16) >> 16;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(v61)));
+			const dst56 = out;
+			rs.byteVecReserve(dst56, 2 as rs.usize);
+			const pos56 = dst56.length;
+			dst56.data[pos56 + 0] = (v61 >>> 8) & 255;
+			dst56.data[pos56 + 1] = v61 & 255;
+			dst56.length = dst56.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i16Display(v61, f), 5).v));
 		} else if (_585 === 8) {
 			const v62: rs.i32 = rs.u128Low(v53) | 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(v62)));
+			const dst57 = out;
+			rs.byteVecReserve(dst57, 4 as rs.usize);
+			const pos57 = dst57.length;
+			dst57.data[pos57 + 0] = (v62 >>> 24) & 255;
+			dst57.data[pos57 + 1] = (v62 >>> 16) & 255;
+			dst57.data[pos57 + 2] = (v62 >>> 8) & 255;
+			dst57.data[pos57 + 3] = v62 & 255;
+			dst57.length = dst57.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i32Display(v62, f), 10).v));
 		} else if (_585 === 9) {
 			const v63: rs.i64 = rs.i64Cast(v53);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(v63)));
+			const dst58 = out;
+			const word55 = rs.intWord(v63, 0);
+			const word56 = rs.intWord(v63, 32);
+			rs.byteVecReserve(dst58, 8 as rs.usize);
+			const pos58 = dst58.length;
+			dst58.data[pos58 + 0] = (word56 >>> 24) & 255;
+			dst58.data[pos58 + 1] = (word56 >>> 16) & 255;
+			dst58.data[pos58 + 2] = (word56 >>> 8) & 255;
+			dst58.data[pos58 + 3] = word56 & 255;
+			dst58.data[pos58 + 4] = (word55 >>> 24) & 255;
+			dst58.data[pos58 + 5] = (word55 >>> 16) & 255;
+			dst58.data[pos58 + 6] = (word55 >>> 8) & 255;
+			dst58.data[pos58 + 7] = word55 & 255;
+			dst58.length = dst58.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i64Display(v63, f), 19).v));
 		} else if (_585 === 10) {
 			const v64: rs.i128 = rs.i128Cast(v53);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(v64)));
+			const dst59 = out;
+			const word57 = rs.intWord(v64, 0);
+			const word58 = rs.intWord(v64, 32);
+			const word59 = rs.intWord(v64, 64);
+			const word60 = rs.intWord(v64, 96);
+			rs.byteVecReserve(dst59, 16 as rs.usize);
+			const pos59 = dst59.length;
+			dst59.data[pos59 + 0] = (word60 >>> 24) & 255;
+			dst59.data[pos59 + 1] = (word60 >>> 16) & 255;
+			dst59.data[pos59 + 2] = (word60 >>> 8) & 255;
+			dst59.data[pos59 + 3] = word60 & 255;
+			dst59.data[pos59 + 4] = (word59 >>> 24) & 255;
+			dst59.data[pos59 + 5] = (word59 >>> 16) & 255;
+			dst59.data[pos59 + 6] = (word59 >>> 8) & 255;
+			dst59.data[pos59 + 7] = word59 & 255;
+			dst59.data[pos59 + 8] = (word58 >>> 24) & 255;
+			dst59.data[pos59 + 9] = (word58 >>> 16) & 255;
+			dst59.data[pos59 + 10] = (word58 >>> 8) & 255;
+			dst59.data[pos59 + 11] = word58 & 255;
+			dst59.data[pos59 + 12] = (word57 >>> 24) & 255;
+			dst59.data[pos59 + 13] = (word57 >>> 16) & 255;
+			dst59.data[pos59 + 14] = (word57 >>> 8) & 255;
+			dst59.data[pos59 + 15] = word57 & 255;
+			dst59.length = dst59.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i128Display(v64, f), 39).v));
 		} else {
 			const v65: rs.isize = rs.u128Low(v53) | 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(v65)));
+			const dst60 = out;
+			rs.byteVecReserve(dst60, 4 as rs.usize);
+			const pos60 = dst60.length;
+			dst60.data[pos60 + 0] = (v65 >>> 24) & 255;
+			dst60.data[pos60 + 1] = (v65 >>> 16) & 255;
+			dst60.data[pos60 + 2] = (v65 >>> 8) & 255;
+			dst60.data[pos60 + 3] = v65 & 255;
+			dst60.length = dst60.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.isizeDisplay(v65, f), 10).v));
 		}
 	} else if (_5 === 5) {
@@ -2299,51 +4069,167 @@ export function cast(from: rs.u8, to: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 		const _725: rs.u8 = rs.u8Rem(to, 12);
 		if (_725 === 0) {
 			const v67: rs.u8 = v66 & 0xff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(v67)));
+			const dst61 = out;
+			rs.byteVecReserve(dst61, 1 as rs.usize);
+			dst61.data[dst61.length + 0] = v67 & 255;
+			dst61.length = dst61.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u8Display(v67, f), 0).v));
 		} else if (_725 === 1) {
 			const v68: rs.u16 = v66 & 0xffff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(v68)));
+			const dst62 = out;
+			rs.byteVecReserve(dst62, 2 as rs.usize);
+			const pos62 = dst62.length;
+			dst62.data[pos62 + 0] = (v68 >>> 8) & 255;
+			dst62.data[pos62 + 1] = v68 & 255;
+			dst62.length = dst62.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u16Display(v68, f), 0).v));
 		} else if (_725 === 2) {
 			const v69: rs.u32 = v66 as rs.u32;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(v69)));
+			const dst63 = out;
+			rs.byteVecReserve(dst63, 4 as rs.usize);
+			const pos63 = dst63.length;
+			dst63.data[pos63 + 0] = (v69 >>> 24) & 255;
+			dst63.data[pos63 + 1] = (v69 >>> 16) & 255;
+			dst63.data[pos63 + 2] = (v69 >>> 8) & 255;
+			dst63.data[pos63 + 3] = v69 & 255;
+			dst63.length = dst63.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u32Display(v69, f), 0).v));
 		} else if (_725 === 3) {
 			const v70: rs.u64 = v66 as rs.u64;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(v70)));
+			const dst64 = out;
+			const word61 = rs.intWord(v70, 0);
+			const word62 = rs.intWord(v70, 32);
+			rs.byteVecReserve(dst64, 8 as rs.usize);
+			const pos64 = dst64.length;
+			dst64.data[pos64 + 0] = (word62 >>> 24) & 255;
+			dst64.data[pos64 + 1] = (word62 >>> 16) & 255;
+			dst64.data[pos64 + 2] = (word62 >>> 8) & 255;
+			dst64.data[pos64 + 3] = word62 & 255;
+			dst64.data[pos64 + 4] = (word61 >>> 24) & 255;
+			dst64.data[pos64 + 5] = (word61 >>> 16) & 255;
+			dst64.data[pos64 + 6] = (word61 >>> 8) & 255;
+			dst64.data[pos64 + 7] = word61 & 255;
+			dst64.length = dst64.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u64Display(v70, f), 0).v));
 		} else if (_725 === 4) {
 			const v71: rs.u128 = v66 as rs.u128;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(v71)));
+			const dst65 = out;
+			const word63 = rs.intWord(v71, 0);
+			const word64 = rs.intWord(v71, 32);
+			const word65 = rs.intWord(v71, 64);
+			const word66 = rs.intWord(v71, 96);
+			rs.byteVecReserve(dst65, 16 as rs.usize);
+			const pos65 = dst65.length;
+			dst65.data[pos65 + 0] = (word66 >>> 24) & 255;
+			dst65.data[pos65 + 1] = (word66 >>> 16) & 255;
+			dst65.data[pos65 + 2] = (word66 >>> 8) & 255;
+			dst65.data[pos65 + 3] = word66 & 255;
+			dst65.data[pos65 + 4] = (word65 >>> 24) & 255;
+			dst65.data[pos65 + 5] = (word65 >>> 16) & 255;
+			dst65.data[pos65 + 6] = (word65 >>> 8) & 255;
+			dst65.data[pos65 + 7] = word65 & 255;
+			dst65.data[pos65 + 8] = (word64 >>> 24) & 255;
+			dst65.data[pos65 + 9] = (word64 >>> 16) & 255;
+			dst65.data[pos65 + 10] = (word64 >>> 8) & 255;
+			dst65.data[pos65 + 11] = word64 & 255;
+			dst65.data[pos65 + 12] = (word63 >>> 24) & 255;
+			dst65.data[pos65 + 13] = (word63 >>> 16) & 255;
+			dst65.data[pos65 + 14] = (word63 >>> 8) & 255;
+			dst65.data[pos65 + 15] = word63 & 255;
+			dst65.length = dst65.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u128Display(v71, f), 0).v));
 		} else if (_725 === 5) {
 			const v72: rs.usize = v66;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(v72)));
+			const dst66 = out;
+			rs.byteVecReserve(dst66, 4 as rs.usize);
+			const pos66 = dst66.length;
+			dst66.data[pos66 + 0] = (v72 >>> 24) & 255;
+			dst66.data[pos66 + 1] = (v72 >>> 16) & 255;
+			dst66.data[pos66 + 2] = (v72 >>> 8) & 255;
+			dst66.data[pos66 + 3] = v72 & 255;
+			dst66.length = dst66.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(v72, f), 0).v));
 		} else if (_725 === 6) {
 			const v73: rs.i8 = (v66 << 24) >> 24;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(v73)));
+			const dst67 = out;
+			rs.byteVecReserve(dst67, 1 as rs.usize);
+			dst67.data[dst67.length + 0] = v73 & 255;
+			dst67.length = dst67.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i8Display(v73, f), 3).v));
 		} else if (_725 === 7) {
 			const v74: rs.i16 = (v66 << 16) >> 16;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(v74)));
+			const dst68 = out;
+			rs.byteVecReserve(dst68, 2 as rs.usize);
+			const pos68 = dst68.length;
+			dst68.data[pos68 + 0] = (v74 >>> 8) & 255;
+			dst68.data[pos68 + 1] = v74 & 255;
+			dst68.length = dst68.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i16Display(v74, f), 5).v));
 		} else if (_725 === 8) {
 			const v75: rs.i32 = v66 | 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(v75)));
+			const dst69 = out;
+			rs.byteVecReserve(dst69, 4 as rs.usize);
+			const pos69 = dst69.length;
+			dst69.data[pos69 + 0] = (v75 >>> 24) & 255;
+			dst69.data[pos69 + 1] = (v75 >>> 16) & 255;
+			dst69.data[pos69 + 2] = (v75 >>> 8) & 255;
+			dst69.data[pos69 + 3] = v75 & 255;
+			dst69.length = dst69.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i32Display(v75, f), 10).v));
 		} else if (_725 === 9) {
 			const v76: rs.i64 = v66 as rs.i64;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(v76)));
+			const dst70 = out;
+			const word67 = rs.intWord(v76, 0);
+			const word68 = rs.intWord(v76, 32);
+			rs.byteVecReserve(dst70, 8 as rs.usize);
+			const pos70 = dst70.length;
+			dst70.data[pos70 + 0] = (word68 >>> 24) & 255;
+			dst70.data[pos70 + 1] = (word68 >>> 16) & 255;
+			dst70.data[pos70 + 2] = (word68 >>> 8) & 255;
+			dst70.data[pos70 + 3] = word68 & 255;
+			dst70.data[pos70 + 4] = (word67 >>> 24) & 255;
+			dst70.data[pos70 + 5] = (word67 >>> 16) & 255;
+			dst70.data[pos70 + 6] = (word67 >>> 8) & 255;
+			dst70.data[pos70 + 7] = word67 & 255;
+			dst70.length = dst70.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i64Display(v76, f), 19).v));
 		} else if (_725 === 10) {
 			const v77: rs.i128 = v66 as rs.i128;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(v77)));
+			const dst71 = out;
+			const word69 = rs.intWord(v77, 0);
+			const word70 = rs.intWord(v77, 32);
+			const word71 = rs.intWord(v77, 64);
+			const word72 = rs.intWord(v77, 96);
+			rs.byteVecReserve(dst71, 16 as rs.usize);
+			const pos71 = dst71.length;
+			dst71.data[pos71 + 0] = (word72 >>> 24) & 255;
+			dst71.data[pos71 + 1] = (word72 >>> 16) & 255;
+			dst71.data[pos71 + 2] = (word72 >>> 8) & 255;
+			dst71.data[pos71 + 3] = word72 & 255;
+			dst71.data[pos71 + 4] = (word71 >>> 24) & 255;
+			dst71.data[pos71 + 5] = (word71 >>> 16) & 255;
+			dst71.data[pos71 + 6] = (word71 >>> 8) & 255;
+			dst71.data[pos71 + 7] = word71 & 255;
+			dst71.data[pos71 + 8] = (word70 >>> 24) & 255;
+			dst71.data[pos71 + 9] = (word70 >>> 16) & 255;
+			dst71.data[pos71 + 10] = (word70 >>> 8) & 255;
+			dst71.data[pos71 + 11] = word70 & 255;
+			dst71.data[pos71 + 12] = (word69 >>> 24) & 255;
+			dst71.data[pos71 + 13] = (word69 >>> 16) & 255;
+			dst71.data[pos71 + 14] = (word69 >>> 8) & 255;
+			dst71.data[pos71 + 15] = word69 & 255;
+			dst71.length = dst71.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i128Display(v77, f), 39).v));
 		} else {
 			const v78: rs.isize = v66 | 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(v78)));
+			const dst72 = out;
+			rs.byteVecReserve(dst72, 4 as rs.usize);
+			const pos72 = dst72.length;
+			dst72.data[pos72 + 0] = (v78 >>> 24) & 255;
+			dst72.data[pos72 + 1] = (v78 >>> 16) & 255;
+			dst72.data[pos72 + 2] = (v78 >>> 8) & 255;
+			dst72.data[pos72 + 3] = v78 & 255;
+			dst72.length = dst72.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.isizeDisplay(v78, f), 10).v));
 		}
 	} else if (_5 === 6) {
@@ -2354,51 +4240,167 @@ export function cast(from: rs.u8, to: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 		const _865: rs.u8 = rs.u8Rem(to, 12);
 		if (_865 === 0) {
 			const v80: rs.u8 = v79 & 0xff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(v80)));
+			const dst73 = out;
+			rs.byteVecReserve(dst73, 1 as rs.usize);
+			dst73.data[dst73.length + 0] = v80 & 255;
+			dst73.length = dst73.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u8Display(v80, f), 0).v));
 		} else if (_865 === 1) {
 			const v81: rs.u16 = v79 & 0xffff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(v81)));
+			const dst74 = out;
+			rs.byteVecReserve(dst74, 2 as rs.usize);
+			const pos74 = dst74.length;
+			dst74.data[pos74 + 0] = (v81 >>> 8) & 255;
+			dst74.data[pos74 + 1] = v81 & 255;
+			dst74.length = dst74.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u16Display(v81, f), 0).v));
 		} else if (_865 === 2) {
 			const v82: rs.u32 = v79 >>> 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(v82)));
+			const dst75 = out;
+			rs.byteVecReserve(dst75, 4 as rs.usize);
+			const pos75 = dst75.length;
+			dst75.data[pos75 + 0] = (v82 >>> 24) & 255;
+			dst75.data[pos75 + 1] = (v82 >>> 16) & 255;
+			dst75.data[pos75 + 2] = (v82 >>> 8) & 255;
+			dst75.data[pos75 + 3] = v82 & 255;
+			dst75.length = dst75.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u32Display(v82, f), 0).v));
 		} else if (_865 === 3) {
 			const v83: rs.u64 = rs.u64Cast(v79);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(v83)));
+			const dst76 = out;
+			const word73 = rs.intWord(v83, 0);
+			const word74 = rs.intWord(v83, 32);
+			rs.byteVecReserve(dst76, 8 as rs.usize);
+			const pos76 = dst76.length;
+			dst76.data[pos76 + 0] = (word74 >>> 24) & 255;
+			dst76.data[pos76 + 1] = (word74 >>> 16) & 255;
+			dst76.data[pos76 + 2] = (word74 >>> 8) & 255;
+			dst76.data[pos76 + 3] = word74 & 255;
+			dst76.data[pos76 + 4] = (word73 >>> 24) & 255;
+			dst76.data[pos76 + 5] = (word73 >>> 16) & 255;
+			dst76.data[pos76 + 6] = (word73 >>> 8) & 255;
+			dst76.data[pos76 + 7] = word73 & 255;
+			dst76.length = dst76.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u64Display(v83, f), 0).v));
 		} else if (_865 === 4) {
 			const v84: rs.u128 = rs.u128Cast(v79);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(v84)));
+			const dst77 = out;
+			const word75 = rs.intWord(v84, 0);
+			const word76 = rs.intWord(v84, 32);
+			const word77 = rs.intWord(v84, 64);
+			const word78 = rs.intWord(v84, 96);
+			rs.byteVecReserve(dst77, 16 as rs.usize);
+			const pos77 = dst77.length;
+			dst77.data[pos77 + 0] = (word78 >>> 24) & 255;
+			dst77.data[pos77 + 1] = (word78 >>> 16) & 255;
+			dst77.data[pos77 + 2] = (word78 >>> 8) & 255;
+			dst77.data[pos77 + 3] = word78 & 255;
+			dst77.data[pos77 + 4] = (word77 >>> 24) & 255;
+			dst77.data[pos77 + 5] = (word77 >>> 16) & 255;
+			dst77.data[pos77 + 6] = (word77 >>> 8) & 255;
+			dst77.data[pos77 + 7] = word77 & 255;
+			dst77.data[pos77 + 8] = (word76 >>> 24) & 255;
+			dst77.data[pos77 + 9] = (word76 >>> 16) & 255;
+			dst77.data[pos77 + 10] = (word76 >>> 8) & 255;
+			dst77.data[pos77 + 11] = word76 & 255;
+			dst77.data[pos77 + 12] = (word75 >>> 24) & 255;
+			dst77.data[pos77 + 13] = (word75 >>> 16) & 255;
+			dst77.data[pos77 + 14] = (word75 >>> 8) & 255;
+			dst77.data[pos77 + 15] = word75 & 255;
+			dst77.length = dst77.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u128Display(v84, f), 0).v));
 		} else if (_865 === 5) {
 			const v85: rs.usize = v79 >>> 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(v85)));
+			const dst78 = out;
+			rs.byteVecReserve(dst78, 4 as rs.usize);
+			const pos78 = dst78.length;
+			dst78.data[pos78 + 0] = (v85 >>> 24) & 255;
+			dst78.data[pos78 + 1] = (v85 >>> 16) & 255;
+			dst78.data[pos78 + 2] = (v85 >>> 8) & 255;
+			dst78.data[pos78 + 3] = v85 & 255;
+			dst78.length = dst78.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(v85, f), 0).v));
 		} else if (_865 === 6) {
 			const v86: rs.i8 = v79;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(v86)));
+			const dst79 = out;
+			rs.byteVecReserve(dst79, 1 as rs.usize);
+			dst79.data[dst79.length + 0] = v86 & 255;
+			dst79.length = dst79.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i8Display(v86, f), 3).v));
 		} else if (_865 === 7) {
 			const v87: rs.i16 = v79 as rs.i16;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(v87)));
+			const dst80 = out;
+			rs.byteVecReserve(dst80, 2 as rs.usize);
+			const pos80 = dst80.length;
+			dst80.data[pos80 + 0] = (v87 >>> 8) & 255;
+			dst80.data[pos80 + 1] = v87 & 255;
+			dst80.length = dst80.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i16Display(v87, f), 5).v));
 		} else if (_865 === 8) {
 			const v88: rs.i32 = v79 as rs.i32;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(v88)));
+			const dst81 = out;
+			rs.byteVecReserve(dst81, 4 as rs.usize);
+			const pos81 = dst81.length;
+			dst81.data[pos81 + 0] = (v88 >>> 24) & 255;
+			dst81.data[pos81 + 1] = (v88 >>> 16) & 255;
+			dst81.data[pos81 + 2] = (v88 >>> 8) & 255;
+			dst81.data[pos81 + 3] = v88 & 255;
+			dst81.length = dst81.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i32Display(v88, f), 10).v));
 		} else if (_865 === 9) {
 			const v89: rs.i64 = v79 as rs.i64;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(v89)));
+			const dst82 = out;
+			const word79 = rs.intWord(v89, 0);
+			const word80 = rs.intWord(v89, 32);
+			rs.byteVecReserve(dst82, 8 as rs.usize);
+			const pos82 = dst82.length;
+			dst82.data[pos82 + 0] = (word80 >>> 24) & 255;
+			dst82.data[pos82 + 1] = (word80 >>> 16) & 255;
+			dst82.data[pos82 + 2] = (word80 >>> 8) & 255;
+			dst82.data[pos82 + 3] = word80 & 255;
+			dst82.data[pos82 + 4] = (word79 >>> 24) & 255;
+			dst82.data[pos82 + 5] = (word79 >>> 16) & 255;
+			dst82.data[pos82 + 6] = (word79 >>> 8) & 255;
+			dst82.data[pos82 + 7] = word79 & 255;
+			dst82.length = dst82.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i64Display(v89, f), 19).v));
 		} else if (_865 === 10) {
 			const v90: rs.i128 = v79 as rs.i128;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(v90)));
+			const dst83 = out;
+			const word81 = rs.intWord(v90, 0);
+			const word82 = rs.intWord(v90, 32);
+			const word83 = rs.intWord(v90, 64);
+			const word84 = rs.intWord(v90, 96);
+			rs.byteVecReserve(dst83, 16 as rs.usize);
+			const pos83 = dst83.length;
+			dst83.data[pos83 + 0] = (word84 >>> 24) & 255;
+			dst83.data[pos83 + 1] = (word84 >>> 16) & 255;
+			dst83.data[pos83 + 2] = (word84 >>> 8) & 255;
+			dst83.data[pos83 + 3] = word84 & 255;
+			dst83.data[pos83 + 4] = (word83 >>> 24) & 255;
+			dst83.data[pos83 + 5] = (word83 >>> 16) & 255;
+			dst83.data[pos83 + 6] = (word83 >>> 8) & 255;
+			dst83.data[pos83 + 7] = word83 & 255;
+			dst83.data[pos83 + 8] = (word82 >>> 24) & 255;
+			dst83.data[pos83 + 9] = (word82 >>> 16) & 255;
+			dst83.data[pos83 + 10] = (word82 >>> 8) & 255;
+			dst83.data[pos83 + 11] = word82 & 255;
+			dst83.data[pos83 + 12] = (word81 >>> 24) & 255;
+			dst83.data[pos83 + 13] = (word81 >>> 16) & 255;
+			dst83.data[pos83 + 14] = (word81 >>> 8) & 255;
+			dst83.data[pos83 + 15] = word81 & 255;
+			dst83.length = dst83.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i128Display(v90, f), 39).v));
 		} else {
 			const v91: rs.isize = v79 as rs.isize;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(v91)));
+			const dst84 = out;
+			rs.byteVecReserve(dst84, 4 as rs.usize);
+			const pos84 = dst84.length;
+			dst84.data[pos84 + 0] = (v91 >>> 24) & 255;
+			dst84.data[pos84 + 1] = (v91 >>> 16) & 255;
+			dst84.data[pos84 + 2] = (v91 >>> 8) & 255;
+			dst84.data[pos84 + 3] = v91 & 255;
+			dst84.length = dst84.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.isizeDisplay(v91, f), 10).v));
 		}
 	} else if (_5 === 7) {
@@ -2409,51 +4411,167 @@ export function cast(from: rs.u8, to: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 		const _1005: rs.u8 = rs.u8Rem(to, 12);
 		if (_1005 === 0) {
 			const v93: rs.u8 = v92 & 0xff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(v93)));
+			const dst85 = out;
+			rs.byteVecReserve(dst85, 1 as rs.usize);
+			dst85.data[dst85.length + 0] = v93 & 255;
+			dst85.length = dst85.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u8Display(v93, f), 0).v));
 		} else if (_1005 === 1) {
 			const v94: rs.u16 = v92 & 0xffff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(v94)));
+			const dst86 = out;
+			rs.byteVecReserve(dst86, 2 as rs.usize);
+			const pos86 = dst86.length;
+			dst86.data[pos86 + 0] = (v94 >>> 8) & 255;
+			dst86.data[pos86 + 1] = v94 & 255;
+			dst86.length = dst86.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u16Display(v94, f), 0).v));
 		} else if (_1005 === 2) {
 			const v95: rs.u32 = v92 >>> 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(v95)));
+			const dst87 = out;
+			rs.byteVecReserve(dst87, 4 as rs.usize);
+			const pos87 = dst87.length;
+			dst87.data[pos87 + 0] = (v95 >>> 24) & 255;
+			dst87.data[pos87 + 1] = (v95 >>> 16) & 255;
+			dst87.data[pos87 + 2] = (v95 >>> 8) & 255;
+			dst87.data[pos87 + 3] = v95 & 255;
+			dst87.length = dst87.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u32Display(v95, f), 0).v));
 		} else if (_1005 === 3) {
 			const v96: rs.u64 = rs.u64Cast(v92);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(v96)));
+			const dst88 = out;
+			const word85 = rs.intWord(v96, 0);
+			const word86 = rs.intWord(v96, 32);
+			rs.byteVecReserve(dst88, 8 as rs.usize);
+			const pos88 = dst88.length;
+			dst88.data[pos88 + 0] = (word86 >>> 24) & 255;
+			dst88.data[pos88 + 1] = (word86 >>> 16) & 255;
+			dst88.data[pos88 + 2] = (word86 >>> 8) & 255;
+			dst88.data[pos88 + 3] = word86 & 255;
+			dst88.data[pos88 + 4] = (word85 >>> 24) & 255;
+			dst88.data[pos88 + 5] = (word85 >>> 16) & 255;
+			dst88.data[pos88 + 6] = (word85 >>> 8) & 255;
+			dst88.data[pos88 + 7] = word85 & 255;
+			dst88.length = dst88.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u64Display(v96, f), 0).v));
 		} else if (_1005 === 4) {
 			const v97: rs.u128 = rs.u128Cast(v92);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(v97)));
+			const dst89 = out;
+			const word87 = rs.intWord(v97, 0);
+			const word88 = rs.intWord(v97, 32);
+			const word89 = rs.intWord(v97, 64);
+			const word90 = rs.intWord(v97, 96);
+			rs.byteVecReserve(dst89, 16 as rs.usize);
+			const pos89 = dst89.length;
+			dst89.data[pos89 + 0] = (word90 >>> 24) & 255;
+			dst89.data[pos89 + 1] = (word90 >>> 16) & 255;
+			dst89.data[pos89 + 2] = (word90 >>> 8) & 255;
+			dst89.data[pos89 + 3] = word90 & 255;
+			dst89.data[pos89 + 4] = (word89 >>> 24) & 255;
+			dst89.data[pos89 + 5] = (word89 >>> 16) & 255;
+			dst89.data[pos89 + 6] = (word89 >>> 8) & 255;
+			dst89.data[pos89 + 7] = word89 & 255;
+			dst89.data[pos89 + 8] = (word88 >>> 24) & 255;
+			dst89.data[pos89 + 9] = (word88 >>> 16) & 255;
+			dst89.data[pos89 + 10] = (word88 >>> 8) & 255;
+			dst89.data[pos89 + 11] = word88 & 255;
+			dst89.data[pos89 + 12] = (word87 >>> 24) & 255;
+			dst89.data[pos89 + 13] = (word87 >>> 16) & 255;
+			dst89.data[pos89 + 14] = (word87 >>> 8) & 255;
+			dst89.data[pos89 + 15] = word87 & 255;
+			dst89.length = dst89.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u128Display(v97, f), 0).v));
 		} else if (_1005 === 5) {
 			const v98: rs.usize = v92 >>> 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(v98)));
+			const dst90 = out;
+			rs.byteVecReserve(dst90, 4 as rs.usize);
+			const pos90 = dst90.length;
+			dst90.data[pos90 + 0] = (v98 >>> 24) & 255;
+			dst90.data[pos90 + 1] = (v98 >>> 16) & 255;
+			dst90.data[pos90 + 2] = (v98 >>> 8) & 255;
+			dst90.data[pos90 + 3] = v98 & 255;
+			dst90.length = dst90.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(v98, f), 0).v));
 		} else if (_1005 === 6) {
 			const v99: rs.i8 = (v92 << 24) >> 24;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(v99)));
+			const dst91 = out;
+			rs.byteVecReserve(dst91, 1 as rs.usize);
+			dst91.data[dst91.length + 0] = v99 & 255;
+			dst91.length = dst91.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i8Display(v99, f), 3).v));
 		} else if (_1005 === 7) {
 			const v100: rs.i16 = v92;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(v100)));
+			const dst92 = out;
+			rs.byteVecReserve(dst92, 2 as rs.usize);
+			const pos92 = dst92.length;
+			dst92.data[pos92 + 0] = (v100 >>> 8) & 255;
+			dst92.data[pos92 + 1] = v100 & 255;
+			dst92.length = dst92.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i16Display(v100, f), 5).v));
 		} else if (_1005 === 8) {
 			const v101: rs.i32 = v92 as rs.i32;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(v101)));
+			const dst93 = out;
+			rs.byteVecReserve(dst93, 4 as rs.usize);
+			const pos93 = dst93.length;
+			dst93.data[pos93 + 0] = (v101 >>> 24) & 255;
+			dst93.data[pos93 + 1] = (v101 >>> 16) & 255;
+			dst93.data[pos93 + 2] = (v101 >>> 8) & 255;
+			dst93.data[pos93 + 3] = v101 & 255;
+			dst93.length = dst93.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i32Display(v101, f), 10).v));
 		} else if (_1005 === 9) {
 			const v102: rs.i64 = v92 as rs.i64;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(v102)));
+			const dst94 = out;
+			const word91 = rs.intWord(v102, 0);
+			const word92 = rs.intWord(v102, 32);
+			rs.byteVecReserve(dst94, 8 as rs.usize);
+			const pos94 = dst94.length;
+			dst94.data[pos94 + 0] = (word92 >>> 24) & 255;
+			dst94.data[pos94 + 1] = (word92 >>> 16) & 255;
+			dst94.data[pos94 + 2] = (word92 >>> 8) & 255;
+			dst94.data[pos94 + 3] = word92 & 255;
+			dst94.data[pos94 + 4] = (word91 >>> 24) & 255;
+			dst94.data[pos94 + 5] = (word91 >>> 16) & 255;
+			dst94.data[pos94 + 6] = (word91 >>> 8) & 255;
+			dst94.data[pos94 + 7] = word91 & 255;
+			dst94.length = dst94.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i64Display(v102, f), 19).v));
 		} else if (_1005 === 10) {
 			const v103: rs.i128 = v92 as rs.i128;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(v103)));
+			const dst95 = out;
+			const word93 = rs.intWord(v103, 0);
+			const word94 = rs.intWord(v103, 32);
+			const word95 = rs.intWord(v103, 64);
+			const word96 = rs.intWord(v103, 96);
+			rs.byteVecReserve(dst95, 16 as rs.usize);
+			const pos95 = dst95.length;
+			dst95.data[pos95 + 0] = (word96 >>> 24) & 255;
+			dst95.data[pos95 + 1] = (word96 >>> 16) & 255;
+			dst95.data[pos95 + 2] = (word96 >>> 8) & 255;
+			dst95.data[pos95 + 3] = word96 & 255;
+			dst95.data[pos95 + 4] = (word95 >>> 24) & 255;
+			dst95.data[pos95 + 5] = (word95 >>> 16) & 255;
+			dst95.data[pos95 + 6] = (word95 >>> 8) & 255;
+			dst95.data[pos95 + 7] = word95 & 255;
+			dst95.data[pos95 + 8] = (word94 >>> 24) & 255;
+			dst95.data[pos95 + 9] = (word94 >>> 16) & 255;
+			dst95.data[pos95 + 10] = (word94 >>> 8) & 255;
+			dst95.data[pos95 + 11] = word94 & 255;
+			dst95.data[pos95 + 12] = (word93 >>> 24) & 255;
+			dst95.data[pos95 + 13] = (word93 >>> 16) & 255;
+			dst95.data[pos95 + 14] = (word93 >>> 8) & 255;
+			dst95.data[pos95 + 15] = word93 & 255;
+			dst95.length = dst95.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i128Display(v103, f), 39).v));
 		} else {
 			const v104: rs.isize = v92 as rs.isize;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(v104)));
+			const dst96 = out;
+			rs.byteVecReserve(dst96, 4 as rs.usize);
+			const pos96 = dst96.length;
+			dst96.data[pos96 + 0] = (v104 >>> 24) & 255;
+			dst96.data[pos96 + 1] = (v104 >>> 16) & 255;
+			dst96.data[pos96 + 2] = (v104 >>> 8) & 255;
+			dst96.data[pos96 + 3] = v104 & 255;
+			dst96.length = dst96.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.isizeDisplay(v104, f), 10).v));
 		}
 	} else if (_5 === 8) {
@@ -2464,51 +4582,167 @@ export function cast(from: rs.u8, to: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 		const _1145: rs.u8 = rs.u8Rem(to, 12);
 		if (_1145 === 0) {
 			const v106: rs.u8 = v105 & 0xff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(v106)));
+			const dst97 = out;
+			rs.byteVecReserve(dst97, 1 as rs.usize);
+			dst97.data[dst97.length + 0] = v106 & 255;
+			dst97.length = dst97.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u8Display(v106, f), 0).v));
 		} else if (_1145 === 1) {
 			const v107: rs.u16 = v105 & 0xffff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(v107)));
+			const dst98 = out;
+			rs.byteVecReserve(dst98, 2 as rs.usize);
+			const pos98 = dst98.length;
+			dst98.data[pos98 + 0] = (v107 >>> 8) & 255;
+			dst98.data[pos98 + 1] = v107 & 255;
+			dst98.length = dst98.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u16Display(v107, f), 0).v));
 		} else if (_1145 === 2) {
 			const v108: rs.u32 = v105 >>> 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(v108)));
+			const dst99 = out;
+			rs.byteVecReserve(dst99, 4 as rs.usize);
+			const pos99 = dst99.length;
+			dst99.data[pos99 + 0] = (v108 >>> 24) & 255;
+			dst99.data[pos99 + 1] = (v108 >>> 16) & 255;
+			dst99.data[pos99 + 2] = (v108 >>> 8) & 255;
+			dst99.data[pos99 + 3] = v108 & 255;
+			dst99.length = dst99.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u32Display(v108, f), 0).v));
 		} else if (_1145 === 3) {
 			const v109: rs.u64 = rs.u64Cast(v105);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(v109)));
+			const dst100 = out;
+			const word97 = rs.intWord(v109, 0);
+			const word98 = rs.intWord(v109, 32);
+			rs.byteVecReserve(dst100, 8 as rs.usize);
+			const pos100 = dst100.length;
+			dst100.data[pos100 + 0] = (word98 >>> 24) & 255;
+			dst100.data[pos100 + 1] = (word98 >>> 16) & 255;
+			dst100.data[pos100 + 2] = (word98 >>> 8) & 255;
+			dst100.data[pos100 + 3] = word98 & 255;
+			dst100.data[pos100 + 4] = (word97 >>> 24) & 255;
+			dst100.data[pos100 + 5] = (word97 >>> 16) & 255;
+			dst100.data[pos100 + 6] = (word97 >>> 8) & 255;
+			dst100.data[pos100 + 7] = word97 & 255;
+			dst100.length = dst100.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u64Display(v109, f), 0).v));
 		} else if (_1145 === 4) {
 			const v110: rs.u128 = rs.u128Cast(v105);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(v110)));
+			const dst101 = out;
+			const word99 = rs.intWord(v110, 0);
+			const word100 = rs.intWord(v110, 32);
+			const word101 = rs.intWord(v110, 64);
+			const word102 = rs.intWord(v110, 96);
+			rs.byteVecReserve(dst101, 16 as rs.usize);
+			const pos101 = dst101.length;
+			dst101.data[pos101 + 0] = (word102 >>> 24) & 255;
+			dst101.data[pos101 + 1] = (word102 >>> 16) & 255;
+			dst101.data[pos101 + 2] = (word102 >>> 8) & 255;
+			dst101.data[pos101 + 3] = word102 & 255;
+			dst101.data[pos101 + 4] = (word101 >>> 24) & 255;
+			dst101.data[pos101 + 5] = (word101 >>> 16) & 255;
+			dst101.data[pos101 + 6] = (word101 >>> 8) & 255;
+			dst101.data[pos101 + 7] = word101 & 255;
+			dst101.data[pos101 + 8] = (word100 >>> 24) & 255;
+			dst101.data[pos101 + 9] = (word100 >>> 16) & 255;
+			dst101.data[pos101 + 10] = (word100 >>> 8) & 255;
+			dst101.data[pos101 + 11] = word100 & 255;
+			dst101.data[pos101 + 12] = (word99 >>> 24) & 255;
+			dst101.data[pos101 + 13] = (word99 >>> 16) & 255;
+			dst101.data[pos101 + 14] = (word99 >>> 8) & 255;
+			dst101.data[pos101 + 15] = word99 & 255;
+			dst101.length = dst101.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u128Display(v110, f), 0).v));
 		} else if (_1145 === 5) {
 			const v111: rs.usize = v105 >>> 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(v111)));
+			const dst102 = out;
+			rs.byteVecReserve(dst102, 4 as rs.usize);
+			const pos102 = dst102.length;
+			dst102.data[pos102 + 0] = (v111 >>> 24) & 255;
+			dst102.data[pos102 + 1] = (v111 >>> 16) & 255;
+			dst102.data[pos102 + 2] = (v111 >>> 8) & 255;
+			dst102.data[pos102 + 3] = v111 & 255;
+			dst102.length = dst102.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(v111, f), 0).v));
 		} else if (_1145 === 6) {
 			const v112: rs.i8 = (v105 << 24) >> 24;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(v112)));
+			const dst103 = out;
+			rs.byteVecReserve(dst103, 1 as rs.usize);
+			dst103.data[dst103.length + 0] = v112 & 255;
+			dst103.length = dst103.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i8Display(v112, f), 3).v));
 		} else if (_1145 === 7) {
 			const v113: rs.i16 = (v105 << 16) >> 16;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(v113)));
+			const dst104 = out;
+			rs.byteVecReserve(dst104, 2 as rs.usize);
+			const pos104 = dst104.length;
+			dst104.data[pos104 + 0] = (v113 >>> 8) & 255;
+			dst104.data[pos104 + 1] = v113 & 255;
+			dst104.length = dst104.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i16Display(v113, f), 5).v));
 		} else if (_1145 === 8) {
 			const v114: rs.i32 = v105;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(v114)));
+			const dst105 = out;
+			rs.byteVecReserve(dst105, 4 as rs.usize);
+			const pos105 = dst105.length;
+			dst105.data[pos105 + 0] = (v114 >>> 24) & 255;
+			dst105.data[pos105 + 1] = (v114 >>> 16) & 255;
+			dst105.data[pos105 + 2] = (v114 >>> 8) & 255;
+			dst105.data[pos105 + 3] = v114 & 255;
+			dst105.length = dst105.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i32Display(v114, f), 10).v));
 		} else if (_1145 === 9) {
 			const v115: rs.i64 = v105 as rs.i64;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(v115)));
+			const dst106 = out;
+			const word103 = rs.intWord(v115, 0);
+			const word104 = rs.intWord(v115, 32);
+			rs.byteVecReserve(dst106, 8 as rs.usize);
+			const pos106 = dst106.length;
+			dst106.data[pos106 + 0] = (word104 >>> 24) & 255;
+			dst106.data[pos106 + 1] = (word104 >>> 16) & 255;
+			dst106.data[pos106 + 2] = (word104 >>> 8) & 255;
+			dst106.data[pos106 + 3] = word104 & 255;
+			dst106.data[pos106 + 4] = (word103 >>> 24) & 255;
+			dst106.data[pos106 + 5] = (word103 >>> 16) & 255;
+			dst106.data[pos106 + 6] = (word103 >>> 8) & 255;
+			dst106.data[pos106 + 7] = word103 & 255;
+			dst106.length = dst106.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i64Display(v115, f), 19).v));
 		} else if (_1145 === 10) {
 			const v116: rs.i128 = v105 as rs.i128;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(v116)));
+			const dst107 = out;
+			const word105 = rs.intWord(v116, 0);
+			const word106 = rs.intWord(v116, 32);
+			const word107 = rs.intWord(v116, 64);
+			const word108 = rs.intWord(v116, 96);
+			rs.byteVecReserve(dst107, 16 as rs.usize);
+			const pos107 = dst107.length;
+			dst107.data[pos107 + 0] = (word108 >>> 24) & 255;
+			dst107.data[pos107 + 1] = (word108 >>> 16) & 255;
+			dst107.data[pos107 + 2] = (word108 >>> 8) & 255;
+			dst107.data[pos107 + 3] = word108 & 255;
+			dst107.data[pos107 + 4] = (word107 >>> 24) & 255;
+			dst107.data[pos107 + 5] = (word107 >>> 16) & 255;
+			dst107.data[pos107 + 6] = (word107 >>> 8) & 255;
+			dst107.data[pos107 + 7] = word107 & 255;
+			dst107.data[pos107 + 8] = (word106 >>> 24) & 255;
+			dst107.data[pos107 + 9] = (word106 >>> 16) & 255;
+			dst107.data[pos107 + 10] = (word106 >>> 8) & 255;
+			dst107.data[pos107 + 11] = word106 & 255;
+			dst107.data[pos107 + 12] = (word105 >>> 24) & 255;
+			dst107.data[pos107 + 13] = (word105 >>> 16) & 255;
+			dst107.data[pos107 + 14] = (word105 >>> 8) & 255;
+			dst107.data[pos107 + 15] = word105 & 255;
+			dst107.length = dst107.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i128Display(v116, f), 39).v));
 		} else {
 			const v117: rs.isize = v105 as rs.isize;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(v117)));
+			const dst108 = out;
+			rs.byteVecReserve(dst108, 4 as rs.usize);
+			const pos108 = dst108.length;
+			dst108.data[pos108 + 0] = (v117 >>> 24) & 255;
+			dst108.data[pos108 + 1] = (v117 >>> 16) & 255;
+			dst108.data[pos108 + 2] = (v117 >>> 8) & 255;
+			dst108.data[pos108 + 3] = v117 & 255;
+			dst108.length = dst108.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.isizeDisplay(v117, f), 10).v));
 		}
 	} else if (_5 === 9) {
@@ -2519,51 +4753,167 @@ export function cast(from: rs.u8, to: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 		const _1285: rs.u8 = rs.u8Rem(to, 12);
 		if (_1285 === 0) {
 			const v119: rs.u8 = rs.i64Low(v118) & 0xff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(v119)));
+			const dst109 = out;
+			rs.byteVecReserve(dst109, 1 as rs.usize);
+			dst109.data[dst109.length + 0] = v119 & 255;
+			dst109.length = dst109.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u8Display(v119, f), 0).v));
 		} else if (_1285 === 1) {
 			const v120: rs.u16 = rs.i64Low(v118) & 0xffff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(v120)));
+			const dst110 = out;
+			rs.byteVecReserve(dst110, 2 as rs.usize);
+			const pos110 = dst110.length;
+			dst110.data[pos110 + 0] = (v120 >>> 8) & 255;
+			dst110.data[pos110 + 1] = v120 & 255;
+			dst110.length = dst110.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u16Display(v120, f), 0).v));
 		} else if (_1285 === 2) {
 			const v121: rs.u32 = rs.i64Low(v118);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(v121)));
+			const dst111 = out;
+			rs.byteVecReserve(dst111, 4 as rs.usize);
+			const pos111 = dst111.length;
+			dst111.data[pos111 + 0] = (v121 >>> 24) & 255;
+			dst111.data[pos111 + 1] = (v121 >>> 16) & 255;
+			dst111.data[pos111 + 2] = (v121 >>> 8) & 255;
+			dst111.data[pos111 + 3] = v121 & 255;
+			dst111.length = dst111.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u32Display(v121, f), 0).v));
 		} else if (_1285 === 3) {
 			const v122: rs.u64 = rs.u64Cast(v118);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(v122)));
+			const dst112 = out;
+			const word109 = rs.intWord(v122, 0);
+			const word110 = rs.intWord(v122, 32);
+			rs.byteVecReserve(dst112, 8 as rs.usize);
+			const pos112 = dst112.length;
+			dst112.data[pos112 + 0] = (word110 >>> 24) & 255;
+			dst112.data[pos112 + 1] = (word110 >>> 16) & 255;
+			dst112.data[pos112 + 2] = (word110 >>> 8) & 255;
+			dst112.data[pos112 + 3] = word110 & 255;
+			dst112.data[pos112 + 4] = (word109 >>> 24) & 255;
+			dst112.data[pos112 + 5] = (word109 >>> 16) & 255;
+			dst112.data[pos112 + 6] = (word109 >>> 8) & 255;
+			dst112.data[pos112 + 7] = word109 & 255;
+			dst112.length = dst112.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u64Display(v122, f), 0).v));
 		} else if (_1285 === 4) {
 			const v123: rs.u128 = rs.u128Cast(v118);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(v123)));
+			const dst113 = out;
+			const word111 = rs.intWord(v123, 0);
+			const word112 = rs.intWord(v123, 32);
+			const word113 = rs.intWord(v123, 64);
+			const word114 = rs.intWord(v123, 96);
+			rs.byteVecReserve(dst113, 16 as rs.usize);
+			const pos113 = dst113.length;
+			dst113.data[pos113 + 0] = (word114 >>> 24) & 255;
+			dst113.data[pos113 + 1] = (word114 >>> 16) & 255;
+			dst113.data[pos113 + 2] = (word114 >>> 8) & 255;
+			dst113.data[pos113 + 3] = word114 & 255;
+			dst113.data[pos113 + 4] = (word113 >>> 24) & 255;
+			dst113.data[pos113 + 5] = (word113 >>> 16) & 255;
+			dst113.data[pos113 + 6] = (word113 >>> 8) & 255;
+			dst113.data[pos113 + 7] = word113 & 255;
+			dst113.data[pos113 + 8] = (word112 >>> 24) & 255;
+			dst113.data[pos113 + 9] = (word112 >>> 16) & 255;
+			dst113.data[pos113 + 10] = (word112 >>> 8) & 255;
+			dst113.data[pos113 + 11] = word112 & 255;
+			dst113.data[pos113 + 12] = (word111 >>> 24) & 255;
+			dst113.data[pos113 + 13] = (word111 >>> 16) & 255;
+			dst113.data[pos113 + 14] = (word111 >>> 8) & 255;
+			dst113.data[pos113 + 15] = word111 & 255;
+			dst113.length = dst113.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u128Display(v123, f), 0).v));
 		} else if (_1285 === 5) {
 			const v124: rs.usize = rs.i64Low(v118);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(v124)));
+			const dst114 = out;
+			rs.byteVecReserve(dst114, 4 as rs.usize);
+			const pos114 = dst114.length;
+			dst114.data[pos114 + 0] = (v124 >>> 24) & 255;
+			dst114.data[pos114 + 1] = (v124 >>> 16) & 255;
+			dst114.data[pos114 + 2] = (v124 >>> 8) & 255;
+			dst114.data[pos114 + 3] = v124 & 255;
+			dst114.length = dst114.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(v124, f), 0).v));
 		} else if (_1285 === 6) {
 			const v125: rs.i8 = (rs.i64Low(v118) << 24) >> 24;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(v125)));
+			const dst115 = out;
+			rs.byteVecReserve(dst115, 1 as rs.usize);
+			dst115.data[dst115.length + 0] = v125 & 255;
+			dst115.length = dst115.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i8Display(v125, f), 3).v));
 		} else if (_1285 === 7) {
 			const v126: rs.i16 = (rs.i64Low(v118) << 16) >> 16;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(v126)));
+			const dst116 = out;
+			rs.byteVecReserve(dst116, 2 as rs.usize);
+			const pos116 = dst116.length;
+			dst116.data[pos116 + 0] = (v126 >>> 8) & 255;
+			dst116.data[pos116 + 1] = v126 & 255;
+			dst116.length = dst116.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i16Display(v126, f), 5).v));
 		} else if (_1285 === 8) {
 			const v127: rs.i32 = rs.i64Low(v118) | 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(v127)));
+			const dst117 = out;
+			rs.byteVecReserve(dst117, 4 as rs.usize);
+			const pos117 = dst117.length;
+			dst117.data[pos117 + 0] = (v127 >>> 24) & 255;
+			dst117.data[pos117 + 1] = (v127 >>> 16) & 255;
+			dst117.data[pos117 + 2] = (v127 >>> 8) & 255;
+			dst117.data[pos117 + 3] = v127 & 255;
+			dst117.length = dst117.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i32Display(v127, f), 10).v));
 		} else if (_1285 === 9) {
 			const v128: rs.i64 = v118;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(v128)));
+			const dst118 = out;
+			const word115 = rs.intWord(v128, 0);
+			const word116 = rs.intWord(v128, 32);
+			rs.byteVecReserve(dst118, 8 as rs.usize);
+			const pos118 = dst118.length;
+			dst118.data[pos118 + 0] = (word116 >>> 24) & 255;
+			dst118.data[pos118 + 1] = (word116 >>> 16) & 255;
+			dst118.data[pos118 + 2] = (word116 >>> 8) & 255;
+			dst118.data[pos118 + 3] = word116 & 255;
+			dst118.data[pos118 + 4] = (word115 >>> 24) & 255;
+			dst118.data[pos118 + 5] = (word115 >>> 16) & 255;
+			dst118.data[pos118 + 6] = (word115 >>> 8) & 255;
+			dst118.data[pos118 + 7] = word115 & 255;
+			dst118.length = dst118.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i64Display(v128, f), 19).v));
 		} else if (_1285 === 10) {
 			const v129: rs.i128 = rs.i128Cast(v118);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(v129)));
+			const dst119 = out;
+			const word117 = rs.intWord(v129, 0);
+			const word118 = rs.intWord(v129, 32);
+			const word119 = rs.intWord(v129, 64);
+			const word120 = rs.intWord(v129, 96);
+			rs.byteVecReserve(dst119, 16 as rs.usize);
+			const pos119 = dst119.length;
+			dst119.data[pos119 + 0] = (word120 >>> 24) & 255;
+			dst119.data[pos119 + 1] = (word120 >>> 16) & 255;
+			dst119.data[pos119 + 2] = (word120 >>> 8) & 255;
+			dst119.data[pos119 + 3] = word120 & 255;
+			dst119.data[pos119 + 4] = (word119 >>> 24) & 255;
+			dst119.data[pos119 + 5] = (word119 >>> 16) & 255;
+			dst119.data[pos119 + 6] = (word119 >>> 8) & 255;
+			dst119.data[pos119 + 7] = word119 & 255;
+			dst119.data[pos119 + 8] = (word118 >>> 24) & 255;
+			dst119.data[pos119 + 9] = (word118 >>> 16) & 255;
+			dst119.data[pos119 + 10] = (word118 >>> 8) & 255;
+			dst119.data[pos119 + 11] = word118 & 255;
+			dst119.data[pos119 + 12] = (word117 >>> 24) & 255;
+			dst119.data[pos119 + 13] = (word117 >>> 16) & 255;
+			dst119.data[pos119 + 14] = (word117 >>> 8) & 255;
+			dst119.data[pos119 + 15] = word117 & 255;
+			dst119.length = dst119.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i128Display(v129, f), 39).v));
 		} else {
 			const v130: rs.isize = rs.i64Low(v118) | 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(v130)));
+			const dst120 = out;
+			rs.byteVecReserve(dst120, 4 as rs.usize);
+			const pos120 = dst120.length;
+			dst120.data[pos120 + 0] = (v130 >>> 24) & 255;
+			dst120.data[pos120 + 1] = (v130 >>> 16) & 255;
+			dst120.data[pos120 + 2] = (v130 >>> 8) & 255;
+			dst120.data[pos120 + 3] = v130 & 255;
+			dst120.length = dst120.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.isizeDisplay(v130, f), 10).v));
 		}
 	} else if (_5 === 10) {
@@ -2574,51 +4924,167 @@ export function cast(from: rs.u8, to: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 		const _1425: rs.u8 = rs.u8Rem(to, 12);
 		if (_1425 === 0) {
 			const v132: rs.u8 = rs.i128Low(v131) & 0xff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(v132)));
+			const dst121 = out;
+			rs.byteVecReserve(dst121, 1 as rs.usize);
+			dst121.data[dst121.length + 0] = v132 & 255;
+			dst121.length = dst121.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u8Display(v132, f), 0).v));
 		} else if (_1425 === 1) {
 			const v133: rs.u16 = rs.i128Low(v131) & 0xffff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(v133)));
+			const dst122 = out;
+			rs.byteVecReserve(dst122, 2 as rs.usize);
+			const pos122 = dst122.length;
+			dst122.data[pos122 + 0] = (v133 >>> 8) & 255;
+			dst122.data[pos122 + 1] = v133 & 255;
+			dst122.length = dst122.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u16Display(v133, f), 0).v));
 		} else if (_1425 === 2) {
 			const v134: rs.u32 = rs.i128Low(v131);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(v134)));
+			const dst123 = out;
+			rs.byteVecReserve(dst123, 4 as rs.usize);
+			const pos123 = dst123.length;
+			dst123.data[pos123 + 0] = (v134 >>> 24) & 255;
+			dst123.data[pos123 + 1] = (v134 >>> 16) & 255;
+			dst123.data[pos123 + 2] = (v134 >>> 8) & 255;
+			dst123.data[pos123 + 3] = v134 & 255;
+			dst123.length = dst123.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u32Display(v134, f), 0).v));
 		} else if (_1425 === 3) {
 			const v135: rs.u64 = rs.u64Cast(v131);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(v135)));
+			const dst124 = out;
+			const word121 = rs.intWord(v135, 0);
+			const word122 = rs.intWord(v135, 32);
+			rs.byteVecReserve(dst124, 8 as rs.usize);
+			const pos124 = dst124.length;
+			dst124.data[pos124 + 0] = (word122 >>> 24) & 255;
+			dst124.data[pos124 + 1] = (word122 >>> 16) & 255;
+			dst124.data[pos124 + 2] = (word122 >>> 8) & 255;
+			dst124.data[pos124 + 3] = word122 & 255;
+			dst124.data[pos124 + 4] = (word121 >>> 24) & 255;
+			dst124.data[pos124 + 5] = (word121 >>> 16) & 255;
+			dst124.data[pos124 + 6] = (word121 >>> 8) & 255;
+			dst124.data[pos124 + 7] = word121 & 255;
+			dst124.length = dst124.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u64Display(v135, f), 0).v));
 		} else if (_1425 === 4) {
 			const v136: rs.u128 = rs.u128Cast(v131);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(v136)));
+			const dst125 = out;
+			const word123 = rs.intWord(v136, 0);
+			const word124 = rs.intWord(v136, 32);
+			const word125 = rs.intWord(v136, 64);
+			const word126 = rs.intWord(v136, 96);
+			rs.byteVecReserve(dst125, 16 as rs.usize);
+			const pos125 = dst125.length;
+			dst125.data[pos125 + 0] = (word126 >>> 24) & 255;
+			dst125.data[pos125 + 1] = (word126 >>> 16) & 255;
+			dst125.data[pos125 + 2] = (word126 >>> 8) & 255;
+			dst125.data[pos125 + 3] = word126 & 255;
+			dst125.data[pos125 + 4] = (word125 >>> 24) & 255;
+			dst125.data[pos125 + 5] = (word125 >>> 16) & 255;
+			dst125.data[pos125 + 6] = (word125 >>> 8) & 255;
+			dst125.data[pos125 + 7] = word125 & 255;
+			dst125.data[pos125 + 8] = (word124 >>> 24) & 255;
+			dst125.data[pos125 + 9] = (word124 >>> 16) & 255;
+			dst125.data[pos125 + 10] = (word124 >>> 8) & 255;
+			dst125.data[pos125 + 11] = word124 & 255;
+			dst125.data[pos125 + 12] = (word123 >>> 24) & 255;
+			dst125.data[pos125 + 13] = (word123 >>> 16) & 255;
+			dst125.data[pos125 + 14] = (word123 >>> 8) & 255;
+			dst125.data[pos125 + 15] = word123 & 255;
+			dst125.length = dst125.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u128Display(v136, f), 0).v));
 		} else if (_1425 === 5) {
 			const v137: rs.usize = rs.i128Low(v131);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(v137)));
+			const dst126 = out;
+			rs.byteVecReserve(dst126, 4 as rs.usize);
+			const pos126 = dst126.length;
+			dst126.data[pos126 + 0] = (v137 >>> 24) & 255;
+			dst126.data[pos126 + 1] = (v137 >>> 16) & 255;
+			dst126.data[pos126 + 2] = (v137 >>> 8) & 255;
+			dst126.data[pos126 + 3] = v137 & 255;
+			dst126.length = dst126.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(v137, f), 0).v));
 		} else if (_1425 === 6) {
 			const v138: rs.i8 = (rs.i128Low(v131) << 24) >> 24;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(v138)));
+			const dst127 = out;
+			rs.byteVecReserve(dst127, 1 as rs.usize);
+			dst127.data[dst127.length + 0] = v138 & 255;
+			dst127.length = dst127.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i8Display(v138, f), 3).v));
 		} else if (_1425 === 7) {
 			const v139: rs.i16 = (rs.i128Low(v131) << 16) >> 16;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(v139)));
+			const dst128 = out;
+			rs.byteVecReserve(dst128, 2 as rs.usize);
+			const pos128 = dst128.length;
+			dst128.data[pos128 + 0] = (v139 >>> 8) & 255;
+			dst128.data[pos128 + 1] = v139 & 255;
+			dst128.length = dst128.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i16Display(v139, f), 5).v));
 		} else if (_1425 === 8) {
 			const v140: rs.i32 = rs.i128Low(v131) | 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(v140)));
+			const dst129 = out;
+			rs.byteVecReserve(dst129, 4 as rs.usize);
+			const pos129 = dst129.length;
+			dst129.data[pos129 + 0] = (v140 >>> 24) & 255;
+			dst129.data[pos129 + 1] = (v140 >>> 16) & 255;
+			dst129.data[pos129 + 2] = (v140 >>> 8) & 255;
+			dst129.data[pos129 + 3] = v140 & 255;
+			dst129.length = dst129.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i32Display(v140, f), 10).v));
 		} else if (_1425 === 9) {
 			const v141: rs.i64 = rs.i64Cast(v131);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(v141)));
+			const dst130 = out;
+			const word127 = rs.intWord(v141, 0);
+			const word128 = rs.intWord(v141, 32);
+			rs.byteVecReserve(dst130, 8 as rs.usize);
+			const pos130 = dst130.length;
+			dst130.data[pos130 + 0] = (word128 >>> 24) & 255;
+			dst130.data[pos130 + 1] = (word128 >>> 16) & 255;
+			dst130.data[pos130 + 2] = (word128 >>> 8) & 255;
+			dst130.data[pos130 + 3] = word128 & 255;
+			dst130.data[pos130 + 4] = (word127 >>> 24) & 255;
+			dst130.data[pos130 + 5] = (word127 >>> 16) & 255;
+			dst130.data[pos130 + 6] = (word127 >>> 8) & 255;
+			dst130.data[pos130 + 7] = word127 & 255;
+			dst130.length = dst130.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i64Display(v141, f), 19).v));
 		} else if (_1425 === 10) {
 			const v142: rs.i128 = v131;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(v142)));
+			const dst131 = out;
+			const word129 = rs.intWord(v142, 0);
+			const word130 = rs.intWord(v142, 32);
+			const word131 = rs.intWord(v142, 64);
+			const word132 = rs.intWord(v142, 96);
+			rs.byteVecReserve(dst131, 16 as rs.usize);
+			const pos131 = dst131.length;
+			dst131.data[pos131 + 0] = (word132 >>> 24) & 255;
+			dst131.data[pos131 + 1] = (word132 >>> 16) & 255;
+			dst131.data[pos131 + 2] = (word132 >>> 8) & 255;
+			dst131.data[pos131 + 3] = word132 & 255;
+			dst131.data[pos131 + 4] = (word131 >>> 24) & 255;
+			dst131.data[pos131 + 5] = (word131 >>> 16) & 255;
+			dst131.data[pos131 + 6] = (word131 >>> 8) & 255;
+			dst131.data[pos131 + 7] = word131 & 255;
+			dst131.data[pos131 + 8] = (word130 >>> 24) & 255;
+			dst131.data[pos131 + 9] = (word130 >>> 16) & 255;
+			dst131.data[pos131 + 10] = (word130 >>> 8) & 255;
+			dst131.data[pos131 + 11] = word130 & 255;
+			dst131.data[pos131 + 12] = (word129 >>> 24) & 255;
+			dst131.data[pos131 + 13] = (word129 >>> 16) & 255;
+			dst131.data[pos131 + 14] = (word129 >>> 8) & 255;
+			dst131.data[pos131 + 15] = word129 & 255;
+			dst131.length = dst131.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i128Display(v142, f), 39).v));
 		} else {
 			const v143: rs.isize = rs.i128Low(v131) | 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(v143)));
+			const dst132 = out;
+			rs.byteVecReserve(dst132, 4 as rs.usize);
+			const pos132 = dst132.length;
+			dst132.data[pos132 + 0] = (v143 >>> 24) & 255;
+			dst132.data[pos132 + 1] = (v143 >>> 16) & 255;
+			dst132.data[pos132 + 2] = (v143 >>> 8) & 255;
+			dst132.data[pos132 + 3] = v143 & 255;
+			dst132.length = dst132.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.isizeDisplay(v143, f), 10).v));
 		}
 	} else {
@@ -2629,51 +5095,167 @@ export function cast(from: rs.u8, to: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 		const _1565: rs.u8 = rs.u8Rem(to, 12);
 		if (_1565 === 0) {
 			const v145: rs.u8 = v144 & 0xff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(v145)));
+			const dst133 = out;
+			rs.byteVecReserve(dst133, 1 as rs.usize);
+			dst133.data[dst133.length + 0] = v145 & 255;
+			dst133.length = dst133.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u8Display(v145, f), 0).v));
 		} else if (_1565 === 1) {
 			const v146: rs.u16 = v144 & 0xffff;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(v146)));
+			const dst134 = out;
+			rs.byteVecReserve(dst134, 2 as rs.usize);
+			const pos134 = dst134.length;
+			dst134.data[pos134 + 0] = (v146 >>> 8) & 255;
+			dst134.data[pos134 + 1] = v146 & 255;
+			dst134.length = dst134.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u16Display(v146, f), 0).v));
 		} else if (_1565 === 2) {
 			const v147: rs.u32 = v144 >>> 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(v147)));
+			const dst135 = out;
+			rs.byteVecReserve(dst135, 4 as rs.usize);
+			const pos135 = dst135.length;
+			dst135.data[pos135 + 0] = (v147 >>> 24) & 255;
+			dst135.data[pos135 + 1] = (v147 >>> 16) & 255;
+			dst135.data[pos135 + 2] = (v147 >>> 8) & 255;
+			dst135.data[pos135 + 3] = v147 & 255;
+			dst135.length = dst135.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u32Display(v147, f), 0).v));
 		} else if (_1565 === 3) {
 			const v148: rs.u64 = rs.u64Cast(v144);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(v148)));
+			const dst136 = out;
+			const word133 = rs.intWord(v148, 0);
+			const word134 = rs.intWord(v148, 32);
+			rs.byteVecReserve(dst136, 8 as rs.usize);
+			const pos136 = dst136.length;
+			dst136.data[pos136 + 0] = (word134 >>> 24) & 255;
+			dst136.data[pos136 + 1] = (word134 >>> 16) & 255;
+			dst136.data[pos136 + 2] = (word134 >>> 8) & 255;
+			dst136.data[pos136 + 3] = word134 & 255;
+			dst136.data[pos136 + 4] = (word133 >>> 24) & 255;
+			dst136.data[pos136 + 5] = (word133 >>> 16) & 255;
+			dst136.data[pos136 + 6] = (word133 >>> 8) & 255;
+			dst136.data[pos136 + 7] = word133 & 255;
+			dst136.length = dst136.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u64Display(v148, f), 0).v));
 		} else if (_1565 === 4) {
 			const v149: rs.u128 = rs.u128Cast(v144);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(v149)));
+			const dst137 = out;
+			const word135 = rs.intWord(v149, 0);
+			const word136 = rs.intWord(v149, 32);
+			const word137 = rs.intWord(v149, 64);
+			const word138 = rs.intWord(v149, 96);
+			rs.byteVecReserve(dst137, 16 as rs.usize);
+			const pos137 = dst137.length;
+			dst137.data[pos137 + 0] = (word138 >>> 24) & 255;
+			dst137.data[pos137 + 1] = (word138 >>> 16) & 255;
+			dst137.data[pos137 + 2] = (word138 >>> 8) & 255;
+			dst137.data[pos137 + 3] = word138 & 255;
+			dst137.data[pos137 + 4] = (word137 >>> 24) & 255;
+			dst137.data[pos137 + 5] = (word137 >>> 16) & 255;
+			dst137.data[pos137 + 6] = (word137 >>> 8) & 255;
+			dst137.data[pos137 + 7] = word137 & 255;
+			dst137.data[pos137 + 8] = (word136 >>> 24) & 255;
+			dst137.data[pos137 + 9] = (word136 >>> 16) & 255;
+			dst137.data[pos137 + 10] = (word136 >>> 8) & 255;
+			dst137.data[pos137 + 11] = word136 & 255;
+			dst137.data[pos137 + 12] = (word135 >>> 24) & 255;
+			dst137.data[pos137 + 13] = (word135 >>> 16) & 255;
+			dst137.data[pos137 + 14] = (word135 >>> 8) & 255;
+			dst137.data[pos137 + 15] = word135 & 255;
+			dst137.length = dst137.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.u128Display(v149, f), 0).v));
 		} else if (_1565 === 5) {
 			const v150: rs.usize = v144 >>> 0;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(v150)));
+			const dst138 = out;
+			rs.byteVecReserve(dst138, 4 as rs.usize);
+			const pos138 = dst138.length;
+			dst138.data[pos138 + 0] = (v150 >>> 24) & 255;
+			dst138.data[pos138 + 1] = (v150 >>> 16) & 255;
+			dst138.data[pos138 + 2] = (v150 >>> 8) & 255;
+			dst138.data[pos138 + 3] = v150 & 255;
+			dst138.length = dst138.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(v150, f), 0).v));
 		} else if (_1565 === 6) {
 			const v151: rs.i8 = (v144 << 24) >> 24;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(v151)));
+			const dst139 = out;
+			rs.byteVecReserve(dst139, 1 as rs.usize);
+			dst139.data[dst139.length + 0] = v151 & 255;
+			dst139.length = dst139.length + 1;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i8Display(v151, f), 3).v));
 		} else if (_1565 === 7) {
 			const v152: rs.i16 = (v144 << 16) >> 16;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(v152)));
+			const dst140 = out;
+			rs.byteVecReserve(dst140, 2 as rs.usize);
+			const pos140 = dst140.length;
+			dst140.data[pos140 + 0] = (v152 >>> 8) & 255;
+			dst140.data[pos140 + 1] = v152 & 255;
+			dst140.length = dst140.length + 2;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i16Display(v152, f), 5).v));
 		} else if (_1565 === 8) {
 			const v153: rs.i32 = v144 as rs.i32;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(v153)));
+			const dst141 = out;
+			rs.byteVecReserve(dst141, 4 as rs.usize);
+			const pos141 = dst141.length;
+			dst141.data[pos141 + 0] = (v153 >>> 24) & 255;
+			dst141.data[pos141 + 1] = (v153 >>> 16) & 255;
+			dst141.data[pos141 + 2] = (v153 >>> 8) & 255;
+			dst141.data[pos141 + 3] = v153 & 255;
+			dst141.length = dst141.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i32Display(v153, f), 10).v));
 		} else if (_1565 === 9) {
 			const v154: rs.i64 = v144 as rs.i64;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(v154)));
+			const dst142 = out;
+			const word139 = rs.intWord(v154, 0);
+			const word140 = rs.intWord(v154, 32);
+			rs.byteVecReserve(dst142, 8 as rs.usize);
+			const pos142 = dst142.length;
+			dst142.data[pos142 + 0] = (word140 >>> 24) & 255;
+			dst142.data[pos142 + 1] = (word140 >>> 16) & 255;
+			dst142.data[pos142 + 2] = (word140 >>> 8) & 255;
+			dst142.data[pos142 + 3] = word140 & 255;
+			dst142.data[pos142 + 4] = (word139 >>> 24) & 255;
+			dst142.data[pos142 + 5] = (word139 >>> 16) & 255;
+			dst142.data[pos142 + 6] = (word139 >>> 8) & 255;
+			dst142.data[pos142 + 7] = word139 & 255;
+			dst142.length = dst142.length + 8;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i64Display(v154, f), 19).v));
 		} else if (_1565 === 10) {
 			const v155: rs.i128 = v144 as rs.i128;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes(v155)));
+			const dst143 = out;
+			const word141 = rs.intWord(v155, 0);
+			const word142 = rs.intWord(v155, 32);
+			const word143 = rs.intWord(v155, 64);
+			const word144 = rs.intWord(v155, 96);
+			rs.byteVecReserve(dst143, 16 as rs.usize);
+			const pos143 = dst143.length;
+			dst143.data[pos143 + 0] = (word144 >>> 24) & 255;
+			dst143.data[pos143 + 1] = (word144 >>> 16) & 255;
+			dst143.data[pos143 + 2] = (word144 >>> 8) & 255;
+			dst143.data[pos143 + 3] = word144 & 255;
+			dst143.data[pos143 + 4] = (word143 >>> 24) & 255;
+			dst143.data[pos143 + 5] = (word143 >>> 16) & 255;
+			dst143.data[pos143 + 6] = (word143 >>> 8) & 255;
+			dst143.data[pos143 + 7] = word143 & 255;
+			dst143.data[pos143 + 8] = (word142 >>> 24) & 255;
+			dst143.data[pos143 + 9] = (word142 >>> 16) & 255;
+			dst143.data[pos143 + 10] = (word142 >>> 8) & 255;
+			dst143.data[pos143 + 11] = word142 & 255;
+			dst143.data[pos143 + 12] = (word141 >>> 24) & 255;
+			dst143.data[pos143 + 13] = (word141 >>> 16) & 255;
+			dst143.data[pos143 + 14] = (word141 >>> 8) & 255;
+			dst143.data[pos143 + 15] = word141 & 255;
+			dst143.length = dst143.length + 16;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.i128Display(v155, f), 39).v));
 		} else {
 			const v156: rs.isize = v144;
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(v156)));
+			const dst144 = out;
+			rs.byteVecReserve(dst144, 4 as rs.usize);
+			const pos144 = dst144.length;
+			dst144.data[pos144 + 0] = (v156 >>> 24) & 255;
+			dst144.data[pos144 + 1] = (v156 >>> 16) & 255;
+			dst144.data[pos144 + 2] = (v156 >>> 8) & 255;
+			dst144.data[pos144 + 3] = v156 & 255;
+			dst144.length = dst144.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.isizeDisplay(v156, f), 10).v));
 		}
 	}
@@ -2694,48 +5276,218 @@ export function convert(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, rs.u8TryFrom(wide).ok ? 1 : 0);
 	const _46: rs.Result<rs.u32, rs.TryFromIntError> = rs.u32TryFrom(wide);
 	if (_46.ok) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_46.value)));
+		const dst = out;
+		const word = _46.value;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 	} else {
 		rs.byteVecPush(out, 255);
 	}
 	const _53: rs.Result<rs.usize, rs.TryFromIntError> = rs.usizeTryFrom(signed);
 	if (_53.ok) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(_53.value)));
+		const dst2 = out;
+		const word2 = _53.value;
+		rs.byteVecReserve(dst2, 4 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word2 & 255;
+		dst2.length = dst2.length + 4;
 	} else {
 		rs.byteVecPush(out, 254);
 	}
 	const _60: rs.Result<rs.i8, rs.TryFromIntError> = rs.i8TryFrom(signed);
 	if (_60.ok) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(_60.value)));
+		const dst3 = out;
+		const word3 = _60.value;
+		rs.byteVecReserve(dst3, 1 as rs.usize);
+		dst3.data[dst3.length + 0] = word3 & 255;
+		dst3.length = dst3.length + 1;
 	} else {
 		rs.byteVecPush(out, 253);
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(result_unwrapOr$0z0v7fv(rs.u64TryFrom(rs.u128Mul(rs.u128Cast(wide), 3)), { hi: 0xffffffff, lo: 0xffffffff } as rs.u64))));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(result_unwrapOr$09f0got(rs.u16TryFrom(signed), 65535))));
+	const dst4 = out;
+	const word4 = result_unwrapOr$0z0v7fv(rs.u64TryFrom(rs.u128Mul(rs.u128Cast(wide), 3)), { hi: 0xffffffff, lo: 0xffffffff } as rs.u64);
+	const word5 = rs.intWord(word4, 0);
+	const word6 = rs.intWord(word4, 32);
+	rs.byteVecReserve(dst4, 8 as rs.usize);
+	const pos4 = dst4.length;
+	dst4.data[pos4 + 0] = (word6 >>> 24) & 255;
+	dst4.data[pos4 + 1] = (word6 >>> 16) & 255;
+	dst4.data[pos4 + 2] = (word6 >>> 8) & 255;
+	dst4.data[pos4 + 3] = word6 & 255;
+	dst4.data[pos4 + 4] = (word5 >>> 24) & 255;
+	dst4.data[pos4 + 5] = (word5 >>> 16) & 255;
+	dst4.data[pos4 + 6] = (word5 >>> 8) & 255;
+	dst4.data[pos4 + 7] = word5 & 255;
+	dst4.length = dst4.length + 8;
+	const dst5 = out;
+	const word7 = result_unwrapOr$09f0got(rs.u16TryFrom(signed), 65535);
+	rs.byteVecReserve(dst5, 2 as rs.usize);
+	const pos5 = dst5.length;
+	dst5.data[pos5 + 0] = (word7 >>> 8) & 255;
+	dst5.data[pos5 + 1] = word7 & 255;
+	dst5.length = dst5.length + 2;
 	const widened: rs.u64 = (rs.u64Low(wide) & 0xffff) as rs.u64;
 	const into: rs.i64 = signed as rs.i64;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(widened)));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(into)));
+	const dst6 = out;
+	const word8 = rs.intWord(widened, 0);
+	const word9 = rs.intWord(widened, 32);
+	rs.byteVecReserve(dst6, 8 as rs.usize);
+	const pos6 = dst6.length;
+	dst6.data[pos6 + 0] = (word9 >>> 24) & 255;
+	dst6.data[pos6 + 1] = (word9 >>> 16) & 255;
+	dst6.data[pos6 + 2] = (word9 >>> 8) & 255;
+	dst6.data[pos6 + 3] = word9 & 255;
+	dst6.data[pos6 + 4] = (word8 >>> 24) & 255;
+	dst6.data[pos6 + 5] = (word8 >>> 16) & 255;
+	dst6.data[pos6 + 6] = (word8 >>> 8) & 255;
+	dst6.data[pos6 + 7] = word8 & 255;
+	dst6.length = dst6.length + 8;
+	const dst7 = out;
+	const word10 = rs.intWord(into, 0);
+	const word11 = rs.intWord(into, 32);
+	rs.byteVecReserve(dst7, 8 as rs.usize);
+	const pos7 = dst7.length;
+	dst7.data[pos7 + 0] = (word11 >>> 24) & 255;
+	dst7.data[pos7 + 1] = (word11 >>> 16) & 255;
+	dst7.data[pos7 + 2] = (word11 >>> 8) & 255;
+	dst7.data[pos7 + 3] = word11 & 255;
+	dst7.data[pos7 + 4] = (word10 >>> 24) & 255;
+	dst7.data[pos7 + 5] = (word10 >>> 16) & 255;
+	dst7.data[pos7 + 6] = (word10 >>> 8) & 255;
+	dst7.data[pos7 + 7] = word10 & 255;
+	dst7.length = dst7.length + 8;
 	rs.byteVecPush(out, rs.u8Add(true ? 1 : 0, false ? 1 : 0));
-	const _101: Uint8Array = rs.u32ToBeBytes(signed >>> 0);
-	const a: rs.u8 = _101[0];
-	const b: rs.u8 = _101[1];
-	const c: rs.u8 = _101[2];
-	const d: rs.u8 = _101[3];
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes((a << 24) >> 24)));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes((a << 8) | b)));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes((((a << 8) | b) << 16) >> 16)));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(((a << 24) | (b << 16) | (c << 8) | d) >>> 0)));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(((b & 63) << 16) | (c << 8) | d)));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes((a << 24) | (c << 8) | d)));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(0)));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.u64FromBeBytes(Uint8Array.of(d, c, b, a, a, b, c, d)))));
+	const a: rs.u8 = (signed >>> 0 >>> 24) & 255;
+	const b: rs.u8 = (signed >>> 0 >>> 16) & 255;
+	const c: rs.u8 = (signed >>> 0 >>> 8) & 255;
+	const d: rs.u8 = (signed >>> 0) & 255;
+	const dst8 = out;
+	rs.byteVecReserve(dst8, 1 as rs.usize);
+	dst8.data[dst8.length + 0] = ((a << 24) >> 24) & 255;
+	dst8.length = dst8.length + 1;
+	const dst9 = out;
+	rs.byteVecReserve(dst9, 2 as rs.usize);
+	const pos9 = dst9.length;
+	dst9.data[pos9 + 0] = (((a << 8) | b) >>> 8) & 255;
+	dst9.data[pos9 + 1] = ((a << 8) | b) & 255;
+	dst9.length = dst9.length + 2;
+	const dst10 = out;
+	rs.byteVecReserve(dst10, 2 as rs.usize);
+	const pos10 = dst10.length;
+	dst10.data[pos10 + 0] = (((((a << 8) | b) << 16) >> 16) >>> 8) & 255;
+	dst10.data[pos10 + 1] = ((((a << 8) | b) << 16) >> 16) & 255;
+	dst10.length = dst10.length + 2;
+	const dst11 = out;
+	rs.byteVecReserve(dst11, 4 as rs.usize);
+	const pos11 = dst11.length;
+	dst11.data[pos11 + 0] = (((a << 24) | (b << 16) | (c << 8) | d) >>> 0 >>> 24) & 255;
+	dst11.data[pos11 + 1] = (((a << 24) | (b << 16) | (c << 8) | d) >>> 0 >>> 16) & 255;
+	dst11.data[pos11 + 2] = (((a << 24) | (b << 16) | (c << 8) | d) >>> 0 >>> 8) & 255;
+	dst11.data[pos11 + 3] = (((a << 24) | (b << 16) | (c << 8) | d) >>> 0) & 255;
+	dst11.length = dst11.length + 4;
+	const dst12 = out;
+	rs.byteVecReserve(dst12, 4 as rs.usize);
+	const pos12 = dst12.length;
+	dst12.data[pos12 + 0] = ((((b & 63) << 16) | (c << 8) | d) >>> 24) & 255;
+	dst12.data[pos12 + 1] = ((((b & 63) << 16) | (c << 8) | d) >>> 16) & 255;
+	dst12.data[pos12 + 2] = ((((b & 63) << 16) | (c << 8) | d) >>> 8) & 255;
+	dst12.data[pos12 + 3] = (((b & 63) << 16) | (c << 8) | d) & 255;
+	dst12.length = dst12.length + 4;
+	const dst13 = out;
+	rs.byteVecReserve(dst13, 4 as rs.usize);
+	const pos13 = dst13.length;
+	dst13.data[pos13 + 0] = (((a << 24) | (c << 8) | d) >>> 24) & 255;
+	dst13.data[pos13 + 1] = (((a << 24) | (c << 8) | d) >>> 16) & 255;
+	dst13.data[pos13 + 2] = (((a << 24) | (c << 8) | d) >>> 8) & 255;
+	dst13.data[pos13 + 3] = ((a << 24) | (c << 8) | d) & 255;
+	dst13.length = dst13.length + 4;
+	const dst14 = out;
+	rs.byteVecReserve(dst14, 4 as rs.usize);
+	const pos14 = dst14.length;
+	dst14.data[pos14 + 0] = (0 >>> 24) & 255;
+	dst14.data[pos14 + 1] = (0 >>> 16) & 255;
+	dst14.data[pos14 + 2] = (0 >>> 8) & 255;
+	dst14.data[pos14 + 3] = 0 & 255;
+	dst14.length = dst14.length + 4;
+	const dst15 = out;
+	const word12 = rs.u64FromBeBytes(Uint8Array.of(d, c, b, a, a, b, c, d));
+	const word13 = rs.intWord(word12, 0);
+	const word14 = rs.intWord(word12, 32);
+	rs.byteVecReserve(dst15, 8 as rs.usize);
+	const pos15 = dst15.length;
+	dst15.data[pos15 + 0] = (word14 >>> 24) & 255;
+	dst15.data[pos15 + 1] = (word14 >>> 16) & 255;
+	dst15.data[pos15 + 2] = (word14 >>> 8) & 255;
+	dst15.data[pos15 + 3] = word14 & 255;
+	dst15.data[pos15 + 4] = (word13 >>> 24) & 255;
+	dst15.data[pos15 + 5] = (word13 >>> 16) & 255;
+	dst15.data[pos15 + 6] = (word13 >>> 8) & 255;
+	dst15.data[pos15 + 7] = word13 & 255;
+	dst15.length = dst15.length + 8;
 	const slice = rs.byteSliceFrom(Uint8Array.of(d, c, b, a));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes((slice.data[slice.start] << 24) | (slice.data[slice.start + 1] << 16) | (slice.data[slice.start + 2] << 8) | slice.data[slice.start + 3])));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(fromHalves(rs.u64Low(rs.u64Shr(wide, 32)), rs.u64Low(wide)))));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.u64FromHalves((rs.u64Low(rs.u64Shr(wide, 40)) & 0xff) as rs.u32, (rs.u64Low(wide) & 0xffff) as rs.u32))));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(2147483647)));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(134217728)));
+	const dst16 = out;
+	const word15 = (slice.data[slice.start] << 24) | (slice.data[slice.start + 1] << 16) | (slice.data[slice.start + 2] << 8) | slice.data[slice.start + 3];
+	rs.byteVecReserve(dst16, 4 as rs.usize);
+	const pos16 = dst16.length;
+	dst16.data[pos16 + 0] = (word15 >>> 24) & 255;
+	dst16.data[pos16 + 1] = (word15 >>> 16) & 255;
+	dst16.data[pos16 + 2] = (word15 >>> 8) & 255;
+	dst16.data[pos16 + 3] = word15 & 255;
+	dst16.length = dst16.length + 4;
+	const dst17 = out;
+	const word16 = fromHalves(rs.u64Low(rs.u64Shr(wide, 32)), rs.u64Low(wide));
+	const word17 = rs.intWord(word16, 0);
+	const word18 = rs.intWord(word16, 32);
+	rs.byteVecReserve(dst17, 8 as rs.usize);
+	const pos17 = dst17.length;
+	dst17.data[pos17 + 0] = (word18 >>> 24) & 255;
+	dst17.data[pos17 + 1] = (word18 >>> 16) & 255;
+	dst17.data[pos17 + 2] = (word18 >>> 8) & 255;
+	dst17.data[pos17 + 3] = word18 & 255;
+	dst17.data[pos17 + 4] = (word17 >>> 24) & 255;
+	dst17.data[pos17 + 5] = (word17 >>> 16) & 255;
+	dst17.data[pos17 + 6] = (word17 >>> 8) & 255;
+	dst17.data[pos17 + 7] = word17 & 255;
+	dst17.length = dst17.length + 8;
+	const dst18 = out;
+	const word19 = rs.u64FromHalves((rs.u64Low(rs.u64Shr(wide, 40)) & 0xff) as rs.u32, (rs.u64Low(wide) & 0xffff) as rs.u32);
+	const word20 = rs.intWord(word19, 0);
+	const word21 = rs.intWord(word19, 32);
+	rs.byteVecReserve(dst18, 8 as rs.usize);
+	const pos18 = dst18.length;
+	dst18.data[pos18 + 0] = (word21 >>> 24) & 255;
+	dst18.data[pos18 + 1] = (word21 >>> 16) & 255;
+	dst18.data[pos18 + 2] = (word21 >>> 8) & 255;
+	dst18.data[pos18 + 3] = word21 & 255;
+	dst18.data[pos18 + 4] = (word20 >>> 24) & 255;
+	dst18.data[pos18 + 5] = (word20 >>> 16) & 255;
+	dst18.data[pos18 + 6] = (word20 >>> 8) & 255;
+	dst18.data[pos18 + 7] = word20 & 255;
+	dst18.length = dst18.length + 8;
+	const dst19 = out;
+	rs.byteVecReserve(dst19, 4 as rs.usize);
+	const pos19 = dst19.length;
+	dst19.data[pos19 + 0] = (2147483647 >>> 24) & 255;
+	dst19.data[pos19 + 1] = (2147483647 >>> 16) & 255;
+	dst19.data[pos19 + 2] = (2147483647 >>> 8) & 255;
+	dst19.data[pos19 + 3] = 2147483647 & 255;
+	dst19.length = dst19.length + 4;
+	const dst20 = out;
+	rs.byteVecReserve(dst20, 4 as rs.usize);
+	const pos20 = dst20.length;
+	dst20.data[pos20 + 0] = (134217728 >>> 24) & 255;
+	dst20.data[pos20 + 1] = (134217728 >>> 16) & 255;
+	dst20.data[pos20 + 2] = (134217728 >>> 8) & 255;
+	dst20.data[pos20 + 3] = 134217728 & 255;
+	dst20.length = dst20.length + 4;
 }
 
 /** A `u64` from its high and low 32 bits, as moq-net's varints join them. */
@@ -3021,2495 +5773,2673 @@ export function parses(kind: rs.u8, dataData: Uint8Array, dataStart: number, dat
 	let kind49!: rs.i32;
 	let over48!: boolean;
 	let max48!: rs.u8;
-	b0: {
-		const _4: rs.u8 = rs.u8Rem(kind, 12);
-		if (_4 === 0) {
-			if (dataLen !== 0) {
-				const first: rs.u8 = dataData[dataStart];
-				const rest: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix: rs.u32 = rs.u32Add(2, rs.u32Rem(first as rs.u32, 35));
-				const _15: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_15 === 0) {
-					const _19: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest);
-					if (_19.ok) {
-						const iter: rs.Iter<rs.char> = rs.strChars(_19.value);
-						while (true) {
-							const _25: rs.char | rs.Done = iter.next();
-							if (_25 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_25, radix), 99))));
+	const _4: rs.u8 = rs.u8Rem(kind, 12);
+	if (_4 === 0) {
+		if (dataLen !== 0) {
+			const first: rs.u8 = dataData[dataStart];
+			const rest: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix: rs.u32 = rs.u32Add(2, rs.u32Rem(first as rs.u32, 35));
+			const _15: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_15 === 0) {
+				const _19: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest);
+				if (_19.ok) {
+					const iter: rs.Iter<rs.char> = rs.strChars(_19.value);
+					while (true) {
+						const _25: rs.char | rs.Done = iter.next();
+						if (_25 === rs.DONE) {
+							break;
 						}
-						const radix2: rs.u32 = radix;
-						const _40: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_19.value, radix2);
-						if (_40.ok) {
-							const arg48 = _40.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg48, f)]).v);
-						} else {
-							const e: rs.ParseIntError = _40.error;
-							const _56: rs.IntErrorKind = e.kind;
-							if (_56 === "Empty") {
-								kind2 = 0;
-							} else if (_56 === "InvalidDigit") {
-								kind2 = 1;
-							} else if (_56 === "PosOverflow") {
-								kind2 = 2;
-							} else if (_56 === "NegOverflow") {
-								kind2 = 3;
-							} else {
-								kind2 = 4;
-							}
-							if (!(e.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over = e.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over = true;
-							}
-							const _76: rs.IntErrorKind = e.kind;
-							const args287 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _76), (f: rs.Formatter) => rs.i32Display(kind2, f), (f: rs.Formatter) => rs.fmtBool(over, f)];
-							put(out, rs.fmtFormat([args287[0], "|", args287[1], "|", args287[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args287[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args287[0]), "|", args287[3], "|", args287[4]]).v);
-						}
-						if (radix2 === 10) {
-							const parsed: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_19.value);
-							const from: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_19.value);
-							if (from.ok) {
-								max = rs.u8Mul(from.value === 255 ? 1 : 0, 4);
-							} else {
-								max = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed.ok ? 1 : 0, max));
-						}
+						const dst = out;
+						const word = option_unwrapOr$1b5hww3(toDigit$14z95r4(_25, radix), 99);
+						rs.byteVecReserve(dst, 4 as rs.usize);
+						const pos = dst.length;
+						dst.data[pos + 0] = (word >>> 24) & 255;
+						dst.data[pos + 1] = (word >>> 16) & 255;
+						dst.data[pos + 2] = (word >>> 8) & 255;
+						dst.data[pos + 3] = word & 255;
+						dst.length = dst.length + 4;
 					}
-				} else if (_15 === 1) {
-					const s: rs.String = rs.stringNew();
-					for (const b of rs.byteSliceView(rest)) {
-						const _116: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _117: rs.usize = rs.usizeRem(b as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_116, _117);
-						rs.stringPush(s, _116.data[_116.start + _117] as rs.char);
-					}
-					const _128: string = s.v;
-					const radix3: rs.u32 = radix;
-					const _131: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_128, radix3);
-					if (_131.ok) {
-						const arg47 = _131.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg47, f)]).v);
+					const radix2: rs.u32 = radix;
+					const _40: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_19.value, radix2);
+					if (_40.ok) {
+						const arg48 = _40.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg48, f)]).v);
 					} else {
-						const e2: rs.ParseIntError = _131.error;
-						const _147: rs.IntErrorKind = e2.kind;
-						if (_147 === "Empty") {
-							kind3 = 0;
-						} else if (_147 === "InvalidDigit") {
-							kind3 = 1;
-						} else if (_147 === "PosOverflow") {
-							kind3 = 2;
-						} else if (_147 === "NegOverflow") {
-							kind3 = 3;
+						const e: rs.ParseIntError = _40.error;
+						const _56: rs.IntErrorKind = e.kind;
+						if (_56 === "Empty") {
+							kind2 = 0;
+						} else if (_56 === "InvalidDigit") {
+							kind2 = 1;
+						} else if (_56 === "PosOverflow") {
+							kind2 = 2;
+						} else if (_56 === "NegOverflow") {
+							kind2 = 3;
 						} else {
-							kind3 = 4;
+							kind2 = 4;
 						}
-						if (!(e2.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over2 = e2.kind !== "NegOverflow" as rs.IntErrorKind;
+						if (!(e.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over = e.kind !== "NegOverflow" as rs.IntErrorKind;
 						} else {
-							over2 = true;
+							over = true;
 						}
-						const _167: rs.IntErrorKind = e2.kind;
-						const args285 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e2, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e2, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _167), (f: rs.Formatter) => rs.i32Display(kind3, f), (f: rs.Formatter) => rs.fmtBool(over2, f)];
-						put(out, rs.fmtFormat([args285[0], "|", args285[1], "|", args285[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args285[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args285[0]), "|", args285[3], "|", args285[4]]).v);
+						const _76: rs.IntErrorKind = e.kind;
+						const args287 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _76), (f: rs.Formatter) => rs.i32Display(kind2, f), (f: rs.Formatter) => rs.fmtBool(over, f)];
+						put(out, rs.fmtFormat([args287[0], "|", args287[1], "|", args287[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args287[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args287[0]), "|", args287[3], "|", args287[4]]).v);
 					}
-					if (radix3 === 10) {
-						const parsed2: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_128);
-						const from2: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_128);
-						if (from2.ok) {
-							max2 = rs.u8Mul(from2.value === 255 ? 1 : 0, 4);
+					if (radix2 === 10) {
+						const parsed: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_19.value);
+						const from: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_19.value);
+						if (from.ok) {
+							max = rs.u8Mul(from.value === 255 ? 1 : 0, 4);
 						} else {
-							max2 = 2;
+							max = 2;
 						}
-						rs.byteVecPush(out, rs.u8Add(parsed2.ok ? 1 : 0, max2));
-					}
-				} else {
-					if (_15 === 2) {
-						const iter3: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _199: rs.u32 | rs.Done = iter3.next();
-							if (_199 === rs.DONE) {
-								break b0;
-							}
-							const radix4: rs.u32 = _199;
-							for (const _207 of edges(255, 0, 8, radix4).items) {
-								const _215: string = _207.v;
-								const radix5: rs.u32 = radix4;
-								const _218: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_215, radix5);
-								if (_218.ok) {
-									const arg46 = _218.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg46, f)]).v);
-								} else {
-									const e3: rs.ParseIntError = _218.error;
-									const _234: rs.IntErrorKind = e3.kind;
-									if (_234 === "Empty") {
-										kind4 = 0;
-									} else if (_234 === "InvalidDigit") {
-										kind4 = 1;
-									} else if (_234 === "PosOverflow") {
-										kind4 = 2;
-									} else if (_234 === "NegOverflow") {
-										kind4 = 3;
-									} else {
-										kind4 = 4;
-									}
-									if (!(e3.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over3 = e3.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over3 = true;
-									}
-									const _254: rs.IntErrorKind = e3.kind;
-									const args283 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e3, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e3, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _254), (f: rs.Formatter) => rs.i32Display(kind4, f), (f: rs.Formatter) => rs.fmtBool(over3, f)];
-									put(out, rs.fmtFormat([args283[0], "|", args283[1], "|", args283[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args283[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args283[0]), "|", args283[3], "|", args283[4]]).v);
-								}
-								if (radix5 === 10) {
-									const parsed3: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_215);
-									const from3: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_215);
-									if (from3.ok) {
-										max3 = rs.u8Mul(from3.value === 255 ? 1 : 0, 4);
-									} else {
-										max3 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed3.ok ? 1 : 0, max3));
-								}
-							}
-						}
-					}
-					const radix6: rs.u32 = ((first as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest, 1), (b24: rs.u8): boolean => {
-						return (b24 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix6), 99))));
-					}
-					if (!(rest.length > 2)) {
-						text = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text = rs.byteSliceRange(rest, 2);
-					}
-					const _310: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text), "1");
-					const radix7: rs.u32 = radix6;
-					const _315: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_310, radix7);
-					if (_315.ok) {
-						const arg45 = _315.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg45, f)]).v);
-					} else {
-						const e4: rs.ParseIntError = _315.error;
-						const _331: rs.IntErrorKind = e4.kind;
-						if (_331 === "Empty") {
-							kind5 = 0;
-						} else if (_331 === "InvalidDigit") {
-							kind5 = 1;
-						} else if (_331 === "PosOverflow") {
-							kind5 = 2;
-						} else if (_331 === "NegOverflow") {
-							kind5 = 3;
-						} else {
-							kind5 = 4;
-						}
-						if (!(e4.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over4 = e4.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over4 = true;
-						}
-						const _351: rs.IntErrorKind = e4.kind;
-						const args281 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e4, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e4, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _351), (f: rs.Formatter) => rs.i32Display(kind5, f), (f: rs.Formatter) => rs.fmtBool(over4, f)];
-						put(out, rs.fmtFormat([args281[0], "|", args281[1], "|", args281[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args281[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args281[0]), "|", args281[3], "|", args281[4]]).v);
-					}
-					if (radix7 === 10) {
-						const parsed4: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_310);
-						const from4: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_310);
-						if (from4.ok) {
-							max4 = rs.u8Mul(from4.value === 255 ? 1 : 0, 4);
-						} else {
-							max4 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed4.ok ? 1 : 0, max4));
+						rs.byteVecPush(out, rs.u8Add(parsed.ok ? 1 : 0, max));
 					}
 				}
-			}
-		} else if (_4 === 1) {
-			if (dataLen !== 0) {
-				const first2: rs.u8 = dataData[dataStart];
-				const rest2: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix8: rs.u32 = rs.u32Add(2, rs.u32Rem(first2 as rs.u32, 35));
-				const _389: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_389 === 0) {
-					const _393: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest2);
-					if (_393.ok) {
-						const iter5: rs.Iter<rs.char> = rs.strChars(_393.value);
-						while (true) {
-							const _399: rs.char | rs.Done = iter5.next();
-							if (_399 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_399, radix8), 99))));
-						}
-						const radix9: rs.u32 = radix8;
-						const _414: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_393.value, radix9);
-						if (_414.ok) {
-							const arg44 = _414.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg44, f)]).v);
-						} else {
-							const e5: rs.ParseIntError = _414.error;
-							const _430: rs.IntErrorKind = e5.kind;
-							if (_430 === "Empty") {
-								kind6 = 0;
-							} else if (_430 === "InvalidDigit") {
-								kind6 = 1;
-							} else if (_430 === "PosOverflow") {
-								kind6 = 2;
-							} else if (_430 === "NegOverflow") {
-								kind6 = 3;
-							} else {
-								kind6 = 4;
-							}
-							if (!(e5.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over5 = e5.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over5 = true;
-							}
-							const _450: rs.IntErrorKind = e5.kind;
-							const args279 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e5, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e5, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _450), (f: rs.Formatter) => rs.i32Display(kind6, f), (f: rs.Formatter) => rs.fmtBool(over5, f)];
-							put(out, rs.fmtFormat([args279[0], "|", args279[1], "|", args279[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args279[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args279[0]), "|", args279[3], "|", args279[4]]).v);
-						}
-						if (radix9 === 10) {
-							const parsed5: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_393.value);
-							const from5: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_393.value);
-							if (from5.ok) {
-								max5 = rs.u8Mul(from5.value === 65535 ? 1 : 0, 4);
-							} else {
-								max5 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed5.ok ? 1 : 0, max5));
-						}
-					}
-				} else if (_389 === 1) {
-					const s3: rs.String = rs.stringNew();
-					for (const b2 of rs.byteSliceView(rest2)) {
-						const _490: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _491: rs.usize = rs.usizeRem(b2 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_490, _491);
-						rs.stringPush(s3, _490.data[_490.start + _491] as rs.char);
-					}
-					const _502: string = s3.v;
-					const radix10: rs.u32 = radix8;
-					const _505: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_502, radix10);
-					if (_505.ok) {
-						const arg43 = _505.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg43, f)]).v);
-					} else {
-						const e6: rs.ParseIntError = _505.error;
-						const _521: rs.IntErrorKind = e6.kind;
-						if (_521 === "Empty") {
-							kind7 = 0;
-						} else if (_521 === "InvalidDigit") {
-							kind7 = 1;
-						} else if (_521 === "PosOverflow") {
-							kind7 = 2;
-						} else if (_521 === "NegOverflow") {
-							kind7 = 3;
-						} else {
-							kind7 = 4;
-						}
-						if (!(e6.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over6 = e6.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over6 = true;
-						}
-						const _541: rs.IntErrorKind = e6.kind;
-						const args277 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e6, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e6, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _541), (f: rs.Formatter) => rs.i32Display(kind7, f), (f: rs.Formatter) => rs.fmtBool(over6, f)];
-						put(out, rs.fmtFormat([args277[0], "|", args277[1], "|", args277[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args277[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args277[0]), "|", args277[3], "|", args277[4]]).v);
-					}
-					if (radix10 === 10) {
-						const parsed6: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_502);
-						const from6: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_502);
-						if (from6.ok) {
-							max6 = rs.u8Mul(from6.value === 65535 ? 1 : 0, 4);
-						} else {
-							max6 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed6.ok ? 1 : 0, max6));
-					}
+			} else if (_15 === 1) {
+				const s: rs.String = rs.stringNew();
+				for (const b of rs.byteSliceView(rest)) {
+					const _116: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _117: rs.usize = rs.usizeRem(b as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_116, _117);
+					rs.stringPush(s, _116.data[_116.start + _117] as rs.char);
+				}
+				const _128: string = s.v;
+				const radix3: rs.u32 = radix;
+				const _131: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_128, radix3);
+				if (_131.ok) {
+					const arg47 = _131.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg47, f)]).v);
 				} else {
-					if (_389 === 2) {
-						const iter7: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _573: rs.u32 | rs.Done = iter7.next();
-							if (_573 === rs.DONE) {
-								break b0;
-							}
-							const radix11: rs.u32 = _573;
-							for (const _581 of edges(65535, 0, 16, radix11).items) {
-								const _589: string = _581.v;
-								const radix12: rs.u32 = radix11;
-								const _592: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_589, radix12);
-								if (_592.ok) {
-									const arg42 = _592.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg42, f)]).v);
-								} else {
-									const e7: rs.ParseIntError = _592.error;
-									const _608: rs.IntErrorKind = e7.kind;
-									if (_608 === "Empty") {
-										kind8 = 0;
-									} else if (_608 === "InvalidDigit") {
-										kind8 = 1;
-									} else if (_608 === "PosOverflow") {
-										kind8 = 2;
-									} else if (_608 === "NegOverflow") {
-										kind8 = 3;
-									} else {
-										kind8 = 4;
-									}
-									if (!(e7.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over7 = e7.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over7 = true;
-									}
-									const _628: rs.IntErrorKind = e7.kind;
-									const args275 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e7, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e7, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _628), (f: rs.Formatter) => rs.i32Display(kind8, f), (f: rs.Formatter) => rs.fmtBool(over7, f)];
-									put(out, rs.fmtFormat([args275[0], "|", args275[1], "|", args275[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args275[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args275[0]), "|", args275[3], "|", args275[4]]).v);
-								}
-								if (radix12 === 10) {
-									const parsed7: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_589);
-									const from7: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_589);
-									if (from7.ok) {
-										max7 = rs.u8Mul(from7.value === 65535 ? 1 : 0, 4);
-									} else {
-										max7 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed7.ok ? 1 : 0, max7));
-								}
-							}
-						}
-					}
-					const radix13: rs.u32 = ((first2 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest2), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest2, 1), (b23: rs.u8): boolean => {
-						return (b23 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix13), 99))));
-					}
-					if (!(rest2.length > 2)) {
-						text2 = rs.byteSliceFrom(Uint8Array.of());
+					const e2: rs.ParseIntError = _131.error;
+					const _147: rs.IntErrorKind = e2.kind;
+					if (_147 === "Empty") {
+						kind3 = 0;
+					} else if (_147 === "InvalidDigit") {
+						kind3 = 1;
+					} else if (_147 === "PosOverflow") {
+						kind3 = 2;
+					} else if (_147 === "NegOverflow") {
+						kind3 = 3;
 					} else {
-						text2 = rs.byteSliceRange(rest2, 2);
+						kind3 = 4;
 					}
-					const _684: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text2), "1");
-					const radix14: rs.u32 = radix13;
-					const _689: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_684, radix14);
-					if (_689.ok) {
-						const arg41 = _689.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg41, f)]).v);
+					if (!(e2.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over2 = e2.kind !== "NegOverflow" as rs.IntErrorKind;
 					} else {
-						const e8: rs.ParseIntError = _689.error;
-						const _705: rs.IntErrorKind = e8.kind;
-						if (_705 === "Empty") {
-							kind9 = 0;
-						} else if (_705 === "InvalidDigit") {
-							kind9 = 1;
-						} else if (_705 === "PosOverflow") {
-							kind9 = 2;
-						} else if (_705 === "NegOverflow") {
-							kind9 = 3;
-						} else {
-							kind9 = 4;
-						}
-						if (!(e8.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over8 = e8.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over8 = true;
-						}
-						const _725: rs.IntErrorKind = e8.kind;
-						const args273 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e8, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e8, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _725), (f: rs.Formatter) => rs.i32Display(kind9, f), (f: rs.Formatter) => rs.fmtBool(over8, f)];
-						put(out, rs.fmtFormat([args273[0], "|", args273[1], "|", args273[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args273[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args273[0]), "|", args273[3], "|", args273[4]]).v);
+						over2 = true;
 					}
-					if (radix14 === 10) {
-						const parsed8: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_684);
-						const from8: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_684);
-						if (from8.ok) {
-							max8 = rs.u8Mul(from8.value === 65535 ? 1 : 0, 4);
+					const _167: rs.IntErrorKind = e2.kind;
+					const args285 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e2, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e2, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _167), (f: rs.Formatter) => rs.i32Display(kind3, f), (f: rs.Formatter) => rs.fmtBool(over2, f)];
+					put(out, rs.fmtFormat([args285[0], "|", args285[1], "|", args285[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args285[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args285[0]), "|", args285[3], "|", args285[4]]).v);
+				}
+				if (radix3 === 10) {
+					const parsed2: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_128);
+					const from2: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_128);
+					if (from2.ok) {
+						max2 = rs.u8Mul(from2.value === 255 ? 1 : 0, 4);
+					} else {
+						max2 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed2.ok ? 1 : 0, max2));
+				}
+			} else if (_15 === 2) {
+				const iter3: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _199: rs.u32 | rs.Done = iter3.next();
+					if (_199 === rs.DONE) {
+						break;
+					}
+					const radix4: rs.u32 = _199;
+					for (const _207 of edges(255, 0, 8, radix4).items) {
+						const _215: string = _207.v;
+						const radix5: rs.u32 = radix4;
+						const _218: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_215, radix5);
+						if (_218.ok) {
+							const arg46 = _218.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg46, f)]).v);
 						} else {
-							max8 = 2;
+							const e3: rs.ParseIntError = _218.error;
+							const _234: rs.IntErrorKind = e3.kind;
+							if (_234 === "Empty") {
+								kind4 = 0;
+							} else if (_234 === "InvalidDigit") {
+								kind4 = 1;
+							} else if (_234 === "PosOverflow") {
+								kind4 = 2;
+							} else if (_234 === "NegOverflow") {
+								kind4 = 3;
+							} else {
+								kind4 = 4;
+							}
+							if (!(e3.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over3 = e3.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over3 = true;
+							}
+							const _254: rs.IntErrorKind = e3.kind;
+							const args283 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e3, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e3, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _254), (f: rs.Formatter) => rs.i32Display(kind4, f), (f: rs.Formatter) => rs.fmtBool(over3, f)];
+							put(out, rs.fmtFormat([args283[0], "|", args283[1], "|", args283[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args283[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args283[0]), "|", args283[3], "|", args283[4]]).v);
 						}
-						rs.byteVecPush(out, rs.u8Add(parsed8.ok ? 1 : 0, max8));
+						if (radix5 === 10) {
+							const parsed3: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_215);
+							const from3: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_215);
+							if (from3.ok) {
+								max3 = rs.u8Mul(from3.value === 255 ? 1 : 0, 4);
+							} else {
+								max3 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed3.ok ? 1 : 0, max3));
+						}
 					}
 				}
-			}
-		} else if (_4 === 2) {
-			if (dataLen !== 0) {
-				const first3: rs.u8 = dataData[dataStart];
-				const rest3: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix15: rs.u32 = rs.u32Add(2, rs.u32Rem(first3 as rs.u32, 35));
-				const _763: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_763 === 0) {
-					const _767: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest3);
-					if (_767.ok) {
-						const iter9: rs.Iter<rs.char> = rs.strChars(_767.value);
-						while (true) {
-							const _773: rs.char | rs.Done = iter9.next();
-							if (_773 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_773, radix15), 99))));
-						}
-						const radix16: rs.u32 = radix15;
-						const _788: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_767.value, radix16);
-						if (_788.ok) {
-							const arg40 = _788.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg40, f)]).v);
-						} else {
-							const e9: rs.ParseIntError = _788.error;
-							const _804: rs.IntErrorKind = e9.kind;
-							if (_804 === "Empty") {
-								kind10 = 0;
-							} else if (_804 === "InvalidDigit") {
-								kind10 = 1;
-							} else if (_804 === "PosOverflow") {
-								kind10 = 2;
-							} else if (_804 === "NegOverflow") {
-								kind10 = 3;
-							} else {
-								kind10 = 4;
-							}
-							if (!(e9.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over9 = e9.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over9 = true;
-							}
-							const _824: rs.IntErrorKind = e9.kind;
-							const args271 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e9, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e9, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _824), (f: rs.Formatter) => rs.i32Display(kind10, f), (f: rs.Formatter) => rs.fmtBool(over9, f)];
-							put(out, rs.fmtFormat([args271[0], "|", args271[1], "|", args271[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args271[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args271[0]), "|", args271[3], "|", args271[4]]).v);
-						}
-						if (radix16 === 10) {
-							const parsed9: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_767.value);
-							const from9: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_767.value);
-							if (from9.ok) {
-								max9 = rs.u8Mul(from9.value === 4294967295 ? 1 : 0, 4);
-							} else {
-								max9 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed9.ok ? 1 : 0, max9));
-						}
-					}
-				} else if (_763 === 1) {
-					const s5: rs.String = rs.stringNew();
-					for (const b3 of rs.byteSliceView(rest3)) {
-						const _864: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _865: rs.usize = rs.usizeRem(b3 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_864, _865);
-						rs.stringPush(s5, _864.data[_864.start + _865] as rs.char);
-					}
-					const _876: string = s5.v;
-					const radix17: rs.u32 = radix15;
-					const _879: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_876, radix17);
-					if (_879.ok) {
-						const arg39 = _879.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg39, f)]).v);
-					} else {
-						const e10: rs.ParseIntError = _879.error;
-						const _895: rs.IntErrorKind = e10.kind;
-						if (_895 === "Empty") {
-							kind11 = 0;
-						} else if (_895 === "InvalidDigit") {
-							kind11 = 1;
-						} else if (_895 === "PosOverflow") {
-							kind11 = 2;
-						} else if (_895 === "NegOverflow") {
-							kind11 = 3;
-						} else {
-							kind11 = 4;
-						}
-						if (!(e10.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over10 = e10.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over10 = true;
-						}
-						const _915: rs.IntErrorKind = e10.kind;
-						const args269 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e10, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e10, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _915), (f: rs.Formatter) => rs.i32Display(kind11, f), (f: rs.Formatter) => rs.fmtBool(over10, f)];
-						put(out, rs.fmtFormat([args269[0], "|", args269[1], "|", args269[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args269[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args269[0]), "|", args269[3], "|", args269[4]]).v);
-					}
-					if (radix17 === 10) {
-						const parsed10: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_876);
-						const from10: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_876);
-						if (from10.ok) {
-							max10 = rs.u8Mul(from10.value === 4294967295 ? 1 : 0, 4);
-						} else {
-							max10 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed10.ok ? 1 : 0, max10));
-					}
+			} else {
+				const radix6: rs.u32 = ((first as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest, 1), (b24: rs.u8): boolean => {
+					return (b24 & 1) === 1;
+				})) {
+					const dst2 = out;
+					const word2 = option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix6), 99);
+					rs.byteVecReserve(dst2, 4 as rs.usize);
+					const pos2 = dst2.length;
+					dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
+					dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
+					dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
+					dst2.data[pos2 + 3] = word2 & 255;
+					dst2.length = dst2.length + 4;
+				}
+				if (!(rest.length > 2)) {
+					text = rs.byteSliceFrom(Uint8Array.of());
 				} else {
-					if (_763 === 2) {
-						const iter11: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _947: rs.u32 | rs.Done = iter11.next();
-							if (_947 === rs.DONE) {
-								break b0;
-							}
-							const radix18: rs.u32 = _947;
-							for (const _955 of edges(4294967295, 0, 32, radix18).items) {
-								const _963: string = _955.v;
-								const radix19: rs.u32 = radix18;
-								const _966: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_963, radix19);
-								if (_966.ok) {
-									const arg38 = _966.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg38, f)]).v);
-								} else {
-									const e11: rs.ParseIntError = _966.error;
-									const _982: rs.IntErrorKind = e11.kind;
-									if (_982 === "Empty") {
-										kind12 = 0;
-									} else if (_982 === "InvalidDigit") {
-										kind12 = 1;
-									} else if (_982 === "PosOverflow") {
-										kind12 = 2;
-									} else if (_982 === "NegOverflow") {
-										kind12 = 3;
-									} else {
-										kind12 = 4;
-									}
-									if (!(e11.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over11 = e11.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over11 = true;
-									}
-									const _1002: rs.IntErrorKind = e11.kind;
-									const args267 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e11, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e11, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1002), (f: rs.Formatter) => rs.i32Display(kind12, f), (f: rs.Formatter) => rs.fmtBool(over11, f)];
-									put(out, rs.fmtFormat([args267[0], "|", args267[1], "|", args267[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args267[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args267[0]), "|", args267[3], "|", args267[4]]).v);
-								}
-								if (radix19 === 10) {
-									const parsed11: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_963);
-									const from11: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_963);
-									if (from11.ok) {
-										max11 = rs.u8Mul(from11.value === 4294967295 ? 1 : 0, 4);
-									} else {
-										max11 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed11.ok ? 1 : 0, max11));
-								}
-							}
-						}
-					}
-					const radix20: rs.u32 = ((first3 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest3), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest3, 1), (b22: rs.u8): boolean => {
-						return (b22 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix20), 99))));
-					}
-					if (!(rest3.length > 2)) {
-						text3 = rs.byteSliceFrom(Uint8Array.of());
+					text = rs.byteSliceRange(rest, 2);
+				}
+				const _310: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text), "1");
+				const radix7: rs.u32 = radix6;
+				const _315: rs.Result<rs.u8, rs.ParseIntError> = num_fromStrRadix$1osjin2(_310, radix7);
+				if (_315.ok) {
+					const arg45 = _315.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg45, f)]).v);
+				} else {
+					const e4: rs.ParseIntError = _315.error;
+					const _331: rs.IntErrorKind = e4.kind;
+					if (_331 === "Empty") {
+						kind5 = 0;
+					} else if (_331 === "InvalidDigit") {
+						kind5 = 1;
+					} else if (_331 === "PosOverflow") {
+						kind5 = 2;
+					} else if (_331 === "NegOverflow") {
+						kind5 = 3;
 					} else {
-						text3 = rs.byteSliceRange(rest3, 2);
+						kind5 = 4;
 					}
-					const _1058: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text3), "1");
-					const radix21: rs.u32 = radix20;
-					const _1063: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_1058, radix21);
-					if (_1063.ok) {
-						const arg37 = _1063.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg37, f)]).v);
+					if (!(e4.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over4 = e4.kind !== "NegOverflow" as rs.IntErrorKind;
 					} else {
-						const e12: rs.ParseIntError = _1063.error;
-						const _1079: rs.IntErrorKind = e12.kind;
-						if (_1079 === "Empty") {
-							kind13 = 0;
-						} else if (_1079 === "InvalidDigit") {
-							kind13 = 1;
-						} else if (_1079 === "PosOverflow") {
-							kind13 = 2;
-						} else if (_1079 === "NegOverflow") {
-							kind13 = 3;
-						} else {
-							kind13 = 4;
-						}
-						if (!(e12.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over12 = e12.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over12 = true;
-						}
-						const _1099: rs.IntErrorKind = e12.kind;
-						const args265 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e12, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e12, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1099), (f: rs.Formatter) => rs.i32Display(kind13, f), (f: rs.Formatter) => rs.fmtBool(over12, f)];
-						put(out, rs.fmtFormat([args265[0], "|", args265[1], "|", args265[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args265[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args265[0]), "|", args265[3], "|", args265[4]]).v);
+						over4 = true;
 					}
-					if (radix21 === 10) {
-						const parsed12: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_1058);
-						const from12: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_1058);
-						if (from12.ok) {
-							max12 = rs.u8Mul(from12.value === 4294967295 ? 1 : 0, 4);
-						} else {
-							max12 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed12.ok ? 1 : 0, max12));
+					const _351: rs.IntErrorKind = e4.kind;
+					const args281 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e4, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e4, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _351), (f: rs.Formatter) => rs.i32Display(kind5, f), (f: rs.Formatter) => rs.fmtBool(over4, f)];
+					put(out, rs.fmtFormat([args281[0], "|", args281[1], "|", args281[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args281[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args281[0]), "|", args281[3], "|", args281[4]]).v);
+				}
+				if (radix7 === 10) {
+					const parsed4: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(_310);
+					const from4: rs.Result<rs.u8, rs.ParseIntError> = num_fromStr$1t58fis(_310);
+					if (from4.ok) {
+						max4 = rs.u8Mul(from4.value === 255 ? 1 : 0, 4);
+					} else {
+						max4 = 2;
 					}
+					rs.byteVecPush(out, rs.u8Add(parsed4.ok ? 1 : 0, max4));
 				}
 			}
-		} else if (_4 === 3) {
-			if (dataLen !== 0) {
-				const first4: rs.u8 = dataData[dataStart];
-				const rest4: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix22: rs.u32 = rs.u32Add(2, rs.u32Rem(first4 as rs.u32, 35));
-				const _1137: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_1137 === 0) {
-					const _1141: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest4);
-					if (_1141.ok) {
-						const iter13: rs.Iter<rs.char> = rs.strChars(_1141.value);
-						while (true) {
-							const _1147: rs.char | rs.Done = iter13.next();
-							if (_1147 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_1147, radix22), 99))));
-						}
-						const radix23: rs.u32 = radix22;
-						const _1162: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1141.value, radix23);
-						if (_1162.ok) {
-							const arg36 = _1162.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg36, f)]).v);
-						} else {
-							const e13: rs.ParseIntError = _1162.error;
-							const _1178: rs.IntErrorKind = e13.kind;
-							if (_1178 === "Empty") {
-								kind14 = 0;
-							} else if (_1178 === "InvalidDigit") {
-								kind14 = 1;
-							} else if (_1178 === "PosOverflow") {
-								kind14 = 2;
-							} else if (_1178 === "NegOverflow") {
-								kind14 = 3;
-							} else {
-								kind14 = 4;
-							}
-							if (!(e13.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over13 = e13.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over13 = true;
-							}
-							const _1198: rs.IntErrorKind = e13.kind;
-							const args263 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e13, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e13, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1198), (f: rs.Formatter) => rs.i32Display(kind14, f), (f: rs.Formatter) => rs.fmtBool(over13, f)];
-							put(out, rs.fmtFormat([args263[0], "|", args263[1], "|", args263[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args263[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args263[0]), "|", args263[3], "|", args263[4]]).v);
-						}
-						if (radix23 === 10) {
-							const parsed13: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1141.value);
-							const from13: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1141.value);
-							if (from13.ok) {
-								max13 = rs.u8Mul(rs.u64Eq(from13.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
-							} else {
-								max13 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed13.ok ? 1 : 0, max13));
-						}
-					}
-				} else if (_1137 === 1) {
-					const s7: rs.String = rs.stringNew();
-					for (const b4 of rs.byteSliceView(rest4)) {
-						const _1238: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _1239: rs.usize = rs.usizeRem(b4 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_1238, _1239);
-						rs.stringPush(s7, _1238.data[_1238.start + _1239] as rs.char);
-					}
-					const _1250: string = s7.v;
-					const radix24: rs.u32 = radix22;
-					const _1253: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1250, radix24);
-					if (_1253.ok) {
-						const arg35 = _1253.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg35, f)]).v);
-					} else {
-						const e14: rs.ParseIntError = _1253.error;
-						const _1269: rs.IntErrorKind = e14.kind;
-						if (_1269 === "Empty") {
-							kind15 = 0;
-						} else if (_1269 === "InvalidDigit") {
-							kind15 = 1;
-						} else if (_1269 === "PosOverflow") {
-							kind15 = 2;
-						} else if (_1269 === "NegOverflow") {
-							kind15 = 3;
-						} else {
-							kind15 = 4;
-						}
-						if (!(e14.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over14 = e14.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over14 = true;
-						}
-						const _1289: rs.IntErrorKind = e14.kind;
-						const args261 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e14, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e14, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1289), (f: rs.Formatter) => rs.i32Display(kind15, f), (f: rs.Formatter) => rs.fmtBool(over14, f)];
-						put(out, rs.fmtFormat([args261[0], "|", args261[1], "|", args261[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args261[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args261[0]), "|", args261[3], "|", args261[4]]).v);
-					}
-					if (radix24 === 10) {
-						const parsed14: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1250);
-						const from14: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1250);
-						if (from14.ok) {
-							max14 = rs.u8Mul(rs.u64Eq(from14.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
-						} else {
-							max14 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed14.ok ? 1 : 0, max14));
-					}
-				} else {
-					if (_1137 === 2) {
-						const iter15: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _1321: rs.u32 | rs.Done = iter15.next();
-							if (_1321 === rs.DONE) {
-								break b0;
-							}
-							const radix25: rs.u32 = _1321;
-							for (const _1329 of edges({ hi: 0, w2: 0, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, 0, 64, radix25).items) {
-								const _1337: string = _1329.v;
-								const radix26: rs.u32 = radix25;
-								const _1340: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1337, radix26);
-								if (_1340.ok) {
-									const arg34 = _1340.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg34, f)]).v);
-								} else {
-									const e15: rs.ParseIntError = _1340.error;
-									const _1356: rs.IntErrorKind = e15.kind;
-									if (_1356 === "Empty") {
-										kind16 = 0;
-									} else if (_1356 === "InvalidDigit") {
-										kind16 = 1;
-									} else if (_1356 === "PosOverflow") {
-										kind16 = 2;
-									} else if (_1356 === "NegOverflow") {
-										kind16 = 3;
-									} else {
-										kind16 = 4;
-									}
-									if (!(e15.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over15 = e15.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over15 = true;
-									}
-									const _1376: rs.IntErrorKind = e15.kind;
-									const args259 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e15, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e15, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1376), (f: rs.Formatter) => rs.i32Display(kind16, f), (f: rs.Formatter) => rs.fmtBool(over15, f)];
-									put(out, rs.fmtFormat([args259[0], "|", args259[1], "|", args259[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args259[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args259[0]), "|", args259[3], "|", args259[4]]).v);
-								}
-								if (radix26 === 10) {
-									const parsed15: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1337);
-									const from15: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1337);
-									if (from15.ok) {
-										max15 = rs.u8Mul(rs.u64Eq(from15.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
-									} else {
-										max15 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed15.ok ? 1 : 0, max15));
-								}
-							}
-						}
-					}
-					const radix27: rs.u32 = ((first4 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest4), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest4, 1), (b21: rs.u8): boolean => {
-						return (b21 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix27), 99))));
-					}
-					if (!(rest4.length > 2)) {
-						text4 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text4 = rs.byteSliceRange(rest4, 2);
-					}
-					const _1432: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text4), "1");
-					const radix28: rs.u32 = radix27;
-					const _1437: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1432, radix28);
-					if (_1437.ok) {
-						const arg33 = _1437.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg33, f)]).v);
-					} else {
-						const e16: rs.ParseIntError = _1437.error;
-						const _1453: rs.IntErrorKind = e16.kind;
-						if (_1453 === "Empty") {
-							kind17 = 0;
-						} else if (_1453 === "InvalidDigit") {
-							kind17 = 1;
-						} else if (_1453 === "PosOverflow") {
-							kind17 = 2;
-						} else if (_1453 === "NegOverflow") {
-							kind17 = 3;
-						} else {
-							kind17 = 4;
-						}
-						if (!(e16.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over16 = e16.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over16 = true;
-						}
-						const _1473: rs.IntErrorKind = e16.kind;
-						const args257 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e16, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e16, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1473), (f: rs.Formatter) => rs.i32Display(kind17, f), (f: rs.Formatter) => rs.fmtBool(over16, f)];
-						put(out, rs.fmtFormat([args257[0], "|", args257[1], "|", args257[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args257[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args257[0]), "|", args257[3], "|", args257[4]]).v);
-					}
-					if (radix28 === 10) {
-						const parsed16: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1432);
-						const from16: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1432);
-						if (from16.ok) {
-							max16 = rs.u8Mul(rs.u64Eq(from16.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
-						} else {
-							max16 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed16.ok ? 1 : 0, max16));
-					}
-				}
-			}
-		} else if (_4 === 4) {
-			if (dataLen !== 0) {
-				const first5: rs.u8 = dataData[dataStart];
-				const rest5: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix29: rs.u32 = rs.u32Add(2, rs.u32Rem(first5 as rs.u32, 35));
-				const _1511: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_1511 === 0) {
-					const _1515: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest5);
-					if (_1515.ok) {
-						const iter17: rs.Iter<rs.char> = rs.strChars(_1515.value);
-						while (true) {
-							const _1521: rs.char | rs.Done = iter17.next();
-							if (_1521 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_1521, radix29), 99))));
-						}
-						const radix30: rs.u32 = radix29;
-						const _1536: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1515.value, radix30);
-						if (_1536.ok) {
-							const arg32 = _1536.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg32, f)]).v);
-						} else {
-							const e17: rs.ParseIntError = _1536.error;
-							const _1552: rs.IntErrorKind = e17.kind;
-							if (_1552 === "Empty") {
-								kind18 = 0;
-							} else if (_1552 === "InvalidDigit") {
-								kind18 = 1;
-							} else if (_1552 === "PosOverflow") {
-								kind18 = 2;
-							} else if (_1552 === "NegOverflow") {
-								kind18 = 3;
-							} else {
-								kind18 = 4;
-							}
-							if (!(e17.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over17 = e17.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over17 = true;
-							}
-							const _1572: rs.IntErrorKind = e17.kind;
-							const args255 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e17, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e17, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1572), (f: rs.Formatter) => rs.i32Display(kind18, f), (f: rs.Formatter) => rs.fmtBool(over17, f)];
-							put(out, rs.fmtFormat([args255[0], "|", args255[1], "|", args255[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args255[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args255[0]), "|", args255[3], "|", args255[4]]).v);
-						}
-						if (radix30 === 10) {
-							const parsed17: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1515.value);
-							const from17: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1515.value);
-							if (from17.ok) {
-								max17 = rs.u8Mul(rs.u128Eq(from17.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
-							} else {
-								max17 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed17.ok ? 1 : 0, max17));
-						}
-					}
-				} else if (_1511 === 1) {
-					const s9: rs.String = rs.stringNew();
-					for (const b5 of rs.byteSliceView(rest5)) {
-						const _1612: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _1613: rs.usize = rs.usizeRem(b5 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_1612, _1613);
-						rs.stringPush(s9, _1612.data[_1612.start + _1613] as rs.char);
-					}
-					const _1624: string = s9.v;
-					const radix31: rs.u32 = radix29;
-					const _1627: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1624, radix31);
-					if (_1627.ok) {
-						const arg31 = _1627.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg31, f)]).v);
-					} else {
-						const e18: rs.ParseIntError = _1627.error;
-						const _1643: rs.IntErrorKind = e18.kind;
-						if (_1643 === "Empty") {
-							kind19 = 0;
-						} else if (_1643 === "InvalidDigit") {
-							kind19 = 1;
-						} else if (_1643 === "PosOverflow") {
-							kind19 = 2;
-						} else if (_1643 === "NegOverflow") {
-							kind19 = 3;
-						} else {
-							kind19 = 4;
-						}
-						if (!(e18.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over18 = e18.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over18 = true;
-						}
-						const _1663: rs.IntErrorKind = e18.kind;
-						const args253 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e18, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e18, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1663), (f: rs.Formatter) => rs.i32Display(kind19, f), (f: rs.Formatter) => rs.fmtBool(over18, f)];
-						put(out, rs.fmtFormat([args253[0], "|", args253[1], "|", args253[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args253[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args253[0]), "|", args253[3], "|", args253[4]]).v);
-					}
-					if (radix31 === 10) {
-						const parsed18: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1624);
-						const from18: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1624);
-						if (from18.ok) {
-							max18 = rs.u8Mul(rs.u128Eq(from18.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
-						} else {
-							max18 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed18.ok ? 1 : 0, max18));
-					}
-				} else {
-					if (_1511 === 2) {
-						const iter19: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _1695: rs.u32 | rs.Done = iter19.next();
-							if (_1695 === rs.DONE) {
-								break b0;
-							}
-							const radix32: rs.u32 = _1695;
-							for (const _1702 of edges({ hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, 0, 128, radix32).items) {
-								const _1710: string = _1702.v;
-								const radix33: rs.u32 = radix32;
-								const _1713: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1710, radix33);
-								if (_1713.ok) {
-									const arg30 = _1713.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg30, f)]).v);
-								} else {
-									const e19: rs.ParseIntError = _1713.error;
-									const _1729: rs.IntErrorKind = e19.kind;
-									if (_1729 === "Empty") {
-										kind20 = 0;
-									} else if (_1729 === "InvalidDigit") {
-										kind20 = 1;
-									} else if (_1729 === "PosOverflow") {
-										kind20 = 2;
-									} else if (_1729 === "NegOverflow") {
-										kind20 = 3;
-									} else {
-										kind20 = 4;
-									}
-									if (!(e19.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over19 = e19.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over19 = true;
-									}
-									const _1749: rs.IntErrorKind = e19.kind;
-									const args251 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e19, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e19, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1749), (f: rs.Formatter) => rs.i32Display(kind20, f), (f: rs.Formatter) => rs.fmtBool(over19, f)];
-									put(out, rs.fmtFormat([args251[0], "|", args251[1], "|", args251[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args251[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args251[0]), "|", args251[3], "|", args251[4]]).v);
-								}
-								if (radix33 === 10) {
-									const parsed19: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1710);
-									const from19: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1710);
-									if (from19.ok) {
-										max19 = rs.u8Mul(rs.u128Eq(from19.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
-									} else {
-										max19 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed19.ok ? 1 : 0, max19));
-								}
-							}
-						}
-					}
-					const radix34: rs.u32 = ((first5 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest5), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest5, 1), (b20: rs.u8): boolean => {
-						return (b20 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix34), 99))));
-					}
-					if (!(rest5.length > 2)) {
-						text5 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text5 = rs.byteSliceRange(rest5, 2);
-					}
-					const _1805: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text5), "1");
-					const radix35: rs.u32 = radix34;
-					const _1810: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1805, radix35);
-					if (_1810.ok) {
-						const arg29 = _1810.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg29, f)]).v);
-					} else {
-						const e20: rs.ParseIntError = _1810.error;
-						const _1826: rs.IntErrorKind = e20.kind;
-						if (_1826 === "Empty") {
-							kind21 = 0;
-						} else if (_1826 === "InvalidDigit") {
-							kind21 = 1;
-						} else if (_1826 === "PosOverflow") {
-							kind21 = 2;
-						} else if (_1826 === "NegOverflow") {
-							kind21 = 3;
-						} else {
-							kind21 = 4;
-						}
-						if (!(e20.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over20 = e20.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over20 = true;
-						}
-						const _1846: rs.IntErrorKind = e20.kind;
-						const args249 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e20, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e20, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1846), (f: rs.Formatter) => rs.i32Display(kind21, f), (f: rs.Formatter) => rs.fmtBool(over20, f)];
-						put(out, rs.fmtFormat([args249[0], "|", args249[1], "|", args249[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args249[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args249[0]), "|", args249[3], "|", args249[4]]).v);
-					}
-					if (radix35 === 10) {
-						const parsed20: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1805);
-						const from20: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1805);
-						if (from20.ok) {
-							max20 = rs.u8Mul(rs.u128Eq(from20.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
-						} else {
-							max20 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed20.ok ? 1 : 0, max20));
-					}
-				}
-			}
-		} else if (_4 === 5) {
-			if (dataLen !== 0) {
-				const first6: rs.u8 = dataData[dataStart];
-				const rest6: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix36: rs.u32 = rs.u32Add(2, rs.u32Rem(first6 as rs.u32, 35));
-				const _1884: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_1884 === 0) {
-					const _1888: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest6);
-					if (_1888.ok) {
-						const iter21: rs.Iter<rs.char> = rs.strChars(_1888.value);
-						while (true) {
-							const _1894: rs.char | rs.Done = iter21.next();
-							if (_1894 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_1894, radix36), 99))));
-						}
-						const radix37: rs.u32 = radix36;
-						const _1909: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_1888.value, radix37);
-						if (_1909.ok) {
-							const arg28 = _1909.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg28, f)]).v);
-						} else {
-							const e21: rs.ParseIntError = _1909.error;
-							const _1925: rs.IntErrorKind = e21.kind;
-							if (_1925 === "Empty") {
-								kind22 = 0;
-							} else if (_1925 === "InvalidDigit") {
-								kind22 = 1;
-							} else if (_1925 === "PosOverflow") {
-								kind22 = 2;
-							} else if (_1925 === "NegOverflow") {
-								kind22 = 3;
-							} else {
-								kind22 = 4;
-							}
-							if (!(e21.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over21 = e21.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over21 = true;
-							}
-							const _1945: rs.IntErrorKind = e21.kind;
-							const args247 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e21, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e21, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1945), (f: rs.Formatter) => rs.i32Display(kind22, f), (f: rs.Formatter) => rs.fmtBool(over21, f)];
-							put(out, rs.fmtFormat([args247[0], "|", args247[1], "|", args247[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args247[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args247[0]), "|", args247[3], "|", args247[4]]).v);
-						}
-						if (radix37 === 10) {
-							const parsed21: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_1888.value);
-							const from21: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_1888.value);
-							if (from21.ok) {
-								max21 = rs.u8Mul(from21.value === 4294967295 ? 1 : 0, 4);
-							} else {
-								max21 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed21.ok ? 1 : 0, max21));
-						}
-					}
-				} else if (_1884 === 1) {
-					const s11: rs.String = rs.stringNew();
-					for (const b6 of rs.byteSliceView(rest6)) {
-						const _1985: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _1986: rs.usize = rs.usizeRem(b6 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_1985, _1986);
-						rs.stringPush(s11, _1985.data[_1985.start + _1986] as rs.char);
-					}
-					const _1997: string = s11.v;
-					const radix38: rs.u32 = radix36;
-					const _2000: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_1997, radix38);
-					if (_2000.ok) {
-						const arg27 = _2000.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg27, f)]).v);
-					} else {
-						const e22: rs.ParseIntError = _2000.error;
-						const _2016: rs.IntErrorKind = e22.kind;
-						if (_2016 === "Empty") {
-							kind23 = 0;
-						} else if (_2016 === "InvalidDigit") {
-							kind23 = 1;
-						} else if (_2016 === "PosOverflow") {
-							kind23 = 2;
-						} else if (_2016 === "NegOverflow") {
-							kind23 = 3;
-						} else {
-							kind23 = 4;
-						}
-						if (!(e22.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over22 = e22.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over22 = true;
-						}
-						const _2036: rs.IntErrorKind = e22.kind;
-						const args245 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e22, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e22, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2036), (f: rs.Formatter) => rs.i32Display(kind23, f), (f: rs.Formatter) => rs.fmtBool(over22, f)];
-						put(out, rs.fmtFormat([args245[0], "|", args245[1], "|", args245[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args245[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args245[0]), "|", args245[3], "|", args245[4]]).v);
-					}
-					if (radix38 === 10) {
-						const parsed22: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_1997);
-						const from22: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_1997);
-						if (from22.ok) {
-							max22 = rs.u8Mul(from22.value === 4294967295 ? 1 : 0, 4);
-						} else {
-							max22 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed22.ok ? 1 : 0, max22));
-					}
-				} else {
-					if (_1884 === 2) {
-						const iter23: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _2068: rs.u32 | rs.Done = iter23.next();
-							if (_2068 === rs.DONE) {
-								break b0;
-							}
-							const radix39: rs.u32 = _2068;
-							for (const _2076 of edges(4294967295, 0, 32, radix39).items) {
-								const _2084: string = _2076.v;
-								const radix40: rs.u32 = radix39;
-								const _2087: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_2084, radix40);
-								if (_2087.ok) {
-									const arg26 = _2087.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg26, f)]).v);
-								} else {
-									const e23: rs.ParseIntError = _2087.error;
-									const _2103: rs.IntErrorKind = e23.kind;
-									if (_2103 === "Empty") {
-										kind24 = 0;
-									} else if (_2103 === "InvalidDigit") {
-										kind24 = 1;
-									} else if (_2103 === "PosOverflow") {
-										kind24 = 2;
-									} else if (_2103 === "NegOverflow") {
-										kind24 = 3;
-									} else {
-										kind24 = 4;
-									}
-									if (!(e23.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over23 = e23.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over23 = true;
-									}
-									const _2123: rs.IntErrorKind = e23.kind;
-									const args243 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e23, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e23, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2123), (f: rs.Formatter) => rs.i32Display(kind24, f), (f: rs.Formatter) => rs.fmtBool(over23, f)];
-									put(out, rs.fmtFormat([args243[0], "|", args243[1], "|", args243[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args243[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args243[0]), "|", args243[3], "|", args243[4]]).v);
-								}
-								if (radix40 === 10) {
-									const parsed23: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_2084);
-									const from23: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_2084);
-									if (from23.ok) {
-										max23 = rs.u8Mul(from23.value === 4294967295 ? 1 : 0, 4);
-									} else {
-										max23 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed23.ok ? 1 : 0, max23));
-								}
-							}
-						}
-					}
-					const radix41: rs.u32 = ((first6 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest6), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest6, 1), (b19: rs.u8): boolean => {
-						return (b19 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix41), 99))));
-					}
-					if (!(rest6.length > 2)) {
-						text6 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text6 = rs.byteSliceRange(rest6, 2);
-					}
-					const _2179: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text6), "1");
-					const radix42: rs.u32 = radix41;
-					const _2184: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_2179, radix42);
-					if (_2184.ok) {
-						const arg25 = _2184.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg25, f)]).v);
-					} else {
-						const e24: rs.ParseIntError = _2184.error;
-						const _2200: rs.IntErrorKind = e24.kind;
-						if (_2200 === "Empty") {
-							kind25 = 0;
-						} else if (_2200 === "InvalidDigit") {
-							kind25 = 1;
-						} else if (_2200 === "PosOverflow") {
-							kind25 = 2;
-						} else if (_2200 === "NegOverflow") {
-							kind25 = 3;
-						} else {
-							kind25 = 4;
-						}
-						if (!(e24.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over24 = e24.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over24 = true;
-						}
-						const _2220: rs.IntErrorKind = e24.kind;
-						const args241 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e24, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e24, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2220), (f: rs.Formatter) => rs.i32Display(kind25, f), (f: rs.Formatter) => rs.fmtBool(over24, f)];
-						put(out, rs.fmtFormat([args241[0], "|", args241[1], "|", args241[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args241[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args241[0]), "|", args241[3], "|", args241[4]]).v);
-					}
-					if (radix42 === 10) {
-						const parsed24: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_2179);
-						const from24: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_2179);
-						if (from24.ok) {
-							max24 = rs.u8Mul(from24.value === 4294967295 ? 1 : 0, 4);
-						} else {
-							max24 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed24.ok ? 1 : 0, max24));
-					}
-				}
-			}
-		} else if (_4 === 6) {
-			if (dataLen !== 0) {
-				const first7: rs.u8 = dataData[dataStart];
-				const rest7: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix43: rs.u32 = rs.u32Add(2, rs.u32Rem(first7 as rs.u32, 35));
-				const _2258: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_2258 === 0) {
-					const _2262: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest7);
-					if (_2262.ok) {
-						const iter25: rs.Iter<rs.char> = rs.strChars(_2262.value);
-						while (true) {
-							const _2268: rs.char | rs.Done = iter25.next();
-							if (_2268 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_2268, radix43), 99))));
-						}
-						const radix44: rs.u32 = radix43;
-						const _2283: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2262.value, radix44);
-						if (_2283.ok) {
-							const arg24 = _2283.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg24, f)]).v);
-						} else {
-							const e25: rs.ParseIntError = _2283.error;
-							const _2299: rs.IntErrorKind = e25.kind;
-							if (_2299 === "Empty") {
-								kind26 = 0;
-							} else if (_2299 === "InvalidDigit") {
-								kind26 = 1;
-							} else if (_2299 === "PosOverflow") {
-								kind26 = 2;
-							} else if (_2299 === "NegOverflow") {
-								kind26 = 3;
-							} else {
-								kind26 = 4;
-							}
-							if (!(e25.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over25 = e25.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over25 = true;
-							}
-							const _2319: rs.IntErrorKind = e25.kind;
-							const args239 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e25, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e25, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2319), (f: rs.Formatter) => rs.i32Display(kind26, f), (f: rs.Formatter) => rs.fmtBool(over25, f)];
-							put(out, rs.fmtFormat([args239[0], "|", args239[1], "|", args239[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args239[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args239[0]), "|", args239[3], "|", args239[4]]).v);
-						}
-						if (radix44 === 10) {
-							const parsed25: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2262.value);
-							const from25: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2262.value);
-							if (from25.ok) {
-								max25 = rs.u8Mul(from25.value === 127 ? 1 : 0, 4);
-							} else {
-								max25 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed25.ok ? 1 : 0, max25));
-						}
-					}
-				} else if (_2258 === 1) {
-					const s13: rs.String = rs.stringNew();
-					for (const b7 of rs.byteSliceView(rest7)) {
-						const _2359: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _2360: rs.usize = rs.usizeRem(b7 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_2359, _2360);
-						rs.stringPush(s13, _2359.data[_2359.start + _2360] as rs.char);
-					}
-					const _2371: string = s13.v;
-					const radix45: rs.u32 = radix43;
-					const _2374: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2371, radix45);
-					if (_2374.ok) {
-						const arg23 = _2374.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg23, f)]).v);
-					} else {
-						const e26: rs.ParseIntError = _2374.error;
-						const _2390: rs.IntErrorKind = e26.kind;
-						if (_2390 === "Empty") {
-							kind27 = 0;
-						} else if (_2390 === "InvalidDigit") {
-							kind27 = 1;
-						} else if (_2390 === "PosOverflow") {
-							kind27 = 2;
-						} else if (_2390 === "NegOverflow") {
-							kind27 = 3;
-						} else {
-							kind27 = 4;
-						}
-						if (!(e26.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over26 = e26.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over26 = true;
-						}
-						const _2410: rs.IntErrorKind = e26.kind;
-						const args237 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e26, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e26, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2410), (f: rs.Formatter) => rs.i32Display(kind27, f), (f: rs.Formatter) => rs.fmtBool(over26, f)];
-						put(out, rs.fmtFormat([args237[0], "|", args237[1], "|", args237[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args237[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args237[0]), "|", args237[3], "|", args237[4]]).v);
-					}
-					if (radix45 === 10) {
-						const parsed26: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2371);
-						const from26: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2371);
-						if (from26.ok) {
-							max26 = rs.u8Mul(from26.value === 127 ? 1 : 0, 4);
-						} else {
-							max26 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed26.ok ? 1 : 0, max26));
-					}
-				} else {
-					if (_2258 === 2) {
-						const iter27: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _2442: rs.u32 | rs.Done = iter27.next();
-							if (_2442 === rs.DONE) {
-								break b0;
-							}
-							const radix46: rs.u32 = _2442;
-							for (const _2453 of edges(127, rs.u128Add(127, 1), 8, radix46).items) {
-								const _2461: string = _2453.v;
-								const radix47: rs.u32 = radix46;
-								const _2464: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2461, radix47);
-								if (_2464.ok) {
-									const arg22 = _2464.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg22, f)]).v);
-								} else {
-									const e27: rs.ParseIntError = _2464.error;
-									const _2480: rs.IntErrorKind = e27.kind;
-									if (_2480 === "Empty") {
-										kind28 = 0;
-									} else if (_2480 === "InvalidDigit") {
-										kind28 = 1;
-									} else if (_2480 === "PosOverflow") {
-										kind28 = 2;
-									} else if (_2480 === "NegOverflow") {
-										kind28 = 3;
-									} else {
-										kind28 = 4;
-									}
-									if (!(e27.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over27 = e27.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over27 = true;
-									}
-									const _2500: rs.IntErrorKind = e27.kind;
-									const args235 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e27, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e27, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2500), (f: rs.Formatter) => rs.i32Display(kind28, f), (f: rs.Formatter) => rs.fmtBool(over27, f)];
-									put(out, rs.fmtFormat([args235[0], "|", args235[1], "|", args235[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args235[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args235[0]), "|", args235[3], "|", args235[4]]).v);
-								}
-								if (radix47 === 10) {
-									const parsed27: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2461);
-									const from27: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2461);
-									if (from27.ok) {
-										max27 = rs.u8Mul(from27.value === 127 ? 1 : 0, 4);
-									} else {
-										max27 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed27.ok ? 1 : 0, max27));
-								}
-							}
-						}
-					}
-					const radix48: rs.u32 = ((first7 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest7), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest7, 1), (b18: rs.u8): boolean => {
-						return (b18 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix48), 99))));
-					}
-					if (!(rest7.length > 2)) {
-						text7 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text7 = rs.byteSliceRange(rest7, 2);
-					}
-					const _2556: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text7), "1");
-					const radix49: rs.u32 = radix48;
-					const _2561: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2556, radix49);
-					if (_2561.ok) {
-						const arg21 = _2561.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg21, f)]).v);
-					} else {
-						const e28: rs.ParseIntError = _2561.error;
-						const _2577: rs.IntErrorKind = e28.kind;
-						if (_2577 === "Empty") {
-							kind29 = 0;
-						} else if (_2577 === "InvalidDigit") {
-							kind29 = 1;
-						} else if (_2577 === "PosOverflow") {
-							kind29 = 2;
-						} else if (_2577 === "NegOverflow") {
-							kind29 = 3;
-						} else {
-							kind29 = 4;
-						}
-						if (!(e28.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over28 = e28.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over28 = true;
-						}
-						const _2597: rs.IntErrorKind = e28.kind;
-						const args233 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e28, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e28, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2597), (f: rs.Formatter) => rs.i32Display(kind29, f), (f: rs.Formatter) => rs.fmtBool(over28, f)];
-						put(out, rs.fmtFormat([args233[0], "|", args233[1], "|", args233[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args233[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args233[0]), "|", args233[3], "|", args233[4]]).v);
-					}
-					if (radix49 === 10) {
-						const parsed28: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2556);
-						const from28: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2556);
-						if (from28.ok) {
-							max28 = rs.u8Mul(from28.value === 127 ? 1 : 0, 4);
-						} else {
-							max28 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed28.ok ? 1 : 0, max28));
-					}
-				}
-			}
-		} else if (_4 === 7) {
-			if (dataLen !== 0) {
-				const first8: rs.u8 = dataData[dataStart];
-				const rest8: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix50: rs.u32 = rs.u32Add(2, rs.u32Rem(first8 as rs.u32, 35));
-				const _2635: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_2635 === 0) {
-					const _2639: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest8);
-					if (_2639.ok) {
-						const iter29: rs.Iter<rs.char> = rs.strChars(_2639.value);
-						while (true) {
-							const _2645: rs.char | rs.Done = iter29.next();
-							if (_2645 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_2645, radix50), 99))));
-						}
-						const radix51: rs.u32 = radix50;
-						const _2660: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2639.value, radix51);
-						if (_2660.ok) {
-							const arg20 = _2660.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg20, f)]).v);
-						} else {
-							const e29: rs.ParseIntError = _2660.error;
-							const _2676: rs.IntErrorKind = e29.kind;
-							if (_2676 === "Empty") {
-								kind30 = 0;
-							} else if (_2676 === "InvalidDigit") {
-								kind30 = 1;
-							} else if (_2676 === "PosOverflow") {
-								kind30 = 2;
-							} else if (_2676 === "NegOverflow") {
-								kind30 = 3;
-							} else {
-								kind30 = 4;
-							}
-							if (!(e29.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over29 = e29.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over29 = true;
-							}
-							const _2696: rs.IntErrorKind = e29.kind;
-							const args231 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e29, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e29, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2696), (f: rs.Formatter) => rs.i32Display(kind30, f), (f: rs.Formatter) => rs.fmtBool(over29, f)];
-							put(out, rs.fmtFormat([args231[0], "|", args231[1], "|", args231[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args231[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args231[0]), "|", args231[3], "|", args231[4]]).v);
-						}
-						if (radix51 === 10) {
-							const parsed29: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2639.value);
-							const from29: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2639.value);
-							if (from29.ok) {
-								max29 = rs.u8Mul(from29.value === 32767 ? 1 : 0, 4);
-							} else {
-								max29 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed29.ok ? 1 : 0, max29));
-						}
-					}
-				} else if (_2635 === 1) {
-					const s15: rs.String = rs.stringNew();
-					for (const b8 of rs.byteSliceView(rest8)) {
-						const _2736: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _2737: rs.usize = rs.usizeRem(b8 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_2736, _2737);
-						rs.stringPush(s15, _2736.data[_2736.start + _2737] as rs.char);
-					}
-					const _2748: string = s15.v;
-					const radix52: rs.u32 = radix50;
-					const _2751: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2748, radix52);
-					if (_2751.ok) {
-						const arg19 = _2751.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg19, f)]).v);
-					} else {
-						const e30: rs.ParseIntError = _2751.error;
-						const _2767: rs.IntErrorKind = e30.kind;
-						if (_2767 === "Empty") {
-							kind31 = 0;
-						} else if (_2767 === "InvalidDigit") {
-							kind31 = 1;
-						} else if (_2767 === "PosOverflow") {
-							kind31 = 2;
-						} else if (_2767 === "NegOverflow") {
-							kind31 = 3;
-						} else {
-							kind31 = 4;
-						}
-						if (!(e30.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over30 = e30.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over30 = true;
-						}
-						const _2787: rs.IntErrorKind = e30.kind;
-						const args229 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e30, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e30, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2787), (f: rs.Formatter) => rs.i32Display(kind31, f), (f: rs.Formatter) => rs.fmtBool(over30, f)];
-						put(out, rs.fmtFormat([args229[0], "|", args229[1], "|", args229[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args229[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args229[0]), "|", args229[3], "|", args229[4]]).v);
-					}
-					if (radix52 === 10) {
-						const parsed30: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2748);
-						const from30: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2748);
-						if (from30.ok) {
-							max30 = rs.u8Mul(from30.value === 32767 ? 1 : 0, 4);
-						} else {
-							max30 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed30.ok ? 1 : 0, max30));
-					}
-				} else {
-					if (_2635 === 2) {
-						const iter31: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _2819: rs.u32 | rs.Done = iter31.next();
-							if (_2819 === rs.DONE) {
-								break b0;
-							}
-							const radix53: rs.u32 = _2819;
-							for (const _2830 of edges(32767, rs.u128Add(32767, 1), 16, radix53).items) {
-								const _2838: string = _2830.v;
-								const radix54: rs.u32 = radix53;
-								const _2841: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2838, radix54);
-								if (_2841.ok) {
-									const arg18 = _2841.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg18, f)]).v);
-								} else {
-									const e31: rs.ParseIntError = _2841.error;
-									const _2857: rs.IntErrorKind = e31.kind;
-									if (_2857 === "Empty") {
-										kind32 = 0;
-									} else if (_2857 === "InvalidDigit") {
-										kind32 = 1;
-									} else if (_2857 === "PosOverflow") {
-										kind32 = 2;
-									} else if (_2857 === "NegOverflow") {
-										kind32 = 3;
-									} else {
-										kind32 = 4;
-									}
-									if (!(e31.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over31 = e31.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over31 = true;
-									}
-									const _2877: rs.IntErrorKind = e31.kind;
-									const args227 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e31, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e31, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2877), (f: rs.Formatter) => rs.i32Display(kind32, f), (f: rs.Formatter) => rs.fmtBool(over31, f)];
-									put(out, rs.fmtFormat([args227[0], "|", args227[1], "|", args227[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args227[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args227[0]), "|", args227[3], "|", args227[4]]).v);
-								}
-								if (radix54 === 10) {
-									const parsed31: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2838);
-									const from31: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2838);
-									if (from31.ok) {
-										max31 = rs.u8Mul(from31.value === 32767 ? 1 : 0, 4);
-									} else {
-										max31 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed31.ok ? 1 : 0, max31));
-								}
-							}
-						}
-					}
-					const radix55: rs.u32 = ((first8 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest8), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest8, 1), (b17: rs.u8): boolean => {
-						return (b17 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix55), 99))));
-					}
-					if (!(rest8.length > 2)) {
-						text8 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text8 = rs.byteSliceRange(rest8, 2);
-					}
-					const _2933: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text8), "1");
-					const radix56: rs.u32 = radix55;
-					const _2938: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2933, radix56);
-					if (_2938.ok) {
-						const arg17 = _2938.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg17, f)]).v);
-					} else {
-						const e32: rs.ParseIntError = _2938.error;
-						const _2954: rs.IntErrorKind = e32.kind;
-						if (_2954 === "Empty") {
-							kind33 = 0;
-						} else if (_2954 === "InvalidDigit") {
-							kind33 = 1;
-						} else if (_2954 === "PosOverflow") {
-							kind33 = 2;
-						} else if (_2954 === "NegOverflow") {
-							kind33 = 3;
-						} else {
-							kind33 = 4;
-						}
-						if (!(e32.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over32 = e32.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over32 = true;
-						}
-						const _2974: rs.IntErrorKind = e32.kind;
-						const args225 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e32, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e32, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2974), (f: rs.Formatter) => rs.i32Display(kind33, f), (f: rs.Formatter) => rs.fmtBool(over32, f)];
-						put(out, rs.fmtFormat([args225[0], "|", args225[1], "|", args225[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args225[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args225[0]), "|", args225[3], "|", args225[4]]).v);
-					}
-					if (radix56 === 10) {
-						const parsed32: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2933);
-						const from32: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2933);
-						if (from32.ok) {
-							max32 = rs.u8Mul(from32.value === 32767 ? 1 : 0, 4);
-						} else {
-							max32 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed32.ok ? 1 : 0, max32));
-					}
-				}
-			}
-		} else if (_4 === 8) {
-			if (dataLen !== 0) {
-				const first9: rs.u8 = dataData[dataStart];
-				const rest9: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix57: rs.u32 = rs.u32Add(2, rs.u32Rem(first9 as rs.u32, 35));
-				const _3012: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_3012 === 0) {
-					const _3016: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest9);
-					if (_3016.ok) {
-						const iter33: rs.Iter<rs.char> = rs.strChars(_3016.value);
-						while (true) {
-							const _3022: rs.char | rs.Done = iter33.next();
-							if (_3022 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_3022, radix57), 99))));
-						}
-						const radix58: rs.u32 = radix57;
-						const _3037: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3016.value, radix58);
-						if (_3037.ok) {
-							const arg16 = _3037.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg16, f)]).v);
-						} else {
-							const e33: rs.ParseIntError = _3037.error;
-							const _3053: rs.IntErrorKind = e33.kind;
-							if (_3053 === "Empty") {
-								kind34 = 0;
-							} else if (_3053 === "InvalidDigit") {
-								kind34 = 1;
-							} else if (_3053 === "PosOverflow") {
-								kind34 = 2;
-							} else if (_3053 === "NegOverflow") {
-								kind34 = 3;
-							} else {
-								kind34 = 4;
-							}
-							if (!(e33.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over33 = e33.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over33 = true;
-							}
-							const _3073: rs.IntErrorKind = e33.kind;
-							const args223 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e33, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e33, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3073), (f: rs.Formatter) => rs.i32Display(kind34, f), (f: rs.Formatter) => rs.fmtBool(over33, f)];
-							put(out, rs.fmtFormat([args223[0], "|", args223[1], "|", args223[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args223[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args223[0]), "|", args223[3], "|", args223[4]]).v);
-						}
-						if (radix58 === 10) {
-							const parsed33: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3016.value);
-							const from33: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3016.value);
-							if (from33.ok) {
-								max33 = rs.u8Mul(from33.value === 2147483647 ? 1 : 0, 4);
-							} else {
-								max33 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed33.ok ? 1 : 0, max33));
-						}
-					}
-				} else if (_3012 === 1) {
-					const s17: rs.String = rs.stringNew();
-					for (const b9 of rs.byteSliceView(rest9)) {
-						const _3113: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _3114: rs.usize = rs.usizeRem(b9 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_3113, _3114);
-						rs.stringPush(s17, _3113.data[_3113.start + _3114] as rs.char);
-					}
-					const _3125: string = s17.v;
-					const radix59: rs.u32 = radix57;
-					const _3128: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3125, radix59);
-					if (_3128.ok) {
-						const arg15 = _3128.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg15, f)]).v);
-					} else {
-						const e34: rs.ParseIntError = _3128.error;
-						const _3144: rs.IntErrorKind = e34.kind;
-						if (_3144 === "Empty") {
-							kind35 = 0;
-						} else if (_3144 === "InvalidDigit") {
-							kind35 = 1;
-						} else if (_3144 === "PosOverflow") {
-							kind35 = 2;
-						} else if (_3144 === "NegOverflow") {
-							kind35 = 3;
-						} else {
-							kind35 = 4;
-						}
-						if (!(e34.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over34 = e34.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over34 = true;
-						}
-						const _3164: rs.IntErrorKind = e34.kind;
-						const args221 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e34, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e34, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3164), (f: rs.Formatter) => rs.i32Display(kind35, f), (f: rs.Formatter) => rs.fmtBool(over34, f)];
-						put(out, rs.fmtFormat([args221[0], "|", args221[1], "|", args221[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args221[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args221[0]), "|", args221[3], "|", args221[4]]).v);
-					}
-					if (radix59 === 10) {
-						const parsed34: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3125);
-						const from34: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3125);
-						if (from34.ok) {
-							max34 = rs.u8Mul(from34.value === 2147483647 ? 1 : 0, 4);
-						} else {
-							max34 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed34.ok ? 1 : 0, max34));
-					}
-				} else {
-					if (_3012 === 2) {
-						const iter35: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _3196: rs.u32 | rs.Done = iter35.next();
-							if (_3196 === rs.DONE) {
-								break b0;
-							}
-							const radix60: rs.u32 = _3196;
-							for (const _3207 of edges(2147483647, rs.u128Add(2147483647, 1), 32, radix60).items) {
-								const _3215: string = _3207.v;
-								const radix61: rs.u32 = radix60;
-								const _3218: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3215, radix61);
-								if (_3218.ok) {
-									const arg14 = _3218.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg14, f)]).v);
-								} else {
-									const e35: rs.ParseIntError = _3218.error;
-									const _3234: rs.IntErrorKind = e35.kind;
-									if (_3234 === "Empty") {
-										kind36 = 0;
-									} else if (_3234 === "InvalidDigit") {
-										kind36 = 1;
-									} else if (_3234 === "PosOverflow") {
-										kind36 = 2;
-									} else if (_3234 === "NegOverflow") {
-										kind36 = 3;
-									} else {
-										kind36 = 4;
-									}
-									if (!(e35.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over35 = e35.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over35 = true;
-									}
-									const _3254: rs.IntErrorKind = e35.kind;
-									const args219 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e35, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e35, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3254), (f: rs.Formatter) => rs.i32Display(kind36, f), (f: rs.Formatter) => rs.fmtBool(over35, f)];
-									put(out, rs.fmtFormat([args219[0], "|", args219[1], "|", args219[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args219[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args219[0]), "|", args219[3], "|", args219[4]]).v);
-								}
-								if (radix61 === 10) {
-									const parsed35: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3215);
-									const from35: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3215);
-									if (from35.ok) {
-										max35 = rs.u8Mul(from35.value === 2147483647 ? 1 : 0, 4);
-									} else {
-										max35 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed35.ok ? 1 : 0, max35));
-								}
-							}
-						}
-					}
-					const radix62: rs.u32 = ((first9 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest9), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest9, 1), (b16: rs.u8): boolean => {
-						return (b16 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix62), 99))));
-					}
-					if (!(rest9.length > 2)) {
-						text9 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text9 = rs.byteSliceRange(rest9, 2);
-					}
-					const _3310: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text9), "1");
-					const radix63: rs.u32 = radix62;
-					const _3315: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3310, radix63);
-					if (_3315.ok) {
-						const arg13 = _3315.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg13, f)]).v);
-					} else {
-						const e36: rs.ParseIntError = _3315.error;
-						const _3331: rs.IntErrorKind = e36.kind;
-						if (_3331 === "Empty") {
-							kind37 = 0;
-						} else if (_3331 === "InvalidDigit") {
-							kind37 = 1;
-						} else if (_3331 === "PosOverflow") {
-							kind37 = 2;
-						} else if (_3331 === "NegOverflow") {
-							kind37 = 3;
-						} else {
-							kind37 = 4;
-						}
-						if (!(e36.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over36 = e36.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over36 = true;
-						}
-						const _3351: rs.IntErrorKind = e36.kind;
-						const args217 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e36, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e36, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3351), (f: rs.Formatter) => rs.i32Display(kind37, f), (f: rs.Formatter) => rs.fmtBool(over36, f)];
-						put(out, rs.fmtFormat([args217[0], "|", args217[1], "|", args217[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args217[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args217[0]), "|", args217[3], "|", args217[4]]).v);
-					}
-					if (radix63 === 10) {
-						const parsed36: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3310);
-						const from36: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3310);
-						if (from36.ok) {
-							max36 = rs.u8Mul(from36.value === 2147483647 ? 1 : 0, 4);
-						} else {
-							max36 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed36.ok ? 1 : 0, max36));
-					}
-				}
-			}
-		} else if (_4 === 9) {
-			if (dataLen !== 0) {
-				const first10: rs.u8 = dataData[dataStart];
-				const rest10: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix64: rs.u32 = rs.u32Add(2, rs.u32Rem(first10 as rs.u32, 35));
-				const _3389: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_3389 === 0) {
-					const _3393: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest10);
-					if (_3393.ok) {
-						const iter37: rs.Iter<rs.char> = rs.strChars(_3393.value);
-						while (true) {
-							const _3399: rs.char | rs.Done = iter37.next();
-							if (_3399 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_3399, radix64), 99))));
-						}
-						const radix65: rs.u32 = radix64;
-						const _3414: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3393.value, radix65);
-						if (_3414.ok) {
-							const arg12 = _3414.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg12, f)]).v);
-						} else {
-							const e37: rs.ParseIntError = _3414.error;
-							const _3430: rs.IntErrorKind = e37.kind;
-							if (_3430 === "Empty") {
-								kind38 = 0;
-							} else if (_3430 === "InvalidDigit") {
-								kind38 = 1;
-							} else if (_3430 === "PosOverflow") {
-								kind38 = 2;
-							} else if (_3430 === "NegOverflow") {
-								kind38 = 3;
-							} else {
-								kind38 = 4;
-							}
-							if (!(e37.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over37 = e37.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over37 = true;
-							}
-							const _3450: rs.IntErrorKind = e37.kind;
-							const args215 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e37, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e37, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3450), (f: rs.Formatter) => rs.i32Display(kind38, f), (f: rs.Formatter) => rs.fmtBool(over37, f)];
-							put(out, rs.fmtFormat([args215[0], "|", args215[1], "|", args215[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args215[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args215[0]), "|", args215[3], "|", args215[4]]).v);
-						}
-						if (radix65 === 10) {
-							const parsed37: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3393.value);
-							const from37: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3393.value);
-							if (from37.ok) {
-								max37 = rs.u8Mul(rs.i64Eq(from37.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
-							} else {
-								max37 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed37.ok ? 1 : 0, max37));
-						}
-					}
-				} else if (_3389 === 1) {
-					const s19: rs.String = rs.stringNew();
-					for (const b10 of rs.byteSliceView(rest10)) {
-						const _3490: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _3491: rs.usize = rs.usizeRem(b10 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_3490, _3491);
-						rs.stringPush(s19, _3490.data[_3490.start + _3491] as rs.char);
-					}
-					const _3502: string = s19.v;
-					const radix66: rs.u32 = radix64;
-					const _3505: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3502, radix66);
-					if (_3505.ok) {
-						const arg11 = _3505.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg11, f)]).v);
-					} else {
-						const e38: rs.ParseIntError = _3505.error;
-						const _3521: rs.IntErrorKind = e38.kind;
-						if (_3521 === "Empty") {
-							kind39 = 0;
-						} else if (_3521 === "InvalidDigit") {
-							kind39 = 1;
-						} else if (_3521 === "PosOverflow") {
-							kind39 = 2;
-						} else if (_3521 === "NegOverflow") {
-							kind39 = 3;
-						} else {
-							kind39 = 4;
-						}
-						if (!(e38.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over38 = e38.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over38 = true;
-						}
-						const _3541: rs.IntErrorKind = e38.kind;
-						const args213 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e38, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e38, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3541), (f: rs.Formatter) => rs.i32Display(kind39, f), (f: rs.Formatter) => rs.fmtBool(over38, f)];
-						put(out, rs.fmtFormat([args213[0], "|", args213[1], "|", args213[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args213[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args213[0]), "|", args213[3], "|", args213[4]]).v);
-					}
-					if (radix66 === 10) {
-						const parsed38: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3502);
-						const from38: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3502);
-						if (from38.ok) {
-							max38 = rs.u8Mul(rs.i64Eq(from38.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
-						} else {
-							max38 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed38.ok ? 1 : 0, max38));
-					}
-				} else {
-					if (_3389 === 2) {
-						const iter39: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _3573: rs.u32 | rs.Done = iter39.next();
-							if (_3573 === rs.DONE) {
-								break b0;
-							}
-							const radix67: rs.u32 = _3573;
-							for (const _3584 of edges({ hi: 0, w2: 0, w1: 0x7fffffff, lo: 0xffffffff } as rs.u128, rs.u128Add({ hi: 0, w2: 0, w1: 0x7fffffff, lo: 0xffffffff } as rs.u128, 1), 64, radix67).items) {
-								const _3592: string = _3584.v;
-								const radix68: rs.u32 = radix67;
-								const _3595: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3592, radix68);
-								if (_3595.ok) {
-									const arg10 = _3595.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg10, f)]).v);
-								} else {
-									const e39: rs.ParseIntError = _3595.error;
-									const _3611: rs.IntErrorKind = e39.kind;
-									if (_3611 === "Empty") {
-										kind40 = 0;
-									} else if (_3611 === "InvalidDigit") {
-										kind40 = 1;
-									} else if (_3611 === "PosOverflow") {
-										kind40 = 2;
-									} else if (_3611 === "NegOverflow") {
-										kind40 = 3;
-									} else {
-										kind40 = 4;
-									}
-									if (!(e39.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over39 = e39.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over39 = true;
-									}
-									const _3631: rs.IntErrorKind = e39.kind;
-									const args211 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e39, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e39, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3631), (f: rs.Formatter) => rs.i32Display(kind40, f), (f: rs.Formatter) => rs.fmtBool(over39, f)];
-									put(out, rs.fmtFormat([args211[0], "|", args211[1], "|", args211[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args211[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args211[0]), "|", args211[3], "|", args211[4]]).v);
-								}
-								if (radix68 === 10) {
-									const parsed39: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3592);
-									const from39: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3592);
-									if (from39.ok) {
-										max39 = rs.u8Mul(rs.i64Eq(from39.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
-									} else {
-										max39 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed39.ok ? 1 : 0, max39));
-								}
-							}
-						}
-					}
-					const radix69: rs.u32 = ((first10 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest10), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest10, 1), (b15: rs.u8): boolean => {
-						return (b15 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix69), 99))));
-					}
-					if (!(rest10.length > 2)) {
-						text10 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text10 = rs.byteSliceRange(rest10, 2);
-					}
-					const _3687: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text10), "1");
-					const radix70: rs.u32 = radix69;
-					const _3692: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3687, radix70);
-					if (_3692.ok) {
-						const arg9 = _3692.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg9, f)]).v);
-					} else {
-						const e40: rs.ParseIntError = _3692.error;
-						const _3708: rs.IntErrorKind = e40.kind;
-						if (_3708 === "Empty") {
-							kind41 = 0;
-						} else if (_3708 === "InvalidDigit") {
-							kind41 = 1;
-						} else if (_3708 === "PosOverflow") {
-							kind41 = 2;
-						} else if (_3708 === "NegOverflow") {
-							kind41 = 3;
-						} else {
-							kind41 = 4;
-						}
-						if (!(e40.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over40 = e40.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over40 = true;
-						}
-						const _3728: rs.IntErrorKind = e40.kind;
-						const args209 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e40, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e40, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3728), (f: rs.Formatter) => rs.i32Display(kind41, f), (f: rs.Formatter) => rs.fmtBool(over40, f)];
-						put(out, rs.fmtFormat([args209[0], "|", args209[1], "|", args209[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args209[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args209[0]), "|", args209[3], "|", args209[4]]).v);
-					}
-					if (radix70 === 10) {
-						const parsed40: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3687);
-						const from40: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3687);
-						if (from40.ok) {
-							max40 = rs.u8Mul(rs.i64Eq(from40.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
-						} else {
-							max40 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed40.ok ? 1 : 0, max40));
-					}
-				}
-			}
-		} else if (_4 === 10) {
-			if (dataLen !== 0) {
-				const first11: rs.u8 = dataData[dataStart];
-				const rest11: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix71: rs.u32 = rs.u32Add(2, rs.u32Rem(first11 as rs.u32, 35));
-				const _3766: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_3766 === 0) {
-					const _3770: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest11);
-					if (_3770.ok) {
-						const iter41: rs.Iter<rs.char> = rs.strChars(_3770.value);
-						while (true) {
-							const _3776: rs.char | rs.Done = iter41.next();
-							if (_3776 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_3776, radix71), 99))));
-						}
-						const radix72: rs.u32 = radix71;
-						const _3791: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_3770.value, radix72);
-						if (_3791.ok) {
-							const arg8 = _3791.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg8, f)]).v);
-						} else {
-							const e41: rs.ParseIntError = _3791.error;
-							const _3807: rs.IntErrorKind = e41.kind;
-							if (_3807 === "Empty") {
-								kind42 = 0;
-							} else if (_3807 === "InvalidDigit") {
-								kind42 = 1;
-							} else if (_3807 === "PosOverflow") {
-								kind42 = 2;
-							} else if (_3807 === "NegOverflow") {
-								kind42 = 3;
-							} else {
-								kind42 = 4;
-							}
-							if (!(e41.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over41 = e41.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over41 = true;
-							}
-							const _3827: rs.IntErrorKind = e41.kind;
-							const args207 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e41, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e41, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3827), (f: rs.Formatter) => rs.i32Display(kind42, f), (f: rs.Formatter) => rs.fmtBool(over41, f)];
-							put(out, rs.fmtFormat([args207[0], "|", args207[1], "|", args207[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args207[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args207[0]), "|", args207[3], "|", args207[4]]).v);
-						}
-						if (radix72 === 10) {
-							const parsed41: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_3770.value);
-							const from41: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_3770.value);
-							if (from41.ok) {
-								max41 = rs.u8Mul(rs.i128Eq(from41.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
-							} else {
-								max41 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed41.ok ? 1 : 0, max41));
-						}
-					}
-				} else if (_3766 === 1) {
-					const s21: rs.String = rs.stringNew();
-					for (const b11 of rs.byteSliceView(rest11)) {
-						const _3867: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _3868: rs.usize = rs.usizeRem(b11 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_3867, _3868);
-						rs.stringPush(s21, _3867.data[_3867.start + _3868] as rs.char);
-					}
-					const _3879: string = s21.v;
-					const radix73: rs.u32 = radix71;
-					const _3882: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_3879, radix73);
-					if (_3882.ok) {
-						const arg7 = _3882.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg7, f)]).v);
-					} else {
-						const e42: rs.ParseIntError = _3882.error;
-						const _3898: rs.IntErrorKind = e42.kind;
-						if (_3898 === "Empty") {
-							kind43 = 0;
-						} else if (_3898 === "InvalidDigit") {
-							kind43 = 1;
-						} else if (_3898 === "PosOverflow") {
-							kind43 = 2;
-						} else if (_3898 === "NegOverflow") {
-							kind43 = 3;
-						} else {
-							kind43 = 4;
-						}
-						if (!(e42.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over42 = e42.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over42 = true;
-						}
-						const _3918: rs.IntErrorKind = e42.kind;
-						const args205 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e42, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e42, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3918), (f: rs.Formatter) => rs.i32Display(kind43, f), (f: rs.Formatter) => rs.fmtBool(over42, f)];
-						put(out, rs.fmtFormat([args205[0], "|", args205[1], "|", args205[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args205[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args205[0]), "|", args205[3], "|", args205[4]]).v);
-					}
-					if (radix73 === 10) {
-						const parsed42: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_3879);
-						const from42: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_3879);
-						if (from42.ok) {
-							max42 = rs.u8Mul(rs.i128Eq(from42.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
-						} else {
-							max42 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed42.ok ? 1 : 0, max42));
-					}
-				} else {
-					if (_3766 === 2) {
-						const iter43: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _3950: rs.u32 | rs.Done = iter43.next();
-							if (_3950 === rs.DONE) {
-								break b0;
-							}
-							const radix74: rs.u32 = _3950;
-							for (const _3961 of edges({ hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, rs.u128Add({ hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, 1), 128, radix74).items) {
-								const _3969: string = _3961.v;
-								const radix75: rs.u32 = radix74;
-								const _3972: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_3969, radix75);
-								if (_3972.ok) {
-									const arg6 = _3972.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg6, f)]).v);
-								} else {
-									const e43: rs.ParseIntError = _3972.error;
-									const _3988: rs.IntErrorKind = e43.kind;
-									if (_3988 === "Empty") {
-										kind44 = 0;
-									} else if (_3988 === "InvalidDigit") {
-										kind44 = 1;
-									} else if (_3988 === "PosOverflow") {
-										kind44 = 2;
-									} else if (_3988 === "NegOverflow") {
-										kind44 = 3;
-									} else {
-										kind44 = 4;
-									}
-									if (!(e43.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over43 = e43.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over43 = true;
-									}
-									const _4008: rs.IntErrorKind = e43.kind;
-									const args203 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e43, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e43, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4008), (f: rs.Formatter) => rs.i32Display(kind44, f), (f: rs.Formatter) => rs.fmtBool(over43, f)];
-									put(out, rs.fmtFormat([args203[0], "|", args203[1], "|", args203[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args203[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args203[0]), "|", args203[3], "|", args203[4]]).v);
-								}
-								if (radix75 === 10) {
-									const parsed43: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_3969);
-									const from43: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_3969);
-									if (from43.ok) {
-										max43 = rs.u8Mul(rs.i128Eq(from43.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
-									} else {
-										max43 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed43.ok ? 1 : 0, max43));
-								}
-							}
-						}
-					}
-					const radix76: rs.u32 = ((first11 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest11), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest11, 1), (b14: rs.u8): boolean => {
-						return (b14 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix76), 99))));
-					}
-					if (!(rest11.length > 2)) {
-						text11 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text11 = rs.byteSliceRange(rest11, 2);
-					}
-					const _4064: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text11), "1");
-					const radix77: rs.u32 = radix76;
-					const _4069: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_4064, radix77);
-					if (_4069.ok) {
-						const arg5 = _4069.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg5, f)]).v);
-					} else {
-						const e44: rs.ParseIntError = _4069.error;
-						const _4085: rs.IntErrorKind = e44.kind;
-						if (_4085 === "Empty") {
-							kind45 = 0;
-						} else if (_4085 === "InvalidDigit") {
-							kind45 = 1;
-						} else if (_4085 === "PosOverflow") {
-							kind45 = 2;
-						} else if (_4085 === "NegOverflow") {
-							kind45 = 3;
-						} else {
-							kind45 = 4;
-						}
-						if (!(e44.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over44 = e44.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over44 = true;
-						}
-						const _4105: rs.IntErrorKind = e44.kind;
-						const args201 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e44, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e44, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4105), (f: rs.Formatter) => rs.i32Display(kind45, f), (f: rs.Formatter) => rs.fmtBool(over44, f)];
-						put(out, rs.fmtFormat([args201[0], "|", args201[1], "|", args201[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args201[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args201[0]), "|", args201[3], "|", args201[4]]).v);
-					}
-					if (radix77 === 10) {
-						const parsed44: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_4064);
-						const from44: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_4064);
-						if (from44.ok) {
-							max44 = rs.u8Mul(rs.i128Eq(from44.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
-						} else {
-							max44 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed44.ok ? 1 : 0, max44));
-					}
-				}
-			}
-		} else if (_4 === 11) {
-			if (dataLen !== 0) {
-				const first12: rs.u8 = dataData[dataStart];
-				const rest12: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
-				const radix78: rs.u32 = rs.u32Add(2, rs.u32Rem(first12 as rs.u32, 35));
-				const _4143: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
-				if (_4143 === 0) {
-					const _4147: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest12);
-					if (_4147.ok) {
-						const iter45: rs.Iter<rs.char> = rs.strChars(_4147.value);
-						while (true) {
-							const _4153: rs.char | rs.Done = iter45.next();
-							if (_4153 === rs.DONE) {
-								break;
-							}
-							rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(_4153, radix78), 99))));
-						}
-						const radix79: rs.u32 = radix78;
-						const _4168: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4147.value, radix79);
-						if (_4168.ok) {
-							const arg4 = _4168.value;
-							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg4, f)]).v);
-						} else {
-							const e45: rs.ParseIntError = _4168.error;
-							const _4184: rs.IntErrorKind = e45.kind;
-							if (_4184 === "Empty") {
-								kind46 = 0;
-							} else if (_4184 === "InvalidDigit") {
-								kind46 = 1;
-							} else if (_4184 === "PosOverflow") {
-								kind46 = 2;
-							} else if (_4184 === "NegOverflow") {
-								kind46 = 3;
-							} else {
-								kind46 = 4;
-							}
-							if (!(e45.kind === "PosOverflow" as rs.IntErrorKind)) {
-								over45 = e45.kind !== "NegOverflow" as rs.IntErrorKind;
-							} else {
-								over45 = true;
-							}
-							const _4204: rs.IntErrorKind = e45.kind;
-							const args199 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e45, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e45, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4204), (f: rs.Formatter) => rs.i32Display(kind46, f), (f: rs.Formatter) => rs.fmtBool(over45, f)];
-							put(out, rs.fmtFormat([args199[0], "|", args199[1], "|", args199[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args199[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args199[0]), "|", args199[3], "|", args199[4]]).v);
-						}
-						if (radix79 === 10) {
-							const parsed45: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4147.value);
-							const from45: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4147.value);
-							if (from45.ok) {
-								max45 = rs.u8Mul(from45.value === 2147483647 ? 1 : 0, 4);
-							} else {
-								max45 = 2;
-							}
-							rs.byteVecPush(out, rs.u8Add(parsed45.ok ? 1 : 0, max45));
-						}
-					}
-				} else if (_4143 === 1) {
-					const s23: rs.String = rs.stringNew();
-					for (const b12 of rs.byteSliceView(rest12)) {
-						const _4244: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
-						const _4245: rs.usize = rs.usizeRem(b12 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
-						rs.idx(_4244, _4245);
-						rs.stringPush(s23, _4244.data[_4244.start + _4245] as rs.char);
-					}
-					const _4256: string = s23.v;
-					const radix80: rs.u32 = radix78;
-					const _4259: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4256, radix80);
-					if (_4259.ok) {
-						const arg3 = _4259.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg3, f)]).v);
-					} else {
-						const e46: rs.ParseIntError = _4259.error;
-						const _4275: rs.IntErrorKind = e46.kind;
-						if (_4275 === "Empty") {
-							kind47 = 0;
-						} else if (_4275 === "InvalidDigit") {
-							kind47 = 1;
-						} else if (_4275 === "PosOverflow") {
-							kind47 = 2;
-						} else if (_4275 === "NegOverflow") {
-							kind47 = 3;
-						} else {
-							kind47 = 4;
-						}
-						if (!(e46.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over46 = e46.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over46 = true;
-						}
-						const _4295: rs.IntErrorKind = e46.kind;
-						const args197 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e46, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e46, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4295), (f: rs.Formatter) => rs.i32Display(kind47, f), (f: rs.Formatter) => rs.fmtBool(over46, f)];
-						put(out, rs.fmtFormat([args197[0], "|", args197[1], "|", args197[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args197[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args197[0]), "|", args197[3], "|", args197[4]]).v);
-					}
-					if (radix80 === 10) {
-						const parsed46: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4256);
-						const from46: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4256);
-						if (from46.ok) {
-							max46 = rs.u8Mul(from46.value === 2147483647 ? 1 : 0, 4);
-						} else {
-							max46 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed46.ok ? 1 : 0, max46));
-					}
-				} else {
-					if (_4143 === 2) {
-						const iter47: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
-						while (true) {
-							const _4327: rs.u32 | rs.Done = iter47.next();
-							if (_4327 === rs.DONE) {
-								break b0;
-							}
-							const radix81: rs.u32 = _4327;
-							for (const _4338 of edges(2147483647, rs.u128Add(2147483647, 1), 32, radix81).items) {
-								const _4346: string = _4338.v;
-								const radix82: rs.u32 = radix81;
-								const _4349: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4346, radix82);
-								if (_4349.ok) {
-									const arg2 = _4349.value;
-									put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg2, f)]).v);
-								} else {
-									const e47: rs.ParseIntError = _4349.error;
-									const _4365: rs.IntErrorKind = e47.kind;
-									if (_4365 === "Empty") {
-										kind48 = 0;
-									} else if (_4365 === "InvalidDigit") {
-										kind48 = 1;
-									} else if (_4365 === "PosOverflow") {
-										kind48 = 2;
-									} else if (_4365 === "NegOverflow") {
-										kind48 = 3;
-									} else {
-										kind48 = 4;
-									}
-									if (!(e47.kind === "PosOverflow" as rs.IntErrorKind)) {
-										over47 = e47.kind !== "NegOverflow" as rs.IntErrorKind;
-									} else {
-										over47 = true;
-									}
-									const _4385: rs.IntErrorKind = e47.kind;
-									const args195 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e47, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e47, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4385), (f: rs.Formatter) => rs.i32Display(kind48, f), (f: rs.Formatter) => rs.fmtBool(over47, f)];
-									put(out, rs.fmtFormat([args195[0], "|", args195[1], "|", args195[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args195[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args195[0]), "|", args195[3], "|", args195[4]]).v);
-								}
-								if (radix82 === 10) {
-									const parsed47: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4346);
-									const from47: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4346);
-									if (from47.ok) {
-										max47 = rs.u8Mul(from47.value === 2147483647 ? 1 : 0, 4);
-									} else {
-										max47 = 2;
-									}
-									rs.byteVecPush(out, rs.u8Add(parsed47.ok ? 1 : 0, max47));
-								}
-							}
-						}
-					}
-					const radix83: rs.u32 = ((first12 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest12), 0) as rs.u32) << 24) >>> 0)) >>> 0;
-					if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest12, 1), (b13: rs.u8): boolean => {
-						return (b13 & 1) === 1;
-					})) {
-						rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix83), 99))));
-					}
-					if (!(rest12.length > 2)) {
-						text12 = rs.byteSliceFrom(Uint8Array.of());
-					} else {
-						text12 = rs.byteSliceRange(rest12, 2);
-					}
-					const _4441: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text12), "1");
-					const radix84: rs.u32 = radix83;
-					const _4446: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4441, radix84);
-					if (_4446.ok) {
-						const arg = _4446.value;
-						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg, f)]).v);
-					} else {
-						const e48: rs.ParseIntError = _4446.error;
-						const _4462: rs.IntErrorKind = e48.kind;
-						if (_4462 === "Empty") {
-							kind49 = 0;
-						} else if (_4462 === "InvalidDigit") {
-							kind49 = 1;
-						} else if (_4462 === "PosOverflow") {
-							kind49 = 2;
-						} else if (_4462 === "NegOverflow") {
-							kind49 = 3;
-						} else {
-							kind49 = 4;
-						}
-						if (!(e48.kind === "PosOverflow" as rs.IntErrorKind)) {
-							over48 = e48.kind !== "NegOverflow" as rs.IntErrorKind;
-						} else {
-							over48 = true;
-						}
-						const _4482: rs.IntErrorKind = e48.kind;
-						const args193 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e48, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e48, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4482), (f: rs.Formatter) => rs.i32Display(kind49, f), (f: rs.Formatter) => rs.fmtBool(over48, f)];
-						put(out, rs.fmtFormat([args193[0], "|", args193[1], "|", args193[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args193[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args193[0]), "|", args193[3], "|", args193[4]]).v);
-					}
-					if (radix84 === 10) {
-						const parsed48: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4441);
-						const from48: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4441);
-						if (from48.ok) {
-							max48 = rs.u8Mul(from48.value === 2147483647 ? 1 : 0, 4);
-						} else {
-							max48 = 2;
-						}
-						rs.byteVecPush(out, rs.u8Add(parsed48.ok ? 1 : 0, max48));
-					}
-				}
-			}
-		} else {
-			rs.panic("internal error: entered unreachable code");
 		}
+	} else if (_4 === 1) {
+		if (dataLen !== 0) {
+			const first2: rs.u8 = dataData[dataStart];
+			const rest2: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix8: rs.u32 = rs.u32Add(2, rs.u32Rem(first2 as rs.u32, 35));
+			const _389: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_389 === 0) {
+				const _393: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest2);
+				if (_393.ok) {
+					const iter5: rs.Iter<rs.char> = rs.strChars(_393.value);
+					while (true) {
+						const _399: rs.char | rs.Done = iter5.next();
+						if (_399 === rs.DONE) {
+							break;
+						}
+						const dst3 = out;
+						const word3 = option_unwrapOr$1b5hww3(toDigit$14z95r4(_399, radix8), 99);
+						rs.byteVecReserve(dst3, 4 as rs.usize);
+						const pos3 = dst3.length;
+						dst3.data[pos3 + 0] = (word3 >>> 24) & 255;
+						dst3.data[pos3 + 1] = (word3 >>> 16) & 255;
+						dst3.data[pos3 + 2] = (word3 >>> 8) & 255;
+						dst3.data[pos3 + 3] = word3 & 255;
+						dst3.length = dst3.length + 4;
+					}
+					const radix9: rs.u32 = radix8;
+					const _414: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_393.value, radix9);
+					if (_414.ok) {
+						const arg44 = _414.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg44, f)]).v);
+					} else {
+						const e5: rs.ParseIntError = _414.error;
+						const _430: rs.IntErrorKind = e5.kind;
+						if (_430 === "Empty") {
+							kind6 = 0;
+						} else if (_430 === "InvalidDigit") {
+							kind6 = 1;
+						} else if (_430 === "PosOverflow") {
+							kind6 = 2;
+						} else if (_430 === "NegOverflow") {
+							kind6 = 3;
+						} else {
+							kind6 = 4;
+						}
+						if (!(e5.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over5 = e5.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over5 = true;
+						}
+						const _450: rs.IntErrorKind = e5.kind;
+						const args279 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e5, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e5, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _450), (f: rs.Formatter) => rs.i32Display(kind6, f), (f: rs.Formatter) => rs.fmtBool(over5, f)];
+						put(out, rs.fmtFormat([args279[0], "|", args279[1], "|", args279[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args279[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args279[0]), "|", args279[3], "|", args279[4]]).v);
+					}
+					if (radix9 === 10) {
+						const parsed5: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_393.value);
+						const from5: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_393.value);
+						if (from5.ok) {
+							max5 = rs.u8Mul(from5.value === 65535 ? 1 : 0, 4);
+						} else {
+							max5 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed5.ok ? 1 : 0, max5));
+					}
+				}
+			} else if (_389 === 1) {
+				const s3: rs.String = rs.stringNew();
+				for (const b2 of rs.byteSliceView(rest2)) {
+					const _490: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _491: rs.usize = rs.usizeRem(b2 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_490, _491);
+					rs.stringPush(s3, _490.data[_490.start + _491] as rs.char);
+				}
+				const _502: string = s3.v;
+				const radix10: rs.u32 = radix8;
+				const _505: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_502, radix10);
+				if (_505.ok) {
+					const arg43 = _505.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg43, f)]).v);
+				} else {
+					const e6: rs.ParseIntError = _505.error;
+					const _521: rs.IntErrorKind = e6.kind;
+					if (_521 === "Empty") {
+						kind7 = 0;
+					} else if (_521 === "InvalidDigit") {
+						kind7 = 1;
+					} else if (_521 === "PosOverflow") {
+						kind7 = 2;
+					} else if (_521 === "NegOverflow") {
+						kind7 = 3;
+					} else {
+						kind7 = 4;
+					}
+					if (!(e6.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over6 = e6.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over6 = true;
+					}
+					const _541: rs.IntErrorKind = e6.kind;
+					const args277 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e6, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e6, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _541), (f: rs.Formatter) => rs.i32Display(kind7, f), (f: rs.Formatter) => rs.fmtBool(over6, f)];
+					put(out, rs.fmtFormat([args277[0], "|", args277[1], "|", args277[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args277[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args277[0]), "|", args277[3], "|", args277[4]]).v);
+				}
+				if (radix10 === 10) {
+					const parsed6: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_502);
+					const from6: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_502);
+					if (from6.ok) {
+						max6 = rs.u8Mul(from6.value === 65535 ? 1 : 0, 4);
+					} else {
+						max6 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed6.ok ? 1 : 0, max6));
+				}
+			} else if (_389 === 2) {
+				const iter7: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _573: rs.u32 | rs.Done = iter7.next();
+					if (_573 === rs.DONE) {
+						break;
+					}
+					const radix11: rs.u32 = _573;
+					for (const _581 of edges(65535, 0, 16, radix11).items) {
+						const _589: string = _581.v;
+						const radix12: rs.u32 = radix11;
+						const _592: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_589, radix12);
+						if (_592.ok) {
+							const arg42 = _592.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg42, f)]).v);
+						} else {
+							const e7: rs.ParseIntError = _592.error;
+							const _608: rs.IntErrorKind = e7.kind;
+							if (_608 === "Empty") {
+								kind8 = 0;
+							} else if (_608 === "InvalidDigit") {
+								kind8 = 1;
+							} else if (_608 === "PosOverflow") {
+								kind8 = 2;
+							} else if (_608 === "NegOverflow") {
+								kind8 = 3;
+							} else {
+								kind8 = 4;
+							}
+							if (!(e7.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over7 = e7.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over7 = true;
+							}
+							const _628: rs.IntErrorKind = e7.kind;
+							const args275 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e7, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e7, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _628), (f: rs.Formatter) => rs.i32Display(kind8, f), (f: rs.Formatter) => rs.fmtBool(over7, f)];
+							put(out, rs.fmtFormat([args275[0], "|", args275[1], "|", args275[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args275[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args275[0]), "|", args275[3], "|", args275[4]]).v);
+						}
+						if (radix12 === 10) {
+							const parsed7: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_589);
+							const from7: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_589);
+							if (from7.ok) {
+								max7 = rs.u8Mul(from7.value === 65535 ? 1 : 0, 4);
+							} else {
+								max7 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed7.ok ? 1 : 0, max7));
+						}
+					}
+				}
+			} else {
+				const radix13: rs.u32 = ((first2 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest2), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest2, 1), (b23: rs.u8): boolean => {
+					return (b23 & 1) === 1;
+				})) {
+					const dst4 = out;
+					const word4 = option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix13), 99);
+					rs.byteVecReserve(dst4, 4 as rs.usize);
+					const pos4 = dst4.length;
+					dst4.data[pos4 + 0] = (word4 >>> 24) & 255;
+					dst4.data[pos4 + 1] = (word4 >>> 16) & 255;
+					dst4.data[pos4 + 2] = (word4 >>> 8) & 255;
+					dst4.data[pos4 + 3] = word4 & 255;
+					dst4.length = dst4.length + 4;
+				}
+				if (!(rest2.length > 2)) {
+					text2 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text2 = rs.byteSliceRange(rest2, 2);
+				}
+				const _684: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text2), "1");
+				const radix14: rs.u32 = radix13;
+				const _689: rs.Result<rs.u16, rs.ParseIntError> = num_fromStrRadix$1wu02v6(_684, radix14);
+				if (_689.ok) {
+					const arg41 = _689.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg41, f)]).v);
+				} else {
+					const e8: rs.ParseIntError = _689.error;
+					const _705: rs.IntErrorKind = e8.kind;
+					if (_705 === "Empty") {
+						kind9 = 0;
+					} else if (_705 === "InvalidDigit") {
+						kind9 = 1;
+					} else if (_705 === "PosOverflow") {
+						kind9 = 2;
+					} else if (_705 === "NegOverflow") {
+						kind9 = 3;
+					} else {
+						kind9 = 4;
+					}
+					if (!(e8.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over8 = e8.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over8 = true;
+					}
+					const _725: rs.IntErrorKind = e8.kind;
+					const args273 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e8, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e8, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _725), (f: rs.Formatter) => rs.i32Display(kind9, f), (f: rs.Formatter) => rs.fmtBool(over8, f)];
+					put(out, rs.fmtFormat([args273[0], "|", args273[1], "|", args273[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args273[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args273[0]), "|", args273[3], "|", args273[4]]).v);
+				}
+				if (radix14 === 10) {
+					const parsed8: rs.Result<rs.u16, rs.ParseIntError> = parse$0un0sth(_684);
+					const from8: rs.Result<rs.u16, rs.ParseIntError> = num_fromStr$1gvvety(_684);
+					if (from8.ok) {
+						max8 = rs.u8Mul(from8.value === 65535 ? 1 : 0, 4);
+					} else {
+						max8 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed8.ok ? 1 : 0, max8));
+				}
+			}
+		}
+	} else if (_4 === 2) {
+		if (dataLen !== 0) {
+			const first3: rs.u8 = dataData[dataStart];
+			const rest3: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix15: rs.u32 = rs.u32Add(2, rs.u32Rem(first3 as rs.u32, 35));
+			const _763: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_763 === 0) {
+				const _767: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest3);
+				if (_767.ok) {
+					const iter9: rs.Iter<rs.char> = rs.strChars(_767.value);
+					while (true) {
+						const _773: rs.char | rs.Done = iter9.next();
+						if (_773 === rs.DONE) {
+							break;
+						}
+						const dst5 = out;
+						const word5 = option_unwrapOr$1b5hww3(toDigit$14z95r4(_773, radix15), 99);
+						rs.byteVecReserve(dst5, 4 as rs.usize);
+						const pos5 = dst5.length;
+						dst5.data[pos5 + 0] = (word5 >>> 24) & 255;
+						dst5.data[pos5 + 1] = (word5 >>> 16) & 255;
+						dst5.data[pos5 + 2] = (word5 >>> 8) & 255;
+						dst5.data[pos5 + 3] = word5 & 255;
+						dst5.length = dst5.length + 4;
+					}
+					const radix16: rs.u32 = radix15;
+					const _788: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_767.value, radix16);
+					if (_788.ok) {
+						const arg40 = _788.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg40, f)]).v);
+					} else {
+						const e9: rs.ParseIntError = _788.error;
+						const _804: rs.IntErrorKind = e9.kind;
+						if (_804 === "Empty") {
+							kind10 = 0;
+						} else if (_804 === "InvalidDigit") {
+							kind10 = 1;
+						} else if (_804 === "PosOverflow") {
+							kind10 = 2;
+						} else if (_804 === "NegOverflow") {
+							kind10 = 3;
+						} else {
+							kind10 = 4;
+						}
+						if (!(e9.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over9 = e9.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over9 = true;
+						}
+						const _824: rs.IntErrorKind = e9.kind;
+						const args271 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e9, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e9, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _824), (f: rs.Formatter) => rs.i32Display(kind10, f), (f: rs.Formatter) => rs.fmtBool(over9, f)];
+						put(out, rs.fmtFormat([args271[0], "|", args271[1], "|", args271[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args271[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args271[0]), "|", args271[3], "|", args271[4]]).v);
+					}
+					if (radix16 === 10) {
+						const parsed9: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_767.value);
+						const from9: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_767.value);
+						if (from9.ok) {
+							max9 = rs.u8Mul(from9.value === 4294967295 ? 1 : 0, 4);
+						} else {
+							max9 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed9.ok ? 1 : 0, max9));
+					}
+				}
+			} else if (_763 === 1) {
+				const s5: rs.String = rs.stringNew();
+				for (const b3 of rs.byteSliceView(rest3)) {
+					const _864: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _865: rs.usize = rs.usizeRem(b3 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_864, _865);
+					rs.stringPush(s5, _864.data[_864.start + _865] as rs.char);
+				}
+				const _876: string = s5.v;
+				const radix17: rs.u32 = radix15;
+				const _879: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_876, radix17);
+				if (_879.ok) {
+					const arg39 = _879.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg39, f)]).v);
+				} else {
+					const e10: rs.ParseIntError = _879.error;
+					const _895: rs.IntErrorKind = e10.kind;
+					if (_895 === "Empty") {
+						kind11 = 0;
+					} else if (_895 === "InvalidDigit") {
+						kind11 = 1;
+					} else if (_895 === "PosOverflow") {
+						kind11 = 2;
+					} else if (_895 === "NegOverflow") {
+						kind11 = 3;
+					} else {
+						kind11 = 4;
+					}
+					if (!(e10.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over10 = e10.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over10 = true;
+					}
+					const _915: rs.IntErrorKind = e10.kind;
+					const args269 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e10, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e10, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _915), (f: rs.Formatter) => rs.i32Display(kind11, f), (f: rs.Formatter) => rs.fmtBool(over10, f)];
+					put(out, rs.fmtFormat([args269[0], "|", args269[1], "|", args269[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args269[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args269[0]), "|", args269[3], "|", args269[4]]).v);
+				}
+				if (radix17 === 10) {
+					const parsed10: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_876);
+					const from10: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_876);
+					if (from10.ok) {
+						max10 = rs.u8Mul(from10.value === 4294967295 ? 1 : 0, 4);
+					} else {
+						max10 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed10.ok ? 1 : 0, max10));
+				}
+			} else if (_763 === 2) {
+				const iter11: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _947: rs.u32 | rs.Done = iter11.next();
+					if (_947 === rs.DONE) {
+						break;
+					}
+					const radix18: rs.u32 = _947;
+					for (const _955 of edges(4294967295, 0, 32, radix18).items) {
+						const _963: string = _955.v;
+						const radix19: rs.u32 = radix18;
+						const _966: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_963, radix19);
+						if (_966.ok) {
+							const arg38 = _966.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg38, f)]).v);
+						} else {
+							const e11: rs.ParseIntError = _966.error;
+							const _982: rs.IntErrorKind = e11.kind;
+							if (_982 === "Empty") {
+								kind12 = 0;
+							} else if (_982 === "InvalidDigit") {
+								kind12 = 1;
+							} else if (_982 === "PosOverflow") {
+								kind12 = 2;
+							} else if (_982 === "NegOverflow") {
+								kind12 = 3;
+							} else {
+								kind12 = 4;
+							}
+							if (!(e11.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over11 = e11.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over11 = true;
+							}
+							const _1002: rs.IntErrorKind = e11.kind;
+							const args267 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e11, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e11, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1002), (f: rs.Formatter) => rs.i32Display(kind12, f), (f: rs.Formatter) => rs.fmtBool(over11, f)];
+							put(out, rs.fmtFormat([args267[0], "|", args267[1], "|", args267[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args267[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args267[0]), "|", args267[3], "|", args267[4]]).v);
+						}
+						if (radix19 === 10) {
+							const parsed11: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_963);
+							const from11: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_963);
+							if (from11.ok) {
+								max11 = rs.u8Mul(from11.value === 4294967295 ? 1 : 0, 4);
+							} else {
+								max11 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed11.ok ? 1 : 0, max11));
+						}
+					}
+				}
+			} else {
+				const radix20: rs.u32 = ((first3 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest3), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest3, 1), (b22: rs.u8): boolean => {
+					return (b22 & 1) === 1;
+				})) {
+					const dst6 = out;
+					const word6 = option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix20), 99);
+					rs.byteVecReserve(dst6, 4 as rs.usize);
+					const pos6 = dst6.length;
+					dst6.data[pos6 + 0] = (word6 >>> 24) & 255;
+					dst6.data[pos6 + 1] = (word6 >>> 16) & 255;
+					dst6.data[pos6 + 2] = (word6 >>> 8) & 255;
+					dst6.data[pos6 + 3] = word6 & 255;
+					dst6.length = dst6.length + 4;
+				}
+				if (!(rest3.length > 2)) {
+					text3 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text3 = rs.byteSliceRange(rest3, 2);
+				}
+				const _1058: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text3), "1");
+				const radix21: rs.u32 = radix20;
+				const _1063: rs.Result<rs.u32, rs.ParseIntError> = num_fromStrRadix$1ftrr55(_1058, radix21);
+				if (_1063.ok) {
+					const arg37 = _1063.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg37, f)]).v);
+				} else {
+					const e12: rs.ParseIntError = _1063.error;
+					const _1079: rs.IntErrorKind = e12.kind;
+					if (_1079 === "Empty") {
+						kind13 = 0;
+					} else if (_1079 === "InvalidDigit") {
+						kind13 = 1;
+					} else if (_1079 === "PosOverflow") {
+						kind13 = 2;
+					} else if (_1079 === "NegOverflow") {
+						kind13 = 3;
+					} else {
+						kind13 = 4;
+					}
+					if (!(e12.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over12 = e12.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over12 = true;
+					}
+					const _1099: rs.IntErrorKind = e12.kind;
+					const args265 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e12, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e12, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1099), (f: rs.Formatter) => rs.i32Display(kind13, f), (f: rs.Formatter) => rs.fmtBool(over12, f)];
+					put(out, rs.fmtFormat([args265[0], "|", args265[1], "|", args265[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args265[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args265[0]), "|", args265[3], "|", args265[4]]).v);
+				}
+				if (radix21 === 10) {
+					const parsed12: rs.Result<rs.u32, rs.ParseIntError> = parse$069xxen(_1058);
+					const from12: rs.Result<rs.u32, rs.ParseIntError> = num_fromStr$1rjp7t4(_1058);
+					if (from12.ok) {
+						max12 = rs.u8Mul(from12.value === 4294967295 ? 1 : 0, 4);
+					} else {
+						max12 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed12.ok ? 1 : 0, max12));
+				}
+			}
+		}
+	} else if (_4 === 3) {
+		if (dataLen !== 0) {
+			const first4: rs.u8 = dataData[dataStart];
+			const rest4: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix22: rs.u32 = rs.u32Add(2, rs.u32Rem(first4 as rs.u32, 35));
+			const _1137: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_1137 === 0) {
+				const _1141: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest4);
+				if (_1141.ok) {
+					const iter13: rs.Iter<rs.char> = rs.strChars(_1141.value);
+					while (true) {
+						const _1147: rs.char | rs.Done = iter13.next();
+						if (_1147 === rs.DONE) {
+							break;
+						}
+						const dst7 = out;
+						const word7 = option_unwrapOr$1b5hww3(toDigit$14z95r4(_1147, radix22), 99);
+						rs.byteVecReserve(dst7, 4 as rs.usize);
+						const pos7 = dst7.length;
+						dst7.data[pos7 + 0] = (word7 >>> 24) & 255;
+						dst7.data[pos7 + 1] = (word7 >>> 16) & 255;
+						dst7.data[pos7 + 2] = (word7 >>> 8) & 255;
+						dst7.data[pos7 + 3] = word7 & 255;
+						dst7.length = dst7.length + 4;
+					}
+					const radix23: rs.u32 = radix22;
+					const _1162: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1141.value, radix23);
+					if (_1162.ok) {
+						const arg36 = _1162.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg36, f)]).v);
+					} else {
+						const e13: rs.ParseIntError = _1162.error;
+						const _1178: rs.IntErrorKind = e13.kind;
+						if (_1178 === "Empty") {
+							kind14 = 0;
+						} else if (_1178 === "InvalidDigit") {
+							kind14 = 1;
+						} else if (_1178 === "PosOverflow") {
+							kind14 = 2;
+						} else if (_1178 === "NegOverflow") {
+							kind14 = 3;
+						} else {
+							kind14 = 4;
+						}
+						if (!(e13.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over13 = e13.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over13 = true;
+						}
+						const _1198: rs.IntErrorKind = e13.kind;
+						const args263 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e13, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e13, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1198), (f: rs.Formatter) => rs.i32Display(kind14, f), (f: rs.Formatter) => rs.fmtBool(over13, f)];
+						put(out, rs.fmtFormat([args263[0], "|", args263[1], "|", args263[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args263[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args263[0]), "|", args263[3], "|", args263[4]]).v);
+					}
+					if (radix23 === 10) {
+						const parsed13: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1141.value);
+						const from13: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1141.value);
+						if (from13.ok) {
+							max13 = rs.u8Mul(rs.u64Eq(from13.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
+						} else {
+							max13 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed13.ok ? 1 : 0, max13));
+					}
+				}
+			} else if (_1137 === 1) {
+				const s7: rs.String = rs.stringNew();
+				for (const b4 of rs.byteSliceView(rest4)) {
+					const _1238: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _1239: rs.usize = rs.usizeRem(b4 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_1238, _1239);
+					rs.stringPush(s7, _1238.data[_1238.start + _1239] as rs.char);
+				}
+				const _1250: string = s7.v;
+				const radix24: rs.u32 = radix22;
+				const _1253: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1250, radix24);
+				if (_1253.ok) {
+					const arg35 = _1253.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg35, f)]).v);
+				} else {
+					const e14: rs.ParseIntError = _1253.error;
+					const _1269: rs.IntErrorKind = e14.kind;
+					if (_1269 === "Empty") {
+						kind15 = 0;
+					} else if (_1269 === "InvalidDigit") {
+						kind15 = 1;
+					} else if (_1269 === "PosOverflow") {
+						kind15 = 2;
+					} else if (_1269 === "NegOverflow") {
+						kind15 = 3;
+					} else {
+						kind15 = 4;
+					}
+					if (!(e14.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over14 = e14.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over14 = true;
+					}
+					const _1289: rs.IntErrorKind = e14.kind;
+					const args261 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e14, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e14, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1289), (f: rs.Formatter) => rs.i32Display(kind15, f), (f: rs.Formatter) => rs.fmtBool(over14, f)];
+					put(out, rs.fmtFormat([args261[0], "|", args261[1], "|", args261[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args261[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args261[0]), "|", args261[3], "|", args261[4]]).v);
+				}
+				if (radix24 === 10) {
+					const parsed14: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1250);
+					const from14: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1250);
+					if (from14.ok) {
+						max14 = rs.u8Mul(rs.u64Eq(from14.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
+					} else {
+						max14 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed14.ok ? 1 : 0, max14));
+				}
+			} else if (_1137 === 2) {
+				const iter15: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _1321: rs.u32 | rs.Done = iter15.next();
+					if (_1321 === rs.DONE) {
+						break;
+					}
+					const radix25: rs.u32 = _1321;
+					for (const _1329 of edges({ hi: 0, w2: 0, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, 0, 64, radix25).items) {
+						const _1337: string = _1329.v;
+						const radix26: rs.u32 = radix25;
+						const _1340: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1337, radix26);
+						if (_1340.ok) {
+							const arg34 = _1340.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg34, f)]).v);
+						} else {
+							const e15: rs.ParseIntError = _1340.error;
+							const _1356: rs.IntErrorKind = e15.kind;
+							if (_1356 === "Empty") {
+								kind16 = 0;
+							} else if (_1356 === "InvalidDigit") {
+								kind16 = 1;
+							} else if (_1356 === "PosOverflow") {
+								kind16 = 2;
+							} else if (_1356 === "NegOverflow") {
+								kind16 = 3;
+							} else {
+								kind16 = 4;
+							}
+							if (!(e15.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over15 = e15.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over15 = true;
+							}
+							const _1376: rs.IntErrorKind = e15.kind;
+							const args259 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e15, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e15, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1376), (f: rs.Formatter) => rs.i32Display(kind16, f), (f: rs.Formatter) => rs.fmtBool(over15, f)];
+							put(out, rs.fmtFormat([args259[0], "|", args259[1], "|", args259[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args259[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args259[0]), "|", args259[3], "|", args259[4]]).v);
+						}
+						if (radix26 === 10) {
+							const parsed15: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1337);
+							const from15: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1337);
+							if (from15.ok) {
+								max15 = rs.u8Mul(rs.u64Eq(from15.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
+							} else {
+								max15 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed15.ok ? 1 : 0, max15));
+						}
+					}
+				}
+			} else {
+				const radix27: rs.u32 = ((first4 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest4), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest4, 1), (b21: rs.u8): boolean => {
+					return (b21 & 1) === 1;
+				})) {
+					const dst8 = out;
+					const word8 = option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix27), 99);
+					rs.byteVecReserve(dst8, 4 as rs.usize);
+					const pos8 = dst8.length;
+					dst8.data[pos8 + 0] = (word8 >>> 24) & 255;
+					dst8.data[pos8 + 1] = (word8 >>> 16) & 255;
+					dst8.data[pos8 + 2] = (word8 >>> 8) & 255;
+					dst8.data[pos8 + 3] = word8 & 255;
+					dst8.length = dst8.length + 4;
+				}
+				if (!(rest4.length > 2)) {
+					text4 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text4 = rs.byteSliceRange(rest4, 2);
+				}
+				const _1432: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text4), "1");
+				const radix28: rs.u32 = radix27;
+				const _1437: rs.Result<rs.u64, rs.ParseIntError> = num_fromStrRadix$0al5jri(_1432, radix28);
+				if (_1437.ok) {
+					const arg33 = _1437.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg33, f)]).v);
+				} else {
+					const e16: rs.ParseIntError = _1437.error;
+					const _1453: rs.IntErrorKind = e16.kind;
+					if (_1453 === "Empty") {
+						kind17 = 0;
+					} else if (_1453 === "InvalidDigit") {
+						kind17 = 1;
+					} else if (_1453 === "PosOverflow") {
+						kind17 = 2;
+					} else if (_1453 === "NegOverflow") {
+						kind17 = 3;
+					} else {
+						kind17 = 4;
+					}
+					if (!(e16.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over16 = e16.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over16 = true;
+					}
+					const _1473: rs.IntErrorKind = e16.kind;
+					const args257 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e16, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e16, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1473), (f: rs.Formatter) => rs.i32Display(kind17, f), (f: rs.Formatter) => rs.fmtBool(over16, f)];
+					put(out, rs.fmtFormat([args257[0], "|", args257[1], "|", args257[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args257[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args257[0]), "|", args257[3], "|", args257[4]]).v);
+				}
+				if (radix28 === 10) {
+					const parsed16: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(_1432);
+					const from16: rs.Result<rs.u64, rs.ParseIntError> = num_fromStr$0bkyuqf(_1432);
+					if (from16.ok) {
+						max16 = rs.u8Mul(rs.u64Eq(from16.value, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64) ? 1 : 0, 4);
+					} else {
+						max16 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed16.ok ? 1 : 0, max16));
+				}
+			}
+		}
+	} else if (_4 === 4) {
+		if (dataLen !== 0) {
+			const first5: rs.u8 = dataData[dataStart];
+			const rest5: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix29: rs.u32 = rs.u32Add(2, rs.u32Rem(first5 as rs.u32, 35));
+			const _1511: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_1511 === 0) {
+				const _1515: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest5);
+				if (_1515.ok) {
+					const iter17: rs.Iter<rs.char> = rs.strChars(_1515.value);
+					while (true) {
+						const _1521: rs.char | rs.Done = iter17.next();
+						if (_1521 === rs.DONE) {
+							break;
+						}
+						const dst9 = out;
+						const word9 = option_unwrapOr$1b5hww3(toDigit$14z95r4(_1521, radix29), 99);
+						rs.byteVecReserve(dst9, 4 as rs.usize);
+						const pos9 = dst9.length;
+						dst9.data[pos9 + 0] = (word9 >>> 24) & 255;
+						dst9.data[pos9 + 1] = (word9 >>> 16) & 255;
+						dst9.data[pos9 + 2] = (word9 >>> 8) & 255;
+						dst9.data[pos9 + 3] = word9 & 255;
+						dst9.length = dst9.length + 4;
+					}
+					const radix30: rs.u32 = radix29;
+					const _1536: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1515.value, radix30);
+					if (_1536.ok) {
+						const arg32 = _1536.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg32, f)]).v);
+					} else {
+						const e17: rs.ParseIntError = _1536.error;
+						const _1552: rs.IntErrorKind = e17.kind;
+						if (_1552 === "Empty") {
+							kind18 = 0;
+						} else if (_1552 === "InvalidDigit") {
+							kind18 = 1;
+						} else if (_1552 === "PosOverflow") {
+							kind18 = 2;
+						} else if (_1552 === "NegOverflow") {
+							kind18 = 3;
+						} else {
+							kind18 = 4;
+						}
+						if (!(e17.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over17 = e17.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over17 = true;
+						}
+						const _1572: rs.IntErrorKind = e17.kind;
+						const args255 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e17, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e17, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1572), (f: rs.Formatter) => rs.i32Display(kind18, f), (f: rs.Formatter) => rs.fmtBool(over17, f)];
+						put(out, rs.fmtFormat([args255[0], "|", args255[1], "|", args255[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args255[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args255[0]), "|", args255[3], "|", args255[4]]).v);
+					}
+					if (radix30 === 10) {
+						const parsed17: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1515.value);
+						const from17: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1515.value);
+						if (from17.ok) {
+							max17 = rs.u8Mul(rs.u128Eq(from17.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
+						} else {
+							max17 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed17.ok ? 1 : 0, max17));
+					}
+				}
+			} else if (_1511 === 1) {
+				const s9: rs.String = rs.stringNew();
+				for (const b5 of rs.byteSliceView(rest5)) {
+					const _1612: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _1613: rs.usize = rs.usizeRem(b5 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_1612, _1613);
+					rs.stringPush(s9, _1612.data[_1612.start + _1613] as rs.char);
+				}
+				const _1624: string = s9.v;
+				const radix31: rs.u32 = radix29;
+				const _1627: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1624, radix31);
+				if (_1627.ok) {
+					const arg31 = _1627.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg31, f)]).v);
+				} else {
+					const e18: rs.ParseIntError = _1627.error;
+					const _1643: rs.IntErrorKind = e18.kind;
+					if (_1643 === "Empty") {
+						kind19 = 0;
+					} else if (_1643 === "InvalidDigit") {
+						kind19 = 1;
+					} else if (_1643 === "PosOverflow") {
+						kind19 = 2;
+					} else if (_1643 === "NegOverflow") {
+						kind19 = 3;
+					} else {
+						kind19 = 4;
+					}
+					if (!(e18.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over18 = e18.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over18 = true;
+					}
+					const _1663: rs.IntErrorKind = e18.kind;
+					const args253 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e18, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e18, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1663), (f: rs.Formatter) => rs.i32Display(kind19, f), (f: rs.Formatter) => rs.fmtBool(over18, f)];
+					put(out, rs.fmtFormat([args253[0], "|", args253[1], "|", args253[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args253[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args253[0]), "|", args253[3], "|", args253[4]]).v);
+				}
+				if (radix31 === 10) {
+					const parsed18: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1624);
+					const from18: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1624);
+					if (from18.ok) {
+						max18 = rs.u8Mul(rs.u128Eq(from18.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
+					} else {
+						max18 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed18.ok ? 1 : 0, max18));
+				}
+			} else if (_1511 === 2) {
+				const iter19: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _1695: rs.u32 | rs.Done = iter19.next();
+					if (_1695 === rs.DONE) {
+						break;
+					}
+					const radix32: rs.u32 = _1695;
+					for (const _1702 of edges({ hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, 0, 128, radix32).items) {
+						const _1710: string = _1702.v;
+						const radix33: rs.u32 = radix32;
+						const _1713: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1710, radix33);
+						if (_1713.ok) {
+							const arg30 = _1713.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg30, f)]).v);
+						} else {
+							const e19: rs.ParseIntError = _1713.error;
+							const _1729: rs.IntErrorKind = e19.kind;
+							if (_1729 === "Empty") {
+								kind20 = 0;
+							} else if (_1729 === "InvalidDigit") {
+								kind20 = 1;
+							} else if (_1729 === "PosOverflow") {
+								kind20 = 2;
+							} else if (_1729 === "NegOverflow") {
+								kind20 = 3;
+							} else {
+								kind20 = 4;
+							}
+							if (!(e19.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over19 = e19.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over19 = true;
+							}
+							const _1749: rs.IntErrorKind = e19.kind;
+							const args251 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e19, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e19, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1749), (f: rs.Formatter) => rs.i32Display(kind20, f), (f: rs.Formatter) => rs.fmtBool(over19, f)];
+							put(out, rs.fmtFormat([args251[0], "|", args251[1], "|", args251[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args251[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args251[0]), "|", args251[3], "|", args251[4]]).v);
+						}
+						if (radix33 === 10) {
+							const parsed19: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1710);
+							const from19: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1710);
+							if (from19.ok) {
+								max19 = rs.u8Mul(rs.u128Eq(from19.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
+							} else {
+								max19 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed19.ok ? 1 : 0, max19));
+						}
+					}
+				}
+			} else {
+				const radix34: rs.u32 = ((first5 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest5), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest5, 1), (b20: rs.u8): boolean => {
+					return (b20 & 1) === 1;
+				})) {
+					const dst10 = out;
+					const word10 = option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix34), 99);
+					rs.byteVecReserve(dst10, 4 as rs.usize);
+					const pos10 = dst10.length;
+					dst10.data[pos10 + 0] = (word10 >>> 24) & 255;
+					dst10.data[pos10 + 1] = (word10 >>> 16) & 255;
+					dst10.data[pos10 + 2] = (word10 >>> 8) & 255;
+					dst10.data[pos10 + 3] = word10 & 255;
+					dst10.length = dst10.length + 4;
+				}
+				if (!(rest5.length > 2)) {
+					text5 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text5 = rs.byteSliceRange(rest5, 2);
+				}
+				const _1805: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text5), "1");
+				const radix35: rs.u32 = radix34;
+				const _1810: rs.Result<rs.u128, rs.ParseIntError> = num_fromStrRadix$09i2k2a(_1805, radix35);
+				if (_1810.ok) {
+					const arg29 = _1810.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg29, f)]).v);
+				} else {
+					const e20: rs.ParseIntError = _1810.error;
+					const _1826: rs.IntErrorKind = e20.kind;
+					if (_1826 === "Empty") {
+						kind21 = 0;
+					} else if (_1826 === "InvalidDigit") {
+						kind21 = 1;
+					} else if (_1826 === "PosOverflow") {
+						kind21 = 2;
+					} else if (_1826 === "NegOverflow") {
+						kind21 = 3;
+					} else {
+						kind21 = 4;
+					}
+					if (!(e20.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over20 = e20.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over20 = true;
+					}
+					const _1846: rs.IntErrorKind = e20.kind;
+					const args249 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e20, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e20, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1846), (f: rs.Formatter) => rs.i32Display(kind21, f), (f: rs.Formatter) => rs.fmtBool(over20, f)];
+					put(out, rs.fmtFormat([args249[0], "|", args249[1], "|", args249[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args249[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args249[0]), "|", args249[3], "|", args249[4]]).v);
+				}
+				if (radix35 === 10) {
+					const parsed20: rs.Result<rs.u128, rs.ParseIntError> = parse$11owssr(_1805);
+					const from20: rs.Result<rs.u128, rs.ParseIntError> = num_fromStr$0ihvy10(_1805);
+					if (from20.ok) {
+						max20 = rs.u8Mul(rs.u128Eq(from20.value, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128) ? 1 : 0, 4);
+					} else {
+						max20 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed20.ok ? 1 : 0, max20));
+				}
+			}
+		}
+	} else if (_4 === 5) {
+		if (dataLen !== 0) {
+			const first6: rs.u8 = dataData[dataStart];
+			const rest6: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix36: rs.u32 = rs.u32Add(2, rs.u32Rem(first6 as rs.u32, 35));
+			const _1884: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_1884 === 0) {
+				const _1888: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest6);
+				if (_1888.ok) {
+					const iter21: rs.Iter<rs.char> = rs.strChars(_1888.value);
+					while (true) {
+						const _1894: rs.char | rs.Done = iter21.next();
+						if (_1894 === rs.DONE) {
+							break;
+						}
+						const dst11 = out;
+						const word11 = option_unwrapOr$1b5hww3(toDigit$14z95r4(_1894, radix36), 99);
+						rs.byteVecReserve(dst11, 4 as rs.usize);
+						const pos11 = dst11.length;
+						dst11.data[pos11 + 0] = (word11 >>> 24) & 255;
+						dst11.data[pos11 + 1] = (word11 >>> 16) & 255;
+						dst11.data[pos11 + 2] = (word11 >>> 8) & 255;
+						dst11.data[pos11 + 3] = word11 & 255;
+						dst11.length = dst11.length + 4;
+					}
+					const radix37: rs.u32 = radix36;
+					const _1909: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_1888.value, radix37);
+					if (_1909.ok) {
+						const arg28 = _1909.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg28, f)]).v);
+					} else {
+						const e21: rs.ParseIntError = _1909.error;
+						const _1925: rs.IntErrorKind = e21.kind;
+						if (_1925 === "Empty") {
+							kind22 = 0;
+						} else if (_1925 === "InvalidDigit") {
+							kind22 = 1;
+						} else if (_1925 === "PosOverflow") {
+							kind22 = 2;
+						} else if (_1925 === "NegOverflow") {
+							kind22 = 3;
+						} else {
+							kind22 = 4;
+						}
+						if (!(e21.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over21 = e21.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over21 = true;
+						}
+						const _1945: rs.IntErrorKind = e21.kind;
+						const args247 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e21, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e21, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _1945), (f: rs.Formatter) => rs.i32Display(kind22, f), (f: rs.Formatter) => rs.fmtBool(over21, f)];
+						put(out, rs.fmtFormat([args247[0], "|", args247[1], "|", args247[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args247[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args247[0]), "|", args247[3], "|", args247[4]]).v);
+					}
+					if (radix37 === 10) {
+						const parsed21: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_1888.value);
+						const from21: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_1888.value);
+						if (from21.ok) {
+							max21 = rs.u8Mul(from21.value === 4294967295 ? 1 : 0, 4);
+						} else {
+							max21 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed21.ok ? 1 : 0, max21));
+					}
+				}
+			} else if (_1884 === 1) {
+				const s11: rs.String = rs.stringNew();
+				for (const b6 of rs.byteSliceView(rest6)) {
+					const _1985: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _1986: rs.usize = rs.usizeRem(b6 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_1985, _1986);
+					rs.stringPush(s11, _1985.data[_1985.start + _1986] as rs.char);
+				}
+				const _1997: string = s11.v;
+				const radix38: rs.u32 = radix36;
+				const _2000: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_1997, radix38);
+				if (_2000.ok) {
+					const arg27 = _2000.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg27, f)]).v);
+				} else {
+					const e22: rs.ParseIntError = _2000.error;
+					const _2016: rs.IntErrorKind = e22.kind;
+					if (_2016 === "Empty") {
+						kind23 = 0;
+					} else if (_2016 === "InvalidDigit") {
+						kind23 = 1;
+					} else if (_2016 === "PosOverflow") {
+						kind23 = 2;
+					} else if (_2016 === "NegOverflow") {
+						kind23 = 3;
+					} else {
+						kind23 = 4;
+					}
+					if (!(e22.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over22 = e22.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over22 = true;
+					}
+					const _2036: rs.IntErrorKind = e22.kind;
+					const args245 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e22, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e22, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2036), (f: rs.Formatter) => rs.i32Display(kind23, f), (f: rs.Formatter) => rs.fmtBool(over22, f)];
+					put(out, rs.fmtFormat([args245[0], "|", args245[1], "|", args245[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args245[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args245[0]), "|", args245[3], "|", args245[4]]).v);
+				}
+				if (radix38 === 10) {
+					const parsed22: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_1997);
+					const from22: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_1997);
+					if (from22.ok) {
+						max22 = rs.u8Mul(from22.value === 4294967295 ? 1 : 0, 4);
+					} else {
+						max22 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed22.ok ? 1 : 0, max22));
+				}
+			} else if (_1884 === 2) {
+				const iter23: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _2068: rs.u32 | rs.Done = iter23.next();
+					if (_2068 === rs.DONE) {
+						break;
+					}
+					const radix39: rs.u32 = _2068;
+					for (const _2076 of edges(4294967295, 0, 32, radix39).items) {
+						const _2084: string = _2076.v;
+						const radix40: rs.u32 = radix39;
+						const _2087: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_2084, radix40);
+						if (_2087.ok) {
+							const arg26 = _2087.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg26, f)]).v);
+						} else {
+							const e23: rs.ParseIntError = _2087.error;
+							const _2103: rs.IntErrorKind = e23.kind;
+							if (_2103 === "Empty") {
+								kind24 = 0;
+							} else if (_2103 === "InvalidDigit") {
+								kind24 = 1;
+							} else if (_2103 === "PosOverflow") {
+								kind24 = 2;
+							} else if (_2103 === "NegOverflow") {
+								kind24 = 3;
+							} else {
+								kind24 = 4;
+							}
+							if (!(e23.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over23 = e23.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over23 = true;
+							}
+							const _2123: rs.IntErrorKind = e23.kind;
+							const args243 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e23, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e23, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2123), (f: rs.Formatter) => rs.i32Display(kind24, f), (f: rs.Formatter) => rs.fmtBool(over23, f)];
+							put(out, rs.fmtFormat([args243[0], "|", args243[1], "|", args243[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args243[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args243[0]), "|", args243[3], "|", args243[4]]).v);
+						}
+						if (radix40 === 10) {
+							const parsed23: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_2084);
+							const from23: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_2084);
+							if (from23.ok) {
+								max23 = rs.u8Mul(from23.value === 4294967295 ? 1 : 0, 4);
+							} else {
+								max23 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed23.ok ? 1 : 0, max23));
+						}
+					}
+				}
+			} else {
+				const radix41: rs.u32 = ((first6 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest6), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest6, 1), (b19: rs.u8): boolean => {
+					return (b19 & 1) === 1;
+				})) {
+					const dst12 = out;
+					const word12 = option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix41), 99);
+					rs.byteVecReserve(dst12, 4 as rs.usize);
+					const pos12 = dst12.length;
+					dst12.data[pos12 + 0] = (word12 >>> 24) & 255;
+					dst12.data[pos12 + 1] = (word12 >>> 16) & 255;
+					dst12.data[pos12 + 2] = (word12 >>> 8) & 255;
+					dst12.data[pos12 + 3] = word12 & 255;
+					dst12.length = dst12.length + 4;
+				}
+				if (!(rest6.length > 2)) {
+					text6 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text6 = rs.byteSliceRange(rest6, 2);
+				}
+				const _2179: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text6), "1");
+				const radix42: rs.u32 = radix41;
+				const _2184: rs.Result<rs.usize, rs.ParseIntError> = num_fromStrRadix$1479ec4(_2179, radix42);
+				if (_2184.ok) {
+					const arg25 = _2184.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg25, f)]).v);
+				} else {
+					const e24: rs.ParseIntError = _2184.error;
+					const _2200: rs.IntErrorKind = e24.kind;
+					if (_2200 === "Empty") {
+						kind25 = 0;
+					} else if (_2200 === "InvalidDigit") {
+						kind25 = 1;
+					} else if (_2200 === "PosOverflow") {
+						kind25 = 2;
+					} else if (_2200 === "NegOverflow") {
+						kind25 = 3;
+					} else {
+						kind25 = 4;
+					}
+					if (!(e24.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over24 = e24.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over24 = true;
+					}
+					const _2220: rs.IntErrorKind = e24.kind;
+					const args241 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e24, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e24, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2220), (f: rs.Formatter) => rs.i32Display(kind25, f), (f: rs.Formatter) => rs.fmtBool(over24, f)];
+					put(out, rs.fmtFormat([args241[0], "|", args241[1], "|", args241[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args241[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args241[0]), "|", args241[3], "|", args241[4]]).v);
+				}
+				if (radix42 === 10) {
+					const parsed24: rs.Result<rs.usize, rs.ParseIntError> = parse$07zoymb(_2179);
+					const from24: rs.Result<rs.usize, rs.ParseIntError> = num_fromStr$1jgkxdq(_2179);
+					if (from24.ok) {
+						max24 = rs.u8Mul(from24.value === 4294967295 ? 1 : 0, 4);
+					} else {
+						max24 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed24.ok ? 1 : 0, max24));
+				}
+			}
+		}
+	} else if (_4 === 6) {
+		if (dataLen !== 0) {
+			const first7: rs.u8 = dataData[dataStart];
+			const rest7: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix43: rs.u32 = rs.u32Add(2, rs.u32Rem(first7 as rs.u32, 35));
+			const _2258: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_2258 === 0) {
+				const _2262: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest7);
+				if (_2262.ok) {
+					const iter25: rs.Iter<rs.char> = rs.strChars(_2262.value);
+					while (true) {
+						const _2268: rs.char | rs.Done = iter25.next();
+						if (_2268 === rs.DONE) {
+							break;
+						}
+						const dst13 = out;
+						const word13 = option_unwrapOr$1b5hww3(toDigit$14z95r4(_2268, radix43), 99);
+						rs.byteVecReserve(dst13, 4 as rs.usize);
+						const pos13 = dst13.length;
+						dst13.data[pos13 + 0] = (word13 >>> 24) & 255;
+						dst13.data[pos13 + 1] = (word13 >>> 16) & 255;
+						dst13.data[pos13 + 2] = (word13 >>> 8) & 255;
+						dst13.data[pos13 + 3] = word13 & 255;
+						dst13.length = dst13.length + 4;
+					}
+					const radix44: rs.u32 = radix43;
+					const _2283: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2262.value, radix44);
+					if (_2283.ok) {
+						const arg24 = _2283.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg24, f)]).v);
+					} else {
+						const e25: rs.ParseIntError = _2283.error;
+						const _2299: rs.IntErrorKind = e25.kind;
+						if (_2299 === "Empty") {
+							kind26 = 0;
+						} else if (_2299 === "InvalidDigit") {
+							kind26 = 1;
+						} else if (_2299 === "PosOverflow") {
+							kind26 = 2;
+						} else if (_2299 === "NegOverflow") {
+							kind26 = 3;
+						} else {
+							kind26 = 4;
+						}
+						if (!(e25.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over25 = e25.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over25 = true;
+						}
+						const _2319: rs.IntErrorKind = e25.kind;
+						const args239 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e25, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e25, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2319), (f: rs.Formatter) => rs.i32Display(kind26, f), (f: rs.Formatter) => rs.fmtBool(over25, f)];
+						put(out, rs.fmtFormat([args239[0], "|", args239[1], "|", args239[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args239[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args239[0]), "|", args239[3], "|", args239[4]]).v);
+					}
+					if (radix44 === 10) {
+						const parsed25: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2262.value);
+						const from25: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2262.value);
+						if (from25.ok) {
+							max25 = rs.u8Mul(from25.value === 127 ? 1 : 0, 4);
+						} else {
+							max25 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed25.ok ? 1 : 0, max25));
+					}
+				}
+			} else if (_2258 === 1) {
+				const s13: rs.String = rs.stringNew();
+				for (const b7 of rs.byteSliceView(rest7)) {
+					const _2359: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _2360: rs.usize = rs.usizeRem(b7 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_2359, _2360);
+					rs.stringPush(s13, _2359.data[_2359.start + _2360] as rs.char);
+				}
+				const _2371: string = s13.v;
+				const radix45: rs.u32 = radix43;
+				const _2374: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2371, radix45);
+				if (_2374.ok) {
+					const arg23 = _2374.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg23, f)]).v);
+				} else {
+					const e26: rs.ParseIntError = _2374.error;
+					const _2390: rs.IntErrorKind = e26.kind;
+					if (_2390 === "Empty") {
+						kind27 = 0;
+					} else if (_2390 === "InvalidDigit") {
+						kind27 = 1;
+					} else if (_2390 === "PosOverflow") {
+						kind27 = 2;
+					} else if (_2390 === "NegOverflow") {
+						kind27 = 3;
+					} else {
+						kind27 = 4;
+					}
+					if (!(e26.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over26 = e26.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over26 = true;
+					}
+					const _2410: rs.IntErrorKind = e26.kind;
+					const args237 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e26, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e26, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2410), (f: rs.Formatter) => rs.i32Display(kind27, f), (f: rs.Formatter) => rs.fmtBool(over26, f)];
+					put(out, rs.fmtFormat([args237[0], "|", args237[1], "|", args237[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args237[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args237[0]), "|", args237[3], "|", args237[4]]).v);
+				}
+				if (radix45 === 10) {
+					const parsed26: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2371);
+					const from26: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2371);
+					if (from26.ok) {
+						max26 = rs.u8Mul(from26.value === 127 ? 1 : 0, 4);
+					} else {
+						max26 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed26.ok ? 1 : 0, max26));
+				}
+			} else if (_2258 === 2) {
+				const iter27: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _2442: rs.u32 | rs.Done = iter27.next();
+					if (_2442 === rs.DONE) {
+						break;
+					}
+					const radix46: rs.u32 = _2442;
+					for (const _2453 of edges(127, rs.u128Add(127, 1), 8, radix46).items) {
+						const _2461: string = _2453.v;
+						const radix47: rs.u32 = radix46;
+						const _2464: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2461, radix47);
+						if (_2464.ok) {
+							const arg22 = _2464.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg22, f)]).v);
+						} else {
+							const e27: rs.ParseIntError = _2464.error;
+							const _2480: rs.IntErrorKind = e27.kind;
+							if (_2480 === "Empty") {
+								kind28 = 0;
+							} else if (_2480 === "InvalidDigit") {
+								kind28 = 1;
+							} else if (_2480 === "PosOverflow") {
+								kind28 = 2;
+							} else if (_2480 === "NegOverflow") {
+								kind28 = 3;
+							} else {
+								kind28 = 4;
+							}
+							if (!(e27.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over27 = e27.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over27 = true;
+							}
+							const _2500: rs.IntErrorKind = e27.kind;
+							const args235 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e27, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e27, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2500), (f: rs.Formatter) => rs.i32Display(kind28, f), (f: rs.Formatter) => rs.fmtBool(over27, f)];
+							put(out, rs.fmtFormat([args235[0], "|", args235[1], "|", args235[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args235[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args235[0]), "|", args235[3], "|", args235[4]]).v);
+						}
+						if (radix47 === 10) {
+							const parsed27: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2461);
+							const from27: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2461);
+							if (from27.ok) {
+								max27 = rs.u8Mul(from27.value === 127 ? 1 : 0, 4);
+							} else {
+								max27 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed27.ok ? 1 : 0, max27));
+						}
+					}
+				}
+			} else {
+				const radix48: rs.u32 = ((first7 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest7), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest7, 1), (b18: rs.u8): boolean => {
+					return (b18 & 1) === 1;
+				})) {
+					const dst14 = out;
+					const word14 = option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix48), 99);
+					rs.byteVecReserve(dst14, 4 as rs.usize);
+					const pos14 = dst14.length;
+					dst14.data[pos14 + 0] = (word14 >>> 24) & 255;
+					dst14.data[pos14 + 1] = (word14 >>> 16) & 255;
+					dst14.data[pos14 + 2] = (word14 >>> 8) & 255;
+					dst14.data[pos14 + 3] = word14 & 255;
+					dst14.length = dst14.length + 4;
+				}
+				if (!(rest7.length > 2)) {
+					text7 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text7 = rs.byteSliceRange(rest7, 2);
+				}
+				const _2556: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text7), "1");
+				const radix49: rs.u32 = radix48;
+				const _2561: rs.Result<rs.i8, rs.ParseIntError> = num_fromStrRadix$0qyezqs(_2556, radix49);
+				if (_2561.ok) {
+					const arg21 = _2561.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg21, f)]).v);
+				} else {
+					const e28: rs.ParseIntError = _2561.error;
+					const _2577: rs.IntErrorKind = e28.kind;
+					if (_2577 === "Empty") {
+						kind29 = 0;
+					} else if (_2577 === "InvalidDigit") {
+						kind29 = 1;
+					} else if (_2577 === "PosOverflow") {
+						kind29 = 2;
+					} else if (_2577 === "NegOverflow") {
+						kind29 = 3;
+					} else {
+						kind29 = 4;
+					}
+					if (!(e28.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over28 = e28.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over28 = true;
+					}
+					const _2597: rs.IntErrorKind = e28.kind;
+					const args233 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e28, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e28, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2597), (f: rs.Formatter) => rs.i32Display(kind29, f), (f: rs.Formatter) => rs.fmtBool(over28, f)];
+					put(out, rs.fmtFormat([args233[0], "|", args233[1], "|", args233[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args233[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args233[0]), "|", args233[3], "|", args233[4]]).v);
+				}
+				if (radix49 === 10) {
+					const parsed28: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(_2556);
+					const from28: rs.Result<rs.i8, rs.ParseIntError> = num_fromStr$1amqoj7(_2556);
+					if (from28.ok) {
+						max28 = rs.u8Mul(from28.value === 127 ? 1 : 0, 4);
+					} else {
+						max28 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed28.ok ? 1 : 0, max28));
+				}
+			}
+		}
+	} else if (_4 === 7) {
+		if (dataLen !== 0) {
+			const first8: rs.u8 = dataData[dataStart];
+			const rest8: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix50: rs.u32 = rs.u32Add(2, rs.u32Rem(first8 as rs.u32, 35));
+			const _2635: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_2635 === 0) {
+				const _2639: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest8);
+				if (_2639.ok) {
+					const iter29: rs.Iter<rs.char> = rs.strChars(_2639.value);
+					while (true) {
+						const _2645: rs.char | rs.Done = iter29.next();
+						if (_2645 === rs.DONE) {
+							break;
+						}
+						const dst15 = out;
+						const word15 = option_unwrapOr$1b5hww3(toDigit$14z95r4(_2645, radix50), 99);
+						rs.byteVecReserve(dst15, 4 as rs.usize);
+						const pos15 = dst15.length;
+						dst15.data[pos15 + 0] = (word15 >>> 24) & 255;
+						dst15.data[pos15 + 1] = (word15 >>> 16) & 255;
+						dst15.data[pos15 + 2] = (word15 >>> 8) & 255;
+						dst15.data[pos15 + 3] = word15 & 255;
+						dst15.length = dst15.length + 4;
+					}
+					const radix51: rs.u32 = radix50;
+					const _2660: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2639.value, radix51);
+					if (_2660.ok) {
+						const arg20 = _2660.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg20, f)]).v);
+					} else {
+						const e29: rs.ParseIntError = _2660.error;
+						const _2676: rs.IntErrorKind = e29.kind;
+						if (_2676 === "Empty") {
+							kind30 = 0;
+						} else if (_2676 === "InvalidDigit") {
+							kind30 = 1;
+						} else if (_2676 === "PosOverflow") {
+							kind30 = 2;
+						} else if (_2676 === "NegOverflow") {
+							kind30 = 3;
+						} else {
+							kind30 = 4;
+						}
+						if (!(e29.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over29 = e29.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over29 = true;
+						}
+						const _2696: rs.IntErrorKind = e29.kind;
+						const args231 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e29, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e29, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2696), (f: rs.Formatter) => rs.i32Display(kind30, f), (f: rs.Formatter) => rs.fmtBool(over29, f)];
+						put(out, rs.fmtFormat([args231[0], "|", args231[1], "|", args231[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args231[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args231[0]), "|", args231[3], "|", args231[4]]).v);
+					}
+					if (radix51 === 10) {
+						const parsed29: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2639.value);
+						const from29: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2639.value);
+						if (from29.ok) {
+							max29 = rs.u8Mul(from29.value === 32767 ? 1 : 0, 4);
+						} else {
+							max29 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed29.ok ? 1 : 0, max29));
+					}
+				}
+			} else if (_2635 === 1) {
+				const s15: rs.String = rs.stringNew();
+				for (const b8 of rs.byteSliceView(rest8)) {
+					const _2736: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _2737: rs.usize = rs.usizeRem(b8 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_2736, _2737);
+					rs.stringPush(s15, _2736.data[_2736.start + _2737] as rs.char);
+				}
+				const _2748: string = s15.v;
+				const radix52: rs.u32 = radix50;
+				const _2751: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2748, radix52);
+				if (_2751.ok) {
+					const arg19 = _2751.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg19, f)]).v);
+				} else {
+					const e30: rs.ParseIntError = _2751.error;
+					const _2767: rs.IntErrorKind = e30.kind;
+					if (_2767 === "Empty") {
+						kind31 = 0;
+					} else if (_2767 === "InvalidDigit") {
+						kind31 = 1;
+					} else if (_2767 === "PosOverflow") {
+						kind31 = 2;
+					} else if (_2767 === "NegOverflow") {
+						kind31 = 3;
+					} else {
+						kind31 = 4;
+					}
+					if (!(e30.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over30 = e30.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over30 = true;
+					}
+					const _2787: rs.IntErrorKind = e30.kind;
+					const args229 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e30, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e30, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2787), (f: rs.Formatter) => rs.i32Display(kind31, f), (f: rs.Formatter) => rs.fmtBool(over30, f)];
+					put(out, rs.fmtFormat([args229[0], "|", args229[1], "|", args229[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args229[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args229[0]), "|", args229[3], "|", args229[4]]).v);
+				}
+				if (radix52 === 10) {
+					const parsed30: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2748);
+					const from30: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2748);
+					if (from30.ok) {
+						max30 = rs.u8Mul(from30.value === 32767 ? 1 : 0, 4);
+					} else {
+						max30 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed30.ok ? 1 : 0, max30));
+				}
+			} else if (_2635 === 2) {
+				const iter31: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _2819: rs.u32 | rs.Done = iter31.next();
+					if (_2819 === rs.DONE) {
+						break;
+					}
+					const radix53: rs.u32 = _2819;
+					for (const _2830 of edges(32767, rs.u128Add(32767, 1), 16, radix53).items) {
+						const _2838: string = _2830.v;
+						const radix54: rs.u32 = radix53;
+						const _2841: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2838, radix54);
+						if (_2841.ok) {
+							const arg18 = _2841.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg18, f)]).v);
+						} else {
+							const e31: rs.ParseIntError = _2841.error;
+							const _2857: rs.IntErrorKind = e31.kind;
+							if (_2857 === "Empty") {
+								kind32 = 0;
+							} else if (_2857 === "InvalidDigit") {
+								kind32 = 1;
+							} else if (_2857 === "PosOverflow") {
+								kind32 = 2;
+							} else if (_2857 === "NegOverflow") {
+								kind32 = 3;
+							} else {
+								kind32 = 4;
+							}
+							if (!(e31.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over31 = e31.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over31 = true;
+							}
+							const _2877: rs.IntErrorKind = e31.kind;
+							const args227 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e31, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e31, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2877), (f: rs.Formatter) => rs.i32Display(kind32, f), (f: rs.Formatter) => rs.fmtBool(over31, f)];
+							put(out, rs.fmtFormat([args227[0], "|", args227[1], "|", args227[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args227[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args227[0]), "|", args227[3], "|", args227[4]]).v);
+						}
+						if (radix54 === 10) {
+							const parsed31: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2838);
+							const from31: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2838);
+							if (from31.ok) {
+								max31 = rs.u8Mul(from31.value === 32767 ? 1 : 0, 4);
+							} else {
+								max31 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed31.ok ? 1 : 0, max31));
+						}
+					}
+				}
+			} else {
+				const radix55: rs.u32 = ((first8 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest8), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest8, 1), (b17: rs.u8): boolean => {
+					return (b17 & 1) === 1;
+				})) {
+					const dst16 = out;
+					const word16 = option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix55), 99);
+					rs.byteVecReserve(dst16, 4 as rs.usize);
+					const pos16 = dst16.length;
+					dst16.data[pos16 + 0] = (word16 >>> 24) & 255;
+					dst16.data[pos16 + 1] = (word16 >>> 16) & 255;
+					dst16.data[pos16 + 2] = (word16 >>> 8) & 255;
+					dst16.data[pos16 + 3] = word16 & 255;
+					dst16.length = dst16.length + 4;
+				}
+				if (!(rest8.length > 2)) {
+					text8 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text8 = rs.byteSliceRange(rest8, 2);
+				}
+				const _2933: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text8), "1");
+				const radix56: rs.u32 = radix55;
+				const _2938: rs.Result<rs.i16, rs.ParseIntError> = num_fromStrRadix$19vdb8q(_2933, radix56);
+				if (_2938.ok) {
+					const arg17 = _2938.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg17, f)]).v);
+				} else {
+					const e32: rs.ParseIntError = _2938.error;
+					const _2954: rs.IntErrorKind = e32.kind;
+					if (_2954 === "Empty") {
+						kind33 = 0;
+					} else if (_2954 === "InvalidDigit") {
+						kind33 = 1;
+					} else if (_2954 === "PosOverflow") {
+						kind33 = 2;
+					} else if (_2954 === "NegOverflow") {
+						kind33 = 3;
+					} else {
+						kind33 = 4;
+					}
+					if (!(e32.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over32 = e32.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over32 = true;
+					}
+					const _2974: rs.IntErrorKind = e32.kind;
+					const args225 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e32, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e32, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _2974), (f: rs.Formatter) => rs.i32Display(kind33, f), (f: rs.Formatter) => rs.fmtBool(over32, f)];
+					put(out, rs.fmtFormat([args225[0], "|", args225[1], "|", args225[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args225[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args225[0]), "|", args225[3], "|", args225[4]]).v);
+				}
+				if (radix56 === 10) {
+					const parsed32: rs.Result<rs.i16, rs.ParseIntError> = parse$00ajhlu(_2933);
+					const from32: rs.Result<rs.i16, rs.ParseIntError> = num_fromStr$0ehcbzz(_2933);
+					if (from32.ok) {
+						max32 = rs.u8Mul(from32.value === 32767 ? 1 : 0, 4);
+					} else {
+						max32 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed32.ok ? 1 : 0, max32));
+				}
+			}
+		}
+	} else if (_4 === 8) {
+		if (dataLen !== 0) {
+			const first9: rs.u8 = dataData[dataStart];
+			const rest9: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix57: rs.u32 = rs.u32Add(2, rs.u32Rem(first9 as rs.u32, 35));
+			const _3012: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_3012 === 0) {
+				const _3016: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest9);
+				if (_3016.ok) {
+					const iter33: rs.Iter<rs.char> = rs.strChars(_3016.value);
+					while (true) {
+						const _3022: rs.char | rs.Done = iter33.next();
+						if (_3022 === rs.DONE) {
+							break;
+						}
+						const dst17 = out;
+						const word17 = option_unwrapOr$1b5hww3(toDigit$14z95r4(_3022, radix57), 99);
+						rs.byteVecReserve(dst17, 4 as rs.usize);
+						const pos17 = dst17.length;
+						dst17.data[pos17 + 0] = (word17 >>> 24) & 255;
+						dst17.data[pos17 + 1] = (word17 >>> 16) & 255;
+						dst17.data[pos17 + 2] = (word17 >>> 8) & 255;
+						dst17.data[pos17 + 3] = word17 & 255;
+						dst17.length = dst17.length + 4;
+					}
+					const radix58: rs.u32 = radix57;
+					const _3037: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3016.value, radix58);
+					if (_3037.ok) {
+						const arg16 = _3037.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg16, f)]).v);
+					} else {
+						const e33: rs.ParseIntError = _3037.error;
+						const _3053: rs.IntErrorKind = e33.kind;
+						if (_3053 === "Empty") {
+							kind34 = 0;
+						} else if (_3053 === "InvalidDigit") {
+							kind34 = 1;
+						} else if (_3053 === "PosOverflow") {
+							kind34 = 2;
+						} else if (_3053 === "NegOverflow") {
+							kind34 = 3;
+						} else {
+							kind34 = 4;
+						}
+						if (!(e33.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over33 = e33.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over33 = true;
+						}
+						const _3073: rs.IntErrorKind = e33.kind;
+						const args223 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e33, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e33, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3073), (f: rs.Formatter) => rs.i32Display(kind34, f), (f: rs.Formatter) => rs.fmtBool(over33, f)];
+						put(out, rs.fmtFormat([args223[0], "|", args223[1], "|", args223[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args223[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args223[0]), "|", args223[3], "|", args223[4]]).v);
+					}
+					if (radix58 === 10) {
+						const parsed33: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3016.value);
+						const from33: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3016.value);
+						if (from33.ok) {
+							max33 = rs.u8Mul(from33.value === 2147483647 ? 1 : 0, 4);
+						} else {
+							max33 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed33.ok ? 1 : 0, max33));
+					}
+				}
+			} else if (_3012 === 1) {
+				const s17: rs.String = rs.stringNew();
+				for (const b9 of rs.byteSliceView(rest9)) {
+					const _3113: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _3114: rs.usize = rs.usizeRem(b9 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_3113, _3114);
+					rs.stringPush(s17, _3113.data[_3113.start + _3114] as rs.char);
+				}
+				const _3125: string = s17.v;
+				const radix59: rs.u32 = radix57;
+				const _3128: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3125, radix59);
+				if (_3128.ok) {
+					const arg15 = _3128.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg15, f)]).v);
+				} else {
+					const e34: rs.ParseIntError = _3128.error;
+					const _3144: rs.IntErrorKind = e34.kind;
+					if (_3144 === "Empty") {
+						kind35 = 0;
+					} else if (_3144 === "InvalidDigit") {
+						kind35 = 1;
+					} else if (_3144 === "PosOverflow") {
+						kind35 = 2;
+					} else if (_3144 === "NegOverflow") {
+						kind35 = 3;
+					} else {
+						kind35 = 4;
+					}
+					if (!(e34.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over34 = e34.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over34 = true;
+					}
+					const _3164: rs.IntErrorKind = e34.kind;
+					const args221 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e34, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e34, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3164), (f: rs.Formatter) => rs.i32Display(kind35, f), (f: rs.Formatter) => rs.fmtBool(over34, f)];
+					put(out, rs.fmtFormat([args221[0], "|", args221[1], "|", args221[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args221[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args221[0]), "|", args221[3], "|", args221[4]]).v);
+				}
+				if (radix59 === 10) {
+					const parsed34: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3125);
+					const from34: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3125);
+					if (from34.ok) {
+						max34 = rs.u8Mul(from34.value === 2147483647 ? 1 : 0, 4);
+					} else {
+						max34 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed34.ok ? 1 : 0, max34));
+				}
+			} else if (_3012 === 2) {
+				const iter35: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _3196: rs.u32 | rs.Done = iter35.next();
+					if (_3196 === rs.DONE) {
+						break;
+					}
+					const radix60: rs.u32 = _3196;
+					for (const _3207 of edges(2147483647, rs.u128Add(2147483647, 1), 32, radix60).items) {
+						const _3215: string = _3207.v;
+						const radix61: rs.u32 = radix60;
+						const _3218: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3215, radix61);
+						if (_3218.ok) {
+							const arg14 = _3218.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg14, f)]).v);
+						} else {
+							const e35: rs.ParseIntError = _3218.error;
+							const _3234: rs.IntErrorKind = e35.kind;
+							if (_3234 === "Empty") {
+								kind36 = 0;
+							} else if (_3234 === "InvalidDigit") {
+								kind36 = 1;
+							} else if (_3234 === "PosOverflow") {
+								kind36 = 2;
+							} else if (_3234 === "NegOverflow") {
+								kind36 = 3;
+							} else {
+								kind36 = 4;
+							}
+							if (!(e35.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over35 = e35.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over35 = true;
+							}
+							const _3254: rs.IntErrorKind = e35.kind;
+							const args219 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e35, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e35, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3254), (f: rs.Formatter) => rs.i32Display(kind36, f), (f: rs.Formatter) => rs.fmtBool(over35, f)];
+							put(out, rs.fmtFormat([args219[0], "|", args219[1], "|", args219[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args219[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args219[0]), "|", args219[3], "|", args219[4]]).v);
+						}
+						if (radix61 === 10) {
+							const parsed35: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3215);
+							const from35: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3215);
+							if (from35.ok) {
+								max35 = rs.u8Mul(from35.value === 2147483647 ? 1 : 0, 4);
+							} else {
+								max35 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed35.ok ? 1 : 0, max35));
+						}
+					}
+				}
+			} else {
+				const radix62: rs.u32 = ((first9 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest9), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest9, 1), (b16: rs.u8): boolean => {
+					return (b16 & 1) === 1;
+				})) {
+					const dst18 = out;
+					const word18 = option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix62), 99);
+					rs.byteVecReserve(dst18, 4 as rs.usize);
+					const pos18 = dst18.length;
+					dst18.data[pos18 + 0] = (word18 >>> 24) & 255;
+					dst18.data[pos18 + 1] = (word18 >>> 16) & 255;
+					dst18.data[pos18 + 2] = (word18 >>> 8) & 255;
+					dst18.data[pos18 + 3] = word18 & 255;
+					dst18.length = dst18.length + 4;
+				}
+				if (!(rest9.length > 2)) {
+					text9 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text9 = rs.byteSliceRange(rest9, 2);
+				}
+				const _3310: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text9), "1");
+				const radix63: rs.u32 = radix62;
+				const _3315: rs.Result<rs.i32, rs.ParseIntError> = num_fromStrRadix$1ct8u92(_3310, radix63);
+				if (_3315.ok) {
+					const arg13 = _3315.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg13, f)]).v);
+				} else {
+					const e36: rs.ParseIntError = _3315.error;
+					const _3331: rs.IntErrorKind = e36.kind;
+					if (_3331 === "Empty") {
+						kind37 = 0;
+					} else if (_3331 === "InvalidDigit") {
+						kind37 = 1;
+					} else if (_3331 === "PosOverflow") {
+						kind37 = 2;
+					} else if (_3331 === "NegOverflow") {
+						kind37 = 3;
+					} else {
+						kind37 = 4;
+					}
+					if (!(e36.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over36 = e36.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over36 = true;
+					}
+					const _3351: rs.IntErrorKind = e36.kind;
+					const args217 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e36, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e36, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3351), (f: rs.Formatter) => rs.i32Display(kind37, f), (f: rs.Formatter) => rs.fmtBool(over36, f)];
+					put(out, rs.fmtFormat([args217[0], "|", args217[1], "|", args217[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args217[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args217[0]), "|", args217[3], "|", args217[4]]).v);
+				}
+				if (radix63 === 10) {
+					const parsed36: rs.Result<rs.i32, rs.ParseIntError> = parse$14v13am(_3310);
+					const from36: rs.Result<rs.i32, rs.ParseIntError> = num_fromStr$1ckv470(_3310);
+					if (from36.ok) {
+						max36 = rs.u8Mul(from36.value === 2147483647 ? 1 : 0, 4);
+					} else {
+						max36 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed36.ok ? 1 : 0, max36));
+				}
+			}
+		}
+	} else if (_4 === 9) {
+		if (dataLen !== 0) {
+			const first10: rs.u8 = dataData[dataStart];
+			const rest10: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix64: rs.u32 = rs.u32Add(2, rs.u32Rem(first10 as rs.u32, 35));
+			const _3389: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_3389 === 0) {
+				const _3393: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest10);
+				if (_3393.ok) {
+					const iter37: rs.Iter<rs.char> = rs.strChars(_3393.value);
+					while (true) {
+						const _3399: rs.char | rs.Done = iter37.next();
+						if (_3399 === rs.DONE) {
+							break;
+						}
+						const dst19 = out;
+						const word19 = option_unwrapOr$1b5hww3(toDigit$14z95r4(_3399, radix64), 99);
+						rs.byteVecReserve(dst19, 4 as rs.usize);
+						const pos19 = dst19.length;
+						dst19.data[pos19 + 0] = (word19 >>> 24) & 255;
+						dst19.data[pos19 + 1] = (word19 >>> 16) & 255;
+						dst19.data[pos19 + 2] = (word19 >>> 8) & 255;
+						dst19.data[pos19 + 3] = word19 & 255;
+						dst19.length = dst19.length + 4;
+					}
+					const radix65: rs.u32 = radix64;
+					const _3414: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3393.value, radix65);
+					if (_3414.ok) {
+						const arg12 = _3414.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg12, f)]).v);
+					} else {
+						const e37: rs.ParseIntError = _3414.error;
+						const _3430: rs.IntErrorKind = e37.kind;
+						if (_3430 === "Empty") {
+							kind38 = 0;
+						} else if (_3430 === "InvalidDigit") {
+							kind38 = 1;
+						} else if (_3430 === "PosOverflow") {
+							kind38 = 2;
+						} else if (_3430 === "NegOverflow") {
+							kind38 = 3;
+						} else {
+							kind38 = 4;
+						}
+						if (!(e37.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over37 = e37.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over37 = true;
+						}
+						const _3450: rs.IntErrorKind = e37.kind;
+						const args215 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e37, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e37, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3450), (f: rs.Formatter) => rs.i32Display(kind38, f), (f: rs.Formatter) => rs.fmtBool(over37, f)];
+						put(out, rs.fmtFormat([args215[0], "|", args215[1], "|", args215[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args215[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args215[0]), "|", args215[3], "|", args215[4]]).v);
+					}
+					if (radix65 === 10) {
+						const parsed37: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3393.value);
+						const from37: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3393.value);
+						if (from37.ok) {
+							max37 = rs.u8Mul(rs.i64Eq(from37.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
+						} else {
+							max37 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed37.ok ? 1 : 0, max37));
+					}
+				}
+			} else if (_3389 === 1) {
+				const s19: rs.String = rs.stringNew();
+				for (const b10 of rs.byteSliceView(rest10)) {
+					const _3490: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _3491: rs.usize = rs.usizeRem(b10 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_3490, _3491);
+					rs.stringPush(s19, _3490.data[_3490.start + _3491] as rs.char);
+				}
+				const _3502: string = s19.v;
+				const radix66: rs.u32 = radix64;
+				const _3505: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3502, radix66);
+				if (_3505.ok) {
+					const arg11 = _3505.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg11, f)]).v);
+				} else {
+					const e38: rs.ParseIntError = _3505.error;
+					const _3521: rs.IntErrorKind = e38.kind;
+					if (_3521 === "Empty") {
+						kind39 = 0;
+					} else if (_3521 === "InvalidDigit") {
+						kind39 = 1;
+					} else if (_3521 === "PosOverflow") {
+						kind39 = 2;
+					} else if (_3521 === "NegOverflow") {
+						kind39 = 3;
+					} else {
+						kind39 = 4;
+					}
+					if (!(e38.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over38 = e38.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over38 = true;
+					}
+					const _3541: rs.IntErrorKind = e38.kind;
+					const args213 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e38, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e38, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3541), (f: rs.Formatter) => rs.i32Display(kind39, f), (f: rs.Formatter) => rs.fmtBool(over38, f)];
+					put(out, rs.fmtFormat([args213[0], "|", args213[1], "|", args213[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args213[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args213[0]), "|", args213[3], "|", args213[4]]).v);
+				}
+				if (radix66 === 10) {
+					const parsed38: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3502);
+					const from38: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3502);
+					if (from38.ok) {
+						max38 = rs.u8Mul(rs.i64Eq(from38.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
+					} else {
+						max38 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed38.ok ? 1 : 0, max38));
+				}
+			} else if (_3389 === 2) {
+				const iter39: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _3573: rs.u32 | rs.Done = iter39.next();
+					if (_3573 === rs.DONE) {
+						break;
+					}
+					const radix67: rs.u32 = _3573;
+					for (const _3584 of edges({ hi: 0, w2: 0, w1: 0x7fffffff, lo: 0xffffffff } as rs.u128, rs.u128Add({ hi: 0, w2: 0, w1: 0x7fffffff, lo: 0xffffffff } as rs.u128, 1), 64, radix67).items) {
+						const _3592: string = _3584.v;
+						const radix68: rs.u32 = radix67;
+						const _3595: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3592, radix68);
+						if (_3595.ok) {
+							const arg10 = _3595.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg10, f)]).v);
+						} else {
+							const e39: rs.ParseIntError = _3595.error;
+							const _3611: rs.IntErrorKind = e39.kind;
+							if (_3611 === "Empty") {
+								kind40 = 0;
+							} else if (_3611 === "InvalidDigit") {
+								kind40 = 1;
+							} else if (_3611 === "PosOverflow") {
+								kind40 = 2;
+							} else if (_3611 === "NegOverflow") {
+								kind40 = 3;
+							} else {
+								kind40 = 4;
+							}
+							if (!(e39.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over39 = e39.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over39 = true;
+							}
+							const _3631: rs.IntErrorKind = e39.kind;
+							const args211 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e39, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e39, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3631), (f: rs.Formatter) => rs.i32Display(kind40, f), (f: rs.Formatter) => rs.fmtBool(over39, f)];
+							put(out, rs.fmtFormat([args211[0], "|", args211[1], "|", args211[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args211[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args211[0]), "|", args211[3], "|", args211[4]]).v);
+						}
+						if (radix68 === 10) {
+							const parsed39: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3592);
+							const from39: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3592);
+							if (from39.ok) {
+								max39 = rs.u8Mul(rs.i64Eq(from39.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
+							} else {
+								max39 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed39.ok ? 1 : 0, max39));
+						}
+					}
+				}
+			} else {
+				const radix69: rs.u32 = ((first10 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest10), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest10, 1), (b15: rs.u8): boolean => {
+					return (b15 & 1) === 1;
+				})) {
+					const dst20 = out;
+					const word20 = option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix69), 99);
+					rs.byteVecReserve(dst20, 4 as rs.usize);
+					const pos20 = dst20.length;
+					dst20.data[pos20 + 0] = (word20 >>> 24) & 255;
+					dst20.data[pos20 + 1] = (word20 >>> 16) & 255;
+					dst20.data[pos20 + 2] = (word20 >>> 8) & 255;
+					dst20.data[pos20 + 3] = word20 & 255;
+					dst20.length = dst20.length + 4;
+				}
+				if (!(rest10.length > 2)) {
+					text10 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text10 = rs.byteSliceRange(rest10, 2);
+				}
+				const _3687: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text10), "1");
+				const radix70: rs.u32 = radix69;
+				const _3692: rs.Result<rs.i64, rs.ParseIntError> = num_fromStrRadix$04fc4zz(_3687, radix70);
+				if (_3692.ok) {
+					const arg9 = _3692.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg9, f)]).v);
+				} else {
+					const e40: rs.ParseIntError = _3692.error;
+					const _3708: rs.IntErrorKind = e40.kind;
+					if (_3708 === "Empty") {
+						kind41 = 0;
+					} else if (_3708 === "InvalidDigit") {
+						kind41 = 1;
+					} else if (_3708 === "PosOverflow") {
+						kind41 = 2;
+					} else if (_3708 === "NegOverflow") {
+						kind41 = 3;
+					} else {
+						kind41 = 4;
+					}
+					if (!(e40.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over40 = e40.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over40 = true;
+					}
+					const _3728: rs.IntErrorKind = e40.kind;
+					const args209 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e40, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e40, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3728), (f: rs.Formatter) => rs.i32Display(kind41, f), (f: rs.Formatter) => rs.fmtBool(over40, f)];
+					put(out, rs.fmtFormat([args209[0], "|", args209[1], "|", args209[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args209[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args209[0]), "|", args209[3], "|", args209[4]]).v);
+				}
+				if (radix70 === 10) {
+					const parsed40: rs.Result<rs.i64, rs.ParseIntError> = parse$0px1msj(_3687);
+					const from40: rs.Result<rs.i64, rs.ParseIntError> = num_fromStr$00n8jbp(_3687);
+					if (from40.ok) {
+						max40 = rs.u8Mul(rs.i64Eq(from40.value, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64) ? 1 : 0, 4);
+					} else {
+						max40 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed40.ok ? 1 : 0, max40));
+				}
+			}
+		}
+	} else if (_4 === 10) {
+		if (dataLen !== 0) {
+			const first11: rs.u8 = dataData[dataStart];
+			const rest11: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix71: rs.u32 = rs.u32Add(2, rs.u32Rem(first11 as rs.u32, 35));
+			const _3766: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_3766 === 0) {
+				const _3770: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest11);
+				if (_3770.ok) {
+					const iter41: rs.Iter<rs.char> = rs.strChars(_3770.value);
+					while (true) {
+						const _3776: rs.char | rs.Done = iter41.next();
+						if (_3776 === rs.DONE) {
+							break;
+						}
+						const dst21 = out;
+						const word21 = option_unwrapOr$1b5hww3(toDigit$14z95r4(_3776, radix71), 99);
+						rs.byteVecReserve(dst21, 4 as rs.usize);
+						const pos21 = dst21.length;
+						dst21.data[pos21 + 0] = (word21 >>> 24) & 255;
+						dst21.data[pos21 + 1] = (word21 >>> 16) & 255;
+						dst21.data[pos21 + 2] = (word21 >>> 8) & 255;
+						dst21.data[pos21 + 3] = word21 & 255;
+						dst21.length = dst21.length + 4;
+					}
+					const radix72: rs.u32 = radix71;
+					const _3791: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_3770.value, radix72);
+					if (_3791.ok) {
+						const arg8 = _3791.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg8, f)]).v);
+					} else {
+						const e41: rs.ParseIntError = _3791.error;
+						const _3807: rs.IntErrorKind = e41.kind;
+						if (_3807 === "Empty") {
+							kind42 = 0;
+						} else if (_3807 === "InvalidDigit") {
+							kind42 = 1;
+						} else if (_3807 === "PosOverflow") {
+							kind42 = 2;
+						} else if (_3807 === "NegOverflow") {
+							kind42 = 3;
+						} else {
+							kind42 = 4;
+						}
+						if (!(e41.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over41 = e41.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over41 = true;
+						}
+						const _3827: rs.IntErrorKind = e41.kind;
+						const args207 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e41, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e41, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3827), (f: rs.Formatter) => rs.i32Display(kind42, f), (f: rs.Formatter) => rs.fmtBool(over41, f)];
+						put(out, rs.fmtFormat([args207[0], "|", args207[1], "|", args207[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args207[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args207[0]), "|", args207[3], "|", args207[4]]).v);
+					}
+					if (radix72 === 10) {
+						const parsed41: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_3770.value);
+						const from41: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_3770.value);
+						if (from41.ok) {
+							max41 = rs.u8Mul(rs.i128Eq(from41.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
+						} else {
+							max41 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed41.ok ? 1 : 0, max41));
+					}
+				}
+			} else if (_3766 === 1) {
+				const s21: rs.String = rs.stringNew();
+				for (const b11 of rs.byteSliceView(rest11)) {
+					const _3867: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _3868: rs.usize = rs.usizeRem(b11 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_3867, _3868);
+					rs.stringPush(s21, _3867.data[_3867.start + _3868] as rs.char);
+				}
+				const _3879: string = s21.v;
+				const radix73: rs.u32 = radix71;
+				const _3882: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_3879, radix73);
+				if (_3882.ok) {
+					const arg7 = _3882.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg7, f)]).v);
+				} else {
+					const e42: rs.ParseIntError = _3882.error;
+					const _3898: rs.IntErrorKind = e42.kind;
+					if (_3898 === "Empty") {
+						kind43 = 0;
+					} else if (_3898 === "InvalidDigit") {
+						kind43 = 1;
+					} else if (_3898 === "PosOverflow") {
+						kind43 = 2;
+					} else if (_3898 === "NegOverflow") {
+						kind43 = 3;
+					} else {
+						kind43 = 4;
+					}
+					if (!(e42.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over42 = e42.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over42 = true;
+					}
+					const _3918: rs.IntErrorKind = e42.kind;
+					const args205 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e42, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e42, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _3918), (f: rs.Formatter) => rs.i32Display(kind43, f), (f: rs.Formatter) => rs.fmtBool(over42, f)];
+					put(out, rs.fmtFormat([args205[0], "|", args205[1], "|", args205[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args205[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args205[0]), "|", args205[3], "|", args205[4]]).v);
+				}
+				if (radix73 === 10) {
+					const parsed42: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_3879);
+					const from42: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_3879);
+					if (from42.ok) {
+						max42 = rs.u8Mul(rs.i128Eq(from42.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
+					} else {
+						max42 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed42.ok ? 1 : 0, max42));
+				}
+			} else if (_3766 === 2) {
+				const iter43: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _3950: rs.u32 | rs.Done = iter43.next();
+					if (_3950 === rs.DONE) {
+						break;
+					}
+					const radix74: rs.u32 = _3950;
+					for (const _3961 of edges({ hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, rs.u128Add({ hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128, 1), 128, radix74).items) {
+						const _3969: string = _3961.v;
+						const radix75: rs.u32 = radix74;
+						const _3972: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_3969, radix75);
+						if (_3972.ok) {
+							const arg6 = _3972.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg6, f)]).v);
+						} else {
+							const e43: rs.ParseIntError = _3972.error;
+							const _3988: rs.IntErrorKind = e43.kind;
+							if (_3988 === "Empty") {
+								kind44 = 0;
+							} else if (_3988 === "InvalidDigit") {
+								kind44 = 1;
+							} else if (_3988 === "PosOverflow") {
+								kind44 = 2;
+							} else if (_3988 === "NegOverflow") {
+								kind44 = 3;
+							} else {
+								kind44 = 4;
+							}
+							if (!(e43.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over43 = e43.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over43 = true;
+							}
+							const _4008: rs.IntErrorKind = e43.kind;
+							const args203 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e43, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e43, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4008), (f: rs.Formatter) => rs.i32Display(kind44, f), (f: rs.Formatter) => rs.fmtBool(over43, f)];
+							put(out, rs.fmtFormat([args203[0], "|", args203[1], "|", args203[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args203[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args203[0]), "|", args203[3], "|", args203[4]]).v);
+						}
+						if (radix75 === 10) {
+							const parsed43: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_3969);
+							const from43: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_3969);
+							if (from43.ok) {
+								max43 = rs.u8Mul(rs.i128Eq(from43.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
+							} else {
+								max43 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed43.ok ? 1 : 0, max43));
+						}
+					}
+				}
+			} else {
+				const radix76: rs.u32 = ((first11 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest11), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest11, 1), (b14: rs.u8): boolean => {
+					return (b14 & 1) === 1;
+				})) {
+					const dst22 = out;
+					const word22 = option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix76), 99);
+					rs.byteVecReserve(dst22, 4 as rs.usize);
+					const pos22 = dst22.length;
+					dst22.data[pos22 + 0] = (word22 >>> 24) & 255;
+					dst22.data[pos22 + 1] = (word22 >>> 16) & 255;
+					dst22.data[pos22 + 2] = (word22 >>> 8) & 255;
+					dst22.data[pos22 + 3] = word22 & 255;
+					dst22.length = dst22.length + 4;
+				}
+				if (!(rest11.length > 2)) {
+					text11 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text11 = rs.byteSliceRange(rest11, 2);
+				}
+				const _4064: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text11), "1");
+				const radix77: rs.u32 = radix76;
+				const _4069: rs.Result<rs.i128, rs.ParseIntError> = num_fromStrRadix$0cysu2u(_4064, radix77);
+				if (_4069.ok) {
+					const arg5 = _4069.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg5, f)]).v);
+				} else {
+					const e44: rs.ParseIntError = _4069.error;
+					const _4085: rs.IntErrorKind = e44.kind;
+					if (_4085 === "Empty") {
+						kind45 = 0;
+					} else if (_4085 === "InvalidDigit") {
+						kind45 = 1;
+					} else if (_4085 === "PosOverflow") {
+						kind45 = 2;
+					} else if (_4085 === "NegOverflow") {
+						kind45 = 3;
+					} else {
+						kind45 = 4;
+					}
+					if (!(e44.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over44 = e44.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over44 = true;
+					}
+					const _4105: rs.IntErrorKind = e44.kind;
+					const args201 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e44, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e44, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4105), (f: rs.Formatter) => rs.i32Display(kind45, f), (f: rs.Formatter) => rs.fmtBool(over44, f)];
+					put(out, rs.fmtFormat([args201[0], "|", args201[1], "|", args201[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args201[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args201[0]), "|", args201[3], "|", args201[4]]).v);
+				}
+				if (radix77 === 10) {
+					const parsed44: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(_4064);
+					const from44: rs.Result<rs.i128, rs.ParseIntError> = num_fromStr$1el0yvy(_4064);
+					if (from44.ok) {
+						max44 = rs.u8Mul(rs.i128Eq(from44.value, { hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.i128) ? 1 : 0, 4);
+					} else {
+						max44 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed44.ok ? 1 : 0, max44));
+				}
+			}
+		}
+	} else if (_4 === 11) {
+		if (dataLen !== 0) {
+			const first12: rs.u8 = dataData[dataStart];
+			const rest12: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1);
+			const radix78: rs.u32 = rs.u32Add(2, rs.u32Rem(first12 as rs.u32, 35));
+			const _4143: rs.u8 = rs.u8Rem(rs.u8Div(kind, 12), 4);
+			if (_4143 === 0) {
+				const _4147: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rest12);
+				if (_4147.ok) {
+					const iter45: rs.Iter<rs.char> = rs.strChars(_4147.value);
+					while (true) {
+						const _4153: rs.char | rs.Done = iter45.next();
+						if (_4153 === rs.DONE) {
+							break;
+						}
+						const dst23 = out;
+						const word23 = option_unwrapOr$1b5hww3(toDigit$14z95r4(_4153, radix78), 99);
+						rs.byteVecReserve(dst23, 4 as rs.usize);
+						const pos23 = dst23.length;
+						dst23.data[pos23 + 0] = (word23 >>> 24) & 255;
+						dst23.data[pos23 + 1] = (word23 >>> 16) & 255;
+						dst23.data[pos23 + 2] = (word23 >>> 8) & 255;
+						dst23.data[pos23 + 3] = word23 & 255;
+						dst23.length = dst23.length + 4;
+					}
+					const radix79: rs.u32 = radix78;
+					const _4168: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4147.value, radix79);
+					if (_4168.ok) {
+						const arg4 = _4168.value;
+						put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg4, f)]).v);
+					} else {
+						const e45: rs.ParseIntError = _4168.error;
+						const _4184: rs.IntErrorKind = e45.kind;
+						if (_4184 === "Empty") {
+							kind46 = 0;
+						} else if (_4184 === "InvalidDigit") {
+							kind46 = 1;
+						} else if (_4184 === "PosOverflow") {
+							kind46 = 2;
+						} else if (_4184 === "NegOverflow") {
+							kind46 = 3;
+						} else {
+							kind46 = 4;
+						}
+						if (!(e45.kind === "PosOverflow" as rs.IntErrorKind)) {
+							over45 = e45.kind !== "NegOverflow" as rs.IntErrorKind;
+						} else {
+							over45 = true;
+						}
+						const _4204: rs.IntErrorKind = e45.kind;
+						const args199 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e45, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e45, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4204), (f: rs.Formatter) => rs.i32Display(kind46, f), (f: rs.Formatter) => rs.fmtBool(over45, f)];
+						put(out, rs.fmtFormat([args199[0], "|", args199[1], "|", args199[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args199[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args199[0]), "|", args199[3], "|", args199[4]]).v);
+					}
+					if (radix79 === 10) {
+						const parsed45: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4147.value);
+						const from45: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4147.value);
+						if (from45.ok) {
+							max45 = rs.u8Mul(from45.value === 2147483647 ? 1 : 0, 4);
+						} else {
+							max45 = 2;
+						}
+						rs.byteVecPush(out, rs.u8Add(parsed45.ok ? 1 : 0, max45));
+					}
+				}
+			} else if (_4143 === 1) {
+				const s23: rs.String = rs.stringNew();
+				for (const b12 of rs.byteSliceView(rest12)) {
+					const _4244: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70));
+					const _4245: rs.usize = rs.usizeRem(b12 as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 43, 45, 97, 122, 65, 90, 95, 32, 48, 49, 56, 57, 102, 70)).length);
+					rs.idx(_4244, _4245);
+					rs.stringPush(s23, _4244.data[_4244.start + _4245] as rs.char);
+				}
+				const _4256: string = s23.v;
+				const radix80: rs.u32 = radix78;
+				const _4259: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4256, radix80);
+				if (_4259.ok) {
+					const arg3 = _4259.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg3, f)]).v);
+				} else {
+					const e46: rs.ParseIntError = _4259.error;
+					const _4275: rs.IntErrorKind = e46.kind;
+					if (_4275 === "Empty") {
+						kind47 = 0;
+					} else if (_4275 === "InvalidDigit") {
+						kind47 = 1;
+					} else if (_4275 === "PosOverflow") {
+						kind47 = 2;
+					} else if (_4275 === "NegOverflow") {
+						kind47 = 3;
+					} else {
+						kind47 = 4;
+					}
+					if (!(e46.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over46 = e46.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over46 = true;
+					}
+					const _4295: rs.IntErrorKind = e46.kind;
+					const args197 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e46, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e46, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4295), (f: rs.Formatter) => rs.i32Display(kind47, f), (f: rs.Formatter) => rs.fmtBool(over46, f)];
+					put(out, rs.fmtFormat([args197[0], "|", args197[1], "|", args197[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args197[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args197[0]), "|", args197[3], "|", args197[4]]).v);
+				}
+				if (radix80 === 10) {
+					const parsed46: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4256);
+					const from46: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4256);
+					if (from46.ok) {
+						max46 = rs.u8Mul(from46.value === 2147483647 ? 1 : 0, 4);
+					} else {
+						max46 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed46.ok ? 1 : 0, max46));
+				}
+			} else if (_4143 === 2) {
+				const iter47: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(2, 36, rs.u32Step);
+				while (true) {
+					const _4327: rs.u32 | rs.Done = iter47.next();
+					if (_4327 === rs.DONE) {
+						break;
+					}
+					const radix81: rs.u32 = _4327;
+					for (const _4338 of edges(2147483647, rs.u128Add(2147483647, 1), 32, radix81).items) {
+						const _4346: string = _4338.v;
+						const radix82: rs.u32 = radix81;
+						const _4349: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4346, radix82);
+						if (_4349.ok) {
+							const arg2 = _4349.value;
+							put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg2, f)]).v);
+						} else {
+							const e47: rs.ParseIntError = _4349.error;
+							const _4365: rs.IntErrorKind = e47.kind;
+							if (_4365 === "Empty") {
+								kind48 = 0;
+							} else if (_4365 === "InvalidDigit") {
+								kind48 = 1;
+							} else if (_4365 === "PosOverflow") {
+								kind48 = 2;
+							} else if (_4365 === "NegOverflow") {
+								kind48 = 3;
+							} else {
+								kind48 = 4;
+							}
+							if (!(e47.kind === "PosOverflow" as rs.IntErrorKind)) {
+								over47 = e47.kind !== "NegOverflow" as rs.IntErrorKind;
+							} else {
+								over47 = true;
+							}
+							const _4385: rs.IntErrorKind = e47.kind;
+							const args195 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e47, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e47, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4385), (f: rs.Formatter) => rs.i32Display(kind48, f), (f: rs.Formatter) => rs.fmtBool(over47, f)];
+							put(out, rs.fmtFormat([args195[0], "|", args195[1], "|", args195[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args195[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args195[0]), "|", args195[3], "|", args195[4]]).v);
+						}
+						if (radix82 === 10) {
+							const parsed47: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4346);
+							const from47: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4346);
+							if (from47.ok) {
+								max47 = rs.u8Mul(from47.value === 2147483647 ? 1 : 0, 4);
+							} else {
+								max47 = 2;
+							}
+							rs.byteVecPush(out, rs.u8Add(parsed47.ok ? 1 : 0, max47));
+						}
+					}
+				}
+			} else {
+				const radix83: rs.u32 = ((first12 as rs.u32) | (((option_unwrapOr$1fr498u(rs.byteSliceFirst(rest12), 0) as rs.u32) << 24) >>> 0)) >>> 0;
+				if (isSomeAnd$1s2u5lz(rs.byteSliceGet(rest12, 1), (b13: rs.u8): boolean => {
+					return (b13 & 1) === 1;
+				})) {
+					const dst24 = out;
+					const word24 = option_unwrapOr$1b5hww3(toDigit$14z95r4(55, radix83), 99);
+					rs.byteVecReserve(dst24, 4 as rs.usize);
+					const pos24 = dst24.length;
+					dst24.data[pos24 + 0] = (word24 >>> 24) & 255;
+					dst24.data[pos24 + 1] = (word24 >>> 16) & 255;
+					dst24.data[pos24 + 2] = (word24 >>> 8) & 255;
+					dst24.data[pos24 + 3] = word24 & 255;
+					dst24.length = dst24.length + 4;
+				}
+				if (!(rest12.length > 2)) {
+					text12 = rs.byteSliceFrom(Uint8Array.of());
+				} else {
+					text12 = rs.byteSliceRange(rest12, 2);
+				}
+				const _4441: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(text12), "1");
+				const radix84: rs.u32 = radix83;
+				const _4446: rs.Result<rs.isize, rs.ParseIntError> = num_fromStrRadix$1nys6eo(_4441, radix84);
+				if (_4446.ok) {
+					const arg = _4446.value;
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg, f)]).v);
+				} else {
+					const e48: rs.ParseIntError = _4446.error;
+					const _4462: rs.IntErrorKind = e48.kind;
+					if (_4462 === "Empty") {
+						kind49 = 0;
+					} else if (_4462 === "InvalidDigit") {
+						kind49 = 1;
+					} else if (_4462 === "PosOverflow") {
+						kind49 = 2;
+					} else if (_4462 === "NegOverflow") {
+						kind49 = 3;
+					} else {
+						kind49 = 4;
+					}
+					if (!(e48.kind === "PosOverflow" as rs.IntErrorKind)) {
+						over48 = e48.kind !== "NegOverflow" as rs.IntErrorKind;
+					} else {
+						over48 = true;
+					}
+					const _4482: rs.IntErrorKind = e48.kind;
+					const args193 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e48, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e48, f), (f: rs.Formatter) => rs.fmtWriteStr(f, _4482), (f: rs.Formatter) => rs.i32Display(kind49, f), (f: rs.Formatter) => rs.fmtBool(over48, f)];
+					put(out, rs.fmtFormat([args193[0], "|", args193[1], "|", args193[2], "|", rs.fmtSpec({ align: ">", width: 42 }, args193[0]), "|", rs.fmtSpec({ align: "<", width: 3, precision: 5 }, args193[0]), "|", args193[3], "|", args193[4]]).v);
+				}
+				if (radix84 === 10) {
+					const parsed48: rs.Result<rs.isize, rs.ParseIntError> = parse$1g90yxu(_4441);
+					const from48: rs.Result<rs.isize, rs.ParseIntError> = num_fromStr$0ytcpik(_4441);
+					if (from48.ok) {
+						max48 = rs.u8Mul(from48.value === 2147483647 ? 1 : 0, 4);
+					} else {
+						max48 = 2;
+					}
+					rs.byteVecPush(out, rs.u8Add(parsed48.ok ? 1 : 0, max48));
+				}
+			}
+		}
+	} else {
+		rs.panic("internal error: entered unreachable code");
 	}
 }
 
@@ -5532,57 +8462,181 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const v: rs.u8 = _27;
 			const named: rs.Result<rs.u8, never> = rs.Ok(v);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes((named as { ok: true; value: rs.u8 }).value)));
+			const dst = out;
+			const word = (named as { ok: true; value: rs.u8 }).value;
+			rs.byteVecReserve(dst, 1 as rs.usize);
+			dst.data[dst.length + 0] = word & 255;
+			dst.length = dst.length + 1;
 			const into: rs.Result<rs.u8, never> = rs.Ok(v);
 			const w2: rs.u8 = (into as { ok: true; value: rs.u8 }).value;
 			rs.byteVecPush(out, (result_eq$0qlnrz6(into, named) ? 1 : 0) | (((w2 === v ? 1 : 0) << 1) & 0xff));
 			const named2: rs.Result<rs.u16, never> = rs.Ok(v as rs.u16);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes((named2 as { ok: true; value: rs.u16 }).value)));
+			const dst2 = out;
+			const word2 = (named2 as { ok: true; value: rs.u16 }).value;
+			rs.byteVecReserve(dst2, 2 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (word2 >>> 8) & 255;
+			dst2.data[pos2 + 1] = word2 & 255;
+			dst2.length = dst2.length + 2;
 			const into2: rs.Result<rs.u16, never> = rs.Ok(v as rs.u16);
 			const w4: rs.u16 = (into2 as { ok: true; value: rs.u16 }).value;
 			rs.byteVecPush(out, (result_eq$06v73px(into2, named2) ? 1 : 0) | (((w4 === v as rs.u16 ? 1 : 0) << 1) & 0xff));
 			const named3: rs.Result<rs.u32, never> = rs.Ok(v as rs.u32);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes((named3 as { ok: true; value: rs.u32 }).value)));
+			const dst3 = out;
+			const word3 = (named3 as { ok: true; value: rs.u32 }).value;
+			rs.byteVecReserve(dst3, 4 as rs.usize);
+			const pos3 = dst3.length;
+			dst3.data[pos3 + 0] = (word3 >>> 24) & 255;
+			dst3.data[pos3 + 1] = (word3 >>> 16) & 255;
+			dst3.data[pos3 + 2] = (word3 >>> 8) & 255;
+			dst3.data[pos3 + 3] = word3 & 255;
+			dst3.length = dst3.length + 4;
 			const into3: rs.Result<rs.u32, never> = rs.Ok(v as rs.u32);
 			const w6: rs.u32 = (into3 as { ok: true; value: rs.u32 }).value;
 			rs.byteVecPush(out, (result_eq$08c3ca7(into3, named3) ? 1 : 0) | (((w6 === v as rs.u32 ? 1 : 0) << 1) & 0xff));
 			const named4: rs.Result<rs.u64, never> = rs.Ok(v as rs.u64);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes((named4 as { ok: true; value: rs.u64 }).value)));
+			const dst4 = out;
+			const word4 = (named4 as { ok: true; value: rs.u64 }).value;
+			const word5 = rs.intWord(word4, 0);
+			const word6 = rs.intWord(word4, 32);
+			rs.byteVecReserve(dst4, 8 as rs.usize);
+			const pos4 = dst4.length;
+			dst4.data[pos4 + 0] = (word6 >>> 24) & 255;
+			dst4.data[pos4 + 1] = (word6 >>> 16) & 255;
+			dst4.data[pos4 + 2] = (word6 >>> 8) & 255;
+			dst4.data[pos4 + 3] = word6 & 255;
+			dst4.data[pos4 + 4] = (word5 >>> 24) & 255;
+			dst4.data[pos4 + 5] = (word5 >>> 16) & 255;
+			dst4.data[pos4 + 6] = (word5 >>> 8) & 255;
+			dst4.data[pos4 + 7] = word5 & 255;
+			dst4.length = dst4.length + 8;
 			const into4: rs.Result<rs.u64, never> = rs.Ok(v as rs.u64);
 			const w8: rs.u64 = (into4 as { ok: true; value: rs.u64 }).value;
 			rs.byteVecPush(out, (result_eq$07qa6jl(into4, named4) ? 1 : 0) | (((rs.u64Eq(w8, v as rs.u64) ? 1 : 0) << 1) & 0xff));
 			const named5: rs.Result<rs.u128, never> = rs.Ok(v as rs.u128);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes((named5 as { ok: true; value: rs.u128 }).value)));
+			const dst5 = out;
+			const word7 = (named5 as { ok: true; value: rs.u128 }).value;
+			const word8 = rs.intWord(word7, 0);
+			const word9 = rs.intWord(word7, 32);
+			const word10 = rs.intWord(word7, 64);
+			const word11 = rs.intWord(word7, 96);
+			rs.byteVecReserve(dst5, 16 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = (word11 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word11 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word11 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word11 & 255;
+			dst5.data[pos5 + 4] = (word10 >>> 24) & 255;
+			dst5.data[pos5 + 5] = (word10 >>> 16) & 255;
+			dst5.data[pos5 + 6] = (word10 >>> 8) & 255;
+			dst5.data[pos5 + 7] = word10 & 255;
+			dst5.data[pos5 + 8] = (word9 >>> 24) & 255;
+			dst5.data[pos5 + 9] = (word9 >>> 16) & 255;
+			dst5.data[pos5 + 10] = (word9 >>> 8) & 255;
+			dst5.data[pos5 + 11] = word9 & 255;
+			dst5.data[pos5 + 12] = (word8 >>> 24) & 255;
+			dst5.data[pos5 + 13] = (word8 >>> 16) & 255;
+			dst5.data[pos5 + 14] = (word8 >>> 8) & 255;
+			dst5.data[pos5 + 15] = word8 & 255;
+			dst5.length = dst5.length + 16;
 			const into5: rs.Result<rs.u128, never> = rs.Ok(v as rs.u128);
 			const w10: rs.u128 = (into5 as { ok: true; value: rs.u128 }).value;
 			rs.byteVecPush(out, (result_eq$04o4aqp(into5, named5) ? 1 : 0) | (((rs.u128Eq(w10, v as rs.u128) ? 1 : 0) << 1) & 0xff));
 			const named6: rs.Result<rs.usize, never> = rs.Ok(v as rs.usize);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes((named6 as { ok: true; value: rs.usize }).value)));
+			const dst6 = out;
+			const word12 = (named6 as { ok: true; value: rs.usize }).value;
+			rs.byteVecReserve(dst6, 4 as rs.usize);
+			const pos6 = dst6.length;
+			dst6.data[pos6 + 0] = (word12 >>> 24) & 255;
+			dst6.data[pos6 + 1] = (word12 >>> 16) & 255;
+			dst6.data[pos6 + 2] = (word12 >>> 8) & 255;
+			dst6.data[pos6 + 3] = word12 & 255;
+			dst6.length = dst6.length + 4;
 			const into6: rs.Result<rs.usize, never> = rs.Ok(v as rs.usize);
 			const w12: rs.usize = (into6 as { ok: true; value: rs.usize }).value;
 			rs.byteVecPush(out, (result_eq$1nxe4h7(into6, named6) ? 1 : 0) | (((w12 === v as rs.usize ? 1 : 0) << 1) & 0xff));
 			const named7: rs.Result<rs.i16, never> = rs.Ok(v as rs.i16);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes((named7 as { ok: true; value: rs.i16 }).value)));
+			const dst7 = out;
+			const word13 = (named7 as { ok: true; value: rs.i16 }).value;
+			rs.byteVecReserve(dst7, 2 as rs.usize);
+			const pos7 = dst7.length;
+			dst7.data[pos7 + 0] = (word13 >>> 8) & 255;
+			dst7.data[pos7 + 1] = word13 & 255;
+			dst7.length = dst7.length + 2;
 			const into7: rs.Result<rs.i16, never> = rs.Ok(v as rs.i16);
 			const w14: rs.i16 = (into7 as { ok: true; value: rs.i16 }).value;
 			rs.byteVecPush(out, (result_eq$0zqqsur(into7, named7) ? 1 : 0) | (((w14 === v as rs.i16 ? 1 : 0) << 1) & 0xff));
 			const named8: rs.Result<rs.i32, never> = rs.Ok(v as rs.i32);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes((named8 as { ok: true; value: rs.i32 }).value)));
+			const dst8 = out;
+			const word14 = (named8 as { ok: true; value: rs.i32 }).value;
+			rs.byteVecReserve(dst8, 4 as rs.usize);
+			const pos8 = dst8.length;
+			dst8.data[pos8 + 0] = (word14 >>> 24) & 255;
+			dst8.data[pos8 + 1] = (word14 >>> 16) & 255;
+			dst8.data[pos8 + 2] = (word14 >>> 8) & 255;
+			dst8.data[pos8 + 3] = word14 & 255;
+			dst8.length = dst8.length + 4;
 			const into8: rs.Result<rs.i32, never> = rs.Ok(v as rs.i32);
 			const w16: rs.i32 = (into8 as { ok: true; value: rs.i32 }).value;
 			rs.byteVecPush(out, (result_eq$0f4q5sk(into8, named8) ? 1 : 0) | (((w16 === v as rs.i32 ? 1 : 0) << 1) & 0xff));
 			const named9: rs.Result<rs.i64, never> = rs.Ok(v as rs.i64);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes((named9 as { ok: true; value: rs.i64 }).value)));
+			const dst9 = out;
+			const word15 = (named9 as { ok: true; value: rs.i64 }).value;
+			const word16 = rs.intWord(word15, 0);
+			const word17 = rs.intWord(word15, 32);
+			rs.byteVecReserve(dst9, 8 as rs.usize);
+			const pos9 = dst9.length;
+			dst9.data[pos9 + 0] = (word17 >>> 24) & 255;
+			dst9.data[pos9 + 1] = (word17 >>> 16) & 255;
+			dst9.data[pos9 + 2] = (word17 >>> 8) & 255;
+			dst9.data[pos9 + 3] = word17 & 255;
+			dst9.data[pos9 + 4] = (word16 >>> 24) & 255;
+			dst9.data[pos9 + 5] = (word16 >>> 16) & 255;
+			dst9.data[pos9 + 6] = (word16 >>> 8) & 255;
+			dst9.data[pos9 + 7] = word16 & 255;
+			dst9.length = dst9.length + 8;
 			const into9: rs.Result<rs.i64, never> = rs.Ok(v as rs.i64);
 			const w18: rs.i64 = (into9 as { ok: true; value: rs.i64 }).value;
 			rs.byteVecPush(out, (result_eq$12fysd9(into9, named9) ? 1 : 0) | (((rs.i64Eq(w18, v as rs.i64) ? 1 : 0) << 1) & 0xff));
 			const named10: rs.Result<rs.i128, never> = rs.Ok(v as rs.i128);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes((named10 as { ok: true; value: rs.i128 }).value)));
+			const dst10 = out;
+			const word18 = (named10 as { ok: true; value: rs.i128 }).value;
+			const word19 = rs.intWord(word18, 0);
+			const word20 = rs.intWord(word18, 32);
+			const word21 = rs.intWord(word18, 64);
+			const word22 = rs.intWord(word18, 96);
+			rs.byteVecReserve(dst10, 16 as rs.usize);
+			const pos10 = dst10.length;
+			dst10.data[pos10 + 0] = (word22 >>> 24) & 255;
+			dst10.data[pos10 + 1] = (word22 >>> 16) & 255;
+			dst10.data[pos10 + 2] = (word22 >>> 8) & 255;
+			dst10.data[pos10 + 3] = word22 & 255;
+			dst10.data[pos10 + 4] = (word21 >>> 24) & 255;
+			dst10.data[pos10 + 5] = (word21 >>> 16) & 255;
+			dst10.data[pos10 + 6] = (word21 >>> 8) & 255;
+			dst10.data[pos10 + 7] = word21 & 255;
+			dst10.data[pos10 + 8] = (word20 >>> 24) & 255;
+			dst10.data[pos10 + 9] = (word20 >>> 16) & 255;
+			dst10.data[pos10 + 10] = (word20 >>> 8) & 255;
+			dst10.data[pos10 + 11] = word20 & 255;
+			dst10.data[pos10 + 12] = (word19 >>> 24) & 255;
+			dst10.data[pos10 + 13] = (word19 >>> 16) & 255;
+			dst10.data[pos10 + 14] = (word19 >>> 8) & 255;
+			dst10.data[pos10 + 15] = word19 & 255;
+			dst10.length = dst10.length + 16;
 			const into10: rs.Result<rs.i128, never> = rs.Ok(v as rs.i128);
 			const w20: rs.i128 = (into10 as { ok: true; value: rs.i128 }).value;
 			rs.byteVecPush(out, (result_eq$1o2c9h9(into10, named10) ? 1 : 0) | (((rs.i128Eq(w20, v as rs.i128) ? 1 : 0) << 1) & 0xff));
 			const named11: rs.Result<rs.isize, never> = rs.Ok(v as rs.isize);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes((named11 as { ok: true; value: rs.isize }).value)));
+			const dst11 = out;
+			const word23 = (named11 as { ok: true; value: rs.isize }).value;
+			rs.byteVecReserve(dst11, 4 as rs.usize);
+			const pos11 = dst11.length;
+			dst11.data[pos11 + 0] = (word23 >>> 24) & 255;
+			dst11.data[pos11 + 1] = (word23 >>> 16) & 255;
+			dst11.data[pos11 + 2] = (word23 >>> 8) & 255;
+			dst11.data[pos11 + 3] = word23 & 255;
+			dst11.length = dst11.length + 4;
 			const into11: rs.Result<rs.isize, never> = rs.Ok(v as rs.isize);
 			const w22: rs.isize = (into11 as { ok: true; value: rs.isize }).value;
 			rs.byteVecPush(out, (result_eq$0a3yvnt(into11, named11) ? 1 : 0) | (((w22 === v as rs.isize ? 1 : 0) << 1) & 0xff));
@@ -5599,42 +8653,148 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const v2: rs.u16 = _294;
 			const named12: rs.Result<rs.u16, never> = rs.Ok(v2);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes((named12 as { ok: true; value: rs.u16 }).value)));
+			const dst12 = out;
+			const word24 = (named12 as { ok: true; value: rs.u16 }).value;
+			rs.byteVecReserve(dst12, 2 as rs.usize);
+			const pos12 = dst12.length;
+			dst12.data[pos12 + 0] = (word24 >>> 8) & 255;
+			dst12.data[pos12 + 1] = word24 & 255;
+			dst12.length = dst12.length + 2;
 			const into12: rs.Result<rs.u16, never> = rs.Ok(v2);
 			const w24: rs.u16 = (into12 as { ok: true; value: rs.u16 }).value;
 			rs.byteVecPush(out, (result_eq$06v73px(into12, named12) ? 1 : 0) | (((w24 === v2 ? 1 : 0) << 1) & 0xff));
 			const named13: rs.Result<rs.u32, never> = rs.Ok(v2 as rs.u32);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes((named13 as { ok: true; value: rs.u32 }).value)));
+			const dst13 = out;
+			const word25 = (named13 as { ok: true; value: rs.u32 }).value;
+			rs.byteVecReserve(dst13, 4 as rs.usize);
+			const pos13 = dst13.length;
+			dst13.data[pos13 + 0] = (word25 >>> 24) & 255;
+			dst13.data[pos13 + 1] = (word25 >>> 16) & 255;
+			dst13.data[pos13 + 2] = (word25 >>> 8) & 255;
+			dst13.data[pos13 + 3] = word25 & 255;
+			dst13.length = dst13.length + 4;
 			const into13: rs.Result<rs.u32, never> = rs.Ok(v2 as rs.u32);
 			const w26: rs.u32 = (into13 as { ok: true; value: rs.u32 }).value;
 			rs.byteVecPush(out, (result_eq$08c3ca7(into13, named13) ? 1 : 0) | (((w26 === v2 as rs.u32 ? 1 : 0) << 1) & 0xff));
 			const named14: rs.Result<rs.u64, never> = rs.Ok(v2 as rs.u64);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes((named14 as { ok: true; value: rs.u64 }).value)));
+			const dst14 = out;
+			const word26 = (named14 as { ok: true; value: rs.u64 }).value;
+			const word27 = rs.intWord(word26, 0);
+			const word28 = rs.intWord(word26, 32);
+			rs.byteVecReserve(dst14, 8 as rs.usize);
+			const pos14 = dst14.length;
+			dst14.data[pos14 + 0] = (word28 >>> 24) & 255;
+			dst14.data[pos14 + 1] = (word28 >>> 16) & 255;
+			dst14.data[pos14 + 2] = (word28 >>> 8) & 255;
+			dst14.data[pos14 + 3] = word28 & 255;
+			dst14.data[pos14 + 4] = (word27 >>> 24) & 255;
+			dst14.data[pos14 + 5] = (word27 >>> 16) & 255;
+			dst14.data[pos14 + 6] = (word27 >>> 8) & 255;
+			dst14.data[pos14 + 7] = word27 & 255;
+			dst14.length = dst14.length + 8;
 			const into14: rs.Result<rs.u64, never> = rs.Ok(v2 as rs.u64);
 			const w28: rs.u64 = (into14 as { ok: true; value: rs.u64 }).value;
 			rs.byteVecPush(out, (result_eq$07qa6jl(into14, named14) ? 1 : 0) | (((rs.u64Eq(w28, v2 as rs.u64) ? 1 : 0) << 1) & 0xff));
 			const named15: rs.Result<rs.u128, never> = rs.Ok(v2 as rs.u128);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes((named15 as { ok: true; value: rs.u128 }).value)));
+			const dst15 = out;
+			const word29 = (named15 as { ok: true; value: rs.u128 }).value;
+			const word30 = rs.intWord(word29, 0);
+			const word31 = rs.intWord(word29, 32);
+			const word32 = rs.intWord(word29, 64);
+			const word33 = rs.intWord(word29, 96);
+			rs.byteVecReserve(dst15, 16 as rs.usize);
+			const pos15 = dst15.length;
+			dst15.data[pos15 + 0] = (word33 >>> 24) & 255;
+			dst15.data[pos15 + 1] = (word33 >>> 16) & 255;
+			dst15.data[pos15 + 2] = (word33 >>> 8) & 255;
+			dst15.data[pos15 + 3] = word33 & 255;
+			dst15.data[pos15 + 4] = (word32 >>> 24) & 255;
+			dst15.data[pos15 + 5] = (word32 >>> 16) & 255;
+			dst15.data[pos15 + 6] = (word32 >>> 8) & 255;
+			dst15.data[pos15 + 7] = word32 & 255;
+			dst15.data[pos15 + 8] = (word31 >>> 24) & 255;
+			dst15.data[pos15 + 9] = (word31 >>> 16) & 255;
+			dst15.data[pos15 + 10] = (word31 >>> 8) & 255;
+			dst15.data[pos15 + 11] = word31 & 255;
+			dst15.data[pos15 + 12] = (word30 >>> 24) & 255;
+			dst15.data[pos15 + 13] = (word30 >>> 16) & 255;
+			dst15.data[pos15 + 14] = (word30 >>> 8) & 255;
+			dst15.data[pos15 + 15] = word30 & 255;
+			dst15.length = dst15.length + 16;
 			const into15: rs.Result<rs.u128, never> = rs.Ok(v2 as rs.u128);
 			const w30: rs.u128 = (into15 as { ok: true; value: rs.u128 }).value;
 			rs.byteVecPush(out, (result_eq$04o4aqp(into15, named15) ? 1 : 0) | (((rs.u128Eq(w30, v2 as rs.u128) ? 1 : 0) << 1) & 0xff));
 			const named16: rs.Result<rs.usize, never> = rs.Ok(v2 as rs.usize);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes((named16 as { ok: true; value: rs.usize }).value)));
+			const dst16 = out;
+			const word34 = (named16 as { ok: true; value: rs.usize }).value;
+			rs.byteVecReserve(dst16, 4 as rs.usize);
+			const pos16 = dst16.length;
+			dst16.data[pos16 + 0] = (word34 >>> 24) & 255;
+			dst16.data[pos16 + 1] = (word34 >>> 16) & 255;
+			dst16.data[pos16 + 2] = (word34 >>> 8) & 255;
+			dst16.data[pos16 + 3] = word34 & 255;
+			dst16.length = dst16.length + 4;
 			const into16: rs.Result<rs.usize, never> = rs.Ok(v2 as rs.usize);
 			const w32: rs.usize = (into16 as { ok: true; value: rs.usize }).value;
 			rs.byteVecPush(out, (result_eq$1nxe4h7(into16, named16) ? 1 : 0) | (((w32 === v2 as rs.usize ? 1 : 0) << 1) & 0xff));
 			const named17: rs.Result<rs.i32, never> = rs.Ok(v2 as rs.i32);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes((named17 as { ok: true; value: rs.i32 }).value)));
+			const dst17 = out;
+			const word35 = (named17 as { ok: true; value: rs.i32 }).value;
+			rs.byteVecReserve(dst17, 4 as rs.usize);
+			const pos17 = dst17.length;
+			dst17.data[pos17 + 0] = (word35 >>> 24) & 255;
+			dst17.data[pos17 + 1] = (word35 >>> 16) & 255;
+			dst17.data[pos17 + 2] = (word35 >>> 8) & 255;
+			dst17.data[pos17 + 3] = word35 & 255;
+			dst17.length = dst17.length + 4;
 			const into17: rs.Result<rs.i32, never> = rs.Ok(v2 as rs.i32);
 			const w34: rs.i32 = (into17 as { ok: true; value: rs.i32 }).value;
 			rs.byteVecPush(out, (result_eq$0f4q5sk(into17, named17) ? 1 : 0) | (((w34 === v2 as rs.i32 ? 1 : 0) << 1) & 0xff));
 			const named18: rs.Result<rs.i64, never> = rs.Ok(v2 as rs.i64);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes((named18 as { ok: true; value: rs.i64 }).value)));
+			const dst18 = out;
+			const word36 = (named18 as { ok: true; value: rs.i64 }).value;
+			const word37 = rs.intWord(word36, 0);
+			const word38 = rs.intWord(word36, 32);
+			rs.byteVecReserve(dst18, 8 as rs.usize);
+			const pos18 = dst18.length;
+			dst18.data[pos18 + 0] = (word38 >>> 24) & 255;
+			dst18.data[pos18 + 1] = (word38 >>> 16) & 255;
+			dst18.data[pos18 + 2] = (word38 >>> 8) & 255;
+			dst18.data[pos18 + 3] = word38 & 255;
+			dst18.data[pos18 + 4] = (word37 >>> 24) & 255;
+			dst18.data[pos18 + 5] = (word37 >>> 16) & 255;
+			dst18.data[pos18 + 6] = (word37 >>> 8) & 255;
+			dst18.data[pos18 + 7] = word37 & 255;
+			dst18.length = dst18.length + 8;
 			const into18: rs.Result<rs.i64, never> = rs.Ok(v2 as rs.i64);
 			const w36: rs.i64 = (into18 as { ok: true; value: rs.i64 }).value;
 			rs.byteVecPush(out, (result_eq$12fysd9(into18, named18) ? 1 : 0) | (((rs.i64Eq(w36, v2 as rs.i64) ? 1 : 0) << 1) & 0xff));
 			const named19: rs.Result<rs.i128, never> = rs.Ok(v2 as rs.i128);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes((named19 as { ok: true; value: rs.i128 }).value)));
+			const dst19 = out;
+			const word39 = (named19 as { ok: true; value: rs.i128 }).value;
+			const word40 = rs.intWord(word39, 0);
+			const word41 = rs.intWord(word39, 32);
+			const word42 = rs.intWord(word39, 64);
+			const word43 = rs.intWord(word39, 96);
+			rs.byteVecReserve(dst19, 16 as rs.usize);
+			const pos19 = dst19.length;
+			dst19.data[pos19 + 0] = (word43 >>> 24) & 255;
+			dst19.data[pos19 + 1] = (word43 >>> 16) & 255;
+			dst19.data[pos19 + 2] = (word43 >>> 8) & 255;
+			dst19.data[pos19 + 3] = word43 & 255;
+			dst19.data[pos19 + 4] = (word42 >>> 24) & 255;
+			dst19.data[pos19 + 5] = (word42 >>> 16) & 255;
+			dst19.data[pos19 + 6] = (word42 >>> 8) & 255;
+			dst19.data[pos19 + 7] = word42 & 255;
+			dst19.data[pos19 + 8] = (word41 >>> 24) & 255;
+			dst19.data[pos19 + 9] = (word41 >>> 16) & 255;
+			dst19.data[pos19 + 10] = (word41 >>> 8) & 255;
+			dst19.data[pos19 + 11] = word41 & 255;
+			dst19.data[pos19 + 12] = (word40 >>> 24) & 255;
+			dst19.data[pos19 + 13] = (word40 >>> 16) & 255;
+			dst19.data[pos19 + 14] = (word40 >>> 8) & 255;
+			dst19.data[pos19 + 15] = word40 & 255;
+			dst19.length = dst19.length + 16;
 			const into19: rs.Result<rs.i128, never> = rs.Ok(v2 as rs.i128);
 			const w38: rs.i128 = (into19 as { ok: true; value: rs.i128 }).value;
 			rs.byteVecPush(out, (result_eq$1o2c9h9(into19, named19) ? 1 : 0) | (((rs.i128Eq(w38, v2 as rs.i128) ? 1 : 0) << 1) & 0xff));
@@ -5651,27 +8811,111 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const v3: rs.u32 = _495;
 			const named20: rs.Result<rs.u32, never> = rs.Ok(v3);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes((named20 as { ok: true; value: rs.u32 }).value)));
+			const dst20 = out;
+			const word44 = (named20 as { ok: true; value: rs.u32 }).value;
+			rs.byteVecReserve(dst20, 4 as rs.usize);
+			const pos20 = dst20.length;
+			dst20.data[pos20 + 0] = (word44 >>> 24) & 255;
+			dst20.data[pos20 + 1] = (word44 >>> 16) & 255;
+			dst20.data[pos20 + 2] = (word44 >>> 8) & 255;
+			dst20.data[pos20 + 3] = word44 & 255;
+			dst20.length = dst20.length + 4;
 			const into20: rs.Result<rs.u32, never> = rs.Ok(v3);
 			const w40: rs.u32 = (into20 as { ok: true; value: rs.u32 }).value;
 			rs.byteVecPush(out, (result_eq$08c3ca7(into20, named20) ? 1 : 0) | (((w40 === v3 ? 1 : 0) << 1) & 0xff));
 			const named21: rs.Result<rs.u64, never> = rs.Ok(v3 as rs.u64);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes((named21 as { ok: true; value: rs.u64 }).value)));
+			const dst21 = out;
+			const word45 = (named21 as { ok: true; value: rs.u64 }).value;
+			const word46 = rs.intWord(word45, 0);
+			const word47 = rs.intWord(word45, 32);
+			rs.byteVecReserve(dst21, 8 as rs.usize);
+			const pos21 = dst21.length;
+			dst21.data[pos21 + 0] = (word47 >>> 24) & 255;
+			dst21.data[pos21 + 1] = (word47 >>> 16) & 255;
+			dst21.data[pos21 + 2] = (word47 >>> 8) & 255;
+			dst21.data[pos21 + 3] = word47 & 255;
+			dst21.data[pos21 + 4] = (word46 >>> 24) & 255;
+			dst21.data[pos21 + 5] = (word46 >>> 16) & 255;
+			dst21.data[pos21 + 6] = (word46 >>> 8) & 255;
+			dst21.data[pos21 + 7] = word46 & 255;
+			dst21.length = dst21.length + 8;
 			const into21: rs.Result<rs.u64, never> = rs.Ok(v3 as rs.u64);
 			const w42: rs.u64 = (into21 as { ok: true; value: rs.u64 }).value;
 			rs.byteVecPush(out, (result_eq$07qa6jl(into21, named21) ? 1 : 0) | (((rs.u64Eq(w42, v3 as rs.u64) ? 1 : 0) << 1) & 0xff));
 			const named22: rs.Result<rs.u128, never> = rs.Ok(v3 as rs.u128);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes((named22 as { ok: true; value: rs.u128 }).value)));
+			const dst22 = out;
+			const word48 = (named22 as { ok: true; value: rs.u128 }).value;
+			const word49 = rs.intWord(word48, 0);
+			const word50 = rs.intWord(word48, 32);
+			const word51 = rs.intWord(word48, 64);
+			const word52 = rs.intWord(word48, 96);
+			rs.byteVecReserve(dst22, 16 as rs.usize);
+			const pos22 = dst22.length;
+			dst22.data[pos22 + 0] = (word52 >>> 24) & 255;
+			dst22.data[pos22 + 1] = (word52 >>> 16) & 255;
+			dst22.data[pos22 + 2] = (word52 >>> 8) & 255;
+			dst22.data[pos22 + 3] = word52 & 255;
+			dst22.data[pos22 + 4] = (word51 >>> 24) & 255;
+			dst22.data[pos22 + 5] = (word51 >>> 16) & 255;
+			dst22.data[pos22 + 6] = (word51 >>> 8) & 255;
+			dst22.data[pos22 + 7] = word51 & 255;
+			dst22.data[pos22 + 8] = (word50 >>> 24) & 255;
+			dst22.data[pos22 + 9] = (word50 >>> 16) & 255;
+			dst22.data[pos22 + 10] = (word50 >>> 8) & 255;
+			dst22.data[pos22 + 11] = word50 & 255;
+			dst22.data[pos22 + 12] = (word49 >>> 24) & 255;
+			dst22.data[pos22 + 13] = (word49 >>> 16) & 255;
+			dst22.data[pos22 + 14] = (word49 >>> 8) & 255;
+			dst22.data[pos22 + 15] = word49 & 255;
+			dst22.length = dst22.length + 16;
 			const into22: rs.Result<rs.u128, never> = rs.Ok(v3 as rs.u128);
 			const w44: rs.u128 = (into22 as { ok: true; value: rs.u128 }).value;
 			rs.byteVecPush(out, (result_eq$04o4aqp(into22, named22) ? 1 : 0) | (((rs.u128Eq(w44, v3 as rs.u128) ? 1 : 0) << 1) & 0xff));
 			const named23: rs.Result<rs.i64, never> = rs.Ok(v3 as rs.i64);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes((named23 as { ok: true; value: rs.i64 }).value)));
+			const dst23 = out;
+			const word53 = (named23 as { ok: true; value: rs.i64 }).value;
+			const word54 = rs.intWord(word53, 0);
+			const word55 = rs.intWord(word53, 32);
+			rs.byteVecReserve(dst23, 8 as rs.usize);
+			const pos23 = dst23.length;
+			dst23.data[pos23 + 0] = (word55 >>> 24) & 255;
+			dst23.data[pos23 + 1] = (word55 >>> 16) & 255;
+			dst23.data[pos23 + 2] = (word55 >>> 8) & 255;
+			dst23.data[pos23 + 3] = word55 & 255;
+			dst23.data[pos23 + 4] = (word54 >>> 24) & 255;
+			dst23.data[pos23 + 5] = (word54 >>> 16) & 255;
+			dst23.data[pos23 + 6] = (word54 >>> 8) & 255;
+			dst23.data[pos23 + 7] = word54 & 255;
+			dst23.length = dst23.length + 8;
 			const into23: rs.Result<rs.i64, never> = rs.Ok(v3 as rs.i64);
 			const w46: rs.i64 = (into23 as { ok: true; value: rs.i64 }).value;
 			rs.byteVecPush(out, (result_eq$12fysd9(into23, named23) ? 1 : 0) | (((rs.i64Eq(w46, v3 as rs.i64) ? 1 : 0) << 1) & 0xff));
 			const named24: rs.Result<rs.i128, never> = rs.Ok(v3 as rs.i128);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes((named24 as { ok: true; value: rs.i128 }).value)));
+			const dst24 = out;
+			const word56 = (named24 as { ok: true; value: rs.i128 }).value;
+			const word57 = rs.intWord(word56, 0);
+			const word58 = rs.intWord(word56, 32);
+			const word59 = rs.intWord(word56, 64);
+			const word60 = rs.intWord(word56, 96);
+			rs.byteVecReserve(dst24, 16 as rs.usize);
+			const pos24 = dst24.length;
+			dst24.data[pos24 + 0] = (word60 >>> 24) & 255;
+			dst24.data[pos24 + 1] = (word60 >>> 16) & 255;
+			dst24.data[pos24 + 2] = (word60 >>> 8) & 255;
+			dst24.data[pos24 + 3] = word60 & 255;
+			dst24.data[pos24 + 4] = (word59 >>> 24) & 255;
+			dst24.data[pos24 + 5] = (word59 >>> 16) & 255;
+			dst24.data[pos24 + 6] = (word59 >>> 8) & 255;
+			dst24.data[pos24 + 7] = word59 & 255;
+			dst24.data[pos24 + 8] = (word58 >>> 24) & 255;
+			dst24.data[pos24 + 9] = (word58 >>> 16) & 255;
+			dst24.data[pos24 + 10] = (word58 >>> 8) & 255;
+			dst24.data[pos24 + 11] = word58 & 255;
+			dst24.data[pos24 + 12] = (word57 >>> 24) & 255;
+			dst24.data[pos24 + 13] = (word57 >>> 16) & 255;
+			dst24.data[pos24 + 14] = (word57 >>> 8) & 255;
+			dst24.data[pos24 + 15] = word57 & 255;
+			dst24.length = dst24.length + 16;
 			const into24: rs.Result<rs.i128, never> = rs.Ok(v3 as rs.i128);
 			const w48: rs.i128 = (into24 as { ok: true; value: rs.i128 }).value;
 			rs.byteVecPush(out, (result_eq$1o2c9h9(into24, named24) ? 1 : 0) | (((rs.i128Eq(w48, v3 as rs.i128) ? 1 : 0) << 1) & 0xff));
@@ -5688,17 +8932,79 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const v4: rs.u64 = _630;
 			const named25: rs.Result<rs.u64, never> = rs.Ok(v4);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes((named25 as { ok: true; value: rs.u64 }).value)));
+			const dst25 = out;
+			const word61 = (named25 as { ok: true; value: rs.u64 }).value;
+			const word62 = rs.intWord(word61, 0);
+			const word63 = rs.intWord(word61, 32);
+			rs.byteVecReserve(dst25, 8 as rs.usize);
+			const pos25 = dst25.length;
+			dst25.data[pos25 + 0] = (word63 >>> 24) & 255;
+			dst25.data[pos25 + 1] = (word63 >>> 16) & 255;
+			dst25.data[pos25 + 2] = (word63 >>> 8) & 255;
+			dst25.data[pos25 + 3] = word63 & 255;
+			dst25.data[pos25 + 4] = (word62 >>> 24) & 255;
+			dst25.data[pos25 + 5] = (word62 >>> 16) & 255;
+			dst25.data[pos25 + 6] = (word62 >>> 8) & 255;
+			dst25.data[pos25 + 7] = word62 & 255;
+			dst25.length = dst25.length + 8;
 			const into25: rs.Result<rs.u64, never> = rs.Ok(v4);
 			const w50: rs.u64 = (into25 as { ok: true; value: rs.u64 }).value;
 			rs.byteVecPush(out, (result_eq$07qa6jl(into25, named25) ? 1 : 0) | (((rs.u64Eq(w50, v4) ? 1 : 0) << 1) & 0xff));
 			const named26: rs.Result<rs.u128, never> = rs.Ok(rs.u128Cast(v4));
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes((named26 as { ok: true; value: rs.u128 }).value)));
+			const dst26 = out;
+			const word64 = (named26 as { ok: true; value: rs.u128 }).value;
+			const word65 = rs.intWord(word64, 0);
+			const word66 = rs.intWord(word64, 32);
+			const word67 = rs.intWord(word64, 64);
+			const word68 = rs.intWord(word64, 96);
+			rs.byteVecReserve(dst26, 16 as rs.usize);
+			const pos26 = dst26.length;
+			dst26.data[pos26 + 0] = (word68 >>> 24) & 255;
+			dst26.data[pos26 + 1] = (word68 >>> 16) & 255;
+			dst26.data[pos26 + 2] = (word68 >>> 8) & 255;
+			dst26.data[pos26 + 3] = word68 & 255;
+			dst26.data[pos26 + 4] = (word67 >>> 24) & 255;
+			dst26.data[pos26 + 5] = (word67 >>> 16) & 255;
+			dst26.data[pos26 + 6] = (word67 >>> 8) & 255;
+			dst26.data[pos26 + 7] = word67 & 255;
+			dst26.data[pos26 + 8] = (word66 >>> 24) & 255;
+			dst26.data[pos26 + 9] = (word66 >>> 16) & 255;
+			dst26.data[pos26 + 10] = (word66 >>> 8) & 255;
+			dst26.data[pos26 + 11] = word66 & 255;
+			dst26.data[pos26 + 12] = (word65 >>> 24) & 255;
+			dst26.data[pos26 + 13] = (word65 >>> 16) & 255;
+			dst26.data[pos26 + 14] = (word65 >>> 8) & 255;
+			dst26.data[pos26 + 15] = word65 & 255;
+			dst26.length = dst26.length + 16;
 			const into26: rs.Result<rs.u128, never> = rs.Ok(rs.u128Cast(v4));
 			const w52: rs.u128 = (into26 as { ok: true; value: rs.u128 }).value;
 			rs.byteVecPush(out, (result_eq$04o4aqp(into26, named26) ? 1 : 0) | (((rs.u128Eq(w52, rs.u128Cast(v4)) ? 1 : 0) << 1) & 0xff));
 			const named27: rs.Result<rs.i128, never> = rs.Ok(rs.i128Cast(v4));
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes((named27 as { ok: true; value: rs.i128 }).value)));
+			const dst27 = out;
+			const word69 = (named27 as { ok: true; value: rs.i128 }).value;
+			const word70 = rs.intWord(word69, 0);
+			const word71 = rs.intWord(word69, 32);
+			const word72 = rs.intWord(word69, 64);
+			const word73 = rs.intWord(word69, 96);
+			rs.byteVecReserve(dst27, 16 as rs.usize);
+			const pos27 = dst27.length;
+			dst27.data[pos27 + 0] = (word73 >>> 24) & 255;
+			dst27.data[pos27 + 1] = (word73 >>> 16) & 255;
+			dst27.data[pos27 + 2] = (word73 >>> 8) & 255;
+			dst27.data[pos27 + 3] = word73 & 255;
+			dst27.data[pos27 + 4] = (word72 >>> 24) & 255;
+			dst27.data[pos27 + 5] = (word72 >>> 16) & 255;
+			dst27.data[pos27 + 6] = (word72 >>> 8) & 255;
+			dst27.data[pos27 + 7] = word72 & 255;
+			dst27.data[pos27 + 8] = (word71 >>> 24) & 255;
+			dst27.data[pos27 + 9] = (word71 >>> 16) & 255;
+			dst27.data[pos27 + 10] = (word71 >>> 8) & 255;
+			dst27.data[pos27 + 11] = word71 & 255;
+			dst27.data[pos27 + 12] = (word70 >>> 24) & 255;
+			dst27.data[pos27 + 13] = (word70 >>> 16) & 255;
+			dst27.data[pos27 + 14] = (word70 >>> 8) & 255;
+			dst27.data[pos27 + 15] = word70 & 255;
+			dst27.length = dst27.length + 16;
 			const into27: rs.Result<rs.i128, never> = rs.Ok(rs.i128Cast(v4));
 			const w54: rs.i128 = (into27 as { ok: true; value: rs.i128 }).value;
 			rs.byteVecPush(out, (result_eq$1o2c9h9(into27, named27) ? 1 : 0) | (((rs.i128Eq(w54, rs.i128Cast(v4)) ? 1 : 0) << 1) & 0xff));
@@ -5715,7 +9021,31 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const v5: rs.u128 = _721;
 			const named28: rs.Result<rs.u128, never> = rs.Ok(v5);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes((named28 as { ok: true; value: rs.u128 }).value)));
+			const dst28 = out;
+			const word74 = (named28 as { ok: true; value: rs.u128 }).value;
+			const word75 = rs.intWord(word74, 0);
+			const word76 = rs.intWord(word74, 32);
+			const word77 = rs.intWord(word74, 64);
+			const word78 = rs.intWord(word74, 96);
+			rs.byteVecReserve(dst28, 16 as rs.usize);
+			const pos28 = dst28.length;
+			dst28.data[pos28 + 0] = (word78 >>> 24) & 255;
+			dst28.data[pos28 + 1] = (word78 >>> 16) & 255;
+			dst28.data[pos28 + 2] = (word78 >>> 8) & 255;
+			dst28.data[pos28 + 3] = word78 & 255;
+			dst28.data[pos28 + 4] = (word77 >>> 24) & 255;
+			dst28.data[pos28 + 5] = (word77 >>> 16) & 255;
+			dst28.data[pos28 + 6] = (word77 >>> 8) & 255;
+			dst28.data[pos28 + 7] = word77 & 255;
+			dst28.data[pos28 + 8] = (word76 >>> 24) & 255;
+			dst28.data[pos28 + 9] = (word76 >>> 16) & 255;
+			dst28.data[pos28 + 10] = (word76 >>> 8) & 255;
+			dst28.data[pos28 + 11] = word76 & 255;
+			dst28.data[pos28 + 12] = (word75 >>> 24) & 255;
+			dst28.data[pos28 + 13] = (word75 >>> 16) & 255;
+			dst28.data[pos28 + 14] = (word75 >>> 8) & 255;
+			dst28.data[pos28 + 15] = word75 & 255;
+			dst28.length = dst28.length + 16;
 			const into28: rs.Result<rs.u128, never> = rs.Ok(v5);
 			const w56: rs.u128 = (into28 as { ok: true; value: rs.u128 }).value;
 			rs.byteVecPush(out, (result_eq$04o4aqp(into28, named28) ? 1 : 0) | (((rs.u128Eq(w56, v5) ? 1 : 0) << 1) & 0xff));
@@ -5732,7 +9062,15 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const v6: rs.usize = _768;
 			const named29: rs.Result<rs.usize, never> = rs.Ok(v6);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes((named29 as { ok: true; value: rs.usize }).value)));
+			const dst29 = out;
+			const word79 = (named29 as { ok: true; value: rs.usize }).value;
+			rs.byteVecReserve(dst29, 4 as rs.usize);
+			const pos29 = dst29.length;
+			dst29.data[pos29 + 0] = (word79 >>> 24) & 255;
+			dst29.data[pos29 + 1] = (word79 >>> 16) & 255;
+			dst29.data[pos29 + 2] = (word79 >>> 8) & 255;
+			dst29.data[pos29 + 3] = word79 & 255;
+			dst29.length = dst29.length + 4;
 			const into29: rs.Result<rs.usize, never> = rs.Ok(v6);
 			const w58: rs.usize = (into29 as { ok: true; value: rs.usize }).value;
 			rs.byteVecPush(out, (result_eq$1nxe4h7(into29, named29) ? 1 : 0) | (((w58 === v6 ? 1 : 0) << 1) & 0xff));
@@ -5749,32 +9087,96 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const v7: rs.i8 = _815;
 			const named30: rs.Result<rs.i8, never> = rs.Ok(v7);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes((named30 as { ok: true; value: rs.i8 }).value)));
+			const dst30 = out;
+			const word80 = (named30 as { ok: true; value: rs.i8 }).value;
+			rs.byteVecReserve(dst30, 1 as rs.usize);
+			dst30.data[dst30.length + 0] = word80 & 255;
+			dst30.length = dst30.length + 1;
 			const into30: rs.Result<rs.i8, never> = rs.Ok(v7);
 			const w60: rs.i8 = (into30 as { ok: true; value: rs.i8 }).value;
 			rs.byteVecPush(out, (result_eq$0g4cq9b(into30, named30) ? 1 : 0) | (((w60 === v7 ? 1 : 0) << 1) & 0xff));
 			const named31: rs.Result<rs.i16, never> = rs.Ok(v7 as rs.i16);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes((named31 as { ok: true; value: rs.i16 }).value)));
+			const dst31 = out;
+			const word81 = (named31 as { ok: true; value: rs.i16 }).value;
+			rs.byteVecReserve(dst31, 2 as rs.usize);
+			const pos31 = dst31.length;
+			dst31.data[pos31 + 0] = (word81 >>> 8) & 255;
+			dst31.data[pos31 + 1] = word81 & 255;
+			dst31.length = dst31.length + 2;
 			const into31: rs.Result<rs.i16, never> = rs.Ok(v7 as rs.i16);
 			const w62: rs.i16 = (into31 as { ok: true; value: rs.i16 }).value;
 			rs.byteVecPush(out, (result_eq$0zqqsur(into31, named31) ? 1 : 0) | (((w62 === v7 as rs.i16 ? 1 : 0) << 1) & 0xff));
 			const named32: rs.Result<rs.i32, never> = rs.Ok(v7 as rs.i32);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes((named32 as { ok: true; value: rs.i32 }).value)));
+			const dst32 = out;
+			const word82 = (named32 as { ok: true; value: rs.i32 }).value;
+			rs.byteVecReserve(dst32, 4 as rs.usize);
+			const pos32 = dst32.length;
+			dst32.data[pos32 + 0] = (word82 >>> 24) & 255;
+			dst32.data[pos32 + 1] = (word82 >>> 16) & 255;
+			dst32.data[pos32 + 2] = (word82 >>> 8) & 255;
+			dst32.data[pos32 + 3] = word82 & 255;
+			dst32.length = dst32.length + 4;
 			const into32: rs.Result<rs.i32, never> = rs.Ok(v7 as rs.i32);
 			const w64: rs.i32 = (into32 as { ok: true; value: rs.i32 }).value;
 			rs.byteVecPush(out, (result_eq$0f4q5sk(into32, named32) ? 1 : 0) | (((w64 === v7 as rs.i32 ? 1 : 0) << 1) & 0xff));
 			const named33: rs.Result<rs.i64, never> = rs.Ok(v7 as rs.i64);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes((named33 as { ok: true; value: rs.i64 }).value)));
+			const dst33 = out;
+			const word83 = (named33 as { ok: true; value: rs.i64 }).value;
+			const word84 = rs.intWord(word83, 0);
+			const word85 = rs.intWord(word83, 32);
+			rs.byteVecReserve(dst33, 8 as rs.usize);
+			const pos33 = dst33.length;
+			dst33.data[pos33 + 0] = (word85 >>> 24) & 255;
+			dst33.data[pos33 + 1] = (word85 >>> 16) & 255;
+			dst33.data[pos33 + 2] = (word85 >>> 8) & 255;
+			dst33.data[pos33 + 3] = word85 & 255;
+			dst33.data[pos33 + 4] = (word84 >>> 24) & 255;
+			dst33.data[pos33 + 5] = (word84 >>> 16) & 255;
+			dst33.data[pos33 + 6] = (word84 >>> 8) & 255;
+			dst33.data[pos33 + 7] = word84 & 255;
+			dst33.length = dst33.length + 8;
 			const into33: rs.Result<rs.i64, never> = rs.Ok(v7 as rs.i64);
 			const w66: rs.i64 = (into33 as { ok: true; value: rs.i64 }).value;
 			rs.byteVecPush(out, (result_eq$12fysd9(into33, named33) ? 1 : 0) | (((rs.i64Eq(w66, v7 as rs.i64) ? 1 : 0) << 1) & 0xff));
 			const named34: rs.Result<rs.i128, never> = rs.Ok(v7 as rs.i128);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes((named34 as { ok: true; value: rs.i128 }).value)));
+			const dst34 = out;
+			const word86 = (named34 as { ok: true; value: rs.i128 }).value;
+			const word87 = rs.intWord(word86, 0);
+			const word88 = rs.intWord(word86, 32);
+			const word89 = rs.intWord(word86, 64);
+			const word90 = rs.intWord(word86, 96);
+			rs.byteVecReserve(dst34, 16 as rs.usize);
+			const pos34 = dst34.length;
+			dst34.data[pos34 + 0] = (word90 >>> 24) & 255;
+			dst34.data[pos34 + 1] = (word90 >>> 16) & 255;
+			dst34.data[pos34 + 2] = (word90 >>> 8) & 255;
+			dst34.data[pos34 + 3] = word90 & 255;
+			dst34.data[pos34 + 4] = (word89 >>> 24) & 255;
+			dst34.data[pos34 + 5] = (word89 >>> 16) & 255;
+			dst34.data[pos34 + 6] = (word89 >>> 8) & 255;
+			dst34.data[pos34 + 7] = word89 & 255;
+			dst34.data[pos34 + 8] = (word88 >>> 24) & 255;
+			dst34.data[pos34 + 9] = (word88 >>> 16) & 255;
+			dst34.data[pos34 + 10] = (word88 >>> 8) & 255;
+			dst34.data[pos34 + 11] = word88 & 255;
+			dst34.data[pos34 + 12] = (word87 >>> 24) & 255;
+			dst34.data[pos34 + 13] = (word87 >>> 16) & 255;
+			dst34.data[pos34 + 14] = (word87 >>> 8) & 255;
+			dst34.data[pos34 + 15] = word87 & 255;
+			dst34.length = dst34.length + 16;
 			const into34: rs.Result<rs.i128, never> = rs.Ok(v7 as rs.i128);
 			const w68: rs.i128 = (into34 as { ok: true; value: rs.i128 }).value;
 			rs.byteVecPush(out, (result_eq$1o2c9h9(into34, named34) ? 1 : 0) | (((rs.i128Eq(w68, v7 as rs.i128) ? 1 : 0) << 1) & 0xff));
 			const named35: rs.Result<rs.isize, never> = rs.Ok(v7 as rs.isize);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes((named35 as { ok: true; value: rs.isize }).value)));
+			const dst35 = out;
+			const word91 = (named35 as { ok: true; value: rs.isize }).value;
+			rs.byteVecReserve(dst35, 4 as rs.usize);
+			const pos35 = dst35.length;
+			dst35.data[pos35 + 0] = (word91 >>> 24) & 255;
+			dst35.data[pos35 + 1] = (word91 >>> 16) & 255;
+			dst35.data[pos35 + 2] = (word91 >>> 8) & 255;
+			dst35.data[pos35 + 3] = word91 & 255;
+			dst35.length = dst35.length + 4;
 			const into35: rs.Result<rs.isize, never> = rs.Ok(v7 as rs.isize);
 			const w70: rs.isize = (into35 as { ok: true; value: rs.isize }).value;
 			rs.byteVecPush(out, (result_eq$0a3yvnt(into35, named35) ? 1 : 0) | (((w70 === v7 as rs.isize ? 1 : 0) << 1) & 0xff));
@@ -5791,27 +9193,87 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const v8: rs.i16 = _972;
 			const named36: rs.Result<rs.i16, never> = rs.Ok(v8);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes((named36 as { ok: true; value: rs.i16 }).value)));
+			const dst36 = out;
+			const word92 = (named36 as { ok: true; value: rs.i16 }).value;
+			rs.byteVecReserve(dst36, 2 as rs.usize);
+			const pos36 = dst36.length;
+			dst36.data[pos36 + 0] = (word92 >>> 8) & 255;
+			dst36.data[pos36 + 1] = word92 & 255;
+			dst36.length = dst36.length + 2;
 			const into36: rs.Result<rs.i16, never> = rs.Ok(v8);
 			const w72: rs.i16 = (into36 as { ok: true; value: rs.i16 }).value;
 			rs.byteVecPush(out, (result_eq$0zqqsur(into36, named36) ? 1 : 0) | (((w72 === v8 ? 1 : 0) << 1) & 0xff));
 			const named37: rs.Result<rs.i32, never> = rs.Ok(v8 as rs.i32);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes((named37 as { ok: true; value: rs.i32 }).value)));
+			const dst37 = out;
+			const word93 = (named37 as { ok: true; value: rs.i32 }).value;
+			rs.byteVecReserve(dst37, 4 as rs.usize);
+			const pos37 = dst37.length;
+			dst37.data[pos37 + 0] = (word93 >>> 24) & 255;
+			dst37.data[pos37 + 1] = (word93 >>> 16) & 255;
+			dst37.data[pos37 + 2] = (word93 >>> 8) & 255;
+			dst37.data[pos37 + 3] = word93 & 255;
+			dst37.length = dst37.length + 4;
 			const into37: rs.Result<rs.i32, never> = rs.Ok(v8 as rs.i32);
 			const w74: rs.i32 = (into37 as { ok: true; value: rs.i32 }).value;
 			rs.byteVecPush(out, (result_eq$0f4q5sk(into37, named37) ? 1 : 0) | (((w74 === v8 as rs.i32 ? 1 : 0) << 1) & 0xff));
 			const named38: rs.Result<rs.i64, never> = rs.Ok(v8 as rs.i64);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes((named38 as { ok: true; value: rs.i64 }).value)));
+			const dst38 = out;
+			const word94 = (named38 as { ok: true; value: rs.i64 }).value;
+			const word95 = rs.intWord(word94, 0);
+			const word96 = rs.intWord(word94, 32);
+			rs.byteVecReserve(dst38, 8 as rs.usize);
+			const pos38 = dst38.length;
+			dst38.data[pos38 + 0] = (word96 >>> 24) & 255;
+			dst38.data[pos38 + 1] = (word96 >>> 16) & 255;
+			dst38.data[pos38 + 2] = (word96 >>> 8) & 255;
+			dst38.data[pos38 + 3] = word96 & 255;
+			dst38.data[pos38 + 4] = (word95 >>> 24) & 255;
+			dst38.data[pos38 + 5] = (word95 >>> 16) & 255;
+			dst38.data[pos38 + 6] = (word95 >>> 8) & 255;
+			dst38.data[pos38 + 7] = word95 & 255;
+			dst38.length = dst38.length + 8;
 			const into38: rs.Result<rs.i64, never> = rs.Ok(v8 as rs.i64);
 			const w76: rs.i64 = (into38 as { ok: true; value: rs.i64 }).value;
 			rs.byteVecPush(out, (result_eq$12fysd9(into38, named38) ? 1 : 0) | (((rs.i64Eq(w76, v8 as rs.i64) ? 1 : 0) << 1) & 0xff));
 			const named39: rs.Result<rs.i128, never> = rs.Ok(v8 as rs.i128);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes((named39 as { ok: true; value: rs.i128 }).value)));
+			const dst39 = out;
+			const word97 = (named39 as { ok: true; value: rs.i128 }).value;
+			const word98 = rs.intWord(word97, 0);
+			const word99 = rs.intWord(word97, 32);
+			const word100 = rs.intWord(word97, 64);
+			const word101 = rs.intWord(word97, 96);
+			rs.byteVecReserve(dst39, 16 as rs.usize);
+			const pos39 = dst39.length;
+			dst39.data[pos39 + 0] = (word101 >>> 24) & 255;
+			dst39.data[pos39 + 1] = (word101 >>> 16) & 255;
+			dst39.data[pos39 + 2] = (word101 >>> 8) & 255;
+			dst39.data[pos39 + 3] = word101 & 255;
+			dst39.data[pos39 + 4] = (word100 >>> 24) & 255;
+			dst39.data[pos39 + 5] = (word100 >>> 16) & 255;
+			dst39.data[pos39 + 6] = (word100 >>> 8) & 255;
+			dst39.data[pos39 + 7] = word100 & 255;
+			dst39.data[pos39 + 8] = (word99 >>> 24) & 255;
+			dst39.data[pos39 + 9] = (word99 >>> 16) & 255;
+			dst39.data[pos39 + 10] = (word99 >>> 8) & 255;
+			dst39.data[pos39 + 11] = word99 & 255;
+			dst39.data[pos39 + 12] = (word98 >>> 24) & 255;
+			dst39.data[pos39 + 13] = (word98 >>> 16) & 255;
+			dst39.data[pos39 + 14] = (word98 >>> 8) & 255;
+			dst39.data[pos39 + 15] = word98 & 255;
+			dst39.length = dst39.length + 16;
 			const into39: rs.Result<rs.i128, never> = rs.Ok(v8 as rs.i128);
 			const w78: rs.i128 = (into39 as { ok: true; value: rs.i128 }).value;
 			rs.byteVecPush(out, (result_eq$1o2c9h9(into39, named39) ? 1 : 0) | (((rs.i128Eq(w78, v8 as rs.i128) ? 1 : 0) << 1) & 0xff));
 			const named40: rs.Result<rs.isize, never> = rs.Ok(v8 as rs.isize);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes((named40 as { ok: true; value: rs.isize }).value)));
+			const dst40 = out;
+			const word102 = (named40 as { ok: true; value: rs.isize }).value;
+			rs.byteVecReserve(dst40, 4 as rs.usize);
+			const pos40 = dst40.length;
+			dst40.data[pos40 + 0] = (word102 >>> 24) & 255;
+			dst40.data[pos40 + 1] = (word102 >>> 16) & 255;
+			dst40.data[pos40 + 2] = (word102 >>> 8) & 255;
+			dst40.data[pos40 + 3] = word102 & 255;
+			dst40.length = dst40.length + 4;
 			const into40: rs.Result<rs.isize, never> = rs.Ok(v8 as rs.isize);
 			const w80: rs.isize = (into40 as { ok: true; value: rs.isize }).value;
 			rs.byteVecPush(out, (result_eq$0a3yvnt(into40, named40) ? 1 : 0) | (((w80 === v8 as rs.isize ? 1 : 0) << 1) & 0xff));
@@ -5828,17 +9290,63 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const v9: rs.i32 = _1107;
 			const named41: rs.Result<rs.i32, never> = rs.Ok(v9);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes((named41 as { ok: true; value: rs.i32 }).value)));
+			const dst41 = out;
+			const word103 = (named41 as { ok: true; value: rs.i32 }).value;
+			rs.byteVecReserve(dst41, 4 as rs.usize);
+			const pos41 = dst41.length;
+			dst41.data[pos41 + 0] = (word103 >>> 24) & 255;
+			dst41.data[pos41 + 1] = (word103 >>> 16) & 255;
+			dst41.data[pos41 + 2] = (word103 >>> 8) & 255;
+			dst41.data[pos41 + 3] = word103 & 255;
+			dst41.length = dst41.length + 4;
 			const into41: rs.Result<rs.i32, never> = rs.Ok(v9);
 			const w82: rs.i32 = (into41 as { ok: true; value: rs.i32 }).value;
 			rs.byteVecPush(out, (result_eq$0f4q5sk(into41, named41) ? 1 : 0) | (((w82 === v9 ? 1 : 0) << 1) & 0xff));
 			const named42: rs.Result<rs.i64, never> = rs.Ok(v9 as rs.i64);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes((named42 as { ok: true; value: rs.i64 }).value)));
+			const dst42 = out;
+			const word104 = (named42 as { ok: true; value: rs.i64 }).value;
+			const word105 = rs.intWord(word104, 0);
+			const word106 = rs.intWord(word104, 32);
+			rs.byteVecReserve(dst42, 8 as rs.usize);
+			const pos42 = dst42.length;
+			dst42.data[pos42 + 0] = (word106 >>> 24) & 255;
+			dst42.data[pos42 + 1] = (word106 >>> 16) & 255;
+			dst42.data[pos42 + 2] = (word106 >>> 8) & 255;
+			dst42.data[pos42 + 3] = word106 & 255;
+			dst42.data[pos42 + 4] = (word105 >>> 24) & 255;
+			dst42.data[pos42 + 5] = (word105 >>> 16) & 255;
+			dst42.data[pos42 + 6] = (word105 >>> 8) & 255;
+			dst42.data[pos42 + 7] = word105 & 255;
+			dst42.length = dst42.length + 8;
 			const into42: rs.Result<rs.i64, never> = rs.Ok(v9 as rs.i64);
 			const w84: rs.i64 = (into42 as { ok: true; value: rs.i64 }).value;
 			rs.byteVecPush(out, (result_eq$12fysd9(into42, named42) ? 1 : 0) | (((rs.i64Eq(w84, v9 as rs.i64) ? 1 : 0) << 1) & 0xff));
 			const named43: rs.Result<rs.i128, never> = rs.Ok(v9 as rs.i128);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes((named43 as { ok: true; value: rs.i128 }).value)));
+			const dst43 = out;
+			const word107 = (named43 as { ok: true; value: rs.i128 }).value;
+			const word108 = rs.intWord(word107, 0);
+			const word109 = rs.intWord(word107, 32);
+			const word110 = rs.intWord(word107, 64);
+			const word111 = rs.intWord(word107, 96);
+			rs.byteVecReserve(dst43, 16 as rs.usize);
+			const pos43 = dst43.length;
+			dst43.data[pos43 + 0] = (word111 >>> 24) & 255;
+			dst43.data[pos43 + 1] = (word111 >>> 16) & 255;
+			dst43.data[pos43 + 2] = (word111 >>> 8) & 255;
+			dst43.data[pos43 + 3] = word111 & 255;
+			dst43.data[pos43 + 4] = (word110 >>> 24) & 255;
+			dst43.data[pos43 + 5] = (word110 >>> 16) & 255;
+			dst43.data[pos43 + 6] = (word110 >>> 8) & 255;
+			dst43.data[pos43 + 7] = word110 & 255;
+			dst43.data[pos43 + 8] = (word109 >>> 24) & 255;
+			dst43.data[pos43 + 9] = (word109 >>> 16) & 255;
+			dst43.data[pos43 + 10] = (word109 >>> 8) & 255;
+			dst43.data[pos43 + 11] = word109 & 255;
+			dst43.data[pos43 + 12] = (word108 >>> 24) & 255;
+			dst43.data[pos43 + 13] = (word108 >>> 16) & 255;
+			dst43.data[pos43 + 14] = (word108 >>> 8) & 255;
+			dst43.data[pos43 + 15] = word108 & 255;
+			dst43.length = dst43.length + 16;
 			const into43: rs.Result<rs.i128, never> = rs.Ok(v9 as rs.i128);
 			const w86: rs.i128 = (into43 as { ok: true; value: rs.i128 }).value;
 			rs.byteVecPush(out, (result_eq$1o2c9h9(into43, named43) ? 1 : 0) | (((rs.i128Eq(w86, v9 as rs.i128) ? 1 : 0) << 1) & 0xff));
@@ -5855,12 +9363,50 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const v10: rs.i64 = _1198;
 			const named44: rs.Result<rs.i64, never> = rs.Ok(v10);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes((named44 as { ok: true; value: rs.i64 }).value)));
+			const dst44 = out;
+			const word112 = (named44 as { ok: true; value: rs.i64 }).value;
+			const word113 = rs.intWord(word112, 0);
+			const word114 = rs.intWord(word112, 32);
+			rs.byteVecReserve(dst44, 8 as rs.usize);
+			const pos44 = dst44.length;
+			dst44.data[pos44 + 0] = (word114 >>> 24) & 255;
+			dst44.data[pos44 + 1] = (word114 >>> 16) & 255;
+			dst44.data[pos44 + 2] = (word114 >>> 8) & 255;
+			dst44.data[pos44 + 3] = word114 & 255;
+			dst44.data[pos44 + 4] = (word113 >>> 24) & 255;
+			dst44.data[pos44 + 5] = (word113 >>> 16) & 255;
+			dst44.data[pos44 + 6] = (word113 >>> 8) & 255;
+			dst44.data[pos44 + 7] = word113 & 255;
+			dst44.length = dst44.length + 8;
 			const into44: rs.Result<rs.i64, never> = rs.Ok(v10);
 			const w88: rs.i64 = (into44 as { ok: true; value: rs.i64 }).value;
 			rs.byteVecPush(out, (result_eq$12fysd9(into44, named44) ? 1 : 0) | (((rs.i64Eq(w88, v10) ? 1 : 0) << 1) & 0xff));
 			const named45: rs.Result<rs.i128, never> = rs.Ok(rs.i128Cast(v10));
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes((named45 as { ok: true; value: rs.i128 }).value)));
+			const dst45 = out;
+			const word115 = (named45 as { ok: true; value: rs.i128 }).value;
+			const word116 = rs.intWord(word115, 0);
+			const word117 = rs.intWord(word115, 32);
+			const word118 = rs.intWord(word115, 64);
+			const word119 = rs.intWord(word115, 96);
+			rs.byteVecReserve(dst45, 16 as rs.usize);
+			const pos45 = dst45.length;
+			dst45.data[pos45 + 0] = (word119 >>> 24) & 255;
+			dst45.data[pos45 + 1] = (word119 >>> 16) & 255;
+			dst45.data[pos45 + 2] = (word119 >>> 8) & 255;
+			dst45.data[pos45 + 3] = word119 & 255;
+			dst45.data[pos45 + 4] = (word118 >>> 24) & 255;
+			dst45.data[pos45 + 5] = (word118 >>> 16) & 255;
+			dst45.data[pos45 + 6] = (word118 >>> 8) & 255;
+			dst45.data[pos45 + 7] = word118 & 255;
+			dst45.data[pos45 + 8] = (word117 >>> 24) & 255;
+			dst45.data[pos45 + 9] = (word117 >>> 16) & 255;
+			dst45.data[pos45 + 10] = (word117 >>> 8) & 255;
+			dst45.data[pos45 + 11] = word117 & 255;
+			dst45.data[pos45 + 12] = (word116 >>> 24) & 255;
+			dst45.data[pos45 + 13] = (word116 >>> 16) & 255;
+			dst45.data[pos45 + 14] = (word116 >>> 8) & 255;
+			dst45.data[pos45 + 15] = word116 & 255;
+			dst45.length = dst45.length + 16;
 			const into45: rs.Result<rs.i128, never> = rs.Ok(rs.i128Cast(v10));
 			const w90: rs.i128 = (into45 as { ok: true; value: rs.i128 }).value;
 			rs.byteVecPush(out, (result_eq$1o2c9h9(into45, named45) ? 1 : 0) | (((rs.i128Eq(w90, rs.i128Cast(v10)) ? 1 : 0) << 1) & 0xff));
@@ -5877,7 +9423,31 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const v11: rs.i128 = _1267;
 			const named46: rs.Result<rs.i128, never> = rs.Ok(v11);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i128ToBeBytes((named46 as { ok: true; value: rs.i128 }).value)));
+			const dst46 = out;
+			const word120 = (named46 as { ok: true; value: rs.i128 }).value;
+			const word121 = rs.intWord(word120, 0);
+			const word122 = rs.intWord(word120, 32);
+			const word123 = rs.intWord(word120, 64);
+			const word124 = rs.intWord(word120, 96);
+			rs.byteVecReserve(dst46, 16 as rs.usize);
+			const pos46 = dst46.length;
+			dst46.data[pos46 + 0] = (word124 >>> 24) & 255;
+			dst46.data[pos46 + 1] = (word124 >>> 16) & 255;
+			dst46.data[pos46 + 2] = (word124 >>> 8) & 255;
+			dst46.data[pos46 + 3] = word124 & 255;
+			dst46.data[pos46 + 4] = (word123 >>> 24) & 255;
+			dst46.data[pos46 + 5] = (word123 >>> 16) & 255;
+			dst46.data[pos46 + 6] = (word123 >>> 8) & 255;
+			dst46.data[pos46 + 7] = word123 & 255;
+			dst46.data[pos46 + 8] = (word122 >>> 24) & 255;
+			dst46.data[pos46 + 9] = (word122 >>> 16) & 255;
+			dst46.data[pos46 + 10] = (word122 >>> 8) & 255;
+			dst46.data[pos46 + 11] = word122 & 255;
+			dst46.data[pos46 + 12] = (word121 >>> 24) & 255;
+			dst46.data[pos46 + 13] = (word121 >>> 16) & 255;
+			dst46.data[pos46 + 14] = (word121 >>> 8) & 255;
+			dst46.data[pos46 + 15] = word121 & 255;
+			dst46.length = dst46.length + 16;
 			const into46: rs.Result<rs.i128, never> = rs.Ok(v11);
 			const w92: rs.i128 = (into46 as { ok: true; value: rs.i128 }).value;
 			rs.byteVecPush(out, (result_eq$1o2c9h9(into46, named46) ? 1 : 0) | (((rs.i128Eq(w92, v11) ? 1 : 0) << 1) & 0xff));
@@ -5894,7 +9464,15 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const v12: rs.isize = _1314;
 			const named47: rs.Result<rs.isize, never> = rs.Ok(v12);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes((named47 as { ok: true; value: rs.isize }).value)));
+			const dst47 = out;
+			const word125 = (named47 as { ok: true; value: rs.isize }).value;
+			rs.byteVecReserve(dst47, 4 as rs.usize);
+			const pos47 = dst47.length;
+			dst47.data[pos47 + 0] = (word125 >>> 24) & 255;
+			dst47.data[pos47 + 1] = (word125 >>> 16) & 255;
+			dst47.data[pos47 + 2] = (word125 >>> 8) & 255;
+			dst47.data[pos47 + 3] = word125 & 255;
+			dst47.length = dst47.length + 4;
 			const into47: rs.Result<rs.isize, never> = rs.Ok(v12);
 			const w94: rs.isize = (into47 as { ok: true; value: rs.isize }).value;
 			rs.byteVecPush(out, (result_eq$0a3yvnt(into47, named47) ? 1 : 0) | (((w94 === v12 ? 1 : 0) << 1) & 0xff));
@@ -5921,11 +9499,62 @@ export function widenings(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 				const a: rs.u32 = (_1381[0] as { ok: true; value: rs.u32 }).value;
 				const b3: rs.u64 = (_1381[1] as { ok: true; value: rs.u64 }).value;
 				const c3: rs.u128 = (_1381[2] as { ok: true; value: rs.u128 }).value;
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(a)));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(b3)));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(c3)));
+				const dst48 = out;
+				rs.byteVecReserve(dst48, 4 as rs.usize);
+				const pos48 = dst48.length;
+				dst48.data[pos48 + 0] = (a >>> 24) & 255;
+				dst48.data[pos48 + 1] = (a >>> 16) & 255;
+				dst48.data[pos48 + 2] = (a >>> 8) & 255;
+				dst48.data[pos48 + 3] = a & 255;
+				dst48.length = dst48.length + 4;
+				const dst49 = out;
+				const word126 = rs.intWord(b3, 0);
+				const word127 = rs.intWord(b3, 32);
+				rs.byteVecReserve(dst49, 8 as rs.usize);
+				const pos49 = dst49.length;
+				dst49.data[pos49 + 0] = (word127 >>> 24) & 255;
+				dst49.data[pos49 + 1] = (word127 >>> 16) & 255;
+				dst49.data[pos49 + 2] = (word127 >>> 8) & 255;
+				dst49.data[pos49 + 3] = word127 & 255;
+				dst49.data[pos49 + 4] = (word126 >>> 24) & 255;
+				dst49.data[pos49 + 5] = (word126 >>> 16) & 255;
+				dst49.data[pos49 + 6] = (word126 >>> 8) & 255;
+				dst49.data[pos49 + 7] = word126 & 255;
+				dst49.length = dst49.length + 8;
+				const dst50 = out;
+				const word128 = rs.intWord(c3, 0);
+				const word129 = rs.intWord(c3, 32);
+				const word130 = rs.intWord(c3, 64);
+				const word131 = rs.intWord(c3, 96);
+				rs.byteVecReserve(dst50, 16 as rs.usize);
+				const pos50 = dst50.length;
+				dst50.data[pos50 + 0] = (word131 >>> 24) & 255;
+				dst50.data[pos50 + 1] = (word131 >>> 16) & 255;
+				dst50.data[pos50 + 2] = (word131 >>> 8) & 255;
+				dst50.data[pos50 + 3] = word131 & 255;
+				dst50.data[pos50 + 4] = (word130 >>> 24) & 255;
+				dst50.data[pos50 + 5] = (word130 >>> 16) & 255;
+				dst50.data[pos50 + 6] = (word130 >>> 8) & 255;
+				dst50.data[pos50 + 7] = word130 & 255;
+				dst50.data[pos50 + 8] = (word129 >>> 24) & 255;
+				dst50.data[pos50 + 9] = (word129 >>> 16) & 255;
+				dst50.data[pos50 + 10] = (word129 >>> 8) & 255;
+				dst50.data[pos50 + 11] = word129 & 255;
+				dst50.data[pos50 + 12] = (word128 >>> 24) & 255;
+				dst50.data[pos50 + 13] = (word128 >>> 16) & 255;
+				dst50.data[pos50 + 14] = (word128 >>> 8) & 255;
+				dst50.data[pos50 + 15] = word128 & 255;
+				dst50.length = dst50.length + 16;
 			}
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(Scaled.from$convert_From_u8(b2)._0)));
+			const dst51 = out;
+			const word132 = Scaled.from$convert_From_u8(b2)._0;
+			rs.byteVecReserve(dst51, 4 as rs.usize);
+			const pos51 = dst51.length;
+			dst51.data[pos51 + 0] = (word132 >>> 24) & 255;
+			dst51.data[pos51 + 1] = (word132 >>> 16) & 255;
+			dst51.data[pos51 + 2] = (word132 >>> 8) & 255;
+			dst51.data[pos51 + 3] = word132 & 255;
+			dst51.length = dst51.length + 4;
 		}
 	}
 }

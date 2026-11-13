@@ -3,12 +3,7 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug(self: Shown, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Shown";
-	const _4: string = "cell";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.cellDebug(() => self.cell.v, f, rs.u8Debug);
-	const _7: string = "refcell";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.refCellDebug(self.refcell, f, (value: rs.ByteVec, f: rs.Formatter) => rs.fmtList(rs.byteVecView(value), f, rs.u8Debug));
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Shown cell refcell", [(f: rs.Formatter) => rs.cellDebug(() => self.cell.v, f, rs.u8Debug), (f: rs.Formatter) => rs.refCellDebug(self.refcell, f, (value: rs.ByteVec, f: rs.Formatter) => rs.fmtList(rs.byteVecView(value), f, rs.u8Debug))]);
 }
 
 /** What a derived `Debug` writes each cell of as its field. */

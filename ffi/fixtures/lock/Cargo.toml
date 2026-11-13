@@ -16,6 +16,13 @@ name = "lock"
 next = []
 # Adds to the API, which the baseline lets pass.
 added = []
+# Renames binding items while keeping every C name.
+names = []
+members = []
+wrappers = []
+closures = []
+defaults = []
+thrown = []
 
 [lints]
 workspace = true

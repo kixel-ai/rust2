@@ -211,7 +211,14 @@ export function owned(a: rs.u8 | undefined, b: rs.u8 | undefined, out: rs.ByteVe
 		}
 		const r2: rs.Result<rs.u32[], rs.u16> = _79;
 		if (r2.ok) {
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(r2.value[0] & 0xff, r2.value[1] & 0xff)));
+			const dst = out;
+			const byte = r2.value[0] & 0xff;
+			const byte2 = r2.value[1] & 0xff;
+			rs.byteVecReserve(dst, 2 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = byte;
+			dst.data[pos + 1] = byte2;
+			dst.length = dst.length + 2;
 		} else {
 			rs.byteVecPush(out, r2.error & 0xff);
 		}
@@ -237,9 +244,21 @@ export function panics(a: rs.u8 | undefined, b: rs.u8 | undefined, limit: rs.u8,
 
 export function push(r: rs.Result<rs.u8, rs.u16>, out: rs.ByteVec): void {
 	if (r.ok) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(1, r.value)));
+		const dst = out;
+		const byte = r.value;
+		rs.byteVecReserve(dst, 2 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = 1;
+		dst.data[pos + 1] = byte;
+		dst.length = dst.length + 2;
 	} else {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(r.error)));
+		const dst2 = out;
+		const word = r.error;
+		rs.byteVecReserve(dst2, 2 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word >>> 8) & 255;
+		dst2.data[pos2 + 1] = word & 255;
+		dst2.length = dst2.length + 2;
 	}
 }
 

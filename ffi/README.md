@@ -40,7 +40,7 @@ to what the library builds with on any platform, read off cargo's resolution, wh
 it was declared (the manifest, cargo's config, `--config`, or the environment), keyed by
 its source's URL.
 A `[replace]` from the source it replaces, which no `[patch]` can carry, is an error.
-Beside the C header, `include/<prefix>.hpp` holds the same API in C++,
+Beside the C header, `include/<prefix>.hpp` holds the same API in C++, over a header per crate,
 `kotlin/<prefix>.kt` holds it in Kotlin, over JNI functions the crate builds with
 `--features kotlin`, and `kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what
 those functions look up by name. `python/<prefix>.py` holds it in Python, over a CPython
@@ -105,7 +105,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `tracing::Level` | `<prefix>_Level`: a C enum of its five levels, `TRACE` to `ERROR` |
 | `tracing::level_filters::LevelFilter` | `Option<tracing::Level>`, whose `None` is `OFF` |
 | `serde_json::Value` | an object `<prefix>_Json`, made by `<prefix>_Json_parse` from JSON text, which fails with serde_json's message, and read back by `_to_text`; its contents are the caller's JSON library's to read |
-| `Vec<T>` and `&[T]` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned |
+| `Vec<T>`, `&[T]`, and `Box<[T]>` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned; a boxed slice of bytes is refused |
 | `BTreeSet<T>`, `BTreeMap<K, V>`, and `serde_json::Map` | as `Vec<T>`, `Vec<(K, V)>`, and `Vec<(String, serde_json::Value)>`: its items in order, from which Rust builds it, keeping the last of a key |
 | a returned iterator, such as `slice::Iter` or an `impl Iterator`, that no other rule maps, outside a future, made of core's and alloc's iterators over a slice, string, `Option`, `Result`, or collection, or serde_json's `map::Iter`, `IntoIter`, `Keys`, or `Values`, through `rev`, `chain`, `flatten`, `fuse`, `enumerate`, `peekable`, `copied`, `cloned`, or `filter`, with no trait object inside; a closure or function inside, such as `filter`'s predicate or `split`'s pattern, must drop nothing, and a `filter` only items whose drop runs nothing | what `collect::<Vec<_>>()` makes of it: every item, taken at the call, so a closure inside runs on every item, not only those a caller stopping early would reach |
 | `Waker`, taken by value | `<prefix>_waker`, as a future's poll takes it |
@@ -192,7 +192,7 @@ dropped for the other target's span where the file differs.
 ## The API lock
 
 Each export writes its API, merged across every target it serves, to `api.json` in `--out`,
-in the format `--api` writes. `--baseline file` fails the export, writing nothing, where its
+with the staged API and each binding's name table. `--baseline file` fails the export, writing nothing, where its
 API breaks the one in `file`, with an error at each item that names how:
 
 - an item removed, or no longer on one of the baseline's targets, and a target the baseline
@@ -214,8 +214,13 @@ API breaks the one in `file`, with an error at each item that names how:
 An item is known by its kind and Rust path, as `exclude` names it. An addition passes: a new
 item, method, trait impl, or a variant of a `#[non_exhaustive]` enum. A constant's value and
 an item's docs may change. The check runs once, on the API every language is generated from;
-it covers C's names, while a language's own names for a clash its generator renames are not
-compared.
+it compares C's names and the C++, Kotlin, Python, Swift, Go, and Dart generators' own
+public names. A clash that renames a kept class, function, or member reports its language
+and old and new names at the item's span. Staged `--api` files have no binding names; a
+baseline must be a complete export. An older baseline without name tables still has its
+structure checked, reporting each break before the error that it lacks names, so its
+re-export with this version accepts no break that check would have caught. A binding
+rename that follows from a C rename is reported once, as the C rename.
 
 The baseline is a lockfile, not config: the consumer commits it beside `Cargo.lock`, the
 export reads it only to compare, and the export is the same with or without it. It refuses a
@@ -251,7 +256,9 @@ where it was while its file is unchanged.
   does, is leaked once per distinct content and reused for every later equal one, so a
   caller passing ever-new strings grows the set without bound.
 - **Arrays** of a `Vec` are a pointer, a length, and an owner, as a buffer is: passed
-  in, Rust copies each element out of C's array; returned, `<prefix>_vec_<T>_free` frees
+  in, Rust copies each element out of C's array, or for a slice of a fixed-width integer
+  other than `u8`, which is bytes, or `u128`, or of a float, borrows C's array in place for the call, and a binding passes its language's
+  array of those numbers as one block; returned, `<prefix>_vec_<T>_free` frees
   the array and its first `len` elements, so a binding that takes the elements sets
   `len` to 0 first. A null pointer is `None`, so C passes a non-null one for `Some` of
   an empty array.
@@ -339,7 +346,16 @@ where it was while its file is unchanged.
 ## C++
 
 `<prefix>.hpp` is header-only C++ over the C header, for C++17, 20, and 23, with
-exceptions and RTTI on or off: it throws nothing and reads no type information.
+exceptions and RTTI on or off: it throws nothing and reads no type information. It
+includes a header per crate whose items the facade exports, `<prefix>/<crate>.hpp`, which
+a translation unit may include alone to pay only for that crate and those it names: moq's
+`#include "moq/net.hpp"` parses in under half the memory of `moq.hpp`. A crate's header is
+named as [its Go package](#go) is, so none is the shared `rt`. Each includes the shared
+`<prefix>/rt.hpp`, which holds the runtime and declares every type, so a class declares a
+method that belongs to a later crate, as an instance naming that crate's type does, and
+that crate's header defines it; and the headers of the crates its items name, each before
+it in Cargo's order, so none includes another in a cycle. An item's crate is the one Go's
+packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
@@ -387,8 +403,8 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   from. From C++20, either converts to `std::span<const std::uint8_t>`. A `view` or span
   lives only as long as the bytes it views, and a `view` lent to a callback only for the
   call; reading one past that is C++'s own undefined behavior, which Clang's `-Wdangling`
-  refuses for a view or `str()` of a temporary `buf`. A `Vec<T>` is a `std::vector`, of
-  `view`s for bytes passed in, a socket address `socket_addr`, the C struct, and a `u128`
+  refuses for a view or `str()` of a temporary `buf`. A `Vec<T>` is a `std::vector`, passed in place
+  when of a fixed-width integer other than `u8` (bytes) or `u128` or of a float, of `view`s for bytes passed in, a socket address `socket_addr`, the C struct, and a `u128`
   `u128`, the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error. A `[u8; N]` is a `std::array<std::uint8_t, N>`.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
@@ -432,8 +448,11 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
 `<prefix>.kt` is Kotlin for the JVM and Android over the crate's JNI functions, which
 `--features kotlin` builds into the same library, loaded by `System.loadLibrary`. It needs
 kotlinx-coroutines. Each value crosses JNI as a scalar, a handle as a `Long`, bytes passed
-in as a `ByteArray`, bytes returned as their owner, and anything else encoded into a
-`ByteArray` as its C struct holds it.
+in as a `ByteArray`, bytes returned as their owner, a block of numbers as its primitive
+array, and anything else encoded into a `ByteArray` as its C struct holds it. A record a
+call takes or returns directly, or in an `Option` returned, crosses as its scalars, a
+nested record's included, as JNI parameters in and through a `LongArray` each thread keeps
+out, with only its other fields encoded.
 
 - **Names** are in a package of the prefix: types in PascalCase without it, members in
   camelCase without their type's name (`moq.TrackProducer.appendGroup`). Pascal case
@@ -469,16 +488,26 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   record holding bytes does too; Rust's lent ones are copied across in one call to compare.
   Strings are `String`, passed in as their UTF-16, which Rust encodes once into UTF-8 as
   `encodeToByteArray` does, a lone surrogate as `?`; `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
-  target's range, `Option<T>` `T?`, a tuple `Pair`,
-  `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
+  target's range, `Option<T>` `T?`, a tuple `Pair` or
+  `Triple`, or else a generated `Tuple<n>`, and also `Tuple2` or `Tuple3` when it holds a
+  numeric array or a float anywhere, records included, since `Pair` and `Triple` cannot
+  compare them as Rust does (so a `BTreeMap<String, f64>` is a `List<Tuple2<String, Double>>`), though a tuple of one returned whole is its element, `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
   holding it, whose message is its `Display`. A `[u8; N]` is a generated `ArrayU8x<N>`,
   which copies the `ByteArray` it is made of and throws `IllegalArgumentException` unless
   it holds exactly `N` bytes.
 - A **path** is a `String`: one Rust returns that is not UTF-8 throws. A `SocketAddr`,
   `SocketAddrV4`, or `SocketAddrV6` is a `java.net.InetSocketAddress`, which must be
   resolved and, for `V4` or `V6`, of that family; one Rust returns with an IPv6 flow
-  label, which Java does not keep, throws. A `Vec<T>` or `&[T]` is a `List`, and passing
-  a `Vec` by value closes each object in it once the call returns.
+  label, which Java does not keep, throws. A `Vec<T>`, `&[T]`, or `Box<[T]>` of a
+  fixed-width integer other than `u8` (bytes) or `u128`, or of a float, is Kotlin's primitive array of it: `ByteArray`,
+  `ShortArray`, `IntArray`, or `LongArray` for `i8` through `i64`, `UShortArray`,
+  `UIntArray`, or `ULongArray` for `u16` through `u64`, which a caller uses under
+  `@OptIn(ExperimentalUnsignedTypes::class)`, and `FloatArray` or `DoubleArray`. It
+  crosses whole: passed or returned directly, in one JNI array copy, and inside another
+  value, in one bulk copy into or out of its encoding. A record, variant, or tuple holding
+  one, or a float anywhere, compares and hashes it by its contents and its floats by IEEE
+  `==`, as Rust does: NaN equals nothing, itself included, and -0.0 equals 0.0. Any other `Vec<T>` or `&[T]` is
+  a `List`, and passing a `Vec` by value closes each object in it once the call returns.
 - **Traits** are interfaces; once Rust drops an implementation, it is closed if
   `AutoCloseable`.
 - **Closures** are function types, which Rust calls from any thread: one lent for a call
@@ -543,7 +572,8 @@ caller imports it with no ignores.
   after which a call raises `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable. A field is a
   property, `first_get`, and its setter a method, `first_set(value)`, named as the C ones,
   since setting an object moves it in and closes it, which an assignment would hide.
-- **Records** are slotted dataclasses, compared by their fields, and **enums** an `Enum`
+- **Records** are slotted dataclasses, compared by their fields, a float by IEEE `==` even
+  against itself, as Rust does, and **enums** an `Enum`
   of upper-case members, or for one with data a class of a dataclass per variant,
   `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
   `default()`. Constants are module or class attributes, made anew on each read unless a
@@ -564,6 +594,13 @@ caller imports it with no ignores.
   A `Vec<T>` or `&[T]` Rust returns is a `list`, and passed in is any iterable other than a `str`,
   annotated `Iterable`, or `Sequence` in a record, which keeps it. Passing a `Vec` by value closes
   each object in it.
+  A `Vec<T>`, `&[T]`, or `Box<[T]>` of a fixed-width integer or float, `u8` (bytes), `u128`,
+  `usize`, and `isize` aside, Rust returns as an `array.array` of its typecode, filled in one copy; the extension
+  fails to load where a typecode is not exactly as wide as its Rust type. Passed in, it is
+  any buffer of exactly those numbers in native byte order, one dimension and C-contiguous, such as an
+  `array.array`, a `memoryview` cast to their format, or a numpy array, copied once, since
+  another thread may write it while Rust reads; a buffer of another kind, width, or byte order raises
+  `TypeError`. A record compares one by its numbers, numpy's included.
   An integer out of its Rust type's range raises `OverflowError`.
 - **Traits** are abstract classes an implementation subclasses; once Rust drops one, its
   `close()` is called if it has one.
@@ -656,8 +693,9 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   `InlineArray`.
 - A **path** is a `String`: one Rust returns that is not UTF-8 traps. A `SocketAddr`,
   `SocketAddrV4`, or `SocketAddrV6` is the runtime's `SocketAddr`, its IP's 4 or 16 bytes
-  and its port, flow label, and scope, whose family Rust checks. A `Vec<T>` or `&[T]` is
-  an array, or a `UniqueArray` of objects.
+  and its port, flow label, and scope, whose family Rust checks. A `Vec<T>`, `&[T]`, or
+  `Box<[T]>` is an array, or a `UniqueArray` of objects; one of a fixed-width integer
+  other than `u8` (bytes) or `u128`, or of a float, is copied across whole, with no call per item.
 - **Traits** are `Sendable` protocols, which Rust releases once it drops an implementation.
 - **Closures** are `@Sendable` function types, which Rust calls from any thread, one call
   at a time. One lent for a call Rust calls only during the call; one Rust keeps is
@@ -768,7 +806,9 @@ reads a go.mod.
   `time.Duration`: a negative one passed in, or one Rust returns past its 292 years,
   panics. A socket address is a `netip.AddrPort`, whose zone names an IPv6 scope by its
   number or its interface's name; one Rust returns with an IPv6 flow label, which
-  `netip` does not keep, panics. A `Vec<T>` or `&[T]` is a `[]T`.
+  `netip` does not keep, panics. A `Vec<T>`, `&[T]`, or `Box<[T]>` is a `[]T`; one of a
+  fixed-width integer other than `u8` (bytes) or `u128`, or of a float, is lent in place, pinned for the call, as bytes are, and
+  one Rust returns is copied out whole.
 - **Errors**: a `Result` returns an `error` last. An exported error type is returned as
   itself, implementing `error` with its `Display`, else its `Debug`, and any other in a struct
   `<T>Error{Value}`, such as `rt.StringError`, in the package of the last crate a type
@@ -857,7 +897,11 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   returns is copied into a `String`. A path is a `String`, and one Rust returns that is
   not UTF-8 aborts, since a throw would leave the rest of a list or record being lifted
   unfreed. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
-  `List<T>`. A `u128` is a `BigInt`, which throws an `ArgumentError` passed in out of
+  `List<T>`, except one of a fixed-width integer other than `u8` (bytes) or `u128` or of a float, or a `Box<[T]>` of one, which
+  is the `dart:typed_data` list of its width, such as a `Uint32List` or `Float64List`:
+  copied whole into the call's memory passed in, and out of Rust's returned. A
+  `Uint64List` holds a `u64`'s bits, so one past `i64`'s range reads negative, as a `u64`
+  alone does. A `u128` is a `BigInt`, which throws an `ArgumentError` passed in out of
   its range. A `[u8; N]` is a generated `ArrayU8x<N>`, which copies the list it is made
   of and throws an `ArgumentError` unless it holds exactly `N` bytes. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
   in throws an `ArgumentError`, and Rust's longest is Dart's. A socket address is a
@@ -935,8 +979,10 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
 lists each refused item at its span, then the `exclude` list that exports the rest, and
 what else it left out, such as what C can never hold and the traits C cannot implement, and why.
-It ignores the config's `exclude`. It still fails on an `instance not inferred`
-refusal, which is a bug in the exporter's inference rather than in the crate.
+It ignores the config's `exclude`, but lists each exclude that leaves out an item that
+would export, and fails on it, so the list holds only what the export refuses. It also
+fails on an `instance not inferred` refusal, which is a bug in the exporter's inference
+rather than in the crate.
 
 ## Tests
 
@@ -946,6 +992,7 @@ just ffi moq      # export moq's crates at the pinned revision, build them, and 
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi census   # census each into target/census
+just ffi shapes   # round-trip every sampled type shape in every language but KNOWN's, as the nightly does
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan and TSan, and its C ABI under Miri
@@ -990,6 +1037,17 @@ each runtime check, which must panic with its message; a runtime package from an
 build must fail its contract check. The `target` test exports a package for the host, for wasm32, and for both into one
 binding, which builds for each, and staged with `--api` and `--with`; a build for a target
 not exported fails, and items that differ between the two are refused, naming both.
+The shape tests (`tests/fixtures/shapes.rs`) sample value types from the IR's `Type`, each
+leaf alone and in each wrapper, then nested to depth 3 from a fixed seed, and emit a crate
+of `make_N(seed)`, `echo_N(v)`, and `digest_N(&v)` per shape, with the shape in a closure's
+parameter and return and in a future besides. Its census decides what exports, so a shape
+refused by design is left out rather than failed. Each language's driver is a generated
+flat list of `digest(echo(make(seed)))` calls whose printed digests must match the crate's
+own, run natively. The gate runs a subset; `just ffi shapes` runs every sampled shape, as
+the nightly does. `KNOWN` lists what a binding still gets wrong, each with the quest that
+fixes it; the driver skips those shapes, so the fix deletes its entry, and the nightly fails
+on an entry that matches no exported shape. A new IR `Type` variant fails `ir_covered`
+until the sampler covers it.
 The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
 The `lock` test exports the `lock` fixture for wasm32, staged, and the host, then again
 against that export's `api.json`: its `added` feature only adds and must pass, and its `next`

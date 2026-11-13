@@ -20,7 +20,7 @@ use std::collections::hash_map::Entry;
 
 use rustc_hir::def_id::DefId;
 use rustc_middle::ty::{
-	self, GenericArgsRef, Instance, Interner as _, Ty, TyCtxt, TypeFoldable, TypeFolder, TypeSuperFoldable,
+	self, GenericArgs, Instance, Interner as _, Ty, TyCtxt, TypeFoldable, TypeFolder, TypeSuperFoldable,
 	TypeVisitableExt, TypingEnv, Upcast as _,
 };
 use rustc_span::Span;
@@ -62,7 +62,7 @@ enum Slot {
 struct Method<'tcx> {
 	def_id: DefId,
 	/// The arguments of the trait it is of, over the object's trait's own parameters.
-	tr: GenericArgsRef<'tcx>,
+	tr: GenericArgs<'tcx>,
 	name: String,
 	/// Its type over the object type's parameters, once the object holds it: from the start for the trait of a crate that
 	/// translates whole, which a TS caller may call or implement, and else, for std's or a
@@ -738,7 +738,7 @@ pub fn unsized_object<'tcx>(tcx: TyCtxt<'tcx>, mut ty: Ty<'tcx>) -> bool {
 		&& adt.is_struct()
 		&& let Some(last) = adt.non_enum_variant().tail_opt()
 	{
-		ty = last.ty(tcx, args).skip_norm_wip();
+		ty = last.ty(tcx, *args).skip_norm_wip();
 	}
 	ty.is_trait()
 }
@@ -770,9 +770,9 @@ fn principal(ty: Ty<'_>) -> Option<DefId> {
 /// The arguments of a trait object's method `def_id` of a trait with the arguments `tr`:
 /// those, then its own early-bound lifetimes, erased, which are all a dispatchable method
 /// takes.
-fn method_args<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, tr: GenericArgsRef<'tcx>) -> GenericArgsRef<'tcx> {
+fn method_args<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, tr: GenericArgs<'tcx>) -> GenericArgs<'tcx> {
 	ty::GenericArgs::for_item(tcx, def_id, |param, _| match tr.get(param.index as usize) {
-		Some(&arg) => arg,
+		Some(arg) => arg,
 		None => tcx.lifetimes.re_erased.into(),
 	})
 }
@@ -783,10 +783,10 @@ fn method_args<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, tr: GenericArgsRef<'tcx>)
 fn instance_args<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	def_id: DefId,
-	tr: GenericArgsRef<'tcx>,
+	tr: GenericArgs<'tcx>,
 	object: Ty<'tcx>,
 	self_ty: Ty<'tcx>,
-) -> GenericArgsRef<'tcx> {
+) -> GenericArgs<'tcx> {
 	let ty::Dynamic(preds, ..) = object.kind() else {
 		unreachable!("a trait object");
 	};
@@ -1105,11 +1105,11 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 					return None;
 				};
 				let held = (
-					last.ty(tcx, from_args).skip_norm_wip(),
-					last.ty(tcx, to_args).skip_norm_wip(),
+					last.ty(tcx, *from_args).skip_norm_wip(),
+					last.ty(tcx, *to_args).skip_norm_wip(),
 				);
 				let at = v.clone().field(id);
-				let read = self.t.held_field(at.clone(), last.did, from_args, span);
+				let read = self.t.held_field(at.clone(), last.did, *from_args, span);
 				let value = self.fresh("value");
 				let set = Expr::Lambda(
 					vec![Param {
