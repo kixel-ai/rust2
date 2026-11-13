@@ -306,7 +306,8 @@ fn overrides(metadata: &Metadata, top: &Package) -> Result<String, String> {
 /// per-package override of a package the library builds is carried, and one of another
 /// package of the workspace's resolve, such as a tool's dependency, dropped, since the
 /// glue's workspace would not resolve it. One naming no package at all is an error at its
-/// line: cargo only warns, and the consumer's intent would silently not apply.
+/// line: cargo only warns, and the consumer's intent would silently not apply. So is `*`,
+/// which would newly reach the workspace's own crates.
 fn profile(
 	manifest: &Path,
 	source: &str,
@@ -347,6 +348,14 @@ fn profile(
 		let carried = profiles[name]["package"].as_table_mut().expect("a table parsed as one");
 		for spec in overrides.keys() {
 			let spec_str = spec.get_ref().as_ref();
+			// `*` skips workspace members, but the glue's workspace makes the exported crate
+			// and its siblings dependencies, so carried it would reach them too.
+			if spec_str == "*" {
+				return Err(format!(
+					"{}: `profile.{name}.package.\"*\"` would reach the exported workspace's own crates in the glue's workspace; name each package instead",
+					at(spec.span())
+				));
+			}
 			let mut matched = Vec::new();
 			for package in packages {
 				if matches(spec_str, package).map_err(|err| format!("{}: {err}", at(spec.span())))? {
@@ -373,12 +382,9 @@ fn profile(
 	Ok(Some(profiles))
 }
 
-/// Whether the package spec of a profile override, `*`, `name`, or `name@version`, names
+/// Whether the package spec of a profile override, `name` or `name@version`, names
 /// `package`.
 fn matches(spec: &str, package: &Package) -> Result<bool, String> {
-	if spec == "*" {
-		return Ok(true);
-	}
 	let (name, version) = spec.split_once(['@', ':']).map_or((spec, None), |(n, v)| (n, Some(v)));
 	if name.contains(['/', '#']) {
 		return Err(format!(

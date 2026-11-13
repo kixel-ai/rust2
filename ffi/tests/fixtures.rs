@@ -2214,7 +2214,7 @@ fn config_patched() {
 
 /// The workspace's profiles reach the glue's build, with an override of a package the
 /// library builds, but not one of a package only a test builds; an override naming no
-/// package is an error at its line.
+/// package, or `*`, is an error at its line.
 #[test]
 fn profiled() {
 	let package = package("profiled");
@@ -2259,6 +2259,13 @@ fn profiled() {
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("Cargo.toml:9: `profile.dev.package.missing` names no package the workspace resolves"),
+		"{stderr}"
+	);	files("*");
+	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
+	assert!(!output.status.success(), "a wildcard override passed");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("Cargo.toml:9: `profile.dev.package.\"*\"` would reach"),
 		"{stderr}"
 	);
 }
