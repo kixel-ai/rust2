@@ -116,6 +116,8 @@ fn fixture() {
 	expect("prelude::{use std::mem::size_of}", "cross-crate", "cross-crate");
 	expect("prelude::{use crate::deeper}", "cross-crate", "cross-crate");
 	expect("deeper::via_nested_glob", "cross-crate", "cross-crate");
+	// An impl of an imported trait from outside the audit needs only its type.
+	expect("shown_part", "narrowed", "crate-only");
 	// So does a glob of a module or enum of its own crate.
 	expect("tools::tool", "narrowed", "crate-only");
 	expect("crate::{use tools}", "narrowed", "crate-only");

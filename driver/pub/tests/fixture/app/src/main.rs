@@ -156,6 +156,21 @@ pub enum Mode {
 /// Narrowed, crate-only: main names `On` through it.
 pub use Mode::*;
 
+use std::fmt::Display;
+
+struct Shown;
+
+impl Display for Shown {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", shown_part())
+	}
+}
+
+/// Narrowed, crate-only: only `Shown`'s impl of an imported std trait calls it.
+pub fn shown_part() -> u32 {
+	29
+}
+
 fn main() {
 	{
 		let live = api::Live::new(42);
@@ -173,6 +188,7 @@ fn main() {
 	println!("tool {} {}", tool(), matches!(On, Mode::Off));
 	println!("listed {}", listed());
 	println!("measure {} {}", measure::<u16>(), via_nested_glob());
+	println!("shown {Shown}");
 	let mut counter = api::Counter(0);
 	println!("ticket {}", drain(&mut counter).0);
 	println!("len {}", api::Outer::new().len());

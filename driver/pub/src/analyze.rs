@@ -150,7 +150,9 @@ impl Audit {
 
 		// What an import supplies from outside the audit, such as a dependency's type it
 		// re-exports, has no definition here: give it a node, which the code naming it
-		// reaches and which revives the import.
+		// reaches and which revives the import. A trait impl still requires only what
+		// the audit defines.
+		let collected = defs.len();
 		for i in units.iter().flat_map(|u| &u.imports) {
 			hashes.entry(i.supplied).or_insert_with(|| {
 				defs.push(Def {
@@ -246,7 +248,11 @@ impl Audit {
 			}
 			roots[test].extend(unit.roots.iter().filter_map(|r| hashes.get(r)));
 			for i in &unit.impls {
-				let requires: Vec<usize> = i.requires.iter().filter_map(|r| hashes.get(r).copied()).collect();
+				let requires: Vec<usize> = i
+					.requires
+					.iter()
+					.filter_map(|r| hashes.get(r).copied().filter(|&d| d < collected))
+					.collect();
 				impls[test].push((hashes[&i.hash], requires));
 			}
 		}
