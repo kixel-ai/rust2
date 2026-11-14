@@ -403,6 +403,7 @@ func script() {
 	print("secs \(stamp.secs())")
 	print("later \(Stamp.fromMillis(3000).later(stamp))")
 	print("secs \(stamp.secs())")
+	print("whole \(debug(stamp.whole()))")
 	var message = Message.new(stamp, Data("body".utf8))
 	print("payload \(text(message.payloadGet))")
 	print("stamp \(debug(message.stampGet!))")

@@ -337,6 +337,7 @@ Future<void> script() async {
   print('secs ${stamp.secs()}');
   print('later ${api.Stamp.fromMillis(3000).later(stamp)}');
   print('secs ${stamp.secs()}');
+  print('whole ${stamp.whole().debug()}');
   final message = api.Message(stamp, utf8.encode('body'));
   print('payload ${text(message.payloadGet)}');
   print('stamp ${message.stampGet!.debug()}');

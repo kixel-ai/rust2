@@ -1204,9 +1204,10 @@ impl Gen<'_> {
 			})
 			.collect();
 		self.item(format!("impl {name} {{\n{}}}\n", tables.join("\n")));
-		// Zeroed past its own bytes, and its padding zeroed after the write.
+		// Zeroed past its own bytes, and its padding zeroed after the write. Generic, since
+		// an `impl Trait` return hides the type it writes, which the collector checked is this.
 		self.item(format!(
-			"fn lower_{name}(v: {path}) -> {name} {{\n\tlet mut c = {name} {{ opaque: [::std::mem::MaybeUninit::zeroed(); {units}] }};\n\tlet at = c.opaque.as_mut_ptr();\n\tunsafe {{ at.cast::<{path}>().write_unaligned(v) }};\n\tfor &(start, len) in {name}::PADDING {{\n\t\tunsafe {{ at.cast::<u8>().add(start).write_bytes(0, len) }};\n\t}}\n\tc\n}}\n"
+			"fn lower_{name}<T>(v: T) -> {name} {{\n\tconst {{ assert!(::std::mem::size_of::<T>() == ::std::mem::size_of::<{path}>() && ::std::mem::align_of::<T>() == ::std::mem::align_of::<{path}>()) }};\n\tlet mut c = {name} {{ opaque: [::std::mem::MaybeUninit::zeroed(); {units}] }};\n\tlet at = c.opaque.as_mut_ptr();\n\tunsafe {{ at.cast::<T>().write_unaligned(v) }};\n\tfor &(start, len) in {name}::PADDING {{\n\t\tunsafe {{ at.cast::<u8>().add(start).write_bytes(0, len) }};\n\t}}\n\tc\n}}\n"
 		));
 		self.value_traits(&name, &path, &ty, record.traits);
 		let owner = Ty::Struct(name.clone());

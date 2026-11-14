@@ -984,6 +984,8 @@ static int script(void) {
 	api_Stamp later = api_Stamp_from_millis(3000);
 	printf("later %s\n", api_Stamp_later(&later, stamp) ? "true" : "false");
 	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(&stamp));
+	api_Stamp rounded = api_Stamp_whole(&stamp);
+	print("whole ", api_Stamp_debug(&rounded), "\n");
 	api_Message *message = api_Message_new((api_option_Stamp){.some = true, .value = stamp}, str("body"));
 	print("payload ", api_Message_payload_get(message), "\n");
 	api_option_Stamp read = api_Message_stamp_get(message);

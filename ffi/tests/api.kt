@@ -261,6 +261,7 @@ fun script() {
 	println("secs ${stamp.secs()}")
 	println("later ${Stamp.fromMillis(3000u).later(stamp)}")
 	println("secs ${stamp.secs()}")
+	println("whole ${stamp.whole().debug()}")
 	val message = Message.new(stamp, "body".encodeToByteArray())
 	println("payload ${message.payloadGet.text()}")
 	println("stamp ${message.stampGet!!.debug()}")

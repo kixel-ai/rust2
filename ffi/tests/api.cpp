@@ -565,6 +565,7 @@ int script() {
 		std::printf("secs %llu\n", ull(stamp.secs()));
 		std::printf("later %s\n", yes(api::Stamp::from_millis(3000).later(stamp)));
 		std::printf("secs %llu\n", ull(stamp.secs()));
+		print("whole ", stamp.whole().debug(), "\n");
 		api::Message message = api::Message::new_(stamp, "body");
 		print("payload ", message.payload_get(), "\n");
 		print("stamp ", message.stamp_get()->debug(), "\n");

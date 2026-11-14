@@ -325,6 +325,7 @@ def script():
 	print(f"secs {stamp.secs()}")
 	print(f"later {flag(api.Stamp.from_millis(3000).later(stamp))}")
 	print(f"secs {stamp.secs()}")
+	print(f"whole {stamp.whole()!r}")
 	message = api.Message.new(stamp, b"body")
 	print(f"payload {text(message.payload_get)}")
 	print(f"stamp {message.stamp_get!r}")

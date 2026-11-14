@@ -2740,7 +2740,7 @@ impl<'tcx> Collector<'tcx> {
 		let lendable = match unbound.inputs().first().map(|ty| ty.kind()) {
 			Some(&ty::Ref(region, inner, ty::Mutability::Not))
 				if has_self
-					&& matches!(inner.kind(), ty::Adt(adt, args) if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_)))) =>
+					&& matches!(inner.kind(), ty::Adt(adt, args) if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_) | Decl::Value(_)))) =>
 			{
 				let regions: Vec<_> = (unbound.output().walk()).filter_map(|arg| arg.as_region()).collect();
 				!regions.is_empty()
@@ -2755,7 +2755,7 @@ impl<'tcx> Collector<'tcx> {
 		let written: Vec<_> = (unbound.inputs().iter())
 			.filter_map(|input| match input.kind() {
 				ty::Ref(region, inner, ty::Mutability::Mut)
-					if !matches!(inner.kind(), ty::Adt(adt, args) if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_)))) =>
+					if !matches!(inner.kind(), ty::Adt(adt, args) if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_) | Decl::Value(_)))) =>
 				{
 					Some(*region)
 				}
@@ -2997,7 +2997,7 @@ impl<'tcx> Collector<'tcx> {
 			_ => output,
 		};
 		// The glue cannot name an `impl Trait`'s hidden type, so one in a return that maps
-		// crosses only as what the glue passes on whole, an object's handle. A future and a
+		// crosses only as what the glue passes on whole: an object's handle, or a value's bytes. A future and a
 		// collected iterator are taken apart instead, so it is what their output or items
 		// name that crosses.
 		let unrevealed = sig.output();
@@ -3025,7 +3025,7 @@ impl<'tcx> Collector<'tcx> {
 				}
 				let hidden = normalize(ty);
 				if !matches!(hidden.kind(), ty::Adt(adt, args)
-					if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))))
+					if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_) | Decl::Value(_))))
 				{
 					errs.push(why("opaque type", ty.to_string()));
 				}
@@ -4339,7 +4339,7 @@ impl<'tcx> Collector<'tcx> {
 						// since they may be the signature's bound ones, which a key never names.
 						let erased = ty::fold_regions(tcx, hidden, |_, _| tcx.lifetimes.re_erased);
 						let object = matches!(erased.kind(), ty::Adt(adt, args)
-							if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))));
+							if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_) | Decl::Value(_))));
 						if object {
 							held.extend(args.iter().flat_map(|arg| arg.walk()).filter_map(|arg| arg.as_region()));
 						}

@@ -423,6 +423,7 @@ func script() {
 	fmt.Printf("secs %d\n", stamp.Secs())
 	fmt.Printf("later %t\n", api.StampFromMillis(3000).Later(stamp))
 	fmt.Printf("secs %d\n", stamp.Secs())
+	fmt.Printf("whole %s\n", stamp.Whole().GoString())
 	message := api.NewMessage(&stamp, []byte("body"))
 	fmt.Printf("payload %s\n", must(message.PayloadGet()).Copy())
 	fmt.Printf("stamp %s\n", must(message.StampGet()).GoString())

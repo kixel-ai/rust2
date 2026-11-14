@@ -1022,6 +1022,11 @@ impl Stamp {
 		self.millis / 1000
 	}
 
+	/// It rounded down to whole seconds, through an `impl Trait`, so it crosses as its bytes.
+	pub fn whole(self) -> impl Into<Stamp> + use<> {
+		Self { millis: self.millis / 1000 * 1000 }
+	}
+
 	pub fn later(self, other: Stamp) -> bool {
 		self.millis > other.millis
 	}
