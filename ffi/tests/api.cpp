@@ -336,6 +336,8 @@ int script() {
 		meters.emplace_back("low", api::Counter::new_("l", 1));
 		meters.emplace_back("high", api::Counter::new_("h", 9));
 		auto board = api::Board::new_(std::move(meters));
+		// The counters a board returns build another, each handle moved back in.
+		board = api::Board::new_(std::move(board).into_counters());
 		std::printf("ranked");
 		auto ranked = board.ranked();
 		for (std::size_t i = 0; i < ranked.size(); i++) {

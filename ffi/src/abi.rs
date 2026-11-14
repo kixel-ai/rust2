@@ -928,6 +928,7 @@ impl<'a> Abi<'a> {
 			"poll",
 			"view",
 			"items",
+			"taken",
 			"borrow",
 			"result",
 			"task",

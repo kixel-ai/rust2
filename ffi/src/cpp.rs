@@ -246,15 +246,17 @@ impl<'a> Header<'a> {
 	}
 
 	/// The C++ type a `Vec` parameter of type `ty` takes: a vector, or, when its items hold
-	/// views, the runtime's `items`, which also takes a returned vector of `buf`s as it is.
+	/// views, the runtime's `items` lent or `taken` when they move handles, each of which
+	/// also takes a returned vector of `buf`s as it is.
 	fn items(&self, ty: &Type) -> String {
 		let Type::List(_, inner) = ty else {
 			unreachable!("{ty:?} is no Vec")
 		};
 		let held = self.held(inner);
-		match held == self.owned(inner) || moves(self.abi, inner) {
-			true => format!("::std::vector<{held}>"),
-			false => format!("::{}::items<{held}>", self.ns),
+		match (held == self.owned(inner), moves(self.abi, inner)) {
+			(true, _) => format!("::std::vector<{held}>"),
+			(false, true) => format!("::{}::taken<{held}>", self.ns),
+			(false, false) => format!("::{}::items<{held}>", self.ns),
 		}
 	}
 

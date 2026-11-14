@@ -461,6 +461,8 @@ fn cpp_strict(api: &Api) {
 		(5, "'this' argument to member function 'into_label' is an lvalue"),
 		(6, "no matching member function for call to 'emplace'"),
 		(7, "temporary whose address is used as value of local variable 'name'"),
+		(8, "no viable conversion from 'texts'"),
+		(9, "no viable conversion from 'std::vector<std::tuple<api::buf, api::Counter>>'"),
 	] {
 		let output = clang(&tests.join("api_strict.cpp"), case).output().unwrap();
 		assert!(!output.status.success(), "case {case} built");

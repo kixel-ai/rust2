@@ -343,6 +343,11 @@ impl Board {
 		}
 	}
 
+	/// Each name and its counter in name order, each handle moved out of the board.
+	pub fn into_counters(self) -> Vec<(String, Counter)> {
+		self.counters.into_iter().collect()
+	}
+
 	/// Each name and its counter, highest first, as hang's `ranked`: each pair borrowed,
 	/// so each crosses as a clone.
 	pub fn ranked(&self) -> impl Iterator<Item = (&String, &Counter)> {

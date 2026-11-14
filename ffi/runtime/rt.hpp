@@ -382,6 +382,14 @@ public:
 	friend struct detail::access;
 };
 
+namespace detail {
+// Whether each item of the range `R` lives as long as `R` does, so a `T` made of it may view
+// its bytes: a reference into `R`, or a `T` itself, but no other temporary, such as the
+// `std::string` a C++20 transform may yield, which dies before the call reads it.
+template <class R, class T, class Item = decltype(*::std::begin(::std::declval<R &>()))>
+inline constexpr bool lasting = ::std::is_reference_v<Item> || ::std::is_same_v<::std::decay_t<Item>, T>;
+} // namespace detail
+
 // Items lent to a call whose items hold bytes, such as `view`s: a `std::vector<T>` in place,
 // or any other range whose items convert to `T`, such as the `std::vector<buf>` a call
 // returned or a `std::vector<std::string>`, converted item by item.
@@ -397,7 +405,7 @@ public:
 	items(::std::initializer_list<T> list) : converted_(list), data_(converted_.data()), size_(converted_.size()) {}
 	template <class R,
 	          class = ::std::enable_if_t<!::std::is_same_v<::std::decay_t<R>, ::std::vector<T>> &&
-	                                     !::std::is_same_v<::std::decay_t<R>, items> &&
+	                                     !::std::is_same_v<::std::decay_t<R>, items> && detail::lasting<const R, T> &&
 	                                     ::std::is_convertible_v<decltype(*::std::begin(::std::declval<const R &>())), T>>>
 	items(const R &range RUST2_FFI_LIFETIMEBOUND) : converted_(::std::begin(range), ::std::end(range)),
 	                                                 data_(converted_.data()), size_(converted_.size()) {}
@@ -418,6 +426,41 @@ public:
 	}
 	bool empty() const noexcept {
 		return size_ == 0;
+	}
+};
+
+// Items moved into a call whose items hold both bytes, as `view`s, and handles it takes: a
+// `std::vector<T>` as it is, or any other range moved in whose items convert to `T`, such as
+// the `std::vector<std::tuple<buf, H>>` a call returned, each handle moved out of it. Its
+// views point into the range's bytes, which live until the call's full-expression ends.
+template <class T>
+class taken {
+	::std::vector<T> items_;
+
+public:
+	taken() noexcept = default;
+	taken(::std::vector<T> &&vector) noexcept : items_(::std::move(vector)) {}
+	// A range moved in, never one lent: its handles move out.
+	template <class R, class = ::std::enable_if_t<!::std::is_reference_v<R> && !::std::is_same_v<R, ::std::vector<T>> &&
+	                                              !::std::is_same_v<R, taken> && detail::lasting<R, T> &&
+	                                              ::std::is_convertible_v<decltype(::std::move(*::std::begin(::std::declval<R &>()))), T>>>
+	taken(R &&range RUST2_FFI_LIFETIMEBOUND) {
+		for (auto &&item : range) {
+			items_.emplace_back(::std::move(item));
+		}
+	}
+
+	T *begin() noexcept {
+		return items_.data();
+	}
+	T *end() noexcept {
+		return items_.data() + items_.size();
+	}
+	::std::size_t size() const noexcept {
+		return items_.size();
+	}
+	bool empty() const noexcept {
+		return items_.empty();
 	}
 };
 

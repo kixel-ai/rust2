@@ -116,6 +116,8 @@ fn main() {
 		("low".to_string(), Counter::new("l", 1)),
 		("high".to_string(), Counter::new("h", 9)),
 	]);
+	// The counters a board returns build another, each handle moved back in.
+	let board = api::Board::new(board.into_counters());
 	let ranked: Vec<String> = (board.ranked())
 		.map(|(name, counter)| format!("{name} {} {}", counter.name(), counter.get()))
 		.collect();

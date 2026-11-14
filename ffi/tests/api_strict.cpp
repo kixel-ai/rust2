@@ -1,9 +1,14 @@
 // What Clang refuses under `-Wconsumed -Wdangling -Werror`: each case, built alone as
 // `-DCASE=n`, breaks a contract `tests/api.cpp` otherwise reaches only at run time, or not
 // at all. With no case it builds clean.
+#include <cstddef>
+#include <iterator>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
+#include <vector>
 
 #include "api.hpp"
 
@@ -53,5 +58,41 @@ void broken() {
 	std::string_view text = api::Counter::new_("c", 0).name().str();
 	(void)name;
 	(void)text;
+#elif CASE == 8
+	// Text a range yields as temporaries, as a C++20 transform may: each dies before the call.
+	struct texts {
+		struct iterator {
+			using iterator_category = std::input_iterator_tag;
+			using value_type = std::string;
+			using difference_type = std::ptrdiff_t;
+			using pointer = void;
+			using reference = std::string;
+			int i;
+			std::string operator*() const {
+				return std::string(32, 'x');
+			}
+			iterator &operator++() {
+				++i;
+				return *this;
+			}
+			bool operator==(const iterator &other) const {
+				return i == other.i;
+			}
+			bool operator!=(const iterator &other) const {
+				return i != other.i;
+			}
+		};
+		iterator begin() const {
+			return {0};
+		}
+		iterator end() const {
+			return {1};
+		}
+	};
+	api::counters(texts{});
+#elif CASE == 9
+	// Handles lent rather than moved in: the call would empty the caller's vector unasked.
+	std::vector<std::tuple<api::buf, api::Counter>> counters;
+	api::Board::new_(counters);
 #endif
 }
