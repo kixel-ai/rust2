@@ -12,6 +12,8 @@ and Go's hold counts, and a Swift class's, add a second contended atomic on the 
 
 ## Plan
 
+- Maintainer decision (2026-11-13): ✅ keep this follow-up (rejected: drop).
+
 Recommended: a reader-biased lock in the style of BRAVO (Dice and Kogan, USENIX ATC 2019)
 for handles of `Sync` values in `ffi/runtime/rt.rs`. A shared borrow publishes the handle
 in a slot of a global table hashed by thread and handle, and checks the handle's bias
