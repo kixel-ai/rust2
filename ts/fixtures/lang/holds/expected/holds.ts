@@ -224,9 +224,19 @@ export function closures(a: rs.u8, b: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 			return arr[i2];
 		});
 	}
-	const iter3: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _61: [rs.usize, rs.u8] | rs.Done = iter3.next();
+		let next!: [rs.usize, rs.u8] | rs.Done;
+		next2: {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count++, x];
+		}
+		const _61: [rs.usize, rs.u8] | rs.Done = next;
 		if (_61 === rs.DONE) {
 			break;
 		}

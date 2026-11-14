@@ -49,6 +49,10 @@ extension the crate builds with `--features python`, `swift/<prefix>.swift` hold
 Swift, over the C header as a clang module, `go/` holds it in Go, a package per crate
 over the C ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
 `dart:ffi` and what the crate builds with `--features dart`.
+An export again rewrites only the files whose content changed, and removes from
+`include/<prefix>/` and `go/` only what it no longer writes, so a build of an unchanged
+export stays fresh. The crate's version, `0.0.0+<hash>`, hashes its Rust sources and
+manifest, so exports that differ build apart in a target directory they share.
 
 ```toml
 # ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.
@@ -81,8 +85,8 @@ another of its name shares, the facade's root names, or another registry serves 
 reached. A crate only signatures reach keeps the roles of one no export is: its error in a
 `Result` crosses as its message, and its type behind an `Arc` as an opaque handle, refused
 bare. Its errors, the types implementing `std::error::Error`, are never reached, so an
-exported error holding one is an object, as it was. A type no public path names stays
-refused.
+exported error holding one is an object, as it was. A type it cannot reach, such as one no
+public path names, or an error taken by value, is held by value as an opaque handle instead.
 
 | Rust | C |
 | --- | --- |
@@ -101,19 +105,20 @@ refused.
 | `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
-| `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it, and `f_start` makes it and polls it once, returning a handle only if it pends; a function that is not `async` runs at the call, as in Rust |
+| `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it, and `f_start` makes it and polls it once, returning a handle only if it pends; a function that is not `async` runs at the call, as in Rust, and when its future borrows the arguments, the future owns them as an `async fn`'s does, holding each in place until it drops |
 | a function returning `Poll<T>` that polls through a `&Context`, a `&mut Context`, or a reference to an object exactly one associated function makes from a `Waker` alone, of a type with no generic parameters, such as kio's `Waiter`, which may be the method's own `&self`, as `Waiter::poll_future`'s is | a future of `T`, as an `async fn`'s: each poll calls the function again with the poll's context, or with an object made from its waker and kept until the next poll, so what it registers stays registered; each other parameter taken by value must be `Copy`; a method polling through its own `&self` is a function without one |
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
 | `u128` | `<prefix>_u128`: its low and high 64 bits |
 | `NonZero<T>` of an integer but 128-bit | `T`, in every binding too; a zero passed in aborts, and `Option<NonZero<T>>` is `T`'s option |
 | `[u8; N]` | `<prefix>_array_u8_<N>`: a struct of its `N` bytes, `items`, copied across; an empty one, or one of any other element, is refused |
-| `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: a view passed in, an owned buffer returned |
+| `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: an owned buffer returned; passed in, a view, or a buffer Rust returned, which Rust takes back without a copy unless it sits behind a pointer or in an array; `<prefix>_buf_clone` shares one the caller keeps, which a `Vec<u8>`, `String`, or `PathBuf` parameter then copies, since only a sole owner's allocation becomes a `Vec` |
 | `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them on Unix, which need not be UTF-8, else UTF-8 |
 | `Duration` | `<prefix>_duration` |
 | `SocketAddr`, `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr`: its IP's bytes, port, and whether it is IPv6; one of the other family passed to `V4` or `V6` aborts |
 | `url::Url` | an object `<prefix>_Url`, made by `<prefix>_Url_parse`, which fails with the parse error's message, and printed by `_to_string` |
 | `Arc<T>` of another crate's `Send` and `Sync` type that no other rule maps, such as `Arc<rustls::ServerConfig>` | an opaque object named by `T`'s crate and name, such as `<prefix>_rustls_ServerConfig`, with `_clone` and `_free` and none of `T`'s API: it only passes back to Rust |
+| another crate's `Send` and `Sync` type taken or returned by value or lent, with no type parameters, that no other rule maps, that is no iterator or future, and that is not reached by its public path, such as one only a `#[doc(hidden)]` module names | an opaque object named as the `Arc` form is, with `_free` and none of `T`'s API, holding the value: Rust takes it back by value, or borrows it; a type also named behind an `Arc` is that form, and refused by value |
 | `std::time::Instant` | an object `<prefix>_Instant`, which only Rust makes, copied into each call that takes it and compared by `_eq`, with none of its methods |
 | `tracing::Level` | `<prefix>_Level`: a C enum of its five levels, `TRACE` to `ERROR` |
 | `tracing::level_filters::LevelFilter` | `Option<tracing::Level>`, whose `None` is `OFF` |
@@ -152,7 +157,7 @@ A record or enum holds only values and `Copy` handles: one with a field that doe
 or that holds itself, is an object instead, and the census lists it. A borrowed return is
 returned as a clone, so it must be `Clone`, and a handle in it is a new handle to the
 clone, but for an object a `&self` method of an object returns borrowed from its receiver
-alone: that one, if not `Clone`, is a lent handle, which holds its receiver and checks it
+alone, or an object's `pub` field holds: that one, if not `Clone`, is a lent handle, which holds its receiver and checks it
 on each use, on one thread at a time where the receiver is not `Sync`. A handle outlives every call, so every lifetime an
 object takes is `'static`, as is every lifetime that must outlive one; any other lifetime
 is the call's. A signature may not lend C's borrow for one that is `'static`, but for a
@@ -488,18 +493,20 @@ out, with only its other fields encoded.
 - **Records** are data classes, compared by their fields, and **enums** an `enum class`,
   or for one with data a sealed class of a data class per variant. `Display` is
   `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`.
-- **Bytes** passed in are a `ByteArray`, copied, as are those Rust lends a closure or trait
-  method. Bytes Rust returns, or a record holds, are a `Bytes`, read only through `size`,
+- **Bytes** are a `Bytes`. Passed in, Rust's own are shared with no copy, and Kotlin's,
+  which `Bytes(ByteArray)` holds without a copy, are copied once into a buffer Rust takes,
+  at a call's top level or in a record; those Rust lends a closure or trait method are
+  copied. A `Bytes` is read only through `size`,
   `get`, `slice`, `copyInto`, and `toByteArray()`, so no view of Rust's memory escapes and
   no read meets it freed. Up to 1 KiB are copied, which costs less than the GC's cleanup;
   longer ones stay in Rust's buffer, each read a JNI call that passes the buffer's owner,
   which JNI keeps reachable until the call returns, and are freed once the GC finds no
   `Bytes` reaching them, slices included. The GC sees none of Rust's buffers, so at most
   64 MiB are lent at once, freed or not; past that, longer ones are copied too, and that
-  garbage in Kotlin's heap runs the GC, which frees them. `Bytes(ByteArray)` holds
-  Kotlin's for a record passed in. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
+  garbage in Kotlin's heap runs the GC, which frees them. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
   record holding bytes does too; Rust's lent ones are copied across in one call to compare.
-  Strings are `String`, `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
+  Strings are `String`, passed in as their UTF-16, which Rust encodes once into UTF-8 as
+  `encodeToByteArray` does, a lone surrogate as `?`; `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
   target's range, `Option<T>` `T?`, a tuple `Pair` or
   `Triple`, or else a generated `Tuple<n>`, and also `Tuple2` or `Tuple3` when it holds a
   numeric array or a float anywhere, records included, since `Pair` and `Triple` cannot
@@ -688,9 +695,13 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
 - **Records** are structs and **enums** Swift enums, with a variant's data as associated
   values, all `Sendable`. `PartialEq` is `==`, through Rust's; `Display` is `description`,
   `Debug` `debugDescription`, and `Default` a static `default()`.
-- **Bytes** are `Data`. Passed in at a call's top level, Rust reads Swift's own; nested in
-  another value, they are copied in. Bytes Rust returns lend its buffer until Swift
-  releases the `Data`, though `Data` copies a few bytes inline, freeing Rust's at once.
+- **Bytes** are the runtime's `Bytes`, a `RandomAccessCollection` of `UInt8` whose slices
+  are `Bytes` too. Bytes Rust returns lend its buffer until Swift releases the last `Bytes`
+  or slice reading it, and pass back to Rust as a second owner of it, with no copy, except
+  as an array's items or behind a pointer, which Rust only reads and so copies. Swift's
+  own, made with `Bytes(data)` or from any sequence of bytes, Rust copies once where it
+  keeps them. `bytes.data` is a `Data`: Swift's as they are, and Rust's copied, so nothing
+  writes into a buffer Rust shares.
   Strings are `String`, copied, `char` `Unicode.Scalar`, `usize` `UInt`, `Option<T>` `T?`,
   a tuple a Swift tuple, though a tuple of one is its element, `u128` a `U128` of its
   `high` and `low` halves until the deployment target allows `UInt128`, and `Duration`
@@ -895,8 +906,10 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 - **Integers** are `int`. A narrower one passed in throws a `RangeError` when out of its
   range, and a `u64` passes its 64 bits, so one past `i64`'s range is negative in Dart.
   A `char` is a `String` of one Unicode scalar.
-- **Bytes** a call takes are a `Uint8List`, and text a `String`, each copied into a
-  buffer the call frees. Bytes Rust returns are a `Uint8List` owned by Dart's memory
+- **Bytes** a call takes are a `Uint8List`, and text a `String`. Rust keeps Dart's own
+  with one copy from 1 KiB, into a buffer Rust takes, and with two below, since allocating
+  Rust's buffer costs more there than the second copy; a lent `Uint8List` Rust returned
+  passes back as a second owner of Rust's buffer, with no copy. Bytes Rust returns are a `Uint8List` owned by Dart's memory
   manager: up to 64 KiB copied, with Rust's freed at the call, and a longer one an
   unmodifiable view of Rust's buffer, freed once neither it nor any view of it is
   reachable, so no view outlives its memory. A lent view costs a finalizer and charges the

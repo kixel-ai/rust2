@@ -893,9 +893,16 @@ export function segments(data: rs.ByteSlice, out: rs.ByteVec): void {
 				continue;
 			}
 		}
-		rs.byteVecPush(out, rs.iterSum(rs.iterMap(rs.iterSlice(log.items), (s: Segment.Segment): rs.u8 => {
-			return s.filled & 0xff;
-		}), rs.u8Add, 0));
+		const leaf = rs.iterSlice(log.items);
+		let acc: rs.u8 = 0;
+		while (true) {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				break;
+			}
+			acc = rs.u8Add(acc, x.filled & 0xff);
+		}
+		rs.byteVecPush(out, acc);
 	}
 }
 
@@ -3486,9 +3493,19 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(w2)), undefined, true);
 		rs.byteVecPush(out, 255);
 	}
-	const iter6: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _218: [rs.usize, rs.u8] | rs.Done = iter6.next();
+		let next!: [rs.usize, rs.u8] | rs.Done;
+		next2: {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count++, x];
+		}
+		const _218: [rs.usize, rs.u8] | rs.Done = next;
 		if (_218 === rs.DONE) {
 			break;
 		}
@@ -3804,9 +3821,19 @@ export function movedOut(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	const held: HeldCell.HeldCell = ({ c: new rs.Cell(undefined) } as unknown) as HeldCell.HeldCell;
 	const old3: HeldCell.HeldCell = uninitMoved(held);
-	const iter10: rs.Iter<[rs.usize, HeldCell.HeldCell]> = rs.iterEnumerate(rs.iterSlice([held, old3]));
+	const leaf: rs.Iter<HeldCell.HeldCell> = rs.iterSlice([held, old3]);
+	let count: number = 0;
 	while (true) {
-		const _249: [rs.usize, HeldCell.HeldCell] | rs.Done = iter10.next();
+		let next!: [rs.usize, HeldCell.HeldCell] | rs.Done;
+		next2: {
+			const x3 = leaf.next();
+			if (x3 === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count++, x3];
+		}
+		const _249: [rs.usize, HeldCell.HeldCell] | rs.Done = next;
 		if (_249 === rs.DONE) {
 			break;
 		}
@@ -3958,9 +3985,19 @@ export function flip(tag: rs.Place<rs.u8>): void {
 
 /** Unions over a type parameter, at a byte's instance and a `u32`'s. */
 export function genericUnions(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _7: [rs.usize, rs.u8] | rs.Done = iter.next();
+		let next!: [rs.usize, rs.u8] | rs.Done;
+		next2: {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count++, x];
+		}
+		const _7: [rs.usize, rs.u8] | rs.Done = next;
 		if (_7 === rs.DONE) {
 			break;
 		}

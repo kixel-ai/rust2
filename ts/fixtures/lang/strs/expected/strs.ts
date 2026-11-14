@@ -463,9 +463,19 @@ export function unescape(path: string): rs.Vec<rs.String> {
 export function escape(parts: rs.Slice<rs.String>): rs.String {
 	let _23!: boolean;
 	const path: rs.String = rs.stringNew();
-	const iter: rs.Iter<[rs.usize, rs.String]> = rs.iterEnumerate(rs.iterSlice(rs.sliceItems(parts)));
+	const leaf: rs.Iter<rs.String> = rs.iterSlice(rs.sliceItems(parts));
+	let count: number = 0;
 	l1: while (true) {
-		const _7: [rs.usize, rs.String] | rs.Done = iter.next();
+		let next!: [rs.usize, rs.String] | rs.Done;
+		next2: {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count++, x];
+		}
+		const _7: [rs.usize, rs.String] | rs.Done = next;
 		if (_7 === rs.DONE) {
 			return path;
 		}

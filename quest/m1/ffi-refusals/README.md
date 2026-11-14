@@ -76,9 +76,11 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   refuses 94 items and 5 types at the pin, behind `ffi/moq/ffi.toml`'s then 100 excludes, and
   moq's `main` adds the 36 errors [the pin bump](/quest/m1/ffi-refusals/moq-pin.md)
   measured. So each construct left has a child again:
-  `NonZero`, which exports, and
-  [the rest at moq's main](/quest/m1/ffi-refusals/moq-main.md); `just ffi census`
-  fails on an exclude that names what exports. The
+  `NonZero`, which exports, the rest of the errors at moq's main
+  (exported since by rules for another crate's value, a borrowing future of a function
+  that is not `async`, and an object field that is not `Clone`), and
+  [what the excludes still hide at moq's main](/quest/m1/ffi-refusals/moq-excluded.md);
+  `just ffi census` fails on an exclude that names what exports. The
   bump is then only the bump. The types refused for not being `Send` (`clock::Entered`,
   `clock::Rng`, `catalog::Guard`) clear with [not-send](/quest/m1/ffi-export/not-send.md).
 - ✅ The closing work is a child, [no config](/quest/m1/ffi-refusals/no-config.md), as
