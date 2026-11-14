@@ -1493,7 +1493,7 @@ impl<'tcx> Collector<'tcx> {
 						*i = api.records.len();
 						let ty = tcx.type_of(def_id).instantiate(tcx, site.args).skip_norm_wip();
 						let lifetimes = tcx.generics_of(def_id).own_counts().lifetimes;
-						let opaque = opaque(tcx, ty, lifetimes, false);
+						let opaque = opaque(tcx, &self.sysroot, ty, lifetimes, false);
 						let padding = padding(tcx, ty).expect("a value's bytes do not depend on it");
 						api.records.push(Record {
 							path,
@@ -1560,7 +1560,7 @@ impl<'tcx> Collector<'tcx> {
 				true => {
 					self.foreign[n].1 = self.api.records.len();
 					let ty = tcx.type_of(def_id).instantiate_identity().skip_norm_wip();
-					let opaque = opaque(tcx, ty, 0, true);
+					let opaque = opaque(tcx, &self.sysroot, ty, 0, true);
 					let padding = padding(tcx, ty).expect("a value's bytes do not depend on it");
 					self.api.records.push(Record {
 						path: object.path,
@@ -5331,7 +5331,7 @@ fn marker(tcx: TyCtxt<'_>, tr: DefId) -> bool {
 }
 
 /// How C holds the `Copy` type `ty`, with `lifetimes` lifetime parameters, as its bytes.
-fn opaque<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, lifetimes: usize, foreign: bool) -> crate::ir::Opaque {
+fn opaque<'tcx>(tcx: TyCtxt<'tcx>, sysroot: &[CrateNum], ty: Ty<'tcx>, lifetimes: usize, foreign: bool) -> crate::ir::Opaque {
 	let env = TypingEnv::fully_monomorphized();
 	let ty = tcx.erase_and_anonymize_regions(ty);
 	// A type that has a layout on its target, as every exported `Copy` type does.
@@ -5341,13 +5341,19 @@ fn opaque<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, lifetimes: usize, foreign: bool
 		.and_then(|tr| (tcx.associated_item_def_ids(tr).iter().copied()).find(|&f| tcx.item_name(f) == sym::eq));
 	// Whether every byte of `ty` belongs to an integer, `bool`, or `char` in it, and its
 	// `PartialEq`, if any, is derived or std's, so equal values have equal bytes.
-	fn dense<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, eq: Option<DefId>, ty: Ty<'tcx>) -> bool {
+	fn dense<'tcx>(
+		tcx: TyCtxt<'tcx>,
+		sysroot: &[CrateNum],
+		env: TypingEnv<'tcx>,
+		eq: Option<DefId>,
+		ty: Ty<'tcx>,
+	) -> bool {
 		match ty.kind() {
 			ty::Int(_) | ty::Uint(_) | ty::Bool | ty::Char => true,
-			ty::Pat(base, _) => dense(tcx, env, eq, *base),
-			ty::Array(element, _) => dense(tcx, env, eq, *element),
+			ty::Pat(base, _) => dense(tcx, sysroot, env, eq, *base),
+			ty::Array(element, _) => dense(tcx, sysroot, env, eq, *element),
 			ty::Adt(adt, args) if adt.is_struct() => {
-				let std = matches!(tcx.crate_name(adt.did().krate).as_str(), "core" | "alloc" | "std");
+				let std = sysroot.contains(&adt.did().krate);
 				let derived = || {
 					let Some(eq) = eq else { return true };
 					match ty::Instance::try_resolve(tcx, env, eq, tcx.mk_args(&[ty.into(), ty.into()])) {
@@ -5374,7 +5380,7 @@ fn opaque<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, lifetimes: usize, foreign: bool
 					let Ok(layout) = tcx.layout_of(env.as_query_input(field)) else {
 						return false;
 					};
-					if !dense(tcx, env, eq, field) {
+					if !dense(tcx, sysroot, env, eq, field) {
 						return false;
 					}
 					covered += layout.size.bytes();
@@ -5387,7 +5393,7 @@ fn opaque<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, lifetimes: usize, foreign: bool
 	crate::ir::Opaque {
 		size: own.size().bytes(),
 		align: own.align().bytes(),
-		dense: dense(tcx, env, eq, ty),
+		dense: dense(tcx, sysroot, env, eq, ty),
 		lifetimes,
 		foreign,
 	}

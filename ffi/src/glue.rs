@@ -1185,6 +1185,8 @@ impl Gen<'_> {
 		self.item(format!(
 			"const _: () = assert!(::std::mem::size_of::<{path}>() <= ::std::mem::size_of::<{name}>(), \"{name} is smaller than its Rust type\");\n"
 		));
+		// A layout check alone passes a type that lost `Copy`, which `lift_` would then drop twice.
+		self.item(format!("const _: fn() = {{\n\tfn copy<T: Copy>() {{}}\n\tcopy::<{path}>\n}};\n"));
 		self.item(format!(
 			"fn lift_{name}(c: &{name}, w: &str) -> {path} {{\n\tlet _ = w;\n\tunsafe {{ c.opaque.as_ptr().cast::<{path}>().read_unaligned() }}\n}}\n"
 		));
