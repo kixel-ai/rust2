@@ -238,6 +238,8 @@ def provenance(item):
             },
             "resolvedDependencies": [
                 {"uri": f"git+https://github.com/{repo}", "digest": {"gitCommit": item["sha"]}},
+                # workflow/v1 names the caller workflow's own commit, which differs from a backfilled crate's.
+                {"uri": f"git+https://github.com/{repo}@{ref}", "digest": {"gitCommit": os.environ["GITHUB_SHA"]}},
                 {"uri": "https://github.com/" + workflow.split("@", 1)[0], "digest": {"gitCommit": os.environ["PIPELINE_SHA"]}},
             ],
         },
