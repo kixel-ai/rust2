@@ -36,7 +36,7 @@ fun per(start: Span, n: Double = N.toDouble()): Span {
 // byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
 suspend fun throughput(track: TrackProducer, subscriber: TrackSubscriber, at: Timestamp, size: Int): Span {
 	val groups = ((64 shl 20) / (size * FRAMES)).coerceIn(3, 2000)
-	val frame = ByteArray(size)
+	val frame = Bytes(ByteArray(size))
 	var sum = 0
 	val start = now()
 	repeat(groups) {
@@ -61,7 +61,7 @@ fun round(): Map<String, Span> {
 	val track = Timescale.MICRO.use { micro ->
 		broadcast.createTrack("bench", TrackInfo.default().withTimescale(micro))
 	}
-	val frame = ByteArray(100)
+	val frame = Bytes(ByteArray(100))
 	var sum = 0
 
 	var start = now()

@@ -420,6 +420,12 @@ final class _Arena implements ffi.Allocator {
   List<_Object>? _more;
   List<int>? _lent;
 
+  /// The buffers it gave Rust to take, freed unless the call took them.
+  List<_Buf>? _given;
+
+  /// The lent bytes it passed a view of, kept reachable until the call returns.
+  List<typed.Uint8List>? _viewed;
+
   _Arena() : _stack = _n.stack, _mark = _n.stack.mark();
 
   @override
@@ -451,8 +457,18 @@ final class _Arena implements ffi.Allocator {
     return relay;
   }
 
+  /// Note that the call returned, so Rust took each buffer it was given.
+  void took() => _given = null;
+
   /// Give back what the call took.
   void end() {
+    final given = _given;
+    if (given != null) {
+      for (final buf in given) {
+        _bufFree(buf);
+      }
+    }
+    _viewed = null;
     final lent = _lent;
     if (lent != null) {
       for (var i = 0; i < lent.length; i += 2) {
@@ -470,24 +486,50 @@ final class _Arena implements ffi.Allocator {
     _stack.reset(_mark);
   }
 
-  /// `bytes`, copied: never a null pointer, so an empty one is told apart from none.
-  void bytes(_Buf dst, typed.Uint8List? bytes) {
+  /// `bytes`, never a null pointer, so an empty one is told apart from none. Where Rust
+  /// [take]s them, a buffer it owns: a second owner of bytes Rust lent, else from
+  /// [_takeFrom] bytes a copy into a buffer of its own. Else a view: of bytes Rust lent, in
+  /// place, else of a copy here, which Rust copies again where it keeps them.
+  void bytes(_Buf dst, typed.Uint8List? bytes, bool take) {
     if (bytes == null) {
       dst.ptr = ffi.nullptr;
       dst.len = 0;
-    } else {
-      final ptr = this<ffi.Uint8>(bytes.isEmpty ? 1 : bytes.length);
-      ptr.asTypedList(bytes.length).setAll(0, bytes);
-      dst.ptr = ptr;
-      dst.len = bytes.length;
+      dst.owner = ffi.nullptr;
+      return;
     }
+    // Only a list longer than [_lend] can be Rust's.
+    final lent = bytes.length > _lend ? _n.lentBytes[bytes] : null;
+    if (lent != null) {
+      dst.ptr = ffi.Pointer.fromAddress(lent.ptr);
+      dst.len = bytes.length;
+      dst.owner = ffi.nullptr;
+      // Reachable through the call, so its finalizer cannot free the owner under Rust,
+      // even while [_bufClone] shares it.
+      (_viewed ??= []).add(bytes);
+      if (take) {
+        dst.owner = ffi.Pointer.fromAddress(lent.owner);
+        _give(dst, _bufClone(dst));
+      }
+      return;
+    }
+    if (take && bytes.length >= _takeFrom) {
+      final buf = _dartBuf(bytes.length);
+      buf.ptr.asTypedList(bytes.length).setAll(0, bytes);
+      _give(dst, buf);
+      return;
+    }
+    final ptr = this<ffi.Uint8>(bytes.isEmpty ? 1 : bytes.length);
+    ptr.asTypedList(bytes.length).setAll(0, bytes);
+    dst.ptr = ptr;
+    dst.len = bytes.length;
     dst.owner = ffi.nullptr;
   }
 
-  /// `text`'s UTF-8, copied.
-  void string(_Buf dst, String? text) {
+  /// `text`'s UTF-8, copied: into a buffer Rust owns where it [take]s it, from [_takeFrom]
+  /// bytes.
+  void string(_Buf dst, String? text, bool take) {
     if (text == null) {
-      bytes(dst, null);
+      bytes(dst, null, take);
       return;
     }
     final units = text.codeUnits;
@@ -501,7 +543,13 @@ final class _Arena implements ffi.Allocator {
       }
     }
     if (!ascii) {
-      bytes(dst, convert.utf8.encode(text));
+      bytes(dst, convert.utf8.encode(text), take);
+      return;
+    }
+    if (take && n >= _takeFrom) {
+      final buf = _dartBuf(n);
+      buf.ptr.asTypedList(n).setAll(0, units);
+      _give(dst, buf);
       return;
     }
     final ptr = this<ffi.Uint8>(n == 0 ? 1 : n);
@@ -510,6 +558,30 @@ final class _Arena implements ffi.Allocator {
     dst.len = n;
     dst.owner = ffi.nullptr;
   }
+}
+
+/// Dart's own bytes Rust takes from this long are copied into a buffer Rust allocates, and
+/// shorter ones onto the arena's stack, which Rust copies again: on the binding benchmark,
+/// the call to allocate Rust's buffer costs more than the second copy of 100 bytes, and
+/// less than that of 1 KiB.
+const _takeFrom = 1024;
+
+extension on _Arena {
+  /// Write `buf`, Rust's own, to `dst`, freed unless the call takes it.
+  void _give(_Buf dst, _Buf buf) {
+    dst.ptr = buf.ptr;
+    dst.len = buf.len;
+    dst.owner = buf.owner;
+    (_given ??= []).add(dst);
+  }
+}
+
+/// Where a list of bytes Rust lent reads them, and their owner.
+final class _Lent {
+  final int ptr;
+  final int owner;
+
+  _Lent(this.ptr, this.owner);
 }
 
 /// The isolate's share of the runtime: checked against the library before any other
@@ -527,6 +599,9 @@ final class _Native {
 
   /// The closures lent for a call, and the implementations Rust holds, by token.
   final Map<int, Object> lent = {};
+
+  /// Each list of bytes Rust lent, which passes back to Rust in place.
+  final lentBytes = Expando<_Lent>();
 
   /// The calls pending in Rust, by their future.
   final Map<Future<Object?>, _Call<Object?>> calls = {};
@@ -707,7 +782,7 @@ final class _Native {
     final a = _Arena();
     try {
       final view = a<_Buf>();
-      a.string(view.ref, text);
+      a.string(view.ref, text, false);
       return _bufCopy(view.ref);
     } finally {
       a.end();
@@ -741,7 +816,7 @@ final class _Native {
   Never fail(String text) {
     final a = _Arena();
     final buf = a<_Buf>();
-    a.string(buf.ref, text);
+    a.string(buf.ref, text, false);
     _dartAbort(buf.ref);
     throw StateError('unreachable');
   }
@@ -756,7 +831,9 @@ final class _Native {
       _bufFree(buf);
       return copy;
     }
-    return buf.ptr.asTypedList(len, finalizer: _ownerFree, token: buf.owner).asUnmodifiableView();
+    final list = buf.ptr.asTypedList(len, finalizer: _ownerFree, token: buf.owner).asUnmodifiableView();
+    lentBytes[list] = _Lent(buf.ptr.address, buf.owner.address);
+    return list;
   }
 
   typed.Uint8List? bytesOrNull(_Buf buf) => buf.ptr == ffi.nullptr ? null : bytes(buf);

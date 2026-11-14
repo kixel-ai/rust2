@@ -876,10 +876,6 @@ fn is_bytes(shape: &Shape) -> bool {
 	}
 }
 
-fn bytes(shape: &Shape) -> bool {
-	within(shape, &is_bytes)
-}
-
 fn ipv6(shape: &Shape) -> bool {
 	within(shape, &|s| {
 		matches!(s, Shape::SocketAddr("SocketAddr" | "SocketAddrV6"))
@@ -943,12 +939,6 @@ const KNOWN: &[Known] = &[
 	},
 	Known {
 		language: "kotlin",
-		what: "returned bytes passed back",
-		skips: bytes,
-		quest: "/quest/m1/ffi-export/owned-bufs.md",
-	},
-	Known {
-		language: "kotlin",
 		what: "a returned tuple of one passed back",
 		skips: single,
 		quest: "/quest/m1/ffi-export/round-trips.md",
@@ -958,12 +948,6 @@ const KNOWN: &[Known] = &[
 		what: "an IPv6 flow label",
 		skips: ipv6,
 		quest: "/quest/m1/ffi-export/lossless.md",
-	},
-	Known {
-		language: "go",
-		what: "returned bytes passed back",
-		skips: bytes,
-		quest: "/quest/m1/ffi-export/owned-bufs.md",
 	},
 	Known {
 		language: "cpp",
@@ -1230,7 +1214,11 @@ fn kotlin(built: &Built, calls: &[Call]) -> String {
 		};
 		format!("\tprintln(\"{} ${{{value}}}\")", call.label())
 	});
-	let mut out = format!("import {}.*\nimport kotlinx.coroutines.runBlocking\n\n", built.name());
+	// A block of unsigned numbers is an experimental unsigned array, such as `UIntArray`.
+	let mut out = format!(
+		"@file:OptIn(ExperimentalUnsignedTypes::class)\n\nimport {}.*\nimport kotlinx.coroutines.runBlocking\n\n",
+		built.name()
+	);
 	for (n, lines) in &shapes {
 		let _ = writeln!(out, "suspend fun shape{n}() {{\n{lines}}}\n");
 	}
@@ -1284,8 +1272,9 @@ fn swift(calls: &[Call]) -> String {
 }
 
 /// The Go driver: `one` takes the value of a call returning it alone or with an error,
-/// `tupleK` gathers a returned tuple's values into the `rt.TupleK` Go takes, and `lift`
-/// makes a closure of a function of either form.
+/// `tupleK` gathers a returned tuple's values into the `rt.TupleK` Go takes, `lift` makes a
+/// closure of a function of either form, and `bytesIn` and `bytesOptIn` adapt one taking an
+/// `rt.Bytes` to the `[]byte` a callback is lent.
 fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 	let mut body = String::new();
 	// How the generated `func` returns: its values, and whether an error follows them.
@@ -1368,7 +1357,16 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 				} else {
 					"lift"
 				};
-				format!("s.{item}{n}({seed}, {lift}(s.Digest{n}))")
+				// A callback takes the bytes Rust lends it as a `[]byte`, which `Digest` takes
+				// as an `rt.Bytes`.
+				let at = source.find(&format!("\nfunc {item}{n}(")).unwrap();
+				let line = source[at + 1..].lines().next().unwrap();
+				let adapt = match () {
+					_ if line.contains("func([]byte)") => "bytesIn",
+					_ if line.contains("func(*[]byte)") => "bytesOptIn",
+					_ => "",
+				};
+				format!("s.{item}{n}({seed}, {adapt}({lift}(s.Digest{n})))")
 			}
 			Call::Made(_, seed) => {
 				let lift = if results(&format!("Make{n}")).1 {
@@ -1387,16 +1385,14 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 		let _ = writeln!(body, "\tfmt.Println(\"{}\", {printed})", call.label());
 	}
 	format!(
-		"package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\n\ts \"{name}/{name}\"\n{import})\n\n\
+		"package main\n\nimport (\n\t\"context\"\n\t\"fmt\"\n\n\ts \"{name}/{name}\"\n\t\"{name}/rt\"\n)\n\n\
 		func one[T any](v T, err ...error) T {{\n\tif len(err) > 0 && err[0] != nil {{\n\t\tpanic(err[0])\n\t}}\n\treturn v\n}}\n\n\
 		{tuples}func lift[A, B any](f func(A) B) func(A) B {{\n\treturn f\n}}\n\n\
 		func liftErr[A, B any](f func(A) (B, error)) func(A) B {{\n\treturn func(a A) B {{ return one(f(a)) }}\n}}\n\n\
+		func bytesIn[B any](f func(rt.Bytes) B) func([]byte) B {{\n\treturn func(v []byte) B {{ return f(rt.NewBytes(v)) }}\n}}\n\n\
+		func bytesOptIn[B any](f func(*rt.Bytes) B) func(*[]byte) B {{\n\treturn func(v *[]byte) B {{\n\t\tif v == nil {{\n\t\t\treturn f(nil)\n\t\t}}\n\t\tb := rt.NewBytes(*v)\n\t\treturn f(&b)\n\t}}\n}}\n\n\
 		func main() {{\n\tctx := context.Background()\n\t_ = ctx\n{body}}}\n",
 		name = built.name(),
-		import = match tuples.is_empty() {
-			true => String::new(),
-			false => format!("\t\"{}/rt\"\n", built.name()),
-		},
 	)
 }
 
