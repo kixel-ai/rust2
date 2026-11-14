@@ -10,6 +10,7 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use super::step::{self, Step};
 use super::{cargo, manifest_dir, run, scratch};
 
 /// The integer types of the IR's `Int`.
@@ -563,7 +564,6 @@ struct Crate {
 /// exports, and run its script natively.
 fn emit(name: &str, shapes: &[Shape]) -> Crate {
 	let dir = scratch().join(name);
-	let _ = std::fs::remove_dir_all(dir.join("src"));
 	let mut emit = Emit {
 		items: String::new(),
 		defined: 0,
@@ -599,7 +599,7 @@ fn emit(name: &str, shapes: &[Shape]) -> Crate {
 		&[("Cargo.toml", &manifest), ("src/lib.rs", &lib), ("ffi.toml", "")],
 	);
 	// The api fixture's versions, resolved offline.
-	std::fs::copy(manifest_dir().join("Cargo.lock"), dir.join("Cargo.lock")).unwrap();
+	super::step::copy(&manifest_dir().join("Cargo.lock"), &dir.join("Cargo.lock"));
 
 	let refused = refused(&dir);
 	let exported = |item: Item, n: usize| !refused.iter().any(|path| *path == item.name(n));
@@ -609,7 +609,7 @@ fn emit(name: &str, shapes: &[Shape]) -> Crate {
 		.iter()
 		.map(|path| format!("    \"{path}\",\n"))
 		.collect::<String>();
-	std::fs::write(dir.join("ffi.toml"), format!("exclude = [\n{config}]\n")).unwrap();
+	super::step::write(&dir.join("ffi.toml"), format!("exclude = [\n{config}]\n"));
 
 	let mut calls = Vec::new();
 	for n in 0..shapes.len() {
@@ -648,9 +648,10 @@ fn emit(name: &str, shapes: &[Shape]) -> Crate {
 	}
 	script.push_str("}\n");
 	super::write_all(&dir, &[("examples/transcript.rs", &script)]);
+	// Apart from the exporter's build, which cleans the crate each time.
 	let transcript = run(cargo()
 		.args(["run", "--quiet", "--example", "transcript"])
-		.env("CARGO_TARGET_DIR", dir.join("build"))
+		.env("CARGO_TARGET_DIR", dir.join("native"))
 		.current_dir(&dir));
 	Crate {
 		dir,
@@ -743,7 +744,6 @@ fn shared(name: &str) -> String {
 fn build(name: &str, shapes: &[Shape]) -> Built {
 	let krate = emit(name, shapes);
 	let out = krate.dir.join("out");
-	let _ = std::fs::remove_dir_all(&out);
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--config")
 		.arg(krate.dir.join("ffi.toml"))
@@ -751,20 +751,22 @@ fn build(name: &str, shapes: &[Shape]) -> Built {
 		.arg(&out)
 		.env("CARGO_TARGET_DIR", krate.dir.join("build")));
 	let target = krate.dir.join("glue");
-	let build = |feature: &str| {
+	let build = |target: &Path, feature: &str| {
 		run(cargo()
 			.args(["build", "--quiet", "--locked", "--manifest-path"])
 			.arg(out.join("Cargo.toml"))
 			.arg("--target-dir")
-			.arg(&target)
+			.arg(target)
 			.args(["--features", feature])
 			.env("RUSTFLAGS", "-D warnings --print=native-static-libs"))
 	};
-	// As the api fixture's: the CPython extension builds apart and moves beside the Python.
-	build("python");
+	// As the api fixture's: the CPython extension builds apart, in a target directory of its
+	// own, and is copied beside the Python.
+	let python = krate.dir.join("glue-python");
+	build(&python, "python");
 	let lib = shared(name);
-	std::fs::rename(target.join("debug").join(&lib), out.join("python").join(&lib)).unwrap();
-	let built = build("kotlin,dart");
+	super::step::copy(&python.join("debug").join(&lib), &out.join("python").join(&lib));
+	let built = build(&target, "kotlin,dart");
 	let native = String::from_utf8_lossy(&built.stderr)
 		.lines()
 		.find_map(|line| line.strip_prefix("note: native-static-libs: "))
@@ -795,10 +797,7 @@ impl Built {
 
 	/// A directory of its own for `language`'s driver.
 	fn dir(&self, language: &str) -> PathBuf {
-		let dir = self.krate.dir.join("drivers").join(language);
-		let _ = std::fs::remove_dir_all(&dir);
-		std::fs::create_dir_all(&dir).unwrap();
-		dir
+		self.krate.dir.join("drivers").join(language)
 	}
 
 	/// The exported shapes `language` gets wrong today, by [`KNOWN`], each entry of which must
@@ -1429,41 +1428,58 @@ fn round_trip(built: &Built, language: &str) {
 	let output = match language {
 		"c" => {
 			let main = dir.join("main.c");
-			std::fs::write(&main, c(built, calls)).unwrap();
+			step::write(&main, c(built, calls));
 			let cc = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
-			run(Command::new(cc)
-				.args(["-std=c23", "-pedantic", "-Wall", "-Wextra", "-Werror", "-I"])
-				.arg(built.out.join("include"))
-				.arg(&main)
-				.arg(built.staticlib())
-				.args(&built.native)
-				.arg("-o")
-				.arg(&exe));
+			let include = built.out.join("include");
+			let step = Step {
+				stamp: &step::stamp(&exe),
+				reads: &[&main, &include, &built.staticlib()],
+				writes: &[&exe],
+			};
+			step.run(
+				Command::new(cc)
+					.args(["-std=c23", "-pedantic", "-Wall", "-Wextra", "-Werror", "-I"])
+					.arg(&include)
+					.arg(&main)
+					.arg(built.staticlib())
+					.args(&built.native)
+					.arg("-o")
+					.arg(&exe),
+			);
 			run(&mut Command::new(&exe))
 		}
 		"cpp" => {
 			let main = dir.join("main.cpp");
-			std::fs::write(&main, cpp(built, calls)).unwrap();
+			step::write(&main, cpp(built, calls));
 			// The api fixture's build, so MSVC's runner builds it with cl.
 			let link = super::Link {
 				include: built.out.join("include"),
 				staticlib: built.staticlib(),
 				native: &built.native,
 			};
-			run(&mut super::cxx(&link, 17, false, &main, &exe));
+			super::cxx(&link, 17, false, &main, &exe);
 			run(&mut Command::new(&exe))
 		}
 		"kotlin" => {
 			let main = dir.join("main.kt");
-			std::fs::write(&main, kotlin(built, calls)).unwrap();
+			step::write(&main, kotlin(built, calls));
 			let classes = dir.join("classes");
-			run(Command::new("kotlinc")
-				.args(["-Werror", "-cp"])
-				.arg(super::coroutines())
-				.arg(built.out.join("kotlin").join(format!("{name}.kt")))
-				.arg(&main)
-				.arg("-d")
-				.arg(&classes));
+			let generated = built.out.join("kotlin").join(format!("{name}.kt"));
+			let jar = PathBuf::from(super::coroutines());
+			let step = Step {
+				stamp: &step::stamp(&classes),
+				reads: &[&main, &generated, &jar],
+				writes: &[&classes],
+			};
+			step.run(
+				Command::new("kotlinc")
+					.args(["-Werror", "-cp"])
+					.arg(&jar)
+					.arg(&generated)
+					.arg(&main)
+					.arg("-d")
+					.arg(&classes),
+			);
 			let mut classpath = classes.into_os_string();
 			classpath.push(if cfg!(windows) { ";" } else { ":" });
 			classpath.push(super::coroutines());
@@ -1475,7 +1491,7 @@ fn round_trip(built: &Built, language: &str) {
 		}
 		"python" => {
 			let main = dir.join("main.py");
-			std::fs::write(&main, python(built, calls)).unwrap();
+			step::write(&main, python(built, calls));
 			run(
 				Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()))
 					.args(["-P", "-X", "dev", "-W", "error"])
@@ -1485,55 +1501,78 @@ fn round_trip(built: &Built, language: &str) {
 		}
 		"swift" => {
 			let module = built.out.join("swift");
-			std::fs::copy(module.join(format!("{name}.swift")), dir.join(format!("{name}.swift"))).unwrap();
-			std::fs::write(dir.join("main.swift"), swift(calls)).unwrap();
-			run(super::swiftc(&module, 15)
-				.args(["-swift-version", "6", "-module-name", "Shapes"])
-				.arg(dir.join(format!("{name}.swift")))
-				.arg(dir.join("main.swift"))
-				.args(super::swift_collections())
-				.arg(built.staticlib())
-				.args(&built.native)
-				.arg("-o")
-				.arg(&exe));
+			let (generated, main) = (dir.join(format!("{name}.swift")), dir.join("main.swift"));
+			step::copy(&module.join(format!("{name}.swift")), &generated);
+			step::write(&main, swift(calls));
+			let collections = super::swift_collections();
+			let include = built.out.join("include");
+			let step = Step {
+				stamp: &step::stamp(&exe),
+				reads: &[
+					&generated,
+					&main,
+					&module,
+					&include,
+					&super::collections_dir(),
+					&built.staticlib(),
+				],
+				writes: &[&exe],
+			};
+			step.run(
+				super::swiftc(&module, 15)
+					.args(["-swift-version", "6", "-module-name", "Shapes"])
+					.arg(&generated)
+					.arg(&main)
+					.args(collections)
+					.arg(built.staticlib())
+					.args(&built.native)
+					.arg("-o")
+					.arg(&exe),
+			);
 			run(&mut Command::new(&exe))
 		}
 		"go" => {
-			let export = dir.join("export");
-			super::copy_dir(&built.out.join("go"), &export);
-			std::fs::create_dir_all(dir.join("include")).unwrap();
+			// The module apart from the program, which its build would otherwise read.
+			let module = dir.join("module");
+			let export = module.join("export");
+			step::mirror(&built.out.join("go"), &export);
 			let header = format!("{name}.h");
-			std::fs::copy(
-				built.out.join("include").join(&header),
-				dir.join("include").join(&header),
-			)
-			.unwrap();
+			step::copy(
+				&built.out.join("include").join(&header),
+				&module.join("include").join(&header),
+			);
 			let source = std::fs::read_to_string(export.join(&name).join(format!("{name}.go"))).unwrap();
 			let rt = std::fs::read_to_string(export.join("rt").join("types.go")).unwrap_or_default();
-			std::fs::write(dir.join("main.go"), go(built, calls, &source, &rt)).unwrap();
-			std::fs::write(
-				dir.join("go.mod"),
+			step::write(&module.join("main.go"), go(built, calls, &source, &rt));
+			step::write(
+				&module.join("go.mod"),
 				format!("module shapestest\n\ngo 1.24\n\nrequire {name} v0.0.0\n\nreplace {name} => ./export\n"),
-			)
-			.unwrap();
+			);
 			let mut ldflags = built.staticlib().into_os_string();
 			for lib in &built.native {
 				ldflags.push(" ");
 				ldflags.push(lib);
 			}
-			run(Command::new("go")
-				.args(["build", "-o"])
-				.arg(&exe)
-				.current_dir(&dir)
-				.env("CGO_ENABLED", "1")
-				.env("CGO_LDFLAGS", ldflags)
-				.env("GOFLAGS", "-buildvcs=false")
-				.env("GOTOOLCHAIN", "local"));
+			let step = Step {
+				stamp: &step::stamp(&exe),
+				reads: &[&module, &built.staticlib()],
+				writes: &[&exe],
+			};
+			step.run(
+				Command::new("go")
+					.args(["build", "-o"])
+					.arg(&exe)
+					.current_dir(&module)
+					.env("CGO_ENABLED", "1")
+					.env("CGO_LDFLAGS", ldflags)
+					.env("GOFLAGS", "-buildvcs=false")
+					.env("GOTOOLCHAIN", "local"),
+			);
 			run(&mut Command::new(&exe))
 		}
 		"dart" => {
 			let main = dir.join("main.dart");
-			std::fs::write(&main, dart(built, calls)).unwrap();
+			step::write(&main, dart(built, calls));
 			let lib = built.lib.join(shared(&name));
 			let dill = super::dart_compile(&name, &dir, &built.out.join("dart"), &lib, &main);
 			run(&mut super::dart_run(&dill, &[]))
