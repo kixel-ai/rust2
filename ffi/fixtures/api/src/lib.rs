@@ -2634,6 +2634,12 @@ pub fn parse_cert(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
 	}
 }
 
+/// `parse_cert` as a future: its error borrows `text`, which the future owns, so the glue
+/// makes it its message before the future ends.
+pub async fn parse_later(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
+	parse_cert(text)
+}
+
 /// Another crate's error taken back by value, which no export returns: left out.
 pub fn blame(err: tls::held::Invalid) -> String {
 	err.to_string()

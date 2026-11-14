@@ -1727,11 +1727,7 @@ impl Gen<'_> {
 			Some(err) => format!(
 				"match result {{\n\t\tOk(v) => {{\n\t\t\tlet _ = &v;\n\t\t\t{write_ok}\n\t\t\t{ready}\n\t\t}}\n\t\tErr(e) => {{\n\t\t\tunsafe {{ rt::write::<{}>(err.cast(), || {}) }};\n\t\t\t{error}\n\t\t}}\n\t}}",
 				rs(&self.abi.ty(err)),
-				match err {
-					// A `String` error may stand for another crate's, as its message.
-					Type::String => self.lower(err, "::std::string::ToString::to_string(&e)"),
-					err => self.lower(err, "e"),
-				}
+				self.lower(err, "e")
 			),
 		}
 	}
@@ -1972,6 +1968,12 @@ impl Gen<'_> {
 				(Some(own), Some(_)) => format!("{later}.await.map(|v| {own})"),
 				(Some(own), None) => format!("{{ let v = {later}.await; {own} }}"),
 			};
+			// A `String` error may stand for another crate's, which may borrow what the
+			// future owns, so it becomes its message before the future ends.
+			let later = match &function.err {
+				Some(Type::String) => format!("{later}.map_err(|e| ::std::string::ToString::to_string(&e))"),
+				_ => later,
+			};
 			let bind: String = Self::outs(function)
 				.iter()
 				.enumerate()
@@ -2035,10 +2037,14 @@ impl Gen<'_> {
 		self.export(format!(
 			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}\n\tlet result = {};{writes}\n\t{finish}\n}}\n",
 			params.join(", "),
-			match function.collect {
+			match (function.collect, &function.err, &function.access) {
 				// An iterator's items, all taken now.
-				true => format!("::std::iter::Iterator::collect::<::std::vec::Vec<_>>({call})"),
-				false => call,
+				(true, ..) => format!("::std::iter::Iterator::collect::<::std::vec::Vec<_>>({call})"),
+				// A parse's error is its message already.
+				(_, _, Access::Parse) => call,
+				// A `String` error may stand for another crate's, as its message.
+				(_, Some(Type::String), _) => format!("({call}).map_err(|e| ::std::string::ToString::to_string(&e))"),
+				_ => call,
 			},
 		));
 	}

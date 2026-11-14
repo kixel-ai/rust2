@@ -913,6 +913,14 @@ Future<void> futures() async {
   check(await api.halved(3) == null, 'a future ready with None returns null');
   check(await api.halved(4) == 2, 'a future ready with Some returns its value');
   check(await api.cornerLater() == (1, 1), "a future's borrowed tuple returns whole");
+  // A future's error borrowing its argument crosses as its message, as `parseCert`'s does.
+  check(await api.parseLater('cert') == 4, 'a future with a borrowing error returns Ok');
+  try {
+    await api.parseLater('');
+    check(false, "a future's borrowing error throws");
+  } on api.StringException catch (e) {
+    check(e.error == 'malformed: ', "a future's borrowing error is its message");
+  }
   channel.send(Uint8List(0));
   try {
     await channel.recvNonempty();
