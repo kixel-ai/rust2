@@ -136,7 +136,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	}
 	let _ = write!(
 		kotlin,
-		"/** The runtime's [_Native.Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __waker_wake(raw: Long)\n\n\t@JvmStatic external fun __waker_drop(raw: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as Pollable).poll(waker)\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass Failed(@JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@JvmStatic private fun __failed(error: ByteArray): Throwable = Failed(error)\n\n{helpers}{}{}}}\n",
+		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __waker_wake(raw: Long)\n\n\t@JvmStatic external fun __waker_drop(raw: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n{helpers}{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -305,7 +305,7 @@ class Bytes private constructor(
 \t// Kotlin's bytes, or null for Rust's.
 \tprivate val array: ByteArray?,
 \t// Rust's buffer, which every slice of it holds.
-\tprivate val lent: _Native.Lent?,
+\tprivate val lent: _Native.__Lent?,
 \t// Where these start in [array] or [lent].
 \tprivate val offset: Int,
 \t/** How many bytes these hold. */
@@ -314,7 +314,7 @@ class Bytes private constructor(
 \t/** [bytes] held without a copy, as a record passed in takes them. */
 \tconstructor(bytes: ByteArray) : this(bytes, null, 0, bytes.size)
 
-\tinternal constructor(lent: _Native.Lent, size: Int) : this(null, lent, 0, size)
+\tinternal constructor(lent: _Native.__Lent, size: Int) : this(null, lent, 0, size)
 
 \t/** The byte at [index], throwing `IndexOutOfBoundsException` out of range. */
 \toperator fun get(index: Int): Byte {
@@ -378,40 +378,28 @@ class Bytes private constructor(
 ";
 
 /// The names the generated code uses unqualified, which no exported type or function may
-/// take, including each class of the runtime, which `Native` nests and so shadows a type of
-/// the same name inside its glue. The runtime's own are the C ABI's: `Native`, `Waker`,
-/// `Bytes`, `Mut`, and `Bound` are claimed as `<prefix>_native`, `<prefix>_waker`, `<prefix>_bytes`, `<prefix>_mut`, and
-/// `<prefix>_bound`.
+/// take. The runtime's helper classes, which `_Native` nests, take a leading `__`, which
+/// neither an exported type's name nor its `_<Name>` import alias in the glue has, so they
+/// need no place here. The runtime's own are the C ABI's: `Native`, `Waker`, `Bytes`, `Mut`,
+/// and `Bound` are claimed as `<prefix>_native`, `<prefix>_waker`, `<prefix>_bytes`,
+/// `<prefix>_mut`, and `<prefix>_bound`.
 const TAKEN: &[&str] = &[
 	"Any",
 	"AutoCloseable",
 	"Boolean",
 	"Byte",
 	"ByteArray",
-	"Cleanup",
 	"Double",
 	"DoubleArray",
-	"Drop",
-	"Eq",
 	"Exception",
-	"Failed",
 	"Float",
 	"FloatArray",
-	"Free",
-	"Handle",
 	"Int",
 	"IntArray",
-	"Lent",
 	"Long",
 	"LongArray",
-	"Pending",
-	"Pollable",
-	"Reader",
-	"Ready",
-	"Returned",
 	"Short",
 	"ShortArray",
-	"Signal",
 	"StartSeekable",
 	"String",
 	"UByte",
@@ -422,7 +410,6 @@ const TAKEN: &[&str] = &[
 	"UShort",
 	"UShortArray",
 	"Unit",
-	"Writer",
 	"check",
 	"error",
 ];
@@ -845,7 +832,7 @@ impl<'a> Gen<'a> {
 				false => format!("r_{}({r})", abi.enumeration(*i)),
 			},
 			Type::Object(i) => format!("{}({r}.i64())", self.qualified(&abi.object(*i))),
-			Type::Waker => format!("_Native.Returned({r}.i64())"),
+			Type::Waker => format!("_Native.__Returned({r}.i64())"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("r_{}({r})", abi.range(ty)),
 			Type::Tuple(elements) => {
 				let read: Vec<String> = elements.iter().map(|e| self.read(e, r, owned)).collect();
@@ -864,7 +851,7 @@ impl<'a> Gen<'a> {
 			Ty::Bool | Ty::F32 | Ty::F64 | Ty::Char => e.to_string(),
 			Ty::Int(int) => from_signed(*int, e),
 			Ty::Enum(name) => format!("{}.of({e})", self.qualified(name)),
-			Ty::Waker => format!("_Native.Returned({e})"),
+			Ty::Waker => format!("_Native.__Returned({e})"),
 			Ty::Handle { name, .. } => {
 				let class = self.qualified(name);
 				let wrap = |h: &str| match lent {
@@ -888,7 +875,7 @@ impl<'a> Gen<'a> {
 			_ => {
 				let r = self.fresh("r");
 				let read = self.read(&strip_refs(ty), &r, !lent);
-				format!("_Native.Reader({e}).let {{ {r} -> {read} }}")
+				format!("_Native.__Reader({e}).let {{ {r} -> {read} }}")
 			}
 		}
 	}
@@ -904,7 +891,7 @@ impl<'a> Gen<'a> {
 			Ty::Struct(_) => {
 				let w = self.fresh("w");
 				let write = self.write_value(ty, &w, e);
-				format!("_Native.Writer().use {{ {w} -> {write}; {w}.finish() }}")
+				format!("_Native.__Writer().use {{ {w} -> {write}; {w}.finish() }}")
 			}
 			_ => e.to_string(),
 		}
@@ -1042,7 +1029,7 @@ impl<'a> Gen<'a> {
 					arg.jni.extend(["jbyteArray", "jobjectArray"]);
 					arg.native
 						.extend(["ByteArray", "kotlin.Array<Any?>?"].map(str::to_string));
-					arg.open = Some(format!("_Native.Writer().use {{ {w} ->"));
+					arg.open = Some(format!("_Native.__Writer().use {{ {w} ->"));
 					arg.inside.extend(writes);
 					arg.exprs.push(format!("{w}.finish()"));
 					arg.exprs.push(format!("{w}.refs()"));
@@ -1068,7 +1055,7 @@ impl<'a> Gen<'a> {
 					let close = self.close(ty, e);
 					arg.after.push(close);
 				}
-				arg.open = Some(format!("_Native.Writer().use {{ {w} ->"));
+				arg.open = Some(format!("_Native.__Writer().use {{ {w} ->"));
 				let value = self.write_value(ty, &w, e);
 				arg.inside.push(value);
 				// Then the arrays and text it names, which Rust copies from once.
@@ -1125,7 +1112,7 @@ impl<'a> Gen<'a> {
 					true => "_context()",
 					false => "_noContext",
 				};
-				arg.exprs.push(format!("_Native.Pollable({e}, {context})"));
+				arg.exprs.push(format!("_Native.__Pollable({e}, {context})"));
 				arg.rust_args.push(format!("rt::future(env, {p})"));
 			}
 			Ty::Void | Ty::Future(_) | Ty::Poll | Ty::Out(_) | Ty::Data => {
@@ -1260,7 +1247,7 @@ impl<'a> Gen<'a> {
 		let _ = write!(self.types, "data class {name}({fields})\n\n");
 		let _ = write!(
 			self.top,
-			"internal fun w_{c}(w: _Native.Writer, v: {name}) {{\n\t{write}\n}}\n\ninternal fun r_{c}(r: _Native.Reader): {name} = {read}\n\n"
+			"internal fun w_{c}(w: _Native.__Writer, v: {name}) {{\n\t{write}\n}}\n\ninternal fun r_{c}(r: _Native.__Reader): {name} = {read}\n\n"
 		);
 	}
 
@@ -1319,7 +1306,7 @@ impl<'a> Gen<'a> {
 				let write = self.write_value(ty, "w", "this");
 				(
 					vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
-					format!("_Native.Writer().use {{ w ->\n\t\t{write}"),
+					format!("_Native.__Writer().use {{ w ->\n\t\t{write}"),
 					"w.finish(), w.refs()".to_string(),
 					"&rt::Reader::new(env, &rt::bytes(env, p0).unwrap_or_default(), p1).get()".to_string(),
 				)
@@ -1402,7 +1389,7 @@ impl<'a> Gen<'a> {
 					"jbyteArray",
 					"ByteArray",
 					format!("let mut w = rt::Writer::default();\n\t\tw.put(crate::{c}_default());\n\t\tw.array(env)"),
-					self.read_value(ty, &format!("_Native.Reader(_Native.{bare}_default())")),
+					self.read_value(ty, &format!("_Native.__Reader(_Native.{bare}_default())")),
 				),
 			};
 			self.native(&format!("{bare}_default"), &[], (jni, native), &rust);
@@ -1515,7 +1502,7 @@ impl<'a> Gen<'a> {
 		let reads: Vec<String> = record.fields.iter().map(|f| self.read_value(&f.ty, "r")).collect();
 		let _ = write!(
 			self.top,
-			"internal fun w_{c}(w: _Native.Writer, v: {name}) {{\n{}}}\n\ninternal fun r_{c}(r: _Native.Reader): {name} = {name}({})\n\n",
+			"internal fun w_{c}(w: _Native.__Writer, v: {name}) {{\n{}}}\n\ninternal fun r_{c}(r: _Native.__Reader): {name} = {name}({})\n\n",
 			writes.iter().map(|w| format!("\t{w}\n")).collect::<String>(),
 			reads.join(", ")
 		);
@@ -1553,7 +1540,7 @@ impl<'a> Gen<'a> {
 		let _ = write!(self.types, "{docs}{head}{body}\n\n");
 		let _ = write!(
 			self.top,
-			"internal fun w_{c}(w: _Native.Writer, v: {name}) {{\n{write}}}\n\ninternal fun r_{c}(r: _Native.Reader): {name} = {read}\n\n"
+			"internal fun w_{c}(w: _Native.__Writer, v: {name}) {{\n{write}}}\n\ninternal fun r_{c}(r: _Native.__Reader): {name} = {read}\n\n"
 		);
 		let _ = write!(
 			self.glue,
@@ -1717,7 +1704,7 @@ impl<'a> Gen<'a> {
 		);
 		let _ = write!(
 			self.top,
-			"internal fun w_{c}(w: _Native.Writer, v: {name}) {{\n\twhen (v) {{\n{}\n\t}}\n}}\n\ninternal fun r_{c}(r: _Native.Reader): {name} = when (r.i32()) {{\n{}\n\telse -> error(\"{c}: an invalid tag\")\n}}\n\n",
+			"internal fun w_{c}(w: _Native.__Writer, v: {name}) {{\n\twhen (v) {{\n{}\n\t}}\n}}\n\ninternal fun r_{c}(r: _Native.__Reader): {name} = when (r.i32()) {{\n{}\n\telse -> error(\"{c}: an invalid tag\")\n}}\n\n",
 			writes.join("\n"),
 			reads.join("\n").replace("\t\t", "\t")
 		);
@@ -1745,7 +1732,7 @@ impl<'a> Gen<'a> {
 			&format!("crate::{c}_free(p0 as usize as _)"),
 		);
 		let mut body = vec![format!(
-			"\tinternal val handle = _Native.Handle(this, raw, if (lent) null else _Native.Drop {{ _Native.{bare}_free(it) }}, \"{name}\")\n\n\t/** Free the handle once no call holds it: a call after this throws. */\n\toverride fun close() = handle.close()\n"
+			"\tinternal val handle = _Native.__Handle(this, raw, if (lent) null else _Native.__Drop {{ _Native.{bare}_free(it) }}, \"{name}\")\n\n\t/** Free the handle once no call holds it: a call after this throws. */\n\toverride fun close() = handle.close()\n"
 		)];
 		let mut statics = Vec::new();
 		self.traits(&ty, &c, object.traits, &mut body, &mut statics);
@@ -2339,13 +2326,13 @@ impl<'a> Gen<'a> {
 				}
 				let last = lines.pop().expect("a future has a value");
 				let pending = if pending {
-					"if (!r.bool()) return Pending(r.i64(), r.i64())"
+					"if (!r.bool()) return __Pending(r.i64(), r.i64())"
 				} else {
 					""
 				};
 				let _ = write!(
 					self.natives,
-					"\t@Suppress(\"UNUSED_PARAMETER\")\n\t@JvmStatic private fun {factory}(buffer: java.nio.ByteBuffer, back: kotlin.Array<Any>?): Any? {{\n\t\tval r = Reader(buffer)\n\t\t{pending}\n{}\t\treturn Ready({last})\n\t}}\n\n",
+					"\t@Suppress(\"UNUSED_PARAMETER\")\n\t@JvmStatic private fun {factory}(buffer: java.nio.ByteBuffer, back: kotlin.Array<Any>?): Any? {{\n\t\tval r = __Reader(buffer)\n\t\t{pending}\n{}\t\treturn __Ready({last})\n\t}}\n\n",
 					lines.iter().map(|l| format!("\t\t{l}\n")).collect::<String>()
 				);
 			}
@@ -2368,7 +2355,7 @@ impl<'a> Gen<'a> {
 				self.refused_first(&bare, format!("try {{ {raw} }} finally {{ {} }}", after.join("; ")))
 			};
 			let awaited = format!(
-				"_Native.Signal().let {{ {s} -> _Native.await({call}, {s}, {{ f, n -> _Native.{poll_bare}(f, n) }}, {{ _Native.{free_bare}(it) }}) }}",
+				"_Native.__Signal().let {{ {s} -> _Native.await({call}, {s}, {{ f, n -> _Native.{poll_bare}(f, n) }}, {{ _Native.{free_bare}(it) }}) }}",
 				s = signal.as_deref().expect("a future takes a signal")
 			);
 			value = if ok == Type::Unit {
@@ -2414,7 +2401,7 @@ impl<'a> Gen<'a> {
 				values.push("jvalue { l: error }".to_string());
 				let read = self.read_value(err.as_ref().expect("a result's error"), "r");
 				failure = format!(
-					"if (error != null) {{ val r = Reader(error); throw {}({read}) }}",
+					"if (error != null) {{ val r = __Reader(error); throw {}({read}) }}",
 					exception.as_deref().expect("a result's exception")
 				);
 				format!(
@@ -2461,7 +2448,7 @@ impl<'a> Gen<'a> {
 			value = format!("({raw}) as {ok_kt}");
 		} else if let Some(c_ok) = direct(&outs, &written, &function.ok, function.err.as_ref()) {
 			// A result of a scalar, a handle, or nothing returns its value directly, raising
-			// its error as a `_Native.Failed` Kotlin catches.
+			// its error as a `_Native.__Failed` Kotlin catches.
 			let err_ty = function.err.as_ref().expect("a direct return is a result's");
 			let (jni, native) = jni_type(abi, &c_ok, &ok);
 			let params: Vec<(&str, &str)> = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect();
@@ -2497,7 +2484,7 @@ impl<'a> Gen<'a> {
 			let exception = exception.as_deref().expect("a result's exception");
 			let raw = format!("_Native.{bare}({})", exprs.join(", "));
 			let caught = match after.is_empty() {
-				true => format!("try {{\n\t{raw}\n}} catch (f: _Native.Failed) {{\n\t_Native.Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n}}"),
+				true => format!("try {{\n\t{raw}\n}} catch (f: _Native.__Failed) {{\n\t_Native.__Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n}}"),
 				false => self.refused_first(
 					&bare,
 					format!(
@@ -2505,7 +2492,7 @@ impl<'a> Gen<'a> {
 					after.join("\n\t")
 				)
 				.replace("try {\n\t", "try {\n\ttry {\n\t\t")
-				.replacen("\n} finally", &format!("\n\t}} catch (f: _Native.Failed) {{\n\t\t_Native.Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n\t}}\n}} finally"), 1)),
+				.replacen("\n} finally", &format!("\n\t}} catch (f: _Native.__Failed) {{\n\t\t_Native.__Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n\t}}\n}} finally"), 1)),
 			};
 			value = match ok {
 				Type::Unit => caught,
@@ -2540,7 +2527,7 @@ impl<'a> Gen<'a> {
 			}
 			let _ = write!(
 				self.natives,
-				"\t@Suppress(\"UNCHECKED_CAST\", \"UNUSED_PARAMETER\")\n\t@JvmStatic private fun {factory}(buffer: java.nio.ByteBuffer, back: kotlin.Array<Any>?): Any? {{\n\t\tval r = Reader(buffer)\n{}\t}}\n\n",
+				"\t@Suppress(\"UNCHECKED_CAST\", \"UNUSED_PARAMETER\")\n\t@JvmStatic private fun {factory}(buffer: java.nio.ByteBuffer, back: kotlin.Array<Any>?): Any? {{\n\t\tval r = __Reader(buffer)\n{}\t}}\n\n",
 				lines.iter().map(|l| format!("\t\t{l}\n")).collect::<String>()
 			);
 			let mut params = params;
@@ -2621,10 +2608,10 @@ impl<'a> Gen<'a> {
 			let made = match (rest, flat.option) {
 				(false, false) => format!("{call}.let {{ {make} }}"),
 				(false, true) => format!("if ({call}) {make} else null"),
-				(true, false) => format!("_Native.Reader({call}).let {{ {r} -> {make} }}"),
+				(true, false) => format!("_Native.__Reader({call}).let {{ {r} -> {make} }}"),
 				(true, true) => {
 					let b = self.fresh("b");
-					format!("{call}?.let {{ {b} -> _Native.Reader({b}).let {{ {r} -> {make} }} }}")
+					format!("{call}?.let {{ {b} -> _Native.__Reader({b}).let {{ {r} -> {make} }} }}")
 				}
 			};
 			value = match flat.slots.is_empty() {
@@ -2640,7 +2627,7 @@ impl<'a> Gen<'a> {
 			let read = self.read_value(&ok, "r");
 			let _ = write!(
 				self.natives,
-				"\t@Suppress(\"UNUSED_PARAMETER\")\n\t@JvmStatic private fun {factory}(buffer: java.nio.ByteBuffer, back: kotlin.Array<Any>?): Any? {{\n\t\tval r = Reader(buffer)\n\t\treturn {read}\n\t}}\n\n"
+				"\t@Suppress(\"UNUSED_PARAMETER\")\n\t@JvmStatic private fun {factory}(buffer: java.nio.ByteBuffer, back: kotlin.Array<Any>?): Any? {{\n\t\tval r = __Reader(buffer)\n\t\treturn {read}\n\t}}\n\n"
 			);
 			let params: Vec<(&str, &str)> = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect();
 			self.native(&bare, &params, ("jobject", "Any?"), &format!(
@@ -3601,10 +3588,10 @@ mod tests {
 		assert_eq!(super::room(3, true, true), 250);
 	}
 
-	/// Every class the runtime declares is taken, so an exported type of its name is renamed
-	/// rather than shadowed inside `Native`.
+	/// Every class the runtime declares takes a leading `__`, which neither an exported type's
+	/// Pascal-case name nor its `_<Name>` import alias has, so none shadows one inside `_Native`.
 	#[test]
-	fn runtime_classes_taken() {
+	fn runtime_classes_prefixed() {
 		for line in super::RUNTIME.lines() {
 			let words: Vec<&str> = line.split_whitespace().collect();
 			let Some(at) = words
@@ -3627,7 +3614,10 @@ mod tests {
 				)
 			}) && !name.is_empty()
 			{
-				assert!(super::taken(&name), "the runtime's class {name} is not in TAKEN");
+				assert!(
+					name.starts_with("__"),
+					"the runtime's class {name} takes no leading `__`"
+				);
 			}
 		}
 	}

@@ -805,7 +805,7 @@ fn caught(env: *mut JNIEnv, what: &str, cache: &OnceLock<usize>, name: &CStr) ->
 
 static FAILED: OnceLock<usize> = OnceLock::new();
 
-/// Raise the error a function returned, encoded in `w`, as the `_Native.Failed` Kotlin turns
+/// Raise the error a function returned, encoded in `w`, as the `_Native.__Failed` Kotlin turns
 /// into its exception: a call's success path then returns its value with no `byte[]`.
 pub fn raise(env: *mut JNIEnv, w: Writer) {
 	let id = method(env, &FAILED, c"__failed", c"([B)Ljava/lang/Throwable;");
