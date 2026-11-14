@@ -21,6 +21,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 
+// What a function marked so holds lives in its own frame: the Android test keeps it from
+// R8's inlining, since ART's interpreter keeps every reference a frame's registers last
+// held reachable until the frame returns, which would keep it from the GC checks after.
+annotation class OwnFrame
+
 // The Log callback: keeps even levels.
 class PrintLog : Log, AutoCloseable {
 	override fun log(level: UByte, line: String): Boolean {
@@ -930,7 +935,7 @@ fun futures() {
 	run {
 		val (job, weak) = idle(scope)
 		q.drain()
-		check(weak.get() != null, "a closure a pending future keeps stays held")
+		check(held(weak), "a closure a pending future keeps stays held")
 		job.cancel()
 		q.drain()
 		released(weak, "a closure a cancelled future kept is released")
@@ -939,6 +944,7 @@ fun futures() {
 }
 
 // A closure Spawned keeps, which returns [n], once Spawned ran it.
+@OwnFrame
 fun spawned(n: UInt): java.lang.ref.WeakReference<Any> {
 	val task = { n }
 	check(Spawned.new(task).join() == n, "a kept closure runs on Rust's thread")
@@ -946,6 +952,7 @@ fun spawned(n: UInt): java.lang.ref.WeakReference<Any> {
 }
 
 // A drive whose closure waits for a wake that never comes, launched on [scope].
+@OwnFrame
 fun idle(scope: CoroutineScope): Pair<kotlinx.coroutines.Job, java.lang.ref.WeakReference<Any>> {
 	val start = now()
 	val poll = { _: Instant, _: Waiter -> start.let { null } }
@@ -953,10 +960,14 @@ fun idle(scope: CoroutineScope): Pair<kotlinx.coroutines.Job, java.lang.ref.Weak
 	return Pair(job, java.lang.ref.WeakReference(poll))
 }
 
+// Whether [weak] still reaches its value, which never reaches the caller's frame.
+@OwnFrame
+fun held(weak: java.lang.ref.WeakReference<*>): Boolean = weak.get() != null
+
 // Collect until [weak] is gone, as once Rust lets go of the closure it held.
 fun released(weak: java.lang.ref.WeakReference<*>, what: String) {
 	val deadline = System.nanoTime() + 10.seconds.inWholeNanoseconds
-	while (weak.get() != null) {
+	while (held(weak)) {
 		check(System.nanoTime() < deadline, what)
 		Runtime.getRuntime().gc()
 		Thread.sleep(1)
@@ -1122,21 +1133,23 @@ fun reads(bytes: Bytes, value: Byte, what: String) {
 	}
 }
 
-// In its own frame, so nothing on the caller's keeps them reachable. The bytes are long
-// enough to be lent.
+// Never closed, and long enough to be lent.
+@OwnFrame
 fun unclosed() {
 	Token.new(3u)
 	tokenBytes(4u, 1025u)
 }
 
-// A slice of Rust's bytes, made in its own frame so nothing keeps the Bytes it came from,
-// which keeps Rust's buffer while it reads.
+// A slice of Rust's bytes, made in a frame of its own so nothing keeps the Bytes it came
+// from, which keeps Rust's buffer while it reads.
+@OwnFrame
 fun keptBySlice(freed: UInt) {
 	val view = sliced(5u)
 	uncollected(freed, "a slice keeps Rust's bytes")
 	check(view.size == 10 && view.toByteArray().all { it == 5.toByte() }, "a slice reads Rust's bytes once the Bytes it came from are gone")
 }
 
+@OwnFrame
 fun sliced(id: UInt): Bytes = tokenBytes(id, 1025u).slice(1015)
 
 // Frees racing calls: a close racing calls on other threads, and the GC freeing what a
@@ -1169,10 +1182,7 @@ fun raced() {
 	}
 	var rounds = 0u
 	while (cycles.get() < 50) {
-		val id = rounds % 100u + 1u
-		check(tokenBytes(id, 2048u)[2047] == id.toByte(), "a read by index races the GC")
-		check(tokenBytes(id, 2048u).slice(1024).toByteArray().all { it == id.toByte() }, "a slice's copy races the GC")
-		check(Token.new(id).idGet == id, "a call on an object races the GC")
+		racedRound(rounds % 100u + 1u)
 		rounds++
 	}
 	collecting.set(false)
@@ -1217,6 +1227,14 @@ fun <T : AutoCloseable> race(made: T, call: (T) -> Boolean, closed: Set<String>,
 	made.close()
 }
 
+// Calls on values nothing else reaches once it returns, holding [id], racing the GC.
+@OwnFrame
+fun racedRound(id: UInt) {
+	check(tokenBytes(id, 2048u)[2047] == id.toByte(), "a read by index races the GC")
+	check(tokenBytes(id, 2048u).slice(1024).toByteArray().all { it == id.toByte() }, "a slice's copy races the GC")
+	check(Token.new(id).idGet == id, "a call on an object races the GC")
+}
+
 // At most 64 MiB of Rust's bytes are lent at once, freed or not, since the GC sees none of
 // them: past that, bytes cross copied, freed at the call, until the GC frees what was lent.
 // First, so no bytes an earlier step lent count against it.
@@ -1224,13 +1242,19 @@ fun budgeted() {
 	val before = dropped()
 	lentToBudget(before)
 	collected(before + 65u, "the GC frees bytes lent up to the budget")
-	check(tokenBytes(3u, 2048u)[2047] == 3.toByte() && dropped() == before + 65u, "bytes cross lent again once the GC frees them")
+	lentAgain(before + 65u)
 	collected(before + 66u, "the GC frees bytes lent once the budget is free")
 }
 
+// Bytes lent once the GC freed those that filled the budget, with Rust's drops still [freed].
+@OwnFrame
+fun lentAgain(freed: UInt) {
+	check(tokenBytes(3u, 2048u)[2047] == 3.toByte() && dropped() == freed, "bytes cross lent again once the GC frees them")
+}
+
 // Rust's bytes either side of the copy limit, returning the drops once the call has freed
-// those it copied. In its own frame, which the Android test keeps from R8's inlining, as
-// ART's interpreter keeps the last ones reachable from the caller's until it returns.
+// those it copied.
+@OwnFrame
 fun lentAround(): UInt {
 	var freed = dropped()
 	for (n in 1023..1025) {
@@ -1242,8 +1266,7 @@ fun lentAround(): UInt {
 	return freed
 }
 
-// In its own frame, which the Android test keeps from R8's inlining, so nothing on the
-// caller's keeps them reachable.
+@OwnFrame
 fun lentToBudget(before: UInt) {
 	val mib = 1 shl 20
 	val held = List(64) { tokenBytes(1u, mib.toUInt()) }
