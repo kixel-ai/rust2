@@ -13,7 +13,9 @@
 //! these leaves, whose `folded` and `indexed` are themselves and whose `find` reads by
 //! `next`, so the readers each consumer and adaptor picks all read by `next`. A closure
 //! whose body is one expression is written in place of its call, and a pair reaches it
-//! as its parts, made whole only where something reads the tuple.
+//! as its parts, made whole only where something reads the tuple. A `for` loop's `next`
+//! is written into the loop once the function is: [`loop_parts`] leaves the loop where
+//! the chain ends and reads the item's parts, and [`inline_funs`] writes its closures in.
 
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_middle::mir::{self, Local, Operand, Rvalue, StatementKind, TerminatorKind};
@@ -1355,7 +1357,7 @@ fn take_apart(stmts: &mut Vec<Stmt>, k: usize, reads: &FxHashSet<String>, jump: 
 	let item = val(&item)?;
 	// Inside a loop of its own, as a filter's, `exit` names the loop it leaves.
 	let (mut nested, mut n) = (false, 0);
-	ends(&mut body, r, label, false, &mut |_, inner| {
+	ends(&mut body, r, label, false, &mut |inner| {
 		nested |= inner;
 		n += 1;
 		None
@@ -1374,7 +1376,7 @@ fn take_apart(stmts: &mut Vec<Stmt>, k: usize, reads: &FxHashSet<String>, jump: 
 		Some(name) => exit.iter().map(|s| retarget(s.clone(), name)).collect(),
 		None => exit.clone(),
 	};
-	ends(&mut body, r, label, false, &mut |_, inner| {
+	ends(&mut body, r, label, false, &mut |inner| {
 		Some(if inner { exit_in.clone() } else { exit.clone() })
 	});
 	let mut rest = stmts[test + 1..].to_vec();
@@ -1424,17 +1426,11 @@ fn without_done(ty: Type) -> Type {
 
 /// Call `f` on each end of a read in `stmts`, `r = rs.DONE; break label;` ending a list,
 /// with whether it is in a loop or `switch` of its own, replacing the two by what it gives.
-fn ends(
-	stmts: &mut Vec<Stmt>,
-	r: &str,
-	label: &str,
-	inner: bool,
-	f: &mut dyn FnMut(&[Stmt], bool) -> Option<Vec<Stmt>>,
-) {
+fn ends(stmts: &mut Vec<Stmt>, r: &str, label: &str, inner: bool, f: &mut dyn FnMut(bool) -> Option<Vec<Stmt>>) {
 	let end = matches!(stmts.as_slice(), [.., set, Stmt { kind: StmtKind::Break(Some(to)), .. }]
 		if to == label && matches!(&set.kind, StmtKind::Expr(Expr::Assign(t, v))
 			if matches!(peel(t), Expr::Ident(n) if n == r) && matches!(peel(v), Expr::Rs(x) if x == "DONE")));
-	if end && let Some(with) = f(stmts, inner) {
+	if end && let Some(with) = f(inner) {
 		stmts.truncate(stmts.len() - 2);
 		stmts.extend(with);
 	}
@@ -1666,9 +1662,11 @@ fn declares(stmt: &Stmt, names: &mut FxHashSet<String>) {
 		}
 		StmtKind::If { then, els, .. } => then.iter().chain(els).for_each(|s| declares(s, names)),
 		StmtKind::Block { body, .. } | StmtKind::While { body, .. } => body.iter().for_each(|s| declares(s, names)),
-		StmtKind::Switch { cases, default, .. } => {
-			cases.iter().flat_map(|(_, b)| b).chain(default).for_each(|s| declares(s, names))
-		}
+		StmtKind::Switch { cases, default, .. } => cases
+			.iter()
+			.flat_map(|(_, b)| b)
+			.chain(default)
+			.for_each(|s| declares(s, names)),
 		_ => {}
 	}
 	walk_stmt(stmt, &mut |e| match e {
