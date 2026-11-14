@@ -2,7 +2,8 @@ name: CodSpeed
 
 # The binding benchmark under CodSpeed's CPU simulation (bench/ffi/README.md): each push to
 # main is its baseline, and a PR that changes what `just ffi bench` reads gets CodSpeed's
-# comment. Informational: no threshold fails it, and no ruleset requires it.
+# comment once a case changes. Informational: no threshold fails it, and no ruleset
+# requires it.
 
 permissions:
   contents: read

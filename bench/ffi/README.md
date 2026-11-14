@@ -77,7 +77,8 @@ the same measurement twice under another name.
 ## CodSpeed
 
 [CodSpeed](https://app.codspeed.io/kixel-ai/rust2) keeps main's history of each
-single-threaded case, and comments on each PR with its change per case.
+single-threaded case, and comments on a PR whose run changes a case, with its change per
+case.
 [`codspeed.yml`](../../.github/workflows/codspeed.yml) runs on every push to main, its
 baseline, and on each PR that changes what `just ffi bench` reads: it builds the programs in
 the bench shell, then runs `just ffi codspeed` under CodSpeed's CPU simulation in that
@@ -118,6 +119,11 @@ build, the largest move of any case between two runs:
 | Go | 362% (`stamped`), 330% (`record`), 84% (`loop`) | leaves: its collector and scheduler run inside each case, and its preemption signal crashes Callgrind unless `GODEBUG=asyncpreemptoff=1` |
 | Kotlin | 172% (`call`), 108% (`getter`) | leaves: without the warm-up, the JIT's and collector's threads compile and collect inside each case, and the JVM's C2 code crashes under Valgrind unless its implicit null checks are off |
 | Dart | does not run | leaves: the VM maps its code at an address hint off a page boundary, which Valgrind refuses |
+
+On CI, two runs of one commit (kixel-ai/rust2#805's 11a94ff, a `pull_request` run and a
+`workflow_dispatch` one) left all 58 benchmarks untouched in CodSpeed's comparison: the
+largest move was Python's `throughput[1024]`, 2.4%, then its `throughput[100]` and
+`ready`, under 2%, and every one of Rust's, C's, C++'s, and moq-c's rounded to 0%.
 
 Each leaver keeps its hooks, so it rejoins by `codspeed_langs` once a pair of runs holds.
 
