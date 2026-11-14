@@ -5331,7 +5331,13 @@ fn marker(tcx: TyCtxt<'_>, tr: DefId) -> bool {
 }
 
 /// How C holds the `Copy` type `ty`, with `lifetimes` lifetime parameters, as its bytes.
-fn opaque<'tcx>(tcx: TyCtxt<'tcx>, sysroot: &[CrateNum], ty: Ty<'tcx>, lifetimes: usize, foreign: bool) -> crate::ir::Opaque {
+fn opaque<'tcx>(
+	tcx: TyCtxt<'tcx>,
+	sysroot: &[CrateNum],
+	ty: Ty<'tcx>,
+	lifetimes: usize,
+	foreign: bool,
+) -> crate::ir::Opaque {
 	let env = TypingEnv::fully_monomorphized();
 	let ty = tcx.erase_and_anonymize_regions(ty);
 	// A type that has a layout on its target, as every exported `Copy` type does.
