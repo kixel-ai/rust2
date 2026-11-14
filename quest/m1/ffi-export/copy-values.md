@@ -4,8 +4,9 @@
 
 A [rust2-ffi](/ffi/README.md) export's `Copy` type with a `pub` field or a `pub` method
 taking `&mut self` crosses as an opaque value, as a `Send` `Copy` type with only private
-fields and value-independent padding does since
-[#742](https://github.com/kixel-ai/rust2/pull/742), instead of an `Arc` handle. A setter
+fields and no padding under any field order does since
+[#742](https://github.com/kixel-ai/rust2/pull/742) and
+[#811](https://github.com/kixel-ai/rust2/pull/811), instead of an `Arc` handle. A setter
 or `&mut self` method writes the new bytes back into the language's own copy, so
 `x.add(other)` changes `x` and only `x`, as in Rust. moq has five today, each
 still a handle: `stats::Traffic`, `stats::Presence`, `stats::Failures`, and

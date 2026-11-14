@@ -996,7 +996,7 @@ impl<'tcx> Collector<'tcx> {
 	fn foreign_value(&self, did: DefId) -> bool {
 		let tcx = self.tcx;
 		let ty = tcx.type_of(did).instantiate_identity().skip_norm_wip();
-		!self.opaque(did) && implements(tcx, ty, did, sym::Copy) && padding(tcx, ty).is_some()
+		!self.opaque(did) && implements(tcx, ty, did, sym::Copy) && full(tcx, ty)
 	}
 
 	/// Each type a signature the export maps names, bounds included, at every choice
@@ -1557,7 +1557,7 @@ impl<'tcx> Collector<'tcx> {
 							methods: Vec::new(),
 							traits: Traits::default(),
 							opaque: None,
-							padding: Default::default(),
+							sizes: Default::default(),
 						});
 					}
 					Decl::Enum(i) => {
@@ -1582,7 +1582,6 @@ impl<'tcx> Collector<'tcx> {
 						let ty = tcx.type_of(def_id).instantiate(tcx, site.args).skip_norm_wip();
 						let lifetimes = tcx.generics_of(def_id).own_counts().lifetimes;
 						let opaque = opaque(tcx, &self.sysroot, ty, lifetimes, false);
-						let padding = padding(tcx, ty).expect("a value's bytes do not depend on it");
 						api.records.push(Record {
 							path,
 							home: home.clone(),
@@ -1596,7 +1595,7 @@ impl<'tcx> Collector<'tcx> {
 							methods: Vec::new(),
 							traits: Traits::default(),
 							opaque: Some(opaque),
-							padding: [(target(tcx), padding)].into(),
+							sizes: [(target(tcx), opaque.size)].into(),
 						});
 					}
 					Decl::Object(i) => {
@@ -1649,7 +1648,6 @@ impl<'tcx> Collector<'tcx> {
 					self.foreign[n].1 = self.api.records.len();
 					let ty = tcx.type_of(def_id).instantiate_identity().skip_norm_wip();
 					let opaque = opaque(tcx, &self.sysroot, ty, 0, true);
-					let padding = padding(tcx, ty).expect("a value's bytes do not depend on it");
 					self.api.records.push(Record {
 						path: object.path,
 						home: object.home,
@@ -1663,7 +1661,7 @@ impl<'tcx> Collector<'tcx> {
 						methods: object.methods,
 						traits: object.traits,
 						opaque: Some(opaque),
-						padding: [(target(tcx), padding)].into(),
+						sizes: [(target(tcx), opaque.size)].into(),
 					});
 				}
 				false => {
@@ -1963,11 +1961,11 @@ impl<'tcx> Collector<'tcx> {
 
 	/// An object, if the type can move across threads, or if it is also `Copy`, a value C
 	/// holds as its bytes, unless C changes it in place, which a copy could not write back,
-	/// or which of its bytes it initializes depends on its value, so its padding could not
-	/// be zeroed. Shared borrows of an object that is not `Sync` are exclusive.
+	/// or it may have padding, whose bytes the glue's `rustc` could place anywhere (see
+	/// [`full`]). Shared borrows of an object that is not `Sync` are exclusive.
 	fn object(&self, site: &Site<'tcx>) -> Decl {
 		let (tcx, ty, def_id) = (self.tcx, self.site_ty(site), site.key.def_id);
-		let copy = implements(tcx, ty, def_id, sym::Copy) && !self.changed(def_id) && padding(tcx, ty).is_some();
+		let copy = implements(tcx, ty, def_id, sym::Copy) && !self.changed(def_id) && full(tcx, ty);
 		if self.orphans.contains(&site.key) {
 			let construct = match copy {
 				true => "value no export returns",
@@ -5632,121 +5630,69 @@ fn target(tcx: TyCtxt<'_>) -> String {
 	tcx.sess.opts.target_triple.tuple().to_string()
 }
 
-/// The padding of `ty` on this target, as `(offset, length)` ranges, which the glue zeroes
-/// so no byte Rust leaves uninitialized reaches a language; or none when which bytes it
-/// initializes depends on its value: a union, such as `MaybeUninit`, or an enum whose
-/// variants initialize different bytes, such as `Option<u32>`, whose `None` leaves its
-/// payload uninitialized.
-fn padding<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Vec<(u64, u64)>> {
-	use rustc_abi::{FieldsShape, Variants};
-	use rustc_middle::ty::layout::{LayoutCx, TyAndLayout};
+/// Whether every byte of `ty` is initialized, whatever its value and whatever layout a
+/// `rustc` picks at its size on this target: the bytes its fields always initialize fill
+/// it, so no field order leaves padding. The glue asserts the size, which is what lets
+/// another `rustc` build it; a type with padding, or bytes that depend on its value, such
+/// as a union's or `Option<u32>`'s, is a handle instead.
+fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	let env = TypingEnv::fully_monomorphized();
-	let cx = LayoutCx::new(tcx, env);
 	let ty = tcx.erase_and_anonymize_regions(ty);
-	let layout = tcx.layout_of(env.as_query_input(ty)).ok()?;
-	// The spans `(offset, length)` of each byte `layout` initializes, sorted and merged, so
-	// what they hold grows with the type's shape, never with its size.
-	fn init<'tcx>(cx: &LayoutCx<'tcx>, layout: TyAndLayout<'tcx>) -> Option<Vec<(u64, u64)>> {
-		match layout.ty.kind() {
-			ty::Adt(adt, _) if adt.is_union() => return None,
-			ty::Int(_)
-			| ty::Uint(_)
-			| ty::Float(_)
-			| ty::Bool
-			| ty::Char
-			| ty::RawPtr(..)
-			| ty::Ref(..)
-			| ty::FnPtr(..) => return Some(merged(vec![(0, layout.size.bytes())])),
-			_ => {}
-		}
-		match &layout.variants {
-			Variants::Empty => Some(Vec::new()),
-			Variants::Single { .. } => fields(cx, layout),
-			Variants::Multiple {
-				tag,
-				tag_field,
-				variants,
-				..
-			} => {
-				let tag = (layout.fields.offset(tag_field.as_usize()).bytes(), tag.size(cx).bytes());
-				let mut each: Option<Vec<(u64, u64)>> = None;
-				for variant in variants.indices() {
-					let mut mine = fields(cx, layout.for_variant(cx, variant))?;
-					mine.push(tag);
-					let mine = merged(mine);
-					match &each {
-						Some(first) if *first != mine => return None,
-						Some(_) => {}
-						None => each = Some(mine),
-					}
-				}
-				Some(each.unwrap_or_default())
+	// The fewest bytes a value of `ty` initializes under any layout, and whether it may
+	// have a niche, invalid values an enum around it could encode another variant in.
+	fn least<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> Option<(u64, bool)> {
+		let layout = tcx.layout_of(env.as_query_input(ty)).ok()?;
+		let size = layout.size.bytes();
+		// The bytes fields initialize, which never overlap, and whether any has a niche.
+		let fields = |tys: &[Ty<'tcx>]| {
+			tys.iter().try_fold((0u64, false), |(bytes, niche), &ty| {
+				let (more, theirs) = least(tcx, env, ty)?;
+				Some((bytes.checked_add(more)?, niche || theirs))
+			})
+		};
+		let normalized = |fields: &mut dyn Iterator<Item = &ty::FieldDef>, args| {
+			(fields.map(|field| {
+				let field = field.ty(tcx, args).skip_norm_wip();
+				tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(field))
+					.ok()
+			}))
+			.collect::<Option<Vec<_>>>()
+		};
+		match ty.kind() {
+			ty::Int(_) | ty::Uint(_) | ty::Float(_) | ty::RawPtr(..) => Some((size, false)),
+			ty::Bool | ty::Char | ty::Ref(..) | ty::FnPtr(..) | ty::Pat(..) => Some((size, true)),
+			ty::Array(element, len) => {
+				let n = len.try_to_target_usize(tcx)?;
+				let (each, niche) = least(tcx, env, *element)?;
+				Some((each.checked_mul(n)?, niche && n > 0))
 			}
-		}
-	}
-	fn fields<'tcx>(cx: &LayoutCx<'tcx>, layout: TyAndLayout<'tcx>) -> Option<Vec<(u64, u64)>> {
-		match &layout.fields {
-			FieldsShape::Primitive => Some(merged(vec![(0, layout.size.bytes())])),
-			FieldsShape::Union(_) => None,
-			FieldsShape::Array { stride, count } => {
-				// Every element initializes the same bytes, so one is read and stamped at
-				// each stride: walking each would never end for `[(); usize::MAX]`.
-				let element = layout.field(cx, 0);
-				let (size, stride) = (element.size.bytes(), stride.bytes());
-				if *count == 0 || size == 0 {
-					return Some(Vec::new());
-				}
-				let mine = init(cx, element)?;
-				// A whole element tiling the array, as each of `[u8; 1 << 40]`'s does, is one span.
-				if mine == [(0, size)] && stride == size {
-					return Some(vec![(0, size * count)]);
-				}
-				Some(merged(
-					(0..*count)
-						.flat_map(|n| mine.iter().map(move |&(at, len)| (n * stride + at, len)))
-						.collect(),
-				))
+			ty::Tuple(tys) => fields(tys),
+			ty::Adt(adt, args) if adt.is_struct() => {
+				let (bytes, niche) = fields(&normalized(&mut adt.all_fields(), *args)?)?;
+				// A field's own valid range, as `NonNull`'s, is a niche no field shows.
+				Some((bytes, niche || layout.largest_niche.is_some()))
 			}
-			FieldsShape::Arbitrary { .. } => {
-				let mut spans = Vec::new();
-				for n in 0..layout.fields.count() {
-					let at = layout.fields.offset(n).bytes();
-					spans.extend(
-						init(cx, layout.field(cx, n))?
-							.into_iter()
-							.map(|(start, len)| (at + start, len)),
-					);
+			ty::Adt(adt, args) if adt.is_enum() => {
+				let mut each: Vec<u64> = Vec::new();
+				let mut niche = false;
+				for variant in adt.variants() {
+					let (bytes, theirs) = fields(&normalized(&mut variant.fields.iter(), *args)?)?;
+					each.push(bytes);
+					niche |= theirs;
 				}
-				Some(merged(spans))
+				// With no niche to encode the others in, two or more variants take a tag
+				// of at least a byte beside each one's fields; with one, a variant's own
+				// fields may hold the tag, so they count alone.
+				let tag = u64::from(each.len() > 1 && !niche);
+				Some((each.into_iter().min()?.checked_add(tag)?, true))
 			}
+			_ => None,
 		}
 	}
-	// `spans` sorted, without empty ones, and each overlapping or adjacent pair joined.
-	fn merged(mut spans: Vec<(u64, u64)>) -> Vec<(u64, u64)> {
-		spans.retain(|&(_, len)| len > 0);
-		spans.sort_unstable();
-		let mut out: Vec<(u64, u64)> = Vec::with_capacity(spans.len());
-		for (at, len) in spans {
-			match out.last_mut() {
-				Some((start, n)) if at <= *start + *n => *n = (*n).max(at + len - *start),
-				_ => out.push((at, len)),
-			}
-		}
-		out
-	}
-	// The padding is what the initialized spans leave between them and after the last.
-	let mut ranges = Vec::new();
-	let mut end = 0;
-	for (at, len) in init(&cx, layout)? {
-		if at > end {
-			ranges.push((end, at - end));
-		}
-		end = at + len;
-	}
-	if layout.size.bytes() > end {
-		ranges.push((end, layout.size.bytes() - end));
-	}
-	Some(ranges)
+	let Ok(layout) = tcx.layout_of(env.as_query_input(ty)) else {
+		return false;
+	};
+	least(tcx, env, ty).is_some_and(|(bytes, _)| bytes == layout.size.bytes())
 }
 
 /// Whether `ty`, the type `def_id` at some arguments, implements the std trait `item`.

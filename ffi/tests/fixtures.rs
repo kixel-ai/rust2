@@ -1451,7 +1451,7 @@ fn api_go() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("nil reader", "a nil io.ReadSeeker"),
-		("returned zero", "a zero Instant, which only Rust makes"),
+		("returned zero", "a zero Moment, which only Rust makes"),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
 		("outlived", OUTLIVED),
 		("text", "api_greet: a string is not UTF-8"),
@@ -2260,10 +2260,10 @@ fn lock() {
 		stderr.contains("library `other`: it is now `lock`"),
 		"no library error:\n{stderr}"
 	);
-	// A baseline an earlier export wrote, before records had their padding, still reads.
+	// A baseline an earlier export wrote, before records had their sizes, still reads.
 	let older = dir.join("older.json");
 	let mut json = String::from_utf8(before.clone()).unwrap();
-	while let Some(at) = json.find(",\"padding\":{") {
+	while let Some(at) = json.find(",\"sizes\":{") {
 		let end = at + json[at..].find('}').unwrap() + 1;
 		json.replace_range(at..end, "");
 	}
@@ -2274,7 +2274,7 @@ fn lock() {
 		.expect("running rust2-ffi");
 	assert!(
 		read.status.success(),
-		"a baseline without padding failed:\n{}",
+		"a baseline without sizes failed:\n{}",
 		String::from_utf8_lossy(&read.stderr)
 	);
 	let locked = |feature: &str| {
@@ -2581,27 +2581,47 @@ fn standard_names() {
 	}
 }
 
-/// The padding of a `Copy` value of a huge array is found without walking or storing its
-/// bytes: a zero-sized element repeated `usize::MAX` times, or a 1 TiB array of bytes, which
-/// no export returns, so it is left out only after its padding is read. An array of padded
-/// elements still zeroes each element's padding.
+/// A `Copy` type crosses as its bytes only when its fields fill it under any field order
+/// a `rustc` may pick, with a byte for an enum's tag where no field has a niche to hold
+/// one; any other is a handle. A huge array is judged without walking its elements: a
+/// zero-sized element repeated `usize::MAX` times, or a 1 TiB array of bytes, which no
+/// export returns, so it is left out only after it is judged.
 #[test]
-fn huge_arrays() {
-	let lib = "#[derive(Clone, Copy)]\npub struct Marker([(); usize::MAX]);\n\nimpl Marker {\n\tpub fn new() -> Self {\n\t\tSelf([(); usize::MAX])\n\t}\n}\n\npub fn take(marker: Marker) -> u32 {\n\tmarker.0.len().count_ones()\n}\n\n\
+fn opaque_values() {
+	let lib = "#![allow(dead_code)]\n\n#[derive(Clone, Copy)]\npub struct Marker([(); usize::MAX]);\n\nimpl Marker {\n\tpub fn new() -> Self {\n\t\tSelf([(); usize::MAX])\n\t}\n}\n\npub fn take(marker: Marker) -> u32 {\n\tmarker.0.len().count_ones()\n}\n\n\
 		#[derive(Clone, Copy)]\npub struct Huge([u8; 1 << 40]);\n\npub fn first(huge: &Huge) -> u8 {\n\thuge.0[0]\n}\n\n\
 		#[derive(Clone, Copy)]\n#[repr(C)]\nstruct Pair {\n\ta: u8,\n\tb: u16,\n}\n\n\
-		#[derive(Clone, Copy)]\npub struct Pairs([Pair; 3]);\n\nimpl Pairs {\n\tpub fn new() -> Self {\n\t\tSelf([Pair { a: 1, b: 2 }; 3])\n\t}\n\n\tpub fn sum(&self) -> u32 {\n\t\tself.0.iter().map(|p| u32::from(p.a) + u32::from(p.b)).sum()\n\t}\n}\n";
-	let package = package("huge_arrays", &[("src/lib.rs", lib)]);
+		#[derive(Clone, Copy)]\npub struct Pairs([Pair; 3]);\n\npub fn pairs() -> Pairs {\n\tPairs([Pair { a: 1, b: 2 }; 3])\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Flag(bool, u8, [u16; 3]);\n\npub fn flag() -> Flag {\n\tFlag(true, 1, [2; 3])\n}\n\n\
+		#[derive(Clone, Copy)]\nenum Two {\n\tA(u8),\n\tB(i8),\n}\n\n#[derive(Clone, Copy)]\npub struct Tagged(Two);\n\npub fn tagged() -> Tagged {\n\tTagged(Two::B(-1))\n}\n\n\
+		#[derive(Clone, Copy)]\nenum Uneven {\n\tA(u32),\n\tB(u16),\n}\n\n#[derive(Clone, Copy)]\npub struct Wide(Uneven);\n\npub fn wide() -> Wide {\n\tWide(Uneven::B(1))\n}\n\n\
+		#[derive(Clone, Copy)]\nenum Niche {\n\tA(bool, u8),\n\tB(u8, u8),\n}\n\n#[derive(Clone, Copy)]\npub struct Niched(Niche);\n\npub fn niched() -> Niched {\n\tNiched(Niche::A(true, 1))\n}\n";
+	let package = package("opaque_values", &[("src/lib.rs", lib)]);
 	export_and_build(&package, &["--offline"]);
-	let header = std::fs::read_to_string(package.join("out/include/huge_arrays.h")).unwrap();
+	let header = std::fs::read_to_string(package.join("out/include/opaque_values.h")).unwrap();
 	assert!(
-		header.contains("\tuint8_t opaque[1];\n} huge_arrays_Marker;"),
+		header.contains("\tuint8_t opaque[1];\n} opaque_values_Marker;"),
 		"Marker is no opaque value:\n{header}"
 	);
+	// A `bool` beside integers that fill the struct; a tag byte beside each variant's byte.
+	for value in ["Flag", "Tagged"] {
+		assert!(
+			header.contains(&format!("}} opaque_values_{value};")),
+			"{value} is no opaque value:\n{header}"
+		);
+	}
+	// Padding after each `u8`; a tag and a `u16` short of a `u32`'s room; a niche the tag
+	// may hide in, leaving `B` a byte short.
+	for handle in ["Pairs", "Wide", "Niched"] {
+		assert!(
+			header.contains(&format!("void opaque_values_{handle}_free(")),
+			"{handle} is no handle:\n{header}"
+		);
+	}
 	let glue = std::fs::read_to_string(package.join("out/src/lib.rs")).unwrap();
 	assert!(
-		glue.contains("const PADDING: &[(usize, usize)] = &[(1, 1), (5, 1), (9, 1)];"),
-		"Pairs' padding is not each element's:\n{glue}"
+		glue.contains("const SIZE: usize = 8;") && !glue.contains("PADDING"),
+		"Flag's size is not asserted:\n{glue}"
 	);
 }
 

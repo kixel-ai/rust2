@@ -352,7 +352,7 @@ def script():
 	except TypeError:
 		pass
 
-	# A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	# A value with padding, or bytes that vary, is a handle, as no table says where padding is.
 	gap = api.Gap.new(7, 3)
 	print(f"gap {gap.sum()} {flag(gap == api.Gap.new(7, 3))}")
 	berth = api.Berth.new(4)
@@ -722,7 +722,7 @@ def script():
 	# A kept closure, called on another thread after the call that took it returned.
 	print(f"spawned {api.Spawned.new(lambda: 7).join()}")
 	# A kept closure: called again at the instant it asks for, then once its waiter wakes.
-	start = api.now()
+	start = api.Moment.new(0, 1000)
 	calls = 0
 
 	def drive(now, waiter):
@@ -730,9 +730,9 @@ def script():
 		calls += 1
 		match calls:
 			case 1:
-				return api.later(now, datetime.timedelta(milliseconds=5))
+				return now.after(5)
 			case 2:
-				print(f"drive {api.since(now, start) // ms}")
+				print(f"drive {now.millis() - start.millis()}")
 				waiter.waker().wake()
 				return None
 			case _:
@@ -954,7 +954,7 @@ class Drive:
 
 async def kept():
 	"""Closures Rust keeps past the call, which it lets go of once it drops them."""
-	start = api.now()
+	start = api.Moment.new(0, 1000)
 	stopping = Drive(True)
 	ref = weakref.ref(stopping)
 	check(await api.drive(start, stopping) == "stopped", "a kept closure's error ends its future")
@@ -1001,8 +1001,8 @@ async def kept():
 	gc.collect()
 	check(threads != [threading.get_ident()] and ref() is None, "a spawned closure runs elsewhere, then is let go")
 
-	# What a closure returns, Rust owns: a copy of a string, and a clone of an object.
-	later = api.later(start, datetime.timedelta(milliseconds=7))
+	# What a closure returns, Rust owns: a copy of a moment.
+	later = start.after(7)
 	calls = 0
 
 	def ask(now, waiter):
@@ -1010,11 +1010,11 @@ async def kept():
 		calls += 1
 		if calls == 1:
 			return later
-		check(api.since(now, later) == datetime.timedelta(), "Rust's copy of a returned object is its value")
+		check(now == later, "Rust's copy of a returned moment is its value")
 		raise api.StringException("done")
 
-	check(await api.drive(start, ask) == "done", "a closure's returned object is Rust's own copy")
-	check(api.since(later, start) == datetime.timedelta(milliseconds=7), "a returned object stays the caller's")
+	check(await api.drive(start, ask) == "done", "a closure's returned moment is Rust's own copy")
+	check(later.millis() == 7, "a returned moment stays the caller's")
 
 
 def readers():

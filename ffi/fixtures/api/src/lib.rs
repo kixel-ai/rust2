@@ -853,10 +853,11 @@ impl Waiter {
 
 /// Calls `poll` until it fails, returning its error: with `start`, then with each instant
 /// it asks for, as if the clock reached it at once, or once its waiter is woken, with the
-/// last one again. A closure its future keeps, as kio's `clock::drive` keeps one.
+/// last one again. A closure its future keeps, as kio's `clock::drive` keeps one, over a
+/// moment as kio's is over its own padding-free instant.
 pub async fn drive<E>(
-	start: std::time::Instant,
-	mut poll: impl FnMut(std::time::Instant, &Waiter) -> Result<Option<std::time::Instant>, E> + Unpin,
+	start: Moment,
+	mut poll: impl FnMut(Moment, &Waiter) -> Result<Option<Moment>, E> + Unpin,
 ) -> E {
 	let mut now = start;
 	std::future::poll_fn(move |cx| {
@@ -1229,8 +1230,8 @@ pub fn shifted(moment: Moment, shift: impl Fn(Moment) -> Moment) -> Moment {
 	shift(moment)
 }
 
-/// A value with padding, after its `u8`: made from bytes all `0xff`, so its padding likely
-/// holds them, which the export zeroes before any language sees it.
+/// A `Copy` value with padding, after its `u8`, which crosses as a handle, since the glue's
+/// `rustc` may order its fields to put the padding anywhere.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Gap {
 	wide: u64,
@@ -1239,11 +1240,7 @@ pub struct Gap {
 
 impl Gap {
 	pub fn new(wide: u64, narrow: u8) -> Self {
-		// SAFETY: every byte pattern is a `Gap`, whose fields are integers.
-		let mut gap: Gap = unsafe { std::mem::transmute([0xffu8; std::mem::size_of::<Gap>()]) };
-		gap.wide = wide;
-		gap.narrow = narrow;
-		gap
+		Self { wide, narrow }
 	}
 
 	pub fn sum(&self) -> u64 {
