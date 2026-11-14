@@ -69,6 +69,8 @@ bench-build checkout="": (moq-export checkout)
     src="{{ checkout }}"
     [ -n "$src" ] || src=target/moq
     out=target/export/moq
+    # The exporter bench-run times, built as a consumer installs it.
+    cargo build --locked --quiet --release
     # The floor: the stand-in's API called from Rust, resolved as the export is.
     rm -rf target/bench-rust
     mkdir -p target/bench-rust
@@ -324,8 +326,6 @@ moq-export checkout="": (standin checkout)
     # The library the C programs link, and the shared one Kotlin and Dart load.
     cargo build --locked --quiet --release --manifest-path "$out/Cargo.toml" --features kotlin,dart 2>&1 | tee target/moq-build.log
     sed -n 's/^note: native-static-libs: //p' target/moq-build.log > target/moq-native
-    # The exporter bench-run times, built as a consumer installs it.
-    cargo build --locked --quiet --release
 
 # Write target/moq-ffi, a facade re-exporting what moq-ffi ships from moq's crates, from the pinned moq revision or a checkout: the export follows its re-exports, as it will moq-ffi's remainder's.
 [private]
