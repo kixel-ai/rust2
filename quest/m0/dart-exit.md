@@ -10,6 +10,8 @@ case (`futures`, `owned`, `closed`, `bytes`, `bounds`) exits in about 0.4 s.
 
 ## Plan
 
+- Maintainer decision (2026-11-13): ✅ keep this follow-up (rejected: drop).
+
 Found on 2026-11-13 by measuring the warm run after
 [FFI test programs build once per input change](https://github.com/kixel-ai/rust2/pull/780).
 
