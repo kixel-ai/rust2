@@ -1,13 +1,19 @@
 // bench/export.c's cases through the generated Swift, so the two differ by what the Swift
 // wrapper adds. Each round runs twice, the first to warm up. Each case prints its wall time
-// and the process's CPU time, the global executor's threads included.
+// and the process's CPU time, the global executor's threads included, or under CodSpeed,
+// runs once for its CPU simulation to count.
 
+import CodSpeed
 import Foundation
 import Moq
 
-let groups = 10000
+/// Whether CodSpeed counts this run, which then skips the warm-up and the threaded cases.
+let measured = codspeed_init("ffi/moq/bench/export.swift::swift")
+/// A tenth under CodSpeed, whose simulation counts every call exactly.
+let groups = measured ? 1000 : 10000
 let frames = 100
 let n = groups * frames
+let threads = 4
 let sizes = [100, 1024, 16384, 65536, 1_048_576]
 
 /// Wall and CPU nanoseconds: a point, or a span per call.
@@ -31,6 +37,19 @@ func now() -> Span {
 func per(_ start: Span, _ calls: Double = Double(n)) -> Span {
 	let end = now()
 	return Span(wall: (end.wall - start.wall) / calls, cpu: (end.cpu - start.cpu) / calls)
+}
+
+/// A case's start: now, and CodSpeed counting from here.
+func begin() -> Span {
+	let start = now()
+	codspeed_start()
+	return start
+}
+
+/// The case `name`'s nanoseconds per call since `start`, over `calls` calls.
+func end(_ start: Span, _ name: String, _ calls: Double = Double(n)) -> Span {
+	codspeed_stop(name)
+	return per(start, calls)
 }
 
 /// A value a task sets and this thread takes once the task signals.
@@ -74,6 +93,54 @@ final class Queue: TaskExecutor, @unchecked Sendable {
 
 }
 
+/// A value threads share: a noncopyable object a closure can only borrow through a class.
+final class Shared<T: ~Copyable & Sendable>: Sendable {
+	let value: T
+	init(_ value: consuming T) {
+		self.value = value
+	}
+}
+
+/// Each of `calls` made n times on a thread of its own, all at once: wall nanoseconds per
+/// call on one thread, and CPU nanoseconds per call.
+func concurrent(_ calls: [@Sendable () -> Int]) -> Span {
+	let ready = DispatchSemaphore(value: 0)
+	let go = DispatchSemaphore(value: 0)
+	let done = DispatchSemaphore(value: 0)
+	for call in calls {
+		Thread {
+			var sum = 0
+			ready.signal()
+			go.wait()
+			for _ in 0..<n {
+				sum &+= call()
+			}
+			blackHole(sum)
+			done.signal()
+		}.start()
+	}
+	for _ in calls {
+		ready.wait()
+	}
+	let start = now()
+	for _ in calls {
+		go.signal()
+	}
+	for _ in calls {
+		done.wait()
+	}
+	let span = per(start)
+	return Span(wall: span.wall, cpu: span.cpu / Double(calls.count))
+}
+
+/// Keeps `value` from being optimized away.
+@inline(never)
+func blackHole(_ value: Int) {
+	if value == Int.min {
+		print("")
+	}
+}
+
 /// The async cases' spans, the last frame read, and their reads' sum, which a tuple cannot
 /// hold.
 struct Reads: ~Copyable {
@@ -87,8 +154,9 @@ struct Reads: ~Copyable {
 func throughput(_ track: TrackProducer, _ subscriber: inout TrackSubscriber, _ at: Timestamp, _ size: Int) async throws -> (Span, Int) {
 	let count = min(max((64 << 20) / (size * frames), 3), 2000)
 	let frame = Bytes(Data(count: size))
+	let name = "throughput[\(size)]"
 	var sum = 0
-	let start = now()
+	let start = begin()
 	for _ in 0..<count {
 		var group = try track.appendGroup()
 		var reader = try await subscriber.recvGroup()!
@@ -98,47 +166,60 @@ func throughput(_ track: TrackProducer, _ subscriber: inout TrackSubscriber, _ a
 		}
 		try group.finish()
 	}
-	let ns = per(start, Double(count * frames * size))
+	let ns = end(start, name, Double(count * frames * size))
 	return (Span(wall: 1e3 / ns.wall, cpu: 1e3 / ns.cpu), sum)
 }
 
-func round() throws -> ([(String, Span)], Int) {
+func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 	var out: [(String, Span)] = []
 	let broadcast = BroadcastInfo.new().produce()
 	let track = try broadcast.createTrack("bench", TrackInfo.default().withTimescale(Timescale.MICRO))
 	let frame = Bytes(Data(count: 100))
 	var sum = 0
 
-	var start = now()
+	var start = begin()
 	for _ in 0..<n where track.isClosed() {
 		sum += 1
 	}
-	out.append(("call", per(start)))
+	out.append(("call", end(start, "call")))
 
 	var demanded = try track.appendGroup()
 	let demand = demanded.demand()
-	start = now()
+	start = begin()
 	for _ in 0..<n {
 		sum &+= Int(demand.sequence())
 	}
-	out.append(("getter", per(start)))
+	out.append(("getter", end(start, "getter")))
+
+	// The handle call and the getter from `threads` threads: on one shared handle, then on a
+	// clone each, a handle of its own to the same value. CodSpeed's simulation runs one thread
+	// at a time, which contends for nothing, so it skips them.
+	if !measured {
+		let isClosed = { (t: TrackProducer) -> @Sendable () -> Int in { t.isClosed() ? 1 : 0 } }
+		let sequence = { (d: Shared<GroupDemand>) -> @Sendable () -> Int in { Int(truncatingIfNeeded: d.value.sequence()) } }
+		let shared = Shared(demand.clone())
+		out.append(("shared:call", concurrent((0..<threads).map { _ in isClosed(track) })))
+		out.append(("own:call", concurrent((0..<threads).map { _ in isClosed(track.clone()) })))
+		out.append(("shared:getter", concurrent((0..<threads).map { _ in sequence(shared) })))
+		out.append(("own:getter", concurrent((0..<threads).map { _ in sequence(Shared(demand.clone())) })))
+	}
 	try demanded.finish()
 
-	start = now()
+	start = begin()
 	for _ in 0..<n where track.largest() != nil {
 		sum += 1
 	}
-	out.append(("record", per(start)))
+	out.append(("record", end(start, "record")))
 
-	start = now()
+	start = begin()
 	for _ in 0..<n {
 		_ = track.info()
 	}
-	out.append(("object", per(start)))
+	out.append(("object", end(start, "object")))
 
-	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
+	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must.
 	var micros: UInt64 = 0
-	start = now()
+	start = begin()
 	for _ in 0..<groups {
 		var group = try track.appendGroup()
 		for _ in 0..<frames {
@@ -148,10 +229,10 @@ func round() throws -> ([(String, Span)], Int) {
 		}
 		try group.finish()
 	}
-	out.append(("stamped", per(start)))
+	out.append(("stamped", end(start, "stamped")))
 
 	let at = try Timestamp.fromMicros(micros)
-	start = now()
+	start = begin()
 	for _ in 0..<groups {
 		var group = try track.appendGroup()
 		for _ in 0..<frames {
@@ -159,7 +240,7 @@ func round() throws -> ([(String, Span)], Int) {
 		}
 		try group.finish()
 	}
-	out.append(("write", per(start)))
+	out.append(("write", end(start, "write")))
 
 	let reads = block {
 		var out: [(String, Span)] = []
@@ -167,7 +248,7 @@ func round() throws -> ([(String, Span)], Int) {
 
 		// Each frame written, then read through an async func whose future is ready at its
 		// first poll, so it never suspends.
-		var start = now()
+		var start = begin()
 		var last: FrameFrame?
 		for _ in 0..<groups {
 			var group = try track.appendGroup()
@@ -178,11 +259,11 @@ func round() throws -> ([(String, Span)], Int) {
 			}
 			try group.finish()
 		}
-		out.append(("ready", per(start)))
+		out.append(("ready", end(start, "ready")))
 
 		// Each read started in a task before its frame is written, which the yield lets
 		// suspend, and the write's wake resumes it on the global executor.
-		start = now()
+		start = begin()
 		for _ in 0..<groups {
 			var group = try track.appendGroup()
 			var reader = try await subscriber.recvGroup()!
@@ -194,11 +275,11 @@ func round() throws -> ([(String, Span)], Int) {
 			}
 			try group.finish()
 		}
-		out.append(("woken", per(start)))
+		out.append(("woken", end(start, "woken")))
 
 		// A single writer task serves the calling reader for the whole case.
 		// Only one permit is outstanding. The write can race the first poll.
-		start = now()
+		start = begin()
 		let (permits, send) = AsyncStream<Void>.makeStream()
 		let writer = Task {
 			var next = permits.makeAsyncIterator()
@@ -224,7 +305,7 @@ func round() throws -> ([(String, Span)], Int) {
 		}
 		send.finish()
 		try await writer.value
-		out.append(("loop", per(start)))
+		out.append(("loop", end(start, "loop")))
 
 		var sum = 0
 		for size in sizes {
@@ -246,7 +327,7 @@ func round() throws -> ([(String, Span)], Int) {
 	consumed.value = 0
 	let done = Cell<Bool>()
 	done.value = false
-	start = now()
+	start = begin()
 	Task(executorPreference: queue) {
 		var subscriber = try! await wakeTrack.consume().subscribe(nil)
 		for _ in 0..<groups {
@@ -271,22 +352,25 @@ func round() throws -> ([(String, Span)], Int) {
 		try group.finish()
 	}
 	precondition(done.value == true)
-	out.append(("drained", per(start)))
+	out.append(("drained", end(start, "drained")))
 
 	// The last frame's 100 bytes, returned as Bytes, and one of them read.
-	start = now()
+	start = begin()
 	for _ in 0..<n {
 		sum += Int(last.payloadGet[0])
 	}
-	out.append(("payload", per(start)))
+	out.append(("payload", end(start, "payload")))
 	return (out, sum)
 }
 
+// Under CodSpeed, one round, which prints nothing: its simulation counts each case.
 var sink = 0
-sink += try round().1
-let (out, sum) = try round()
+if !measured {
+	sink += try round(false).1
+}
+let (out, sum) = try round(measured)
 sink += sum
-for (key, value) in out {
+for (key, value) in out where !measured {
 	print("\(key)\t\(value.wall)\t\(value.cpu)")
 }
 if sink == Int.min {

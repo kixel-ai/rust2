@@ -92,12 +92,13 @@ public path names, or an error taken by value, is held by value as an opaque han
 | --- | --- |
 | a struct whose fields are all `pub`, not `#[non_exhaustive]`, which map, with no `Drop` of its own | a record: a struct, copied across |
 | an enum with variants whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
-| any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free` |
+| any other type that is `Copy` and `Send`, with no `pub` field, no `pub` method taking `&mut self`, and no union or enum whose variants initialize different bytes, such as an `Option<u32>`, in it, such as moq's `Timestamp` or std's `Instant` | an opaque value: a struct of its bytes, copied across, which only Rust makes or reads, with its padding zeroed; one no export returns is left out, since C could never make one |
+| any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, since C may change it in place, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
 | a `pub` field of an object | a getter returning a copy, and a setter assigning in place, as `x.field = value` does |
 | a `pub` trait | a callback interface: a table of C functions and their data; a trait C cannot implement, such as one with a blanket impl, an associated type, or a supertrait but a marker, is left out, since C never passes one, and a signature taking one from C is refused |
-| a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce` alone, taking what a callback takes, objects by reference, or `Copy` objects, and returning a scalar, a `String`, a `Copy` object, an `Option` of one, or a `Result` of one and a `String` | a C function and its `void *` data; one a lifetime bound or the return lets outlive the call, as kio's `clock::drive` and a spawned task's are, adds a `free` Rust calls once it drops it; a closure of any other signature is refused |
+| a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce` alone, taking what a callback takes, objects by reference, or opaque values, and returning a scalar, a `String`, an opaque value, an `Option` of one, or a `Result` of one and a `String` | a C function and its `void *` data; one a lifetime bound or the return lets outlive the call, as kio's `clock::drive` and a spawned task's are, adds a `free` Rust calls once it drops it; a closure of any other signature is refused |
 | a type parameter or `impl` taken by value and bounded by `Future` or `IntoFuture`, whose every bound `Pin<Box<dyn Future<Output = ()> + Send>>` meets, as kio's `clock::timeout` takes, or taken as `Pin<&mut F>` by a poll, as kio's `Waiter::poll_future` takes | `<prefix>_foreign_future`: a future of `()` C implements, which Rust takes as that type, or which the future the poll makes owns and pins; a future of another output is refused |
 | a type parameter or `impl` bounded by `Read` and `Seek` alone, behind `&mut`, which no lifetime bound or return lets outlive the call, as moq-mux's `container::mp4::repair` takes | `<prefix>_foreign_reader`: a `read` and a `seek` C implements and their data, lent for the call; any other reader is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
@@ -252,7 +253,9 @@ where it was while its file is unchanged.
 
 - **Handles** are `Arc`s, and a call borrows the value as Rust's receiver or parameter
   does, checked at run time: shared for `&T`, exclusive for `&mut T`, and moved out for
-  `T`, after which the handle is only freed. A `Copy` value is copied out instead, and a
+  `T`, after which the handle is only freed. A `Copy` object, one with a `pub` field, a
+  `pub` method taking `&mut self`, or bytes its value decides are initialized, as an
+  `Option<u32>` in it does, is copied out instead, leaving its handle as it was. A
   value that is not `Sync` is shared on one thread at a time, and held exclusively by a
   future, which may be polled on any thread. A borrow Rust would
   refuse at compile time aborts, naming the function, as does a null or moved-out handle:
@@ -261,6 +264,14 @@ where it was while its file is unchanged.
   while a getter's copy is C's own: a nested field is got, set, and set back. A type
   whose C++ copies share one value has `_borrowed`, true while a call or future borrows
   it, so moving it out would abort.
+- **Opaque values** are `typedef struct <T> { uintN_t opaque[n]; } <T>;`, the bytes of a
+  `Copy` type with private fields, in units of its alignment up to 8 bytes: C copies one
+  as any struct, and passes `&self` as a `const <T> *`, but never makes or changes one,
+  and frees none. Its padding is zero, from a table of each target's padding rustc's
+  layout gives, so no byte Rust left uninitialized reaches a language, which may
+  serialize what it holds. Its size and alignment are the largest of the export's targets, so one
+  header serves them all, a few bytes past a 32-bit target's own. A change of size is an
+  ABI change, as a record's field change is.
 - **In and out**: a `&mut` of a value is two parameters, the value passed in as one taken
   by value is, and a `<name>_out` pointer, through which Rust writes what the call left in
   it on every path, its errors included. C keeps what it passed, and frees what Rust wrote
@@ -308,13 +319,12 @@ where it was while its file is unchanged.
 - **Closures** are a function and its data, which Rust calls from any thread, one call
   at a time. One lent for a call Rust calls only during the call; one Rust keeps comes
   with a `free`, which Rust calls once it drops the closure, done or not, maybe before
-  any call. One takes what a callback takes, and objects by reference or `Copy` objects,
-  each lent as a handle to the value where it is for that call: C borrows it no further
-  than Rust lent it, and moving out of it, freeing it, or keeping a borrow past the call
-  aborts. What it returns is Rust's to own: a handle C made or was given, one
-  `<T>_copy` made of a `Copy` object C keeps, which copies it as Rust does without
-  running its `Clone`, or a buffer `<prefix>_buf_copy` made; a `Result` returns false and
-  writes its error's buffer.
+  any call. One takes what a callback takes, objects by reference, each lent as a handle
+  to the value where it is for that call, and opaque values, copied: C borrows a lent
+  handle no further than Rust lent it, and moving out of it, freeing it, or keeping a
+  borrow past the call aborts. What it returns is Rust's to own: an opaque value, copied
+  as Rust copies it without running its `Clone`, or a buffer `<prefix>_buf_copy` made; a
+  `Result` returns false and writes its error's buffer.
 - **Readers** are a `read`, a `seek`, and their data, lent for the call, which Rust calls
   from any thread, one call at a time. `read` writes at most the length it was given,
   `seek` takes `SEEK_SET`, whose offset's bits are a `uint64_t` that may pass
@@ -416,7 +426,8 @@ packages place it in.
 - **Records** are structs, and **enums** an `enum class`, or for one with data a
   `std::variant` of a struct per variant, `<enum>_<variant>`. An enum's methods and
   traits are free functions taking it first. `PartialEq` is `==`, `Display` `to_string()`,
-  `Debug` `debug()`, and `Default` `default_()`.
+  `Debug` `debug()`, and `Default` `default_()`. An **opaque value** is a trivially
+  copyable class holding its C struct, with no public constructor, so only Rust makes one.
 - **Bytes** are passed as a `view`, which any contiguous bytes convert to, and returned as
   a `buf`, which owns Rust's buffer without a copy, so it outlives the object it came
   from. From C++20, either converts to `std::span<const std::uint8_t>`. A `view` or span
@@ -437,8 +448,7 @@ packages place it in.
 - **Closures** are any callable, taken by a template parameter, which Rust calls from any
   thread, one call at a time. One lent for a call Rust calls only during the call; one Rust
   keeps it moves or copies into a copy of its own, which it destroys once done with it,
-  maybe before any call. An object it lends as `&T`, or a `Copy` one, is a `const`
-  reference to its class, and as `&mut T` an `api::borrow<T>`, which reaches its methods
+  maybe before any call. An object it lends as `&T` is a `const` reference to its class, and as `&mut T` an `api::borrow<T>`, which reaches its methods
   through `->` but neither moves nor copies. Moving out of either, or keeping a copy past
   the call, aborts. It returns bytes as anything a `view` takes, copied for Rust, and a
   `Result` as a `result`, or anything with its `operator bool`, `operator*`, and
@@ -499,7 +509,13 @@ out, with only its other fields encoded.
   assignment would hide.
 - **Records** are data classes, compared by their fields, and **enums** an `enum class`,
   or for one with data a sealed class of a data class per variant. `Display` is
-  `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`.
+  `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`. An **opaque
+  value** is a class with an internal constructor, so only Rust makes one: of no more than
+  8 bytes on every target, with no padding, fields of integers, `bool`s, and `char`s alone, nested or not, and a
+  derived or std `PartialEq`, a value class over a `Long`, compared by its bits, which
+  allocates nothing unless Kotlin boxes it, as in a `List` or a nullable; otherwise one over
+  a `LongArray`, whose `==` is Rust's, and whose `hashCode` is 0, since none Kotlin
+  computes agrees with it.
 - **Bytes** are a `Bytes`. Passed in, Rust's own are shared with no copy, and Kotlin's,
   which `Bytes(ByteArray)` holds without a copy, are copied once into a buffer Rust takes,
   at a call's top level or in a record; those Rust lends a closure or trait method are
@@ -539,8 +555,7 @@ out, with only its other fields encoded.
 - **Closures** are function types, which Rust calls from any thread: one lent for a call
   only during the call, and one Rust keeps, as `Spawned.new` does, until it drops it,
   when it deletes its global reference and the GC may collect it. An object it lends is
-  closed once the call returns. A `Copy` object it returns crosses as a new handle to a
-  clone, so Kotlin keeps its own. One returning a `Result` returns its value and fails by
+  closed once the call returns. One returning a `Result` returns its value and fails by
   throwing the `<E>Exception` a function's `Err` throws, as `StringException("…")`; any
   other exception aborts, as a callback's does.
 - A **reader** is a `java.nio.channels.SeekableByteChannel`, which a `FileChannel` or
@@ -567,7 +582,7 @@ out, with only its other fields encoded.
   through Rust, and the garbage collector drops it.
 - **The contract** is checked when the library loads, before any other call: a Kotlin
   file and a library from different builds throw.
-- **Shrinking**: `<prefix>.pro` keeps what the JNI glue finds by name, `Native`, its native
+- **Shrinking**: `<prefix>.pro` keeps what the JNI glue finds by name, `_Native`, its native
   methods, and the Kotlin functions Rust calls, while R8 strips and renames the rest. An
   Android library ships it as a consumer rule (`consumerProguardFiles`), which its AAR
   carries to each app that shrinks it.
@@ -603,7 +618,8 @@ caller imports it with no ignores.
   of upper-case members, or for one with data a class of a dataclass per variant,
   `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
   `default()`. Constants are module or class attributes, made anew on each read unless a
-  literal.
+  literal. An **opaque value** is a class of the runtime's `Value`, which holds its bytes
+  in place, so only Rust makes or reads one: making one raises `TypeError`.
 - **Bytes** passed in are any buffer, `bytes | bytearray | memoryview`: `bytes` is read in
   place, and others, which Python may change while Rust reads, are copied. Bytes Rust
   returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it
@@ -632,9 +648,9 @@ caller imports it with no ignores.
   `close()` is called if it has one.
 - **Closures** are any callable, which Rust calls from any thread, one call at a time,
   taking the GIL: one lent for a call only during the call, and one Rust keeps until it
-  drops it, when it lets go of its reference. An object it lends, `Copy` ones included,
-  is closed once that call of it returns. What it returns Rust owns: a `str` is copied,
-  and an object's handle cloned, so the caller's stays its own. One returning a `Result`
+  drops it, when it lets go of its reference. An object it lends is closed once that call
+  of it returns. What it returns Rust owns: a `str` is copied, and an opaque value's
+  bytes, so the caller's stays its own. One returning a `Result`
   fails by raising the exception of its error, such as `StringException(message)`, whose
   `error` Rust takes. Any other exception a closure or trait method raises prints its
   traceback and aborts, since Rust has nowhere to unwind it to.
@@ -693,15 +709,17 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   `clamped()`, `clamped(low:)`, `clamped(high:)` and `clamped(low:high:)`, up to two per
   function; `Option<&mut T>` is `inout T?`. `Clone` is `clone()`, and `PartialEq` is `==`, which Swift 6.4 makes
   `Equatable`; `Display` is `description` and `Debug` `debugDescription`, which Swift
-  conforms no noncopyable type to yet. An object that is `Copy`, or thrown as an error,
-  which `Swift.Error` requires be copyable, is a final class instead, whose handle a call
+  conforms no noncopyable type to yet. A `Copy` object, which Rust copies where it takes
+  one by value, and an object thrown as an error, which `Swift.Error` requires be
+  copyable, are final classes instead, whose handle a call
   holds until it returns, and moving its value out closes it, after which a call traps. A
   field is a computed property, `firstGet`, and its setter a function, `firstSet(value)`,
   named as the C ones, since setting an object moves it in, which an assignment would hide.
   An object is `Sendable`, since Rust checks each borrow at run time.
 - **Records** are structs and **enums** Swift enums, with a variant's data as associated
   values, all `Sendable`. `PartialEq` is `==`, through Rust's; `Display` is `description`,
-  `Debug` `debugDescription`, and `Default` a static `default()`.
+  `Debug` `debugDescription`, and `Default` a static `default()`. An **opaque value** is
+  a struct holding its C struct, with no public initializer, so only Rust makes one.
 - **Bytes** are the runtime's `Bytes`, a `RandomAccessCollection` of `UInt8` whose slices
   are `Bytes` too. Bytes Rust returns lend its buffer until Swift releases the last `Bytes`
   or slice reading it, and pass back to Rust as a second owner of it, with no copy, except
@@ -728,7 +746,7 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   at a time. One lent for a call Rust calls only during the call; one Rust keeps is
   `@escaping`, boxed until Rust drops it. An object it lends is `borrowing`, or `inout`
   for `&mut T`, so it cannot outlive the call; assigning another to the `inout` one traps,
-  since Rust's stays its own. A `Copy` object it takes is a copy of its own. One returning
+  since Rust's stays its own. One returning
   `Result<T, String>` `throws`: Rust reads its error's `description`, so a thrown
   `StringError` returns its string as it was.
 - A **reader** is `inout some SeekableReader`, the runtime's protocol of
@@ -808,7 +826,10 @@ reads a go.mod.
   `Debug` `GoString()`, `PartialEq` `Equal(other)`, all through Rust's, and `Default` a
   function of the package, `PointDefault()`. An object's exported `Handle_` field, and a
   trait's `<Trait>Vtable_` function, are how one generated package reaches another's,
-  since cgo gives each its own C types: callers use neither.
+  since cgo gives each its own C types: callers use neither. An **opaque value** is a
+  struct of its bytes, `Bytes_`, and `Made_`, true once Rust made it: a zero value panics
+  where Rust would read it, and `==` does not compile, since bytes alike need not be
+  equal, so `Equal`, if it has one, is Rust's.
 - **Bytes** a call takes are a `[]byte`, and text a `string`, each read in place: Go's
   memory, pinned where C reads it through other memory. Bytes Rust passes a callback are
   copied into a `[]byte`. Bytes anywhere else, such as those Rust returns or a record
@@ -846,10 +867,10 @@ reads a go.mod.
 - **Closures** are funcs, which Rust calls from any thread: one lent for a call only
   during the call, and one Rust keeps, as moq's `clock::drive` does, until Rust drops it,
   which releases it to the GC. An object it lends by reference is closed once the func
-  returns; a `Copy` one is its own clone, which it may keep. A `Result` returns an `error`
+  returns. A `Result` returns an `error`
   last, whose `Error()` crosses as Rust's `String`. What it returns crosses as Rust's: a
-  `string` copied, and an object as a clone of its handle, so the func keeps its own; a
-  closed one panics.
+  `string` copied, and an opaque value as its bytes, so the func keeps its own; a zero one
+  panics.
 - **Readers**, `Read + Seek` behind `&mut`, are an `io.ReadSeeker`, such as an `*os.File`,
   which Rust reads and seeks only during the call, one call at a time, and never closes.
   A read of bytes and an error hands Rust the bytes, then the error on the next read, as
@@ -909,7 +930,9 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   with data a sealed class with a final class per variant (`EventMoved`), so a `switch`
   over it is exhaustive. `Display` is `toString()`, `Debug` `debug()`, `PartialEq` `==`, all
   through Rust's, with a `hashCode` that throws an `UnsupportedError`, since no hash Dart
-  computes agrees with Rust's `==`, and `Default` a constructor, `default_()`. A plain enum's `==` is Dart's, by its value.
+  computes agrees with Rust's `==`, and `Default` a constructor, `default_()`. An
+  **opaque value** is a final class of its bytes as `int`s, with a private constructor,
+  so only Rust makes one. A plain enum's `==` is Dart's, by its value.
 - **Integers** are `int`. A narrower one passed in throws a `RangeError` when out of its
   range, and a `u64` passes its 64 bits, so one past `i64`'s range is negative in Dart.
   A `char` is a `String` of one Unicode scalar.
@@ -943,9 +966,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   A call that throws before Rust sees it gives Rust none of its implementations.
 - **Closures** are Dart functions, which Rust calls on the isolate's thread: one lent for
   a call only during the call, and one Rust keeps until it drops it, which then lets go of
-  it. An object it lends, by reference or a `Copy` one by value, lives only for that call
-  of the closure. What it returns Rust takes: a `String` copied, and a `Copy` object as a
-  new handle to a clone. One whose Rust returns `Result<T, String>` fails by throwing
+  it. An object it lends by reference lives only for that call of the closure. What it
+  returns Rust takes: a `String` copied, and an opaque value copied. One whose Rust returns `Result<T, String>` fails by throwing
   `StringException`, the binding's own form of that error; anything else it throws aborts.
 - A **reader** Rust reads and seeks, a `Read + Seek` behind `&mut`, is a `SeekableReader`:
   `readInto` and `seek`, which Rust calls only during the call, on the isolate's thread.
@@ -1023,6 +1045,7 @@ just ffi census   # census each into target/census
 just ffi shapes   # round-trip every sampled type shape in every language but KNOWN's, as the nightly does
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
+nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
 nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan and TSan, and its C ABI under Miri
 ```
 

@@ -13,6 +13,7 @@
 
 use std::cell::Cell;
 use std::ffi::{CStr, c_void};
+use std::mem::MaybeUninit;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -327,16 +328,26 @@ pub unsafe fn passed(env: *mut JNIEnv, held: jobject, owner: jlong, start: jint,
 
 /// A new `byte[]` holding `bytes`.
 pub fn array(env: *mut JNIEnv, bytes: &[u8]) -> jbyteArray {
-	let Ok(len) = jsize::try_from(bytes.len()) else {
+	// SAFETY: `bytes` holds its length in bytes.
+	unsafe { raw_array(env, bytes.as_ptr(), bytes.len()) }
+}
+
+/// A new `byte[]` of the `len` bytes at `bytes`, which JNI copies as they are, so any may
+/// be uninitialized.
+///
+/// # Safety
+/// `bytes` reaches `len` bytes.
+unsafe fn raw_array(env: *mut JNIEnv, bytes: *const u8, len: usize) -> jbyteArray {
+	let Ok(len) = jsize::try_from(len) else {
 		rt::fail("jni", "a buffer is too long for a byte[]")
 	};
-	// SAFETY: `env` is this thread's, and `bytes` holds `len` bytes.
+	// SAFETY: `env` is this thread's, and `bytes` reaches `len` bytes.
 	unsafe {
 		let array = ((**env).v1_2.NewByteArray)(env, len);
 		if array.is_null() {
 			fail(env, "jni", "a byte[] is out of memory");
 		}
-		((**env).v1_2.SetByteArrayRegion)(env, array, 0, len, bytes.as_ptr().cast());
+		((**env).v1_2.SetByteArrayRegion)(env, array, 0, len, bytes.cast());
 		array
 	}
 }
@@ -368,7 +379,7 @@ fn lends(len: usize) -> bool {
 	false
 }
 
-/// A buffer Rust returned or lent, as Kotlin's `Native.owned` takes it: null for none, a
+/// A buffer Rust returned or lent, as Kotlin's `_Native.owned` takes it: null for none, a
 /// `byte[]` copy, freeing the buffer, or where it [`lends`] a `long[]` holding the owner it
 /// lends them through and their length.
 ///
@@ -794,7 +805,7 @@ fn caught(env: *mut JNIEnv, what: &str, cache: &OnceLock<usize>, name: &CStr) ->
 
 static FAILED: OnceLock<usize> = OnceLock::new();
 
-/// Raise the error a function returned, encoded in `w`, as the `Native.Failed` Kotlin turns
+/// Raise the error a function returned, encoded in `w`, as the `_Native.Failed` Kotlin turns
 /// into its exception: a call's success path then returns its value with no `byte[]`.
 pub fn raise(env: *mut JNIEnv, w: Writer) {
 	let id = method(env, &FAILED, c"__failed", c"([B)Ljava/lang/Throwable;");
@@ -912,11 +923,12 @@ impl<'a> Reader<'a> {
 
 thread_local! {
 	/// The native codec buffer, kept between calls and lent only while a return factory runs.
-	static SCRATCH: Cell<Vec<u8>> = const { Cell::new(Vec::new()) };
+	static SCRATCH: Cell<Vec<MaybeUninit<u8>>> = const { Cell::new(Vec::new()) };
 }
 
-/// Values encoded into a `byte[]` for Kotlin.
-pub struct Writer(Vec<u8>);
+/// Values encoded into a `byte[]` for Kotlin. Its bytes may be uninitialized, as an opaque
+/// value's padding is, so it holds them as such and hands JNI them by pointer.
+pub struct Writer(Vec<MaybeUninit<u8>>);
 
 impl Default for Writer {
 	fn default() -> Self {
@@ -941,7 +953,13 @@ impl Writer {
 	}
 
 	pub fn array(self, env: *mut JNIEnv) -> jbyteArray {
-		array(env, &self.0)
+		// SAFETY: the vector holds its length in bytes, which JNI copies as they are.
+		unsafe { raw_array(env, self.0.as_ptr().cast(), self.0.len()) }
+	}
+
+	fn extend(&mut self, bytes: &[u8]) {
+		// SAFETY: a `u8` is a `MaybeUninit<u8>`.
+		self.0.extend_from_slice(unsafe { &*(std::ptr::from_ref(bytes) as *const [MaybeUninit<u8>]) });
 	}
 
 	/// Construct a Kotlin value while this writer's native buffer is alive. The generated
@@ -966,6 +984,93 @@ impl Writer {
 	}
 }
 
+/// An opaque value's C struct from the `long` Kotlin holds it in: its bytes, at the word's
+/// lowest addresses, as [`to_word`] put them.
+pub fn from_word<T: Copy>(word: jlong) -> T {
+	const { assert!(size_of::<T>() <= size_of::<jlong>()) };
+	let mut value = std::mem::MaybeUninit::<T>::zeroed();
+	// SAFETY: `T` is a struct of `MaybeUninit` units, any bytes of which are one.
+	unsafe {
+		std::ptr::copy_nonoverlapping((&raw const word).cast::<u8>(), value.as_mut_ptr().cast::<u8>(), size_of::<T>());
+		value.assume_init()
+	}
+}
+
+/// The `long` Kotlin holds an opaque value's C struct in, which has no padding: Kotlin
+/// compares two by it.
+pub fn to_word<T: Copy>(value: T) -> jlong {
+	const { assert!(size_of::<T>() <= size_of::<jlong>()) };
+	let mut word: jlong = 0;
+	// SAFETY: every byte of a value with no padding is initialized, and the rest are zero.
+	unsafe { std::ptr::copy_nonoverlapping((&raw const value).cast::<u8>(), (&raw mut word).cast::<u8>(), size_of::<T>()) };
+	word
+}
+
+/// An opaque value's C struct from the `W` words of the `long[]` Kotlin holds it in.
+///
+/// # Safety
+/// `array` is a live `long[]`.
+pub unsafe fn from_words<T: Copy, const W: usize>(env: *mut JNIEnv, array: jlongArray) -> T {
+	const { assert!(size_of::<T>() <= W * size_of::<jlong>()) };
+	let mut words = [std::mem::MaybeUninit::<jlong>::zeroed(); W];
+	// SAFETY: `array` is live, and `T` is a struct of `MaybeUninit` units.
+	unsafe {
+		if array.is_null() || ((**env).v1_2.GetArrayLength)(env, array) != W as jsize {
+			fail(env, "jni", "an opaque value's words are not its own");
+		}
+		((**env).v1_2.GetLongArrayRegion)(env, array, 0, W as jsize, words.as_mut_ptr().cast());
+		let mut value = std::mem::MaybeUninit::<T>::zeroed();
+		std::ptr::copy_nonoverlapping(words.as_ptr().cast::<u8>(), value.as_mut_ptr().cast::<u8>(), size_of::<T>());
+		value.assume_init()
+	}
+}
+
+/// A new `long[]` of the `W` words an opaque value's C struct is held in: its bytes, then
+/// zeros. Its padding crosses as the bytes it holds, which Kotlin never reads.
+pub fn to_words<T: Copy, const W: usize>(env: *mut JNIEnv, value: T) -> jlongArray {
+	const { assert!(size_of::<T>() <= W * size_of::<jlong>()) };
+	let mut words = [std::mem::MaybeUninit::<jlong>::zeroed(); W];
+	// SAFETY: `env` is this thread's; JNI copies the words as bytes.
+	unsafe {
+		std::ptr::copy_nonoverlapping((&raw const value).cast::<u8>(), words.as_mut_ptr().cast::<u8>(), size_of::<T>());
+		let array = ((**env).v1_2.NewLongArray)(env, W as jsize);
+		if array.is_null() {
+			fail(env, "jni", "a long[] is out of memory");
+		}
+		((**env).v1_2.SetLongArrayRegion)(env, array, 0, W as jsize, words.as_ptr().cast());
+		array
+	}
+}
+
+/// An opaque value's C struct as it crosses encoded: the `W` words Kotlin holds it in,
+/// whose little-endian bytes are its own on a little-endian target.
+pub fn read_words<T: Copy, const W: usize>(r: &mut Reader<'_>) -> T {
+	const { assert!(size_of::<T>() <= W * size_of::<jlong>() && cfg!(target_endian = "little")) };
+	let bytes = r.take(W * size_of::<jlong>());
+	let mut value = std::mem::MaybeUninit::<T>::zeroed();
+	// SAFETY: `T` is a struct of `MaybeUninit` units, any bytes of which are one.
+	unsafe {
+		std::ptr::copy_nonoverlapping(bytes.as_ptr(), value.as_mut_ptr().cast::<u8>(), size_of::<T>());
+		value.assume_init()
+	}
+}
+
+/// Encode an opaque value's C struct as the `W` words Kotlin holds it in: its bytes, then
+/// zeros. Its padding stays uninitialized, as the writer allows, and Kotlin never reads it.
+pub fn write_words<T: Copy, const W: usize>(w: &mut Writer, value: T) {
+	const { assert!(size_of::<T>() <= W * size_of::<jlong>() && cfg!(target_endian = "little")) };
+	let n = W * size_of::<jlong>();
+	w.0.reserve(n);
+	let start = w.0.len();
+	// SAFETY: the vector has room for `n` more bytes, each written before its length grows.
+	unsafe {
+		let at = w.0.as_mut_ptr().add(start).cast::<u8>();
+		std::ptr::write_bytes(at, 0, n);
+		std::ptr::copy_nonoverlapping((&raw const value).cast::<u8>(), at, size_of::<T>());
+		w.0.set_len(start + n);
+	}
+}
+
 /// A C value as it crosses encoded: Kotlin writes one Rust reads, and Rust writes one it
 /// owns, freeing what it holds once copied.
 pub trait Wire: Sized {
@@ -981,7 +1086,7 @@ macro_rules! scalar {
 			}
 
 			fn write(self, w: &mut Writer) {
-				w.0.extend_from_slice(&self.to_le_bytes());
+				w.extend(&self.to_le_bytes());
 			}
 		}
 	)*};
@@ -995,7 +1100,7 @@ impl<const N: usize> Wire for [u8; N] {
 	}
 
 	fn write(self, w: &mut Writer) {
-		w.0.extend_from_slice(&self);
+		w.extend(&self);
 	}
 }
 
@@ -1120,7 +1225,7 @@ impl Wire for rt::Buf {
 			rt::fail("jni", "a buffer is too long for a byte[]")
 		};
 		w.put(len);
-		w.0.extend_from_slice(bytes);
+		w.extend(bytes);
 		// SAFETY: as above.
 		unsafe { self.free() };
 	}
@@ -1163,7 +1268,7 @@ impl Wire for Owned<rt::Buf> {
 			w.put(len);
 			// SAFETY: a buffer Rust returned or lent, freed here once copied.
 			unsafe {
-				w.0.extend_from_slice(buf.bytes("jni"));
+				w.extend(buf.bytes("jni"));
 				buf.free();
 			}
 		}

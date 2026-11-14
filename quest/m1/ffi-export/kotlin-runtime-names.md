@@ -7,9 +7,5 @@ The Kotlin runtime's helper classes (`Reader`, `Handle`, `Ready`, ...) take `_`-
 ## Plan
 
 - ✅ keep (maintainer, 2026-11-13, when landing kixel-ai/rust2#750 with the reservation as is).
-- Builds on kixel-ai/rust2#777, which does the same for `_Native` and its `_<Name>` import aliases; follow its naming.
+- Follow kixel-ai/rust2#777's naming, which did the same for `_Native` and its `_<Name>` import aliases.
 - Rename each helper, drop it from `TAKEN`, and add a fixture exporting a type named like a former helper to prove it keeps its name.
-
-## Required
-
-- [Variant names](/quest/m1/ffi-export/kotlin-variant-names.md) - kixel-ai/rust2#777's `_`-prefixed runtime names this extends
