@@ -1816,6 +1816,21 @@ impl<'a> Gen<'a> {
 
 	/// A native method `bare`, taking `params` and returning `ret` (JNI type, Kotlin
 	/// type), whose glue runs `body` with each parameter named `p0`, `p1`, ...
+	/// `code`, which closes moved arguments however the call ends, behind the check that
+	/// refuses a call off its target, so a refused call leaves them open.
+	fn refused_first(&self, bare: &str, code: String) -> String {
+		let api = self.abi.api;
+		match api.everywhere(self.on) {
+			true => code,
+			false => format!(
+				"run {{\n\tNative.check({}uL, \"{}_{bare}\")\n{}\n}}",
+				self.on.0 & api.all().0,
+				self.abi.prefix,
+				indent_by(&code, 1)
+			),
+		}
+	}
+
 	fn native(&mut self, bare: &str, params: &[(&str, &str)], ret: (&str, &str), body: &str) {
 		let kt: Vec<String> = params
 			.iter()
@@ -2155,7 +2170,7 @@ impl<'a> Gen<'a> {
 			let call = if after.is_empty() {
 				raw
 			} else {
-				format!("try {{ {raw} }} finally {{ {} }}", after.join("; "))
+				self.refused_first(&bare, format!("try {{ {raw} }} finally {{ {} }}", after.join("; ")))
 			};
 			let awaited = format!(
 				"Native.Signal().let {{ {s} -> Native.await({call}, {s}, {{ f, n -> Native.{poll_bare}(f, n) }}, {{ Native.{free_bare}(it) }}) }}",
@@ -2246,7 +2261,7 @@ impl<'a> Gen<'a> {
 			let raw = if after.is_empty() {
 				raw
 			} else {
-				format!("try {{ {raw} }} finally {{ {} }}", after.join("; "))
+				self.refused_first(&bare, format!("try {{ {raw} }} finally {{ {} }}", after.join("; ")))
 			};
 			value = format!("({raw}) as {ret_kt}");
 		} else if let Some(c_ok) = direct(&outs, &written, &function.ok, function.err.as_ref()) {
@@ -2285,12 +2300,14 @@ impl<'a> Gen<'a> {
 			let raw = format!("Native.{bare}({})", exprs.join(", "));
 			let caught = match after.is_empty() {
 				true => format!("try {{\n\t{raw}\n}} catch (f: Native.Failed) {{\n\tNative.Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n}}"),
-				false => format!(
+				false => self.refused_first(
+					&bare,
+					format!(
 					"try {{\n\t{raw}\n}} finally {{\n\t{}\n}}",
 					after.join("\n\t")
 				)
 				.replace("try {\n\t", "try {\n\ttry {\n\t\t")
-				.replacen("\n} finally", &format!("\n\t}} catch (f: Native.Failed) {{\n\t\tNative.Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n\t}}\n}} finally"), 1),
+				.replacen("\n} finally", &format!("\n\t}} catch (f: Native.Failed) {{\n\t\tNative.Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n\t}}\n}} finally"), 1)),
 			};
 			value = match ok {
 				Type::Unit => caught,
@@ -2359,7 +2376,7 @@ impl<'a> Gen<'a> {
 			let raw = if after.is_empty() {
 				raw
 			} else {
-				format!("try {{ {raw} }} finally {{ {} }}", after.join("; "))
+				self.refused_first(&bare, format!("try {{ {raw} }} finally {{ {} }}", after.join("; ")))
 			};
 			value = match ok {
 				Type::Unit => format!("{raw}.let {{ Unit }}"),
@@ -2437,7 +2454,7 @@ impl<'a> Gen<'a> {
 			let raw = if after.is_empty() {
 				raw
 			} else {
-				format!("try {{ {raw} }} finally {{ {} }}", after.join("; "))
+				self.refused_first(&bare, format!("try {{ {raw} }} finally {{ {} }}", after.join("; ")))
 			};
 			value = format!("({raw}) as {ret_kt}");
 		} else {

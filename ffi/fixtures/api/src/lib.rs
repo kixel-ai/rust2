@@ -2770,6 +2770,12 @@ pub fn wasm_only() -> u32 {
 	32
 }
 
+/// Only wasm32 has it, and it consumes `counter`: a refused call leaves it open.
+#[cfg(target_arch = "wasm32")]
+pub fn wasm_take(counter: Counter) -> Result<u64, Error> {
+	Ok(counter.get())
+}
+
 /// Only wasm32 has it: a call on another target fails before it takes `log`.
 #[cfg(target_arch = "wasm32")]
 pub fn wasm_log(log: Box<dyn Log>) {

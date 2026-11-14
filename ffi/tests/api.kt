@@ -1055,6 +1055,10 @@ fun owned() {
 		val thrown = runCatching(call).exceptionOrNull()
 		check(thrown is UnsupportedOperationException && thrown.message == "$what: it is not on this library's target", "$what throws: $thrown")
 	}
+	Counter.new("k", 7u).use { kept ->
+		check(runCatching { wasmTake(kept) }.exceptionOrNull() is UnsupportedOperationException, "api_wasm_take throws")
+		check(kept.get() == 7uL, "a refused call leaves its moved argument open")
+	}
 
 	// Bytes outlive the object that returned them and the record that held them.
 	val body = ByteArray(2048) { 'b'.code.toByte() }
