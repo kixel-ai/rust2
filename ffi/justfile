@@ -406,6 +406,16 @@ moq-write checkout="": (standin checkout)
     done
     # macOS's bash 3.2 reads an empty array as unset.
     cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --out target/export/moq ${with[@]+"${with[@]}"}
+    # Sources that changed while the export read them leave it matching neither version.
+    if [ -f target/moq-ffi/source ]; then
+        before=$(cat target/moq-ffi/source)
+        {{ quote(just_executable()) }} standin {{ quote(checkout) }}
+        if [ "$before" != "$(cat target/moq-ffi/source)" ]; then
+            rm -rf target/export/moq
+            echo "moq's sources changed during the export: export again" >&2
+            exit 1
+        fi
+    fi
 
 # Stage moq's crates' API on one target into target/moq-api/<target>.json, from the pinned moq revision or a checkout, for `just ffi moq` and the recipes exporting as it does to merge into their binding. Run it on a host with the target's C toolchain, which moq's build scripts need even for a check: Android's is the NDK at ANDROID_NDK_HOME, in the Android shell (nix develop .#android).
 moq-api target checkout="": (standin checkout)
@@ -430,8 +440,16 @@ moq-api target checkout="": (standin checkout)
     esac
     mkdir -p target/moq-api
     rm -f "target/moq-api/$target.json" "target/moq-api/$target.source"
+    before=$(cat target/moq-ffi/source)
     cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --target "$target" --api "target/moq-api/$target.json"
-    cp target/moq-ffi/source "target/moq-api/$target.source"
+    # Sources that changed while the check read them leave the API matching neither version.
+    {{ quote(just_executable()) }} standin {{ quote(checkout) }}
+    if [ "$before" != "$(cat target/moq-ffi/source)" ]; then
+        rm -f "target/moq-api/$target.json"
+        echo "moq's sources changed while staging the $target API: stage it again" >&2
+        exit 1
+    fi
+    printf '%s\n' "$before" > "target/moq-api/$target.source"
 
 # Export moq's crates' C ABI into target/export/moq and build it, with the libraries a program linking it needs besides in target/moq-native.
 [private]
@@ -567,6 +585,8 @@ standin checkout="":
         GIT_INDEX_FILE="$index" git -C "$src" add -A
         GIT_INDEX_FILE="$index" git -C "$src" write-tree > "$dir/source"
         rm -f "$index"
+        # And the stand-in's re-exports, which choose what of those sources the API holds.
+        git hash-object "$dir/src/lib.rs" >> "$dir/source"
     fi
 
 # Check out the pinned moq revision in target/moq, apart from `just ts`'s so neither recipe touches the other's checkout, copying the objects its clone already has.
