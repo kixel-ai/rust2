@@ -3458,7 +3458,7 @@ pub struct Qualifiers {
 }
 
 /// An object named as a class of Kotlin's runtime once was, which keeps its name now the
-/// runtime's take a leading `_`.
+/// runtime's take a leading `__`.
 pub struct Handle {
 	count: u32,
 }

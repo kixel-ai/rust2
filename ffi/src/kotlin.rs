@@ -378,10 +378,11 @@ class Bytes private constructor(
 ";
 
 /// The names the generated code uses unqualified, which no exported type or function may
-/// take. The runtime's helper classes, which `_Native` nests, take a leading `__`, apart from
-/// both an exported type's name and its `_<Name>` import alias inside the glue. The runtime's own are the C ABI's: `Native`, `Waker`,
-/// `Bytes`, `Mut`, and `Bound` are claimed as `<prefix>_native`, `<prefix>_waker`, `<prefix>_bytes`, `<prefix>_mut`, and
-/// `<prefix>_bound`.
+/// take. The runtime's helper classes, which `_Native` nests, take a leading `__`, which
+/// neither an exported type's name nor its `_<Name>` import alias in the glue has, so they
+/// need no place here. The runtime's own are the C ABI's: `Native`, `Waker`, `Bytes`, `Mut`,
+/// and `Bound` are claimed as `<prefix>_native`, `<prefix>_waker`, `<prefix>_bytes`,
+/// `<prefix>_mut`, and `<prefix>_bound`.
 const TAKEN: &[&str] = &[
 	"Any",
 	"AutoCloseable",
