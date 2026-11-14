@@ -38,9 +38,10 @@ on:
       - "!**/*.md"
   workflow_dispatch:
 
-# A PR's newer push supersedes its run; each of main's runs is a baseline, so none is cancelled.
+# A PR's newer push supersedes its run. Each of main's runs is a baseline, so each takes its own
+# group: a shared one would still replace a pending run with a newer one.
 concurrency:
-  group: codspeed-${{ github.ref }}
+  group: codspeed-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
