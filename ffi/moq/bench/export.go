@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"sync"
 	"syscall"
 	"time"
 
@@ -15,9 +16,10 @@ import (
 )
 
 const (
-	groups = 10000
-	frames = 100
-	n      = groups * frames
+	groups  = 10000
+	frames  = 100
+	n       = groups * frames
+	threads = 4
 )
 
 var sizes = []int{100, 1024, 16384, 65536, 1048576}
@@ -102,6 +104,37 @@ func (c *pendingContext) Done() <-chan struct{} {
 	return nil
 }
 
+// concurrent makes each of calls n times on a goroutine of its own, all at once: wall
+// nanoseconds per call on one goroutine, and CPU nanoseconds per call.
+func concurrent(calls []func() int) span {
+	var ready, done sync.WaitGroup
+	gate := make(chan struct{})
+	sums := make([]int, len(calls))
+	for i, call := range calls {
+		ready.Add(1)
+		done.Add(1)
+		go func() {
+			defer done.Done()
+			sum := 0
+			ready.Done()
+			<-gate
+			for range n {
+				sum += call()
+			}
+			sums[i] = sum
+		}()
+	}
+	ready.Wait()
+	start := now()
+	close(gate)
+	done.Wait()
+	ns := per(start, n)
+	for _, sum := range sums {
+		sink += sum
+	}
+	return span{ns.wall, ns.cpu / float64(len(calls))}
+}
+
 type result struct {
 	name  string
 	value span
@@ -130,6 +163,38 @@ func round() []result {
 		sink += int(must(demand.Sequence()))
 	}
 	out = append(out, result{"getter", per(start, n)})
+
+	// The handle call and the getter from threads goroutines: on one shared handle, then on
+	// a clone each, a handle of its own to the same value.
+	isClosed := func(t *net.TrackProducer) func() int {
+		return func() int {
+			if must(t.IsClosed()) {
+				return 1
+			}
+			return 0
+		}
+	}
+	sequence := func(d *net.GroupDemand) func() int {
+		return func() int { return int(must(d.Sequence())) }
+	}
+	var sharedCalls, ownCalls, sharedGetters, ownGetters []func() int
+	var clones []interface{ Close() }
+	for range threads {
+		t := must(track.Clone())
+		d := must(demand.Clone())
+		clones = append(clones, t, d)
+		sharedCalls = append(sharedCalls, isClosed(track))
+		ownCalls = append(ownCalls, isClosed(t))
+		sharedGetters = append(sharedGetters, sequence(demand))
+		ownGetters = append(ownGetters, sequence(d))
+	}
+	out = append(out, result{"shared:call", concurrent(sharedCalls)})
+	out = append(out, result{"own:call", concurrent(ownCalls)})
+	out = append(out, result{"shared:getter", concurrent(sharedGetters)})
+	out = append(out, result{"own:getter", concurrent(ownGetters)})
+	for _, clone := range clones {
+		clone.Close()
+	}
 	demand.Close()
 	check(demanded.Finish())
 	demanded.Close()

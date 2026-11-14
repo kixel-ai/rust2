@@ -8,6 +8,7 @@ import Moq
 let groups = 10000
 let frames = 100
 let n = groups * frames
+let threads = 4
 let sizes = [100, 1024, 16384, 65536, 1_048_576]
 
 /// Wall and CPU nanoseconds: a point, or a span per call.
@@ -74,6 +75,54 @@ final class Queue: TaskExecutor, @unchecked Sendable {
 
 }
 
+/// A value threads share: a noncopyable object a closure can only borrow through a class.
+final class Shared<T: ~Copyable & Sendable>: Sendable {
+	let value: T
+	init(_ value: consuming T) {
+		self.value = value
+	}
+}
+
+/// Each of `calls` made n times on a thread of its own, all at once: wall nanoseconds per
+/// call on one thread, and CPU nanoseconds per call.
+func concurrent(_ calls: [@Sendable () -> Int]) -> Span {
+	let ready = DispatchSemaphore(value: 0)
+	let go = DispatchSemaphore(value: 0)
+	let done = DispatchSemaphore(value: 0)
+	for call in calls {
+		Thread {
+			var sum = 0
+			ready.signal()
+			go.wait()
+			for _ in 0..<n {
+				sum &+= call()
+			}
+			blackHole(sum)
+			done.signal()
+		}.start()
+	}
+	for _ in calls {
+		ready.wait()
+	}
+	let start = now()
+	for _ in calls {
+		go.signal()
+	}
+	for _ in calls {
+		done.wait()
+	}
+	let span = per(start)
+	return Span(wall: span.wall, cpu: span.cpu / Double(calls.count))
+}
+
+/// Keeps `value` from being optimized away.
+@inline(never)
+func blackHole(_ value: Int) {
+	if value == Int.min {
+		print("")
+	}
+}
+
 /// The async cases' spans, the last frame read, and their reads' sum, which a tuple cannot
 /// hold.
 struct Reads: ~Copyable {
@@ -122,6 +171,16 @@ func round() throws -> ([(String, Span)], Int) {
 		sum &+= Int(demand.sequence())
 	}
 	out.append(("getter", per(start)))
+
+	// The handle call and the getter from `threads` threads: on one shared handle, then on a
+	// clone each, a handle of its own to the same value.
+	let isClosed = { (t: TrackProducer) -> @Sendable () -> Int in { t.isClosed() ? 1 : 0 } }
+	let sequence = { (d: Shared<GroupDemand>) -> @Sendable () -> Int in { Int(truncatingIfNeeded: d.value.sequence()) } }
+	let shared = Shared(demand.clone())
+	out.append(("shared:call", concurrent((0..<threads).map { _ in isClosed(track) })))
+	out.append(("own:call", concurrent((0..<threads).map { _ in isClosed(track.clone()) })))
+	out.append(("shared:getter", concurrent((0..<threads).map { _ in sequence(shared) })))
+	out.append(("own:getter", concurrent((0..<threads).map { _ in sequence(Shared(demand.clone())) })))
 	try demanded.finish()
 
 	start = now()

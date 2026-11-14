@@ -3,6 +3,7 @@
 # Each case prints its wall time and the process's CPU time.
 
 import asyncio
+import threading
 import time
 
 import moq
@@ -10,6 +11,7 @@ import moq
 GROUPS = 1000
 FRAMES = 100
 N = GROUPS * FRAMES
+THREADS = 4
 SIZES = [100, 1024, 16384, 65536, 1048576]
 
 
@@ -22,6 +24,37 @@ def per(start, n=N):
 	"""Wall and CPU nanoseconds per call since `start`, over `n` calls."""
 	wall, cpu = now()
 	return (wall - start[0]) / n, (cpu - start[1]) / n
+
+
+def concurrent(calls):
+	"""Each of `calls`, a bound method, made N times on a thread of its own, all at once:
+	wall nanoseconds per call on one thread, and CPU nanoseconds per call."""
+	ready = threading.Barrier(len(calls) + 1)
+	go = threading.Event()
+	failures = []
+
+	def work(call):
+		ready.wait()
+		go.wait()
+		try:
+			for _ in range(N):
+				call()
+		except BaseException as error:
+			failures.append(error)
+
+	threads = [threading.Thread(target=work, args=(call,)) for call in calls]
+	for thread in threads:
+		thread.start()
+	ready.wait()
+	begin = now()
+	go.set()
+	for thread in threads:
+		thread.join()
+	# A worker that died early would otherwise report a time for fewer than N calls.
+	if failures:
+		raise failures[0]
+	wall, cpu = per(begin)
+	return wall, cpu / len(calls)
 
 
 async def throughput(track, subscriber, at, size):
@@ -60,11 +93,19 @@ def round(loop):
 	# `group.sequence()`. BoltFFI holds the GIL through the call, where the export releases
 	# it so Rust may call Python back from another thread.
 	demanded = track.append_group()
-	sequence = demanded.demand().sequence
+	demand = demanded.demand()
+	sequence = demand.sequence
 	start = now()
 	for _ in range(N):
 		sequence()
 	out["getter"] = per(start)
+
+	# The handle call and the getter from THREADS threads: on one shared handle, then on a
+	# clone each, a handle of its own to the same value.
+	out["shared:call"] = concurrent([track.is_closed] * THREADS)
+	out["own:call"] = concurrent([track.clone().is_closed for _ in range(THREADS)])
+	out["shared:getter"] = concurrent([sequence] * THREADS)
+	out["own:getter"] = concurrent([demand.clone().sequence for _ in range(THREADS)])
 	demanded.finish()
 
 	start = now()
