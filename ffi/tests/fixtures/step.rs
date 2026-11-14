@@ -40,7 +40,10 @@ impl Step<'_> {
 
 	fn execute(&self, cmd: &mut Command, failure: bool) -> Output {
 		let key = key(cmd, self.reads);
-		if let Some(output) = self.replay(&key) {
+		// A failure recorded where one was expected is run again where none is.
+		if let Some(output) = self.replay(&key)
+			&& (output.status.success() || failure)
+		{
 			return output;
 		}
 		// No stamp may outlive a run that stops partway.

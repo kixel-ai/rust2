@@ -51,10 +51,8 @@ over the C ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the 
 `dart:ffi` and what the crate builds with `--features dart`.
 An export again rewrites only the files whose content changed, and removes from
 `include/<prefix>/` and `go/` only what it no longer writes, so a build of an unchanged
-export stays fresh. Build each export in a target directory of its own, as its own workspace
-does by default: cargo names the crate's units by its path in that workspace, so two exports
-of one facade sharing a target directory would share a build script, and one could reuse the
-other's.
+export stays fresh. The crate's version, `0.0.0+<hash>`, hashes its Rust sources and
+manifest, so exports that differ build apart in a target directory they share.
 
 ```toml
 # ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.

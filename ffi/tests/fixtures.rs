@@ -625,7 +625,7 @@ fn api_kotlin() {
 		.arg("--example")
 		.arg("returns")
 		.current_dir(manifest_dir()));
-	let kotlin_returns = run(&mut java(&["returns"]));
+	let kotlin_returns = run(&mut java(&[&classes], &["returns"]));
 	assert_eq!(
 		kotlin_returns.stdout, native_returns.stdout,
 		"Kotlin composite returns differ from native Rust"
@@ -2720,11 +2720,11 @@ fn target() {
 		"{header}"
 	);
 	assert!(header.contains(&u64::MAX.to_string()), "{header}");
-	// Each export builds in a target directory of its own: cargo names a package's units
-	// by its path in its workspace, which each export's is the root of, so the exports'
-	// units would share one, and reuse another's build script where the mtimes allow.
-	let target = |out: &Path| package.join("glue").join(out.file_name().unwrap());
-	build_offline(&host_out, &target(&host_out));
+	// The exports share a target directory, where each export's units are its own though
+	// they are the same package at the same path in its workspace: on a second run, with
+	// every file's mtime kept, `wasm` would otherwise reuse `merged`'s build script.
+	let target = package.join("glue");
+	build_offline(&host_out, &target);
 	let (wasm, header) = export("wasm", &["--target", WASM]);
 	assert!(
 		header.contains("targeted_wasm(") && !header.contains("targeted_desktop("),
@@ -2746,7 +2746,7 @@ fn target() {
 		])
 		.arg(out.join("Cargo.toml"))
 		.arg("--target-dir")
-		.arg(target(out))
+		.arg(&target)
 		.args(args)
 		.env("RUSTFLAGS", "-D warnings");
 		cmd
