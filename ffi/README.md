@@ -290,7 +290,8 @@ where it was while its file is unchanged.
   one again, and owns what it borrowed: the handle it was called on stays borrowed until
   it finishes or is freed. `_start` is the call and a first poll with no waker in one:
   a future ready at once costs one call and no handle, and one that pends writes its
-  handle through the last parameter, which must not be null. A null waker wakes nothing
+  handle through its `_future` out pointer, which must not be null: the last parameter, or
+  the one before a checked call's `status`. A null waker wakes nothing
   and costs no allocation, and a future is one allocation.
 - **Wakers** move into Rust, which calls `drop` once it lets go of the last clone, so a
   state machine polled with a waker, such as moq's `Driver`s through kio's `Waiter`, runs
