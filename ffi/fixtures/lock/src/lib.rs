@@ -325,3 +325,30 @@ pub fn speed(speed: Speed) -> u32 {
 pub fn failing_meter() -> Result<(), Meter> {
 	Err(Meter::new())
 }
+
+/// A handle `next` borrows exclusively, which checks each call taking it at run time: each
+/// gains a status, and throws in Swift.
+pub struct Gauge {
+	level: u32,
+}
+
+impl Gauge {
+	pub fn new() -> Self {
+		Self { level: 0 }
+	}
+
+	pub fn level(&self) -> u32 {
+		self.level
+	}
+
+	#[cfg(feature = "next")]
+	pub fn raise(&mut self) {
+		self.level += 1;
+	}
+}
+
+impl Default for Gauge {
+	fn default() -> Self {
+		Self::new()
+	}
+}

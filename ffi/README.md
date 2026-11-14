@@ -209,6 +209,9 @@ API breaks the one in `file`, with an error at each item that names how:
   tag, one added to an enum another crate matches exhaustively, and an enum gaining its
   first variant with fields or losing its last, which changes it between a C enum and a
   struct;
+- whether a type's handle is checked at run time, which gives or takes a status from each
+  call taking it, and makes it throw in Swift: borrowing it exclusively or moving it out in
+  an added method makes it checked;
 - the library's name, which every C name starts with;
 - a C name that now names another item: since a name depends on every item exported
   ([The C ABI](#the-c-abi)), adding `audio::encoder_finish` renames `audio_encoder::finish`
