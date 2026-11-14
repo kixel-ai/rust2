@@ -905,7 +905,7 @@ export function iterate(chain: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	} else if (chain === 6) {
 		const leaf4 = rs.iterSlice(rs.byteSliceView(data));
 		const leaf5 = rs.iterRev(rs.iterSlice(rs.byteSliceView(data)));
-		let left = Math.min(leaf4.len(), leaf5.len());
+		let left = Math.min(leaf4.sizeHint()[1] ?? Infinity, leaf5.sizeHint()[1] ?? Infinity);
 		let n2 = 0;
 		fused5: while (true) {
 			while (true) {

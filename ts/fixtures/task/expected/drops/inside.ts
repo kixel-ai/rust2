@@ -312,7 +312,7 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			if (x2 === rs.DONE) {
 				break;
 			}
-			const y2 = guard(x2);
+			const y2: Guard.Guard = guard(x2);
 			count(y2);
 		}
 		Log.note(log, rs.stringFrom("lent"));

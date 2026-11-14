@@ -62,6 +62,13 @@ export function map$0kl0twv(self: Noted.Noted | undefined, f: (a0: Noted.Noted) 
 	return f(self);
 }
 
+export function map$0il1gzo(self: { end: rs.u8; inclusive: true } | undefined, f: (a0: { end: rs.u8; inclusive: true }) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$06og5bz(self: rs.String | undefined, _: (a0: rs.String) => string): string | undefined {
 	if (self === undefined) {
 		return undefined;

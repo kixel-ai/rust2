@@ -2314,12 +2314,27 @@ pub fn fused(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				.filter(|&x| x % 64 != stop)
 				.any(|x| x % 7 == 0) as u8,
 		),
-		3 => out.push(
-			a.iter()
-				.map(seen!(5))
-				.zip(0..b.len())
-				.all(|(x, i)| x % 64 != stop || i > 9) as u8,
-		),
+		// Zips whose fold stops at a range's size hint: one of `char`s across the
+		// surrogates, and one of `u64`s past 2^53.
+		3 => {
+			out.push(
+				a.iter()
+					.map(seen!(5))
+					.zip(0..b.len())
+					.all(|(x, i)| x % 64 != stop || i > 9) as u8,
+			);
+			out.push(
+				('\u{d7fe}'..'\u{e002}')
+					.zip(a.iter().rev())
+					.filter(|(c, _)| *c as u32 & 1 == 0)
+					.count() as u8,
+			);
+			out.push(
+				(u64::MAX - 3..u64::MAX)
+					.zip(b.iter().rev().map(seen!(25)))
+					.fold(0u8, |acc, (x, y)| acc ^ x as u8 ^ y),
+			);
+		}
 		4 => out.push(
 			a.iter()
 				.zip(b)
@@ -2365,12 +2380,22 @@ pub fn fused(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				.find(|(x, y)| (x ^ **y) % 64 == stop)
 				.map(|(x, y)| x ^ y),
 		),
-		9 => out.extend(
-			a.iter()
-				.zip(b.iter().map(seen!(9)))
-				.position(|(x, y)| *x > y)
-				.map(|i| i as u8),
-		),
+		9 => {
+			out.extend(
+				a.iter()
+					.zip(b.iter().map(seen!(9)))
+					.position(|(x, y)| *x > y)
+					.map(|i| i as u8),
+			);
+			// A map whose item's type is narrower than its body's.
+			out.extend(
+				a.iter()
+					.map(|&x| ..=x)
+					.filter(|r| r.contains(&(stop % 8)))
+					.find(|_| true)
+					.map(|r| r.end),
+			);
+		}
 		// A loop that leaves early, and one over a zip whose second side ends first: the
 		// first side's item past it is read.
 		10 => {

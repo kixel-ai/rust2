@@ -496,10 +496,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						self.decl(false, &end, number(), len, out);
 						Zipped::Indexed { index, end }
 					}
-					// As `ZipFold` starts: the pairs its size hint gives.
+					// As `ZipFold` starts: the pairs its size hint's upper bound gives.
 					Trusted::Bounded if folds => {
 						let left = self.b.fresh("left");
-						let len = Expr::ident("Math").member("min").call(vec![self.len(&a), self.len(&b)]);
+						let len = Expr::ident("Math").member("min").call(vec![upper(&a), upper(&b)]);
 						self.decl(true, &left, number(), len, out);
 						Zipped::Counted { left }
 					}
@@ -726,7 +726,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		Some(Expr::ident(r))
 	}
 
-	/// The length of a side of a zip read by index or by a fold, as its `len` gives it.
+	/// The length of a side of a zip read by index, as its `len` gives it.
 	fn len(&self, node: &Node) -> Expr {
 		match node {
 			Node::Leaf { var, .. } => Expr::ident(var).member("len").call(Vec::new()),
@@ -735,13 +735,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				how: Zipped::Indexed { index, end },
 				..
 			} => Expr::ident(end).binary("-", Expr::ident(index)),
-			Node::Zip {
-				how: Zipped::Counted { left },
-				..
-			} => Expr::ident(left),
-			Node::Zip { a, b, .. } => Expr::ident("Math").member("min").call(vec![self.len(a), self.len(b)]),
-			// Not `TrustedLen`.
-			Node::Filter { .. } => unreachable!("the length of a filter"),
+			// Neither is `TrustedRandomAccess`.
+			Node::Filter { .. } | Node::Zip { .. } => unreachable!("a side read by index"),
 		}
 	}
 
@@ -766,7 +761,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				}
 				Some(Val::One(Expr::ident(x)))
 			}
-			Node::Map { inner, f, .. } => {
+			Node::Map { inner, f, item } => {
 				let x = self.read(inner, indexed, true, done, out)?;
 				let mapped = apply(f, vec![x], false);
 				if !used {
@@ -775,8 +770,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					}
 					return None;
 				}
+				// Of the closure's type, which an inlined body's own may be wider than.
 				let y = self.b.fresh("y");
-				out.push(StmtKind::decl(false, &y, None, Some(mapped)).at(None));
+				out.push(StmtKind::decl(false, &y, Some(item.clone()), Some(mapped)).at(None));
 				Some(Val::One(Expr::ident(y)))
 			}
 			Node::Filter { inner, f, drop, item } => {
@@ -887,6 +883,28 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				Val::One(Expr::ident(y))
 			}
 		}
+	}
+}
+
+/// The upper bound of `node`'s size hint, `Infinity` where it has none, as `ZipFold` reads
+/// a zip's.
+fn upper(node: &Node) -> Expr {
+	let min = |a, b| Expr::ident("Math").member("min").call(vec![a, b]);
+	match node {
+		Node::Leaf { var, .. } => {
+			let hint = Expr::ident(var).member("sizeHint").call(Vec::new());
+			hint.index(Expr::lit("1")).binary("??", Expr::ident("Infinity"))
+		}
+		Node::Map { inner, .. } | Node::Filter { inner, .. } | Node::Enumerate { inner, .. } => upper(inner),
+		Node::Zip {
+			how: Zipped::Indexed { index, end },
+			..
+		} => Expr::ident(end).binary("-", Expr::ident(index)),
+		Node::Zip {
+			how: Zipped::Counted { left },
+			..
+		} => Expr::ident(left),
+		Node::Zip { a, b, .. } => min(upper(a), upper(b)),
 	}
 }
 
