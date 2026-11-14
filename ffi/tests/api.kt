@@ -282,6 +282,14 @@ fun script() {
 	val shifted = shifted(moment) { m -> m.after(500u) }
 	println("shifted ${shifted.millis()} ${shifted == moment.after(500u)}")
 	println("wrapped ${moment.after(ULong.MAX_VALUE).millis()} ${moment == shifted}")
+	// A record holding one crosses as its words, in and out, and a call with no slots
+	// left for one passes it encoded.
+	val clocked = clockedAfter(Clocked(moment, 1u), 500u)
+	check(clocked == Clocked(moment.after(500u), 2u) && clocked.at.millis() == 2000uL, "a record's moment crosses as its words")
+	check(crammed(moment, shifted, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL) == 1500uL + 2000uL + 124uL, "a crammed call passes its last moment encoded")
+	// One of 64 words is passed as its words, but compared encoded.
+	val broad = Wide.new(ULong.MAX_VALUE)
+	check(broad.sum() == 2016uL - 64uL && broad == Wide.new(ULong.MAX_VALUE) && broad != Wide.new(0u), "a wide value crosses")
 
 	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
 	val gap = Gap.new(7u, 3u)

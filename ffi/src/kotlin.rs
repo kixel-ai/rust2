@@ -17,8 +17,9 @@
 //! bytes returned as their owner, which a `Bytes` reads through a call each, or encoded
 //! into native scratch memory consumed synchronously by a kept Kotlin factory. Composite
 //! results cross JNI as their constructed Kotlin value, without a transport `byte[]`.
-//! A record passed or returned directly crosses as its scalars instead, parameters in and
-//! a thread's `long[]` slots out, with only its other fields encoded.
+//! A record passed or returned directly crosses as its scalars instead, and an opaque
+//! value as its words, parameters in and a thread's `long[]` slots out, with only a
+//! record's other fields encoded; an opaque value of one word returns as that `long`.
 //! An object never closed, and Rust's bytes, are freed once the GC collects them.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -863,7 +864,7 @@ impl<'a> Gen<'a> {
 					_ => wrap(e),
 				}
 			}
-			Ty::Struct(name) if opaque_of(self.abi, c).is_some() => format!("{}({e})", self.qualified(name)),
+			Ty::Struct(name) if opaque_of(self.abi, c).is_some_and(|o| one_word(&o)) => format!("{}({e})", self.qualified(name)),
 			Ty::Buf => match (decode(ty), matches!(ty.base(), Type::Option(_)), lent) {
 				(Some(decode), true, _) => format!("{e}?.{decode}"),
 				(Some(decode), false, _) => format!("{e}!!.{decode}"),
@@ -887,7 +888,11 @@ impl<'a> Gen<'a> {
 		match c {
 			Ty::Int(int) => to_signed(*int, e),
 			Ty::Buf => format!("{e}.encodeToByteArray()"),
-			Ty::Struct(_) if let Some(opaque) = opaque_of(self.abi, c) => format!("{e}.{}", holder(&opaque)),
+			Ty::Struct(_) if let Some(opaque) = opaque_of(self.abi, c)
+				&& one_word(&opaque) =>
+			{
+				format!("{e}.{}", holders(&opaque)[0])
+			}
 			Ty::Struct(_) => {
 				let w = self.fresh("w");
 				let write = self.write_value(ty, &w, e);
@@ -1000,20 +1005,12 @@ impl<'a> Gen<'a> {
 					"crate::{name} {{ vtable: &VTABLE_{name}, data: rt::global(env, {p}) }}"
 				));
 			}
-			// An opaque value crosses as the word or words Kotlin holds it in.
-			Ty::Struct(_) | Ty::In(_) if let Some(opaque) = opaque_of(abi, c) => {
-				arg.exprs.push(format!("{e}.{}", holder(&opaque)));
-				arg.rust_pre.push(format!("let a{p} = {};", from_kotlin(&opaque, &p)));
-				arg.rust_args.push(match c {
-					Ty::In(_) => format!("&a{p}"),
-					_ => format!("a{p}"),
-				});
-			}
-			// A record crosses as its scalars, and its other fields encoded into one `byte[]`.
-			// Only while the call's JVM parameters stay within the 255 slots a method takes.
+			// A record crosses as its scalars, and its other fields encoded into one `byte[]`;
+			// an opaque value as the words Kotlin holds it in. Only while the call's JVM
+			// parameters stay within the 255 slots a method takes, which a word always does.
 			Ty::Struct(_) | Ty::In(_)
 				if let Type::Record(i) = ty.base()
-					&& let Some(left) = self.room.checked_sub(weight(abi, *i).saturating_sub(c_slots(abi, c))) =>
+					&& let Some(left) = self.room.checked_sub(weight(abi, *i).saturating_sub(c_slots(c))) =>
 			{
 				self.room = left;
 				arg.jni.clear();
@@ -1285,8 +1282,11 @@ impl<'a> Gen<'a> {
 			Type::Record(i) => self.abi.api.records[*i].opaque,
 			_ => None,
 		};
+		// Whether `n` opaque values cross as their words within the 255 JVM slots a method
+		// takes, or else encoded.
+		let fits = |n: u64| opaque.is_some_and(|o| 2 * n * o.words() <= 255);
 		// The receiver as the glue takes it: a handle, held for the call, an opaque value's
-		// word or words, or encoded.
+		// words, or encoded.
 		let (params, open, arg, rust_self): (Vec<(&str, &str)>, _, _, _) = match (object, opaque) {
 			(true, _) => (
 				vec![("jlong", "Long")],
@@ -1294,16 +1294,16 @@ impl<'a> Gen<'a> {
 				"h".to_string(),
 				"p0 as usize as _".to_string(),
 			),
-			(false, Some(opaque)) => {
-				let (jni, native) = jni_type(self.abi, &Ty::Struct(c.to_string()), ty);
+			(false, Some(opaque)) if fits(1) => {
+				let words: Vec<String> = (0..opaque.words()).map(|k| format!("p{k}")).collect();
 				(
-					vec![(jni, native)],
+					vec![("jlong", "Long"); words.len()],
 					"run {".to_string(),
-					holder(&opaque).to_string(),
-					format!("&{}", from_kotlin(&opaque, "p0")),
+					holders(&opaque).join(", "),
+					format!("&{}", from_kotlin(&opaque, &words)),
 				)
 			}
-			(false, None) => {
+			(false, _) => {
 				let write = self.write_value(ty, "w", "this");
 				(
 					vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
@@ -1345,20 +1345,33 @@ impl<'a> Gen<'a> {
 				"\t/** A new handle to a clone. */\n\tfun clone(): {class} = handle.hold {{ h -> {class}(_Native.{bare}_clone(h)) }}\n"
 			));
 		}
-		// An opaque value Kotlin holds in a word compares by it, as a value class does.
+		// An opaque value Kotlin holds in a word compares by it, as a value class does; any
+		// other through Rust, passing both values' words, or both encoded.
 		if let Some(opaque) = opaque.filter(|opaque| t.eq && !word(opaque)) {
-			self.native(
-				&format!("{bare}_eq"),
-				&[("jlongArray", "LongArray"), ("jlongArray", "LongArray")],
-				("jboolean", "Boolean"),
-				&format!(
-					"crate::{c}_eq(&{}, &{})",
-					from_kotlin(&opaque, "p0"),
-					from_kotlin(&opaque, "p1")
-				),
-			);
+			let holders = holders(&opaque);
+			let (params, rust, kt) = match fits(2) {
+				true => {
+					let words: Vec<String> = (0..2 * holders.len()).map(|k| format!("p{k}")).collect();
+					let (a, b) = words.split_at(holders.len());
+					let others: Vec<String> = holders.iter().map(|h| format!("other.{h}")).collect();
+					(
+						vec![("jlong", "Long"); words.len()],
+						format!("crate::{c}_eq(&{}, &{})", from_kotlin(&opaque, a), from_kotlin(&opaque, b)),
+						format!("_Native.{bare}_eq({}, {})", holders.join(", "), others.join(", ")),
+					)
+				}
+				false => {
+					let (this, other) = (self.write_value(ty, "w", "this"), self.write_value(ty, "w", "other"));
+					(
+						vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
+						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let mut r = rt::Reader::new(env, &b, p1); crate::{c}_eq(&r.get(), &r.get()) }".replace("{c}", c),
+						format!("_Native.__Writer().use {{ w -> {this}; {other}; _Native.{bare}_eq(w.finish(), w.refs()) }}"),
+					)
+				}
+			};
+			self.native(&format!("{bare}_eq"), &params, ("jboolean", "Boolean"), &rust);
 			body.push(format!(
-				"\toverride fun equals(other: kotlin.Any?): kotlin.Boolean = other is {class} && _Native.{bare}_eq(words, other.words)\n\n\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): kotlin.Int = 0\n"
+				"\toverride fun equals(other: kotlin.Any?): kotlin.Boolean = other is {class} && {kt}\n\n\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): kotlin.Int = 0\n"
 			));
 		}
 		if object && t.eq {
@@ -1418,7 +1431,7 @@ impl<'a> Gen<'a> {
 		self.traits(&ty, &c, record.traits, &mut body, &mut statics);
 		let mut members: Vec<String> = fields.iter().map(|(f, _)| format!("val {f}")).collect();
 		if let Some(opaque) = record.opaque {
-			members.push(format!("val {}", holder(&opaque)));
+			members.extend(holders(&opaque).iter().map(|h| format!("val {h}")));
 		}
 		let owner = Ty::Struct(c.clone());
 		for method in &record.methods {
@@ -1522,22 +1535,19 @@ impl<'a> Gen<'a> {
 	}
 
 	/// An opaque value's class, `name` in Kotlin and `c` in C, and its codec: a value class
-	/// over the `Long` it fits in with no padding, or else a class over its words, which
-	/// compares through Rust's `PartialEq`. Only Rust makes one.
+	/// over the `Long` it fits in with no padding, or else a class of a `Long` for each of
+	/// its words, which compares through Rust's `PartialEq`, so one that does not escape
+	/// allocates nothing. Only Rust makes one.
 	fn opaque(&mut self, c: &str, name: &str, opaque: &Opaque, docs: &str, body: &str) {
 		let words = opaque.words();
-		let (head, write, read) = match word(opaque) {
-			true => (
-				format!("@kotlin.jvm.JvmInline\nvalue class {name} internal constructor(internal val bits: Long)"),
-				"\tw.i64(v.bits)\n".to_string(),
-				format!("{name}(r.i64())"),
-			),
-			false => (
-				format!("class {name} internal constructor(internal val words: LongArray)"),
-				"\tfor (word in v.words) w.i64(word)\n".to_string(),
-				format!("{name}(LongArray({words}) {{ r.i64() }})"),
-			),
+		let holders = holders(opaque);
+		let fields: Vec<String> = holders.iter().map(|h| format!("@JvmField internal val {h}: Long")).collect();
+		let head = match word(opaque) {
+			true => format!("@kotlin.jvm.JvmInline\nvalue class {name} internal constructor(internal val bits: Long)"),
+			false => format!("class {name} internal constructor({})", fields.join(", ")),
 		};
+		let write: String = holders.iter().map(|h| format!("\tw.i64(v.{h})\n")).collect();
+		let read = format!("{name}({})", vec!["r.i64()"; holders.len()].join(", "));
 		let _ = write!(self.types, "{docs}{head}{body}\n\n");
 		let _ = write!(
 			self.top,
@@ -1872,10 +1882,11 @@ impl<'a> Gen<'a> {
 				Ty::Enum(_) => ("i", format!("p{k}")),
 				Ty::Handle { .. } => ("j", format!("p{k} as usize as jlong")),
 				Ty::Buf => ("l", format!("unsafe {{ rt::lent(env, p{k}) }}")),
-				Ty::Struct(_) if let Some(opaque) = opaque_of(self.abi, c) => match word(&opaque) {
-					true => ("j", to_kotlin(&opaque, &format!("p{k}"))),
-					false => ("l", to_kotlin(&opaque, &format!("p{k}"))),
-				},
+				Ty::Struct(_) if let Some(opaque) = opaque_of(self.abi, c)
+					&& one_word(&opaque) =>
+				{
+					("j", to_kotlin(&opaque, &format!("p{k}"), 0))
+				}
 				_ => (
 					"l",
 					format!("{{ let mut w = rt::Writer::default(); w.put(p{k}); w.array(env) }}"),
@@ -1917,8 +1928,13 @@ impl<'a> Gen<'a> {
 			Ty::Char => "ret as u32".to_string(),
 			// A buffer Rust frees, as `buf_copy` makes one.
 			Ty::Buf => "crate::rt::Buf::vec(rt::bytes(env, ret).unwrap_or_default())".to_string(),
-			Ty::Struct(_) if let Some(opaque) = opaque_of(self.abi, &c_ok) => from_kotlin(&opaque, "ret"),
-			// Encoded, as an option of an opaque value, which names no array or text to refer to.
+			Ty::Struct(_) if let Some(opaque) = opaque_of(self.abi, &c_ok)
+				&& one_word(&opaque) =>
+			{
+				from_kotlin(&opaque, &["ret".to_string()])
+			}
+			// Encoded, as an option of an opaque value or one past a word, which names no
+			// array or text to refer to.
 			Ty::Struct(_) => {
 				"rt::Reader::new(env, &rt::bytes(env, ret).unwrap_or_default(), ::std::ptr::null_mut()).get()"
 					.to_string()
@@ -2119,7 +2135,7 @@ impl<'a> Gen<'a> {
 			.iter()
 			.any(|p| matches!(&p.ty, Type::Ref(..)) && p.ty.written());
 		self.room = room(
-			export.call.params.iter().map(|(_, c)| c_slots(abi, c)).sum(),
+			export.call.params.iter().map(|(_, c)| c_slots(c)).sum(),
 			export.future.is_some(),
 			written,
 		);
@@ -2262,9 +2278,11 @@ impl<'a> Gen<'a> {
 		let err = function.err.as_ref().map(strip_refs);
 		let exception = err.as_ref().map(|e| self.exception(e));
 		// A record returned directly crosses as its scalars, set into slots the call takes,
-		// and its other fields encoded into the `byte[]` it returns.
+		// and its other fields encoded into the `byte[]` it returns; an opaque value as its
+		// words, unless it returns its one word itself.
 		let flat = match (&export.future, outs.is_empty()) {
-			(None, true) if self.room > 0 => returned_record(&ok).filter(|(i, _)| abi.api.records[*i].opaque.is_none()),
+			(None, true) if self.room > 0 => returned_record(&ok)
+				.filter(|(i, option)| *option || !abi.api.records[*i].opaque.is_some_and(|o| one_word(&o))),
 			_ => None,
 		};
 		let flat = flat.map(|(i, option)| {
@@ -2867,8 +2885,9 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The glue's C value of the record `i` Kotlin passes as `e`: each scalar, nested
-	/// records' too, a JNI parameter `arg` gains, numbered from `n`, and each other field
-	/// read from `r`, which Kotlin writes into `w` with `writes`, in field order.
+	/// records' too, and each word of an opaque value, a JNI parameter `arg` gains, numbered
+	/// from `n`, and each other field read from `r`, which Kotlin writes into `w` with
+	/// `writes`, in field order.
 	fn flat_in(
 		&mut self,
 		i: usize,
@@ -2878,13 +2897,22 @@ impl<'a> Gen<'a> {
 		r: &str,
 	) -> String {
 		let abi = self.abi;
+		if let Some(opaque) = abi.api.records[i].opaque {
+			let mut words = Vec::new();
+			for h in holders(&opaque) {
+				words.push(format!("p{n}"));
+				*n += 1;
+				arg.jni.push("jlong");
+				arg.native.push("Long".to_string());
+				arg.exprs.push(format!("{e}.{h}"));
+			}
+			return from_kotlin(&opaque, &words);
+		}
 		let mut fields = Vec::new();
 		for (k, field) in abi.api.records[i].fields.iter().enumerate() {
 			let e = format!("{e}.{}", field_name(&field.name));
 			let value = match &field.ty {
-				Type::Record(j) if abi.api.records[*j].opaque.is_none() => {
-					self.flat_in(*j, &e, (&mut *arg, &mut *n), (w, &mut *writes), r)
-				}
+				Type::Record(j) => self.flat_in(*j, &e, (&mut *arg, &mut *n), (w, &mut *writes), r),
 				ty if scalar(abi, ty) => {
 					let p = format!("p{n}");
 					*n += 1;
@@ -2915,7 +2943,8 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The Kotlin value of the record `i` Rust returned as the C value `v`: each scalar,
-	/// nested records' too, from the next of the slots `a` the glue sets with `slots`, and
+	/// nested records' too, and each word of an opaque value, from the next of the slots
+	/// `a` the glue sets with `slots`, and
 	/// each other field from `r`, which the glue writes with `puts`, in field order.
 	fn flat_out(
 		&mut self,
@@ -2925,13 +2954,22 @@ impl<'a> Gen<'a> {
 		(r, puts): (&str, &mut Vec<String>),
 	) -> String {
 		let abi = self.abi;
+		let class = self.qualified(&abi.record(i));
+		if let Some(opaque) = abi.api.records[i].opaque {
+			let words: Vec<String> = (0..opaque.words())
+				.map(|k| {
+					let slot = format!("{a}[{}]", slots.len());
+					slots.push(to_kotlin(&opaque, v, k));
+					slot
+				})
+				.collect();
+			return format!("{class}({})", words.join(", "));
+		}
 		let mut fields = Vec::new();
 		for (k, field) in abi.api.records[i].fields.iter().enumerate() {
 			let v = format!("{v}.f{k}");
 			fields.push(match &field.ty {
-				Type::Record(j) if abi.api.records[*j].opaque.is_none() => {
-					self.flat_out(*j, &v, (a, &mut *slots), (r, &mut *puts))
-				}
+				Type::Record(j) => self.flat_out(*j, &v, (a, &mut *slots), (r, &mut *puts)),
 				ty if scalar(abi, ty) => {
 					let slot = format!("{a}[{}]", slots.len());
 					let (rust, kt) = match ty {
@@ -2966,7 +3004,7 @@ impl<'a> Gen<'a> {
 				}
 			});
 		}
-		format!("{}({})", self.qualified(&abi.record(i)), fields.join(", "))
+		format!("{class}({})", fields.join(", "))
 	}
 }
 
@@ -2979,20 +3017,27 @@ fn scalar(abi: &Abi<'_>, ty: &Type) -> bool {
 	}
 }
 
-/// Whether the record `i`, or one it nests, holds a field that crosses encoded.
+/// Whether the record `i`, or one it nests, holds a field that crosses encoded: an opaque
+/// value holds none.
 fn rest(abi: &Abi<'_>, i: usize) -> bool {
+	if abi.api.records[i].opaque.is_some() {
+		return false;
+	}
 	abi.api.records[i].fields.iter().any(|f| match &f.ty {
-		Type::Record(j) if abi.api.records[*j].opaque.is_none() => rest(abi, *j),
+		Type::Record(j) => rest(abi, *j),
 		ty => !scalar(abi, ty),
 	})
 }
 
 /// The JVM parameter slots the record `i` takes flattened: two for each `long` or `double`
 /// scalar, one for any other, and two for its other fields, if any: their `byte[]` and the
-/// arrays and text they name.
+/// arrays and text they name. An opaque value takes two for each word.
 fn weight(abi: &Abi<'_>, i: usize) -> usize {
+	if let Some(opaque) = abi.api.records[i].opaque {
+		return 2 * opaque.words() as usize;
+	}
 	let fields = abi.api.records[i].fields.iter().map(|f| match &f.ty {
-		Type::Record(j) if abi.api.records[*j].opaque.is_none() => weight(abi, *j) - 2 * usize::from(rest(abi, *j)),
+		Type::Record(j) => weight(abi, *j) - 2 * usize::from(rest(abi, *j)),
 		Type::F64 => 2,
 		Type::Int(int) | Type::NonZero(int) if jni_int(*int) == "jlong" => 2,
 		ty if scalar(abi, ty) => 1,
@@ -3008,16 +3053,14 @@ fn room(unflattened: usize, future: bool, written: bool) -> usize {
 	255usize.saturating_sub(unflattened + usize::from(future) + usize::from(written))
 }
 
-/// The JVM parameter slots the C parameter `c` takes as a native method's at most: two for
-/// a `long` or `double`, as an opaque value Kotlin holds in a word is, none for what never
-/// crosses, five for bytes (what holds them, a `long` owner, and two `int`s; text takes
-/// one), two for an encoded value's `byte[]` and the arrays and text it names (a callback
-/// takes one), and one for anything else, such as an opaque value's `long[]`.
-fn c_slots(abi: &Abi<'_>, c: &Ty) -> usize {
+/// The JVM parameter slots the C parameter `c` takes as a native method's at most, before
+/// a record or an opaque value is flattened: two for a `long` or `double`, none for what
+/// never crosses, five for bytes (what holds them, a `long` owner, and two `int`s; text
+/// takes one), two for an encoded value's `byte[]` and the arrays and text it names (a
+/// callback takes one), and one for anything else.
+fn c_slots(c: &Ty) -> usize {
 	match c {
 		Ty::Void | Ty::Out(_) | Ty::Data | Ty::Poll => 0,
-		Ty::Struct(_) | Ty::In(_) if opaque_of(abi, c).is_some_and(|o| word(&o)) => 2,
-		Ty::Struct(_) | Ty::In(_) if opaque_of(abi, c).is_some() => 1,
 		Ty::Int(int) if jni_int(*int) == "jlong" => 2,
 		Ty::F64 | Ty::Handle { .. } | Ty::Future(_) => 2,
 		Ty::Buf => 5,
@@ -3151,10 +3194,7 @@ fn abi_bound(abi: &Abi<'_>, int: Int) -> String {
 /// The JNI type and the Kotlin native type of the C type `c`, of IR type `ty`.
 fn jni_type(abi: &Abi<'_>, c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 	match c {
-		Ty::Struct(_) | Ty::In(_) if let Some(opaque) = opaque_of(abi, c) => match word(&opaque) {
-			true => ("jlong", "Long"),
-			false => ("jlongArray", "LongArray"),
-		},
+		Ty::Struct(_) | Ty::In(_) if opaque_of(abi, c).is_some_and(|o| one_word(&o)) => ("jlong", "Long"),
 		Ty::Void => ("()", "Unit"),
 		Ty::Bool => ("jboolean", "Boolean"),
 		Ty::Int(int) => match jni_int(*int) {
@@ -3193,40 +3233,46 @@ fn opaque_of(abi: &Abi<'_>, c: &Ty) -> Option<Opaque> {
 		.and_then(|i| abi.api.records[i].opaque)
 }
 
-/// The property of an opaque value's class holding it.
-fn holder(opaque: &Opaque) -> &'static str {
+/// The properties of an opaque value's class holding it, a word each: a value class's
+/// `bits`, or `w0` and on.
+fn holders(opaque: &Opaque) -> Vec<String> {
 	match word(opaque) {
-		true => "bits",
-		false => "words",
+		true => vec!["bits".to_string()],
+		false => (0..opaque.words()).map(|k| format!("w{k}")).collect(),
 	}
 }
 
-/// Whether Kotlin holds `opaque` in a `Long`, with no allocation: it fits one and is
-/// dense, so values Rust calls equal have equal bits, as the value class compares them.
+/// Whether Kotlin holds `opaque` in a value class over a `Long`, with no allocation: it
+/// fits one and is dense, so values Rust calls equal have equal bits, as the value class
+/// compares them.
 fn word(opaque: &Opaque) -> bool {
 	opaque.compared()
 }
 
-/// The Rust expression taking the opaque value Kotlin passed as `p`, as its C struct.
-fn from_kotlin(opaque: &Opaque, p: &str) -> String {
-	match word(opaque) {
-		true => format!("rt::from_word({p})"),
-		false => format!("unsafe {{ rt::from_words::<_, {}>(env, {p}) }}", opaque.words()),
-	}
+/// Whether `opaque` crosses JNI as one `long` wherever it crosses alone.
+fn one_word(opaque: &Opaque) -> bool {
+	opaque.words() == 1
 }
 
-/// The JNI value Kotlin takes the opaque value's C struct `e` as.
-fn to_kotlin(opaque: &Opaque, e: &str) -> String {
-	match word(opaque) {
-		true => format!("rt::to_word({e})"),
-		false => format!("rt::to_words::<_, {}>(env, {e})", opaque.words()),
-	}
+/// The Rust expression taking the opaque value Kotlin passed as the `long`s `words`, as
+/// its C struct.
+fn from_kotlin(opaque: &Opaque, words: &[String]) -> String {
+	format!("rt::from_words::<_, {}>([{}])", opaque.words(), words.join(", "))
+}
+
+/// The JNI `long` word `k` of the opaque value's C struct `e`, as Kotlin holds it.
+fn to_kotlin(opaque: &Opaque, e: &str, k: u64) -> String {
+	format!("rt::to_words::<_, {}>({e})[{k}]", opaque.words())
 }
 
 /// The Rust expression returning to Kotlin a value `ret` of type `ok` that C returns as `c`.
 fn ret_expr(abi: &Abi<'_>, c: &Ty, ok: &Type) -> String {
 	match c {
-		Ty::Struct(_) if let Some(opaque) = opaque_of(abi, c) => to_kotlin(&opaque, "ret"),
+		Ty::Struct(_) if let Some(opaque) = opaque_of(abi, c)
+			&& one_word(&opaque) =>
+		{
+			to_kotlin(&opaque, "ret", 0)
+		}
 		Ty::Void | Ty::Bool | Ty::F32 | Ty::F64 | Ty::Enum(_) => "ret".to_string(),
 		Ty::Int(int) => format!("ret as {}", jni_int(*int)),
 		Ty::Char => "ret as jint".to_string(),
