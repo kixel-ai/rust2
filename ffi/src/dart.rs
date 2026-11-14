@@ -329,6 +329,7 @@ const TAKEN: &[&str] = &[
 	"StateError",
 	"String",
 	"UnsupportedError",
+	"Waker",
 	"bool",
 	"convert",
 	"dasync",
@@ -1269,7 +1270,7 @@ impl<'a> Gen<'a> {
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.lift(inner, e),
 			Type::Object(_) => format!("{}._({e})", self.dt(ty)),
-			Type::Waker => format!("_n.returned({e})"),
+			Type::Waker => format!("Waker._({e})"),
 			Type::Record(_)
 			| Type::Enum(_)
 			| Type::List(..)
@@ -2172,7 +2173,11 @@ impl<'a> Gen<'a> {
 		let ok = strip_refs(&function.ok);
 		let err = function.err.as_ref().map(strip_refs);
 		let thrown = err.as_ref().map(|e| self.thrown(e));
-		let ok_dt = self.dt(&ok);
+		// A waker Dart gets is one it can close, unlike one it gives.
+		let ok_dt = match ok {
+			Type::Waker => "Waker".to_string(),
+			_ => self.dt(&ok),
+		};
 
 		// Each call, and each poll and free of its future, serves the isolate while it waits.
 		args.insert(0, "_n.home".to_string());

@@ -455,11 +455,17 @@ Future<void> script() async {
   channel.send(utf8.encode('heard'));
   await until(() => wakes == 3, 'the send wakes the context Rust keeps');
   print('woken $wakes');
-  // A returned waker wakes the waiter's task through Rust until it is dropped.
+  // A returned waker wakes the waiter's task through Rust until it is closed, after which
+  // a wake throws.
   final waiter = api.Waiter(() => wakes++);
-  waiter.waker()();
-  waiter.context()();
+  final waker = waiter.waker(), context = waiter.context();
+  waker();
+  context();
   waiter.close();
+  waker.close();
+  context.close();
+  context.close();
+  throws<StateError>(waker.call, 'a closed waker throws');
   await until(() => wakes == 5, 'a returned waker wakes the waiter');
   print('woken $wakes');
 
@@ -765,7 +771,9 @@ Future<void> script() async {
           return api.later(now, const Duration(milliseconds: 5));
         case 2:
           print('drive ${api.since(now, start).inMilliseconds}');
-          waiter.waker()();
+          final waker = waiter.waker();
+          waker();
+          waker.close();
           return null;
         default:
           throw api.StringException('stopped after $calls');
@@ -1421,10 +1429,6 @@ Future<void> main(List<String> args) async {
   switch (args) {
     case []:
       await script();
-      // The waiter's returned wakers are Rust clones of a waker whose token keeps the
-      // isolate alive, and only the garbage collector drops them, about a minute idle.
-      await stdout.flush();
-      exit(0);
     case ['futures']:
       await futures();
     case ['owned']:
