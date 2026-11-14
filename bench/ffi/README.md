@@ -226,8 +226,8 @@ frame path:
    Dart's 1.8 us add their event loops; Go's 5.1 us and Swift's 5.7 us wall (16.6 us CPU)
    are a goroutine or `Task` and a cross-thread wake per read, and Python's 6.9 us is
    asyncio's, as BoltFFI's Python measured 10 us. This case starts a task per read; a
-   reader looping on one task would skip the start, and is what to measure before changing
-   a generator.
+   reader looping on one task, which skips the start, is measured in
+   [Long-lived reader measurement](#long-lived-reader-measurement).
 4. **A future per read.** Since `<fn>_start` makes a future and polls it in one call, a
    ready read costs C 126 ns over the write where Rust costs 93: one crossing and one
    allocation, down from 176 with four allocations and three crossings. Measured 2026-11-13
