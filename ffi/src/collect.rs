@@ -5681,20 +5681,36 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 		/// another variant in.
 		niche: bool,
 	}
-	// The fields of an aggregate, which never overlap: none when they leave the model's
-	// alignment a gap after them, as `(u64, u32)` does on a 64-bit target.
-	fn fields<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, tys: &[Ty<'tcx>]) -> Option<Least> {
+	// The fields of an aggregate, which never overlap: none when they leave the model a
+	// gap, after them, as `(u64, u32)` does on a 64-bit target, or between them where its
+	// `repr` keeps their order, as `#[repr(C)] (u32, u64, u32)` does. A `repr(packed)`
+	// caps each field's alignment, and a `repr(align)` raises the whole's.
+	fn fields<'tcx>(
+		tcx: TyCtxt<'tcx>,
+		env: TypingEnv<'tcx>,
+		tys: &[Ty<'tcx>],
+		repr: Option<&rustc_abi::ReprOptions>,
+	) -> Option<Least> {
+		if repr.is_some_and(|r| r.simd() || r.scalable()) {
+			return None;
+		}
+		let pack = repr.and_then(|r| r.pack).map(|a| a.bytes());
+		let ordered = repr.is_some_and(|r| r.inhibit_struct_field_reordering());
 		let mut sum = Least {
 			bytes: 0,
 			model: 0,
-			align: 1,
+			align: repr.and_then(|r| r.align).map_or(1, |a| a.bytes()),
 			niche: false,
 		};
 		for &ty in tys {
 			let field = least(tcx, env, ty)?;
+			let align = pack.map_or(field.align, |pack| field.align.min(pack));
+			if ordered && !sum.model.is_multiple_of(align) {
+				return None;
+			}
 			sum.bytes = sum.bytes.checked_add(field.bytes)?;
 			sum.model = sum.model.checked_add(field.model)?;
-			sum.align = sum.align.max(field.align);
+			sum.align = sum.align.max(align);
 			sum.niche |= field.niche;
 		}
 		sum.model.is_multiple_of(sum.align).then_some(sum)
@@ -5747,9 +5763,9 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 					..each
 				})
 			}
-			ty::Tuple(tys) => fields(tcx, env, tys),
+			ty::Tuple(tys) => fields(tcx, env, tys, None),
 			ty::Adt(adt, args) if adt.is_struct() => {
-				let sum = fields(tcx, env, &normalized(&mut adt.all_fields(), *args)?)?;
+				let sum = fields(tcx, env, &normalized(&mut adt.all_fields(), *args)?, Some(&adt.repr()))?;
 				// A field's own valid range, as `NonNull`'s, is a niche no field shows.
 				Some(Least {
 					niche: sum.niche || layout.largest_niche.is_some(),
@@ -5757,9 +5773,26 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 				})
 			}
 			ty::Adt(adt, args) if adt.is_enum() => {
+				// One whose `repr` fixes its tag, as `#[repr(u8)]` does, crosses only without
+				// fields: its tag's integer alone. Its layout with fields, or a `repr(C)`
+				// tag, which is C's `int`, the model leaves out.
+				let repr = adt.repr();
+				if repr.int.is_some() || repr.c() || repr.align.is_some() || repr.pack.is_some() {
+					let model = match repr.int? {
+						rustc_abi::IntegerType::Fixed(int, _) => int.size().bytes(),
+						rustc_abi::IntegerType::Pointer(_) => 8,
+					};
+					let fieldless = adt.variants().iter().all(|v| v.fields.is_empty());
+					return (fieldless && !repr.c() && repr.align.is_none()).then_some(Least {
+						bytes: size,
+						model,
+						align: model,
+						niche: true,
+					});
+				}
 				let mut each = Vec::new();
 				for variant in adt.variants() {
-					each.push(fields(tcx, env, &normalized(&mut variant.fields.iter(), *args)?)?);
+					each.push(fields(tcx, env, &normalized(&mut variant.fields.iter(), *args)?, None)?);
 				}
 				// With no niche to encode the others in, two or more variants take a tag
 				// of at least a byte beside each one's fields; with one, a variant's own
