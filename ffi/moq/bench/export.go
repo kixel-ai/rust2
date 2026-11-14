@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"moq/net"
+	"moq/rt"
 )
 
 const (
@@ -67,7 +68,7 @@ var sink int
 // CPU second.
 func throughput(ctx context.Context, track *net.TrackProducer, subscriber *net.TrackSubscriber, at *net.Timestamp, size int) span {
 	count := min(max((64<<20)/(size*frames), 3), 2000)
-	frame := make([]byte, size)
+	frame := rt.NewBytes(make([]byte, size))
 	start := now()
 	for range count {
 		group := must(track.AppendGroup())
@@ -112,7 +113,7 @@ func round() []result {
 	micro := net.TimescaleMICRO()
 	track := must(broadcast.CreateTrack("bench", must(net.TrackInfoDefault().WithTimescale(micro))))
 	micro.Close()
-	frame := make([]byte, 100)
+	frame := rt.NewBytes(make([]byte, 100))
 
 	start := now()
 	for range n {

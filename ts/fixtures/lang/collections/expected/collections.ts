@@ -138,9 +138,19 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		rs.byteVecPush(out, rs.hashLen(map) & 0xff);
 	} else if (_4 === 1) {
 		const map2: rs.HashMap<rs.u64, rs.u8> = rs.hashWithCapacity(4, 58720256, rs.hashing(rs.hash64, rs.u64Eq)) as rs.HashMap<rs.u64, rs.u8>;
-		const iter3: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+		const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+		let count2: number = 0;
 		while (true) {
-			const _110: [rs.usize, rs.u8] | rs.Done = iter3.next();
+			let next3!: [rs.usize, rs.u8] | rs.Done;
+			next4: {
+				const x2 = leaf2.next();
+				if (x2 === rs.DONE) {
+					next3 = rs.DONE;
+					break next4;
+				}
+				next3 = [count2++, x2];
+			}
+			const _110: [rs.usize, rs.u8] | rs.Done = next3;
 			if (_110 === rs.DONE) {
 				break;
 			}
@@ -426,9 +436,19 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}), rs.usizeAdd, 0) & 0xff);
 		rs.byteVecPush(out, rs.hashLen(words) === 0 ? 1 : 0);
 		const clashes: rs.HashMap<Clash.Clash, Tally.Tally> = rs.hashNew(rs.hashing(Clash.hash$Hash_hash_DefaultHasher as (a0: Clash.Clash, a1: rs.Hasher) => undefined, Clash.eq$cmp_PartialEq)) as rs.HashMap<Clash.Clash, Tally.Tally>;
-		const iter18: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+		let count: number = 0;
 		while (true) {
-			const _568: [rs.usize, rs.u8] | rs.Done = iter18.next();
+			let next!: [rs.usize, rs.u8] | rs.Done;
+			next2: {
+				const x = leaf.next();
+				if (x === rs.DONE) {
+					next = rs.DONE;
+					break next2;
+				}
+				next = [count++, x];
+			}
+			const _568: [rs.usize, rs.u8] | rs.Done = next;
 			if (_568 === rs.DONE) {
 				break;
 			}
@@ -4874,9 +4894,24 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const mixed: rs.Vec<Mixed.Mixed> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data2)), (_212: rs.u8): Mixed.Mixed => {
 		return { _0: _212 as rs.u16 };
 	}), undefined, 2, true);
-	const iter: rs.Iter<[rs.usize, rs.usize]> = rs.iterZip(new rs.Range(0, data2.length), rs.iterRev(new rs.Range(0, data2.length)), "len");
+	const leaf: rs.Iter<rs.usize> = new rs.Range(0, data2.length);
+	const leaf2: rs.Iter<rs.usize> = rs.iterRev(new rs.Range(0, data2.length));
 	while (true) {
-		const _30: [rs.usize, rs.usize] | rs.Done = iter.next();
+		let next!: [rs.usize, rs.usize] | rs.Done;
+		next2: {
+			const x4 = leaf.next();
+			if (x4 === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			const x5 = leaf2.next();
+			if (x5 === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [x4, x5];
+		}
+		const _30: [rs.usize, rs.usize] | rs.Done = next;
 		if (_30 === rs.DONE) {
 			break;
 		}
@@ -5424,45 +5459,55 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const xs: rs.Vec<ByRef.ByRef> = _1431[0];
 	const sorted: rs.Vec<ByRef.ByRef> = rs.vecFrom(xs.items.slice());
 	rs.sliceSort(rs.sliceFrom(sorted.items), rs.cmpLt(ByRef.partialCmp$cmp_PartialOrd_ref), 4, true);
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(sorted.items), (x4: ByRef.ByRef): rs.u8 => {
-		return x4._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(sorted.items), (x6: ByRef.ByRef): rs.u8 => {
+		return x6._0 & 0xff;
 	}), undefined, true);
 	const set: rs.BTreeSet<ByRef.ByRef> = rs.btreeNew(ByRef.cmp$cmp_Ord_ref) as rs.BTreeSet<ByRef.ByRef>;
 	const map: rs.BTreeMap<[ByRef.ByRef], rs.usize> = rs.btreeNew(rs.cmpTuple<[ByRef.ByRef], rs.Ordering>([ByRef.cmp$cmp_Ord_ref])) as rs.BTreeMap<[ByRef.ByRef], rs.usize>;
-	const iter6: rs.Iter<[rs.usize, ByRef.ByRef]> = rs.iterEnumerate(rs.iterSlice(xs.items));
+	const leaf3: rs.Iter<ByRef.ByRef> = rs.iterSlice(xs.items);
+	let count: number = 0;
 	while (true) {
-		const _1454: [rs.usize, ByRef.ByRef] | rs.Done = iter6.next();
+		let next3!: [rs.usize, ByRef.ByRef] | rs.Done;
+		next4: {
+			const x7 = leaf3.next();
+			if (x7 === rs.DONE) {
+				next3 = rs.DONE;
+				break next4;
+			}
+			next3 = [count++, x7];
+		}
+		const _1454: [rs.usize, ByRef.ByRef] | rs.Done = next3;
 		if (_1454 === rs.DONE) {
 			break;
 		}
 		const i2: rs.usize = _1454[0];
 		const x: ByRef.ByRef = _1454[1];
 		rs.byteVecPush(out, rs.btreeAdd(set, x) ? 1 : 0);
-		rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(rs.btreeInsert(map, [x] as [ByRef.ByRef], i2), (i5: rs.usize): rs.u8 => {
-			return i5 & 0xff;
+		rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(rs.btreeInsert(map, [x] as [ByRef.ByRef], i2), (i6: rs.usize): rs.u8 => {
+			return i6 & 0xff;
 		})), undefined, true);
 	}
-	rs.iterExtendBytes(out, rs.iterMap(rs.btreeKeys(set), (x5: ByRef.ByRef): rs.u8 => {
-		return x5._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterMap(rs.btreeKeys(set), (x8: ByRef.ByRef): rs.u8 => {
+		return x8._0 & 0xff;
 	}), undefined, true);
 	rs.iterExtendBytes(out, rs.iterFlatten(rs.iterMap(rs.btreeIter(map), (_214: [[ByRef.ByRef], rs.usize]): Uint8Array => {
 		return Uint8Array.of(_214[0][0]._0 & 0xff, _214[1] & 0xff);
 	}), (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
-	rs.iterExtendBytes(out, rs.iterOption(option_map$1pdxnel(rs.btreeKey(set, xs.items[rs.idx(xs.items, 0)]), (x6: ByRef.ByRef): rs.u8 => {
-		return x6._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterOption(option_map$1pdxnel(rs.btreeKey(set, xs.items[rs.idx(xs.items, 0)]), (x9: ByRef.ByRef): rs.u8 => {
+		return x9._0 & 0xff;
 	})), undefined, true);
 	const _1484: rs.Iter<ByRef.ByRef> = rs.iterSlice(xs.items);
 	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(ByRef.hash$Hash_ref_hash_DefaultHasher as (a0: ByRef.ByRef, a1: rs.Hasher) => undefined, ByRef.eq$cmp_PartialEq_ref)) as rs.HashSet<ByRef.ByRef>, _1484, undefined, undefined, 234881024)) & 0xff);
 	const _1493: rs.Iter<[ByRef.ByRef, ByRef.ByRef | undefined]> = rs.iterMap(rs.iterSlice(xs.items), (_216: ByRef.ByRef): [ByRef.ByRef, ByRef.ByRef | undefined] => {
-		const x7: ByRef.ByRef = _216;
-		return [x7, x7] as [ByRef.ByRef, ByRef.ByRef | undefined];
+		const x10: ByRef.ByRef = _216;
+		return [x10, x10] as [ByRef.ByRef, ByRef.ByRef | undefined];
 	});
 	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([ByRef.hash$Hash_ref_hash_DefaultHasher as (a0: ByRef.ByRef, a1: rs.Hasher) => undefined, rs.hashOption(ByRef.hash$Hash_ref_hash_DefaultHasher as (a0: ByRef.ByRef, a1: rs.Hasher) => undefined)]), rs.eqTuple([ByRef.eq$cmp_PartialEq_ref, rs.eqOption(ByRef.eq$cmp_PartialEq_ref)]))) as rs.HashSet<[ByRef.ByRef, ByRef.ByRef | undefined]>, _1493, undefined, undefined, 117440512)) & 0xff);
-	rs.iterExtendBytes(out, rs.iterOption(option_map$1pdxnel(rs.iterMax(rs.iterSlice(xs.items), rs.cmpLt(ByRef.partialCmp$cmp_PartialOrd_ref)), (x8: ByRef.ByRef): rs.u8 => {
-		return x8._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterOption(option_map$1pdxnel(rs.iterMax(rs.iterSlice(xs.items), rs.cmpLt(ByRef.partialCmp$cmp_PartialOrd_ref)), (x11: ByRef.ByRef): rs.u8 => {
+		return x11._0 & 0xff;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterOption(option_map$1pdxnel(rs.iterMin(rs.iterSlice(xs.items), rs.cmpLt(ByRef.partialCmp$cmp_PartialOrd_ref)), (x9: ByRef.ByRef): rs.u8 => {
-		return x9._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterOption(option_map$1pdxnel(rs.iterMin(rs.iterSlice(xs.items), rs.cmpLt(ByRef.partialCmp$cmp_PartialOrd_ref)), (x12: ByRef.ByRef): rs.u8 => {
+		return x12._0 & 0xff;
 	})), undefined, true);
 	rs.iterExtendBytes(out, rs.iterOption(option_map$1pdxnel(rs.sliceFirst(rs.sliceFrom(xs.items)), (first: ByRef.ByRef): rs.u8 => {
 		return rs.sliceContains(rs.sliceRange(rs.sliceFrom(xs.items), 1), first, ByRef.eq$cmp_PartialEq_ref) ? 1 : 0;
@@ -5473,45 +5518,55 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const xs2: rs.Vec<ByVal.ByVal> = _1541[0];
 	const sorted2: rs.Vec<ByVal.ByVal> = rs.vecFrom(xs2.items.slice());
 	rs.sliceSort(rs.sliceFrom(sorted2.items), rs.cmpLt(ByVal.partialCmp$cmp_PartialOrd), 4, true);
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(sorted2.items), (x10: ByVal.ByVal): rs.u8 => {
-		return x10._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(sorted2.items), (x13: ByVal.ByVal): rs.u8 => {
+		return x13._0 & 0xff;
 	}), undefined, true);
 	const set2: rs.BTreeSet<ByVal.ByVal> = rs.btreeNew(ByVal.cmp$cmp_Ord) as rs.BTreeSet<ByVal.ByVal>;
 	const map2: rs.BTreeMap<[ByVal.ByVal], rs.usize> = rs.btreeNew(rs.cmpTuple<[ByVal.ByVal], rs.Ordering>([ByVal.cmp$cmp_Ord])) as rs.BTreeMap<[ByVal.ByVal], rs.usize>;
-	const iter7: rs.Iter<[rs.usize, ByVal.ByVal]> = rs.iterEnumerate(rs.iterSlice(xs2.items));
+	const leaf4: rs.Iter<ByVal.ByVal> = rs.iterSlice(xs2.items);
+	let count2: number = 0;
 	while (true) {
-		const _1564: [rs.usize, ByVal.ByVal] | rs.Done = iter7.next();
+		let next5!: [rs.usize, ByVal.ByVal] | rs.Done;
+		next6: {
+			const x14 = leaf4.next();
+			if (x14 === rs.DONE) {
+				next5 = rs.DONE;
+				break next6;
+			}
+			next5 = [count2++, x14];
+		}
+		const _1564: [rs.usize, ByVal.ByVal] | rs.Done = next5;
 		if (_1564 === rs.DONE) {
 			break;
 		}
 		const i3: rs.usize = _1564[0];
 		const x2: ByVal.ByVal = _1564[1];
 		rs.byteVecPush(out, rs.btreeAdd(set2, x2) ? 1 : 0);
-		rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(rs.btreeInsert(map2, [x2] as [ByVal.ByVal], i3), (i7: rs.usize): rs.u8 => {
-			return i7 & 0xff;
+		rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(rs.btreeInsert(map2, [x2] as [ByVal.ByVal], i3), (i9: rs.usize): rs.u8 => {
+			return i9 & 0xff;
 		})), undefined, true);
 	}
-	rs.iterExtendBytes(out, rs.iterMap(rs.btreeKeys(set2), (x11: ByVal.ByVal): rs.u8 => {
-		return x11._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterMap(rs.btreeKeys(set2), (x15: ByVal.ByVal): rs.u8 => {
+		return x15._0 & 0xff;
 	}), undefined, true);
 	rs.iterExtendBytes(out, rs.iterFlatten(rs.iterMap(rs.btreeIter(map2), (_233: [[ByVal.ByVal], rs.usize]): Uint8Array => {
 		return Uint8Array.of(_233[0][0]._0 & 0xff, _233[1] & 0xff);
 	}), (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
-	rs.iterExtendBytes(out, rs.iterOption(option_map$093awy8(rs.btreeKey(set2, xs2.items[rs.idx(xs2.items, 0)]), (x12: ByVal.ByVal): rs.u8 => {
-		return x12._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterOption(option_map$093awy8(rs.btreeKey(set2, xs2.items[rs.idx(xs2.items, 0)]), (x16: ByVal.ByVal): rs.u8 => {
+		return x16._0 & 0xff;
 	})), undefined, true);
 	const _1594: rs.Iter<ByVal.ByVal> = rs.iterSlice(xs2.items);
 	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(ByVal.hash$Hash_hash_DefaultHasher as (a0: ByVal.ByVal, a1: rs.Hasher) => undefined, ByVal.eq$cmp_PartialEq)) as rs.HashSet<ByVal.ByVal>, _1594, undefined, undefined, 234881024)) & 0xff);
 	const _1603: rs.Iter<[ByVal.ByVal, ByVal.ByVal | undefined]> = rs.iterMap(rs.iterSlice(xs2.items), (_253: ByVal.ByVal): [ByVal.ByVal, ByVal.ByVal | undefined] => {
-		const x13: ByVal.ByVal = _253;
-		return [x13, x13] as [ByVal.ByVal, ByVal.ByVal | undefined];
+		const x17: ByVal.ByVal = _253;
+		return [x17, x17] as [ByVal.ByVal, ByVal.ByVal | undefined];
 	});
 	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([ByVal.hash$Hash_hash_DefaultHasher as (a0: ByVal.ByVal, a1: rs.Hasher) => undefined, rs.hashOption(ByVal.hash$Hash_hash_DefaultHasher as (a0: ByVal.ByVal, a1: rs.Hasher) => undefined)]), rs.eqTuple([ByVal.eq$cmp_PartialEq, rs.eqOption(ByVal.eq$cmp_PartialEq)]))) as rs.HashSet<[ByVal.ByVal, ByVal.ByVal | undefined]>, _1603, undefined, undefined, 117440512)) & 0xff);
-	rs.iterExtendBytes(out, rs.iterOption(option_map$093awy8(rs.iterMax(rs.iterSlice(xs2.items), rs.cmpLt(ByVal.partialCmp$cmp_PartialOrd)), (x14: ByVal.ByVal): rs.u8 => {
-		return x14._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterOption(option_map$093awy8(rs.iterMax(rs.iterSlice(xs2.items), rs.cmpLt(ByVal.partialCmp$cmp_PartialOrd)), (x18: ByVal.ByVal): rs.u8 => {
+		return x18._0 & 0xff;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterOption(option_map$093awy8(rs.iterMin(rs.iterSlice(xs2.items), rs.cmpLt(ByVal.partialCmp$cmp_PartialOrd)), (x15: ByVal.ByVal): rs.u8 => {
-		return x15._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterOption(option_map$093awy8(rs.iterMin(rs.iterSlice(xs2.items), rs.cmpLt(ByVal.partialCmp$cmp_PartialOrd)), (x19: ByVal.ByVal): rs.u8 => {
+		return x19._0 & 0xff;
 	})), undefined, true);
 	rs.iterExtendBytes(out, rs.iterOption(option_map$093awy8(rs.sliceFirst(rs.sliceFrom(xs2.items)), (first2: ByVal.ByVal): rs.u8 => {
 		return rs.sliceContains(rs.sliceRange(rs.sliceFrom(xs2.items), 1), first2, ByVal.eq$cmp_PartialEq) ? 1 : 0;
@@ -5522,45 +5577,55 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const xs3: rs.Vec<Mixed.Mixed> = _1651[0];
 	const sorted3: rs.Vec<Mixed.Mixed> = rs.vecFrom(xs3.items.slice());
 	rs.sliceSort(rs.sliceFrom(sorted3.items), rs.cmpLt(Mixed.partialCmp$cmp_PartialOrd), 4, true);
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(sorted3.items), (x16: Mixed.Mixed): rs.u8 => {
-		return x16._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(sorted3.items), (x20: Mixed.Mixed): rs.u8 => {
+		return x20._0 & 0xff;
 	}), undefined, true);
 	const set3: rs.BTreeSet<Mixed.Mixed> = rs.btreeNew(Mixed.cmp$cmp_Ord_ref) as rs.BTreeSet<Mixed.Mixed>;
 	const map3: rs.BTreeMap<[Mixed.Mixed], rs.usize> = rs.btreeNew(rs.cmpTuple<[Mixed.Mixed], rs.Ordering>([Mixed.cmp$cmp_Ord_ref])) as rs.BTreeMap<[Mixed.Mixed], rs.usize>;
-	const iter8: rs.Iter<[rs.usize, Mixed.Mixed]> = rs.iterEnumerate(rs.iterSlice(xs3.items));
+	const leaf5: rs.Iter<Mixed.Mixed> = rs.iterSlice(xs3.items);
+	let count3: number = 0;
 	while (true) {
-		const _1674: [rs.usize, Mixed.Mixed] | rs.Done = iter8.next();
+		let next7!: [rs.usize, Mixed.Mixed] | rs.Done;
+		next8: {
+			const x21 = leaf5.next();
+			if (x21 === rs.DONE) {
+				next7 = rs.DONE;
+				break next8;
+			}
+			next7 = [count3++, x21];
+		}
+		const _1674: [rs.usize, Mixed.Mixed] | rs.Done = next7;
 		if (_1674 === rs.DONE) {
 			break;
 		}
 		const i4: rs.usize = _1674[0];
 		const x3: Mixed.Mixed = _1674[1];
 		rs.byteVecPush(out, rs.btreeAdd(set3, x3) ? 1 : 0);
-		rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(rs.btreeInsert(map3, [x3] as [Mixed.Mixed], i4), (i9: rs.usize): rs.u8 => {
-			return i9 & 0xff;
+		rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(rs.btreeInsert(map3, [x3] as [Mixed.Mixed], i4), (i12: rs.usize): rs.u8 => {
+			return i12 & 0xff;
 		})), undefined, true);
 	}
-	rs.iterExtendBytes(out, rs.iterMap(rs.btreeKeys(set3), (x17: Mixed.Mixed): rs.u8 => {
-		return x17._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterMap(rs.btreeKeys(set3), (x22: Mixed.Mixed): rs.u8 => {
+		return x22._0 & 0xff;
 	}), undefined, true);
 	rs.iterExtendBytes(out, rs.iterFlatten(rs.iterMap(rs.btreeIter(map3), (_257: [[Mixed.Mixed], rs.usize]): Uint8Array => {
 		return Uint8Array.of(_257[0][0]._0 & 0xff, _257[1] & 0xff);
 	}), (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
-	rs.iterExtendBytes(out, rs.iterOption(option_map$0aug5m6(rs.btreeKey(set3, xs3.items[rs.idx(xs3.items, 0)]), (x18: Mixed.Mixed): rs.u8 => {
-		return x18._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterOption(option_map$0aug5m6(rs.btreeKey(set3, xs3.items[rs.idx(xs3.items, 0)]), (x23: Mixed.Mixed): rs.u8 => {
+		return x23._0 & 0xff;
 	})), undefined, true);
 	const _1704: rs.Iter<Mixed.Mixed> = rs.iterSlice(xs3.items);
 	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Mixed.hash$Hash_ref_hash_DefaultHasher as (a0: Mixed.Mixed, a1: rs.Hasher) => undefined, Mixed.eq$cmp_PartialEq)) as rs.HashSet<Mixed.Mixed>, _1704, undefined, undefined, 234881024)) & 0xff);
 	const _1713: rs.Iter<[Mixed.Mixed, Mixed.Mixed | undefined]> = rs.iterMap(rs.iterSlice(xs3.items), (_258: Mixed.Mixed): [Mixed.Mixed, Mixed.Mixed | undefined] => {
-		const x19: Mixed.Mixed = _258;
-		return [x19, x19] as [Mixed.Mixed, Mixed.Mixed | undefined];
+		const x24: Mixed.Mixed = _258;
+		return [x24, x24] as [Mixed.Mixed, Mixed.Mixed | undefined];
 	});
 	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([Mixed.hash$Hash_ref_hash_DefaultHasher as (a0: Mixed.Mixed, a1: rs.Hasher) => undefined, rs.hashOption(Mixed.hash$Hash_ref_hash_DefaultHasher as (a0: Mixed.Mixed, a1: rs.Hasher) => undefined)]), rs.eqTuple([Mixed.eq$cmp_PartialEq, rs.eqOption(Mixed.eq$cmp_PartialEq)]))) as rs.HashSet<[Mixed.Mixed, Mixed.Mixed | undefined]>, _1713, undefined, undefined, 117440512)) & 0xff);
-	rs.iterExtendBytes(out, rs.iterOption(option_map$0aug5m6(rs.iterMax(rs.iterSlice(xs3.items), rs.cmpLt(Mixed.partialCmp$cmp_PartialOrd)), (x20: Mixed.Mixed): rs.u8 => {
-		return x20._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterOption(option_map$0aug5m6(rs.iterMax(rs.iterSlice(xs3.items), rs.cmpLt(Mixed.partialCmp$cmp_PartialOrd)), (x25: Mixed.Mixed): rs.u8 => {
+		return x25._0 & 0xff;
 	})), undefined, true);
-	rs.iterExtendBytes(out, rs.iterOption(option_map$0aug5m6(rs.iterMin(rs.iterSlice(xs3.items), rs.cmpLt(Mixed.partialCmp$cmp_PartialOrd)), (x21: Mixed.Mixed): rs.u8 => {
-		return x21._0 & 0xff;
+	rs.iterExtendBytes(out, rs.iterOption(option_map$0aug5m6(rs.iterMin(rs.iterSlice(xs3.items), rs.cmpLt(Mixed.partialCmp$cmp_PartialOrd)), (x26: Mixed.Mixed): rs.u8 => {
+		return x26._0 & 0xff;
 	})), undefined, true);
 	rs.iterExtendBytes(out, rs.iterOption(option_map$0aug5m6(rs.sliceFirst(rs.sliceFrom(xs3.items)), (first3: Mixed.Mixed): rs.u8 => {
 		return rs.sliceContains(rs.sliceRange(rs.sliceFrom(xs3.items), 1), first3, Mixed.eq$cmp_PartialEq) ? 1 : 0;

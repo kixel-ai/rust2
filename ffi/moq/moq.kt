@@ -80,7 +80,7 @@ fun main() {
 	scope.launch { frame = first.readFrame() }
 	q.drain()
 	expect(frame == null, "a read waits for a frame")
-	writer.writeFrame(null, "hello".encodeToByteArray())
+	writer.writeFrame(null, Bytes("hello".encodeToByteArray()))
 	expect(q.size == 1, "a frame's arrival wakes the read")
 	q.drain()
 	val hello = frame!!
@@ -94,7 +94,7 @@ fun main() {
 	val at = Timestamp.fromMillis(1500u)
 	expect(at.asSecs() == 1uL, "1500 ms is 1 s")
 	try {
-		writer.writeFrame(at, "late".encodeToByteArray())
+		writer.writeFrame(at, Bytes("late".encodeToByteArray()))
 		expect(false, "a timestamped frame on an untimed track is an error")
 	} catch (e: ErrorException) {
 		expect(e.message == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
@@ -103,7 +103,7 @@ fun main() {
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as null.
 	val world = byteArrayOf(0xff.toByte()) + "world".encodeToByteArray()
-	writer.writeFrame(null, world)
+	writer.writeFrame(null, Bytes(world))
 	writer.finish()
 	runBlocking {
 		expect(first.readFrame()?.payloadGet?.toByteArray()?.contentEquals(world) == true, "the last frame reads")
@@ -175,14 +175,14 @@ fun main() {
 	// moq-mux reads an OpusHead into hang's catalog config: 44.1 kHz in, stereo, which the
 	// catalog lists at the decoder's 48 kHz, keeping the head as its description.
 	val head = "OpusHead".encodeToByteArray() + byteArrayOf(1, 2, 0x38, 0x01, 0x44, 0xac.toByte(), 0, 0, 0, 0, 0)
-	val audio = muxCodecOpusConfig(head)
+	val audio = muxCodecOpusConfig(Bytes(head))
 	expect(audio.sampleRateGet == 48000u, "Opus decodes at 48 kHz")
 	expect(audio.channelCountGet == 2u, "the head is stereo")
 	expect(audio.codecGet == HangCatalogAudioCodec.Opus, "the codec is Opus")
 	expect(audio.descriptionGet?.toByteArray()?.contentEquals(head) == true, "the head is the description")
 	// A truncated head is moq-mux's error.
 	try {
-		muxCodecOpusConfig(head.copyOf(8))
+		muxCodecOpusConfig(Bytes(head.copyOf(8)))
 		expect(false, "a truncated head is an error")
 	} catch (e: MuxErrorException) {
 		expect(e.message.isNotEmpty(), "a truncated head's error has a message")
@@ -311,7 +311,7 @@ fun main() {
 			live.announce(OriginRoute.default())
 			val liveTrack = live.broadcast().createTrack("video", null)
 			val liveGroup = liveTrack.appendGroup()
-			liveGroup.writeFrame(null, "hello".encodeToByteArray())
+			liveGroup.writeFrame(null, Bytes("hello".encodeToByteArray()))
 			liveGroup.finish()
 
 			val serverConfig = TokioServerConfig.default()

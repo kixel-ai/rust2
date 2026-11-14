@@ -263,6 +263,7 @@ inline const ::std::uint8_t *bytes(const void *data, ::std::size_t len) noexcept
 } // namespace detail
 
 class buf;
+class input;
 
 // An object Rust lends a closure as `&mut`: its methods through `->`, but neither a move
 // nor a copy of it, which would keep the loan past the call.
@@ -318,7 +319,8 @@ public:
 };
 
 // Owned bytes: returned by Rust without a copy, or copied from C++. They outlive the object
-// they came from; a view or span of them lives only as long as they do.
+// they came from; a view or span of them lives only as long as they do. A copy of Rust's
+// shares its bytes, and one moved into a call's `input` goes back to Rust without a copy.
 class buf {
 	// Rust's when `owner` is set, else C++'s, allocated with `new[]` unless empty.
 	detail::c_buf raw_;
@@ -344,7 +346,14 @@ public:
 			raw_ = detail::c_buf{copy, bytes.size(), nullptr};
 		}
 	}
-	buf(const buf &other) : buf(view(other)) {}
+	// A second owner of Rust's bytes, shared, or a copy of C++'s.
+	buf(const buf &other) : buf() {
+		if (other.raw_.owner != nullptr) {
+			raw_ = detail::c_buf_clone(other.raw_);
+		} else {
+			*this = buf(view(other));
+		}
+	}
 	buf(buf &&other) noexcept : raw_(::std::exchange(other.raw_, detail::c_buf{nullptr, 0, nullptr})) {}
 	buf &operator=(const buf &other) {
 		if (this != &other) {
@@ -377,6 +386,46 @@ public:
 	}
 	::std::string_view str() const noexcept RUST2_FFI_LIFETIMEBOUND {
 		return view(*this).str();
+	}
+
+	friend struct detail::access;
+	friend class input;
+};
+
+// Bytes passed to a call: a view of anything a view takes, read during the call, or a `buf`
+// moved in, which Rust takes without a copy if it made it, else reads and C++ frees after.
+// Made for its call alone, so it is neither copied nor kept.
+class input {
+	detail::c_buf raw_;
+	// C++'s bytes moved in, freed once the call returns.
+	buf held_;
+
+public:
+	input(const char *text) noexcept : input(view(text)) {}
+	template <class R, class = ::std::enable_if_t<::std::is_constructible_v<view, const R &> &&
+	                                              !::std::is_pointer_v<::std::decay_t<R>>>>
+	input(const R &range RUST2_FFI_LIFETIMEBOUND) noexcept {
+		view v(range);
+		raw_ = detail::c_buf{v.data(), v.size(), nullptr};
+	}
+	input(buf &&bytes) noexcept {
+		if (bytes.raw_.owner != nullptr) {
+			raw_ = ::std::exchange(bytes.raw_, detail::c_buf{nullptr, 0, nullptr});
+		} else {
+			held_ = ::std::move(bytes);
+			raw_ = detail::c_buf{held_.data(), held_.size(), nullptr};
+		}
+	}
+	input(input &&other) noexcept
+		: raw_(::std::exchange(other.raw_, detail::c_buf{nullptr, 0, nullptr})), held_(::std::move(other.held_)) {}
+	input(const input &) = delete;
+	input &operator=(const input &) = delete;
+	input &operator=(input &&) = delete;
+	// What no call took: Rust's bytes go back to it.
+	~input() {
+		if (raw_.owner != nullptr) {
+			detail::c_buf_free(raw_);
+		}
 	}
 
 	friend struct detail::access;
@@ -532,12 +581,13 @@ public:
 
 namespace detail {
 
-// `f`, any future of nothing, such as a binding's `future` of `void`, as the future Rust
-// polls: from any thread, with a waker of its own each time, until its `poll` returns
-// true, and destroyed once Rust drops it, finished or not.
+// `f`, any future of nothing, such as a binding's `future` of `void`, allocated by the
+// caller, as the future Rust polls: from any thread, with a waker of its own each time,
+// until its `poll` returns true, and destroyed once Rust drops it, finished or not.
+// Allocation is the caller's, so a caller that may throw first can hold `f` until the call.
 template <class F>
-c_foreign_future foreign_future(F f) {
-	static_assert(::std::is_same_v<decltype(f.poll(::std::declval<const waker &>())), bool>,
+c_foreign_future foreign_future(F *f) noexcept {
+	static_assert(::std::is_same_v<decltype(f->poll(::std::declval<const waker &>())), bool>,
 	              "a future Rust polls has `bool poll(const waker &)`, as a future of void does");
 	struct calls {
 		static bool poll(void *data, c_waker w) noexcept {
@@ -547,7 +597,7 @@ c_foreign_future foreign_future(F f) {
 			delete static_cast<F *>(data);
 		}
 	};
-	return c_foreign_future{&calls::poll, &calls::free, new F(::std::move(f))};
+	return c_foreign_future{&calls::poll, &calls::free, f};
 }
 
 } // namespace detail
@@ -664,6 +714,20 @@ namespace detail {
 struct access {
 	static c_buf raw(const view &v) noexcept {
 		return c_buf{v.data_, v.size_, nullptr};
+	}
+	// What a call passes Rust, which takes Rust's bytes from then on.
+	static c_buf take(input &in) noexcept {
+		c_buf raw = in.raw_;
+		in.raw_.owner = nullptr;
+		return raw;
+	}
+	// A value passed for `&mut`, which takes what Rust writes back: Rust's bytes move to
+	// Rust, and C++'s it reads.
+	static c_buf take(buf &b) noexcept {
+		if (b.raw_.owner == nullptr) {
+			return raw(view(b));
+		}
+		return ::std::exchange(b.raw_, c_buf{nullptr, 0, nullptr});
 	}
 	static buf adopt(c_buf raw) noexcept {
 		return buf(raw);
