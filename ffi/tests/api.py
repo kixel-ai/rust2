@@ -391,6 +391,10 @@ def script():
 		# The send happens at the call: the future is dropped unawaited.
 		channel.send_later(b"eager")
 		print(f"recv {text(await channel.recv())}")
+		# The send happens at the call, and the future borrows the channel and the tag.
+		print(f"tagged {await channel.tagged('tag')}")
+		print(f"itemized {await channel.itemized(array.array('I', [1, 2, 3]))}")
+		print(f"byte_len {await api.byte_len(b'abc')}")
 		channel.send(b"sized")
 		payload, size = await channel.recv_sized()
 		print(f"sized {text(payload)} {size}")
@@ -571,6 +575,8 @@ def script():
 	print(f"nudge {nudged.value.x} {nudged.value.y}")
 	config = api.secure("h3")
 	print(f"secure {api.alpn_lent(config)} {api.alpn(config.clone())}")
+	cert = api.certify(b"der")
+	print(f"cert {api.cert_len(cert)} {text(api.cert_der(cert))} {api.chain_len([api.certify(b'a'), api.certify(b'bc')])}")
 	session = api.resume("h3", 60)
 	print(f"resume {session.alpn()} {session.lifetime().seconds}")
 	try:
@@ -583,6 +589,9 @@ def script():
 	print(f"lent {first.add(3)} {meters.first().count()}")
 	meters.clear()
 	print(f"cleared {meters.first().count()}")
+	lent_last = meters.last_get
+	lent_last.add(4)
+	print(f"field lent {lent_last.add(1)}")
 	tallies = api.Tallies.new()
 	tallies.first().bump()
 	print(f"tallied {tallies.first().bump()}")
@@ -666,6 +675,7 @@ def script():
 	ended = api.later(began, datetime.timedelta(milliseconds=1500))
 	same = api.later(began, datetime.timedelta())
 	print(f"instants {api.since(ended, began) // ms} {api.since(began, ended) // ms} {flag(began == same)} {flag(began == ended)}")
+	print(f"has_instant {flag(api.has_instant(began))} {flag(api.has_instant(None))}")
 	# tracing's level, and its filter as an optional level whose None is `OFF`.
 	verbosity = api.Verbosity.new(api.Level.WARN)
 	print(f"verbosity {api.spell(verbosity.filter())} {api.spell(api.louder(verbosity.filter()))}")

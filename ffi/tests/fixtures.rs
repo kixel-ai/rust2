@@ -1721,18 +1721,21 @@ fn unreached_types() {
 	let report = std::fs::read_to_string(census.join("unreached_types.md")).unwrap();
 	// `Pending`, `Version`, `Link`, `Failure`, `Buffer`, and `conv::Value` export; `Sealed`
 	// alone is refused as unreached, though an alias names it. `net`'s error in `Failure` is
-	// never reached, so `Failure` is an object.
+	// never reached, so a handle holds it by value, and `Failure`, which holds it, is an object.
 	assert!(report.contains("| Types | 6 | 0 |"), "{report}");
-	assert!(report.contains("- `Failure`: foreign type `net::Fault`"), "{report}");
-	// A type an `Arc` holds, a `Result`'s error without `Display`, and one no public path
-	// names stay refused as foreign.
+	assert!(
+		report.contains("- `Failure`: object in a value `net::Fault`"),
+		"{report}"
+	);
+	// A type an `Arc` holds, and a `Result`'s error without `Display`, stay refused as
+	// foreign; one no public path names is held by value instead.
 	for refused in [
 		"fn `bare` at src/lib.rs:23:1: foreign type `net::Handle`",
 		"fn `opaque` at src/lib.rs:27:1: foreign type `net::Opaque`",
-		"fn `closed` at src/lib.rs:31:1: foreign type `net::closed::Closed`",
 	] {
 		assert!(report.contains(refused), "{report}");
 	}
+	assert!(!report.contains("`closed`"), "{report}");
 	// `impl Iterator + '_` lends a borrow of the receiver, so `drain` is refused and `Drain`
 	// left out with it, rather than glue that does not build; so is `wrap`, whose hidden
 	// `Option` holds a borrowing `Held`.
@@ -1934,7 +1937,9 @@ fn relative_target() {
 		"- `Lease`: object no export returns",
 		"- `Void`: object no export returns",
 		"- `release`: type C never holds `Lease`",
+		"- `handover`: type C never holds `tls::held::Handoff`",
 		"- `Unnamed`: generic type no export instantiates",
+		"- `blame`: type C never holds `tls::held::Invalid`",
 		// An exclude that names what exports, by its generic or instance path or as a field,
 		// even where a method of the field's name is refused.
 		"## Excluded by the config, though it exports",
@@ -1964,6 +1969,10 @@ fn relative_target() {
 			"the census lists `{refused}` as exporting:\n{exporting}"
 		);
 	}
+	// Its error a handle C never holds, `verify` still exports, the error as its message.
+	assert!(!text.contains("`verify`"), "the census lists `verify`:\n{text}");
+	// Nor does `parse_cert`'s, though it borrows the text.
+	assert!(!text.contains("`parse_cert`"), "the census lists `parse_cert`:\n{text}");
 	assert!(dir.join("build").exists());
 }
 

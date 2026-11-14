@@ -172,6 +172,80 @@ impl Opaque {
 	}
 }
 
+/// An argument a future borrows, kept in place on the heap until the future is dropped.
+pub struct Pinned<T>(std::ptr::NonNull<T>);
+
+// It owns its `T`, as a `Box` does.
+unsafe impl<T: Send> Send for Pinned<T> {}
+unsafe impl<T: Sync> Sync for Pinned<T> {}
+
+impl<T> Pinned<T> {
+	pub fn new(value: T) -> Self {
+		Self(std::ptr::NonNull::from(Box::leak(Box::new(value))))
+	}
+
+	/// The value, lent past this borrow of its holder.
+	///
+	/// # Safety
+	///
+	/// Called once, and the borrow ends before the holder drops, as [`Holding`] ensures.
+	pub unsafe fn get(&self) -> &'static mut T {
+		unsafe { &mut *self.0.as_ptr() }
+	}
+}
+
+impl<T> Drop for Pinned<T> {
+	fn drop(&mut self) {
+		drop(unsafe { Box::from_raw(self.0.as_ptr()) });
+	}
+}
+
+/// A future and the arguments it borrows, which drop after it: fields drop in order.
+pub struct Holding<F, H> {
+	future: F,
+	_held: H,
+}
+
+impl<F, H> Holding<F, H> {
+	pub fn new(future: F, held: H) -> Self {
+		Self { future, _held: held }
+	}
+}
+
+impl<F: std::future::Future, H> std::future::Future for Holding<F, H> {
+	type Output = F::Output;
+
+	fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<F::Output> {
+		// The future is pinned with its holder and never moves out; the held values are
+		// never pinned.
+		unsafe { self.map_unchecked_mut(|holding| &mut holding.future) }.poll(cx)
+	}
+}
+
+/// Another crate's value, held erased by its handle, which the glue never names.
+pub struct Owned(Box<dyn std::any::Any + Send + Sync>);
+
+impl Owned {
+	pub fn new<T: Send + Sync + 'static>(value: T) -> Self {
+		Self(Box::new(value))
+	}
+
+	/// The value it holds, lent.
+	pub fn get<T: 'static>(&self, what: &str) -> &T {
+		(self.0.downcast_ref()).unwrap_or_else(|| fail(what, "an opaque handle holds another type"))
+	}
+
+	/// The value it holds, lent exclusively.
+	pub fn get_mut<T: 'static>(&mut self, what: &str) -> &mut T {
+		(self.0.downcast_mut()).unwrap_or_else(|| fail(what, "an opaque handle holds another type"))
+	}
+
+	/// The value it holds, taken back.
+	pub fn take<T: 'static>(self, what: &str) -> T {
+		*(self.0.downcast()).unwrap_or_else(|_| fail(what, "an opaque handle holds another type"))
+	}
+}
+
 /// Bytes across the ABI. Returned, an owned buffer the caller frees once. Passed in by
 /// value, one with an owner is Rust's own, which it takes without a copy, and one without
 /// is a view it copies or borrows for the call; behind a pointer, as an array's items are,

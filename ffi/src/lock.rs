@@ -825,6 +825,7 @@ mod tests {
 				err: None,
 				future: false,
 				eager: false,
+				holds: false,
 				task: None,
 				collect: false,
 				lends: false,
@@ -882,7 +883,7 @@ mod tests {
 			methods: vec![],
 			traits: Traits::default(),
 			foreign: false,
-			opaque: false,
+			opaque: None,
 		});
 		base.functions[0].ok = Type::Option(Box::new(Type::Tuple(vec![Type::Object(0), Type::Int(Int::U64)])));
 		let old = crate::swift::generate(&Abi::new(&base, "lock"), "lock", 0).unwrap();

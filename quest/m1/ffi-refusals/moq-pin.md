@@ -60,7 +60,7 @@ split on 2026-11-12 moved the `just ts moq` failure to
 Decided 2026-11-11 (maintainer, /quest-unblock): ✅ (a) rust2 exports a type the crate root does
 not reach by its defining path, such as `kio::Pending` and `lite::version::Version`; a type
 whose defining path is itself private stays refused (rejected: (b) moq makes both reachable).
-[kixel-ai/rust2#721](https://github.com/kixel-ai/rust2/pull/721) made the exporter change: a
+[moq-dev/rust2#721](https://github.com/moq-dev/rust2/pull/721) made the exporter change: a
 type a signature names that the root does not reach exports by its shortest public path in
 its own crate, so `kio::Pending` (defined in kio's private `pollable`) and moq-tokio's
 `cli::Deprecated` export, the glue naming them through its own dependency on their crate's
@@ -108,7 +108,3 @@ returns that are not `Clone`.
   `rs/moq-tokio/src/client.rs:748`, on the `Instrumented<...>` from
   `tokio::spawn(panic::isolate(time::run(driver)).instrument(..))`, and in the moq-ffi facade
   on `moq_net::Driver: Sync`.
-
-## Required
-
-- [Every refusal at moq's main](/quest/m1/ffi-refusals/moq-main.md) - the rest of them, so the bump adds no exclude

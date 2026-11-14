@@ -29,6 +29,7 @@ import (
 	"api/rt"
 	"api/serdejson"
 	"api/std"
+	"api/tls"
 	"api/tracingcore"
 	"api/url"
 )
@@ -478,6 +479,10 @@ func script() {
 	cancel()
 	check(errors.Is(channel.SendLater(cancelled, rt.NewBytes([]byte("eager"))), context.Canceled), "a cancelled call returns its context's error")
 	fmt.Printf("recv %s\n", must(channel.Recv(ctx)).Copy())
+	// The send happens at the call, and the future borrows the channel and the tag.
+	fmt.Printf("tagged %s\n", must(channel.Tagged(ctx, "tag")))
+	fmt.Printf("itemized %d\n", must(channel.Itemized(ctx, &[]uint32{1, 2, 3})))
+	fmt.Printf("byte_len %d\n", must(api.ByteLen(ctx, rt.NewBytes([]byte("abc")))))
 	// An eager call whose callback cancels its context while it makes its future is never
 	// polled: only the eager half logs.
 	{
@@ -667,6 +672,9 @@ func script() {
 	fmt.Printf("nudge %d %d\n", nudged.X, nudged.Y)
 	config := api.Secure("h3")
 	fmt.Printf("secure %s %s\n", must(api.AlpnLent(config)), must(api.Alpn(must(config.Clone()))))
+	cert := api.Certify(rt.NewBytes([]byte("der")))
+	certLen := must(api.CertLen(cert))
+	fmt.Printf("cert %d %s %d\n", certLen, must(api.CertDer(cert)).Copy(), must(api.ChainLen([]*tls.Cert{api.Certify(rt.NewBytes([]byte("a"))), api.Certify(rt.NewBytes([]byte("bc")))})))
 	session := must(api.Resume("h3", 60))
 	fmt.Printf("resume %s %d\n", must(session.Alpn()), must(session.Lifetime()).Seconds)
 	session.Close()
@@ -679,6 +687,9 @@ func script() {
 	fmt.Printf("lent %d %d\n", must(meter.Add(3)), must(must(meters.First()).Count()))
 	ok(meters.Clear())
 	fmt.Printf("cleared %d\n", must(must(meters.First()).Count()))
+	lastMeter := must(meters.LastGet())
+	_ = must(lastMeter.Add(4))
+	fmt.Printf("field lent %d\n", must(lastMeter.Add(1)))
 	tallies := api.NewTallies()
 	_ = must(must(tallies.First()).Bump())
 	fmt.Printf("tallied %d\n", must(must(tallies.First()).Bump()))
@@ -806,6 +817,7 @@ func script() {
 	same := must(api.Later(began, 0))
 	fmt.Printf("instants %d %d %t %t\n", must(api.Since(ended, began)).Milliseconds(), must(api.Since(began, ended)).Milliseconds(),
 		must(began.Equal(same)), must(began.Equal(ended)))
+	fmt.Printf("has_instant %t %t\n", must(api.HasInstant(began)), must(api.HasInstant(nil)))
 	began.Close()
 	ended.Close()
 	same.Close()

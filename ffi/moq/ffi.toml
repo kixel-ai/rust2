@@ -3,7 +3,6 @@
 # still has to cover. `kio` is moq-net's re-export of all of kio, of which moq-ffi ships
 # only what the facade re-exports.
 exclude = [
-    "Client::connect<moq::transport::memory::Session>",
     "bytes",
     "clock::Deadlines::enter",
     "clock::Entered",
@@ -17,15 +16,11 @@ exclude = [
     "moq_tokio::accept::Health::failed",
     "moq_tokio::quic::Controller::0",
     "moq_tokio::quic::demux::Datagram::local",
-    "moq_tokio::quic::driver::connection::Connection::close_reason",
-    "moq_tokio::quic::driver::connection::Connection::closed",
     "moq_tokio::quic::driver::connection::Connection::congestion_state",
     "moq_tokio::quic::driver::connection::Connection::poll_closed",
-    "moq_tokio::quic::driver::connection::Connection::read_datagram",
     "moq_tokio::quic::driver::recv::Stream::read",
     "moq_tokio::quic::driver::recv::Stream::read_exact",
     "moq_tokio::quic::driver::send::Options::group",
-    "moq_tokio::quic::driver::send::Stream::stopped",
     "moq_tokio::quic::driver::send::Stream::write",
     "moq_tokio::tcp::TlsAcceptor::accept",
     "moq_tokio::tcp::TlsAcceptor::offered",
@@ -69,8 +64,8 @@ exclude = [
     "rustls::ConfigBuilder<moq_tokio::rustls::ServerConfig, moq_tokio::rustls::server::WantsServerCert>",
     "rustls::client::Resumption::store",
     "rustls_pki_types::CertificateDer::from_slice",
+    "rustls_pki_types::Der::from_slice",
     "tokio::server::Config::websocket",
     "tokio::server::Request::within",
-    "tokio::tls::Listen::load_roots",
     "tokio::tls::Serve::resolver",
 ]

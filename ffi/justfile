@@ -376,8 +376,11 @@ standin checkout="":
         src=$(cygpath -m "$src")
     fi
     dir=target/moq-ffi
-    # moq-ffi's dependencies, moq-tokio with its default features as moq-ffi has them.
+    # moq-ffi's dependencies, each with the features moq-ffi turns on, such as moq-mux's
+    # async wrappers, read from its manifest.
     deps=(hang kio moq-mux moq-net moq-pattern moq-tokio)
+    features=$(cd "$src" && cargo metadata --format-version 1 --no-deps \
+        | jq -c '[.packages[] | select(.name == "moq-ffi") | .dependencies[] | select(.kind == null) | {key: .name, value: .features}] | from_entries')
     mkdir -p "$dir/src"
     # Replace a file only when its content changes, so an unchanged stand-in, and the
     # export over it, stay fresh.
@@ -394,7 +397,8 @@ standin checkout="":
         # The prefix of every C name.
         printf '[lib]\nname = "moq"\n\n[dependencies]\n'
         for name in "${deps[@]}"; do
-            printf '%s = { path = "%s/rs/%s" }\n' "$name" "$src" "$name"
+            on=$(jq -r --arg name "$name" '.[$name] // [] | map(@json) | join(", ")' <<< "$features")
+            printf '%s = { path = "%s/rs/%s", features = [%s] }\n' "$name" "$src" "$name" "$on"
         done
         printf '\n[workspace]\n'
         # moq's profiles, which the export carries as it would moq-ffi's own; the dev ones

@@ -403,6 +403,10 @@ Future<void> script() async {
   // The send happens at the call: the future is dropped unawaited.
   channel.sendLater(utf8.encode('eager'));
   print('recv ${text(await channel.recv())}');
+  // The send happens at the call, and the future borrows the channel and the tag.
+  print('tagged ${await channel.tagged('tag')}');
+  print('itemized ${await channel.itemized(Uint32List.fromList([1, 2, 3]))}');
+  print('byte_len ${await api.byteLen(utf8.encode('abc'))}');
   channel.send(utf8.encode('sized'));
   final (payload, size) = await channel.recvSized();
   print('sized ${text(payload)} $size');
@@ -577,6 +581,9 @@ Future<void> script() async {
   print('nudge ${nudged.value.x} ${nudged.value.y}');
   final config = api.secure('h3');
   print('secure ${api.alpnLent(config)} ${api.alpn(config.clone())}');
+  final cert = api.certify(utf8.encode('der'));
+  final certLen = api.certLen(cert);
+  print('cert $certLen ${text(api.certDer(cert))} ${api.chainLen([api.certify(utf8.encode('a')), api.certify(utf8.encode('bc'))])}');
   config.close();
   final session = api.resume('h3', 60);
   print('resume ${session.alpn()} ${session.lifetime().seconds}');
@@ -593,6 +600,10 @@ Future<void> script() async {
   lentMeter.close();
   meters.clear();
   print('cleared ${meters.first().count()}');
+  final lastMeter = meters.lastGet;
+  lastMeter.add(4);
+  print('field lent ${lastMeter.add(1)}');
+  lastMeter.close();
   meters.close();
   final tallies = api.Tallies();
   tallies.first().bump();
@@ -693,6 +704,7 @@ Future<void> script() async {
   final ended = api.later(began, const Duration(milliseconds: 1500));
   final same = api.later(began, Duration.zero);
   print('instants ${api.since(ended, began).inMilliseconds} ${api.since(began, ended).inMilliseconds} ${began == same} ${began == ended}');
+  print('has_instant ${api.hasInstant(began)} ${api.hasInstant(null)}');
   began.close();
   ended.close();
   same.close();
