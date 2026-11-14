@@ -15,7 +15,7 @@ so a JIT has warmed up, in wall time and in the process's CPU time on every thre
 `just ffi bench-run` runs each program once a round, records the 1-minute load average
 over each run, and [`report.py`](report.py) prints each case's median over the rounds
 beside the median load, then the export's build cost and sizes. Each round also times,
-from an emptied target so cargo serves nothing from cache, the export (`rust2-ffi`, which
+from an emptied target and without a compiler cache, the export (`rust2-ffi`, which
 runs `cargo check` of moq under its driver) beside moq's own `cargo check` of the same
 crates, and the generated crate's release build beside moq's own release build, each with
 its peak RSS, through [`measure.py`](measure.py). Nightly runs it on arm64 Linux into
@@ -107,19 +107,21 @@ the Rust floor's included, so read only the 100 B and 1 KiB rows as the bindings
 
 ### Build (median, from an emptied target)
 
-Measured 2026-11-13 at rust2 `79c46e70` plus this harness on the same host, 3 rounds, load
-17 to 30. CPU time sums every process cargo ran; peak RSS is the largest one's.
+Measured 2026-11-13 at rust2 `29e70775` plus this harness on the same host, 3 rounds, load
+17 to 28, with no compiler cache. CPU time sums every process cargo ran; peak RSS is the
+largest one's.
 
 | step | wall s | CPU s | peak RSS | load average |
 |---|---|---|---|---|
-| rust2-ffi's export, a `cargo check` of moq under its driver | 38.7 | 231.5 | 871 MiB | 17 |
-| moq's own `cargo check` of the same crates | 15.3 | 9.6 | 87 MiB | 20 |
-| the generated crate's release build, Kotlin and Dart glue included | 358.2 | 410.8 | 3,168 MiB | 28 |
-| moq's own release build of the same crates | 38.1 | 91.8 | 332 MiB | 24 |
+| rust2-ffi's export, a `cargo check` of moq under its driver | 36.6 | 231.1 | 873 MiB | 20 |
+| moq's own `cargo check` of the same crates | 29.9 | 218.3 | 878 MiB | 24 |
+| the generated crate's release build, Kotlin and Dart glue included | 417.2 | 843.7 | 3,168 MiB | 25 |
+| moq's own release build of the same crates | 94.1 | 542.0 | 1,550 MiB | 27 |
 
-So the export adds about 220 CPU seconds over moq's check, and the generated crate's build
-about 320 over moq's own, with wall near CPU and a 3 GiB peak, as one rustc over the glue
-would show. A consumer pays both on every export.
+The export adds about 13 CPU seconds over the check cargo runs anyway, and no peak memory.
+The generated crate's build adds about 300 CPU seconds and 320 wall seconds over moq's own,
+and doubles the peak, as one long rustc over the glue would: that build, not the export, is
+what a consumer pays on every export.
 
 ### Size
 

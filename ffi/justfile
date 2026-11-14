@@ -120,19 +120,21 @@ bench-run rounds="3":
             target/bench/run.tsv >> "$raw"
     }
     # The export and the generated crate's release build, each beside moq's own of the same
-    # crates, from an emptied target so cargo serves nothing from cache: a step, its round,
-    # wall and CPU seconds, peak RSS in bytes, and the load average.
+    # crates, from an emptied target and without a compiler cache, so nothing is served
+    # cached: a step, its round, wall and CPU seconds, peak RSS in bytes, and the load average.
     builds=target/bench/build.tsv
     : > "$builds"
     scratch=$PWD/target/bench/scratch
     sysroot=$(rustc --print sysroot)
     if [ "{{ os() }}" = macos ]; then libpath=DYLD_LIBRARY_PATH; else libpath=LD_LIBRARY_PATH; fi
+    # Without mbx's Cargo shim, whose compiler cache an emptied target does not empty.
+    uncached=$(echo "$PATH" | tr : '\n' | grep -vxF "${RUST2_CARGO_SHIM:-/nonexistent}" | paste -sd: -)
     measure() {
         local step=$1 before after
         shift
         rm -rf "$scratch/target"
         before=$(load)
-        line=$(CARGO_TARGET_DIR="$scratch/target" python3 -I ../bench/ffi/measure.py "$@")
+        line=$(env -u RUSTC_WRAPPER -u CARGO PATH="$uncached" CARGO_TARGET_DIR="$scratch/target" python3 -I ../bench/ffi/measure.py "$@")
         after=$(load)
         printf '%s\t%s\t%s\t%s\n' "$step" "$r" "$line" "$(echo "$before $after" | awk '{ print ($1 + $2) / 2 }')" >> "$builds"
     }
