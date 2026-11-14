@@ -3190,9 +3190,19 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const shown: rs.Vec<rs.Fmt> = new rs.Vec();
 	const written: rs.Vec<rs.Fmt> = new rs.Vec();
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _17: [rs.usize, rs.u8] | rs.Done = iter.next();
+		let next!: [rs.usize, rs.u8] | rs.Done;
+		next2: {
+			const x2 = leaf.next();
+			if (x2 === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count++, x2];
+		}
+		const _17: [rs.usize, rs.u8] | rs.Done = next;
 		if (_17 === rs.DONE) {
 			break;
 		}

@@ -364,6 +364,40 @@ static bool broken_seek(void *data, int whence, int64_t offset, uint64_t *positi
 	return true;
 }
 
+/* The payload sent last, ready at the first poll. */
+static api_buf received(api_Channel *channel) {
+	api_Channel_recv_future *recv = api_Channel_recv(channel, NULL);
+	api_buf payload = {0};
+	bool ready = api_Channel_recv_poll(recv, (api_waker){0}, &payload) == API_POLL_READY;
+	api_Channel_recv_future_free(recv);
+	return ready ? payload : (api_buf){0};
+}
+
+/* A payload Rust returned goes back to Rust in place: taken whole, taken narrowed to a
+ * range of it, shared by a second owner while kept, and carried in a record. Its bytes
+ * stay where Rust put them, and drop once, with its last owner. */
+static bool forwarding(void) {
+	uint32_t before = api_dropped();
+	api_Channel *channel = api_Channel_new();
+	api_buf payload = api_token_bytes(3, 64);
+	const uint8_t *at = payload.ptr;
+	api_Channel_send(channel, payload, NULL);
+	payload = received(channel);
+	bool same = payload.ptr == at && payload.len == 64;
+	api_Channel_send(channel, (api_buf){.ptr = payload.ptr + 1, .len = 62, .owner = payload.owner}, NULL);
+	payload = received(channel);
+	same = same && payload.ptr == at + 1 && payload.len == 62;
+	api_Channel_send(channel, api_buf_clone(payload), NULL);
+	api_buf shared = received(channel);
+	same = same && shared.ptr == payload.ptr && shared.len == 62;
+	api_buf_free(payload);
+	api_Packet packet = api_next_packet((api_Packet){.seq = 1, .payload = shared});
+	same = same && packet.payload.ptr == at + 1 && api_dropped() == before;
+	api_Packet_free(&packet);
+	api_Channel_free(channel);
+	return same && api_dropped() == before + 1;
+}
+
 static void tail(api_foreign_reader reader) {
 	api_buf bytes;
 	uint64_t at;
@@ -1334,7 +1368,8 @@ static int script(void) {
 
 	/* A path's bytes as the OS holds them, which need not be UTF-8. */
 	api_buf stray = api_stray();
-	api_buf in_stray = api_file(stray, str("f"));
+	/* A second owner of the buffer goes to Rust, which takes it, so stray stays ours. */
+	api_buf in_stray = api_file(api_buf_clone(stray), str("f"));
 	if (in_stray.len != 3 || memcmp(in_stray.ptr, "\xff/f", 3) != 0) {
 		return 1;
 	}
@@ -1387,12 +1422,11 @@ static int script(void) {
 	api_Counter_free(two);
 	api_Counter_free(three);
 
-	/* A value passed for &mut: Rust writes back what the call left, which the caller frees,
-	 * and keeps what it passed. */
+	/* A value passed for &mut: Rust writes back what the call left, which the caller frees.
+	 * A view passed stays the caller's, and a buffer Rust returned Rust takes back. */
 	api_buf encoded, appended;
 	api_put_number(1, str("0,"), &encoded);
 	api_put_number(23, encoded, &appended);
-	api_buf_free(encoded);
 	print("put_number ", appended, "\n");
 	api_tuple_bytes_u32 stamped;
 	uint32_t stamps = api_push_counted((api_tuple_bytes_u32){._0 = str("ab"), ._1 = 1}, 'c', &stamped);
@@ -1403,11 +1437,9 @@ static int script(void) {
 	uint8_t first_digit, last_digit;
 	api_Error digit_error;
 	api_digit(str("7x9"), &digits_left, &first_digit, &digit_error);
-	/* The failed call took a byte too. */
+	/* The failed call took a byte too. Each buffer Rust returned it takes back. */
 	bool skipped = !api_digit(digits_left, &digits_rest, &last_digit, &digit_error);
-	api_buf_free(digits_left);
 	api_digit(digits_rest, &digits_left, &last_digit, &digit_error);
-	api_buf_free(digits_rest);
 	printf("digit %u %s %u %zu\n", first_digit, skipped ? "true" : "false", last_digit, digits_left.len);
 	api_buf_free(digits_left);
 	api_Point nudged = {.x = 1, .y = 2};
@@ -1783,7 +1815,7 @@ static int script(void) {
 	if (drops != 12) {
 		return 1;
 	}
-	return closures() && foreign_futures() && started_futures() ? 0 : 1;
+	return closures() && foreign_futures() && forwarding() && started_futures() ? 0 : 1;
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */

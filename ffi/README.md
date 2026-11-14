@@ -49,6 +49,10 @@ extension the crate builds with `--features python`, `swift/<prefix>.swift` hold
 Swift, over the C header as a clang module, `go/` holds it in Go, a package per crate
 over the C ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
 `dart:ffi` and what the crate builds with `--features dart`.
+An export again rewrites only the files whose content changed, and removes from
+`include/<prefix>/` and `go/` only what it no longer writes, so a build of an unchanged
+export stays fresh. The crate's version, `0.0.0+<hash>`, hashes its Rust sources and
+manifest, so exports that differ build apart in a target directory they share.
 
 ```toml
 # ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.
@@ -108,7 +112,7 @@ refused.
 | `u128` | `<prefix>_u128`: its low and high 64 bits |
 | `NonZero<T>` of an integer but 128-bit | `T`, in every binding too; a zero passed in aborts, and `Option<NonZero<T>>` is `T`'s option |
 | `[u8; N]` | `<prefix>_array_u8_<N>`: a struct of its `N` bytes, `items`, copied across; an empty one, or one of any other element, is refused |
-| `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: a view passed in, an owned buffer returned |
+| `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: an owned buffer returned; passed in, a view, or a buffer Rust returned, which Rust takes back without a copy unless it sits behind a pointer or in an array; `<prefix>_buf_clone` shares one the caller keeps, which a `Vec<u8>`, `String`, or `PathBuf` parameter then copies, since only a sole owner's allocation becomes a `Vec` |
 | `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them on Unix, which need not be UTF-8, else UTF-8 |
 | `Duration` | `<prefix>_duration` |
 | `SocketAddr`, `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr`: its IP's bytes, port, and whether it is IPv6; one of the other family passed to `V4` or `V6` aborts |
@@ -519,18 +523,20 @@ out, with only its other fields encoded.
 - **Records** are data classes, compared by their fields, and **enums** an `enum class`,
   or for one with data a sealed class of a data class per variant. `Display` is
   `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`.
-- **Bytes** passed in are a `ByteArray`, copied, as are those Rust lends a closure or trait
-  method. Bytes Rust returns, or a record holds, are a `Bytes`, read only through `size`,
+- **Bytes** are a `Bytes`. Passed in, Rust's own are shared with no copy, and Kotlin's,
+  which `Bytes(ByteArray)` holds without a copy, are copied once into a buffer Rust takes,
+  at a call's top level or in a record; those Rust lends a closure or trait method are
+  copied. A `Bytes` is read only through `size`,
   `get`, `slice`, `copyInto`, and `toByteArray()`, so no view of Rust's memory escapes and
   no read meets it freed. Up to 1 KiB are copied, which costs less than the GC's cleanup;
   longer ones stay in Rust's buffer, each read a JNI call that passes the buffer's owner,
   which JNI keeps reachable until the call returns, and are freed once the GC finds no
   `Bytes` reaching them, slices included. The GC sees none of Rust's buffers, so at most
   64 MiB are lent at once, freed or not; past that, longer ones are copied too, and that
-  garbage in Kotlin's heap runs the GC, which frees them. `Bytes(ByteArray)` holds
-  Kotlin's for a record passed in. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
+  garbage in Kotlin's heap runs the GC, which frees them. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
   record holding bytes does too; Rust's lent ones are copied across in one call to compare.
-  Strings are `String`, `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
+  Strings are `String`, passed in as their UTF-16, which Rust encodes once into UTF-8 as
+  `encodeToByteArray` does, a lone surrogate as `?`; `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
   target's range, `Option<T>` `T?`, a tuple `Pair` or
   `Triple`, or else a generated `Tuple<n>`, and also `Tuple2` or `Tuple3` when it holds a
   numeric array or a float anywhere, records included, since `Pair` and `Triple` cannot
@@ -733,9 +739,13 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   values, all `Sendable`. `PartialEq` is `==`, through Rust's; `Display` is `description`,
   `Debug` `debugDescription`, each throwing as an object's does when it holds a checked
   one, and `Default` a static `default()`.
-- **Bytes** are `Data`. Passed in at a call's top level, Rust reads Swift's own; nested in
-  another value, they are copied in. Bytes Rust returns lend its buffer until Swift
-  releases the `Data`, though `Data` copies a few bytes inline, freeing Rust's at once.
+- **Bytes** are the runtime's `Bytes`, a `RandomAccessCollection` of `UInt8` whose slices
+  are `Bytes` too. Bytes Rust returns lend its buffer until Swift releases the last `Bytes`
+  or slice reading it, and pass back to Rust as a second owner of it, with no copy, except
+  as an array's items or behind a pointer, which Rust only reads and so copies. Swift's
+  own, made with `Bytes(data)` or from any sequence of bytes, Rust copies once where it
+  keeps them. `bytes.data` is a `Data`: Swift's as they are, and Rust's copied, so nothing
+  writes into a buffer Rust shares.
   Strings are `String`, copied, `char` `Unicode.Scalar`, `usize` `UInt`, `Option<T>` `T?`,
   a tuple a Swift tuple, though a tuple of one is its element, `u128` a `U128` of its
   `high` and `low` halves until the deployment target allows `UInt128`, and `Duration`
@@ -956,8 +966,10 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 - **Integers** are `int`. A narrower one passed in throws a `RangeError` when out of its
   range, and a `u64` passes its 64 bits, so one past `i64`'s range is negative in Dart.
   A `char` is a `String` of one Unicode scalar.
-- **Bytes** a call takes are a `Uint8List`, and text a `String`, each copied into a
-  buffer the call frees. Bytes Rust returns are a `Uint8List` owned by Dart's memory
+- **Bytes** a call takes are a `Uint8List`, and text a `String`. Rust keeps Dart's own
+  with one copy from 1 KiB, into a buffer Rust takes, and with two below, since allocating
+  Rust's buffer costs more there than the second copy; a lent `Uint8List` Rust returned
+  passes back as a second owner of Rust's buffer, with no copy. Bytes Rust returns are a `Uint8List` owned by Dart's memory
   manager: up to 64 KiB copied, with Rust's freed at the call, and a longer one an
   unmodifiable view of Rust's buffer, freed once neither it nor any view of it is
   reachable, so no view outlives its memory. A lent view costs a finalizer and charges the

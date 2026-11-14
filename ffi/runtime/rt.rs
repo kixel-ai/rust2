@@ -172,8 +172,10 @@ impl Opaque {
 	}
 }
 
-/// Bytes across the ABI. Passed in, a view Rust copies or borrows for the call and never
-/// frees. Returned, an owned buffer the caller frees once. A null `ptr` is `None`.
+/// Bytes across the ABI. Returned, an owned buffer the caller frees once. Passed in by
+/// value, one with an owner is Rust's own, which it takes without a copy, and one without
+/// is a view it copies or borrows for the call; behind a pointer, as an array's items are,
+/// it is only read. A null `ptr` is `None`.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Buf {
@@ -204,6 +206,113 @@ impl Buf {
 			(true, _) => fail(what, "a buffer has a length but no pointer"),
 			// SAFETY: the caller's contract.
 			(false, len) => unsafe { std::slice::from_raw_parts(self.ptr, len) },
+		}
+	}
+
+	/// The bytes a caller passed in: taken without a copy where `take` and it has an
+	/// owner, else copied, leaving the caller's buffer as it was.
+	///
+	/// # Safety
+	/// As [`Self::bytes`], and an owner, where `take`, came from [`Self::owned`] and is
+	/// freed by nothing else.
+	pub unsafe fn bytes_in(self, what: &str, take: bool) -> bytes::Bytes {
+		match take && !self.owner.is_null() {
+			// SAFETY: the caller's contract.
+			true => unsafe { self.take(what) },
+			// SAFETY: the caller's contract.
+			false => bytes::Bytes::copy_from_slice(unsafe { self.bytes(what) }),
+		}
+	}
+
+	/// As [`Self::bytes_in`], as a `Vec`, which reuses an owner's allocation it alone holds.
+	///
+	/// # Safety
+	/// As [`Self::bytes_in`].
+	pub unsafe fn vec_in(self, what: &str, take: bool) -> Vec<u8> {
+		match take && !self.owner.is_null() {
+			// SAFETY: the caller's contract.
+			true => Vec::from(unsafe { self.take(what) }),
+			// SAFETY: the caller's contract.
+			false => unsafe { self.bytes(what) }.to_vec(),
+		}
+	}
+
+	/// As [`Self::vec_in`], checked to be UTF-8.
+	///
+	/// # Safety
+	/// As [`Self::bytes_in`].
+	pub unsafe fn string_in(self, what: &str, take: bool) -> String {
+		// SAFETY: the caller's contract.
+		match String::from_utf8(unsafe { self.vec_in(what, take) }) {
+			Ok(s) => s,
+			Err(_) => fail(what, "a string is not UTF-8"),
+		}
+	}
+
+	/// As [`Self::vec_in`], as a path: its bytes as the OS holds them on Unix, else UTF-8.
+	///
+	/// # Safety
+	/// As [`Self::bytes_in`].
+	pub unsafe fn path_in(self, what: &str, take: bool) -> std::path::PathBuf {
+		#[cfg(unix)]
+		{
+			use std::os::unix::ffi::OsStringExt;
+			// SAFETY: the caller's contract.
+			std::path::PathBuf::from(std::ffi::OsString::from_vec(unsafe { self.vec_in(what, take) }))
+		}
+		#[cfg(not(unix))]
+		{
+			// SAFETY: the caller's contract.
+			std::path::PathBuf::from(unsafe { self.string_in(what, take) })
+		}
+	}
+
+	/// The bytes a caller passed in for the call alone: taken where it has an owner, which
+	/// they free after, else borrowed.
+	///
+	/// # Safety
+	/// As [`Self::bytes_in`] taking.
+	pub unsafe fn hold<'a>(self, what: &str) -> Hold<'a> {
+		match self.owner.is_null() {
+			// SAFETY: the caller's contract; a view lives as long as the call.
+			true => Hold::Lent(unsafe { std::slice::from_raw_parts(self.bytes(what).as_ptr(), self.len) }),
+			// SAFETY: the caller's contract.
+			false => Hold::Owned(unsafe { self.take(what) }),
+		}
+	}
+
+	/// The bytes an owned buffer holds, taken from its owner: `ptr` and `len` may be any
+	/// range of them, as a caller slices a buffer Rust returned.
+	///
+	/// # Safety
+	/// `owner` came from [`Self::owned`], and is freed by nothing else.
+	unsafe fn take(self, what: &str) -> bytes::Bytes {
+		// SAFETY: the caller's contract.
+		let bytes = *unsafe { Box::from_raw(self.owner.cast::<bytes::Bytes>()) };
+		let start = (self.ptr as usize).wrapping_sub(bytes.as_ptr() as usize);
+		match self.len {
+			0 => bytes::Bytes::new(),
+			// Whole, as is: a slice of bytes made from a `Vec` would allocate to share them.
+			len if start == 0 && len == bytes.len() => bytes,
+			_ if start <= bytes.len() && self.len <= bytes.len() - start => bytes.slice(start..start + self.len),
+			_ => fail(what, "a buffer's bytes are not its owner's"),
+		}
+	}
+
+	/// A second owner of an owned buffer's bytes, sharing them: what a caller passes Rust
+	/// while it keeps the buffer.
+	///
+	/// # Safety
+	/// `owner` came from [`Self::owned`], and is not yet freed.
+	pub unsafe fn share(self, what: &str) -> Self {
+		if self.owner.is_null() {
+			fail(what, "a buffer has no owner to share");
+		}
+		// SAFETY: the caller's contract.
+		let bytes = unsafe { &*self.owner.cast::<bytes::Bytes>() };
+		Self {
+			owner: Box::into_raw(Box::new(bytes.clone())).cast(),
+			..self
 		}
 	}
 
@@ -293,11 +402,7 @@ impl Buf {
 			fail(what, "a returned buffer is not one buf_copy made");
 		}
 		// SAFETY: the caller's contract.
-		let bytes = *unsafe { Box::from_raw(self.owner.cast::<bytes::Bytes>()) };
-		match String::from_utf8(Vec::from(bytes)) {
-			Ok(string) => string,
-			Err(_) => fail(what, "a string is not UTF-8"),
-		}
+		unsafe { self.string_in(what, true) }
 	}
 
 	/// Free a buffer Rust returned; a view or `None` frees nothing.
@@ -308,6 +413,42 @@ impl Buf {
 		if !self.owner.is_null() {
 			// SAFETY: the caller's contract.
 			drop(unsafe { Box::from_raw(self.owner.cast::<bytes::Bytes>()) });
+		}
+	}
+}
+
+/// Bytes passed in for a call: a view borrowed for it, or a buffer Rust took, freed after.
+pub enum Hold<'a> {
+	Lent(&'a [u8]),
+	Owned(bytes::Bytes),
+}
+
+impl Hold<'_> {
+	pub fn bytes(&self) -> &[u8] {
+		match self {
+			Self::Lent(bytes) => bytes,
+			Self::Owned(bytes) => bytes,
+		}
+	}
+
+	pub fn str(&self, what: &str) -> &str {
+		match std::str::from_utf8(self.bytes()) {
+			Ok(s) => s,
+			Err(_) => fail(what, "a string is not UTF-8"),
+		}
+	}
+
+	/// The path these hold: its bytes as the OS holds them on Unix, else UTF-8.
+	pub fn path(&self, what: &str) -> &std::path::Path {
+		#[cfg(unix)]
+		{
+			use std::os::unix::ffi::OsStrExt;
+			let _ = what;
+			std::path::Path::new(std::ffi::OsStr::from_bytes(self.bytes()))
+		}
+		#[cfg(not(unix))]
+		{
+			std::path::Path::new(self.str(what))
 		}
 	}
 }

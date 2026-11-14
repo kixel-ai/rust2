@@ -1220,9 +1220,54 @@ Future<void> lent() async {
     pressure();
   }
   check(api.dropped() == before + 2, 'the garbage collector frees bytes once');
+  // Read after, so `big` stays reachable and its drop counts in none of forwarded's checks.
+  await forwarded();
   check(big[65536] == 1, 'lent bytes read back while reachable');
   print('bytes ok');
 }
+
+/// Bytes Rust lent pass back to Rust in place, sent and carried in a record, so a payload
+/// read and written on holds Rust's one buffer, freed once with its last owner: a copy
+/// anywhere would free the token with the first list.
+Future<void> forwarded() async {
+  final before = api.dropped();
+  final channel = api.Channel();
+  Uint8List? held = await relay(channel);
+  final canary = [api.Token(9)];
+  for (var i = 0; i < 3; i++) {
+    pressure();
+  }
+  canary.clear();
+  await collect(() => api.dropped() > before, 'the garbage collector frees an old object');
+  // Collections enough to free every list the relay left, had one held a copy.
+  for (var i = 0; i < 3; i++) {
+    pressure();
+    await step();
+  }
+  check(api.dropped() == before + 1, 'bytes forwarded hold the buffer Rust lent');
+  check(held.length == 65537 && held.every((b) => b == 5), 'forwarded bytes read back');
+  held = null;
+  await collect(() => api.dropped() >= before + 2, 'the garbage collector frees forwarded bytes');
+  for (var i = 0; i < 3; i++) {
+    pressure();
+  }
+  check(api.dropped() == before + 2, 'forwarded bytes free once');
+  channel.close();
+}
+
+/// Lent bytes sent through `channel`, received, and carried on in a packet, whose lists
+/// nothing else keeps.
+@pragma('vm:never-inline')
+Future<Uint8List> relay(api.Channel channel) async {
+  send(channel);
+  return carry(await channel.recv());
+}
+
+@pragma('vm:never-inline')
+void send(api.Channel channel) => channel.send(api.tokenBytes(5, 65537));
+
+@pragma('vm:never-inline')
+Uint8List carry(Uint8List payload) => api.nextPacket(api.Packet(seq: 1, payload: payload)).payload;
 
 /// A view of returned bytes, whose list nothing else keeps.
 @pragma('vm:never-inline')

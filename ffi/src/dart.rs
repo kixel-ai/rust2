@@ -136,6 +136,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		("target", "", "ffi.Uint32", "", "int"),
 		("buf_free", "_Buf", "ffi.Void", "_Buf p0", "void"),
 		("buf_copy", "_Buf", "_Buf", "_Buf p0", "_Buf"),
+		("buf_clone", "_Buf", "_Buf", "_Buf p0", "_Buf"),
+		("dart_buf", "ffi.Size", "_Buf", "int p0", "_Buf"),
 		(
 			"dart_init",
 			"ffi.Pointer<ffi.Void>",
@@ -248,6 +250,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 			"buf_free" => "_bufFree".to_string(),
 			"buf_copy" => "_bufCopy".to_string(),
 			"status_message" => "_statusMessage".to_string(),
+			"buf_clone" => "_bufClone".to_string(),
 			other => format!("_{}", camel(other)),
 		};
 		let symbol = match name.strip_prefix("dart") {
@@ -296,6 +299,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_owner_free(owner: *mut c_void) {{\n\tunsafe {{ rt::Buf {{ ptr: std::ptr::null(), len: 0, owner }}.free() }}\n}}\n\n\
 		unsafe extern \"C\" {{\n\tfn malloc(len: usize) -> *mut c_void;\n\tfn free(ptr: *mut c_void);\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_alloc(len: usize) -> *mut c_void {{\n\tlet ptr = unsafe {{ malloc(len) }};\n\tif ptr.is_null() {{\n\t\tstd::alloc::handle_alloc_error(std::alloc::Layout::array::<u8>(len).expect(\"a length\"));\n\t}}\n\tptr\n}}\n\n\
+		#[unsafe(no_mangle)]\npub extern \"C\" fn {space}_buf(len: usize) -> rt::Buf {{\n\trt::Buf::vec(vec![0; len])\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_free(ptr: *mut c_void) {{\n\tunsafe {{ free(ptr) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_abort(text: rt::Buf) {{\n\trt::fail(\"dart\", unsafe {{ text.str(\"{space}_abort\") }})\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_reader_read(data: *mut c_void, buf: *mut u8, len: usize, n: *mut usize, err: *mut rt::Buf) -> bool {{\n\tunsafe {{ runtime::reader_read(data, buf, len, n, err) }}\n}}\n\n\
@@ -917,16 +921,17 @@ impl<'a> Gen<'a> {
 	}
 
 	/// Statements writing the Dart value `e` of type `ty` into the C place `dst`, a
-	/// struct's field or element: bytes copied into the arena `a_`, and handles held by it.
-	fn write(&mut self, ty: &Type, e: &str, dst: &str) -> String {
+	/// struct's field or element: handles held by the arena `a_`, and bytes given to Rust
+	/// where `take`, the Dart `bool` whether Rust takes the value, else viewed.
+	fn write(&mut self, ty: &Type, e: &str, dst: &str, take: &str) -> String {
 		let abi = self.abi;
 		let c = abi.ty(ty);
 		if Self::scalar(&c) {
 			return format!("{dst} = {};", self.lower(ty, e));
 		}
 		match ty.base() {
-			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.string({dst}, {e});"),
-			Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e});"),
+			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.string({dst}, {e}, {take});"),
+			Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e}, {take});"),
 			Type::U128 => format!("_n.u128({dst}, {e});"),
 			Type::Duration => format!("_n.duration({dst}, {e});"),
 			Type::Array(_) => format!("{e}._write({dst});"),
@@ -939,17 +944,19 @@ impl<'a> Gen<'a> {
 				format!("_n.addr({dst}, {e}, '{family}');")
 			}
 			Type::Option(inner) => match inner.base() {
-				Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.string({dst}, {e});"),
-				Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e});"),
+				Type::Str | Type::String | Type::Path | Type::PathBuf => {
+					format!("a_.string({dst}, {e}, {take});")
+				}
+				Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e}, {take});"),
 				Type::List(..) => {
 					let c = self.c_name(inner);
 					let w = self.writer(&c, inner.base());
-					format!("{w}({e}, {dst}, a_);")
+					format!("{w}({e}, {dst}, a_, {take});")
 				}
 				_ => {
 					let c = abi.option(inner);
 					let w = self.writer(&c, ty.base());
-					format!("{w}({e}, {dst}, a_);")
+					format!("{w}({e}, {dst}, a_, {take});")
 				}
 			},
 			Type::Record(_)
@@ -961,7 +968,7 @@ impl<'a> Gen<'a> {
 			| Type::Bounds(_) => {
 				let c = self.c_name(ty.base());
 				let w = self.writer(&c, ty.base());
-				format!("{w}({e}, {dst}, a_);")
+				format!("{w}({e}, {dst}, a_, {take});")
 			}
 			other => unreachable!("{other:?} is never nested"),
 		}
@@ -999,7 +1006,7 @@ impl<'a> Gen<'a> {
 				for field in &record.fields {
 					let e = format!("v.{}", field_name(&field.name));
 					let dst = format!("c.${}", abi::escape(&field.name));
-					lines.push(self.write(&field.ty, &e, &dst));
+					lines.push(self.write(&field.ty, &e, &dst, "t"));
 				}
 				lines.join("\n\t")
 			}
@@ -1019,7 +1026,7 @@ impl<'a> Gen<'a> {
 					for field in &variant.fields {
 						let e = format!("v.{}", field_name(&field.name));
 						let dst = format!("c.$u.${member}.${}", abi::escape(&field.name));
-						body.push(self.write(&field.ty, &e, &dst));
+						body.push(self.write(&field.ty, &e, &dst, "t"));
 					}
 					lines.push(format!(
 						"if (v is {case}) {{\n\t\t{}\n\t\treturn;\n\t}}",
@@ -1029,7 +1036,7 @@ impl<'a> Gen<'a> {
 				lines.join("\n\t")
 			}
 			Type::Option(inner) => {
-				let some = self.write(inner, "v", "c.$value");
+				let some = self.write(inner, "v", "c.$value", "t");
 				format!("if (v == null) {{\n\t\tc.$some = false;\n\t}} else {{\n\t\tc.$some = true;\n\t\t{some}\n\t}}")
 			}
 			// A block is copied whole into the arena.
@@ -1044,7 +1051,8 @@ impl<'a> Gen<'a> {
 				let nt = self.nt(&elem_c);
 				let item = match Self::scalar(&elem_c) {
 					true => format!("p[i] = {};", self.lower(elem, "v[i]")),
-					false => self.write(elem, "v[i]", "p[i]"),
+					// An array's items are behind its pointer, which Rust only reads.
+					false => self.write(elem, "v[i]", "p[i]", "false"),
 				};
 				format!(
 					"if (v == null) {{\n\t\tc.$ptr = ffi.nullptr;\n\t\tc.$len = 0;\n\t\tc.$owner = ffi.nullptr;\n\t\treturn;\n\t}}\n\tfinal p = a_<{nt}>(v.isEmpty ? 1 : v.length);\n\tfor (var i = 0; i < v.length; i++) {{\n\t\t{item}\n\t}}\n\tc.$ptr = p;\n\tc.$len = v.length;\n\tc.$owner = ffi.nullptr;"
@@ -1053,7 +1061,7 @@ impl<'a> Gen<'a> {
 			Type::Tuple(elements) => {
 				let mut lines = Vec::new();
 				for (n, element) in elements.iter().enumerate() {
-					lines.push(self.write(element, &format!("v.${}", n + 1), &format!("c.$_{n}")));
+					lines.push(self.write(element, &format!("v.${}", n + 1), &format!("c.$_{n}"), "t"));
 				}
 				lines.join("\n\t")
 			}
@@ -1074,8 +1082,8 @@ impl<'a> Gen<'a> {
 				let bound = Type::Bound(*int);
 				format!(
 					"{}\n\t{}",
-					self.write(&bound, "v.start", "c.$start"),
-					self.write(&bound, "v.end", "c.$end")
+					self.write(&bound, "v.start", "c.$start", "t"),
+					self.write(&bound, "v.end", "c.$end", "t")
 				)
 			}
 			other => unreachable!("{other:?} has no writer"),
@@ -1086,7 +1094,7 @@ impl<'a> Gen<'a> {
 		};
 		self.helpers.insert(
 			name.clone(),
-			format!("void {name}({dt}{nullable} v, {class} c, _Arena a_) {{\n\t{body}\n}}\n\n"),
+			format!("void {name}({dt}{nullable} v, {class} c, _Arena a_, bool t) {{\n\t{body}\n}}\n\n"),
 		);
 		name
 	}
@@ -1500,7 +1508,8 @@ impl<'a> Gen<'a> {
 		let nt = self.nt(c);
 		let write = match Self::scalar(c) {
 			true => format!("{s}.value = {};", self.lower(ty, e)),
-			false => self.write(ty, e, &format!("{s}.ref")),
+			// Read through a pointer, so Rust takes nothing of it.
+			false => self.write(ty, e, &format!("{s}.ref"), "false"),
 		};
 		(format!("final {s} = a_<{nt}>();\n\t\t\t{write}\n\t\t\t"), s)
 	}
@@ -2044,6 +2053,9 @@ impl<'a> Gen<'a> {
 		// so every other one that may throw is lowered before, and a call that throws gives
 		// Rust nothing.
 		let mut gave = false;
+		// Whether the call is given a value Rust takes, whose buffers the arena frees
+		// unless the call returns.
+		let mut gives = false;
 		let names = abi::distinct(function.params.iter().map(|param| param_name(&param.name)));
 		let mut writes = Vec::new();
 		for (k, (param, name)) in function.params.iter().zip(names).enumerate() {
@@ -2058,7 +2070,8 @@ impl<'a> Gen<'a> {
 					false => {
 						let v = format!("c{k}_");
 						let nt = self.nt(c);
-						let write = self.write(inner, &value, &format!("{v}.ref"));
+						gives = true;
+						let write = self.write(inner, &value, &format!("{v}.ref"), "true");
 						pre.push(format!("final {v} = a_<{nt}>();\n{write}"));
 						args.push(format!("{v}.ref"));
 					}
@@ -2111,7 +2124,14 @@ impl<'a> Gen<'a> {
 				(ty, c) => {
 					let v = format!("c{k}_");
 					let nt = self.nt(c);
-					let write = self.write(ty, &name, &format!("{v}.ref"));
+					// Rust takes what a call is passed by value, and only reads a borrow.
+					let take = match ty {
+						Type::Ref(..) => "false",
+						Type::Option(inner) if matches!(**inner, Type::Ref(..)) => "false",
+						_ => "true",
+					};
+					gives |= take == "true";
+					let write = self.write(ty, &name, &format!("{v}.ref"), take);
 					pre.push(format!("final {v} = a_<{nt}>();\n{write}"));
 					args.push(format!("{v}.ref"));
 				}
@@ -2188,18 +2208,18 @@ impl<'a> Gen<'a> {
 			inner.push("final o_f_ = a_<ffi.Pointer<ffi.Void>>();".to_string());
 			start_args.push("o_f_".to_string());
 			let started = indent(&started.join("\n"));
-			match status {
-				true => {
-					start_args.push("s_".to_string());
-					inner.push(format!("final p_ = {start_fn}({});", start_args.join(", ")));
-					inner.push(check.clone());
-					inner.push(format!("switch (p_) {{\n{started}\n}}"));
-				}
-				false => inner.push(format!(
-					"switch ({start_fn}({})) {{\n{started}\n}}",
-					start_args.join(", ")
-				)),
+			if status {
+				start_args.push("s_".to_string());
 			}
+			inner.push(format!("final started_ = {start_fn}({});", start_args.join(", ")));
+			// Rust took what it was given, even for a call its check refuses.
+			if gives {
+				inner.push("a_.took();".to_string());
+			}
+			if status {
+				inner.push(check.clone());
+			}
+			inner.push(format!("switch (started_) {{\n{started}\n}}"));
 			body.push(format!("final c_ = _Call<{ok_dt}>._({free_fn}, {poll_name});"));
 			body.push(format!(
 				"final a_ = _Arena();\ntry {{\n{}\n}} finally {{\n\ta_.end();\n}}",
@@ -2218,6 +2238,11 @@ impl<'a> Gen<'a> {
 				call_args.push("s_".to_string());
 			}
 			let call = format!("{call_fn}({})", call_args.join(", "));
+			// Rust took what it was given, even for a call its check refuses.
+			let took = match gives {
+				true => "\na_.took();",
+				false => "",
+			};
 			let checked = |inner: &mut Vec<String>| {
 				if status {
 					inner.push(check.clone());
@@ -2225,7 +2250,7 @@ impl<'a> Gen<'a> {
 			};
 			match (&err, &ok) {
 				(Some(err), ok) => {
-					inner.push(format!("final ok_ = {call};"));
+					inner.push(format!("final ok_ = {call};{took}"));
 					checked(&mut inner);
 					inner.extend(writes);
 					let ready = match ok {
@@ -2241,19 +2266,19 @@ impl<'a> Gen<'a> {
 					));
 				}
 				(None, Type::Unit) => {
-					inner.push(format!("{call};"));
+					inner.push(format!("{call};{took}"));
 					checked(&mut inner);
 					inner.extend(writes);
 				}
 				// A value C returns beside what Rust wrote back is its return, as with none.
 				(None, ok) if outs.len() > writes.len() => {
-					inner.push(format!("{call};"));
+					inner.push(format!("{call};{took}"));
 					checked(&mut inner);
 					inner.extend(writes);
 					inner.push(format!("return {};", self.lift_outs(&function.ok, ok)));
 				}
 				(None, ok) => {
-					inner.push(format!("final r_ = {call};"));
+					inner.push(format!("final r_ = {call};{took}"));
 					checked(&mut inner);
 					inner.extend(writes);
 					inner.push(format!("return {};", self.lift(ok, "r_")));

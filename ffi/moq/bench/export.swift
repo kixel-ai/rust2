@@ -86,7 +86,7 @@ struct Reads: ~Copyable {
 /// byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
 func throughput(_ track: TrackProducer, _ subscriber: inout TrackSubscriber, _ at: Timestamp, _ size: Int) async throws -> (Span, Int) {
 	let count = min(max((64 << 20) / (size * frames), 3), 2000)
-	let frame = Data(count: size)
+	let frame = Bytes(Data(count: size))
 	var sum = 0
 	let start = now()
 	for _ in 0..<count {
@@ -106,7 +106,7 @@ func round() throws -> ([(String, Span)], Int) {
 	var out: [(String, Span)] = []
 	let broadcast = try BroadcastInfo.new().produce()
 	let track = try broadcast.createTrack("bench", TrackInfo.default().withTimescale(Timescale.MICRO))
-	let frame = Data(count: 100)
+	let frame = Bytes(Data(count: 100))
 	var sum = 0
 
 	var start = now()
@@ -273,7 +273,7 @@ func round() throws -> ([(String, Span)], Int) {
 	precondition(done.value == true)
 	out.append(("drained", per(start)))
 
-	// The last frame's 100 bytes, copied into a Data, and one of them read.
+	// The last frame's 100 bytes, returned as Bytes, and one of them read.
 	start = now()
 	for _ in 0..<n {
 		sum += try Int(last.payloadGet[0])

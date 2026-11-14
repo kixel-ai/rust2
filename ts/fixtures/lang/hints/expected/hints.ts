@@ -2031,14 +2031,23 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			walk$str_Bytes(rs.strBytes(s.v), steps, out);
 		} else {
 			const t: rs.String = rs.stringClone(s);
-			const _379: rs.RangeFrom<rs.usize> = new rs.RangeFrom(rs.iterSum(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(bytes, 0, rs.usizeDiv(bytes.length, 2)))), (_231: rs.u8): rs.usize => {
+			const leaf = rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(bytes, 0, rs.usizeDiv(bytes.length, 2))));
+			const f = (_231: rs.u8): rs.usize => {
 				const _512: rs.usize = rs.u8Rem(_231, 4) as rs.usize;
 				if (!(_512 < 4)) {
 					rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _512);
 				}
 				return [1, 2, 4, 3][_512];
-			}), rs.usizeAdd, 0), rs.usizeStep);
-			walk$string_Drain(rs.stringDrain(t, _379), steps, out);
+			};
+			let acc: rs.usize = 0;
+			while (true) {
+				const x = leaf.next();
+				if (x === rs.DONE) {
+					break;
+				}
+				acc = rs.usizeAdd(acc, f(x));
+			}
+			walk$string_Drain(rs.stringDrain(t, new rs.RangeFrom(acc, rs.usizeStep)), steps, out);
 		}
 	} else if (_37 === 17) {
 		const size: rs.usize = rs.usizeAdd(rs.usizeRem(at(1) as rs.usize, 4), 1);
