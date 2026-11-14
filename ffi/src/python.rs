@@ -1343,8 +1343,12 @@ impl<'a> Gen<'a> {
 		self.register(&c, name.clone());
 		let mut body = Vec::new();
 		let mut table = vec!["free: Some(rt::free_callback)".to_string()];
+		let mut names: Vec<String> = Vec::new();
 		for (n, method) in callback.methods.iter().enumerate() {
-			let member = member(&abi::snake(method.name()), &[]);
+			// A name an earlier method took, its own takes a trailing `_` against.
+			let reserved: Vec<&str> = names.iter().map(String::as_str).collect();
+			let member = member(&abi::snake(method.name()), &reserved);
+			names.push(member.clone());
 			crate::lock::function(&mut self.locked, method, &member);
 			let params: Vec<String> = std::iter::once("self".to_string())
 				.chain(
@@ -2134,5 +2138,7 @@ mod tests {
 		assert_eq!(member("joined", &[]), "joined");
 		assert_eq!(member("bytes", &[]), "bytes");
 		assert_eq!(member("name", &["name"]), "name_");
+		// A callback's `_int` then `_int_` keep apart: the second reserves the first's name.
+		assert_eq!(member("_int_", &[member("_int", &[]).as_str()]), "_int__");
 	}
 }
