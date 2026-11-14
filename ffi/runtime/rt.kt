@@ -3,7 +3,7 @@
 // objects own, what frees them once collected, and the waker futures park on.
 
 /** Encodes values as the library's JNI glue decodes them: little-endian, field by field. */
-class _Writer {
+class __Writer {
 	private var b: java.nio.ByteBuffer = java.nio.ByteBuffer.allocate(64).order(java.nio.ByteOrder.LITTLE_ENDIAN)
 
 	private fun room(n: Int) {
@@ -184,19 +184,19 @@ class _Writer {
 		}
 	}
 
-	private var held: java.util.ArrayList<_Handle>? = null
+	private var held: java.util.ArrayList<__Handle>? = null
 
 	// What holds Rust's bytes encoded in place, which the GC must not free before [release].
 	private var kept: java.util.ArrayList<Any?>? = null
 
 	/** An object's handle, held until [release], or 0 for none. */
-	fun handle(v: _Handle?) {
+	fun handle(v: __Handle?) {
 		if (v == null) {
 			i64(0L)
 			return
 		}
 		i64(v.hold())
-		(held ?: java.util.ArrayList<_Handle>().also { held = it }).add(v)
+		(held ?: java.util.ArrayList<__Handle>().also { held = it }).add(v)
 	}
 
 	fun finish(): ByteArray = b.array().copyOf(b.position())
@@ -208,7 +208,7 @@ class _Writer {
 	}
 
 	/** Run [block] with this writer, releasing its handles once it returns. */
-	inline fun <R> use(block: (_Writer) -> R): R {
+	inline fun <R> use(block: (__Writer) -> R): R {
 		try {
 			return block(this)
 		} finally {
@@ -218,7 +218,7 @@ class _Writer {
 }
 
 /** Decodes what the library's JNI glue encodes. */
-class _Reader(private val b: java.nio.ByteBuffer) {
+class __Reader(private val b: java.nio.ByteBuffer) {
 	constructor(bytes: ByteArray) : this(java.nio.ByteBuffer.wrap(bytes))
 
 	init { b.order(java.nio.ByteOrder.LITTLE_ENDIAN) }
@@ -282,7 +282,7 @@ class _Reader(private val b: java.nio.ByteBuffer) {
 	/** Bytes Rust handed over, copied or lent by their owner, or null for none. */
 	fun owned(): Bytes? = when (val n = b.getInt()) {
 		-1 -> null
-		LENT -> Bytes(_Lent(b.getLong()), b.getInt())
+		LENT -> Bytes(__Lent(b.getLong()), b.getInt())
 		else -> Bytes(ByteArray(n).also { b.get(it) })
 	}
 
@@ -336,12 +336,12 @@ class _Reader(private val b: java.nio.ByteBuffer) {
  * reference, which one daemon thread takes off one queue, as every JVM and Android level
  * has. Freeing first is the fast path, and [untrack] makes it the only one.
  */
-abstract class _Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owner, QUEUE) {
+abstract class __Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owner, QUEUE) {
 	// The GC enqueues only a reference still reachable, so each is linked from its stripe's
 	// head until freed. The stripe is the making thread's, so threads making objects
 	// at once rarely share a lock, and a free from any thread finds it in [stripe].
-	private var prev: _Cleanup? = null
-	private var next: _Cleanup? = null
+	private var prev: __Cleanup? = null
+	private var next: __Cleanup? = null
 	// Final, so a thread the object reaches unsafely still sees it.
 	private val stripe = STRIPES[java.lang.Thread.currentThread().hashCode() and (STRIPES.size - 1)]
 
@@ -375,7 +375,7 @@ abstract class _Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owner
 		val QUEUE = java.lang.ref.ReferenceQueue<Any>()
 		/** One lock and list of the tracked. */
 		class Stripe {
-			@JvmField var head: _Cleanup? = null
+			@JvmField var head: __Cleanup? = null
 		}
 
 		// A power of two, past the cores a phone or most servers have.
@@ -383,7 +383,7 @@ abstract class _Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owner
 
 		init {
 			val thread = java.lang.Thread({
-				while (true) (QUEUE.remove() as _Cleanup).collected()
+				while (true) (QUEUE.remove() as __Cleanup).collected()
 			}, "rust2-ffi cleaner")
 			thread.isDaemon = true
 			thread.start()
@@ -396,8 +396,8 @@ abstract class _Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owner
  * only once no call does, and a call after [close] throws. An owned one is closed once
  * the GC collects [owner], if nothing closed it.
  */
-class _Handle(owner: Any, internal val raw: Long, private val free: _Drop?, private val type: String) :
-	_Cleanup(if (free == null) null else owner) {
+class __Handle(owner: Any, internal val raw: Long, private val free: __Drop?, private val type: String) :
+	__Cleanup(if (free == null) null else owner) {
 	// The holds, one for the owner until closed and one per call, shifted past a bit set
 	// once closed: one word, so a handle allocates nothing beside itself.
 	@Volatile @JvmField internal var state = HELD
@@ -454,14 +454,14 @@ class _Handle(owner: Any, internal val raw: Long, private val free: _Drop?, priv
 	private companion object {
 		const val CLOSED = 1L
 		const val HELD = 2L
-		val STATE: java.util.concurrent.atomic.AtomicLongFieldUpdater<_Handle> =
-			java.util.concurrent.atomic.AtomicLongFieldUpdater.newUpdater(_Handle::class.java, "state")
+		val STATE: java.util.concurrent.atomic.AtomicLongFieldUpdater<__Handle> =
+			java.util.concurrent.atomic.AtomicLongFieldUpdater.newUpdater(__Handle::class.java, "state")
 	}
 }
 
 /** A waker Rust returned: [wake] wakes it through Rust until [close], or the GC, drops it. */
-class _Returned(raw: Long) : Waker, AutoCloseable {
-	private val handle = _Handle(this, raw, _Drop { __waker_drop(it) }, "Waker")
+class __Returned(raw: Long) : Waker, AutoCloseable {
+	private val handle = __Handle(this, raw, __Drop { __waker_drop(it) }, "Waker")
 
 	override fun wake() = handle.hold { __waker_wake(it) }
 
@@ -469,7 +469,7 @@ class _Returned(raw: Long) : Waker, AutoCloseable {
 }
 
 /** Frees a raw handle: a `fun interface`, so the handle crosses unboxed. */
-fun interface _Drop {
+fun interface __Drop {
 	fun drop(raw: Long)
 }
 
@@ -479,13 +479,13 @@ fun interface _Drop {
  * returns: a fence on every JVM and Android level, where `Reference.reachabilityFence`
  * needs API 28.
  */
-class _Lent(internal val owner: Long) {
+class __Lent(internal val owner: Long) {
 	init {
-		_Free(this, owner)
+		__Free(this, owner)
 	}
 }
 
-private class _Free(lent: _Lent, private val owner: Long) : _Cleanup(lent) {
+private class __Free(lent: __Lent, private val owner: Long) : __Cleanup(lent) {
 	init {
 		track()
 	}
@@ -509,18 +509,18 @@ const val TEXT = -4
 fun owned(given: Any?): Bytes? = when (given) {
 	null -> null
 	is ByteArray -> Bytes(given)
-	else -> (given as kotlin.LongArray).let { Bytes(_Lent(it[0]), it[1].toInt()) }
+	else -> (given as kotlin.LongArray).let { Bytes(__Lent(it[0]), it[1].toInt()) }
 }
 
 /** Run [block] with the raw handle of [handle], or 0 for none, held until it returns. */
-inline fun <R> hold(handle: _Handle?, block: (Long) -> R): R = when (handle) {
+inline fun <R> hold(handle: __Handle?, block: (Long) -> R): R = when (handle) {
 	null -> block(0L)
 	else -> handle.hold(block)
 }
 
 /** A waker a future parks on, which latches a wake that lands before it parks. */
 // The atomic itself, so a call allocates one object for it.
-class _Signal : java.util.concurrent.atomic.AtomicReference<Any?>(null), Waker {
+class __Signal : java.util.concurrent.atomic.AtomicReference<Any?>(null), Waker {
 	override fun wake() {
 		val parked = getAndSet(WOKEN)
 		if (parked !is kotlinx.coroutines.CancellableContinuation<*>) return
@@ -561,7 +561,7 @@ class _Signal : java.util.concurrent.atomic.AtomicReference<Any?>(null), Waker {
  * or by Rust, it ends unfinished: Rust never sees it done, so a call the caller cancelled
  * reports the caller's cancel.
  */
-class _Pollable(
+class __Pollable(
 	private val body: suspend () -> Unit,
 	private val context: kotlin.coroutines.CoroutineContext,
 ) : AutoCloseable {
@@ -598,7 +598,7 @@ class _Pollable(
 		return false
 	}
 
-	/** [context] without its job, on a dispatcher that defers, as [_Signal] resumes on. */
+	/** [context] without its job, on a dispatcher that defers, as [__Signal] resumes on. */
 	private fun dispatched(): kotlin.coroutines.CoroutineContext {
 		val bare = context.minusKey(kotlinx.coroutines.Job)
 		val dispatcher = bare[kotlin.coroutines.ContinuationInterceptor] as? kotlinx.coroutines.CoroutineDispatcher
@@ -651,10 +651,10 @@ class _Pollable(
 }
 
 /** A completed native future, including one whose value is null. */
-class _Ready(val value: Any?)
+class __Ready(val value: Any?)
 
 /** A native future still waiting on its waker node. */
-class _Pending(val raw: Long, val node: Long)
+class __Pending(val raw: Long, val node: Long)
 
 /**
  * Await the future the call that returned [first] made and polled once with [signal]:
@@ -663,12 +663,12 @@ class _Pending(val raw: Long, val node: Long)
  */
 suspend fun await(
 	first: Any?,
-	signal: _Signal,
+	signal: __Signal,
 	poll: (Long, Long) -> Any?,
 	free: (Long) -> Unit,
 ): Any? {
-	if (first is _Ready) return first.value
-	val pending = first as _Pending
+	if (first is __Ready) return first.value
+	val pending = first as __Pending
 	val raw = pending.raw
 	val node = pending.node
 	try {
@@ -676,7 +676,7 @@ suspend fun await(
 			signal.park()
 			signal.reset()
 			val done = poll(raw, node)
-			if (done != null) return (done as _Ready).value
+			if (done != null) return (done as __Ready).value
 		}
 	} finally {
 		free(raw)
@@ -688,7 +688,7 @@ suspend fun await(
  * Equality as Rust's `==` has it, apart from the exported functions, which a nested object's
  * members never overload.
  */
-object _Eq {
+object __Eq {
 	/**
 	 * Whether [a] and [b] are equal as Rust's `==` compares them: primitive arrays, lists, and
 	 * tuples by their contents, and floats by IEEE `==`, so NaN equals nothing and -0.0 equals

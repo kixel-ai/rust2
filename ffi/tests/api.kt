@@ -1427,7 +1427,7 @@ fun clash() {
 	check(Clash.String("hi").raw().toByteArray().decodeToString() == "hi", "clash bytes")
 	val out = Mut(0u)
 	check(Clash.Int(4).describe("t", 3u, Shape.SQUARE, out) == "t Int(4) 3 Square" && out.value == 6u, "clash describe")
-	check(Handle.new(5u).use { it.count() } == 5u, "an object named as a former runtime class")
+	check(Handle.new(5u).use { it.count() } == 5u && runBlocking { Handle.later(6u) }.use { it.count() } == 6u, "an object named as a former runtime class")
 }
 
 fun returns() {

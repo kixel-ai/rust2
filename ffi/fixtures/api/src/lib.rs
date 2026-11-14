@@ -3471,4 +3471,8 @@ impl Handle {
 	pub fn count(&self) -> u32 {
 		self.count
 	}
+
+	pub async fn later(count: u32) -> Self {
+		Handle { count }
+	}
 }
