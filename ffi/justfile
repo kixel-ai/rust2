@@ -556,10 +556,17 @@ standin checkout="":
     update "$dir/src/lib.rs.new" "$dir/src/lib.rs"
     # moq's lockfile pins what moq's own builds use.
     cmp -s "$src/Cargo.lock" "$dir/Cargo.lock" || cp "$src/Cargo.lock" "$dir/Cargo.lock"
-    # The sources' revision and uncommitted changes, which a staged API must share.
+    # The sources' contents, which a staged API must share: the tree of every file git
+    # does not ignore, untracked ones included, built in a scratch index so the
+    # checkout's own stays untouched.
     rm -f "$dir/source"
     if git -C "$src" rev-parse --verify --quiet HEAD > /dev/null; then
-        { git -C "$src" rev-parse HEAD; git -C "$src" diff HEAD | git hash-object --stdin; } > "$dir/source"
+        gitdir=$(git -C "$src" rev-parse --absolute-git-dir)
+        index="$gitdir/rust2-source-index"
+        if [ -f "$gitdir/index" ]; then cp "$gitdir/index" "$index"; else rm -f "$index"; fi
+        GIT_INDEX_FILE="$index" git -C "$src" add -A
+        GIT_INDEX_FILE="$index" git -C "$src" write-tree > "$dir/source"
+        rm -f "$index"
     fi
 
 # Check out the pinned moq revision in target/moq, apart from `just ts`'s so neither recipe touches the other's checkout, copying the objects its clone already has.
