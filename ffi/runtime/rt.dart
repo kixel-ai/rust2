@@ -312,19 +312,35 @@ bool _readerSeek(
   }
 }
 
-/// A waker Rust returned, which its own drop releases once the garbage collector finds
-/// this unreachable.
-final class _Returned implements ffi.Finalizable {
+/// A waker Rust returned: calling it wakes through Rust, and `close()` drops it, rather
+/// than the garbage collector once it finds this unreachable.
+final class Waker extends _Object {
   final void Function(ffi.Pointer<ffi.Void>) _wake;
-  final ffi.Pointer<ffi.Void> _data;
+  final void Function(ffi.Pointer<ffi.Void>) _drop;
+  final ffi.NativeFinalizer _finalizer;
 
-  _Returned(_Waker raw)
+  Waker._(_Waker raw)
       : _wake = raw.wake.cast<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>().asFunction(),
-        _data = raw.data {
-    _n.finalizer(raw.drop).attach(this, _data);
+        _drop = raw.drop.cast<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>().asFunction(),
+        _finalizer = _n.finalizer(raw.drop),
+        super(raw.data, true) {
+    _finalizer.attach(this, _raw, detach: this);
   }
 
-  void call() => _wake(_data);
+  @override
+  String get _type => 'Waker';
+
+  @override
+  void _free() {
+    _finalizer.detach(this);
+    _drop(_raw);
+  }
+
+  /// Wake the task through Rust: a call after [close] throws [StateError].
+  void call() {
+    _wake(_hold());
+    _release();
+  }
 }
 
 /// A callback's table and data, as each trait's struct is.
@@ -665,10 +681,6 @@ final class _Native {
 
   ffi.NativeFinalizer finalizer(ffi.Pointer<ffi.Void> drop) =>
       _finalizers.putIfAbsent(drop.address, () => ffi.NativeFinalizer(drop.cast()));
-
-  /// A waker Rust returned, as a function waking it through Rust until the garbage
-  /// collector drops it.
-  void Function() returned(_Waker raw) => _Returned(raw).call;
 
   /// `wake` as a waker Rust holds until it drops it, calling it on the isolate's event
   /// loop.

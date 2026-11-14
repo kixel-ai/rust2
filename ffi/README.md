@@ -1003,7 +1003,9 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   `Waiter.pollFuture` does. Rust dropping it cancels it if it is a `Cancelable` still
   running, and one that fails while Rust holds it aborts.
 - A **waker** is a `void Function()`, which runs on the isolate's event loop. One Rust
-  returns wakes through Rust, and the garbage collector drops it.
+  returns is a `Waker`, an object whose `call()` wakes through Rust and whose `close()`
+  drops it; one never closed is dropped once the garbage collector finds it unreachable,
+  and the isolate's own waker keeps the isolate alive until then.
 - **Threads**: Dart runs code only on its isolate's thread, so Rust reaches it from any
   other through the isolate's port, and waits for its event loop to run the call. While
   Rust holds an implementation, a closure, or a reader of the isolate, each call into Rust, a
