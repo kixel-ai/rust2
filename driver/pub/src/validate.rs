@@ -324,7 +324,24 @@ fn differences(expected: &Sites, actual: &Sites, edits: &Edits) -> Result<Vec<(P
 mod tests {
 	use std::path::PathBuf;
 
-	use super::{Edits, original};
+	use super::{Edits, Sites, differences, original};
+
+	#[test]
+	fn a_name_resolving_elsewhere_differs_and_a_shifted_one_does_not() {
+		let file = PathBuf::from("/x.rs");
+		// `pub fn len` narrowed at 0: the call at 40 moves to 47 and still resolves to
+		// [1, 1]; the call at 60 moves to 67 and now resolves to [2, 2].
+		let edits = Edits::from([(file.clone(), vec![0])]);
+		let expected = Sites::from([(7, vec![(file.clone(), 40, 43, [1, 1]), (file.clone(), 60, 63, [1, 1])])]);
+		let actual = Sites::from([(7, vec![(file.clone(), 47, 50, [1, 1]), (file.clone(), 67, 70, [2, 2])])]);
+		let found = differences(&expected, &actual, &edits).unwrap();
+		assert_eq!(found.len(), 1);
+		let (place, before, after) = &found[0];
+		assert_eq!((place.lo, place.hi), (60, 63));
+		assert_eq!((before.as_slice(), after.as_slice()), (&[[1, 1]][..], &[[2, 2]][..]));
+		// A crate the narrowed check did not compile is an error, not a pass.
+		assert!(differences(&expected, &Sites::new(), &edits).is_err());
+	}
 
 	#[test]
 	fn narrowed_offsets_map_back() {

@@ -6,8 +6,7 @@ Work that waits on evidence or has no consumer yet: two waits on upstream's buil
 levers ([relink](/quest/m3/relink.md) and [TPDE](/quest/m3/tpde.md)) and
 [the benchmark on bare metal](/quest/m3/bench-metal.md), the translator's features that
 wait on [the gate](/quest/m2/wasm/README.md), the binding targets planned ahead of a
-consumer, what waits on moq, [crabx's GitHub App](/quest/m3/crabx-app.md), and
-[the public-visibility audit](/quest/m3/pub-audit.md).
+consumer, what waits on moq, and [crabx's GitHub App](/quest/m3/crabx-app.md).
 
 ## Plan
 
@@ -50,7 +49,7 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
 
 The [dead `pub` spike](https://github.com/kixel-ai/rust2/pull/763) finished on
 2026-11-13 with a go for a compiler-validated audit that preserves original resolved
-references, planned in [the public-visibility audit](/quest/m3/pub-audit.md). The raw
+references, which [rust2-pub](/driver/pub/README.md) now is. The raw
 graph still fails moq publicity checks. A compiler-only narrowing loop can silently
 redirect method dispatch: the native fixture changes 99 to 3, while the graph
 retains the original method. Neither alone is an automatic cleanup tool, and

@@ -1,7 +1,7 @@
 //! Joins every compiled unit's facts into one graph of definitions, decides what reaches
 //! each from the workspaces' entry points, and which `pub` tokens no other crate needs.
 
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
@@ -40,7 +40,7 @@ pub struct Def {
 	pub span: Option<Place>,
 	/// Whether another crate can name it.
 	pub exported: bool,
-	/// Exported from a library that crates outside the audit may use.
+	/// Part of a library's API that crates or tools outside the audit may use.
 	pub external: bool,
 	pub symbol: bool,
 	pub category: Category,
@@ -71,7 +71,8 @@ pub enum Verdict {
 	Narrow,
 	/// Another crate in the audit names one of its definitions.
 	CrossCrate,
-	/// One of its definitions is the API of a library crates outside the audit may use.
+	/// One of its definitions is the API of a library crates or tools outside the audit
+	/// may use.
 	External,
 	/// One of its definitions is a symbol code outside Rust links to.
 	Symbol,
@@ -94,13 +95,7 @@ impl Audit {
 			.iter()
 			.flat_map(|w| w.local.iter().map(|(dir, p)| (dir.as_path(), p)))
 			.collect();
-		// Every local package another depends on, across the workspaces.
-		let depended: Vec<&Path> = workspaces
-			.iter()
-			.flat_map(|w| &w.local)
-			.filter(|(_, p)| !p.dependents.is_empty())
-			.map(|(dir, _)| dir.as_path())
-			.collect();
+		let consumed = consumed(&packages);
 		let mut defs: Vec<Def> = Vec::new();
 		let mut keys: HashMap<(String, Option<Place>, String, String), usize> = HashMap::new();
 		let mut hashes = HashMap::new();
@@ -112,11 +107,11 @@ impl Audit {
 		};
 		for unit in units {
 			let package = packages.get(unit.package.as_path()).copied();
-			// A library's API is its own to decide unless the audit holds every crate
-			// that may use it: one no registry publishes, a member of an audited
-			// workspace, that another audited package depends on to build.
-			let open = package.is_none_or(|p| p.publishable || !p.member)
-				|| !depended.contains(&unit.package.as_path());
+			// A published library's API is what it exports. An unpublished one the audit
+			// does not run is used outside cargo's view, as a translator's fixture is by
+			// the translator, which may read any of its source.
+			let published = package.is_some_and(|p| p.publishable);
+			let foreign = unit.lib && !published && !consumed.contains(unit.package.as_path());
 			for def in &unit.defs {
 				let span = def.span.map(|s| place(unit, s));
 				let key = (unit.crate_name.clone(), span.clone(), def.kind.clone(), def.path.clone());
@@ -137,7 +132,7 @@ impl Audit {
 				});
 				let joined = &mut defs[index];
 				joined.exported |= unit.lib && def.exported;
-				joined.external |= unit.lib && def.exported && open;
+				joined.external |= foreign || unit.lib && def.exported && published;
 				joined.symbol |= def.symbol;
 				hashes.insert(def.hash, index);
 				if let Some(token) = def.token {
@@ -236,6 +231,25 @@ impl Audit {
 			})
 			.collect::<Result<_, String>>()?;
 		Ok(Self { defs, tokens, hashes })
+	}
+}
+
+/// The packages the audit consumes: those with a binary, which run, and the unpublished
+/// workspace members such a package builds on.
+fn consumed<'a>(packages: &BTreeMap<&'a Path, &Package>) -> BTreeSet<&'a Path> {
+	let mut consumed: BTreeSet<&Path> = packages.iter().filter(|(_, p)| p.bin && p.member).map(|(d, _)| *d).collect();
+	loop {
+		let more: Vec<&Path> = packages
+			.iter()
+			.filter(|(dir, p)| {
+				!consumed.contains(*dir) && p.member && p.dependents.iter().any(|d| consumed.contains(d.as_path()))
+			})
+			.map(|(d, _)| *d)
+			.collect();
+		if more.is_empty() {
+			return consumed;
+		}
+		consumed.extend(more);
 	}
 }
 

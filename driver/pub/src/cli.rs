@@ -25,9 +25,10 @@ The workspaces are those of each --manifest-path, ./Cargo.toml by default; give 
 to audit crates they share as one. Cargo args select what to check, as for
 `cargo check`; they default to --workspace --all-targets.
 
-A library's API stays `pub` when crates outside the audit may use it: when a registry
-may publish its package, or its package is not a member of an audited workspace, or no
-other audited package depends on it to build, rather than only to test it.";
+A library's API stays `pub` when crates or tools outside the audit may use it: what a
+published library exports, and all of an unpublished library the audit does not run,
+which only a package with a binary does, and the unpublished members it builds on. A
+translator's fixture is such a library.";
 
 pub fn run(args: &[String]) -> ExitCode {
 	match try_run(args) {

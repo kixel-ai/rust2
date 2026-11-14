@@ -18,7 +18,7 @@ enum Outcome {
 	Narrowed,
 	/// Proposed, then restored by what the check found.
 	Restored,
-	/// Exported from a library crates outside the audit may use.
+	/// The API of a library crates or tools outside the audit may use.
 	External,
 	/// Named by another crate.
 	CrossCrate,

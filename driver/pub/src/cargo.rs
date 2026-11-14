@@ -27,6 +27,8 @@ pub struct Package {
 	pub publishable: bool,
 	/// Whether it is a member of the workspace.
 	pub member: bool,
+	/// Whether it has a binary, which the audit's packages are consumed by running.
+	pub bin: bool,
 	/// The directories of the local packages that depend on it other than to test it.
 	pub dependents: BTreeSet<PathBuf>,
 }
@@ -46,6 +48,12 @@ struct MetaPackage {
 	manifest_path: PathBuf,
 	source: Option<String>,
 	publish: Option<Vec<String>>,
+	targets: Vec<Target>,
+}
+
+#[derive(Deserialize)]
+struct Target {
+	kind: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -104,6 +112,7 @@ impl Workspace {
 					id: package.id.clone(),
 					publishable: package.publish.as_ref().is_none_or(|registries| !registries.is_empty()),
 					member: meta.workspace_members.contains(&package.id),
+					bin: package.targets.iter().any(|t| t.kind.iter().any(|k| k == "bin")),
 					dependents: BTreeSet::new(),
 				},
 			);
