@@ -864,7 +864,9 @@ impl<'a> Gen<'a> {
 					_ => wrap(e),
 				}
 			}
-			Ty::Struct(name) if opaque_of(self.abi, c).is_some_and(|o| one_word(&o)) => format!("{}({e})", self.qualified(name)),
+			Ty::Struct(name) if opaque_of(self.abi, c).is_some_and(|o| one_word(&o)) => {
+				format!("{}({e})", self.qualified(name))
+			}
 			Ty::Buf => match (decode(ty), matches!(ty.base(), Type::Option(_)), lent) {
 				(Some(decode), true, _) => format!("{e}?.{decode}"),
 				(Some(decode), false, _) => format!("{e}!!.{decode}"),
@@ -888,8 +890,9 @@ impl<'a> Gen<'a> {
 		match c {
 			Ty::Int(int) => to_signed(*int, e),
 			Ty::Buf => format!("{e}.encodeToByteArray()"),
-			Ty::Struct(_) if let Some(opaque) = opaque_of(self.abi, c)
-				&& one_word(&opaque) =>
+			Ty::Struct(_)
+				if let Some(opaque) = opaque_of(self.abi, c)
+					&& one_word(&opaque) =>
 			{
 				format!("{e}.{}", holders(&opaque)[0])
 			}
@@ -1356,7 +1359,11 @@ impl<'a> Gen<'a> {
 					let others: Vec<String> = holders.iter().map(|h| format!("other.{h}")).collect();
 					(
 						vec![("jlong", "Long"); words.len()],
-						format!("crate::{c}_eq(&{}, &{})", from_kotlin(&opaque, a), from_kotlin(&opaque, b)),
+						format!(
+							"crate::{c}_eq(&{}, &{})",
+							from_kotlin(&opaque, a),
+							from_kotlin(&opaque, b)
+						),
 						format!("_Native.{bare}_eq({}, {})", holders.join(", "), others.join(", ")),
 					)
 				}
@@ -1541,7 +1548,10 @@ impl<'a> Gen<'a> {
 	fn opaque(&mut self, c: &str, name: &str, opaque: &Opaque, docs: &str, body: &str) {
 		let words = opaque.words();
 		let holders = holders(opaque);
-		let fields: Vec<String> = holders.iter().map(|h| format!("@JvmField internal val {h}: Long")).collect();
+		let fields: Vec<String> = holders
+			.iter()
+			.map(|h| format!("@JvmField internal val {h}: Long"))
+			.collect();
 		let head = match word(opaque) {
 			true => format!("@kotlin.jvm.JvmInline\nvalue class {name} internal constructor(internal val bits: Long)"),
 			false => format!("class {name} internal constructor({})", fields.join(", ")),
@@ -1882,8 +1892,9 @@ impl<'a> Gen<'a> {
 				Ty::Enum(_) => ("i", format!("p{k}")),
 				Ty::Handle { .. } => ("j", format!("p{k} as usize as jlong")),
 				Ty::Buf => ("l", format!("unsafe {{ rt::lent(env, p{k}) }}")),
-				Ty::Struct(_) if let Some(opaque) = opaque_of(self.abi, c)
-					&& one_word(&opaque) =>
+				Ty::Struct(_)
+					if let Some(opaque) = opaque_of(self.abi, c)
+						&& one_word(&opaque) =>
 				{
 					("j", to_kotlin(&opaque, &format!("p{k}"), 0))
 				}
@@ -1928,8 +1939,9 @@ impl<'a> Gen<'a> {
 			Ty::Char => "ret as u32".to_string(),
 			// A buffer Rust frees, as `buf_copy` makes one.
 			Ty::Buf => "crate::rt::Buf::vec(rt::bytes(env, ret).unwrap_or_default())".to_string(),
-			Ty::Struct(_) if let Some(opaque) = opaque_of(self.abi, &c_ok)
-				&& one_word(&opaque) =>
+			Ty::Struct(_)
+				if let Some(opaque) = opaque_of(self.abi, &c_ok)
+					&& one_word(&opaque) =>
 			{
 				from_kotlin(&opaque, &["ret".to_string()])
 			}
@@ -3268,8 +3280,9 @@ fn to_kotlin(opaque: &Opaque, e: &str, k: u64) -> String {
 /// The Rust expression returning to Kotlin a value `ret` of type `ok` that C returns as `c`.
 fn ret_expr(abi: &Abi<'_>, c: &Ty, ok: &Type) -> String {
 	match c {
-		Ty::Struct(_) if let Some(opaque) = opaque_of(abi, c)
-			&& one_word(&opaque) =>
+		Ty::Struct(_)
+			if let Some(opaque) = opaque_of(abi, c)
+				&& one_word(&opaque) =>
 		{
 			to_kotlin(&opaque, "ret", 0)
 		}
