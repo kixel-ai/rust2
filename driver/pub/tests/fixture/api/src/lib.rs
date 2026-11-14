@@ -115,6 +115,11 @@ mod inner {
 	pub fn past_glob() -> u32 {
 		23
 	}
+
+	/// Kept, unreached: `prelude::*` supplies it to app's dead code alone.
+	pub fn past_live_glob() -> u32 {
+		25
+	}
 }
 
 /// Kept: app imports `reexported` through it.
@@ -133,6 +138,8 @@ pub mod prelude {
 	pub use crate::inner::through_glob;
 	/// Narrowed: app's glob supplies it, but app never names it.
 	pub use crate::inner::past_glob;
+	/// Kept, unreached: app's glob supplies it to dead code alone.
+	pub use crate::inner::past_live_glob;
 }
 
 /// Kept: app drains one generically.
@@ -303,4 +310,25 @@ pub use hidden::m as alias;
 /// Kept, unreached: only app's dead code calls it, beside an import of a live function.
 pub fn only_dead() -> u32 {
 	21
+}
+
+mod outer {
+	mod parts {
+		/// External: facade re-exports it, through the glob below.
+		pub struct Part;
+
+		/// Narrowed: the glob supplies it to `size` alone, whose body is not API.
+		pub const SIZE: u32 = 2;
+	}
+
+	/// External: facade's re-export of `Part` goes through it.
+	pub use parts::*;
+}
+
+/// External: facade re-exports it.
+pub use outer::Part;
+
+/// Narrowed: nothing calls it.
+pub fn size() -> u32 {
+	outer::SIZE
 }

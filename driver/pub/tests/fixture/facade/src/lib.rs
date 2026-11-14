@@ -14,3 +14,6 @@ pub use api::Shape;
 
 /// External: this library's API, which exposes all of extra's.
 pub extern crate extra;
+
+/// External: this library's API, re-exported from api through a glob there.
+pub use api::Part;

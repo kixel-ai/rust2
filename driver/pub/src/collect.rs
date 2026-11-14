@@ -22,7 +22,7 @@ use rustc_span::source_map::{FileLoader, RealFileLoader};
 use rustc_span::{FileName, SyntaxContext, kw};
 use rustc_structures::CrateType;
 
-use crate::facts::{self, Def, Edits, Expansion, Hash, Impl, Printed, Ref, Site, Unit};
+use crate::facts::{self, Def, Edits, Expansion, Hash, Impl, Import, Printed, Ref, Site, Unit};
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
 pub fn run(args: Vec<String>) -> ExitCode {
@@ -185,7 +185,8 @@ struct Collector<'tcx> {
 	typeck: Option<&'tcx TypeckResults<'tcx>>,
 	/// Each pair's first site, and whether any of its references is in the interface.
 	refs: FxHashMap<(Hash, Hash), (Option<facts::Span>, bool)>,
-	imports: FxHashSet<[Hash; 2]>,
+	/// What each import supplies, and the re-exports it went through.
+	imports: FxHashMap<[Hash; 2], Vec<Hash>>,
 	sites: Vec<Site>,
 	/// The expansions already traced to their macros, per owner.
 	traced: FxHashSet<(LocalDefId, SyntaxContext)>,
@@ -204,7 +205,7 @@ impl<'tcx> Collector<'tcx> {
 			owner: rustc_hir::def_id::CRATE_DEF_ID,
 			typeck: None,
 			refs: FxHashMap::default(),
-			imports: FxHashSet::default(),
+			imports: FxHashMap::default(),
 			sites: Vec::new(),
 			traced: FxHashSet::default(),
 			expansions: Vec::new(),
@@ -348,7 +349,15 @@ impl<'tcx> Collector<'tcx> {
 			files: this.files,
 			defs,
 			refs,
-			imports: this.imports.into_iter().collect(),
+			imports: this
+				.imports
+				.into_iter()
+				.map(|([import, supplied], through)| Import {
+					import,
+					supplied,
+					through,
+				})
+				.collect(),
 			sites: this.sites,
 			roots,
 			impls,
@@ -722,46 +731,48 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// What the glob import that is the owner supplied from each of `named`: only the
-	/// names rustc resolved through it, with the re-exports they went through.
-	fn glob(&mut self, named: &[Res]) {
+	/// names rustc resolved through it, with the re-exports they went through. None is a
+	/// reference: one live name would revive all it supplied, and one name another crate
+	/// re-exports through it would make all it supplied that crate's API.
+	fn glob(&mut self, named: &[Res]) -> Vec<DefId> {
 		let tcx = self.tcx;
+		let mut supplied = Vec::new();
 		let Some(names) = tcx.resolutions(()).glob_map.get(&self.owner) else {
-			return;
+			return supplied;
 		};
 		for &res in named {
 			match res {
 				Res::Def(DefKind::Mod, module) => {
-					for child in tcx.module_children(module) {
-						if !names.contains(&child.ident.name) {
-							continue;
-						}
+					let children = match module.as_local() {
+						Some(local) => tcx.module_children_local(local),
+						None => tcx.module_children(module),
+					};
+					for child in children.iter().filter(|c| names.contains(&c.ident.name)) {
 						if let Some(def) = child.res.opt_def_id() {
-							self.import(def);
-						}
-						for reexport in &child.reexport_chain {
-							if let Some(id) = reexport.id() {
-								self.refer(id, None);
-							}
+							let through = child.reexport_chain.iter().filter_map(|r| r.id());
+							self.import(def, through.map(|id| self.hash(id)).collect());
+							supplied.push(def);
 						}
 					}
 				}
 				Res::Def(DefKind::Enum, adt) => {
 					for variant in tcx.adt_def(adt).variants() {
 						if names.contains(&variant.name) {
-							self.import(variant.def_id);
+							self.import(variant.def_id, Vec::new());
+							supplied.push(variant.def_id);
 						}
 					}
 				}
 				_ => {}
 			}
 		}
+		supplied
 	}
 
-	/// The owner, an import, supplies `def`, and is live once it is.
-	fn import(&mut self, def: DefId) {
+	/// The owner, an import, supplies `def` through the re-exports `through`.
+	fn import(&mut self, def: DefId, through: Vec<Hash>) {
 		let pair = [self.hash(self.owner.to_def_id()), self.hash(def)];
-		self.imports.insert(pair);
-		self.refer(def, None);
+		self.imports.entry(pair).or_default().extend(through);
 	}
 
 	/// Refer to what each of `segments` names, and the re-exports each is named through,
@@ -785,9 +796,11 @@ impl<'tcx> Collector<'tcx> {
 		prev
 	}
 
-	/// An import, its list's paths continuing after the module `prev` names.
-	fn use_tree(&mut self, tree: &hir::UseTree<'tcx>, prev: Option<DefId>) {
+	/// An import, its list's paths continuing after the module `prev` names. Returns
+	/// what it supplies: a list, all its paths do, since it holds their `pub`.
+	fn use_tree(&mut self, tree: &hir::UseTree<'tcx>, prev: Option<DefId>) -> Vec<DefId> {
 		let mut module = prev;
+		let mut supplied = Vec::new();
 		if let Some((last, init)) = tree.prefix.segments.split_last() {
 			let parent = self.segments(init, prev, false);
 			// The last segment names one thing in each namespace, which the import's
@@ -804,27 +817,33 @@ impl<'tcx> Collector<'tcx> {
 				}
 				self.refer(def, Some(last.ident.span));
 				if let UseKind::Single(_) = tree.kind {
-					self.import(def);
+					self.import(def, Vec::new());
+					supplied.push(def);
 				}
 				if let DefKind::Mod = kind {
 					module = Some(def);
 				}
 			}
 			if let UseKind::Glob = tree.kind {
-				self.glob(&named);
+				supplied = self.glob(&named);
 			}
 		}
 		if let UseKind::Nested { items } = tree.kind {
 			for &(ref item, _, def) in items {
-				self.with_owner(def, |this| this.use_tree(item, module));
+				supplied.extend(self.with_owner(def, |this| this.use_tree(item, module)));
+			}
+			for &def in &supplied {
+				self.import(def, Vec::new());
 			}
 		}
+		supplied
 	}
 
-	fn with_owner(&mut self, owner: LocalDefId, walk: impl FnOnce(&mut Self)) {
+	fn with_owner<T>(&mut self, owner: LocalDefId, walk: impl FnOnce(&mut Self) -> T) -> T {
 		let outer = std::mem::replace(&mut self.owner, owner);
-		walk(self);
+		let result = walk(self);
 		self.owner = outer;
+		result
 	}
 }
 

@@ -68,6 +68,11 @@ fn fixture() {
 	expect("Area", "external", "unreached");
 	expect("Area::value", "external", "unreached");
 	expect("Area::doubled", "external", "unreached");
+	// A glob that is external API, as facade's re-export through it makes it, exposes
+	// what its module exports, not all it supplies.
+	expect("outer::{use parts}", "cross-crate", "unreached");
+	expect("outer::parts::Part", "cross-crate", "unreached");
+	expect("outer::parts::SIZE", "narrowed", "unreached");
 	// `pub extern crate` exposes the whole crate.
 	expect("exposed", "external", "unreached");
 	expect("extra", "external", "unreached");
@@ -107,6 +112,20 @@ fn fixture() {
 	expect("inner::through_glob", "cross-crate", "cross-crate");
 	expect("prelude::{use crate::inner::past_glob}", "narrowed", "unreached");
 	expect("inner::past_glob", "narrowed", "unreached");
+	// So does a glob of a module or enum of its own crate.
+	expect("tools::tool", "narrowed", "crate-only");
+	expect("crate::{use tools}", "narrowed", "crate-only");
+	expect("crate::{use Mode}", "narrowed", "crate-only");
+	// One live name it supplies revives no other.
+	expect("inner::past_live_glob", "cross-crate", "unreached");
+	expect(
+		"prelude::{use crate::inner::past_live_glob}",
+		"cross-crate",
+		"unreached",
+	);
+	// A list holds its paths' `pub`, live once one of theirs is.
+	expect("crate::{use listed}", "narrowed", "crate-only");
+	expect("listed::listed_dead", "narrowed", "unreached");
 	// A token in an exported macro goes wherever its callers outside the audit expand it.
 	expect("made", "external", "crate-only");
 	// Offsets on disk, past CRLFs rustc reads as LF.

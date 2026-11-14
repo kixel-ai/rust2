@@ -115,12 +115,46 @@ payload!((pub) fn payload_text);
 #[allow(dead_code, unused_imports)]
 fn dead_import() -> u32 {
 	use api::drops;
-	api::only_dead()
+	api::only_dead() + past_live_glob()
 }
 
 // External: the token is in an exported macro of extra, whose callers outside the audit
 // get it too.
 extra::make!(made);
+
+mod tools {
+	/// Narrowed, crate-only: main calls it through a glob of its module.
+	pub fn tool() -> u32 {
+		24
+	}
+}
+
+/// Narrowed, crate-only: main calls `tool` through it.
+pub use tools::*;
+
+mod listed {
+	/// Narrowed, crate-only: main calls it through the list below.
+	pub fn listed() -> u32 {
+		26
+	}
+
+	/// Narrowed, unreached: listed beside it, but nothing calls it.
+	pub fn listed_dead() -> u32 {
+		27
+	}
+}
+
+/// Narrowed, crate-only: main calls `listed` through it.
+pub use listed::{listed, listed_dead};
+
+/// Narrowed, crate-only: main names a variant through a glob of it.
+pub enum Mode {
+	On,
+	Off,
+}
+
+/// Narrowed, crate-only: main names `On` through it.
+pub use Mode::*;
 
 fn main() {
 	{
@@ -136,6 +170,8 @@ fn main() {
 	println!("reexported {}", reexported());
 	println!("globbed {}", globbed());
 	println!("through glob {}", through_glob());
+	println!("tool {} {}", tool(), matches!(On, Mode::Off));
+	println!("listed {}", listed());
 	let mut counter = api::Counter(0);
 	println!("ticket {}", drain(&mut counter).0);
 	println!("len {}", api::Outer::new().len());

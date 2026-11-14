@@ -201,11 +201,24 @@ impl Audit {
 					defs[to].local.get_or_insert(evidence);
 				}
 			}
-			// A call names what an import supplies, not the import: the import, and the
-			// re-exports it goes through, are live once what it supplies is.
-			for [import, supplied] in &unit.imports {
-				if let (Some(&import), Some(&supplied)) = (hashes.get(import), hashes.get(supplied)) {
-					edges[test][supplied].push(import);
+			// A call names what an import supplies, not the import: the import is live once
+			// what it supplies is, and names it and the re-exports it went through.
+			for i in &unit.imports {
+				let (Some(&import), Some(&supplied)) = (hashes.get(&i.import), hashes.get(&i.supplied)) else {
+					continue;
+				};
+				edges[test][supplied].push(import);
+				for hash in std::iter::once(&i.supplied).chain(&i.through) {
+					let Some(&to) = hashes.get(hash) else { continue };
+					let evidence = Evidence {
+						from: import,
+						site: None,
+					};
+					if hash[0] != unit.crate_id {
+						defs[to].cross.get_or_insert(evidence);
+					} else if import != to {
+						defs[to].local.get_or_insert(evidence);
+					}
 				}
 			}
 			roots[test].extend(unit.roots.iter().filter_map(|r| hashes.get(r)));

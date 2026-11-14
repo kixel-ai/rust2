@@ -37,8 +37,8 @@ pub struct Unit {
 	pub defs: Vec<Def>,
 	/// Each definition another refers to, once per pair, with the first site.
 	pub refs: Vec<Ref>,
-	/// Each import, and a definition it supplies: the import is live once that is.
-	pub imports: Vec<[Hash; 2]>,
+	/// What each import supplies.
+	pub imports: Vec<Import>,
 	/// Every resolved name in the source, in order, which a narrowed build must resolve
 	/// alike.
 	pub sites: Vec<Site>,
@@ -97,6 +97,15 @@ pub struct Ref {
 	/// Whether `from`'s interface names it, rather than only its body: its signature,
 	/// its type, or what it imports.
 	pub interface: bool,
+}
+
+/// A definition an import supplies, which the import is live once it is.
+#[derive(Serialize, Deserialize)]
+pub struct Import {
+	pub import: Hash,
+	pub supplied: Hash,
+	/// The re-exports a glob supplied it through, which it names as it names `supplied`.
+	pub through: Vec<Hash>,
 }
 
 /// A name the source resolves: where, and to what.

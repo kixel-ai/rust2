@@ -177,13 +177,18 @@ impl Workspace {
 	pub fn check(&self, args: &[String], facts: &Path, local: &Path, edits: Option<&Path>) -> Result<Check, String> {
 		let exe = std::env::current_exe().map_err(|err| format!("finding this executable: {err}"))?;
 		let mut clean = self.cargo("clean");
-		clean.arg("--quiet").args(resolution_args(args));
+		clean.args(resolution_args(args));
 		for package in self.local.values() {
 			clean.arg("--package").arg(&package.id);
 		}
-		let status = clean.status().map_err(|err| format!("running cargo clean: {err}"))?;
-		if !status.success() {
-			return Err(format!("cargo clean failed in {}", self.root.display()));
+		// Show what it says only when it fails, which `--quiet` would hide.
+		let output = clean.output().map_err(|err| format!("running cargo clean: {err}"))?;
+		if !output.status.success() {
+			return Err(format!(
+				"cargo clean failed in {}: {}",
+				self.root.display(),
+				String::from_utf8_lossy(&output.stderr).trim()
+			));
 		}
 		let mut check = self.cargo("check");
 		check
