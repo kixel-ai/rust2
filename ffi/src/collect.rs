@@ -2305,7 +2305,8 @@ impl<'tcx> Collector<'tcx> {
 				|| (api.records.iter()).any(|r| args(&r.args) || fields(&r.fields) || r.methods.iter().any(signature))
 				|| (api.enums.iter()).any(|e| {
 					args(&e.args) || e.variants.iter().any(|v| fields(&v.fields)) || e.methods.iter().any(signature)
-				}) || (api.objects.iter()).any(|o| args(&o.args) || o.methods.iter().any(signature))
+				})
+				|| (api.objects.iter()).any(|o| args(&o.args) || o.methods.iter().any(signature))
 				|| (api.callbacks.iter()).any(|c| c.methods.iter().any(signature));
 			if !used {
 				self.api.enums.pop();
@@ -2329,8 +2330,9 @@ impl<'tcx> Collector<'tcx> {
 				|| (api.records.iter()).any(|r| args(&r.args) || fields(&r.fields) || r.methods.iter().any(signature))
 				|| (api.enums.iter()).any(|e| {
 					args(&e.args) || e.variants.iter().any(|v| fields(&v.fields)) || e.methods.iter().any(signature)
-				}) || (api.objects.iter().enumerate())
-				.any(|(i, o)| i != gone && (args(&o.args) || o.methods.iter().any(signature)))
+				})
+				|| (api.objects.iter().enumerate())
+					.any(|(i, o)| i != gone && (args(&o.args) || o.methods.iter().any(signature)))
 				|| (api.callbacks.iter()).any(|c| c.methods.iter().any(signature));
 			if used {
 				continue;
@@ -2910,7 +2912,8 @@ impl<'tcx> Collector<'tcx> {
 					// is, takes it from the future, as it would a parameter.
 					ty::Ref(_, inner, _)
 						if Some(*inner) == self_ty
-							&& polled.is_some() && let Some(kind) = self.task(ty, true) =>
+							&& polled.is_some()
+							&& let Some(kind) = self.task(ty, true) =>
 					{
 						tasks.push(Task { at: 0, kind });
 						None
@@ -3974,7 +3977,8 @@ impl<'tcx> Collector<'tcx> {
 			.inputs()
 			.iter()
 			.filter(|&&input| input == param)
-			.count() > 1
+			.count()
+			> 1
 		{
 			return Some(Err(why("closure type taken twice", param.to_string())));
 		}
@@ -4327,11 +4331,16 @@ impl<'tcx> Collector<'tcx> {
 				let plain = matches!(
 					ty.kind(),
 					ty::Adt(..)
-						| ty::Bool | ty::Char
-						| ty::Int(_) | ty::Uint(_)
-						| ty::Float(_) | ty::Str
-						| ty::Array(..) | ty::Slice(_)
-						| ty::Ref(..) | ty::Tuple(_)
+						| ty::Bool
+						| ty::Char
+						| ty::Int(_)
+						| ty::Uint(_)
+						| ty::Float(_)
+						| ty::Str
+						| ty::Array(..)
+						| ty::Slice(_)
+						| ty::Ref(..)
+						| ty::Tuple(_)
 				);
 				let (method, driven) = match (implements(iterator, ty), implements(into_iterator, ty)) {
 					(true, _) => (next, item),
@@ -5082,12 +5091,12 @@ impl<'tcx> Collector<'tcx> {
 					Type::List(c, Box::new(inner))
 				} else if Some(did) == self.bytes {
 					Type::Bytes
-				} else if Some(did) == self.vec_iter {
+				} else if Some(did) == self.vec_iter
+					&& pos == Pos::Param
+					&& tcx.lang_items().global_alloc_ty() == args.type_at(1).ty_adt_def().map(|adt| adt.did())
+				{
 					// An `impl Iterator` parameter's, which C passes as the array of its items. A
 					// borrowed string or bytes borrow what C lends for the call.
-					if pos != Pos::Param {
-						return Err(why("iterator outside a parameter", ty.to_string()));
-					}
 					let elem = args.type_at(0);
 					match elem.kind() {
 						ty::Ref(_, inner, ty::Mutability::Not) if inner.is_str() => {

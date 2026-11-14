@@ -622,14 +622,21 @@ fn main() {
 	println!("codecs reversed {}", codecs.ids());
 	// A standard library value no type maps, in a handle.
 	let failure = api::failure("boom");
-	println!("failure {} {}", api::failure_message(&failure), api::failure_kind(failure));
+	println!(
+		"failure {} {}",
+		api::failure_message(&failure),
+		api::failure_kind(failure)
+	);
 	// Iterators, passed as the arrays of their items.
 	println!("sum_all {}", api::sum_all(vec![1u32, 2, 3].into_iter()));
 	println!("offered_len {}", api::offered_len([&b"h3"[..], b"moq-00"].into_iter()));
 	println!("join_words {}", api::join_words(["a", "b", "c"]));
 	// Bytes that must be `'static`, interned.
 	println!("der {}", String::from_utf8_lossy(&api::Der::from_slice(b"der").bytes()));
-	println!("der again {}", String::from_utf8_lossy(&api::Der::from_slice(b"der").bytes()));
+	println!(
+		"der again {}",
+		String::from_utf8_lossy(&api::Der::from_slice(b"der").bytes())
+	);
 	let session = api::resume("h3", 60).unwrap();
 	println!("resume {} {}", session.alpn(), session.lifetime().seconds);
 	println!("resume err {}", api::resume("", 60).err().unwrap());
