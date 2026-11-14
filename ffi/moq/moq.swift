@@ -20,7 +20,7 @@ func expect(_ ok: Bool, _ what: String) {
 	}
 }
 
-func text(_ data: Data?) -> String? {
+func text(_ data: Bytes?) -> String? {
 	data.map { String(decoding: $0, as: UTF8.self) }
 }
 
@@ -243,7 +243,7 @@ func script() throws {
 	}
 	q.drain()
 	expect(frame.isEmpty, "a read waits for a frame")
-	try writer.writeFrame(nil, Data("hello".utf8))
+	try writer.writeFrame(nil, Bytes("hello".utf8))
 	expect(q.size == 1, "a frame's arrival wakes the read")
 	q.drain()
 	let hello = frame.take()!
@@ -257,7 +257,7 @@ func script() throws {
 	let at = try Timestamp.fromMillis(1500)
 	expect(at.asSecs() == 1, "1500 ms is 1 s")
 	do {
-		try writer.writeFrame(at, Data("late".utf8))
+		try writer.writeFrame(at, Bytes("late".utf8))
 		expect(false, "a timestamped frame on an untimed track is an error")
 	} catch let e as Moq.Error {
 		expect("\(e)" == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
@@ -265,7 +265,7 @@ func script() throws {
 	expect(at.asSecs() == 1, "a copied timestamp stays usable")
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as nil.
-	let world = Data([0xff]) + Data("world".utf8)
+	let world = Bytes(Data([0xff]) + Data("world".utf8))
 	try writer.writeFrame(nil, world)
 	try writer.finish()
 	try block {
@@ -292,7 +292,7 @@ func script() throws {
 
 	// moq-mux reads an OpusHead into hang's catalog config: 44.1 kHz in, stereo, which the
 	// catalog lists at the decoder's 48 kHz, keeping the head as its description.
-	let head = Data("OpusHead".utf8) + Data([1, 2, 0x38, 0x01, 0x44, 0xac, 0, 0, 0, 0, 0])
+	let head = Bytes(Data("OpusHead".utf8) + Data([1, 2, 0x38, 0x01, 0x44, 0xac, 0, 0, 0, 0, 0]))
 	let audio = try muxCodecOpusConfig(head)
 	expect(audio.sampleRateGet == 48000, "Opus decodes at 48 kHz")
 	expect(audio.channelCountGet == 2, "the head is stereo")
@@ -428,7 +428,7 @@ func script() throws {
 		try live.announce(OriginRoute.default())
 		let liveTrack = try live.broadcast().createTrack("video", nil)
 		var liveGroup = try liveTrack.appendGroup()
-		try liveGroup.writeFrame(nil, Data("hello".utf8))
+		try liveGroup.writeFrame(nil, Bytes("hello".utf8))
 		try liveGroup.finish()
 
 		var serverConfig = TokioServerConfig.default()

@@ -17,13 +17,6 @@ pub fn generic<T: Copy>(value: T) -> T {
 	value
 }
 
-/// A future that borrows its argument, from a function that runs when called: the export
-/// would have to keep the argument alive past the call.
-#[allow(clippy::manual_async_fn, reason = "the construct under test")]
-pub fn borrowing(name: &str) -> impl Future<Output = usize> + '_ {
-	async move { name.len() }
-}
-
 /// An option inside an option, through a `Box`: C has one `None` per option.
 pub fn nested(value: Option<Box<Option<u32>>>) -> bool {
 	value.is_some()
@@ -124,13 +117,118 @@ pub struct Size {
 	pub bytes: u64,
 }
 
-/// Another crate's types, which the facade does not re-export.
-pub fn measure(size: dep::Size) -> dep::Area {
-	dep::Area::new(size)
+/// Another crate's error borrowing `text`, the output of a future: the glue awaits the
+/// future past the call that owns `text`, so the error's borrow would outlive it.
+pub async fn parse_later(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
+	match text.is_empty() {
+		true => Err(tls::held::Malformed(text)),
+		false => Ok(text.len() as u32),
+	}
+}
+
+/// A waiter of another crate, which a handle holds by value.
+pub fn waiter() -> tls::held::Waiter {
+	tls::held::Waiter::new(std::task::Waker::noop().clone())
+}
+
+/// Not a poll through [`waiter`]'s: the glue cannot name the type a handle holds to make one
+/// from the poll's waker.
+pub fn poll_ready(_waiter: &tls::held::Waiter) -> std::task::Poll<u32> {
+	std::task::Poll::Ready(1)
+}
+
+/// An object holding another crate's session, which C holds as a handle.
+pub struct Link {
+	session: tls::held::Handoff,
+}
+
+impl Link {
+	pub fn new() -> Self {
+		Self {
+			session: tls::held::Handoff { id: 1 },
+		}
+	}
+
+	/// Not lent: a handle holds another crate's value only erased, and by value.
+	pub fn session(&self) -> &tls::held::Handoff {
+		&self.session
+	}
+
+	/// What makes the session a value C holds.
+	pub fn take(self) -> tls::held::Handoff {
+		self.session
+	}
+}
+
+impl Default for Link {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+/// Another crate's type that is not `Send`, which no handle may hold.
+pub fn measure(local: tls::held::Local) -> u32 {
+	local.get()
 }
 
 /// A generic type, which exports at the instances its exports name.
 pub struct Cell<T>(T);
+
+/// An instance naming another crate's type that a handle holds by value, erased.
+pub fn sealed(cert: tls::held::Cert) -> Cell<tls::held::Cert> {
+	Cell(cert)
+}
+
+/// A future returned by a function that is not async, whose output borrows what the
+/// future holds only until it completes.
+pub fn echo(tag: &str) -> impl std::future::Future<Output = &str> + '_ {
+	async move { tag }
+}
+
+/// As `echo`, but the output borrows only inside an error that crosses as its message.
+pub fn blame(tag: &str) -> impl std::future::Future<Output = Result<u32, tls::held::Wrapped<'_, u8>>> + '_ {
+	async move { Err(tls::held::Wrapped(tag, 0)) }
+}
+
+/// As `echo`, but its borrowed output named only by a supertrait of the bound.
+pub fn relay(tag: &str) -> impl tls::held::Borrowing<'_> {
+	async move { tag }
+}
+
+/// As `echo`, but through a future that is not an `impl Future`.
+pub fn resolve(tag: &str) -> tls::held::Lend<'_, u8> {
+	tls::held::Lend(tag, std::marker::PhantomData)
+}
+
+/// A closure taking a `Copy` value of another crate's, which a handle holds.
+pub fn spend(f: impl FnOnce(tls::held::Token) -> u32) -> u32 {
+	f(tls::held::Token(1))
+}
+
+/// A closure returning one.
+pub fn mint(f: impl FnOnce() -> tls::held::Token) -> u32 {
+	f().0
+}
+
+/// Returns another crate's `Copy` value, which a handle holds.
+pub fn token() -> tls::held::Token {
+	tls::held::Token(2)
+}
+
+/// Borrows a slice of them, whose handles C would have to give up.
+pub fn spent(tokens: &[tls::held::Token]) -> u32 {
+	tokens.iter().map(|t| t.0).sum()
+}
+
+/// Returns another crate's value, which a handle holds.
+pub fn issue() -> tls::held::Cert {
+	tls::held::Cert::new(b"der")
+}
+
+/// Takes what converts into it, which only inference could name in the glue.
+pub fn adopt(cert: impl Into<tls::held::Cert>) -> usize {
+	cert.into().der().len()
+}
 
 impl<T> Cell<T> {
 	pub fn new(value: T) -> Self {

@@ -7,16 +7,32 @@ import { put } from "./harness.ts";
 
 /** Each test of `b`, a bit apiece. */
 export function byteTests(b: rs.u8): rs.u16 {
-	return rs.iterFold(rs.iterEnumerate(rs.iterSlice([rs.isAscii(b), rs.isAsciiAlphabetic(b), rs.isAsciiUppercase(b), rs.isAsciiLowercase(b), rs.isAsciiAlphanumeric(b), rs.isAsciiDigit(b), rs.isAsciiHexdigit(b), rs.isAsciiPunctuation(b), rs.isAsciiGraphic(b), rs.isAsciiWhitespace(b), rs.isAsciiControl(b)])), 0, (bits: rs.u16, _32: [rs.usize, boolean]): rs.u16 => {
-		return bits | rs.u16Shl(_32[1] ? 1 : 0, _32[0]);
-	});
+	const leaf = rs.iterSlice([rs.isAscii(b), rs.isAsciiAlphabetic(b), rs.isAsciiUppercase(b), rs.isAsciiLowercase(b), rs.isAsciiAlphanumeric(b), rs.isAsciiDigit(b), rs.isAsciiHexdigit(b), rs.isAsciiPunctuation(b), rs.isAsciiGraphic(b), rs.isAsciiWhitespace(b), rs.isAsciiControl(b)]);
+	let count = 0;
+	let acc: rs.u16 = 0;
+	while (true) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
+			break;
+		}
+		acc = acc | rs.u16Shl(x ? 1 : 0, count++);
+	}
+	return acc;
 }
 
 /** Each test of `c`, a bit apiece. */
 export function charTests(c: rs.char): rs.u16 {
-	return rs.iterFold(rs.iterEnumerate(rs.iterSlice([rs.isAscii(c), rs.isAsciiAlphabetic(c), rs.isAsciiUppercase(c), rs.isAsciiLowercase(c), rs.isAsciiAlphanumeric(c), rs.isAsciiDigit(c), rs.isAsciiHexdigit(c), rs.isAsciiPunctuation(c), rs.isAsciiGraphic(c), rs.isAsciiWhitespace(c), rs.isAsciiControl(c)])), 0, (bits: rs.u16, _32: [rs.usize, boolean]): rs.u16 => {
-		return bits | rs.u16Shl(_32[1] ? 1 : 0, _32[0]);
-	});
+	const leaf = rs.iterSlice([rs.isAscii(c), rs.isAsciiAlphabetic(c), rs.isAsciiUppercase(c), rs.isAsciiLowercase(c), rs.isAsciiAlphanumeric(c), rs.isAsciiDigit(c), rs.isAsciiHexdigit(c), rs.isAsciiPunctuation(c), rs.isAsciiGraphic(c), rs.isAsciiWhitespace(c), rs.isAsciiControl(c)]);
+	let count = 0;
+	let acc: rs.u16 = 0;
+	while (true) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
+			break;
+		}
+		acc = acc | rs.u16Shl(x ? 1 : 0, count++);
+	}
+	return acc;
 }
 
 export function upperByte(b: rs.Place<rs.u8>): void {
@@ -184,9 +200,19 @@ export function chars(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	rs.iterExtend(all, _9, "next", 4);
 	const others: rs.Vec<rs.char> = rs.vecFrom(all.items.slice());
-	const iter: rs.Iter<[rs.usize, rs.char]> = rs.iterEnumerate(rs.iterSlice(all.items));
+	const leaf: rs.Iter<rs.char> = rs.iterSlice(all.items);
+	let count: number = 0;
 	while (true) {
-		const _19: [rs.usize, rs.char] | rs.Done = iter.next();
+		let next!: [rs.usize, rs.char] | rs.Done;
+		next2: {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count++, x];
+		}
+		const _19: [rs.usize, rs.char] | rs.Done = next;
 		if (_19 === rs.DONE) {
 			break;
 		}
