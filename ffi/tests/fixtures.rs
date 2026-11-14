@@ -1557,7 +1557,10 @@ fn unreached_types() {
 	// alone is refused as unreached, though an alias names it. `net`'s error in `Failure` is
 	// never reached, so a handle holds it by value, and `Failure`, which holds it, is an object.
 	assert!(report.contains("| Types | 6 | 0 |"), "{report}");
-	assert!(report.contains("- `Failure`: object in a value `net::Fault`"), "{report}");
+	assert!(
+		report.contains("- `Failure`: object in a value `net::Fault`"),
+		"{report}"
+	);
 	// A type an `Arc` holds, and a `Result`'s error without `Display`, stay refused as
 	// foreign; one no public path names is held by value instead.
 	for refused in [
