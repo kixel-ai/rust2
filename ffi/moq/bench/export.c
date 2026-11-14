@@ -1,7 +1,8 @@
 /* Every case bench/ffi/README.md lists, through the exported C ABI: the floor every other
  * language's binding builds on. bench/export.rs times the same in Rust, and
  * bench/export.cpp through the C++ header. Futures are polled by hand with a null waker.
- * Each case prints its wall time and the process's CPU time. */
+ * Each case prints its wall time and the process's CPU time, or under CodSpeed, runs once
+ * for its CPU simulation to count. */
 
 #define _POSIX_C_SOURCE 200112L
 
@@ -13,6 +14,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "codspeed.h"
 #include "moq.h"
 
 #define GROUPS 10000
@@ -41,6 +43,22 @@ static span now(void) {
 static span per(span start, double n) {
 	span end = now();
 	return (span){(end.wall - start.wall) / n, (end.cpu - start.cpu) / n};
+}
+
+/* Whether CodSpeed counts this run, which then skips the warm-up and the threaded cases. */
+static bool measured;
+
+/* A case's start: now, and CodSpeed counting from here. */
+static span begin(void) {
+	span start = now();
+	codspeed_start();
+	return start;
+}
+
+/* The case `name`'s nanoseconds per call since `start`, over `n` calls. */
+static span end(span start, double n, const char *name) {
+	codspeed_stop(name);
+	return per(start, n);
 }
 
 static moq_buf str(const char *s) {
@@ -110,7 +128,9 @@ static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscrib
 	groups = groups < 3 ? 3 : groups > 2000 ? 2000 : groups;
 	uint8_t *payload = calloc(size, 1);
 	moq_buf frame = {.ptr = payload, .len = size};
-	span start = now();
+	char name[32];
+	snprintf(name, sizeof name, "throughput[%zu]", size);
+	span start = begin();
 	for (size_t g = 0; g < groups; g++) {
 		moq_group_Producer *group = append_group(track);
 		moq_group_Consumer *reader = recv_group(subscriber);
@@ -125,7 +145,7 @@ static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscrib
 		finish(group);
 		moq_group_Consumer_free(reader);
 	}
-	span ns = per(start, (double)(groups * FRAMES * size));
+	span ns = end(start, (double)(groups * FRAMES * size), name);
 	free(payload);
 	return (span){1e3 / ns.wall, 1e3 / ns.cpu};
 }
@@ -209,55 +229,59 @@ static void round_(int print) {
 	unsigned sum = 0;
 	span start;
 
-	start = now();
+	start = begin();
 	for (int i = 0; i < N; i++) {
 		sum += moq_track_Producer_is_closed(track);
 	}
-	span call = per(start, N);
+	span call = end(start, N, "call");
 
 	moq_group_Producer *demanded = append_group(track);
 	moq_group_Demand *demand = moq_group_Producer_demand(demanded);
-	start = now();
+	start = begin();
 	for (int i = 0; i < N; i++) {
 		sum += (unsigned)moq_group_Demand_sequence(demand);
 	}
-	span getter = per(start, N);
+	span getter = end(start, N, "getter");
 
 	/* The handle call and the getter from THREADS threads: on one shared handle, then on a
-	 * clone each, a handle of its own to the same value. */
-	const void *shared_track[THREADS], *shared_demand[THREADS], *own_track[THREADS], *own_demand[THREADS];
-	for (int i = 0; i < THREADS; i++) {
-		shared_track[i] = track;
-		shared_demand[i] = demand;
-		own_track[i] = moq_track_Producer_clone(track);
-		own_demand[i] = moq_group_Demand_clone(demand);
-	}
-	span shared_call = concurrent(shared_track, 0, &sum);
-	span own_call = concurrent(own_track, 0, &sum);
-	span shared_getter = concurrent(shared_demand, 1, &sum);
-	span own_getter = concurrent(own_demand, 1, &sum);
-	for (int i = 0; i < THREADS; i++) {
-		moq_track_Producer_free((moq_track_Producer *)own_track[i]);
-		moq_group_Demand_free((moq_group_Demand *)own_demand[i]);
+	 * clone each, a handle of its own to the same value. CodSpeed's simulation runs one
+	 * thread at a time, which contends for nothing, so it skips them. */
+	span shared_call = {0}, own_call = {0}, shared_getter = {0}, own_getter = {0};
+	if (!measured) {
+		const void *shared_track[THREADS], *shared_demand[THREADS], *own_track[THREADS], *own_demand[THREADS];
+		for (int i = 0; i < THREADS; i++) {
+			shared_track[i] = track;
+			shared_demand[i] = demand;
+			own_track[i] = moq_track_Producer_clone(track);
+			own_demand[i] = moq_group_Demand_clone(demand);
+		}
+		shared_call = concurrent(shared_track, 0, &sum);
+		own_call = concurrent(own_track, 0, &sum);
+		shared_getter = concurrent(shared_demand, 1, &sum);
+		own_getter = concurrent(own_demand, 1, &sum);
+		for (int i = 0; i < THREADS; i++) {
+			moq_track_Producer_free((moq_track_Producer *)own_track[i]);
+			moq_group_Demand_free((moq_group_Demand *)own_demand[i]);
+		}
 	}
 	moq_group_Demand_free(demand);
 	finish(demanded);
 
-	start = now();
+	start = begin();
 	for (int i = 0; i < N; i++) {
 		sum += moq_track_Producer_largest(track).some;
 	}
-	span record = per(start, N);
+	span record = end(start, N, "record");
 
-	start = now();
+	start = begin();
 	for (int i = 0; i < N; i++) {
 		moq_track_Info_free(moq_track_Producer_info(track));
 	}
-	span object = per(start, N);
+	span object = end(start, N, "object");
 
 	/* Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must. */
 	uint64_t micros = 0;
-	start = now();
+	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
 		moq_group_Producer *group = append_group(track);
 		for (int f = 0; f < FRAMES; f++) {
@@ -271,14 +295,14 @@ static void round_(int print) {
 		}
 		finish(group);
 	}
-	span stamped = per(start, N);
+	span stamped = end(start, N, "stamped");
 
 	moq_Timestamp *at = NULL;
 	moq_TimeOverflow *overflow = NULL;
 	if (!moq_Timestamp_from_micros(micros, &at, &overflow)) {
 		fail("from_micros");
 	}
-	start = now();
+	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
 		moq_group_Producer *group = append_group(track);
 		for (int f = 0; f < FRAMES; f++) {
@@ -286,7 +310,7 @@ static void round_(int print) {
 		}
 		finish(group);
 	}
-	span write = per(start, N);
+	span write = end(start, N, "write");
 
 	moq_track_Consumer *consumer = moq_track_Producer_consume(track);
 	moq_track_Consumer_subscribe_future *subscribing = moq_track_Consumer_subscribe(consumer, NULL);
@@ -299,7 +323,7 @@ static void round_(int print) {
 
 	/* Each frame written, then read through a new future ready at its first poll. */
 	moq_frame_Frame *last = NULL;
-	start = now();
+	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
 		moq_group_Producer *group = append_group(track);
 		moq_group_Consumer *reader = recv_group(subscriber);
@@ -313,10 +337,10 @@ static void round_(int print) {
 		finish(group);
 		moq_group_Consumer_free(reader);
 	}
-	span ready = per(start, N);
+	span ready = end(start, N, "ready");
 
 	/* Each read polled before its frame is written, so it pends, then polled again. */
-	start = now();
+	start = begin();
 	for (int g = 0; g < GROUPS; g++) {
 		moq_group_Producer *group = append_group(track);
 		moq_group_Consumer *reader = recv_group(subscriber);
@@ -336,16 +360,16 @@ static void round_(int print) {
 		finish(group);
 		moq_group_Consumer_free(reader);
 	}
-	span woken = per(start, N);
+	span woken = end(start, N, "woken");
 
 	/* The last frame's 100 bytes, owned without a copy, then freed. */
-	start = now();
+	start = begin();
 	for (int i = 0; i < N; i++) {
 		moq_buf bytes = moq_frame_Frame_payload_get(last);
 		sum += bytes.ptr[0];
 		moq_buf_free(bytes);
 	}
-	span payload_ = per(start, N);
+	span payload_ = end(start, N, "payload");
 	moq_frame_Frame_free(last);
 
 	span mbps[sizeof sizes / sizeof sizes[0]];
@@ -373,7 +397,11 @@ static void round_(int print) {
 }
 
 int main(void) {
-	round_(0);
-	round_(1);
+	/* Under CodSpeed, one round, which prints nothing: its simulation counts each case. */
+	measured = codspeed_init("ffi/moq/bench/export.c::c");
+	if (!measured) {
+		round_(0);
+	}
+	round_(!measured);
 	return 0;
 }

@@ -1,8 +1,10 @@
 // The Rust floor: every case the bindings time, called on the stand-in's API directly, as a
 // Rust caller holding a byte slice would. Futures are polled by hand with a no-op waker,
 // so a woken read costs a re-poll and nothing of an executor. Each case prints its wall
-// time and the process's CPU time.
+// time and the process's CPU time, or under CodSpeed, runs once for its CPU simulation to
+// count.
 
+use std::ffi::{CStr, c_char};
 use std::future::Future;
 use std::hint::black_box;
 use std::pin::pin;
@@ -29,8 +31,31 @@ fn cpu() -> f64 {
 	ts.tv_sec as f64 * 1e9 + ts.tv_nsec as f64
 }
 
-fn begin() -> Start {
+fn now() -> Start {
 	Start { wall: Instant::now(), cpu: cpu() }
+}
+
+// moq/bench/codspeed.h, which bench-build links.
+#[link(name = "codspeed", kind = "static")]
+unsafe extern "C" {
+	fn codspeed_init(bench: *const c_char) -> bool;
+	fn codspeed_start();
+	fn codspeed_stop(name: *const c_char);
+}
+
+/// A case's start: now, and CodSpeed counting from here.
+fn begin() -> Start {
+	let start = now();
+	// SAFETY: codspeed_init ran first, in main.
+	unsafe { codspeed_start() };
+	start
+}
+
+/// The case `name`'s wall and CPU nanoseconds per call since `start`, over `n` calls.
+fn end(start: Start, n: u64, name: &CStr) -> (f64, f64) {
+	// SAFETY: `name` is a C string, and codspeed_init ran first, in main.
+	unsafe { codspeed_stop(name.as_ptr()) };
+	per(start, n)
 }
 
 /// Wall and CPU nanoseconds since `start`.
@@ -62,7 +87,7 @@ fn concurrent<T: Sync>(handles: &[&T], n: u64, call: impl Fn(&T) + Sync) -> (f64
 			});
 		}
 		ready.wait();
-		let begin = begin();
+		let begin = now();
 		go.wait();
 		begin
 	});
@@ -83,6 +108,7 @@ fn ready<F: Future>(future: F) -> F::Output {
 fn throughput(track: &moq::track::Producer, subscriber: &mut moq::track::Subscriber, at: moq::Timestamp, size: usize) -> (f64, f64) {
 	let groups = ((64 << 20) / (size as u64 * FRAMES)).clamp(3, 2000);
 	let frame = vec![0u8; size];
+	let name = std::ffi::CString::new(format!("throughput[{size}]")).unwrap();
 	let mut sum = 0u64;
 	let start = begin();
 	for _ in 0..groups {
@@ -95,13 +121,13 @@ fn throughput(track: &moq::track::Producer, subscriber: &mut moq::track::Subscri
 		}
 		group.finish().unwrap();
 	}
+	let (wall, cpu) = end(start, 1, &name);
 	black_box(sum);
 	let bytes = (groups * FRAMES * size as u64) as f64;
-	let (wall, cpu) = elapsed(start);
 	(bytes * 1e3 / wall, bytes * 1e3 / cpu)
 }
 
-fn round() -> Vec<(String, (f64, f64))> {
+fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 	let broadcast = moq::broadcast::Info::new().produce();
 	let info = moq::track::Info::default().with_timescale(moq::Timescale::MICRO);
 	let track = broadcast.create_track("bench", info).unwrap();
@@ -113,42 +139,45 @@ fn round() -> Vec<(String, (f64, f64))> {
 	for _ in 0..n {
 		black_box(black_box(&track).is_closed());
 	}
-	out.push(("call".into(), per(start, n)));
+	out.push(("call".into(), end(start, n, c"call")));
 
 	let demand = track.append_group().unwrap().demand();
 	let start = begin();
 	for _ in 0..n {
 		black_box(black_box(&demand).sequence());
 	}
-	out.push(("getter".into(), per(start, n)));
+	out.push(("getter".into(), end(start, n, c"getter")));
 
 	// The handle call and the getter from THREADS threads: on one shared value, then on a
-	// clone each, as the bindings' own-handle cases do.
-	let is_closed = |track: &moq::track::Producer| {
-		black_box(track.is_closed());
-	};
-	let sequence = |demand: &moq::group::Demand| {
-		black_box(demand.sequence());
-	};
-	let tracks: Vec<_> = (0..THREADS).map(|_| track.clone()).collect();
-	let demands: Vec<_> = (0..THREADS).map(|_| demand.clone()).collect();
-	out.push(("shared:call".into(), concurrent(&[&track; THREADS], n, is_closed)));
-	out.push(("own:call".into(), concurrent(&tracks.iter().collect::<Vec<_>>(), n, is_closed)));
-	out.push(("shared:getter".into(), concurrent(&[&demand; THREADS], n, sequence)));
-	out.push(("own:getter".into(), concurrent(&demands.iter().collect::<Vec<_>>(), n, sequence)));
+	// clone each, as the bindings' own-handle cases do. CodSpeed's simulation runs one thread
+	// at a time, which contends for nothing, so it skips them.
+	if !measured {
+		let is_closed = |track: &moq::track::Producer| {
+			black_box(track.is_closed());
+		};
+		let sequence = |demand: &moq::group::Demand| {
+			black_box(demand.sequence());
+		};
+		let tracks: Vec<_> = (0..THREADS).map(|_| track.clone()).collect();
+		let demands: Vec<_> = (0..THREADS).map(|_| demand.clone()).collect();
+		out.push(("shared:call".into(), concurrent(&[&track; THREADS], n, is_closed)));
+		out.push(("own:call".into(), concurrent(&tracks.iter().collect::<Vec<_>>(), n, is_closed)));
+		out.push(("shared:getter".into(), concurrent(&[&demand; THREADS], n, sequence)));
+		out.push(("own:getter".into(), concurrent(&demands.iter().collect::<Vec<_>>(), n, sequence)));
+	}
 
 	let start = begin();
 	for _ in 0..n {
 		black_box(black_box(&track).largest());
 	}
-	out.push(("record".into(), per(start, n)));
+	out.push(("record".into(), end(start, n, c"record")));
 
 	// A borrowed `&Info` cloned, as the bindings return an owned copy.
 	let start = begin();
 	for _ in 0..n {
 		black_box(black_box(&track).info().clone());
 	}
-	out.push(("object".into(), per(start, n)));
+	out.push(("object".into(), end(start, n, c"object")));
 
 	let mut micros = 0;
 	let start = begin();
@@ -161,7 +190,7 @@ fn round() -> Vec<(String, (f64, f64))> {
 		}
 		group.finish().unwrap();
 	}
-	out.push(("stamped".into(), per(start, n)));
+	out.push(("stamped".into(), end(start, n, c"stamped")));
 
 	let at = moq::Timestamp::from_micros(micros).unwrap();
 	let start = begin();
@@ -172,7 +201,7 @@ fn round() -> Vec<(String, (f64, f64))> {
 		}
 		group.finish().unwrap();
 	}
-	out.push(("write".into(), per(start, n)));
+	out.push(("write".into(), end(start, n, c"write")));
 
 	let mut subscriber = ready(track.consume().subscribe(None)).unwrap();
 	let mut last = None;
@@ -186,7 +215,7 @@ fn round() -> Vec<(String, (f64, f64))> {
 		}
 		group.finish().unwrap();
 	}
-	out.push(("ready".into(), per(start, n)));
+	out.push(("ready".into(), end(start, n, c"ready")));
 
 	let start = begin();
 	for _ in 0..GROUPS {
@@ -202,7 +231,7 @@ fn round() -> Vec<(String, (f64, f64))> {
 		}
 		group.finish().unwrap();
 	}
-	out.push(("woken".into(), per(start, n)));
+	out.push(("woken".into(), end(start, n, c"woken")));
 
 	// The payload as a binding hands it over: a new owner of the frame's bytes.
 	let last = last.unwrap();
@@ -210,7 +239,7 @@ fn round() -> Vec<(String, (f64, f64))> {
 	for _ in 0..n {
 		black_box(black_box(&last).payload.clone());
 	}
-	out.push(("payload".into(), per(start, n)));
+	out.push(("payload".into(), end(start, n, c"payload")));
 
 	for size in SIZES {
 		out.push((format!("mbps:{size}"), throughput(&track, &mut subscriber, at, size)));
@@ -219,8 +248,15 @@ fn round() -> Vec<(String, (f64, f64))> {
 }
 
 fn main() {
-	round();
-	for (case, (wall, cpu)) in round() {
+	// SAFETY: the name is a C string, and this is the first call into the hooks.
+	let measured = unsafe { codspeed_init(c"ffi/moq/bench/export.rs::rust".as_ptr()) };
+	// Under CodSpeed, one round, which prints nothing: its simulation counts each case.
+	if measured {
+		round(true);
+		return;
+	}
+	round(false);
+	for (case, (wall, cpu)) in round(false) {
 		println!("{case}\t{wall}\t{cpu}");
 	}
 }

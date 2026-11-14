@@ -1,0 +1,76 @@
+name: CodSpeed
+
+# The binding benchmark under CodSpeed's CPU simulation (bench/ffi/README.md): each push to
+# main is its baseline, and a PR that changes what `just ffi bench` reads gets CodSpeed's
+# comment. Informational: no threshold fails it, and no ruleset requires it.
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ffi/**
+      - bench/ffi/**
+      - flake.nix
+      - flake.lock
+      - .github/workflows/codspeed.yml
+      - .github/actions/nix/**
+      # What ffi/ takes from ts/: the moq pin ts/justfile reads, and the nightly that
+      # ffi/rust-toolchain.toml links to.
+      - ts/justfile
+      - ts/fixtures/model/Cargo.toml
+      - ts/rust-toolchain.toml
+      - "!**/*.md"
+  pull_request:
+    paths:
+      - ffi/**
+      - bench/ffi/**
+      - flake.nix
+      - flake.lock
+      - .github/workflows/codspeed.yml
+      - .github/actions/nix/**
+      - ts/justfile
+      - ts/fixtures/model/Cargo.toml
+      - ts/rust-toolchain.toml
+      - "!**/*.md"
+  workflow_dispatch:
+
+# A PR's newer push supersedes its run; each of main's runs is a baseline, so none is cancelled.
+concurrency:
+  group: codspeed-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  codspeed:
+    name: CodSpeed
+    # Hosted, which costs a public repository nothing, as does CodSpeed.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      # CodSpeed's upload authenticates through GitHub's OIDC token.
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Build
+        run: nix develop .#bench --command just ffi bench-build
+
+      # The bench shell's environment as a script the run sources, so Nix itself never runs
+      # under the simulation's Valgrind, which traces every process the run starts.
+      - name: Environment
+        run: nix print-dev-env .#bench > "$RUNNER_TEMP/bench.sh"
+
+      - name: Run
+        uses: CodSpeedHQ/action@af75f77f17a054769abefaa42fe8dc2975469b5f # v5.6.3
+        with:
+          mode: simulation
+          run: . "$RUNNER_TEMP/bench.sh" && just ffi codspeed

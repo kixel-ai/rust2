@@ -19,7 +19,8 @@ from an emptied target and without a compiler cache, the export (`rust2-ffi`, wh
 runs `cargo check` of moq under its driver) beside moq's own `cargo check` of the same
 crates, and the generated crate's release build beside moq's own release build, each with
 its peak RSS, through [`measure.py`](measure.py). Nightly runs it on arm64 Linux into
-the run's summary; nothing fails on a number.
+the run's summary; nothing fails on a number. [CodSpeed](#codspeed) counts each
+single-threaded case on every push to main and on each PR that can move one.
 
 | case | what it times | BoltFFI's nearest |
 |---|---|---|
@@ -72,6 +73,36 @@ consumed, checking the count on both sides. It has no writer task or permit hand
 must not be ranked against the managed `loop` row. C, C++, and Rust's existing `woken`
 cases already manually poll in one loop; they remain the native floor, without printing
 the same measurement twice under another name.
+
+## CodSpeed
+
+[CodSpeed](https://app.codspeed.io/kixel-ai/rust2) keeps main's history of each
+single-threaded case, and comments on each PR with its change per case.
+[`codspeed.yml`](../../.github/workflows/codspeed.yml) runs on every push to main, its
+baseline, and on each PR that changes what `just ffi bench` reads: it builds the programs in
+the bench shell, then runs `just ffi codspeed` under CodSpeed's CPU simulation in that
+shell's environment, so Nix itself never runs under Valgrind. It is informational: no
+threshold fails it and no ruleset requires it.
+
+```bash
+nix develop .#bench --command just ffi bench-build
+nix develop .#bench --command codspeed run --mode simulation -- just ffi codspeed  # CodSpeed's CLI, on Ubuntu or Debian
+```
+
+Each program calls CodSpeed's
+[instrument-hooks](https://github.com/CodSpeedHQ/instrument-hooks), which the flake pins,
+through [`codspeed.h`](../../ffi/moq/bench/codspeed.h) and its own FFI around each case:
+one benchmark per language and case, such as `kotlin::write` or `c::throughput[1024]`.
+Under CodSpeed a program runs its round once, without the warm-up round, and skips the
+`shared:*`, `own:*`, and Kotlin's `objects` cases: the simulation runs one thread at a
+time, so it would count a contention that never happens. It counts instructions and
+simulated cache misses, not time, so a system call or a wait costs nothing in it: Swift's
+and Go's woken reads and reader loops count their threads' work, not their wake. The
+tables below keep wall and CPU time.
+
+A language joins only if its numbers hold still: the same commit, run twice, must give
+each of its cases the same count. `codspeed_langs` in [`ffi/justfile`](../../ffi/justfile)
+lists those that do.
 
 ## Concurrent calls
 

@@ -1,8 +1,11 @@
 # bench/export.c's cases through the generated Python, so the two differ by what CPython
 # and the Python wrapper add. Each round runs twice, the first to warm CPython's caches.
-# Each case prints its wall time and the process's CPU time.
+# Each case prints its wall time and the process's CPU time, or under CodSpeed, runs once
+# for its CPU simulation to count. Its argument is moq/bench/codspeed.h's shared library.
 
 import asyncio
+import ctypes
+import sys
 import threading
 import time
 
@@ -24,6 +27,30 @@ def per(start, n=N):
 	"""Wall and CPU nanoseconds per call since `start`, over `n` calls."""
 	wall, cpu = now()
 	return (wall - start[0]) / n, (cpu - start[1]) / n
+
+
+codspeed = ctypes.CDLL(sys.argv[1])
+codspeed.codspeed_init.argtypes = [ctypes.c_char_p]
+codspeed.codspeed_init.restype = ctypes.c_bool
+codspeed.codspeed_start.argtypes = []
+codspeed.codspeed_start.restype = None
+codspeed.codspeed_stop.argtypes = [ctypes.c_char_p]
+codspeed.codspeed_stop.restype = None
+start_case = codspeed.codspeed_start
+stop_case = codspeed.codspeed_stop
+
+
+def begin():
+	"""A case's start: now, and CodSpeed counting from here."""
+	start = now()
+	start_case()
+	return start
+
+
+def end(start, name, n=N):
+	"""The case `name`'s nanoseconds per call since `start`, over `n` calls."""
+	stop_case(name)
+	return per(start, n)
 
 
 def concurrent(calls):
@@ -63,8 +90,9 @@ async def throughput(track, subscriber, at, size):
 	second."""
 	groups = min(max((64 << 20) // (size * FRAMES), 3), 2000)
 	frame = bytes(size)
+	name = f"throughput[{size}]".encode()
 	total = 0
-	start = now()
+	start = begin()
 	for _ in range(groups):
 		group = track.append_group()
 		reader = await subscriber.recv_group()
@@ -74,20 +102,20 @@ async def throughput(track, subscriber, at, size):
 			with read.payload_get as payload:
 				total += payload[0]
 		group.finish()
-	wall, cpu = per(start, groups * FRAMES * size)
+	wall, cpu = end(start, name, groups * FRAMES * size)
 	return 1e3 / wall, 1e3 / cpu
 
 
-def round(loop):
+def round(loop, measured):
 	broadcast = moq.BroadcastInfo.new().produce()
 	track = broadcast.create_track("bench", moq.TrackInfo.default().with_timescale(moq.Timescale.MICRO))
 	frame = bytes(100)
 	out = {}
 
-	start = now()
+	start = begin()
 	for _ in range(N):
 		track.is_closed()
-	out["call"] = per(start)
+	out["call"] = end(start, b"call")
 
 	# A bound method called in a loop, as bench/ffi/README.md timed BoltFFI's
 	# `group.sequence()`. BoltFFI holds the GIL through the call, where the export releases
@@ -95,48 +123,50 @@ def round(loop):
 	demanded = track.append_group()
 	demand = demanded.demand()
 	sequence = demand.sequence
-	start = now()
+	start = begin()
 	for _ in range(N):
 		sequence()
-	out["getter"] = per(start)
+	out["getter"] = end(start, b"getter")
 
 	# The handle call and the getter from THREADS threads: on one shared handle, then on a
-	# clone each, a handle of its own to the same value.
-	out["shared:call"] = concurrent([track.is_closed] * THREADS)
-	out["own:call"] = concurrent([track.clone().is_closed for _ in range(THREADS)])
-	out["shared:getter"] = concurrent([sequence] * THREADS)
-	out["own:getter"] = concurrent([demand.clone().sequence for _ in range(THREADS)])
+	# clone each, a handle of its own to the same value. CodSpeed's simulation runs one thread
+	# at a time, which contends for nothing, so it skips them.
+	if not measured:
+		out["shared:call"] = concurrent([track.is_closed] * THREADS)
+		out["own:call"] = concurrent([track.clone().is_closed for _ in range(THREADS)])
+		out["shared:getter"] = concurrent([sequence] * THREADS)
+		out["own:getter"] = concurrent([demand.clone().sequence for _ in range(THREADS)])
 	demanded.finish()
 
-	start = now()
+	start = begin()
 	for _ in range(N):
 		track.largest()
-	out["record"] = per(start)
+	out["record"] = end(start, b"record")
 
-	start = now()
+	start = begin()
 	for _ in range(N):
 		track.info()
-	out["object"] = per(start)
+	out["object"] = end(start, b"object")
 
 	# Each frame stamped through a fresh timestamp object, as a caller holding an int must.
 	micros = 0
-	start = now()
+	start = begin()
 	for _ in range(GROUPS):
 		group = track.append_group()
 		for _ in range(FRAMES):
 			group.write_frame(moq.Timestamp.from_micros(micros), frame)
 			micros += 1
 		group.finish()
-	out["stamped"] = per(start)
+	out["stamped"] = end(start, b"stamped")
 
 	at = moq.Timestamp.from_micros(micros)
-	start = now()
+	start = begin()
 	for _ in range(GROUPS):
 		group = track.append_group()
 		for _ in range(FRAMES):
 			group.write_frame(at, frame)
 		group.finish()
-	out["write"] = per(start)
+	out["write"] = end(start, b"write")
 
 	async def reads():
 		subscriber = await track.consume().subscribe(None)
@@ -144,7 +174,7 @@ def round(loop):
 		# Each frame written, then read through an awaitable ready at its first poll, so it
 		# never suspends.
 		last = None
-		start = now()
+		start = begin()
 		for _ in range(GROUPS):
 			group = track.append_group()
 			reader = await subscriber.recv_group()
@@ -152,11 +182,11 @@ def round(loop):
 				group.write_frame(at, frame)
 				last = await reader.read_frame()
 			group.finish()
-		out["ready"] = per(start)
+		out["ready"] = end(start, b"ready")
 
 		# Each read awaited before its frame is written, so it pends, and the write's wake
 		# resumes it through the loop.
-		start = now()
+		start = begin()
 		for _ in range(GROUPS):
 			group = track.append_group()
 			reader = await subscriber.recv_group()
@@ -166,10 +196,10 @@ def round(loop):
 				group.write_frame(at, frame)
 				await pending
 			group.finish()
-		out["woken"] = per(start)
+		out["woken"] = end(start, b"woken")
 
 		# One writer task, with one outstanding permit, for the whole reader loop.
-		start = now()
+		start = begin()
 		permits = asyncio.Queue(maxsize=1)
 
 		async def write_loop():
@@ -189,7 +219,7 @@ def round(loop):
 				await reader.read_frame()
 			permits.put_nowait(None)
 		await writer
-		out["loop"] = per(start)
+		out["loop"] = end(start, b"loop")
 
 		for size in SIZES:
 			out[f"mbps:{size}"] = await throughput(track, subscriber, at, size)
@@ -198,16 +228,21 @@ def round(loop):
 	last = loop.run_until_complete(reads())
 
 	# The last frame's 100 bytes, lent without a copy, then released.
-	start = now()
+	start = begin()
 	for _ in range(N):
 		with last.payload_get as payload:
 			payload[0]
-	out["payload"] = per(start)
+	out["payload"] = end(start, b"payload")
 	return out
 
 
+# Under CodSpeed, one round, which prints nothing: its simulation counts each case.
+measured = codspeed.codspeed_init(b"ffi/moq/bench/export.py::python")
 loop = asyncio.new_event_loop()
-round(loop)
-for case, (wall, cpu) in round(loop).items():
-	print(f"{case}\t{wall}\t{cpu}")
+if measured:
+	round(loop, True)
+else:
+	round(loop, False)
+	for case, (wall, cpu) in round(loop, False).items():
+		print(f"{case}\t{wall}\t{cpu}")
 loop.close()

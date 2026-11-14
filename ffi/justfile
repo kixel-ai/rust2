@@ -17,6 +17,12 @@ moq_rev := "ffcb7cd9748422daa30e935ec464108b5a8ebb71"
 # swift-collections 1.7.5, whose `UniqueArray` the generated Swift imports.
 swift_collections_rev := "f96b909e1a9e469620bc5037c1e24e00153f376f"
 
+# The binding benchmark's programs, each a language, as bench-program runs them.
+bench_langs := "rust c cpp moq-c kotlin python swift go dart"
+
+# Those whose cases CodSpeed counts the same on every run of one commit, as bench/ffi/README.md's CodSpeed section says.
+codspeed_langs := "rust c cpp moq-c kotlin python swift go dart"
+
 default:
     @just --list
 
@@ -62,13 +68,14 @@ census checkout="": (standin checkout)
 bench checkout="": (bench-build checkout) bench-run
 
 # Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, and Dart through the export, and C through moq's hand-written rs/moq-c.
-bench-build checkout="": (moq-export checkout)
+bench-build checkout="": (moq-export checkout) codspeed-hooks
     #!/usr/bin/env bash
     set -euo pipefail
     [ -n "${LIBCLANG_PATH:-}" ] || { echo "LIBCLANG_PATH is unset: run this in the bench shell, nix develop .#bench" >&2; exit 1; }
     src="{{ checkout }}"
     [ -n "$src" ] || src=target/moq
     out=target/export/moq
+    hooks=$PWD/target/codspeed
     # The exporter bench-run times, built as a consumer installs it.
     cargo build --locked --quiet --release
     # The floor: the stand-in's API called from Rust, resolved as the export is.
@@ -76,22 +83,47 @@ bench-build checkout="": (moq-export checkout)
     mkdir -p target/bench-rust
     printf '[package]\nname = "bench"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n[[bin]]\nname = "bench"\npath = "%s"\n\n[dependencies]\nlibc = "0.2"\nmoq = { package = "moq-ffi", path = "../moq-ffi" }\n\n[workspace]\n' "$PWD/moq/bench/export.rs" > target/bench-rust/Cargo.toml
     cp target/moq-ffi/Cargo.lock target/bench-rust/Cargo.lock
-    cargo build --quiet --release --manifest-path target/bench-rust/Cargo.toml
+    # The hooks' search path goes to the program alone, so moq builds as bench-run's export does.
+    cargo rustc --quiet --release --manifest-path target/bench-rust/Cargo.toml -- -L "native=$hooks"
     # moq-c's header is written to its build script's output directory.
     moqc=$(cd "$src" && cargo build --locked --quiet --release --package moq-c --message-format=json \
         | jq -r 'select(.reason == "build-script-executed" and (.package_id | contains("moq-c#"))) | .out_dir')
-    cc -O2 -std=c11 -Wall -Wextra -Werror -I "$out/include" moq/bench/export.c "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export
-    cc -O2 -std=c11 -Wall -Wextra -Werror -I "$moqc/include" moq/bench/moq-c.c "$src/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-moq-c
-    c++ -O2 -std=c++17 -Wall -Wextra -Werror -I "$out/include" moq/bench/export.cpp "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-cpp
+    cc -O2 -std=c11 -Wall -Wextra -Werror -I "$out/include" -I "$hooks" moq/bench/export.c "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export
+    cc -O2 -std=c11 -Wall -Wextra -Werror -I "$moqc/include" -I "$hooks" moq/bench/moq-c.c "$src/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-moq-c
+    c++ -O2 -std=c++17 -Wall -Wextra -Werror -I "$out/include" -I "$hooks" moq/bench/export.cpp "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export-cpp
     {{ quote(just_executable()) }} go-module bench-go moq/bench/export.go
     read -ra native < target/moq-native
-    export CGO_LDFLAGS="$PWD/$out/target/release/libmoq.a ${native[*]}" GOFLAGS=-buildvcs=false
+    export CGO_CFLAGS="-I$hooks" CGO_LDFLAGS="$PWD/$out/target/release/libmoq.a $hooks/libcodspeed.a ${native[*]}" GOFLAGS=-buildvcs=false
     (cd target/bench-go && go build -o bench .)
     {{ quote(just_executable()) }} dart-program bench-dart moq/bench/export.dart
     rm -rf target/bench-kt
     kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/bench/export.kt -d target/bench-kt
     {{ quote(just_executable()) }} swift-module -O
-    swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I target/swift-collections/build -I "$out/swift" moq/bench/export.swift target/swift/libMoq.a -L target/swift-collections/build -lBasicContainers -lInternalCollectionsUtilities -lSpanPreview "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-swift
+    swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I target/swift-collections/build -I "$out/swift" -I "$hooks" moq/bench/export.swift target/swift/libMoq.a -L target/swift-collections/build -lBasicContainers -lInternalCollectionsUtilities -lSpanPreview "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export-swift
+
+# Build moq/bench/codspeed.c over the bench shell's instrument-hooks into target/codspeed: a static library the compiled programs link, a shared one with the JNI functions that Kotlin, Python, and Dart load, and a module map Swift imports it by.
+[private]
+codspeed-hooks:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ -n "${CODSPEED_INSTRUMENT_HOOKS:-}" ] || { echo "CODSPEED_INSTRUMENT_HOOKS is unset: run this in the bench shell, nix develop .#bench" >&2; exit 1; }
+    src=$CODSPEED_INSTRUMENT_HOOKS
+    dir=target/codspeed
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    case "{{ os() }}" in
+        macos) lib=libcodspeed.dylib jni=darwin ;;
+        *) lib=libcodspeed.so jni=linux ;;
+    esac
+    # instrument-hooks' generated C warns, harmlessly, its guide says, and puts C23's
+    # attributes where C23 refuses them.
+    cc -O2 -fPIC -std=gnu11 -w -I "$src/includes" -c "$src/dist/core.c" -o "$dir/core.o"
+    flags=(-O2 -fPIC -std=c11 -Wall -Wextra -Werror -isystem "$src/includes")
+    cc "${flags[@]}" -c moq/bench/codspeed.c -o "$dir/codspeed.o"
+    ar rcs "$dir/libcodspeed.a" "$dir/codspeed.o" "$dir/core.o"
+    cc "${flags[@]}" -shared -DCODSPEED_JNI -isystem "${JAVA_HOME:?}/include" -isystem "$JAVA_HOME/include/$jni" moq/bench/codspeed.c "$dir/core.o" -o "$dir/$lib"
+    cp moq/bench/codspeed.h "$dir/"
+    printf 'module CodSpeed {\n    header "codspeed.h"\n    export *\n}\n' > "$dir/module.modulemap"
 
 # Run what bench-build built: each program `rounds` times into target/bench/raw.tsv, and the export and its crate's build, beside moq's, each round into target/bench/build.tsv, with the 1-minute load average over each run, and their medians and the export's sizes into target/bench/report.md.
 bench-run rounds="3":
@@ -113,9 +145,8 @@ bench-run rounds="3":
     }
     run() {
         local lang=$1 before after
-        shift
         before=$(load)
-        "$@" > target/bench/run.tsv
+        {{ quote(just_executable()) }} bench-program "$lang" > target/bench/run.tsv
         after=$(load)
         awk -v lang="$lang" -v round="$r" -v loadavg="$(echo "$before $after" | awk '{ print ($1 + $2) / 2 }')" -F '\t' \
             'NF == 3 { print lang "\t" round "\t" $1 "\t" $2 "\t" $3 "\t" loadavg; next } { print "bench: " lang ": unexpected line: " $0 > "/dev/stderr"; exit 1 }' \
@@ -150,18 +181,43 @@ bench-run rounds="3":
     }
     for r in $(seq {{ rounds }}); do
         build
-        run rust target/bench-rust/target/release/bench
-        run c target/bench-export
-        run cpp target/bench-export-cpp
-        run moq-c target/bench-moq-c
-        run kotlin kotlin -Djava.library.path="$out/target/release" -cp "target/bench-kt:$KOTLINX_COROUTINES" ExportKt
-        PYTHONPATH="$out/python" run python python3 -P moq/bench/export.py
-        run swift target/bench-export-swift
-        run go target/bench-go/bench
-        run dart dart target/bench-dart/main.dill
+        for lang in {{ bench_langs }}; do
+            run "$lang"
+        done
     done
     python3 -I ../bench/ffi/report.py "$raw" "$builds" "$out" > target/bench/report.md
     cat target/bench/report.md
+
+# Run what bench-build built once each, under `codspeed run` in the bench shell's environment, so CodSpeed's CPU simulation counts each single-threaded case: the CodSpeed workflow's run.
+codspeed:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for lang in {{ codspeed_langs }}; do
+        {{ quote(just_executable()) }} bench-program "$lang"
+    done
+
+# Run what bench-build built for one of bench_langs.
+[private]
+bench-program lang:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out=target/export/moq
+    case "{{ os() }}" in
+        macos) hooks=$PWD/target/codspeed/libcodspeed.dylib ;;
+        *) hooks=$PWD/target/codspeed/libcodspeed.so ;;
+    esac
+    case "{{ lang }}" in
+        rust) exec target/bench-rust/target/release/bench ;;
+        c) exec target/bench-export ;;
+        cpp) exec target/bench-export-cpp ;;
+        moq-c) exec target/bench-moq-c ;;
+        kotlin) exec kotlin -Djava.library.path="$out/target/release:$PWD/target/codspeed" -cp "target/bench-kt:$KOTLINX_COROUTINES" ExportKt ;;
+        python) PYTHONPATH="$out/python" exec python3 -P moq/bench/export.py "$hooks" ;;
+        swift) exec target/bench-export-swift ;;
+        go) exec target/bench-go/bench ;;
+        dart) exec dart target/bench-dart/main.dill "$hooks" ;;
+        *) echo "bench-program: no language {{ lang }}" >&2; exit 1 ;;
+    esac
 
 # Export moq's crates' C ABI, build it, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart against it, from the pinned moq revision or a checkout.
 moq checkout="": (moq-cpp checkout)
