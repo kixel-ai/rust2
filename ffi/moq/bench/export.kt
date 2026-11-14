@@ -5,12 +5,15 @@
 import java.lang.management.ManagementFactory
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import moq.*
 
 const val GROUPS = 10000
 const val FRAMES = 100
 const val N = GROUPS * FRAMES
+const val THREADS = 4
 val SIZES = listOf(100, 1024, 16384, 65536, 1048576)
 
 // Wall and CPU nanoseconds: a point, or a span per call.
@@ -82,6 +85,15 @@ fun round(): Map<String, Span> {
 	repeat(N) { track.info().close() }
 	out["object"] = per(start)
 
+	// The same from THREADS threads at once, so objects made and freed together contend
+	// for whatever the binding shares between them. Kotlin's alone: the others share none.
+	start = now()
+	val failures = java.util.concurrent.ConcurrentLinkedQueue<Throwable>()
+	List(THREADS) { java.lang.Thread { try { repeat(N / THREADS) { track.info().close() } } catch (e: Throwable) { failures.add(e) } }.apply { start() } }.forEach { it.join() }
+	// A worker that died early would otherwise report a time for fewer than N calls.
+	failures.peek()?.let { throw it }
+	out["objects"] = per(start)
+
 	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
 	var micros = 0uL
 	start = now()
@@ -142,6 +154,34 @@ fun round(): Map<String, Span> {
 			}
 		}
 		out["woken"] = per(t0)
+
+		// One writer coroutine and one reader, with at most one frame permitted.
+		t0 = now()
+		val permits = Channel<Unit>()
+		val writer = launch {
+			repeat(GROUPS) {
+				track.appendGroup().use { group ->
+					repeat(FRAMES) {
+						permits.receive()
+						group.writeFrame(at, frame)
+					}
+					permits.receive()
+					group.finish()
+				}
+			}
+		}
+		repeat(GROUPS) {
+			subscriber.recvGroup()!!.use { reader ->
+				repeat(FRAMES) {
+					permits.send(Unit)
+					reader.readFrame()!!.close()
+				}
+			}
+			permits.send(Unit)
+		}
+		writer.join()
+		permits.close()
+		out["loop"] = per(t0)
 
 		for (size in SIZES) out["mbps:$size"] = throughput(track, subscriber, at, size)
 		subscriber.close()

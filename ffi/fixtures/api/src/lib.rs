@@ -170,9 +170,18 @@ impl Clash {
 		}
 	}
 
-	/// The reading of `n`, whose float fields the sealed class reads back from their bits.
-	pub fn reading(&self, n: u32) -> Reading {
-		reading(n).unwrap()
+	/// The reading of `kotlin`, whose float fields the sealed class reads back from their bits
+	/// under a parameter named as the package of Kotlin's builtins.
+	pub fn reading(&self, kotlin: u32) -> Reading {
+		reading(kotlin).unwrap()
+	}
+
+	/// `java` with `kotlin` appended, and its old length through `kotlin`, under parameters
+	/// named as the packages that qualify Kotlin's builtins and the JDK.
+	pub fn listed(mut java: Vec<u32>, kotlin: &mut u32) -> Vec<Vec<u32>> {
+		java.push(*kotlin);
+		*kotlin = java.len() as u32 - 1;
+		vec![java]
 	}
 
 	/// The double clash of `value`, once `first` finishes.
@@ -441,6 +450,12 @@ impl Board {
 		let mut ranked: Vec<_> = self.counters.iter().collect();
 		ranked.sort_by_key(|(_, counter)| std::cmp::Reverse(counter.get()));
 		ranked.into_iter()
+	}
+
+	/// Its highest counter, through an `impl Trait` that captures no borrow of the board, so
+	/// it crosses as the counter's handle.
+	pub fn best(&self) -> impl Into<Counter> + use<> {
+		(self.counters.values().max_by_key(|counter| counter.get()).cloned()).unwrap_or_default()
 	}
 }
 
@@ -2336,8 +2351,8 @@ pub fn nudge(point: &mut Point, by: i32) {
 	point.y += by;
 }
 
-/// A config of a crate no export is, behind an `Arc`, as moq-tokio's listener returns
-/// rustls's: an opaque handle, which Rust takes back.
+/// A config of a crate the facade re-exports nothing from, behind an `Arc`, as moq-tokio's
+/// listener returns rustls's: an opaque handle, which Rust takes back.
 pub fn secure(alpn: &str) -> Arc<tls::Config> {
 	Arc::new(tls::Config::new(alpn))
 }
@@ -2350,6 +2365,12 @@ pub fn alpn(config: Arc<tls::Config>) -> String {
 /// [`alpn`], lent.
 pub fn alpn_lent(config: &Arc<tls::Config>) -> String {
 	config.alpn().to_string()
+}
+
+/// A session of `alpn` lasting `seconds`, from a crate the facade re-exports nothing from:
+/// its type exports by its path there, and its error crosses as its message.
+pub fn resume(alpn: &str, seconds: u32) -> Result<tls::Session, tls::Error> {
+	tls::resume(alpn, seconds)
 }
 
 /// `text`'s length, or 0 for none: an optional borrow, lent as the borrow alone is.
@@ -2862,6 +2883,12 @@ pub fn wasm_only() -> u32 {
 	32
 }
 
+/// Only wasm32 has it, and it consumes `counter`: a refused call leaves it open.
+#[cfg(target_arch = "wasm32")]
+pub fn wasm_take(counter: Counter) -> Result<u64, Error> {
+	Ok(counter.get())
+}
+
 /// Only wasm32 has it: a call on another target fails before it takes `log`.
 #[cfg(target_arch = "wasm32")]
 pub fn wasm_log(log: Box<dyn Log>) {
@@ -3029,6 +3056,28 @@ pub mod clash {
 		let b = b.map_or(0, |((x, y, z),)| u32::from(x) + u32::from(y) + z);
 		a + b
 	}
+}
+
+/// Changes both coordinates before returning mixed values or an error.
+pub fn return_values(
+	point: &mut Point,
+	fail: bool,
+) -> Result<(String, Option<(u8, i16, u32, u64)>, Vec<Vec<u8>>), Error> {
+	point.x += 1;
+	point.y -= 1;
+	if fail {
+		return Err(Error::Overflow);
+	}
+	Ok((
+		"hé🙂\0".to_string(),
+		Some(widths(u64::MAX)),
+		vec![vec![0, 128, 255], (0..=255).cycle().take(10000).collect()],
+	))
+}
+
+/// Moves the counter into the success value, or drops it on failure.
+pub fn return_moved(counter: Counter, fail: bool) -> Result<Counter, Error> {
+	if fail { Err(Error::Overflow) } else { Ok(counter) }
 }
 
 /// One `NonZero` of each integer, each crossing as its integer.

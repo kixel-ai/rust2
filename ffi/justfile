@@ -10,9 +10,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 cargo_shim := if env("RUST2_CARGO_SHIM", "") == "" { "" } else { env("RUST2_CARGO_SHIM") + ":" }
 export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { cargo_shim + env("RUST2_TS_TOOLCHAIN") / "bin:" + env("PATH") }
 
-# The moq revision these recipes export by default: `just ts`'s, so both follow one moq.
-# just's own path is quoted wherever bash runs it: on Windows, its backslashes are escapes.
-moq_rev := shell(quote(just_executable()) + " --justfile ../ts/justfile --evaluate moq_rev")
+# The moq revision these recipes export by default. It is the exporter's own pin, apart from
+# the model fixture's in ts/fixtures/model/Cargo.toml, so bumping one does not wait on the other.
+moq_rev := "ffcb7cd9748422daa30e935ec464108b5a8ebb71"
 
 # swift-collections 1.7.5, whose `UniqueArray` the generated Swift imports.
 swift_collections_rev := "f96b909e1a9e469620bc5037c1e24e00153f376f"
@@ -274,13 +274,32 @@ dart-program dir main:
     "$sdk/bin/dartaotruntime" "$sdk/bin/snapshots/gen_kernel_aot.dart.snapshot" --platform "$sdk/lib/_internal/vm_platform_strong.dill" \
         --packages "$dir/.dart_tool/package_config.json" --native-assets "$dir/native_assets.yaml" -o "$dir/main.dill" "$dir/main.dart"
 
-# Export moq's crates' C ABI into target/export/moq and build it, with the libraries a program linking it needs besides in target/moq-native.
-[private]
-moq-export checkout="": (standin checkout)
+# Export moq's crates' C ABI as `just ffi moq` does, build it in debug, and run only moq/moq.c against it: `just ci`'s check that the export still serves moq, from the pinned moq revision or a checkout.
+moq-c checkout="": (moq-write checkout)
     #!/usr/bin/env bash
     set -euo pipefail
     out=target/export/moq
-    cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --out "$out"
+    # The lint moq-export denies, and the native libraries; only the static library, which
+    # the C program links, with the glue of every language but Python's, whose symbols
+    # would leave the link undefined.
+    export RUSTFLAGS="-D recursion_depth_exceeding_limit --print=native-static-libs"
+    cargo rustc --locked --quiet --manifest-path "$out/Cargo.toml" --lib --crate-type staticlib --features kotlin,dart 2>&1 | tee target/moq-c-build.log
+    sed -n 's/^note: native-static-libs: //p' target/moq-c-build.log > target/moq-c-native
+    read -ra native < target/moq-c-native
+    cc -std=c11 -pedantic -Wall -Wextra -Werror -I "$out/include" moq/moq.c "$out/target/debug/libmoq.a" "${native[@]}" -o target/moq-c-test
+    target/moq-c-test
+
+# Export moq's crates' C ABI into target/export/moq, unbuilt.
+[private]
+moq-write checkout="": (standin checkout)
+    cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --out target/export/moq
+
+# Export moq's crates' C ABI into target/export/moq and build it, with the libraries a program linking it needs besides in target/moq-native.
+[private]
+moq-export checkout="": (moq-write checkout)
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out=target/export/moq
     # A later nightly makes this future-compat lint a hard error; fail on it in moq's crates
     # and the glue now, while the pin can still move. rustc prints the native libraries.
     export RUSTFLAGS="-D recursion_depth_exceeding_limit --print=native-static-libs"
@@ -325,6 +344,9 @@ standin checkout="":
             printf '%s = { path = "%s/rs/%s" }\n' "$name" "$src" "$name"
         done
         printf '\n[workspace]\n'
+        # moq's profiles, which the export carries as it would moq-ffi's own; the dev ones
+        # tune test-only crates the stand-in does not resolve.
+        awk '/^\[/ { keep = /^\[profile\./ && !/^\[profile\.dev[].]/ } keep' "$src/Cargo.toml"
     } > "$dir/Cargo.toml"
     # What moq-ffi ships, re-exported: moq-net and moq-pattern at the root, beside the
     # waiter a driver's poll registers and the clock it polls at, and each other crate in a

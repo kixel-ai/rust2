@@ -66,10 +66,9 @@ items, 41 of them in moq-tokio, and 6 types.
 
 Decided with the maintainer on 2026-11-12, in the quest audit:
 
-- ✅ The exporter pins moq on its own, apart from rust2-ts's pin
-  ([own pin](/quest/m1/ffi-refusals/own-pin.md)), so its bump no longer waits on rind
-  building for wasm32, which only the translator needs. Rejected: one pin for both, at the
-  cost of two revisions to bump.
+- ✅ The exporter pins moq on its own, apart from rust2-ts's pin, so its bump no longer
+  waits on rind building for wasm32, which only the translator needs. Rejected: one pin for
+  both, at the cost of two revisions to bump.
 - The last per-construct child landed in
   [#710](https://github.com/kixel-ai/rust2/pull/710), yet the Goal is not reached: the
   2026-11-11 nightly census

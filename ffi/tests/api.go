@@ -244,6 +244,9 @@ func script() {
 	fmt.Printf("ranked %s\n", strings.Trim(list(must(board.Ranked()), func(r rt.Tuple2[string, *api.Counter]) string {
 		return fmt.Sprintf("%s %s %d", r.V0, must(r.V1.Name()), must(r.V1.Get()))
 	}), "[]"))
+	best := must(board.Best())
+	fmt.Printf("best %s %d\n", must(best.Name()), must(best.Get()))
+	best.Close()
 	board.Close()
 	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
 	// key once, the last kept.
@@ -662,6 +665,12 @@ func script() {
 	fmt.Printf("nudge %d %d\n", nudged.X, nudged.Y)
 	config := api.Secure("h3")
 	fmt.Printf("secure %s %s\n", must(api.AlpnLent(config)), must(api.Alpn(must(config.Clone()))))
+	session := must(api.Resume("h3", 60))
+	fmt.Printf("resume %s %d\n", must(session.Alpn()), must(session.Lifetime()).Seconds)
+	session.Close()
+	if _, err := api.Resume("", 60); err != nil {
+		fmt.Printf("resume err %s\n", err)
+	}
 	meters := api.NewMeters()
 	meter := must(meters.First())
 	_ = must(meter.Add(2))
