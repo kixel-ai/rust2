@@ -1270,6 +1270,7 @@ fun clash() {
 		Clash.Shape(Shape.CIRCLE),
 		Clash.Event(Event.Named("n")),
 		Clash.Double(1.5),
+		Clash.Float(0.5f),
 		Clash.String("s"),
 		Clash.Int(-3),
 		Clash.Boolean(true),
@@ -1290,6 +1291,8 @@ fun clash() {
 	check(all[0].point() == p && all[3].point() == null, "clash point")
 	check(Clash.of(2.5) == Clash.Double(2.5), "clash of")
 	check(Clash.at(p) == Clash.Point(p), "clash at")
+	check(Clash.Unit.reading(3u) == readingEcho(reading(3u)!!), "clash reading")
+	check(runBlocking { Clash.after({}, 0.25) } == Clash.Double(0.25), "clash after")
 	check(Packaged(3u).point() == Point(3, 3) && Packaged(3u).shape() == Shape.CIRCLE, "a field named as the package")
 	check(Clash.String("hi").bytes().toByteArray().decodeToString() == "hi", "clash bytes")
 	val out = Mut(0u)

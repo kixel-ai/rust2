@@ -134,6 +134,7 @@ pub enum Clash {
 	Shape(Shape),
 	Event(Event),
 	Double(f64),
+	Float(f32),
 	String(String),
 	Int(i32),
 	Boolean(bool),
@@ -167,6 +168,17 @@ impl Clash {
 			Clash::String(s) => s.as_bytes().to_vec(),
 			_ => Vec::new(),
 		}
+	}
+
+	/// The reading of `n`, whose float fields the sealed class reads back from their bits.
+	pub fn reading(&self, n: u32) -> Reading {
+		reading(n).unwrap()
+	}
+
+	/// The double clash of `value`, once `first` finishes.
+	pub async fn after(first: impl Future<Output = ()> + Send, value: f64) -> Clash {
+		first.await;
+		Clash::Double(value)
 	}
 
 	/// A point clash at `api`, a parameter named as the Kotlin package that qualifies its type.

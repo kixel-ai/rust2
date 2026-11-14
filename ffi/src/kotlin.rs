@@ -510,7 +510,10 @@ impl<'a> Gen<'a> {
 				.is_none_or(|c| !c.is_alphanumeric() && c != '_' && c != '.');
 			if at_word
 				&& let Some(after) = rest.strip_prefix('_')
-				&& after.starts_with(|c: char| c.is_ascii_uppercase())
+				&& let ident = &after[..after
+					.find(|c: char| !c.is_alphanumeric() && c != '_')
+					.unwrap_or(after.len())]
+				&& self.aliases.borrow().contains(ident)
 			{
 				rest = after;
 			} else if at_word
@@ -653,7 +656,7 @@ impl<'a> Gen<'a> {
 			Type::List(_, inner) => format!("kotlin.collections.List<{}>", self.kt(inner)),
 			Type::Waker => self.own("Waker"),
 			Type::Reader => "java.nio.channels.SeekableByteChannel".to_string(),
-			Type::Future => "suspend () -> Unit".to_string(),
+			Type::Future => "suspend () -> kotlin.Unit".to_string(),
 			Type::Option(inner) => format!("{}?", self.kt(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.kt(inner),
 			Type::Record(i) => self.qualified(&abi.record(*i)),
@@ -2581,9 +2584,12 @@ impl<'a> Gen<'a> {
 						}
 						Type::F32 => (
 							format!("{v}.to_bits() as i64"),
-							format!("Float.fromBits({slot}.toInt())"),
+							format!("kotlin.Float.fromBits({slot}.toInt())"),
 						),
-						Type::F64 => (format!("{v}.to_bits() as i64"), format!("Double.fromBits({slot})")),
+						Type::F64 => (
+							format!("{v}.to_bits() as i64"),
+							format!("kotlin.Double.fromBits({slot})"),
+						),
 						Type::Char => (format!("{v} as i64"), format!("{slot}.toInt()")),
 						Type::Enum(e) => {
 							let class = self.qualified(&abi.enumeration(*e));
