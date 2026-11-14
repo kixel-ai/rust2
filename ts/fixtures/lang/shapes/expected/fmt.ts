@@ -3193,21 +3193,12 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x2 = leaf.next();
-			if (x2 === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x2];
-		}
-		const _17: [rs.usize, rs.u8] | rs.Done = next;
-		if (_17 === rs.DONE) {
+		const x2 = leaf.next();
+		if (x2 === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _17[0];
-		const x: rs.u8 = _17[1];
+		const i: rs.usize = count++;
+		const x: rs.u8 = x2;
 		const _22: rs.u8 = rs.u8Rem(x, 4);
 		if (_22 === 0) {
 			const _25: rs.Fmt = rs.fmtOwned(dropper(x), (value: Dropper.Dropper, f: rs.Formatter) => Dropper.fmt$fmt_Debug(value, f), rs.drop);

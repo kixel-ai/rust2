@@ -136,21 +136,12 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 3, dataLen - 3)));
 		let count: number = 0;
 		while (true) {
-			let next!: [rs.usize, rs.u8] | rs.Done;
-			next2: {
-				const x2 = leaf.next();
-				if (x2 === rs.DONE) {
-					next = rs.DONE;
-					break next2;
-				}
-				next = [count++, x2];
-			}
-			const _94: [rs.usize, rs.u8] | rs.Done = next;
-			if (_94 === rs.DONE) {
+			const x2 = leaf.next();
+			if (x2 === rs.DONE) {
 				break;
 			}
-			const i: rs.usize = _94[0];
-			const x: rs.u8 = _94[1];
+			const i: rs.usize = count++;
+			const x: rs.u8 = x2;
 			const _101: Named.Named = make(rs.u8WrappingAdd(x, i & 0xff), x);
 			shapes.items.push(_101);
 		}
@@ -482,21 +473,12 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2)));
 		let count: number = 0;
 		while (true) {
-			let next!: [rs.usize, rs.u8] | rs.Done;
-			next2: {
-				const x2 = leaf.next();
-				if (x2 === rs.DONE) {
-					next = rs.DONE;
-					break next2;
-				}
-				next = [count++, x2];
-			}
-			const _229: [rs.usize, rs.u8] | rs.Done = next;
-			if (_229 === rs.DONE) {
+			const x2 = leaf.next();
+			if (x2 === rs.DONE) {
 				break;
 			}
-			const i: rs.usize = _229[0];
-			const x: rs.u8 = _229[1];
+			const i: rs.usize = count++;
+			const x: rs.u8 = x2;
 			const _238: rs.u8 = rs.u8Rem(x, 4);
 			if (_238 === 0) {
 				_237 = new of$u8(x);
@@ -700,21 +682,12 @@ export function fns(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const leaf: rs.Iter<(a0: rs.u8) => rs.u8> = rs.iterSlice(fs.items);
 		let count: number = 0;
 		while (true) {
-			let next!: [rs.usize, (a0: rs.u8) => rs.u8] | rs.Done;
-			next2: {
-				const x5 = leaf.next();
-				if (x5 === rs.DONE) {
-					next = rs.DONE;
-					break next2;
-				}
-				next = [count++, x5];
-			}
-			const _115: [rs.usize, (a0: rs.u8) => rs.u8] | rs.Done = next;
-			if (_115 === rs.DONE) {
+			const x5 = leaf.next();
+			if (x5 === rs.DONE) {
 				break;
 			}
-			const i: rs.usize = _115[0];
-			const y: rs.u8 = _115[1](option_unwrapOr$1fr498u(rs.byteSliceGet(rs.byteSliceRange(data, 2), i), b));
+			const i2 = count++;
+			const y: rs.u8 = x5(option_unwrapOr$1fr498u(rs.byteSliceGet(rs.byteSliceRange(data, 2), i2), b));
 			const _133: rs.u32 = hook.f(y);
 			const args20 = [(f: rs.Formatter) => rs.u8Display(y, f), (f: rs.Formatter) => rs.u32Display(_133, f)];
 			put(out, rs.fmtFormat([args20[0], ":", args20[1], " "]).v);
@@ -1576,21 +1549,12 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const leaf: rs.Iter<rs.Arc<rs.RefCell<Shape.Shape>>> = rs.iterSlice(shapes.items);
 		let count: number = 0;
 		while (true) {
-			let next2!: [rs.usize, rs.Arc<rs.RefCell<Shape.Shape>>] | rs.Done;
-			next3: {
-				const x2 = leaf.next();
-				if (x2 === rs.DONE) {
-					next2 = rs.DONE;
-					break next3;
-				}
-				next2 = [count++, x2];
-			}
-			const _53: [rs.usize, rs.Arc<rs.RefCell<Shape.Shape>>] | rs.Done = next2;
-			if (_53 === rs.DONE) {
+			const x2 = leaf.next();
+			if (x2 === rs.DONE) {
 				break;
 			}
-			const i: rs.usize = _53[0];
-			const _61: rs.RefCell<Shape.Shape> = rs.refCellBorrowMut(_53[1].value);
+			const i: rs.usize = count++;
+			const _61: rs.RefCell<Shape.Shape> = rs.refCellBorrowMut(x2.value);
 			const _63: rs.u8 = rs.u8WrappingAdd(c, i & 0xff);
 			_61.value.grow$Shape(_63);
 			rs.refMutRelease(_61);
@@ -2036,20 +2000,12 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		const leaf: rs.Iter<rs.Cell<Shape.Shape>> = rs.iterSlice([rs.tailDyn(n, { v: (value: rs.Cell<rs.u32>) => new ofPlace$u32(value) }), rs.tailDyn(sq, { v: (value2: rs.Cell<Square.Square>) => new of$dyns_Square(value2.v) }), rs.tailDyn(tri, { v: (value3: rs.Cell<Tri.Tri>) => new ofPlace$dyns_Tri(value3) })]);
 		let count: number = 0;
 		while (true) {
-			let next!: [rs.usize, rs.Cell<Shape.Shape>] | rs.Done;
-			next2: {
-				const x = leaf.next();
-				if (x === rs.DONE) {
-					next = rs.DONE;
-					break next2;
-				}
-				next = [count++, x];
-			}
-			const _36: [rs.usize, rs.Cell<Shape.Shape>] | rs.Done = next;
-			if (_36 === rs.DONE) {
+			const x = leaf.next();
+			if (x === rs.DONE) {
 				break;
 			}
-			_36[1].v.grow$Shape(rs.u8WrappingAdd(c, _36[0] & 0xff));
+			const i2 = count++;
+			x.v.grow$Shape(rs.u8WrappingAdd(c, i2 & 0xff));
 		}
 		const area: rs.u32 = rs.tailDyn(tri, { v: (value4: rs.Cell<Tri.Tri>) => new ofPlace$dyns_Tri(value4) }).v.area$Shape();
 		const _58: rs.u32 = n.v;

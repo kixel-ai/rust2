@@ -118,15 +118,6 @@ pub struct Size {
 	pub bytes: u64,
 }
 
-/// Another crate's error borrowing `text`, the output of a future: the glue awaits the
-/// future past the call that owns `text`, so the error's borrow would outlive it.
-pub async fn parse_later(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
-	match text.is_empty() {
-		true => Err(tls::held::Malformed(text)),
-		false => Ok(text.len() as u32),
-	}
-}
-
 /// A waiter of another crate, which a handle holds by value.
 pub fn waiter() -> tls::held::Waiter {
 	tls::held::Waiter::new(std::task::Waker::noop().clone())
@@ -1247,4 +1238,32 @@ pub fn pump_sink<T: tls::held::Sink>(sink: T) -> u8 {
 /// A width only `u32`, which C passes by role, meets: refused, not left out.
 pub fn widen<T: tls::held::Width>(x: T) -> u32 {
 	x.bits()
+}
+
+/// A `Copy` count, a value, whose change a raised error or a future would lose, and which a
+/// returned borrow would still hold as it is written back.
+#[derive(Clone, Copy)]
+pub struct Counter {
+	count: u8,
+}
+
+impl Counter {
+	pub fn zero() -> Self {
+		Self { count: 0 }
+	}
+
+	pub fn try_bump(&mut self) -> Result<u8, String> {
+		self.count = self.count.checked_add(1).ok_or("overflow")?;
+		Ok(self.count)
+	}
+
+	pub fn bump_later(&mut self) -> impl std::future::Future<Output = u8> + use<> {
+		self.count += 1;
+		std::future::ready(self.count)
+	}
+
+	pub fn bump_ref(&mut self) -> &u8 {
+		self.count += 1;
+		&self.count
+	}
 }

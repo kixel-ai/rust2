@@ -832,20 +832,12 @@ export function slots$spare_Noted(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const leaf: rs.Iter<Noted.Noted> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
 			let count: number = 0;
 			while (true) {
-				let next!: [rs.usize, Noted.Noted] | rs.Done;
-				next2: {
-					const x = leaf.next();
-					if (x === rs.DONE) {
-						next = rs.DONE;
-						break next2;
-					}
-					next = [count++, x];
-				}
-				const _38: [rs.usize, Noted.Noted] | rs.Done = next;
-				if (_38 === rs.DONE) {
+				const x = leaf.next();
+				if (x === rs.DONE) {
 					break;
 				}
-				rs.ptrWrite(_38[1], Noted.of$spare_Item(n ^ (_38[0] & 0xff)));
+				const i4 = count++;
+				rs.ptrWrite(x, Noted.of$spare_Item(n ^ (i4 & 0xff)));
 			}
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 1, (): Noted.Noted => {
 				return (new Noted.Noted((undefined as unknown) as rs.u8) as unknown) as Noted.Noted;
@@ -933,20 +925,12 @@ export function slots$spare_Pair(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const leaf: rs.Iter<Pair.Pair> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
 			let count: number = 0;
 			while (true) {
-				let next!: [rs.usize, Pair.Pair] | rs.Done;
-				next2: {
-					const x = leaf.next();
-					if (x === rs.DONE) {
-						next = rs.DONE;
-						break next2;
-					}
-					next = [count++, x];
-				}
-				const _38: [rs.usize, Pair.Pair] | rs.Done = next;
-				if (_38 === rs.DONE) {
+				const x = leaf.next();
+				if (x === rs.DONE) {
 					break;
 				}
-				rs.ptrWrite(_38[1], Pair.of$spare_Item(n ^ (_38[0] & 0xff)));
+				const i4 = count++;
+				rs.ptrWrite(x, Pair.of$spare_Item(n ^ (i4 & 0xff)));
 			}
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 16, (): Pair.Pair => {
 				return ({ a: undefined, b: undefined } as unknown) as Pair.Pair;
@@ -1029,20 +1013,12 @@ export function slots$tuple2_u8_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const leaf: rs.Iter<[rs.u8, rs.u32]> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
 			let count: number = 0;
 			while (true) {
-				let next!: [rs.usize, [rs.u8, rs.u32]] | rs.Done;
-				next2: {
-					const x = leaf.next();
-					if (x === rs.DONE) {
-						next = rs.DONE;
-						break next2;
-					}
-					next = [count++, x];
-				}
-				const _38: [rs.usize, [rs.u8, rs.u32]] | rs.Done = next;
-				if (_38 === rs.DONE) {
+				const x = leaf.next();
+				if (x === rs.DONE) {
 					break;
 				}
-				rs.ptrWrite(_38[1], copy$tuple2_u8_u32(of$spare_Item_tuple2_u8_u32(n ^ (_38[0] & 0xff))));
+				const i4 = count++;
+				rs.ptrWrite(x, copy$tuple2_u8_u32(of$spare_Item_tuple2_u8_u32(n ^ (i4 & 0xff))));
 			}
 			rs.vecSetLen(v, rs.usizeAdd(len, k), 8, (): [rs.u8, rs.u32] => {
 				return ([undefined, undefined] as unknown) as [rs.u8, rs.u32];

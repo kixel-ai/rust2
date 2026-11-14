@@ -2490,26 +2490,16 @@ export function zipped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<[Uint8Array, [rs.u8, rs.u8]]> = rs.iterSlice(slots);
 	const leaf2: rs.Iter<Uint8Array> = rs.vecIntoIter(rows);
 	while (true) {
-		let next!: [[Uint8Array, [rs.u8, rs.u8]], Uint8Array] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			const x2 = leaf2.next();
-			if (x2 === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [x, x2];
-		}
-		const _18: [[Uint8Array, [rs.u8, rs.u8]], Uint8Array] | rs.Done = next;
-		if (_18 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const uninit = _18[0];
-		rs.ptrWrite(uninit, [copy$array_u8(_18[1]), [51, 3] as [rs.u8, rs.u8]] as [Uint8Array, [rs.u8, rs.u8]]);
+		const x2 = leaf2.next();
+		if (x2 === rs.DONE) {
+			break;
+		}
+		const uninit = x;
+		rs.ptrWrite(uninit, [copy$array_u8(x2), [51, 3] as [rs.u8, rs.u8]] as [Uint8Array, [rs.u8, rs.u8]]);
 		uninit;
 	}
 	const _28: rs.Iter<[Uint8Array, [rs.u8, rs.u8]]> = rs.iterSkip(rs.iterSlice(slots), 1);
