@@ -3,6 +3,7 @@
 // its wall time and the process's CPU time, the JIT's and GC's threads included.
 
 import java.lang.management.ManagementFactory
+import java.util.concurrent.CountDownLatch
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -13,6 +14,7 @@ import moq.*
 const val GROUPS = 10000
 const val FRAMES = 100
 const val N = GROUPS * FRAMES
+const val THREADS = 4
 val SIZES = listOf(100, 1024, 16384, 65536, 1048576)
 
 // Wall and CPU nanoseconds: a point, or a span per call.
@@ -30,6 +32,27 @@ fun per(start: Span, n: Double = N.toDouble()): Span {
 
 // What the loops sum, kept so the JIT cannot drop the calls.
 @Volatile var sink = 0
+
+// `call` made N times on each of THREADS threads at once, thread i on handles[i]: wall
+// nanoseconds per call on one thread, and CPU nanoseconds per call.
+fun <T> concurrent(handles: List<T>, call: (T) -> Int): Span {
+	val ready = CountDownLatch(THREADS)
+	val go = CountDownLatch(1)
+	val workers = handles.map { handle ->
+		Thread {
+			var sum = 0
+			ready.countDown()
+			go.await()
+			repeat(N) { sum += call(handle) }
+			sink += sum
+		}.apply { start() }
+	}
+	ready.await()
+	val start = now()
+	go.countDown()
+	workers.forEach { it.join() }
+	return per(start, N.toDouble()).let { Span(it.wall, it.cpu / THREADS) }
+}
 
 // Groups of 100 frames of `size` bytes written and each read back, its payload's first
 // byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
@@ -72,6 +95,19 @@ fun round(): Map<String, Span> {
 			start = now()
 			repeat(N) { sum += demand.sequence().toInt() }
 			out["getter"] = per(start)
+
+			// The handle call and the getter from THREADS threads: on one shared handle, then
+			// on a clone each, a handle of its own to the same value.
+			val isClosed = { t: TrackProducer -> if (t.isClosed()) 1 else 0 }
+			val sequence = { d: GroupDemand -> d.sequence().toInt() }
+			val tracks = List(THREADS) { track.clone() }
+			val demands = List(THREADS) { demand.clone() }
+			out["shared:call"] = concurrent(List(THREADS) { track }, isClosed)
+			out["own:call"] = concurrent(tracks, isClosed)
+			out["shared:getter"] = concurrent(List(THREADS) { demand }, sequence)
+			out["own:getter"] = concurrent(demands, sequence)
+			tracks.forEach { it.close() }
+			demands.forEach { it.close() }
 		}
 		group.finish()
 	}

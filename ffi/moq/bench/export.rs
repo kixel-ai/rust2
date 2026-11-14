@@ -6,11 +6,13 @@
 use std::future::Future;
 use std::hint::black_box;
 use std::pin::pin;
+use std::sync::Barrier;
 use std::task::{Context, Poll, Waker};
 use std::time::Instant;
 
 const GROUPS: u64 = 10000;
 const FRAMES: u64 = 100;
+const THREADS: usize = 4;
 const SIZES: [usize; 5] = [100, 1024, 16384, 65536, 1048576];
 
 /// When a case started, on the wall clock and in the process's CPU time.
@@ -40,6 +42,28 @@ fn elapsed(start: Start) -> (f64, f64) {
 fn per(start: Start, n: u64) -> (f64, f64) {
 	let (wall, cpu) = elapsed(start);
 	(wall / n as f64, cpu / n as f64)
+}
+
+/// `call` made `n` times on each of [`THREADS`] threads at once, thread `i` on `handles[i]`:
+/// wall nanoseconds per call on one thread, and CPU nanoseconds per call.
+fn concurrent<T: Sync>(handles: &[&T], n: u64, call: impl Fn(&T) + Sync) -> (f64, f64) {
+	let start = Barrier::new(THREADS + 1);
+	// The scope joins every thread before it returns, so the span ends after the last call.
+	let begin = std::thread::scope(|scope| {
+		for &handle in handles {
+			let (start, call) = (&start, &call);
+			scope.spawn(move || {
+				start.wait();
+				for _ in 0..n {
+					call(black_box(handle));
+				}
+			});
+		}
+		start.wait();
+		begin()
+	});
+	let (wall, cpu) = elapsed(begin);
+	(wall / n as f64, cpu / (n * THREADS as u64) as f64)
 }
 
 /// `future`'s output, which must be ready at its first poll.
@@ -93,6 +117,21 @@ fn round() -> Vec<(String, (f64, f64))> {
 		black_box(black_box(&demand).sequence());
 	}
 	out.push(("getter".into(), per(start, n)));
+
+	// The handle call and the getter from THREADS threads: on one shared value, then on a
+	// clone each, as the bindings' own-handle cases do.
+	let is_closed = |track: &moq::track::Producer| {
+		black_box(track.is_closed());
+	};
+	let sequence = |demand: &moq::group::Demand| {
+		black_box(demand.sequence());
+	};
+	let tracks: Vec<_> = (0..THREADS).map(|_| track.clone()).collect();
+	let demands: Vec<_> = (0..THREADS).map(|_| demand.clone()).collect();
+	out.push(("shared:call".into(), concurrent(&[&track; THREADS], n, is_closed)));
+	out.push(("own:call".into(), concurrent(&tracks.iter().collect::<Vec<_>>(), n, is_closed)));
+	out.push(("shared:getter".into(), concurrent(&[&demand; THREADS], n, sequence)));
+	out.push(("own:getter".into(), concurrent(&demands.iter().collect::<Vec<_>>(), n, sequence)));
 
 	let start = begin();
 	for _ in 0..n {

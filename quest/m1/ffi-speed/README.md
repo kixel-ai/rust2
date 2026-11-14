@@ -22,6 +22,6 @@ row.
 
 Decided with the maintainer on 2026-11-12, in `/quest-plan`: ✅ the benchmark's own
 measurement work joins this epic, as [CodSpeed](/quest/m1/ffi-speed/codspeed.md),
-[the export's cost](/quest/m1/ffi-speed/export-time.md), and
-[concurrent calls](/quest/m1/ffi-speed/concurrent-calls.md), since they serve its PRs.
+[the export's cost](/quest/m1/ffi-speed/export-time.md), and concurrent calls, since they
+serve its PRs.
 Rejected: standalone m1 quests; holding the last two in m3.
