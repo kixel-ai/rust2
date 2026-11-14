@@ -2998,8 +2998,8 @@ impl<'tcx> Collector<'tcx> {
 		};
 		// The glue cannot name an `impl Trait`'s hidden type, so one in a return that maps
 		// crosses only as what the glue passes on whole: an object's handle, or a value's
-		// bytes. A future and a collected iterator are taken apart instead, so it is what their output or items
-		// name that crosses.
+		// bytes. A future and a collected iterator are taken apart instead, so it is what
+		// their output or items name that crosses.
 		let unrevealed = sig.output();
 		let mut named = if ok.is_ok() { vec![unrevealed] } else { Vec::new() };
 		while let Some(ty) = named.pop() {
@@ -4333,13 +4333,14 @@ impl<'tcx> Collector<'tcx> {
 							hidden = tcx.type_of(*def_id).instantiate(tcx, args).skip_norm_wip();
 						}
 						// One whose hidden type is an object crosses as its handle, which the glue
-						// keeps as the opaque type itself, so it holds every lifetime it captures,
-						// even one its hidden type does not borrow; one collected at the call holds
-						// nothing past it, and any other is refused. Looked up with regions erased,
-						// since they may be the signature's bound ones, which a key never names.
+						// keeps as the opaque type itself, and one whose hidden type is a value as
+						// its bytes, so each holds every lifetime it captures, even one its hidden
+						// type does not borrow; one collected at the call holds nothing past it,
+						// and any other is refused. Looked up with regions erased, since they may
+						// be the signature's bound ones, which a key never names.
 						let erased = ty::fold_regions(tcx, hidden, |_, _| tcx.lifetimes.re_erased);
 						let object = matches!(erased.kind(), ty::Adt(adt, args)
-							if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))));
+							if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_) | Decl::Value(_))));
 						if object {
 							held.extend(args.iter().flat_map(|arg| arg.walk()).filter_map(|arg| arg.as_region()));
 						}

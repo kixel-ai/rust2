@@ -1049,6 +1049,11 @@ pub fn wrap(bytes: &[u8]) -> View<'_> {
 	View { bytes }
 }
 
+/// The same, through an `impl Trait` hiding the value, which holds what it captures.
+pub fn hidden_wrap(bytes: &[u8]) -> impl Clone + '_ {
+	View { bytes }
+}
+
 /// A `Copy` mark held across as its bytes.
 #[derive(Clone, Copy)]
 pub struct Mark {
