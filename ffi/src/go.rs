@@ -2247,6 +2247,11 @@ impl<'a> Gen<'a> {
 				}
 			}
 		};
+		// A positional field's accessor, `0Get`, is `V0Get`, as its field is `V0`.
+		let member = match member.starts_with(|c: char| c.is_ascii_digit()) {
+			true => format!("V{member}"),
+			false => member,
+		};
 		let classes = self.classes.get(self.pkg);
 		let member = match (receiver.is_some(), member.as_str()) {
 			// What every object or value of the type already has.
