@@ -13,6 +13,8 @@ on:
     branches: [main]
     paths:
       - ffi/**
+      # rust2-ffi builds over the driver by path.
+      - driver/**
       - bench/ffi/**
       - flake.nix
       - flake.lock
@@ -27,6 +29,7 @@ on:
   pull_request:
     paths:
       - ffi/**
+      - driver/**
       - bench/ffi/**
       - flake.nix
       - flake.lock
