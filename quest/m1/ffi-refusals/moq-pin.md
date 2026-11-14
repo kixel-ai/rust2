@@ -112,9 +112,10 @@ crates, which only defers the failure until a later nightly makes it a hard erro
 
 ## Waiting
 
-- moq-dev/moq: moq-tokio builds without tripping `recursion_depth_exceeding_limit` (an
-  overflow proving `Send` on `Instrumented<...>`), which `just ffi moq-cpp <checkout>` denies.
-  Done when it passes at moq's `main`. Still failing on 2026-11-14 at moq `9b80cfcc8`, after
+- moq-dev/moq: moq-tokio and the moq-ffi facade both build without tripping
+  `recursion_depth_exceeding_limit`, which `just ffi moq-cpp <checkout>` denies: moq-tokio's
+  overflow proving `Send` on `Instrumented<...>`, and the facade's proving `moq_net::Driver: Sync`.
+  Done when `just ffi moq-cpp` trips neither at moq's `main`. Both still fail on 2026-11-14 at moq `9b80cfcc8`, after
   [moq-dev/moq#8657](https://github.com/moq-dev/moq/pull/8657), which shortened only moq-net's
   own `Driver: Send` proof: at `rs/moq-tokio/src/client.rs:789`, on the `Instrumented<...>` from
   `tokio::spawn(panic::isolate(time::run(driver)).instrument(..))`, and in the moq-ffi facade
