@@ -931,9 +931,19 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const args28 = [(f: rs.Formatter) => rs.u16Display(arg6, f), (f: rs.Formatter) => rs.fmtOption(_281, f, (value: [rs.u8, boolean], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtBool(value[1], f)], f))];
 	put(out, rs.fmtFormat([args28[0], " ", args28[1]]).v);
 	let ping: Ping.Ping<Rally.Rally, Pong.Pong$generics_Rally> = new Ping.Ping(238, undefined as rs.OptionOf<Pong.Pong$generics_Rally>);
-	const iter2: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count2: number = 0;
 	while (true) {
-		const _294: [rs.usize, rs.u8] | rs.Done = iter2.next();
+		let next6!: [rs.usize, rs.u8] | rs.Done;
+		next7: {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				next6 = rs.DONE;
+				break next7;
+			}
+			next6 = [count2++, x];
+		}
+		const _294: [rs.usize, rs.u8] | rs.Done = next6;
 		if (_294 === rs.DONE) {
 			break;
 		}

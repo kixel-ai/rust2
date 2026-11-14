@@ -2,6 +2,7 @@
 
 import * as rs from "../rs.ts";
 import type * as Badge from "../iters.Badge.ts";
+import type * as Noted from "../iters.Noted.ts";
 import type * as Quarter from "../iters.Quarter.ts";
 import type * as Tilt from "../iters.Tilt.ts";
 
@@ -54,6 +55,13 @@ export function unwrapOrDefault$0w012ed(self: rs.ByteVec | undefined): rs.ByteVe
 	return self;
 }
 
+export function map$0kl0twv(self: Noted.Noted | undefined, f: (a0: Noted.Noted) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$06og5bz(self: rs.String | undefined, _: (a0: rs.String) => string): string | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -83,6 +91,20 @@ export function map$1p2lbl3(self: [rs.u8, rs.String] | undefined, f: (a0: [rs.u8
 }
 
 export function map$1oqs2fe(self: [rs.u8, rs.u16] | undefined, f: (a0: [rs.u8, rs.u16]) => rs.u16): rs.u16 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1c8069b(self: [rs.u8, rs.u8] | undefined, f: (a0: [rs.u8, rs.u8]) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$0rfm4x4(self: [rs.usize, [rs.u8, rs.u8]] | undefined, f: (a0: [rs.usize, [rs.u8, rs.u8]]) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

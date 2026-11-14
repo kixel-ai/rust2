@@ -4345,9 +4345,19 @@ export function chunkWrite(chunk: rs.ByteSlice, op: rs.u8, n: rs.u8, out: rs.Byt
 	b1: {
 		const _20: rs.u8 = rs.u8Rem(op, 13);
 		if (_20 === 0) {
-			const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(src))));
+			const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(src)));
+			let count: number = 0;
 			while (true) {
-				const _28: [rs.usize, rs.u8] | rs.Done = iter.next();
+				let next!: [rs.usize, rs.u8] | rs.Done;
+				next2: {
+					const x = leaf.next();
+					if (x === rs.DONE) {
+						next = rs.DONE;
+						break next2;
+					}
+					next = [count++, x];
+				}
+				const _28: [rs.usize, rs.u8] | rs.Done = next;
 				if (_28 === rs.DONE) {
 					break;
 				}
@@ -6086,10 +6096,16 @@ export function vectored(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		const part2 = rs.sliceRange(dst2, 0, n);
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part2), f, (value: rs.ByteSlice, f: rs.Formatter) => rs.fmtList(rs.byteSliceView(value), f, rs.u8Debug))]).v));
-		const total: rs.usize = rs.iterSum(rs.iterMap(rs.iterSlice(rs.sliceItems(rs.sliceRange(dst2, 0, n))), (chunk: rs.ByteSlice): rs.usize => {
-			return chunk.length;
-		}), rs.usizeAdd, 0);
-		const skip: rs.usize = rs.usizeRem(data.data[data.start + 3] as rs.usize, rs.usizeAdd(total, 2));
+		const leaf = rs.iterSlice(rs.sliceItems(rs.sliceRange(dst2, 0, n)));
+		let acc: rs.usize = 0;
+		while (true) {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				break;
+			}
+			acc = rs.usizeAdd(acc, x.length);
+		}
+		const skip: rs.usize = rs.usizeRem(data.data[data.start + 3] as rs.usize, rs.usizeAdd(acc, 2));
 		const _126: rs.Place<rs.ByteSlice> | undefined = rs.sliceFirstMut(dst2);
 		if (_126 !== undefined) {
 			let one: rs.ByteSlice = _126.v;

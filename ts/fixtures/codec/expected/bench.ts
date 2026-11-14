@@ -642,9 +642,19 @@ export function keyed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		return rs.fmtFormat([args3[0], "/", args3[1]]);
 	}), undefined, 12, true);
 	const map: rs.HashMap<rs.String, rs.u64> = rs.hashNew(rs.HASH_TEXT) as rs.HashMap<rs.String, rs.u64>;
-	const iter: rs.Iter<[rs.usize, rs.String]> = rs.iterEnumerate(rs.iterSlice(keys.items));
+	const leaf: rs.Iter<rs.String> = rs.iterSlice(keys.items);
+	let count2: number = 0;
 	while (true) {
-		const _32: [rs.usize, rs.String] | rs.Done = iter.next();
+		let next!: [rs.usize, rs.String] | rs.Done;
+		next2: {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count2++, x];
+		}
+		const _32: [rs.usize, rs.String] | rs.Done = next;
 		if (_32 === rs.DONE) {
 			break;
 		}
@@ -854,11 +864,21 @@ export function frames(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function iterate(chain: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	if (chain === 0) {
-		putUsize(out, rs.iterCount(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_217: rs.u8): rs.u8 => {
-			return _217 >> 1;
-		}), (_218: rs.u8): boolean => {
-			return (_218 & 1) === 0;
-		})));
+		const leaf7 = rs.iterSlice(rs.byteSliceView(data));
+		let n3 = 0;
+		fused9: while (true) {
+			while (true) {
+				const x7 = leaf7.next();
+				if (x7 === rs.DONE) {
+					break fused9;
+				}
+				if (((x7 >> 1) & 1) === 0) {
+					break;
+				}
+			}
+			n3++;
+		}
+		putUsize(out, n3);
 	} else if (chain === 1) {
 		rs.byteVecPush(out, rs.iterAny(rs.iterSlice(rs.byteSliceView(data)), (_216: rs.u8): boolean => {
 			return _216 === 255;
@@ -868,34 +888,76 @@ export function iterate(chain: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			return (_215 & 1) === 1;
 		}), "next").length);
 	} else if (chain === 3) {
-		harness_putU64(out, rs.iterSum(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_214: rs.u8): rs.u32 => {
-			return _214 as rs.u32;
-		}), rs.u32Add, 0) as rs.u64);
+		const leaf6 = rs.iterSlice(rs.byteSliceView(data));
+		let acc2: rs.u32 = 0;
+		while (true) {
+			const x6 = leaf6.next();
+			if (x6 === rs.DONE) {
+				break;
+			}
+			acc2 = rs.u32Add(acc2, x6 as rs.u32);
+		}
+		harness_putU64(out, acc2 as rs.u64);
 	} else if (chain === 4) {
 		harness_putU64(out, rs.iterFold(rs.iterTake(rs.iterSkip(rs.iterSlice(rs.byteSliceView(data)), 16), 512), 0, (acc: rs.u32, _3: rs.u8): rs.u32 => {
 			return (acc ^ _3 as rs.u32) >>> 0;
 		}) as rs.u64);
 	} else if (chain === 6) {
-		putUsize(out, rs.iterCount(rs.iterFilter(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), "len"), (_213: [rs.u8, rs.u8]): boolean => {
-			return _213[0] < _213[1];
-		})));
+		const leaf4 = rs.iterSlice(rs.byteSliceView(data));
+		const leaf5 = rs.iterRev(rs.iterSlice(rs.byteSliceView(data)));
+		let left = Math.min(leaf4.len(), leaf5.len());
+		let n2 = 0;
+		fused5: while (true) {
+			while (true) {
+				if (left === 0) {
+					break fused5;
+				}
+				left--;
+				if ((leaf4.next() as rs.u8) < (leaf5.next() as rs.u8)) {
+					break;
+				}
+			}
+			n2++;
+		}
+		putUsize(out, n2);
 	} else if (chain === 7) {
 		putUsize(out, rs.iterCount(rs.iterFilter(rs.iterRev(rs.iterZip(new rs.Range(0, rs.usizeMul(data.length, 64)), rs.iterSlice(rs.byteSliceView(data)), [false, false])), (_212: [rs.usize, rs.u8]): boolean => {
 			return (_212[0] & 0xff) < _212[1];
 		})));
 	} else if (chain === 8) {
-		putUsize(out, rs.iterCount(rs.iterFilter(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u8 => {
-			return _2 >> 1;
-		}), rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_210: rs.u8): rs.u8 => {
-			return _210 ^ 3;
-		}), [true, true]), (_211: [rs.u8, rs.u8]): boolean => {
-			return _211[0] < _211[1];
-		})));
+		const leaf2 = rs.iterSlice(rs.byteSliceView(data));
+		const leaf3 = rs.iterSlice(rs.byteSliceView(data));
+		let index = 0;
+		const end = Math.min(leaf2.len(), leaf3.len());
+		let n = 0;
+		fused2: while (true) {
+			while (true) {
+				if (index >= end) {
+					break fused2;
+				}
+				index++;
+				if (((leaf2.next() as rs.u8) >> 1) < ((leaf3.next() as rs.u8) ^ 3)) {
+					break;
+				}
+			}
+			n++;
+		}
+		putUsize(out, n);
 	} else {
 		let last: rs.usize = 0;
-		const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+		let count: number = 0;
 		while (true) {
-			const _54: [rs.usize, rs.u8] | rs.Done = iter.next();
+			let next!: [rs.usize, rs.u8] | rs.Done;
+			next2: {
+				const x = leaf.next();
+				if (x === rs.DONE) {
+					next = rs.DONE;
+					break next2;
+				}
+				next = [count++, x];
+			}
+			const _54: [rs.usize, rs.u8] | rs.Done = next;
 			if (_54 === rs.DONE) {
 				break;
 			}

@@ -1064,9 +1064,19 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		digest$hashes_Nibble({ _0: rs.u64Low(n2) & 0xff }, out);
 	} else {
 		const h: rs.Hasher = rs.hasher();
-		const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+		let count: number = 0;
 		while (true) {
-			const _212: [rs.usize, rs.u8] | rs.Done = iter.next();
+			let next!: [rs.usize, rs.u8] | rs.Done;
+			next2: {
+				const x = leaf.next();
+				if (x === rs.DONE) {
+					next = rs.DONE;
+					break next2;
+				}
+				next = [count++, x];
+			}
+			const _212: [rs.usize, rs.u8] | rs.Done = next;
 			if (_212 === rs.DONE) {
 				break;
 			}
@@ -1145,9 +1155,19 @@ export function random(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const s: rs.RandomState = rs.randomState();
 	const copy: rs.RandomState = s;
 	const other: Priorities$random.Priorities = Priorities$random.default$random_Default();
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _11: [rs.usize, rs.u8] | rs.Done = iter.next();
+		let next!: [rs.usize, rs.u8] | rs.Done;
+		next2: {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count++, x];
+		}
+		const _11: [rs.usize, rs.u8] | rs.Done = next;
 		if (_11 === rs.DONE) {
 			break;
 		}
@@ -1746,9 +1766,19 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 7);
 	const keyed: rs.HashMap<Key.Key, rs.u8> = rs.hashWithCapacity(data.length, 58720256, rs.hashing(Key.hash$Hash_hash_DefaultHasher as (a0: Key.Key, a1: rs.Hasher) => undefined, Key.eq$cmp_PartialEq), new Numbered.Numbered(first)) as rs.HashMap<Key.Key, rs.u8>;
 	const seen: rs.HashSet<rs.u8> = rs.hashNew(undefined, new Numbered.Numbered(1)) as rs.HashSet<rs.u8>;
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _17: [rs.usize, rs.u8] | rs.Done = iter.next();
+		let next!: [rs.usize, rs.u8] | rs.Done;
+		next2: {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count++, x];
+		}
+		const _17: [rs.usize, rs.u8] | rs.Done = next;
 		if (_17 === rs.DONE) {
 			break;
 		}
@@ -2158,9 +2188,19 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	const keyed: rs.HashMap<Key.Key, rs.u8> = rs.hashNew(rs.hashing(Key.hash$Hash_hash_DefaultHasher as (a0: Key.Key, a1: rs.Hasher) => undefined, Key.eq$cmp_PartialEq), undefined) as rs.HashMap<Key.Key, rs.u8>;
 	const seen: rs.HashSet<rs.u8> = rs.hashWithCapacity(data.length, 469762048, undefined, undefined) as rs.HashSet<rs.u8>;
-	const iter2: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _101: [rs.usize, rs.u8] | rs.Done = iter2.next();
+		let next!: [rs.usize, rs.u8] | rs.Done;
+		next2: {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count++, x];
+		}
+		const _101: [rs.usize, rs.u8] | rs.Done = next;
 		if (_101 === rs.DONE) {
 			break;
 		}
