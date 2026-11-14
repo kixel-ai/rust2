@@ -3041,8 +3041,8 @@ impl<'tcx> Collector<'tcx> {
 					continue;
 				};
 				if ty == unrevealed && (future || collect) {
-					let bounds = tcx.explicit_item_bounds(*def_id).skip_binder();
-					named.extend(bounds.iter().filter_map(|&(clause, _)| {
+					let bounds = tcx.item_bounds(*def_id).skip_binder();
+					named.extend(bounds.iter().filter_map(|clause| {
 						let term = clause.as_projection_clause()?.skip_binder().term.as_type()?;
 						Some(ty::EarlyBinder::bind(tcx, term).instantiate(tcx, args).skip_norm_wip())
 					}));
@@ -4347,8 +4347,9 @@ impl<'tcx> Collector<'tcx> {
 		else {
 			return output.walk().any(|arg| arg.as_region().is_some());
 		};
-		(tcx.explicit_item_bounds(*def_id).skip_binder().iter())
-			.filter_map(|&(clause, _)| clause.as_projection_clause()?.skip_binder().term.as_type())
+		// Elaborated, as a supertrait may name the output.
+		(tcx.item_bounds(*def_id).skip_binder().iter())
+			.filter_map(|clause| clause.as_projection_clause()?.skip_binder().term.as_type())
 			.map(|term| ty::EarlyBinder::bind(tcx, term).instantiate(tcx, args).skip_norm_wip())
 			.any(|term| {
 				term.walk()
@@ -4379,11 +4380,12 @@ impl<'tcx> Collector<'tcx> {
 					},
 				) => {
 					let tcx = self.tcx;
-					let bounds = tcx.explicit_item_bounds(*def_id).skip_binder();
+					// Elaborated, as a supertrait may be the future or name its output.
+					let bounds = tcx.item_bounds(*def_id).skip_binder();
 					// Any other `impl Trait` holds what its hidden type holds, as `impl Iterator + '_`
 					// over an object borrowing the receiver does; one collected at the call, or a
 					// future, whose borrows are checked apart, holds nothing past it.
-					let future = (bounds.iter()).any(|&(clause, _)| {
+					let future = (bounds.iter()).any(|clause| {
 						clause
 							.as_trait_clause()
 							.is_some_and(|tr| tcx.is_lang_item(tr.def_id(), LangItem::Future))
@@ -4414,7 +4416,7 @@ impl<'tcx> Collector<'tcx> {
 							held.extend(args.iter().flat_map(|arg| arg.walk()).filter_map(|arg| arg.as_region()));
 						}
 					}
-					for &(clause, _) in bounds {
+					for clause in bounds {
 						let term = clause
 							.as_projection_clause()
 							.and_then(|p| p.skip_binder().term.as_type());

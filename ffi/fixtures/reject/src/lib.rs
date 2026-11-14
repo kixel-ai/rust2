@@ -190,6 +190,11 @@ pub fn blame(tag: &str) -> impl std::future::Future<Output = Result<u32, tls::he
 	async move { Err(tls::held::Wrapped(tag, 0)) }
 }
 
+/// As `echo`, but its borrowed output named only by a supertrait of the bound.
+pub fn relay(tag: &str) -> impl tls::held::Borrowing<'_> {
+	async move { tag }
+}
+
 /// As `echo`, but through a future that is not an `impl Future`.
 pub fn resolve(tag: &str) -> tls::held::Lend<'_, u8> {
 	tls::held::Lend(tag, std::marker::PhantomData)

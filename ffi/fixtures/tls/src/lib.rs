@@ -173,6 +173,11 @@ pub mod held {
 		}
 	}
 
+	/// A future named by a trait of its own, whose borrowed output only its supertrait names.
+	pub trait Borrowing<'a>: std::future::Future<Output = &'a str> {}
+
+	impl<'a, F: std::future::Future<Output = &'a str>> Borrowing<'a> for F {}
+
 	/// A future that is not an `impl Future`, borrowing what it reads but resolving to an
 	/// owned count.
 	pub struct Pending<'a>(pub &'a [u8]);
