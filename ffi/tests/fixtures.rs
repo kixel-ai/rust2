@@ -2599,6 +2599,8 @@ fn opaque_values() {
 		#[derive(Clone, Copy)]\nenum Niche {\n\tA(bool, u8),\n\tB(u8, u8),\n}\n\n#[derive(Clone, Copy)]\npub struct Niched(Niche);\n\npub fn niched() -> Niched {\n\tNiched(Niche::A(true, 1))\n}\n\n\
 		#[derive(Clone, Copy)]\npub struct Word(usize, u32);\n\npub fn word() -> Word {\n\tWord(1, 2)\n}\n\n\
 		#[derive(Clone, Copy)]\n#[repr(C)]\npub struct Mixed(u32, u64, u32);\n\npub fn mixed() -> Mixed {\n\tMixed(1, 2, 3)\n}\n\n\
+		#[derive(Clone, Copy)]\n#[repr(C)]\npub struct MixedWord(usize, u64);\n\npub fn mixed_word() -> MixedWord {\n\tMixedWord(1, 2)\n}\n\n\
+		#[derive(Clone, Copy)]\n#[repr(C)]\npub struct Words(u64, usize, usize);\n\npub fn words() -> Words {\n\tWords(1, 2, 3)\n}\n\n\
 		#[derive(Clone, Copy)]\n#[repr(u8)]\nenum Kind {\n\tA,\n\tB,\n}\n\n#[derive(Clone, Copy)]\n#[repr(C)]\npub struct Ordered(u64, u32, u16, u8, Kind);\n\npub fn ordered() -> Ordered {\n\tOrdered(1, 2, 3, 4, Kind::B)\n}\n";
 	let package = package("opaque_values", &[("src/lib.rs", lib)]);
 	let out = package.join("out");
@@ -2616,8 +2618,9 @@ fn opaque_values() {
 		"Marker is no opaque value:\n{header}"
 	);
 	// A `bool` beside integers that fill the struct; a tag byte beside each variant's byte;
-	// fields in an order `repr(C)` keeps that leaves no gap, a `repr(u8)` tag among them.
-	for value in ["Flag", "Tagged", "Ordered"] {
+	// fields in an order `repr(C)` keeps that leaves no gap, a `repr(u8)` tag among them;
+	// two `usize`s after a `u64`, which fill it at either pointer width.
+	for value in ["Flag", "Tagged", "Ordered", "Words"] {
 		assert!(
 			header.contains(&format!("}} opaque_values_{value};")),
 			"{value} is no opaque value:\n{header}"
@@ -2625,8 +2628,9 @@ fn opaque_values() {
 	}
 	// Padding after each `u8`; a tag and a `u16` short of a `u32`'s room; a niche the tag
 	// may hide in, leaving `B` a byte short; padding after the `u32` on a 64-bit target,
-	// though none on wasm32, so a handle on both; a `u64` that `repr(C)` keeps after a `u32`.
-	for handle in ["Pairs", "Wide", "Niched", "Word", "Mixed"] {
+	// though none on wasm32, so a handle on both; a `u64` that `repr(C)` keeps after a `u32`,
+	// or after a `usize`, which is a gap on wasm32 alone.
+	for handle in ["Pairs", "Wide", "Niched", "Word", "Mixed", "MixedWord"] {
 		assert!(
 			header.contains(&format!("void opaque_values_{handle}_free(")),
 			"{handle} is no handle:\n{header}"

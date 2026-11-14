@@ -5662,10 +5662,11 @@ fn target(tcx: TyCtxt<'_>) -> String {
 /// another `rustc` build it; a type with padding, or bytes that depend on its value, such
 /// as a union's or `Option<u32>`'s, is a handle instead.
 ///
-/// The fields must also fill a model layout that no target varies: a pointer of 8 bytes,
-/// and each primitive aligned to its size. So every target decides alike and one binding
-/// serves them all: std's `Instant`, an `i64` and a `u32`, fills its 12 bytes on a 32-bit
-/// x86 but leaves 4 of 16 on a 64-bit one, so it is a handle on both.
+/// The fields must also fill a model layout at each pointer width, 4 and 8 bytes, with each
+/// primitive aligned to its size. So every target decides alike, and adding one never
+/// turns a value into a handle: std's `Instant`, an `i64` and a `u32`, fills its 12 bytes
+/// on a 32-bit x86 but leaves 4 of 16 on a 64-bit one, and `#[repr(C)] (usize, u64)`
+/// fills its 16 on x86_64 but leaves 4 on wasm32, so both are handles everywhere.
 fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	let env = TypingEnv::fully_monomorphized();
 	let ty = tcx.erase_and_anonymize_regions(ty);
@@ -5674,9 +5675,9 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	struct Least {
 		/// The fewest bytes it initializes on this target.
 		bytes: u64,
-		/// The fewest it initializes in the model, and its alignment there.
-		model: u64,
-		align: u64,
+		/// The fewest it initializes in the model at each of `WIDTHS`, and its alignment there.
+		model: [u64; 2],
+		align: [u64; 2],
 		/// Whether it may have a niche: invalid values an enum around it could encode
 		/// another variant in.
 		niche: bool,
@@ -5685,6 +5686,8 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	// gap, after them, as `(u64, u32)` does on a 64-bit target, or between them where its
 	// `repr` keeps their order, as `#[repr(C)] (u32, u64, u32)` does. A `repr(packed)`
 	// caps each field's alignment, and a `repr(align)` raises the whole's.
+	/// The pointer widths of the model, in bytes.
+	const WIDTHS: [u64; 2] = [4, 8];
 	fn fields<'tcx>(
 		tcx: TyCtxt<'tcx>,
 		env: TypingEnv<'tcx>,
@@ -5698,22 +5701,30 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 		let ordered = repr.is_some_and(|r| r.inhibit_struct_field_reordering());
 		let mut sum = Least {
 			bytes: 0,
-			model: 0,
-			align: repr.and_then(|r| r.align).map_or(1, |a| a.bytes()),
+			model: [0; 2],
+			align: [repr.and_then(|r| r.align).map_or(1, |a| a.bytes()); 2],
 			niche: false,
 		};
 		for &ty in tys {
 			let field = least(tcx, env, ty)?;
-			let align = pack.map_or(field.align, |pack| field.align.min(pack));
-			if ordered && !sum.model.is_multiple_of(align) {
-				return None;
-			}
 			sum.bytes = sum.bytes.checked_add(field.bytes)?;
-			sum.model = sum.model.checked_add(field.model)?;
-			sum.align = sum.align.max(align);
 			sum.niche |= field.niche;
+			for w in 0..WIDTHS.len() {
+				let align = pack.map_or(field.align[w], |pack| field.align[w].min(pack));
+				if ordered && !sum.model[w].is_multiple_of(align) {
+					return None;
+				}
+				sum.model[w] = sum.model[w].checked_add(field.model[w])?;
+				sum.align[w] = sum.align[w].max(align);
+			}
 		}
-		sum.model.is_multiple_of(sum.align).then_some(sum)
+		filled(sum)
+	}
+	/// `least`, if its model leaves no gap after its fields at either width.
+	fn filled(least: Least) -> Option<Least> {
+		(0..WIDTHS.len())
+			.all(|w| least.model[w].is_multiple_of(least.align[w]))
+			.then_some(least)
 	}
 	fn least<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> Option<Least> {
 		let layout = tcx.layout_of(env.as_query_input(ty)).ok()?;
@@ -5721,18 +5732,18 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 		let primitive = |niche| {
 			Some(Least {
 				bytes: size,
-				model: size,
-				align: size.max(1),
+				model: [size; 2],
+				align: [size.max(1); 2],
 				niche,
 			})
 		};
-		// A pointer is 8 bytes in the model, and a wide one two of them.
+		// A pointer is a width's bytes in the model, and a wide one two of them.
 		let pointer = |niche| {
 			let words = size / tcx.data_layout.pointer_size().bytes();
 			Some(Least {
 				bytes: size,
-				model: 8 * words,
-				align: 8,
+				model: WIDTHS.map(|width| width * words),
+				align: WIDTHS,
 				niche,
 			})
 		};
@@ -5758,7 +5769,7 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 				let each = least(tcx, env, *element)?;
 				Some(Least {
 					bytes: each.bytes.checked_mul(n)?,
-					model: each.model.checked_mul(n)?,
+					model: [each.model[0].checked_mul(n)?, each.model[1].checked_mul(n)?],
 					niche: each.niche && n > 0,
 					..each
 				})
@@ -5779,8 +5790,8 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 				let repr = adt.repr();
 				if repr.int.is_some() || repr.c() || repr.align.is_some() || repr.pack.is_some() {
 					let model = match repr.int? {
-						rustc_abi::IntegerType::Fixed(int, _) => int.size().bytes(),
-						rustc_abi::IntegerType::Pointer(_) => 8,
+						rustc_abi::IntegerType::Fixed(int, _) => [int.size().bytes(); 2],
+						rustc_abi::IntegerType::Pointer(_) => WIDTHS,
 					};
 					let fieldless = adt.variants().iter().all(|v| v.fields.is_empty());
 					return (fieldless && !repr.c() && repr.align.is_none()).then_some(Least {
@@ -5799,10 +5810,14 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 				// fields may hold the tag, so they count alone.
 				let niche = each.iter().any(|v| v.niche);
 				let tag = u64::from(each.len() > 1 && !niche);
-				let align = each.iter().map(|v| v.align).max().unwrap_or(1);
-				let model = each.iter().map(|v| v.model).min()?.checked_add(tag)?;
+				let mut model = [0; 2];
+				let mut align = [1; 2];
+				for w in 0..WIDTHS.len() {
+					model[w] = each.iter().map(|v| v.model[w]).min()?.checked_add(tag)?;
+					align[w] = each.iter().map(|v| v.align[w]).max().unwrap_or(1);
+				}
 				let bytes = each.iter().map(|v| v.bytes).min()?.checked_add(tag)?;
-				model.is_multiple_of(align).then_some(Least {
+				filled(Least {
 					bytes,
 					model,
 					align,
