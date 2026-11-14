@@ -320,7 +320,7 @@ func round(measured bool) []result {
 			group := must(track.AppendGroup())
 			for range frames {
 				<-permits
-				check(group.WriteFrame(at, frame))
+				check(group.WriteFrame(&at, frame))
 			}
 			<-permits // Keep this group until its reader has consumed every frame.
 			check(group.Finish())
