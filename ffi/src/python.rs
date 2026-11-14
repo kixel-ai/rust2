@@ -1986,7 +1986,9 @@ fn kw(name: &str) -> String {
 /// it is none of `reserved`, such as one Python gives every such class.
 fn member(snake: &str, reserved: &[&str]) -> String {
 	// A positional field's accessor, `0_get`, is `_0_get`, as its field is `_0`.
-	let digit = snake.starts_with(|c: char| c.is_ascii_digit()).then(|| format!("_{snake}"));
+	let digit = snake
+		.starts_with(|c: char| c.is_ascii_digit())
+		.then(|| format!("_{snake}"));
 	let snake = digit.as_deref().unwrap_or(snake);
 	if !reserved.contains(&snake) {
 		return kw(snake);
