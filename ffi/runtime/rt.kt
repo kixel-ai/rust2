@@ -218,8 +218,10 @@ class Writer {
 }
 
 /** Decodes what the library's JNI glue encodes. */
-class Reader(bytes: ByteArray) {
-	private val b: java.nio.ByteBuffer = java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+class Reader(private val b: java.nio.ByteBuffer) {
+	constructor(bytes: ByteArray) : this(java.nio.ByteBuffer.wrap(bytes))
+
+	init { b.order(java.nio.ByteOrder.LITTLE_ENDIAN) }
 
 	fun bool(): Boolean = b.get() != 0.toByte()
 
@@ -287,6 +289,8 @@ class Reader(bytes: ByteArray) {
 	fun string(): String? {
 		val n = b.getInt()
 		if (n < 0) return null
+		// String's constructor beats Charset.decode 2-5x, direct buffers included, even with the copy.
+		if (!b.hasArray()) return String(ByteArray(n).also { b.get(it) }, kotlin.text.Charsets.UTF_8)
 		val v = String(b.array(), b.arrayOffset() + b.position(), n, kotlin.text.Charsets.UTF_8)
 		b.position(b.position() + n)
 		return v
@@ -333,26 +337,35 @@ class Reader(bytes: ByteArray) {
  * has. Freeing first is the fast path, and [untrack] makes it the only one.
  */
 abstract class Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owner, QUEUE) {
-	// The GC enqueues only a reference still reachable, so each is linked from [head]
-	// until freed.
+	// The GC enqueues only a reference still reachable, so each is linked from its stripe's
+	// head until freed. The stripe is the making thread's, so threads making objects
+	// at once rarely share a lock, and a free from any thread finds it in [stripe].
 	private var prev: Cleanup? = null
 	private var next: Cleanup? = null
+	// Final, so a thread the object reaches unsafely still sees it.
+	private val stripe = STRIPES[java.lang.Thread.currentThread().hashCode() and (STRIPES.size - 1)]
 
-	protected fun track() = synchronized(LOCK) {
-		next = head
-		head?.prev = this
-		head = this
+	protected fun track() {
+		val s = stripe
+		synchronized(s) {
+			next = s.head
+			s.head?.prev = this
+			s.head = this
+		}
 	}
 
 	/** Stop tracking, true if this call did: so whatever frees after it frees once. */
-	protected fun untrack(): Boolean = synchronized(LOCK) {
-		if (head !== this && prev == null) return false
-		prev?.next = next
-		next?.prev = prev
-		if (head === this) head = next
-		prev = null
-		next = null
-		true
+	protected fun untrack(): Boolean {
+		val s = stripe
+		synchronized(s) {
+			if (s.head !== this && prev == null) return false
+			prev?.next = next
+			next?.prev = prev
+			if (s.head === this) s.head = next
+			prev = null
+			next = null
+			return true
+		}
 	}
 
 	/** Run on the cleaner's thread once the owner is collected. */
@@ -360,8 +373,13 @@ abstract class Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owner,
 
 	private companion object {
 		val QUEUE = java.lang.ref.ReferenceQueue<Any>()
-		val LOCK = Any()
-		var head: Cleanup? = null
+		/** One lock and list of the tracked. */
+		class Stripe {
+			@JvmField var head: Cleanup? = null
+		}
+
+		// A power of two, past the cores a phone or most servers have.
+		val STRIPES = Array(64) { Stripe() }
 
 		init {
 			val thread = java.lang.Thread({
@@ -632,28 +650,33 @@ class Pollable(
 	}
 }
 
+/** A completed native future, including one whose value is null. */
+class Ready(val value: Any?)
+
+/** A native future still waiting on its waker node. */
+class Pending(val raw: Long, val node: Long)
+
 /**
  * Await the future the call that returned [first] made and polled once with [signal]:
  * poll it until it finishes, then lift its result. A cancel frees it, which cancels it in
  * Rust and loses nothing.
  */
-suspend fun <T> await(
-	first: ByteArray,
+suspend fun await(
+	first: Any?,
 	signal: Signal,
-	poll: (Long, Long) -> ByteArray?,
+	poll: (Long, Long) -> Any?,
 	free: (Long) -> Unit,
-	lift: (Reader) -> T,
-): T {
-	val r = Reader(first)
-	if (r.bool()) return lift(r)
-	val raw = r.i64()
-	val node = r.i64()
+): Any? {
+	if (first is Ready) return first.value
+	val pending = first as Pending
+	val raw = pending.raw
+	val node = pending.node
 	try {
 		while (true) {
 			signal.park()
 			signal.reset()
 			val done = poll(raw, node)
-			if (done != null) return lift(Reader(done))
+			if (done != null) return (done as Ready).value
 		}
 	} finally {
 		free(raw)

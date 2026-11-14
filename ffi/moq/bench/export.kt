@@ -13,6 +13,7 @@ import moq.*
 const val GROUPS = 10000
 const val FRAMES = 100
 const val N = GROUPS * FRAMES
+const val THREADS = 4
 val SIZES = listOf(100, 1024, 16384, 65536, 1048576)
 
 // Wall and CPU nanoseconds: a point, or a span per call.
@@ -83,6 +84,15 @@ fun round(): Map<String, Span> {
 	start = now()
 	repeat(N) { track.info().close() }
 	out["object"] = per(start)
+
+	// The same from THREADS threads at once, so objects made and freed together contend
+	// for whatever the binding shares between them. Kotlin's alone: the others share none.
+	start = now()
+	val failures = java.util.concurrent.ConcurrentLinkedQueue<Throwable>()
+	List(THREADS) { java.lang.Thread { try { repeat(N / THREADS) { track.info().close() } } catch (e: Throwable) { failures.add(e) } }.apply { start() } }.forEach { it.join() }
+	// A worker that died early would otherwise report a time for fewer than N calls.
+	failures.peek()?.let { throw it }
+	out["objects"] = per(start)
 
 	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
 	var micros = 0uL
