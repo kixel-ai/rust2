@@ -117,6 +117,15 @@ pub struct Size {
 	pub bytes: u64,
 }
 
+/// Another crate's error borrowing `text`, the output of a future: the glue awaits the
+/// future past the call that owns `text`, so the error's borrow would outlive it.
+pub async fn parse_later(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
+	match text.is_empty() {
+		true => Err(tls::held::Malformed(text)),
+		false => Ok(text.len() as u32),
+	}
+}
+
 /// A waiter of another crate, which a handle holds by value.
 pub fn waiter() -> tls::held::Waiter {
 	tls::held::Waiter::new(std::task::Waker::noop().clone())
