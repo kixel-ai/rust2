@@ -69,6 +69,8 @@ pub enum Ty {
 	Duration,
 	/// `<prefix>_socket_addr`
 	SocketAddr,
+	/// `<prefix>_ip_addr`
+	IpAddr,
 	/// A struct: a record, a data enum, an option, or a callback's table and data.
 	Struct(String),
 	/// A plain enum, passed as its C enum, which is an `int`.
@@ -623,6 +625,7 @@ impl<'a> Abi<'a> {
 			Type::Duration => "duration".to_string(),
 			Type::Array(n) => format!("array_u8_{n}"),
 			Type::SocketAddr(_) => "socket_addr".to_string(),
+			Type::IpAddr(_) => "ip_addr".to_string(),
 			Type::Option(inner) => format!("option_{}", self.key(inner)),
 			Type::List(_, inner) => format!("vec_{}", self.key(inner)),
 			Type::Tuple(elements) => strip(self.tuple(elements)),
@@ -684,6 +687,7 @@ impl<'a> Abi<'a> {
 			Type::Duration => Ty::Duration,
 			Type::Array(n) => Ty::Struct(self.array(*n)),
 			Type::SocketAddr(_) => Ty::SocketAddr,
+			Type::IpAddr(_) => Ty::IpAddr,
 			Type::Waker => Ty::Waker,
 			Type::Future => Ty::ForeignFuture,
 			Type::Reader => Ty::ForeignReader,
@@ -1000,6 +1004,7 @@ impl<'a> Abi<'a> {
 			"u128",
 			"duration",
 			"socket_addr",
+			"ip_addr",
 			"waker",
 			"foreign_future",
 			"foreign_reader",

@@ -74,6 +74,7 @@ const TAKEN: &[&str] = &[
 	"_type",
 	"_zip",
 	"_datetime",
+	"_ipaddress",
 	"_enum",
 	"_socket",
 	"_sys",
@@ -100,8 +101,16 @@ const V4: &str = "tuple[str, int]";
 const V6: &str = "tuple[str, int, int, int]";
 
 /// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_TIMEDELTA`,
-/// `T_RESUME`, `T_WAKER`, and `T_POLLABLE`.
-const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume", "Waker", "_Pollable"];
+/// `T_RESUME`, `T_WAKER`, `T_POLLABLE`, `T_IPV4`, and `T_IPV6`.
+const RUNTIME_TYPES: &[&str] = &[
+	"_Future",
+	"_datetime.timedelta",
+	"_resume",
+	"Waker",
+	"_Pollable",
+	"_ipaddress.IPv4Address",
+	"_ipaddress.IPv6Address",
+];
 
 /// The Python for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike. The Python's own contract hashes the header's with everything it and its
@@ -176,6 +185,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		import array as _array\n\
 		import asyncio as _asyncio\n\
 		import datetime as _datetime\n\
+		import ipaddress as _ipaddress\n\
 		import enum as _enum\n\
 		import inspect as _inspect\n\
 		import socket as _socket\n\
@@ -476,6 +486,9 @@ impl<'a> Gen<'a> {
 				Family::V6 => V6.to_string(),
 				Family::Any => format!("{V4} | {V6}"),
 			},
+			Type::IpAddr(Family::V4) => "_ipaddress.IPv4Address".to_string(),
+			Type::IpAddr(Family::V6) => "_ipaddress.IPv6Address".to_string(),
+			Type::IpAddr(Family::Any) => "_ipaddress.IPv4Address | _ipaddress.IPv6Address".to_string(),
 			Type::List(_, inner) if ty.block().is_some() => format!("_array.array[{}]", self.py_ty(inner)),
 			Type::List(_, inner) => format!("list[{}]", self.py_ty(inner)),
 			Type::Waker => "Waker".to_string(),
@@ -560,6 +573,7 @@ impl<'a> Gen<'a> {
 			Type::U128 => format!("rt::u128_in({o})"),
 			Type::Duration => format!("rt::duration_in({o})"),
 			Type::SocketAddr(family) => format!("rt::addr_in({o}, {})", family_of(*family)),
+			Type::IpAddr(family) => format!("rt::ip_in({o}, {})", family_of(*family)),
 			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_in::<{}>({o}, s)", number(inner)),
 			Type::List(..) => format!("r_{}({o}, s, {m}, {t})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
@@ -638,6 +652,7 @@ impl<'a> Gen<'a> {
 			Type::U128 => format!("rt::u128_out({v})"),
 			Type::Duration => format!("rt::duration_out({v})"),
 			Type::SocketAddr(_) => format!("rt::addr_out({v})"),
+			Type::IpAddr(_) => format!("rt::ip_out({v})"),
 			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_out::<{}>({v})", number(inner)),
 			Type::List(..) => format!("w_{}({v})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {

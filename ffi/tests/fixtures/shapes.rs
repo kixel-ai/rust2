@@ -36,6 +36,8 @@ enum Shape {
 	PathBuf,
 	/// `SocketAddr`, `SocketAddrV4`, or `SocketAddrV6`.
 	SocketAddr(&'static str),
+	/// `IpAddr`, `Ipv4Addr`, or `Ipv6Addr`.
+	IpAddr(&'static str),
 	Range(&'static str),
 	Bound(&'static str),
 	/// `serde_json::Value`
@@ -80,6 +82,7 @@ const COVERED: &[(&str, &str)] = &[
 	("Path", "PathBuf, which digest_N and peek_N's closure borrow as &Path"),
 	("PathBuf", "PathBuf"),
 	("SocketAddr", "SocketAddr, of each family"),
+	("IpAddr", "IpAddr, of each family"),
 	("List", "Vec, Set, Map, and JsonMap"),
 	("Waker", "none: a waker holds no value"),
 	("Future", "none: a foreign future is of (), which holds no value"),
@@ -102,7 +105,7 @@ const COVERED: &[(&str, &str)] = &[
 	("Const", "none: a const argument, which no value has"),
 ];
 
-/// Every leaf, once for each integer type and socket address family.
+/// Every leaf, once for each integer type and address family.
 fn leaves() -> Vec<Shape> {
 	let mut leaves = vec![Shape::Bool];
 	leaves.extend(INTS.map(Shape::Int));
@@ -122,6 +125,9 @@ fn leaves() -> Vec<Shape> {
 		Shape::SocketAddr("SocketAddr"),
 		Shape::SocketAddr("SocketAddrV4"),
 		Shape::SocketAddr("SocketAddrV6"),
+		Shape::IpAddr("IpAddr"),
+		Shape::IpAddr("Ipv4Addr"),
+		Shape::IpAddr("Ipv6Addr"),
 		Shape::Range("u32"),
 		Shape::Range("i64"),
 		Shape::Bound("u8"),
@@ -276,7 +282,9 @@ impl Emit {
 				"std::path::PathBuf".into(),
 				"std::path::PathBuf::from(r.string())".into(),
 			),
-			Shape::SocketAddr(family) => (format!("std::net::{family}"), format!("r.{}()", family.to_lowercase())),
+			Shape::SocketAddr(family) | Shape::IpAddr(family) => {
+				(format!("std::net::{family}"), format!("r.{}()", family.to_lowercase()))
+			}
 			Shape::Range(int) => (
 				format!("std::ops::Range<{int}>"),
 				format!("(r.int() as {int})..(r.int() as {int})"),
@@ -444,12 +452,26 @@ impl Rng {
 	}
 
 	fn socketaddrv4(&mut self) -> std::net::SocketAddrV4 {
-		std::net::SocketAddrV4::new((self.next() as u32).into(), self.next() as u16)
+		std::net::SocketAddrV4::new(self.ipv4addr(), self.next() as u16)
 	}
 
 	fn socketaddrv6(&mut self) -> std::net::SocketAddrV6 {
-		let ip = ((self.next() as u128) << 64 | self.next() as u128).into();
-		std::net::SocketAddrV6::new(ip, self.next() as u16, self.next() as u32, self.next() as u32)
+		std::net::SocketAddrV6::new(self.ipv6addr(), self.next() as u16, self.next() as u32, self.next() as u32)
+	}
+
+	fn ipv4addr(&mut self) -> std::net::Ipv4Addr {
+		(self.next() as u32).into()
+	}
+
+	fn ipv6addr(&mut self) -> std::net::Ipv6Addr {
+		((self.next() as u128) << 64 | self.next() as u128).into()
+	}
+
+	fn ipaddr(&mut self) -> std::net::IpAddr {
+		match self.below(2) {
+			0 => self.ipv4addr().into(),
+			_ => self.ipv6addr().into(),
+		}
 	}
 
 	fn socketaddr(&mut self) -> std::net::SocketAddr {

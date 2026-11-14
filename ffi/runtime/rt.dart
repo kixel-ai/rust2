@@ -201,6 +201,13 @@ final class _Addr extends ffi.Struct {
   external int scope_id;
 }
 
+final class _IpAddr extends ffi.Struct {
+  @ffi.Array(16)
+  external ffi.Array<ffi.Uint8> ip;
+  @ffi.Bool()
+  external bool v6;
+}
+
 final class _Waker extends ffi.Struct {
   external ffi.Pointer<ffi.Void> wake;
   external ffi.Pointer<ffi.Void> drop;
@@ -920,33 +927,51 @@ final class _Native {
     return Duration(microseconds: secs * 1000000 + c.nanos ~/ 1000);
   }
 
-  void addr(_Addr dst, SocketAddr value, String family) {
-    final ip = value.address.rawAddress;
-    final v6 = value.address.type == io.InternetAddressType.IPv6;
-    if (family == 'V4' && v6 || family == 'V6' && !v6) {
-      throw ArgumentError.value(
-        value,
-        'addr',
-        'an IP${v6 ? 'v6' : 'v4'} address has no Rust SocketAddr$family',
-      );
+  /// Writes `value`'s IP into `dst`, returning whether it is IPv6, for the Rust type `rust`,
+  /// which holds only IPv4 when it ends in `V4` or `v4Addr`, and only IPv6 in `V6` or `v6Addr`.
+  bool _ip(ffi.Array<ffi.Uint8> dst, io.InternetAddress value, String rust) {
+    final v6 = switch (value.type) {
+      io.InternetAddressType.IPv4 => false,
+      io.InternetAddressType.IPv6 => true,
+      _ => throw ArgumentError.value(value, 'address', 'a Unix address has no Rust $rust'),
+    };
+    final v4Only = rust.endsWith('V4') || rust.endsWith('v4Addr');
+    final v6Only = rust.endsWith('V6') || rust.endsWith('v6Addr');
+    if (v4Only && v6 || v6Only && !v6) {
+      throw ArgumentError.value(value, 'address', 'an IP${v6 ? 'v6' : 'v4'} address has no Rust $rust');
     }
+    final ip = value.rawAddress;
     for (var i = 0; i < 16; i++) {
-      dst.ip[i] = i < ip.length ? ip[i] : 0;
+      dst[i] = i < ip.length ? ip[i] : 0;
     }
+    return v6;
+  }
+
+  io.InternetAddress _ipOf(ffi.Array<ffi.Uint8> src, bool v6) {
+    final n = v6 ? 16 : 4;
+    final ip = typed.Uint8List(n);
+    for (var i = 0; i < n; i++) {
+      ip[i] = src[i];
+    }
+    return io.InternetAddress.fromRawAddress(ip);
+  }
+
+  void ip(_IpAddr dst, io.InternetAddress value, String rust) {
+    dst.v6 = _ip(dst.ip, value, rust);
+  }
+
+  io.InternetAddress ipOf(_IpAddr c) => _ipOf(c.ip, c.v6);
+
+  void addr(_Addr dst, SocketAddr value, String rust) {
+    dst.v6 = _ip(dst.ip, value.address, rust);
     dst.port = u16(value.port);
-    dst.v6 = v6;
     dst.flowinfo = u32(value.flowinfo);
     dst.scope_id = u32(value.scopeId);
   }
 
   SocketAddr addrOf(_Addr c) {
-    final n = c.v6 ? 16 : 4;
-    final ip = typed.Uint8List(n);
-    for (var i = 0; i < n; i++) {
-      ip[i] = c.ip[i];
-    }
     return SocketAddr(
-      io.InternetAddress.fromRawAddress(ip),
+      _ipOf(c.ip, c.v6),
       c.port,
       flowinfo: c.flowinfo,
       scopeId: c.scope_id,

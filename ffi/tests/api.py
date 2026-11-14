@@ -10,6 +10,7 @@ import asyncio
 import datetime
 import gc
 import io
+import ipaddress
 import math
 import os
 import struct
@@ -736,6 +737,10 @@ def script():
 	print("numbered " + ", ".join(f"{c.name()} {c.get()}" for c in numbered))
 	next4, next6 = api.nexts(v4, v6)
 	print(f"nexts {next4[0]} {next4[1]} {next6[1]} {next6[3]}")
+	nextip4, nextip6 = api.next_ips(ipaddress.IPv4Address("10.0.0.255"), ipaddress.IPv6Address("::ffff"))
+	mapped = api.flip(ipaddress.IPv4Address("127.0.0.1"))
+	ips = [nextip4, nextip6, mapped, api.flip(mapped), api.flip(ipaddress.IPv6Address("::1"))]
+	print("ips " + " ".join(ip.packed.hex() for ip in ips))
 
 	# serde_json's map iterator, collected as pairs of a key and its document.
 	sections = api.sections([("b", api.Json.parse("[1]")), ("a", api.Json.parse("2"))])
@@ -1553,6 +1558,12 @@ def broken(which):
 		# An IPv6 address where Rust takes `SocketAddrV4`.
 		case "family":
 			api.nexts(("::", 1, 0, 0), ("::", 1, 0, 0))
+		# An IPv6 address where Rust takes `Ipv4Addr`.
+		case "ip family":
+			api.next_ips(ipaddress.IPv6Address("::1"), ipaddress.IPv6Address("::1"))
+		# An IPv6 address with a scope, which Rust's `IpAddr` has no room for.
+		case "ip scope":
+			api.flip(ipaddress.IPv6Address("fe80::1%3"))
 		# A future Rust polls, cancelled by its owner rather than by Rust.
 		case "foreign cancelled":
 

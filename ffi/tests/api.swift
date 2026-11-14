@@ -837,6 +837,10 @@ func script() {
 	print("numbered \(listed(numbered) { "\($0.name()) \($0.get())" })")
 	let (next4, next6) = nexts(SocketAddr(ip: [127, 0, 0, 1], port: 8080), v6)
 	print("nexts \(next4.ip.map(String.init).joined(separator: ".")) \(next4.port) \(next6.port) \(next6.scopeId)")
+	let (nextIp4, nextIp6) = nextIps(IpAddr(ip: [10, 0, 0, 255]), IpAddr(ip: Array(repeating: 0, count: 14) + [255, 255]))
+	let mapped = flip(IpAddr(ip: [127, 0, 0, 1]))
+	let ips = [nextIp4, nextIp6, mapped, flip(mapped), flip(IpAddr(ip: Array(repeating: 0, count: 15) + [1]))]
+	print("ips \(ips.map { $0.ip.map { ($0 < 16 ? "0" : "") + String($0, radix: 16) }.joined() }.joined(separator: " "))")
 
 	// serde_json's map iterator, collected as pairs of a key and its document.
 	var sectionPairs = UniqueArray<TupleStringJson>()
@@ -1371,6 +1375,10 @@ func broken(_ which: String) {
 	case "family":
 		let any = SocketAddr(ip: Array(repeating: 0, count: 16), port: 1)
 		_ = nexts(any, any)
+	// An IPv6 address where Rust takes `Ipv4Addr`.
+	case "ip family":
+		let any = IpAddr(ip: Array(repeating: 0, count: 16))
+		_ = nextIps(any, any)
 	// No String holds a path that is not UTF-8.
 	case "stray":
 		_ = stray()

@@ -540,6 +540,7 @@ impl<'a> Gen<'a> {
 			Type::U128 => "BigInt".to_string(),
 			Type::Duration => "Duration".to_string(),
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
+			Type::IpAddr(_) => "io.InternetAddress".to_string(),
 			Type::List(..) if let Some(elem) = ty.block() => format!("typed.{}", typed_list(elem)),
 			Type::List(_, inner) => format!("List<{}>", self.dt(inner)),
 			Type::Waker => "void Function()".to_string(),
@@ -620,6 +621,7 @@ impl<'a> Gen<'a> {
 				| Ty::U128
 				| Ty::Duration
 				| Ty::SocketAddr
+				| Ty::IpAddr
 				| Ty::Struct(_)
 				| Ty::Waker
 				| Ty::ForeignFuture
@@ -635,6 +637,7 @@ impl<'a> Gen<'a> {
 			Ty::U128 => return "_U128".to_string(),
 			Ty::Duration => return "_Duration".to_string(),
 			Ty::SocketAddr => return "_Addr".to_string(),
+			Ty::IpAddr => return "_IpAddr".to_string(),
 			Ty::Waker => return "_Waker".to_string(),
 			Ty::ForeignFuture => return "_ForeignFuture".to_string(),
 			Ty::ForeignReader => return "_ForeignReader".to_string(),
@@ -923,11 +926,19 @@ impl<'a> Gen<'a> {
 			Type::Array(_) => format!("{e}._write({dst});"),
 			Type::SocketAddr(family) => {
 				let family = match family {
-					Family::Any => "",
-					Family::V4 => "V4",
-					Family::V6 => "V6",
+					Family::Any => "SocketAddr",
+					Family::V4 => "SocketAddrV4",
+					Family::V6 => "SocketAddrV6",
 				};
 				format!("_n.addr({dst}, {e}, '{family}');")
+			}
+			Type::IpAddr(family) => {
+				let family = match family {
+					Family::Any => "IpAddr",
+					Family::V4 => "Ipv4Addr",
+					Family::V6 => "Ipv6Addr",
+				};
+				format!("_n.ip({dst}, {e}, '{family}');")
 			}
 			Type::Option(inner) => match inner.base() {
 				Type::Str | Type::String | Type::Path | Type::PathBuf => {
@@ -1249,6 +1260,7 @@ impl<'a> Gen<'a> {
 			Type::Duration => format!("_n.durationOf({e})"),
 			Type::Array(n) => format!("{}._of({e})", Abi::array_class(*n)),
 			Type::SocketAddr(_) => format!("_n.addrOf({e})"),
+			Type::IpAddr(_) => format!("_n.ipOf({e})"),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(_) => {
 					let dt = self.dt(inner);

@@ -1007,9 +1007,8 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// Whether `did` is one of the standard library's types that crosses by its role rather
-	/// than in a handle, such as `String` or `SocketAddr`, or that will: `IpAddr` and its
-	/// families, which stay refused until they cross as `SocketAddr` does. A collection's
-	/// allocator and hasher are part of the collection's role.
+	/// than in a handle, such as `String` or `SocketAddr`. A collection's allocator and
+	/// hasher are part of the collection's role.
 	fn by_role(&self, did: DefId) -> bool {
 		const ROLES: [&str; 14] = [
 			"String",
@@ -5332,6 +5331,16 @@ impl<'tcx> Collector<'tcx> {
 					.flatten()
 				{
 					Type::SocketAddr(family)
+				} else if let Some(family) = (tcx.lang_items().sized_trait().map(|d| d.krate) == Some(did.krate))
+					.then(|| match tcx.item_name(did).as_str() {
+						"IpAddr" => Some(Family::Any),
+						"Ipv4Addr" => Some(Family::V4),
+						"Ipv6Addr" => Some(Family::V6),
+						_ => None,
+					})
+					.flatten()
+				{
+					Type::IpAddr(family)
 				} else if let Some(&(_, i)) = (self.foreign.iter()).find(|&&(ty, _)| ty == did && !self.opaque(did)) {
 					// A value holds only values.
 					match pos {
@@ -5602,7 +5611,8 @@ fn foreign_arg(ty: &Type) -> bool {
 		| Type::F64
 		| Type::Char
 		| Type::Duration
-		| Type::SocketAddr(_) => true,
+		| Type::SocketAddr(_)
+		| Type::IpAddr(_) => true,
 		Type::String | Type::Vec | Type::Bytes | Type::PathBuf => true,
 		Type::Ref(Mutability::Not, inner) => matches!(**inner, Type::Str | Type::Slice | Type::Path),
 		Type::Option(inner) => foreign_arg(inner),

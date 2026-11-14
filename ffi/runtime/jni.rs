@@ -1347,6 +1347,20 @@ impl Wire for rt::SocketAddr {
 	}
 }
 
+impl Wire for rt::IpAddr {
+	fn read(r: &mut Reader<'_>) -> Self {
+		Self {
+			ip: std::array::from_fn(|_| r.get()),
+			v6: r.get(),
+		}
+	}
+
+	fn write(self, w: &mut Writer) {
+		self.ip.into_iter().for_each(|b| w.put(b));
+		w.put(self.v6);
+	}
+}
+
 impl<T: Wire + Copy + 'static> Wire for rt::List<T> {
 	/// A view of the elements, as their length, or -1 for none, then each element, which
 	/// the reader keeps.
