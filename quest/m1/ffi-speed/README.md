@@ -25,6 +25,3 @@ measurement work joins this epic, as [CodSpeed](/quest/m1/ffi-speed/codspeed.md)
 the export's cost (since done), and
 [concurrent calls](/quest/m1/ffi-speed/concurrent-calls.md), since they serve its PRs.
 Rejected: standalone m1 quests; holding the last two in m3.
-
-[The generated crate's release build](/quest/m1/ffi-speed/glue-build.md) cuts the
-build cost the benchmark's Build table measured.

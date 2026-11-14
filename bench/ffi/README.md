@@ -202,8 +202,13 @@ largest one's.
 
 The export adds about 13 CPU seconds over the check cargo runs anyway, and no peak memory.
 The generated crate's build adds about 300 CPU seconds and 320 wall seconds over moq's own,
-and doubles the peak, as one long rustc over the glue would: that build, not the export, is
-what a consumer pays on every export.
+and doubles the peak: that build, not the export, is what a consumer pays on every export.
+Nearly all of the gap is the glue crate's one rustc, and most of that is the fat LTO in one
+codegen unit that moq-ffi's release profile asks for. moq's own build makes only rlibs, so
+it never runs that step, while the generated crate's links optimize everything the export
+reaches in one module. moq's UniFFI moq-ffi, built with that profile, took 877 CPU s and
+2,259 MiB peak on 2026-11-13, beside 720 CPU s and 3,275 MiB for the generated crate a
+revision later, on the same host and load (1 and 3 rounds).
 
 ### Size
 
