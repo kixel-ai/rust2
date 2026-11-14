@@ -115,7 +115,8 @@ pub struct Site {
 	pub to: Hash,
 }
 
-/// A trait impl, live once its trait and self type, where those are local, are.
+/// A trait impl, live once its trait and the types its header names, where the audit
+/// defines them, are.
 #[derive(Serialize, Deserialize)]
 pub struct Impl {
 	pub hash: Hash,

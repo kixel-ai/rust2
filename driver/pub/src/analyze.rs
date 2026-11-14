@@ -257,9 +257,13 @@ impl Audit {
 			}
 		}
 		// What an external library's API exposes, such as a type of another crate it
-		// re-exports or returns, is external too, with the type's own API.
+		// re-exports or returns, is external too, with the type's own API, and the trait
+		// impls of what it exposes, such as an `Iterator`'s `Item`.
 		let external: Vec<usize> = (0..n).filter(|&d| defs[d].external).collect();
-		for (d, reached) in reach(&[&interface, &members], &external, &[]).into_iter().enumerate() {
+		for (d, reached) in reach(&[&interface, &members], &external, &impls[0])
+			.into_iter()
+			.enumerate()
+		{
 			defs[d].external |= reached;
 		}
 		let production = reach(&[&edges[0]], &roots[0], &impls[0]);

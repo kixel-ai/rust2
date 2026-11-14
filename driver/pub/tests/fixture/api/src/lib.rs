@@ -292,6 +292,28 @@ impl Area {
 	}
 }
 
+/// External: facade re-exports it, and its `Iterator` impl yields `Product`.
+pub struct Products;
+
+impl Iterator for Products {
+	type Item = Product;
+
+	fn next(&mut self) -> Option<Product> {
+		None
+	}
+}
+
+/// Kept: app names it.
+pub struct Product;
+
+impl Product {
+	/// External: a method of what an external type's `Iterator` yields, though nothing
+	/// calls it.
+	pub fn method(&self) -> u32 {
+		31
+	}
+}
+
 /// Kept: app names it. Its file's lines end in CRLF, which rustc reads as LF.
 pub mod crlf;
 

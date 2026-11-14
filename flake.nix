@@ -167,9 +167,12 @@
                 cargoLock.lockFile = ./driver/Cargo.lock;
                 RUSTFLAGS = "-C link-args=-Wl,-rpath,${tsToolchain}/lib";
                 nativeBuildInputs = [ pkgs.makeWrapper ];
-                # It checks with its own nightly's cargo, unless the caller names another.
+                # It checks with its own nightly's cargo and rustc, which build scripts run
+                # as `$RUSTC`, unless the caller names others.
                 postInstall = ''
-                  wrapProgram $out/bin/rust2-pub --set-default CARGO ${tsToolchain}/bin/cargo
+                  wrapProgram $out/bin/rust2-pub \
+                    --set-default CARGO ${tsToolchain}/bin/cargo \
+                    --set-default RUSTC ${tsToolchain}/bin/rustc
                 '';
                 # The tests run cargo on a fixture workspace: `just driver test` runs them.
                 doCheck = false;

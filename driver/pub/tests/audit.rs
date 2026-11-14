@@ -68,6 +68,8 @@ fn fixture() {
 	expect("Area", "external", "unreached");
 	expect("Area::value", "external", "unreached");
 	expect("Area::doubled", "external", "unreached");
+	// So are the trait impls of what it exposes, with what they expose.
+	expect("Product::method", "external", "unreached");
 	// A glob that is external API, as facade's re-export through it makes it, exposes
 	// what its module exports, not all it supplies.
 	expect("outer::{use parts}", "cross-crate", "unreached");
@@ -118,6 +120,11 @@ fn fixture() {
 	expect("deeper::via_nested_glob", "cross-crate", "cross-crate");
 	// An impl of an imported trait from outside the audit needs only its type.
 	expect("shown_part", "narrowed", "crate-only");
+	// Every type of its own an impl's header names, however wrapped, must be live.
+	expect("Unshown", "narrowed", "unreached");
+	expect("unshown_part", "narrowed", "unreached");
+	expect("Unsaid", "narrowed", "unreached");
+	expect("unsaid_part", "narrowed", "unreached");
 	// So does a glob of a module or enum of its own crate.
 	expect("tools::tool", "narrowed", "crate-only");
 	expect("crate::{use tools}", "narrowed", "crate-only");
@@ -162,6 +169,8 @@ fn fixture() {
 		"Holds",
 		"Exposed",
 		"Returned",
+		"Products",
+		"Product",
 		"Settings",
 		"Settings::named",
 		"Settings::defaulted",

@@ -25,14 +25,14 @@ After type checking each local crate (the workspaces' members and their path dep
 Joined across every compilation, the graph gives:
 
 - **Reachability** from what runs with nothing naming it: `main`, the test harness, exported symbols, `const _`, and a proc-macro crate's macros.
-  A trait impl is reached once its trait and self type are, and then needs every item it declares.
+  A trait impl is reached once its trait and every type its header names, such as `Local` in `impl Display for &Local`, are, and then needs every item it declares.
   An import is reached once what it supplies is, which makes nothing else live: a glob supplies only the names rustc resolved through it (its `glob_map`), and a list holds its paths' `pub`, so it is reached once one of theirs is.
   Production and test roots give unreached, test-only, and crate-only items.
 - **Who needs a `pub`**: any reference from another crate, from live or dead code, since dead code must still compile.
   That includes the re-export a path goes through, the re-exports a glob supplied each name through, the types an expression has, and a tuple constructor's fields.
 - **What crates or tools outside the audit may use**: what a published library exports, and all of an unpublished library the audit does not run.
   The audit runs what has a binary, and the unpublished workspace members that builds on; any other library, such as a translator's fixture, is used outside cargo's view, by tools that may read its source.
-  What that API exposes of another crate stays public too: a re-exported or returned type with its fields, variants, and inherent items, a trait with its items, all of a crate it re-exports with `pub extern crate`, and every `pub` in the definition of a macro it exports, which goes wherever its callers expand it.
+  What that API exposes of another crate stays public too: a re-exported or returned type with its fields, variants, inherent items, and trait impls, a trait with its items, all of a crate it re-exports with `pub extern crate`, and every `pub` in the definition of a macro it exports, which goes wherever its callers expand it.
 
 Narrowing compiles every proposal together, restoring each `pub` a rustc error, or a `private_interfaces` or `private_bounds` lint, points at, until the workspaces check.
 It then requires every name to resolve as before: a narrowed method can compile and still change which method a call picks, such as a slice's `len` through `Deref`.

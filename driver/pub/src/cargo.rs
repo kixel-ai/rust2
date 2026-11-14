@@ -177,7 +177,7 @@ impl Workspace {
 	pub fn check(&self, args: &[String], facts: &Path, local: &Path, edits: Option<&Path>) -> Result<Check, String> {
 		let exe = std::env::current_exe().map_err(|err| format!("finding this executable: {err}"))?;
 		let mut clean = self.cargo("clean");
-		clean.args(resolution_args(args));
+		clean.args(clean_args(args));
 		for package in self.local.values() {
 			clean.arg("--package").arg(&package.id);
 		}
@@ -318,10 +318,14 @@ fn cargo() -> Command {
 	Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
 }
 
-/// The cargo args that pick how the workspace resolves: `--config`, and the lockfile and
-/// network flags.
-fn resolution_args(args: &[String]) -> Vec<&str> {
-	pick(args, &["--locked", "--frozen", "--offline"], &["--config"])
+/// The cargo args `cargo clean` also takes: those that resolve, and the profile and
+/// targets, which pick the directories the check builds in.
+fn clean_args(args: &[String]) -> Vec<&str> {
+	pick(
+		args,
+		&["--locked", "--frozen", "--offline", "--release", "-r"],
+		&["--config", "--profile", "--target"],
+	)
 }
 
 /// The cargo args `cargo metadata` also takes: those that resolve, and the features.

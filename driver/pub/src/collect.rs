@@ -287,9 +287,28 @@ impl<'tcx> Collector<'tcx> {
 			this.owner = id;
 			this.signature(id, kind);
 			if let DefKind::Impl { of_trait: true } = kind {
-				let mut requires = vec![this.hash(tcx.impl_trait_id(def))];
-				if let ty::Adt(adt, _) = tcx.type_of(def).instantiate_identity().skip_norm_wip().kind() {
-					requires.push(this.hash(adt.did()));
+				// Its trait and every type its header names, however wrapped, as in
+				// `impl Display for &Local` or `impl From<Local> for String`: nothing uses
+				// it where one of them is not.
+				let trait_ref = tcx.impl_trait_ref(def).instantiate_identity().skip_norm_wip();
+				let mut requires = vec![this.hash(trait_ref.def_id)];
+				for ty in trait_ref
+					.args
+					.types()
+					.flat_map(|t| t.walk())
+					.filter_map(|a| a.as_type())
+				{
+					let named = match *ty.kind() {
+						ty::Adt(adt, _) => Some(adt.did()),
+						ty::Foreign(def) => Some(def),
+						ty::Dynamic(preds, ..) => preds.principal_def_id(),
+						_ => None,
+					};
+					if let Some(hash) = named.map(|d| this.hash(d))
+						&& !requires.contains(&hash)
+					{
+						requires.push(hash);
+					}
 				}
 				impls.push(Impl { hash, requires });
 				// An impl needs every item it declares, whatever calls them.

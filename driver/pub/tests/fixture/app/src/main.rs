@@ -171,6 +171,34 @@ pub fn shown_part() -> u32 {
 	29
 }
 
+/// Narrowed, unreached: only an impl for a reference to it names it.
+pub struct Unshown;
+
+impl Display for &Unshown {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", unshown_part())
+	}
+}
+
+/// Narrowed, unreached: only that impl calls it.
+pub fn unshown_part() -> u32 {
+	32
+}
+
+/// Narrowed, unreached: only an impl of a trait it is the argument of names it.
+pub struct Unsaid;
+
+impl From<Unsaid> for String {
+	fn from(_: Unsaid) -> String {
+		unsaid_part().to_string()
+	}
+}
+
+/// Narrowed, unreached: only that impl calls it.
+pub fn unsaid_part() -> u32 {
+	33
+}
+
 fn main() {
 	{
 		let live = api::Live::new(42);
@@ -213,4 +241,5 @@ fn main() {
 	println!("embedded {} {}", embedded::embedded(), EMBEDDED.len());
 	println!("extra {}", extra::used());
 	println!("crlf {}", api::crlf::spaced());
+	println!("product {}", std::mem::size_of::<api::Product>());
 }
