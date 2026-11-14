@@ -1555,12 +1555,14 @@ impl<'a> Header<'a> {
 			}
 			_ => Vec::new(),
 		};
-		writes.extend((function.params.iter().zip(&names)).filter(|(param, _)| param.ty.written()).map(
-			|(param, name)| {
-				let out = Abi::written(function, &abi::escape(&param.name));
-				format!("{name} = {};", self.lift(param.ty.base(), &format!("c_{out}_")))
-			},
-		));
+		writes.extend(
+			(function.params.iter().zip(&names))
+				.filter(|(param, _)| param.ty.written())
+				.map(|(param, name)| {
+					let out = Abi::written(function, &abi::escape(&param.name));
+					format!("{name} = {};", self.lift(param.ty.base(), &format!("c_{out}_")))
+				}),
+		);
 		for (name, _) in &outs {
 			args.push(format!("&c_{name}_"));
 		}

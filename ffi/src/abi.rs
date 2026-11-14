@@ -859,7 +859,10 @@ impl<'a> Abi<'a> {
 			return None;
 		}
 		// `written_back` in collect.rs refuses a future's and a `Result`'s.
-		assert!(!function.future && function.err.is_none(), "a value's `&mut self` returns a plain value");
+		assert!(
+			!function.future && function.err.is_none(),
+			"a value's `&mut self` returns a plain value"
+		);
 		let real = self.export(function, Some(owner));
 		let returned = match &function.ok {
 			Type::Unit => Vec::new(),

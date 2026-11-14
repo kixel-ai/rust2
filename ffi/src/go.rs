@@ -2589,12 +2589,14 @@ impl<'a> Gen<'a> {
 				}
 				_ => Vec::new(),
 			};
-			writes.extend((function.params.iter().zip(&names)).filter(|(param, _)| param.ty.written()).map(
-				|(param, name)| {
-					let out = Abi::written(function, &abi::escape(&param.name));
-					format!("*{name} = {}", self.lift(param.ty.base(), &format!("c_{out}_")))
-				},
-			));
+			writes.extend(
+				(function.params.iter().zip(&names))
+					.filter(|(param, _)| param.ty.written())
+					.map(|(param, name)| {
+						let out = Abi::written(function, &abi::escape(&param.name));
+						format!("*{name} = {}", self.lift(param.ty.base(), &format!("c_{out}_")))
+					}),
+			);
 			if !writes.is_empty() {
 				let made = match &err {
 					Some(_) => {

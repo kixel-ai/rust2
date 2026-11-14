@@ -1896,10 +1896,9 @@ impl Gen<'_> {
 		// Rust writes back what the call left in each value C passed for `&mut`, on every
 		// path, errors included, and in a value's `&mut self`, in place.
 		let mut writes: String = match &receiver_ty {
-			Some(((_, value), Receiver::Mut)) if !matches!(value, Type::Object(_)) => format!(
-				"\n\tunsafe {{ this.write({}) }};",
-				self.lower(value, "a_self")
-			),
+			Some(((_, value), Receiver::Mut)) if !matches!(value, Type::Object(_)) => {
+				format!("\n\tunsafe {{ this.write({}) }};", self.lower(value, "a_self"))
+			}
 			_ => String::new(),
 		};
 		writes += &(function.params.iter().enumerate())

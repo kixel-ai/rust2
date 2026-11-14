@@ -341,17 +341,37 @@ fn main() {
 	println!("taken {taken} {} {}", copy.count(), score.count());
 	let mut other = step;
 	let before = copy.absorb(&mut other);
-	println!("absorbed {} {} {} {} {}", before.0, before.1, copy.count(), other.count(), step.count());
+	println!(
+		"absorbed {} {} {} {} {}",
+		before.0,
+		before.1,
+		copy.count(),
+		other.count(),
+		step.count()
+	);
 	let mut hits = api::Hits::of(1, 2);
 	let kept = hits;
 	hits.add(api::Hits::of(10, 20));
 	hits.hits = 7;
-	println!("hits {} {} {} {} {}", hits.hits, hits.misses, kept.hits, kept.misses, hits == kept);
+	println!(
+		"hits {} {} {} {} {}",
+		hits.hits,
+		hits.misses,
+		kept.hits,
+		kept.misses,
+		hits == kept
+	);
 	let mut extent = api::Extent::new(5, 3);
 	let start = extent;
 	let old = extent.slide(10);
 	extent.start += 1;
-	println!("extent {old} {} {} {} {}", extent.start, extent.end(), start.start, start.end());
+	println!(
+		"extent {old} {} {} {} {}",
+		extent.start,
+		extent.end(),
+		start.start,
+		start.end()
+	);
 	let weighted = api::Weighted { score: step, weight: 4 };
 	println!(
 		"weighted {} {}",

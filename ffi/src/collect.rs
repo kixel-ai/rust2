@@ -2519,8 +2519,8 @@ impl<'tcx> Collector<'tcx> {
 	/// not hand back with what it returns: a future's, which outlives the call, and a
 	/// `Result`'s, whose error a language raising it would lose the change with.
 	fn written_back(&mut self, methods: Vec<Function>) -> Vec<Function> {
-		let (refused, kept): (Vec<Function>, Vec<Function>) = (methods.into_iter())
-			.partition(|m| m.receiver == Some(Receiver::Mut) && (m.future || m.err.is_some()));
+		let (refused, kept): (Vec<Function>, Vec<Function>) =
+			(methods.into_iter()).partition(|m| m.receiver == Some(Receiver::Mut) && (m.future || m.err.is_some()));
 		for m in refused {
 			let construct = match m.future {
 				true => "`&mut self` of a value in a future",
