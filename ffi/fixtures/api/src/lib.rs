@@ -855,10 +855,7 @@ impl Waiter {
 /// it asks for, as if the clock reached it at once, or once its waiter is woken, with the
 /// last one again. A closure its future keeps, as kio's `clock::drive` keeps one, over a
 /// moment as kio's is over its own padding-free instant.
-pub async fn drive<E>(
-	start: Moment,
-	mut poll: impl FnMut(Moment, &Waiter) -> Result<Option<Moment>, E> + Unpin,
-) -> E {
+pub async fn drive<E>(start: Moment, mut poll: impl FnMut(Moment, &Waiter) -> Result<Option<Moment>, E> + Unpin) -> E {
 	let mut now = start;
 	std::future::poll_fn(move |cx| {
 		let waiter = Waiter::new(cx.waker().clone());
