@@ -25,3 +25,7 @@ hand-written, and 34.2 in Firefox against 1.26.
   with effects, and early exits; re-run `iter/` through `--route`.
 
 Public API: none.
+
+The maintainer settled on 2026-11-13 to ✅ keep this quest (rejected: drop), and that the
+rust2-wasm gate's measurement in `quest/m2/wasm/routes.md` ✅ doesn't wait for it, reporting
+the `iter/zip-rev-filter-count` row as the runtime's (rejected: wait for both follow-ups).

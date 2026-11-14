@@ -25,3 +25,7 @@ the fields. On 2026-11-13 `iter/enumerate-for` ran 6.44 ns per byte in Chromium 
   second side ends first, and closures with effects; re-run `iter/` through `--route`.
 
 Public API: none.
+
+The maintainer settled on 2026-11-13 to ✅ keep this quest (rejected: drop), and that the
+rust2-wasm gate's measurement in `quest/m2/wasm/routes.md` ✅ doesn't wait for it, reporting
+the `iter/zip-rev-filter-count` row as the runtime's (rejected: wait for both follow-ups).
