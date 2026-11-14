@@ -21,6 +21,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 
+// What a function marked so holds lives in its own frame: the Android test keeps it from
+// R8's inlining, since ART's interpreter keeps every reference a frame's registers last
+// held reachable until the frame returns, which would keep it from the GC checks after.
+annotation class OwnFrame
+
 // The Log callback: keeps even levels.
 class PrintLog : Log, AutoCloseable {
 	override fun log(level: UByte, line: String): Boolean {
@@ -921,7 +926,7 @@ fun futures() {
 	run {
 		val (job, weak) = idle(scope)
 		q.drain()
-		check(weak.get() != null, "a closure a pending future keeps stays held")
+		check(held(weak), "a closure a pending future keeps stays held")
 		job.cancel()
 		q.drain()
 		released(weak, "a closure a cancelled future kept is released")
@@ -930,6 +935,7 @@ fun futures() {
 }
 
 // A closure Spawned keeps, which returns [n], once Spawned ran it.
+@OwnFrame
 fun spawned(n: UInt): java.lang.ref.WeakReference<Any> {
 	val task = { n }
 	check(Spawned.new(task).join() == n, "a kept closure runs on Rust's thread")
@@ -937,6 +943,7 @@ fun spawned(n: UInt): java.lang.ref.WeakReference<Any> {
 }
 
 // A drive whose closure waits for a wake that never comes, launched on [scope].
+@OwnFrame
 fun idle(scope: CoroutineScope): Pair<kotlinx.coroutines.Job, java.lang.ref.WeakReference<Any>> {
 	val start = now()
 	val poll = { _: Instant, _: Waiter -> start.let { null } }
@@ -944,10 +951,14 @@ fun idle(scope: CoroutineScope): Pair<kotlinx.coroutines.Job, java.lang.ref.Weak
 	return Pair(job, java.lang.ref.WeakReference(poll))
 }
 
+// Whether [weak] still reaches its value, which never reaches the caller's frame.
+@OwnFrame
+fun held(weak: java.lang.ref.WeakReference<*>): Boolean = weak.get() != null
+
 // Collect until [weak] is gone, as once Rust lets go of the closure it held.
 fun released(weak: java.lang.ref.WeakReference<*>, what: String) {
 	val deadline = System.nanoTime() + 10.seconds.inWholeNanoseconds
-	while (weak.get() != null) {
+	while (held(weak)) {
 		check(System.nanoTime() < deadline, what)
 		Runtime.getRuntime().gc()
 		Thread.sleep(1)
@@ -1062,6 +1073,10 @@ fun owned() {
 		val thrown = runCatching(call).exceptionOrNull()
 		check(thrown is UnsupportedOperationException && thrown.message == "$what: it is not on this library's target", "$what throws: $thrown")
 	}
+	Counter.new("k", 7u).use { kept ->
+		check(runCatching { wasmTake(kept) }.exceptionOrNull() is UnsupportedOperationException, "api_wasm_take throws")
+		check(kept.get() == 7uL, "a refused call leaves its moved argument open")
+	}
 
 	// Bytes outlive the object that returned them and the record that held them.
 	val body = ByteArray(2048) { 'b'.code.toByte() }
@@ -1110,21 +1125,23 @@ fun reads(bytes: Bytes, value: Byte, what: String) {
 	}
 }
 
-// In its own frame, so nothing on the caller's keeps them reachable. The bytes are long
-// enough to be lent.
+// Never closed, and long enough to be lent.
+@OwnFrame
 fun unclosed() {
 	Token.new(3u)
 	tokenBytes(4u, 1025u)
 }
 
-// A slice of Rust's bytes, made in its own frame so nothing keeps the Bytes it came from,
-// which keeps Rust's buffer while it reads.
+// A slice of Rust's bytes, made in a frame of its own so nothing keeps the Bytes it came
+// from, which keeps Rust's buffer while it reads.
+@OwnFrame
 fun keptBySlice(freed: UInt) {
 	val view = sliced(5u)
 	uncollected(freed, "a slice keeps Rust's bytes")
 	check(view.size == 10 && view.toByteArray().all { it == 5.toByte() }, "a slice reads Rust's bytes once the Bytes it came from are gone")
 }
 
+@OwnFrame
 fun sliced(id: UInt): Bytes = tokenBytes(id, 1025u).slice(1015)
 
 // Frees racing calls: a close racing calls on other threads, and the GC freeing what a
@@ -1169,15 +1186,20 @@ fun raced() {
 	}
 	var rounds = 0u
 	while (cycles.get() < 50) {
-		val id = rounds % 100u + 1u
-		check(tokenBytes(id, 2048u)[2047] == id.toByte(), "a read by index races the GC")
-		check(tokenBytes(id, 2048u).slice(1024).toByteArray().all { it == id.toByte() }, "a slice's copy races the GC")
-		check(Token.new(id).idGet == id, "a call on an object races the GC")
+		racedRound(rounds % 100u + 1u)
 		rounds++
 	}
 	collecting.set(false)
 	collector.join()
 	collected(before + 3u * rounds, "the GC frees what each call raced")
+}
+
+// Calls on values nothing else reaches once it returns, holding [id], racing the GC.
+@OwnFrame
+fun racedRound(id: UInt) {
+	check(tokenBytes(id, 2048u)[2047] == id.toByte(), "a read by index races the GC")
+	check(tokenBytes(id, 2048u).slice(1024).toByteArray().all { it == id.toByte() }, "a slice's copy races the GC")
+	check(Token.new(id).idGet == id, "a call on an object races the GC")
 }
 
 // At most 64 MiB of Rust's bytes are lent at once, freed or not, since the GC sees none of
@@ -1187,13 +1209,19 @@ fun budgeted() {
 	val before = dropped()
 	lentToBudget(before)
 	collected(before + 65u, "the GC frees bytes lent up to the budget")
-	check(tokenBytes(3u, 2048u)[2047] == 3.toByte() && dropped() == before + 65u, "bytes cross lent again once the GC frees them")
+	lentAgain(before + 65u)
 	collected(before + 66u, "the GC frees bytes lent once the budget is free")
 }
 
+// Bytes lent once the GC freed those that filled the budget, with Rust's drops still [freed].
+@OwnFrame
+fun lentAgain(freed: UInt) {
+	check(tokenBytes(3u, 2048u)[2047] == 3.toByte() && dropped() == freed, "bytes cross lent again once the GC frees them")
+}
+
 // Rust's bytes either side of the copy limit, returning the drops once the call has freed
-// those it copied. In its own frame, which the Android test keeps from R8's inlining, as
-// ART's interpreter keeps the last ones reachable from the caller's until it returns.
+// those it copied.
+@OwnFrame
 fun lentAround(): UInt {
 	var freed = dropped()
 	for (n in 1023..1025) {
@@ -1205,8 +1233,7 @@ fun lentAround(): UInt {
 	return freed
 }
 
-// In its own frame, which the Android test keeps from R8's inlining, so nothing on the
-// caller's keeps them reachable.
+@OwnFrame
 fun lentToBudget(before: UInt) {
 	val mib = 1 shl 20
 	val held = List(64) { tokenBytes(1u, mib.toUInt()) }
@@ -1269,9 +1296,48 @@ fun uncollected(n: UInt, what: String) {
 	check(dropped() == n, what)
 }
 
+fun returns() {
+	val saved = returnValues(Mut(Point(0, 0)), false)
+	val completed = java.util.concurrent.atomic.AtomicInteger()
+	List(4) { thread {
+		repeat(64) { returnValues(Mut(Point(it, -it)), false); Counter.new("thread", it.toULong()).close(); completed.incrementAndGet() }
+	} }.forEach { it.join() }
+	check(completed.get() == 256, "all concurrent return calls completed")
+	check(saved.first == "hé🙂\u0000" && saved.third[1][9999].toUByte() == 15u.toUByte(), "a return owns its data after concurrent scratch reuse")
+	val point = Mut(Point(3, -5))
+	for (fail in listOf(false, true, false)) {
+		try {
+			val (text, widths, rows) = returnValues(point, fail)
+			val (a, b, c, d) = widths!!
+			println("values $text $a $b $c $d")
+			println("rows ${rows[0].size} ${rows[0][0].toUByte()} ${rows[0][1].toUByte()} ${rows[0][2].toUByte()} ${rows[1].size} ${rows[1][9999].toUByte()}")
+		} catch (e: ErrorException) { println("values error") }
+		println("point ${point.value.x} ${point.value.y}")
+	}
+	for (fail in listOf(false, true)) {
+		val counter = Counter.new("moved", ULong.MAX_VALUE)
+		try {
+			returnMoved(counter, fail).use { println("moved ${it.name()} ${it.get()}") }
+		} catch (e: ErrorException) { println("moved error") }
+		val usable = try { counter.get(); true } catch (_: IllegalStateException) { false }
+		check(!usable) { "a moved counter was usable" }
+	}
+	for (hex in listOf("ff0080fe", "bad")) {
+		try {
+			val value = fingerprint(hex)
+			println("array ${value[0].toUByte()} ${value[1].toUByte()} ${value[2].toUByte()} ${value[3].toUByte()}")
+		} catch (e: StringException) { println("array error") }
+	}
+	for (unit in listOf(true, false)) {
+		try { val (a, b) = corner(unit); println("corner $a $b") }
+		catch (e: ErrorException) { println("corner error") }
+	}
+}
+
 fun main(args: Array<String>) {
 	when {
 		args.isEmpty() -> script()
+		args[0] == "returns" -> returns()
 		args[0] == "futures" -> futures()
 		args[0] == "owned" -> owned()
 		else -> broken(args[0])

@@ -616,6 +616,32 @@ fn api_kotlin() {
 	};
 	kotlin(&api.transcript, &|args| java(&[&classes], args));
 
+	let native_returns = run(cargo()
+		.arg("run")
+		.arg("--quiet")
+		.arg("--locked")
+		.arg("--package")
+		.arg("api-fixture")
+		.arg("--example")
+		.arg("returns")
+		.current_dir(manifest_dir()));
+	let kotlin_returns = run(&mut java(&["returns"]));
+	assert_eq!(
+		kotlin_returns.stdout, native_returns.stdout,
+		"Kotlin composite returns differ from native Rust"
+	);
+	let generated = std::fs::read_to_string(api.out.join("kotlin/api.kt")).expect("generated Kotlin");
+	for method in ["divide", "corner", "fingerprint", "return_values"] {
+		let declaration = generated
+			.lines()
+			.find(|line| line.contains(&format!("external fun {method}(")))
+			.expect("return method");
+		assert!(
+			!declaration.ends_with(": ByteArray") && !declaration.ends_with(": ByteArray?"),
+			"{method} still returns an encoded array: {declaration}"
+		);
+	}
+
 	// The same classes, with another contract than the library's in place of theirs,
 	// refuse to load it: a Native.class of its own, ahead on the classpath, leaves the
 	// compiled classes as they were.
@@ -681,8 +707,8 @@ fn api_android() {
 	// reaches, which R8 shrinks and renames, keeping only what the rules keep: the
 	// generated ones, and those kotlinx-coroutines' jar holds, which an app's build reads
 	// from it. Kotlin's annotations are on an app's classpath, not in its dex. The
-	// script's functions that hold lent bytes in their own frame are kept too, as R8 would
-	// inline them into their caller, whose frame ART's interpreter keeps reaching the bytes.
+	// script's functions marked `OwnFrame` are kept too, as R8 would inline them into their
+	// caller, whose frame ART's interpreter keeps reaching what they held.
 	let jar = dir.join("app.jar");
 	run(kotlinc(&out, &jar).arg("-include-runtime"));
 	run(Command::new("jar")
@@ -694,7 +720,7 @@ fn api_android() {
 	std::fs::write(
 		&app,
 		format!(
-			"-keep class ApiKt {{ public static void main(java.lang.String[]); static *** lentAround(); static *** lentToBudget*(...); }}\n-dontwarn org.jetbrains.annotations.**\n-printusage {}\n",
+			"-keep class ApiKt {{ public static void main(java.lang.String[]); @OwnFrame static <methods>; }}\n-dontwarn org.jetbrains.annotations.**\n-printusage {}\n",
 			dir.join("usage.txt").display()
 		),
 	)
