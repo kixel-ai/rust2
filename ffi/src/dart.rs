@@ -613,12 +613,10 @@ impl<'a> Gen<'a> {
 		!matches!(
 			ty,
 			Ty::Buf
-				| Ty::U128
-				| Ty::Duration
+				| Ty::U128 | Ty::Duration
 				| Ty::SocketAddr
 				| Ty::Struct(_)
-				| Ty::Waker
-				| Ty::ForeignFuture
+				| Ty::Waker | Ty::ForeignFuture
 				| Ty::ForeignReader
 		)
 	}
