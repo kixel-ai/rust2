@@ -118,6 +118,7 @@ fun script() {
 		val ranked = board.ranked()
 		println("ranked ${ranked.joinToString(", ") { (name, counter) -> "$name ${counter.name()} ${counter.get()}" }}")
 		ranked.forEach { it.second.close() }
+		board.best().use { println("best ${it.name()} ${it.get()}") }
 	}
 	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
 	// key once, the last kept.
@@ -478,6 +479,12 @@ fun script() {
 	nudge(nudged, 3)
 	println("nudge ${nudged.value.x} ${nudged.value.y}")
 	secure("h3").use { config -> println("secure ${alpnLent(config)} ${alpn(config.clone())}") }
+	resume("h3", 60u).use { session -> println("resume ${session.alpn()} ${session.lifetime().seconds}") }
+	try {
+		resume("", 60u)
+	} catch (e: StringException) {
+		println("resume err ${e.error}")
+	}
 	Meters.new().use { meters ->
 		meters.first().use { first ->
 			first.add(2uL)

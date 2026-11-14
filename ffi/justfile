@@ -325,6 +325,9 @@ standin checkout="":
             printf '%s = { path = "%s/rs/%s" }\n' "$name" "$src" "$name"
         done
         printf '\n[workspace]\n'
+        # moq's profiles, which the export carries as it would moq-ffi's own; the dev ones
+        # tune test-only crates the stand-in does not resolve.
+        awk '/^\[/ { keep = /^\[profile\./ && !/^\[profile\.dev[].]/ } keep' "$src/Cargo.toml"
     } > "$dir/Cargo.toml"
     # What moq-ffi ships, re-exported: moq-net and moq-pattern at the root, beside the
     # waiter a driver's poll registers and the clock it polls at, and each other crate in a

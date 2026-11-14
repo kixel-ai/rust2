@@ -22,7 +22,8 @@ is a nightly. The package is the facade: once rustc has checked its library, it 
 reachable from the crate root, following `pub use` re-exports of other crates' items and
 modules, and exports it by fixed rules, or refuses it with a compile error at its span.
 So a facade such as moq-ffi exports several crates into one library by re-exporting what
-it ships, and a type no path from its root reaches is refused. The prefix of every C name
+it ships; a type a signature names that no path from its root reaches exports by its
+public path in its own crate ([Rules](#rules)). The prefix of every C name
 is the library's crate name, Cargo's `[lib] name`, which defaults to the package's name in
 snake case. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
 beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate makes a
@@ -72,7 +73,19 @@ export nothing of their own. A re-export of the standard library's item is refus
 its types map by role. A `pub use` of a whole crate, as in `pub use rustls;` or
 `pub use web_transport_proto as proto;`, is refused once at that `pub use`, since it puts
 every release of that crate in the facade's API; a glob of its root, `pub use dep::*;`,
-re-exports its items instead, which export. A type no path reaches is refused.
+re-exports its items instead, which export.
+
+A type an export's signature names that no path from the root reaches, as moq-net's
+`dial_tcp` returns kio's `Pending`, exports by its shortest public path in its own crate,
+`<prefix>::<crate>::<path>`, through that crate's modules and re-exports, with what its own
+signatures name in turn. This holds whether or not the facade re-exports anything else of
+that crate. The glue depends on that crate directly, as the facade resolves it; a crate
+another of its name shares, the facade's root names, or another registry serves is not
+reached. A crate only signatures reach keeps the roles of one no export is: its error in a
+`Result` crosses as its message, and its type behind an `Arc` as an opaque handle, refused
+bare. Its errors, the types implementing `std::error::Error`, are never reached, so an
+exported error holding one is an object, as it was. A type no public path names stays
+refused.
 
 | Rust | C |
 | --- | --- |
@@ -111,6 +124,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `Vec<T>`, `&[T]`, and `Box<[T]>` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned; a boxed slice of bytes is refused |
 | `BTreeSet<T>`, `BTreeMap<K, V>`, and `serde_json::Map` | as `Vec<T>`, `Vec<(K, V)>`, and `Vec<(String, serde_json::Value)>`: its items in order, from which Rust builds it, keeping the last of a key |
 | a returned iterator, such as `slice::Iter` or an `impl Iterator`, that no other rule maps, outside a future, made of core's and alloc's iterators over a slice, string, `Option`, `Result`, or collection, or serde_json's `map::Iter`, `IntoIter`, `Keys`, or `Values`, through `rev`, `chain`, `flatten`, `fuse`, `enumerate`, `peekable`, `copied`, `cloned`, or `filter`, with no trait object inside; a closure or function inside, such as `filter`'s predicate or `split`'s pattern, must drop nothing, and a `filter` only items whose drop runs nothing | what `collect::<Vec<_>>()` makes of it: every item, taken at the call, so a closure inside runs on every item, not only those a caller stopping early would reach |
+| a returned `impl Trait`, or one a returned future outputs or a collected iterator yields, other than that future or iterator itself, whose hidden type is an object | that object's handle, which keeps the `impl Trait` itself, so every lifetime it captures must be `'static`: one capturing a borrow, as `impl Clone + '_` does, is refused, and `+ use<>` captures none; one hiding any other type, such as an `Option`, is refused, since the glue cannot name it |
 | `Waker`, taken by value | `<prefix>_waker`, as a future's poll takes it |
 | a returned `Waker` or `&Waker`, or a returned `Context`, which is only a waker lent for a call | `<prefix>_waker` of a clone of the waker, or the context's: the caller's, to wake through Rust and drop once |
 | `&Context` or `&mut Context` of a function returning no `Poll` and no future | `<prefix>_waker`, which the context is made of for the call |
