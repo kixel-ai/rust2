@@ -79,8 +79,8 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   `NonZero`, which exports, the rest of the errors at moq's main
   (exported since by rules for another crate's value, a borrowing future of a function
   that is not `async`, and an object field that is not `Clone`), and
-  what the excludes still hide at moq's main, exported since but for
-  [`IpAddr`](/quest/m1/ffi-refusals/ip-addr.md) and `server::Listener::accept_with`, which
+  what the excludes still hide at moq's main, exported since (`IpAddr` by its family, as
+  `SocketAddr` is) but for `server::Listener::accept_with`, which
   [not-send](/quest/m1/ffi-export/not-send.md) owns;
   `just ffi census` fails on an exclude that names what exports. The
   bump is then only the bump. The types refused for not being `Send` (`clock::Entered`,
