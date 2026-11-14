@@ -2408,6 +2408,19 @@ pub fn fused(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			for (x, y) in b.iter().map(seen!(11)).zip(a.iter().filter(kept!(12))) {
 				out.push(x ^ y);
 			}
+			// One whose end goes on with the loop around it from inside a filter's loop, and
+			// one that reads its item whole.
+			for round in 0..2u8 {
+				for (i, x) in a.iter().enumerate().filter(|(_, x)| **x % 3 != round) {
+					out.push(i as u8 ^ x ^ round);
+				}
+			}
+			let mut whole = Vec::new();
+			for item in b.iter().enumerate() {
+				whole.push(item);
+			}
+			out.extend(whole.iter().map(|&(i, x)| i as u8 ^ x));
+			out.push(first_after(b, stop));
 		}
 		// Owned items, and a zip of a range and a filter, neither read by index.
 		11 => {
@@ -2505,6 +2518,17 @@ pub fn fused_owned(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		),
 	}
 	out.extend_from_slice(&log.borrow());
+}
+
+/// The first item of `data` past the `skip`th, each xored with `skip`, that 5 divides, or
+/// `data`'s length: a loop whose end returns, over a closure that captures.
+fn first_after(data: &[u8], skip: u8) -> u8 {
+	for (i, x) in data.iter().map(|x| x ^ skip).enumerate().filter(|(_, x)| x % 5 == 0) {
+		if i > skip as usize {
+			return x;
+		}
+	}
+	data.len() as u8
 }
 
 /// A chain that escapes the function that makes it.

@@ -255,21 +255,9 @@ export function consumers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		const leaf6: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(short));
 		let index2: number = 0;
 		const end2: number = Math.min(leaf5.len(), leaf6.len());
-		while (true) {
-			let next!: [rs.u8, rs.u8] | rs.Done;
-			next2: {
-				if (index2 >= end2) {
-					next = rs.DONE;
-					break next2;
-				}
-				index2++;
-				next = [f4(leaf5.next() as rs.u8), leaf6.next() as rs.u8];
-			}
-			const _69: [rs.u8, rs.u8] | rs.Done = next;
-			if (_69 === rs.DONE) {
-				break;
-			}
-			rs.byteVecPush(out, _69[0] ^ _69[1]);
+		while (!(index2 >= end2)) {
+			index2++;
+			rs.byteVecPush(out, f4(leaf5.next() as rs.u8) ^ leaf6.next() as rs.u8);
 		}
 		const iter2: rs.Iter<[rs.u8, rs.u8]> = rs.iterZip(rs.iterMap(rs.iterInspect(rs.iterSlice(rs.byteSliceView(data)), (_226: rs.u8): undefined => {
 			rs.byteVecPush(log, _226);
@@ -1507,20 +1495,11 @@ export function options(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return undefined;
 	};
 	while (true) {
-		let next!: rs.u8 | undefined | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = f(x);
-		}
-		const _15: rs.u8 | undefined | rs.Done = next;
-		if (_15 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const item: rs.u8 | undefined = _15;
+		const item: rs.u8 | undefined = f(x);
 		if (item === undefined) {
 			rs.byteVecPush(out, 0);
 		} else {
@@ -12031,6 +12010,7 @@ export function unfused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
  * part of the output.
  */
 export function fused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	let _205!: rs.u8;
 	let it!: rs.Iter<[rs.usize, [rs.u8, rs.u8]]>;
 	const mid: number = rs.usizeRem(kind >> 4 as rs.usize, rs.usizeAdd(data.length, 1));
 	if (mid > data.length) {
@@ -12042,24 +12022,24 @@ export function fused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const log: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
 	const _24: rs.u8 = rs.u8Rem(kind, 16);
 	if (_24 === 0) {
-		const leaf34 = rs.iterSlice(rs.byteSliceView(a));
-		const f42 = (_288: rs.u8): rs.u8 => {
-			const x79: rs.u8 = _288;
-			const _639: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_639.value, x79 ^ 1);
-			rs.refMutRelease(_639);
-			return x79;
-		};
-		const leaf35 = rs.iterSlice(rs.byteSliceView(b));
-		const f43 = (_289: rs.u8): rs.u8 => {
-			const x80: rs.u8 = _289;
+		const leaf36 = rs.iterSlice(rs.byteSliceView(a));
+		const f43 = (_293: rs.u8): rs.u8 => {
+			const x82: rs.u8 = _293;
 			const _640: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_640.value, x80 ^ 2);
+			rs.byteVecPush(_640.value, x82 ^ 1);
 			rs.refMutRelease(_640);
-			return x80;
+			return x82;
+		};
+		const leaf37 = rs.iterSlice(rs.byteSliceView(b));
+		const f44 = (_294: rs.u8): rs.u8 => {
+			const x83: rs.u8 = _294;
+			const _641: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			rs.byteVecPush(_641.value, x83 ^ 2);
+			rs.refMutRelease(_641);
+			return x83;
 		};
 		let index5 = 0;
-		const end5 = Math.min(leaf34.len(), leaf35.len());
+		const end5 = Math.min(leaf36.len(), leaf37.len());
 		let n7 = 0;
 		fused35: while (true) {
 			while (true) {
@@ -12067,7 +12047,7 @@ export function fused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					break fused35;
 				}
 				index5++;
-				if (f42(leaf34.next() as rs.u8) < f43(leaf35.next() as rs.u8)) {
+				if (f43(leaf36.next() as rs.u8) < f44(leaf37.next() as rs.u8)) {
 					break;
 				}
 			}
@@ -12075,28 +12055,28 @@ export function fused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecPush(out, n7 & 0xff);
 	} else if (_24 === 1) {
-		const leaf33 = rs.iterSlice(rs.byteSliceView(a));
-		const f40 = (_283: rs.u8): rs.u8 => {
-			const x76: rs.u8 = _283;
-			const _637: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_637.value, x76 ^ 3);
-			rs.refMutRelease(_637);
-			return x76;
-		};
-		const f41 = (x77: rs.u8): boolean => {
+		const leaf35 = rs.iterSlice(rs.byteSliceView(a));
+		const f41 = (_289: rs.u8): rs.u8 => {
+			const x79: rs.u8 = _289;
 			const _638: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_638.value, x77 ^ 4);
+			rs.byteVecPush(_638.value, x79 ^ 3);
 			rs.refMutRelease(_638);
-			return rs.u8Rem(x77, 3) !== 0;
+			return x79;
+		};
+		const f42 = (x80: rs.u8): boolean => {
+			const _639: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			rs.byteVecPush(_639.value, x80 ^ 4);
+			rs.refMutRelease(_639);
+			return rs.u8Rem(x80, 3) !== 0;
 		};
 		let n6 = 0;
 		fused33: while (true) {
 			while (true) {
-				const x78 = leaf33.next();
-				if (x78 === rs.DONE) {
+				const x81 = leaf35.next();
+				if (x81 === rs.DONE) {
 					break fused33;
 				}
-				if (f41(f40(x78))) {
+				if (f42(f41(x81))) {
 					break;
 				}
 			}
@@ -12104,60 +12084,60 @@ export function fused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecPush(out, n6 & 0xff);
 	} else if (_24 === 2) {
-		const leaf32 = rs.iterSlice(rs.byteSliceView(a));
-		let count7 = 0;
+		const leaf34 = rs.iterSlice(rs.byteSliceView(a));
+		let count9 = 0;
 		let found4 = false;
 		fused31: while (true) {
-			let y37!: rs.u8;
+			let y39!: rs.u8;
 			while (true) {
-				const x75 = leaf32.next();
-				if (x75 === rs.DONE) {
+				const x78 = leaf34.next();
+				if (x78 === rs.DONE) {
 					break fused31;
 				}
-				const y36: rs.u8 = (count7++ & 0xff) ^ x75;
-				if (rs.u8Rem(y36, 64) !== stop) {
-					y37 = y36;
+				const y38: rs.u8 = (count9++ & 0xff) ^ x78;
+				if (rs.u8Rem(y38, 64) !== stop) {
+					y39 = y38;
 					break;
 				}
 			}
-			if (rs.u8Rem(y37, 7) === 0) {
+			if (rs.u8Rem(y39, 7) === 0) {
 				found4 = true;
 				break;
 			}
 		}
 		rs.byteVecPush(out, found4 ? 1 : 0);
 	} else if (_24 === 3) {
-		const leaf26 = rs.iterSlice(rs.byteSliceView(a));
-		const f32 = (_274: rs.u8): rs.u8 => {
-			const x62: rs.u8 = _274;
-			const _631: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_631.value, x62 ^ 5);
-			rs.refMutRelease(_631);
-			return x62;
+		const leaf28 = rs.iterSlice(rs.byteSliceView(a));
+		const f33 = (_270: rs.u8): rs.u8 => {
+			const x65: rs.u8 = _270;
+			const _632: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			rs.byteVecPush(_632.value, x65 ^ 5);
+			rs.refMutRelease(_632);
+			return x65;
 		};
-		const leaf27 = new rs.Range(0, b.length);
+		const leaf29 = new rs.Range(0, b.length);
 		let index4 = 0;
-		const end4 = Math.min(leaf26.len(), leaf27.len());
-		const f33 = (_275: [rs.u8, rs.usize]): boolean => {
-			const x63: rs.u8 = _275[0];
-			const i20: rs.usize = _275[1];
-			if (!(rs.u8Rem(x63, 64) !== stop)) {
-				return i20 > 9;
+		const end4 = Math.min(leaf28.len(), leaf29.len());
+		const f34 = (_271: [rs.u8, rs.usize]): boolean => {
+			const x66: rs.u8 = _271[0];
+			const i24: rs.usize = _271[1];
+			if (!(rs.u8Rem(x66, 64) !== stop)) {
+				return i24 > 9;
 			}
 			return true;
 		};
 		let found3 = true;
 		while (!(index4 >= end4)) {
 			index4++;
-			if (!f33([f32(leaf26.next() as rs.u8), leaf27.next() as rs.usize])) {
+			if (!f34([f33(leaf28.next() as rs.u8), leaf29.next() as rs.usize])) {
 				found3 = false;
 				break;
 			}
 		}
 		rs.byteVecPush(out, found3 ? 1 : 0);
-		const leaf28 = new rs.Range(55294, 57346, rs.charStep);
-		const leaf29 = rs.iterRev(rs.iterSlice(rs.byteSliceView(a)));
-		let left4 = Math.min(leaf28.sizeHint()[1] ?? Infinity, leaf29.sizeHint()[1] ?? Infinity);
+		const leaf30 = new rs.Range(55294, 57346, rs.charStep);
+		const leaf31 = rs.iterRev(rs.iterSlice(rs.byteSliceView(a)));
+		let left4 = Math.min(leaf30.sizeHint()[1] ?? Infinity, leaf31.sizeHint()[1] ?? Infinity);
 		let n5 = 0;
 		fused27: while (true) {
 			while (true) {
@@ -12165,80 +12145,80 @@ export function fused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					break fused27;
 				}
 				left4--;
-				const x66 = leaf28.next() as rs.char;
-				leaf29.next() as rs.u8;
-				if ((((x66 as rs.u32) & 1) >>> 0) === 0) {
+				const x69 = leaf30.next() as rs.char;
+				leaf31.next() as rs.u8;
+				if ((((x69 as rs.u32) & 1) >>> 0) === 0) {
 					break;
 				}
 			}
 			n5++;
 		}
 		rs.byteVecPush(out, n5 & 0xff);
-		const leaf30 = new rs.Range({ hi: 0xffffffff, lo: 0xfffffffc } as rs.u64, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, rs.u64Step);
-		const leaf31 = rs.iterRev(rs.iterSlice(rs.byteSliceView(b)));
-		const f35 = (_277: rs.u8): rs.u8 => {
-			const x68: rs.u8 = _277;
-			const _634: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_634.value, x68 ^ 25);
-			rs.refMutRelease(_634);
-			return x68;
+		const leaf32 = new rs.Range({ hi: 0xffffffff, lo: 0xfffffffc } as rs.u64, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, rs.u64Step);
+		const leaf33 = rs.iterRev(rs.iterSlice(rs.byteSliceView(b)));
+		const f36 = (_273: rs.u8): rs.u8 => {
+			const x71: rs.u8 = _273;
+			const _635: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			rs.byteVecPush(_635.value, x71 ^ 25);
+			rs.refMutRelease(_635);
+			return x71;
 		};
-		let left5 = Math.min(leaf30.sizeHint()[1] ?? Infinity, leaf31.sizeHint()[1] ?? Infinity);
+		let left5 = Math.min(leaf32.sizeHint()[1] ?? Infinity, leaf33.sizeHint()[1] ?? Infinity);
 		let acc8: rs.u8 = 0;
 		while (left5 !== 0) {
 			left5--;
-			const x70 = leaf30.next() as rs.u64;
-			const y35: rs.u8 = f35(leaf31.next() as rs.u8);
-			acc8 = acc8 ^ (rs.u64Low(x70) & 0xff) ^ y35;
+			const x73 = leaf32.next() as rs.u64;
+			const y37: rs.u8 = f36(leaf33.next() as rs.u8);
+			acc8 = acc8 ^ (rs.u64Low(x73) & 0xff) ^ y37;
 		}
 		rs.byteVecPush(out, acc8);
 	} else if (_24 === 4) {
-		const leaf24 = rs.iterSlice(rs.byteSliceView(a));
-		const leaf25 = rs.iterSlice(rs.byteSliceView(b));
+		const leaf26 = rs.iterSlice(rs.byteSliceView(a));
+		const leaf27 = rs.iterSlice(rs.byteSliceView(b));
 		let index3 = 0;
-		const end3 = Math.min(leaf24.len(), leaf25.len());
-		let count6 = 0;
-		const f31 = (acc5: rs.u8, _321: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
-			const i18: rs.usize = _321[0];
-			return rs.u8WrappingMul(acc5, 31) ^ _321[1][0] ^ _321[1][1] ^ (i18 & 0xff);
+		const end3 = Math.min(leaf26.len(), leaf27.len());
+		let count8 = 0;
+		const f32 = (acc5: rs.u8, _315: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
+			const i22: rs.usize = _315[0];
+			return rs.u8WrappingMul(acc5, 31) ^ _315[1][0] ^ _315[1][1] ^ (i22 & 0xff);
 		};
 		let acc6: rs.u8 = 0;
 		while (!(index3 >= end3)) {
 			index3++;
-			const x60 = leaf24.next() as rs.u8;
-			const x61 = leaf25.next() as rs.u8;
-			acc6 = f31(acc6, [count6++, [x60, x61]]);
+			const x63 = leaf26.next() as rs.u8;
+			const x64 = leaf27.next() as rs.u8;
+			acc6 = f32(acc6, [count8++, [x63, x64]]);
 		}
 		rs.byteVecPush(out, acc6);
 	} else if (_24 === 5) {
-		const leaf19 = rs.iterSlice(rs.byteSliceView(a));
+		const leaf21 = rs.iterSlice(rs.byteSliceView(a));
 		let acc2: rs.u32 = 0;
 		fused17: while (true) {
-			let y28!: rs.u32;
+			let y30!: rs.u32;
 			while (true) {
-				const x51 = leaf19.next();
-				if (x51 === rs.DONE) {
+				const x54 = leaf21.next();
+				if (x54 === rs.DONE) {
 					break fused17;
 				}
-				const y27: rs.u32 = rs.u32Mul(x51 as rs.u32, 1000);
-				if (rs.u32Rem(y27, 3) !== 0) {
-					y28 = y27;
+				const y29: rs.u32 = rs.u32Mul(x54 as rs.u32, 1000);
+				if (rs.u32Rem(y29, 3) !== 0) {
+					y30 = y29;
 					break;
 				}
 			}
-			acc2 = rs.u32Add(acc2, y28);
+			acc2 = rs.u32Add(acc2, y30);
 		}
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(acc2).reverse()), undefined, true);
-		const leaf20 = rs.iterSlice(rs.byteSliceView(a));
-		const f26 = (_265: rs.u8): rs.u8 => {
-			const x52: rs.u8 = _265;
-			const _628: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_628.value, x52 ^ 22);
-			rs.refMutRelease(_628);
-			return x52;
+		const leaf22 = rs.iterSlice(rs.byteSliceView(a));
+		const f27 = (_254: rs.u8): rs.u8 => {
+			const x55: rs.u8 = _254;
+			const _629: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			rs.byteVecPush(_629.value, x55 ^ 22);
+			rs.refMutRelease(_629);
+			return x55;
 		};
-		const leaf21 = rs.iterRev(rs.iterSlice(rs.byteSliceView(b)));
-		let left2 = Math.min(leaf20.sizeHint()[1] ?? Infinity, leaf21.sizeHint()[1] ?? Infinity);
+		const leaf23 = rs.iterRev(rs.iterSlice(rs.byteSliceView(b)));
+		let left2 = Math.min(leaf22.sizeHint()[1] ?? Infinity, leaf23.sizeHint()[1] ?? Infinity);
 		let n4 = 0;
 		fused19: while (true) {
 			while (true) {
@@ -12246,174 +12226,174 @@ export function fused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					break fused19;
 				}
 				left2--;
-				if (f26(leaf20.next() as rs.u8) < (leaf21.next() as rs.u8)) {
+				if (f27(leaf22.next() as rs.u8) < (leaf23.next() as rs.u8)) {
 					break;
 				}
 			}
 			n4++;
 		}
 		rs.byteVecPush(out, n4 & 0xff);
-		const leaf22 = rs.iterSlice(rs.byteSliceView(a));
-		const f28 = (_269: rs.u8): rs.u8 => {
-			const x55: rs.u8 = _269;
-			const _629: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_629.value, x55 ^ 23);
-			rs.refMutRelease(_629);
-			return x55;
-		};
-		let count5 = 0;
-		const leaf23 = rs.iterRev(rs.iterSlice(rs.byteSliceView(b)));
-		const f29 = (_272: rs.u8): rs.u8 => {
-			const x56: rs.u8 = _272;
+		const leaf24 = rs.iterSlice(rs.byteSliceView(a));
+		const f29 = (_267: rs.u8): rs.u8 => {
+			const x58: rs.u8 = _267;
 			const _630: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_630.value, x56 ^ 24);
+			rs.byteVecPush(_630.value, x58 ^ 23);
 			rs.refMutRelease(_630);
-			return x56;
+			return x58;
 		};
-		let left3 = Math.min(leaf22.sizeHint()[1] ?? Infinity, leaf23.sizeHint()[1] ?? Infinity);
-		const f30 = (acc3: rs.u8, _312: [[rs.usize, rs.u8], rs.u8]): rs.u8 => {
-			const i16: rs.usize = _312[0][0];
-			const x57: rs.u8 = _312[0][1];
-			const y30: rs.u8 = _312[1];
-			return rs.u8WrappingMul(acc3, 7) ^ x57 ^ y30 ^ (i16 & 0xff);
+		let count7 = 0;
+		const leaf25 = rs.iterRev(rs.iterSlice(rs.byteSliceView(b)));
+		const f30 = (_269: rs.u8): rs.u8 => {
+			const x59: rs.u8 = _269;
+			const _631: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			rs.byteVecPush(_631.value, x59 ^ 24);
+			rs.refMutRelease(_631);
+			return x59;
+		};
+		let left3 = Math.min(leaf24.sizeHint()[1] ?? Infinity, leaf25.sizeHint()[1] ?? Infinity);
+		const f31 = (acc3: rs.u8, _313: [[rs.usize, rs.u8], rs.u8]): rs.u8 => {
+			const i20: rs.usize = _313[0][0];
+			const x60: rs.u8 = _313[0][1];
+			const y32: rs.u8 = _313[1];
+			return rs.u8WrappingMul(acc3, 7) ^ x60 ^ y32 ^ (i20 & 0xff);
 		};
 		let acc4: rs.u8 = 0;
 		while (left3 !== 0) {
 			left3--;
-			const y31: rs.u8 = f28(leaf22.next() as rs.u8);
-			acc4 = f30(acc4, [[count5++, y31], f29(leaf23.next() as rs.u8)]);
+			const y33: rs.u8 = f29(leaf24.next() as rs.u8);
+			acc4 = f31(acc4, [[count7++, y33], f30(leaf25.next() as rs.u8)]);
 		}
 		rs.byteVecPush(out, acc4);
 	} else if (_24 === 6) {
-		const leaf18 = rs.iterSlice(rs.byteSliceView(a));
+		const leaf20 = rs.iterSlice(rs.byteSliceView(a));
 		let acc: rs.u8 = 0;
 		fused15: while (true) {
-			let y25!: rs.u8;
+			let y27!: rs.u8;
 			while (true) {
-				const x48 = leaf18.next();
-				if (x48 === rs.DONE) {
+				const x51 = leaf20.next();
+				if (x51 === rs.DONE) {
 					break fused15;
 				}
-				if (rs.u8Rem(x48, 2) === 0) {
-					y25 = x48;
+				if (rs.u8Rem(x51, 2) === 0) {
+					y27 = x51;
 					break;
 				}
 			}
-			acc = rs.u8Add(acc, rs.u8Div(y25, 4));
+			acc = rs.u8Add(acc, rs.u8Div(y27, 4));
 		}
 		rs.byteVecPush(out, acc);
 	} else if (_24 === 7) {
-		const leaf17 = rs.iterSlice(rs.byteSliceView(a));
-		const f19 = (_256: rs.u8): rs.u8 => {
-			const x43: rs.u8 = _256;
-			const _626: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_626.value, x43 ^ 6);
-			rs.refMutRelease(_626);
-			return x43;
+		const leaf19 = rs.iterSlice(rs.byteSliceView(a));
+		const f20 = (_250: rs.u8): rs.u8 => {
+			const x46: rs.u8 = _250;
+			const _627: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			rs.byteVecPush(_627.value, x46 ^ 6);
+			rs.refMutRelease(_627);
+			return x46;
 		};
-		let count4 = 0;
+		let count6 = 0;
 		fused13: while (true) {
-			let y23!: rs.usize;
-			let y24!: rs.u8;
+			let y25!: rs.usize;
+			let y26!: rs.u8;
 			while (true) {
-				const x45 = leaf17.next();
-				if (x45 === rs.DONE) {
+				const x48 = leaf19.next();
+				if (x48 === rs.DONE) {
 					break fused13;
 				}
-				const y22: rs.u8 = f19(x45);
-				const i15 = count4++;
-				if (rs.usizeRem(i15, 2) === 0) {
-					y23 = i15;
-					y24 = y22;
+				const y24: rs.u8 = f20(x48);
+				const i19 = count6++;
+				if (rs.usizeRem(i19, 2) === 0) {
+					y25 = i19;
+					y26 = y24;
 					break;
 				}
 			}
-			rs.byteVecPush(out, (y23 & 0xff) ^ y24);
+			rs.byteVecPush(out, (y25 & 0xff) ^ y26);
 		}
 	} else if (_24 === 8) {
-		const leaf15 = rs.iterSlice(rs.byteSliceView(a));
-		const f16 = (_248: rs.u8): rs.u8 => {
-			const x38: rs.u8 = _248;
-			const _623: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_623.value, x38 ^ 7);
-			rs.refMutRelease(_623);
-			return x38;
-		};
-		const leaf16 = rs.iterSlice(rs.byteSliceView(b));
-		const f17 = (x39: rs.u8): boolean => {
+		const leaf17 = rs.iterSlice(rs.byteSliceView(a));
+		const f17 = (_240: rs.u8): rs.u8 => {
+			const x41: rs.u8 = _240;
 			const _624: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_624.value, x39 ^ 8);
+			rs.byteVecPush(_624.value, x41 ^ 7);
 			rs.refMutRelease(_624);
-			return rs.u8Rem(x39, 3) !== 0;
+			return x41;
+		};
+		const leaf18 = rs.iterSlice(rs.byteSliceView(b));
+		const f18 = (x42: rs.u8): boolean => {
+			const _625: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			rs.byteVecPush(_625.value, x42 ^ 8);
+			rs.refMutRelease(_625);
+			return rs.u8Rem(x42, 3) !== 0;
 		};
 		let found2: [rs.u8, rs.u8] | rs.Done = rs.DONE;
 		fused11: while (true) {
-			const x40 = leaf15.next();
-			if (x40 === rs.DONE) {
+			const x43 = leaf17.next();
+			if (x43 === rs.DONE) {
 				break;
 			}
-			const y20: rs.u8 = f16(x40);
-			let y21!: rs.u8;
+			const y22: rs.u8 = f17(x43);
+			let y23!: rs.u8;
 			while (true) {
-				const x41 = leaf16.next();
-				if (x41 === rs.DONE) {
+				const x44 = leaf18.next();
+				if (x44 === rs.DONE) {
 					break fused11;
 				}
-				if (f17(x41)) {
-					y21 = x41;
+				if (f18(x44)) {
+					y23 = x44;
 					break;
 				}
 			}
-			if (rs.u8Rem(y20 ^ y21, 64) === stop) {
-				found2 = [y20, y21];
+			if (rs.u8Rem(y22 ^ y23, 64) === stop) {
+				found2 = [y22, y23];
 				break;
 			}
 		}
-		rs.iterExtendBytes(out, rs.iterOption(option_map$1c8069b(rs.iterToOption(found2), (_253: [rs.u8, rs.u8]): rs.u8 => {
-			return _253[0] ^ _253[1];
+		rs.iterExtendBytes(out, rs.iterOption(option_map$1c8069b(rs.iterToOption(found2), (_248: [rs.u8, rs.u8]): rs.u8 => {
+			return _248[0] ^ _248[1];
 		})), undefined, true);
 	} else if (_24 === 9) {
-		const leaf12 = rs.iterSlice(rs.byteSliceView(a));
-		const leaf13 = rs.iterSlice(rs.byteSliceView(b));
-		const f11 = (_231: rs.u8): rs.u8 => {
-			const x33: rs.u8 = _231;
-			const _621: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_621.value, x33 ^ 9);
-			rs.refMutRelease(_621);
-			return x33;
+		const leaf14 = rs.iterSlice(rs.byteSliceView(a));
+		const leaf15 = rs.iterSlice(rs.byteSliceView(b));
+		const f12 = (_233: rs.u8): rs.u8 => {
+			const x36: rs.u8 = _233;
+			const _622: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+			rs.byteVecPush(_622.value, x36 ^ 9);
+			rs.refMutRelease(_622);
+			return x36;
 		};
 		let index2 = 0;
-		const end2 = Math.min(leaf12.len(), leaf13.len());
-		let i12 = 0;
+		const end2 = Math.min(leaf14.len(), leaf15.len());
+		let i16 = 0;
 		let at: number | undefined = undefined;
 		while (!(index2 >= end2)) {
 			index2++;
-			if ((leaf12.next() as rs.u8) > f11(leaf13.next() as rs.u8)) {
-				at = i12;
+			if ((leaf14.next() as rs.u8) > f12(leaf15.next() as rs.u8)) {
+				at = i16;
 				break;
 			}
-			i12++;
+			i16++;
 		}
-		rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(at, (i13: rs.usize): rs.u8 => {
-			return i13 & 0xff;
+		rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(at, (i17: rs.usize): rs.u8 => {
+			return i17 & 0xff;
 		})), undefined, true);
-		const leaf14 = rs.iterSlice(rs.byteSliceView(a));
+		const leaf16 = rs.iterSlice(rs.byteSliceView(a));
 		let found: { end: rs.u8; inclusive: true } | rs.Done = rs.DONE;
 		fused9: while (true) {
-			let y19!: { end: rs.u8; inclusive: true };
+			let y21!: { end: rs.u8; inclusive: true };
 			while (true) {
-				const x37 = leaf14.next();
-				if (x37 === rs.DONE) {
+				const x40 = leaf16.next();
+				if (x40 === rs.DONE) {
 					break fused9;
 				}
-				const y18: { end: rs.u8; inclusive: true } = { end: x37, inclusive: true };
-				if (rs.rangeToContains(y18, rs.u8Rem(stop, 8))) {
-					y19 = y18;
+				const y20: { end: rs.u8; inclusive: true } = { end: x40, inclusive: true };
+				if (rs.rangeToContains(y20, rs.u8Rem(stop, 8))) {
+					y21 = y20;
 					break;
 				}
 			}
 			if (true) {
-				found = y19;
+				found = y21;
 				break;
 			}
 		}
@@ -12422,8 +12402,8 @@ export function fused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		})), undefined, true);
 	} else if (_24 === 10) {
 		const leaf9: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(a));
-		const f8: (a0: rs.u8) => rs.u8 = (_229: rs.u8): rs.u8 => {
-			const x27: rs.u8 = _229;
+		const f8: (a0: rs.u8) => rs.u8 = (_225: rs.u8): rs.u8 => {
+			const x27: rs.u8 = _225;
 			const _618: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
 			rs.byteVecPush(_618.value, x27 ^ 10);
 			rs.refMutRelease(_618);
@@ -12431,30 +12411,21 @@ export function fused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		};
 		let count3: number = 0;
 		while (true) {
-			let next7!: [rs.usize, rs.u8] | rs.Done;
-			next8: {
-				const x28 = leaf9.next();
-				if (x28 === rs.DONE) {
-					next7 = rs.DONE;
-					break next8;
-				}
-				const y13: rs.u8 = f8(x28);
-				next7 = [count3++, y13];
-			}
-			const _174: [rs.usize, rs.u8] | rs.Done = next7;
-			if (_174 === rs.DONE) {
+			const x28 = leaf9.next();
+			if (x28 === rs.DONE) {
 				break;
 			}
-			const i: rs.usize = _174[0];
-			if (!(rs.u8Rem(_174[1], 64) === stop)) {
+			const y13: rs.u8 = f8(x28);
+			const i: rs.usize = count3++;
+			if (!(rs.u8Rem(y13, 64) === stop)) {
 				rs.byteVecPush(out, i & 0xff);
 			} else {
 				break;
 			}
 		}
 		const leaf10: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(b));
-		const f9: (a0: rs.u8) => rs.u8 = (_230: rs.u8): rs.u8 => {
-			const x29: rs.u8 = _230;
+		const f9: (a0: rs.u8) => rs.u8 = (_229: rs.u8): rs.u8 => {
+			const x29: rs.u8 = _229;
 			const _619: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
 			rs.byteVecPush(_619.value, x29 ^ 11);
 			rs.refMutRelease(_619);
@@ -12467,57 +12438,73 @@ export function fused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.refMutRelease(_620);
 			return rs.u8Rem(x30, 3) !== 0;
 		};
-		while (true) {
-			let next9!: [rs.u8, rs.u8] | rs.Done;
-			next10: {
-				const x31 = leaf10.next();
-				if (x31 === rs.DONE) {
-					next9 = rs.DONE;
+		next10: while (true) {
+			const x31 = leaf10.next();
+			if (x31 === rs.DONE) {
+				break;
+			}
+			const y14: rs.u8 = f9(x31);
+			let y15!: rs.u8;
+			while (true) {
+				const x32 = leaf11.next();
+				if (x32 === rs.DONE) {
 					break next10;
 				}
-				const y14: rs.u8 = f9(x31);
-				let y15!: rs.u8;
+				if (f10(x32)) {
+					y15 = x32;
+					break;
+				}
+			}
+			rs.byteVecPush(out, y14 ^ y15);
+		}
+		let iterStart: rs.u8 = 0;
+		const iterEnd: rs.u8 = 2;
+		l16: while ((_205 = iterStart++) < iterEnd) {
+			const round: rs.u8 = _205;
+			const leaf12: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(a));
+			let count4: number = 0;
+			while (true) {
+				let y16!: rs.usize;
+				let y17!: rs.u8;
 				while (true) {
-					const x32 = leaf11.next();
-					if (x32 === rs.DONE) {
-						next9 = rs.DONE;
-						break next10;
+					const x33 = leaf12.next();
+					if (x33 === rs.DONE) {
+						continue l16;
 					}
-					if (f10(x32)) {
-						y15 = x32;
+					const i13 = count4++;
+					if (rs.u8Rem(x33, 3) !== round) {
+						y16 = i13;
+						y17 = x33;
 						break;
 					}
 				}
-				next9 = [y14, y15];
+				rs.byteVecPush(out, (y16 & 0xff) ^ y17 ^ round);
 			}
-			const _195: [rs.u8, rs.u8] | rs.Done = next9;
-			if (_195 === rs.DONE) {
+		}
+		const whole: rs.Vec<[rs.usize, rs.u8]> = new rs.Vec();
+		const leaf13: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(b));
+		let count5: number = 0;
+		while (true) {
+			const x34 = leaf13.next();
+			if (x34 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _195[0] ^ _195[1]);
+			const _230: [rs.usize, rs.u8] = [count5++, x34];
+			whole.items.push(_230);
 		}
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(whole.items), (_232: [rs.usize, rs.u8]): rs.u8 => {
+			return (_232[0] & 0xff) ^ _232[1];
+		}), undefined, true);
+		rs.byteVecPush(out, firstAfter(b, stop));
 	} else if (_24 === 11) {
 		const leaf4: rs.Iter<rs.u8> = rs.byteVecIntoIter(rs.byteSliceToByteVec(a));
-		const f5: (a0: rs.u8) => rs.u16 = (x20: rs.u8): rs.u16 => {
-			return rs.u16Mul(x20 as rs.u16, 3);
-		};
 		let count2: number = 0;
 		while (true) {
-			let next3!: [rs.usize, rs.u16] | rs.Done;
-			next4: {
-				const x21 = leaf4.next();
-				if (x21 === rs.DONE) {
-					next3 = rs.DONE;
-					break next4;
-				}
-				const y11: rs.u16 = f5(x21);
-				next3 = [count2++, y11];
-			}
-			const _208: [rs.usize, rs.u16] | rs.Done = next3;
-			if (_208 === rs.DONE) {
+			const x21 = leaf4.next();
+			if (x21 === rs.DONE) {
 				break;
 			}
-			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(rs.u16Add(_208[1], _208[0] & 0xffff)).reverse()), undefined, true);
+			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(rs.u16Add(rs.u16Mul(x21 as rs.u16, 3), count2++ & 0xffff)).reverse()), undefined, true);
 		}
 		const leaf5: rs.Iter<rs.usize> = new rs.Range(0, b.length);
 		const leaf6: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(b));
@@ -12527,33 +12514,23 @@ export function fused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.refMutRelease(_617);
 			return rs.u8Rem(x22, 3) !== 0;
 		};
-		while (true) {
-			let next5!: [rs.usize, rs.u8] | rs.Done;
-			next6: {
-				const x23 = leaf5.next();
-				if (x23 === rs.DONE) {
-					next5 = rs.DONE;
-					break next6;
-				}
-				let y12!: rs.u8;
-				while (true) {
-					const x24 = leaf6.next();
-					if (x24 === rs.DONE) {
-						next5 = rs.DONE;
-						break next6;
-					}
-					if (f6(x24)) {
-						y12 = x24;
-						break;
-					}
-				}
-				next5 = [x23, y12];
-			}
-			const _227: [rs.usize, rs.u8] | rs.Done = next5;
-			if (_227 === rs.DONE) {
+		next6: while (true) {
+			const x23 = leaf5.next();
+			if (x23 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, (_227[0] & 0xff) ^ _227[1]);
+			let y12!: rs.u8;
+			while (true) {
+				const x24 = leaf6.next();
+				if (x24 === rs.DONE) {
+					break next6;
+				}
+				if (f6(x24)) {
+					y12 = x24;
+					break;
+				}
+			}
+			rs.byteVecPush(out, (x23 & 0xff) ^ y12);
 		}
 		const leaf7 = rs.byteVecIntoIter(rs.byteSliceToByteVec(a));
 		const leaf8 = rs.byteVecIntoIter(rs.byteSliceToByteVec(b));
@@ -12573,39 +12550,39 @@ export function fused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecPush(out, n3 & 0xff);
 	} else if (_24 === 12) {
-		it = rs.iterEnumerate(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a)), (_211: rs.u8): rs.u8 => {
-			const x15: rs.u8 = _211;
+		it = rs.iterEnumerate(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a)), (_215: rs.u8): rs.u8 => {
+			const x15: rs.u8 = _215;
 			const _612: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
 			rs.byteVecPush(_612.value, x15 ^ 14);
 			rs.refMutRelease(_612);
 			return x15;
-		}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b)), (_212: rs.u8): rs.u8 => {
-			const x16: rs.u8 = _212;
+		}), rs.iterMap(rs.iterSlice(rs.byteSliceView(b)), (_217: rs.u8): rs.u8 => {
+			const x16: rs.u8 = _217;
 			const _613: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
 			rs.byteVecPush(_613.value, x16 ^ 15);
 			rs.refMutRelease(_613);
 			return x16;
 		}), [true, true]));
-		rs.iterExtendBytes(out, rs.iterOption(option_map$0rfm4x4(rs.iterToOption(it.next()), (_213: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
-			return (_213[0] & 0xff) ^ _213[1][0] ^ _213[1][1];
+		rs.iterExtendBytes(out, rs.iterOption(option_map$0rfm4x4(rs.iterToOption(it.next()), (_218: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
+			return (_218[0] & 0xff) ^ _218[1][0] ^ _218[1][1];
 		})), undefined, true);
-		rs.iterExtendBytes(out, rs.iterOption(option_map$0rfm4x4(rs.iterToOption(it.nextBack()), (_225: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
-			return (_225[0] & 0xff) ^ _225[1][0] ^ _225[1][1];
+		rs.iterExtendBytes(out, rs.iterOption(option_map$0rfm4x4(rs.iterToOption(it.nextBack()), (_219: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
+			return (_219[0] & 0xff) ^ _219[1][0] ^ _219[1][1];
 		})), undefined, true);
 		rs.byteVecPush(out, it.sizeHint()[0] & 0xff);
-		rs.iterExtendBytes(out, rs.iterOption(option_map$0rfm4x4(rs.iterNth(it, 1), (_226: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
-			return (_226[0] & 0xff) ^ _226[1][0] ^ _226[1][1];
+		rs.iterExtendBytes(out, rs.iterOption(option_map$0rfm4x4(rs.iterNth(it, 1), (_220: [rs.usize, [rs.u8, rs.u8]]): rs.u8 => {
+			return (_220[0] & 0xff) ^ _220[1][0] ^ _220[1][1];
 		})), undefined, true);
-		const iter5: rs.Iter<[rs.usize, [rs.u8, rs.u8]]> = it;
+		const iter8: rs.Iter<[rs.usize, [rs.u8, rs.u8]]> = it;
 		while (true) {
-			const _273: [rs.usize, [rs.u8, rs.u8]] | rs.Done = iter5.next();
-			if (_273 === rs.DONE) {
+			const _314: [rs.usize, [rs.u8, rs.u8]] | rs.Done = iter8.next();
+			if (_314 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, (_273[0] & 0xff) ^ _273[1][0] ^ _273[1][1]);
+			rs.byteVecPush(out, (_314[0] & 0xff) ^ _314[1][0] ^ _314[1][1]);
 		}
 	} else if (_24 === 13) {
-		const iter6: rs.Iter<rs.u8> = rs.iterFilter(rs.iterMap(rs.iterFrom({ dataData: a.data, dataStart: a.start, dataLen: a.length, calls: 0 }, Flicker.next$iter_Iterator, undefined, { back: (it: Flicker.Flicker) => rs.iterFromOption(Flicker.nextBack$iter_DoubleEndedIterator(it)) }), (x12: rs.u8): rs.u8 => {
+		const iter9: rs.Iter<rs.u8> = rs.iterFilter(rs.iterMap(rs.iterFrom({ dataData: a.data, dataStart: a.start, dataLen: a.length, calls: 0 }, Flicker.next$iter_Iterator, undefined, { back: (it: Flicker.Flicker) => rs.iterFromOption(Flicker.nextBack$iter_DoubleEndedIterator(it)) }), (x12: rs.u8): rs.u8 => {
 			return rs.u8WrappingAdd(x12, 16);
 		}), (x13: rs.u8): boolean => {
 			const _610: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
@@ -12614,11 +12591,11 @@ export function fused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return rs.u8Rem(x13, 3) !== 0;
 		});
 		while (true) {
-			const _290: rs.u8 | rs.Done = iter6.next();
-			if (_290 === rs.DONE) {
+			const _331: rs.u8 | rs.Done = iter9.next();
+			if (_331 === rs.DONE) {
 				break;
 			}
-			rs.byteVecPush(out, _290);
+			rs.byteVecPush(out, _331);
 		}
 		rs.byteVecPush(out, rs.iterCount(rs.iterFilter(chained(b, log), (x14: rs.u8): boolean => {
 			const _611: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
@@ -12662,44 +12639,32 @@ export function fused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		};
 		let index: number = 0;
 		const end: number = Math.min(leaf.len(), leaf2.len());
-		const f2: (a0: [[rs.usize, rs.u8], rs.u8]) => boolean = (_23: [[rs.usize, rs.u8], rs.u8]): boolean => {
-			return _23[0][1] < _23[1];
-		};
-		while (true) {
-			let next!: [[rs.usize, rs.u8], rs.u8] | rs.Done;
-			next2: {
-				let y4!: rs.usize;
-				let y5!: rs.u8;
-				let y6!: rs.u8;
-				while (true) {
-					if (index >= end) {
-						next = rs.DONE;
-						break next2;
-					}
-					index++;
-					const x7 = leaf.next() as rs.u8;
-					const i6 = count++;
-					const y3: rs.u8 = f(leaf2.next() as rs.u8);
-					if (f2([[i6, x7], y3])) {
-						y4 = i6;
-						y5 = x7;
-						y6 = y3;
-						break;
-					}
+		next2: while (true) {
+			let y4!: rs.usize;
+			let y5!: rs.u8;
+			let y6!: rs.u8;
+			while (true) {
+				if (index >= end) {
+					break next2;
 				}
-				next = [[y4, y5], y6];
+				index++;
+				const x7 = leaf.next() as rs.u8;
+				const i7 = count++;
+				const y3: rs.u8 = f(leaf2.next() as rs.u8);
+				if (x7 < y3) {
+					y4 = i7;
+					y5 = x7;
+					y6 = y3;
+					break;
+				}
 			}
-			const _323: [[rs.usize, rs.u8], rs.u8] | rs.Done = next;
-			if (_323 === rs.DONE) {
-				break;
-			}
-			n = rs.u8WrappingAdd(n, (_323[0][0] & 0xff) ^ _323[0][1] ^ _323[1]);
+			n = rs.u8WrappingAdd(n, (y4 & 0xff) ^ y5 ^ y6);
 		}
 		rs.byteVecPush(out, n);
 	}
-	const _340: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log);
-	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_340.value));
-	rs.refRelease(_340);
+	const _381: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log);
+	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_381.value));
+	rs.refRelease(_381);
 }
 
 /**
@@ -12812,6 +12777,38 @@ export function fusedOwned(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const _122: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log);
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_122.value));
 	rs.refRelease(_122);
+}
+
+/**
+ * The first item of `data` past the `skip`th, each xored with `skip`, that 5 divides, or
+ * `data`'s length: a loop whose end returns, over a closure that captures.
+ */
+export function firstAfter(data: rs.ByteSlice, skip: rs.u8): rs.u8 {
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
+	next2: while (true) {
+		let y2!: rs.usize;
+		let y3!: rs.u8;
+		while (true) {
+			const x3 = leaf.next();
+			if (x3 === rs.DONE) {
+				break next2;
+			}
+			const y: rs.u8 = x3 ^ skip;
+			const i2 = count++;
+			if (rs.u8Rem(y, 5) === 0) {
+				y2 = i2;
+				y3 = y;
+				break;
+			}
+		}
+		const i: rs.usize = y2;
+		const x: rs.u8 = y3;
+		if (i > (skip as rs.usize)) {
+			return x;
+		}
+	}
+	return data.length & 0xff;
 }
 
 /** A chain that escapes the function that makes it. */

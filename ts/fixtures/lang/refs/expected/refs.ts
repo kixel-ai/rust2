@@ -179,21 +179,12 @@ export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x3 = leaf.next();
-			if (x3 === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x3];
-		}
-		const _18: [rs.usize, rs.u8] | rs.Done = next;
-		if (_18 === rs.DONE) {
+		const x3 = leaf.next();
+		if (x3 === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _18[0];
-		const b: rs.u8 = _18[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x3;
 		const _23: rs.Place<rs.usize> = Counts.count(counts, rs.u8Rem(b, 3) === 0);
 		_23.v = rs.usizeAdd(_23.v, 1);
 		bumpSlot(Counts.count(counts, rs.u8Rem(b, 2) === 0), b);
@@ -549,21 +540,12 @@ export function lent(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x6 = leaf.next();
-			if (x6 === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x6];
-		}
-		const _101: [rs.usize, rs.u8] | rs.Done = next;
-		if (_101 === rs.DONE) {
+		const x6 = leaf.next();
+		if (x6 === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _101[0];
-		const b2: rs.u8 = _101[1];
+		const i: rs.usize = count++;
+		const b2: rs.u8 = x6;
 		if (rs.usizeRem(i, 2) === 0) {
 			if (counts.a === undefined) {
 				counts.a = 0;
