@@ -2421,6 +2421,14 @@ pub fn fused(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			}
 			out.extend(whole.iter().map(|&(i, x)| i as u8 ^ x));
 			out.push(first_after(b, stop));
+			// A closure the crate names, called apart from the chain as well, on what it
+			// changes.
+			let cell = std::cell::Cell::new(stop);
+			let bump = |x: u8| cell.replace(x ^ 0x5a).wrapping_add(x);
+			out.push(bump(cell.get()));
+			for x in a.iter().map(|&x| x ^ 1).map(bump) {
+				out.push(x);
+			}
 		}
 		// Owned items, and a zip of a range and a filter, neither read by index.
 		11 => {

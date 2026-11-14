@@ -531,8 +531,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let arrow = Some(peel(&e))
 			.filter(|e| !self.fused_hoist && inlinable(e, true).is_some())
 			.cloned();
+		// Only a variable of its own, which nothing but the chain's reads calls.
+		let own = !matches!(peel(&e), Expr::Ident(_) | Expr::Lit(_) | Expr::Rs(_) | Expr::Sym(_));
 		let var = self.part(e, "f", ty, out);
 		if self.fused_hoist
+			&& own
 			&& let Expr::Ident(name) = peel(&var)
 		{
 			self.fused_funs.insert(name.clone());
@@ -1702,14 +1705,17 @@ fn call_of(e: &Expr, name: &str, fun: &Fun, unread: bool) -> Option<Expr> {
 	if !matches!(peel(f), Expr::Ident(n) if n == name) {
 		return None;
 	}
-	let body = apply(fun, args.iter().map(arg).collect(), unread);
+	// The chain's reads pass variables, which reading later reads the same.
+	let args: Vec<Val> = args.iter().map(arg).collect::<Option<_>>()?;
+	let body = apply(fun, args, unread);
 	(!matches!(&body, Expr::Call(f, _) if matches!(peel(f), Expr::Ident(n) if n == name))).then_some(body)
 }
 
-/// An argument as a value: a tuple made in place as its parts.
-fn arg(e: &Expr) -> Val {
+/// An argument that is a variable, or a tuple of them made in place, as its parts.
+fn arg(e: &Expr) -> Option<Val> {
 	match peel(e) {
-		Expr::Array(parts) => Val::Tuple(parts.iter().map(arg).collect()),
-		_ => Val::One(e.clone()),
+		Expr::Ident(_) => Some(Val::One(e.clone())),
+		Expr::Array(parts) => parts.iter().map(arg).collect::<Option<_>>().map(Val::Tuple),
+		_ => None,
 	}
 }
