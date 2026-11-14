@@ -117,6 +117,17 @@ pub struct Size {
 	pub bytes: u64,
 }
 
+/// A waiter of another crate, which a handle holds by value.
+pub fn waiter() -> tls::held::Waiter {
+	tls::held::Waiter::new(std::task::Waker::noop().clone())
+}
+
+/// Not a poll through [`waiter`]'s: the glue cannot name the type a handle holds to make one
+/// from the poll's waker.
+pub fn poll_ready(_waiter: &tls::held::Waiter) -> std::task::Poll<u32> {
+	std::task::Poll::Ready(1)
+}
+
 /// An object holding another crate's session, which C holds as a handle.
 pub struct Link {
 	session: tls::held::Handoff,

@@ -1728,11 +1728,8 @@ impl Gen<'_> {
 			));
 		}
 		for arg in &mut args {
-			if let Some(local) = held
-				.iter()
-				.find(|l| *arg == format!("&{l}") || *arg == format!("&mut {l}"))
-			{
-				*arg = arg.replacen(local.as_str(), &format!("*{local}"), 1);
+			for local in &held {
+				*arg = deref_local(arg, local);
 			}
 		}
 		// A future made of a `Poll` calls the function at each poll, passing the poll's
@@ -1998,4 +1995,24 @@ fn go_module_resolves_missing_parent() {
 		std::os::unix::fs::symlink(&baseline, root.join("baseline-link.json")).unwrap();
 		assert!(generated.check_baseline(&root.join("baseline-link.json")).is_err());
 	}
+}
+
+/// `expr` with each use of the local `name`, a reference, read through it as `(*name)`, so
+/// what it lends borrows the referent rather than the local.
+fn deref_local(expr: &str, name: &str) -> String {
+	let ident = |c: char| c.is_alphanumeric() || c == '_';
+	let mut out = String::new();
+	let mut rest = expr;
+	while let Some(at) = rest.find(name) {
+		let (before, after) = (&rest[..at], &rest[at + name.len()..]);
+		let whole = !before.ends_with(ident) && !after.starts_with(ident);
+		out.push_str(before);
+		match whole {
+			true => out.push_str(&format!("(*{name})")),
+			false => out.push_str(name),
+		}
+		rest = after;
+	}
+	out.push_str(rest);
+	out
 }

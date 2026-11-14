@@ -4283,9 +4283,25 @@ impl<'tcx> Collector<'tcx> {
 				errs.push(why);
 			}
 		}
-		// A returned object's lifetimes are `'static` too, which no lent borrow may be.
+		// A returned object's lifetimes are `'static` too, which no lent borrow may be; not a
+		// `Result`'s error of another crate, which crosses as its message.
+		let output = match sig.output().kind() {
+			ty::Adt(adt, args)
+				if tcx.is_diagnostic_item(sym::Result, adt.did())
+					&& self.opaque_value(args.type_at(1)).is_some()
+					&& implements(
+						tcx,
+						ty::fold_regions(tcx, args.type_at(1), |_, _| tcx.lifetimes.re_erased),
+						def_id,
+						rustc_span::sym::Display,
+					) =>
+			{
+				args.type_at(0)
+			}
+			_ => sig.output(),
+		};
 		let returned = statics.len();
-		for region in self.lifetimes(sig.output()).0 {
+		for region in self.lifetimes(output).0 {
 			if !statics.contains(&region) {
 				statics.push(region);
 			}
@@ -4560,8 +4576,9 @@ impl<'tcx> Collector<'tcx> {
 				ty::Mutability::Mut => Mutability::Mut,
 			}));
 		}
-		// A generic type's constructor may belong to another of its instances.
-		if !polled || m == ty::Mutability::Mut || !args.is_empty() {
+		// A generic type's constructor may belong to another of its instances, and the glue
+		// cannot name an opaque handle's type to call its constructor.
+		if !polled || m == ty::Mutability::Mut || !args.is_empty() || self.opaque_value(inner).is_some() {
 			return None;
 		}
 		let Ok(Type::Object(object)) = self.ty(inner, Pos::Behind) else {

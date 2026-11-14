@@ -882,6 +882,17 @@ impl Channel {
 		}
 	}
 
+	/// Sends the sum of `items`, if any, at once, and returns a future that borrows them:
+	/// their count once this channel next receives.
+	pub fn itemized<'a>(&'a self, items: Option<&'a [u32]>) -> impl Future<Output = usize> + 'a {
+		let sum: u32 = items.unwrap_or_default().iter().sum();
+		self.send(Bytes::copy_from_slice(&sum.to_le_bytes()));
+		async move {
+			self.recv().await;
+			items.map_or(0, <[u32]>::len)
+		}
+	}
+
 	/// `recv`'s poll, which does not map: left out, since `recv` exports as a future.
 	pub fn poll_recv(&self, cx: &mut std::task::Context<'_>) -> Poll<Bytes> {
 		let mut state = self.state.lock().unwrap();
@@ -2313,6 +2324,15 @@ pub fn verify(cert: &tls::held::Cert) -> Result<u32, tls::held::Invalid> {
 			reason: "empty".to_string(),
 		}),
 		len => Ok(len as u32),
+	}
+}
+
+/// `text`'s length, or why it is no certificate: another crate's error borrowing `text`,
+/// which crosses as its message, so nothing outlives the call.
+pub fn parse_cert(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
+	match text.is_empty() {
+		true => Err(tls::held::Malformed(text)),
+		false => Ok(text.len() as u32),
 	}
 }
 

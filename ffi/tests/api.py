@@ -393,6 +393,7 @@ def script():
 		print(f"recv {text(await channel.recv())}")
 		# The send happens at the call, and the future borrows the channel and the tag.
 		print(f"tagged {await channel.tagged('tag')}")
+		print(f"itemized {await channel.itemized(array.array('I', [1, 2, 3]))}")
 		channel.send(b"sized")
 		payload, size = await channel.recv_sized()
 		print(f"sized {text(payload)} {size}")

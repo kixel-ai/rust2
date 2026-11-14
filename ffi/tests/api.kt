@@ -316,6 +316,7 @@ fun script() {
 		println("recv ${channel.recv().text()}")
 		// The send happens at the call, and the future borrows the channel and the tag.
 		println("tagged ${channel.tagged("tag")}")
+		println("itemized ${channel.itemized(uintArrayOf(1u, 2u, 3u))}")
 		channel.send("sized".encodeToByteArray())
 		val (payload, size) = channel.recvSized()
 		println("sized ${payload.text()} $size")

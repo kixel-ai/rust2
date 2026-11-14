@@ -367,6 +367,12 @@ fn main() {
 	if let Poll::Ready(text) = tagged.as_mut().poll(&mut cx) {
 		println!("tagged {text}");
 	}
+	// So does a future borrowing an optional slice, which the export owns while it is pending.
+	let items = [1u32, 2, 3];
+	let mut itemized = pin!(channel.itemized(Some(&items)));
+	if let Poll::Ready(count) = itemized.as_mut().poll(&mut cx) {
+		println!("itemized {count}");
+	}
 	channel.send(Bytes::from_static(b"sized"));
 	let mut sized = pin!(channel.recv_sized());
 	if let Poll::Ready((payload, len)) = sized.as_mut().poll(&mut cx) {

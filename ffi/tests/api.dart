@@ -392,6 +392,7 @@ Future<void> script() async {
   print('recv ${text(await channel.recv())}');
   // The send happens at the call, and the future borrows the channel and the tag.
   print('tagged ${await channel.tagged('tag')}');
+  print('itemized ${await channel.itemized(Uint32List.fromList([1, 2, 3]))}');
   channel.send(utf8.encode('sized'));
   final (payload, size) = await channel.recvSized();
   print('sized ${text(payload)} $size');

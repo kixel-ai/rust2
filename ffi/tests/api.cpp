@@ -651,6 +651,13 @@ int script() {
 				print("tagged ", *text, "\n");
 			}
 		}
+		// So does a future borrowing an optional slice, which the export owns while it is pending.
+		{
+			api::Channel_itemized_future itemized = channel.itemized(std::vector<std::uint32_t>{1, 2, 3});
+			if (auto count = itemized.poll(waker)) {
+				std::printf("itemized %zu\n", *count);
+			}
+		}
 		channel.send("sized");
 		{
 			api::Channel_recv_sized_future sized = channel.recv_sized();

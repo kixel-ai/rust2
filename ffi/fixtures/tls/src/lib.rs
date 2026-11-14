@@ -115,6 +115,32 @@ pub mod held {
 
 	impl std::error::Error for Invalid {}
 
+	/// Why text is not a certificate, borrowing the text: an error that crosses as its
+	/// message, so the borrow ends with the call.
+	#[derive(Debug)]
+	pub struct Malformed<'a>(pub &'a str);
+
+	impl std::fmt::Display for Malformed<'_> {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			write!(f, "malformed: {}", self.0)
+		}
+	}
+
+	impl std::error::Error for Malformed<'_> {}
+
+	/// What a poll registers its waker with, made from the waker alone, as kio's `Waiter` is.
+	pub struct Waiter(std::task::Waker);
+
+	impl Waiter {
+		pub fn new(waker: std::task::Waker) -> Self {
+			Self(waker)
+		}
+
+		pub fn wake(&self) {
+			self.0.wake_by_ref();
+		}
+	}
+
 	/// A count that is not `Send`, which the reject fixture takes by value: no handle may hold it.
 	pub struct Local(std::rc::Rc<u32>);
 

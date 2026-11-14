@@ -462,6 +462,7 @@ func script() {
 		print("recv \(text(try await channel.recv()))")
 		// The send happens at the call, and the future borrows the channel and the tag.
 		print("tagged \(try await channel.tagged("tag"))")
+		print("itemized \(try await channel.itemized([1, 2, 3]))")
 		channel.send(Data("sized".utf8))
 		let (payload, size) = try await channel.recvSized()
 		print("sized \(text(payload)) \(size)")

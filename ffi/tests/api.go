@@ -479,6 +479,7 @@ func script() {
 	fmt.Printf("recv %s\n", must(channel.Recv(ctx)).Copy())
 	// The send happens at the call, and the future borrows the channel and the tag.
 	fmt.Printf("tagged %s\n", must(channel.Tagged(ctx, "tag")))
+	fmt.Printf("itemized %d\n", must(channel.Itemized(ctx, &[]uint32{1, 2, 3})))
 	// An eager call whose callback cancels its context while it makes its future is never
 	// polled: only the eager half logs.
 	{

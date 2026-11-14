@@ -1078,6 +1078,14 @@ static int script(void) {
 		print("tagged ", tagged_text, "\n");
 	}
 	api_Channel_tagged_future_free(tagging);
+	/* So does a future borrowing an optional slice, which the export owns while it is pending. */
+	const uint32_t items[] = {1, 2, 3};
+	api_Channel_itemized_future *itemizing = api_Channel_itemized(channel, (api_vec_u32){.ptr = items, .len = 3});
+	size_t itemized;
+	if (api_Channel_itemized_poll(itemizing, waker, &itemized) == API_POLL_READY) {
+		printf("itemized %zu\n", itemized);
+	}
+	api_Channel_itemized_future_free(itemizing);
 	api_Channel_send(channel, str("sized"));
 	api_Channel_recv_sized_future *sized = api_Channel_recv_sized(channel);
 	size_t len;
@@ -1793,7 +1801,7 @@ static int script(void) {
 	api_Token_free(twice);
 
 	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	if (drops != 13) {
+	if (drops != 14) {
 		return 1;
 	}
 	return closures() && foreign_futures() && started_futures() ? 0 : 1;

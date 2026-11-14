@@ -1718,6 +1718,8 @@ fn relative_target() {
 	}
 	// Its error a handle C never holds, `verify` still exports, the error as its message.
 	assert!(!text.contains("`verify`"), "the census lists `verify`:\n{text}");
+	// Nor does `parse_cert`'s, though it borrows the text.
+	assert!(!text.contains("`parse_cert`"), "the census lists `parse_cert`:\n{text}");
 	assert!(dir.join("build").exists());
 }
 
