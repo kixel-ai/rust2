@@ -95,7 +95,7 @@ fun script() {
 
 	val (below, above) = Counter.new("s", 7u).split(5u)
 	println("split ${below.name()} ${below.get()} ${above.name()} ${above.get()}")
-	val only = only(Counter.new("o", 3u))
+	val (only) = only(Counter.new("o", 3u))
 	println("only ${only.name()} ${only.get()}")
 	val (w8, w16, w32, w64) = widths(98305u)
 	println("widths $w8 $w16 $w32 $w64")

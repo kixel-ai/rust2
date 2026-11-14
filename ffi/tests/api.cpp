@@ -25,6 +25,9 @@
 #ifdef __cpp_lib_span
 #include <span>
 #endif
+#ifdef __cpp_lib_ranges
+#include <ranges>
+#endif
 
 #include "api.hpp"
 
@@ -340,6 +343,8 @@ int script() {
 		meters.emplace_back("low", api::Counter::new_("l", 1));
 		meters.emplace_back("high", api::Counter::new_("h", 9));
 		auto board = api::Board::new_(std::move(meters));
+		// The counters a board returns build another, each handle moved back in.
+		board = api::Board::new_(std::move(board).into_counters());
 		std::printf("ranked");
 		auto ranked = board.ranked();
 		for (std::size_t i = 0; i < ranked.size(); i++) {
@@ -1202,6 +1207,29 @@ int script() {
 		std::printf("reissued %u %u, cloned %u\n", static_cast<unsigned>(given), static_cast<unsigned>(held),
 			static_cast<unsigned>(api::Ticket::clones()));
 	}
+	{
+		// `Copy` objects with no C++ copy, beside bytes: a returned vector moves back in,
+		// stored or not, each ticket moved and each name viewed in place.
+		std::vector<std::tuple<api::view, api::Ticket>> lent;
+		lent.emplace_back("a", api::Ticket::new_(1));
+		auto returned = api::tickets(lent);
+		auto again = api::tickets(api::tickets(std::move(returned)));
+		if (again.size() != 1 || std::get<0>(again[0]).str() != "a" || std::get<1>(again[0]).number() != 1) {
+			std::fprintf(stderr, "returned tickets passed back wrong\n");
+			std::abort();
+		}
+	}
+#ifdef __cpp_lib_ranges
+	{
+		// A range whose end is a sentinel of another type than its begin.
+		std::vector<std::string> letters{"p", "q", "r"};
+		auto taken = api::counters(letters | std::views::take_while([](const std::string &n) { return n != "r"; }));
+		if (taken.size() != 2 || taken[1].name().str() != "q") {
+			std::fprintf(stderr, "a sentinel range passed wrong\n");
+			std::abort();
+		}
+	}
+#endif
 	// A kept closure, called on another thread after the call that took it returned.
 	std::printf("spawned %u\n", static_cast<unsigned>(api::Spawned::new_([] { return 7; }).join()));
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.

@@ -423,8 +423,15 @@ packages place it in.
   lives only as long as the bytes it views, and a `view` lent to a callback only for the
   call; reading one past that is C++'s own undefined behavior, which Clang's `-Wdangling`
   refuses for a view or `str()` of a temporary `buf`. A `Vec<T>` is a `std::vector`, passed in place
-  when of a fixed-width integer other than `u8` (bytes) or `u128` or of a float, of `view`s for bytes passed in, a socket address `socket_addr`, the C struct, and a `u128`
-  `u128`, the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
+  when of a fixed-width integer other than `u8` (bytes) or `u128` or of a float. One whose
+  items hold bytes is taken as `items` of `view`s, which points into a `std::vector` of them
+  in place and converts any other range whose items convert and outlive the call, such as a
+  returned `std::vector<buf>`, but not a range of temporaries. A `std::vector` moved in
+  converts with each item moved, so a returned one passes back even when its items hold a
+  `Copy` object C++ cannot copy. One whose items also move a
+  handle is taken as `taken`, a `std::vector` of them moved in as it is, or any other such
+  range moved in, each handle moved out of it. A socket address is a `socket_addr` and a
+  `u128` a `u128`, each the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error. A `[u8; N]` is a `std::array<std::uint8_t, N>`.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
 - **Closures** are any callable, taken by a template parameter, which Rust calls from any
@@ -510,7 +517,7 @@ out, with only its other fields encoded.
   target's range, `Option<T>` `T?`, a tuple `Pair` or
   `Triple`, or else a generated `Tuple<n>`, and also `Tuple2` or `Tuple3` when it holds a
   numeric array or a float anywhere, records included, since `Pair` and `Triple` cannot
-  compare them as Rust does (so a `BTreeMap<String, f64>` is a `List<Tuple2<String, Double>>`), though a tuple of one returned whole is its element, `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
+  compare them as Rust does (so a `BTreeMap<String, f64>` is a `List<Tuple2<String, Double>>`), `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
   holding it, whose message is its `Display`. A `[u8; N]` is a generated `ArrayU8x<N>`,
   which copies the `ByteArray` it is made of and throws `IllegalArgumentException` unless
   it holds exactly `N` bytes.

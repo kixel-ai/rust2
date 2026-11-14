@@ -343,6 +343,11 @@ impl Board {
 		}
 	}
 
+	/// Each name and its counter in name order, each handle moved out of the board.
+	pub fn into_counters(self) -> Vec<(String, Counter)> {
+		self.counters.into_iter().collect()
+	}
+
 	/// Each name and its counter, highest first, as hang's `ranked`: each pair borrowed,
 	/// so each crosses as a clone.
 	pub fn ranked(&self) -> impl Iterator<Item = (&String, &Counter)> {
@@ -779,6 +784,11 @@ impl Ticket {
 	pub fn clones() -> u32 {
 		TICKET_CLONES.load(std::sync::atomic::Ordering::Relaxed)
 	}
+}
+
+/// Each name and its ticket, as given, so a binding passes back what it returned.
+pub fn tickets(entries: Vec<(String, Ticket)>) -> Vec<(String, Ticket)> {
+	entries
 }
 
 /// The ticket `swap` returns for `ticket`.

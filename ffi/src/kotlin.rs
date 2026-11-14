@@ -2098,13 +2098,20 @@ impl<'a> Gen<'a> {
 		let rust_args: Vec<String> = args.iter().flat_map(|a| a.rust_args.clone()).collect();
 		let after: Vec<String> = args.iter().flat_map(|a| a.after.clone()).collect();
 
-		// A tuple of one returned whole is its element, written through its one out pointer;
-		// one behind a reference or `Box` is returned as a struct, so stays a tuple.
+		// A tuple of one returned whole crosses as its element, written through its one out
+		// pointer, and is wrapped back into the tuple class its parameters take; one behind a
+		// reference or `Box` is returned as a struct, so crosses as a tuple.
+		let single = match &function.ok {
+			Type::Tuple(elements) if elements.len() == 1 => Some(self.tuple_class(elements)),
+			_ => None,
+		};
 		let ok = match &function.ok {
 			Type::Tuple(elements) if elements.len() == 1 => strip_refs(&elements[0]),
 			ok => strip_refs(ok),
 		};
-		let ret_kt = self.kt(&ok);
+		let ret_kt = self.kt(&strip_refs(&function.ok));
+		// What crosses: a tuple of one's element, before it is wrapped.
+		let ok_kt = self.kt(&ok);
 		let err = function.err.as_ref().map(strip_refs);
 		let exception = err.as_ref().map(|e| self.exception(e));
 		// A record returned directly crosses as its scalars, set into slots the call takes,
@@ -2215,7 +2222,7 @@ impl<'a> Gen<'a> {
 			value = if ok == Type::Unit {
 				format!("{awaited}.let {{ Unit }}")
 			} else {
-				format!("({awaited}) as {ret_kt}")
+				format!("({awaited}) as {ok_kt}")
 			};
 		} else if written.is_empty()
 			&& matches!(&function.ok, Type::Tuple(elements) if elements.len() > 1 && elements.iter().map(|ty| match abi.ty(ty) { Ty::Int(Int::I64 | Int::U64 | Int::Isize | Int::Usize) | Ty::F64 | Ty::Handle { .. } => 2, _ => 1 }).sum::<usize>() + usize::from(err.is_some()) <= 255 && elements.iter().all(|ty| matches!(abi.ty(ty), Ty::Bool | Ty::Int(_) | Ty::F32 | Ty::F64 | Ty::Char | Ty::Enum(_) | Ty::Handle { .. })))
@@ -2299,7 +2306,7 @@ impl<'a> Gen<'a> {
 			} else {
 				self.refused_first(&bare, format!("try {{ {raw} }} finally {{ {} }}", after.join("; ")))
 			};
-			value = format!("({raw}) as {ret_kt}");
+			value = format!("({raw}) as {ok_kt}");
 		} else if let Some(c_ok) = direct(&outs, &written, &function.ok, function.err.as_ref()) {
 			// A result of a scalar, a handle, or nothing returns its value directly, raising
 			// its error as a `Native.Failed` Kotlin catches.
@@ -2414,7 +2421,7 @@ impl<'a> Gen<'a> {
 			};
 			value = match ok {
 				Type::Unit => format!("{raw}.let {{ Unit }}"),
-				_ => format!("({raw}) as {ret_kt}"),
+				_ => format!("({raw}) as {ok_kt}"),
 			};
 		} else if let Some(flat) = flat {
 			let mut params: Vec<(&str, &str)> = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect();
@@ -2490,7 +2497,7 @@ impl<'a> Gen<'a> {
 			} else {
 				self.refused_first(&bare, format!("try {{ {raw} }} finally {{ {} }}", after.join("; ")))
 			};
-			value = format!("({raw}) as {ret_kt}");
+			value = format!("({raw}) as {ok_kt}");
 		} else {
 			let c_ret = export.call.ret.clone();
 			// A block returns as the primitive array of its width, copied in one call.
@@ -2524,6 +2531,10 @@ impl<'a> Gen<'a> {
 			};
 		}
 
+		let value = match &single {
+			Some(class) => format!("{class}({value})"),
+			None => value,
+		};
 		// Wrap the value in each argument's holds, innermost last.
 		let mut code = value;
 		for arg in args.iter().rev() {
@@ -2568,7 +2579,7 @@ impl<'a> Gen<'a> {
 			None => "",
 		};
 		let ret = match ok {
-			Type::Unit => String::new(),
+			Type::Unit if single.is_none() => String::new(),
 			_ => format!(": {ret_kt}"),
 		};
 		let property = matches!(
