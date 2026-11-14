@@ -5478,11 +5478,18 @@ fn padding<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Vec<(u64, u64)>> {
 			}
 			FieldsShape::Union(_) => None,
 			FieldsShape::Array { stride, count } => {
-				if *count > 0 {
-					let element = layout.field(cx, 0);
-					for n in 0..*count {
-						init(cx, element, at + n * stride.bytes(), bytes)?;
-					}
+				// Every element initializes the same bytes, so one is read and stamped at
+				// each stride: walking each would never end for `[(); usize::MAX]`.
+				let element = layout.field(cx, 0);
+				let size = element.size.bytes() as usize;
+				if *count == 0 || size == 0 {
+					return Some(());
+				}
+				let mut mine = vec![false; size];
+				init(cx, element, 0, &mut mine)?;
+				for n in 0..*count {
+					let start = (at + n * stride.bytes()) as usize;
+					bytes[start..start + size].copy_from_slice(&mine);
 				}
 				Some(())
 			}

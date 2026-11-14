@@ -2261,6 +2261,21 @@ fn standard_names() {
 	}
 }
 
+/// A `Copy` value of a zero-sized element repeated `usize::MAX` times exports, as its
+/// padding table reads the element once rather than walking every one of its elements.
+#[test]
+fn zero_sized_elements() {
+	let package = package("zero_sized_elements");
+	let lib = "#[derive(Clone, Copy)]\npub struct Marker([(); usize::MAX]);\n\nimpl Marker {\n\tpub fn new() -> Self {\n\t\tSelf([(); usize::MAX])\n\t}\n}\n\npub fn take(marker: Marker) -> u32 {\n\tmarker.0.len().count_ones()\n}\n";
+	std::fs::write(package.join("src/lib.rs"), lib).unwrap();
+	export_and_build(&package, &["--offline"]);
+	let header = std::fs::read_to_string(package.join("out/include/zero_sized_elements.h")).unwrap();
+	assert!(
+		header.contains("\tuint8_t opaque[1];\n} zero_sized_elements_Marker;"),
+		"Marker is no opaque value:\n{header}"
+	);
+}
+
 /// A facade whose lib takes the name of a foreign type's crate maps that crate's type
 /// through a dependency of its own, apart from the glue's dependency on the facade.
 #[test]
