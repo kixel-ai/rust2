@@ -82,6 +82,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let dir = args.manifest.parent().expect("a manifest path has a parent");
 	let picks = Picks::parse(&args.cargo, dir)?;
 	let (facade, patch, checked) = facade(&args.manifest, &targets[0], &picks)?;
+	let crates = crates(&checked.metadata, &checked.top)?;
 	let line = facade.line();
 	// A staged API's spans are relative to the workspace and cargo's home, which hold the
 	// same files at other paths on another host.
@@ -105,6 +106,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 				(config::env::CONFIG, args.config.as_os_str()),
 				(config::env::PACKAGE, line.as_ref()),
 				(config::env::PATCH, patch.as_ref()),
+				(config::env::CRATES, crates.as_ref()),
 				(config::env::MERGE, merge),
 				(config::env::BASELINE, baseline.as_os_str()),
 				(config::env::ROOTS, roots.as_ref()),
@@ -312,6 +314,102 @@ fn facade(manifest: &Path, target: &str, picks: &Picks<'_>) -> Result<(config::P
 		top: top.id.clone(),
 	};
 	Ok((facade, patch, checked))
+}
+
+/// Each crate the facade builds with, by its library's crate name, as the glue would depend
+/// on the very package: by its directory, its exact crates.io version, or its git commit.
+/// A name two packages share, or one from another registry, is left out, so a type of its
+/// crate the facade does not re-export stays refused.
+fn crates(metadata: &Metadata, top: &str) -> Result<String, String> {
+	let packages: BTreeMap<&str, &Package> = metadata.packages.iter().map(|p| (p.id.as_str(), p)).collect();
+	let nodes: BTreeMap<&str, &Node> = metadata.resolve.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+	let mut named: BTreeMap<String, Option<String>> = BTreeMap::new();
+	let mut seen = BTreeSet::new();
+	let mut queue = vec![top];
+	while let Some(id) = queue.pop() {
+		let (true, Some(package), Some(node)) = (seen.insert(id), packages.get(id), nodes.get(id)) else {
+			continue;
+		};
+		if id != top
+			&& let Some(lib) = (package.targets.iter()).find(|t| t.kind.iter().any(|k| k.contains("lib")))
+		{
+			let keys = dependency(package);
+			let lib = lib.name.replace('-', "_");
+			match named.get(&lib) {
+				Some(other) if *other != keys => {
+					named.insert(lib, None);
+				}
+				Some(_) => {}
+				None => {
+					named.insert(lib, keys);
+				}
+			}
+		}
+		let built = |kind: &Option<String>| kind.as_deref() != Some("dev");
+		for dep in node.deps.iter().filter(|d| d.dep_kinds.iter().any(|k| built(&k.kind))) {
+			queue.push(&dep.pkg);
+		}
+	}
+	let table: toml::Table = (named.into_iter())
+		.filter_map(|(lib, keys)| Some((lib, toml::Value::String(keys?))))
+		.collect();
+	toml::to_string(&table).map_err(|err| format!("writing the crates: {err}"))
+}
+
+/// The TOML keys of a dependency on exactly `package`, if the glue can name it.
+fn dependency(package: &Package) -> Option<String> {
+	let name = &package.name;
+	match package.source.as_deref() {
+		None => {
+			let dir = package.manifest_path.parent().expect("a manifest path has a parent");
+			Some(format!("package = {name:?}, path = {:?}", dir.display().to_string()))
+		}
+		Some("registry+https://github.com/rust-lang/crates.io-index" | "sparse+https://index.crates.io/") => {
+			Some(format!("package = {name:?}, version = \"={}\"", package.version))
+		}
+		// By the reference the facade names it by, which is part of its source's identity:
+		// `?branch=`, `?tag=`, or `?rev=`, or none for the default branch. The lockfile
+		// pins the commit as the facade's does.
+		Some(git) if git.starts_with("git+") => {
+			let url = git["git+".len()..].split('#').next().unwrap_or(git);
+			let (url, reference) = url.split_once('?').unwrap_or((url, ""));
+			let reference = match reference.split_once('=') {
+				Some((key @ ("branch" | "tag" | "rev"), value)) => format!(", {key} = {:?}", decode(value)?),
+				Some(_) => return None,
+				None => String::new(),
+			};
+			Some(format!("package = {name:?}, git = {url:?}{reference}"))
+		}
+		Some(_) => None,
+	}
+}
+
+/// `value` with each `%XX` cargo's source id escapes, as in `?branch=feature%2Fpending`,
+/// decoded, or `None` if it is malformed.
+fn decode(value: &str) -> Option<String> {
+	let mut bytes = Vec::with_capacity(value.len());
+	let mut rest = value.as_bytes();
+	while let [first, tail @ ..] = rest {
+		if *first == b'%' {
+			let hex = std::str::from_utf8(tail.get(..2)?).ok()?;
+			bytes.push(u8::from_str_radix(hex, 16).ok()?);
+			rest = &tail[2..];
+		} else {
+			bytes.push(*first);
+			rest = tail;
+		}
+	}
+	String::from_utf8(bytes).ok()
+}
+
+#[cfg(test)]
+mod decode_tests {
+	#[test]
+	fn decodes_a_branch() {
+		assert_eq!(super::decode("feature%2Fpending").as_deref(), Some("feature/pending"));
+		assert_eq!(super::decode("main").as_deref(), Some("main"));
+		assert_eq!(super::decode("bad%2"), None);
+	}
 }
 
 /// The `[patch]` the glue's workspace resolves the exports by as the check did, wherever
