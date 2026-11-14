@@ -1404,6 +1404,7 @@ def values():
 		path = api.stray()
 		check(os.fsencode(path) == b"\xff", "a path that is not UTF-8 keeps its bytes")
 		check(api.parents([path, os.fsdecode(b"\xfe/\xff")])[1] == os.fsdecode(b"\xfe"), "and crosses back")
+	check(bytes(api.Clash.String("hi").bytes()) == b"hi", "a method named as a builtin runs")
 	print("values ok")
 
 

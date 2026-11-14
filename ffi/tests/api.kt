@@ -1446,7 +1446,7 @@ fun clash() {
 	check(runBlocking { Clash.Int(1).tagged("t") } == "t Int(1)", "clash tagged")
 	check(Clash.Unit.stamp(2500u).secs() == 2uL && Clash.Unit.stamp(5u) == Stamp.fromMillis(5u), "clash stamp")
 	check(all[16].moment(9u) == Moment.new(3u, 1000u) && Clash.Unit.moment(4000u).millis() == 4000uL, "clash moment")
-	check(Clash.String("hi").raw().toByteArray().decodeToString() == "hi", "clash bytes")
+	check(Clash.String("hi").bytes().toByteArray().decodeToString() == "hi", "clash bytes")
 	val out = Mut(0u)
 	check(Clash.Int(4).describe("t", 3u, Shape.SQUARE, out) == "t Int(4) 3 Square" && out.value == 6u, "clash describe")
 	check(Handle.new(5u).use { it.count() } == 5u && runBlocking { Handle.later(6u) }.use { it.count() } == 6u, "an object named as a former runtime class")
