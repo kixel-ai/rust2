@@ -1374,6 +1374,10 @@ Future<void> main(List<String> args) async {
   switch (args) {
     case []:
       await script();
+      // The waiter's returned wakers are Rust clones of a waker whose token keeps the
+      // isolate alive, and only the garbage collector drops them, about a minute idle.
+      await stdout.flush();
+      exit(0);
     case ['futures']:
       await futures();
     case ['owned']:
