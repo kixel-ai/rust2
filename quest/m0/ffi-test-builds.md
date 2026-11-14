@@ -66,6 +66,10 @@ Expect to merge in `fixtures.rs` and the test programs with
 the same cases. A content key includes their edits to the test sources, so neither makes
 a cached program stale.
 
+`just ci`'s `just ffi moq-c` (moq's export, built in debug, and `moq/moq.c` run against
+it) should take the same skip: on a warm gate it spends 7-44s rebuilding the glue the
+export rewrites and about 10s linking it.
+
 Out of scope: warming the queue's or a land fixer's `target`, which kixel-ai/dotfiles
 owns; a cold run, which builds everything once as today.
 
@@ -73,5 +77,4 @@ Public API: none; the exporter may stop rewriting unchanged files.
 
 ## Related
 
-- [The moq export gates exporter merges](/quest/m0/ffi-moq-gate.md) - adds moq's export and C test to the gate, which the same skip should cover
 - [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - rewrites the same test programs and fixture cases
