@@ -13,7 +13,8 @@ Found by [the Dart api script exits when its transcript ends](https://github.com
 keeps the isolate alive (`_hold` in `runtime/rt.dart`) until the last clone drops. The
 script exits explicitly to avoid the wait.
 
-Options: give a returned waker a `close`, as every other Dart value from Rust has
-(recommended, matching the binding's ownership model); or, when the waker Rust returns is
-the isolate's own (`dart.rs`'s `Wake`), count Dart-held clones out of the keep-alive.
+Decided (maintainer, 2026-11-14): ✅ keep this quest (rejected: drop it); ✅ give a
+returned waker a `close`, as every other Dart value from Rust has, matching the binding's
+ownership model (rejected: when the waker Rust returns is the isolate's own, `dart.rs`'s
+`Wake`, count Dart-held clones out of the keep-alive).
 Then drop the explicit `exit` from `tests/api.dart`'s `main`.
