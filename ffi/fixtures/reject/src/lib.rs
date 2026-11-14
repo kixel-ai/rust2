@@ -1214,6 +1214,16 @@ pub fn borrowed_resolver<'a>(_ids: &'a [u32]) -> std::sync::Arc<dyn tls::held::R
 	std::sync::Arc::new(tls::held::Named("borrowed".into()))
 }
 
+/// A trait-object handle inside a borrowed value, which lifting would take out of C's handle.
+pub fn peek_resolver(resolver: &Option<std::sync::Arc<dyn tls::held::Resolver>>) -> bool {
+	resolver.is_some()
+}
+
+/// A `'static` trait-object handle inside a borrowed value, refused as the `Arc` form is.
+pub fn peek_codec(codec: &Option<&'static dyn tls::held::Codec>) -> bool {
+	codec.is_some()
+}
+
 /// A stream an exported type implements, so the bound is met by a value C holds: refused,
 /// not left out.
 pub struct Pipe(pub u8);

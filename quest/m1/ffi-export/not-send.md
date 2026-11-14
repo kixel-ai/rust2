@@ -20,6 +20,8 @@ such object, which costs two thread handoffs a call even from a single-threaded 
 such as Python's event loop; keeping the refusal, as the
 small-shapes quest had it. The maintainer:
 an assert is fine "where a language has no concept of something being thread local".
+On 2026-11-14, at [#802](https://github.com/kixel-ai/rust2/pull/802)'s pick, the maintainer kept
+`server::Listener::accept_with` in this quest: ✅ keep (rejected: drop).
 
 - The handle records its owner thread, and each call compares it: no atomics, so it costs
   less than a `Sync` type's borrow. The wrong thread

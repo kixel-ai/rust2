@@ -37,10 +37,12 @@ fixtures/reject/src/lib.rs:11:1: rust2-ffi: cannot export fn `map`: foreign type
 fixtures/reject/src/lib.rs:1203:1: rust2-ffi: cannot export fn `count_opaques`: generic parameter `std::iter::Iterator`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:1208:1: rust2-ffi: cannot export fn `unpin_resolver`: trait object `dyn tls::held::Resolver + std::marker::Unpin`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:1213:1: rust2-ffi: cannot export fn `borrowed_resolver`: returned object that borrows `std::sync::Arc<(dyn tls::held::Resolver + 'a)>`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:1228:1: rust2-ffi: cannot export fn `pump_pipe`: generic parameter `tls::held::Stream`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:1233:1: rust2-ffi: cannot export fn `pump_sink`: generic parameter `tls::held::Sink`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:1238:1: rust2-ffi: cannot export fn `widen`: generic parameter `tls::held::Width`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1218:1: rust2-ffi: cannot export fn `peek_resolver`: reference to a handle inside a value `std::option::Option<std::sync::Arc<dyn tls::held::Resolver>>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1223:1: rust2-ffi: cannot export fn `peek_codec`: trait object `dyn tls::held::Codec`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1238:1: rust2-ffi: cannot export fn `pump_pipe`: generic parameter `tls::held::Stream`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:123:1: rust2-ffi: cannot export fn `parse_later`: returned object that borrows `impl std::future::Future<Output = std::result::Result<u32, tls::held::Malformed<'_>>>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1243:1: rust2-ffi: cannot export fn `pump_sink`: generic parameter `tls::held::Sink`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1248:1: rust2-ffi: cannot export fn `widen`: generic parameter `tls::held::Width`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:137:1: rust2-ffi: cannot export fn `poll_ready`: Poll with no Context or waiter parameter `std::task::Poll<u32>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:154:2: rust2-ffi: cannot export method `Link::session`: borrowed return that is not Clone `tls::held::Handoff`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:16:1: rust2-ffi: cannot export fn `generic`: generic parameter `std::marker::Copy`; exclude it in the config to leave it out

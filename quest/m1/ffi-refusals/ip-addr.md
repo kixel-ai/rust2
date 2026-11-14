@@ -14,6 +14,7 @@ Decided with the maintainer on 2026-11-13, in
 [moq-excluded](https://github.com/kixel-ai/rust2/pull/802)'s Plan: ✅ `IpAddr` crosses as
 `SocketAddr` already does, by family. #802 split it out, since it is a new IR type
 through the glue and all seven generators, apart from that quest's collector rules.
+The maintainer kept this quest on 2026-11-14, at #802's pick: ✅ keep (rejected: drop).
 
 - A new `<prefix>_ip_addr` C struct of 16 bytes and an `is_v6` flag, `SocketAddr`'s
   without the port, and each binding's own address type where it is exact, as each maps

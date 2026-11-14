@@ -4835,6 +4835,8 @@ impl<'tcx> Collector<'tcx> {
 	fn holds_handle(&self, ty: Ty<'tcx>) -> bool {
 		let tcx = self.tcx;
 		ty.walk().filter_map(|arg| arg.as_type()).any(|ty| match ty.kind() {
+			// A trait object's handle, named by its trait rather than an ADT.
+			_ if self.is_opaque(ty) => true,
 			ty::Adt(adt, args) => {
 				// An opaque handle is never copied, even of a `Copy` value: lifting takes it. A
 				// type [`FOREIGN`] maps by its role is an object.
