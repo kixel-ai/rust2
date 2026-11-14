@@ -625,8 +625,8 @@ int script() {
 		api::Hits kept = hits;
 		hits.add(api::Hits::of(10, 20));
 		hits.hits_set(7);
-		std::printf("hits %llu %u %llu %u %s\n", ull(hits.hits_get()), hits.misses_get(), ull(kept.hits_get()),
-			kept.misses_get(), yes(hits == kept));
+		std::printf("hits %llu %llu %llu %llu %s\n", ull(hits.hits_get()), ull(hits.misses_get()), ull(kept.hits_get()),
+			ull(kept.misses_get()), yes(hits == kept));
 		api::Hits counted = kept;
 		bool counted_same = counted.eq_(kept);
 		std::printf("counted %s %llu\n", yes(counted_same), ull(counted.hits_get()));

@@ -1088,8 +1088,9 @@ static int script(void) {
 	api_Hits kept = hits;
 	api_Hits_add(&hits, api_Hits_of(10, 20));
 	api_Hits_hits_set(&hits, 7);
-	printf("hits %llu %u %llu %u %s\n", (unsigned long long)api_Hits_hits_get(&hits), api_Hits_misses_get(&hits),
-		   (unsigned long long)api_Hits_hits_get(&kept), api_Hits_misses_get(&kept),
+	printf("hits %llu %llu %llu %llu %s\n", (unsigned long long)api_Hits_hits_get(&hits),
+		   (unsigned long long)api_Hits_misses_get(&hits), (unsigned long long)api_Hits_hits_get(&kept),
+		   (unsigned long long)api_Hits_misses_get(&kept),
 		   api_Hits_eq(&hits, &kept) ? "true" : "false");
 	api_Hits counted = kept;
 	bool counted_same = api_Hits_eq_(&counted, kept);

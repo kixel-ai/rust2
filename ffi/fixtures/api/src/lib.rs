@@ -1322,16 +1322,17 @@ impl Score {
 }
 
 /// A tally, as moq's `stats::Presence`: `Copy`, its fields `pub` but `#[non_exhaustive]`,
-/// so a value whose fields read and write through accessors.
+/// so a value whose fields read and write through accessors, each a `u64`, so it has no
+/// padding.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[non_exhaustive]
 pub struct Hits {
 	pub hits: u64,
-	pub misses: u32,
+	pub misses: u64,
 }
 
 impl Hits {
-	pub fn of(hits: u64, misses: u32) -> Self {
+	pub fn of(hits: u64, misses: u64) -> Self {
 		Self { hits, misses }
 	}
 
@@ -1354,16 +1355,16 @@ impl Hits {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Extent {
 	pub start: u64,
-	len: u32,
+	len: u64,
 }
 
 impl Extent {
-	pub fn new(start: u64, len: u32) -> Self {
+	pub fn new(start: u64, len: u64) -> Self {
 		Self { start, len }
 	}
 
 	pub fn end(&self) -> u64 {
-		self.start.wrapping_add(u64::from(self.len))
+		self.start.wrapping_add(self.len)
 	}
 
 	/// Moves the window `by` later, returning its old start.
