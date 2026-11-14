@@ -146,13 +146,28 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 /// check did not resolve for the same dependent, which the glue was not generated against.
 fn lock(checked: &Checked, out: &Path, picks: &Picks<'_>) -> Result<(), String> {
 	let lockfile = checked.metadata.workspace_root.join("Cargo.lock");
-	std::fs::copy(&lockfile, out.join("Cargo.lock"))
+	let written = out.join("Cargo.lock");
+	let earlier = std::fs::read(&written)
+		.ok()
+		.zip(std::fs::metadata(&written).and_then(|meta| meta.modified()).ok());
+	std::fs::copy(&lockfile, &written)
 		.map_err(|err| format!("copying {} into {}: {err}", lockfile.display(), out.display()))?;
 	let output = run_cargo(
 		&out.join("Cargo.toml"),
 		&["metadata", "--format-version", "1"],
 		&picks.resolving(),
 	)?;
+	// Resolved as before, the lockfile keeps its mtime, as every unchanged file of the
+	// export does: cargo reruns a build script when any file of its package is newer.
+	if let Some((bytes, mtime)) = earlier
+		&& std::fs::read(&written).is_ok_and(|now| now == bytes)
+	{
+		std::fs::File::options()
+			.write(true)
+			.open(&written)
+			.and_then(|file| file.set_modified(mtime))
+			.map_err(|err| format!("writing {}: {err}", written.display()))?;
+	}
 	let generated: Metadata =
 		serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
 	// The check's resolution holds more than its build: cargo metadata enables what the

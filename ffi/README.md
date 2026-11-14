@@ -48,6 +48,9 @@ extension the crate builds with `--features python`, `swift/<prefix>.swift` hold
 Swift, over the C header as a clang module, `go/` holds it in Go, a package per crate
 over the C ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
 `dart:ffi` and what the crate builds with `--features dart`.
+An export again rewrites only the files whose content changed, and removes from
+`include/<prefix>/` and `go/` only what it no longer writes, so a build of an unchanged
+export stays fresh.
 
 ```toml
 # ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.

@@ -5,6 +5,7 @@
 //! never frees, and lowered into memory the caller frees. A handle is borrowed as the
 //! receiver or parameter is, or moved out of when taken by value.
 
+use std::collections::HashSet;
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
 
@@ -121,7 +122,8 @@ pub struct Crate<'a> {
 pub struct Output {
 	pub names: crate::lock::Names,
 	files: Vec<(PathBuf, String)>,
-	/// Directories an earlier export wrote, which may name crates or packages this one has not.
+	/// Directories the export owns, where an earlier export may have written files for
+	/// crates or packages this one has not.
 	stale: Vec<PathBuf>,
 }
 
@@ -130,7 +132,7 @@ impl Output {
 		self.files.push((path.to_path_buf(), text.to_string()));
 	}
 
-	/// Refuse a baseline below a directory this export removes before writing.
+	/// Refuse a baseline below a directory the export owns, which removes what it did not write.
 	pub fn check_baseline(&self, baseline: &Path) -> Result<(), String> {
 		let baseline =
 			std::fs::canonicalize(baseline).map_err(|err| format!("reading {}: {err}", baseline.display()))?;
@@ -146,16 +148,44 @@ impl Output {
 		Ok(())
 	}
 
-	/// Write a validated export, removing stale C++ headers and Go packages from an earlier one.
+	/// Write a validated export, removing the C++ headers and Go files an earlier one wrote
+	/// that this one does not. A file whose content is unchanged keeps its mtime, so a build
+	/// of the export that cargo or a consumer fingerprints stays fresh.
 	pub fn write(self) -> Result<crate::lock::Names, String> {
+		let files: HashSet<&Path> = self.files.iter().map(|(path, _)| path.as_path()).collect();
 		for dir in self.stale.iter().filter(|dir| dir.exists()) {
-			std::fs::remove_dir_all(dir).map_err(|err| format!("removing {}: {err}", dir.display()))?;
+			prune(dir, &files)?;
 		}
-		for (path, text) in self.files {
-			crate::driver::write(&path, &text)?;
+		for (path, text) in &self.files {
+			crate::driver::write(path, text)?;
 		}
 		Ok(self.names)
 	}
+}
+
+/// Remove what `dir` holds that is not one of `keep`, and each directory that leaves empty.
+fn prune(dir: &Path, keep: &HashSet<&Path>) -> Result<(), String> {
+	let entries = std::fs::read_dir(dir).map_err(|err| format!("reading {}: {err}", dir.display()))?;
+	for entry in entries {
+		let entry = entry.map_err(|err| format!("reading {}: {err}", dir.display()))?;
+		let path = entry.path();
+		let kind = entry
+			.file_type()
+			.map_err(|err| format!("reading {}: {err}", path.display()))?;
+		if kind.is_dir() {
+			prune(&path, keep)?;
+		} else if !keep.contains(path.as_path()) {
+			std::fs::remove_file(&path).map_err(|err| format!("removing {}: {err}", path.display()))?;
+		}
+	}
+	let empty = std::fs::read_dir(dir)
+		.map_err(|err| format!("reading {}: {err}", dir.display()))?
+		.next()
+		.is_none();
+	if empty {
+		std::fs::remove_dir(dir).map_err(|err| format!("removing {}: {err}", dir.display()))?;
+	}
+	Ok(())
 }
 
 impl Crate<'_> {
@@ -1911,4 +1941,58 @@ fn go_module_resolves_missing_parent() {
 		std::os::unix::fs::symlink(&baseline, root.join("baseline-link.json")).unwrap();
 		assert!(generated.check_baseline(&root.join("baseline-link.json")).is_err());
 	}
+}
+
+/// A second write of the same export keeps every file's mtime, and drops only the files in
+/// the directories it owns that it no longer writes, with any directory that leaves empty.
+#[test]
+fn rewrite_keeps_unchanged_files() {
+	let root = std::env::current_dir()
+		.unwrap()
+		.join(".tmp")
+		.join(format!("rewrite-{}", std::process::id()));
+	let _ = std::fs::remove_dir_all(&root);
+	let go = root.join("go");
+	let output = |files: &[(&str, &str)]| Output {
+		names: Default::default(),
+		files: files
+			.iter()
+			.map(|(path, text)| (root.join(path), text.to_string()))
+			.collect(),
+		stale: vec![go.clone()],
+	};
+	let first = [
+		("Cargo.toml", "a"),
+		("go/rt/rt.go", "rt"),
+		("go/old/old.go", "old"),
+		("go/old/deep/old.go", "old"),
+	];
+	output(&first).write().unwrap();
+	std::fs::write(root.join("go/rt/stray.go"), "stray").unwrap();
+	std::fs::write(root.join("kept.txt"), "kept").unwrap();
+	// Set in the past, so a rewrite would move it.
+	let past = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1 << 30);
+	for path in ["Cargo.toml", "go/rt/rt.go"] {
+		let file = std::fs::File::options().write(true).open(root.join(path)).unwrap();
+		file.set_modified(past).unwrap();
+	}
+	let mtime = |path: &str| std::fs::metadata(root.join(path)).unwrap().modified().unwrap();
+	output(&[("Cargo.toml", "a"), ("go/rt/rt.go", "rt"), ("go/new.go", "new")])
+		.write()
+		.unwrap();
+	assert_eq!([mtime("Cargo.toml"), mtime("go/rt/rt.go")], [past, past]);
+	assert_eq!(std::fs::read_to_string(root.join("go/new.go")).unwrap(), "new");
+	assert!(!root.join("go/old").exists(), "an emptied directory stays");
+	assert!(
+		!root.join("go/rt/stray.go").exists(),
+		"a file the export does not write stays"
+	);
+	assert!(
+		root.join("kept.txt").exists(),
+		"a file outside the export's directories went"
+	);
+	output(&[("Cargo.toml", "b")]).write().unwrap();
+	assert_eq!(std::fs::read_to_string(root.join("Cargo.toml")).unwrap(), "b");
+	assert!(!go.exists(), "the export's emptied directory stays");
+	std::fs::remove_dir_all(&root).unwrap();
 }

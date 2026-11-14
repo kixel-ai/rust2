@@ -529,7 +529,11 @@ fn at(tcx: TyCtxt<'_>, span: Span) -> String {
 	format!("{name}:{line}:{col}")
 }
 
+/// Write `text` to `path` unless it already holds it, so its mtime moves only on a change.
 pub fn write(path: &Path, text: &str) -> Result<(), String> {
+	if std::fs::read(path).is_ok_and(|old| old == text.as_bytes()) {
+		return Ok(());
+	}
 	if let Some(dir) = path.parent() {
 		std::fs::create_dir_all(dir).map_err(|err| format!("creating {}: {err}", dir.display()))?;
 	}
