@@ -841,6 +841,27 @@ impl Writer {
 		// SAFETY: a `u8` is a `MaybeUninit<u8>`.
 		self.0.extend_from_slice(unsafe { &*(std::ptr::from_ref(bytes) as *const [MaybeUninit<u8>]) });
 	}
+
+	/// Construct a Kotlin value while this writer's native buffer is alive. The generated
+	/// factory reads it completely and retains neither the buffer nor its reader.
+	pub fn value(self, env: *mut JNIEnv, cache: &OnceLock<usize>, name: &CStr, back: jobject) -> jobject {
+		let id = method(env, cache, name, c"(Ljava/nio/ByteBuffer;[Ljava/lang/Object;)Ljava/lang/Object;");
+		let len = i32::try_from(self.0.len()).unwrap_or_else(|_| rt::fail("jni", "a value is too large for a ByteBuffer"));
+		// SAFETY: this writer owns the allocation through the synchronous factory call.
+		// Even an empty Vec has a non-null aligned pointer. Kotlin cannot retain the view.
+		unsafe {
+			let buffer = ((**env).v1_4.NewDirectByteBuffer)(env, self.0.as_ptr() as *mut c_void, len as jlong);
+			if buffer.is_null() {
+				fail(env, "jni", "cannot make a return buffer");
+			}
+			let args = [jvalue { l: buffer }, jvalue { l: back }];
+			let result = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+			// A declared Rust error is thrown by the factory, after applying writebacks.
+			// Leave it pending for the JVM, including a null success such as Option::None.
+			((**env).v1_2.DeleteLocalRef)(env, buffer);
+			result
+		}
+	}
 }
 
 /// An opaque value's C struct from the `long` Kotlin holds it in: its bytes, at the word's
@@ -927,27 +948,6 @@ pub fn write_words<T: Copy, const W: usize>(w: &mut Writer, value: T) {
 		std::ptr::write_bytes(at, 0, n);
 		std::ptr::copy_nonoverlapping((&raw const value).cast::<u8>(), at, size_of::<T>());
 		w.0.set_len(start + n);
-	}
-
-	/// Construct a Kotlin value while this writer's native buffer is alive. The generated
-	/// factory reads it completely and retains neither the buffer nor its reader.
-	pub fn value(self, env: *mut JNIEnv, cache: &OnceLock<usize>, name: &CStr, back: jobject) -> jobject {
-		let id = method(env, cache, name, c"(Ljava/nio/ByteBuffer;[Ljava/lang/Object;)Ljava/lang/Object;");
-		let len = i32::try_from(self.0.len()).unwrap_or_else(|_| rt::fail("jni", "a value is too large for a ByteBuffer"));
-		// SAFETY: this writer owns the allocation through the synchronous factory call.
-		// Even an empty Vec has a non-null aligned pointer. Kotlin cannot retain the view.
-		unsafe {
-			let buffer = ((**env).v1_4.NewDirectByteBuffer)(env, self.0.as_ptr() as *mut c_void, len as jlong);
-			if buffer.is_null() {
-				fail(env, "jni", "cannot make a return buffer");
-			}
-			let args = [jvalue { l: buffer }, jvalue { l: back }];
-			let result = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
-			// A declared Rust error is thrown by the factory, after applying writebacks.
-			// Leave it pending for the JVM, including a null success such as Option::None.
-			((**env).v1_2.DeleteLocalRef)(env, buffer);
-			result
-		}
 	}
 }
 
