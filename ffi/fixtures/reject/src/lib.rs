@@ -1203,3 +1203,28 @@ pub async fn count_later<'a>(words: impl Iterator<Item = &'a str> + Send) -> usi
 pub fn count_opaques<'a>(items: impl Iterator<Item = &'a Opaque>) -> usize {
 	items.count()
 }
+
+/// A trait object with another auto trait than the one form its handle names.
+pub fn unpin_resolver() -> std::sync::Arc<dyn tls::held::Resolver + Unpin> {
+	std::sync::Arc::new(tls::held::Named("unpin".into()))
+}
+
+/// A trait object that borrows, which no handle outliving the call may hold.
+pub fn borrowed_resolver<'a>(_ids: &'a [u32]) -> std::sync::Arc<dyn tls::held::Resolver + 'a> {
+	std::sync::Arc::new(tls::held::Named("borrowed".into()))
+}
+
+/// A stream an exported type implements, so the bound is met by a value C holds: refused,
+/// not left out.
+pub struct Pipe(pub u8);
+
+impl tls::held::Stream for Pipe {
+	fn read(&mut self) -> u8 {
+		self.0
+	}
+}
+
+/// Reads one byte of a stream.
+pub fn pump_pipe<T: tls::held::Stream>(mut stream: T) -> u8 {
+	stream.read()
+}

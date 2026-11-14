@@ -946,12 +946,28 @@ impl<'tcx> Collector<'tcx> {
 	/// the root does not reach, and not the standard library's, whose traits are closures and
 	/// markers; taking no arguments, as its handle names none; and with no associated type
 	/// fixed, which would be one.
+	///
+	/// One object type per trait, as the handle names only the trait: its auto traits are
+	/// `Send` and `Sync` but those the trait implies, as `dyn Trait + Send + Sync` and, where
+	/// the trait has them as supertraits, `dyn Trait` are. Its lifetime is held, as
+	/// [`Self::lifetimes`] says, so one that borrows what C lends is refused.
 	fn held_trait(&self, ty: Ty<'tcx>) -> Option<DefId> {
-		let ty::Dynamic(preds, ..) = ty.kind() else { return None };
+		let tcx = self.tcx;
+		let ty::Dynamic(preds, _) = ty.kind() else {
+			return None;
+		};
 		let principal = preds.principal()?.skip_binder();
 		let did = principal.def_id;
 		let plain = principal.args.is_empty() && preds.projection_bounds().next().is_none();
-		(plain && !self.walked(did.krate) && !self.sysroot.contains(&did.krate)).then_some(did)
+		let implied: Vec<DefId> = rustc_middle::ty::elaborate::supertrait_def_ids(tcx, did).collect();
+		let canonical: Vec<DefId> = [tcx.get_diagnostic_item(sym::Send), tcx.get_diagnostic_item(sym::Sync)]
+			.into_iter()
+			.flatten()
+			.filter(|tr| !implied.contains(tr))
+			.collect();
+		let auto: Vec<DefId> = preds.auto_traits().collect();
+		let same = auto.len() == canonical.len() && auto.iter().all(|tr| canonical.contains(tr));
+		(plain && same && !self.walked(did.krate) && !self.sysroot.contains(&did.krate)).then_some(did)
 	}
 
 	/// The type a handle holds by value, if it exports as an opaque handle: as
@@ -3659,9 +3675,25 @@ impl<'tcx> Collector<'tcx> {
 		// Another crate's trait, which no type the export holds meets, as instantiating found
 		// none, and C cannot implement: no value C holds could be passed. The standard library's
 		// traits are met by values C passes, which the rules may yet take.
+		// An impl for a type the export names, or for any type at all, may yet meet it.
 		let unmet = (bounds.iter().map(|b| b.def_id())).any(|tr| {
-			!self.sysroot.contains(&tr.krate) && !marker(tcx, tr) && !self.walked(tr.krate)
-				|| matches!(self.trait_decl(tr), Some(Decl::Refused(_)))
+			let foreign = !self.sysroot.contains(&tr.krate) && !marker(tcx, tr) && !self.walked(tr.krate);
+			let met = || {
+				tcx.all_impls(tr).any(|imp| {
+					// A blanket impl for any type, not one for a reference to any type, which
+					// needs that type to meet the bound itself.
+					let ty = tcx.type_of(imp).instantiate_identity().skip_norm_wip();
+					match ty.peel_refs().kind() {
+						ty::Param(_) => matches!(ty.kind(), ty::Param(_)),
+						ty::Adt(adt, _) => {
+							self.items.iter().any(|(item, _)| *item == adt.did())
+								|| self.foreign.iter().any(|&(f, _)| f == adt.did())
+						}
+						_ => false,
+					}
+				})
+			};
+			foreign && !met() || matches!(self.trait_decl(tr), Some(Decl::Refused(_)))
 		});
 		match local[..] {
 			[_] => Err(why("callback bound", names.join(" + "))),
@@ -4669,6 +4701,8 @@ impl<'tcx> Collector<'tcx> {
 				// Another crate's `&'static dyn Trait`, which a handle holds.
 				ty::Ref(region, ..) if self.opaque_value(ty).is_some() => held.push(*region),
 				ty::Ref(region, ..) => lent.push(*region),
+				// A trait object a handle holds holds its own lifetime, as `dyn Trait + 'a` does.
+				ty::Dynamic(_, region) if self.held_trait(ty).is_some() => held.push(*region),
 				// An object, an opaque value, or another crate's value an opaque handle holds, holds
 				// what its lifetime parameters name.
 				ty::Adt(adt, args)
