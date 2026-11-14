@@ -2,9 +2,11 @@
 
 ## Goal
 
-A Rust waker returned to Dart, today a plain function, no longer keeps the isolate alive
-until the garbage collector finalizes it. A Dart program whose wakers from Rust are
-unreachable exits once its `main` returns, rather than about a minute later at idle GC.
+A Dart program can release a Rust waker returned to it, today a plain function, without
+waiting for the garbage collector to finalize it. A program that closes each waker it gets
+from Rust exits once its `main` returns, rather than about a minute later at idle GC; an
+unclosed one still holds the isolate until finalization, like any other unclosed value
+from Rust.
 
 ## Plan
 
@@ -17,4 +19,6 @@ Decided (maintainer, 2026-11-14): ✅ keep this quest (rejected: drop it); ✅ g
 returned waker a `close`, as every other Dart value from Rust has, matching the binding's
 ownership model (rejected: when the waker Rust returns is the isolate's own, `dart.rs`'s
 `Wake`, count Dart-held clones out of the keep-alive).
-Then drop the explicit `exit` from `tests/api.dart`'s `main`.
+Then have `tests/api.dart`'s waiter section keep and close the waker `waiter.waker()`
+returns, rather than calling it inline and dropping it, and drop the explicit `exit` from
+its `main`.
