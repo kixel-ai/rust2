@@ -148,6 +148,27 @@ impl Audit {
 			}
 		}
 
+		// What an import supplies from outside the audit, such as a dependency's type it
+		// re-exports, has no definition here: give it a node, which the code naming it
+		// reaches and which revives the import.
+		for i in units.iter().flat_map(|u| &u.imports) {
+			hashes.entry(i.supplied).or_insert_with(|| {
+				defs.push(Def {
+					crate_name: String::new(),
+					kind: "Extern".into(),
+					path: String::new(),
+					span: None,
+					exported: false,
+					external: false,
+					symbol: false,
+					category: Category::Unreached,
+					cross: None,
+					local: None,
+				});
+				defs.len() - 1
+			});
+		}
+
 		// Production and test edges, with who names what across crates.
 		let n = defs.len();
 		let mut edges = [vec![Vec::new(); n], vec![Vec::new(); n]];
@@ -201,15 +222,17 @@ impl Audit {
 					defs[to].local.get_or_insert(evidence);
 				}
 			}
-			// A call names what an import supplies, not the import: the import is live once
-			// what it supplies is, and names it and the re-exports it went through.
+			// A call names what an import supplies, not the import: the import, and the
+			// re-exports a glob supplied it through, are live once it is, and they are
+			// named as it is.
 			for i in &unit.imports {
-				let (Some(&import), Some(&supplied)) = (hashes.get(&i.import), hashes.get(&i.supplied)) else {
-					continue;
-				};
+				let (import, supplied) = (hashes[&i.import], hashes[&i.supplied]);
 				edges[test][supplied].push(import);
 				for hash in std::iter::once(&i.supplied).chain(&i.through) {
 					let Some(&to) = hashes.get(hash) else { continue };
+					if to != supplied {
+						edges[test][supplied].push(to);
+					}
 					let evidence = Evidence {
 						from: import,
 						site: None,

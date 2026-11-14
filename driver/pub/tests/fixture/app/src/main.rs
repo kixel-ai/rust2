@@ -172,6 +172,7 @@ fn main() {
 	println!("through glob {}", through_glob());
 	println!("tool {} {}", tool(), matches!(On, Mode::Off));
 	println!("listed {}", listed());
+	println!("measure {} {}", measure::<u16>(), via_nested_glob());
 	let mut counter = api::Counter(0);
 	println!("ticket {}", drain(&mut counter).0);
 	println!("len {}", api::Outer::new().len());

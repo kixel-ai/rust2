@@ -112,6 +112,10 @@ fn fixture() {
 	expect("inner::through_glob", "cross-crate", "cross-crate");
 	expect("prelude::{use crate::inner::past_glob}", "narrowed", "unreached");
 	expect("inner::past_glob", "narrowed", "unreached");
+	// What a glob supplies from outside the audit, or through another crate's glob.
+	expect("prelude::{use std::mem::size_of}", "cross-crate", "cross-crate");
+	expect("prelude::{use crate::deeper}", "cross-crate", "cross-crate");
+	expect("deeper::via_nested_glob", "cross-crate", "cross-crate");
 	// So does a glob of a module or enum of its own crate.
 	expect("tools::tool", "narrowed", "crate-only");
 	expect("crate::{use tools}", "narrowed", "crate-only");

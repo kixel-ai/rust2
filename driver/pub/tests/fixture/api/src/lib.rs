@@ -140,6 +140,17 @@ pub mod prelude {
 	pub use crate::inner::past_glob;
 	/// Kept, unreached: app's glob supplies it to dead code alone.
 	pub use crate::inner::past_live_glob;
+	/// Kept: app's glob supplies it, from outside the audit, to main.
+	pub use std::mem::size_of as measure;
+	/// Kept: app's glob supplies `via_nested_glob` through it.
+	pub use crate::deeper::*;
+}
+
+mod deeper {
+	/// Kept: app calls it through two globs.
+	pub fn via_nested_glob() -> u32 {
+		28
+	}
 }
 
 /// Kept: app drains one generically.
