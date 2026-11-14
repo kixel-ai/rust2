@@ -1004,10 +1004,12 @@ fn api_py_types() {
 	let caller = dir.join("api_types.py");
 	step::copy(&api().out.join("python").join("api.py"), &module);
 	step::copy(&manifest_dir().join("tests").join("api_types.py"), &caller);
-	run(Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()))
-		.arg("-I")
-		.arg(manifest_dir().join("tests").join("bare_builtins.py"))
-		.arg(&module));
+	run(
+		Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()))
+			.arg("-I")
+			.arg(manifest_dir().join("tests").join("bare_builtins.py"))
+			.arg(&module),
+	);
 	// Rooted in `dir`, so `import api` finds the module rather than `tests/api.py`.
 	let config = dir.join("pyrightconfig.json");
 	step::copy(&manifest_dir().join("tests").join("pyright.json"), &config);
