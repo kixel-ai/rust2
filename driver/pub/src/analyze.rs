@@ -190,10 +190,12 @@ impl Audit {
 					if def.kind != "Use" {
 						edges[test][index].push(parent);
 					}
-					// A type's fields and variants, and a trait's items, are its API; a
-					// module's, only what its crate exports from it.
+					// An enum's variants and their fields, and a trait's items, are its API;
+					// a struct's fields, only those it makes `pub`; a module's, only what its
+					// crate exports from it.
 					let member = match defs[parent].kind.as_str() {
-						"Struct" | "Enum" | "Union" | "Variant" | "Trait" => true,
+						"Enum" | "Variant" | "Trait" => true,
+						"Struct" | "Union" => def.public,
 						"Mod" => def.exported,
 						_ => false,
 					};
@@ -201,7 +203,9 @@ impl Audit {
 						members[parent].push(index);
 					}
 				}
-				if let Some(&owner) = def.member_of.and_then(|p| hashes.get(&p)) {
+				if let Some(&owner) = def.member_of.and_then(|p| hashes.get(&p))
+					&& def.public
+				{
 					members[owner].push(index);
 				}
 			}

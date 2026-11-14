@@ -247,6 +247,8 @@ mod tests {
 pub struct Exposed {
 	/// External: a field of a type facade's API exposes.
 	pub field: u32,
+	/// Not its API: only api can reach a private field.
+	inner: Inner,
 }
 
 impl Exposed {
@@ -254,6 +256,17 @@ impl Exposed {
 	pub fn method(&self) -> u32 {
 		self.field
 	}
+
+	/// Not its API: only api can call a private method.
+	fn helper(&self) -> &Inner {
+		&self.inner
+	}
+}
+
+/// Narrowed, unreached: only a private field and method of an external type name it.
+pub struct Inner {
+	/// Narrowed, unreached.
+	pub secret: u32,
 }
 
 /// External: facade's `unused` returns it.

@@ -79,6 +79,9 @@ pub struct Def {
 	pub expansion: Option<u32>,
 	/// Whether another crate can name it: public all the way from its crate's root.
 	pub exported: bool,
+	/// Whether its own visibility is `pub`, so another crate reaches it wherever it
+	/// reaches what holds it, as a struct's field or a type's inherent method.
+	pub public: bool,
 	/// Whether it is a symbol code outside Rust links to, which rustc keeps whatever its
 	/// visibility.
 	pub symbol: bool,

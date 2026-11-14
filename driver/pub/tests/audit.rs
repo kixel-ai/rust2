@@ -63,6 +63,9 @@ fn fixture() {
 	expect("crate::{use api::Exposed}", "external", "unreached");
 	expect("Exposed::field", "external", "unreached");
 	expect("Exposed::method", "external", "unreached");
+	// Not what it holds privately.
+	expect("Inner", "narrowed", "unreached");
+	expect("Inner::secret", "narrowed", "unreached");
 	expect("Returned::field", "external", "unreached");
 	// An external trait's items are its API, with what they expose.
 	expect("Area", "external", "unreached");

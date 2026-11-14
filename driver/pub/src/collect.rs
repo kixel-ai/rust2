@@ -259,6 +259,7 @@ impl<'tcx> Collector<'tcx> {
 			let symbol = matches!(kind, DefKind::Fn | DefKind::AssocFn | DefKind::Static { .. })
 				&& tcx.codegen_fn_attrs(def).contains_extern_indicator();
 			let exported = visibilities.is_exported(id);
+			let public = tcx.visibility(def).is_public();
 			// What runs or links with nothing in Rust naming it: an exported symbol, a
 			// `const _` that asserts at compile time, and the macros a proc-macro crate
 			// exports.
@@ -341,6 +342,7 @@ impl<'tcx> Collector<'tcx> {
 				token,
 				expansion,
 				exported,
+				public,
 				symbol,
 				parent,
 				member_of,
