@@ -568,25 +568,54 @@ int script() {
 		print("", api::describe(event), "\n");
 	}
 
-	// A `Copy` handle passed by value is copied, so it stays usable.
+	// A `Copy` value passed by value is copied, so it stays usable.
 	{
 		api::Stamp stamp = api::Stamp::from_millis(2500);
 		std::printf("secs %llu\n", ull(stamp.secs()));
 		std::printf("later %s\n", yes(api::Stamp::from_millis(3000).later(stamp)));
 		std::printf("secs %llu\n", ull(stamp.secs()));
-		api::Message message = api::Message::new_(&stamp, "body");
+		print("whole ", stamp.whole().debug(), "\n");
+		api::Message message = api::Message::new_(stamp, "body");
 		print("payload ", message.payload_get(), "\n");
 		print("stamp ", message.stamp_get()->debug(), "\n");
 		std::printf("sent %s\n", yes(message.sent()));
-		// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
+		// Setters assign in place: the bytes are copied in, and a `Copy` value copied.
 		api::Stamp reset = api::Stamp::from_millis(4000);
-		message.stamp_set(&reset);
+		message.stamp_set(reset);
 		message.payload_set("edited");
 		print("payload ", message.payload_get(), "\n");
 		print("stamp ", message.stamp_get()->debug(), "\n");
 		std::printf("secs %llu\n", ull(reset.secs()));
-		message.stamp_set(nullptr);
+		message.stamp_set(std::nullopt);
 		std::printf("stamp %s\n", yes(message.stamp_get().has_value()));
+	}
+
+	// A value past a word, copied across: a closure takes and returns one by value.
+	{
+		api::Moment moment = *api::Moment::new_(1500, 1000);
+		std::printf("moment %llu %s\n", ull(moment.millis()), yes(!api::Moment::new_(1, 0).has_value()));
+		api::Moment shifted = api::shifted(moment, [](const api::Moment &m) { return m.after(500); });
+		std::printf("shifted %llu %s\n", ull(shifted.millis()), yes(shifted == moment.after(500)));
+		std::printf("wrapped %llu %s\n", ull(moment.after(UINT64_MAX).millis()), yes(moment == shifted));
+	}
+
+	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	{
+		api::Gap gap = api::Gap::new_(7, 3);
+		std::printf("gap %llu %s\n", ull(gap.sum()), yes(gap == api::Gap::new_(7, 3)));
+		api::Berth berth = api::Berth::new_(4u);
+		std::printf("berth Some(%u) %s\n", *berth.at(), api::Berth::new_(std::nullopt).at() ? "Some" : "None");
+	}
+
+	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	{
+		api::Score score = api::Score::of(2);
+		api::Score step = api::Score::of(3);
+		score.add(step);
+		score.add(step);
+		std::printf("score %llu %llu %llu\n", ull(score.count()), ull(step.doubled().count()), ull(step.count()));
+		api::Weighted weighted{step.clone(), 4};
+		std::printf("weighted %llu %llu\n", ull(weighted.total()), ull(weighted.score.count() + step.count()));
 	}
 
 	std::uint8_t levels[] = {1, 2, 3, 4};
@@ -1178,8 +1207,8 @@ int script() {
 		auto ended = api::later(began, {1, 500000000});
 		std::printf("instants %llu %llu %s %s\n", millis(api::since(ended, began)), millis(api::since(began, ended)),
 					began == api::later(began, {0, 0}) ? "true" : "false", began == ended ? "true" : "false");
-		// An instant lent inside an `Option`, which takes no handle.
-		std::printf("has_instant %s %s\n", api::has_instant(&began) ? "true" : "false", api::has_instant(nullptr) ? "true" : "false");
+		// An instant lent inside an `Option`, which C++ copies.
+		std::printf("has_instant %s %s\n", api::has_instant(began) ? "true" : "false", api::has_instant(std::nullopt) ? "true" : "false");
 	}
 	// tracing's level, and its filter as an optional level whose empty is `OFF`.
 	{
@@ -1195,15 +1224,13 @@ int script() {
 
 	// Closures C++ implements that return what Rust then owns, or that Rust keeps.
 	print("made ", api::made(3, [](std::uint32_t n) { return std::to_string(n) + " times"; }), "\n");
-	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	// A closure taking and returning `Copy` values copies them, never running their `Clone`.
 	{
 		api::Ticket kept = api::Ticket::new_(9);
 		std::uint32_t given =
 			api::reissue(api::Ticket::new_(7), [](const api::Ticket &t) { return api::Ticket::new_(t.number() + 1); })
 				.number();
-		std::uint32_t held = api::reissue(api::Ticket::new_(7), [&kept](const api::Ticket &) {
-			return std::move(kept);
-		}).number();
+		std::uint32_t held = api::reissue(api::Ticket::new_(7), [&kept](const api::Ticket &) { return kept; }).number();
 		std::printf("reissued %u %u, cloned %u\n", static_cast<unsigned>(given), static_cast<unsigned>(held),
 			static_cast<unsigned>(api::Ticket::clones()));
 	}
@@ -1724,7 +1751,7 @@ int lifetimes() {
 	{
 		api::buf payload;
 		{
-			api::Message message = api::Message::new_(nullptr, "kept");
+			api::Message message = api::Message::new_(std::nullopt, "kept");
 			payload = message.payload_get();
 		}
 		check(payload.str() == "kept", "bytes outlive the object they came from");

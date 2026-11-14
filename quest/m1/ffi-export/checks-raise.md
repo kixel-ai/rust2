@@ -58,5 +58,4 @@ error types the runtimes add, and the status the C functions return.
 
 ## Related
 
-- [Copy types cross by value](/quest/m1/ffi-export/copy-values.md) - landing it first leaves only thrown errors as Swift classes, so fewer signatures turn throwing
 - [Cheaper returned-object ownership](/quest/m1/ffi-speed/object-ownership.md) - rewrites the same handle word, so its baselines move with this

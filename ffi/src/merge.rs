@@ -202,6 +202,14 @@ pub fn bare_record(r: &Record) -> Record {
 		r.on = On::ALL;
 		r.methods.clear();
 		r.fields.iter_mut().for_each(|f| f.docs.clear());
+		// Merged apart: one binding holds the largest, and each target zeroes its own
+		// padding.
+		if let Some(opaque) = &mut r.opaque {
+			opaque.size = 0;
+			opaque.align = 0;
+			opaque.dense = true;
+		}
+		r.padding.clear();
 	})
 }
 
@@ -416,6 +424,12 @@ impl Merged {
 				self.differ(what, (ours.on, ours.span), (record.on, record.span));
 			}
 			self.api.records[at].on.0 |= record.on.0;
+			if let (Some(ours), Some(theirs)) = (&mut self.api.records[at].opaque, record.opaque) {
+				ours.size = ours.size.max(theirs.size);
+				ours.align = ours.align.max(theirs.align);
+				ours.dense &= theirs.dense;
+			}
+			self.api.records[at].padding.extend(record.padding);
 			let methods = std::mem::take(&mut self.api.records[at].methods);
 			self.api.records[at].methods = self.functions(methods, record.methods);
 		}

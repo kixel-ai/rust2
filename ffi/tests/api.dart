@@ -338,6 +338,7 @@ Future<void> script() async {
   print('secs ${stamp.secs()}');
   print('later ${api.Stamp.fromMillis(3000).later(stamp)}');
   print('secs ${stamp.secs()}');
+  print('whole ${stamp.whole().debug()}');
   final message = api.Message(stamp, utf8.encode('body'));
   print('payload ${text(message.payloadGet)}');
   print('stamp ${message.stampGet!.debug()}');
@@ -351,6 +352,28 @@ Future<void> script() async {
   print('secs ${reset.secs()}');
   message.stampSet(null);
   print('stamp ${message.stampGet != null}');
+
+  // A value past a word, copied across: a closure takes and returns one by value.
+  final moment = api.Moment.new_(1500, 1000)!;
+  print('moment ${moment.millis()} ${api.Moment.new_(1, 0) == null}');
+  final shifted = api.shifted(moment, (m) => m.after(500));
+  print('shifted ${shifted.millis()} ${shifted == moment.after(500)}');
+  print('wrapped ${moment.after(-1).millis()} ${moment == shifted}');
+
+  // A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+  final gap = api.Gap(7, 3);
+  print('gap ${gap.sum()} ${gap == api.Gap(7, 3)}');
+  final berth = api.Berth(4);
+  print('berth Some(${berth.at()}) ${api.Berth(null).at() == null ? 'None' : 'Some'}');
+
+  // A `Copy` type changed in place is a handle, which a call taking it by value copies.
+  final score = api.Score.of(2);
+  final increment = api.Score.of(3);
+  score.add(increment);
+  score.add(increment);
+  print('score ${score.count()} ${increment.doubled().count()} ${increment.count()}');
+  final weighted = api.Weighted(score: increment, weight: 4);
+  print('weighted ${weighted.total()} ${weighted.score.count() + increment.count()}');
 
   print('kept ${api.emit(PrintLog(), bytes([1, 2, 3, 4]))}');
   final logger = api.Logger(PrintLog());
@@ -687,15 +710,12 @@ Future<void> script() async {
   for (final section in sections) {
     section.$2.close();
   }
-  // An instant only Rust makes, which each call copies out of its handle, and compares.
+  // An instant only Rust makes, which each call copies, and compares.
   final began = api.now();
   final ended = api.later(began, const Duration(milliseconds: 1500));
   final same = api.later(began, Duration.zero);
   print('instants ${api.since(ended, began).inMilliseconds} ${api.since(began, ended).inMilliseconds} ${began == same} ${began == ended}');
   print('has_instant ${api.hasInstant(began)} ${api.hasInstant(null)}');
-  began.close();
-  ended.close();
-  same.close();
   // tracing's level, and its filter as an optional level whose null is `OFF`.
   final verbosity = api.Verbosity(api.Level.warn);
   print('verbosity ${api.spell(verbosity.filter())} ${api.spell(api.louder(verbosity.filter()))}');
@@ -705,7 +725,7 @@ Future<void> script() async {
 
   // A closure's string, which Rust takes.
   print('made ${api.made(3, (n) => '$n times')}');
-  // A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+  // A closure taking and returning `Copy` values copies them, never running their `Clone`.
   final nine = api.Ticket(9);
   final renewed = api.reissue(api.Ticket(7), (t) => api.Ticket(t.number() + 1)).number();
   final copied = api.reissue(api.Ticket(7), (_) => nine).number();
@@ -734,7 +754,6 @@ Future<void> script() async {
     'a kept closure wakes its future',
   );
   print('drive $stopped');
-  start.close();
   // A reader the caller implements: dart:io's file, then one whose reads fail.
   final dir = Directory.systemTemp.createTempSync('api');
   final opened = (File('${dir.path}/tail')..writeAsStringSync('hello world')).openSync();

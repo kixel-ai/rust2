@@ -144,8 +144,7 @@ func round() []result {
 	var out []result
 	broadcast := must(net.NewBroadcastInfo().Produce())
 	micro := net.TimescaleMICRO()
-	track := must(broadcast.CreateTrack("bench", must(net.TrackInfoDefault().WithTimescale(micro))))
-	micro.Close()
+	track := must(broadcast.CreateTrack("bench", must(net.TrackInfoDefault().WithTimescale(&micro))))
 	frame := rt.NewBytes(make([]byte, 100))
 
 	start := now()
@@ -213,7 +212,7 @@ func round() []result {
 	}
 	out = append(out, result{"object", per(start, n)})
 
-	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
+	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must.
 	var micros uint64
 	start = now()
 	for range groups {
@@ -221,8 +220,7 @@ func round() []result {
 		for range frames {
 			at := must(net.TimestampFromMicros(micros))
 			micros++
-			check(group.WriteFrame(at, frame))
-			at.Close()
+			check(group.WriteFrame(&at, frame))
 		}
 		check(group.Finish())
 		group.Close()
@@ -234,7 +232,7 @@ func round() []result {
 	for range groups {
 		group := must(track.AppendGroup())
 		for range frames {
-			check(group.WriteFrame(at, frame))
+			check(group.WriteFrame(&at, frame))
 		}
 		check(group.Finish())
 		group.Close()
@@ -254,7 +252,7 @@ func round() []result {
 		group := must(track.AppendGroup())
 		reader := must(subscriber.RecvGroup(ctx))
 		for range frames {
-			check(group.WriteFrame(at, frame))
+			check(group.WriteFrame(&at, frame))
 			if last != nil {
 				last.Close()
 			}
@@ -276,7 +274,7 @@ func round() []result {
 		for range frames {
 			go func() { read <- must(reader.ReadFrame(ctx)) }()
 			runtime.Gosched()
-			check(group.WriteFrame(at, frame))
+			check(group.WriteFrame(&at, frame))
 			(<-read).Close()
 		}
 		reader.Close()
@@ -319,7 +317,7 @@ func round() []result {
 	out = append(out, result{"loop", per(start, n)})
 
 	for _, size := range sizes {
-		out = append(out, result{fmt.Sprintf("mbps:%d", size), throughput(ctx, track, subscriber, at, size)})
+		out = append(out, result{fmt.Sprintf("mbps:%d", size), throughput(ctx, track, subscriber, &at, size)})
 	}
 	subscriber.Close()
 
@@ -330,7 +328,6 @@ func round() []result {
 	}
 	out = append(out, result{"payload", per(start, n)})
 	last.Close()
-	at.Close()
 	track.Close()
 	broadcast.Close()
 	return out
