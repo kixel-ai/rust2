@@ -1,7 +1,8 @@
 use api::prelude::*;
-use api::{Action, Holder, Source, reexported};
+use api::{Action, Holder, Source, alias, reexported};
 
 mod embedded;
+mod payload;
 
 /// Its file's text, which narrowing the `pub` in it would change.
 const EMBEDDED: &str = include_str!("embedded.rs");
@@ -94,6 +95,29 @@ macro_rules! hygienic {
 // both times, so `shadowed` would return 2 rather than 1.
 hygienic!((pub) fn shadowed(x));
 
+macro_rules! payload {
+	(($p:tt) fn $name:ident) => {
+		$p fn $name() -> &'static str {
+			"pub fn payload() -> u32 {\n\t20\n}\n"
+		}
+	};
+	(($($v:tt)*) fn $name:ident) => {
+		$($v)* fn $name() -> &'static str {
+			include_str!("payload.rs")
+		}
+	};
+}
+
+// Narrowed: narrowing picks the arm that embeds payload.rs, whose text is the other arm's
+// literal, so long as payload.rs itself stays as it is.
+payload!((pub) fn payload_text);
+
+#[allow(dead_code, unused_imports)]
+fn dead_import() -> u32 {
+	use api::drops;
+	api::only_dead()
+}
+
 // External: the token is in an exported macro of extra, whose callers outside the audit
 // get it too.
 extra::make!(made);
@@ -130,6 +154,8 @@ fn main() {
 	println!("line {}", at_line());
 	println!("made {}", made());
 	println!("shadowed {}", shadowed());
+	println!("alias {}", alias::through_alias());
+	println!("payload {} {:?}", payload::payload(), payload_text());
 	println!("embedded {} {}", embedded::embedded(), EMBEDDED.len());
 	println!("extra {}", extra::used());
 	println!("crlf {}", api::crlf::spaced());

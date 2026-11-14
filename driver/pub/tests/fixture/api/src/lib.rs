@@ -271,3 +271,21 @@ pub enum Derived {
 	Unit,
 	Field(u32),
 }
+
+mod hidden {
+	/// Kept: app imports it under another name.
+	pub mod m {
+		/// Kept: app calls it through the alias.
+		pub fn through_alias() -> u32 {
+			19
+		}
+	}
+}
+
+/// Kept, cross-crate: app imports it, and calls through it.
+pub use hidden::m as alias;
+
+/// Kept, unreached: only app's dead code calls it, beside an import of a live function.
+pub fn only_dead() -> u32 {
+	21
+}

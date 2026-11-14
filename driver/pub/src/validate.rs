@@ -17,6 +17,8 @@ pub enum Restored {
 	Resolution(Place),
 	/// Narrowing it changed what a macro it reached makes: this item, by path.
 	Expanded(String),
+	/// The narrowed build embeds its file as bytes, which applying the narrowing changes.
+	Embedded(PathBuf),
 }
 
 /// What the validation ends with.
@@ -148,6 +150,15 @@ pub fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validatio
 				}
 				for token in blamed {
 					restore.entry(token).or_insert_with(|| Restored::Expanded(path.clone()));
+				}
+			}
+			// A file the narrowed build first embeds, as a macro's narrowed expansion may,
+			// would embed the narrowing once applied.
+			for unit in &units {
+				for file in &unit.embedded {
+					for &t in active.iter().filter(|&&t| &audit.tokens[t].place.file == file) {
+						restore.entry(t).or_insert_with(|| Restored::Embedded(file.clone()));
+					}
 				}
 			}
 			// Narrowing must not add warnings either: the lints that make public API

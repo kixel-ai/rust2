@@ -106,6 +106,7 @@ pub fn write(out: &Path, scope: &Scope, audit: &Audit, validation: &Validation) 
 				format!("a name resolves differently at {}", lines.at(scope.root, place))
 			}
 			Restored::Expanded(path) => format!("a macro it reaches makes {path} differently"),
+			Restored::Embedded(file) => format!("the narrowed build embeds {}", relative(scope.root, file).display()),
 		});
 		let items = token
 			.defs

@@ -89,8 +89,15 @@ fn fixture() {
 	expect("shadowed", "restored", "crate-only");
 	// A file a crate embeds as bytes changes with any narrowing in it.
 	expect("embedded::embedded", "embedded", "crate-only");
-	// An import is as live as what it imports, with the re-export it goes through.
+	// A file only the narrowed build embeds keeps every `pub` in it.
+	expect("payload::payload", "restored", "crate-only");
+	expect("payload_text", "narrowed", "crate-only");
+	// An import is as live as what it imports, with the re-export it goes through, module
+	// or not, but makes nothing it is in live.
 	expect("crate::{use inner::reexported}", "cross-crate", "cross-crate");
+	expect("crate::{use hidden::m}", "cross-crate", "cross-crate");
+	expect("hidden::m::through_alias", "cross-crate", "cross-crate");
+	expect("only_dead", "cross-crate", "unreached");
 	// A token in an exported macro goes wherever its callers outside the audit expand it.
 	expect("made", "external", "crate-only");
 	// Offsets on disk, past CRLFs rustc reads as LF.

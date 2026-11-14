@@ -162,7 +162,11 @@ impl Audit {
 			for def in &unit.defs {
 				let index = hashes[&def.hash];
 				if let Some(&parent) = def.parent.and_then(|p| hashes.get(&p)) {
-					edges[test][index].push(parent);
+					// An import is live once what it imports is, which says nothing of the
+					// function or module it is in.
+					if def.kind != "Use" {
+						edges[test][index].push(parent);
+					}
 					// A type's fields and variants, and a trait's items, are its API; a
 					// module's, only what its crate exports from it.
 					let member = match defs[parent].kind.as_str() {
@@ -187,7 +191,7 @@ impl Audit {
 					interface[from].push(to);
 					// A call names what an import imports, not the import: the import, and the
 					// re-exports it goes through, are live once what it imports is.
-					if defs[from].kind == "Use" && !matches!(defs[to].kind.as_str(), "Use" | "Mod") {
+					if defs[from].kind == "Use" && defs[to].kind != "Use" {
 						edges[test][to].push(from);
 					}
 				}
