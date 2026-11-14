@@ -26,9 +26,10 @@ Joined across every compilation, the graph gives:
 
 - **Reachability** from what runs with nothing naming it: `main`, the test harness, exported symbols, `const _`, and a proc-macro crate's macros.
   A trait impl is reached once its trait and self type are, and then needs every item it declares.
+  An import is reached once what it supplies is, which makes nothing else live: a glob supplies only the names rustc resolved through it (its `glob_map`), and a list holds its paths' `pub`, so it is reached once one of theirs is.
   Production and test roots give unreached, test-only, and crate-only items.
 - **Who needs a `pub`**: any reference from another crate, from live or dead code, since dead code must still compile.
-  That includes the re-export a path goes through, every re-export a glob of another crate's module may use, the types an expression has, and a tuple constructor's fields.
+  That includes the re-export a path goes through, the re-exports a glob supplied each name through, the types an expression has, and a tuple constructor's fields.
 - **What crates or tools outside the audit may use**: what a published library exports, and all of an unpublished library the audit does not run.
   The audit runs what has a binary, and the unpublished workspace members that builds on; any other library, such as a translator's fixture, is used outside cargo's view, by tools that may read its source.
   What that API exposes of another crate stays public too: a re-exported or returned type with its fields, variants, and inherent items, a trait with its items, all of a crate it re-exports with `pub extern crate`, and every `pub` in the definition of a macro it exports, which goes wherever its callers expand it.
@@ -43,3 +44,4 @@ The audit traces each such item back through the macro calls it came from, howev
 
 Only the selected targets, features, and host platform are checked: doctests, other features and platforms, and crates outside the audit are unseen, so an item only those use can narrow.
 Narrowing an unreached item exposes it to `dead_code`, which the patch does not delete.
+An import that only dead code uses still counts as reached when what it supplies is reached elsewhere: rustc records which names a glob supplied, but not from where.
