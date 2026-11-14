@@ -994,8 +994,9 @@ fn api_python() {
 }
 
 /// The api fixture's Python, and `tests/api_types.py` calling it as a typed caller does,
-/// pass mypy and pyright, both strict, at the oldest CPython its extension loads in. Apart
-/// from `api_python`, which the runners without the dev shell's checkers run alone.
+/// pass mypy and pyright, both strict, at the oldest CPython its extension loads in, and
+/// `tests/bare_builtins.py` finds it reading no builtin by its bare name. Apart from
+/// `api_python`, which the runners without the dev shell's checkers run alone.
 #[test]
 fn api_py_types() {
 	let dir = scratch().join("api").join("python-types");
@@ -1003,6 +1004,10 @@ fn api_py_types() {
 	let caller = dir.join("api_types.py");
 	step::copy(&api().out.join("python").join("api.py"), &module);
 	step::copy(&manifest_dir().join("tests").join("api_types.py"), &caller);
+	run(Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()))
+		.arg("-I")
+		.arg(manifest_dir().join("tests").join("bare_builtins.py"))
+		.arg(&module));
 	// Rooted in `dir`, so `import api` finds the module rather than `tests/api.py`.
 	let config = dir.join("pyrightconfig.json");
 	step::copy(&manifest_dir().join("tests").join("pyright.json"), &config);

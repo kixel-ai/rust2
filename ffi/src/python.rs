@@ -89,15 +89,22 @@ const TAKEN: &[&str] = &[
 	"_Exception",
 	"_ValueError",
 	"_AttributeError",
+	"_BaseException",
+	"_ImportError",
+	"_NotImplementedError",
+	"_bool",
+	"_bytearray",
+	"_object",
+	"_range",
 	"ForeignReader",
 ];
 
 /// Any buffer, as Python before 3.12's `collections.abc.Buffer` spells it.
-const BUFFER: &str = "bytes | bytearray | memoryview";
+const BUFFER: &str = "_bytes | _bytearray | _memoryview";
 
 /// A socket address as Python's `socket` module holds it: IPv4's, and IPv6's.
-const V4: &str = "tuple[str, int]";
-const V6: &str = "tuple[str, int, int, int]";
+const V4: &str = "_tuple[_str, _int]";
+const V6: &str = "_tuple[_str, _int, _int, _int]";
 
 /// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_TIMEDELTA`,
 /// `T_RESUME`, `T_WAKER`, and `T_POLLABLE`.
@@ -157,7 +164,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	// What only runs: the registry, and the module's constants, declared above for type
 	// checkers and made by `__getattr__` on each read.
 	let mut body = format!(
-		"{RUNTIME}\n{}{}if _typing.TYPE_CHECKING:\n{declared}else:\n\t_n._register(\n{registry}\t)\n\n\t_consts = {{\n{consts}\t}}\n\n\tdef __getattr__(name: str) -> object:\n\t\t\"\"\"A constant, made anew each time it is read, as Rust makes it.\"\"\"\n\t\tget = _consts.get(name)\n\t\tif get is None:\n\t\t\traise _AttributeError(f\"module {{__name__!r}} has no attribute {{name!r}}\")\n\t\treturn get()\n",
+		"{RUNTIME}\n{}{}if _typing.TYPE_CHECKING:\n{declared}else:\n\t_n._register(\n{registry}\t)\n\n\t_consts = {{\n{consts}\t}}\n\n\tdef __getattr__(name: _str) -> _object:\n\t\t\"\"\"A constant, made anew each time it is read, as Rust makes it.\"\"\"\n\t\tget = _consts.get(name)\n\t\tif get is None:\n\t\t\traise _AttributeError(f\"module {{__name__!r}} has no attribute {{name!r}}\")\n\t\treturn get()\n",
 		g.py, g.top
 	);
 	let mut hasher = StableHasher::new();
@@ -183,10 +190,15 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		import typing as _typing\n\
 		import weakref as _weakref\n\
 		from builtins import AttributeError as _AttributeError\n\
+		from builtins import BaseException as _BaseException\n\
 		from builtins import Exception as _Exception\n\
+		from builtins import ImportError as _ImportError\n\
+		from builtins import NotImplementedError as _NotImplementedError\n\
 		from builtins import TypeError as _TypeError\n\
 		from builtins import ValueError as _ValueError\n\
 		from builtins import all as _all\n\
+		from builtins import bool as _bool\n\
+		from builtins import bytearray as _bytearray\n\
 		from builtins import bytes as _bytes\n\
 		from builtins import dict as _dict\n\
 		from builtins import float as _float\n\
@@ -195,7 +207,9 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		from builtins import len as _len\n\
 		from builtins import list as _list\n\
 		from builtins import memoryview as _memoryview\n\
+		from builtins import object as _object\n\
 		from builtins import property as _property\n\
+		from builtins import range as _range\n\
 		from builtins import staticmethod as _staticmethod\n\
 		from builtins import str as _str\n\
 		from builtins import tuple as _tuple\n\
@@ -204,28 +218,28 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		from dataclasses import dataclass as _dataclass\n\n\
 		_get_running_loop = _asyncio.get_running_loop\n\
 		_T = _typing.TypeVar(\"_T\")\n\n\n\
-		def _same(a: object, b: object, /) -> bool:\n\
+		def _same(a: _object, b: _object, /) -> _bool:\n\
 		\t\"\"\"Whether a and b are equal as Rust's `==` compares them: never by identity, so a NaN\n\
 		\tequals nothing, while a list's, tuple's, or dict's own `==` takes an item as equal to itself.\"\"\"\n\
 		\tif _isinstance(a, (_list, _tuple)):\n\
-		\t\txs = _typing.cast(\"_typing.Sequence[object]\", a)\n\
-		\t\tys = _typing.cast(\"_typing.Sequence[object]\", b)\n\
+		\t\txs = _typing.cast(\"_typing.Sequence[_object]\", a)\n\
+		\t\tys = _typing.cast(\"_typing.Sequence[_object]\", b)\n\
 		\t\treturn _type(xs) is _type(ys) and _len(xs) == _len(ys) and _all(_same(x, y) for x, y in _zip(xs, ys))\n\
 		\tif _isinstance(a, _dict):\n\
 		\t\tif not _isinstance(b, _dict):\n\
 		\t\t\treturn False\n\
-		\t\tm = _typing.cast(\"_typing.Mapping[object, object]\", a)\n\
-		\t\tn = _typing.cast(\"_typing.Mapping[object, object]\", b)\n\
+		\t\tm = _typing.cast(\"_typing.Mapping[_object, _object]\", a)\n\
+		\t\tn = _typing.cast(\"_typing.Mapping[_object, _object]\", b)\n\
 		\t\treturn m.keys() == n.keys() and _all(_same(v, n[k]) for k, v in m.items())\n\
 		\tif a is None or b is None or _isinstance(a, (_int, _float, _str)):\n\
 		\t\treturn a == b\n\
 		\ttry:\n\
 		\t\t# Any buffer, through a memoryview, which compares numbers as Rust does, where\n\
 		\t\t# numpy's own `==` compares item by item into another array.\n\
-		\t\treturn _memoryview(_typing.cast(\"bytes\", a)) == _memoryview(_typing.cast(\"bytes\", b))\n\
+		\t\treturn _memoryview(_typing.cast(\"_bytes\", a)) == _memoryview(_typing.cast(\"_bytes\", b))\n\
 		\texcept _TypeError:\n\
 		\t\treturn a == b\n\n\n\
-		def _load() -> object:\n\
+		def _load() -> _object:\n\
 		\timport importlib.machinery\n\
 		\timport importlib.util\n\
 		\timport os\n\n\
@@ -242,7 +256,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\t# Checked before any other call: a Python file and a library from different builds\n\
 		\t# must not mix.\n\
 		\tif _n.contract() != 0x{contract:016x}:\n\
-		\t\traise ImportError(\"{p}.py and the library are from different builds\")\n\
+		\t\traise _ImportError(\"{p}.py and the library are from different builds\")\n\
 		_PENDING = _n.PENDING\n\n\n"
 	);
 	body.insert_str(0, &head);
@@ -465,11 +479,11 @@ impl<'a> Gen<'a> {
 			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "None".to_string(),
-			Type::Bool => "bool".to_string(),
-			Type::Int(_) | Type::NonZero(_) | Type::U128 => "int".to_string(),
-			Type::F32 | Type::F64 => "float".to_string(),
-			Type::Char | Type::Str | Type::String | Type::Path | Type::PathBuf => "str".to_string(),
-			Type::Slice | Type::Vec | Type::Bytes => "memoryview".to_string(),
+			Type::Bool => "_bool".to_string(),
+			Type::Int(_) | Type::NonZero(_) | Type::U128 => "_int".to_string(),
+			Type::F32 | Type::F64 => "_float".to_string(),
+			Type::Char | Type::Str | Type::String | Type::Path | Type::PathBuf => "_str".to_string(),
+			Type::Slice | Type::Vec | Type::Bytes => "_memoryview".to_string(),
 			Type::Duration => "_datetime.timedelta".to_string(),
 			Type::SocketAddr(family) => match family {
 				Family::V4 => V4.to_string(),
@@ -477,7 +491,7 @@ impl<'a> Gen<'a> {
 				Family::Any => format!("{V4} | {V6}"),
 			},
 			Type::List(_, inner) if ty.block().is_some() => format!("_array.array[{}]", self.py_ty(inner)),
-			Type::List(_, inner) => format!("list[{}]", self.py_ty(inner)),
+			Type::List(_, inner) => format!("_list[{}]", self.py_ty(inner)),
 			Type::Waker => "Waker".to_string(),
 			Type::Reader => "ForeignReader".to_string(),
 			Type::Future => "_typing.Awaitable[None]".to_string(),
@@ -492,11 +506,11 @@ impl<'a> Gen<'a> {
 				let params: Vec<String> = params.iter().map(|p| self.py_lent(p)).collect();
 				format!("_typing.Callable[[{}], {}]", params.join(", "), self.py_param(ret))
 			}
-			Type::Range(_) => "range".to_string(),
+			Type::Range(_) => "_range".to_string(),
 			Type::Bound(_) | Type::Bounds(_) => self.class(&abi.range(ty)),
 			Type::Tuple(elements) => {
 				let elements: Vec<String> = elements.iter().map(|e| self.py_ty(e)).collect();
-				format!("tuple[{}]", elements.join(", "))
+				format!("_tuple[{}]", elements.join(", "))
 			}
 		}
 	}
@@ -520,17 +534,17 @@ impl<'a> Gen<'a> {
 	fn py_in(&self, ty: &Type, list: &str) -> String {
 		match ty {
 			Type::Slice | Type::Vec | Type::Bytes => BUFFER.to_string(),
-			Type::Path | Type::PathBuf => "str".to_string(),
+			Type::Path | Type::PathBuf => "_str".to_string(),
 			// Python's own IPv6 address may leave out its flowinfo and scope_id.
 			Type::SocketAddr(Family::V6) => format!("{V4} | {V6}"),
 			// Any buffer of its numbers, as numpy's arrays are too.
-			Type::List(..) if ty.block().is_some() => format!("{} | memoryview", self.py_ty(ty)),
+			Type::List(..) if ty.block().is_some() => format!("{} | _memoryview", self.py_ty(ty)),
 			Type::List(_, inner) => format!("{list}[{}]", self.py_in(inner, list)),
 			Type::Option(inner) => format!("{} | None", self.py_in(inner, list)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.py_in(inner, list),
 			Type::Tuple(elements) => {
 				let elements: Vec<String> = elements.iter().map(|e| self.py_in(e, list)).collect();
-				format!("tuple[{}]", elements.join(", "))
+				format!("_tuple[{}]", elements.join(", "))
 			}
 			_ => self.py_ty(ty),
 		}
@@ -804,7 +818,7 @@ impl<'a> Gen<'a> {
 			let py = self.py_ty(ty);
 			let _ = write!(
 				self.py,
-				"class {name}(_Exception):\n\t\"\"\"A `{py}` Rust returned as an error, in `error`, whose `str` is the exception's.\"\"\"\n\n\tdef __init__(self, error: {py}) -> None:\n\t\t_Exception.__init__(self, error)\n\t\tself.error = error\n\n\tdef __str__(self) -> str:\n\t\treturn _str(self.error)\n\n\n"
+				"class {name}(_Exception):\n\t\"\"\"A `{py}` Rust returned as an error, in `error`, whose `str` is the exception's.\"\"\"\n\n\tdef __init__(self, error: {py}) -> None:\n\t\t_Exception.__init__(self, error)\n\t\tself.error = error\n\n\tdef __str__(self) -> _str:\n\t\treturn _str(self.error)\n\n\n"
 			);
 		}
 	}
@@ -820,7 +834,7 @@ impl<'a> Gen<'a> {
 				let (kind, value) = (self.key("kind"), self.key("value"));
 				let t_bound = self.t(&bound);
 				(
-					"\tkind: Bound\n\tvalue: int\n".to_string(),
+					"\tkind: Bound\n\tvalue: _int\n".to_string(),
 					format!(
 						"let k = rt::field(o, {t}, {kind}, s)?;\n\tlet v = rt::attr(o, {value}, s)?;\n\tOk(crate::{c} {{ kind: rt::member_in(k, {t_bound})?, value: rt::int_in::<{r}>(v)? }})",
 						t = self.t(c),
@@ -943,11 +957,11 @@ impl<'a> Gen<'a> {
 		};
 		if t.display {
 			unary(self, "to_string", "__str__", "", "rt::str_out(ret)".to_string());
-			body.native.push("\tdef __str__(self) -> str: ...\n".to_string());
+			body.native.push("\tdef __str__(self) -> _str: ...\n".to_string());
 		}
 		if t.debug {
 			unary(self, "debug", "__repr__", "", "rt::str_out(ret)".to_string());
-			body.native.push("\tdef __repr__(self) -> str: ...\n".to_string());
+			body.native.push("\tdef __repr__(self) -> _str: ...\n".to_string());
 		}
 		if object && t.clone {
 			let lower = self.lower(ty, "ret");
@@ -982,10 +996,10 @@ impl<'a> Gen<'a> {
 			);
 			// Python makes a class that defines `__eq__` alone unhashable, as `Eq` without `Hash` is.
 			body.python.push(format!(
-				"\tdef __eq__(self, other: object) -> bool:\n\t\treturn _isinstance(other, {class}) and _n.{bare}_eq(self, other)\n"
+				"\tdef __eq__(self, other: _object) -> _bool:\n\t\treturn _isinstance(other, {class}) and _n.{bare}_eq(self, other)\n"
 			));
 			self.natives.push(format!(
-				"@_staticmethod\ndef {bare}_eq(this: {class}, other: {class}, /) -> bool: ...\n"
+				"@_staticmethod\ndef {bare}_eq(this: {class}, other: {class}, /) -> _bool: ...\n"
 			));
 		}
 		if t.default {
@@ -1382,9 +1396,9 @@ impl<'a> Gen<'a> {
 	/// The Python annotation of a value Rust lends a callback or closure: its bytes copied.
 	fn py_lent(&self, ty: &Type) -> String {
 		match ty.base() {
-			Type::Slice | Type::Vec | Type::Bytes => "bytes".to_string(),
+			Type::Slice | Type::Vec | Type::Bytes => "_bytes".to_string(),
 			Type::Option(inner) if matches!(inner.base(), Type::Slice | Type::Vec | Type::Bytes) => {
-				"bytes | None".to_string()
+				"_bytes | None".to_string()
 			}
 			_ => self.py_ty(ty),
 		}
@@ -2096,7 +2110,7 @@ fn ieee_eq(class: &str, fields: &[String]) -> String {
 		.map(|f| format!(" and _same(self.{f}, other.{f})"))
 		.collect();
 	format!(
-		"\tdef __eq__(self, other: object) -> bool:\n\t\treturn _isinstance(other, {class}){}\n",
+		"\tdef __eq__(self, other: _object) -> _bool:\n\t\treturn _isinstance(other, {class}){}\n",
 		same.concat()
 	)
 }

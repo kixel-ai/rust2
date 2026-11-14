@@ -610,7 +610,8 @@ caller imports it with no ignores.
   snake_case without their type's name (`moq.TrackProducer.append_group`), and two types
   whose names would match kept apart as Kotlin's are (`TokioConnect_Error`), as are
   top-level names that clash. A keyword, a member Python gives every such class, or a
-  method named as a field takes a trailing `_`.
+  method named as a field takes a trailing `_`. A member or top-level name may be a
+  builtin's (`bytes`, `int`): the module reads each builtin through an alias (`_bytes`).
   Constructors such as `new` stay static methods: `Counter.new(1)`.
 - **Objects** are classes owning their handle, freed once their last reference goes,
   which a call holds until it returns, so there is no `close()`. A `self` method, or
