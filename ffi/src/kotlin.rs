@@ -2486,12 +2486,25 @@ impl<'a> Gen<'a> {
 				self.refused_first(&bare, format!("try {{ {raw} }} finally {{ {} }}", after.join("; ")))
 			};
 			value = format!("({raw}) as {ok_kt}");
-		} else if let Some(c_ok) = direct(&outs, &written, &function.ok, function.err.as_ref()) {
-			// A result of a scalar, a handle, or nothing returns its value directly, raising
-			// its error as a `_Native.__Failed` Kotlin catches.
+		} else if let Some(c_ok) = direct(abi, &outs, &written, &function.ok, function.err.as_ref())
+			.filter(|c| self.room > 0 || opaque_of(abi, c).is_none_or(|o| one_word(&o)))
+		{
+			// A result of a scalar, a handle, an opaque value, or nothing returns its value
+			// directly, raising its error as a `_Native.__Failed` Kotlin catches; an opaque
+			// value past a word sets its words into this thread's slots.
 			let err_ty = function.err.as_ref().expect("a direct return is a result's");
-			let (jni, native) = jni_type(abi, &c_ok, &ok);
-			let params: Vec<(&str, &str)> = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect();
+			let words = opaque_of(abi, &c_ok).filter(|o| !one_word(o));
+			let (jni, native) = match words {
+				Some(_) => ("()", "Unit"),
+				None => jni_type(abi, &c_ok, &ok),
+			};
+			let mut params: Vec<(&str, &str)> = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect();
+			let a = self.fresh("a");
+			if let Some(opaque) = &words {
+				params.push(("jlongArray", "kotlin.LongArray"));
+				exprs.push(a.clone());
+				self.slots = self.slots.max(opaque.words() as usize);
+			}
 			let mut ptrs = Vec::new();
 			let mut decl = Vec::new();
 			for (name, _) in &outs {
@@ -2499,8 +2512,13 @@ impl<'a> Gen<'a> {
 				ptrs.push(format!("o_{name}.as_mut_ptr()"));
 			}
 			let ok_name = &outs[0].0;
-			let ret = match c_ok {
-				Ty::Void => String::new(),
+			let ret = match (&c_ok, &words) {
+				(Ty::Void, _) => String::new(),
+				(_, Some(opaque)) => format!(
+					"let ret = o_{ok_name}.assume_init();\n\t\trt::slots(env, p{}, &rt::to_words::<_, {}>(ret));",
+					params.len() - 1,
+					opaque.words()
+				),
 				_ => format!(
 					"let ret = o_{ok_name}.assume_init();\n\t\t{}",
 					ret_expr(abi, &c_ok, &ok)
@@ -2534,8 +2552,20 @@ impl<'a> Gen<'a> {
 				.replace("try {\n\t", "try {\n\ttry {\n\t\t")
 				.replacen("\n} finally", &format!("\n\t}} catch (f: _Native.__Failed) {{\n\t\t_Native.__Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n\t}}\n}} finally"), 1)),
 			};
-			value = match ok {
-				Type::Unit => caught,
+			value = match (&ok, &words) {
+				(Type::Unit, _) => caught,
+				(_, Some(opaque)) => {
+					let made: Vec<String> = (0..opaque.words()).map(|k| format!("{a}[{k}]")).collect();
+					format!(
+						"_Native.__slots.get()!!.let {{ {a} ->\n{}\n\t{}({})\n}}",
+						indent_by(&caught, 1),
+						match &c_ok {
+							Ty::Struct(name) => self.qualified(name),
+							_ => unreachable!("an opaque value is a struct"),
+						},
+						made.join(", ")
+					)
+				}
 				_ => self.lift(&ok, &c_ok, &format!("({caught})"), false),
 			};
 		} else if !outs.is_empty() {
@@ -3301,8 +3331,9 @@ fn ret_expr(abi: &Abi<'_>, c: &Ty, ok: &Type) -> String {
 }
 
 /// The C type of the value a call returns directly, raising its error, if it returns a
-/// result of a scalar, a handle, or nothing and writes back no argument: `Void` for nothing.
-fn direct(outs: &[(String, Ty)], written: &[(String, Type)], ok: &Type, err: Option<&Type>) -> Option<Ty> {
+/// result of a scalar, a handle, an opaque value, or nothing and writes back no argument:
+/// `Void` for nothing.
+fn direct(abi: &Abi<'_>, outs: &[(String, Ty)], written: &[(String, Type)], ok: &Type, err: Option<&Type>) -> Option<Ty> {
 	if err.is_none() || !written.is_empty() {
 		return None;
 	}
@@ -3312,6 +3343,7 @@ fn direct(outs: &[(String, Ty)], written: &[(String, Type)], ok: &Type, err: Opt
 			Ty::Bool | Ty::Int(_) | Ty::F32 | Ty::F64 | Ty::Char | Ty::Enum(_) | Ty::Handle { .. } => {
 				Some((**c).clone())
 			}
+			Ty::Struct(_) if opaque_of(abi, c).is_some() => Some((**c).clone()),
 			_ => None,
 		},
 		_ => None,

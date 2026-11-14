@@ -1226,6 +1226,19 @@ impl Moment {
 	}
 }
 
+/// `ticks` of `rate` a second, failing at a rate of zero: a value past a word in a `Result`.
+pub fn moment_at(ticks: u64, rate: u64) -> Result<Moment, String> {
+	Moment::new(ticks, rate).ok_or_else(|| "a rate of zero".to_string())
+}
+
+/// The stamp `millis` from zero, failing at zero: a value of a word in a `Result`.
+pub fn stamp_at(millis: u64) -> Result<Stamp, String> {
+	match millis {
+		0 => Err("zero".to_string()),
+		millis => Ok(Stamp::from_millis(millis)),
+	}
+}
+
 /// The moment `shift` returns for `moment`, which C copies in and out.
 pub fn shifted(moment: Moment, shift: impl Fn(Moment) -> Moment) -> Moment {
 	shift(moment)
