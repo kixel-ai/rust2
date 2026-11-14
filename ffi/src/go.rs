@@ -19,7 +19,9 @@
 //! at any depth, returns an `error`; a record a struct; a plain enum an integer type and its
 //! constants; an enum with data an interface each variant's struct implements; a trait an
 //! interface; a closure a function; a reader an `io.ReadSeeker`; a future a call taking a
-//! `context.Context` that blocks until the future is ready; a `Result` an `error`. The
+//! `context.Context` that blocks until the future is ready; a `Result` an `error`. A `Copy`
+//! type with private fields is a struct over its bytes, which only Rust makes or reads,
+//! and a zero one panics where Rust would read it. The
 //! runtime they share,
 //! [`runtime/rt.go`](../runtime/rt.go), holds the handles and the bytes Rust returns, and
 //! each package's copy of [`runtime/ffi_cgo.go`](../runtime/ffi_cgo.go) the arena a call lowers
@@ -1553,6 +1555,32 @@ impl<'a> Gen<'a> {
 		let ty = Type::Record(i);
 		let name = self.named(&ty).1;
 		let rust = abi.api.rust(&record.path, &record.args);
+		if let Some(opaque) = &record.opaque {
+			let text = format!(
+				"{name} is `{rust}`, its bytes, which only Rust makes or reads: copy it, but never\nmake or change one. A zero {name} panics where Rust would read it, and == is a compile\nerror, since bytes alike need not be equal: Equal, if it has one, is Rust's.\n\n{}",
+				record.docs
+			);
+			let _ = write!(
+				self.types,
+				"{}type {name} struct {{\n\t_ [0]func()\n\t// Bytes_ is its bytes, for the generated packages: use none of it.\n\tBytes_ [{}]uint{}\n\t// Made_ is whether Rust made it, rather than it being Go's zero value.\n\tMade_ bool\n}}\n\n",
+				docs(text.trim(), ""),
+				opaque.units(),
+				opaque.unit() * 8
+			);
+			let mut members = vec!["Bytes_".to_string(), "Made_".to_string()];
+			let fields = members.clone();
+			members.extend(self.methods_of(
+				&ty,
+				&c,
+				&rust,
+				record.traits,
+				&record.methods,
+				&Ty::Struct(c.clone()),
+				&fields,
+			));
+			self.distinct(&rust, &members);
+			return;
+		}
 		let fields: Vec<(String, String)> = (self.record_fields(i).into_iter().zip(&record.fields))
 			.map(|(name, f)| (name, self.go(&f.ty)))
 			.collect();
@@ -1617,6 +1645,16 @@ impl<'a> Gen<'a> {
 		let c = abi.record(i);
 		let ty = Type::Record(i);
 		let name = self.qualified(&ty);
+		if let Some(opaque) = &record.opaque {
+			let (local, bytes) = (
+				self.named(&ty).1,
+				format!("[{}]uint{}", opaque.units(), opaque.unit() * 8),
+			);
+			return format!(
+				"func lift_{c}(c C.{c}) {name} {{\n\treturn {name}{{Bytes_: *(*{bytes})(unsafe.Pointer(&c)), Made_: true}}\n}}\n\n\
+				func lower_{c}(v {name}) C.{c} {{\n\tif !v.Made_ {{\n\t\tpanic(\"a zero {local}, which only Rust makes\")\n\t}}\n\treturn *(*C.{c})(unsafe.Pointer(&v.Bytes_))\n}}\n\n"
+			);
+		}
 		let names = self.record_fields(i);
 		let lifted: Vec<String> = (record.fields.iter().zip(&names))
 			.map(|(f, field)| {
@@ -2062,8 +2100,7 @@ impl<'a> Gen<'a> {
 
 	/// The trampoline C calls for a closure of type `ty`, which Rust lends for a call or
 	/// keeps: it lends each object it takes by reference as its type, ended once it returns,
-	/// owns a clone of each `Copy` object, and hands Rust what the closure returns, writing
-	/// a `Result` through its outs.
+	/// and hands Rust what the closure returns, writing a `Result` through its outs.
 	fn trampoline(&mut self, ty: &Type, closure: &Closure) -> String {
 		let go = self.go(ty);
 		// Keyed by the Rust closure, since Go spells a borrowed and a copied object alike.
@@ -2090,13 +2127,6 @@ impl<'a> Gen<'a> {
 					let _ = writeln!(body, "\t{l} := lend_{}({p})", self.abi.object(i));
 					let _ = writeln!(body, "\tdefer {l}.Handle_.End()");
 					args.push(l);
-				}
-				// A copy is the callee's, which Go keeps as long as it likes: its own copy of
-				// the value Rust lends for the call, made as Rust copies it.
-				Type::Object(i) => {
-					self.convert(ty);
-					let c = self.abi.object(*i);
-					args.push(format!("own_{c}(C.{c}_copy({p}))"));
 				}
 				ty => args.push(self.lift_lent(ty, p)),
 			}
@@ -2149,40 +2179,13 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The C value Rust takes from the Go value `e` of type `ty` a closure returned, which
-	/// Rust then owns: a string's copy, or a clone of a `Copy` object's handle.
+	/// Rust then owns: a string's copy, and a value as it lowers.
 	fn returned(&mut self, ty: &Type, e: &str) -> String {
 		match ty {
 			Type::String => format!("cBufCopy({e})"),
-			Type::Object(i) => {
-				self.returns(*i);
-				format!("returned_{}({e})", self.abi.object(*i))
-			}
-			Type::Option(inner) => {
-				let Type::Object(i) = **inner else {
-					unreachable!("a closure returns an Option only of a Copy object, not {inner:?}")
-				};
-				self.returns(i);
-				format!("returnedOption_{}({e})", self.abi.object(i))
-			}
+			Type::Record(_) | Type::Option(_) => self.lower(ty, e),
 			ty => self.lower_scalar(ty, e),
 		}
-	}
-
-	/// The helpers handing Rust a clone of the handle of object `i` a closure returned, or
-	/// nil for none.
-	fn returns(&mut self, i: usize) {
-		let ty = Type::Object(i);
-		self.convert(&ty);
-		let c = self.abi.object(i);
-		let name = self.qualified(&ty);
-		let local = self.named(&ty).1;
-		self.helper(&format!("returned_{c}"), |_| {
-			format!(
-				"// returned_{c} is a new handle to a copy of v, which Rust frees once it copies v out of it.\n\
-				func returned_{c}(v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {local} returned to Rust\")\n\t}}\n\th := v.Handle_.Hold()\n\tif h == nil {{\n\t\tpanic(v.Handle_.Closed())\n\t}}\n\tdefer unhold_(v.Handle_, v)\n\treturn C.{c}_copy((*C.{c})(h))\n}}\n\n\
-				func returnedOption_{c}(v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\treturn nil\n\t}}\n\treturn returned_{c}(v)\n}}\n\n"
-			)
-		});
 	}
 
 	/// The Go statement closing each object the value `e` of type `ty` holds, once a call

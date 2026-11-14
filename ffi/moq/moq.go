@@ -114,8 +114,7 @@ func drive(driver *net.OriginDriver) <-chan error {
 			}
 			var deadline <-chan time.Time
 			if next != nil {
-				deadline = time.After(must(next.SaturatingDurationSince(kio.ClockNow())))
-				next.Close()
+				deadline = time.After(next.SaturatingDurationSince(kio.ClockNow()))
 			}
 			select {
 			case <-woken:
@@ -157,15 +156,15 @@ func script() {
 	expect(string(must(hello.PayloadGet()).Copy()) == "hello", "a frame has its payload")
 	expect(must(hello.TimestampGet()) == nil, "an untimed frame has no timestamp")
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
-	expect(must(kio.ClockNow().CheckedDurationSince(must(hello.Arrived()))) != nil, "a frame arrived before now")
+	expect(kio.ClockNow().CheckedDurationSince(must(hello.Arrived())) != nil, "a frame arrived before now")
 
-	// A timestamp is a `Copy` value behind a handle: passing it copies it out. The track is
+	// A timestamp is a `Copy` value Go copies, which allocates nothing. The track is
 	// untimed, so a timestamped frame is refused.
 	at := must(net.TimestampFromMillis(1500))
-	expect(must(at.AsSecs()) == 1, "1500 ms is 1 s")
-	err = writer.WriteFrame(at, rt.NewBytes([]byte("late")))
+	expect(at.AsSecs() == 1, "1500 ms is 1 s")
+	err = writer.WriteFrame(&at, rt.NewBytes([]byte("late")))
 	expect(errors.As(err, &merr) && err.Error() == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
-	expect(must(at.AsSecs()) == 1, "a copied timestamp stays usable")
+	expect(at.AsSecs() == 1, "a copied timestamp stays usable")
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as nil.
 	world := append([]byte{0xff}, "world"...)
@@ -252,7 +251,7 @@ func script() {
 	})
 	ranges := []net.TrackRange{net.TrackRangeLive(), groups}
 	ranged := must(must(net.TrackSubscriptionDefault().WithRanges(ranges)).RangesGet())
-	expect(slices.EqualFunc(ranged, ranges, func(a, b net.TrackRange) bool { return must(a.Equal(b)) }), "a subscription keeps its ranges")
+	expect(slices.EqualFunc(ranged, ranges, func(a, b net.TrackRange) bool { return a.Equal(b) }), "a subscription keeps its ranges")
 	expect(groups.Start == net.TrackAnchorAbsolute{V0: 2}, "groups start at their first")
 	expect(groups.End != nil && *groups.End == net.TrackAnchorAbsolute{V0: 6}, "groups end before their end")
 
@@ -274,7 +273,8 @@ func script() {
 	// A JSON track the catalog lists, published through moq-mux's generic `json_snapshot` at
 	// a JSON document, and a section Go parses from text, set in the lent catalog and read
 	// back as text.
-	status := must(catalog.JsonSnapshotConfig(must(publisher.CreateTrack("status", must(net.TrackInfoDefault().WithTimescale(net.TimescaleMILLI())))), mux.JsonConfigDefault(), mux.JsonOptionsDefault()))
+	milli := net.TimescaleMILLI()
+	status := must(catalog.JsonSnapshotConfig(must(publisher.CreateTrack("status", must(net.TrackInfoDefault().WithTimescale(&milli)))), mux.JsonConfigDefault(), mux.JsonOptionsDefault()))
 	expect(must(status.Name()) == "status", "a JSON snapshot has its track's name")
 	expect(must(catalog.IsClaimedJsonConfig("status")), "the JSON snapshot claims its name")
 	// A value Go parses is published as the track's latest, which a subscriber reads back

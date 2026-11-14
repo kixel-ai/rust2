@@ -24,13 +24,17 @@ fixtures/reject/src/lib.rs:1120:1: rust2-ffi: cannot export fn `hazard`: trait o
 	fixtures/reject/src/lib.rs:1110:1: note: C cannot implement `Hazard`: unsafe fn `risk`
 fixtures/reject/src/lib.rs:1125:1: rust2-ffi: cannot export fn `wide_non_zero`: NonZero `u128`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:112:1: rust2-ffi: cannot export fn `boxed`: reference inside a parameter `std::boxed::Box<&str>`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:1130:1: rust2-ffi: cannot export fn `hidden_answer`: opaque type `impl std::marker::Copy`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:1135:1: rust2-ffi: cannot export fn `hidden_items`: opaque type `impl std::marker::Copy`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:1140:1: rust2-ffi: cannot export fn `hidden_option`: opaque type `impl std::clone::Clone`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:1145:1: rust2-ffi: cannot export fn `boxed_bytes`: boxed slice of bytes `std::boxed::Box<[u8]>`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:1150:1: rust2-ffi: cannot export fn `count_later`: iterator of borrows in a future or callback; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:1155:1: rust2-ffi: cannot export fn `count_opaques`: generic parameter `std::iter::Iterator`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1147:1: rust2-ffi: cannot export fn `wrap`: returned object that borrows `View<'_>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1152:1: rust2-ffi: cannot export fn `hidden_wrap`: returned object that borrows `impl std::clone::Clone + '_`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1168:1: rust2-ffi: cannot export fn `picked`: closure signature `&'static Mark`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1173:1: rust2-ffi: cannot export fn `maybe_picked`: closure signature `std::option::Option<&'static Mark>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1178:1: rust2-ffi: cannot export fn `hidden_answer`: opaque type `impl std::marker::Copy`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1183:1: rust2-ffi: cannot export fn `hidden_items`: opaque type `impl std::marker::Copy`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1188:1: rust2-ffi: cannot export fn `hidden_option`: opaque type `impl std::clone::Clone`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1193:1: rust2-ffi: cannot export fn `boxed_bytes`: boxed slice of bytes `std::boxed::Box<[u8]>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1198:1: rust2-ffi: cannot export fn `count_later`: iterator of borrows in a future or callback; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:11:1: rust2-ffi: cannot export fn `map`: foreign type `std::collections::HashMap`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1203:1: rust2-ffi: cannot export fn `count_opaques`: generic parameter `std::iter::Iterator`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:123:1: rust2-ffi: cannot export fn `parse_later`: returned object that borrows `impl std::future::Future<Output = std::result::Result<u32, tls::held::Malformed<'_>>>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:137:1: rust2-ffi: cannot export fn `poll_ready`: Poll with no Context or waiter parameter `std::task::Poll<u32>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:154:2: rust2-ffi: cannot export method `Link::session`: borrowed return that is not Clone `tls::held::Handoff`; exclude it in the config to leave it out

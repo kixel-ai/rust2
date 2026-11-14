@@ -46,8 +46,8 @@ pub struct Why {
 /// Types of crates that are no export, by crate and name, each exported as an object where
 /// some crate builds with it, and named at the facade's root by its role: `url::Url` as
 /// `Url` and `serde_json::Value`, which a `Serialize` or `Deserialize` parameter takes, as
-/// `Json`, each made by parsing its text; and `std::time::Instant` as `Instant`, which
-/// only Rust makes, and which C copies and compares.
+/// `Json`, each made by parsing its text; and `std::time::Instant` as `Instant`, a value
+/// only Rust makes, which C holds as its bytes and compares.
 const FOREIGN: [(&str, &str, &str); 3] = [
 	("url", "Url", "Url"),
 	("serde_json", "Value", "Json"),
@@ -63,8 +63,9 @@ pub const NOT_INFERRED: &str = "instance not inferred";
 
 /// What C can never hold: left out and listed in the census rather than refused, since
 /// exporting it would need constructors or returns the crate has no use for.
-const UNHELD: [&str; 4] = [
+const UNHELD: [&str; 5] = [
 	"object no export returns",
+	"value no export returns",
 	"generic type no export instantiates",
 	"type C never holds",
 	UNMET,
@@ -190,6 +191,8 @@ pub struct Report {
 #[derive(Clone)]
 enum Decl {
 	Record(usize),
+	/// A `Copy` type C cannot see inside: a record of its bytes, numbered among records.
+	Value(usize),
 	Enum(usize),
 	Object(usize),
 	Callback(usize),
@@ -450,7 +453,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 				constants: Vec::new(),
 				crates: Vec::new(),
 				reached: Vec::new(),
-				targets: vec![tcx.sess.opts.target_triple.tuple().to_string()],
+				targets: vec![target(tcx)],
 			},
 		};
 		c.walk();
@@ -1061,6 +1064,17 @@ impl<'tcx> Collector<'tcx> {
 			.any(|&(k, n, _)| k == krate.as_str() && n == name.as_str())
 	}
 
+	/// Whether the foreign type `did` is a value C holds as its bytes, as a `Copy` one is.
+	fn foreign_value(&self, did: DefId) -> bool {
+		let tcx = self.tcx;
+		// A trait object's handle holds the `Arc` or `&'static`, never a value.
+		if tcx.def_kind(did) == DefKind::Trait {
+			return false;
+		}
+		let ty = tcx.type_of(did).instantiate_identity().skip_norm_wip();
+		!self.opaque(did) && implements(tcx, ty, did, sym::Copy) && padding(tcx, ty).is_some()
+	}
+
 	/// Each type a signature the export maps names, bounds included, at every choice
 	/// [`Self::instantiate`] takes while inferring: each function's, constant's, and trait
 	/// method's, and each type's `pub` fields and the inherent methods and constants that
@@ -1618,6 +1632,8 @@ impl<'tcx> Collector<'tcx> {
 							tuple: false,
 							methods: Vec::new(),
 							traits: Traits::default(),
+							opaque: None,
+							padding: Default::default(),
 						});
 					}
 					Decl::Enum(i) => {
@@ -1635,6 +1651,28 @@ impl<'tcx> Collector<'tcx> {
 							methods: Vec::new(),
 							traits: Traits::default(),
 							foreign: false,
+						});
+					}
+					Decl::Value(i) => {
+						*i = api.records.len();
+						let ty = tcx.type_of(def_id).instantiate(tcx, site.args).skip_norm_wip();
+						let lifetimes = tcx.generics_of(def_id).own_counts().lifetimes;
+						let opaque = opaque(tcx, &self.sysroot, ty, lifetimes, false);
+						let padding = padding(tcx, ty).expect("a value's bytes do not depend on it");
+						api.records.push(Record {
+							path,
+							home: home.clone(),
+							shown,
+							args: Vec::new(),
+							span,
+							on: On::ALL,
+							docs,
+							fields: Vec::new(),
+							tuple: false,
+							methods: Vec::new(),
+							traits: Traits::default(),
+							opaque: Some(opaque),
+							padding: [(target(tcx), padding)].into(),
 						});
 					}
 					Decl::Object(i) => {
@@ -1678,11 +1716,37 @@ impl<'tcx> Collector<'tcx> {
 		}
 		// After every declared object, so `prune` can drop each that no export names. Until
 		// here, each maps only to decide what does, never to an index kept.
+		// A foreign value goes after every declared record, for the same reason.
 		for n in 0..self.foreign.len() {
-			let index = self.api.objects.len();
-			self.foreign[n].1 = index;
-			let object = self.foreign_object(self.foreign[n].0, index);
-			self.api.objects.push(object);
+			let def_id = self.foreign[n].0;
+			let object = self.foreign_object(def_id, self.api.objects.len());
+			match self.foreign_value(def_id) {
+				true => {
+					self.foreign[n].1 = self.api.records.len();
+					let ty = tcx.type_of(def_id).instantiate_identity().skip_norm_wip();
+					let opaque = opaque(tcx, &self.sysroot, ty, 0, true);
+					let padding = padding(tcx, ty).expect("a value's bytes do not depend on it");
+					self.api.records.push(Record {
+						path: object.path,
+						home: object.home,
+						shown: object.shown,
+						args: object.args,
+						span: object.span,
+						on: object.on,
+						docs: object.docs,
+						fields: Vec::new(),
+						tuple: false,
+						methods: object.methods,
+						traits: object.traits,
+						opaque: Some(opaque),
+						padding: [(target(tcx), padding)].into(),
+					});
+				}
+				false => {
+					self.foreign[n].1 = self.api.objects.len();
+					self.api.objects.push(object);
+				}
+			}
 		}
 		// After every declared enum, so `prune` can drop it if no export names it.
 		if let Some(level) = &mut self.level {
@@ -1996,16 +2060,44 @@ impl<'tcx> Collector<'tcx> {
 		}
 	}
 
-	/// An object, if the type can move across threads. Shared borrows of one that is not
-	/// `Sync` are exclusive.
+	/// An object, if the type can move across threads, or if it is also `Copy`, a value C
+	/// holds as its bytes, unless C changes it in place, which a copy could not write back,
+	/// or which of its bytes it initializes depends on its value, so its padding could not
+	/// be zeroed. Shared borrows of an object that is not `Sync` are exclusive.
 	fn object(&self, site: &Site<'tcx>) -> Decl {
+		let (tcx, ty, def_id) = (self.tcx, self.site_ty(site), site.key.def_id);
+		let copy = implements(tcx, ty, def_id, sym::Copy) && !self.changed(def_id) && padding(tcx, ty).is_some();
 		if self.orphans.contains(&site.key) {
-			return Decl::Refused(why("object no export returns", ""));
+			let construct = match copy {
+				true => "value no export returns",
+				false => "object no export returns",
+			};
+			return Decl::Refused(why(construct, ""));
 		}
-		match implements(self.tcx, self.site_ty(site), site.key.def_id, sym::Send) {
-			true => Decl::Object(0),
-			false => Decl::Refused(why("object not Send", "")),
+		match (implements(tcx, ty, def_id, sym::Send), copy) {
+			(true, true) => Decl::Value(0),
+			(true, false) => Decl::Object(0),
+			(false, _) => Decl::Refused(why("object not Send", "")),
 		}
+	}
+
+	/// Whether C may change the type `def_id` in place: through a `pub` field's setter, or
+	/// an inherent `pub` method taking `&mut self`.
+	fn changed(&self, def_id: DefId) -> bool {
+		let tcx = self.tcx;
+		let fields = matches!(tcx.def_kind(def_id), DefKind::Struct)
+			&& tcx.adt_def(def_id).all_fields().any(|field| field.vis.is_public());
+		fields
+			|| (tcx.inherent_impls(def_id).iter()).any(|&imp| {
+				(tcx.associated_items(imp).in_definition_order()).any(|item| {
+					item.is_method()
+						&& tcx.visibility(item.def_id).is_public()
+						&& matches!(
+							tcx.fn_sig(item.def_id).skip_binder().inputs().skip_binder().first().map(|input| input.kind()),
+							Some(ty::Ref(_, _, mutability)) if mutability.is_mut()
+						)
+				})
+			})
 	}
 
 	/// The objects C can never hold a handle to: no export it can call returns one.
@@ -2023,7 +2115,8 @@ impl<'tcx> Collector<'tcx> {
 				defaults.push(ty);
 			}
 		}
-		let mut held = vec![false; api.objects.len()];
+		// Each object and opaque value C can hold, which only Rust makes.
+		let mut held: std::collections::HashSet<Type> = std::collections::HashSet::new();
 		loop {
 			let mut reached = Vec::new();
 			for ty in &defaults {
@@ -2047,21 +2140,23 @@ impl<'tcx> Collector<'tcx> {
 					}
 				}
 			}
-			reached.retain(|&i| !held[i]);
+			reached.retain(|ty| !held.contains(ty));
 			if reached.is_empty() {
 				break;
 			}
-			for i in reached {
-				held[i] = true;
-			}
+			held.extend(reached);
 		}
-		// Another crate's type an opaque handle holds, as each object of the crate's.
+		// Another crate's type an opaque handle holds, as each object of the crate's; a
+		// foreign value's index is a record's.
 		let opaque = (self.foreign.iter())
-			.filter(|&&(_, i)| api.objects[i].opaque.is_some() && !held[i])
+			.filter(|&&(did, i)| {
+				!self.foreign_value(did) && api.objects[i].opaque.is_some() && !held.contains(&Type::Object(i))
+			})
 			.map(|&(def_id, _)| Key { def_id, args: None });
 		(self.decls.iter())
 			.filter_map(|(&key, decl)| match decl {
-				Decl::Object(i) if !held[*i] => Some(key),
+				Decl::Object(i) if !held.contains(&Type::Object(*i)) => Some(key),
+				Decl::Value(i) if !held.contains(&Type::Record(*i)) => Some(key),
 				_ => None,
 			})
 			.chain(opaque)
@@ -2266,6 +2361,14 @@ impl<'tcx> Collector<'tcx> {
 						e.methods = methods;
 						e.traits = traits;
 					}
+					// One with no `pub` field, nor a `&mut self` method, as `object` decides.
+					Some(Decl::Value(index)) => {
+						let (methods, traits) = self.methods(&site);
+						let record = &mut self.api.records[index];
+						record.args = args;
+						record.methods = methods;
+						record.traits = traits;
+					}
 					Some(Decl::Object(index)) => {
 						let (mut methods, traits) = self.methods(&site);
 						if kind == DefKind::Struct {
@@ -2315,8 +2418,12 @@ impl<'tcx> Collector<'tcx> {
 		}
 		for n in (0..self.foreign.len()).rev() {
 			let gone = self.foreign[n].1;
+			let value = self.foreign_value(self.foreign[n].0);
 			let api = &self.api;
-			let object = Type::Object(gone);
+			let object = match value {
+				true => Type::Record(gone),
+				false => Type::Object(gone),
+			};
 			let signature = |f: &Function| {
 				(f.params.iter().map(|p| &p.ty))
 					.chain([&f.ok])
@@ -2327,20 +2434,31 @@ impl<'tcx> Collector<'tcx> {
 			let fields = |fields: &[Field]| fields.iter().any(|f| names(&f.ty, &object));
 			let args = |args: &[Type]| args.iter().any(|ty| names(ty, &object));
 			let used = api.functions.iter().any(signature)
-				|| (api.records.iter()).any(|r| args(&r.args) || fields(&r.fields) || r.methods.iter().any(signature))
+				|| (api.records.iter().enumerate()).any(|(i, r)| {
+					(!value || i != gone) && (args(&r.args) || fields(&r.fields) || r.methods.iter().any(signature))
+				})
 				|| (api.enums.iter()).any(|e| {
 					args(&e.args) || e.variants.iter().any(|v| fields(&v.fields)) || e.methods.iter().any(signature)
 				})
 				|| (api.objects.iter().enumerate())
-					.any(|(i, o)| i != gone && (args(&o.args) || o.methods.iter().any(signature)))
+					.any(|(i, o)| (value || i != gone) && (args(&o.args) || o.methods.iter().any(signature)))
 				|| (api.callbacks.iter()).any(|c| c.methods.iter().any(signature));
 			if used {
 				continue;
 			}
-			self.api.objects.remove(gone);
+			// A foreign value is among the last records, as an object among the last objects.
+			match value {
+				true => drop(self.api.records.remove(gone)),
+				false => drop(self.api.objects.remove(gone)),
+			}
 			self.foreign.remove(n);
-			for later in &mut self.foreign[n..] {
-				later.1 -= 1;
+			let values: Vec<bool> = (self.foreign[n..].iter())
+				.map(|&(did, _)| self.foreign_value(did))
+				.collect();
+			for (later, later_value) in self.foreign[n..].iter_mut().zip(values) {
+				if later_value == value {
+					later.1 -= 1;
+				}
 			}
 			let api = &mut self.api;
 			let functions = (api.functions.iter_mut())
@@ -2354,12 +2472,12 @@ impl<'tcx> Collector<'tcx> {
 					.chain([&mut f.ok])
 					.chain(&mut f.err)
 					.chain(instance)
-					.for_each(|ty| renumber(ty, gone));
+					.for_each(|ty| renumber(ty, gone, value));
 			}
 			for r in &mut api.records {
 				(r.args.iter_mut())
 					.chain(r.fields.iter_mut().map(|f| &mut f.ty))
-					.for_each(|ty| renumber(ty, gone));
+					.for_each(|ty| renumber(ty, gone, value));
 			}
 			for e in &mut api.enums {
 				(e.args.iter_mut())
@@ -2368,10 +2486,10 @@ impl<'tcx> Collector<'tcx> {
 							.iter_mut()
 							.flat_map(|v| v.fields.iter_mut().map(|f| &mut f.ty)),
 					)
-					.for_each(|ty| renumber(ty, gone));
+					.for_each(|ty| renumber(ty, gone, value));
 			}
 			for o in &mut api.objects {
-				o.args.iter_mut().for_each(|ty| renumber(ty, gone));
+				o.args.iter_mut().for_each(|ty| renumber(ty, gone, value));
 			}
 		}
 	}
@@ -3137,9 +3255,9 @@ impl<'tcx> Collector<'tcx> {
 			_ => output,
 		};
 		// The glue cannot name an `impl Trait`'s hidden type, so one in a return that maps
-		// crosses only as what the glue passes on whole, an object's handle. A future and a
-		// collected iterator are taken apart instead, so it is what their output or items
-		// name that crosses.
+		// crosses only as what the glue passes on whole: an object's handle, or a value's
+		// bytes. A future and a collected iterator are taken apart instead, so it is what
+		// their output or items name that crosses.
 		let unrevealed = sig.output();
 		let mut named = if ok.is_ok() { vec![unrevealed] } else { Vec::new() };
 		while let Some(ty) = named.pop() {
@@ -3165,7 +3283,7 @@ impl<'tcx> Collector<'tcx> {
 				}
 				let hidden = normalize(ty);
 				if !matches!(hidden.kind(), ty::Adt(adt, args)
-					if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))))
+					if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_) | Decl::Value(_))))
 				{
 					errs.push(why("opaque type", ty.to_string()));
 				}
@@ -3830,7 +3948,7 @@ impl<'tcx> Collector<'tcx> {
 							true => self.instances.iter().any(|site| site.key == key),
 							false => matches!(
 								self.decls.get(&key),
-								Some(Decl::Record(_) | Decl::Enum(_) | Decl::Object(_))
+								Some(Decl::Record(_) | Decl::Value(_) | Decl::Enum(_) | Decl::Object(_))
 							),
 						}
 					});
@@ -3880,7 +3998,7 @@ impl<'tcx> Collector<'tcx> {
 							true => self.instances.iter().any(|site| site.key == key),
 							false => matches!(
 								self.decls.get(&key),
-								Some(Decl::Record(_) | Decl::Enum(_) | Decl::Object(_))
+								Some(Decl::Record(_) | Decl::Value(_) | Decl::Enum(_) | Decl::Object(_))
 							),
 						}
 					});
@@ -3963,13 +4081,16 @@ impl<'tcx> Collector<'tcx> {
 		let sig = tcx.fn_sig(def_id).instantiate(tcx, tcx.mk_args(base)).skip_norm_wip();
 		// An `async fn`'s future, or a returned `impl Trait`, captures it.
 		kept |= sig.skip_binder().output().walk().any(|arg| arg == param.into());
-		// A `Copy` object, which C lends as its handle and hands back as a new one; not one
-		// an opaque handle holds, which the closure would take as the handle's `rt::Owned`.
-		let env = TypingEnv::post_analysis(tcx, def_id);
+		// An opaque value, or a reference to one, which C copies. Another crate's value an
+		// opaque handle holds is an object, never a value, so it never matches.
 		let copied = |ty: Ty<'tcx>, mapped: &Type| {
-			matches!(mapped, Type::Object(_))
-				&& self.opaque_value(ty).is_none()
-				&& tcx.type_is_copy_modulo_regions(env, ty)
+			let base = match mapped {
+				Type::Ref(Mutability::Not, inner) => &**inner,
+				mapped => mapped,
+			};
+			matches!(base, Type::Record(_))
+				&& matches!(ty.peel_refs().kind(), ty::Adt(adt, args)
+					if matches!(self.decl(adt.did(), *args), Some(Decl::Value(_))) || self.foreign_value(adt.did()))
 		};
 		// Each parameter makes its own closure, which one type parameter cannot name twice.
 		if sig
@@ -3998,8 +4119,7 @@ impl<'tcx> Collector<'tcx> {
 			}
 			match self.ty(input, Pos::Param) {
 				// An object is lent as a handle for the call, but an opaque one, whose
-				// handle holds its value erased, has none to lend; so is a `Copy` one taken by value, which C
-				// copies to keep.
+				// handle holds its value erased, has none to lend; an opaque value is copied, which C keeps.
 				Ok(ty)
 					if foreign_arg(&ty)
 						|| matches!(&ty, Type::Ref(_, inner) if matches!(**inner, Type::Object(_)))
@@ -4022,14 +4142,16 @@ impl<'tcx> Collector<'tcx> {
 			}
 			_ => (ret, None),
 		};
-		// What C hands Rust: a value, a `String`, or a `Copy` object or an `Option` of one.
+		// What C hands Rust: a scalar, a `String`, or an opaque value or an `Option` of one,
+		// owned, as C has no reference to hand back.
+		let owned = |ty: Ty<'tcx>, mapped: &Type| !matches!(mapped, Type::Ref(..)) && copied(ty, mapped);
 		let ok = match self.ty(ok, Pos::Return) {
 			Ok(mapped)
 				if foreign_return(&mapped)
 					|| mapped == Type::String
 					|| match (&mapped, ok.kind()) {
-						(Type::Option(inner), ty::Adt(_, args)) => copied(args.type_at(0), inner),
-						(mapped, _) => copied(ok, mapped),
+						(Type::Option(inner), ty::Adt(_, args)) => owned(args.type_at(0), inner),
+						(mapped, _) => owned(ok, mapped),
 					} =>
 			{
 				mapped
@@ -4547,8 +4669,10 @@ impl<'tcx> Collector<'tcx> {
 				// Another crate's `&'static dyn Trait`, which a handle holds.
 				ty::Ref(region, ..) if self.opaque_value(ty).is_some() => held.push(*region),
 				ty::Ref(region, ..) => lent.push(*region),
+				// An object, an opaque value, or another crate's value an opaque handle holds, holds
+				// what its lifetime parameters name.
 				ty::Adt(adt, args)
-					if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_)))
+					if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_) | Decl::Value(_)))
 						|| self.opaque_value(ty).is_some() =>
 				{
 					held.extend(args.regions())
@@ -4588,13 +4712,14 @@ impl<'tcx> Collector<'tcx> {
 							hidden = tcx.type_of(*def_id).instantiate(tcx, args).skip_norm_wip();
 						}
 						// One whose hidden type is an object crosses as its handle, which the glue
-						// keeps as the opaque type itself, so it holds every lifetime it captures,
-						// even one its hidden type does not borrow; one collected at the call holds
-						// nothing past it, and any other is refused. Looked up with regions erased,
-						// since they may be the signature's bound ones, which a key never names.
+						// keeps as the opaque type itself, and one whose hidden type is a value as
+						// its bytes, so each holds every lifetime it captures, even one its hidden
+						// type does not borrow; one collected at the call holds nothing past it,
+						// and any other is refused. Looked up with regions erased, since they may
+						// be the signature's bound ones, which a key never names.
 						let erased = ty::fold_regions(tcx, hidden, |_, _| tcx.lifetimes.re_erased);
 						let object = matches!(erased.kind(), ty::Adt(adt, args)
-							if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))));
+							if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_) | Decl::Value(_))));
 						if object {
 							held.extend(args.iter().flat_map(|arg| arg.walk()).filter_map(|arg| arg.as_region()));
 						}
@@ -5130,8 +5255,9 @@ impl<'tcx> Collector<'tcx> {
 				{
 					Type::SocketAddr(family)
 				} else if let Some(&(_, i)) = (self.foreign.iter()).find(|&&(ty, _)| ty == did && !self.opaque(did)) {
-					// A value holds only values, and handles it can copy.
+					// A value holds only values.
 					match pos {
+						_ if self.foreign_value(did) => Type::Record(i),
 						Pos::Field => return Err(why("object in a value", tcx.def_path_str(did))),
 						_ => Type::Object(i),
 					}
@@ -5259,7 +5385,7 @@ impl<'tcx> Collector<'tcx> {
 						None => tcx.def_path_str(did),
 					};
 					match self.decls.get(&key) {
-						Some(Decl::Record(i)) => Type::Record(*i),
+						Some(Decl::Record(i) | Decl::Value(i)) => Type::Record(*i),
 						Some(Decl::Enum(i)) => Type::Enum(*i),
 						// A value holds only values, and handles it can copy.
 						Some(Decl::Object(_)) if pos == Pos::Field && !implements(tcx, ty, did, sym::Copy) => {
@@ -5407,9 +5533,10 @@ fn foreign_arg(ty: &Type) -> bool {
 }
 
 /// Whether C can make a `ty` to pass, holding handles only to the objects in `held`.
-fn buildable(api: &Api, ty: &Type, held: &[bool]) -> bool {
+fn buildable(api: &Api, ty: &Type, held: &std::collections::HashSet<Type>) -> bool {
 	match ty {
-		Type::Object(i) => held[*i],
+		Type::Object(_) => held.contains(ty),
+		Type::Record(i) if api.records[*i].opaque.is_some() => held.contains(ty),
 		Type::Ref(_, inner) | Type::Box(inner) => buildable(api, inner, held),
 		Type::Record(i) => api.records[*i].fields.iter().all(|f| buildable(api, &f.ty, held)),
 		Type::Tuple(elements) => elements.iter().all(|ty| buildable(api, ty, held)),
@@ -5421,10 +5548,11 @@ fn buildable(api: &Api, ty: &Type, held: &[bool]) -> bool {
 	}
 }
 
-/// The objects a returned `ty` may hand C a handle to.
-fn returns(api: &Api, ty: &Type, objects: &mut Vec<usize>) {
+/// The objects a returned `ty` may hand C a handle to, and the opaque values it may hand C.
+fn returns(api: &Api, ty: &Type, objects: &mut Vec<Type>) {
 	match ty {
-		Type::Object(i) => objects.push(*i),
+		Type::Object(_) => objects.push(ty.clone()),
+		Type::Record(i) if api.records[*i].opaque.is_some() => objects.push(ty.clone()),
 		Type::Ref(_, inner) | Type::Box(inner) | Type::Option(inner) | Type::List(_, inner) => {
 			returns(api, inner, objects)
 		}
@@ -5449,18 +5577,21 @@ fn serde(tcx: TyCtxt<'_>, tr: DefId) -> bool {
 		)
 }
 
-/// Renumber each object after `gone`, which is dropped, in `ty`.
-fn renumber(ty: &mut Type, gone: usize) {
+/// Renumber each object after `gone`, which is dropped, in `ty`, or with `value`, each record.
+fn renumber(ty: &mut Type, gone: usize, value: bool) {
 	match ty {
-		Type::Object(o) if *o > gone => *o -= 1,
-		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => renumber(inner, gone),
-		Type::Tuple(elements) => elements.iter_mut().for_each(|ty| renumber(ty, gone)),
+		Type::Object(o) if !value && *o > gone => *o -= 1,
+		Type::Record(r) if value && *r > gone => *r -= 1,
+		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => {
+			renumber(inner, gone, value)
+		}
+		Type::Tuple(elements) => elements.iter_mut().for_each(|ty| renumber(ty, gone, value)),
 		Type::Closure(closure) => (closure
 			.params
 			.iter_mut()
 			.chain([&mut closure.ok])
 			.chain(&mut closure.err))
-		.for_each(|ty| renumber(ty, gone)),
+		.for_each(|ty| renumber(ty, gone, value)),
 		_ => {}
 	}
 }
@@ -5677,6 +5808,203 @@ fn marker(tcx: TyCtxt<'_>, tr: DefId) -> bool {
 			tcx.lang_items().unpin_trait(),
 		]
 		.contains(&Some(tr))
+}
+
+/// How C holds the `Copy` type `ty`, with `lifetimes` lifetime parameters, as its bytes.
+fn opaque<'tcx>(
+	tcx: TyCtxt<'tcx>,
+	sysroot: &[CrateNum],
+	ty: Ty<'tcx>,
+	lifetimes: usize,
+	foreign: bool,
+) -> crate::ir::Opaque {
+	let env = TypingEnv::fully_monomorphized();
+	let ty = tcx.erase_and_anonymize_regions(ty);
+	// A type that has a layout on its target, as every exported `Copy` type does.
+	let layout = |ty: Ty<'tcx>| tcx.layout_of(env.as_query_input(ty)).ok().map(|l| l.layout);
+	let own = layout(ty).expect("an exported type has a layout");
+	let eq = (tcx.get_diagnostic_item(sym::PartialEq))
+		.and_then(|tr| (tcx.associated_item_def_ids(tr).iter().copied()).find(|&f| tcx.item_name(f) == sym::eq));
+	// Whether every byte of `ty` belongs to an integer, `bool`, or `char` in it, and its
+	// `PartialEq`, if any, is derived or std's, so equal values have equal bytes.
+	fn dense<'tcx>(
+		tcx: TyCtxt<'tcx>,
+		sysroot: &[CrateNum],
+		env: TypingEnv<'tcx>,
+		eq: Option<DefId>,
+		ty: Ty<'tcx>,
+	) -> bool {
+		match ty.kind() {
+			ty::Int(_) | ty::Uint(_) | ty::Bool | ty::Char => true,
+			ty::Pat(base, _) => dense(tcx, sysroot, env, eq, *base),
+			ty::Array(element, _) => dense(tcx, sysroot, env, eq, *element),
+			ty::Adt(adt, args) if adt.is_struct() => {
+				let std = sysroot.contains(&adt.did().krate);
+				let derived = || {
+					let Some(eq) = eq else { return true };
+					match ty::Instance::try_resolve(tcx, env, eq, tcx.mk_args(&[ty.into(), ty.into()])) {
+						Ok(Some(instance)) => {
+							(tcx.impl_of_assoc(instance.def_id())).is_none_or(|imp| tcx.is_automatically_derived(imp))
+						}
+						_ => true,
+					}
+				};
+				if !std && !derived() {
+					return false;
+				}
+				let Ok(own) = tcx.layout_of(env.as_query_input(ty)) else {
+					return false;
+				};
+				let mut covered = 0;
+				for field in adt.all_fields() {
+					let Ok(field) = tcx.try_normalize_erasing_regions(
+						env,
+						ty::Unnormalized::new_wip(field.ty(tcx, *args).skip_norm_wip()),
+					) else {
+						return false;
+					};
+					let Ok(layout) = tcx.layout_of(env.as_query_input(field)) else {
+						return false;
+					};
+					if !dense(tcx, sysroot, env, eq, field) {
+						return false;
+					}
+					covered += layout.size.bytes();
+				}
+				covered == own.size.bytes()
+			}
+			_ => false,
+		}
+	}
+	crate::ir::Opaque {
+		size: own.size().bytes(),
+		align: own.align().bytes(),
+		dense: dense(tcx, sysroot, env, eq, ty),
+		lifetimes,
+		foreign,
+	}
+}
+
+/// The target the export is collected for.
+fn target(tcx: TyCtxt<'_>) -> String {
+	tcx.sess.opts.target_triple.tuple().to_string()
+}
+
+/// The padding of `ty` on this target, as `(offset, length)` ranges, which the glue zeroes
+/// so no byte Rust leaves uninitialized reaches a language; or none when which bytes it
+/// initializes depends on its value: a union, such as `MaybeUninit`, or an enum whose
+/// variants initialize different bytes, such as `Option<u32>`, whose `None` leaves its
+/// payload uninitialized.
+fn padding<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Vec<(u64, u64)>> {
+	use rustc_abi::{FieldsShape, Variants};
+	use rustc_middle::ty::layout::{LayoutCx, TyAndLayout};
+	let env = TypingEnv::fully_monomorphized();
+	let cx = LayoutCx::new(tcx, env);
+	let ty = tcx.erase_and_anonymize_regions(ty);
+	let layout = tcx.layout_of(env.as_query_input(ty)).ok()?;
+	// The spans `(offset, length)` of each byte `layout` initializes, sorted and merged, so
+	// what they hold grows with the type's shape, never with its size.
+	fn init<'tcx>(cx: &LayoutCx<'tcx>, layout: TyAndLayout<'tcx>) -> Option<Vec<(u64, u64)>> {
+		match layout.ty.kind() {
+			ty::Adt(adt, _) if adt.is_union() => return None,
+			ty::Int(_)
+			| ty::Uint(_)
+			| ty::Float(_)
+			| ty::Bool
+			| ty::Char
+			| ty::RawPtr(..)
+			| ty::Ref(..)
+			| ty::FnPtr(..) => return Some(merged(vec![(0, layout.size.bytes())])),
+			_ => {}
+		}
+		match &layout.variants {
+			Variants::Empty => Some(Vec::new()),
+			Variants::Single { .. } => fields(cx, layout),
+			Variants::Multiple {
+				tag,
+				tag_field,
+				variants,
+				..
+			} => {
+				let tag = (layout.fields.offset(tag_field.as_usize()).bytes(), tag.size(cx).bytes());
+				let mut each: Option<Vec<(u64, u64)>> = None;
+				for variant in variants.indices() {
+					let mut mine = fields(cx, layout.for_variant(cx, variant))?;
+					mine.push(tag);
+					let mine = merged(mine);
+					match &each {
+						Some(first) if *first != mine => return None,
+						Some(_) => {}
+						None => each = Some(mine),
+					}
+				}
+				Some(each.unwrap_or_default())
+			}
+		}
+	}
+	fn fields<'tcx>(cx: &LayoutCx<'tcx>, layout: TyAndLayout<'tcx>) -> Option<Vec<(u64, u64)>> {
+		match &layout.fields {
+			FieldsShape::Primitive => Some(merged(vec![(0, layout.size.bytes())])),
+			FieldsShape::Union(_) => None,
+			FieldsShape::Array { stride, count } => {
+				// Every element initializes the same bytes, so one is read and stamped at
+				// each stride: walking each would never end for `[(); usize::MAX]`.
+				let element = layout.field(cx, 0);
+				let (size, stride) = (element.size.bytes(), stride.bytes());
+				if *count == 0 || size == 0 {
+					return Some(Vec::new());
+				}
+				let mine = init(cx, element)?;
+				// A whole element tiling the array, as each of `[u8; 1 << 40]`'s does, is one span.
+				if mine == [(0, size)] && stride == size {
+					return Some(vec![(0, size * count)]);
+				}
+				Some(merged(
+					(0..*count)
+						.flat_map(|n| mine.iter().map(move |&(at, len)| (n * stride + at, len)))
+						.collect(),
+				))
+			}
+			FieldsShape::Arbitrary { .. } => {
+				let mut spans = Vec::new();
+				for n in 0..layout.fields.count() {
+					let at = layout.fields.offset(n).bytes();
+					spans.extend(
+						init(cx, layout.field(cx, n))?
+							.into_iter()
+							.map(|(start, len)| (at + start, len)),
+					);
+				}
+				Some(merged(spans))
+			}
+		}
+	}
+	// `spans` sorted, without empty ones, and each overlapping or adjacent pair joined.
+	fn merged(mut spans: Vec<(u64, u64)>) -> Vec<(u64, u64)> {
+		spans.retain(|&(_, len)| len > 0);
+		spans.sort_unstable();
+		let mut out: Vec<(u64, u64)> = Vec::with_capacity(spans.len());
+		for (at, len) in spans {
+			match out.last_mut() {
+				Some((start, n)) if at <= *start + *n => *n = (*n).max(at + len - *start),
+				_ => out.push((at, len)),
+			}
+		}
+		out
+	}
+	// The padding is what the initialized spans leave between them and after the last.
+	let mut ranges = Vec::new();
+	let mut end = 0;
+	for (at, len) in init(&cx, layout)? {
+		if at > end {
+			ranges.push((end, at - end));
+		}
+		end = at + len;
+	}
+	if layout.size.bytes() > end {
+		ranges.push((end, layout.size.bytes() - end));
+	}
+	Some(ranges)
 }
 
 /// Whether `ty`, the type `def_id` at some arguments, implements the std trait `item`.

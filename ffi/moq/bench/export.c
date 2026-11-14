@@ -3,8 +3,10 @@
  * bench/export.cpp through the C++ header. Futures are polled by hand with a null waker.
  * Each case prints its wall time and the process's CPU time. */
 
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200112L
 
+#include <pthread.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +18,7 @@
 #define GROUPS 10000
 #define FRAMES 100
 #define N (GROUPS * FRAMES)
+#define THREADS 4
 
 static const size_t sizes[] = {100, 1024, 16384, 65536, 1048576};
 
@@ -85,9 +88,9 @@ static moq_group_Producer *append_group(moq_track_Producer *track) {
 	return group;
 }
 
-static void write_frame(moq_group_Producer *group, const moq_Timestamp *at, moq_buf frame) {
+static void write_frame(moq_group_Producer *group, moq_Timestamp at, moq_buf frame) {
 	moq_Error *err = NULL;
-	if (!moq_group_Producer_write_frame(group, at, frame, &err)) {
+	if (!moq_group_Producer_write_frame(group, (moq_option_Timestamp){.some = true, .value = at}, frame, &err)) {
 		fail("write_frame");
 	}
 }
@@ -102,7 +105,7 @@ static void finish(moq_group_Producer *group) {
 
 /* Groups of 100 frames of `size` bytes written and each read back, its payload's first byte
  * touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second. */
-static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscriber, const moq_Timestamp *at, size_t size, unsigned *sum) {
+static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscriber, moq_Timestamp at, size_t size, unsigned *sum) {
 	size_t groups = (64u << 20) / (size * FRAMES);
 	groups = groups < 3 ? 3 : groups > 2000 ? 2000 : groups;
 	uint8_t *payload = calloc(size, 1);
@@ -127,11 +130,69 @@ static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscrib
 	return (span){1e3 / ns.wall, 1e3 / ns.cpu};
 }
 
+/* `concurrent`'s start: each thread counts itself ready, then waits for go. macOS has no
+ * pthread barrier. */
+typedef struct {
+	atomic_int ready;
+	atomic_bool go;
+} gate;
+
+/* One of `concurrent`'s threads: N calls on its handle once every thread is ready. */
+typedef struct {
+	gate *start;
+	const void *handle;
+	int getter;
+	unsigned sum;
+} worker;
+
+static void *work(void *arg) {
+	worker *w = arg;
+	unsigned sum = 0;
+	atomic_fetch_add(&w->start->ready, 1);
+	while (!atomic_load(&w->start->go)) {
+	}
+	if (w->getter) {
+		for (int i = 0; i < N; i++) {
+			sum += (unsigned)moq_group_Demand_sequence(w->handle);
+		}
+	} else {
+		for (int i = 0; i < N; i++) {
+			sum += moq_track_Producer_is_closed(w->handle);
+		}
+	}
+	w->sum = sum;
+	return NULL;
+}
+
+/* N calls on each of THREADS threads at once, thread i on handles[i]: wall nanoseconds per
+ * call on one thread, and CPU nanoseconds per call. */
+static span concurrent(const void *const *handles, int getter, unsigned *sum) {
+	gate start = {0};
+	worker workers[THREADS];
+	pthread_t threads[THREADS];
+	for (int i = 0; i < THREADS; i++) {
+		workers[i] = (worker){.start = &start, .handle = handles[i], .getter = getter};
+		if (pthread_create(&threads[i], NULL, work, &workers[i]) != 0) {
+			fail("pthread_create");
+		}
+	}
+	while (atomic_load(&start.ready) < THREADS) {
+	}
+	span begin = now();
+	atomic_store(&start.go, true);
+	for (int i = 0; i < THREADS; i++) {
+		pthread_join(threads[i], NULL);
+		*sum += workers[i].sum;
+	}
+	span end = now();
+	return (span){(end.wall - begin.wall) / N, (end.cpu - begin.cpu) / ((double)N * THREADS)};
+}
+
 static void round_(int print) {
 	moq_broadcast_Info *binfo = moq_broadcast_Info_new();
 	moq_broadcast_Producer *broadcast = moq_broadcast_Info_produce(binfo);
 	moq_broadcast_Info_free(binfo);
-	moq_Timescale *micro = moq_Timescale_MICRO();
+	moq_option_Timescale micro = {.some = true, .value = moq_Timescale_MICRO()};
 	/* Builders take the handle's value, leaving the handle to free. */
 	moq_track_Info *defaults = moq_track_Info_default();
 	moq_track_Info *info = moq_track_Info_with_timescale(defaults, micro);
@@ -161,6 +222,24 @@ static void round_(int print) {
 		sum += (unsigned)moq_group_Demand_sequence(demand);
 	}
 	span getter = per(start, N);
+
+	/* The handle call and the getter from THREADS threads: on one shared handle, then on a
+	 * clone each, a handle of its own to the same value. */
+	const void *shared_track[THREADS], *shared_demand[THREADS], *own_track[THREADS], *own_demand[THREADS];
+	for (int i = 0; i < THREADS; i++) {
+		shared_track[i] = track;
+		shared_demand[i] = demand;
+		own_track[i] = moq_track_Producer_clone(track);
+		own_demand[i] = moq_group_Demand_clone(demand);
+	}
+	span shared_call = concurrent(shared_track, 0, &sum);
+	span own_call = concurrent(own_track, 0, &sum);
+	span shared_getter = concurrent(shared_demand, 1, &sum);
+	span own_getter = concurrent(own_demand, 1, &sum);
+	for (int i = 0; i < THREADS; i++) {
+		moq_track_Producer_free((moq_track_Producer *)own_track[i]);
+		moq_group_Demand_free((moq_group_Demand *)own_demand[i]);
+	}
 	moq_group_Demand_free(demand);
 	finish(demanded);
 
@@ -176,26 +255,25 @@ static void round_(int print) {
 	}
 	span object = per(start, N);
 
-	/* Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must. */
+	/* Each frame stamped through a fresh timestamp, as a caller holding a u64 must. */
 	uint64_t micros = 0;
 	start = now();
 	for (int g = 0; g < GROUPS; g++) {
 		moq_group_Producer *group = append_group(track);
 		for (int f = 0; f < FRAMES; f++) {
-			moq_Timestamp *at = NULL;
-			moq_TimeOverflow *overflow = NULL;
+			moq_Timestamp at;
+			moq_TimeOverflow overflow;
 			if (!moq_Timestamp_from_micros(micros++, &at, &overflow)) {
 				fail("from_micros");
 			}
 			write_frame(group, at, frame);
-			moq_Timestamp_free(at);
 		}
 		finish(group);
 	}
 	span stamped = per(start, N);
 
-	moq_Timestamp *at = NULL;
-	moq_TimeOverflow *overflow = NULL;
+	moq_Timestamp at;
+	moq_TimeOverflow overflow;
 	if (!moq_Timestamp_from_micros(micros, &at, &overflow)) {
 		fail("from_micros");
 	}
@@ -275,15 +353,13 @@ static void round_(int print) {
 	}
 
 	sink = sum;
-	moq_Timestamp_free(at);
 	moq_track_Subscriber_free(subscriber);
 	moq_track_Producer_free(track);
-	moq_Timescale_free(micro);
 	moq_broadcast_Producer_free(broadcast);
 
 	if (print) {
-		const char *names[] = {"call", "getter", "record", "object", "stamped", "write", "ready", "woken", "payload"};
-		span values[] = {call, getter, record, object, stamped, write, ready, woken, payload_};
+		const char *names[] = {"call", "getter", "shared:call", "own:call", "shared:getter", "own:getter", "record", "object", "stamped", "write", "ready", "woken", "payload"};
+		span values[] = {call, getter, shared_call, own_call, shared_getter, own_getter, record, object, stamped, write, ready, woken, payload_};
 		for (size_t i = 0; i < sizeof names / sizeof names[0]; i++) {
 			printf("%s\t%f\t%f\n", names[i], values[i].wall, values[i].cpu);
 		}

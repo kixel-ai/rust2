@@ -46,9 +46,8 @@ Guidance:
   hooks wrap it, and keep the nightly's wall and CPU tables as they are.
 - Running `nix develop` itself under Valgrind costs minutes: enter the bench shell first and
   run CodSpeed's CLI inside it, or show the action's wrapping costs nothing.
-- [Concurrent calls](/quest/m1/ffi-speed/concurrent-calls.md)' contention cases stay out:
-  simulation runs one thread at a time, so it would report a contention number that measures
-  no contention.
+- The contention cases, `shared:*` and `own:*`, stay out: simulation runs one thread at a
+  time, so it would report a contention number that measures no contention.
 - A column added later, such as [the TypeScript one](/quest/m2/wasm/backend.md), joins under
   the same A/A rule.
 - Update [the benchmark's README](/bench/ffi/README.md) and the
