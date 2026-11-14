@@ -46,17 +46,6 @@ class Writer {
 		b.putDouble(v)
 	}
 
-	/** Bytes as their length, or -1 for none, then the bytes. */
-	fun bytes(v: ByteArray?) {
-		if (v == null) {
-			i32(-1)
-			return
-		}
-		room(4 + v.size)
-		b.putInt(v.size)
-		b.put(v)
-	}
-
 	/** Bytes of a length both sides know, such as an array's. */
 	fun raw(v: ByteArray) {
 		room(v.size)
@@ -105,19 +94,55 @@ class Writer {
 		b.position(b.position() + v.size * 8)
 	}
 
-	/** Bytes a record holds, as [bytes] writes a `ByteArray`. */
+	/**
+	 * Bytes a record holds, or -1 for none: Kotlin's as [KOTLIN], their array's place in
+	 * [refs], where they start, and their length, which Rust copies once from the array, and
+	 * Rust's as [LENT], their owner, where they start, and their length, which Rust reads in
+	 * place, kept until [release].
+	 */
 	fun bytes(v: Bytes?) {
 		if (v == null) {
 			i32(-1)
 			return
 		}
-		room(4 + v.size)
+		val owner = v.owner
+		room(20)
+		if (owner != 0L) {
+			b.putInt(LENT)
+			b.putLong(owner)
+			b.putInt(v.start)
+			b.putInt(v.size)
+			(kept ?: java.util.ArrayList<Any?>().also { kept = it }).add(v.held)
+			return
+		}
+		b.putInt(KOTLIN)
+		b.putInt(ref(v.held))
+		b.putInt(v.start)
 		b.putInt(v.size)
-		v.copyInto(b.array(), b.position())
-		b.position(b.position() + v.size)
 	}
 
-	fun string(v: String?) = bytes(v?.encodeToByteArray())
+	/** Text as [TEXT] and its place in [refs], which Rust encodes once from, or -1 for none. */
+	fun string(v: String?) {
+		if (v == null) {
+			i32(-1)
+			return
+		}
+		room(8)
+		b.putInt(TEXT)
+		b.putInt(ref(v))
+	}
+
+	private var objects: java.util.ArrayList<Any?>? = null
+
+	// The place in [refs] of [v], added to it.
+	private fun ref(v: Any?): Int {
+		val objects = objects ?: java.util.ArrayList<Any?>().also { objects = it }
+		objects.add(v)
+		return objects.size - 1
+	}
+
+	/** The arrays and text the encoding refers to, which Rust reads in the call, or null for none. */
+	fun refs(): kotlin.Array<Any?>? = objects?.toArray()
 
 	/** An address as Rust's `SocketAddr` holds it, which an unresolved one has no form of. */
 	fun socketAddr(v: java.net.InetSocketAddress) {
@@ -161,6 +186,9 @@ class Writer {
 
 	private var held: java.util.ArrayList<Handle>? = null
 
+	// What holds Rust's bytes encoded in place, which the GC must not free before [release].
+	private var kept: java.util.ArrayList<Any?>? = null
+
 	/** An object's handle, held until [release], or 0 for none. */
 	fun handle(v: Handle?) {
 		if (v == null) {
@@ -176,6 +204,7 @@ class Writer {
 	/** Release the handles encoded, once the call that reads them returns. */
 	fun release() {
 		held?.forEach { it.release() }
+		java.lang.ref.Reference.reachabilityFence(kept)
 	}
 
 	/** Run [block] with this writer, releasing its handles once it returns. */
@@ -189,8 +218,10 @@ class Writer {
 }
 
 /** Decodes what the library's JNI glue encodes. */
-class Reader(bytes: ByteArray) {
-	private val b: java.nio.ByteBuffer = java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+class Reader(private val b: java.nio.ByteBuffer) {
+	constructor(bytes: ByteArray) : this(java.nio.ByteBuffer.wrap(bytes))
+
+	init { b.order(java.nio.ByteOrder.LITTLE_ENDIAN) }
 
 	fun bool(): Boolean = b.get() != 0.toByte()
 
@@ -245,6 +276,9 @@ class Reader(bytes: ByteArray) {
 		return v
 	}
 
+	/** Bytes Rust lent a call, copied, or null for none. */
+	fun lent(): Bytes? = bytes()?.let { Bytes(it) }
+
 	/** Bytes Rust handed over, copied or lent by their owner, or null for none. */
 	fun owned(): Bytes? = when (val n = b.getInt()) {
 		-1 -> null
@@ -255,6 +289,8 @@ class Reader(bytes: ByteArray) {
 	fun string(): String? {
 		val n = b.getInt()
 		if (n < 0) return null
+		// String's constructor beats Charset.decode 2-5x, direct buffers included, even with the copy.
+		if (!b.hasArray()) return String(ByteArray(n).also { b.get(it) }, kotlin.text.Charsets.UTF_8)
 		val v = String(b.array(), b.arrayOffset() + b.position(), n, kotlin.text.Charsets.UTF_8)
 		b.position(b.position() + n)
 		return v
@@ -301,26 +337,35 @@ class Reader(bytes: ByteArray) {
  * has. Freeing first is the fast path, and [untrack] makes it the only one.
  */
 abstract class Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owner, QUEUE) {
-	// The GC enqueues only a reference still reachable, so each is linked from [head]
-	// until freed.
+	// The GC enqueues only a reference still reachable, so each is linked from its stripe's
+	// head until freed. The stripe is the making thread's, so threads making objects
+	// at once rarely share a lock, and a free from any thread finds it in [stripe].
 	private var prev: Cleanup? = null
 	private var next: Cleanup? = null
+	// Final, so a thread the object reaches unsafely still sees it.
+	private val stripe = STRIPES[java.lang.Thread.currentThread().hashCode() and (STRIPES.size - 1)]
 
-	protected fun track() = synchronized(LOCK) {
-		next = head
-		head?.prev = this
-		head = this
+	protected fun track() {
+		val s = stripe
+		synchronized(s) {
+			next = s.head
+			s.head?.prev = this
+			s.head = this
+		}
 	}
 
 	/** Stop tracking, true if this call did: so whatever frees after it frees once. */
-	protected fun untrack(): Boolean = synchronized(LOCK) {
-		if (head !== this && prev == null) return false
-		prev?.next = next
-		next?.prev = prev
-		if (head === this) head = next
-		prev = null
-		next = null
-		true
+	protected fun untrack(): Boolean {
+		val s = stripe
+		synchronized(s) {
+			if (s.head !== this && prev == null) return false
+			prev?.next = next
+			next?.prev = prev
+			if (s.head === this) s.head = next
+			prev = null
+			next = null
+			return true
+		}
 	}
 
 	/** Run on the cleaner's thread once the owner is collected. */
@@ -328,8 +373,13 @@ abstract class Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owner,
 
 	private companion object {
 		val QUEUE = java.lang.ref.ReferenceQueue<Any>()
-		val LOCK = Any()
-		var head: Cleanup? = null
+		/** One lock and list of the tracked. */
+		class Stripe {
+			@JvmField var head: Cleanup? = null
+		}
+
+		// A power of two, past the cores a phone or most servers have.
+		val STRIPES = Array(64) { Stripe() }
 
 		init {
 			val thread = java.lang.Thread({
@@ -448,6 +498,12 @@ private class Free(lent: Lent, private val owner: Long) : Cleanup(lent) {
 
 /** What precedes a lent buffer's owner and length where an encoded one's length would. */
 const val LENT = -2
+
+/** What precedes the place of Kotlin's array of bytes in a writer's `refs`, where an encoded one's length would. */
+const val KOTLIN = -3
+
+/** What precedes the place of Kotlin's text in a writer's `refs`, where an encoded one's length would. */
+const val TEXT = -4
 
 /** Bytes a call returned: copied, lent by the owner and length a `LongArray` holds, or null for none. */
 fun owned(given: Any?): Bytes? = when (given) {
@@ -594,28 +650,33 @@ class Pollable(
 	}
 }
 
+/** A completed native future, including one whose value is null. */
+class Ready(val value: Any?)
+
+/** A native future still waiting on its waker node. */
+class Pending(val raw: Long, val node: Long)
+
 /**
  * Await the future the call that returned [first] made and polled once with [signal]:
  * poll it until it finishes, then lift its result. A cancel frees it, which cancels it in
  * Rust and loses nothing.
  */
-suspend fun <T> await(
-	first: ByteArray,
+suspend fun await(
+	first: Any?,
 	signal: Signal,
-	poll: (Long, Long) -> ByteArray?,
+	poll: (Long, Long) -> Any?,
 	free: (Long) -> Unit,
-	lift: (Reader) -> T,
-): T {
-	val r = Reader(first)
-	if (r.bool()) return lift(r)
-	val raw = r.i64()
-	val node = r.i64()
+): Any? {
+	if (first is Ready) return first.value
+	val pending = first as Pending
+	val raw = pending.raw
+	val node = pending.node
 	try {
 		while (true) {
 			signal.park()
 			signal.reset()
 			val done = poll(raw, node)
-			if (done != null) return lift(Reader(done))
+			if (done != null) return (done as Ready).value
 		}
 	} finally {
 		free(raw)

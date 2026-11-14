@@ -547,9 +547,19 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	rs.byteVecPush(out, popped);
 	const q: rs.VecDeque<rs.u8 | undefined> = rs.dequeNew(2) as rs.VecDeque<rs.u8 | undefined>;
-	const iter2: rs.Iter<[rs.usize, rs.u8 | undefined]> = rs.iterEnumerate(rs.iterSlice(items.items));
+	const leaf: rs.Iter<rs.u8 | undefined> = rs.iterSlice(items.items);
+	let count: number = 0;
 	while (true) {
-		const _167: [rs.usize, rs.u8 | undefined] | rs.Done = iter2.next();
+		let next!: [rs.usize, rs.u8 | undefined] | rs.Done;
+		next2: {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count++, x];
+		}
+		const _167: [rs.usize, rs.u8 | undefined] | rs.Done = next;
 		if (_167 === rs.DONE) {
 			break;
 		}
@@ -655,9 +665,19 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.drop(_517);
 	const by: rs.BTreeMap<rs.u8 | undefined, rs.u8> = rs.btreeNew(rs.cmpOption(rs.cmp)) as rs.BTreeMap<rs.u8 | undefined, rs.u8>;
 	const hashBy: rs.HashMap<rs.u8 | undefined, rs.u8> = rs.hashNew(rs.hashing(rs.hashOption(rs.hash8), rs.same)) as rs.HashMap<rs.u8 | undefined, rs.u8>;
-	const iter3: rs.Iter<[rs.usize, rs.u8 | undefined]> = rs.iterEnumerate(rs.iterSlice(items.items));
+	const leaf2: rs.Iter<rs.u8 | undefined> = rs.iterSlice(items.items);
+	let count2: number = 0;
 	while (true) {
-		const _536: [rs.usize, rs.u8 | undefined] | rs.Done = iter3.next();
+		let next3!: [rs.usize, rs.u8 | undefined] | rs.Done;
+		next4: {
+			const x2 = leaf2.next();
+			if (x2 === rs.DONE) {
+				next3 = rs.DONE;
+				break next4;
+			}
+			next3 = [count2++, x2];
+		}
+		const _536: [rs.usize, rs.u8 | undefined] | rs.Done = next3;
 		if (_536 === rs.DONE) {
 			break;
 		}

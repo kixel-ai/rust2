@@ -391,6 +391,10 @@ Future<void> script() async {
   // The send happens at the call: the future is dropped unawaited.
   channel.sendLater(utf8.encode('eager'));
   print('recv ${text(await channel.recv())}');
+  // The send happens at the call, and the future borrows the channel and the tag.
+  print('tagged ${await channel.tagged('tag')}');
+  print('itemized ${await channel.itemized(Uint32List.fromList([1, 2, 3]))}');
+  print('byte_len ${await api.byteLen(utf8.encode('abc'))}');
   channel.send(utf8.encode('sized'));
   final (payload, size) = await channel.recvSized();
   print('sized ${text(payload)} $size');
@@ -565,6 +569,9 @@ Future<void> script() async {
   print('nudge ${nudged.value.x} ${nudged.value.y}');
   final config = api.secure('h3');
   print('secure ${api.alpnLent(config)} ${api.alpn(config.clone())}');
+  final cert = api.certify(utf8.encode('der'));
+  final certLen = api.certLen(cert);
+  print('cert $certLen ${text(api.certDer(cert))} ${api.chainLen([api.certify(utf8.encode('a')), api.certify(utf8.encode('bc'))])}');
   config.close();
   final session = api.resume('h3', 60);
   print('resume ${session.alpn()} ${session.lifetime().seconds}');
@@ -581,6 +588,10 @@ Future<void> script() async {
   lentMeter.close();
   meters.clear();
   print('cleared ${meters.first().count()}');
+  final lastMeter = meters.lastGet;
+  lastMeter.add(4);
+  print('field lent ${lastMeter.add(1)}');
+  lastMeter.close();
   meters.close();
   final tallies = api.Tallies();
   tallies.first().bump();
@@ -681,6 +692,7 @@ Future<void> script() async {
   final ended = api.later(began, const Duration(milliseconds: 1500));
   final same = api.later(began, Duration.zero);
   print('instants ${api.since(ended, began).inMilliseconds} ${api.since(began, ended).inMilliseconds} ${began == same} ${began == ended}');
+  print('has_instant ${api.hasInstant(began)} ${api.hasInstant(null)}');
   began.close();
   ended.close();
   same.close();
@@ -1191,9 +1203,54 @@ Future<void> lent() async {
     pressure();
   }
   check(api.dropped() == before + 2, 'the garbage collector frees bytes once');
+  // Read after, so `big` stays reachable and its drop counts in none of forwarded's checks.
+  await forwarded();
   check(big[65536] == 1, 'lent bytes read back while reachable');
   print('bytes ok');
 }
+
+/// Bytes Rust lent pass back to Rust in place, sent and carried in a record, so a payload
+/// read and written on holds Rust's one buffer, freed once with its last owner: a copy
+/// anywhere would free the token with the first list.
+Future<void> forwarded() async {
+  final before = api.dropped();
+  final channel = api.Channel();
+  Uint8List? held = await relay(channel);
+  final canary = [api.Token(9)];
+  for (var i = 0; i < 3; i++) {
+    pressure();
+  }
+  canary.clear();
+  await collect(() => api.dropped() > before, 'the garbage collector frees an old object');
+  // Collections enough to free every list the relay left, had one held a copy.
+  for (var i = 0; i < 3; i++) {
+    pressure();
+    await step();
+  }
+  check(api.dropped() == before + 1, 'bytes forwarded hold the buffer Rust lent');
+  check(held.length == 65537 && held.every((b) => b == 5), 'forwarded bytes read back');
+  held = null;
+  await collect(() => api.dropped() >= before + 2, 'the garbage collector frees forwarded bytes');
+  for (var i = 0; i < 3; i++) {
+    pressure();
+  }
+  check(api.dropped() == before + 2, 'forwarded bytes free once');
+  channel.close();
+}
+
+/// Lent bytes sent through `channel`, received, and carried on in a packet, whose lists
+/// nothing else keeps.
+@pragma('vm:never-inline')
+Future<Uint8List> relay(api.Channel channel) async {
+  send(channel);
+  return carry(await channel.recv());
+}
+
+@pragma('vm:never-inline')
+void send(api.Channel channel) => channel.send(api.tokenBytes(5, 65537));
+
+@pragma('vm:never-inline')
+Uint8List carry(Uint8List payload) => api.nextPacket(api.Packet(seq: 1, payload: payload)).payload;
 
 /// A view of returned bytes, whose list nothing else keeps.
 @pragma('vm:never-inline')

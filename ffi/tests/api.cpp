@@ -648,6 +648,27 @@ int script() {
 				print("recv ", *payload, "\n");
 			}
 		}
+		// The send happens at the call, and the future borrows the channel and the tag.
+		{
+			api::Channel_tagged_future tagged = channel.tagged("tag");
+			if (auto text = tagged.poll(waker)) {
+				print("tagged ", *text, "\n");
+			}
+		}
+		// So does a future borrowing an optional slice, which the export owns while it is pending.
+		{
+			api::Channel_itemized_future itemized = channel.itemized(std::vector<std::uint32_t>{1, 2, 3});
+			if (auto count = itemized.poll(waker)) {
+				std::printf("itemized %zu\n", *count);
+			}
+		}
+		// Another crate's future borrowing its bytes, which the export owns while it is pending.
+		{
+			api::byte_len_future measuring = api::byte_len("abc");
+			if (auto len = measuring.poll(waker)) {
+				std::printf("byte_len %zu\n", *len);
+			}
+		}
 		channel.send("sized");
 		{
 			api::Channel_recv_sized_future sized = channel.recv_sized();
@@ -899,6 +920,13 @@ int script() {
 		auto config = api::secure("h3");
 		print("secure ", api::alpn_lent(config), " ");
 		print("", api::alpn(config), "\n");
+		auto cert = api::certify("der");
+		std::printf("cert %llu ", ull(api::cert_len(cert)));
+		print("", api::cert_der(std::move(cert)), " ");
+		std::vector<api::tls_Cert> chain;
+		chain.push_back(api::certify("a"));
+		chain.push_back(api::certify("bc"));
+		std::printf("%llu\n", ull(api::chain_len(std::move(chain))));
 		auto session = api::resume("h3", 60);
 		print("resume ", session.value().alpn(), " ");
 		std::printf("%u\n", unsigned(session.value().lifetime().seconds));
@@ -910,6 +938,9 @@ int script() {
 		std::printf("lent %llu %llu\n", added, ull(meters.first().count()));
 		meters.clear();
 		std::printf("cleared %llu\n", ull(meters.first().count()));
+		auto last = meters.last_get();
+		last.add(4);
+		std::printf("field lent %llu\n", ull(last.add(1)));
 		auto tallies = api::Tallies::new_();
 		tallies.first().bump();
 		std::printf("tallied %u\n", tallies.first().bump());
@@ -1142,6 +1173,8 @@ int script() {
 		auto ended = api::later(began, {1, 500000000});
 		std::printf("instants %llu %llu %s %s\n", millis(api::since(ended, began)), millis(api::since(began, ended)),
 					began == api::later(began, {0, 0}) ? "true" : "false", began == ended ? "true" : "false");
+		// An instant lent inside an `Option`, which takes no handle.
+		std::printf("has_instant %s %s\n", api::has_instant(&began) ? "true" : "false", api::has_instant(nullptr) ? "true" : "false");
 	}
 	// tracing's level, and its filter as an optional level whose empty is `OFF`.
 	{
@@ -1531,6 +1564,34 @@ int futures() {
 }
 
 // Who owns each handle and bytes, beyond the transcript, each checked by an assertion.
+// A payload Rust returned goes back to Rust in place: moved in, shared by a copy kept
+// meanwhile, and written back through `&mut`. Its bytes stay where Rust put them, and
+// drop once, with their last owner.
+void forwarding() {
+	std::uint32_t before = api::dropped();
+	api::Channel channel = api::Channel::new_();
+	api::buf payload = api::token_bytes(3, 64);
+	const std::uint8_t *at = payload.data();
+	channel.send(std::move(payload));
+	payload = channel.recv().get();
+	check(payload.data() == at && payload.size() == 64, "a payload moved into Rust stays in place");
+	api::buf kept = payload;
+	check(kept.data() == at, "a copy of Rust's bytes shares them");
+	channel.send(kept);
+	check(channel.recv().get().data() != at, "bytes lent to a call are copied");
+	channel.send(std::move(kept));
+	api::buf shared = channel.recv().get();
+	check(shared.data() == at && payload.data() == at, "a copy moved into Rust stays in place");
+	api::Packet packet = api::next_packet(api::Packet{1, std::move(shared)});
+	check(packet.payload.size() == 64 && api::dropped() == before, "a record carries the payload on");
+	payload = api::buf();
+	packet = api::Packet{};
+	check(api::dropped() == before + 1, "the payload drops once, with its last owner");
+	api::buf digits = api::token_bytes('0', 2);
+	api::put_number(7, digits);
+	check(digits.str() == "007," && api::dropped() == before + 2, "Rust takes its bytes passed for &mut");
+}
+
 int lifetimes() {
 	// Copies of a type whose clone no call tells apart share one handle: a write through
 	// one shows in the other, as it does between clones of an `Arc`.
@@ -1652,6 +1713,8 @@ int lifetimes() {
 		}
 		check(api::dropped() == before + 1, "bytes free their owner");
 	}
+
+	forwarding();
 
 	std::printf("lifetimes ok\n");
 	return 0;

@@ -394,7 +394,19 @@ compare the best and then the next, and a B-tree's iterators read their ends. `e
 An iterator over a slice, array, or `Vec`, or a small range, that only its `next` and
 moves into other variables read steps in place, not one moved into a field, as an `async`
 block's is when held across an `.await`, as two variables: the array and an index into it, or the
-range's bounds, with no `rs.Iter` made. The crate's own `impl Iterator` returns `rs.DONE` from its `next` too, and joins
+range's bounds, with no `rs.Iter` made.
+A chain of `map`, `filter`, `enumerate`, and `zip` over a slice's, a `Vec`'s, or a range's
+iterator, or the `rev` of one, whose items drop nothing JS sees, fuses into the loop that
+reads it: `count`, `any`, `all`, `fold`, `sum`, `product`, `for_each`, `find`, `position`,
+or a `for` loop, each adaptor's step written inline, with the leaves still `rs.Iter`s and
+only their `next` called, so no adaptor object is made between them. Under a consumer, a
+closure whose body is one expression is written in place of its call, and a `zip`'s or an
+`enumerate`'s pair reaches it as its parts, made into an array only where the tuple is read
+whole. It calls each closure, and reads each side of a `zip`, in std's order, as the
+runtime does, a `zip` read by index or folded by its size hint included, so a chain whose
+consumer stops early or panics partway leaves what Rust's does. A chain read any other
+way, such as one returned, or read from the back or by `nth`, is the runtime's.
+The crate's own `impl Iterator` returns `rs.DONE` from its `next` too, and joins
 std's adaptors through `rs.iterFrom`, which calls its own `size_hint`, `next_back`, `len`, `nth`, and `nth_back`,
 and of one it owns, not borrows by `&mut` or boxes, its own `fold`, `rfold`, `count`, `last`,
 `find`, `rfind`, `find_map`, `for_each`, `reduce`, `all`, and `is_sorted_by`, where std's
@@ -1294,7 +1306,7 @@ so adding, removing, or reordering a case changes no other case's inputs.
   Bun bundles a caller of `Decoder.u8` and `Decoder.new` through `import * as Decoder`,
   which must keep only those and what they call.
 - `model` depends on moq-net at the moq pin, its `rev`, which `just ts moq` and
-  `just ts census` check out too, and translates with it as one program. It is a
+  `just ts census` check out, and translates with it as one program. It is a
   workspace of its own, so its lockfile keeps moq's checkout out of the package's inputs. Its harness
   runs what of the model translates with nothing refused or bound, `Timestamp` and
   `Timescale`: their constructors, conversions, `u128` reads, sums, differences,

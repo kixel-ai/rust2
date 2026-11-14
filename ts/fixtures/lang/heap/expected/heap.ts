@@ -103,9 +103,19 @@ export function spills(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function remnants(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const pointer = rs.alloc(rs.resultUnwrap(rs.layoutArray(rs.usizeAdd(data.length, 1), 4, 4), rs.fmtLayoutErrorDebug));
 	const slots: rs.Place<rs.u32> = rs.allocAs(rs.optionUnwrap(pointer === rs.NULL ? undefined : pointer), 4, "u32");
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _16: [rs.usize, rs.u8] | rs.Done = iter.next();
+		let next!: [rs.usize, rs.u8] | rs.Done;
+		next2: {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count++, x];
+		}
+		const _16: [rs.usize, rs.u8] | rs.Done = next;
 		if (_16 === rs.DONE) {
 			break;
 		}
@@ -114,8 +124,8 @@ export function remnants(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.ptrAdd(slots, i).v = ((((b as rs.u32) << 8) >>> 0) | 1) >>> 0;
 	}
 	const words: rs.Place<rs.u32> = slots;
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(rs.ptrSlice(words, data.length))), (x: rs.u32): Uint8Array => {
-		return rs.u32ToBeBytes(x).reverse();
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(rs.ptrSlice(words, data.length))), (x2: rs.u32): Uint8Array => {
+		return rs.u32ToBeBytes(x2).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
 	rs.dealloc(rs.allocBytes(words, 4, "u32"));
 	const pointer2 = rs.alloc(rs.resultUnwrap(rs.layoutFromSizeAlign(9, 4), rs.fmtLayoutErrorDebug));
@@ -127,8 +137,8 @@ export function remnants(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.ptrAdd(pair, 1).v = rs.u32Mul(first, 3);
 	const pointer3 = rs.realloc(rs.allocBytes(pair, 4, "u32"), 11);
 	const grown2: rs.Place<rs.u32> = rs.allocAs(rs.optionUnwrap(pointer3 === rs.NULL ? undefined : pointer3), 4, "u32");
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice([grown2.v, rs.ptrAdd(grown2, 1).v]), (x2: rs.u32): Uint8Array => {
-		return rs.u32ToBeBytes(x2).reverse();
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice([grown2.v, rs.ptrAdd(grown2, 1).v]), (x3: rs.u32): Uint8Array => {
+		return rs.u32ToBeBytes(x3).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
 	rs.dealloc(rs.allocBytes(grown2, 4, "u32"));
 	const one: rs.Layout = { size: 1, align: 1 };

@@ -2,7 +2,8 @@
 //! thread a call into Kotlin runs on, and the wakers a Kotlin future parks on.
 //!
 //! A value Kotlin passes is a JNI scalar, a handle as a `long`, its bytes as a `byte[]`,
-//! or anything else encoded into a `byte[]`: little-endian, field by field, as the C
+//! or composite returns constructed by a Kotlin factory over scoped native memory.
+//! The codec (also used for parameters) is little-endian, field by field, as the C
 //! struct holds it, with a buffer as its length (-1 for none) and its bytes, and an array
 //! as its length (-1 for none) and its elements; a record passed or returned directly
 //! crosses its scalars as parameters, or through Kotlin's `long[]` slots, apart from the
@@ -39,6 +40,14 @@ pub unsafe fn load(vm: *mut JavaVM, name: &CStr) -> jint {
 			fail(env, "JNI_OnLoad", "the native class is missing");
 		}
 		let _ = CLASS.set(((**env).v1_2.NewGlobalRef)(env, class) as usize);
+		// JNI permits a VM without direct-buffer access. Refuse it while loading,
+		// before a call can hand over values that its return factory cannot read.
+		let mut probe = 0u8;
+		let buffer = ((**env).v1_4.NewDirectByteBuffer)(env, (&mut probe as *mut u8).cast(), 1);
+		if buffer.is_null() {
+			fail(env, "JNI_OnLoad", "the JVM does not support native return buffers");
+		}
+		((**env).v1_2.DeleteLocalRef)(env, buffer);
 	}
 	JNI_VERSION_1_6
 }
@@ -235,12 +244,85 @@ pub fn new_block<T: Prim>(env: *mut JNIEnv, list: rt::List<T>) -> jarray {
 	}
 }
 
-/// A view of `bytes`, or a null view for none.
-pub fn view(bytes: &Option<Vec<u8>>) -> rt::Buf {
-	match bytes {
-		Some(bytes) => rt::Buf::view(bytes),
-		None => rt::Buf::NONE,
+/// A `String`'s UTF-8, encoded once into a buffer Rust takes, or none for null.
+pub fn text(env: *mut JNIEnv, text: jstring) -> rt::Buf {
+	match text.is_null() {
+		true => rt::Buf::NONE,
+		false => rt::Buf::vec(utf8(env, text)),
 	}
+}
+
+/// A live `String`'s UTF-8, as Kotlin's `encodeToByteArray` encodes it: a lone surrogate
+/// is `?`. JNI's own UTF-8 is modified, which differs for NUL and past the BMP, so the
+/// UTF-16 is read a chunk at a time and encoded here.
+fn utf8(env: *mut JNIEnv, text: jstring) -> Vec<u8> {
+	const CHUNK: usize = 1024;
+	// SAFETY: `text` is a live `String` the call was given.
+	let len = unsafe { ((**env).v1_2.GetStringLength)(env, text) } as usize;
+	let mut out = Vec::with_capacity(len);
+	let mut chunk = [0u16; CHUNK];
+	let mut at = 0;
+	while at < len {
+		let n = (len - at).min(CHUNK);
+		// SAFETY: `at + n` is within the string, and `chunk` holds `n`.
+		unsafe { ((**env).v1_2.GetStringRegion)(env, text, at as jint, n as jint, chunk.as_mut_ptr()) };
+		let mut units = &chunk[..n];
+		// A pair split across chunks is read whole with the next.
+		if at + n < len && (0xD800..0xDC00).contains(&units[n - 1]) {
+			units = &units[..n - 1];
+		}
+		at += units.len();
+		for c in char::decode_utf16(units.iter().copied()) {
+			match c {
+				Ok(c) if c.is_ascii() => out.push(c as u8),
+				Ok(c) => out.extend_from_slice(c.encode_utf8(&mut [0; 4]).as_bytes()),
+				Err(_) => out.push(b'?'),
+			}
+		}
+	}
+	out
+}
+
+/// `len` bytes of a live `byte[]` from `start`, copied, failing loud past its end, which
+/// Kotlin's `Bytes` checks first.
+fn region(env: *mut JNIEnv, array: jbyteArray, start: jint, len: jint) -> Vec<u8> {
+	let Ok(n) = usize::try_from(len) else {
+		rt::fail("jni", "bytes passed have a negative length")
+	};
+	let mut bytes = Vec::<u8>::with_capacity(n);
+	// SAFETY: `array` is a live `byte[]`; JNI checks the range, throwing past its end.
+	unsafe {
+		((**env).v1_2.GetByteArrayRegion)(env, array, start, len, bytes.as_mut_ptr().cast());
+		if ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, "jni", "bytes passed are past their array's end");
+		}
+		bytes.set_len(n);
+	}
+	bytes
+}
+
+/// Bytes Kotlin passes as a `Bytes` holds them, for Rust to take: none where `len` is -1,
+/// else those from `start` of what a non-zero `owner` holds, shared without a copy, or of
+/// the `byte[]` `held`, copied once.
+///
+/// # Safety
+/// A non-zero `owner` came from [`hand`], and `held` keeps it from being freed.
+pub unsafe fn passed(env: *mut JNIEnv, held: jobject, owner: jlong, start: jint, len: jint) -> rt::Buf {
+	if len == -1 {
+		return rt::Buf::NONE;
+	}
+	if owner != 0 {
+		// SAFETY: the caller's contract.
+		let bytes = unsafe { range(owner, start, len) };
+		let buf = rt::Buf {
+			ptr: bytes.as_ptr(),
+			len: bytes.len(),
+			owner: owner as usize as _,
+		};
+		// SAFETY: as above.
+		return unsafe { buf.share("jni") };
+	}
+	rt::Buf::vec(region(env, held, start, len))
 }
 
 /// A new `byte[]` holding `bytes`.
@@ -547,12 +629,12 @@ pub unsafe fn give(node: *mut Node) -> rt::Waker {
 pub type Poll = unsafe fn(*mut c_void, rt::Waker, &mut Writer) -> bool;
 
 /// Poll the future just made, and free it if it finished: the call and its first poll are
-/// one crossing. Its result is a bool, true when finished, then the result, or else the
+/// one crossing. Its writer holds a bool, true when finished, then the result, or else the
 /// future and the waker node made for `signal`, which Kotlin polls and frees.
 ///
 /// # Safety
 /// `future` is a live future that `poll` and `free` take, and `signal` a Kotlin `Waker`.
-pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll: Poll, free: unsafe fn(*mut c_void)) -> jbyteArray {
+pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll: Poll, free: unsafe fn(*mut c_void)) -> Writer {
 	let mut w = Writer::default();
 	w.put(true);
 	// Most futures are ready at once, so the first poll takes no waker: a node costs a
@@ -566,7 +648,7 @@ pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll
 	if unsafe { poll(future, none, &mut w) } {
 		// SAFETY: as above, and it finished.
 		unsafe { free(future) };
-		return w.array(env);
+		return w;
 	}
 	// Pending, so polled again with the waker it parks on, which replaces the first.
 	let node = node(env, signal);
@@ -577,13 +659,13 @@ pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll
 			free(future);
 			unref(node.cast());
 		}
-		return w.array(env);
+		return w;
 	}
 	let mut w = Writer::default();
 	w.put(false);
 	w.put(future);
 	w.put(node.cast::<c_void>());
-	w.array(env)
+	w
 }
 
 /// Poll `future` again with `node`, whose reference Rust holds from the first poll that
@@ -591,12 +673,12 @@ pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll
 ///
 /// # Safety
 /// `future` is a live future that `poll` takes, and Rust holds a reference to `node`.
-pub unsafe fn poll(env: *mut JNIEnv, future: *mut c_void, node: *mut Node, poll: Poll) -> jbyteArray {
+pub unsafe fn poll(future: *mut c_void, node: *mut Node, poll: Poll) -> Option<Writer> {
 	let mut w = Writer::default();
 	// SAFETY: the caller's contract.
 	match unsafe { poll(future, lend(node), &mut w) } {
-		true => w.array(env),
-		false => std::ptr::null_mut(),
+		true => Some(w),
+		false => None,
 	}
 }
 
@@ -710,6 +792,23 @@ fn caught(env: *mut JNIEnv, what: &str, cache: &OnceLock<usize>, name: &CStr) ->
 	}
 }
 
+static FAILED: OnceLock<usize> = OnceLock::new();
+
+/// Raise the error a function returned, encoded in `w`, as the `Native.Failed` Kotlin turns
+/// into its exception: a call's success path then returns its value with no `byte[]`.
+pub fn raise(env: *mut JNIEnv, w: Writer) {
+	let id = method(env, &FAILED, c"__failed", c"([B)Ljava/lang/Throwable;");
+	let args = [jvalue { l: w.array(env) }];
+	// SAFETY: `env` is this thread's, and `__failed` takes the error's bytes.
+	unsafe {
+		let failed = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+		if failed.is_null() || ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, "jni", "a call into Kotlin threw");
+		}
+		((**env).v1_2.Throw)(env, failed);
+	}
+}
+
 /// A Kotlin `Waker` passed by value: Rust holds its only reference.
 pub fn waker(env: *mut JNIEnv, waker: jobject) -> rt::Waker {
 	lend(node(env, waker))
@@ -743,11 +842,58 @@ pub unsafe fn drop_returned(raw: jlong) {
 pub struct Reader<'a> {
 	bytes: &'a [u8],
 	arrays: Vec<Box<dyn std::any::Any>>,
+	/// The call's thread, and the arrays and text the encoding names by place.
+	env: *mut JNIEnv,
+	refs: jobjectArray,
+	/// Whether the value read is one Rust takes, so Rust's own bytes in it, outside an
+	/// array, cross as a second owner of them rather than a view.
+	take: bool,
 }
 
 impl<'a> Reader<'a> {
-	pub fn new(bytes: &'a [u8]) -> Self {
-		Self { bytes, arrays: Vec::new() }
+	/// A reader of a value Rust only reads, as through a pointer, whose encoding names
+	/// the objects of `refs` by place.
+	pub fn new(env: *mut JNIEnv, bytes: &'a [u8], refs: jobjectArray) -> Self {
+		Self {
+			bytes,
+			arrays: Vec::new(),
+			env,
+			refs,
+			take: false,
+		}
+	}
+
+	/// A reader of a value passed by value, which Rust takes.
+	pub fn taking(env: *mut JNIEnv, bytes: &'a [u8], refs: jobjectArray) -> Self {
+		Self {
+			take: true,
+			..Self::new(env, bytes, refs)
+		}
+	}
+
+	/// Bytes made once by `make` from the object at `at` of `refs`: taken where the reader
+	/// takes, else kept until it drops and read in place.
+	fn referred(&mut self, at: i32, make: impl FnOnce(*mut JNIEnv, jobject) -> Vec<u8>) -> rt::Buf {
+		let env = self.env;
+		if self.refs.is_null() {
+			fail(env, "jni", "an encoded value names an object, but none were passed");
+		}
+		// SAFETY: `refs` is the live `Object[]` the call was given; JNI throws past its end.
+		let object = unsafe { ((**env).v1_2.GetObjectArrayElement)(env, self.refs, at) };
+		// SAFETY: as above.
+		if object.is_null() || unsafe { ((**env).v1_2.ExceptionCheck)(env) } {
+			fail(env, "jni", "an encoded value names no object");
+		}
+		let bytes = make(env, object);
+		// SAFETY: a local reference made here.
+		unsafe { ((**env).v1_2.DeleteLocalRef)(env, object) };
+		if self.take {
+			return rt::Buf::vec(bytes);
+		}
+		let view = rt::Buf::view(&bytes);
+		// The vector's heap block, which the view reads, stays put as the box moves.
+		self.arrays.push(Box::new(bytes));
+		view
 	}
 
 	fn take(&mut self, n: usize) -> &'a [u8] {
@@ -765,8 +911,7 @@ impl<'a> Reader<'a> {
 }
 
 thread_local! {
-	/// The buffer a writer encodes into, kept between calls so a result allocates nothing
-	/// but its `byte[]`.
+	/// The native codec buffer, kept between calls and lent only while a return factory runs.
 	static SCRATCH: Cell<Vec<u8>> = const { Cell::new(Vec::new()) };
 }
 
@@ -797,6 +942,27 @@ impl Writer {
 
 	pub fn array(self, env: *mut JNIEnv) -> jbyteArray {
 		array(env, &self.0)
+	}
+
+	/// Construct a Kotlin value while this writer's native buffer is alive. The generated
+	/// factory reads it completely and retains neither the buffer nor its reader.
+	pub fn value(self, env: *mut JNIEnv, cache: &OnceLock<usize>, name: &CStr, back: jobject) -> jobject {
+		let id = method(env, cache, name, c"(Ljava/nio/ByteBuffer;[Ljava/lang/Object;)Ljava/lang/Object;");
+		let len = i32::try_from(self.0.len()).unwrap_or_else(|_| rt::fail("jni", "a value is too large for a ByteBuffer"));
+		// SAFETY: this writer owns the allocation through the synchronous factory call.
+		// Even an empty Vec has a non-null aligned pointer. Kotlin cannot retain the view.
+		unsafe {
+			let buffer = ((**env).v1_4.NewDirectByteBuffer)(env, self.0.as_ptr() as *mut c_void, len as jlong);
+			if buffer.is_null() {
+				fail(env, "jni", "cannot make a return buffer");
+			}
+			let args = [jvalue { l: buffer }, jvalue { l: back }];
+			let result = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+			// A declared Rust error is thrown by the factory, after applying writebacks.
+			// Leave it pending for the JVM, including a null success such as Option::None.
+			((**env).v1_2.DeleteLocalRef)(env, buffer);
+			result
+		}
 	}
 }
 
@@ -905,11 +1071,41 @@ impl Wire for rt::Waker {
 }
 
 impl Wire for rt::Buf {
-	/// A view of the encoded bytes, which outlive the call.
+	/// A view of the encoded bytes, or after [`LENT`] of those Rust lent Kotlin, in place,
+	/// either of which outlives the call.
 	fn read(r: &mut Reader<'_>) -> Self {
-		match usize::try_from(r.get::<i32>()) {
-			Ok(len) => rt::Buf::view(r.take(len)),
-			Err(_) => rt::Buf::NONE,
+		match r.get::<i32>() {
+			LENT => {
+				let owner = r.get::<i64>();
+				let (start, len) = (r.get::<i32>(), r.get::<i32>());
+				// SAFETY: an owner Kotlin keeps from being freed until the call returns.
+				let bytes = unsafe { range(owner, start, len) };
+				let view = rt::Buf::view(bytes);
+				match r.take {
+					false => view,
+					// SAFETY: as above.
+					true => unsafe {
+						rt::Buf {
+							owner: owner as usize as _,
+							..view
+						}
+						.share("jni")
+					},
+				}
+			}
+			KOTLIN => {
+				let at = r.get::<i32>();
+				let (start, len) = (r.get::<i32>(), r.get::<i32>());
+				r.referred(at, |env, array| region(env, array, start, len))
+			}
+			TEXT => {
+				let at = r.get::<i32>();
+				r.referred(at, utf8)
+			}
+			len => match usize::try_from(len) {
+				Ok(len) => rt::Buf::view(r.take(len)),
+				Err(_) => rt::Buf::NONE,
+			},
 		}
 	}
 
@@ -935,6 +1131,14 @@ pub struct Owned<T>(pub T);
 
 /// What precedes a lent buffer's owner where an encoded one's length would.
 const LENT: i32 = -2;
+
+/// What precedes the place in a call's objects of Kotlin's `byte[]`, then where its bytes
+/// start and how many, where an encoded buffer's length would.
+const KOTLIN: i32 = -3;
+
+/// What precedes the place in a call's objects of Kotlin's `String` where an encoded
+/// buffer's length would.
+const TEXT: i32 = -4;
 
 impl Wire for Owned<rt::Buf> {
 	fn read(_: &mut Reader<'_>) -> Self {
@@ -1045,7 +1249,10 @@ impl<T: Wire + Copy + 'static> Wire for rt::List<T> {
 		let Ok(len) = usize::try_from(r.get::<i32>()) else {
 			return Self::NONE;
 		};
+		// Rust only reads an array's items.
+		let take = std::mem::replace(&mut r.take, false);
 		let items: Box<[T]> = (0..len).map(|_| r.get()).collect();
+		r.take = take;
 		let list = Self {
 			ptr: items.as_ptr(),
 			len,
