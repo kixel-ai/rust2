@@ -1063,7 +1063,16 @@ fn api_swift() {
 	let nodump = manifest_dir().join("tests").join("nodump");
 	let step = Step {
 		stamp: &step::stamp(&exe),
-		reads: &[&test, &nodump, &module, &include, &built, &swiftmodule, &lib, &api.staticlib()],
+		reads: &[
+			&test,
+			&nodump,
+			&module,
+			&include,
+			&built,
+			&swiftmodule,
+			&lib,
+			&api.staticlib(),
+		],
 		writes: &[&exe],
 	};
 	step.run(
