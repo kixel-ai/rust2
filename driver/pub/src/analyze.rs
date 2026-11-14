@@ -176,6 +176,12 @@ impl Audit {
 		let mut edges = [vec![Vec::new(); n], vec![Vec::new(); n]];
 		let mut roots = [Vec::new(), Vec::new()];
 		let mut impls = [Vec::new(), Vec::new()];
+		// What another crate must reach before it can use each impl, its trait's arguments
+		// included where nothing else of the audit's is, as `Local` in
+		// `impl From<Local> for String`.
+		let mut external_impls = Vec::new();
+		// Every `pub` each macro's definition holds.
+		let mut macro_tokens = Vec::new();
 		// What each definition's interface names, and the members of each type or module
 		// that are its API too.
 		let mut interface = vec![Vec::new(); n];
@@ -208,6 +214,14 @@ impl Audit {
 				{
 					members[owner].push(index);
 				}
+				// An inherent item needs its impl's header, such as `Marker` in
+				// `impl S<Marker>`, wherever it is called.
+				if let Some(&parent) = def.parent.and_then(|p| hashes.get(&p))
+					&& defs[parent].kind == "Impl { of_trait: false }"
+				{
+					interface[index].push(parent);
+				}
+				macro_tokens.extend(def.tokens.iter().map(|&s| (index, place(unit, s))));
 			}
 			for r in &unit.refs {
 				let (Some(&from), Some(&to)) = (hashes.get(&r.from), hashes.get(&r.to)) else {
@@ -251,12 +265,21 @@ impl Audit {
 				}
 			}
 			roots[test].extend(unit.roots.iter().filter_map(|r| hashes.get(r)));
-			for i in &unit.impls {
-				let requires: Vec<usize> = i
-					.requires
-					.iter()
+			let audited = |list: &[Hash]| -> Vec<usize> {
+				list.iter()
 					.filter_map(|r| hashes.get(r).copied().filter(|&d| d < collected))
-					.collect();
+					.collect()
+			};
+			for i in &unit.impls {
+				let requires = audited(&i.requires);
+				if !unit.test {
+					let external = if requires.is_empty() {
+						audited(&i.args)
+					} else {
+						requires.clone()
+					};
+					external_impls.push((hashes[&i.hash], external));
+				}
 				impls[test].push((hashes[&i.hash], requires));
 			}
 		}
@@ -264,7 +287,7 @@ impl Audit {
 		// re-exports or returns, is external too, with the type's own API, and the trait
 		// impls of what it exposes, such as an `Iterator`'s `Item`.
 		let external: Vec<usize> = (0..n).filter(|&d| defs[d].external).collect();
-		for (d, reached) in reach(&[&interface, &members], &external, &impls[0])
+		for (d, reached) in reach(&[&interface, &members], &external, &external_impls)
 			.into_iter()
 			.enumerate()
 		{
@@ -289,10 +312,10 @@ impl Audit {
 		let mut targets: Vec<&Path> = workspaces.iter().map(|w| w.target.as_path()).collect();
 		targets.sort();
 		// A macro outside crates may call copies its tokens there.
-		let macros: Vec<&Place> = defs
+		let macros: BTreeSet<&Place> = macro_tokens
 			.iter()
-			.filter(|d| d.external && d.kind.starts_with("Macro"))
-			.filter_map(|d| d.span.as_ref())
+			.filter(|(d, _)| defs[*d].external)
+			.map(|(_, place)| place)
 			.collect();
 		let embedded: BTreeSet<&Path> = units.iter().flat_map(|u| &u.embedded).map(PathBuf::as_path).collect();
 		let tokens = tokens
@@ -302,11 +325,7 @@ impl Audit {
 				if verdict == Verdict::Narrow && embedded.contains(place.file.as_path()) {
 					verdict = Verdict::Embedded;
 				}
-				if verdict == Verdict::Narrow
-					&& macros
-						.iter()
-						.any(|m| m.file == place.file && m.lo <= place.lo && place.hi <= m.hi)
-				{
+				if verdict == Verdict::Narrow && macros.contains(&place) {
 					verdict = Verdict::External;
 				}
 				Ok(Token {

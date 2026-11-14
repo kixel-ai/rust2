@@ -185,7 +185,8 @@ pub fn unshown_part() -> u32 {
 	32
 }
 
-/// Narrowed, unreached: only an impl of a trait it is the argument of names it.
+/// Narrowed, crate-only: an impl whose header names nothing else of the audit's is live,
+/// since a caller may leave its trait's arguments to inference.
 pub struct Unsaid;
 
 impl From<Unsaid> for String {
@@ -194,9 +195,28 @@ impl From<Unsaid> for String {
 	}
 }
 
-/// Narrowed, unreached: only that impl calls it.
+/// Narrowed, crate-only: only that impl calls it.
 pub fn unsaid_part() -> u32 {
 	33
+}
+
+/// Narrowed, crate-only: only a `#[used]` static, which runs with nothing naming it,
+/// names it.
+pub fn hooked() -> u32 {
+	36
+}
+
+#[used]
+static HOOK: fn() -> u32 = hooked;
+
+/// Narrowed, crate-only: `Level::High`'s discriminant counts on from the one it gives.
+pub const fn base() -> isize {
+	37
+}
+
+enum Level {
+	_Low = base(),
+	High,
 }
 
 fn main() {
@@ -242,4 +262,5 @@ fn main() {
 	println!("extra {}", extra::used());
 	println!("crlf {}", api::crlf::spaced());
 	println!("product {}", std::mem::size_of::<api::Product>());
+	println!("level {}", Level::High as isize);
 }

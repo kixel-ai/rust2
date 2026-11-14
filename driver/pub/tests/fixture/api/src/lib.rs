@@ -291,6 +291,67 @@ pub trait Shape {
 	fn area(&self) -> Area;
 }
 
+impl dyn Shape {
+	/// External: an inherent method of a trait object facade's API exposes.
+	pub fn describe(&self) -> u32 {
+		40
+	}
+}
+
+/// External: facade re-exports it.
+pub struct Slot<T>(std::marker::PhantomData<T>);
+
+/// External: facade re-exports it.
+pub trait Make<T> {
+	/// External: an item of an external trait.
+	fn make() -> u32;
+}
+
+mod marks {
+	/// External: the header of an impl whose `pub` method facade's API exposes names it.
+	pub struct Mark;
+
+	/// External: an impl of an external trait for an external type names it, where a
+	/// caller may leave it to inference.
+	pub struct Made;
+}
+
+impl Slot<marks::Mark> {
+	/// External: an inherent method of a type facade's API exposes.
+	pub fn get() -> u32 {
+		38
+	}
+}
+
+impl Make<marks::Made> for Slot<u8> {
+	fn make() -> u32 {
+		39
+	}
+}
+
+/// Makes a function with the visibility it is given, and an exported macro that prints
+/// that visibility.
+macro_rules! with_vis {
+	($v:vis fn $name:ident) => {
+		$v fn $name() -> u32 {
+			41
+		}
+
+		#[macro_export]
+		macro_rules! vis_of {
+			() => {
+				stringify!($v)
+			};
+		}
+	};
+}
+
+mod captures {
+	// External: an exported macro facade re-exports holds this `pub`, which nothing in the
+	// audit expands.
+	with_vis!(pub fn captured);
+}
+
 /// External: an external trait's method returns it.
 #[derive(Default)]
 pub struct Area {

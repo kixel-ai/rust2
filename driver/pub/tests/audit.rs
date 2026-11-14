@@ -71,8 +71,14 @@ fn fixture() {
 	expect("Area", "external", "unreached");
 	expect("Area::value", "external", "unreached");
 	expect("Area::doubled", "external", "unreached");
-	// So are the trait impls of what it exposes, with what they expose.
+	// So are the trait impls of what it exposes, with what they expose, inferred trait
+	// arguments included, an inherent impl's header, and a trait object's methods.
 	expect("Product::method", "external", "unreached");
+	expect("marks::Made", "external", "unreached");
+	expect("marks::Mark", "external", "unreached");
+	expect("<(dyn Shape + 'static)>::describe", "external", "unreached");
+	// A `pub` an exported macro holds, though another macro wrote it there.
+	expect("captures::captured", "external", "unreached");
 	// A glob that is external API, as facade's re-export through it makes it, exposes
 	// what its module exports, not all it supplies.
 	expect("outer::{use parts}", "cross-crate", "unreached");
@@ -126,8 +132,11 @@ fn fixture() {
 	// Every type of its own an impl's header names, however wrapped, must be live.
 	expect("Unshown", "narrowed", "unreached");
 	expect("unshown_part", "narrowed", "unreached");
-	expect("Unsaid", "narrowed", "unreached");
-	expect("unsaid_part", "narrowed", "unreached");
+	expect("Unsaid", "narrowed", "crate-only");
+	expect("unsaid_part", "narrowed", "crate-only");
+	// What runs with nothing naming it, and what an implicit discriminant counts on from.
+	expect("hooked", "narrowed", "crate-only");
+	expect("base", "narrowed", "crate-only");
 	// So does a glob of a module or enum of its own crate.
 	expect("tools::tool", "narrowed", "crate-only");
 	expect("crate::{use tools}", "narrowed", "crate-only");

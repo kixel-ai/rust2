@@ -352,7 +352,11 @@ fn pick<'a>(args: &'a [String], flags: &[&str], valued: &[&str]) -> Vec<&'a str>
 			picked.push(arg);
 		} else if valued.contains(&arg) {
 			picked.extend([Some(arg), args.next()].into_iter().flatten());
-		} else if valued.iter().any(|v| arg.starts_with(&format!("{v}="))) {
+		} else if valued.iter().any(|v| {
+			// `--config=x`, `-F=x`, or a short flag's attached `-Fx`.
+			arg.strip_prefix(v)
+				.is_some_and(|rest| rest.starts_with('=') || !v.starts_with("--") && !rest.is_empty())
+		}) {
 			picked.push(arg);
 		}
 	}
@@ -380,6 +384,28 @@ mod tests {
 			target: PathBuf::new(),
 			local: BTreeMap::from([(PathBuf::from("/shared"), package)]),
 		}
+	}
+
+	#[test]
+	fn metadata_gets_features_in_every_form() {
+		let args: Vec<String> = [
+			"-Fa",
+			"-F",
+			"b",
+			"-F=c",
+			"--features=d",
+			"--features",
+			"e",
+			"--release",
+			"-p",
+			"x",
+		]
+		.map(String::from)
+		.into();
+		assert_eq!(
+			super::metadata_args(&args),
+			["-Fa", "-F", "b", "-F=c", "--features=d", "--features", "e"]
+		);
 	}
 
 	#[test]

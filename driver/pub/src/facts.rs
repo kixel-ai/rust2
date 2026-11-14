@@ -82,6 +82,8 @@ pub struct Def {
 	/// Whether its own visibility is `pub`, so another crate reaches it wherever it
 	/// reaches what holds it, as a struct's field or a type's inherent method.
 	pub public: bool,
+	/// For a macro, every `pub` its definition holds.
+	pub tokens: Vec<Span>,
 	/// Whether it is a symbol code outside Rust links to, which rustc keeps whatever its
 	/// visibility.
 	pub symbol: bool,
@@ -118,12 +120,14 @@ pub struct Site {
 	pub to: Hash,
 }
 
-/// A trait impl, live once its trait and the types its header names, where the audit
-/// defines them, are.
+/// A trait impl, live once what it requires, where the audit defines it, is.
 #[derive(Serialize, Deserialize)]
 pub struct Impl {
 	pub hash: Hash,
+	/// Its trait, and what its self type names.
 	pub requires: Vec<Hash>,
+	/// What its trait's arguments name, which a caller may leave to inference.
+	pub args: Vec<Hash>,
 }
 
 /// An item, an impl's or trait's own items apart, as rustc's HIR printer prints it, which

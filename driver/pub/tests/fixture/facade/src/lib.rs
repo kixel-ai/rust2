@@ -18,5 +18,11 @@ pub extern crate extra;
 /// External: this library's API, re-exported from api, with what its `Iterator` yields.
 pub use api::Products;
 
+/// External: this library's API, re-exported from api, with their impls.
+pub use api::{Make, Slot};
+
+/// External: this library's API, an exported macro of api, made by another.
+pub use api::vis_of;
+
 /// External: this library's API, re-exported from api through a glob there.
 pub use api::Part;

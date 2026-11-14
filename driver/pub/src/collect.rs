@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
 
+use rustc_ast::tokenstream::TokenTree;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_driver::{Callbacks, Compilation};
 use rustc_hir::def::{DefKind, Res};
@@ -16,6 +17,7 @@ use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::{self as hir, ItemKind, Node, UseKind};
 use rustc_interface::interface::{Compiler, Config};
 use rustc_middle::hir::nested_filter;
+use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
 use rustc_middle::ty::{self, Ty, TyCtxt, TypeckResults};
 use rustc_span::hygiene::{ExpnId, ExpnKind, MacroKind};
 use rustc_span::source_map::{FileLoader, RealFileLoader};
@@ -261,9 +263,15 @@ impl<'tcx> Collector<'tcx> {
 			let exported = visibilities.is_exported(id);
 			let public = tcx.visibility(def).is_public();
 			// What runs or links with nothing in Rust naming it: an exported symbol, a
-			// `const _` that asserts at compile time, and the macros a proc-macro crate
-			// exports.
+			// `#[used]` static, such as a constructor's, a `const _` that asserts at compile
+			// time, and the macros a proc-macro crate exports.
+			let used = matches!(kind, DefKind::Static { .. })
+				&& tcx
+					.codegen_fn_attrs(def)
+					.flags
+					.intersects(CodegenFnAttrFlags::USED_COMPILER | CodegenFnAttrFlags::USED_LINKER);
 			if symbol
+				|| used
 				|| matches!(kind, DefKind::Const) && tcx.opt_item_name(def) == Some(kw::Underscore)
 				|| proc_macro && exported
 			{
@@ -275,10 +283,7 @@ impl<'tcx> Collector<'tcx> {
 					let container = tcx.parent(def);
 					match tcx.def_kind(container) {
 						DefKind::Impl { of_trait: false } => {
-							match tcx.type_of(container).instantiate_identity().skip_norm_wip().kind() {
-								ty::Adt(adt, _) => Some(this.hash(adt.did())),
-								_ => None,
-							}
+							owner(tcx.type_of(container).instantiate_identity().skip_norm_wip()).map(|o| this.hash(o))
 						}
 						_ => None,
 					}
@@ -287,31 +292,56 @@ impl<'tcx> Collector<'tcx> {
 			};
 			this.owner = id;
 			this.signature(id, kind);
-			if let DefKind::Impl { of_trait: true } = kind {
-				// Its trait and every type its header names, however wrapped, as in
-				// `impl Display for &Local` or `impl From<Local> for String`: nothing uses
-				// it where one of them is not.
-				let trait_ref = tcx.impl_trait_ref(def).instantiate_identity().skip_norm_wip();
-				let mut requires = vec![this.hash(trait_ref.def_id)];
-				for ty in trait_ref
-					.args
-					.types()
-					.flat_map(|t| t.walk())
-					.filter_map(|a| a.as_type())
+			// A variant with no discriminant of its own counts on from the last one written,
+			// whose expression it needs.
+			if kind == DefKind::Variant {
+				let variants: Vec<_> = tcx.adt_def(tcx.parent(def)).variants().iter().collect();
+				let index = variants
+					.iter()
+					.position(|v| v.def_id == def)
+					.expect("a variant of its enum");
+				if let ty::VariantDiscr::Relative(n @ 1..) = variants[index].discr
+					&& let ty::VariantDiscr::Explicit(_) = variants[index - n as usize].discr
 				{
-					let named = match *ty.kind() {
-						ty::Adt(adt, _) => Some(adt.did()),
-						ty::Foreign(def) => Some(def),
-						ty::Dynamic(preds, ..) => preds.principal_def_id(),
-						_ => None,
-					};
-					if let Some(hash) = named.map(|d| this.hash(d))
-						&& !requires.contains(&hash)
-					{
-						requires.push(hash);
+					this.refer_as(variants[index - n as usize].def_id, None, false);
+				}
+			}
+			// Every `pub` a macro's definition holds, wherever it was written, as a `$v:vis`
+			// the macro that made this one was given: each goes wherever it expands.
+			let mut tokens = Vec::new();
+			if let Some(Node::Item(item)) = tcx.hir_get_if_local(def)
+				&& let ItemKind::Macro(_, macro_def, _) = item.kind
+			{
+				let mut stack = vec![&macro_def.body.tokens];
+				while let Some(stream) = stack.pop() {
+					for tree in stream.iter() {
+						match tree {
+							TokenTree::Token(token, _) if token.is_keyword(kw::Pub) => {
+								tokens.extend(this.span(token.span));
+							}
+							TokenTree::Token(..) => {}
+							TokenTree::Delimited(.., inner) => stack.push(inner),
+						}
 					}
 				}
-				impls.push(Impl { hash, requires });
+			}
+			if let DefKind::Impl { of_trait: true } = kind {
+				// Its trait and what its self type names, however wrapped, as `Local` in
+				// `impl Display for &Local`: a use of it names each. Its trait's arguments
+				// may be inferred, so they are apart.
+				let trait_ref = tcx.impl_trait_ref(def).instantiate_identity().skip_norm_wip();
+				let mut requires = vec![this.hash(trait_ref.def_id)];
+				let mut args = Vec::new();
+				for (i, ty) in trait_ref.args.types().enumerate() {
+					let list = if i == 0 { &mut requires } else { &mut args };
+					for owner in ty.walk().filter_map(|a| a.as_type()).filter_map(owner) {
+						let hash = this.hash(owner);
+						if !list.contains(&hash) {
+							list.push(hash);
+						}
+					}
+				}
+				impls.push(Impl { hash, requires, args });
 				// An impl needs every item it declares, whatever calls them.
 				for &item in tcx.associated_item_def_ids(def) {
 					this.refer(item, None);
@@ -343,6 +373,7 @@ impl<'tcx> Collector<'tcx> {
 				expansion,
 				exported,
 				public,
+				tokens,
 				symbol,
 				parent,
 				member_of,
@@ -831,12 +862,15 @@ impl<'tcx> Collector<'tcx> {
 				named.push(last.res);
 			}
 			module = None;
+			// A list's stem is only its paths' prefix, as `api` in `api::{A, B}`: its
+			// interface names what they do, not all of `api`.
+			let interface = self.typeck.is_none() && !matches!(tree.kind, UseKind::Nested { .. });
 			for &res in &named {
 				let Res::Def(kind, def) = res else { continue };
 				if let Some(parent) = parent {
-					self.reexports(parent, last.ident.name, res, self.typeck.is_none());
+					self.reexports(parent, last.ident.name, res, interface);
 				}
-				self.refer(def, Some(last.ident.span));
+				self.refer_as(def, Some(last.ident.span), interface);
 				if let UseKind::Single(_) = tree.kind {
 					self.import(def, Vec::new());
 					supplied.push(def);
@@ -865,6 +899,17 @@ impl<'tcx> Collector<'tcx> {
 		let result = walk(self);
 		self.owner = outer;
 		result
+	}
+}
+
+/// The definition a type is of, as an impl's header names it: an ADT, an extern type, or
+/// a trait object's trait.
+fn owner(ty: Ty<'_>) -> Option<DefId> {
+	match *ty.kind() {
+		ty::Adt(adt, _) => Some(adt.did()),
+		ty::Foreign(def) => Some(def),
+		ty::Dynamic(preds, ..) => preds.principal_def_id(),
+		_ => None,
 	}
 }
 
