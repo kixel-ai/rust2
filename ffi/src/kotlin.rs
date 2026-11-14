@@ -130,7 +130,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	}
 	let _ = write!(
 		kotlin,
-		"/** The runtime's [Native.Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = Native.Eq\n\ninternal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __waker_wake(raw: Long)\n\n\t@JvmStatic external fun __waker_drop(raw: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as Pollable).poll(waker)\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass Failed(@JvmField val error: ByteArray) : RuntimeException(null, null, false, false)\n\n\t@JvmStatic private fun __failed(error: ByteArray): Throwable = Failed(error)\n\n{helpers}{}{}}}\n",
+		"/** The runtime's [Native.Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = Native.Eq\n\ninternal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __waker_wake(raw: Long)\n\n\t@JvmStatic external fun __waker_drop(raw: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as Pollable).poll(waker)\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass Failed(@JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@JvmStatic private fun __failed(error: ByteArray): Throwable = Failed(error)\n\n{helpers}{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -1935,11 +1935,15 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		self.params = locals(&function.params);
 		let export = abi.export(function, owner);
-		// The JVM slots of the 255 a method takes left past what each C parameter takes
-		// unflattened and a future's waker: what flattening records, then the slots a
-		// returned record crosses in, may spend.
-		let unflattened: usize = export.call.params.iter().map(|(_, c)| c_slots(c)).sum();
-		self.room = 255usize.saturating_sub(unflattened + usize::from(export.future.is_some()));
+		let written = function
+			.params
+			.iter()
+			.any(|p| matches!(&p.ty, Type::Ref(..)) && p.ty.written());
+		self.room = room(
+			export.call.params.iter().map(|(_, c)| c),
+			export.future.is_some(),
+			written,
+		);
 		let c_name = export.call.name.clone();
 		let bare = self.bare(&c_name).to_string();
 		let owner_c = match owner {
@@ -2794,6 +2798,14 @@ fn weight(abi: &Abi<'_>, i: usize) -> usize {
 	fields.sum::<usize>() + usize::from(rest(abi, i))
 }
 
+/// The JVM slots of the 255 a method takes left past what each C parameter takes
+/// unflattened, a future's waker, and the array a written-back argument returns through:
+/// what flattening records, then the slots a returned record crosses in, may spend.
+fn room<'a>(params: impl Iterator<Item = &'a Ty>, future: bool, written: bool) -> usize {
+	let unflattened: usize = params.map(c_slots).sum();
+	255usize.saturating_sub(unflattened + usize::from(future) + usize::from(written))
+}
+
 /// The JVM parameter slots the C parameter `c` takes as a native method's: two for a
 /// `long` or `double`, none for what never crosses, and one for anything else.
 fn c_slots(c: &Ty) -> usize {
@@ -3332,6 +3344,17 @@ pub(crate) fn indent_by(code: &str, n: usize) -> String {
 
 #[cfg(test)]
 mod tests {
+	/// The writeback array is a parameter of its own, which an out pointer's zero slots
+	/// leave out.
+	#[test]
+	fn room_reserves_writeback() {
+		use super::Ty;
+		let params = [Ty::F64, Ty::Bool];
+		assert_eq!(super::room(params.iter(), false, false), 252);
+		assert_eq!(super::room(params.iter(), false, true), 251);
+		assert_eq!(super::room(params.iter(), true, true), 250);
+	}
+
 	/// Every class the runtime declares is taken, so an exported type of its name is renamed
 	/// rather than shadowed inside `Native`.
 	#[test]
