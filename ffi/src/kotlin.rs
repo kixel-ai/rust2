@@ -271,7 +271,7 @@ const BUILTINS: &str = "/** [kotlin.collections.List] of [n] items, each [item] 
 internal inline fun <T> _list(n: kotlin.Int, item: (kotlin.Int) -> T): kotlin.collections.List<T> = kotlin.collections.List(n, item)
 
 /** An array of [values], for a call's written-back arguments. */
-@kotlin.Suppress("UNCHECKED_CAST") internal fun _arrayOf(vararg values: kotlin.Any): kotlin.Array<kotlin.Any> = values as kotlin.Array<kotlin.Any>
+@kotlin.Suppress(\"UNCHECKED_CAST\") internal fun _arrayOf(vararg values: kotlin.Any): kotlin.Array<kotlin.Any> = values as kotlin.Array<kotlin.Any>
 
 ";
 

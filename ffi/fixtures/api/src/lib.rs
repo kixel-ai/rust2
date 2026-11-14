@@ -190,6 +190,16 @@ impl Clash {
 		Clash::Double(value)
 	}
 
+	/// `lent` then `owned`, each of the byte parameters a sealed class's body names.
+	pub fn joined(&self, lent: &[u8], owned: Vec<u8>, maybe: Option<Vec<u8>>) -> Vec<u8> {
+		[lent, &owned, &maybe.unwrap_or_default()].concat()
+	}
+
+	/// `tag` with this clash's form, from a future that borrows both.
+	pub fn tagged<'a>(&'a self, tag: &'a str) -> impl Future<Output = String> + 'a {
+		async move { format!("{tag} {self:?}") }
+	}
+
 	/// A point clash at `api`, a parameter named as the Kotlin package that qualifies its type.
 	pub fn at(api: Point) -> Clash {
 		Clash::Point(api)

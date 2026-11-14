@@ -1388,6 +1388,10 @@ fun clash() {
 	check(Clash.listed(uintArrayOf(1u, 2u), len).map { it.toList() } == listOf(listOf(1u, 2u, 9u)) && len.value == 2u, "clash listed")
 	check(runBlocking { Clash.after({}, 0.25) } == Clash.Double(0.25), "clash after")
 	check(Packaged(3u).point() == Point(3, 3) && Packaged(3u).shape() == Shape.CIRCLE, "a field named as the package")
+	val b = { t: String -> Bytes(t.encodeToByteArray()) }
+	check(Clash.Unit.joined(b("a"), b("b"), b("c")).toByteArray().decodeToString() == "abc", "clash joined")
+	check(Clash.Unit.joined(b("a"), b("b"), null).toByteArray().decodeToString() == "ab", "clash joined none")
+	check(runBlocking { Clash.Int(1).tagged("t") } == "t Int(1)", "clash tagged")
 	check(Clash.String("hi").bytes().toByteArray().decodeToString() == "hi", "clash bytes")
 	val out = Mut(0u)
 	check(Clash.Int(4).describe("t", 3u, Shape.SQUARE, out) == "t Int(4) 3 Square" && out.value == 6u, "clash describe")
