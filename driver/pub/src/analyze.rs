@@ -164,7 +164,14 @@ impl Audit {
 				let index = hashes[&def.hash];
 				if let Some(&parent) = def.parent.and_then(|p| hashes.get(&p)) {
 					edges[test][index].push(parent);
-					if matches!(defs[parent].kind.as_str(), "Struct" | "Enum" | "Union" | "Variant" | "Mod") {
+					// A type's fields and variants are its API; a module's, only what
+					// its crate exports from it.
+					let member = match defs[parent].kind.as_str() {
+						"Struct" | "Enum" | "Union" | "Variant" => true,
+						"Mod" => def.exported,
+						_ => false,
+					};
+					if member {
 						members[parent].push(index);
 					}
 				}
