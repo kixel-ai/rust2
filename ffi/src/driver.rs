@@ -47,6 +47,8 @@ pub const API_FILE: &str = "api.json";
 
 /// Compiles the facade, exporting its API after analysis.
 struct Export {
+	/// Each crate the facade builds with, as [`config::env::CRATES`] has them.
+	crates: std::collections::BTreeMap<String, String>,
 	config: Config,
 	output: Output,
 	/// The facade's package, with the features rustc compiles it with.
@@ -117,10 +119,21 @@ impl Export {
 			.map(str::to_string)
 			.collect();
 		let patch = std::env::var(config::env::PATCH).map_err(|_| format!("{} is unset", config::env::PATCH))?;
+		let crates = std::env::var(config::env::CRATES).map_err(|_| format!("{} is unset", config::env::CRATES))?;
+		let crates: toml::Table = crates
+			.parse()
+			.map_err(|err| format!("{} is malformed: {err}", config::env::CRATES))?;
+		let crates = (crates.into_iter())
+			.map(|(lib, keys)| match keys {
+				toml::Value::String(keys) => Ok((lib, keys)),
+				_ => Err(format!("{} is malformed: {lib}", config::env::CRATES)),
+			})
+			.collect::<Result<_, String>>()?;
 		let baseline = std::env::var_os(config::env::BASELINE)
 			.filter(|p| !p.is_empty())
 			.map(PathBuf::from);
 		Ok(Some(Self {
+			crates,
 			config,
 			output,
 			facade,
@@ -140,6 +153,7 @@ impl Callbacks for Export {
 		let facade = collect::Facade {
 			root: self.facade.root(),
 			package: &self.facade.name,
+			crates: &self.crates,
 			// A census counts the whole API, whatever the config leaves out.
 			exclude: match self.output {
 				Output::Census(_) => &[],
@@ -462,6 +476,7 @@ impl Export {
 			abi: &abi,
 			facade: &self.facade,
 			patch: &self.patch,
+			crates: &self.crates,
 		};
 		let generated = glue.generate(out)?;
 		if let Some(path) = &self.baseline {

@@ -127,6 +127,29 @@ def round(loop):
 			group.finish()
 		out["woken"] = per(start)
 
+		# One writer task, with one outstanding permit, for the whole reader loop.
+		start = now()
+		permits = asyncio.Queue(maxsize=1)
+
+		async def write_loop():
+			for _ in range(GROUPS):
+				group = track.append_group()
+				for _ in range(FRAMES):
+					await permits.get()
+					group.write_frame(at, frame)
+				await permits.get()
+				group.finish()
+
+		writer = asyncio.create_task(write_loop())
+		for _ in range(GROUPS):
+			reader = await subscriber.recv_group()
+			for _ in range(FRAMES):
+				permits.put_nowait(None)
+				await reader.read_frame()
+			permits.put_nowait(None)
+		await writer
+		out["loop"] = per(start)
+
 		for size in SIZES:
 			out[f"mbps:{size}"] = await throughput(track, subscriber, at, size)
 		return last

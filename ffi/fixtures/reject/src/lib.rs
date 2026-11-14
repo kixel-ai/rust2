@@ -1070,6 +1070,21 @@ pub fn maybe_picked(pick: impl Fn() -> Option<&'static Mark>) -> u64 {
 	pick().map_or(0, |mark| mark.at)
 }
 
+/// A future whose output is an `impl Trait` hiding no object, which the glue cannot name.
+pub async fn hidden_answer() -> impl Copy {
+	1_u32
+}
+
+/// A collected iterator whose items are an `impl Trait` hiding no object.
+pub fn hidden_items() -> impl Iterator<Item = impl Copy> {
+	[1_u32].into_iter()
+}
+
+/// An `impl Trait` hiding an `Option`, which the glue cannot take apart.
+pub fn hidden_option() -> impl Clone {
+	Some(1_u32)
+}
+
 /// A boxed slice of bytes, which no buffer form takes.
 pub fn boxed_bytes(bytes: Box<[u8]>) -> usize {
 	bytes.len()

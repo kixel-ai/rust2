@@ -147,6 +147,8 @@ pub struct Facade<'a> {
 	pub package: &'a str,
 	/// Paths from its root the config leaves out.
 	pub exclude: &'a [String],
+	/// The dependency the glue names each crate it builds with by, by its crate name.
+	pub crates: &'a std::collections::BTreeMap<String, String>,
 	/// Paths from its root a census checks, without leaving out what they name: each
 	/// path one names is recorded in [`Report::audited`], as the exclude would have checked it.
 	pub audit: &'a [String],
@@ -242,6 +244,8 @@ struct Collector<'tcx> {
 	inferring: bool,
 	/// The crates of the items the walk reached, the facade's first.
 	crates: Vec<CrateNum>,
+	/// How many of `crates` the walk from the root reached, before any reached type's.
+	walked: usize,
 	report: Report,
 	/// Items the walk left out, and why: `excluded` or `doc(hidden)`.
 	left_out: rustc_data_structures::fx::FxHashMap<DefId, &'static str>,
@@ -267,6 +271,21 @@ struct Collector<'tcx> {
 	range_bounds: Option<DefId>,
 	/// Objects no export returns, left out.
 	orphans: rustc_data_structures::fx::FxHashSet<Key<'tcx>>,
+	/// Types a signature names that the root does not reach, each exported by its public
+	/// path in its own crate.
+	reach: Vec<DefId>,
+	/// The glue's dependency on each crate, as [`Facade::crates`].
+	dependencies: std::collections::BTreeMap<String, String>,
+	/// Such types this pass met that `reach` lacks.
+	unreached: std::cell::RefCell<Vec<DefId>>,
+	/// Types an opaque `Arc` holds that a signature also names bare, which stay refused
+	/// rather than export twice.
+	barred: Vec<DefId>,
+	/// Whether the type being mapped is a `Result`'s error, which never reaches a type.
+	erring: std::cell::Cell<bool>,
+	/// Whether the type being mapped is only tried, as a candidate or before another rule,
+	/// whose failure reaches no type.
+	probing: std::cell::Cell<bool>,
 	api: Api,
 }
 
@@ -343,7 +362,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 		};
 		keys.insert(krate, key);
 	}
-	let pass = |orphans: &rustc_data_structures::fx::FxHashSet<Key<'tcx>>| {
+	let pass = |orphans: &rustc_data_structures::fx::FxHashSet<Key<'tcx>>, reach: &[DefId], barred: &[DefId]| {
 		let mut c = Collector {
 			tcx,
 			items: Vec::new(),
@@ -351,6 +370,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			keys: keys.clone(),
 			decls: Default::default(),
 			crates: vec![LOCAL_CRATE],
+			walked: 1,
 			report: Report {
 				package: facade.package.to_string(),
 				root: facade.root.clone(),
@@ -378,6 +398,12 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			bound,
 			range_bounds,
 			orphans: orphans.clone(),
+			reach: reach.to_vec(),
+			dependencies: facade.crates.clone(),
+			unreached: Default::default(),
+			barred: barred.to_vec(),
+			erring: Default::default(),
+			probing: Default::default(),
 			api: Api {
 				records: Vec::new(),
 				enums: Vec::new(),
@@ -386,6 +412,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 				functions: Vec::new(),
 				constants: Vec::new(),
 				crates: Vec::new(),
+				reached: Vec::new(),
 				targets: vec![target(tcx)],
 			},
 		};
@@ -398,7 +425,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			.collect();
 		c.level = level
 			.filter(|&(level, filter)| {
-				!c.exported(level.krate) && !c.items.iter().any(|(item, _)| *item == level || *item == filter)
+				!c.walked(level.krate) && !c.items.iter().any(|(item, _)| *item == level || *item == filter)
 			})
 			.map(|(level, filter)| Level {
 				level,
@@ -414,18 +441,42 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 		c
 	};
 	// Leaving out an object no export returns leaves out what takes it, which may leave another
-	// object no export returns, so collection repeats until it refuses no more.
+	// object no export returns, so collection repeats until it refuses no more. A type the
+	// root does not reach is walked from its defining path in the next pass, whose
+	// signatures may name more.
 	let mut orphans = rustc_data_structures::fx::FxHashSet::default();
+	let mut reach = Vec::new();
+	let mut barred = Vec::new();
 	loop {
-		let c = pass(&orphans);
+		let c = pass(&orphans, &reach, &barred);
+		// A reached type an opaque `Arc` also holds would export twice, so it stays refused,
+		// as it was before its crate was reached.
+		let held: Vec<DefId> = (reach.iter().copied())
+			.filter(|&did| c.foreign.iter().any(|&(other, _)| other == did))
+			.collect();
+		if !held.is_empty() {
+			reach.retain(|did| !held.contains(did));
+			barred.extend(held);
+			orphans.clear();
+			continue;
+		}
 		let more = c.orphans();
-		if more.is_empty() {
+		let unreached: Vec<DefId> = (c.unreached.take().into_iter())
+			.filter(|&did| !c.foreign.iter().any(|&(other, _)| other == did))
+			.collect();
+		if more.is_empty() && unreached.is_empty() {
 			return Collected {
 				api: c.api,
 				report: c.report,
 			};
 		}
-		orphans.extend(more);
+		// A newly reached type may return an object marked an orphan, so those start over.
+		if unreached.is_empty() {
+			orphans.extend(more);
+		} else {
+			reach.extend(unreached);
+			orphans.clear();
+		}
 	}
 }
 
@@ -586,6 +637,13 @@ impl<'tcx> Collector<'tcx> {
 	/// Whether the walk reached an item of `krate`.
 	fn exported(&self, krate: CrateNum) -> bool {
 		self.crates.contains(&krate)
+	}
+
+	/// Whether the walk from the root reached an item of `krate`. A crate only signatures
+	/// reach keeps the roles of one no export is: its errors are never reached, one in a
+	/// `Result` crossing as its message, and an `Arc` of its type crosses as an opaque handle.
+	fn walked(&self, krate: CrateNum) -> bool {
+		self.crates[..self.walked].contains(&krate)
 	}
 
 	/// Whether the config excludes `path`, counting the exclusion, or else recording it under
@@ -840,7 +898,7 @@ impl<'tcx> Collector<'tcx> {
 		};
 		let did = adt.did();
 		let mapped = Some(did) == self.bytes || Some(did) == self.json_map || !self.opaque(did);
-		let held = !self.exported(did.krate) && !self.sysroot.contains(&did.krate) && !mapped;
+		let held = !self.walked(did.krate) && !self.sysroot.contains(&did.krate) && !mapped;
 		(held && inner_args.is_empty() && self.is_send(inner, TypingEnv::fully_monomorphized()) && self.is_sync(inner))
 			.then_some(did)
 	}
@@ -1228,6 +1286,117 @@ impl<'tcx> Collector<'tcx> {
 				}
 			}
 		}
+		self.walk_reach(&seen);
+	}
+
+	/// Walk each type in `reach` the root did not, by its public path in its own crate, as if
+	/// a module of the facade re-exported that crate's root.
+	fn walk_reach(&mut self, seen: &rustc_data_structures::fx::FxHashSet<DefId>) {
+		let tcx = self.tcx;
+		self.walked = self.crates.len();
+		for def_id in self.reach.clone() {
+			if seen.contains(&def_id) {
+				continue;
+			}
+			let mut path = vec![self.report.root.clone()];
+			if !def_id.is_local() {
+				path.push(tcx.crate_name(def_id.krate).to_string());
+			}
+			let own = self.crate_path(def_id).expect("a reached type has a path in its crate");
+			let outside = path.len();
+			path.extend(own);
+			if self.exclude(&path) {
+				self.left_out.insert(def_id, "excluded type");
+				continue;
+			}
+			if tcx.is_doc_hidden(def_id) {
+				let (report, rest) = self.report(&path);
+				report.hidden.push(rest);
+				self.left_out.insert(def_id, "doc(hidden) type");
+				continue;
+			}
+			// The glue depends on its crate only once a type of it is walked.
+			if !def_id.is_local() && !self.api.reached.iter().any(|r| r.krate == path[1]) {
+				self.api.reached.push(crate::ir::Reached {
+					krate: path[1].clone(),
+					targets: self.api.targets.clone(),
+				});
+			}
+			if !self.crates.contains(&def_id.krate) {
+				self.crates.push(def_id.krate);
+			}
+			self.outside.insert(def_id, outside);
+			self.items.push((def_id, path));
+		}
+	}
+
+	/// Whether `def_id` exports by its public path in its own crate. Another crate's must be
+	/// the only crate of its name, named by none of the facade's root items, and one the glue
+	/// can depend on, so its path names it there.
+	fn reachable(&self, def_id: DefId) -> bool {
+		let tcx = self.tcx;
+		if self.crate_path(def_id).is_none() {
+			return false;
+		}
+		if def_id.is_local() {
+			return true;
+		}
+		if self.barred.contains(&def_id) || self.sysroot.contains(&def_id.krate) {
+			return false;
+		}
+		let name = tcx.crate_name(def_id.krate);
+		let root = tcx.module_children_local(LOCAL_CRATE.as_def_id().expect_local());
+		self.keys[&def_id.krate] == name.as_str()
+			&& !root.iter().any(|child| child.ident.name == name)
+			&& self.dependencies.contains_key(name.as_str())
+	}
+
+	/// Walk `def_id` by its public path in its own crate in the next pass, unless the type
+	/// being mapped is only tried.
+	fn reached(&self, def_id: DefId) {
+		if self.probing.get() {
+			return;
+		}
+		let mut unreached = self.unreached.borrow_mut();
+		if !unreached.contains(&def_id) {
+			unreached.push(def_id);
+		}
+	}
+
+	/// The shortest public path to `def_id` from its own crate's root, through that crate's
+	/// modules and re-exports, as `kio::Pending` names one defined in a private module.
+	fn crate_path(&self, def_id: DefId) -> Option<Vec<String>> {
+		let tcx = self.tcx;
+		let root = def_id.krate.as_def_id();
+		let mut seen = rustc_data_structures::fx::FxHashSet::default();
+		let mut queue = VecDeque::from([(root, Vec::new())]);
+		while let Some((module, path)) = queue.pop_front() {
+			let children = match module.as_local() {
+				Some(local) => tcx.module_children_local(local),
+				None => tcx.module_children(module),
+			};
+			for child in children {
+				let Res::Def(kind, id) = child.res else {
+					continue;
+				};
+				if !child.vis.is_public()
+					|| child.ident.name == rustc_span::kw::Underscore
+					|| id.krate != def_id.krate
+					|| (kind == DefKind::Mod && tcx.is_doc_hidden(id))
+				{
+					continue;
+				}
+				let mut path = path.clone();
+				path.push(child.ident.to_string());
+				if id == def_id {
+					return Some(path);
+				}
+				if kind == DefKind::Mod && seen.insert(id) {
+					queue.push_back((id, path));
+				}
+			}
+		}
+		None
 	}
 
 	/// Decide how each type and trait is exported, before any signature names one.
@@ -2784,7 +2953,7 @@ impl<'tcx> Collector<'tcx> {
 		// refused.
 		let mut collect = false;
 		if !future
-			&& self.ret(output).is_err()
+			&& self.probe(|| self.ret(output)).is_err()
 			&& let Some(items) = self
 				.collected(output, env)
 				.and_then(|item| self.vec_of(normalize(item)))
@@ -2805,8 +2974,12 @@ impl<'tcx> Collector<'tcx> {
 			ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Result, adt.did()) => {
 				let error = args.type_at(1);
 				// Another crate's error, such as `anyhow::Error` or `io::Error`, crosses as
-				// its message, as an exported error's `Display` already reads.
-				let err = match self.ty(error, Pos::Return) {
+				// its message, as an exported error's `Display` already reads, even where a
+				// signature reaches its crate.
+				self.erring.set(true);
+				let err = self.ty(error, Pos::Return);
+				self.erring.set(false);
+				let err = match err {
 					Err(why)
 						if why.construct == "foreign type"
 							&& implements(tcx, error, def_id, rustc_span::sym::Display) =>
@@ -2823,6 +2996,41 @@ impl<'tcx> Collector<'tcx> {
 			ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Result, adt.did()) => args.type_at(0),
 			_ => output,
 		};
+		// The glue cannot name an `impl Trait`'s hidden type, so one in a return that maps
+		// crosses only as what the glue passes on whole, an object's handle. A future and a
+		// collected iterator are taken apart instead, so it is what their output or items
+		// name that crosses.
+		let unrevealed = sig.output();
+		let mut named = if ok.is_ok() { vec![unrevealed] } else { Vec::new() };
+		while let Some(ty) = named.pop() {
+			for ty in ty.walk().filter_map(|arg| arg.as_type()) {
+				let ty::Alias(
+					_,
+					ty::AliasTy {
+						kind: ty::AliasTyKind::Opaque { def_id },
+						args,
+						..
+					},
+				) = ty.kind()
+				else {
+					continue;
+				};
+				if ty == unrevealed && (future || collect) {
+					let bounds = tcx.explicit_item_bounds(*def_id).skip_binder();
+					named.extend(bounds.iter().filter_map(|&(clause, _)| {
+						let term = clause.as_projection_clause()?.skip_binder().term.as_type()?;
+						Some(ty::EarlyBinder::bind(tcx, term).instantiate(tcx, args).skip_norm_wip())
+					}));
+					continue;
+				}
+				let hidden = normalize(ty);
+				if !matches!(hidden.kind(), ty::Adt(adt, args)
+					if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))))
+				{
+					errs.push(why("opaque type", ty.to_string()));
+				}
+			}
+		}
 		let lends = matches!(ok, Ok(Type::Ref(Mutability::Not, ref inner)) if matches!(**inner, Type::Object(_)))
 			&& !self.is_clone(ok_ty.peel_refs());
 		let ok = ok.map_err(|why| errs.push(why)).ok();
@@ -3071,8 +3279,11 @@ impl<'tcx> Collector<'tcx> {
 			let tr = bound.def_id();
 			let target = || bound.skip_binder().trait_ref.args.type_at(1);
 			if tcx.is_diagnostic_item(sym::Into, tr) || tcx.is_diagnostic_item(sym::AsRef, tr) {
-				// An `Into` target that does not map takes what converts into it instead.
-				let sources = (tcx.is_diagnostic_item(sym::Into, tr) && !self.maps(target(), Pos::Param))
+				// An `Into` target that does not map takes what converts into it instead. The
+				// signature names the target, so unlike a candidate only tried, mapping it reaches
+				// it by its public path in its own crate.
+				let maps = (self.inferring && self.names_export(target())) || self.ty(target(), Pos::Param).is_ok();
+				let sources = (tcx.is_diagnostic_item(sym::Into, tr) && !maps)
 					.then(|| self.sources(def_id, target(), outlives))
 					.transpose()?;
 				let sources = (sources.into_iter().flatten()).map(|(x, outlives, imp)| (x, outlives, Some(imp)));
@@ -3491,7 +3702,15 @@ impl<'tcx> Collector<'tcx> {
 	/// Whether `ty` maps where `pos` puts it. While inferring, before any type is declared,
 	/// one naming an export's type does.
 	fn maps(&self, ty: Ty<'tcx>, pos: Pos) -> bool {
-		(self.inferring && self.names_export(ty)) || self.ty(ty, pos).is_ok()
+		(self.inferring && self.names_export(ty)) || self.probe(|| self.ty(ty, pos)).is_ok()
+	}
+
+	/// `map`, reaching no type a refusal names.
+	fn probe<T>(&self, map: impl FnOnce() -> T) -> T {
+		let was = self.probing.replace(true);
+		let mapped = map();
+		self.probing.set(was);
+		mapped
 	}
 
 	/// Whether `ty` names an export's type, which maps only once declared.
@@ -4090,7 +4309,42 @@ impl<'tcx> Collector<'tcx> {
 					},
 				) => {
 					let tcx = self.tcx;
-					for &(clause, _) in tcx.explicit_item_bounds(*def_id).skip_binder() {
+					let bounds = tcx.explicit_item_bounds(*def_id).skip_binder();
+					// Any other `impl Trait` holds what its hidden type holds, as `impl Iterator + '_`
+					// over an object borrowing the receiver does; one collected at the call, or a
+					// future, whose borrows are checked apart, holds nothing past it.
+					let future = (bounds.iter()).any(|&(clause, _)| {
+						clause
+							.as_trait_clause()
+							.is_some_and(|tr| tcx.is_lang_item(tr.def_id(), LangItem::Future))
+					});
+					if !future {
+						// Revealed through each `impl Trait` it returns in turn, as `function` reveals it.
+						let mut hidden = tcx.type_of(*def_id).instantiate(tcx, args).skip_norm_wip();
+						while let ty::Alias(
+							_,
+							ty::AliasTy {
+								kind: ty::AliasTyKind::Opaque { def_id },
+								args,
+								..
+							},
+						) = hidden.kind()
+						{
+							hidden = tcx.type_of(*def_id).instantiate(tcx, args).skip_norm_wip();
+						}
+						// One whose hidden type is an object crosses as its handle, which the glue
+						// keeps as the opaque type itself, so it holds every lifetime it captures,
+						// even one its hidden type does not borrow; one collected at the call holds
+						// nothing past it, and any other is refused. Looked up with regions erased,
+						// since they may be the signature's bound ones, which a key never names.
+						let erased = ty::fold_regions(tcx, hidden, |_, _| tcx.lifetimes.re_erased);
+						let object = matches!(erased.kind(), ty::Adt(adt, args)
+							if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))));
+						if object {
+							held.extend(args.iter().flat_map(|arg| arg.walk()).filter_map(|arg| arg.as_region()));
+						}
+					}
+					for &(clause, _) in bounds {
 						let term = clause
 							.as_projection_clause()
 							.and_then(|p| p.skip_binder().term.as_type());
@@ -4513,9 +4767,8 @@ impl<'tcx> Collector<'tcx> {
 							.then_some(Collection::BTreeMap)
 					})
 					// serde_json's own, unless serde_json is an export.
-					.or_else(|| {
-						(Some(did) == self.json_map && !self.exported(did.krate)).then_some(Collection::JsonMap)
-					}) {
+					.or_else(|| (Some(did) == self.json_map && !self.walked(did.krate)).then_some(Collection::JsonMap))
+				{
 					// A set crosses as its items, and a map as its pairs, in order.
 					let inner = match c {
 						Collection::BTreeSet => self.ty(args.type_at(0), pos.inner())?,
@@ -4651,7 +4904,17 @@ impl<'tcx> Collector<'tcx> {
 							None => return Err(why("Arc", strip_args(tcx, did))),
 						},
 					}
-				} else if !self.exported(did.krate) {
+				} else if !self.walked(did.krate) && (self.erring.get() || !self.reach.contains(&did)) {
+					// One public in its own crate exports by that path, in the next pass, unless
+					// it is an error: one in a `Result` crosses as its message, and one elsewhere,
+					// such as in an exported error's variant, stays refused.
+					if !self.erring.get()
+						&& !self.reach.contains(&did)
+						&& self.reachable(did)
+						&& !implements(tcx, ty, did, rustc_span::Symbol::intern("Error"))
+					{
+						self.reached(did);
+					}
 					return Err(why("foreign type", strip_args(tcx, did)));
 				} else {
 					let key = self.key(did, *args);
@@ -4690,6 +4953,10 @@ impl<'tcx> Collector<'tcx> {
 									format!("`{}` exports only at the instances it infers", strip_args(tcx, did));
 								why.note = Some((tcx.def_span(did), note));
 								return Err(why);
+							}
+							// One public in its own crate exports by that path, in the next pass.
+							if !self.reach.contains(&did) && self.reachable(did) {
+								self.reached(did);
 							}
 							return Err(why("type not reachable from the crate root", name));
 						}

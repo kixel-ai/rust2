@@ -5,6 +5,8 @@
 import java.lang.management.ManagementFactory
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import moq.*
 
@@ -140,6 +142,34 @@ fun round(): Map<String, Span> {
 			}
 		}
 		out["woken"] = per(t0)
+
+		// One writer coroutine and one reader, with at most one frame permitted.
+		t0 = now()
+		val permits = Channel<Unit>()
+		val writer = launch {
+			repeat(GROUPS) {
+				track.appendGroup().use { group ->
+					repeat(FRAMES) {
+						permits.receive()
+						group.writeFrame(at, frame)
+					}
+					permits.receive()
+					group.finish()
+				}
+			}
+		}
+		repeat(GROUPS) {
+			subscriber.recvGroup()!!.use { reader ->
+				repeat(FRAMES) {
+					permits.send(Unit)
+					reader.readFrame()!!.close()
+				}
+			}
+			permits.send(Unit)
+		}
+		writer.join()
+		permits.close()
+		out["loop"] = per(t0)
 
 		for (size in SIZES) out["mbps:$size"] = throughput(track, subscriber, at, size)
 		subscriber.close()

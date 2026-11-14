@@ -120,6 +120,8 @@ fn main() {
 		.map(|(name, counter)| format!("{name} {} {}", counter.name(), counter.get()))
 		.collect();
 	println!("ranked {}", ranked.join(", "));
+	let best: Counter = board.best().into();
+	println!("best {} {}", best.name(), best.get());
 	let atlas = api::Atlas {
 		points: [("b", 1, 1), ("ab", 2, 3), ("b", 4, 4)]
 			.into_iter()
@@ -609,6 +611,9 @@ fn main() {
 	println!("nudge {} {}", point.x, point.y);
 	let config = api::secure("h3");
 	println!("secure {} {}", api::alpn_lent(&config), api::alpn(config.clone()));
+	let session = api::resume("h3", 60).unwrap();
+	println!("resume {} {}", session.alpn(), session.lifetime().seconds);
+	println!("resume err {}", api::resume("", 60).err().unwrap());
 	let mut meters = api::Meters::new();
 	let first = meters.first();
 	first.add(2);

@@ -2948,6 +2948,7 @@ fn package_names_are_locked() {
 		constants: vec![],
 		crates: vec!["lock_foobar".into()],
 		targets: vec!["host".into()],
+		reached: Vec::new(),
 	};
 	let base = api.clone();
 	let old = generate(&Abi::new(&api, "lock"), "lock", 0, "lock").unwrap();

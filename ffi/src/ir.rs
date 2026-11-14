@@ -17,7 +17,20 @@ pub struct Api {
 	pub constants: Vec<Constant>,
 	/// The crates items belong to, each after every crate it depends on.
 	pub crates: Vec<String>,
+	/// The crates the facade does not re-export whose types an export names, which the
+	/// glue depends on directly. An API from before it reached none.
+	#[serde(default)]
+	pub reached: Vec<Reached>,
 	/// The targets it serves, sorted: one for a single target's, several merged.
+	pub targets: Vec<String>,
+}
+
+/// A crate the glue depends on beside the facade, as the facade resolves it.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Reached {
+	/// Its crate name, its items' second path segment.
+	pub krate: String,
+	/// The targets whose API names its types, sorted.
 	pub targets: Vec<String>,
 }
 

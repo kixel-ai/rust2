@@ -345,6 +345,9 @@ int script() {
 			std::printf("%llu", ull(counter.get()));
 		}
 		std::printf("\n");
+		auto best = board.best();
+		print("best ", best.name(), " ");
+		std::printf("%llu\n", ull(best.get()));
 	}
 	{
 		// A map crosses as its pairs and a set as its items, which Rust collects in order,
@@ -920,6 +923,10 @@ int script() {
 		auto config = api::secure("h3");
 		print("secure ", api::alpn_lent(config), " ");
 		print("", api::alpn(config), "\n");
+		auto session = api::resume("h3", 60);
+		print("resume ", session.value().alpn(), " ");
+		std::printf("%u\n", unsigned(session.value().lifetime().seconds));
+		print("resume err ", api::resume("", 60).error(), "\n");
 		auto meters = api::Meters::new_();
 		auto first = meters.first();
 		first.add(2);

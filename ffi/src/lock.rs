@@ -835,6 +835,7 @@ mod tests {
 			constants: vec![],
 			crates: vec!["lock_a".into(), "lock_b".into()],
 			targets: vec!["host".into()],
+			reached: Vec::new(),
 		}
 	}
 
