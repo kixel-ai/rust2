@@ -466,23 +466,14 @@ export function escape(parts: rs.Slice<rs.String>): rs.String {
 	const leaf: rs.Iter<rs.String> = rs.iterSlice(rs.sliceItems(parts));
 	let count: number = 0;
 	l1: while (true) {
-		let next!: [rs.usize, rs.String] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _7: [rs.usize, rs.String] | rs.Done = next;
-		if (_7 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			return path;
 		}
-		if (_7[0] > 0) {
+		if (count++ > 0) {
 			rs.stringPush(path, 47);
 		}
-		const iter2: rs.Iter<rs.char> = rs.strChars(_7[1].v);
+		const iter2: rs.Iter<rs.char> = rs.strChars(x.v);
 		while (true) {
 			const _19: rs.char | rs.Done = iter2.next();
 			if (_19 === rs.DONE) {

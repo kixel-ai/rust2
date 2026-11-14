@@ -843,6 +843,13 @@ def futures():
 	# future polls again rather than waiting for a wake that already happened.
 	check(loop.run_until_complete(asyncio.wait_for(api.yielded(7), 5)) == 7, "a wake during the poll polls again")
 	check(loop.run_until_complete(api.corner_later()) == (1, 1), "a future's borrowed tuple returns whole")
+	# A future's error borrowing its argument crosses as its message, as `parse_cert`'s does.
+	check(loop.run_until_complete(api.parse_later("cert")) == 4, "a future with a borrowing error returns Ok")
+	try:
+		loop.run_until_complete(api.parse_later(""))
+		check(False, "a future's borrowing error raises")
+	except api.StringException as e:
+		check(e.error == "malformed: ", "a future's borrowing error is its message")
 
 	# Cancelled between its wake and its poll, a receive loses nothing: the payload stays
 	# for the next.

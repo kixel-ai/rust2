@@ -2699,6 +2699,12 @@ pub fn parse_cert(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
 	}
 }
 
+/// `parse_cert` as a future: its error borrows `text`, which the future owns, so the glue
+/// makes it its message before the future ends.
+pub async fn parse_later(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
+	parse_cert(text)
+}
+
 /// Another crate's error taken back by value, which no export returns: left out.
 pub fn blame(err: tls::held::Invalid) -> String {
 	err.to_string()
@@ -3520,4 +3526,24 @@ pub enum Builtin {
 pub struct Qualifiers {
 	pub api: f64,
 	pub kotlin: f64,
+}
+
+/// An object named as a class of Kotlin's runtime once was, which keeps its name now the
+/// runtime's take a leading `__`.
+pub struct Handle {
+	count: u32,
+}
+
+impl Handle {
+	pub fn new(count: u32) -> Self {
+		Handle { count }
+	}
+
+	pub fn count(&self) -> u32 {
+		self.count
+	}
+
+	pub async fn later(count: u32) -> Self {
+		Handle { count }
+	}
 }

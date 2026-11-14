@@ -4408,8 +4408,10 @@ impl<'tcx> Collector<'tcx> {
 			}
 		}
 		// A returned object's lifetimes are `'static` too, which no lent borrow may be; not a
-		// `Result`'s error of another crate, which crosses as its message.
-		let output = match sig.output().kind() {
+		// `Result`'s error of another crate, which crosses as its message, even a future's,
+		// which the glue makes its message inside the future, while what it borrows lives.
+		let output = self.awaited(sig.output()).unwrap_or(sig.output());
+		let output = match output.kind() {
 			ty::Adt(adt, args)
 				if tcx.is_diagnostic_item(sym::Result, adt.did())
 					&& self.opaque_value(args.type_at(1)).is_some()
@@ -4435,6 +4437,29 @@ impl<'tcx> Collector<'tcx> {
 			errs.push(why("returned object that borrows", sig.output().to_string()));
 		}
 		(statics, errs, interned)
+	}
+
+	/// What an `impl Future` resolves to, its lifetimes kept as the signature binds them.
+	fn awaited(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+		let tcx = self.tcx;
+		let ty::Alias(
+			_,
+			ty::AliasTy {
+				kind: ty::AliasTyKind::Opaque { def_id },
+				args,
+				..
+			},
+		) = ty.kind()
+		else {
+			return None;
+		};
+		let output = tcx.lang_items().future_output()?;
+		let bounds = tcx.item_bounds(*def_id).skip_binder();
+		let term = bounds.iter().find_map(|clause| {
+			let p = clause.as_projection_clause()?.skip_binder();
+			(p.projection_term.expect_projection_def_id() == output).then_some(p.term.as_type()?)
+		})?;
+		Some(ty::EarlyBinder::bind(tcx, term).instantiate(tcx, args).skip_norm_wip())
 	}
 
 	/// Where a named lifetime of `def_id`'s signature is declared.

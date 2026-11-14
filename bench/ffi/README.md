@@ -19,7 +19,8 @@ from an emptied target and without a compiler cache, the export (`rust2-ffi`, wh
 runs `cargo check` of moq under its driver) beside moq's own `cargo check` of the same
 crates, and the generated crate's release build beside moq's own release build, each with
 its peak RSS, through [`measure.py`](measure.py). Nightly runs it on arm64 Linux into
-the run's summary; nothing fails on a number.
+the run's summary; nothing fails on a number. [CodSpeed](#codspeed) counts each
+single-threaded case on every push to main and on each PR that can move one.
 
 | case | what it times | BoltFFI's nearest |
 |---|---|---|
@@ -72,6 +73,59 @@ consumed, checking the count on both sides. It has no writer task or permit hand
 must not be ranked against the managed `loop` row. C, C++, and Rust's existing `woken`
 cases already manually poll in one loop; they remain the native floor, without printing
 the same measurement twice under another name.
+
+## CodSpeed
+
+[CodSpeed](https://app.codspeed.io/kixel-ai/rust2) keeps main's history of each
+single-threaded case, and comments on a PR whose run changes a case, with its change per
+case.
+[`codspeed.yml`](../../.github/workflows/codspeed.yml) runs on every push to main, its
+baseline, and on each PR that changes what `just ffi bench` reads: it builds the programs in
+the bench shell, then runs `just ffi codspeed` under CodSpeed's CPU simulation in that
+shell's environment, so Nix itself never runs under Valgrind. It is informational: no
+threshold fails it and no ruleset requires it.
+
+```bash
+nix develop .#bench --command just ffi bench-build
+nix develop .#bench --command codspeed run --mode simulation -- just ffi codspeed  # CodSpeed's CLI, on Ubuntu or Debian
+```
+
+Each program calls CodSpeed's
+[instrument-hooks](https://github.com/CodSpeedHQ/instrument-hooks), which the flake pins,
+through [`codspeed.h`](../../ffi/moq/bench/codspeed.h) and its own FFI around each case:
+one benchmark per language and case, such as `python::write` or `c::throughput[1024]`.
+Under CodSpeed a program runs its round once, without the warm-up round, and with a tenth
+of the groups (so 100,000 calls a case, Python's 10,000), since the simulation counts
+every call exactly and costs 50 to 100 times the program's own time. It skips the
+`shared:*`, `own:*`, and Kotlin's `objects` cases: the simulation runs one thread at a
+time, so it would count a contention that never happens. It counts instructions and
+simulated cache misses, not time, so a system call or a wait costs nothing in it. The
+tables below keep wall and CPU time, and a case's absolute count is for its whole loop,
+not a call: read CodSpeed for each case's change.
+
+A language joins only if its counts hold still: the same build, run twice, must move no
+case far enough for CodSpeed to report a change, which its default 10% regression
+threshold decides. `codspeed_langs` in [`ffi/justfile`](../../ffi/justfile) lists those
+that pass. Measured 2026-11-14 on **nixos** with stock Valgrind 3.27.1 and the flags
+CodSpeed's runner passes, without its fork's cycle estimation, in pairs of runs of one
+build, the largest move of any case between two runs:
+
+| language | largest move | |
+|---|---|---|
+| Rust, C, C++ | none: every count identical | joins |
+| moq-c | 0.36% (`stamped`, with all the calls), 0.1% with a tenth | joins: moq's runtime thread runs beside it |
+| Python | 0.21% (`throughput[1024]`) | joins: asyncio's poll of its selector depends on time |
+| Swift | 52% (`throughput[16384]`), 8.8% in another pair | leaves: the global executor's threads interleave by time |
+| Go | 362% (`stamped`), 330% (`record`), 84% (`loop`) | leaves: its collector and scheduler run inside each case, and its preemption signal crashes Callgrind unless `GODEBUG=asyncpreemptoff=1` |
+| Kotlin | 172% (`call`), 108% (`getter`) | leaves: without the warm-up, the JIT's and collector's threads compile and collect inside each case, and the JVM's C2 code crashes under Valgrind unless its implicit null checks are off |
+| Dart | does not run | leaves: the VM maps its code at an address hint off a page boundary, which Valgrind refuses |
+
+On CI, two runs of one commit (kixel-ai/rust2#805's 11a94ff, a `pull_request` run and a
+`workflow_dispatch` one) left all 58 benchmarks untouched in CodSpeed's comparison: the
+largest move was Python's `throughput[1024]`, 2.4%, then its `throughput[100]` and
+`ready`, under 2%, and every one of Rust's, C's, C++'s, and moq-c's rounded to 0%.
+
+Each leaver keeps its hooks, so it rejoins by `codspeed_langs` once a pair of runs holds.
 
 ## Concurrent calls
 
@@ -270,8 +324,13 @@ largest one's.
 
 The export adds about 13 CPU seconds over the check cargo runs anyway, and no peak memory.
 The generated crate's build adds about 300 CPU seconds and 320 wall seconds over moq's own,
-and doubles the peak, as one long rustc over the glue would: that build, not the export, is
-what a consumer pays on every export.
+and doubles the peak: that build, not the export, is what a consumer pays on every export.
+Nearly all of the gap is the glue crate's one rustc, and most of that is the fat LTO in one
+codegen unit that moq-ffi's release profile asks for. moq's own build makes only rlibs, so
+it never runs that step, while the generated crate's links optimize everything the export
+reaches in one module. moq's UniFFI moq-ffi, built with that profile, took 877 CPU s and
+2,259 MiB peak on 2026-11-13, beside 720 CPU s and 3,275 MiB for the generated crate a
+revision later, on the same host and load (1 and 3 rounds).
 
 ### Size
 

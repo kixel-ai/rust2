@@ -63,7 +63,9 @@ Decided with the maintainer on 2026-11-12, in the quest audit
   methods, as this quest first planned and the other languages' bindings have.
 - ✅ This quest adds a TypeScript column to [the binding benchmark](/bench/ffi/README.md),
   in Node and a browser, as every generator is measured. Its stand-in must build for
-  wasm32, which moq-tokio does not: export the crates of it that do, and say which.
+  wasm32, which moq-tokio does not: export the crates of it that do, and say which. The
+  column joins CodSpeed under the A/A rule of
+  [the benchmark's README](/bench/ffi/README.md#codspeed).
 
 Open, for the maintainer once the implementer has the facts:
 
