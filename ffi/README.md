@@ -81,8 +81,8 @@ another of its name shares, the facade's root names, or another registry serves 
 reached. A crate only signatures reach keeps the roles of one no export is: its error in a
 `Result` crosses as its message, and its type behind an `Arc` as an opaque handle, refused
 bare. Its errors, the types implementing `std::error::Error`, are never reached, so an
-exported error holding one is an object, as it was. A type no public path names stays
-refused.
+exported error holding one is an object, as it was. A type it cannot reach, such as one no
+public path names, or an error taken by value, is held by value as an opaque handle instead.
 
 | Rust | C |
 | --- | --- |
@@ -114,7 +114,7 @@ refused.
 | `SocketAddr`, `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr`: its IP's bytes, port, and whether it is IPv6; one of the other family passed to `V4` or `V6` aborts |
 | `url::Url` | an object `<prefix>_Url`, made by `<prefix>_Url_parse`, which fails with the parse error's message, and printed by `_to_string` |
 | `Arc<T>` of another crate's `Send` and `Sync` type that no other rule maps, such as `Arc<rustls::ServerConfig>` | an opaque object named by `T`'s crate and name, such as `<prefix>_rustls_ServerConfig`, with `_clone` and `_free` and none of `T`'s API: it only passes back to Rust |
-| another crate's `Send` and `Sync` type taken or returned by value or lent, with no type parameters, that no other rule maps and that is no iterator, such as `rustls_pki_types::CertificateDer<'static>` | an opaque object named as the `Arc` form is, with `_free` and none of `T`'s API, holding the value: Rust takes it back by value, or borrows it; a type also named behind an `Arc` is that form, and refused by value |
+| another crate's `Send` and `Sync` type taken or returned by value or lent, with no type parameters, that no other rule maps, that is no iterator, and that is not reached by its public path, such as one only a `#[doc(hidden)]` module names | an opaque object named as the `Arc` form is, with `_free` and none of `T`'s API, holding the value: Rust takes it back by value, or borrows it; a type also named behind an `Arc` is that form, and refused by value |
 | `std::time::Instant` | an object `<prefix>_Instant`, which only Rust makes, copied into each call that takes it and compared by `_eq`, with none of its methods |
 | `tracing::Level` | `<prefix>_Level`: a C enum of its five levels, `TRACE` to `ERROR` |
 | `tracing::level_filters::LevelFilter` | `Option<tracing::Level>`, whose `None` is `OFF` |
