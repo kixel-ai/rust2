@@ -13,7 +13,9 @@
 //! these leaves, whose `folded` and `indexed` are themselves and whose `find` reads by
 //! `next`, so the readers each consumer and adaptor picks all read by `next`. A closure
 //! whose body is one expression is written in place of its call, and a pair reaches it
-//! as its parts, made whole only where something reads the tuple.
+//! as its parts, made whole only where something reads the tuple. A `for` loop's `next`
+//! is written into the loop once the function is: [`loop_parts`] leaves the loop where
+//! the chain ends and reads the item's parts, and [`inline_funs`] writes its closures in.
 
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_middle::mir::{self, Local, Operand, Rvalue, StatementKind, TerminatorKind};
@@ -529,7 +531,15 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let arrow = Some(peel(&e))
 			.filter(|e| !self.fused_hoist && inlinable(e, true).is_some())
 			.cloned();
+		// Only a variable of its own, which nothing but the chain's reads calls.
+		let own = !matches!(peel(&e), Expr::Ident(_) | Expr::Lit(_) | Expr::Rs(_) | Expr::Sym(_));
 		let var = self.part(e, "f", ty, out);
+		if self.fused_hoist
+			&& own
+			&& let Expr::Ident(name) = peel(&var)
+		{
+			self.fused_funs.insert(name.clone());
+		}
 		Fun { var, arrow }
 	}
 
@@ -707,6 +717,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			return Some(Expr::ident(var).member("next").call(Vec::new()));
 		}
 		let (r, label) = (self.b.fresh("next"), self.b.fresh("next"));
+		self.fused_reads.insert(r.clone());
 		let ty = Type::Union(vec![item_of(&node), Type::Rs("Done", Vec::new())]);
 		out.push(StmtKind::Declare { name: r.clone(), ty }.at(None));
 		let done = vec![
@@ -951,7 +962,7 @@ fn ended(x: &str, done: &[Stmt]) -> Stmt {
 }
 
 /// The parameters and body of `e`, an arrow whose body is one expression that makes no
-/// function of its own, which a call can be replaced by.
+/// function of its own and assigns no parameter, which a call can be replaced by.
 /// `unread` takes one of one statement, as a call whose value nothing reads may be.
 fn inlinable(e: &Expr, unread: bool) -> Option<(&[crate::ts::Param], &Expr)> {
 	let (params, body) = match e {
@@ -973,8 +984,15 @@ fn inlinable(e: &Expr, unread: bool) -> Option<(&[crate::ts::Param], &Expr)> {
 		},
 		_ => return None,
 	};
+	// One that assigns a parameter, or a part of one, has its argument to assign.
 	let mut makes = false;
-	walk(body, &mut |e| makes |= matches!(e, Expr::Arrow(..) | Expr::Lambda(..)));
+	walk(body, &mut |e| match e {
+		Expr::Arrow(..) | Expr::Lambda(..) => makes = true,
+		Expr::Assign(target, _) | Expr::Postfix(target, _) => {
+			makes |= params.iter().any(|p| path(target, &p.name).is_some())
+		}
+		_ => {}
+	});
 	(!makes).then_some((params, body))
 }
 
@@ -1224,5 +1242,480 @@ fn children(e: &mut Expr, f: &mut impl FnMut(&mut Expr)) {
 		| Expr::Rs(_)
 		| Expr::Lit(_)
 		| Expr::Str(_) => {}
+	}
+}
+
+/// Each `for` loop's read of a fused chain, `reads` naming what each `next` assigns,
+/// written into the loop: where the chain ends, the loop leaves as its test of the item
+/// would, and the loop reads the item's parts where it reads the item's fields, making
+/// the tuple only where something reads it whole.
+pub(super) fn loop_parts(stmts: &mut Vec<Stmt>, reads: &FxHashSet<String>) {
+	if !reads.is_empty() {
+		parts_in(stmts, reads, Jump::Other);
+	}
+}
+
+/// What an unlabeled `break` in a list of statements leaves: a loop, by its label, which
+/// one moved deeper names it by, or something else.
+enum Jump<'a> {
+	Loop(&'a mut Option<String>),
+	Other,
+}
+
+impl Jump<'_> {
+	fn reborrow(&mut self) -> Jump<'_> {
+		match self {
+			Jump::Loop(label) => Jump::Loop(label),
+			Jump::Other => Jump::Other,
+		}
+	}
+}
+
+fn parts_in(stmts: &mut Vec<Stmt>, reads: &FxHashSet<String>, mut jump: Jump<'_>) {
+	let mut k = 0;
+	while k < stmts.len() {
+		// What a read becomes reads no chain.
+		if let Some(n) = take_apart(stmts, k, reads, &mut jump) {
+			k += n;
+			continue;
+		}
+		match &mut stmts[k].kind {
+			StmtKind::If { then, els, .. } => {
+				parts_in(then, reads, jump.reborrow());
+				parts_in(els, reads, jump.reborrow());
+			}
+			StmtKind::Block { body, .. } => parts_in(body, reads, jump.reborrow()),
+			StmtKind::While { label, body, .. } | StmtKind::ForOf { label, body, .. } => {
+				parts_in(body, reads, Jump::Loop(label))
+			}
+			StmtKind::Switch { cases, default, .. } => {
+				for (_, body) in cases {
+					parts_in(body, reads, Jump::Other);
+				}
+				parts_in(default, reads, Jump::Other);
+			}
+			_ => {}
+		}
+		k += 1;
+	}
+}
+
+/// Take apart the read at `stmts[k]`, if it is one: `let r!: T; label: { ... r = item; }`,
+/// each end of the chain in it `r = rs.DONE; break label;`, then the loop's test, `const
+/// d = r; if (d === rs.DONE) { exit }`, whose `exit` leaves. Each end runs `exit` instead,
+/// and what reads `d` after reads the parts of `item`. How many statements replace them.
+fn take_apart(stmts: &mut Vec<Stmt>, k: usize, reads: &FxHashSet<String>, jump: &mut Jump<'_>) -> Option<usize> {
+	let StmtKind::Declare { name: r, ty: r_ty } = &stmts[k].kind else {
+		return None;
+	};
+	if !reads.contains(r) {
+		return None;
+	}
+	let StmtKind::Block {
+		label: Some(label),
+		body,
+	} = &stmts.get(k + 1)?.kind
+	else {
+		return None;
+	};
+	// The local the loop's `match` reads, where it is held apart from `r`.
+	let (d, ty, test) = match &stmts.get(k + 2)?.kind {
+		StmtKind::Decl {
+			mutable: false,
+			name,
+			ty,
+			init: Some(init),
+		} if matches!(peel(init), Expr::Ident(n) if n == r) => (name.clone(), ty.clone(), k + 3),
+		_ => (r.clone(), Some(r_ty.clone()), k + 2),
+	};
+	let StmtKind::If { cond, then: exit, els } = &stmts.get(test)?.kind else {
+		return None;
+	};
+	let tests = matches!(peel(cond), Expr::Binary(l, "===", done)
+		if matches!(peel(l), Expr::Ident(n) if *n == d) && matches!(peel(done), Expr::Rs(x) if x == "DONE"));
+	let leaves = matches!(
+		exit.last().map(|s| &s.kind),
+		Some(StmtKind::Break(_) | StmtKind::Continue(_) | StmtKind::Return(_))
+	);
+	if !tests
+		|| !els.is_empty()
+		|| !leaves
+		|| exit.iter().any(loops)
+		|| super::list_names(exit, &d) + super::list_names(exit, r) > 0
+		|| jumps(exit, label) > 0
+	{
+		return None;
+	}
+	let mut body = body.clone();
+	let Some(Stmt {
+		kind: StmtKind::Expr(Expr::Assign(target, item)),
+		..
+	}) = body.pop()
+	else {
+		return None;
+	};
+	if !matches!(peel(&target), Expr::Ident(n) if n == r) {
+		return None;
+	}
+	let item = val(&item)?;
+	// Inside a loop of its own, as a filter's, `exit` names the loop it leaves.
+	let (mut nested, mut n) = (false, 0);
+	ends(&mut body, r, label, false, &mut |inner| {
+		nested |= inner;
+		n += 1;
+		None
+	});
+	// Nothing else names `r` or `label`.
+	if super::list_names(&body, r) != n || jumps(&body, label) != n {
+		return None;
+	}
+	let unlabeled = exit.iter().any(unlabeled_jump);
+	let named = match (nested && unlabeled, &*jump) {
+		(false, _) => None,
+		(true, Jump::Loop(own)) => Some(own.as_ref().unwrap_or(label).clone()),
+		(true, Jump::Other) => return None,
+	};
+	let exit_in = match &named {
+		Some(name) => exit.iter().map(|s| retarget(s.clone(), name)).collect(),
+		None => exit.clone(),
+	};
+	ends(&mut body, r, label, false, &mut |inner| {
+		Some(if inner { exit_in.clone() } else { exit.clone() })
+	});
+	let mut rest = stmts[test + 1..].to_vec();
+	let (mut whole, mut bad) = (false, false);
+	for stmt in &mut rest {
+		stmt_exprs(stmt, &mut |e| take_parts(e, &d, &item, &mut whole, &mut bad));
+	}
+	if bad {
+		return None;
+	}
+	if let (Some(name), Jump::Loop(own)) = (named, jump) {
+		**own = Some(name);
+	}
+	if whole {
+		body.push(StmtKind::decl(false, &d, ty.map(without_done), Some(item.whole())).at(None));
+	}
+	let n = body.len();
+	stmts.truncate(k);
+	stmts.extend(body);
+	stmts.extend(rest);
+	Some(n)
+}
+
+/// `item` held as the variables `next` made it of, if it is: a variable, or a tuple of
+/// them.
+fn val(item: &Expr) -> Option<Val> {
+	match peel(item) {
+		e @ Expr::Ident(_) => Some(Val::One(e.clone())),
+		Expr::Array(parts) => parts.iter().map(val).collect::<Option<_>>().map(Val::Tuple),
+		_ => None,
+	}
+}
+
+/// `ty` without `rs.Done`.
+fn without_done(ty: Type) -> Type {
+	match ty {
+		Type::Union(mut tys) => {
+			tys.retain(|t| !matches!(t, Type::Rs(name, _) if *name == "Done"));
+			match tys.len() {
+				1 => tys.pop().unwrap(),
+				_ => Type::Union(tys),
+			}
+		}
+		ty => ty,
+	}
+}
+
+/// Call `f` on each end of a read in `stmts`, `r = rs.DONE; break label;` ending a list,
+/// with whether it is in a loop or `switch` of its own, replacing the two by what it gives.
+fn ends(stmts: &mut Vec<Stmt>, r: &str, label: &str, inner: bool, f: &mut dyn FnMut(bool) -> Option<Vec<Stmt>>) {
+	let end = matches!(stmts.as_slice(), [.., set, Stmt { kind: StmtKind::Break(Some(to)), .. }]
+		if to == label && matches!(&set.kind, StmtKind::Expr(Expr::Assign(t, v))
+			if matches!(peel(t), Expr::Ident(n) if n == r) && matches!(peel(v), Expr::Rs(x) if x == "DONE")));
+	if end && let Some(with) = f(inner) {
+		stmts.truncate(stmts.len() - 2);
+		stmts.extend(with);
+	}
+	for stmt in stmts.iter_mut() {
+		match &mut stmt.kind {
+			StmtKind::If { then, els, .. } => {
+				ends(then, r, label, inner, f);
+				ends(els, r, label, inner, f);
+			}
+			StmtKind::Block { body, .. } => ends(body, r, label, inner, f),
+			StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } => ends(body, r, label, true, f),
+			StmtKind::Switch { cases, default, .. } => {
+				cases.iter_mut().for_each(|(_, body)| ends(body, r, label, true, f));
+				ends(default, r, label, true, f);
+			}
+			_ => {}
+		}
+	}
+}
+
+/// Whether `stmt` holds a loop or a `switch`.
+fn loops(stmt: &Stmt) -> bool {
+	match &stmt.kind {
+		StmtKind::While { .. } | StmtKind::ForOf { .. } | StmtKind::Switch { .. } => true,
+		StmtKind::If { then, els, .. } => then.iter().chain(els).any(loops),
+		StmtKind::Block { body, .. } => body.iter().any(loops),
+		_ => false,
+	}
+}
+
+/// Whether `stmt`, which holds no loop, has a `break` or `continue` without a label.
+fn unlabeled_jump(stmt: &Stmt) -> bool {
+	match &stmt.kind {
+		StmtKind::Break(None) | StmtKind::Continue(None) => true,
+		StmtKind::If { then, els, .. } => then.iter().chain(els).any(unlabeled_jump),
+		StmtKind::Block { body, .. } => body.iter().any(unlabeled_jump),
+		_ => false,
+	}
+}
+
+/// `stmt`, which holds no loop, with each `break` and `continue` without a label naming
+/// `label`.
+fn retarget(mut stmt: Stmt, label: &str) -> Stmt {
+	match &mut stmt.kind {
+		StmtKind::Break(to @ None) | StmtKind::Continue(to @ None) => *to = Some(label.to_string()),
+		StmtKind::If { then, els, .. } => {
+			for s in then.iter_mut().chain(els.iter_mut()) {
+				*s = retarget(s.clone(), label);
+			}
+		}
+		StmtKind::Block { body, .. } => {
+			for s in body.iter_mut() {
+				*s = retarget(s.clone(), label);
+			}
+		}
+		_ => {}
+	}
+	stmt
+}
+
+/// How many `break`s and `continue`s in `stmts` name `label`.
+fn jumps(stmts: &[Stmt], label: &str) -> usize {
+	stmts
+		.iter()
+		.map(|stmt| match &stmt.kind {
+			StmtKind::Break(Some(to)) | StmtKind::Continue(Some(to)) => (to == label) as usize,
+			StmtKind::If { then, els, .. } => jumps(then, label) + jumps(els, label),
+			StmtKind::Block { body, .. } | StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } => {
+				jumps(body, label)
+			}
+			StmtKind::Switch { cases, default, .. } => {
+				cases.iter().map(|(_, body)| jumps(body, label)).sum::<usize>() + jumps(default, label)
+			}
+			_ => 0,
+		})
+		.sum()
+}
+
+/// `e` with each read of `d`, or of a part of it by constant indices, replaced by that part
+/// of `item`; `whole` where one reads a tuple of it, which stays a read of `d`, and `bad`
+/// where something assigns `d` or a part of it, or names another variable `d`.
+fn take_parts(e: &mut Expr, d: &str, item: &Val, whole: &mut bool, bad: &mut bool) {
+	if let Some(at) = path(e, d) {
+		let (mut part, mut rest) = (item, at.as_slice());
+		while let (Val::Tuple(parts), [i, tail @ ..]) = (part, rest)
+			&& let Some(p) = parts.get(*i)
+		{
+			(part, rest) = (p, tail);
+		}
+		match part {
+			Val::One(v) => *e = rest.iter().fold(v.clone(), |e, i| e.index(Expr::lit(i.to_string()))),
+			Val::Tuple(_) => *whole = true,
+		}
+		return;
+	}
+	match e {
+		Expr::Assign(target, _) | Expr::Postfix(target, _) if path(target, d).is_some() => *bad = true,
+		Expr::Arrow(params, _, body) => {
+			*bad |= params.iter().any(|p| p.name == d);
+			for stmt in body {
+				stmt_exprs(stmt, &mut |e| take_parts(e, d, item, whole, bad));
+			}
+		}
+		Expr::Lambda(params, body) => {
+			*bad |= params.iter().any(|p| p.name == d);
+			take_parts(body, d, item, whole, bad);
+		}
+		e => children(e, &mut |e| take_parts(e, d, item, whole, bad)),
+	}
+}
+
+/// `f` of each expression `stmt` holds, and of those in its blocks, not in a function it
+/// makes.
+fn stmt_exprs(stmt: &mut Stmt, f: &mut dyn FnMut(&mut Expr)) {
+	match &mut stmt.kind {
+		StmtKind::Expr(e) | StmtKind::Return(Some(e)) | StmtKind::Decl { init: Some(e), .. } => f(e),
+		StmtKind::If { cond, then, els } => {
+			f(cond);
+			then.iter_mut().chain(els.iter_mut()).for_each(|s| stmt_exprs(s, f));
+		}
+		StmtKind::While { cond: e, body, .. } | StmtKind::ForOf { iter: e, body, .. } => {
+			f(e);
+			body.iter_mut().for_each(|s| stmt_exprs(s, f));
+		}
+		StmtKind::Block { body, .. } => body.iter_mut().for_each(|s| stmt_exprs(s, f)),
+		StmtKind::Switch {
+			disc, cases, default, ..
+		} => {
+			f(disc);
+			for (value, body) in cases {
+				f(value);
+				body.iter_mut().for_each(|s| stmt_exprs(s, f));
+			}
+			default.iter_mut().for_each(|s| stmt_exprs(s, f));
+		}
+		StmtKind::Return(None)
+		| StmtKind::Decl { init: None, .. }
+		| StmtKind::Declare { .. }
+		| StmtKind::Break(_)
+		| StmtKind::Continue(_) => {}
+	}
+}
+
+/// Each call of a fused chain's closure whose body is one expression, `funs` naming what
+/// holds each, written in place as a consumer's loop writes it. A `for` loop reads the
+/// chain apart from where it is made, so only where each variable the closure names is
+/// still the one it names there: nothing between declares another of its name.
+pub(super) fn inline_funs(stmts: &mut Vec<Stmt>, funs: &FxHashSet<String>) {
+	if funs.is_empty() {
+		return;
+	}
+	let mut k = 0;
+	while k < stmts.len() {
+		if let Some((name, arrow, declared)) = made_fun(&stmts[k], funs)
+			&& let Some((params, body)) = inlinable(&arrow, true)
+		{
+			let mut free = FxHashSet::default();
+			walk(body, &mut |e| {
+				if let Expr::Ident(n) = e {
+					free.insert(n.clone());
+				}
+			});
+			params.iter().for_each(|p| {
+				free.remove(&p.name);
+			});
+			let mut names = FxHashSet::default();
+			stmts[k + 1..].iter().for_each(|s| declares(s, &mut names));
+			if free.is_disjoint(&names) {
+				let fun = Fun {
+					var: Expr::ident(&name),
+					arrow: Some(arrow.clone()),
+				};
+				for stmt in &mut stmts[k + 1..] {
+					calls(stmt, &name, &fun);
+				}
+				if declared && super::list_names(&stmts[k + 1..], &name) == 0 {
+					stmts.remove(k);
+					continue;
+				}
+			}
+		}
+		match &mut stmts[k].kind {
+			StmtKind::If { then, els, .. } => {
+				inline_funs(then, funs);
+				inline_funs(els, funs);
+			}
+			StmtKind::Block { body, .. } | StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } => {
+				inline_funs(body, funs)
+			}
+			StmtKind::Switch { cases, default, .. } => {
+				cases.iter_mut().for_each(|(_, body)| inline_funs(body, funs));
+				inline_funs(default, funs);
+			}
+			_ => {}
+		}
+		k += 1;
+	}
+}
+
+/// The closure `stmt` makes one of `funs` hold, and whether it declares it.
+fn made_fun(stmt: &Stmt, funs: &FxHashSet<String>) -> Option<(String, Expr, bool)> {
+	let (name, value, declared) = match &stmt.kind {
+		StmtKind::Decl {
+			mutable: false,
+			name,
+			init: Some(init),
+			..
+		} => (name.as_str(), init, true),
+		StmtKind::Expr(Expr::Assign(target, value)) => match peel(target) {
+			Expr::Ident(name) => (name.as_str(), &**value, false),
+			_ => return None,
+		},
+		_ => return None,
+	};
+	let value = peel(value);
+	(funs.contains(name) && matches!(value, Expr::Arrow(..) | Expr::Lambda(..)))
+		.then(|| (name.to_string(), value.clone(), declared))
+}
+
+/// Each name `stmt` declares, those of the parameters of the functions it makes included.
+fn declares(stmt: &Stmt, names: &mut FxHashSet<String>) {
+	match &stmt.kind {
+		StmtKind::Decl { name, .. } | StmtKind::Declare { name, .. } => {
+			names.insert(name.clone());
+		}
+		StmtKind::ForOf { name, body, .. } => {
+			names.insert(name.clone());
+			body.iter().for_each(|s| declares(s, names));
+		}
+		StmtKind::If { then, els, .. } => then.iter().chain(els).for_each(|s| declares(s, names)),
+		StmtKind::Block { body, .. } | StmtKind::While { body, .. } => body.iter().for_each(|s| declares(s, names)),
+		StmtKind::Switch { cases, default, .. } => cases
+			.iter()
+			.flat_map(|(_, b)| b)
+			.chain(default)
+			.for_each(|s| declares(s, names)),
+		_ => {}
+	}
+	walk_stmt(stmt, &mut |e| match e {
+		Expr::Arrow(params, ..) | Expr::Lambda(params, _) => names.extend(params.iter().map(|p| p.name.clone())),
+		_ => {}
+	});
+}
+
+/// `stmt` with each call of `name`, not in a function it makes, written as `fun`'s body
+/// where [`apply`] can.
+fn calls(stmt: &mut Stmt, name: &str, fun: &Fun) {
+	if let StmtKind::Expr(e) = &mut stmt.kind
+		&& let Some(body) = call_of(e, name, fun, true)
+	{
+		*e = body;
+		return;
+	}
+	stmt_exprs(stmt, &mut |e| call_in(e, name, fun));
+}
+
+fn call_in(e: &mut Expr, name: &str, fun: &Fun) {
+	children(e, &mut |e| call_in(e, name, fun));
+	if let Some(body) = call_of(e, name, fun, false) {
+		*e = body;
+	}
+}
+
+/// `fun`'s body in place of `e`, if `e` calls `name` and [`apply`] writes it in place.
+fn call_of(e: &Expr, name: &str, fun: &Fun, unread: bool) -> Option<Expr> {
+	let Expr::Call(f, args) = peel(e) else {
+		return None;
+	};
+	if !matches!(peel(f), Expr::Ident(n) if n == name) {
+		return None;
+	}
+	// The chain's reads pass variables, which reading later reads the same.
+	let args: Vec<Val> = args.iter().map(arg).collect::<Option<_>>()?;
+	let body = apply(fun, args, unread);
+	(!matches!(&body, Expr::Call(f, _) if matches!(peel(f), Expr::Ident(n) if n == name))).then_some(body)
+}
+
+/// An argument that is a variable, or a tuple of them made in place, as its parts.
+fn arg(e: &Expr) -> Option<Val> {
+	match peel(e) {
+		Expr::Ident(_) => Some(Val::One(e.clone())),
+		Expr::Array(parts) => parts.iter().map(arg).collect::<Option<_>>().map(Val::Tuple),
+		_ => None,
 	}
 }

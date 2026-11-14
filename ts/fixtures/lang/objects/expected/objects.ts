@@ -229,21 +229,12 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x3 = leaf.next();
-			if (x3 === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x3];
-		}
-		const _18: [rs.usize, rs.u8] | rs.Done = next;
-		if (_18 === rs.DONE) {
+		const x3 = leaf.next();
+		if (x3 === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _18[0];
-		const b: rs.u8 = _18[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x3;
 		const _23: rs.Place<rs.Arc<rs.u8>> | undefined = rs.sliceGetMut(rs.sliceFrom(v.items), rs.usizeRem(b as rs.usize, rs.usizeAdd(data.length, 1)));
 		if (_23 !== undefined) {
 			const _34: rs.Arc<rs.u8> = rs.arcClone(two);

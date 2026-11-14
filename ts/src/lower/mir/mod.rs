@@ -440,6 +440,10 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	/// Those variables, declared up front, and whether a chain being made declares them so.
 	fused_decls: Vec<(String, Type)>,
 	fused_hoist: bool,
+	/// What each `next` of one assigns, and the closures their chains call, which the loop
+	/// reading them takes apart once it is written.
+	fused_reads: FxHashSet<String>,
+	fused_funs: FxHashSet<String>,
 	/// References a call returns to what its `&mut` argument borrows, as `Cow::to_mut`'s:
 	/// the place each reads and writes, which a store through one rebuilds as a `Ref`'s.
 	reborrows: FxHashMap<Local, Place<'tcx>>,
@@ -571,6 +575,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			fused_nodes: FxHashMap::default(),
 			fused_decls: Vec::new(),
 			fused_hoist: false,
+			fused_reads: FxHashSet::default(),
+			fused_funs: FxHashSet::default(),
 			reborrows: FxHashMap::default(),
 			stepped_vars: FxHashMap::default(),
 			stepped_into: FxHashMap::default(),
@@ -1949,6 +1955,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		cfg::hoist_else(&mut out);
 		declare_in_place(&mut out, &self.widened);
 		cfg::tidy_loops(&mut out);
+		fuse::loop_parts(&mut out, &self.fused_reads);
+		fuse::inline_funs(&mut out, &self.fused_funs);
 		// A loop's own labels first, which its header's `break` names.
 		step::for_of(&mut out);
 		inline::inline_temps(&mut out, &self.shared);

@@ -1727,21 +1727,12 @@ export function copies(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _20: [rs.usize, rs.u8] | rs.Done = next;
-		if (_20 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _20[0];
-		const op: rs.u8 = _20[1];
+		const i: rs.usize = count++;
+		const op: rs.u8 = x;
 		const pick: rs.usize = rs.usizeRem(op >> 3 as rs.usize, data.length);
 		const _33: rs.u8 = rs.u8Rem(op, 8);
 		if (_33 === 6) {
