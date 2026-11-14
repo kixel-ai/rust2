@@ -11,6 +11,13 @@ every write, silently. That mismatch fails the glue's build instead.
 
 ## Plan
 
+- The maintainer settled on 2026-11-13: ✅ keep the quest (rejected: drop). How the table
+  is tied to the glue's layout: ✅ decide later (rejected for now: pin the glue's `rustc`;
+  padding-free types only). The decision stays under Waiting.
+- First step, before the maintainer picks: measure which of moq's opaque values have
+  padding, and report it on the decision.
+- Pinning would make every consumer build the glue with rust2's nightly, which today only
+  the exporter needs.
 - The glue can't name a private field, so it can't check an offset itself; the table's
   provenance has to be pinned instead.
 - Recommended: the export records the commit hash of the `rustc` cargo resolved, the one
@@ -30,5 +37,9 @@ every write, silently. That mismatch fails the glue's build instead.
   to the one whose layout the export read (recommended: exact, and fails loudly at
   build); compare only each target's size and alignment exactly (rejected: misses a
   reorder of the same size); stop zeroing padding (rejected: stale Rust bytes reach
-  languages that serialize a value). An agent cannot pick, since pinning the glue's
+  languages that serialize a value); cross as raw bytes only types whose leaf field sizes
+  add up to their size, so no padding exists under any field order, assert that size in
+  the glue, and cross padded types as objects (handles): sound on any `rustc` with no
+  table and no pin, but padded types such as `Instant` pay a handle. Measure moq's padded
+  opaque values first; the maintainer picks after. An agent cannot pick, since pinning the glue's
   `rustc` constrains every consumer's toolchain.
