@@ -1392,7 +1392,7 @@ fun clash() {
 	check(Clash.Unit.joined(b("a"), b("b"), b("c")).toByteArray().decodeToString() == "abc", "clash joined")
 	check(Clash.Unit.joined(b("a"), b("b"), null).toByteArray().decodeToString() == "ab", "clash joined none")
 	check(runBlocking { Clash.Int(1).tagged("t") } == "t Int(1)", "clash tagged")
-	check(Clash.String("hi").bytes().toByteArray().decodeToString() == "hi", "clash bytes")
+	check(Clash.String("hi").raw().toByteArray().decodeToString() == "hi", "clash bytes")
 	val out = Mut(0u)
 	check(Clash.Int(4).describe("t", 3u, Shape.SQUARE, out) == "t Int(4) 3 Square" && out.value == 6u, "clash describe")
 }
