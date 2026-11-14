@@ -829,9 +829,19 @@ export function slots$spare_Noted(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const k: rs.usize = rs.usizeRem(n as rs.usize, rs.usizeAdd(spare.length, 1));
 		const _30: rs.u8 = rs.u8Rem(op, 6);
 		if (_30 === 0) {
-			const iter: rs.Iter<[rs.usize, Noted.Noted]> = rs.iterEnumerate(rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k))));
+			const leaf: rs.Iter<Noted.Noted> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
+			let count: number = 0;
 			while (true) {
-				const _38: [rs.usize, Noted.Noted] | rs.Done = iter.next();
+				let next!: [rs.usize, Noted.Noted] | rs.Done;
+				next2: {
+					const x = leaf.next();
+					if (x === rs.DONE) {
+						next = rs.DONE;
+						break next2;
+					}
+					next = [count++, x];
+				}
+				const _38: [rs.usize, Noted.Noted] | rs.Done = next;
 				if (_38 === rs.DONE) {
 					break;
 				}
@@ -920,9 +930,19 @@ export function slots$spare_Pair(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const k: rs.usize = rs.usizeRem(n as rs.usize, rs.usizeAdd(spare.length, 1));
 		const _30: rs.u8 = rs.u8Rem(op, 6);
 		if (_30 === 0) {
-			const iter: rs.Iter<[rs.usize, Pair.Pair]> = rs.iterEnumerate(rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k))));
+			const leaf: rs.Iter<Pair.Pair> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
+			let count: number = 0;
 			while (true) {
-				const _38: [rs.usize, Pair.Pair] | rs.Done = iter.next();
+				let next!: [rs.usize, Pair.Pair] | rs.Done;
+				next2: {
+					const x = leaf.next();
+					if (x === rs.DONE) {
+						next = rs.DONE;
+						break next2;
+					}
+					next = [count++, x];
+				}
+				const _38: [rs.usize, Pair.Pair] | rs.Done = next;
 				if (_38 === rs.DONE) {
 					break;
 				}
@@ -1006,9 +1026,19 @@ export function slots$tuple2_u8_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const k: rs.usize = rs.usizeRem(n as rs.usize, rs.usizeAdd(spare.length, 1));
 		const _30: rs.u8 = rs.u8Rem(op, 6);
 		if (_30 === 0) {
-			const iter: rs.Iter<[rs.usize, [rs.u8, rs.u32]]> = rs.iterEnumerate(rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k))));
+			const leaf: rs.Iter<[rs.u8, rs.u32]> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
+			let count: number = 0;
 			while (true) {
-				const _38: [rs.usize, [rs.u8, rs.u32]] | rs.Done = iter.next();
+				let next!: [rs.usize, [rs.u8, rs.u32]] | rs.Done;
+				next2: {
+					const x = leaf.next();
+					if (x === rs.DONE) {
+						next = rs.DONE;
+						break next2;
+					}
+					next = [count++, x];
+				}
+				const _38: [rs.usize, [rs.u8, rs.u32]] | rs.Done = next;
 				if (_38 === rs.DONE) {
 					break;
 				}

@@ -463,10 +463,17 @@ export function asSlices(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_22 === 6) {
 			written(rs.byteSliceFrom(bytes), rs.sliceFrom(wide), op);
 		} else {
+			const leaf = rs.iterSlice(wide);
+			let acc: rs.u32 = 0;
+			while (true) {
+				const x = leaf.next();
+				if (x === rs.DONE) {
+					break;
+				}
+				acc = rs.u32Add(acc, x as rs.u32);
+			}
 			const dst = out;
-			const word = rs.iterSum(rs.iterMap(rs.iterSlice(wide), (_2: rs.u16): rs.u32 => {
-				return _2 as rs.u32;
-			}), rs.u32Add, 0);
+			const word = acc;
 			rs.byteVecReserve(dst, 4 as rs.usize);
 			const pos = dst.length;
 			dst.data[pos + 0] = word & 255;

@@ -51,4 +51,3 @@ Public API: none.
 ## Required
 
 - [The exporter's web target](/quest/m2/wasm/backend.md) - the binding the new route calls through
-- [Iterator adaptors](/quest/m2/ts-iter-adaptors.md) - the spike's verdict on its second largest, and the fix if it earns one

@@ -364,6 +364,40 @@ static bool broken_seek(void *data, int whence, int64_t offset, uint64_t *positi
 	return true;
 }
 
+/* The payload sent last, ready at the first poll. */
+static api_buf received(api_Channel *channel) {
+	api_Channel_recv_future *recv = api_Channel_recv(channel);
+	api_buf payload = {0};
+	bool ready = api_Channel_recv_poll(recv, (api_waker){0}, &payload) == API_POLL_READY;
+	api_Channel_recv_future_free(recv);
+	return ready ? payload : (api_buf){0};
+}
+
+/* A payload Rust returned goes back to Rust in place: taken whole, taken narrowed to a
+ * range of it, shared by a second owner while kept, and carried in a record. Its bytes
+ * stay where Rust put them, and drop once, with its last owner. */
+static bool forwarding(void) {
+	uint32_t before = api_dropped();
+	api_Channel *channel = api_Channel_new();
+	api_buf payload = api_token_bytes(3, 64);
+	const uint8_t *at = payload.ptr;
+	api_Channel_send(channel, payload);
+	payload = received(channel);
+	bool same = payload.ptr == at && payload.len == 64;
+	api_Channel_send(channel, (api_buf){.ptr = payload.ptr + 1, .len = 62, .owner = payload.owner});
+	payload = received(channel);
+	same = same && payload.ptr == at + 1 && payload.len == 62;
+	api_Channel_send(channel, api_buf_clone(payload));
+	api_buf shared = received(channel);
+	same = same && shared.ptr == payload.ptr && shared.len == 62;
+	api_buf_free(payload);
+	api_Packet packet = api_next_packet((api_Packet){.seq = 1, .payload = shared});
+	same = same && packet.payload.ptr == at + 1 && api_dropped() == before;
+	api_Packet_free(&packet);
+	api_Channel_free(channel);
+	return same && api_dropped() == before + 1;
+}
+
 static void tail(api_foreign_reader reader) {
 	api_buf bytes;
 	uint64_t at;
@@ -700,6 +734,10 @@ static int script(void) {
 	}
 	printf("\n");
 	api_vec_tuple_string_Counter_free(ranked);
+	api_Counter *best = api_Board_best(board);
+	print("best ", api_Counter_name(best), " ");
+	printf("%llu\n", (unsigned long long)api_Counter_get(best));
+	api_Counter_free(best);
 	api_Board_free(board);
 	/* A map crosses as its pairs and a set as its items, which Rust collects in order, each
 	 * key once, the last kept. */
@@ -1067,6 +1105,28 @@ static int script(void) {
 		print("recv ", payload, "\n");
 	}
 	api_Channel_recv_future_free(recv);
+	/* The send happens at the call, and the future borrows the channel and the tag. */
+	api_Channel_tagged_future *tagging = api_Channel_tagged(channel, str("tag"));
+	api_buf tagged_text;
+	if (api_Channel_tagged_poll(tagging, waker, &tagged_text) == API_POLL_READY) {
+		print("tagged ", tagged_text, "\n");
+	}
+	api_Channel_tagged_future_free(tagging);
+	/* So does a future borrowing an optional slice, which the export owns while it is pending. */
+	const uint32_t items[] = {1, 2, 3};
+	api_Channel_itemized_future *itemizing = api_Channel_itemized(channel, (api_vec_u32){.ptr = items, .len = 3});
+	size_t itemized;
+	if (api_Channel_itemized_poll(itemizing, waker, &itemized) == API_POLL_READY) {
+		printf("itemized %zu\n", itemized);
+	}
+	api_Channel_itemized_future_free(itemizing);
+	/* Another crate's future borrowing its bytes, which the export owns while it is pending. */
+	api_byte_len_future *measuring = api_byte_len(str("abc"));
+	size_t byte_len;
+	if (api_byte_len_poll(measuring, waker, &byte_len) == API_POLL_READY) {
+		printf("byte_len %zu\n", byte_len);
+	}
+	api_byte_len_future_free(measuring);
 	api_Channel_send(channel, str("sized"));
 	api_Channel_recv_sized_future *sized = api_Channel_recv_sized(channel);
 	size_t len;
@@ -1322,7 +1382,8 @@ static int script(void) {
 
 	/* A path's bytes as the OS holds them, which need not be UTF-8. */
 	api_buf stray = api_stray();
-	api_buf in_stray = api_file(stray, str("f"));
+	/* A second owner of the buffer goes to Rust, which takes it, so stray stays ours. */
+	api_buf in_stray = api_file(api_buf_clone(stray), str("f"));
 	if (in_stray.len != 3 || memcmp(in_stray.ptr, "\xff/f", 3) != 0) {
 		return 1;
 	}
@@ -1375,12 +1436,11 @@ static int script(void) {
 	api_Counter_free(two);
 	api_Counter_free(three);
 
-	/* A value passed for &mut: Rust writes back what the call left, which the caller frees,
-	 * and keeps what it passed. */
+	/* A value passed for &mut: Rust writes back what the call left, which the caller frees.
+	 * A view passed stays the caller's, and a buffer Rust returned Rust takes back. */
 	api_buf encoded, appended;
 	api_put_number(1, str("0,"), &encoded);
 	api_put_number(23, encoded, &appended);
-	api_buf_free(encoded);
 	print("put_number ", appended, "\n");
 	api_tuple_bytes_u32 stamped;
 	uint32_t stamps = api_push_counted((api_tuple_bytes_u32){._0 = str("ab"), ._1 = 1}, 'c', &stamped);
@@ -1391,11 +1451,9 @@ static int script(void) {
 	uint8_t first_digit, last_digit;
 	api_Error digit_error;
 	api_digit(str("7x9"), &digits_left, &first_digit, &digit_error);
-	/* The failed call took a byte too. */
+	/* The failed call took a byte too. Each buffer Rust returned it takes back. */
 	bool skipped = !api_digit(digits_left, &digits_rest, &last_digit, &digit_error);
-	api_buf_free(digits_left);
 	api_digit(digits_rest, &digits_left, &last_digit, &digit_error);
-	api_buf_free(digits_rest);
 	printf("digit %u %s %u %zu\n", first_digit, skipped ? "true" : "false", last_digit, digits_left.len);
 	api_buf_free(digits_left);
 	api_Point nudged = {.x = 1, .y = 2};
@@ -1409,6 +1467,29 @@ static int script(void) {
 	print("", api_alpn(config_copy), "\n");
 	api_tls_Config_free(config_copy);
 	api_tls_Config_free(config);
+	/* Another crate's value by value: an opaque handle, lent or taken back. */
+	api_tls_Cert *cert = api_certify(str("der"));
+	printf("cert %llu ", (unsigned long long)api_cert_len(cert));
+	print("", api_cert_der(cert), " ");
+	api_tls_Cert_free(cert);
+	api_tls_Cert *chain[2] = {api_certify(str("a")), api_certify(str("bc"))};
+	printf("%llu\n", (unsigned long long)api_chain_len((api_vec_tls_Cert){.ptr = chain, .len = 2}));
+	api_tls_Cert_free(chain[0]);
+	api_tls_Cert_free(chain[1]);
+	/* Another crate's type only signatures name, exported by its path there, and its error,
+	 * which crosses as its message. */
+	api_tls_Session *session;
+	api_buf session_err;
+	if (!api_resume(str("h3"), 60, &session, &session_err)) {
+		return 1;
+	}
+	print("resume ", api_tls_Session_alpn(session), " ");
+	printf("%u\n", api_tls_Session_lifetime(session).seconds);
+	api_tls_Session_free(session);
+	if (api_resume(str(""), 60, &session, &session_err)) {
+		return 1;
+	}
+	print("resume err ", session_err, "\n");
 	/* A borrow of a meter that is not Clone, lent from its owner's handle. */
 	{
 		api_Meters *lender = api_Meters_new();
@@ -1423,6 +1504,11 @@ static int script(void) {
 		again = api_Meters_first(lender);
 		printf("cleared %llu\n", (unsigned long long)api_Meter_count(again));
 		api_Meter_free(again);
+		/* A field that is not Clone, lent as a method's borrowed return is. */
+		api_Meter *last = api_Meters_last_get(lender);
+		api_Meter_add(last, 4);
+		printf("field lent %llu\n", (unsigned long long)api_Meter_add(last, 1));
+		api_Meter_free(last);
 		api_Meters_free(lender);
 		/* One lent from a handle that is not Sync, on one thread at a time. */
 		api_Tallies *tallies = api_Tallies_new();
@@ -1725,6 +1811,8 @@ static int script(void) {
 	printf("instants %llu %llu %s %s\n", (unsigned long long)(forward.secs * 1000 + forward.nanos / 1000000),
 		   (unsigned long long)(backward.secs * 1000 + backward.nanos / 1000000), api_Instant_eq(began, same) ? "true" : "false",
 		   api_Instant_eq(began, ended) ? "true" : "false");
+	/* An instant lent inside an `Option`, which takes no handle. */
+	printf("has_instant %s %s\n", api_has_instant(began) ? "true" : "false", api_has_instant(NULL) ? "true" : "false");
 	api_Instant_free(same);
 	api_Instant_free(ended);
 	api_Instant_free(began);
@@ -1754,10 +1842,10 @@ static int script(void) {
 	api_Token_free(twice);
 
 	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	if (drops != 12) {
+	if (drops != 15) {
 		return 1;
 	}
-	return closures() && foreign_futures() && started_futures() ? 0 : 1;
+	return closures() && foreign_futures() && forwarding() && started_futures() ? 0 : 1;
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */

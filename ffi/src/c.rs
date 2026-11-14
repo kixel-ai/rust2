@@ -79,7 +79,7 @@ impl Header<'_> {
 			"/* The index of the library's target among those this header serves:{targets} */\nuint32_t {p}_target(void);\n"
 		));
 		self.line(format!(
-			"/* Bytes. Passed in, a view Rust reads during the call and never frees. Returned,\n * an owned buffer to free once with {p}_buf_free. A null ptr is None. */\ntypedef struct {p}_buf {{\n\tconst uint8_t *ptr;\n\tsize_t len;\n\tvoid *owner;\n}} {p}_buf;\n\nvoid {p}_buf_free({p}_buf buf);\n\n/* An owned copy of view's bytes: what a closure or reader C implements returns Rust,\n * which then owns it. */\n{p}_buf {p}_buf_copy({p}_buf view);\n"
+			"/* Bytes. Returned, an owned buffer to free once with {p}_buf_free, or pass back to\n * Rust by value, ptr and len narrowed to any range of its bytes. Passed by value, one\n * whose owner is set is Rust's from then on, taken without a copy, and one whose owner\n * is NULL is a view Rust reads during the call and never frees; in a value passed by\n * pointer, or an array's item, either is only read. A null ptr is None. */\ntypedef struct {p}_buf {{\n\tconst uint8_t *ptr;\n\tsize_t len;\n\tvoid *owner;\n}} {p}_buf;\n\nvoid {p}_buf_free({p}_buf buf);\n\n/* An owned copy of view's bytes: what a closure or reader C implements returns Rust,\n * which then owns it. */\n{p}_buf {p}_buf_copy({p}_buf view);\n\n/* A second owned buffer of an owned buffer's bytes, sharing them without a copy: what\n * a caller passes Rust while keeping buf. */\n{p}_buf {p}_buf_clone({p}_buf buf);\n"
 		));
 		self.line(format!(
 			"/* A u128: lo holds its low 64 bits and hi its high 64. */\ntypedef struct {p}_u128 {{\n\tuint64_t lo;\n\tuint64_t hi;\n}} {p}_u128;\n"

@@ -47,6 +47,8 @@ pub const API_FILE: &str = "api.json";
 
 /// Compiles the facade, exporting its API after analysis.
 struct Export {
+	/// Each crate the facade builds with, as [`config::env::CRATES`] has them.
+	crates: std::collections::BTreeMap<String, String>,
 	config: Config,
 	output: Output,
 	/// The facade's package, with the features rustc compiles it with.
@@ -117,10 +119,21 @@ impl Export {
 			.map(str::to_string)
 			.collect();
 		let patch = std::env::var(config::env::PATCH).map_err(|_| format!("{} is unset", config::env::PATCH))?;
+		let crates = std::env::var(config::env::CRATES).map_err(|_| format!("{} is unset", config::env::CRATES))?;
+		let crates: toml::Table = crates
+			.parse()
+			.map_err(|err| format!("{} is malformed: {err}", config::env::CRATES))?;
+		let crates = (crates.into_iter())
+			.map(|(lib, keys)| match keys {
+				toml::Value::String(keys) => Ok((lib, keys)),
+				_ => Err(format!("{} is malformed: {lib}", config::env::CRATES)),
+			})
+			.collect::<Result<_, String>>()?;
 		let baseline = std::env::var_os(config::env::BASELINE)
 			.filter(|p| !p.is_empty())
 			.map(PathBuf::from);
 		Ok(Some(Self {
+			crates,
 			config,
 			output,
 			facade,
@@ -141,6 +154,7 @@ impl Callbacks for Export {
 			root: self.facade.root(),
 			package: &self.facade.name,
 			// A census counts the whole API, whatever the config leaves out.
+			crates: &self.crates,
 			exclude: match self.output {
 				Output::Census(_) => &[],
 				Output::Dir(_) | Output::Api(_) => &self.config.exclude,
@@ -462,6 +476,7 @@ impl Export {
 			abi: &abi,
 			facade: &self.facade,
 			patch: &self.patch,
+			crates: &self.crates,
 		};
 		let generated = glue.generate(out)?;
 		if let Some(path) = &self.baseline {
@@ -529,11 +544,39 @@ fn at(tcx: TyCtxt<'_>, span: Span) -> String {
 	format!("{name}:{line}:{col}")
 }
 
+/// Write `text` to `path` unless it already holds it, so its mtime moves only on a change.
+/// A changed file is written beside `path` and renamed over it, so a reader sees the old
+/// content or the new, never neither or part, and a link at `path` goes and leaves what it
+/// points to.
 pub fn write(path: &Path, text: &str) -> Result<(), String> {
-	if let Some(dir) = path.parent() {
-		std::fs::create_dir_all(dir).map_err(|err| format!("creating {}: {err}", dir.display()))?;
+	if std::fs::read(path).is_ok_and(|old| old == text.as_bytes()) {
+		return Ok(());
 	}
-	std::fs::write(path, text).map_err(|err| format!("writing {}: {err}", path.display()))
+	let (Some(dir), Some(name)) = (path.parent(), path.file_name()) else {
+		return Err(format!("writing {}: not a file path", path.display()));
+	};
+	std::fs::create_dir_all(dir).map_err(|err| format!("creating {}: {err}", dir.display()))?;
+	let mut temp = std::ffi::OsString::from(".");
+	temp.push(name);
+	temp.push(".rust2-ffi");
+	let temp = dir.join(temp);
+	// A link left at the temporary path goes first, so the write cannot follow it.
+	match std::fs::remove_file(&temp) {
+		Err(err) if err.kind() != std::io::ErrorKind::NotFound => {
+			return Err(format!("removing {}: {err}", temp.display()));
+		}
+		_ => {}
+	}
+	std::fs::File::options()
+		.write(true)
+		.create_new(true)
+		.open(&temp)
+		.and_then(|mut file| std::io::Write::write_all(&mut file, text.as_bytes()))
+		.map_err(|err| format!("writing {}: {err}", temp.display()))?;
+	std::fs::rename(&temp, path).map_err(|err| {
+		let _ = std::fs::remove_file(&temp);
+		format!("writing {}: {err}", path.display())
+	})
 }
 
 /// Whether the struct, enum, or union `adt` declares a field or variant `name` under a

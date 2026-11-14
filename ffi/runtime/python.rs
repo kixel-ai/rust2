@@ -378,6 +378,8 @@ pub struct Scope {
 	nodes: Vec<rt::Waker>,
 	/// Awaitables given to Rust, freed unless the call happens.
 	futures: Vec<rt::ForeignFuture>,
+	/// Buffers handed to Rust, which takes them, freed unless the call happens.
+	bufs: Vec<rt::Buf>,
 }
 
 impl Scope {
@@ -402,6 +404,7 @@ impl Scope {
 		}
 		self.nodes.clear();
 		self.futures.clear();
+		self.bufs.clear();
 	}
 
 	/// The handles held, which a future keeps until it ends.
@@ -413,6 +416,10 @@ impl Scope {
 // Popping rather than draining, as each call drops a scope whose lists are mostly empty.
 impl Drop for Scope {
 	fn drop(&mut self) {
+		while let Some(buf) = self.bufs.pop() {
+			// SAFETY: a buffer the call never took.
+			unsafe { buf.free() };
+		}
 		while let Some(waker) = self.nodes.pop() {
 			// SAFETY: a waker the call never took.
 			unsafe { waker.release() };
@@ -732,10 +739,12 @@ pub fn str_out(buf: rt::Buf) -> R<Obj> {
 	}
 }
 
-/// The bytes of `bytes`, read in place, or of any other object with the buffer protocol,
-/// such as a `bytearray` or a `memoryview`, copied: the call runs without the GIL, so
-/// another thread could write storage that is not immutable while Rust reads it.
-pub fn bytes_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Buf> {
+/// The bytes of `bytes`, or of a `memoryview` of Rust's, read in place, or of any other
+/// object with the buffer protocol, such as a `bytearray`, copied: the call runs without
+/// the GIL, so another thread could write storage that is not immutable while Rust reads
+/// it. Where Rust takes the buffer, `take`, Rust's bytes cross shared and a copy crosses
+/// as Rust's own, so neither is copied again.
+pub fn bytes_in(obj: *mut PyObject, s: &mut Scope, take: bool) -> R<rt::Buf> {
 	// SAFETY: the GIL is held, and `obj` is live.
 	unsafe {
 		if PyBytes_Check(obj) != 0 {
@@ -751,25 +760,62 @@ pub fn bytes_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Buf> {
 				owner: null_mut(),
 			});
 		}
-		// SAFETY: `Py_buffer` is plain data, which the call fills.
+		// SAFETY: `Py_buffer` is plain data, which the call fills. Its format, which a
+		// `memoryview` passes on, marks Rust's bytes.
 		let mut view: Py_buffer = std::mem::zeroed();
-		if PyObject_GetBuffer(obj, &mut view, PyBUF_SIMPLE) != 0 {
+		if PyObject_GetBuffer(obj, &mut view, PyBUF_FORMAT | PyBUF_ND) != 0 {
 			return Err(Raised);
 		}
-		let copy = match view.len {
-			0 => Vec::new(),
-			len => std::slice::from_raw_parts(view.buf.cast_const().cast::<u8>(), len as usize).to_vec(),
+		let ptr = view.buf.cast_const().cast::<u8>();
+		let len = view.len as usize;
+		let buf = match (std::ptr::eq(view.format, RUST_FORMAT.as_ptr()), take) {
+			// Rust's, which never change, read in place: a second owner of them kept for
+			// the call, since releasing `obj`, a view, mid-call could free them.
+			(true, false) => {
+				let owner = (*view.internal.cast::<Bytes>()).buf.owner.cast::<bytes::Bytes>();
+				s.arrays.push(Box::new((*owner).clone()));
+				rt::Buf {
+					ptr,
+					len,
+					owner: null_mut(),
+				}
+			}
+			(true, true) => {
+				let shared = (*view.internal.cast::<Bytes>()).buf.share("python");
+				s.bufs.push(shared);
+				rt::Buf { ptr, len, ..shared }
+			}
+			(false, _) => {
+				let copy = match len {
+					0 => Vec::new(),
+					len => std::slice::from_raw_parts(ptr, len).to_vec(),
+				};
+				match take {
+					true => {
+						let owned = rt::Buf::vec(copy);
+						s.bufs.push(owned);
+						owned
+					}
+					false => {
+						let buf = rt::Buf {
+							ptr: copy.as_ptr(),
+							len: copy.len(),
+							owner: null_mut(),
+						};
+						s.arrays.push(Box::new(copy));
+						buf
+					}
+				}
+			}
 		};
 		PyBuffer_Release(&mut view);
-		let buf = rt::Buf {
-			ptr: copy.as_ptr(),
-			len: copy.len(),
-			owner: null_mut(),
-		};
-		s.arrays.push(Box::new(copy));
 		Ok(buf)
 	}
 }
+
+/// The format of a view of Rust's bytes: unsigned bytes, at an address no other exporter
+/// uses, which marks them, its `internal` then their owner.
+static RUST_FORMAT: [c_char; 2] = [b'B' as c_char, 0];
 
 /// Bytes Rust returned, as a read-only `memoryview` that lends them without a copy until
 /// it and every view of it are released.
@@ -1804,7 +1850,13 @@ unsafe extern "C" fn bytes_getbuffer(obj: *mut PyObject, view: *mut Py_buffer, f
 	// SAFETY: Python asks a live `Bytes` for a view.
 	unsafe {
 		let buf = (*obj.cast::<Bytes>()).buf;
-		PyBuffer_FillInfo(view, obj, buf.ptr.cast_mut().cast(), buf.len as Py_ssize_t, 1, flags)
+		let filled = PyBuffer_FillInfo(view, obj, buf.ptr.cast_mut().cast(), buf.len as Py_ssize_t, 1, flags);
+		// A `memoryview` keeps both in each view of it, its slices included.
+		if filled == 0 && !(*view).format.is_null() {
+			(*view).format = RUST_FORMAT.as_ptr().cast_mut();
+			(*view).internal = obj.cast();
+		}
+		filled
 	}
 }
 

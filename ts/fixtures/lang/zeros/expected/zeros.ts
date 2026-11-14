@@ -84,9 +84,13 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const args6 = [(f: rs.Formatter) => Unit.fmt$fmt_Debug(_11, f), (f: rs.Formatter) => One.fmt$fmt_Debug(_40, f)];
 		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v), undefined, true);
 	} else if (_8 === 1) {
-		rs.byteVecPush(out, rs.iterCount(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_212: rs.u8): Uint8Array => {
-			return Uint8Array.of();
-		})) & 0xff);
+		const leaf = rs.iterSlice(rs.byteSliceView(data));
+		let n2 = 0;
+		while (leaf.next() !== rs.DONE) {
+			Uint8Array.of();
+			n2++;
+		}
+		rs.byteVecPush(out, n2 & 0xff);
 		rs.byteVecPush(out, rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_213: rs.u8): Unit.Unit => {
 			return {};
 		}), undefined, 0, true).items.length & 0xff);
@@ -96,11 +100,20 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return item;
 			});
 		}), (value: Unit.Unit[]) => rs.iterSlice(value), true, 3)) & 0xff);
-		rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_215: rs.u8): Pair.Pair => {
-			return pair();
-		}), (p: Pair.Pair): boolean => {
-			return Unit.eq$cmp_PartialEq(p._0, { _0: {}, _1: undefined }._0);
-		})) & 0xff);
+		const leaf2 = rs.iterSlice(rs.byteSliceView(data));
+		let n3 = 0;
+		fused6: while (true) {
+			while (true) {
+				if (leaf2.next() === rs.DONE) {
+					break fused6;
+				}
+				if (Unit.eq$cmp_PartialEq(pair()._0, { _0: {}, _1: undefined }._0)) {
+					break;
+				}
+			}
+			n3++;
+		}
+		rs.byteVecPush(out, n3 & 0xff);
 		rs.byteVecPush(out, One.eq$cmp_PartialEq(((_216: rs.u8): One.One => {
 			return "Only" as One.One;
 		})(1), one()) ? 1 : 0);
@@ -579,9 +592,20 @@ export function unread(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		drop$zeros_Lock_zeros_Loud(Lock.new$zeros_Loud(undefined));
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.atomicLoad(LOG, 0))), undefined, true);
 	} else if (_9 === 1) {
-		rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterSlice(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): undefined => {}), undefined, 0, true).items), (_u: undefined): boolean => {
-			return true;
-		})) & 0xff);
+		const leaf = rs.iterSlice(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): undefined => {}), undefined, 0, true).items);
+		let n2 = 0;
+		fused2: while (true) {
+			while (true) {
+				if (leaf.next() === rs.DONE) {
+					break fused2;
+				}
+				if (true) {
+					break;
+				}
+			}
+			n2++;
+		}
+		rs.byteVecPush(out, n2 & 0xff);
 		rs.byteVecPush(out, phantomEq$String(undefined, n));
 		rs.byteVecPush(out, unitEq(undefined, n));
 		rs.byteVecPush(out, rewritten(undefined, n));

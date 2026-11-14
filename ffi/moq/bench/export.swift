@@ -50,6 +50,30 @@ func block<T: ~Copyable>(_ body: @escaping @Sendable () async throws -> T) -> T 
 	return result.value.take()!
 }
 
+/// A queue of jobs that a test runs when it chooses: the executor its tasks prefer, so a
+/// call resumes on it.
+final class Queue: TaskExecutor, @unchecked Sendable {
+	private let lock = NSLock()
+	private var jobs: [UnownedJob] = []
+
+	func enqueue(_ job: UnownedJob) {
+		lock.lock()
+		defer { lock.unlock() }
+		jobs.append(job)
+	}
+
+	func drain() {
+		while true {
+			lock.lock()
+			let job = jobs.isEmpty ? nil : jobs.removeFirst()
+			lock.unlock()
+			guard let job else { return }
+			job.runSynchronously(on: asUnownedTaskExecutor())
+		}
+	}
+
+}
+
 /// The async cases' spans, the last frame read, and their reads' sum, which a tuple cannot
 /// hold.
 struct Reads: ~Copyable {
@@ -62,7 +86,7 @@ struct Reads: ~Copyable {
 /// byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
 func throughput(_ track: TrackProducer, _ subscriber: inout TrackSubscriber, _ at: Timestamp, _ size: Int) async throws -> (Span, Int) {
 	let count = min(max((64 << 20) / (size * frames), 3), 2000)
-	let frame = Data(count: size)
+	let frame = Bytes(Data(count: size))
 	var sum = 0
 	let start = now()
 	for _ in 0..<count {
@@ -82,7 +106,7 @@ func round() throws -> ([(String, Span)], Int) {
 	var out: [(String, Span)] = []
 	let broadcast = BroadcastInfo.new().produce()
 	let track = try broadcast.createTrack("bench", TrackInfo.default().withTimescale(Timescale.MICRO))
-	let frame = Data(count: 100)
+	let frame = Bytes(Data(count: 100))
 	var sum = 0
 
 	var start = now()
@@ -172,6 +196,36 @@ func round() throws -> ([(String, Span)], Int) {
 		}
 		out.append(("woken", per(start)))
 
+		// A single writer task serves the calling reader for the whole case.
+		// Only one permit is outstanding. The write can race the first poll.
+		start = now()
+		let (permits, send) = AsyncStream<Void>.makeStream()
+		let writer = Task {
+			var next = permits.makeAsyncIterator()
+			for _ in 0..<groups {
+				var group = try track.appendGroup()
+				for _ in 0..<frames {
+					let permit: Void? = await next.next()
+					precondition(permit != nil)
+					try group.writeFrame(at, frame)
+				}
+				let consumed: Void? = await next.next()
+				precondition(consumed != nil)
+				try group.finish()
+			}
+		}
+		for _ in 0..<groups {
+			var reader = try await subscriber.recvGroup()!
+			for _ in 0..<frames {
+				send.yield(())
+				_ = try await reader.readFrame()!
+			}
+			send.yield(())
+		}
+		send.finish()
+		try await writer.value
+		out.append(("loop", per(start)))
+
 		var sum = 0
 		for size in sizes {
 			let (mbps, read) = try await throughput(track, &subscriber, at, size)
@@ -184,7 +238,42 @@ func round() throws -> ([(String, Span)], Int) {
 	sum += reads.sum
 	let last = reads.last
 
-	// The last frame's 100 bytes, copied into a Data, and one of them read.
+	// Drain one reader on its preferred executor until it suspends before every
+	// write. Unlike a yield on the global pool, an empty queue proves it parked.
+	let wakeTrack = try broadcast.createTrack("wake-loop", TrackInfo.default().withTimescale(Timescale.MICRO))
+	let queue = Queue()
+	let consumed = Cell<Int>()
+	consumed.value = 0
+	let done = Cell<Bool>()
+	done.value = false
+	start = now()
+	Task(executorPreference: queue) {
+		var subscriber = try! await wakeTrack.consume().subscribe(nil)
+		for _ in 0..<groups {
+			var reader = try! await subscriber.recvGroup()!
+			for _ in 0..<frames {
+				_ = try! await reader.readFrame()!
+				consumed.value! += 1
+			}
+		}
+		done.value = true
+	}
+	queue.drain()
+	for g in 0..<groups {
+		var group = try wakeTrack.appendGroup()
+		queue.drain()
+		for f in 0..<frames {
+			precondition(consumed.value == g * frames + f)
+			try group.writeFrame(at, frame)
+			queue.drain()
+			precondition(consumed.value == g * frames + f + 1)
+		}
+		try group.finish()
+	}
+	precondition(done.value == true)
+	out.append(("drained", per(start)))
+
+	// The last frame's 100 bytes, returned as Bytes, and one of them read.
 	start = now()
 	for _ in 0..<n {
 		sum += Int(last.payloadGet[0])
