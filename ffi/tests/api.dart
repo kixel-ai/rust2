@@ -393,6 +393,7 @@ Future<void> script() async {
   // The send happens at the call, and the future borrows the channel and the tag.
   print('tagged ${await channel.tagged('tag')}');
   print('itemized ${await channel.itemized(Uint32List.fromList([1, 2, 3]))}');
+  print('byte_len ${await api.byteLen(utf8.encode('abc'))}');
   channel.send(utf8.encode('sized'));
   final (payload, size) = await channel.recvSized();
   print('sized ${text(payload)} $size');
@@ -690,6 +691,7 @@ Future<void> script() async {
   final ended = api.later(began, const Duration(milliseconds: 1500));
   final same = api.later(began, Duration.zero);
   print('instants ${api.since(ended, began).inMilliseconds} ${api.since(began, ended).inMilliseconds} ${began == same} ${began == ended}');
+  print('has_instant ${api.hasInstant(began)} ${api.hasInstant(null)}');
   began.close();
   ended.close();
   same.close();

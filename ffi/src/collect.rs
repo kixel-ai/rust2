@@ -912,8 +912,8 @@ impl<'tcx> Collector<'tcx> {
 
 	/// The type a handle holds by value, if it exports as an opaque handle: as
 	/// [`Self::opaque_arc`]'s, a type of a crate the walk from the root does not reach,
-	/// taking no type parameters, and `Send` and `Sync`, but not an iterator, nor one that
-	/// exports by its own crate's path. Its lifetimes are `'static`, as an object's are.
+	/// taking no type parameters, and `Send` and `Sync`, but not an iterator or a future,
+	/// nor one that exports by its own crate's path. Its lifetimes are `'static`, as an object's are.
 	fn opaque_value(&self, ty: Ty<'tcx>) -> Option<DefId> {
 		let ty::Adt(adt, args) = ty.kind() else { return None };
 		let did = adt.did();
@@ -923,11 +923,16 @@ impl<'tcx> Collector<'tcx> {
 		let erasable = args.iter().all(|arg| matches!(arg.kind(), GenericArgKind::Lifetime(_)));
 		// Asked of a signature's type, whose lifetimes may be bound by it.
 		let ty = ty::fold_regions(self.tcx, ty, |_, _| self.tcx.lifetimes.re_erased);
-		// An iterator crosses as the array of its items instead.
+		// An iterator crosses as the array of its items instead, and a future as a future.
 		let iterator = implements(self.tcx, ty, did, sym::Iterator);
+		let future = (self.tcx.lang_items().future_trait()).is_some_and(|tr| {
+			let (infcx, env) = (self.tcx.infer_ctxt()).build_with_typing_env(TypingEnv::fully_monomorphized());
+			infcx.type_implements_trait(tr, [ty], env).must_apply_modulo_regions()
+		});
 		(held
 			&& erasable
 			&& !iterator
+			&& !future
 			&& self.is_send(ty, TypingEnv::fully_monomorphized())
 			&& self.is_sync(ty)
 			&& !self.reaches(ty, did))
@@ -4471,9 +4476,11 @@ impl<'tcx> Collector<'tcx> {
 		let tcx = self.tcx;
 		ty.walk().filter_map(|arg| arg.as_type()).any(|ty| match ty.kind() {
 			ty::Adt(adt, args) => {
-				// An opaque handle is never copied, even of a `Copy` value: lifting takes it.
-				let opaque = self.foreign.iter().any(|&(ty, _)| ty == adt.did());
-				let object = matches!(self.decl(adt.did(), *args), Some(Decl::Object(_)));
+				// An opaque handle is never copied, even of a `Copy` value: lifting takes it. A
+				// type [`FOREIGN`] maps by its role is an object.
+				let foreign = self.foreign.iter().any(|&(ty, _)| ty == adt.did());
+				let opaque = foreign && self.opaque(adt.did());
+				let object = foreign || matches!(self.decl(adt.did(), *args), Some(Decl::Object(_)));
 				opaque || object && !implements(tcx, ty, adt.did(), sym::Copy)
 			}
 			_ => false,

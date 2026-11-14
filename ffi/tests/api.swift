@@ -463,6 +463,7 @@ func script() {
 		// The send happens at the call, and the future borrows the channel and the tag.
 		print("tagged \(try await channel.tagged("tag"))")
 		print("itemized \(try await channel.itemized([1, 2, 3]))")
+		print("byte_len \(try await byteLen(Data("abc".utf8)))")
 		channel.send(Data("sized".utf8))
 		let (payload, size) = try await channel.recvSized()
 		print("sized \(text(payload)) \(size)")
@@ -764,6 +765,7 @@ func script() {
 	let began = now()
 	let ended = later(began, .milliseconds(1500))
 	print("instants \(millis(since(ended, began))) \(millis(since(began, ended))) \(began == later(began, .zero)) \(began == ended)")
+	print("has_instant \(hasInstant(began)) \(hasInstant(nil))")
 	// tracing's level, and its filter as an optional level whose nil is `OFF`.
 	var verbosity = Verbosity.new(.warn)
 	print("verbosity \(spell(verbosity.filter())) \(spell(louder(verbosity.filter())))")

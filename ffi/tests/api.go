@@ -480,6 +480,7 @@ func script() {
 	// The send happens at the call, and the future borrows the channel and the tag.
 	fmt.Printf("tagged %s\n", must(channel.Tagged(ctx, "tag")))
 	fmt.Printf("itemized %d\n", must(channel.Itemized(ctx, &[]uint32{1, 2, 3})))
+	fmt.Printf("byte_len %d\n", must(api.ByteLen(ctx, []byte("abc"))))
 	// An eager call whose callback cancels its context while it makes its future is never
 	// polled: only the eager half logs.
 	{
@@ -814,6 +815,7 @@ func script() {
 	same := must(api.Later(began, 0))
 	fmt.Printf("instants %d %d %t %t\n", must(api.Since(ended, began)).Milliseconds(), must(api.Since(began, ended)).Milliseconds(),
 		must(began.Equal(same)), must(began.Equal(ended)))
+	fmt.Printf("has_instant %t %t\n", must(api.HasInstant(began)), must(api.HasInstant(nil)))
 	began.Close()
 	ended.Close()
 	same.Close()

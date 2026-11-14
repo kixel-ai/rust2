@@ -2295,6 +2295,12 @@ pub fn certify(der: &[u8]) -> tls::held::Cert {
 	tls::held::Cert::new(der)
 }
 
+/// The length of `bytes`, through another crate's future that borrows them but resolves
+/// to an owned count: a future, not an opaque handle.
+pub fn byte_len(bytes: &[u8]) -> tls::held::Pending<'_> {
+	tls::held::Pending(bytes)
+}
+
 /// The length of a certificate [`certify`] made, lent.
 pub fn cert_len(cert: &tls::held::Cert) -> usize {
 	cert.der().len()
@@ -2637,6 +2643,12 @@ pub fn later(at: std::time::Instant, by: Duration) -> std::time::Instant {
 /// The time from `earlier` to `later`, or zero if `later` is earlier.
 pub fn since(later: std::time::Instant, earlier: std::time::Instant) -> Duration {
 	later.saturating_duration_since(earlier)
+}
+
+/// Whether `at` holds an instant, lent inside an `Option`: an instant crosses as a `Copy`
+/// object, so lending one inside a value takes no handle.
+pub fn has_instant(at: &Option<std::time::Instant>) -> bool {
+	at.is_some()
 }
 
 /// How much to log, as moq-tokio's `Log` holds it: a field of a foreign enum, and its filter.

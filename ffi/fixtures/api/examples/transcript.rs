@@ -373,6 +373,11 @@ fn main() {
 	if let Poll::Ready(count) = itemized.as_mut().poll(&mut cx) {
 		println!("itemized {count}");
 	}
+	// Another crate's future borrowing its bytes, which the export owns while it is pending.
+	let bytes = *b"abc";
+	if let Poll::Ready(len) = pin!(api::byte_len(&bytes)).poll(&mut cx) {
+		println!("byte_len {len}");
+	}
 	channel.send(Bytes::from_static(b"sized"));
 	let mut sized = pin!(channel.recv_sized());
 	if let Poll::Ready((payload, len)) = sized.as_mut().poll(&mut cx) {
@@ -772,6 +777,12 @@ fn main() {
 		api::since(start, end).as_millis(),
 		start == api::later(start, std::time::Duration::ZERO),
 		start == end
+	);
+	// An instant lent inside an `Option`, which takes no handle.
+	println!(
+		"has_instant {} {}",
+		api::has_instant(&Some(start)),
+		api::has_instant(&None)
 	);
 	let mut verbosity = api::Verbosity::new(tracing::Level::WARN);
 	println!(

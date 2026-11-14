@@ -173,6 +173,18 @@ pub mod held {
 		}
 	}
 
+	/// A future that is not an `impl Future`, borrowing what it reads but resolving to an
+	/// owned count.
+	pub struct Pending<'a>(pub &'a [u8]);
+
+	impl std::future::Future for Pending<'_> {
+		type Output = usize;
+
+		fn poll(self: std::pin::Pin<&mut Self>, _: &mut std::task::Context<'_>) -> std::task::Poll<usize> {
+			std::task::Poll::Ready(self.0.len())
+		}
+	}
+
 	/// A `Copy` token, which an opaque handle holds by value.
 	#[derive(Clone, Copy, Debug)]
 	pub struct Token(pub u32);

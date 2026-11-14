@@ -394,6 +394,7 @@ def script():
 		# The send happens at the call, and the future borrows the channel and the tag.
 		print(f"tagged {await channel.tagged('tag')}")
 		print(f"itemized {await channel.itemized(array.array('I', [1, 2, 3]))}")
+		print(f"byte_len {await api.byte_len(b'abc')}")
 		channel.send(b"sized")
 		payload, size = await channel.recv_sized()
 		print(f"sized {text(payload)} {size}")
@@ -674,6 +675,7 @@ def script():
 	ended = api.later(began, datetime.timedelta(milliseconds=1500))
 	same = api.later(began, datetime.timedelta())
 	print(f"instants {api.since(ended, began) // ms} {api.since(began, ended) // ms} {flag(began == same)} {flag(began == ended)}")
+	print(f"has_instant {flag(api.has_instant(began))} {flag(api.has_instant(None))}")
 	# tracing's level, and its filter as an optional level whose None is `OFF`.
 	verbosity = api.Verbosity.new(api.Level.WARN)
 	print(f"verbosity {api.spell(verbosity.filter())} {api.spell(api.louder(verbosity.filter()))}")

@@ -658,6 +658,13 @@ int script() {
 				std::printf("itemized %zu\n", *count);
 			}
 		}
+		// Another crate's future borrowing its bytes, which the export owns while it is pending.
+		{
+			api::byte_len_future measuring = api::byte_len("abc");
+			if (auto len = measuring.poll(waker)) {
+				std::printf("byte_len %zu\n", *len);
+			}
+		}
 		channel.send("sized");
 		{
 			api::Channel_recv_sized_future sized = channel.recv_sized();
@@ -1162,6 +1169,8 @@ int script() {
 		auto ended = api::later(began, {1, 500000000});
 		std::printf("instants %llu %llu %s %s\n", millis(api::since(ended, began)), millis(api::since(began, ended)),
 					began == api::later(began, {0, 0}) ? "true" : "false", began == ended ? "true" : "false");
+		// An instant lent inside an `Option`, which takes no handle.
+		std::printf("has_instant %s %s\n", api::has_instant(&began) ? "true" : "false", api::has_instant(nullptr) ? "true" : "false");
 	}
 	// tracing's level, and its filter as an optional level whose empty is `OFF`.
 	{

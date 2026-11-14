@@ -1086,6 +1086,13 @@ static int script(void) {
 		printf("itemized %zu\n", itemized);
 	}
 	api_Channel_itemized_future_free(itemizing);
+	/* Another crate's future borrowing its bytes, which the export owns while it is pending. */
+	api_byte_len_future *measuring = api_byte_len(str("abc"));
+	size_t byte_len;
+	if (api_byte_len_poll(measuring, waker, &byte_len) == API_POLL_READY) {
+		printf("byte_len %zu\n", byte_len);
+	}
+	api_byte_len_future_free(measuring);
 	api_Channel_send(channel, str("sized"));
 	api_Channel_recv_sized_future *sized = api_Channel_recv_sized(channel);
 	size_t len;
@@ -1772,6 +1779,8 @@ static int script(void) {
 	printf("instants %llu %llu %s %s\n", (unsigned long long)(forward.secs * 1000 + forward.nanos / 1000000),
 		   (unsigned long long)(backward.secs * 1000 + backward.nanos / 1000000), api_Instant_eq(began, same) ? "true" : "false",
 		   api_Instant_eq(began, ended) ? "true" : "false");
+	/* An instant lent inside an `Option`, which takes no handle. */
+	printf("has_instant %s %s\n", api_has_instant(began) ? "true" : "false", api_has_instant(NULL) ? "true" : "false");
 	api_Instant_free(same);
 	api_Instant_free(ended);
 	api_Instant_free(began);
@@ -1801,7 +1810,7 @@ static int script(void) {
 	api_Token_free(twice);
 
 	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	if (drops != 14) {
+	if (drops != 15) {
 		return 1;
 	}
 	return closures() && foreign_futures() && started_futures() ? 0 : 1;

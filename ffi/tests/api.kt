@@ -317,6 +317,7 @@ fun script() {
 		// The send happens at the call, and the future borrows the channel and the tag.
 		println("tagged ${channel.tagged("tag")}")
 		println("itemized ${channel.itemized(uintArrayOf(1u, 2u, 3u))}")
+		println("byte_len ${byteLen("abc".encodeToByteArray())}")
 		channel.send("sized".encodeToByteArray())
 		val (payload, size) = channel.recvSized()
 		println("sized ${payload.text()} $size")
@@ -604,6 +605,7 @@ fun script() {
 		later(began, 1500.milliseconds).use { ended ->
 			later(began, kotlin.time.Duration.ZERO).use { same ->
 				println("instants ${since(ended, began).inWholeMilliseconds} ${since(began, ended).inWholeMilliseconds} ${began == same} ${began == ended}")
+				println("has_instant ${hasInstant(began)} ${hasInstant(null)}")
 			}
 		}
 	}
