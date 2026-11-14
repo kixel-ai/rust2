@@ -866,15 +866,6 @@ fn duration(shape: &Shape) -> bool {
 	within(shape, &|s| matches!(s, Shape::Duration))
 }
 
-/// A `Vec<u8>` or `Bytes`: a `Vec` of `u8` ints is one, as Rust types it alike.
-fn is_bytes(shape: &Shape) -> bool {
-	match shape {
-		Shape::Bytes | Shape::Buf => true,
-		Shape::Vec(inner) => matches!(**inner, Shape::Int("u8")),
-		_ => false,
-	}
-}
-
 fn ipv6(shape: &Shape) -> bool {
 	within(shape, &|s| {
 		matches!(s, Shape::SocketAddr("SocketAddr" | "SocketAddrV6"))
