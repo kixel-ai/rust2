@@ -77,6 +77,7 @@ fn fixture() {
 	expect("marks::Made", "external", "unreached");
 	expect("marks::Mark", "external", "unreached");
 	expect("marks::Inferred", "external", "unreached");
+	expect("marks::Wrapped", "external", "unreached");
 	expect("marks::Unnamed", "external", "crate-only");
 	expect("<(dyn Shape + 'static)>::describe", "external", "unreached");
 	// A `pub` an exported macro holds, though another macro wrote it there.

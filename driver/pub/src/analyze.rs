@@ -179,10 +179,11 @@ impl Audit {
 		// What another crate must reach before it can use each impl of a library it links:
 		// its trait, where the audit defines it, and any one type its self type names,
 		// since it may leave the rest to inference, as `Marker` in `Slot::make()` for
-		// `impl Make for Slot<Marker>`, and `Marker` in `Public::make()` for
-		// `impl Make<Marker> for Public`, with `Public` from outside the audit, which it
-		// may use at once. Outside crates link a published or foreign library, and what
-		// those build on.
+		// `impl Make for Slot<Marker>`. Where its self type names any type from outside
+		// the audit, a caller may use it at once, as `Public::make()` does for
+		// `impl Make<Marker> for Public`, and `<Vec<_> as Make>::make()` for
+		// `impl Make for Vec<Marker>`. Outside crates link a published or foreign library,
+		// and what those build on.
 		let linked = units
 			.iter()
 			.filter(|u| u.lib && (published(u) || foreign(u)))
@@ -284,7 +285,13 @@ impl Audit {
 				let requires = audited(&i.requires);
 				if unit.lib && !unit.test && linked.contains(unit.package.as_path()) {
 					let (trait_, types) = i.requires.split_first().expect("an impl requires its trait");
-					external_impls.push((hashes[&i.hash], audited(std::slice::from_ref(trait_)), audited(types)));
+					// A type from outside the audit, as `Vec` in `impl Make for Vec<Marker>`,
+					// lets a caller infer the rest, as `<Vec<_> as Make>::make()` does.
+					let mut any = audited(types);
+					if any.len() < types.len() {
+						any.clear();
+					}
+					external_impls.push((hashes[&i.hash], audited(std::slice::from_ref(trait_)), any));
 				}
 				impls[test].push((hashes[&i.hash], requires, Vec::new()));
 			}

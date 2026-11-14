@@ -317,6 +317,9 @@ mod marks {
 	/// External: the self type of an impl of an external trait names it, where a caller
 	/// may leave it to inference, as in `Slot::make()`.
 	pub struct Inferred;
+	/// External: what a self type from outside the audit wraps, where a caller may infer
+	/// all of it, as in `<Vec<_> as Make<u8>>::make()`.
+	pub struct Wrapped;
 
 	/// External: an impl of a trait from outside the audit for a type from outside it names
 	/// it, which a caller may use with nothing of the audit's in hand.
@@ -339,6 +342,12 @@ impl Make<marks::Made> for Slot<u8> {
 impl Make<u16> for Slot<marks::Inferred> {
 	fn make() -> u32 {
 		43
+	}
+}
+
+impl Make<u8> for Vec<marks::Wrapped> {
+	fn make() -> u32 {
+		44
 	}
 }
 
