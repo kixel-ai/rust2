@@ -314,6 +314,13 @@ mod marks {
 	/// External: an impl of an external trait for an external type names it, where a
 	/// caller may leave it to inference.
 	pub struct Made;
+	/// External: the self type of an impl of an external trait names it, where a caller
+	/// may leave it to inference, as in `Slot::make()`.
+	pub struct Inferred;
+
+	/// External: an impl of a trait from outside the audit for a type from outside it names
+	/// it, which a caller may use with nothing of the audit's in hand.
+	pub struct Unnamed;
 }
 
 impl Slot<marks::Mark> {
@@ -326,6 +333,18 @@ impl Slot<marks::Mark> {
 impl Make<marks::Made> for Slot<u8> {
 	fn make() -> u32 {
 		39
+	}
+}
+
+impl Make<u16> for Slot<marks::Inferred> {
+	fn make() -> u32 {
+		43
+	}
+}
+
+impl From<marks::Unnamed> for String {
+	fn from(_: marks::Unnamed) -> String {
+		String::new()
 	}
 }
 
@@ -344,6 +363,15 @@ macro_rules! with_vis {
 			};
 		}
 	};
+}
+
+mod tags {
+	/// Restored, unreached: an exported macro facade re-exports holds the text of its
+	/// `pub`, which nothing in the audit expands.
+	#[derives::export_tag]
+	pub fn tagged_export() -> u32 {
+		42
+	}
 }
 
 mod captures {

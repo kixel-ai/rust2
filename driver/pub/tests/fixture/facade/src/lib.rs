@@ -22,7 +22,7 @@ pub use api::Products;
 pub use api::{Make, Slot};
 
 /// External: this library's API, an exported macro of api, made by another.
-pub use api::vis_of;
+pub use api::{tagged_export_vis, vis_of};
 
 /// External: this library's API, re-exported from api through a glob there.
 pub use api::Part;

@@ -124,10 +124,9 @@ pub struct Site {
 #[derive(Serialize, Deserialize)]
 pub struct Impl {
 	pub hash: Hash,
-	/// Its trait, and what its self type names.
+	/// Its trait, first, and what its self type names. Not its trait's arguments, which a
+	/// caller may leave to inference.
 	pub requires: Vec<Hash>,
-	/// What its trait's arguments name, which a caller may leave to inference.
-	pub args: Vec<Hash>,
 }
 
 /// An item, an impl's or trait's own items apart, as rustc's HIR printer prints it, which

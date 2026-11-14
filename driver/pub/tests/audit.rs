@@ -76,9 +76,13 @@ fn fixture() {
 	expect("Product::method", "external", "unreached");
 	expect("marks::Made", "external", "unreached");
 	expect("marks::Mark", "external", "unreached");
+	expect("marks::Inferred", "external", "unreached");
+	expect("marks::Unnamed", "external", "crate-only");
 	expect("<(dyn Shape + 'static)>::describe", "external", "unreached");
 	// A `pub` an exported macro holds, though another macro wrote it there.
 	expect("captures::captured", "external", "unreached");
+	// And the text of one, which only printing the macro another made shows.
+	expect("tags::tagged_export", "restored", "unreached");
 	// A glob that is external API, as facade's re-export through it makes it, exposes
 	// what its module exports, not all it supplies.
 	expect("outer::{use parts}", "cross-crate", "unreached");

@@ -29,6 +29,16 @@ pub fn tag(_: TokenStream, item: TokenStream) -> TokenStream {
 	item.into_iter().chain(tag).collect()
 }
 
+/// Kept: returns its item, and an exported macro whose string is its visibility.
+#[proc_macro_attribute]
+pub fn export_tag(_: TokenStream, item: TokenStream) -> TokenStream {
+	let (visibility, name) = read(item.clone());
+	let tag: TokenStream = format!("#[macro_export] macro_rules! {name}_vis {{ () => {{ {visibility:?} }}; }}")
+		.parse()
+		.unwrap();
+	item.into_iter().chain(tag).collect()
+}
+
 /// Kept: returns its item as it is.
 #[proc_macro_attribute]
 pub fn keep(_: TokenStream, item: TokenStream) -> TokenStream {

@@ -327,21 +327,17 @@ impl<'tcx> Collector<'tcx> {
 			}
 			if let DefKind::Impl { of_trait: true } = kind {
 				// Its trait and what its self type names, however wrapped, as `Local` in
-				// `impl Display for &Local`: a use of it names each. Its trait's arguments
-				// may be inferred, so they are apart.
+				// `impl Display for &Local`: a use of it names each, if only in the type an
+				// expression has. Its trait's arguments it may leave to inference.
 				let trait_ref = tcx.impl_trait_ref(def).instantiate_identity().skip_norm_wip();
 				let mut requires = vec![this.hash(trait_ref.def_id)];
-				let mut args = Vec::new();
-				for (i, ty) in trait_ref.args.types().enumerate() {
-					let list = if i == 0 { &mut requires } else { &mut args };
-					for owner in ty.walk().filter_map(|a| a.as_type()).filter_map(owner) {
-						let hash = this.hash(owner);
-						if !list.contains(&hash) {
-							list.push(hash);
-						}
+				for owner in trait_ref.self_ty().walk().filter_map(|a| a.as_type()).filter_map(owner) {
+					let hash = this.hash(owner);
+					if !requires.contains(&hash) {
+						requires.push(hash);
 					}
 				}
-				impls.push(Impl { hash, requires, args });
+				impls.push(Impl { hash, requires });
 				// An impl needs every item it declares, whatever calls them.
 				for &item in tcx.associated_item_def_ids(def) {
 					this.refer(item, None);
@@ -428,8 +424,14 @@ impl<'tcx> Collector<'tcx> {
 		for owner in tcx.hir_crate_items(()).owners() {
 			let text = match tcx.hir_owner_node(owner) {
 				// A macro's definition makes nothing until it expands, and its expansions
-				// are printed where they are.
-				hir::OwnerNode::Item(item) if matches!(item.kind, ItemKind::Macro(..)) => continue,
+				// are printed where they are, but one a macro made may hold what that macro
+				// read, which another crate may expand.
+				hir::OwnerNode::Item(item)
+					if matches!(item.kind, ItemKind::Macro(..))
+						&& tcx.expn_that_defined(owner.to_def_id()) == ExpnId::root() =>
+				{
+					continue;
+				}
 				hir::OwnerNode::Item(item) => rustc_hir_pretty::item_to_string(&Print { tcx, only: None }, item),
 				// The impl, trait, or extern block's header, with only this item of it.
 				hir::OwnerNode::ImplItem(_) | hir::OwnerNode::TraitItem(_) | hir::OwnerNode::ForeignItem(_) => {

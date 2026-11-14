@@ -104,13 +104,13 @@ impl Audit {
 			lo: span.lo,
 			hi: span.hi,
 		};
+		// A published library's API is what it exports. An unpublished one the audit does
+		// not run is used outside cargo's view, as a translator's fixture is by the
+		// translator, which may read any of its source.
+		let published = |unit: &Unit| packages.get(unit.package.as_path()).is_some_and(|p| p.publishable);
+		let foreign = |unit: &Unit| unit.lib && !published(unit) && !consumed.contains(unit.package.as_path());
 		for unit in units {
-			let package = packages.get(unit.package.as_path());
-			// A published library's API is what it exports. An unpublished one the audit
-			// does not run is used outside cargo's view, as a translator's fixture is by
-			// the translator, which may read any of its source.
-			let published = package.is_some_and(|p| p.publishable);
-			let foreign = unit.lib && !published && !consumed.contains(unit.package.as_path());
+			let (published, foreign) = (published(unit), foreign(unit));
 			for def in &unit.defs {
 				let span = def.span.map(|s| place(unit, s));
 				let key = (
@@ -176,9 +176,19 @@ impl Audit {
 		let mut edges = [vec![Vec::new(); n], vec![Vec::new(); n]];
 		let mut roots = [Vec::new(), Vec::new()];
 		let mut impls = [Vec::new(), Vec::new()];
-		// What another crate must reach before it can use each impl, its trait's arguments
-		// included where nothing else of the audit's is, as `Local` in
-		// `impl From<Local> for String`.
+		// What another crate must reach before it can use each impl of a library it links:
+		// its trait, where the audit defines it, and any one type its self type names,
+		// since it may leave the rest to inference, as `Marker` in `Slot::make()` for
+		// `impl Make for Slot<Marker>`, and `Marker` in `Public::make()` for
+		// `impl Make<Marker> for Public`, with `Public` from outside the audit, which it
+		// may use at once. Outside crates link a published or foreign library, and what
+		// those build on.
+		let linked = units
+			.iter()
+			.filter(|u| u.lib && (published(u) || foreign(u)))
+			.map(|u| u.package.as_path())
+			.collect();
+		let linked = built_on(&packages, linked, |_| true);
 		let mut external_impls = Vec::new();
 		// Every `pub` each macro's definition holds.
 		let mut macro_tokens = Vec::new();
@@ -272,15 +282,11 @@ impl Audit {
 			};
 			for i in &unit.impls {
 				let requires = audited(&i.requires);
-				if !unit.test {
-					let external = if requires.is_empty() {
-						audited(&i.args)
-					} else {
-						requires.clone()
-					};
-					external_impls.push((hashes[&i.hash], external));
+				if unit.lib && !unit.test && linked.contains(unit.package.as_path()) {
+					let (trait_, types) = i.requires.split_first().expect("an impl requires its trait");
+					external_impls.push((hashes[&i.hash], audited(std::slice::from_ref(trait_)), audited(types)));
 				}
-				impls[test].push((hashes[&i.hash], requires));
+				impls[test].push((hashes[&i.hash], requires, Vec::new()));
 			}
 		}
 		// What an external library's API exposes, such as a type of another crate it
@@ -342,23 +348,27 @@ impl Audit {
 /// The packages the audit consumes: those with a binary, which run, and the unpublished
 /// workspace members such a package builds on.
 fn consumed<'a>(packages: &BTreeMap<&'a Path, Package>) -> BTreeSet<&'a Path> {
-	let mut consumed: BTreeSet<&Path> = packages
-		.iter()
-		.filter(|(_, p)| p.bin && p.member)
-		.map(|(d, _)| *d)
-		.collect();
+	let binaries = packages.iter().filter(|(_, p)| p.bin && p.member).map(|(d, _)| *d);
+	built_on(packages, binaries.collect(), |p| p.member)
+}
+
+/// `set`, with every package of `packages` that `keep` holds for and something in it
+/// builds on.
+fn built_on<'a>(
+	packages: &BTreeMap<&'a Path, Package>,
+	mut set: BTreeSet<&'a Path>,
+	keep: impl Fn(&Package) -> bool,
+) -> BTreeSet<&'a Path> {
 	loop {
 		let more: Vec<&Path> = packages
 			.iter()
-			.filter(|(dir, p)| {
-				!consumed.contains(*dir) && p.member && p.dependents.iter().any(|d| consumed.contains(d.as_path()))
-			})
+			.filter(|(dir, p)| !set.contains(*dir) && keep(p) && p.dependents.iter().any(|d| set.contains(d.as_path())))
 			.map(|(d, _)| *d)
 			.collect();
 		if more.is_empty() {
-			return consumed;
+			return set;
 		}
-		consumed.extend(more);
+		set.extend(more);
 	}
 }
 
@@ -394,9 +404,9 @@ fn verdict(
 	})
 }
 
-/// Which definitions `roots` reach over `edges`, with a trait impl reached once all it
-/// requires is.
-fn reach(edges: &[&Vec<Vec<usize>>], roots: &[usize], impls: &[(usize, Vec<usize>)]) -> Vec<bool> {
+/// Which definitions `roots` reach over `edges`, with a trait impl reached once all of
+/// its first list is, and any one of its second, if that has any.
+fn reach(edges: &[&Vec<Vec<usize>>], roots: &[usize], impls: &[(usize, Vec<usize>, Vec<usize>)]) -> Vec<bool> {
 	let n = edges[0].len();
 	let mut live = vec![false; n];
 	let mut queue: VecDeque<usize> = VecDeque::new();
@@ -417,8 +427,8 @@ fn reach(edges: &[&Vec<Vec<usize>>], roots: &[usize], impls: &[(usize, Vec<usize
 				}
 			}
 		}
-		for (i, requires) in impls {
-			if !live[*i] && requires.iter().all(|&r| live[r]) {
+		for (i, all, any) in impls {
+			if !live[*i] && all.iter().all(|&r| live[r]) && (any.is_empty() || any.iter().any(|&r| live[r])) {
 				live[*i] = true;
 				queue.push_back(*i);
 			}
@@ -443,7 +453,10 @@ mod tests {
 		edges[4] = vec![5];
 		edges[6] = vec![7];
 		edges[7] = vec![6];
-		let live = reach(&[&edges], &[0], &[(3, vec![1, 2]), (8, vec![6])]);
+		let live = reach(&[&edges], &[0], &[(3, vec![1, 2], vec![]), (8, vec![6], vec![])]);
 		assert_eq!(live, [true, true, true, true, true, true, false, false, false]);
+		// An impl needing any one of 6 and 2 activates through 2.
+		let live = reach(&[&edges], &[0], &[(3, vec![1], vec![6, 2])]);
+		assert!(live[3] && live[5] && !live[6]);
 	}
 }
