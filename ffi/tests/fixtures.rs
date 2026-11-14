@@ -1591,7 +1591,10 @@ fn reexport() {
 		let mtime = std::fs::metadata(file).unwrap().modified().unwrap();
 		assert_eq!(mtime, past, "the second export rewrote {}", file.display());
 	}
-	assert!(!stray.parent().unwrap().exists(), "the export kept what it no longer writes");
+	assert!(
+		!stray.parent().unwrap().exists(),
+		"the export kept what it no longer writes"
+	);
 }
 
 /// A step replays while what it reads and what it wrote are as it left them, and runs again
@@ -1626,7 +1629,10 @@ fn step_reruns_on_change() {
 	assert!(ran(&init), "a step whose input changed replayed");
 	step::write(&repo.join("stray"), "");
 	assert!(ran(&init), "a step whose output changed replayed");
-	assert!(!repo.join("stray").exists(), "a step's run kept what an earlier one left");
+	assert!(
+		!repo.join("stray").exists(),
+		"a step's run kept what an earlier one left"
+	);
 
 	let stamp = dir.join("failed.stamp");
 	let failed = Step {
@@ -1635,7 +1641,10 @@ fn step_reruns_on_change() {
 		writes: &[],
 	};
 	let first = failed.output(Command::new("git").arg("--no-such-flag"));
-	assert!(!first.status.success() && stamp.exists(), "an expected failure was not kept");
+	assert!(
+		!first.status.success() && stamp.exists(),
+		"an expected failure was not kept"
+	);
 	let again = failed.output(Command::new("git").arg("--no-such-flag"));
 	assert_eq!((again.status, again.stderr), (first.status, first.stderr));
 }
