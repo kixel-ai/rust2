@@ -475,16 +475,15 @@ fn cpp_strict(api: &Api) {
 			reads: &[src, &include],
 			writes: &[],
 		};
-		step.output(&mut cmd)
+		// Case 0 must build, so only the failing cases keep a failure.
+		match case {
+			0 => step.run(&mut cmd),
+			_ => step.output(&mut cmd),
+		}
 	};
 	let tests = manifest_dir().join("tests");
 	for src in ["api.cpp", "api_strict.cpp"] {
-		let output = clang(&tests.join(src), 0);
-		assert!(
-			output.status.success(),
-			"{src} failed Clang's ownership checks:\n{}",
-			String::from_utf8_lossy(&output.stderr)
-		);
+		clang(&tests.join(src), 0);
 	}
 	for (case, message) in [
 		(

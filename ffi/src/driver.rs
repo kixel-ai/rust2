@@ -545,12 +545,20 @@ fn at(tcx: TyCtxt<'_>, span: Span) -> String {
 }
 
 /// Write `text` to `path` unless it already holds it, so its mtime moves only on a change.
+/// A changed file replaces the entry rather than writing through it, so a link at `path`
+/// goes and leaves what it points to.
 pub fn write(path: &Path, text: &str) -> Result<(), String> {
 	if std::fs::read(path).is_ok_and(|old| old == text.as_bytes()) {
 		return Ok(());
 	}
 	if let Some(dir) = path.parent() {
 		std::fs::create_dir_all(dir).map_err(|err| format!("creating {}: {err}", dir.display()))?;
+	}
+	match std::fs::remove_file(path) {
+		Err(err) if err.kind() != std::io::ErrorKind::NotFound => {
+			return Err(format!("removing {}: {err}", path.display()));
+		}
+		_ => {}
 	}
 	std::fs::write(path, text).map_err(|err| format!("writing {}: {err}", path.display()))
 }

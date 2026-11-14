@@ -2052,6 +2052,21 @@ fn rewrite_keeps_unchanged_files() {
 		output(&[("go/rt/rt.go", "rt")]).write().unwrap();
 		assert!(elsewhere.join("kept.go").exists(), "pruning followed a link");
 		assert!(!go.is_symlink() && go.join("rt/rt.go").exists());
+		// So does a changed file that is a link.
+		std::fs::remove_file(go.join("rt/rt.go")).unwrap();
+		std::os::unix::fs::symlink(elsewhere.join("kept.go"), go.join("rt/rt.go")).unwrap();
+		output(&[("go/rt/rt.go", "rt")]).write().unwrap();
+		assert_eq!(std::fs::read_to_string(elsewhere.join("kept.go")).unwrap(), "kept");
+		assert!(!go.join("rt/rt.go").is_symlink());
+		assert_eq!(std::fs::read_to_string(go.join("rt/rt.go")).unwrap(), "rt");
 	}
+	// A hard link to a changed file keeps its content.
+	let linked = root.join("linked.txt");
+	std::fs::write(&linked, "kept").unwrap();
+	std::fs::remove_file(root.join("Cargo.toml")).unwrap();
+	std::fs::hard_link(&linked, root.join("Cargo.toml")).unwrap();
+	output(&[("Cargo.toml", "c")]).write().unwrap();
+	assert_eq!(std::fs::read_to_string(&linked).unwrap(), "kept");
+	assert_eq!(std::fs::read_to_string(root.join("Cargo.toml")).unwrap(), "c");
 	std::fs::remove_dir_all(&root).unwrap();
 }
