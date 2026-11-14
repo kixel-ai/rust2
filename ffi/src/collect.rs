@@ -1960,12 +1960,12 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// An object, if the type can move across threads, or if it is also `Copy`, a value C
-	/// holds as its bytes, unless C changes it in place, which a copy could not write back,
-	/// or it may have padding, whose bytes the glue's `rustc` could place anywhere (see
-	/// [`full`]). Shared borrows of an object that is not `Sync` are exclusive.
+	/// holds as its bytes, unless it may have padding, whose bytes the glue's `rustc` could
+	/// place anywhere (see [`full`]). Shared borrows of an object that is not `Sync` are
+	/// exclusive.
 	fn object(&self, site: &Site<'tcx>) -> Decl {
 		let (tcx, ty, def_id) = (self.tcx, self.site_ty(site), site.key.def_id);
-		let copy = implements(tcx, ty, def_id, sym::Copy) && !self.changed(def_id) && full(tcx, ty);
+		let copy = implements(tcx, ty, def_id, sym::Copy) && full(tcx, ty);
 		if self.orphans.contains(&site.key) {
 			let construct = match copy {
 				true => "value no export returns",
@@ -1978,25 +1978,6 @@ impl<'tcx> Collector<'tcx> {
 			(true, false) => Decl::Object(0),
 			(false, _) => Decl::Refused(why("object not Send", "")),
 		}
-	}
-
-	/// Whether C may change the type `def_id` in place: through a `pub` field's setter, or
-	/// an inherent `pub` method taking `&mut self`.
-	fn changed(&self, def_id: DefId) -> bool {
-		let tcx = self.tcx;
-		let fields = matches!(tcx.def_kind(def_id), DefKind::Struct)
-			&& tcx.adt_def(def_id).all_fields().any(|field| field.vis.is_public());
-		fields
-			|| (tcx.inherent_impls(def_id).iter()).any(|&imp| {
-				(tcx.associated_items(imp).in_definition_order()).any(|item| {
-					item.is_method()
-						&& tcx.visibility(item.def_id).is_public()
-						&& matches!(
-							tcx.fn_sig(item.def_id).skip_binder().inputs().skip_binder().first().map(|input| input.kind()),
-							Some(ty::Ref(_, _, mutability)) if mutability.is_mut()
-						)
-				})
-			})
 	}
 
 	/// The objects C can never hold a handle to: no export it can call returns one.
@@ -2260,9 +2241,12 @@ impl<'tcx> Collector<'tcx> {
 						e.methods = methods;
 						e.traits = traits;
 					}
-					// One with no `pub` field, nor a `&mut self` method, as `object` decides.
 					Some(Decl::Value(index)) => {
-						let (methods, traits) = self.methods(&site);
+						let (mut methods, traits) = self.methods(&site);
+						if kind == DefKind::Struct {
+							methods.splice(0..0, self.accessors(&site));
+						}
+						let methods = self.written_back(methods);
 						let record = &mut self.api.records[index];
 						record.args = args;
 						record.methods = methods;
@@ -2420,8 +2404,9 @@ impl<'tcx> Collector<'tcx> {
 		(!self.exclude(&key) && (shared || !self.exclude(shown))).then_some((key, shared))
 	}
 
-	/// A getter and a setter for each `pub` field of a struct exported as an object: the
-	/// getter returns a copy, and the setter assigns in place, as `x.field = value` does.
+	/// A getter and a setter for each `pub` field of a struct exported as an object or an
+	/// opaque value: the getter returns a copy, and the setter assigns in place, as
+	/// `x.field = value` does.
 	fn accessors(&mut self, site: &Site<'tcx>) -> Vec<Function> {
 		let tcx = self.tcx;
 		let mut accessors = Vec::new();
@@ -2524,6 +2509,22 @@ impl<'tcx> Collector<'tcx> {
 			(methods.into_iter()).partition(|m| m.receiver == Some(Receiver::Mut));
 		for m in mutated {
 			self.refuse(&m.shown, "method", m.span, vec![why("`&mut self` of a value", "")]);
+		}
+		kept
+	}
+
+	/// An opaque value's methods, refusing each through `&mut self` whose change Rust could
+	/// not hand back with what it returns: a future's, which outlives the call, and a
+	/// `Result`'s, whose error a language raising it would lose the change with.
+	fn written_back(&mut self, methods: Vec<Function>) -> Vec<Function> {
+		let (refused, kept): (Vec<Function>, Vec<Function>) =
+			(methods.into_iter()).partition(|m| m.receiver == Some(Receiver::Mut) && (m.future || m.err.is_some()));
+		for m in refused {
+			let construct = match m.future {
+				true => "`&mut self` of a value in a future",
+				false => "`&mut self` of a value returning a Result",
+			};
+			self.refuse(&m.shown, "method", m.span, vec![why(construct, "")]);
 		}
 		kept
 	}
@@ -4405,8 +4406,10 @@ impl<'tcx> Collector<'tcx> {
 			}
 		}
 		// A returned object's lifetimes are `'static` too, which no lent borrow may be; not a
-		// `Result`'s error of another crate, which crosses as its message.
-		let output = match sig.output().kind() {
+		// `Result`'s error of another crate, which crosses as its message, even a future's,
+		// which the glue makes its message inside the future, while what it borrows lives.
+		let output = self.awaited(sig.output()).unwrap_or(sig.output());
+		let output = match output.kind() {
 			ty::Adt(adt, args)
 				if tcx.is_diagnostic_item(sym::Result, adt.did())
 					&& self.opaque_value(args.type_at(1)).is_some()
@@ -4432,6 +4435,29 @@ impl<'tcx> Collector<'tcx> {
 			errs.push(why("returned object that borrows", sig.output().to_string()));
 		}
 		(statics, errs, interned)
+	}
+
+	/// What an `impl Future` resolves to, its lifetimes kept as the signature binds them.
+	fn awaited(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+		let tcx = self.tcx;
+		let ty::Alias(
+			_,
+			ty::AliasTy {
+				kind: ty::AliasTyKind::Opaque { def_id },
+				args,
+				..
+			},
+		) = ty.kind()
+		else {
+			return None;
+		};
+		let output = tcx.lang_items().future_output()?;
+		let bounds = tcx.item_bounds(*def_id).skip_binder();
+		let term = bounds.iter().find_map(|clause| {
+			let p = clause.as_projection_clause()?.skip_binder();
+			(p.projection_term.expect_projection_def_id() == output).then_some(p.term.as_type()?)
+		})?;
+		Some(ty::EarlyBinder::bind(tcx, term).instantiate(tcx, args).skip_norm_wip())
 	}
 
 	/// Where a named lifetime of `def_id`'s signature is declared.

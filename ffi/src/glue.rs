@@ -111,6 +111,7 @@ pub fn rs(ty: &Ty) -> String {
 		Ty::ForeignReader => "rt::ForeignReader".to_string(),
 		Ty::Out(inner) => format!("*mut {}", rs(inner)),
 		Ty::In(inner) => format!("*const {}", rs(inner)),
+		Ty::InOut(inner) => format!("*mut {}", rs(inner)),
 		Ty::Fn(params, ret) => {
 			let params: Vec<String> = std::iter::once("*mut ::std::ffi::c_void".to_string())
 				.chain(params.iter().map(rs))
@@ -1724,11 +1725,7 @@ impl Gen<'_> {
 			Some(err) => format!(
 				"match result {{\n\t\tOk(v) => {{\n\t\t\tlet _ = &v;\n\t\t\t{write_ok}\n\t\t\t{ready}\n\t\t}}\n\t\tErr(e) => {{\n\t\t\tunsafe {{ rt::write::<{}>(err.cast(), || {}) }};\n\t\t\t{error}\n\t\t}}\n\t}}",
 				rs(&self.abi.ty(err)),
-				match err {
-					// A `String` error may stand for another crate's, as its message.
-					Type::String => self.lower(err, "::std::string::ToString::to_string(&e)"),
-					err => self.lower(err, "e"),
-				}
+				self.lower(err, "e")
 			),
 		}
 	}
@@ -1774,14 +1771,20 @@ impl Gen<'_> {
 					if function.holds && *receiver != Receiver::Owned {
 						held.push("a_self".to_string());
 					}
-					// Read through a pointer, so the caller keeps it.
+					// Read through a pointer, so the caller keeps it, and for `&mut self`
+					// written back through it once the call returns.
+					let binding = match receiver {
+						Receiver::Mut => "let mut",
+						_ => "let",
+					};
 					stmts.push(format!(
-						"let a_self = {};",
+						"{binding} a_self = {};",
 						self.lift(value, "unsafe { *this }", "false")
 					));
 					args.push(match receiver {
 						Receiver::Owned => "a_self".to_string(),
-						_ => "&a_self".to_string(),
+						Receiver::Ref => "&a_self".to_string(),
+						Receiver::Mut => "&mut a_self".to_string(),
 					});
 				}
 			}
@@ -1884,8 +1887,14 @@ impl Gen<'_> {
 			args.insert(usize::from(receiver_ty.is_some()) + at, arg);
 		}
 		// Rust writes back what the call left in each value C passed for `&mut`, on every
-		// path, errors included.
-		let writes: String = (function.params.iter().enumerate())
+		// path, errors included, and in a value's `&mut self`, in place.
+		let mut writes: String = match &receiver_ty {
+			Some(((_, value), Receiver::Mut)) if !matches!(value, Type::Object(_)) => {
+				format!("\n\tunsafe {{ this.write({}) }};", self.lower(value, "a_self"))
+			}
+			_ => String::new(),
+		};
+		writes += &(function.params.iter().enumerate())
 			.filter(|(_, param)| param.ty.written())
 			.map(|(n, param)| {
 				let Type::Ref(_, inner) = &param.ty else {
@@ -1898,7 +1907,7 @@ impl Gen<'_> {
 					self.lower(inner, &format!("a{n}"))
 				)
 			})
-			.collect();
+			.collect::<String>();
 		let mut callee = match &owner {
 			Some((_, owner_type)) => format!("<{}>::{}", self.rust(owner_type), function.name()),
 			None => self.path(&function.path),
@@ -1969,6 +1978,12 @@ impl Gen<'_> {
 				(Some(own), Some(_)) => format!("{later}.await.map(|v| {own})"),
 				(Some(own), None) => format!("{{ let v = {later}.await; {own} }}"),
 			};
+			// A `String` error may stand for another crate's, which may borrow what the
+			// future owns, so it becomes its message before the future ends.
+			let later = match &function.err {
+				Some(Type::String) => format!("{later}.map_err(|e| ::std::string::ToString::to_string(&e))"),
+				_ => later,
+			};
 			let bind: String = Self::outs(function)
 				.iter()
 				.enumerate()
@@ -2032,10 +2047,14 @@ impl Gen<'_> {
 		self.export(format!(
 			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}\n\tlet result = {};{writes}\n\t{finish}\n}}\n",
 			params.join(", "),
-			match function.collect {
+			match (function.collect, &function.err, &function.access) {
 				// An iterator's items, all taken now.
-				true => format!("::std::iter::Iterator::collect::<::std::vec::Vec<_>>({call})"),
-				false => call,
+				(true, ..) => format!("::std::iter::Iterator::collect::<::std::vec::Vec<_>>({call})"),
+				// A parse's error is its message already.
+				(_, _, Access::Parse) => call,
+				// A `String` error may stand for another crate's, as its message.
+				(_, Some(Type::String), _) => format!("({call}).map_err(|e| ::std::string::ToString::to_string(&e))"),
+				_ => call,
 			},
 		));
 	}

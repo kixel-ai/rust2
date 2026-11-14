@@ -645,21 +645,12 @@ export function keyed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	const leaf: rs.Iter<rs.String> = rs.iterSlice(keys.items);
 	let count2: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.String] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count2++, x];
-		}
-		const _32: [rs.usize, rs.String] | rs.Done = next;
-		if (_32 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _32[0];
-		const _39: rs.String = rs.stringClone(_32[1]);
+		const i: rs.usize = count2++;
+		const _39: rs.String = rs.stringClone(x);
 		rs.hashInsert(map, _39, i as rs.u64);
 	}
 	let sum: rs.u64 = 0;
@@ -948,21 +939,12 @@ export function iterate(chain: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 		let count: number = 0;
 		while (true) {
-			let next!: [rs.usize, rs.u8] | rs.Done;
-			next2: {
-				const x = leaf.next();
-				if (x === rs.DONE) {
-					next = rs.DONE;
-					break next2;
-				}
-				next = [count++, x];
-			}
-			const _54: [rs.usize, rs.u8] | rs.Done = next;
-			if (_54 === rs.DONE) {
+			const x = leaf.next();
+			if (x === rs.DONE) {
 				break;
 			}
-			const i: rs.usize = _54[0];
-			if (_54[1] === 128) {
+			const i: rs.usize = count++;
+			if (x === 128) {
 				last = i;
 			}
 		}

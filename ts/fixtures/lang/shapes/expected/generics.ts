@@ -934,21 +934,12 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count2: number = 0;
 	while (true) {
-		let next6!: [rs.usize, rs.u8] | rs.Done;
-		next7: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next6 = rs.DONE;
-				break next7;
-			}
-			next6 = [count2++, x];
-		}
-		const _294: [rs.usize, rs.u8] | rs.Done = next6;
-		if (_294 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _294[0];
-		const b4: rs.u8 = _294[1];
+		const i: rs.usize = count2++;
+		const b4: rs.u8 = x;
 		if (rs.usizeRem(i, 3) === 0) {
 			_302 = { tag: "Miss" } as Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
 		} else {

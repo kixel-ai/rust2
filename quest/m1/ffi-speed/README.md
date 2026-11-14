@@ -26,6 +26,3 @@ Decided with the maintainer on 2026-11-12, in `/quest-plan`: ✅ the benchmark's
 measurement work joins this epic, as CodSpeed,
 the export's cost (since done), and concurrent calls, since they serve its PRs.
 Rejected: standalone m1 quests; holding the last two in m3.
-
-[The generated crate's release build](/quest/m1/ffi-speed/glue-build.md) cuts the
-build cost the benchmark's Build table measured.
