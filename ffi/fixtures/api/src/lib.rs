@@ -968,7 +968,11 @@ impl Seat {
 /// copied checked objects, alone and held in a record and an enum.
 pub fn admit(entry: (Counter, Score, Seat, Choice)) -> u64 {
 	let (counter, score, seat, choice) = entry;
-	counter.value.wrapping_add(score.count).wrapping_add(seat.score.count).wrapping_add(choose(choice))
+	counter
+		.value
+		.wrapping_add(score.count)
+		.wrapping_add(seat.score.count)
+		.wrapping_add(choose(choice))
 }
 
 /// A score picked, or none: a data enum with an empty variant beside a checked object.

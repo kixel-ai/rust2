@@ -1521,7 +1521,10 @@ impl Gen<'_> {
 			let releases: Vec<String> = (record.fields.iter().enumerate())
 				.filter_map(|(n, f)| self.release(&f.ty, &format!("c.f{n}")))
 				.collect();
-			self.item(format!("fn release_{name}(c: &{name}) {{\n\t{}\n}}\n", releases.join("\n\t")));
+			self.item(format!(
+				"fn release_{name}(c: &{name}) {{\n\t{}\n}}\n",
+				releases.join("\n\t")
+			));
 		}
 		if self.reserves(&ty) {
 			self.checking.set(true);
@@ -2186,16 +2189,15 @@ impl Gen<'_> {
 		let mut moves = Vec::new();
 		let mut stmts = Vec::new();
 		let mut releases = Vec::new();
-		let mut sort = |ty: &Type, (reserve, stmt, _): &(String, String, String)| {
-			match (reserve.is_empty(), self.checks(ty)) {
+		let mut sort =
+			|ty: &Type, (reserve, stmt, _): &(String, String, String)| match (reserve.is_empty(), self.checks(ty)) {
 				(false, _) => {
 					reserves.push(reserve.clone());
 					moves.push(stmt.clone());
 				}
 				(true, true) => checks.push(stmt.clone()),
 				(true, false) => stmts.push(stmt.clone()),
-			}
-		};
+			};
 		let mut args = Vec::new();
 		let mut params = Vec::new();
 		let mut c_params = export.call.params.iter();

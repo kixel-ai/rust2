@@ -21,8 +21,9 @@ flag; an exclusive borrow, a move, or a free clears the bias and waits for the t
 slots naming the handle to empty, then falls back to the count. A slot collision falls
 back to the count too. The uncontended cost stays one atomic store and one load, so the
 single-thread rows must not rise.
-The language hold counts then need the same treatment, or folding into the C ABI's check,
-which [checks-raise](/quest/m1/ffi-export/checks-raise.md) may already do.
+The language hold counts then need the same treatment: Go's and Kotlin's still count each
+call beside the C ABI's check, while Python's and Dart's borrow through it alone for a
+checked type since [kixel-ai/rust2#730](https://github.com/kixel-ai/rust2/pull/730).
 Rejected for now: per-handle sharded counters, which cost each handle a cache line per
 shard.
 
