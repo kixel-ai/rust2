@@ -485,6 +485,9 @@ func script() {
 	hits.Add(api.HitsOf(10, 20))
 	hits.HitsSet(7)
 	fmt.Printf("hits %d %d %d %d %t\n", hits.HitsGet(), hits.MissesGet(), keptHits.HitsGet(), keptHits.MissesGet(), hits.Equal(keptHits))
+	counted := keptHits
+	countedSame := counted.Eq(keptHits)
+	fmt.Printf("counted %t %d\n", countedSame, counted.HitsGet())
 	extent := api.NewExtent(5, 3)
 	extentStart := extent
 	old := extent.Slide(10)

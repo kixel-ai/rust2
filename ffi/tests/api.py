@@ -375,6 +375,8 @@ def script():
 	hits = hits.add(api.Hits.of(10, 20))
 	hits = hits.hits_set(7)
 	print(f"hits {hits.hits_get} {hits.misses_get} {kept_hits.hits_get} {kept_hits.misses_get} {flag(hits == kept_hits)}")
+	counted, same = kept_hits.eq(kept_hits)
+	print(f"counted {flag(same)} {counted.hits_get}")
 	extent = api.Extent.new(5, 3)
 	extent_start = extent
 	extent, old = extent.slide(10)

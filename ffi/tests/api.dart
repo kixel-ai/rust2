@@ -384,6 +384,8 @@ Future<void> script() async {
   hits = hits.add(api.Hits.of(10, 20));
   hits = hits.hitsSet(7);
   print('hits ${hits.hitsGet} ${hits.missesGet} ${keptHits.hitsGet} ${keptHits.missesGet} ${hits == keptHits}');
+  final (counted, countedSame) = keptHits.eq(keptHits);
+  print('counted $countedSame ${counted.hitsGet}');
   var extent = api.Extent(5, 3);
   final extentStart = extent;
   final (slid, old) = extent.slide(10);

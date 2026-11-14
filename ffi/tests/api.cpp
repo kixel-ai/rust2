@@ -627,6 +627,9 @@ int script() {
 		hits.hits_set(7);
 		std::printf("hits %llu %u %llu %u %s\n", ull(hits.hits_get()), hits.misses_get(), ull(kept.hits_get()),
 			kept.misses_get(), yes(hits == kept));
+		api::Hits counted = kept;
+		bool counted_same = counted.eq_(kept);
+		std::printf("counted %s %llu\n", yes(counted_same), ull(counted.hits_get()));
 		api::Extent extent = api::Extent::new_(5, 3);
 		api::Extent extent_start = extent;
 		std::uint64_t old = extent.slide(10);

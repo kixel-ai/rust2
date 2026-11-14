@@ -853,8 +853,9 @@ impl<'a> Abi<'a> {
 	/// through `&self`, returning the value as the call left it, before Rust's own return
 	/// or each element of its tuple; and the Rust function `back_<C name>::call`, of that
 	/// function's C signature, that calls the C one with a copy and hands the copy back.
-	/// `None` for any other function.
-	pub fn handed_back(&self, function: &Function, owner: &Ty, owner_ty: &Type) -> Option<(Function, String)> {
+	/// That function's export keeps the C name of the method's, which a clash may have
+	/// renamed. `None` for any other function.
+	pub fn handed_back(&self, function: &Function, owner: &Ty, owner_ty: &Type) -> Option<(Function, Export, String)> {
 		if function.receiver != Some(Receiver::Mut) || matches!(owner, Ty::Handle { .. }) {
 			return None;
 		}
@@ -877,7 +878,11 @@ impl<'a> Abi<'a> {
 			},
 			..function.clone()
 		};
-		let sig = self.export(&back, Some(owner)).call;
+		// Named as the method is: a rename is keyed by the API's own function.
+		let mut export = self.export(&back, Some(owner));
+		export.call.name = real.call.name.clone();
+		export.named = real.named.clone();
+		let sig = &export.call;
 		let params: Vec<String> = (sig.params.iter().enumerate())
 			.map(|(n, (_, ty))| format!("p{n}: {}", crate::glue::rs(ty)))
 			.collect();
@@ -911,7 +916,7 @@ impl<'a> Abi<'a> {
 			params.join(", "),
 			crate::glue::rs(&sig.ret),
 		);
-		Some((back, shim))
+		Some((back, export, shim))
 	}
 
 	fn claim(&mut self, name: String, what: String, span: Span, owner: Option<Owner>) {

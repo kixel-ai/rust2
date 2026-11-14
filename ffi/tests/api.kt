@@ -309,6 +309,8 @@ fun script() {
 	hits = hits.add(Hits.of(10u, 20u))
 	hits = hits.hitsSet(7u)
 	println("hits ${hits.hitsGet} ${hits.missesGet} ${keptHits.hitsGet} ${keptHits.missesGet} ${hits == keptHits}")
+	val (counted, countedSame) = keptHits.eq(keptHits)
+	println("counted $countedSame ${counted.hitsGet}")
 	var extent = Extent.new(5u, 3u)
 	val extentStart = extent
 	val (slid, old) = extent.slide(10u)

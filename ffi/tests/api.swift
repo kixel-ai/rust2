@@ -454,6 +454,9 @@ func script() {
 	hits.add(Hits.of(10, 20))
 	hits.hitsSet(7)
 	print("hits \(hits.hitsGet) \(hits.missesGet) \(keptHits.hitsGet) \(keptHits.missesGet) \(hits == keptHits)")
+	var counted = keptHits
+	let countedSame = counted.eq(keptHits)
+	print("counted \(countedSame) \(counted.hitsGet)")
 	var extent = Extent.new(5, 3)
 	let extentStart = extent
 	let old = extent.slide(10)

@@ -1097,6 +1097,9 @@ static int script(void) {
 	printf("hits %llu %u %llu %u %s\n", (unsigned long long)api_Hits_hits_get(&hits), api_Hits_misses_get(&hits),
 		   (unsigned long long)api_Hits_hits_get(&kept), api_Hits_misses_get(&kept),
 		   api_Hits_eq(&hits, &kept) ? "true" : "false");
+	api_Hits counted = kept;
+	bool counted_same = api_Hits_eq_(&counted, kept);
+	printf("counted %s %llu\n", counted_same ? "true" : "false", (unsigned long long)api_Hits_hits_get(&counted));
 	api_Extent extent = api_Extent_new(5, 3);
 	api_Extent extent_start = extent;
 	uint64_t old = api_Extent_slide(&extent, 10);

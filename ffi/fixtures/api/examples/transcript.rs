@@ -361,6 +361,9 @@ fn main() {
 		kept.misses,
 		hits == kept
 	);
+	let mut counted = kept;
+	let same = api::Hits::eq(&mut counted, kept);
+	println!("counted {same} {}", counted.hits);
 	let mut extent = api::Extent::new(5, 3);
 	let start = extent;
 	let old = extent.slide(10);

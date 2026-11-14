@@ -2121,15 +2121,15 @@ impl<'a> Gen<'a> {
 		// A value is immutable in Kotlin, so its `&mut self` method returns it as the call
 		// left it, through a function of the glue's that hands back a copy.
 		let handed = (owner.zip(owner_ty)).and_then(|(owner, ty)| abi.handed_back(function, owner, ty));
-		let function = match &handed {
-			Some((back, shim)) => {
-				self.glue.push_str(shim);
-				back
+		let (handed, export) = match handed {
+			Some((back, export, shim)) => {
+				self.glue.push_str(&shim);
+				(Some(back), export)
 			}
-			None => function,
+			None => (None, abi.export(function, owner)),
 		};
+		let function = handed.as_ref().unwrap_or(function);
 		self.params = locals(&function.params);
-		let export = abi.export(function, owner);
 		let written = function
 			.params
 			.iter()

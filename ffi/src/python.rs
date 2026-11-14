@@ -1603,14 +1603,14 @@ impl<'a> Gen<'a> {
 		// A value is immutable in Python, so its `&mut self` method returns it as the call
 		// left it, through a function of the glue's that hands back a copy.
 		let handed = (owner.zip(owner_ty)).and_then(|(owner, (ty, _))| abi.handed_back(function, owner, ty));
-		let function = match &handed {
-			Some((back, shim)) => {
-				self.glue.push_str(shim);
-				back
+		let (handed, export) = match handed {
+			Some((back, export, shim)) => {
+				self.glue.push_str(&shim);
+				(Some(back), export)
 			}
-			None => function,
+			None => (None, abi.export(function, owner)),
 		};
-		let export = abi.export(function, owner);
+		let function = handed.as_ref().unwrap_or(function);
 		let c_name = export.call.name.clone();
 		let callee = match handed {
 			Some(_) => format!("back_{c_name}::call"),

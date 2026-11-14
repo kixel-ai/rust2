@@ -1346,6 +1346,14 @@ impl Hits {
 		self.hits = self.hits.wrapping_add(other.hits);
 		self.misses = self.misses.wrapping_add(other.misses);
 	}
+
+	/// Whether `other` equals this one, counting it a hit: named as `PartialEq`'s C
+	/// function, which the clash renames.
+	pub fn eq(&mut self, other: Hits) -> bool {
+		let same = *self == other;
+		self.hits = self.hits.wrapping_add(1);
+		same
+	}
 }
 
 /// A span whose `pub` start sits beside a private length, which no record could hold.
