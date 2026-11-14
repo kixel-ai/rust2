@@ -105,6 +105,7 @@ pub fn write(out: &Path, scope: &Scope, audit: &Audit, validation: &Validation) 
 			Restored::Resolution(place) => {
 				format!("a name resolves differently at {}", lines.at(scope.root, place))
 			}
+			Restored::Derived(path) => format!("a derive given it makes {path} differently"),
 		});
 		let items = token
 			.defs

@@ -44,6 +44,8 @@ pub struct Unit {
 	pub roots: Vec<Hash>,
 	/// Trait impls, each live once all it requires is.
 	pub impls: Vec<Impl>,
+	/// What derives made, which a narrowed build must make alike.
+	pub derived: Vec<Derived>,
 }
 
 /// A source range: the file's index in [`Unit::files`], and its bytes.
@@ -103,6 +105,16 @@ pub struct Site {
 pub struct Impl {
 	pub hash: Hash,
 	pub requires: Vec<Hash>,
+}
+
+/// An item a derive made.
+#[derive(Serialize, Deserialize)]
+pub struct Derived {
+	pub hash: Hash,
+	/// A hash of the item as rustc prints it, bodies included.
+	pub output: u64,
+	/// The item the derive was given, with its variants and fields, whose tokens it read.
+	pub input: Vec<Hash>,
 }
 
 /// The `pub` tokens to read as `pub(crate)`: each file, absolute, and the byte offsets of

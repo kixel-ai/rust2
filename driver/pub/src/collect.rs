@@ -17,12 +17,12 @@ use rustc_hir::{self as hir, ItemKind, Node, UseKind};
 use rustc_interface::interface::{Compiler, Config};
 use rustc_middle::hir::nested_filter;
 use rustc_middle::ty::{self, Ty, TyCtxt, TypeckResults};
-use rustc_span::hygiene::{ExpnKind, MacroKind};
+use rustc_span::hygiene::{ExpnId, ExpnKind, MacroKind};
 use rustc_span::source_map::{FileLoader, RealFileLoader};
 use rustc_span::{FileName, SyntaxContext, kw, sym};
 use rustc_structures::CrateType;
 
-use crate::facts::{self, Def, Edits, Hash, Impl, Ref, Site, Unit};
+use crate::facts::{self, Def, Derived, Edits, Hash, Impl, Ref, Site, Unit};
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
 pub fn run(args: Vec<String>) -> ExitCode {
@@ -281,6 +281,7 @@ impl<'tcx> Collector<'tcx> {
 				member_of,
 			});
 		}
+		let derived = this.derived();
 		tcx.hir_visit_all_item_likes_in_crate(&mut this);
 		let crate_id = tcx.stable_crate_id(rustc_hir::def_id::LOCAL_CRATE).as_u64();
 		let refs = this
@@ -305,7 +306,83 @@ impl<'tcx> Collector<'tcx> {
 			sites: this.sites,
 			roots,
 			impls,
+			derived,
 		}
+	}
+
+	/// Every item a derive made, with what it prints as and the item the derive was
+	/// given: a derive reads the whole item, its visibility included.
+	fn derived(&self) -> Vec<Derived> {
+		let tcx = self.tcx;
+		// The expansions that make each type again, `#[derive]`'s among them, which the
+		// derives it runs are made in.
+		let mut given: FxHashMap<ExpnId, LocalDefId> = FxHashMap::default();
+		for id in tcx.iter_local_def_id() {
+			if !matches!(tcx.def_kind(id), DefKind::Struct | DefKind::Enum | DefKind::Union) {
+				continue;
+			}
+			let mut expn = tcx.expn_that_defined(id.to_def_id());
+			while let ExpnKind::Macro(MacroKind::Attr, _) = expn.expn_data().kind {
+				given.insert(expn, id);
+				expn = expn.expn_data().parent;
+			}
+		}
+		let mut derived = Vec::new();
+		for id in tcx.iter_local_def_id() {
+			// An item, never a definition rustc makes up while lowering, which has no node.
+			if !matches!(
+				tcx.def_kind(id),
+				DefKind::Impl { .. }
+					| DefKind::Struct
+					| DefKind::Enum
+					| DefKind::Union
+					| DefKind::Fn
+					| DefKind::Const
+					| DefKind::Static { .. }
+					| DefKind::Trait
+					| DefKind::TyAlias
+					| DefKind::Mod
+					| DefKind::Macro(_)
+					| DefKind::Use
+			) || !matches!(tcx.hir_node_by_def_id(id), Node::Item(_))
+			{
+				continue;
+			}
+			let expn = tcx.expn_that_defined(id.to_def_id());
+			let ExpnKind::Macro(MacroKind::Derive, _) = expn.expn_data().kind else {
+				continue;
+			};
+			let mut at = expn;
+			let input = loop {
+				if let Some(&input) = given.get(&at) {
+					break Some(input);
+				}
+				if at == ExpnId::root() {
+					break None;
+				}
+				at = at.expn_data().parent;
+			};
+			let mut input_hashes = Vec::new();
+			if let Some(input) = input {
+				let adt = tcx.adt_def(input);
+				input_hashes.push(self.hash(input.to_def_id()));
+				for variant in adt.variants() {
+					if adt.is_enum() {
+						input_hashes.push(self.hash(variant.def_id));
+					}
+					input_hashes.extend(variant.fields.iter().map(|f| self.hash(f.did)));
+				}
+			}
+			let text = rustc_hir_pretty::id_to_string(&tcx, tcx.local_def_id_to_hir_id(id));
+			let mut hasher = std::hash::DefaultHasher::new();
+			std::hash::Hash::hash(&text, &mut hasher);
+			derived.push(Derived {
+				hash: self.hash(id.to_def_id()),
+				output: std::hash::Hasher::finish(&hasher),
+				input: input_hashes,
+			});
+		}
+		derived
 	}
 
 	fn hash(&self, def: DefId) -> Hash {

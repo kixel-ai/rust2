@@ -17,6 +17,10 @@ macro_rules! labeled {
 // it would change what `label` returns.
 labeled!(pub label);
 
+/// Restored: its derive prints its visibility, which narrowing would change.
+#[derive(derives::Label)]
+pub struct Labeled;
+
 fn main() {
 	{
 		let live = api::Live::new(42);
@@ -40,6 +44,7 @@ fn main() {
 	};
 	println!("settings {}", settings.named);
 	println!("label {}", label());
+	println!("labeled {}", Labeled::label());
 	println!("extra {}", extra::used());
 	println!("crlf {}", api::crlf::spaced());
 }

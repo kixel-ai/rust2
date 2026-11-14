@@ -15,6 +15,8 @@ pub enum Restored {
 	Diagnostic(Option<String>, String),
 	/// Narrowing it changed what a name resolves to, at this place.
 	Resolution(Place),
+	/// Narrowing it changed what a derive given its item makes: this item, by path.
+	Derived(String),
 }
 
 /// What the validation ends with.
@@ -83,6 +85,7 @@ pub fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validatio
 		.collect();
 	let mut restored = BTreeMap::new();
 	let expected = sites(original);
+	let derived = derived(original);
 	let mut rounds = 0;
 	while !active.is_empty() {
 		rounds += 1;
@@ -130,6 +133,35 @@ pub fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validatio
 						.or_insert_with(|| Restored::Resolution(place.clone()));
 				}
 			}
+			// A derive reads its whole item, which it may print, visibility and all.
+			let actual = self::derived(&units);
+			for (hash, (output, input)) in &derived {
+				if actual.get(hash).map(|(o, _)| o) == Some(output) {
+					continue;
+				}
+				let path = audit
+					.hashes
+					.get(hash)
+					.map_or_else(String::new, |&d| audit.defs[d].path.clone());
+				let blamed: BTreeSet<usize> = input
+					.iter()
+					.filter_map(|h| audit.hashes.get(h))
+					.flat_map(|&def| {
+						active
+							.iter()
+							.copied()
+							.filter(move |&t| audit.tokens[t].defs.contains(&def))
+					})
+					.collect();
+				if blamed.is_empty() {
+					return Err(format!(
+						"narrowing changed what a derive makes as {path}, and no narrowed `pub` it was given explains it"
+					));
+				}
+				for token in blamed {
+					restore.entry(token).or_insert_with(|| Restored::Derived(path.clone()));
+				}
+			}
 			// Narrowing must not add warnings either: the lints that make public API
 			// name a private type warn, rather than fail, but `-D warnings` fails them.
 			for diagnostic in diagnostics.iter().filter(|d| fails(d)) {
@@ -151,6 +183,15 @@ pub fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validatio
 		restored,
 		rounds,
 	})
+}
+
+/// What each derive made, by the item's hash: its output, and what it was given.
+fn derived(units: &[Unit]) -> HashMap<Hash, (u64, &[Hash])> {
+	units
+		.iter()
+		.flat_map(|u| &u.derived)
+		.map(|d| (d.hash, (d.output, d.input.as_slice())))
+		.collect()
 }
 
 fn restoring(diagnostic: &Diagnostic) -> Restored {

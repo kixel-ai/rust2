@@ -74,6 +74,8 @@ fn fixture() {
 	// A token the macro may use for more than the visibility stays.
 	expect("label", "macro", "crate-only");
 	expect("Derived", "narrowed", "unreached");
+	// A derive that reads the visibility makes its output differently.
+	expect("Labeled", "restored", "crate-only");
 	// Offsets on disk, past CRLFs rustc reads as LF.
 	expect("crlf::after_crlf", "narrowed", "unreached");
 	for kept in [

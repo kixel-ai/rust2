@@ -36,6 +36,7 @@ Joined across every compilation, the graph gives:
 
 Narrowing compiles every proposal together, restoring each `pub` a rustc error, or a `private_interfaces` or `private_bounds` lint, points at, until the workspaces check.
 It then requires every name to resolve as before: a narrowed method can compile and still change which method a call picks, such as a slice's `len` through `Deref`.
+And it requires every derive to make what it made: a derive reads its whole item, visibility included, so it restores the item a derive makes differently from.
 
 ## Limits
 

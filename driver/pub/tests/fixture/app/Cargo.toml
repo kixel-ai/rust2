@@ -7,3 +7,4 @@ publish = false
 [dependencies]
 api = { path = "../api" }
 extra = { path = "../extra" }
+derives = { path = "../derives" }
