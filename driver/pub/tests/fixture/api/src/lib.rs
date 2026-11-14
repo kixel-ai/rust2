@@ -105,6 +105,16 @@ mod inner {
 	pub fn reexported_dead() -> u32 {
 		8
 	}
+
+	/// Kept: app calls it through `prelude::*`.
+	pub fn through_glob() -> u32 {
+		22
+	}
+
+	/// Narrowed: `prelude::*` supplies it, but nothing names it.
+	pub fn past_glob() -> u32 {
+		23
+	}
 }
 
 /// Kept: app imports `reexported` through it.
@@ -118,6 +128,11 @@ pub mod prelude {
 	pub fn globbed() -> u32 {
 		9
 	}
+
+	/// Kept: app calls it through the glob.
+	pub use crate::inner::through_glob;
+	/// Narrowed: app's glob supplies it, but app never names it.
+	pub use crate::inner::past_glob;
 }
 
 /// Kept: app drains one generically.

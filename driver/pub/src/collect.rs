@@ -185,6 +185,7 @@ struct Collector<'tcx> {
 	typeck: Option<&'tcx TypeckResults<'tcx>>,
 	/// Each pair's first site, and whether any of its references is in the interface.
 	refs: FxHashMap<(Hash, Hash), (Option<facts::Span>, bool)>,
+	imports: FxHashSet<[Hash; 2]>,
 	sites: Vec<Site>,
 	/// The expansions already traced to their macros, per owner.
 	traced: FxHashSet<(LocalDefId, SyntaxContext)>,
@@ -203,6 +204,7 @@ impl<'tcx> Collector<'tcx> {
 			owner: rustc_hir::def_id::CRATE_DEF_ID,
 			typeck: None,
 			refs: FxHashMap::default(),
+			imports: FxHashSet::default(),
 			sites: Vec::new(),
 			traced: FxHashSet::default(),
 			expansions: Vec::new(),
@@ -346,6 +348,7 @@ impl<'tcx> Collector<'tcx> {
 			files: this.files,
 			defs,
 			refs,
+			imports: this.imports.into_iter().collect(),
 			sites: this.sites,
 			roots,
 			impls,
@@ -718,17 +721,23 @@ impl<'tcx> Collector<'tcx> {
 		self.refer(variant.fields[index].did, Some(site));
 	}
 
-	/// Each re-export in another crate's module a glob in `tree` imports, any of which
-	/// it may use.
-	fn globs(&mut self, tree: hir::UseTree<'tcx>) {
-		match tree.kind {
-			UseKind::Glob => {
-				for res in tree.prefix.res.present_items() {
-					let Res::Def(DefKind::Mod, module) = res else { continue };
-					if module.is_local() {
-						continue;
-					}
-					for child in self.tcx.module_children(module) {
+	/// What the glob import that is the owner supplied from each of `named`: only the
+	/// names rustc resolved through it, with the re-exports they went through.
+	fn glob(&mut self, named: &[Res]) {
+		let tcx = self.tcx;
+		let Some(names) = tcx.resolutions(()).glob_map.get(&self.owner) else {
+			return;
+		};
+		for &res in named {
+			match res {
+				Res::Def(DefKind::Mod, module) => {
+					for child in tcx.module_children(module) {
+						if !names.contains(&child.ident.name) {
+							continue;
+						}
+						if let Some(def) = child.res.opt_def_id() {
+							self.import(def);
+						}
 						for reexport in &child.reexport_chain {
 							if let Some(id) = reexport.id() {
 								self.refer(id, None);
@@ -736,14 +745,23 @@ impl<'tcx> Collector<'tcx> {
 						}
 					}
 				}
-			}
-			UseKind::Nested { items } => {
-				for &(item, ..) in items {
-					self.globs(item);
+				Res::Def(DefKind::Enum, adt) => {
+					for variant in tcx.adt_def(adt).variants() {
+						if names.contains(&variant.name) {
+							self.import(variant.def_id);
+						}
+					}
 				}
+				_ => {}
 			}
-			UseKind::Single(_) => {}
 		}
+	}
+
+	/// The owner, an import, supplies `def`, and is live once it is.
+	fn import(&mut self, def: DefId) {
+		let pair = [self.hash(self.owner.to_def_id()), self.hash(def)];
+		self.imports.insert(pair);
+		self.refer(def, None);
 	}
 
 	/// Refer to what each of `segments` names, and the re-exports each is named through,
@@ -779,15 +797,21 @@ impl<'tcx> Collector<'tcx> {
 				named.push(last.res);
 			}
 			module = None;
-			for res in named {
+			for &res in &named {
 				let Res::Def(kind, def) = res else { continue };
 				if let Some(parent) = parent {
 					self.reexports(parent, last.ident.name, res, self.typeck.is_none());
 				}
 				self.refer(def, Some(last.ident.span));
+				if let UseKind::Single(_) = tree.kind {
+					self.import(def);
+				}
 				if let DefKind::Mod = kind {
 					module = Some(def);
 				}
+			}
+			if let UseKind::Glob = tree.kind {
+				self.glob(&named);
 			}
 		}
 		if let UseKind::Nested { items } = tree.kind {
@@ -828,10 +852,6 @@ impl<'tcx> Visitor<'tcx> for Collector<'tcx> {
 					this.refer(def, None);
 				}
 				expn = data.parent;
-			}
-			// A glob of another crate's module may use any re-export in it.
-			if let ItemKind::Use(tree) = item.kind {
-				this.globs(tree);
 			}
 			// `pub extern crate` exposes the crate's whole API.
 			if let ItemKind::ExternCrate(_, ident) = item.kind

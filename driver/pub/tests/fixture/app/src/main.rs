@@ -135,6 +135,7 @@ fn main() {
 	println!("expanded {}", api::expanded_used());
 	println!("reexported {}", reexported());
 	println!("globbed {}", globbed());
+	println!("through glob {}", through_glob());
 	let mut counter = api::Counter(0);
 	println!("ticket {}", drain(&mut counter).0);
 	println!("len {}", api::Outer::new().len());

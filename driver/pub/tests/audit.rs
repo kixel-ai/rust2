@@ -98,6 +98,15 @@ fn fixture() {
 	expect("crate::{use hidden::m}", "cross-crate", "cross-crate");
 	expect("hidden::m::through_alias", "cross-crate", "cross-crate");
 	expect("only_dead", "cross-crate", "unreached");
+	// A glob supplies only what is named through it.
+	expect(
+		"prelude::{use crate::inner::through_glob}",
+		"cross-crate",
+		"cross-crate",
+	);
+	expect("inner::through_glob", "cross-crate", "cross-crate");
+	expect("prelude::{use crate::inner::past_glob}", "narrowed", "unreached");
+	expect("inner::past_glob", "narrowed", "unreached");
 	// A token in an exported macro goes wherever its callers outside the audit expand it.
 	expect("made", "external", "crate-only");
 	// Offsets on disk, past CRLFs rustc reads as LF.

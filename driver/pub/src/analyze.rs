@@ -189,11 +189,6 @@ impl Audit {
 				edges[test][from].push(to);
 				if r.interface {
 					interface[from].push(to);
-					// A call names what an import imports, not the import: the import, and the
-					// re-exports it goes through, are live once what it imports is.
-					if defs[from].kind == "Use" && defs[to].kind != "Use" {
-						edges[test][to].push(from);
-					}
 				}
 				let evidence = Evidence {
 					from,
@@ -204,6 +199,13 @@ impl Audit {
 					defs[to].cross.get_or_insert(evidence);
 				} else if from != to {
 					defs[to].local.get_or_insert(evidence);
+				}
+			}
+			// A call names what an import supplies, not the import: the import, and the
+			// re-exports it goes through, are live once what it supplies is.
+			for [import, supplied] in &unit.imports {
+				if let (Some(&import), Some(&supplied)) = (hashes.get(import), hashes.get(supplied)) {
+					edges[test][supplied].push(import);
 				}
 			}
 			roots[test].extend(unit.roots.iter().filter_map(|r| hashes.get(r)));

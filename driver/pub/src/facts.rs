@@ -37,6 +37,8 @@ pub struct Unit {
 	pub defs: Vec<Def>,
 	/// Each definition another refers to, once per pair, with the first site.
 	pub refs: Vec<Ref>,
+	/// Each import, and a definition it supplies: the import is live once that is.
+	pub imports: Vec<[Hash; 2]>,
 	/// Every resolved name in the source, in order, which a narrowed build must resolve
 	/// alike.
 	pub sites: Vec<Site>,
