@@ -8,10 +8,11 @@
 //! handle, freed in `deinit`, so Swift's compiler checks each move and borrow Rust makes:
 //! `self` is `consuming`, `&mut self` `mutating`, a parameter `consuming`, `borrowing`, or
 //! `inout`, a tuple holding one a struct of its own, and an array of them swift-collections'
-//! `UniqueArray`. An object that is `Copy` or thrown as an error is a final class instead,
-//! since `Swift.Error` requires a copyable type, whose handle a call holds at run time. A
-//! record is a struct; an enum a Swift enum, with
-//! its data as associated values; a trait a protocol; a closure a function type; a future
+//! `UniqueArray`. An object that is `Copy`, which only one C may change is, or thrown as an
+//! error is a final class instead, since `Swift.Error` requires a copyable type, whose
+//! handle a call holds at run time. A record is a struct, and any other `Copy` type with
+//! private fields a struct over the bytes of its C struct, which only Rust makes or reads;
+//! an enum a Swift enum, with its data as associated values; a trait a protocol; a closure a function type; a future
 //! an `async` function; an error a thrown `Swift.Error`. The runtime they share,
 //! [`runtime/rt.swift`](../runtime/rt.swift), holds the classes' handles, the arena a call
 //! lowers nested values into, and the signal a future parks on.
@@ -208,6 +209,9 @@ struct Arg {
 	gives: bool,
 	/// Whether its lowering, its one expression, throws.
 	throws: bool,
+	/// Whether it opens a buffer Rust takes, a second owner of Rust's own, which only the
+	/// call frees: so it opens inside every open that throws.
+	takes: bool,
 }
 
 struct Gen<'a> {
@@ -246,15 +250,6 @@ impl<'a> Gen<'a> {
 		match api.everywhere(on) {
 			true => then.to_string(),
 			false => format!("{check}({}, \"{what}\"){then}", on.0 & api.all().0),
-		}
-	}
-
-	/// The status a trait function of object `i` takes, if any: none, so a failed check
-	/// aborts, where nothing can throw.
-	fn nil(&self, i: usize) -> &'static str {
-		match self.abi.traits_status(i) {
-			true => ", nil",
-			false => "",
 		}
 	}
 
@@ -998,6 +993,9 @@ impl<'a> Gen<'a> {
 		let name = self.class(&c);
 		let rust = abi.api.rust(&record.path, &record.args);
 		let ty = Type::Record(i);
+		if record.opaque.is_some() {
+			return self.opaque(i);
+		}
 		let fields: Vec<(String, String)> = (record.fields.iter())
 			.map(|f| (field_name(&f.name), self.sw(&f.ty)))
 			.collect();
@@ -1051,6 +1049,37 @@ impl<'a> Gen<'a> {
 			"\tfunc _lower({arena}){throws} -> {c} {{\n\t\t{c}({})\n\t}}\n",
 			lowered.join(", ")
 		));
+		let text = format!("{rust}\n\n{}", record.docs);
+		let _ = write!(
+			self.types,
+			"{}public struct {name}: {} {{\n{}}}\n\n",
+			docs(text.trim(), ""),
+			protocols.join(", "),
+			body.join("\n")
+		);
+	}
+
+	/// A `Copy` type with private fields: a struct over the bytes of its C struct, which
+	/// only Rust makes or reads. Swift copies it as it copies the bytes.
+	fn opaque(&mut self, i: usize) {
+		let abi = self.abi;
+		let record = &abi.api.records[i];
+		let c = abi.record(i);
+		let name = self.class(&c);
+		let rust = abi.api.rust(&record.path, &record.args);
+		let ty = Type::Record(i);
+		let mut members = Vec::new();
+		let mut body = vec![format!(
+			"\t/// Its bytes, which only Rust reads.\n\tlet c_: {c}\n\n\tprivate init(c_: {c}) {{\n\t\tself.c_ = c_\n\t}}\n"
+		)];
+		let mut protocols = vec!["Sendable"];
+		self.traits(&ty, &c, record.traits, &mut body, &mut members, &mut protocols);
+		self.methods(&record.methods, &Ty::Struct(c.clone()), &ty, &mut body, &mut members);
+		self.distinct(&rust, &members);
+		body.push(format!(
+			"\tstatic func _lift(_ c: {c}) -> {name} {{\n\t\t{name}(c_: c)\n\t}}\n"
+		));
+		body.push(format!("\tfunc _lower() -> {c} {{\n\t\tc_\n\t}}\n"));
 		let text = format!("{rust}\n\n{}", record.docs);
 		let _ = write!(
 			self.types,
@@ -1377,6 +1406,7 @@ impl<'a> Gen<'a> {
 				let b = format!("b{k}_");
 				arg.open = Some((format!("{tr}Native.take({e}) {{ {b} in"), "}".to_string()));
 				arg.exprs.push(b);
+				arg.takes = true;
 			}
 			// A struct the call borrows or consumes, so it lives until the call returns.
 			(ty, Ty::Handle { .. }) if self.unique(ty) => arg.exprs.push(match ty.base() {
@@ -1444,13 +1474,6 @@ impl<'a> Gen<'a> {
 					body.push(format!("defer {{ {l}.handle.end() }}"));
 					args.push(l);
 				}
-				// A `Copy` object, which Swift's class holds a copy of.
-				Type::Object(i) => args.push(format!(
-					"{}(raw: {}_copy({p}{}))",
-					self.sw(ty),
-					self.abi.object(*i),
-					self.nil(*i)
-				)),
 				ty => args.push(self.lift_lent(ty, p)),
 			}
 		}
@@ -1496,28 +1519,14 @@ impl<'a> Gen<'a> {
 		format!("{{ {} in\n\t{}\n}}", params.join(", "), body.join("\n\t"))
 	}
 
-	/// The C value of `e`, of type `ty`, which a closure returns for Rust to own: a scalar
-	/// as it is, text in a buffer `buf_copy` made, and a copy of an object's handle.
+	/// The C value of `e`, of type `ty`, which a closure returns for Rust to own: a value
+	/// as it lowers, and text in a buffer `buf_copy` made.
 	fn returned(&mut self, ty: &Type, e: &str) -> String {
-		let abi = self.abi;
 		match ty {
 			Type::Str | Type::String => format!("Native.owned({e})"),
-			// Kept alive while its handle is copied: once `.handle` is read, ARC may release
-			// the object, whose deinit would free the handle first.
-			Type::Object(i) => format!(
-				"withExtendedLifetime({e}) {{ r_ in r_.handle.with {{ {}_copy($0{}) }} }}",
-				abi.object(*i),
-				self.nil(*i)
-			),
-			Type::Option(inner) => match &**inner {
-				Type::Str | Type::String => format!("({e}.map {{ Native.owned($0) }} ?? Native.none)"),
-				Type::Object(i) => format!(
-					"withExtendedLifetime({e}) {{ r_ in r_?.handle.with {{ {}_copy($0{}) }} ?? nil }}",
-					abi.object(*i),
-					self.nil(*i)
-				),
-				_ => Self::trapping(self.lower(ty, e)),
-			},
+			Type::Option(inner) if matches!(**inner, Type::Str | Type::String) => {
+				format!("({e}.map {{ Native.owned($0) }} ?? Native.none)")
+			}
 			ty => Self::trapping(self.lower(ty, e)),
 		}
 	}
@@ -1734,9 +1743,9 @@ impl<'a> Gen<'a> {
 		if !after.is_empty() {
 			prelude.push(gate(&after.join("; ")));
 		}
-		// A lowering that throws runs before any box is given, which the call alone would
-		// take: a throw between them would leak it.
-		if args.iter().any(|a| a.gives) {
+		// A lowering that throws runs before any box or buffer is given, which the call
+		// alone would take: a throw between them would leak it.
+		if args.iter().any(|a| a.gives || a.takes) {
 			for (k, arg) in args.iter_mut().enumerate().filter(|(_, a)| a.throws) {
 				prelude.push(format!("let c_arg{k}_ = {}", arg.exprs[0]));
 				arg.exprs[0] = format!("c_arg{k}_");
@@ -1771,10 +1780,15 @@ impl<'a> Gen<'a> {
 		// The call that makes the future unpolled, as `f_`, its status checked: what an eager
 		// call starts with, and, freed, what a cancelled task runs instead of the start, as
 		// Rust drops a future it never awaits.
-		let call = format!(
+		// The arena frees what it gave Rust unless the call reached C, which then owns it.
+		let reached = |call: String| match arena {
+			true => format!("a_.ran({call})"),
+			false => call,
+		};
+		let call = reached(format!(
 			"{c_name}({})",
 			exprs.iter().chain(&status_arg).cloned().collect::<Vec<_>>().join(", ")
-		);
+		));
 		let made = check
 			.as_ref()
 			.map(|check| format!("var c_status_: Swift.Int32 = 0\nlet f_ = {call}\n{check}"));
@@ -1809,7 +1823,7 @@ impl<'a> Gen<'a> {
 				.chain(["&f_".to_string()])
 				.chain(status_arg.iter().cloned())
 				.collect();
-			let started = format!("{}({})", start.name, start_args.join(", "));
+			let started = reached(format!("{}({})", start.name, start_args.join(", ")));
 			match &check {
 				Some(check) => {
 					inner.push(format!("let c_poll_ = {started}"));
@@ -1838,7 +1852,7 @@ impl<'a> Gen<'a> {
 			let mut call_args = exprs.clone();
 			call_args.extend(outs.iter().map(|(n, _)| format!("&c_{n}_")));
 			call_args.extend(status_arg);
-			let call = format!("{c_name}({})", call_args.join(", "));
+			let call = reached(format!("{c_name}({})", call_args.join(", ")));
 			match (&err, &ok) {
 				(Some(err), ok) => {
 					let ready = match ok {
@@ -1877,10 +1891,12 @@ impl<'a> Gen<'a> {
 			}
 		}
 		// Wrap the call in each argument's closure, innermost last, each opened with `try`
-		// only where the call throws.
+		// only where the call throws. A buffer Rust takes opens innermost, so nothing throws
+		// between its take and the call.
 		let wrap = |inner: String, throws: bool| {
 			let mut code = inner;
-			for arg in args.iter().rev() {
+			let (takes, rest): (Vec<&Arg>, Vec<&Arg>) = args.iter().partition(|a| a.takes);
+			for arg in takes.into_iter().rev().chain(rest.into_iter().rev()) {
 				if let Some((open, close)) = &arg.open {
 					// An opener may hold several `try`s, as a lent closure's two do.
 					let open = match throws {

@@ -116,6 +116,8 @@ fn main() {
 		("low".to_string(), Counter::new("l", 1)),
 		("high".to_string(), Counter::new("h", 9)),
 	]);
+	// The counters a board returns build another, each handle moved back in.
+	let board = api::Board::new(board.into_counters());
 	let ranked: Vec<String> = (board.ranked())
 		.map(|(name, counter)| format!("{name} {} {}", counter.name(), counter.get()))
 		.collect();
@@ -299,11 +301,13 @@ fn main() {
 	println!("secs {}", stamp.secs());
 	println!("later {}", Stamp::from_millis(3000).later(stamp));
 	println!("secs {}", stamp.secs());
+	let whole: Stamp = stamp.whole().into();
+	println!("whole {whole:?}");
 	let mut message = Message::new(Some(stamp), Bytes::from_static(b"body"));
 	println!("payload {}", String::from_utf8_lossy(&message.payload));
 	println!("stamp {:?}", message.stamp.unwrap());
 	println!("sent {}", message.sent());
-	// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
+	// Setters assign in place: the bytes are copied in, and a `Copy` value copied.
 	let reset = Stamp::from_millis(4000);
 	message.stamp = Some(reset);
 	message.payload = Bytes::from_static(b"edited");
@@ -312,6 +316,39 @@ fn main() {
 	println!("secs {}", reset.secs());
 	message.stamp = None;
 	println!("stamp {}", message.stamp.is_some());
+
+	// A value past a word, copied across: a closure takes and returns one by value.
+	let moment = api::Moment::new(1500, 1000).unwrap();
+	println!("moment {} {}", moment.millis(), api::Moment::new(1, 0).is_none());
+	let shifted = api::shifted(moment, |m| m.after(500));
+	println!("shifted {} {}", shifted.millis(), shifted == moment.after(500));
+	println!("wrapped {} {}", moment.after(u64::MAX).millis(), moment == shifted);
+
+	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	let gap = api::Gap::new(7, 3);
+	println!("gap {} {}", gap.sum(), gap == api::Gap::new(7, 3));
+	let berth = api::Berth::new(Some(4));
+	println!("berth {:?} {:?}", berth.at(), api::Berth::new(None).at());
+
+	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	let mut score = api::Score::of(2);
+	let step = api::Score::of(3);
+	score.add(step);
+	score.add(step);
+	println!("score {} {} {}", score.count(), step.doubled().count(), step.count());
+	let weighted = api::Weighted { score: step, weight: 4 };
+	println!(
+		"weighted {} {}",
+		weighted.total(),
+		weighted.score.count() + step.count()
+	);
+	// A checked score beside bytes in a tuple and in a record lent, and bytes beside a move.
+	let parcel = api::Parcel {
+		score: step,
+		payload: Bytes::from_static(b"abc"),
+	};
+	let moved = (Counter::new("w", 1), Bytes::from_static(b"abcd"));
+	println!("heft {}", api::heft((step, Bytes::from_static(b"ab")), &parcel, moved));
 
 	println!("kept {}", api::emit(Print, vec![1, 2, 3, 4]));
 	let logger = Logger::new(Box::new(Print));
@@ -806,7 +843,8 @@ fn main() {
 	let held = api::reissue(api::Ticket::new(7), |_| kept).number();
 	println!("reissued {given} {held}, cloned {}", api::Ticket::clones());
 	// A record's traits borrow the checked handle it holds.
-	let (front, back) = (api::seat(kept, 1), api::seat(kept, 2));
+	let nines = api::Score::of(9);
+	let (front, back) = (api::seat(nines, 1), api::seat(nines, 2));
 	println!("seat {front:?} {} {}", front == front.clone(), front == back);
 	// A kept closure, called on another thread after the call that took it returned.
 	println!("spawned {}", api::Spawned::new(|| 7).join());

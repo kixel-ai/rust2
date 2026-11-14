@@ -866,35 +866,10 @@ fn duration(shape: &Shape) -> bool {
 	within(shape, &|s| matches!(s, Shape::Duration))
 }
 
-/// A `Vec<u8>` or `Bytes`: a `Vec` of `u8` ints is one, as Rust types it alike.
-fn is_bytes(shape: &Shape) -> bool {
-	match shape {
-		Shape::Bytes | Shape::Buf => true,
-		Shape::Vec(inner) => matches!(**inner, Shape::Int("u8")),
-		_ => false,
-	}
-}
-
 fn ipv6(shape: &Shape) -> bool {
 	within(shape, &|s| {
 		matches!(s, Shape::SocketAddr("SocketAddr" | "SocketAddrV6"))
 	})
-}
-
-/// A collection whose items are bytes or tuples holding them, which C++ takes as views.
-fn viewed_items(shape: &Shape) -> bool {
-	let buf = |s: &Shape| matches!(s, Shape::String | Shape::PathBuf) || is_bytes(s);
-	let item = |s: &Shape| buf(s) || matches!(s, Shape::Tuple(elements) if elements.iter().any(buf));
-	within(shape, &|s| match s {
-		Shape::Vec(inner) | Shape::Set(inner) => item(inner),
-		Shape::Map(key, value) => buf(key) || buf(value),
-		_ => false,
-	})
-}
-
-/// A tuple of one element, which Kotlin returns as its element but takes whole.
-fn single(shape: &Shape) -> bool {
-	matches!(shape, Shape::Tuple(elements) if elements.len() == 1)
 }
 
 /// A round trip a binding gets wrong today.
@@ -937,22 +912,10 @@ const KNOWN: &[Known] = &[
 		quest: "/quest/m1/ffi-export/lossless.md",
 	},
 	Known {
-		language: "kotlin",
-		what: "a returned tuple of one passed back",
-		skips: single,
-		quest: "/quest/m1/ffi-export/round-trips.md",
-	},
-	Known {
 		language: "go",
 		what: "an IPv6 flow label",
 		skips: ipv6,
 		quest: "/quest/m1/ffi-export/lossless.md",
-	},
-	Known {
-		language: "cpp",
-		what: "a returned collection of bytes passed back",
-		skips: viewed_items,
-		quest: "/quest/m1/ffi-export/round-trips.md",
 	},
 ];
 

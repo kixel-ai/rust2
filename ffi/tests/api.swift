@@ -7,6 +7,9 @@
 import Api
 import BasicContainers
 import Foundation
+#if os(Linux)
+import NoDump
+#endif
 
 // The Log callback: keeps even levels.
 final class PrintLog: Log {
@@ -102,7 +105,7 @@ func lacks(_ function: String, _ body: () throws -> Void) {
 func targets() {
 	lacks("api_wasm_only") { _ = try wasmOnly() }
 	lacks("api_Page_default") { _ = try Page.default() }
-	let booth = Booth(ticket: Ticket.new(1))
+	let booth = Booth(score: Score.of(1))
 	lacks("api_Booth_debug") { _ = try booth.debugDescription }
 	lacks("api_Booth_eq") { _ = try booth == booth }
 }
@@ -308,9 +311,9 @@ func script() {
 	ranks.append(TupleStringCounter("low", Counter.new("l", 1)))
 	ranks.append(TupleStringCounter("high", Counter.new("h", 9)))
 	let board = try! Board.new(ranks)
-	let ranked = board.ranked()
+	let ranked = try! board.ranked()
 	print("ranked \(listed(ranked) { "\($0._0) \(try! $0._1.name()) \(try! $0._1.get())" })")
-	let best = board.best()
+	let best = try! board.best()
 	print("best \(try! best.name()) \(try! best.get())")
 	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
 	// key once, the last kept.
@@ -460,6 +463,7 @@ func script() {
 	print("secs \(stamp.secs())")
 	print("later \(Stamp.fromMillis(3000).later(stamp))")
 	print("secs \(stamp.secs())")
+	print("whole \(debug(stamp.whole()))")
 	var message = Message.new(stamp, Bytes("body".utf8))
 	print("payload \(text(try! message.payloadGet))")
 	print("stamp \(debug(try! message.stampGet!))")
@@ -473,6 +477,31 @@ func script() {
 	print("secs \(reset.secs())")
 	try! message.stampSet(nil)
 	print("stamp \(try! message.stampGet != nil)")
+
+	// A value past a word, copied across: a closure takes and returns one by value.
+	let moment = Moment.new(1500, 1000)!
+	print("moment \(moment.millis()) \(Moment.new(1, 0) == nil)")
+	let shifted = shifted(moment) { $0.after(500) }
+	print("shifted \(shifted.millis()) \(shifted == moment.after(500))")
+	print("wrapped \(moment.after(UInt64.max).millis()) \(moment == shifted)")
+
+	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	let gap = Gap.new(7, 3)
+	print("gap \(gap.sum()) \(gap == Gap.new(7, 3))")
+	let berth = Berth.new(4)
+	print("berth Some(\(berth.at()!)) \(Berth.new(nil).at() == nil ? "None" : "Some")")
+
+	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	let score = Score.of(2)
+	let step = Score.of(3)
+	try! score.add(step)
+	try! score.add(step)
+	print("score \(try! score.count()) \(try! step.doubled().count()) \(try! step.count())")
+	let weighted = Weighted(score: step, weight: 4)
+	print("weighted \(try! weighted.total()) \(try! weighted.score.count() + step.count())")
+	// A checked score beside bytes in a tuple and in a record lent, and bytes beside a move.
+	let parcel = Parcel(score: step, payload: Bytes("abc".utf8))
+	print("heft \(try! heft((step, Bytes("ab".utf8)), parcel, TupleCounterBytes(Counter.new("w", 1), Bytes("abcd".utf8))))")
 
 	// Bound first, so Swift's reference is gone before the print.
 	let kept = emit(PrintLog(), Bytes([1, 2, 3, 4]))
@@ -712,6 +741,15 @@ func script() {
 		let drops = Cell(0)
 		check((try? relay(DropLog(drops), [kept])) == nil, "api_relay of a closed Refusal throws")
 		check(drops.value == 1, "a call refused before Rust runs frees the callback it lowered")
+		// Nor the buffers it gave Rust before the throw, alone or beside the closed class.
+		check(try! excuse(tokenBytes(1, 1025), (tokenBytes(2, 1025), refusal("x"))) == 2051, "api_excuse sums its lengths")
+		let given = dropped()
+		do {
+			let note = tokenBytes(1, 1025)
+			let nested = tokenBytes(2, 1025)
+			check((try? excuse(note, (nested, kept))) == nil, "api_excuse of a closed Refusal throws")
+		}
+		check(dropped() == given + 2, "a call refused before Rust runs frees the buffers it gave")
 		var at = Point(x: 1, y: 2)
 		check((try? nudgeBy(&at, kept)) == nil, "api_nudge_by of a closed Refusal throws")
 		check(at == Point(x: 1, y: 2), "a refused call writes nothing back")
@@ -853,9 +891,9 @@ func script() {
 	// An instant only Rust makes, which each call copies out of its handle, and compares.
 	let millis = { (d: Swift.Duration) in d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000 }
 	let began = now()
-	let ended = try! later(began, .milliseconds(1500))
-	print("instants \(millis(try! since(ended, began))) \(millis(try! since(began, ended))) \(try! began == later(began, .zero)) \(try! began == ended)")
-	print("has_instant \(try! hasInstant(began)) \(try! hasInstant(nil))")
+	let ended = later(began, .milliseconds(1500))
+	print("instants \(millis(since(ended, began))) \(millis(since(began, ended))) \(began == later(began, .zero)) \(began == ended)")
+	print("has_instant \(hasInstant(began)) \(hasInstant(nil))")
 	// tracing's level, and its filter as an optional level whose nil is `OFF`.
 	var verbosity = Verbosity.new(.warn)
 	print("verbosity \(spell(try! verbosity.filter())) \(spell(louder(try! verbosity.filter())))")
@@ -865,12 +903,13 @@ func script() {
 	print("made \(made(3) { "\($0) times" })")
 	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
 	let nine = Ticket.new(9)
-	let given = try! reissue(Ticket.new(7)) { Ticket.new(try! $0.number() + 1) }.number()
-	let held = try! reissue(Ticket.new(7)) { _ in nine }.number()
+	let given = reissue(Ticket.new(7)) { Ticket.new($0.number() + 1) }.number()
+	let held = reissue(Ticket.new(7)) { _ in nine }.number()
 	print("reissued \(given) \(held), cloned \(Ticket.clones())")
 	// A record's traits borrow the checked handle it holds.
-	let front = try! seat(nine, 1)
-	let back = try! seat(nine, 2)
+	let nines = Score.of(9)
+	let front = try! seat(nines, 1)
+	let back = try! seat(nines, 2)
 	print("seat \(try! front.debugDescription) \(try! front == front) \(try! front == back)")
 	// A kept closure, called on another thread after the call that took it returned.
 	print("spawned \(try! Spawned.new { 7 }.join())")
@@ -881,9 +920,9 @@ func script() {
 		try await drive(start) { now, waiter in
 			calls.value += 1
 			switch calls.value {
-			case 1: return try! later(now, .milliseconds(5))
+			case 1: return later(now, .milliseconds(5))
 			case 2:
-				print("drive \(millis(try! since(now, start)))")
+				print("drive \(millis(since(now, start)))")
 				try! waiter.waker()()
 				return nil
 			default: throw StringError(error: "stopped after \(calls.value)")
@@ -1365,6 +1404,12 @@ func lentKept() {
 
 // Each breaks a contract, which must fail with a message naming it.
 func broken(_ which: String) {
+	#if os(Linux)
+	if nodump() != 0 {
+		perror("prctl")
+		exit(1)
+	}
+	#endif
 	switch which {
 	// A lent return outliving its owner's change, which Rust checks.
 	case "outlived":

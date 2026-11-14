@@ -197,6 +197,54 @@ pub fn flat(x: ((u32, u64), u8)) -> u32 {
 	x.0.0
 }
 
+/// A `Copy` value C holds as its bytes, which `next` lengthens.
+#[derive(Clone, Copy)]
+pub struct Tick {
+	at: u32,
+	#[cfg(feature = "next")]
+	late: u32,
+}
+
+impl Tick {
+	pub fn new(at: u32) -> Self {
+		Self {
+			at,
+			#[cfg(feature = "next")]
+			late: 0,
+		}
+	}
+
+	pub fn at(&self) -> u32 {
+		self.at
+	}
+
+	#[cfg(feature = "next")]
+	pub fn late(&self) -> u32 {
+		self.late
+	}
+}
+
+/// A `Copy` value in a word, whose `PartialEq` `next` writes by hand, so Kotlin can no
+/// longer compare its bits.
+#[derive(Clone, Copy)]
+#[cfg_attr(not(feature = "next"), derive(PartialEq))]
+pub struct Beat {
+	at: u32,
+}
+
+#[cfg(feature = "next")]
+impl PartialEq for Beat {
+	fn eq(&self, other: &Self) -> bool {
+		self.at / 2 == other.at / 2
+	}
+}
+
+impl Beat {
+	pub fn new(at: u32) -> Self {
+		Self { at }
+	}
+}
+
 /// Kept class whose Pascal name collides only in the bindings.
 pub mod graphics {
 	pub mod encoder {

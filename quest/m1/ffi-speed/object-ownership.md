@@ -22,5 +22,3 @@ Ownership stays automatic: a dropped object is still freed without a call from t
 
 ## Related
 
-- [Copy values](/quest/m1/ffi-export/copy-values.md) - removes the per-frame `Timestamp`
-  object, the other half of Go's and Dart's stamped write

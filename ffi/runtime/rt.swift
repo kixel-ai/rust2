@@ -647,6 +647,9 @@ extension Native {
 	final class Arena {
 		private var blocks: [UnsafeMutableRawPointer] = []
 		private var held: [Handle] = []
+		/// Each buffer given Rust to take, which the call frees unless it reached C.
+		private var given: [Buf] = []
+		private var reached = false
 		private let what: StaticString
 
 		init(_ what: StaticString) {
@@ -672,8 +675,8 @@ extension Native {
 		func buf(_ bytes: Bytes) -> Buf {
 			bytes.storage.withUnsafeBytes { raw in
 				guard take else { return copy(raw) }
-				if let owner = bytes.owner, raw.count > 0 { return owner.share(raw) }
-				return Native.copy(view(raw))
+				if let owner = bytes.owner, raw.count > 0 { return give(owner.share(raw)) }
+				return give(Native.copy(view(raw)))
 			}
 		}
 
@@ -681,8 +684,21 @@ extension Native {
 			var text = text
 			return text.withUTF8 { utf8 in
 				guard take else { return copy(UnsafeRawBufferPointer(utf8)) }
-				return Native.copy(view(UnsafeRawBufferPointer(utf8)))
+				return give(Native.copy(view(UnsafeRawBufferPointer(utf8))))
 			}
+		}
+
+		private func give(_ buf: Buf) -> Buf {
+			given.append(buf)
+			return buf
+		}
+
+		/// `result`, what the call's C function returned: it ran, so Rust owns every buffer
+		/// given, taken or freed as the call was refused.
+		@inline(__always)
+		func ran<T>(_ result: T) -> T {
+			reached = true
+			return result
 		}
 
 		func buf(_ bytes: Bytes?) -> Buf {
@@ -757,10 +773,16 @@ extension Native {
 			return (UnsafePointer(array), items.count)
 		}
 
-		/// Release what the call held, once it returns.
+		/// Release what the call held, once it returns, and, if a lowering threw before the
+		/// call reached C, each buffer given Rust.
 		func finish() {
 			for handle in held {
 				handle.release()
+			}
+			if !reached {
+				for buf in given {
+					Native.free(buf)
+				}
 			}
 			for block in blocks {
 				block.deallocate()

@@ -1378,6 +1378,29 @@ impl Drop for Takes<'_> {
 	}
 }
 
+/// Frees the buffers C handed Rust in arguments a call has not lifted yet, unless the call
+/// lifts them: so a call a check refuses leaks none of what it was given.
+pub struct Unlifted<F: FnOnce()>(Option<F>);
+
+impl<F: FnOnce()> Unlifted<F> {
+	pub fn new(release: F) -> Self {
+		Self(Some(release))
+	}
+
+	/// The call passed its checks and lifts the arguments, which then own the buffers.
+	pub fn lifted(mut self) {
+		self.0 = None;
+	}
+}
+
+impl<F: FnOnce()> Drop for Unlifted<F> {
+	fn drop(&mut self) {
+		if let Some(release) = self.0.take() {
+			release();
+		}
+	}
+}
+
 pub struct Shared<'a, T> {
 	object: &'a Object<T>,
 }

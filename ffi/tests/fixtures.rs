@@ -262,7 +262,7 @@ fn api_c() {
 		("zero", "api_next_hop: a NonZero is zero"),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
-		assert!(!output.status.success(), "{case} did not abort");
+		failed(&output, case);
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "{case} printed {stderr}");
 	}
@@ -414,7 +414,7 @@ fn api_cpp() {
 			("outlived", OUTLIVED),
 		] {
 			let output = Command::new(&exe).arg(case).output().unwrap();
-			assert!(!output.status.success(), "C++{standard} {case} did not abort");
+			failed(&output, &format!("C++{standard} {case}"));
 			let stderr = String::from_utf8_lossy(&output.stderr);
 			assert!(stderr.contains(message), "C++{standard} {case} printed {stderr}");
 		}
@@ -438,16 +438,33 @@ fn api_cpp() {
 		cxx(&api.link(), 17, true, &src, &exe);
 	}
 
-	// A C++ program whose header names another contract than its library's aborts at load.
+	// A C++ program whose header names another contract than its library's aborts at load,
+	// non-dumpable from a constructor that runs before the header's check, as `broken` is.
 	let mismatched = scratch().join("api").join("contract.cpp");
 	step::write(
 		&mismatched,
-		"#include \"api.h\"\n#undef API_CONTRACT\n#define API_CONTRACT ((uint64_t)0)\n#include \"api.hpp\"\nint main() {}\n",
+		r#"#ifdef __linux__
+#include <cstdio>
+#include <cstdlib>
+#include <sys/prctl.h>
+__attribute__((constructor(101))) static void nodump() {
+	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) {
+		std::perror("prctl");
+		std::_Exit(1);
+	}
+}
+#endif
+#include "api.h"
+#undef API_CONTRACT
+#define API_CONTRACT ((uint64_t)0)
+#include "api.hpp"
+int main() {}
+"#,
 	);
 	let contract = scratch().join("api").join(format!("contract{EXE_SUFFIX}"));
 	cxx(&api.link(), 17, false, &mismatched, &contract);
 	let output = Command::new(&contract).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not abort");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api/rt.hpp and the library are from different builds"),
@@ -507,6 +524,11 @@ fn cpp_strict(api: &Api) {
 		(5, "'this' argument to member function 'into_label' is an lvalue"),
 		(6, "no matching member function for call to 'emplace'"),
 		(7, "temporary whose address is used as value of local variable 'name'"),
+		(8, "no viable conversion from 'texts'"),
+		(
+			9,
+			"no viable conversion from 'std::vector<std::tuple<api::buf, api::Counter>>'",
+		),
 	] {
 		let output = clang(&tests.join("api_strict.cpp"), case);
 		assert!(!output.status.success(), "case {case} built");
@@ -579,14 +601,23 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -
 	if plain {
 		cmd.args(["-fno-exceptions", "-fno-rtti"]);
 	}
-	// -Wshadow stands in for MSVC's warnings that a name hides another.
-	cmd.args(["-pedantic", "-Wall", "-Wextra", "-Wshadow", "-Werror", "-I"])
-		.arg(include)
-		.arg(src)
-		.arg(&link.staticlib)
-		.args(link.native)
-		.arg("-o")
-		.arg(exe);
+	// -Wshadow stands in for MSVC's warnings that a name hides another, and
+	// -Wmismatched-tags for C4099, a class declared `struct` or a struct `class`.
+	cmd.args([
+		"-pedantic",
+		"-Wall",
+		"-Wextra",
+		"-Wshadow",
+		"-Wmismatched-tags",
+		"-Werror",
+		"-I",
+	])
+	.arg(include)
+	.arg(src)
+	.arg(&link.staticlib)
+	.args(link.native)
+	.arg("-o")
+	.arg(exe);
 	cmd
 }
 
@@ -645,18 +676,18 @@ fn api_kotlin() {
 	}
 
 	// The same classes, with another contract than the library's in place of theirs,
-	// refuse to load it: a Native.class of its own, ahead on the classpath, leaves the
+	// refuse to load it: a _Native.class of its own, ahead on the classpath, leaves the
 	// compiled classes as they were.
-	let bytes = std::fs::read(classes.join("api").join("Native.class")).unwrap();
+	let bytes = std::fs::read(classes.join("api").join("_Native.class")).unwrap();
 	let contract = kotlin_contract(&api.out.join("kotlin").join("api.kt")).to_be_bytes();
 	let at: Vec<usize> = (0..bytes.len() - 8).filter(|&i| bytes[i..i + 8] == contract).collect();
-	assert_eq!(at.len(), 1, "Native.class holds the contract once");
+	assert_eq!(at.len(), 1, "_Native.class holds the contract once");
 	let mut mismatched = bytes.clone();
 	mismatched[at[0]] ^= 0xff;
 	let shadow = scratch().join("api").join("kotlin-mismatched");
-	step::write(&shadow.join("api").join("Native.class"), &mismatched);
+	step::write(&shadow.join("api").join("_Native.class"), &mismatched);
 	let output = java(&[&shadow, &classes], &[]).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api.kt and the library are from different builds"),
@@ -814,6 +845,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 	);
 	run(&mut vm(&["futures"]));
 	run(&mut vm(&["owned"]));
+	run(&mut vm(&["clash"]));
 	for (case, message) in [
 		("moved", "IllegalStateException: Counter is closed"),
 		("boxed moved", "IllegalStateException: Node is closed"),
@@ -833,11 +865,57 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 	] {
-		let output = vm(&[case]).output().unwrap();
+		// Under a piped core pattern the handler still runs at a limit of 0, so the
+		// status reports a core though none is written.
+		let output = no_core(&mut vm(&[case])).output().unwrap();
 		assert!(!output.status.success(), "Kotlin {case} did not fail");
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Kotlin {case} printed {stderr}");
 	}
+}
+
+/// Asserts the run of `what` failed, as a broken contract must, and on Linux, where the test
+/// programs make themselves non-dumpable, without dumping core: each core costs the host a
+/// write and a run of its crash handler. Elsewhere the host's own core limit decides.
+fn failed(output: &Output, what: &str) {
+	assert!(!output.status.success(), "{what} did not fail");
+	#[cfg(target_os = "linux")]
+	assert!(
+		!std::os::unix::process::ExitStatusExt::core_dumped(&output.status),
+		"{what} dumped core"
+	);
+}
+
+/// `cmd` with a core-size limit of 0 on Linux, so a JVM case that aborts writes no core. The
+/// JVM cannot mark itself non-dumpable as the other test programs do, since JDK 21 calls C
+/// only through a preview API, so the host's crash handler still starts and logs the crash.
+fn no_core(cmd: &mut Command) -> &mut Command {
+	#[cfg(target_os = "linux")]
+	{
+		use std::ffi::{c_int, c_ulong};
+		use std::os::unix::process::CommandExt;
+
+		#[repr(C)]
+		struct Rlimit {
+			cur: c_ulong,
+			max: c_ulong,
+		}
+		unsafe extern "C" {
+			fn setrlimit(resource: c_int, limit: *const Rlimit) -> c_int;
+		}
+		const RLIMIT_CORE: c_int = 4;
+		// SAFETY: setrlimit is async-signal-safe and touches only the child.
+		unsafe {
+			cmd.pre_exec(|| {
+				if setrlimit(RLIMIT_CORE, &Rlimit { cur: 0, max: 0 }) == 0 {
+					Ok(())
+				} else {
+					Err(std::io::Error::last_os_error())
+				}
+			});
+		}
+	}
+	cmd
 }
 
 /// The library `python/api.py` loads from beside itself.
@@ -897,7 +975,7 @@ fn api_python() {
 		("reader kept", "read: a reader kept a view of its buffer past the read"),
 	] {
 		let output = python(&dir, &[case]).output().unwrap();
-		assert!(!output.status.success(), "Python {case} did not fail");
+		failed(&output, &format!("Python {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Python {case} printed {stderr}");
 	}
@@ -918,7 +996,7 @@ fn api_python() {
 	let source = format!("{}{flipped}{}", &source[..at], &source[at + 1..]);
 	step::write(&mismatched.join("api.py"), source);
 	let output = python(&mismatched, &[]).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api.py and the library are from different builds"),
@@ -1007,9 +1085,20 @@ fn api_swift() {
 	// The test's executor preference is macOS 15's.
 	let exe = dir.join("api-test");
 	let test = manifest_dir().join("tests").join("api.swift");
+	// The Clang module the test and the contract program import on Linux.
+	let nodump = manifest_dir().join("tests").join("nodump");
 	let step = Step {
 		stamp: &step::stamp(&exe),
-		reads: &[&test, &module, &include, &built, &swiftmodule, &lib, &api.staticlib()],
+		reads: &[
+			&test,
+			&nodump,
+			&module,
+			&include,
+			&built,
+			&swiftmodule,
+			&lib,
+			&api.staticlib(),
+		],
 		writes: &[&exe],
 	};
 	step.run(
@@ -1045,7 +1134,7 @@ fn api_swift() {
 	] {
 		let step = Step {
 			stamp: &dir.join(format!("{case}.stamp")),
-			reads: &[&test, &module, &include, &built, &swiftmodule],
+			reads: &[&test, &nodump, &module, &include, &built, &swiftmodule],
 			writes: &[],
 		};
 		let output = step.output(
@@ -1070,7 +1159,7 @@ fn api_swift() {
 		("plain variant", "api_Family.Wasm: it is not on this library's target"),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
-		assert!(!output.status.success(), "Swift {case} did not fail");
+		failed(&output, &format!("Swift {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Swift {case} printed {stderr}");
 	}
@@ -1088,11 +1177,15 @@ fn api_swift() {
 	let contract = dir.join("contract");
 	let (swift, main) = (contract.join("api.swift"), contract.join("main.swift"));
 	step::write(&swift, mismatched);
-	step::write(&main, "_ = dropped()\n");
+	// Non-dumpable before the check fails, as `broken` is.
+	step::write(
+		&main,
+		"#if os(Linux)\nimport Glibc\nimport NoDump\n\nif nodump() != 0 {\n\tperror(\"prctl\")\n\texit(1)\n}\n#endif\n_ = dropped()\n",
+	);
 	let exe = contract.join("contract");
 	let step = Step {
 		stamp: &step::stamp(&exe),
-		reads: &[&swift, &main, &module, &include, &built, &api.staticlib()],
+		reads: &[&swift, &main, &nodump, &module, &include, &built, &api.staticlib()],
 		writes: &[&exe],
 	};
 	step.run(
@@ -1107,7 +1200,7 @@ fn api_swift() {
 			.arg(&exe),
 	);
 	let output = Command::new(&exe).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api.swift and the library are from different builds"),
@@ -1172,7 +1265,7 @@ fn api_dart() {
 		("lent stray", "a path from Rust is not UTF-8"),
 	] {
 		let output = dart_run(&exe, &[case]).output().unwrap();
-		assert!(!output.status.success(), "Dart {case} did not fail");
+		failed(&output, &format!("Dart {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Dart {case} printed {stderr}");
 	}
@@ -1195,7 +1288,7 @@ fn api_dart() {
 	);
 	let exe = dart_compile("api", &contract, &package, &lib, &main);
 	let output = dart_run(&exe, &[]).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api.dart and the library are from different builds"),
@@ -1308,9 +1401,9 @@ fn collections_dir() -> PathBuf {
 	manifest_dir().join("target").join("swift-collections").join("build")
 }
 
-/// swiftc, with warnings as errors, finding the C header's module in `module` and
-/// swift-collections' in [`collections_dir`], at this macOS deployment target on macOS: 13
-/// is the oldest the generated `Swift.Duration` allows.
+/// swiftc, with warnings as errors, finding the C header's module in `module`,
+/// swift-collections' in [`collections_dir`], and `tests/nodump`'s, at this macOS deployment
+/// target on macOS: 13 is the oldest the generated `Swift.Duration` allows.
 fn swiftc(module: &Path, macos: u8) -> Command {
 	let mut cmd = Command::new("swiftc");
 	if cfg!(target_os = "macos") {
@@ -1323,7 +1416,9 @@ fn swiftc(module: &Path, macos: u8) -> Command {
 	cmd.args(["-warnings-as-errors", "-I"])
 		.arg(module)
 		.arg("-I")
-		.arg(collections_dir());
+		.arg(collections_dir())
+		.arg("-I")
+		.arg(manifest_dir().join("tests").join("nodump"));
 	cmd
 }
 
@@ -1368,7 +1463,7 @@ fn api_go() {
 			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("nil reader", "a nil io.ReadSeeker"),
-		("returned closed", "Instant is closed"),
+		("returned zero", "a zero Instant, which only Rust makes"),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
 		("outlived", OUTLIVED),
 		("text", "api_greet: a string is not UTF-8"),
@@ -1379,7 +1474,7 @@ fn api_go() {
 		("plain variant", "api_Family.Wasm: it is not on this library's target"),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
-		assert!(!output.status.success(), "Go {case} did not fail");
+		failed(&output, &format!("Go {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Go {case} printed {stderr}");
 	}
@@ -1405,7 +1500,7 @@ fn api_go() {
 	let exe = dir.join(format!("contract-test{EXE_SUFFIX}"));
 	go_build(api, &contract, &exe);
 	let output = Command::new(&exe).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("the Go of api and the library are from different builds"),
@@ -2177,6 +2272,23 @@ fn lock() {
 		stderr.contains("library `other`: it is now `lock`"),
 		"no library error:\n{stderr}"
 	);
+	// A baseline an earlier export wrote, before records had their padding, still reads.
+	let older = dir.join("older.json");
+	let mut json = String::from_utf8(before.clone()).unwrap();
+	while let Some(at) = json.find(",\"padding\":{") {
+		let end = at + json[at..].find('}').unwrap() + 1;
+		json.replace_range(at..end, "");
+	}
+	std::fs::write(&older, json).unwrap();
+	let args = ["--baseline".as_ref(), older.as_os_str()];
+	let read = exporter("lock", &dir.join("older"), &targets, &args, &[])
+		.output()
+		.expect("running rust2-ffi");
+	assert!(
+		read.status.success(),
+		"a baseline without padding failed:\n{}",
+		String::from_utf8_lossy(&read.stderr)
+	);
 	let locked = |feature: &str| {
 		let args = ["--baseline".as_ref(), baseline.as_os_str()];
 		exporter("lock", &dir.join(feature), &targets, &args, &["--features", feature])
@@ -2479,6 +2591,30 @@ fn standard_names() {
 			"lib `{name}`'s own SocketAddrV4 is no record:\n{header}"
 		);
 	}
+}
+
+/// The padding of a `Copy` value of a huge array is found without walking or storing its
+/// bytes: a zero-sized element repeated `usize::MAX` times, or a 1 TiB array of bytes, which
+/// no export returns, so it is left out only after its padding is read. An array of padded
+/// elements still zeroes each element's padding.
+#[test]
+fn huge_arrays() {
+	let lib = "#[derive(Clone, Copy)]\npub struct Marker([(); usize::MAX]);\n\nimpl Marker {\n\tpub fn new() -> Self {\n\t\tSelf([(); usize::MAX])\n\t}\n}\n\npub fn take(marker: Marker) -> u32 {\n\tmarker.0.len().count_ones()\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Huge([u8; 1 << 40]);\n\npub fn first(huge: &Huge) -> u8 {\n\thuge.0[0]\n}\n\n\
+		#[derive(Clone, Copy)]\n#[repr(C)]\nstruct Pair {\n\ta: u8,\n\tb: u16,\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Pairs([Pair; 3]);\n\nimpl Pairs {\n\tpub fn new() -> Self {\n\t\tSelf([Pair { a: 1, b: 2 }; 3])\n\t}\n\n\tpub fn sum(&self) -> u32 {\n\t\tself.0.iter().map(|p| u32::from(p.a) + u32::from(p.b)).sum()\n\t}\n}\n";
+	let package = package("huge_arrays", &[("src/lib.rs", lib)]);
+	export_and_build(&package, &["--offline"]);
+	let header = std::fs::read_to_string(package.join("out/include/huge_arrays.h")).unwrap();
+	assert!(
+		header.contains("\tuint8_t opaque[1];\n} huge_arrays_Marker;"),
+		"Marker is no opaque value:\n{header}"
+	);
+	let glue = std::fs::read_to_string(package.join("out/src/lib.rs")).unwrap();
+	assert!(
+		glue.contains("const PADDING: &[(usize, usize)] = &[(1, 1), (5, 1), (9, 1)];"),
+		"Pairs' padding is not each element's:\n{glue}"
+	);
 }
 
 /// A facade whose lib takes the name of a foreign type's crate maps that crate's type

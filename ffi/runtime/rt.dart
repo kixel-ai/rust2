@@ -813,20 +813,6 @@ final class _Native {
     dst.ref.owner = src.owner;
   }
 
-  /// A handle Rust takes, of a clone of `object`'s value: what a closure returns of a
-  /// `Copy` object, which Rust copies out of it and frees.
-  ffi.Pointer<ffi.Void> handOver(
-    _Object object,
-    ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>) clone,
-  ) {
-    final raw = object._hold();
-    try {
-      return clone(home, raw);
-    } finally {
-      object._release();
-    }
-  }
-
   /// Abort with what a call into Dart threw, which Rust has nowhere to unwind to.
   Never abort(String what, Object error, StackTrace stack) => fail('$what: a call into Dart threw $error\n$stack');
 

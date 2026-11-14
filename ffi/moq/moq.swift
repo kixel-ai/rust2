@@ -252,7 +252,7 @@ func script() throws {
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(try clockNow().checkedDurationSince(hello.arrived()) != nil, "a frame arrived before now")
 
-	// A timestamp is a `Copy` value behind a handle: passing it copies it out. The track is
+	// A timestamp is a `Copy` value copied across, which allocates nothing. The track is
 	// untimed, so a timestamped frame is refused.
 	let at = try Timestamp.fromMillis(1500)
 	expect(try at.asSecs() == 1, "1500 ms is 1 s")

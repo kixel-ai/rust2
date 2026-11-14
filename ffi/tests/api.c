@@ -7,6 +7,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
+
 #include "api.h"
 
 static api_buf str(const char *s) {
@@ -236,15 +240,21 @@ static api_buf made_times(void *data, uint32_t n) {
 	return api_buf_copy(str(text));
 }
 
-/* reissue's closures: a new ticket, and a copy of one C keeps, each Rust's to free. */
-static api_Ticket *reissue_next(void *data, const api_Ticket *ticket) {
+/* reissue's closures: a new ticket, and a copy of one C keeps. */
+static api_Ticket reissue_next(void *data, api_Ticket ticket) {
 	(void)data;
-	return api_Ticket_new(api_Ticket_number(ticket, NULL) + 1);
+	return api_Ticket_new(api_Ticket_number(&ticket) + 1);
 }
 
-static api_Ticket *reissue_kept(void *data, const api_Ticket *ticket) {
+static api_Ticket reissue_kept(void *data, api_Ticket ticket) {
 	(void)ticket;
-	return api_Ticket_copy(data, NULL);
+	return *(const api_Ticket *)data;
+}
+
+/* shifted's closure: the moment 500 ticks later. */
+static api_Moment moment_after(void *data, api_Moment moment) {
+	(void)data;
+	return api_Moment_after(&moment, 500);
 }
 
 static uint32_t spawned_task(void *data) {
@@ -267,24 +277,24 @@ static api_buf made_view(void *data, uint32_t n) {
  * waiter, which it wakes, then stops. Rust frees it once it drops it. */
 typedef struct {
 	int calls;
-	const api_Instant *start;
+	api_Instant start;
 	bool freed;
 } driver;
 
-static bool drive_poll(void *data, const api_Instant *now, const api_Waiter *waiter, api_Instant **out, api_buf *err) {
+static bool drive_poll(void *data, api_Instant now, const api_Waiter *waiter, api_option_Instant *out, api_buf *err) {
 	driver *d = data;
 	d->calls++;
 	if (d->calls == 1) {
-		*out = api_later(now, (api_duration){.secs = 0, .nanos = 5000000}, NULL);
+		*out = (api_option_Instant){.some = true, .value = api_later(now, (api_duration){.secs = 0, .nanos = 5000000})};
 		return true;
 	}
 	if (d->calls == 2) {
-		api_duration since = api_since(now, d->start, NULL);
+		api_duration since = api_since(now, d->start);
 		printf("drive %llu\n", (unsigned long long)(since.secs * 1000 + since.nanos / 1000000));
 		api_waker returned = api_Waiter_waker(waiter, NULL);
 		returned.wake(returned.data);
 		returned.drop(returned.data);
-		*out = NULL;
+		*out = (api_option_Instant){0};
 		return true;
 	}
 	char text[32];
@@ -294,12 +304,12 @@ static bool drive_poll(void *data, const api_Instant *now, const api_Waiter *wai
 }
 
 /* A drive that only ever waits. */
-static bool drive_idle(void *data, const api_Instant *now, const api_Waiter *waiter, api_Instant **out, api_buf *err) {
+static bool drive_idle(void *data, api_Instant now, const api_Waiter *waiter, api_option_Instant *out, api_buf *err) {
 	(void)data;
 	(void)now;
 	(void)waiter;
 	(void)err;
-	*out = NULL;
+	*out = (api_option_Instant){0};
 	return true;
 }
 
@@ -415,25 +425,23 @@ static void tail(api_foreign_reader reader) {
 static bool closures(void) {
 	print("made ", api_made(3, made_times, NULL), "\n");
 
-	/* A closure taking and returning `Copy` objects copies them, never running their `Clone`. */
-	api_Ticket *kept = api_Ticket_new(9);
-	api_Ticket *seven = api_Ticket_new(7);
-	api_Ticket *given = api_reissue(seven, reissue_next, NULL, NULL);
-	api_Ticket *held = api_reissue(seven, reissue_kept, kept, NULL);
-	printf("reissued %u %u, cloned %u\n", (unsigned)api_Ticket_number(given, NULL), (unsigned)api_Ticket_number(held, NULL),
+	/* A closure taking and returning `Copy` values copies them, never running their `Clone`. */
+	api_Ticket kept = api_Ticket_new(9);
+	api_Ticket seven = api_Ticket_new(7);
+	api_Ticket given = api_reissue(seven, reissue_next, NULL);
+	api_Ticket held = api_reissue(seven, reissue_kept, &kept);
+	printf("reissued %u %u, cloned %u\n", (unsigned)api_Ticket_number(&given), (unsigned)api_Ticket_number(&held),
 		(unsigned)api_Ticket_clones());
 	/* A record's traits borrow the checked handle it holds. */
-	api_Seat front = api_seat(kept, 1, NULL);
-	api_Seat back = api_seat(kept, 2, NULL);
+	api_Score *nine = api_Score_of(9);
+	api_Seat front = api_seat(nine, 1, NULL);
+	api_Seat back = api_seat(nine, 2, NULL);
 	print("seat ", api_Seat_debug(&front, NULL), "");
 	printf(" %s %s\n", api_Seat_eq(&front, &front, NULL) ? "true" : "false",
 		api_Seat_eq(&front, &back, NULL) ? "true" : "false");
 	api_Seat_free(&back);
 	api_Seat_free(&front);
-	api_Ticket_free(held);
-	api_Ticket_free(given);
-	api_Ticket_free(seven);
-	api_Ticket_free(kept);
+	api_Score_free(nine);
 
 	/* A kept closure, called on another thread after the call that took it returned. */
 	bool spawned_freed = false;
@@ -445,9 +453,9 @@ static bool closures(void) {
 	}
 
 	api_waker waker = {.wake = wake, .drop = drop, .data = NULL};
-	api_Instant *start = api_now();
+	api_Instant start = api_now();
 	driver d = {.start = start};
-	api_drive_future *drive = api_drive(start, drive_poll, &d, drive_free, NULL);
+	api_drive_future *drive = api_drive(start, drive_poll, &d, drive_free);
 	api_buf stopped;
 	int woken = wakes;
 	while (api_drive_poll(drive, waker, &stopped) == API_POLL_PENDING) {
@@ -458,11 +466,10 @@ static bool closures(void) {
 
 	/* Dropped before it finishes, it frees the closure it kept. */
 	driver idle = {.start = start};
-	drive = api_drive(start, drive_idle, &idle, drive_free, NULL);
+	drive = api_drive(start, drive_idle, &idle, drive_free);
 	ok = ok && api_drive_poll(drive, waker, &stopped) == API_POLL_PENDING && !idle.freed;
 	api_drive_future_free(drive);
 	ok = ok && idle.freed;
-	api_Instant_free(start);
 
 	memory hello = {.bytes = "hello world", .len = 11};
 	tail((api_foreign_reader){.read = memory_read, .seek = memory_seek, .data = &hello});
@@ -733,7 +740,7 @@ static int script(void) {
 	api_Board *board = api_Board_new((api_vec_tuple_string_Counter){.ptr = meters, .len = 2}, NULL);
 	api_Counter_free(meters[0]._1);
 	api_Counter_free(meters[1]._1);
-	api_vec_tuple_string_Counter ranked = api_Board_ranked(board);
+	api_vec_tuple_string_Counter ranked = api_Board_ranked(board, NULL);
 	printf("ranked");
 	for (size_t i = 0; i < ranked.len; i++) {
 		printf("%s%.*s ", i == 0 ? " " : ", ", (int)ranked.ptr[i]._0.len, (const char *)ranked.ptr[i]._0.ptr);
@@ -742,7 +749,7 @@ static int script(void) {
 	}
 	printf("\n");
 	api_vec_tuple_string_Counter_free(ranked);
-	api_Counter *best = api_Board_best(board);
+	api_Counter *best = api_Board_best(board, NULL);
 	print("best ", api_Counter_name(best, NULL), " ");
 	printf("%llu\n", (unsigned long long)api_Counter_get(best, NULL));
 	api_Counter_free(best);
@@ -1019,33 +1026,83 @@ static int script(void) {
 		print("", api_describe(events[i]), "\n");
 	}
 
-	/* A `Copy` handle passed by value is copied, so it stays usable. */
-	api_Stamp *stamp = api_Stamp_from_millis(2500);
-	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(stamp));
-	api_Stamp *later = api_Stamp_from_millis(3000);
-	printf("later %s\n", api_Stamp_later(later, stamp) ? "true" : "false");
-	api_Stamp_free(later);
-	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(stamp));
-	api_Message *message = api_Message_new(stamp, str("body"));
-	api_Stamp_free(stamp);
+	/* A `Copy` value passed by value is copied, so it stays usable, and frees nothing. */
+	api_Stamp stamp = api_Stamp_from_millis(2500);
+	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(&stamp));
+	api_Stamp later = api_Stamp_from_millis(3000);
+	printf("later %s\n", api_Stamp_later(&later, stamp) ? "true" : "false");
+	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(&stamp));
+	api_Stamp rounded = api_Stamp_whole(&stamp);
+	print("whole ", api_Stamp_debug(&rounded), "\n");
+	api_Message *message = api_Message_new((api_option_Stamp){.some = true, .value = stamp}, str("body"));
 	print("payload ", api_Message_payload_get(message, NULL), "\n");
-	api_Stamp *read = api_Message_stamp_get(message, NULL);
-	print("stamp ", api_Stamp_debug(read), "\n");
-	api_Stamp_free(read);
+	api_option_Stamp read = api_Message_stamp_get(message, NULL);
+	print("stamp ", api_Stamp_debug(&read.value), "\n");
 	printf("sent %s\n", api_Message_sent(message, NULL) ? "true" : "false");
-	/* Setters assign in place: the bytes are copied in, and a `Copy` handle copied. */
-	api_Stamp *reset = api_Stamp_from_millis(4000);
-	api_Message_stamp_set(message, reset, NULL);
+	/* Setters assign in place: the bytes are copied in, and a `Copy` value copied. */
+	api_Stamp reset = api_Stamp_from_millis(4000);
+	api_Message_stamp_set(message, (api_option_Stamp){.some = true, .value = reset}, NULL);
 	api_Message_payload_set(message, str("edited"), NULL);
 	print("payload ", api_Message_payload_get(message, NULL), "\n");
 	read = api_Message_stamp_get(message, NULL);
-	print("stamp ", api_Stamp_debug(read), "\n");
-	api_Stamp_free(read);
-	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(reset));
-	api_Stamp_free(reset);
-	api_Message_stamp_set(message, NULL, NULL);
-	printf("stamp %s\n", api_Message_stamp_get(message, NULL) != NULL ? "true" : "false");
+	print("stamp ", api_Stamp_debug(&read.value), "\n");
+	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(&reset));
+	api_Message_stamp_set(message, (api_option_Stamp){0}, NULL);
+	printf("stamp %s\n", api_Message_stamp_get(message, NULL).some ? "true" : "false");
 	api_Message_free(message);
+
+	/* A value past a word, copied across: a closure takes and returns one by value. */
+	api_option_Moment made = api_Moment_new(1500, 1000);
+	api_Moment moment = made.value;
+	printf("moment %llu %s\n", (unsigned long long)api_Moment_millis(&moment),
+		   api_Moment_new(1, 0).some ? "false" : "true");
+	api_Moment shifted = api_shifted(moment, moment_after, NULL);
+	api_Moment later_moment = api_Moment_after(&moment, 500);
+	printf("shifted %llu %s\n", (unsigned long long)api_Moment_millis(&shifted),
+		   api_Moment_eq(&shifted, &later_moment) ? "true" : "false");
+	api_Moment wrapped = api_Moment_after(&moment, UINT64_MAX);
+	printf("wrapped %llu %s\n", (unsigned long long)api_Moment_millis(&wrapped),
+		   api_Moment_eq(&moment, &shifted) ? "true" : "false");
+
+	/* A padded value crosses with its padding zeroed, and one whose bytes vary is a handle. */
+	api_Gap gap = api_Gap_new(7, 3);
+	api_Gap same_gap = api_Gap_new(7, 3);
+	printf("gap %llu %s\n", (unsigned long long)api_Gap_sum(&gap), api_Gap_eq(&gap, &same_gap) ? "true" : "false");
+	/* Its `u64` then its `u8`, so every byte past the ninth is padding Rust made `0xff`. */
+	for (size_t n = 9; n < sizeof gap; n++) {
+		if (((const unsigned char *)&gap)[n] != 0) {
+			fprintf(stderr, "gap's padding byte %zu is not zero\n", n);
+			return 1;
+		}
+	}
+	api_Berth *berth = api_Berth_new((api_option_u32){.some = true, .value = 4});
+	api_Berth *empty_berth = api_Berth_new((api_option_u32){0});
+	api_option_u32 berth_at = api_Berth_at(berth);
+	printf("berth Some(%u) %s\n", berth_at.value, api_Berth_at(empty_berth).some ? "Some" : "None");
+	api_Berth_free(empty_berth);
+	api_Berth_free(berth);
+
+	/* A `Copy` type changed in place is a handle, which a call taking it by value copies. */
+	api_Score *score = api_Score_of(2);
+	api_Score *step = api_Score_of(3);
+	api_Score_add(score, step, NULL);
+	api_Score_add(score, step, NULL);
+	api_Score *doubled_score = api_Score_doubled(step, NULL);
+	printf("score %llu %llu %llu\n", (unsigned long long)api_Score_count(score, NULL),
+		   (unsigned long long)api_Score_count(doubled_score, NULL), (unsigned long long)api_Score_count(step, NULL));
+	api_Weighted weighted = {.score = api_Score_clone(step, NULL), .weight = 4};
+	printf("weighted %llu %llu\n", (unsigned long long)api_Weighted_total(&weighted, NULL),
+		   (unsigned long long)(api_Score_count(weighted.score, NULL) + api_Score_count(step, NULL)));
+	api_Weighted_free(&weighted);
+	/* A checked score beside bytes in a tuple and in a record lent, and bytes beside a move. */
+	api_Counter *hefted = api_Counter_new(str("w"), 1);
+	printf("heft %llu\n", (unsigned long long)api_heft((api_tuple_Score_bytes){step, str("ab")},
+							 (api_Parcel){.score = step, .payload = str("abc")},
+							 (api_tuple_Counter_bytes){hefted, str("abcd")}, NULL));
+	api_Counter_free(hefted);
+	api_Score_free(doubled_score);
+	api_Score_free(step);
+	api_Score_free(score);
 
 	static const api_Log_vtable print_log = {.free = log_free, .log = log_line};
 	uint8_t levels[] = {1, 2, 3, 4};
@@ -1811,19 +1868,17 @@ static int script(void) {
 	api_vec_tuple_string_Json_free(sections);
 
 	/* An instant only Rust makes, which C copies into each call and compares. */
-	api_Instant *began = api_now();
-	api_Instant *ended = api_later(began, (api_duration){.secs = 1, .nanos = 500000000}, NULL);
-	api_Instant *same = api_later(began, (api_duration){.secs = 0, .nanos = 0}, NULL);
-	api_duration forward = api_since(ended, began, NULL);
-	api_duration backward = api_since(began, ended, NULL);
+	api_Instant began = api_now();
+	api_Instant ended = api_later(began, (api_duration){.secs = 1, .nanos = 500000000});
+	api_Instant same = api_later(began, (api_duration){.secs = 0, .nanos = 0});
+	api_duration forward = api_since(ended, began);
+	api_duration backward = api_since(began, ended);
 	printf("instants %llu %llu %s %s\n", (unsigned long long)(forward.secs * 1000 + forward.nanos / 1000000),
-		   (unsigned long long)(backward.secs * 1000 + backward.nanos / 1000000), api_Instant_eq(began, same, NULL) ? "true" : "false",
-		   api_Instant_eq(began, ended, NULL) ? "true" : "false");
-	/* An instant lent inside an `Option`, which takes no handle. */
-	printf("has_instant %s %s\n", api_has_instant(began, NULL) ? "true" : "false", api_has_instant(NULL, NULL) ? "true" : "false");
-	api_Instant_free(same);
-	api_Instant_free(ended);
-	api_Instant_free(began);
+		   (unsigned long long)(backward.secs * 1000 + backward.nanos / 1000000), api_Instant_eq(&began, &same) ? "true" : "false",
+		   api_Instant_eq(&began, &ended) ? "true" : "false");
+	/* An instant lent inside an `Option`, which C copies. */
+	printf("has_instant %s %s\n", api_has_instant((api_option_Instant){.some = true, .value = began}) ? "true" : "false",
+		   api_has_instant((api_option_Instant){.some = false}) ? "true" : "false");
 
 	/* tracing's level, and its filter as an optional level whose none is `OFF`. */
 	api_Verbosity *verbosity = api_Verbosity_new(API_LEVEL_WARN);
@@ -1935,31 +1990,31 @@ static int statuses(void) {
 	api_Meter_free(first);
 	api_Meters_free(meters);
 
-	/* A counter moved in beside a dropped ticket, alone or held in a record or an enum, is
-	 * refused before the move, so the counter is still there; once every ticket is live,
+	/* A counter moved in beside a dropped score, alone or held in a record or an enum, is
+	 * refused before the move, so the counter is still there; once every score is live,
 	 * the call moves it. */
 	api_Counter *admitted = api_Counter_new(str("a"), 5);
-	api_Ticket *ticket = api_Ticket_new(3);
-	api_Ticket *dropped = api_Ticket_new(4);
-	api_Ticket_drop(dropped, NULL);
-	api_Choice picked = {.tag = API_CHOICE_PICKED, .picked = {._0 = ticket}};
+	api_Score *score = api_Score_of(3);
+	api_Score *dropped = api_Score_of(4);
+	api_Score_drop(dropped, NULL);
+	api_Choice picked = {.tag = API_CHOICE_PICKED, .picked = {._0 = score}};
 	api_Choice empty = {.tag = API_CHOICE_EMPTY};
-	api_tuple_Counter_Ticket_Seat_Choice entries[] = {
-		{admitted, dropped, {ticket, 1}, empty},
-		{admitted, ticket, {dropped, 1}, empty},
-		{admitted, ticket, {ticket, 1}, {.tag = API_CHOICE_PICKED, .picked = {._0 = dropped}}},
+	api_tuple_Counter_Score_Seat_Choice entries[] = {
+		{admitted, dropped, {score, 1}, empty},
+		{admitted, score, {dropped, 1}, empty},
+		{admitted, score, {score, 1}, {.tag = API_CHOICE_PICKED, .picked = {._0 = dropped}}},
 	};
 	for (size_t i = 0; i < sizeof(entries) / sizeof(entries[0]); i++) {
 		status = 0;
 		api_admit(entries[i], &status);
 		uint64_t still = api_Counter_get(admitted, NULL);
 		if (status != API_STATUS_MOVED || still != 5) {
-			fprintf(stderr, "admitting beside a dropped ticket %zu wrote %d, leaving %llu\n", i, status, (unsigned long long)still);
+			fprintf(stderr, "admitting beside a dropped score %zu wrote %d, leaving %llu\n", i, status, (unsigned long long)still);
 			failed = 1;
 		}
 	}
 	status = 0;
-	uint64_t sum = api_admit((api_tuple_Counter_Ticket_Seat_Choice){admitted, ticket, {ticket, 1}, picked}, &status);
+	uint64_t sum = api_admit((api_tuple_Counter_Score_Seat_Choice){admitted, score, {score, 1}, picked}, &status);
 	if (status != 0 || sum != 14) {
 		fprintf(stderr, "admitting wrote %d, summing %llu\n", status, (unsigned long long)sum);
 		failed = 1;
@@ -1972,9 +2027,9 @@ static int statuses(void) {
 	/* A record's method lifts the handle its receiver holds, failing as a call does. */
 	status = 0;
 	api_Seat seat = {dropped, 2};
-	api_Seat_number(&seat, &status);
+	api_Seat_count(&seat, &status);
 	if (status != API_STATUS_MOVED) {
-		fprintf(stderr, "a seat's number with a dropped ticket wrote %d\n", status);
+		fprintf(stderr, "a seat's count with a dropped score wrote %d\n", status);
 		failed = 1;
 	}
 	status = 0;
@@ -1983,8 +2038,45 @@ static int statuses(void) {
 		failed = 1;
 	}
 	api_Counter_free(admitted);
-	api_Ticket_free(ticket);
-	api_Ticket_free(dropped);
+	api_Score_free(score);
+	api_Score_free(dropped);
+
+	/* A refused call frees each buffer it was given: beside the failing handle, in a record
+	 * lent, and beside a move, which it leaves undone. Each case gives three. */
+	api_Score *live = api_Score_of(2);
+	api_Score *gone = api_Score_of(2);
+	api_Score_drop(gone, NULL);
+	api_Counter *weight = api_Counter_new(str("w"), 1);
+	api_Counter *dropped_weight = api_Counter_new(str("d"), 1);
+	api_Counter_drop(dropped_weight, NULL);
+	struct {
+		api_Score *scored, *lent;
+		api_Counter *moved;
+	} hefts[] = {{gone, live, weight}, {live, gone, weight}, {live, live, dropped_weight}};
+	for (size_t i = 0; i < sizeof(hefts) / sizeof(hefts[0]); i++) {
+		uint32_t before = api_dropped();
+		status = 0;
+		api_heft((api_tuple_Score_bytes){hefts[i].scored, api_token_bytes(1, 2)},
+			(api_Parcel){.score = hefts[i].lent, .payload = api_token_bytes(2, 3)},
+			(api_tuple_Counter_bytes){hefts[i].moved, api_token_bytes(3, 4)}, &status);
+		if (status != API_STATUS_MOVED || api_dropped() != before + 3 || api_Counter_get(weight, NULL) != 1) {
+			fprintf(stderr, "a refused heft %zu wrote %d, freeing %u buffers\n", i, status, api_dropped() - before);
+			failed = 1;
+		}
+	}
+	uint32_t before_heft = api_dropped();
+	status = 0;
+	uint64_t heft = api_heft((api_tuple_Score_bytes){live, api_token_bytes(1, 2)},
+		(api_Parcel){.score = live, .payload = api_token_bytes(2, 3)},
+		(api_tuple_Counter_bytes){weight, api_token_bytes(3, 4)}, &status);
+	if (status != 0 || heft != 14 || api_dropped() != before_heft + 3) {
+		fprintf(stderr, "a heft wrote %d, weighing %llu\n", status, (unsigned long long)heft);
+		failed = 1;
+	}
+	api_Counter_free(dropped_weight);
+	api_Counter_free(weight);
+	api_Score_free(gone);
+	api_Score_free(live);
 
 	status = 0;
 	api_Counter *kept = api_Counter_new(str("c"), 0);
@@ -1999,6 +2091,14 @@ static int statuses(void) {
 }
 
 static int broken(const char *which) {
+#ifdef __linux__
+	/* Non-dumpable, the expected abort writes no core and never starts the host's crash
+	 * handler. */
+	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) {
+		perror("prctl");
+		return 1;
+	}
+#endif
 	if (strcmp(which, "statuses") == 0) {
 		return statuses();
 	}

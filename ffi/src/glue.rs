@@ -16,8 +16,8 @@ use rustc_data_structures::stable_hash::StableHasher;
 use crate::abi::{self, Abi, CFG, Ty};
 use crate::config::Package;
 use crate::ir::{
-	Access, Closure, Collection, Family, Function, Held, Literal, Mutability, On, Receiver, Task, TaskKind, Traits,
-	Type,
+	Access, Closure, Collection, Family, Function, Held, Literal, Mutability, On, Opaque, Receiver, Task, TaskKind,
+	Traits, Type,
 };
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
@@ -637,6 +637,68 @@ impl Gen<'_> {
 		}
 	}
 
+	/// Whether lifting a value of `ty` with `take` can take a buffer C handed Rust. A list's
+	/// items are only read, so a list takes none.
+	fn takes_bufs(&self, ty: &Type, seen: &mut Vec<(bool, usize)>) -> bool {
+		let api = self.abi.api;
+		match ty {
+			_ if Abi::is_buf(ty) => true,
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => self.takes_bufs(inner, seen),
+			Type::Tuple(elements) => elements.iter().any(|ty| self.takes_bufs(ty, seen)),
+			Type::Record(i) if !seen.contains(&(false, *i)) => {
+				seen.push((false, *i));
+				(api.records[*i].fields.iter()).any(|f| self.takes_bufs(&f.ty, seen))
+			}
+			Type::Enum(i) if !seen.contains(&(true, *i)) => {
+				seen.push((true, *i));
+				(api.enums[*i].variants.iter().flat_map(|v| &v.fields)).any(|f| self.takes_bufs(&f.ty, seen))
+			}
+			_ => false,
+		}
+	}
+
+	/// The statement freeing each buffer a lift of the C value `e` of type `ty` with `take`
+	/// would take, leaving its handles to the caller: what a refused call does with an
+	/// argument it never lifted.
+	fn release(&self, ty: &Type, e: &str) -> Option<String> {
+		match ty {
+			_ if Abi::is_buf(ty) => Some(format!("unsafe {{ {e}.free() }};")),
+			Type::Option(inner) => match inner.base() {
+				base if Abi::nullable(base) => self.release(inner, e),
+				_ => (self.release(inner, &format!("{e}.value"))).map(|free| format!("if {e}.some {{ {free} }}")),
+			},
+			Type::Box(inner) | Type::Ref(_, inner) => self.release(inner, e),
+			Type::Tuple(elements) => {
+				let frees: Vec<String> = (elements.iter().enumerate())
+					.filter_map(|(n, ty)| self.release(ty, &format!("{e}._{n}")))
+					.collect();
+				(!frees.is_empty()).then(|| frees.join(" "))
+			}
+			Type::Record(i) if self.takes_bufs(ty, &mut Vec::new()) => {
+				Some(format!("release_{}(&{e});", self.abi.record(*i)))
+			}
+			Type::Enum(i) if !self.abi.api.enums[*i].plain() && self.takes_bufs(ty, &mut Vec::new()) => {
+				Some(format!("release_{}(&{e});", self.abi.enumeration(*i)))
+			}
+			_ => None,
+		}
+	}
+
+	/// Whether an argument of `ty` is reserved though it moves nothing: its lift can fail a
+	/// check and takes a buffer, so every check runs before any buffer is taken. A borrowed
+	/// object takes none.
+	fn refusable(&self, ty: &Type) -> bool {
+		let value = match ty {
+			Type::Ref(_, inner) => inner,
+			Type::Option(inner) => match &**inner {
+				Type::Ref(_, inner) => inner,
+				_ => ty,
+			},
+			_ => ty,
+		};
+		!matches!(value, Type::Object(_)) && self.checks(value) && self.takes_bufs(value, &mut Vec::new())
+	}
+
 	/// The statement reserving into `takes` each value an argument `e` of type `ty` moves
 	/// out, and borrowing each checked `Copy` one it copies, so the move happens only once
 	/// every check passed, and no check after it can fail.
@@ -661,7 +723,8 @@ impl Gen<'_> {
 			Type::Object(_) => String::new(),
 			Type::Record(i) => self.checked(&format!("reserve_{}(&{e}, takes, w)", self.abi.record(*i))) + ";",
 			Type::Enum(i) => self.checked(&format!("reserve_{}(&{e}, takes, w)", self.abi.enumeration(*i))) + ";",
-			Type::Box(inner) => self.reserve(inner, e),
+			// A borrowed record is lifted from its C value as an owned one is.
+			Type::Box(inner) | Type::Ref(_, inner) => self.reserve(inner, e),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(_) => format!("if !{e}.is_null() {{ {} }}", self.reserve(inner, e)),
 				base if Abi::nullable(base) => format!("if !{e}.is_none() {{ {} }}", self.reserve(inner, e)),
@@ -731,7 +794,11 @@ impl Gen<'_> {
 			Type::Option(inner) => format!("Option<{}>", self.rust(inner)),
 			Type::Ref(Mutability::Not, inner) => format!("&{}", self.rust(inner)),
 			Type::Ref(Mutability::Mut, inner) => format!("&mut {}", self.rust(inner)),
-			Type::Record(i) => generic(&api.records[*i].path, 0, &api.records[*i].args),
+			Type::Record(i) => match &api.records[*i].opaque {
+				Some(opaque) if opaque.foreign => foreign_path(&api.records[*i].path),
+				Some(opaque) => generic(&api.records[*i].path, opaque.lifetimes, &api.records[*i].args),
+				None => generic(&api.records[*i].path, 0, &api.records[*i].args),
+			},
 			Type::Enum(i) if api.enums[*i].foreign => foreign_path(&api.enums[*i].path),
 			Type::Enum(i) => generic(&api.enums[*i].path, 0, &api.enums[*i].args),
 			Type::Object(i) if let Some(held) = api.objects[*i].opaque => match held {
@@ -893,16 +960,14 @@ impl Gen<'_> {
 		let typed: Vec<String> = (closure.params.iter().enumerate())
 			.map(|(n, ty)| format!("c{n}: {}", self.rust(ty)))
 			.collect();
-		// Each object the closure takes, and how it is lent: a `Copy` one by value too.
+		// Each object the closure borrows, and how it is lent.
 		let lent = |ty: &Type| match ty {
 			Type::Ref(m, inner) => match (&**inner, m) {
-				(&Type::Object(i), Mutability::Mut) => Some((i, "lend_mut", "")),
-				(&Type::Object(i), Mutability::Not) if self.abi.api.objects[i].sync => Some((i, "lend", "")),
-				(&Type::Object(i), Mutability::Not) => Some((i, "lend_local", "")),
+				(&Type::Object(i), Mutability::Mut) => Some((i, "lend_mut")),
+				(&Type::Object(i), Mutability::Not) if self.abi.api.objects[i].sync => Some((i, "lend")),
+				(&Type::Object(i), Mutability::Not) => Some((i, "lend_local")),
 				_ => None,
 			},
-			&Type::Object(i) if self.abi.api.objects[i].sync => Some((i, "lend", "&")),
-			&Type::Object(i) => Some((i, "lend_local", "&")),
 			_ => None,
 		};
 		let mut args: Vec<String> = std::iter::once("data.get()".to_string())
@@ -929,11 +994,8 @@ impl Gen<'_> {
 		}
 		let mut call = format!("unsafe {{ f({}) }}", args.join(", "));
 		for (n, ty) in closure.params.iter().enumerate().rev() {
-			if let Some((i, lend, by)) = lent(ty) {
-				call = format!(
-					"rt::Object::<{}>::{lend}({by}c{n}, w, |h{n}| {call})",
-					self.object_path(i)
-				);
+			if let Some((i, lend)) = lent(ty) {
+				call = format!("rt::Object::<{}>::{lend}(c{n}, w, |h{n}| {call})", self.object_path(i));
 			}
 		}
 		let ret = self.rust(&closure.ok);
@@ -964,16 +1026,10 @@ impl Gen<'_> {
 	}
 
 	/// The Rust value a closure C implements returned as the C value `e`, which Rust then
-	/// owns: a buffer `<prefix>_buf_copy` made, or a handle, out of which it copies a
-	/// `Copy` object before freeing it.
+	/// owns, as a buffer `<prefix>_buf_copy` made.
 	fn returned(&self, ty: &Type, e: &str) -> String {
 		match ty {
 			Type::String => format!("unsafe {{ {e}.take_string(w) }}"),
-			Type::Object(i) => format!("unsafe {{ rt::Object::<{}>::returned({e}, w) }}", self.object_path(*i)),
-			Type::Option(inner) => format!(
-				"{{ let r = {e}; if r.is_null() {{ None }} else {{ Some({}) }} }}",
-				self.returned(inner, "r")
-			),
 			ty => self.lift(ty, e, "true"),
 		}
 	}
@@ -1246,26 +1302,9 @@ impl Gen<'_> {
 				Some(_) => self.checked(&format!("unsafe {{ rt::Object::<{path}>::{borrow}({e}, w) }}")),
 				None => format!("unsafe {{ rt::Object::<{path}>::peek({e}, w) }}"),
 			};
-			let copy = borrowing("this");
 			let borrowing: Vec<String> = ["this", "a", "b"].into_iter().map(borrowing).collect();
 			self.checking.set(false);
 			self.traits(&name, &path, object.traits, status, &borrowing);
-			if self.abi.copies.contains(&i) {
-				let (param, body) = match status {
-					Some(status) => (
-						format!(", {status}: *mut i32"),
-						wrap(
-							Some(status),
-							"*const ::std::ffi::c_void",
-							&format!("rt::Object::new(*{copy})"),
-						),
-					),
-					None => (String::new(), format!("rt::Object::new(*{copy})")),
-				};
-				self.export(format!(
-					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_copy(this: *const ::std::ffi::c_void{param}) -> *const ::std::ffi::c_void {{\n\tlet w = \"{name}_copy\";\n\t{body}\n}}\n"
-				));
-			}
 			let owner = Ty::Handle {
 				name: name.clone(),
 				constant: false,
@@ -1382,7 +1421,9 @@ impl Gen<'_> {
 				self.lower(ty, &format!("<{path} as ::std::default::Default>::default()"))
 			));
 		}
-		if !matches!(self.abi.ty(ty), Ty::Enum(_)) {
+		// An opaque value is `Copy`, with nothing to free.
+		let opaque = matches!(ty, Type::Record(i) if self.abi.api.records[*i].opaque.is_some());
+		if !matches!(self.abi.ty(ty), Ty::Enum(_)) && !opaque {
 			let free = self.free(ty, "unsafe { this.read() }").unwrap_or_default();
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: *mut {c}) {{\n\tif this.is_null() {{\n\t\treturn;\n\t}}\n\t{free}\n}}\n"
@@ -1396,6 +1437,10 @@ impl Gen<'_> {
 		let name = self.abi.record(i);
 		let path = self.rust(&Type::Record(i));
 		let ty = Type::Record(i);
+		if let Some(opaque) = record.opaque {
+			self.opaque(i, &opaque);
+			return;
+		}
 		let mut fields = String::new();
 		for (n, field) in record.fields.iter().enumerate() {
 			let _ = writeln!(fields, "\tpub f{n}: {},", rs(&self.abi.ty(&field.ty)));
@@ -1472,6 +1517,12 @@ impl Gen<'_> {
 				.collect();
 			self.item(format!("fn free_{name}(c: {name}) {{\n\t{}\n}}\n", frees.join("\n\t")));
 		}
+		if self.takes_bufs(&ty, &mut Vec::new()) {
+			let releases: Vec<String> = (record.fields.iter().enumerate())
+				.filter_map(|(n, f)| self.release(&f.ty, &format!("c.f{n}")))
+				.collect();
+			self.item(format!("fn release_{name}(c: &{name}) {{\n\t{}\n}}\n", releases.join("\n\t")));
+		}
 		if self.reserves(&ty) {
 			self.checking.set(true);
 			let reserves: Vec<String> = (record.fields.iter().enumerate())
@@ -1495,6 +1546,51 @@ impl Gen<'_> {
 			};
 			self.reserved_helpers(&name, &path, &reserves.join("\n\t"), &build);
 		}
+		self.value_traits(&name, &path, &ty, record.traits);
+		let owner = Ty::Struct(name.clone());
+		for method in &record.methods {
+			self.function(method, Some((&owner, ty.clone())));
+		}
+	}
+
+	/// An opaque value: its bytes in a struct of `MaybeUninit` units, as its padding may
+	/// be, read and written unaligned, as a unit's alignment may be less than its own.
+	fn opaque(&mut self, i: usize, opaque: &Opaque) {
+		let record = &self.abi.api.records[i];
+		let name = self.abi.record(i);
+		let path = self.rust(&Type::Record(i));
+		let ty = Type::Record(i);
+		let (unit, units) = (format!("u{}", opaque.unit() * 8), opaque.units());
+		self.line(format!(
+			"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {name} {{\n\tpub opaque: [::std::mem::MaybeUninit<{unit}>; {units}],\n}}\n"
+		));
+		self.item(format!(
+			"const _: () = assert!(::std::mem::size_of::<{path}>() <= ::std::mem::size_of::<{name}>(), \"{name} is smaller than its Rust type\");\n"
+		));
+		// A layout check alone passes a type that lost `Copy`, which `lift_` would then drop twice.
+		self.item(format!(
+			"const _: fn() = {{\n\tfn copy<T: Copy>() {{}}\n\tcopy::<{path}>\n}};\n"
+		));
+		self.item(format!(
+			"fn lift_{name}(c: &{name}, w: &str, take: bool) -> {path} {{\n\tlet _ = (w, take);\n\tunsafe {{ c.opaque.as_ptr().cast::<{path}>().read_unaligned() }}\n}}\n"
+		));
+		// Its padding on each target, which the write below leaves uninitialized, so no
+		// stale byte of Rust's reaches a language, which may serialize what it holds.
+		let tables: Vec<String> = (record.padding.iter())
+			.map(|(target, ranges)| {
+				let ranges: Vec<String> = ranges.iter().map(|(at, len)| format!("({at}, {len})")).collect();
+				format!(
+					"\t#[cfg({CFG} = {target:?})]\n\tconst PADDING: &[(usize, usize)] = &[{}];\n",
+					ranges.join(", ")
+				)
+			})
+			.collect();
+		self.item(format!("impl {name} {{\n{}}}\n", tables.join("\n")));
+		// Zeroed past its own bytes, and its padding zeroed after the write. Generic, since
+		// an `impl Trait` return hides the type it writes, which the collector checked is this.
+		self.item(format!(
+			"fn lower_{name}<T>(v: T) -> {name} {{\n\tconst {{ assert!(::std::mem::size_of::<T>() == ::std::mem::size_of::<{path}>() && ::std::mem::align_of::<T>() == ::std::mem::align_of::<{path}>()) }};\n\tlet mut c = {name} {{ opaque: [::std::mem::MaybeUninit::zeroed(); {units}] }};\n\tlet at = c.opaque.as_mut_ptr();\n\tunsafe {{ at.cast::<T>().write_unaligned(v) }};\n\tfor &(start, len) in {name}::PADDING {{\n\t\tunsafe {{ at.cast::<u8>().add(start).write_bytes(0, len) }};\n\t}}\n\tc\n}}\n"
+		));
 		self.value_traits(&name, &path, &ty, record.traits);
 		let owner = Ty::Struct(name.clone());
 		for method in &record.methods {
@@ -1570,6 +1666,7 @@ impl Gen<'_> {
 			let mut lift = String::new();
 			let mut lower = String::new();
 			let mut free = String::new();
+			let mut release = String::new();
 			for (n, variant) in e.variants.iter().enumerate() {
 				let bindings: Vec<String> = (0..variant.fields.len()).map(|k| format!("f{k}")).collect();
 				let pattern = match (variant.fields.is_empty(), variant.tuple) {
@@ -1644,6 +1741,16 @@ impl Gen<'_> {
 					"{arm}\n\t\t{pattern} => {name} {{ tag: {n}, u: {name}_union {{ v{n}: {payload} {{ {} }} }} }},",
 					lowered.join(", ")
 				);
+				let releases: Vec<String> = (variant.fields.iter().enumerate())
+					.filter_map(|(k, f)| self.release(&f.ty, &format!("p.f{k}")))
+					.collect();
+				if !releases.is_empty() {
+					let _ = write!(
+						release,
+						"{arm}\n\t\t{n} => {{\n\t\t\tlet p = unsafe {{ c.u.v{n} }};\n\t\t\t{}\n\t\t}}",
+						releases.join("\n\t\t\t")
+					);
+				}
 				let frees: Vec<String> = variant
 					.fields
 					.iter()
@@ -1671,6 +1778,11 @@ impl Gen<'_> {
 			if self.owns(&ty) {
 				self.item(format!(
 					"fn free_{name}(c: {name}) {{\n\tmatch c.tag {{{free}\n\t\t_ => {{}}\n\t}}\n}}\n"
+				));
+			}
+			if self.takes_bufs(&ty, &mut Vec::new()) {
+				self.item(format!(
+					"fn release_{name}(c: &{name}) {{\n\tmatch c.tag {{{release}\n\t\t_ => {{}}\n\t}}\n}}\n"
 				));
 			}
 		}
@@ -1819,6 +1931,8 @@ impl Gen<'_> {
 	fn view(&self, ty: &Type, e: &str) -> String {
 		match ty {
 			Type::Ref(_, inner) => match &**inner {
+				// An opaque value is `Copy`, lent as a copy.
+				Type::Record(_) => self.lower(inner, &format!("*{e}")),
 				Type::Str => format!("rt::Buf::view({e}.as_bytes())"),
 				Type::Path => format!("rt::Buf::view({e}.as_os_str().as_encoded_bytes())"),
 				_ => format!("rt::Buf::view({e})"),
@@ -1851,6 +1965,13 @@ impl Gen<'_> {
 			let lifted = self.lift(ty, c, "true");
 			self.reserved.set(false);
 			return (reserve, format!("let {local} = {lifted};"), local.to_string());
+		}
+		if self.refusable(ty) {
+			let reserve = self.reserve(ty, c);
+			self.reserved.set(true);
+			let (stmt, pass) = self.arg_of(ty, c, local, future);
+			self.reserved.set(false);
+			return (reserve, stmt, pass);
 		}
 		let (stmt, pass) = self.arg_of(ty, c, local, future);
 		(String::new(), stmt, pass)
@@ -2055,24 +2176,24 @@ impl Gen<'_> {
 		// future does, and holds each it lends in place until the future is dropped.
 		let future = function.future && (!function.eager || function.holds);
 		let mut held = Vec::new();
-		// Each argument's statements: those holding no handle first, so what C gave Rust,
-		// such as a kept closure, drops if a check fails; then those that check a handle,
-		// then the reserved moves, once every check passed, so a call that fails a check
-		// changes nothing.
+		// Each argument's statements: those that cannot fail a check first, so what C gave
+		// Rust, such as a kept closure or a buffer, drops if a check fails; then those that
+		// check a handle and take nothing, then the reserved ones, lifted once every check
+		// passed, so a call that fails a check changes nothing. A reserved argument's
+		// buffers are freed if the call is refused before it lifts them.
 		let mut checks = Vec::new();
 		let mut reserves = Vec::new();
 		let mut moves = Vec::new();
 		let mut stmts = Vec::new();
+		let mut releases = Vec::new();
 		let mut sort = |ty: &Type, (reserve, stmt, _): &(String, String, String)| {
-			let mut handles = Vec::new();
-			self.abi.api.handles(ty, &mut handles, &mut Vec::new());
-			match (reserve.is_empty(), handles.is_empty()) {
+			match (reserve.is_empty(), self.checks(ty)) {
 				(false, _) => {
 					reserves.push(reserve.clone());
 					moves.push(stmt.clone());
 				}
-				(true, false) => checks.push(stmt.clone()),
-				(true, true) => stmts.push(stmt.clone()),
+				(true, true) => checks.push(stmt.clone()),
+				(true, false) => stmts.push(stmt.clone()),
 			}
 		};
 		let mut args = Vec::new();
@@ -2171,7 +2292,13 @@ impl Gen<'_> {
 					if function.holds && lent {
 						held.push(format!("a{n}"));
 					}
-					self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future)
+					let made = self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future);
+					if !made.0.is_empty()
+						&& let Some(release) = self.release(&param.ty, &format!("p{n}"))
+					{
+						releases.push(release);
+					}
+					made
 				}
 			};
 			sort(&param.ty, &made);
@@ -2182,13 +2309,21 @@ impl Gen<'_> {
 			let mut all = stmts;
 			all.extend(checks);
 			let reserved = !reserves.is_empty();
+			// Only a call with a status returns on a failed check; one without aborts.
+			let release = (status.is_some() && !releases.is_empty()).then(|| releases.join(" "));
 			if reserved {
 				all.insert(
 					0,
 					"let mut reserved = rt::Takes::default();\n\tlet takes = &mut reserved;".to_string(),
 				);
+				if let Some(release) = &release {
+					all.insert(0, format!("let unlifted = rt::Unlifted::new(|| {{ {release} }});"));
+				}
 				all.extend(reserves);
 				all.push("takes.commit();".to_string());
+				if release.is_some() {
+					all.push("unlifted.lifted();".to_string());
+				}
 			}
 			all.extend(moves);
 			// The copies are made, so their borrows end before the call runs.

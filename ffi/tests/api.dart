@@ -7,6 +7,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -350,6 +351,7 @@ Future<void> script() async {
   print('secs ${stamp.secs()}');
   print('later ${api.Stamp.fromMillis(3000).later(stamp)}');
   print('secs ${stamp.secs()}');
+  print('whole ${stamp.whole().debug()}');
   final message = api.Message(stamp, utf8.encode('body'));
   print('payload ${text(message.payloadGet)}');
   print('stamp ${message.stampGet!.debug()}');
@@ -363,6 +365,31 @@ Future<void> script() async {
   print('secs ${reset.secs()}');
   message.stampSet(null);
   print('stamp ${message.stampGet != null}');
+
+  // A value past a word, copied across: a closure takes and returns one by value.
+  final moment = api.Moment.new_(1500, 1000)!;
+  print('moment ${moment.millis()} ${api.Moment.new_(1, 0) == null}');
+  final shifted = api.shifted(moment, (m) => m.after(500));
+  print('shifted ${shifted.millis()} ${shifted == moment.after(500)}');
+  print('wrapped ${moment.after(-1).millis()} ${moment == shifted}');
+
+  // A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+  final gap = api.Gap(7, 3);
+  print('gap ${gap.sum()} ${gap == api.Gap(7, 3)}');
+  final berth = api.Berth(4);
+  print('berth Some(${berth.at()}) ${api.Berth(null).at() == null ? 'None' : 'Some'}');
+
+  // A `Copy` type changed in place is a handle, which a call taking it by value copies.
+  final score = api.Score.of(2);
+  final increment = api.Score.of(3);
+  score.add(increment);
+  score.add(increment);
+  print('score ${score.count()} ${increment.doubled().count()} ${increment.count()}');
+  final weighted = api.Weighted(score: increment, weight: 4);
+  print('weighted ${weighted.total()} ${weighted.score.count() + increment.count()}');
+  // A checked score beside bytes in a tuple and in a record lent, and bytes beside a move.
+  final parcel = api.Parcel(score: increment, payload: bytes([97, 98, 99]));
+  print('heft ${api.heft((increment, bytes([97, 98])), parcel, (api.Counter('w', 1), bytes([97, 98, 99, 100])))}');
 
   print('kept ${api.emit(PrintLog(), bytes([1, 2, 3, 4]))}');
   final logger = api.Logger(PrintLog());
@@ -699,15 +726,12 @@ Future<void> script() async {
   for (final section in sections) {
     section.$2.close();
   }
-  // An instant only Rust makes, which each call copies out of its handle, and compares.
+  // An instant only Rust makes, which each call copies, and compares.
   final began = api.now();
   final ended = api.later(began, const Duration(milliseconds: 1500));
   final same = api.later(began, Duration.zero);
   print('instants ${api.since(ended, began).inMilliseconds} ${api.since(began, ended).inMilliseconds} ${began == same} ${began == ended}');
   print('has_instant ${api.hasInstant(began)} ${api.hasInstant(null)}');
-  began.close();
-  ended.close();
-  same.close();
   // tracing's level, and its filter as an optional level whose null is `OFF`.
   final verbosity = api.Verbosity(api.Level.warn);
   print('verbosity ${api.spell(verbosity.filter())} ${api.spell(api.louder(verbosity.filter()))}');
@@ -717,15 +741,16 @@ Future<void> script() async {
 
   // A closure's string, which Rust takes.
   print('made ${api.made(3, (n) => '$n times')}');
-  // A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+  // A closure taking and returning `Copy` values copies them, never running their `Clone`.
   final nine = api.Ticket(9);
   final renewed = api.reissue(api.Ticket(7), (t) => api.Ticket(t.number() + 1)).number();
   final copied = api.reissue(api.Ticket(7), (_) => nine).number();
   print('reissued $renewed $copied, cloned ${api.Ticket.clones()}');
   // A record's traits borrow the checked handle it holds.
-  final front = api.seat(nine, 1);
-  final back = api.seat(nine, 2);
-  print('seat ${front.debug()} ${front == api.seat(nine, 1)} ${front == back}');
+  final nines = api.Score.of(9);
+  final front = api.seat(nines, 1);
+  final back = api.seat(nines, 2);
+  print('seat ${front.debug()} ${front == api.seat(nines, 1)} ${front == back}');
   // A kept closure, called on another thread after the call that took it returned.
   final spawned = api.Spawned(() => 7);
   print('spawned ${spawned.join()}');
@@ -750,7 +775,6 @@ Future<void> script() async {
     'a kept closure wakes its future',
   );
   print('drive $stopped');
-  start.close();
   // A reader the caller implements: dart:io's file, then one whose reads fail.
   final dir = Directory.systemTemp.createTempSync('api');
   final opened = (File('${dir.path}/tail')..writeAsStringSync('hello world')).openSync();
@@ -1095,9 +1119,9 @@ void targets() {
   lacks(() => api.Page.default_(), 'api_Page_default');
   lacks(() => const api.Page(size: 1).debug(), 'api_Page_debug');
   lacks(() => const api.Page(size: 1) == const api.Page(size: 2), 'api_Page_eq');
-  final booth = api.Booth(ticket: api.Ticket(1));
+  final booth = api.Booth(score: api.Score.of(1));
   lacks(() => booth.debug(), 'api_Booth_debug');
-  lacks(() => booth == api.Booth(ticket: booth.ticket), 'api_Booth_eq');
+  lacks(() => booth == api.Booth(score: booth.score), 'api_Booth_eq');
 }
 
 @pragma('vm:never-inline')
@@ -1342,6 +1366,15 @@ final class Thrower implements api.SeekableReader {
 
 /// Each breaks a contract, which must fail with a message naming it.
 void broken(String which) {
+  if (Platform.isLinux) {
+    // Non-dumpable, an expected abort writes no core and never starts the host's crash
+    // handler. PR_SET_DUMPABLE is 4.
+    final prctl = ffi.DynamicLibrary.process().lookupFunction<
+        ffi.Int Function(ffi.Int,
+            ffi.VarArgs<(ffi.UnsignedLong, ffi.UnsignedLong, ffi.UnsignedLong, ffi.UnsignedLong)>),
+        int Function(int, int, int, int, int)>('prctl');
+    check(prctl(4, 0, 0, 0, 0) == 0, 'prctl');
+  }
   switch (which) {
     case 'moved':
       final c = api.Counter('c', 0);
@@ -1394,6 +1427,10 @@ Future<void> main(List<String> args) async {
   switch (args) {
     case []:
       await script();
+      // The waiter's returned wakers are Rust clones of a waker whose token keeps the
+      // isolate alive, and only the garbage collector drops them, about a minute idle.
+      await stdout.flush();
+      exit(0);
     case ['futures']:
       await futures();
     case ['owned']:

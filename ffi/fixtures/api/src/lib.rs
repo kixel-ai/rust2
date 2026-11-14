@@ -111,6 +111,20 @@ pub fn reading_echo(reading: Reading) -> Reading {
 	reading
 }
 
+/// Declares `crowded`, whose parameters take 243 of a JVM method's 255 slots, so flattening
+/// its `Reading` would take 15 more: a binding that counts a `Stamp` as one slot, not the
+/// two of the `long` it crosses as, flattens it past the limit.
+macro_rules! crowded {
+	($($n:ident)*) => {
+		/// The sum of the reading's count, both stamps' millis, and every number.
+		pub fn crowded(reading: Reading, a: Stamp, b: Stamp, $($n: u64),*) -> u64 {
+			reading.count.wrapping_add(a.millis).wrapping_add(b.millis)$(.wrapping_add($n))*
+		}
+	};
+}
+
+crowded!(n0 n1 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12 n13 n14 n15 n16 n17 n18 n19 n20 n21 n22 n23 n24 n25 n26 n27 n28 n29 n30 n31 n32 n33 n34 n35 n36 n37 n38 n39 n40 n41 n42 n43 n44 n45 n46 n47 n48 n49 n50 n51 n52 n53 n54 n55 n56 n57 n58 n59 n60 n61 n62 n63 n64 n65 n66 n67 n68 n69 n70 n71 n72 n73 n74 n75 n76 n77 n78 n79 n80 n81 n82 n83 n84 n85 n86 n87 n88 n89 n90 n91 n92 n93 n94 n95 n96 n97 n98 n99 n100 n101 n102 n103 n104 n105 n106 n107 n108 n109 n110 n111 n112 n113 n114 n115 n116 n117 n118);
+
 /// A plain enumeration.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Shape {
@@ -124,6 +138,136 @@ pub enum Event {
 	Moved(Point),
 	Named { name: String },
 	Done,
+}
+
+/// An enum whose variants are named as types its Kotlin sealed class names: builtins,
+/// the runtime's, and exported types, each of which a nested variant class would shadow.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Clash {
+	Point(Point),
+	Shape(Shape),
+	Event(Event),
+	Double(f64),
+	Float(f32),
+	String(String),
+	Int(i32),
+	Boolean(bool),
+	Native(u32),
+	Bytes(Vec<u8>),
+	Any,
+	Unit,
+	Waker,
+	Mut,
+	Pair(u8, u8),
+	Stamp(i64),
+	Moment(Moment),
+}
+
+impl Clash {
+	/// The clash's point, if it has one.
+	pub fn point(&self) -> Option<Point> {
+		match self {
+			Clash::Point(p) => Some(*p),
+			_ => None,
+		}
+	}
+
+	/// A double variant of `value`.
+	pub fn of(value: f64) -> Clash {
+		Clash::Double(value)
+	}
+
+	/// Its bytes, its text's or its own.
+	pub fn raw(&self) -> Vec<u8> {
+		match self {
+			Clash::Bytes(b) => b.clone(),
+			Clash::String(s) => s.as_bytes().to_vec(),
+			_ => Vec::new(),
+		}
+	}
+
+	/// The reading of `kotlin`, whose float fields the sealed class reads back from their bits
+	/// under a parameter named as the package of Kotlin's builtins.
+	pub fn reading(&self, kotlin: u32) -> Reading {
+		reading(kotlin).unwrap()
+	}
+
+	/// `java` with `kotlin` appended, and its old length through `kotlin`, under parameters
+	/// named as the packages that qualify Kotlin's builtins and the JDK.
+	pub fn listed(mut java: Vec<u32>, kotlin: &mut u32) -> Vec<Vec<u32>> {
+		java.push(*kotlin);
+		*kotlin = java.len() as u32 - 1;
+		vec![java]
+	}
+
+	/// The double clash of `kotlin`, once `first` finishes in the caller's context, which the
+	/// sealed class's body reaches under a parameter named as the package of Kotlin's builtins.
+	pub async fn after(first: impl Future<Output = ()> + Send, kotlin: f64) -> Clash {
+		first.await;
+		Clash::Double(kotlin)
+	}
+
+	/// `lent` then `owned`, each of the byte parameters a sealed class's body names.
+	pub fn joined(&self, lent: &[u8], owned: Vec<u8>, maybe: Option<Vec<u8>>) -> Vec<u8> {
+		[lent, &owned, &maybe.unwrap_or_default()].concat()
+	}
+
+	/// `tag` with this clash's form, from a future that borrows both.
+	#[expect(clippy::manual_async_fn, reason = "the non-`async` form a borrowing future takes")]
+	pub fn tagged<'a>(&'a self, tag: &'a str) -> impl Future<Output = String> + 'a {
+		async move { format!("{tag} {self:?}") }
+	}
+
+	/// A stamp `kotlin` milliseconds in, a value only Rust makes in a word, which the sealed
+	/// class's body builds from its `Long` beside a `Stamp` variant that also takes one.
+	pub fn stamp(&self, kotlin: u64) -> Stamp {
+		Stamp::from_millis(kotlin)
+	}
+
+	/// Its moment, or `kotlin` ticks at a millisecond's rate: a value only Rust makes, past a
+	/// word, which the sealed class's body builds beside its `Moment` variant.
+	pub fn moment(&self, kotlin: u64) -> Moment {
+		match self {
+			Clash::Moment(m) => *m,
+			_ => Moment::new(kotlin, 1000).unwrap(),
+		}
+	}
+
+	/// A point clash at `api`, a parameter named as the Kotlin package that qualifies its type.
+	pub fn at(api: Point) -> Clash {
+		Clash::Point(api)
+	}
+
+	/// `text` with this clash's form and `n`, and `n` doubled through `out`.
+	pub fn describe(&self, text: &str, n: u32, shape: Shape, out: &mut u32) -> String {
+		*out = n * 2;
+		format!("{text} {self:?} {n} {shape:?}")
+	}
+}
+
+/// A record whose field is named as the Kotlin package, which a qualifier in its methods'
+/// bodies would resolve to.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Packaged {
+	pub api: u32,
+}
+
+impl Packaged {
+	/// The point at `api` on both axes.
+	pub fn point(&self) -> Point {
+		Point {
+			x: self.api as i32,
+			y: self.api as i32,
+		}
+	}
+
+	/// The shape of `api`'s parity.
+	pub fn shape(&self) -> Shape {
+		match self.api % 2 {
+			0 => Shape::Square,
+			_ => Shape::Circle,
+		}
+	}
 }
 
 /// An enum whose variant `Init` names an initializer in Swift, and the C union member
@@ -341,6 +485,11 @@ impl Board {
 		Self {
 			counters: counters.into_iter().collect(),
 		}
+	}
+
+	/// Each name and its counter in name order, each handle moved out of the board.
+	pub fn into_counters(self) -> Vec<(String, Counter)> {
+		self.counters.into_iter().collect()
 	}
 
 	/// Each name and its counter, highest first, as hang's `ranked`: each pair borrowed,
@@ -751,7 +900,7 @@ pub fn made<R>(n: u32, make: impl FnOnce(u32) -> R) -> R {
 /// How many times a [`Ticket`]'s `Clone` ran.
 static TICKET_CLONES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
-/// A `Copy` object whose `Clone` counts its calls, which a closure taking or returning one
+/// A `Copy` value whose `Clone` counts its calls, which a closure taking or returning one
 /// never runs, as Rust copies it instead.
 #[derive(Copy, Debug, PartialEq)]
 pub struct Ticket {
@@ -781,6 +930,11 @@ impl Ticket {
 	}
 }
 
+/// Each name and its ticket, as given, so a binding passes back what it returned.
+pub fn tickets(entries: Vec<(String, Ticket)>) -> Vec<(String, Ticket)> {
+	entries
+}
+
 /// The ticket `swap` returns for `ticket`.
 pub fn reissue(ticket: Ticket, swap: impl Fn(Ticket) -> Ticket) -> Ticket {
 	swap(ticket)
@@ -791,45 +945,60 @@ pub fn reissue_lent(ticket: &Ticket, swap: impl Fn(&Ticket) -> Ticket) -> Ticket
 	swap(ticket)
 }
 
-/// A record holding a `Copy` object a closure is lent, so its `PartialEq` and `Debug`
-/// check that object's handle.
+/// A record holding a `Copy` handle, so its `PartialEq` and `Debug` check that handle.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Seat {
-	pub ticket: Ticket,
+	pub score: Score,
 	pub row: u32,
 }
 
-/// The seat in `row` for `ticket`.
-pub fn seat(ticket: Ticket, row: u32) -> Seat {
-	Seat { ticket, row }
+/// The seat in `row` for `score`.
+pub fn seat(score: Score, row: u32) -> Seat {
+	Seat { score, row }
 }
 
 impl Seat {
-	/// Its ticket's number: a record's method whose receiver holds a checked object.
-	pub fn number(&self) -> u32 {
-		self.ticket.number
+	/// Its score's count: a record's method whose receiver holds a checked object.
+	pub fn count(&self) -> u64 {
+		self.score.count
 	}
 }
 
-/// The counter's value plus the number of each ticket beside it: a counter moved in
-/// beside copied checked objects, alone and held in a record and an enum.
-pub fn admit(entry: (Counter, Ticket, Seat, Choice)) -> u64 {
-	let (counter, ticket, seat, choice) = entry;
-	counter.value + u64::from(ticket.number + seat.ticket.number + choose(choice))
+/// The counter's value plus the count of each score beside it: a counter moved in beside
+/// copied checked objects, alone and held in a record and an enum.
+pub fn admit(entry: (Counter, Score, Seat, Choice)) -> u64 {
+	let (counter, score, seat, choice) = entry;
+	counter.value.wrapping_add(score.count).wrapping_add(seat.score.count).wrapping_add(choose(choice))
 }
 
-/// A ticket picked, or none: a data enum with an empty variant beside a checked object.
+/// A score picked, or none: a data enum with an empty variant beside a checked object.
 pub enum Choice {
 	Empty,
-	Picked(Ticket),
+	Picked(Score),
 }
 
-/// The number of the ticket picked, or 0.
-pub fn choose(choice: Choice) -> u32 {
+/// The count of the score picked, or 0.
+pub fn choose(choice: Choice) -> u64 {
 	match choice {
 		Choice::Empty => 0,
-		Choice::Picked(ticket) => ticket.number,
+		Choice::Picked(score) => score.count,
 	}
+}
+
+/// A score and a payload: a record holding a checked handle beside a buffer.
+pub struct Parcel {
+	pub score: Score,
+	pub payload: Bytes,
+}
+
+/// Each count and each payload's length, summed: a checked score beside bytes in a tuple
+/// and in a record lent, and bytes beside a moved counter, so a call a failed check
+/// refuses frees every buffer it was given.
+pub fn heft(scored: (Score, Bytes), lent: &Parcel, moved: (Counter, Bytes)) -> u64 {
+	let (score, bytes) = scored;
+	let (counter, more) = moved;
+	let lengths = bytes.len() + lent.payload.len() + more.len();
+	score.count + lent.score.count + counter.value + lengths as u64
 }
 
 /// An enum named as the runtime's status, whose constants C would name as its statuses.
@@ -1068,8 +1237,7 @@ impl<F: Future> Future for Within<F> {
 	}
 }
 
-/// A time: an object, since its field is private, but `Copy`, so passing it by value
-/// copies it rather than moving it out of its handle.
+/// A time: `Copy` with a private field, so a value only Rust makes, copied across.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Stamp {
 	millis: u64,
@@ -1084,12 +1252,150 @@ impl Stamp {
 		self.millis / 1000
 	}
 
+	/// It rounded down to whole seconds, through an `impl Trait`, so it crosses as its bytes.
+	pub fn whole(self) -> impl Into<Stamp> + use<> {
+		Self {
+			millis: self.millis / 1000 * 1000,
+		}
+	}
+
 	pub fn later(self, other: Stamp) -> bool {
 		self.millis > other.millis
 	}
 }
 
-/// A stamp and a count: a record holding an object, whose method reads it.
+/// A time on a clock of its own rate, as moq's `Timestamp`: `Copy` with private fields, past
+/// a word on every target, and never all zero bytes, so only a value Rust made may cross.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Moment {
+	ticks: u64,
+	rate: std::num::NonZero<u64>,
+}
+
+impl Moment {
+	/// `ticks` of `rate` a second, or none at a rate of zero.
+	pub fn new(ticks: u64, rate: u64) -> Option<Self> {
+		std::num::NonZero::new(rate).map(|rate| Self { ticks, rate })
+	}
+
+	/// Whole milliseconds since zero.
+	pub fn millis(&self) -> u64 {
+		(u128::from(self.ticks) * 1000 / u128::from(self.rate.get())) as u64
+	}
+
+	/// The moment `ticks` later, at the same rate, wrapping as `u64` does.
+	pub fn after(self, ticks: u64) -> Self {
+		Self {
+			ticks: self.ticks.wrapping_add(ticks),
+			..self
+		}
+	}
+}
+
+/// The moment `shift` returns for `moment`, which C copies in and out.
+pub fn shifted(moment: Moment, shift: impl Fn(Moment) -> Moment) -> Moment {
+	shift(moment)
+}
+
+/// A value with padding, after its `u8`: made from bytes all `0xff`, so its padding likely
+/// holds them, which the export zeroes before any language sees it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Gap {
+	wide: u64,
+	narrow: u8,
+}
+
+impl Gap {
+	pub fn new(wide: u64, narrow: u8) -> Self {
+		// SAFETY: every byte pattern is a `Gap`, whose fields are integers.
+		let mut gap: Gap = unsafe { std::mem::transmute([0xffu8; std::mem::size_of::<Gap>()]) };
+		gap.wide = wide;
+		gap.narrow = narrow;
+		gap
+	}
+
+	pub fn sum(&self) -> u64 {
+		self.wide.wrapping_add(u64::from(self.narrow))
+	}
+}
+
+/// A value named as Kotlin's `LongArray`, which holds a value's words, with a method named
+/// as C++'s member holding its bytes: each generator keeps its own apart.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LongArray {
+	words: [u64; 2],
+}
+
+impl LongArray {
+	pub fn new(low: u64, high: u64) -> Self {
+		LongArray { words: [low, high] }
+	}
+
+	pub fn c_(&self) -> u64 {
+		self.words[0].wrapping_add(self.words[1])
+	}
+}
+
+/// A `Copy` type whose `None` leaves its payload's bytes uninitialized, so no padding table
+/// covers it: a handle, rather than a value.
+#[derive(Clone, Copy, Debug)]
+pub struct Berth {
+	at: Option<u32>,
+}
+
+impl Berth {
+	pub fn new(at: Option<u32>) -> Self {
+		Self { at }
+	}
+
+	pub fn at(&self) -> Option<u32> {
+		self.at
+	}
+}
+
+/// A running count, as moq's `stats::Traffic`: `Copy` with private fields, but changed in
+/// place through `&mut self`, which a copy could not write back, so a handle. A call taking
+/// one by value copies it out of its handle, leaving the caller's as it was.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Score {
+	count: u64,
+}
+
+impl Score {
+	pub fn of(count: u64) -> Self {
+		Self { count }
+	}
+
+	pub fn count(&self) -> u64 {
+		self.count
+	}
+
+	/// Adds `other`'s count to this one, as Rust copies `other`.
+	pub fn add(&mut self, other: Score) {
+		self.count = self.count.wrapping_add(other.count);
+	}
+
+	/// Twice the count, as Rust copies `self`.
+	pub fn doubled(self) -> Score {
+		Self {
+			count: self.count.wrapping_mul(2),
+		}
+	}
+}
+
+/// A score and its weight: a record holding a `Copy` handle, copied in and out.
+pub struct Weighted {
+	pub score: Score,
+	pub weight: u32,
+}
+
+impl Weighted {
+	pub fn total(&self) -> u64 {
+		self.score.count.wrapping_mul(u64::from(self.weight))
+	}
+}
+
+/// A stamp and a count: a record holding a value only Rust makes, whose method reads it.
 pub struct Stamped {
 	pub at: Stamp,
 	pub count: u32,
@@ -1102,7 +1408,8 @@ impl Stamped {
 	}
 }
 
-/// A message: an object, since one field is private, whose `pub` fields read as getters.
+/// A message: an object, since one field is private and it is not `Copy`, whose `pub`
+/// fields read as getters.
 #[derive(Clone, Debug)]
 pub struct Message {
 	pub stamp: Option<Stamp>,
@@ -2869,6 +3176,12 @@ pub fn reasons(pairs: Vec<(Counter, Refusal)>, last: Option<(Counter, Refusal)>)
 		.join(", ")
 }
 
+/// The length of the note, the bytes, and the reason: bytes beside a class Swift closes
+/// once a move took it, so a call refused before Rust runs frees the bytes it gave Rust.
+pub fn excuse(note: Bytes, entry: (Bytes, Refusal)) -> usize {
+	note.len() + entry.0.len() + entry.1.reason.len()
+}
+
 /// How many of `refusals` `log` keeps, each logged at level 0: a callback the binding gives
 /// before a list whose classes a move may have closed.
 pub fn relay(log: Box<dyn Log>, refusals: Vec<Refusal>) -> u32 {
@@ -2976,13 +3289,13 @@ pub struct Page {
 #[cfg(target_arch = "wasm32")]
 #[derive(Debug, PartialEq)]
 pub struct Booth {
-	pub ticket: Ticket,
+	pub score: Score,
 }
 
-/// The number of `booth`'s ticket.
+/// The count of `booth`'s score.
 #[cfg(target_arch = "wasm32")]
-pub fn booth_number(booth: Booth) -> u32 {
-	booth.ticket.number
+pub fn booth_count(booth: Booth) -> u64 {
+	booth.score.count
 }
 
 /// wasm32's page.

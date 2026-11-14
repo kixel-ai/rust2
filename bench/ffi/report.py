@@ -31,6 +31,10 @@ LANGS = [
 CALLS = [
 	("call", "`track.is_closed()`, a handle call"),
 	("getter", "`demand.sequence()`, a u64 getter"),
+	("shared:call", "the handle call on 4 threads, one shared handle"),
+	("own:call", "the same, a handle per thread"),
+	("shared:getter", "the u64 getter on 4 threads, one shared handle"),
+	("own:getter", "the same, a handle per thread"),
 	("record", "`track.largest()`, a record return"),
 	("object", "`track.info()`, an object return"),
 	("objects", "the same from 4 threads at once, Kotlin only"),
@@ -42,6 +46,12 @@ CALLS = [
 	("drained", "Swift only: one reader on a drained executor, no writer handoff"),
 	("payload", "`frame.payload`, 100 B"),
 ]
+
+# What a language does in place of a case it cannot run, printed in that case's cell.
+INSTEAD = {
+	("dart", case): "no: an isolate takes no other's object"
+	for case in ["shared:call", "own:call", "shared:getter", "own:getter"]
+}
 
 # Each step `just ffi bench-run` times from an emptied target, and what it is.
 BUILDS = [
@@ -144,6 +154,8 @@ def main(raw_path, build_path, export):
 	langs = [(key, name) for key, name in LANGS if any(lang == key for lang, _ in median)]
 
 	def cell(lang, case, i):
+		if (lang, case) in INSTEAD:
+			return INSTEAD[(lang, case)]
 		if (lang, case) not in median:
 			return ""
 		values = median[(lang, case)]
