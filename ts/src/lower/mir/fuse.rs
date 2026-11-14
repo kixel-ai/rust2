@@ -1,8 +1,9 @@
-//! Iterator chains fused into their consumer: a `count`, `any`, `all`, `fold`, `sum`,
-//! `product`, `for_each`, `find`, `position`, or `for` loop of `map`, `filter`,
-//! `enumerate`, and `zip` adaptors over a slice's, a `Vec`'s, or a range's iterator, or
-//! the `rev` of one, is one loop where it is read, not the `rs.Iter` objects the runtime
-//! would chain. Each adaptor's `next` in the runtime is one function every chain in the
+//! Iterator chains fused into their consumer: a `count`, `any`, `all`, `fold`, `rfold`,
+//! `sum`, `product`, `for_each`, `find`, `rfind`, `position`, or `for` loop of `map`,
+//! `filter`, `enumerate`, `zip`, and `rev` adaptors over a slice's, a `Vec`'s, or a range's
+//! iterator, or the `rev` of one, is one loop where it is read, not the `rs.Iter` objects
+//! the runtime would chain. A `rev`, `rfold`, or `rfind` reads what it wraps from the back,
+//! each node as its `nextBack` in the runtime does. Each adaptor's `next` in the runtime is one function every chain in the
 //! program calls through, which engines stop inlining once they have seen a few, and each
 //! `zip` and `enumerate` makes a pair per item.
 //!
@@ -48,16 +49,16 @@ impl Consumer {
 			"iterCount" => Self::Count,
 			"iterAny" => Self::Any,
 			"iterAll" => Self::All,
-			"iterFold" | "iterSum" | "iterProduct" => Self::Fold,
+			"iterFold" | "iterRfold" | "iterSum" | "iterProduct" => Self::Fold,
 			"iterForEach" => Self::ForEach,
-			"iterFind" => Self::Find,
+			"iterFind" | "iterRfind" => Self::Find,
 			"iterPosition" => Self::Position,
 			_ => return None,
 		})
 	}
 
 	/// Whether the runtime reads the iterator as `folded(true)` steps it, as std's `fold`
-	/// does, rather than as `try_fold` does.
+	/// and `rfold` do, rather than as `try_fold` does.
 	fn folds(self) -> bool {
 		matches!(self, Self::Count | Self::Fold | Self::ForEach)
 	}
@@ -70,10 +71,21 @@ pub(super) enum Zipped {
 	/// the other has ended.
 	Next { drop: Option<Expr> },
 	/// By index, both being `TrustedRandomAccess`: as many pairs as the shorter has, counted
-	/// by `index` up to `end`.
-	Indexed { index: String, end: String },
+	/// by `index` up to `end`. Read from the back, `even` once the longer side is trimmed to
+	/// the pairs left, the items past them read from each side that has `effects` and
+	/// dropped by its `drops`, as `TrustedZipIter`'s `nextBack` trims.
+	Indexed {
+		index: String,
+		end: String,
+		even: Option<String>,
+		effects: [bool; 2],
+		drops: [Option<Expr>; 2],
+	},
 	/// By a fold, both being `TrustedLen`: as many pairs as its size hint, `left` of them.
 	Counted { left: String },
+	/// From the back, by each side's `next_back`, `even` once the longer side's items past
+	/// the shorter's are read and dropped by its `drops`, as std's `next_back` trims.
+	Back { even: String, drops: [Option<Expr>; 2] },
 }
 
 /// One node of a chain, its parts bound to variables.
@@ -95,6 +107,8 @@ pub(super) enum Node {
 		drop: Option<Expr>,
 		item: Type,
 	},
+	/// Its `count` the next index from the front, or, read from the back, the last index
+	/// given, `-1` until its first read, as std's counts down from its length then.
 	Enumerate {
 		inner: Box<Node>,
 		count: String,
@@ -105,6 +119,10 @@ pub(super) enum Node {
 		b: Box<Node>,
 		how: Zipped,
 		item: Type,
+	},
+	/// What it wraps, read the other way.
+	Rev {
+		inner: Box<Node>,
 	},
 }
 
@@ -148,22 +166,25 @@ enum Shape<'tcx> {
 	Map(Box<Shape<'tcx>>, (Expr, Ty<'tcx>), Ty<'tcx>),
 	Filter(Box<Shape<'tcx>>, (Expr, Ty<'tcx>), Option<Expr>, Ty<'tcx>),
 	Enumerate(Box<Shape<'tcx>>, Ty<'tcx>),
-	Zip(Box<Shape<'tcx>>, Box<Shape<'tcx>>, Trusted, Option<Expr>, Ty<'tcx>),
+	/// Each side's dropper.
+	Zip(Box<Shape<'tcx>>, Box<Shape<'tcx>>, Trusted, [Option<Expr>; 2], Ty<'tcx>),
+	Rev(Box<Shape<'tcx>>),
 }
 
 /// A zip's `rs.Trusted`.
 enum Trusted {
-	/// Read by index.
-	Indexed,
+	/// Read by index, as whether each side may have side effects.
+	Indexed([bool; 2]),
 	/// Read by `next`, but folded by its size hint.
 	Bounded,
 	/// Read by `next`.
 	Next,
 }
 
-/// The adaptor `ty` is, by its path in std.
+/// The adaptor `ty` is, by its path in std: a `rev` only of another, as one of a leaf is
+/// a leaf.
 fn adaptor(tcx: ty::TyCtxt<'_>, ty: Ty<'_>) -> Option<&'static str> {
-	let ty::Adt(adt, _) = ty.kind() else {
+	let ty::Adt(adt, gargs) = ty.kind() else {
 		return None;
 	};
 	let path = library::std_path(tcx, adt.did());
@@ -173,8 +194,15 @@ fn adaptor(tcx: ty::TyCtxt<'_>, ty: Ty<'_>) -> Option<&'static str> {
 		["iter", "adapters", "filter", "Filter"] => "filter",
 		["iter", "adapters", "enumerate", "Enumerate"] => "enumerate",
 		["iter", "adapters", "zip", "Zip"] => "zip",
+		["iter", "adapters", "rev", "Rev"] if adaptor(tcx, gargs.type_at(0)).is_some() => "rev",
 		_ => return None,
 	})
+}
+
+/// Whether `def_id` is `DoubleEndedIterator::next_back`, or an implementation of it.
+pub(super) fn is_next_back(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
+	let def_id = tcx.trait_item_of(def_id).unwrap_or(def_id);
+	library::key(tcx, def_id).is_some_and(|(owner, name)| owner == "DoubleEndedIterator" && name == "next_back")
 }
 
 /// `Some` of an argument that isn't `undefined`.
@@ -190,18 +218,21 @@ fn off(e: Option<&Expr>) -> bool {
 
 impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// Whether a call of `def_id` on `self_ty` is a consumer whose chain may fuse: a
-	/// consumer of `Iterator` on one of the adaptors this fuses. The mapping's call decides
-	/// the rest.
+	/// consumer of `Iterator` or `DoubleEndedIterator` on one of the adaptors this fuses.
+	/// The mapping's call decides the rest.
 	pub(super) fn fuses(&self, def_id: rustc_hir::def_id::DefId, gargs: ty::GenericArgs<'tcx>) -> bool {
 		let Some((owner, name)) = library::key(self.tcx, def_id) else {
 			return false;
 		};
-		owner == "Iterator"
-			&& matches!(
+		let consumer = match owner.as_str() {
+			"Iterator" => matches!(
 				name.as_str(),
 				"count" | "any" | "all" | "fold" | "sum" | "product" | "for_each" | "find" | "position"
-			)
-			&& gargs.types().next().is_some_and(|ty| adaptor(self.tcx, ty).is_some())
+			),
+			"DoubleEndedIterator" => matches!(name.as_str(), "rfold" | "rfind"),
+			_ => false,
+		};
+		consumer && gargs.types().next().is_some_and(|ty| adaptor(self.tcx, ty).is_some())
 	}
 
 	/// The statements that compute `init`, a consumer the mapping made of a chain of type
@@ -221,6 +252,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			return None;
 		};
 		let consumer = Consumer::of(runtime)?;
+		// `rfold` and `rfind`, which read it from the back.
+		let back = matches!(runtime.as_str(), "iterRfold" | "iterRfind");
 		let (chain, rest) = args.split_first()?;
 		// The values it reads, and the flags after them, each of which must be off but a
 		// fold's `owns`, which drops its closure as it ends.
@@ -230,7 +263,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			_ => rest.split_at_checked(1)?,
 		};
 		let owns = match (consumer, runtime.as_str()) {
-			(Consumer::Fold, "iterFold") | (Consumer::ForEach, _) => {
+			(Consumer::Fold, "iterFold" | "iterRfold") | (Consumer::ForEach, _) => {
 				if !off(flags.first()) || flags.len() > 2 {
 					return None;
 				}
@@ -246,12 +279,12 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			_ if !flags.is_empty() => return None,
 			_ => false,
 		};
-		let shape = self.chain_shape(chain, ty)?;
+		let shape = self.chain_shape(chain, ty, back)?;
 		let mut out = Vec::new();
-		let root = self.bind(shape, consumer.folds(), span, &mut out);
+		let root = self.bind(shape, consumer.folds(), back, span, &mut out);
 		// What it reads, held in order, then `sum`'s `add` and zero swapped into `fold`'s.
 		let mut values: Vec<Fun> = values.iter().map(|v| self.fun(v.clone(), None, &mut out)).collect();
-		if runtime != "iterFold" && consumer == Consumer::Fold {
+		if !matches!(runtime.as_str(), "iterFold" | "iterRfold") && consumer == Consumer::Fold {
 			values.swap(0, 1);
 		}
 		let label = self.b.fresh("fused");
@@ -259,7 +292,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let mut body = Vec::new();
 		let used = consumer != Consumer::Count;
 		let item = self
-			.read(&root, false, used, &done, &mut body)
+			.read(&root, back, false, used, &done, &mut body)
 			.unwrap_or(Val::One(Expr::undefined()));
 		let result = match consumer {
 			Consumer::Count => {
@@ -397,8 +430,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		}
 	}
 
-	/// `e`, a chain of type `ty`, as its nodes, if each is one this fuses.
-	fn chain_shape(&self, e: &Expr, ty: Ty<'tcx>) -> Option<Shape<'tcx>> {
+	/// `e`, a chain of type `ty`, as its nodes, if each is one this fuses read as it is:
+	/// from the back if `back`.
+	fn chain_shape(&self, e: &Expr, ty: Ty<'tcx>, back: bool) -> Option<Shape<'tcx>> {
 		let tcx = self.tcx;
 		let item = |ty: Ty<'tcx>| self.b.t.iter_item(ty);
 		let rs = |f: &Expr, name: &str| matches!(peel(f), Expr::Rs(n) if n == name);
@@ -415,18 +449,22 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		match kind {
 			"map" if rs(f, "iterMap") && args.len() == 2 => {
 				let f = (args[1].clone(), gargs.type_at(1));
-				Some(Shape::Map(Box::new(self.chain_shape(&args[0], inner)?), f, item(ty)?))
+				Some(Shape::Map(
+					Box::new(self.chain_shape(&args[0], inner, back)?),
+					f,
+					item(ty)?,
+				))
 			}
 			"filter" if rs(f, "iterFilter") && (2..=4).contains(&args.len()) && off(args.get(3)) => {
 				Some(Shape::Filter(
-					Box::new(self.chain_shape(&args[0], inner)?),
+					Box::new(self.chain_shape(&args[0], inner, back)?),
 					(args[1].clone(), gargs.type_at(1)),
 					given(args.get(2)),
 					item(ty)?,
 				))
 			}
 			"enumerate" if rs(f, "iterEnumerate") && args.len() == 1 => Some(Shape::Enumerate(
-				Box::new(self.chain_shape(&args[0], inner)?),
+				Box::new(self.chain_shape(&args[0], inner, back)?),
 				item(ty)?,
 			)),
 			"zip" if rs(f, "iterZip") && (2..=5).contains(&args.len()) => {
@@ -434,27 +472,43 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					None => Trusted::Next,
 					Some(Expr::Lit(l)) if l == "undefined" => Trusted::Next,
 					Some(Expr::Str(_)) => Trusted::Bounded,
-					Some(Expr::Array(effects)) if effects.len() == 2 => Trusted::Indexed,
+					Some(Expr::Array(effects)) => match effects.iter().map(peel).collect::<Vec<_>>().as_slice() {
+						[Expr::Lit(a), Expr::Lit(b)] => Trusted::Indexed([a == "true", b == "true"]),
+						_ => return None,
+					},
 					_ => return None,
 				};
-				// What drops the second side's item is never called reading forward.
-				Some(Shape::Zip(
-					Box::new(self.chain_shape(&args[0], inner)?),
-					Box::new(self.chain_shape(&args[1], gargs.type_at(1))?),
-					trusted,
-					given(args.get(3)),
-					item(ty)?,
-				))
+				// What drops the second side's item is called only reading from the back.
+				let drops = [given(args.get(3)), given(args.get(4)).filter(|_| back)];
+				let (a, b) = (
+					self.chain_shape(&args[0], inner, back)?,
+					self.chain_shape(&args[1], gargs.type_at(1), back)?,
+				);
+				// From the back, the runtime reads a side by index as by `nextBack` only where
+				// each zip in it has no side effects, whose view by index is itself, and a
+				// side without side effects drops none of what it trims.
+				if back
+					&& let Trusted::Indexed(effects) = trusted
+					&& [(&a, effects[0], &drops[0]), (&b, effects[1], &drops[1])]
+						.iter()
+						.any(|(side, effect, drop)| !by_index(side) || !effect && drop.is_some())
+				{
+					return None;
+				}
+				Some(Shape::Zip(Box::new(a), Box::new(b), trusted, drops, item(ty)?))
+			}
+			"rev" if rs(f, "iterRev") && args.len() == 1 => {
+				Some(Shape::Rev(Box::new(self.chain_shape(&args[0], inner, !back)?)))
 			}
 			_ => None,
 		}
 	}
 
 	/// `shape`'s parts held in variables, in the order JS evaluates them where the chain
-	/// is made, and the state each adaptor starts with as the runtime's is made.
-	/// `folds` where the chain is read as a fold reads it, as each adaptor but `zip` passes
-	/// to what it wraps.
-	fn bind(&mut self, shape: Shape<'tcx>, folds: bool, span: Span, out: &mut Vec<Stmt>) -> Node {
+	/// is made, and the state each adaptor starts with as the runtime's is made, to read
+	/// from the back if `back`. `folds` where the chain is read as a fold reads it, as each
+	/// adaptor but `zip` passes to what it wraps.
+	fn bind(&mut self, shape: Shape<'tcx>, folds: bool, back: bool, span: Span, out: &mut Vec<Stmt>) -> Node {
 		let number = || Type::Builtin("number");
 		match shape {
 			Shape::Leaf(e, item) => {
@@ -464,14 +518,14 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				Node::Leaf { var, item }
 			}
 			Shape::Map(inner, (f, f_ty), item) => {
-				let inner = Box::new(self.bind(*inner, folds, span, out));
+				let inner = Box::new(self.bind(*inner, folds, back, span, out));
 				let f_ty = self.b.t.ty(f_ty, span);
 				let f = self.fun(f, Some(f_ty), out);
 				let item = self.b.t.ty(item, span);
 				Node::Map { inner, f, item }
 			}
 			Shape::Filter(inner, (f, f_ty), drop, item) => {
-				let inner = Box::new(self.bind(*inner, folds, span, out));
+				let inner = Box::new(self.bind(*inner, folds, back, span, out));
 				let item = self.b.t.ty(item, span);
 				let f_ty = self.b.t.ty(f_ty, span);
 				let f = self.fun(f, Some(f_ty), out);
@@ -479,25 +533,49 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				Node::Filter { inner, f, drop, item }
 			}
 			Shape::Enumerate(inner, item) => {
-				let inner = Box::new(self.bind(*inner, folds, span, out));
+				let inner = Box::new(self.bind(*inner, folds, back, span, out));
 				let count = self.b.fresh("count");
-				self.decl(true, &count, number(), Expr::lit("0"), out);
+				self.decl(true, &count, number(), Expr::lit(if back { "-1" } else { "0" }), out);
 				let item = self.b.t.ty(item, span);
 				Node::Enumerate { inner, count, item }
 			}
-			Shape::Zip(a, b, trusted, drop, item) => {
-				let a = Box::new(self.bind(*a, false, span, out));
-				let b = Box::new(self.bind(*b, false, span, out));
-				let drop = drop.map(|d| self.part(d, "drop", Some(dropper(&item_of(&a))), out));
+			Shape::Rev(inner) => Node::Rev {
+				inner: Box::new(self.bind(*inner, folds, !back, span, out)),
+			},
+			Shape::Zip(a, b, trusted, drops, item) => {
+				let a = Box::new(self.bind(*a, false, back, span, out));
+				let b = Box::new(self.bind(*b, false, back, span, out));
+				let [drop_a, drop_b] = drops;
+				let drops = [
+					drop_a.map(|d| self.part(d, "drop", Some(dropper(&item_of(&a))), out)),
+					drop_b.map(|d| self.part(d, "drop", Some(dropper(&item_of(&b))), out)),
+				];
+				let even = |fx: &mut Self, out: &mut Vec<Stmt>| {
+					let even = fx.b.fresh("even");
+					fx.decl(true, &even, Type::Builtin("boolean"), Expr::lit("false"), out);
+					even
+				};
 				let how = match trusted {
 					// As `TrustedZipIter` is made: the shorter side's length.
-					Trusted::Indexed => {
+					Trusted::Indexed(effects) => {
 						let (index, end) = (self.b.fresh("index"), self.b.fresh("end"));
 						let len = Expr::ident("Math").member("min").call(vec![self.len(&a), self.len(&b)]);
 						self.decl(true, &index, number(), Expr::lit("0"), out);
-						self.decl(false, &end, number(), len, out);
-						Zipped::Indexed { index, end }
+						self.decl(back, &end, number(), len, out);
+						let even = back.then(|| even(self, out));
+						Zipped::Indexed {
+							index,
+							end,
+							even,
+							effects,
+							drops,
+						}
 					}
+					// As `ZipFold`'s `nextBack`, std's own.
+					Trusted::Bounded | Trusted::Next if back => Zipped::Back {
+						even: even(self, out),
+						drops,
+					},
 					// As `ZipFold` starts: the pairs its size hint's upper bound gives.
 					Trusted::Bounded if folds => {
 						let left = self.b.fresh("left");
@@ -505,7 +583,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						self.decl(true, &left, number(), len, out);
 						Zipped::Counted { left }
 					}
-					Trusted::Bounded | Trusted::Next => Zipped::Next { drop },
+					Trusted::Bounded | Trusted::Next => {
+						let [drop, _] = drops;
+						Zipped::Next { drop }
+					}
 				};
 				let item = self.b.t.ty(item, span);
 				Node::Zip { a, b, how, item }
@@ -555,9 +636,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		Expr::ident(name)
 	}
 
-	/// Find the chains only `next` reads, as a `for` loop's: a local of an adaptor this
-	/// fuses, made by a call, that drops nothing JS sees, and that only `&mut` borrows read,
-	/// each assigned once, borrowed by nothing, and read only as `next`'s receiver.
+	/// Find the chains only `next` reads, as a `for` loop's, or only `next_back`: a local of
+	/// an adaptor this fuses, made by a call, that drops nothing JS sees, and that only `&mut`
+	/// borrows read, each assigned once, borrowed by nothing, and read only as the receiver
+	/// of one of them. Each node reads one way, so a chain read both ways stays the runtime's.
 	pub(super) fn find_fused(&mut self) {
 		let mir = self.mir;
 		let tcx = self.tcx;
@@ -581,6 +663,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let mut borrows: FxHashMap<Local, Local> = FxHashMap::default();
 		let mut made = FxHashSet::default();
 		let mut next_reads: FxHashMap<Local, u32> = FxHashMap::default();
+		let mut back_reads: FxHashSet<Local> = FxHashSet::default();
 		for data in mir.basic_blocks.iter() {
 			for stmt in &data.statements {
 				if let StatementKind::Assign(assign) = &stmt.kind
@@ -610,13 +693,19 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					made.insert(to);
 				}
 				if let ty::FnDef(def_id, _) = *func.ty(&mir.local_decls, tcx).kind()
-					&& crate::lower::iter::is_next(tcx, def_id)
-					&& destination.as_local().is_some_and(|l| self.next_results.contains(&l))
 					&& let [arg] = &**args
 					&& let Operand::Move(p) | Operand::Copy(p) = &arg.node
 					&& let Some(recv) = p.as_local()
 				{
-					*next_reads.entry(recv).or_default() += 1;
+					let next = crate::lower::iter::is_next(tcx, def_id)
+						&& destination.as_local().is_some_and(|l| self.next_results.contains(&l));
+					let back = is_next_back(tcx, def_id);
+					if next || back {
+						*next_reads.entry(recv).or_default() += 1;
+					}
+					if back {
+						back_reads.insert(recv);
+					}
 				}
 			}
 		}
@@ -637,22 +726,32 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		}
 		ok.retain(|&l| made.contains(&l) && reads.get(&l).copied().unwrap_or(0) == self.uses[l]);
 		ok.retain(|&l| borrows.iter().all(|(&b, &from)| from != l || stepping(self, b)));
+		// Read one way: each borrow by `next_back`, or none.
+		let back: FxHashSet<Local> = ok
+			.iter()
+			.copied()
+			.filter(|&l| borrows.iter().any(|(b, &from)| from == l && back_reads.contains(b)))
+			.collect();
+		ok.retain(|l| !back.contains(l) || borrows.iter().all(|(b, from)| from != l || back_reads.contains(b)));
 		for (b, from) in borrows {
 			if ok.contains(&from) {
 				self.fused_borrows.insert(b, from);
 			}
 		}
+		self.fused_back = back.into_iter().filter(|l| ok.contains(l)).collect();
 		self.fused_loops = ok;
 	}
 
-	/// The statements making `local`, a chain only `next` reads, from `init`, the chain its
-	/// mapping made: its parts held in variables, or, if it isn't one this fuses, the chain.
+	/// The statements making `local`, a chain only `next` or `next_back` reads, from `init`,
+	/// the chain its mapping made: its parts held in variables, or, if it isn't one this
+	/// fuses, the chain.
 	pub(super) fn fuse_loop(&mut self, local: Local, init: Expr, span: Span) -> Vec<Stmt> {
 		let ty = self.mir.local_decls[local].ty;
+		let back = self.fused_back.contains(&local);
 		let mut out = Vec::new();
 		self.fused_hoist = true;
-		let node = match self.chain_shape(&init, ty) {
-			Some(shape) => self.bind(shape, false, span, &mut out),
+		let node = match self.chain_shape(&init, ty, back) {
+			Some(shape) => self.bind(shape, false, back, span, &mut out),
 			None => {
 				let var = match self.var(local) {
 					Some(name) => name.to_string(),
@@ -702,8 +801,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		}
 	}
 
-	/// `next` of the chain `recv` borrows, if it is fused, read from its parts into `out`:
-	/// its item or `rs.DONE`.
+	/// `next` of the chain `recv` borrows, if it is fused, or `next_back` of one read from
+	/// the back, read from its parts into `out`: its item or `rs.DONE`.
 	pub(super) fn fused_next(&mut self, recv: &Operand<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Option<Expr> {
 		let (Operand::Copy(p) | Operand::Move(p)) = recv else {
 			return None;
@@ -712,9 +811,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let Some(node) = self.fused_nodes.get(&chain).cloned() else {
 			return Some(self.err(span, "`next` of a fused chain before it is made"));
 		};
+		let back = self.fused_back.contains(&chain);
 		// One the runtime makes, whose `next` is its own.
 		if let Node::Leaf { var, .. } = &node {
-			return Some(Expr::ident(var).member("next").call(Vec::new()));
+			let next = if back { "nextBack" } else { "next" };
+			return Some(Expr::ident(var).member(next).call(Vec::new()));
 		}
 		let (r, label) = (self.b.fresh("next"), self.b.fresh("next"));
 		self.fused_reads.insert(r.clone());
@@ -725,7 +826,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			StmtKind::Break(Some(label.clone())).at(None),
 		];
 		let mut body = Vec::new();
-		let item = self.read(&node, false, true, &done, &mut body).expect("a used item");
+		let item = self
+			.read(&node, back, false, true, &done, &mut body)
+			.expect("a used item");
 		body.push(StmtKind::Expr(Expr::ident(&r).assign(item.whole())).at(None));
 		out.push(
 			StmtKind::Block {
@@ -737,28 +840,40 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		Some(Expr::ident(r))
 	}
 
-	/// The length of a side of a zip read by index, as its `len` gives it.
+	/// The length of `node`, as its `len` gives it, which only one that is
+	/// `ExactSizeIterator` has.
 	fn len(&self, node: &Node) -> Expr {
 		match node {
 			Node::Leaf { var, .. } => Expr::ident(var).member("len").call(Vec::new()),
-			Node::Map { inner, .. } | Node::Enumerate { inner, .. } => self.len(inner),
+			Node::Map { inner, .. } | Node::Enumerate { inner, .. } | Node::Rev { inner } => self.len(inner),
 			Node::Zip {
-				how: Zipped::Indexed { index, end },
+				how: Zipped::Indexed { index, end, .. },
 				..
 			} => Expr::ident(end).binary("-", Expr::ident(index)),
-			// Neither is `TrustedRandomAccess`.
-			Node::Filter { .. } | Node::Zip { .. } => unreachable!("a side read by index"),
+			// Of its size hint, the shorter side's.
+			Node::Zip { a, b, .. } => Expr::ident("Math").member("min").call(vec![self.len(a), self.len(b)]),
+			Node::Filter { .. } => unreachable!("a filter has no length"),
 		}
 	}
 
-	/// The next item of `node`, read into `out`, which runs `done` where it has ended, or
-	/// `None` where the item isn't `used`. `indexed` reads a side of a zip read by index,
-	/// which never ends there.
-	fn read(&mut self, node: &Node, indexed: bool, used: bool, done: &[Stmt], out: &mut Vec<Stmt>) -> Option<Val> {
+	/// The next item of `node`, or from the back if `back`, read into `out`, which runs
+	/// `done` where it has ended, or `None` where the item isn't `used`. `indexed` reads a
+	/// side of a zip read by index, which never ends there.
+	fn read(
+		&mut self,
+		node: &Node,
+		back: bool,
+		indexed: bool,
+		used: bool,
+		done: &[Stmt],
+		out: &mut Vec<Stmt>,
+	) -> Option<Val> {
 		let expr = |e: Expr| StmtKind::Expr(e).at(None);
 		match node {
 			Node::Leaf { var, item } => {
-				let next = Expr::ident(var).member("next").call(Vec::new());
+				let next = Expr::ident(var)
+					.member(if back { "nextBack" } else { "next" })
+					.call(Vec::new());
 				if indexed && !used {
 					out.push(expr(next));
 					return None;
@@ -772,8 +887,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				}
 				Some(Val::One(Expr::ident(x)))
 			}
+			Node::Rev { inner } => self.read(inner, !back, indexed, used, done, out),
 			Node::Map { inner, f, item } => {
-				let x = self.read(inner, indexed, true, done, out)?;
+				let x = self.read(inner, back, indexed, true, done, out)?;
 				let mapped = apply(f, vec![x], false);
 				if !used {
 					if !mapped.pure() {
@@ -787,11 +903,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				Some(Val::One(Expr::ident(y)))
 			}
 			Node::Filter { inner, f, drop, item } => {
-				// `find` of what it wraps: each item until `f` keeps one, those it rejects
-				// dropped, the one it keeps held, part by part, past the loop.
+				// `find` of what it wraps, or `rfind`: each item until `f` keeps one, those it
+				// rejects dropped, the one it keeps held, part by part, past the loop.
 				let label = self.b.fresh("filter");
 				let mut body = Vec::new();
-				let x = self.read(inner, false, true, done, &mut body)?;
+				let x = self.read(inner, back, false, true, done, &mut body)?;
 				let held = used.then(|| self.keep(&x, item, out));
 				let mut then = Vec::new();
 				if let Some(held) = &held {
@@ -819,8 +935,26 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				);
 				held
 			}
+			Node::Enumerate { inner, count, .. } if back => {
+				// Counted down from its length as the first read starts, past what a zip
+				// around it trims.
+				out.push(
+					StmtKind::If {
+						cond: Expr::ident(count).binary("<", Expr::lit("0")),
+						then: vec![expr(Expr::ident(count).assign(self.len(inner)))],
+						els: Vec::new(),
+					}
+					.at(None),
+				);
+				let x = self.read(inner, back, indexed, used, done, out);
+				out.push(expr(Expr::Postfix(Box::new(Expr::ident(count)), "--")));
+				let x = x?;
+				let i = self.b.fresh("i");
+				out.push(StmtKind::decl(false, &i, None, Some(Expr::ident(count))).at(None));
+				Some(Val::Tuple(vec![Val::One(Expr::ident(i)), x]))
+			}
 			Node::Enumerate { inner, count, .. } => {
-				let x = self.read(inner, indexed, used, done, out);
+				let x = self.read(inner, back, indexed, used, done, out);
 				let n = Expr::Postfix(Box::new(Expr::ident(count)), "++");
 				let Some(x) = x else {
 					out.push(expr(n));
@@ -832,7 +966,13 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 			Node::Zip { a, b, how, .. } => {
 				let (x, y) = match how {
-					Zipped::Indexed { index, end } => {
+					Zipped::Indexed {
+						index,
+						end,
+						even,
+						effects,
+						drops,
+					} => {
 						out.push(
 							StmtKind::If {
 								cond: Expr::ident(index).binary(">=", Expr::ident(end)),
@@ -841,9 +981,33 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							}
 							.at(None),
 						);
-						out.push(expr(Expr::Postfix(Box::new(Expr::ident(index)), "++")));
-						let x = self.read(a, true, used, done, out);
-						(x, self.read(b, true, used, done, out))
+						match even {
+							// As `TrustedZipIter`'s `nextBack`: each side trimmed to the pairs
+							// left as the first read from the back starts.
+							Some(even) if back => {
+								let mut trim = Vec::new();
+								let left = self.b.fresh("left");
+								let pairs = Expr::ident(end).binary("-", Expr::ident(index));
+								trim.push(StmtKind::decl(false, &left, None, Some(pairs)).at(None));
+								for (side, (&effect, drop)) in [a, b].into_iter().zip(effects.iter().zip(drops)) {
+									let n = self.len(side).binary("-", Expr::ident(&left));
+									self.trim(side, n, effect, drop.as_ref(), &mut trim);
+								}
+								trim.push(expr(Expr::ident(even).assign(Expr::lit("true"))));
+								out.push(
+									StmtKind::If {
+										cond: Expr::ident(even).not(),
+										then: trim,
+										els: Vec::new(),
+									}
+									.at(None),
+								);
+								out.push(expr(Expr::Postfix(Box::new(Expr::ident(end)), "--")));
+							}
+							_ => out.push(expr(Expr::Postfix(Box::new(Expr::ident(index)), "++"))),
+						}
+						let x = self.read(a, back, true, used, done, out);
+						(x, self.read(b, back, true, used, done, out))
 					}
 					// `TrustedLen` sides, which never end before it.
 					Zipped::Counted { left } => {
@@ -856,22 +1020,116 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							.at(None),
 						);
 						out.push(expr(Expr::Postfix(Box::new(Expr::ident(left)), "--")));
-						let x = self.read(a, true, used, done, out);
-						(x, self.read(b, true, used, done, out))
+						let x = self.read(a, back, true, used, done, out);
+						(x, self.read(b, back, true, used, done, out))
 					}
 					Zipped::Next { drop } => {
 						// The first side's item drops where the second has ended.
-						let x = self.read(a, false, used || drop.is_some(), done, out);
+						let x = self.read(a, back, false, used || drop.is_some(), done, out);
 						let mut second = Vec::new();
 						if let (Some(drop), Some(x)) = (drop, &x) {
 							second.push(expr(drop.clone().call(vec![x.whole()])));
 						}
 						second.extend(done.iter().cloned());
-						(x, self.read(b, false, used, &second, out))
+						(x, self.read(b, back, false, used, &second, out))
+					}
+					// The longer side's items past the shorter's read and dropped as the first
+					// read starts, after which both have as many left: std's checks again on
+					// each read, which finds them even. Exact sides, which end together, but
+					// each is read even so: the second's read may trim a zip it holds.
+					Zipped::Back { even, drops } => {
+						let mut trim = Vec::new();
+						let (la, lb) = (self.b.fresh("len"), self.b.fresh("len"));
+						trim.push(StmtKind::decl(false, &la, None, Some(self.len(a))).at(None));
+						trim.push(StmtKind::decl(false, &lb, None, Some(self.len(b))).at(None));
+						let (la, lb) = (Expr::ident(la), Expr::ident(lb));
+						self.trim(
+							a,
+							la.clone().binary("-", lb.clone()),
+							true,
+							drops[0].as_ref(),
+							&mut trim,
+						);
+						self.trim(b, lb.binary("-", la), true, drops[1].as_ref(), &mut trim);
+						trim.push(expr(Expr::ident(even).assign(Expr::lit("true"))));
+						out.push(
+							StmtKind::If {
+								cond: Expr::ident(even).not(),
+								then: trim,
+								els: Vec::new(),
+							}
+							.at(None),
+						);
+						let mut ended = Vec::new();
+						self.read(b, back, indexed, false, done, &mut ended);
+						ended.extend(done.iter().cloned());
+						let x = self.read(a, back, indexed, used, &ended, out);
+						(x, self.read(b, back, indexed, used, done, out))
 					}
 				};
 				Some(Val::Tuple(vec![x?, y?]))
 			}
+		}
+	}
+
+	/// `n` items, if more than none, taken from the back of `node`, a side of a zip read
+	/// from the back, into `out`: read one at a time and dropped by `drop` if it may have
+	/// side effects, as the runtime's `trim` does, and else skipped as its `advanceBackBy`
+	/// skips them.
+	fn trim(&mut self, node: &Node, n: Expr, effect: bool, drop: Option<&Expr>, out: &mut Vec<Stmt>) {
+		if effect {
+			let (k, label) = (self.b.fresh("k"), self.b.fresh("trim"));
+			out.push(StmtKind::decl(true, &k, None, Some(n)).at(None));
+			let mut body = vec![StmtKind::Expr(Expr::Postfix(Box::new(Expr::ident(&k)), "--")).at(None)];
+			let done = vec![StmtKind::Break(Some(label.clone())).at(None)];
+			if let Some(x) = self.read(node, true, false, drop.is_some(), &done, &mut body)
+				&& let Some(drop) = drop
+			{
+				body.push(StmtKind::Expr(drop.clone().call(vec![x.whole()])).at(None));
+			}
+			out.push(
+				StmtKind::While {
+					label: Some(label),
+					cond: Expr::ident(k).binary(">", Expr::lit("0")),
+					body,
+				}
+				.at(None),
+			);
+			return;
+		}
+		match node {
+			Node::Leaf { var, .. } => {
+				let skip = Expr::ident(var).member("advanceBackBy").call(vec![n]);
+				out.push(StmtKind::Expr(skip).at(None));
+			}
+			Node::Enumerate { inner, .. } => self.trim(inner, n, false, None, out),
+			// As `TrustedZipIter`'s `advanceBackBy` where neither side has side effects: the
+			// pairs left past `n` of them, to which it trims each side.
+			Node::Zip {
+				a,
+				b,
+				how: Zipped::Indexed {
+					index,
+					end,
+					even: Some(even),
+					..
+				},
+				..
+			} => {
+				let left = self.b.fresh("left");
+				let pairs = Expr::ident(end).binary("-", Expr::ident(index)).binary("-", n);
+				let max = Expr::ident("Math").member("max").call(vec![pairs, Expr::lit("0")]);
+				out.push(StmtKind::decl(false, &left, None, Some(max)).at(None));
+				for side in [a, b] {
+					let n = self.len(side).binary("-", Expr::ident(&left));
+					self.trim(side, n, false, None, out);
+				}
+				let to = Expr::ident(index).binary("+", Expr::ident(left));
+				out.push(StmtKind::Expr(Expr::ident(end).assign(to)).at(None));
+				out.push(StmtKind::Expr(Expr::ident(even).assign(Expr::lit("true"))).at(None));
+			}
+			// Each other side by index may have side effects, which `chain_shape` checks.
+			_ => unreachable!("a side without side effects"),
 		}
 	}
 
@@ -906,9 +1164,11 @@ fn upper(node: &Node) -> Expr {
 			let hint = Expr::ident(var).member("sizeHint").call(Vec::new());
 			hint.index(Expr::lit("1")).binary("??", Expr::ident("Infinity"))
 		}
-		Node::Map { inner, .. } | Node::Filter { inner, .. } | Node::Enumerate { inner, .. } => upper(inner),
+		Node::Map { inner, .. } | Node::Filter { inner, .. } | Node::Enumerate { inner, .. } | Node::Rev { inner } => {
+			upper(inner)
+		}
 		Node::Zip {
-			how: Zipped::Indexed { index, end },
+			how: Zipped::Indexed { index, end, .. },
 			..
 		} => Expr::ident(end).binary("-", Expr::ident(index)),
 		Node::Zip {
@@ -943,6 +1203,19 @@ fn item_of(node: &Node) -> Type {
 		| Node::Filter { item, .. }
 		| Node::Enumerate { item, .. }
 		| Node::Zip { item, .. } => item.clone(),
+		Node::Rev { inner } => item_of(inner),
+	}
+}
+
+/// Whether the runtime reads `shape`, a side of a zip read by index from the back, by index
+/// as by `nextBack`: a leaf, a `map` or `enumerate` of one that is, or a zip of them
+/// neither of which has side effects, whose view by index is itself.
+fn by_index(shape: &Shape<'_>) -> bool {
+	match shape {
+		Shape::Leaf(..) => true,
+		Shape::Map(inner, ..) | Shape::Enumerate(inner, _) => by_index(inner),
+		Shape::Zip(a, b, Trusted::Indexed([false, false]), ..) => by_index(a) && by_index(b),
+		_ => false,
 	}
 }
 
