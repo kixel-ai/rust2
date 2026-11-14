@@ -1526,10 +1526,13 @@ fn go_package_names() {
 /// handle, refused bare.
 #[test]
 fn unreached_types() {
-	let package = package("unreached_types");
-	write_all(
-		&package,
+	let package = package(
+		"unreached_types",
 		&[
+			(
+				"ffi.toml",
+				"exclude = [\"seal\", \"bare\", \"opaque\", \"closed\", \"own\", \"Buffer::first\"]\n",
+			),
 			(
 				"Cargo.toml",
 				"[package]\nname = \"unreached_types\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"pkg\"\n\n\
@@ -1599,11 +1602,6 @@ fn unreached_types() {
 		],
 	);
 	// The export builds, naming `kio`'s types through its own dependency on `kio`.
-	std::fs::write(
-		package.join("ffi.toml"),
-		"exclude = [\"seal\", \"bare\", \"opaque\", \"closed\", \"own\", \"Buffer::first\"]\n",
-	)
-	.unwrap();
 	let out = package.join("out");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--config")
@@ -1628,11 +1626,12 @@ fn unreached_types() {
 		glue.contains("::net_reached::Link") && !glue.contains("Fault") && !glue.contains("net_reached::Handle"),
 		"{glue}"
 	);
+	// Apart from the export's own build, which cleans the facade each time.
 	run(cargo()
 		.arg("build")
 		.arg("--manifest-path")
 		.arg(out.join("Cargo.toml"))
-		.env("CARGO_TARGET_DIR", package.join("build")));
+		.env("CARGO_TARGET_DIR", package.join("glue")));
 	// Staged on another host, with the checkout elsewhere, the merged export depends on the
 	// exporting host's `kio`, not the staging host's, though only the staged target reaches it.
 	let staged = package.join("wasm.json");
@@ -1644,7 +1643,7 @@ fn unreached_types() {
 	let moved = scratch().join("unreached_types-moved");
 	let _ = std::fs::remove_dir_all(&moved);
 	for dir in ["src", "kio", "net", "conv"] {
-		copy_dir(&package.join(dir), &moved.join(dir));
+		step::mirror(&package.join(dir), &moved.join(dir));
 	}
 	for file in ["Cargo.toml", "ffi.toml"] {
 		std::fs::copy(package.join(file), moved.join(file)).unwrap();
@@ -3119,7 +3118,7 @@ fn config_patched() {
 /// package, or `*`, is an error at its line.
 #[test]
 fn profiled() {
-	let package = package("profiled");
+	let package = package("profiled", &[]);
 	let files = |spec: &str| {
 		write_all(
 			&package,
