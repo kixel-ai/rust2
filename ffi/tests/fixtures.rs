@@ -1500,7 +1500,7 @@ fn unreached_types() {
 	assert!(glue.contains("fn pkg_copied_again("), "{glue}");
 	// A conversion target only an `impl Into` names is reached, and taken.
 	assert!(
-		glue.contains("rt::Object::<::conv_reached::Value>::take(p0, w)"),
+		glue.contains("rt::Object::<::conv_reached::Value>::reserve(p0, takes, w)"),
 		"{glue}"
 	);
 	assert!(glue.contains("::kio_reached::Pending"), "{glue}");

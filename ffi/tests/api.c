@@ -709,8 +709,8 @@ static int script(void) {
 	printf("\n");
 	api_vec_tuple_string_Counter_free(ranked);
 	api_Counter *best = api_Board_best(board);
-	print("best ", api_Counter_name(best), " ");
-	printf("%llu\n", (unsigned long long)api_Counter_get(best));
+	print("best ", api_Counter_name(best, NULL), " ");
+	printf("%llu\n", (unsigned long long)api_Counter_get(best, NULL));
 	api_Counter_free(best);
 	api_Board_free(board);
 	/* A map crosses as its pairs and a set as its items, which Rust collects in order, each
