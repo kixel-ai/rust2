@@ -22,6 +22,5 @@ Ownership stays automatic: a dropped object is still freed without a call from t
 
 ## Related
 
-- [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - rewrites the same handle word; profile after it lands, or the baselines move
 - [Copy values](/quest/m1/ffi-export/copy-values.md) - removes the per-frame `Timestamp`
   object, the other half of Go's and Dart's stamped write

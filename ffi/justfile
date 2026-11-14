@@ -89,7 +89,8 @@ bench-build checkout="": (moq-export checkout)
     (cd target/bench-go && go build -o bench .)
     {{ quote(just_executable()) }} dart-program bench-dart moq/bench/export.dart
     rm -rf target/bench-kt
-    kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/bench/export.kt -d target/bench-kt
+    # moq.kt outgrew kotlinc's default 512M heap.
+    JAVA_OPTS="${JAVA_OPTS:--Xmx2g}" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/bench/export.kt -d target/bench-kt
     {{ quote(just_executable()) }} swift-module -O
     swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I target/swift-collections/build -I "$out/swift" moq/bench/export.swift target/swift/libMoq.a -L target/swift-collections/build -lBasicContainers -lInternalCollectionsUtilities -lSpanPreview "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-swift
 
@@ -173,7 +174,8 @@ moq checkout="": (moq-cpp checkout)
     target/moq-test
     # The Kotlin, on the JVM, through the JNI functions the kotlin feature builds.
     rm -rf target/moq-kt
-    kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/moq.kt -d target/moq-kt
+    # moq.kt outgrew kotlinc's default 512M heap.
+    JAVA_OPTS="${JAVA_OPTS:--Xmx2g}" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/moq.kt -d target/moq-kt
     kotlin -Djava.library.path="$out/target/release" -cp "target/moq-kt:$KOTLINX_COROUTINES" MoqKt
     # The Python, through the CPython extension the python feature builds, and its types
     # through mypy and pyright, as `api_py_types` checks the api fixture's.

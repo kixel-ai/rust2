@@ -1197,6 +1197,12 @@ int script() {
 		}).number();
 		std::printf("reissued %u %u, cloned %u\n", static_cast<unsigned>(given), static_cast<unsigned>(held),
 			static_cast<unsigned>(api::Ticket::clones()));
+		// A record's traits borrow the checked handle it holds.
+		api::Ticket nine = api::Ticket::new_(9);
+		api::Seat front = api::seat(nine, 1);
+		api::Seat back = api::seat(nine, 2);
+		print("seat ", front.debug(), "");
+		std::printf(" %s %s\n", front == front ? "true" : "false", front == back ? "true" : "false");
 	}
 	// A kept closure, called on another thread after the call that took it returned.
 	std::printf("spawned %u\n", static_cast<unsigned>(api::Spawned::new_([] { return 7; }).join()));

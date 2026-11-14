@@ -333,40 +333,52 @@ final class _Callback extends ffi.Struct {
   external ffi.Pointer<ffi.Void> data;
 }
 
-/// What an object owns: its handle, freed once closed and no call holds it, or once the
-/// garbage collector finds it unreachable. A lent one's Rust frees.
+/// What an object owns: its handle, or one Rust lends for a call, which Rust frees. An owned
+/// one of a value Rust checks is Rust's alone to account: [close] drops the value as Rust's
+/// own drop does, failing while a call borrows it, a call after it throws as Rust's check
+/// of a moved value does, and the handle is freed once the garbage collector finds this
+/// unreachable. Any other counts its calls: [close] frees it then, throwing while a call
+/// holds it, and a call after it throws.
 abstract base class _Object implements ffi.Finalizable {
   final ffi.Pointer<ffi.Void> _raw;
 
-  /// The owner's hold until closed, and one for each call.
+  /// The owner's hold until closed, and one for each call, of a counted one.
   int _holds = 1;
   bool _closed = false;
   final bool _owned;
 
+  /// Whether it counts its calls, rather than Rust.
+  final bool _counted;
+
   /// The garbage collector's hold of an owned one's handle, until freed.
   ffi.Pointer<ffi.Void> _own = ffi.nullptr;
 
-  _Object(this._raw, this._owned);
+  _Object(this._raw, bool owned, bool checked) : _owned = owned, _counted = !(owned && checked);
 
   String get _type;
 
   /// Free the handle and detach its finalizer.
   void _free();
 
+  /// Drop the value of one Rust checks, throwing [StateError] if a call borrows it.
+  void _drop() {}
+
   ffi.Pointer<ffi.Void> _hold() {
+    if (!_counted) return _raw;
     if (_closed) throw StateError('$_type is closed');
     _holds++;
     return _raw;
   }
 
   void _release() {
-    if (--_holds == 0 && _owned) _free();
+    if (_counted && --_holds == 0 && _owned) _free();
   }
 
-  /// Free the handle once no call holds it, rather than once the garbage collector finds
-  /// this unreachable: a call after it throws [StateError].
+  /// Close it as [_Object] says; again, it does nothing.
   void close() {
+    if (!_counted) return _drop();
     if (_closed) return;
+    if (_holds != 1) throw StateError('$_type: a handle is already borrowed');
     _closed = true;
     _release();
   }
@@ -590,6 +602,12 @@ final _n = _Native();
 
 final class _Native {
   late final _Stack stack = _Stack();
+
+  /// Where a call that can fail a check writes the failure: one for the isolate, since the
+  /// glue writes it on the isolate's thread as the call returns, once it served every call
+  /// queued meanwhile, and the call reads it before any other can run, and a failure
+  /// clears it.
+  late final ffi.Pointer<ffi.Int32> status = _dartAlloc(4).cast<ffi.Int32>()..value = 0;
   late final isolate.RawReceivePort _port;
   late final ffi.Pointer<ffi.Void> home;
 

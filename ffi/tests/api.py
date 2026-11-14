@@ -598,7 +598,7 @@ def script():
 	print(f"chunks {[list(data(chunk)) for chunk in api.chunks(b'abcde', 2)]}")
 	counters = api.counters(["x", "y"])
 	print("counters " + ", ".join(f"{c.name()} {c.get()}" for c in counters))
-	# Each counter moves in, so Python closes it.
+	# Each counter moves in, so a later call raises.
 	print(f"worth {api.worth([counters[0]], [counters[1]])} {api.worth(None, [])}")
 	for counter in counters:
 		try:
@@ -691,6 +691,9 @@ def script():
 	given = api.reissue(api.Ticket.new(7), lambda t: api.Ticket.new(t.number() + 1)).number()
 	held = api.reissue(api.Ticket.new(7), lambda _: kept).number()
 	print(f"reissued {given} {held}, cloned {api.Ticket.clones()}")
+	# A record's traits borrow the checked handle it holds.
+	front, back = api.seat(kept, 1), api.seat(kept, 2)
+	print(f"seat {front!r} {str(front == api.seat(kept, 1)).lower()} {str(front == back).lower()}")
 	# A kept closure, called on another thread after the call that took it returned.
 	print(f"spawned {api.Spawned.new(lambda: 7).join()}")
 	# A kept closure: called again at the instant it asks for, then once its waiter wakes.
@@ -1332,6 +1335,9 @@ def values():
 		(api.wasm_only, "api_wasm_only"),
 		(lambda: api.pointer_bits(api.Platform.Wasm(32)), "api_Platform.Wasm"),
 		(lambda: api.is_family(api.Family.WASM), "api_Family.Wasm"),
+		(api.Page.default, "api_Page_default"),
+		(lambda: repr(api.Page(size=1)), "api_Page_debug"),
+		(lambda: repr(api.Booth(ticket=api.Ticket.new(1))), "api_Booth_debug"),
 	]:
 		try:
 			f()

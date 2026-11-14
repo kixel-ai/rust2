@@ -90,8 +90,12 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\tstatic func contract() -> Swift.Bool {{\n\t\t{p}_contract() == 0x{contract:016x} && {upper}_CONTRACT == 0x{contract:016x}\n\t}}\n\n\
 		\t/// The index of the library's target among those this file serves.\n\
 		\tstatic let target = Swift.UInt64({p}_target())\n\n\
-		\t/// Traps unless the library's target is among those of `on`, as the item `what` is.\n\
-		\tstatic func on(_ on: Swift.UInt64, _ what: Swift.String) {{\n\t\tif (on >> target) & 1 == 0 {{\n\t\t\tfatalError(\"\\(what): it is not on this library's target\")\n\t\t}}\n\t}}\n\n\
+		\t/// Throws unless the library's target is among those of `on`, as the item `what` is.\n\
+		\tstatic func on(_ on: Swift.UInt64, _ what: Swift.String) throws {{\n\t\tif (on >> target) & 1 == 0 {{\n\t\t\tthrow CheckError(function: what, message: \"it is not on this library's target\")\n\t\t}}\n\t}}\n\n\
+		\t/// Traps unless the library's target is among those of `on`, where nothing can throw.\n\
+		\tstatic func onOrTrap(_ on: Swift.UInt64, _ what: Swift.String) {{\n\t\tif (on >> target) & 1 == 0 {{\n\t\t\tfatalError(\"\\(what): it is not on this library's target\")\n\t\t}}\n\t}}\n\n\
+		\t/// Throws what `status`, written by a call of `what`, says it failed, if anything.\n\
+		\t@inline(__always)\n\tstatic func status(_ status: Swift.Int32, _ what: Swift.StaticString) throws {{\n\t\tif status != 0 {{\n\t\t\tthrow CheckError(function: \"\\(what)\", message: Swift.String(cString: {p}_status_message(status)))\n\t\t}}\n\t}}\n\n\
 		\tstatic func free(_ buf: Buf) {{\n\t\t{p}_buf_free(buf)\n\t}}\n\n\
 		\t/// A buffer Rust owns, holding a copy of what `view` lends.\n\
 		\tstatic func copy(_ view: Buf) -> Buf {{\n\t\t{p}_buf_copy(view)\n\t}}\n\n\
@@ -145,6 +149,7 @@ const TAKEN: &[&str] = &[
 	"Bool",
 	"Bytes",
 	"CancellationError",
+	"CheckError",
 	"Comparable",
 	"CustomDebugStringConvertible",
 	"CustomStringConvertible",
@@ -199,6 +204,10 @@ struct Arg {
 	open: Option<(String, String)>,
 	exprs: Vec<String>,
 	after: Vec<String>,
+	/// Whether an expression gives Rust a retained box, which only the call takes.
+	gives: bool,
+	/// Whether its lowering, its one expression, throws.
+	throws: bool,
 }
 
 struct Gen<'a> {
@@ -225,13 +234,27 @@ struct Gen<'a> {
 }
 
 impl<'a> Gen<'a> {
-	/// The statement that traps unless the library's target is among those of `on`, as the
-	/// item `what` is, then `then`; or `then` alone if it is on every target.
-	fn on(&self, on: On, what: &str, then: &str) -> String {
+	/// The statement that throws, if the body around it can, or else traps, unless the
+	/// library's target is among those of `on`, as the item `what` is, then `then`; or `then`
+	/// alone if it is on every target.
+	fn on(&self, on: On, what: &str, then: &str, throws: bool) -> String {
 		let api = self.abi.api;
+		let check = match throws {
+			true => "try Native.on",
+			false => "Native.onOrTrap",
+		};
 		match api.everywhere(on) {
 			true => then.to_string(),
-			false => format!("Native.on({}, \"{what}\"){then}", on.0 & api.all().0),
+			false => format!("{check}({}, \"{what}\"){then}", on.0 & api.all().0),
+		}
+	}
+
+	/// The status a trait function of object `i` takes, if any: none, so a failed check
+	/// aborts, where nothing can throw.
+	fn nil(&self, i: usize) -> &'static str {
+		match self.abi.traits_status(i) {
+			true => ", nil",
+			false => "",
 		}
 	}
 
@@ -412,6 +435,27 @@ impl<'a> Gen<'a> {
 		}
 	}
 
+	/// Whether lowering a `ty` nested in another value can throw: it holds a class whose
+	/// value a move takes, closing its handle.
+	fn throwing(&self, ty: &Type) -> bool {
+		let mut handles = Vec::new();
+		self.abi.api.handles(ty, &mut handles, &mut Vec::new());
+		handles.into_iter().any(|i| self.held(i))
+	}
+
+	/// Whether object `i` is a class a move may close, whose hold for a call can fail.
+	fn held(&self, i: usize) -> bool {
+		self.abi.traits_status(i) && !self.unique(&Type::Object(i))
+	}
+
+	/// `lowered`, a lowering in a function that cannot throw, trapping instead.
+	fn trapping(lowered: String) -> String {
+		match lowered.contains("try ") {
+			true => format!("try! {lowered}"),
+			false => lowered,
+		}
+	}
+
 	/// The arena argument a value's `_lower` takes, if it needs one.
 	fn arena_arg(&self, ty: &Type) -> &'static str {
 		match self.arena(ty) {
@@ -451,8 +495,13 @@ impl<'a> Gen<'a> {
 					true => "unique",
 					false => "list",
 				};
+				// A hold that throws makes the list's lowering throw.
+				let t = match item.contains("try ") {
+					true => "try ",
+					false => "",
+				};
 				format!(
-					"Native.vec(a_.{list}({e}) {{ {x} in {item} }}, {}.init(ptr:len:owner:))",
+					"Native.vec({t}a_.{list}({e}) {{ {x} in {item} }}, {}.init(ptr:len:owner:))",
 					abi.list(inner)
 				)
 			}
@@ -470,26 +519,40 @@ impl<'a> Gen<'a> {
 						)
 					}
 				};
-				format!("Native.option({e}, {{ {v} in {some} }}, {none})")
+				let t = match some.contains("try ") {
+					true => "try ",
+					false => "",
+				};
+				format!("{t}Native.option({e}, {{ {v} in {some} }}, {none})")
 			}
 			Type::Option(inner) => match inner.base() {
+				Type::Object(i) if self.held(*i) => format!("try a_.held({e}?.handle)"),
 				Type::Object(_) => format!("a_.hold({e}?.handle)"),
 				_ if Abi::is_buf(inner) => format!("a_.buf({e})"),
 				Type::List(_, elem) => {
 					let v = self.fresh("v");
 					let some = self.lower(inner, &v);
-					format!("({e}.map {{ {v} in {some} }} ?? {}())", abi.list(elem))
+					let t = if some.contains("try ") { "try " } else { "" };
+					format!("({t}{e}.map {{ {v} in {some} }} ?? {}())", abi.list(elem))
 				}
 				_ => {
 					let c = abi.option(inner);
 					let v = self.fresh("v");
 					let some = self.lower(inner, &v);
-					format!("({e}.map {{ {v} in {c}(some: true, value: {some}) }} ?? {c}())")
+					let t = if some.contains("try ") { "try " } else { "" };
+					format!("({t}{e}.map {{ {v} in {c}(some: true, value: {some}) }} ?? {c}())")
 				}
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.lower(inner, e),
-			Type::Record(_) | Type::Enum(_) => format!("{e}._lower({})", self.arena_arg(ty)),
+			Type::Record(_) | Type::Enum(_) => {
+				let t = match self.throwing(ty) {
+					true => "try ",
+					false => "",
+				};
+				format!("{t}{e}._lower({})", self.arena_arg(ty))
+			}
 			Type::Object(_) if self.unique(ty) => format!("{e}.handle"),
+			Type::Object(i) if self.held(*i) => format!("try a_.held({e}.handle)"),
 			Type::Object(_) => format!("a_.hold({e}.handle)"),
 			Type::Callback(i, _) => format!("Native.lower_{}({e})", abi.callback(*i)),
 			Type::Tuple(elements) => {
@@ -767,79 +830,128 @@ impl<'a> Gen<'a> {
 		let name = self.sw(ty);
 		let object = matches!(ty, Type::Object(_));
 		let unique = self.unique(ty);
-		// The receiver: a struct's handle, a class's held, or the value lowered.
-		let (open, this, close) = match object {
-			true if unique => (String::new(), "self.handle", ""),
-			true => ("self.handle.with { h_ in ".to_string(), "h_", " }"),
-			false => {
-				let arena = match self.arena(ty) {
-					true => "let a_ = Native.Arena()\n\t\tdefer { a_.finish() }\n\t\t",
-					false => "",
-				};
-				(
+		// One whose checks can fail throws, so conforms to no protocol of these, whose
+		// requirements cannot throw; any other's checks never fail.
+		let status = self.abi.traits_status_of(ty);
+		// The statements lowering a value receiver for the function `what`, which on a target
+		// the type is not on throws where it can.
+		let value = |what: &str| {
+			let arena = match self.arena(ty) {
+				true => format!("let a_ = Native.Arena(\"{what}\")\n\t\tdefer {{ a_.finish() }}\n\t\t"),
+				false => String::new(),
+			};
+			format!(
+				"{}Native.check()\n\t\t{arena}",
+				self.on(self.on, what, "\n\t\t", status)
+			)
+		};
+		let lower = match self.throwing(ty) {
+			true => format!("try self._lower({})", self.arena_arg(ty)),
+			false => format!("self._lower({})", self.arena_arg(ty)),
+		};
+		// The statements calling `call`, the C call with its arguments, unclosed, of the
+		// function `what`, returning `lift` of its result.
+		let call = |call: &str, what: &str, lift: &dyn Fn(&str) -> String| match status {
+			true => format!(
+				"var s_: Swift.Int32 = 0\n\t\tlet r_ = {call}, &s_)\n\t\ttry Native.status(s_, \"{what}\")\n\t\treturn {}",
+				lift("r_")
+			),
+			false => format!("return {}", lift(&format!("{call})"))),
+		};
+		// The body calling `{c}_<suffix>` of the receiver, returning `lift` of its result.
+		let unary = |suffix: &str, lift: &dyn Fn(&str) -> String| {
+			let what = format!("{c}_{suffix}");
+			match (object, unique) {
+				(true, true) => call(&format!("{what}(self.handle"), &what, lift),
+				(true, false) => {
+					let with = match status {
+						true => format!("try self.handle.with(\"{what}\")"),
+						false => "self.handle.with".to_string(),
+					};
 					format!(
-						"{}Native.check()\n\t\t{arena}var c_ = self._lower({})\n\t\treturn ",
-						self.on(self.on, c, "\n\t\t"),
-						self.arena_arg(ty)
-					),
-					"&c_",
-					"",
-				)
+						"return {with} {{ h_ in\n\t\t\t{}\n\t\t}}",
+						call(&format!("{what}(h_"), &what, lift).replace("\n\t\t", "\n\t\t\t")
+					)
+				}
+				(false, _) => format!(
+					"{}var c_ = {lower}\n\t\t{}",
+					value(&what),
+					call(&format!("{what}(&c_"), &what, lift)
+				),
 			}
 		};
-		let text = |open: &str, call: &str| match object {
-			true => format!("Native.string({open}{call}{close})"),
-			false => format!("{open}Native.string({call})"),
+		let throws = match status {
+			true => " throws",
+			false => "",
 		};
+		// A property's body, in a getter that throws if the call can.
+		let getter = |body: String| match status {
+			true => format!("get throws {{\n\t\t\t{}\n\t\t}}", body.replace("\n\t\t", "\n\t\t\t")),
+			false => body,
+		};
+		let text = |r: &str| format!("Native.string({r})");
 		if t.display {
-			protocols.push("CustomStringConvertible");
+			if !status {
+				protocols.push("CustomStringConvertible");
+			}
 			members.push("description".to_string());
 			body.push(format!(
 				"\tpublic var description: Swift.String {{\n\t\t{}\n\t}}\n",
-				text(&open, &format!("{c}_to_string({this})"))
+				getter(unary("to_string", &text))
 			));
 		}
 		if t.debug {
-			protocols.push("CustomDebugStringConvertible");
+			if !status {
+				protocols.push("CustomDebugStringConvertible");
+			}
 			members.push("debugDescription".to_string());
 			body.push(format!(
 				"\t/// Rust's `Debug` form.\n\tpublic var debugDescription: Swift.String {{\n\t\t{}\n\t}}\n",
-				text(&open, &format!("{c}_debug({this})"))
+				getter(unary("debug", &text))
 			));
 		}
 		if object && t.clone {
 			members.push("clone".to_string());
-			let raw = match unique {
-				true => format!("{c}_clone(self.handle)"),
-				false => format!("self.handle.with {{ {c}_clone($0) }}"),
-			};
+			let lift = |r: &str| format!("{name}(raw: {r})");
 			body.push(format!(
-				"\t/// A new handle to a clone.\n\tpublic func clone() -> {name} {{\n\t\t{name}(raw: {raw})\n\t}}\n"
+				"\t/// A new handle to a clone.\n\tpublic func clone(){throws} -> {name} {{\n\t\t{}\n\t}}\n",
+				unary("clone", &lift)
 			));
 		}
 		if t.eq {
-			protocols.push("Equatable");
-			let compare = match object {
-				true if unique => format!("{c}_eq(a.handle, b.handle)"),
-				true => format!("a.handle.with {{ a_ in b.handle.with {{ b_ in {c}_eq(a_, b_) }} }}"),
-				false => {
-					let arena = match self.arena(ty) {
-						true => "let a_ = Native.Arena()\n\t\tdefer { a_.finish() }\n\t\t",
-						false => "",
+			if !status {
+				protocols.push("Equatable");
+			}
+			let what = format!("{c}_eq");
+			let same = |r: &str| r.to_string();
+			let compare = match (object, unique) {
+				(true, true) => call(&format!("{what}(a.handle, b.handle"), &what, &same),
+				(true, false) => {
+					let with = |h: &str| match status {
+						true => format!("try {h}.handle.with(\"{what}\")"),
+						false => format!("{h}.handle.with"),
 					};
-					let arg = self.arena_arg(ty);
 					format!(
-						"{}Native.check()\n\t\t{arena}var ca_ = a._lower({arg})\n\t\tvar cb_ = b._lower({arg})\n\t\treturn {c}_eq(&ca_, &cb_)",
-						self.on(self.on, c, "\n\t\t")
+						"return {} {{ a_ in {} {{ b_ in\n\t\t\t{}\n\t\t}} }}",
+						with("a"),
+						with("b"),
+						call(&format!("{what}(a_, b_"), &what, &same).replace("\n\t\t", "\n\t\t\t")
 					)
 				}
+				(false, _) => format!(
+					"{}var ca_ = {}\n\t\tvar cb_ = {}\n\t\t{}",
+					value(&what),
+					lower.replacen("self.", "a.", 1),
+					lower.replacen("self.", "b.", 1),
+					call(&format!("{what}(&ca_, &cb_"), &what, &same)
+				),
 			};
 			let borrowing = match unique {
 				true => "borrowing ",
 				false => "",
 			};
 			body.push(format!(
-				"\tpublic static func == (a: {borrowing}{name}, b: {borrowing}{name}) -> Swift.Bool {{\n\t\t{compare}\n\t}}\n"
+				"\tpublic static func == (a: {borrowing}{name}, b: {borrowing}{name}){throws} -> Swift.Bool {{\n\t\t{compare}\n\t}}\n"
 			));
 		}
 		if t.default {
@@ -848,9 +960,15 @@ impl<'a> Gen<'a> {
 				Type::Object(_) => format!("{name}(raw: {c}_default())"),
 				_ => format!("{name}._lift({c}_default())"),
 			};
+			// A constructor the target lacks throws, as a function's call does.
+			let limited = !self.abi.api.everywhere(self.on);
+			let throws = match limited {
+				true => " throws",
+				false => "",
+			};
 			body.push(format!(
-				"\t/// Rust's `Default`.\n\tpublic static func `default`() -> {name} {{\n\t\t{}Native.check()\n\t\treturn {lift}\n\t}}\n",
-				self.on(self.on, c, "\n\t\t")
+				"\t/// Rust's `Default`.\n\tpublic static func `default`(){throws} -> {name} {{\n\t\t{}Native.check()\n\t\treturn {lift}\n\t}}\n",
+				self.on(self.on, &format!("{c}_default"), "\n\t\t", limited)
 			));
 		}
 	}
@@ -925,8 +1043,12 @@ impl<'a> Gen<'a> {
 			"\tstatic func _lift(_ c: {c}) -> {name} {{\n\t\t{name}({})\n\t}}\n",
 			lifted.join(", ")
 		));
+		let throws = match self.throwing(&ty) {
+			true => " throws",
+			false => "",
+		};
 		body.push(format!(
-			"\tfunc _lower({arena}) -> {c} {{\n\t\t{c}({})\n\t}}\n",
+			"\tfunc _lower({arena}){throws} -> {c} {{\n\t\t{c}({})\n\t}}\n",
 			lowered.join(", ")
 		));
 		let text = format!("{rust}\n\n{}", record.docs);
@@ -973,7 +1095,7 @@ impl<'a> Gen<'a> {
 				false => cases.push(format!("\tcase {case}({})\n", fields.join(", "))),
 			}
 			// A value of a variant the library's target lacks is refused as it crosses.
-			let refused = self.on(variant.on, &format!("{c}.{}", variant.name), "\n\t\t\t");
+			let refused = self.on(variant.on, &format!("{c}.{}", variant.name), "\n\t\t\t", false);
 			if e.plain() {
 				lifts.push(format!("\t\tcase {tag}: return .{case}"));
 				lowers.push(format!("\t\tcase .{case}:\n\t\t\t{refused}return {tag}"));
@@ -1032,7 +1154,11 @@ impl<'a> Gen<'a> {
 				lowers.join("\n")
 			),
 			false => format!(
-				"\tfunc _lower({arena}) -> {c} {{\n\t\tvar c = {c}()\n\t\tswitch self {{\n{}\n\t\t}}\n\t\treturn c\n\t}}\n",
+				"\tfunc _lower({arena}){} -> {c} {{\n\t\tvar c = {c}()\n\t\tswitch self {{\n{}\n\t\t}}\n\t\treturn c\n\t}}\n",
+				match self.throwing(&ty) {
+					true => " throws",
+					false => "",
+				},
 				lowers.join("\n")
 			),
 		});
@@ -1131,7 +1257,7 @@ impl<'a> Gen<'a> {
 			let call = format!("Box<any {name}>.unbox(data).{member}({})", args.join(", "));
 			let call = match method.ok {
 				Type::Unit => call,
-				_ => self.lower(&method.ok, &call),
+				_ => Self::trapping(self.lower(&method.ok, &call)),
 			};
 			let mut closure_params = vec!["data".to_string()];
 			closure_params.extend(ps);
@@ -1202,7 +1328,7 @@ impl<'a> Gen<'a> {
 
 	/// How the call passes `param`, the C parameter `c`, whose Swift value is `e`, the
 	/// `k`th, which `function` takes.
-	fn arg(&mut self, ty: &Type, c: &Ty, e: &str, k: usize, tr: &str) -> (Arg, bool) {
+	fn arg(&mut self, ty: &Type, c: &Ty, e: &str, k: usize, tr: &str, what: &str) -> (Arg, bool) {
 		let abi = self.abi;
 		let mut arg = Arg::default();
 		let mut arena = false;
@@ -1215,6 +1341,7 @@ impl<'a> Gen<'a> {
 				let sw = self.sw(ty);
 				arg.exprs.push(self.trampoline(ty, closure_));
 				arg.exprs.push(format!("Native.Box<{sw}>.give({e})"));
+				arg.gives = true;
 				arg.exprs
 					.push(format!("{{ data_ in Native.Box<{sw}>.release(data_) }}"));
 			}
@@ -1234,9 +1361,18 @@ impl<'a> Gen<'a> {
 				arg.open = Some((format!("{tr}Native.reader(&{e}) {{ {r} in"), "}".to_string()));
 				arg.exprs.push(r);
 			}
-			(Type::Callback(i, _), _) => arg.exprs.push(format!("Native.lower_{}({e})", abi.callback(*i))),
-			(Type::Waker, _) => arg.exprs.push(format!("Native.waker({e})")),
-			(Type::Future, _) => arg.exprs.push(format!("Native.future({e})")),
+			(Type::Callback(i, _), _) => {
+				arg.exprs.push(format!("Native.lower_{}({e})", abi.callback(*i)));
+				arg.gives = true;
+			}
+			(Type::Waker, _) => {
+				arg.exprs.push(format!("Native.waker({e})"));
+				arg.gives = true;
+			}
+			(Type::Future, _) => {
+				arg.exprs.push(format!("Native.future({e})"));
+				arg.gives = true;
+			}
 			(ty, Ty::Buf) if Abi::is_buf(ty) || matches!(ty.base(), Type::Option(inner) if Abi::is_buf(inner)) => {
 				let b = format!("b{k}_");
 				arg.open = Some((format!("{tr}Native.take({e}) {{ {b} in"), "}".to_string()));
@@ -1250,15 +1386,17 @@ impl<'a> Gen<'a> {
 			(ty, Ty::Handle { .. }) => {
 				let h = format!("h{k}_");
 				let open = match ty.base() {
-					Type::Option(_) => format!("{tr}Native.with({e}?.handle) {{ {h} in"),
-					_ => format!("{tr}{e}.handle.with {{ {h} in"),
+					Type::Option(_) => format!("{tr}Native.with({what}{e}?.handle, {{ {h} in"),
+					_ => format!("{tr}{e}.handle.with({what}{{ {h} in"),
 				};
-				arg.open = Some((open, "}".to_string()));
+				arg.open = Some((open, "})".to_string()));
 				arg.exprs.push(h);
 			}
 			(ty, _) => {
 				arena = self.arena(ty);
-				arg.exprs.push(self.lower(ty, e));
+				let lowered = self.lower(ty, e);
+				arg.throws = lowered.contains("try ");
+				arg.exprs.push(lowered);
 			}
 		}
 		(arg, arena)
@@ -1307,7 +1445,12 @@ impl<'a> Gen<'a> {
 					args.push(l);
 				}
 				// A `Copy` object, which Swift's class holds a copy of.
-				Type::Object(i) => args.push(format!("{}(raw: {}_copy({p}))", self.sw(ty), self.abi.object(*i))),
+				Type::Object(i) => args.push(format!(
+					"{}(raw: {}_copy({p}{}))",
+					self.sw(ty),
+					self.abi.object(*i),
+					self.nil(*i)
+				)),
 				ty => args.push(self.lift_lent(ty, p)),
 			}
 		}
@@ -1362,18 +1505,20 @@ impl<'a> Gen<'a> {
 			// Kept alive while its handle is copied: once `.handle` is read, ARC may release
 			// the object, whose deinit would free the handle first.
 			Type::Object(i) => format!(
-				"withExtendedLifetime({e}) {{ r_ in r_.handle.with {{ {}_copy($0) }} }}",
-				abi.object(*i)
+				"withExtendedLifetime({e}) {{ r_ in r_.handle.with {{ {}_copy($0{}) }} }}",
+				abi.object(*i),
+				self.nil(*i)
 			),
 			Type::Option(inner) => match &**inner {
 				Type::Str | Type::String => format!("({e}.map {{ Native.owned($0) }} ?? Native.none)"),
 				Type::Object(i) => format!(
-					"withExtendedLifetime({e}) {{ r_ in r_?.handle.with {{ {}_copy($0) }} ?? nil }}",
-					abi.object(*i)
+					"withExtendedLifetime({e}) {{ r_ in r_?.handle.with {{ {}_copy($0{}) }} ?? nil }}",
+					abi.object(*i),
+					self.nil(*i)
 				),
-				_ => self.lower(ty, e),
+				_ => Self::trapping(self.lower(ty, e)),
 			},
-			ty => self.lower(ty, e),
+			ty => Self::trapping(self.lower(ty, e)),
 		}
 	}
 
@@ -1453,19 +1598,29 @@ impl<'a> Gen<'a> {
 			Some(Receiver::Mut) if unique => "mutating ",
 			_ => "",
 		};
-		// Only a future or a `Result` throws, and a future only once it is awaited.
-		let throws = function.future || function.err.is_some();
+		// A call that can fail a check throws, as do a future and a `Result`.
+		let status = export.call.status().is_some();
+		let everywhere = abi.api.everywhere(function.on);
+		let throws = function.future || function.err.is_some() || status || !everywhere;
 		// A future's error throws from the call that starts it, as from its polls.
-		let tr = match function.err.is_some() {
+		let tr = match function.err.is_some() || status {
 			true => "try ",
 			false => "",
+		};
+		// A class's handle closed throws where the call can.
+		let what = match status {
+			true => format!("\"{c_name}\", "),
+			false => String::new(),
 		};
 		let mut prelude = Vec::new();
 		if !object {
 			prelude.push("Native.check()".to_string());
 		}
-		if !abi.api.everywhere(function.on) {
-			prelude.push(self.on(function.on, &c_name, ""));
+		if !everywhere {
+			prelude.push(format!(
+				"try Native.on({}, \"{c_name}\")",
+				function.on.0 & abi.api.all().0
+			));
 		}
 		let mut arena = false;
 		let mut args: Vec<Arg> = Vec::new();
@@ -1477,7 +1632,7 @@ impl<'a> Gen<'a> {
 			match c {
 				Ty::Handle { .. } if unique => arg.exprs.push("self.handle".to_string()),
 				Ty::Handle { .. } => {
-					arg.open = Some((format!("{tr}self.handle.with {{ h_ in"), "}".to_string()));
+					arg.open = Some((format!("{tr}self.handle.with({what}{{ h_ in"), "})".to_string()));
 					arg.exprs.push("h_".to_string());
 					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
 					if receiver == Receiver::Owned && !copy {
@@ -1486,7 +1641,11 @@ impl<'a> Gen<'a> {
 				}
 				_ => {
 					arena |= self.arena(&ty);
-					prelude.push(format!("var c_self_ = self._lower({})", self.arena_arg(&ty)));
+					let t = match self.throwing(&ty) {
+						true => "try ",
+						false => "",
+					};
+					prelude.push(format!("var c_self_ = {t}self._lower({})", self.arena_arg(&ty)));
 					arg.exprs.push("&c_self_".to_string());
 				}
 			}
@@ -1532,13 +1691,25 @@ impl<'a> Gen<'a> {
 				(false, _) => self.ownership(&param.ty),
 			};
 			params.push(format!("_ {name}: {ownership}{}", self.sw(&param.ty)));
-			let (arg, needs) = self.arg(&param.ty, c, name, k, tr);
+			let (arg, needs) = self.arg(&param.ty, c, name, k, tr, &what);
 			arena |= needs;
 			args.push(arg);
 		}
-		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
+		// What runs once the call returns, gated on its checks passing when it can fail one:
+		// a failed check, or an argument whose lowering throws, leaves every argument as it
+		// was, as Rust ran nothing.
+		let ran =
+			status && (function.params.iter().any(|p| p.ty.written()) || args.iter().any(|a| !a.after.is_empty()));
+		if ran {
+			prelude.push("var c_ran_ = false".to_string());
+		}
+		let gate = |stmts: &str| match ran {
+			true => format!("defer {{ if c_ran_ {{ {stmts} }} }}"),
+			false => format!("defer {{ {stmts} }}"),
+		};
 		// Each value passed for `&mut` takes what Rust wrote back, once the call's own
-		// access to it ends, on every path, a throw included.
+		// access to it ends, on every path the call ran, a throw included.
 		let mut written = Vec::new();
 		for (param, name) in function.params.iter().zip(&names).filter(|(p, _)| p.ty.written()) {
 			let out = Abi::written(function, &abi::escape(&param.name));
@@ -1548,20 +1719,28 @@ impl<'a> Gen<'a> {
 				.expect("a written parameter has its out");
 			prelude.push(self.out_decl(&out, ty));
 			let lifted = self.lift(param.ty.base(), &format!("c_{out}_"));
-			prelude.push(format!("defer {{ {name} = {lifted} }}"));
+			prelude.push(gate(&format!("{name} = {lifted}")));
 			written.push(out);
 		}
 		if arena {
 			prelude.insert(
 				1.min(prelude.len()),
-				"let a_ = Native.Arena()\ndefer { a_.finish() }".to_string(),
+				format!("let a_ = Native.Arena(\"{c_name}\")\ndefer {{ a_.finish() }}"),
 			);
 			// Past the receiver, which Rust only reads, Rust takes each value passed.
 			prelude.push("a_.take = true".to_string());
 		}
 		let after: Vec<String> = args.iter().flat_map(|a| a.after.clone()).collect();
 		if !after.is_empty() {
-			prelude.push(format!("defer {{ {} }}", after.join("; ")));
+			prelude.push(gate(&after.join("; ")));
+		}
+		// A lowering that throws runs before any box is given, which the call alone would
+		// take: a throw between them would leak it.
+		if args.iter().any(|a| a.gives) {
+			for (k, arg) in args.iter_mut().enumerate().filter(|(_, a)| a.throws) {
+				prelude.push(format!("let c_arg{k}_ = {}", arg.exprs[0]));
+				arg.exprs[0] = format!("c_arg{k}_");
+			}
 		}
 		let exprs: Vec<String> = args.iter().flat_map(|a| a.exprs.clone()).collect();
 
@@ -1574,12 +1753,37 @@ impl<'a> Gen<'a> {
 		let thrown = err.as_ref().map(|e| self.thrown(e));
 
 		let mut inner = Vec::new();
+		// A failed check writes its status, which throws once the call returns.
+		let (status_arg, check) = match status {
+			true => {
+				inner.push("var c_status_: Swift.Int32 = 0".to_string());
+				(
+					vec!["&c_status_".to_string()],
+					Some(match ran {
+						true => format!("try Native.status(c_status_, \"{c_name}\")\nc_ran_ = true"),
+						false => format!("try Native.status(c_status_, \"{c_name}\")"),
+					}),
+				)
+			}
+			false => (Vec::new(), None),
+		};
 		let tail;
-		// What a cancelled task runs instead of the start: the call alone, whose future
-		// it drops unpolled, as Rust drops one it never awaits.
+		// The call that makes the future unpolled, as `f_`, its status checked: what an eager
+		// call starts with, and, freed, what a cancelled task runs instead of the start, as
+		// Rust drops a future it never awaits.
+		let call = format!(
+			"{c_name}({})",
+			exprs.iter().chain(&status_arg).cloned().collect::<Vec<_>>().join(", ")
+		);
+		let made = check
+			.as_ref()
+			.map(|check| format!("var c_status_: Swift.Int32 = 0\nlet f_ = {call}\n{check}"));
 		let mut cancelled = None;
 		if let Some(abi::Future { start, poll, free, .. }) = &export.future {
-			cancelled = Some(format!("{}({c_name}({}))", free.name, exprs.join(", ")));
+			cancelled = Some(match &made {
+				Some(made) => format!("{made}\n{}(f_)", free.name),
+				None => format!("{}({call})", free.name),
+			});
 			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
 			let decls: Vec<String> = poll_outs.iter().map(|(n, ty)| self.out_decl(n, ty)).collect();
 			let ptrs: Vec<String> = poll_outs.iter().map(|(n, _)| format!("&c_{n}_")).collect();
@@ -1603,12 +1807,17 @@ impl<'a> Gen<'a> {
 			let start_args: Vec<String> = (exprs.iter().cloned())
 				.chain(ptrs.iter().cloned())
 				.chain(["&f_".to_string()])
+				.chain(status_arg.iter().cloned())
 				.collect();
-			inner.push(format!(
-				"switch {}({}) {{\n{cases}\n}}",
-				start.name,
-				start_args.join(", ")
-			));
+			let started = format!("{}({})", start.name, start_args.join(", "));
+			match &check {
+				Some(check) => {
+					inner.push(format!("let c_poll_ = {started}"));
+					inner.push(check.clone());
+					inner.push(format!("switch c_poll_ {{\n{cases}\n}}"));
+				}
+				None => inner.push(format!("switch {started} {{\n{cases}\n}}")),
+			}
 			let mut body = decls;
 			let call_args: Vec<String> = ["f_".to_string(), "w_".to_string()].into_iter().chain(ptrs).collect();
 			body.push(format!(
@@ -1628,6 +1837,7 @@ impl<'a> Gen<'a> {
 			}
 			let mut call_args = exprs.clone();
 			call_args.extend(outs.iter().map(|(n, _)| format!("&c_{n}_")));
+			call_args.extend(status_arg);
 			let call = format!("{c_name}({})", call_args.join(", "));
 			match (&err, &ok) {
 				(Some(err), ok) => {
@@ -1635,21 +1845,33 @@ impl<'a> Gen<'a> {
 						Type::Unit => "return".to_string(),
 						_ => format!("return {}", self.lift_outs(&function.ok, ok)),
 					};
-					inner.push(format!("if {call} {{\n\t{ready}\n}}"));
+					match &check {
+						Some(check) => {
+							inner.push(format!("let c_ok_ = {call}"));
+							inner.push(check.clone());
+							inner.push(format!("if c_ok_ {{\n\t{ready}\n}}"));
+						}
+						None => inner.push(format!("if {call} {{\n\t{ready}\n}}")),
+					}
 					let lifted = self.lift(err, "c_err_");
 					inner.push(format!(
 						"throw {}",
 						thrown_value(thrown.as_ref().expect("an error throws"), &lifted)
 					));
 				}
-				(None, Type::Unit) => inner.push(call),
+				(None, Type::Unit) => {
+					inner.push(call);
+					inner.extend(check);
+				}
 				// A value C returns beside what Rust wrote back is its return, as with none.
 				(None, ok) if outs.iter().any(|(n, _)| !written.contains(n)) => {
 					inner.push(call);
+					inner.extend(check);
 					inner.push(format!("return {}", self.lift_outs(&function.ok, ok)));
 				}
 				(None, ok) => {
 					inner.push(format!("let c_ret_ = {call}"));
+					inner.extend(check);
 					inner.push(format!("return {}", self.lift(ok, "c_ret_")));
 				}
 			}
@@ -1683,12 +1905,24 @@ impl<'a> Gen<'a> {
 			// and a callback may cancel the task: so it is made, then `Native.made` checks the
 			// task before its first poll, never started.
 			Some(tail) if function.eager => {
-				let made = wrap(format!("{c_name}({})", exprs.join(", ")), false);
-				body.push(format!("let f_ = {}", made.strip_prefix("return ").unwrap_or(&made)));
+				match &made {
+					// Made by a call of several lines, which binds `f_` itself unwrapped.
+					Some(made) => {
+						let wrapped = wrap(format!("{made}\nreturn f_"), true);
+						match wrapped.strip_prefix("return ") {
+							Some(wrapped) => body.push(format!("let f_ = {wrapped}")),
+							None => body.push(made.clone()),
+						}
+					}
+					None => {
+						let made = wrap(call.clone(), false);
+						body.push(format!("let f_ = {}", made.strip_prefix("return ").unwrap_or(&made)));
+					}
+				}
 				body.push(tail.replacen("Native.run(", "Native.made(", 1));
 			}
 			Some(tail) => {
-				let made = wrap(cancelled.expect("a future has its cancel"), false);
+				let made = wrap(cancelled.expect("a future has its cancel"), status);
 				let made = made.strip_prefix("return ").unwrap_or(&made);
 				body.push(format!(
 					"// A task cancelled already takes nothing, even what is ready.\nif Task.isCancelled {{\n{}\n\tthrow CancellationError()\n}}",
@@ -1699,7 +1933,7 @@ impl<'a> Gen<'a> {
 					Type::Unit => "Void".to_string(),
 					_ => self.sw(&ok),
 				};
-				let tr = match err.is_some() {
+				let tr = match err.is_some() || status {
 					true => "try ",
 					false => "",
 				};
@@ -1761,8 +1995,13 @@ impl<'a> Gen<'a> {
 		};
 		let body = body.join("\n");
 		let var = function.params.is_empty() && !throws;
+		// A field read stays a property though a check of its handle may fail, which throws
+		// from its getter, unless Swift cannot copy its value, whose getter cannot throw.
+		let getter = throws && !function.future && function.err.is_none() && everywhere && !self.unique(&function.ok);
 		let var = match (function.access, receiver) {
-			(Access::Field { set: false, .. }, Some(_)) => var && mutation.is_empty(),
+			(Access::Field { set: false, .. }, Some(_)) => {
+				function.params.is_empty() && (!throws || getter) && mutation.is_empty()
+			}
 			(Access::Const, None) => {
 				if var {
 					member = member.trim_matches('`').to_uppercase();
@@ -1798,6 +2037,10 @@ impl<'a> Gen<'a> {
 				"public {stat}{mutation}func {member}({}){effects}{ret}",
 				params.join(", ")
 			),
+		};
+		let body = match var && throws {
+			true => format!("get throws {{\n{}\n}}", indent(&body)),
+			false => body,
 		};
 		let code = format!("{}{head} {{\n{}\n}}\n", docs(text.trim(), ""), indent(&body));
 		(code, full(is_static, &member, labels))
@@ -2163,7 +2406,8 @@ mod tests {
 			let decl = decl.trim_end_matches('{').trim();
 			let (name, conforms) = decl.split_once(':').unwrap_or((decl, ""));
 			let names = std::iter::once(name).chain(conforms.split(','));
-			for name in names.map(str::trim).filter(|n| !n.is_empty() && !n.starts_with('@')) {
+			// A qualified name, such as `Swift.Error`, cannot clash.
+			for name in (names.map(str::trim)).filter(|n| !n.is_empty() && !n.starts_with('@') && !n.contains('.')) {
 				assert!(TAKEN.contains(&name), "the runtime's `{name}` is not in TAKEN");
 			}
 		}

@@ -622,6 +622,10 @@ fun script() {
 	val given = reissue(Ticket.new(7u)) { t -> Ticket.new(t.number() + 1u) }.number()
 	val held = reissue(Ticket.new(7u)) { nine }.number()
 	println("reissued $given $held, cloned ${Ticket.clones()}")
+	// A record's traits borrow the checked handle it holds.
+	val front = seat(nine, 1u)
+	val rear = seat(nine, 2u)
+	println("seat ${front.debug()} ${front == front.copy()} ${front == rear}")
 	// A kept closure, called on another thread after the call that took it returned.
 	println("spawned ${Spawned.new { 7u }.join()}")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
@@ -822,17 +826,22 @@ fun futures() {
 		check(payload.text() == "kept", "a cancelled receive loses nothing")
 	}
 
-	// A handle closed while a call awaits on it is freed once the call ends.
+	// Closing a handle a call awaiting on it borrows throws, as Rust refuses a drop under a
+	// borrow, and changes nothing: the call ends as it would, and then the close passes.
 	run {
 		val other = Channel.new()
 		var got: String? = null
 		scope.launch { got = other.recv().text() }
 		q.drain()
 		val sender = other.clone()
-		other.close()
+		val refused = runCatching { other.close() }.exceptionOrNull()
+		check(refused is IllegalStateException && refused.message == "api_Channel_drop: a handle is already borrowed", "a close under an awaiting call throws: $refused")
 		sender.send(Bytes("held".encodeToByteArray()))
 		q.drain()
-		check(got == "held", "a closed handle stays held by the call awaiting on it")
+		check(got == "held", "the awaiting call ends as it would")
+		other.close()
+		val moved = runCatching { other.clear() }.exceptionOrNull()
+		check(moved is IllegalStateException && moved.message == "Channel is closed", "a call after close throws: $moved")
 		sender.close()
 	}
 
@@ -1099,6 +1108,9 @@ fun owned() {
 		"api_wasm_only" to { wasmOnly() },
 		"api_Platform.Wasm" to { pointerBits(Platform.Wasm(32u)) },
 		"api_Family.Wasm" to { isFamily(Family.WASM) },
+		"api_Page_default" to { Page.default() },
+		"api_Page_debug" to { Page(1u).debug() },
+		"api_Booth_debug" to { Booth(Ticket.new(1u)).debug() },
 	)) {
 		val thrown = runCatching(call).exceptionOrNull()
 		check(thrown is UnsupportedOperationException && thrown.message == "$what: it is not on this library's target", "$what throws: $thrown")
@@ -1106,6 +1118,13 @@ fun owned() {
 	Counter.new("k", 7u).use { kept ->
 		check(runCatching { wasmTake(kept) }.exceptionOrNull() is UnsupportedOperationException, "api_wasm_take throws")
 		check(kept.get() == 7uL, "a refused call leaves its moved argument open")
+	}
+	// A failed check refuses the call before it moves anything, so the lent counter stays open.
+	Registry.new(Counter.new("r", 3u)).edit { lent ->
+		val refused = runCatching { returnMoved(lent, false) }.exceptionOrNull()
+		check(refused is IllegalStateException && refused.message == "api_return_moved: a handle a call lent is borrowed exclusively or moved out", "a lent counter refuses the move: $refused")
+		check(lent.get() == 3uL, "a call a check refused leaves its moved argument open")
+		false
 	}
 
 	// Bytes outlive the object that returned them and the record that held them.
@@ -1205,30 +1224,18 @@ fun sliced(id: UInt): Bytes = tokenBytes(id, 1025u).slice(1015)
 // Frees racing calls: a close racing calls on other threads, and the GC freeing what a
 // call reads while it runs.
 fun raced() {
-	// Each call either runs, holding the handle so Rust's value outlives it, or throws.
+	// A latch's calls only borrow it, so Kotlin counts them; a token's Rust checks.
 	var before = dropped()
-	val token = Token.new(5u)
-	val ran = java.util.concurrent.atomic.AtomicInteger()
-	val failed = java.util.concurrent.atomic.AtomicInteger()
-	val callers = List(8) {
-		thread {
-			while (true) {
-				val id = try {
-					token.idGet
-				} catch (e: IllegalStateException) {
-					check(e.message == "Token is closed", "a call racing close throws")
-					failed.incrementAndGet()
-					return@thread
-				}
-				check(id == 5u, "a call racing close reads the live value")
-				ran.incrementAndGet()
-			}
-		}
-	}
-	while (ran.get() < 100) Thread.yield()
-	token.close()
-	callers.forEach { it.join() }
-	check(failed.get() == 8 && dropped() == before + 1u, "close racing calls drops Rust's value once")
+	val latch = Latch.default()
+	latch.set(5u)
+	race(latch, { it.get() == 5u }, setOf("Latch is closed"), "Latch: a handle is already borrowed")
+	race(
+		Token.new(5u),
+		{ it.idGet == 5u },
+		setOf("Token is closed", "api_Token_id_get: a handle's value was moved out"),
+		"api_Token_drop: a handle is already borrowed",
+	)
+	check(dropped() == before + 1u, "close racing calls drops Rust's value once")
 
 	// Calls on values nothing else reaches, while another thread collects: each reads what
 	// it was given, never a buffer freed under it and reused by the next, which holds
@@ -1250,6 +1257,43 @@ fun raced() {
 	collecting.set(false)
 	collector.join()
 	collected(before + 3u * rounds, "the GC frees what each call raced")
+}
+
+// Close [made] while 8 threads call [call] on it: each call runs on the live value or, once
+// it is closed, throws one of [closed], which for a value Rust checks includes its moved
+// check, met by a call that held the handle before close; a close a running call beats
+// throws [borrowed], as Rust refuses a drop under a borrow, and changes nothing, so the next
+// tries again.
+fun <T : AutoCloseable> race(made: T, call: (T) -> Boolean, closed: Set<String>, borrowed: String) {
+	val ran = java.util.concurrent.atomic.AtomicInteger()
+	val failed = java.util.concurrent.atomic.AtomicInteger()
+	val callers = List(8) {
+		thread {
+			while (true) {
+				val live = try {
+					call(made)
+				} catch (e: IllegalStateException) {
+					check(e.message in closed, "a call racing close throws: ${e.message}")
+					failed.incrementAndGet()
+					return@thread
+				}
+				check(live, "a call racing close reads the live value")
+				ran.incrementAndGet()
+			}
+		}
+	}
+	while (ran.get() < 100) Thread.yield()
+	while (true) {
+		try {
+			made.close()
+			break
+		} catch (e: IllegalStateException) {
+			check(e.message == borrowed, "a close racing a call throws: ${e.message}")
+		}
+	}
+	callers.forEach { it.join() }
+	check(failed.get() == 8, "every call after close throws")
+	made.close()
 }
 
 // Calls on values nothing else reaches once it returns, holding [id], racing the GC.

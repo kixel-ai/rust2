@@ -5,6 +5,7 @@
 //! never frees, and lowered into memory the caller frees. A handle is borrowed as the
 //! receiver or parameter is, or moved out of when taken by value.
 
+use std::cell::Cell;
 use std::collections::HashSet;
 use std::fmt::Write;
 use std::hash::Hasher;
@@ -103,7 +104,7 @@ pub fn rs(ty: &Ty) -> String {
 		Ty::SocketAddr => "rt::SocketAddr".to_string(),
 		Ty::Struct(name) => name.clone(),
 		// A C enum is an `int`.
-		Ty::Enum(_) | Ty::Poll => "i32".to_string(),
+		Ty::Enum(_) | Ty::Poll | Ty::Status => "i32".to_string(),
 		Ty::Handle { .. } => "*const ::std::ffi::c_void".to_string(),
 		Ty::Future(_) => "*mut rt::Future".to_string(),
 		Ty::Waker => "rt::Waker".to_string(),
@@ -362,6 +363,8 @@ impl Crate<'_> {
 			lends: false,
 			on: On::ALL,
 			out: String::new(),
+			checking: Cell::new(false),
+			reserved: Cell::new(false),
 		};
 		generator.lib();
 		output.file(&out.join("Cargo.toml"), &manifest("0.0.0"));
@@ -525,6 +528,12 @@ struct Gen<'a> {
 	/// The targets of the item being written, which compile what names its Rust types.
 	on: On,
 	out: String,
+	/// Whether the code being written returns a failed check as an `Err`, with `?`, rather
+	/// than aborting, as a function with a `status` does.
+	checking: Cell<bool>,
+	/// Whether the argument being lifted had its moved handles reserved, so its lift moves
+	/// their values out unchecked.
+	reserved: Cell<bool>,
 }
 
 impl Gen<'_> {
@@ -579,6 +588,95 @@ impl Gen<'_> {
 				format!("::{}", reached(&r.krate)) + &path[2..].iter().map(|s| format!("::{s}")).collect::<String>()
 			}
 			None => format!("::{}", self.dependency) + &path[1..].iter().map(|s| format!("::{s}")).collect::<String>(),
+		}
+	}
+
+	/// `e`, a check's `Result`: its value, returning the failure from the function being
+	/// written if it takes a `status`, else aborting.
+	fn checked(&self, e: &str) -> String {
+		match self.checking.get() {
+			true => format!("{e}?"),
+			false => format!("rt::check({e}, w)"),
+		}
+	}
+
+	/// Whether lifting a value of `ty` checks a handle that can fail.
+	fn checks(&self, ty: &Type) -> bool {
+		self.abi.value_status(ty)
+	}
+
+	/// Whether `ty` moves an object's value out of its handle, as passed by value, held
+	/// alone or in any value.
+	fn moves(&self, ty: &Type) -> bool {
+		self.holds(ty, &|i| !self.abi.api.objects[i].copy, &mut Vec::new())
+	}
+
+	/// Whether lifting `ty` within a moved argument reserves anything into `takes`: a value
+	/// it moves out, or a checked `Copy` one it copies.
+	fn reserves(&self, ty: &Type) -> bool {
+		let pick = |i: usize| !self.abi.api.objects[i].copy || self.abi.checked[i];
+		self.holds(ty, &pick, &mut Vec::new())
+	}
+
+	/// Whether a value of `ty`, passed by value, holds an object whose index `pick` picks.
+	fn holds(&self, ty: &Type, pick: &dyn Fn(usize) -> bool, seen: &mut Vec<(bool, usize)>) -> bool {
+		let api = self.abi.api;
+		match ty {
+			Type::Object(i) => pick(*i),
+			Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => self.holds(inner, pick, seen),
+			Type::Tuple(elements) => elements.iter().any(|ty| self.holds(ty, pick, seen)),
+			Type::Record(i) if !seen.contains(&(false, *i)) => {
+				seen.push((false, *i));
+				(api.records[*i].fields.iter()).any(|f| self.holds(&f.ty, pick, seen))
+			}
+			Type::Enum(i) if !seen.contains(&(true, *i)) => {
+				seen.push((true, *i));
+				(api.enums[*i].variants.iter().flat_map(|v| &v.fields)).any(|f| self.holds(&f.ty, pick, seen))
+			}
+			_ => false,
+		}
+	}
+
+	/// The statement reserving into `takes` each value an argument `e` of type `ty` moves
+	/// out, and borrowing each checked `Copy` one it copies, so the move happens only once
+	/// every check passed, and no check after it can fail.
+	fn reserve(&self, ty: &Type, e: &str) -> String {
+		match ty {
+			Type::Object(i) if !self.abi.api.objects[*i].copy => {
+				self.checked(&format!(
+					"unsafe {{ rt::Object::<{}>::reserve({e}, takes, w) }}",
+					self.object_path(*i)
+				)) + ";"
+			}
+			Type::Object(i) if self.abi.checked[*i] => {
+				let hold = match self.abi.api.objects[*i].sync {
+					true => "hold",
+					false => "hold_local",
+				};
+				self.checked(&format!(
+					"unsafe {{ rt::Object::<{}>::{hold}({e}, takes, w) }}",
+					self.object_path(*i)
+				)) + ";"
+			}
+			Type::Object(_) => String::new(),
+			Type::Record(i) => self.checked(&format!("reserve_{}(&{e}, takes, w)", self.abi.record(*i))) + ";",
+			Type::Enum(i) => self.checked(&format!("reserve_{}(&{e}, takes, w)", self.abi.enumeration(*i))) + ";",
+			Type::Box(inner) => self.reserve(inner, e),
+			Type::Option(inner) => match inner.base() {
+				Type::Object(_) => format!("if !{e}.is_null() {{ {} }}", self.reserve(inner, e)),
+				base if Abi::nullable(base) => format!("if !{e}.is_none() {{ {} }}", self.reserve(inner, e)),
+				_ => format!("if {e}.some {{ {} }}", self.reserve(inner, &format!("{e}.value"))),
+			},
+			Type::List(_, inner) => format!(
+				"for c in unsafe {{ {e}.items(w) }} {{ {} }}",
+				self.reserve(inner, "(*c)")
+			),
+			Type::Tuple(elements) => (elements.iter().enumerate())
+				.filter(|(_, ty)| self.reserves(ty))
+				.map(|(n, ty)| self.reserve(ty, &format!("{e}._{n}")))
+				.collect::<Vec<_>>()
+				.join(" "),
+			_ => String::new(),
 		}
 	}
 
@@ -682,17 +780,23 @@ impl Gen<'_> {
 					_ => "::std::vec::Vec::<_>",
 				}
 			),
-			Type::List(c, inner) => format!(
-				"unsafe {{ {e}.items(w) }}.iter().map(|c| {}).collect::<{}>()",
-				// An array's items are behind its pointer, so only read.
-				self.lift(inner, "(*c)", "false"),
-				match c {
+			Type::List(c, inner) => {
+				let collected = match c {
 					Collection::BTreeMap | Collection::JsonMap => format!("{}<_, _>", collection(*c)),
 					Collection::Box => format!("{}<[_]>", collection(*c)),
 					Collection::Vec | Collection::Slice => format!("{}<_>", collection(Collection::Vec)),
 					Collection::BTreeSet => format!("{}<_>", collection(*c)),
+				};
+				let lifted = self.lift(inner, "(*c)", "false");
+				// A failed check inside returns from the closure each item lifts in.
+				let fails = !self.reserved.get() && (self.checks(inner) || self.moves(inner));
+				match self.checking.get() && fails {
+					true => format!(
+						"unsafe {{ {e}.items(w) }}.iter().map(|c| -> ::std::result::Result<_, rt::Status> {{ Ok({lifted}) }}).collect::<::std::result::Result<{collected}, rt::Status>>()?"
+					),
+					false => format!("unsafe {{ {e}.items(w) }}.iter().map(|c| {lifted}).collect::<{collected}>()"),
 				}
-			),
+			}
 			// A foreign enum's option converts into its filter, as `tracing::LevelFilter`.
 			Type::Option(inner) if self.filtered(inner) => format!(
 				"::std::convert::From::from(if {e}.some {{ Some({}) }} else {{ None }})",
@@ -716,23 +820,50 @@ impl Gen<'_> {
 			},
 			Type::Box(inner) => format!("::std::boxed::Box::new({})", self.lift(inner, e, take)),
 			Type::Ref(_, inner) => self.lift(inner, e, take),
-			Type::Record(i) => format!("lift_{}(&{e}, w, {take})", self.abi.record(*i)),
-			Type::Enum(i) => match self.abi.api.enums[*i].plain() {
-				true => format!("lift_{}({e}, w)", self.abi.enumeration(*i)),
-				false => format!("lift_{}(&{e}, w, {take})", self.abi.enumeration(*i)),
+			// Reserved, its checked copies passed their checks.
+			Type::Record(i) if self.reserved.get() && self.reserves(ty) => {
+				format!("lift_{}_taken(&{e}, w, {take})", self.abi.record(*i))
+			}
+			Type::Enum(i) if self.reserved.get() && self.reserves(ty) => {
+				format!("lift_{}_taken(&{e}, w, {take})", self.abi.enumeration(*i))
+			}
+			Type::Record(i) => match self.checks(ty) {
+				true => self.checked(&format!("lift_{}(&{e}, w, {take})", self.abi.record(*i))),
+				false => format!("lift_{}(&{e}, w, {take})", self.abi.record(*i)),
 			},
-			Type::Object(i) if let Some(held) = self.abi.api.objects[*i].opaque => match held {
-				Held::Arc => format!("unsafe {{ rt::Object::<rt::Opaque>::take({e}, w) }}.arc(w)"),
-				Held::Value => format!("unsafe {{ rt::Object::<rt::Owned>::take({e}, w) }}.take(w)"),
+			Type::Enum(i) => match (self.abi.api.enums[*i].plain(), self.checks(ty)) {
+				(true, _) => format!("lift_{}({e}, w)", self.abi.enumeration(*i)),
+				(false, true) => self.checked(&format!("lift_{}(&{e}, w, {take})", self.abi.enumeration(*i))),
+				(false, false) => format!("lift_{}(&{e}, w, {take})", self.abi.enumeration(*i)),
 			},
-			Type::Object(i) => match self.abi.api.objects[*i].copy {
-				true => format!(
-					"*unsafe {{ rt::Object::<{}>::{}({e}, w) }}",
-					self.object_path(*i),
-					self.shared(*i)
-				),
-				false => format!("unsafe {{ rt::Object::<{}>::take({e}, w) }}", self.object_path(*i)),
-			},
+			Type::Object(i) => {
+				let object = &self.abi.api.objects[*i];
+				let path = match object.opaque {
+					Some(Held::Arc) => "rt::Opaque".to_string(),
+					Some(Held::Value) => "rt::Owned".to_string(),
+					None => self.object_path(*i),
+				};
+				let value = match (object.copy, self.reserved.get()) {
+					// One no export can misuse is copied out uncounted, as it is borrowed.
+					(true, _) if !self.abi.checked[*i] => format!("*unsafe {{ rt::Object::<{path}>::peek({e}, w) }}"),
+					// Reserved, it is borrowed until the call's moves are made.
+					(true, true) => format!("unsafe {{ rt::Object::<{path}>::held({e}) }}"),
+					(true, _) => format!(
+						"*{}",
+						self.checked(&format!(
+							"unsafe {{ rt::Object::<{path}>::{}({e}, w) }}",
+							self.shared(*i)
+						))
+					),
+					(false, true) => format!("unsafe {{ rt::Object::<{path}>::taken({e}) }}"),
+					(false, false) => self.checked(&format!("unsafe {{ rt::Object::<{path}>::take({e}, w) }}")),
+				};
+				match object.opaque {
+					Some(Held::Arc) => format!("{value}.arc(w)"),
+					Some(Held::Value) => format!("{value}.take(w)"),
+					None => value,
+				}
+			}
 			Type::Callback(i, form) => abi::dyn_wrap(*form, &format!("Foreign_{}({e})", self.abi.callback(*i))),
 			Type::Closure(closure) => self.closure(closure, e),
 			Type::Range(_) => format!("{e}.lift()"),
@@ -751,6 +882,14 @@ impl Gen<'_> {
 	/// which lends each object the closure takes as a handle for that call. A kept one frees
 	/// its data with `e_free` once dropped.
 	fn closure(&self, closure: &Closure, e: &str) -> String {
+		// A failed check of what it returns has no caller to return to.
+		let checking = self.checking.replace(false);
+		let made = self.closure_body(closure, e);
+		self.checking.set(checking);
+		made
+	}
+
+	fn closure_body(&self, closure: &Closure, e: &str) -> String {
 		let typed: Vec<String> = (closure.params.iter().enumerate())
 			.map(|(n, ty)| format!("c{n}: {}", self.rust(ty)))
 			.collect();
@@ -1030,6 +1169,9 @@ impl Gen<'_> {
 		self.line(format!(
 			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_target() -> u32 {{\n\tTARGET\n}}\n"
 		));
+		self.line(format!(
+			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_status_message(status: i32) -> *const ::std::ffi::c_char {{\n\trt::Status::text(status).as_ptr()\n}}\n"
+		));
 
 		for (name, ty) in &self.abi.ranges {
 			let (kind, int) = match ty {
@@ -1086,18 +1228,42 @@ impl Gen<'_> {
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: *const ::std::ffi::c_void) {{\n\tunsafe {{ rt::Object::<{path}>::free(this) }}\n}}\n"
 			));
+			if self.abi.checked[i] {
+				self.export(format!(
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop(this: *const ::std::ffi::c_void, status: *mut i32) {{\n\tlet w = \"{name}_drop\";\n\tif let Err(s) = unsafe {{ rt::Object::<{path}>::close(this, w) }} {{\n\t\tunsafe {{ rt::failed::<()>(status, s, w) }}\n\t}}\n}}\n"
+				));
+			}
 			if object.shared {
 				self.export(format!(
 					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_borrowed(this: *const ::std::ffi::c_void) -> bool {{\n\tunsafe {{ rt::Object::<{path}>::borrowed(this, \"{name}_borrowed\") }}\n}}\n"
 				));
 			}
 			let borrow = self.shared(i);
-			self.traits(&name, &path, object.traits, |e| {
-				format!("unsafe {{ rt::Object::<{path}>::{borrow}({e}, w) }}")
-			});
+			// Each borrows its handles shared, which fails only as a call can.
+			let status = self.abi.traits_status(i).then_some("status");
+			self.checking.set(status.is_some());
+			let borrowing = |e: &str| match status {
+				Some(_) => self.checked(&format!("unsafe {{ rt::Object::<{path}>::{borrow}({e}, w) }}")),
+				None => format!("unsafe {{ rt::Object::<{path}>::peek({e}, w) }}"),
+			};
+			let copy = borrowing("this");
+			let borrowing: Vec<String> = ["this", "a", "b"].into_iter().map(borrowing).collect();
+			self.checking.set(false);
+			self.traits(&name, &path, object.traits, status, &borrowing);
 			if self.abi.copies.contains(&i) {
+				let (param, body) = match status {
+					Some(status) => (
+						format!(", {status}: *mut i32"),
+						wrap(
+							Some(status),
+							"*const ::std::ffi::c_void",
+							&format!("rt::Object::new(*{copy})"),
+						),
+					),
+					None => (String::new(), format!("rt::Object::new(*{copy})")),
+				};
 				self.export(format!(
-					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_copy(this: *const ::std::ffi::c_void) -> *const ::std::ffi::c_void {{\n\tlet w = \"{name}_copy\";\n\trt::Object::new(*unsafe {{ rt::Object::<{path}>::{borrow}(this, w) }})\n}}\n"
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_copy(this: *const ::std::ffi::c_void{param}) -> *const ::std::ffi::c_void {{\n\tlet w = \"{name}_copy\";\n\t{body}\n}}\n"
 				));
 			}
 			let owner = Ty::Handle {
@@ -1113,32 +1279,52 @@ impl Gen<'_> {
 		}
 	}
 
-	/// The functions a type's std traits export; `borrow` reads the receiver `e`.
-	fn traits(&mut self, name: &str, path: &str, traits: Traits, borrow: impl Fn(&str) -> String) {
+	/// The functions an object's std traits export, borrowing its handles `this`, `a`,
+	/// and `b` as `borrow` does, which takes `status` if a borrow can fail.
+	fn traits(&mut self, name: &str, path: &str, traits: Traits, status: Option<&str>, borrow: &[String]) {
 		let handle = "*const ::std::ffi::c_void";
+		let [this, a, b] = borrow else {
+			unreachable!("three handles")
+		};
+		let param = status.map(|s| format!(", {s}: *mut i32")).unwrap_or_default();
 		if traits.clone {
+			let body = wrap(
+				status,
+				handle,
+				&format!("let this = {this};\n\trt::Object::new(<{path} as ::std::clone::Clone>::clone(&*this))"),
+			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_clone(this: {handle}) -> {handle} {{\n\tlet w = \"{name}_clone\";\n\tlet this = {};\n\trt::Object::new(<{path} as ::std::clone::Clone>::clone(&*this))\n}}\n",
-				borrow("this")
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_clone(this: {handle}{param}) -> {handle} {{\n\tlet w = \"{name}_clone\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.eq {
+			let body = wrap(
+				status,
+				"bool",
+				&format!("let a = {a};\n\tlet b = {b};\n\t<{path} as ::std::cmp::PartialEq>::eq(&*a, &*b)"),
+			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_eq(a: {handle}, b: {handle}) -> bool {{\n\tlet w = \"{name}_eq\";\n\tlet a = {};\n\tlet b = {};\n\t<{path} as ::std::cmp::PartialEq>::eq(&*a, &*b)\n}}\n",
-				borrow("a"),
-				borrow("b")
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_eq(a: {handle}, b: {handle}{param}) -> bool {{\n\tlet w = \"{name}_eq\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.display {
+			let body = wrap(
+				status,
+				"rt::Buf",
+				&format!("let this = {this};\n\trt::Buf::string(::std::string::ToString::to_string(&*this))"),
+			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_to_string(this: {handle}) -> rt::Buf {{\n\tlet w = \"{name}_to_string\";\n\tlet this = {};\n\trt::Buf::string(::std::string::ToString::to_string(&*this))\n}}\n",
-				borrow("this")
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_to_string(this: {handle}{param}) -> rt::Buf {{\n\tlet w = \"{name}_to_string\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.debug {
+			let body = wrap(
+				status,
+				"rt::Buf",
+				&format!("let this = {this};\n\trt::Buf::string(format!(\"{{:?}}\", &*this))"),
+			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_debug(this: {handle}) -> rt::Buf {{\n\tlet w = \"{name}_debug\";\n\tlet this = {};\n\trt::Buf::string(format!(\"{{:?}}\", &*this))\n}}\n",
-				borrow("this")
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_debug(this: {handle}{param}) -> rt::Buf {{\n\tlet w = \"{name}_debug\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.default {
@@ -1151,24 +1337,43 @@ impl Gen<'_> {
 	/// The functions every value type has: its std traits, read through a pointer, and
 	/// `free`.
 	fn value_traits(&mut self, name: &str, path: &str, ty: &Type, traits: Traits) {
-		// Each is read through a pointer, so the caller keeps it.
+		// One holding a handle a check of can fail returns the failure through a `status`.
+		let status = self.checks(ty).then_some("status");
+		self.checking.set(status.is_some());
 		let lift = self.lift(ty, "unsafe { *this }", "false");
 		let lift_a = self.lift(ty, "unsafe { *a }", "false");
 		let lift_b = self.lift(ty, "unsafe { *b }", "false");
+		self.checking.set(false);
+		let param = status.map(|s| format!(", {s}: *mut i32")).unwrap_or_default();
 		let c = rs(&self.abi.ty(ty));
 		if traits.eq {
+			let body = wrap(
+				status,
+				"bool",
+				&format!("<{path} as ::std::cmp::PartialEq>::eq(&{lift_a}, &{lift_b})"),
+			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_eq(a: *const {c}, b: *const {c}) -> bool {{\n\tlet w = \"{name}_eq\";\n\t<{path} as ::std::cmp::PartialEq>::eq(&{lift_a}, &{lift_b})\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_eq(a: *const {c}, b: *const {c}{param}) -> bool {{\n\tlet w = \"{name}_eq\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.display {
+			let body = wrap(
+				status,
+				"rt::Buf",
+				&format!("rt::Buf::string(::std::string::ToString::to_string(&{lift}))"),
+			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_to_string(this: *const {c}) -> rt::Buf {{\n\tlet w = \"{name}_to_string\";\n\trt::Buf::string(::std::string::ToString::to_string(&{lift}))\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_to_string(this: *const {c}{param}) -> rt::Buf {{\n\tlet w = \"{name}_to_string\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.debug {
+			let body = wrap(
+				status,
+				"rt::Buf",
+				&format!("rt::Buf::string(format!(\"{{:?}}\", &{lift}))"),
+			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_debug(this: *const {c}) -> rt::Buf {{\n\tlet w = \"{name}_debug\";\n\trt::Buf::string(format!(\"{{:?}}\", &{lift}))\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_debug(this: *const {c}{param}) -> rt::Buf {{\n\tlet w = \"{name}_debug\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.default {
@@ -1198,12 +1403,16 @@ impl Gen<'_> {
 		self.line(format!(
 			"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {name} {{\n{fields}}}\n"
 		));
+		// One holding a handle a check of can fail returns the failure.
+		let checks = self.checks(&ty);
+		self.checking.set(checks);
 		let lifted: Vec<String> = record
 			.fields
 			.iter()
 			.enumerate()
 			.map(|(n, f)| self.lift(&f.ty, &format!("c.f{n}"), "take"))
 			.collect();
+		self.checking.set(false);
 		let build = match record.tuple {
 			true => format!("{path}({})", lifted.join(", ")),
 			false => {
@@ -1216,8 +1425,15 @@ impl Gen<'_> {
 				format!("{path} {{ {} }}", fields.join(", "))
 			}
 		};
+		let (ret, build) = match checks {
+			true => (
+				format!("::std::result::Result<{path}, rt::Status>"),
+				format!("Ok({build})"),
+			),
+			false => (path.clone(), build),
+		};
 		self.item(format!(
-			"fn lift_{name}(c: &{name}, w: &str, take: bool) -> {path} {{\n\tlet _ = (w, take);\n\t{build}\n}}\n"
+			"fn lift_{name}(c: &{name}, w: &str, take: bool) -> {ret} {{\n\tlet _ = (w, take);\n\t{build}\n}}\n"
 		));
 		let bindings: Vec<String> = (0..record.fields.len()).map(|n| format!("f{n}")).collect();
 		let pattern = match record.tuple {
@@ -1256,6 +1472,29 @@ impl Gen<'_> {
 				.collect();
 			self.item(format!("fn free_{name}(c: {name}) {{\n\t{}\n}}\n", frees.join("\n\t")));
 		}
+		if self.reserves(&ty) {
+			self.checking.set(true);
+			let reserves: Vec<String> = (record.fields.iter().enumerate())
+				.filter(|(_, f)| self.reserves(&f.ty))
+				.map(|(n, f)| self.reserve(&f.ty, &format!("c.f{n}")))
+				.collect();
+			self.checking.set(false);
+			self.reserved.set(true);
+			let lifted: Vec<String> = (record.fields.iter().enumerate())
+				.map(|(n, f)| self.lift(&f.ty, &format!("c.f{n}"), "take"))
+				.collect();
+			self.reserved.set(false);
+			let build = match record.tuple {
+				true => format!("{path}({})", lifted.join(", ")),
+				false => {
+					let fields: Vec<String> = (record.fields.iter().zip(&lifted))
+						.map(|(f, l)| format!("{}: {l}", f.name))
+						.collect();
+					format!("{path} {{ {} }}", fields.join(", "))
+				}
+			};
+			self.reserved_helpers(&name, &path, &reserves.join("\n\t"), &build);
+		}
 		self.value_traits(&name, &path, &ty, record.traits);
 		let owner = Ty::Struct(name.clone());
 		for method in &record.methods {
@@ -1269,6 +1508,8 @@ impl Gen<'_> {
 		let name = self.abi.enumeration(i);
 		let path = self.rust(&Type::Enum(i));
 		let ty = Type::Enum(i);
+		// One holding a handle a check of can fail returns the failure.
+		let checks = self.checks(&ty);
 		let wildcard = match e.exhaustive {
 			true => "",
 			false => "\n\t\t_ => unreachable!(\"a variant this export does not know\"),",
@@ -1352,7 +1593,11 @@ impl Gen<'_> {
 					);
 				}
 				if variant.fields.is_empty() {
-					let _ = write!(lift, "{arm}\n\t\t{n} => {pattern},");
+					let lifted = match checks {
+						true => format!("Ok({pattern})"),
+						false => pattern.clone(),
+					};
+					let _ = write!(lift, "{arm}\n\t\t{n} => {lifted},");
 					let _ = write!(
 						lower,
 						"{arm}\n\t\t{pattern} => {name} {{ tag: {n}, u: unsafe {{ ::std::mem::zeroed() }} }},"
@@ -1360,12 +1605,14 @@ impl Gen<'_> {
 					continue;
 				}
 				let payload = abi::payload(&name, &variant.name);
+				self.checking.set(checks);
 				let lifted: Vec<String> = variant
 					.fields
 					.iter()
 					.enumerate()
 					.map(|(k, f)| self.lift(&f.ty, &format!("p.f{k}"), "take"))
 					.collect();
+				self.checking.set(false);
 				let build = match variant.tuple {
 					true => format!("{path}::{}({})", variant.name, lifted.join(", ")),
 					false => {
@@ -1377,6 +1624,10 @@ impl Gen<'_> {
 							.collect();
 						format!("{path}::{} {{ {} }}", variant.name, fields.join(", "))
 					}
+				};
+				let build = match checks {
+					true => format!("Ok({build})"),
+					false => build,
 				};
 				let _ = write!(
 					lift,
@@ -1407,8 +1658,12 @@ impl Gen<'_> {
 					);
 				}
 			}
+			let ret = match checks {
+				true => format!("::std::result::Result<{path}, rt::Status>"),
+				false => path.clone(),
+			};
 			self.item(format!(
-				"fn lift_{name}(c: &{name}, w: &str, take: bool) -> {path} {{\n\tlet _ = take;\n\tmatch c.tag {{{lift}\n\t\t_ => rt::fail(w, \"an enum tag is invalid\"),\n\t}}\n}}\n"
+				"fn lift_{name}(c: &{name}, w: &str, take: bool) -> {ret} {{\n\tlet _ = take;\n\tmatch c.tag {{{lift}\n\t\t_ => rt::fail(w, \"an enum tag is invalid\"),\n\t}}\n}}\n"
 			));
 			self.item(format!(
 				"fn lower_{name}(v: {path}) -> {name} {{\n\tmatch v {{{lower}{wildcard}\n\t}}\n}}\n"
@@ -1419,11 +1674,77 @@ impl Gen<'_> {
 				));
 			}
 		}
+		if !e.plain() && self.reserves(&ty) {
+			let mut reserve = String::new();
+			let mut lift = String::new();
+			for (n, variant) in e.variants.iter().enumerate() {
+				let arm = self.arm(variant.on);
+				let fields = |lifted: &[String]| match (variant.fields.is_empty(), variant.tuple) {
+					(true, _) => format!("{path}::{}", variant.name),
+					(false, true) => format!("{path}::{}({})", variant.name, lifted.join(", ")),
+					(false, false) => {
+						let fields: Vec<String> = (variant.fields.iter().zip(lifted))
+							.map(|(f, l)| format!("{}: {l}", f.name))
+							.collect();
+						format!("{path}::{} {{ {} }}", variant.name, fields.join(", "))
+					}
+				};
+				if let Some(cfg) = self.cfg(variant.on) {
+					let missing = format!(
+						"\n\t\t#[cfg(not({cfg}))]\n\t\t{n} => rt::fail(w, \"the variant is not on this library's target\"),"
+					);
+					reserve.push_str(&missing);
+					lift.push_str(&missing);
+				}
+				if variant.fields.is_empty() {
+					let _ = write!(lift, "{arm}\n\t\t{n} => {},", fields(&[]));
+					continue;
+				}
+				self.checking.set(true);
+				let reserves: Vec<String> = (variant.fields.iter().enumerate())
+					.filter(|(_, f)| self.reserves(&f.ty))
+					.map(|(k, f)| self.reserve(&f.ty, &format!("p.f{k}")))
+					.collect();
+				self.checking.set(false);
+				if !reserves.is_empty() {
+					let _ = write!(
+						reserve,
+						"{arm}\n\t\t{n} => {{\n\t\t\tlet p = unsafe {{ c.u.v{n} }};\n\t\t\t{}\n\t\t}}",
+						reserves.join("\n\t\t\t")
+					);
+				}
+				self.reserved.set(true);
+				let lifted: Vec<String> = (variant.fields.iter().enumerate())
+					.map(|(k, f)| self.lift(&f.ty, &format!("p.f{k}"), "take"))
+					.collect();
+				self.reserved.set(false);
+				let _ = write!(
+					lift,
+					"{arm}\n\t\t{n} => {{\n\t\t\tlet p = unsafe {{ c.u.v{n} }};\n\t\t\t{}\n\t\t}}",
+					fields(&lifted)
+				);
+			}
+			let reserve = format!("match c.tag {{{reserve}\n\t\t_ => {{}}\n\t}}");
+			let build = format!("match c.tag {{{lift}\n\t\t_ => rt::fail(w, \"an enum tag is invalid\"),\n\t}}");
+			self.reserved_helpers(&name, &path, &reserve, &build);
+		}
 		self.value_traits(&name, &path, &ty, e.traits);
 		let owner = self.abi.ty(&ty);
 		for method in &e.methods {
 			self.function(method, Some((&owner, ty.clone())));
 		}
+	}
+
+	/// A record's or data enum's helpers for a moved argument holding one: `reserve_<name>`,
+	/// running `reserve`, which reserves into `takes` what it moves out and borrows what it
+	/// copies, and `lift_<name>_taken`, which makes `build` of what was reserved, unchecked.
+	fn reserved_helpers(&mut self, name: &str, path: &str, reserve: &str, build: &str) {
+		self.item(format!(
+			"fn reserve_{name}(c: &{name}, takes: &mut rt::Takes<'_>, w: &str) -> ::std::result::Result<(), rt::Status> {{\n\tlet _ = (c, &takes, w);\n\t{reserve}\n\tOk(())\n}}\n"
+		));
+		self.item(format!(
+			"fn lift_{name}_taken(c: &{name}, w: &str, take: bool) -> {path} {{\n\tlet _ = (w, take);\n\t{build}\n}}\n"
+		));
 	}
 
 	/// A callback: its table of foreign functions, and the Rust type that implements the
@@ -1520,10 +1841,22 @@ impl Gen<'_> {
 		}
 	}
 
-	/// An argument: the statement binding it from its C parameter `c` to `local`, and
-	/// the expression passing it. A future owns its arguments, so it borrows nothing
-	/// from the caller.
-	fn arg(&self, ty: &Type, c: &str, local: &str, future: bool) -> (String, String) {
+	/// An argument: the statement reserving each value it moves out of a handle, the
+	/// statement binding it from its C parameter `c` to `local`, and the expression passing
+	/// it. A future owns its arguments, so it borrows nothing from the caller.
+	fn arg(&self, ty: &Type, c: &str, local: &str, future: bool) -> (String, String, String) {
+		if self.moves(ty) {
+			let reserve = self.reserve(ty, c);
+			self.reserved.set(true);
+			let lifted = self.lift(ty, c, "true");
+			self.reserved.set(false);
+			return (reserve, format!("let {local} = {lifted};"), local.to_string());
+		}
+		let (stmt, pass) = self.arg_of(ty, c, local, future);
+		(String::new(), stmt, pass)
+	}
+
+	fn arg_of(&self, ty: &Type, c: &str, local: &str, future: bool) -> (String, String) {
 		match ty {
 			Type::Ref(m, inner) => match (&**inner, m, future) {
 				(Type::Object(i), _, _) => {
@@ -1630,9 +1963,19 @@ impl Gen<'_> {
 			true => "let mut",
 			false => "let",
 		};
+		// A type no export can misuse is borrowed shared for a call uncounted.
+		if !exclusive && !future && !self.abi.checked[i] {
+			return (
+				binding,
+				format!("unsafe {{ rt::Object::<{}>::peek({c}, w) }}", self.object_path(i)),
+			);
+		}
 		(
 			binding,
-			format!("unsafe {{ rt::Object::<{}>::{borrow}({c}, w) }}", self.object_path(i)),
+			self.checked(&format!(
+				"unsafe {{ rt::Object::<{}>::{borrow}({c}, w) }}",
+				self.object_path(i)
+			)),
 		)
 	}
 
@@ -1705,12 +2048,33 @@ impl Gen<'_> {
 	fn function_on(&mut self, function: &Function, owner: Option<(&Ty, Type)>) {
 		let export = self.abi.export(function, owner.as_ref().map(|(ty, _)| *ty));
 		let name = export.call.name.clone();
+		let status = export.call.status();
+		self.checking.set(status.is_some());
 		// An eager call borrows its arguments only for the call, as a synchronous one does,
 		// unless the future it returns borrows them: it then owns them, as an `async fn`'s
 		// future does, and holds each it lends in place until the future is dropped.
 		let future = function.future && (!function.eager || function.holds);
 		let mut held = Vec::new();
+		// Each argument's statements: those holding no handle first, so what C gave Rust,
+		// such as a kept closure, drops if a check fails; then those that check a handle,
+		// then the reserved moves, once every check passed, so a call that fails a check
+		// changes nothing.
+		let mut checks = Vec::new();
+		let mut reserves = Vec::new();
+		let mut moves = Vec::new();
 		let mut stmts = Vec::new();
+		let mut sort = |ty: &Type, (reserve, stmt, _): &(String, String, String)| {
+			let mut handles = Vec::new();
+			self.abi.api.handles(ty, &mut handles, &mut Vec::new());
+			match (reserve.is_empty(), handles.is_empty()) {
+				(false, _) => {
+					reserves.push(reserve.clone());
+					moves.push(stmt.clone());
+				}
+				(true, false) => checks.push(stmt.clone()),
+				(true, true) => stmts.push(stmt.clone()),
+			}
+		};
 		let mut args = Vec::new();
 		let mut params = Vec::new();
 		let mut c_params = export.call.params.iter();
@@ -1725,9 +2089,9 @@ impl Gen<'_> {
 						Receiver::Mut => Type::Ref(Mutability::Mut, Box::new(Type::Object(*i))),
 						Receiver::Owned => Type::Object(*i),
 					};
-					let (stmt, arg) = self.arg(&ty, "this", "a_self", future);
-					stmts.push(stmt);
-					args.push(arg);
+					let made = self.arg(&ty, "this", "a_self", future);
+					sort(&ty, &made);
+					args.push(made.2);
 					if function.holds && *receiver != Receiver::Owned {
 						held.push("a_self".to_string());
 					}
@@ -1737,10 +2101,12 @@ impl Gen<'_> {
 						held.push("a_self".to_string());
 					}
 					// Read through a pointer, so the caller keeps it.
-					stmts.push(format!(
-						"let a_self = {};",
-						self.lift(value, "unsafe { *this }", "false")
-					));
+					let made = (
+						String::new(),
+						format!("let a_self = {};", self.lift(value, "unsafe { *this }", "false")),
+						String::new(),
+					);
+					sort(value, &made);
 					args.push(match receiver {
 						Receiver::Owned => "a_self".to_string(),
 						_ => "&a_self".to_string(),
@@ -1767,7 +2133,7 @@ impl Gen<'_> {
 					params.push(format!("p{n}_free: {}", rs(free)));
 				}
 			}
-			let (stmt, arg) = match &function.task {
+			let made = match &function.task {
 				// A context made of C's waker, lent for the call.
 				Some(Task {
 					at,
@@ -1778,6 +2144,7 @@ impl Gen<'_> {
 						Mutability::Not => ("let", format!("&a{n}")),
 					};
 					(
+						String::new(),
 						format!(
 							"let a{n}_waker = p{n}.lift();\n\t{binding} a{n} = ::std::task::Context::from_waker(&a{n}_waker);"
 						),
@@ -1785,12 +2152,14 @@ impl Gen<'_> {
 					)
 				}
 				_ if param.interned => (
+					String::new(),
 					format!("let a{n} = rt::intern(unsafe {{ p{n}.hold(w) }}.str(w));"),
 					format!("a{n}"),
 				),
 				// A future made of a `Poll` owns a future C implements, and lends it pinned to
 				// each poll.
 				Some(_) if function.future && param.ty == Type::Future => (
+					String::new(),
 					format!("let mut a{n} = p{n}.lift(w);"),
 					format!("::std::pin::Pin::new(&mut a{n})"),
 				),
@@ -1805,9 +2174,29 @@ impl Gen<'_> {
 					self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future)
 				}
 			};
-			stmts.push(stmt);
-			args.push(arg);
+			sort(&param.ty, &made);
+			args.push(made.2);
 		}
+		drop(sort);
+		let mut stmts = {
+			let mut all = stmts;
+			all.extend(checks);
+			let reserved = !reserves.is_empty();
+			if reserved {
+				all.insert(
+					0,
+					"let mut reserved = rt::Takes::default();\n\tlet takes = &mut reserved;".to_string(),
+				);
+				all.extend(reserves);
+				all.push("takes.commit();".to_string());
+			}
+			all.extend(moves);
+			// The copies are made, so their borrows end before the call runs.
+			if reserved {
+				all.push("drop(reserved);".to_string());
+			}
+			all
+		};
 		// Each owned argument the call lends moves to the heap, where it stays while the
 		// future borrows it, and the call reborrows it through the reference it is now.
 		for local in &held {
@@ -1942,9 +2331,12 @@ impl Gen<'_> {
 				"{body}{now}\n\trt::Future::new(async move {{ {later} }}, move |result, outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\tlet _ = (outs, err);\n\t\t{bind}{}\n\t}})",
 				self.finish(function, &ok, ("v", "rt::READY", "rt::ERROR"))
 			);
+			self.checking.set(false);
+			let status_param = status.map(|status| format!("{status}: *mut i32"));
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{make}\n}}\n",
-				params.join(", "),
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{}\n}}\n",
+				params.iter().chain(&status_param).cloned().collect::<Vec<_>>().join(", "),
+				wrap(status, "*mut rt::Future", &make)
 			));
 			let poll_params: Vec<String> = poll.params[2..]
 				.iter()
@@ -1966,16 +2358,22 @@ impl Gen<'_> {
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}(future: *mut rt::Future) {{\n\tunsafe {{ rt::Future::free(future) }}\n}}\n",
 				free.name
 			));
-			// The call and its first poll in one: most futures are ready at once.
+			// The call and its first poll in one: most futures are ready at once. A failed
+			// check writes its status and returns before `future` is written.
 			let start_params: Vec<String> = (params.iter().cloned())
 				.chain(poll_params)
 				.chain(["future: *mut *mut rt::Future".to_string()])
+				.chain(status_param)
 				.collect();
+			let started = format!(
+				"let made = {{\n\t{make}\n\t}};\n\tunsafe {{ rt::Future::start(made, &[{outs}], {err}, future, w) }}"
+			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}({}) -> i32 {{\n\tlet w = \"{}\";\n\tlet _ = w;\n\tlet made = {{\n\t{make}\n\t}};\n\tunsafe {{ rt::Future::start(made, &[{outs}], {err}, future, w) }}\n}}\n",
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}({}) -> i32 {{\n\tlet w = \"{}\";\n\tlet _ = w;\n\t{}\n}}\n",
 				start.name,
 				start_params.join(", "),
-				start.name
+				start.name,
+				wrap(status, "i32", &started)
 			));
 			return;
 		}
@@ -1991,16 +2389,36 @@ impl Gen<'_> {
 			None => self.finish(function, &function.ok, ("", "", "")),
 		};
 		self.lends = false;
+		let call = match function.collect {
+			// An iterator's items, all taken now.
+			true => format!("::std::iter::Iterator::collect::<::std::vec::Vec<_>>({call})"),
+			false => call,
+		};
+		self.checking.set(false);
 		self.export(format!(
-			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}\n\tlet result = {};{writes}\n\t{finish}\n}}\n",
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{}\n}}\n",
 			params.join(", "),
-			match function.collect {
-				// An iterator's items, all taken now.
-				true => format!("::std::iter::Iterator::collect::<::std::vec::Vec<_>>({call})"),
-				false => call,
-			},
+			wrap(status, &ret, &format!("{body}\n\tlet result = {call};{writes}\n\t{finish}"))
 		));
 	}
+}
+
+/// The body of a C function returning `ret`, which runs `body`, statements then the value
+/// returned: if it takes `status`, as a closure whose failed check `?` returns, written
+/// through `status`.
+fn wrap(status: Option<&str>, ret: &str, body: &str) -> String {
+	let Some(status) = status else {
+		return body.to_string();
+	};
+	format!(
+		"let checked = (|| -> ::std::result::Result<{ret}, rt::Status> {{\n\t{body_ok}\n\t}})();\n\tmatch checked {{\n\t\tOk(v) => v,\n\t\tErr(s) => unsafe {{ rt::failed({status}, s, w) }},\n\t}}",
+		body_ok = ok_tail(body)
+	)
+}
+
+/// `body`, statements then a value, with the value wrapped in `Ok`.
+fn ok_tail(body: &str) -> String {
+	format!("Ok({{\n\t{body}\n\t}})")
 }
 
 /// What a function returns, owned: each reference at its top or in a returned tuple as

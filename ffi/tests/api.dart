@@ -102,12 +102,25 @@ void throws<T extends Object>(void Function() f, String what) {
   check(false, what);
 }
 
-/// `f` throws the StateError of a closed `type`.
+/// `f` throws the StateError of a closed `type`: Dart's own, for a value whose calls only
+/// borrow it, or else Rust's check of a moved value, naming the function.
 void closed(void Function() f, String type, String what) {
   try {
     f();
   } on StateError catch (e) {
-    check(e.message == '$type is closed', '$what: $e');
+    final moved = e.message.startsWith('api_') && e.message.endsWith(": a handle's value was moved out");
+    check(e.message == '$type is closed' || moved, '$what: $e');
+    return;
+  }
+  check(false, what);
+}
+
+/// `f` throws the StateError `message` of a close under a borrow.
+void borrowed(void Function() f, String message, String what) {
+  try {
+    f();
+  } on StateError catch (e) {
+    check(e.message == message, '$what: $e');
     return;
   }
   check(false, what);
@@ -599,7 +612,7 @@ Future<void> script() async {
   print('chunks ${api.chunks(utf8.encode('abcde'), 2)}');
   final counters = api.counters(['x', 'y']);
   print('counters ${counters.map((c) => '${c.name()} ${c.get()}').join(', ')}');
-  // Each counter moves in, so Dart closes it.
+  // Each counter moves in, so a later call throws.
   print('worth ${api.worth([counters[0]], [counters[1]])} ${api.worth(null, [])}');
   for (final counter in counters) {
     closed(counter.get, 'Counter', 'a counter moved in is closed');
@@ -709,6 +722,10 @@ Future<void> script() async {
   final renewed = api.reissue(api.Ticket(7), (t) => api.Ticket(t.number() + 1)).number();
   final copied = api.reissue(api.Ticket(7), (_) => nine).number();
   print('reissued $renewed $copied, cloned ${api.Ticket.clones()}');
+  // A record's traits borrow the checked handle it holds.
+  final front = api.seat(nine, 1);
+  final back = api.seat(nine, 2);
+  print('seat ${front.debug()} ${front == api.seat(nine, 1)} ${front == back}');
   // A kept closure, called on another thread after the call that took it returned.
   final spawned = api.Spawned(() => 7);
   print('spawned ${spawned.join()}');
@@ -924,16 +941,21 @@ Future<void> futures() async {
   done.cancel();
   check(await done == 2, 'a finished future cancelled keeps its value');
 
-  // A handle closed while a call awaits on it stays alive until the call ends.
+  // Closing a handle a call awaiting on it borrows throws, as Rust refuses a drop under a
+  // borrow, and changes nothing: the call ends as it would, and then the close passes.
   final other = api.Channel();
   final held = other.recv();
   final sender = other.clone();
-  other.close();
+  try {
+    other.close();
+    check(false, 'a close under an awaiting call throws');
+  } on StateError catch (e) {
+    check(e.message == 'api_Channel_drop: a handle is already borrowed', 'a close under an awaiting call: $e');
+  }
   sender.send(utf8.encode('held'));
-  check(
-    text(await within(held, 'a receive on a closed handle')) == 'held',
-    'a closed handle stays alive in the call awaiting on it',
-  );
+  check(text(await within(held, 'a receive the close left')) == 'held', 'the awaiting call ends as it would');
+  other.close();
+  closed(other.clear, 'Channel', 'a call after the close');
   sender.close();
 
   // A future holding an implementation drops it as it finishes, closing it.
@@ -1070,6 +1092,12 @@ void targets() {
   lacks(() => api.wasmOnly(), 'api_wasm_only');
   lacks(() => api.pointerBits(const api.PlatformWasm(bits: 32)), 'api_Platform.Wasm');
   lacks(() => api.isFamily(api.Family.wasm), 'api_Family.Wasm');
+  lacks(() => api.Page.default_(), 'api_Page_default');
+  lacks(() => const api.Page(size: 1).debug(), 'api_Page_debug');
+  lacks(() => const api.Page(size: 1) == const api.Page(size: 2), 'api_Page_eq');
+  final booth = api.Booth(ticket: api.Ticket(1));
+  lacks(() => booth.debug(), 'api_Booth_debug');
+  lacks(() => booth == api.Booth(ticket: booth.ticket), 'api_Booth_eq');
 }
 
 @pragma('vm:never-inline')
@@ -1111,8 +1139,9 @@ void closedObjects() {
   closed(() => api.Board([('open', open), ('closed', c)]), 'Counter', 'a closed object in a tuple');
   check(open.get() == 3, 'a call that throws moves none of its other arguments');
 
-  // Nor gives Rust an implementation beside an argument that throws, which would keep it
-  // unclosed and force each later call through a thread of its own.
+  // Nor keeps an implementation beside an argument that throws, which would keep it unclosed
+  // and force each later call through a thread of its own: one Dart refuses Rust never
+  // takes, and one Rust's check refuses Rust drops, as it takes what it was given first.
   check(api.onFirstThread(), 'a call while Rust holds no implementation');
   final spared = CountLog();
   throws<ArgumentError>(() => api.ArrayU8x4([1, 2, 3]), '3 bytes are no [u8; 4]');
@@ -1120,12 +1149,12 @@ void closedObjects() {
   throws<RangeError>(() => api.logCounts(spared, 256, open, []), 'an integer out of range after an implementation');
   closed(() => api.logCounts(spared, 0, c, []), 'Counter', 'a closed object after an implementation');
   closed(() => api.logCounts(spared, 0, open, [c]), 'Counter', 'a closed object in a list after an implementation');
-  check(spared.closes == 0, 'a call that throws gives Rust no implementation');
+  check(spared.closes == 2, 'a call whose check throws drops the implementation it gave Rust');
   check(api.onFirstThread(), "a call after one that threw runs on the isolate's thread");
   lacks(() => api.wasmLog(spared), 'api_wasm_log');
   check(api.onFirstThread(), "a call after one this target lacks runs on the isolate's thread");
   check(api.logCounts(spared, 0, open, []) == 1, 'an implementation a call that threw gave none of');
-  check(spared.lines == 1 && spared.closes == 1, 'an implementation given once is closed once');
+  check(spared.lines == 1 && spared.closes == 3, 'an implementation given once is closed once');
 
   // An async call.
   final channel = api.Channel();
@@ -1147,26 +1176,27 @@ void closedObjects() {
   });
   closed(kept.get, 'Counter', 'a lent object kept past its closure');
 
-  // Closed while a call holds it, from the closure the call lends, the object stays alive
-  // until the call returns, and is freed then.
+  // Closed from the closure a call lends while the call borrows it, an object throws, as
+  // Rust refuses a drop under a borrow, and changes nothing; closed after, it closes.
   final editing = api.Registry(api.Counter('e', 4));
   final edited = editing.edit((counter) {
-    editing.close();
-    closed(() => editing.firstGet, 'Registry', 'an object closed in a closure refuses calls');
+    borrowed(editing.close, 'api_Registry_drop: a handle is already borrowed', 'a close in a closure the call lends');
     return counter.get() == 4;
   });
-  check(edited, 'the call holding a closed object still reaches it');
-  closed(() => editing.firstGet, 'Registry', 'an object closed in a closure stays closed');
-  // As the drop of what it holds shows: once, after the call.
+  check(edited, 'the call whose object a close failed on runs on');
+  editing.close();
+  closed(() => editing.firstGet, 'Registry', 'an object closed after the call');
+  // The same for one Dart counts, as the drop of what it holds shows: once, at the close.
   late api.Logger logger;
   late CountLog log;
   log = CountLog(() {
-    logger.close();
-    check(log.closes == 0, 'an object closed during a call it is held by outlives the call');
+    borrowed(logger.close, 'Logger: a handle is already borrowed', 'a close during a call it is held by');
   });
   logger = api.Logger(log);
-  check(logger.write('x'), 'the call holding a closed object returns');
-  check(log.closes == 1, 'an object closed during a call it is held by is freed as it returns');
+  check(logger.write('x'), 'the call whose object a close failed on returns');
+  check(log.closes == 0, 'a close that failed frees nothing');
+  logger.close();
+  check(log.closes == 1, 'a close after the call frees it');
   logger.close();
   check(log.closes == 1, 'closing it again frees nothing');
   print('closed ok');

@@ -78,6 +78,12 @@ impl Header<'_> {
 		self.line(format!(
 			"/* The index of the library's target among those this header serves:{targets} */\nuint32_t {p}_target(void);\n"
 		));
+		let statuses: String = (crate::abi::STATUSES.iter().enumerate())
+			.map(|(n, (status, _))| format!("\t{upper}_STATUS_{} = {},\n", status.to_uppercase(), n + 1))
+			.collect();
+		self.line(format!(
+			"/* Why a call failed a check of a handle, before it ran any Rust: a borrow or move\n * Rust's borrow checker would refuse. A function that can fail one takes a status\n * last, through which it writes the failure, returning a zeroed value to ignore;\n * passed null, it aborts with the message instead. */\ntypedef int32_t {p}_status;\nenum {{\n{statuses}}};\n\n/* What a status says broke. */\nconst char *{p}_status_message({p}_status status);\n"
+		));
 		self.line(format!(
 			"/* Bytes. Returned, an owned buffer to free once with {p}_buf_free, or pass back to\n * Rust by value, ptr and len narrowed to any range of its bytes. Passed by value, one\n * whose owner is set is Rust's from then on, taken without a copy, and one whose owner\n * is NULL is a view Rust reads during the call and never frees; in a value passed by\n * pointer, or an array's item, either is only read. A null ptr is None. */\ntypedef struct {p}_buf {{\n\tconst uint8_t *ptr;\n\tsize_t len;\n\tvoid *owner;\n}} {p}_buf;\n\nvoid {p}_buf_free({p}_buf buf);\n\n/* An owned copy of view's bytes: what a closure or reader C implements returns Rust,\n * which then owns it. */\n{p}_buf {p}_buf_copy({p}_buf view);\n\n/* A second owned buffer of an owned buffer's bytes, sharing them without a copy: what\n * a caller passes Rust while keeping buf. */\n{p}_buf {p}_buf_clone({p}_buf buf);\n"
 		));
@@ -205,7 +211,13 @@ impl Header<'_> {
 		for (i, record) in api.records.iter().enumerate() {
 			let name = abi.record(i);
 			self.line(format!("/* {} */", abi.api.rust(&record.path, &record.args)).trim_end());
-			self.value_functions(&name, Ty::Struct(name.clone()), record.traits, true);
+			self.value_functions(
+				&name,
+				Ty::Struct(name.clone()),
+				record.traits,
+				true,
+				abi.value_status(&Type::Record(i)),
+			);
 			let owner = Ty::Struct(name.clone());
 			for method in &record.methods {
 				self.function(method, Some(&owner));
@@ -219,7 +231,13 @@ impl Header<'_> {
 				continue;
 			}
 			self.line(format!("/* {} */", abi.api.rust(&e.path, &e.args)));
-			self.value_functions(&name, ty.clone(), e.traits, !e.plain());
+			self.value_functions(
+				&name,
+				ty.clone(),
+				e.traits,
+				!e.plain(),
+				abi.value_status(&Type::Enum(i)),
+			);
 			for method in &e.methods {
 				self.function(method, Some(&ty));
 			}
@@ -230,12 +248,26 @@ impl Header<'_> {
 			let docs = format!("{}\n\n{}", abi.api.rust(&object.path, &object.args), object.docs);
 			self.line(comment(docs.trim(), "").trim_end());
 			self.line(format!("void {name}_free({name} *self);"));
+			if abi.checked[i] {
+				self.line(
+					comment(
+						"Drop the value now, as a move out would, leaving the handle to free: a later call fails as moved, and a second drop does nothing. Fails while a call or future borrows the value.",
+						"",
+					)
+					.trim_end(),
+				);
+				self.line(format!("void {name}_drop({name} *self, {p}_status *status);"));
+			}
 			if object.shared {
 				self.line(format!("bool {name}_borrowed(const {name} *self);"));
 			}
 			let t = object.traits;
+			let status = match abi.traits_status(i) {
+				true => format!(", {p}_status *status"),
+				false => String::new(),
+			};
 			if t.clone {
-				self.line(format!("{name} *{name}_clone(const {name} *self);"));
+				self.line(format!("{name} *{name}_clone(const {name} *self{status});"));
 			}
 			if abi.copies.contains(&i) {
 				self.line(
@@ -245,16 +277,16 @@ impl Header<'_> {
 					)
 					.trim_end(),
 				);
-				self.line(format!("{name} *{name}_copy(const {name} *self);"));
+				self.line(format!("{name} *{name}_copy(const {name} *self{status});"));
 			}
 			if t.eq {
-				self.line(format!("bool {name}_eq(const {name} *a, const {name} *b);"));
+				self.line(format!("bool {name}_eq(const {name} *a, const {name} *b{status});"));
 			}
 			if t.display {
-				self.line(format!("{p}_buf {name}_to_string(const {name} *self);"));
+				self.line(format!("{p}_buf {name}_to_string(const {name} *self{status});"));
 			}
 			if t.debug {
-				self.line(format!("{p}_buf {name}_debug(const {name} *self);"));
+				self.line(format!("{p}_buf {name}_debug(const {name} *self{status});"));
 			}
 			if t.default {
 				self.line(format!("{name} *{name}_default(void);"));
@@ -391,8 +423,12 @@ impl Header<'_> {
 	}
 
 	/// The functions a value type's std traits export, and its `free` if it owns memory.
-	fn value_functions(&mut self, name: &str, ty: Ty, traits: Traits, free: bool) {
+	fn value_functions(&mut self, name: &str, ty: Ty, traits: Traits, free: bool, status: bool) {
 		let p = &self.abi.prefix;
+		let status = match status {
+			true => format!(", {p}_status *status"),
+			false => String::new(),
+		};
 		let this = self.decl(&Ty::In(Box::new(ty.clone())), "self");
 		let a = self.decl(&Ty::In(Box::new(ty.clone())), "a");
 		let b = self.decl(&Ty::In(Box::new(ty.clone())), "b");
@@ -400,13 +436,13 @@ impl Header<'_> {
 			self.line(format!("void {name}_free({name} *self);"));
 		}
 		if traits.eq {
-			self.line(format!("bool {name}_eq({a}, {b});"));
+			self.line(format!("bool {name}_eq({a}, {b}{status});"));
 		}
 		if traits.display {
-			self.line(format!("{p}_buf {name}_to_string({this});"));
+			self.line(format!("{p}_buf {name}_to_string({this}{status});"));
 		}
 		if traits.debug {
-			self.line(format!("{p}_buf {name}_debug({this});"));
+			self.line(format!("{p}_buf {name}_debug({this}{status});"));
 		}
 		if traits.default {
 			self.line(format!("{} {name}_default(void);", self.decl(&ty, "")));
@@ -532,6 +568,7 @@ pub fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 		Ty::ForeignFuture => space(&abi.rt("foreign_future")),
 		Ty::ForeignReader => space(&abi.rt("foreign_reader")),
 		Ty::Poll => space(&abi.rt("poll")),
+		Ty::Status => space(&abi.rt("status")),
 		Ty::Out(inner) => decl(abi, inner, &format!("*{name}")),
 		Ty::In(inner) => format!("const {}", decl(abi, inner, &format!("*{name}"))),
 		Ty::Fn(params, ret) => {

@@ -392,12 +392,19 @@ abstract class Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owner,
 }
 
 /**
- * A handle [owner] owns, or is lent for a call: each call holds it, so [close] frees it
- * only once no call does, and a call after [close] throws. An owned one is closed once
- * the GC collects [owner], if nothing closed it.
+ * A handle [owner] owns, or is lent for a call: each call holds it, so it is freed only
+ * once no call does, and a call after [close] throws. [close] of one whose value Rust
+ * checks, which [drop] drops, drops the value as Rust's own drop does, throwing while a
+ * call borrows it in Rust; of any other, it throws while a call holds it. An owned one is
+ * freed once the GC collects [owner], if nothing closed it.
  */
-class Handle(owner: Any, internal val raw: Long, private val free: Drop?, private val type: String) :
-	Cleanup(if (free == null) null else owner) {
+class Handle(
+	owner: Any,
+	internal val raw: Long,
+	private val free: Drop?,
+	private val type: String,
+	private val drop: Close? = null,
+) : Cleanup(if (free == null) null else owner) {
 	// The holds, one for the owner until closed and one per call, shifted past a bit set
 	// once closed: one word, so a handle allocates nothing beside itself.
 	@Volatile @JvmField internal var state = HELD
@@ -416,11 +423,26 @@ class Handle(owner: Any, internal val raw: Long, private val free: Drop?, privat
 
 	fun release() = freed(STATE.addAndGet(this, -HELD))
 
+	/** Close it as [Handle] says; again, it does nothing. */
 	fun close() {
+		if (drop != null) {
+			while (true) {
+				val n = state
+				if (n and CLOSED != 0L) return
+				if (STATE.compareAndSet(this, n, n + HELD)) break
+			}
+			try {
+				drop.close(raw)
+			} finally {
+				release()
+			}
+			return abandon()
+		}
 		while (true) {
 			val n = state
 			if (n and CLOSED != 0L) return
-			if (STATE.compareAndSet(this, n, (n or CLOSED) - HELD)) return freed((n or CLOSED) - HELD)
+			kotlin.check(n == HELD) { "$type: a handle is already borrowed" }
+			if (STATE.compareAndSet(this, n, CLOSED)) return freed(CLOSED)
 		}
 	}
 
@@ -429,8 +451,20 @@ class Handle(owner: Any, internal val raw: Long, private val free: Drop?, privat
 	 * reach the freed handle, so it throws, as Rust's own check fails once a call borrowed.
 	 */
 	fun end() {
-		close()
+		abandon()
 		kotlin.check(state == CLOSED) { "$type: a call still holds it when its lend ends" }
+	}
+
+	/**
+	 * Give up the owner's hold, freeing it once no call holds one: once a call moved its
+	 * value out, or the GC collected the owner.
+	 */
+	fun abandon() {
+		while (true) {
+			val n = state
+			if (n and CLOSED != 0L) return
+			if (STATE.compareAndSet(this, n, (n or CLOSED) - HELD)) return freed((n or CLOSED) - HELD)
+		}
 	}
 
 	// Free it once no hold is left.
@@ -439,7 +473,7 @@ class Handle(owner: Any, internal val raw: Long, private val free: Drop?, privat
 	}
 
 	// A call still holding it frees it once it returns.
-	override fun collected() = close()
+	override fun collected() = abandon()
 
 	/** Run [block] with the raw handle, held until it returns. */
 	inline fun <R> hold(block: (Long) -> R): R {
@@ -465,12 +499,17 @@ class Returned(raw: Long) : Waker, AutoCloseable {
 
 	override fun wake() = handle.hold { __waker_wake(it) }
 
-	override fun close() = handle.close()
+	override fun close() = handle.abandon()
 }
 
 /** Frees a raw handle: a `fun interface`, so the handle crosses unboxed. */
 fun interface Drop {
 	fun drop(raw: Long)
+}
+
+/** Drops the value of a raw handle, leaving the handle. */
+fun interface Close {
+	fun close(raw: Long)
 }
 
 /**

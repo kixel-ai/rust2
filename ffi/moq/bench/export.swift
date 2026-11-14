@@ -104,35 +104,35 @@ func throughput(_ track: TrackProducer, _ subscriber: inout TrackSubscriber, _ a
 
 func round() throws -> ([(String, Span)], Int) {
 	var out: [(String, Span)] = []
-	let broadcast = BroadcastInfo.new().produce()
+	let broadcast = try BroadcastInfo.new().produce()
 	let track = try broadcast.createTrack("bench", TrackInfo.default().withTimescale(Timescale.MICRO))
 	let frame = Bytes(Data(count: 100))
 	var sum = 0
 
 	var start = now()
-	for _ in 0..<n where track.isClosed() {
+	for _ in 0..<n where try track.isClosed() {
 		sum += 1
 	}
 	out.append(("call", per(start)))
 
 	var demanded = try track.appendGroup()
-	let demand = demanded.demand()
+	let demand = try demanded.demand()
 	start = now()
 	for _ in 0..<n {
-		sum &+= Int(demand.sequence())
+		sum &+= Int(try demand.sequence())
 	}
 	out.append(("getter", per(start)))
 	try demanded.finish()
 
 	start = now()
-	for _ in 0..<n where track.largest() != nil {
+	for _ in 0..<n where try track.largest() != nil {
 		sum += 1
 	}
 	out.append(("record", per(start)))
 
 	start = now()
 	for _ in 0..<n {
-		_ = track.info()
+		_ = try track.info()
 	}
 	out.append(("object", per(start)))
 
@@ -276,7 +276,7 @@ func round() throws -> ([(String, Span)], Int) {
 	// The last frame's 100 bytes, returned as Bytes, and one of them read.
 	start = now()
 	for _ in 0..<n {
-		sum += Int(last.payloadGet[0])
+		sum += try Int(last.payloadGet[0])
 	}
 	out.append(("payload", per(start)))
 	return (out, sum)

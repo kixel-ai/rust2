@@ -17,6 +17,35 @@ const (
 // once that callback returned.
 var ErrClosed = errors.New("closed")
 
+// ErrBorrowed is what a call returns, wrapped with the function's name, once Rust's rules
+// refuse a borrow it makes: of an object another call or future borrows in a way the
+// borrow checker forbids beside it, or of one that is not Sync from a second thread.
+var ErrBorrowed = errors.New("borrowed")
+
+// checkError_ is what a call returns once Rust refuses it before running: its status, or 0
+// for an item not on the library's target, which matches errors.ErrUnsupported.
+type checkError_ struct {
+	what    string
+	message string
+	status  int32
+}
+
+func (e checkError_) Error() string {
+	return e.what + ": " + e.message
+}
+
+func (e checkError_) Is(target error) bool {
+	switch e.status {
+	case 0:
+		return target == errors.ErrUnsupported
+	// Moved out, or lent from a handle that since changed: closed either way.
+	case 1, 6:
+		return target == ErrClosed
+	default:
+		return target == ErrBorrowed
+	}
+}
+
 type closedError_ struct {
 	name string
 }
@@ -29,22 +58,27 @@ func (e closedError_) Is(target error) bool {
 	return target == ErrClosed
 }
 
-// Handle_ is what an object owns, or is lent for a call: each call holds it, so Close frees
-// it only once no call does, and a call after Close returns ErrClosed. For the generated
-// packages, which share it: use none of it.
+// Handle_ is what an object owns, or is lent for a call: each call holds it, so it is
+// freed only once no call does, and a call after Close returns ErrClosed. Close of one
+// whose value Rust checks, which drop drops, drops the value as Rust's own drop does,
+// failing while a call borrows it in Rust; of any other, it fails while a call holds it.
+// For the generated packages, which share it: use none of it.
 type Handle_ struct {
 	raw   unsafe.Pointer
 	state atomic.Int64
 	// Nil for a handle Rust lends, which it frees itself.
 	free func(unsafe.Pointer)
+	// Non-nil for an owned one of a value Rust checks.
+	drop func(unsafe.Pointer) error
 	name string
-	// What closes an owned handle the GC finds unclosed.
+	// What frees an owned handle once the GC collects its object.
 	Cleanup runtime.Cleanup
 }
 
-// NewHandle_ is a handle of raw, which free frees, or nil for one Rust lends.
-func NewHandle_(raw unsafe.Pointer, free func(unsafe.Pointer), name string) *Handle_ {
-	h := &Handle_{raw: raw, free: free, name: name}
+// NewHandle_ is a handle of raw, which free frees, or nil for one Rust lends, and drop
+// drops the value of, or nil for one Rust does not check.
+func NewHandle_(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(unsafe.Pointer) error, name string) *Handle_ {
+	h := &Handle_{raw: raw, free: free, drop: drop, name: name}
 	h.state.Store(held_)
 	return h
 }
@@ -74,9 +108,55 @@ func (h *Handle_) Release() {
 	}
 }
 
-// Close gives up the owner's hold, freeing the handle once no call holds it; again, it
-// does nothing.
-func (h *Handle_) Close() {
+// Close closes h as Handle_ says; again, it does nothing.
+func (h *Handle_) Close() error {
+	if h.drop != nil {
+		raw := h.Hold()
+		if raw == nil {
+			return nil
+		}
+		err := h.drop(raw)
+		h.Release()
+		if err != nil {
+			return err
+		}
+		h.Moved()
+		return nil
+	}
+	for {
+		n := h.state.Load()
+		if n&closed_ != 0 {
+			return nil
+		}
+		if n != held_ {
+			return checkError_{h.name, "a handle is already borrowed", 3}
+		}
+		if h.state.CompareAndSwap(n, closed_) {
+			// A cleanup left registered until the GC slows each one registered after it.
+			h.Cleanup.Stop()
+			if h.free != nil {
+				h.free(h.raw)
+			}
+			return nil
+		}
+	}
+}
+
+// Moved closes an owned handle a call moved the value out of, or Close dropped, freeing it
+// once no call holds it.
+func (h *Handle_) Moved() {
+	// A cleanup left registered until the GC slows each one registered after it.
+	h.Cleanup.Stop()
+	h.abandon()
+}
+
+// Collected frees an owned handle the GC collected the object of, once no call holds it.
+func (h *Handle_) Collected() {
+	h.abandon()
+}
+
+// abandon gives up the owner's hold, freeing it once no call holds it.
+func (h *Handle_) abandon() {
 	for {
 		n := h.state.Load()
 		if n&closed_ != 0 {
@@ -84,8 +164,6 @@ func (h *Handle_) Close() {
 		}
 		next := (n | closed_) - held_
 		if h.state.CompareAndSwap(n, next) {
-			// A cleanup left registered until the GC slows each one registered after it.
-			h.Cleanup.Stop()
 			if next < held_ && h.free != nil {
 				h.free(h.raw)
 			}
@@ -98,7 +176,7 @@ func (h *Handle_) Close() {
 // would reach the freed handle, so it panics, as Rust's own check fails once a call
 // borrowed.
 func (h *Handle_) End() {
-	h.Close()
+	h.abandon()
 	if h.state.Load() != closed_ {
 		panic(h.name + ": a call still holds it when its lend ends")
 	}

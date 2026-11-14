@@ -45,5 +45,4 @@ layout fields.
 
 ## Related
 
-- [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - a value has no handle to check, so fewer calls can fail one
 - [Cheaper returned-object ownership](/quest/m1/ffi-speed/object-ownership.md) - the other half of Go's and Dart's stamped write

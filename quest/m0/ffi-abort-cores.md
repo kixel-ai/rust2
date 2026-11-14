@@ -65,7 +65,3 @@ Kotlin abort on `java`.
 ## Hosts
 
 - linux - the core handler and `prctl` are Linux's; macOS's default core limit is already 0
-
-## Related
-
-- [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - turns many of these aborts into raised errors, leaving fewer to cover

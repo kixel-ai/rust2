@@ -217,6 +217,8 @@ fn api_c() {
 		api.transcript,
 		"the C transcript differs from the native one"
 	);
+	// A non-null status takes each failed check, which changed nothing.
+	run(Command::new(&exe).arg("statuses"));
 
 	// Each broken contract aborts, naming the function and what broke.
 	for (case, message) in [
@@ -238,7 +240,7 @@ fn api_c() {
 		("lent", "api_Registry_edit: a lent handle was freed"),
 		(
 			"lent moved",
-			"api_Counter_into_label: a lent handle's value cannot move out",
+			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("null", "api_Registry_edit: a function is null"),
 		("returned", "api_made: a returned buffer is not one buf_copy made"),
@@ -246,7 +248,7 @@ fn api_c() {
 		("outlived", OUTLIVED),
 		(
 			"lent shared",
-			"api_Meter_reset: a handle a call lent shared is borrowed exclusively",
+			"api_Meter_reset: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("target", "api_wasm_only: it is not on this library's target"),
 		(
@@ -404,7 +406,7 @@ fn api_cpp() {
 			),
 			(
 				"lent moved",
-				"api_Counter_into_label: a lent handle's value cannot move out",
+				"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 			),
 			("lent kept", "a lent object was moved out of"),
 			("overread", "api_tail: a reader read more than it was asked"),
@@ -813,18 +815,21 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 	run(&mut vm(&["futures"]));
 	run(&mut vm(&["owned"]));
 	for (case, message) in [
-		("moved", "Counter is closed"),
-		("boxed moved", "Node is closed"),
+		("moved", "IllegalStateException: Counter is closed"),
+		("boxed moved", "IllegalStateException: Node is closed"),
 		("lent kept", "Counter is closed"),
 		(
 			"lent moved",
-			"api_Counter_into_label: a lent handle's value cannot move out",
+			"Native$Refused: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("callback threw", "api::Log::log: a call into Kotlin threw"),
 		("closure threw", "api_made: a call into Kotlin threw"),
 		("closure failed", "api_drive: a call into Kotlin threw"),
 		("reader threw", "SeekableByteChannel.read: a call into Kotlin threw"),
-		("outlived", OUTLIVED),
+		(
+			"outlived",
+			"Native$Refused: api_Meter_count: a handle lent from another outlived it",
+		),
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 	] {
@@ -869,17 +874,23 @@ fn api_python() {
 		run(&mut python(&dir, &[case]));
 	}
 	for (case, message) in [
-		("moved", "ValueError: Counter is closed"),
-		("boxed moved", "ValueError: Node is closed"),
+		("moved", "ValueError: api_Counter_get: a handle's value was moved out"),
+		(
+			"boxed moved",
+			"ValueError: api_Node_sum: a handle's value was moved out",
+		),
 		("lent kept", "ValueError: Counter is closed"),
 		("lent held", "Counter: a call still holds it when its lend ends"),
 		(
 			"lent moved",
-			"api_Counter_into_label: a lent handle's value cannot move out",
+			"RuntimeError: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("callback threw", "api::Log::log: a call into Python raised"),
 		("foreign cancelled", "a future Rust polls raised"),
-		("outlived", OUTLIVED),
+		(
+			"outlived",
+			"ValueError: api_Meter_count: a handle lent from another outlived it",
+		),
 		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
 		("kept threw", "api_Spawned_new: a call into Python raised"),
 		("returned", "api_made: a call into Python raised"),
@@ -1055,8 +1066,6 @@ fn api_swift() {
 		("outlived", OUTLIVED),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
-		("refusal moved", "Refusal is closed"),
-		("target", "api_wasm_only: it is not on this library's target"),
 		("variant", "api_Platform.Wasm: it is not on this library's target"),
 		("plain variant", "api_Family.Wasm: it is not on this library's target"),
 	] {
@@ -1138,12 +1147,12 @@ fn api_dart() {
 		run(&mut dart_run(&exe, &[case]));
 	}
 	for (case, message) in [
-		("moved", "Bad state: Counter is closed"),
-		("boxed moved", "Bad state: Node is closed"),
+		("moved", "Bad state: api_Counter_get: a handle's value was moved out"),
+		("boxed moved", "Bad state: api_Node_sum: a handle's value was moved out"),
 		("lent kept", "Bad state: Counter is closed"),
 		(
 			"lent moved",
-			"api_Counter_into_label: a lent handle's value cannot move out",
+			"Bad state: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("callback threw", "api::Log::log: a call into Dart threw"),
 		(
@@ -1154,7 +1163,10 @@ fn api_dart() {
 			"reader threw",
 			"a reader's seek: a call into Dart threw Bad state: a seek failed",
 		),
-		("outlived", OUTLIVED),
+		(
+			"outlived",
+			"Bad state: api_Meter_count: a handle lent from another outlived it",
+		),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
@@ -1353,7 +1365,7 @@ fn api_go() {
 	for (case, message) in [
 		(
 			"lent moved",
-			"api_Counter_into_label: a lent handle's value cannot move out",
+			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("nil reader", "a nil io.ReadSeeker"),
 		("returned closed", "Instant is closed"),
@@ -1641,7 +1653,7 @@ fn unreached_types() {
 	assert!(glue.contains("fn pkg_copied_again("), "{glue}");
 	// A conversion target only an `impl Into` names is reached, and taken.
 	assert!(
-		glue.contains("rt::Object::<::conv_reached::Value>::take(p0, w)"),
+		glue.contains("rt::Object::<::conv_reached::Value>::reserve(p0, takes, w)"),
 		"{glue}"
 	);
 	assert!(glue.contains("::kio_reached::Pending"), "{glue}");

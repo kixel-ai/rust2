@@ -102,16 +102,35 @@ unsafe extern "C" fn foreign_free(data: *mut c_void) {
 fn handles() {
 	unsafe {
 		let counter = api_Counter_new(view("c"), 5);
-		assert_eq!(api_Counter_get(counter), 5);
+		assert_eq!(api_Counter_get(counter, std::ptr::null_mut()), 5);
 		let mut out = 0;
-		assert!(api_Counter_add(counter, 2, &mut out, std::ptr::null_mut()));
-		assert_eq!(api_Counter_get(counter), 7);
-		assert_eq!(take(api_Counter_name(counter)), "c");
+		assert!(api_Counter_add(counter, 2, &mut out, std::ptr::null_mut(), std::ptr::null_mut()));
+		assert_eq!(api_Counter_get(counter, std::ptr::null_mut()), 7);
+		assert_eq!(take(api_Counter_name(counter, std::ptr::null_mut())), "c");
 		let other = api_Counter_new(view("d"), 3);
-		assert_eq!(api_Counter_plus(counter, other), 10);
+		assert_eq!(api_Counter_plus(counter, other, std::ptr::null_mut()), 10);
 		api_Counter_free(other);
 		// Moving the value out leaves the handle for the caller to free.
-		assert_eq!(api_Counter_into_sum(counter, 1), 8);
+		assert_eq!(api_Counter_into_sum(counter, 1, std::ptr::null_mut()), 8);
+		api_Counter_free(counter);
+	}
+}
+
+/// A close while a call reserved the value to move out fails as borrowed, so the call's
+/// rollback, once a later check of it fails, revives no value the close reported dropped.
+#[test]
+fn close_while_reserved() {
+	type Counter = rt::Object<::api_export::Counter>;
+	unsafe {
+		let counter = api_Counter_new(view("c"), 5);
+		let mut takes = rt::Takes::default();
+		Counter::reserve(counter, &mut takes, "reserve").unwrap();
+		assert_eq!(Counter::close(counter, "close"), Err(rt::Status::Borrowed));
+		assert!(Counter::borrow(counter, "borrow").is_err());
+		drop(takes);
+		let mut status = 0;
+		assert_eq!(api_Counter_get(counter, &mut status), 5);
+		assert_eq!(status, 0);
 		api_Counter_free(counter);
 	}
 }
@@ -135,26 +154,26 @@ fn channel() {
 	let w = waker(&counts);
 	unsafe {
 		let channel = api_Channel_new();
-		let recv = api_Channel_recv(channel);
+		let recv = api_Channel_recv(channel, std::ptr::null_mut());
 		let mut payload = rt::Buf::NONE;
 		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::PENDING);
-		api_Channel_send(channel, view("hi"));
+		api_Channel_send(channel, view("hi"), std::ptr::null_mut());
 		assert_eq!(counts.wakes.load(Ordering::SeqCst), 1);
 		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::READY);
 		assert_eq!(take(payload), "hi");
 		api_Channel_recv_future_free(recv);
 
 		// A send from another thread wakes the poll's waker there.
-		let recv = api_Channel_recv(channel);
+		let recv = api_Channel_recv(channel, std::ptr::null_mut());
 		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::PENDING);
-		api_Channel_send_from_thread(channel, view("far"));
+		api_Channel_send_from_thread(channel, view("far"), std::ptr::null_mut());
 		assert_eq!(counts.wakes.load(Ordering::SeqCst), 2);
 		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::READY);
 		assert_eq!(take(payload), "far");
 		api_Channel_recv_future_free(recv);
 
 		// Cancelled while pending, it frees what it held, its waker included.
-		let recv = api_Channel_recv(channel);
+		let recv = api_Channel_recv(channel, std::ptr::null_mut());
 		assert_eq!(api_Channel_recv_poll(recv, w, &mut payload), rt::PENDING);
 		api_Channel_recv_future_free(recv);
 		api_Channel_free(channel);

@@ -1016,9 +1016,10 @@ impl Proto {
 	/// `ty`. A poll's call must return `ready`.
 	fn call(&self, function: &str, args: &[String], ty: &str, var: &str, ready: Option<&str>) -> String {
 		let args = args.join(", ");
-		let outs = &self.params[self.params.len() - self.outs()..];
+		let end = self.params.len() - usize::from(self.status());
+		let outs = &self.params[end - self.outs()..end];
 		if outs.is_empty() {
-			return format!("\t\t{ty} {var} = {function}({args});\n");
+			return format!("\t\t{ty} {var} = {function}({args}{});\n", self.tail());
 		}
 		let mut out = String::new();
 		let mut pointers = Vec::new();
@@ -1028,7 +1029,7 @@ impl Proto {
 			pointers.push(format!("&{var}_{k}"));
 			values.push(format!("{var}_{k}"));
 		}
-		let call = format!("{function}({args}, {})", pointers.join(", "));
+		let call = format!("{function}({args}, {}{})", pointers.join(", "), self.tail());
 		let _ = match ready {
 			Some(ready) => writeln!(out, "\t\tif ({call} != {ready}) abort();"),
 			None => writeln!(out, "\t\t{call};"),
@@ -1039,6 +1040,19 @@ impl Proto {
 			false => writeln!(out, "\t\t{ty} {var} = ({ty}){{{}}};", values.join(", ")),
 		};
 		out
+	}
+
+	/// Whether it takes a trailing status, for a check one of its handles can fail.
+	fn status(&self) -> bool {
+		self.params.last().is_some_and(|(_, name)| name == "status")
+	}
+
+	/// What follows its other arguments: NULL for a status, aborting on a failed check.
+	fn tail(&self) -> &'static str {
+		match self.status() {
+			true => ", NULL",
+			false => "",
+		}
 	}
 
 	/// How many out pointers it writes its output through: `out`, or `out0` on for a tuple.
@@ -1083,8 +1097,9 @@ fn c(built: &Built, calls: &[Call]) -> String {
 				block += &echo.call(&fname(Item::Echo), &["a".into()], &digested, "b", None);
 				let _ = writeln!(
 					block,
-					"\t\tprintf(\"{label} %\" PRIu64 \"\\n\", {}(b));",
-					fname(Item::Digest)
+					"\t\tprintf(\"{label} %\" PRIu64 \"\\n\", {}(b{}));",
+					fname(Item::Digest),
+					digest.tail()
 				);
 			}
 			Call::Lent(..) | Call::Peek(..) => {
@@ -1097,9 +1112,10 @@ fn c(built: &Built, calls: &[Call]) -> String {
 					let (_, param) = proto(item, n).pointer("f");
 					let _ = writeln!(
 						closures,
-						"static uint64_t {}(void *data, {param} v) {{\n\t(void)data;\n\treturn {}(v);\n}}\n",
+						"static uint64_t {}(void *data, {param} v) {{\n\t(void)data;\n\treturn {}(v{});\n}}\n",
 						item.name(n),
-						fname(Item::Digest)
+						fname(Item::Digest),
+						digest.tail()
 					);
 				}
 				let _ = writeln!(
@@ -1136,7 +1152,7 @@ fn c(built: &Built, calls: &[Call]) -> String {
 				let future = format!("{}_future", fname(Item::Later));
 				let poll = prototype(&header, &format!("{}_poll", fname(Item::Later)));
 				block += &make.call(&fname(Item::Make), &[format!("{seed}u")], later.param("v"), "a", None);
-				let _ = writeln!(block, "\t\t{future} *f = {}(a);", fname(Item::Later));
+				let _ = writeln!(block, "\t\t{future} *f = {}(a{});", fname(Item::Later), later.tail());
 				// Ready at once: an async fn that awaits nothing.
 				let ready = format!("{}_POLL_READY", name.to_uppercase());
 				let polled = poll.call(
@@ -1150,8 +1166,9 @@ fn c(built: &Built, calls: &[Call]) -> String {
 				let _ = writeln!(block, "\t\t{future}_free(f);");
 				let _ = writeln!(
 					block,
-					"\t\tprintf(\"{label} %\" PRIu64 \"\\n\", {}(b));",
-					fname(Item::Digest)
+					"\t\tprintf(\"{label} %\" PRIu64 \"\\n\", {}(b{}));",
+					fname(Item::Digest),
+					digest.tail()
 				);
 			}
 		}
@@ -1249,14 +1266,52 @@ fn python(built: &Built, calls: &[Call]) -> String {
 /// The Swift driver, in the generated module's `main.swift`: each shape's calls in a
 /// function of its own, since type-checking them as one body of top-level code takes
 /// tens of gigabytes.
-fn swift(calls: &[Call]) -> String {
+fn swift(calls: &[Call], source: &str) -> String {
+	// Whether the generated `func` throws, as one taking a checked handle does.
+	let throws = |function: &str| {
+		let at = source
+			.find(&format!("public func {function}("))
+			.unwrap_or_else(|| panic!("the Swift declares {function}"));
+		source[at..].lines().next().unwrap().contains(" throws ")
+	};
+	// `try` where an expression's call throws: a closure, which cannot, aborts instead.
+	let tr = |functions: &[String]| match functions.iter().any(|f| throws(f)) {
+		true => "try ",
+		false => "",
+	};
+	let closed = |function: String| match throws(&function) {
+		true => "try! ",
+		false => "",
+	};
 	let shapes = by_shape(calls, |call| {
 		let value = match call {
-			Call::Echo(n, seed) => format!("digest{n}(echo{n}(make{n}({seed})))"),
-			Call::Lent(n, seed) => format!("lent{n}({seed}) {{ digest{n}($0) }}"),
-			Call::Peek(n, seed) => format!("peek{n}({seed}) {{ digest{n}($0) }}"),
-			Call::Made(n, seed) => format!("made{n}({seed}) {{ make{n}($0) }}"),
-			Call::Later(n, seed) => format!("digest{n}(try await later{n}(make{n}({seed})))"),
+			Call::Echo(n, seed) => format!(
+				"{}digest{n}(echo{n}(make{n}({seed})))",
+				tr(&[format!("digest{n}"), format!("echo{n}"), format!("make{n}")])
+			),
+			Call::Lent(n, seed) => {
+				format!(
+					"{}lent{n}({seed}) {{ {}digest{n}($0) }}",
+					tr(&[format!("lent{n}")]),
+					closed(format!("digest{n}"))
+				)
+			}
+			Call::Peek(n, seed) => {
+				format!(
+					"{}peek{n}({seed}) {{ {}digest{n}($0) }}",
+					tr(&[format!("peek{n}")]),
+					closed(format!("digest{n}"))
+				)
+			}
+			Call::Made(n, seed) => {
+				format!(
+					"{}made{n}({seed}) {{ {}make{n}($0) }}",
+					tr(&[format!("made{n}")]),
+					closed(format!("make{n}"))
+				)
+			}
+			// The future throws, so `try` always marks the call.
+			Call::Later(n, seed) => format!("try await digest{n}(later{n}(make{n}({seed})))"),
 		};
 		format!("\tprint(\"{} \\({value})\")", call.label())
 	});
@@ -1503,7 +1558,8 @@ fn round_trip(built: &Built, language: &str) {
 			let module = built.out.join("swift");
 			let (generated, main) = (dir.join(format!("{name}.swift")), dir.join("main.swift"));
 			step::copy(&module.join(format!("{name}.swift")), &generated);
-			step::write(&main, swift(calls));
+			let source = std::fs::read_to_string(&generated).unwrap();
+			step::write(&main, swift(calls, &source));
 			let collections = super::swift_collections();
 			let include = built.out.join("include");
 			let step = Step {

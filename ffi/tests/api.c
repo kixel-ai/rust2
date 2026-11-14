@@ -239,12 +239,12 @@ static api_buf made_times(void *data, uint32_t n) {
 /* reissue's closures: a new ticket, and a copy of one C keeps, each Rust's to free. */
 static api_Ticket *reissue_next(void *data, const api_Ticket *ticket) {
 	(void)data;
-	return api_Ticket_new(api_Ticket_number(ticket) + 1);
+	return api_Ticket_new(api_Ticket_number(ticket, NULL) + 1);
 }
 
 static api_Ticket *reissue_kept(void *data, const api_Ticket *ticket) {
 	(void)ticket;
-	return api_Ticket_copy(data);
+	return api_Ticket_copy(data, NULL);
 }
 
 static uint32_t spawned_task(void *data) {
@@ -275,13 +275,13 @@ static bool drive_poll(void *data, const api_Instant *now, const api_Waiter *wai
 	driver *d = data;
 	d->calls++;
 	if (d->calls == 1) {
-		*out = api_later(now, (api_duration){.secs = 0, .nanos = 5000000});
+		*out = api_later(now, (api_duration){.secs = 0, .nanos = 5000000}, NULL);
 		return true;
 	}
 	if (d->calls == 2) {
-		api_duration since = api_since(now, d->start);
+		api_duration since = api_since(now, d->start, NULL);
 		printf("drive %llu\n", (unsigned long long)(since.secs * 1000 + since.nanos / 1000000));
-		api_waker returned = api_Waiter_waker(waiter);
+		api_waker returned = api_Waiter_waker(waiter, NULL);
 		returned.wake(returned.data);
 		returned.drop(returned.data);
 		*out = NULL;
@@ -366,7 +366,7 @@ static bool broken_seek(void *data, int whence, int64_t offset, uint64_t *positi
 
 /* The payload sent last, ready at the first poll. */
 static api_buf received(api_Channel *channel) {
-	api_Channel_recv_future *recv = api_Channel_recv(channel);
+	api_Channel_recv_future *recv = api_Channel_recv(channel, NULL);
 	api_buf payload = {0};
 	bool ready = api_Channel_recv_poll(recv, (api_waker){0}, &payload) == API_POLL_READY;
 	api_Channel_recv_future_free(recv);
@@ -381,13 +381,13 @@ static bool forwarding(void) {
 	api_Channel *channel = api_Channel_new();
 	api_buf payload = api_token_bytes(3, 64);
 	const uint8_t *at = payload.ptr;
-	api_Channel_send(channel, payload);
+	api_Channel_send(channel, payload, NULL);
 	payload = received(channel);
 	bool same = payload.ptr == at && payload.len == 64;
-	api_Channel_send(channel, (api_buf){.ptr = payload.ptr + 1, .len = 62, .owner = payload.owner});
+	api_Channel_send(channel, (api_buf){.ptr = payload.ptr + 1, .len = 62, .owner = payload.owner}, NULL);
 	payload = received(channel);
 	same = same && payload.ptr == at + 1 && payload.len == 62;
-	api_Channel_send(channel, api_buf_clone(payload));
+	api_Channel_send(channel, api_buf_clone(payload), NULL);
 	api_buf shared = received(channel);
 	same = same && shared.ptr == payload.ptr && shared.len == 62;
 	api_buf_free(payload);
@@ -418,10 +418,18 @@ static bool closures(void) {
 	/* A closure taking and returning `Copy` objects copies them, never running their `Clone`. */
 	api_Ticket *kept = api_Ticket_new(9);
 	api_Ticket *seven = api_Ticket_new(7);
-	api_Ticket *given = api_reissue(seven, reissue_next, NULL);
-	api_Ticket *held = api_reissue(seven, reissue_kept, kept);
-	printf("reissued %u %u, cloned %u\n", (unsigned)api_Ticket_number(given), (unsigned)api_Ticket_number(held),
+	api_Ticket *given = api_reissue(seven, reissue_next, NULL, NULL);
+	api_Ticket *held = api_reissue(seven, reissue_kept, kept, NULL);
+	printf("reissued %u %u, cloned %u\n", (unsigned)api_Ticket_number(given, NULL), (unsigned)api_Ticket_number(held, NULL),
 		(unsigned)api_Ticket_clones());
+	/* A record's traits borrow the checked handle it holds. */
+	api_Seat front = api_seat(kept, 1, NULL);
+	api_Seat back = api_seat(kept, 2, NULL);
+	print("seat ", api_Seat_debug(&front, NULL), "");
+	printf(" %s %s\n", api_Seat_eq(&front, &front, NULL) ? "true" : "false",
+		api_Seat_eq(&front, &back, NULL) ? "true" : "false");
+	api_Seat_free(&back);
+	api_Seat_free(&front);
 	api_Ticket_free(held);
 	api_Ticket_free(given);
 	api_Ticket_free(seven);
@@ -430,7 +438,7 @@ static bool closures(void) {
 	/* A kept closure, called on another thread after the call that took it returned. */
 	bool spawned_freed = false;
 	api_Spawned *spawned = api_Spawned_new(spawned_task, &spawned_freed, spawned_free);
-	printf("spawned %u\n", (unsigned)api_Spawned_join(spawned));
+	printf("spawned %u\n", (unsigned)api_Spawned_join(spawned, NULL));
 	api_Spawned_free(spawned);
 	if (!spawned_freed) {
 		return false;
@@ -439,7 +447,7 @@ static bool closures(void) {
 	api_waker waker = {.wake = wake, .drop = drop, .data = NULL};
 	api_Instant *start = api_now();
 	driver d = {.start = start};
-	api_drive_future *drive = api_drive(start, drive_poll, &d, drive_free);
+	api_drive_future *drive = api_drive(start, drive_poll, &d, drive_free, NULL);
 	api_buf stopped;
 	int woken = wakes;
 	while (api_drive_poll(drive, waker, &stopped) == API_POLL_PENDING) {
@@ -450,7 +458,7 @@ static bool closures(void) {
 
 	/* Dropped before it finishes, it frees the closure it kept. */
 	driver idle = {.start = start};
-	drive = api_drive(start, drive_idle, &idle, drive_free);
+	drive = api_drive(start, drive_idle, &idle, drive_free, NULL);
 	ok = ok && api_drive_poll(drive, waker, &stopped) == API_POLL_PENDING && !idle.freed;
 	api_drive_future_free(drive);
 	ok = ok && idle.freed;
@@ -497,8 +505,8 @@ static void log_free(void *data) {
 
 /* A lent closure: adds data's amount to the counter lent for the call. */
 static bool edit(void *data, api_Counter *counter) {
-	api_Counter_add(counter, *(const uint64_t *)data, NULL, NULL);
-	return api_Counter_edited(counter) && api_Counter_get(counter) == 6;
+	api_Counter_add(counter, *(const uint64_t *)data, NULL, NULL, NULL);
+	return api_Counter_edited(counter, NULL) && api_Counter_get(counter, NULL) == 6;
 }
 
 /* Lent closures borrowing their object shared: one `Sync`, one not. */
@@ -515,7 +523,7 @@ static uint32_t triple(void *data, uint32_t side) {
 
 static uint64_t visit(void *data, const api_Cursor *cursor) {
 	(void)data;
-	return api_Cursor_at(cursor) * 2;
+	return api_Cursor_at(cursor, NULL) * 2;
 }
 
 static void print_visit(void *data, uint32_t at) {
@@ -525,7 +533,7 @@ static void print_visit(void *data, uint32_t at) {
 
 static uint32_t peek_tally(void *data, const api_Tally *tally) {
 	(void)data;
-	return api_Tally_bump(tally);
+	return api_Tally_bump(tally, NULL);
 }
 
 /* A lent closure, which Rust calls on another thread: keeps levels above data's. */
@@ -543,7 +551,7 @@ static bool free_lent(void *data, api_Counter *counter) {
 
 static bool move_lent(void *data, api_Counter *counter) {
 	(void)data;
-	api_Label label = api_Counter_into_label(counter, (api_option_Point){0});
+	api_Label label = api_Counter_into_label(counter, (api_option_Point){0}, NULL);
 	api_Label_free(&label);
 	return false;
 }
@@ -618,33 +626,33 @@ static int script(void) {
 	printf("default %d %d\n", d.x, d.y);
 
 	api_Counter *c = api_Counter_new(str("c"), 5);
-	printf("get %llu\n", (unsigned long long)api_Counter_get(c));
-	print("name ", api_Counter_name(c), "\n");
+	printf("get %llu\n", (unsigned long long)api_Counter_get(c, NULL));
+	print("name ", api_Counter_name(c, NULL), "\n");
 	uint64_t v;
 	api_Error err;
-	if (api_Counter_add(c, 10, &v, &err)) {
+	if (api_Counter_add(c, 10, &v, &err, NULL)) {
 		printf("add ok %llu\n", (unsigned long long)v);
 	}
-	if (!api_Counter_add(c, 2000, &v, &err)) {
+	if (!api_Counter_add(c, 2000, &v, &err, NULL)) {
 		print("add err ", api_Error_to_string(&err), " ");
 		print("", api_Error_debug(&err), "\n");
 		api_Error_free(&err);
 	}
-	if (!api_Counter_sub(c, 20, &v, &err)) {
+	if (!api_Counter_sub(c, 20, &v, &err, NULL)) {
 		printf("sub err underflow by %llu ", (unsigned long long)err.underflow.by);
 		print("", api_Error_debug(&err), "\n");
 		api_Error_free(&err);
 	}
-	api_Counter_rename(c, str("d"));
-	print("name ", api_Counter_name(c), "\n");
-	printf("is d %s\n", api_Counter_is(c, str("d")) ? "true" : "false");
-	api_Counter *copy = api_Counter_clone(c);
-	api_Counter_add(copy, 1, NULL, NULL);
-	printf("clone %llu original %llu\n", (unsigned long long)api_Counter_get(copy),
-		   (unsigned long long)api_Counter_get(c));
+	api_Counter_rename(c, str("d"), NULL);
+	print("name ", api_Counter_name(c, NULL), "\n");
+	printf("is d %s\n", api_Counter_is(c, str("d"), NULL) ? "true" : "false");
+	api_Counter *copy = api_Counter_clone(c, NULL);
+	api_Counter_add(copy, 1, NULL, NULL, NULL);
+	printf("clone %llu original %llu\n", (unsigned long long)api_Counter_get(copy, NULL),
+		   (unsigned long long)api_Counter_get(c, NULL));
 	api_Counter_free(copy);
-	print("debug ", api_Counter_debug(c), "\n");
-	api_Label label = api_Counter_into_label(c, (api_option_Point){.some = true, .value = p});
+	print("debug ", api_Counter_debug(c, NULL), "\n");
+	api_Label label = api_Counter_into_label(c, (api_option_Point){.some = true, .value = p}, NULL);
 	api_Counter_free(c);
 	print("label ", api_Label_debug(&label), "\n");
 	api_Label_free(&label);
@@ -655,20 +663,20 @@ static int script(void) {
 	/* A tuple returns through one out pointer per element. */
 	api_Counter *whole = api_Counter_new(str("s"), 7);
 	api_Counter *below, *above;
-	api_Counter_split(whole, 5, &below, &above);
+	api_Counter_split(whole, 5, &below, &above, NULL);
 	api_Counter_free(whole);
-	print("split ", api_Counter_name(below), " ");
-	printf("%llu ", (unsigned long long)api_Counter_get(below));
-	print("", api_Counter_name(above), " ");
-	printf("%llu\n", (unsigned long long)api_Counter_get(above));
+	print("split ", api_Counter_name(below, NULL), " ");
+	printf("%llu ", (unsigned long long)api_Counter_get(below, NULL));
+	print("", api_Counter_name(above, NULL), " ");
+	printf("%llu\n", (unsigned long long)api_Counter_get(above, NULL));
 	api_Counter_free(below);
 	api_Counter_free(above);
 	api_Counter *one = api_Counter_new(str("o"), 3);
 	api_Counter *only;
-	api_only(one, &only);
+	api_only(one, &only, NULL);
 	api_Counter_free(one);
-	print("only ", api_Counter_name(only), " ");
-	printf("%llu\n", (unsigned long long)api_Counter_get(only));
+	print("only ", api_Counter_name(only, NULL), " ");
+	printf("%llu\n", (unsigned long long)api_Counter_get(only, NULL));
 	api_Counter_free(only);
 	uint8_t w8;
 	int16_t w16;
@@ -722,21 +730,21 @@ static int script(void) {
 		{._0 = str("low"), ._1 = api_Counter_new(str("l"), 1)},
 		{._0 = str("high"), ._1 = api_Counter_new(str("h"), 9)},
 	};
-	api_Board *board = api_Board_new((api_vec_tuple_string_Counter){.ptr = meters, .len = 2});
+	api_Board *board = api_Board_new((api_vec_tuple_string_Counter){.ptr = meters, .len = 2}, NULL);
 	api_Counter_free(meters[0]._1);
 	api_Counter_free(meters[1]._1);
 	api_vec_tuple_string_Counter ranked = api_Board_ranked(board);
 	printf("ranked");
 	for (size_t i = 0; i < ranked.len; i++) {
 		printf("%s%.*s ", i == 0 ? " " : ", ", (int)ranked.ptr[i]._0.len, (const char *)ranked.ptr[i]._0.ptr);
-		print("", api_Counter_name(ranked.ptr[i]._1), " ");
-		printf("%llu", (unsigned long long)api_Counter_get(ranked.ptr[i]._1));
+		print("", api_Counter_name(ranked.ptr[i]._1, NULL), " ");
+		printf("%llu", (unsigned long long)api_Counter_get(ranked.ptr[i]._1, NULL));
 	}
 	printf("\n");
 	api_vec_tuple_string_Counter_free(ranked);
 	api_Counter *best = api_Board_best(board);
-	print("best ", api_Counter_name(best), " ");
-	printf("%llu\n", (unsigned long long)api_Counter_get(best));
+	print("best ", api_Counter_name(best, NULL), " ");
+	printf("%llu\n", (unsigned long long)api_Counter_get(best, NULL));
 	api_Counter_free(best);
 	api_Board_free(board);
 	/* A map crosses as its pairs and a set as its items, which Rust collects in order, each
@@ -828,38 +836,38 @@ static int script(void) {
 	/* Each lent counter is a new handle to a clone. */
 	/* A handle whose value moved in is still the caller's to free. */
 	api_Counter *moved = api_Counter_new(str("first"), 1);
-	api_Registry *registry = api_Registry_new(moved);
+	api_Registry *registry = api_Registry_new(moved, NULL);
 	api_Counter_free(moved);
-	printf("last %s\n", api_Registry_last(registry) != NULL ? "true" : "false");
+	printf("last %s\n", api_Registry_last(registry, NULL) != NULL ? "true" : "false");
 	moved = api_Counter_new(str("last"), 2);
-	api_Registry_push(registry, moved);
+	api_Registry_push(registry, moved, NULL);
 	api_Counter_free(moved);
-	api_Counter *first = api_Registry_first_get(registry);
-	api_Counter_add(first, 10, NULL, NULL);
-	api_Counter *lent = api_Registry_first_get(registry);
-	printf("first %llu lent %llu\n", (unsigned long long)api_Counter_get(lent),
-		   (unsigned long long)api_Counter_get(first));
+	api_Counter *first = api_Registry_first_get(registry, NULL);
+	api_Counter_add(first, 10, NULL, NULL, NULL);
+	api_Counter *lent = api_Registry_first_get(registry, NULL);
+	printf("first %llu lent %llu\n", (unsigned long long)api_Counter_get(lent, NULL),
+		   (unsigned long long)api_Counter_get(first, NULL));
 	api_Counter_free(lent);
 	api_Counter_free(first);
-	api_Counter *last = api_Registry_last(registry);
-	api_Counter_add(last, 10, NULL, NULL);
-	lent = api_Registry_last(registry);
-	printf("last %llu lent %llu\n", (unsigned long long)api_Counter_get(lent),
-		   (unsigned long long)api_Counter_get(last));
+	api_Counter *last = api_Registry_last(registry, NULL);
+	api_Counter_add(last, 10, NULL, NULL, NULL);
+	lent = api_Registry_last(registry, NULL);
+	printf("last %llu lent %llu\n", (unsigned long long)api_Counter_get(lent, NULL),
+		   (unsigned long long)api_Counter_get(last, NULL));
 	api_Counter_free(lent);
 	api_Counter_free(last);
 	uint64_t by = 5;
-	bool edited = api_Registry_edit(registry, edit, &by);
-	first = api_Registry_first_get(registry);
-	printf("edit %s %llu\n", edited ? "true" : "false", (unsigned long long)api_Counter_get(first));
+	bool edited = api_Registry_edit(registry, edit, &by, NULL);
+	first = api_Registry_first_get(registry, NULL);
+	printf("edit %s %llu\n", edited ? "true" : "false", (unsigned long long)api_Counter_get(first, NULL));
 	api_Counter_free(first);
 	/* A setter moves an object in, as assignment does, leaving the handle to be freed. */
 	api_Counter *second = api_Counter_new(str("second"), 3);
-	api_Registry_first_set(registry, second);
+	api_Registry_first_set(registry, second, NULL);
 	api_Counter_free(second);
-	first = api_Registry_first_get(registry);
-	printf("set first %llu ", (unsigned long long)api_Counter_get(first));
-	print("", api_Counter_name(first), "\n");
+	first = api_Registry_first_get(registry, NULL);
+	printf("set first %llu ", (unsigned long long)api_Counter_get(first, NULL));
+	print("", api_Counter_name(first, NULL), "\n");
 	api_Counter_free(first);
 	printf("walk %llu\n", (unsigned long long)api_walk(3, visit, NULL));
 	printf("each %u\n", api_each(2, print_visit, NULL));
@@ -870,33 +878,33 @@ static int script(void) {
 	/* A type generic only over lifetimes is a handle to its 'static form. */
 	api_Name *name = api_Name_owned(str("a"));
 	api_Name *b = api_Name_owned(str("b"));
-	api_Name *joined = api_Name_join(name, b);
+	api_Name *joined = api_Name_join(name, b, NULL);
 	api_Name_free(b);
-	print("joined ", api_Name_as_str(joined), " ");
-	print("", api_Name_debug(joined), " ");
-	printf("%s\n", api_Name_eq(joined, name) ? "true" : "false");
+	print("joined ", api_Name_as_str(joined, NULL), " ");
+	print("", api_Name_debug(joined, NULL), " ");
+	printf("%s\n", api_Name_eq(joined, name, NULL) ? "true" : "false");
 	api_Name_free(name);
 	char text[] = "c";
-	api_Name_rename(joined, str(text));
+	api_Name_rename(joined, str(text), NULL);
 	/* The name took a copy: the caller's buffer is its own again. */
 	text[0] = 'x';
-	print("renamed ", api_Name_as_str(joined), "\n");
+	print("renamed ", api_Name_as_str(joined, NULL), "\n");
 	api_Name *dd = api_Name_owned(str("dd"));
-	api_Name *longest = api_longer(joined, dd);
-	print("longer ", api_Name_as_str(longest), "\n");
+	api_Name *longest = api_longer(joined, dd, NULL);
+	print("longer ", api_Name_as_str(longest, NULL), "\n");
 	api_Name_free(longest);
 	api_Name_free(dd);
 	api_Name_free(joined);
 	api_Name *unnamed = api_unnamed();
-	print("unnamed [", api_Name_as_str(unnamed), "]\n");
+	print("unnamed [", api_Name_as_str(unnamed, NULL), "]\n");
 	api_Name_free(unnamed);
 	/* Two buffers of equal text, interned into one string. */
 	char lit_text[] = "lit", again_text[] = "lit";
 	api_Name *lit = api_Name_borrowed(str(lit_text));
 	api_Name *again = api_Name_borrowed(str(again_text));
 	api_Name *other = api_Name_borrowed(str("other"));
-	print("borrowed ", api_Name_as_str(lit), " ");
-	printf("%s %s\n", api_Name_shares(lit, again) ? "true" : "false", api_Name_shares(lit, other) ? "true" : "false");
+	print("borrowed ", api_Name_as_str(lit, NULL), " ");
+	printf("%s %s\n", api_Name_shares(lit, again, NULL) ? "true" : "false", api_Name_shares(lit, other, NULL) ? "true" : "false");
 	api_Name_free(lit);
 	api_Name_free(again);
 	api_Name_free(other);
@@ -923,9 +931,9 @@ static int script(void) {
 		return 1;
 	}
 	api_Digest *digest = api_Digest_new();
-	api_Digest_sum_set(digest, sum);
-	api_array_u8_4 got = api_Digest_sum_get(digest);
-	api_array_u8_4 masked = api_Digest_flipped(digest, (api_array_u8_4){{0xff, 0, 0xff, 0}});
+	api_Digest_sum_set(digest, sum, NULL);
+	api_array_u8_4 got = api_Digest_sum_get(digest, NULL);
+	api_array_u8_4 masked = api_Digest_flipped(digest, (api_array_u8_4){{0xff, 0, 0xff, 0}}, NULL);
 	printf("digest %02x%02x%02x%02x %02x%02x%02x%02x", got.items[0], got.items[1], got.items[2], got.items[3],
 		masked.items[0], masked.items[1], masked.items[2], masked.items[3]);
 	print(" ", unparsed_err, "\n");
@@ -933,17 +941,17 @@ static int script(void) {
 	api_Batch *batch = api_Batch_new();
 	unsigned accepted = 0;
 	for (uint32_t v = 1; v <= 5; v++) {
-		accepted += api_Batch_push(batch, v);
+		accepted += api_Batch_push(batch, v, NULL);
 	}
 	api_Batch_2 *batch2 = api_pair();
 	unsigned paired = 0;
 	for (uint32_t v = 1; v <= 3; v++) {
-		paired += api_Batch_2_push(batch2, v);
+		paired += api_Batch_2_push(batch2, v, NULL);
 	}
-	unsigned long long emptied = api_drain_4(batch);
-	printf("batch %zu %u %llu %llu %zu %u %llu\n", api_Batch_capacity(batch), accepted, emptied,
-		(unsigned long long)api_drain_4(batch), api_Batch_2_capacity(batch2), paired, (unsigned long long)api_drain_2(batch2));
-	printf("capacities %zu %zu\n", api_capacities_4_2(batch, batch2), api_capacities_2_2(batch2, batch2));
+	unsigned long long emptied = api_drain_4(batch, NULL);
+	printf("batch %zu %u %llu %llu %zu %u %llu\n", api_Batch_capacity(batch, NULL), accepted, emptied,
+		(unsigned long long)api_drain_4(batch, NULL), api_Batch_2_capacity(batch2, NULL), paired, (unsigned long long)api_drain_2(batch2, NULL));
+	printf("capacities %zu %zu\n", api_capacities_4_2(batch, batch2, NULL), api_capacities_2_2(batch2, batch2, NULL));
 	api_Batch_2_free(batch2);
 	api_Batch_free(batch);
 	api_range_u64 wide = api_widen((api_range_u64){.start = 2, .end = 5}, 1);
@@ -1020,23 +1028,23 @@ static int script(void) {
 	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(stamp));
 	api_Message *message = api_Message_new(stamp, str("body"));
 	api_Stamp_free(stamp);
-	print("payload ", api_Message_payload_get(message), "\n");
-	api_Stamp *read = api_Message_stamp_get(message);
+	print("payload ", api_Message_payload_get(message, NULL), "\n");
+	api_Stamp *read = api_Message_stamp_get(message, NULL);
 	print("stamp ", api_Stamp_debug(read), "\n");
 	api_Stamp_free(read);
-	printf("sent %s\n", api_Message_sent(message) ? "true" : "false");
+	printf("sent %s\n", api_Message_sent(message, NULL) ? "true" : "false");
 	/* Setters assign in place: the bytes are copied in, and a `Copy` handle copied. */
 	api_Stamp *reset = api_Stamp_from_millis(4000);
-	api_Message_stamp_set(message, reset);
-	api_Message_payload_set(message, str("edited"));
-	print("payload ", api_Message_payload_get(message), "\n");
-	read = api_Message_stamp_get(message);
+	api_Message_stamp_set(message, reset, NULL);
+	api_Message_payload_set(message, str("edited"), NULL);
+	print("payload ", api_Message_payload_get(message, NULL), "\n");
+	read = api_Message_stamp_get(message, NULL);
 	print("stamp ", api_Stamp_debug(read), "\n");
 	api_Stamp_free(read);
 	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(reset));
 	api_Stamp_free(reset);
-	api_Message_stamp_set(message, NULL);
-	printf("stamp %s\n", api_Message_stamp_get(message) != NULL ? "true" : "false");
+	api_Message_stamp_set(message, NULL, NULL);
+	printf("stamp %s\n", api_Message_stamp_get(message, NULL) != NULL ? "true" : "false");
 	api_Message_free(message);
 
 	static const api_Log_vtable print_log = {.free = log_free, .log = log_line};
@@ -1052,17 +1060,17 @@ static int script(void) {
 
 	api_Channel *channel = api_Channel_new();
 	api_waker waker = {.wake = wake, .drop = drop, .data = NULL};
-	api_Channel_recv_future *recv = api_Channel_recv(channel);
+	api_Channel_recv_future *recv = api_Channel_recv(channel, NULL);
 	api_buf payload;
 	printf("recv pending %s\n", api_Channel_recv_poll(recv, waker, &payload) == API_POLL_PENDING ? "true" : "false");
-	api_Channel_send(channel, str("hi"));
+	api_Channel_send(channel, str("hi"), NULL);
 	printf("woken %d\n", wakes);
 	if (api_Channel_recv_poll(recv, waker, &payload) == API_POLL_READY) {
 		print("recv ", payload, "\n");
 	}
 	api_Channel_recv_future_free(recv);
-	api_Channel_send(channel, str(""));
-	api_Channel_recv_nonempty_future *nonempty = api_Channel_recv_nonempty(channel);
+	api_Channel_send(channel, str(""), NULL);
+	api_Channel_recv_nonempty_future *nonempty = api_Channel_recv_nonempty(channel, NULL);
 	switch (api_Channel_recv_nonempty_poll(nonempty, waker, &payload, &err)) {
 	case API_POLL_READY:
 		printf("nonempty %zu\n", payload.len);
@@ -1078,8 +1086,8 @@ static int script(void) {
 	api_Channel_recv_nonempty_future_free(nonempty);
 	api_Batch *fill4 = api_Batch_new();
 	api_Batch_2 *fill2 = api_pair();
-	api_fill_4_future *filling4 = api_fill_4(fill4, 9);
-	api_fill_2_future *filling2 = api_fill_2(fill2, 1);
+	api_fill_4_future *filling4 = api_fill_4(fill4, 9, NULL);
+	api_fill_2_future *filling2 = api_fill_2(fill2, 1, NULL);
 	api_vec_u32 filled4, filled2;
 	if (api_fill_4_poll(filling4, waker, &filled4) == API_POLL_READY && api_fill_2_poll(filling2, waker, &filled2) == API_POLL_READY) {
 		printf("fill");
@@ -1099,14 +1107,14 @@ static int script(void) {
 	api_Batch_free(fill4);
 
 	/* The send happens at the call: the future is dropped unpolled. */
-	api_Channel_send_later_future_free(api_Channel_send_later(channel, str("eager")));
-	recv = api_Channel_recv(channel);
+	api_Channel_send_later_future_free(api_Channel_send_later(channel, str("eager"), NULL));
+	recv = api_Channel_recv(channel, NULL);
 	if (api_Channel_recv_poll(recv, waker, &payload) == API_POLL_READY) {
 		print("recv ", payload, "\n");
 	}
 	api_Channel_recv_future_free(recv);
 	/* The send happens at the call, and the future borrows the channel and the tag. */
-	api_Channel_tagged_future *tagging = api_Channel_tagged(channel, str("tag"));
+	api_Channel_tagged_future *tagging = api_Channel_tagged(channel, str("tag"), NULL);
 	api_buf tagged_text;
 	if (api_Channel_tagged_poll(tagging, waker, &tagged_text) == API_POLL_READY) {
 		print("tagged ", tagged_text, "\n");
@@ -1114,7 +1122,7 @@ static int script(void) {
 	api_Channel_tagged_future_free(tagging);
 	/* So does a future borrowing an optional slice, which the export owns while it is pending. */
 	const uint32_t items[] = {1, 2, 3};
-	api_Channel_itemized_future *itemizing = api_Channel_itemized(channel, (api_vec_u32){.ptr = items, .len = 3});
+	api_Channel_itemized_future *itemizing = api_Channel_itemized(channel, (api_vec_u32){.ptr = items, .len = 3}, NULL);
 	size_t itemized;
 	if (api_Channel_itemized_poll(itemizing, waker, &itemized) == API_POLL_READY) {
 		printf("itemized %zu\n", itemized);
@@ -1127,8 +1135,8 @@ static int script(void) {
 		printf("byte_len %zu\n", byte_len);
 	}
 	api_byte_len_future_free(measuring);
-	api_Channel_send(channel, str("sized"));
-	api_Channel_recv_sized_future *sized = api_Channel_recv_sized(channel);
+	api_Channel_send(channel, str("sized"), NULL);
+	api_Channel_recv_sized_future *sized = api_Channel_recv_sized(channel, NULL);
 	size_t len;
 	if (api_Channel_recv_sized_poll(sized, waker, &payload, &len) == API_POLL_READY) {
 		print("sized ", payload, " ");
@@ -1136,49 +1144,49 @@ static int script(void) {
 	}
 	api_Channel_recv_sized_future_free(sized);
 	/* The waker moves into Rust, which drops it once it wakes. */
-	api_Channel_notify(channel, waker);
-	api_Channel_send(channel, str("rung"));
+	api_Channel_notify(channel, waker, NULL);
+	api_Channel_send(channel, str("rung"), NULL);
 	printf("woken %d\n", wakes);
 	/* A poll with no async twin is a future: it takes what the last send left. */
-	api_Channel_poll_take_future *take = api_Channel_poll_take(channel);
+	api_Channel_poll_take_future *take = api_Channel_poll_take(channel, NULL);
 	if (api_Channel_poll_take_poll(take, waker, &payload) == API_POLL_READY) {
 		print("take ", payload, "\n");
 	}
 	api_Channel_poll_take_future_free(take);
-	api_Channel_send(channel, str("measured"));
-	api_Channel_poll_measure_future *measure = api_Channel_poll_measure(channel, 2);
+	api_Channel_send(channel, str("measured"), NULL);
+	api_Channel_poll_measure_future *measure = api_Channel_poll_measure(channel, 2, NULL);
 	if (api_Channel_poll_measure_poll(measure, waker, &len, &err) == API_POLL_READY) {
 		printf("measure %zu\n", len);
 	}
 	api_Channel_poll_measure_future_free(measure);
 	/* A context is made of the waker, which Rust keeps until the send wakes it. */
-	api_Channel_listen(channel, waker);
-	api_Channel_send(channel, str("heard"));
+	api_Channel_listen(channel, waker, NULL);
+	api_Channel_send(channel, str("heard"), NULL);
 	printf("woken %d\n", wakes);
 	/* A returned waker is the caller's: it wakes the waiter's task until dropped. */
 	api_Waiter *waiter = api_Waiter_new(waker);
-	api_waker returned = api_Waiter_waker(waiter);
+	api_waker returned = api_Waiter_waker(waiter, NULL);
 	returned.wake(returned.data);
 	returned.drop(returned.data);
-	returned = api_Waiter_context(waiter);
+	returned = api_Waiter_context(waiter, NULL);
 	returned.wake(returned.data);
 	printf("woken %d\n", wakes);
 	/* Passed back, it moves into Rust as any waker does. */
 	int woken = wakes;
-	api_Channel_notify(channel, returned);
+	api_Channel_notify(channel, returned, NULL);
 	api_Waiter_free(waiter);
-	api_Channel_send(channel, str("again"));
+	api_Channel_send(channel, str("again"), NULL);
 	if (wakes != woken + 1) {
 		return 1;
 	}
-	api_Channel_clear(channel);
+	api_Channel_clear(channel, NULL);
 	/* The waiter a pending poll registers lives until the next poll, so the send wakes it. */
-	take = api_Channel_poll_take(channel);
+	take = api_Channel_poll_take(channel, NULL);
 	if (api_Channel_poll_take_poll(take, waker, &payload) != API_POLL_PENDING) {
 		return 1;
 	}
 	woken = wakes;
-	api_Channel_send(channel, str("later"));
+	api_Channel_send(channel, str("later"), NULL);
 	if (wakes != woken + 1 || api_Channel_poll_take_poll(take, waker, &payload) != API_POLL_READY) {
 		return 1;
 	}
@@ -1187,17 +1195,17 @@ static int script(void) {
 	api_Channel_free(channel);
 
 	/* A value that holds itself is an object. */
-	api_Node *list = api_Node_new(1, NULL);
-	api_Node_push(list, 2);
-	printf("node %llu\n", (unsigned long long)api_Node_sum(list));
+	api_Node *list = api_Node_new(1, NULL, NULL);
+	api_Node_push(list, 2, NULL);
+	printf("node %llu\n", (unsigned long long)api_Node_sum(list, NULL));
 	api_Node_free(list);
 
 	api_Tally *tally = api_Tally_new();
-	api_Tally_bump(tally);
-	uint32_t count = api_Tally_bump(tally);
-	printf("tally %u %s\n", count, api_Tally_eq(tally, tally) ? "true" : "false");
-	printf("both %u\n", api_bump_both(tally, tally));
-	printf("peek %u\n", api_peek(tally, peek_tally, NULL));
+	api_Tally_bump(tally, NULL);
+	uint32_t count = api_Tally_bump(tally, NULL);
+	printf("tally %u %s\n", count, api_Tally_eq(tally, tally, NULL) ? "true" : "false");
+	printf("both %u\n", api_bump_both(tally, tally, NULL));
+	printf("peek %u\n", api_peek(tally, peek_tally, NULL, NULL));
 	api_Tally_free(tally);
 
 	/* Another export's types, which this export's function takes and returns. */
@@ -1231,27 +1239,27 @@ static int script(void) {
 	const char *names[] = {"a", "b"};
 	for (int i = 0; i < 2; i++) {
 		api_Counter *pushed = api_Counter_new(str(names[i]), (uint64_t)i + 1);
-		api_Stack_push(stack, pushed);
+		api_Stack_push(stack, pushed, NULL);
 		api_Counter_free(pushed);
 	}
-	api_Counter *top = api_Stack_pop(stack);
-	printf("stack %zu Some(%llu)", api_Stack_depth(stack), (unsigned long long)api_Counter_get(top));
+	api_Counter *top = api_Stack_pop(stack, NULL);
+	printf("stack %zu Some(%llu)", api_Stack_depth(stack, NULL), (unsigned long long)api_Counter_get(top, NULL));
 	api_Counter_free(top);
-	api_Counter *next = api_Stack_pop(stack);
+	api_Counter *next = api_Stack_pop(stack, NULL);
 	printf(" %s", next != NULL ? "true" : "false");
 	api_Counter_free(next);
-	printf(" %s\n", api_Stack_pop(stack) == NULL ? "true" : "false");
+	printf(" %s\n", api_Stack_pop(stack, NULL) == NULL ? "true" : "false");
 	/* Generic functions and methods, at each implementation of the trait bounding them, by
 	   reference, which leaves C its handle. */
 	api_Counter *from_point = api_Counter_seeded_Point(str("p"), (api_Point){.x = -3, .y = 4});
 	api_Counter *from_size = api_Counter_seeded_Size(str("s"), (api_Size){.width = 5, .height = 6});
-	api_Counter *from_counter = api_Counter_seeded_Counter(str("c"), from_point);
+	api_Counter *from_counter = api_Counter_seeded_Counter(str("c"), from_point, NULL);
 	/* Two instances whose arguments share a last segment: one takes its module too. */
 	api_Counter *from_polar = api_Counter_seeded_polar_Point(str("q"), (api_polar_Point){.turns = 1, .distance = 2});
-	printf("seeded %llu %llu %llu %llu past %llu seeds %llu\n", (unsigned long long)api_Counter_get(from_point),
-	       (unsigned long long)api_Counter_get(from_size), (unsigned long long)api_Counter_get(from_counter),
-	       (unsigned long long)api_Counter_get(from_polar),
-	       (unsigned long long)api_Stack_depth_past_Point(stack, (api_Point){.x = 1, .y = 2}),
+	printf("seeded %llu %llu %llu %llu past %llu seeds %llu\n", (unsigned long long)api_Counter_get(from_point, NULL),
+	       (unsigned long long)api_Counter_get(from_size, NULL), (unsigned long long)api_Counter_get(from_counter, NULL),
+	       (unsigned long long)api_Counter_get(from_polar, NULL),
+	       (unsigned long long)api_Stack_depth_past_Point(stack, (api_Point){.x = 1, .y = 2}, NULL),
 	       (unsigned long long)api_seeds_Point_Size((api_Size){.width = 2, .height = 3}));
 	api_Counter_free(from_point);
 	api_Counter_free(from_size);
@@ -1305,17 +1313,17 @@ static int script(void) {
 
 	/* Its Drop runs when C frees the handle, not before. */
 	api_Token *token = api_Token_new(7);
-	printf("token %u dropped %u\n", api_Token_id_get(token), api_dropped());
+	printf("token %u dropped %u\n", api_Token_id_get(token, NULL), api_dropped());
 	api_Token_free(token);
 	printf("dropped %u\n", api_dropped());
 
 	/* A field and the method of its name, each its own function. */
 	api_Retry *retry = api_Retry_new((api_option_u32){.some = true, .value = 5});
-	api_option_u32 limit = api_Retry_limit_get(retry);
-	printf("retry %d %u %u %u\n", limit.some, limit.value, api_Retry_limit(retry), api_Retry_delay(retry));
+	api_option_u32 limit = api_Retry_limit_get(retry, NULL);
+	printf("retry %d %u %u %u\n", limit.some, limit.value, api_Retry_limit(retry, NULL), api_Retry_delay(retry, NULL));
 	/* The renamed field's setter, named as its getter. */
-	api_Retry_limit_set(retry, (api_option_u32){0});
-	printf("retry %u\n", api_Retry_limit(retry));
+	api_Retry_limit_set(retry, (api_option_u32){0}, NULL);
+	printf("retry %u\n", api_Retry_limit(retry, NULL));
 	api_Retry_free(retry);
 	api_Slot_u8 *slot = api_Slot_u8_new(200);
 	printf("slot %u\n", api_Slot_u8_value(slot));
@@ -1326,8 +1334,8 @@ static int script(void) {
 	if (!api_Url_parse(str("https://example.com/a/b"), &base, &parse_err)) {
 		return 1;
 	}
-	print("url ", api_Url_to_string(base), " host ");
-	api_buf host = api_host(base);
+	print("url ", api_Url_to_string(base, NULL), " host ");
+	api_buf host = api_host(base, NULL);
 	if (host.ptr != NULL) {
 		print("Some(\"", host, "\")\n");
 	} else {
@@ -1335,10 +1343,10 @@ static int script(void) {
 	}
 	api_Url *resolved;
 	api_buf resolve_err;
-	api_Url *base_clone = api_Url_clone(base);
-	if (api_resolve(base_clone, str("c?d"), &resolved, &resolve_err)) {
-		print("resolve ", api_Url_to_string(resolved), " ");
-		printf("%s\n", api_Url_eq(resolved, base) ? "true" : "false");
+	api_Url *base_clone = api_Url_clone(base, NULL);
+	if (api_resolve(base_clone, str("c?d"), &resolved, &resolve_err, NULL)) {
+		print("resolve ", api_Url_to_string(resolved, NULL), " ");
+		printf("%s\n", api_Url_eq(resolved, base, NULL) ? "true" : "false");
 		api_Url_free(resolved);
 	} else {
 		print("resolve err ", resolve_err, "\n");
@@ -1347,7 +1355,7 @@ static int script(void) {
 	api_Url_free(base);
 	api_Url *bad;
 	if (api_Url_parse(str("no scheme"), &bad, &parse_err)) {
-		print("parse ", api_Url_to_string(bad), "\n");
+		print("parse ", api_Url_to_string(bad, NULL), "\n");
 		api_Url_free(bad);
 	} else {
 		print("parse err ", parse_err, "\n");
@@ -1427,12 +1435,12 @@ static int script(void) {
 		api_coordinates((api_option_Point){0}));
 	api_Counter *two = api_Counter_new(str("two"), 2);
 	api_Counter *three = api_Counter_new(str("three"), 3);
-	printf("plus %llu %llu\n", (unsigned long long)api_Counter_plus(two, three),
-		(unsigned long long)api_Counter_plus(two, NULL));
-	bool added = api_Counter_add_to(two, three);
-	bool added_none = api_Counter_add_to(two, NULL);
+	printf("plus %llu %llu\n", (unsigned long long)api_Counter_plus(two, three, NULL),
+		(unsigned long long)api_Counter_plus(two, NULL, NULL));
+	bool added = api_Counter_add_to(two, three, NULL);
+	bool added_none = api_Counter_add_to(two, NULL, NULL);
 	printf("add_to %s %s %llu\n", added ? "true" : "false", added_none ? "true" : "false",
-		(unsigned long long)api_Counter_get(three));
+		(unsigned long long)api_Counter_get(three, NULL));
 	api_Counter_free(two);
 	api_Counter_free(three);
 
@@ -1462,18 +1470,18 @@ static int script(void) {
 
 	/* An Arc of another crate's type: an opaque handle, taken back by value or lent. */
 	api_tls_Config *config = api_secure(str("h3"));
-	print("secure ", api_alpn_lent(config), " ");
-	api_tls_Config *config_copy = api_tls_Config_clone(config);
-	print("", api_alpn(config_copy), "\n");
+	print("secure ", api_alpn_lent(config, NULL), " ");
+	api_tls_Config *config_copy = api_tls_Config_clone(config, NULL);
+	print("", api_alpn(config_copy, NULL), "\n");
 	api_tls_Config_free(config_copy);
 	api_tls_Config_free(config);
 	/* Another crate's value by value: an opaque handle, lent or taken back. */
 	api_tls_Cert *cert = api_certify(str("der"));
-	printf("cert %llu ", (unsigned long long)api_cert_len(cert));
-	print("", api_cert_der(cert), " ");
+	printf("cert %llu ", (unsigned long long)api_cert_len(cert, NULL));
+	print("", api_cert_der(cert, NULL), " ");
 	api_tls_Cert_free(cert);
 	api_tls_Cert *chain[2] = {api_certify(str("a")), api_certify(str("bc"))};
-	printf("%llu\n", (unsigned long long)api_chain_len((api_vec_tls_Cert){.ptr = chain, .len = 2}));
+	printf("%llu\n", (unsigned long long)api_chain_len((api_vec_tls_Cert){.ptr = chain, .len = 2}, NULL));
 	api_tls_Cert_free(chain[0]);
 	api_tls_Cert_free(chain[1]);
 	/* Another crate's type only signatures name, exported by its path there, and its error,
@@ -1493,30 +1501,30 @@ static int script(void) {
 	/* A borrow of a meter that is not Clone, lent from its owner's handle. */
 	{
 		api_Meters *lender = api_Meters_new();
-		api_Meter *first = api_Meters_first(lender);
-		api_Meter_add(first, 2);
-		unsigned long long added = api_Meter_add(first, 3);
-		api_Meter *again = api_Meters_first(lender);
-		printf("lent %llu %llu\n", added, (unsigned long long)api_Meter_count(again));
+		api_Meter *first = api_Meters_first(lender, NULL);
+		api_Meter_add(first, 2, NULL);
+		unsigned long long added = api_Meter_add(first, 3, NULL);
+		api_Meter *again = api_Meters_first(lender, NULL);
+		printf("lent %llu %llu\n", added, (unsigned long long)api_Meter_count(again, NULL));
 		api_Meter_free(again);
 		api_Meter_free(first);
-		api_Meters_clear(lender);
-		again = api_Meters_first(lender);
-		printf("cleared %llu\n", (unsigned long long)api_Meter_count(again));
+		api_Meters_clear(lender, NULL);
+		again = api_Meters_first(lender, NULL);
+		printf("cleared %llu\n", (unsigned long long)api_Meter_count(again, NULL));
 		api_Meter_free(again);
 		/* A field that is not Clone, lent as a method's borrowed return is. */
-		api_Meter *last = api_Meters_last_get(lender);
-		api_Meter_add(last, 4);
-		printf("field lent %llu\n", (unsigned long long)api_Meter_add(last, 1));
+		api_Meter *last = api_Meters_last_get(lender, NULL);
+		api_Meter_add(last, 4, NULL);
+		printf("field lent %llu\n", (unsigned long long)api_Meter_add(last, 1, NULL));
 		api_Meter_free(last);
 		api_Meters_free(lender);
 		/* One lent from a handle that is not Sync, on one thread at a time. */
 		api_Tallies *tallies = api_Tallies_new();
-		api_Tally *tallied = api_Tallies_first(tallies);
-		api_Tally_bump(tallied);
+		api_Tally *tallied = api_Tallies_first(tallies, NULL);
+		api_Tally_bump(tallied, NULL);
 		api_Tally_free(tallied);
-		tallied = api_Tallies_first(tallies);
-		printf("tallied %u\n", api_Tally_bump(tallied));
+		tallied = api_Tallies_first(tallies, NULL);
+		printf("tallied %u\n", api_Tally_bump(tallied, NULL));
 		api_Tally_free(tallied);
 		api_Tallies_free(tallies);
 	}
@@ -1537,19 +1545,19 @@ static int script(void) {
 	api_vec_Counter counters = api_counters((api_vec_string){.ptr = counter_names, .len = 2});
 	printf("counters");
 	for (size_t i = 0; i < counters.len; i++) {
-		print(i == 0 ? " " : ", ", api_Counter_name(counters.ptr[i]), " ");
-		printf("%llu", (unsigned long long)api_Counter_get(counters.ptr[i]));
+		print(i == 0 ? " " : ", ", api_Counter_name(counters.ptr[i], NULL), " ");
+		printf("%llu", (unsigned long long)api_Counter_get(counters.ptr[i], NULL));
 	}
 	printf("\n");
 	/* Each counter moves in, leaving its handle only to free. */
-	uint64_t worth = api_worth((api_vec_Counter){.ptr = counters.ptr, .len = 1}, (api_vec_Counter){.ptr = counters.ptr + 1, .len = 1});
-	uint64_t none = api_worth((api_vec_Counter){0}, (api_vec_Counter){.ptr = counters.ptr, .len = 0});
+	uint64_t worth = api_worth((api_vec_Counter){.ptr = counters.ptr, .len = 1}, (api_vec_Counter){.ptr = counters.ptr + 1, .len = 1}, NULL);
+	uint64_t none = api_worth((api_vec_Counter){0}, (api_vec_Counter){.ptr = counters.ptr, .len = 0}, NULL);
 	printf("worth %llu %llu\n", (unsigned long long)worth, (unsigned long long)none);
 	api_vec_Counter_free(counters);
 	api_Counter *held = api_Counter_new(str("h"), 4);
 	api_option_u64 counts[] = {
-		api_held_count((api_option_tuple_Counter){.some = true, .value = {._0 = held}}),
-		api_held_count((api_option_tuple_Counter){0}),
+		api_held_count((api_option_tuple_Counter){.some = true, .value = {._0 = held}}, NULL),
+		api_held_count((api_option_tuple_Counter){0}, NULL),
 	};
 	api_Counter_free(held);
 	printf("held");
@@ -1562,9 +1570,9 @@ static int script(void) {
 	}
 	printf("\n");
 	api_Counter *boxed = api_boxed_counter(str("b"));
-	print("boxed Some(\"", api_boxed_name(boxed), "\") ");
+	print("boxed Some(\"", api_boxed_name(boxed, NULL), "\") ");
 	api_Counter_free(boxed);
-	printf("%s %s\n", api_boxed_name(NULL).ptr ? "Some" : "None", api_boxed_counter((api_buf){0}) ? "false" : "true");
+	printf("%s %s\n", api_boxed_name(NULL, NULL).ptr ? "Some" : "None", api_boxed_counter((api_buf){0}) ? "false" : "true");
 	printf("less %u\n", api_less(5, 2));
 
 	uint32_t row0[] = {1, 2};
@@ -1652,11 +1660,11 @@ static int script(void) {
 	if (!api_Json_parse(str("{\"b\": [1, 2.5, null], \"a\": \"\\u00e9\"}"), &doc, &parse_err)) {
 		return 1;
 	}
-	print("json ", api_encode(doc), "\n");
-	print("timed text ", api_timed_text(doc), "\n");
-	api_Json *tagged = api_tagged(doc, str("t"));
+	print("json ", api_encode(doc, NULL), "\n");
+	print("timed text ", api_timed_text(doc, NULL), "\n");
+	api_Json *tagged = api_tagged(doc, str("t"), NULL);
 	api_Json_free(doc);
-	print("tagged ", api_Json_to_text(tagged), "\n");
+	print("tagged ", api_Json_to_text(tagged, NULL), "\n");
 	api_Json_free(tagged);
 	/* A JSON object's entries cross as pairs of a key and its document, each moved in. */
 	api_tuple_string_Json json_pairs[2] = {{._0 = str("b")}, {._0 = str("a")}};
@@ -1664,19 +1672,19 @@ static int script(void) {
 	    !api_Json_parse(str("2"), &json_pairs[1]._1, &parse_err)) {
 		return 1;
 	}
-	api_vec_tuple_string_Json json_entries = api_entries((api_vec_tuple_string_Json){.ptr = json_pairs, .len = 2}, str("t"));
+	api_vec_tuple_string_Json json_entries = api_entries((api_vec_tuple_string_Json){.ptr = json_pairs, .len = 2}, str("t"), NULL);
 	api_Json_free(json_pairs[0]._1);
 	api_Json_free(json_pairs[1]._1);
 	printf("entries");
 	for (size_t i = 0; i < json_entries.len; i++) {
 		printf("%s%.*s ", i == 0 ? " " : ", ", (int)json_entries.ptr[i]._0.len, (const char *)json_entries.ptr[i]._0.ptr);
-		print("", api_Json_to_text(json_entries.ptr[i]._1), "");
+		print("", api_Json_to_text(json_entries.ptr[i]._1, NULL), "");
 	}
 	printf("\n");
 	api_vec_tuple_string_Json_free(json_entries);
 	api_Json *broken;
 	if (api_Json_parse(str("{\"a\":"), &broken, &parse_err)) {
-		print("json parse ", api_Json_to_text(broken), "\n");
+		print("json parse ", api_Json_to_text(broken, NULL), "\n");
 		api_Json_free(broken);
 	} else {
 		print("json parse err ", parse_err, "\n");
@@ -1686,11 +1694,11 @@ static int script(void) {
 	if (!api_Url_parse(str("https://example.com/a/b"), &home, &parse_err)) {
 		return 1;
 	}
-	api_Site *site = api_Site_new(home);
-	api_Url *home0 = api_Site_home_get(site);
-	api_Url *home1 = api_Site_home_get(site);
-	print("site ", api_Url_to_string(home0), " ");
-	print("", api_Url_to_string(home1), "\n");
+	api_Site *site = api_Site_new(home, NULL);
+	api_Url *home0 = api_Site_home_get(site, NULL);
+	api_Url *home1 = api_Site_home_get(site, NULL);
+	print("site ", api_Url_to_string(home0, NULL), " ");
+	print("", api_Url_to_string(home1, NULL), "\n");
 	api_Url_free(home0);
 	api_Url_free(home1);
 	api_Site_free(site);
@@ -1714,13 +1722,13 @@ static int script(void) {
 	api_buf trail_names[] = {str("a"), str("b")};
 	api_Trail *trail =
 		api_Trail_new((api_vec_Point){.ptr = trail_points, .len = 2}, (api_vec_string){.ptr = trail_names, .len = 2});
-	api_vec_Point points = api_Trail_points(trail);
+	api_vec_Point points = api_Trail_points(trail, NULL);
 	printf("trail [");
 	for (size_t i = 0; i < points.len; i++) {
 		print(i == 0 ? "" : ", ", api_Point_debug(&points.ptr[i]), "");
 	}
 	api_vec_Point_free(points);
-	api_vec_Label labels = api_Trail_labels(trail);
+	api_vec_Label labels = api_Trail_labels(trail, NULL);
 	printf("] [");
 	for (size_t i = 0; i < labels.len; i++) {
 		print(i == 0 ? "" : ", ", api_Label_debug(&labels.ptr[i]), "");
@@ -1728,32 +1736,32 @@ static int script(void) {
 	printf("]\n");
 	api_vec_Label_free(labels);
 	/* Returned iterators, each collected at the call: drained labels are gone after. */
-	api_vec_Point iter_points = api_Trail_iter(trail);
+	api_vec_Point iter_points = api_Trail_iter(trail, NULL);
 	printf("iterated [");
 	for (size_t i = 0; i < iter_points.len; i++) {
 		print(i == 0 ? "" : ", ", api_Point_debug(&iter_points.ptr[i]), "");
 	}
 	api_vec_Point_free(iter_points);
-	api_vec_string iter_names = api_Trail_names(trail);
+	api_vec_string iter_names = api_Trail_names(trail, NULL);
 	printf("] [");
 	for (size_t i = 0; i < iter_names.len; i++) {
 		printf("%s\"%.*s\"", i == 0 ? "" : ", ", (int)iter_names.ptr[i].len, (const char *)iter_names.ptr[i].ptr);
 	}
 	api_vec_string_free(iter_names);
-	api_buf iter_bytes = api_Trail_bytes(trail);
+	api_buf iter_bytes = api_Trail_bytes(trail, NULL);
 	printf("] [");
 	for (size_t i = 0; i < iter_bytes.len; i++) {
 		printf("%s%u", i == 0 ? "" : ", ", iter_bytes.ptr[i]);
 	}
 	printf("]\n");
 	api_buf_free(iter_bytes);
-	api_vec_Label drained = api_Trail_drain(trail);
+	api_vec_Label drained = api_Trail_drain(trail, NULL);
 	printf("drained [");
 	for (size_t i = 0; i < drained.len; i++) {
 		print(i == 0 ? "" : ", ", api_Label_debug(&drained.ptr[i]), "");
 	}
 	api_vec_Label_free(drained);
-	api_vec_Label left = api_Trail_labels(trail);
+	api_vec_Label left = api_Trail_labels(trail, NULL);
 	printf("] then [");
 	for (size_t i = 0; i < left.len; i++) {
 		print(i == 0 ? "" : ", ", api_Label_debug(&left.ptr[i]), "");
@@ -1761,7 +1769,7 @@ static int script(void) {
 	printf("]\n");
 	api_vec_Label_free(left);
 	/* A filter, collected at the call. */
-	api_vec_Point beyond = api_Trail_beyond(trail, 1);
+	api_vec_Point beyond = api_Trail_beyond(trail, 1, NULL);
 	printf("beyond");
 	for (size_t i = 0; i < beyond.len; i++) {
 		printf("%s%d %d", i == 0 ? " " : ", ", beyond.ptr[i].x, beyond.ptr[i].y);
@@ -1773,8 +1781,8 @@ static int script(void) {
 	api_vec_Counter numbered = api_numbered((api_vec_string){.ptr = numbered_names, .len = 2});
 	printf("numbered");
 	for (size_t i = 0; i < numbered.len; i++) {
-		print(i == 0 ? " " : ", ", api_Counter_name(numbered.ptr[i]), " ");
-		printf("%llu", (unsigned long long)api_Counter_get(numbered.ptr[i]));
+		print(i == 0 ? " " : ", ", api_Counter_name(numbered.ptr[i], NULL), " ");
+		printf("%llu", (unsigned long long)api_Counter_get(numbered.ptr[i], NULL));
 	}
 	printf("\n");
 	api_vec_Counter_free(numbered);
@@ -1791,48 +1799,48 @@ static int script(void) {
 	    !api_Json_parse(str("2"), &section_pairs[1]._1, &parse_err)) {
 		return 1;
 	}
-	api_vec_tuple_string_Json sections = api_sections((api_vec_tuple_string_Json){.ptr = section_pairs, .len = 2});
+	api_vec_tuple_string_Json sections = api_sections((api_vec_tuple_string_Json){.ptr = section_pairs, .len = 2}, NULL);
 	api_Json_free(section_pairs[0]._1);
 	api_Json_free(section_pairs[1]._1);
 	printf("sections");
 	for (size_t i = 0; i < sections.len; i++) {
 		printf("%s%.*s ", i == 0 ? " " : ", ", (int)sections.ptr[i]._0.len, (const char *)sections.ptr[i]._0.ptr);
-		print("", api_Json_to_text(sections.ptr[i]._1), "");
+		print("", api_Json_to_text(sections.ptr[i]._1, NULL), "");
 	}
 	printf("\n");
 	api_vec_tuple_string_Json_free(sections);
 
 	/* An instant only Rust makes, which C copies into each call and compares. */
 	api_Instant *began = api_now();
-	api_Instant *ended = api_later(began, (api_duration){.secs = 1, .nanos = 500000000});
-	api_Instant *same = api_later(began, (api_duration){.secs = 0, .nanos = 0});
-	api_duration forward = api_since(ended, began);
-	api_duration backward = api_since(began, ended);
+	api_Instant *ended = api_later(began, (api_duration){.secs = 1, .nanos = 500000000}, NULL);
+	api_Instant *same = api_later(began, (api_duration){.secs = 0, .nanos = 0}, NULL);
+	api_duration forward = api_since(ended, began, NULL);
+	api_duration backward = api_since(began, ended, NULL);
 	printf("instants %llu %llu %s %s\n", (unsigned long long)(forward.secs * 1000 + forward.nanos / 1000000),
-		   (unsigned long long)(backward.secs * 1000 + backward.nanos / 1000000), api_Instant_eq(began, same) ? "true" : "false",
-		   api_Instant_eq(began, ended) ? "true" : "false");
+		   (unsigned long long)(backward.secs * 1000 + backward.nanos / 1000000), api_Instant_eq(began, same, NULL) ? "true" : "false",
+		   api_Instant_eq(began, ended, NULL) ? "true" : "false");
 	/* An instant lent inside an `Option`, which takes no handle. */
-	printf("has_instant %s %s\n", api_has_instant(began) ? "true" : "false", api_has_instant(NULL) ? "true" : "false");
+	printf("has_instant %s %s\n", api_has_instant(began, NULL) ? "true" : "false", api_has_instant(NULL, NULL) ? "true" : "false");
 	api_Instant_free(same);
 	api_Instant_free(ended);
 	api_Instant_free(began);
 
 	/* tracing's level, and its filter as an optional level whose none is `OFF`. */
 	api_Verbosity *verbosity = api_Verbosity_new(API_LEVEL_WARN);
-	print("verbosity ", api_spell(api_Verbosity_filter(verbosity)), " ");
-	print("", api_spell(api_louder(api_Verbosity_filter(verbosity))), "\n");
-	api_Verbosity_level_set(verbosity, API_LEVEL_TRACE);
-	printf("verbosity %s ", api_Verbosity_level_get(verbosity) == API_LEVEL_TRACE ? "true" : "false");
-	print("", api_spell(api_Verbosity_filter(verbosity)), " ");
-	print("", api_spell(api_louder(api_Verbosity_filter(verbosity))), " ");
+	print("verbosity ", api_spell(api_Verbosity_filter(verbosity, NULL)), " ");
+	print("", api_spell(api_louder(api_Verbosity_filter(verbosity, NULL))), "\n");
+	api_Verbosity_level_set(verbosity, API_LEVEL_TRACE, NULL);
+	printf("verbosity %s ", api_Verbosity_level_get(verbosity, NULL) == API_LEVEL_TRACE ? "true" : "false");
+	print("", api_spell(api_Verbosity_filter(verbosity, NULL)), " ");
+	print("", api_spell(api_louder(api_Verbosity_filter(verbosity, NULL))), " ");
 	print("", api_spell(api_louder((api_option_Level){.some = false})), "\n");
 	api_Verbosity_free(verbosity);
 
 	/* A returned `Vec<&Token>` holds clones, which its free drops. */
 	api_Token *twice = api_Token_new(9);
 	uint32_t before = api_dropped();
-	api_vec_Token tokens = api_Token_twice(twice);
-	if (tokens.len != 2 || api_Token_id_get(tokens.ptr[1]) != 9) {
+	api_vec_Token tokens = api_Token_twice(twice, NULL);
+	if (tokens.len != 2 || api_Token_id_get(tokens.ptr[1], NULL) != 9) {
 		return 1;
 	}
 	api_vec_Token_free(tokens);
@@ -1849,24 +1857,168 @@ static int script(void) {
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */
+/* A counter a closure was lent, which it fails to move out, then reads as it was. */
+static bool move_lent_status(void *data, api_Counter *counter) {
+	api_status *status = data;
+	api_Counter_into_label(counter, (api_option_Point){0}, status);
+	return *status == API_STATUS_LENT && api_Counter_get(counter, NULL) == 0;
+}
+
+/* Each check a call fails writes its status through a non-null one, and changes nothing. */
+static int statuses(void) {
+	int failed = 0;
+	api_status status = 0;
+	api_Channel *channel = api_Channel_new();
+	api_Channel_send(channel, str("x"), NULL);
+	api_Channel_recv_future *recv = api_Channel_recv(channel, NULL);
+	api_Channel_clear(channel, &status);
+	if (status != API_STATUS_BORROWED || strcmp(api_status_message(status), "a handle is already borrowed") != 0) {
+		fprintf(stderr, "a clear during a recv wrote %d\n", status);
+		failed = 1;
+	}
+	/* The recv still has what was sent, and once it ends the clear passes. */
+	api_waker waker = {0};
+	api_buf payload;
+	if (api_Channel_recv_poll(recv, waker, &payload) != API_POLL_READY || payload.len != 1) {
+		fprintf(stderr, "a failed clear changed the channel\n");
+		failed = 1;
+	}
+	api_buf_free(payload);
+	api_Channel_recv_future_free(recv);
+	status = 0;
+	api_Channel_clear(channel, &status);
+	if (status != 0) {
+		fprintf(stderr, "a clear after the recv wrote %d\n", status);
+		failed = 1;
+	}
+	api_Channel_free(channel);
+
+	/* A drop under a running call is refused; once it ends the drop takes the value, which
+	 * a later call then finds moved, and free frees only the handle. */
+	channel = api_Channel_new();
+	api_Channel_send(channel, str("y"), NULL);
+	recv = api_Channel_recv(channel, NULL);
+	status = 0;
+	api_Channel_drop(channel, &status);
+	if (status != API_STATUS_BORROWED) {
+		fprintf(stderr, "a drop during a recv wrote %d\n", status);
+		failed = 1;
+	}
+	if (api_Channel_recv_poll(recv, waker, &payload) != API_POLL_READY || payload.len != 1) {
+		fprintf(stderr, "a refused drop changed the channel\n");
+		failed = 1;
+	}
+	api_buf_free(payload);
+	api_Channel_recv_future_free(recv);
+	status = 0;
+	api_Channel_drop(channel, &status);
+	api_Channel_drop(channel, &status);
+	if (status != 0) {
+		fprintf(stderr, "a drop after the recv wrote %d\n", status);
+		failed = 1;
+	}
+	api_Channel_clear(channel, &status);
+	if (status != API_STATUS_MOVED) {
+		fprintf(stderr, "a clear after a drop wrote %d\n", status);
+		failed = 1;
+	}
+	api_Channel_free(channel);
+
+	status = 0;
+	api_Meters *meters = api_Meters_new();
+	api_Meter *first = api_Meters_first(meters, NULL);
+	api_Meters_clear(meters, NULL);
+	if (api_Meter_count(first, &status) != 0 || status != API_STATUS_OUTLIVED) {
+		fprintf(stderr, "a meter that outlived its meters wrote %d\n", status);
+		failed = 1;
+	}
+	api_Meter_free(first);
+	api_Meters_free(meters);
+
+	/* A counter moved in beside a dropped ticket, alone or held in a record or an enum, is
+	 * refused before the move, so the counter is still there; once every ticket is live,
+	 * the call moves it. */
+	api_Counter *admitted = api_Counter_new(str("a"), 5);
+	api_Ticket *ticket = api_Ticket_new(3);
+	api_Ticket *dropped = api_Ticket_new(4);
+	api_Ticket_drop(dropped, NULL);
+	api_Choice picked = {.tag = API_CHOICE_PICKED, .picked = {._0 = ticket}};
+	api_Choice empty = {.tag = API_CHOICE_EMPTY};
+	api_tuple_Counter_Ticket_Seat_Choice entries[] = {
+		{admitted, dropped, {ticket, 1}, empty},
+		{admitted, ticket, {dropped, 1}, empty},
+		{admitted, ticket, {ticket, 1}, {.tag = API_CHOICE_PICKED, .picked = {._0 = dropped}}},
+	};
+	for (size_t i = 0; i < sizeof(entries) / sizeof(entries[0]); i++) {
+		status = 0;
+		api_admit(entries[i], &status);
+		uint64_t still = api_Counter_get(admitted, NULL);
+		if (status != API_STATUS_MOVED || still != 5) {
+			fprintf(stderr, "admitting beside a dropped ticket %zu wrote %d, leaving %llu\n", i, status, (unsigned long long)still);
+			failed = 1;
+		}
+	}
+	status = 0;
+	uint64_t sum = api_admit((api_tuple_Counter_Ticket_Seat_Choice){admitted, ticket, {ticket, 1}, picked}, &status);
+	if (status != 0 || sum != 14) {
+		fprintf(stderr, "admitting wrote %d, summing %llu\n", status, (unsigned long long)sum);
+		failed = 1;
+	}
+	api_Counter_get(admitted, &status);
+	if (status != API_STATUS_MOVED) {
+		fprintf(stderr, "a counter admitted wrote %d\n", status);
+		failed = 1;
+	}
+	/* A record's method lifts the handle its receiver holds, failing as a call does. */
+	status = 0;
+	api_Seat seat = {dropped, 2};
+	api_Seat_number(&seat, &status);
+	if (status != API_STATUS_MOVED) {
+		fprintf(stderr, "a seat's number with a dropped ticket wrote %d\n", status);
+		failed = 1;
+	}
+	status = 0;
+	if (api_choose(empty, &status) != 0 || api_choose(picked, &status) != 3 || status != 0) {
+		fprintf(stderr, "choosing wrote %d\n", status);
+		failed = 1;
+	}
+	api_Counter_free(admitted);
+	api_Ticket_free(ticket);
+	api_Ticket_free(dropped);
+
+	status = 0;
+	api_Counter *kept = api_Counter_new(str("c"), 0);
+	api_Registry *registry = api_Registry_new(kept, NULL);
+	api_Counter_free(kept);
+	if (!api_Registry_edit(registry, move_lent_status, &status, NULL)) {
+		fprintf(stderr, "a lent counter moved out wrote %d\n", status);
+		failed = 1;
+	}
+	api_Registry_free(registry);
+	return failed;
+}
+
 static int broken(const char *which) {
+	if (strcmp(which, "statuses") == 0) {
+		return statuses();
+	}
 	if (strcmp(which, "moved") == 0) {
 		api_Counter *c = api_Counter_new(str("c"), 0);
-		api_Label label = api_Counter_into_label(c, (api_option_Point){0});
+		api_Label label = api_Counter_into_label(c, (api_option_Point){0}, NULL);
 		api_Label_free(&label);
-		api_Counter_get(c);
+		api_Counter_get(c, NULL);
 	} else if (strcmp(which, "borrowed") == 0) {
 		api_Channel *channel = api_Channel_new();
-		api_Channel_recv_future *recv = api_Channel_recv(channel);
+		api_Channel_recv_future *recv = api_Channel_recv(channel, NULL);
 		(void)recv;
-		api_Channel_clear(channel);
+		api_Channel_clear(channel, NULL);
 	} else if (strcmp(which, "utf8") == 0) {
 		api_buf bad = {.ptr = (const uint8_t *)"\xff", .len = 1};
 		api_greet(bad, API_SHAPE_CIRCLE);
 	} else if (strcmp(which, "finished") == 0) {
 		api_Channel *channel = api_Channel_new();
-		api_Channel_send(channel, str("x"));
-		api_Channel_recv_future *recv = api_Channel_recv(channel);
+		api_Channel_send(channel, str("x"), NULL);
+		api_Channel_recv_future *recv = api_Channel_recv(channel, NULL);
 		api_waker waker = {0};
 		api_buf payload;
 		api_Channel_recv_poll(recv, waker, &payload);
@@ -1879,19 +2031,19 @@ static int broken(const char *which) {
 	} else if (strcmp(which, "enum") == 0) {
 		api_greet(str("x"), (api_Shape)2);
 	} else if (strcmp(which, "lent") == 0 || strcmp(which, "lent moved") == 0) {
-		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0));
-		api_Registry_edit(registry, strcmp(which, "lent") == 0 ? free_lent : move_lent, NULL);
+		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0), NULL);
+		api_Registry_edit(registry, strcmp(which, "lent") == 0 ? free_lent : move_lent, NULL, NULL);
 	} else if (strcmp(which, "outlived") == 0) {
 		api_Meters *meters = api_Meters_new();
-		api_Meter *first = api_Meters_first(meters);
-		api_Meters_clear(meters);
-		api_Meter_count(first);
+		api_Meter *first = api_Meters_first(meters, NULL);
+		api_Meters_clear(meters, NULL);
+		api_Meter_count(first, NULL);
 	} else if (strcmp(which, "lent shared") == 0) {
 		api_Meters *meters = api_Meters_new();
-		api_Meter_reset(api_Meters_first(meters));
+		api_Meter_reset(api_Meters_first(meters, NULL), NULL);
 	} else if (strcmp(which, "null") == 0) {
-		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0));
-		api_Registry_edit(registry, NULL, NULL);
+		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0), NULL);
+		api_Registry_edit(registry, NULL, NULL, NULL);
 	} else if (strcmp(which, "returned") == 0) {
 		api_made(1, made_view, NULL);
 	} else if (strcmp(which, "reader") == 0) {

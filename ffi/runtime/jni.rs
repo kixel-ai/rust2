@@ -103,6 +103,36 @@ pub fn fail(env: *mut JNIEnv, what: &str, msg: &str) -> ! {
 	rt::fail(what, msg)
 }
 
+static REFUSED: OnceLock<usize> = OnceLock::new();
+
+/// Throw the `Native.Refused`, an `IllegalStateException`, a call of `what` raises once
+/// its check failed with `status`, returning a zeroed value Kotlin never reads, as JNI's
+/// pending exception throws once the native method returns. Its own class tells Kotlin
+/// the call moved nothing.
+#[cold]
+pub fn refuse<R>(env: *mut JNIEnv, status: i32, what: &str) -> R {
+	let message = match rt::Status::of(status) {
+		Some(status) => format!("{what}: {}", status.message()),
+		None => format!("{what}: an unknown status {status}"),
+	};
+	let message = std::ffi::CString::new(message).expect("no NUL in a message");
+	let id = method(env, &REFUSED, c"__refused", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
+	// SAFETY: `env` is this thread's, and `__refused` takes the message.
+	unsafe {
+		let text = ((**env).v1_2.NewStringUTF)(env, message.as_ptr());
+		if text.is_null() {
+			fail(env, what, "a message did not fit");
+		}
+		let args = [jvalue { l: text }];
+		let refused = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+		if refused.is_null() || ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, what, "a call into Kotlin threw");
+		}
+		((**env).v1_2.Throw)(env, refused);
+		std::mem::zeroed()
+	}
+}
+
 /// Run `f` calling into Kotlin on this thread, freeing the local references it makes, and
 /// abort if what it calls throws: Rust has nowhere to unwind it to.
 pub fn upcall<R>(what: &str, f: impl FnOnce(*mut JNIEnv) -> R) -> R {
