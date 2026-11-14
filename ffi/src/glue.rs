@@ -1931,6 +1931,12 @@ impl Gen<'_> {
 				(Some(own), Some(_)) => format!("{later}.await.map(|v| {own})"),
 				(Some(own), None) => format!("{{ let v = {later}.await; {own} }}"),
 			};
+			// A `String` error may stand for another crate's, which may borrow what the
+			// future owns, so it becomes its message before the future ends.
+			let later = match &function.err {
+				Some(Type::String) => format!("{later}.map_err(|e| ::std::string::ToString::to_string(&e))"),
+				_ => later,
+			};
 			let bind: String = Self::outs(function)
 				.iter()
 				.enumerate()
