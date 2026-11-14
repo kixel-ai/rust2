@@ -29,6 +29,34 @@ def crate(files):
 
 
 class Pipeline(unittest.TestCase):
+    PROVENANCE_ENV = {
+        "GITHUB_REPOSITORY": "example/demo",
+        "GITHUB_WORKFLOW_REF": "example/demo/.github/workflows/binaries.yml@refs/heads/main",
+        "GITHUB_EVENT_NAME": "push",
+        "GITHUB_REPOSITORY_ID": "1",
+        "GITHUB_REPOSITORY_OWNER_ID": "2",
+        "RUNNER_ENVIRONMENT": "github-hosted",
+        "GITHUB_RUN_ID": "3",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "PIPELINE_WORKFLOW": "kixel-ai/rust2/.github/workflows/crabx.yml@refs/tags/pipeline-v1.0.0",
+        "PIPELINE_SHA": "b" * 40,
+    }
+
+    def test_provenance_uses_githubs_workflow_build_type(self):
+        with patch.dict(os.environ, self.PROVENANCE_ENV):
+            definition = p.provenance(ITEM)["buildDefinition"]
+        self.assertEqual(definition["buildType"], "https://actions.github.io/buildtypes/workflow/v1")
+        self.assertEqual(definition["externalParameters"], {
+            "workflow": {"ref": "refs/heads/main", "repository": REPO, "path": ".github/workflows/binaries.yml"},
+            "crate": "demo", "version": "1.2.3", "path": "cli",
+        })
+        self.assertEqual(definition["internalParameters"]["github"]["runner_environment"], "github-hosted")
+
+    def test_provenance_refuses_a_workflow_from_another_repository(self):
+        env = {**self.PROVENANCE_ENV, "GITHUB_WORKFLOW_REF": "other/demo/.github/workflows/binaries.yml@refs/heads/main"}
+        with patch.dict(os.environ, env), self.assertRaisesRegex(ValueError, "not in example/demo"):
+            p.provenance(ITEM)
+
     def test_tag_identity(self):
         with patch.object(p, "api", return_value=None):
             self.assertEqual(p.tag(ITEM), "demo-v1.2.3")

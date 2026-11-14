@@ -214,11 +214,28 @@ def publish(item):
 def provenance(item):
     repo = os.environ["GITHUB_REPOSITORY"]
     workflow = os.environ["PIPELINE_WORKFLOW"]
+    # GitHub's attestation API accepts only its own build types, so this follows workflow/v1's shape.
+    caller, ref = os.environ["GITHUB_WORKFLOW_REF"].split("@", 1)
+    owner, name, path = caller.split("/", 2)
+    if f"{owner}/{name}" != repo:
+        raise ValueError(f"workflow {caller} is not in {repo}")
     return {
         "buildDefinition": {
-            "buildType": "https://github.com/kixel-ai/rust2/tree/main/.github/crabx",
-            "externalParameters": {"crate": item["name"], "version": item["version"], "path": item["path"]},
-            "internalParameters": {},
+            "buildType": "https://actions.github.io/buildtypes/workflow/v1",
+            "externalParameters": {
+                "workflow": {"ref": ref, "repository": f"https://github.com/{repo}", "path": path},
+                "crate": item["name"],
+                "version": item["version"],
+                "path": item["path"],
+            },
+            "internalParameters": {
+                "github": {
+                    "event_name": os.environ["GITHUB_EVENT_NAME"],
+                    "repository_id": os.environ["GITHUB_REPOSITORY_ID"],
+                    "repository_owner_id": os.environ["GITHUB_REPOSITORY_OWNER_ID"],
+                    "runner_environment": os.environ["RUNNER_ENVIRONMENT"],
+                },
+            },
             "resolvedDependencies": [
                 {"uri": f"git+https://github.com/{repo}", "digest": {"gitCommit": item["sha"]}},
                 {"uri": "https://github.com/" + workflow.split("@", 1)[0], "digest": {"gitCommit": os.environ["PIPELINE_SHA"]}},
