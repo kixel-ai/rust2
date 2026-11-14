@@ -18,15 +18,11 @@ moq-ffi calls `init_android` today from its own `JNI_OnLoad`, with the applicati
 generated Kotlin glue defines `JNI_OnLoad` too, so the two cannot share a library once the
 real moq-ffi replaces the stand-in.
 
-Recommended: a general rule, that a `pub fn` taking a `&mut jni::Env` exports to Kotlin
-alone, the glue passing the env of the calling thread, and a `JObject` crosses as Kotlin's
-`Any`. Kotlin then calls `tls.initAndroid(context)`, which apps must call themselves unless moq's
-Kotlin calls it for them.
-
-## Waiting
-
-- Maintainer: how `init_android` reaches Kotlin. Options: the general rule above
-  (recommended: configless, and serves any crate's JNI entry point); the glue calling
-  `init_android` itself when the library loads, as the 2026-11-12 audit recommended (keeps
-  apps setup-free, but names one moq function in the exporter); or moq keeping
-  `init_android` out of its `pub` API and calling it from code the glue's `JNI_OnLoad` runs.
+Decided (maintainer, 2026-11-14,
+[kixel-ai/rust2#810](https://github.com/kixel-ai/rust2/pull/810#issuecomment-6883266024)):
+✅ a general rule (rejected: the glue calling `init_android` itself when the library loads,
+which names one moq function in the exporter; moq keeping `init_android` out of its `pub`
+API). A `pub fn` taking a `&mut jni::Env` exports to Kotlin alone, the glue passing the env
+of the calling thread, and a `JObject` crosses as Kotlin's `Any`. Kotlin then calls
+`tls.initAndroid(context)`, which apps must call themselves unless moq's Kotlin calls it for
+them. This quest also resolves the `JNI_OnLoad` clash with moq-ffi's own Android code.
