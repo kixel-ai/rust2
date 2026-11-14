@@ -59,8 +59,7 @@ fn parse(args: &[String]) -> Result<Option<Args>, String> {
 					return Err(format!("{arg} needs a value\n\n{USAGE}"));
 				};
 				rest = tail;
-				let value =
-					std::path::absolute(value).map_err(|err| format!("resolving {value}: {err}"))?;
+				let value = std::path::absolute(value).map_err(|err| format!("resolving {value}: {err}"))?;
 				match arg.as_str() {
 					"--out" => out = Some(value),
 					_ => manifests.push(value),
@@ -112,12 +111,20 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let (success, diagnostics, original) = run.check("original", None)?;
 	if !success {
 		let rendered: Vec<&str> = diagnostics.iter().filter_map(|d| d.rendered.as_deref()).collect();
-		return Err(format!("the workspaces fail to check as they are:\n{}", rendered.join("")));
+		return Err(format!(
+			"the workspaces fail to check as they are:\n{}",
+			rendered.join("")
+		));
 	}
 	let audit = Audit::new(&workspaces, &original)?;
 	let validation = validate::validate(&run, &audit, &original)?;
 
-	let root = common_root(local.iter().map(|p| p.as_path()).chain(workspaces.iter().map(|w| w.root.as_path())));
+	let root = common_root(
+		local
+			.iter()
+			.map(|p| p.as_path())
+			.chain(workspaces.iter().map(|w| w.root.as_path())),
+	);
 	let scope = Scope {
 		root: &root,
 		workspaces: workspaces.iter().map(|w| w.manifest.as_path()).collect(),
@@ -138,7 +145,9 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 
 /// The deepest directory holding every path.
 fn common_root<'a>(mut paths: impl Iterator<Item = &'a Path>) -> PathBuf {
-	let Some(first) = paths.next() else { return PathBuf::from("/") };
+	let Some(first) = paths.next() else {
+		return PathBuf::from("/");
+	};
 	let mut root = first.to_path_buf();
 	for path in paths {
 		while !path.starts_with(&root) {

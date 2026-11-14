@@ -98,9 +98,7 @@ pub fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validatio
 					unattributed.push(diagnostic);
 				}
 				for token in blamed {
-					restore
-						.entry(token)
-						.or_insert_with(|| restoring(diagnostic));
+					restore.entry(token).or_insert_with(|| restoring(diagnostic));
 				}
 			}
 			if restore.is_empty() {
@@ -127,16 +125,16 @@ pub fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validatio
 					));
 				}
 				for token in blamed {
-					restore.entry(token).or_insert_with(|| Restored::Resolution(place.clone()));
+					restore
+						.entry(token)
+						.or_insert_with(|| Restored::Resolution(place.clone()));
 				}
 			}
 			// Narrowing must not add warnings either: the lints that make public API
 			// name a private type warn, rather than fail, but `-D warnings` fails them.
 			for diagnostic in diagnostics.iter().filter(|d| fails(d)) {
 				for token in blame(audit, &active, &edits, diagnostic) {
-					restore
-						.entry(token)
-						.or_insert_with(|| restoring(diagnostic));
+					restore.entry(token).or_insert_with(|| restoring(diagnostic));
 				}
 			}
 			if restore.is_empty() {
@@ -156,7 +154,10 @@ pub fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validatio
 }
 
 fn restoring(diagnostic: &Diagnostic) -> Restored {
-	Restored::Diagnostic(diagnostic.code.as_ref().map(|c| c.code.clone()), diagnostic.message.clone())
+	Restored::Diagnostic(
+		diagnostic.code.as_ref().map(|c| c.code.clone()),
+		diagnostic.message.clone(),
+	)
 }
 
 /// Whether narrowing must not cause `diagnostic`: an error, or a lint about a private
@@ -282,7 +283,10 @@ fn sites(units: &[Unit]) -> Sites {
 
 /// Each place whose resolutions differ between the original and the narrowed build: what
 /// it resolved to before, and after.
-fn differences(expected: &Sites, actual: &Sites, edits: &Edits) -> Result<Vec<(Place, Vec<Hash>, Vec<Hash>)>, String> {
+/// A place, and what it resolved to before narrowing and after.
+type Difference = (Place, Vec<Hash>, Vec<Hash>);
+
+fn differences(expected: &Sites, actual: &Sites, edits: &Edits) -> Result<Vec<Difference>, String> {
 	let mut differences = Vec::new();
 	if expected.len() != actual.len() || expected.keys().any(|k| !actual.contains_key(k)) {
 		return Err("the narrowed check compiled other crates than the original; is the workspace changing?".into());

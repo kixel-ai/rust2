@@ -196,11 +196,11 @@ impl<'tcx> Collector<'tcx> {
 					| DefKind::TraitAlias
 					| DefKind::AssocTy
 					| DefKind::Fn
-					| DefKind::Const { .. }
+					| DefKind::Const
 					| DefKind::Static { .. }
 					| DefKind::Ctor(..)
 					| DefKind::AssocFn
-					| DefKind::AssocConst { .. }
+					| DefKind::AssocConst
 					| DefKind::Macro(_)
 					| DefKind::ExternCrate
 					| DefKind::Use
@@ -218,14 +218,14 @@ impl<'tcx> Collector<'tcx> {
 			// `const _` that asserts at compile time, and the macros a proc-macro crate
 			// exports.
 			if symbol
-				|| matches!(kind, DefKind::Const { .. }) && tcx.opt_item_name(def) == Some(kw::Underscore)
+				|| matches!(kind, DefKind::Const) && tcx.opt_item_name(def) == Some(kw::Underscore)
 				|| proc_macro && exported
 			{
 				roots.push(hash);
 			}
 			let parent = tcx.opt_local_parent(id).map(|p| this.hash(p.to_def_id()));
 			let member_of = match kind {
-				DefKind::AssocFn | DefKind::AssocConst { .. } | DefKind::AssocTy => {
+				DefKind::AssocFn | DefKind::AssocConst | DefKind::AssocTy => {
 					let container = tcx.parent(def);
 					match tcx.def_kind(container) {
 						DefKind::Impl { of_trait: false } => {
@@ -384,7 +384,10 @@ impl<'tcx> Collector<'tcx> {
 				_ => variant,
 			};
 			for field in &self.tcx.adt_def(adt).variant_with_id(variant).fields {
-				self.refs.entry((from, self.hash(field.did))).or_insert((None, interface)).1 |= interface;
+				self.refs
+					.entry((from, self.hash(field.did)))
+					.or_insert((None, interface))
+					.1 |= interface;
 			}
 		}
 	}
@@ -397,8 +400,10 @@ impl<'tcx> Collector<'tcx> {
 				ty::Adt(adt, _) => self.refer(adt.did(), None),
 				ty::Foreign(def) | ty::FnDef(def, _) => self.refer(def, None),
 				ty::Alias(_, alias) => {
-					let (ty::Projection { def_id } | ty::Inherent { def_id } | ty::Opaque { def_id } | ty::Free { def_id }) =
-						alias.kind;
+					let (ty::Projection { def_id }
+					| ty::Inherent { def_id }
+					| ty::Opaque { def_id }
+					| ty::Free { def_id }) = alias.kind;
 					self.refer(def_id, None);
 				}
 				ty::Dynamic(preds, ..) => {
@@ -427,11 +432,11 @@ impl<'tcx> Collector<'tcx> {
 					self.refer_ty(ty);
 				}
 			}
-			DefKind::Field | DefKind::TyAlias | DefKind::Static { .. } | DefKind::Const { .. } => {
+			DefKind::Field | DefKind::TyAlias | DefKind::Static { .. } | DefKind::Const => {
 				self.refer_ty(tcx.type_of(def).instantiate_identity().skip_norm_wip());
 			}
 			// A trait's associated item has a type of its own only with a default.
-			DefKind::AssocTy | DefKind::AssocConst { .. }
+			DefKind::AssocTy | DefKind::AssocConst
 				if tcx.def_kind(tcx.parent(def)) != DefKind::Trait || tcx.defaultness(def).has_value() =>
 			{
 				self.refer_ty(tcx.type_of(def).instantiate_identity().skip_norm_wip());
@@ -526,7 +531,9 @@ impl<'tcx> Collector<'tcx> {
 	fn field(&mut self, ty: Ty<'tcx>, res: Option<Res>, hir_id: hir::HirId, site: rustc_span::Span) {
 		let Some(typeck) = self.typeck else { return };
 		let ty::Adt(adt, _) = ty.peel_refs().kind() else { return };
-		let Some(index) = typeck.opt_field_index(hir_id) else { return };
+		let Some(index) = typeck.opt_field_index(hir_id) else {
+			return;
+		};
 		let variant = match res {
 			Some(res) => adt.variant_of_res(res),
 			None if adt.is_enum() => return,
@@ -722,14 +729,14 @@ impl<'tcx> Visitor<'tcx> for Collector<'tcx> {
 
 	fn visit_pat(&mut self, pat: &'tcx hir::Pat<'tcx>) {
 		self.provenance(pat.span);
-		if let Some(typeck) = self.typeck {
-			if let Some(ty) = typeck.node_type_opt(pat.hir_id) {
-				self.refer_ty(ty);
-				if let hir::PatKind::Struct(qpath, fields, _) = pat.kind {
-					let res = typeck.qpath_res(&qpath, pat.hir_id);
-					for field in fields {
-						self.field(ty, Some(res), field.hir_id, field.ident.span);
-					}
+		if let Some(typeck) = self.typeck
+			&& let Some(ty) = typeck.node_type_opt(pat.hir_id)
+		{
+			self.refer_ty(ty);
+			if let hir::PatKind::Struct(qpath, fields, _) = pat.kind {
+				let res = typeck.qpath_res(&qpath, pat.hir_id);
+				for field in fields {
+					self.field(ty, Some(res), field.hir_id, field.ident.span);
 				}
 			}
 		}

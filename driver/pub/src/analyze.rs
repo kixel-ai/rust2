@@ -114,7 +114,12 @@ impl Audit {
 			let foreign = unit.lib && !published && !consumed.contains(unit.package.as_path());
 			for def in &unit.defs {
 				let span = def.span.map(|s| place(unit, s));
-				let key = (unit.crate_name.clone(), span.clone(), def.kind.clone(), def.path.clone());
+				let key = (
+					unit.crate_name.clone(),
+					span.clone(),
+					def.kind.clone(),
+					def.path.clone(),
+				);
 				let index = *keys.entry(key).or_insert_with(|| {
 					defs.push(Def {
 						crate_name: unit.crate_name.clone(),
@@ -207,7 +212,11 @@ impl Audit {
 		}
 		let production = reach(&[&edges[0]], &roots[0], &impls[0]);
 		let all_impls: Vec<_> = impls.concat();
-		let all = reach(&[&edges[0], &edges[1]], &[roots[0].clone(), roots[1].clone()].concat(), &all_impls);
+		let all = reach(
+			&[&edges[0], &edges[1]],
+			&[roots[0].clone(), roots[1].clone()].concat(),
+			&all_impls,
+		);
 		for (i, def) in defs.iter_mut().enumerate() {
 			def.category = match (all[i], production[i], def.cross.is_some()) {
 				(false, ..) => Category::Unreached,
@@ -237,7 +246,11 @@ impl Audit {
 /// The packages the audit consumes: those with a binary, which run, and the unpublished
 /// workspace members such a package builds on.
 fn consumed<'a>(packages: &BTreeMap<&'a Path, &Package>) -> BTreeSet<&'a Path> {
-	let mut consumed: BTreeSet<&Path> = packages.iter().filter(|(_, p)| p.bin && p.member).map(|(d, _)| *d).collect();
+	let mut consumed: BTreeSet<&Path> = packages
+		.iter()
+		.filter(|(_, p)| p.bin && p.member)
+		.map(|(d, _)| *d)
+		.collect();
 	loop {
 		let more: Vec<&Path> = packages
 			.iter()
@@ -260,8 +273,8 @@ fn verdict(
 	packages: &BTreeMap<&Path, &Package>,
 	targets: &[&Path],
 ) -> Result<Verdict, String> {
-	let local = packages.keys().any(|dir| place.file.starts_with(dir))
-		&& !targets.iter().any(|t| place.file.starts_with(t));
+	let local =
+		packages.keys().any(|dir| place.file.starts_with(dir)) && !targets.iter().any(|t| place.file.starts_with(t));
 	if !local {
 		return Ok(Verdict::Generated);
 	}

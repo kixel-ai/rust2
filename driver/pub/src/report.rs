@@ -145,7 +145,11 @@ pub fn write(out: &Path, scope: &Scope, audit: &Audit, validation: &Validation) 
 	for token in &tokens {
 		let outcome = serde_json::to_value(token.outcome).expect("serializes");
 		let category = serde_json::to_value(token.category).expect("serializes");
-		let key = format!("{} {}", outcome.as_str().unwrap_or_default(), category.as_str().unwrap_or_default());
+		let key = format!(
+			"{} {}",
+			outcome.as_str().unwrap_or_default(),
+			category.as_str().unwrap_or_default()
+		);
 		*summary.entry(key).or_default() += 1;
 	}
 	let report = Report {
@@ -178,24 +182,31 @@ fn category(audit: &Audit, token: &Token) -> Category {
 		.unwrap_or(Category::Unreached)
 }
 
+/// A section of the text report: its title, and which tokens it lists.
+type Section = (&'static str, fn(&TokenReport) -> bool);
+
 fn text(report: &Report) -> String {
 	let mut text = String::new();
-	let _ = writeln!(text, "rust2-pub: {} `pub` tokens under {}", report.tokens.len(), report.root.display());
+	let _ = writeln!(
+		text,
+		"rust2-pub: {} `pub` tokens under {}",
+		report.tokens.len(),
+		report.root.display()
+	);
 	let _ = writeln!(text, "{}", report.unchecked);
-	let sections: [(&str, &dyn Fn(&TokenReport) -> bool); 4] = [
+	let sections: [Section; 4] = [
 		(
 			"Narrowed to pub(crate), all together, checked in the selected targets with every name resolving alike (narrow.patch)",
-			&|t| t.outcome == Outcome::Narrowed,
+			|t| t.outcome == Outcome::Narrowed,
 		),
-		("Proposed, but the check restored", &|t| t.outcome == Outcome::Restored),
+		("Proposed, but the check restored", |t| t.outcome == Outcome::Restored),
 		(
 			"The API of a library crates outside the audit may use, which nothing in the audit runs",
-			&|t| t.outcome == Outcome::External && t.category != Category::CrossCrate,
+			|t| t.outcome == Outcome::External && t.category != Category::CrossCrate,
 		),
-		(
-			"Named by another crate only from tests or unreached code",
-			&|t| t.outcome == Outcome::CrossCrate && t.category != Category::CrossCrate,
-		),
+		("Named by another crate only from tests or unreached code", |t| {
+			t.outcome == Outcome::CrossCrate && t.category != Category::CrossCrate
+		}),
 	];
 	for (title, filter) in sections {
 		let tokens: Vec<&TokenReport> = report.tokens.iter().filter(|t| filter(t)).collect();
@@ -270,7 +281,13 @@ fn hunks(before: &str, after: &str) -> String {
 		let count = end - start;
 		let _ = writeln!(out, "@@ -{},{count} +{},{count} @@", start + 1, start + 1);
 		for line in start..end {
-			let newline = |l: &str| if l.ends_with('\n') { "" } else { "\n\\ No newline at end of file\n" };
+			let newline = |l: &str| {
+				if l.ends_with('\n') {
+					""
+				} else {
+					"\n\\ No newline at end of file\n"
+				}
+			};
 			if before[line] == after[line] {
 				let _ = write!(out, " {}{}", before[line], newline(before[line]));
 			} else {
@@ -327,7 +344,12 @@ impl Lines {
 		let starts = self.0.entry(place.file.clone()).or_insert_with(|| {
 			let text = std::fs::read(&place.file).unwrap_or_default();
 			std::iter::once(0)
-				.chain(text.iter().enumerate().filter(|(_, b)| **b == b'\n').map(|(i, _)| i as u32 + 1))
+				.chain(
+					text.iter()
+						.enumerate()
+						.filter(|(_, b)| **b == b'\n')
+						.map(|(i, _)| i as u32 + 1),
+				)
 				.collect()
 		});
 		let line = starts.partition_point(|&s| s <= place.lo);

@@ -30,7 +30,13 @@ fn fixture() {
 	for token in report["tokens"].as_array().unwrap() {
 		for item in token["items"].as_array().unwrap() {
 			let path = item["path"].as_str().unwrap().to_string();
-			found.insert(path, (token["outcome"].as_str().unwrap().to_string(), item["category"].as_str().unwrap().to_string()));
+			found.insert(
+				path,
+				(
+					token["outcome"].as_str().unwrap().to_string(),
+					item["category"].as_str().unwrap().to_string(),
+				),
+			);
 		}
 	}
 	let expect = |path: &str, outcome: &str, category: &str| {
@@ -120,7 +126,12 @@ fn run(dir: &Path) -> String {
 }
 
 fn apply(dir: &Path, patch: &Path) {
-	let status = Command::new("git").arg("apply").arg(patch).current_dir(dir).status().unwrap();
+	let status = Command::new("git")
+		.arg("apply")
+		.arg(patch)
+		.current_dir(dir)
+		.status()
+		.unwrap();
 	assert!(status.success());
 }
 

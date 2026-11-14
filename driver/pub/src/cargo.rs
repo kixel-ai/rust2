@@ -127,7 +127,11 @@ impl Workspace {
 					&& to != from
 					&& !tests
 				{
-					local.get_mut(to).expect("a local package").dependents.insert(from.clone());
+					local
+						.get_mut(to)
+						.expect("a local package")
+						.dependents
+						.insert(from.clone());
 				}
 			}
 		}
@@ -176,7 +180,9 @@ impl Workspace {
 		let mut diagnostics = Vec::new();
 		let mut compiled = 0;
 		for line in output.stdout.split(|&b| b == b'\n') {
-			let Ok(message) = serde_json::from_slice::<Message>(line) else { continue };
+			let Ok(message) = serde_json::from_slice::<Message>(line) else {
+				continue;
+			};
 			match message.reason.as_str() {
 				"compiler-message" => diagnostics.extend(message.message),
 				"compiler-artifact" if message.package_id.as_deref().is_some_and(|id| ids.contains(id)) => {
@@ -290,7 +296,13 @@ fn resolution_args(args: &[String]) -> Vec<&str> {
 fn metadata_args(args: &[String]) -> Vec<&str> {
 	pick(
 		args,
-		&["--locked", "--frozen", "--offline", "--all-features", "--no-default-features"],
+		&[
+			"--locked",
+			"--frozen",
+			"--offline",
+			"--all-features",
+			"--no-default-features",
+		],
 		&["--config", "--features", "-F"],
 	)
 }
