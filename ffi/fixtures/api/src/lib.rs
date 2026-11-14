@@ -2570,6 +2570,32 @@ pub fn sum_all(items: impl Iterator<Item = u32>) -> u32 {
 	items.sum()
 }
 
+/// What a counter weighs, owned or borrowed, which C cannot implement for its constant.
+pub trait Weigh {
+	const SCALE: u64;
+	fn weight(&self) -> u64;
+}
+
+impl Weigh for Counter {
+	const SCALE: u64 = 1;
+	fn weight(&self) -> u64 {
+		self.get() * Self::SCALE
+	}
+}
+
+impl Weigh for &Counter {
+	const SCALE: u64 = 10;
+	fn weight(&self) -> u64 {
+		self.get() * Self::SCALE
+	}
+}
+
+/// The weights of an iterator's items summed: C passes the array of its counters, each
+/// moved in, so `&Counter`'s weight is not taken.
+pub fn weigh_all<I: Iterator<Item = W>, W: Weigh>(items: I) -> u64 {
+	items.map(|item| item.weight()).sum()
+}
+
 /// The total length of borrowed byte strings, as moq-tokio's TLS acceptor reads offered ALPNs.
 pub fn offered_len<'a>(alpns: impl Iterator<Item = &'a [u8]>) -> usize {
 	alpns.map(<[u8]>::len).sum()

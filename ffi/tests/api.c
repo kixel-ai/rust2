@@ -1546,6 +1546,10 @@ static int script(void) {
 	/* Iterators, passed as the arrays of their items. */
 	const uint32_t summed_items[] = {1, 2, 3};
 	printf("sum_all %u\n", api_sum_all((api_vec_u32){.ptr = summed_items, .len = 3}));
+	/* Each counter moves in, leaving its handle only to free. */
+	api_Counter *weighed = api_Counter_new(str("w"), 3);
+	printf("weigh_all %llu\n", (unsigned long long)api_weigh_all_Counter((api_vec_Counter){.ptr = &weighed, .len = 1}));
+	api_Counter_free(weighed);
 	const api_buf alpns[] = {str("h3"), str("moq-00")};
 	printf("offered_len %zu\n", api_offered_len((api_vec_bytes){.ptr = alpns, .len = 2}));
 	const api_buf joined_words[] = {str("a"), str("b"), str("c")};
@@ -1592,7 +1596,9 @@ static int script(void) {
 		/* An optional field that is not Clone, lent as `Some` of a handle. */
 		api_Meter *spare = api_Meters_spare_get(lender);
 		printf("spare %s\n", spare != NULL ? "true" : "false");
-		api_Meters_spare_set(lender, api_Meter_default());
+		api_Meter *fresh = api_Meter_default();
+		api_Meters_spare_set(lender, fresh);
+		api_Meter_free(fresh);
 		spare = api_Meters_spare_get(lender);
 		api_Meter_add(spare, 5);
 		printf("spare lent %llu\n", (unsigned long long)api_Meter_add(spare, 1));

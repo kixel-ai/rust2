@@ -244,4 +244,15 @@ pub mod held {
 			byte
 		}
 	}
+
+	/// A width only `u32` has, a value C passes by role, so a value C holds may meet it.
+	pub trait Width {
+		fn bits(&self) -> u32;
+	}
+
+	impl Width for u32 {
+		fn bits(&self) -> u32 {
+			32
+		}
+	}
 }

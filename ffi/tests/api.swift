@@ -708,6 +708,9 @@ func script() {
 		print("failure \(message) \(failureKind(failed))")
 		// Iterators, passed as the arrays of their items.
 		print("sum_all \(sumAll([1, 2, 3]))")
+		var weighed = UniqueArray<Counter>()
+		weighed.append(Counter.new("w", 3))
+		print("weigh_all \(weighAllCounter(weighed))")
 		print("offered_len \(offeredLen([Bytes("h3".utf8), Bytes("moq-00".utf8)]))")
 		print("join_words \(joinWords(["a", "b", "c"]))")
 		// Bytes that must be `'static`, interned.

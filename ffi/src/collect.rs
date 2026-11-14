@@ -2938,6 +2938,8 @@ impl<'tcx> Collector<'tcx> {
 					ty::Ref(_, inner, ty::Mutability::Not) => {
 						self.arg(inner).map(|inner| Type::Ref(Mutability::Not, Box::new(inner)))
 					}
+					// An iterator parameter's instance, the array C passes, as it maps there.
+					ty::Adt(adt, _) if Some(adt.did()) == self.vec_iter => self.ty(ty, Pos::Param),
 					_ => self.arg(ty),
 				},
 				GenericArgKind::Lifetime(_) => unreachable!("no lifetime names an instance"),
@@ -3634,14 +3636,14 @@ impl<'tcx> Collector<'tcx> {
 		// `impl Into<Arc<str>>` takes a `String` too, which maps where `Arc<str>` does not.
 		// Not another crate's type a handle holds: the glue never names it, so nothing would
 		// fix the call's type argument.
-		let iterated = self.iterated(def_id, param);
-		candidates.retain(|&(candidate, _)| {
-			// An array's items are owned, as C lends nothing inside one.
-			!(iterated && candidate.is_ref())
-				&& self.at(def_id, param, base, candidate).is_some()
+		let takes = |candidate: Ty<'tcx>| {
+			self.at(def_id, param, base, candidate).is_some()
 				&& self.maps(candidate, Pos::Param)
 				&& !(candidate.walk().filter_map(|arg| arg.as_type())).any(|ty| self.is_opaque(ty))
-		});
+		};
+		let iterated = self.iterated(def_id, param);
+		// An array's items are owned, as C lends nothing inside one.
+		candidates.retain(|&(candidate, _)| !(iterated && candidate.is_ref()) && takes(candidate));
 		// Two sources that C passes as one buffer but that hold different values, as a
 		// `String` and a `Vec<u8>` do, leave the caller no say in which conversion runs. Forms
 		// of one value, as `&str` and `String` are, convert alike.
@@ -3675,7 +3677,8 @@ impl<'tcx> Collector<'tcx> {
 		// Another crate's trait, which no type the export holds meets, as instantiating found
 		// none, and C cannot implement: no value C holds could be passed. The standard library's
 		// traits are met by values C passes, which the rules may yet take.
-		// An impl for a type the export names, or for any type at all, may yet meet it.
+		// An impl for a type the export names, for a value C passes by role that meets every
+		// bound, or for any type at all, may yet meet it.
 		let unmet = (bounds.iter().map(|b| b.def_id())).any(|tr| {
 			let foreign = !self.sysroot.contains(&tr.krate) && !marker(tcx, tr) && !self.walked(tr.krate);
 			let met = || {
@@ -3684,6 +3687,9 @@ impl<'tcx> Collector<'tcx> {
 					// needs that type to meet the bound itself, as tokio's `&mut T` impls do.
 					let ty = tcx.type_of(imp).instantiate_identity().skip_norm_wip();
 					let inner = ty.peel_refs();
+					let role = || {
+						!ty.has_non_region_param() && takes(ty::fold_regions(tcx, ty, |_, _| tcx.lifetimes.re_erased))
+					};
 					match inner.kind() {
 						ty::Param(_) => {
 							ty == inner
@@ -3694,8 +3700,9 @@ impl<'tcx> Collector<'tcx> {
 						ty::Adt(adt, _) => {
 							self.items.iter().any(|(item, _)| *item == adt.did())
 								|| self.foreign.iter().any(|&(f, _)| f == adt.did())
+								|| role()
 						}
-						_ => false,
+						_ => role(),
 					}
 				})
 			};
@@ -3938,13 +3945,16 @@ impl<'tcx> Collector<'tcx> {
 		// A lifetime bound, such as `'static`, which a reference to a value C passes for the
 		// call cannot meet, though `at` holds modulo regions.
 		let outlives = must_outlive(&self.implied(def_id, base), param);
+		// An array's items are owned, as C lends nothing inside one.
+		let iterated = self.iterated(def_id, param);
+		let owned = outlives || iterated;
 		let mut found: Vec<Ty<'tcx>> = Vec::new();
 		for ty in self.implementors(def_id, param) {
-			if outlives && ty.is_ref() {
+			if owned && ty.is_ref() {
 				continue;
 			}
 			// An implementation for `&X` is taken as it is: C passes no reference to one.
-			let borrowed = (!ty.is_ref() && !outlives).then(|| Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, ty));
+			let borrowed = (!ty.is_ref() && !owned).then(|| Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, ty));
 			let ty = match borrowed.filter(|&borrowed| at(borrowed).is_some()) {
 				Some(borrowed) => borrowed,
 				None if at(ty).is_some() => ty,
@@ -3966,7 +3976,7 @@ impl<'tcx> Collector<'tcx> {
 			.filter_map(exported)
 			.any(|(_, args)| args.iter().any(|arg| arg.walk().any(|a| a == param.into())));
 		for site in self.instances.iter().filter(|_| argument) {
-			for candidate in site.args.types() {
+			for candidate in site.args.types().filter(|ty| !(iterated && ty.is_ref())) {
 				let erased = tcx.erase_and_anonymize_regions(candidate);
 				if found
 					.iter()

@@ -526,6 +526,7 @@ fun script() {
 	println("failure ${failureMessage(failure)} ${failureKind(failure)}")
 	// Iterators, passed as the arrays of their items.
 	println("sum_all ${sumAll(listOf(1u, 2u, 3u))}")
+	println("weigh_all ${weighAllCounter(listOf(Counter.new("w", 3u)))}")
 	println("offered_len ${offeredLen(listOf(Bytes("h3".encodeToByteArray()), Bytes("moq-00".encodeToByteArray())))}")
 	println("join_words ${joinWords(listOf("a", "b", "c"))}")
 	// Bytes that must be `'static`, interned.

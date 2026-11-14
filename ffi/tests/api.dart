@@ -608,6 +608,7 @@ Future<void> script() async {
   print('failure ${api.failureMessage(failure)} ${api.failureKind(failure)}');
   // Iterators, passed as the arrays of their items.
   print('sum_all ${api.sumAll([1, 2, 3])}');
+  print('weigh_all ${api.weighAllCounter([api.Counter('w', 3)])}');
   print('offered_len ${api.offeredLen([utf8.encode('h3'), utf8.encode('moq-00')])}');
   print('join_words ${api.joinWords(['a', 'b', 'c'])}');
   // Bytes that must be `'static`, interned.

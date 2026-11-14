@@ -657,6 +657,7 @@ fn main() {
 	);
 	// Iterators, passed as the arrays of their items.
 	println!("sum_all {}", api::sum_all(vec![1u32, 2, 3].into_iter()));
+	println!("weigh_all {}", api::weigh_all(vec![Counter::new("w", 3)].into_iter()));
 	println!("offered_len {}", api::offered_len([&b"h3"[..], b"moq-00"].into_iter()));
 	println!("join_words {}", api::join_words(["a", "b", "c"]));
 	// Bytes that must be `'static`, interned.

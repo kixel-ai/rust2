@@ -977,6 +977,9 @@ int script() {
 		print("", api::failure_kind(std::move(failure)), "\n");
 		// Iterators, passed as the arrays of their items.
 		std::printf("sum_all %u\n", unsigned(api::sum_all({1, 2, 3})));
+		std::vector<api::Counter> weighed;
+		weighed.push_back(api::Counter::new_("w", 3));
+		std::printf("weigh_all %llu\n", ull(api::weigh_all_Counter(std::move(weighed))));
 		std::printf("offered_len %llu\n", ull(api::offered_len({"h3", "moq-00"})));
 		print("join_words ", api::join_words({"a", "b", "c"}), "\n");
 		// Bytes that must be `'static`, interned.

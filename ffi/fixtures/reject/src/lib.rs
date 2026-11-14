@@ -1233,3 +1233,8 @@ pub fn pump_pipe<T: tls::held::Stream>(mut stream: T) -> u8 {
 pub fn pump_sink<T: tls::held::Sink>(sink: T) -> u8 {
 	sink.write(1)
 }
+
+/// A width only `u32`, which C passes by role, meets: refused, not left out.
+pub fn widen<T: tls::held::Width>(x: T) -> u32 {
+	x.bits()
+}

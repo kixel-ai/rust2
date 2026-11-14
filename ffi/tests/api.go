@@ -728,6 +728,7 @@ func script() {
 	fmt.Printf("failure %s %s\n", must(api.FailureMessage(failure)), must(api.FailureKind(failure)))
 	// Iterators, passed as the arrays of their items.
 	fmt.Printf("sum_all %d\n", api.SumAll([]uint32{1, 2, 3}))
+	fmt.Printf("weigh_all %d\n", must(api.WeighAllCounter([]*api.Counter{api.NewCounter("w", 3)})))
 	fmt.Printf("offered_len %d\n", api.OfferedLen([]rt.Bytes{rt.NewBytes([]byte("h3")), rt.NewBytes([]byte("moq-00"))}))
 	fmt.Printf("join_words %s\n", api.JoinWords([]string{"a", "b", "c"}))
 	// Bytes that must be `'static`, interned.

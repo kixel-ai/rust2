@@ -616,6 +616,7 @@ def script():
 	print(f"failure {api.failure_message(failure)} {api.failure_kind(failure)}")
 	# Iterators, passed as the arrays of their items.
 	print(f"sum_all {api.sum_all(iter([1, 2, 3]))}")
+	print(f"weigh_all {api.weigh_all_counter([api.Counter.new('w', 3)])}")
 	print(f"offered_len {api.offered_len([b'h3', b'moq-00'])}")
 	print(f"join_words {api.join_words(['a', 'b', 'c'])}")
 	# Bytes that must be `'static`, interned.
