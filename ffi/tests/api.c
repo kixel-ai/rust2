@@ -7,6 +7,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
+
 #include "api.h"
 
 static api_buf str(const char *s) {
@@ -1780,6 +1784,14 @@ static int script(void) {
 
 /* Each breaks a contract, which must abort with a message naming the function. */
 static int broken(const char *which) {
+#ifdef __linux__
+	/* Non-dumpable, the expected abort writes no core and never starts the host's crash
+	 * handler. */
+	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) {
+		perror("prctl");
+		return 1;
+	}
+#endif
 	if (strcmp(which, "moved") == 0) {
 		api_Counter *c = api_Counter_new(str("c"), 0);
 		api_Label label = api_Counter_into_label(c, (api_option_Point){0});

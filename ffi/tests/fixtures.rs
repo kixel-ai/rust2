@@ -231,7 +231,7 @@ fn api_c() {
 		("zero", "api_next_hop: a NonZero is zero"),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
-		assert!(!output.status.success(), "{case} did not abort");
+		failed(&output, case);
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "{case} printed {stderr}");
 	}
@@ -383,7 +383,7 @@ fn api_cpp() {
 			("outlived", OUTLIVED),
 		] {
 			let output = Command::new(&exe).arg(case).output().unwrap();
-			assert!(!output.status.success(), "C++{standard} {case} did not abort");
+			failed(&output, &format!("C++{standard} {case}"));
 			let stderr = String::from_utf8_lossy(&output.stderr);
 			assert!(stderr.contains(message), "C++{standard} {case} printed {stderr}");
 		}
@@ -407,17 +407,34 @@ fn api_cpp() {
 		run(&mut cxx(&api.link(), 17, true, &src, &exe));
 	}
 
-	// A C++ program whose header names another contract than its library's aborts at load.
+	// A C++ program whose header names another contract than its library's aborts at load,
+	// non-dumpable from a constructor that runs before the header's check, as `broken` is.
 	let mismatched = scratch().join("api").join("contract.cpp");
 	std::fs::write(
 		&mismatched,
-		"#include \"api.h\"\n#undef API_CONTRACT\n#define API_CONTRACT ((uint64_t)0)\n#include \"api.hpp\"\nint main() {}\n",
+		r#"#ifdef __linux__
+#include <cstdio>
+#include <cstdlib>
+#include <sys/prctl.h>
+__attribute__((constructor(101))) static void nodump() {
+	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) {
+		std::perror("prctl");
+		std::_Exit(1);
+	}
+}
+#endif
+#include "api.h"
+#undef API_CONTRACT
+#define API_CONTRACT ((uint64_t)0)
+#include "api.hpp"
+int main() {}
+"#,
 	)
 	.unwrap();
 	let contract = scratch().join("api").join(format!("contract{EXE_SUFFIX}"));
 	run(&mut cxx(&api.link(), 17, false, &mismatched, &contract));
 	let output = Command::new(&contract).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not abort");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api/rt.hpp and the library are from different builds"),
@@ -569,7 +586,7 @@ fn api_kotlin() {
 	std::fs::write(&native_class, &mismatched).unwrap();
 	let output = java(&[]).output().unwrap();
 	std::fs::write(&native_class, &bytes).unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api.kt and the library are from different builds"),
@@ -742,11 +759,56 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 	] {
-		let output = vm(&[case]).output().unwrap();
+		// Under a piped core pattern the handler still runs at a limit of 0, so the
+		// status reports a core though none is written.
+		let output = no_core(&mut vm(&[case])).output().unwrap();
 		assert!(!output.status.success(), "Kotlin {case} did not fail");
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Kotlin {case} printed {stderr}");
 	}
+}
+
+/// Asserts the run of `what` failed, as a broken contract must, without dumping core: each
+/// core costs the host a write and a run of its crash handler.
+fn failed(output: &Output, what: &str) {
+	assert!(!output.status.success(), "{what} did not fail");
+	#[cfg(unix)]
+	assert!(
+		!std::os::unix::process::ExitStatusExt::core_dumped(&output.status),
+		"{what} dumped core"
+	);
+}
+
+/// `cmd` with a core-size limit of 0 on Linux, so a JVM case that aborts writes no core. The
+/// JVM cannot mark itself non-dumpable as the other test programs do, since JDK 21 calls C
+/// only through a preview API, so the host's crash handler still starts and logs the crash.
+fn no_core(cmd: &mut Command) -> &mut Command {
+	#[cfg(target_os = "linux")]
+	{
+		use std::ffi::{c_int, c_ulong};
+		use std::os::unix::process::CommandExt;
+
+		#[repr(C)]
+		struct Rlimit {
+			cur: c_ulong,
+			max: c_ulong,
+		}
+		unsafe extern "C" {
+			fn setrlimit(resource: c_int, limit: *const Rlimit) -> c_int;
+		}
+		const RLIMIT_CORE: c_int = 4;
+		// SAFETY: setrlimit is async-signal-safe and touches only the child.
+		unsafe {
+			cmd.pre_exec(|| {
+				if setrlimit(RLIMIT_CORE, &Rlimit { cur: 0, max: 0 }) == 0 {
+					Ok(())
+				} else {
+					Err(std::io::Error::last_os_error())
+				}
+			});
+		}
+	}
+	cmd
 }
 
 /// The library `python/api.py` loads from beside itself.
@@ -800,7 +862,7 @@ fn api_python() {
 		("reader kept", "read: a reader kept a view of its buffer past the read"),
 	] {
 		let output = python(&dir, &[case]).output().unwrap();
-		assert!(!output.status.success(), "Python {case} did not fail");
+		failed(&output, &format!("Python {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Python {case} printed {stderr}");
 	}
@@ -823,7 +885,7 @@ fn api_python() {
 	let source = format!("{}{flipped}{}", &source[..at], &source[at + 1..]);
 	std::fs::write(mismatched.join("api.py"), source).unwrap();
 	let output = python(&mismatched, &[]).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api.py and the library are from different builds"),
@@ -943,7 +1005,7 @@ fn api_swift() {
 		("plain variant", "api_Family.Wasm: it is not on this library's target"),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
-		assert!(!output.status.success(), "Swift {case} did not fail");
+		failed(&output, &format!("Swift {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Swift {case} printed {stderr}");
 	}
@@ -961,7 +1023,12 @@ fn api_swift() {
 	let contract = dir.join("contract");
 	std::fs::create_dir_all(&contract).unwrap();
 	std::fs::write(contract.join("api.swift"), mismatched).unwrap();
-	std::fs::write(contract.join("main.swift"), "_ = dropped()\n").unwrap();
+	// Non-dumpable before the check fails, as `broken` is.
+	std::fs::write(
+		contract.join("main.swift"),
+		"#if os(Linux)\nimport Glibc\nimport NoDump\n\nif nodump() != 0 {\n\tperror(\"prctl\")\n\texit(1)\n}\n#endif\n_ = dropped()\n",
+	)
+	.unwrap();
 	let exe = contract.join("contract");
 	run(swiftc(&module, 13)
 		.args(["-module-name", "Api"])
@@ -973,7 +1040,7 @@ fn api_swift() {
 		.arg("-o")
 		.arg(&exe));
 	let output = Command::new(&exe).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api.swift and the library are from different builds"),
@@ -1032,7 +1099,7 @@ fn api_dart() {
 		("lent stray", "a path from Rust is not UTF-8"),
 	] {
 		let output = dart_run(&exe, &[case]).output().unwrap();
-		assert!(!output.status.success(), "Dart {case} did not fail");
+		failed(&output, &format!("Dart {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Dart {case} printed {stderr}");
 	}
@@ -1055,7 +1122,7 @@ fn api_dart() {
 	.unwrap();
 	let exe = dart_compile("api", &contract, &contract, &lib, &main);
 	let output = dart_run(&exe, &[]).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api.dart and the library are from different builds"),
@@ -1164,9 +1231,9 @@ fn collections_dir() -> PathBuf {
 	manifest_dir().join("target").join("swift-collections").join("build")
 }
 
-/// swiftc, with warnings as errors, finding the C header's module in `module` and
-/// swift-collections' in [`collections_dir`], at this macOS deployment target on macOS: 13
-/// is the oldest the generated `Swift.Duration` allows.
+/// swiftc, with warnings as errors, finding the C header's module in `module`,
+/// swift-collections' in [`collections_dir`], and `tests/nodump`'s, at this macOS deployment
+/// target on macOS: 13 is the oldest the generated `Swift.Duration` allows.
 fn swiftc(module: &Path, macos: u8) -> Command {
 	let mut cmd = Command::new("swiftc");
 	if cfg!(target_os = "macos") {
@@ -1179,7 +1246,9 @@ fn swiftc(module: &Path, macos: u8) -> Command {
 	cmd.args(["-warnings-as-errors", "-I"])
 		.arg(module)
 		.arg("-I")
-		.arg(collections_dir());
+		.arg(collections_dir())
+		.arg("-I")
+		.arg(manifest_dir().join("tests").join("nodump"));
 	cmd
 }
 
@@ -1239,7 +1308,7 @@ fn api_go() {
 		("plain variant", "api_Family.Wasm: it is not on this library's target"),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
-		assert!(!output.status.success(), "Go {case} did not fail");
+		failed(&output, &format!("Go {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Go {case} printed {stderr}");
 	}
@@ -1263,7 +1332,7 @@ fn api_go() {
 	.unwrap();
 	run(go(&module, api, &["build", "-o"]).arg(&exe));
 	let output = Command::new(&exe).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("the Go of api and the library are from different builds"),

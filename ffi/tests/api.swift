@@ -7,6 +7,9 @@
 import Api
 import BasicContainers
 import Foundation
+#if os(Linux)
+import NoDump
+#endif
 
 // The Log callback: keeps even levels.
 final class PrintLog: Log {
@@ -1226,6 +1229,12 @@ func lentKept() {
 
 // Each breaks a contract, which must fail with a message naming it.
 func broken(_ which: String) {
+	#if os(Linux)
+	if nodump() != 0 {
+		perror("prctl")
+		exit(1)
+	}
+	#endif
 	switch which {
 	// A lent return outliving its owner's change, which Rust checks.
 	case "outlived":
