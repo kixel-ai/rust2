@@ -2012,18 +2012,21 @@ fn kw(name: &str) -> String {
 }
 
 /// A member's Python name: its snake-case name, with `_` appended if a keyword, and until
-/// it is none of `reserved`, such as one Python gives every such class.
+/// it is none of `reserved`, such as one Python gives every such class, nor of [`TAKEN`]:
+/// a member named as a runtime alias, such as `_int`, would be what a later annotation
+/// `-> _int` names in the class body.
 fn member(snake: &str, reserved: &[&str]) -> String {
 	// A positional field's accessor, `0_get`, is `_0_get`, as its field is `_0`.
 	let digit = snake
 		.starts_with(|c: char| c.is_ascii_digit())
 		.then(|| format!("_{snake}"));
 	let snake = digit.as_deref().unwrap_or(snake);
-	if !reserved.contains(&snake) {
+	let taken = |name: &str| reserved.contains(&name) || TAKEN.contains(&name);
+	if !taken(snake) {
 		return kw(snake);
 	}
 	let mut name = format!("{snake}_");
-	while reserved.contains(&name.as_str()) {
+	while taken(&name) {
 		name.push('_');
 	}
 	name
@@ -2118,4 +2121,18 @@ fn ieee_eq(class: &str, fields: &[String]) -> String {
 		"\tdef __eq__(self, other: _object) -> _bool:\n\t\treturn _isinstance(other, {class}){}\n",
 		same.concat()
 	)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::member;
+
+	#[test]
+	fn member_keeps_clear_of_the_runtime_aliases() {
+		assert_eq!(member("_int", &[]), "_int_");
+		assert_eq!(member("_int", &["_int_"]), "_int__");
+		assert_eq!(member("joined", &[]), "joined");
+		assert_eq!(member("bytes", &[]), "bytes");
+		assert_eq!(member("name", &["name"]), "name_");
+	}
 }
