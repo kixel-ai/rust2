@@ -1127,6 +1127,7 @@ fun forwarded() {
 }
 
 // In its own frame, so nothing on the caller's keeps the last Bytes reachable.
+@OwnFrame
 fun forwardedRead(before: UInt) {
 	val last = forward()
 	uncollected(before, "a payload forwarded through Rust stays the buffer Rust made")

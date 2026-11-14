@@ -108,7 +108,7 @@ refused.
 | `u128` | `<prefix>_u128`: its low and high 64 bits |
 | `NonZero<T>` of an integer but 128-bit | `T`, in every binding too; a zero passed in aborts, and `Option<NonZero<T>>` is `T`'s option |
 | `[u8; N]` | `<prefix>_array_u8_<N>`: a struct of its `N` bytes, `items`, copied across; an empty one, or one of any other element, is refused |
-| `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: an owned buffer returned; passed in, a view, or a buffer Rust returned, which Rust takes back without a copy unless it sits behind a pointer or in an array; `<prefix>_buf_clone` shares one the caller keeps |
+| `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: an owned buffer returned; passed in, a view, or a buffer Rust returned, which Rust takes back without a copy unless it sits behind a pointer or in an array; `<prefix>_buf_clone` shares one the caller keeps, which a `Vec<u8>`, `String`, or `PathBuf` parameter then copies, since only a sole owner's allocation becomes a `Vec` |
 | `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them on Unix, which need not be UTF-8, else UTF-8 |
 | `Duration` | `<prefix>_duration` |
 | `SocketAddr`, `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr`: its IP's bytes, port, and whether it is IPv6; one of the other family passed to `V4` or `V6` aborts |
@@ -692,7 +692,8 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   `Debug` `debugDescription`, and `Default` a static `default()`.
 - **Bytes** are the runtime's `Bytes`, a `RandomAccessCollection` of `UInt8` whose slices
   are `Bytes` too. Bytes Rust returns lend its buffer until Swift releases the last `Bytes`
-  or slice reading it, and pass back to Rust as a second owner of it, with no copy. Swift's
+  or slice reading it, and pass back to Rust as a second owner of it, with no copy, except
+  as an array's items or behind a pointer, which Rust only reads and so copies. Swift's
   own, made with `Bytes(data)` or from any sequence of bytes, Rust copies once where it
   keeps them. `bytes.data` is a `Data`: Swift's as they are, and Rust's copied, so nothing
   writes into a buffer Rust shares.

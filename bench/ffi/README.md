@@ -217,8 +217,8 @@ the export's default `release` build, which links all of moq's crates; "stripped
 
 ### What a call spends
 
-From the CPU tables of 2026-11-10, measured at a load average of 22 to 29, read against
-the code each call runs. In order of what it costs moq's
+From the CPU tables of 2026-11-10, measured at rust2 `7383790d` at a load average of 22 to
+29 and since replaced by the tables above, read against the code each call runs. In order of what it costs moq's
 frame path:
 
 1. **A handle per frame timestamp.** `Timestamp` is `Copy` in Rust, but its private fields
@@ -258,8 +258,8 @@ frame path:
 
 For [checks-raise](/quest/m1/ffi-export/checks-raise.md)'s one accounting: the u64
 getter is one borrowed handle and nothing else, so its row less Rust's 0.4 ns is what a
-handle costs a call. C, C++: 10 ns, the runtime's two atomics. Swift: 18, its hold count
-adding two more. Kotlin: 24 wall, Go 41, Dart 29, Python 47, each with its call's own
+handle costs a call. C, C++: 10 ns, the runtime's two atomics. Swift: 9.9, with no hold
+count since the change below. Kotlin: 24 wall, Go 38, Dart 28, Python 49, each with its call's own
 transition besides.
 
 Swift has since made each object a noncopyable struct and dropped its hold count, but for
@@ -272,10 +272,10 @@ same amount; measure both, CPU first, at the load beside them.
 ### Against the targets
 
 Where the cases match, on wall time: Kotlin's getter costs 24 ns against BoltFFI's 5.8,
-its record return 113 against 61, its write 107 ns over Rust against BoltFFI's 56, and 100 B
-throughput 170 MB/s against 105. Python's getter costs 47 ns against 63, its record return
-97 against 1,120, and 100 B throughput 138 MB/s against 12.1. So Python meets BoltFFI's
-and Kotlin's calls trail it by 2 to 4 times, behind JNI's per-call cost and the hold count.
+its record return 74 against 61, its write 114 ns over Rust against BoltFFI's 56, and 100 B
+throughput 166 MB/s against 105. Python's getter costs 49 ns against 63, its record return
+99 against 1,120, and 100 B throughput 138 MB/s against 12.1. So Python meets BoltFFI's
+and Kotlin's calls trail it by 1.2 to 4 times, behind JNI's per-call cost and the hold count.
 
 ## Consumer release profile
 
