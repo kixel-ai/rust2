@@ -93,7 +93,8 @@ bench-build checkout="": (moq-export checkout) codspeed-hooks
     c++ -O2 -std=c++17 -Wall -Wextra -Werror -I "$out/include" -I "$hooks" moq/bench/export.cpp "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export-cpp
     {{ quote(just_executable()) }} go-module bench-go moq/bench/export.go
     read -ra native < target/moq-native
-    export CGO_CFLAGS="-I$hooks" CGO_LDFLAGS="$PWD/$out/target/release/libmoq.a $hooks/libcodspeed.a ${native[*]}" GOFLAGS=-buildvcs=false
+    # The include path goes in CGO_CPPFLAGS, so cgo keeps its default -O2 -g in CGO_CFLAGS.
+    export CGO_CPPFLAGS="-I$hooks" CGO_LDFLAGS="$PWD/$out/target/release/libmoq.a $hooks/libcodspeed.a ${native[*]}" GOFLAGS=-buildvcs=false
     (cd target/bench-go && go build -o bench .)
     {{ quote(just_executable()) }} dart-program bench-dart moq/bench/export.dart
     rm -rf target/bench-kt
