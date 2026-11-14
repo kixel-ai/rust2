@@ -523,6 +523,18 @@ struct Gen<'a> {
 }
 
 impl<'a> Gen<'a> {
+	/// The Kotlin call `raw`, then `after`, which closes what it moved out, however it ended
+	/// unless a failed check refused it, which moved nothing. It binds no name a parameter
+	/// `after` closes may take: its exception's is fresh, and its result is `_`.
+	fn moving(&mut self, raw: &str, after: &[String]) -> String {
+		let after = after.join("; ");
+		let thrown = self.fresh("e");
+		format!(
+			"try {{\n{}\n}} catch ({thrown}: Throwable) {{\n\tif ({thrown} !is _Native.Refused) {{ {after} }}\n\tthrow {thrown}\n}}.also {{ _ -> {after} }}",
+			indent_by(raw, 1)
+		)
+	}
+
 	fn fresh(&mut self, base: &str) -> String {
 		loop {
 			self.fresh += 1;
@@ -2413,7 +2425,10 @@ impl<'a> Gen<'a> {
 			let call = if after.is_empty() {
 				raw
 			} else {
-				self.refused_first(&bare, moving(&raw, &after))
+				{
+					let moving = self.moving(&raw, &after);
+					self.refused_first(&bare, moving)
+				}
 			};
 			let awaited = format!(
 				"_Native.Signal().let {{ {s} -> _Native.await({call}, {s}, {{ f, n -> _Native.{poll_bare}(f, n) }}, {{ _Native.{free_bare}(it) }}) }}",
@@ -2504,7 +2519,10 @@ impl<'a> Gen<'a> {
 			let raw = if after.is_empty() {
 				raw
 			} else {
-				self.refused_first(&bare, moving(&raw, &after))
+				{
+					let moving = self.moving(&raw, &after);
+					self.refused_first(&bare, moving)
+				}
 			};
 			value = format!("({raw}) as {ok_kt}");
 		} else if let Some(c_ok) = direct(&outs, &written, &function.ok, function.err.as_ref()) {
@@ -2549,7 +2567,10 @@ impl<'a> Gen<'a> {
 			);
 			let caught = match after.is_empty() {
 				true => caught,
-				false => self.refused_first(&bare, moving(&caught, &after)),
+				false => {
+					let moving = self.moving(&caught, &after);
+					self.refused_first(&bare, moving)
+				}
 			};
 			value = match ok {
 				Type::Unit => caught,
@@ -2616,7 +2637,10 @@ impl<'a> Gen<'a> {
 			let raw = if after.is_empty() {
 				raw
 			} else {
-				self.refused_first(&bare, moving(&raw, &after))
+				{
+					let moving = self.moving(&raw, &after);
+					self.refused_first(&bare, moving)
+				}
 			};
 			value = match ok {
 				Type::Unit => format!("{raw}.let {{ }}"),
@@ -2694,7 +2718,10 @@ impl<'a> Gen<'a> {
 			let raw = if after.is_empty() {
 				raw
 			} else {
-				self.refused_first(&bare, moving(&raw, &after))
+				{
+					let moving = self.moving(&raw, &after);
+					self.refused_first(&bare, moving)
+				}
 			};
 			value = format!("({raw}) as {ok_kt}");
 		} else {
@@ -3156,16 +3183,6 @@ fn bytes(ty: &Type) -> bool {
 		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => bytes(inner),
 		_ => false,
 	}
-}
-
-/// The Kotlin call `raw`, then `after`, which closes what it moved out, however it ended
-/// unless a failed check refused it, which moved nothing.
-fn moving(raw: &str, after: &[String]) -> String {
-	let after = after.join("; ");
-	format!(
-		"try {{\n{}\n}} catch (e: Throwable) {{\n\tif (e !is _Native.Refused) {{ {after} }}\n\tthrow e\n}}.also {{ {after} }}",
-		indent_by(raw, 1)
-	)
 }
 
 /// Whether passing `ty` moves an object's value out: by value, boxed, or in an `Option`,

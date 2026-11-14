@@ -1005,6 +1005,12 @@ pub fn heft(scored: (Score, Bytes), lent: &Parcel, moved: (Counter, Bytes)) -> u
 	score.count + lent.score.count + counter.value + lengths as u64
 }
 
+/// Both counters' values, or an error once they overflow: moved parameters named as what
+/// a binding's own cleanup might bind, an exception `e` and a lambda's `it`.
+pub fn spend(e: Counter, it: Counter) -> Result<u64, String> {
+	e.value.checked_add(it.value).ok_or_else(|| "overflow".to_string())
+}
+
 /// An enum named as the runtime's status, whose constants C would name as its statuses.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Status {
