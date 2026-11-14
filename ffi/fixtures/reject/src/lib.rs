@@ -1228,3 +1228,8 @@ impl tls::held::Stream for Pipe {
 pub fn pump_pipe<T: tls::held::Stream>(mut stream: T) -> u8 {
 	stream.read()
 }
+
+/// A sink a reference to any exported type meets: refused, not left out.
+pub fn pump_sink<T: tls::held::Sink>(sink: T) -> u8 {
+	sink.write(1)
+}

@@ -3680,11 +3680,17 @@ impl<'tcx> Collector<'tcx> {
 			let foreign = !self.sysroot.contains(&tr.krate) && !marker(tcx, tr) && !self.walked(tr.krate);
 			let met = || {
 				tcx.all_impls(tr).any(|imp| {
-					// A blanket impl for any type, not one for a reference to any type, which
-					// needs that type to meet the bound itself.
+					// A blanket impl for any type, or for a reference to any type but one that
+					// needs that type to meet the bound itself, as tokio's `&mut T` impls do.
 					let ty = tcx.type_of(imp).instantiate_identity().skip_norm_wip();
-					match ty.peel_refs().kind() {
-						ty::Param(_) => matches!(ty.kind(), ty::Param(_)),
+					let inner = ty.peel_refs();
+					match inner.kind() {
+						ty::Param(_) => {
+							ty == inner
+								|| !(tcx.clauses_of(imp).instantiate_identity(tcx).clauses.iter())
+									.filter_map(|clause| clause.skip_norm_wip().as_trait_clause())
+									.any(|bound| bound.def_id() == tr && bound.self_ty().skip_binder() == inner)
+						}
 						ty::Adt(adt, _) => {
 							self.items.iter().any(|(item, _)| *item == adt.did())
 								|| self.foreign.iter().any(|&(f, _)| f == adt.did())

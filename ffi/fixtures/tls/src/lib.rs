@@ -233,4 +233,15 @@ pub mod held {
 	pub trait Stream {
 		fn read(&mut self) -> u8;
 	}
+
+	/// A sink every reference meets, whatever it refers to, so a value C holds may meet it.
+	pub trait Sink {
+		fn write(&self, byte: u8) -> u8;
+	}
+
+	impl<T> Sink for &T {
+		fn write(&self, byte: u8) -> u8 {
+			byte
+		}
+	}
 }
