@@ -146,7 +146,8 @@ struct Collector<'tcx> {
 	/// The item-like whose source is being walked.
 	owner: LocalDefId,
 	typeck: Option<&'tcx TypeckResults<'tcx>>,
-	refs: FxHashMap<(Hash, Hash), Option<facts::Span>>,
+	/// Each pair's first site, and whether any of its references is in the interface.
+	refs: FxHashMap<(Hash, Hash), (Option<facts::Span>, bool)>,
 	sites: Vec<Site>,
 	/// The expansions already traced to their macros, per owner.
 	traced: FxHashSet<(LocalDefId, SyntaxContext)>,
@@ -223,6 +224,21 @@ impl<'tcx> Collector<'tcx> {
 				roots.push(hash);
 			}
 			let parent = tcx.opt_local_parent(id).map(|p| this.hash(p.to_def_id()));
+			let member_of = match kind {
+				DefKind::AssocFn | DefKind::AssocConst { .. } | DefKind::AssocTy => {
+					let container = tcx.parent(def);
+					match tcx.def_kind(container) {
+						DefKind::Impl { of_trait: false } => {
+							match tcx.type_of(container).instantiate_identity().skip_norm_wip().kind() {
+								ty::Adt(adt, _) => Some(this.hash(adt.did())),
+								_ => None,
+							}
+						}
+						_ => None,
+					}
+				}
+				_ => None,
+			};
 			this.owner = id;
 			this.signature(id, kind);
 			if let DefKind::Impl { of_trait: true } = kind {
@@ -260,6 +276,7 @@ impl<'tcx> Collector<'tcx> {
 				exported,
 				symbol,
 				parent,
+				member_of,
 			});
 		}
 		tcx.hir_visit_all_item_likes_in_crate(&mut this);
@@ -267,7 +284,12 @@ impl<'tcx> Collector<'tcx> {
 		let refs = this
 			.refs
 			.into_iter()
-			.map(|((from, to), site)| Ref { from, to, site })
+			.map(|((from, to), (site, interface))| Ref {
+				from,
+				to,
+				site,
+				interface,
+			})
 			.collect();
 		Unit {
 			crate_name: tcx.crate_name(rustc_hir::def_id::LOCAL_CRATE).to_string(),
@@ -340,13 +362,20 @@ impl<'tcx> Collector<'tcx> {
 
 	/// The owner refers to `to`, at `site` if the source names it there.
 	fn refer(&mut self, to: DefId, site: Option<rustc_span::Span>) {
+		self.refer_as(to, site, self.typeck.is_none());
+	}
+
+	/// [`Self::refer`], saying whether the owner's interface names `to`: a path's
+	/// prefix, such as the module in `api::Item`, names only where `Item` is.
+	fn refer_as(&mut self, to: DefId, site: Option<rustc_span::Span>, interface: bool) {
 		let from = self.hash(self.owner.to_def_id());
 		let to_hash = self.hash(to);
 		let site = site.and_then(|s| self.span(s));
 		if let Some(span) = site {
 			self.sites.push(Site { span, to: to_hash });
 		}
-		self.refs.entry((from, to_hash)).or_insert(site);
+		let entry = self.refs.entry((from, to_hash)).or_insert((site, interface));
+		entry.1 |= interface;
 		// A tuple constructor is as visible as its least visible field.
 		if let DefKind::Ctor(..) = self.tcx.def_kind(to) {
 			let variant = self.tcx.parent(to);
@@ -355,7 +384,7 @@ impl<'tcx> Collector<'tcx> {
 				_ => variant,
 			};
 			for field in &self.tcx.adt_def(adt).variant_with_id(variant).fields {
-				self.refs.entry((from, self.hash(field.did))).or_insert(None);
+				self.refs.entry((from, self.hash(field.did))).or_insert((None, interface)).1 |= interface;
 			}
 		}
 	}
@@ -477,7 +506,7 @@ impl<'tcx> Collector<'tcx> {
 
 	/// Each re-export another crate's module `module` names `name` through, which the
 	/// path depends on as much as on what it names.
-	fn reexports(&mut self, module: DefId, name: rustc_span::Symbol, res: Res) {
+	fn reexports(&mut self, module: DefId, name: rustc_span::Symbol, res: Res, interface: bool) {
 		if module.is_local() {
 			return;
 		}
@@ -486,7 +515,7 @@ impl<'tcx> Collector<'tcx> {
 			if child.ident.name == name && child.res.opt_def_id() == res.opt_def_id() {
 				for reexport in &child.reexport_chain {
 					if let Some(id) = reexport.id() {
-						self.refer(id, None);
+						self.refer_as(id, None, interface);
 					}
 				}
 			}
@@ -535,15 +564,18 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// Refer to what each of `segments` names, and the re-exports each is named through,
-	/// after the module `prev` a `use` list's prefix names. Returns the module the last
-	/// one names, if it names one.
-	fn segments(&mut self, segments: &[hir::PathSegment<'tcx>], mut prev: Option<DefId>) -> Option<DefId> {
-		for segment in segments {
+	/// after the module `prev` a `use` list's prefix names, the interface naming only the
+	/// `last` segment, if it is the path's last. Returns the module the last one names, if
+	/// it names one.
+	fn segments(&mut self, segments: &[hir::PathSegment<'tcx>], mut prev: Option<DefId>, last: bool) -> Option<DefId> {
+		let interface = self.typeck.is_none();
+		for (i, segment) in segments.iter().enumerate() {
 			if let Res::Def(kind, def) = segment.res {
+				let interface = interface && last && i + 1 == segments.len();
 				if let Some(module) = prev {
-					self.reexports(module, segment.ident.name, segment.res);
+					self.reexports(module, segment.ident.name, segment.res, interface);
 				}
-				self.refer(def, Some(segment.ident.span));
+				self.refer_as(def, Some(segment.ident.span), interface);
 				prev = matches!(kind, DefKind::Mod).then_some(def);
 			} else {
 				prev = None;
@@ -556,7 +588,7 @@ impl<'tcx> Collector<'tcx> {
 	fn use_tree(&mut self, tree: &hir::UseTree<'tcx>, prev: Option<DefId>) {
 		let mut module = prev;
 		if let Some((last, init)) = tree.prefix.segments.split_last() {
-			let parent = self.segments(init, prev);
+			let parent = self.segments(init, prev, false);
 			// The last segment names one thing in each namespace, which the import's
 			// resolutions hold and the segment may not.
 			let mut named: Vec<Res> = tree.prefix.res.present_items().collect();
@@ -567,7 +599,7 @@ impl<'tcx> Collector<'tcx> {
 			for res in named {
 				let Res::Def(kind, def) = res else { continue };
 				if let Some(parent) = parent {
-					self.reexports(parent, last.ident.name, res);
+					self.reexports(parent, last.ident.name, res, self.typeck.is_none());
 				}
 				self.refer(def, Some(last.ident.span));
 				if let DefKind::Mod = kind {
@@ -634,7 +666,7 @@ impl<'tcx> Visitor<'tcx> for Collector<'tcx> {
 	}
 
 	fn visit_path(&mut self, path: &hir::Path<'tcx>, _id: hir::HirId) {
-		self.segments(path.segments, None);
+		self.segments(path.segments, None, true);
 		intravisit::walk_path(self, path);
 	}
 

@@ -154,11 +154,22 @@ impl Audit {
 		let mut edges = [vec![Vec::new(); n], vec![Vec::new(); n]];
 		let mut roots = [Vec::new(), Vec::new()];
 		let mut impls = [Vec::new(), Vec::new()];
+		// What each definition's interface names, and the members of each type or module
+		// that are its API too.
+		let mut interface = vec![Vec::new(); n];
+		let mut members = vec![Vec::new(); n];
 		for unit in units {
 			let test = usize::from(unit.test);
 			for def in &unit.defs {
-				if let Some(parent) = def.parent.and_then(|p| hashes.get(&p)) {
-					edges[test][hashes[&def.hash]].push(*parent);
+				let index = hashes[&def.hash];
+				if let Some(&parent) = def.parent.and_then(|p| hashes.get(&p)) {
+					edges[test][index].push(parent);
+					if matches!(defs[parent].kind.as_str(), "Struct" | "Enum" | "Union" | "Variant" | "Mod") {
+						members[parent].push(index);
+					}
+				}
+				if let Some(&owner) = def.member_of.and_then(|p| hashes.get(&p)) {
+					members[owner].push(index);
 				}
 			}
 			for r in &unit.refs {
@@ -166,6 +177,9 @@ impl Audit {
 					continue;
 				};
 				edges[test][from].push(to);
+				if r.interface {
+					interface[from].push(to);
+				}
 				let evidence = Evidence {
 					from,
 					site: r.site.map(|s| place(unit, s)),
@@ -182,6 +196,12 @@ impl Audit {
 				let requires: Vec<usize> = i.requires.iter().filter_map(|r| hashes.get(r).copied()).collect();
 				impls[test].push((hashes[&i.hash], requires));
 			}
+		}
+		// What an external library's API exposes, such as a type of another crate it
+		// re-exports or returns, is external too, with the type's own API.
+		let external: Vec<usize> = (0..n).filter(|&d| defs[d].external).collect();
+		for (d, reached) in reach(&[&interface, &members], &external, &[]).into_iter().enumerate() {
+			defs[d].external |= reached;
 		}
 		let production = reach(&[&edges[0]], &roots[0], &impls[0]);
 		let all_impls: Vec<_> = impls.concat();

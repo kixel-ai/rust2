@@ -73,6 +73,8 @@ pub struct Def {
 	pub symbol: bool,
 	/// Its enclosing definition, live whenever it is.
 	pub parent: Option<Hash>,
+	/// The type an inherent impl's item belongs to, whose API it is part of.
+	pub member_of: Option<Hash>,
 }
 
 /// A definition `from` refers to `to`, first at `site`.
@@ -81,6 +83,9 @@ pub struct Ref {
 	pub from: Hash,
 	pub to: Hash,
 	pub site: Option<Span>,
+	/// Whether `from`'s interface names it, rather than only its body: its signature,
+	/// its type, or what it imports.
+	pub interface: bool,
 }
 
 /// A name the source resolves: where, and to what.

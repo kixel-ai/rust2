@@ -209,3 +209,23 @@ mod tests {
 		assert_eq!(super::unit_tested(), 11);
 	}
 }
+
+/// External: facade re-exports it.
+pub struct Exposed {
+	/// External: a field of a type facade's API exposes.
+	pub field: u32,
+}
+
+impl Exposed {
+	/// External: a method of a type facade's API exposes, though nothing calls it.
+	pub fn method(&self) -> u32 {
+		self.field
+	}
+}
+
+/// External: facade's `unused` returns it.
+#[derive(Default)]
+pub struct Returned {
+	/// External: a field of a type facade's API exposes.
+	pub field: u32,
+}

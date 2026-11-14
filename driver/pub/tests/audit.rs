@@ -51,6 +51,13 @@ fn fixture() {
 	expect("Outer::is_empty", "narrowed", "unreached");
 	expect("Leaked", "restored", "crate-only");
 	expect("integration_tested", "cross-crate", "test-only");
+	// facade is a library nothing in the workspace depends on: its API, and what that API
+	// exposes of api, stays public.
+	expect("unused", "external", "unreached");
+	expect("crate::{use api::Exposed}", "external", "unreached");
+	expect("Exposed::field", "external", "unreached");
+	expect("Exposed::method", "external", "unreached");
+	expect("Returned::field", "external", "unreached");
 	for kept in [
 		"Action",
 		"Live",
@@ -75,6 +82,8 @@ fn fixture() {
 		"Outer::len",
 		"Holder",
 		"Holds",
+		"Exposed",
+		"Returned",
 	] {
 		assert_eq!(found[kept].0, "cross-crate", "{kept}");
 	}
