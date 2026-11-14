@@ -2698,8 +2698,16 @@ pub fn fused_back(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 					.map(|(x, y)| x.1 ^ y.1),
 			);
 		}
-		// A reversed zip as a side of one read forward, and as the side of one read back.
+		// A reversed zip as a side of one read forward, and as the side of one read back,
+		// and a zip read from the back whose second side, a zip, trims as the first ends.
 		10 => {
+			let none = &data[..0];
+			out.push(
+				none.iter()
+					.zip(none.iter().rev().zip(data.iter().map(seen!(24))))
+					.rev()
+					.count() as u8,
+			);
 			out.push(
 				a.iter()
 					.map(seen!(18))

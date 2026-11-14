@@ -12811,297 +12811,305 @@ export function fusedBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	b0: {
 		const _24: rs.u8 = rs.u8Rem(kind, 12);
 		if (_24 === 0) {
-			const leaf36 = rs.iterSlice(rs.byteSliceView(a));
-			const f38 = (_296: rs.u8): rs.u8 => {
-				const x89: rs.u8 = _296;
-				const _638: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_638.value, x89 ^ 1);
-				rs.refMutRelease(_638);
-				return x89;
-			};
-			const leaf37 = rs.iterSlice(rs.byteSliceView(b));
-			const f39 = (_297: rs.u8): rs.u8 => {
-				const x90: rs.u8 = _297;
+			const leaf39 = rs.iterSlice(rs.byteSliceView(a));
+			const f39 = (_2109: rs.u8): rs.u8 => {
+				const x112: rs.u8 = _2109;
 				const _639: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_639.value, x90 ^ 2);
+				rs.byteVecPush(_639.value, x112 ^ 1);
 				rs.refMutRelease(_639);
-				return x90;
+				return x112;
+			};
+			const leaf40 = rs.iterSlice(rs.byteSliceView(b));
+			const f40 = (_2110: rs.u8): rs.u8 => {
+				const x113: rs.u8 = _2110;
+				const _640: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_640.value, x113 ^ 2);
+				rs.refMutRelease(_640);
+				return x113;
 			};
 			let index12 = 0;
-			let end12 = Math.min(leaf36.len(), leaf37.len());
-			let even16 = false;
+			let end12 = Math.min(leaf39.len(), leaf40.len());
+			let even18 = false;
+			let n3 = 0;
+			fused35: while (true) {
+				while (true) {
+					if (index12 >= end12) {
+						break fused35;
+					}
+					if (!even18) {
+						const left13 = end12 - index12;
+						let k26 = leaf39.len() - left13;
+						while (k26 > 0) {
+							k26--;
+							const x114 = leaf39.nextBack();
+							if (x114 === rs.DONE) {
+								break;
+							}
+							f39(x114);
+						}
+						let k27 = leaf40.len() - left13;
+						while (k27 > 0) {
+							k27--;
+							const x115 = leaf40.nextBack();
+							if (x115 === rs.DONE) {
+								break;
+							}
+							f40(x115);
+						}
+						even18 = true;
+					}
+					end12--;
+					if (f39(leaf39.nextBack() as rs.u8) < f40(leaf40.nextBack() as rs.u8)) {
+						break;
+					}
+				}
+				n3++;
+			}
+			rs.byteVecPush(out, n3 & 0xff);
+		} else if (_24 === 1) {
+			const leaf37 = new rs.Range(0, rs.usizeMul(data.length, 3));
+			const leaf38 = rs.iterSlice(rs.byteSliceView(a));
+			let index11 = 0;
+			let end11 = Math.min(leaf37.len(), leaf38.len());
+			let even17 = false;
 			let n2 = 0;
 			fused33: while (true) {
 				while (true) {
-					if (index12 >= end12) {
+					if (index11 >= end11) {
 						break fused33;
 					}
-					if (!even16) {
-						const left13 = end12 - index12;
-						let k18 = leaf36.len() - left13;
-						while (k18 > 0) {
-							k18--;
-							const x91 = leaf36.nextBack();
-							if (x91 === rs.DONE) {
-								break;
-							}
-							f38(x91);
-						}
-						let k19 = leaf37.len() - left13;
-						while (k19 > 0) {
-							k19--;
-							const x92 = leaf37.nextBack();
-							if (x92 === rs.DONE) {
-								break;
-							}
-							f39(x92);
-						}
-						even16 = true;
+					if (!even17) {
+						const left12 = end11 - index11;
+						leaf37.advanceBackBy(leaf37.len() - left12);
+						leaf38.advanceBackBy(leaf38.len() - left12);
+						even17 = true;
 					}
-					end12--;
-					if (f38(leaf36.nextBack() as rs.u8) < f39(leaf37.nextBack() as rs.u8)) {
+					end11--;
+					if (((leaf37.nextBack() as rs.usize) & 0xff) < (leaf38.nextBack() as rs.u8)) {
 						break;
 					}
 				}
 				n2++;
 			}
 			rs.byteVecPush(out, n2 & 0xff);
-		} else if (_24 === 1) {
-			const leaf34 = new rs.Range(0, rs.usizeMul(data.length, 3));
-			const leaf35 = rs.iterSlice(rs.byteSliceView(a));
-			let index11 = 0;
-			let end11 = Math.min(leaf34.len(), leaf35.len());
-			let even15 = false;
-			let n = 0;
-			fused31: while (true) {
-				while (true) {
-					if (index11 >= end11) {
-						break fused31;
-					}
-					if (!even15) {
-						const left12 = end11 - index11;
-						leaf34.advanceBackBy(leaf34.len() - left12);
-						leaf35.advanceBackBy(leaf35.len() - left12);
-						even15 = true;
-					}
-					end11--;
-					if (((leaf34.nextBack() as rs.usize) & 0xff) < (leaf35.nextBack() as rs.u8)) {
-						break;
-					}
-				}
-				n++;
-			}
-			rs.byteVecPush(out, n & 0xff);
 		} else if (_24 === 2) {
-			const leaf32 = rs.iterRev(rs.iterSlice(rs.byteSliceView(a)));
-			const f34 = (_293: rs.u8): rs.u8 => {
-				const x79: rs.u8 = _293;
-				const _634: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_634.value, x79 ^ 3);
-				rs.refMutRelease(_634);
-				return x79;
-			};
-			const leaf33 = rs.iterSlice(rs.byteSliceView(b));
-			const f35 = (_294: rs.u8): rs.u8 => {
-				const x80: rs.u8 = _294;
+			const leaf35 = rs.iterRev(rs.iterSlice(rs.byteSliceView(a)));
+			const f35 = (_2106: rs.u8): rs.u8 => {
+				const x101: rs.u8 = _2106;
 				const _635: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_635.value, x80 ^ 4);
+				rs.byteVecPush(_635.value, x101 ^ 3);
 				rs.refMutRelease(_635);
-				return x80;
+				return x101;
 			};
-			let even14 = false;
-			const f36 = (acc15: rs.u8, _314: [rs.u8, rs.u8]): rs.u8 => {
-				const x81: rs.u8 = _314[0];
+			const leaf36 = rs.iterSlice(rs.byteSliceView(b));
+			const f36 = (_2107: rs.u8): rs.u8 => {
+				const x102: rs.u8 = _2107;
+				const _636: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_636.value, x102 ^ 4);
+				rs.refMutRelease(_636);
+				return x102;
+			};
+			let even16 = false;
+			const f37 = (acc15: rs.u8, _314: [rs.u8, rs.u8]): rs.u8 => {
+				const x103: rs.u8 = _314[0];
 				const y35: rs.u8 = _314[1];
-				return rs.u8WrappingMul(acc15, 7) ^ x81 ^ y35;
+				return rs.u8WrappingMul(acc15, 7) ^ x103 ^ y35;
 			};
 			let acc16: rs.u8 = 0;
 			while (true) {
-				if (!even14) {
-					const len9 = leaf32.len();
-					const len10 = leaf33.len();
-					let k16 = len9 - len10;
-					while (k16 > 0) {
-						k16--;
-						const x82 = leaf32.nextBack();
-						if (x82 === rs.DONE) {
+				if (!even16) {
+					const len17 = leaf35.len();
+					const len18 = leaf36.len();
+					let k24 = len17 - len18;
+					while (k24 > 0) {
+						k24--;
+						const x104 = leaf35.nextBack();
+						if (x104 === rs.DONE) {
 							break;
 						}
-						f34(x82);
+						f35(x104);
 					}
-					let k17 = len10 - len9;
-					while (k17 > 0) {
-						k17--;
-						const x83 = leaf33.nextBack();
-						if (x83 === rs.DONE) {
+					let k25 = len18 - len17;
+					while (k25 > 0) {
+						k25--;
+						const x105 = leaf36.nextBack();
+						if (x105 === rs.DONE) {
 							break;
 						}
-						f35(x83);
+						f36(x105);
 					}
-					even14 = true;
+					even16 = true;
 				}
-				const x84 = leaf32.nextBack();
-				if (x84 === rs.DONE) {
+				const x107 = leaf35.nextBack();
+				if (x107 === rs.DONE) {
+					const x106 = leaf36.nextBack();
+					if (x106 === rs.DONE) {
+						break;
+					}
+					f36(x106);
 					break;
 				}
-				const y36: rs.u8 = f34(x84);
-				const x85 = leaf33.nextBack();
-				if (x85 === rs.DONE) {
+				const y36: rs.u8 = f35(x107);
+				const x108 = leaf36.nextBack();
+				if (x108 === rs.DONE) {
 					break;
 				}
-				acc16 = f36(acc16, [y36, f35(x85)]);
+				acc16 = f37(acc16, [y36, f36(x108)]);
 			}
 			rs.byteVecPush(out, acc16);
 		} else if (_24 === 3) {
-			const leaf27 = rs.iterSlice(rs.byteSliceView(a));
-			const f28 = (_289: rs.u8): rs.u8 => {
-				const x66: rs.u8 = _289;
-				const _630: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_630.value, x66 ^ 5);
-				rs.refMutRelease(_630);
-				return x66;
+			const leaf30 = rs.iterSlice(rs.byteSliceView(a));
+			const f29 = (_2102: rs.u8): rs.u8 => {
+				const x87: rs.u8 = _2102;
+				const _631: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_631.value, x87 ^ 5);
+				rs.refMutRelease(_631);
+				return x87;
 			};
 			let count6 = -1;
 			while (true) {
 				if (count6 < 0) {
-					count6 = leaf27.len();
+					count6 = leaf30.len();
 				}
-				const x68 = leaf27.nextBack();
-				if (x68 === rs.DONE) {
+				const x89 = leaf30.nextBack();
+				if (x89 === rs.DONE) {
 					break;
 				}
-				const y31: rs.u8 = f28(x68);
+				const y31: rs.u8 = f29(x89);
 				count6--;
 				rs.byteVecPush(out, (count6 & 0xff) ^ y31);
 			}
-			const leaf28 = rs.iterSlice(rs.byteSliceView(a));
+			const leaf31 = rs.iterSlice(rs.byteSliceView(a));
 			let count7 = -1;
-			const leaf29 = rs.iterSlice(rs.byteSliceView(b));
-			const f30 = (_291: rs.u8): rs.u8 => {
-				const x69: rs.u8 = _291;
-				const _632: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_632.value, x69 ^ 6);
-				rs.refMutRelease(_632);
-				return x69;
+			const leaf32 = rs.iterSlice(rs.byteSliceView(b));
+			const f31 = (_2104: rs.u8): rs.u8 => {
+				const x90: rs.u8 = _2104;
+				const _633: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_633.value, x90 ^ 6);
+				rs.refMutRelease(_633);
+				return x90;
 			};
 			let index10 = 0;
-			let end10 = Math.min(leaf28.len(), leaf29.len());
-			let even12 = false;
-			const f31 = (acc11: rs.u8, _312: [[rs.usize, rs.u8], rs.u8]): rs.u8 => {
+			let end10 = Math.min(leaf31.len(), leaf32.len());
+			let even14 = false;
+			const f32 = (acc11: rs.u8, _312: [[rs.usize, rs.u8], rs.u8]): rs.u8 => {
 				const i16: rs.usize = _312[0][0];
 				const y32: rs.u8 = _312[1];
 				return rs.u8WrappingMul(acc11, 31) ^ _312[0][1] ^ y32 ^ (i16 & 0xff);
 			};
 			let acc12: rs.u8 = 0;
 			while (!(index10 >= end10)) {
-				if (!even12) {
+				if (!even14) {
 					const left11 = end10 - index10;
-					leaf28.advanceBackBy(leaf28.len() - left11);
-					let k13 = leaf29.len() - left11;
-					while (k13 > 0) {
-						k13--;
-						const x70 = leaf29.nextBack();
-						if (x70 === rs.DONE) {
+					leaf31.advanceBackBy(leaf31.len() - left11);
+					let k21 = leaf32.len() - left11;
+					while (k21 > 0) {
+						k21--;
+						const x91 = leaf32.nextBack();
+						if (x91 === rs.DONE) {
 							break;
 						}
-						f30(x70);
+						f31(x91);
 					}
-					even12 = true;
+					even14 = true;
 				}
 				end10--;
 				if (count7 < 0) {
-					count7 = leaf28.len();
+					count7 = leaf31.len();
 				}
-				const x71 = leaf28.nextBack() as rs.u8;
+				const x92 = leaf31.nextBack() as rs.u8;
 				count7--;
-				acc12 = f31(acc12, [[count7, x71], f30(leaf29.nextBack() as rs.u8)]);
+				acc12 = f32(acc12, [[count7, x92], f31(leaf32.nextBack() as rs.u8)]);
 			}
 			rs.byteVecPush(out, acc12);
-			const leaf30 = rs.iterSlice(rs.byteSliceView(a));
-			const f32 = (_292: rs.u8): rs.u8 => {
-				const x73: rs.u8 = _292;
-				const _633: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_633.value, x73 ^ 7);
-				rs.refMutRelease(_633);
-				return x73;
+			const leaf33 = rs.iterSlice(rs.byteSliceView(a));
+			const f33 = (_2105: rs.u8): rs.u8 => {
+				const x94: rs.u8 = _2105;
+				const _634: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_634.value, x94 ^ 7);
+				rs.refMutRelease(_634);
+				return x94;
 			};
 			let count8 = -1;
-			const leaf31 = rs.iterRev(rs.iterSlice(rs.byteSliceView(b)));
-			let even13 = false;
-			const f33 = (acc13: rs.u8, _313: [[rs.usize, rs.u8], rs.u8]): rs.u8 => {
+			const leaf34 = rs.iterRev(rs.iterSlice(rs.byteSliceView(b)));
+			let even15 = false;
+			const f34 = (acc13: rs.u8, _313: [[rs.usize, rs.u8], rs.u8]): rs.u8 => {
 				const i18: rs.usize = _313[0][0];
-				const x74: rs.u8 = _313[0][1];
-				return rs.u8WrappingMul(acc13, 31) ^ x74 ^ _313[1] ^ (i18 & 0xff);
+				const x95: rs.u8 = _313[0][1];
+				return rs.u8WrappingMul(acc13, 31) ^ x95 ^ _313[1] ^ (i18 & 0xff);
 			};
 			let acc14: rs.u8 = 0;
 			while (true) {
-				if (!even13) {
-					const len7 = leaf30.len();
-					const len8 = leaf31.len();
-					let k14 = len7 - len8;
-					while (k14 > 0) {
-						k14--;
+				if (!even15) {
+					const len15 = leaf33.len();
+					const len16 = leaf34.len();
+					let k22 = len15 - len16;
+					while (k22 > 0) {
+						k22--;
 						if (count8 < 0) {
-							count8 = leaf30.len();
+							count8 = leaf33.len();
 						}
-						const x75 = leaf30.nextBack();
-						if (x75 === rs.DONE) {
+						const x96 = leaf33.nextBack();
+						if (x96 === rs.DONE) {
 							break;
 						}
-						f32(x75);
+						f33(x96);
 						count8--;
 					}
-					let k15 = len8 - len7;
-					while (k15 > 0) {
-						k15--;
-						if (leaf31.nextBack() === rs.DONE) {
+					let k23 = len16 - len15;
+					while (k23 > 0) {
+						k23--;
+						if (leaf34.nextBack() === rs.DONE) {
 							break;
 						}
 					}
-					even13 = true;
+					even15 = true;
 				}
 				if (count8 < 0) {
-					count8 = leaf30.len();
+					count8 = leaf33.len();
 				}
-				const x77 = leaf30.nextBack();
-				if (x77 === rs.DONE) {
+				const x99 = leaf33.nextBack();
+				if (x99 === rs.DONE) {
+					if (leaf34.nextBack() === rs.DONE) {
+						break;
+					}
 					break;
 				}
-				const y34: rs.u8 = f32(x77);
+				const y34: rs.u8 = f33(x99);
 				count8--;
 				const i19 = count8;
-				const x78 = leaf31.nextBack();
-				if (x78 === rs.DONE) {
+				const x100 = leaf34.nextBack();
+				if (x100 === rs.DONE) {
 					break;
 				}
-				acc14 = f33(acc14, [[i19, y34], x78]);
+				acc14 = f34(acc14, [[i19, y34], x100]);
 			}
 			rs.byteVecPush(out, acc14);
 		} else if (_24 === 4) {
-			const leaf26 = rs.iterSlice(rs.byteSliceView(a));
-			const f25 = (_288: rs.u8): rs.u8 => {
-				const x62: rs.u8 = _288;
-				const _628: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_628.value, x62 ^ 8);
-				rs.refMutRelease(_628);
-				return x62;
-			};
-			const f26 = (x63: rs.u8): boolean => {
+			const leaf29 = rs.iterSlice(rs.byteSliceView(a));
+			const f26 = (_2101: rs.u8): rs.u8 => {
+				const x83: rs.u8 = _2101;
 				const _629: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_629.value, x63 ^ 9);
+				rs.byteVecPush(_629.value, x83 ^ 8);
 				rs.refMutRelease(_629);
-				return rs.u8Rem(x63, 3) !== 0;
+				return x83;
+			};
+			const f27 = (x84: rs.u8): boolean => {
+				const _630: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_630.value, x84 ^ 9);
+				rs.refMutRelease(_630);
+				return rs.u8Rem(x84, 3) !== 0;
 			};
 			let acc10: rs.u8 = 0;
-			fused21: while (true) {
+			fused23: while (true) {
 				let y30!: rs.u8;
 				while (true) {
-					const x65 = leaf26.nextBack();
-					if (x65 === rs.DONE) {
-						break fused21;
+					const x86 = leaf29.nextBack();
+					if (x86 === rs.DONE) {
+						break fused23;
 					}
-					const y29: rs.u8 = f25(x65);
-					if (f26(y29)) {
+					const y29: rs.u8 = f26(x86);
+					if (f27(y29)) {
 						y30 = y29;
 						break;
 					}
@@ -13110,36 +13118,36 @@ export function fusedBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			rs.byteVecPush(out, acc10);
 		} else if (_24 === 5) {
-			const leaf24 = rs.iterSlice(rs.byteSliceView(a));
-			const leaf25 = rs.iterSlice(rs.byteSliceView(b));
-			const f22 = (_286: rs.u8): rs.u8 => {
-				const x57: rs.u8 = _286;
-				const _627: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_627.value, x57 ^ 10);
-				rs.refMutRelease(_627);
-				return x57;
+			const leaf27 = rs.iterSlice(rs.byteSliceView(a));
+			const leaf28 = rs.iterSlice(rs.byteSliceView(b));
+			const f23 = (_299: rs.u8): rs.u8 => {
+				const x78: rs.u8 = _299;
+				const _628: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_628.value, x78 ^ 10);
+				rs.refMutRelease(_628);
+				return x78;
 			};
 			let index9 = 0;
-			let end9 = Math.min(leaf24.len(), leaf25.len());
-			let even11 = false;
+			let end9 = Math.min(leaf27.len(), leaf28.len());
+			let even13 = false;
 			let found4: rs.u8 | rs.Done = rs.DONE;
 			while (!(index9 >= end9)) {
-				if (!even11) {
+				if (!even13) {
 					const left10 = end9 - index9;
-					leaf24.advanceBackBy(leaf24.len() - left10);
-					let k12 = leaf25.len() - left10;
-					while (k12 > 0) {
-						k12--;
-						const x59 = leaf25.nextBack();
-						if (x59 === rs.DONE) {
+					leaf27.advanceBackBy(leaf27.len() - left10);
+					let k20 = leaf28.len() - left10;
+					while (k20 > 0) {
+						k20--;
+						const x80 = leaf28.nextBack();
+						if (x80 === rs.DONE) {
 							break;
 						}
-						f22(x59);
+						f23(x80);
 					}
-					even11 = true;
+					even13 = true;
 				}
 				end9--;
-				const y28: rs.u8 = (leaf24.nextBack() as rs.u8) ^ f22(leaf25.nextBack() as rs.u8);
+				const y28: rs.u8 = (leaf27.nextBack() as rs.u8) ^ f23(leaf28.nextBack() as rs.u8);
 				if (rs.u8Rem(y28, 64) === stop) {
 					found4 = y28;
 					break;
@@ -13147,18 +13155,18 @@ export function fusedBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			rs.iterExtendBytes(out, rs.iterOption(rs.iterToOption(found4)), undefined, true);
 		} else if (_24 === 6) {
-			const leaf19: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(a));
-			const leaf20: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(b));
-			const f18: (a0: rs.u8) => rs.u8 = (_279: rs.u8): rs.u8 => {
-				const x47: rs.u8 = _279;
-				const _624: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_624.value, x47 ^ 11);
-				rs.refMutRelease(_624);
-				return x47;
+			const leaf22: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(a));
+			const leaf23: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(b));
+			const f19: (a0: rs.u8) => rs.u8 = (_283: rs.u8): rs.u8 => {
+				const x68: rs.u8 = _283;
+				const _625: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_625.value, x68 ^ 11);
+				rs.refMutRelease(_625);
+				return x68;
 			};
 			const index7: number = 0;
-			let end7: number = Math.min(leaf19.len(), leaf20.len());
-			let even9: boolean = false;
+			let end7: number = Math.min(leaf22.len(), leaf23.len());
+			let even11: boolean = false;
 			let count3: number = -1;
 			while (true) {
 				if (count3 < 0) {
@@ -13167,39 +13175,39 @@ export function fusedBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 				if (index7 >= end7) {
 					break;
 				}
-				if (!even9) {
+				if (!even11) {
 					const left8 = end7 - index7;
-					leaf19.advanceBackBy(leaf19.len() - left8);
-					let k10 = leaf20.len() - left8;
-					while (k10 > 0) {
-						k10--;
-						const x48 = leaf20.nextBack();
-						if (x48 === rs.DONE) {
+					leaf22.advanceBackBy(leaf22.len() - left8);
+					let k18 = leaf23.len() - left8;
+					while (k18 > 0) {
+						k18--;
+						const x69 = leaf23.nextBack();
+						if (x69 === rs.DONE) {
 							break;
 						}
-						f18(x48);
+						f19(x69);
 					}
-					even9 = true;
+					even11 = true;
 				}
 				end7--;
-				const x49 = leaf19.nextBack() as rs.u8;
-				const y21: rs.u8 = f18(leaf20.nextBack() as rs.u8);
+				const x70 = leaf22.nextBack() as rs.u8;
+				const y21: rs.u8 = f19(leaf23.nextBack() as rs.u8);
 				count3--;
 				const i: rs.usize = count3;
 				const y: rs.u8 = y21;
-				if (!(rs.u8Rem(x49, 64) === stop)) {
-					rs.byteVecPush(out, (i & 0xff) ^ x49 ^ y);
+				if (!(rs.u8Rem(x70, 64) === stop)) {
+					rs.byteVecPush(out, (i & 0xff) ^ x70 ^ y);
 				} else {
 					break;
 				}
 			}
-			const leaf21: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(a));
-			const f19: (a0: rs.u8) => rs.u8 = (_282: rs.u8): rs.u8 => {
-				const x51: rs.u8 = _282;
-				const _625: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_625.value, x51 ^ 12);
-				rs.refMutRelease(_625);
-				return x51;
+			const leaf24: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(a));
+			const f20: (a0: rs.u8) => rs.u8 = (_293: rs.u8): rs.u8 => {
+				const x72: rs.u8 = _293;
+				const _626: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_626.value, x72 ^ 12);
+				rs.refMutRelease(_626);
+				return x72;
 			};
 			let count4: number = -1;
 			next4: while (true) {
@@ -13207,13 +13215,13 @@ export function fusedBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 				let y24!: rs.u8;
 				while (true) {
 					if (count4 < 0) {
-						count4 = leaf21.len();
+						count4 = leaf24.len();
 					}
-					const x52 = leaf21.nextBack();
-					if (x52 === rs.DONE) {
+					const x73 = leaf24.nextBack();
+					if (x73 === rs.DONE) {
 						break next4;
 					}
-					const y22: rs.u8 = f19(x52);
+					const y22: rs.u8 = f20(x73);
 					count4--;
 					const i12 = count4;
 					if (rs.u8Rem(y22, 3) !== 0) {
@@ -13224,19 +13232,19 @@ export function fusedBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 				}
 				rs.byteVecPush(out, (y23 & 0xff) ^ y24);
 			}
-			const leaf22: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(a));
-			const f21: (a0: rs.u8) => rs.u8 = (_285: rs.u8): rs.u8 => {
-				const x53: rs.u8 = _285;
-				const _626: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_626.value, x53 ^ 23);
-				rs.refMutRelease(_626);
-				return x53;
+			const leaf25: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(a));
+			const f22: (a0: rs.u8) => rs.u8 = (_297: rs.u8): rs.u8 => {
+				const x74: rs.u8 = _297;
+				const _627: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_627.value, x74 ^ 23);
+				rs.refMutRelease(_627);
+				return x74;
 			};
-			const leaf23: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(b));
+			const leaf26: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(b));
 			let count5: number = -1;
 			const index8: number = 0;
-			let end8: number = Math.min(leaf22.len(), leaf23.len());
-			let even10: boolean = false;
+			let end8: number = Math.min(leaf25.len(), leaf26.len());
+			let even12: boolean = false;
 			while (true) {
 				let next5!: [rs.u8, [rs.usize, rs.u8]] | rs.Done;
 				next6: {
@@ -13244,28 +13252,28 @@ export function fusedBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 						next5 = rs.DONE;
 						break next6;
 					}
-					if (!even10) {
+					if (!even12) {
 						const left9 = end8 - index8;
-						let k11 = leaf22.len() - left9;
-						while (k11 > 0) {
-							k11--;
-							const x54 = leaf22.nextBack();
-							if (x54 === rs.DONE) {
+						let k19 = leaf25.len() - left9;
+						while (k19 > 0) {
+							k19--;
+							const x75 = leaf25.nextBack();
+							if (x75 === rs.DONE) {
 								break;
 							}
-							f21(x54);
+							f22(x75);
 						}
-						leaf23.advanceBackBy(leaf23.len() - left9);
-						even10 = true;
+						leaf26.advanceBackBy(leaf26.len() - left9);
+						even12 = true;
 					}
 					end8--;
-					const y25: rs.u8 = f21(leaf22.nextBack() as rs.u8);
+					const y25: rs.u8 = f22(leaf25.nextBack() as rs.u8);
 					if (count5 < 0) {
-						count5 = leaf23.len();
+						count5 = leaf26.len();
 					}
-					const x56 = leaf23.nextBack() as rs.u8;
+					const x77 = leaf26.nextBack() as rs.u8;
 					count5--;
-					next5 = [y25, [count5, x56]];
+					next5 = [y25, [count5, x77]];
 				}
 				const _154: [rs.u8, [rs.usize, rs.u8]] | undefined = rs.iterToOption(next5);
 				if (_154 !== undefined) {
@@ -13281,43 +13289,43 @@ export function fusedBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 				}
 			}
 		} else if (_24 === 7) {
-			const leaf16 = rs.iterSlice(rs.byteSliceView(a));
-			const leaf17 = rs.iterSlice(rs.byteSliceView(b));
+			const leaf19 = rs.iterSlice(rs.byteSliceView(a));
+			const leaf20 = rs.iterSlice(rs.byteSliceView(b));
 			let index5 = 0;
-			let end5 = Math.min(leaf16.len(), leaf17.len());
-			let even7 = false;
-			const leaf18 = new rs.Range(0, rs.usizeDiv(data.length, 2));
+			let end5 = Math.min(leaf19.len(), leaf20.len());
+			let even9 = false;
+			const leaf21 = new rs.Range(0, rs.usizeDiv(data.length, 2));
 			let index6 = 0;
-			let end6 = Math.min(end5 - index5, leaf18.len());
-			let even8 = false;
+			let end6 = Math.min(end5 - index5, leaf21.len());
+			let even10 = false;
 			let i9 = 0;
 			let at: number | undefined = undefined;
 			while (!(index6 >= end6)) {
-				if (!even8) {
+				if (!even10) {
 					const left5 = end6 - index6;
 					const left6 = Math.max(end5 - index5 - (end5 - index5 - left5), 0);
-					leaf16.advanceBackBy(leaf16.len() - left6);
-					leaf17.advanceBackBy(leaf17.len() - left6);
+					leaf19.advanceBackBy(leaf19.len() - left6);
+					leaf20.advanceBackBy(leaf20.len() - left6);
 					end5 = index5 + left6;
-					even7 = true;
-					leaf18.advanceBackBy(leaf18.len() - left5);
-					even8 = true;
+					even9 = true;
+					leaf21.advanceBackBy(leaf21.len() - left5);
+					even10 = true;
 				}
 				end6--;
 				if (index5 >= end5) {
 					break;
 				}
-				if (!even7) {
+				if (!even9) {
 					const left7 = end5 - index5;
-					leaf16.advanceBackBy(leaf16.len() - left7);
-					leaf17.advanceBackBy(leaf17.len() - left7);
-					even7 = true;
+					leaf19.advanceBackBy(leaf19.len() - left7);
+					leaf20.advanceBackBy(leaf20.len() - left7);
+					even9 = true;
 				}
 				end5--;
-				const x42 = leaf16.nextBack() as rs.u8;
-				const x43 = leaf17.nextBack() as rs.u8;
-				const x44 = leaf18.nextBack() as rs.usize;
-				if (rs.usizeRem((x42 ^ x43) as rs.usize, 8) === rs.usizeRem(x44, 8)) {
+				const x63 = leaf19.nextBack() as rs.u8;
+				const x64 = leaf20.nextBack() as rs.u8;
+				const x65 = leaf21.nextBack() as rs.usize;
+				if (rs.usizeRem((x63 ^ x64) as rs.usize, 8) === rs.usizeRem(x65, 8)) {
 					at = i9;
 					break;
 				}
@@ -13326,46 +13334,46 @@ export function fusedBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(at, (i10: rs.usize): rs.u8 => {
 				return i10 & 0xff;
 			})), undefined, true);
-			rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterRev(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a)), (_262: rs.u8): rs.u8 => {
-				const x45: rs.u8 = _262;
-				const _621: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_621.value, x45 ^ 13);
-				rs.refMutRelease(_621);
-				return x45;
-			}), rs.iterSlice(rs.byteSliceView(b)), [true, false]), rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_268: rs.u8): rs.u8 => {
-				const x46: rs.u8 = _268;
+			rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.iterRev(rs.iterZip(rs.iterZip(rs.iterMap(rs.iterSlice(rs.byteSliceView(a)), (_269: rs.u8): rs.u8 => {
+				const x66: rs.u8 = _269;
 				const _622: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_622.value, x46 ^ 14);
+				rs.byteVecPush(_622.value, x66 ^ 13);
 				rs.refMutRelease(_622);
-				return x46;
-			}), [true, true])), (_278: [[rs.u8, rs.u8], rs.u8]): boolean => {
-				return (_278[0][0] ^ _278[0][1]) < _278[1];
+				return x66;
+			}), rs.iterSlice(rs.byteSliceView(b)), [true, false]), rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_270: rs.u8): rs.u8 => {
+				const x67: rs.u8 = _270;
+				const _623: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_623.value, x67 ^ 14);
+				rs.refMutRelease(_623);
+				return x67;
+			}), [true, true])), (_277: [[rs.u8, rs.u8], rs.u8]): boolean => {
+				return (_277[0][0] ^ _277[0][1]) < _277[1];
 			})) & 0xff);
 		} else if (_24 === 8) {
-			const leaf13 = rs.iterSlice(rs.byteSliceView(a));
-			const f11 = (_241: rs.u8): rs.u8 => {
-				const x33: rs.u8 = _241;
-				const _616: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_616.value, x33 ^ 15);
-				rs.refMutRelease(_616);
-				return x33;
-			};
-			const f12 = (x34: rs.u8): boolean => {
+			const leaf16 = rs.iterSlice(rs.byteSliceView(a));
+			const f12 = (_243: rs.u8): rs.u8 => {
+				const x54: rs.u8 = _243;
 				const _617: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_617.value, x34 ^ 16);
+				rs.byteVecPush(_617.value, x54 ^ 15);
 				rs.refMutRelease(_617);
-				return rs.u8Rem(x34, 3) !== 0;
+				return x54;
+			};
+			const f13 = (x55: rs.u8): boolean => {
+				const _618: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_618.value, x55 ^ 16);
+				rs.refMutRelease(_618);
+				return rs.u8Rem(x55, 3) !== 0;
 			};
 			let found3 = false;
-			fused12: while (true) {
+			fused14: while (true) {
 				let y17!: rs.u8;
 				while (true) {
-					const x36 = leaf13.next();
-					if (x36 === rs.DONE) {
-						break fused12;
+					const x57 = leaf16.next();
+					if (x57 === rs.DONE) {
+						break fused14;
 					}
-					const y16: rs.u8 = f11(x36);
-					if (f12(y16)) {
+					const y16: rs.u8 = f12(x57);
+					if (f13(y16)) {
 						y17 = y16;
 						break;
 					}
@@ -13376,252 +13384,402 @@ export function fusedBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 				}
 			}
 			rs.byteVecPush(out, found3 ? 1 : 0);
-			const leaf14 = rs.iterSlice(rs.byteSliceView(a));
-			const leaf15 = rs.iterSlice(rs.byteSliceView(b));
-			const f14 = (_247: rs.u8): rs.u8 => {
-				const x37: rs.u8 = _247;
-				const _618: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_618.value, x37 ^ 17);
-				rs.refMutRelease(_618);
-				return x37;
+			const leaf17 = rs.iterSlice(rs.byteSliceView(a));
+			const leaf18 = rs.iterSlice(rs.byteSliceView(b));
+			const f15 = (_255: rs.u8): rs.u8 => {
+				const x58: rs.u8 = _255;
+				const _619: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_619.value, x58 ^ 17);
+				rs.refMutRelease(_619);
+				return x58;
 			};
 			let index4 = 0;
-			let end4 = Math.min(leaf14.len(), leaf15.len());
-			let even6 = false;
+			let end4 = Math.min(leaf17.len(), leaf18.len());
+			let even8 = false;
 			let count2 = 0;
 			let acc8: rs.u8 = 0;
 			while (!(index4 >= end4)) {
-				if (!even6) {
+				if (!even8) {
 					const left4 = end4 - index4;
-					leaf14.advanceBackBy(leaf14.len() - left4);
-					let k9 = leaf15.len() - left4;
-					while (k9 > 0) {
-						k9--;
-						const x39 = leaf15.nextBack();
-						if (x39 === rs.DONE) {
+					leaf17.advanceBackBy(leaf17.len() - left4);
+					let k17 = leaf18.len() - left4;
+					while (k17 > 0) {
+						k17--;
+						const x60 = leaf18.nextBack();
+						if (x60 === rs.DONE) {
 							break;
 						}
-						f14(x39);
+						f15(x60);
 					}
-					even6 = true;
+					even8 = true;
 				}
 				end4--;
-				const x40 = leaf14.nextBack() as rs.u8;
-				const y19: rs.u8 = f14(leaf15.nextBack() as rs.u8);
-				acc8 = rs.u8WrappingAdd(acc8, (count2++ & 0xff) ^ x40 ^ y19);
+				const x61 = leaf17.nextBack() as rs.u8;
+				const y19: rs.u8 = f15(leaf18.nextBack() as rs.u8);
+				acc8 = rs.u8WrappingAdd(acc8, (count2++ & 0xff) ^ x61 ^ y19);
 			}
 			rs.byteVecPush(out, acc8);
 		} else if (_24 === 9) {
-			const note: (a0: rs.u8) => Noted.Noted = (_222: rs.u8): Noted.Noted => {
-				return new Noted.Noted(log, _222);
+			const note: (a0: rs.u8) => Noted.Noted = (_225: rs.u8): Noted.Noted => {
+				return new Noted.Noted(log, _225);
 			};
-			const leaf9 = rs.iterSlice(rs.byteSliceView(a));
-			const leaf10 = rs.iterSlice(rs.byteSliceView(b));
+			const leaf12 = rs.iterSlice(rs.byteSliceView(a));
+			const leaf13 = rs.iterSlice(rs.byteSliceView(b));
 			let index3 = 0;
-			let end3 = Math.min(leaf9.len(), leaf10.len());
-			let even4 = false;
+			let end3 = Math.min(leaf12.len(), leaf13.len());
+			let even6 = false;
 			let found: [Noted.Noted, rs.u8] | rs.Done = rs.DONE;
 			while (!(index3 >= end3)) {
-				if (!even4) {
+				if (!even6) {
 					const left3 = end3 - index3;
-					let k6 = leaf9.len() - left3;
-					while (k6 > 0) {
-						k6--;
-						const x24 = leaf9.nextBack();
-						if (x24 === rs.DONE) {
+					let k14 = leaf12.len() - left3;
+					while (k14 > 0) {
+						k14--;
+						const x44 = leaf12.nextBack();
+						if (x44 === rs.DONE) {
 							break;
 						}
-						rs.drop(note(x24));
+						rs.drop(note(x44));
 					}
-					leaf10.advanceBackBy(leaf10.len() - left3);
-					even4 = true;
+					leaf13.advanceBackBy(leaf13.len() - left3);
+					even6 = true;
 				}
 				end3--;
-				const y10: Noted.Noted = note(leaf9.nextBack() as rs.u8);
-				const x26 = leaf10.nextBack() as rs.u8;
-				if (y10._1 < x26) {
-					found = [y10, x26];
+				const y10: Noted.Noted = note(leaf12.nextBack() as rs.u8);
+				const x46 = leaf13.nextBack() as rs.u8;
+				if (y10._1 < x46) {
+					found = [y10, x46];
 					break;
 				}
-				drop$tuple2_iters_Noted_ref_u8([y10, x26]);
+				drop$tuple2_iters_Noted_ref_u8([y10, x46]);
 			}
-			rs.iterExtendBytes(out, rs.iterOption(option_map$190fgwn(rs.iterToOption(found), (_229: [Noted.Noted, rs.u8]): rs.u8 => {
-				const x27: Noted.Noted = _229[0];
-				const _06: rs.u8 = x27._1 ^ _229[1];
-				x27[Symbol.dispose]();
+			rs.iterExtendBytes(out, rs.iterOption(option_map$190fgwn(rs.iterToOption(found), (_232: [Noted.Noted, rs.u8]): rs.u8 => {
+				const x47: Noted.Noted = _232[0];
+				const _06: rs.u8 = x47._1 ^ _232[1];
+				x47[Symbol.dispose]();
 				return _06;
 			})), undefined, true);
-			const leaf11 = rs.iterRev(rs.iterSlice(rs.byteSliceView(a)));
-			const leaf12 = rs.iterSlice(rs.byteSliceView(b));
-			let even5 = false;
-			const f10 = (_232: [Noted.Noted, Noted.Noted]): boolean => {
-				if (!(rs.u8Rem(_232[0]._1, 64) === stop)) {
-					return _232[0]._1 > _232[1]._1;
+			const leaf14 = rs.iterRev(rs.iterSlice(rs.byteSliceView(a)));
+			const leaf15 = rs.iterSlice(rs.byteSliceView(b));
+			let even7 = false;
+			const f11 = (_240: [Noted.Noted, Noted.Noted]): boolean => {
+				if (!(rs.u8Rem(_240[0]._1, 64) === stop)) {
+					return _240[0]._1 > _240[1]._1;
 				}
 				return true;
 			};
 			let found2: [Noted.Noted, Noted.Noted] | rs.Done = rs.DONE;
 			while (true) {
-				if (!even5) {
-					const len5 = leaf11.len();
-					const len6 = leaf12.len();
-					let k7 = len5 - len6;
-					while (k7 > 0) {
-						k7--;
-						const x28 = leaf11.nextBack();
-						if (x28 === rs.DONE) {
+				if (!even7) {
+					const len13 = leaf14.len();
+					const len14 = leaf15.len();
+					let k15 = len13 - len14;
+					while (k15 > 0) {
+						k15--;
+						const x48 = leaf14.nextBack();
+						if (x48 === rs.DONE) {
 							break;
 						}
-						rs.drop(note(x28));
+						rs.drop(note(x48));
 					}
-					let k8 = len6 - len5;
-					while (k8 > 0) {
-						k8--;
-						const x29 = leaf12.nextBack();
-						if (x29 === rs.DONE) {
+					let k16 = len14 - len13;
+					while (k16 > 0) {
+						k16--;
+						const x49 = leaf15.nextBack();
+						if (x49 === rs.DONE) {
 							break;
 						}
-						rs.drop(note(x29));
+						rs.drop(note(x49));
 					}
-					even5 = true;
+					even7 = true;
 				}
-				const x30 = leaf11.nextBack();
-				if (x30 === rs.DONE) {
+				const x51 = leaf14.nextBack();
+				if (x51 === rs.DONE) {
+					const x50 = leaf15.nextBack();
+					if (x50 === rs.DONE) {
+						break;
+					}
+					note(x50);
 					break;
 				}
-				const y13: Noted.Noted = note(x30);
-				const x31 = leaf12.nextBack();
-				if (x31 === rs.DONE) {
+				const y13: Noted.Noted = note(x51);
+				const x52 = leaf15.nextBack();
+				if (x52 === rs.DONE) {
 					break;
 				}
-				const y14: Noted.Noted = note(x31);
-				if (f10([y13, y14])) {
+				const y14: Noted.Noted = note(x52);
+				if (f11([y13, y14])) {
 					found2 = [y13, y14];
 					break;
 				}
 				drop$tuple2_iters_Noted_iters_Noted([y13, y14]);
 			}
-			rs.iterExtendBytes(out, rs.iterOption(option_map$1y3jsu8(rs.iterToOption(found2), (_240: [Noted.Noted, Noted.Noted]): rs.u8 => {
-				const x32: Noted.Noted = _240[0];
-				const y15: Noted.Noted = _240[1];
-				const _08: rs.u8 = x32._1 ^ y15._1;
+			rs.iterExtendBytes(out, rs.iterOption(option_map$1y3jsu8(rs.iterToOption(found2), (_241: [Noted.Noted, Noted.Noted]): rs.u8 => {
+				const x53: Noted.Noted = _241[0];
+				const y15: Noted.Noted = _241[1];
+				const _08: rs.u8 = x53._1 ^ y15._1;
 				y15[Symbol.dispose]();
-				x32[Symbol.dispose]();
+				x53[Symbol.dispose]();
 				return _08;
 			})), undefined, true);
 		} else if (_24 === 10) {
-			const leaf3 = rs.iterSlice(rs.byteSliceView(a));
-			const f3 = (_23: rs.u8): rs.u8 => {
-				const x8: rs.u8 = _23;
-				const _68: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_68.value, x8 ^ 18);
-				rs.refMutRelease(_68);
-				return x8;
-			};
-			const leaf4 = rs.iterSlice(rs.byteSliceView(b));
+			const none: rs.ByteSlice = rs.byteSliceRange(data, 0, 0);
+			const leaf3 = rs.iterSlice(rs.byteSliceView(none));
+			const leaf4 = rs.iterRev(rs.iterSlice(rs.byteSliceView(none)));
 			const leaf5 = rs.iterSlice(rs.byteSliceView(data));
-			const f4 = (_219: rs.u8): rs.u8 => {
-				const x9: rs.u8 = _219;
-				const _610: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_610.value, x9 ^ 19);
-				rs.refMutRelease(_610);
+			const f3 = (_23: rs.u8): rs.u8 => {
+				const x9: rs.u8 = _23;
+				const _68: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_68.value, x9 ^ 24);
+				rs.refMutRelease(_68);
 				return x9;
 			};
-			let index = 0;
-			let end = Math.min(leaf4.len(), leaf5.len());
 			let even2 = false;
-			let left = Math.min(leaf3.sizeHint()[1] ?? Infinity, end - index);
-			const f5 = (acc3: rs.u8, _34: [rs.u8, [rs.u8, rs.u8]]): rs.u8 => {
-				const x10: rs.u8 = _34[0];
+			let even3 = false;
+			let n = 0;
+			while (true) {
+				if (!even3) {
+					const len3 = leaf3.len();
+					const len4 = Math.min(leaf4.len(), leaf5.len());
+					let k3 = len3 - len4;
+					while (k3 > 0) {
+						k3--;
+						if (leaf3.nextBack() === rs.DONE) {
+							break;
+						}
+					}
+					let k4 = len4 - len3;
+					while (k4 > 0) {
+						k4--;
+						if (!even2) {
+							const len5 = leaf4.len();
+							const len6 = leaf5.len();
+							let k5 = len5 - len6;
+							while (k5 > 0) {
+								k5--;
+								if (leaf4.nextBack() === rs.DONE) {
+									break;
+								}
+							}
+							let k6 = len6 - len5;
+							while (k6 > 0) {
+								k6--;
+								const x12 = leaf5.nextBack();
+								if (x12 === rs.DONE) {
+									break;
+								}
+								f3(x12);
+							}
+							even2 = true;
+						}
+						if (leaf4.nextBack() === rs.DONE) {
+							const x13 = leaf5.nextBack();
+							if (x13 === rs.DONE) {
+								break;
+							}
+							f3(x13);
+							break;
+						}
+						const x15 = leaf5.nextBack();
+						if (x15 === rs.DONE) {
+							break;
+						}
+						f3(x15);
+					}
+					even3 = true;
+				}
+				if (leaf3.nextBack() === rs.DONE) {
+					if (!even2) {
+						const len7 = leaf4.len();
+						const len8 = leaf5.len();
+						let k7 = len7 - len8;
+						while (k7 > 0) {
+							k7--;
+							if (leaf4.nextBack() === rs.DONE) {
+								break;
+							}
+						}
+						let k8 = len8 - len7;
+						while (k8 > 0) {
+							k8--;
+							const x17 = leaf5.nextBack();
+							if (x17 === rs.DONE) {
+								break;
+							}
+							f3(x17);
+						}
+						even2 = true;
+					}
+					if (leaf4.nextBack() === rs.DONE) {
+						const x18 = leaf5.nextBack();
+						if (x18 === rs.DONE) {
+							break;
+						}
+						f3(x18);
+						break;
+					}
+					const x20 = leaf5.nextBack();
+					if (x20 === rs.DONE) {
+						break;
+					}
+					f3(x20);
+					break;
+				}
+				if (!even2) {
+					const len9 = leaf4.len();
+					const len10 = leaf5.len();
+					let k9 = len9 - len10;
+					while (k9 > 0) {
+						k9--;
+						if (leaf4.nextBack() === rs.DONE) {
+							break;
+						}
+					}
+					let k10 = len10 - len9;
+					while (k10 > 0) {
+						k10--;
+						const x23 = leaf5.nextBack();
+						if (x23 === rs.DONE) {
+							break;
+						}
+						f3(x23);
+					}
+					even2 = true;
+				}
+				if (leaf4.nextBack() === rs.DONE) {
+					const x24 = leaf5.nextBack();
+					if (x24 === rs.DONE) {
+						break;
+					}
+					f3(x24);
+					break;
+				}
+				const x26 = leaf5.nextBack();
+				if (x26 === rs.DONE) {
+					break;
+				}
+				f3(x26);
+				n++;
+			}
+			rs.byteVecPush(out, n & 0xff);
+			const leaf6 = rs.iterSlice(rs.byteSliceView(a));
+			const f4 = (_219: rs.u8): rs.u8 => {
+				const x27: rs.u8 = _219;
+				const _610: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_610.value, x27 ^ 18);
+				rs.refMutRelease(_610);
+				return x27;
+			};
+			const leaf7 = rs.iterSlice(rs.byteSliceView(b));
+			const leaf8 = rs.iterSlice(rs.byteSliceView(data));
+			const f5 = (_220: rs.u8): rs.u8 => {
+				const x28: rs.u8 = _220;
+				const _611: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_611.value, x28 ^ 19);
+				rs.refMutRelease(_611);
+				return x28;
+			};
+			let index = 0;
+			let end = Math.min(leaf7.len(), leaf8.len());
+			let even4 = false;
+			let left = Math.min(leaf6.sizeHint()[1] ?? Infinity, end - index);
+			const f6 = (acc3: rs.u8, _34: [rs.u8, [rs.u8, rs.u8]]): rs.u8 => {
+				const x29: rs.u8 = _34[0];
 				const z: rs.u8 = _34[1][1];
-				return rs.u8WrappingMul(acc3, 5) ^ x10 ^ _34[1][0] ^ z;
+				return rs.u8WrappingMul(acc3, 5) ^ x29 ^ _34[1][0] ^ z;
 			};
 			let acc4: rs.u8 = 0;
 			while (left !== 0) {
 				left--;
-				const y4: rs.u8 = f3(leaf3.next() as rs.u8);
+				const y4: rs.u8 = f4(leaf6.next() as rs.u8);
 				if (index >= end) {
 					break;
 				}
-				if (!even2) {
+				if (!even4) {
 					const left2 = end - index;
-					leaf4.advanceBackBy(leaf4.len() - left2);
-					let k3 = leaf5.len() - left2;
-					while (k3 > 0) {
-						k3--;
-						const x12 = leaf5.nextBack();
-						if (x12 === rs.DONE) {
+					leaf7.advanceBackBy(leaf7.len() - left2);
+					let k11 = leaf8.len() - left2;
+					while (k11 > 0) {
+						k11--;
+						const x31 = leaf8.nextBack();
+						if (x31 === rs.DONE) {
 							break;
 						}
-						f4(x12);
+						f5(x31);
 					}
-					even2 = true;
+					even4 = true;
 				}
 				end--;
-				acc4 = f5(acc4, [y4, [leaf4.nextBack() as rs.u8, f4(leaf5.nextBack() as rs.u8)]]);
+				acc4 = f6(acc4, [y4, [leaf7.nextBack() as rs.u8, f5(leaf8.nextBack() as rs.u8)]]);
 			}
 			rs.byteVecPush(out, acc4);
-			const leaf6 = rs.iterSlice(rs.byteSliceView(data));
-			const f6 = (_220: rs.u8): rs.u8 => {
-				const x15: rs.u8 = _220;
-				const _611: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_611.value, x15 ^ 20);
-				rs.refMutRelease(_611);
-				return x15;
-			};
-			const leaf7 = rs.iterSlice(rs.byteSliceView(a));
+			const leaf9 = rs.iterSlice(rs.byteSliceView(data));
 			const f7 = (_221: rs.u8): rs.u8 => {
-				const x16: rs.u8 = _221;
+				const x34: rs.u8 = _221;
 				const _612: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-				rs.byteVecPush(_612.value, x16 ^ 21);
+				rs.byteVecPush(_612.value, x34 ^ 20);
 				rs.refMutRelease(_612);
-				return x16;
+				return x34;
 			};
-			const leaf8 = rs.iterSlice(rs.byteSliceView(b));
+			const leaf10 = rs.iterSlice(rs.byteSliceView(a));
+			const f8 = (_222: rs.u8): rs.u8 => {
+				const x35: rs.u8 = _222;
+				const _613: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
+				rs.byteVecPush(_613.value, x35 ^ 21);
+				rs.refMutRelease(_613);
+				return x35;
+			};
+			const leaf11 = rs.iterSlice(rs.byteSliceView(b));
 			let index2 = 0;
-			const end2 = Math.min(leaf7.len(), leaf8.len());
-			let even3 = false;
-			const f8 = (acc5: rs.u8, _38: [rs.u8, [rs.u8, rs.u8]]): rs.u8 => {
-				const x17: rs.u8 = _38[0];
+			const end2 = Math.min(leaf10.len(), leaf11.len());
+			let even5 = false;
+			const f9 = (acc5: rs.u8, _38: [rs.u8, [rs.u8, rs.u8]]): rs.u8 => {
+				const x36: rs.u8 = _38[0];
 				const y6: rs.u8 = _38[1][0];
-				return rs.u8WrappingMul(acc5, 5) ^ x17 ^ y6 ^ _38[1][1];
+				return rs.u8WrappingMul(acc5, 5) ^ x36 ^ y6 ^ _38[1][1];
 			};
 			let acc6: rs.u8 = 0;
 			while (true) {
-				if (!even3) {
-					const len3 = leaf6.len();
-					const len4 = end2 - index2;
-					let k4 = len3 - len4;
-					while (k4 > 0) {
-						k4--;
-						const x18 = leaf6.nextBack();
-						if (x18 === rs.DONE) {
+				if (!even5) {
+					const len11 = leaf9.len();
+					const len12 = end2 - index2;
+					let k12 = len11 - len12;
+					while (k12 > 0) {
+						k12--;
+						const x37 = leaf9.nextBack();
+						if (x37 === rs.DONE) {
 							break;
 						}
-						f6(x18);
+						f7(x37);
 					}
-					let k5 = len4 - len3;
-					while (k5 > 0) {
-						k5--;
+					let k13 = len12 - len11;
+					while (k13 > 0) {
+						k13--;
 						if (index2 >= end2) {
 							break;
 						}
 						index2++;
-						f7(leaf7.next() as rs.u8);
-						leaf8.next();
+						f8(leaf10.next() as rs.u8);
+						leaf11.next();
 					}
-					even3 = true;
+					even5 = true;
 				}
-				const x20 = leaf6.nextBack();
-				if (x20 === rs.DONE) {
+				const x40 = leaf9.nextBack();
+				if (x40 === rs.DONE) {
+					if (index2 >= end2) {
+						break;
+					}
+					index2++;
+					f8(leaf10.next() as rs.u8);
+					leaf11.next();
 					break;
 				}
-				const y7: rs.u8 = f6(x20);
+				const y7: rs.u8 = f7(x40);
 				if (index2 >= end2) {
 					break;
 				}
 				index2++;
-				acc6 = f8(acc6, [y7, [f7(leaf7.next() as rs.u8), leaf8.next() as rs.u8]]);
+				acc6 = f9(acc6, [y7, [f8(leaf10.next() as rs.u8), leaf11.next() as rs.u8]]);
 			}
 			rs.byteVecPush(out, acc6);
 		} else {
@@ -13667,24 +13825,29 @@ export function fusedBack(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 					}
 					even = true;
 				}
-				const x6 = leaf.nextBack();
-				if (x6 === rs.DONE) {
-					break;
-				}
-				const x7 = leaf2.nextBack();
+				const x7 = leaf.nextBack();
 				if (x7 === rs.DONE) {
+					const x6 = leaf2.nextBack();
+					if (x6 === rs.DONE) {
+						break;
+					}
+					f(x6);
 					break;
 				}
-				const y3: rs.u8 = f(x7);
+				const x8 = leaf2.nextBack();
+				if (x8 === rs.DONE) {
+					break;
+				}
+				const y3: rs.u8 = f(x8);
 				count--;
-				acc2 = f2(acc2, [count, [x6, y3]]);
+				acc2 = f2(acc2, [count, [x7, y3]]);
 			}
 			rs.byteVecPush(out, acc2);
 		}
 	}
-	const _283: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log);
-	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_283.value));
-	rs.refRelease(_283);
+	const _298: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log);
+	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_298.value));
+	rs.refRelease(_298);
 }
 
 /**

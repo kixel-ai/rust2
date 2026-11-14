@@ -1035,7 +1035,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					}
 					// The longer side's items past the shorter's read and dropped as the first
 					// read starts, after which both have as many left: std's checks again on
-					// each read, which finds them even. Exact sides, which end together.
+					// each read, which finds them even. Exact sides, which end together, but
+					// each is read even so: the second's read may trim a zip it holds.
 					Zipped::Back { even, drops } => {
 						let mut trim = Vec::new();
 						let (la, lb) = (self.b.fresh("len"), self.b.fresh("len"));
@@ -1059,7 +1060,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							}
 							.at(None),
 						);
-						let x = self.read(a, back, indexed, used, done, out);
+						let mut ended = Vec::new();
+						self.read(b, back, indexed, false, done, &mut ended);
+						ended.extend(done.iter().cloned());
+						let x = self.read(a, back, indexed, used, &ended, out);
 						(x, self.read(b, back, indexed, used, done, out))
 					}
 				};
