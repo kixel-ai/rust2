@@ -1105,6 +1105,28 @@ static int script(void) {
 		print("recv ", payload, "\n");
 	}
 	api_Channel_recv_future_free(recv);
+	/* The send happens at the call, and the future borrows the channel and the tag. */
+	api_Channel_tagged_future *tagging = api_Channel_tagged(channel, str("tag"));
+	api_buf tagged_text;
+	if (api_Channel_tagged_poll(tagging, waker, &tagged_text) == API_POLL_READY) {
+		print("tagged ", tagged_text, "\n");
+	}
+	api_Channel_tagged_future_free(tagging);
+	/* So does a future borrowing an optional slice, which the export owns while it is pending. */
+	const uint32_t items[] = {1, 2, 3};
+	api_Channel_itemized_future *itemizing = api_Channel_itemized(channel, (api_vec_u32){.ptr = items, .len = 3});
+	size_t itemized;
+	if (api_Channel_itemized_poll(itemizing, waker, &itemized) == API_POLL_READY) {
+		printf("itemized %zu\n", itemized);
+	}
+	api_Channel_itemized_future_free(itemizing);
+	/* Another crate's future borrowing its bytes, which the export owns while it is pending. */
+	api_byte_len_future *measuring = api_byte_len(str("abc"));
+	size_t byte_len;
+	if (api_byte_len_poll(measuring, waker, &byte_len) == API_POLL_READY) {
+		printf("byte_len %zu\n", byte_len);
+	}
+	api_byte_len_future_free(measuring);
 	api_Channel_send(channel, str("sized"));
 	api_Channel_recv_sized_future *sized = api_Channel_recv_sized(channel);
 	size_t len;
@@ -1445,6 +1467,15 @@ static int script(void) {
 	print("", api_alpn(config_copy), "\n");
 	api_tls_Config_free(config_copy);
 	api_tls_Config_free(config);
+	/* Another crate's value by value: an opaque handle, lent or taken back. */
+	api_tls_Cert *cert = api_certify(str("der"));
+	printf("cert %llu ", (unsigned long long)api_cert_len(cert));
+	print("", api_cert_der(cert), " ");
+	api_tls_Cert_free(cert);
+	api_tls_Cert *chain[2] = {api_certify(str("a")), api_certify(str("bc"))};
+	printf("%llu\n", (unsigned long long)api_chain_len((api_vec_tls_Cert){.ptr = chain, .len = 2}));
+	api_tls_Cert_free(chain[0]);
+	api_tls_Cert_free(chain[1]);
 	/* Another crate's type only signatures name, exported by its path there, and its error,
 	 * which crosses as its message. */
 	api_tls_Session *session;
@@ -1473,6 +1504,11 @@ static int script(void) {
 		again = api_Meters_first(lender);
 		printf("cleared %llu\n", (unsigned long long)api_Meter_count(again));
 		api_Meter_free(again);
+		/* A field that is not Clone, lent as a method's borrowed return is. */
+		api_Meter *last = api_Meters_last_get(lender);
+		api_Meter_add(last, 4);
+		printf("field lent %llu\n", (unsigned long long)api_Meter_add(last, 1));
+		api_Meter_free(last);
 		api_Meters_free(lender);
 		/* One lent from a handle that is not Sync, on one thread at a time. */
 		api_Tallies *tallies = api_Tallies_new();
@@ -1775,6 +1811,8 @@ static int script(void) {
 	printf("instants %llu %llu %s %s\n", (unsigned long long)(forward.secs * 1000 + forward.nanos / 1000000),
 		   (unsigned long long)(backward.secs * 1000 + backward.nanos / 1000000), api_Instant_eq(began, same) ? "true" : "false",
 		   api_Instant_eq(began, ended) ? "true" : "false");
+	/* An instant lent inside an `Option`, which takes no handle. */
+	printf("has_instant %s %s\n", api_has_instant(began) ? "true" : "false", api_has_instant(NULL) ? "true" : "false");
 	api_Instant_free(same);
 	api_Instant_free(ended);
 	api_Instant_free(began);
@@ -1804,7 +1842,7 @@ static int script(void) {
 	api_Token_free(twice);
 
 	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	if (drops != 12) {
+	if (drops != 15) {
 		return 1;
 	}
 	return closures() && foreign_futures() && forwarding() && started_futures() ? 0 : 1;

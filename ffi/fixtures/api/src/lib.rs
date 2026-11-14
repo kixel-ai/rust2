@@ -453,10 +453,11 @@ impl Meter {
 	}
 }
 
-/// Owns a meter it lends.
+/// Owns a meter it lends, and one in a field, lent as the method's is.
 #[derive(Default)]
 pub struct Meters {
 	first: Meter,
+	pub last: Meter,
 }
 
 impl Meters {
@@ -869,6 +870,27 @@ impl Channel {
 	pub fn send_later(&self, payload: Bytes) -> impl Future<Output = ()> + use<> {
 		self.send(payload);
 		std::future::ready(())
+	}
+
+	/// Sends `tag` at once, as a function that is not `async` runs when called, and returns a
+	/// future that borrows this channel and `tag`: what it next receives, after `tag`.
+	pub fn tagged<'a>(&'a self, tag: &'a str) -> impl Future<Output = String> + 'a {
+		self.send(Bytes::copy_from_slice(tag.as_bytes()));
+		async move {
+			let payload = self.recv().await;
+			format!("{tag} {}", String::from_utf8_lossy(&payload))
+		}
+	}
+
+	/// Sends the sum of `items`, if any, at once, and returns a future that borrows them:
+	/// their count once this channel next receives.
+	pub fn itemized<'a>(&'a self, items: Option<&'a [u32]>) -> impl Future<Output = usize> + 'a {
+		let sum: u32 = items.unwrap_or_default().iter().sum();
+		self.send(Bytes::copy_from_slice(&sum.to_le_bytes()));
+		async move {
+			self.recv().await;
+			items.map_or(0, <[u32]>::len)
+		}
 	}
 
 	/// `recv`'s poll, which does not map: left out, since `recv` exports as a future.
@@ -2266,6 +2288,65 @@ pub fn alpn_lent(config: &Arc<tls::Config>) -> String {
 	config.alpn().to_string()
 }
 
+/// A certificate of a crate the facade re-exports nothing from, by value, with no public
+/// path there, as moq-tokio's rustls root certificates: an opaque handle, which Rust takes
+/// back or borrows.
+pub fn certify(der: &[u8]) -> tls::held::Cert {
+	tls::held::Cert::new(der)
+}
+
+/// The length of `bytes`, through another crate's future that borrows them but resolves
+/// to an owned count: a future, not an opaque handle.
+pub fn byte_len(bytes: &[u8]) -> tls::held::Pending<'_> {
+	tls::held::Pending(bytes)
+}
+
+/// The length of a certificate [`certify`] made, lent.
+pub fn cert_len(cert: &tls::held::Cert) -> usize {
+	cert.der().len()
+}
+
+/// The bytes of a certificate [`certify`] made, taken back by value.
+pub fn cert_der(cert: tls::held::Cert) -> Vec<u8> {
+	cert.der().to_vec()
+}
+
+/// The total length of a chain of certificates, each taken back by value.
+pub fn chain_len(chain: Vec<tls::held::Cert>) -> usize {
+	chain.iter().map(|cert| cert.der().len()).sum()
+}
+
+/// Another crate's session with no public path there, which no export returns: left out, since C can never
+/// hold one.
+pub fn handover(session: tls::held::Handoff) -> u32 {
+	session.id
+}
+
+/// A certificate's length, or why it is refused: another crate's error, which crosses as
+/// its message though `blame` names it as a handle no export returns.
+pub fn verify(cert: &tls::held::Cert) -> Result<u32, tls::held::Invalid> {
+	match cert.der().len() {
+		0 => Err(tls::held::Invalid {
+			reason: "empty".to_string(),
+		}),
+		len => Ok(len as u32),
+	}
+}
+
+/// `text`'s length, or why it is no certificate: another crate's error borrowing `text`,
+/// which crosses as its message, so nothing outlives the call.
+pub fn parse_cert(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
+	match text.is_empty() {
+		true => Err(tls::held::Malformed(text)),
+		false => Ok(text.len() as u32),
+	}
+}
+
+/// Another crate's error taken back by value, which no export returns: left out.
+pub fn blame(err: tls::held::Invalid) -> String {
+	err.to_string()
+}
+
 /// A session of `alpn` lasting `seconds`, from a crate the facade re-exports nothing from:
 /// its type exports by its path there, and its error crosses as its message.
 pub fn resume(alpn: &str, seconds: u32) -> Result<tls::Session, tls::Error> {
@@ -2562,6 +2643,12 @@ pub fn later(at: std::time::Instant, by: Duration) -> std::time::Instant {
 /// The time from `earlier` to `later`, or zero if `later` is earlier.
 pub fn since(later: std::time::Instant, earlier: std::time::Instant) -> Duration {
 	later.saturating_duration_since(earlier)
+}
+
+/// Whether `at` holds an instant, lent inside an `Option`: an instant crosses as a `Copy`
+/// object, so lending one inside a value takes no handle.
+pub fn has_instant(at: &Option<std::time::Instant>) -> bool {
+	at.is_some()
 }
 
 /// How much to log, as moq-tokio's `Log` holds it: a field of a foreign enum, and its filter.

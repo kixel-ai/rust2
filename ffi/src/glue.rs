@@ -15,7 +15,8 @@ use rustc_data_structures::stable_hash::StableHasher;
 use crate::abi::{self, Abi, CFG, Ty};
 use crate::config::Package;
 use crate::ir::{
-	Access, Closure, Collection, Family, Function, Literal, Mutability, On, Receiver, Task, TaskKind, Traits, Type,
+	Access, Closure, Collection, Family, Function, Held, Literal, Mutability, On, Receiver, Task, TaskKind, Traits,
+	Type,
 };
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
@@ -635,7 +636,10 @@ impl Gen<'_> {
 			Type::Record(i) => generic(&api.records[*i].path, 0, &api.records[*i].args),
 			Type::Enum(i) if api.enums[*i].foreign => foreign_path(&api.enums[*i].path),
 			Type::Enum(i) => generic(&api.enums[*i].path, 0, &api.enums[*i].args),
-			Type::Object(i) if api.objects[*i].opaque => "rt::Opaque".to_string(),
+			Type::Object(i) if let Some(held) = api.objects[*i].opaque => match held {
+				Held::Arc => "rt::Opaque".to_string(),
+				Held::Value => "rt::Owned".to_string(),
+			},
 			Type::Object(i) if api.objects[*i].foreign => foreign_path(&api.objects[*i].path),
 			Type::Object(i) => generic(&api.objects[*i].path, api.objects[*i].lifetimes, &api.objects[*i].args),
 			// A negative argument is an expression, which Rust takes only in braces.
@@ -717,9 +721,10 @@ impl Gen<'_> {
 				true => format!("lift_{}({e}, w)", self.abi.enumeration(*i)),
 				false => format!("lift_{}(&{e}, w, {take})", self.abi.enumeration(*i)),
 			},
-			Type::Object(i) if self.abi.api.objects[*i].opaque => {
-				format!("unsafe {{ rt::Object::<rt::Opaque>::take({e}, w) }}.arc(w)")
-			}
+			Type::Object(i) if let Some(held) = self.abi.api.objects[*i].opaque => match held {
+				Held::Arc => format!("unsafe {{ rt::Object::<rt::Opaque>::take({e}, w) }}.arc(w)"),
+				Held::Value => format!("unsafe {{ rt::Object::<rt::Owned>::take({e}, w) }}.take(w)"),
+			},
 			Type::Object(i) => match self.abi.api.objects[*i].copy {
 				true => format!(
 					"*unsafe {{ rt::Object::<{}>::{}({e}, w) }}",
@@ -907,7 +912,10 @@ impl Gen<'_> {
 			},
 			Type::Record(i) => format!("lower_{}({e})", self.abi.record(*i)),
 			Type::Enum(i) => format!("lower_{}({e})", self.abi.enumeration(*i)),
-			Type::Object(i) if self.abi.api.objects[*i].opaque => format!("rt::Object::new(rt::Opaque::new({e}))"),
+			Type::Object(i) if let Some(held) = self.abi.api.objects[*i].opaque => match held {
+				Held::Arc => format!("rt::Object::new(rt::Opaque::new({e}))"),
+				Held::Value => format!("rt::Object::new(rt::Owned::new({e}))"),
+			},
 			Type::Object(_) => format!("rt::Object::new({e})"),
 			Type::Callback(..) | Type::Closure(..) => unreachable!("a callback is never returned"),
 			Type::Waker => format!("rt::Waker::lower({e})"),
@@ -1521,9 +1529,10 @@ impl Gen<'_> {
 				(Type::Object(i), _, _) => {
 					let (binding, borrow) = self.borrow(*i, *m, c, future);
 					let pass = match (m, self.abi.api.objects[*i].opaque) {
-						(Mutability::Not, true) => format!("{local}.get(w)"),
-						(Mutability::Mut, _) => format!("&mut *{local}"),
-						(Mutability::Not, false) => format!("&*{local}"),
+						(Mutability::Not, Some(_)) => format!("{local}.get(w)"),
+						(Mutability::Mut, Some(_)) => format!("{local}.get_mut(w)"),
+						(Mutability::Mut, None) => format!("&mut *{local}"),
+						(Mutability::Not, None) => format!("&*{local}"),
 					};
 					(format!("{binding} {local} = {borrow};"), pass)
 				}
@@ -1557,9 +1566,10 @@ impl Gen<'_> {
 				(Type::Object(i), _) => {
 					let (binding, borrow) = self.borrow(*i, *m, c, future);
 					let pass = match (m, self.abi.api.objects[*i].opaque) {
-						(Mutability::Not, true) => format!("{local}.as_deref().map(|v| v.get(w))"),
-						(Mutability::Mut, _) => format!("{local}.as_deref_mut()"),
-						(Mutability::Not, false) => format!("{local}.as_deref()"),
+						(Mutability::Not, Some(_)) => format!("{local}.as_deref().map(|v| v.get(w))"),
+						(Mutability::Mut, Some(_)) => format!("{local}.as_deref_mut().map(|v| v.get_mut(w))"),
+						(Mutability::Mut, None) => format!("{local}.as_deref_mut()"),
+						(Mutability::Not, None) => format!("{local}.as_deref()"),
 					};
 					(
 						format!("{binding} {local} = if {c}.is_null() {{ None }} else {{ Some({borrow}) }};"),
@@ -1695,8 +1705,11 @@ impl Gen<'_> {
 	fn function_on(&mut self, function: &Function, owner: Option<(&Ty, Type)>) {
 		let export = self.abi.export(function, owner.as_ref().map(|(ty, _)| *ty));
 		let name = export.call.name.clone();
-		// An eager call borrows its arguments only for the call, as a synchronous one does.
-		let future = function.future && !function.eager;
+		// An eager call borrows its arguments only for the call, as a synchronous one does,
+		// unless the future it returns borrows them: it then owns them, as an `async fn`'s
+		// future does, and holds each it lends in place until the future is dropped.
+		let future = function.future && (!function.eager || function.holds);
+		let mut held = Vec::new();
 		let mut stmts = Vec::new();
 		let mut args = Vec::new();
 		let mut params = Vec::new();
@@ -1715,8 +1728,14 @@ impl Gen<'_> {
 					let (stmt, arg) = self.arg(&ty, "this", "a_self", future);
 					stmts.push(stmt);
 					args.push(arg);
+					if function.holds && *receiver != Receiver::Owned {
+						held.push("a_self".to_string());
+					}
 				}
 				value => {
+					if function.holds && *receiver != Receiver::Owned {
+						held.push("a_self".to_string());
+					}
 					// Read through a pointer, so the caller keeps it.
 					stmts.push(format!(
 						"let a_self = {};",
@@ -1775,10 +1794,31 @@ impl Gen<'_> {
 					format!("let mut a{n} = p{n}.lift(w);"),
 					format!("::std::pin::Pin::new(&mut a{n})"),
 				),
-				_ => self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future),
+				_ => {
+					let lent = match &param.ty {
+						Type::Option(inner) => matches!(**inner, Type::Ref(..)),
+						ty => matches!(ty, Type::Ref(..)),
+					};
+					if function.holds && lent {
+						held.push(format!("a{n}"));
+					}
+					self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future)
+				}
 			};
 			stmts.push(stmt);
 			args.push(arg);
+		}
+		// Each owned argument the call lends moves to the heap, where it stays while the
+		// future borrows it, and the call reborrows it through the reference it is now.
+		for local in &held {
+			stmts.push(format!(
+				"let {local}_held = rt::Pinned::new({local});\n\tlet {local} = unsafe {{ {local}_held.get() }};"
+			));
+		}
+		for arg in &mut args {
+			for local in &held {
+				*arg = deref_local(arg, local);
+			}
 		}
 		// A future made of a `Poll` calls the function at each poll, passing the poll's
 		// context, or a value made from its waker and kept until the next poll, so what that
@@ -1861,6 +1901,13 @@ impl Gen<'_> {
 			// A function that is not `async` runs when called, and what it returns
 			// borrows nothing, so it is called now; an `async fn` runs when polled.
 			let (now, later) = match (function.eager, &function.task) {
+				(true, _) if function.holds => {
+					let held: String = held.iter().map(|local| format!("{local}_held, ")).collect();
+					(
+						format!("\n\tlet future = rt::Holding::new({call}, ({held}));"),
+						"future".to_string(),
+					)
+				}
 				(true, _) => (format!("\n\tlet future = {call};"), "future".to_string()),
 				(false, None) => (String::new(), call),
 				(false, Some(task)) => {
@@ -2036,6 +2083,26 @@ fn go_module_resolves_missing_parent() {
 		std::os::unix::fs::symlink(&baseline, root.join("baseline-link.json")).unwrap();
 		assert!(generated.check_baseline(&root.join("baseline-link.json")).is_err());
 	}
+}
+
+/// `expr` with each use of the local `name`, a reference, read through it as `(*name)`, so
+/// what it lends borrows the referent rather than the local.
+fn deref_local(expr: &str, name: &str) -> String {
+	let ident = |c: char| c.is_alphanumeric() || c == '_';
+	let mut out = String::new();
+	let mut rest = expr;
+	while let Some(at) = rest.find(name) {
+		let (before, after) = (&rest[..at], &rest[at + name.len()..]);
+		let whole = !before.ends_with(ident) && !after.starts_with(ident);
+		out.push_str(before);
+		match whole {
+			true => out.push_str(&format!("(*{name})")),
+			false => out.push_str(name),
+		}
+		rest = after;
+	}
+	out.push_str(rest);
+	out
 }
 
 /// A second write of the same export keeps every file's mtime, and drops only the files in

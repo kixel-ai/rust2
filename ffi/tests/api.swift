@@ -463,6 +463,10 @@ func script() {
 		// The send happens at the call, before the future is first polled.
 		try await channel.sendLater(Bytes("eager".utf8))
 		print("recv \(text(try await channel.recv()))")
+		// The send happens at the call, and the future borrows the channel and the tag.
+		print("tagged \(try await channel.tagged("tag"))")
+		print("itemized \(try await channel.itemized([1, 2, 3]))")
+		print("byte_len \(try await byteLen(Bytes("abc".utf8)))")
 		channel.send(Bytes("sized".utf8))
 		let (payload, size) = try await channel.recvSized()
 		print("sized \(text(payload)) \(size)")
@@ -655,6 +659,13 @@ func script() {
 	do {
 		let config = secure("h3")
 		print("secure \(alpnLent(config)) \(alpn(config.clone()))")
+		let cert = certify(Bytes("der".utf8))
+		let certLength = certLen(cert)
+		let der = text(certDer(cert))
+		var chain = UniqueArray<TlsCert>()
+		chain.append(certify(Bytes("a".utf8)))
+		chain.append(certify(Bytes("bc".utf8)))
+		print("cert \(certLength) \(der) \(chainLen(chain))")
 		let session = try! resume("h3", 60)
 		print("resume \(session.alpn()) \(session.lifetime().seconds)")
 		do {
@@ -670,6 +681,9 @@ func script() {
 		print("lent \(first.add(3)) \(meters.first().count())")
 		meters.clear()
 		print("cleared \(meters.first().count())")
+		let last = meters.lastGet
+		_ = last.add(4)
+		print("field lent \(last.add(1))")
 		let tallies = Tallies.new()
 		_ = tallies.first().bump()
 		print("tallied \(tallies.first().bump())")
@@ -754,6 +768,7 @@ func script() {
 	let began = now()
 	let ended = later(began, .milliseconds(1500))
 	print("instants \(millis(since(ended, began))) \(millis(since(began, ended))) \(began == later(began, .zero)) \(began == ended)")
+	print("has_instant \(hasInstant(began)) \(hasInstant(nil))")
 	// tracing's level, and its filter as an optional level whose nil is `OFF`.
 	var verbosity = Verbosity.new(.warn)
 	print("verbosity \(spell(verbosity.filter())) \(spell(louder(verbosity.filter())))")

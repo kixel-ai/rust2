@@ -153,8 +153,8 @@ impl Callbacks for Export {
 		let facade = collect::Facade {
 			root: self.facade.root(),
 			package: &self.facade.name,
-			crates: &self.crates,
 			// A census counts the whole API, whatever the config leaves out.
+			crates: &self.crates,
 			exclude: match self.output {
 				Output::Census(_) => &[],
 				Output::Dir(_) | Output::Api(_) => &self.config.exclude,
