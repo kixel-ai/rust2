@@ -22,4 +22,9 @@ fn main() {
 	println!("ticket {}", drain(&mut counter).0);
 	println!("len {}", api::Outer::new().len());
 	println!("held {}", api::Holds.held());
+	let settings = api::Settings {
+		named: 1,
+		..Default::default()
+	};
+	println!("settings {}", settings.named);
 }

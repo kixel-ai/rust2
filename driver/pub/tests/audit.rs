@@ -84,6 +84,9 @@ fn fixture() {
 		"Holds",
 		"Exposed",
 		"Returned",
+		"Settings",
+		"Settings::named",
+		"Settings::defaulted",
 	] {
 		assert_eq!(found[kept].0, "cross-crate", "{kept}");
 	}

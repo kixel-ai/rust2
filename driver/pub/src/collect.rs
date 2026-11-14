@@ -697,11 +697,20 @@ impl<'tcx> Visitor<'tcx> for Collector<'tcx> {
 						self.field(ty, None, expr.hir_id, ident.span);
 					}
 				}
-				hir::ExprKind::Struct(qpath, fields, _) => {
+				hir::ExprKind::Struct(qpath, fields, tail) => {
 					let res = typeck.qpath_res(qpath, expr.hir_id);
 					if let Some(ty) = typeck.node_type_opt(expr.hir_id) {
 						for field in fields {
 							self.field(ty, Some(res), field.hir_id, field.ident.span);
+						}
+						// `..base` moves every field it does not name, each of which must
+						// be visible here.
+						if let hir::StructTailExpr::Base(_) = tail
+							&& let ty::Adt(adt, _) = ty.kind()
+						{
+							for field in &adt.variant_of_res(res).fields {
+								self.refer(field.did, None);
+							}
 						}
 					}
 				}

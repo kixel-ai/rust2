@@ -229,3 +229,12 @@ pub struct Returned {
 	/// External: a field of a type facade's API exposes.
 	pub field: u32,
 }
+
+/// Kept: app builds one from a default.
+#[derive(Default)]
+pub struct Settings {
+	/// Kept: app sets it.
+	pub named: u32,
+	/// Kept: app's `..Default::default()` moves it, which it must see to.
+	pub defaulted: u32,
+}
