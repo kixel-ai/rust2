@@ -2857,6 +2857,12 @@ pub fn wasm_only() -> u32 {
 	32
 }
 
+/// Only wasm32 has it, and it consumes `counter`: a refused call leaves it open.
+#[cfg(target_arch = "wasm32")]
+pub fn wasm_take(counter: Counter) -> Result<u64, Error> {
+	Ok(counter.get())
+}
+
 /// Only wasm32 has it: a call on another target fails before it takes `log`.
 #[cfg(target_arch = "wasm32")]
 pub fn wasm_log(log: Box<dyn Log>) {
@@ -3024,6 +3030,28 @@ pub mod clash {
 		let b = b.map_or(0, |((x, y, z),)| u32::from(x) + u32::from(y) + z);
 		a + b
 	}
+}
+
+/// Changes both coordinates before returning mixed values or an error.
+pub fn return_values(
+	point: &mut Point,
+	fail: bool,
+) -> Result<(String, Option<(u8, i16, u32, u64)>, Vec<Vec<u8>>), Error> {
+	point.x += 1;
+	point.y -= 1;
+	if fail {
+		return Err(Error::Overflow);
+	}
+	Ok((
+		"hé🙂\0".to_string(),
+		Some(widths(u64::MAX)),
+		vec![vec![0, 128, 255], (0..=255).cycle().take(10000).collect()],
+	))
+}
+
+/// Moves the counter into the success value, or drops it on failure.
+pub fn return_moved(counter: Counter, fail: bool) -> Result<Counter, Error> {
+	if fail { Err(Error::Overflow) } else { Ok(counter) }
 }
 
 /// One `NonZero` of each integer, each crossing as its integer.
