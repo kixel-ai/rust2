@@ -360,7 +360,7 @@ Future<void> script() async {
   print('shifted ${shifted.millis()} ${shifted == moment.after(500)}');
   print('wrapped ${moment.after(-1).millis()} ${moment == shifted}');
 
-  // A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+  // A value with padding, or bytes that vary, is a handle, as no table says where padding is.
   final gap = api.Gap(7, 3);
   print('gap ${gap.sum()} ${gap == api.Gap(7, 3)}');
   final berth = api.Berth(4);
@@ -759,7 +759,7 @@ Future<void> script() async {
   for (final section in sections) {
     section.$2.close();
   }
-  // An instant only Rust makes, which each call copies, and compares.
+  // An instant only Rust makes, which each call copies out of its handle, and compares.
   final began = api.now();
   final ended = api.later(began, const Duration(milliseconds: 1500));
   final same = api.later(began, Duration.zero);
@@ -784,16 +784,16 @@ Future<void> script() async {
   print('spawned ${spawned.join()}');
   // A kept closure: called again at the instant it asks for, then once its waiter wakes,
   // failing with the exception the binding throws for Rust's error.
-  final start = api.now();
+  final start = api.Moment.new_(0, 1000)!;
   var calls = 0;
   final stopped = await within(
     api.drive(start, (now, waiter) {
       calls++;
       switch (calls) {
         case 1:
-          return api.later(now, const Duration(milliseconds: 5));
+          return now.after(5);
         case 2:
-          print('drive ${api.since(now, start).inMilliseconds}');
+          print('drive ${now.millis() - start.millis()}');
           waiter.waker()();
           return null;
         default:
@@ -1428,7 +1428,7 @@ void broken(String which) {
       api.emit(CountLog(() => throw StateError('a log failed')), bytes([1]));
     // Only the exception of Rust's error fails a closure.
     case 'closure threw':
-      api.drive(api.now(), (_, _) => throw StateError('a poll failed'));
+      api.drive(api.Moment.new_(0, 1000)!, (_, _) => throw StateError('a poll failed'));
     // Only an Exception fails a reader.
     case 'reader threw':
       api.tail(Thrower(), 1);

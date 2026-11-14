@@ -855,11 +855,9 @@ impl Waiter {
 
 /// Calls `poll` until it fails, returning its error: with `start`, then with each instant
 /// it asks for, as if the clock reached it at once, or once its waiter is woken, with the
-/// last one again. A closure its future keeps, as kio's `clock::drive` keeps one.
-pub async fn drive<E>(
-	start: std::time::Instant,
-	mut poll: impl FnMut(std::time::Instant, &Waiter) -> Result<Option<std::time::Instant>, E> + Unpin,
-) -> E {
+/// last one again. A closure its future keeps, as kio's `clock::drive` keeps one, over a
+/// moment as kio's is over its own padding-free instant.
+pub async fn drive<E>(start: Moment, mut poll: impl FnMut(Moment, &Waiter) -> Result<Option<Moment>, E> + Unpin) -> E {
 	let mut now = start;
 	std::future::poll_fn(move |cx| {
 		let waiter = Waiter::new(cx.waker().clone());
@@ -1231,8 +1229,8 @@ pub fn shifted(moment: Moment, shift: impl Fn(Moment) -> Moment) -> Moment {
 	shift(moment)
 }
 
-/// A value with padding, after its `u8`: made from bytes all `0xff`, so its padding likely
-/// holds them, which the export zeroes before any language sees it.
+/// A `Copy` value with padding, after its `u8`, which crosses as a handle, since the glue's
+/// `rustc` may order its fields to put the padding anywhere.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Gap {
 	wide: u64,
@@ -1241,11 +1239,7 @@ pub struct Gap {
 
 impl Gap {
 	pub fn new(wide: u64, narrow: u8) -> Self {
-		// SAFETY: every byte pattern is a `Gap`, whose fields are integers.
-		let mut gap: Gap = unsafe { std::mem::transmute([0xffu8; std::mem::size_of::<Gap>()]) };
-		gap.wide = wide;
-		gap.narrow = narrow;
-		gap
+		Self { wide, narrow }
 	}
 
 	pub fn sum(&self) -> u64 {
@@ -1330,16 +1324,17 @@ impl Score {
 }
 
 /// A tally, as moq's `stats::Presence`: `Copy`, its fields `pub` but `#[non_exhaustive]`,
-/// so a value whose fields read and write through accessors.
+/// so a value whose fields read and write through accessors, each a `u64`, so it has no
+/// padding.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[non_exhaustive]
 pub struct Hits {
 	pub hits: u64,
-	pub misses: u32,
+	pub misses: u64,
 }
 
 impl Hits {
-	pub fn of(hits: u64, misses: u32) -> Self {
+	pub fn of(hits: u64, misses: u64) -> Self {
 		Self { hits, misses }
 	}
 
@@ -1362,16 +1357,16 @@ impl Hits {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Extent {
 	pub start: u64,
-	len: u32,
+	len: u64,
 }
 
 impl Extent {
-	pub fn new(start: u64, len: u32) -> Self {
+	pub fn new(start: u64, len: u64) -> Self {
 		Self { start, len }
 	}
 
 	pub fn end(&self) -> u64 {
-		self.start.wrapping_add(u64::from(self.len))
+		self.start.wrapping_add(self.len)
 	}
 
 	/// Moves the window `by` later, returning its old start.

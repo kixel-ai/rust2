@@ -92,8 +92,8 @@ public path names, or an error taken by value, is held by value as an opaque han
 | --- | --- |
 | a struct whose fields are all `pub`, not `#[non_exhaustive]`, which map, with no `Drop` of its own | a record: a struct, copied across |
 | an enum with variants whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
-| any other type that is `Copy` and `Send`, with no union or enum whose variants initialize different bytes, such as an `Option<u32>`, in it, such as moq's `Timestamp`, `stats::Traffic`, or std's `Instant` | an opaque value: a struct of its bytes, copied across, which only Rust makes, reads, or changes, with its padding zeroed; its `pub` fields are a getter and a setter, and a `&mut self` method writes back the caller's copy alone, one returning a future or a `Result` refused, since a language raising the error would lose the change; one no export returns is left out, since C could never make one |
-| any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, since its handle is shared, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value |
+| any other type that is `Copy` and `Send`, with no padding under any order of its fields, such as moq's `Timestamp` or `stats::Traffic` | an opaque value: a struct of its bytes, copied across, which only Rust makes, reads, or changes; its `pub` fields are a getter and a setter, and a `&mut self` method writes back the caller's copy alone, one returning a future or a `Result` refused, since a language raising the error would lose the change; one no export returns is left out, since C could never make one |
+| any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, such as std's `Instant`, whose padding a `rustc` may place anywhere, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
 | a `pub` field of an object or opaque value | a getter returning a copy, and a setter assigning in place, as `x.field = value` does |
@@ -271,9 +271,12 @@ where it was while its file is unchanged.
   `Copy` type with private fields, in units of its alignment up to 8 bytes: C copies one
   as any struct, and passes `&self` as a `const <T> *` and `&mut self`, a field's setter
   included, as a `<T> *` Rust writes what the call left back through, so only that copy
-  changes; it never makes or reads one itself, and frees none. Its padding is zero, from a table of each target's padding rustc's
-  layout gives, so no byte Rust left uninitialized reaches a language, which may
-  serialize what it holds. Its size and alignment are the largest of the export's targets, so one
+  changes; it never makes or reads one itself, and frees none. Its fields fill it under
+  any order a `rustc` may give them, with a byte for an enum's tag where no field has a
+  niche to hold it, so it has no padding whichever `rustc` builds the glue, which asserts
+  each target's size. A `Copy` type with padding, such as std's `Instant`, or with bytes
+  that depend on its value, such as an `Option<u32>`, is an object instead, so no byte
+  Rust leaves uninitialized reaches a language, which may serialize what it holds. Its size and alignment are the largest of the export's targets, so one
   header serves them all, a few bytes past a 32-bit target's own. A change of size is an
   ABI change, as a record's field change is.
 - **In and out**: a `&mut` of a value is two parameters, the value passed in as one taken

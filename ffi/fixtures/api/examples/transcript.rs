@@ -324,7 +324,7 @@ fn main() {
 	println!("shifted {} {}", shifted.millis(), shifted == moment.after(500));
 	println!("wrapped {} {}", moment.after(u64::MAX).millis(), moment == shifted);
 
-	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	// A value with padding, or bytes that vary, is a handle, as no table says where padding is.
 	let gap = api::Gap::new(7, 3);
 	println!("gap {} {}", gap.sum(), gap == api::Gap::new(7, 3));
 	let berth = api::Berth::new(Some(4));
@@ -910,14 +910,14 @@ fn main() {
 	// A kept closure, called on another thread after the call that took it returned.
 	println!("spawned {}", api::Spawned::new(|| 7).join());
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
-	let start = api::now();
+	let start = api::Moment::new(0, 1000).unwrap();
 	let mut calls = 0;
-	let mut drive = pin!(api::drive(start, |now, waiter: &Waiter| {
+	let mut drive = pin!(api::drive(start, |now: api::Moment, waiter: &Waiter| {
 		calls += 1;
 		match calls {
-			1 => Ok(Some(api::later(now, std::time::Duration::from_millis(5)))),
+			1 => Ok(Some(now.after(5))),
 			2 => {
-				println!("drive {}", api::since(now, start).as_millis());
+				println!("drive {}", now.millis() - start.millis());
 				waiter.waker().wake_by_ref();
 				Ok(None)
 			}

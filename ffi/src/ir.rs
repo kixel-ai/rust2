@@ -167,11 +167,11 @@ pub struct Record {
 	/// For a `Copy` type with private fields, which has no `fields`: its bytes, which only
 	/// Rust reads or writes, its `pub` fields through accessors among its `methods`.
 	pub opaque: Option<Opaque>,
-	/// For an opaque value, its padding on each target, by target, as `(offset, length)`
-	/// ranges, which the glue zeroes, so no byte Rust leaves uninitialized reaches a
-	/// language. A baseline written before it existed has none, as its records had.
+	/// For an opaque value, its size on each target, by target, which the glue asserts, as
+	/// a value has no padding only at that size. A baseline written before it existed has
+	/// none, as its records had.
 	#[serde(default)]
-	pub padding: std::collections::BTreeMap<String, Vec<(u64, u64)>>,
+	pub sizes: std::collections::BTreeMap<String, u64>,
 }
 
 /// A `Copy` type held as its bytes, which every language copies and none reads.
@@ -286,7 +286,7 @@ pub struct Object {
 	pub docs: String,
 	/// Whether it is `Sync`: if not, `&self` borrows it on one thread at a time.
 	pub sync: bool,
-	/// Whether it is `Copy`, which only one whose padding depends on its value is, any
+	/// Whether it is `Copy`, which only one that may have padding under some layout is, any
 	/// other being a value: taken by value, it is copied out of its handle, as Rust copies
 	/// it, rather than moved out.
 	pub copy: bool,
