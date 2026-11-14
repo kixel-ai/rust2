@@ -79,6 +79,8 @@ pub enum Verdict {
 	/// It is not in a local package's source, such as a dependency's macro or generated
 	/// code.
 	Generated,
+	/// Its file is one a crate embeds as bytes, which narrowing would change.
+	Embedded,
 }
 
 /// The joined graph.
@@ -183,6 +185,11 @@ impl Audit {
 				edges[test][from].push(to);
 				if r.interface {
 					interface[from].push(to);
+					// A call names what an import imports, not the import: the import, and the
+					// re-exports it goes through, are live once what it imports is.
+					if defs[from].kind == "Use" && !matches!(defs[to].kind.as_str(), "Use" | "Mod") {
+						edges[test][to].push(from);
+					}
 				}
 				let evidence = Evidence {
 					from,
@@ -231,10 +238,14 @@ impl Audit {
 			.filter(|d| d.external && d.kind.starts_with("Macro"))
 			.filter_map(|d| d.span.as_ref())
 			.collect();
+		let embedded: BTreeSet<&Path> = units.iter().flat_map(|u| &u.embedded).map(PathBuf::as_path).collect();
 		let tokens = tokens
 			.into_iter()
 			.map(|(place, token_defs)| {
 				let mut verdict = verdict(&place, &token_defs, &defs, &packages, &targets)?;
+				if verdict == Verdict::Narrow && embedded.contains(place.file.as_path()) {
+					verdict = Verdict::Embedded;
+				}
 				if verdict == Verdict::Narrow
 					&& macros
 						.iter()

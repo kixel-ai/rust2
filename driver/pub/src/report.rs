@@ -26,6 +26,8 @@ enum Outcome {
 	Symbol,
 	/// Not in a local package's source.
 	Generated,
+	/// In a file a crate embeds as bytes.
+	Embedded,
 }
 
 #[derive(Serialize)]
@@ -95,6 +97,7 @@ pub fn write(out: &Path, scope: &Scope, audit: &Audit, validation: &Validation) 
 			Verdict::CrossCrate => Outcome::CrossCrate,
 			Verdict::Symbol => Outcome::Symbol,
 			Verdict::Generated => Outcome::Generated,
+			Verdict::Embedded => Outcome::Embedded,
 		};
 		let restored = validation.restored.get(&t).map(|why| match why {
 			Restored::Diagnostic(Some(code), message) => format!("rustc {code}: {message}"),
@@ -195,7 +198,7 @@ fn text(report: &Report) -> String {
 		report.root.display()
 	);
 	let _ = writeln!(text, "{}", report.unchecked);
-	let sections: [Section; 4] = [
+	let sections: [Section; 5] = [
 		(
 			"Narrowed to pub(crate), all together, checked in the selected targets with every name resolving alike (narrow.patch)",
 			|t| t.outcome == Outcome::Narrowed,
@@ -208,6 +211,10 @@ fn text(report: &Report) -> String {
 		("Named by another crate only from tests or unreached code", |t| {
 			t.outcome == Outcome::CrossCrate && t.category != Category::CrossCrate
 		}),
+		(
+			"In a file a crate embeds as bytes, with `include_bytes!` or `include_str!`, which narrowing would change",
+			|t| t.outcome == Outcome::Embedded,
+		),
 	];
 	for (title, filter) in sections {
 		let tokens: Vec<&TokenReport> = report.tokens.iter().filter(|t| filter(t)).collect();

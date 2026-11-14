@@ -85,6 +85,12 @@ fn fixture() {
 	// Narrowing shifts the columns after it on its line, but no line.
 	expect("at_column", "restored", "crate-only");
 	expect("at_line", "narrowed", "crate-only");
+	// A macro that changes only which binding a name picks.
+	expect("shadowed", "restored", "crate-only");
+	// A file a crate embeds as bytes changes with any narrowing in it.
+	expect("embedded::embedded", "embedded", "crate-only");
+	// An import is as live as what it imports, with the re-export it goes through.
+	expect("crate::{use inner::reexported}", "cross-crate", "cross-crate");
 	// A token in an exported macro goes wherever its callers outside the audit expand it.
 	expect("made", "external", "crate-only");
 	// Offsets on disk, past CRLFs rustc reads as LF.

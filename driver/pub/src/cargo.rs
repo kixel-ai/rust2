@@ -104,7 +104,11 @@ struct DepKind {
 impl Workspace {
 	/// The workspace `manifest` belongs to, resolved as `args` resolve it.
 	pub fn load(manifest: &Path, args: &[String]) -> Result<Self, String> {
+		let manifest =
+			&std::fs::canonicalize(manifest).map_err(|err| format!("resolving {}: {err}", manifest.display()))?;
 		let output = cargo()
+			// From where the checks run, so cargo reads the same config.
+			.current_dir(manifest.parent().expect("a manifest has a directory"))
 			.args(["metadata", "--format-version", "1", "--manifest-path"])
 			.arg(manifest)
 			.args(metadata_args(args))
@@ -229,8 +233,9 @@ impl Workspace {
 
 	fn cargo(&self, subcommand: &str) -> Command {
 		let mut cmd = cargo();
-		// Cargo reads its config from where it runs, so run where the workspace is.
-		cmd.current_dir(&self.root);
+		// Cargo reads its config from where it runs: run where the manifest is, as
+		// `cargo metadata` did.
+		cmd.current_dir(self.manifest.parent().expect("a manifest has a directory"));
 		// Cargo sets these for build scripts alone, which the wrapper tells its probes by.
 		for (key, _) in std::env::vars_os() {
 			if key.to_str().is_some_and(|key| key.starts_with("CARGO_CFG_")) {

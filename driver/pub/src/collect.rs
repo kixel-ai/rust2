@@ -6,7 +6,7 @@ use std::collections::hash_map::Entry;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_driver::{Callbacks, Compilation};
@@ -36,6 +36,8 @@ struct Collect {
 	/// Where to write them.
 	facts: PathBuf,
 	edits: Arc<Edits>,
+	/// The files rustc read as bytes, for `include_bytes!` or `include_str!`.
+	embedded: Arc<Mutex<Vec<PathBuf>>>,
 }
 
 impl Collect {
@@ -62,6 +64,7 @@ impl Collect {
 		Ok(Some(Self {
 			facts: facts.into(),
 			edits: Arc::new(edits),
+			embedded: Arc::default(),
 		}))
 	}
 }
@@ -74,13 +77,15 @@ fn read_json<T: serde::de::DeserializeOwned>(path: Option<&std::ffi::OsStr>, var
 
 impl Callbacks for Collect {
 	fn config(&mut self, config: &mut Config) {
-		if !self.edits.is_empty() {
-			config.file_loader = Some(Box::new(Narrowed(self.edits.clone())));
-		}
+		config.file_loader = Some(Box::new(Narrowed {
+			edits: self.edits.clone(),
+			embedded: self.embedded.clone(),
+		}));
 	}
 
 	fn after_analysis<'tcx>(&mut self, _compiler: &Compiler, tcx: TyCtxt<'tcx>) -> Compilation {
-		let unit = Collector::unit(tcx);
+		let mut unit = Collector::unit(tcx);
+		unit.embedded = std::mem::take(&mut *self.embedded.lock().expect("not poisoned"));
 		let name = format!("{}-{:016x}-{}.json", unit.crate_name, unit.crate_id, std::process::id());
 		let path = self.facts.join(name);
 		let json = serde_json::to_vec(&unit).expect("facts serialize");
@@ -92,8 +97,11 @@ impl Callbacks for Collect {
 }
 
 /// Reads each file as it is but for the `pub` tokens the edits name, which it reads as
-/// `pub(crate)`.
-struct Narrowed(Arc<Edits>);
+/// `pub(crate)`, noting each file it reads as bytes.
+struct Narrowed {
+	edits: Arc<Edits>,
+	embedded: Arc<Mutex<Vec<PathBuf>>>,
+}
 
 impl FileLoader for Narrowed {
 	fn file_exists(&self, path: &Path) -> bool {
@@ -102,7 +110,7 @@ impl FileLoader for Narrowed {
 
 	fn read_file(&self, path: &Path) -> io::Result<String> {
 		let mut text = RealFileLoader.read_file(path)?;
-		let Some(offsets) = std::fs::canonicalize(path).ok().and_then(|path| self.0.get(&path)) else {
+		let Some(offsets) = std::fs::canonicalize(path).ok().and_then(|path| self.edits.get(&path)) else {
 			return Ok(text);
 		};
 		// Last first, so each offset still points into the original text.
@@ -120,6 +128,10 @@ impl FileLoader for Narrowed {
 	}
 
 	fn read_binary_file(&self, path: &Path) -> io::Result<Arc<[u8]>> {
+		// Never narrowed: the audit keeps every `pub` in a file a crate embeds.
+		if let Ok(path) = std::fs::canonicalize(path) {
+			self.embedded.lock().expect("not poisoned").push(path);
+		}
 		RealFileLoader.read_binary_file(path)
 	}
 
@@ -339,6 +351,7 @@ impl<'tcx> Collector<'tcx> {
 			impls,
 			printed,
 			expansions: this.expansions,
+			embedded: Vec::new(),
 		}
 	}
 
@@ -380,6 +393,20 @@ impl<'tcx> Collector<'tcx> {
 			for (local, node) in tcx.hir_owner_nodes(owner).nodes.iter_enumerated() {
 				if matches!(node.node, Node::Synthetic) {
 					continue;
+				}
+				// Printing leaves hygiene out: which binding or loop each name picks.
+				if let Node::Expr(expr) = node.node {
+					let target = match expr.kind {
+						hir::ExprKind::Path(hir::QPath::Resolved(_, path)) => match path.res {
+							Res::Local(binding) => Some(binding),
+							_ => None,
+						},
+						hir::ExprKind::Break(dest, _) | hir::ExprKind::Continue(dest) => dest.target_id.ok(),
+						_ => None,
+					};
+					if let Some(target) = target {
+						std::hash::Hash::hash(&(local, target.local_id), &mut hasher);
+					}
 				}
 				let span = tcx.hir_span(hir::HirId { owner, local_id: local });
 				expansions.extend(self.expansion(span.ctxt().outer_expn()));

@@ -1,5 +1,10 @@
 use api::prelude::*;
-use api::{Action, Holder, Source};
+use api::{Action, Holder, Source, reexported};
+
+mod embedded;
+
+/// Its file's text, which narrowing the `pub` in it would change.
+const EMBEDDED: &str = include_str!("embedded.rs");
 
 fn drain<S: Source>(source: &mut S) -> S::Item {
 	source.next()
@@ -64,6 +69,31 @@ pub fn at_line() -> u32 {
 	line!()
 }
 
+macro_rules! hygienic {
+	(($p:tt) fn $name:ident($x:ident)) => {
+		$p fn $name() -> u32 {
+			let $x = 1;
+			{
+				let x = 2;
+				$x
+			}
+		}
+	};
+	(($($v:tt)*) fn $name:ident($x:ident)) => {
+		$($v)* fn $name() -> u32 {
+			let $x = 1;
+			{
+				let $x = 2;
+				$x
+			}
+		}
+	};
+}
+
+// Restored: narrowing picks the other arm, which prints alike but binds the caller's `x`
+// both times, so `shadowed` would return 2 rather than 1.
+hygienic!((pub) fn shadowed(x));
+
 // External: the token is in an exported macro of extra, whose callers outside the audit
 // get it too.
 extra::make!(made);
@@ -79,7 +109,7 @@ fn main() {
 	}
 	println!("drops {}", api::drops());
 	println!("expanded {}", api::expanded_used());
-	println!("reexported {}", api::reexported());
+	println!("reexported {}", reexported());
 	println!("globbed {}", globbed());
 	let mut counter = api::Counter(0);
 	println!("ticket {}", drain(&mut counter).0);
@@ -99,6 +129,8 @@ fn main() {
 	println!("column {}", at_column());
 	println!("line {}", at_line());
 	println!("made {}", made());
+	println!("shadowed {}", shadowed());
+	println!("embedded {} {}", embedded::embedded(), EMBEDDED.len());
 	println!("extra {}", extra::used());
 	println!("crlf {}", api::crlf::spaced());
 }

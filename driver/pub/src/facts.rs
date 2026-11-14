@@ -49,6 +49,8 @@ pub struct Unit {
 	pub printed: Vec<Printed>,
 	/// The macro expansions the items came from, by index.
 	pub expansions: Vec<Expansion>,
+	/// The files read as bytes, absolute, as `include_bytes!` and `include_str!` read.
+	pub embedded: Vec<PathBuf>,
 }
 
 /// A source range: the file's index in [`Unit::files`], and its bytes.
@@ -114,7 +116,8 @@ pub struct Impl {
 #[derive(Serialize, Deserialize)]
 pub struct Printed {
 	pub hash: Hash,
-	/// A hash of the print and the attributes, bodies included.
+	/// A hash of the print, the attributes, and which binding or loop each name in it
+	/// picks, bodies included.
 	pub output: u64,
 	/// The expansions any of it came from, by index in [`Unit::expansions`].
 	pub expansions: Vec<u32>,
