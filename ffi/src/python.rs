@@ -909,6 +909,7 @@ impl<'a> Gen<'a> {
 		let bare = self.bare(c).to_string();
 		let class = self.class(c);
 		let object = matches!(ty, Type::Object(_));
+		let opaque = matches!(ty, Type::Record(i) if self.abi.api.records[*i].opaque.is_some());
 		// The receiver as the glue reads it: a handle, held for the call, or a value.
 		let this = match object {
 			true => self.lift(
@@ -956,18 +957,27 @@ impl<'a> Gen<'a> {
 				"\tdef clone(self) -> {class}:\n\t\t\"\"\"{docs}\"\"\"\n\t\t...\n"
 			));
 		}
-		if object && t.eq {
-			let other = self.lift(
-				&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())),
-				"a[1]",
-				"false",
-				"false",
-			);
+		// An opaque value compares through Rust, as an object does; a record's fields
+		// compare as a dataclass's.
+		if (object || opaque) && t.eq {
+			let other = match object {
+				true => self.lift(
+					&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())),
+					"a[1]",
+					"false",
+					"false",
+				),
+				false => self.lift(ty, "a[1]", "false", "false"),
+			};
+			let (a, b) = match object {
+				true => ("this", "other"),
+				false => ("&this", "&other"),
+			};
 			self.native(
 				&format!("{bare}_eq"),
 				2,
 				&format!(
-					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\tlet ret = rt::call(|| crate::{c}_eq(this, other));\n\t\ts.done();\n\t\trt::bool_out(ret)"
+					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\tlet ret = rt::call(|| crate::{c}_eq({a}, {b}));\n\t\ts.done();\n\t\trt::bool_out(ret)"
 				),
 			);
 			// Python makes a class that defines `__eq__` alone unhashable, as `Eq` without `Hash` is.
@@ -1056,12 +1066,32 @@ impl<'a> Gen<'a> {
 		let t = self.register(&c, name.clone());
 		let ty = Type::Record(i);
 		let mut body = Body::default();
+		if record.opaque.is_some() {
+			body.python.push("\t__slots__ = ()\n".to_string());
+		}
 		self.traits(&ty, &c, record.traits, &mut body);
 		let owner = Ty::Struct(c.clone());
 		let data: Vec<String> = record.fields.iter().map(|f| field_name(&f.name)).collect();
 		self.methods(&record.methods, (&ty, &owner, &rust), &data, &[], &mut body);
 		if record.fields.iter().any(|f| own_eq(abi, &f.ty)) {
 			body.python.push(ieee_eq(&name, &data));
+		}
+		if record.opaque.is_some() {
+			let text = format!(
+				"{rust}\n\n{}\n\nIts bytes, which only Rust makes or reads: copy it, but never make one.",
+				record.docs
+			);
+			let _ = write!(
+				self.py,
+				"class {name}(_n.Value):\n{}{}\n\n",
+				docstring(text.trim(), "\t"),
+				body.members().join("\n")
+			);
+			let _ = write!(
+				self.glue,
+				"fn r_{c}(o: *mut PyObject, _s: &mut rt::Scope, _take: bool) -> R<crate::{c}> {{\n\trt::value_in(o, {t})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::value_out({t}, v)\n}}\n\n"
+			);
+			return;
 		}
 		let fields: String = record
 			.fields
@@ -1426,21 +1456,10 @@ impl<'a> Gen<'a> {
 
 	/// The glue's expression, an `R<C>`, of the Python object `o` a closure returns as the
 	/// C value of `ty` that Rust then owns: a string copied, as `<prefix>_buf_copy` makes
-	/// one, and a new handle to a copy of an object, made without its `Clone`, so the Python
-	/// object keeps its own.
+	/// one.
 	fn given(&mut self, ty: &Type, o: &str) -> String {
-		let abi = self.abi;
 		match ty {
 			Type::String => format!("rt::str_given({o})"),
-			Type::Object(i) => format!(
-				"rt::hold({o}, {}, s, false).map(|h| crate::{}_copy(h))",
-				self.t(&abi.object(*i)),
-				abi.object(*i)
-			),
-			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {
-				let some = self.given(inner, o);
-				format!("(if rt::is_none({o}) {{ Ok(std::ptr::null()) }} else {{ {some} }})")
-			}
 			_ => self.lift(ty, o, "false", "false"),
 		}
 	}

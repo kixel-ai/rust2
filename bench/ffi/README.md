@@ -25,9 +25,11 @@ the run's summary; nothing fails on a number.
 |---|---|---|
 | handle call | `track.is_closed()`: one borrowed handle, a bool back, and moq's own read lock | `noop()` |
 | u64 getter | `demand.sequence()`: one borrowed handle and a field read, so all but 0.4 ns is the binding's | `group.sequence()` |
+| shared call, own call | the handle call on 4 threads at once, on one handle they share, then on a clone each | none |
+| shared getter, own getter | the u64 getter the same way | none |
 | record return | `track.largest()`: an `Option` of two `u64`s, copied across | `track.info()`, a record |
 | object return | `track.info()`: a new handle, freed | none |
-| write | `group.write_frame(at, frame)` with one `Timestamp` handle and 100 B, copied into Rust | `write_frame` |
+| write | `group.write_frame(at, frame)` with one `Timestamp` and 100 B, copied into Rust | `write_frame` |
 | stamped write | the same with a new `Timestamp` per frame, as a caller holding a `u64` must | none |
 | ready read | a 100 B frame written, then read through a new future ready at its first poll | `await noop_async()`, plus a write |
 | woken read | a read started before its frame is written, as the language starts work concurrently, so it suspends and the write's wake resumes it | `await yield_once()`, plus a write |
@@ -35,6 +37,16 @@ the run's summary; nothing fails on a number.
 | Swift drained reader | a separate executor diagnostic: one reader drained before each write, without a writer task or permit handoff | none |
 | payload | `frame.payload` of 100 B, handed to the language | none |
 | throughput | groups of 100 frames written and read, each payload's first byte touched, about 64 MiB | throughput |
+
+The four threaded cases start their threads, wait until all are ready, then time each
+making a million calls (Python 100,000), as the single-thread rows do. Wall time is per call
+on one thread and CPU time per call over all of them, so where the threads never meet,
+each equals its single-thread row. A clone is a new handle over the same Rust value, so
+both cases share moq's own state and differ only in the binding's: the gap between them is
+what a binding's run-time checks cost under contention. The handle call also takes moq's
+read lock, which all four threads share in both cases; the getter takes none. C, C++,
+Kotlin, Swift, and Python use OS threads, and Go goroutines. Dart has no number: an
+isolate cannot receive another's object, so no two threads ever borrow one handle.
 
 A woken read starts its read the language's own way: by polling in C, C++, and Rust; a
 `Task` and a yield in Swift and Python; a goroutine and a yield in Go; an undispatched
@@ -60,6 +72,48 @@ consumed, checking the count on both sides. It has no writer task or permit hand
 must not be ranked against the managed `loop` row. C, C++, and Rust's existing `woken`
 cases already manually poll in one loop; they remain the native floor, without printing
 the same measurement twice under another name.
+
+## Concurrent calls
+
+Measured 2026-11-13 on **nixos**, an AMD Ryzen 9 5900XT (16 cores in two 8-core dies, 32
+threads), at rust2 `a7db2666` plus these cases and moq `ffcb7cd9`, through `quest gate`.
+Each cell is the median of 5 rounds, at a load average of 15 to 17 throughout. Rust
+1.98.1, GCC 16.2.0, CPython 3.14.10 (with its GIL), OpenJDK 21.0.13 with Kotlin 2.4.21,
+Swift 6.4, Go 1.27.3. Nanoseconds per call, CPU first, then wall:
+
+| call | Rust | C | C++ | Kotlin | Python | Swift | Go |
+|---|---|---|---|---|---|---|---|
+| u64 getter, one thread | 0.4 / 0.4 | 3.7 / 3.7 | 3.6 / 3.6 | 20 / 9.6 | 75 / 75 | 3.7 / 3.7 | 33 / 33 |
+| 4 threads, one shared handle | 0.5 / 0.7 | 107 / 129 | 127 / 143 | 378 / 417 | 1,617 / 2,496 | 114 / 131 | 252 / 255 |
+| 4 threads, a handle each | 0.6 / 0.7 | 4.1 / 4.6 | 4.2 / 4.2 | 10 / 12 | 1,525 / 2,395 | 5.4 / 6.2 | 34 / 36 |
+| handle call, one thread | 3.4 / 3.4 | 7.0 / 7.1 | 7.1 / 7.2 | 20 / 12 | 78 / 78 | 11 / 11 | 35 / 35 |
+| 4 threads, one shared handle | 79 / 88 | 242 / 251 | 229 / 237 | 558 / 530 | 1,653 / 2,595 | 405 / 416 | 312 / 319 |
+| 4 threads, a handle each | 80 / 89 | 138 / 146 | 149 / 159 | 198 / 201 | 1,722 / 2,755 | 162 / 167 | 201 / 206 |
+
+What they show:
+
+1. **A shared handle's borrow count is one contended cache line.** Every shared borrow at
+   the C ABI is a compare-and-swap in and a `fetch_sub` out of the handle's `state`, so 4
+   threads on one handle bounce its line: C's getter costs 107 ns against 4.1 on a handle
+   each, near its 3.7 on one thread. A C model of that borrow alone, run on its own after
+   the benchmark at the same load, cost 73 to 157 ns a borrow on one counter and 4 on a
+   counter each, so the gap is that line and nothing else of the binding's.
+2. **A hold count on the same object adds another.** Kotlin's (378) and Go's (252) shared
+   getters, and Swift's shared handle call on `TrackProducer`, still a class (405 against
+   C's 242), pay their own hold count's atomics on the shared object beside the C ABI's.
+   Swift's getter on a noncopyable `GroupDemand`, which has none, costs what C's does.
+3. **moq's read lock is the rest of the handle call.** Rust pays 79 ns on a shared value
+   and 80 on clones of it: the clones share moq's state, so its lock contends in both, and
+   no binding's handle call can drop below that.
+4. **Python's threads serialize on the GIL.** Its glue releases the GIL around each call
+   and takes it back after, so with 4 threads each call hands the GIL to another: 1.5 us of
+   CPU a call either way, 20 times its single thread, and the handle's own contention is
+   lost in it.
+
+The load limits these numbers: 4 threads among 15 to 17 others' leave the scheduler free to
+place them on one die or across both, whose line transfer is slower, which the model's
+twofold spread shows. Read the shared rows as their order of magnitude, against a handle
+each, at the same load.
 
 ## Long-lived reader measurement
 
@@ -243,10 +297,12 @@ From the CPU tables of 2026-11-10, measured at rust2 `7383790d` at a load averag
 29 and since replaced by the tables above, read against the code each call runs. In order of what it costs moq's
 frame path:
 
-1. **A handle per frame timestamp.** `Timestamp` is `Copy` in Rust, but its private fields
-   make it an object, so each stamped frame makes and frees a handle: 21 ns in C, 27 in
-   Swift, 140 in Python, 250 in Kotlin, 260 in Go, and 245 in Dart (stamped write minus
-   write). In Go, Dart, and Kotlin that doubles the write.
+1. **A call per frame timestamp.** `Timestamp` is `Copy` with private fields, so it
+   crosses as its 16 bytes, and a stamped frame allocates and frees nothing in Rust. As
+   a handle, it cost 21 ns in C, 27 in Swift, 140 in Python, 250 in Kotlin, 260 in Go,
+   and 245 in Dart (stamped write minus write, in the tables above); as a value, see
+   [Copy values](#copy-values): what remains is each language's call and, in Kotlin and
+   Python, an object of its own.
 2. **Ownership of a returned object.** An object return costs C 25 ns, but Go 263 and
    Dart 242, ten times C: each new Go object registers `runtime.AddCleanup` and each Dart
    one a `NativeFinalizer`, beside a handle allocation. Kotlin's 137 ns wall (210 CPU) is a phantom
@@ -285,11 +341,32 @@ count since the change below. Kotlin: 24 wall, Go 38, Dart 28, Python 49, each w
 transition besides.
 
 Swift has since made each object a noncopyable struct and dropped its hold count, but for
-a class: a `Copy` object or one thrown as an error. Measured 2026-11-11 at that change, 5
+a class: one thrown as an error. A `Copy` type is a value since [Copy values](#copy-values). Measured 2026-11-11 at that change, 5
 rounds interleaved with C at a load average of 7 to 12, its getter costs 10 ns, as C's
 does, and `track.is_closed()`, on `TrackProducer`, still a class since moq throws it, 26
 against C's 18, as in the table. A change to the accounting moves this row and the handle call's by the
 same amount; measure both, CPU first, at the load beside them.
+
+### Copy values
+
+A `Copy` type with private fields, such as `Timestamp`, crosses by value: a struct of its
+bytes in C, C++, Swift, Go, and Dart, a class over a `LongArray` in Kotlin (a word value
+class when it fits one), and a class of the runtime's `Value` holding its bytes in Python.
+Measured 2026-11-13 at rust2 `7766768f`, moq `ffcb7cd9`, on an AMD Ryzen 9 9950X (32 threads),
+Linux, at a load average of 13 to 15, the median of 3 rounds, in CPU time:
+
+| | C | C++ | Swift | Go | Dart | Kotlin | Python |
+|---|---|---|---|---|---|---|---|
+| write | 163 | 165 | 173 | 260 | 251 | 280 | 224 |
+| stamped write | 161 | 168 | 174 | 293 | 296 | 430 | 384 |
+| stamped minus write | 0 | 3 | 1 | 33 | 45 | 150 (35 wall) | 160 |
+
+C, C++, and Swift pay nothing for the timestamp; Go and Dart pay about their getter's call,
+the `from_micros` itself. Kotlin's 35 ns wall is its call, and its CPU column adds the
+collector's work on each `LongArray`. Python's is a call and a new object. The handle's cost
+in the tables above came from another load, so Python's was also measured against main's
+build on the same host, interleaved over 5 rounds at a load of 10 to 12: stamped minus write
+fell from 205 ns to 166, and the stamped write from 441 to 391.
 
 ### Against the targets
 

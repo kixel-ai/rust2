@@ -95,7 +95,7 @@ fun script() {
 
 	val (below, above) = Counter.new("s", 7u).split(5u)
 	println("split ${below.name()} ${below.get()} ${above.name()} ${above.get()}")
-	val only = only(Counter.new("o", 3u))
+	val (only) = only(Counter.new("o", 3u))
 	println("only ${only.name()} ${only.get()}")
 	val (w8, w16, w32, w64) = widths(98305u)
 	println("widths $w8 $w16 $w32 $w64")
@@ -261,6 +261,7 @@ fun script() {
 	println("secs ${stamp.secs()}")
 	println("later ${Stamp.fromMillis(3000u).later(stamp)}")
 	println("secs ${stamp.secs()}")
+	println("whole ${stamp.whole().debug()}")
 	val message = Message.new(stamp, Bytes("body".encodeToByteArray()))
 	println("payload ${message.payloadGet.text()}")
 	println("stamp ${message.stampGet!!.debug()}")
@@ -274,6 +275,28 @@ fun script() {
 	println("secs ${reset.secs()}")
 	message.stampSet(null)
 	println("stamp ${message.stampGet != null}")
+
+	// A value past a word, copied across: a closure takes and returns one by value.
+	val moment = Moment.new(1500u, 1000u)!!
+	println("moment ${moment.millis()} ${Moment.new(1u, 0u) == null}")
+	val shifted = shifted(moment) { m -> m.after(500u) }
+	println("shifted ${shifted.millis()} ${shifted == moment.after(500u)}")
+	println("wrapped ${moment.after(ULong.MAX_VALUE).millis()} ${moment == shifted}")
+
+	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	val gap = Gap.new(7u, 3u)
+	println("gap ${gap.sum()} ${gap == Gap.new(7u, 3u)}")
+	val berth = Berth.new(4u)
+	println("berth Some(${berth.at()}) ${if (Berth.new(null).at() == null) "None" else "Some"}")
+
+	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	val score = Score.of(2u)
+	val step = Score.of(3u)
+	score.add(step)
+	score.add(step)
+	println("score ${score.count()} ${step.doubled().count()} ${step.count()}")
+	val weighted = Weighted(step, 4u)
+	println("weighted ${weighted.total()} ${weighted.score.count() + step.count()}")
 
 	println("kept ${emit(PrintLog(), Bytes(byteArrayOf(1, 2, 3, 4)))}")
 	Logger.new(PrintLog()).use { logger -> println("write ${logger.write("hi")}") }
@@ -540,8 +563,8 @@ fun script() {
 	check(Numbers.zero(true).hashCode() == Numbers.zero(false).hashCode(), "a negative zero hashes as zero does")
 	check(Measure.new(-0.0, true).hashCode() == Measure.new(0.0, false).hashCode(), "a negative zero hashes as zero does in a nested record")
 	val ints = edges.copy(f32s = FloatArray(0), f64s = DoubleArray(0))
-	val same = Numbers.edges().copy(f32s = FloatArray(0), f64s = DoubleArray(0))
-	check(ints == same && ints.hashCode() == same.hashCode(), "records of arrays compare by contents")
+	val alike = Numbers.edges().copy(f32s = FloatArray(0), f64s = DoubleArray(0))
+	check(ints == alike && ints.hashCode() == alike.hashCode(), "records of arrays compare by contents")
 	val back = edges.reversed().reversed()
 	check(back.copy(f32s = FloatArray(0), f64s = DoubleArray(0)) == ints, "every integer edge value crosses both ways exactly")
 	check(back.f32s.map { it.toRawBits() } == edges.f32s.map { it.toRawBits() } && back.f64s.map { it.toRawBits() } == edges.f64s.map { it.toRawBits() }, "every float edge value crosses both ways exactly")
@@ -600,15 +623,12 @@ fun script() {
 	val jsonSections = sections(listOf(Pair("b", Json.parse("[1]")), Pair("a", Json.parse("2"))))
 	println("sections ${jsonSections.joinToString(", ") { (key, value) -> "$key ${value.toText()}" }}")
 	jsonSections.forEach { it.second.close() }
-	// An instant only Rust makes, which each call copies out of its handle, and compares.
-	now().use { began ->
-		later(began, 1500.milliseconds).use { ended ->
-			later(began, kotlin.time.Duration.ZERO).use { same ->
-				println("instants ${since(ended, began).inWholeMilliseconds} ${since(began, ended).inWholeMilliseconds} ${began == same} ${began == ended}")
-				println("has_instant ${hasInstant(began)} ${hasInstant(null)}")
-			}
-		}
-	}
+	// An instant only Rust makes, which each call copies, and compares.
+	val began = now()
+	val ended = later(began, 1500.milliseconds)
+	val same = later(began, kotlin.time.Duration.ZERO)
+	println("instants ${since(ended, began).inWholeMilliseconds} ${since(began, ended).inWholeMilliseconds} ${began == same} ${began == ended}")
+	println("has_instant ${hasInstant(began)} ${hasInstant(null)}")
 	// tracing's level, and its filter as an optional level whose null is `OFF`.
 	Verbosity.new(Level.WARN).use { verbosity ->
 		println("verbosity ${spell(verbosity.filter())} ${spell(louder(verbosity.filter()))}")
@@ -617,7 +637,7 @@ fun script() {
 	}
 
 	println("made ${made(3u) { n -> "$n times" }}")
-	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	// A closure taking and returning `Copy` values copies them, never running their `Clone`.
 	val nine = Ticket.new(9u)
 	val given = reissue(Ticket.new(7u)) { t -> Ticket.new(t.number() + 1u) }.number()
 	val held = reissue(Ticket.new(7u)) { nine }.number()
@@ -625,7 +645,7 @@ fun script() {
 	// A kept closure, called on another thread after the call that took it returned.
 	println("spawned ${Spawned.new { 7u }.join()}")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
-	now().use { start ->
+	now().let { start ->
 		var calls = 0
 		val stopped = runBlocking {
 			drive(start) { now, waiter ->
@@ -1016,7 +1036,7 @@ fun broken(which: String) {
 		"stray" -> stray()
 		// Any exception but a closure's own error, and a reader's IOException, aborts.
 		"closure threw" -> made(1u) { throw IllegalStateException("a make failed") }
-		"closure failed" -> now().use { start ->
+		"closure failed" -> now().let { start ->
 			runBlocking { drive(start) { _, _ -> throw IllegalStateException("a poll failed") } }
 		}
 		"reader threw" -> tail(
@@ -1069,9 +1089,17 @@ fun readings() {
 	}
 }
 
+/** A call near the JVM's 255 parameter slots, which a record's flattening must not pass. */
+fun crowding() {
+	val r = reading(1u)!!
+	val sum = crowded(r, Stamp.fromMillis(2uL), Stamp.fromMillis(3uL), 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL, 1uL)
+	check(sum == r.count + 2uL + 3uL + 119uL, "a crowded call crosses every parameter: $sum")
+}
+
 fun owned() {
 	encoded()
 	readings()
+	crowding()
 	budgeted()
 	for (n in 1023..1025) {
 		val payload = ByteArray(n) { it.toByte() }
@@ -1373,6 +1401,8 @@ fun clash() {
 		Clash.Waker,
 		Clash.Mut,
 		Clash.Pair(1u, 2u),
+		Clash.Stamp(5L),
+		Clash.Moment(Moment.new(3u, 1000u)!!),
 	)
 	for (c in all) {
 		check(c.debug().isNotEmpty(), "clash $c debug")
@@ -1392,6 +1422,8 @@ fun clash() {
 	check(Clash.Unit.joined(b("a"), b("b"), b("c")).toByteArray().decodeToString() == "abc", "clash joined")
 	check(Clash.Unit.joined(b("a"), b("b"), null).toByteArray().decodeToString() == "ab", "clash joined none")
 	check(runBlocking { Clash.Int(1).tagged("t") } == "t Int(1)", "clash tagged")
+	check(Clash.Unit.stamp(2500u).secs() == 2uL && Clash.Unit.stamp(5u) == Stamp.fromMillis(5u), "clash stamp")
+	check(all[16].moment(9u) == Moment.new(3u, 1000u) && Clash.Unit.moment(4000u).millis() == 4000uL, "clash moment")
 	check(Clash.String("hi").raw().toByteArray().decodeToString() == "hi", "clash bytes")
 	val out = Mut(0u)
 	check(Clash.Int(4).describe("t", 3u, Shape.SQUARE, out) == "t Int(4) 3 Square" && out.value == 6u, "clash describe")

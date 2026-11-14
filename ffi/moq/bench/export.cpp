@@ -3,11 +3,13 @@
 // prints its wall time and the process's CPU time.
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <ctime>
 #include <cstdio>
 #include <cstdlib>
 #include <optional>
+#include <thread>
 #include <vector>
 
 #include "moq.hpp"
@@ -17,6 +19,7 @@ namespace {
 constexpr int groups = 10000;
 constexpr int frames = 100;
 constexpr int n = groups * frames;
+constexpr int threads = 4;
 constexpr std::size_t sizes[] = {100, 1024, 16384, 65536, 1048576};
 
 // What the loops sum, kept so the compiler cannot drop the calls.
@@ -80,9 +83,43 @@ auto ready(F future, const char *what) {
 	return must(must(must(future.poll(noop()), what), what), what);
 }
 
+// `call` made n times on each of `threads` threads at once, thread i on handles[i]: wall
+// nanoseconds per call on one thread, and CPU nanoseconds per call.
+template <class T, class F>
+span concurrent(const T *const (&handles)[threads], F call, unsigned &sum) {
+	std::atomic<int> ready{0};
+	std::atomic<bool> go{false};
+	unsigned sums[threads] = {};
+	std::vector<std::thread> workers;
+	for (int i = 0; i < threads; i++) {
+		workers.emplace_back([&, i] {
+			unsigned local = 0;
+			ready.fetch_add(1);
+			while (!go.load()) {
+			}
+			for (int j = 0; j < n; j++) {
+				local += call(*handles[i]);
+			}
+			sums[i] = local;
+		});
+	}
+	while (ready.load() < threads) {
+	}
+	span start = now();
+	go.store(true);
+	for (auto &worker : workers) {
+		worker.join();
+	}
+	span end = now();
+	for (unsigned s : sums) {
+		sum += s;
+	}
+	return {(end.wall - start.wall) / n, (end.cpu - start.cpu) / (static_cast<double>(n) * threads)};
+}
+
 // Groups of 100 frames of `size` bytes written and each read back, its payload's first byte
 // touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
-span throughput(moq::track_Producer &track, moq::track_Subscriber &subscriber, const moq::Timestamp &at, std::size_t size, unsigned &sum) {
+span throughput(moq::track_Producer &track, moq::track_Subscriber &subscriber, moq::Timestamp at, std::size_t size, unsigned &sum) {
 	std::size_t count = std::clamp<std::size_t>((64u << 20) / (size * frames), 3, 2000);
 	std::vector<std::uint8_t> payload(size);
 	auto start = now();
@@ -90,7 +127,7 @@ span throughput(moq::track_Producer &track, moq::track_Subscriber &subscriber, c
 		auto group = must(track.append_group(), "append_group");
 		auto reader = ready(subscriber.recv_group(), "recv_group");
 		for (int f = 0; f < frames; f++) {
-			must(group.write_frame(&at, payload), "write_frame");
+			must(group.write_frame(at, payload), "write_frame");
 			auto read = ready(reader.read_frame(), "read_frame");
 			sum += read.payload_get().data()[0];
 		}
@@ -103,7 +140,7 @@ span throughput(moq::track_Producer &track, moq::track_Subscriber &subscriber, c
 void round(bool print) {
 	moq::broadcast_Producer broadcast = moq::broadcast_Info::new_().produce();
 	moq::Timescale micro = moq::Timescale::MICRO();
-	auto track = must(broadcast.create_track("bench", moq::track_Info::default_().with_timescale(&micro)), "create_track");
+	auto track = must(broadcast.create_track("bench", moq::track_Info::default_().with_timescale(micro)), "create_track");
 
 	std::uint8_t bytes[100] = {0};
 	moq::view frame(bytes, sizeof bytes);
@@ -115,7 +152,7 @@ void round(bool print) {
 	}
 	span call = per(start);
 
-	span getter;
+	span getter, shared_call, own_call, shared_getter, own_getter;
 	{
 		auto demanded = must(track.append_group(), "append_group");
 		auto demand = demanded.demand();
@@ -124,6 +161,29 @@ void round(bool print) {
 			sum += static_cast<unsigned>(demand.sequence());
 		}
 		getter = per(start);
+
+		// The handle call and the getter from `threads` threads: on one shared handle, then
+		// on a clone each, a handle of its own to the same value.
+		auto is_closed = [](const moq::track_Producer &t) { return static_cast<unsigned>(t.is_closed()); };
+		auto sequence = [](const moq::group_Demand &d) { return static_cast<unsigned>(d.sequence()); };
+		std::vector<moq::track_Producer> tracks;
+		std::vector<moq::group_Demand> demands;
+		for (int i = 0; i < threads; i++) {
+			tracks.push_back(track.clone());
+			demands.push_back(demand.clone());
+		}
+		const moq::track_Producer *shared_tracks[threads], *own_tracks[threads];
+		const moq::group_Demand *shared_demands[threads], *own_demands[threads];
+		for (int i = 0; i < threads; i++) {
+			shared_tracks[i] = &track;
+			own_tracks[i] = &tracks[i];
+			shared_demands[i] = &demand;
+			own_demands[i] = &demands[i];
+		}
+		shared_call = concurrent(shared_tracks, is_closed, sum);
+		own_call = concurrent(own_tracks, is_closed, sum);
+		shared_getter = concurrent(shared_demands, sequence, sum);
+		own_getter = concurrent(own_demands, sequence, sum);
 		must(std::move(demanded).finish(), "finish");
 	}
 
@@ -139,14 +199,14 @@ void round(bool print) {
 	}
 	span object = per(start);
 
-	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
+	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must.
 	std::uint64_t micros = 0;
 	start = now();
 	for (int g = 0; g < groups; g++) {
 		auto group = must(track.append_group(), "append_group");
 		for (int f = 0; f < frames; f++) {
 			auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
-			must(group.write_frame(&at, frame), "write_frame");
+			must(group.write_frame(at, frame), "write_frame");
 		}
 		must(std::move(group).finish(), "finish");
 	}
@@ -157,7 +217,7 @@ void round(bool print) {
 	for (int g = 0; g < groups; g++) {
 		auto group = must(track.append_group(), "append_group");
 		for (int f = 0; f < frames; f++) {
-			must(group.write_frame(&at, frame), "write_frame");
+			must(group.write_frame(at, frame), "write_frame");
 		}
 		must(std::move(group).finish(), "finish");
 	}
@@ -172,7 +232,7 @@ void round(bool print) {
 		auto group = must(track.append_group(), "append_group");
 		auto reader = ready(subscriber.recv_group(), "recv_group");
 		for (int f = 0; f < frames; f++) {
-			must(group.write_frame(&at, frame), "write_frame");
+			must(group.write_frame(at, frame), "write_frame");
 			last = ready(reader.read_frame(), "read_frame");
 		}
 		must(std::move(group).finish(), "finish");
@@ -190,7 +250,7 @@ void round(bool print) {
 				std::fprintf(stderr, "bench: woken read_frame ready\n");
 				std::exit(1);
 			}
-			must(group.write_frame(&at, frame), "write_frame");
+			must(group.write_frame(at, frame), "write_frame");
 			(void)must(must(must(reading.poll(noop()), "woken read_frame"), "woken read_frame"), "woken read_frame");
 		}
 		must(std::move(group).finish(), "finish");
@@ -211,8 +271,8 @@ void round(bool print) {
 	sink = sum;
 
 	if (print) {
-		const char *names[] = {"call", "getter", "record", "object", "stamped", "write", "ready", "woken", "payload"};
-		span values[] = {call, getter, record, object, stamped, write, read, woken, payload};
+		const char *names[] = {"call", "getter", "shared:call", "own:call", "shared:getter", "own:getter", "record", "object", "stamped", "write", "ready", "woken", "payload"};
+		span values[] = {call, getter, shared_call, own_call, shared_getter, own_getter, record, object, stamped, write, read, woken, payload};
 		for (std::size_t i = 0; i < std::size(names); i++) {
 			std::printf("%s\t%f\t%f\n", names[i], values[i].wall, values[i].cpu);
 		}

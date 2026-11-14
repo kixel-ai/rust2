@@ -3,6 +3,7 @@
 // its wall time and the process's CPU time, the JIT's and GC's threads included.
 
 import java.lang.management.ManagementFactory
+import java.util.concurrent.CountDownLatch
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -32,6 +33,34 @@ fun per(start: Span, n: Double = N.toDouble()): Span {
 // What the loops sum, kept so the JIT cannot drop the calls.
 @Volatile var sink = 0
 
+// `call` made N times on each of THREADS threads at once, thread i on handles[i]: wall
+// nanoseconds per call on one thread, and CPU nanoseconds per call.
+fun <T> concurrent(handles: List<T>, call: (T) -> Int): Span {
+	val ready = CountDownLatch(THREADS)
+	val go = CountDownLatch(1)
+	val failures = java.util.concurrent.ConcurrentLinkedQueue<Throwable>()
+	val workers = handles.map { handle ->
+		Thread {
+			var sum = 0
+			ready.countDown()
+			go.await()
+			try {
+				repeat(N) { sum += call(handle) }
+			} catch (e: Throwable) {
+				failures.add(e)
+			}
+			sink += sum
+		}.apply { start() }
+	}
+	ready.await()
+	val start = now()
+	go.countDown()
+	workers.forEach { it.join() }
+	// A worker that died early would otherwise report a time for fewer than N calls.
+	failures.peek()?.let { throw it }
+	return per(start, N.toDouble()).let { Span(it.wall, it.cpu / THREADS) }
+}
+
 // Groups of 100 frames of `size` bytes written and each read back, its payload's first
 // byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
 suspend fun throughput(track: TrackProducer, subscriber: TrackSubscriber, at: Timestamp, size: Int): Span {
@@ -58,9 +87,7 @@ suspend fun throughput(track: TrackProducer, subscriber: TrackSubscriber, at: Ti
 fun round(): Map<String, Span> {
 	val out = linkedMapOf<String, Span>()
 	val broadcast = BroadcastInfo.new().produce()
-	val track = Timescale.MICRO.use { micro ->
-		broadcast.createTrack("bench", TrackInfo.default().withTimescale(micro))
-	}
+	val track = broadcast.createTrack("bench", TrackInfo.default().withTimescale(Timescale.MICRO))
 	val frame = Bytes(ByteArray(100))
 	var sum = 0
 
@@ -73,6 +100,19 @@ fun round(): Map<String, Span> {
 			start = now()
 			repeat(N) { sum += demand.sequence().toInt() }
 			out["getter"] = per(start)
+
+			// The handle call and the getter from THREADS threads: on one shared handle, then
+			// on a clone each, a handle of its own to the same value.
+			val isClosed = { t: TrackProducer -> if (t.isClosed()) 1 else 0 }
+			val sequence = { d: GroupDemand -> d.sequence().toInt() }
+			val tracks = List(THREADS) { track.clone() }
+			val demands = List(THREADS) { demand.clone() }
+			out["shared:call"] = concurrent(List(THREADS) { track }, isClosed)
+			out["own:call"] = concurrent(tracks, isClosed)
+			out["shared:getter"] = concurrent(List(THREADS) { demand }, sequence)
+			out["own:getter"] = concurrent(demands, sequence)
+			tracks.forEach { it.close() }
+			demands.forEach { it.close() }
 		}
 		group.finish()
 	}
@@ -94,13 +134,13 @@ fun round(): Map<String, Span> {
 	failures.peek()?.let { throw it }
 	out["objects"] = per(start)
 
-	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
+	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must.
 	var micros = 0uL
 	start = now()
 	repeat(GROUPS) {
 		track.appendGroup().use { group ->
 			repeat(FRAMES) {
-				Timestamp.fromMicros(micros++).use { at -> group.writeFrame(at, frame) }
+				group.writeFrame(Timestamp.fromMicros(micros++), frame)
 			}
 			group.finish()
 		}
@@ -193,7 +233,6 @@ fun round(): Map<String, Span> {
 		repeat(N) { sum += read.payloadGet[0] }
 	}
 	out["payload"] = per(start)
-	at.close()
 	track.close()
 	broadcast.close()
 	sink += sum

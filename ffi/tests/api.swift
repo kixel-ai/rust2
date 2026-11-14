@@ -7,6 +7,9 @@
 import Api
 import BasicContainers
 import Foundation
+#if os(Linux)
+import NoDump
+#endif
 
 // The Log callback: keeps even levels.
 final class PrintLog: Log {
@@ -406,6 +409,7 @@ func script() {
 	print("secs \(stamp.secs())")
 	print("later \(Stamp.fromMillis(3000).later(stamp))")
 	print("secs \(stamp.secs())")
+	print("whole \(debug(stamp.whole()))")
 	var message = Message.new(stamp, Bytes("body".utf8))
 	print("payload \(text(message.payloadGet))")
 	print("stamp \(debug(message.stampGet!))")
@@ -419,6 +423,28 @@ func script() {
 	print("secs \(reset.secs())")
 	message.stampSet(nil)
 	print("stamp \(message.stampGet != nil)")
+
+	// A value past a word, copied across: a closure takes and returns one by value.
+	let moment = Moment.new(1500, 1000)!
+	print("moment \(moment.millis()) \(Moment.new(1, 0) == nil)")
+	let shifted = shifted(moment) { $0.after(500) }
+	print("shifted \(shifted.millis()) \(shifted == moment.after(500))")
+	print("wrapped \(moment.after(UInt64.max).millis()) \(moment == shifted)")
+
+	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	let gap = Gap.new(7, 3)
+	print("gap \(gap.sum()) \(gap == Gap.new(7, 3))")
+	let berth = Berth.new(4)
+	print("berth Some(\(berth.at()!)) \(Berth.new(nil).at() == nil ? "None" : "Some")")
+
+	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	let score = Score.of(2)
+	let step = Score.of(3)
+	score.add(step)
+	score.add(step)
+	print("score \(score.count()) \(step.doubled().count()) \(step.count())")
+	let weighted = Weighted(score: step, weight: 4)
+	print("weighted \(weighted.total()) \(weighted.score.count() + step.count())")
 
 	// Bound first, so Swift's reference is gone before the print.
 	let kept = emit(PrintLog(), Bytes([1, 2, 3, 4]))
@@ -1273,6 +1299,12 @@ func lentKept() {
 
 // Each breaks a contract, which must fail with a message naming it.
 func broken(_ which: String) {
+	#if os(Linux)
+	if nodump() != 0 {
+		perror("prctl")
+		exit(1)
+	}
+	#endif
 	switch which {
 	// A lent return outliving its owner's change, which Rust checks.
 	case "outlived":

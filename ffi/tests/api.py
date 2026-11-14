@@ -325,6 +325,7 @@ def script():
 	print(f"secs {stamp.secs()}")
 	print(f"later {flag(api.Stamp.from_millis(3000).later(stamp))}")
 	print(f"secs {stamp.secs()}")
+	print(f"whole {stamp.whole()!r}")
 	message = api.Message.new(stamp, b"body")
 	print(f"payload {text(message.payload_get)}")
 	print(f"stamp {message.stamp_get!r}")
@@ -338,6 +339,33 @@ def script():
 	print(f"secs {reset.secs()}")
 	message.stamp_set(None)
 	print(f"stamp {flag(message.stamp_get is not None)}")
+
+	# A value past a word, copied across: a closure takes and returns one by value.
+	moment = api.Moment.new(1500, 1000)
+	print(f"moment {moment.millis()} {flag(api.Moment.new(1, 0) is None)}")
+	shifted = api.shifted(moment, lambda m: m.after(500))
+	print(f"shifted {shifted.millis()} {flag(shifted == moment.after(500))}")
+	print(f"wrapped {moment.after(2**64 - 1).millis()} {flag(moment == shifted)}")
+	try:
+		api.Moment()
+		check(False, "Python makes no opaque value")
+	except TypeError:
+		pass
+
+	# A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	gap = api.Gap.new(7, 3)
+	print(f"gap {gap.sum()} {flag(gap == api.Gap.new(7, 3))}")
+	berth = api.Berth.new(4)
+	print(f"berth Some({berth.at()}) {'None' if api.Berth.new(None).at() is None else 'Some'}")
+
+	# A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	score = api.Score.of(2)
+	increment = api.Score.of(3)
+	score.add(increment)
+	score.add(increment)
+	print(f"score {score.count()} {increment.doubled().count()} {increment.count()}")
+	weighted = api.Weighted(increment, 4)
+	print(f"weighted {weighted.total()} {weighted.score.count() + increment.count()}")
 
 	print(f"kept {api.emit(PrintLog(), bytes([1, 2, 3, 4]))}")
 	logger = api.Logger.new(PrintLog())
@@ -1291,6 +1319,14 @@ def values():
 	raises(OverflowError, lambda: api.scaled(2**128, 1), "an int past u128 raises")
 	raises(OverflowError, lambda: api.scaled(-1, 1), "a negative int for a u128 raises")
 
+	# An object reclassed in Python is still what Rust made: its methods refuse it.
+	stamp = api.Stamp.from_millis(5)
+	stamp.__class__ = api.Moment
+	raises(TypeError, lambda: stamp.millis(), "a Stamp reclassed as a Moment is no Moment")
+	counter = api.Counter.new("r", 1)
+	counter.__class__ = api.Berth
+	raises(TypeError, lambda: counter.at(), "a Counter reclassed as a Berth is no Berth")
+
 	# A list of numbers is any buffer of exactly its numbers, one dimension and contiguous,
 	# and returns as an array of them.
 	edges = api.Numbers.edges()
@@ -1417,6 +1453,13 @@ def calls():
 
 def broken(which):
 	"""Each breaks a contract, which must fail with a message naming it."""
+	if sys.platform == "linux":
+		# Non-dumpable, an expected abort writes no core and never starts the host's crash
+		# handler. PR_SET_DUMPABLE is 4.
+		import ctypes
+
+		if ctypes.CDLL(None, use_errno=True).prctl(4, 0, 0, 0, 0) != 0:
+			raise OSError(ctypes.get_errno(), "prctl")
 	match which:
 		case "moved":
 			c = api.Counter.new("c", 0)

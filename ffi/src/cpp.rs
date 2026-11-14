@@ -8,7 +8,8 @@
 //! member or as anything in the namespace, which it would hide. An object is a class owning
 //! its handle through a `std::unique_ptr`, so it moves, or where `Clone` makes a value no
 //! call tells apart but by an `Arc`'s or `Rc`'s count, a `std::shared_ptr` its copies
-//! share; a record a struct; an enum an
+//! share; a record a struct, and a `Copy` type with private fields a class over its C
+//! struct's bytes, which only Rust makes or reads; an enum an
 //! `enum class`, or for one with data a `std::variant` of a struct per variant, with its
 //! methods free functions; a closure, a future, or a reader C++ implements a template
 //! parameter. The runtime they share, [`runtime/rt.hpp`](../runtime/rt.hpp), holds the
@@ -246,12 +247,19 @@ impl<'a> Header<'a> {
 		}
 	}
 
-	/// The C++ vector a `Vec` parameter of type `ty` takes: of views, for bytes.
+	/// The C++ type a `Vec` parameter of type `ty` takes: a vector, or, when its items hold
+	/// views, the runtime's `items` lent or `taken` when they move handles, each of which
+	/// also takes a returned vector of `buf`s as it is.
 	fn items(&self, ty: &Type) -> String {
 		let Type::List(_, inner) = ty else {
 			unreachable!("{ty:?} is no Vec")
 		};
-		format!("::std::vector<{}>", self.held(inner))
+		let held = self.held(inner);
+		match (held == self.owned(inner), moves(self.abi, inner)) {
+			(true, _) => format!("::std::vector<{held}>"),
+			(false, true) => format!("::{}::taken<{held}>", self.ns),
+			(false, false) => format!("::{}::items<{held}>", self.ns),
+		}
 	}
 
 	/// The C++ type a parameter's `Vec`, `Option`, or tuple holds a `ty` as: bytes as a view.
@@ -507,6 +515,7 @@ impl<'a> Header<'a> {
 			"cstdio",
 			"cstdlib",
 			"cstring",
+			"initializer_list",
 			"ios",
 			"memory",
 			"mutex",
@@ -554,9 +563,16 @@ impl<'a> Header<'a> {
 			let name = self.global(&self.name(&abi.enumeration(i)));
 			self.line(format!("enum class {name};"));
 		}
-		for i in 0..api.records.len() {
+
+		// Every class and struct, declared so any signature may name it.
+		for (i, record) in api.records.iter().enumerate() {
 			let name = self.global(&self.name(&abi.record(i)));
-			self.line(format!("struct {name};"));
+			// The key its definition uses, which MSVC's C4099 and Clang's
+			// `-Wmismatched-tags` require match.
+			match record.opaque {
+				Some(_) => self.line(format!("class {name};")),
+				None => self.line(format!("struct {name};")),
+			}
 		}
 		for i in 0..api.objects.len() {
 			let name = self.global(&self.name(&abi.object(i)));
@@ -1104,6 +1120,11 @@ impl<'a> Header<'a> {
 				let owner = Ty::Struct(c.clone());
 				let mut taken = fields.clone();
 				taken.push(name.clone());
+				// An opaque value's bytes are its private member `c_`.
+				if record.opaque.is_some() {
+					taken.push("c_".to_string());
+					members.push("c_".to_string());
+				}
 				for method in &record.methods {
 					let (decl, member) = self.function(method, Some(&owner), Some((&taken, Owner::Member)));
 					body.push(decl);
@@ -1113,11 +1134,27 @@ impl<'a> Header<'a> {
 				while body.last().is_some_and(String::is_empty) {
 					body.pop();
 				}
-				self.line(format!(
-					"{}struct {name} {{\n{}\n}};\n",
-					docs(&record.docs, ""),
-					body.join("\n")
-				));
+				match record.opaque {
+					// Its bytes, which only Rust makes or reads: C++ copies them, but makes
+					// none, as it has no public constructor.
+					Some(_) => {
+						let text = format!(
+							"{}\n\nIts bytes, which only Rust makes or reads: copy it, but never make one.",
+							record.docs
+						);
+						self.line(format!(
+							"{}class {name} {{\npublic:\n{}\n\nprivate:\n\tfriend struct {d}::access;\n\n\texplicit {name}(const ::{c} &c) noexcept : c_(c) {{}}\n\n\t::{c} c_;\n}};\n",
+							docs(text.trim(), ""),
+							body.join("\n"),
+							d = self.d()
+						));
+					}
+					None => self.line(format!(
+						"{}struct {name} {{\n{}\n}};\n",
+						docs(&record.docs, ""),
+						body.join("\n")
+					)),
+				}
 			}
 			Type::Enum(i) => {
 				let e = &abi.api.enums[*i];
@@ -1224,6 +1261,16 @@ impl<'a> Header<'a> {
 			let record = &api.records[i];
 			let c = abi.record(i);
 			let name = self.name(&c);
+			if record.opaque.is_some() {
+				let d = self.d();
+				self.line(format!(
+					"inline ::{c} lower(const ::{ns}::{name} &v) {{\n\treturn {d}::access::bits(v);\n}}\n"
+				));
+				self.line(format!(
+					"inline ::{ns}::{name} lift(const ::{c} &c) {{\n\treturn {d}::access::make<::{ns}::{name}>(c);\n}}\n"
+				));
+				continue;
+			}
 			let lowered: Vec<String> = record
 				.fields
 				.iter()
@@ -1699,18 +1746,13 @@ impl<'a> Header<'a> {
 	}
 
 	/// The C value a closure returns Rust of the C++ value `e` of type `ty`, which Rust then
-	/// owns: bytes as a buffer `<prefix>_buf_copy` made, and a `Copy` object as a new handle to
-	/// a copy, made without its `Clone`. `e` is named, so it may be read more than once.
+	/// owns: bytes as a buffer `<prefix>_buf_copy` made. `e` is named, so it may be read more
+	/// than once.
 	fn returned(&self, ty: &Type, e: &str) -> String {
-		let abi = self.abi;
 		let d = self.d();
 		match ty {
 			ty if Abi::is_buf(ty) => format!("{d}::copy_bytes({e})"),
 			Type::Option(inner) if Abi::is_buf(inner) => format!("({e} ? {d}::copy_bytes(*{e}) : {d}::none())"),
-			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {
-				format!("({e} ? {} : nullptr)", self.returned(inner, &format!("(*{e})")))
-			}
-			Type::Object(i) => format!("::{}_copy({d}::access::raw({e}))", abi.object(*i)),
 			ty => self.lower(ty, e),
 		}
 	}
