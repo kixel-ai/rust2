@@ -1787,6 +1787,9 @@ impl<'a> Gen<'a> {
 		}
 		// The Python.
 		let mut text = function.docs.clone();
+		if handed.is_some() {
+			text.push_str("\n\nRust changes a copy of this value, which it returns first, as the call left it: this one never changes.");
+		}
 		for param in &function.params {
 			let name = param_name(&param.name);
 			if let Type::Closure(closure_) = &param.ty {
