@@ -4348,20 +4348,12 @@ export function chunkWrite(chunk: rs.ByteSlice, op: rs.u8, n: rs.u8, out: rs.Byt
 			const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(src)));
 			let count: number = 0;
 			while (true) {
-				let next!: [rs.usize, rs.u8] | rs.Done;
-				next2: {
-					const x = leaf.next();
-					if (x === rs.DONE) {
-						next = rs.DONE;
-						break next2;
-					}
-					next = [count++, x];
-				}
-				const _28: [rs.usize, rs.u8] | rs.Done = next;
-				if (_28 === rs.DONE) {
+				const x = leaf.next();
+				if (x === rs.DONE) {
 					break;
 				}
-				UninitSlice.writeByte(chunk, _28[0], _28[1]);
+				const i3 = count++;
+				UninitSlice.writeByte(chunk, i3, x);
 			}
 			break b1;
 		}

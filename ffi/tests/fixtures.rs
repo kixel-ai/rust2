@@ -852,7 +852,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		("lent kept", "Counter is closed"),
 		(
 			"lent moved",
-			"Native$Refused: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+			"Native$__Refused: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("callback threw", "api::Log::log: a call into Kotlin threw"),
 		("closure threw", "api_made: a call into Kotlin threw"),
@@ -860,7 +860,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		("reader threw", "SeekableByteChannel.read: a call into Kotlin threw"),
 		(
 			"outlived",
-			"Native$Refused: api_Meter_count: a handle lent from another outlived it",
+			"Native$__Refused: api_Meter_count: a handle lent from another outlived it",
 		),
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),

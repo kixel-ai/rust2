@@ -106,7 +106,7 @@ pub fn fail(env: *mut JNIEnv, what: &str, msg: &str) -> ! {
 
 static REFUSED: OnceLock<usize> = OnceLock::new();
 
-/// Throw the `_Native.Refused`, an `IllegalStateException`, a call of `what` raises once
+/// Throw the `_Native.__Refused`, an `IllegalStateException`, a call of `what` raises once
 /// its check failed with `status`, returning a zeroed value Kotlin never reads, as JNI's
 /// pending exception throws once the native method returns. Its own class tells Kotlin
 /// the call moved nothing.
@@ -835,7 +835,7 @@ fn caught(env: *mut JNIEnv, what: &str, cache: &OnceLock<usize>, name: &CStr) ->
 
 static FAILED: OnceLock<usize> = OnceLock::new();
 
-/// Raise the error a function returned, encoded in `w`, as the `_Native.Failed` Kotlin turns
+/// Raise the error a function returned, encoded in `w`, as the `_Native.__Failed` Kotlin turns
 /// into its exception: a call's success path then returns its value with no `byte[]`.
 pub fn raise(env: *mut JNIEnv, w: Writer) {
 	let id = method(env, &FAILED, c"__failed", c"([B)Ljava/lang/Throwable;");

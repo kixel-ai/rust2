@@ -392,20 +392,12 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 		let count: number = 0;
 		while (true) {
-			let next!: [rs.usize, rs.u8] | rs.Done;
-			next2: {
-				const x3 = leaf.next();
-				if (x3 === rs.DONE) {
-					next = rs.DONE;
-					break next2;
-				}
-				next = [count++, x3];
-			}
-			const _291: [rs.usize, rs.u8] | rs.Done = next;
-			if (_291 === rs.DONE) {
+			const x3 = leaf.next();
+			if (x3 === rs.DONE) {
 				break;
 			}
-			rs.btreeInsert(map, _291[1] as rs.u64, _291[0] as rs.u64);
+			const i7 = count++;
+			rs.btreeInsert(map, x3 as rs.u64, i7 as rs.u64);
 		}
 		const _302: [rs.u64, rs.u64] = [at(0) as rs.u64, at(1) as rs.u64];
 		const a2: rs.u64 = _302[0];

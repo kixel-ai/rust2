@@ -170,21 +170,12 @@ export function chars(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const leaf: rs.Iter<rs.char> = rs.iterSlice(cs.items);
 		let count: number = 0;
 		while (true) {
-			let next!: [rs.usize, rs.char] | rs.Done;
-			next2: {
-				const x = leaf.next();
-				if (x === rs.DONE) {
-					next = rs.DONE;
-					break next2;
-				}
-				next = [count++, x];
-			}
-			const _88: [rs.usize, rs.char] | rs.Done = next;
-			if (_88 === rs.DONE) {
+			const x = leaf.next();
+			if (x === rs.DONE) {
 				break;
 			}
-			const i: rs.usize = _88[0];
-			const c3: rs.char = _88[1];
+			const i: rs.usize = count++;
+			const c3: rs.char = x;
 			const d: rs.char = cs.items[rs.idx(cs.items, rs.usizeRem(rs.usizeAdd(rs.usizeMul(i, 7), 3), cs.items.length))];
 			rs.byteVecPush(out, (c3 < d ? 1 : 0) | (((c3 === d ? 1 : 0) << 1) & 0xff) | (((c3 >= 122 ? 1 : 0) << 2) & 0xff));
 			rs.byteVecPush(out, rs.hashAdd(seen, c3) ? 1 : 0);

@@ -476,6 +476,9 @@ impl Header<'_> {
 				moved.join(" and ")
 			));
 		}
+		if matches!(export.call.params.first(), Some((_, Ty::InOut(_)))) {
+			docs.push_str("\n\nRust writes what the call left in `self` back in place.");
+		}
 		for param in function.params.iter().filter(|p| p.ty.written()) {
 			let name = abi::escape(&param.name);
 			docs.push_str(&format!(
@@ -565,7 +568,7 @@ pub fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 		Ty::ForeignReader => space(&abi.rt("foreign_reader")),
 		Ty::Poll => space(&abi.rt("poll")),
 		Ty::Status => space(&abi.rt("status")),
-		Ty::Out(inner) => decl(abi, inner, &format!("*{name}")),
+		Ty::Out(inner) | Ty::InOut(inner) => decl(abi, inner, &format!("*{name}")),
 		Ty::In(inner) => format!("const {}", decl(abi, inner, &format!("*{name}"))),
 		Ty::Fn(params, ret) => {
 			let params: Vec<String> = std::iter::once("void *data".to_string())

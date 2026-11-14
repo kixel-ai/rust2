@@ -255,14 +255,14 @@ func script() throws {
 	// A timestamp is a `Copy` value copied across, which allocates nothing. The track is
 	// untimed, so a timestamped frame is refused.
 	let at = try Timestamp.fromMillis(1500)
-	expect(try at.asSecs() == 1, "1500 ms is 1 s")
+	expect(at.asSecs() == 1, "1500 ms is 1 s")
 	do {
 		try writer.writeFrame(at, Bytes("late".utf8))
 		expect(false, "a timestamped frame on an untimed track is an error")
 	} catch let e as Moq.Error {
 		expect(try e.description == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
 	}
-	expect(try at.asSecs() == 1, "a copied timestamp stays usable")
+	expect(at.asSecs() == 1, "a copied timestamp stays usable")
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as nil.
 	let world = Bytes(Data([0xff]) + Data("world".utf8))
@@ -310,11 +310,11 @@ func script() throws {
 	let groups = TrackRange.groups(BoundsU64(start: .included(2), end: .excluded(6)))
 	let ranged = try TrackSubscription.default().withRanges([TrackRange.live(), groups]).rangesGet
 	expect(
-		try ranged.count == 2 && ranged[0] == TrackRange.live() && ranged[1] == groups,
+		ranged.count == 2 && ranged[0] == TrackRange.live() && ranged[1] == groups,
 		"a subscription keeps its ranges"
 	)
-	expect(try groups.start == .absolute(2), "groups start at their first")
-	expect(try groups.end.map { try $0 == .absolute(6) } == true, "groups end before their end")
+	expect(groups.start == .absolute(2), "groups start at their first")
+	expect(groups.end.map { $0 == .absolute(6) } == true, "groups end before their end")
 
 	// A catalog at moq-mux's untyped extension, from the config Swift builds, whose generic
 	// `is_claimed` is named by the last segment of its argument, and whose `mutate` lends

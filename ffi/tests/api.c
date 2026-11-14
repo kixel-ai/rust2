@@ -433,7 +433,7 @@ static bool closures(void) {
 	printf("reissued %u %u, cloned %u\n", (unsigned)api_Ticket_number(&given), (unsigned)api_Ticket_number(&held),
 		(unsigned)api_Ticket_clones());
 	/* A record's traits borrow the checked handle it holds. */
-	api_Score *nine = api_Score_of(9);
+	api_Mark *nine = api_Mark_of(9);
 	api_Seat front = api_seat(nine, 1, NULL);
 	api_Seat back = api_seat(nine, 2, NULL);
 	print("seat ", api_Seat_debug(&front, NULL), "");
@@ -441,7 +441,7 @@ static bool closures(void) {
 		api_Seat_eq(&front, &back, NULL) ? "true" : "false");
 	api_Seat_free(&back);
 	api_Seat_free(&front);
-	api_Score_free(nine);
+	api_Mark_free(nine);
 
 	/* A kept closure, called on another thread after the call that took it returned. */
 	bool spawned_freed = false;
@@ -1082,27 +1082,60 @@ static int script(void) {
 	api_Berth_free(empty_berth);
 	api_Berth_free(berth);
 
-	/* A `Copy` type changed in place is a handle, which a call taking it by value copies. */
-	api_Score *score = api_Score_of(2);
-	api_Score *step = api_Score_of(3);
-	api_Score_add(score, step, NULL);
-	api_Score_add(score, step, NULL);
-	api_Score *doubled_score = api_Score_doubled(step, NULL);
-	printf("score %llu %llu %llu\n", (unsigned long long)api_Score_count(score, NULL),
-		   (unsigned long long)api_Score_count(doubled_score, NULL), (unsigned long long)api_Score_count(step, NULL));
-	api_Weighted weighted = {.score = api_Score_clone(step, NULL), .weight = 4};
-	printf("weighted %llu %llu\n", (unsigned long long)api_Weighted_total(&weighted, NULL),
-		   (unsigned long long)(api_Score_count(weighted.score, NULL) + api_Score_count(step, NULL)));
+	/* A `Copy` type changed in place is a value, whose change reaches only the copy changed. */
+	api_Score score = api_Score_of(2);
+	api_Score step = api_Score_of(3);
+	api_Score_add(&score, step);
+	api_Score_add(&score, step);
+	api_Score doubled_score = api_Score_doubled(&step);
+	printf("score %llu %llu %llu\n", (unsigned long long)api_Score_count(&score),
+		   (unsigned long long)api_Score_count(&doubled_score), (unsigned long long)api_Score_count(&step));
+	api_Score score_copy = score;
+	uint64_t taken = api_Score_take(&score_copy);
+	printf("taken %llu %llu %llu\n", (unsigned long long)taken, (unsigned long long)api_Score_count(&score_copy),
+		   (unsigned long long)api_Score_count(&score));
+	api_Score other_score = step;
+	uint64_t before0, before1;
+	api_Score_absorb(&score_copy, other_score, &other_score, &before0, &before1);
+	printf("absorbed %llu %llu %llu %llu %llu\n", (unsigned long long)before0, (unsigned long long)before1,
+		   (unsigned long long)api_Score_count(&score_copy), (unsigned long long)api_Score_count(&other_score),
+		   (unsigned long long)api_Score_count(&step));
+	api_Hits hits = api_Hits_of(1, 2);
+	api_Hits kept = hits;
+	api_Hits_add(&hits, api_Hits_of(10, 20));
+	api_Hits_hits_set(&hits, 7);
+	printf("hits %llu %u %llu %u %s\n", (unsigned long long)api_Hits_hits_get(&hits), api_Hits_misses_get(&hits),
+		   (unsigned long long)api_Hits_hits_get(&kept), api_Hits_misses_get(&kept),
+		   api_Hits_eq(&hits, &kept) ? "true" : "false");
+	api_Hits counted = kept;
+	bool counted_same = api_Hits_eq_(&counted, kept);
+	printf("counted %s %llu\n", counted_same ? "true" : "false", (unsigned long long)api_Hits_hits_get(&counted));
+	api_Extent extent = api_Extent_new(5, 3);
+	api_Extent extent_start = extent;
+	uint64_t old = api_Extent_slide(&extent, 10);
+	api_Extent_start_set(&extent, api_Extent_start_get(&extent) + 1);
+	printf("extent %llu %llu %llu %llu %llu\n", (unsigned long long)old,
+		   (unsigned long long)api_Extent_start_get(&extent), (unsigned long long)api_Extent_end(&extent),
+		   (unsigned long long)api_Extent_start_get(&extent_start), (unsigned long long)api_Extent_end(&extent_start));
+	api_Weighted weighted = {.score = step, .weight = 4};
+	printf("weighted %llu %llu\n", (unsigned long long)api_Weighted_total(&weighted),
+		   (unsigned long long)(api_Score_count(&weighted.score) + api_Score_count(&step)));
 	api_Weighted_free(&weighted);
-	/* A checked score beside bytes in a tuple and in a record lent, and bytes beside a move. */
+	/* A checked mark beside bytes in a tuple and in a record lent, and bytes beside a move. */
+	api_Mark *mark = api_Mark_of(1);
+	api_Mark_add(mark, 2, NULL);
 	api_Counter *hefted = api_Counter_new(str("w"), 1);
-	printf("heft %llu\n", (unsigned long long)api_heft((api_tuple_Score_bytes){step, str("ab")},
-							 (api_Parcel){.score = step, .payload = str("abc")},
+	printf("heft %llu\n", (unsigned long long)api_heft((api_tuple_Mark_bytes){mark, str("ab")},
+							 (api_Parcel){.mark = mark, .payload = str("abc")},
 							 (api_tuple_Counter_bytes){hefted, str("abcd")}, NULL));
 	api_Counter_free(hefted);
-	api_Score_free(doubled_score);
-	api_Score_free(step);
-	api_Score_free(score);
+	/* A value's `&mut self` beside a checked handle. */
+	api_Score noted = api_Score_of(2);
+	api_Mark *noted_by = api_Mark_of(5);
+	uint64_t noted_before = api_Score_note(&noted, noted_by, NULL);
+	printf("noted %llu %llu\n", (unsigned long long)noted_before, (unsigned long long)api_Score_count(&noted));
+	api_Mark_free(noted_by);
+	api_Mark_free(mark);
 
 	static const api_Log_vtable print_log = {.free = log_free, .log = log_line};
 	uint8_t levels[] = {1, 2, 3, 4};
@@ -1990,31 +2023,31 @@ static int statuses(void) {
 	api_Meter_free(first);
 	api_Meters_free(meters);
 
-	/* A counter moved in beside a dropped score, alone or held in a record or an enum, is
-	 * refused before the move, so the counter is still there; once every score is live,
+	/* A counter moved in beside a dropped mark, alone or held in a record or an enum, is
+	 * refused before the move, so the counter is still there; once every mark is live,
 	 * the call moves it. */
 	api_Counter *admitted = api_Counter_new(str("a"), 5);
-	api_Score *score = api_Score_of(3);
-	api_Score *dropped = api_Score_of(4);
-	api_Score_drop(dropped, NULL);
-	api_Choice picked = {.tag = API_CHOICE_PICKED, .picked = {._0 = score}};
+	api_Mark *mark = api_Mark_of(3);
+	api_Mark *dropped = api_Mark_of(4);
+	api_Mark_drop(dropped, NULL);
+	api_Choice picked = {.tag = API_CHOICE_PICKED, .picked = {._0 = mark}};
 	api_Choice empty = {.tag = API_CHOICE_EMPTY};
-	api_tuple_Counter_Score_Seat_Choice entries[] = {
-		{admitted, dropped, {score, 1}, empty},
-		{admitted, score, {dropped, 1}, empty},
-		{admitted, score, {score, 1}, {.tag = API_CHOICE_PICKED, .picked = {._0 = dropped}}},
+	api_tuple_Counter_Mark_Seat_Choice entries[] = {
+		{admitted, dropped, {mark, 1}, empty},
+		{admitted, mark, {dropped, 1}, empty},
+		{admitted, mark, {mark, 1}, {.tag = API_CHOICE_PICKED, .picked = {._0 = dropped}}},
 	};
 	for (size_t i = 0; i < sizeof(entries) / sizeof(entries[0]); i++) {
 		status = 0;
 		api_admit(entries[i], &status);
 		uint64_t still = api_Counter_get(admitted, NULL);
 		if (status != API_STATUS_MOVED || still != 5) {
-			fprintf(stderr, "admitting beside a dropped score %zu wrote %d, leaving %llu\n", i, status, (unsigned long long)still);
+			fprintf(stderr, "admitting beside a dropped mark %zu wrote %d, leaving %llu\n", i, status, (unsigned long long)still);
 			failed = 1;
 		}
 	}
 	status = 0;
-	uint64_t sum = api_admit((api_tuple_Counter_Score_Seat_Choice){admitted, score, {score, 1}, picked}, &status);
+	uint64_t sum = api_admit((api_tuple_Counter_Mark_Seat_Choice){admitted, mark, {mark, 1}, picked}, &status);
 	if (status != 0 || sum != 14) {
 		fprintf(stderr, "admitting wrote %d, summing %llu\n", status, (unsigned long long)sum);
 		failed = 1;
@@ -2029,7 +2062,7 @@ static int statuses(void) {
 	api_Seat seat = {dropped, 2};
 	api_Seat_count(&seat, &status);
 	if (status != API_STATUS_MOVED) {
-		fprintf(stderr, "a seat's count with a dropped score wrote %d\n", status);
+		fprintf(stderr, "a seat's count with a dropped mark wrote %d\n", status);
 		failed = 1;
 	}
 	status = 0;
@@ -2038,26 +2071,26 @@ static int statuses(void) {
 		failed = 1;
 	}
 	api_Counter_free(admitted);
-	api_Score_free(score);
-	api_Score_free(dropped);
+	api_Mark_free(mark);
+	api_Mark_free(dropped);
 
 	/* A refused call frees each buffer it was given: beside the failing handle, in a record
 	 * lent, and beside a move, which it leaves undone. Each case gives three. */
-	api_Score *live = api_Score_of(2);
-	api_Score *gone = api_Score_of(2);
-	api_Score_drop(gone, NULL);
+	api_Mark *live = api_Mark_of(2);
+	api_Mark *gone = api_Mark_of(2);
+	api_Mark_drop(gone, NULL);
 	api_Counter *weight = api_Counter_new(str("w"), 1);
 	api_Counter *dropped_weight = api_Counter_new(str("d"), 1);
 	api_Counter_drop(dropped_weight, NULL);
 	struct {
-		api_Score *scored, *lent;
+		api_Mark *marked, *lent;
 		api_Counter *moved;
 	} hefts[] = {{gone, live, weight}, {live, gone, weight}, {live, live, dropped_weight}};
 	for (size_t i = 0; i < sizeof(hefts) / sizeof(hefts[0]); i++) {
 		uint32_t before = api_dropped();
 		status = 0;
-		api_heft((api_tuple_Score_bytes){hefts[i].scored, api_token_bytes(1, 2)},
-			(api_Parcel){.score = hefts[i].lent, .payload = api_token_bytes(2, 3)},
+		api_heft((api_tuple_Mark_bytes){hefts[i].marked, api_token_bytes(1, 2)},
+			(api_Parcel){.mark = hefts[i].lent, .payload = api_token_bytes(2, 3)},
 			(api_tuple_Counter_bytes){hefts[i].moved, api_token_bytes(3, 4)}, &status);
 		if (status != API_STATUS_MOVED || api_dropped() != before + 3 || api_Counter_get(weight, NULL) != 1) {
 			fprintf(stderr, "a refused heft %zu wrote %d, freeing %u buffers\n", i, status, api_dropped() - before);
@@ -2066,8 +2099,8 @@ static int statuses(void) {
 	}
 	uint32_t before_heft = api_dropped();
 	status = 0;
-	uint64_t heft = api_heft((api_tuple_Score_bytes){live, api_token_bytes(1, 2)},
-		(api_Parcel){.score = live, .payload = api_token_bytes(2, 3)},
+	uint64_t heft = api_heft((api_tuple_Mark_bytes){live, api_token_bytes(1, 2)},
+		(api_Parcel){.mark = live, .payload = api_token_bytes(2, 3)},
 		(api_tuple_Counter_bytes){weight, api_token_bytes(3, 4)}, &status);
 	if (status != 0 || heft != 14 || api_dropped() != before_heft + 3) {
 		fprintf(stderr, "a heft wrote %d, weighing %llu\n", status, (unsigned long long)heft);
@@ -2075,8 +2108,8 @@ static int statuses(void) {
 	}
 	api_Counter_free(dropped_weight);
 	api_Counter_free(weight);
-	api_Score_free(gone);
-	api_Score_free(live);
+	api_Mark_free(gone);
+	api_Mark_free(live);
 
 	status = 0;
 	api_Counter *kept = api_Counter_new(str("c"), 0);

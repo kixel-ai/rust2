@@ -1067,21 +1067,12 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 		let count: number = 0;
 		while (true) {
-			let next!: [rs.usize, rs.u8] | rs.Done;
-			next2: {
-				const x = leaf.next();
-				if (x === rs.DONE) {
-					next = rs.DONE;
-					break next2;
-				}
-				next = [count++, x];
-			}
-			const _212: [rs.usize, rs.u8] | rs.Done = next;
-			if (_212 === rs.DONE) {
+			const x = leaf.next();
+			if (x === rs.DONE) {
 				break;
 			}
-			const i: rs.usize = _212[0];
-			const b2: rs.u8 = _212[1];
+			const i: rs.usize = count++;
+			const b2: rs.u8 = x;
 			const v: rs.u128 = w(i, 16);
 			const _220: rs.u8 = rs.u8Rem(b2, 14);
 			if (_220 === 0) {
@@ -1158,21 +1149,12 @@ export function random(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _11: [rs.usize, rs.u8] | rs.Done = next;
-		if (_11 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _11[0];
-		const b: rs.u8 = _11[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x;
 		const n: rs.u64 = rs.u64Cast(wide(data, i, 8));
 		const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(rs.byteSliceRange(data, i)), "✓");
 		const built: rs.Hasher = rs.buildHasher(s);
@@ -1769,21 +1751,12 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _17: [rs.usize, rs.u8] | rs.Done = next;
-		if (_17 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _17[0];
-		const b: rs.u8 = _17[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x;
 		const _26: rs.u16 = rs.u8Rem(b, 8) as rs.u16;
 		const bounds = rs.sliceIndexBounds(new rs.RangeInclusive(i, i, rs.usizeStep), data.length);
 		const _25: Key.Key = { _0: _26, _1: text(rs.byteSliceRange(data, bounds[0], bounds[1])) };
@@ -2191,21 +2164,12 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _101: [rs.usize, rs.u8] | rs.Done = next;
-		if (_101 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _101[0];
-		const b: rs.u8 = _101[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x;
 		const _110: rs.u16 = rs.u8Rem(b, 8) as rs.u16;
 		const bounds = rs.sliceIndexBounds(new rs.RangeInclusive(i, i, rs.usizeStep), data.length);
 		const _109: Key.Key = { _0: _110, _1: text(rs.byteSliceRange(data, bounds[0], bounds[1])) };

@@ -105,7 +105,7 @@ func lacks(_ function: String, _ body: () throws -> Void) {
 func targets() {
 	lacks("api_wasm_only") { _ = try wasmOnly() }
 	lacks("api_Page_default") { _ = try Page.default() }
-	let booth = Booth(score: Score.of(1))
+	let booth = Booth(mark: Mark.of(1))
 	lacks("api_Booth_debug") { _ = try booth.debugDescription }
 	lacks("api_Booth_eq") { _ = try booth == booth }
 }
@@ -491,17 +491,42 @@ func script() {
 	let berth = Berth.new(4)
 	print("berth Some(\(berth.at()!)) \(Berth.new(nil).at() == nil ? "None" : "Some")")
 
-	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
-	let score = Score.of(2)
+	// A `Copy` type changed in place is a value, whose change reaches only the copy changed.
+	var score = Score.of(2)
 	let step = Score.of(3)
-	try! score.add(step)
-	try! score.add(step)
-	print("score \(try! score.count()) \(try! step.doubled().count()) \(try! step.count())")
+	score.add(step)
+	score.add(step)
+	print("score \(score.count()) \(step.doubled().count()) \(step.count())")
+	var scoreCopy = score
+	let taken = scoreCopy.take()
+	print("taken \(taken) \(scoreCopy.count()) \(score.count())")
+	var otherScore = step
+	let before = scoreCopy.absorb(&otherScore)
+	print("absorbed \(before.0) \(before.1) \(scoreCopy.count()) \(otherScore.count()) \(step.count())")
+	var hits = Hits.of(1, 2)
+	let keptHits = hits
+	hits.add(Hits.of(10, 20))
+	hits.hitsSet(7)
+	print("hits \(hits.hitsGet) \(hits.missesGet) \(keptHits.hitsGet) \(keptHits.missesGet) \(hits == keptHits)")
+	var counted = keptHits
+	let countedSame = counted.eq(keptHits)
+	print("counted \(countedSame) \(counted.hitsGet)")
+	var extent = Extent.new(5, 3)
+	let extentStart = extent
+	let old = extent.slide(10)
+	extent.startSet(extent.startGet + 1)
+	print("extent \(old) \(extent.startGet) \(extent.end()) \(extentStart.startGet) \(extentStart.end())")
 	let weighted = Weighted(score: step, weight: 4)
-	print("weighted \(try! weighted.total()) \(try! weighted.score.count() + step.count())")
-	// A checked score beside bytes in a tuple and in a record lent, and bytes beside a move.
-	let parcel = Parcel(score: step, payload: Bytes("abc".utf8))
-	print("heft \(try! heft((step, Bytes("ab".utf8)), parcel, TupleCounterBytes(Counter.new("w", 1), Bytes("abcd".utf8))))")
+	print("weighted \(weighted.total()) \(weighted.score.count() + step.count())")
+	// A checked mark beside bytes in a tuple and in a record lent, and bytes beside a move.
+	let mark = Mark.of(1)
+	try! mark.add(2)
+	let parcel = Parcel(mark: mark, payload: Bytes("abc".utf8))
+	print("heft \(try! heft((mark, Bytes("ab".utf8)), parcel, TupleCounterBytes(Counter.new("w", 1), Bytes("abcd".utf8))))")
+	// A value's `&mut self` beside a checked handle.
+	var noted = Score.of(2)
+	let notedBefore = try! noted.note(Mark.of(5))
+	print("noted \(notedBefore) \(noted.count())")
 
 	// Bound first, so Swift's reference is gone before the print.
 	let kept = emit(PrintLog(), Bytes([1, 2, 3, 4]))
@@ -907,7 +932,7 @@ func script() {
 	let held = reissue(Ticket.new(7)) { _ in nine }.number()
 	print("reissued \(given) \(held), cloned \(Ticket.clones())")
 	// A record's traits borrow the checked handle it holds.
-	let nines = Score.of(9)
+	let nines = Mark.of(9)
 	let front = try! seat(nines, 1)
 	let back = try! seat(nines, 2)
 	print("seat \(try! front.debugDescription) \(try! front == front) \(try! front == back)")

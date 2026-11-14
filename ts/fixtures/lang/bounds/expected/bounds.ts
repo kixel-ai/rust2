@@ -183,21 +183,12 @@ export function bounds(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 4)));
 			let count2: number = 0;
 			while (true) {
-				let next3!: [rs.usize, rs.u8] | rs.Done;
-				next4: {
-					const x3 = leaf2.next();
-					if (x3 === rs.DONE) {
-						next3 = rs.DONE;
-						break next4;
-					}
-					next3 = [count2++, x3];
-				}
-				const _104: [rs.usize, rs.u8] | rs.Done = next3;
-				if (_104 === rs.DONE) {
+				const x3 = leaf2.next();
+				if (x3 === rs.DONE) {
 					break;
 				}
-				const n: rs.usize = _104[0];
-				const tag: rs.u8 = _104[1];
+				const n: rs.usize = count2++;
+				const tag: rs.u8 = x3;
 				if (rs.usizeRem(n, 2) === 0) {
 					rs.dequePushBack(queue, new Item.Item(tag));
 				} else {
@@ -284,21 +275,12 @@ export function bounds(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 4)));
 			let count: number = 0;
 			while (true) {
-				let next!: [rs.usize, rs.u8] | rs.Done;
-				next2: {
-					const x2 = leaf.next();
-					if (x2 === rs.DONE) {
-						next = rs.DONE;
-						break next2;
-					}
-					next = [count++, x2];
-				}
-				const _247: [rs.usize, rs.u8] | rs.Done = next;
-				if (_247 === rs.DONE) {
+				const x2 = leaf.next();
+				if (x2 === rs.DONE) {
 					break;
 				}
-				const n2: rs.usize = _247[0];
-				const k: rs.u8 = _247[1];
+				const n2: rs.usize = count++;
+				const k: rs.u8 = x2;
 				rs.btreeAdd(set3, { _0: k });
 				rs.btreeInsert(map2, { _0: k }, n2 & 0xff);
 			}

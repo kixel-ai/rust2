@@ -469,21 +469,47 @@ func script() {
 	berth.Close()
 	empty.Close()
 
-	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	// A `Copy` type changed in place is a value, whose change reaches only the copy changed.
 	score := api.ScoreOf(2)
 	step := api.ScoreOf(3)
-	ok(score.Add(step))
-	ok(score.Add(step))
-	fmt.Printf("score %d %d %d\n", must(score.Count()), must(must(step.Doubled()).Count()), must(step.Count()))
+	score.Add(step)
+	score.Add(step)
+	fmt.Printf("score %d %d %d\n", score.Count(), step.Doubled().Count(), step.Count())
+	scoreCopy := score
+	taken := scoreCopy.Take()
+	fmt.Printf("taken %d %d %d\n", taken, scoreCopy.Count(), score.Count())
+	otherScore := step
+	before0, before1 := scoreCopy.Absorb(&otherScore)
+	fmt.Printf("absorbed %d %d %d %d %d\n", before0, before1, scoreCopy.Count(), otherScore.Count(), step.Count())
+	hits := api.HitsOf(1, 2)
+	keptHits := hits
+	hits.Add(api.HitsOf(10, 20))
+	hits.HitsSet(7)
+	fmt.Printf("hits %d %d %d %d %t\n", hits.HitsGet(), hits.MissesGet(), keptHits.HitsGet(), keptHits.MissesGet(), hits.Equal(keptHits))
+	counted := keptHits
+	countedSame := counted.Eq(keptHits)
+	fmt.Printf("counted %t %d\n", countedSame, counted.HitsGet())
+	extent := api.NewExtent(5, 3)
+	extentStart := extent
+	old := extent.Slide(10)
+	extent.StartSet(extent.StartGet() + 1)
+	fmt.Printf("extent %d %d %d %d %d\n", old, extent.StartGet(), extent.End(), extentStart.StartGet(), extentStart.End())
 	weighted := api.Weighted{Score: step, Weight: 4}
-	fmt.Printf("weighted %d %d\n", must(weighted.Total()), must(weighted.Score.Count())+must(step.Count()))
-	// A checked score beside bytes in a tuple and in a record lent, and bytes beside a move.
-	parcel := api.Parcel{Score: step, Payload: rt.NewBytes([]byte("abc"))}
+	fmt.Printf("weighted %d %d\n", weighted.Total(), weighted.Score.Count()+step.Count())
+	// A checked mark beside bytes in a tuple and in a record lent, and bytes beside a move.
+	mark := api.MarkOf(1)
+	ok(mark.Add(2))
+	parcel := api.Parcel{Mark: mark, Payload: rt.NewBytes([]byte("abc"))}
 	hefted := api.NewCounter("w", 1)
-	fmt.Printf("heft %d\n", must(api.Heft(rt.Tuple2[*api.Score, rt.Bytes]{V0: step, V1: rt.NewBytes([]byte("ab"))}, parcel, rt.Tuple2[*api.Counter, rt.Bytes]{V0: hefted, V1: rt.NewBytes([]byte("abcd"))})))
+	fmt.Printf("heft %d\n", must(api.Heft(rt.Tuple2[*api.Mark, rt.Bytes]{V0: mark, V1: rt.NewBytes([]byte("ab"))}, parcel, rt.Tuple2[*api.Counter, rt.Bytes]{V0: hefted, V1: rt.NewBytes([]byte("abcd"))})))
 	hefted.Close()
-	score.Close()
-	step.Close()
+	// A value's `&mut self` beside a checked handle.
+	noted := api.ScoreOf(2)
+	notedBy := api.MarkOf(5)
+	notedBefore := must(noted.Note(notedBy))
+	fmt.Printf("noted %d %d\n", notedBefore, noted.Count())
+	notedBy.Close()
+	mark.Close()
 
 	// Rust frees the implementation once it drops it, releasing Go's.
 	fmt.Printf("kept %d\n", api.Emit(printLog{}, rt.NewBytes([]byte{1, 2, 3, 4})))
@@ -879,7 +905,7 @@ func script() {
 	copied := api.Reissue(seven, func(api.Ticket) api.Ticket { return nine })
 	fmt.Printf("reissued %d %d, cloned %d\n", renewed.Number(), copied.Number(), api.TicketClones())
 	// A record's traits borrow the checked handle it holds.
-	nines := api.ScoreOf(9)
+	nines := api.MarkOf(9)
 	front, back := must(api.NewSeat(nines, 1)), must(api.NewSeat(nines, 2))
 	fmt.Printf("seat %s %t %t\n", front.GoString(), must(front.Equal(front)), must(front.Equal(back)))
 	// The packages serve wasm32 too: the traits of a type only wasm32 has fail on the host's
@@ -889,7 +915,7 @@ func script() {
 		check(errors.Is(err, errors.ErrUnsupported), "a Default off the target is unsupported")
 		_, err = api.Page{Size: 1}.Equal(api.Page{Size: 1})
 		check(errors.Is(err, errors.ErrUnsupported), "an Equal off the target is unsupported")
-		booth := api.Booth{Score: nines}
+		booth := api.Booth{Mark: nines}
 		_, err = booth.Equal(booth)
 		check(errors.Is(err, errors.ErrUnsupported), "a checked Equal off the target is unsupported")
 		check(
@@ -897,7 +923,7 @@ func script() {
 			"a GoString off the target reads as its error",
 		)
 	}
-	check(nines.Close() == nil, "a score closes")
+	check(nines.Close() == nil, "a mark closes")
 	// A kept closure, called on another thread after the call that took it returned.
 	spawned := api.NewSpawned(func() uint32 { return 7 })
 	fmt.Printf("spawned %d\n", must(spawned.Join()))

@@ -203,21 +203,12 @@ export function chars(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.char> = rs.iterSlice(all.items);
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.char] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _19: [rs.usize, rs.char] | rs.Done = next;
-		if (_19 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _19[0];
-		const c: rs.char = _19[1];
+		const i: rs.usize = count++;
+		const c: rs.char = x;
 		const dst = out;
 		const word = charTests(c);
 		rs.byteVecReserve(dst, 2 as rs.usize);

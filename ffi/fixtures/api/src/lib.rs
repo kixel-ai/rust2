@@ -948,61 +948,61 @@ pub fn reissue_lent(ticket: &Ticket, swap: impl Fn(&Ticket) -> Ticket) -> Ticket
 /// A record holding a `Copy` handle, so its `PartialEq` and `Debug` check that handle.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Seat {
-	pub score: Score,
+	pub mark: Mark,
 	pub row: u32,
 }
 
-/// The seat in `row` for `score`.
-pub fn seat(score: Score, row: u32) -> Seat {
-	Seat { score, row }
+/// The seat in `row` for `mark`.
+pub fn seat(mark: Mark, row: u32) -> Seat {
+	Seat { mark, row }
 }
 
 impl Seat {
-	/// Its score's count: a record's method whose receiver holds a checked object.
+	/// Its mark's count: a record's method whose receiver holds a checked object.
 	pub fn count(&self) -> u64 {
-		self.score.count
+		self.mark.count
 	}
 }
 
-/// The counter's value plus the count of each score beside it: a counter moved in beside
+/// The counter's value plus the count of each mark beside it: a counter moved in beside
 /// copied checked objects, alone and held in a record and an enum.
-pub fn admit(entry: (Counter, Score, Seat, Choice)) -> u64 {
-	let (counter, score, seat, choice) = entry;
+pub fn admit(entry: (Counter, Mark, Seat, Choice)) -> u64 {
+	let (counter, mark, seat, choice) = entry;
 	counter
 		.value
-		.wrapping_add(score.count)
-		.wrapping_add(seat.score.count)
+		.wrapping_add(mark.count)
+		.wrapping_add(seat.mark.count)
 		.wrapping_add(choose(choice))
 }
 
-/// A score picked, or none: a data enum with an empty variant beside a checked object.
+/// A mark picked, or none: a data enum with an empty variant beside a checked object.
 pub enum Choice {
 	Empty,
-	Picked(Score),
+	Picked(Mark),
 }
 
-/// The count of the score picked, or 0.
+/// The count of the mark picked, or 0.
 pub fn choose(choice: Choice) -> u64 {
 	match choice {
 		Choice::Empty => 0,
-		Choice::Picked(score) => score.count,
+		Choice::Picked(mark) => mark.count,
 	}
 }
 
-/// A score and a payload: a record holding a checked handle beside a buffer.
+/// A mark and a payload: a record holding a checked handle beside a buffer.
 pub struct Parcel {
-	pub score: Score,
+	pub mark: Mark,
 	pub payload: Bytes,
 }
 
-/// Each count and each payload's length, summed: a checked score beside bytes in a tuple
+/// Each count and each payload's length, summed: a checked mark beside bytes in a tuple
 /// and in a record lent, and bytes beside a moved counter, so a call a failed check
 /// refuses frees every buffer it was given.
-pub fn heft(scored: (Score, Bytes), lent: &Parcel, moved: (Counter, Bytes)) -> u64 {
-	let (score, bytes) = scored;
+pub fn heft(marked: (Mark, Bytes), lent: &Parcel, moved: (Counter, Bytes)) -> u64 {
+	let (mark, bytes) = marked;
 	let (counter, more) = moved;
 	let lengths = bytes.len() + lent.payload.len() + more.len();
-	score.count + lent.score.count + counter.value + lengths as u64
+	mark.count + lent.mark.count + counter.value + lengths as u64
 }
 
 /// Both counters' values, or an error once they overflow: moved parameters named as what
@@ -1363,10 +1363,9 @@ impl Berth {
 	}
 }
 
-/// A running count, as moq's `stats::Traffic`: `Copy` with private fields, but changed in
-/// place through `&mut self`, which a copy could not write back, so a handle. A call taking
-/// one by value copies it out of its handle, leaving the caller's as it was.
-#[derive(Clone, Copy, Debug, PartialEq)]
+/// A running count, as moq's `stats::Traffic`: `Copy` with private fields, changed in place
+/// through `&mut self`, so a value whose every copy changes alone.
+#[derive(Clone, Copy, Debug)]
 pub struct Score {
 	count: u64,
 }
@@ -1390,6 +1389,105 @@ impl Score {
 		Self {
 			count: self.count.wrapping_mul(2),
 		}
+	}
+
+	/// The count, leaving zero in its place.
+	pub fn take(&mut self) -> u64 {
+		std::mem::take(&mut self.count)
+	}
+
+	/// Adds `mark`'s count to this one, returning the count before: a value's `&mut self`
+	/// beside a checked handle, so a call a failed check refuses leaves the value as it was.
+	pub fn note(&mut self, mark: &Mark) -> u64 {
+		let before = self.count;
+		self.count = self.count.wrapping_add(mark.count);
+		before
+	}
+
+	/// Moves `other`'s count into this one, as `&mut` of a value Rust writes back too, and
+	/// returns both counts before, as a tuple.
+	pub fn absorb(&mut self, other: &mut Score) -> (u64, u64) {
+		let before = (self.count, other.count);
+		self.count = self.count.wrapping_add(std::mem::take(&mut other.count));
+		before
+	}
+}
+
+/// A count beside a slot whose `None` leaves its bytes uninitialized, so a `Copy` handle
+/// rather than a value, which `&mut self` makes checked. A call taking one by value copies
+/// it out of its handle, leaving the caller's as it was.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Mark {
+	count: u64,
+	slot: Option<u32>,
+}
+
+impl Mark {
+	pub fn of(count: u64) -> Self {
+		Self { count, slot: None }
+	}
+
+	pub fn count(&self) -> u64 {
+		self.count
+	}
+
+	/// Adds `by` to the count, in place.
+	pub fn add(&mut self, by: u64) {
+		self.count = self.count.wrapping_add(by);
+		self.slot = Some(0);
+	}
+}
+
+/// A tally, as moq's `stats::Presence`: `Copy`, its fields `pub` but `#[non_exhaustive]`,
+/// so a value whose fields read and write through accessors.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[non_exhaustive]
+pub struct Hits {
+	pub hits: u64,
+	pub misses: u32,
+}
+
+impl Hits {
+	pub fn of(hits: u64, misses: u32) -> Self {
+		Self { hits, misses }
+	}
+
+	/// Adds `other` into this one, as moq's `add` does.
+	pub fn add(&mut self, other: Hits) {
+		self.hits = self.hits.wrapping_add(other.hits);
+		self.misses = self.misses.wrapping_add(other.misses);
+	}
+
+	/// Whether `other` equals this one, counting it a hit: named as `PartialEq`'s C
+	/// function, which the clash renames.
+	pub fn eq(&mut self, other: Hits) -> bool {
+		let same = *self == other;
+		self.hits = self.hits.wrapping_add(1);
+		same
+	}
+}
+
+/// A span whose `pub` start sits beside a private length, which no record could hold.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Extent {
+	pub start: u64,
+	len: u32,
+}
+
+impl Extent {
+	pub fn new(start: u64, len: u32) -> Self {
+		Self { start, len }
+	}
+
+	pub fn end(&self) -> u64 {
+		self.start.wrapping_add(u64::from(self.len))
+	}
+
+	/// Moves the window `by` later, returning its old start.
+	pub fn slide(&mut self, by: u64) -> u64 {
+		let start = self.start;
+		self.start = start.wrapping_add(by);
+		start
 	}
 }
 
@@ -2718,6 +2816,12 @@ pub fn parse_cert(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
 	}
 }
 
+/// `parse_cert` as a future: its error borrows `text`, which the future owns, so the glue
+/// makes it its message before the future ends.
+pub async fn parse_later(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
+	parse_cert(text)
+}
+
 /// Another crate's error taken back by value, which no export returns: left out.
 pub fn blame(err: tls::held::Invalid) -> String {
 	err.to_string()
@@ -3299,13 +3403,13 @@ pub struct Page {
 #[cfg(target_arch = "wasm32")]
 #[derive(Debug, PartialEq)]
 pub struct Booth {
-	pub score: Score,
+	pub mark: Mark,
 }
 
-/// The count of `booth`'s score.
+/// The count of `booth`'s mark.
 #[cfg(target_arch = "wasm32")]
 pub fn booth_count(booth: Booth) -> u64 {
-	booth.score.count
+	booth.mark.count
 }
 
 /// wasm32's page.
@@ -3565,4 +3669,24 @@ pub enum Builtin {
 pub struct Qualifiers {
 	pub api: f64,
 	pub kotlin: f64,
+}
+
+/// An object named as a class of Kotlin's runtime once was, which keeps its name now the
+/// runtime's take a leading `__`.
+pub struct Handle {
+	count: u32,
+}
+
+impl Handle {
+	pub fn new(count: u32) -> Self {
+		Handle { count }
+	}
+
+	pub fn count(&self) -> u32 {
+		self.count
+	}
+
+	pub async fn later(count: u32) -> Self {
+		Handle { count }
+	}
 }

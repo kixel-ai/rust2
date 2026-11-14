@@ -133,21 +133,12 @@ export function inline(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _10: [rs.usize, rs.u8] | rs.Done = next;
-		if (_10 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _10[0];
-		const n: rs.u8 = _10[1];
+		const i: rs.usize = count++;
+		const n: rs.u8 = x;
 		if (held.len === 4) {
 			const gone: rs.Arc<rs.u8> = Inline.remove$sync_Arc_u8(held, rs.usizeRem(n as rs.usize, 4));
 			rs.byteVecPush(out, gone.value);

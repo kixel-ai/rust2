@@ -53,8 +53,8 @@ class Pipeline(unittest.TestCase):
         })
         self.assertEqual(definition["internalParameters"]["github"]["runner_environment"], "github-hosted")
         self.assertEqual(definition["resolvedDependencies"], [
-            {"uri": "git+https://github.com/example/demo", "digest": {"gitCommit": ITEM["sha"]}},
             {"uri": "git+https://github.com/example/demo@refs/heads/main", "digest": {"gitCommit": "c" * 40}},
+            {"uri": "git+https://github.com/example/demo", "digest": {"gitCommit": ITEM["sha"]}},
             {"uri": "https://github.com/kixel-ai/rust2/.github/workflows/crabx.yml", "digest": {"gitCommit": "b" * 40}},
         ])
 

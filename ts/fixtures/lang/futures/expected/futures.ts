@@ -259,21 +259,12 @@ export function dropped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count2: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count2++, x];
-		}
-		const _10: [rs.usize, rs.u8] | rs.Done = next;
-		if (_10 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _10[0];
-		const b: rs.u8 = _10[1];
+		const i: rs.usize = count2++;
+		const b: rs.u8 = x;
 		const before: Logged.Logged = new Logged.Logged(b, rs.arcClone(log));
 		const r: rs.Ready<Logged.Logged> = new rs.Ready(new Logged.Logged(b ^ 128, rs.arcClone(log)), rs.drop);
 		_103 = true;

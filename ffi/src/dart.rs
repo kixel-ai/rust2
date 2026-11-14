@@ -88,6 +88,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		fresh: 0,
 		on: On::ALL,
 		space: Gen::space(abi),
+		handed: BTreeMap::new(),
 	};
 	g.locked = crate::lock::types(abi, &g.classes);
 	g.variants = g.variants(&taken);
@@ -428,6 +429,9 @@ struct Gen<'a> {
 	on: On,
 	/// The namespace of the glue's C names, apart from the export's.
 	space: String,
+	/// A value's `&mut self` methods by their C names, which a call makes in place on a
+	/// copy it hands back.
+	handed: BTreeMap<String, abi::Handed>,
 }
 
 impl<'a> Gen<'a> {
@@ -809,21 +813,23 @@ impl<'a> Gen<'a> {
 		// serving: a call it served meanwhile, on the isolate's thread, read its own first. A
 		// null one, which aborts on a failed check, passes through.
 		let status = call.params.last().is_some_and(|(_, ty)| abi::is_status(ty));
-		let body = match status {
+		let cell = match status {
 			true => {
 				let cell = args.pop().expect("a status is a parameter");
 				args.push("s_".to_string());
-				format!(
-					"let mut status = 0;\n\tlet s_ = match {cell}.is_null() {{\n\t\ttrue => {cell},\n\t\tfalse => &raw mut status,\n\t}};\n\tlet r = unsafe {{ home.serve(move || crate::{}({})) }};\n\tif !{cell}.is_null() {{\n\t\tunsafe {{ *{cell} = status }};\n\t}}\n\tr",
-					call.name,
-					args.join(", ")
-				)
+				Some(cell)
 			}
-			false => format!(
-				"unsafe {{ home.serve(move || crate::{}({})) }}",
-				call.name,
-				args.join(", ")
+			false => None,
+		};
+		let call_ = match self.handed.get(&call.name) {
+			Some(h) => h.call(&args),
+			None => format!("crate::{}({})", call.name, args.join(", ")),
+		};
+		let body = match cell {
+			Some(cell) => format!(
+				"let mut status = 0;\n\tlet s_ = match {cell}.is_null() {{\n\t\ttrue => {cell},\n\t\tfalse => &raw mut status,\n\t}};\n\tlet r = unsafe {{ home.serve(move || {call_}) }};\n\tif !{cell}.is_null() {{\n\t\tunsafe {{ *{cell} = status }};\n\t}}\n\tr"
 			),
+			None => format!("unsafe {{ home.serve(move || {call_}) }}"),
 		};
 		let _ = write!(
 			self.glue,
@@ -2039,7 +2045,17 @@ impl<'a> Gen<'a> {
 	) -> Option<(String, String)> {
 		let abi = self.abi;
 		let _p = abi.prefix.clone();
-		let export = abi.export(function, owner);
+		// A value is immutable in Dart, so its `&mut self` method returns it as the call left
+		// it, calling the C function in place on a copy it hands back.
+		let handed = (owner.zip(owner_ty)).and_then(|(owner, ty)| abi.handed_back(function, owner, ty));
+		let (handed, export) = match handed {
+			Some((back, export, handed)) => {
+				self.handed.insert(export.call.name.clone(), handed);
+				(Some(back), export)
+			}
+			None => (None, abi.export(function, owner)),
+		};
+		let function = handed.as_ref().unwrap_or(function);
 		let c_name = export.call.name.clone();
 		let owner_c = match owner {
 			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.clone()),
@@ -2324,6 +2340,11 @@ impl<'a> Gen<'a> {
 		}
 
 		let mut text = function.docs.clone();
+		if handed.is_some() {
+			text.push_str(
+				"\n\nRust changes a copy of this value, which it returns first, as the call left it: this one never changes.",
+			);
+		}
 		for param in &function.params {
 			let name = param_name(&param.name);
 			match &param.ty {

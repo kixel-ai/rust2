@@ -141,21 +141,12 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 		let count2: number = 0;
 		while (true) {
-			let next3!: [rs.usize, rs.u8] | rs.Done;
-			next4: {
-				const x2 = leaf2.next();
-				if (x2 === rs.DONE) {
-					next3 = rs.DONE;
-					break next4;
-				}
-				next3 = [count2++, x2];
-			}
-			const _110: [rs.usize, rs.u8] | rs.Done = next3;
-			if (_110 === rs.DONE) {
+			const x2 = leaf2.next();
+			if (x2 === rs.DONE) {
 				break;
 			}
-			const i2: rs.usize = _110[0];
-			const b: rs.u8 = _110[1];
+			const i2: rs.usize = count2++;
+			const b: rs.u8 = x2;
 			const k2: rs.u64 = wide(rs.u8Rem(b, 12));
 			const _118: rs.u8 = rs.u8Rem(rs.u8Div(b, 12), 4);
 			if (_118 === 0) {
@@ -439,21 +430,12 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 		let count: number = 0;
 		while (true) {
-			let next!: [rs.usize, rs.u8] | rs.Done;
-			next2: {
-				const x = leaf.next();
-				if (x === rs.DONE) {
-					next = rs.DONE;
-					break next2;
-				}
-				next = [count++, x];
-			}
-			const _568: [rs.usize, rs.u8] | rs.Done = next;
-			if (_568 === rs.DONE) {
+			const x = leaf.next();
+			if (x === rs.DONE) {
 				break;
 			}
-			const i5: rs.usize = _568[0];
-			const b7: rs.u8 = _568[1];
+			const i5: rs.usize = count++;
+			const b7: rs.u8 = x;
 			const k6: Clash.Clash = { _0: rs.u8Rem(b7, 8) };
 			const _576: rs.u8 = rs.u8Rem(rs.u8Div(b7, 8), 4);
 			if (_576 === 0) {
@@ -4897,26 +4879,16 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const leaf: rs.Iter<rs.usize> = new rs.Range(0, data2.length);
 	const leaf2: rs.Iter<rs.usize> = rs.iterRev(new rs.Range(0, data2.length));
 	while (true) {
-		let next!: [rs.usize, rs.usize] | rs.Done;
-		next2: {
-			const x4 = leaf.next();
-			if (x4 === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			const x5 = leaf2.next();
-			if (x5 === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [x4, x5];
-		}
-		const _30: [rs.usize, rs.usize] | rs.Done = next;
-		if (_30 === rs.DONE) {
+		const x4 = leaf.next();
+		if (x4 === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _30[0];
-		const j: rs.usize = _30[1];
+		const x5 = leaf2.next();
+		if (x5 === rs.DONE) {
+			break;
+		}
+		const i: rs.usize = x4;
+		const j: rs.usize = x5;
 		const at = rs.idx(byRef.items, i);
 		const at2 = rs.idx(byRef.items, j);
 		const part = byRef.items[at];
@@ -5467,21 +5439,12 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const leaf3: rs.Iter<ByRef.ByRef> = rs.iterSlice(xs.items);
 	let count: number = 0;
 	while (true) {
-		let next3!: [rs.usize, ByRef.ByRef] | rs.Done;
-		next4: {
-			const x7 = leaf3.next();
-			if (x7 === rs.DONE) {
-				next3 = rs.DONE;
-				break next4;
-			}
-			next3 = [count++, x7];
-		}
-		const _1454: [rs.usize, ByRef.ByRef] | rs.Done = next3;
-		if (_1454 === rs.DONE) {
+		const x7 = leaf3.next();
+		if (x7 === rs.DONE) {
 			break;
 		}
-		const i2: rs.usize = _1454[0];
-		const x: ByRef.ByRef = _1454[1];
+		const i2: rs.usize = count++;
+		const x: ByRef.ByRef = x7;
 		rs.byteVecPush(out, rs.btreeAdd(set, x) ? 1 : 0);
 		rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(rs.btreeInsert(map, [x] as [ByRef.ByRef], i2), (i6: rs.usize): rs.u8 => {
 			return i6 & 0xff;
@@ -5526,21 +5489,12 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const leaf4: rs.Iter<ByVal.ByVal> = rs.iterSlice(xs2.items);
 	let count2: number = 0;
 	while (true) {
-		let next5!: [rs.usize, ByVal.ByVal] | rs.Done;
-		next6: {
-			const x14 = leaf4.next();
-			if (x14 === rs.DONE) {
-				next5 = rs.DONE;
-				break next6;
-			}
-			next5 = [count2++, x14];
-		}
-		const _1564: [rs.usize, ByVal.ByVal] | rs.Done = next5;
-		if (_1564 === rs.DONE) {
+		const x14 = leaf4.next();
+		if (x14 === rs.DONE) {
 			break;
 		}
-		const i3: rs.usize = _1564[0];
-		const x2: ByVal.ByVal = _1564[1];
+		const i3: rs.usize = count2++;
+		const x2: ByVal.ByVal = x14;
 		rs.byteVecPush(out, rs.btreeAdd(set2, x2) ? 1 : 0);
 		rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(rs.btreeInsert(map2, [x2] as [ByVal.ByVal], i3), (i9: rs.usize): rs.u8 => {
 			return i9 & 0xff;
@@ -5585,21 +5539,12 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const leaf5: rs.Iter<Mixed.Mixed> = rs.iterSlice(xs3.items);
 	let count3: number = 0;
 	while (true) {
-		let next7!: [rs.usize, Mixed.Mixed] | rs.Done;
-		next8: {
-			const x21 = leaf5.next();
-			if (x21 === rs.DONE) {
-				next7 = rs.DONE;
-				break next8;
-			}
-			next7 = [count3++, x21];
-		}
-		const _1674: [rs.usize, Mixed.Mixed] | rs.Done = next7;
-		if (_1674 === rs.DONE) {
+		const x21 = leaf5.next();
+		if (x21 === rs.DONE) {
 			break;
 		}
-		const i4: rs.usize = _1674[0];
-		const x3: Mixed.Mixed = _1674[1];
+		const i4: rs.usize = count3++;
+		const x3: Mixed.Mixed = x21;
 		rs.byteVecPush(out, rs.btreeAdd(set3, x3) ? 1 : 0);
 		rs.iterExtendBytes(out, rs.iterOption(option_map$14ju55r(rs.btreeInsert(map3, [x3] as [Mixed.Mixed], i4), (i12: rs.usize): rs.u8 => {
 			return i12 & 0xff;

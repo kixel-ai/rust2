@@ -379,17 +379,42 @@ Future<void> script() async {
   final berth = api.Berth(4);
   print('berth Some(${berth.at()}) ${api.Berth(null).at() == null ? 'None' : 'Some'}');
 
-  // A `Copy` type changed in place is a handle, which a call taking it by value copies.
-  final score = api.Score.of(2);
+  // A `Copy` type changed in place is a value, which a `&mut self` method returns as the
+  // call left it, Rust's own return beside it: a change reaches only the copy it replaces.
+  var score = api.Score.of(2);
   final increment = api.Score.of(3);
-  score.add(increment);
-  score.add(increment);
+  score = score.add(increment);
+  score = score.add(increment);
   print('score ${score.count()} ${increment.doubled().count()} ${increment.count()}');
+  var (scoreCopy, taken) = score.take();
+  print('taken $taken ${scoreCopy.count()} ${score.count()}');
+  final otherScore = api.Mut(increment);
+  final (absorbed, before0, before1) = scoreCopy.absorb(otherScore);
+  scoreCopy = absorbed;
+  print('absorbed $before0 $before1 ${scoreCopy.count()} ${otherScore.value.count()} ${increment.count()}');
+  var hits = api.Hits.of(1, 2);
+  final keptHits = hits;
+  hits = hits.add(api.Hits.of(10, 20));
+  hits = hits.hitsSet(7);
+  print('hits ${hits.hitsGet} ${hits.missesGet} ${keptHits.hitsGet} ${keptHits.missesGet} ${hits == keptHits}');
+  final (counted, countedSame) = keptHits.eq(keptHits);
+  print('counted $countedSame ${counted.hitsGet}');
+  var extent = api.Extent(5, 3);
+  final extentStart = extent;
+  final (slid, old) = extent.slide(10);
+  extent = slid;
+  extent = extent.startSet(extent.startGet + 1);
+  print('extent $old ${extent.startGet} ${extent.end()} ${extentStart.startGet} ${extentStart.end()}');
   final weighted = api.Weighted(score: increment, weight: 4);
   print('weighted ${weighted.total()} ${weighted.score.count() + increment.count()}');
-  // A checked score beside bytes in a tuple and in a record lent, and bytes beside a move.
-  final parcel = api.Parcel(score: increment, payload: bytes([97, 98, 99]));
-  print('heft ${api.heft((increment, bytes([97, 98])), parcel, (api.Counter('w', 1), bytes([97, 98, 99, 100])))}');
+  // A checked mark beside bytes in a tuple and in a record lent, and bytes beside a move.
+  final mark = api.Mark.of(1);
+  mark.add(2);
+  final parcel = api.Parcel(mark: mark, payload: bytes([97, 98, 99]));
+  print('heft ${api.heft((mark, bytes([97, 98])), parcel, (api.Counter('w', 1), bytes([97, 98, 99, 100])))}');
+  // A value's `&mut self` beside a checked handle.
+  final (noted, notedBefore) = api.Score.of(2).note(api.Mark.of(5));
+  print('noted $notedBefore ${noted.count()}');
 
   print('kept ${api.emit(PrintLog(), bytes([1, 2, 3, 4]))}');
   final logger = api.Logger(PrintLog());
@@ -747,7 +772,7 @@ Future<void> script() async {
   final copied = api.reissue(api.Ticket(7), (_) => nine).number();
   print('reissued $renewed $copied, cloned ${api.Ticket.clones()}');
   // A record's traits borrow the checked handle it holds.
-  final nines = api.Score.of(9);
+  final nines = api.Mark.of(9);
   final front = api.seat(nines, 1);
   final back = api.seat(nines, 2);
   print('seat ${front.debug()} ${front == api.seat(nines, 1)} ${front == back}');
@@ -934,6 +959,14 @@ Future<void> futures() async {
   check(await api.halved(3) == null, 'a future ready with None returns null');
   check(await api.halved(4) == 2, 'a future ready with Some returns its value');
   check(await api.cornerLater() == (1, 1), "a future's borrowed tuple returns whole");
+  // A future's error borrowing its argument crosses as its message, as `parseCert`'s does.
+  check(await api.parseLater('cert') == 4, 'a future with a borrowing error returns Ok');
+  try {
+    await api.parseLater('');
+    check(false, "a future's borrowing error throws");
+  } on api.StringException catch (e) {
+    check(e.error == 'malformed: ', "a future's borrowing error is its message");
+  }
   channel.send(Uint8List(0));
   try {
     await channel.recvNonempty();
@@ -1119,9 +1152,9 @@ void targets() {
   lacks(() => api.Page.default_(), 'api_Page_default');
   lacks(() => const api.Page(size: 1).debug(), 'api_Page_debug');
   lacks(() => const api.Page(size: 1) == const api.Page(size: 2), 'api_Page_eq');
-  final booth = api.Booth(score: api.Score.of(1));
+  final booth = api.Booth(mark: api.Mark.of(1));
   lacks(() => booth.debug(), 'api_Booth_debug');
-  lacks(() => booth == api.Booth(score: booth.score), 'api_Booth_eq');
+  lacks(() => booth == api.Booth(mark: booth.mark), 'api_Booth_eq');
 }
 
 @pragma('vm:never-inline')

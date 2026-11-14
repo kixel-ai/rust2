@@ -399,10 +399,12 @@ A chain of `map`, `filter`, `enumerate`, and `zip` over a slice's, a `Vec`'s, or
 iterator, or the `rev` of one, whose items drop nothing JS sees, fuses into the loop that
 reads it: `count`, `any`, `all`, `fold`, `sum`, `product`, `for_each`, `find`, `position`,
 or a `for` loop, each adaptor's step written inline, with the leaves still `rs.Iter`s and
-only their `next` called, so no adaptor object is made between them. Under a consumer, a
-closure whose body is one expression is written in place of its call, and a `zip`'s or an
-`enumerate`'s pair reaches it as its parts, made into an array only where the tuple is read
-whole. It calls each closure, and reads each side of a `zip`, in std's order, as the
+only their `next` called, so no adaptor object is made between them. A closure whose body
+is one expression is written in place of its call, in a `for` loop only where each variable
+it names is still the one it names where the chain is made, and a `zip`'s or an
+`enumerate`'s pair reaches the consumer or the loop's body as its parts, made into an array
+only where the tuple is read whole. A `for` loop leaves where the chain ends, testing for
+the end once. It calls each closure, and reads each side of a `zip`, in std's order, as the
 runtime does, a `zip` read by index or folded by its size hint included, so a chain whose
 consumer stops early or panics partway leaves what Rust's does. A chain read any other
 way, such as one returned, or read from the back or by `nth`, is the runtime's.

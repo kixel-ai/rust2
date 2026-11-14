@@ -509,21 +509,12 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _52: [rs.usize, rs.u8] | rs.Done = next;
-		if (_52 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _52[0];
-		const by: rs.u8 = _52[1];
+		const i: rs.usize = count++;
+		const by: rs.u8 = x;
 		const _58: rs.u8 = rs.u8Rem(by, 26);
 		if (_58 === 0) {
 			const r: rs.Place<rs.u32> = rs.place(() => n, (value27) => n = value27);

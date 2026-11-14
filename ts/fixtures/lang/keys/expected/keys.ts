@@ -133,21 +133,12 @@ export function find$String_str(keys: rs.Slice<rs.String>, q: string): rs.u8 {
 	const leaf: rs.Iter<rs.String> = rs.iterSlice(rs.sliceItems(keys));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.String] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _7: [rs.usize, rs.String] | rs.Done = next;
-		if (_7 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _7[0];
-		if (_7[1].v === q) {
+		const i: rs.usize = count++;
+		if (x.v === q) {
 			return i & 0xff;
 		}
 	}
@@ -159,21 +150,12 @@ export function find$sync_Arc_str_str(keys: rs.Slice<rs.Arc<string>>, q: string)
 	const leaf: rs.Iter<rs.Arc<string>> = rs.iterSlice(rs.sliceItems(keys));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.Arc<string>] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _7: [rs.usize, rs.Arc<string>] | rs.Done = next;
-		if (_7 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _7[0];
-		if (_7[1].value === q) {
+		const i: rs.usize = count++;
+		if (x.value === q) {
 			return i & 0xff;
 		}
 	}
@@ -185,21 +167,12 @@ export function find$u8_u8(keys: rs.ByteSlice, q: rs.u8): rs.u8 {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(keys));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _7: [rs.usize, rs.u8] | rs.Done = next;
-		if (_7 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _7[0];
-		if (_7[1] === q) {
+		const i: rs.usize = count++;
+		if (x === q) {
 			return i & 0xff;
 		}
 	}
@@ -759,21 +732,12 @@ export function places(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _11: [rs.usize, rs.u8] | rs.Done = next;
-		if (_11 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _11[0];
-		const b: rs.u8 = _11[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x;
 		const k: rs.u8 = rs.u8Rem(b, 97);
 		const _18: rs.u8 = rs.u8Rem(b, 6);
 		if (_18 === 0) {
@@ -1752,21 +1716,12 @@ export function keyed$Option_u8_2_keys_arrays_closure5(data: rs.ByteSlice, make:
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _13: [rs.usize, rs.u8] | rs.Done = next;
-		if (_13 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _13[0];
-		const b: rs.u8 = _13[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
 		const _23: Array<rs.u8 | undefined> = make(b);
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.hashInsert(map, _23, i2), 204));
@@ -1972,21 +1927,12 @@ export function keyed$Option_u8_2_keys_arrays_closure5(data: rs.ByteSlice, make:
 	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count2: number = 0;
 	while (true) {
-		let next3!: [rs.usize, rs.u8] | rs.Done;
-		next4: {
-			const x2 = leaf2.next();
-			if (x2 === rs.DONE) {
-				next3 = rs.DONE;
-				break next4;
-			}
-			next3 = [count2++, x2];
-		}
-		const _431: [rs.usize, rs.u8] | rs.Done = next3;
-		if (_431 === rs.DONE) {
+		const x2 = leaf2.next();
+		if (x2 === rs.DONE) {
 			break;
 		}
-		const i3: rs.usize = _431[0];
-		const b4: rs.u8 = _431[1];
+		const i3: rs.usize = count2++;
+		const b4: rs.u8 = x2;
 		const pair: [rs.u8, Array<rs.u8 | undefined>] = [rs.u8Rem(b4, 2), make(b4)];
 		const _452: [rs.u8, Array<rs.u8 | undefined>] = [1, make(2)];
 		const _444: rs.u8 = ((rs.cmpTuple<[rs.u8, Array<rs.u8 | undefined>], rs.Ordering | undefined>([rs.cmp, rs.cmpSlice(rs.cmpOption(rs.cmp))])(pair, _452) === -1 ? 1 : 0) << 1) & 0xff;
@@ -2048,21 +1994,12 @@ export function keyed$bool_2_keys_arrays_closure4(data: rs.ByteSlice, make: (a0:
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _13: [rs.usize, rs.u8] | rs.Done = next;
-		if (_13 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _13[0];
-		const b: rs.u8 = _13[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
 		const _23: boolean[] = make(b);
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.hashInsert(map, _23, i2), 204));
@@ -2268,21 +2205,12 @@ export function keyed$bool_2_keys_arrays_closure4(data: rs.ByteSlice, make: (a0:
 	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count2: number = 0;
 	while (true) {
-		let next3!: [rs.usize, rs.u8] | rs.Done;
-		next4: {
-			const x2 = leaf2.next();
-			if (x2 === rs.DONE) {
-				next3 = rs.DONE;
-				break next4;
-			}
-			next3 = [count2++, x2];
-		}
-		const _431: [rs.usize, rs.u8] | rs.Done = next3;
-		if (_431 === rs.DONE) {
+		const x2 = leaf2.next();
+		if (x2 === rs.DONE) {
 			break;
 		}
-		const i3: rs.usize = _431[0];
-		const b4: rs.u8 = _431[1];
+		const i3: rs.usize = count2++;
+		const b4: rs.u8 = x2;
 		const pair: [rs.u8, boolean[]] = [rs.u8Rem(b4, 2), make(b4)];
 		const _452: [rs.u8, boolean[]] = [1, make(2)];
 		const _444: rs.u8 = ((rs.cmpTuple<[rs.u8, boolean[]], rs.Ordering | undefined>([rs.cmp, rs.cmpSlice(rs.cmp)])(pair, _452) === -1 ? 1 : 0) << 1) & 0xff;
@@ -2344,21 +2272,12 @@ export function keyed$char_2_keys_arrays_closure3(data: rs.ByteSlice, make: (a0:
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _13: [rs.usize, rs.u8] | rs.Done = next;
-		if (_13 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _13[0];
-		const b: rs.u8 = _13[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
 		const _23: rs.char[] = make(b);
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.hashInsert(map, _23, i2), 204));
@@ -2564,21 +2483,12 @@ export function keyed$char_2_keys_arrays_closure3(data: rs.ByteSlice, make: (a0:
 	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count2: number = 0;
 	while (true) {
-		let next3!: [rs.usize, rs.u8] | rs.Done;
-		next4: {
-			const x2 = leaf2.next();
-			if (x2 === rs.DONE) {
-				next3 = rs.DONE;
-				break next4;
-			}
-			next3 = [count2++, x2];
-		}
-		const _431: [rs.usize, rs.u8] | rs.Done = next3;
-		if (_431 === rs.DONE) {
+		const x2 = leaf2.next();
+		if (x2 === rs.DONE) {
 			break;
 		}
-		const i3: rs.usize = _431[0];
-		const b4: rs.u8 = _431[1];
+		const i3: rs.usize = count2++;
+		const b4: rs.u8 = x2;
 		const pair: [rs.u8, rs.char[]] = [rs.u8Rem(b4, 2), make(b4)];
 		const _452: [rs.u8, rs.char[]] = [1, make(2)];
 		const _444: rs.u8 = ((rs.cmpTuple<[rs.u8, rs.char[]], rs.Ordering | undefined>([rs.cmp, rs.cmpSlice(rs.cmp)])(pair, _452) === -1 ? 1 : 0) << 1) & 0xff;
@@ -2640,21 +2550,12 @@ export function keyed$i32_2_keys_arrays_closure2(data: rs.ByteSlice, make: (a0: 
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _13: [rs.usize, rs.u8] | rs.Done = next;
-		if (_13 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _13[0];
-		const b: rs.u8 = _13[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
 		const _23: rs.i32[] = make(b);
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.hashInsert(map, _23, i2), 204));
@@ -2860,21 +2761,12 @@ export function keyed$i32_2_keys_arrays_closure2(data: rs.ByteSlice, make: (a0: 
 	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count2: number = 0;
 	while (true) {
-		let next3!: [rs.usize, rs.u8] | rs.Done;
-		next4: {
-			const x2 = leaf2.next();
-			if (x2 === rs.DONE) {
-				next3 = rs.DONE;
-				break next4;
-			}
-			next3 = [count2++, x2];
-		}
-		const _431: [rs.usize, rs.u8] | rs.Done = next3;
-		if (_431 === rs.DONE) {
+		const x2 = leaf2.next();
+		if (x2 === rs.DONE) {
 			break;
 		}
-		const i3: rs.usize = _431[0];
-		const b4: rs.u8 = _431[1];
+		const i3: rs.usize = count2++;
+		const b4: rs.u8 = x2;
 		const pair: [rs.u8, rs.i32[]] = [rs.u8Rem(b4, 2), make(b4)];
 		const _452: [rs.u8, rs.i32[]] = [1, make(2)];
 		const _444: rs.u8 = ((rs.cmpTuple<[rs.u8, rs.i32[]], rs.Ordering | undefined>([rs.cmp, rs.cmpSlice(rs.cmp)])(pair, _452) === -1 ? 1 : 0) << 1) & 0xff;
@@ -2936,21 +2828,12 @@ export function keyed$keys_Hop_2_keys_arrays_closure6(data: rs.ByteSlice, make: 
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _13: [rs.usize, rs.u8] | rs.Done = next;
-		if (_13 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _13[0];
-		const b: rs.u8 = _13[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
 		const _23: Hop.Hop[] = copy$array_keys_Hop(make(b));
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.hashInsert(map, _23, i2), 204));
@@ -3156,21 +3039,12 @@ export function keyed$keys_Hop_2_keys_arrays_closure6(data: rs.ByteSlice, make: 
 	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count2: number = 0;
 	while (true) {
-		let next3!: [rs.usize, rs.u8] | rs.Done;
-		next4: {
-			const x2 = leaf2.next();
-			if (x2 === rs.DONE) {
-				next3 = rs.DONE;
-				break next4;
-			}
-			next3 = [count2++, x2];
-		}
-		const _431: [rs.usize, rs.u8] | rs.Done = next3;
-		if (_431 === rs.DONE) {
+		const x2 = leaf2.next();
+		if (x2 === rs.DONE) {
 			break;
 		}
-		const i3: rs.usize = _431[0];
-		const b4: rs.u8 = _431[1];
+		const i3: rs.usize = count2++;
+		const b4: rs.u8 = x2;
 		const pair: [rs.u8, Hop.Hop[]] = [rs.u8Rem(b4, 2), copy$array_keys_Hop(make(b4))];
 		const _452: [rs.u8, Hop.Hop[]] = [1, make(2)];
 		const _444: rs.u8 = ((rs.cmpTuple<[rs.u8, Hop.Hop[]], rs.Ordering | undefined>([rs.cmp, rs.cmpSlice(Hop.partialCmp$cmp_PartialOrd)])(pair, _452) === -1 ? 1 : 0) << 1) & 0xff;
@@ -3232,21 +3106,12 @@ export function keyed$u16_2_keys_arrays_closure0(data: rs.ByteSlice, make: (a0: 
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _13: [rs.usize, rs.u8] | rs.Done = next;
-		if (_13 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _13[0];
-		const b: rs.u8 = _13[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
 		const _23: rs.u16[] = make(b);
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.hashInsert(map, _23, i2), 204));
@@ -3452,21 +3317,12 @@ export function keyed$u16_2_keys_arrays_closure0(data: rs.ByteSlice, make: (a0: 
 	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count2: number = 0;
 	while (true) {
-		let next3!: [rs.usize, rs.u8] | rs.Done;
-		next4: {
-			const x2 = leaf2.next();
-			if (x2 === rs.DONE) {
-				next3 = rs.DONE;
-				break next4;
-			}
-			next3 = [count2++, x2];
-		}
-		const _431: [rs.usize, rs.u8] | rs.Done = next3;
-		if (_431 === rs.DONE) {
+		const x2 = leaf2.next();
+		if (x2 === rs.DONE) {
 			break;
 		}
-		const i3: rs.usize = _431[0];
-		const b4: rs.u8 = _431[1];
+		const i3: rs.usize = count2++;
+		const b4: rs.u8 = x2;
 		const pair: [rs.u8, rs.u16[]] = [rs.u8Rem(b4, 2), make(b4)];
 		const _452: [rs.u8, rs.u16[]] = [1, make(2)];
 		const _444: rs.u8 = ((rs.cmpTuple<[rs.u8, rs.u16[]], rs.Ordering | undefined>([rs.cmp, rs.cmpSlice(rs.cmp)])(pair, _452) === -1 ? 1 : 0) << 1) & 0xff;
@@ -3528,21 +3384,12 @@ export function keyed$u32_0_keys_arrays_closure7(data: rs.ByteSlice, make: (a0: 
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _13: [rs.usize, rs.u8] | rs.Done = next;
-		if (_13 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _13[0];
-		const b: rs.u8 = _13[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
 		const _23: rs.u32[] = make(b);
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.hashInsert(map, _23, i2), 204));
@@ -3748,21 +3595,12 @@ export function keyed$u32_0_keys_arrays_closure7(data: rs.ByteSlice, make: (a0: 
 	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count2: number = 0;
 	while (true) {
-		let next3!: [rs.usize, rs.u8] | rs.Done;
-		next4: {
-			const x2 = leaf2.next();
-			if (x2 === rs.DONE) {
-				next3 = rs.DONE;
-				break next4;
-			}
-			next3 = [count2++, x2];
-		}
-		const _431: [rs.usize, rs.u8] | rs.Done = next3;
-		if (_431 === rs.DONE) {
+		const x2 = leaf2.next();
+		if (x2 === rs.DONE) {
 			break;
 		}
-		const i3: rs.usize = _431[0];
-		const b4: rs.u8 = _431[1];
+		const i3: rs.usize = count2++;
+		const b4: rs.u8 = x2;
 		const pair: [rs.u8, rs.u32[]] = [rs.u8Rem(b4, 2), make(b4)];
 		const _452: [rs.u8, rs.u32[]] = [1, make(2)];
 		const _444: rs.u8 = ((rs.cmpTuple<[rs.u8, rs.u32[]], rs.Ordering | undefined>([rs.cmp, rs.cmpSlice(rs.cmp)])(pair, _452) === -1 ? 1 : 0) << 1) & 0xff;
@@ -3824,21 +3662,12 @@ export function keyed$u32_275_keys_arrays_closure8(data: rs.ByteSlice, make: (a0
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _13: [rs.usize, rs.u8] | rs.Done = next;
-		if (_13 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _13[0];
-		const b: rs.u8 = _13[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
 		const _23: rs.u32[] = make(b);
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.hashInsert(map, _23, i2), 204));
@@ -4044,21 +3873,12 @@ export function keyed$u32_275_keys_arrays_closure8(data: rs.ByteSlice, make: (a0
 	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count2: number = 0;
 	while (true) {
-		let next3!: [rs.usize, rs.u8] | rs.Done;
-		next4: {
-			const x2 = leaf2.next();
-			if (x2 === rs.DONE) {
-				next3 = rs.DONE;
-				break next4;
-			}
-			next3 = [count2++, x2];
-		}
-		const _431: [rs.usize, rs.u8] | rs.Done = next3;
-		if (_431 === rs.DONE) {
+		const x2 = leaf2.next();
+		if (x2 === rs.DONE) {
 			break;
 		}
-		const i3: rs.usize = _431[0];
-		const b4: rs.u8 = _431[1];
+		const i3: rs.usize = count2++;
+		const b4: rs.u8 = x2;
 		const pair: [rs.u8, rs.u32[]] = [rs.u8Rem(b4, 2), make(b4)];
 		const _452: [rs.u8, rs.u32[]] = [1, make(2)];
 		const _444: rs.u8 = ((rs.cmpTuple<[rs.u8, rs.u32[]], rs.Ordering | undefined>([rs.cmp, rs.cmpSlice(rs.cmp)])(pair, _452) === -1 ? 1 : 0) << 1) & 0xff;
@@ -4120,21 +3940,12 @@ export function keyed$u64_2_keys_arrays_closure1(data: rs.ByteSlice, make: (a0: 
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _13: [rs.usize, rs.u8] | rs.Done = next;
-		if (_13 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _13[0];
-		const b: rs.u8 = _13[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
 		const _23: rs.u64[] = make(b);
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.hashInsert(map, _23, i2), 204));
@@ -4340,21 +4151,12 @@ export function keyed$u64_2_keys_arrays_closure1(data: rs.ByteSlice, make: (a0: 
 	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count2: number = 0;
 	while (true) {
-		let next3!: [rs.usize, rs.u8] | rs.Done;
-		next4: {
-			const x2 = leaf2.next();
-			if (x2 === rs.DONE) {
-				next3 = rs.DONE;
-				break next4;
-			}
-			next3 = [count2++, x2];
-		}
-		const _431: [rs.usize, rs.u8] | rs.Done = next3;
-		if (_431 === rs.DONE) {
+		const x2 = leaf2.next();
+		if (x2 === rs.DONE) {
 			break;
 		}
-		const i3: rs.usize = _431[0];
-		const b4: rs.u8 = _431[1];
+		const i3: rs.usize = count2++;
+		const b4: rs.u8 = x2;
 		const pair: [rs.u8, rs.u64[]] = [rs.u8Rem(b4, 2), make(b4)];
 		const _452: [rs.u8, rs.u64[]] = [1, make(2)];
 		const _444: rs.u8 = ((rs.cmpTuple<[rs.u8, rs.u64[]], rs.Ordering | undefined>([rs.cmp, rs.cmpSlice(rs.cmp)])(pair, _452) === -1 ? 1 : 0) << 1) & 0xff;

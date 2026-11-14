@@ -3496,21 +3496,12 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _218: [rs.usize, rs.u8] | rs.Done = next;
-		if (_218 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i3: rs.usize = _218[0];
-		const b: rs.u8 = _218[1];
+		const i3: rs.usize = count++;
+		const b: rs.u8 = x;
 		rs.byteVecPush(out, behind(b as rs.u32, i3 & 0xff) & 0xff);
 		rs.byteVecPush(out, cellBehind(then$01qpu7s(rs.u8Rem(b, 3) !== 0, (): rs.Cell<rs.u32> => {
 			return new rs.Cell(b as rs.u32);
@@ -3824,22 +3815,13 @@ export function movedOut(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<HeldCell.HeldCell> = rs.iterSlice([held, old3]);
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, HeldCell.HeldCell] | rs.Done;
-		next2: {
-			const x3 = leaf.next();
-			if (x3 === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x3];
-		}
-		const _249: [rs.usize, HeldCell.HeldCell] | rs.Done = next;
-		if (_249 === rs.DONE) {
+		const x3 = leaf.next();
+		if (x3 === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _249[0];
+		const i: rs.usize = count++;
 		const _259: rs.u32 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.u32;
-		const object = _249[1];
+		const object = x3;
 		const value4 = { c: new rs.Cell(new rs.RefCell(rs.u32Add(_259, i as rs.u32))) };
 		const cell3 = object.c;
 		rs.ptrWrite(object, value4);
@@ -3988,21 +3970,12 @@ export function genericUnions(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _7: [rs.usize, rs.u8] | rs.Done = next;
-		if (_7 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _7[0];
-		const byte: rs.u8 = _7[1];
+		const i: rs.usize = count++;
+		const byte: rs.u8 = x;
 		const wide: rs.u32 = ((((byte as rs.u32) << 16) >>> 0) | i as rs.u32) >>> 0;
 		const iter2: rs.Iter<[rs.u32, rs.u8]> = rs.iterSlice(either$u32(wide, ~wide >>> 0, byte));
 		while (true) {

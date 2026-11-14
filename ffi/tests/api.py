@@ -358,16 +358,39 @@ def script():
 	berth = api.Berth.new(4)
 	print(f"berth Some({berth.at()}) {'None' if api.Berth.new(None).at() is None else 'Some'}")
 
-	# A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	# A `Copy` type changed in place is a value, which a `&mut self` method returns as the
+	# call left it, Rust's own return beside it: a change reaches only the copy it replaces.
 	score = api.Score.of(2)
 	increment = api.Score.of(3)
-	score.add(increment)
-	score.add(increment)
+	score = score.add(increment)
+	score = score.add(increment)
 	print(f"score {score.count()} {increment.doubled().count()} {increment.count()}")
+	score_copy, taken = score.take()
+	print(f"taken {taken} {score_copy.count()} {score.count()}")
+	other_score = api.Mut(increment)
+	score_copy, before0, before1 = score_copy.absorb(other_score)
+	print(f"absorbed {before0} {before1} {score_copy.count()} {other_score.value.count()} {increment.count()}")
+	hits = api.Hits.of(1, 2)
+	kept_hits = hits
+	hits = hits.add(api.Hits.of(10, 20))
+	hits = hits.hits_set(7)
+	print(f"hits {hits.hits_get} {hits.misses_get} {kept_hits.hits_get} {kept_hits.misses_get} {flag(hits == kept_hits)}")
+	counted, same = kept_hits.eq(kept_hits)
+	print(f"counted {flag(same)} {counted.hits_get}")
+	extent = api.Extent.new(5, 3)
+	extent_start = extent
+	extent, old = extent.slide(10)
+	extent = extent.start_set(extent.start_get + 1)
+	print(f"extent {old} {extent.start_get} {extent.end()} {extent_start.start_get} {extent_start.end()}")
 	weighted = api.Weighted(increment, 4)
 	print(f"weighted {weighted.total()} {weighted.score.count() + increment.count()}")
-	# A checked score beside bytes in a tuple and in a record lent, and bytes beside a move.
-	print(f"heft {api.heft((increment, b'ab'), api.Parcel(increment, b'abc'), (api.Counter.new('w', 1), b'abcd'))}")
+	# A checked mark beside bytes in a tuple and in a record lent, and bytes beside a move.
+	mark = api.Mark.of(1)
+	mark.add(2)
+	print(f"heft {api.heft((mark, b'ab'), api.Parcel(mark, b'abc'), (api.Counter.new('w', 1), b'abcd'))}")
+	# A value's `&mut self` beside a checked handle.
+	noted, noted_before = api.Score.of(2).note(api.Mark.of(5))
+	print(f"noted {noted_before} {noted.count()}")
 
 	print(f"kept {api.emit(PrintLog(), bytes([1, 2, 3, 4]))}")
 	logger = api.Logger.new(PrintLog())
@@ -722,7 +745,7 @@ def script():
 	held = api.reissue(api.Ticket.new(7), lambda _: kept).number()
 	print(f"reissued {given} {held}, cloned {api.Ticket.clones()}")
 	# A record's traits borrow the checked handle it holds.
-	nines = api.Score.of(9)
+	nines = api.Mark.of(9)
 	front, back = api.seat(nines, 1), api.seat(nines, 2)
 	print(f"seat {front!r} {str(front == api.seat(nines, 1)).lower()} {str(front == back).lower()}")
 	# A kept closure, called on another thread after the call that took it returned.
@@ -831,6 +854,13 @@ def futures():
 	# future polls again rather than waiting for a wake that already happened.
 	check(loop.run_until_complete(asyncio.wait_for(api.yielded(7), 5)) == 7, "a wake during the poll polls again")
 	check(loop.run_until_complete(api.corner_later()) == (1, 1), "a future's borrowed tuple returns whole")
+	# A future's error borrowing its argument crosses as its message, as `parse_cert`'s does.
+	check(loop.run_until_complete(api.parse_later("cert")) == 4, "a future with a borrowing error returns Ok")
+	try:
+		loop.run_until_complete(api.parse_later(""))
+		check(False, "a future's borrowing error raises")
+	except api.StringException as e:
+		check(e.error == "malformed: ", "a future's borrowing error is its message")
 
 	# Cancelled between its wake and its poll, a receive loses nothing: the payload stays
 	# for the next.
@@ -1376,7 +1406,7 @@ def values():
 		(lambda: api.is_family(api.Family.WASM), "api_Family.Wasm"),
 		(api.Page.default, "api_Page_default"),
 		(lambda: repr(api.Page(size=1)), "api_Page_debug"),
-		(lambda: repr(api.Booth(score=api.Score.of(1))), "api_Booth_debug"),
+		(lambda: repr(api.Booth(mark=api.Mark.of(1))), "api_Booth_debug"),
 	]:
 		try:
 			f()

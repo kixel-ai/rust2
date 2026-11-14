@@ -227,22 +227,13 @@ export function closures(a: rs.u8, b: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 	let count: number = 0;
 	while (true) {
-		let next!: [rs.usize, rs.u8] | rs.Done;
-		next2: {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				next = rs.DONE;
-				break next2;
-			}
-			next = [count++, x];
-		}
-		const _61: [rs.usize, rs.u8] | rs.Done = next;
-		if (_61 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const captured = _61[0];
+		const captured = count++;
 		const _68: () => rs.u8 = (): rs.u8 => {
-			return rs.u8WrappingAdd(_61[1], captured & 0xff);
+			return rs.u8WrappingAdd(x, captured & 0xff);
 		};
 		fs.items.push(_68);
 	}
