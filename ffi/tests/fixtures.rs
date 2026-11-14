@@ -3,7 +3,11 @@
 //! and, shrunk by R8, on Android, from Python by `tests/api.py`, from Swift by
 //! `tests/api.swift`, from Go by `tests/api.go`, and from Dart by `tests/api.dart`, whose
 //! transcripts must match the fixture's own script run natively.
-//! The reject fixture's export must fail at each item it cannot export.
+//! The reject fixture's export must fail at each item it cannot export, and generated
+//! type shapes round-trip in every language ([`shapes`]).
+
+#[path = "fixtures/shapes.rs"]
+mod shapes;
 
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsString;
@@ -339,7 +343,7 @@ fn api_cpp() {
 	for (standard, plain) in [(17, true), (20, false), (23, true)] {
 		let exe = scratch().join("api").join(format!("api-c++{standard}{EXE_SUFFIX}"));
 		run(&mut cxx(
-			api,
+			&api.link(),
 			standard,
 			plain,
 			&manifest_dir().join("tests").join("api.cpp"),
@@ -400,7 +404,7 @@ fn api_cpp() {
 		let src = scratch().join("api").join(format!("alone-{header}.cpp"));
 		std::fs::write(&src, format!("#include \"api/{header}\"\nint main() {{}}\n")).unwrap();
 		let exe = scratch().join("api").join(format!("alone-{header}{EXE_SUFFIX}"));
-		run(&mut cxx(api, 17, true, &src, &exe));
+		run(&mut cxx(&api.link(), 17, true, &src, &exe));
 	}
 
 	// A C++ program whose header names another contract than its library's aborts at load.
@@ -411,7 +415,7 @@ fn api_cpp() {
 	)
 	.unwrap();
 	let contract = scratch().join("api").join(format!("contract{EXE_SUFFIX}"));
-	run(&mut cxx(api, 17, false, &mismatched, &contract));
+	run(&mut cxx(&api.link(), 17, false, &mismatched, &contract));
 	let output = Command::new(&contract).output().unwrap();
 	assert!(!output.status.success(), "a mismatched contract did not abort");
 	let stderr = String::from_utf8_lossy(&output.stderr);
@@ -465,11 +469,29 @@ fn cpp_strict(api: &Api) {
 	}
 }
 
-/// A build of the C++ `src` against the api library into `exe`, at C++`standard`, with
+/// What a program links of an export: its headers, its static library, and what that
+/// links besides.
+struct Link<'a> {
+	include: PathBuf,
+	staticlib: PathBuf,
+	native: &'a [String],
+}
+
+impl Api {
+	fn link(&self) -> Link<'_> {
+		Link {
+			include: self.out.join("include"),
+			staticlib: self.staticlib(),
+			native: &self.native,
+		}
+	}
+}
+
+/// A build of the C++ `src` against the `link`ed library into `exe`, at C++`standard`, with
 /// exceptions and RTTI off if `plain`, and warnings as errors: by `CXX` or the platform's
 /// compiler, given MSVC's flags where the target is MSVC's.
-fn cxx(api: &Api, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command {
-	let include = api.out.join("include");
+fn cxx(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command {
+	let include = &link.include;
 	if cfg!(target_env = "msvc") {
 		// cl from a developer environment. Its C++23 is `c++latest`; its objects go beside `exe`.
 		let mut cmd = Command::new(std::env::var_os("CXX").unwrap_or_else(|| "cl".into()));
@@ -494,7 +516,7 @@ fn cxx(api: &Api, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command 
 		let mut out = OsString::from("-Fe");
 		out.push(exe);
 		cmd.arg("-I").arg(include).arg(src).arg(obj).arg(out);
-		cmd.arg("-link").arg(api.staticlib()).args(&api.native);
+		cmd.arg("-link").arg(&link.staticlib).args(link.native);
 		return cmd;
 	}
 	let mut cmd = Command::new(std::env::var_os("CXX").unwrap_or_else(|| "c++".into()));
@@ -506,8 +528,8 @@ fn cxx(api: &Api, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command 
 	cmd.args(["-pedantic", "-Wall", "-Wextra", "-Wshadow", "-Werror", "-I"])
 		.arg(include)
 		.arg(src)
-		.arg(api.staticlib())
-		.args(&api.native)
+		.arg(&link.staticlib)
+		.args(link.native)
 		.arg("-o")
 		.arg(exe);
 	cmd
@@ -599,8 +621,8 @@ fn api_android() {
 	// reaches, which R8 shrinks and renames, keeping only what the rules keep: the
 	// generated ones, and those kotlinx-coroutines' jar holds, which an app's build reads
 	// from it. Kotlin's annotations are on an app's classpath, not in its dex. The
-	// script's functions that hold lent bytes in their own frame are kept too, as R8 would
-	// inline them into their caller, whose frame ART's interpreter keeps reaching the bytes.
+	// script's functions marked `OwnFrame` are kept too, as R8 would inline them into their
+	// caller, whose frame ART's interpreter keeps reaching what they held.
 	let jar = dir.join("app.jar");
 	run(kotlinc(&out, &jar).arg("-include-runtime"));
 	run(Command::new("jar")
@@ -612,7 +634,7 @@ fn api_android() {
 	std::fs::write(
 		&app,
 		format!(
-			"-keep class ApiKt {{ public static void main(java.lang.String[]); static *** lentAround(); static *** lentToBudget*(...); }}\n-dontwarn org.jetbrains.annotations.**\n-printusage {}\n",
+			"-keep class ApiKt {{ public static void main(java.lang.String[]); @OwnFrame static <methods>; }}\n-dontwarn org.jetbrains.annotations.**\n-printusage {}\n",
 			dir.join("usage.txt").display()
 		),
 	)
@@ -971,7 +993,13 @@ fn api_dart() {
 	let generated = api.out.join("dart");
 	run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&generated));
 	let lib = api.lib.join(PYTHON_LIB);
-	let exe = dart_compile(&dir, &generated, &lib, &manifest_dir().join("tests").join("api.dart"));
+	let exe = dart_compile(
+		"api",
+		&dir,
+		&generated,
+		&lib,
+		&manifest_dir().join("tests").join("api.dart"),
+	);
 	let dart = run(&mut dart_run(&exe, &[]));
 	assert_eq!(
 		String::from_utf8_lossy(&dart.stdout),
@@ -1025,7 +1053,7 @@ fn api_dart() {
 		"import 'package:api/api.dart' as api;\n\nvoid main() => api.dropped();\n",
 	)
 	.unwrap();
-	let exe = dart_compile(&contract, &contract, &lib, &main);
+	let exe = dart_compile("api", &contract, &contract, &lib, &main);
 	let output = dart_run(&exe, &[]).output().unwrap();
 	assert!(!output.status.success(), "a mismatched contract did not fail");
 	let stderr = String::from_utf8_lossy(&output.stderr);
@@ -1036,9 +1064,9 @@ fn api_dart() {
 }
 
 /// `main` compiled into a kernel snapshot in `dir`, importing the generated Dart in
-/// `package` as `package:api/api.dart`, whose native asset is the shared library `lib`: as
-/// a package's build hook would bundle it, which `dart compile` has no flag for.
-fn dart_compile(dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
+/// `package` as `package:<name>/<name>.dart`, whose native asset is the shared library
+/// `lib`: as a package's build hook would bundle it, which `dart compile` has no flag for.
+fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
 	let sdk = std::fs::canonicalize(which("dart"))
 		.unwrap()
 		.parent()
@@ -1050,7 +1078,7 @@ fn dart_compile(dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf 
 	std::fs::write(
 		&config,
 		format!(
-			"{{\"configVersion\": 2, \"packages\": [{{\"name\": \"api\", \"rootUri\": \"{root}/\", \"packageUri\": \"./\"}}]}}\n"
+			"{{\"configVersion\": 2, \"packages\": [{{\"name\": \"{name}\", \"rootUri\": \"{root}/\", \"packageUri\": \"./\"}}]}}\n"
 		),
 	)
 	.unwrap();
@@ -1067,7 +1095,7 @@ fn dart_compile(dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf 
 	std::fs::write(
 		&assets,
 		format!(
-			"format-version: [1, 0, 0]\nnative-assets:\n  {os}_{arch}:\n    \"package:api/api.dart\": [absolute, {:?}]\n",
+			"format-version: [1, 0, 0]\nnative-assets:\n  {os}_{arch}:\n    \"package:{name}/{name}.dart\": [absolute, {:?}]\n",
 			lib.display().to_string()
 		),
 	)
@@ -1116,11 +1144,15 @@ fn url(dir: &Path) -> String {
 
 /// The static libraries of swift-collections' modules the generated Swift imports, which
 /// `just ffi swift-collections` builds beside their modules, where [`swiftc`] finds them.
+/// Built once, since two tests running the recipe at once race on its checkout and build.
 fn swift_collections() -> Vec<PathBuf> {
-	run(Command::new("just")
-		.arg("--justfile")
-		.arg(manifest_dir().join("justfile"))
-		.arg("swift-collections"));
+	static BUILT: OnceLock<()> = OnceLock::new();
+	BUILT.get_or_init(|| {
+		run(Command::new("just")
+			.arg("--justfile")
+			.arg(manifest_dir().join("justfile"))
+			.arg("swift-collections"));
+	});
 	let build = collections_dir();
 	["BasicContainers", "InternalCollectionsUtilities", "SpanPreview"]
 		.iter()
@@ -1358,8 +1390,10 @@ fn go_package_names() {
 }
 
 /// A type a signature names that the root does not reach, as moq-net's `kio::Pending`,
-/// exports by its public path in its own crate, through a re-export or a module; one no public
-/// path names stays refused.
+/// exports by its public path in its own crate, through a re-export or a module, even from a
+/// crate the facade re-exports nothing from; one no public path names stays refused. Such a
+/// crate's error still crosses as its message, and its type an `Arc` holds stays an opaque
+/// handle, refused bare.
 #[test]
 fn unreached_types() {
 	let package = package("unreached_types");
@@ -1369,13 +1403,57 @@ fn unreached_types() {
 			(
 				"Cargo.toml",
 				"[package]\nname = \"unreached_types\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"pkg\"\n\n\
-				[dependencies]\nkio = { package = \"unreached-kio\", path = \"kio\" }\n\n[workspace]\nexclude = [\"kio\"]\n",
+				[dependencies]\nkio = { package = \"unreached-kio\", path = \"kio\" }\n\
+				net = { package = \"unreached-net\", path = \"net\" }\n\
+				conv = { package = \"unreached-conv\", path = \"conv\" }\n\n[workspace]\nexclude = [\"kio\", \"net\", \"conv\"]\n",
 			),
 			(
 				"src/lib.rs",
 				"pub use kio::Ready;\n\npub fn pending() -> kio::Pending {\n\tkio::Pending(1)\n}\n\n\
 				pub fn version() -> kio::version::Version {\n\tkio::version::Version { major: 2 }\n}\n\n\
-				pub fn seal() -> kio::Sealed {\n\tkio::sealed()\n}\n",
+				pub fn seal() -> kio::Sealed {\n\tkio::sealed()\n}\n\n\
+				pub fn connect() -> Result<net::Link, net::Fault> {\n\tnet::connect()\n}\n\n\
+				pub fn handle() -> std::sync::Arc<net::Handle> {\n\tstd::sync::Arc::new(net::Handle(4))\n}\n\n\
+				pub fn bare(handle: &net::Handle) -> u32 {\n\thandle.0\n}\n\n\
+				pub fn opaque() -> Result<(), net::Opaque> {\n\tErr(net::Opaque)\n}\n\n\
+				pub fn closed() -> net::Closed {\n\tnet::closed()\n}\n\n\
+				pub enum Failure {\n\tNet(net::Fault),\n}\n\npub fn fail() -> Failure {\n\tFailure::Net(net::Fault)\n}\n\n\
+				pub struct Buffer(Vec<u32>);\n\nimpl Buffer {\n\tpub fn new() -> Self {\n\t\tSelf(vec![1])\n\t}\n\n\
+				\tpub fn drain(&mut self) -> impl Iterator<Item = u32> + '_ {\n\t\tnet::drain(&mut self.0)\n\t}\n}\n\n\
+				pub fn copied(items: &[u32]) -> impl Iterator<Item = u32> + '_ {\n\titems.iter().copied()\n}\n\n\
+				#[derive(Clone)]\npub struct Held<'a>(&'a u32);\n\nimpl Held<'_> {\n\tpub fn get(&self) -> u32 {\n\t\t*self.0\n\t}\n}\n\n\
+				pub fn wrap(x: &u32) -> impl Clone + '_ {\n\tSome(Held(x))\n}\n\n#[derive(Clone)]\npub struct Own(u32);\n\nimpl Own {\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n\npub fn own() -> impl Clone {\n\tSome(Own(1))\n}\n\n\
+				impl Buffer {\n\tpub fn first(&self) -> impl Clone + '_ {\n\t\tOwn(self.0[0])\n\t}\n}\n\n\
+				pub struct Counter(u32);\n\nimpl Counter {\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n\n\
+				impl Buffer {\n\tfn counter(&self) -> impl Into<Counter> + '_ {\n\t\tCounter(self.0[0])\n\t}\n\n\
+				\tpub fn best(&self) -> impl Into<Counter> + '_ {\n\t\tself.counter()\n\t}\n}\n\n\
+				pub fn copied_again(items: &[u32]) -> impl Iterator<Item = u32> + '_ {\n\tcopied(items)\n}\n\n\
+				pub fn take(value: impl Into<conv::Value>) -> u32 {\n\tvalue.into().get()\n}\n",
+			),
+			(
+				"net/Cargo.toml",
+				"[package]\nname = \"unreached-net\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"net\"\n",
+			),
+			(
+				"net/src/lib.rs",
+				"mod link {\n\tpub struct Link(pub u32);\n\n\timpl Link {\n\t\tpub fn id(&self) -> u32 {\n\t\t\tself.0\n\t\t}\n\t}\n}\n\n\
+				pub use link::Link;\n\npub struct Handle(pub u32);\n\n#[derive(Debug)]\npub struct Fault;\n\n\
+				impl std::fmt::Display for Fault {\n\tfn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n\t\tf.write_str(\"fault\")\n\t}\n}\n\n\
+				impl std::error::Error for Fault {}\n\n\
+				pub struct Opaque;\n\nmod closed {\n\tpub struct Closed;\n}\n\npub type Closed = closed::Closed;\n\n\
+				pub fn closed() -> closed::Closed {\n\tclosed::Closed\n}\n\n\
+				pub fn connect() -> Result<Link, Fault> {\n\tOk(Link(1))\n}\n\n\
+				pub struct Drain<'a>(&'a mut Vec<u32>);\n\n\
+				pub fn drain(items: &mut Vec<u32>) -> Drain<'_> {\n\tDrain(items)\n}\n\n\
+				impl Iterator for Drain<'_> {\n\ttype Item = u32;\n\n\tfn next(&mut self) -> Option<u32> {\n\t\tself.0.pop()\n\t}\n}\n",
+			),
+			(
+				"conv/Cargo.toml",
+				"[package]\nname = \"unreached-conv\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"conv\"\n",
+			),
+			(
+				"conv/src/lib.rs",
+				"pub struct Value(u32);\n\nimpl Value {\n\tpub fn new(n: u32) -> Self {\n\t\tSelf(n)\n\t}\n\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n",
 			),
 			(
 				"kio/Cargo.toml",
@@ -1391,7 +1469,11 @@ fn unreached_types() {
 		],
 	);
 	// The export builds, naming `kio`'s types through its own dependency on `kio`.
-	std::fs::write(package.join("ffi.toml"), "exclude = [\"seal\"]\n").unwrap();
+	std::fs::write(
+		package.join("ffi.toml"),
+		"exclude = [\"seal\", \"bare\", \"opaque\", \"closed\", \"own\", \"Buffer::first\"]\n",
+	)
+	.unwrap();
 	let out = package.join("out");
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--config")
@@ -1400,7 +1482,22 @@ fn unreached_types() {
 		.arg(&out)
 		.env("CARGO_TARGET_DIR", package.join("build")));
 	let glue = std::fs::read_to_string(out.join("src/lib.rs")).unwrap();
+	// An `impl Iterator + '_` collected at the call holds no borrow past it.
+	assert!(glue.contains("fn pkg_copied("), "{glue}");
+	// So does one returning another's, whose hidden type is revealed in full.
+	assert!(glue.contains("fn pkg_copied_again("), "{glue}");
+	// A conversion target only an `impl Into` names is reached, and taken.
+	assert!(
+		glue.contains("rt::Object::<::conv_reached::Value>::take(p0, w)"),
+		"{glue}"
+	);
 	assert!(glue.contains("::kio_reached::Pending"), "{glue}");
+	// `net`'s error crosses as its message, or holds `Failure`, which holds it, an object, and
+	// its `Arc` crosses as an opaque handle.
+	assert!(
+		glue.contains("::net_reached::Link") && !glue.contains("Fault") && !glue.contains("net_reached::Handle"),
+		"{glue}"
+	);
 	run(cargo()
 		.arg("build")
 		.arg("--manifest-path")
@@ -1416,17 +1513,16 @@ fn unreached_types() {
 		.env("CARGO_TARGET_DIR", package.join("build")));
 	let moved = scratch().join("unreached_types-moved");
 	let _ = std::fs::remove_dir_all(&moved);
-	for dir in ["src", "kio"] {
+	for dir in ["src", "kio", "net", "conv"] {
 		copy_dir(&package.join(dir), &moved.join(dir));
 	}
 	for file in ["Cargo.toml", "ffi.toml"] {
 		std::fs::copy(package.join(file), moved.join(file)).unwrap();
 	}
-	std::fs::write(
-		moved.join("src/lib.rs"),
-		"pub use kio::Ready;\n\npub fn seal() -> kio::Sealed {\n\tkio::sealed()\n}\n",
-	)
-	.unwrap();
+	let lib = std::fs::read_to_string(package.join("src/lib.rs")).unwrap();
+	let (head, rest) = lib.split_once("pub fn pending").unwrap();
+	let rest = &rest[rest.find("pub fn seal").unwrap()..];
+	std::fs::write(moved.join("src/lib.rs"), format!("{head}{rest}")).unwrap();
 	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--config")
 		.arg(moved.join("ffi.toml"))
@@ -1457,8 +1553,37 @@ fn unreached_types() {
 		String::from_utf8_lossy(&output.stderr)
 	);
 	let report = std::fs::read_to_string(census.join("unreached_types.md")).unwrap();
-	// `Pending` and `Version` export; `Sealed` alone is refused, though an alias names it.
-	assert!(report.contains("| Types | 2 | 0 |"), "{report}");
+	// `Pending`, `Version`, `Link`, `Failure`, `Buffer`, and `conv::Value` export; `Sealed`
+	// alone is refused as unreached, though an alias names it. `net`'s error in `Failure` is
+	// never reached, so a handle holds it by value, and `Failure`, which holds it, is an object.
+	assert!(report.contains("| Types | 6 | 0 |"), "{report}");
+	assert!(report.contains("- `Failure`: object in a value `net::Fault`"), "{report}");
+	// A type an `Arc` holds, and a `Result`'s error without `Display`, stay refused as
+	// foreign; one no public path names is held by value instead.
+	for refused in [
+		"fn `bare` at src/lib.rs:23:1: foreign type `net::Handle`",
+		"fn `opaque` at src/lib.rs:27:1: foreign type `net::Opaque`",
+	] {
+		assert!(report.contains(refused), "{report}");
+	}
+	assert!(!report.contains("`closed`"), "{report}");
+	// `impl Iterator + '_` lends a borrow of the receiver, so `drain` is refused and `Drain`
+	// left out with it, rather than glue that does not build; so is `wrap`, whose hidden
+	// `Option` holds a borrowing `Held`.
+	assert!(
+		report.contains("- `Buffer::drain`: type C never holds `net::Drain`"),
+		"{report}"
+	);
+	assert!(report.contains("- `wrap`: type C never holds `Held`"), "{report}");
+	// So is `best`, whose `impl Into<Counter> + '_` hides another `impl Trait` hiding a
+	// `Counter`, an object its handle would hold the receiver's borrow for.
+	assert!(
+		report.contains("- `Buffer::best`: type C never holds `Counter`"),
+		"{report}"
+	);
+	// The glue cannot destructure a hidden type it cannot name, so only an object crosses
+	// through an `impl Trait`: `own`'s `Option` is refused, and `Own` left out with it.
+	assert!(report.contains("- `own`: type C never holds `Own`"), "{report}");
 	assert!(
 		report.contains("fn `seal` at src/lib.rs:11:1: type not reachable from the crate root `kio::sealed::Sealed`"),
 		"{report}"
@@ -1524,21 +1649,69 @@ fn relative_target() {
 		.env("CARGO_TARGET_DIR", "build")
 		.output()
 		.expect("running rust2-ffi");
+	// The fixture's config leaves out items that export, which the census fails on, after
+	// writing itself: only on those, and on a field whose method of its name is refused,
+	// not on that method.
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(!output.status.success(), "the census passed:\n{stderr}");
+	let errors: Vec<&str> = stderr
+		.lines()
+		.filter(|line| line.starts_with("error: rust2-ffi:"))
+		.collect();
 	assert!(
-		output.status.success(),
-		"the census failed:\n{}",
-		String::from_utf8_lossy(&output.stderr)
+		errors.iter().all(|error| error.ends_with(", which exports")),
+		"the census failed otherwise:\n{stderr}"
+	);
+	assert!(
+		errors.contains(
+			&"error: rust2-ffi: exclude `field@Retry::jitter` in the config leaves out `field@Retry::jitter`, which exports"
+		),
+		"the census does not fail on `field@Retry::jitter`:\n{stderr}"
+	);
+	assert!(
+		!errors.iter().any(|error| error.contains("exclude `Retry::jitter`")),
+		"the census fails on `Retry::jitter`:\n{stderr}"
+	);
+	assert!(
+		!errors.iter().any(|error| error.contains("exclude `among`")),
+		"the census fails on `among`, which Swift refuses:\n{stderr}"
 	);
 	let text = std::fs::read_to_string(census.join("api-fixture.md")).unwrap();
 	for line in [
 		"- `Lease`: object no export returns",
 		"- `Void`: object no export returns",
 		"- `release`: type C never holds `Lease`",
-		"- `handover`: type C never holds `tls::Session`",
+		"- `handover`: type C never holds `tls::held::Handoff`",
 		"- `Unnamed`: generic type no export instantiates",
-		"- `blame`: type C never holds `tls::Invalid`",
+		"- `blame`: type C never holds `tls::held::Invalid`",
+		// An exclude that names what exports, by its generic or instance path or as a field,
+		// even where a method of the field's name is refused.
+		"## Excluded by the config, though it exports",
+		"- `Timed`: `Timed<bytes::Bytes>`",
+		"- `Pair<u8, api::Size>::swap`: `Pair<u8, api::Size>::swap`",
+		"- `Slot<u32>::value`: `Slot<u32>::value`",
+		"- `field@Retry::jitter`: `field@Retry::jitter`",
+		"- `Stack::depth_past<api::polar::Point>`: `Stack::depth_past<api::polar::Point>`",
 	] {
 		assert!(text.contains(line), "the census lists no `{line}`:\n{text}");
+	}
+	let exporting = text
+		.split("## Excluded by the config, though it exports")
+		.nth(1)
+		.unwrap();
+	let exporting = exporting.split("\n## ").next().unwrap();
+	// Not one that names only what is refused or no export returns.
+	for refused in [
+		"- `Copied`",
+		"- `Sample`",
+		"- `Queued`",
+		"- `Layer`",
+		"- `Retry::jitter`",
+	] {
+		assert!(
+			!exporting.contains(refused),
+			"the census lists `{refused}` as exporting:\n{exporting}"
+		);
 	}
 	// Its error a handle C never holds, `verify` still exports, the error as its message.
 	assert!(!text.contains("`verify`"), "the census lists `verify`:\n{text}");
@@ -1594,11 +1767,57 @@ fn errors(output: &Output) -> Vec<String> {
 	errors
 }
 
+/// Cleanup must refuse a baseline anywhere below a replaced directory.
+fn lock_baseline_cleanup() {
+	let dir = scratch().join("lock-cleanup");
+	let base = dir.join("base");
+	let output = export("lock", &base, &[], &[]);
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let before = std::fs::read(base.join("api.json")).unwrap();
+	for replaced in ["go", "include/lock"] {
+		let out = dir.join(replaced.replace('/', "-"));
+		let baseline = out.join(replaced).join("nested/baseline.json");
+		std::fs::create_dir_all(baseline.parent().unwrap()).unwrap();
+		std::fs::write(&baseline, &before).unwrap();
+		let args = ["--baseline".as_ref(), baseline.as_os_str()];
+		let output = exporter("lock", &out, &[], &args, &[]).output().unwrap();
+		assert!(!output.status.success(), "export deleted baseline inside {replaced}");
+		assert_eq!(std::fs::read(&baseline).unwrap(), before);
+		assert!(String::from_utf8_lossy(&output.stderr).contains("export replaces"));
+	}
+}
+
+/// Adding a thrown type can remove a Swift overload without changing its Rust function.
+fn lock_swift_removed_overload() {
+	let dir = scratch().join("lock-overload");
+	let base = dir.join("base");
+	let output = export("lock", &base, &[], &[]);
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let baseline = base.join("api.json");
+	let args = ["--baseline".as_ref(), baseline.as_os_str()];
+	let out = dir.join("thrown");
+	let _ = std::fs::remove_dir_all(&out);
+	let output = exporter("lock", &out, &[], &args, &["--features", "thrown"])
+		.output()
+		.unwrap();
+	assert!(!output.status.success(), "removed Swift overload passed the lock");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains(
+			"overload omitting Rust parameter indices 0 (zero-based): its Swift name `debugDescription` is no longer exported"
+		),
+		"{stderr}"
+	);
+	assert!(!out.join("api.json").exists());
+}
+
 /// The lock fixture exported for wasm32, staged, and the host, then again against that
 /// export's API as the baseline: with `next`, which must fail at each break, and with
 /// `added`, which must pass.
 #[test]
 fn lock() {
+	lock_baseline_cleanup();
+	lock_swift_removed_overload();
 	let dir = scratch().join("lock");
 	let targets = [WASM, host()];
 	let output = export("lock", &dir.join("base"), &targets, &[]);
@@ -1609,6 +1828,51 @@ fn lock() {
 	);
 	let baseline = dir.join("base").join("api.json");
 	let before = std::fs::read(&baseline).unwrap();
+	let json: serde_json::Value = serde_json::from_slice(&before).unwrap();
+	for language in ["C++", "Kotlin", "Swift", "Dart", "Python", "Go"] {
+		assert!(
+			json["names"][language]["const lock::DEPTH"].is_string(),
+			"{language} constant name missing"
+		);
+	}
+	for missing in ["all", "Dart"] {
+		let mut bad = json.clone();
+		if missing == "all" {
+			bad.as_object_mut().unwrap().remove("names");
+		} else {
+			bad["names"].as_object_mut().unwrap().remove(missing);
+		}
+		let path = dir.join(format!("missing-{missing}.json"));
+		std::fs::write(&path, serde_json::to_vec(&bad).unwrap()).unwrap();
+		let args = ["--baseline".as_ref(), path.as_os_str()];
+		let out = dir.join(format!("missing-{missing}"));
+		let _ = std::fs::remove_dir_all(&out);
+		let output = exporter("lock", &out, &targets, &args, &[]).output().unwrap();
+		assert!(!output.status.success());
+		assert_eq!(
+			String::from_utf8_lossy(&output.stderr)
+				.matches("baseline lacks")
+				.count(),
+			1
+		);
+		assert!(!out.exists(), "a baseline without names wrote {}", out.display());
+	}
+	// A baseline from before names were kept still has its structure checked.
+	let path = dir.join("missing-all.json");
+	let args = ["--baseline".as_ref(), path.as_os_str()];
+	let out = dir.join("missing-next");
+	let _ = std::fs::remove_dir_all(&out);
+	let output = exporter("lock", &out, &targets, &args, &["--features", "next"])
+		.output()
+		.unwrap();
+	assert!(!out.exists(), "a refused export wrote {}", out.display());
+	assert!(!output.status.success());
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(stderr.contains("baseline lacks binding names"), "{stderr}");
+	assert!(
+		stderr.contains("the API breaks the baseline at fn `lock::removed`: it is removed"),
+		"no structural break against a baseline without names:\n{stderr}"
+	);
 	let args = ["--baseline".as_ref(), baseline.as_os_str()];
 	let itself = exporter("lock", &dir.join("base"), &targets, &args, &[])
 		.output()
@@ -1667,6 +1931,87 @@ fn lock() {
 		"an addition broke the baseline:\n{}",
 		String::from_utf8_lossy(&added.stderr)
 	);
+	let names = locked("names");
+	assert!(!names.status.success(), "binding renames passed the lock");
+	let stderr = String::from_utf8_lossy(&names.stderr);
+	for language in ["Kotlin", "Swift", "Go", "Dart", "Python"] {
+		assert!(
+			stderr.contains(&format!(
+				"its {language} name `GraphicsEncoderFinish` is now `GraphicsEncoder_Finish`"
+			)),
+			"missing class rename for {language}:\n{stderr}"
+		);
+	}
+	for (language, old, new) in [
+		("Kotlin", "smoothStep", "smoothStep_"),
+		("Swift", "smoothStep", "smoothStep_"),
+		("Dart", "smoothStep", "smoothStep_"),
+		("Python", "smooth_step", "smooth_step_"),
+		("Go", "SmoothStep", "SmoothStep_"),
+	] {
+		assert!(
+			stderr.contains(&format!("its {language} name `{old}` is now `{new}`")),
+			"missing member rename for {language}:\n{stderr}"
+		);
+	}
+
+	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	assert!(!dir.join("names/api.json").exists());
+	let members = locked("members");
+	assert!(!members.status.success());
+	let stderr = String::from_utf8_lossy(&members.stderr);
+	assert!(
+		stderr.contains("its C++ name `value` is now `value_`"),
+		"C++ member rename missing:\n{stderr}"
+	);
+	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	let wrappers = locked("wrappers");
+	assert!(!wrappers.status.success());
+	let stderr = String::from_utf8_lossy(&wrappers.stderr);
+	for text in [
+		"its Kotlin name `StringException` is now `StringException_`",
+		"its Python name `StringException` is now `StringException_`",
+		"its Swift name `StringError` is now `StringError_`",
+		"its Dart name `StringException` is now `StringException_`",
+		"its Dart name `ShapeCircle` is now `ShapeCircle_`",
+		"its Go name `ModeFast` is now `ModeFast_`",
+		"its Go name `GoString` is now `GoString_`",
+		"/ overload omitting Rust parameter indices 0 (zero-based): its Swift name `debugDescription` is now `debugDescription_`",
+	] {
+		assert!(stderr.contains(text), "missing {text}:\n{stderr}");
+	}
+	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	let defaults = locked("defaults");
+	assert!(!defaults.status.success(), "a Go Default rename passed the lock");
+	let stderr = String::from_utf8_lossy(&defaults.stderr);
+	assert!(
+		stderr.contains("type `lock::Meter` / Default: its Go name `MeterDefault` is now `MeterDefault_`"),
+		"Go Default rename missing:\n{stderr}"
+	);
+	let closure_base = dir.join("closure-base");
+	let output = export("lock", &closure_base, &targets, &["--features", "closures"]);
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+	let closure_baseline = closure_base.join("api.json");
+	let args = ["--baseline".as_ref(), closure_baseline.as_os_str()];
+	let output = exporter(
+		"lock",
+		&dir.join("closure-break"),
+		&targets,
+		&args,
+		&["--features", "closures,wrappers"],
+	)
+	.output()
+	.unwrap();
+	assert!(!output.status.success());
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	for language in ["Kotlin", "Python", "Dart"] {
+		assert!(
+			stderr.contains(&format!(
+				"exception class for `string`: its {language} name `StringException` is now `StringException_`"
+			)),
+			"{stderr}"
+		);
+	}
 	let next = locked("next");
 	assert!(!next.status.success(), "breaking the baseline passed");
 	assert!(
@@ -2541,4 +2886,68 @@ fn config_patched() {
 	);
 	// Built from here, where none of that config is read.
 	build_offline(&out, &root.join("glue"));
+}
+
+/// The workspace's profiles reach the glue's build, with an override of a package the
+/// library builds, but not one of a package only a test builds; an override naming no
+/// package, or `*`, is an error at its line.
+#[test]
+fn profiled() {
+	let package = package("profiled");
+	let files = |spec: &str| {
+		write_all(
+			&package,
+			&[
+				(
+					"Cargo.toml",
+					&format!(
+						"[package]\nname = \"profiled\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+						[profile.dev]\nopt-level = 1\n\n\
+						[profile.dev.package.\"{spec}\"]\nopt-level = 2\n\n\
+						[profile.dev.package.rust2-ffi-profiled-dev]\nopt-level = 3\n\n\
+						[dev-dependencies]\nrust2-ffi-profiled-dev = {{ path = \"dev\" }}\n\n\
+						[workspace]\nexclude = [\"dev\"]\n"
+					),
+				),
+				("src/lib.rs", "pub fn one() -> u32 {\n\t1\n}\n"),
+				(
+					"dev/Cargo.toml",
+					"[package]\nname = \"rust2-ffi-profiled-dev\"\nversion = \"0.0.0\"\nedition = \"2024\"\n",
+				),
+				("dev/src/lib.rs", ""),
+				("ffi.toml", ""),
+			],
+		);
+	};
+	files("profiled");
+	export_and_build(&package, &[]);
+	let manifest = std::fs::read_to_string(package.join("out/Cargo.toml")).unwrap();
+	let glue: toml::Table = toml::from_str(&manifest).unwrap();
+	assert_eq!(
+		glue["profile"]["dev"]["package"]["profiled"]["opt-level"].as_integer(),
+		Some(2),
+		"{manifest}"
+	);
+	assert_eq!(
+		glue["profile"]["dev"]["package"]["profiled-ffi"]["opt-level"].as_integer(),
+		Some(2),
+		"{manifest}"
+	);
+	assert!(!manifest.contains("rust2-ffi-profiled-dev"), "{manifest}");
+	files("missing");
+	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
+	assert!(!output.status.success(), "an override of no package passed");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("Cargo.toml:9: `profile.dev.package.missing` names no package the workspace resolves"),
+		"{stderr}"
+	);
+	files("*");
+	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
+	assert!(!output.status.success(), "a wildcard override passed");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("Cargo.toml:9: `profile.dev.package.\"*\"` would reach"),
+		"{stderr}"
+	);
 }

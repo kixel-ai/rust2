@@ -67,6 +67,25 @@ no such refusal; only `lite::version::Version`, which no public path names, stay
 object no export returns. The bump drops the stale `kio` exclude, which would otherwise leave
 `kio::Pending` out of the export.
 
+Decided 2026-11-13 (maintainer): ✅ widen #721 to a type a signature names from a dependency
+the facade exports nothing else from, such as `pub fn pending() -> kio::Pending` with no
+`pub use kio::…` (rejected: land as is with a follow-up quest; land with no follow-up). Such
+a crate keeps the roles of one no export is: an error of it never exports (one in a `Result`
+crosses as its message, one in an exported error's variant leaves that error an object), and
+its type behind an `Arc` stays an opaque handle, refused bare. At the pin this reaches
+mp4_atom's boxes (through moq-mux's `container::fmp4::Wire::new`, `Wire::trak`, and
+`fmp4::Error`), moq-quic, moq-sock, and rustls, so `ffi/moq/ffi.toml` excludes only what
+they still refuse.
+
+Decided 2026-11-13 (maintainer, #721's design checkpoint): ✅ an `impl Trait` return holds
+what its hidden type holds, as a named return does, so `fn wrap(x: &u32) -> impl Clone + '_ {
+Some(Held(x)) }` is refused instead of producing glue that does not build, while an iterator
+collected at the call still exports (rejected: map every `impl Trait` return as its hidden
+type everywhere; land as is with a follow-up quest). Implementing it showed the glue keeps the
+`impl Trait` itself, never its hidden type, so #721 lets one cross only when its hidden type is
+an object, holding every lifetime it captures, and refuses any other. moq's census at the pin
+is unchanged by it.
+
 Measured on 2026-11-12 at moq's `main` `6936f0a`: `just ffi moq-cpp` fails the export with
 36 errors, which the bump fixes in `ffi/moq/ffi.toml` or the exporter: 15 on the foreign
 type `std::num::NonZero` (such as `Client::with_peer_hop`), 11 stale excludes naming nothing
@@ -78,9 +97,9 @@ returns that are not `Clone`.
 
 - moq-dev/moq: `rind` builds for wasm32. moq-net depends on `rind`, whose md5 inline asm has
   no wasm32 arm, so `just ts moq <checkout>` fails at moq's `main`. Done when it passes there.
-  The fix merged in rind's `main` ([moq-dev/rind#543](https://github.com/moq-dev/rind/pull/543))
+  The fix merged in rind's `main` ([kixel-ai/rind#543](https://github.com/kixel-ai/rind/pull/543))
   and ships in rind 0.4.0. Its release PR
-  ([moq-dev/rind#511](https://github.com/moq-dev/rind/pull/511)) stays unmerged on purpose,
+  ([kixel-ai/rind#511](https://github.com/kixel-ai/rind/pull/511)) stays unmerged on purpose,
   as rind's `quest/m2/api/release-0.4.md` decides, until the CPU-check removal, the benchmark
   refresh, and moq's move are ready (reconfirmed by the maintainer on 2026-11-12); then
   [moq-dev/moq#8432](https://github.com/moq-dev/moq/pull/8432) moves moq to rind 0.4. Check:

@@ -17,6 +17,9 @@ use crate::ir::{Api, Callback, Constant, Enum, Field, Function, Home, Object, On
 /// A target's API, as a check writes it for the export of several targets.
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Target {
+	/// Names are present only in a complete export, after all targets merge.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub names: Option<crate::lock::Names>,
 	/// The facade's package, which every target's must share.
 	pub package: String,
 	/// The features the facade compiled with, which every target's must share, since the
@@ -266,6 +269,53 @@ impl Merged {
 		Differs { what, first, second }
 	}
 
+	/// Refuse each item whose path's second segment names a reached crate on a target that
+	/// does not reach it: there it is a facade module of the same name, which the glue
+	/// would route to the reached crate, a dependency of the other targets only.
+	fn collisions(&mut self) {
+		let api = &self.api;
+		let mut items: Vec<(&Vec<String>, On, Span)> = Vec::new();
+		fn functions<'a>(fs: &'a [Function], items: &mut Vec<(&'a Vec<String>, On, Span)>) {
+			fs.iter().for_each(|f| items.push((&f.path, f.on, f.span)))
+		}
+		for r in &api.records {
+			items.push((&r.path, r.on, r.span));
+			functions(&r.methods, &mut items);
+		}
+		for e in &api.enums {
+			items.push((&e.path, e.on, e.span));
+			functions(&e.methods, &mut items);
+		}
+		for o in &api.objects {
+			items.push((&o.path, o.on, o.span));
+			functions(&o.methods, &mut items);
+		}
+		for c in &api.callbacks {
+			items.push((&c.path, c.on, c.span));
+			functions(&c.methods, &mut items);
+		}
+		functions(&api.functions, &mut items);
+		api.constants.iter().for_each(|c| items.push((&c.path, c.on, c.span)));
+		let mut differs = Vec::new();
+		for r in &api.reached {
+			let reaches = On((api.targets.iter().enumerate())
+				.filter(|(_, t)| r.targets.contains(t))
+				.fold(0, |on, (i, _)| on | 1 << i));
+			for &(path, on, span) in &items {
+				let elsewhere = On(on.0 & !reaches.0);
+				if path.get(1) == Some(&r.krate) && elsewhere.0 != 0 {
+					let what = format!(
+						"`{}`, whose `{}` is a crate on one and a module on the other",
+						path.join("::"),
+						r.krate
+					);
+					differs.push(self.differs(what, (reaches, span), (elsewhere, span)));
+				}
+			}
+		}
+		self.differs.extend(differs);
+	}
+
 	/// The merged API, and what differs between its targets, once every target is added.
 	fn finish(mut self) -> (Api, Vec<Differs>) {
 		let renumbered = std::mem::take(&mut self.renumbered);
@@ -288,35 +338,7 @@ impl Merged {
 				}
 			}
 		}
-		// The glue names a reached crate's item through its own dependency, by the path's
-		// second segment, so no target's facade may name a module of its own alike.
-		let items = (self.api.records.iter().map(|r| (&r.path, r.on, r.span)))
-			.chain(self.api.enums.iter().map(|e| (&e.path, e.on, e.span)))
-			.chain(
-				self.api
-					.objects
-					.iter()
-					.filter(|o| !o.foreign)
-					.map(|o| (&o.path, o.on, o.span)),
-			)
-			.chain(self.api.callbacks.iter().map(|c| (&c.path, c.on, c.span)))
-			.chain(self.api.functions.iter().map(|f| (&f.path, f.on, f.span)))
-			.chain(self.api.constants.iter().map(|c| (&c.path, c.on, c.span)));
-		let mut clashes = Vec::new();
-		for (path, on, span) in items {
-			let Some(reached) = self.api.reached.iter().find(|r| path.get(1) == Some(&r.krate)) else {
-				continue;
-			};
-			let reaches = On((self.api.targets.iter().enumerate())
-				.filter(|(_, target)| reached.targets.contains(target))
-				.fold(0, |bits, (i, _)| bits | 1 << i));
-			// On a target that does not reach the crate, the path is the facade's module.
-			if on.0 & !reaches.0 != 0 {
-				let what = format!("module `{}`, also a crate a target reaches", reached.krate);
-				clashes.push(self.differs(what, (reaches, span), (On(on.0 & !reaches.0), span)));
-			}
-		}
-		self.differs.extend(clashes);
+		self.collisions();
 		match order_crates(&self.api) {
 			Ok(crates) => self.api.crates = crates,
 			Err(cycle) => {
@@ -727,47 +749,8 @@ mod tests {
 
 	use rustc_span::DUMMY_SP;
 
-	use super::{On, cycle, merge, order_crates};
-	use crate::ir::{Api, Constant, Enum, Field, Home, Literal, Reached, Traits, Type, Variant};
-
-	#[test]
-	fn refuses_a_module_named_as_a_crate_another_target_reaches() {
-		// `x`'s facade has a module `kio`; `y` reaches the crate `kio`, whose items the glue
-		// names through its own dependency.
-		let api = |target: &str, path: [&str; 3], reached: bool| Api {
-			records: Vec::new(),
-			enums: Vec::new(),
-			objects: Vec::new(),
-			callbacks: Vec::new(),
-			functions: Vec::new(),
-			constants: vec![Constant {
-				path: path.map(String::from).to_vec(),
-				home: Home {
-					krate: "f".into(),
-					outside: 0,
-				},
-				span: DUMMY_SP,
-				on: On(0),
-				docs: String::new(),
-				value: Literal::Bool(true),
-			}],
-			crates: vec!["f".into()],
-			reached: (reached.then(|| Reached {
-				krate: "kio".into(),
-				targets: vec![target.into()],
-			}))
-			.into_iter()
-			.collect(),
-			targets: vec![target.into()],
-		};
-		let (_, differs) = merge(vec![
-			api("x", ["f", "kio", "LOCAL"], false),
-			api("y", ["f", "kio", "REACHED"], true),
-		]);
-		let whats: Vec<&str> = differs.iter().map(|d| d.what.as_str()).collect();
-		assert_eq!(whats, ["module `kio`, also a crate a target reaches"]);
-		assert_eq!((differs[0].first.0.as_str(), differs[0].second.0.as_str()), ("y", "x"));
-	}
+	use super::{On, cycle, order_crates};
+	use crate::ir::{Api, Enum, Field, Home, Traits, Type, Variant};
 
 	#[test]
 	fn names_a_cycle_across_targets() {
@@ -830,5 +813,38 @@ mod tests {
 			panic!("a cycle")
 		};
 		assert_eq!((cycle.first.0.0, cycle.second.0.0), (2, 1));
+	}
+
+	#[test]
+	fn refuses_a_facade_module_named_as_another_targets_reached_crate() {
+		// On `x`, `f::kio` is the reached crate `kio`; on `y`, a module of the facade.
+		let api = |target: &str, reached: bool| Api {
+			records: Vec::new(),
+			enums: Vec::new(),
+			objects: Vec::new(),
+			callbacks: Vec::new(),
+			functions: Vec::new(),
+			constants: vec![crate::ir::Constant {
+				path: ["f", "kio", "N"].map(String::from).to_vec(),
+				home: Home::default(),
+				span: DUMMY_SP,
+				on: On::ALL,
+				docs: String::new(),
+				value: crate::ir::Literal::Bool(true),
+			}],
+			crates: vec!["f".into()],
+			reached: (reached.then(|| crate::ir::Reached {
+				krate: "kio".into(),
+				targets: vec![target.into()],
+			}))
+			.into_iter()
+			.collect(),
+			targets: vec![target.into()],
+		};
+		let (_, differs) = super::merge(vec![api("x", true), api("y", false)]);
+		assert_eq!(differs.len(), 1);
+		assert_eq!((differs[0].first.0.as_str(), differs[0].second.0.as_str()), ("x", "y"));
+		let (_, differs) = super::merge(vec![api("x", true), api("y", true)]);
+		assert!(differs.is_empty());
 	}
 }

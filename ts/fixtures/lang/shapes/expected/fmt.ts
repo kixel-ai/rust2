@@ -330,7 +330,14 @@ export function derived(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _211: Bare.Bare = {};
 	const args36 = [(f: rs.Formatter) => Braced.fmt$fmt_Debug(_208, f), (f: rs.Formatter) => Braced.fmt$fmt_Debug(_209, f), (f: rs.Formatter) => Bare.fmt$fmt_Debug(_210, f), (f: rs.Formatter) => Bare.fmt$fmt_Debug(_211, f)];
 	put(out, rs.fmtFormat([args36[0], " ", rs.fmtSpec({ alternate: true }, args36[1]), " ", args36[2], " ", rs.fmtSpec({ alternate: true }, args36[3])]).v);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(Braced.eq$cmp_PartialEq({}, {}) ? 1 : 0, Bare.eq$cmp_PartialEq({}, {}) ? 1 : 0)));
+	const dst = out;
+	const byte = Braced.eq$cmp_PartialEq({}, {}) ? 1 : 0;
+	const byte2 = Bare.eq$cmp_PartialEq({}, {}) ? 1 : 0;
+	rs.byteVecReserve(dst, 2 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte;
+	dst.data[pos + 1] = byte2;
+	dst.length = dst.length + 2;
 }
 
 /** `v`, logged, so an argument evaluated more than once shows. */

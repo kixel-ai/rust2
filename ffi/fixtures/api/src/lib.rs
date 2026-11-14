@@ -350,6 +350,12 @@ impl Board {
 		ranked.sort_by_key(|(_, counter)| std::cmp::Reverse(counter.get()));
 		ranked.into_iter()
 	}
+
+	/// Its highest counter, through an `impl Trait` that captures no borrow of the board, so
+	/// it crosses as the counter's handle.
+	pub fn best(&self) -> impl Into<Counter> + use<> {
+		(self.counters.values().max_by_key(|counter| counter.get()).cloned()).unwrap_or_default()
+	}
 }
 
 /// Points by name and the ids in use, as hang's renditions and moq-mux's selections: a map
@@ -1378,11 +1384,18 @@ pub fn next_packet(packet: Packet) -> Packet {
 pub struct Retry {
 	pub limit: Option<u32>,
 	pub delay: Option<u32>,
+	/// Its field exports, but the method of its name is refused, so the config excludes
+	/// both, and the census lists only `field@Retry::jitter` as excluding what exports.
+	pub jitter: u32,
 }
 
 impl Retry {
 	pub fn new(limit: Option<u32>) -> Self {
-		Self { limit, delay: None }
+		Self {
+			limit,
+			delay: None,
+			jitter: 0,
+		}
 	}
 
 	pub fn limit(&self) -> u32 {
@@ -1395,6 +1408,11 @@ impl Retry {
 
 	pub fn set_limit(&mut self, limit: u32) {
 		self.limit = Some(limit);
+	}
+
+	/// The jitter capped by `cap`, if any: a nested `Option`, which the export refuses.
+	pub fn jitter(&self, cap: Option<Box<Option<u32>>>) -> u32 {
+		cap.and_then(|cap| *cap).map_or(self.jitter, |cap| self.jitter.min(cap))
 	}
 }
 
@@ -2243,8 +2261,8 @@ pub fn nudge(point: &mut Point, by: i32) {
 	point.y += by;
 }
 
-/// A config of a crate no export is, behind an `Arc`, as moq-tokio's listener returns
-/// rustls's: an opaque handle, which Rust takes back.
+/// A config of a crate the facade re-exports nothing from, behind an `Arc`, as moq-tokio's
+/// listener returns rustls's: an opaque handle, which Rust takes back.
 pub fn secure(alpn: &str) -> Arc<tls::Config> {
 	Arc::new(tls::Config::new(alpn))
 }
@@ -2259,38 +2277,39 @@ pub fn alpn_lent(config: &Arc<tls::Config>) -> String {
 	config.alpn().to_string()
 }
 
-/// A certificate of a crate no export is, by value, as moq-tokio takes rustls's: an opaque
-/// handle, which Rust takes back or borrows.
-pub fn certify(der: &[u8]) -> tls::Cert {
-	tls::Cert::new(der)
+/// A certificate of a crate the facade re-exports nothing from, by value, with no public
+/// path there, as moq-tokio's rustls root certificates: an opaque handle, which Rust takes
+/// back or borrows.
+pub fn certify(der: &[u8]) -> tls::held::Cert {
+	tls::held::Cert::new(der)
 }
 
 /// The length of a certificate [`certify`] made, lent.
-pub fn cert_len(cert: &tls::Cert) -> usize {
+pub fn cert_len(cert: &tls::held::Cert) -> usize {
 	cert.der().len()
 }
 
 /// The bytes of a certificate [`certify`] made, taken back by value.
-pub fn cert_der(cert: tls::Cert) -> Vec<u8> {
+pub fn cert_der(cert: tls::held::Cert) -> Vec<u8> {
 	cert.der().to_vec()
 }
 
 /// The total length of a chain of certificates, each taken back by value.
-pub fn chain_len(chain: Vec<tls::Cert>) -> usize {
+pub fn chain_len(chain: Vec<tls::held::Cert>) -> usize {
 	chain.iter().map(|cert| cert.der().len()).sum()
 }
 
-/// A session of a crate no export is, which no export returns: left out, since C can never
+/// Another crate's session with no public path there, which no export returns: left out, since C can never
 /// hold one.
-pub fn handover(session: tls::Session) -> u32 {
+pub fn handover(session: tls::held::Handoff) -> u32 {
 	session.id
 }
 
 /// A certificate's length, or why it is refused: another crate's error, which crosses as
 /// its message though `blame` names it as a handle no export returns.
-pub fn verify(cert: &tls::Cert) -> Result<u32, tls::Invalid> {
+pub fn verify(cert: &tls::held::Cert) -> Result<u32, tls::held::Invalid> {
 	match cert.der().len() {
-		0 => Err(tls::Invalid {
+		0 => Err(tls::held::Invalid {
 			reason: "empty".to_string(),
 		}),
 		len => Ok(len as u32),
@@ -2298,8 +2317,14 @@ pub fn verify(cert: &tls::Cert) -> Result<u32, tls::Invalid> {
 }
 
 /// Another crate's error taken back by value, which no export returns: left out.
-pub fn blame(err: tls::Invalid) -> String {
+pub fn blame(err: tls::held::Invalid) -> String {
 	err.to_string()
+}
+
+/// A session of `alpn` lasting `seconds`, from a crate the facade re-exports nothing from:
+/// its type exports by its path there, and its error crosses as its message.
+pub fn resume(alpn: &str, seconds: u32) -> Result<tls::Session, tls::Error> {
+	tls::resume(alpn, seconds)
 }
 
 /// `text`'s length, or 0 for none: an optional borrow, lent as the borrow alone is.
@@ -2316,6 +2341,14 @@ pub async fn either_later(text: Option<&str>) -> usize {
 /// `payload` after `prefix`, if any.
 pub fn prefixed(payload: &[u8], prefix: Option<&[u8]>) -> Vec<u8> {
 	[prefix.unwrap_or_default(), payload].concat()
+}
+
+/// The sum of `a`, `b`, and `c`, if any: a list owned, then lent as a slice and as itself.
+pub fn sum_lists(a: Vec<i32>, b: Option<&[i32]>, c: Option<&Vec<i32>>) -> i32 {
+	a.iter()
+		.chain(b.unwrap_or_default())
+		.chain(c.into_iter().flatten())
+		.sum()
 }
 
 /// `point`'s coordinates summed, or 0 for none: an optional value, lent shared.
@@ -2364,6 +2397,141 @@ pub fn less(value: u32, _value: u32) -> u32 {
 /// Each row's sum.
 pub fn sums(rows: Vec<Vec<u32>>) -> Vec<u32> {
 	rows.iter().map(|row| row.iter().sum()).collect()
+}
+
+/// Each set's least item, from sets, which no block holds, nested as `sums`' rows are.
+pub fn least(sets: Vec<std::collections::BTreeSet<u32>>) -> Vec<std::collections::BTreeSet<u32>> {
+	sets.into_iter().map(|set| set.into_iter().take(1).collect()).collect()
+}
+
+/// `items` without its last, beside that last, or 0 when empty: a tuple holding a block.
+pub fn split_last(mut items: Vec<i32>) -> (Vec<i32>, u32) {
+	let last = items.pop().unwrap_or(0);
+	(items, last.unsigned_abs())
+}
+
+/// A record whose field takes the name a language's `equals` gives its argument.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Shadowed {
+	pub other: Vec<i32>,
+	pub a: u8,
+	pub b: u8,
+}
+
+/// A list of each fixed-width integer and float type, each crossing as one block.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Numbers {
+	pub u16s: Vec<u16>,
+	pub u32s: Box<[u32]>,
+	pub u64s: Vec<u64>,
+	pub i8s: Vec<i8>,
+	pub i16s: Vec<i16>,
+	pub i32s: Vec<i32>,
+	pub i64s: Vec<i64>,
+	pub f32s: Vec<f32>,
+	pub f64s: Vec<f64>,
+	pub some: Option<Vec<i32>>,
+}
+
+impl Numbers {
+	/// Each type's edges: its least, 0, 1, and its greatest; for floats, also -0.0, the
+	/// least subnormal, the infinities, and a NaN with a payload.
+	pub fn edges() -> Self {
+		Self {
+			u16s: vec![0, 1, u16::MAX],
+			u32s: Box::new([0, 1, u32::MAX]),
+			u64s: vec![0, 1, u64::MAX],
+			i8s: vec![i8::MIN, -1, 0, 1, i8::MAX],
+			i16s: vec![i16::MIN, -1, 0, 1, i16::MAX],
+			i32s: vec![i32::MIN, -1, 0, 1, i32::MAX],
+			i64s: vec![i64::MIN, -1, 0, 1, i64::MAX],
+			f32s: vec![
+				f32::MIN,
+				-0.0,
+				f32::from_bits(1),
+				f32::MAX,
+				f32::NEG_INFINITY,
+				f32::INFINITY,
+				f32::from_bits(0x7fc0_0001),
+			],
+			f64s: vec![
+				f64::MIN,
+				-0.0,
+				f64::from_bits(1),
+				f64::MAX,
+				f64::NEG_INFINITY,
+				f64::INFINITY,
+				f64::from_bits(0x7ff8_0000_0000_0001),
+			],
+			some: Some(Vec::new()),
+		}
+	}
+
+	/// Only the float lists hold anything: one zero each, negative when `negative` is.
+	pub fn zero(negative: bool) -> Self {
+		let zero = if negative { -0.0 } else { 0.0 };
+		Self {
+			u16s: Vec::new(),
+			u32s: Box::new([]),
+			u64s: Vec::new(),
+			i8s: Vec::new(),
+			i16s: Vec::new(),
+			i32s: Vec::new(),
+			i64s: Vec::new(),
+			f32s: vec![zero as f32],
+			f64s: vec![zero],
+			some: None,
+		}
+	}
+
+	/// Each list reversed, and `some` too where present.
+	pub fn reversed(mut self) -> Self {
+		self.u16s.reverse();
+		self.u32s.reverse();
+		self.u64s.reverse();
+		self.i8s.reverse();
+		self.i16s.reverse();
+		self.i32s.reverse();
+		self.i64s.reverse();
+		self.f32s.reverse();
+		self.f64s.reverse();
+		if let Some(some) = &mut self.some {
+			some.reverse();
+		}
+		self
+	}
+}
+
+/// A float beside a record of float lists, both compared as Rust's `==` compares floats.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Measure {
+	pub value: f64,
+	pub numbers: Numbers,
+}
+
+impl Measure {
+	/// `value` beside [`Numbers::zero`] of `negative`.
+	pub fn new(value: f64, negative: bool) -> Self {
+		Self {
+			value,
+			numbers: Numbers::zero(negative),
+		}
+	}
+}
+
+/// The sum of `items`, borrowed in place.
+pub fn sum_u32(items: &[u32]) -> u64 {
+	items.iter().map(|&v| u64::from(v)).sum()
+}
+
+/// `items` doubled, wrapping, from a borrowed slice.
+pub fn doubled_i64(items: &[i64]) -> Vec<i64> {
+	items.iter().map(|v| v.wrapping_mul(2)).collect()
+}
+
+/// `items` back as Rust took them, boxed.
+pub fn boxed_floats(items: Box<[f64]>) -> Box<[f64]> {
+	items
 }
 
 /// The points added up, from anything that iterates them.
@@ -2738,6 +2906,18 @@ pub struct StartSeekable {
 	pub at: u64,
 }
 
+/// Whether two floats are equal as `1`, named as the helper Kotlin's records compare through.
+pub fn same(a: f64, b: f64) -> i32 {
+	i32::from(a == b)
+}
+
+/// A count of doubles, named as Kotlin's primitive array of them: Kotlin's name takes a
+/// trailing `_`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DoubleArray {
+	pub len: u32,
+}
+
 pub mod clash {
 	/// A pitch in hertz, whose name Pascal case cannot tell from `TONE`'s.
 	#[derive(Clone, Copy, Debug, PartialEq)]
@@ -2871,4 +3051,56 @@ pub fn next_hop(hop: Option<NonZero<u64>>) -> Option<NonZero<u64>> {
 /// behind a `Box`.
 pub fn farther_hop(hops: Pair<NonZero<u16>>) -> Box<NonZero<u16>> {
 	Box::new(hops.left.max(hops.right))
+}
+
+/// Three optional borrowed counters, past what Swift takes, so the config leaves it out.
+pub fn among(first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
+	[first, second, third].into_iter().flatten().map(|c| c.value).sum()
+}
+
+/// A record named as C++'s `==` names its first argument, which must not hide it.
+#[allow(non_camel_case_types)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct a {
+	pub b: u8,
+}
+
+/// An enum named as C++'s `==` names its first argument.
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum b {
+	One,
+	Two(u8),
+}
+
+/// A handle named as C++'s `==` names its first argument.
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq)]
+pub struct c {
+	value: u8,
+}
+
+impl c {
+	/// A handle holding `value`.
+	pub fn new(value: u8) -> Self {
+		c { value }
+	}
+}
+
+/// An enum whose variants are named as what a Kotlin variant class's `equals` and
+/// `hashCode` name, which must not take the variants for them.
+#[derive(Clone, PartialEq)]
+pub enum Builtin {
+	Any(Vec<i32>),
+	Boolean(f64),
+	Int(f64),
+	Native(f64),
+}
+
+/// A record whose fields are named as the package and as `kotlin`, which Kotlin's
+/// generated `equals` and `hashCode` must not take for those.
+#[derive(Clone, PartialEq)]
+pub struct Qualifiers {
+	pub api: f64,
+	pub kotlin: f64,
 }

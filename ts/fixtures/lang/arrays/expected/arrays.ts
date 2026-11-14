@@ -355,7 +355,15 @@ export function lent(data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (!(_123 < 2)) {
 				rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _123);
 			}
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(sums[_123]).reverse()));
+			const dst = out;
+			const word = sums[_123];
+			rs.byteVecReserve(dst, 4 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = word & 255;
+			dst.data[pos + 1] = (word >>> 8) & 255;
+			dst.data[pos + 2] = (word >>> 16) & 255;
+			dst.data[pos + 3] = (word >>> 24) & 255;
+			dst.length = dst.length + 4;
 		} else {
 			const read: rs.u8[] = rs.arrayFrom(rs.byteSliceView(rs.byteSliceFrom(bytes)));
 			const wides: rs.u16[] = rs.arrayFrom(wide);
@@ -455,9 +463,17 @@ export function asSlices(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_22 === 6) {
 			written(rs.byteSliceFrom(bytes), rs.sliceFrom(wide), op);
 		} else {
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.iterSum(rs.iterMap(rs.iterSlice(wide), (_2: rs.u16): rs.u32 => {
+			const dst = out;
+			const word = rs.iterSum(rs.iterMap(rs.iterSlice(wide), (_2: rs.u16): rs.u32 => {
 				return _2 as rs.u32;
-			}), rs.u32Add, 0)).reverse()));
+			}), rs.u32Add, 0);
+			rs.byteVecReserve(dst, 4 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = word & 255;
+			dst.data[pos + 1] = (word >>> 8) & 255;
+			dst.data[pos + 2] = (word >>> 16) & 255;
+			dst.data[pos + 3] = (word >>> 24) & 255;
+			dst.length = dst.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(bytes));
 		}
 	}

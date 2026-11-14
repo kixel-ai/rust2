@@ -152,6 +152,9 @@ pub struct Facade<'a> {
 	pub exclude: &'a [String],
 	/// The dependency the glue names each crate it builds with by, by its crate name.
 	pub crates: &'a std::collections::BTreeMap<String, String>,
+	/// Paths from its root a census checks, without leaving out what they name: each
+	/// path one names is recorded in [`Report::audited`], as the exclude would have checked it.
+	pub audit: &'a [String],
 }
 
 /// What collection found in the facade, by paths from its root.
@@ -172,6 +175,8 @@ pub struct Report {
 	pub unheld: Vec<(String, Why)>,
 	/// Excluded paths, and how many items each left out.
 	pub excluded: Vec<(String, usize)>,
+	/// A census's audited paths, and each path one names, whether or not that item exports.
+	pub audited: Vec<(String, Vec<String>)>,
 	/// Type aliases, which export nothing of their own.
 	pub aliases: Vec<String>,
 }
@@ -240,6 +245,8 @@ struct Collector<'tcx> {
 	inferring: bool,
 	/// The crates of the items the walk reached, the facade's first.
 	crates: Vec<CrateNum>,
+	/// How many of `crates` the walk from the root reached, before any reached type's.
+	walked: usize,
 	report: Report,
 	/// Items the walk left out, and why: `excluded` or `doc(hidden)`.
 	left_out: rustc_data_structures::fx::FxHashMap<DefId, &'static str>,
@@ -278,6 +285,14 @@ struct Collector<'tcx> {
 	dependencies: std::collections::BTreeMap<String, String>,
 	/// Such types this pass met that `reach` lacks.
 	unreached: std::cell::RefCell<Vec<DefId>>,
+	/// Types an opaque `Arc` holds that a signature also names bare, which stay refused
+	/// rather than export twice.
+	barred: Vec<DefId>,
+	/// Whether the type being mapped is a `Result`'s error, which never reaches a type.
+	erring: std::cell::Cell<bool>,
+	/// Whether the type being mapped is only tried, as a candidate or before another rule,
+	/// whose failure reaches no type.
+	probing: std::cell::Cell<bool>,
 	api: Api,
 }
 
@@ -354,7 +369,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 		};
 		keys.insert(krate, key);
 	}
-	let pass = |orphans: &rustc_data_structures::fx::FxHashSet<Key<'tcx>>, reach: &[DefId]| {
+	let pass = |orphans: &rustc_data_structures::fx::FxHashSet<Key<'tcx>>, reach: &[DefId], barred: &[DefId]| {
 		let mut c = Collector {
 			tcx,
 			items: Vec::new(),
@@ -362,6 +377,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			keys: keys.clone(),
 			decls: Default::default(),
 			crates: vec![LOCAL_CRATE],
+			walked: 1,
 			report: Report {
 				package: facade.package.to_string(),
 				root: facade.root.clone(),
@@ -372,6 +388,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 				hidden: Vec::new(),
 				unheld: Vec::new(),
 				excluded: facade.exclude.iter().map(|path| (path.clone(), 0)).collect(),
+				audited: facade.audit.iter().map(|path| (path.clone(), Vec::new())).collect(),
 				aliases: Vec::new(),
 			},
 			instances: Vec::new(),
@@ -393,6 +410,9 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			reach: reach.to_vec(),
 			dependencies: facade.crates.clone(),
 			unreached: Default::default(),
+			barred: barred.to_vec(),
+			erring: Default::default(),
+			probing: Default::default(),
 			api: Api {
 				records: Vec::new(),
 				enums: Vec::new(),
@@ -414,7 +434,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			.collect();
 		c.level = level
 			.filter(|&(level, filter)| {
-				!c.exported(level.krate) && !c.items.iter().any(|(item, _)| *item == level || *item == filter)
+				!c.walked(level.krate) && !c.items.iter().any(|(item, _)| *item == level || *item == filter)
 			})
 			.map(|(level, filter)| Level {
 				level,
@@ -435,10 +455,24 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 	// signatures may name more.
 	let mut orphans = rustc_data_structures::fx::FxHashSet::default();
 	let mut reach = Vec::new();
+	let mut barred = Vec::new();
 	loop {
-		let c = pass(&orphans, &reach);
+		let c = pass(&orphans, &reach, &barred);
+		// A reached type an opaque `Arc` also holds would export twice, so it stays refused,
+		// as it was before its crate was reached.
+		let held: Vec<DefId> = (reach.iter().copied())
+			.filter(|&did| c.foreign.iter().any(|&(other, _)| other == did))
+			.collect();
+		if !held.is_empty() {
+			reach.retain(|did| !held.contains(did));
+			barred.extend(held);
+			orphans.clear();
+			continue;
+		}
 		let more = c.orphans();
-		let unreached = c.unreached.take();
+		let unreached: Vec<DefId> = (c.unreached.take().into_iter())
+			.filter(|&did| !c.foreign.iter().any(|&(other, _)| other == did))
+			.collect();
 		if more.is_empty() && unreached.is_empty() {
 			return Collected {
 				api: c.api,
@@ -614,14 +648,28 @@ impl<'tcx> Collector<'tcx> {
 		self.crates.contains(&krate)
 	}
 
-	/// Whether the config excludes `path`, counting the exclusion. A member of an instance
-	/// is left out by its instance's path or its type's, which leaves it out of each.
+	/// Whether the walk from the root reached an item of `krate`. A crate only signatures
+	/// reach keeps the roles of one no export is: its errors are never reached, one in a
+	/// `Result` crossing as its message, and an `Arc` of its type crosses as an opaque handle.
+	fn walked(&self, krate: CrateNum) -> bool {
+		self.crates[..self.walked].contains(&krate)
+	}
+
+	/// Whether the config excludes `path`, counting the exclusion, or else recording it under
+	/// each audited path that names it. A member of an instance is left out by its instance's
+	/// path or its type's, which leaves it out of each.
 	fn exclude(&mut self, path: &[String]) -> bool {
 		let report = &mut self.report;
 		for (_, key) in config::keys(&path[1..]) {
 			if let Some((_, count)) = report.excluded.iter_mut().find(|(excluded, _)| *excluded == key) {
 				*count += 1;
 				return true;
+			}
+		}
+		// Under every key that names it, so one census lists a broad exclude beside a narrow one.
+		for (_, key) in config::keys(&path[1..]) {
+			if let Some((_, named)) = report.audited.iter_mut().find(|(audited, _)| *audited == key) {
+				named.push(path[1..].join("::"));
 			}
 		}
 		false
@@ -857,27 +905,39 @@ impl<'tcx> Collector<'tcx> {
 		};
 		let did = adt.did();
 		let mapped = Some(did) == self.bytes || Some(did) == self.json_map || !self.opaque(did);
-		let held = !self.exported(did.krate) && !self.sysroot.contains(&did.krate) && !mapped;
+		let held = !self.walked(did.krate) && !self.sysroot.contains(&did.krate) && !mapped;
 		(held && inner_args.is_empty() && self.is_send(inner, TypingEnv::fully_monomorphized()) && self.is_sync(inner))
 			.then_some(did)
 	}
 
 	/// The type a handle holds by value, if it exports as an opaque handle: as
-	/// [`Self::opaque_arc`]'s, a type of a crate no export is, taking no type parameters, and
-	/// `Send` and `Sync`, but not an iterator. Its lifetimes are `'static`, as an object's are.
+	/// [`Self::opaque_arc`]'s, a type of a crate the walk from the root does not reach,
+	/// taking no type parameters, and `Send` and `Sync`, but not an iterator, nor one that
+	/// exports by its own crate's path. Its lifetimes are `'static`, as an object's are.
 	fn opaque_value(&self, ty: Ty<'tcx>) -> Option<DefId> {
 		let ty::Adt(adt, args) = ty.kind() else { return None };
 		let did = adt.did();
 		let mapped = Some(did) == self.bytes || Some(did) == self.json_map || !self.opaque(did);
-		let held = !self.exported(did.krate) && !self.sysroot.contains(&did.krate) && !mapped;
+		let held = !self.walked(did.krate) && !self.sysroot.contains(&did.krate) && !mapped;
 		// Each lifetime is `'static` in the export, as an object's is.
 		let erasable = args.iter().all(|arg| matches!(arg.kind(), GenericArgKind::Lifetime(_)));
 		// Asked of a signature's type, whose lifetimes may be bound by it.
 		let ty = ty::fold_regions(self.tcx, ty, |_, _| self.tcx.lifetimes.re_erased);
 		// An iterator crosses as the array of its items instead.
 		let iterator = implements(self.tcx, ty, did, sym::Iterator);
-		(held && erasable && !iterator && self.is_send(ty, TypingEnv::fully_monomorphized()) && self.is_sync(ty))
-			.then_some(did)
+		(held
+			&& erasable
+			&& !iterator
+			&& self.is_send(ty, TypingEnv::fully_monomorphized())
+			&& self.is_sync(ty)
+			&& !self.reaches(ty, did))
+		.then_some(did)
+	}
+
+	/// Whether `did`, the type of `ty`, exports with its API by its public path in its own
+	/// crate once a signature names it: an error never does, crossing as its message.
+	fn reaches(&self, ty: Ty<'tcx>, did: DefId) -> bool {
+		self.reachable(did) && !implements(self.tcx, ty, did, rustc_span::Symbol::intern("Error"))
 	}
 
 	/// Whether `ty` is another crate's type that an opaque handle holds, by value or behind
@@ -957,9 +1017,14 @@ impl<'tcx> Collector<'tcx> {
 		);
 		for site in sites {
 			let adt = tcx.adt_def(site.key.def_id);
-			// An object's private fields are no part of its API.
-			let fields = adt.all_fields().filter(|field| field.vis.is_public());
-			named.extend(fields.map(|field| field.ty(tcx, site.args).skip_norm_wip()));
+			// An object's private fields are no part of its API, nor are those the config
+			// leaves out.
+			for field in adt.all_fields().filter(|field| field.vis.is_public()) {
+				let shown = [&site.shown[..], &[field.name.to_string()]].concat();
+				if self.field_key(&site, field.name, &shown).is_some() {
+					named.push(field.ty(tcx, site.args).skip_norm_wip());
+				}
+			}
 			for (item, parent, shown, hidden) in self.members(&site) {
 				match item.kind {
 					_ if hidden => {}
@@ -1301,6 +1366,7 @@ impl<'tcx> Collector<'tcx> {
 	/// a module of the facade re-exported that crate's root.
 	fn walk_reach(&mut self, seen: &rustc_data_structures::fx::FxHashSet<DefId>) {
 		let tcx = self.tcx;
+		self.walked = self.crates.len();
 		for def_id in self.reach.clone() {
 			if seen.contains(&def_id) {
 				continue;
@@ -1311,12 +1377,6 @@ impl<'tcx> Collector<'tcx> {
 			}
 			let own = self.crate_path(def_id).expect("a reached type has a path in its crate");
 			let outside = path.len();
-			if !def_id.is_local() && !self.api.reached.iter().any(|r| r.krate == path[1]) {
-				self.api.reached.push(crate::ir::Reached {
-					krate: path[1].clone(),
-					targets: self.api.targets.clone(),
-				});
-			}
 			path.extend(own);
 			if self.exclude(&path) {
 				self.left_out.insert(def_id, "excluded type");
@@ -1327,6 +1387,13 @@ impl<'tcx> Collector<'tcx> {
 				report.hidden.push(rest);
 				self.left_out.insert(def_id, "doc(hidden) type");
 				continue;
+			}
+			// The glue depends on its crate only once a type of it is walked.
+			if !def_id.is_local() && !self.api.reached.iter().any(|r| r.krate == path[1]) {
+				self.api.reached.push(crate::ir::Reached {
+					krate: path[1].clone(),
+					targets: self.api.targets.clone(),
+				});
 			}
 			if !self.crates.contains(&def_id.krate) {
 				self.crates.push(def_id.krate);
@@ -1347,11 +1414,26 @@ impl<'tcx> Collector<'tcx> {
 		if def_id.is_local() {
 			return true;
 		}
+		if self.barred.contains(&def_id) || self.sysroot.contains(&def_id.krate) {
+			return false;
+		}
 		let name = tcx.crate_name(def_id.krate);
 		let root = tcx.module_children_local(LOCAL_CRATE.as_def_id().expect_local());
 		self.keys[&def_id.krate] == name.as_str()
 			&& !root.iter().any(|child| child.ident.name == name)
 			&& self.dependencies.contains_key(name.as_str())
+	}
+
+	/// Walk `def_id` by its public path in its own crate in the next pass, unless the type
+	/// being mapped is only tried.
+	fn reached(&self, def_id: DefId) {
+		if self.probing.get() {
+			return;
+		}
+		let mut unreached = self.unreached.borrow_mut();
+		if !unreached.contains(&def_id) {
+			unreached.push(def_id);
+		}
 	}
 
 	/// The shortest public path to `def_id` from its own crate's root, through that crate's
@@ -2194,35 +2276,47 @@ impl<'tcx> Collector<'tcx> {
 		}
 	}
 
+	/// The `field@` key of the field `name` of `site`, shown as `shown`, and whether a method
+	/// or constant shares its name, or `None` if the config excludes it. As in rustdoc,
+	/// `field@` and the path name the field, and the path alone does unless a method or
+	/// constant of this instance takes the name, which it then names.
+	fn field_key(
+		&mut self,
+		site: &Site<'tcx>,
+		name: rustc_span::Symbol,
+		shown: &[String],
+	) -> Option<(Vec<String>, bool)> {
+		let tcx = self.tcx;
+		let self_ty = self.site_ty(site);
+		let shared = (tcx.inherent_impls(site.key.def_id).iter())
+			.filter_map(|&imp| Some((imp, self.impl_args(imp, self_ty)?)))
+			.flat_map(|(imp, parent)| {
+				(tcx.associated_items(imp).filter_by_name_unhygienic(name)).map(move |item| (item, parent))
+			})
+			.any(|(item, parent)| {
+				matches!(item.kind, ty::AssocKind::Fn { .. } | ty::AssocKind::Const { .. })
+					&& tcx.visibility(item.def_id).is_public()
+					&& self.applies(item.def_id, parent)
+			});
+		let mut key = shown.to_vec();
+		key[1].insert_str(0, "field@");
+		(!self.exclude(&key) && (shared || !self.exclude(shown))).then_some((key, shared))
+	}
+
 	/// A getter and a setter for each `pub` field of a struct exported as an object: the
 	/// getter returns a copy, and the setter assigns in place, as `x.field = value` does.
 	fn accessors(&mut self, site: &Site<'tcx>) -> Vec<Function> {
 		let tcx = self.tcx;
 		let mut accessors = Vec::new();
-		let self_ty = self.site_ty(site);
 		for field in &tcx.adt_def(site.key.def_id).non_enum_variant().fields {
 			if !field.vis.is_public() {
 				continue;
 			}
 			let name = field.name.to_string();
 			let shown = [&site.shown[..], std::slice::from_ref(&name)].concat();
-			// As in rustdoc, `field@` and the path name the field, and the path alone does
-			// unless a method or constant of this instance takes the name, which it then names.
-			let shared = (tcx.inherent_impls(site.key.def_id).iter())
-				.filter_map(|&imp| Some((imp, self.impl_args(imp, self_ty)?)))
-				.flat_map(|(imp, parent)| {
-					(tcx.associated_items(imp).filter_by_name_unhygienic(field.name)).map(move |item| (item, parent))
-				})
-				.any(|(item, parent)| {
-					matches!(item.kind, ty::AssocKind::Fn { .. } | ty::AssocKind::Const { .. })
-						&& tcx.visibility(item.def_id).is_public()
-						&& self.applies(item.def_id, parent)
-				});
-			let mut key = shown.clone();
-			key[1].insert_str(0, "field@");
-			if self.exclude(&key) || (!shared && self.exclude(&shown)) {
+			let Some((key, shared)) = self.field_key(site, field.name, &shown) else {
 				continue;
-			}
+			};
 			let span = tcx.def_span(field.did);
 			let ty = field.ty(tcx, site.args).skip_norm_wip();
 			// An instance's field of `()`, such as a default extension, holds nothing to read.
@@ -2877,7 +2971,7 @@ impl<'tcx> Collector<'tcx> {
 		// refused.
 		let mut collect = false;
 		if !future
-			&& self.ret(output).is_err()
+			&& self.probe(|| self.ret(output)).is_err()
 			&& let Some(items) = self
 				.collected(output, env)
 				.and_then(|item| self.vec_of(normalize(item)))
@@ -2898,13 +2992,17 @@ impl<'tcx> Collector<'tcx> {
 			ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Result, adt.did()) => {
 				let error = args.type_at(1);
 				// Another crate's error, such as `anyhow::Error` or `io::Error`, crosses as
-				// its message, as an exported error's `Display` already reads.
-				// One a handle holds by value is its message too, held or not.
+				// its message, as an exported error's `Display` already reads, even where a
+				// signature reaches its crate. One a handle holds by value is its message too,
+				// held or not.
+				self.erring.set(true);
+				let err = self.ty(error, Pos::Return);
+				self.erring.set(false);
 				let foreign = |mapped: &Result<Type, Why>| {
 					self.opaque_value(error).is_some()
 						|| matches!(mapped, Err(why) if why.construct == "foreign type" || why.construct == BOTH)
 				};
-				let err = match self.ty(error, Pos::Return) {
+				let err = match err {
 					err if foreign(&err) && implements(tcx, error, def_id, rustc_span::sym::Display) => {
 						Ok(Type::String)
 					}
@@ -2918,6 +3016,41 @@ impl<'tcx> Collector<'tcx> {
 			ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Result, adt.did()) => args.type_at(0),
 			_ => output,
 		};
+		// The glue cannot name an `impl Trait`'s hidden type, so one in a return that maps
+		// crosses only as what the glue passes on whole, an object's handle. A future and a
+		// collected iterator are taken apart instead, so it is what their output or items
+		// name that crosses.
+		let unrevealed = sig.output();
+		let mut named = if ok.is_ok() { vec![unrevealed] } else { Vec::new() };
+		while let Some(ty) = named.pop() {
+			for ty in ty.walk().filter_map(|arg| arg.as_type()) {
+				let ty::Alias(
+					_,
+					ty::AliasTy {
+						kind: ty::AliasTyKind::Opaque { def_id },
+						args,
+						..
+					},
+				) = ty.kind()
+				else {
+					continue;
+				};
+				if ty == unrevealed && (future || collect) {
+					let bounds = tcx.explicit_item_bounds(*def_id).skip_binder();
+					named.extend(bounds.iter().filter_map(|&(clause, _)| {
+						let term = clause.as_projection_clause()?.skip_binder().term.as_type()?;
+						Some(ty::EarlyBinder::bind(tcx, term).instantiate(tcx, args).skip_norm_wip())
+					}));
+					continue;
+				}
+				let hidden = normalize(ty);
+				if !matches!(hidden.kind(), ty::Adt(adt, args)
+					if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))))
+				{
+					errs.push(why("opaque type", ty.to_string()));
+				}
+			}
+		}
 		let lends = matches!(ok, Ok(Type::Ref(Mutability::Not, ref inner)) if matches!(**inner, Type::Object(_)))
 			&& !self.is_clone(ok_ty.peel_refs());
 		let ok = ok.map_err(|why| errs.push(why)).ok();
@@ -3167,8 +3300,11 @@ impl<'tcx> Collector<'tcx> {
 			let tr = bound.def_id();
 			let target = || bound.skip_binder().trait_ref.args.type_at(1);
 			if tcx.is_diagnostic_item(sym::Into, tr) || tcx.is_diagnostic_item(sym::AsRef, tr) {
-				// An `Into` target that does not map takes what converts into it instead.
-				let sources = (tcx.is_diagnostic_item(sym::Into, tr) && !self.maps(target(), Pos::Param))
+				// An `Into` target that does not map takes what converts into it instead. The
+				// signature names the target, so unlike a candidate only tried, mapping it reaches
+				// it by its public path in its own crate.
+				let maps = (self.inferring && self.names_export(target())) || self.ty(target(), Pos::Param).is_ok();
+				let sources = (tcx.is_diagnostic_item(sym::Into, tr) && !maps)
 					.then(|| self.sources(def_id, target(), outlives))
 					.transpose()?;
 				let sources = (sources.into_iter().flatten()).map(|(x, outlives, imp)| (x, outlives, Some(imp)));
@@ -3591,7 +3727,15 @@ impl<'tcx> Collector<'tcx> {
 	/// Whether `ty` maps where `pos` puts it. While inferring, before any type is declared,
 	/// one naming an export's type does.
 	fn maps(&self, ty: Ty<'tcx>, pos: Pos) -> bool {
-		(self.inferring && self.names_export(ty)) || self.ty(ty, pos).is_ok()
+		(self.inferring && self.names_export(ty)) || self.probe(|| self.ty(ty, pos)).is_ok()
+	}
+
+	/// `map`, reaching no type a refusal names.
+	fn probe<T>(&self, map: impl FnOnce() -> T) -> T {
+		let was = self.probing.replace(true);
+		let mapped = map();
+		self.probing.set(was);
+		mapped
 	}
 
 	/// Whether `ty` names an export's type, which maps only once declared.
@@ -4214,7 +4358,42 @@ impl<'tcx> Collector<'tcx> {
 					},
 				) => {
 					let tcx = self.tcx;
-					for &(clause, _) in tcx.explicit_item_bounds(*def_id).skip_binder() {
+					let bounds = tcx.explicit_item_bounds(*def_id).skip_binder();
+					// Any other `impl Trait` holds what its hidden type holds, as `impl Iterator + '_`
+					// over an object borrowing the receiver does; one collected at the call, or a
+					// future, whose borrows are checked apart, holds nothing past it.
+					let future = (bounds.iter()).any(|&(clause, _)| {
+						clause
+							.as_trait_clause()
+							.is_some_and(|tr| tcx.is_lang_item(tr.def_id(), LangItem::Future))
+					});
+					if !future {
+						// Revealed through each `impl Trait` it returns in turn, as `function` reveals it.
+						let mut hidden = tcx.type_of(*def_id).instantiate(tcx, args).skip_norm_wip();
+						while let ty::Alias(
+							_,
+							ty::AliasTy {
+								kind: ty::AliasTyKind::Opaque { def_id },
+								args,
+								..
+							},
+						) = hidden.kind()
+						{
+							hidden = tcx.type_of(*def_id).instantiate(tcx, args).skip_norm_wip();
+						}
+						// One whose hidden type is an object crosses as its handle, which the glue
+						// keeps as the opaque type itself, so it holds every lifetime it captures,
+						// even one its hidden type does not borrow; one collected at the call holds
+						// nothing past it, and any other is refused. Looked up with regions erased,
+						// since they may be the signature's bound ones, which a key never names.
+						let erased = ty::fold_regions(tcx, hidden, |_, _| tcx.lifetimes.re_erased);
+						let object = matches!(erased.kind(), ty::Adt(adt, args)
+							if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_))));
+						if object {
+							held.extend(args.iter().flat_map(|arg| arg.walk()).filter_map(|arg| arg.as_region()));
+						}
+					}
+					for &(clause, _) in bounds {
 						let term = clause
 							.as_projection_clause()
 							.and_then(|p| p.skip_binder().term.as_type());
@@ -4550,7 +4729,7 @@ impl<'tcx> Collector<'tcx> {
 						if borrows(&item) && !matches!(pos, Pos::Return | Pos::Returned) {
 							return Err(why("slice of references", elem.to_string()));
 						}
-						Type::List(Collection::Vec, Box::new(item))
+						Type::List(Collection::Slice, Box::new(item))
 					}
 					ty::Dynamic(..) => return Err(why("trait object", inner.to_string())),
 					// A returned `&Waker` crosses as its clone, as any borrowed return does.
@@ -4641,9 +4820,8 @@ impl<'tcx> Collector<'tcx> {
 							.then_some(Collection::BTreeMap)
 					})
 					// serde_json's own, unless serde_json is an export.
-					.or_else(|| {
-						(Some(did) == self.json_map && !self.exported(did.krate)).then_some(Collection::JsonMap)
-					}) {
+					.or_else(|| (Some(did) == self.json_map && !self.walked(did.krate)).then_some(Collection::JsonMap))
+				{
 					// A set crosses as its items, and a map as its pairs, in order.
 					let inner = match c {
 						Collection::BTreeSet => self.ty(args.type_at(0), pos.inner())?,
@@ -4747,6 +4925,18 @@ impl<'tcx> Collector<'tcx> {
 						ty::Dynamic(preds, ..) => {
 							return self.dynamic(preds.principal_def_id(), Dyn::Box, inner, pos);
 						}
+						// A boxed slice crosses as a `Vec`'s array does, but of bytes, which
+						// no buffer form takes.
+						ty::Slice(elem) if *elem == tcx.types.u8 => {
+							return Err(why("boxed slice of bytes", ty.to_string()));
+						}
+						ty::Slice(elem) => {
+							let item = self.ty(*elem, pos.inner())?;
+							if borrows(&item) && !matches!(pos, Pos::Return | Pos::Returned) {
+								return Err(why("boxed slice of references", elem.to_string()));
+							}
+							Type::List(Collection::Box, Box::new(item))
+						}
 						_ => Type::Box(Box::new(self.ty(inner, pos.inner())?)),
 					}
 				} else if tcx.is_diagnostic_item(sym::Arc, did) {
@@ -4792,7 +4982,13 @@ impl<'tcx> Collector<'tcx> {
 						Pos::Field => return Err(why("object in a value", strip_args(tcx, did))),
 						_ => Type::Object(i),
 					}
-				} else if !self.exported(did.krate) {
+				} else if !self.walked(did.krate) && (self.erring.get() || !self.reach.contains(&did)) {
+					// One public in its own crate exports by that path, in the next pass, unless
+					// it is an error: one in a `Result` crosses as its message, and one elsewhere
+					// is held by value, as above, or refused.
+					if !self.erring.get() && !self.reach.contains(&did) && self.reaches(ty, did) {
+						self.reached(did);
+					}
 					return Err(why("foreign type", strip_args(tcx, did)));
 				} else {
 					let key = self.key(did, *args);
@@ -4834,10 +5030,7 @@ impl<'tcx> Collector<'tcx> {
 							}
 							// One public in its own crate exports by that path, in the next pass.
 							if !self.reach.contains(&did) && self.reachable(did) {
-								let mut unreached = self.unreached.borrow_mut();
-								if !unreached.contains(&did) {
-									unreached.push(did);
-								}
+								self.reached(did);
 							}
 							return Err(why("type not reachable from the crate root", name));
 						}

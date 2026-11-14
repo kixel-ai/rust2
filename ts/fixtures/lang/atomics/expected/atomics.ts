@@ -128,9 +128,21 @@ export function i16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_116.v = _116.v ^ v;
 			old = rs.atomicLoad(atomic, 4);
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(old)));
+		const dst = out;
+		const word = old;
+		rs.byteVecReserve(dst, 2 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 8) & 255;
+		dst.data[pos + 1] = word & 255;
+		dst.length = dst.length + 2;
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(atomic.v)));
+	const dst2 = out;
+	const word2 = atomic.v;
+	rs.byteVecReserve(dst2, 2 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = (word2 >>> 8) & 255;
+	dst2.data[pos2 + 1] = word2 & 255;
+	dst2.length = dst2.length + 2;
 }
 
 /**
@@ -241,9 +253,25 @@ export function i32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_116.v = _116.v ^ v;
 			old = rs.atomicLoad(atomic, 4);
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(old)));
+		const dst = out;
+		const word = old;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i32ToBeBytes(atomic.v)));
+	const dst2 = out;
+	const word2 = atomic.v;
+	rs.byteVecReserve(dst2, 4 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
+	dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
+	dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
+	dst2.data[pos2 + 3] = word2 & 255;
+	dst2.length = dst2.length + 4;
 }
 
 /**
@@ -354,9 +382,37 @@ export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_116.v = rs.i64Xor(_116.v, v);
 			old = rs.atomicLoad(atomic, 4);
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(old)));
+		const dst = out;
+		const word = old;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		rs.byteVecReserve(dst, 8 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word3 >>> 24) & 255;
+		dst.data[pos + 1] = (word3 >>> 16) & 255;
+		dst.data[pos + 2] = (word3 >>> 8) & 255;
+		dst.data[pos + 3] = word3 & 255;
+		dst.data[pos + 4] = (word2 >>> 24) & 255;
+		dst.data[pos + 5] = (word2 >>> 16) & 255;
+		dst.data[pos + 6] = (word2 >>> 8) & 255;
+		dst.data[pos + 7] = word2 & 255;
+		dst.length = dst.length + 8;
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i64ToBeBytes(atomic.v)));
+	const dst2 = out;
+	const word4 = atomic.v;
+	const word5 = rs.intWord(word4, 0);
+	const word6 = rs.intWord(word4, 32);
+	rs.byteVecReserve(dst2, 8 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = (word6 >>> 24) & 255;
+	dst2.data[pos2 + 1] = (word6 >>> 16) & 255;
+	dst2.data[pos2 + 2] = (word6 >>> 8) & 255;
+	dst2.data[pos2 + 3] = word6 & 255;
+	dst2.data[pos2 + 4] = (word5 >>> 24) & 255;
+	dst2.data[pos2 + 5] = (word5 >>> 16) & 255;
+	dst2.data[pos2 + 6] = (word5 >>> 8) & 255;
+	dst2.data[pos2 + 7] = word5 & 255;
+	dst2.length = dst2.length + 8;
 }
 
 /**
@@ -467,9 +523,17 @@ export function i8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_116.v = _116.v ^ v;
 			old = rs.atomicLoad(atomic, 4);
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(old)));
+		const dst = out;
+		const word = old;
+		rs.byteVecReserve(dst, 1 as rs.usize);
+		dst.data[dst.length + 0] = word & 255;
+		dst.length = dst.length + 1;
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i8ToBeBytes(atomic.v)));
+	const dst2 = out;
+	const word2 = atomic.v;
+	rs.byteVecReserve(dst2, 1 as rs.usize);
+	dst2.data[dst2.length + 0] = word2 & 255;
+	dst2.length = dst2.length + 1;
 }
 
 /**
@@ -580,9 +644,25 @@ export function isizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_116.v = _116.v ^ v;
 			old = rs.atomicLoad(atomic, 4);
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(old)));
+		const dst = out;
+		const word = old;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.isizeToBeBytes(atomic.v)));
+	const dst2 = out;
+	const word2 = atomic.v;
+	rs.byteVecReserve(dst2, 4 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
+	dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
+	dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
+	dst2.data[pos2 + 3] = word2 & 255;
+	dst2.length = dst2.length + 4;
 }
 
 /**
@@ -693,9 +773,21 @@ export function u16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_116.v = _116.v ^ v;
 			old = rs.atomicLoad(atomic, 4);
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(old)));
+		const dst = out;
+		const word = old;
+		rs.byteVecReserve(dst, 2 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 8) & 255;
+		dst.data[pos + 1] = word & 255;
+		dst.length = dst.length + 2;
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(atomic.v)));
+	const dst2 = out;
+	const word2 = atomic.v;
+	rs.byteVecReserve(dst2, 2 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = (word2 >>> 8) & 255;
+	dst2.data[pos2 + 1] = word2 & 255;
+	dst2.length = dst2.length + 2;
 }
 
 /**
@@ -806,9 +898,25 @@ export function u32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_116.v = (_116.v ^ v) >>> 0;
 			old = rs.atomicLoad(atomic, 4);
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(old)));
+		const dst = out;
+		const word = old;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(atomic.v)));
+	const dst2 = out;
+	const word2 = atomic.v;
+	rs.byteVecReserve(dst2, 4 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
+	dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
+	dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
+	dst2.data[pos2 + 3] = word2 & 255;
+	dst2.length = dst2.length + 4;
 }
 
 /**
@@ -919,9 +1027,37 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_116.v = rs.u64Xor(_116.v, v);
 			old = rs.atomicLoad(atomic, 4);
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(old)));
+		const dst = out;
+		const word = old;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		rs.byteVecReserve(dst, 8 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word3 >>> 24) & 255;
+		dst.data[pos + 1] = (word3 >>> 16) & 255;
+		dst.data[pos + 2] = (word3 >>> 8) & 255;
+		dst.data[pos + 3] = word3 & 255;
+		dst.data[pos + 4] = (word2 >>> 24) & 255;
+		dst.data[pos + 5] = (word2 >>> 16) & 255;
+		dst.data[pos + 6] = (word2 >>> 8) & 255;
+		dst.data[pos + 7] = word2 & 255;
+		dst.length = dst.length + 8;
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(atomic.v)));
+	const dst2 = out;
+	const word4 = atomic.v;
+	const word5 = rs.intWord(word4, 0);
+	const word6 = rs.intWord(word4, 32);
+	rs.byteVecReserve(dst2, 8 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = (word6 >>> 24) & 255;
+	dst2.data[pos2 + 1] = (word6 >>> 16) & 255;
+	dst2.data[pos2 + 2] = (word6 >>> 8) & 255;
+	dst2.data[pos2 + 3] = word6 & 255;
+	dst2.data[pos2 + 4] = (word5 >>> 24) & 255;
+	dst2.data[pos2 + 5] = (word5 >>> 16) & 255;
+	dst2.data[pos2 + 6] = (word5 >>> 8) & 255;
+	dst2.data[pos2 + 7] = word5 & 255;
+	dst2.length = dst2.length + 8;
 }
 
 /**
@@ -1032,9 +1168,17 @@ export function u8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_116.v = _116.v ^ v;
 			old = rs.atomicLoad(atomic, 4);
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(old)));
+		const dst = out;
+		const word = old;
+		rs.byteVecReserve(dst, 1 as rs.usize);
+		dst.data[dst.length + 0] = word & 255;
+		dst.length = dst.length + 1;
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u8ToBeBytes(atomic.v)));
+	const dst2 = out;
+	const word2 = atomic.v;
+	rs.byteVecReserve(dst2, 1 as rs.usize);
+	dst2.data[dst2.length + 0] = word2 & 255;
+	dst2.length = dst2.length + 1;
 }
 
 /**
@@ -1145,9 +1289,25 @@ export function usizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_116.v = (_116.v ^ v) >>> 0;
 			old = rs.atomicLoad(atomic, 4);
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(old)));
+		const dst = out;
+		const word = old;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(atomic.v)));
+	const dst2 = out;
+	const word2 = atomic.v;
+	rs.byteVecReserve(dst2, 4 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
+	dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
+	dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
+	dst2.data[pos2 + 3] = word2 & 255;
+	dst2.length = dst2.length + 4;
 }
 
 export function bools(data: rs.ByteSlice, out: rs.ByteVec): void {
@@ -1238,8 +1398,30 @@ export function shared(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.atomicStore(stats2.value.open, b > 128, 1);
 		rs.byteVecPush(out, rs.atomicLoad(stats2.value.open, 2) ? 1 : 0);
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(sent(peer.value, order(data.length & 0xff, rs.sliceFrom([0, 2, 4]))))));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(rs.atomicLoad(peer.value.peers, 4))));
+	const dst = out;
+	const word = sent(peer.value, order(data.length & 0xff, rs.sliceFrom([0, 2, 4])));
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word3 >>> 24) & 255;
+	dst.data[pos + 1] = (word3 >>> 16) & 255;
+	dst.data[pos + 2] = (word3 >>> 8) & 255;
+	dst.data[pos + 3] = word3 & 255;
+	dst.data[pos + 4] = (word2 >>> 24) & 255;
+	dst.data[pos + 5] = (word2 >>> 16) & 255;
+	dst.data[pos + 6] = (word2 >>> 8) & 255;
+	dst.data[pos + 7] = word2 & 255;
+	dst.length = dst.length + 8;
+	const dst2 = out;
+	const word4 = rs.atomicLoad(peer.value.peers, 4);
+	rs.byteVecReserve(dst2, 4 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+	dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+	dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+	dst2.data[pos2 + 3] = word4 & 255;
+	dst2.length = dst2.length + 4;
 	rs.byteVecPush(out, stats.strong & 0xff);
 	peer[Symbol.dispose]();
 	stats[Symbol.dispose]();

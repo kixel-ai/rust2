@@ -119,23 +119,23 @@ pub struct Size {
 
 /// An object holding another crate's session, which C holds as a handle.
 pub struct Link {
-	session: tls::Session,
+	session: tls::held::Handoff,
 }
 
 impl Link {
 	pub fn new() -> Self {
 		Self {
-			session: tls::Session { id: 1 },
+			session: tls::held::Handoff { id: 1 },
 		}
 	}
 
 	/// Not lent: a handle holds another crate's value only erased, and by value.
-	pub fn session(&self) -> &tls::Session {
+	pub fn session(&self) -> &tls::held::Handoff {
 		&self.session
 	}
 
 	/// What makes the session a value C holds.
-	pub fn take(self) -> tls::Session {
+	pub fn take(self) -> tls::held::Handoff {
 		self.session
 	}
 }
@@ -147,7 +147,7 @@ impl Default for Link {
 }
 
 /// Another crate's type that is not `Send`, which no handle may hold.
-pub fn measure(local: tls::Local) -> u32 {
+pub fn measure(local: tls::held::Local) -> u32 {
 	local.get()
 }
 
@@ -155,7 +155,7 @@ pub fn measure(local: tls::Local) -> u32 {
 pub struct Cell<T>(T);
 
 /// An instance naming another crate's type that a handle holds by value, erased.
-pub fn sealed(cert: tls::Cert) -> Cell<tls::Cert> {
+pub fn sealed(cert: tls::held::Cert) -> Cell<tls::held::Cert> {
 	Cell(cert)
 }
 
@@ -166,42 +166,42 @@ pub fn echo(tag: &str) -> impl std::future::Future<Output = &str> + '_ {
 }
 
 /// As `echo`, but the output borrows only inside an error that crosses as its message.
-pub fn blame(tag: &str) -> impl std::future::Future<Output = Result<u32, tls::Wrapped<'_, u8>>> + '_ {
-	async move { Err(tls::Wrapped(tag, 0)) }
+pub fn blame(tag: &str) -> impl std::future::Future<Output = Result<u32, tls::held::Wrapped<'_, u8>>> + '_ {
+	async move { Err(tls::held::Wrapped(tag, 0)) }
 }
 
 /// As `echo`, but through a future that is not an `impl Future`.
-pub fn resolve(tag: &str) -> tls::Lend<'_, u8> {
-	tls::Lend(tag, std::marker::PhantomData)
+pub fn resolve(tag: &str) -> tls::held::Lend<'_, u8> {
+	tls::held::Lend(tag, std::marker::PhantomData)
 }
 
 /// A closure taking a `Copy` value of another crate's, which a handle holds.
-pub fn spend(f: impl FnOnce(tls::Token) -> u32) -> u32 {
-	f(tls::Token(1))
+pub fn spend(f: impl FnOnce(tls::held::Token) -> u32) -> u32 {
+	f(tls::held::Token(1))
 }
 
 /// A closure returning one.
-pub fn mint(f: impl FnOnce() -> tls::Token) -> u32 {
+pub fn mint(f: impl FnOnce() -> tls::held::Token) -> u32 {
 	f().0
 }
 
 /// Returns another crate's `Copy` value, which a handle holds.
-pub fn token() -> tls::Token {
-	tls::Token(2)
+pub fn token() -> tls::held::Token {
+	tls::held::Token(2)
 }
 
 /// Borrows a slice of them, whose handles C would have to give up.
-pub fn spent(tokens: &[tls::Token]) -> u32 {
+pub fn spent(tokens: &[tls::held::Token]) -> u32 {
 	tokens.iter().map(|t| t.0).sum()
 }
 
 /// Returns another crate's value, which a handle holds.
-pub fn issue() -> tls::Cert {
-	tls::Cert::new(b"der")
+pub fn issue() -> tls::held::Cert {
+	tls::held::Cert::new(b"der")
 }
 
 /// Takes what converts into it, which only inference could name in the glue.
-pub fn adopt(cert: impl Into<tls::Cert>) -> usize {
+pub fn adopt(cert: impl Into<tls::held::Cert>) -> usize {
 	cert.into().der().len()
 }
 
@@ -1098,4 +1098,24 @@ pub fn hazard(hazard: Box<dyn Hazard>) -> u32 {
 /// A `NonZero` of a 128-bit integer, which no integer of C's holds.
 pub fn wide_non_zero(n: std::num::NonZero<u128>) -> u128 {
 	n.get()
+}
+
+/// A future whose output is an `impl Trait` hiding no object, which the glue cannot name.
+pub async fn hidden_answer() -> impl Copy {
+	1_u32
+}
+
+/// A collected iterator whose items are an `impl Trait` hiding no object.
+pub fn hidden_items() -> impl Iterator<Item = impl Copy> {
+	[1_u32].into_iter()
+}
+
+/// An `impl Trait` hiding an `Option`, which the glue cannot take apart.
+pub fn hidden_option() -> impl Clone {
+	Some(1_u32)
+}
+
+/// A boxed slice of bytes, which no buffer form takes.
+pub fn boxed_bytes(bytes: Box<[u8]>) -> usize {
+	bytes.len()
 }

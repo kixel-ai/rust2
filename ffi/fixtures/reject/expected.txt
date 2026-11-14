@@ -20,20 +20,24 @@ fixtures/reject/src/lib.rs:1089:1: rust2-ffi: cannot export fn `trust`: trait ob
 fixtures/reject/src/lib.rs:1094:1: rust2-ffi: cannot export fn `hazard`: trait object `dyn Hazard`; exclude it in the config to leave it out
 	fixtures/reject/src/lib.rs:1084:1: note: C cannot implement `Hazard`: unsafe fn `risk`
 fixtures/reject/src/lib.rs:1099:1: rust2-ffi: cannot export fn `wide_non_zero`: NonZero `u128`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1104:1: rust2-ffi: cannot export fn `hidden_answer`: opaque type `impl std::marker::Copy`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1109:1: rust2-ffi: cannot export fn `hidden_items`: opaque type `impl std::marker::Copy`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1114:1: rust2-ffi: cannot export fn `hidden_option`: opaque type `impl std::clone::Clone`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1119:1: rust2-ffi: cannot export fn `boxed_bytes`: boxed slice of bytes `std::boxed::Box<[u8]>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:111:1: rust2-ffi: cannot export fn `boxed`: reference inside a parameter `std::boxed::Box<&str>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:11:1: rust2-ffi: cannot export fn `map`: foreign type `std::collections::HashMap`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:133:2: rust2-ffi: cannot export method `Link::session`: borrowed return that is not Clone `tls::Session`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:150:1: rust2-ffi: cannot export fn `measure`: foreign type `tls::Local`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:133:2: rust2-ffi: cannot export method `Link::session`: borrowed return that is not Clone `tls::held::Handoff`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:150:1: rust2-ffi: cannot export fn `measure`: foreign type `tls::held::Local`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:155:1: rust2-ffi: cannot export instance `Cell<std::vec::Vec<String>>`: type argument `std::vec::Vec<String>`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:155:1: rust2-ffi: cannot export instance `Cell<tls::Cert>`: type argument `tls::Cert`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:158:1: rust2-ffi: cannot export fn `sealed`: refused type `reject::Cell<tls::Cert>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:155:1: rust2-ffi: cannot export instance `Cell<tls::held::Cert>`: type argument `tls::held::Cert`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:158:1: rust2-ffi: cannot export fn `sealed`: refused type `reject::Cell<tls::held::Cert>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:164:1: rust2-ffi: cannot export fn `echo`: borrowing output of a future from a function that is not async `&str`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:169:1: rust2-ffi: cannot export fn `blame`: borrowing output of a future from a function that is not async `std::result::Result<u32, tls::Wrapped<'_, u8>>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:169:1: rust2-ffi: cannot export fn `blame`: borrowing output of a future from a function that is not async `std::result::Result<u32, tls::held::Wrapped<'_, u8>>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:16:1: rust2-ffi: cannot export fn `generic`: generic parameter `std::marker::Copy`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:174:1: rust2-ffi: cannot export fn `resolve`: borrowing output of a future from a function that is not async `&str`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:179:1: rust2-ffi: cannot export fn `spend`: closure signature `tls::Token`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:184:1: rust2-ffi: cannot export fn `mint`: closure signature `tls::Token`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:194:1: rust2-ffi: cannot export fn `spent`: reference to a handle inside a value `[tls::Token]`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:179:1: rust2-ffi: cannot export fn `spend`: closure signature `tls::held::Token`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:184:1: rust2-ffi: cannot export fn `mint`: closure signature `tls::held::Token`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:194:1: rust2-ffi: cannot export fn `spent`: reference to a handle inside a value `[tls::held::Token]`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:204:1: rust2-ffi: cannot export fn `adopt`: generic parameter `std::convert::Into`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:216:2: rust2-ffi: cannot export method `Cell<u8>::nest`: instance holding an instance of a type inside it `reject::Cell<reject::Cell<u8>>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:21:1: rust2-ffi: cannot export fn `nested`: nested Option `std::option::Option<std::boxed::Box<std::option::Option<u32>>>`; exclude it in the config to leave it out

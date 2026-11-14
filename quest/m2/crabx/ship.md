@@ -17,9 +17,8 @@ Recommendations:
 - The npm publish is the one job with npm publish rights, kept minimal and pinned by a
   test; npm trusted publishing needs a GitHub-hosted runner.
 - This adds rust2's first published crate, so it sets up crate release tagging; the
-  pipeline's own release tags come from [the pipeline](/quest/m2/crabx/pipeline.md).
+  pipeline's own release tags come from [the pipeline release](/quest/m2/crabx/pipeline-release.md).
 
 ## Required
 
-- [The pipeline](/quest/m2/crabx/pipeline.md) - builds and attests crabx's binaries
-- [The runner](/quest/m2/crabx/runner.md) - what ships
+- [Pipeline release](/quest/m2/crabx/pipeline-release.md) - the verified workflow release
