@@ -47,6 +47,12 @@ fn dependency(krate: &str) -> String {
 	format!("{krate}_export")
 }
 
+/// The name the crate depends on a crate the facade does not re-export by, apart from the
+/// facade's even when they share a name.
+fn reached(krate: &str) -> String {
+	format!("{krate}_reached")
+}
+
 /// The name the crate depends on a foreign type's crate by, apart from the facade's even
 /// when the facade shares that crate's name.
 fn foreign(krate: &str) -> String {
@@ -116,6 +122,9 @@ pub struct Crate<'a> {
 	/// The `[patch]` table the crate's own workspace resolves the exports with, as the
 	/// check did.
 	pub patch: &'a str,
+	/// The dependency on each crate the facade builds with, by its crate name, as this
+	/// host resolves it, which a staged API's crates are named by too.
+	pub crates: &'a std::collections::BTreeMap<String, String>,
 }
 
 /// Generated files and the names checked before any file is written.
@@ -204,7 +213,28 @@ impl Crate<'_> {
 			)
 		})
 		.collect();
-		let dependencies = format!("{dependencies}{foreign}");
+		// A crate the facade does not re-export, whose types an export names, as the facade
+		// resolves it, so they are the facade's types.
+		// One only some targets' APIs name builds on those alone, as the facade's does.
+		let mut every = String::new();
+		let mut targeted: std::collections::BTreeMap<&str, String> = Default::default();
+		for r in &api.reached {
+			let Some(keys) = self.crates.get(&r.krate) else {
+				return Err(format!(
+					"the facade builds with no crate `{}` here, which the API names",
+					r.krate
+				));
+			};
+			let line = format!("{} = {{ {keys}, default-features = false }}\n", reached(&r.krate));
+			match r.targets == api.targets {
+				true => every.push_str(&line),
+				false => (r.targets.iter()).for_each(|t| targeted.entry(t).or_default().push_str(&line)),
+			}
+		}
+		let targeted: String = (targeted.into_iter())
+			.map(|(target, lines)| format!("[target.{target:?}.dependencies]\n{lines}\n"))
+			.collect();
+		let dependencies = format!("{dependencies}{foreign}{every}");
 		// The facade's oldest toolchain is the crate's, which cargo sets as rustc compiles it,
 		// though no older than the crate's edition needs; cargo checks the value's form.
 		let rust_version = match std::env::var("CARGO_PKG_RUST_VERSION") {
@@ -246,6 +276,7 @@ impl Crate<'_> {
 			# What dart/{lib}.dart calls that `dart:ffi` lacks.\n\
 			dart = []\n\
 			\n\
+			{targeted}\
 			[workspace]\n\
 			{patch}",
 			patch = self.patch,
@@ -483,9 +514,15 @@ impl Gen<'_> {
 			.unwrap_or_default()
 	}
 
-	/// A Rust path of the facade's, through the crate's dependency on it.
+	/// A Rust path of the facade's, through the crate's dependency on it, or on the crate
+	/// its second segment names, where the facade does not re-export that crate.
 	fn path(&self, path: &[String]) -> String {
-		format!("::{}", self.dependency) + &path[1..].iter().map(|s| format!("::{s}")).collect::<String>()
+		match self.abi.api.reached.iter().find(|r| path.get(1) == Some(&r.krate)) {
+			Some(r) => {
+				format!("::{}", reached(&r.krate)) + &path[2..].iter().map(|s| format!("::{s}")).collect::<String>()
+			}
+			None => format!("::{}", self.dependency) + &path[1..].iter().map(|s| format!("::{s}")).collect::<String>(),
+		}
 	}
 
 	/// `e`, a check's `Result`: its value, returning the failure from the function being

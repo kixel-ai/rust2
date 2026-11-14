@@ -4,8 +4,8 @@
 
 The moq pin moves to moq's current `main`, whose crates re-export no whole crate, moq's own
 included. `just ffi census` there lists no whole-crate re-export refusal. Its "type not
-reachable from the crate root" refusals are `kio::Pending` and `lite::version::Version`,
-which the exporter change below exports, and moq-quic's stats and varint types under moq-tokio's `quic::driver`,
+reachable from the crate root" refusals were `kio::Pending` and moq-tokio's `cli::Deprecated`,
+which the exporter change below exports, `lite::version::Version`, which no public path names, and moq-quic's stats and varint types under moq-tokio's `quic::driver`,
 which [kixel-ai/rust2#683](https://github.com/kixel-ai/rust2/pull/683) drops. At `ffcb7cd9` there were 20 such refusals (18 Guard and Side, and
 `Version`), and 9 at moq's head on 2026-11-09, measured in
 [#676](https://github.com/kixel-ai/rust2/pull/676).
@@ -58,7 +58,33 @@ moq's `main` fails `just ts moq` and `just ffi moq-cpp`, so the bump waits on Wa
 Decided 2026-11-11 (maintainer, /quest-unblock): ✅ (a) rust2 exports a type the crate root does
 not reach by its defining path, such as `kio::Pending` and `lite::version::Version`; a type
 whose defining path is itself private stays refused (rejected: (b) moq makes both reachable).
-This quest makes the exporter change, in `ffi/src/collect.rs`, before the bump.
+[kixel-ai/rust2#721](https://github.com/kixel-ai/rust2/pull/721) made the exporter change: a
+type a signature names that the root does not reach exports by its shortest public path in
+its own crate, so `kio::Pending` (defined in kio's private `pollable`) and moq-tokio's
+`cli::Deprecated` export, the glue naming them through its own dependency on their crate's
+package. At moq `ba47ea3` the census, which ignores `ffi/moq/ffi.toml`'s excludes, then lists
+no such refusal; only `lite::version::Version`, which no public path names, stays out, as an
+object no export returns. The bump drops the stale `kio` exclude, which would otherwise leave
+`kio::Pending` out of the export.
+
+Decided 2026-11-13 (maintainer): ✅ widen #721 to a type a signature names from a dependency
+the facade exports nothing else from, such as `pub fn pending() -> kio::Pending` with no
+`pub use kio::…` (rejected: land as is with a follow-up quest; land with no follow-up). Such
+a crate keeps the roles of one no export is: an error of it never exports (one in a `Result`
+crosses as its message, one in an exported error's variant leaves that error an object), and
+its type behind an `Arc` stays an opaque handle, refused bare. At the pin this reaches
+mp4_atom's boxes (through moq-mux's `container::fmp4::Wire::new`, `Wire::trak`, and
+`fmp4::Error`), moq-quic, moq-sock, and rustls, so `ffi/moq/ffi.toml` excludes only what
+they still refuse.
+
+Decided 2026-11-13 (maintainer, #721's design checkpoint): ✅ an `impl Trait` return holds
+what its hidden type holds, as a named return does, so `fn wrap(x: &u32) -> impl Clone + '_ {
+Some(Held(x)) }` is refused instead of producing glue that does not build, while an iterator
+collected at the call still exports (rejected: map every `impl Trait` return as its hidden
+type everywhere; land as is with a follow-up quest). Implementing it showed the glue keeps the
+`impl Trait` itself, never its hidden type, so #721 lets one cross only when its hidden type is
+an object, holding every lifetime it captures, and refuses any other. moq's census at the pin
+is unchanged by it.
 
 Measured on 2026-11-12 at moq's `main` `6936f0a`: `just ffi moq-cpp` fails the export with
 36 errors, which the bump fixes in `ffi/moq/ffi.toml` or the exporter: 15 on the foreign

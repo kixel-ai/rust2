@@ -189,6 +189,8 @@ def script():
 	board = api.Board.new([("low", api.Counter.new("l", 1)), ("high", api.Counter.new("h", 9))])
 	ranked = board.ranked()
 	print("ranked " + ", ".join(f"{name} {counter.name()} {counter.get()}" for name, counter in ranked))
+	best = board.best()
+	print(f"best {best.name()} {best.get()}")
 	# A map crosses as its pairs and a set as its items, which Rust collects in order, each
 	# key once, the last kept.
 	atlas = api.Atlas([("b", api.Point(1, 1)), ("ab", api.Point(2, 3)), ("b", api.Point(4, 4))], [3, 1, 3])
@@ -569,6 +571,12 @@ def script():
 	print(f"nudge {nudged.value.x} {nudged.value.y}")
 	config = api.secure("h3")
 	print(f"secure {api.alpn_lent(config)} {api.alpn(config.clone())}")
+	session = api.resume("h3", 60)
+	print(f"resume {session.alpn()} {session.lifetime().seconds}")
+	try:
+		api.resume("", 60)
+	except api.StringException as e:
+		print(f"resume err {e.error}")
 	meters = api.Meters.new()
 	first = meters.first()
 	first.add(2)

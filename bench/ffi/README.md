@@ -27,6 +27,8 @@ the run's summary; nothing fails on a number.
 | stamped write | the same with a new `Timestamp` per frame, as a caller holding a `u64` must | none |
 | ready read | a 100 B frame written, then read through a new future ready at its first poll | `await noop_async()`, plus a write |
 | woken read | a read started before its frame is written, as the language starts work concurrently, so it suspends and the write's wake resumes it | `await yield_once()`, plus a write |
+| reader loop | one reader and writer live for all groups, including their handoff; Go waits for a real pending poll before writing | none |
+| Swift drained reader | a separate executor diagnostic: one reader drained before each write, without a writer task or permit handoff | none |
 | payload | `frame.payload` of 100 B, handed to the language | none |
 | throughput | groups of 100 frames written and read, each payload's first byte touched, about 64 MiB | throughput |
 
@@ -35,6 +37,86 @@ A woken read starts its read the language's own way: by polling in C, C++, and R
 coroutine in Kotlin; and an eager call in Dart. So it measures a task's start and its
 wake, and in Swift, Python, and Go, a read the scheduler had not yet started is ready
 instead of woken.
+
+The `loop` case removes task creation per frame: one reader loops over all groups and
+one writer supplies them. Kotlin, Python, Dart, and Swift include a permit handoff per
+frame and an acknowledgement before advancing groups, bounding queued work. Swift runs
+on its default global pool. Its writer can race the read's first poll, so this is a
+streaming workload, not an isolated measurement of every read suspending.
+
+Go uses the same pending-context notification as its future correctness tests: `Done`
+notifies the writer only after a poll has pended with its real waker registered. It
+returns nil because this benchmark never cancels. The writer cannot race that poll;
+the final count asserts exactly one pending notification per frame. Go's measured
+handoff is thus after registration, rather than before the call as in the other loops.
+
+Swift also reports `drained`, a separate diagnostic on a preferred executor. This thread
+drains one reader to suspension before each write, then drains it until that frame is
+consumed, checking the count on both sides. It has no writer task or permit handoff and
+must not be ranked against the managed `loop` row. C, C++, and Rust's existing `woken`
+cases already manually poll in one loop; they remain the native floor, without printing
+the same measurement twice under another name.
+
+## Long-lived reader measurement
+
+Measured 2026-11-13 on **nixos**, an AMD Ryzen 9 5900XT (16 cores, 32 threads), after a
+loaded fedora run proved inconclusive. Baseline: rust2 `03782045`, moq `ffcb7cd9`, Swift
+6.4.0, Go 1.27.3, Kotlin 2.4.21 and coroutines 1.10.2, Dart 3.13.0. The binaries and their
+Nix runtime closures were copied from fedora; builds and measurements on nixos ran
+through `quest gate` over SSH. No CPU affinity or scheduler settings were changed.
+
+Five rounds, each program warming up once before printing, in microseconds per 100 B
+frame (write plus read); CPU includes every process thread:
+
+| language / executor | task per read, wall / CPU | reader loop, wall / CPU |
+|---|---|---|
+| Kotlin, runBlocking | 1.88 / 1.94 | 1.80 / 1.83 |
+| Dart, isolate | 2.41 / 2.40 | 2.78 / 2.77 |
+| Swift, global pool | 5.14 / 18.88 | 4.30 / 9.50 |
+| Go | 5.54 / 7.70 | 3.41 / 4.26 |
+
+Go's row uses five fresh rounds. Its task-per-read column uses a goroutine and
+`runtime.Gosched()` before each write; only its reader-loop column uses the pending
+notification in place of the racing permit. Its `loop` verifies all one million reads actually pended with a real
+waker. The other managed rows use the original streaming protocol and include its
+handoff; differences in scheduling mean these numbers are workload costs, not a precise
+ranking of the bindings' wake primitives.
+
+Swift's separate `drained` diagnostic measured **1.22 / 1.21 us**, while its
+contemporaneous default-global loop measured 4.40 / 9.63 us. A separate instrumented
+run recorded 1,010,000 initial pending polls and 1,010,000 polls pending with a real
+waker: all one million reads plus 10,000 group receives. Instrumentation supplied no
+timing results. The global-loop counted run had only about 40% of calls pend with a real
+waker; instrumentation can affect that ratio. The drained loop's structural suspension
+check needs no instrumentation. This diagnostic establishes that the binding honors
+the preferred executor; it does not establish that Swift is faster than other languages.
+
+`perf record -F 499 -g` on the original full Swift program attributed 55.5% of sampled
+cycles to the dispatch-worker subtree, including 43.4% under its semaphore-wait path.
+Kernel addresses were restricted, so kernel function names are unresolved. A separate
+language-only control using the same permit stream, an NSLock-protected continuation
+mailbox, and no Rust measured 3.78 / 8.87 us (median of five after warmup). This supports
+the global executor and permit handoff as the dominant cost. The control's lock differs
+from the binding's atomics, so it cannot give a precise subtraction of binding costs.
+
+Go's profile showed scheduling, cgo transitions, and `selectgo`. An experiment replaced
+its nil-`Done` select with a direct receive. On the original racing loop, five
+alternating pairs suggested a 6% improvement (3.10 to 2.91 us wall). Repeating five
+alternating pairs after forcing every read to pend instead measured **3.41 / 4.26 us
+before and 3.84 / 4.93 us after**. The benefit did not survive the stricter workload,
+so the experiment was dropped. The generated Go wait remains unchanged.
+
+The investigation found no supported runtime change that removes Swift's native pool
+cost while preserving the caller's scheduling. The default Swift loop remains above
+Kotlin's and Dart's. Close the optimization investigation on that explicit limitation,
+rather than promise equal absolute costs across different language schedulers. Future
+measurements retain both the default workload and the isolated executor diagnostic;
+no threshold is an acceptance gate and no runtime speedup is claimed.
+
+The async-start design in [kixel-ai/rust2#741](https://github.com/kixel-ai/rust2/pull/741)
+was still unmerged during these runs. It removes ready-call crossings; a pending call
+still polls again to register its real waker. The harness preserves that design and
+uses the stock public binding APIs.
 
 ## rust2-ffi
 
@@ -144,8 +226,8 @@ frame path:
    Dart's 1.8 us add their event loops; Go's 5.1 us and Swift's 5.7 us wall (16.6 us CPU)
    are a goroutine or `Task` and a cross-thread wake per read, and Python's 6.9 us is
    asyncio's, as BoltFFI's Python measured 10 us. This case starts a task per read; a
-   reader looping on one task would skip the start, and is what to measure before changing
-   a generator.
+   reader looping on one task, which skips the start, is measured in
+   [Long-lived reader measurement](#long-lived-reader-measurement).
 4. **A future per read.** Since `<fn>_start` makes a future and polls it in one call, a
    ready read costs C 126 ns over the write where Rust costs 93: one crossing and one
    allocation, down from 176 with four allocations and three crossings. Measured 2026-11-13
@@ -224,6 +306,90 @@ its record return 113 against 61, its write 107 ns over Rust against BoltFFI's 5
 throughput 170 MB/s against 105. Python's getter costs 47 ns against 63, its record return
 97 against 1,120, and 100 B throughput 138 MB/s against 12.1. So Python meets BoltFFI's
 and Kotlin's calls trail it by 2 to 4 times, behind JNI's per-call cost and the hold count.
+
+## Consumer release profile
+
+Measured on fedora on 2026-11-12, through `quest gate`, with the same pinned
+moq stand-in and three rounds. The exported workspace now carries moq's release
+profile: fat LTO, one codegen unit, and `strip = "symbols"`. Its package override,
+`strip = "debuginfo"` for moq-ffi, was then carried only onto the facade's rlib, so
+these artifacts got `strip = "symbols"`; the export now also gives it to the glue
+package that builds them. Panic behavior is unchanged.
+A paired build of the generated crate with Kotlin and Dart enabled took 404 s with
+this profile and 107 s after removing the profile tables (297 s longer, 3.8 times).
+Both used fresh target directories and the warm mbx compiler cache, so these are
+elapsed build times on a shared host, not cold compiler timings. The corresponding
+static libraries were 95.2 versus 186.7 MiB, and shared libraries 38.7 versus 59.7 MiB.
+The Python extension in the table was built separately by the benchmark harness.
+
+The older tables above remain the default-profile baseline; host load and intervening
+generator changes prevent attributing every difference to LTO alone.
+
+### Calls (ns per call, CPU time; load average)
+
+| call | Rust | C | C++ | moq-c | Kotlin | Python | Swift | Go | Dart |
+|---|---|---|---|---|---|---|---|---|---|
+| `track.is_closed()`, a handle call | 7.9 (17) | 15 (17) | 15 (16) |  | 60 (15) | 58 (14) | 24 (13) | 45 (12) | 41 (11) |
+| `demand.sequence()`, a u64 getter | 0.2 (17) | 7.6 (17) | 7.6 (16) |  | 40 (15) | 49 (14) | 7.9 (13) | 38 (12) | 25 (11) |
+| `track.largest()`, a record return | 16 (17) | 24 (17) | 24 (16) |  | 150 (15) | 104 (14) | 33 (13) | 63 (12) | 49 (11) |
+| `track.info()`, an object return | 1.0 (17) | 25 (17) | 25 (16) |  | 190 (15) | 100 (14) | 34 (13) | 184 (12) | 208 (11) |
+| `group.write_frame(at, frame)`, 100 B | 141 (17) | 148 (17) | 148 (16) |  | 240 (15) | 201 (14) | 178 (13) | 244 (12) | 213 (11) |
+| the same, with a new `Timestamp` each | 140 (17) | 162 (17) | 166 (16) | 199 (15) | 360 (15) | 372 (14) | 209 (13) | 430 (12) | 433 (11) |
+| a 100 B frame written and read, ready | 216 (17) | 293 (17) | 308 (16) |  | 590 (15) | 608 (14) | 441 (13) | 642 (12) | 721 (11) |
+| the same, read after a wake | 332 (17) | 428 (17) | 447 (16) |  | 1,460 (15) | 7,414 (14) | 10,023 (13) | 3,676 (12) | 1,628 (11) |
+| `frame.payload`, 100 B | 14 (17) | 22 (17) | 25 (16) |  | 60 (15) | 176 (14) | 69 (13) | 116 (12) | 60 (11) |
+
+### Throughput (MB per CPU second, write plus ready read; load average)
+
+| frame | Rust | C | C++ | Kotlin | Python | Swift | Go | Dart |
+|---|---|---|---|---|---|---|---|---|
+| 100 B | 481 (17) | 329 (17) | 308 (16) | 118 (15) | 120 (14) | 209 (13) | 131 (12) | 134 (11) |
+| 1 KiB | 3,285 (17) | 2,421 (17) | 2,319 (16) | 1,677 (15) | 1,056 (14) | 1,491 (13) | 899 (12) | 1,107 (11) |
+| 16 KiB | 17,210 (17) | 15,604 (17) | 17,081 (16) | 6,554 (15) | 9,508 (14) | 5,074 (13) | 4,205 (12) | 8,353 (11) |
+| 64 KiB | 6,562 (17) | 16,278 (17) | 14,699 (16) | 3,277 (15) | 14,664 (14) | 6,035 (13) | 8,951 (12) | 11,329 (11) |
+| 1 MiB | 13,758 (17) | 14,106 (17) | 12,541 (16) | 5,243 (15) | 13,183 (14) | 13,543 (13) | 7,577 (12) | 17,641 (11) |
+
+### Calls (ns per call, wall time; load average)
+
+| call | Rust | C | C++ | moq-c | Kotlin | Python | Swift | Go | Dart |
+|---|---|---|---|---|---|---|---|---|---|
+| `track.is_closed()`, a handle call | 8.0 (17) | 15 (17) | 15 (16) |  | 31 (15) | 58 (14) | 24 (13) | 45 (12) | 38 (11) |
+| `demand.sequence()`, a u64 getter | 0.2 (17) | 7.6 (17) | 7.6 (16) |  | 23 (15) | 49 (14) | 7.9 (13) | 38 (12) | 25 (11) |
+| `track.largest()`, a record return | 16 (17) | 24 (17) | 24 (16) |  | 74 (15) | 104 (14) | 33 (13) | 61 (12) | 49 (11) |
+| `track.info()`, an object return | 1.0 (17) | 25 (17) | 25 (16) |  | 80 (15) | 100 (14) | 34 (13) | 170 (12) | 208 (11) |
+| `group.write_frame(at, frame)`, 100 B | 141 (17) | 149 (17) | 149 (16) |  | 233 (15) | 201 (14) | 179 (13) | 242 (12) | 213 (11) |
+| the same, with a new `Timestamp` each | 141 (17) | 163 (17) | 167 (16) | 200 (15) | 321 (15) | 373 (14) | 209 (13) | 407 (12) | 431 (11) |
+| a 100 B frame written and read, ready | 217 (17) | 294 (17) | 310 (16) |  | 499 (15) | 609 (14) | 442 (13) | 622 (12) | 722 (11) |
+| the same, read after a wake | 334 (17) | 430 (17) | 451 (16) |  | 1,442 (15) | 7,436 (14) | 3,218 (13) | 2,980 (12) | 1,629 (11) |
+| `frame.payload`, 100 B | 14 (17) | 22 (17) | 25 (16) |  | 61 (15) | 177 (14) | 69 (13) | 98 (12) | 60 (11) |
+
+### Throughput (MB/s, write plus ready read; load average)
+
+| frame | Rust | C | C++ | Kotlin | Python | Swift | Go | Dart |
+|---|---|---|---|---|---|---|---|---|
+| 100 B | 479 (17) | 328 (17) | 306 (16) | 176 (15) | 120 (14) | 208 (13) | 137 (12) | 134 (11) |
+| 1 KiB | 3,276 (17) | 2,412 (17) | 2,306 (16) | 1,560 (15) | 1,053 (14) | 1,486 (13) | 1,068 (12) | 1,122 (11) |
+| 16 KiB | 17,154 (17) | 15,558 (17) | 17,048 (16) | 11,063 (15) | 9,451 (14) | 5,045 (13) | 4,596 (12) | 8,346 (11) |
+| 64 KiB | 6,544 (17) | 16,232 (17) | 14,568 (16) | 8,295 (15) | 14,643 (14) | 6,015 (13) | 12,256 (12) | 11,776 (11) |
+| 1 MiB | 13,719 (17) | 14,061 (17) | 12,458 (16) | 7,168 (15) | 13,156 (14) | 13,517 (13) | 8,328 (12) | 17,742 (11) |
+
+### Size
+
+| binding | files | raw | gzip | Rust glue, raw / gzip |
+|---|---|---|---|---|
+| C | 1 | 1,633 KiB | 242 KiB | 2,408 KiB / 133 KiB |
+| C++ | 1 | 2,865 KiB | 320 KiB | none |
+| Kotlin | 2 | 2,472 KiB | 358 KiB | 1,697 KiB / 77 KiB |
+| Python | 1 | 1,454 KiB | 225 KiB | 3,756 KiB / 293 KiB |
+| Swift | 3 | 2,141 KiB | 300 KiB | none |
+| Go | 23 | 3,538 KiB | 432 KiB | none |
+| Dart | 1 | 4,019 KiB | 375 KiB | 1,643 KiB / 62 KiB |
+
+| native library | as built | stripped |
+|---|---|---|
+| `libmoq.a`, the C ABI that C, C++, Swift, and Go link | 98,510 KiB | 58,787 KiB |
+| `libmoq.so`, with the Kotlin and Dart glue | 39,847 KiB | 39,847 KiB |
+| `python/libmoq.so`, the CPython extension | 35,277 KiB | 35,277 KiB |
 
 ## BoltFFI comparison
 

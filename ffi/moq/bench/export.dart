@@ -2,6 +2,7 @@
 // the Dart wrapper add. Each round runs twice, the first to warm the JIT. Each case prints
 // its wall time and the process's CPU time, the VM's own threads included.
 
+import 'dart:async';
 import 'dart:ffi' as ffi;
 import 'dart:io' show Platform;
 import 'dart:typed_data';
@@ -172,6 +173,37 @@ Future<Map<String, Span>> round() async {
     group.close();
   }
   out['woken'] = per(start);
+
+  // One writer future and one reader; one outstanding permit bounds the stream.
+  start = now();
+  final permits = StreamController<void>();
+  Future<void> writeLoop() async {
+    final next = StreamIterator<void>(permits.stream);
+    for (var g = 0; g < groups; g++) {
+      final group = track.appendGroup();
+      for (var f = 0; f < frames; f++) {
+        if (!await next.moveNext()) throw StateError('missing permit');
+        group.writeFrame(at, frame);
+      }
+      if (!await next.moveNext()) throw StateError('missing group acknowledgement');
+      group.finish();
+      group.close();
+    }
+    await next.cancel();
+  }
+  final writer = writeLoop();
+  for (var g = 0; g < groups; g++) {
+    final reader = (await subscriber.recvGroup())!;
+    for (var f = 0; f < frames; f++) {
+      permits.add(null);
+      (await reader.readFrame())!.close();
+    }
+    reader.close();
+    permits.add(null);
+  }
+  await writer;
+  await permits.close();
+  out['loop'] = per(start);
 
   for (final size in sizes) {
     out['mbps:$size'] = await throughput(track, subscriber, at, size);
