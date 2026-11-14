@@ -193,6 +193,14 @@ each copies a 100 B frame as often as main does. Kotlin and Go each moved within
 Bytes Rust returned and a binding passes back cross with no copy, which `ffi/tests`
 checks by address and by drop count.
 
+Re-measured 2026-11-14 on **nixos** (AMD Ryzen 9 5900XT) at rust2 `79c46e70`, which adds
+[#742](https://github.com/kixel-ai/rust2/pull/742)'s by-value `Timestamp`, against
+`7008d1d3`, in turn four times at a load of 5 to 8: a 100 B write cost Swift 124 to 127 ns
+of CPU against 149 to 176, and Dart 236 to 243 against 239 to 346 (241 to 247 in the three
+pairs below load 7). So neither write costs more than it did before #744. A profile of
+Swift's shows nothing of `Native.take` or its `Owner` outside the inlined call, and Dart's
+100 B write adds two compares and two null checks a call, below what these runs resolve.
+
 CPU time counts every thread of the process: the JVM's JIT and GC threads, Go's GC, and the
 Swift global executor's workers. So Kotlin's CPU column runs above its wall column, and
 Swift's woken read spends 14.1 us of CPU for 4.8 us of wall. Throughput from 16 KiB up is
