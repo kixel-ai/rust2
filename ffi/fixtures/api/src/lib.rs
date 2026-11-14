@@ -350,6 +350,12 @@ impl Board {
 		ranked.sort_by_key(|(_, counter)| std::cmp::Reverse(counter.get()));
 		ranked.into_iter()
 	}
+
+	/// Its highest counter, through an `impl Trait` that captures no borrow of the board, so
+	/// it crosses as the counter's handle.
+	pub fn best(&self) -> impl Into<Counter> + use<> {
+		(self.counters.values().max_by_key(|counter| counter.get()).cloned()).unwrap_or_default()
+	}
 }
 
 /// Points by name and the ids in use, as hang's renditions and moq-mux's selections: a map
@@ -2244,8 +2250,8 @@ pub fn nudge(point: &mut Point, by: i32) {
 	point.y += by;
 }
 
-/// A config of a crate no export is, behind an `Arc`, as moq-tokio's listener returns
-/// rustls's: an opaque handle, which Rust takes back.
+/// A config of a crate the facade re-exports nothing from, behind an `Arc`, as moq-tokio's
+/// listener returns rustls's: an opaque handle, which Rust takes back.
 pub fn secure(alpn: &str) -> Arc<tls::Config> {
 	Arc::new(tls::Config::new(alpn))
 }
@@ -2258,6 +2264,12 @@ pub fn alpn(config: Arc<tls::Config>) -> String {
 /// [`alpn`], lent.
 pub fn alpn_lent(config: &Arc<tls::Config>) -> String {
 	config.alpn().to_string()
+}
+
+/// A session of `alpn` lasting `seconds`, from a crate the facade re-exports nothing from:
+/// its type exports by its path there, and its error crosses as its message.
+pub fn resume(alpn: &str, seconds: u32) -> Result<tls::Session, tls::Error> {
+	tls::resume(alpn, seconds)
 }
 
 /// `text`'s length, or 0 for none: an optional borrow, lent as the borrow alone is.

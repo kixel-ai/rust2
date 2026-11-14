@@ -256,6 +256,8 @@ func script() {
 	let board = Board.new(ranks)
 	let ranked = board.ranked()
 	print("ranked \(listed(ranked) { "\($0._0) \($0._1.name()) \($0._1.get())" })")
+	let best = board.best()
+	print("best \(best.name()) \(best.get())")
 	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
 	// key once, the last kept.
 	let atlas = Atlas(points: [("b", Point(x: 1, y: 1)), ("ab", Point(x: 2, y: 3)), ("b", Point(x: 4, y: 4))], ids: [3, 1, 3])
@@ -653,6 +655,15 @@ func script() {
 	do {
 		let config = secure("h3")
 		print("secure \(alpnLent(config)) \(alpn(config.clone()))")
+		let session = try! resume("h3", 60)
+		print("resume \(session.alpn()) \(session.lifetime().seconds)")
+		do {
+			_ = try resume("", 60)
+		} catch let e as StringError {
+			print("resume err \(e.error)")
+		} catch {
+			check(false, "resume throws its message")
+		}
 		var meters = Meters.new()
 		let first = meters.first()
 		_ = first.add(2)

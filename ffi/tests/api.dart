@@ -189,6 +189,9 @@ Future<void> script() async {
   final board = api.Board([('low', api.Counter('l', 1)), ('high', api.Counter('h', 9))]);
   final ranked = board.ranked();
   print('ranked ${ranked.map((r) => '${r.$1} ${r.$2.name()} ${r.$2.get()}').join(', ')}');
+  final best = board.best();
+  print('best ${best.name()} ${best.get()}');
+  best.close();
   board.close();
   // A map crosses as its pairs and a set as its items, which Rust collects in order, each
   // key once, the last kept.
@@ -562,6 +565,14 @@ Future<void> script() async {
   final config = api.secure('h3');
   print('secure ${api.alpnLent(config)} ${api.alpn(config.clone())}');
   config.close();
+  final session = api.resume('h3', 60);
+  print('resume ${session.alpn()} ${session.lifetime().seconds}');
+  session.close();
+  try {
+    api.resume('', 60);
+  } on api.StringException catch (e) {
+    print('resume err ${e.error}');
+  }
   final meters = api.Meters();
   final lentMeter = meters.first();
   lentMeter.add(2);

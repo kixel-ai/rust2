@@ -10,8 +10,8 @@ adds to the gate, warm and cold.
 ## Plan
 
 Decided with the maintainer on 2026-11-12, in the quest audit: ✅ in m0. Today the
-exporter's check on its first consumer runs only nightly, where it was red on 2026-11-12
-([the nightly](/quest/m0/nightly-red.md)), while the experiment's runs on every merge.
+exporter's check on its first consumer runs only nightly, where it was red on 2026-11-12,
+while the experiment's runs on every merge.
 
 - The nightly's full export step takes about 13m40s, too slow for the gate. Find the
   cheapest step that still fails on a real break. Recommended: export the stand-in facade
@@ -22,7 +22,3 @@ exporter's check on its first consumer runs only nightly, where it was red on 20
   without it.
 
 Public API: none.
-
-## Required
-
-- [The nightly passes again](/quest/m0/nightly-red.md) - a gate added while the export is red would block every exporter merge

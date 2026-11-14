@@ -15,7 +15,7 @@ publish = false
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-# The moq pin, which `just ts moq`, `just ts census`, and `just ffi` check out too; bumping it is
+# The moq pin, which `just ts moq` and `just ts census` check out; bumping it is
 # `cargo update -p moq-net` after this rev. Without `async`, the model builds without a runtime.
 moq-net = { git = "https://github.com/moq-dev/moq", rev = "ffcb7cd9748422daa30e935ec464108b5a8ebb71", default-features = false }
 

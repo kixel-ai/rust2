@@ -180,6 +180,7 @@ const TAKEN: &[&str] = &[
 	"UnsafeMutableRawPointer",
 	"UnsafePointer",
 	"UnsafeRawBufferPointer",
+	"UnsafeRawPointer",
 	"UniqueArray",
 	"Void",
 	"fatalError",
