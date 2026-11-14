@@ -127,14 +127,13 @@ impl FileLoader for Narrowed {
 	}
 }
 
-/// Whether `text` holds a bare `pub` at `at`: not `pub(...)`, and not part of a longer
-/// identifier.
+/// Whether `text` holds the keyword `pub` at `at`. Whether it is bare, rather than
+/// `pub(crate)`, is rustc's to say: `pub (u8, u8)` is a public tuple field.
 pub fn is_pub(text: &[u8], at: usize) -> bool {
 	let ident = |b: &u8| b.is_ascii_alphanumeric() || *b == b'_';
 	text.get(at..at + 3) == Some(b"pub")
 		&& !at.checked_sub(1).and_then(|i| text.get(i)).is_some_and(ident)
 		&& !text.get(at + 3).is_some_and(ident)
-		&& text[at + 3..].iter().find(|b| !b.is_ascii_whitespace()) != Some(&b'(')
 }
 
 /// Walks one crate's HIR, recording each definition and what refers to what.
@@ -181,6 +180,35 @@ impl<'tcx> Collector<'tcx> {
 		for id in tcx.iter_local_def_id() {
 			let def = id.to_def_id();
 			let kind = tcx.def_kind(def);
+			// What source can name, or what makes a crate need it: not generic parameters,
+			// closures, or the definitions rustc makes up while lowering.
+			if !matches!(
+				kind,
+				DefKind::Mod
+					| DefKind::Struct
+					| DefKind::Union
+					| DefKind::Enum
+					| DefKind::Variant
+					| DefKind::Trait
+					| DefKind::TyAlias
+					| DefKind::ForeignTy
+					| DefKind::TraitAlias
+					| DefKind::AssocTy
+					| DefKind::Fn
+					| DefKind::Const { .. }
+					| DefKind::Static { .. }
+					| DefKind::Ctor(..)
+					| DefKind::AssocFn
+					| DefKind::AssocConst { .. }
+					| DefKind::Macro(_)
+					| DefKind::ExternCrate
+					| DefKind::Use
+					| DefKind::ForeignMod
+					| DefKind::Impl { .. }
+					| DefKind::Field
+			) {
+				continue;
+			}
 			let hash = this.hash(def);
 			let symbol = matches!(kind, DefKind::Fn | DefKind::AssocFn | DefKind::Static { .. })
 				&& tcx.codegen_fn_attrs(def).contains_extern_indicator();
@@ -373,7 +401,10 @@ impl<'tcx> Collector<'tcx> {
 			DefKind::Field | DefKind::TyAlias | DefKind::Static { .. } | DefKind::Const { .. } => {
 				self.refer_ty(tcx.type_of(def).instantiate_identity().skip_norm_wip());
 			}
-			DefKind::AssocTy | DefKind::AssocConst { .. } if tcx.defaultness(def).has_value() => {
+			// A trait's associated item has a type of its own only with a default.
+			DefKind::AssocTy | DefKind::AssocConst { .. }
+				if tcx.def_kind(tcx.parent(def)) != DefKind::Trait || tcx.defaultness(def).has_value() =>
+			{
 				self.refer_ty(tcx.type_of(def).instantiate_identity().skip_norm_wip());
 			}
 			DefKind::Impl { of_trait } => {

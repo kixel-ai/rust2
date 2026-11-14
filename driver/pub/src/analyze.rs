@@ -38,6 +38,8 @@ pub struct Def {
 	pub kind: String,
 	pub path: String,
 	pub span: Option<Place>,
+	/// Whether another crate can name it.
+	pub exported: bool,
 	/// Exported from a library that crates outside the audit may use.
 	pub external: bool,
 	pub symbol: bool,
@@ -112,7 +114,7 @@ impl Audit {
 			let package = packages.get(unit.package.as_path()).copied();
 			// A library's API is its own to decide unless the audit holds every crate
 			// that may use it: one no registry publishes, a member of an audited
-			// workspace, that another audited package depends on.
+			// workspace, that another audited package depends on to build.
 			let open = package.is_none_or(|p| p.publishable || !p.member)
 				|| !depended.contains(&unit.package.as_path());
 			for def in &unit.defs {
@@ -124,6 +126,7 @@ impl Audit {
 						kind: def.kind.clone(),
 						path: def.path.clone(),
 						span,
+						exported: false,
 						external: false,
 						symbol: false,
 						category: Category::Unreached,
@@ -133,6 +136,7 @@ impl Audit {
 					defs.len() - 1
 				});
 				let joined = &mut defs[index];
+				joined.exported |= unit.lib && def.exported;
 				joined.external |= unit.lib && def.exported && open;
 				joined.symbol |= def.symbol;
 				hashes.insert(def.hash, index);

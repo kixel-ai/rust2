@@ -27,7 +27,7 @@ to audit crates they share as one. Cargo args select what to check, as for
 
 A library's API stays `pub` when crates outside the audit may use it: when a registry
 may publish its package, or its package is not a member of an audited workspace, or no
-other audited package depends on it.";
+other audited package depends on it to build, rather than only to test it.";
 
 pub fn run(args: &[String]) -> ExitCode {
 	match try_run(args) {

@@ -53,15 +53,26 @@ impl Run<'_> {
 		};
 		let mut success = true;
 		let mut diagnostics = Vec::new();
+		let mut compiled = 0;
 		for workspace in self.workspaces {
 			let check = workspace.check(self.args, &facts, self.local, edits_path.as_deref())?;
 			success &= check.success;
+			compiled += check.compiled;
 			for mut diagnostic in check.diagnostics {
 				absolute(&mut diagnostic, &workspace.root);
 				diagnostics.push(diagnostic);
 			}
 		}
-		Ok((success, diagnostics, crate::cargo::units(&facts)?))
+		let units = crate::cargo::units(&facts)?;
+		// A crate cargo compiled without this binary, such as through a build cache,
+		// leaves the graph without its references.
+		if success && units.len() != compiled {
+			return Err(format!(
+				"cargo compiled {compiled} local crates, but {} ran through this binary; does a cache or wrapper bypass RUSTC_WRAPPER?",
+				units.len()
+			));
+		}
+		Ok((success, diagnostics, units))
 	}
 }
 

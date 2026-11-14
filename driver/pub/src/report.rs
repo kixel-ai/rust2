@@ -61,6 +61,8 @@ struct ItemReport {
 	#[serde(rename = "crate")]
 	crate_name: String,
 	category: Category,
+	/// Whether a crate depending on its library can name it.
+	exported: bool,
 	external: bool,
 	/// Where another crate names it.
 	#[serde(skip_serializing_if = "Option::is_none")]
@@ -120,6 +122,7 @@ pub fn write(out: &Path, scope: &Scope, audit: &Audit, validation: &Validation) 
 					kind: def.kind.clone(),
 					crate_name: def.crate_name.clone(),
 					category: def.category,
+					exported: def.exported,
 					external: def.external,
 					named_by_other_crate: evidence(&def.cross, &mut lines),
 					named_by_own_crate: evidence(&def.local, &mut lines),

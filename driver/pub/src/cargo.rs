@@ -27,7 +27,7 @@ pub struct Package {
 	pub publishable: bool,
 	/// Whether it is a member of the workspace.
 	pub member: bool,
-	/// The directories of the local packages that depend on it.
+	/// The directories of the local packages that depend on it other than to test it.
 	pub dependents: BTreeSet<PathBuf>,
 }
 
@@ -62,6 +62,13 @@ struct Node {
 #[derive(Deserialize)]
 struct Dep {
 	pkg: String,
+	dep_kinds: Vec<DepKind>,
+}
+
+#[derive(Deserialize)]
+struct DepKind {
+	/// `dev`, `build`, or none for a normal dependency.
+	kind: Option<String>,
 }
 
 impl Workspace {
@@ -104,8 +111,12 @@ impl Workspace {
 		for node in meta.resolve.iter().flat_map(|r| &r.nodes) {
 			let Some(from) = dirs.get(&node.id) else { continue };
 			for dep in &node.deps {
+				// A library only tests depend on is what they test, such as a fixture,
+				// whose API is the point.
+				let tests = dep.dep_kinds.iter().all(|k| k.kind.as_deref() == Some("dev"));
 				if let Some(to) = dirs.get(&dep.pkg)
 					&& to != from
+					&& !tests
 				{
 					local.get_mut(to).expect("a local package").dependents.insert(from.clone());
 				}
@@ -152,18 +163,30 @@ impl Workspace {
 			.spawn()
 			.and_then(|child| child.wait_with_output())
 			.map_err(|err| format!("running cargo check: {err}"))?;
+		let ids: BTreeSet<&str> = self.local.values().map(|p| p.id.as_str()).collect();
 		let mut diagnostics = Vec::new();
+		let mut compiled = 0;
 		for line in output.stdout.split(|&b| b == b'\n') {
 			let Ok(message) = serde_json::from_slice::<Message>(line) else { continue };
-			if message.reason == "compiler-message"
-				&& let Some(diagnostic) = message.message
-			{
-				diagnostics.push(diagnostic);
+			match message.reason.as_str() {
+				"compiler-message" => diagnostics.extend(message.message),
+				"compiler-artifact" if message.package_id.as_deref().is_some_and(|id| ids.contains(id)) => {
+					// Its facts would be missing, or not of the narrowed source.
+					if message.fresh == Some(true) {
+						return Err(format!(
+							"cargo reused a build of {} rather than compile it with this binary as rustc",
+							message.package_id.unwrap_or_default()
+						));
+					}
+					compiled += 1;
+				}
+				_ => {}
 			}
 		}
 		Ok(Check {
 			success: output.status.success(),
 			diagnostics,
+			compiled,
 		})
 	}
 
@@ -190,12 +213,16 @@ impl Workspace {
 pub struct Check {
 	pub success: bool,
 	pub diagnostics: Vec<Diagnostic>,
+	/// How many local crates cargo says it compiled, each of which writes a [`Unit`].
+	pub compiled: usize,
 }
 
 #[derive(Deserialize)]
 struct Message {
 	reason: String,
 	message: Option<Diagnostic>,
+	package_id: Option<String>,
+	fresh: Option<bool>,
 }
 
 /// A rustc diagnostic, as its JSON gives it.
