@@ -581,12 +581,13 @@ public:
 
 namespace detail {
 
-// `f`, any future of nothing, such as a binding's `future` of `void`, as the future Rust
-// polls: from any thread, with a waker of its own each time, until its `poll` returns
-// true, and destroyed once Rust drops it, finished or not.
+// `f`, any future of nothing, such as a binding's `future` of `void`, allocated by the
+// caller, as the future Rust polls: from any thread, with a waker of its own each time,
+// until its `poll` returns true, and destroyed once Rust drops it, finished or not.
+// Allocation is the caller's, so a caller that may throw first can hold `f` until the call.
 template <class F>
-c_foreign_future foreign_future(F f) {
-	static_assert(::std::is_same_v<decltype(f.poll(::std::declval<const waker &>())), bool>,
+c_foreign_future foreign_future(F *f) noexcept {
+	static_assert(::std::is_same_v<decltype(f->poll(::std::declval<const waker &>())), bool>,
 	              "a future Rust polls has `bool poll(const waker &)`, as a future of void does");
 	struct calls {
 		static bool poll(void *data, c_waker w) noexcept {
@@ -596,7 +597,7 @@ c_foreign_future foreign_future(F f) {
 			delete static_cast<F *>(data);
 		}
 	};
-	return c_foreign_future{&calls::poll, &calls::free, new F(::std::move(f))};
+	return c_foreign_future{&calls::poll, &calls::free, f};
 }
 
 } // namespace detail

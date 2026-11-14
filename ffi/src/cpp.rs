@@ -1410,9 +1410,10 @@ impl<'a> Header<'a> {
 		// may throw, by allocating.
 		let mut taken = false;
 		let mut throwing = Vec::new();
-		// The kept closures among them, each by its argument and its type, which a hoisted
-		// one holds in a `unique_ptr` until the call, so a later throw frees it.
-		let mut kept = Vec::new();
+		// The allocations among them that Rust takes (a kept closure, a future), each by its
+		// argument, its type, its `new`, and what passes the pointer, which a hoisted one holds
+		// in a `unique_ptr` until the call, so a later throw frees it.
+		let mut owned: Vec<(usize, String, String, Option<String>)> = Vec::new();
 		for param in &function.params {
 			let (_, c_ty) = c_params.next().expect("each parameter has its C one");
 			let name = parameter(&param.name, |name| {
@@ -1423,8 +1424,11 @@ impl<'a> Header<'a> {
 			if let Type::Future = param.ty {
 				let f = format!("F{}", templates.len());
 				params.push(format!("{f} {name}"));
+				let new = format!("new {f}(::std::move({name}))");
+				let wrap = format!("{d}::foreign_future");
 				throwing.push(args.len());
-				args.push(format!("{d}::foreign_future(::std::move({name}))"));
+				args.push(format!("{wrap}({new})"));
+				owned.push((args.len() - 1, f.clone(), new, Some(wrap)));
 				templates.push(format!("class {f}"));
 				continue;
 			}
@@ -1450,9 +1454,11 @@ impl<'a> Header<'a> {
 					// Moved or copied into a callable Rust owns, which it destroys through `free`.
 					true => {
 						c_params.next().expect("a kept closure has its free");
+						let ty = format!("::std::decay_t<{f}>");
+						let new = format!("new {ty}(::std::forward<{f}>({name}))");
 						throwing.push(args.len());
-						kept.push((args.len(), f.clone()));
-						args.push(format!("new ::std::decay_t<{f}>(::std::forward<{f}>({name}))"));
+						owned.push((args.len(), ty, new.clone(), None));
+						args.push(new);
 						args.push(format!(
 							"[](void *data_) noexcept {{ delete static_cast<::std::decay_t<{f}> *>(data_); }}"
 						));
@@ -1473,17 +1479,17 @@ impl<'a> Header<'a> {
 			args.push(self.arg(&param.ty, &name));
 		}
 		// Arguments evaluate in no set order, so those that may throw run first, and the call
-		// itself throws nothing: Rust's bytes are taken, and a kept closure's allocation
-		// released to Rust, only once nothing left before the call can throw and leak them.
+		// itself throws nothing: Rust's bytes are taken, and an allocation released to Rust,
+		// only once nothing left before the call can throw and leak them.
 		if taken || throwing.len() > 1 {
 			for &i in &throwing {
-				match kept.iter().find(|(k, _)| *k == i) {
-					Some((_, f)) => {
-						prelude.push(format!(
-							"::std::unique_ptr<::std::decay_t<{f}>> c_arg{i}_({});",
-							args[i]
-						));
-						args[i] = format!("c_arg{i}_.release()");
+				match owned.iter().find(|(k, ..)| *k == i) {
+					Some((_, ty, new, wrap)) => {
+						prelude.push(format!("::std::unique_ptr<{ty}> c_arg{i}_({new});"));
+						args[i] = match wrap {
+							Some(wrap) => format!("{wrap}(c_arg{i}_.release())"),
+							None => format!("c_arg{i}_.release()"),
+						};
 					}
 					None => {
 						prelude.push(format!("auto c_arg{i}_ = {};", args[i]));
