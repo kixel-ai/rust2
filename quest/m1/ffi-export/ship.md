@@ -24,4 +24,3 @@ then see change. A sibling planned later adds itself to `Required` here.
 - [Lossless binding types](/quest/m1/ffi-export/lossless.md) - the types of durations, addresses, paths, and text
 - [Opaque padding from the glue's rustc](/quest/m1/ffi-export/padding-layout.md) - that zeroing an opaque value's padding never zeroes a live field
 - [Not Send](/quest/m1/ffi-export/not-send.md) - the types and futures that export checked by thread
-- [Export moq for every target](/quest/m1/ffi-export/moq-targets.md) - one binding across the targets moq ships
