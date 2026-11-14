@@ -816,6 +816,30 @@ func script() {
 		chain.append(certify(Bytes("a".utf8)))
 		chain.append(certify(Bytes("bc".utf8)))
 		print("cert \(certLength) \(der) \(try! chainLen(chain))")
+		// Another crate's trait objects: an `Arc`, taken back, and `'static` ones, held by value.
+		print("resolver \(try! resolved(resolver("r1")))")
+		var codecs = Codecs.new()
+		print("codecs \(try! codecs.ids())")
+		var listed = try! codecs.listGet()
+		var reversed = UniqueArray<TlsCodec>()
+		reversed.append(listed.remove(at: 1))
+		reversed.append(listed.remove(at: 0))
+		try! codecs.listSet(reversed)
+		print("codecs reversed \(try! codecs.ids())")
+		// A standard library value no type maps, in a handle.
+		let failed = failure("boom")
+		let message = try! failureMessage(failed)
+		print("failure \(message) \(try! failureKind(failed))")
+		// Iterators, passed as the arrays of their items.
+		print("sum_all \(sumAll([1, 2, 3]))")
+		var weighed = UniqueArray<Counter>()
+		weighed.append(Counter.new("w", 3))
+		print("weigh_all \(try! weighAllCounter(weighed))")
+		print("offered_len \(offeredLen([Bytes("h3".utf8), Bytes("moq-00".utf8)]))")
+		print("join_words \(joinWords(["a", "b", "c"]))")
+		// Bytes that must be `'static`, interned.
+		print("der \(text(Der.fromSlice(Bytes("der".utf8)).bytes()))")
+		print("der again \(text(Der.fromSlice(Bytes("der".utf8)).bytes()))")
 		let session = try! resume("h3", 60)
 		print("resume \(session.alpn()) \(session.lifetime().seconds)")
 		do {
@@ -834,6 +858,17 @@ func script() {
 		let last = try! meters.lastGet()
 		_ = try! last.add(4)
 		print("field lent \(try! last.add(1))")
+		// An optional field that is not Clone, lent as `Some` of a handle.
+		var hasSpare = false
+		if let _ = try! meters.spareGet() {
+			hasSpare = true
+		}
+		print("spare \(hasSpare)")
+		try! meters.spareSet(Meter.default())
+		if let spare = try! meters.spareGet() {
+			_ = try! spare.add(5)
+			print("spare lent \(try! spare.add(1))")
+		}
 		let tallies = Tallies.new()
 		_ = try! tallies.first().bump()
 		print("tallied \(try! tallies.first().bump())")
@@ -895,6 +930,7 @@ func script() {
 
 	// Slices, passed in and returned as clones, and the socket address of each family.
 	print("shapes \(Shape.ALL) greetings \(GREETINGS)")
+	print("both \(Shape.BOTH) primes \(PRIMES)")
 	var trail = Trail.new([Point(x: 1, y: 2), Point(x: 3, y: 4)], ["a", "b"])
 	print("trail \(try! trail.points()) \(try! trail.labels())")
 	// Returned iterators, each collected at the call: drained labels are gone after.
