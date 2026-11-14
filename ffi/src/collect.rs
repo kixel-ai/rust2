@@ -5697,7 +5697,7 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 			sum.align = sum.align.max(field.align);
 			sum.niche |= field.niche;
 		}
-		(sum.model % sum.align == 0).then_some(sum)
+		sum.model.is_multiple_of(sum.align).then_some(sum)
 	}
 	fn least<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> Option<Least> {
 		let layout = tcx.layout_of(env.as_query_input(ty)).ok()?;
@@ -5769,7 +5769,7 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 				let align = each.iter().map(|v| v.align).max().unwrap_or(1);
 				let model = each.iter().map(|v| v.model).min()?.checked_add(tag)?;
 				let bytes = each.iter().map(|v| v.bytes).min()?.checked_add(tag)?;
-				(model % align == 0).then_some(Least {
+				model.is_multiple_of(align).then_some(Least {
 					bytes,
 					model,
 					align,
