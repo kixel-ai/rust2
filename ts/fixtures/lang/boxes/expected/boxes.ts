@@ -506,9 +506,19 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let deep = 1 as rs.u32 | undefined | rs.None;
 	const tup: rs.Result<[rs.u32, rs.u32], rs.u8> = rs.Ok([1, 2]);
 	let boxedOpt: rs.u32 | undefined = 3;
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _52: [rs.usize, rs.u8] | rs.Done = iter.next();
+		let next!: [rs.usize, rs.u8] | rs.Done;
+		next2: {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count++, x];
+		}
+		const _52: [rs.usize, rs.u8] | rs.Done = next;
 		if (_52 === rs.DONE) {
 			break;
 		}

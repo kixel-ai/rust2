@@ -226,9 +226,19 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const v: rs.Vec<rs.Arc<rs.u8>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.Arc<rs.u8> => {
 		return rs.arcClone(one);
 	}), undefined, 4, true);
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _18: [rs.usize, rs.u8] | rs.Done = iter.next();
+		let next!: [rs.usize, rs.u8] | rs.Done;
+		next2: {
+			const x3 = leaf.next();
+			if (x3 === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count++, x3];
+		}
+		const _18: [rs.usize, rs.u8] | rs.Done = next;
 		if (_18 === rs.DONE) {
 			break;
 		}

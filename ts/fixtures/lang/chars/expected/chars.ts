@@ -167,9 +167,19 @@ export function chars(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}), "next", 4, false, 4);
 		const sorted: rs.BTreeSet<rs.char> = rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.char>;
 		const seen: rs.HashSet<rs.char> = rs.hashNew() as rs.HashSet<rs.char>;
-		const iter3: rs.Iter<[rs.usize, rs.char]> = rs.iterEnumerate(rs.iterSlice(cs.items));
+		const leaf: rs.Iter<rs.char> = rs.iterSlice(cs.items);
+		let count: number = 0;
 		while (true) {
-			const _88: [rs.usize, rs.char] | rs.Done = iter3.next();
+			let next!: [rs.usize, rs.char] | rs.Done;
+			next2: {
+				const x = leaf.next();
+				if (x === rs.DONE) {
+					next = rs.DONE;
+					break next2;
+				}
+				next = [count++, x];
+			}
+			const _88: [rs.usize, rs.char] | rs.Done = next;
 			if (_88 === rs.DONE) {
 				break;
 			}
@@ -247,10 +257,21 @@ export function unicode(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		if (rs.u8Rem(kind, 2) === 0) {
 			flags = (rs.charIsAlphabetic(c) ? 1 : 0) | (((rs.charIsLowercase(c) ? 1 : 0) << 1) & 0xff) | (((rs.charIsUppercase(c) ? 1 : 0) << 2) & 0xff) | (((rs.charIsAlphanumeric(c) ? 1 : 0) << 3) & 0xff) | (((rs.charIsControl(c) ? 1 : 0) << 4) & 0xff) | (((rs.charIsNumeric(c) ? 1 : 0) << 5) & 0xff) | (((isDigit$10ivuux(c, 36) ? 1 : 0) << 6) & 0xff);
 		} else {
-			flags = rs.iterFold(rs.iterEnumerate(rs.iterSlice(classes)), 0, (flags2: rs.u8, _3: [rs.usize, (a0: rs.char) => boolean]): rs.u8 => {
+			const leaf = rs.iterSlice(classes);
+			let count = 0;
+			const f = (flags2: rs.u8, _3: [rs.usize, (a0: rs.char) => boolean]): rs.u8 => {
 				const i: rs.usize = _3[0];
 				return flags2 | rs.u8Shl(_3[1](c) ? 1 : 0, i);
-			});
+			};
+			let acc: rs.u8 = 0;
+			while (true) {
+				const x = leaf.next();
+				if (x === rs.DONE) {
+					break;
+				}
+				acc = f(acc, [count++, x]);
+			}
+			flags = acc;
 		}
 		rs.byteVecPush(out, flags);
 		const iter2: rs.Iter<rs.char> = rs.iterChain(rs.charToLowercase(c), rs.charToUppercase(c));

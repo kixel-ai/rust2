@@ -391,6 +391,10 @@ def script():
 		# The send happens at the call: the future is dropped unawaited.
 		channel.send_later(b"eager")
 		print(f"recv {text(await channel.recv())}")
+		# The send happens at the call, and the future borrows the channel and the tag.
+		print(f"tagged {await channel.tagged('tag')}")
+		print(f"itemized {await channel.itemized(array.array('I', [1, 2, 3]))}")
+		print(f"byte_len {await api.byte_len(b'abc')}")
 		channel.send(b"sized")
 		payload, size = await channel.recv_sized()
 		print(f"sized {text(payload)} {size}")
@@ -571,6 +575,8 @@ def script():
 	print(f"nudge {nudged.value.x} {nudged.value.y}")
 	config = api.secure("h3")
 	print(f"secure {api.alpn_lent(config)} {api.alpn(config.clone())}")
+	cert = api.certify(b"der")
+	print(f"cert {api.cert_len(cert)} {text(api.cert_der(cert))} {api.chain_len([api.certify(b'a'), api.certify(b'bc')])}")
 	session = api.resume("h3", 60)
 	print(f"resume {session.alpn()} {session.lifetime().seconds}")
 	try:
@@ -583,6 +589,9 @@ def script():
 	print(f"lent {first.add(3)} {meters.first().count()}")
 	meters.clear()
 	print(f"cleared {meters.first().count()}")
+	lent_last = meters.last_get
+	lent_last.add(4)
+	print(f"field lent {lent_last.add(1)}")
 	tallies = api.Tallies.new()
 	tallies.first().bump()
 	print(f"tallied {tallies.first().bump()}")
@@ -666,6 +675,7 @@ def script():
 	ended = api.later(began, datetime.timedelta(milliseconds=1500))
 	same = api.later(began, datetime.timedelta())
 	print(f"instants {api.since(ended, began) // ms} {api.since(began, ended) // ms} {flag(began == same)} {flag(began == ended)}")
+	print(f"has_instant {flag(api.has_instant(began))} {flag(api.has_instant(None))}")
 	# tracing's level, and its filter as an optional level whose None is `OFF`.
 	verbosity = api.Verbosity.new(api.Level.WARN)
 	print(f"verbosity {api.spell(verbosity.filter())} {api.spell(api.louder(verbosity.filter()))}")
@@ -1208,7 +1218,57 @@ def owned():
 	del cycle
 	gc.collect()
 	check(api.dropped() == before + 5, "the cycle collector frees what a cycle held")
+	forwarding()
+	released_mid_call()
+
+
+def released_mid_call():
+	"""Rust's bytes a call reads in place stay Rust's until it returns, though the view
+	passed is released while the arguments are still being read."""
+	kept = []
+
+	def parts():
+		before = api.dropped()
+		with api.token_bytes(9, 2048) as view:
+			yield view
+		kept.append(api.dropped() == before)
+		yield b"x"
+
+	before = api.dropped()
+	joined = bytes(api.joined(parts()))
+	check(kept == [True], "a call keeps Rust's bytes it was passed a released view of")
+	check(joined == bytes([9]) * 2048 + b"x", "a released view's bytes read back")
+	check(api.dropped() == before + 1, "Rust's bytes drop once the call returns")
 	print("owned ok")
+
+
+def forwarding():
+	"""Rust's bytes, read and passed back, cross in place: whole, sliced, kept while passed
+	on, and in a record. The token's drop shows no copy stood in for them: it comes once,
+	only when the last view of the bytes Rust put it in goes."""
+	loop = asyncio.new_event_loop()
+	channel = api.Channel.new()
+	before = api.dropped()
+	payload = api.token_bytes(3, 64)
+	channel.send(payload)
+	del payload
+	payload = loop.run_until_complete(channel.recv())
+	channel.send(payload[1:63])
+	del payload
+	payload = loop.run_until_complete(channel.recv())
+	check(bytes(payload) == bytes([3]) * 62, "a slice of Rust's bytes crosses as itself")
+	channel.send(payload)
+	kept = loop.run_until_complete(channel.recv())
+	del payload
+	packet = api.next_packet(api.Packet(1, kept))
+	del kept
+	check(api.dropped() == before and len(packet.payload) == 62, "Rust's bytes cross back without a copy")
+	del packet
+	check(api.dropped() == before + 1, "Rust's bytes drop once, with their last view")
+	# Bytes of Python's own cross copied once, and a view of Rust's only read stays theirs.
+	packet = api.next_packet(api.Packet(1, bytearray(b"abc")))
+	check(bytes(packet.payload) == b"abc", "a bytearray crosses copied")
+	loop.close()
 
 
 def values():

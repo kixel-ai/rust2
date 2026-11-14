@@ -1,9 +1,10 @@
 """The binding benchmark's tables, in Markdown: the median of each case's rounds per language,
 in CPU and wall time, each beside the median 1-minute load average over its rounds, read
-from `just ffi bench-run`'s raw.tsv, and the sizes of the export's generated bindings and
+from `just ffi bench-run`'s raw.tsv; the median time and peak RSS of the export and its
+crate's build, beside moq's own, from its build.tsv; and the sizes of the export's generated bindings and
 native libraries.
 
-Usage: report.py <raw.tsv> <export dir>
+Usage: report.py <raw.tsv> <build.tsv> <export dir>
 """
 
 import collections
@@ -36,6 +37,7 @@ CALLS = [
 	("own:getter", "the same, a handle per thread"),
 	("record", "`track.largest()`, a record return"),
 	("object", "`track.info()`, an object return"),
+	("objects", "the same from 4 threads at once, Kotlin only"),
 	("write", "`group.write_frame(at, frame)`, 100 B"),
 	("stamped", "the same, with a new `Timestamp` each"),
 	("ready", "a 100 B frame written and read, ready"),
@@ -50,6 +52,14 @@ INSTEAD = {
 	("dart", case): "no: an isolate takes no other's object"
 	for case in ["shared:call", "own:call", "shared:getter", "own:getter"]
 }
+
+# Each step `just ffi bench-run` times from an emptied target, and what it is.
+BUILDS = [
+	("export", "rust2-ffi's export, a `cargo check` of moq under its driver"),
+	("check", "moq's own `cargo check` of the same crates"),
+	("generated", "the generated crate's release build, Kotlin and Dart glue included"),
+	("moq", "moq's own release build of the same crates"),
+]
 
 SIZES = [100, 1024, 16384, 65536, 1048576]
 
@@ -115,7 +125,23 @@ def table(header, rows):
 	return "\n".join(lines)
 
 
-def main(raw_path, export):
+def builds(path):
+	"""The Build table: each step's median wall and CPU seconds and peak RSS, and load."""
+	rounds = collections.defaultdict(list)
+	with open(path) as f:
+		for line in f:
+			step, _, wall, cpu, rss, load = line.rstrip("\n").split("\t")
+			rounds[step].append((float(wall), float(cpu), int(rss), float(load)))
+	rows = []
+	for step, label in BUILDS:
+		if step not in rounds:
+			continue
+		wall, cpu, rss, load = (statistics.median(s[i] for s in rounds[step]) for i in range(4))
+		rows.append([label, f"{wall:,.1f}", f"{cpu:,.1f}", f"{rss / 1048576:,.0f} MiB", f"{load:.0f}"])
+	return table(["step", "wall s", "CPU s", "peak RSS", "load average"], rows)
+
+
+def main(raw_path, build_path, export):
 	rounds = collections.defaultdict(list)
 	with open(raw_path) as f:
 		for line in f:
@@ -147,6 +173,10 @@ def main(raw_path, export):
 		print(table(header, rows))
 		print()
 
+	print("### Build (median, from an emptied target)\n")
+	print(builds(build_path))
+	print()
+
 	print("### Size\n")
 	rows = []
 	for name, generated, glue in BINDINGS:
@@ -170,6 +200,6 @@ def main(raw_path, export):
 
 
 if __name__ == "__main__":
-	if len(sys.argv) != 3:
+	if len(sys.argv) != 4:
 		sys.exit(__doc__)
-	main(sys.argv[1], sys.argv[2])
+	main(sys.argv[1], sys.argv[2], sys.argv[3])

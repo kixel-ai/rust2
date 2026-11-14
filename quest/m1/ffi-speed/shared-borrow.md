@@ -6,9 +6,9 @@ Threads calling `&self` methods on one shared handle cost about what they cost o
 each, in [the binding benchmark](/bench/ffi/README.md)'s concurrent cases, while every
 borrow, move, and close stays checked.
 Today each shared borrow is a compare-and-swap and a `fetch_sub` on the handle's one
-`state`, so on 4 threads C's u64 getter costs 102 ns against 4.3 on a handle each; Kotlin's
+`state`, so on 4 threads C's u64 getter costs 107 ns against 4.1 on a handle each; Kotlin's
 and Go's hold counts, and a Swift class's, add a second contended atomic on the same object
-(Kotlin 395 ns, Go 255).
+(Kotlin 378 ns, Go 252).
 
 ## Plan
 

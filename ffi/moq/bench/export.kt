@@ -38,12 +38,17 @@ fun per(start: Span, n: Double = N.toDouble()): Span {
 fun <T> concurrent(handles: List<T>, call: (T) -> Int): Span {
 	val ready = CountDownLatch(THREADS)
 	val go = CountDownLatch(1)
+	val failures = java.util.concurrent.ConcurrentLinkedQueue<Throwable>()
 	val workers = handles.map { handle ->
 		Thread {
 			var sum = 0
 			ready.countDown()
 			go.await()
-			repeat(N) { sum += call(handle) }
+			try {
+				repeat(N) { sum += call(handle) }
+			} catch (e: Throwable) {
+				failures.add(e)
+			}
 			sink += sum
 		}.apply { start() }
 	}
@@ -51,6 +56,8 @@ fun <T> concurrent(handles: List<T>, call: (T) -> Int): Span {
 	val start = now()
 	go.countDown()
 	workers.forEach { it.join() }
+	// A worker that died early would otherwise report a time for fewer than N calls.
+	failures.peek()?.let { throw it }
 	return per(start, N.toDouble()).let { Span(it.wall, it.cpu / THREADS) }
 }
 
@@ -58,7 +65,7 @@ fun <T> concurrent(handles: List<T>, call: (T) -> Int): Span {
 // byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
 suspend fun throughput(track: TrackProducer, subscriber: TrackSubscriber, at: Timestamp, size: Int): Span {
 	val groups = ((64 shl 20) / (size * FRAMES)).coerceIn(3, 2000)
-	val frame = ByteArray(size)
+	val frame = Bytes(ByteArray(size))
 	var sum = 0
 	val start = now()
 	repeat(groups) {
@@ -83,7 +90,7 @@ fun round(): Map<String, Span> {
 	val track = Timescale.MICRO.use { micro ->
 		broadcast.createTrack("bench", TrackInfo.default().withTimescale(micro))
 	}
-	val frame = ByteArray(100)
+	val frame = Bytes(ByteArray(100))
 	var sum = 0
 
 	var start = now()
@@ -119,6 +126,15 @@ fun round(): Map<String, Span> {
 	start = now()
 	repeat(N) { track.info().close() }
 	out["object"] = per(start)
+
+	// The same from THREADS threads at once, so objects made and freed together contend
+	// for whatever the binding shares between them. Kotlin's alone: the others share none.
+	start = now()
+	val failures = java.util.concurrent.ConcurrentLinkedQueue<Throwable>()
+	List(THREADS) { java.lang.Thread { try { repeat(N / THREADS) { track.info().close() } } catch (e: Throwable) { failures.add(e) } }.apply { start() } }.forEach { it.join() }
+	// A worker that died early would otherwise report a time for fewer than N calls.
+	failures.peek()?.let { throw it }
+	out["objects"] = per(start)
 
 	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
 	var micros = 0uL

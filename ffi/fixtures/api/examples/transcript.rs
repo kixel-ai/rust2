@@ -362,6 +362,22 @@ fn main() {
 	if let Poll::Ready(payload) = recv.as_mut().poll(&mut cx) {
 		println!("recv {}", String::from_utf8_lossy(&payload));
 	}
+	// The send happens at the call, and the future borrows the channel and the tag.
+	let mut tagged = pin!(channel.tagged("tag"));
+	if let Poll::Ready(text) = tagged.as_mut().poll(&mut cx) {
+		println!("tagged {text}");
+	}
+	// So does a future borrowing an optional slice, which the export owns while it is pending.
+	let items = [1u32, 2, 3];
+	let mut itemized = pin!(channel.itemized(Some(&items)));
+	if let Poll::Ready(count) = itemized.as_mut().poll(&mut cx) {
+		println!("itemized {count}");
+	}
+	// Another crate's future borrowing its bytes, which the export owns while it is pending.
+	let bytes = *b"abc";
+	if let Poll::Ready(len) = pin!(api::byte_len(&bytes)).poll(&mut cx) {
+		println!("byte_len {len}");
+	}
 	channel.send(Bytes::from_static(b"sized"));
 	let mut sized = pin!(channel.recv_sized());
 	if let Poll::Ready((payload, len)) = sized.as_mut().poll(&mut cx) {
@@ -585,6 +601,14 @@ fn main() {
 	println!("nudge {} {}", point.x, point.y);
 	let config = api::secure("h3");
 	println!("secure {} {}", api::alpn_lent(&config), api::alpn(config.clone()));
+	let cert = api::certify(b"der");
+	let chain = vec![api::certify(b"a"), api::certify(b"bc")];
+	println!(
+		"cert {} {} {}",
+		api::cert_len(&cert),
+		String::from_utf8_lossy(&api::cert_der(cert)),
+		api::chain_len(chain)
+	);
 	let session = api::resume("h3", 60).unwrap();
 	println!("resume {} {}", session.alpn(), session.lifetime().seconds);
 	println!("resume err {}", api::resume("", 60).err().unwrap());
@@ -594,6 +618,8 @@ fn main() {
 	println!("lent {} {}", first.add(3), meters.first().count());
 	meters.clear();
 	println!("cleared {}", meters.first().count());
+	meters.last.add(4);
+	println!("field lent {}", meters.last.add(1));
 	let tallies = api::Tallies::new();
 	tallies.first().bump();
 	println!("tallied {}", tallies.first().bump());
@@ -751,6 +777,12 @@ fn main() {
 		api::since(start, end).as_millis(),
 		start == api::later(start, std::time::Duration::ZERO),
 		start == end
+	);
+	// An instant lent inside an `Option`, which takes no handle.
+	println!(
+		"has_instant {} {}",
+		api::has_instant(&Some(start)),
+		api::has_instant(&None)
 	);
 	let mut verbosity = api::Verbosity::new(tracing::Level::WARN);
 	println!(

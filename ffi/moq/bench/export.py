@@ -31,12 +31,16 @@ def concurrent(calls):
 	wall nanoseconds per call on one thread, and CPU nanoseconds per call."""
 	ready = threading.Barrier(len(calls) + 1)
 	go = threading.Event()
+	failures = []
 
 	def work(call):
 		ready.wait()
 		go.wait()
-		for _ in range(N):
-			call()
+		try:
+			for _ in range(N):
+				call()
+		except BaseException as error:
+			failures.append(error)
 
 	threads = [threading.Thread(target=work, args=(call,)) for call in calls]
 	for thread in threads:
@@ -46,6 +50,9 @@ def concurrent(calls):
 	go.set()
 	for thread in threads:
 		thread.join()
+	# A worker that died early would otherwise report a time for fewer than N calls.
+	if failures:
+		raise failures[0]
 	wall, cpu = per(begin)
 	return wall, cpu / len(calls)
 
