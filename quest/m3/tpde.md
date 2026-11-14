@@ -38,13 +38,14 @@ instructions by 16% clean and 25% on the non-incremental edit.
 
 ## Waiting
 
-- rust-lang/rust: [rust-lang/rust#164108](https://github.com/rust-lang/rust/pull/164108)
-  adds `-Zllvm-tpde`. Check that it merged and that a nightly from
-  `rust-bin.nightly` in `flake.nix` accepts the flag: `rustc -Z help` lists
-  `llvm-tpde`, and a `-Zllvm-tpde=only` build of a hello world succeeds, since
-  a shipped toolchain may build without TPDE. On 2026-11-12 the PR is open, approved, and
-  waiting on bors. Its review says installation does not install the TPDE plugin, on
-  purpose, and the plugin builds only with `rust.tpde = true` in `bootstrap.toml`, so
-  the merge alone will not clear this: a nightly must also ship the plugin, which
+- rust-lang/rust: a nightly must ship the TPDE plugin (`tpde-plugin`), which
   [rust-lang/rust-project-goals#802](https://github.com/rust-lang/rust-project-goals/issues/802)
-  tracks.
+  tracks. [rust-lang/rust#164108](https://github.com/rust-lang/rust/pull/164108) merged the
+  flag at 2d1164a6 on 2026-11-13, but installation does not install the plugin, on purpose,
+  and it builds only with `rust.tpde = true` in `bootstrap.toml`. On 2026-11-14,
+  nightly-2026-11-14 (rustc 5f4effd57) lists `llvm-tpde` in `rustc -Z help`, but its
+  manifest has no TPDE component, and a hello world with `-Zllvm-tpde=only` or `=try`
+  fails: "TPDE backend not found in the sysroot: failed to find the `tpde-plugin` shared
+  library". `rust-bin.nightly` in `flake.nix` had no 2026-11-14 entry yet. Check: install
+  the newest nightly's `rustc` and `rust-std` from `static.rust-lang.org/dist/<date>/`, and
+  build a hello world with `-Zllvm-tpde=only`.
