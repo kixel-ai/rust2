@@ -102,6 +102,14 @@ returns that are not `Clone`. At `9b80cfcc8` on 2026-11-14 it fails with 19: 15 
 excludes, `dial_tcp` and `dial_track` on the excluded `kio::Pending`, and two rustls
 `ConfigBuilder` instances on the foreign `ServerConfig`.
 
+Decided 2026-11-14 (maintainer, [kixel-ai/rust2#809](https://github.com/kixel-ai/rust2/pull/809)):
+✅ keep waiting on moq, and plan the fix in moq-dev/moq: wrap the lite publisher's
+`kio::Tasks<Control>` so it proves `Send + Sync` once, as
+[moq-dev/moq#8657](https://github.com/moq-dev/moq/pull/8657) did for the subscriber, and build
+moq-tokio and the moq-ffi facade under `-D recursion_depth_exceeding_limit` so the overflow
+cannot return. Rejected: record the wait only, with no moq fix planned; allow the lint for moq's
+crates, which only defers the failure until a later nightly makes it a hard error.
+
 ## Waiting
 
 - moq-dev/moq: moq-tokio builds without tripping `recursion_depth_exceeding_limit` (an
