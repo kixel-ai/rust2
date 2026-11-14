@@ -2583,21 +2583,31 @@ fn standard_names() {
 
 /// A `Copy` type crosses as its bytes only when its fields fill it under any field order
 /// a `rustc` may pick, with a byte for an enum's tag where no field has a niche to hold
-/// one; any other is a handle. A huge array is judged without walking its elements: a
+/// one, in a model no target varies, so the export's targets agree; any other is a handle.
+/// A huge array is judged without walking its elements: a
 /// zero-sized element repeated `usize::MAX` times, or a 1 TiB array of bytes, which no
 /// export returns, so it is left out only after it is judged.
 #[test]
 fn opaque_values() {
 	let lib = "#![allow(dead_code)]\n\n#[derive(Clone, Copy)]\npub struct Marker([(); usize::MAX]);\n\nimpl Marker {\n\tpub fn new() -> Self {\n\t\tSelf([(); usize::MAX])\n\t}\n}\n\npub fn take(marker: Marker) -> u32 {\n\tmarker.0.len().count_ones()\n}\n\n\
-		#[derive(Clone, Copy)]\npub struct Huge([u8; 1 << 40]);\n\npub fn first(huge: &Huge) -> u8 {\n\thuge.0[0]\n}\n\n\
+		#[cfg(target_pointer_width = \"64\")]\n#[derive(Clone, Copy)]\npub struct Huge([u8; 1 << 40]);\n\n#[cfg(target_pointer_width = \"64\")]\npub fn first(huge: &Huge) -> u8 {\n\thuge.0[0]\n}\n\n\
 		#[derive(Clone, Copy)]\n#[repr(C)]\nstruct Pair {\n\ta: u8,\n\tb: u16,\n}\n\n\
 		#[derive(Clone, Copy)]\npub struct Pairs([Pair; 3]);\n\npub fn pairs() -> Pairs {\n\tPairs([Pair { a: 1, b: 2 }; 3])\n}\n\n\
 		#[derive(Clone, Copy)]\npub struct Flag(bool, u8, [u16; 3]);\n\npub fn flag() -> Flag {\n\tFlag(true, 1, [2; 3])\n}\n\n\
 		#[derive(Clone, Copy)]\nenum Two {\n\tA(u8),\n\tB(i8),\n}\n\n#[derive(Clone, Copy)]\npub struct Tagged(Two);\n\npub fn tagged() -> Tagged {\n\tTagged(Two::B(-1))\n}\n\n\
 		#[derive(Clone, Copy)]\nenum Uneven {\n\tA(u32),\n\tB(u16),\n}\n\n#[derive(Clone, Copy)]\npub struct Wide(Uneven);\n\npub fn wide() -> Wide {\n\tWide(Uneven::B(1))\n}\n\n\
-		#[derive(Clone, Copy)]\nenum Niche {\n\tA(bool, u8),\n\tB(u8, u8),\n}\n\n#[derive(Clone, Copy)]\npub struct Niched(Niche);\n\npub fn niched() -> Niched {\n\tNiched(Niche::A(true, 1))\n}\n";
+		#[derive(Clone, Copy)]\nenum Niche {\n\tA(bool, u8),\n\tB(u8, u8),\n}\n\n#[derive(Clone, Copy)]\npub struct Niched(Niche);\n\npub fn niched() -> Niched {\n\tNiched(Niche::A(true, 1))\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Word(usize, u32);\n\npub fn word() -> Word {\n\tWord(1, 2)\n}\n";
 	let package = package("opaque_values", &[("src/lib.rs", lib)]);
-	export_and_build(&package, &["--offline"]);
+	let out = package.join("out");
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--out")
+		.arg(&out)
+		.args(["--target", WASM, "--target", host(), "--", "--offline"])
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	build_offline(&out, &package.join("glue"));
 	let header = std::fs::read_to_string(package.join("out/include/opaque_values.h")).unwrap();
 	assert!(
 		header.contains("\tuint8_t opaque[1];\n} opaque_values_Marker;"),
@@ -2611,8 +2621,9 @@ fn opaque_values() {
 		);
 	}
 	// Padding after each `u8`; a tag and a `u16` short of a `u32`'s room; a niche the tag
-	// may hide in, leaving `B` a byte short.
-	for handle in ["Pairs", "Wide", "Niched"] {
+	// may hide in, leaving `B` a byte short; padding after the `u32` on a 64-bit target,
+	// though none on wasm32, so a handle on both.
+	for handle in ["Pairs", "Wide", "Niched", "Word"] {
 		assert!(
 			header.contains(&format!("void opaque_values_{handle}_free(")),
 			"{handle} is no handle:\n{header}"

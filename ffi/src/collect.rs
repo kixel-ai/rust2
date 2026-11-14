@@ -5661,19 +5661,63 @@ fn target(tcx: TyCtxt<'_>) -> String {
 /// it, so no field order leaves padding. The glue asserts the size, which is what lets
 /// another `rustc` build it; a type with padding, or bytes that depend on its value, such
 /// as a union's or `Option<u32>`'s, is a handle instead.
+///
+/// The fields must also fill a model layout that no target varies: a pointer of 8 bytes,
+/// and each primitive aligned to its size. So every target decides alike and one binding
+/// serves them all: std's `Instant`, an `i64` and a `u32`, fills its 12 bytes on a 32-bit
+/// x86 but leaves 4 of 16 on a 64-bit one, so it is a handle on both.
 fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	let env = TypingEnv::fully_monomorphized();
 	let ty = tcx.erase_and_anonymize_regions(ty);
-	// The fewest bytes a value of `ty` initializes under any layout, and whether it may
-	// have a niche, invalid values an enum around it could encode another variant in.
-	fn least<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> Option<(u64, bool)> {
+	/// What a value of a type initializes under any layout.
+	#[derive(Clone, Copy)]
+	struct Least {
+		/// The fewest bytes it initializes on this target.
+		bytes: u64,
+		/// The fewest it initializes in the model, and its alignment there.
+		model: u64,
+		align: u64,
+		/// Whether it may have a niche: invalid values an enum around it could encode
+		/// another variant in.
+		niche: bool,
+	}
+	// The fields of an aggregate, which never overlap: none when they leave the model's
+	// alignment a gap after them, as `(u64, u32)` does on a 64-bit target.
+	fn fields<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, tys: &[Ty<'tcx>]) -> Option<Least> {
+		let mut sum = Least {
+			bytes: 0,
+			model: 0,
+			align: 1,
+			niche: false,
+		};
+		for &ty in tys {
+			let field = least(tcx, env, ty)?;
+			sum.bytes = sum.bytes.checked_add(field.bytes)?;
+			sum.model = sum.model.checked_add(field.model)?;
+			sum.align = sum.align.max(field.align);
+			sum.niche |= field.niche;
+		}
+		(sum.model % sum.align == 0).then_some(sum)
+	}
+	fn least<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> Option<Least> {
 		let layout = tcx.layout_of(env.as_query_input(ty)).ok()?;
 		let size = layout.size.bytes();
-		// The bytes fields initialize, which never overlap, and whether any has a niche.
-		let fields = |tys: &[Ty<'tcx>]| {
-			tys.iter().try_fold((0u64, false), |(bytes, niche), &ty| {
-				let (more, theirs) = least(tcx, env, ty)?;
-				Some((bytes.checked_add(more)?, niche || theirs))
+		let primitive = |niche| {
+			Some(Least {
+				bytes: size,
+				model: size,
+				align: size.max(1),
+				niche,
+			})
+		};
+		// A pointer is 8 bytes in the model, and a wide one two of them.
+		let pointer = |niche| {
+			let words = size / tcx.data_layout.pointer_size().bytes();
+			Some(Least {
+				bytes: size,
+				model: 8 * words,
+				align: 8,
+				niche,
 			})
 		};
 		let normalized = |fields: &mut dyn Iterator<Item = &ty::FieldDef>, args| {
@@ -5685,32 +5729,52 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 			.collect::<Option<Vec<_>>>()
 		};
 		match ty.kind() {
-			ty::Int(_) | ty::Uint(_) | ty::Float(_) | ty::RawPtr(..) => Some((size, false)),
-			ty::Bool | ty::Char | ty::Ref(..) | ty::FnPtr(..) | ty::Pat(..) => Some((size, true)),
+			ty::Int(ty::IntTy::Isize) | ty::Uint(ty::UintTy::Usize) | ty::RawPtr(..) => pointer(false),
+			ty::Ref(..) | ty::FnPtr(..) => pointer(true),
+			ty::Int(_) | ty::Uint(_) | ty::Float(_) => primitive(false),
+			ty::Bool | ty::Char => primitive(true),
+			ty::Pat(base, _) => Some(Least {
+				niche: true,
+				..least(tcx, env, *base)?
+			}),
 			ty::Array(element, len) => {
 				let n = len.try_to_target_usize(tcx)?;
-				let (each, niche) = least(tcx, env, *element)?;
-				Some((each.checked_mul(n)?, niche && n > 0))
+				let each = least(tcx, env, *element)?;
+				Some(Least {
+					bytes: each.bytes.checked_mul(n)?,
+					model: each.model.checked_mul(n)?,
+					niche: each.niche && n > 0,
+					..each
+				})
 			}
-			ty::Tuple(tys) => fields(tys),
+			ty::Tuple(tys) => fields(tcx, env, tys),
 			ty::Adt(adt, args) if adt.is_struct() => {
-				let (bytes, niche) = fields(&normalized(&mut adt.all_fields(), *args)?)?;
+				let sum = fields(tcx, env, &normalized(&mut adt.all_fields(), *args)?)?;
 				// A field's own valid range, as `NonNull`'s, is a niche no field shows.
-				Some((bytes, niche || layout.largest_niche.is_some()))
+				Some(Least {
+					niche: sum.niche || layout.largest_niche.is_some(),
+					..sum
+				})
 			}
 			ty::Adt(adt, args) if adt.is_enum() => {
-				let mut each: Vec<u64> = Vec::new();
-				let mut niche = false;
+				let mut each = Vec::new();
 				for variant in adt.variants() {
-					let (bytes, theirs) = fields(&normalized(&mut variant.fields.iter(), *args)?)?;
-					each.push(bytes);
-					niche |= theirs;
+					each.push(fields(tcx, env, &normalized(&mut variant.fields.iter(), *args)?)?);
 				}
 				// With no niche to encode the others in, two or more variants take a tag
 				// of at least a byte beside each one's fields; with one, a variant's own
 				// fields may hold the tag, so they count alone.
+				let niche = each.iter().any(|v| v.niche);
 				let tag = u64::from(each.len() > 1 && !niche);
-				Some((each.into_iter().min()?.checked_add(tag)?, true))
+				let align = each.iter().map(|v| v.align).max().unwrap_or(1);
+				let model = each.iter().map(|v| v.model).min()?.checked_add(tag)?;
+				let bytes = each.iter().map(|v| v.bytes).min()?.checked_add(tag)?;
+				(model % align == 0).then_some(Least {
+					bytes,
+					model,
+					align,
+					niche: true,
+				})
 			}
 			_ => None,
 		}
@@ -5718,7 +5782,7 @@ fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	let Ok(layout) = tcx.layout_of(env.as_query_input(ty)) else {
 		return false;
 	};
-	least(tcx, env, ty).is_some_and(|(bytes, _)| bytes == layout.size.bytes())
+	least(tcx, env, ty).is_some_and(|least| least.bytes == layout.size.bytes())
 }
 
 /// Whether `ty`, the type `def_id` at some arguments, implements the std trait `item`.
