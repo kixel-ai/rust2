@@ -32,6 +32,7 @@ CALLS = [
 	("getter", "`demand.sequence()`, a u64 getter"),
 	("record", "`track.largest()`, a record return"),
 	("object", "`track.info()`, an object return"),
+	("objects", "the same from 4 threads at once, Kotlin only"),
 	("write", "`group.write_frame(at, frame)`, 100 B"),
 	("stamped", "the same, with a new `Timestamp` each"),
 	("ready", "a 100 B frame written and read, ready"),
