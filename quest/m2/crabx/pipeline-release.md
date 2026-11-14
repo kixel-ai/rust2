@@ -42,5 +42,6 @@ The documented caller and crabx init can then pin a real pipeline release.
   and confirm it passes on the landed commit `<sha>`. Then tag that commit and publish:
   `git tag pipeline-v1.0.0 <sha> && git push origin pipeline-v1.0.0 && gh release create
   pipeline-v1.0.0 -R kixel-ai/rust2 --verify-tag --title pipeline-v1.0.0 --generate-notes`.
-  Recommended: do it. The only change since the verified run is this reorder. Done when
-  `gh release view pipeline-v1.0.0 -R kixel-ai/rust2` succeeds.
+  Recommended: do it. The only change since the verified run is this reorder. An agent
+  could run these steps, but a pushed release tag is public and permanent, so it waits on
+  the maintainer's go. Done when `gh release view pipeline-v1.0.0 -R kixel-ai/rust2` succeeds.
