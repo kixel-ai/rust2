@@ -118,6 +118,48 @@ pub struct Export {
 	pub future: Option<Future>,
 }
 
+/// How the glue calls a value's `&mut self` method for a language whose values are
+/// immutable, which [`Abi::handed_back`] makes.
+#[derive(Clone)]
+pub struct Handed {
+	/// The C name of the method's function, which a clash may have renamed.
+	name: String,
+	/// How many parameters both take after `self`, before the outs.
+	lead: usize,
+	/// Whether the method returns nothing.
+	unit: bool,
+	/// Whether it returns a tuple, which the C function writes through its outs.
+	tuple: bool,
+}
+
+impl Handed {
+	/// The glue's expression, of the handed-back export's C return, calling the C function
+	/// in place on a copy of the value that `args[0]` points to and handing the copy back.
+	/// `args` are of that export's C signature: `self`, what both take after it, then the outs the value and
+	/// each element Rust returns are written through, which the C function takes from the
+	/// one after the value's.
+	pub fn call(&self, args: &[String]) -> String {
+		let lead = self.lead;
+		let mut real = vec!["&mut handed_".to_string()];
+		real.extend(args[1..=lead].iter().cloned());
+		if self.tuple {
+			real.extend(args[lead + 2..].iter().cloned());
+		}
+		let call = format!("crate::{}({})", self.name, real.join(", "));
+		// Apart from the names the glue gives its arguments, which are numbered.
+		let body = match (self.unit, self.tuple) {
+			(true, _) => format!("{call};\n\thanded_"),
+			(_, true) => format!("{call};\n\tstd::ptr::write({}, handed_)", args[lead + 1]),
+			(_, false) => format!(
+				"let handed_r_ = {call};\n\tstd::ptr::write({}, handed_);\n\tstd::ptr::write({}, handed_r_)",
+				args[lead + 1],
+				args[lead + 2]
+			),
+		};
+		format!("unsafe {{\n\tlet mut handed_ = *({});\n\t{body}\n}}", args[0])
+	}
+}
+
 /// The C functions of a future besides the call that makes it.
 pub struct Future {
 	/// The handle's type.
@@ -851,11 +893,10 @@ impl<'a> Abi<'a> {
 
 	/// A value's `&mut self` method as a language whose values are immutable calls it:
 	/// through `&self`, returning the value as the call left it, before Rust's own return
-	/// or each element of its tuple; and the Rust function `back_<C name>::call`, of that
-	/// function's C signature, that calls the C one with a copy and hands the copy back.
-	/// That function's export keeps the C name of the method's, which a clash may have
-	/// renamed. `None` for any other function.
-	pub fn handed_back(&self, function: &Function, owner: &Ty, owner_ty: &Type) -> Option<(Function, Export, String)> {
+	/// or each element of its tuple: that function, its export, and how the glue calls it.
+	/// The export keeps the C name of the method's, which a clash may have renamed. `None`
+	/// for any other function.
+	pub fn handed_back(&self, function: &Function, owner: &Ty, owner_ty: &Type) -> Option<(Function, Export, Handed)> {
 		if function.receiver != Some(Receiver::Mut) || matches!(owner, Ty::Handle { .. }) {
 			return None;
 		}
@@ -881,42 +922,18 @@ impl<'a> Abi<'a> {
 		// Named as the method is: a rename is keyed by the API's own function.
 		let mut export = self.export(&back, Some(owner));
 		export.call.name = real.call.name.clone();
-		export.named = real.named.clone();
-		let sig = &export.call;
-		let params: Vec<String> = (sig.params.iter().enumerate())
-			.map(|(n, (_, ty))| format!("p{n}: {}", crate::glue::rs(ty)))
-			.collect();
-		// What both take after `self`, then the outs the real one writes its tuple through,
-		// which the other's take after the value's own.
+		export.named = real.named;
 		let elements = match &function.ok {
 			Type::Tuple(elements) => elements.len(),
 			_ => 0,
 		};
-		let tuple = elements > 0;
-		let lead = real.call.params.len() - 1 - elements;
-		let mut args = vec!["&mut v".to_string()];
-		args.extend((1..=lead).map(|n| format!("p{n}")));
-		if tuple {
-			args.extend((lead + 2..sig.params.len()).map(|n| format!("p{n}")));
-		}
-		let call = format!("crate::{}({})", real.call.name, args.join(", "));
-		let body = match (&function.ok, tuple) {
-			(Type::Unit, _) => format!("{call};\n\t\t\tv"),
-			(_, true) => format!("{call};\n\t\t\tp{}.write(v);", lead + 1),
-			(_, false) => format!(
-				"let r = {call};\n\t\t\tp{}.write(v);\n\t\t\tp{}.write(r);",
-				lead + 1,
-				lead + 2
-			),
+		let handed = Handed {
+			name: real.call.name,
+			lead: real.call.params.len() - 1 - elements,
+			unit: function.ok == Type::Unit,
+			tuple: elements > 0,
 		};
-		// In a module of its own, which names the C types as the crate's root does.
-		let shim = format!(
-			"mod back_{} {{\n\tuse crate::*;\n\n\tpub unsafe fn call({}) -> {} {{\n\t\tunsafe {{\n\t\t\tlet mut v = *p0;\n\t\t\t{body}\n\t\t}}\n\t}}\n}}\n\n",
-			real.call.name,
-			params.join(", "),
-			crate::glue::rs(&sig.ret),
-		);
-		Some((back, export, shim))
+		Some((back, export, handed))
 	}
 
 	fn claim(&mut self, name: String, what: String, span: Span, owner: Option<Owner>) {

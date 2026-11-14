@@ -1601,21 +1601,14 @@ impl<'a> Gen<'a> {
 	) -> Option<Form> {
 		let abi = self.abi;
 		// A value is immutable in Python, so its `&mut self` method returns it as the call
-		// left it, through a function of the glue's that hands back a copy.
+		// left it, calling the C function in place on a copy it hands back.
 		let handed = (owner.zip(owner_ty)).and_then(|(owner, (ty, _))| abi.handed_back(function, owner, ty));
-		let (handed, export) = match handed {
-			Some((back, export, shim)) => {
-				self.glue.push_str(&shim);
-				(Some(back), export)
-			}
-			None => (None, abi.export(function, owner)),
+		let (back, export, handed) = match handed {
+			Some((back, export, handed)) => (Some(back), export, Some(handed)),
+			None => (None, abi.export(function, owner), None),
 		};
-		let function = handed.as_ref().unwrap_or(function);
+		let function = back.as_ref().unwrap_or(function);
 		let c_name = export.call.name.clone();
-		let callee = match handed {
-			Some(_) => format!("back_{c_name}::call"),
-			None => format!("crate::{c_name}"),
-		};
 		let bare = self.bare(&c_name).to_string();
 		let owner_c = match owner {
 			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.clone()),
@@ -1780,9 +1773,12 @@ impl<'a> Gen<'a> {
 				false => self.outs(&outs, &written, &function.ok, err.as_ref(), exception.as_deref(), "ret"),
 			};
 			let args: Vec<String> = c_args.iter().cloned().chain(ptrs).collect();
+			let call = match &handed {
+				Some(h) => h.call(&args),
+				None => format!("crate::{c_name}({})", args.join(", ")),
+			};
 			stmts.push(format!(
-				"{decl}\n\t\tlet ret = rt::call(|| {callee}({}));\n\t\ts.done();\n\t\t{value}",
-				args.join(", ")
+				"{decl}\n\t\tlet ret = rt::call(|| {call});\n\t\ts.done();\n\t\t{value}"
 			));
 		}
 		// The Python.

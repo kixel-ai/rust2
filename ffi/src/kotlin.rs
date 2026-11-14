@@ -2119,16 +2119,13 @@ impl<'a> Gen<'a> {
 	) -> Option<String> {
 		let abi = self.abi;
 		// A value is immutable in Kotlin, so its `&mut self` method returns it as the call
-		// left it, through a function of the glue's that hands back a copy.
+		// left it, calling the C function in place on a copy it hands back.
 		let handed = (owner.zip(owner_ty)).and_then(|(owner, ty)| abi.handed_back(function, owner, ty));
-		let (handed, export) = match handed {
-			Some((back, export, shim)) => {
-				self.glue.push_str(&shim);
-				(Some(back), export)
-			}
-			None => (None, abi.export(function, owner)),
+		let (back, export, handed) = match handed {
+			Some((back, export, handed)) => (Some(back), export, Some(handed)),
+			None => (None, abi.export(function, owner), None),
 		};
-		let function = handed.as_ref().unwrap_or(function);
+		let function = back.as_ref().unwrap_or(function);
 		self.params = locals(&function.params);
 		let written = function
 			.params
@@ -2313,10 +2310,9 @@ impl<'a> Gen<'a> {
 		let value;
 		// The C call, with the out pointers after its arguments.
 		let rust_call = |outs: &[String]| {
-			let args: Vec<&String> = rust_args.iter().chain(outs).collect();
-			let args: Vec<&str> = args.iter().map(|a| a.as_str()).collect();
-			match handed {
-				Some(_) => format!("back_{c_name}::call({})", args.join(", ")),
+			let args: Vec<String> = rust_args.iter().chain(outs).cloned().collect();
+			match &handed {
+				Some(h) => h.call(&args),
 				None => format!("crate::{c_name}({})", args.join(", ")),
 			}
 		};

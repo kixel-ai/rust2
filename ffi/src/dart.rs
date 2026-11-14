@@ -88,7 +88,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		fresh: 0,
 		on: On::ALL,
 		space: Gen::space(abi),
-		handed: BTreeSet::new(),
+		handed: BTreeMap::new(),
 	};
 	g.locked = crate::lock::types(abi, &g.classes);
 	g.variants = g.variants(&taken);
@@ -419,9 +419,9 @@ struct Gen<'a> {
 	on: On,
 	/// The namespace of the glue's C names, apart from the export's.
 	space: String,
-	/// The C functions of a value's `&mut self` methods, which a call reaches through the
-	/// glue's `back_<name>`, handing back the value as the call left it.
-	handed: BTreeSet<String>,
+	/// A value's `&mut self` methods by their C names, which a call makes in place on a
+	/// copy it hands back.
+	handed: BTreeMap<String, abi::Handed>,
 }
 
 impl<'a> Gen<'a> {
@@ -798,16 +798,15 @@ impl<'a> Gen<'a> {
 			.map(|(n, (_, ty))| format!(", p{n}: {}", rs(ty)))
 			.collect();
 		let args: Vec<String> = (0..call.params.len()).map(|n| format!("p{n}")).collect();
-		let callee = match self.handed.contains(&call.name) {
-			true => format!("back_{}::call", call.name),
-			false => format!("crate::{}", call.name),
+		let call_ = match self.handed.get(&call.name) {
+			Some(h) => h.call(&args),
+			None => format!("crate::{}({})", call.name, args.join(", ")),
 		};
 		let _ = write!(
 			self.glue,
-			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}(home: *const c_void{}) -> {} {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || {callee}({})) }}\n}}\n\n",
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}(home: *const c_void{}) -> {} {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || {call_}) }}\n}}\n\n",
 			decls.concat(),
 			rs(&call.ret),
-			args.join(", ")
 		);
 		let native = self.native_fn(&name, params, call.ret.clone());
 		let api = self.abi.api;
@@ -2014,12 +2013,11 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		let _p = abi.prefix.clone();
 		// A value is immutable in Dart, so its `&mut self` method returns it as the call left
-		// it, through a function of the glue's that hands back a copy.
+		// it, calling the C function in place on a copy it hands back.
 		let handed = (owner.zip(owner_ty)).and_then(|(owner, ty)| abi.handed_back(function, owner, ty));
 		let (handed, export) = match handed {
-			Some((back, export, shim)) => {
-				self.glue.push_str(&shim);
-				self.handed.insert(export.call.name.clone());
+			Some((back, export, handed)) => {
+				self.handed.insert(export.call.name.clone(), handed);
 				(Some(back), export)
 			}
 			None => (None, abi.export(function, owner)),
