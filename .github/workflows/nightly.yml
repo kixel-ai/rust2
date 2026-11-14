@@ -17,6 +17,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  registry-spike:
+    name: Registry package consumers
+    uses: ./.github/workflows/registry.yml
+
   # The full check over every module, catching what a merge group's diff-scoped
   # `just ci` let into main.
   gate:

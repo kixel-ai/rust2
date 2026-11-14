@@ -11,6 +11,20 @@ fixture's script. It says what the full version would take for the other registr
 
 ## Plan
 
+Implementation in progress: [packaging spike](/bench/registry/README.md) and
+`.github/workflows/registry.yml` build the api fixture into native wheels and a
+host-only macOS XCFramework with a Swift source package. Keep this quest until
+the macOS SwiftPM consumer has run successfully. The Linux x86_64 wheel
+consumer passed on CPython 3.14.10, including the native transcript and futures,
+ownership, values and calls. The Linux host cannot execute xcodebuild, and kixtop was
+unreachable on 2026-11-13. The workflow has not been executed in this session.
+The report recommends templates because registry namespace ownership cannot be
+inferred from Cargo metadata; it does not claim moq's workflows can be deleted.
+
+Remaining: exercise the reusable call and macOS clean artifact consumer, record
+the actual results, then finish the report and delete this quest. Do not publish
+the fixture or infer successful packaging from lint alone.
+
 Decided with the maintainer on 2026-11-12, in the quest audit: ✅ a spike, in m2, with moq
 as its consumer. moq carries about 13 `release-*-ffi` and `release-*-lib`
 [workflows](https://github.com/moq-dev/moq/tree/main/.github/workflows) to do this by
