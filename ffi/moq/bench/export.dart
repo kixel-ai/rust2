@@ -11,9 +11,10 @@ import 'dart:typed_data';
 
 import 'package:moq/moq.dart' as moq;
 
-const groups = 10000;
+/// A tenth under CodSpeed, whose simulation counts every call exactly.
+var groups = 10000;
 const frames = 100;
-const n = groups * frames;
+int get n => groups * frames;
 const sizes = [100, 1024, 16384, 65536, 1048576];
 
 /// Wall and CPU nanoseconds: a point, or a span per call.
@@ -42,8 +43,9 @@ Span now() {
 }
 
 /// Nanoseconds per call since `start`, over `calls` calls.
-Span per(Span start, [num calls = n]) {
+Span per(Span start, [num? calls]) {
   final end = now();
+  calls ??= n;
   return Span((end.wall - start.wall) / calls, (end.cpu - start.cpu) / calls);
 }
 
@@ -60,15 +62,16 @@ Span begin() {
 }
 
 /// The case `name`'s nanoseconds per call since `start`, over `calls` calls.
-Span end(Span start, String name, [num calls = n]) {
+Span end(Span start, String name, [num? calls]) {
   final c = _cString(name);
   _codspeedStop(c);
   _free(c.cast());
   return per(start, calls);
 }
 
-final _malloc = _process
-    .lookupFunction<ffi.Pointer<ffi.Void> Function(ffi.Size), ffi.Pointer<ffi.Void> Function(int)>('malloc');
+final _malloc = _process.lookupFunction<ffi.Pointer<ffi.Void> Function(ffi.Size), ffi.Pointer<ffi.Void> Function(int)>(
+  'malloc',
+);
 final _free = _process.lookupFunction<ffi.Void Function(ffi.Pointer<ffi.Void>), void Function(ffi.Pointer<ffi.Void>)>(
   'free',
 );
@@ -226,6 +229,7 @@ Future<Map<String, Span>> round() async {
     }
     await next.cancel();
   }
+
   final writer = writeLoop();
   for (var g = 0; g < groups; g++) {
     final reader = (await subscriber.recvGroup())!;
@@ -259,18 +263,17 @@ Future<Map<String, Span>> round() async {
 
 Future<void> main(List<String> args) async {
   final codspeed = ffi.DynamicLibrary.open(args.single);
-  _codspeedInit = codspeed.lookupFunction<ffi.Bool Function(ffi.Pointer<ffi.Char>), bool Function(ffi.Pointer<ffi.Char>)>(
-    'codspeed_init',
-  );
+  _codspeedInit = codspeed
+      .lookupFunction<ffi.Bool Function(ffi.Pointer<ffi.Char>), bool Function(ffi.Pointer<ffi.Char>)>('codspeed_init');
   _codspeedStart = codspeed.lookupFunction<ffi.Void Function(), void Function()>('codspeed_start');
-  _codspeedStop = codspeed.lookupFunction<ffi.Void Function(ffi.Pointer<ffi.Char>), void Function(ffi.Pointer<ffi.Char>)>(
-    'codspeed_stop',
-  );
+  _codspeedStop = codspeed
+      .lookupFunction<ffi.Void Function(ffi.Pointer<ffi.Char>), void Function(ffi.Pointer<ffi.Char>)>('codspeed_stop');
   final bench = _cString('ffi/moq/bench/export.dart::dart');
   final measured = _codspeedInit(bench);
   _free(bench.cast());
   // Under CodSpeed, one round, which prints nothing: its simulation counts each case.
   if (measured) {
+    groups ~/= 10;
     await round();
     return;
   }

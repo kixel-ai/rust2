@@ -12,7 +12,8 @@
 #include "codspeed.h"
 #include "moq.h"
 
-#define GROUPS 10000
+/* A tenth under CodSpeed, as bench/export.c. */
+static int GROUPS = 10000;
 #define FRAMES 100
 
 static double clock_ns(clockid_t clock) {
@@ -33,6 +34,9 @@ int main(void) {
 
 	/* Two rounds, printing the second, as bench/export.c does; under CodSpeed, one. */
 	bool measured = codspeed_init("ffi/moq/bench/moq-c.c::moq-c");
+	if (measured) {
+		GROUPS /= 10;
+	}
 	uint8_t payload[100] = {0};
 	uint64_t micros = 0;
 	for (int round = measured; round < 2; round++) {

@@ -92,17 +92,34 @@ nix develop .#bench --command codspeed run --mode simulation -- just ffi codspee
 Each program calls CodSpeed's
 [instrument-hooks](https://github.com/CodSpeedHQ/instrument-hooks), which the flake pins,
 through [`codspeed.h`](../../ffi/moq/bench/codspeed.h) and its own FFI around each case:
-one benchmark per language and case, such as `kotlin::write` or `c::throughput[1024]`.
-Under CodSpeed a program runs its round once, without the warm-up round, and skips the
+one benchmark per language and case, such as `python::write` or `c::throughput[1024]`.
+Under CodSpeed a program runs its round once, without the warm-up round, and with a tenth
+of the groups (so 100,000 calls a case, Python's 10,000), since the simulation counts
+every call exactly and costs 50 to 100 times the program's own time. It skips the
 `shared:*`, `own:*`, and Kotlin's `objects` cases: the simulation runs one thread at a
 time, so it would count a contention that never happens. It counts instructions and
-simulated cache misses, not time, so a system call or a wait costs nothing in it: Swift's
-and Go's woken reads and reader loops count their threads' work, not their wake. The
-tables below keep wall and CPU time.
+simulated cache misses, not time, so a system call or a wait costs nothing in it. The
+tables below keep wall and CPU time, and a case's absolute count is for its whole loop,
+not a call: read CodSpeed for each case's change.
 
-A language joins only if its numbers hold still: the same commit, run twice, must give
-each of its cases the same count. `codspeed_langs` in [`ffi/justfile`](../../ffi/justfile)
-lists those that do.
+A language joins only if its counts hold still: the same build, run twice, must move no
+case far enough for CodSpeed to report a change, which its default 10% regression
+threshold decides. `codspeed_langs` in [`ffi/justfile`](../../ffi/justfile) lists those
+that pass. Measured 2026-11-14 on **nixos** with stock Valgrind 3.27.1 and the flags
+CodSpeed's runner passes, without its fork's cycle estimation, in pairs of runs of one
+build, the largest move of any case between two runs:
+
+| language | largest move | |
+|---|---|---|
+| Rust, C, C++ | none: every count identical | joins |
+| moq-c | 0.36% (`stamped`, with all the calls), 0.1% with a tenth | joins: moq's runtime thread runs beside it |
+| Python | 0.21% (`throughput[1024]`) | joins: asyncio's poll of its selector depends on time |
+| Swift | 52% (`throughput[16384]`), 8.8% in another pair | leaves: the global executor's threads interleave by time |
+| Go | 362% (`stamped`), 330% (`record`), 84% (`loop`) | leaves: its collector and scheduler run inside each case, and its preemption signal crashes Callgrind unless `GODEBUG=asyncpreemptoff=1` |
+| Kotlin | 172% (`call`), 108% (`getter`) | leaves: without the warm-up, the JIT's and collector's threads compile and collect inside each case, and the JVM's C2 code crashes under Valgrind unless its implicit null checks are off |
+| Dart | does not run | leaves: the VM maps its code at an address hint off a page boundary, which Valgrind refuses |
+
+Each leaver keeps its hooks, so it rejoins by `codspeed_langs` once a pair of runs holds.
 
 ## Concurrent calls
 

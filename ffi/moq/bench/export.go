@@ -22,10 +22,15 @@ import (
 )
 
 const (
-	groups  = 10000
 	frames  = 100
-	n       = groups * frames
 	threads = 4
+)
+
+// groups is a tenth under CodSpeed, whose simulation counts every call exactly, and n the
+// calls a case makes.
+var (
+	groups = 10000
+	n      = groups * frames
 )
 
 var sizes = []int{100, 1024, 16384, 65536, 1048576}
@@ -61,11 +66,11 @@ func begin() span {
 }
 
 // end is the case name's nanoseconds per call since start, over calls calls.
-func end(start span, name string, calls float64) span {
+func end(start span, name string, calls int) span {
 	c := C.CString(name)
 	C.codspeed_stop(c)
 	C.free(unsafe.Pointer(c))
-	return per(start, calls)
+	return per(start, float64(calls))
 }
 
 // must is v, failing the bench on err.
@@ -107,7 +112,7 @@ func throughput(ctx context.Context, track *net.TrackProducer, subscriber *net.T
 		check(group.Finish())
 		group.Close()
 	}
-	ns := end(start, name, float64(count*frames*size))
+	ns := end(start, name, count*frames*size)
 	return span{1e3 / ns.wall, 1e3 / ns.cpu}
 }
 
@@ -150,7 +155,7 @@ func concurrent(calls []func() int) span {
 	start := now()
 	close(gate)
 	done.Wait()
-	ns := per(start, n)
+	ns := per(start, float64(n))
 	for _, sum := range sums {
 		sink += sum
 	}
@@ -364,6 +369,8 @@ func main() {
 	C.free(unsafe.Pointer(bench))
 	// Under CodSpeed, one round, which prints nothing: its simulation counts each case.
 	if measured {
+		groups /= 10
+		n = groups * frames
 		round(true)
 		return
 	}

@@ -19,9 +19,10 @@
 
 namespace {
 
-constexpr int groups = 10000;
+// A tenth under CodSpeed, whose simulation counts every call exactly.
+int groups = 10000;
 constexpr int frames = 100;
-constexpr int n = groups * frames;
+int n = groups * frames;
 constexpr int threads = 4;
 constexpr std::size_t sizes[] = {100, 1024, 16384, 65536, 1048576};
 
@@ -310,7 +311,10 @@ void round(bool print) {
 int main() {
 	// Under CodSpeed, one round, which prints nothing: its simulation counts each case.
 	measured = codspeed_init("ffi/moq/bench/export.cpp::cpp");
-	if (!measured) {
+	if (measured) {
+		groups /= 10;
+		n = groups * frames;
+	} else {
 		round(false);
 	}
 	round(!measured);

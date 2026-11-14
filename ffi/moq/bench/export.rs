@@ -12,6 +12,7 @@ use std::sync::Barrier;
 use std::task::{Context, Poll, Waker};
 use std::time::Instant;
 
+/// A tenth under CodSpeed, whose simulation counts every call exactly.
 const GROUPS: u64 = 10000;
 const FRAMES: u64 = 100;
 const THREADS: usize = 4;
@@ -132,7 +133,8 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 	let info = moq::track::Info::default().with_timescale(moq::Timescale::MICRO);
 	let track = broadcast.create_track("bench", info).unwrap();
 	let frame = [0u8; 100];
-	let n = GROUPS * FRAMES;
+	let groups = if measured { GROUPS / 10 } else { GROUPS };
+	let n = groups * FRAMES;
 	let mut out = Vec::new();
 
 	let start = begin();
@@ -181,7 +183,7 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 
 	let mut micros = 0;
 	let start = begin();
-	for _ in 0..GROUPS {
+	for _ in 0..groups {
 		let mut group = track.append_group().unwrap();
 		for _ in 0..FRAMES {
 			let at = moq::Timestamp::from_micros(micros).unwrap();
@@ -194,7 +196,7 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 
 	let at = moq::Timestamp::from_micros(micros).unwrap();
 	let start = begin();
-	for _ in 0..GROUPS {
+	for _ in 0..groups {
 		let mut group = track.append_group().unwrap();
 		for _ in 0..FRAMES {
 			group.write_frame(at, frame.as_slice()).unwrap();
@@ -206,7 +208,7 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 	let mut subscriber = ready(track.consume().subscribe(None)).unwrap();
 	let mut last = None;
 	let start = begin();
-	for _ in 0..GROUPS {
+	for _ in 0..groups {
 		let mut group = track.append_group().unwrap();
 		let mut reader = ready(subscriber.recv_group()).unwrap().unwrap();
 		for _ in 0..FRAMES {
@@ -218,7 +220,7 @@ fn round(measured: bool) -> Vec<(String, (f64, f64))> {
 	out.push(("ready".into(), end(start, n, c"ready")));
 
 	let start = begin();
-	for _ in 0..GROUPS {
+	for _ in 0..groups {
 		let mut group = track.append_group().unwrap();
 		let mut reader = ready(subscriber.recv_group()).unwrap().unwrap();
 		for _ in 0..FRAMES {

@@ -17,7 +17,8 @@
 #include "codspeed.h"
 #include "moq.h"
 
-#define GROUPS 10000
+/* A tenth under CodSpeed, whose simulation counts every call exactly. */
+static int GROUPS = 10000;
 #define FRAMES 100
 #define N (GROUPS * FRAMES)
 #define THREADS 4
@@ -396,7 +397,9 @@ static void round_(int print) {
 int main(void) {
 	/* Under CodSpeed, one round, which prints nothing: its simulation counts each case. */
 	measured = codspeed_init("ffi/moq/bench/export.c::c");
-	if (!measured) {
+	if (measured) {
+		GROUPS /= 10;
+	} else {
 		round_(0);
 	}
 	round_(!measured);

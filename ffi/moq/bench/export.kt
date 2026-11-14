@@ -12,9 +12,10 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import moq.*
 
-const val GROUPS = 10000
+// A tenth under CodSpeed, whose simulation counts every call exactly.
+var GROUPS = 10000
 const val FRAMES = 100
-const val N = GROUPS * FRAMES
+val N get() = GROUPS * FRAMES
 const val THREADS = 4
 val SIZES = listOf(100, 1024, 16384, 65536, 1048576)
 
@@ -276,6 +277,7 @@ fun round(measured: Boolean): Map<String, Span> {
 fun main() {
 	// Under CodSpeed, one round, which prints nothing: its simulation counts each case.
 	if (Codspeed.init("ffi/moq/bench/export.kt::kotlin")) {
+		GROUPS /= 10
 		round(true)
 		return
 	}

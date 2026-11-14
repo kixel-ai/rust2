@@ -11,7 +11,19 @@ import time
 
 import moq
 
-GROUPS = 1000
+codspeed = ctypes.CDLL(sys.argv[1])
+codspeed.codspeed_init.argtypes = [ctypes.c_char_p]
+codspeed.codspeed_init.restype = ctypes.c_bool
+codspeed.codspeed_start.argtypes = []
+codspeed.codspeed_start.restype = None
+codspeed.codspeed_stop.argtypes = [ctypes.c_char_p]
+codspeed.codspeed_stop.restype = None
+start_case = codspeed.codspeed_start
+stop_case = codspeed.codspeed_stop
+measured = codspeed.codspeed_init(b"ffi/moq/bench/export.py::python")
+
+# A tenth under CodSpeed, whose simulation counts every call exactly.
+GROUPS = 100 if measured else 1000
 FRAMES = 100
 N = GROUPS * FRAMES
 THREADS = 4
@@ -27,17 +39,6 @@ def per(start, n=N):
 	"""Wall and CPU nanoseconds per call since `start`, over `n` calls."""
 	wall, cpu = now()
 	return (wall - start[0]) / n, (cpu - start[1]) / n
-
-
-codspeed = ctypes.CDLL(sys.argv[1])
-codspeed.codspeed_init.argtypes = [ctypes.c_char_p]
-codspeed.codspeed_init.restype = ctypes.c_bool
-codspeed.codspeed_start.argtypes = []
-codspeed.codspeed_start.restype = None
-codspeed.codspeed_stop.argtypes = [ctypes.c_char_p]
-codspeed.codspeed_stop.restype = None
-start_case = codspeed.codspeed_start
-stop_case = codspeed.codspeed_stop
 
 
 def begin():
@@ -237,7 +238,6 @@ def round(loop, measured):
 
 
 # Under CodSpeed, one round, which prints nothing: its simulation counts each case.
-measured = codspeed.codspeed_init(b"ffi/moq/bench/export.py::python")
 loop = asyncio.new_event_loop()
 if measured:
 	round(loop, True)

@@ -7,7 +7,10 @@ import CodSpeed
 import Foundation
 import Moq
 
-let groups = 10000
+/// Whether CodSpeed counts this run, which then skips the warm-up and the threaded cases.
+let measured = codspeed_init("ffi/moq/bench/export.swift::swift")
+/// A tenth under CodSpeed, whose simulation counts every call exactly.
+let groups = measured ? 1000 : 10000
 let frames = 100
 let n = groups * frames
 let threads = 4
@@ -361,7 +364,6 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 }
 
 // Under CodSpeed, one round, which prints nothing: its simulation counts each case.
-let measured = codspeed_init("ffi/moq/bench/export.swift::swift")
 var sink = 0
 if !measured {
 	sink += try round(false).1

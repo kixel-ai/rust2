@@ -20,8 +20,8 @@ swift_collections_rev := "f96b909e1a9e469620bc5037c1e24e00153f376f"
 # The binding benchmark's programs, each a language, as bench-program runs them.
 bench_langs := "rust c cpp moq-c kotlin python swift go dart"
 
-# Those whose cases CodSpeed counts the same on every run of one commit, as bench/ffi/README.md's CodSpeed section says.
-codspeed_langs := "rust c cpp moq-c kotlin python swift go dart"
+# Those whose cases CodSpeed counts the same on every run of one commit: bench/ffi/README.md's CodSpeed section says why Swift, Kotlin, Go, and Dart do not.
+codspeed_langs := "rust c cpp moq-c python"
 
 default:
     @just --list
@@ -97,7 +97,8 @@ bench-build checkout="": (moq-export checkout) codspeed-hooks
     (cd target/bench-go && go build -o bench .)
     {{ quote(just_executable()) }} dart-program bench-dart moq/bench/export.dart
     rm -rf target/bench-kt
-    kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/bench/export.kt -d target/bench-kt
+    # moq's Kotlin outgrows the 512 MiB heap kotlinc's launcher defaults to.
+    JAVA_OPTS="-Xmx2g -Xms128M" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/bench/export.kt -d target/bench-kt
     {{ quote(just_executable()) }} swift-module -O
     swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I target/swift-collections/build -I "$out/swift" -I "$hooks" moq/bench/export.swift target/swift/libMoq.a -L target/swift-collections/build -lBasicContainers -lInternalCollectionsUtilities -lSpanPreview "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export-swift
 
@@ -229,7 +230,7 @@ moq checkout="": (moq-cpp checkout)
     target/moq-test
     # The Kotlin, on the JVM, through the JNI functions the kotlin feature builds.
     rm -rf target/moq-kt
-    kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/moq.kt -d target/moq-kt
+    JAVA_OPTS="-Xmx2g -Xms128M" kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/moq.kt -d target/moq-kt
     kotlin -Djava.library.path="$out/target/release" -cp "target/moq-kt:$KOTLINX_COROUTINES" MoqKt
     # The Python, through the CPython extension the python feature builds, and its types
     # through mypy and pyright, as `api_py_types` checks the api fixture's.
