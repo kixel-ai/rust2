@@ -5,6 +5,18 @@ fn drain<S: Source>(source: &mut S) -> S::Item {
 	source.next()
 }
 
+macro_rules! labeled {
+	($v:vis $name:ident) => {
+		$v fn $name() -> &'static str {
+			stringify!($v)
+		}
+	};
+}
+
+// Kept: the macro uses the token it is passed for more than the visibility, so narrowing
+// it would change what `label` returns.
+labeled!(pub label);
+
 fn main() {
 	{
 		let live = api::Live::new(42);
@@ -27,4 +39,7 @@ fn main() {
 		..Default::default()
 	};
 	println!("settings {}", settings.named);
+	println!("label {}", label());
+	println!("extra {}", extra::used());
+	println!("crlf {}", api::crlf::spaced());
 }

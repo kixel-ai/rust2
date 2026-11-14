@@ -31,7 +31,8 @@ Joined across every compilation, the graph gives:
   That includes the re-export a path goes through, every re-export a glob of another crate's module may use, the types an expression has, and a tuple constructor's fields.
 - **What crates or tools outside the audit may use**: what a published library exports, and all of an unpublished library the audit does not run.
   The audit runs what has a binary, and the unpublished workspace members that builds on; any other library, such as a translator's fixture, is used outside cargo's view, by tools that may read its source.
-  What that API exposes of another crate, a re-exported or returned type with its fields, variants, and inherent items, stays public too.
+  What that API exposes of another crate stays public too: a re-exported or returned type with its fields, variants, and inherent items, a trait with its items, and all of a crate it re-exports with `pub extern crate`.
+- **Which tokens a narrowing may touch**: a `pub` passed to the macro that makes the item, such as a `$v:vis` argument or an attribute macro's input, stays, since the macro may use the token for more than the visibility, as `stringify!` does.
 
 Narrowing compiles every proposal together, restoring each `pub` a rustc error, or a `private_interfaces` or `private_bounds` lint, points at, until the workspaces check.
 It then requires every name to resolve as before: a narrowed method can compile and still change which method a call picks, such as a slice's `len` through `Deref`.

@@ -20,6 +20,7 @@ pub struct Workspace {
 }
 
 /// A package with source on disk.
+#[derive(Clone)]
 pub struct Package {
 	/// Cargo's id for it, which `cargo clean -p` takes.
 	pub id: String,
@@ -31,6 +32,27 @@ pub struct Package {
 	pub bin: bool,
 	/// The directories of the local packages that depend on it other than to test it.
 	pub dependents: BTreeSet<PathBuf>,
+}
+
+/// Every workspace's local packages, each described once: a package two workspaces share
+/// is a member of either, and its dependents are those of both.
+pub fn packages(workspaces: &[Workspace]) -> BTreeMap<&Path, Package> {
+	let mut packages: BTreeMap<&Path, Package> = BTreeMap::new();
+	for (dir, package) in workspaces.iter().flat_map(|w| &w.local) {
+		match packages.entry(dir.as_path()) {
+			std::collections::btree_map::Entry::Vacant(entry) => {
+				entry.insert(package.clone());
+			}
+			std::collections::btree_map::Entry::Occupied(mut entry) => {
+				let joined = entry.get_mut();
+				joined.member |= package.member;
+				joined.bin |= package.bin;
+				joined.publishable |= package.publishable;
+				joined.dependents.extend(package.dependents.iter().cloned());
+			}
+		}
+	}
+	packages
 }
 
 #[derive(Deserialize)]
@@ -321,4 +343,46 @@ fn pick<'a>(args: &'a [String], flags: &[&str], valued: &[&str]) -> Vec<&'a str>
 		}
 	}
 	picked
+}
+
+#[cfg(test)]
+mod tests {
+	use std::collections::{BTreeMap, BTreeSet};
+	use std::path::{Path, PathBuf};
+
+	use super::{Package, Workspace, packages};
+
+	fn workspace(member: bool, dependents: &[&str]) -> Workspace {
+		let package = Package {
+			id: "shared".into(),
+			publishable: false,
+			member,
+			bin: false,
+			dependents: dependents.iter().map(PathBuf::from).collect(),
+		};
+		Workspace {
+			manifest: PathBuf::new(),
+			root: PathBuf::new(),
+			target: PathBuf::new(),
+			local: BTreeMap::from([(PathBuf::from("/shared"), package)]),
+		}
+	}
+
+	#[test]
+	fn a_shared_package_joins_alike_in_either_order() {
+		let own = workspace(true, &["/tool"]);
+		let other = workspace(false, &["/translator"]);
+		for order in [[&own, &other], [&other, &own]] {
+			let workspaces = order.map(|w| Workspace {
+				local: w.local.clone(),
+				..workspace(false, &[])
+			});
+			let joined = &packages(&workspaces)[Path::new("/shared")];
+			assert!(joined.member);
+			assert_eq!(
+				joined.dependents,
+				BTreeSet::from([PathBuf::from("/tool"), PathBuf::from("/translator")])
+			);
+		}
+	}
 }

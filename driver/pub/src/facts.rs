@@ -66,6 +66,9 @@ pub struct Def {
 	pub span: Option<Span>,
 	/// The `pub` that makes it public, if written in source.
 	pub token: Option<Span>,
+	/// Whether its `pub` was passed to the macro that made it, which may use the token
+	/// for more than the visibility.
+	pub passed: bool,
 	/// Whether another crate can name it: public all the way from its crate's root.
 	pub exported: bool,
 	/// Whether it is a symbol code outside Rust links to, which rustc keeps whatever its

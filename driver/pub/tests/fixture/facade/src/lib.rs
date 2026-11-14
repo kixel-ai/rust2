@@ -8,3 +8,9 @@ pub use api::Exposed;
 pub fn unused() -> api::Returned {
 	api::Returned::default()
 }
+
+/// External: this library's API, re-exported from api, with what its items return.
+pub use api::Shape;
+
+/// External: this library's API, which exposes all of extra's.
+pub extern crate extra;

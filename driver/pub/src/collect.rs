@@ -17,8 +17,9 @@ use rustc_hir::{self as hir, ItemKind, Node, UseKind};
 use rustc_interface::interface::{Compiler, Config};
 use rustc_middle::hir::nested_filter;
 use rustc_middle::ty::{self, Ty, TyCtxt, TypeckResults};
+use rustc_span::hygiene::{ExpnKind, MacroKind};
 use rustc_span::source_map::{FileLoader, RealFileLoader};
-use rustc_span::{FileName, SyntaxContext, kw};
+use rustc_span::{FileName, SyntaxContext, kw, sym};
 use rustc_structures::CrateType;
 
 use crate::facts::{self, Def, Edits, Hash, Impl, Ref, Site, Unit};
@@ -252,7 +253,7 @@ impl<'tcx> Collector<'tcx> {
 					this.refer(item, None);
 				}
 			}
-			let token = this.token(id);
+			let (token, passed) = this.token(id);
 			let span = match tcx.hir_get_if_local(def) {
 				// A diagnostic about an import points anywhere in it.
 				Some(Node::Item(item)) if matches!(item.kind, ItemKind::Use(..)) => item.span,
@@ -273,6 +274,7 @@ impl<'tcx> Collector<'tcx> {
 				},
 				span: this.span(span),
 				token,
+				passed,
 				exported,
 				symbol,
 				parent,
@@ -311,20 +313,42 @@ impl<'tcx> Collector<'tcx> {
 		[a.as_u64(), b.as_u64()]
 	}
 
-	/// The `pub` written on `id`, if any.
-	fn token(&mut self, id: LocalDefId) -> Option<facts::Span> {
+	/// The `pub` written on `id`, if any, and whether it was passed to the macro that
+	/// made `id`, rather than written where `id` was: such a macro, an attribute's
+	/// included, may use the token for more than the visibility, as `stringify!` does.
+	fn token(&mut self, id: LocalDefId) -> (Option<facts::Span>, bool) {
 		let vis = match self.tcx.hir_node_by_def_id(id) {
 			Node::Item(item) => item.vis_span,
 			Node::Field(field) => field.vis_span,
 			Node::ImplItem(item) => match item.impl_kind {
 				hir::ImplItemImplKind::Inherent { vis_span } => vis_span,
-				hir::ImplItemImplKind::Trait { .. } => return None,
+				hir::ImplItemImplKind::Trait { .. } => return (None, false),
 			},
 			Node::ForeignItem(item) => item.vis_span,
-			_ => return None,
+			_ => return (None, false),
 		};
-		let snippet = self.tcx.sess.source_map().span_to_snippet(vis).ok()?;
-		(snippet == "pub").then(|| self.span(vis)).flatten()
+		let Ok(snippet) = self.tcx.sess.source_map().span_to_snippet(vis) else {
+			return (None, false);
+		};
+		if snippet != "pub" {
+			return (None, false);
+		}
+		// `#[derive]`, `#[cfg_eval]`, and a derive's helper attributes, which no macro
+		// runs, make the item again unchanged: it was written where they were.
+		let written = vis.ctxt().outer_expn();
+		let mut defined = self.tcx.expn_that_defined(id.to_def_id());
+		while defined != written {
+			let data = defined.expn_data();
+			match data.kind {
+				ExpnKind::Macro(MacroKind::Attr, name)
+					if data.macro_def_id.is_none() || name == sym::derive || name == sym::cfg_eval =>
+				{
+					defined = data.parent;
+				}
+				_ => break,
+			}
+		}
+		(self.span(vis), defined != written)
 	}
 
 	/// `span` in source on disk, if it is there.
@@ -353,10 +377,11 @@ impl<'tcx> Collector<'tcx> {
 				*entry.insert(index)
 			}
 		}?;
+		// Offsets on disk: rustc's own drop a BOM and read CRLF as LF.
 		Some(facts::Span {
 			file,
-			lo: lo.pos.0,
-			hi: hi.pos.0,
+			lo: lo.sf.original_relative_byte_pos(span.lo()).0,
+			hi: lo.sf.original_relative_byte_pos(span.hi()).0,
 		})
 	}
 
@@ -647,6 +672,12 @@ impl<'tcx> Visitor<'tcx> for Collector<'tcx> {
 			// A glob of another crate's module may use any re-export in it.
 			if let ItemKind::Use(tree) = item.kind {
 				this.globs(tree);
+			}
+			// `pub extern crate` exposes the crate's whole API.
+			if let ItemKind::ExternCrate(_, ident) = item.kind
+				&& let Some(krate) = this.tcx.extern_mod_stmt_cnum(item.owner_id.def_id)
+			{
+				this.refer_as(krate.as_def_id(), Some(ident.span), true);
 			}
 			intravisit::walk_item(this, item);
 		});

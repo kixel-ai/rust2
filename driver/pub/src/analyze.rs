@@ -43,6 +43,8 @@ pub struct Def {
 	/// Part of a library's API that crates or tools outside the audit may use.
 	pub external: bool,
 	pub symbol: bool,
+	/// Whether its `pub` was passed to the macro that made it.
+	pub passed: bool,
 	pub category: Category,
 	/// The first other crate's definition that names it, and where.
 	pub cross: Option<Evidence>,
@@ -79,6 +81,9 @@ pub enum Verdict {
 	/// It is not in a local package's source, such as a dependency's macro or generated
 	/// code.
 	Generated,
+	/// It was passed to the macro that made one of its definitions, which may use it for
+	/// more than the visibility.
+	Macro,
 }
 
 /// The joined graph.
@@ -91,10 +96,7 @@ pub struct Audit {
 
 impl Audit {
 	pub fn new(workspaces: &[Workspace], units: &[Unit]) -> Result<Self, String> {
-		let packages: BTreeMap<&Path, &Package> = workspaces
-			.iter()
-			.flat_map(|w| w.local.iter().map(|(dir, p)| (dir.as_path(), p)))
-			.collect();
+		let packages = crate::cargo::packages(workspaces);
 		let consumed = consumed(&packages);
 		let mut defs: Vec<Def> = Vec::new();
 		let mut keys: HashMap<(String, Option<Place>, String, String), usize> = HashMap::new();
@@ -106,7 +108,7 @@ impl Audit {
 			hi: span.hi,
 		};
 		for unit in units {
-			let package = packages.get(unit.package.as_path()).copied();
+			let package = packages.get(unit.package.as_path());
 			// A published library's API is what it exports. An unpublished one the audit
 			// does not run is used outside cargo's view, as a translator's fixture is by
 			// the translator, which may read any of its source.
@@ -129,6 +131,7 @@ impl Audit {
 						exported: false,
 						external: false,
 						symbol: false,
+						passed: false,
 						category: Category::Unreached,
 						cross: None,
 						local: None,
@@ -139,6 +142,7 @@ impl Audit {
 				joined.exported |= unit.lib && def.exported;
 				joined.external |= foreign || unit.lib && def.exported && published;
 				joined.symbol |= def.symbol;
+				joined.passed |= def.passed;
 				hashes.insert(def.hash, index);
 				if let Some(token) = def.token {
 					let token = tokens.entry(place(unit, token)).or_default();
@@ -164,10 +168,10 @@ impl Audit {
 				let index = hashes[&def.hash];
 				if let Some(&parent) = def.parent.and_then(|p| hashes.get(&p)) {
 					edges[test][index].push(parent);
-					// A type's fields and variants are its API; a module's, only what
-					// its crate exports from it.
+					// A type's fields and variants, and a trait's items, are its API; a
+					// module's, only what its crate exports from it.
 					let member = match defs[parent].kind.as_str() {
-						"Struct" | "Enum" | "Union" | "Variant" => true,
+						"Struct" | "Enum" | "Union" | "Variant" | "Trait" => true,
 						"Mod" => def.exported,
 						_ => false,
 					};
@@ -245,7 +249,7 @@ impl Audit {
 
 /// The packages the audit consumes: those with a binary, which run, and the unpublished
 /// workspace members such a package builds on.
-fn consumed<'a>(packages: &BTreeMap<&'a Path, &Package>) -> BTreeSet<&'a Path> {
+fn consumed<'a>(packages: &BTreeMap<&'a Path, Package>) -> BTreeSet<&'a Path> {
 	let mut consumed: BTreeSet<&Path> = packages
 		.iter()
 		.filter(|(_, p)| p.bin && p.member)
@@ -270,7 +274,7 @@ fn verdict(
 	place: &Place,
 	token_defs: &[usize],
 	defs: &[Def],
-	packages: &BTreeMap<&Path, &Package>,
+	packages: &BTreeMap<&Path, Package>,
 	targets: &[&Path],
 ) -> Result<Verdict, String> {
 	let local =
@@ -293,6 +297,8 @@ fn verdict(
 		Verdict::External
 	} else if defs.clone().any(|d| d.symbol) {
 		Verdict::Symbol
+	} else if defs.clone().any(|d| d.passed) {
+		Verdict::Macro
 	} else {
 		Verdict::Narrow
 	})

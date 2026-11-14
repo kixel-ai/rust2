@@ -238,3 +238,36 @@ pub struct Settings {
 	/// Kept: app's `..Default::default()` moves it, which it must see to.
 	pub defaulted: u32,
 }
+
+/// External: facade re-exports it.
+pub trait Shape {
+	/// External: an item of an external trait, whose signature is that API too.
+	fn area(&self) -> Area;
+}
+
+/// External: an external trait's method returns it.
+#[derive(Default)]
+pub struct Area {
+	/// External: a field of a type an external trait exposes.
+	pub value: u32,
+}
+
+impl Area {
+	/// External: a method of a type an external trait exposes.
+	pub fn doubled(&self) -> u32 {
+		self.value * 2
+	}
+}
+
+/// Kept: app names it. Its file's lines end in CRLF, which rustc reads as LF.
+pub mod crlf;
+
+/// Narrowed, unreached: a derive and its helper attribute make the item again,
+/// unchanged, so its token is the one written here.
+#[derive(Clone, Debug, Default)]
+pub enum Derived {
+	/// Narrowed, unreached.
+	#[default]
+	Unit,
+	Field(u32),
+}

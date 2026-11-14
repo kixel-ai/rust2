@@ -64,6 +64,18 @@ fn fixture() {
 	expect("Exposed::field", "external", "unreached");
 	expect("Exposed::method", "external", "unreached");
 	expect("Returned::field", "external", "unreached");
+	// An external trait's items are its API, with what they expose.
+	expect("Area", "external", "unreached");
+	expect("Area::value", "external", "unreached");
+	expect("Area::doubled", "external", "unreached");
+	// `pub extern crate` exposes the whole crate.
+	expect("exposed", "external", "unreached");
+	expect("extra", "external", "unreached");
+	// A token the macro may use for more than the visibility stays.
+	expect("label", "macro", "crate-only");
+	expect("Derived", "narrowed", "unreached");
+	// Offsets on disk, past CRLFs rustc reads as LF.
+	expect("crlf::after_crlf", "narrowed", "unreached");
 	for kept in [
 		"Action",
 		"Live",
@@ -93,6 +105,10 @@ fn fixture() {
 		"Settings",
 		"Settings::named",
 		"Settings::defaulted",
+		"used",
+		"Shape",
+		"crlf",
+		"crlf::spaced",
 	] {
 		assert_eq!(found[kept].0, "cross-crate", "{kept}");
 	}
