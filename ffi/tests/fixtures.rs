@@ -559,6 +559,32 @@ fn api_kotlin() {
 	};
 	kotlin(&api.transcript, &java);
 
+	let native_returns = run(cargo()
+		.arg("run")
+		.arg("--quiet")
+		.arg("--locked")
+		.arg("--package")
+		.arg("api-fixture")
+		.arg("--example")
+		.arg("returns")
+		.current_dir(manifest_dir()));
+	let kotlin_returns = run(&mut java(&["returns"]));
+	assert_eq!(
+		kotlin_returns.stdout, native_returns.stdout,
+		"Kotlin composite returns differ from native Rust"
+	);
+	let generated = std::fs::read_to_string(api.out.join("kotlin/api.kt")).expect("generated Kotlin");
+	for method in ["divide", "corner", "fingerprint", "return_values"] {
+		let declaration = generated
+			.lines()
+			.find(|line| line.contains(&format!("external fun {method}(")))
+			.expect("return method");
+		assert!(
+			!declaration.ends_with(": ByteArray") && !declaration.ends_with(": ByteArray?"),
+			"{method} still returns an encoded array: {declaration}"
+		);
+	}
+
 	// The same classes, with another contract than the library's in place of theirs,
 	// refuse to load it.
 	let native_class = classes.join("api").join("Native.class");
@@ -734,7 +760,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		("lent kept", "Counter is closed"),
 		(
 			"lent moved",
-			"IllegalStateException: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+			"Native$Refused: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("callback threw", "api::Log::log: a call into Kotlin threw"),
 		("closure threw", "api_made: a call into Kotlin threw"),
@@ -742,7 +768,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		("reader threw", "SeekableByteChannel.read: a call into Kotlin threw"),
 		(
 			"outlived",
-			"IllegalStateException: api_Meter_count: a handle lent from another outlived it",
+			"Native$Refused: api_Meter_count: a handle lent from another outlived it",
 		),
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),

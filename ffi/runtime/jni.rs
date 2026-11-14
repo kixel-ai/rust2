@@ -2,7 +2,8 @@
 //! thread a call into Kotlin runs on, and the wakers a Kotlin future parks on.
 //!
 //! A value Kotlin passes is a JNI scalar, a handle as a `long`, its bytes as a `byte[]`,
-//! or anything else encoded into a `byte[]`: little-endian, field by field, as the C
+//! or composite returns constructed by a Kotlin factory over scoped native memory.
+//! The codec (also used for parameters) is little-endian, field by field, as the C
 //! struct holds it, with a buffer as its length (-1 for none) and its bytes, and an array
 //! as its length (-1 for none) and its elements; a record passed or returned directly
 //! crosses its scalars as parameters, or through Kotlin's `long[]` slots, apart from the
@@ -39,6 +40,14 @@ pub unsafe fn load(vm: *mut JavaVM, name: &CStr) -> jint {
 			fail(env, "JNI_OnLoad", "the native class is missing");
 		}
 		let _ = CLASS.set(((**env).v1_2.NewGlobalRef)(env, class) as usize);
+		// JNI permits a VM without direct-buffer access. Refuse it while loading,
+		// before a call can hand over values that its return factory cannot read.
+		let mut probe = 0u8;
+		let buffer = ((**env).v1_4.NewDirectByteBuffer)(env, (&mut probe as *mut u8).cast(), 1);
+		if buffer.is_null() {
+			fail(env, "JNI_OnLoad", "the JVM does not support native return buffers");
+		}
+		((**env).v1_2.DeleteLocalRef)(env, buffer);
 	}
 	JNI_VERSION_1_6
 }
@@ -94,23 +103,32 @@ pub fn fail(env: *mut JNIEnv, what: &str, msg: &str) -> ! {
 	rt::fail(what, msg)
 }
 
-/// Throw the `IllegalStateException` a call of `what` raises once its check failed with
-/// `status`, returning a zeroed value Kotlin never reads, as JNI's pending exception
-/// throws once the native method returns.
+static REFUSED: OnceLock<usize> = OnceLock::new();
+
+/// Throw the `Native.Refused`, an `IllegalStateException`, a call of `what` raises once
+/// its check failed with `status`, returning a zeroed value Kotlin never reads, as JNI's
+/// pending exception throws once the native method returns. Its own class tells Kotlin
+/// the call moved nothing.
 #[cold]
-pub fn raise<R>(env: *mut JNIEnv, status: i32, what: &str) -> R {
+pub fn refuse<R>(env: *mut JNIEnv, status: i32, what: &str) -> R {
 	let message = match rt::Status::of(status) {
 		Some(status) => format!("{what}: {}", status.message()),
 		None => format!("{what}: an unknown status {status}"),
 	};
 	let message = std::ffi::CString::new(message).expect("no NUL in a message");
-	// SAFETY: `env` is this thread's, and the class a local reference while it throws.
+	let id = method(env, &REFUSED, c"__refused", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
+	// SAFETY: `env` is this thread's, and `__refused` takes the message.
 	unsafe {
-		let class = ((**env).v1_2.FindClass)(env, c"java/lang/IllegalStateException".as_ptr());
-		if class.is_null() {
-			fail(env, what, "IllegalStateException is missing");
+		let text = ((**env).v1_2.NewStringUTF)(env, message.as_ptr());
+		if text.is_null() {
+			fail(env, what, "a message did not fit");
 		}
-		((**env).v1_2.ThrowNew)(env, class, message.as_ptr());
+		let args = [jvalue { l: text }];
+		let refused = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+		if refused.is_null() || ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, what, "a call into Kotlin threw");
+		}
+		((**env).v1_2.Throw)(env, refused);
 		std::mem::zeroed()
 	}
 }
@@ -568,12 +586,12 @@ pub unsafe fn give(node: *mut Node) -> rt::Waker {
 pub type Poll = unsafe fn(*mut c_void, rt::Waker, &mut Writer) -> bool;
 
 /// Poll the future just made, and free it if it finished: the call and its first poll are
-/// one crossing. Its result is a bool, true when finished, then the result, or else the
+/// one crossing. Its writer holds a bool, true when finished, then the result, or else the
 /// future and the waker node made for `signal`, which Kotlin polls and frees.
 ///
 /// # Safety
 /// `future` is a live future that `poll` and `free` take, and `signal` a Kotlin `Waker`.
-pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll: Poll, free: unsafe fn(*mut c_void)) -> jbyteArray {
+pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll: Poll, free: unsafe fn(*mut c_void)) -> Writer {
 	let mut w = Writer::default();
 	w.put(true);
 	// Most futures are ready at once, so the first poll takes no waker: a node costs a
@@ -587,7 +605,7 @@ pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll
 	if unsafe { poll(future, none, &mut w) } {
 		// SAFETY: as above, and it finished.
 		unsafe { free(future) };
-		return w.array(env);
+		return w;
 	}
 	// Pending, so polled again with the waker it parks on, which replaces the first.
 	let node = node(env, signal);
@@ -598,13 +616,13 @@ pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll
 			free(future);
 			unref(node.cast());
 		}
-		return w.array(env);
+		return w;
 	}
 	let mut w = Writer::default();
 	w.put(false);
 	w.put(future);
 	w.put(node.cast::<c_void>());
-	w.array(env)
+	w
 }
 
 /// Poll `future` again with `node`, whose reference Rust holds from the first poll that
@@ -612,12 +630,12 @@ pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll
 ///
 /// # Safety
 /// `future` is a live future that `poll` takes, and Rust holds a reference to `node`.
-pub unsafe fn poll(env: *mut JNIEnv, future: *mut c_void, node: *mut Node, poll: Poll) -> jbyteArray {
+pub unsafe fn poll(future: *mut c_void, node: *mut Node, poll: Poll) -> Option<Writer> {
 	let mut w = Writer::default();
 	// SAFETY: the caller's contract.
 	match unsafe { poll(future, lend(node), &mut w) } {
-		true => w.array(env),
-		false => std::ptr::null_mut(),
+		true => Some(w),
+		false => None,
 	}
 }
 
@@ -731,6 +749,23 @@ fn caught(env: *mut JNIEnv, what: &str, cache: &OnceLock<usize>, name: &CStr) ->
 	}
 }
 
+static FAILED: OnceLock<usize> = OnceLock::new();
+
+/// Raise the error a function returned, encoded in `w`, as the `Native.Failed` Kotlin turns
+/// into its exception: a call's success path then returns its value with no `byte[]`.
+pub fn raise(env: *mut JNIEnv, w: Writer) {
+	let id = method(env, &FAILED, c"__failed", c"([B)Ljava/lang/Throwable;");
+	let args = [jvalue { l: w.array(env) }];
+	// SAFETY: `env` is this thread's, and `__failed` takes the error's bytes.
+	unsafe {
+		let failed = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+		if failed.is_null() || ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, "jni", "a call into Kotlin threw");
+		}
+		((**env).v1_2.Throw)(env, failed);
+	}
+}
+
 /// A Kotlin `Waker` passed by value: Rust holds its only reference.
 pub fn waker(env: *mut JNIEnv, waker: jobject) -> rt::Waker {
 	lend(node(env, waker))
@@ -786,8 +821,7 @@ impl<'a> Reader<'a> {
 }
 
 thread_local! {
-	/// The buffer a writer encodes into, kept between calls so a result allocates nothing
-	/// but its `byte[]`.
+	/// The native codec buffer, kept between calls and lent only while a return factory runs.
 	static SCRATCH: Cell<Vec<u8>> = const { Cell::new(Vec::new()) };
 }
 
@@ -818,6 +852,27 @@ impl Writer {
 
 	pub fn array(self, env: *mut JNIEnv) -> jbyteArray {
 		array(env, &self.0)
+	}
+
+	/// Construct a Kotlin value while this writer's native buffer is alive. The generated
+	/// factory reads it completely and retains neither the buffer nor its reader.
+	pub fn value(self, env: *mut JNIEnv, cache: &OnceLock<usize>, name: &CStr, back: jobject) -> jobject {
+		let id = method(env, cache, name, c"(Ljava/nio/ByteBuffer;[Ljava/lang/Object;)Ljava/lang/Object;");
+		let len = i32::try_from(self.0.len()).unwrap_or_else(|_| rt::fail("jni", "a value is too large for a ByteBuffer"));
+		// SAFETY: this writer owns the allocation through the synchronous factory call.
+		// Even an empty Vec has a non-null aligned pointer. Kotlin cannot retain the view.
+		unsafe {
+			let buffer = ((**env).v1_4.NewDirectByteBuffer)(env, self.0.as_ptr() as *mut c_void, len as jlong);
+			if buffer.is_null() {
+				fail(env, "jni", "cannot make a return buffer");
+			}
+			let args = [jvalue { l: buffer }, jvalue { l: back }];
+			let result = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+			// A declared Rust error is thrown by the factory, after applying writebacks.
+			// Leave it pending for the JVM, including a null success such as Option::None.
+			((**env).v1_2.DeleteLocalRef)(env, buffer);
+			result
+		}
 	}
 }
 

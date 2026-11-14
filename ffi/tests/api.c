@@ -1917,7 +1917,9 @@ static int statuses(void) {
 	api_Ticket_free(dropped);
 
 	status = 0;
-	api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0), NULL);
+	api_Counter *kept = api_Counter_new(str("c"), 0);
+	api_Registry *registry = api_Registry_new(kept, NULL);
+	api_Counter_free(kept);
 	if (!api_Registry_edit(registry, move_lent_status, &status, NULL)) {
 		fprintf(stderr, "a lent counter moved out wrote %d\n", status);
 		failed = 1;

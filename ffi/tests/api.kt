@@ -1085,6 +1085,17 @@ fun owned() {
 		val thrown = runCatching(call).exceptionOrNull()
 		check(thrown is UnsupportedOperationException && thrown.message == "$what: it is not on this library's target", "$what throws: $thrown")
 	}
+	Counter.new("k", 7u).use { kept ->
+		check(runCatching { wasmTake(kept) }.exceptionOrNull() is UnsupportedOperationException, "api_wasm_take throws")
+		check(kept.get() == 7uL, "a refused call leaves its moved argument open")
+	}
+	// A failed check refuses the call before it moves anything, so the lent counter stays open.
+	Registry.new(Counter.new("r", 3u)).edit { lent ->
+		val refused = runCatching { returnMoved(lent, false) }.exceptionOrNull()
+		check(refused is IllegalStateException && refused.message == "api_return_moved: a handle a call lent is borrowed exclusively or moved out", "a lent counter refuses the move: $refused")
+		check(lent.get() == 3uL, "a call a check refused leaves its moved argument open")
+		false
+	}
 
 	// Bytes outlive the object that returned them and the record that held them.
 	val body = ByteArray(2048) { 'b'.code.toByte() }
@@ -1329,9 +1340,48 @@ fun uncollected(n: UInt, what: String) {
 	check(dropped() == n, what)
 }
 
+fun returns() {
+	val saved = returnValues(Mut(Point(0, 0)), false)
+	val completed = java.util.concurrent.atomic.AtomicInteger()
+	List(4) { thread {
+		repeat(64) { returnValues(Mut(Point(it, -it)), false); Counter.new("thread", it.toULong()).close(); completed.incrementAndGet() }
+	} }.forEach { it.join() }
+	check(completed.get() == 256, "all concurrent return calls completed")
+	check(saved.first == "hé🙂\u0000" && saved.third[1][9999].toUByte() == 15u.toUByte(), "a return owns its data after concurrent scratch reuse")
+	val point = Mut(Point(3, -5))
+	for (fail in listOf(false, true, false)) {
+		try {
+			val (text, widths, rows) = returnValues(point, fail)
+			val (a, b, c, d) = widths!!
+			println("values $text $a $b $c $d")
+			println("rows ${rows[0].size} ${rows[0][0].toUByte()} ${rows[0][1].toUByte()} ${rows[0][2].toUByte()} ${rows[1].size} ${rows[1][9999].toUByte()}")
+		} catch (e: ErrorException) { println("values error") }
+		println("point ${point.value.x} ${point.value.y}")
+	}
+	for (fail in listOf(false, true)) {
+		val counter = Counter.new("moved", ULong.MAX_VALUE)
+		try {
+			returnMoved(counter, fail).use { println("moved ${it.name()} ${it.get()}") }
+		} catch (e: ErrorException) { println("moved error") }
+		val usable = try { counter.get(); true } catch (_: IllegalStateException) { false }
+		check(!usable) { "a moved counter was usable" }
+	}
+	for (hex in listOf("ff0080fe", "bad")) {
+		try {
+			val value = fingerprint(hex)
+			println("array ${value[0].toUByte()} ${value[1].toUByte()} ${value[2].toUByte()} ${value[3].toUByte()}")
+		} catch (e: StringException) { println("array error") }
+	}
+	for (unit in listOf(true, false)) {
+		try { val (a, b) = corner(unit); println("corner $a $b") }
+		catch (e: ErrorException) { println("corner error") }
+	}
+}
+
 fun main(args: Array<String>) {
 	when {
 		args.isEmpty() -> script()
+		args[0] == "returns" -> returns()
 		args[0] == "futures" -> futures()
 		args[0] == "owned" -> owned()
 		else -> broken(args[0])
