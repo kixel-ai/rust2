@@ -560,7 +560,19 @@ pub fn write(path: &Path, text: &str) -> Result<(), String> {
 	temp.push(name);
 	temp.push(".rust2-ffi");
 	let temp = dir.join(temp);
-	std::fs::write(&temp, text).map_err(|err| format!("writing {}: {err}", temp.display()))?;
+	// A link left at the temporary path goes first, so the write cannot follow it.
+	match std::fs::remove_file(&temp) {
+		Err(err) if err.kind() != std::io::ErrorKind::NotFound => {
+			return Err(format!("removing {}: {err}", temp.display()));
+		}
+		_ => {}
+	}
+	std::fs::File::options()
+		.write(true)
+		.create_new(true)
+		.open(&temp)
+		.and_then(|mut file| std::io::Write::write_all(&mut file, text.as_bytes()))
+		.map_err(|err| format!("writing {}: {err}", temp.display()))?;
 	std::fs::rename(&temp, path).map_err(|err| {
 		let _ = std::fs::remove_file(&temp);
 		format!("writing {}: {err}", path.display())

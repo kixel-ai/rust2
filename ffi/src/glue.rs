@@ -2083,6 +2083,12 @@ fn rewrite_keeps_unchanged_files() {
 		assert_eq!(std::fs::read_to_string(elsewhere.join("kept.go")).unwrap(), "kept");
 		assert!(!go.join("rt/rt.go").is_symlink());
 		assert_eq!(std::fs::read_to_string(go.join("rt/rt.go")).unwrap(), "rt");
+		// And a link left where a changed file is first written.
+		std::os::unix::fs::symlink(elsewhere.join("kept.go"), root.join(".Cargo.toml.rust2-ffi")).unwrap();
+		output(&[("Cargo.toml", "linked")]).write().unwrap();
+		assert_eq!(std::fs::read_to_string(elsewhere.join("kept.go")).unwrap(), "kept");
+		assert!(!root.join("Cargo.toml").is_symlink());
+		assert_eq!(std::fs::read_to_string(root.join("Cargo.toml")).unwrap(), "linked");
 	}
 	// A hard link to a changed file keeps its content.
 	let linked = root.join("linked.txt");
