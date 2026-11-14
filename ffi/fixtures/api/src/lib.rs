@@ -2511,8 +2511,6 @@ pub fn blame(err: tls::held::Invalid) -> String {
 	err.to_string()
 }
 
-/// A session of `alpn` lasting `seconds`, from a crate the facade re-exports nothing from:
-/// its type exports by its path there, and its error crosses as its message.
 /// Another crate's trait object behind an `Arc`: an opaque handle, taken back as the `Arc`.
 pub fn resolver(name: &str) -> Arc<dyn tls::held::Resolver> {
 	Arc::new(tls::held::Named(name.to_string()))
@@ -2521,6 +2519,15 @@ pub fn resolver(name: &str) -> Arc<dyn tls::held::Resolver> {
 /// The name a resolver resolves, from its handle.
 pub fn resolved(resolver: Arc<dyn tls::held::Resolver>) -> String {
 	resolver.name()
+}
+
+/// A resolver as a tuple struct's field, whose accessors each binding names as its `_0`.
+pub struct Resolving(pub Arc<dyn tls::held::Resolver>);
+
+impl Resolving {
+	pub fn new(name: &str) -> Self {
+		Self(resolver(name))
+	}
 }
 
 /// Codecs, each another crate's `&'static dyn Codec`, held by value in an opaque handle.
@@ -2631,6 +2638,8 @@ pub fn pump<T: tls::held::Stream>(mut stream: T) -> u8 {
 	stream.read()
 }
 
+/// A session of `alpn` lasting `seconds`, from a crate the facade re-exports nothing from:
+/// its type exports by its path there, and its error crosses as its message.
 pub fn resume(alpn: &str, seconds: u32) -> Result<tls::Session, tls::Error> {
 	tls::resume(alpn, seconds)
 }
