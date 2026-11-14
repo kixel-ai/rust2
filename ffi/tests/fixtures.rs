@@ -1389,6 +1389,208 @@ fn go_package_names() {
 	vet(&go);
 }
 
+/// A type a signature names that the root does not reach, as moq-net's `kio::Pending`,
+/// exports by its public path in its own crate, through a re-export or a module, even from a
+/// crate the facade re-exports nothing from; one no public path names stays refused. Such a
+/// crate's error still crosses as its message, and its type an `Arc` holds stays an opaque
+/// handle, refused bare.
+#[test]
+fn unreached_types() {
+	let package = package("unreached_types");
+	write_all(
+		&package,
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"unreached_types\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"pkg\"\n\n\
+				[dependencies]\nkio = { package = \"unreached-kio\", path = \"kio\" }\n\
+				net = { package = \"unreached-net\", path = \"net\" }\n\
+				conv = { package = \"unreached-conv\", path = \"conv\" }\n\n[workspace]\nexclude = [\"kio\", \"net\", \"conv\"]\n",
+			),
+			(
+				"src/lib.rs",
+				"pub use kio::Ready;\n\npub fn pending() -> kio::Pending {\n\tkio::Pending(1)\n}\n\n\
+				pub fn version() -> kio::version::Version {\n\tkio::version::Version { major: 2 }\n}\n\n\
+				pub fn seal() -> kio::Sealed {\n\tkio::sealed()\n}\n\n\
+				pub fn connect() -> Result<net::Link, net::Fault> {\n\tnet::connect()\n}\n\n\
+				pub fn handle() -> std::sync::Arc<net::Handle> {\n\tstd::sync::Arc::new(net::Handle(4))\n}\n\n\
+				pub fn bare(handle: &net::Handle) -> u32 {\n\thandle.0\n}\n\n\
+				pub fn opaque() -> Result<(), net::Opaque> {\n\tErr(net::Opaque)\n}\n\n\
+				pub fn closed() -> net::Closed {\n\tnet::closed()\n}\n\n\
+				pub enum Failure {\n\tNet(net::Fault),\n}\n\npub fn fail() -> Failure {\n\tFailure::Net(net::Fault)\n}\n\n\
+				pub struct Buffer(Vec<u32>);\n\nimpl Buffer {\n\tpub fn new() -> Self {\n\t\tSelf(vec![1])\n\t}\n\n\
+				\tpub fn drain(&mut self) -> impl Iterator<Item = u32> + '_ {\n\t\tnet::drain(&mut self.0)\n\t}\n}\n\n\
+				pub fn copied(items: &[u32]) -> impl Iterator<Item = u32> + '_ {\n\titems.iter().copied()\n}\n\n\
+				#[derive(Clone)]\npub struct Held<'a>(&'a u32);\n\nimpl Held<'_> {\n\tpub fn get(&self) -> u32 {\n\t\t*self.0\n\t}\n}\n\n\
+				pub fn wrap(x: &u32) -> impl Clone + '_ {\n\tSome(Held(x))\n}\n\n#[derive(Clone)]\npub struct Own(u32);\n\nimpl Own {\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n\npub fn own() -> impl Clone {\n\tSome(Own(1))\n}\n\n\
+				impl Buffer {\n\tpub fn first(&self) -> impl Clone + '_ {\n\t\tOwn(self.0[0])\n\t}\n}\n\n\
+				pub struct Counter(u32);\n\nimpl Counter {\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n\n\
+				impl Buffer {\n\tfn counter(&self) -> impl Into<Counter> + '_ {\n\t\tCounter(self.0[0])\n\t}\n\n\
+				\tpub fn best(&self) -> impl Into<Counter> + '_ {\n\t\tself.counter()\n\t}\n}\n\n\
+				pub fn copied_again(items: &[u32]) -> impl Iterator<Item = u32> + '_ {\n\tcopied(items)\n}\n\n\
+				pub fn take(value: impl Into<conv::Value>) -> u32 {\n\tvalue.into().get()\n}\n",
+			),
+			(
+				"net/Cargo.toml",
+				"[package]\nname = \"unreached-net\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"net\"\n",
+			),
+			(
+				"net/src/lib.rs",
+				"mod link {\n\tpub struct Link(pub u32);\n\n\timpl Link {\n\t\tpub fn id(&self) -> u32 {\n\t\t\tself.0\n\t\t}\n\t}\n}\n\n\
+				pub use link::Link;\n\npub struct Handle(pub u32);\n\n#[derive(Debug)]\npub struct Fault;\n\n\
+				impl std::fmt::Display for Fault {\n\tfn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n\t\tf.write_str(\"fault\")\n\t}\n}\n\n\
+				impl std::error::Error for Fault {}\n\n\
+				pub struct Opaque;\n\nmod closed {\n\tpub struct Closed;\n}\n\npub type Closed = closed::Closed;\n\n\
+				pub fn closed() -> closed::Closed {\n\tclosed::Closed\n}\n\n\
+				pub fn connect() -> Result<Link, Fault> {\n\tOk(Link(1))\n}\n\n\
+				pub struct Drain<'a>(&'a mut Vec<u32>);\n\n\
+				pub fn drain(items: &mut Vec<u32>) -> Drain<'_> {\n\tDrain(items)\n}\n\n\
+				impl Iterator for Drain<'_> {\n\ttype Item = u32;\n\n\tfn next(&mut self) -> Option<u32> {\n\t\tself.0.pop()\n\t}\n}\n",
+			),
+			(
+				"conv/Cargo.toml",
+				"[package]\nname = \"unreached-conv\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"conv\"\n",
+			),
+			(
+				"conv/src/lib.rs",
+				"pub struct Value(u32);\n\nimpl Value {\n\tpub fn new(n: u32) -> Self {\n\t\tSelf(n)\n\t}\n\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n",
+			),
+			(
+				"kio/Cargo.toml",
+				"[package]\nname = \"unreached-kio\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"kio\"\n",
+			),
+			(
+				"kio/src/lib.rs",
+				"pub struct Ready;\n\nmod pollable {\n\tpub struct Pending(pub u32);\n\n\timpl Pending {\n\t\tpub fn id(&self) -> u32 {\n\t\t\tself.0\n\t\t}\n\t}\n}\n\npub use pollable::Pending;\n\n\
+				pub mod version {\n\t#[derive(Clone, Copy)]\n\tpub struct Version {\n\t\tpub major: u32,\n\t}\n}\n\n\
+				mod sealed {\n\tpub struct Sealed(pub u32);\n}\n\npub type Sealed = sealed::Sealed;\n\n\
+				pub fn sealed() -> sealed::Sealed {\n\tsealed::Sealed(3)\n}\n",
+			),
+		],
+	);
+	// The export builds, naming `kio`'s types through its own dependency on `kio`.
+	std::fs::write(
+		package.join("ffi.toml"),
+		"exclude = [\"seal\", \"bare\", \"opaque\", \"closed\", \"own\", \"Buffer::first\"]\n",
+	)
+	.unwrap();
+	let out = package.join("out");
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--out")
+		.arg(&out)
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	let glue = std::fs::read_to_string(out.join("src/lib.rs")).unwrap();
+	// An `impl Iterator + '_` collected at the call holds no borrow past it.
+	assert!(glue.contains("fn pkg_copied("), "{glue}");
+	// So does one returning another's, whose hidden type is revealed in full.
+	assert!(glue.contains("fn pkg_copied_again("), "{glue}");
+	// A conversion target only an `impl Into` names is reached, and taken.
+	assert!(
+		glue.contains("rt::Object::<::conv_reached::Value>::take(p0, w)"),
+		"{glue}"
+	);
+	assert!(glue.contains("::kio_reached::Pending"), "{glue}");
+	// `net`'s error crosses as its message, or holds `Failure`, which holds it, an object, and
+	// its `Arc` crosses as an opaque handle.
+	assert!(
+		glue.contains("::net_reached::Link") && !glue.contains("Fault") && !glue.contains("net_reached::Handle"),
+		"{glue}"
+	);
+	run(cargo()
+		.arg("build")
+		.arg("--manifest-path")
+		.arg(out.join("Cargo.toml"))
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	// Staged on another host, with the checkout elsewhere, the merged export depends on the
+	// exporting host's `kio`, not the staging host's, though only the staged target reaches it.
+	let staged = package.join("wasm.json");
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.args(["--api", staged.to_str().unwrap(), "--target", WASM])
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	let moved = scratch().join("unreached_types-moved");
+	let _ = std::fs::remove_dir_all(&moved);
+	for dir in ["src", "kio", "net", "conv"] {
+		copy_dir(&package.join(dir), &moved.join(dir));
+	}
+	for file in ["Cargo.toml", "ffi.toml"] {
+		std::fs::copy(package.join(file), moved.join(file)).unwrap();
+	}
+	let lib = std::fs::read_to_string(package.join("src/lib.rs")).unwrap();
+	let (head, rest) = lib.split_once("pub fn pending").unwrap();
+	let rest = &rest[rest.find("pub fn seal").unwrap()..];
+	std::fs::write(moved.join("src/lib.rs"), format!("{head}{rest}")).unwrap();
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(moved.join("ffi.toml"))
+		.arg("--out")
+		.arg(moved.join("out"))
+		.arg("--with")
+		.arg(&staged)
+		.env("CARGO_TARGET_DIR", moved.join("build")));
+	let manifest = std::fs::read_to_string(moved.join("out/Cargo.toml")).unwrap();
+	assert!(
+		manifest.contains(&format!("path = {:?}", moved.join("kio").display().to_string()))
+			&& !manifest.contains(&format!("{:?}", package.join("kio").display().to_string())),
+		"{manifest}"
+	);
+	std::fs::write(package.join("ffi.toml"), "").unwrap();
+	let census = package.join("census");
+	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--census")
+		.arg(&census)
+		.env("CARGO_TARGET_DIR", package.join("build"))
+		.output()
+		.unwrap();
+	assert!(
+		output.status.success(),
+		"the census failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let report = std::fs::read_to_string(census.join("unreached_types.md")).unwrap();
+	// `Pending`, `Version`, `Link`, `Failure`, `Buffer`, and `conv::Value` export; `Sealed`
+	// alone is refused as unreached, though an alias names it. `net`'s error in `Failure` is
+	// never reached, so `Failure` is an object.
+	assert!(report.contains("| Types | 6 | 0 |"), "{report}");
+	assert!(report.contains("- `Failure`: foreign type `net::Fault`"), "{report}");
+	// A type an `Arc` holds, a `Result`'s error without `Display`, and one no public path
+	// names stay refused as foreign.
+	for refused in [
+		"fn `bare` at src/lib.rs:23:1: foreign type `net::Handle`",
+		"fn `opaque` at src/lib.rs:27:1: foreign type `net::Opaque`",
+		"fn `closed` at src/lib.rs:31:1: foreign type `net::closed::Closed`",
+	] {
+		assert!(report.contains(refused), "{report}");
+	}
+	// `impl Iterator + '_` lends a borrow of the receiver, so `drain` is refused and `Drain`
+	// left out with it, rather than glue that does not build; so is `wrap`, whose hidden
+	// `Option` holds a borrowing `Held`.
+	assert!(
+		report.contains("- `Buffer::drain`: type C never holds `net::Drain`"),
+		"{report}"
+	);
+	assert!(report.contains("- `wrap`: type C never holds `Held`"), "{report}");
+	// So is `best`, whose `impl Into<Counter> + '_` hides another `impl Trait` hiding a
+	// `Counter`, an object its handle would hold the receiver's borrow for.
+	assert!(
+		report.contains("- `Buffer::best`: type C never holds `Counter`"),
+		"{report}"
+	);
+	// The glue cannot destructure a hidden type it cannot name, so only an object crosses
+	// through an `impl Trait`: `own`'s `Option` is refused, and `Own` left out with it.
+	assert!(report.contains("- `own`: type C never holds `Own`"), "{report}");
+	assert!(
+		report.contains("fn `seal` at src/lib.rs:11:1: type not reachable from the crate root `kio::sealed::Sealed`"),
+		"{report}"
+	);
+	assert_eq!(report.matches("not reachable").count(), 3, "{report}");
+}
+
 /// `go vet` over an export's `go/`, which the header beside it lets cgo check unlinked.
 fn vet(go: &Path) {
 	run(Command::new("go")
