@@ -599,14 +599,23 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -
 	if plain {
 		cmd.args(["-fno-exceptions", "-fno-rtti"]);
 	}
-	// -Wshadow stands in for MSVC's warnings that a name hides another.
-	cmd.args(["-pedantic", "-Wall", "-Wextra", "-Wshadow", "-Werror", "-I"])
-		.arg(include)
-		.arg(src)
-		.arg(&link.staticlib)
-		.args(link.native)
-		.arg("-o")
-		.arg(exe);
+	// -Wshadow stands in for MSVC's warnings that a name hides another, and
+	// -Wmismatched-tags for C4099, a class declared `struct` or a struct `class`.
+	cmd.args([
+		"-pedantic",
+		"-Wall",
+		"-Wextra",
+		"-Wshadow",
+		"-Wmismatched-tags",
+		"-Werror",
+		"-I",
+	])
+	.arg(include)
+	.arg(src)
+	.arg(&link.staticlib)
+	.args(link.native)
+	.arg("-o")
+	.arg(exe);
 	cmd
 }
 
@@ -1441,7 +1450,7 @@ fn api_go() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("nil reader", "a nil io.ReadSeeker"),
-		("returned closed", "Instant is closed"),
+		("returned zero", "a zero Instant, which only Rust makes"),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
 		("outlived", OUTLIVED),
 		("text", "api_greet: a string is not UTF-8"),
@@ -2250,6 +2259,23 @@ fn lock() {
 		stderr.contains("library `other`: it is now `lock`"),
 		"no library error:\n{stderr}"
 	);
+	// A baseline an earlier export wrote, before records had their padding, still reads.
+	let older = dir.join("older.json");
+	let mut json = String::from_utf8(before.clone()).unwrap();
+	while let Some(at) = json.find(",\"padding\":{") {
+		let end = at + json[at..].find('}').unwrap() + 1;
+		json.replace_range(at..end, "");
+	}
+	std::fs::write(&older, json).unwrap();
+	let args = ["--baseline".as_ref(), older.as_os_str()];
+	let read = exporter("lock", &dir.join("older"), &targets, &args, &[])
+		.output()
+		.expect("running rust2-ffi");
+	assert!(
+		read.status.success(),
+		"a baseline without padding failed:\n{}",
+		String::from_utf8_lossy(&read.stderr)
+	);
 	let locked = |feature: &str| {
 		let args = ["--baseline".as_ref(), baseline.as_os_str()];
 		exporter("lock", &dir.join(feature), &targets, &args, &["--features", feature])
@@ -2552,6 +2578,30 @@ fn standard_names() {
 			"lib `{name}`'s own SocketAddrV4 is no record:\n{header}"
 		);
 	}
+}
+
+/// The padding of a `Copy` value of a huge array is found without walking or storing its
+/// bytes: a zero-sized element repeated `usize::MAX` times, or a 1 TiB array of bytes, which
+/// no export returns, so it is left out only after its padding is read. An array of padded
+/// elements still zeroes each element's padding.
+#[test]
+fn huge_arrays() {
+	let lib = "#[derive(Clone, Copy)]\npub struct Marker([(); usize::MAX]);\n\nimpl Marker {\n\tpub fn new() -> Self {\n\t\tSelf([(); usize::MAX])\n\t}\n}\n\npub fn take(marker: Marker) -> u32 {\n\tmarker.0.len().count_ones()\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Huge([u8; 1 << 40]);\n\npub fn first(huge: &Huge) -> u8 {\n\thuge.0[0]\n}\n\n\
+		#[derive(Clone, Copy)]\n#[repr(C)]\nstruct Pair {\n\ta: u8,\n\tb: u16,\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Pairs([Pair; 3]);\n\nimpl Pairs {\n\tpub fn new() -> Self {\n\t\tSelf([Pair { a: 1, b: 2 }; 3])\n\t}\n\n\tpub fn sum(&self) -> u32 {\n\t\tself.0.iter().map(|p| u32::from(p.a) + u32::from(p.b)).sum()\n\t}\n}\n";
+	let package = package("huge_arrays", &[("src/lib.rs", lib)]);
+	export_and_build(&package, &["--offline"]);
+	let header = std::fs::read_to_string(package.join("out/include/huge_arrays.h")).unwrap();
+	assert!(
+		header.contains("\tuint8_t opaque[1];\n} huge_arrays_Marker;"),
+		"Marker is no opaque value:\n{header}"
+	);
+	let glue = std::fs::read_to_string(package.join("out/src/lib.rs")).unwrap();
+	assert!(
+		glue.contains("const PADDING: &[(usize, usize)] = &[(1, 1), (5, 1), (9, 1)];"),
+		"Pairs' padding is not each element's:\n{glue}"
+	);
 }
 
 /// A facade whose lib takes the name of a foreign type's crate maps that crate's type

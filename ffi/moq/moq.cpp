@@ -149,7 +149,7 @@ int main() {
 	{
 		auto reading = group.read_frame();
 		CHECK(!reading.poll(waker));
-		CHECK(writer->write_frame(nullptr, "hello"));
+		CHECK(writer->write_frame(std::nullopt, "hello"));
 		CHECK(wakes == 2);
 		auto frame = reading.poll(waker);
 		CHECK(frame && *frame && frame->value());
@@ -160,17 +160,17 @@ int main() {
 		CHECK(moq::clock_now().checked_duration_since(hello.arrived()).has_value());
 	}
 
-	// A timestamp is a `Copy` value behind a handle: passing it copies it out. The track is
+	// A timestamp is a `Copy` value copied across, which allocates nothing. The track is
 	// untimed, so a timestamped frame is refused.
 	auto at = moq::Timestamp::from_millis(1500);
 	CHECK(at && at->as_secs() == 1);
-	auto late = writer->write_frame(&*at, "late");
+	auto late = writer->write_frame(*at, "late");
 	CHECK(!late && is(late.error().to_string(), "frame timestamp doesn't fit its track"));
 	CHECK(at->as_secs() == 1);
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as None,
 	// both blocking.
-	CHECK(writer->write_frame(nullptr, "\xffworld"));
+	CHECK(writer->write_frame(std::nullopt, "\xffworld"));
 	CHECK(std::move(*writer).finish());
 	auto world = group.read_frame().get();
 	CHECK(world && world.value() && is(world.value()->payload_get(), "\xffworld"));
@@ -300,7 +300,7 @@ int main() {
 		// lent catalog and read back as text.
 		// Its track has a timescale, since every write is stamped.
 		auto milli = moq::Timescale::MILLI();
-		auto status = publisher.create_track("status", moq::track_Info::default_().with_timescale(&milli));
+		auto status = publisher.create_track("status", moq::track_Info::default_().with_timescale(milli));
 		CHECK(status);
 		auto status_snapshot = catalog->json_snapshot_Config(std::move(*status), moq::mux_json_Config::default_(),
 		                                                     moq::mux_json_Options::default_());
@@ -389,7 +389,7 @@ int main() {
 		auto live_track = live_broadcast.create_track("video", std::nullopt);
 		CHECK(live_track);
 		auto live_group = live_track->append_group();
-		CHECK(live_group && live_group->write_frame(nullptr, "hello"));
+		CHECK(live_group && live_group->write_frame(std::nullopt, "hello"));
 		CHECK(std::move(*live_group).finish());
 
 		moq::tokio_server_Config server_config = moq::tokio_server_Config::default_();

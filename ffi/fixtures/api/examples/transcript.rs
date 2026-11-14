@@ -301,11 +301,13 @@ fn main() {
 	println!("secs {}", stamp.secs());
 	println!("later {}", Stamp::from_millis(3000).later(stamp));
 	println!("secs {}", stamp.secs());
+	let whole: Stamp = stamp.whole().into();
+	println!("whole {whole:?}");
 	let mut message = Message::new(Some(stamp), Bytes::from_static(b"body"));
 	println!("payload {}", String::from_utf8_lossy(&message.payload));
 	println!("stamp {:?}", message.stamp.unwrap());
 	println!("sent {}", message.sent());
-	// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
+	// Setters assign in place: the bytes are copied in, and a `Copy` value copied.
 	let reset = Stamp::from_millis(4000);
 	message.stamp = Some(reset);
 	message.payload = Bytes::from_static(b"edited");
@@ -314,6 +316,32 @@ fn main() {
 	println!("secs {}", reset.secs());
 	message.stamp = None;
 	println!("stamp {}", message.stamp.is_some());
+
+	// A value past a word, copied across: a closure takes and returns one by value.
+	let moment = api::Moment::new(1500, 1000).unwrap();
+	println!("moment {} {}", moment.millis(), api::Moment::new(1, 0).is_none());
+	let shifted = api::shifted(moment, |m| m.after(500));
+	println!("shifted {} {}", shifted.millis(), shifted == moment.after(500));
+	println!("wrapped {} {}", moment.after(u64::MAX).millis(), moment == shifted);
+
+	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	let gap = api::Gap::new(7, 3);
+	println!("gap {} {}", gap.sum(), gap == api::Gap::new(7, 3));
+	let berth = api::Berth::new(Some(4));
+	println!("berth {:?} {:?}", berth.at(), api::Berth::new(None).at());
+
+	// A `Copy` type changed in place is a handle, which a call taking it by value copies.
+	let mut score = api::Score::of(2);
+	let step = api::Score::of(3);
+	score.add(step);
+	score.add(step);
+	println!("score {} {} {}", score.count(), step.doubled().count(), step.count());
+	let weighted = api::Weighted { score: step, weight: 4 };
+	println!(
+		"weighted {} {}",
+		weighted.total(),
+		weighted.score.count() + step.count()
+	);
 
 	println!("kept {}", api::emit(Print, vec![1, 2, 3, 4]));
 	let logger = Logger::new(Box::new(Print));

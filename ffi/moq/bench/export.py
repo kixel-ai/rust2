@@ -148,7 +148,7 @@ def round(loop, measured):
 		track.info()
 	out["object"] = end(start, b"object")
 
-	# Each frame stamped through a fresh timestamp object, as a caller holding an int must.
+	# Each frame stamped through a fresh timestamp, as a caller holding an int must.
 	micros = 0
 	start = begin()
 	for _ in range(GROUPS):

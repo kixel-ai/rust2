@@ -166,8 +166,7 @@ func round(measured bool) []result {
 	var out []result
 	broadcast := must(net.NewBroadcastInfo().Produce())
 	micro := net.TimescaleMICRO()
-	track := must(broadcast.CreateTrack("bench", must(net.TrackInfoDefault().WithTimescale(micro))))
-	micro.Close()
+	track := must(broadcast.CreateTrack("bench", must(net.TrackInfoDefault().WithTimescale(&micro))))
 	frame := rt.NewBytes(make([]byte, 100))
 
 	start := begin()
@@ -238,7 +237,7 @@ func round(measured bool) []result {
 	}
 	out = append(out, result{"object", end(start, "object", n)})
 
-	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
+	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must.
 	var micros uint64
 	start = begin()
 	for range groups {
@@ -246,8 +245,7 @@ func round(measured bool) []result {
 		for range frames {
 			at := must(net.TimestampFromMicros(micros))
 			micros++
-			check(group.WriteFrame(at, frame))
-			at.Close()
+			check(group.WriteFrame(&at, frame))
 		}
 		check(group.Finish())
 		group.Close()
@@ -259,7 +257,7 @@ func round(measured bool) []result {
 	for range groups {
 		group := must(track.AppendGroup())
 		for range frames {
-			check(group.WriteFrame(at, frame))
+			check(group.WriteFrame(&at, frame))
 		}
 		check(group.Finish())
 		group.Close()
@@ -279,7 +277,7 @@ func round(measured bool) []result {
 		group := must(track.AppendGroup())
 		reader := must(subscriber.RecvGroup(ctx))
 		for range frames {
-			check(group.WriteFrame(at, frame))
+			check(group.WriteFrame(&at, frame))
 			if last != nil {
 				last.Close()
 			}
@@ -301,7 +299,7 @@ func round(measured bool) []result {
 		for range frames {
 			go func() { read <- must(reader.ReadFrame(ctx)) }()
 			runtime.Gosched()
-			check(group.WriteFrame(at, frame))
+			check(group.WriteFrame(&at, frame))
 			(<-read).Close()
 		}
 		reader.Close()
@@ -344,7 +342,7 @@ func round(measured bool) []result {
 	out = append(out, result{"loop", end(start, "loop", n)})
 
 	for _, size := range sizes {
-		out = append(out, result{fmt.Sprintf("mbps:%d", size), throughput(ctx, track, subscriber, at, size)})
+		out = append(out, result{fmt.Sprintf("mbps:%d", size), throughput(ctx, track, subscriber, &at, size)})
 	}
 	subscriber.Close()
 
@@ -355,7 +353,6 @@ func round(measured bool) []result {
 	}
 	out = append(out, result{"payload", end(start, "payload", n)})
 	last.Close()
-	at.Close()
 	track.Close()
 	broadcast.Close()
 	return out

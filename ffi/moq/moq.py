@@ -83,7 +83,7 @@ def local(loop):
 	# When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(moq.clock_now().checked_duration_since(hello.arrived()) is not None, "a frame arrived before now")
 
-	# A timestamp is a `Copy` value behind a handle: passing it copies it out. The track is
+	# A timestamp is a `Copy` value copied across, which allocates nothing. The track is
 	# untimed, so a timestamped frame is refused.
 	at = moq.Timestamp.from_millis(1500)
 	expect(at.as_secs() == 1, "1500 ms is 1 s")

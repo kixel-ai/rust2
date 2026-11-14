@@ -214,7 +214,7 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 	}
 	out.append(("object", end(start, "object")))
 
-	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
+	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must.
 	var micros: UInt64 = 0
 	start = begin()
 	for _ in 0..<groups {
