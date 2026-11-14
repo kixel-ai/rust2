@@ -131,8 +131,8 @@ fn status(raw: i64) -> ExitStatus {
 /// What a step's output depends on besides its own files: its program, by path and version,
 /// its arguments, directory, and environment, and the content of each file it `reads`.
 fn key(cmd: &Command, reads: &[&Path]) -> String {
-	let program = program(cmd);
-	let mut key = format!("program {program:?}\nversion {:?}\n", version(&program));
+	let (found, program) = program(cmd);
+	let mut key = format!("program {program:?}\nversion {:?}\n", version(&found));
 	for arg in cmd.get_args() {
 		key += &format!("arg {arg:?}\n");
 	}
@@ -152,40 +152,64 @@ fn key(cmd: &Command, reads: &[&Path]) -> String {
 	key
 }
 
-/// The program `cmd` runs, resolved through `PATH` as the command would and through links,
-/// so another toolchain on `PATH`, as another dev shell puts there, is another key.
-fn program(cmd: &Command) -> PathBuf {
+/// The program `cmd` runs, as found on `PATH` the way the command would, and that found
+/// path resolved through links, so another toolchain on `PATH`, as another dev shell puts
+/// there, is another key.
+fn program(cmd: &Command) -> (PathBuf, PathBuf) {
 	let program = Path::new(cmd.get_program());
-	let path = match program.components().count() {
-		1 => super::which(&program.to_string_lossy()),
+	let found = match program.components().count() {
+		1 => find(program),
 		_ => program.to_path_buf(),
 	};
-	std::fs::canonicalize(&path).unwrap_or_else(|err| panic!("resolving {}: {err}", path.display()))
+	let resolved = std::fs::canonicalize(&found).unwrap_or_else(|err| panic!("resolving {}: {err}", found.display()));
+	(found, resolved)
 }
 
-/// What `program` says its version is, asked once each run: a toolchain updated in place,
-/// or picked by `xcode-select`, keeps its path.
-fn version(program: &Path) -> String {
+/// The file `name` names in a directory on `PATH`, as is or, where executables take a
+/// suffix and it has none, with it.
+fn find(name: &Path) -> PathBuf {
+	let suffixed = match name.extension() {
+		None => name.with_extension(std::env::consts::EXE_EXTENSION),
+		Some(_) => name.to_path_buf(),
+	};
+	let path = std::env::var_os("PATH").expect("PATH is set");
+	std::env::split_paths(&path)
+		.flat_map(|dir| [dir.join(name), dir.join(&suffixed)])
+		.find(|candidate| candidate.is_file())
+		.unwrap_or_else(|| panic!("{} is not on PATH", name.display()))
+}
+
+/// What the program at `found` says its version is, asked once each run by the name the
+/// command runs it by, since a driver such as `swiftc` reads it: a toolchain updated in
+/// place, or picked by `xcode-select`, keeps its path.
+fn version(found: &Path) -> String {
 	static VERSIONS: OnceLock<Mutex<HashMap<PathBuf, Arc<OnceLock<String>>>>> = OnceLock::new();
 	let once = VERSIONS
 		.get_or_init(Default::default)
 		.lock()
 		.unwrap()
-		.entry(program.to_path_buf())
+		.entry(found.to_path_buf())
 		.or_default()
 		.clone();
 	once.get_or_init(|| {
-		let flag: &[&str] = match program.file_stem().and_then(|stem| stem.to_str()) {
+		let stem = found.file_stem().and_then(|stem| stem.to_str());
+		let flag: &[&str] = match stem {
 			Some("go") => &["version"],
 			Some("kotlinc") => &["-version"],
-			// MSVC's compiler prints its banner bare.
+			// MSVC's compiler prints its banner bare, and its status says nothing of it.
 			Some("cl") => &[],
 			_ => &["--version"],
 		};
-		let output = Command::new(program)
+		let output = Command::new(found)
 			.args(flag)
 			.output()
-			.unwrap_or_else(|err| panic!("running {}: {err}", program.display()));
+			.unwrap_or_else(|err| panic!("running {}: {err}", found.display()));
+		assert!(
+			output.status.success() || stem == Some("cl"),
+			"{} {flag:?} failed, so its version cannot key a step:\n{}",
+			found.display(),
+			String::from_utf8_lossy(&output.stderr)
+		);
 		format!(
 			"{}{}",
 			String::from_utf8_lossy(&output.stdout),

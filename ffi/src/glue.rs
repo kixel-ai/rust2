@@ -165,8 +165,16 @@ impl Output {
 	/// of the export that cargo or a consumer fingerprints stays fresh.
 	pub fn write(self) -> Result<crate::lock::Names, String> {
 		let files: HashSet<&Path> = self.files.iter().map(|(path, _)| path.as_path()).collect();
-		for dir in self.stale.iter().filter(|dir| dir.exists()) {
-			prune(dir, &files)?;
+		for dir in &self.stale {
+			match std::fs::symlink_metadata(dir) {
+				// A link, as the export never writes, goes itself: pruning would follow it.
+				Ok(meta) if meta.is_symlink() => {
+					std::fs::remove_file(dir).map_err(|err| format!("removing {}: {err}", dir.display()))?
+				}
+				Ok(_) => prune(dir, &files)?,
+				Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+				Err(err) => return Err(format!("reading {}: {err}", dir.display())),
+			}
 		}
 		for (path, text) in &self.files {
 			crate::driver::write(path, text)?;
@@ -2034,5 +2042,16 @@ fn rewrite_keeps_unchanged_files() {
 	output(&[("Cargo.toml", "b")]).write().unwrap();
 	assert_eq!(std::fs::read_to_string(root.join("Cargo.toml")).unwrap(), "b");
 	assert!(!go.exists(), "the export's emptied directory stays");
+	// A directory it owns that is a link goes as the link, leaving what it points to.
+	#[cfg(unix)]
+	{
+		let elsewhere = root.join("elsewhere");
+		std::fs::create_dir_all(&elsewhere).unwrap();
+		std::fs::write(elsewhere.join("kept.go"), "kept").unwrap();
+		std::os::unix::fs::symlink(&elsewhere, &go).unwrap();
+		output(&[("go/rt/rt.go", "rt")]).write().unwrap();
+		assert!(elsewhere.join("kept.go").exists(), "pruning followed a link");
+		assert!(!go.is_symlink() && go.join("rt/rt.go").exists());
+	}
 	std::fs::remove_dir_all(&root).unwrap();
 }
