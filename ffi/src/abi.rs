@@ -92,6 +92,8 @@ pub enum Ty {
 	Out(Box<Ty>),
 	/// A pointer the callee only reads through: a value's receiver.
 	In(Box<Ty>),
+	/// A pointer the callee reads and writes back through: a value's `&mut self`.
+	InOut(Box<Ty>),
 	/// A function lent for the call, taking its data first: what it takes and returns.
 	Fn(Vec<Ty>, Box<Ty>),
 	/// The data a lent function takes, which Rust only passes back to it.
@@ -711,7 +713,9 @@ impl<'a> Abi<'a> {
 							&& (0..self.api.objects.len())
 								.any(|i| self.api.objects[i].copy && &self.object(i) == name)),
 				},
-				// A value's receiver is read through a pointer, and never changed.
+				// A value's receiver is read through a pointer, and written back in place for
+				// `&mut self`.
+				value if receiver == Receiver::Mut => Ty::InOut(Box::new(value.clone())),
 				value => Ty::In(Box::new(value.clone())),
 			};
 			params.push(("self".to_string(), ty));
@@ -843,6 +847,68 @@ impl<'a> Abi<'a> {
 			out.push('_');
 		}
 		out
+	}
+
+	/// A value's `&mut self` method as a language whose values are immutable calls it:
+	/// through `&self`, returning the value as the call left it, before Rust's own return
+	/// or each element of its tuple; and the Rust function `back_<C name>::call`, of that
+	/// function's C signature, that calls the C one with a copy and hands the copy back.
+	/// `None` for any other function.
+	pub fn handed_back(&self, function: &Function, owner: &Ty, owner_ty: &Type) -> Option<(Function, String)> {
+		if function.receiver != Some(Receiver::Mut) || matches!(owner, Ty::Handle { .. }) {
+			return None;
+		}
+		// `written_back` in collect.rs refuses a future's and a `Result`'s.
+		assert!(!function.future && function.err.is_none(), "a value's `&mut self` returns a plain value");
+		let real = self.export(function, Some(owner));
+		let returned = match &function.ok {
+			Type::Unit => Vec::new(),
+			Type::Tuple(elements) => elements.clone(),
+			ok => vec![ok.clone()],
+		};
+		let back = Function {
+			receiver: Some(Receiver::Ref),
+			ok: match returned.is_empty() {
+				true => owner_ty.clone(),
+				false => Type::Tuple([vec![owner_ty.clone()], returned].concat()),
+			},
+			..function.clone()
+		};
+		let sig = self.export(&back, Some(owner)).call;
+		let params: Vec<String> = (sig.params.iter().enumerate())
+			.map(|(n, (_, ty))| format!("p{n}: {}", crate::glue::rs(ty)))
+			.collect();
+		// What both take after `self`, then the outs the real one writes its tuple through,
+		// which the other's take after the value's own.
+		let elements = match &function.ok {
+			Type::Tuple(elements) => elements.len(),
+			_ => 0,
+		};
+		let tuple = elements > 0;
+		let lead = real.call.params.len() - 1 - elements;
+		let mut args = vec!["&mut v".to_string()];
+		args.extend((1..=lead).map(|n| format!("p{n}")));
+		if tuple {
+			args.extend((lead + 2..sig.params.len()).map(|n| format!("p{n}")));
+		}
+		let call = format!("crate::{}({})", real.call.name, args.join(", "));
+		let body = match (&function.ok, tuple) {
+			(Type::Unit, _) => format!("{call};\n\t\t\tv"),
+			(_, true) => format!("{call};\n\t\t\tp{}.write(v);", lead + 1),
+			(_, false) => format!(
+				"let r = {call};\n\t\t\tp{}.write(v);\n\t\t\tp{}.write(r);",
+				lead + 1,
+				lead + 2
+			),
+		};
+		// In a module of its own, which names the C types as the crate's root does.
+		let shim = format!(
+			"mod back_{} {{\n\tuse crate::*;\n\n\tpub unsafe fn call({}) -> {} {{\n\t\tunsafe {{\n\t\t\tlet mut v = *p0;\n\t\t\t{body}\n\t\t}}\n\t}}\n}}\n\n",
+			real.call.name,
+			params.join(", "),
+			crate::glue::rs(&sig.ret),
+		);
+		Some((back, shim))
 	}
 
 	fn claim(&mut self, name: String, what: String, span: Span, owner: Option<Owner>) {

@@ -1600,8 +1600,22 @@ impl<'a> Gen<'a> {
 		place: Place,
 	) -> Option<Form> {
 		let abi = self.abi;
+		// A value is immutable in Python, so its `&mut self` method returns it as the call
+		// left it, through a function of the glue's that hands back a copy.
+		let handed = (owner.zip(owner_ty)).and_then(|(owner, (ty, _))| abi.handed_back(function, owner, ty));
+		let function = match &handed {
+			Some((back, shim)) => {
+				self.glue.push_str(shim);
+				back
+			}
+			None => function,
+		};
 		let export = abi.export(function, owner);
 		let c_name = export.call.name.clone();
+		let callee = match handed {
+			Some(_) => format!("back_{c_name}::call"),
+			None => format!("crate::{c_name}"),
+		};
 		let bare = self.bare(&c_name).to_string();
 		let owner_c = match owner {
 			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.clone()),
@@ -1767,7 +1781,7 @@ impl<'a> Gen<'a> {
 			};
 			let args: Vec<String> = c_args.iter().cloned().chain(ptrs).collect();
 			stmts.push(format!(
-				"{decl}\n\t\tlet ret = rt::call(|| crate::{c_name}({}));\n\t\ts.done();\n\t\t{value}",
+				"{decl}\n\t\tlet ret = rt::call(|| {callee}({}));\n\t\ts.done();\n\t\t{value}",
 				args.join(", ")
 			));
 		}

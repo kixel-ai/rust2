@@ -88,6 +88,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		fresh: 0,
 		on: On::ALL,
 		space: Gen::space(abi),
+		handed: BTreeSet::new(),
 	};
 	g.locked = crate::lock::types(abi, &g.classes);
 	g.variants = g.variants(&taken);
@@ -418,6 +419,9 @@ struct Gen<'a> {
 	on: On,
 	/// The namespace of the glue's C names, apart from the export's.
 	space: String,
+	/// The C functions of a value's `&mut self` methods, which a call reaches through the
+	/// glue's `back_<name>`, handing back the value as the call left it.
+	handed: BTreeSet<String>,
 }
 
 impl<'a> Gen<'a> {
@@ -794,12 +798,15 @@ impl<'a> Gen<'a> {
 			.map(|(n, (_, ty))| format!(", p{n}: {}", rs(ty)))
 			.collect();
 		let args: Vec<String> = (0..call.params.len()).map(|n| format!("p{n}")).collect();
+		let callee = match self.handed.contains(&call.name) {
+			true => format!("back_{}::call", call.name),
+			false => format!("crate::{}", call.name),
+		};
 		let _ = write!(
 			self.glue,
-			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}(home: *const c_void{}) -> {} {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || crate::{}({})) }}\n}}\n\n",
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}(home: *const c_void{}) -> {} {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || {callee}({})) }}\n}}\n\n",
 			decls.concat(),
 			rs(&call.ret),
-			call.name,
 			args.join(", ")
 		);
 		let native = self.native_fn(&name, params, call.ret.clone());
@@ -2006,6 +2013,17 @@ impl<'a> Gen<'a> {
 	) -> Option<(String, String)> {
 		let abi = self.abi;
 		let _p = abi.prefix.clone();
+		// A value is immutable in Dart, so its `&mut self` method returns it as the call left
+		// it, through a function of the glue's that hands back a copy.
+		let handed = (owner.zip(owner_ty)).and_then(|(owner, ty)| abi.handed_back(function, owner, ty));
+		let function = match &handed {
+			Some((back, shim)) => {
+				self.glue.push_str(shim);
+				self.handed.insert(abi.export(back, owner).call.name);
+				back
+			}
+			None => function,
+		};
 		let export = abi.export(function, owner);
 		let c_name = export.call.name.clone();
 		let owner_c = match owner {

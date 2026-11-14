@@ -1128,7 +1128,8 @@ impl<'a> Gen<'a> {
 				arg.exprs.push(format!("_Native.Pollable({e}, {context})"));
 				arg.rust_args.push(format!("rt::future(env, {p})"));
 			}
-			Ty::Void | Ty::Future(_) | Ty::Poll | Ty::Out(_) | Ty::Data => {
+			// A value's `&mut self` is handed back, through `&self`.
+			Ty::Void | Ty::Future(_) | Ty::Poll | Ty::Out(_) | Ty::InOut(_) | Ty::Data => {
 				unreachable!("{c:?} is no parameter Kotlin passes")
 			}
 		}
@@ -2117,6 +2118,16 @@ impl<'a> Gen<'a> {
 		taken: &[String],
 	) -> Option<String> {
 		let abi = self.abi;
+		// A value is immutable in Kotlin, so its `&mut self` method returns it as the call
+		// left it, through a function of the glue's that hands back a copy.
+		let handed = (owner.zip(owner_ty)).and_then(|(owner, ty)| abi.handed_back(function, owner, ty));
+		let function = match &handed {
+			Some((back, shim)) => {
+				self.glue.push_str(shim);
+				back
+			}
+			None => function,
+		};
 		self.params = locals(&function.params);
 		let export = abi.export(function, owner);
 		let written = function
@@ -2304,7 +2315,10 @@ impl<'a> Gen<'a> {
 		let rust_call = |outs: &[String]| {
 			let args: Vec<&String> = rust_args.iter().chain(outs).collect();
 			let args: Vec<&str> = args.iter().map(|a| a.as_str()).collect();
-			format!("crate::{c_name}({})", args.join(", "))
+			match handed {
+				Some(_) => format!("back_{c_name}::call({})", args.join(", ")),
+				None => format!("crate::{c_name}({})", args.join(", ")),
+			}
 		};
 		if let Some(abi::Future { poll, free, .. }) = &export.future {
 			// The call makes the future and polls it once, returning its result if ready, or
@@ -3172,7 +3186,7 @@ fn jni_type(abi: &Abi<'_>, c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 		Ty::Waker => ("jobject", "Waker"),
 		Ty::ForeignReader => ("jobject", "java.nio.channels.SeekableByteChannel"),
 		Ty::ForeignFuture => ("jobject", "Any"),
-		Ty::Poll | Ty::Out(_) | Ty::Data => unreachable!("{c:?} never crosses JNI"),
+		Ty::Poll | Ty::Out(_) | Ty::InOut(_) | Ty::Data => unreachable!("{c:?} never crosses JNI"),
 	}
 }
 

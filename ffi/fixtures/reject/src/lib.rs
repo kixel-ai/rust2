@@ -1192,3 +1192,25 @@ pub fn hidden_option() -> impl Clone {
 pub fn boxed_bytes(bytes: Box<[u8]>) -> usize {
 	bytes.len()
 }
+
+/// A `Copy` count, a value, whose change a raised error or a future would lose.
+#[derive(Clone, Copy)]
+pub struct Counter {
+	count: u8,
+}
+
+impl Counter {
+	pub fn zero() -> Self {
+		Self { count: 0 }
+	}
+
+	pub fn try_bump(&mut self) -> Result<u8, String> {
+		self.count = self.count.checked_add(1).ok_or("overflow")?;
+		Ok(self.count)
+	}
+
+	pub fn bump_later(&mut self) -> impl std::future::Future<Output = u8> + use<> {
+		self.count += 1;
+		std::future::ready(self.count)
+	}
+}
