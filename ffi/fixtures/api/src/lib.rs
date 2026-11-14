@@ -3456,3 +3456,19 @@ pub struct Qualifiers {
 	pub api: f64,
 	pub kotlin: f64,
 }
+
+/// An object named as a class of Kotlin's runtime once was, which keeps its name now the
+/// runtime's take a leading `_`.
+pub struct Handle {
+	count: u32,
+}
+
+impl Handle {
+	pub fn new(count: u32) -> Self {
+		Handle { count }
+	}
+
+	pub fn count(&self) -> u32 {
+		self.count
+	}
+}
