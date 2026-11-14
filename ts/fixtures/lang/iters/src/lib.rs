@@ -41,5 +41,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("iters::unfused", iters::unfused),
 		("iters::fused", iters::fused),
 		("iters::fused_owned", iters::fused_owned),
+		("iters::fused_back", iters::fused_back),
 	]
 }

@@ -50,7 +50,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			ty::FnDef(def_id, gargs) if dest.as_local().is_some() && self.fuses(def_id, gargs.skip_binder()) => {
 				let gargs = gargs.skip_binder();
 				let acc = library::key(tcx, def_id)
-					.filter(|(_, name)| matches!(name.as_str(), "fold" | "sum" | "product"))
+					.filter(|(_, name)| matches!(name.as_str(), "fold" | "rfold" | "sum" | "product"))
 					.map(|_| gargs.type_at(1));
 				Some((gargs.type_at(0), acc))
 			}
@@ -77,6 +77,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					&& let Some(value) = self.fused_next(&args[0].node, span, &mut pre) =>
 			{
 				(value, true)
+			}
+			// `next_back` of a fused chain read from the back, from its parts, as an `Option`.
+			ty::FnDef(def_id, gargs)
+				if super::fuse::is_next_back(tcx, def_id)
+					&& let Some(value) = self.fused_next(&args[0].node, span, &mut pre) =>
+			{
+				let item = self
+					.b
+					.t
+					.iter_item(gargs.skip_binder().type_at(0))
+					.expect("an iterator's item");
+				let none = self.b.t.none_arg(item);
+				(
+					Expr::rs("iterToOption", [value].into_iter().chain(none).collect()),
+					true,
+				)
 			}
 			// `next` into a local that holds the protocol's item or `rs.DONE`, unconverted.
 			ty::FnDef(def_id, gargs)
