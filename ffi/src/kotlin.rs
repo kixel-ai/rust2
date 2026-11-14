@@ -99,6 +99,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		let _ = writeln!(kotlin, "import {p}.{name}\nimport {p}.{name} as _{name}");
 	}
 	kotlin.push('\n');
+	kotlin.push_str(BUILTINS);
 	kotlin.push_str(
 		"/** Wakes a future's poller. Rust may call [wake] from any thread, any number of times. */\nfun interface Waker {\n\tfun wake()\n}\n\n",
 	);
@@ -263,21 +264,25 @@ const READS: &str = "\t@JvmStatic private fun __read(channel: Any, len: Int): By
 
 ";
 
+/// The builtins a method body calls whose names an export may take, so neither a parameter
+/// named `kotlin` nor an imported export shadows them. `_` then a lower-case letter is no
+/// export's, local's, or field's name.
+const BUILTINS: &str = "/** [kotlin.collections.List] of [n] items, each [item] of its index. */
+internal inline fun <T> _list(n: kotlin.Int, item: (kotlin.Int) -> T): kotlin.collections.List<T> = kotlin.collections.List(n, item)
+
+/** An array of [values], for a call's written-back arguments. */
+internal fun _arrayOf(vararg values: kotlin.Any): kotlin.Array<kotlin.Any> = kotlin.arrayOf(*values)
+
+";
+
 /// Each builtin a method body names as `_<name>`, since a parameter named `kotlin` shadows a
-/// `kotlin.` qualifier and no Kotlin local, field, or exported class takes these names: `_`
-/// then a letter is no local's or field's, and `Float`, `Double`, and `Unit` are [`TAKEN`].
-/// An alias hides the name it renames, so each is imported plainly too.
+/// `kotlin.` qualifier. An alias hides the name it renames, so each is imported plainly too,
+/// which only names [`TAKEN`] keep from clashing with an export's import.
 const IMPORTS: &[&str] = &[
 	"kotlin.Double",
 	"kotlin.Double as _Double",
 	"kotlin.Float",
 	"kotlin.Float as _Float",
-	"kotlin.Unit",
-	"kotlin.Unit as _Unit",
-	"kotlin.arrayOf",
-	"kotlin.arrayOf as _arrayOf",
-	"kotlin.collections.List",
-	"kotlin.collections.List as _list",
 	"kotlin.coroutines.resume",
 	"kotlin.time.toDuration",
 	"kotlinx.coroutines.launch",
@@ -2250,7 +2255,7 @@ impl<'a> Gen<'a> {
 				s = signal.as_deref().expect("a future takes a signal")
 			);
 			value = if ok == Type::Unit {
-				format!("{awaited}.let {{ _Unit }}")
+				format!("{awaited}.let {{ }}")
 			} else {
 				format!("({awaited}) as {ret_kt}")
 			};
@@ -2437,7 +2442,7 @@ impl<'a> Gen<'a> {
 			let mut call_args = exprs.clone();
 			if !written.is_empty() {
 				call_args.push(format!(
-					"_arrayOf<kotlin.Any>({})",
+					"_arrayOf({})",
 					written
 						.iter()
 						.map(|(name, _)| name.as_str())
@@ -2452,7 +2457,7 @@ impl<'a> Gen<'a> {
 				self.refused_first(&bare, format!("try {{ {raw} }} finally {{ {} }}", after.join("; ")))
 			};
 			value = match ok {
-				Type::Unit => format!("{raw}.let {{ _Unit }}"),
+				Type::Unit => format!("{raw}.let {{ }}"),
 				_ => format!("({raw}) as {ret_kt}"),
 			};
 		} else if let Some(flat) = flat {
