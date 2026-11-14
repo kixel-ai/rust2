@@ -71,11 +71,22 @@ fn fixture() {
 	// `pub extern crate` exposes the whole crate.
 	expect("exposed", "external", "unreached");
 	expect("extra", "external", "unreached");
-	// A token the macro may use for more than the visibility stays.
-	expect("label", "macro", "crate-only");
-	expect("Derived", "narrowed", "unreached");
-	// A derive that reads the visibility makes its output differently.
+	// A macro that reads a token it is given makes its output differently, so the token
+	// stays, however deep the macro: `stringify!`, a derive, a macro a derive calls, and an
+	// attribute.
+	expect("label", "restored", "crate-only");
 	expect("Labeled", "restored", "crate-only");
+	expect("NestedLabeled", "restored", "crate-only");
+	expect("tagged", "restored", "crate-only");
+	// One that only passes it on as the visibility makes the same, so the token narrows.
+	expect("passed_through", "narrowed", "crate-only");
+	expect("kept_through", "narrowed", "crate-only");
+	expect("Derived", "narrowed", "unreached");
+	// Narrowing shifts the columns after it on its line, but no line.
+	expect("at_column", "restored", "crate-only");
+	expect("at_line", "narrowed", "crate-only");
+	// A token in an exported macro goes wherever its callers outside the audit expand it.
+	expect("made", "external", "crate-only");
 	// Offsets on disk, past CRLFs rustc reads as LF.
 	expect("crlf::after_crlf", "narrowed", "unreached");
 	for kept in [

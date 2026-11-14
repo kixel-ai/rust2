@@ -19,10 +19,10 @@ use rustc_middle::hir::nested_filter;
 use rustc_middle::ty::{self, Ty, TyCtxt, TypeckResults};
 use rustc_span::hygiene::{ExpnId, ExpnKind, MacroKind};
 use rustc_span::source_map::{FileLoader, RealFileLoader};
-use rustc_span::{FileName, SyntaxContext, kw, sym};
+use rustc_span::{FileName, SyntaxContext, kw};
 use rustc_structures::CrateType;
 
-use crate::facts::{self, Def, Derived, Edits, Hash, Impl, Ref, Site, Unit};
+use crate::facts::{self, Def, Edits, Expansion, Hash, Impl, Printed, Ref, Site, Unit};
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
 pub fn run(args: Vec<String>) -> ExitCode {
@@ -137,6 +137,30 @@ pub fn is_pub(text: &[u8], at: usize) -> bool {
 		&& !text.get(at + 3).is_some_and(ident)
 }
 
+/// Prints an item with its bodies, but not the items nested in it, which print on their
+/// own: only the impl, trait, or foreign item `only` of its own, if any.
+struct Print<'tcx> {
+	tcx: TyCtxt<'tcx>,
+	only: Option<hir::OwnerId>,
+}
+
+impl rustc_hir_pretty::PpAnn for Print<'_> {
+	fn nested(&self, state: &mut rustc_hir_pretty::State<'_>, nested: rustc_hir_pretty::Nested) {
+		use rustc_hir_pretty::Nested;
+		let print = match nested {
+			Nested::Item(_) => false,
+			Nested::TraitItem(id) => self.only == Some(id.owner_id),
+			Nested::ImplItem(id) => self.only == Some(id.owner_id),
+			Nested::ForeignItem(id) => self.only == Some(id.owner_id),
+			Nested::Body(_) | Nested::BodyParamPat(..) => true,
+		};
+		if print {
+			let tcx: &dyn rustc_hir::intravisit::HirTyCtxt<'_> = &self.tcx;
+			rustc_hir_pretty::PpAnn::nested(&tcx, state, nested);
+		}
+	}
+}
+
 /// Walks one crate's HIR, recording each definition and what refers to what.
 struct Collector<'tcx> {
 	tcx: TyCtxt<'tcx>,
@@ -152,6 +176,9 @@ struct Collector<'tcx> {
 	sites: Vec<Site>,
 	/// The expansions already traced to their macros, per owner.
 	traced: FxHashSet<(LocalDefId, SyntaxContext)>,
+	expansions: Vec<Expansion>,
+	/// Each expansion's index in `expansions`.
+	expansion_index: FxHashMap<ExpnId, u32>,
 }
 
 impl<'tcx> Collector<'tcx> {
@@ -166,6 +193,8 @@ impl<'tcx> Collector<'tcx> {
 			refs: FxHashMap::default(),
 			sites: Vec::new(),
 			traced: FxHashSet::default(),
+			expansions: Vec::new(),
+			expansion_index: FxHashMap::default(),
 		};
 		let types = tcx.crate_types();
 		let proc_macro = types.contains(&CrateType::ProcMacro);
@@ -253,10 +282,12 @@ impl<'tcx> Collector<'tcx> {
 					this.refer(item, None);
 				}
 			}
-			let (token, passed) = this.token(id);
+			let token = this.token(id);
+			let expansion = this.expansion(tcx.expn_that_defined(def));
 			let span = match tcx.hir_get_if_local(def) {
-				// A diagnostic about an import points anywhere in it.
-				Some(Node::Item(item)) if matches!(item.kind, ItemKind::Use(..)) => item.span,
+				// A diagnostic about an import points anywhere in it, and a macro's
+				// definition holds every token its expansions copy.
+				Some(Node::Item(item)) if matches!(item.kind, ItemKind::Use(..) | ItemKind::Macro(..)) => item.span,
 				_ => tcx.def_span(def),
 			};
 			defs.push(Def {
@@ -274,14 +305,14 @@ impl<'tcx> Collector<'tcx> {
 				},
 				span: this.span(span),
 				token,
-				passed,
+				expansion,
 				exported,
 				symbol,
 				parent,
 				member_of,
 			});
 		}
-		let derived = this.derived();
+		let printed = this.printed();
 		tcx.hir_visit_all_item_likes_in_crate(&mut this);
 		let crate_id = tcx.stable_crate_id(rustc_hir::def_id::LOCAL_CRATE).as_u64();
 		let refs = this
@@ -306,83 +337,118 @@ impl<'tcx> Collector<'tcx> {
 			sites: this.sites,
 			roots,
 			impls,
-			derived,
+			printed,
+			expansions: this.expansions,
 		}
 	}
 
-	/// Every item a derive made, with what it prints as and the item the derive was
-	/// given: a derive reads the whole item, its visibility included.
-	fn derived(&self) -> Vec<Derived> {
+	/// Every item as rustc prints it once macros have expanded, with the expansions it
+	/// came from: printing leaves out visibility, so only a macro that read a narrowed token
+	/// can change it.
+	fn printed(&mut self) -> Vec<Printed> {
 		let tcx = self.tcx;
-		// The expansions that make each type again, `#[derive]`'s among them, which the
-		// derives it runs are made in.
-		let mut given: FxHashMap<ExpnId, LocalDefId> = FxHashMap::default();
-		for id in tcx.iter_local_def_id() {
-			if !matches!(tcx.def_kind(id), DefKind::Struct | DefKind::Enum | DefKind::Union) {
-				continue;
-			}
-			let mut expn = tcx.expn_that_defined(id.to_def_id());
-			while let ExpnKind::Macro(MacroKind::Attr, _) = expn.expn_data().kind {
-				given.insert(expn, id);
-				expn = expn.expn_data().parent;
-			}
-		}
-		let mut derived = Vec::new();
-		for id in tcx.iter_local_def_id() {
-			// An item, never a definition rustc makes up while lowering, which has no node.
-			if !matches!(
-				tcx.def_kind(id),
-				DefKind::Impl { .. }
-					| DefKind::Struct
-					| DefKind::Enum
-					| DefKind::Union
-					| DefKind::Fn
-					| DefKind::Const
-					| DefKind::Static { .. }
-					| DefKind::Trait
-					| DefKind::TyAlias
-					| DefKind::Mod
-					| DefKind::Macro(_)
-					| DefKind::Use
-			) || !matches!(tcx.hir_node_by_def_id(id), Node::Item(_))
-			{
-				continue;
-			}
-			let expn = tcx.expn_that_defined(id.to_def_id());
-			let ExpnKind::Macro(MacroKind::Derive, _) = expn.expn_data().kind else {
-				continue;
+		let mut printed = Vec::new();
+		for owner in tcx.hir_crate_items(()).owners() {
+			let text = match tcx.hir_owner_node(owner) {
+				// A macro's definition makes nothing until it expands, and its expansions
+				// are printed where they are.
+				hir::OwnerNode::Item(item) if matches!(item.kind, ItemKind::Macro(..)) => continue,
+				hir::OwnerNode::Item(item) => rustc_hir_pretty::item_to_string(&Print { tcx, only: None }, item),
+				// The impl, trait, or extern block's header, with only this item of it.
+				hir::OwnerNode::ImplItem(_) | hir::OwnerNode::TraitItem(_) | hir::OwnerNode::ForeignItem(_) => {
+					let parent = tcx.local_parent(owner.def_id);
+					let Node::Item(item) = tcx.hir_node_by_def_id(parent) else {
+						continue;
+					};
+					rustc_hir_pretty::item_to_string(&Print { tcx, only: Some(owner) }, item)
+				}
+				hir::OwnerNode::Crate(_) | hir::OwnerNode::Synthetic => continue,
 			};
-			let mut at = expn;
-			let input = loop {
-				if let Some(&input) = given.get(&at) {
-					break Some(input);
-				}
-				if at == ExpnId::root() {
-					break None;
-				}
-				at = at.expn_data().parent;
-			};
-			let mut input_hashes = Vec::new();
-			if let Some(input) = input {
-				let adt = tcx.adt_def(input);
-				input_hashes.push(self.hash(input.to_def_id()));
-				for variant in adt.variants() {
-					if adt.is_enum() {
-						input_hashes.push(self.hash(variant.def_id));
-					}
-					input_hashes.extend(variant.fields.iter().map(|f| self.hash(f.did)));
-				}
-			}
-			let text = rustc_hir_pretty::id_to_string(&tcx, tcx.local_def_id_to_hir_id(id));
 			let mut hasher = std::hash::DefaultHasher::new();
 			std::hash::Hash::hash(&text, &mut hasher);
-			derived.push(Derived {
-				hash: self.hash(id.to_def_id()),
+			for (local, attrs) in tcx.hir_attr_map(owner).map.iter() {
+				std::hash::Hash::hash(local, &mut hasher);
+				for attr in *attrs {
+					std::hash::Hash::hash(
+						&rustc_hir_pretty::attribute_to_string(&Print { tcx, only: None }, attr),
+						&mut hasher,
+					);
+				}
+			}
+			let mut expansions = FxHashSet::default();
+			expansions.extend(self.expansion(tcx.expn_that_defined(owner.to_def_id())));
+			for (local, node) in tcx.hir_owner_nodes(owner).nodes.iter_enumerated() {
+				if matches!(node.node, Node::Synthetic) {
+					continue;
+				}
+				let span = tcx.hir_span(hir::HirId { owner, local_id: local });
+				expansions.extend(self.expansion(span.ctxt().outer_expn()));
+			}
+			let mut expansions: Vec<u32> = expansions.into_iter().collect();
+			expansions.sort();
+			let span = tcx.hir_span_with_body(owner.into());
+			printed.push(Printed {
+				hash: self.hash(owner.to_def_id()),
 				output: std::hash::Hasher::finish(&hasher),
-				input: input_hashes,
+				expansions,
+				lines: self.lines(span),
 			});
 		}
-		derived
+		printed
+	}
+
+	/// `expn`'s index, recording it and the expansions it came from, or `None` for the
+	/// source.
+	fn expansion(&mut self, expn: ExpnId) -> Option<u32> {
+		if expn == ExpnId::root() {
+			return None;
+		}
+		if let Some(&index) = self.expansion_index.get(&expn) {
+			return Some(index);
+		}
+		let data = expn.expn_data();
+		// A macro's call came from the expansion it was found in; a desugaring, whose
+		// recorded parent is the source, came from wherever the code it rewrites did.
+		let parent = match data.kind {
+			ExpnKind::Macro(..) => self.expansion(data.parent),
+			_ => self.expansion(data.call_site.ctxt().outer_expn()),
+		};
+		let input = match data.kind {
+			// `#[derive]` makes the item again, and its derives come from that.
+			ExpnKind::Macro(MacroKind::Derive, _) => {
+				let mut at = data.parent;
+				while at != ExpnId::root() && !matches!(at.expn_data().kind, ExpnKind::Macro(MacroKind::Attr, _)) {
+					at = at.expn_data().parent;
+				}
+				self.expansion(at)
+			}
+			_ => None,
+		};
+		let call = match data.kind {
+			ExpnKind::Macro(..) => self.lines(data.call_site),
+			_ => None,
+		};
+		let index = self.expansions.len() as u32;
+		let attr = matches!(data.kind, ExpnKind::Macro(MacroKind::Attr, _));
+		self.expansions.push(Expansion {
+			parent,
+			call,
+			input: if attr { Some(index) } else { input },
+		});
+		self.expansion_index.insert(expn, index);
+		Some(index)
+	}
+
+	/// `span` from the start of its first line, on disk.
+	fn lines(&mut self, span: rustc_span::Span) -> Option<facts::Span> {
+		if span.is_dummy() {
+			return None;
+		}
+		let sm = self.tcx.sess.source_map();
+		let start = sm
+			.lookup_line(span.lo())
+			.map_or(span.lo(), |line| line.sf.line_bounds(line.line).start);
+		self.span(span.with_lo(start))
 	}
 
 	fn hash(&self, def: DefId) -> Hash {
@@ -390,42 +456,23 @@ impl<'tcx> Collector<'tcx> {
 		[a.as_u64(), b.as_u64()]
 	}
 
-	/// The `pub` written on `id`, if any, and whether it was passed to the macro that
-	/// made `id`, rather than written where `id` was: such a macro, an attribute's
-	/// included, may use the token for more than the visibility, as `stringify!` does.
-	fn token(&mut self, id: LocalDefId) -> (Option<facts::Span>, bool) {
+	/// The `pub` written on `id`, if any.
+	fn token(&mut self, id: LocalDefId) -> Option<facts::Span> {
 		let vis = match self.tcx.hir_node_by_def_id(id) {
 			Node::Item(item) => item.vis_span,
 			Node::Field(field) => field.vis_span,
 			Node::ImplItem(item) => match item.impl_kind {
 				hir::ImplItemImplKind::Inherent { vis_span } => vis_span,
-				hir::ImplItemImplKind::Trait { .. } => return (None, false),
+				hir::ImplItemImplKind::Trait { .. } => return None,
 			},
 			Node::ForeignItem(item) => item.vis_span,
-			_ => return (None, false),
+			_ => return None,
 		};
-		let Ok(snippet) = self.tcx.sess.source_map().span_to_snippet(vis) else {
-			return (None, false);
-		};
+		let snippet = self.tcx.sess.source_map().span_to_snippet(vis).ok()?;
 		if snippet != "pub" {
-			return (None, false);
+			return None;
 		}
-		// `#[derive]`, `#[cfg_eval]`, and a derive's helper attributes, which no macro
-		// runs, make the item again unchanged: it was written where they were.
-		let written = vis.ctxt().outer_expn();
-		let mut defined = self.tcx.expn_that_defined(id.to_def_id());
-		while defined != written {
-			let data = defined.expn_data();
-			match data.kind {
-				ExpnKind::Macro(MacroKind::Attr, name)
-					if data.macro_def_id.is_none() || name == sym::derive || name == sym::cfg_eval =>
-				{
-					defined = data.parent;
-				}
-				_ => break,
-			}
-		}
-		(self.span(vis), defined != written)
+		self.span(vis)
 	}
 
 	/// `span` in source on disk, if it is there.
@@ -746,6 +793,15 @@ impl<'tcx> Visitor<'tcx> for Collector<'tcx> {
 	fn visit_item(&mut self, item: &'tcx hir::Item<'tcx>) {
 		self.with_owner(item.owner_id.def_id, |this| {
 			this.provenance(item.span);
+			// An attribute that returns its item as it was leaves its spans as written.
+			let mut expn = this.tcx.expn_that_defined(item.owner_id.to_def_id());
+			while expn != ExpnId::root() {
+				let data = expn.expn_data();
+				if let Some(def) = data.macro_def_id {
+					this.refer(def, None);
+				}
+				expn = data.parent;
+			}
 			// A glob of another crate's module may use any re-export in it.
 			if let ItemKind::Use(tree) = item.kind {
 				this.globs(tree);

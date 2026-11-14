@@ -44,8 +44,11 @@ pub struct Unit {
 	pub roots: Vec<Hash>,
 	/// Trait impls, each live once all it requires is.
 	pub impls: Vec<Impl>,
-	/// What derives made, which a narrowed build must make alike.
-	pub derived: Vec<Derived>,
+	/// Every item as rustc prints it once macros have expanded, which a narrowed build
+	/// must print alike.
+	pub printed: Vec<Printed>,
+	/// The macro expansions the items came from, by index.
+	pub expansions: Vec<Expansion>,
 }
 
 /// A source range: the file's index in [`Unit::files`], and its bytes.
@@ -68,9 +71,8 @@ pub struct Def {
 	pub span: Option<Span>,
 	/// The `pub` that makes it public, if written in source.
 	pub token: Option<Span>,
-	/// Whether its `pub` was passed to the macro that made it, which may use the token
-	/// for more than the visibility.
-	pub passed: bool,
+	/// The expansion that made it, if a macro did.
+	pub expansion: Option<u32>,
 	/// Whether another crate can name it: public all the way from its crate's root.
 	pub exported: bool,
 	/// Whether it is a symbol code outside Rust links to, which rustc keeps whatever its
@@ -107,14 +109,31 @@ pub struct Impl {
 	pub requires: Vec<Hash>,
 }
 
-/// An item a derive made.
+/// An item, an impl's or trait's own items apart, as rustc's HIR printer prints it, which
+/// leaves out visibility: narrowing changes it only through a macro that read a token.
 #[derive(Serialize, Deserialize)]
-pub struct Derived {
+pub struct Printed {
 	pub hash: Hash,
-	/// A hash of the item as rustc prints it, bodies included.
+	/// A hash of the print and the attributes, bodies included.
 	pub output: u64,
-	/// The item the derive was given, with its variants and fields, whose tokens it read.
-	pub input: Vec<Hash>,
+	/// The expansions any of it came from, by index in [`Unit::expansions`].
+	pub expansions: Vec<u32>,
+	/// Its lines, from the start of its first to its end: `column!` and `line!` leave no
+	/// expansion behind, but read only where they are.
+	pub lines: Option<Span>,
+}
+
+/// A macro call, and what its output may have read.
+#[derive(Serialize, Deserialize)]
+pub struct Expansion {
+	/// The expansion the call came from, if not the source.
+	pub parent: Option<u32>,
+	/// Its call's line, up to the call's end: a bang macro's input, and the columns a
+	/// narrowed `pub` before it shifts, which `column!` and a proc macro may read.
+	pub call: Option<Span>,
+	/// The expansion whose items carry the item an attribute or derive was given: an
+	/// attribute's own, and a derive's `#[derive]`.
+	pub input: Option<u32>,
 }
 
 /// The `pub` tokens to read as `pub(crate)`: each file, absolute, and the byte offsets of

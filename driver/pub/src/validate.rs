@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use crate::analyze::{Audit, Place};
 use crate::cargo::{Diagnostic, DiagnosticSpan, Workspace};
-use crate::facts::{Edits, Hash, Unit};
+use crate::facts::{Edits, Hash, Span, Unit};
 
 /// Why a proposed token stays `pub`.
 pub enum Restored {
@@ -15,8 +15,8 @@ pub enum Restored {
 	Diagnostic(Option<String>, String),
 	/// Narrowing it changed what a name resolves to, at this place.
 	Resolution(Place),
-	/// Narrowing it changed what a derive given its item makes: this item, by path.
-	Derived(String),
+	/// Narrowing it changed what a macro it reached makes: this item, by path.
+	Expanded(String),
 }
 
 /// What the validation ends with.
@@ -85,7 +85,6 @@ pub fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validatio
 		.collect();
 	let mut restored = BTreeMap::new();
 	let expected = sites(original);
-	let derived = derived(original);
 	let mut rounds = 0;
 	while !active.is_empty() {
 		rounds += 1;
@@ -112,6 +111,9 @@ pub fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validatio
 				));
 			}
 		} else {
+			// What no narrowed token explains fails the run, once nothing else is left to
+			// restore that might.
+			let mut unexplained = Vec::new();
 			let actual = sites(&units);
 			for (place, before, after) in differences(&expected, &actual, &edits)? {
 				let mut blamed = BTreeSet::new();
@@ -121,8 +123,8 @@ pub fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validatio
 					}
 				}
 				if blamed.is_empty() {
-					return Err(format!(
-						"{}: byte {}: narrowing changed what this name resolves to, and no narrowed `pub` explains it",
+					unexplained.push(format!(
+						"{}: byte {}: narrowing changed what this name resolves to",
 						place.file.display(),
 						place.lo
 					));
@@ -133,33 +135,19 @@ pub fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validatio
 						.or_insert_with(|| Restored::Resolution(place.clone()));
 				}
 			}
-			// A derive reads its whole item, which it may print, visibility and all.
-			let actual = self::derived(&units);
-			for (hash, (output, input)) in &derived {
-				if actual.get(hash).map(|(o, _)| o) == Some(output) {
-					continue;
-				}
+			// Printing leaves visibility out, so an item prints differently only where a
+			// macro read a narrowed token: as its input, as `stringify!` does, or by
+			// position, as `column!` does.
+			for (hash, blamed) in printed(audit, &active, &edits, original, &units) {
 				let path = audit
 					.hashes
-					.get(hash)
-					.map_or_else(String::new, |&d| audit.defs[d].path.clone());
-				let blamed: BTreeSet<usize> = input
-					.iter()
-					.filter_map(|h| audit.hashes.get(h))
-					.flat_map(|&def| {
-						active
-							.iter()
-							.copied()
-							.filter(move |&t| audit.tokens[t].defs.contains(&def))
-					})
-					.collect();
+					.get(&hash)
+					.map_or_else(|| format!("an item hashed {hash:x?}"), |&d| audit.defs[d].path.clone());
 				if blamed.is_empty() {
-					return Err(format!(
-						"narrowing changed what a derive makes as {path}, and no narrowed `pub` it was given explains it"
-					));
+					unexplained.push(format!("narrowing changed what macros make of {path}"));
 				}
 				for token in blamed {
-					restore.entry(token).or_insert_with(|| Restored::Derived(path.clone()));
+					restore.entry(token).or_insert_with(|| Restored::Expanded(path.clone()));
 				}
 			}
 			// Narrowing must not add warnings either: the lints that make public API
@@ -170,6 +158,12 @@ pub fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validatio
 				}
 			}
 			if restore.is_empty() {
+				if !unexplained.is_empty() {
+					return Err(format!(
+						"narrowing changed the build in ways no narrowed `pub` explains:\n{}",
+						unexplained.join("\n")
+					));
+				}
 				break;
 			}
 		}
@@ -185,13 +179,146 @@ pub fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validatio
 	})
 }
 
-/// What each derive made, by the item's hash: its output, and what it was given.
-fn derived(units: &[Unit]) -> HashMap<Hash, (u64, &[Hash])> {
-	units
-		.iter()
-		.flat_map(|u| &u.derived)
-		.map(|d| (d.hash, (d.output, d.input.as_slice())))
-		.collect()
+/// Each item the narrowed `units` print differently from the `original`, make, or no
+/// longer make, with the active tokens a macro it came from read: those on its call's line
+/// up to its end, and an attribute's or derive's input item's. Failing those, the tokens on
+/// its own lines, which a `column!` there reads.
+fn printed(
+	audit: &Audit,
+	active: &BTreeSet<usize>,
+	edits: &Edits,
+	original: &[Unit],
+	units: &[Unit],
+) -> BTreeMap<Hash, BTreeSet<usize>> {
+	// Each item's outputs, and where each was printed, by unit and index: a crate shared
+	// by workspaces compiles once in each.
+	type Outputs = HashMap<Hash, (Vec<u64>, Vec<(usize, usize)>)>;
+	fn outputs(units: &[Unit]) -> Outputs {
+		let mut outputs = Outputs::new();
+		for (u, unit) in units.iter().enumerate() {
+			for (p, printed) in unit.printed.iter().enumerate() {
+				let entry = outputs.entry(printed.hash).or_default();
+				entry.0.push(printed.output);
+				entry.1.push((u, p));
+			}
+		}
+		for (list, _) in outputs.values_mut() {
+			list.sort();
+		}
+		outputs
+	}
+	let before = outputs(original);
+	let after = outputs(units);
+	let mut by_def: HashMap<usize, Vec<usize>> = HashMap::new();
+	for &t in active {
+		for &d in &audit.tokens[t].defs {
+			by_def.entry(d).or_default().push(t);
+		}
+	}
+	let mut changed = BTreeMap::new();
+	let hashes: BTreeSet<&Hash> = before.keys().chain(after.keys()).collect();
+	for hash in hashes {
+		let (b, a) = (before.get(hash), after.get(hash));
+		if b.map(|b| &b.0) == a.map(|a| &a.0) {
+			continue;
+		}
+		let mut blamed = BTreeSet::new();
+		let printed = [(original, b, None), (units, a, Some(edits))];
+		for &(units, printed, narrowed) in &printed {
+			for &(u, p) in printed.map(|p| p.1.as_slice()).unwrap_or_default() {
+				read(
+					audit,
+					active,
+					&by_def,
+					&units[u],
+					&units[u].printed[p].expansions,
+					narrowed,
+					&mut blamed,
+				);
+			}
+		}
+		if blamed.is_empty() {
+			for &(units, printed, narrowed) in &printed {
+				for &(u, p) in printed.map(|p| p.1.as_slice()).unwrap_or_default() {
+					if let Some(lines) = units[u].printed[p].lines {
+						within(audit, active, &units[u], lines, narrowed, &mut blamed);
+					}
+				}
+			}
+		}
+		changed.insert(*hash, blamed);
+	}
+	changed
+}
+
+/// Add to `blamed` the active tokens in `unit`'s `span`; `edits` narrowed its offsets, if
+/// given.
+fn within(
+	audit: &Audit,
+	active: &BTreeSet<usize>,
+	unit: &Unit,
+	span: Span,
+	edits: Option<&Edits>,
+	blamed: &mut BTreeSet<usize>,
+) {
+	let file = &unit.files[span.file as usize];
+	let (lo, hi) = match edits {
+		Some(edits) => (original(edits, file, span.lo), original(edits, file, span.hi)),
+		None => (span.lo, span.hi),
+	};
+	blamed.extend(active.iter().copied().filter(|&t| {
+		let place = &audit.tokens[t].place;
+		&place.file == file && lo <= place.lo && place.lo < hi
+	}));
+}
+
+/// Add to `blamed` the active tokens the `expansions` of `unit`, or those they came from,
+/// read; `edits` narrowed the unit's offsets, if given.
+fn read(
+	audit: &Audit,
+	active: &BTreeSet<usize>,
+	by_def: &HashMap<usize, Vec<usize>>,
+	unit: &Unit,
+	expansions: &[u32],
+	edits: Option<&Edits>,
+	blamed: &mut BTreeSet<usize>,
+) {
+	let mut seen = BTreeSet::new();
+	let mut inputs = BTreeSet::new();
+	let mut stack = expansions.to_vec();
+	while let Some(e) = stack.pop() {
+		if !seen.insert(e) {
+			continue;
+		}
+		let expansion = &unit.expansions[e as usize];
+		stack.extend(expansion.parent);
+		inputs.extend(expansion.input);
+		if let Some(call) = expansion.call {
+			within(audit, active, unit, call, edits, blamed);
+		}
+	}
+	if inputs.is_empty() {
+		return;
+	}
+	// The input item's tokens are those of what the expansion carrying it made, and what
+	// macros called from that made in turn.
+	let carried = |mut at: Option<u32>| {
+		while let Some(e) = at {
+			if inputs.contains(&e) {
+				return true;
+			}
+			at = unit.expansions[e as usize].parent;
+		}
+		false
+	};
+	for def in &unit.defs {
+		if carried(def.expansion)
+			&& let Some(d) = audit.hashes.get(&def.hash)
+			&& let Some(tokens) = by_def.get(d)
+		{
+			blamed.extend(tokens);
+		}
+	}
 }
 
 fn restoring(diagnostic: &Diagnostic) -> Restored {

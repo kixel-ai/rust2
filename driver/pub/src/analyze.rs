@@ -43,8 +43,6 @@ pub struct Def {
 	/// Part of a library's API that crates or tools outside the audit may use.
 	pub external: bool,
 	pub symbol: bool,
-	/// Whether its `pub` was passed to the macro that made it.
-	pub passed: bool,
 	pub category: Category,
 	/// The first other crate's definition that names it, and where.
 	pub cross: Option<Evidence>,
@@ -74,16 +72,13 @@ pub enum Verdict {
 	/// Another crate in the audit names one of its definitions.
 	CrossCrate,
 	/// One of its definitions is the API of a library crates or tools outside the audit
-	/// may use.
+	/// may use, or it is in such a macro's definition, which copies it where it expands.
 	External,
 	/// One of its definitions is a symbol code outside Rust links to.
 	Symbol,
 	/// It is not in a local package's source, such as a dependency's macro or generated
 	/// code.
 	Generated,
-	/// It was passed to the macro that made one of its definitions, which may use it for
-	/// more than the visibility.
-	Macro,
 }
 
 /// The joined graph.
@@ -131,7 +126,6 @@ impl Audit {
 						exported: false,
 						external: false,
 						symbol: false,
-						passed: false,
 						category: Category::Unreached,
 						cross: None,
 						local: None,
@@ -142,7 +136,6 @@ impl Audit {
 				joined.exported |= unit.lib && def.exported;
 				joined.external |= foreign || unit.lib && def.exported && published;
 				joined.symbol |= def.symbol;
-				joined.passed |= def.passed;
 				hashes.insert(def.hash, index);
 				if let Some(token) = def.token {
 					let token = tokens.entry(place(unit, token)).or_default();
@@ -232,10 +225,23 @@ impl Audit {
 
 		let mut targets: Vec<&Path> = workspaces.iter().map(|w| w.target.as_path()).collect();
 		targets.sort();
+		// A macro outside crates may call copies its tokens there.
+		let macros: Vec<&Place> = defs
+			.iter()
+			.filter(|d| d.external && d.kind.starts_with("Macro"))
+			.filter_map(|d| d.span.as_ref())
+			.collect();
 		let tokens = tokens
 			.into_iter()
 			.map(|(place, token_defs)| {
-				let verdict = verdict(&place, &token_defs, &defs, &packages, &targets)?;
+				let mut verdict = verdict(&place, &token_defs, &defs, &packages, &targets)?;
+				if verdict == Verdict::Narrow
+					&& macros
+						.iter()
+						.any(|m| m.file == place.file && m.lo <= place.lo && place.hi <= m.hi)
+				{
+					verdict = Verdict::External;
+				}
 				Ok(Token {
 					place,
 					defs: token_defs,
@@ -297,8 +303,6 @@ fn verdict(
 		Verdict::External
 	} else if defs.clone().any(|d| d.symbol) {
 		Verdict::Symbol
-	} else if defs.clone().any(|d| d.passed) {
-		Verdict::Macro
 	} else {
 		Verdict::Narrow
 	})

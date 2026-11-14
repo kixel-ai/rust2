@@ -31,12 +31,13 @@ Joined across every compilation, the graph gives:
   That includes the re-export a path goes through, every re-export a glob of another crate's module may use, the types an expression has, and a tuple constructor's fields.
 - **What crates or tools outside the audit may use**: what a published library exports, and all of an unpublished library the audit does not run.
   The audit runs what has a binary, and the unpublished workspace members that builds on; any other library, such as a translator's fixture, is used outside cargo's view, by tools that may read its source.
-  What that API exposes of another crate stays public too: a re-exported or returned type with its fields, variants, and inherent items, a trait with its items, and all of a crate it re-exports with `pub extern crate`.
-- **Which tokens a narrowing may touch**: a `pub` passed to the macro that makes the item, such as a `$v:vis` argument or an attribute macro's input, stays, since the macro may use the token for more than the visibility, as `stringify!` does.
+  What that API exposes of another crate stays public too: a re-exported or returned type with its fields, variants, and inherent items, a trait with its items, all of a crate it re-exports with `pub extern crate`, and every `pub` in the definition of a macro it exports, which goes wherever its callers expand it.
 
 Narrowing compiles every proposal together, restoring each `pub` a rustc error, or a `private_interfaces` or `private_bounds` lint, points at, until the workspaces check.
 It then requires every name to resolve as before: a narrowed method can compile and still change which method a call picks, such as a slice's `len` through `Deref`.
-And it requires every derive to make what it made: a derive reads its whole item, visibility included, so it restores the item a derive makes differently from.
+And it requires every item to print as it did, by rustc's HIR printer, once macros have expanded.
+That printer leaves visibility out, so an item prints differently only where a macro read a narrowed `pub`: as `stringify!` does a `$v:vis`, as a derive or attribute macro may its whole item, or by position, as `column!` does.
+The audit traces each such item back through the macro calls it came from, however nested, and restores the narrowed tokens they read: those on a call's line up to its end, and those of the item an attribute or derive was given.
 
 ## Limits
 

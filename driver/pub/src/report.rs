@@ -26,8 +26,6 @@ enum Outcome {
 	Symbol,
 	/// Not in a local package's source.
 	Generated,
-	/// Passed to the macro that made it, which may use it for more than the visibility.
-	Macro,
 }
 
 #[derive(Serialize)]
@@ -97,7 +95,6 @@ pub fn write(out: &Path, scope: &Scope, audit: &Audit, validation: &Validation) 
 			Verdict::CrossCrate => Outcome::CrossCrate,
 			Verdict::Symbol => Outcome::Symbol,
 			Verdict::Generated => Outcome::Generated,
-			Verdict::Macro => Outcome::Macro,
 		};
 		let restored = validation.restored.get(&t).map(|why| match why {
 			Restored::Diagnostic(Some(code), message) => format!("rustc {code}: {message}"),
@@ -105,7 +102,7 @@ pub fn write(out: &Path, scope: &Scope, audit: &Audit, validation: &Validation) 
 			Restored::Resolution(place) => {
 				format!("a name resolves differently at {}", lines.at(scope.root, place))
 			}
-			Restored::Derived(path) => format!("a derive given it makes {path} differently"),
+			Restored::Expanded(path) => format!("a macro it reaches makes {path} differently"),
 		});
 		let items = token
 			.defs
