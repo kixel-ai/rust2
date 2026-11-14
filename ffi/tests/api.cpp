@@ -33,6 +33,10 @@
 #include <io.h>
 #endif
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
+
 namespace {
 
 // Print a returned buffer.
@@ -1720,6 +1724,14 @@ int lifetimes() {
 // `tests/api_strict.cpp` refuses at compile time reach the object through a reference or
 // pointer, whose state Clang does not track.
 int broken(const char *which) {
+#ifdef __linux__
+	// Non-dumpable, the expected abort writes no core and never starts the host's crash
+	// handler.
+	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) {
+		std::perror("prctl");
+		return 1;
+	}
+#endif
 	if (std::strcmp(which, "moved") == 0) {
 		api::Counter c = api::Counter::new_("c", 0);
 		api::Counter &same = c;

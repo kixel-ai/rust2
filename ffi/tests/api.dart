@@ -7,6 +7,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -1312,6 +1313,15 @@ final class Thrower implements api.SeekableReader {
 
 /// Each breaks a contract, which must fail with a message naming it.
 void broken(String which) {
+  if (Platform.isLinux) {
+    // Non-dumpable, an expected abort writes no core and never starts the host's crash
+    // handler. PR_SET_DUMPABLE is 4.
+    final prctl = ffi.DynamicLibrary.process().lookupFunction<
+        ffi.Int Function(ffi.Int,
+            ffi.VarArgs<(ffi.UnsignedLong, ffi.UnsignedLong, ffi.UnsignedLong, ffi.UnsignedLong)>),
+        int Function(int, int, int, int, int)>('prctl');
+    check(prctl(4, 0, 0, 0, 0) == 0, 'prctl');
+  }
   switch (which) {
     case 'moved':
       final c = api.Counter('c', 0);

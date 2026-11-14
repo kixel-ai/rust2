@@ -1417,6 +1417,13 @@ def calls():
 
 def broken(which):
 	"""Each breaks a contract, which must fail with a message naming it."""
+	if sys.platform == "linux":
+		# Non-dumpable, an expected abort writes no core and never starts the host's crash
+		# handler. PR_SET_DUMPABLE is 4.
+		import ctypes
+
+		if ctypes.CDLL(None, use_errno=True).prctl(4, 0, 0, 0, 0) != 0:
+			raise OSError(ctypes.get_errno(), "prctl")
 	match which:
 		case "moved":
 			c = api.Counter.new("c", 0)
