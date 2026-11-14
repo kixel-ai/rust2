@@ -47,20 +47,24 @@ fn per(start: Start, n: u64) -> (f64, f64) {
 /// `call` made `n` times on each of [`THREADS`] threads at once, thread `i` on `handles[i]`:
 /// wall nanoseconds per call on one thread, and CPU nanoseconds per call.
 fn concurrent<T: Sync>(handles: &[&T], n: u64, call: impl Fn(&T) + Sync) -> (f64, f64) {
-	let start = Barrier::new(THREADS + 1);
+	// Every thread waits at `ready`, then at `go`, which opens only once the span has begun.
+	let (ready, go) = (Barrier::new(THREADS + 1), Barrier::new(THREADS + 1));
 	// The scope joins every thread before it returns, so the span ends after the last call.
 	let begin = std::thread::scope(|scope| {
 		for &handle in handles {
-			let (start, call) = (&start, &call);
+			let (ready, go, call) = (&ready, &go, &call);
 			scope.spawn(move || {
-				start.wait();
+				ready.wait();
+				go.wait();
 				for _ in 0..n {
 					call(black_box(handle));
 				}
 			});
 		}
-		start.wait();
-		begin()
+		ready.wait();
+		let begin = begin();
+		go.wait();
+		begin
 	});
 	let (wall, cpu) = elapsed(begin);
 	(wall / n as f64, cpu / (n * THREADS as u64) as f64)

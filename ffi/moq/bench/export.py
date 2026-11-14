@@ -29,18 +29,21 @@ def per(start, n=N):
 def concurrent(calls):
 	"""Each of `calls`, a bound method, made N times on a thread of its own, all at once:
 	wall nanoseconds per call on one thread, and CPU nanoseconds per call."""
-	start = threading.Barrier(len(calls) + 1)
+	ready = threading.Barrier(len(calls) + 1)
+	go = threading.Event()
 
 	def work(call):
-		start.wait()
+		ready.wait()
+		go.wait()
 		for _ in range(N):
 			call()
 
 	threads = [threading.Thread(target=work, args=(call,)) for call in calls]
 	for thread in threads:
 		thread.start()
-	start.wait()
+	ready.wait()
 	begin = now()
+	go.set()
 	for thread in threads:
 		thread.join()
 	wall, cpu = per(begin)
