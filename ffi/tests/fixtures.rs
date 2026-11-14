@@ -674,16 +674,16 @@ fn api_kotlin() {
 	}
 
 	// The same classes, with another contract than the library's in place of theirs,
-	// refuse to load it: a Native.class of its own, ahead on the classpath, leaves the
+	// refuse to load it: a _Native.class of its own, ahead on the classpath, leaves the
 	// compiled classes as they were.
-	let bytes = std::fs::read(classes.join("api").join("Native.class")).unwrap();
+	let bytes = std::fs::read(classes.join("api").join("_Native.class")).unwrap();
 	let contract = kotlin_contract(&api.out.join("kotlin").join("api.kt")).to_be_bytes();
 	let at: Vec<usize> = (0..bytes.len() - 8).filter(|&i| bytes[i..i + 8] == contract).collect();
-	assert_eq!(at.len(), 1, "Native.class holds the contract once");
+	assert_eq!(at.len(), 1, "_Native.class holds the contract once");
 	let mut mismatched = bytes.clone();
 	mismatched[at[0]] ^= 0xff;
 	let shadow = scratch().join("api").join("kotlin-mismatched");
-	step::write(&shadow.join("api").join("Native.class"), &mismatched);
+	step::write(&shadow.join("api").join("_Native.class"), &mismatched);
 	let output = java(&[&shadow, &classes], &[]).output().unwrap();
 	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
@@ -843,6 +843,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 	);
 	run(&mut vm(&["futures"]));
 	run(&mut vm(&["owned"]));
+	run(&mut vm(&["clash"]));
 	for (case, message) in [
 		("moved", "Counter is closed"),
 		("boxed moved", "Node is closed"),

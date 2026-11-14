@@ -1382,6 +1382,53 @@ fun uncollected(n: UInt, what: String) {
 	check(dropped() == n, what)
 }
 
+/** An enum whose variants are named as types its sealed class names, each round-tripped. */
+fun clash() {
+	val p = Point(1, 2)
+	val all = listOf(
+		Clash.Point(p),
+		Clash.Shape(Shape.CIRCLE),
+		Clash.Event(Event.Named("n")),
+		Clash.Double(1.5),
+		Clash.Float(0.5f),
+		Clash.String("s"),
+		Clash.Int(-3),
+		Clash.Boolean(true),
+		Clash.Native(7u),
+		Clash.Bytes(Bytes("ab".encodeToByteArray())),
+		Clash.Any,
+		Clash.Unit,
+		Clash.Waker,
+		Clash.Mut,
+		Clash.Pair(1u, 2u),
+		Clash.Stamp(5L),
+		Clash.Moment(Moment.new(3u, 1000u)!!),
+	)
+	for (c in all) {
+		check(c.debug().isNotEmpty(), "clash $c debug")
+	}
+	check(Clash.Double(1.5).debug() == "Double(1.5)", "clash Double debug")
+	check(Clash.String("s").debug() == "String(\"s\")", "clash String debug")
+	check(Clash.Native(7u).debug() == "Native(7)", "clash Native debug")
+	check(all[0].point() == p && all[3].point() == null, "clash point")
+	check(Clash.of(2.5) == Clash.Double(2.5), "clash of")
+	check(Clash.at(p) == Clash.Point(p), "clash at")
+	check(Clash.Unit.reading(3u) == readingEcho(reading(3u)!!), "clash reading")
+	val len = Mut(9u)
+	check(Clash.listed(uintArrayOf(1u, 2u), len).map { it.toList() } == listOf(listOf(1u, 2u, 9u)) && len.value == 2u, "clash listed")
+	check(runBlocking { Clash.after({}, 0.25) } == Clash.Double(0.25), "clash after")
+	check(Packaged(3u).point() == Point(3, 3) && Packaged(3u).shape() == Shape.CIRCLE, "a field named as the package")
+	val b = { t: String -> Bytes(t.encodeToByteArray()) }
+	check(Clash.Unit.joined(b("a"), b("b"), b("c")).toByteArray().decodeToString() == "abc", "clash joined")
+	check(Clash.Unit.joined(b("a"), b("b"), null).toByteArray().decodeToString() == "ab", "clash joined none")
+	check(runBlocking { Clash.Int(1).tagged("t") } == "t Int(1)", "clash tagged")
+	check(Clash.Unit.stamp(2500u).secs() == 2uL && Clash.Unit.stamp(5u) == Stamp.fromMillis(5u), "clash stamp")
+	check(all[16].moment(9u) == Moment.new(3u, 1000u) && Clash.Unit.moment(4000u).millis() == 4000uL, "clash moment")
+	check(Clash.String("hi").raw().toByteArray().decodeToString() == "hi", "clash bytes")
+	val out = Mut(0u)
+	check(Clash.Int(4).describe("t", 3u, Shape.SQUARE, out) == "t Int(4) 3 Square" && out.value == 6u, "clash describe")
+}
+
 fun returns() {
 	val saved = returnValues(Mut(Point(0, 0)), false)
 	val completed = java.util.concurrent.atomic.AtomicInteger()
@@ -1426,6 +1473,7 @@ fun main(args: Array<String>) {
 		args[0] == "returns" -> returns()
 		args[0] == "futures" -> futures()
 		args[0] == "owned" -> owned()
+		args[0] == "clash" -> clash()
 		else -> broken(args[0])
 	}
 }

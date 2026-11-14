@@ -582,7 +582,7 @@ out, with only its other fields encoded.
   through Rust, and the garbage collector drops it.
 - **The contract** is checked when the library loads, before any other call: a Kotlin
   file and a library from different builds throw.
-- **Shrinking**: `<prefix>.pro` keeps what the JNI glue finds by name, `Native`, its native
+- **Shrinking**: `<prefix>.pro` keeps what the JNI glue finds by name, `_Native`, its native
   methods, and the Kotlin functions Rust calls, while R8 strips and renames the rest. An
   Android library ships it as a consumer rule (`consumerProguardFiles`), which its AAR
   carries to each app that shrinks it.
