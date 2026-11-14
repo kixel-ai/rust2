@@ -12,9 +12,11 @@ held case (`parse_later` in the reject fixture); main has the bug for every such
 
 ## Plan
 
-Recommended: the glue converts a future's error to its message inside the `async` block,
-while the arguments the future owns are alive, so the function exports as its sync form
-already does (`parse_cert` in the api fixture); the held case's refusal then goes too.
+The maintainer kept this quest on 2026-11-13 (rejected: drop) and decided its fix:
+✅ the glue converts the borrowed foreign error to its message inside the `async` block,
+as foreign errors already cross, while the arguments the future owns are alive, so nothing
+borrowed outlives the call and the function exports as its sync form already does
+(`parse_cert` in the api fixture); the held case's refusal then goes too.
 Rejected: refuse every future whose error names a lifetime, which leaves out what maps.
 
 Public API: each such function newly exports as a future of its `Ok` type and a message.

@@ -38,25 +38,21 @@ The maintainer kept this quest on 2026-11-13 and accepted each recommendation be
 
 - Reached since #721 exports other crates' types with their API: rustls's
   `ClientConfig` fields of `Arc<dyn …>` (5) and `client::Resumption::store`, under the
-  trait-object decision above. And four constructs no decision covers yet, listed under
-  Waiting: `CertificateDer::from_slice` and `Der::from_slice` (a `'static` borrow,
-  `&'a [u8]` of a handle's `'static` lifetime), the two `rustls::ConfigBuilder<ServerConfig,
-  …>` instances (`ServerConfig` by value, which an `Arc` elsewhere holds),
-  `qmux::Session::connect` and `accept` (a type parameter bounded by qmux's `Transport`),
-  and `moq_sock::demux::Discard::ALL` (`[Discard; 4]`, an array of a non-`u8` element).
+  trait-object decision above. Four more constructs, decided by the maintainer on 2026-11-13:
+  - A `'static` borrow parameter (`CertificateDer::from_slice`, `Der::from_slice`):
+    ✅ exported by interning by content (rejected: left out and listed). The binding keeps
+    one process-wide table keyed by the bytes' contents; the first call with given bytes
+    copies them into a leaked Rust allocation, and later calls with equal bytes reuse it.
+    Never key by C's pointer, which C may free or reuse. The generated docs on such a
+    parameter say memory grows with each distinct value and is never freed. This is sound
+    for a shared `&'static [u8]`: the copy is immutable and never freed, and equal bytes
+    differ only by address. Refuse with a span any other `'static` borrow, such as a
+    `&'static mut` (interning would alias it) or a non-byte element type.
+  - `rustls::ConfigBuilder<ServerConfig, …>`, both by value and behind an `Arc`:
+    ✅ left out and listed (rejected: a handle everywhere).
+  - `qmux::Session::connect` and `accept`, bounded by qmux's `Transport`: ✅ left out and
+    listed (rejected: a callback interface).
+  - `moq_sock::demux::Discard::ALL` (`[Discard; 4]`): ✅ crosses as the `Vec` of its
+    elements, as a returned slice does (rejected: left out).
 
 Public API: the generated API of each item that newly exports.
-
-## Waiting
-
-- Maintainer: a `'static` borrow parameter (`CertificateDer::from_slice`,
-  `Der::from_slice`). Recommended: left out and listed as what C can never hold, since C
-  lends only for the call; rejected: copy into a leaked buffer, which never frees.
-- Maintainer: a type both by value and in an `Arc` (`ConfigBuilder<ServerConfig, …>`).
-  Recommended: left out and listed, as a type argument no handle can name; rejected: a
-  second, by-value handle, which `Arc::try_unwrap` would need at run time.
-- Maintainer: a type parameter bounded by another crate's trait (`qmux::Session::connect`,
-  `accept`, over `Transport`). Recommended: left out and listed, since no export returns a
-  `Transport`; rejected: a callback trait for it, which C would implement over raw IO.
-- Maintainer: an array of a non-`u8` element (`Discard::ALL`). Recommended: crosses as the
-  `Vec` of its elements, as a returned slice does; rejected: left out.
