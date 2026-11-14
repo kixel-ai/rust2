@@ -2261,3 +2261,256 @@ pub fn unfused(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		}
 	}
 }
+
+/// Chains of `map`, `filter`, `enumerate`, and `zip` that translation fuses into their
+/// consumer or `for` loop, beside ones it leaves to the runtime: read both ways, through
+/// `nth`, by an iterator that is not fused, or from a function that returns one. Each
+/// closure logs its calls, so their order and count, and where each consumer stops, are
+/// part of the output.
+pub fn fused(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let split = (kind >> 4) as usize % (data.len() + 1);
+	let (a, b) = data.split_at(split);
+	let stop = data.first().copied().unwrap_or(0) % 64;
+	let log = std::cell::RefCell::new(Vec::new());
+	macro_rules! seen {
+		($tag:expr) => {
+			|&x: &u8| {
+				log.borrow_mut().push(x ^ $tag);
+				x
+			}
+		};
+	}
+	macro_rules! kept {
+		($tag:expr) => {
+			|x: &&u8| {
+				log.borrow_mut().push(**x ^ $tag);
+				**x % 3 != 0
+			}
+		};
+	}
+	// Of the items a `map` makes.
+	macro_rules! made {
+		($tag:expr) => {
+			|x: &u8| {
+				log.borrow_mut().push(x ^ $tag);
+				x % 3 != 0
+			}
+		};
+	}
+	match kind % 16 {
+		// By index, sides of unequal length, each mapped with effects.
+		0 => out.push(
+			a.iter()
+				.map(seen!(1))
+				.zip(b.iter().map(seen!(2)))
+				.filter(|(x, y)| x < y)
+				.count() as u8,
+		),
+		1 => out.push(a.iter().map(seen!(3)).filter(made!(4)).count() as u8),
+		2 => out.push(
+			a.iter()
+				.enumerate()
+				.map(|(i, &x)| (i as u8) ^ x)
+				.filter(|&x| x % 64 != stop)
+				.any(|x| x % 7 == 0) as u8,
+		),
+		// Zips whose fold stops at a range's size hint: one of `char`s across the
+		// surrogates, and one of `u64`s past 2^53.
+		3 => {
+			out.push(
+				a.iter()
+					.map(seen!(5))
+					.zip(0..b.len())
+					.all(|(x, i)| x % 64 != stop || i > 9) as u8,
+			);
+			out.push(
+				('\u{d7fe}'..'\u{e002}')
+					.zip(a.iter().rev())
+					.filter(|(c, _)| *c as u32 & 1 == 0)
+					.count() as u8,
+			);
+			out.push(
+				(u64::MAX - 3..u64::MAX)
+					.zip(b.iter().rev().map(seen!(25)))
+					.fold(0u8, |acc, (x, y)| acc ^ x as u8 ^ y),
+			);
+		}
+		4 => out.push(
+			a.iter()
+				.zip(b)
+				.enumerate()
+				.fold(0u8, |acc, (i, (x, y))| acc.wrapping_mul(31) ^ x ^ y ^ i as u8),
+		),
+		// Zips folded by their size hint, of sides of unequal length, one of them reversed.
+		5 => {
+			out.extend(
+				a.iter()
+					.map(|&x| x as u32 * 1000)
+					.filter(|x| x % 3 != 0)
+					.sum::<u32>()
+					.to_le_bytes(),
+			);
+			out.push(
+				a.iter()
+					.map(seen!(22))
+					.zip(b.iter().rev())
+					.filter(|(x, y)| x < *y)
+					.count() as u8,
+			);
+			out.push(
+				a.iter()
+					.map(seen!(23))
+					.enumerate()
+					.zip(b.iter().rev().map(seen!(24)))
+					.fold(0u8, |acc, ((i, x), y)| acc.wrapping_mul(7) ^ x ^ y ^ i as u8),
+			);
+		}
+		// Overflows past a few items, which panics as the sum reaches it.
+		6 => out.push(a.iter().copied().filter(|x| x % 2 == 0).map(|x| x / 4).sum::<u8>()),
+		7 => a
+			.iter()
+			.map(seen!(6))
+			.enumerate()
+			.filter(|(i, _)| i % 2 == 0)
+			.for_each(|(i, x)| out.push(i as u8 ^ x)),
+		8 => out.extend(
+			a.iter()
+				.map(seen!(7))
+				.zip(b.iter().filter(kept!(8)))
+				.find(|(x, y)| (x ^ **y) % 64 == stop)
+				.map(|(x, y)| x ^ y),
+		),
+		9 => {
+			out.extend(
+				a.iter()
+					.zip(b.iter().map(seen!(9)))
+					.position(|(x, y)| *x > y)
+					.map(|i| i as u8),
+			);
+			// A map whose item's type is narrower than its body's.
+			out.extend(
+				a.iter()
+					.map(|&x| ..=x)
+					.filter(|r| r.contains(&(stop % 8)))
+					.find(|_| true)
+					.map(|r| r.end),
+			);
+		}
+		// A loop that leaves early, and one over a zip whose second side ends first: the
+		// first side's item past it is read.
+		10 => {
+			for (i, x) in a.iter().map(seen!(10)).enumerate() {
+				if x % 64 == stop {
+					break;
+				}
+				out.push(i as u8);
+			}
+			for (x, y) in b.iter().map(seen!(11)).zip(a.iter().filter(kept!(12))) {
+				out.push(x ^ y);
+			}
+		}
+		// Owned items, and a zip of a range and a filter, neither read by index.
+		11 => {
+			for (i, x) in a.to_vec().into_iter().map(|x| x as u16 * 3).enumerate() {
+				out.extend((x + i as u16).to_le_bytes());
+			}
+			for (i, x) in (0..b.len()).zip(b.iter().filter(kept!(13))) {
+				out.push(i as u8 ^ x);
+			}
+			out.push(a.to_vec().into_iter().zip(b.to_vec()).filter(|(x, y)| x > y).count() as u8);
+		}
+		// Read from both ends, through `nth`, and by its size hint: the runtime's, all of it.
+		12 => {
+			let mut it = a.iter().map(seen!(14)).zip(b.iter().map(seen!(15))).enumerate();
+			out.extend(it.next().map(|(i, (x, y))| i as u8 ^ x ^ y));
+			out.extend(it.next_back().map(|(i, (x, y))| i as u8 ^ x ^ y));
+			out.push(it.size_hint().0 as u8);
+			out.extend(it.nth(1).map(|(i, (x, y))| i as u8 ^ x ^ y));
+			for (i, (x, y)) in it {
+				out.push(i as u8 ^ x ^ y);
+			}
+		}
+		// Over an iterator that is not fused, and over one a function returns.
+		13 => {
+			let flicker = Flicker { data: a, calls: 0 };
+			for x in flicker.map(|x| x.wrapping_add(16)).filter(made!(17)) {
+				out.push(x);
+			}
+			out.push(chained(b, &log).filter(kept!(18)).count() as u8);
+		}
+		// A closure that panics partway, by dividing by zero.
+		14 => out.push(a.iter().map(|&x| 100 / ((x % 64) ^ stop)).filter(made!(19)).count() as u8),
+		_ => {
+			let mut n = 0u8;
+			for ((i, x), y) in a
+				.iter()
+				.enumerate()
+				.zip(b.iter().map(seen!(20)))
+				.filter(|((_, x), y)| *x < y)
+			{
+				n = n.wrapping_add(i as u8 ^ x ^ y);
+			}
+			out.push(n);
+		}
+	}
+	out.extend_from_slice(&log.borrow());
+}
+
+/// Chains of items that log as they drop, through each consumer: what a filter rejects,
+/// what a zip reads past its shorter side, and what is left where a consumer stops early.
+pub fn fused_owned(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let split = (kind >> 3) as usize % (data.len() + 1);
+	let (a, b) = data.split_at(split);
+	let stop = data.first().copied().unwrap_or(0) % 64;
+	let log = std::cell::RefCell::new(Vec::new());
+	let noted = |v: &[u8]| v.iter().map(|&x| Noted(&log, x)).collect::<Vec<_>>();
+	match kind % 8 {
+		0 => out.push(noted(a).into_iter().filter(|n| n.1 % 3 != 0).count() as u8),
+		1 => out.push(
+			noted(a)
+				.into_iter()
+				.map(|n| n.1 ^ 1)
+				.filter(|x| x % 64 != stop)
+				.any(|x| x % 7 == 0) as u8,
+		),
+		2 => out.push(noted(a).into_iter().zip(noted(b)).filter(|(x, y)| x.1 < y.1).count() as u8),
+		3 => out.push(noted(a).into_iter().enumerate().all(|(i, n)| n.1 % 64 != stop || i > 9) as u8),
+		4 => out.extend(
+			noted(a)
+				.into_iter()
+				.zip(noted(b))
+				.position(|(x, y)| x.1 > y.1)
+				.map(|i| i as u8),
+		),
+		5 => out.extend(
+			noted(a)
+				.into_iter()
+				.filter(|n| n.1 % 2 == 0)
+				.find(|n| n.1 % 64 == stop)
+				.map(|n| n.1),
+		),
+		6 => {
+			for (i, n) in noted(a).into_iter().enumerate().filter(|(_, n)| n.1 % 3 != 0) {
+				if n.1 % 64 == stop {
+					break;
+				}
+				out.push(n.1 ^ i as u8);
+			}
+		}
+		_ => out.push(
+			noted(a)
+				.into_iter()
+				.zip(noted(b))
+				.fold(0u8, |acc, (x, y)| acc.wrapping_add(x.1 ^ y.1)),
+		),
+	}
+	out.extend_from_slice(&log.borrow());
+}
+
+/// A chain that escapes the function that makes it.
+fn chained<'a>(data: &'a [u8], log: &'a std::cell::RefCell<Vec<u8>>) -> impl Iterator<Item = &'a u8> + 'a {
+	data.iter().map(move |x| {
+		log.borrow_mut().push(*x ^ 21);
+		x
+	})
+}

@@ -281,9 +281,16 @@ export function copies(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const _83: rs.Vec<rs.u16> = v;
 		const _85: rs.Vec<rs.u16> = rs.smallVecFromSlice(rs.sliceFrom(items.items), 3, undefined);
 		rs.byteVecPush(out, rs.eqSlice(rs.same)(_83, _85) ? 1 : 0);
-		put(out, rs.iterSum(rs.iterMap(rs.iterSlice(v.items), (_24: rs.u16): rs.usize => {
-			return _24 as rs.usize;
-		}), rs.usizeAdd, 0));
+		const leaf = rs.iterSlice(v.items);
+		let acc: rs.usize = 0;
+		while (true) {
+			const x3 = leaf.next();
+			if (x3 === rs.DONE) {
+				break;
+			}
+			acc = rs.usizeAdd(acc, x3 as rs.usize);
+		}
+		put(out, acc);
 		const _94: rs.u16 | undefined = rs.sliceFirst(rs.sliceFrom(v.items));
 		if (_94 !== undefined) {
 			put(out, _94 as rs.usize);
@@ -292,8 +299,8 @@ export function copies(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const inline = rs.smallVecIntoInner(small2, 3, 3);
 		const _101: rs.Result<rs.u16[], rs.Vec<rs.u16>> = inline === undefined ? rs.Err(small2) : rs.Ok(inline);
 		if (_101.ok) {
-			rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(_101.value), (x3: rs.u16): Uint8Array => {
-				return rs.u16ToBeBytes(x3).reverse();
+			rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(_101.value), (x4: rs.u16): Uint8Array => {
+				return rs.u16ToBeBytes(x4).reverse();
 			}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
 		} else {
 			const v2: rs.Vec<rs.u16> = _101.error;

@@ -133,9 +133,19 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const args15 = [(f: rs.Formatter) => rs.u8Display(_78, f), (f: rs.Formatter) => rs.u8Display(_82, f)];
 		put(out, rs.fmtFormat([args15[0], " ", args15[1], " "]).v);
 		const shapes: rs.Vec<Named.Named> = new rs.Vec();
-		const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 3, dataLen - 3))));
+		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 3, dataLen - 3)));
+		let count: number = 0;
 		while (true) {
-			const _94: [rs.usize, rs.u8] | rs.Done = iter.next();
+			let next!: [rs.usize, rs.u8] | rs.Done;
+			next2: {
+				const x2 = leaf.next();
+				if (x2 === rs.DONE) {
+					next = rs.DONE;
+					break next2;
+				}
+				next = [count++, x2];
+			}
+			const _94: [rs.usize, rs.u8] | rs.Done = next;
 			if (_94 === rs.DONE) {
 				break;
 			}
@@ -469,9 +479,19 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const args50 = [(f: rs.Formatter) => rs.fmtOption(some, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(none, f, rs.u8Debug)];
 		put(out, rs.fmtFormat([args50[0], " ", args50[1], " "]).v);
 		const boxes: rs.Vec<Any.Any> = new rs.Vec();
-		const iter4: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2))));
+		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2)));
+		let count: number = 0;
 		while (true) {
-			const _229: [rs.usize, rs.u8] | rs.Done = iter4.next();
+			let next!: [rs.usize, rs.u8] | rs.Done;
+			next2: {
+				const x2 = leaf.next();
+				if (x2 === rs.DONE) {
+					next = rs.DONE;
+					break next2;
+				}
+				next = [count++, x2];
+			}
+			const _229: [rs.usize, rs.u8] | rs.Done = next;
 			if (_229 === rs.DONE) {
 				break;
 			}
@@ -677,9 +697,19 @@ export function fns(data: rs.ByteSlice, out: rs.ByteVec): void {
 			captured2 = rs.u8WrappingAdd(captured2, x4);
 			return rs.u32Mul(captured2 as rs.u32, 3);
 		});
-		const iter: rs.Iter<[rs.usize, (a0: rs.u8) => rs.u8]> = rs.iterEnumerate(rs.iterSlice(fs.items));
+		const leaf: rs.Iter<(a0: rs.u8) => rs.u8> = rs.iterSlice(fs.items);
+		let count: number = 0;
 		while (true) {
-			const _115: [rs.usize, (a0: rs.u8) => rs.u8] | rs.Done = iter.next();
+			let next!: [rs.usize, (a0: rs.u8) => rs.u8] | rs.Done;
+			next2: {
+				const x5 = leaf.next();
+				if (x5 === rs.DONE) {
+					next = rs.DONE;
+					break next2;
+				}
+				next = [count++, x5];
+			}
+			const _115: [rs.usize, (a0: rs.u8) => rs.u8] | rs.Done = next;
 			if (_115 === rs.DONE) {
 				break;
 			}
@@ -689,25 +719,25 @@ export function fns(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const args20 = [(f: rs.Formatter) => rs.u8Display(y, f), (f: rs.Formatter) => rs.u32Display(_133, f)];
 			put(out, rs.fmtFormat([args20[0], ":", args20[1], " "]).v);
 		}
-		const _142: (a0: rs.u8) => rs.u32 = (x5: rs.u8): rs.u32 => {
-			return x5 as rs.u32;
+		const _142: (a0: rs.u8) => rs.u32 = (x6: rs.u8): rs.u32 => {
+			return x6 as rs.u32;
 		};
 		rs.drop(hook.f);
 		hook.f = _142;
 		const part4 = hook.f(a);
 		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part4, f), " "]).v);
 		const captured3 = rs.byteVecFrom(Uint8Array.of(a));
-		const part6 = ((x6: rs.u8): rs.ByteVec => {
+		const part6 = ((x7: rs.u8): rs.ByteVec => {
 			const list2: rs.ByteVec = captured3;
-			rs.byteVecPush(list2, x6);
+			rs.byteVecPush(list2, x7);
 			return list2;
 		})(b);
 		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part6), f, rs.u8Debug), " "]).v);
 		const part7 = rs.once(rs.optionUnwrap(rs.vecPop(fs)))(a);
 		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(part7, f), " "]).v);
 		const captured4 = b;
-		const _196: rs.Arc<(a0: rs.u8) => rs.u8> = new rs.Arc((x7: rs.u8): rs.u8 => {
-			return x7 ^ captured4;
+		const _196: rs.Arc<(a0: rs.u8) => rs.u8> = new rs.Arc((x8: rs.u8): rs.u8 => {
+			return x8 ^ captured4;
 		});
 		const shared: rs.Arc<(a0: rs.u8) => rs.u8> = new rs.ArcDyn(_196, _196.value);
 		const other: rs.Arc<(a0: rs.u8) => rs.u8> = rs.arcClone(shared);
@@ -1543,9 +1573,19 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _37: rs.Arc<rs.RefCell<Shape.Shape>> = new rs.ArcDyn(_38, rs.tailDyn(_38.value, { value: (value3: rs.RefCell<Tri.Tri>) => new ofPlace$dyns_Tri(rs.valuePlace(value3)) }));
 		const _41: rs.Arc<rs.RefCell<Noisy.Noisy>> = new rs.Arc(new rs.RefCell(new Noisy.Noisy(a ^ b, rs.arcClone(log))));
 		const shapes: rs.Vec<rs.Arc<rs.RefCell<Shape.Shape>>> = rs.vecFrom([_31, _34, _37, new rs.ArcDyn(_41, rs.tailDyn(_41.value, { value: (value4: rs.RefCell<Noisy.Noisy>) => new of$dyns_Noisy(value4.value) }, rs.drop))]);
-		const iter: rs.Iter<[rs.usize, rs.Arc<rs.RefCell<Shape.Shape>>]> = rs.iterEnumerate(rs.iterSlice(shapes.items));
+		const leaf: rs.Iter<rs.Arc<rs.RefCell<Shape.Shape>>> = rs.iterSlice(shapes.items);
+		let count: number = 0;
 		while (true) {
-			const _53: [rs.usize, rs.Arc<rs.RefCell<Shape.Shape>>] | rs.Done = iter.next();
+			let next2!: [rs.usize, rs.Arc<rs.RefCell<Shape.Shape>>] | rs.Done;
+			next3: {
+				const x2 = leaf.next();
+				if (x2 === rs.DONE) {
+					next2 = rs.DONE;
+					break next3;
+				}
+				next2 = [count++, x2];
+			}
+			const _53: [rs.usize, rs.Arc<rs.RefCell<Shape.Shape>>] | rs.Done = next2;
 			if (_53 === rs.DONE) {
 				break;
 			}
@@ -1865,8 +1905,8 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecClear(_889.value);
 		rs.refMutRelease(_889);
 		let sum: rs.u32 = 0;
-		const _894: rs.Arc<rs.RefCell<(a0: rs.u8) => undefined>> = new rs.Arc(new rs.RefCell((x2: rs.u8): undefined => {
-			sum = rs.u32WrappingAdd(sum, x2 as rs.u32);
+		const _894: rs.Arc<rs.RefCell<(a0: rs.u8) => undefined>> = new rs.Arc(new rs.RefCell((x3: rs.u8): undefined => {
+			sum = rs.u32WrappingAdd(sum, x3 as rs.u32);
 		}));
 		f = new rs.ArcDyn(_894, rs.tailDyn(_894.value, { value: (value41: rs.RefCell<(a0: rs.u8) => undefined>) => value41.value }));
 		for (const x of rs.byteSliceView(rs.byteSliceRange(data, 3))) {
@@ -1893,8 +1933,8 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _939: rs.String = rs.fmtFormat([args87[0], " ", args87[1], " ", args87[2], " ", args87[3], " ", args87[4], " ", args87[5], " "]);
 		rs.mutexUnlock(_952);
 		put(out, _939.v);
-		const _968: rs.u8 | undefined = option_map$1yjmt5m(rs.byteSliceFirst(rs.byteSliceRange(data, 3)), (x3: rs.u8): rs.u8 => {
-			return rs.u8Rem(x3, 4);
+		const _968: rs.u8 | undefined = option_map$1yjmt5m(rs.byteSliceFirst(rs.byteSliceRange(data, 3)), (x4: rs.u8): rs.u8 => {
+			return rs.u8Rem(x4, 4);
 		});
 		b6: {
 			if (_968 !== undefined) {
@@ -1993,9 +2033,19 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		const n: rs.Cell<rs.u32> = new rs.Cell(a as rs.u32);
 		const sq: rs.Cell<Square.Square> = new rs.Cell({ side: b as rs.u16 });
 		const tri: rs.Cell<Tri.Tri> = new rs.Cell({ tag: "Tall", _0: c } as Tri.Tri);
-		const iter: rs.Iter<[rs.usize, rs.Cell<Shape.Shape>]> = rs.iterEnumerate(rs.iterSlice([rs.tailDyn(n, { v: (value: rs.Cell<rs.u32>) => new ofPlace$u32(value) }), rs.tailDyn(sq, { v: (value2: rs.Cell<Square.Square>) => new of$dyns_Square(value2.v) }), rs.tailDyn(tri, { v: (value3: rs.Cell<Tri.Tri>) => new ofPlace$dyns_Tri(value3) })]));
+		const leaf: rs.Iter<rs.Cell<Shape.Shape>> = rs.iterSlice([rs.tailDyn(n, { v: (value: rs.Cell<rs.u32>) => new ofPlace$u32(value) }), rs.tailDyn(sq, { v: (value2: rs.Cell<Square.Square>) => new of$dyns_Square(value2.v) }), rs.tailDyn(tri, { v: (value3: rs.Cell<Tri.Tri>) => new ofPlace$dyns_Tri(value3) })]);
+		let count: number = 0;
 		while (true) {
-			const _36: [rs.usize, rs.Cell<Shape.Shape>] | rs.Done = iter.next();
+			let next!: [rs.usize, rs.Cell<Shape.Shape>] | rs.Done;
+			next2: {
+				const x = leaf.next();
+				if (x === rs.DONE) {
+					next = rs.DONE;
+					break next2;
+				}
+				next = [count++, x];
+			}
+			const _36: [rs.usize, rs.Cell<Shape.Shape>] | rs.Done = next;
 			if (_36 === rs.DONE) {
 				break;
 			}

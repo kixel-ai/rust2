@@ -256,9 +256,19 @@ export function dropped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _103: boolean = false;
 	let _102: boolean = false;
 	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count2: number = 0;
 	while (true) {
-		const _10: [rs.usize, rs.u8] | rs.Done = iter.next();
+		let next!: [rs.usize, rs.u8] | rs.Done;
+		next2: {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				next = rs.DONE;
+				break next2;
+			}
+			next = [count2++, x];
+		}
+		const _10: [rs.usize, rs.u8] | rs.Done = next;
 		if (_10 === rs.DONE) {
 			break;
 		}

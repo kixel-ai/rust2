@@ -5221,8 +5221,9 @@ export class Range<T> extends Iter<T> {
 		return DONE;
 	}
 
+	/** std's, of its size hint: the steps between its ends, past the surrogates and 2^53. */
 	override len(): number {
-		return lt(this.start, this.end) ? Number(this.end) - Number(this.start) : 0;
+		return hintLen(this);
 	}
 
 	override sizeHint(): SizeHint {
