@@ -9,6 +9,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:api/api.dart' as api;
@@ -1164,17 +1165,41 @@ Future<void> owned() async {
   check(api.dropped() == before + 1, 'closing again frees nothing');
   closed(() => token.idGet, 'Token', 'a closed token refuses a read');
 
+  // Freed only once later returns push it out of the nursery.
   unclosed();
+  for (var i = 0; i < 3; i++) {
+    pressure();
+  }
+  check(api.dropped() == before + 1, 'the nursery keeps what nobody closed');
+  fill();
   await collect(() => api.dropped() >= before + 2, 'the garbage collector frees what nobody closed');
   for (var i = 0; i < 3; i++) {
     pressure();
   }
   check(api.dropped() == before + 2, 'the garbage collector frees each once');
 
+  // Closed once pushed out of the nursery, which gave the garbage collector its hold: the
+  // close takes it back, so the collector frees nothing more.
+  final kept = api.Token(4);
+  fill();
+  kept.close();
+  check(api.dropped() == before + 3, 'closing an object pushed out of the nursery frees it at once');
+  for (var i = 0; i < 3; i++) {
+    pressure();
+  }
+  await step();
+  check(api.dropped() == before + 3, 'the garbage collector frees nothing a close freed');
+
+  // An isolate's nursery frees what it still holds once the isolate exits.
+  final exited = api.dropped();
+  await Isolate.run(unclosed);
+  await collect(() => api.dropped() > exited, "an isolate's exit frees what its nursery held");
+
   // An implementation an object the garbage collector frees held is closed from the event
   // loop, as no drop in the collector may call into Dart.
   final log = CountLog();
   unclosedLogger(log);
+  fill();
   await collect(() => log.closes == 1, 'the garbage collector frees what an object it frees holds');
   targets();
   print('owned ok');
@@ -1204,6 +1229,13 @@ void targets() {
   final booth = api.Booth(mark: api.Mark.of(1));
   lacks(() => booth.debug(), 'api_Booth_debug');
   lacks(() => booth == api.Booth(mark: booth.mark), 'api_Booth_eq');
+}
+
+/// Return a nursery's worth of objects, each closed, pushing out every earlier one.
+void fill() {
+  for (var i = 0; i < 64; i++) {
+    api.Tally().close();
+  }
 }
 
 @pragma('vm:never-inline')
@@ -1255,6 +1287,12 @@ void closedObjects() {
   throws<RangeError>(() => api.logCounts(spared, 256, open, []), 'an integer out of range after an implementation');
   closed(() => api.logCounts(spared, 0, c, []), 'Counter', 'a closed object after an implementation');
   closed(() => api.logCounts(spared, 0, open, [c]), 'Counter', 'a closed object in a list after an implementation');
+  check(spared.closes == 0, 'a call Dart refuses gives Rust no implementation');
+  // Moved out by a call, which only Rust's check sees.
+  final gone = api.Counter('g', 0);
+  gone.intoLabel(null);
+  closed(() => api.logCounts(spared, 0, gone, []), 'Counter', 'a moved object after an implementation');
+  closed(() => api.logCounts(spared, 0, open, [gone]), 'Counter', 'a moved object in a list after an implementation');
   check(spared.closes == 2, 'a call whose check throws drops the implementation it gave Rust');
   check(api.onFirstThread(), "a call after one that threw runs on the isolate's thread");
   lacks(() => api.wasmLog(spared), 'api_wasm_log');
@@ -1329,6 +1367,7 @@ Future<void> lent() async {
     pressure();
   }
   canary.clear();
+  fill();
   await collect(() => api.dropped() > before, 'the garbage collector frees an old object');
   check(api.dropped() == before + 1, "a view keeps Rust's buffer");
   check(view.length == 10 && view.every((b) => b == 2), "a view reads Rust's buffer after its list is gone");
@@ -1356,6 +1395,7 @@ Future<void> forwarded() async {
     pressure();
   }
   canary.clear();
+  fill();
   await collect(() => api.dropped() > before, 'the garbage collector frees an old object');
   // Collections enough to free every list the relay left, had one held a copy.
   for (var i = 0; i < 3; i++) {

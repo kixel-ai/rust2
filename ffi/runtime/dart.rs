@@ -134,6 +134,39 @@ pub unsafe fn disown(own: *mut c_void, object: *mut c_void) {
 	unsafe { (api().unfinalize)(own, object) }
 }
 
+/// The slots of a nursery of `len` objects, which Dart fills: `len`, then each object's
+/// handle, then the C function freeing it, the handle null while the slot is out. Once the
+/// garbage collector finds `object`, the nursery, unreachable, as when its isolate exits,
+/// each handle still in a slot is freed.
+///
+/// # Safety
+/// Called from Dart in its isolate, with `object` a handle of the Dart object, which writes
+/// only handles the function beside each frees, and only while reachable.
+pub unsafe fn nursery(object: *mut c_void, len: usize) -> *mut *mut c_void {
+	unsafe extern "C" fn finalize(_: *mut c_void, slots: *mut c_void) {
+		let slots = slots.cast::<*mut c_void>();
+		// SAFETY: `nursery` made `slots`, whose first word is its length.
+		let len = unsafe { *slots } as usize;
+		// SAFETY: as above, nothing writes it once the nursery is unreachable.
+		let slots = unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(slots, 1 + 2 * len)) };
+		for i in 0..len {
+			let raw = slots[1 + i];
+			if !raw.is_null() {
+				// SAFETY: Dart's contract: each handle beside the function that frees it.
+				let free = unsafe { std::mem::transmute::<*mut c_void, unsafe extern "C" fn(*mut c_void)>(slots[1 + len + i]) };
+				// SAFETY: as above, and this frees each at most once, as no Dart object owns it.
+				unsafe { free(raw) };
+			}
+		}
+	}
+	let mut slots = vec![std::ptr::null_mut::<c_void>(); 1 + 2 * len].into_boxed_slice();
+	slots[0] = len as *mut c_void;
+	let slots = Box::into_raw(slots).cast::<*mut c_void>();
+	// SAFETY: the caller's contract.
+	unsafe { own(object, slots.cast(), finalize) };
+	slots
+}
+
 /// An isolate: its port, and the calls into it other threads wait on. One lives for each
 /// isolate that loads the library, and is never freed, since nothing tells Rust an
 /// isolate exited.

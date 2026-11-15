@@ -360,10 +360,10 @@ final class _Callback extends ffi.Struct {
 
 /// What an object owns: its handle, or one Rust lends for a call, which Rust frees. An owned
 /// one of a value Rust checks is Rust's alone to account: [close] drops the value as Rust's
-/// own drop does, failing while a call borrows it, a call after it throws as Rust's check
-/// of a moved value does, and the handle is freed once the garbage collector finds this
-/// unreachable. Any other counts its calls: [close] frees it then, throwing while a call
-/// holds it, and a call after it throws.
+/// own drop does and frees the handle, failing while a call borrows it. Any other counts its
+/// calls: [close] frees it then, throwing while a call holds it. A call after either throws.
+/// One returned waits in the isolate's [_Nursery], where a close frees it without the
+/// garbage collector, which frees it only once pushed out unclosed.
 abstract base class _Object implements ffi.Finalizable {
   final ffi.Pointer<ffi.Void> _raw;
 
@@ -375,37 +375,109 @@ abstract base class _Object implements ffi.Finalizable {
   /// Whether it counts its calls, rather than Rust.
   final bool _counted;
 
-  /// The garbage collector's hold of an owned one's handle, until freed.
+  /// The garbage collector's hold of an owned one's handle, from when the nursery pushed it
+  /// out until freed.
   ffi.Pointer<ffi.Void> _own = ffi.nullptr;
+
+  /// Its slot in the nursery while there, else -1.
+  int _slot = -1;
 
   _Object(this._raw, bool owned, bool checked) : _owned = owned, _counted = !(owned && checked);
 
   String get _type;
 
-  /// Free the handle and detach its finalizer.
-  void _free();
+  /// Free a counted one's handle, and take back the garbage collector's hold of it.
+  void _free() {}
 
-  /// Drop the value of one Rust checks, throwing [StateError] if a call borrows it.
-  void _drop() {}
+  /// Give the garbage collector a hold of the handle, as the nursery pushes it out open.
+  void _register() {}
+
+  /// Drop the value of one Rust checks, then free its handle and take back the garbage
+  /// collector's hold of it, in one crossing: throwing [StateError], changing nothing, if a
+  /// call borrows it.
+  void _close() {}
 
   ffi.Pointer<ffi.Void> _hold() {
-    if (!_counted) return _raw;
     if (_closed) throw StateError('$_type is closed');
-    _holds++;
+    if (_counted) _holds++;
     return _raw;
   }
 
   void _release() {
-    if (_counted && --_holds == 0 && _owned) _free();
+    if (_counted && --_holds == 0 && _owned) {
+      _leave();
+      _free();
+    }
+  }
+
+  /// Take it out of the nursery, returning whether it was there: before its free, which
+  /// may run Dart that returns objects into the nursery meanwhile.
+  bool _leave() {
+    final slot = _slot;
+    if (slot < 0) return false;
+    _slot = -1;
+    _n.nursery.leave(slot);
+    return true;
   }
 
   /// Close it as [_Object] says; again, it does nothing.
   void close() {
-    if (!_counted) return _drop();
     if (_closed) return;
+    if (!_counted) {
+      final nursed = _leave();
+      try {
+        _close();
+      } catch (_) {
+        // Still open, and out of the nursery, so the garbage collector's.
+        if (nursed) _register();
+        rethrow;
+      }
+      _closed = true;
+      return;
+    }
     if (_holds != 1) throw StateError('$_type: a handle is already borrowed');
     _closed = true;
     _release();
+  }
+}
+
+/// How many of the latest objects returned the nursery holds: one dropped unclosed is freed
+/// only once this many more were returned, so it bounds what a dropped object keeps of
+/// Rust's.
+const _nurseryLen = 64;
+
+/// The latest objects returned, oldest at [_next] once full: a close takes one out without
+/// the garbage collector's hold of its handle, which costs more than the rest of a return
+/// and close together, and one pushed out still open takes that hold then. Rust keeps a copy
+/// of each slot's handle and the C function freeing it, and frees what is still in them once
+/// the garbage collector finds the nursery unreachable, as when the isolate exits.
+final class _Nursery {
+  final List<_Object?> _held = List<_Object?>.filled(_nurseryLen, null);
+  int _next = 0;
+
+  /// What Rust keeps: the length, then each slot's handle, then each one's free function,
+  /// null while the slot is out.
+  late final ffi.Pointer<ffi.Pointer<ffi.Void>> _slots = _dartNursery(this, _nurseryLen);
+
+  /// Hold `object`, owned, whose handle `free` frees.
+  void push(_Object object, ffi.Pointer<ffi.Void> free) {
+    final i = _next;
+    _next = i + 1 == _nurseryLen ? 0 : i + 1;
+    final old = _held[i];
+    if (old != null) {
+      old._slot = -1;
+      old._register();
+    }
+    _held[i] = object;
+    object._slot = i;
+    final slots = _slots;
+    slots[1 + i] = object._raw;
+    slots[1 + _nurseryLen + i] = free;
+  }
+
+  void leave(int slot) {
+    _held[slot] = null;
+    _slots[1 + slot] = ffi.nullptr;
   }
 }
 
@@ -633,6 +705,9 @@ final class _Native {
   /// queued meanwhile, and the call reads it before any other can run, and a failure
   /// clears it.
   late final ffi.Pointer<ffi.Int32> status = _dartAlloc(4).cast<ffi.Int32>()..value = 0;
+
+  /// The latest objects returned.
+  late final _Nursery nursery = _Nursery();
   late final isolate.RawReceivePort _port;
   late final ffi.Pointer<ffi.Void> home;
 

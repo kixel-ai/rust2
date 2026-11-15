@@ -230,6 +230,13 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 			"ffi.Pointer<ffi.Void> p0",
 			"void",
 		),
+		(
+			"dart_nursery",
+			"ffi.Handle, ffi.Size",
+			"ffi.Pointer<ffi.Pointer<ffi.Void>>",
+			"Object p0, int p1",
+			"ffi.Pointer<ffi.Pointer<ffi.Void>>",
+		),
 		("dart_abort", "_Buf", "ffi.Void", "_Buf p0", "void"),
 		(
 			"status_message",
@@ -310,6 +317,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_alloc(len: usize) -> *mut c_void {{\n\tlet ptr = unsafe {{ malloc(len) }};\n\tif ptr.is_null() {{\n\t\tstd::alloc::handle_alloc_error(std::alloc::Layout::array::<u8>(len).expect(\"a length\"));\n\t}}\n\tptr\n}}\n\n\
 		#[unsafe(no_mangle)]\npub extern \"C\" fn {space}_buf(len: usize) -> rt::Buf {{\n\trt::Buf::vec(vec![0; len])\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_free(ptr: *mut c_void) {{\n\tunsafe {{ free(ptr) }}\n}}\n\n\
+		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_nursery(object: *mut c_void, len: usize) -> *mut *mut c_void {{\n\tunsafe {{ runtime::nursery(object, len) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_abort(text: rt::Buf) {{\n\trt::fail(\"dart\", unsafe {{ text.str(\"{space}_abort\") }})\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_reader_read(data: *mut c_void, buf: *mut u8, len: usize, n: *mut usize, err: *mut rt::Buf) -> bool {{\n\tunsafe {{ runtime::reader_read(data, buf, len, n, err) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_reader_seek(data: *mut c_void, whence: std::ffi::c_int, offset: i64, position: *mut u64, err: *mut rt::Buf) -> bool {{\n\tunsafe {{ runtime::reader_seek(data, whence, offset, position, err) }}\n}}\n\n{}",
@@ -877,18 +885,18 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The Dart functions owning a handle of the object `c`, whose C type is `handle`: one
-	/// giving the garbage collector a Dart object owning it to free it with, and one taking
-	/// that back and freeing it, serving the isolate meanwhile.
-	fn owned(&mut self, c: &str, handle: &Ty) -> (String, String) {
+	/// giving the garbage collector a Dart object owning it to free it with, the C function
+	/// freeing it, which the nursery keeps for the isolate's exit, and the one closing it,
+	/// serving the isolate meanwhile: of a checked value, its drop then its free, else its
+	/// free alone, each taking back the garbage collector's hold if it took one.
+	fn owned(&mut self, c: &str, handle: &Ty, checked: bool) -> Owned {
 		let bare = self.bare(c);
 		let space = &self.space;
 		let own = format!("{space}_own_{bare}");
-		let free = format!("{space}_free_{bare}");
 		let raw = rs(handle);
 		let _ = write!(
 			self.glue,
-			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {own}(object: *mut c_void, raw: *mut c_void) -> *mut c_void {{\n\t// The garbage collector's free runs with no isolate to serve.\n\tunsafe extern \"C\" fn finalize(_: *mut c_void, raw: *mut c_void) {{\n\t\tunsafe {{ crate::{c}_free(raw.cast()) }}\n\t}}\n\tunsafe {{ runtime::own(object, raw, finalize) }}\n}}\n\n\
-			#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {free}(home: *const c_void, own: *mut c_void, object: *mut c_void, raw: {raw}) {{\n\tunsafe {{ runtime::disown(own, object) }};\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || crate::{c}_free(raw)) }}\n}}\n\n"
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {own}(object: *mut c_void, raw: *mut c_void) -> *mut c_void {{\n\t// The garbage collector's free runs with no isolate to serve.\n\tunsafe extern \"C\" fn finalize(_: *mut c_void, raw: *mut c_void) {{\n\t\tunsafe {{ crate::{c}_free(raw.cast()) }}\n\t}}\n\tunsafe {{ runtime::own(object, raw, finalize) }}\n}}\n\n"
 		);
 		self.natives.insert(
 			own.clone(),
@@ -896,13 +904,46 @@ impl<'a> Gen<'a> {
 				"@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Handle, ffi.Pointer<ffi.Void>)>(symbol: '{own}')\nexternal ffi.Pointer<ffi.Void> _{own}(Object p0, ffi.Pointer<ffi.Void> p1);\n\n"
 			),
 		);
+		let freeing = format!("{space}_freeing_{bare}");
 		self.natives.insert(
-			free.clone(),
+			freeing.clone(),
 			format!(
-				"@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, ffi.Handle, ffi.Pointer<ffi.Void>)>(symbol: '{free}')\nexternal void _{free}(ffi.Pointer<ffi.Void> p0, ffi.Pointer<ffi.Void> p1, Object p2, ffi.Pointer<ffi.Void> p3);\n\n"
+				"@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(symbol: '{c}_free')\nexternal void _{freeing}(ffi.Pointer<ffi.Void> p0);\n\n"
 			),
 		);
-		(format!("_{own}"), format!("_{free}"))
+		let (close, glue, status) = match checked {
+			true => (
+				format!("{space}_close_{bare}"),
+				format!(
+					"let dropped = unsafe {{\n\t\thome.serve(move || {{\n\t\t\tcrate::{c}_drop(raw, status);\n\t\t\tlet dropped = *status == 0;\n\t\t\tif dropped {{\n\t\t\t\tcrate::{c}_free(raw);\n\t\t\t}}\n\t\t\tdropped\n\t\t}})\n\t}};\n\tif dropped && !own.is_null() {{\n\t\tunsafe {{ runtime::disown(own, object) }};\n\t}}"
+				),
+				(", status: *mut i32", ", ffi.Pointer<ffi.Int32>", ", ffi.Pointer<ffi.Int32> p4"),
+			),
+			false => (
+				format!("{space}_free_{bare}"),
+				format!(
+					"if !own.is_null() {{\n\t\tunsafe {{ runtime::disown(own, object) }};\n\t}}\n\tunsafe {{ home.serve(move || crate::{c}_free(raw)) }}"
+				),
+				("", "", ""),
+			),
+		};
+		let _ = write!(
+			self.glue,
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {close}(home: *const c_void, own: *mut c_void, object: *mut c_void, raw: {raw}{}) {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\t{glue}\n}}\n\n",
+			status.0
+		);
+		self.natives.insert(
+			close.clone(),
+			format!(
+				"@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, ffi.Handle, ffi.Pointer<ffi.Void>{})>(symbol: '{close}')\nexternal void _{close}(ffi.Pointer<ffi.Void> p0, ffi.Pointer<ffi.Void> p1, Object p2, ffi.Pointer<ffi.Void> p3{});\n\n",
+				status.1, status.2
+			),
+		);
+		Owned {
+			own: format!("_{own}"),
+			freeing: format!("_{freeing}"),
+			close: format!("_{close}"),
+		}
 	}
 
 	/// [`Self::served`] of a C function by name, parameters, and return.
@@ -1753,19 +1794,18 @@ impl<'a> Gen<'a> {
 			name: c.clone(),
 			constant: false,
 		};
-		let (own, free) = self.owned(&c, &owner);
 		let mut members = vec!["close".to_string()];
 		let checked = abi.checked[i];
+		let Owned { own, freeing, close } = self.owned(&c, &owner, checked);
+		let close = match checked {
+			true => format!(
+				"\t@override\n\tvoid _close() {{\n\t\tfinal s_ = _n.status;\n\t\t{close}(_n.home, _own, this, _raw, s_);\n\t\t_status(s_.value, '{c}_drop');\n\t}}\n"
+			),
+			false => format!("\t@override\n\tvoid _free() => {close}(_n.home, _own, this, _raw);\n"),
+		};
 		let mut body = vec![format!(
-			"\t{name}._(ffi.Pointer<ffi.Void> raw) : super(raw, true, {checked}) {{\n\t\t_own = {own}(this, raw);\n\t}}\n\n\t{name}._lent(ffi.Pointer<ffi.Void> raw) : super(raw, false, {checked});\n\n\t@override\n\tString get _type => '{name}';\n\n\t@override\n\tvoid _free() => {free}(_n.home, _own, this, _raw);\n"
+			"\t{name}._(ffi.Pointer<ffi.Void> raw) : super(raw, true, {checked}) {{\n\t\t_n.nursery.push(this, ffi.Native.addressOf<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>({freeing}).cast());\n\t}}\n\n\t{name}._lent(ffi.Pointer<ffi.Void> raw) : super(raw, false, {checked});\n\n\t@override\n\tString get _type => '{name}';\n\n\t@override\n\tvoid _register() => _own = {own}(this, _raw);\n\n{close}"
 		)];
-		if checked {
-			let what = format!("{c}_drop");
-			let f = self.served_fn(&what, vec![owner.clone(), Ty::Out(Box::new(Ty::Status))], Ty::Void);
-			body.push(format!(
-				"\t@override\n\tvoid _drop() {{\n\t\tfinal s_ = _n.status;\n\t\t{f}(_n.home, _raw, s_);\n\t\t_status(s_.value, '{what}');\n\t}}\n"
-			));
-		}
 		self.traits(&ty, &c, object.traits, &mut body, &mut members);
 		self.methods(&object.methods, &owner, &ty, &mut body, &mut members);
 		self.distinct(&rust, &members);
@@ -2534,6 +2574,16 @@ impl<'a> Gen<'a> {
 			}
 		}
 	}
+}
+
+/// The Dart names of what owns an object's handle, as [`Gen::owned`] makes them.
+struct Owned {
+	/// Gives the garbage collector a hold of it.
+	own: String,
+	/// The C function freeing it.
+	freeing: String,
+	/// Closes it.
+	close: String,
 }
 
 /// How a function throws its error.
