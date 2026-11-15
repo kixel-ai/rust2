@@ -15,5 +15,6 @@ frame's bytes take.
 - Generalize `flat_in` in `ffi/src/kotlin.rs` to an `Option` of a record or an opaque value,
   as `flat_out` already returns one: a `jboolean`, then the value's scalars, zero for `None`,
   within the 255 JVM slots a method takes, and encoded past them.
+- Kept by the maintainer on 2026-11-14 ([decision](https://github.com/kixel-ai/rust2/pull/820#issuecomment-6886625138)).
 - Measure the write's wall time, CPU time, and allocated bytes against main's, interleaved.
 

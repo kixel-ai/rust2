@@ -1266,8 +1266,9 @@ impl Gap {
 	}
 }
 
-/// A value named as Kotlin's `LongArray`, which holds a returned value's words, with a method named
-/// as C++'s member holding its bytes: each generator keeps its own apart.
+/// A value named as Kotlin's `LongArray`, which holds a returned value's words, with methods named
+/// as C++'s member holding its bytes and Kotlin's `also`, which makes a value past a word: each
+/// generator keeps its own apart.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LongArray {
 	words: [u64; 2],
@@ -1281,6 +1282,28 @@ impl LongArray {
 	pub fn c_(&self) -> u64 {
 		self.words[0].wrapping_add(self.words[1])
 	}
+
+	/// Calls `f` with its low word.
+	pub fn also(&self, f: impl Fn(u64)) {
+		f(self.words[0])
+	}
+}
+
+/// A type named as the annotation Kotlin's fields take, which the binding qualifies.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct JvmField {
+	pub n: u32,
+}
+
+/// A type named as the annotation Kotlin's static methods take, which the binding qualifies.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct JvmStatic {
+	pub n: u32,
+}
+
+/// The sum of a `JvmField` and a `JvmStatic`.
+pub fn jvm_sum(field: JvmField, method: JvmStatic) -> u32 {
+	field.n.wrapping_add(method.n)
 }
 
 /// A value of 128 words, past what a JVM method's 255 slots hold as `long`s: Kotlin makes
