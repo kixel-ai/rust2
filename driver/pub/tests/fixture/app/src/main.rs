@@ -74,6 +74,26 @@ fn tracked() -> u32 {
 /// before it shifts.
 pub fn at_caller() -> u32 { tracked() }
 
+/// Restored: the call goes through a reference to the function.
+pub fn at_reference() -> u32 { (&tracked)() }
+
+struct Odd;
+
+impl PartialEq for Odd {
+	#[track_caller]
+	fn eq(&self, _: &Self) -> bool {
+		std::panic::Location::caller().column() % 2 == 0
+	}
+}
+
+/// Restored: `==` calls an `eq` that reads its column.
+pub fn compare() -> bool { Odd == Odd }
+
+/// Restored: a pointer to `located` reports where it is defined, which narrowing shifts.
+pub mod shim { #[track_caller] pub fn located() -> u32 {
+	std::panic::Location::caller().column()
+} }
+
 /// Narrowed: narrowing shifts no line.
 pub fn at_line() -> u32 {
 	line!()
@@ -263,6 +283,10 @@ fn main() {
 	println!("kept through {}", kept_through());
 	println!("column {}", at_column());
 	println!("caller column {}", at_caller());
+	println!("reference column {}", at_reference());
+	println!("compare {}", compare());
+	let located: fn() -> u32 = shim::located;
+	println!("located column {}", located());
 	println!("line {}", at_line());
 	println!("made {}", made());
 	println!("shadowed {}", shadowed());

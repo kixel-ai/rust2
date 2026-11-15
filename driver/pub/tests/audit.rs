@@ -117,6 +117,9 @@ fn fixture() {
 	expect("at_column", "restored", "crate-only");
 	// So does `Location::caller()`, which a `#[track_caller]` function and a panic read.
 	expect("at_caller", "restored", "crate-only");
+	expect("at_reference", "restored", "crate-only");
+	expect("compare", "restored", "crate-only");
+	expect("shim", "restored", "crate-only");
 	expect("at_line", "narrowed", "crate-only");
 	// A macro that changes only which binding a name picks.
 	expect("shadowed", "restored", "crate-only");

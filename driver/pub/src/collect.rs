@@ -19,6 +19,7 @@ use rustc_hir::{self as hir, ItemKind, Node, UseKind};
 use rustc_interface::interface::{Compiler, Config};
 use rustc_middle::hir::nested_filter;
 use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
+use rustc_middle::ty::adjustment::{Adjust, DerefAdjustKind};
 use rustc_middle::ty::{self, Ty, TyCtxt, TypeckResults};
 use rustc_span::hygiene::{ExpnId, ExpnKind, MacroKind};
 use rustc_span::source_map::{FileLoader, RealFileLoader};
@@ -485,6 +486,15 @@ impl<'tcx> Collector<'tcx> {
 					);
 				}
 			}
+			// A `#[track_caller]` function's address reports where it is defined.
+			if let DefKind::Fn | DefKind::AssocFn = tcx.def_kind(owner)
+				&& tcx
+					.codegen_fn_attrs(owner)
+					.flags
+					.contains(CodegenFnAttrFlags::TRACK_CALLER)
+			{
+				std::hash::Hash::hash(&caller_location(tcx, tcx.def_span(owner)), &mut hasher);
+			}
 			let mut expansions = FxHashSet::default();
 			expansions.extend(self.expansion(tcx.expn_that_defined(owner.to_def_id())));
 			for (local, node) in tcx.hir_owner_nodes(owner).nodes.iter_enumerated() {
@@ -509,12 +519,10 @@ impl<'tcx> Collector<'tcx> {
 				// And where an expression that reports its caller's location is, by the
 				// line and column of its outermost macro call, as rustc computes them:
 				// `Location::caller()` in a `#[track_caller]` function and a panic read it.
-				if let Node::Expr(expr) = node.node
-					&& reports_location(tcx, hir::HirId { owner, local_id: local }, expr)
-				{
-					let topmost = span.ctxt().outer_expn().expansion_cause().unwrap_or(span);
-					let at = tcx.sess.source_map().lookup_char_pos(topmost.lo());
-					std::hash::Hash::hash(&(local, at.line, at.col_display), &mut hasher);
+				if let Node::Expr(expr) = node.node {
+					for at in locations(tcx, hir::HirId { owner, local_id: local }, expr) {
+						std::hash::Hash::hash(&(local, caller_location(tcx, at)), &mut hasher);
+					}
 				}
 				expansions.extend(self.expansion(span.ctxt().outer_expn()));
 			}
@@ -994,35 +1002,66 @@ impl<'tcx> Collector<'tcx> {
 	}
 }
 
-/// Whether `expr` reports where it is when it runs: a call of a `#[track_caller]` function,
-/// or of one only monomorphization picks, and, outside a constant's or static's initializer,
-/// where a panic is a compile error instead, an index or an operator that may panic.
-fn reports_location<'tcx>(tcx: TyCtxt<'tcx>, id: hir::HirId, expr: &hir::Expr<'tcx>) -> bool {
+/// The line and column a caller location reports for `span`: those of its outermost macro
+/// call, as rustc computes them.
+fn caller_location(tcx: TyCtxt<'_>, span: rustc_span::Span) -> (usize, usize) {
+	let topmost = span.ctxt().outer_expn().expansion_cause().unwrap_or(span);
+	let at = tcx.sess.source_map().lookup_char_pos(topmost.lo());
+	(at.line, at.col_display)
+}
+
+/// Where `expr` reports its location when it runs: at each overloaded deref it applies and
+/// each call, overloaded operator included, of a `#[track_caller]` function or of one only
+/// monomorphization picks; and, outside a constant's or static's initializer, where a panic
+/// is a compile error instead, at a builtin index or operator that may panic.
+fn locations<'tcx>(tcx: TyCtxt<'tcx>, id: hir::HirId, expr: &hir::Expr<'tcx>) -> Vec<rustc_span::Span> {
 	let body = tcx.hir_enclosing_body_owner(id);
 	let typeck = tcx.typeck(body);
-	let callee = match expr.kind {
-		hir::ExprKind::Call(callee, _) => match *typeck.expr_ty(callee).kind() {
+	let typing_env = ty::TypingEnv::post_analysis(tcx, body);
+	let tracks = |def: DefId, args: ty::GenericArgs<'tcx>| {
+		// A type-relative path, as `Self::One`, may be a constant or constructor instead.
+		if !matches!(tcx.def_kind(def), DefKind::Fn | DefKind::AssocFn) {
+			return false;
+		}
+		match ty::Instance::try_resolve(tcx, typing_env, def, tcx.erase_and_anonymize_regions(args)) {
+			Ok(Some(instance)) => instance.def.requires_caller_location(tcx),
+			_ => true,
+		}
+	};
+	let mut spans = Vec::new();
+	let mut source = typeck.expr_ty(expr);
+	for adjustment in typeck.expr_adjustments(expr) {
+		if let Adjust::Deref(DerefAdjustKind::Overloaded(deref)) = adjustment.kind
+			&& tracks(deref.method_call(tcx), tcx.mk_args(&[source.into()]))
+		{
+			spans.push(deref.span);
+		}
+		source = adjustment.target;
+	}
+	let call = match expr.kind {
+		hir::ExprKind::Call(callee, _) => match *typeck.expr_ty_adjusted(callee).kind() {
 			ty::FnDef(def, args) => Some((def, args.skip_binder())),
 			_ => None,
 		},
-		hir::ExprKind::MethodCall(..) => typeck
-			.type_dependent_def_id(expr.hir_id)
-			.map(|def| (def, typeck.node_args(expr.hir_id))),
 		_ => None,
-	};
-	if let Some((def, args)) = callee {
-		let args = tcx.erase_and_anonymize_regions(args);
-		return match ty::Instance::try_resolve(tcx, ty::TypingEnv::post_analysis(tcx, body), def, args) {
-			Ok(Some(instance)) => instance.def.requires_caller_location(tcx),
-			_ => true,
-		};
+	}
+	.or_else(|| {
+		typeck
+			.type_dependent_def_id(expr.hir_id)
+			.map(|def| (def, typeck.node_args(expr.hir_id)))
+	});
+	if let Some((def, args)) = call {
+		if tracks(def, args) {
+			spans.push(expr.span);
+		}
+		return spans;
 	}
 	if let Some(rustc_hir::ConstContext::Const { .. } | rustc_hir::ConstContext::Static(_)) =
 		tcx.hir_body_const_context(body)
 	{
-		return false;
+		return spans;
 	}
-	match expr.kind {
+	let builtin = match expr.kind {
 		hir::ExprKind::Index(..) => true,
 		hir::ExprKind::Unary(hir::UnOp::Neg, operand) => !matches!(operand.kind, hir::ExprKind::Lit(_)),
 		hir::ExprKind::Binary(op, ..) => matches!(
@@ -1046,7 +1085,11 @@ fn reports_location<'tcx>(tcx: TyCtxt<'tcx>, id: hir::HirId, expr: &hir::Expr<'t
 				| hir::AssignOpKind::ShrAssign
 		),
 		_ => false,
+	};
+	if builtin {
+		spans.push(expr.span);
 	}
+	spans
 }
 
 /// The definition a type is of, as an impl's header names it: an ADT, an extern type, or
