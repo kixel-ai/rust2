@@ -40,9 +40,15 @@ export function putU16s(out: rs.ByteVec, v: rs.Slice<rs.u16>): void {
 }
 
 export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const words: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
-		return rs.u16Mul(_2 as rs.u16, 3);
-	}), undefined, 2, true);
+	const s3 = rs.byteSliceView(data);
+	let front = 0;
+	let back = s3.length;
+	const v8: rs.Vec<rs.u16> = rs.vecWithCapacity(back - front, 2);
+	while (!(front >= back)) {
+		const x3 = s3[front++];
+		v8.items.push(rs.u16Mul(x3 as rs.u16, 3));
+	}
+	const words: rs.Vec<rs.u16> = v8;
 	const at: (a0: rs.usize) => rs.u8 = (i3: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i3), 0);
 	};
@@ -51,15 +57,21 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const v: rs.Vec<rs.u16> = rs.vecFrom(words.items.slice());
 		const seen: rs.Vec<rs.u16> = new rs.Vec();
 		rs.vecRetain(v, (_233: rs.u16): boolean => {
-			const x4: rs.u16 = _233;
-			seen.items.push(x4);
-			return rs.u16Rem(x4, 4) !== 0;
+			const x19: rs.u16 = _233;
+			seen.items.push(x19);
+			return rs.u16Rem(x19, 4) !== 0;
 		});
 		putU16s(out, rs.sliceFrom(seen.items));
 		putU16s(out, rs.sliceFrom(v.items));
-		const pairs: rs.Vec<[rs.u16, rs.u16]> = rs.iterToVec(rs.iterMap(rs.iterSlice(words.items), (_237: rs.u16): [rs.u16, rs.u16] => {
-			return [_237, 0] as [rs.u16, rs.u16];
-		}), undefined, 4, true);
+		const s17 = words.items;
+		let front15 = 0;
+		let back15 = s17.length;
+		const v24: rs.Vec<[rs.u16, rs.u16]> = rs.vecWithCapacity(back15 - front15, 4);
+		while (!(front15 >= back15)) {
+			const y17: [rs.u16, rs.u16] = [s17[front15++], 0];
+			v24.items.push(y17);
+		}
+		const pairs: rs.Vec<[rs.u16, rs.u16]> = v24;
 		rs.vecRetain(pairs, (p3: [rs.u16, rs.u16]): boolean => {
 			p3[1] = rs.u16Div(p3[0], 2);
 			return rs.u16Rem(p3[0], 3) === 0;
@@ -67,18 +79,24 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		for (const _33 of pairs.items) {
 			putU16s(out, rs.sliceFrom([_33[0], _33[1]]));
 		}
-		const names: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_238: rs.u8): rs.String => {
-			return text(rs.byteSliceFrom(Uint8Array.of(_238)));
-		}), undefined, 12, true);
-		rs.vecRetain(names, (s3: rs.String): boolean => {
-			return s3.len > 1;
+		const s18 = rs.byteSliceView(data);
+		let front16 = 0;
+		let back16 = s18.length;
+		const v25: rs.Vec<rs.String> = rs.vecWithCapacity(back16 - front16, 12);
+		while (!(front16 >= back16)) {
+			const y18: rs.String = text(rs.byteSliceFrom(Uint8Array.of(s18[front16++])));
+			v25.items.push(y18);
+		}
+		const names: rs.Vec<rs.String> = v25;
+		rs.vecRetain(names, (s19: rs.String): boolean => {
+			return s19.len > 1;
 		});
 		rs.byteVecPush(out, names.items.length & 0xff);
 		const v2: rs.Vec<rs.u16> = rs.vecFrom(words.items.slice());
 		while (true) {
-			const _55: rs.u16 | undefined = rs.vecPopIfMut(v2, (x5: rs.Place<rs.u16>): boolean => {
-				x5.v = x5.v ^ 1;
-				return rs.u16Rem(x5.v, 4) !== 0;
+			const _55: rs.u16 | undefined = rs.vecPopIfMut(v2, (x22: rs.Place<rs.u16>): boolean => {
+				x22.v = x22.v ^ 1;
+				return rs.u16Rem(x22.v, 4) !== 0;
 			});
 			if (_55 !== undefined) {
 				putU16s(out, rs.sliceFrom([_55]));
@@ -88,9 +106,9 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		putU16s(out, rs.sliceFrom(v2.items));
 		while (true) {
-			const _66: rs.String | undefined = rs.vecPopIf(names, (s4: rs.String): boolean => {
-				rs.stringPush(s4, 46);
-				return rs.usizeRem(s4.len, 3) !== 0;
+			const _66: rs.String | undefined = rs.vecPopIf(names, (s20: rs.String): boolean => {
+				rs.stringPush(s20, 46);
+				return rs.usizeRem(s20.len, 3) !== 0;
 			});
 			if (_66 !== undefined) {
 				put(out, _66.v);
@@ -105,34 +123,54 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const stop: rs.u16 = rs.u16Mul(at(part8) as rs.u16, 3);
 		if ((kind & 128) !== 0) {
 			rs.vecRetain(v2, (_240: rs.u16): boolean => {
-				const x6: rs.u16 = _240;
-				if (!(x6 === stop)) {
+				const x23: rs.u16 = _240;
+				if (!(x23 === stop)) {
 					return true;
 				}
-				rs.panicFmt(["retain stopped at ", (f: rs.Formatter) => rs.u16Display(x6, f)]);
+				rs.panicFmt(["retain stopped at ", (f: rs.Formatter) => rs.u16Display(x23, f)]);
 			});
 		}
 	} else if (_8 === 1) {
-		const v3: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_224: rs.u8): rs.u16 => {
-			return rs.u8Rem(_224, 4) as rs.u16;
-		}), undefined, 2, true);
+		const s13 = rs.byteSliceView(data);
+		let front11 = 0;
+		let back11 = s13.length;
+		const v20: rs.Vec<rs.u16> = rs.vecWithCapacity(back11 - front11, 2);
+		while (!(front11 >= back11)) {
+			const x15 = s13[front11++];
+			v20.items.push(rs.u8Rem(x15, 4) as rs.u16);
+		}
+		const v3: rs.Vec<rs.u16> = v20;
 		rs.vecDedupBy(v3, rs.same);
 		putU16s(out, rs.sliceFrom(v3.items));
 		const _104: (a0: rs.u16) => Named.Named = (w8: rs.u16): Named.Named => {
 			return { id: w8, name: text(rs.byteSliceFrom(Uint8Array.of(rs.u8Div(w8 & 0xff, 16)))) };
 		};
-		const keyed: rs.Vec<Named.Named> = rs.iterToVec(rs.iterMap(rs.iterSlice(words.items), (_225: rs.u16): Named.Named => {
-			return _104(_225);
-		}), undefined, 16, true);
+		const s14 = words.items;
+		let front12 = 0;
+		let back12 = s14.length;
+		const v21: rs.Vec<Named.Named> = rs.vecWithCapacity(back12 - front12, 16);
+		while (!(front12 >= back12)) {
+			const x16 = s14[front12++];
+			const y14: Named.Named = _104(x16);
+			v21.items.push(y14);
+		}
+		const keyed: rs.Vec<Named.Named> = v21;
 		rs.vecDedupByKey(keyed, (n3: Named.Named): rs.u16 => {
 			return rs.u16Div(n3.id, 24);
 		}, rs.same);
 		for (const _117 of keyed.items) {
 			putU16s(out, rs.sliceFrom([_117.id]));
 		}
-		const tested: rs.Vec<Named.Named> = rs.iterToVec(rs.iterMap(rs.iterSlice(words.items), (_226: rs.u16): Named.Named => {
-			return _104(_226);
-		}), undefined, 16, true);
+		const s15 = words.items;
+		let front13 = 0;
+		let back13 = s15.length;
+		const v22: rs.Vec<Named.Named> = rs.vecWithCapacity(back13 - front13, 16);
+		while (!(front13 >= back13)) {
+			const x17 = s15[front13++];
+			const y15: Named.Named = _104(x17);
+			v22.items.push(y15);
+		}
+		const tested: rs.Vec<Named.Named> = v22;
 		const seen2: rs.Vec<rs.u16> = new rs.Vec();
 		rs.vecDedupBy(tested, (a3: Named.Named, b10: Named.Named): boolean => {
 			seen2.items.push(a3.id);
@@ -143,9 +181,15 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		for (const _144 of tested.items) {
 			put(out, _144.name.v);
 		}
-		const names2: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_227: rs.u8): rs.String => {
-			return text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(_227, 3))));
-		}), undefined, 12, true);
+		const s16 = rs.byteSliceView(data);
+		let front14 = 0;
+		let back14 = s16.length;
+		const v23: rs.Vec<rs.String> = rs.vecWithCapacity(back14 - front14, 12);
+		while (!(front14 >= back14)) {
+			const y16: rs.String = text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(s16[front14++], 3))));
+			v23.items.push(y16);
+		}
+		const names2: rs.Vec<rs.String> = v23;
 		rs.vecDedupBy(names2, rs.eqStr);
 		rs.byteVecPush(out, names2.items.length & 0xff);
 	} else if (_8 === 2) {
@@ -157,9 +201,18 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return rs.cmp(b6, a);
 		}), 2, true, true);
 		putU16s(out, rs.sliceFrom(v5.items));
-		const pairs2: rs.Vec<[rs.u16, rs.u16]> = rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(words.items)), (_218: [rs.usize, rs.u16]): [rs.u16, rs.u16] => {
-			return [rs.u16Rem(_218[1], 5), _218[0] & 0xffff] as [rs.u16, rs.u16];
-		}), undefined, 4, true);
+		const s10 = words.items;
+		let front8 = 0;
+		let back8 = s10.length;
+		let count = 0;
+		const v17: rs.Vec<[rs.u16, rs.u16]> = rs.vecWithCapacity(back8 - front8, 4);
+		while (!(front8 >= back8)) {
+			const x11 = s10[front8++];
+			const i6 = count++;
+			const y9: [rs.u16, rs.u16] = [rs.u16Rem(x11, 5), i6 & 0xffff];
+			v17.items.push(y9);
+		}
+		const pairs2: rs.Vec<[rs.u16, rs.u16]> = v17;
 		rs.sliceSort(rs.sliceFrom(pairs2.items), rs.keyLt((p2: [rs.u16, rs.u16]): rs.u16 => {
 			return p2[0];
 		}, rs.lt), 4, true);
@@ -174,29 +227,47 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		for (const _205 of pairs2.items) {
 			putU16s(out, rs.sliceFrom([_205[0], _205[1]]));
 		}
-		rs.sliceSort(rs.sliceFrom(pairs2.items), rs.cmpLt((x3: [rs.u16, rs.u16], y: [rs.u16, rs.u16]): rs.Ordering => {
-			return rs.cmp(y[1], x3[1]);
+		rs.sliceSort(rs.sliceFrom(pairs2.items), rs.cmpLt((x12: [rs.u16, rs.u16], y10: [rs.u16, rs.u16]): rs.Ordering => {
+			return rs.cmp(y10[1], x12[1]);
 		}), 4, true);
 		for (const _222 of pairs2.items) {
 			putU16s(out, rs.sliceFrom([_222[0], _222[1]]));
 		}
-		const options: rs.Vec<rs.u16 | undefined> = rs.iterToVec(rs.iterMap(rs.iterSlice(words.items), (_221: rs.u16): rs.u16 | undefined => {
+		const s11 = words.items;
+		let front9 = 0;
+		let back9 = s11.length;
+		const f10 = (_221: rs.u16): rs.u16 | undefined => {
 			const w7: rs.u16 = _221;
 			if (!(rs.u16Rem(w7, 2) === 0)) {
 				return w7;
 			}
 			return undefined;
-		}), undefined, 4, true);
+		};
+		const v18: rs.Vec<rs.u16 | undefined> = rs.vecWithCapacity(back9 - front9, 4);
+		while (!(front9 >= back9)) {
+			const y11: rs.u16 | undefined = f10(s11[front9++]);
+			v18.items.push(y11);
+		}
+		const options: rs.Vec<rs.u16 | undefined> = v18;
 		rs.sliceSortUnstable(rs.sliceFrom(options.items), rs.cmpLt(rs.cmpOption(rs.cmp)), 4, true, true);
 		for (const _244 of options.items) {
 			putU16s(out, rs.sliceFrom([option_mapOr$1wei0sy(_244, 65535, (o: rs.u16): rs.u16 => {
 				return o;
 			})]));
 		}
-		const names3: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_223: rs.u8): rs.String => {
+		const s12 = rs.byteSliceView(data);
+		let front10 = 0;
+		let back10 = s12.length;
+		const f11 = (_223: rs.u8): rs.String => {
 			const b8: rs.u8 = _223;
 			return text(rs.byteSliceFrom(Uint8Array.of(b8, rs.u8Div(b8, 16))));
-		}), undefined, 12, true);
+		};
+		const v19: rs.Vec<rs.String> = rs.vecWithCapacity(back10 - front10, 12);
+		while (!(front10 >= back10)) {
+			const y12: rs.String = f11(s12[front10++]);
+			v19.items.push(y12);
+		}
+		const names3: rs.Vec<rs.String> = v19;
 		rs.sliceSort(rs.sliceFrom(names3.items), rs.cmpLt(rs.cmpStr), 12, true);
 		for (const _263 of names3.items) {
 			put(out, _263.v);
@@ -204,9 +275,15 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_8 === 3) {
 		const v6: rs.Vec<rs.u16> = rs.vecFrom(words.items.slice());
 		putU16s(out, rs.sliceFrom([option_unwrapOr$1szdyfq(rs.sliceLast(rs.sliceFrom(v6.items)), 65535)]));
-		const runs: rs.Vec<[rs.u16, rs.u16 | undefined]> = rs.iterToVec(rs.iterMap(rs.iterSlice(words.items), (_210: rs.u16): [rs.u16, rs.u16 | undefined] => {
-			return [_210, undefined] as [rs.u16, rs.u16 | undefined];
-		}), undefined, 6, true);
+		const s8 = words.items;
+		let front6 = 0;
+		let back6 = s8.length;
+		const v15: rs.Vec<[rs.u16, rs.u16 | undefined]> = rs.vecWithCapacity(back6 - front6, 6);
+		while (!(front6 >= back6)) {
+			const y7: [rs.u16, rs.u16 | undefined] = [s8[front6++], undefined];
+			v15.items.push(y7);
+		}
+		const runs: rs.Vec<[rs.u16, rs.u16 | undefined]> = v15;
 		const _285: [rs.u16, rs.u16 | undefined] | undefined = rs.sliceLast(rs.sliceFrom(runs.items));
 		if (_285 !== undefined) {
 			_285[1] = _285[0];
@@ -220,10 +297,19 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.sliceReverse(rs.sliceFrom(v6.items));
 		putU16s(out, rs.sliceFrom(v6.items));
-		const named: rs.Vec<Named.Named> = rs.iterToVec(rs.iterMap(rs.iterSlice(words.items), (_216: rs.u16): Named.Named => {
+		const s9 = words.items;
+		let front7 = 0;
+		let back7 = s9.length;
+		const f8 = (_216: rs.u16): Named.Named => {
 			const w5: rs.u16 = _216;
 			return { id: w5, name: text(rs.byteSliceFrom(Uint8Array.of(w5 & 0xff))) };
-		}), undefined, 16, true);
+		};
+		const v16: rs.Vec<Named.Named> = rs.vecWithCapacity(back7 - front7, 16);
+		while (!(front7 >= back7)) {
+			const y8: Named.Named = f8(s9[front7++]);
+			v16.items.push(y8);
+		}
+		const named: rs.Vec<Named.Named> = v16;
 		const probe: Named.Named = { id: rs.u16Mul(at(1) as rs.u16, 3), name: text(rs.byteSliceFrom(Uint8Array.of(rs.u8WrappingMul(at(1), 3)))) };
 		rs.byteVecPush(out, rs.sliceContains(rs.sliceFrom(named.items), probe, Named.eq$cmp_PartialEq) ? 1 : 0);
 		rs.byteVecPush(out, rs.sliceContains(rs.sliceFrom(words.items), rs.u16Mul(at(2) as rs.u16, 3), rs.same) ? 1 : 0);
@@ -238,10 +324,19 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.sliceSwap(rs.sliceFrom(moved.items), i, j);
 		putU16s(out, rs.sliceFrom(moved.items));
 	} else if (_8 === 4) {
-		const named2: rs.Vec<Named.Named> = rs.iterToVec(rs.iterMap(rs.iterSlice(words.items), (_28: rs.u16): Named.Named => {
+		const s6 = words.items;
+		let front4 = 0;
+		let back4 = s6.length;
+		const f4 = (_28: rs.u16): Named.Named => {
 			const w3: rs.u16 = _28;
 			return { id: w3, name: text(rs.byteSliceFrom(Uint8Array.of(w3 & 0xff))) };
-		}), undefined, 16, true);
+		};
+		const v12: rs.Vec<Named.Named> = rs.vecWithCapacity(back4 - front4, 16);
+		while (!(front4 >= back4)) {
+			const y4: Named.Named = f4(s6[front4++]);
+			v12.items.push(y4);
+		}
+		const named2: rs.Vec<Named.Named> = v12;
 		const cloned: rs.Vec<Named.Named> = rs.vecFrom(named2.items.map(Named.clone$Clone));
 		rs.byteVecPush(out, rs.eqSlice(Named.eq$cmp_PartialEq)(cloned, named2) ? 1 : 0);
 		const changed: rs.Vec<Named.Named> = rs.vecFrom(named2.items.map(Named.clone$Clone));
@@ -256,12 +351,26 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _435: rs.Slice<Named.Named> = rs.sliceRange(rs.sliceFrom(named2.items), 0, part7);
 		rs.vecExtendFromSlice(changed, _435, 16, Named.clone$Clone);
 		rs.byteVecPush(out, changed.items.length & 0xff);
-		const nested: rs.Vec<rs.Vec<rs.u16>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_29: rs.u8): rs.Vec<rs.u16> => {
+		const s7 = rs.byteSliceView(data);
+		let front5 = 0;
+		let back5 = s7.length;
+		const f6 = (_29: rs.u8): rs.Vec<rs.u16> => {
 			const b5: rs.u8 = _29;
-			return rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(b5, 3)), (i4: rs.u8): rs.u16 => {
-				return rs.u16Add(i4 as rs.u16, b5 as rs.u16);
-			}), undefined, 2, true);
-		}), undefined, 12, true);
+			let start = 0;
+			let end = rs.u8Rem(b5, 3);
+			const v13: rs.Vec<rs.u16> = rs.vecWithCapacity(Math.max(end - start, 0), 2);
+			while (!(start >= end)) {
+				const x7 = start++;
+				v13.items.push(rs.u16Add(x7 as rs.u16, b5 as rs.u16));
+			}
+			return v13;
+		};
+		const v14: rs.Vec<rs.Vec<rs.u16>> = rs.vecWithCapacity(back5 - front5, 12);
+		while (!(front5 >= back5)) {
+			const y6: rs.Vec<rs.u16> = f6(s7[front5++]);
+			v14.items.push(y6);
+		}
+		const nested: rs.Vec<rs.Vec<rs.u16>> = v14;
 		const _453: rs.Vec<rs.Vec<rs.u16>> = rs.vecFrom(nested.items.map((a02: rs.Vec<rs.u16>): rs.Vec<rs.u16> => {
 			return rs.vecFrom(a02.items.slice());
 		}));
@@ -320,14 +429,27 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _604: (a0: rs.u16) => Named.Named = (w: rs.u16): Named.Named => {
 			return { id: w, name: text(rs.byteSliceFrom(Uint8Array.of(w & 0xff))) };
 		};
-		const _605: (a0: rs.Slice<Named.Named>) => rs.Vec<rs.u16> = (v8: rs.Slice<Named.Named>): rs.Vec<rs.u16> => {
-			return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(v8)), (n: Named.Named): rs.u16 => {
-				return n.id;
-			}), undefined, 2, true);
+		const _605: (a0: rs.Slice<Named.Named>) => rs.Vec<rs.u16> = (v9: rs.Slice<Named.Named>): rs.Vec<rs.u16> => {
+			const s4 = rs.sliceItems(v9);
+			let front2 = 0;
+			let back2 = s4.length;
+			const v10: rs.Vec<rs.u16> = rs.vecWithCapacity(back2 - front2, 2);
+			while (!(front2 >= back2)) {
+				const x4 = s4[front2++];
+				v10.items.push(x4.id);
+			}
+			return v10;
 		};
-		const v7: rs.Vec<Named.Named> = rs.iterToVec(rs.iterMap(rs.iterSlice(words.items), (_23: rs.u16): Named.Named => {
-			return _604(_23);
-		}), undefined, 16, true);
+		const s5 = words.items;
+		let front3 = 0;
+		let back3 = s5.length;
+		const v11: rs.Vec<Named.Named> = rs.vecWithCapacity(back3 - front3, 16);
+		while (!(front3 >= back3)) {
+			const x5 = s5[front3++];
+			const y3: Named.Named = _604(x5);
+			v11.items.push(y3);
+		}
+		const v7: rs.Vec<Named.Named> = v11;
 		const _615: rs.usize = rs.usizeRem(at(0) as rs.usize, 8);
 		const _621: Named.Named = _604(511);
 		rs.vecInsert(v7, _615, _621);
@@ -436,9 +558,15 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const at: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i2), 0);
 	};
-	const words: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
-		return rs.u16Mul(_2 as rs.u16, 3);
-	}), undefined, 2, true);
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v16: rs.Vec<rs.u16> = rs.vecWithCapacity(back - front, 2);
+	while (!(front >= back)) {
+		const x = s[front++];
+		v16.items.push(rs.u16Mul(x as rs.u16, 3));
+	}
+	const words: rs.Vec<rs.u16> = v16;
 	const prefixes: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterMap(new rs.Range(0, rs.min(data.length, 3)), (n3: rs.usize): rs.ByteSlice => {
 		return rs.byteSliceRange(data, 0, n3);
 	}), rs.iterSlice([data]));
@@ -480,9 +608,9 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, 254);
 		}
 		const halves: rs.Vec<rs.u16> = rs.vecFrom(words.items.slice());
-		rs.vecRetainMut(halves, (x2: rs.Place<rs.u16>): boolean => {
-			x2.v = rs.u16Div(x2.v, 2);
-			return rs.u16Rem(x2.v, 3) !== 0;
+		rs.vecRetainMut(halves, (x4: rs.Place<rs.u16>): boolean => {
+			x4.v = rs.u16Div(x4.v, 2);
+			return rs.u16Rem(x4.v, 3) !== 0;
 		});
 		putU16s(out, rs.sliceFrom(halves.items));
 	} else if (_15 === 1) {
@@ -492,9 +620,14 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (_61 === rs.DONE) {
 				break;
 			}
-			const v3: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(_61)), (b7: rs.u8): rs.u8 => {
-				return rs.u8Rem(b7, 4);
-			}), undefined, true);
+			const s2 = rs.byteSliceView(_61);
+			let front2 = 0;
+			let back2 = s2.length;
+			const v17: rs.ByteVec = rs.byteVecWithCapacity(back2 - front2);
+			while (!(front2 >= back2)) {
+				rs.byteVecPush(v17, rs.u8Rem(s2[front2++], 4));
+			}
+			const v3: rs.ByteVec = v17;
 			rs.byteVecDedup(v3);
 			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(v3));
 			const v4: rs.ByteVec = rs.byteSliceToByteVec(_61);
@@ -528,9 +661,9 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		});
 		putU16s(out, rs.sliceFrom(v6.items));
 		const v7: rs.Vec<rs.u16> = rs.vecFrom(words.items.slice());
-		rs.vecDedupByKeyMut(v7, (x: rs.Place<rs.u16>): rs.u16 => {
-			x.v = x.v ^ 1;
-			return rs.u16Div(x.v, 16);
+		rs.vecDedupByKeyMut(v7, (x3: rs.Place<rs.u16>): rs.u16 => {
+			x3.v = x3.v ^ 1;
+			return rs.u16Div(x3.v, 16);
 		}, rs.same);
 		putU16s(out, rs.sliceFrom(v7.items));
 	} else if (_15 === 2) {
@@ -713,9 +846,15 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const held: rs.Vec<rs.ByteVec> = rs.iterToVec(rs.iterMap(rs.byteSliceChunks(data, 2), (a020: rs.ByteSlice): rs.ByteVec => {
 			return rs.byteSliceToByteVec(a020);
 		}), undefined, 12, true);
-		rs.iterExtendBytes(out, rs.iterMap(rs.iterMap(rs.iterSlice(rs.iterToVec(rs.iterMap(rs.iterSlice(held.items), (a021: rs.ByteVec): rs.ByteVec => {
-			return rs.replaceIn(a021, new rs.ByteVec());
-		}), undefined, 12, true).items), (a022: rs.ByteVec): rs.usize => {
+		const s8 = held.items;
+		let front7 = 0;
+		let back7 = s8.length;
+		const v6: rs.Vec<rs.ByteVec> = rs.vecWithCapacity(back7 - front7, 12);
+		while (!(front7 >= back7)) {
+			const y6: rs.ByteVec = rs.replaceIn(s8[front7++], new rs.ByteVec());
+			v6.items.push(y6);
+		}
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterMap(rs.iterSlice(v6.items), (a022: rs.ByteVec): rs.usize => {
 			return a022.length;
 		}), (n2: rs.usize): rs.u8 => {
 			return n2 & 0xff;
@@ -725,12 +864,25 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}), (n3: rs.usize): rs.u8 => {
 			return n3 & 0xff;
 		}), undefined, true);
-		const texts: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_210: rs.u8): rs.String => {
-			return text(rs.byteSliceFrom(Uint8Array.of(_210)));
-		}), undefined, 12, true);
-		put(out, rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterRev(rs.iterSlice(texts.items)), (a024: rs.String): rs.String => {
-			return rs.replaceIn(a024, rs.stringNew());
-		}), undefined, 12, true).items, "").v);
+		const s9 = rs.byteSliceView(data);
+		let front8 = 0;
+		let back8 = s9.length;
+		const v7: rs.Vec<rs.String> = rs.vecWithCapacity(back8 - front8, 12);
+		while (!(front8 >= back8)) {
+			const y7: rs.String = text(rs.byteSliceFrom(Uint8Array.of(s9[front8++])));
+			v7.items.push(y7);
+		}
+		const texts: rs.Vec<rs.String> = v7;
+		const s10 = texts.items;
+		let front9 = 0;
+		let back9 = s10.length;
+		const v8: rs.Vec<rs.String> = rs.vecWithCapacity(back9 - front9, 12);
+		while (!(front9 >= back9)) {
+			back9--;
+			const y8: rs.String = rs.replaceIn(s10[back9], rs.stringNew());
+			v8.items.push(y8);
+		}
+		put(out, rs.strsJoin(v8.items, "").v);
 		put(out, rs.strsJoin(texts.items, "").v);
 	} else if (_5 === 1) {
 		let n: rs.u8 = at(0);
@@ -830,29 +982,45 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		})(x, y);
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(x));
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(y));
-		const texts2: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.String => {
-			return text(rs.byteSliceFrom(Uint8Array.of(_22)));
-		}), undefined, 12, true);
-		const others: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), (_26: rs.u8): rs.String => {
+		const s4 = rs.byteSliceView(data);
+		let front3 = 0;
+		let back3 = s4.length;
+		const v4: rs.Vec<rs.String> = rs.vecWithCapacity(back3 - front3, 12);
+		while (!(front3 >= back3)) {
+			const y4: rs.String = text(rs.byteSliceFrom(Uint8Array.of(s4[front3++])));
+			v4.items.push(y4);
+		}
+		const texts2: rs.Vec<rs.String> = v4;
+		const s5 = rs.byteSliceView(data);
+		let front4 = 0;
+		let back4 = s5.length;
+		const f4 = (_26: rs.u8): rs.String => {
 			const b6: rs.u8 = _26;
 			return text(rs.byteSliceFrom(Uint8Array.of(b6, b6)));
-		}), undefined, 12, true);
-		const s2 = texts2.items;
-		let front = 0;
-		let back = s2.length;
-		const s3 = others.items;
-		let front2 = 0;
-		let back2 = s3.length;
+		};
+		const v5: rs.Vec<rs.String> = rs.vecWithCapacity(back4 - front4, 12);
+		while (!(front4 >= back4)) {
+			back4--;
+			const y5: rs.String = f4(s5[back4]);
+			v5.items.push(y5);
+		}
+		const others: rs.Vec<rs.String> = v5;
+		const s6 = texts2.items;
+		let front5 = 0;
+		let back5 = s6.length;
+		const s7 = others.items;
+		let front6 = 0;
+		let back6 = s7.length;
 		let index = 0;
-		const end = Math.min(back - front, back2 - front2);
-		const f = (_27: [rs.String, rs.String]): undefined => {
+		const end = Math.min(back5 - front5, back6 - front6);
+		const f5 = (_27: [rs.String, rs.String]): undefined => {
 			apply$String_mut_String_unit_mem_swap_String((a07: rs.String, a16: rs.String): undefined => {
 				Object.assign(a07, rs.replaceIn(a16, a07));
 			}, _27[0], _27[1]);
 		};
 		while (!(index >= end)) {
 			index++;
-			f([s2[front++], s3[front2++]]);
+			f5([s6[front5++], s7[front6++]]);
 		}
 		put(out, rs.strsJoin(texts2.items, "").v);
 		put(out, rs.strsJoin(others.items, "").v);
@@ -861,16 +1029,28 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const logged: (a0: rs.u8) => Logged.Logged = (id: rs.u8): Logged.Logged => {
 			return new Logged.Logged(id, log);
 		};
-		const held3: rs.Vec<Logged.Logged> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Logged.Logged => {
-			return logged(_2);
-		}), undefined, 8, true);
-		const taken4: rs.Vec<Logged.Logged> = rs.iterToVec(rs.iterMap(rs.iterSlice(held3.items), (a0: Logged.Logged): Logged.Logged => {
-			return rs.replaceIn(a0, Logged.default$Default());
-		}), undefined, 8, true);
+		const s2 = rs.byteSliceView(data);
+		let front = 0;
+		let back = s2.length;
+		const v2: rs.Vec<Logged.Logged> = rs.vecWithCapacity(back - front, 8);
+		while (!(front >= back)) {
+			const x2 = s2[front++];
+			const y2: Logged.Logged = logged(x2);
+			v2.items.push(y2);
+		}
+		const held3: rs.Vec<Logged.Logged> = v2;
+		const s3 = held3.items;
+		let front2 = 0;
+		let back2 = s3.length;
+		const v3: rs.Vec<Logged.Logged> = rs.vecWithCapacity(back2 - front2, 8);
+		while (!(front2 >= back2)) {
+			const y3: Logged.Logged = rs.replaceIn(s3[front2++], Logged.default$Default());
+			v3.items.push(y3);
+		}
 		const _260: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
 		rs.byteVecPush(_260.value, 240);
 		rs.refMutRelease(_260);
-		rs.dropVec(taken4);
+		rs.dropVec(v3);
 		const _266: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
 		rs.byteVecPush(_266.value, 241);
 		rs.refMutRelease(_266);
@@ -1014,9 +1194,21 @@ export function resizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	};
 	const _12: rs.u8 = rs.u8Rem(kind, 6);
 	if (_12 === 0) {
-		const v: rs.Vec<Tracked.Tracked> = rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 6), (_229: rs.u8): Tracked.Tracked => {
-			return tracked(_229);
-		}), undefined, 8, true);
+		const s4 = rs.byteSliceView(data);
+		let front4 = 0;
+		let back4 = s4.length;
+		let take4 = 6;
+		const v11: rs.Vec<Tracked.Tracked> = rs.vecWithCapacity(Math.min(back4 - front4, take4), 8);
+		while (take4 !== 0) {
+			take4--;
+			if (front4 >= back4) {
+				break;
+			}
+			const x5 = s4[front4++];
+			const y4: Tracked.Tracked = tracked(x5);
+			v11.items.push(y4);
+		}
+		const v: rs.Vec<Tracked.Tracked> = v11;
 		const _22: rs.usize = rs.u8Rem(at(0), 10) as rs.usize;
 		const _28: Tracked.Tracked = tracked(160);
 		rs.vecResize(v, _22, _28, 8, Tracked.clone$Clone, rs.drop);
@@ -1055,9 +1247,15 @@ export function resizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const _121: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log);
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_121.value));
 		rs.refRelease(_121);
-		const v2: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_234: rs.u8): rs.u16 => {
-			return ((_234 as rs.u16) << 4) & 0xffff;
-		}), undefined, 2, true);
+		const s5 = rs.byteSliceView(data);
+		let front5 = 0;
+		let back5 = s5.length;
+		const v12: rs.Vec<rs.u16> = rs.vecWithCapacity(back5 - front5, 2);
+		while (!(front5 >= back5)) {
+			const x6 = s5[front5++];
+			v12.items.push(((x6 as rs.u16) << 4) & 0xffff);
+		}
+		const v2: rs.Vec<rs.u16> = v12;
 		const _127: rs.u8 = (kind >> 3) & 3;
 		if (_127 === 0) {
 			const _133: rs.usize = rs.usizeRem(at(5) as rs.usize, rs.usizeAdd(v2.items.length, 2));
@@ -1079,9 +1277,21 @@ export function resizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const _196: (a0: rs.u16) => Named.Named = (w2: rs.u16): Named.Named => {
 			return { id: w2, name: text(rs.byteSliceFrom(Uint8Array.of(w2 & 0xff))) };
 		};
-		const v3: rs.Vec<Named.Named> = rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4), (_225: rs.u8): Named.Named => {
-			return _196(_225 as rs.u16);
-		}), undefined, 16, true);
+		const s = rs.byteSliceView(data);
+		let front = 0;
+		let back = s.length;
+		let take = 4;
+		const v8: rs.Vec<Named.Named> = rs.vecWithCapacity(Math.min(back - front, take), 16);
+		while (take !== 0) {
+			take--;
+			if (front >= back) {
+				break;
+			}
+			const x2 = s[front++];
+			const y: Named.Named = _196(x2 as rs.u16);
+			v8.items.push(y);
+		}
+		const v3: rs.Vec<Named.Named> = v8;
 		const _205: rs.usize = rs.u8Rem(at(0), 8) as rs.usize;
 		const _211: Named.Named = _196(511);
 		rs.vecResize(v3, _205, _211, 16, Named.clone$Clone);
@@ -1100,17 +1310,39 @@ export function resizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			put(out, _236.name.v);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(_236.id)), undefined, true);
 		}
-		const pairs: rs.Vec<rs.u16[]> = rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 3), (_226: rs.u8): rs.u16[] => {
-			return [_226 as rs.u16, 0];
-		}), undefined, 4, true);
+		const s2 = rs.byteSliceView(data);
+		let front2 = 0;
+		let back2 = s2.length;
+		let take2 = 3;
+		const v9: rs.Vec<rs.u16[]> = rs.vecWithCapacity(Math.min(back2 - front2, take2), 4);
+		while (take2 !== 0) {
+			take2--;
+			if (front2 >= back2) {
+				break;
+			}
+			const y2: rs.u16[] = [s2[front2++] as rs.u16, 0];
+			v9.items.push(y2);
+		}
+		const pairs: rs.Vec<rs.u16[]> = v9;
 		const _252: rs.usize = rs.u8Rem(at(1), 7) as rs.usize;
 		const _258: rs.u16[] = [7, 7];
 		rs.vecResize(pairs, _252, _258, 4, copy$array_u16);
 		const _261: rs.RangeFrom<rs.usize> = new rs.RangeFrom(rs.usizeRem(at(2) as rs.usize, rs.usizeAdd(pairs.items.length, 1)), rs.usizeStep);
 		rs.vecExtendFromWithin(pairs, _261, 4, copy$array_u16);
-		const tuples: rs.Vec<[rs.u8, rs.u16]> = rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 3), (_227: rs.u8): [rs.u8, rs.u16] => {
-			return [_227, 1] as [rs.u8, rs.u16];
-		}), undefined, 4, true);
+		const s3 = rs.byteSliceView(data);
+		let front3 = 0;
+		let back3 = s3.length;
+		let take3 = 3;
+		const v10: rs.Vec<[rs.u8, rs.u16]> = rs.vecWithCapacity(Math.min(back3 - front3, take3), 4);
+		while (take3 !== 0) {
+			take3--;
+			if (front3 >= back3) {
+				break;
+			}
+			const y3: [rs.u8, rs.u16] = [s3[front3++], 1];
+			v10.items.push(y3);
+		}
+		const tuples: rs.Vec<[rs.u8, rs.u16]> = v10;
 		const _278: rs.usize = rs.u8Rem(at(3), 7) as rs.usize;
 		const _284: () => [rs.u8, rs.u16] = (): [rs.u8, rs.u16] => {
 			return [at(4), 2] as [rs.u8, rs.u16];
@@ -1571,9 +1803,21 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	};
 	const _12: rs.u8 = rs.u8Rem(kind, 5);
 	if (_12 === 0) {
-		const v: rs.Vec<Tracked.Tracked> = rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 8), (_222: rs.u8): Tracked.Tracked => {
-			return tracked(_222);
-		}), undefined, 8, true);
+		const s8 = rs.byteSliceView(data);
+		let front5 = 0;
+		let back6 = s8.length;
+		let take4 = 8;
+		const v9: rs.Vec<Tracked.Tracked> = rs.vecWithCapacity(Math.min(back6 - front5, take4), 8);
+		while (take4 !== 0) {
+			take4--;
+			if (front5 >= back6) {
+				break;
+			}
+			const x6 = s8[front5++];
+			const y6: Tracked.Tracked = tracked(x6);
+			v9.items.push(y6);
+		}
+		const v: rs.Vec<Tracked.Tracked> = v9;
 		const r: rs.Range<rs.usize> = within(at(0), at(1), v.items.length);
 		const captured2 = tracked(224);
 		const it: rs.Iter<Tracked.Tracked> = rs.vecExtractIf(v, r, rs.closure((t5: Tracked.Tracked): boolean => {
@@ -1601,13 +1845,19 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const _67: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log);
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_67.value));
 		rs.refRelease(_67);
-		const w: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_226: rs.u8): rs.u16 => {
-			return _226 as rs.u16;
-		}), undefined, 2, true);
+		const s9 = rs.byteSliceView(data);
+		let front6 = 0;
+		let back7 = s9.length;
+		const v10: rs.Vec<rs.u16> = rs.vecWithCapacity(back7 - front6, 2);
+		while (!(front6 >= back7)) {
+			const x7 = s9[front6++];
+			v10.items.push(x7 as rs.u16);
+		}
+		const w: rs.Vec<rs.u16> = v10;
 		const r2: rs.Range<rs.usize> = within(at(3), at(4), w.items.length);
-		const it2: rs.Iter<rs.u16> = rs.vecExtractIfMut(w, r2, (x: rs.Place<rs.u16>): boolean => {
-			x.v = rs.u16Add(x.v, 256);
-			return (x.v & 1) === 1;
+		const it2: rs.Iter<rs.u16> = rs.vecExtractIfMut(w, r2, (x8: rs.Place<rs.u16>): boolean => {
+			x8.v = rs.u16Add(x8.v, 256);
+			return (x8.v & 1) === 1;
 		});
 		let iterStart2: rs.i32 = 0;
 		const iterEnd2: rs.i32 = 3;
@@ -1619,10 +1869,24 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		for (const _108 of w.items) {
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(_108)), undefined, true);
 		}
-		const named2: rs.Vec<Named.Named> = rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 5), (_227: rs.u8): Named.Named => {
+		const s10 = rs.byteSliceView(data);
+		let front7 = 0;
+		let back8 = s10.length;
+		let take5 = 5;
+		const f8 = (_227: rs.u8): Named.Named => {
 			const b12: rs.u8 = _227;
 			return { id: b12 as rs.u16, name: text(rs.byteSliceFrom(Uint8Array.of(b12))) };
-		}), undefined, 16, true);
+		};
+		const v11: rs.Vec<Named.Named> = rs.vecWithCapacity(Math.min(back8 - front7, take5), 16);
+		while (take5 !== 0) {
+			take5--;
+			if (front7 >= back8) {
+				break;
+			}
+			const y8: Named.Named = f8(s10[front7++]);
+			v11.items.push(y8);
+		}
+		const named2: rs.Vec<Named.Named> = v11;
 		const taken: rs.Vec<Named.Named> = rs.iterToVec(rs.vecExtractIf(named2, undefined, (n9: Named.Named): boolean => {
 			rs.stringPush(n9.name, 43);
 			return rs.u16Rem(n9.id, 2) === 0;
@@ -1646,8 +1910,8 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([args27[0], args27[1]]).v))), undefined, true);
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.iterToByteVec(it3, "next")));
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(bytes));
-		rs.vecExtractIfMut(w, undefined, (x2: rs.Place<rs.u16>): boolean => {
-			return rs.u16Rem(x2.v, 2) === 0;
+		rs.vecExtractIfMut(w, undefined, (x10: rs.Place<rs.u16>): boolean => {
+			return rs.u16Rem(x10.v, 2) === 0;
 		}).next();
 		rs.byteVecPush(out, w.items.length & 0xff);
 		rs.byteVecExtractIf(bytes, undefined, (b14: rs.Place<rs.u8>): boolean => {
@@ -1661,9 +1925,21 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			}));
 		}
 	} else if (_12 === 1) {
-		const v2: rs.Vec<Tracked.Tracked> = rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 6), (_214: rs.u8): Tracked.Tracked => {
-			return tracked(_214);
-		}), undefined, 8, true);
+		const s6 = rs.byteSliceView(data);
+		let front3 = 0;
+		let back4 = s6.length;
+		let take2 = 6;
+		const v6: rs.Vec<Tracked.Tracked> = rs.vecWithCapacity(Math.min(back4 - front3, take2), 8);
+		while (take2 !== 0) {
+			take2--;
+			if (front3 >= back4) {
+				break;
+			}
+			const x3 = s6[front3++];
+			const y3: Tracked.Tracked = tracked(x3);
+			v6.items.push(y3);
+		}
+		const v2: rs.Vec<Tracked.Tracked> = v6;
 		const r3: rs.Range<rs.usize> = within(at(0), at(1), v2.items.length);
 		if ((kind & 32) !== 0) {
 			r3.end = v2.items.length;
@@ -1693,9 +1969,15 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 				}), make);
 				spliced$iter_Map_iter_Filter_ops_Range_u8_edits_extracts_closure16_edits_extracts_closure15(v2, _259, _260, read, log);
 			} else if (_240 === 2) {
-				const first2: rs.Vec<Tracked.Tracked> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(n, 3)), (i7: rs.u8): Tracked.Tracked => {
-					return tracked(rs.u8Add(192, i7));
-				}), undefined, 8, true);
+				let start3 = 0;
+				let end = rs.u8Rem(n, 3);
+				const v7: rs.Vec<Tracked.Tracked> = rs.vecWithCapacity(Math.max(end - start3, 0), 8);
+				while (!(start3 >= end)) {
+					const x4 = start3++;
+					const y4: Tracked.Tracked = tracked(rs.u8Add(192, x4));
+					v7.items.push(y4);
+				}
+				const first2: rs.Vec<Tracked.Tracked> = v7;
 				const _272: rs.Range<rs.usize> = r3;
 				const _273: rs.Iter<Tracked.Tracked> = rs.iterChain(rs.vecIntoIter(first2, rs.drop), rs.iterMap(rs.iterFilter(new rs.Range(0, n), (i8: rs.u8): boolean => {
 					return rs.u8Rem(i8, 2) === 1;
@@ -1720,9 +2002,20 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const _319: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log);
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_319.value));
 		rs.refRelease(_319);
-		const pairs: rs.Vec<rs.u16[]> = rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4), (_216: rs.u8): rs.u16[] => {
-			return [_216 as rs.u16, 0];
-		}), undefined, 4, true);
+		const s7 = rs.byteSliceView(data);
+		let front4 = 0;
+		let back5 = s7.length;
+		let take3 = 4;
+		const v8: rs.Vec<rs.u16[]> = rs.vecWithCapacity(Math.min(back5 - front4, take3), 4);
+		while (take3 !== 0) {
+			take3--;
+			if (front4 >= back5) {
+				break;
+			}
+			const y5: rs.u16[] = [s7[front4++] as rs.u16, 0];
+			v8.items.push(y5);
+		}
+		const pairs: rs.Vec<rs.u16[]> = v8;
 		const r4: rs.Range<rs.usize> = within(at(4), at(5), pairs.items.length);
 		const fill: rs.u16[] = [7, 8];
 		const _338: rs.Range<rs.u8> = new rs.Range(0, rs.u8Rem(at(6), 4));
@@ -1828,11 +2121,25 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		for (const _589 of flat2.items) {
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(_589)), undefined, true);
 		}
-		const flat3: rs.Vec<Named.Named> = rs.vecIntoFlattened(rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4), (_29: rs.u8): Named.Named[] => {
+		const s4 = rs.byteSliceView(data);
+		let front = 0;
+		let back2 = s4.length;
+		let take = 4;
+		const f = (_29: rs.u8): Named.Named[] => {
 			const b5: rs.u8 = _29;
 			const n8: Named.Named = { id: b5 as rs.u16, name: text(rs.byteSliceFrom(Uint8Array.of(b5))) };
 			return [Named.clone$Clone(n8), n8];
-		}), undefined, 32, true), 2, 16);
+		};
+		const v4: rs.Vec<Named.Named[]> = rs.vecWithCapacity(Math.min(back2 - front, take), 32);
+		while (take !== 0) {
+			take--;
+			if (front >= back2) {
+				break;
+			}
+			const y: Named.Named[] = f(s4[front++]);
+			v4.items.push(y);
+		}
+		const flat3: rs.Vec<Named.Named> = rs.vecIntoFlattened(v4, 2, 16);
 		const iter9: rs.Iter<Named.Named> = rs.iterStepBy(rs.iterSlice(flat3.items), 2);
 		while (true) {
 			const _607: Named.Named | rs.Done = iter9.next();
@@ -1852,9 +2159,15 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}), undefined, 2, true), 2);
 		rs.byteVecPush(flat4, 204);
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(flat4));
-		const leaked2: rs.Slice<rs.u16> = rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(flat4))), (_213: rs.u8): rs.u16 => {
-			return _213 as rs.u16;
-		}), undefined, 2, true).items);
+		const s5 = rs.byteSliceView(rs.byteVecSlice(flat4));
+		let front2 = 0;
+		let back3 = s5.length;
+		const v5: rs.Vec<rs.u16> = rs.vecWithCapacity(back3 - front2, 2);
+		while (!(front2 >= back3)) {
+			const x2 = s5[front2++];
+			v5.items.push(x2 as rs.u16);
+		}
+		const leaked2: rs.Slice<rs.u16> = rs.sliceFrom(v5.items);
 		rs.sliceReverse(leaked2);
 		const _639: rs.Place<rs.u16> | undefined = rs.sliceFirstMut(leaked2);
 		if (_639 !== undefined) {

@@ -107,10 +107,10 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		let front2 = 0;
 		let back2 = s3.length;
 		let n3 = 0;
-		fused6: while (true) {
+		fused9: while (true) {
 			while (true) {
 				if (front2 >= back2) {
-					break fused6;
+					break fused9;
 				}
 				s3[front2++];
 				if (Unit.eq$cmp_PartialEq(pair()._0, { _0: {}, _1: undefined }._0)) {
@@ -396,11 +396,20 @@ export function digest$zeros_Tagged_String(value: Tagged.Tagged<rs.String>, out:
 
 /** The impls `#[derive]` calls on `PhantomData`, `PhantomPinned`, and `()` fields. */
 export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const tags: rs.Vec<Tagged.Tagged<rs.String>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Tagged.Tagged<rs.String> => {
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const f = (_2: rs.u8): Tagged.Tagged<rs.String> => {
 		const n: rs.u8 = _2;
 		Tagged.default$Default_String();
 		return { n, of: undefined, pin: undefined, unit: undefined };
-	}), undefined, 1, true);
+	};
+	const v: rs.Vec<Tagged.Tagged<rs.String>> = rs.vecWithCapacity(back - front, 1);
+	while (!(front >= back)) {
+		const y: Tagged.Tagged<rs.String> = f(s[front++]);
+		v.items.push(y);
+	}
+	const tags: rs.Vec<Tagged.Tagged<rs.String>> = v;
 	const _7: rs.u8 = rs.u8Rem(kind, 4);
 	if (_7 === 0) {
 		const _11: Tagged.Tagged<rs.String> | undefined = rs.sliceFirst(rs.sliceFrom(tags.items));
@@ -456,9 +465,18 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, Names.eq$cmp_PartialEq(_168, _176) ? 1 : 0);
 		const _183: Names.Names = Names.default$Default();
 		rs.byteVecPush(out, Names.cmp$cmp_Ord(_168, _183) === 0 ? 1 : 0);
-		rs.byteVecPush(out, rs.iterAll(rs.iterSlice(tags.items), (t2: Tagged.Tagged<rs.String>): boolean => {
-			return Tagged.eq$cmp_PartialEq_String(Tagged.clone$Clone_String(t2), t2);
-		}) ? 1 : 0);
+		const s2 = tags.items;
+		let front2 = 0;
+		let back2 = s2.length;
+		let found = true;
+		while (!(front2 >= back2)) {
+			const x2 = s2[front2++];
+			if (!Tagged.eq$cmp_PartialEq_String(Tagged.clone$Clone_String(x2), x2)) {
+				found = false;
+				break;
+			}
+		}
+		rs.byteVecPush(out, found ? 1 : 0);
 		Rest.default$Default();
 		rs.byteVecPush(out, true ? 1 : 0);
 	}
@@ -602,10 +620,10 @@ export function unread(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		let front = 0;
 		let back = s.length;
 		let n2 = 0;
-		fused2: while (true) {
+		fused3: while (true) {
 			while (true) {
 				if (front >= back) {
-					break fused2;
+					break fused3;
 				}
 				s[front++];
 				if (true) {

@@ -219,7 +219,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}) = out.pop()
 		{
 			let mut init = init;
-			if let Expr::Call(_, args) = peel_mut(&mut init)
+			// Only a consumer's: what wraps one, as `rs.dropAfter` wraps one that drops its
+			// closure, takes the closure first.
+			if let Expr::Call(f, args) = peel_mut(&mut init)
+				&& super::fuse::consumes(f)
 				&& let Some(chain) = args.first_mut()
 			{
 				self.take_held(chain, out);

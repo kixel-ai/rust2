@@ -132,6 +132,13 @@ export function map$1c8069b(self: [rs.u8, rs.u8] | undefined, f: (a0: [rs.u8, rs
 	return f(self);
 }
 
+export function map$0h22a1a(self: [rs.usize, rs.u8] | undefined, f: (a0: [rs.usize, rs.u8]) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$0rfm4x4(self: [rs.usize, [rs.u8, rs.u8]] | undefined, f: (a0: [rs.usize, [rs.u8, rs.u8]]) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;

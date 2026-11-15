@@ -6,9 +6,14 @@ import { map$0a3rlpk as option_map$0a3rlpk, map$05uajnx as option_map$05uajnx, m
 
 /** A use that needs the slice itself. */
 export function opaque(s: rs.ByteSlice): rs.u8 {
-	return rs.iterFold(rs.iterSlice(rs.byteSliceView(s)), s.length & 0xff, (a: rs.u8, b: rs.u8): rs.u8 => {
-		return rs.u8WrappingAdd(a ^ (a >> 3), b);
-	});
+	const s2 = rs.byteSliceView(s);
+	let front = 0;
+	let back = s2.length;
+	let acc: rs.u8 = s.length & 0xff;
+	while (!(front >= back)) {
+		acc = rs.u8WrappingAdd(acc ^ (acc >> 3), s2[front++]);
+	}
+	return acc;
 }
 
 /** A parameter reassigned from its own tail. */
@@ -158,12 +163,12 @@ export function args(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, sum(data.data, data.start, data.length));
 		rs.byteVecPush(out, len(data.data, data.start, data.length) & 0xff);
 		rs.byteVecPush(out, byRef(data) & 0xff);
-		const s2 = kept(data, kind).items;
-		let front = 0;
-		let back = s2.length;
+		const s3 = kept(data, kind).items;
+		let front2 = 0;
+		let back2 = s3.length;
 		let acc: rs.u8 = 0;
-		while (!(front >= back)) {
-			acc = rs.u8WrappingAdd(acc, opaque(s2[front++]));
+		while (!(front2 >= back2)) {
+			acc = rs.u8WrappingAdd(acc, opaque(s3[front2++]));
 		}
 		rs.byteVecPush(out, acc);
 	} else if (_4 === 1) {
@@ -206,13 +211,17 @@ export function args(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const note: (a0: rs.u8) => undefined = (b2: rs.u8): undefined => {
 			rs.byteVecPush(seen, b2 ^ opaque(data));
 		};
-		const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 3);
-		while (true) {
-			const _70: rs.u8 | rs.Done = iter.next();
-			if (_70 === rs.DONE) {
+		const s: Uint8Array = rs.byteSliceView(data);
+		let front: number = 0;
+		const back: number = s.length;
+		let take: number = 3;
+		while (take !== 0) {
+			take--;
+			if (front >= back) {
 				break;
 			}
-			note(_70);
+			const x = s[front++];
+			note(x);
 		}
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(seen));
 	} else if (_4 === 6) {

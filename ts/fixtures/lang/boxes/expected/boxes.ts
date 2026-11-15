@@ -214,18 +214,29 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u64ToBeBytes(hash$boxed_Box_slice_u8(b)).reverse()), undefined, true);
 		rs.byteVecPush(out, a.length & 0xff);
 		rs.byteVecPush(out, a.length === 0 ? 1 : 0);
-		rs.byteVecPush(out, rs.iterFold(rs.iterSlice(rs.byteSliceView(a)), 0, (a0: rs.u8, a1: rs.u8): rs.u8 => {
-			return rs.u8WrappingAdd(a0, a1);
-		}));
+		const s5 = rs.byteSliceView(a);
+		let front4 = 0;
+		let back6 = s5.length;
+		let acc: rs.u8 = 0;
+		while (!(front4 >= back6)) {
+			acc = rs.u8WrappingAdd(acc, s5[front4++]);
+		}
+		rs.byteVecPush(out, acc);
 		rs.byteVecPush(out, rs.byteSliceView(a).includes(0) ? 1 : 0);
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.byteSliceFirst(a), 170));
 		const _261: rs.ByteSlice = rs.byteSliceFrom(new Uint8Array(0));
 		const args9 = [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(a), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(b), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_261), f, rs.u8Debug)];
 		put(out, rs.fmtFormat([args9[0], "|", args9[1], "|", args9[2]]).v);
 	} else if (_15 === 2) {
-		const wide: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data2)), (_24: rs.u8): rs.u16 => {
-			return rs.u16Mul(_24 as rs.u16, 257);
-		}), undefined, 2, true);
+		const s4 = rs.byteSliceView(data2);
+		let front3 = 0;
+		let back5 = s4.length;
+		const v7: rs.Vec<rs.u16> = rs.vecWithCapacity(back5 - front3, 2);
+		while (!(front3 >= back5)) {
+			const x5 = s4[front3++];
+			v7.items.push(rs.u16Mul(x5 as rs.u16, 257));
+		}
+		const wide: rs.Vec<rs.u16> = v7;
 		const fromRef2: rs.Slice<rs.u16> = rs.sliceFrom(wide.items.slice());
 		rs.sliceReverse(fromRef2);
 		const iterS: rs.u16[] = fromRef2.data;
@@ -274,17 +285,24 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const it: rs.Iter<rs.u16> = rs.iterSlice(wide.items);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(option_unwrapOr$1szdyfq(rs.iterToOption(it.nextBack()), 0)).reverse()), undefined, true);
 		rs.byteVecPush(out, it.len() & 0xff);
-		rs.iterExtendBytes(out, rs.iterMap(it, (x4: rs.u16): rs.u8 => {
-			return x4 & 0xff;
+		rs.iterExtendBytes(out, rs.iterMap(it, (x7: rs.u16): rs.u8 => {
+			return x7 & 0xff;
 		}), undefined, true);
 	} else if (_15 === 3) {
 		const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
 		const logged: (a0: rs.u8) => Logged.Logged = (id: rs.u8): Logged.Logged => {
 			return new Logged.Logged(id, rs.arcClone(log));
 		};
-		const boxed2: rs.Slice<Logged.Logged> = rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data2)), (_22: rs.u8): Logged.Logged => {
-			return logged(_22 & 126);
-		}), undefined, 8, true).items);
+		const s3 = rs.byteSliceView(data2);
+		let front2 = 0;
+		let back4 = s3.length;
+		const v6: rs.Vec<Logged.Logged> = rs.vecWithCapacity(back4 - front2, 8);
+		while (!(front2 >= back4)) {
+			const x3 = s3[front2++];
+			const y2: Logged.Logged = logged(x3 & 126);
+			v6.items.push(y2);
+		}
+		const boxed2: rs.Slice<Logged.Logged> = rs.sliceFrom(v6.items);
 		ids(boxed2, out);
 		const cloned3: rs.Slice<Logged.Logged> = rs.sliceFrom(rs.sliceItems(boxed2).map(Logged.clone$Clone));
 		flush(log.value, out);
@@ -339,10 +357,19 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.dropAll(empty3);
 		log[Symbol.dispose]();
 	} else if (_15 === 4) {
-		const pairs: rs.Vec<[rs.u8, rs.u16]> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data2)), (_2: rs.u8): [rs.u8, rs.u16] => {
+		const s2 = rs.byteSliceView(data2);
+		let front = 0;
+		let back3 = s2.length;
+		const f = (_2: rs.u8): [rs.u8, rs.u16] => {
 			const b2: rs.u8 = _2;
 			return [b2, ((b2 as rs.u16) << 4) & 0xffff] as [rs.u8, rs.u16];
-		}), undefined, 4, true);
+		};
+		const v5: rs.Vec<[rs.u8, rs.u16]> = rs.vecWithCapacity(back3 - front, 4);
+		while (!(front >= back3)) {
+			const y: [rs.u8, rs.u16] = f(s2[front++]);
+			v5.items.push(y);
+		}
+		const pairs: rs.Vec<[rs.u8, rs.u16]> = v5;
 		const boxed3: rs.Slice<[rs.u8, rs.u16]> = rs.sliceFrom(pairs.items.map(copy$tuple2_u8_u16));
 		for (const _533 of rs.sliceItems(boxed3)) {
 			_533[0] = _533[0] ^ 255;
@@ -717,9 +744,14 @@ export function refill$boxed_Box_slice_u8(slot: rs.Place<rs.ByteSlice>, from: rs
 
 /** The sum of the bytes `x` lends by its `AsRef`. */
 export function sum$boxed_Box_slice_u8(x: rs.ByteSlice): rs.u8 {
-	return rs.iterFold(rs.iterSlice(rs.byteSliceView(x)), 0, (a: rs.u8, _32: rs.u8): rs.u8 => {
-		return rs.u8WrappingAdd(a, _32);
-	});
+	const s = rs.byteSliceView(x);
+	let front = 0;
+	let back = s.length;
+	let acc: rs.u8 = 0;
+	while (!(front >= back)) {
+		acc = rs.u8WrappingAdd(acc, s[front++]);
+	}
+	return acc;
 }
 
 /** Writes through what `x` lends by its `AsMut`. */
@@ -849,8 +881,8 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return text(rs.byteSliceFrom(Uint8Array.of(_222)));
 		}), undefined, 12, true).items);
 		const t: rs.Slice<rs.String> = rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data2, half, rs.usizeMul(half, 2)))), (_223: rs.u8): rs.String => {
-			const x11: rs.u8 = _223;
-			return text(rs.byteSliceFrom(Uint8Array.of(x11, x11)));
+			const x12: rs.u8 = _223;
+			return text(rs.byteSliceFrom(Uint8Array.of(x12, x12)));
 		}), undefined, 12, true).items);
 		s = rs.boxSliceCloneFrom(s, t, (a0: rs.String): rs.String => {
 			return rs.stringClone(a0);
@@ -986,9 +1018,16 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else {
 			wides(_422.error, out);
 		}
-		const l3: rs.Vec<Logged.Logged> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data2)), (_22: rs.u8): Logged.Logged => {
-			return logged(_22 & 126);
-		}), undefined, 8, true);
+		const s4 = rs.byteSliceView(data2);
+		let front = 0;
+		let back = s4.length;
+		const v6: rs.Vec<Logged.Logged> = rs.vecWithCapacity(back - front, 8);
+		while (!(front >= back)) {
+			const x3 = s4[front++];
+			const y: Logged.Logged = logged(x3 & 126);
+			v6.items.push(y);
+		}
+		const l3: rs.Vec<Logged.Logged> = v6;
 		const _438: rs.Result<Logged.Logged[], rs.Vec<Logged.Logged>> = l3.items.length === 2 ? rs.Ok(l3.items) : rs.Err(l3);
 		if (_438.ok) {
 			const a5: Logged.Logged[] = _438.value;

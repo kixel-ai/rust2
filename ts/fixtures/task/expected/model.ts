@@ -432,11 +432,17 @@ export class frontFuture {
 						const args6 = [_69, (f: rs.Formatter) => rs.fmtList(arg2.items, f, rs.u64Debug)];
 						const _60: string = rs.fmtFormat(["closed with ", args6[0], " in flight ", args6[1]]).v;
 						Guard.note(this.#guard, _60);
-						const _79: rs.u64 = rs.iterSum(rs.iterSlice(this.#inFlight.items), rs.u64Add, 0);
+						const s = this.#inFlight.items;
+						let front = 0;
+						let back = s.length;
+						let acc: rs.u64 = 0;
+						while (!(front >= back)) {
+							acc = rs.u64Add(acc, s[front++]);
+						}
 						this.#guard[Symbol.dispose]();
 						this.#rx[Symbol.dispose]();
 						this.#state = 1;
-						return _79;
+						return acc;
 					}
 					this.#state = 4;
 					return rs.Pending;

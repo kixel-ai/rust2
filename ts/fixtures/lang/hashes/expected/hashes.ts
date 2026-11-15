@@ -1034,9 +1034,15 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		digest$Option_u32(undefined, out);
 		digest$Option_Option_u8(n & 0xff, out);
 		digest$tuple3_u8_ref_str_u64([n & 0xff, "pair", rs.u64Cast(w(4, 8))] as [rs.u8, string, rs.u64], out);
-		const words: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_23: rs.u8): rs.u16 => {
-			return rs.u16Mul(_23 as rs.u16, 257);
-		}), undefined, 2, true);
+		const s3 = rs.byteSliceView(data);
+		let front3 = 0;
+		let back3 = s3.length;
+		const v3: rs.Vec<rs.u16> = rs.vecWithCapacity(back3 - front3, 2);
+		while (!(front3 >= back3)) {
+			const x3 = s3[front3++];
+			v3.items.push(rs.u16Mul(x3 as rs.u16, 257));
+		}
+		const words: rs.Vec<rs.u16> = v3;
 		digest$Vec_u16(words, out);
 		const part = rs.usizeDiv(words.items.length, 2);
 		digest$slice_u16(rs.sliceRange(rs.sliceFrom(words.items), part), out);
@@ -1047,9 +1053,17 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		digest$Option_num_NonZero_u32(rs.nonZero((n | 1) >>> 0), out);
 	} else if (_5 === 3) {
 		const n2: rs.u64 = rs.u64Cast(w(0, 8));
-		digest$hashes_Packet({ id: n2, flags: option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), name: rs.stringFrom(result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "?")), tags: rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
-			return _2 as rs.u16;
-		}), undefined, 2, true), next: thenSome$05ku0zn(rs.u64Rem(n2, 3) !== 0, rs.u64Low(n2) | 0) }, out);
+		const _170: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
+		const _173: rs.String = rs.stringFrom(result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "?"));
+		const s2 = rs.byteSliceView(data);
+		let front2 = 0;
+		let back2 = s2.length;
+		const v2: rs.Vec<rs.u16> = rs.vecWithCapacity(back2 - front2, 2);
+		while (!(front2 >= back2)) {
+			const x2 = s2[front2++];
+			v2.items.push(x2 as rs.u16);
+		}
+		digest$hashes_Packet({ id: n2, flags: _170, name: _173, tags: v2, next: thenSome$05ku0zn(rs.u64Rem(n2, 3) !== 0, rs.u64Low(n2) | 0) }, out);
 		const _188: rs.u64 = rs.u64Rem(n2, 3);
 		if (_188 === 0) {
 			shape = { tag: "Dot" } as Shape.Shape;
@@ -1179,9 +1193,15 @@ export function random(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, drops.v);
 		arc[Symbol.dispose]();
 	}
-	const keys: rs.Vec<rs.u64> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u64 => {
-		return rs.u64Mul(_2 as rs.u64, 1103823438081);
-	}), undefined, 8, true);
+	const s3 = rs.byteSliceView(data);
+	let front2 = 0;
+	let back2 = s3.length;
+	const v: rs.Vec<rs.u64> = rs.vecWithCapacity(back2 - front2, 8);
+	while (!(front2 >= back2)) {
+		const x2 = s3[front2++];
+		v.items.push(rs.u64Mul(x2 as rs.u64, 1103823438081));
+	}
+	const keys: rs.Vec<rs.u64> = v;
 	rs.sliceSort(rs.sliceFrom(keys.items), rs.keyLt((k2: rs.u64): rs.u64 => {
 		return rs.hashOne(rs.buildHasher(other.state), k2, rs.hash64);
 	}, rs.lt), 8, true);
@@ -1317,9 +1337,15 @@ export function hashInto$hashes_Bare(h: Bare.Bare, data: rs.ByteSlice): void {
 	rs.hashBytes(data, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	rs.hashBytes(rs.byteSliceToByteVec(data), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	rs.hashBytes(rs.byteSliceFrom(Uint8Array.of(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff)), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const words: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
-		return rs.u16Mul(_2 as rs.u16, 257);
-	}), undefined, 2, true);
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v: rs.Vec<rs.u16> = rs.vecWithCapacity(back - front, 2);
+	while (!(front >= back)) {
+		const x = s[front++];
+		v.items.push(rs.u16Mul(x as rs.u16, 257));
+	}
+	const words: rs.Vec<rs.u16> = v;
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	const part = rs.usizeDiv(words.items.length, 2);
 	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
@@ -1397,9 +1423,15 @@ export function hashInto$hashes_Full(h: Full.Full, data: rs.ByteSlice): void {
 	rs.hashBytes(data, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	rs.hashBytes(rs.byteSliceToByteVec(data), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	rs.hashBytes(rs.byteSliceFrom(Uint8Array.of(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff)), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const words: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
-		return rs.u16Mul(_2 as rs.u16, 257);
-	}), undefined, 2, true);
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v: rs.Vec<rs.u16> = rs.vecWithCapacity(back - front, 2);
+	while (!(front >= back)) {
+		const x = s[front++];
+		v.items.push(rs.u16Mul(x as rs.u16, 257));
+	}
+	const words: rs.Vec<rs.u16> = v;
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	const part = rs.usizeDiv(words.items.length, 2);
 	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
@@ -1477,9 +1509,15 @@ export function hashInto$hashes_Partial(h: Partial.Partial, data: rs.ByteSlice):
 	rs.hashBytes(data, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	rs.hashBytes(rs.byteSliceToByteVec(data), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	rs.hashBytes(rs.byteSliceFrom(Uint8Array.of(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff)), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const words: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
-		return rs.u16Mul(_2 as rs.u16, 257);
-	}), undefined, 2, true);
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v: rs.Vec<rs.u16> = rs.vecWithCapacity(back - front, 2);
+	while (!(front >= back)) {
+		const x = s[front++];
+		v.items.push(rs.u16Mul(x as rs.u16, 257));
+	}
+	const words: rs.Vec<rs.u16> = v;
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	const part = rs.usizeDiv(words.items.length, 2);
 	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
@@ -1557,9 +1595,15 @@ export function hashInto$hashes_Switch(h: rs.Place<Switch.Switch>, data: rs.Byte
 	rs.hashBytes(data, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	rs.hashBytes(rs.byteSliceToByteVec(data), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	rs.hashBytes(rs.byteSliceFrom(Uint8Array.of(rs.u128Low(a) & 0xff, rs.u64Low(b) & 0xff)), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const words: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
-		return rs.u16Mul(_2 as rs.u16, 257);
-	}), undefined, 2, true);
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v: rs.Vec<rs.u16> = rs.vecWithCapacity(back - front, 2);
+	while (!(front >= back)) {
+		const x = s[front++];
+		v.items.push(rs.u16Mul(x as rs.u16, 257));
+	}
+	const words: rs.Vec<rs.u16> = v;
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	const part = rs.usizeDiv(words.items.length, 2);
 	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
@@ -1987,15 +2031,33 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.hashAdd(s, { n: _92 & 127, side: side2 });
 		}
 	};
-	const reversed: rs.ByteVec = rs.iterToByteVec(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), undefined, true);
-	const flipped: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), (_2: [rs.usize, rs.u8]): rs.u8 => {
+	const s2 = rs.byteSliceView(data);
+	let front = 0;
+	let back = s2.length;
+	const v: rs.ByteVec = rs.byteVecWithCapacity(back - front);
+	while (!(front >= back)) {
+		back--;
+		rs.byteVecPush(v, s2[back]);
+	}
+	const reversed: rs.ByteVec = v;
+	const s3 = rs.byteSliceView(data);
+	let front2 = 0;
+	let back2 = s3.length;
+	let count = 0;
+	const f = (_2: [rs.usize, rs.u8]): rs.u8 => {
 		const i: rs.usize = _2[0];
 		const b3: rs.u8 = _2[1];
 		if (!(i === rs.usizeDiv(data.length, 2))) {
 			return b3;
 		}
 		return b3 ^ 65;
-	}), undefined, true);
+	};
+	const v2: rs.ByteVec = rs.byteVecWithCapacity(back2 - front2);
+	while (!(front2 >= back2)) {
+		const x2 = s3[front2++];
+		rs.byteVecPush(v2, f([count++, x2]));
+	}
+	const flipped: rs.ByteVec = v2;
 	const shorter: rs.ByteSlice = rs.byteSliceRange(data, 0, rs.usizeSaturatingSub(data.length, 1));
 	const left: rs.HashMap<Sided.Sided, Sided.Sided> = map(1, data);
 	const part2 = rs.byteVecSlice(reversed);

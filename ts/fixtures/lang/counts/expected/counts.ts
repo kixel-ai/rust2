@@ -335,9 +335,14 @@ export function clonedArcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _191: boolean = false;
 	let _192: boolean = false;
 	const log: rs.Arc<rs.Mutex<rs.ByteVec>> = new rs.Arc(new rs.Mutex(new rs.ByteVec()));
-	const handles: rs.Vec<rs.Arc<Noisy.Noisy>> = rs.iterToVec(rs.iterMap(new rs.Range(0, 3), (id: rs.u8): rs.Arc<Noisy.Noisy> => {
-		return new rs.Arc(new Noisy.Noisy(rs.u8Mul(id, 16), rs.arcClone(log)));
-	}), undefined, 4, true);
+	let start = 0;
+	let end = 3;
+	const v: rs.Vec<rs.Arc<Noisy.Noisy>> = rs.vecWithCapacity(Math.max(end - start, 0), 4);
+	while (!(start >= end)) {
+		const y: rs.Arc<Noisy.Noisy> = new rs.Arc(new Noisy.Noisy(rs.u8Mul(start++, 16), rs.arcClone(log)));
+		v.items.push(y);
+	}
+	const handles: rs.Vec<rs.Arc<Noisy.Noisy>> = v;
 	const kept: rs.Vec<rs.Arc<Noisy.Noisy>> = new rs.Vec();
 	const shared: rs.Vec<ArcShared.ArcShared> = new rs.Vec();
 	const noisy: rs.Vec<Noisy.Noisy> = new rs.Vec();
@@ -1002,9 +1007,14 @@ export function clonedRcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _191: boolean = false;
 	let _192: boolean = false;
 	const log: rs.Arc<rs.Mutex<rs.ByteVec>> = new rs.Arc(new rs.Mutex(new rs.ByteVec()));
-	const handles: rs.Vec<rs.Arc<Noisy.Noisy>> = rs.iterToVec(rs.iterMap(new rs.Range(0, 3), (id: rs.u8): rs.Arc<Noisy.Noisy> => {
-		return new rs.Arc(new Noisy.Noisy(rs.u8Mul(id, 16), rs.arcClone(log)));
-	}), undefined, 4, true);
+	let start = 0;
+	let end = 3;
+	const v: rs.Vec<rs.Arc<Noisy.Noisy>> = rs.vecWithCapacity(Math.max(end - start, 0), 4);
+	while (!(start >= end)) {
+		const y: rs.Arc<Noisy.Noisy> = new rs.Arc(new Noisy.Noisy(rs.u8Mul(start++, 16), rs.arcClone(log)));
+		v.items.push(y);
+	}
+	const handles: rs.Vec<rs.Arc<Noisy.Noisy>> = v;
 	const kept: rs.Vec<rs.Arc<Noisy.Noisy>> = new rs.Vec();
 	const shared: rs.Vec<RcShared.RcShared> = new rs.Vec();
 	const noisy: rs.Vec<Noisy.Noisy> = new rs.Vec();
@@ -1712,26 +1722,50 @@ export function uniqueRcs(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function copies(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const clones: rs.Cell<rs.u8> = new rs.Cell(0);
-	const counted: rs.Vec<Counted.Counted> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Counted.Counted => {
-		return { id: _2, clones };
-	}), undefined, 8, true);
-	const twins: rs.Vec<Twin.Twin> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): Twin.Twin => {
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v: rs.Vec<Counted.Counted> = rs.vecWithCapacity(back - front, 8);
+	while (!(front >= back)) {
+		const y: Counted.Counted = { id: s[front++], clones };
+		v.items.push(y);
+	}
+	const counted: rs.Vec<Counted.Counted> = v;
+	const s2 = rs.byteSliceView(data);
+	let front2 = 0;
+	let back2 = s2.length;
+	const f2 = (_22: rs.u8): Twin.Twin => {
 		const b: rs.u8 = _22;
 		return { _0: b, _1: ~b & 0xff };
-	}), undefined, 2, true);
+	};
+	const v2: rs.Vec<Twin.Twin> = rs.vecWithCapacity(back2 - front2, 2);
+	while (!(front2 >= back2)) {
+		const y2: Twin.Twin = f2(s2[front2++]);
+		v2.items.push(y2);
+	}
+	const twins: rs.Vec<Twin.Twin> = v2;
 	const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
-	const maybes: rs.Vec<rs.u8 | undefined> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_23: rs.u8): rs.u8 | undefined => {
+	const s3 = rs.byteSliceView(data);
+	let front3 = 0;
+	let back3 = s3.length;
+	const f3 = (_23: rs.u8): rs.u8 | undefined => {
 		const b2: rs.u8 = _23;
 		return thenSome$0quywni(rs.u8Rem(b2, 3) !== 0, b2);
-	}), undefined, 2, true);
-	const s: Uint8Array = rs.byteSliceView(data);
-	let front: number = 0;
-	const back: number = s.length;
+	};
+	const v3: rs.Vec<rs.u8 | undefined> = rs.vecWithCapacity(back3 - front3, 2);
+	while (!(front3 >= back3)) {
+		const y3: rs.u8 | undefined = f3(s3[front3++]);
+		v3.items.push(y3);
+	}
+	const maybes: rs.Vec<rs.u8 | undefined> = v3;
+	const s4: Uint8Array = rs.byteSliceView(data);
+	let front4: number = 0;
+	const back4: number = s4.length;
 	let count: number = 0;
-	while (!(front >= back)) {
-		const x = s[front++];
+	while (!(front4 >= back4)) {
+		const x4 = s4[front4++];
 		const i: rs.usize = count++;
-		const op: rs.u8 = x;
+		const op: rs.u8 = x4;
 		const pick: rs.usize = rs.usizeRem(op >> 3 as rs.usize, data.length);
 		const _33: rs.u8 = rs.u8Rem(op, 8);
 		if (_33 === 6) {

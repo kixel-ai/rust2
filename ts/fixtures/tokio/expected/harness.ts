@@ -33,9 +33,19 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 
 /** The first byte that picks the case named `name`, which `caller.ts` targets by. */
 export function op(name: string): rs.u8 {
-	const _2: rs.usize | undefined = rs.iterPosition(rs.iterSlice(cases().items), (_22: [string, (a0: rs.ByteSlice, a1: rs.String) => undefined]): boolean => {
-		return _22[0] === name;
-	});
+	const s = cases().items;
+	let front = 0;
+	let back = s.length;
+	let i2 = 0;
+	let at: number | undefined = undefined;
+	while (!(front >= back)) {
+		if (s[front++][0] === name) {
+			at = i2;
+			break;
+		}
+		i2++;
+	}
+	const _2: rs.usize | undefined = at;
 	if (_2 === undefined) {
 		rs.panicFmt(["no case ", (f: rs.Formatter) => rs.fmtPad(f, name)]);
 	} else {
