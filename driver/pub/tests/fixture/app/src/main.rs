@@ -307,6 +307,7 @@ fn main() {
 	println!("payload {} {:?}", payload::payload(), payload_text());
 	println!("embedded {} {}", embedded::embedded(), EMBEDDED.len());
 	println!("extra {}", extra::used());
+	println!("globs {}", globs::used());
 	println!("crlf {}", api::crlf::spaced());
 	println!("product {}", std::mem::size_of::<api::Product>());
 	println!("level {}", Level::High as isize);

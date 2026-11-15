@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use rustc_ast::token::{Delimiter, TokenKind};
 use rustc_ast::tokenstream::TokenTree;
+use rustc_attr_ir::find_attr;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_driver::{Callbacks, Compilation};
 use rustc_hir::def::{DefKind, Res};
@@ -314,6 +315,10 @@ impl<'tcx> Collector<'tcx> {
 			if let Some(Node::Item(item)) = tcx.hir_get_if_local(def)
 				&& let ItemKind::Macro(_, macro_def, _) = item.kind
 			{
+				// Under `#[macro_export(local_inner_macros)]`, a call by a lone name, `inner!`,
+				// is `$crate::inner!`.
+				let local_inner = find_attr!(tcx, def, MacroExport { local_inner_macros, .. } => *local_inner_macros)
+					.unwrap_or(false);
 				let mut stack = vec![&macro_def.body.tokens];
 				while let Some(stream) = stack.pop() {
 					let trees: Vec<_> = stream.iter().collect();
@@ -349,6 +354,17 @@ impl<'tcx> Collector<'tcx> {
 								for krate in crates {
 									this.crate_path(krate.as_def_id(), &trees[i + 1..]);
 								}
+							}
+							TokenTree::Token(token, _)
+								if local_inner
+									&& token.ident().is_some()
+									&& matches!(trees.get(i + 1), Some(TokenTree::Token(bang, _)) if bang.kind == TokenKind::Bang)
+									&& !matches!(
+										i.checked_sub(1).map(|j| trees[j]),
+										Some(TokenTree::Token(prev, _)) if matches!(prev.kind, TokenKind::PathSep | TokenKind::Dollar)
+									) =>
+							{
+								this.crate_path_segment(CRATE_DEF_ID.to_def_id(), &trees[i..=i]);
 							}
 							TokenTree::Token(..) => {}
 							TokenTree::Delimited(.., inner) => stack.push(inner),
@@ -968,13 +984,22 @@ impl<'tcx> Collector<'tcx> {
 				}
 			}
 			[TokenTree::Token(segment, _), rest @ ..] => {
-				let Some((ident, _)) = segment.ident() else { return };
+				// A glob, as `use $crate::*`, names every public child; a name, the children
+				// it names, the path going on through a module, enum, or trait.
+				let name = match segment.ident() {
+					Some((ident, _)) => Some(ident.name),
+					None if segment.kind == TokenKind::Star => None,
+					None => return,
+				};
 				let children = match module.as_local() {
 					Some(local) => self.tcx.module_children_local(local),
 					None => self.tcx.module_children(module),
 				};
 				let mut next = None;
-				for child in children.iter().filter(|c| c.ident.name == ident.name) {
+				for child in children.iter().filter(|c| match name {
+					Some(name) => c.ident.name == name,
+					None => c.vis.is_public(),
+				}) {
 					for reexport in &child.reexport_chain {
 						if let Some(id) = reexport.id() {
 							self.refer_as(id, None, true);
@@ -982,7 +1007,9 @@ impl<'tcx> Collector<'tcx> {
 					}
 					let Some(id) = child.res.opt_def_id() else { continue };
 					self.refer_as(id, None, true);
-					if let DefKind::Mod | DefKind::Enum | DefKind::Trait = self.tcx.def_kind(id) {
+					if name.is_some()
+						&& let DefKind::Mod | DefKind::Enum | DefKind::Trait = self.tcx.def_kind(id)
+					{
 						next = Some(id);
 					}
 				}

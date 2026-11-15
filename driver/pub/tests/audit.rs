@@ -86,6 +86,9 @@ fn fixture() {
 	expect("made::generated", "external", "unreached");
 	expect("nested::generated", "cross-crate", "unreached");
 	expect("grouped", "external", "unreached");
+	// So does a lone-name call under `local_inner_macros`, and a `$crate` glob.
+	expect("inner_helpers::inner_called", "external", "unreached");
+	expect("through_root_glob", "external", "unreached");
 	// A re-exported variant exposes its enum, with the enum's own API.
 	expect("Picked::label", "external", "unreached");
 	expect("marks::Unnamed", "external", "crate-only");

@@ -411,6 +411,31 @@ pub fn grouped() -> u32 {
 	52
 }
 
+/// External: a macro facade re-exports, whose lone-name call of `call_inner!` is
+/// `$crate::call_inner!`.
+#[macro_export(local_inner_macros)]
+macro_rules! call_outer {
+	() => {
+		call_inner!()
+	};
+}
+
+/// External: what only `call_outer!` calls.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! call_inner {
+	() => {
+		$crate::inner_helpers::inner_called()
+	};
+}
+
+pub mod inner_helpers {
+	/// External: what only `call_inner!` names, which `call_outer!`'s lone-name call reaches.
+	pub fn inner_called() -> u32 {
+		54
+	}
+}
+
 pub mod made {
 	/// External: what the `$crate` path of an exported macro another macro made names,
 	/// though nothing in the audit expands it.
