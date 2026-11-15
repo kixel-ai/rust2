@@ -256,13 +256,12 @@ export function dropped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _103: boolean = false;
 	let _102: boolean = false;
 	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count2: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count2++;
 		const b: rs.u8 = x;
 		const before: Logged.Logged = new Logged.Logged(b, rs.arcClone(log));

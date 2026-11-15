@@ -109,7 +109,9 @@ export function values(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const halves: rs.Vec<Small.Small> = rs.iterToVec(rs.iterMap(rs.byteSliceChunks(data, 3), Small.from$4), undefined, 12, true);
 	const _46: rs.ByteSlice = Small.bytes$2(two);
 	const _49: rs.ByteSlice = Small.bytes$4(four);
-	const leaf = rs.iterSlice(halves.items);
+	const s3 = halves.items;
+	let front = 0;
+	let back = s3.length;
 	const f = (h: Small.Small): boolean => {
 		if (h.tag === "Inline") {
 			return true;
@@ -119,11 +121,10 @@ export function values(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let n = 0;
 	fused2: while (true) {
 		while (true) {
-			const x = leaf.next();
-			if (x === rs.DONE) {
+			if (front >= back) {
 				break fused2;
 			}
-			if (f(x)) {
+			if (f(s3[front++])) {
 				break;
 			}
 		}

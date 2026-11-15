@@ -130,13 +130,12 @@ export function partial(o: rs.Ordering | undefined): rs.u8 {
 
 /** The index of the first of `keys` that borrows as `q`. */
 export function find$String_str(keys: rs.Slice<rs.String>, q: string): rs.u8 {
-	const leaf: rs.Iter<rs.String> = rs.iterSlice(rs.sliceItems(keys));
+	const s: rs.String[] = rs.sliceItems(keys);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		if (x.v === q) {
 			return i & 0xff;
@@ -147,13 +146,12 @@ export function find$String_str(keys: rs.Slice<rs.String>, q: string): rs.u8 {
 
 /** The index of the first of `keys` that borrows as `q`. */
 export function find$sync_Arc_str_str(keys: rs.Slice<rs.Arc<string>>, q: string): rs.u8 {
-	const leaf: rs.Iter<rs.Arc<string>> = rs.iterSlice(rs.sliceItems(keys));
+	const s: rs.Arc<string>[] = rs.sliceItems(keys);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		if (x.value === q) {
 			return i & 0xff;
@@ -164,13 +162,12 @@ export function find$sync_Arc_str_str(keys: rs.Slice<rs.Arc<string>>, q: string)
 
 /** The index of the first of `keys` that borrows as `q`. */
 export function find$u8_u8(keys: rs.ByteSlice, q: rs.u8): rs.u8 {
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(keys));
+	const s: Uint8Array = rs.byteSliceView(keys);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		if (x === q) {
 			return i & 0xff;
@@ -729,13 +726,12 @@ export function places(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const wide: rs.HashMap<rs.u8, rs.u64> = rs.hashNew() as rs.HashMap<rs.u8, rs.u64>;
 	const hops: rs.HashMap<Hop.Hop, rs.u16> = rs.hashNew(rs.hashing(Hop.hash$Hash_hash_DefaultHasher as (a0: Hop.Hop, a1: rs.Hasher) => undefined, Hop.eq$cmp_PartialEq)) as rs.HashMap<Hop.Hop, rs.u16>;
 	const pairs: rs.BTreeMap<Hop.Hop, [rs.u8, rs.u8]> = rs.btreeNew(Hop.cmp$cmp_Ord) as rs.BTreeMap<Hop.Hop, [rs.u8, rs.u8]>;
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		const b: rs.u8 = x;
 		const k: rs.u8 = rs.u8Rem(b, 97);
@@ -1713,13 +1709,12 @@ export function keyed$Option_u8_2_keys_arrays_closure5(data: rs.ByteSlice, make:
 	const set: rs.HashSet<Array<rs.u8 | undefined>> = rs.hashNew(rs.hashing(rs.hashSlice(rs.hashOption(rs.hash8)), rs.eqSlice(rs.same))) as rs.HashSet<Array<rs.u8 | undefined>>;
 	const ordered: rs.BTreeSet<Array<rs.u8 | undefined>> = rs.btreeNew(rs.cmpSlice(rs.cmpOption(rs.cmp))) as rs.BTreeSet<Array<rs.u8 | undefined>>;
 	const values: rs.HashMap<rs.u8, Array<rs.u8 | undefined>> = rs.hashNew() as rs.HashMap<rs.u8, Array<rs.u8 | undefined>>;
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
@@ -1924,13 +1919,12 @@ export function keyed$Option_u8_2_keys_arrays_closure5(data: rs.ByteSlice, make:
 	const options: rs.HashSet<Array<rs.u8 | undefined> | undefined> = rs.hashNew(rs.hashing(rs.hashOption(rs.hashSlice(rs.hashOption(rs.hash8))), rs.eqOption(rs.eqSlice(rs.same)))) as rs.HashSet<Array<rs.u8 | undefined> | undefined>;
 	const vecs: rs.HashMap<rs.Vec<rs.u8 | undefined>, rs.u8> = rs.hashNew(rs.hashing(rs.hashSlice(rs.hashOption(rs.hash8)), rs.eqSlice(rs.same))) as rs.HashMap<rs.Vec<rs.u8 | undefined>, rs.u8>;
 	const lists: rs.BTreeSet<rs.Vec<rs.u8 | undefined>> = rs.btreeNew(rs.cmpSlice(rs.cmpOption(rs.cmp))) as rs.BTreeSet<rs.Vec<rs.u8 | undefined>>;
-	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s2: Uint8Array = rs.byteSliceView(data);
+	let front2: number = 0;
+	const back2: number = s2.length;
 	let count2: number = 0;
-	while (true) {
-		const x2 = leaf2.next();
-		if (x2 === rs.DONE) {
-			break;
-		}
+	while (!(front2 >= back2)) {
+		const x2 = s2[front2++];
 		const i3: rs.usize = count2++;
 		const b4: rs.u8 = x2;
 		const pair: [rs.u8, Array<rs.u8 | undefined>] = [rs.u8Rem(b4, 2), make(b4)];
@@ -1991,13 +1985,12 @@ export function keyed$bool_2_keys_arrays_closure4(data: rs.ByteSlice, make: (a0:
 	const set: rs.HashSet<boolean[]> = rs.hashNew(rs.hashing(rs.hashSlice(rs.hash8), rs.eqSlice(rs.same))) as rs.HashSet<boolean[]>;
 	const ordered: rs.BTreeSet<boolean[]> = rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<boolean[]>;
 	const values: rs.HashMap<rs.u8, boolean[]> = rs.hashNew() as rs.HashMap<rs.u8, boolean[]>;
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
@@ -2202,13 +2195,12 @@ export function keyed$bool_2_keys_arrays_closure4(data: rs.ByteSlice, make: (a0:
 	const options: rs.HashSet<boolean[] | undefined> = rs.hashNew(rs.hashing(rs.hashOption(rs.hashSlice(rs.hash8)), rs.eqOption(rs.eqSlice(rs.same)))) as rs.HashSet<boolean[] | undefined>;
 	const vecs: rs.HashMap<rs.Vec<boolean>, rs.u8> = rs.hashNew(rs.hashing(rs.hashSlice(rs.hash8), rs.eqSlice(rs.same))) as rs.HashMap<rs.Vec<boolean>, rs.u8>;
 	const lists: rs.BTreeSet<rs.Vec<boolean>> = rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.Vec<boolean>>;
-	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s2: Uint8Array = rs.byteSliceView(data);
+	let front2: number = 0;
+	const back2: number = s2.length;
 	let count2: number = 0;
-	while (true) {
-		const x2 = leaf2.next();
-		if (x2 === rs.DONE) {
-			break;
-		}
+	while (!(front2 >= back2)) {
+		const x2 = s2[front2++];
 		const i3: rs.usize = count2++;
 		const b4: rs.u8 = x2;
 		const pair: [rs.u8, boolean[]] = [rs.u8Rem(b4, 2), make(b4)];
@@ -2269,13 +2261,12 @@ export function keyed$char_2_keys_arrays_closure3(data: rs.ByteSlice, make: (a0:
 	const set: rs.HashSet<rs.char[]> = rs.hashNew(rs.hashing(rs.hashSlice(rs.hash32), rs.eqSlice(rs.same))) as rs.HashSet<rs.char[]>;
 	const ordered: rs.BTreeSet<rs.char[]> = rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.char[]>;
 	const values: rs.HashMap<rs.u8, rs.char[]> = rs.hashNew() as rs.HashMap<rs.u8, rs.char[]>;
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
@@ -2480,13 +2471,12 @@ export function keyed$char_2_keys_arrays_closure3(data: rs.ByteSlice, make: (a0:
 	const options: rs.HashSet<rs.char[] | undefined> = rs.hashNew(rs.hashing(rs.hashOption(rs.hashSlice(rs.hash32)), rs.eqOption(rs.eqSlice(rs.same)))) as rs.HashSet<rs.char[] | undefined>;
 	const vecs: rs.HashMap<rs.Vec<rs.char>, rs.u8> = rs.hashNew(rs.hashing(rs.hashSlice(rs.hash32), rs.eqSlice(rs.same))) as rs.HashMap<rs.Vec<rs.char>, rs.u8>;
 	const lists: rs.BTreeSet<rs.Vec<rs.char>> = rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.Vec<rs.char>>;
-	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s2: Uint8Array = rs.byteSliceView(data);
+	let front2: number = 0;
+	const back2: number = s2.length;
 	let count2: number = 0;
-	while (true) {
-		const x2 = leaf2.next();
-		if (x2 === rs.DONE) {
-			break;
-		}
+	while (!(front2 >= back2)) {
+		const x2 = s2[front2++];
 		const i3: rs.usize = count2++;
 		const b4: rs.u8 = x2;
 		const pair: [rs.u8, rs.char[]] = [rs.u8Rem(b4, 2), make(b4)];
@@ -2547,13 +2537,12 @@ export function keyed$i32_2_keys_arrays_closure2(data: rs.ByteSlice, make: (a0: 
 	const set: rs.HashSet<rs.i32[]> = rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashSet<rs.i32[]>;
 	const ordered: rs.BTreeSet<rs.i32[]> = rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.i32[]>;
 	const values: rs.HashMap<rs.u8, rs.i32[]> = rs.hashNew() as rs.HashMap<rs.u8, rs.i32[]>;
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
@@ -2758,13 +2747,12 @@ export function keyed$i32_2_keys_arrays_closure2(data: rs.ByteSlice, make: (a0: 
 	const options: rs.HashSet<rs.i32[] | undefined> = rs.hashNew(rs.hashing(rs.hashOption(rs.hashInts(4)), rs.eqOption(rs.eqSlice(rs.same)))) as rs.HashSet<rs.i32[] | undefined>;
 	const vecs: rs.HashMap<rs.Vec<rs.i32>, rs.u8> = rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashMap<rs.Vec<rs.i32>, rs.u8>;
 	const lists: rs.BTreeSet<rs.Vec<rs.i32>> = rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.Vec<rs.i32>>;
-	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s2: Uint8Array = rs.byteSliceView(data);
+	let front2: number = 0;
+	const back2: number = s2.length;
 	let count2: number = 0;
-	while (true) {
-		const x2 = leaf2.next();
-		if (x2 === rs.DONE) {
-			break;
-		}
+	while (!(front2 >= back2)) {
+		const x2 = s2[front2++];
 		const i3: rs.usize = count2++;
 		const b4: rs.u8 = x2;
 		const pair: [rs.u8, rs.i32[]] = [rs.u8Rem(b4, 2), make(b4)];
@@ -2825,13 +2813,12 @@ export function keyed$keys_Hop_2_keys_arrays_closure6(data: rs.ByteSlice, make: 
 	const set: rs.HashSet<Hop.Hop[]> = rs.hashNew(rs.hashing(rs.hashSlice(Hop.hash$Hash_hash_DefaultHasher as (a0: Hop.Hop, a1: rs.Hasher) => undefined), rs.eqSlice(Hop.eq$cmp_PartialEq))) as rs.HashSet<Hop.Hop[]>;
 	const ordered: rs.BTreeSet<Hop.Hop[]> = rs.btreeNew(rs.cmpSlice(Hop.cmp$cmp_Ord)) as rs.BTreeSet<Hop.Hop[]>;
 	const values: rs.HashMap<rs.u8, Hop.Hop[]> = rs.hashNew() as rs.HashMap<rs.u8, Hop.Hop[]>;
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
@@ -3036,13 +3023,12 @@ export function keyed$keys_Hop_2_keys_arrays_closure6(data: rs.ByteSlice, make: 
 	const options: rs.HashSet<Hop.Hop[] | undefined> = rs.hashNew(rs.hashing(rs.hashOption(rs.hashSlice(Hop.hash$Hash_hash_DefaultHasher as (a0: Hop.Hop, a1: rs.Hasher) => undefined)), rs.eqOption(rs.eqSlice(Hop.eq$cmp_PartialEq)))) as rs.HashSet<Hop.Hop[] | undefined>;
 	const vecs: rs.HashMap<rs.Vec<Hop.Hop>, rs.u8> = rs.hashNew(rs.hashing(rs.hashSlice(Hop.hash$Hash_hash_DefaultHasher as (a0: Hop.Hop, a1: rs.Hasher) => undefined), rs.eqSlice(Hop.eq$cmp_PartialEq))) as rs.HashMap<rs.Vec<Hop.Hop>, rs.u8>;
 	const lists: rs.BTreeSet<rs.Vec<Hop.Hop>> = rs.btreeNew(rs.cmpSlice(Hop.cmp$cmp_Ord)) as rs.BTreeSet<rs.Vec<Hop.Hop>>;
-	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s2: Uint8Array = rs.byteSliceView(data);
+	let front2: number = 0;
+	const back2: number = s2.length;
 	let count2: number = 0;
-	while (true) {
-		const x2 = leaf2.next();
-		if (x2 === rs.DONE) {
-			break;
-		}
+	while (!(front2 >= back2)) {
+		const x2 = s2[front2++];
 		const i3: rs.usize = count2++;
 		const b4: rs.u8 = x2;
 		const pair: [rs.u8, Hop.Hop[]] = [rs.u8Rem(b4, 2), copy$array_keys_Hop(make(b4))];
@@ -3103,13 +3089,12 @@ export function keyed$u16_2_keys_arrays_closure0(data: rs.ByteSlice, make: (a0: 
 	const set: rs.HashSet<rs.u16[]> = rs.hashNew(rs.hashing(rs.hashInts(2), rs.eqSlice(rs.same))) as rs.HashSet<rs.u16[]>;
 	const ordered: rs.BTreeSet<rs.u16[]> = rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.u16[]>;
 	const values: rs.HashMap<rs.u8, rs.u16[]> = rs.hashNew() as rs.HashMap<rs.u8, rs.u16[]>;
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
@@ -3314,13 +3299,12 @@ export function keyed$u16_2_keys_arrays_closure0(data: rs.ByteSlice, make: (a0: 
 	const options: rs.HashSet<rs.u16[] | undefined> = rs.hashNew(rs.hashing(rs.hashOption(rs.hashInts(2)), rs.eqOption(rs.eqSlice(rs.same)))) as rs.HashSet<rs.u16[] | undefined>;
 	const vecs: rs.HashMap<rs.Vec<rs.u16>, rs.u8> = rs.hashNew(rs.hashing(rs.hashInts(2), rs.eqSlice(rs.same))) as rs.HashMap<rs.Vec<rs.u16>, rs.u8>;
 	const lists: rs.BTreeSet<rs.Vec<rs.u16>> = rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.Vec<rs.u16>>;
-	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s2: Uint8Array = rs.byteSliceView(data);
+	let front2: number = 0;
+	const back2: number = s2.length;
 	let count2: number = 0;
-	while (true) {
-		const x2 = leaf2.next();
-		if (x2 === rs.DONE) {
-			break;
-		}
+	while (!(front2 >= back2)) {
+		const x2 = s2[front2++];
 		const i3: rs.usize = count2++;
 		const b4: rs.u8 = x2;
 		const pair: [rs.u8, rs.u16[]] = [rs.u8Rem(b4, 2), make(b4)];
@@ -3381,13 +3365,12 @@ export function keyed$u32_0_keys_arrays_closure7(data: rs.ByteSlice, make: (a0: 
 	const set: rs.HashSet<rs.u32[]> = rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashSet<rs.u32[]>;
 	const ordered: rs.BTreeSet<rs.u32[]> = rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.u32[]>;
 	const values: rs.HashMap<rs.u8, rs.u32[]> = rs.hashNew() as rs.HashMap<rs.u8, rs.u32[]>;
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
@@ -3592,13 +3575,12 @@ export function keyed$u32_0_keys_arrays_closure7(data: rs.ByteSlice, make: (a0: 
 	const options: rs.HashSet<rs.u32[] | undefined> = rs.hashNew(rs.hashing(rs.hashOption(rs.hashInts(4)), rs.eqOption(rs.eqSlice(rs.same)))) as rs.HashSet<rs.u32[] | undefined>;
 	const vecs: rs.HashMap<rs.Vec<rs.u32>, rs.u8> = rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashMap<rs.Vec<rs.u32>, rs.u8>;
 	const lists: rs.BTreeSet<rs.Vec<rs.u32>> = rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.Vec<rs.u32>>;
-	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s2: Uint8Array = rs.byteSliceView(data);
+	let front2: number = 0;
+	const back2: number = s2.length;
 	let count2: number = 0;
-	while (true) {
-		const x2 = leaf2.next();
-		if (x2 === rs.DONE) {
-			break;
-		}
+	while (!(front2 >= back2)) {
+		const x2 = s2[front2++];
 		const i3: rs.usize = count2++;
 		const b4: rs.u8 = x2;
 		const pair: [rs.u8, rs.u32[]] = [rs.u8Rem(b4, 2), make(b4)];
@@ -3659,13 +3641,12 @@ export function keyed$u32_275_keys_arrays_closure8(data: rs.ByteSlice, make: (a0
 	const set: rs.HashSet<rs.u32[]> = rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashSet<rs.u32[]>;
 	const ordered: rs.BTreeSet<rs.u32[]> = rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.u32[]>;
 	const values: rs.HashMap<rs.u8, rs.u32[]> = rs.hashNew() as rs.HashMap<rs.u8, rs.u32[]>;
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
@@ -3870,13 +3851,12 @@ export function keyed$u32_275_keys_arrays_closure8(data: rs.ByteSlice, make: (a0
 	const options: rs.HashSet<rs.u32[] | undefined> = rs.hashNew(rs.hashing(rs.hashOption(rs.hashInts(4)), rs.eqOption(rs.eqSlice(rs.same)))) as rs.HashSet<rs.u32[] | undefined>;
 	const vecs: rs.HashMap<rs.Vec<rs.u32>, rs.u8> = rs.hashNew(rs.hashing(rs.hashInts(4), rs.eqSlice(rs.same))) as rs.HashMap<rs.Vec<rs.u32>, rs.u8>;
 	const lists: rs.BTreeSet<rs.Vec<rs.u32>> = rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.Vec<rs.u32>>;
-	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s2: Uint8Array = rs.byteSliceView(data);
+	let front2: number = 0;
+	const back2: number = s2.length;
 	let count2: number = 0;
-	while (true) {
-		const x2 = leaf2.next();
-		if (x2 === rs.DONE) {
-			break;
-		}
+	while (!(front2 >= back2)) {
+		const x2 = s2[front2++];
 		const i3: rs.usize = count2++;
 		const b4: rs.u8 = x2;
 		const pair: [rs.u8, rs.u32[]] = [rs.u8Rem(b4, 2), make(b4)];
@@ -3937,13 +3917,12 @@ export function keyed$u64_2_keys_arrays_closure1(data: rs.ByteSlice, make: (a0: 
 	const set: rs.HashSet<rs.u64[]> = rs.hashNew(rs.hashing(rs.hashInts(8), rs.eqSlice(rs.u64Eq))) as rs.HashSet<rs.u64[]>;
 	const ordered: rs.BTreeSet<rs.u64[]> = rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.u64[]>;
 	const values: rs.HashMap<rs.u8, rs.u64[]> = rs.hashNew() as rs.HashMap<rs.u8, rs.u64[]>;
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		const b: rs.u8 = x;
 		const i2: rs.u8 = i & 0xff;
@@ -4148,13 +4127,12 @@ export function keyed$u64_2_keys_arrays_closure1(data: rs.ByteSlice, make: (a0: 
 	const options: rs.HashSet<rs.u64[] | undefined> = rs.hashNew(rs.hashing(rs.hashOption(rs.hashInts(8)), rs.eqOption(rs.eqSlice(rs.u64Eq)))) as rs.HashSet<rs.u64[] | undefined>;
 	const vecs: rs.HashMap<rs.Vec<rs.u64>, rs.u8> = rs.hashNew(rs.hashing(rs.hashInts(8), rs.eqSlice(rs.u64Eq))) as rs.HashMap<rs.Vec<rs.u64>, rs.u8>;
 	const lists: rs.BTreeSet<rs.Vec<rs.u64>> = rs.btreeNew(rs.cmpSlice(rs.cmp)) as rs.BTreeSet<rs.Vec<rs.u64>>;
-	const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s2: Uint8Array = rs.byteSliceView(data);
+	let front2: number = 0;
+	const back2: number = s2.length;
 	let count2: number = 0;
-	while (true) {
-		const x2 = leaf2.next();
-		if (x2 === rs.DONE) {
-			break;
-		}
+	while (!(front2 >= back2)) {
+		const x2 = s2[front2++];
 		const i3: rs.usize = count2++;
 		const b4: rs.u8 = x2;
 		const pair: [rs.u8, rs.u64[]] = [rs.u8Rem(b4, 2), make(b4)];

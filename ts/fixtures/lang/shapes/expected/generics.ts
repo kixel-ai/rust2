@@ -751,16 +751,19 @@ export function projectedCycles(data: rs.ByteSlice, out: rs.ByteVec): void {
 	Even.walk$generics_Flags_vec_IntoIter_u8(even, walked);
 	put(out, walked.v);
 	let swap: Swap.Swap<rs.u16[], Flags.Flags, rs.u16, boolean> | undefined = undefined;
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	const front: number = 0;
+	let back: number = s.length;
 	let count: number = -1;
 	while (true) {
 		if (count < 0) {
-			count = leaf.len();
+			count = back - front;
 		}
-		const x = leaf.nextBack();
-		if (x === rs.DONE) {
+		if (front >= back) {
 			break;
 		}
+		back--;
+		const x = s[back];
 		count--;
 		const i: rs.usize = count;
 		const b2: rs.u8 = x;
@@ -936,13 +939,12 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const args28 = [(f: rs.Formatter) => rs.u16Display(arg6, f), (f: rs.Formatter) => rs.fmtOption(_281, f, (value: [rs.u8, boolean], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtBool(value[1], f)], f))];
 	put(out, rs.fmtFormat([args28[0], " ", args28[1]]).v);
 	let ping: Ping.Ping<Rally.Rally, Pong.Pong$generics_Rally> = new Ping.Ping(238, undefined as rs.OptionOf<Pong.Pong$generics_Rally>);
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s3: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s3.length;
 	let count2: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s3[front++];
 		const i: rs.usize = count2++;
 		const b4: rs.u8 = x;
 		if (rs.usizeRem(i, 3) === 0) {

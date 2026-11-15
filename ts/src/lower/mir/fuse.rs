@@ -7,12 +7,14 @@
 //! program calls through, which engines stop inlining once they have seen a few, and each
 //! `zip` and `enumerate` makes a pair per item.
 //!
-//! The loop reads the leaves, which stay `rs.Iter`s, and calls the closures in the order
-//! and as often as the runtime's adaptors would, on the state they would keep: an
-//! `enumerate`'s count, the pairs left of a zip that std reads by index, and those a fold
-//! of a `TrustedLen` zip reads by its size hint. It partially evaluates the runtime for
-//! these leaves, whose `folded` and `indexed` are themselves and whose `find` reads by
-//! `next`, so the readers each consumer and adaptor picks all read by `next`. A closure
+//! The loop reads each slice's or `Vec`'s leaf as its array and two indices, and each range
+//! of integers that fit a number as its bounds, as `SliceIter` and `Range` step them; a leaf
+//! whose items drop, or a range past 2^53 or of `char`s, stays an `rs.Iter`. It calls the
+//! closures in the order and as often as the runtime's adaptors would, on the state they
+//! would keep: an `enumerate`'s count, the pairs left of a zip that std reads by index, and
+//! those a fold of a `TrustedLen` zip reads by its size hint. It partially evaluates the
+//! runtime for these leaves, whose `folded` and `indexed` are themselves and whose `find`
+//! reads by `next`, so the readers each consumer and adaptor picks all read by `next`. A closure
 //! whose body is one expression is written in place of its call, and a pair reaches it
 //! as its parts, made whole only where something reads the tuple. A `for` loop's `next`
 //! is written into the loop once the function is: [`loop_parts`] leaves the loop where
@@ -91,9 +93,24 @@ pub(super) enum Zipped {
 /// One node of a chain, its parts bound to variables.
 #[derive(Clone)]
 pub(super) enum Node {
-	/// A slice's, a `Vec`'s, or a range's iterator, which stays an `rs.Iter`.
+	/// An iterator the runtime makes, which stays an `rs.Iter`: one whose items drop, a
+	/// range past 2^53 or of `char`s, or a chain that doesn't fuse.
 	Leaf {
 		var: String,
+		item: Type,
+	},
+	/// A slice's or a `Vec`'s iterator read in place, as `SliceIter` reads it: its array and
+	/// the indices of its front and back.
+	Slice {
+		s: String,
+		front: String,
+		back: String,
+		item: Type,
+	},
+	/// A range of integers that fit a number, read in place as `Range` reads it: its bounds.
+	Range {
+		start: String,
+		end: String,
 		item: Type,
 	},
 	Map {
@@ -161,7 +178,8 @@ impl Val {
 
 /// A chain as its mapping made it, before its parts are bound.
 enum Shape<'tcx> {
-	Leaf(Expr, Ty<'tcx>),
+	/// The iterator with its type and its item's.
+	Leaf(Expr, Ty<'tcx>, Ty<'tcx>),
 	/// Each closure with its type.
 	Map(Box<Shape<'tcx>>, (Expr, Ty<'tcx>), Ty<'tcx>),
 	Filter(Box<Shape<'tcx>>, (Expr, Ty<'tcx>), Option<Expr>, Ty<'tcx>),
@@ -446,7 +464,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let item = |ty: Ty<'tcx>| self.b.t.iter_item(ty);
 		let rs = |f: &Expr, name: &str| matches!(peel(f), Expr::Rs(n) if n == name);
 		let Some(kind) = adaptor(tcx, ty) else {
-			return leaf(e).then(|| Shape::Leaf(e.clone(), item(ty).expect("an iterator's item")));
+			return leaf(e).then(|| Shape::Leaf(e.clone(), ty, item(ty).expect("an iterator's item")));
 		};
 		let ty::Adt(_, gargs) = ty.kind() else {
 			return None;
@@ -520,9 +538,12 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	fn bind(&mut self, shape: Shape<'tcx>, folds: bool, back: bool, span: Span, out: &mut Vec<Stmt>) -> Node {
 		let number = || Type::Builtin("number");
 		match shape {
-			Shape::Leaf(e, item) => {
-				let var = self.b.fresh("leaf");
+			Shape::Leaf(e, ty, item) => {
 				let item = self.b.t.ty(item, span);
+				if let Some(node) = self.in_place(&e, ty, &item, span, out) {
+					return node;
+				}
+				let var = self.b.fresh("leaf");
 				self.decl(false, &var, Type::Rs("Iter", vec![item.clone()]), e, out);
 				Node::Leaf { var, item }
 			}
@@ -600,6 +621,69 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				let item = self.b.t.ty(item, span);
 				Node::Zip { a, b, how, item }
 			}
+		}
+	}
+
+	/// `e`, a leaf of type `ty` yielding `item`s, as the variables it is read in place from,
+	/// in the order JS evaluates its parts, or `None` where it stays an `rs.Iter`: one whose
+	/// items drop, which a consumer that stops early drops the rest of, and a range that
+	/// needs its type's `Step`.
+	fn in_place(&mut self, e: &Expr, ty: Ty<'tcx>, item: &Type, span: Span, out: &mut Vec<Stmt>) -> Option<Node> {
+		let number = || Type::Builtin("number");
+		let rs = |f: &Expr, name: &str| matches!(peel(f), Expr::Rs(n) if n == name);
+		match peel(e) {
+			Expr::Call(f, args) if rs(f, "iterRev") && args.len() == 1 => {
+				let ty::Adt(_, gargs) = ty.kind() else {
+					return None;
+				};
+				let inner = self.in_place(&args[0], gargs.type_at(0), item, span, out)?;
+				Some(Node::Rev { inner: Box::new(inner) })
+			}
+			Expr::Call(f, args) if rs(f, "iterSlice") || rs(f, "vecIntoIter") || rs(f, "byteVecIntoIter") => {
+				let elem = super::step::array_iter(self.tcx, ty).or_else(|| by_value(self.tcx, ty))?;
+				if given(args.get(1)).is_some() {
+					return None;
+				}
+				let array = self.array_ty(elem, span);
+				let (s, front, back) = (self.b.fresh("s"), self.b.fresh("front"), self.b.fresh("back"));
+				// A `Vec<u8>`'s bytes are its buffer up to its length.
+				let len = if rs(f, "byteVecIntoIter") {
+					let v = self.part(args[0].clone(), "v", Some(Type::Rs("ByteVec", Vec::new())), out);
+					self.decl(false, &s, array, v.clone().member("data"), out);
+					v.member("length")
+				} else {
+					let items = if rs(f, "vecIntoIter") {
+						args[0].clone().member("items")
+					} else {
+						args[0].clone()
+					};
+					self.decl(false, &s, array, items, out);
+					Expr::ident(&s).member("length")
+				};
+				self.decl(true, &front, number(), Expr::lit("0"), out);
+				self.decl(true, &back, number(), len, out);
+				Some(Node::Slice {
+					s,
+					front,
+					back,
+					item: item.clone(),
+				})
+			}
+			Expr::New(f, args) if rs(f, "Range") && args.len() == 2 && super::small_range(self.tcx, ty) => {
+				let ty::Adt(_, gargs) = ty.kind() else {
+					return None;
+				};
+				let bound = self.b.t.held_ty(gargs.type_at(0), span);
+				let (start, end) = (self.b.fresh("start"), self.b.fresh("end"));
+				self.decl(true, &start, bound.clone(), args[0].clone(), out);
+				self.decl(true, &end, bound, args[1].clone(), out);
+				Some(Node::Range {
+					start,
+					end,
+					item: item.clone(),
+				})
+			}
+			_ => None,
 		}
 	}
 
@@ -854,6 +938,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	fn len(&self, node: &Node) -> Expr {
 		match node {
 			Node::Leaf { var, .. } => Expr::ident(var).member("len").call(Vec::new()),
+			Node::Slice { .. } | Node::Range { .. } => left(node),
 			Node::Map { inner, .. } | Node::Enumerate { inner, .. } | Node::Rev { inner } => self.len(inner),
 			Node::Zip {
 				how: Zipped::Indexed { index, end, .. },
@@ -894,6 +979,40 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					out.push(StmtKind::decl(false, &x, None, Some(next)).at(None));
 					out.push(ended(&x, done));
 				}
+				Some(Val::One(Expr::ident(x)))
+			}
+			Node::Slice { front, back: end, .. } | Node::Range { start: front, end, .. } => {
+				if !indexed {
+					let ended = Expr::ident(front).binary(">=", Expr::ident(end));
+					out.push(
+						StmtKind::If {
+							cond: ended,
+							then: done.to_vec(),
+							els: Vec::new(),
+						}
+						.at(None),
+					);
+				}
+				// As `SliceIter` and `Range` read: the front's index or value, then past it, or
+				// the back's, once before it.
+				let at = if back { end } else { front };
+				let step = Expr::Postfix(Box::new(Expr::ident(at)), if back { "--" } else { "++" });
+				if !used {
+					out.push(expr(step));
+					return None;
+				}
+				let i = if back {
+					out.push(expr(step));
+					Expr::ident(at)
+				} else {
+					step
+				};
+				let value = match node {
+					Node::Slice { s, .. } => Expr::ident(s).index(i),
+					_ => i,
+				};
+				let x = self.b.fresh("x");
+				out.push(StmtKind::decl(false, &x, None, Some(value)).at(None));
 				Some(Val::One(Expr::ident(x)))
 			}
 			Node::Rev { inner } => self.read(inner, !back, indexed, used, done, out),
@@ -1000,7 +1119,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 								trim.push(StmtKind::decl(false, &left, None, Some(pairs)).at(None));
 								for (side, (&effect, drop)) in [a, b].into_iter().zip(effects.iter().zip(drops)) {
 									let n = self.len(side).binary("-", Expr::ident(&left));
-									self.trim(side, n, effect, drop.as_ref(), &mut trim);
+									self.trim(side, n, true, effect, drop.as_ref(), &mut trim);
 								}
 								trim.push(expr(Expr::ident(even).assign(Expr::lit("true"))));
 								out.push(
@@ -1166,17 +1285,17 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		(read, held)
 	}
 
-	/// `n` items, if more than none, taken from the back of `node`, a side of a zip read
-	/// from the back, into `out`: read one at a time and dropped by `drop` if it may have
-	/// side effects, as the runtime's `trim` does, and else skipped as its `advanceBackBy`
-	/// skips them.
-	fn trim(&mut self, node: &Node, n: Expr, effect: bool, drop: Option<&Expr>, out: &mut Vec<Stmt>) {
+	/// `n` items, if more than none and no more than it has, taken from the back of `node`,
+	/// or the front unless `back`, a side of a zip read from the back, into `out`: read one
+	/// at a time and dropped by `drop` if it may have side effects, as the runtime's `trim`
+	/// does, and else skipped as its `advanceBackBy` skips them.
+	fn trim(&mut self, node: &Node, n: Expr, back: bool, effect: bool, drop: Option<&Expr>, out: &mut Vec<Stmt>) {
 		if effect {
 			let (k, label) = (self.b.fresh("k"), self.b.fresh("trim"));
 			out.push(StmtKind::decl(true, &k, None, Some(n)).at(None));
 			let mut body = vec![StmtKind::Expr(Expr::Postfix(Box::new(Expr::ident(&k)), "--")).at(None)];
 			let done = vec![StmtKind::Break(Some(label.clone())).at(None)];
-			if let Some(x) = self.read(node, true, false, drop.is_some(), &done, &mut body)
+			if let Some(x) = self.read(node, back, false, drop.is_some(), &done, &mut body)
 				&& let Some(drop) = drop
 			{
 				body.push(StmtKind::Expr(drop.clone().call(vec![x.whole()])).at(None));
@@ -1193,10 +1312,17 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		}
 		match node {
 			Node::Leaf { var, .. } => {
-				let skip = Expr::ident(var).member("advanceBackBy").call(vec![n]);
-				out.push(StmtKind::Expr(skip).at(None));
+				let advance = if back { "advanceBackBy" } else { "advanceBy" };
+				out.push(StmtKind::Expr(Expr::ident(var).member(advance).call(vec![n])).at(None));
 			}
-			Node::Enumerate { inner, .. } => self.trim(inner, n, false, None, out),
+			Node::Slice { front, back: end, .. } | Node::Range { start: front, end, .. } => {
+				let at = if back { end } else { front };
+				let to = Expr::ident(at).binary(if back { "-" } else { "+" }, n);
+				out.push(StmtKind::Expr(Expr::ident(at).assign(to)).at(None));
+			}
+			Node::Rev { inner } => self.trim(inner, n, !back, false, None, out),
+			// Counted down from its length as its first read from the back starts.
+			Node::Enumerate { inner, .. } if back => self.trim(inner, n, back, false, None, out),
 			// As `TrustedZipIter`'s `advanceBackBy` where neither side has side effects: the
 			// pairs left past `n` of them, to which it trims each side.
 			Node::Zip {
@@ -1209,14 +1335,14 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					..
 				},
 				..
-			} => {
+			} if back => {
 				let left = self.b.fresh("left");
 				let pairs = Expr::ident(end).binary("-", Expr::ident(index)).binary("-", n);
 				let max = Expr::ident("Math").member("max").call(vec![pairs, Expr::lit("0")]);
 				out.push(StmtKind::decl(false, &left, None, Some(max)).at(None));
 				for side in [a, b] {
 					let n = self.len(side).binary("-", Expr::ident(&left));
-					self.trim(side, n, false, None, out);
+					self.trim(side, n, true, false, None, out);
 				}
 				let to = Expr::ident(index).binary("+", Expr::ident(left));
 				out.push(StmtKind::Expr(Expr::ident(end).assign(to)).at(None));
@@ -1270,6 +1396,7 @@ fn upper(node: &Node) -> Expr {
 			let hint = Expr::ident(var).member("sizeHint").call(Vec::new());
 			hint.index(Expr::lit("1")).binary("??", Expr::ident("Infinity"))
 		}
+		Node::Slice { .. } | Node::Range { .. } => left(node),
 		Node::Map { inner, .. } | Node::Filter { inner, .. } | Node::Enumerate { inner, .. } | Node::Rev { inner } => {
 			upper(inner)
 		}
@@ -1282,6 +1409,19 @@ fn upper(node: &Node) -> Expr {
 			..
 		} => Expr::ident(left),
 		Node::Zip { a, b, .. } => min(upper(a), upper(b)),
+	}
+}
+
+/// How many items `node`, a leaf read in place, has left: a range's none once its start
+/// passes its end.
+fn left(node: &Node) -> Expr {
+	match node {
+		Node::Slice { front, back, .. } => Expr::ident(back).binary("-", Expr::ident(front)),
+		Node::Range { start, end, .. } => {
+			let n = Expr::ident(end).binary("-", Expr::ident(start));
+			Expr::ident("Math").member("max").call(vec![n, Expr::lit("0")])
+		}
+		_ => unreachable!("a leaf read in place"),
 	}
 }
 
@@ -1301,10 +1441,21 @@ fn leaf(e: &Expr) -> bool {
 	}
 }
 
+/// The item type of an array's iterator by value, if `ty` is one, which `rs.iterSlice` makes.
+fn by_value<'tcx>(tcx: ty::TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	let ty::Adt(adt, gargs) = ty.kind() else {
+		return None;
+	};
+	let path = library::std_path(tcx, adt.did());
+	(path.iter().map(String::as_str).eq(["array", "iter", "IntoIter"])).then(|| gargs.type_at(0))
+}
+
 /// The type of what `node` yields.
 fn item_of(node: &Node) -> Type {
 	match node {
 		Node::Leaf { item, .. }
+		| Node::Slice { item, .. }
+		| Node::Range { item, .. }
 		| Node::Map { item, .. }
 		| Node::Filter { item, .. }
 		| Node::Enumerate { item, .. }

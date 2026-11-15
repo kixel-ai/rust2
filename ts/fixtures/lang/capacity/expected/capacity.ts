@@ -3687,13 +3687,12 @@ export function maps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const _159: [rs.usize, rs.usize] = [_160, amount(arg, lens[1], 1)];
 				const a2: rs.usize = _160;
 				const b2: rs.usize = _159[1];
-				const leaf: rs.Iter<[rs.Result<undefined, rs.TryReserveError>, rs.usize]> = rs.iterSlice([[rs.hashTryReserve(m, a2, 58720256), a2] as [rs.Result<undefined, rs.TryReserveError>, rs.usize], [rs.hashTryReserve(s, b2, 469762048), b2] as [rs.Result<undefined, rs.TryReserveError>, rs.usize]]);
+				const s2: [rs.Result<undefined, rs.TryReserveError>, rs.usize][] = [[rs.hashTryReserve(m, a2, 58720256), a2] as [rs.Result<undefined, rs.TryReserveError>, rs.usize], [rs.hashTryReserve(s, b2, 469762048), b2] as [rs.Result<undefined, rs.TryReserveError>, rs.usize]];
+				let front: number = 0;
+				const back: number = s2.length;
 				let count: number = 0;
-				while (true) {
-					const x = leaf.next();
-					if (x === rs.DONE) {
-						break;
-					}
+				while (!(front >= back)) {
+					const x = s2[front++];
 					const i: rs.usize = count++;
 					const tried: rs.Result<undefined, rs.TryReserveError> = x[0];
 					const n: rs.usize = x[1];

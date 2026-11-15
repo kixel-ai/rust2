@@ -130,13 +130,12 @@ export function inline(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const shared: rs.Arc<rs.u8> = new rs.Arc(0);
 	const held: Inline.Inline<rs.Arc<rs.u8>> = Inline.new$sync_Arc_u8();
 	const pairs: Inline.Inline<[rs.u8, rs.u8] | undefined> = Inline.new$Option_tuple2_u8_u8();
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		const n: rs.u8 = x;
 		if (held.len === 4) {

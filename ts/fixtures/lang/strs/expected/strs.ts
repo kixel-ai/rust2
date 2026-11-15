@@ -463,13 +463,15 @@ export function unescape(path: string): rs.Vec<rs.String> {
 export function escape(parts: rs.Slice<rs.String>): rs.String {
 	let _23!: boolean;
 	const path: rs.String = rs.stringNew();
-	const leaf: rs.Iter<rs.String> = rs.iterSlice(rs.sliceItems(parts));
+	const s: rs.String[] = rs.sliceItems(parts);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
 	l1: while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
+		if (front >= back) {
 			return path;
 		}
+		const x = s[front++];
 		if (count++ > 0) {
 			rs.stringPush(path, 47);
 		}

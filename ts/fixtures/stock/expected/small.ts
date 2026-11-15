@@ -281,14 +281,12 @@ export function copies(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const _83: rs.Vec<rs.u16> = v;
 		const _85: rs.Vec<rs.u16> = rs.smallVecFromSlice(rs.sliceFrom(items.items), 3, undefined);
 		rs.byteVecPush(out, rs.eqSlice(rs.same)(_83, _85) ? 1 : 0);
-		const leaf = rs.iterSlice(v.items);
+		const s = v.items;
+		let front = 0;
+		let back = s.length;
 		let acc: rs.usize = 0;
-		while (true) {
-			const x3 = leaf.next();
-			if (x3 === rs.DONE) {
-				break;
-			}
-			acc = rs.usizeAdd(acc, x3 as rs.usize);
+		while (!(front >= back)) {
+			acc = rs.usizeAdd(acc, s[front++] as rs.usize);
 		}
 		put(out, acc);
 		const _94: rs.u16 | undefined = rs.sliceFirst(rs.sliceFrom(v.items));

@@ -389,13 +389,12 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		rs.byteVecPush(out, rs.byteSliceRange(data, from.start).length & 0xff);
 	} else if (_21 === 1) {
 		const map: rs.BTreeMap<rs.u64, rs.u64> = rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u64, rs.u64>;
-		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+		const s: Uint8Array = rs.byteSliceView(data);
+		let front: number = 0;
+		const back: number = s.length;
 		let count: number = 0;
-		while (true) {
-			const x3 = leaf.next();
-			if (x3 === rs.DONE) {
-				break;
-			}
+		while (!(front >= back)) {
+			const x3 = s[front++];
 			const i7 = count++;
 			rs.btreeInsert(map, x3 as rs.u64, i7 as rs.u64);
 		}

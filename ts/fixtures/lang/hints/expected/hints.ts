@@ -2031,7 +2031,9 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			walk$str_Bytes(rs.strBytes(s.v), steps, out);
 		} else {
 			const t: rs.String = rs.stringClone(s);
-			const leaf = rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(bytes, 0, rs.usizeDiv(bytes.length, 2))));
+			const s2 = rs.byteSliceView(rs.byteSliceRange(bytes, 0, rs.usizeDiv(bytes.length, 2)));
+			let front = 0;
+			let back = s2.length;
 			const f = (_231: rs.u8): rs.usize => {
 				const _512: rs.usize = rs.u8Rem(_231, 4) as rs.usize;
 				if (!(_512 < 4)) {
@@ -2040,12 +2042,8 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return [1, 2, 4, 3][_512];
 			};
 			let acc: rs.usize = 0;
-			while (true) {
-				const x = leaf.next();
-				if (x === rs.DONE) {
-					break;
-				}
-				acc = rs.usizeAdd(acc, f(x));
+			while (!(front >= back)) {
+				acc = rs.usizeAdd(acc, f(s2[front++]));
 			}
 			walk$string_Drain(rs.stringDrain(t, new rs.RangeFrom(acc, rs.usizeStep)), steps, out);
 		}

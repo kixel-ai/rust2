@@ -1724,13 +1724,12 @@ export function copies(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const b2: rs.u8 = _23;
 		return thenSome$0quywni(rs.u8Rem(b2, 3) !== 0, b2);
 	}), undefined, 2, true);
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		const op: rs.u8 = x;
 		const pick: rs.usize = rs.usizeRem(op >> 3 as rs.usize, data.length);

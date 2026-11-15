@@ -84,9 +84,12 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const args6 = [(f: rs.Formatter) => Unit.fmt$fmt_Debug(_11, f), (f: rs.Formatter) => One.fmt$fmt_Debug(_40, f)];
 		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v), undefined, true);
 	} else if (_8 === 1) {
-		const leaf = rs.iterSlice(rs.byteSliceView(data));
+		const s2 = rs.byteSliceView(data);
+		let front = 0;
+		let back = s2.length;
 		let n2 = 0;
-		while (leaf.next() !== rs.DONE) {
+		while (!(front >= back)) {
+			s2[front++];
 			Uint8Array.of();
 			n2++;
 		}
@@ -100,13 +103,16 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return item;
 			});
 		}), (value: Unit.Unit[]) => rs.iterSlice(value), true, 3)) & 0xff);
-		const leaf2 = rs.iterSlice(rs.byteSliceView(data));
+		const s3 = rs.byteSliceView(data);
+		let front2 = 0;
+		let back2 = s3.length;
 		let n3 = 0;
 		fused6: while (true) {
 			while (true) {
-				if (leaf2.next() === rs.DONE) {
+				if (front2 >= back2) {
 					break fused6;
 				}
+				s3[front2++];
 				if (Unit.eq$cmp_PartialEq(pair()._0, { _0: {}, _1: undefined }._0)) {
 					break;
 				}
@@ -592,13 +598,16 @@ export function unread(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		drop$zeros_Lock_zeros_Loud(Lock.new$zeros_Loud(undefined));
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.atomicLoad(LOG, 0))), undefined, true);
 	} else if (_9 === 1) {
-		const leaf = rs.iterSlice(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): undefined => {}), undefined, 0, true).items);
+		const s = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): undefined => {}), undefined, 0, true).items;
+		let front = 0;
+		let back = s.length;
 		let n2 = 0;
 		fused2: while (true) {
 			while (true) {
-				if (leaf.next() === rs.DONE) {
+				if (front >= back) {
 					break fused2;
 				}
+				s[front++];
 				if (true) {
 					break;
 				}

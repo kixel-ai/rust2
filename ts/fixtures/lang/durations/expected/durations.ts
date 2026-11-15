@@ -252,13 +252,12 @@ export function durations(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		putDuration(out, rs.ordMax(a, b, rs.cmpLt(rs.durationCmp)));
 		putDuration(out, rs.ordMin(a, b, rs.cmpLt(rs.durationCmp)));
 		const seen: rs.BTreeMap<rs.Duration, rs.u8> = rs.btreeNew(rs.durationCmp) as rs.BTreeMap<rs.Duration, rs.u8>;
-		const leaf: rs.Iter<rs.Duration> = rs.iterSlice([a, b, { secs: 1, nanos: 500000000 }, a, { secs: 0, nanos: 0 }]);
+		const s: rs.Duration[] = [a, b, { secs: 1, nanos: 500000000 }, a, { secs: 0, nanos: 0 }];
+		let front: number = 0;
+		const back: number = s.length;
 		let count: number = 0;
-		while (true) {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				break;
-			}
+		while (!(front >= back)) {
+			const x = s[front++];
 			const i2 = count++;
 			rs.btreeInsert(seen, x, i2 & 0xff);
 		}
