@@ -1394,24 +1394,23 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 	)
 }
 
-/// The Dart driver; Dart's `int` is Rust's `u64` in two's complement, printed unsigned.
+/// The Dart driver, which prints each digest, a `U64`, unsigned.
 fn dart(built: &Built, calls: &[Call]) -> String {
 	let name = built.name();
 	let mut body = String::new();
 	for call in calls {
+		// A seed as the `int` of its bits.
+		let u = |seed: u64| format!("s.U64.fromBits({})", seed as i64);
 		let value = match *call {
-			Call::Echo(n, seed) => format!("s.digest{n}(s.echo{n}(s.make{n}({seed})))"),
-			Call::Lent(n, seed) => format!("s.lent{n}({seed}, s.digest{n})"),
-			Call::Peek(n, seed) => format!("s.peek{n}({seed}, s.digest{n})"),
-			Call::Made(n, seed) => format!("s.made{n}({seed}, s.make{n})"),
-			Call::Later(n, seed) => format!("s.digest{n}(await s.later{n}(s.make{n}({seed})))"),
+			Call::Echo(n, seed) => format!("s.digest{n}(s.echo{n}(s.make{n}({})))", u(seed)),
+			Call::Lent(n, seed) => format!("s.lent{n}({}, s.digest{n})", u(seed)),
+			Call::Peek(n, seed) => format!("s.peek{n}({}, s.digest{n})", u(seed)),
+			Call::Made(n, seed) => format!("s.made{n}({}, s.make{n})", u(seed)),
+			Call::Later(n, seed) => format!("s.digest{n}(await s.later{n}(s.make{n}({})))", u(seed)),
 		};
-		let _ = writeln!(body, "  print('{} ${{u({value})}}');", call.label());
+		let _ = writeln!(body, "  print('{} ${{({value}).toRadixString(10)}}');", call.label());
 	}
-	format!(
-		"import 'package:{name}/{name}.dart' as s;\n\nString u(int v) => BigInt.from(v).toUnsigned(64).toString();\n\n\
-		Future<void> main() async {{\n{body}}}\n"
-	)
+	format!("import 'package:{name}/{name}.dart' as s;\n\nFuture<void> main() async {{\n{body}}}\n")
 }
 
 /// Build and run `language`'s driver of `built`, checking it against the native transcript.
