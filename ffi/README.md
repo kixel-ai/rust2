@@ -1002,8 +1002,9 @@ reads a go.mod.
   `IpAddr` has no room for, or a flow label `netip` has none for; a scope is a zone of its
   number, and a zone converts by its number or its interface's name. Every one compares
   with `==`. A `string` that is not UTF-8, a `rune` that is not a Unicode scalar value,
-  or a zero for a `NonZero`, fails the call taking it, anywhere in its arguments, before it is made, with an error
-  matching `rt.ErrInvalid`, so every such call returns an `error`, `Equal` of a value
+  a path that is not WTF-8 on Windows, or a zero for a `NonZero`, fails the call taking it,
+  anywhere in its arguments, before it is made, with an error matching `rt.ErrInvalid`, so
+  every such call returns an `error`, on every target for a path too, `Equal` of a value
   holding text too, and `String()` and `GoString()` the error's text; what a closure or
   trait Go implements returns Rust has no caller to return one to, so it aborts.
 - **Lists**: a `Vec<T>`, `&[T]`, or `Box<[T]>` is a `[]T`; one of a
