@@ -924,7 +924,7 @@ fn main() {
 		.map(|c| format!("{:x}", u32::from(api::same_char(c))))
 		.collect();
 	println!("lossless char {}", chars.join(" "));
-	let paths: Vec<String> = [std::path::PathBuf::from("a/é"), api::stray()]
+	let paths: Vec<String> = [std::path::PathBuf::from("a/é"), unspelled()]
 		.into_iter()
 		.map(|p| hex(api::same_path(p).as_os_str().as_encoded_bytes()))
 		.collect();
@@ -1065,12 +1065,25 @@ fn main() {
 	);
 }
 
+/// A path no Rust string spells: on Unix, bytes that are not UTF-8; on Windows, a lone
+/// surrogate, which is WTF-8's `ed a0 80`.
+#[cfg(unix)]
+fn unspelled() -> std::path::PathBuf {
+	api::stray()
+}
+
+/// A path no Rust string spells: on Unix, bytes that are not UTF-8; on Windows, a lone
+/// surrogate, which is WTF-8's `ed a0 80`.
+#[cfg(windows)]
+fn unspelled() -> std::path::PathBuf {
+	<std::ffi::OsString as std::os::windows::ffi::OsStringExt>::from_wide(&[0xd800]).into()
+}
+
 /// Lowercase hex of `bytes`, two digits each.
 fn hex(bytes: &[u8]) -> String {
 	bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// An address's bytes in hex, so the length shows its family.
 /// A socket address as its IP's bytes in hex, its port, flow label, and scope, each
 /// IPv6's alone, apart by colons.
 fn socket_hex(addr: std::net::SocketAddr) -> String {
@@ -1086,6 +1099,7 @@ fn socket_hex(addr: std::net::SocketAddr) -> String {
 	}
 }
 
+/// An address's bytes in hex, so the length shows its family.
 fn ip_hex(ip: std::net::IpAddr) -> String {
 	match ip {
 		std::net::IpAddr::V4(v4) => hex(&v4.octets()),

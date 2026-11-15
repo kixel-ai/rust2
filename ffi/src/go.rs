@@ -2487,6 +2487,8 @@ impl<'a> Gen<'a> {
 		// Go values, which may panic, such as on a nil enum.
 		let mut bufs = false;
 		let mut lowered = Vec::new();
+		// The callbacks, which give Rust a handle only the call releases.
+		let mut callbacks = Vec::new();
 		let mut params = Vec::new();
 		if function.future {
 			params.push(("ctx".to_string(), "context.Context".to_string()));
@@ -2541,7 +2543,7 @@ impl<'a> Gen<'a> {
 				}
 				(ty @ Type::Callback(i, _), _) => {
 					self.convert(ty);
-					lowered.push(args.len());
+					callbacks.push(args.len());
 					args.push(format!("lower_{}({name})", abi.callback(*i)))
 				}
 				(Type::Waker, _) => args.push(format!("waker_({name})")),
@@ -2660,6 +2662,14 @@ impl<'a> Gen<'a> {
 		}
 		if checked {
 			body.push(format!("if a_.err != nil {{\n\t{}\n}}", fail("a_.err")));
+		}
+		// Given once no check can fail the call, which then releases them, but before the
+		// arena hands Rust its buffers, as a nil one panics.
+		if arena || bufs {
+			for &i in &callbacks {
+				body.push(format!("l{i}_ := {}", args[i]));
+				args[i] = format!("l{i}_");
+			}
 		}
 		// Nothing from here fails before the call, which Rust's buffers given it go to.
 		if arena {

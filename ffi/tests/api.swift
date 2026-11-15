@@ -1554,6 +1554,7 @@ func lossless() {
 	print("lossless path \(hexBytes(samePath("a/é").bytes)) \(hexBytes(samePath(strayPath).bytes))")
 	check(samePath(strayPath) == strayPath, "a path that is not UTF-8 crosses back")
 	try! visitStray { path in check(path == strayPath, "a lent path that is not UTF-8 keeps its bytes") }
+	check(samePath(PathBuf(bytes: Bytes([0xff]))) == strayPath, "a caller's bytes make a path")
 	let v4 = sameSocketAddrV4(SocketAddrV4(ip: Ipv4Addr(bits: .max), port: .max))
 	let ip6 = Ipv6Addr(bits: U128(high: 1 << 48, low: 2))
 	let v6 = sameSocketAddrV6(SocketAddrV6(ip: ip6, port: 3, flowinfo: .max, scopeId: .max))

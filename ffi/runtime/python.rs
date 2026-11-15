@@ -1150,16 +1150,17 @@ pub fn duration_in(obj: *mut PyObject) -> R<rt::Duration> {
 	}
 }
 
-/// The runtime's `Duration`, made as a tuple of its fields is, as its class is one.
+/// The runtime's `Duration`, made by `tuple`'s own constructor, which (unlike a bare
+/// allocation) marks the hash CPython 3.14+ caches as not yet computed, and skips the
+/// `NamedTuple`'s Python `__new__`.
 pub fn duration_out(duration: rt::Duration) -> R<Obj> {
-	let secs = uint_out(duration.secs)?;
-	let nanos = uint_out(duration.nanos.into())?;
-	// SAFETY: the GIL is held; a tuple class allocates its items, which each set takes.
+	let items = tuple(vec![uint_out(duration.secs), uint_out(duration.nanos.into())]);
+	let args = tuple(vec![items])?;
+	// SAFETY: the GIL is held; `tuple`'s `tp_new` takes a subclass and, as `tuple(items)`
+	// does, its arguments.
 	unsafe {
-		let obj = Obj::new(PyType_GenericAlloc(ty(T_DURATION).cast(), 2))?;
-		PyTuple_SetItem(obj.ptr(), 0, secs.into_ptr());
-		PyTuple_SetItem(obj.ptr(), 1, nanos.into_ptr());
-		Ok(obj)
+		let new: newfunc = std::mem::transmute(PyType_GetSlot(&raw mut PyTuple_Type, Py_tp_new));
+		Obj::new(new(ty(T_DURATION).cast(), args.ptr(), null_mut()))
 	}
 }
 

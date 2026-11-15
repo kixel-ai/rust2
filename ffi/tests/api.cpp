@@ -1327,7 +1327,13 @@ int script() {
 			std::printf(" %x", static_cast<unsigned>(api::same_char(ll_code)));
 		}
 		std::printf("\n");
+		// A path no Rust string spells: bytes that are not UTF-8, or on Windows, WTF-8's lone
+		// surrogate.
+#ifdef _WIN32
+		static const std::uint8_t ll_stray[] = {0xed, 0xa0, 0x80};
+#else
 		static const std::uint8_t ll_stray[] = {0xff};
+#endif
 		std::printf("lossless path");
 		for (auto ll_same : {api::same_path("a/\xc3\xa9"), api::same_path(api::view(ll_stray, sizeof ll_stray))}) {
 			std::printf(" ");

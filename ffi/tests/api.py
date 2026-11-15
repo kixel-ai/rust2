@@ -769,7 +769,9 @@ def script():
 	print(f"lossless isize {api.same_isize(-usize // 2)} {api.same_isize(usize // 2 - 1)}")
 	print("lossless u128 " + " ".join(f"{api.same_u128(v):032x}" for v in [0, 2**64, 2**128 - 1]))
 	print("lossless char " + " ".join(f"{ord(api.same_char(c)):x}" for c in ["\0", "\ud7ff", "\ue000", "\U0010ffff"]))
-	paths = ["a/é", os.fsdecode(b"\xff")]
+	# A path no Rust string spells: bytes that are not UTF-8, or on Windows, WTF-8's lone
+	# surrogate, which its filesystem encoding passes through.
+	paths = ["a/é", os.fsdecode(b"\xff" if os.name == "posix" else b"\xed\xa0\x80")]
 	print("lossless path " + " ".join(os.fsencode(api.same_path(p)).hex() for p in paths))
 	sv4 = api.same_socket_addr_v4(("255.255.255.255", 65535))
 	sv6 = api.same_socket_addr_v6(("1::2", 3, 2**32 - 1, 2**32 - 1))
@@ -1454,6 +1456,7 @@ def values():
 	td = datetime.timedelta
 	longest = api.Duration(2**64 - 1, 999_999_999)
 	check(api.doubled_ttl(api.Duration(1, 5)) == api.Duration(2, 10), "a duration crosses")
+	check(api.doubled_ttl(api.Duration(1, 5)) in {api.Duration(2, 10)}, "a returned duration hashes as one Python makes")
 	check(api.doubled_ttl(longest) == longest, "the longest crosses")
 	check(api.Duration(1, 2) < api.Duration(1, 3) < api.Duration(2), "durations order as Rust's")
 	check(api.Duration.from_timedelta(td(days=1, microseconds=5)) == api.Duration(86_400, 5_000), "from a timedelta")

@@ -819,7 +819,9 @@ Future<void> script() async {
   print('lossless u128 ${u128s.map((v) => api.sameU128(v).toRadixString(16).padLeft(32, '0')).join(' ')}');
   final chars = ['\u{0}', '\u{d7ff}', '\u{e000}', '\u{10ffff}'];
   print('lossless char ${chars.map((c) => api.sameChar(c).runes.single.toRadixString(16)).join(' ')}');
-  print('lossless path ${[api.PathBuf('a/é'), api.stray()].map((p) => hex(api.samePath(p).bytes)).join(' ')}');
+  // A path no Rust string spells: bytes that are not UTF-8, or on Windows, WTF-8's lone surrogate.
+  final unspelled = api.PathBuf.fromBytes(Platform.isWindows ? [0xed, 0xa0, 0x80] : [0xff]);
+  print('lossless path ${[api.PathBuf('a/é'), unspelled].map((p) => hex(api.samePath(p).bytes)).join(' ')}');
   final sockV4 = api.sameSocketAddrV4(api.SocketAddrV4(api.Ipv4Addr.fromOctets([255, 255, 255, 255]), 65535));
   final sockV6 = api.sameSocketAddrV6(
     api.SocketAddrV6(
@@ -1507,6 +1509,10 @@ void bounds() {
   api.visitStray((path) => lent = path);
   check(lent == stray, 'a lent path that is not UTF-8');
   check(api.PathBuf('a/é').toFilePath() == 'a/é', 'a UTF-8 path as a String');
+  final given = [0xff];
+  final made = api.PathBuf.fromBytes(given);
+  given[0] = 0;
+  check(made == stray && api.samePath(made) == stray, "a caller's bytes make a path, copied");
 
   // An address is its family's, checked out of an InternetAddress.
   final loopback = InternetAddress('::1');

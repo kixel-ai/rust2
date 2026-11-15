@@ -894,7 +894,12 @@ fun lossless() {
 	val wides = listOf(java.math.BigInteger.ZERO, two.pow(64), two.pow(128) - java.math.BigInteger.ONE)
 	println("lossless u128 ${wides.joinToString(" ") { sameU128(it).toString(16).padStart(32, '0') }}")
 	println("lossless char ${listOf(0, 0xd7ff, 0xe000, 0x10ffff).joinToString(" ") { sameChar(it).toString(16) }}")
-	println("lossless path ${listOf(PathBuf("a/é"), PathBuf(byteArrayOf(-1))).joinToString(" ") { hex(samePath(it).toByteArray()) }}")
+	// A path no Rust string spells: bytes that are not UTF-8, or on Windows, WTF-8's lone surrogate.
+	val unspelled = when (java.io.File.separatorChar) {
+		'\\' -> byteArrayOf(0xed.toByte(), 0xa0.toByte(), 0x80.toByte())
+		else -> byteArrayOf(-1)
+	}
+	println("lossless path ${listOf(PathBuf("a/é"), PathBuf(unspelled)).joinToString(" ") { hex(samePath(it).toByteArray()) }}")
 	val v4 = sameSocketAddrV4(SocketAddrV4(Ipv4Addr(UInt.MAX_VALUE), UShort.MAX_VALUE))
 	val v6 = sameSocketAddrV6(SocketAddrV6(Ipv6Addr(ByteArray(16).also { it[1] = 1; it[15] = 2 }), 3u, UInt.MAX_VALUE, UInt.MAX_VALUE))
 	println("lossless socket ${socketHex(v4)} ${socketHex(v6)} ${listOf(v4, v6).joinToString(" ") { socketHex(sameSocketAddr(it)) }}")

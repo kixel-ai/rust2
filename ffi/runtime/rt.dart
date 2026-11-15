@@ -118,6 +118,10 @@ final class PathBuf {
   /// `path`'s UTF-8, throwing an [ArgumentError] where it holds a lone surrogate.
   PathBuf(String path) : _bytes = _utf8(path);
 
+  /// The path of the OS's [bytes], copied: on Windows they must be WTF-8, else it throws an
+  /// [ArgumentError].
+  PathBuf.fromBytes(List<int> bytes) : _bytes = _osPath(bytes);
+
   PathBuf._(this._bytes);
 
   /// Its bytes, which never change.
@@ -387,6 +391,46 @@ final class SocketAddrV6 extends SocketAddr {
   }
 
   static SocketAddrV6 _of(_SocketAddrV6 c) => SocketAddrV6._(Ipv6Addr._of(c.ip), c.port, c.flowinfo, c.scope_id);
+}
+
+/// A copy of `bytes`, throwing an [ArgumentError] on Windows where they are not WTF-8.
+typed.Uint8List _osPath(List<int> bytes) {
+  final copy = typed.Uint8List.fromList(bytes);
+  if (io.Platform.isWindows && !_wtf8(copy)) {
+    throw ArgumentError.value(bytes, 'bytes', 'is not WTF-8, so names no Windows path');
+  }
+  return copy;
+}
+
+/// Whether `bytes` are WTF-8, as Rust encodes a Windows path: UTF-8, but for a surrogate
+/// alone, encoded as a scalar would be, though never a lead then a trail.
+bool _wtf8(typed.Uint8List bytes) {
+  var at = 0;
+  var lead = false;
+  while (at < bytes.length) {
+    final b = bytes[at];
+    final (n, min) = switch (b) {
+      < 0x80 => (1, 0),
+      >= 0xc2 && <= 0xdf => (2, 0x80),
+      >= 0xe0 && <= 0xef => (3, 0x800),
+      >= 0xf0 && <= 0xf4 => (4, 0x10000),
+      _ => (0, 0),
+    };
+    if (n == 0) return false;
+    if (at + n > bytes.length) return false;
+    var c = n == 1 ? b : b & (0x7f >> n);
+    for (var k = 1; k < n; k++) {
+      final next = bytes[at + k];
+      if (next & 0xc0 != 0x80) return false;
+      c = (c << 6) | (next & 0x3f);
+    }
+    if (c < min || c > 0x10ffff) return false;
+    final surrogate = c >= 0xd800 && c <= 0xdfff;
+    if (surrogate && c >= 0xdc00 && lead) return false;
+    lead = surrogate && c < 0xdc00;
+    at += n;
+  }
+  return true;
 }
 
 /// `text`'s UTF-8, throwing an [ArgumentError] where it holds a lone surrogate, which no

@@ -1186,6 +1186,16 @@ func closures() {
 		released(freed, "a dropped future releases its closure")
 	}
 
+	// A callback a failed check stops before the call never reaches Rust, so nothing keeps it.
+	{
+		marker, freed := marked()
+		gone := must(api.NewCounter("gone", 1))
+		check(gone.Close() == nil, "Close passes")
+		_, err := api.LogCounts(markedLog{marker}, 0, must(api.NewCounter("c", 1)), []*api.Counter{gone})
+		check(errors.Is(err, rt.ErrClosed), "a closed object a list holds fails the call")
+		released(freed, "a call a check failed releases its callback")
+	}
+
 	// What a closure returns crosses: the instant it asks for, then its error.
 	{
 		start := *api.NewMoment(0, 1000)
@@ -1889,6 +1899,13 @@ func (l *cancelLog) Log(uint8, string) bool {
 	l.cancel()
 	l.lines.Add(1)
 	return true
+}
+
+// markedLog holds a marker, so its collection shows nothing keeps it.
+type markedLog struct{ marker *[4]int }
+
+func (l markedLog) Log(uint8, string) bool {
+	return l.marker[0] == 0
 }
 
 type panicking struct{}

@@ -201,7 +201,8 @@ public struct PathBuf: Hashable, Sendable, Swift.ExpressibleByStringLiteral {
 	/// that has a UTF-8 form.
 	public let bytes: Bytes
 
-	init(bytes: Bytes) {
+	/// The path of the OS's `bytes`, which on Unix may be any.
+	public init(bytes: Bytes) {
 		self.bytes = bytes
 	}
 
