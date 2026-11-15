@@ -231,9 +231,14 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u64ToBeBytes(hash$Rc_slice_u8(b2)).reverse()), undefined, true);
 		rs.byteVecPush(out, a.value.length & 0xff);
 		rs.byteVecPush(out, a.value.length === 0 ? 1 : 0);
-		rs.byteVecPush(out, rs.iterFold(rs.iterSlice(rs.byteSliceView(a.value)), 0, (a05: rs.u8, a1: rs.u8): rs.u8 => {
-			return rs.u8WrappingAdd(a05, a1);
-		}));
+		const s3 = rs.byteSliceView(a.value);
+		let front = 0;
+		let back = s3.length;
+		let acc: rs.u8 = 0;
+		while (!(front >= back)) {
+			acc = rs.u8WrappingAdd(acc, s3[front++]);
+		}
+		rs.byteVecPush(out, acc);
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.byteSliceFirst(a.value), 170));
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.byteSliceGet(a.value, 1), 187));
 		const arc: rs.Arc<rs.ByteSlice> = new rs.Arc(rs.byteSliceFrom(rs.byteSliceToArray(data2)));
@@ -343,9 +348,15 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** `u16`s, each way, written, compared, and counted. */
 export function wides(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const wide: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, rs.usizeRem(kind >> 3 as rs.usize, rs.usizeAdd(data.length, 1))))), (_2: rs.u8): rs.u16 => {
-		return rs.u16Mul(_2 as rs.u16, 257);
-	}), undefined, 2, true);
+	const s = rs.byteSliceView(rs.byteSliceRange(data, 0, rs.usizeRem(kind >> 3 as rs.usize, rs.usizeAdd(data.length, 1))));
+	let front = 0;
+	let back = s.length;
+	const v: rs.Vec<rs.u16> = rs.vecWithCapacity(back - front, 2);
+	while (!(front >= back)) {
+		const x2 = s[front++];
+		v.items.push(rs.u16Mul(x2 as rs.u16, 257));
+	}
+	const wide: rs.Vec<rs.u16> = v;
 	const fromRef: rs.Arc<rs.Slice<rs.u16>> = new rs.Arc(rs.sliceFrom(wide.items.slice()));
 	const fromVec: rs.Arc<rs.Slice<rs.u16>> = new rs.Arc(rs.sliceFrom(rs.vecFrom(wide.items.slice()).items));
 	const fromBox: rs.Arc<rs.Slice<rs.u16>> = new rs.Arc(rs.sliceFrom(rs.vecFrom(wide.items.slice()).items));
@@ -392,8 +403,8 @@ export function wides(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const alone: rs.Arc<rs.Slice<rs.u16>> = collected;
 	const _117: rs.Slice<rs.u16> | undefined = rs.arcGetMut(alone);
 	if (_117 !== undefined) {
-		rs.iterForEach(rs.iterSliceMut(_117), (x3: rs.Place<rs.u16>): undefined => {
-			x3.v = x3.v ^ 3855;
+		rs.iterForEach(rs.iterSliceMut(_117), (x4: rs.Place<rs.u16>): undefined => {
+			x4.v = x4.v ^ 3855;
 		});
 	}
 	putWides(alone.value, out);
@@ -412,10 +423,19 @@ export function wides(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function copies(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const data2: rs.ByteSlice = rs.byteSliceRange(data, 0, rs.usizeRem(kind >> 3 as rs.usize, rs.usizeAdd(data.length, 1)));
-	const source: rs.Vec<[rs.u8, rs.u16]> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data2)), (_2: rs.u8): [rs.u8, rs.u16] => {
+	const s = rs.byteSliceView(data2);
+	let front = 0;
+	let back = s.length;
+	const f = (_2: rs.u8): [rs.u8, rs.u16] => {
 		const b: rs.u8 = _2;
 		return [b, ((b as rs.u16) << 4) & 0xffff] as [rs.u8, rs.u16];
-	}), undefined, 4, true);
+	};
+	const v: rs.Vec<[rs.u8, rs.u16]> = rs.vecWithCapacity(back - front, 4);
+	while (!(front >= back)) {
+		const y: [rs.u8, rs.u16] = f(s[front++]);
+		v.items.push(y);
+	}
+	const source: rs.Vec<[rs.u8, rs.u16]> = v;
 	const fromRef: rs.Arc<rs.Slice<[rs.u8, rs.u16]>> = new rs.Arc(rs.sliceFrom(source.items.map(copy$tuple2_u8_u16)));
 	const fromVec: rs.Arc<rs.Slice<[rs.u8, rs.u16]>> = new rs.Arc(rs.sliceFrom(rs.vecFrom(source.items.map(copy$tuple2_u8_u16)).items));
 	const p: [rs.u8, rs.u16] = [option_unwrapOr$1fr498u(rs.byteSliceFirst(data2), 5), 6];
@@ -481,9 +501,16 @@ export function drops(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const logged: (a0: rs.u8) => Logged.Logged = (id: rs.u8): Logged.Logged => {
 		return new Logged.Logged(id, rs.arcClone(log));
 	};
-	const shared: rs.Arc<rs.Slice<Logged.Logged>> = new rs.Arc(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data2)), (_2: rs.u8): Logged.Logged => {
-		return logged(_2 & 126);
-	}), undefined, 8, true).items));
+	const s = rs.byteSliceView(data2);
+	let front = 0;
+	let back = s.length;
+	const v: rs.Vec<Logged.Logged> = rs.vecWithCapacity(back - front, 8);
+	while (!(front >= back)) {
+		const x = s[front++];
+		const y: Logged.Logged = logged(x & 126);
+		v.items.push(y);
+	}
+	const shared: rs.Arc<rs.Slice<Logged.Logged>> = new rs.Arc(rs.sliceFrom(v.items));
 	ids(shared.value, out);
 	flush(log.value, out);
 	const twin: rs.Arc<rs.Slice<Logged.Logged>> = rs.arcClone(shared);
@@ -653,9 +680,16 @@ export function generics(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	const logged: (a0: rs.u8) => Logged.Logged = (id: rs.u8): Logged.Logged => {
 		return new Logged.Logged(id, rs.arcClone(log));
 	};
-	const items: Shared.Shared<Logged.Logged> = Shared.new$shares_Logged(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data2)), (_23: rs.u8): Logged.Logged => {
-		return logged(_23 & 126);
-	}), undefined, 8, true));
+	const s = rs.byteSliceView(data2);
+	let front = 0;
+	let back = s.length;
+	const v: rs.Vec<Logged.Logged> = rs.vecWithCapacity(back - front, 8);
+	while (!(front >= back)) {
+		const x = s[front++];
+		const y: Logged.Logged = logged(x & 126);
+		v.items.push(y);
+	}
+	const items: Shared.Shared<Logged.Logged> = Shared.new$shares_Logged(v);
 	const kept: Shared.Shared<Logged.Logged> = Shared.clone$Clone_shares_Logged(items);
 	flush(log.value, out);
 	const _67: Logged.Logged = logged(64);

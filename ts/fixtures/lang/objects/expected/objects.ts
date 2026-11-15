@@ -149,12 +149,24 @@ export function replaceCaptured(a: rs.Slice<rs.u16>, to: rs.u16): rs.u16[] {
 
 /** A pinned box is what it holds in JS: here a `Vec`, whose length changes. */
 export function repinAll(v: rs.Vec<rs.Arc<rs.u8>>, with_: rs.Arc<rs.u8>, n: rs.u8): rs.usize {
-	const old: rs.Vec<rs.Arc<rs.u8>> = rs.replaceIn(v, rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(n, 3)), (_2: rs.u8): rs.Arc<rs.u8> => {
-		return rs.arcClone(with_);
-	}), undefined, 4, true));
-	const _12: rs.Vec<rs.Arc<rs.u8>> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(n, 4)), (_22: rs.u8): rs.Arc<rs.u8> => {
-		return rs.arcClone(with_);
-	}), undefined, 4, true);
+	let start = 0;
+	let end = rs.u8Rem(n, 3);
+	const v2: rs.Vec<rs.Arc<rs.u8>> = rs.vecWithCapacity(Math.max(end - start, 0), 4);
+	while (!(start >= end)) {
+		start++;
+		const y: rs.Arc<rs.u8> = rs.arcClone(with_);
+		v2.items.push(y);
+	}
+	const old: rs.Vec<rs.Arc<rs.u8>> = rs.replaceIn(v, v2);
+	let start2 = 0;
+	let end2 = rs.u8Rem(n, 4);
+	const v3: rs.Vec<rs.Arc<rs.u8>> = rs.vecWithCapacity(Math.max(end2 - start2, 0), 4);
+	while (!(start2 >= end2)) {
+		start2++;
+		const y2: rs.Arc<rs.u8> = rs.arcClone(with_);
+		v3.items.push(y2);
+	}
+	const _12: rs.Vec<rs.Arc<rs.u8>> = v3;
 	rs.dropVec(v);
 	Object.assign(v, _12);
 	const _0: rs.usize = old.items.length;
@@ -179,11 +191,16 @@ export function swapAll(a: rs.Vec<rs.Arc<rs.u8>>, b: rs.Vec<rs.Arc<rs.u8>>): voi
 }
 
 export function refill(v: rs.Vec<rs.Arc<rs.u8>>, bytes: rs.ByteVec, with_: rs.Arc<rs.u8>, n: rs.u8): void {
-	const _5: rs.Vec<rs.Arc<rs.u8>> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(n, 4)), (_2: rs.u8): rs.Arc<rs.u8> => {
-		return rs.arcClone(with_);
-	}), undefined, 4, true);
+	let start = 0;
+	let end = rs.u8Rem(n, 4);
+	const v2: rs.Vec<rs.Arc<rs.u8>> = rs.vecWithCapacity(Math.max(end - start, 0), 4);
+	while (!(start >= end)) {
+		start++;
+		const y: rs.Arc<rs.u8> = rs.arcClone(with_);
+		v2.items.push(y);
+	}
 	rs.dropVec(v);
-	Object.assign(v, _5);
+	Object.assign(v, v2);
 	Object.assign(bytes, rs.byteVecOf(n, rs.u8Rem(n, 3) as rs.usize));
 }
 
@@ -223,18 +240,24 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const by: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 5);
 	const one: rs.Arc<rs.u8> = new rs.Arc(by);
 	const two: rs.Arc<rs.u8> = new rs.Arc(rs.u8WrappingAdd(by, 1));
-	const v: rs.Vec<rs.Arc<rs.u8>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.Arc<rs.u8> => {
-		return rs.arcClone(one);
-	}), undefined, 4, true);
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v2: rs.Vec<rs.Arc<rs.u8>> = rs.vecWithCapacity(back - front, 4);
+	while (!(front >= back)) {
+		s[front++];
+		const y: rs.Arc<rs.u8> = rs.arcClone(one);
+		v2.items.push(y);
+	}
+	const v: rs.Vec<rs.Arc<rs.u8>> = v2;
+	const s2: Uint8Array = rs.byteSliceView(data);
+	let front2: number = 0;
+	const back2: number = s2.length;
 	let count: number = 0;
-	while (true) {
-		const x3 = leaf.next();
-		if (x3 === rs.DONE) {
-			break;
-		}
+	while (!(front2 >= back2)) {
+		const x4 = s2[front2++];
 		const i: rs.usize = count++;
-		const b: rs.u8 = x3;
+		const b: rs.u8 = x4;
 		const _23: rs.Place<rs.Arc<rs.u8>> | undefined = rs.sliceGetMut(rs.sliceFrom(v.items), rs.usizeRem(b as rs.usize, rs.usizeAdd(data.length, 1)));
 		if (_23 !== undefined) {
 			const _34: rs.Arc<rs.u8> = rs.arcClone(two);

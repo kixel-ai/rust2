@@ -304,28 +304,28 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const lo: rs.u64 = _60[0];
 		const hi: rs.u64 = _60[1];
 		const found: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(lo, hi, rs.u64Step);
-		rs.byteVecPush(out, rs.iterAny(found, (x4: rs.u64): boolean => {
-			return rs.u64Eq(x4, hi);
+		rs.byteVecPush(out, rs.iterAny(found, (x5: rs.u64): boolean => {
+			return rs.u64Eq(x5, hi);
 		}) ? 1 : 0);
 		bounds$ops_RangeInclusive_u64(out, found);
 		const rejected: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(lo, hi, rs.u64Step);
-		rs.byteVecPush(out, rs.iterAll(rejected, (x5: rs.u64): boolean => {
-			return rs.u64Lt(x5, hi);
+		rs.byteVecPush(out, rs.iterAll(rejected, (x6: rs.u64): boolean => {
+			return rs.u64Lt(x6, hi);
 		}) ? 1 : 0);
 		bounds$ops_RangeInclusive_u64(out, rejected.clone());
 		rs.byteVecPush(out, rs.iterFind(rejected, (_27: rs.u64): boolean => {
 			return true;
 		}) !== undefined ? 1 : 0);
 		const placed: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(lo, hi, rs.u64Step);
-		rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(placed, (x6: rs.u64): boolean => {
-			return rs.u64Eq(x6, rs.u64Add(lo, 1));
-		}), 238, (i8: rs.usize): rs.u8 => {
-			return i8 & 0xff;
+		rs.byteVecPush(out, option_mapOr$188iunt(rs.iterPosition(placed, (x7: rs.u64): boolean => {
+			return rs.u64Eq(x7, rs.u64Add(lo, 1));
+		}), 238, (i9: rs.usize): rs.u8 => {
+			return i9 & 0xff;
 		}));
 		bounds$ops_RangeInclusive_u64(out, placed);
 		const each: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(lo, hi, rs.u64Step);
-		rs.iterForEach(rs.iterBorrow(each), (x7: rs.u64): undefined => {
-			rs.byteVecPush(out, rs.u64Low(x7) & 0xff);
+		rs.iterForEach(rs.iterBorrow(each), (x8: rs.u64): undefined => {
+			rs.byteVecPush(out, rs.u64Low(x8) & 0xff);
 		});
 		bounds$ops_RangeInclusive_u64(out, each);
 		const summed: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(lo, hi, rs.u64Step);
@@ -344,8 +344,8 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		rs.byteVecPush(out, rs.iterToVec(rs.iterBorrow(collected), undefined, 8, true).items.length & 0xff);
 		bounds$ops_RangeInclusive_u64(out, collected);
 		const gathered: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(lo, hi, rs.u64Step);
-		const _154: Tally.Tally = rs.iterFold(rs.iterBorrow(gathered), new Tally.Tally(0), (t: Tally.Tally, x8: rs.u64): Tally.Tally => {
-			const _010: Tally.Tally = new Tally.Tally(rs.u64Add(t._0, x8));
+		const _154: Tally.Tally = rs.iterFold(rs.iterBorrow(gathered), new Tally.Tally(0), (t: Tally.Tally, x9: rs.u64): Tally.Tally => {
+			const _010: Tally.Tally = new Tally.Tally(rs.u64Add(t._0, x9));
 			t[Symbol.dispose]();
 			return _010;
 		});
@@ -389,15 +389,14 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		rs.byteVecPush(out, rs.byteSliceRange(data, from.start).length & 0xff);
 	} else if (_21 === 1) {
 		const map: rs.BTreeMap<rs.u64, rs.u64> = rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u64, rs.u64>;
-		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
-		let count: number = 0;
-		while (true) {
-			const x3 = leaf.next();
-			if (x3 === rs.DONE) {
-				break;
-			}
-			const i7 = count++;
-			rs.btreeInsert(map, x3 as rs.u64, i7 as rs.u64);
+		const s2: Uint8Array = rs.byteSliceView(data);
+		let front2: number = 0;
+		const back2: number = s2.length;
+		let count2: number = 0;
+		while (!(front2 >= back2)) {
+			const x4 = s2[front2++];
+			const i8 = count2++;
+			rs.btreeInsert(map, x4 as rs.u64, i8 as rs.u64);
 		}
 		const _302: [rs.u64, rs.u64] = [at(0) as rs.u64, at(1) as rs.u64];
 		const a2: rs.u64 = _302[0];
@@ -465,9 +464,16 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			rs.byteVecPush(out, _467[0]);
 			rs.byteVecPush(out, _467[1] & 0xff);
 		}
-		const ranked: rs.Vec<[rs.u8, rs.usize]> = rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), (_23: [rs.usize, rs.u8]): [rs.u8, rs.usize] => {
-			return [_23[1], _23[0]] as [rs.u8, rs.usize];
-		}), undefined, 8, true);
+		const s = rs.byteSliceView(data);
+		let front = 0;
+		let back = s.length;
+		let count = 0;
+		const v: rs.Vec<[rs.u8, rs.usize]> = rs.vecWithCapacity(back - front, 8);
+		while (!(front >= back)) {
+			const y2: [rs.u8, rs.usize] = [s[front++], count++];
+			v.items.push(y2);
+		}
+		const ranked: rs.Vec<[rs.u8, rs.usize]> = v;
 		rs.sliceSort(rs.sliceFrom(ranked.items), rs.keyLt((_25: [rs.u8, rs.usize]): [rs.u8, rs.usize] => {
 			return [rs.u8Rem(_25[0], 4), _25[1]] as [rs.u8, rs.usize];
 		}, rs.cmpLt(rs.cmpTuple<[rs.u8, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmp), rs.cmp]))), 8, true);
@@ -566,7 +572,13 @@ export function reverses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		a2[Symbol.dispose]();
 		rs.iterExtendBytes(out, rs.byteVecIntoIter(log.value), undefined, true);
 	} else {
-		const a3: rs.ByteVec = rs.iterToByteVec(new rs.Range(0, rs.u8Rem(at(0), 6)), undefined, true);
+		let start = 0;
+		let end = rs.u8Rem(at(0), 6);
+		const v: rs.ByteVec = rs.byteVecWithCapacity(Math.max(end - start, 0));
+		while (!(start >= end)) {
+			rs.byteVecPush(v, start++);
+		}
+		const a3: rs.ByteVec = v;
 		const b3: rs.ByteVec = ((a0: rs.ByteVec): rs.ByteVec => {
 			return rs.byteVecFrom(rs.byteVecView(a0));
 		})(a3);

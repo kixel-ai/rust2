@@ -419,7 +419,8 @@ export function ordered(log: Log.Log, id: rs.u32): void {
 		rs.btreeAdd(many, _273, rs.drop);
 	}
 	const found: (a0: rs.BTreeSet<Key.Key>) => rs.usize = (many2: rs.BTreeSet<Key.Key>): rs.usize => {
-		const leaf = new rs.Range(0, 400);
+		let start = 0;
+		let end = 400;
 		const f = (_2: rs.u32): boolean => {
 			const _57: Key.Key = Key.new(_2, Log.clone$Clone(sink));
 			const _06: boolean = rs.btreeContains(many2, _57);
@@ -429,11 +430,10 @@ export function ordered(log: Log.Log, id: rs.u32): void {
 		let n9 = 0;
 		fused2: while (true) {
 			while (true) {
-				const x = leaf.next();
-				if (x === rs.DONE) {
+				if (start >= end) {
 					break fused2;
 				}
-				if (f(x)) {
+				if (f(start++)) {
 					break;
 				}
 			}
@@ -504,14 +504,12 @@ export function hashed(log: Log.Log, id: rs.u32): void {
 	};
 	const tally: (a0: string) => undefined = (what: string): undefined => {
 		const text: rs.ByteVec = Log.text(sink);
-		const leaf = rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(text)));
+		const s = rs.byteSliceView(rs.byteVecSlice(text));
+		let front = 0;
+		let back = s.length;
 		let acc: rs.u32 = 0;
-		while (true) {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				break;
-			}
-			acc = rs.u32Add(acc, x as rs.u32);
+		while (!(front >= back)) {
+			acc = rs.u32Add(acc, s[front++] as rs.u32);
 		}
 		const sum: rs.u32 = acc;
 		const _152: rs.usize = text.length;
@@ -1346,10 +1344,19 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		return Key.new(rs.u32Add(id, n), Log.clone$Clone(log));
 	};
 	const ids: (a0: rs.Slice<Key.Key>) => rs.String = (v13: rs.Slice<Key.Key>): rs.String => {
-		return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(v13)), (k: Key.Key): rs.String => {
+		const s = rs.sliceItems(v13);
+		let front = 0;
+		let back = s.length;
+		const f = (k: Key.Key): rs.String => {
 			const _43: rs.u32 = rs.u32Sub(k.id, id);
 			return rs.fmtToString((f: rs.Formatter) => rs.u32Display(_43, f), 0);
-		}), undefined, 12, true).items, ",");
+		};
+		const v14: rs.Vec<rs.String> = rs.vecWithCapacity(back - front, 12);
+		while (!(front >= back)) {
+			const y: rs.String = f(s[front++]);
+			v14.items.push(y);
+		}
+		return rs.strsJoin(v14.items, ",");
 	};
 	const _8: rs.u8 = rs.u8Rem(arg, 9);
 	if (_8 === 0) {

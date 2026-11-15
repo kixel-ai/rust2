@@ -7,9 +7,14 @@ export interface Scale {
 }
 
 export function weigh$args_Weigh(self: Scale, data: rs.ByteSlice): rs.u8 {
-	return rs.iterFold(rs.iterSlice(rs.byteSliceView(data)), self._0, (a: rs.u8, b: rs.u8): rs.u8 => {
-		return rs.u8WrappingAdd(a, b ^ 90);
-	});
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	let acc: rs.u8 = self._0;
+	while (!(front >= back)) {
+		acc = rs.u8WrappingAdd(acc, s[front++] ^ 90);
+	}
+	return acc;
 }
 
 //# sourceMappingURL=args.Scale.ts.map

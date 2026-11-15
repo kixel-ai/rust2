@@ -55,13 +55,16 @@ export function ends(kind: rs.u8, dataData: Uint8Array, dataStart: number, dataL
 			over = rs.u8Sub(over2, 1);
 		}
 		const run: Run.Run = { front: 0, back: rs.u8Rem(dataData[dataStart], 16), over, log };
-		const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2))), 8);
-		while (true) {
-			const _25: rs.u8 | rs.Done = iter.next();
-			if (_25 === rs.DONE) {
+		const s: Uint8Array = rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2));
+		let front: number = 0;
+		const back: number = s.length;
+		let take: number = 8;
+		while (take !== 0) {
+			take--;
+			if (front >= back) {
 				break;
 			}
-			const step: rs.u8 = _25;
+			const step: rs.u8 = s[front++];
 			const _29: rs.u8 = rs.u8Rem(step, 8);
 			if (_29 === 0) {
 				put(out, rs.iterToOption(Run.next$iter_Iterator(run)));

@@ -169,6 +169,28 @@ class __Writer {
 		socketAddr(v)
 	}
 
+	/** An address as Rust's `IpAddr` holds it, which has no IPv6 scope. */
+	fun ipAddr(v: java.net.InetAddress) {
+		val scope = (v as? java.net.Inet6Address)?.scopeId ?: 0
+		kotlin.require(scope == 0) { "an IPv6 address with a scope has no Rust IpAddr" }
+		room(16)
+		b.put(v.address)
+		repeat(16 - v.address.size) { b.put(0) }
+		bool(v is java.net.Inet6Address)
+	}
+
+	/** An IPv4 address, for Rust's `Ipv4Addr`. */
+	fun ipAddrV4(v: java.net.InetAddress) {
+		kotlin.require(v !is java.net.Inet6Address) { "an IPv6 address has no Rust Ipv4Addr" }
+		ipAddr(v)
+	}
+
+	/** An IPv6 address, for Rust's `Ipv6Addr`. */
+	fun ipAddrV6(v: java.net.InetAddress) {
+		kotlin.require(v !is java.net.Inet4Address) { "an IPv4 address has no Rust Ipv6Addr" }
+		ipAddr(v)
+	}
+
 	/** A `u128`, from 0 through 2^128 - 1. */
 	fun u128(v: java.math.BigInteger) {
 		kotlin.require(v.signum() >= 0 && v.bitLength() <= 128) { "$v is out of range for Rust's u128" }
@@ -307,13 +329,20 @@ class __Reader(private val b: java.nio.ByteBuffer) {
 		val flowinfo = b.getInt()
 		val scope = b.getInt()
 		kotlin.check(flowinfo == 0) { "an IPv6 flow label has no Java form" }
-		// Built as Inet6Address directly, as InetAddress would read an IPv4-mapped one as IPv4.
-		val address = when {
-			!v6 -> java.net.InetAddress.getByAddress(ip.copyOf(4))
-			scope == 0 -> java.net.Inet6Address.getByAddress(null, ip, null as java.net.NetworkInterface?)
-			else -> java.net.Inet6Address.getByAddress(null, ip, scope)
-		}
-		return java.net.InetSocketAddress(address, port)
+		return java.net.InetSocketAddress(address(ip, v6, scope), port)
+	}
+
+	fun ipAddr(): java.net.InetAddress {
+		val ip = ByteArray(16)
+		b.get(ip)
+		return address(ip, bool(), 0)
+	}
+
+	// Built as Inet6Address directly, as InetAddress would read an IPv4-mapped one as IPv4.
+	private fun address(ip: ByteArray, v6: Boolean, scope: Int): java.net.InetAddress = when {
+		!v6 -> java.net.InetAddress.getByAddress(ip.copyOf(4))
+		scope == 0 -> java.net.Inet6Address.getByAddress(null, ip, null as java.net.NetworkInterface?)
+		else -> java.net.Inet6Address.getByAddress(null, ip, scope)
 	}
 
 	fun u128(): java.math.BigInteger {

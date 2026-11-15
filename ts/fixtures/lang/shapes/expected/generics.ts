@@ -230,21 +230,30 @@ export function fill$u8(run: rs.ByteSlice, item: rs.u8): void {
 export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _266!: rs.Cow<Ticked.Ticked>;
 	let run3!: Run.Run<Ticked.Ticked>;
-	const data2: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u8 => {
-		return _2;
-	}), undefined, true);
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v: rs.ByteVec = rs.byteVecWithCapacity(back - front);
+	while (!(front >= back)) {
+		rs.byteVecPush(v, s[front++]);
+	}
+	const data2: rs.ByteVec = v;
 	const n: rs.u8 = option_unwrapOrDefault$03apme8(rs.byteSliceFirst(rs.byteVecSlice(data2)));
 	const runs: Runs.Runs<rs.u8> = new Runs.Runs(rs.bytes(3).fill(n), rs.byteVecFrom(rs.byteVecView(data2)), rs.byteVecSlice(data2), rs.byteVecSlice(rs.byteVecFrom(rs.byteVecView(data2))), rs.byteVecSlice(data2), new rs.Vec() as rs.Vec<rs.ArrayOf<rs.u8>>, then$0y7on52(rs.usizeRem(data2.length, 2) === 0, (): rs.ByteVec => {
 		return new rs.ByteVec();
 	}));
 	const before: Runs.Runs<rs.u8> = Runs.clone$Clone_u8(runs);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(data2))), 3);
-	while (true) {
-		const _38: rs.u8 | rs.Done = iter.next();
-		if (_38 === rs.DONE) {
+	const s2: Uint8Array = rs.byteSliceView(rs.byteVecSlice(data2));
+	let front2: number = 0;
+	const back2: number = s2.length;
+	let take: number = 3;
+	while (take !== 0) {
+		take--;
+		if (front2 >= back2) {
 			break;
 		}
-		Runs.push$u8(runs, _38);
+		const x4 = s2[front2++];
+		Runs.push$u8(runs, x4);
 	}
 	const _44: rs.ByteSlice | undefined = rs.arraySliceFirst(rs.arraySliceFrom((runs.pairs as rs.Vec<Uint8Array>).items, rs.byteSliceFrom));
 	if (_44 !== undefined) {
@@ -274,9 +283,15 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _95: rs.u8 | undefined = Run.first$u8(run);
 	const args5 = [(f: rs.Formatter) => Runs.fmt$fmt_Debug_u8(runs, f), (f: rs.Formatter) => Runs.fmt$fmt_Debug_u8(before, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(taken), f, rs.u8Debug), (f: rs.Formatter) => Run.fmt$fmt_Debug_u8(run, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(fixed, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(copy, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(swapped, f), (f: rs.Formatter) => rs.usizeDisplay(_88, f), (f: rs.Formatter) => rs.fmtBool(_91, f), (f: rs.Formatter) => rs.fmtOption(_95, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(last, f, rs.u8Debug)];
 	put(out, rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7], " ", args5[8], " ", args5[9], " ", args5[10]]).v);
-	const data3: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.u16 => {
-		return _22 as rs.u16;
-	}), undefined, 2, true);
+	const s3 = rs.byteSliceView(data);
+	let front3 = 0;
+	let back3 = s3.length;
+	const v2: rs.Vec<rs.u16> = rs.vecWithCapacity(back3 - front3, 2);
+	while (!(front3 >= back3)) {
+		const x5 = s3[front3++];
+		v2.items.push(x5 as rs.u16);
+	}
+	const data3: rs.Vec<rs.u16> = v2;
 	const n2: rs.u16 = option_unwrapOrDefault$0w7995p(rs.sliceFirst(rs.sliceFrom(data3.items)));
 	const runs2: Runs.Runs<rs.u16> = new Runs.Runs(Array.from({ length: 3 }, (): rs.u16 => {
 		return n2;
@@ -284,13 +299,17 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return new rs.Vec();
 	}));
 	const before2: Runs.Runs<rs.u16> = Runs.clone$Clone_u16(runs2);
-	const iter2: rs.Iter<rs.u16> = rs.iterTake(rs.iterSlice(data3.items), 3);
-	while (true) {
-		const _154: rs.u16 | rs.Done = iter2.next();
-		if (_154 === rs.DONE) {
+	const s4: rs.u16[] = data3.items;
+	let front4: number = 0;
+	const back4: number = s4.length;
+	let take2: number = 3;
+	while (take2 !== 0) {
+		take2--;
+		if (front4 >= back4) {
 			break;
 		}
-		Runs.push$u16(runs2, _154);
+		const x6 = s4[front4++];
+		Runs.push$u16(runs2, x6);
 	}
 	const _160: rs.Slice<rs.u16> | undefined = rs.arraySliceFirst(rs.arraySliceFrom((runs2.pairs as rs.Vec<rs.u16[]>).items, rs.sliceFrom));
 	if (_160 !== undefined) {
@@ -324,9 +343,16 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const tick: (a0: rs.u8) => Ticked.Ticked = (id: rs.u8): Ticked.Ticked => {
 		return new Ticked.Ticked(id, rs.arcClone(log));
 	};
-	const ticks: rs.Vec<Ticked.Ticked> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_28: rs.u8): Ticked.Ticked => {
-		return tick(_28);
-	}), undefined, 8, true);
+	const s5 = rs.byteSliceView(data);
+	let front5 = 0;
+	let back5 = s5.length;
+	const v3: rs.Vec<Ticked.Ticked> = rs.vecWithCapacity(back5 - front5, 8);
+	while (!(front5 >= back5)) {
+		const x7 = s5[front5++];
+		const y3: Ticked.Ticked = tick(x7);
+		v3.items.push(y3);
+	}
+	const ticks: rs.Vec<Ticked.Ticked> = v3;
 	const _246: Ticked.Ticked[] = [tick(1), tick(2), tick(3)];
 	const _256: rs.Vec<Ticked.Ticked> = rs.vecFrom(ticks.items.map(Ticked.clone$Clone));
 	const _258: rs.Slice<Ticked.Ticked> = rs.sliceFrom(ticks.items);
@@ -488,9 +514,14 @@ export function units(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _428!: rs.u8;
-	const items: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b3: rs.u8): rs.u8 => {
-		return b3;
-	}), undefined, true);
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v: rs.ByteVec = rs.byteVecWithCapacity(back - front);
+	while (!(front >= back)) {
+		rs.byteVecPush(v, s[front++]);
+	}
+	const items: rs.ByteVec = v;
 	const drain: Drained.Drained<Uint8Array, rs.u8> = Drained.new$array4_u8(((b4: rs.u8): rs.u8 => {
 		return b4;
 	})(90), rs.byteVecSlice(items));
@@ -517,9 +548,15 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const arg4 = batch.taken;
 	const args19 = [_49, _50, _51, _52, _53, _54, (f: rs.Formatter) => rs.u8Display(arg4, f)];
 	put(out, rs.fmtFormat([args19[0], " ", args19[1], " ", args19[2], " ", args19[3], " ", args19[4], " ", args19[5], " ", args19[6]]).v);
-	const items2: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b6: rs.u8): rs.u16 => {
-		return rs.u16Mul(b6 as rs.u16, 257);
-	}), undefined, 2, true);
+	const s2 = rs.byteSliceView(data);
+	let front2 = 0;
+	let back2 = s2.length;
+	const v2: rs.Vec<rs.u16> = rs.vecWithCapacity(back2 - front2, 2);
+	while (!(front2 >= back2)) {
+		const x2 = s2[front2++];
+		v2.items.push(rs.u16Mul(x2 as rs.u16, 257));
+	}
+	const items2: rs.Vec<rs.u16> = v2;
 	const drain2: Drained.Drained<rs.u16[], rs.u16> = Drained.new$array2_u16(((b7: rs.u8): rs.u16 => {
 		return rs.u16Mul(b7 as rs.u16, 257);
 	})(90), rs.sliceFrom(items2.items));
@@ -569,9 +606,16 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const arg11 = batch3.taken;
 	const args21 = [_159, _160, _161, _162, _163, _164, (f: rs.Formatter) => rs.u8Display(arg11, f)];
 	put(out, rs.fmtFormat([args21[0], " ", args21[1], " ", args21[2], " ", args21[3], " ", args21[4], " ", args21[5], " ", args21[6]]).v);
-	const items4: rs.Vec<rs.u8 | undefined> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b9: rs.u8): rs.u8 | undefined => {
-		return thenSome$0quywni(rs.u8Rem(b9, 3) !== 0, b9);
-	}), undefined, 2, true);
+	const s3 = rs.byteSliceView(data);
+	let front3 = 0;
+	let back3 = s3.length;
+	const v3: rs.Vec<rs.u8 | undefined> = rs.vecWithCapacity(back3 - front3, 2);
+	while (!(front3 >= back3)) {
+		const x3 = s3[front3++];
+		const y3: rs.u8 | undefined = thenSome$0quywni(rs.u8Rem(x3, 3) !== 0, x3);
+		v3.items.push(y3);
+	}
+	const items4: rs.Vec<rs.u8 | undefined> = v3;
 	const drain4: Drained.Drained<Array<rs.u8 | undefined>, rs.u8 | undefined> = Drained.new$array1_Option_u8(((b10: rs.u8): rs.u8 | undefined => {
 		return thenSome$0quywni(rs.u8Rem(b10, 3) !== 0, b10);
 	})(90), rs.sliceFrom(items4.items));
@@ -598,9 +642,15 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const arg15 = batch4.taken;
 	const args22 = [_214, _215, _216, _217, _218, _219, (f: rs.Formatter) => rs.u8Display(arg15, f)];
 	put(out, rs.fmtFormat([args22[0], " ", args22[1], " ", args22[2], " ", args22[3], " ", args22[4], " ", args22[5], " ", args22[6]]).v);
-	const items5: rs.Vec<boolean> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b12: rs.u8): boolean => {
-		return (b12 & 1) !== 0;
-	}), undefined, 1, true);
+	const s4 = rs.byteSliceView(data);
+	let front4 = 0;
+	let back4 = s4.length;
+	const v4: rs.Vec<boolean> = rs.vecWithCapacity(back4 - front4, 1);
+	while (!(front4 >= back4)) {
+		const x4 = s4[front4++];
+		v4.items.push((x4 & 1) !== 0);
+	}
+	const items5: rs.Vec<boolean> = v4;
 	const drain5: Drained.Drained<Flags.Flags, boolean> = Drained.new$generics_Flags(((b13: rs.u8): boolean => {
 		return (b13 & 1) !== 0;
 	})(90), rs.sliceFrom(items5.items));
@@ -751,16 +801,19 @@ export function projectedCycles(data: rs.ByteSlice, out: rs.ByteVec): void {
 	Even.walk$generics_Flags_vec_IntoIter_u8(even, walked);
 	put(out, walked.v);
 	let swap: Swap.Swap<rs.u16[], Flags.Flags, rs.u16, boolean> | undefined = undefined;
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	const front: number = 0;
+	let back: number = s.length;
 	let count: number = -1;
 	while (true) {
 		if (count < 0) {
-			count = leaf.len();
+			count = back - front;
 		}
-		const x = leaf.nextBack();
-		if (x === rs.DONE) {
+		if (front >= back) {
 			break;
 		}
+		back--;
+		const x = s[back];
 		count--;
 		const i: rs.usize = count;
 		const b2: rs.u8 = x;
@@ -816,19 +869,33 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(_33.value, depth);
 	rs.refMutRelease(_33);
 	rs.drop(held);
-	const chain: Chain.Chain<Linked.Linked, Chain.Chain$generics_Linked> = rs.iterFold(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), { tag: "End" } as Chain.Chain<Linked.Linked, Chain.Chain$generics_Linked>, (next3: Chain.Chain<Linked.Linked, Chain.Chain$generics_Linked>, _32: rs.u8): Chain.Chain<Linked.Linked, Chain.Chain$generics_Linked> => {
-		return { tag: "Link", _0: _32, _1: next3 } as Chain.Chain<Linked.Linked, Chain.Chain$generics_Linked>;
-	});
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const f = { tag: "End" } as Chain.Chain<Linked.Linked, Chain.Chain$generics_Linked>;
+	let acc: Chain.Chain<Linked.Linked, Chain.Chain$generics_Linked> = f;
+	while (!(front >= back)) {
+		back--;
+		acc = { tag: "Link", _0: s[back], _1: acc } as Chain.Chain<Linked.Linked, Chain.Chain$generics_Linked>;
+	}
 	const ids: rs.ByteVec = new rs.ByteVec();
-	Chain.ids$generics_Linked(chain, ids);
+	Chain.ids$generics_Linked(acc, ids);
 	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(ids), f, rs.u8Debug)]).v);
-	const defaulted: Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> | undefined = rs.iterFold(rs.iterSlice(rs.byteSliceView(data)), undefined as Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> | undefined, (next4: Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> | undefined, _35: rs.u8): Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> | undefined => {
+	const s2 = rs.byteSliceView(data);
+	let front2 = 0;
+	let back2 = s2.length;
+	const f3 = undefined as Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> | undefined;
+	const f4 = (next4: Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> | undefined, _35: rs.u8): Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> | undefined => {
 		return new Defaulted.Defaulted(_35, option_map$0983ug4(next4, (a02: Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back>): Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> => {
 			return a02;
 		}) as rs.OptionOf<Defaulted.Defaulted$generics_Back>);
-	});
+	};
+	let acc2: Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> | undefined = f3;
+	while (!(front2 >= back2)) {
+		acc2 = f4(acc2, s2[front2++]);
+	}
 	const ids2: rs.ByteVec = new rs.ByteVec();
-	let at2: Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> | undefined = defaulted;
+	let at2: Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> | undefined = acc2;
 	while (at2 !== undefined) {
 		const next2: Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> = at2;
 		rs.byteVecPush(ids2, next2.id);
@@ -892,9 +959,9 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 	if (_175.tag === "Item") {
 		sown = [_175._0, undefined] as [rs.u8, boolean | undefined];
 	} else {
-		sown = [_175._0.item, option_map$1avgfgw(_175._0.next, (s: Shoot.Shoot<Seed.Seed, Copse.Copse$generics_Tail>): boolean => {
-			if (s.item.tag === "Item") {
-				if (s.item._0 === 6) {
+		sown = [_175._0.item, option_map$1avgfgw(_175._0.next, (s3: Shoot.Shoot<Seed.Seed, Copse.Copse$generics_Tail>): boolean => {
+			if (s3.item.tag === "Item") {
+				if (s3.item._0 === 6) {
 					return true;
 				}
 			}
@@ -905,11 +972,20 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put(out, rs.fmtFormat([args25[0], " ", args25[1]]).v);
 	const under: Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8> = new Layer.Layer(true, undefined);
 	const layer: Layer.Layer<Top.Top, rs.u16, boolean> = new Layer.Layer(((option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.u16) << 4) & 0xffff, thenSome$0bd8znh(rs.usizeRem(data.length, 2) === 1, under));
-	const count: rs.u8 | undefined = option_map$04m4r6n(option_andThen$0jij6xn(rs.iterFold(rs.iterSlice(rs.byteSliceView(data)), undefined as Counted.Counted<Counted.Counted$0> | undefined, (next5: Counted.Counted<Counted.Counted$0> | undefined, _311: rs.u8): Counted.Counted<Counted.Counted$0> | undefined => {
+	const s4 = rs.byteSliceView(data);
+	let front3 = 0;
+	let back3 = s4.length;
+	const f5 = undefined as Counted.Counted<Counted.Counted$0> | undefined;
+	const f6 = (next5: Counted.Counted<Counted.Counted$0> | undefined, _311: rs.u8): Counted.Counted<Counted.Counted$0> | undefined => {
 		return new Counted.Counted(_311, option_map$0xoixq7(next5, (a03: Counted.Counted<Counted.Counted$0>): Counted.Counted<Counted.Counted$0> => {
 			return a03;
 		}) as rs.OptionOf<Counted.Counted$0>);
-	}), (c: Counted.Counted<Counted.Counted$0>): Counted.Counted<Counted.Counted$0> | undefined => {
+	};
+	let acc3: Counted.Counted<Counted.Counted$0> | undefined = f5;
+	while (!(front3 >= back3)) {
+		acc3 = f6(acc3, s4[front3++]);
+	}
+	const count: rs.u8 | undefined = option_map$04m4r6n(option_andThen$0jij6xn(acc3, (c: Counted.Counted<Counted.Counted$0>): Counted.Counted<Counted.Counted$0> | undefined => {
 		return c.next;
 	}), (c2: Counted.Counted<Counted.Counted$0>): rs.u8 => {
 		return c2.id;
@@ -929,22 +1005,21 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put(out, rs.fmtFormat([args27[0], " ", args27[1], " ", args27[2]]).v);
 	const made: Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8> = new Sibling.Sibling(7, undefined);
 	const sibling: Sibling.Sibling<rs.u8, rs.u16, rs.u8> = new Sibling.Sibling(((option_unwrapOr$1fr498u(rs.byteSliceLast(data), 0) as rs.u16) << 3) & 0xffff, thenSome$0rdxccx(rs.usizeRem(data.length, 3) === 0, made));
-	const _281: [rs.u8, boolean] | undefined = option_map$0e9v36n(sibling.next, (s2: Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8>): [rs.u8, boolean] => {
-		return [s2.item, s2.next === undefined] as [rs.u8, boolean];
+	const _281: [rs.u8, boolean] | undefined = option_map$0e9v36n(sibling.next, (s5: Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8>): [rs.u8, boolean] => {
+		return [s5.item, s5.next === undefined] as [rs.u8, boolean];
 	});
 	const arg6 = sibling.item;
 	const args28 = [(f: rs.Formatter) => rs.u16Display(arg6, f), (f: rs.Formatter) => rs.fmtOption(_281, f, (value: [rs.u8, boolean], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtBool(value[1], f)], f))];
 	put(out, rs.fmtFormat([args28[0], " ", args28[1]]).v);
 	let ping: Ping.Ping<Rally.Rally, Pong.Pong$generics_Rally> = new Ping.Ping(238, undefined as rs.OptionOf<Pong.Pong$generics_Rally>);
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s6: Uint8Array = rs.byteSliceView(data);
+	let front4: number = 0;
+	const back4: number = s6.length;
 	let count2: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front4 >= back4)) {
+		const x4 = s6[front4++];
 		const i: rs.usize = count2++;
-		const b4: rs.u8 = x;
+		const b4: rs.u8 = x4;
 		if (rs.usizeRem(i, 3) === 0) {
 			_302 = { tag: "Miss" } as Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
 		} else {
@@ -966,13 +1041,13 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.drop(fork.left);
 		fork.left = _342;
 	}
-	const ids4: [rs.u8, rs.u8 | undefined, rs.u8] = [fork.id, option_map$1747o3c(fork.left, (f: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_2, Forked.Forked$generics_Depth_2>): rs.u8 => {
-		return f.id;
+	const ids4: [rs.u8, rs.u8 | undefined, rs.u8] = [fork.id, option_map$1747o3c(fork.left, (f7: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_2, Forked.Forked$generics_Depth_2>): rs.u8 => {
+		return f7.id;
 	}), below.id];
-	const right: [rs.u8, rs.u8 | undefined, rs.u8 | undefined] | undefined = option_map$1mvacy3(below.right, (f2: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_0, Ticked.Ticked>): [rs.u8, rs.u8 | undefined, rs.u8 | undefined] => {
-		return [f2.id, option_map$1ug09xc(f2.left, (f3: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_1, Forked.Forked$generics_Depth_1>): rs.u8 => {
-			return f3.id;
-		}), option_map$1ub01y7(f2.right, (t2: Ticked.Ticked): rs.u8 => {
+	const right: [rs.u8, rs.u8 | undefined, rs.u8 | undefined] | undefined = option_map$1mvacy3(below.right, (f8: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_0, Ticked.Ticked>): [rs.u8, rs.u8 | undefined, rs.u8 | undefined] => {
+		return [f8.id, option_map$1ug09xc(f8.left, (f9: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_1, Forked.Forked$generics_Depth_1>): rs.u8 => {
+			return f9.id;
+		}), option_map$1ub01y7(f8.right, (t2: Ticked.Ticked): rs.u8 => {
 			return t2.id;
 		})] as [rs.u8, rs.u8 | undefined, rs.u8 | undefined];
 	});

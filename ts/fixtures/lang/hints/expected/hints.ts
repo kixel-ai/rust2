@@ -1964,10 +1964,19 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return Uint8Array.of(_245);
 			}), (value: Uint8Array) => rs.iterSlice(value), true, 1, true), steps, out);
 		} else {
-			walk$iter_Flatten_slice_Iter_array2_u8(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_244: rs.u8): Uint8Array => {
+			const s3 = rs.byteSliceView(bytes);
+			let front2 = 0;
+			let back2 = s3.length;
+			const f2 = (_244: rs.u8): Uint8Array => {
 				const b5: rs.u8 = _244;
 				return Uint8Array.of(b5, b5);
-			}), undefined, 2, true).items, rs.byteSliceFrom)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), steps, out);
+			};
+			const v2: rs.Vec<Uint8Array> = rs.vecWithCapacity(back2 - front2, 2);
+			while (!(front2 >= back2)) {
+				const y2: Uint8Array = f2(s3[front2++]);
+				v2.items.push(y2);
+			}
+			walk$iter_Flatten_slice_Iter_array2_u8(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(v2.items, rs.byteSliceFrom)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), steps, out);
 		}
 	} else if (_37 === 14) {
 		const _312: rs.u8 = rs.u8Rem(arm, 6);
@@ -2031,7 +2040,9 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			walk$str_Bytes(rs.strBytes(s.v), steps, out);
 		} else {
 			const t: rs.String = rs.stringClone(s);
-			const leaf = rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(bytes, 0, rs.usizeDiv(bytes.length, 2))));
+			const s2 = rs.byteSliceView(rs.byteSliceRange(bytes, 0, rs.usizeDiv(bytes.length, 2)));
+			let front = 0;
+			let back = s2.length;
 			const f = (_231: rs.u8): rs.usize => {
 				const _512: rs.usize = rs.u8Rem(_231, 4) as rs.usize;
 				if (!(_512 < 4)) {
@@ -2040,12 +2051,8 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return [1, 2, 4, 3][_512];
 			};
 			let acc: rs.usize = 0;
-			while (true) {
-				const x = leaf.next();
-				if (x === rs.DONE) {
-					break;
-				}
-				acc = rs.usizeAdd(acc, f(x));
+			while (!(front >= back)) {
+				acc = rs.usizeAdd(acc, f(s2[front++]));
 			}
 			walk$string_Drain(rs.stringDrain(t, new rs.RangeFrom(acc, rs.usizeStep)), steps, out);
 		}

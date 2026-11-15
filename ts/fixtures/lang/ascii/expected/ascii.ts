@@ -7,30 +7,26 @@ import { put } from "./harness.ts";
 
 /** Each test of `b`, a bit apiece. */
 export function byteTests(b: rs.u8): rs.u16 {
-	const leaf = rs.iterSlice([rs.isAscii(b), rs.isAsciiAlphabetic(b), rs.isAsciiUppercase(b), rs.isAsciiLowercase(b), rs.isAsciiAlphanumeric(b), rs.isAsciiDigit(b), rs.isAsciiHexdigit(b), rs.isAsciiPunctuation(b), rs.isAsciiGraphic(b), rs.isAsciiWhitespace(b), rs.isAsciiControl(b)]);
+	const s = [rs.isAscii(b), rs.isAsciiAlphabetic(b), rs.isAsciiUppercase(b), rs.isAsciiLowercase(b), rs.isAsciiAlphanumeric(b), rs.isAsciiDigit(b), rs.isAsciiHexdigit(b), rs.isAsciiPunctuation(b), rs.isAsciiGraphic(b), rs.isAsciiWhitespace(b), rs.isAsciiControl(b)];
+	let front = 0;
+	let back = s.length;
 	let count = 0;
 	let acc: rs.u16 = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
-		acc = acc | rs.u16Shl(x ? 1 : 0, count++);
+	while (!(front >= back)) {
+		acc = acc | rs.u16Shl(s[front++] ? 1 : 0, count++);
 	}
 	return acc;
 }
 
 /** Each test of `c`, a bit apiece. */
 export function charTests(c: rs.char): rs.u16 {
-	const leaf = rs.iterSlice([rs.isAscii(c), rs.isAsciiAlphabetic(c), rs.isAsciiUppercase(c), rs.isAsciiLowercase(c), rs.isAsciiAlphanumeric(c), rs.isAsciiDigit(c), rs.isAsciiHexdigit(c), rs.isAsciiPunctuation(c), rs.isAsciiGraphic(c), rs.isAsciiWhitespace(c), rs.isAsciiControl(c)]);
+	const s = [rs.isAscii(c), rs.isAsciiAlphabetic(c), rs.isAsciiUppercase(c), rs.isAsciiLowercase(c), rs.isAsciiAlphanumeric(c), rs.isAsciiDigit(c), rs.isAsciiHexdigit(c), rs.isAsciiPunctuation(c), rs.isAsciiGraphic(c), rs.isAsciiWhitespace(c), rs.isAsciiControl(c)];
+	let front = 0;
+	let back = s.length;
 	let count = 0;
 	let acc: rs.u16 = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
-		acc = acc | rs.u16Shl(x ? 1 : 0, count++);
+	while (!(front >= back)) {
+		acc = acc | rs.u16Shl(s[front++] ? 1 : 0, count++);
 	}
 	return acc;
 }
@@ -200,13 +196,12 @@ export function chars(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	rs.iterExtend(all, _9, "next", 4);
 	const others: rs.Vec<rs.char> = rs.vecFrom(all.items.slice());
-	const leaf: rs.Iter<rs.char> = rs.iterSlice(all.items);
+	const s: rs.char[] = all.items;
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		const c: rs.char = x;
 		const dst = out;
@@ -284,9 +279,17 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _10: rs.u8 = rs.u8Rem(kind, 4);
 		if (_10 === 0) {
 			rs.byteVecPush(out, rs.byteSliceIsAscii(data) ? 1 : 0);
-			rs.byteVecPush(out, rs.iterAll(rs.iterSlice(rs.byteSliceView(data)), (a02: rs.u8): boolean => {
-				return rs.isAsciiHexdigit(a02);
-			}) ? 1 : 0);
+			const s2 = rs.byteSliceView(data);
+			let front = 0;
+			let back = s2.length;
+			let found = true;
+			while (!(front >= back)) {
+				if (!rs.isAsciiHexdigit(s2[front++])) {
+					found = false;
+					break;
+				}
+			}
+			rs.byteVecPush(out, found ? 1 : 0);
 			rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (a03: rs.u8): rs.u8 => {
 				return rs.toAsciiUppercase(a03);
 			}), undefined, true);

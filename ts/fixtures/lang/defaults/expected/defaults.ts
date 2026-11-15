@@ -77,10 +77,15 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.atomicStore(counts[_45], op as rs.u64, 0);
 			rs.atomicFetch(counts[0], rs.u64WrappingAdd, 1, 0);
-			const part2 = rs.iterToVec(rs.iterMap(rs.iterSlice(counts), (c: rs.Atomic<rs.u64>): rs.u64 => {
-				return rs.atomicLoad(c, 0);
-			}), undefined, 8, true);
-			s = rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part2.items, f, rs.u64Debug)]);
+			const s2 = counts;
+			let front = 0;
+			let back = s2.length;
+			const v: rs.Vec<rs.u64> = rs.vecWithCapacity(back - front, 8);
+			while (!(front >= back)) {
+				const y: rs.u64 = rs.atomicLoad(s2[front++], 0);
+				v.items.push(y);
+			}
+			s = rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(v.items, f, rs.u64Debug)]);
 		} else if (_10 === 3) {
 			const boxed: Made.Made = Made.default$Default();
 			const shared: rs.Arc<Made.Made> = made$sync_Arc_defaults_Made();

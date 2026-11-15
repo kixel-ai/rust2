@@ -19,9 +19,19 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
  * `lang.ts` targets by.
  */
 export function op(name: string): rs.u16 {
-	const _11: rs.usize | undefined = rs.iterPosition(rs.iterSlice(cases().items), (_2: [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]): boolean => {
-		return _2[0] === name;
-	});
+	const s = cases().items;
+	let front = 0;
+	let back = s.length;
+	let i2 = 0;
+	let at: number | undefined = undefined;
+	while (!(front >= back)) {
+		if (s[front++][0] === name) {
+			at = i2;
+			break;
+		}
+		i2++;
+	}
+	const _11: rs.usize | undefined = at;
 	if (_11 !== undefined) {
 		const _20: rs.Result<rs.u16, rs.TryFromIntError> = rs.u16TryFrom(_11);
 		if (_20.ok) {

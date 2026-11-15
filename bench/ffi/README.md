@@ -452,9 +452,13 @@ alternating, median wall ns:
 | stamped write, #730 | 441 | 835 |
 
 Kotlin's rows match main's within the noise: its object return's fastest runs took 57 and
-60 ns. Go's checked call allocates its status,
-since cgo moves to the heap a local whose address it passes C, which costs 6 ns in a
-cgo call alone; its close calls Rust's `_drop`, a second crossing an object return and a
+60 ns. Go's checked call allocated its status then, since cgo moves to the heap a local
+whose address it passes C; it now calls through a C function of its preamble that keeps
+the status in a C local and returns it. Measured 2026-11-14 on fedora at a load average of
+12 to 26, main at `11949356` against that change, 8 runs of each Go program alternating,
+median wall ns (CPU ns where it differs): handle call 43 (45) to 35, u64 getter 44 (45) to
+33, object return 325 (357) to 276 (312), and moq's packages went from 4,594 locals moved to
+the heap to 80. Go's close calls Rust's `_drop`, a second crossing an object return and a
 stamped write pay. Dart's checked calls first lost 4 ns to a status allocated per call,
 now one cell per isolate, which the glue fills from the call's own once the call stopped
 serving the isolate, for 1 ns more. Swift's getter costs C's since it dropped its hold count for

@@ -52,6 +52,12 @@ pub fn has_text(note: Note) -> bool {
 	note.text.is_some()
 }
 
+/// A mark's count, its checked parameter named as its own C function, which no shim calling
+/// it may hide.
+pub fn marked(api_marked: &Mark) -> u64 {
+	api_marked.count
+}
+
 /// A reading: a field of each scalar kind at the edge of its range, a nested record, and
 /// text, so a binding that passes a record's scalars apart from its other fields passes each
 /// exactly.
@@ -106,9 +112,17 @@ pub fn reading_debug(n: u32) -> String {
 	reading(n).map_or_else(String::new, |r| format!("{r:?}"))
 }
 
-/// `reading`, passed through Rust and back.
-pub fn reading_echo(reading: Reading) -> Reading {
+/// `reading`, or none, passed through Rust and back.
+pub fn reading_echo(reading: Option<Reading>) -> Option<Reading> {
 	reading
+}
+
+/// Counts `reading` up one and notes it, if there is one.
+pub fn reading_bump(reading: &mut Option<Reading>) {
+	if let Some(r) = reading {
+		r.count = r.count.wrapping_add(1);
+		r.note.push('+');
+	}
 }
 
 /// Declares `crowded`, whose parameters take 243 of a JVM method's 255 slots, so flattening
@@ -3571,6 +3585,23 @@ pub fn nexts(
 ) -> (std::net::SocketAddrV4, std::net::SocketAddrV6) {
 	v6.set_port(v6.port() + 1);
 	(std::net::SocketAddrV4::new(*v4.ip(), v4.port() + 1), v6)
+}
+
+/// Each address one past, wrapping, one IPv4 and one IPv6.
+pub fn next_ips(v4: std::net::Ipv4Addr, v6: std::net::Ipv6Addr) -> (std::net::Ipv4Addr, std::net::Ipv6Addr) {
+	(
+		u32::from(v4).wrapping_add(1).into(),
+		u128::from(v6).wrapping_add(1).into(),
+	)
+}
+
+/// The address in the other family: IPv4 as its IPv4-mapped IPv6, and an IPv4-mapped IPv6
+/// as its IPv4; any other IPv6 stays as it is.
+pub fn flip(ip: std::net::IpAddr) -> std::net::IpAddr {
+	match ip {
+		std::net::IpAddr::V4(v4) => v4.to_ipv6_mapped().into(),
+		std::net::IpAddr::V6(v6) => v6.to_ipv4_mapped().map_or(ip, Into::into),
+	}
 }
 
 /// Why [`refuse`] refused, which Rust returns only boxed.

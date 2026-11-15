@@ -574,10 +574,38 @@ export function singles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		dst25.length = dst25.length + 4;
 		rs.byteVecPush(out, rs.f32IsSignNegative(rs.f32FromBits(4290773283)) ? 1 : 0);
 		const v2: rs.f32[] = [a, b, 0.10000000149011612];
-		putF32(out, rs.iterSum(rs.iterSlice(v2), rs.f32Add, -0.0));
-		putF32(out, rs.iterProduct(rs.iterSlice(v2), rs.f32Mul, 1.0));
-		putF32(out, rs.iterSum(rs.iterSlice([]), rs.f32Add, -0.0));
-		putF32(out, rs.iterSum(rs.iterSlice([-0.0, -0.0]), rs.f32Add, -0.0));
+		const s2 = v2;
+		let front = 0;
+		let back = s2.length;
+		let acc: rs.f32 = -0.0;
+		while (!(front >= back)) {
+			acc = rs.f32Add(acc, s2[front++]);
+		}
+		putF32(out, acc);
+		const s3 = v2;
+		let front2 = 0;
+		let back2 = s3.length;
+		let acc2: rs.f32 = 1.0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.f32Mul(acc2, s3[front2++]);
+		}
+		putF32(out, acc2);
+		const s4: rs.f32[] = [];
+		let front3 = 0;
+		let back3 = s4.length;
+		let acc3: rs.f32 = -0.0;
+		while (!(front3 >= back3)) {
+			acc3 = rs.f32Add(acc3, s4[front3++]);
+		}
+		putF32(out, acc3);
+		const s5 = [-0.0, -0.0];
+		let front4 = 0;
+		let back4 = s5.length;
+		let acc4: rs.f32 = -0.0;
+		while (!(front4 >= back4)) {
+			acc4 = rs.f32Add(acc4, s5[front4++]);
+		}
+		putF32(out, acc4);
 		putF32(out, 0.0);
 		const g: Gauge.Gauge = { level: a, peak: b };
 		raise(rs.place(() => g.level, (value) => g.level = value), b);
