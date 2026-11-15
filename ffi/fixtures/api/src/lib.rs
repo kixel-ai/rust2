@@ -1295,9 +1295,15 @@ pub struct JvmStatic {
 	pub n: u32,
 }
 
-/// The sum of a `JvmField` and a `JvmStatic`.
-pub fn jvm_sum(field: JvmField, method: JvmStatic) -> u32 {
-	field.n.wrapping_add(method.n)
+/// A type named as the annotation Kotlin opts in to an API with, which the binding qualifies.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct OptIn {
+	pub n: u32,
+}
+
+/// The sum of a `JvmField`, a `JvmStatic`, and an `OptIn`.
+pub fn jvm_sum(field: JvmField, method: JvmStatic, opt: OptIn) -> u32 {
+	field.n.wrapping_add(method.n).wrapping_add(opt.n)
 }
 
 /// A value of 128 words, past what a JVM method's 255 slots hold as `long`s: Kotlin makes

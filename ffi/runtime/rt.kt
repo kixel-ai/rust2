@@ -575,7 +575,7 @@ class __Pollable(
 
 	// The caller's job reaches it as it starts cancelling, not once its children finish,
 	// which only the internal overload of invokeOnCompletion tells.
-	@OptIn(kotlinx.coroutines.InternalCoroutinesApi::class)
+	@kotlin.OptIn(kotlinx.coroutines.InternalCoroutinesApi::class)
 	fun poll(given: Long): Boolean {
 		val old: Long
 		synchronized(this) {
