@@ -1648,7 +1648,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 
 	/// Read past `k` items of `node`, which has `left`, or past all `left` of them and then
 	/// run `done` where it has fewer.
-	#[allow(clippy::too_many_arguments)]
+	#[allow(
+		clippy::too_many_arguments,
+		reason = "`skip`'s arguments, and how many items are left"
+	)]
 	fn skip_most(
 		&mut self,
 		node: &Node,
