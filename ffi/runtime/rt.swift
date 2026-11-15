@@ -583,7 +583,7 @@ extension Native {
 		/// Only ever touched atomically.
 		nonisolated(unsafe) static let slots: UnsafeMutablePointer<Int> = {
 			let count = stride << columnBits
-			return UnsafeMutableRawPointer.allocate(byteCount: count * MemoryLayout<Int>.stride, alignment: 64)
+			return UnsafeMutableRawPointer.allocate(byteCount: count * Swift.MemoryLayout<Int>.stride, alignment: 64)
 				.initializeMemory(as: Int.self, repeating: 0, count: count)
 		}()
 
