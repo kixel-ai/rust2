@@ -1269,11 +1269,6 @@ fn api_dart() {
 			"outlived",
 			"Bad state: api_Meter_count: a handle lent from another outlived it",
 		),
-		("family", "an IPv6 address has no Rust SocketAddrV4"),
-		("ip family", "an IPv6 address has no Rust Ipv4Addr"),
-		("ip unix", "a Unix address has no Rust IpAddr"),
-		("stray", "a path from Rust is not UTF-8"),
-		("lent stray", "a path from Rust is not UTF-8"),
 	] {
 		let output = dart_run(&exe, &[case]).output().unwrap();
 		failed(&output, &format!("Dart {case}"));

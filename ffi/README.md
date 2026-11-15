@@ -1046,17 +1046,25 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 - **Records** are final classes with a named, required parameter per field, and
   positional fields are `$0`, `$1`, and so on. **Plain enums** are Dart enums, and an enum
   with data a sealed class with a final class per variant (`EventMoved`), so a `switch`
-  over it is exhaustive. `Display` is `toString()`, `Debug` `debug()`, `PartialEq` `==`, all
-  through Rust's, with a `hashCode` that throws an `UnsupportedError`, since no hash Dart
-  computes agrees with Rust's `==`, and `Default` a constructor, `default_()`. An
+  over it is exhaustive. `Display` is `toString()`, `Debug` `debug()`, `PartialEq` `==`, and
+  `Hash` `hashCode`, all through Rust's; without `Hash`, `hashCode` throws an
+  `UnsupportedError`, since no hash Dart computes agrees with Rust's `==`. `Default` is a
+  constructor, `default_()`. An
   **opaque value** is a final class of its bytes as `int`s, with a private constructor,
   so only Rust makes one. It never changes: a `&mut self` method, a field's setter
   included, returns the value as the call left it, `x = x.add(o)`, and beside Rust's own
   return, a record, with each element of a tuple Rust returns, `final (y, n) = x.take()`. A plain enum's `==` is Dart's, by its value.
-- **Integers** are `int`. A narrower one passed in throws a `RangeError` when out of its
-  range, and a `u64` passes its 64 bits, so one past `i64`'s range is negative in Dart.
-  A `char` is a `String` of one Unicode scalar.
-- **Bytes** a call takes are a `Uint8List`, and text a `String`. Rust keeps Dart's own
+- **Integers** are `int`, but for `u64` and `usize`, which are the runtime's `U64`: an
+  extension type on the `int` of its 64 bits, costing nothing over it, which compares
+  unsigned and converts, checked, to and from an `int` (`U64(5)`, `toInt()`) or a
+  `BigInt`; `U64.fromBits` takes any `int`'s bits. Being an extension type, it prints as
+  its `int` does, signed: `toRadixString` and `toBigInt` print it unsigned. A narrower
+  integer passed in throws a `RangeError` when out of its range, as do a `usize` or
+  `isize` past 32 bits on a 32-bit target. A `char` is a `String` of one Unicode scalar,
+  and any other throws an `ArgumentError`.
+- **Bytes** a call takes are a `Uint8List`, and text a `String`, which throws an
+  `ArgumentError` passed in holding a lone surrogate, since UTF-8 has no form of one and
+  Dart's encoder would replace it. Rust keeps Dart's own
   with one copy from 1 KiB, into a buffer Rust takes, and with two below, since allocating
   Rust's buffer costs more there than the second copy; a lent `Uint8List` Rust returned
   passes back as a second owner of Rust's buffer, with no copy. Bytes Rust returns are a `Uint8List` owned by Dart's memory
@@ -1064,22 +1072,27 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   unmodifiable view of Rust's buffer, freed once neither it nor any view of it is
   reachable, so no view outlives its memory. A lent view costs a finalizer and charges the
   garbage collector its length, which costs more than a copy up to about 64 KiB. Text Rust
-  returns is copied into a `String`. A path is a `String`, and one Rust returns that is
-  not UTF-8 aborts, since a throw would leave the rest of a list or record being lifted
-  unfreed. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
+  returns is copied into a `String`. A path is the runtime's `PathBuf` of its bytes,
+  crossing as bytes do, so one that is not UTF-8 crosses whole: `PathBuf(String)` makes
+  one, and `toFilePath()` is its `String`, throwing a `FormatException` where it is not
+  UTF-8. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
   `List<T>`, except one of a fixed-width integer other than `u8` (bytes) or `u128` or of a float, or a `Box<[T]>` of one, which
   is the `dart:typed_data` list of its width, such as a `Uint32List` or `Float64List`:
-  copied whole into the call's memory passed in, and out of Rust's returned. A
-  `Uint64List` holds a `u64`'s bits, so one past `i64`'s range reads negative, as a `u64`
-  alone does. A `u128` is a `BigInt`, which throws an `ArgumentError` passed in out of
-  its range. A `[u8; N]` is a generated `ArrayU8x<N>`, which copies the list it is made
-  of and throws an `ArgumentError` unless it holds exactly `N` bytes. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
-  in throws an `ArgumentError`, and Rust's longest is Dart's. A socket address is a
-  `SocketAddr` of an `InternetAddress`, a port, and IPv6's flow label and scope; one passed
-  in of the wrong family throws an `ArgumentError`, and a port, label, or scope out of its
-  range a `RangeError`. An IP address is an `InternetAddress`. A Unix socket's
-  `InternetAddress`, or one of the wrong family, passed in for either throws an
-  `ArgumentError`.
+  copied whole into the call's memory passed in, and out of Rust's returned; a `u64`'s is
+  a `List<U64>`, a `Uint64List` read as `U64`s. A `u128` is a `BigInt`, which throws an
+  `ArgumentError` passed in out of its range. A `[u8; N]` is a generated `ArrayU8x<N>`,
+  which copies the list it is made of and throws an `ArgumentError` unless it holds
+  exactly `N` bytes. `Duration` is the runtime's `RustDuration`, its `U64` seconds and
+  nanoseconds below one, which throws a `RangeError` made of a second's nanoseconds or
+  more: `RustDuration.from` takes a `Duration`, throwing an `ArgumentError` for a negative
+  one, and `toDuration()` gives one, throwing a `RangeError` for part of a microsecond or
+  one past `Duration`'s longest. Addresses are the runtime's, as Rust's: `Ipv4Addr` and
+  `Ipv6Addr` of their octets, each an `IpAddr`, a sealed class; and `SocketAddrV4` and
+  `SocketAddrV6`, with its flow label and scope, each a `SocketAddr`, whose port, label,
+  and scope throw a `RangeError` out of range. So the type holds only its family, and each
+  crosses whole. `IpAddr.from`, `Ipv4Addr.from`, and `Ipv6Addr.from` take a `dart:io`
+  `InternetAddress`, throwing an `ArgumentError` for a Unix one, one of the other family,
+  or an IPv6 one with a scope, which Rust's has none of; `toInternetAddress()` gives one.
 - **Errors**: a `Result`'s error is thrown. An exported error type is thrown as itself,
   implementing `Exception`, and any other in a final class `<T>Exception` holding it as
   `error`, such as `StringException`.
@@ -1094,8 +1107,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 - A **reader** Rust reads and seeks, a `Read + Seek` behind `&mut`, is a `SeekableReader`:
   `readInto` and `seek`, which Rust calls only during the call, on the isolate's thread.
   `SeekableReader.file` reads a `RandomAccessFile` through its synchronous methods, as
-  Rust's calls are. A seek from `SeekFrom.start` takes a `u64`'s bits, as every `u64` is,
-  so one past `i64`'s range is negative, which a file refuses. Rust's buffer is never
+  Rust's calls are. A seek from `SeekFrom.start` takes a `u64`'s bits, as `U64.bits` holds
+  them, so one past `i64`'s range is negative, which a file refuses. Rust's buffer is never
   `readInto`'s: it fills a list of Dart's own, which Rust copies. An `Exception` either
   throws fails the call into Rust as an `io::Error` of its text, and anything else it
   throws aborts.

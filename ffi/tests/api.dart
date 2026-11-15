@@ -28,7 +28,7 @@ String bits64(Float64List v) => '[${v.buffer.asUint64List(v.offsetInBytes, v.len
 void numbers(String what, api.Numbers n) {
   print('$what u16 ${n.u16s}');
   print('$what u32 ${n.u32s}');
-  print('$what u64 [${n.u64s.map(u64).join(', ')}]');
+  print('$what u64 [${n.u64s.map((v) => v.toRadixString(10)).join(', ')}]');
   print('$what i8 ${n.i8s}');
   print('$what i16 ${n.i16s}');
   print('$what i32 ${n.i32s}');
@@ -60,14 +60,25 @@ String bound(api.BoundU64 b) => switch (b) {
 
 Uint8List bytes(List<int> values) => Uint8List.fromList(values);
 
+/// Bytes in hex, as transcript.rs prints them.
+String hex(List<int> bytes) => bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+
+/// A socket address as its IP's bytes in hex, its port, flow label, and scope, each
+/// IPv6's alone, apart by colons, as transcript.rs prints it.
+String socketHex(api.SocketAddr addr) => switch (addr) {
+  api.SocketAddrV4(:final ip, :final port) => '${hex(ip.octets)}:$port',
+  api.SocketAddrV6(:final ip, :final port, :final flowinfo, :final scopeId) =>
+    '${hex(ip.octets)}:$port:$flowinfo:$scopeId',
+};
+
 String text(Uint8List data) => utf8.decode(data);
 
 String quoted(List<String> values) => '[${values.map((v) => '"$v"').join(', ')}]';
 
-/// A path's UTF-8 bytes as Rust's `escape_ascii` prints them.
-String escaped(String path) {
+/// A path's bytes as Rust's `escape_ascii` prints them.
+String escaped(api.PathBuf path) {
   final out = StringBuffer();
-  for (final b in utf8.encode(path)) {
+  for (final b in path.bytes) {
     switch (b) {
       case 0x09:
         out.write(r'\t');
@@ -149,17 +160,17 @@ Future<void> script() async {
   final d = api.Point.default_();
   print('default ${d.x} ${d.y}');
 
-  final c = api.Counter('c', 5);
+  final c = api.Counter('c', api.U64(5));
   print('get ${c.get()}');
   print('name ${c.name()}');
-  print('add ok ${c.add(10)}');
+  print('add ok ${c.add(api.U64(10))}');
   try {
-    c.add(2000);
+    c.add(api.U64(2000));
   } on api.Error catch (e) {
     print('add err $e ${e.debug()}');
   }
   try {
-    c.sub(20);
+    c.sub(api.U64(20));
   } on api.Error catch (e) {
     print('sub err $e ${e.debug()}');
   }
@@ -167,7 +178,7 @@ Future<void> script() async {
   print('name ${c.name()}');
   print('is d ${c.is_('d')}');
   final copy = c.clone();
-  copy.add(1);
+  copy.add(api.U64(1));
   print('clone ${copy.get()} original ${c.get()}');
   copy.close();
   print('debug ${c.debug()}');
@@ -175,22 +186,22 @@ Future<void> script() async {
   print('label ${label.debug()}');
   print('note ${api.hasText(const api.Note(text: ''))} ${api.hasText(const api.Note(text: null))}');
 
-  final (below, above) = api.Counter('s', 7).split(5);
+  final (below, above) = api.Counter('s', api.U64(7)).split(api.U64(5));
   print('split ${below.name()} ${below.get()} ${above.name()} ${above.get()}');
-  final (only,) = api.only(api.Counter('o', 3));
+  final (only,) = api.only(api.Counter('o', api.U64(3)));
   print('only ${only.name()} ${only.get()}');
-  final (w8, w16, w32, w64) = api.widths(98305);
+  final (w8, w16, w32, w64) = api.widths(api.U64(98305));
   print('widths $w8 $w16 $w32 $w64');
   for (final b in [2, 0]) {
     try {
-      final (q, r) = api.divide(7, b);
+      final (q, r) = api.divide(api.U64(7), api.U64(b));
       print('divide $q $r');
     } on api.Error catch (e) {
       print('divide err $e');
     }
   }
   for (final n in [98305, 0]) {
-    final spread = api.spread(n);
+    final spread = api.spread(api.U64(n));
     print(spread == null ? 'spread none' : 'spread ${spread.$1} ${spread.$2} ${spread.$3} ${spread.$4}');
   }
   for (final needle in ['lo', 'x']) {
@@ -200,7 +211,7 @@ Future<void> script() async {
   final statRows = api.rows([const api.Point(x: 1, y: 2), const api.Point(x: 3, y: 3)]);
   print('rows ${statRows.map((r) => '${r.$1} ${r.$2.debug()} ${r.$3.x} ${r.$3.y}').join(', ')}');
   // Each handle in a tuple moves in, as one taken by value does.
-  final board = api.Board([('low', api.Counter('l', 1)), ('high', api.Counter('h', 9))]);
+  final board = api.Board([('low', api.Counter('l', api.U64(1))), ('high', api.Counter('h', api.U64(9)))]);
   final ranked = board.ranked();
   print('ranked ${ranked.map((r) => '${r.$1} ${r.$2.name()} ${r.$2.get()}').join(', ')}');
   final best = board.best();
@@ -247,26 +258,26 @@ Future<void> script() async {
   );
 
   // Each lent counter is a new handle to a clone.
-  final registry = api.Registry(api.Counter('first', 1));
+  final registry = api.Registry(api.Counter('first', api.U64(1)));
   print('last ${registry.last() != null}');
-  registry.push(api.Counter('last', 2));
+  registry.push(api.Counter('last', api.U64(2)));
   final first = registry.firstGet;
-  first.add(10);
+  first.add(api.U64(10));
   print('first ${registry.firstGet.get()} lent ${first.get()}');
   final last = registry.last()!;
-  last.add(10);
+  last.add(api.U64(10));
   print('last ${registry.last()!.get()} lent ${last.get()}');
   // A closure lent for the call edits the first counter through a handle.
   const by = 5;
   final edited = registry.edit((counter) {
-    counter.add(by);
+    counter.add(api.U64(by));
     return counter.edited() && counter.get() == 6;
   });
   print('edit $edited ${registry.firstGet.get()}');
   // A setter moves an object in, as assignment does, closing it.
-  registry.firstSet(api.Counter('second', 3));
+  registry.firstSet(api.Counter('second', api.U64(3)));
   print('set first ${registry.firstGet.get()} ${registry.firstGet.name()}');
-  print('walk ${api.walk(3, (cursor) => cursor.at() * 2)}');
+  print('walk ${api.walk(api.U64(3), (cursor) => api.U64(cursor.at().toInt() * 2))}');
   print('each ${api.each(2, (at) => print('visit $at'))}');
   print('offset ${api.offset(() => 7, 3)}');
   print('shift ${api.shift(() => 7, 4)}');
@@ -282,12 +293,12 @@ Future<void> script() async {
   final lit = api.Name.borrowed('lit');
   print('borrowed ${lit.asStr()} ${lit.shares(api.Name.borrowed('lit'))} ${lit.shares(api.Name.borrowed('other'))}');
 
-  print('total ${api.total(const api.RangeU64(2, 5))}');
+  print('total ${api.total(api.RangeU64(api.U64(2), api.U64(5)))}');
   print('reach ${api.reach(2, 5)}');
   final scaled = [
-    api.scaled((BigInt.one << 128) - BigInt.one, 1),
-    api.scaled((BigInt.one << 64) + BigInt.one, 1 << 63),
-    api.scaled(BigInt.one << 127, 2),
+    api.scaled((BigInt.one << 128) - BigInt.one, api.U64(1)),
+    api.scaled((BigInt.one << 64) + BigInt.one, api.U64.fromBits(1 << 63)),
+    api.scaled(BigInt.one << 127, api.U64(2)),
   ];
   print('scaled ${scaled.map((v) => v?.toRadixString(16).padLeft(32, '0') ?? 'none').join(' ')}');
   final digest = api.Digest();
@@ -308,28 +319,28 @@ Future<void> script() async {
   print('capacities ${api.capacities42(batch, batch2)} ${api.capacities22(batch2, batch2)}');
   batch.close();
   batch2.close();
-  final wide = api.widen(const api.RangeU64(2, 5), 1);
+  final wide = api.widen(api.RangeU64(api.U64(2), api.U64(5)), api.U64(1));
   print('widen ${wide.start} ${wide.end}');
   final counts = [
-    const api.BoundsU64(api.BoundU64Included(2), api.BoundU64Excluded(5)),
-    const api.BoundsU64(api.BoundU64Included(2), api.BoundU64Included(5)),
-    const api.BoundsU64(api.BoundU64Included(3), api.BoundU64Unbounded()),
-    const api.BoundsU64(api.BoundU64Unbounded(), api.BoundU64Unbounded()),
-    const api.BoundsU64(api.BoundU64Excluded(2), api.BoundU64Included(4)),
+    api.BoundsU64(api.BoundU64Included(api.U64(2)), api.BoundU64Excluded(api.U64(5))),
+    api.BoundsU64(api.BoundU64Included(api.U64(2)), api.BoundU64Included(api.U64(5))),
+    api.BoundsU64(api.BoundU64Included(api.U64(3)), api.BoundU64Unbounded()),
+    api.BoundsU64(api.BoundU64Unbounded(), api.BoundU64Unbounded()),
+    api.BoundsU64(api.BoundU64Excluded(api.U64(2)), api.BoundU64Included(api.U64(4))),
   ].map(api.count);
   print('count ${counts.join(' ')}');
-  print('end ${bound(api.end(3))} ${bound(api.end(0))}');
-  final (endsStart, endsEnd) = api.ends(3);
+  print('end ${bound(api.end(api.U64(3)))} ${bound(api.end(api.U64(0)))}');
+  final (endsStart, endsEnd) = api.ends(api.U64(3));
   print('ends ${bound(endsStart)} ${bound(endsEnd)}');
   for (final n in [2, 5]) {
     try {
-      print('below ${api.below(n, 3)}');
+      print('below ${api.below(api.U64(n), api.U64(3))}');
     } on api.BoundsU64Exception catch (e) {
       print('below err ${bound(e.error.start)} ${bound(e.error.end)}');
     }
   }
-  final window = api.Window(range: const api.RangeU64(2, 8), end: api.end(5));
-  print('window ${window.contains(4)} ${window.contains(6)} ${window.debug()}');
+  final window = api.Window(range: api.RangeU64(api.U64(2), api.U64(8)), end: api.end(api.U64(5)));
+  print('window ${window.contains(api.U64(4))} ${window.contains(api.U64(6))} ${window.debug()}');
 
   print(api.greet('x', api.Shape.square));
   print('len ${api.len(utf8.encode('abc'))}');
@@ -347,9 +358,9 @@ Future<void> script() async {
   }
 
   // A `Copy` handle passed by value is copied, so it stays usable.
-  final stamp = api.Stamp.fromMillis(2500);
+  final stamp = api.Stamp.fromMillis(api.U64(2500));
   print('secs ${stamp.secs()}');
-  print('later ${api.Stamp.fromMillis(3000).later(stamp)}');
+  print('later ${api.Stamp.fromMillis(api.U64(3000)).later(stamp)}');
   print('secs ${stamp.secs()}');
   print('whole ${stamp.whole().debug()}');
   final message = api.Message(stamp, utf8.encode('body'));
@@ -357,7 +368,7 @@ Future<void> script() async {
   print('stamp ${message.stampGet!.debug()}');
   print('sent ${message.sent()}');
   // Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
-  final reset = api.Stamp.fromMillis(4000);
+  final reset = api.Stamp.fromMillis(api.U64(4000));
   message.stampSet(reset);
   message.payloadSet(utf8.encode('edited'));
   print('payload ${text(message.payloadGet)}');
@@ -367,22 +378,22 @@ Future<void> script() async {
   print('stamp ${message.stampGet != null}');
 
   // A value past a word, copied across: a closure takes and returns one by value.
-  final moment = api.Moment.new_(1500, 1000)!;
-  print('moment ${moment.millis()} ${api.Moment.new_(1, 0) == null}');
-  final shifted = api.shifted(moment, (m) => m.after(500));
-  print('shifted ${shifted.millis()} ${shifted == moment.after(500)}');
-  print('wrapped ${moment.after(-1).millis()} ${moment == shifted}');
+  final moment = api.Moment.new_(api.U64(1500), api.U64(1000))!;
+  print('moment ${moment.millis()} ${api.Moment.new_(api.U64(1), api.U64(0)) == null}');
+  final shifted = api.shifted(moment, (m) => m.after(api.U64(500)));
+  print('shifted ${shifted.millis()} ${shifted == moment.after(api.U64(500))}');
+  print('wrapped ${moment.after(api.U64.max).millis()} ${moment == shifted}');
 
   // A value with padding, or bytes that vary, is a handle, as no table says where padding is.
-  final gap = api.Gap(7, 3);
-  print('gap ${gap.sum()} ${gap == api.Gap(7, 3)}');
+  final gap = api.Gap(api.U64(7), 3);
+  print('gap ${gap.sum()} ${gap == api.Gap(api.U64(7), 3)}');
   final berth = api.Berth(4);
   print('berth Some(${berth.at()}) ${api.Berth(null).at() == null ? 'None' : 'Some'}');
 
   // A `Copy` type changed in place is a value, which a `&mut self` method returns as the
   // call left it, Rust's own return beside it: a change reaches only the copy it replaces.
-  var score = api.Score.of(2);
-  final increment = api.Score.of(3);
+  var score = api.Score.of(api.U64(2));
+  final increment = api.Score.of(api.U64(3));
   score = score.add(increment);
   score = score.add(increment);
   print('score ${score.count()} ${increment.doubled().count()} ${increment.count()}');
@@ -392,28 +403,28 @@ Future<void> script() async {
   final (absorbed, before0, before1) = scoreCopy.absorb(otherScore);
   scoreCopy = absorbed;
   print('absorbed $before0 $before1 ${scoreCopy.count()} ${otherScore.value.count()} ${increment.count()}');
-  var hits = api.Hits.of(1, 2);
+  var hits = api.Hits.of(api.U64(1), api.U64(2));
   final keptHits = hits;
-  hits = hits.add(api.Hits.of(10, 20));
-  hits = hits.hitsSet(7);
+  hits = hits.add(api.Hits.of(api.U64(10), api.U64(20)));
+  hits = hits.hitsSet(api.U64(7));
   print('hits ${hits.hitsGet} ${hits.missesGet} ${keptHits.hitsGet} ${keptHits.missesGet} ${hits == keptHits}');
   final (counted, countedSame) = keptHits.eq(keptHits);
   print('counted $countedSame ${counted.hitsGet}');
-  var extent = api.Extent(5, 3);
+  var extent = api.Extent(api.U64(5), api.U64(3));
   final extentStart = extent;
-  final (slid, old) = extent.slide(10);
+  final (slid, old) = extent.slide(api.U64(10));
   extent = slid;
-  extent = extent.startSet(extent.startGet + 1);
+  extent = extent.startSet(api.U64(extent.startGet.toInt() + 1));
   print('extent $old ${extent.startGet} ${extent.end()} ${extentStart.startGet} ${extentStart.end()}');
   final weighted = api.Weighted(score: increment, weight: 4);
-  print('weighted ${weighted.total()} ${weighted.score.count() + increment.count()}');
+  print('weighted ${weighted.total()} ${weighted.score.count().toInt() + increment.count().toInt()}');
   // A checked mark beside bytes in a tuple and in a record lent, and bytes beside a move.
-  final mark = api.Mark.of(1);
-  mark.add(2);
+  final mark = api.Mark.of(api.U64(1));
+  mark.add(api.U64(2));
   final parcel = api.Parcel(mark: mark, payload: bytes([97, 98, 99]));
-  print('heft ${api.heft((mark, bytes([97, 98])), parcel, (api.Counter('w', 1), bytes([97, 98, 99, 100])))}');
+  print('heft ${api.heft((mark, bytes([97, 98])), parcel, (api.Counter('w', api.U64(1)), bytes([97, 98, 99, 100])))}');
   // A value's `&mut self` beside a checked handle.
-  final (noted, notedBefore) = api.Score.of(2).note(api.Mark.of(5));
+  final (noted, notedBefore) = api.Score.of(api.U64(2)).note(api.Mark.of(api.U64(5)));
   print('noted $notedBefore ${noted.count()}');
 
   print('kept ${api.emit(PrintLog(), bytes([1, 2, 3, 4]))}');
@@ -470,7 +481,7 @@ Future<void> script() async {
   // A poll with no async twin is a future.
   print('take ${text(await channel.pollTake())}');
   channel.send(utf8.encode('measured'));
-  print('measure ${await channel.pollMeasure(2)}');
+  print('measure ${await channel.pollMeasure(api.U64(2))}');
   // A context is made of the waker, which Rust keeps until the send wakes it.
   channel.listen(() => wakes++);
   channel.send(utf8.encode('heard'));
@@ -490,8 +501,8 @@ Future<void> script() async {
   await until(() => wakes == 5, 'a returned waker wakes the waiter');
   print('woken $wakes');
 
-  final nodes = api.Node(1, null);
-  nodes.push(2);
+  final nodes = api.Node(api.U64(1), null);
+  nodes.push(api.U64(2));
   print('node ${nodes.sum()}');
 
   final tally = api.Tally();
@@ -518,7 +529,7 @@ Future<void> script() async {
   // At its default, named as the type itself.
   final stack = api.Stack();
   for (final (i, n) in ['a', 'b'].indexed) {
-    stack.push(api.Counter(n, i + 1));
+    stack.push(api.Counter(n, api.U64(i + 1)));
   }
   final top = stack.pop()!.get();
   print('stack ${stack.depth()} Some($top) ${stack.pop() != null} ${stack.pop() == null}');
@@ -596,14 +607,14 @@ Future<void> script() async {
   } on api.StringException catch (e) {
     print('parse err ${e.error}');
   }
-  final v4 = api.SocketAddr(InternetAddress('127.0.0.1'), 8080);
-  final v6 = api.SocketAddr(InternetAddress('::1'), 443, scopeId: 3);
+  final v4 = api.SocketAddrV4(api.Ipv4Addr.from(InternetAddress('127.0.0.1')), 8080);
+  final v6 = api.SocketAddrV6(api.Ipv6Addr.from(InternetAddress('::1')), 443, scopeId: 3);
   print('ports ${api.ports([v4, v6])}');
   final peer = api.Peer(addr: v6, names: ['a', 'b']).next('c');
   print('peer ${peer.debug()} ${quoted(peer.aliases())}');
-  final file = api.file('dir', 'f\\\'"\t');
+  final file = api.file(api.PathBuf('dir'), 'f\\\'"\t');
   print('file ${escaped(file)}');
-  print('parents ${api.parents([file, '/']).map((p) => p == null ? 'none' : escaped(p)).join(' ')}');
+  print('parents ${api.parents([file, api.PathBuf('/')]).map((p) => p == null ? 'none' : escaped(p)).join(' ')}');
   final words = api.words(' one two  three ');
   print('words ${words.length} ${quoted(words)}');
   print('sentence ${api.sentence(words)} ${api.sentence(null)}');
@@ -612,8 +623,8 @@ Future<void> script() async {
   print('prefixed ${utf8.decode(api.prefixed(utf8.encode('cd'), utf8.encode('ab')))} '
       '${utf8.decode(api.prefixed(utf8.encode('cd'), null))}');
   print('coordinates ${api.coordinates(const api.Point(x: 2, y: 3))} ${api.coordinates(null)}');
-  final two = api.Counter('two', 2);
-  final three = api.Counter('three', 3);
+  final two = api.Counter('two', api.U64(2));
+  final three = api.Counter('three', api.U64(3));
   print('plus ${two.plus(three)} ${two.plus(null)}');
   print('add_to ${two.addTo(three)} ${two.addTo(null)} ${three.get()}');
   two.close();
@@ -655,7 +666,7 @@ Future<void> script() async {
   print('failure ${api.failureMessage(failure)} ${api.failureKind(failure)}');
   // Iterators, passed as the arrays of their items.
   print('sum_all ${api.sumAll([1, 2, 3])}');
-  print('weigh_all ${api.weighAllCounter([api.Counter('w', 3)])}');
+  print('weigh_all ${api.weighAllCounter([api.Counter('w', api.U64(3))])}');
   print('offered_len ${api.offeredLen([utf8.encode('h3'), utf8.encode('moq-00')])}');
   print('join_words ${api.joinWords(['a', 'b', 'c'])}');
   // Bytes that must be `'static`, interned.
@@ -674,28 +685,28 @@ Future<void> script() async {
   }
   final meters = api.Meters();
   final lentMeter = meters.first();
-  lentMeter.add(2);
-  print('lent ${lentMeter.add(3)} ${meters.first().count()}');
+  lentMeter.add(api.U64(2));
+  print('lent ${lentMeter.add(api.U64(3))} ${meters.first().count()}');
   lentMeter.close();
   meters.clear();
   print('cleared ${meters.first().count()}');
   final lastMeter = meters.lastGet;
-  lastMeter.add(4);
-  print('field lent ${lastMeter.add(1)}');
+  lastMeter.add(api.U64(4));
+  print('field lent ${lastMeter.add(api.U64(1))}');
   lastMeter.close();
   // An optional field that is not Clone, lent as `Some` of a handle.
   print('spare ${meters.spareGet != null}');
   meters.spareSet(api.Meter.default_());
   final spare = meters.spareGet!;
-  spare.add(5);
-  print('spare lent ${spare.add(1)}');
+  spare.add(api.U64(5));
+  print('spare lent ${spare.add(api.U64(1))}');
   spare.close();
   meters.close();
   final tallies = api.Tallies();
   tallies.first().bump();
   print('tallied ${tallies.first().bump()}');
   tallies.close();
-  print('chunks ${api.chunks(utf8.encode('abcde'), 2)}');
+  print('chunks ${api.chunks(utf8.encode('abcde'), api.U64(2))}');
   final counters = api.counters(['x', 'y']);
   print('counters ${counters.map((c) => '${c.name()} ${c.get()}').join(', ')}');
   // Each counter moves in, so a later call throws.
@@ -703,7 +714,7 @@ Future<void> script() async {
   for (final counter in counters) {
     closed(counter.get, 'Counter', 'a counter moved in is closed');
   }
-  final held = [api.heldCount((api.Counter('h', 4),)), api.heldCount(null)];
+  final held = [api.heldCount((api.Counter('h', api.U64(4)),)), api.heldCount(null)];
   print('held ${held.map((n) => n == null ? 'None' : 'Some($n)').join(' ')}');
   print(
     'boxed Some("${api.boxedName(api.boxedCounter('b'))}") '
@@ -733,8 +744,13 @@ Future<void> script() async {
   print('longest ${api.longest(['a', 'abc'])} ${api.longest([])}');
   print('first of Some("${api.firstOf(['a', 'b'])}") ${api.firstOf([]) ?? 'None'}');
   final limits = api.byteLimits(utf8.encode('a'), utf8.encode('bc'));
-  final waits = api.breadth(const api.LimitsDuration(low: Duration(milliseconds: 5), high: Duration(seconds: 2)));
-  print('limits ${utf8.decode(limits.low)} ${utf8.decode(limits.high)} breadth ${waits.inMilliseconds}');
+  final waits = api.breadth(
+    api.LimitsDuration(
+      low: api.RustDuration.from(const Duration(milliseconds: 5)),
+      high: api.RustDuration.from(const Duration(seconds: 2)),
+    ),
+  );
+  print('limits ${utf8.decode(limits.low)} ${utf8.decode(limits.high)} breadth ${waits.toDuration().inMilliseconds}');
   final parts = utf8.decode(api.joined([utf8.encode('ab'), Uint8List(0), utf8.encode('c')]));
   print('joined $parts ${api.joined([]).length} read ${api.readLen(utf8.encode('hello'))}');
   final doc = api.Json.parse('{"b": [1, 2.5, null], "a": "é"}');
@@ -778,11 +794,51 @@ Future<void> script() async {
   final numbered = api.numbered(['p', 'q']);
   print('numbered ${numbered.map((c) => '${c.name()} ${c.get()}').join(', ')}');
   final (next4, next6) = api.nexts(v4, v6);
-  print('nexts ${next4.address.address} ${next4.port} ${next6.port} ${next6.scopeId}');
-  final (nextIp4, nextIp6) = api.nextIps(InternetAddress('10.0.0.255'), InternetAddress('::ffff'));
-  final mapped = api.flip(InternetAddress('127.0.0.1'));
-  final ips = [nextIp4, nextIp6, mapped, api.flip(mapped), api.flip(InternetAddress('::1'))];
-  print('ips ${ips.map((ip) => ip.rawAddress.map((b) => b.toRadixString(16).padLeft(2, '0')).join()).join(' ')}');
+  print('nexts ${next4.ip} ${next4.port} ${next6.port} ${next6.scopeId}');
+  final (nextIp4, nextIp6) = api.nextIps(
+    api.Ipv4Addr.from(InternetAddress('10.0.0.255')),
+    api.Ipv6Addr.from(InternetAddress('::ffff')),
+  );
+  final mapped = api.flip(api.IpAddr.from(InternetAddress('127.0.0.1')));
+  final ips = [nextIp4, nextIp6, mapped, api.flip(mapped), api.flip(api.IpAddr.from(InternetAddress('::1')))];
+  print('ips ${ips.map((ip) => hex(ip.octets)).join(' ')}');
+
+  // Lossless round trips: each type's edge values, passed through Rust and back.
+  final durations = [
+    api.RustDuration.zero,
+    api.RustDuration(api.U64(0), 1),
+    api.RustDuration(api.U64(9223372036), 854775808),
+    api.RustDuration(api.U64.max, 999999999),
+  ].map(api.sameDuration);
+  print('lossless duration ${durations.map((d) => '${d.secs.toRadixString(10)}.${d.nanos.toString().padLeft(9, '0')}').join(' ')}');
+  final u64s = [api.U64(0), api.U64.fromBigInt(BigInt.one << 63), api.U64.max];
+  print('lossless u64 ${u64s.map((v) => api.sameU64(v).toRadixString(10)).join(' ')}');
+  print('lossless usize ${[api.U64(0), api.U64.max].map((v) => api.sameUsize(v).toRadixString(10)).join(' ')}');
+  print('lossless isize ${api.sameIsize(-0x8000000000000000)} ${api.sameIsize(0x7fffffffffffffff)}');
+  final u128s = [BigInt.zero, BigInt.one << 64, (BigInt.one << 128) - BigInt.one];
+  print('lossless u128 ${u128s.map((v) => api.sameU128(v).toRadixString(16).padLeft(32, '0')).join(' ')}');
+  final chars = ['\u{0}', '\u{d7ff}', '\u{e000}', '\u{10ffff}'];
+  print('lossless char ${chars.map((c) => api.sameChar(c).runes.single.toRadixString(16)).join(' ')}');
+  print('lossless path ${[api.PathBuf('a/é'), api.stray()].map((p) => hex(api.samePath(p).bytes)).join(' ')}');
+  final sockV4 = api.sameSocketAddrV4(api.SocketAddrV4(api.Ipv4Addr.fromOctets([255, 255, 255, 255]), 65535));
+  final sockV6 = api.sameSocketAddrV6(
+    api.SocketAddrV6(
+      api.Ipv6Addr.fromOctets([0, 1, for (var i = 0; i < 13; i++) 0, 2]),
+      3,
+      flowinfo: 0xffffffff,
+      scopeId: 0xffffffff,
+    ),
+  );
+  final socks = [sockV4, sockV6].map(api.sameSocketAddr);
+  print('lossless socket ${socketHex(sockV4)} ${socketHex(sockV6)} ${socks.map(socketHex).join(' ')}');
+  // A key hashes by Rust's `Hash`: equal keys alike, and these two apart.
+  final key = api.Key('a');
+  print('key ${key.hashCode == api.Key('a').hashCode} ${key.hashCode == api.Key('b').hashCode}');
+  final sameIps = [
+    api.sameIpAddr(api.Ipv4Addr.fromOctets([255, 255, 255, 255])),
+    api.sameIpAddr(api.Ipv6Addr.fromOctets([0xff, 0xff, for (var i = 0; i < 13; i++) 0, 1])),
+  ];
+  print('lossless ip ${sameIps.map((ip) => hex(ip.octets)).join(' ')}');
 
   // serde_json's map iterator, collected as pairs of a key and its document.
   final sections = api.sections([('b', api.Json.parse('[1]')), ('a', api.Json.parse('2'))]);
@@ -792,9 +848,12 @@ Future<void> script() async {
   }
   // An instant only Rust makes, which each call copies out of its handle, and compares.
   final began = api.now();
-  final ended = api.later(began, const Duration(milliseconds: 1500));
-  final same = api.later(began, Duration.zero);
-  print('instants ${api.since(ended, began).inMilliseconds} ${api.since(began, ended).inMilliseconds} ${began == same} ${began == ended}');
+  final ended = api.later(began, api.RustDuration.from(const Duration(milliseconds: 1500)));
+  final same = api.later(began, api.RustDuration.zero);
+  print(
+    'instants ${api.since(ended, began).toDuration().inMilliseconds} '
+    '${api.since(began, ended).toDuration().inMilliseconds} ${began == same} ${began == ended}',
+  );
   print('has_instant ${api.hasInstant(began)} ${api.hasInstant(null)}');
   // tracing's level, and its filter as an optional level whose null is `OFF`.
   final verbosity = api.Verbosity(api.Level.warn);
@@ -811,7 +870,7 @@ Future<void> script() async {
   final copied = api.reissue(api.Ticket(7), (_) => nine).number();
   print('reissued $renewed $copied, cloned ${api.Ticket.clones()}');
   // A record's traits borrow the checked handle it holds.
-  final nines = api.Mark.of(9);
+  final nines = api.Mark.of(api.U64(9));
   final front = api.seat(nines, 1);
   final back = api.seat(nines, 2);
   print('seat ${front.debug()} ${front == api.seat(nines, 1)} ${front == back}');
@@ -820,16 +879,16 @@ Future<void> script() async {
   print('spawned ${spawned.join()}');
   // A kept closure: called again at the instant it asks for, then once its waiter wakes,
   // failing with the exception the binding throws for Rust's error.
-  final start = api.Moment.new_(0, 1000)!;
+  final start = api.Moment.new_(api.U64(0), api.U64(1000))!;
   var calls = 0;
   final stopped = await within(
     api.drive(start, (now, waiter) {
       calls++;
       switch (calls) {
         case 1:
-          return now.after(5);
+          return now.after(api.U64(5));
         case 2:
-          print('drive ${now.millis() - start.millis()}');
+          print('drive ${now.millis().toInt() - start.millis().toInt()}');
           final waker = waiter.waker();
           waker();
           waker.close();
@@ -846,7 +905,7 @@ Future<void> script() async {
   final opened = (File('${dir.path}/tail')..writeAsStringSync('hello world')).openSync();
   for (final reader in [api.SeekableReader.file(opened), Broken()]) {
     try {
-      final (tail, at) = api.tail(reader, 5);
+      final (tail, at) = api.tail(reader, api.U64(5));
       print('tail ${text(tail)} $at');
     } on api.StringException catch (e) {
       print('tail error $e');
@@ -856,15 +915,14 @@ Future<void> script() async {
   dir.deleteSync(recursive: true);
   // A seek from the start reaches the reader whole, past `i64::MAX`, as `Cursor` takes one.
   try {
-    print('sought ${BigInt.from(api.seekTo(Far(), -1)).toUnsigned(64)}');
+    print('sought ${api.seekTo(Far(), api.U64.max).toRadixString(10)}');
   } on api.StringException catch (e) {
     print('sought error $e');
   }
   print('non zeros ${api.describeNonZeros(api.nonZeros())}');
-  // A `u64` is its bits, so -1 is `u64::MAX`.
-  for (final hop in [null, 1, -1]) {
+  for (final hop in [null, api.U64(1), api.U64.max]) {
     final next = api.nextHop(hop);
-    print(next == null ? 'hop None' : 'hop Some(${BigInt.from(next).toUnsigned(64)})');
+    print(next == null ? 'hop None' : 'hop Some(${next.toRadixString(10)})');
   }
   print('farther hop ${api.fartherHop(const api.PairNonZeroU16(left: 3, right: 0xFFFF))}');
 }
@@ -1201,7 +1259,7 @@ void targets() {
   lacks(() => api.Page.default_(), 'api_Page_default');
   lacks(() => const api.Page(size: 1).debug(), 'api_Page_debug');
   lacks(() => const api.Page(size: 1) == const api.Page(size: 2), 'api_Page_eq');
-  final booth = api.Booth(mark: api.Mark.of(1));
+  final booth = api.Booth(mark: api.Mark.of(api.U64(1)));
   lacks(() => booth.debug(), 'api_Booth_debug');
   lacks(() => booth == api.Booth(mark: booth.mark), 'api_Booth_eq');
 }
@@ -1218,7 +1276,7 @@ void unclosedLogger(api.Log log) {
 
 /// Each call taking a closed object throws, however it was closed, and moves nothing.
 void closedObjects() {
-  final c = api.Counter('c', 1);
+  final c = api.Counter('c', api.U64(1));
   c.close();
   closed(c.get, 'Counter', 'a method of a closed object');
   closed(c.clone, 'Counter', 'clone of a closed object');
@@ -1230,16 +1288,16 @@ void closedObjects() {
   tally.close();
   closed(() => tally == api.Tally(), 'Tally', '== of a closed object');
   closed(() => api.Tally() == tally, 'Tally', '== with a closed object');
-  final registry = api.Registry(api.Counter('first', 1));
+  final registry = api.Registry(api.Counter('first', api.U64(1)));
   registry.close();
   closed(() => registry.firstGet, 'Registry', "a field's getter of a closed object");
-  final second = api.Counter('second', 2);
+  final second = api.Counter('second', api.U64(2));
   closed(() => registry.firstSet(second), 'Registry', "a field's setter of a closed object");
   check(second.get() == 2, 'a call that throws moves nothing in');
 
   // An argument, alone, or in a list, beside others the call then moves none of.
   closed(() => api.bumpBoth(api.Tally(), tally), 'Tally', 'a closed argument');
-  final open = api.Counter('open', 3);
+  final open = api.Counter('open', api.U64(3));
   closed(() => api.worth([open, c], []), 'Counter', 'a closed object in a list');
   closed(() => api.worth([open], [c]), 'Counter', 'a closed object in a later list');
   closed(() => api.Board([('open', open), ('closed', c)]), 'Counter', 'a closed object in a tuple');
@@ -1269,14 +1327,14 @@ void closedObjects() {
 
   // Closed by a call that moved it, plain or boxed, or once the closure it was lent to
   // returned.
-  final moved = api.Counter('m', 0);
+  final moved = api.Counter('m', api.U64(0));
   moved.intoLabel(null);
   closed(moved.get, 'Counter', 'a method of a moved object');
-  final tail = api.Node(1, null);
-  api.Node(2, tail);
+  final tail = api.Node(api.U64(1), null);
+  api.Node(api.U64(2), tail);
   closed(tail.sum, 'Node', 'a method of a boxed moved object');
   late api.Counter kept;
-  api.Registry(api.Counter('c', 0)).edit((counter) {
+  api.Registry(api.Counter('c', api.U64(0))).edit((counter) {
     kept = counter;
     return false;
   });
@@ -1284,7 +1342,7 @@ void closedObjects() {
 
   // Closed from the closure a call lends while the call borrows it, an object throws, as
   // Rust refuses a drop under a borrow, and changes nothing; closed after, it closes.
-  final editing = api.Registry(api.Counter('e', 4));
+  final editing = api.Registry(api.Counter('e', api.U64(4)));
   final edited = editing.edit((counter) {
     borrowed(editing.close, 'api_Registry_drop: a handle is already borrowed', 'a close in a closure the call lends');
     return counter.get() == 4;
@@ -1391,30 +1449,90 @@ Uint8List carry(Uint8List payload) => api.nextPacket(api.Packet(seq: 1, payload:
 @pragma('vm:never-inline')
 Uint8List subView(int id) => Uint8List.sublistView(api.tokenBytes(id, 65537), 65527);
 
-/// Values at the edges of what Rust takes and returns.
+/// Values at the edges of what Rust takes and returns, and each value Rust's type lacks,
+/// which throws the language's own error rather than reaching Rust.
 void bounds() {
   // A lone surrogate is one rune but no Unicode scalar.
   check(api.nextChar('a') == 'b' && api.nextChar('\u{1f600}') == '\u{1f601}', 'a char');
   throws<ArgumentError>(() => api.nextChar(String.fromCharCode(0xd800)), 'a low surrogate');
   throws<ArgumentError>(() => api.nextChar(String.fromCharCode(0xdfff)), 'a high surrogate');
+  throws<ArgumentError>(() => api.nextChar('ab'), 'two chars');
   check(api.nextChar('\u{d7ff}') == null, 'the scalar before the surrogates');
-  throws<ArgumentError>(() => api.scaled(BigInt.one << 128, 1), 'an int past u128');
-  throws<ArgumentError>(() => api.scaled(-BigInt.one, 1), 'a negative int for a u128');
+  throws<ArgumentError>(() => api.scaled(BigInt.one << 128, api.U64(1)), 'an int past u128');
+  throws<ArgumentError>(() => api.scaled(-BigInt.one, api.U64(1)), 'a negative int for a u128');
 
-  // Dart's longest Duration is 9223372036854 seconds and 775807 microseconds.
-  for (final us in [9223372036854000000, 9223372036854775806]) {
-    final d = Duration(microseconds: us);
-    check(api.extended(d, Duration.zero) == d, 'a Duration near the longest, $us');
+  // Text is UTF-8 in Rust, which a lone surrogate has no form in: Dart's encoder would
+  // replace it.
+  check(api.sameString('\u{1f600}é\u{10ffff}') == '\u{1f600}é\u{10ffff}', 'a pair of surrogates');
+  for (final lone in ['\u{d800}', 'a\u{dc00}', '\u{dbff}\u{d800}', '\u{dc00}\u{d800}', 'é\u{d800}']) {
+    throws<ArgumentError>(() => api.sameString(lone), 'a lone surrogate in ${lone.codeUnits}');
   }
-  const longest = Duration(microseconds: 0x7fffffffffffffff);
-  check(api.extended(longest, Duration.zero) == longest, 'the longest Duration');
+  throws<ArgumentError>(() => api.PathBuf('\u{dc00}'), 'a path of a lone surrogate');
 
-  check(api.ports([api.SocketAddr(InternetAddress('::1'), 65535)]).single == 65535, 'the last port');
+  // A `u64` is its bits read unsigned, checked into and out of an `int` or a `BigInt`.
+  check(api.U64.max.toBigInt() == (BigInt.one << 64) - BigInt.one, 'u64::MAX as a BigInt');
+  check(api.U64.max.toRadixString(10) == '18446744073709551615', 'u64::MAX in decimal');
+  check(api.U64.max.toRadixString(16) == 'ffffffffffffffff', 'u64::MAX in hex');
+  check(api.U64(0x7fffffffffffffff).toInt() == 0x7fffffffffffffff, 'i64::MAX as an int');
+  check(api.U64(1) < api.U64.max && api.U64.max > api.U64(0x7fffffffffffffff), 'a u64 compares unsigned');
+  check(api.U64.fromBigInt(BigInt.one << 63).bits == -0x8000000000000000, 'i64::MAX + 1 as its bits');
+  throws<RangeError>(() => api.U64(-1), 'a negative int for a u64');
+  throws<RangeError>(() => api.U64.fromBigInt(BigInt.one << 64), 'a BigInt past u64');
+  throws<RangeError>(() => api.U64.fromBigInt(-BigInt.one), 'a negative BigInt for a u64');
+  throws<RangeError>(() => api.U64.max.toInt(), 'a u64 past int');
+
+  // A Rust Duration is its seconds and nanoseconds, checked into and out of a Duration,
+  // whose longest is 9223372036854 seconds and 775807 microseconds.
+  const longest = Duration(microseconds: 0x7fffffffffffffff);
+  for (final d in [Duration.zero, const Duration(microseconds: 9223372036854000000), longest]) {
+    final same = api.extended(api.RustDuration.from(d), api.RustDuration.zero)!;
+    check(same.toDuration() == d, 'a Duration crosses whole, $d');
+  }
+  check(api.extended(api.RustDuration(api.U64.max, 999999999), api.RustDuration(api.U64(0), 1)) == null, 'past the longest');
+  throws<RangeError>(() => api.RustDuration(api.U64(0), 1000000000), 'a second of nanoseconds');
+  throws<RangeError>(() => api.RustDuration(api.U64(0), -1), 'negative nanoseconds');
+  throws<ArgumentError>(() => api.RustDuration.from(const Duration(microseconds: -1)), 'a negative Duration');
+  throws<RangeError>(() => api.RustDuration(api.U64(0), 1).toDuration(), 'a nanosecond as a Duration');
+  throws<RangeError>(() => api.RustDuration(api.U64(9223372036854), 775808000).toDuration(), 'past the longest Duration');
+  check(api.RustDuration(api.U64(1)).compareTo(api.RustDuration(api.U64.max)) < 0, 'a Duration compares unsigned');
+
+  // A path is its bytes, which a String may not hold.
+  final stray = api.stray();
+  check(api.samePath(stray) == stray && stray.bytes.single == 0xff, 'a path that is not UTF-8');
+  check('$stray' == '\u{fffd}', "a path's display replaces what is not UTF-8");
+  throws<FormatException>(stray.toFilePath, 'a path that is not UTF-8 as a String');
+  api.PathBuf? lent;
+  api.visitStray((path) => lent = path);
+  check(lent == stray, 'a lent path that is not UTF-8');
+  check(api.PathBuf('a/é').toFilePath() == 'a/é', 'a UTF-8 path as a String');
+
+  // An address is its family's, checked out of an InternetAddress.
+  final loopback = InternetAddress('::1');
+  check(api.IpAddr.from(loopback).toInternetAddress() == loopback, 'an IPv6 address both ways');
+  check(api.IpAddr.from(InternetAddress('10.0.0.1')) is api.Ipv4Addr, 'an IPv4 address');
+  throws<ArgumentError>(() => api.Ipv4Addr.from(loopback), 'an IPv6 address for an Ipv4Addr');
+  throws<ArgumentError>(() => api.Ipv6Addr.from(InternetAddress('10.0.0.1')), 'an IPv4 address for an Ipv6Addr');
+  throws<ArgumentError>(() => api.Ipv6Addr.from(InternetAddress('fe80::1%1')), 'an IPv6 address with a scope');
+  throws<ArgumentError>(
+    () => api.IpAddr.from(InternetAddress('/tmp/api', type: InternetAddressType.unix)),
+    'a Unix address',
+  );
+  throws<ArgumentError>(() => api.Ipv4Addr.fromOctets([1, 2, 3]), 'three octets');
+  throws<ArgumentError>(() => api.Ipv4Addr.fromOctets([256, 0, 0, 0]), 'an octet past 255');
+  final ip = api.Ipv6Addr.from(loopback);
+  check(api.ports([api.SocketAddrV6(ip, 65535)]).single == 65535, 'the last port');
+  throws<RangeError>(() => api.SocketAddrV6(ip, 65536), 'a port past u16');
+  throws<RangeError>(() => api.SocketAddrV6(ip, 1, scopeId: -1), 'a negative scope');
+  throws<RangeError>(() => api.SocketAddrV6(ip, 1, flowinfo: 0x100000000), 'a flow label past u32');
+
+  // A key hashes by Rust's Hash, so a Set holds each once.
+  check({api.Key('a'), api.Key('a'), api.Key('b')}.length == 2, 'a set of keys');
+
   // A block crosses whole: an empty one stays apart from none, and a u64 keeps its bits.
   api.Numbers blocks(Int32List? some) => api.Numbers(
     u16s: Uint16List(0),
     u32s: Uint32List(0),
-    u64s: Uint64List.fromList([-1]),
+    u64s: [api.U64.max],
     i8s: Int8List(0),
     i16s: Int16List(0),
     i32s: Int32List(0),
@@ -1425,15 +1543,9 @@ void bounds() {
   );
   check(blocks(null).reversed().some == null, 'no block crosses as none');
   check(blocks(Int32List(0)).reversed().some?.isEmpty == true, 'an empty block crosses as itself');
-  check(blocks(null).reversed().u64s.single == -1, 'u64::MAX crosses as its bits');
+  check(blocks(null).reversed().u64s.single == api.U64.max, 'u64::MAX crosses whole');
   final big = Uint32List.fromList(List.generate(1000, (i) => i));
   check(api.sumU32(big) == 499500, 'a thousand u32s cross whole');
-  throws<RangeError>(() => api.ports([api.SocketAddr(InternetAddress('::1'), 65536)]), 'a port past u16');
-  throws<RangeError>(() => api.ports([api.SocketAddr(InternetAddress('::1'), 1, scopeId: -1)]), 'a negative scope');
-  throws<RangeError>(
-    () => api.ports([api.SocketAddr(InternetAddress('::1'), 1, flowinfo: 0x100000000)]),
-    'a flow label past u32',
-  );
   print('ok');
 }
 
@@ -1459,12 +1571,12 @@ void broken(String which) {
   }
   switch (which) {
     case 'moved':
-      final c = api.Counter('c', 0);
+      final c = api.Counter('c', api.U64(0));
       c.intoLabel(null);
       c.get();
     case 'boxed moved':
-      final tail = api.Node(1, null);
-      api.Node(2, tail);
+      final tail = api.Node(api.U64(1), null);
+      api.Node(api.U64(2), tail);
       tail.sum();
     case 'outlived':
       final meters = api.Meters();
@@ -1472,13 +1584,13 @@ void broken(String which) {
       meters.clear();
       first.count();
     case 'lent moved':
-      api.Registry(api.Counter('c', 0)).edit((counter) {
+      api.Registry(api.Counter('c', api.U64(0))).edit((counter) {
         counter.intoLabel(null);
         return false;
       });
     case 'lent kept':
       late api.Counter kept;
-      api.Registry(api.Counter('c', 0)).edit((counter) {
+      api.Registry(api.Counter('c', api.U64(0))).edit((counter) {
         kept = counter;
         return false;
       });
@@ -1487,26 +1599,10 @@ void broken(String which) {
       api.emit(CountLog(() => throw StateError('a log failed')), bytes([1]));
     // Only the exception of Rust's error fails a closure.
     case 'closure threw':
-      api.drive(api.Moment.new_(0, 1000)!, (_, _) => throw StateError('a poll failed'));
+      api.drive(api.Moment.new_(api.U64(0), api.U64(1000))!, (_, _) => throw StateError('a poll failed'));
     // Only an Exception fails a reader.
     case 'reader threw':
-      api.tail(Thrower(), 1);
-    // An IPv6 address where Rust takes `SocketAddrV4`.
-    case 'family':
-      final any = api.SocketAddr(InternetAddress('::'), 1);
-      api.nexts(any, any);
-    // An IPv6 address where Rust takes `Ipv4Addr`.
-    case 'ip family':
-      final any = InternetAddress('::');
-      api.nextIps(any, any);
-    // A Unix socket's address, which is no IP address.
-    case 'ip unix':
-      api.flip(InternetAddress('/tmp/api', type: InternetAddressType.unix));
-    // No String holds a path that is not UTF-8.
-    case 'stray':
-      api.stray();
-    case 'lent stray':
-      api.visitStray((_) {});
+      api.tail(Thrower(), api.U64(1));
     default:
       check(false, 'no case $which');
   }
