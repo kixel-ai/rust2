@@ -2024,10 +2024,11 @@ fn member(snake: &str, reserved: &[&str]) -> String {
 	let digit = snake
 		.starts_with(|c: char| c.is_ascii_digit())
 		.then(|| format!("_{snake}"));
-	let snake = digit.as_deref().unwrap_or(snake);
+	// A keyword's `_` first, so a reservation is checked against the name the class emits.
+	let snake = kw(digit.as_deref().unwrap_or(snake));
 	let taken = |name: &str| reserved.contains(&name) || TAKEN.contains(&name);
-	if !taken(snake) {
-		return kw(snake);
+	if !taken(&snake) {
+		return snake;
 	}
 	let mut name = format!("{snake}_");
 	while taken(&name) {
@@ -2140,5 +2141,8 @@ mod tests {
 		assert_eq!(member("name", &["name"]), "name_");
 		// A callback's `_int` then `_int_` keep apart: the second reserves the first's name.
 		assert_eq!(member("_int_", &[member("_int", &[]).as_str()]), "_int__");
+		// A callback's `async_` then `async` (raw `r#async`) keep apart: the keyword's `_` is added before the check.
+		assert_eq!(member("async", &[member("async_", &[]).as_str()]), "async__");
+		assert_eq!(member("async_", &[member("async", &[]).as_str()]), "async__");
 	}
 }
