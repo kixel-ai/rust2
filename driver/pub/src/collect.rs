@@ -506,37 +506,12 @@ impl<'tcx> Collector<'tcx> {
 					}
 				}
 				let span = tcx.hir_span(hir::HirId { owner, local_id: local });
-				// And where an expression that may panic or call a `#[track_caller]`
-				// function is, which `Location::caller()` and a panic report, by the line
-				// and column of its outermost macro call, as rustc computes them.
+				// And where an expression that reports its caller's location is, by the
+				// line and column of its outermost macro call, as rustc computes them:
+				// `Location::caller()` in a `#[track_caller]` function and a panic read it.
 				if let Node::Expr(expr) = node.node
-					&& match expr.kind {
-						hir::ExprKind::Call(..)
-						| hir::ExprKind::MethodCall(..)
-						| hir::ExprKind::Index(..)
-						| hir::ExprKind::Unary(hir::UnOp::Neg, _) => true,
-						hir::ExprKind::Binary(op, ..) => matches!(
-							op.node,
-							hir::BinOpKind::Add
-								| hir::BinOpKind::Sub
-								| hir::BinOpKind::Mul
-								| hir::BinOpKind::Div
-								| hir::BinOpKind::Rem
-								| hir::BinOpKind::Shl
-								| hir::BinOpKind::Shr
-						),
-						hir::ExprKind::AssignOp(op, ..) => matches!(
-							op.node,
-							hir::AssignOpKind::AddAssign
-								| hir::AssignOpKind::SubAssign
-								| hir::AssignOpKind::MulAssign
-								| hir::AssignOpKind::DivAssign
-								| hir::AssignOpKind::RemAssign
-								| hir::AssignOpKind::ShlAssign
-								| hir::AssignOpKind::ShrAssign
-						),
-						_ => false,
-					} {
+					&& reports_location(tcx, hir::HirId { owner, local_id: local }, expr)
+				{
 					let topmost = span.ctxt().outer_expn().expansion_cause().unwrap_or(span);
 					let at = tcx.sess.source_map().lookup_char_pos(topmost.lo());
 					std::hash::Hash::hash(&(local, at.line, at.col_display), &mut hasher);
@@ -1016,6 +991,61 @@ impl<'tcx> Collector<'tcx> {
 		let result = walk(self);
 		self.owner = outer;
 		result
+	}
+}
+
+/// Whether `expr` reports where it is when it runs: a call of a `#[track_caller]` function,
+/// or of one only monomorphization picks, and, outside a constant's or static's initializer,
+/// where a panic is a compile error instead, an index or an operator that may panic.
+fn reports_location<'tcx>(tcx: TyCtxt<'tcx>, id: hir::HirId, expr: &hir::Expr<'tcx>) -> bool {
+	let body = tcx.hir_enclosing_body_owner(id);
+	let typeck = tcx.typeck(body);
+	let callee = match expr.kind {
+		hir::ExprKind::Call(callee, _) => match *typeck.expr_ty(callee).kind() {
+			ty::FnDef(def, args) => Some((def, args.skip_binder())),
+			_ => None,
+		},
+		hir::ExprKind::MethodCall(..) => typeck
+			.type_dependent_def_id(expr.hir_id)
+			.map(|def| (def, typeck.node_args(expr.hir_id))),
+		_ => None,
+	};
+	if let Some((def, args)) = callee {
+		let args = tcx.erase_and_anonymize_regions(args);
+		return match ty::Instance::try_resolve(tcx, ty::TypingEnv::post_analysis(tcx, body), def, args) {
+			Ok(Some(instance)) => instance.def.requires_caller_location(tcx),
+			_ => true,
+		};
+	}
+	if let Some(rustc_hir::ConstContext::Const { .. } | rustc_hir::ConstContext::Static(_)) =
+		tcx.hir_body_const_context(body)
+	{
+		return false;
+	}
+	match expr.kind {
+		hir::ExprKind::Index(..) => true,
+		hir::ExprKind::Unary(hir::UnOp::Neg, operand) => !matches!(operand.kind, hir::ExprKind::Lit(_)),
+		hir::ExprKind::Binary(op, ..) => matches!(
+			op.node,
+			hir::BinOpKind::Add
+				| hir::BinOpKind::Sub
+				| hir::BinOpKind::Mul
+				| hir::BinOpKind::Div
+				| hir::BinOpKind::Rem
+				| hir::BinOpKind::Shl
+				| hir::BinOpKind::Shr
+		),
+		hir::ExprKind::AssignOp(op, ..) => matches!(
+			op.node,
+			hir::AssignOpKind::AddAssign
+				| hir::AssignOpKind::SubAssign
+				| hir::AssignOpKind::MulAssign
+				| hir::AssignOpKind::DivAssign
+				| hir::AssignOpKind::RemAssign
+				| hir::AssignOpKind::ShlAssign
+				| hir::AssignOpKind::ShrAssign
+		),
+		_ => false,
 	}
 }
 
