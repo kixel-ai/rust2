@@ -959,15 +959,31 @@ reads a go.mod.
   returns freed memory, such as [mimalloc](https://crates.io/crates/mimalloc), declared in
   the exported crate, holds it near what is lent. `Copy()` copies it out. Text Rust returns is copied once into a `string`, and Rust's
   freed at the call. A path is a `string`
-  of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object or
-  `u128` its pointer, nil for `None`. A tuple is `rt.Tuple2[A, B]` and so on, but a tuple of one is its
-  element, and one returned whole is the function's results. A `u128` is a `*big.Int`, which
-  panics passed in out of its range, and a `[u8; N]` a `[N]byte`. `Duration` is
-  `time.Duration`: a negative one passed in, or one Rust returns past its 292 years,
-  panics. A socket address is a `netip.AddrPort`, whose zone names an IPv6 scope by its
-  number or its interface's name; one Rust returns with an IPv6 flow label, which
-  `netip` does not keep, panics. An IP address is a `netip.Addr`; one passed in that is
-  invalid, has a zone, or is of the wrong family panics. A `Vec<T>`, `&[T]`, or `Box<[T]>` is a `[]T`; one of a
+  of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object its
+  pointer, nil for `None`. A tuple is `rt.Tuple2[A, B]` and so on, but a tuple of one is its
+  element, and one returned whole is the function's results. A `[u8; N]` is a `[N]byte`.
+- **Lossless types**: each holds every value of its Rust type, so one passed in and
+  returned is the same value, and none panics. Where Go's own type does not, the
+  runtime's crosses, with conversions to and from Go's that return an error matching
+  `rt.ErrInvalid` for a value the other has no room for. A `u128` is an `rt.U128{Hi, Lo}`,
+  converted by `Big()` and `rt.U128Of(*big.Int)`. A `Duration` is an `rt.Duration`, whose
+  zero value is zero and whose `Secs()` and `Nanos()` are Rust's: `rt.NewDuration(secs,
+  nanos)` carries nanoseconds past a second into the seconds, as Rust's `Duration::new`
+  does, `rt.DurationOf(time.Duration)` fails on a negative one, and `Std()` fails past
+  `time.Duration`'s 292 years. An address is the runtime's mirror of `std::net`'s:
+  `rt.Ipv4Addr` and `rt.Ipv6Addr` their octets, `rt.SocketAddrV4` and `rt.SocketAddrV6`
+  structs of their fields, flow label and scope too, and `rt.IpAddr` and `rt.SocketAddr`
+  one of either family, made by `rt.IpAddrFromV4` and so on and read by `V4()` and `V6()`,
+  whose zero value is IPv4's `0.0.0.0`, port 0. Each converts to and from `net/netip`'s,
+  `Netip()` and `rt.<Type>Of`, which fail on the wrong family, a zone an `Ipv6Addr` or
+  `IpAddr` has no room for, or a flow label `netip` has none for; a scope is a zone of its
+  number, and a zone converts by its number or its interface's name. Every one compares
+  with `==`. A `string` that is not UTF-8, or a `rune` that is not a Unicode scalar value,
+  fails the call taking it, anywhere in its arguments, before it is made, with an error
+  matching `rt.ErrInvalid`, so every such call returns an `error`, `Equal` of a value
+  holding text too, and `String()` and `GoString()` the error's text; what a closure or
+  trait Go implements returns Rust has no caller to return one to, so it aborts.
+- **Lists**: a `Vec<T>`, `&[T]`, or `Box<[T]>` is a `[]T`; one of a
   fixed-width integer other than `u8` (bytes) or `u128`, or of a float, is lent in place, pinned for the call, as bytes are, and
   one Rust returns is copied out whole.
 - **Errors**: a `Result` returns an `error` last. An exported error type is returned as
