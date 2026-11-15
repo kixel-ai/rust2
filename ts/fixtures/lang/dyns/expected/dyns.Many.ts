@@ -16,9 +16,14 @@ export interface Many {
 }
 
 export function scale$dyns_Scaled_Vec_u8(self: Many, by: rs.ByteVec): rs.ByteVec {
-	return rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(by))), (x: rs.u8): rs.u8 => {
-		return rs.u8WrappingAdd(x, self._0);
-	}), undefined, true);
+	const s = rs.byteSliceView(rs.byteVecSlice(by));
+	let front = 0;
+	let back = s.length;
+	const v: rs.ByteVec = rs.byteVecWithCapacity(back - front);
+	while (!(front >= back)) {
+		rs.byteVecPush(v, rs.u8WrappingAdd(s[front++], self._0));
+	}
+	return v;
 }
 
 /** Writes through a `&mut` to the argument, an `rs.Place` for a number. */

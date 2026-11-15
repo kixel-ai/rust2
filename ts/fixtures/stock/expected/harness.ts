@@ -68,9 +68,19 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 
 /** The first byte that picks the case named `name`, which `caller.ts` targets by. */
 export function op(name: string): rs.u8 {
-	const _2: rs.usize | undefined = rs.iterPosition(rs.iterSlice(cases().items), (_22: [string, (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined]): boolean => {
-		return _22[0] === name;
-	});
+	const s = cases().items;
+	let front = 0;
+	let back = s.length;
+	let i2 = 0;
+	let at: number | undefined = undefined;
+	while (!(front >= back)) {
+		if (s[front++][0] === name) {
+			at = i2;
+			break;
+		}
+		i2++;
+	}
+	const _2: rs.usize | undefined = at;
 	if (_2 === undefined) {
 		rs.panicFmt(["no case ", (f: rs.Formatter) => rs.fmtPad(f, name)]);
 	} else {
@@ -251,9 +261,17 @@ export function random(dataData: Uint8Array, dataStart: number, dataLen: number,
 					}
 					seen[_76] = true;
 				}
-				inRange = rs.iterAll(rs.iterSlice(seen), (_2: boolean): boolean => {
-					return _2;
-				});
+				const s2 = seen;
+				let front = 0;
+				let back = s2.length;
+				let found = true;
+				while (!(front >= back)) {
+					if (!s2[front++]) {
+						found = false;
+						break;
+					}
+				}
+				inRange = found;
 			} else if (_10 === 6) {
 				const _91: [rs.i64, rs.i64] = [rs.i64Add({ hi: -0x80000000, lo: 0 } as rs.i64, a as rs.i64), rs.i64Sub({ hi: 0x7fffffff, lo: 0xffffffff } as rs.i64, b as rs.i64)];
 				const lo5: rs.i64 = _91[0];

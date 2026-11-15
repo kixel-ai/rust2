@@ -1344,10 +1344,19 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		return Key.new(rs.u32Add(id, n), Log.clone$Clone(log));
 	};
 	const ids: (a0: rs.Slice<Key.Key>) => rs.String = (v13: rs.Slice<Key.Key>): rs.String => {
-		return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(v13)), (k: Key.Key): rs.String => {
+		const s = rs.sliceItems(v13);
+		let front = 0;
+		let back = s.length;
+		const f = (k: Key.Key): rs.String => {
 			const _43: rs.u32 = rs.u32Sub(k.id, id);
 			return rs.fmtToString((f: rs.Formatter) => rs.u32Display(_43, f), 0);
-		}), undefined, 12, true).items, ",");
+		};
+		const v14: rs.Vec<rs.String> = rs.vecWithCapacity(back - front, 12);
+		while (!(front >= back)) {
+			const y: rs.String = f(s[front++]);
+			v14.items.push(y);
+		}
+		return rs.strsJoin(v14.items, ",");
 	};
 	const _8: rs.u8 = rs.u8Rem(arg, 9);
 	if (_8 === 0) {

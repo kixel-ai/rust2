@@ -228,7 +228,15 @@ export function called(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, caught$u8_panics_seven(seven));
 		rs.byteVecPush(out, seven());
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(caught$Vec_u8_panics_called_closure5((): rs.ByteVec => {
-			return rs.iterToByteVec(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), undefined, true);
+			const s4 = rs.byteSliceView(data);
+			let front = 0;
+			let back2 = s4.length;
+			const v2: rs.ByteVec = rs.byteVecWithCapacity(back2 - front);
+			while (!(front >= back2)) {
+				back2--;
+				rs.byteVecPush(v2, s4[back2]);
+			}
+			return v2;
 		})));
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(caught$String_panics_called_closure6((): rs.String => {
 			return rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(first, f)]);

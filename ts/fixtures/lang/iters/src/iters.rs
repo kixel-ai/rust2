@@ -2977,3 +2977,408 @@ pub fn fused_leaves(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	}
 	out.extend_from_slice(&log.borrow());
 }
+
+/// Chains translation fuses past `fused`'s: consumers of a bare slice, `Vec`, array, or
+/// range iterator, `skip` and `take` read from either end, as zip sides, past their ends,
+/// and at none, and `collect` into a `Vec`, whose capacity is part of the output. Beside
+/// them, the shapes that stay the runtime's: a `skip` a zip reads by index, a `take` folded
+/// by index, and leaves the runtime makes. Each closure logs its calls, and each owned item
+/// its drop, so their order and count are part of the output.
+pub fn fused_cuts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let split = (kind >> 4) as usize % (data.len() + 1);
+	let (a, b) = data.split_at(split);
+	let stop = data.first().copied().unwrap_or(0) % 64;
+	let sk = data.get(1).map_or(0, |&x| x as usize % 5);
+	let tk = data.get(2).map_or(3, |&x| x as usize % 7);
+	let log = std::cell::RefCell::new(Vec::new());
+	macro_rules! seen {
+		($tag:expr) => {
+			|&x: &u8| {
+				log.borrow_mut().push(x ^ $tag);
+				x
+			}
+		};
+	}
+	macro_rules! made {
+		($tag:expr) => {
+			|x: &u8| {
+				log.borrow_mut().push(x ^ $tag);
+				x % 3 != 0
+			}
+		};
+	}
+	macro_rules! kept {
+		($tag:expr) => {
+			|x: &&u8| {
+				log.borrow_mut().push(**x ^ $tag);
+				**x % 3 != 0
+			}
+		};
+	}
+	let n = |len: usize| len as i32;
+	match kind % 11 {
+		// Consumers of a bare leaf, which reads itself in place, or counts what it has left.
+		0 => {
+			out.push(a.iter().any(|&x| x % 64 == stop) as u8);
+			out.push(b.iter().copied().all(|x| x != stop) as u8);
+			out.extend(a.iter().rev().position(|&x| x % 7 == 0).map(|p| p as u8));
+			out.extend(b.iter().find(|&&x| x % 64 == stop).copied());
+			out.push(data.iter().count() as u8);
+			out.push(a.iter().rev().count() as u8);
+			out.push((n(b.len())..n(a.len())).count() as u8);
+			out.push((3..n(data.len())).rev().count() as u8);
+			out.extend(b.to_vec().into_iter().rfind(|x| x % 3 == 0));
+			out.push([stop, 1, 2].into_iter().sum::<u8>());
+			out.push((0..a.len() as u32).fold(0u8, |acc, i| acc.wrapping_mul(3) ^ i as u8));
+			out.push((-3..n(b.len())).rev().any(|i| i == stop as i32) as u8);
+			out.push(data.iter().copied().rfold(0u8, |acc, x| acc.wrapping_mul(5) ^ x));
+			a.iter().rev().for_each(|&x| out.push(x ^ 7));
+		}
+		// Read from the front, closures with effects outside a `skip` and inside one.
+		1 => {
+			out.push(
+				a.iter()
+					.skip(sk)
+					.take(tk)
+					.map(seen!(1))
+					.fold(0u8, |acc, x| acc.wrapping_mul(7) ^ x),
+			);
+			out.push(a.iter().skip(sk).map(seen!(2)).filter(made!(3)).take(tk).count() as u8);
+			out.extend(
+				data.iter()
+					.map(seen!(4))
+					.take(tk)
+					.skip(sk)
+					.position(|x| x % 64 == stop)
+					.map(|p| p as u8),
+			);
+			out.push(
+				b.iter()
+					.filter(kept!(5))
+					.take(tk)
+					.fold(1u8, |acc, &x| acc.wrapping_add(x)),
+			);
+			out.extend(a.iter().copied().take(tk).map(|x| x as u32).sum::<u32>().to_le_bytes());
+			a.iter().map(seen!(6)).skip(sk).for_each(|x| out.push(x ^ 1));
+		}
+		// Past the end, at none, and early exits.
+		2 => {
+			let past = data.len() + 3;
+			out.push(a.iter().map(seen!(7)).skip(past).any(|x| x == 0) as u8);
+			out.push(b.iter().map(seen!(8)).take(0).count() as u8);
+			out.push(a.iter().skip(0).take(past).filter(kept!(9)).count() as u8);
+			out.extend(
+				a.iter()
+					.enumerate()
+					.skip(sk)
+					.find(|(i, x)| (*i as u8 ^ **x) % 64 == stop)
+					.map(|(i, x)| i as u8 ^ x),
+			);
+			out.push(b.iter().map(seen!(10)).skip(sk).all(|x| x % 64 != stop) as u8);
+			out.push((0..past).skip(past - 1).take(tk).count() as u8);
+			out.push((n(a.len())..n(b.len())).skip(sk).fold(0u8, |acc, i| acc ^ i as u8));
+		}
+		// Read from the back.
+		3 => {
+			out.push(
+				a.iter()
+					.map(seen!(11))
+					.skip(sk)
+					.rev()
+					.fold(0u8, |acc, x| acc.wrapping_mul(5) ^ x),
+			);
+			out.push(
+				a.iter()
+					.map(seen!(12))
+					.take(tk)
+					.rfold(0u8, |acc, x| acc.wrapping_mul(5) ^ x),
+			);
+			out.extend(data.iter().map(seen!(13)).skip(sk).take(tk).rfind(|x| x % 64 == stop));
+			out.push(
+				a.iter()
+					.enumerate()
+					.take(tk)
+					.rev()
+					.map(|(i, x)| i as u8 ^ x)
+					.fold(0, u8::wrapping_add),
+			);
+			out.push(
+				a.iter()
+					.rev()
+					.skip(sk)
+					.take(tk)
+					.map(seen!(14))
+					.fold(0, |acc, x| acc ^ x),
+			);
+			out.push(
+				(0..b.len() as u16)
+					.take(tk)
+					.skip(sk)
+					.rev()
+					.fold(0u8, |acc, i| acc.wrapping_mul(3) ^ i as u8),
+			);
+			out.push(b.iter().take(0).rfold(9u8, |acc, &x| acc ^ x));
+		}
+		// As zip sides, which a fold reads by its size hint, from the back, or by `next`.
+		4 => {
+			out.push(
+				a.iter()
+					.skip(sk)
+					.zip(b.iter().map(seen!(15)).take(tk))
+					.filter(|(x, y)| *x < y)
+					.count() as u8,
+			);
+			out.push(
+				a.iter()
+					.map(seen!(16))
+					.zip(b.iter().take(tk))
+					.rev()
+					.fold(0u8, |acc, (x, y)| acc.wrapping_mul(3) ^ x ^ y),
+			);
+			out.push(a.iter().zip(b).skip(sk).count() as u8);
+			out.push(
+				a.iter()
+					.filter(kept!(17))
+					.zip(b.iter().skip(sk))
+					.take(tk)
+					.fold(0u8, |acc, (x, y)| acc.wrapping_add(x ^ y)),
+			);
+			out.push(
+				data.iter()
+					.take(tk)
+					.zip(a.iter().map(seen!(18)).skip(sk))
+					.fold(0u8, |acc, (x, y)| acc.wrapping_mul(7) ^ x ^ y),
+			);
+		}
+		// Items that drop: what a `skip` skips, what a `take` reads past from the back, and
+		// what a filter rejects, and leaves of them, which stay the runtime's.
+		5 => {
+			let note = |&x: &u8| Noted(&log, x);
+			out.push(a.iter().map(note).skip(sk).take(tk).filter(|n| n.1 % 2 == 0).count() as u8);
+			out.extend(a.iter().map(note).take(tk).rfind(|n| n.1 % 64 == stop).map(|n| n.1));
+			out.extend(b.iter().map(note).skip(sk).find(|n| n.1 % 64 == stop).map(|n| n.1));
+			let noted = |v: &[u8]| v.iter().map(|&x| Noted(&log, x)).collect::<Vec<_>>();
+			out.push(
+				noted(a)
+					.into_iter()
+					.skip(sk)
+					.take(tk)
+					.map(|n| n.1 ^ 1)
+					.fold(0u8, u8::wrapping_add),
+			);
+			out.push(noted(b).into_iter().skip(sk).map(|n| n.1).any(|x| x % 64 == stop) as u8);
+		}
+		// `for` loops and `next_back` over them.
+		6 => {
+			for (i, x) in a.iter().map(seen!(19)).skip(sk).take(tk).enumerate() {
+				if x % 64 == stop {
+					break;
+				}
+				out.push(i as u8 ^ x);
+			}
+			for x in b.iter().filter(kept!(20)).skip(sk) {
+				out.push(*x);
+			}
+			let mut it = a.iter().map(seen!(21)).skip(sk).take(tk);
+			while let Some(x) = it.next_back() {
+				if x % 64 == stop {
+					break;
+				}
+				out.push(x);
+			}
+			let mut it = data.iter().skip(sk).rev().take(tk);
+			while let Some(x) = it.next() {
+				out.push(x ^ 2);
+			}
+		}
+		// `collect`, of bytes and not, `TrustedLen` and not.
+		7 => {
+			let put = |out: &mut Vec<u8>, len: usize, cap: usize| {
+				out.push(len as u8);
+				out.extend((cap as u32).to_le_bytes());
+			};
+			let v: Vec<u8> = a.iter().copied().filter(|x| x % 3 != 0).collect();
+			put(out, v.len(), v.capacity());
+			out.extend(&v);
+			let v: Vec<u8> = a.iter().skip(sk).take(tk).map(seen!(22)).collect();
+			put(out, v.len(), v.capacity());
+			out.extend(&v);
+			let v: Vec<u32> = b.iter().map(|&x| x as u32 * 3).filter(|x| x % 2 == 0).collect();
+			put(out, v.len(), v.capacity());
+			out.extend(v.iter().map(|&x| x as u8));
+			let v: Vec<u16> = (0..a.len() as u16).rev().map(|i| i ^ 5).collect();
+			put(out, v.len(), v.capacity());
+			out.extend(v.iter().map(|&x| x as u8));
+			let v: Vec<(usize, u8)> = a.iter().copied().enumerate().skip(sk).collect();
+			put(out, v.len(), v.capacity());
+			out.extend(v.iter().map(|&(i, x)| i as u8 ^ x));
+			let v: Vec<u8> = a.iter().zip(b).map(|(x, y)| x ^ y).collect();
+			put(out, v.len(), v.capacity());
+			out.extend(&v);
+			let v: Vec<u8> = b.iter().copied().filter(|x| x % 2 == 0).take(tk).collect();
+			put(out, v.len(), v.capacity());
+			out.extend(&v);
+			let v: Vec<u64> = (u64::MAX - 5..u64::MAX).skip(sk).collect();
+			put(out, v.len(), v.capacity());
+			let v: Vec<u16> = (0..data.len() as u16).filter(|i| i % 3 == 0).skip(sk).collect();
+			put(out, v.len(), v.capacity());
+			out.extend(v.iter().map(|&x| x as u8));
+			let v: Vec<u8> = data.iter().map(seen!(23)).filter(made!(24)).collect();
+			put(out, v.len(), v.capacity());
+		}
+		// Leaves the runtime makes, which a `skip` reads past by their own `nth`.
+		8 => {
+			out.push(
+				(u64::MAX - 9..u64::MAX)
+					.skip(sk)
+					.take(tk)
+					.fold(0u8, |acc, x| acc ^ x as u8),
+			);
+			out.push(
+				('\u{d7f0}'..'\u{e010}')
+					.skip(sk * 3)
+					.take(tk * 5)
+					.filter(|c| *c as u32 % 2 == 0)
+					.count() as u8,
+			);
+			out.extend((u64::MAX - 9..u64::MAX).map(|x| x as u8).skip(sk).find(|x| x % 3 == 0));
+		}
+		// Nested: a `skip` of a `skip`, a `take` of a `take`, and each of a reversed other.
+		9 => {
+			out.push(
+				data.iter()
+					.skip(sk)
+					.skip(1)
+					.take(tk)
+					.take(4)
+					.enumerate()
+					.fold(0u8, |acc, (i, x)| acc.wrapping_mul(3) ^ x ^ i as u8),
+			);
+			out.push(
+				a.iter()
+					.enumerate()
+					.skip(sk)
+					.rev()
+					.take(tk)
+					.fold(0u8, |acc, (i, x)| acc.wrapping_mul(5) ^ x ^ i as u8),
+			);
+			out.push(
+				a.iter()
+					.map(seen!(25))
+					.enumerate()
+					.take(tk)
+					.rev()
+					.skip(sk)
+					.fold(0u8, |acc, (i, x)| acc.wrapping_mul(5) ^ x ^ i as u8),
+			);
+			out.extend(
+				b.iter()
+					.map(seen!(26))
+					.skip(1)
+					.skip(sk)
+					.take(tk)
+					.take(3)
+					.position(|x| x % 64 == stop)
+					.map(|p| p as u8),
+			);
+			// A `take` of none, which `nth_back` reads past all of what it wraps, read so by a
+			// `take` around it and by a `skip` through an `enumerate`.
+			let mut it = a.iter().map(seen!(32)).take(tk / 3).take(sk + 1);
+			while let Some(x) = it.next_back() {
+				out.push(x);
+			}
+			out.push(
+				a.iter()
+					.map(seen!(33))
+					.take(tk / 3)
+					.enumerate()
+					.rev()
+					.skip(sk)
+					.fold(0u8, |acc, (i, x)| acc.wrapping_mul(3) ^ x ^ i as u8),
+			);
+			out.push(
+				b.iter()
+					.map(|&x| Noted(&log, x))
+					.take(tk / 2)
+					.enumerate()
+					.rev()
+					.skip(sk)
+					.any(|(i, n)| (n.1 ^ i as u8) % 64 == stop) as u8,
+			);
+			// The same `take` reached through a `rev` and back, and `skip`s and `take`s that read
+			// by `nth` past it reversed, or past another `take`, from the front.
+			let mut it = a
+				.iter()
+				.map(seen!(34))
+				.take(tk / 3)
+				.rev()
+				.enumerate()
+				.rev()
+				.take(sk + 1);
+			while let Some((i, x)) = it.next_back() {
+				out.push(x ^ i as u8);
+			}
+			let mut it = a.iter().map(seen!(38)).take(tk / 3).rev().take(5).rev().take(sk + 1);
+			while let Some(x) = it.next_back() {
+				out.push(x);
+			}
+			out.push(
+				a.iter()
+					.map(seen!(35))
+					.take(tk / 3)
+					.rev()
+					.skip(sk / 2)
+					.skip(sk)
+					.fold(0u8, |acc, x| acc.wrapping_mul(3) ^ x),
+			);
+			out.push(
+				b.iter()
+					.map(seen!(36))
+					.take(tk / 3)
+					.rev()
+					.take(5)
+					.skip(sk)
+					.fold(0u8, |acc, x| acc.wrapping_mul(3) ^ x),
+			);
+			out.push(
+				b.iter()
+					.map(seen!(37))
+					.take(tk)
+					.take(sk + 1)
+					.rev()
+					.skip(sk / 2)
+					.rev()
+					.skip(1)
+					.fold(0u8, |acc, x| acc.wrapping_mul(3) ^ x),
+			);
+		}
+		// Those that stay the runtime's: a `skip` a zip reads by index, a `take` folded by
+		// index, which reads nothing past what it skips, and one read by `next`, which fuses.
+		_ => {
+			out.push(
+				a.iter()
+					.map(seen!(27))
+					.skip(sk)
+					.zip(b.iter().map(seen!(28)))
+					.filter(|(x, y)| x < y)
+					.count() as u8,
+			);
+			out.push(
+				a.iter()
+					.map(seen!(29))
+					.zip(b.iter())
+					.take(tk)
+					.any(|(x, y)| x ^ y == stop) as u8,
+			);
+			out.push(
+				a.iter()
+					.map(seen!(30))
+					.skip(data.len())
+					.take(tk)
+					.fold(0u8, |acc, x| acc ^ x),
+			);
+			out.push(a.iter().map(seen!(31)).skip(sk).take(tk).fold(0u8, |acc, x| acc ^ x));
+		}
+	}
+	out.extend_from_slice(&log.borrow());
+}

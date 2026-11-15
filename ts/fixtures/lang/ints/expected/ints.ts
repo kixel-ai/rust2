@@ -5524,9 +5524,19 @@ export function succ(s: string, radix: rs.u32): rs.String {
 			break;
 		}
 		const d: rs.Place<rs.u8> = _11;
-		const next: rs.usize = rs.usizeAdd(rs.optionUnwrap(rs.iterPosition(rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122)))), (c: rs.u8): boolean => {
-			return c === d.v;
-		})), 1);
+		const s2 = rs.byteSliceView(rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122)));
+		let front = 0;
+		let back = s2.length;
+		let i = 0;
+		let at: number | undefined = undefined;
+		while (!(front >= back)) {
+			if (s2[front++] === d.v) {
+				at = i;
+				break;
+			}
+			i++;
+		}
+		const next: rs.usize = rs.usizeAdd(rs.optionUnwrap(at), 1);
 		if (!(next < (radix as rs.usize))) {
 			d.v = 48;
 		} else {

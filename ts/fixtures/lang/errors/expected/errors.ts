@@ -419,51 +419,99 @@ export function pairs$tuple2_Result_char_char_ParseCharError_usize(values: rs.Sl
 }
 
 export function parsed$bool(all: rs.Slice<string>): rs.Vec<rs.Result<boolean, rs.ParseBoolError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<boolean, rs.ParseBoolError> => {
-		return parse$1yfzdza(s);
-	}), undefined, 1, true);
+	const s2 = rs.sliceItems(all);
+	let front = 0;
+	let back = s2.length;
+	const v: rs.Vec<rs.Result<boolean, rs.ParseBoolError>> = rs.vecWithCapacity(back - front, 1);
+	while (!(front >= back)) {
+		const y: rs.Result<boolean, rs.ParseBoolError> = parse$1yfzdza(s2[front++]);
+		v.items.push(y);
+	}
+	return v;
 }
 
 export function parsed$char(all: rs.Slice<string>): rs.Vec<rs.Result<rs.char, rs.ParseCharError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<rs.char, rs.ParseCharError> => {
-		return rs.charFromStr(s);
-	}), undefined, 8, true);
+	const s2 = rs.sliceItems(all);
+	let front = 0;
+	let back = s2.length;
+	const v: rs.Vec<rs.Result<rs.char, rs.ParseCharError>> = rs.vecWithCapacity(back - front, 8);
+	while (!(front >= back)) {
+		const y: rs.Result<rs.char, rs.ParseCharError> = rs.charFromStr(s2[front++]);
+		v.items.push(y);
+	}
+	return v;
 }
 
 export function parsed$f64(all: rs.Slice<string>): rs.Vec<rs.Result<rs.f64, rs.ParseFloatError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<rs.f64, rs.ParseFloatError> => {
-		return rs.f64FromStr(s);
-	}), undefined, 16, true);
+	const s2 = rs.sliceItems(all);
+	let front = 0;
+	let back = s2.length;
+	const v: rs.Vec<rs.Result<rs.f64, rs.ParseFloatError>> = rs.vecWithCapacity(back - front, 16);
+	while (!(front >= back)) {
+		const y: rs.Result<rs.f64, rs.ParseFloatError> = rs.f64FromStr(s2[front++]);
+		v.items.push(y);
+	}
+	return v;
 }
 
 export function parsed$i128(all: rs.Slice<string>): rs.Vec<rs.Result<rs.i128, rs.ParseIntError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<rs.i128, rs.ParseIntError> => {
-		return parse$1kyj9pm(s);
-	}), undefined, 32, true);
+	const s2 = rs.sliceItems(all);
+	let front = 0;
+	let back = s2.length;
+	const v: rs.Vec<rs.Result<rs.i128, rs.ParseIntError>> = rs.vecWithCapacity(back - front, 32);
+	while (!(front >= back)) {
+		const y: rs.Result<rs.i128, rs.ParseIntError> = parse$1kyj9pm(s2[front++]);
+		v.items.push(y);
+	}
+	return v;
 }
 
 export function parsed$i8(all: rs.Slice<string>): rs.Vec<rs.Result<rs.i8, rs.ParseIntError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<rs.i8, rs.ParseIntError> => {
-		return parse$02m1946(s);
-	}), undefined, 2, true);
+	const s2 = rs.sliceItems(all);
+	let front = 0;
+	let back = s2.length;
+	const v: rs.Vec<rs.Result<rs.i8, rs.ParseIntError>> = rs.vecWithCapacity(back - front, 2);
+	while (!(front >= back)) {
+		const y: rs.Result<rs.i8, rs.ParseIntError> = parse$02m1946(s2[front++]);
+		v.items.push(y);
+	}
+	return v;
 }
 
 export function parsed$num_NonZero_u32(all: rs.Slice<string>): rs.Vec<rs.Result<rs.u32, rs.ParseIntError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<rs.u32, rs.ParseIntError> => {
-		return parse$04z9euf(s);
-	}), undefined, 8, true);
+	const s2 = rs.sliceItems(all);
+	let front = 0;
+	let back = s2.length;
+	const v: rs.Vec<rs.Result<rs.u32, rs.ParseIntError>> = rs.vecWithCapacity(back - front, 8);
+	while (!(front >= back)) {
+		const y: rs.Result<rs.u32, rs.ParseIntError> = parse$04z9euf(s2[front++]);
+		v.items.push(y);
+	}
+	return v;
 }
 
 export function parsed$u64(all: rs.Slice<string>): rs.Vec<rs.Result<rs.u64, rs.ParseIntError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<rs.u64, rs.ParseIntError> => {
-		return parse$092epd5(s);
-	}), undefined, 16, true);
+	const s2 = rs.sliceItems(all);
+	let front = 0;
+	let back = s2.length;
+	const v: rs.Vec<rs.Result<rs.u64, rs.ParseIntError>> = rs.vecWithCapacity(back - front, 16);
+	while (!(front >= back)) {
+		const y: rs.Result<rs.u64, rs.ParseIntError> = parse$092epd5(s2[front++]);
+		v.items.push(y);
+	}
+	return v;
 }
 
 export function parsed$u8(all: rs.Slice<string>): rs.Vec<rs.Result<rs.u8, rs.ParseIntError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<rs.u8, rs.ParseIntError> => {
-		return parse$1brosjp(s);
-	}), undefined, 2, true);
+	const s2 = rs.sliceItems(all);
+	let front = 0;
+	let back = s2.length;
+	const v: rs.Vec<rs.Result<rs.u8, rs.ParseIntError>> = rs.vecWithCapacity(back - front, 2);
+	while (!(front >= back)) {
+		const y: rs.Result<rs.u8, rs.ParseIntError> = parse$1brosjp(s2[front++]);
+		v.items.push(y);
+	}
+	return v;
 }
 
 /**
@@ -505,53 +553,119 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return rs.i64Mul((_218 << 24) >> 24 as rs.i64, 2);
 		});
 		rs.iterExtend(ints, _78, undefined, 8, true);
-		pairs$Result_i8_num_TryFromIntError(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.vecIntoIter(ints), (a02: rs.i64): rs.Result<rs.i8, rs.TryFromIntError> => {
-			return rs.i8TryFrom(a02);
-		}), undefined, 2, true).items), out);
+		const s19 = ints.items;
+		let front11 = 0;
+		let back11 = s19.length;
+		const v22: rs.Vec<rs.Result<rs.i8, rs.TryFromIntError>> = rs.vecWithCapacity(back11 - front11, 2);
+		while (!(front11 >= back11)) {
+			const y11: rs.Result<rs.i8, rs.TryFromIntError> = rs.i8TryFrom(s19[front11++]);
+			v22.items.push(y11);
+		}
+		pairs$Result_i8_num_TryFromIntError(rs.sliceFrom(v22.items), out);
 	} else if (_32 === 9) {
-		pairs$Result_ref_str_str_Utf8Error(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(bytes.items), (b7: rs.ByteSlice): rs.Result<string, rs.Utf8Error> => {
-			return rs.strFromUtf8(b7);
-		}), undefined, 12, true).items), out);
+		const s18 = bytes.items;
+		let front10 = 0;
+		let back10 = s18.length;
+		const v21: rs.Vec<rs.Result<string, rs.Utf8Error>> = rs.vecWithCapacity(back10 - front10, 12);
+		while (!(front10 >= back10)) {
+			const y10: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(s18[front10++]);
+			v21.items.push(y10);
+		}
+		pairs$Result_ref_str_str_Utf8Error(rs.sliceFrom(v21.items), out);
 	} else if (_32 === 10) {
-		pairs$Result_String_string_FromUtf8Error(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(bytes.items), (b6: rs.ByteSlice): rs.Result<rs.String, rs.FromUtf8Error> => {
-			return rs.stringFromUtf8(rs.byteSliceToByteVec(b6));
-		}), undefined, 20, true).items), out);
+		const s17 = bytes.items;
+		let front9 = 0;
+		let back9 = s17.length;
+		const v20: rs.Vec<rs.Result<rs.String, rs.FromUtf8Error>> = rs.vecWithCapacity(back9 - front9, 20);
+		while (!(front9 >= back9)) {
+			const y9: rs.Result<rs.String, rs.FromUtf8Error> = rs.stringFromUtf8(rs.byteSliceToByteVec(s17[front9++]));
+			v20.items.push(y9);
+		}
+		pairs$Result_String_string_FromUtf8Error(rs.sliceFrom(v20.items), out);
 	} else if (_32 === 11) {
 		const secs: rs.Vec<rs.f64> = rs.vecFrom([0.0, -0.0, 1.5, -1.0, NaN, Infinity, -Infinity, 1e30]);
 		const _105: rs.Iter<rs.f64> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_211: rs.u8): rs.f64 => {
 			return ((_211 << 24) >> 24 as rs.f64) / 4.0;
 		});
 		rs.iterExtend(secs, _105, undefined, 8, true);
-		pairs$Result_time_Duration_time_TryFromFloatSecsError(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.vecIntoIter(secs), (a0: rs.f64): rs.Result<rs.Duration, rs.TryFromFloatSecsError> => {
-			return rs.durationTryFromSecsF64(a0);
-		}), undefined, 16, true).items), out);
+		const s16 = secs.items;
+		let front8 = 0;
+		let back8 = s16.length;
+		const v19: rs.Vec<rs.Result<rs.Duration, rs.TryFromFloatSecsError>> = rs.vecWithCapacity(back8 - front8, 16);
+		while (!(front8 >= back8)) {
+			const y8: rs.Result<rs.Duration, rs.TryFromFloatSecsError> = rs.durationTryFromSecsF64(s16[front8++]);
+			v19.items.push(y8);
+		}
+		pairs$Result_time_Duration_time_TryFromFloatSecsError(rs.sliceFrom(v19.items), out);
 	} else if (_32 === 12) {
-		pairs$Result_Option_u8_num_ParseIntError(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s6: string): rs.Result<rs.u8 | undefined, rs.ParseIntError> => {
-			return result_map$07r5pce(parse$1brosjp(s6), (v11: rs.u8): rs.u8 | undefined => {
-				return rs.u8CheckedSub(v11, 1);
+		const s11 = all.items;
+		let front5 = 0;
+		let back5 = s11.length;
+		const f5 = (s10: string): rs.Result<rs.u8 | undefined, rs.ParseIntError> => {
+			return result_map$07r5pce(parse$1brosjp(s10), (v15: rs.u8): rs.u8 | undefined => {
+				return rs.u8CheckedSub(v15, 1);
 			});
-		}), undefined, 2, true).items), out);
-		pairs$Result_Result_char_char_ParseCharError_str_ParseBoolError(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s7: string): rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError> => {
-			const _610: string = s7;
-			return result_map$1w6ihbb(parse$1yfzdza(s7), (_210: boolean): rs.Result<rs.char, rs.ParseCharError> => {
+		};
+		const v16: rs.Vec<rs.Result<rs.u8 | undefined, rs.ParseIntError>> = rs.vecWithCapacity(back5 - front5, 2);
+		while (!(front5 >= back5)) {
+			const y5: rs.Result<rs.u8 | undefined, rs.ParseIntError> = f5(s11[front5++]);
+			v16.items.push(y5);
+		}
+		pairs$Result_Option_u8_num_ParseIntError(rs.sliceFrom(v16.items), out);
+		const s13 = all.items;
+		let front6 = 0;
+		let back6 = s13.length;
+		const f6 = (s12: string): rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError> => {
+			const _610: string = s12;
+			return result_map$1w6ihbb(parse$1yfzdza(s12), (_210: boolean): rs.Result<rs.char, rs.ParseCharError> => {
 				return rs.charFromStr(_610);
 			});
-		}), undefined, 8, true).items), out);
-		pairs$Result_u8_num_IntErrorKind(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s8: string): rs.Result<rs.u8, rs.IntErrorKind> => {
-			return result_mapErr$1xpyw31(parse$1brosjp(s8), (e: rs.ParseIntError): rs.IntErrorKind => {
+		};
+		const v17: rs.Vec<rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError>> = rs.vecWithCapacity(back6 - front6, 8);
+		while (!(front6 >= back6)) {
+			const y6: rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError> = f6(s13[front6++]);
+			v17.items.push(y6);
+		}
+		pairs$Result_Result_char_char_ParseCharError_str_ParseBoolError(rs.sliceFrom(v17.items), out);
+		const s15 = all.items;
+		let front7 = 0;
+		let back7 = s15.length;
+		const f7 = (s14: string): rs.Result<rs.u8, rs.IntErrorKind> => {
+			return result_mapErr$1xpyw31(parse$1brosjp(s14), (e: rs.ParseIntError): rs.IntErrorKind => {
 				return e.kind;
 			});
-		}), undefined, 2, true).items), out);
+		};
+		const v18: rs.Vec<rs.Result<rs.u8, rs.IntErrorKind>> = rs.vecWithCapacity(back7 - front7, 2);
+		while (!(front7 >= back7)) {
+			const y7: rs.Result<rs.u8, rs.IntErrorKind> = f7(s15[front7++]);
+			v18.items.push(y7);
+		}
+		pairs$Result_u8_num_IntErrorKind(rs.sliceFrom(v18.items), out);
 	} else if (_32 === 13) {
-		pairs$Result_u16_never(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.Result<rs.u16, never> => {
-			return rs.Ok(_22 as rs.u16);
-		}), undefined, 2, true).items), out);
-		pairs$Result_unit_fmt_Error(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): rs.Result<undefined, rs.FmtError> => {
+		const s8 = rs.byteSliceView(data);
+		let front3 = 0;
+		let back3 = s8.length;
+		const v13: rs.Vec<rs.Result<rs.u16, never>> = rs.vecWithCapacity(back3 - front3, 2);
+		while (!(front3 >= back3)) {
+			const y3: rs.Result<rs.u16, never> = rs.Ok(s8[front3++] as rs.u16);
+			v13.items.push(y3);
+		}
+		pairs$Result_u16_never(rs.sliceFrom(v13.items), out);
+		const s9 = rs.byteSliceView(data);
+		let front4 = 0;
+		let back4 = s9.length;
+		const f4 = (_25: rs.u8): rs.Result<undefined, rs.FmtError> => {
 			if (!(rs.u8Rem(_25, 2) === 0)) {
 				return rs.Err(new rs.FmtError());
 			}
 			return rs.OK;
-		}), undefined, 1, true).items), out);
+		};
+		const v14: rs.Vec<rs.Result<undefined, rs.FmtError>> = rs.vecWithCapacity(back4 - front4, 1);
+		while (!(front4 >= back4)) {
+			const y4: rs.Result<undefined, rs.FmtError> = f4(s9[front4++]);
+			v14.items.push(y4);
+		}
+		pairs$Result_unit_fmt_Error(rs.sliceFrom(v14.items), out);
 	} else if (_32 === 14) {
 		const v7: rs.Vec<rs.Result<undefined, rs.TryReserveError>> = rs.iterToVec(rs.iterFlatMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 6), (_2: rs.u8): rs.Result<undefined, rs.TryReserveError>[] => {
 			let n!: rs.usize;
@@ -569,24 +683,40 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}), "next", 8).items), out);
 		pairs$Result_unit_collections_TryReserveError(rs.sliceFrom(rs.slicesJoin(rs.sliceFrom([rs.vecFrom(v7.items.map(result_clone$0688qis)), v7]), 8, undefined, rs.vecSlice, result_clone$0688qis).items), out);
 	} else {
-		pairs$Option_Result_u8_num_ParseIntError(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s: string): rs.Result<rs.u8, rs.ParseIntError> | undefined => {
+		const s2 = all.items;
+		let front = 0;
+		let back = s2.length;
+		const f = (s: string): rs.Result<rs.u8, rs.ParseIntError> | undefined => {
 			const _73: string = s;
 			return then$11t2u23(!(s.length === 0), (): rs.Result<rs.u8, rs.ParseIntError> => {
 				return parse$1brosjp(_73);
 			});
-		}), undefined, 2, true).items), out);
+		};
+		const v11: rs.Vec<rs.Result<rs.u8, rs.ParseIntError> | undefined> = rs.vecWithCapacity(back - front, 2);
+		while (!(front >= back)) {
+			const y: rs.Result<rs.u8, rs.ParseIntError> | undefined = f(s2[front++]);
+			v11.items.push(y);
+		}
+		pairs$Option_Result_u8_num_ParseIntError(rs.sliceFrom(v11.items), out);
 		pairs$Vec_Result_bool_str_ParseBoolError(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.sliceChunks(rs.sliceFrom(all.items), 2), parsed$bool), undefined, 12, true).items), out);
-		pairs$tuple2_Result_char_char_ParseCharError_usize(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s2: string): [rs.Result<rs.char, rs.ParseCharError>, rs.usize] => {
-			return [rs.charFromStr(s2), rs.usizeRem(rs.stringLen(s2), 2)] as [rs.Result<rs.char, rs.ParseCharError>, rs.usize];
-		}), undefined, 12, true).items), out);
-		pairs$char_ParseCharError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s3: string): rs.ParseCharError | undefined => {
-			return err$0bvotqj(rs.charFromStr(s3));
+		const s4 = all.items;
+		let front2 = 0;
+		let back2 = s4.length;
+		const v12: rs.Vec<[rs.Result<rs.char, rs.ParseCharError>, rs.usize]> = rs.vecWithCapacity(back2 - front2, 12);
+		while (!(front2 >= back2)) {
+			const x2 = s4[front2++];
+			const y2: [rs.Result<rs.char, rs.ParseCharError>, rs.usize] = [rs.charFromStr(x2), rs.usizeRem(rs.stringLen(x2), 2)];
+			v12.items.push(y2);
+		}
+		pairs$tuple2_Result_char_char_ParseCharError_usize(rs.sliceFrom(v12.items), out);
+		pairs$char_ParseCharError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s5: string): rs.ParseCharError | undefined => {
+			return err$0bvotqj(rs.charFromStr(s5));
 		}), "next", 1).items), out);
-		pairs$str_ParseBoolError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s4: string): rs.ParseBoolError | undefined => {
-			return err$11tr79p(parse$1yfzdza(s4));
+		pairs$str_ParseBoolError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s6: string): rs.ParseBoolError | undefined => {
+			return err$11tr79p(parse$1yfzdza(s6));
 		}), "next", 0).items), out);
-		pairs$num_ParseIntError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s5: string): rs.ParseIntError | undefined => {
-			return err$1tv7qwu(parse$02m1946(s5));
+		pairs$num_ParseIntError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s7: string): rs.ParseIntError | undefined => {
+			return err$1tv7qwu(parse$02m1946(s7));
 		}), "next", 1).items), out);
 	}
 }
@@ -692,10 +822,19 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 		const args46 = [(f: rs.Formatter) => rs.fmtPad(f, _129.v), (f: rs.Formatter) => Transported.fmt$fmt_Debug(boxed, f)];
 		put(out, rs.fmtFormat([args46[0], " ", rs.fmtSpec({ alternate: true }, args46[1]), " | "]).v);
 		set$1ljkjlf(DROPPED, 0);
-		const results: rs.Vec<rs.Result<rs.u8, Error.Error>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2))), (_2: rs.u8): rs.Result<rs.u8, Error.Error> => {
+		const s = rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2));
+		let front = 0;
+		let back = s.length;
+		const f2 = (_2: rs.u8): rs.Result<rs.u8, Error.Error> => {
 			const n: rs.u8 = _2;
 			return checked(rs.u8WrappingAdd(a, n), n);
-		}), undefined, 8, true);
+		};
+		const v: rs.Vec<rs.Result<rs.u8, Error.Error>> = rs.vecWithCapacity(back - front, 8);
+		while (!(front >= back)) {
+			const y: rs.Result<rs.u8, Error.Error> = f2(s[front++]);
+			v.items.push(y);
+		}
+		const results: rs.Vec<rs.Result<rs.u8, Error.Error>> = v;
 		for (const _149 of results.items) {
 			if (_149.ok) {
 				const arg = _149.value;
@@ -765,9 +904,9 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 		const part9 = get$0q7640n(DROPPED);
 		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part9, f), " "]).v);
 		const part10 = result_mapErr$1102tun(result_mapErr$0ka0di9(checked(b, rs.u8WrappingMul(a, 4)), (e5: Error.Error): rs.Result<rs.u8, Error.Error> => {
-			return result_map$18dk705(e5 instanceof of$errors_Failure ? rs.Ok(e5.v) : rs.Err(e5), (f2: Failure.Failure): rs.u8 => {
-				const _03: rs.u8 = Failure.code$errors_Coded(f2);
-				drop$errors_Failure(f2);
+			return result_map$18dk705(e5 instanceof of$errors_Failure ? rs.Ok(e5.v) : rs.Err(e5), (f3: Failure.Failure): rs.u8 => {
+				const _03: rs.u8 = Failure.code$errors_Coded(f3);
+				drop$errors_Failure(f3);
 				return _03;
 			});
 		}), (e6: rs.Result<rs.u8, Error.Error>): rs.Result<rs.u8, rs.String> => {

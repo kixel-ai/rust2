@@ -1382,20 +1382,37 @@ export function cloneFromSteps$array160_u64(data: rs.ByteSlice, make: (a0: rs.u8
 		}
 	};
 	const source: (a0: rs.usize) => rs.Vec<rs.u64[]> = (i3: rs.usize): rs.Vec<rs.u64[]> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(at(i3), 10)), make), undefined, 1280, true);
+		let start = 0;
+		let end = rs.u8Rem(at(i3), 10);
+		const v2: rs.Vec<rs.u64[]> = rs.vecWithCapacity(Math.max(end - start, 0), 1280);
+		while (!(start >= end)) {
+			const y: rs.u64[] = make(start++);
+			v2.items.push(y);
+		}
+		return v2;
 	};
 	const len: (a0: rs.usize) => rs.usize = (i4: rs.usize): rs.usize => {
 		return rs.u8Rem(at(i4), 4) as rs.usize;
 	};
 	const holds: (a0: rs.usize, a1: rs.usize) => rs.Vec<rs.Vec<rs.u64[]>> = (from: rs.usize, n: rs.usize): rs.Vec<rs.Vec<rs.u64[]>> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(0, n), (j2: rs.usize): rs.Vec<rs.u64[]> => {
-			return held(rs.usizeAdd(from, j2));
-		}), undefined, 12, true);
+		let start2 = 0;
+		let end2 = n;
+		const v3: rs.Vec<rs.Vec<rs.u64[]>> = rs.vecWithCapacity(Math.max(end2 - start2, 0), 12);
+		while (!(start2 >= end2)) {
+			const y2: rs.Vec<rs.u64[]> = held(rs.usizeAdd(from, start2++));
+			v3.items.push(y2);
+		}
+		return v3;
 	};
 	const sources: (a0: rs.usize, a1: rs.usize) => rs.Vec<rs.Vec<rs.u64[]>> = (from2: rs.usize, n2: rs.usize): rs.Vec<rs.Vec<rs.u64[]>> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(0, n2), (j3: rs.usize): rs.Vec<rs.u64[]> => {
-			return source(rs.usizeAdd(from2, j3));
-		}), undefined, 12, true);
+		let start3 = 0;
+		let end3 = n2;
+		const v4: rs.Vec<rs.Vec<rs.u64[]>> = rs.vecWithCapacity(Math.max(end3 - start3, 0), 12);
+		while (!(start3 >= end3)) {
+			const y3: rs.Vec<rs.u64[]> = source(rs.usizeAdd(from2, start3++));
+			v4.items.push(y3);
+		}
+		return v4;
 	};
 	const _17: (a0: rs.Slice<rs.Vec<rs.u64[]>>, a1: rs.ByteVec) => undefined = (vs: rs.Slice<rs.Vec<rs.u64[]>>, out2: rs.ByteVec): undefined => {
 		put(out2, vs.length);
@@ -1480,8 +1497,8 @@ export function cloneFromSteps$array160_u64(data: rs.ByteSlice, make: (a0: rs.u8
 		return rs.vecFrom(a09.items.map(copy$array_u64));
 	}, undefined, rs.vecCloneFromFn(1280, copy$array_u64));
 	rs.byteVecPush(out, result.ok ? 1 : 0);
-	const part17 = rs.sliceFrom([result_unwrapOrElse$128e309(result, (v2: rs.Vec<rs.u64[]>): rs.Vec<rs.u64[]> => {
-		return v2;
+	const part17 = rs.sliceFrom([result_unwrapOrElse$128e309(result, (v5: rs.Vec<rs.u64[]>): rs.Vec<rs.u64[]> => {
+		return v5;
 	})]);
 	_17(part17, out);
 	let cell: rs.RefCell<rs.Vec<rs.u64[]>> = new rs.RefCell(held(46));
@@ -1580,20 +1597,37 @@ export function cloneFromSteps$tuple2_u64_u8(data: rs.ByteSlice, make: (a0: rs.u
 		}
 	};
 	const source: (a0: rs.usize) => rs.Vec<[rs.u64, rs.u8]> = (i3: rs.usize): rs.Vec<[rs.u64, rs.u8]> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(at(i3), 10)), make), undefined, 16, true);
+		let start = 0;
+		let end = rs.u8Rem(at(i3), 10);
+		const v2: rs.Vec<[rs.u64, rs.u8]> = rs.vecWithCapacity(Math.max(end - start, 0), 16);
+		while (!(start >= end)) {
+			const y: [rs.u64, rs.u8] = make(start++);
+			v2.items.push(y);
+		}
+		return v2;
 	};
 	const len: (a0: rs.usize) => rs.usize = (i4: rs.usize): rs.usize => {
 		return rs.u8Rem(at(i4), 4) as rs.usize;
 	};
 	const holds: (a0: rs.usize, a1: rs.usize) => rs.Vec<rs.Vec<[rs.u64, rs.u8]>> = (from: rs.usize, n: rs.usize): rs.Vec<rs.Vec<[rs.u64, rs.u8]>> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(0, n), (j2: rs.usize): rs.Vec<[rs.u64, rs.u8]> => {
-			return held(rs.usizeAdd(from, j2));
-		}), undefined, 12, true);
+		let start2 = 0;
+		let end2 = n;
+		const v3: rs.Vec<rs.Vec<[rs.u64, rs.u8]>> = rs.vecWithCapacity(Math.max(end2 - start2, 0), 12);
+		while (!(start2 >= end2)) {
+			const y2: rs.Vec<[rs.u64, rs.u8]> = held(rs.usizeAdd(from, start2++));
+			v3.items.push(y2);
+		}
+		return v3;
 	};
 	const sources: (a0: rs.usize, a1: rs.usize) => rs.Vec<rs.Vec<[rs.u64, rs.u8]>> = (from2: rs.usize, n2: rs.usize): rs.Vec<rs.Vec<[rs.u64, rs.u8]>> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(0, n2), (j3: rs.usize): rs.Vec<[rs.u64, rs.u8]> => {
-			return source(rs.usizeAdd(from2, j3));
-		}), undefined, 12, true);
+		let start3 = 0;
+		let end3 = n2;
+		const v4: rs.Vec<rs.Vec<[rs.u64, rs.u8]>> = rs.vecWithCapacity(Math.max(end3 - start3, 0), 12);
+		while (!(start3 >= end3)) {
+			const y3: rs.Vec<[rs.u64, rs.u8]> = source(rs.usizeAdd(from2, start3++));
+			v4.items.push(y3);
+		}
+		return v4;
 	};
 	const _17: (a0: rs.Slice<rs.Vec<[rs.u64, rs.u8]>>, a1: rs.ByteVec) => undefined = (vs: rs.Slice<rs.Vec<[rs.u64, rs.u8]>>, out2: rs.ByteVec): undefined => {
 		put(out2, vs.length);
@@ -1678,8 +1712,8 @@ export function cloneFromSteps$tuple2_u64_u8(data: rs.ByteSlice, make: (a0: rs.u
 		return rs.vecFrom(a09.items.map(copy$tuple2_u64_u8));
 	}, undefined, rs.vecCloneFromFn(16, copy$tuple2_u64_u8));
 	rs.byteVecPush(out, result.ok ? 1 : 0);
-	const part17 = rs.sliceFrom([result_unwrapOrElse$02f6iwg(result, (v2: rs.Vec<[rs.u64, rs.u8]>): rs.Vec<[rs.u64, rs.u8]> => {
-		return v2;
+	const part17 = rs.sliceFrom([result_unwrapOrElse$02f6iwg(result, (v5: rs.Vec<[rs.u64, rs.u8]>): rs.Vec<[rs.u64, rs.u8]> => {
+		return v5;
 	})]);
 	_17(part17, out);
 	let cell: rs.RefCell<rs.Vec<[rs.u64, rs.u8]>> = new rs.RefCell(held(46));
@@ -1778,20 +1812,37 @@ export function cloneFromSteps$u16(data: rs.ByteSlice, make: (a0: rs.u8) => rs.u
 		}
 	};
 	const source: (a0: rs.usize) => rs.Vec<rs.u16> = (i3: rs.usize): rs.Vec<rs.u16> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(at(i3), 10)), make), undefined, 2, true);
+		let start = 0;
+		let end = rs.u8Rem(at(i3), 10);
+		const v2: rs.Vec<rs.u16> = rs.vecWithCapacity(Math.max(end - start, 0), 2);
+		while (!(start >= end)) {
+			const y: rs.u16 = make(start++);
+			v2.items.push(y);
+		}
+		return v2;
 	};
 	const len: (a0: rs.usize) => rs.usize = (i4: rs.usize): rs.usize => {
 		return rs.u8Rem(at(i4), 4) as rs.usize;
 	};
 	const holds: (a0: rs.usize, a1: rs.usize) => rs.Vec<rs.Vec<rs.u16>> = (from: rs.usize, n: rs.usize): rs.Vec<rs.Vec<rs.u16>> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(0, n), (j2: rs.usize): rs.Vec<rs.u16> => {
-			return held(rs.usizeAdd(from, j2));
-		}), undefined, 12, true);
+		let start2 = 0;
+		let end2 = n;
+		const v3: rs.Vec<rs.Vec<rs.u16>> = rs.vecWithCapacity(Math.max(end2 - start2, 0), 12);
+		while (!(start2 >= end2)) {
+			const y2: rs.Vec<rs.u16> = held(rs.usizeAdd(from, start2++));
+			v3.items.push(y2);
+		}
+		return v3;
 	};
 	const sources: (a0: rs.usize, a1: rs.usize) => rs.Vec<rs.Vec<rs.u16>> = (from2: rs.usize, n2: rs.usize): rs.Vec<rs.Vec<rs.u16>> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(0, n2), (j3: rs.usize): rs.Vec<rs.u16> => {
-			return source(rs.usizeAdd(from2, j3));
-		}), undefined, 12, true);
+		let start3 = 0;
+		let end3 = n2;
+		const v4: rs.Vec<rs.Vec<rs.u16>> = rs.vecWithCapacity(Math.max(end3 - start3, 0), 12);
+		while (!(start3 >= end3)) {
+			const y3: rs.Vec<rs.u16> = source(rs.usizeAdd(from2, start3++));
+			v4.items.push(y3);
+		}
+		return v4;
 	};
 	const _17: (a0: rs.Slice<rs.Vec<rs.u16>>, a1: rs.ByteVec) => undefined = (vs: rs.Slice<rs.Vec<rs.u16>>, out2: rs.ByteVec): undefined => {
 		put(out2, vs.length);
@@ -1876,8 +1927,8 @@ export function cloneFromSteps$u16(data: rs.ByteSlice, make: (a0: rs.u8) => rs.u
 		return rs.vecFrom(a09.items.slice());
 	}, undefined, rs.vecCloneFromFn(2));
 	rs.byteVecPush(out, result.ok ? 1 : 0);
-	const part17 = rs.sliceFrom([result_unwrapOrElse$05mb9nr(result, (v2: rs.Vec<rs.u16>): rs.Vec<rs.u16> => {
-		return v2;
+	const part17 = rs.sliceFrom([result_unwrapOrElse$05mb9nr(result, (v5: rs.Vec<rs.u16>): rs.Vec<rs.u16> => {
+		return v5;
 	})]);
 	_17(part17, out);
 	let cell: rs.RefCell<rs.Vec<rs.u16>> = new rs.RefCell(held(46));
@@ -1973,20 +2024,36 @@ export function cloneFromSteps$u8(data: rs.ByteSlice, make: (a0: rs.u8) => rs.u8
 		}
 	};
 	const source: (a0: rs.usize) => rs.ByteVec = (i3: rs.usize): rs.ByteVec => {
-		return rs.iterToByteVec(rs.iterMap(new rs.Range(0, rs.u8Rem(at(i3), 10)), make), undefined, true);
+		let start = 0;
+		let end = rs.u8Rem(at(i3), 10);
+		const v2: rs.ByteVec = rs.byteVecWithCapacity(Math.max(end - start, 0));
+		while (!(start >= end)) {
+			rs.byteVecPush(v2, make(start++));
+		}
+		return v2;
 	};
 	const len: (a0: rs.usize) => rs.usize = (i4: rs.usize): rs.usize => {
 		return rs.u8Rem(at(i4), 4) as rs.usize;
 	};
 	const holds: (a0: rs.usize, a1: rs.usize) => rs.Vec<rs.ByteVec> = (from: rs.usize, n: rs.usize): rs.Vec<rs.ByteVec> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(0, n), (j2: rs.usize): rs.ByteVec => {
-			return held(rs.usizeAdd(from, j2));
-		}), undefined, 12, true);
+		let start2 = 0;
+		let end2 = n;
+		const v3: rs.Vec<rs.ByteVec> = rs.vecWithCapacity(Math.max(end2 - start2, 0), 12);
+		while (!(start2 >= end2)) {
+			const y2: rs.ByteVec = held(rs.usizeAdd(from, start2++));
+			v3.items.push(y2);
+		}
+		return v3;
 	};
 	const sources: (a0: rs.usize, a1: rs.usize) => rs.Vec<rs.ByteVec> = (from2: rs.usize, n2: rs.usize): rs.Vec<rs.ByteVec> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(0, n2), (j3: rs.usize): rs.ByteVec => {
-			return source(rs.usizeAdd(from2, j3));
-		}), undefined, 12, true);
+		let start3 = 0;
+		let end3 = n2;
+		const v4: rs.Vec<rs.ByteVec> = rs.vecWithCapacity(Math.max(end3 - start3, 0), 12);
+		while (!(start3 >= end3)) {
+			const y3: rs.ByteVec = source(rs.usizeAdd(from2, start3++));
+			v4.items.push(y3);
+		}
+		return v4;
 	};
 	const _17: (a0: rs.Slice<rs.ByteVec>, a1: rs.ByteVec) => undefined = (vs: rs.Slice<rs.ByteVec>, out2: rs.ByteVec): undefined => {
 		put(out2, vs.length);
@@ -2071,8 +2138,8 @@ export function cloneFromSteps$u8(data: rs.ByteSlice, make: (a0: rs.u8) => rs.u8
 		return rs.byteVecFrom(rs.byteVecView(a09));
 	}, undefined, rs.byteVecCloneFromFn());
 	rs.byteVecPush(out, result.ok ? 1 : 0);
-	const part17 = rs.sliceFrom([result_unwrapOrElse$0pqj9wx(result, (v2: rs.ByteVec): rs.ByteVec => {
-		return v2;
+	const part17 = rs.sliceFrom([result_unwrapOrElse$0pqj9wx(result, (v5: rs.ByteVec): rs.ByteVec => {
+		return v5;
 	})]);
 	_17(part17, out);
 	let cell: rs.RefCell<rs.ByteVec> = new rs.RefCell(held(46));
@@ -2177,14 +2244,24 @@ export function cloneFromSteps$unit(data: rs.ByteSlice, make: (a0: rs.u8) => und
 		return rs.u8Rem(at(i4), 4) as rs.usize;
 	};
 	const holds: (a0: rs.usize, a1: rs.usize) => rs.Vec<rs.Vec<undefined>> = (from: rs.usize, n: rs.usize): rs.Vec<rs.Vec<undefined>> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(0, n), (j2: rs.usize): rs.Vec<undefined> => {
-			return held(rs.usizeAdd(from, j2));
-		}), undefined, 12, true);
+		let start = 0;
+		let end = n;
+		const v2: rs.Vec<rs.Vec<undefined>> = rs.vecWithCapacity(Math.max(end - start, 0), 12);
+		while (!(start >= end)) {
+			const y: rs.Vec<undefined> = held(rs.usizeAdd(from, start++));
+			v2.items.push(y);
+		}
+		return v2;
 	};
 	const sources: (a0: rs.usize, a1: rs.usize) => rs.Vec<rs.Vec<undefined>> = (from2: rs.usize, n2: rs.usize): rs.Vec<rs.Vec<undefined>> => {
-		return rs.iterToVec(rs.iterMap(new rs.Range(0, n2), (j3: rs.usize): rs.Vec<undefined> => {
-			return source(rs.usizeAdd(from2, j3));
-		}), undefined, 12, true);
+		let start2 = 0;
+		let end2 = n2;
+		const v3: rs.Vec<rs.Vec<undefined>> = rs.vecWithCapacity(Math.max(end2 - start2, 0), 12);
+		while (!(start2 >= end2)) {
+			const y2: rs.Vec<undefined> = source(rs.usizeAdd(from2, start2++));
+			v3.items.push(y2);
+		}
+		return v3;
 	};
 	const _17: (a0: rs.Slice<rs.Vec<undefined>>, a1: rs.ByteVec) => undefined = (vs: rs.Slice<rs.Vec<undefined>>, out2: rs.ByteVec): undefined => {
 		put(out2, vs.length);
@@ -2269,8 +2346,8 @@ export function cloneFromSteps$unit(data: rs.ByteSlice, make: (a0: rs.u8) => und
 		return rs.vecFrom(a09.items.slice());
 	}, undefined, rs.vecCloneFromFn(0));
 	rs.byteVecPush(out, result.ok ? 1 : 0);
-	const part17 = rs.sliceFrom([result_unwrapOrElse$01ys8fc(result, (v2: rs.Vec<undefined>): rs.Vec<undefined> => {
-		return v2;
+	const part17 = rs.sliceFrom([result_unwrapOrElse$01ys8fc(result, (v4: rs.Vec<undefined>): rs.Vec<undefined> => {
+		return v4;
 	})]);
 	_17(part17, out);
 	let cell: rs.RefCell<rs.Vec<undefined>> = new rs.RefCell(held(46));
@@ -3519,9 +3596,15 @@ export function collects(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			return rs.u8Rem(b5, 2) === 1;
 		}), "next", false, 1);
 		sized(out, odd.length, odd.data.length);
-		const wide: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.byteVecIntoIter(bytes), (a0: rs.u8): rs.u16 => {
-			return a0 as rs.u16;
-		}), undefined, 2, true);
+		const s = bytes.data;
+		let front = 0;
+		let back = bytes.length;
+		const v3: rs.Vec<rs.u16> = rs.vecWithCapacity(back - front, 2);
+		while (!(front >= back)) {
+			const x = s[front++];
+			v3.items.push(x as rs.u16);
+		}
+		const wide: rs.Vec<rs.u16> = v3;
 		sized(out, wide.items.length, rs.vecCapacity(wide, 2));
 	} else if (_18 === 2) {
 		const _65: rs.Iter<[rs.u32, rs.u32]> = rs.iterFilter(rs.iterSlice(pairs2.items), (_24: [rs.u32, rs.u32]): boolean => {

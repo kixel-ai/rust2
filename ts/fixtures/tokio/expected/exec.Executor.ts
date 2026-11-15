@@ -239,21 +239,69 @@ export function run(self: Executor): void {
 
 /** Which live tasks are woken and waiting for a poll. */
 export function woken(self: Executor): rs.String {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterFilter(rs.iterEnumerate(rs.iterSlice(self.tasks.items)), (_2: [rs.usize, exec_Task.Task | undefined]): boolean => {
+	const s = self.tasks.items;
+	let front = 0;
+	let back = s.length;
+	let count = 0;
+	const f = (_2: [rs.usize, exec_Task.Task | undefined]): boolean => {
 		return isSomeAnd$15ekssc(_2[1], (t: exec_Task.Task): boolean => {
 			return rs.atomicLoad(t.flag.value._0, 0);
 		});
-	}), (_22: [rs.usize, exec_Task.Task | undefined]): rs.String => {
+	};
+	const f2 = (_22: [rs.usize, exec_Task.Task | undefined]): rs.String => {
 		const part = _22[0];
 		return rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
-	}), "next", 12).items, ",");
+	};
+	const d: rs.String[] = [];
+	let cap = 0;
+	fused2: while (true) {
+		let y!: rs.usize;
+		let y2!: exec_Task.Task | undefined;
+		while (true) {
+			if (front >= back) {
+				break fused2;
+			}
+			const x = s[front++];
+			const i = count++;
+			if (f([i, x])) {
+				y = i;
+				y2 = x;
+				break;
+			}
+		}
+		const y3: rs.String = f2([y, y2]);
+		if (d.length === cap) {
+			cap = rs.capReserve(d.length, cap, 1, 12);
+		}
+		d.push(y3);
+	}
+	return rs.strsJoin(new rs.Vec(d, cap).items, ",");
 }
 
 /** Drop the live task `arg` picks, if any. */
 export function cancel(self: Executor, arg: rs.u8): void {
-	const live: rs.Vec<rs.usize> = rs.iterToVec(rs.iterFilter(new rs.Range(0, self.tasks.items.length), (_2: rs.usize): boolean => {
-		return self.tasks.items[rs.idx(self.tasks.items, _2)] !== undefined;
-	}), "next", 4);
+	let start = 0;
+	let end = self.tasks.items.length;
+	const d: rs.usize[] = [];
+	let cap = 0;
+	fused2: while (true) {
+		let y!: rs.usize;
+		while (true) {
+			if (start >= end) {
+				break fused2;
+			}
+			const x = start++;
+			if (self.tasks.items[rs.idx(self.tasks.items, x)] !== undefined) {
+				y = x;
+				break;
+			}
+		}
+		if (d.length === cap) {
+			cap = rs.capReserve(d.length, cap, 1, 4);
+		}
+		d.push(y);
+	}
+	const live: rs.Vec<rs.usize> = new rs.Vec(d, cap);
 	if (!(live.items.length === 0)) {
 		const id: rs.usize = live.items[rs.idx(live.items, rs.usizeRem(arg as rs.usize, live.items.length))];
 		note(rs.fmtFormat(["t", (f: rs.Formatter) => rs.usizeDisplay(id, f), " cancel"]));
