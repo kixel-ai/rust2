@@ -402,11 +402,10 @@ func script() throws {
 	let alpns = try versions.alpns()
 	expect(!alpns.isEmpty && alpns.allSatisfy { !$0.isEmpty }, "each version has an ALPN")
 	// A socket address, crossing in a listener's bind.
-	let loopback: [UInt8] = Array(repeating: 0, count: 15) + [1]
-	let bind = TokioListenBind.addr(SocketAddr(ip: loopback, port: 4443))
+	let bind = TokioListenBind.addr(.v6(SocketAddrV6(ip: Ipv6Addr(bits: U128(1)), port: 4443)))
 	expect("\(bind)" == "[::1]:4443", "an IPv6 bind prints as Rust's")
-	let v4 = SocketAddr(ip: [127, 0, 0, 1], port: 0)
-	expect("\(TokioListenBind.addr(v4))" == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
+	let v4 = SocketAddrV4(ip: Ipv4Addr(127, 0, 0, 1), port: 0)
+	expect("\(TokioListenBind.addr(.v4(v4)))" == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
 	var listen = TokioListenConfig.default()
 	try listen.bindSet(bind)
 	// The preferred address of each family, which takes only that family.
@@ -436,7 +435,7 @@ func script() throws {
 
 		var serverConfig = TokioServerConfig.default()
 		var listen = try serverConfig.listenGet()
-		try listen.bindSet(.addr(SocketAddr(ip: Array(repeating: 0, count: 16), port: 0)))
+		try listen.bindSet(.addr(.v6(SocketAddrV6(ip: Ipv6Addr(bits: U128(0)), port: 0))))
 		var tls = try listen.tlsGet()
 		try tls.generateSet(["localhost"])
 		try listen.tlsSet(tls)

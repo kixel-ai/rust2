@@ -102,7 +102,3 @@ Open, for the maintainer once the implementer has the facts:
   Recommended: refuse it at the import's span until a consumer needs both.
 
 Public API: the TypeScript binding's shape, and the name of the web target.
-
-## Required
-
-- [Lossless binding types](/quest/m1/ffi-export/lossless.md) - the types a new binding copies are the exact ones

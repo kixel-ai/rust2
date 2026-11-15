@@ -1,7 +1,7 @@
 # The runtime every generated Python module includes: the awaitable a future that pends
 # is, the queue each event loop reads its wakes from, `Waker`, what runs an awaitable Rust
-# polls, `Mut`, and `ForeignReader`. Its names start with `_` but `Waker`, `Mut`, and
-# `ForeignReader`, so no exported name clashes with them.
+# polls, `Mut`, `ForeignReader`, and `Duration`. Its names start with `_` but `Waker`,
+# `Mut`, `ForeignReader`, and `Duration`, so no exported name clashes with them.
 
 
 class _Future(_n.Future, _typing.Generic[_T]):
@@ -184,6 +184,31 @@ class ForeignReader(_typing.Protocol):
 	def readinto(self, buffer: _memoryview, /) -> _int | None: ...
 
 	def seek(self, offset: _int, whence: _int = 0, /) -> _int: ...
+
+
+class Duration(_typing.NamedTuple):
+	"""Rust's `Duration`, as it holds one: whole seconds below 2**64, and the nanoseconds past
+	them, below a billion, which Rust checks a call's are. A `datetime.timedelta` holds only
+	whole microseconds, and none past 999,999,999 days, so each conversion checks it loses
+	nothing."""
+
+	secs: _int
+	nanos: _int = 0
+
+	@_staticmethod
+	def from_timedelta(delta: _datetime.timedelta) -> Duration:
+		"""`delta`, raising `ValueError` if it is negative, which no Rust `Duration` is."""
+		if delta < _datetime.timedelta(0):
+			raise _ValueError(f"{delta!r} is negative, which no Rust Duration is")
+		return Duration(delta.days * 86_400 + delta.seconds, delta.microseconds * 1_000)
+
+	def to_timedelta(self) -> _datetime.timedelta:
+		"""This as a `datetime.timedelta`, raising `ValueError` if it has a part of a
+		microsecond, and `OverflowError` if it is past `timedelta.max`."""
+		micros = self.nanos // 1_000
+		if self.nanos % 1_000:
+			raise _ValueError(f"{self!r} has a part of a microsecond, which no timedelta holds")
+		return _datetime.timedelta(seconds=self.secs, microseconds=micros)
 
 
 class _Const:

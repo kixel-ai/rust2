@@ -29,7 +29,7 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
 - ✅ [Sessions on sans-IO QUIC](/quest/m3/session-quic.md) left the epic for m3, since it
   waits on moq's m3 driver and would hold the epic open. Rejected: m2; staying in m1.
 - ✅ A binding's types are lossless, with checked conversions to and from the idiomatic
-  ones ([lossless](/quest/m1/ffi-export/lossless.md)). Rejected: idiomatic types whose
+  ones ([#832](https://github.com/kixel-ai/rust2/pull/832)). Rejected: idiomatic types whose
   truncations and aborts become errors; today's mappings.
 - ✅ A failed run-time check raises the language's own error, and a Rust panic aborts
   ([#730](https://github.com/kixel-ai/rust2/pull/730)). Rejected: catching panics at the

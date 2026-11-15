@@ -279,10 +279,7 @@ impl Emit {
 			Shape::Buf => ("bytes::Bytes".into(), "bytes::Bytes::from(r.bytes())".into()),
 			Shape::Duration => ("std::time::Duration".into(), "r.duration()".into()),
 			Shape::Array(n) => (format!("[u8; {n}]"), "std::array::from_fn(|_| r.next() as u8)".into()),
-			Shape::PathBuf => (
-				"std::path::PathBuf".into(),
-				"std::path::PathBuf::from(r.string())".into(),
-			),
+			Shape::PathBuf => ("std::path::PathBuf".into(), "r.path()".into()),
 			Shape::SocketAddr(family) | Shape::IpAddr(family) => {
 				(format!("std::net::{family}"), format!("r.{}()", family.to_lowercase()))
 			}
@@ -447,9 +444,27 @@ impl Rng {
 		(0..self.below(6)).map(|_| self.next() as u8).collect()
 	}
 
-	/// Up to 2^33 seconds, past 136 years: Go's `time.Duration` holds 292.
+	/// Any, the longest and those past what a nanosecond or millisecond `i64` holds
+	/// among them.
 	fn duration(&mut self) -> std::time::Duration {
-		std::time::Duration::new(self.next() >> 31, (self.next() % 1_000_000_000) as u32)
+		let nanos = match self.below(4) {
+			0 => 0,
+			1 => 999_999_999,
+			_ => (self.next() % 1_000_000_000) as u32,
+		};
+		std::time::Duration::new(self.int(), nanos)
+	}
+
+	/// Text, or on Unix bytes that are not UTF-8, as a path there may hold.
+	fn path(&mut self) -> std::path::PathBuf {
+		#[cfg(unix)]
+		if self.below(3) == 0 {
+			use std::os::unix::ffi::OsStringExt;
+			let mut bytes = self.string().into_bytes();
+			bytes.push(0x80 | self.next() as u8 & 0x3f);
+			return std::ffi::OsString::from_vec(bytes).into();
+		}
+		self.string().into()
 	}
 
 	fn socketaddrv4(&mut self) -> std::net::SocketAddrV4 {
@@ -869,32 +884,6 @@ impl Built {
 	}
 }
 
-/// Whether `shape` or a shape within it meets `f`.
-fn within(shape: &Shape, f: &dyn Fn(&Shape) -> bool) -> bool {
-	f(shape)
-		|| match shape {
-			Shape::Option(inner)
-			| Shape::Vec(inner)
-			| Shape::Set(inner)
-			| Shape::Box(inner)
-			| Shape::Enum(inner)
-			| Shape::Object(inner) => within(inner, f),
-			Shape::Map(key, value) => within(key, f) || within(value, f),
-			Shape::Tuple(elements) | Shape::Record(elements) => elements.iter().any(|e| within(e, f)),
-			_ => false,
-		}
-}
-
-fn duration(shape: &Shape) -> bool {
-	within(shape, &|s| matches!(s, Shape::Duration))
-}
-
-fn ipv6(shape: &Shape) -> bool {
-	within(shape, &|s| {
-		matches!(s, Shape::SocketAddr("SocketAddr" | "SocketAddrV6"))
-	})
-}
-
 /// A round trip a binding gets wrong today.
 struct Known {
 	language: &'static str,
@@ -909,38 +898,7 @@ struct Known {
 /// it gets wrong, the shapes it skips for it, and the quest. The nightly fails on an entry
 /// matching no exported shape, but its shapes stay skipped after a fix, so the quest that
 /// fixes one deletes its entry.
-const KNOWN: &[Known] = &[
-	Known {
-		language: "python",
-		what: "a Duration's nanoseconds",
-		skips: duration,
-		quest: "/quest/m1/ffi-export/lossless.md",
-	},
-	Known {
-		language: "dart",
-		what: "a Duration's nanoseconds",
-		skips: duration,
-		quest: "/quest/m1/ffi-export/lossless.md",
-	},
-	Known {
-		language: "kotlin",
-		what: "a Duration's nanoseconds past 146 years",
-		skips: duration,
-		quest: "/quest/m1/ffi-export/lossless.md",
-	},
-	Known {
-		language: "kotlin",
-		what: "an IPv6 flow label",
-		skips: ipv6,
-		quest: "/quest/m1/ffi-export/lossless.md",
-	},
-	Known {
-		language: "go",
-		what: "an IPv6 flow label",
-		skips: ipv6,
-		quest: "/quest/m1/ffi-export/lossless.md",
-	},
-];
+const KNOWN: &[Known] = &[];
 
 /// A function the C header declares: each parameter's type and name.
 struct Proto {
@@ -1436,24 +1394,23 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 	)
 }
 
-/// The Dart driver; Dart's `int` is Rust's `u64` in two's complement, printed unsigned.
+/// The Dart driver, which prints each digest, a `U64`, unsigned.
 fn dart(built: &Built, calls: &[Call]) -> String {
 	let name = built.name();
 	let mut body = String::new();
 	for call in calls {
+		// A seed as the `int` of its bits.
+		let u = |seed: u64| format!("s.U64.fromBits({})", seed as i64);
 		let value = match *call {
-			Call::Echo(n, seed) => format!("s.digest{n}(s.echo{n}(s.make{n}({seed})))"),
-			Call::Lent(n, seed) => format!("s.lent{n}({seed}, s.digest{n})"),
-			Call::Peek(n, seed) => format!("s.peek{n}({seed}, s.digest{n})"),
-			Call::Made(n, seed) => format!("s.made{n}({seed}, s.make{n})"),
-			Call::Later(n, seed) => format!("s.digest{n}(await s.later{n}(s.make{n}({seed})))"),
+			Call::Echo(n, seed) => format!("s.digest{n}(s.echo{n}(s.make{n}({})))", u(seed)),
+			Call::Lent(n, seed) => format!("s.lent{n}({}, s.digest{n})", u(seed)),
+			Call::Peek(n, seed) => format!("s.peek{n}({}, s.digest{n})", u(seed)),
+			Call::Made(n, seed) => format!("s.made{n}({}, s.make{n})", u(seed)),
+			Call::Later(n, seed) => format!("s.digest{n}(await s.later{n}(s.make{n}({})))", u(seed)),
 		};
-		let _ = writeln!(body, "  print('{} ${{u({value})}}');", call.label());
+		let _ = writeln!(body, "  print('{} ${{({value}).toRadixString(10)}}');", call.label());
 	}
-	format!(
-		"import 'package:{name}/{name}.dart' as s;\n\nString u(int v) => BigInt.from(v).toUnsigned(64).toString();\n\n\
-		Future<void> main() async {{\n{body}}}\n"
-	)
+	format!("import 'package:{name}/{name}.dart' as s;\n\nFuture<void> main() async {{\n{body}}}\n")
 }
 
 /// Build and run `language`'s driver of `built`, checking it against the native transcript.

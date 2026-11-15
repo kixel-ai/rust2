@@ -111,17 +111,20 @@ public path names, or an error taken by value, is held by value as an opaque han
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
 | `u128` | `<prefix>_u128`: its low and high 64 bits |
-| `NonZero<T>` of an integer but 128-bit | `T`, in every binding too; a zero passed in aborts, and `Option<NonZero<T>>` is `T`'s option |
+| `NonZero<T>` of an integer but 128-bit | `T`, in every binding but Swift, whose runtime `NonZero<T>` holds no zero; a zero passed in aborts in C and C++, and Kotlin, Python, Go, and Dart check it first and raise their error. Its option and list are its own, `<prefix>_option_non_zero_<T>` beside `T`'s |
 | `[u8; N]` | `<prefix>_array_u8_<N>`: a struct of its `N` bytes, `items`, copied across; an empty one is refused |
 | `[T; N]` of any other `T`, returned or a constant's value | `Vec<T>` of its `N` items; taken, it is refused |
 | `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: an owned buffer returned; passed in, a view, or a buffer Rust returned, which Rust takes back without a copy unless it sits behind a pointer or in an array; `<prefix>_buf_clone` shares one the caller keeps, which a `Vec<u8>`, `String`, or `PathBuf` parameter then copies, since only a sole owner's allocation becomes a `Vec` |
-| `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them on Unix, which need not be UTF-8, else UTF-8 |
-| `Duration` | `<prefix>_duration` |
-| `SocketAddr`, `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr`: its IP's bytes, port, and whether it is IPv6; one of the other family passed to `V4` or `V6` aborts |
-| `IpAddr`, `Ipv4Addr`, `Ipv6Addr` | `<prefix>_ip_addr`: its bytes and whether it is IPv6; one of the other family passed to `Ipv4Addr` or `Ipv6Addr` aborts |
+| `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them: on Unix any, on Windows WTF-8, which holds a name that is not UTF-16, else UTF-8 |
+| `Duration` | `<prefix>_duration`: its seconds and nanoseconds; a billion nanoseconds or more passed in aborts |
+| `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr_v4`, `<prefix>_socket_addr_v6`: its IP, port, and for IPv6 its flow label and scope, so each holds its family alone |
+| `SocketAddr` | `<prefix>_socket_addr`: `v6`, and a union `addr` of the two |
+| `Ipv4Addr`, `Ipv6Addr` | `<prefix>_ipv4_addr`, `<prefix>_ipv6_addr`: its bytes in network order |
+| `IpAddr` | `<prefix>_ip_addr`: `v6`, and a union `ip` of the two |
 | `url::Url` | an object `<prefix>_Url`, made by `<prefix>_Url_parse`, which fails with the parse error's message, and printed by `_to_string` |
 | `Arc<T>` of another crate's `Send` and `Sync` type that no other rule maps, such as `Arc<rustls::ServerConfig>`, or `Arc<dyn Trait>` and `&'static dyn Trait` of another crate's trait without generic arguments, whose auto traits are `Send` and `Sync` but those the trait implies, borrowing nothing C lends, as rustls's `Arc<dyn ResolvesServerCert>` | an opaque object named by `T`'s crate and name, such as `<prefix>_rustls_ServerConfig`, with `_clone` and `_free` and none of `T`'s API: it only passes back to Rust |
 | another crate's `Send` and `Sync` type taken or returned by value or lent, with no type parameters, that no other rule maps, that is no iterator or future, and that is not reached by its public path, such as one only a `#[doc(hidden)]` module names, or a standard library type no other rule maps, such as `io::Error`, named by its full path, `<prefix>_std_io_Error` | an opaque object named as the `Arc` form is, with `_free` and none of `T`'s API, holding the value: Rust takes it back by value, or borrows it; a type also named behind an `Arc` is that form, and refused by value |
+| a type implementing `PartialEq` and `Hash` | beside `<T>_eq`, `uint64_t <T>_hash`, its `Hash` through std's hasher with its fixed keys, so equal values hash alike in every binding |
 | `std::time::Instant` | an object `<prefix>_Instant`, which only Rust makes, copied into each call that takes it and compared by `_eq`, with none of its methods |
 | `tracing::Level` | `<prefix>_Level`: a C enum of its five levels, `TRACE` to `ERROR` |
 | `tracing::level_filters::LevelFilter` | `Option<tracing::Level>`, whose `None` is `OFF` |
@@ -426,7 +429,8 @@ packages place it in.
   member or as anything in the namespace, which it would hide.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
   calls `_free`, so they move and never copy, and a `Clone` type's `clone()` crosses into
-  Rust for a value of its own. A type whose copies may share one value, by the rule below,
+  Rust for a value of its own. A type implementing `Hash` has `hash()`, Rust's, by which
+  `std::hash` hashes it. A type whose copies may share one value, by the rule below,
   owns it through a `std::shared_ptr` instead: a copy shares the handle without crossing
   into Rust, and the last copy frees it, on whichever thread drops it. `&self` methods are
   `const`, and `self` methods are `&&`, so a call that moves the value out reads
@@ -547,7 +551,8 @@ the rest cross encoded.
   `close()` frees the handle, and throws while a call holds it. One never closed is freed
   once the GC collects it, on a daemon thread a phantom reference queue feeds. A `self`
   method, or passing the object by value, moves its value out and closes it once the call
-  returns. `Clone` is `clone()`, and `PartialEq` is `equals`.
+  returns. `Clone` is `clone()`, `PartialEq` is `equals`, and `Hash` is `hashCode`, Rust's
+  hash folded as `Long.hashCode` folds it, or 0 without one.
   A field is a `val`, `firstGet`, and its setter a function, `firstSet(value)`, named as
   the C ones, since setting an object moves it in and closes its handle, which an
   assignment would hide.
@@ -561,8 +566,8 @@ the rest cross encoded.
   8 bytes on every target, with no padding, fields of integers, `bool`s, and `char`s alone, nested or not, and a
   derived or std `PartialEq`, a value class over a `Long`, compared by its bits, which
   allocates nothing unless Kotlin boxes it, as in a `List` or a nullable; otherwise a class of a `Long` for each 64-bit word of its bytes, which allocates
-  nothing where the JIT sees it does not escape, whose `==` is Rust's, and whose `hashCode` is 0, since none Kotlin
-  computes agrees with it. Either is shared by reference, so it never changes: a `&mut
+  nothing where the JIT sees it does not escape, whose `==` is Rust's, and whose `hashCode` is Rust's `Hash`, or 0
+  without one, since none Kotlin computes agrees with its `==`. Either is shared by reference, so it never changes: a `&mut
   self` method, a field's setter included, returns the value as the call left it,
   `x = x.add(o)`, and beside Rust's own return, a `Pair`, or each element of its tuple,
   `val (y, n) = x.take()`.
@@ -578,21 +583,35 @@ the rest cross encoded.
   64 MiB are lent at once, freed or not; past that, longer ones are copied too, and that
   garbage in Kotlin's heap runs the GC, which frees them. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
   record holding bytes does too; Rust's lent ones are copied across in one call to compare.
-  Strings are `String`, passed in as their UTF-16, which Rust encodes once into UTF-8 as
-  `encodeToByteArray` does, a lone surrogate as `?`; `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
-  target's range, `Option<T>` `T?`, a tuple `Pair` or
+  Strings are `String`, passed in as their UTF-16, which Rust encodes once into UTF-8 before
+  the call reads any argument, so one holding a lone surrogate, which no Rust text holds,
+  throws `IllegalArgumentException` before anything moves; a `char` is an `Int`, which
+  throws `IllegalArgumentException` passed in unless it is a Unicode scalar value; `usize`
+  `ULong` and `isize` `Long`, which throw `IllegalArgumentException` passed in past the
+  library's target's range, as a 32-bit one's is, and a `NonZero<T>` `T`'s type, which throws
+  `IllegalArgumentException` passed in zero; `Option<T>` is `T?`, a tuple `Pair` or
   `Triple`, or else a generated `Tuple<n>`, and also `Tuple2` or `Tuple3` when it holds a
   numeric array or a float anywhere, records included, since `Pair` and `Triple` cannot
-  compare them as Rust does (so a `BTreeMap<String, f64>` is a `List<Tuple2<String, Double>>`), `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
+  compare them as Rust does (so a `BTreeMap<String, f64>` is a `List<Tuple2<String, Double>>`), `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, and an `Err` a thrown `<E>Exception`
   holding it, whose message is its `Display`. A `[u8; N]` is a generated `ArrayU8x<N>`,
   which copies the `ByteArray` it is made of and throws `IllegalArgumentException` unless
   it holds exactly `N` bytes.
-- A **path** is a `String`: one Rust returns that is not UTF-8 throws. A `SocketAddr`,
-  `SocketAddrV4`, or `SocketAddrV6` is a `java.net.InetSocketAddress`, which must be
-  resolved and, for `V4` or `V6`, of that family; one Rust returns with an IPv6 flow
-  label, which Java does not keep, throws. An `IpAddr`, `Ipv4Addr`, or `Ipv6Addr` is a
-  `java.net.InetAddress`, of that family for `Ipv4Addr` or `Ipv6Addr`; one passed in with
-  an IPv6 scope, which Rust does not keep, throws. A `Vec<T>`, `&[T]`, or `Box<[T]>` of a
+- **Std values** no Kotlin or Java type holds exactly are the runtime's own, each holding
+  every Rust value and made only of valid ones, with conversions to and from the
+  idiomatic type that throw `IllegalArgumentException` where the other cannot hold a value
+  exactly. A `Duration` is a `Duration` of `secs: ULong` and `nanos: UInt`, made from and
+  converted to a `kotlin.time.Duration` (`Duration(5.seconds)`, `toKotlinDuration()`),
+  which is never negative or infinite in Rust and drops what is below a millisecond past
+  about 146 years. A path is a `PathBuf` of the OS's bytes, any on Unix and WTF-8 on
+  Windows, made from them or from a `String`, and converted to one or to a
+  `java.nio.file.Path` by `toText()` and `toPath()`, which throw where it is not UTF-8;
+  its `toString()` shows what is not as U+FFFD, as Rust's `display` does. An `IpAddr`
+  is a sealed `IpAddr` of an `Ipv4Addr`, a value class of its bits, or an `Ipv6Addr`,
+  each kept of its family, so an IPv4-mapped address stays IPv6, and a `SocketAddr` a
+  sealed `SocketAddr` of a `SocketAddrV4`, a value class of its address and port, or a
+  `SocketAddrV6`, which keeps its flow label and scope; each prints as Rust does, and
+  converts to and from `java.net`'s, which has no unresolved address in Rust, no scope in
+  an `IpAddr`, and no flow label in Java. A `Vec<T>`, `&[T]`, or `Box<[T]>` of a
   fixed-width integer other than `u8` (bytes) or `u128`, or of a float, is Kotlin's primitive array of it: `ByteArray`,
   `ShortArray`, `IntArray`, or `LongArray` for `i8` through `i64`, `UShortArray`,
   `UIntArray`, or `ULongArray` for `u16` through `u64`, which a caller uses under
@@ -674,7 +693,7 @@ caller imports it with no ignores.
 - **Objects** are classes owning their handle, freed once their last reference goes,
   which the caller's reference keeps through a call, so there is no `close()`. A `self`
   method, or passing the object by value, moves its value out, after which a call raises
-  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable. A field is a
+  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable unless the type implements `Hash`, which `hash()` hashes it by. A field is a
   property, `first_get`, and its setter a method, `first_set(value)`, named as the C ones,
   since setting an object moves it in and closes it, which an assignment would hide.
 - **Checks**: a borrow or move Rust's rules refuse raises, naming the function and the rule,
@@ -695,8 +714,10 @@ caller imports it with no ignores.
   returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it
   and its views are released. Those Rust lends a closure or trait method are copied into
   `bytes`. Strings are `str`, `u128` an `int`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
-  `datetime.timedelta`, truncated to the microsecond, with `timedelta.max` for any longer
-  and for `Duration::MAX`, a `Range` a `range`, and an `Err` a raised `<E>Exception`
+  the runtime's `Duration`, a `NamedTuple` of `secs` and `nanos` as Rust holds them, which
+  raises `OverflowError` or `ValueError` passed in out of their range; its `from_timedelta`
+  and `to_timedelta` raise rather than lose anything, as a `timedelta` holds only whole
+  microseconds up to 999,999,999 days. A zero passed for a `NonZero` raises `ValueError`. A `Range` is a `range`, and an `Err` a raised `<E>Exception`
   holding it in `error`, whose `str` is its `Display`. A `[u8; N]` is a generated
   `ArrayU8x<N>`, a `bytes` that raises `ValueError` unless it holds exactly `N`; a
   parameter takes any `bytes` of `N`.
@@ -760,7 +781,8 @@ beside `swift/<prefix>_atomics.h`, the atomics its runtime needs that Swift's st
 library has only from macOS 15: a build puts `swift/` on its import path and links the
 static library. It imports swift-collections' `BasicContainers` for `UniqueArray`, which
 `just ffi swift-collections` builds at the version the tests pin, 1.7.5. It needs Swift 6.2
-and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mode.
+and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mode. Every
+value of a Rust type crosses as one Swift type that holds it exactly, and back unchanged.
 
 - **Names** are as Kotlin's, at the module's top level: types in PascalCase without the
   prefix, members in camelCase without their type's name (`TrackProducer.appendGroup`). A
@@ -780,7 +802,8 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   is an overload with and without it, labelled by its name, as a defaulted argument is:
   `clamped()`, `clamped(low:)`, `clamped(high:)` and `clamped(low:high:)`, up to two per
   function; `Option<&mut T>` is `inout T?`. `Clone` is `clone()`, and `PartialEq` is `==`, which Swift 6.4 makes
-  `Equatable` unless it throws, as below; `Display` is `description` and `Debug`
+  `Equatable` unless it throws, as below, and `Hashable` with `Hash`, whose `hash(into:)`
+  combines Rust's hash; `Display` is `description` and `Debug`
   `debugDescription`, which Swift conforms no noncopyable type to yet. A `Copy` object,
   which Rust copies where it takes one by value, and an object thrown as an error, which
   `Swift.Error` requires be copyable, are final classes instead, whose handle a call
@@ -794,12 +817,14 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   field read stays a property whose getter throws, except one of a noncopyable value,
   whose getter Swift cannot let throw, which is a method, `firstGet()`. Of a type whose
   checks can fail, or a record or enum holding one, `description` and `debugDescription`
-  are getters that throw, and `clone()` and `==` throw, so it conforms to none of
-  `CustomStringConvertible`, `CustomDebugStringConvertible`, and `Equatable`, whose
+  are getters that throw, and `clone()`, `==`, and `hash(into:)` throw, so it conforms to
+  none of `CustomStringConvertible`, `CustomDebugStringConvertible`, `Equatable`, and
+  `Hashable`, whose
   requirements cannot throw. A closed class anywhere in a call's arguments throws too. A
   copy a closure returns, which has no caller to throw to, traps instead.
 - **Records** are structs and **enums** Swift enums, with a variant's data as associated
-  values, all `Sendable`. `PartialEq` is `==`, through Rust's; `Display` is `description`,
+  values, all `Sendable`. `PartialEq` is `==`, through Rust's, and `Hash` `hash(into:)`,
+  making it `Hashable`; `Display` is `description`,
   `Debug` `debugDescription`, each throwing as an object's does when it holds a checked
   one, and `Default` a static `default()`. An **opaque value** is a struct holding its C
   struct, with no public initializer, so only Rust makes one; a `&mut self` method is
@@ -813,17 +838,26 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   writes into a buffer Rust shares.
   Strings are `String`, copied, `char` `Unicode.Scalar`, `usize` `UInt`, `Option<T>` `T?`,
   a tuple a Swift tuple, though a tuple of one is its element, `u128` a `U128` of its
-  `high` and `low` halves until the deployment target allows `UInt128`, and `Duration`
-  `Swift.Duration`. An `Err` is thrown: an exported type as itself, which conforms to
+  `high` and `low` halves until the deployment target allows `UInt128`, and `Duration` the
+  runtime's `RustDuration` of its `secs` and `nanos`, whose initializer throws a
+  `CheckError` for a second's nanoseconds or more. `duration` is it as a `Swift.Duration`,
+  which holds every one, and `RustDuration(_:)` makes one from a `Swift.Duration`,
+  throwing for one negative, past Rust's longest, or with a part below a nanosecond. A
+  `NonZero<T>` is the runtime's `NonZero<T>` of `T`'s integer, its `value`, made with
+  `try NonZero(3)`, whose initializer throws a `CheckError` for a zero, so no call
+  taking one checks it and a type holding one keeps its protocols. An `Err` is thrown: an exported type as itself, which conforms to
   `Swift.Error`, and any other in a generated `<T>Error` holding it, whose `init(error:)`
   makes one for a closure to throw back. A `[u8; N]` is a
   generated `ArrayU8x<N>`, a collection holding its bytes inline in C's struct, made by a
   failable initializer from exactly `N` bytes, until the deployment target allows
   `InlineArray`.
-- A **path** is a `String`: one Rust returns that is not UTF-8 traps. A `SocketAddr`,
-  `SocketAddrV4`, or `SocketAddrV6` is the runtime's `SocketAddr`, its IP's 4 or 16 bytes
-  and its port, flow label, and scope, whose family Rust checks. An `IpAddr`, `Ipv4Addr`,
-  or `Ipv6Addr` is the runtime's `IpAddr`, its 4 or 16 bytes. A `Vec<T>`, `&[T]`, or
+- A **path** is the runtime's `PathBuf` of its `bytes`, a `Bytes` sharing Rust's buffer as
+  bytes do, so one that is not UTF-8 keeps them; `PathBuf("a/b")`, or a string literal,
+  makes one, and `string` is its text, or nil if it is not UTF-8. Each address type is the
+  runtime's of its name, as std's: `Ipv4Addr` and `Ipv6Addr` of their `bits`, as
+  `to_bits` gives them, or `octets`, `IpAddr` an enum of `.v4` and `.v6`, `SocketAddrV4`
+  and `SocketAddrV6` of their IP, port, and IPv6's flow label and scope, and `SocketAddr`
+  an enum of either. A `Vec<T>`, `&[T]`, or
   `Box<[T]>` is an array, or a `UniqueArray` of objects; one of a fixed-width integer
   other than `u8` (bytes) or `u128`, or of a float, is copied across whole, with no call per item.
 - **Traits** are `Sendable` protocols, which Rust releases once it drops an implementation.
@@ -948,15 +982,32 @@ reads a go.mod.
   returns freed memory, such as [mimalloc](https://crates.io/crates/mimalloc), declared in
   the exported crate, holds it near what is lent. `Copy()` copies it out. Text Rust returns is copied once into a `string`, and Rust's
   freed at the call. A path is a `string`
-  of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object or
-  `u128` its pointer, nil for `None`. A tuple is `rt.Tuple2[A, B]` and so on, but a tuple of one is its
-  element, and one returned whole is the function's results. A `u128` is a `*big.Int`, which
-  panics passed in out of its range, and a `[u8; N]` a `[N]byte`. `Duration` is
-  `time.Duration`: a negative one passed in, or one Rust returns past its 292 years,
-  panics. A socket address is a `netip.AddrPort`, whose zone names an IPv6 scope by its
-  number or its interface's name; one Rust returns with an IPv6 flow label, which
-  `netip` does not keep, panics. An IP address is a `netip.Addr`; one passed in that is
-  invalid, has a zone, or is of the wrong family panics. A `Vec<T>`, `&[T]`, or `Box<[T]>` is a `[]T`; one of a
+  of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object its
+  pointer, nil for `None`. A tuple is `rt.Tuple2[A, B]` and so on, but a tuple of one is its
+  element, and one returned whole is the function's results. A `[u8; N]` is a `[N]byte`.
+- **Lossless types**: each holds every value of its Rust type, so one passed in and
+  returned is the same value, and none panics. Where Go's own type does not, the
+  runtime's crosses, with conversions to and from Go's that return an error matching
+  `rt.ErrInvalid` for a value the other has no room for. A `u128` is an `rt.U128{Hi, Lo}`,
+  converted by `Big()` and `rt.U128Of(*big.Int)`. A `Duration` is an `rt.Duration`, whose
+  zero value is zero and whose `Secs()` and `Nanos()` are Rust's: `rt.NewDuration(secs,
+  nanos)` carries nanoseconds past a second into the seconds, as Rust's `Duration::new`
+  does, `rt.DurationOf(time.Duration)` fails on a negative one, and `Std()` fails past
+  `time.Duration`'s 292 years. An address is the runtime's mirror of `std::net`'s:
+  `rt.Ipv4Addr` and `rt.Ipv6Addr` their octets, `rt.SocketAddrV4` and `rt.SocketAddrV6`
+  structs of their fields, flow label and scope too, and `rt.IpAddr` and `rt.SocketAddr`
+  one of either family, made by `rt.IpAddrFromV4` and so on and read by `V4()` and `V6()`,
+  whose zero value is IPv4's `0.0.0.0`, port 0. Each converts to and from `net/netip`'s,
+  `Netip()` and `rt.<Type>Of`, which fail on the wrong family, a zone an `Ipv6Addr` or
+  `IpAddr` has no room for, or a flow label `netip` has none for; a scope is a zone of its
+  number, and a zone converts by its number or its interface's name. Every one compares
+  with `==`. A `string` that is not UTF-8, a `rune` that is not a Unicode scalar value,
+  a path that is not WTF-8 on Windows, or a zero for a `NonZero`, fails the call taking it,
+  anywhere in its arguments, before it is made, with an error matching `rt.ErrInvalid`, so
+  every such call returns an `error`, on every target for a path too, `Equal` of a value
+  holding text too, and `String()` and `GoString()` the error's text; what a closure or
+  trait Go implements returns Rust has no caller to return one to, so it aborts.
+- **Lists**: a `Vec<T>`, `&[T]`, or `Box<[T]>` is a `[]T`; one of a
   fixed-width integer other than `u8` (bytes) or `u128`, or of a float, is lent in place, pinned for the call, as bytes are, and
   one Rust returns is copied out whole.
 - **Errors**: a `Result` returns an `error` last. An exported error type is returned as
@@ -1035,17 +1086,26 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 - **Records** are final classes with a named, required parameter per field, and
   positional fields are `$0`, `$1`, and so on. **Plain enums** are Dart enums, and an enum
   with data a sealed class with a final class per variant (`EventMoved`), so a `switch`
-  over it is exhaustive. `Display` is `toString()`, `Debug` `debug()`, `PartialEq` `==`, all
-  through Rust's, with a `hashCode` that throws an `UnsupportedError`, since no hash Dart
-  computes agrees with Rust's `==`, and `Default` a constructor, `default_()`. An
+  over it is exhaustive. `Display` is `toString()`, `Debug` `debug()`, `PartialEq` `==`, and
+  `Hash` `hashCode`, all through Rust's; without `Hash`, `hashCode` throws an
+  `UnsupportedError`, since no hash Dart computes agrees with Rust's `==`. `Default` is a
+  constructor, `default_()`. An
   **opaque value** is a final class of its bytes as `int`s, with a private constructor,
   so only Rust makes one. It never changes: a `&mut self` method, a field's setter
   included, returns the value as the call left it, `x = x.add(o)`, and beside Rust's own
   return, a record, with each element of a tuple Rust returns, `final (y, n) = x.take()`. A plain enum's `==` is Dart's, by its value.
-- **Integers** are `int`. A narrower one passed in throws a `RangeError` when out of its
-  range, and a `u64` passes its 64 bits, so one past `i64`'s range is negative in Dart.
-  A `char` is a `String` of one Unicode scalar.
-- **Bytes** a call takes are a `Uint8List`, and text a `String`. Rust keeps Dart's own
+- **Integers** are `int`, but for `u64` and `usize`, which are the runtime's `U64`: an
+  extension type on the `int` of its 64 bits, costing nothing over it, which compares
+  unsigned and converts, checked, to and from an `int` (`U64(5)`, `toInt()`) or a
+  `BigInt`; `U64.fromBits` takes any `int`'s bits. Being an extension type, it prints as
+  its `int` does, signed: `toRadixString` and `toBigInt` print it unsigned. A narrower
+  integer passed in throws a `RangeError` when out of its range, as do a `usize` or
+  `isize` past 32 bits on a 32-bit target, and a zero passed for a `NonZero` throws an
+  `ArgumentError`. A `char` is a `String` of one Unicode scalar, and any other throws an
+  `ArgumentError`.
+- **Bytes** a call takes are a `Uint8List`, and text a `String`, which throws an
+  `ArgumentError` passed in holding a lone surrogate, since UTF-8 has no form of one and
+  Dart's encoder would replace it. Rust keeps Dart's own
   with one copy from 1 KiB, into a buffer Rust takes, and with two below, since allocating
   Rust's buffer costs more there than the second copy; a lent `Uint8List` Rust returned
   passes back as a second owner of Rust's buffer, with no copy. Bytes Rust returns are a `Uint8List` owned by Dart's memory
@@ -1053,22 +1113,27 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   unmodifiable view of Rust's buffer, freed once neither it nor any view of it is
   reachable, so no view outlives its memory. A lent view costs a finalizer and charges the
   garbage collector its length, which costs more than a copy up to about 64 KiB. Text Rust
-  returns is copied into a `String`. A path is a `String`, and one Rust returns that is
-  not UTF-8 aborts, since a throw would leave the rest of a list or record being lifted
-  unfreed. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
+  returns is copied into a `String`. A path is the runtime's `PathBuf` of its bytes,
+  crossing as bytes do, so one that is not UTF-8 crosses whole: `PathBuf(String)` makes
+  one, and `toFilePath()` is its `String`, throwing a `FormatException` where it is not
+  UTF-8. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
   `List<T>`, except one of a fixed-width integer other than `u8` (bytes) or `u128` or of a float, or a `Box<[T]>` of one, which
   is the `dart:typed_data` list of its width, such as a `Uint32List` or `Float64List`:
-  copied whole into the call's memory passed in, and out of Rust's returned. A
-  `Uint64List` holds a `u64`'s bits, so one past `i64`'s range reads negative, as a `u64`
-  alone does. A `u128` is a `BigInt`, which throws an `ArgumentError` passed in out of
-  its range. A `[u8; N]` is a generated `ArrayU8x<N>`, which copies the list it is made
-  of and throws an `ArgumentError` unless it holds exactly `N` bytes. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
-  in throws an `ArgumentError`, and Rust's longest is Dart's. A socket address is a
-  `SocketAddr` of an `InternetAddress`, a port, and IPv6's flow label and scope; one passed
-  in of the wrong family throws an `ArgumentError`, and a port, label, or scope out of its
-  range a `RangeError`. An IP address is an `InternetAddress`. A Unix socket's
-  `InternetAddress`, or one of the wrong family, passed in for either throws an
-  `ArgumentError`.
+  copied whole into the call's memory passed in, and out of Rust's returned; a `u64`'s is
+  a `List<U64>`, a `Uint64List` read as `U64`s. A `u128` is a `BigInt`, which throws an
+  `ArgumentError` passed in out of its range. A `[u8; N]` is a generated `ArrayU8x<N>`,
+  which copies the list it is made of and throws an `ArgumentError` unless it holds
+  exactly `N` bytes. `Duration` is the runtime's `RustDuration`, its `U64` seconds and
+  nanoseconds below one, which throws a `RangeError` made of a second's nanoseconds or
+  more: `RustDuration.from` takes a `Duration`, throwing an `ArgumentError` for a negative
+  one, and `toDuration()` gives one, throwing a `RangeError` for part of a microsecond or
+  one past `Duration`'s longest. Addresses are the runtime's, as Rust's: `Ipv4Addr` and
+  `Ipv6Addr` of their octets, each an `IpAddr`, a sealed class; and `SocketAddrV4` and
+  `SocketAddrV6`, with its flow label and scope, each a `SocketAddr`, whose port, label,
+  and scope throw a `RangeError` out of range. So the type holds only its family, and each
+  crosses whole. `IpAddr.from`, `Ipv4Addr.from`, and `Ipv6Addr.from` take a `dart:io`
+  `InternetAddress`, throwing an `ArgumentError` for a Unix one, one of the other family,
+  or an IPv6 one with a scope, which Rust's has none of; `toInternetAddress()` gives one.
 - **Errors**: a `Result`'s error is thrown. An exported error type is thrown as itself,
   implementing `Exception`, and any other in a final class `<T>Exception` holding it as
   `error`, such as `StringException`.
@@ -1083,8 +1148,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 - A **reader** Rust reads and seeks, a `Read + Seek` behind `&mut`, is a `SeekableReader`:
   `readInto` and `seek`, which Rust calls only during the call, on the isolate's thread.
   `SeekableReader.file` reads a `RandomAccessFile` through its synchronous methods, as
-  Rust's calls are. A seek from `SeekFrom.start` takes a `u64`'s bits, as every `u64` is,
-  so one past `i64`'s range is negative, which a file refuses. Rust's buffer is never
+  Rust's calls are. A seek from `SeekFrom.start` takes a `u64`'s bits, as `U64.bits` holds
+  them, so one past `i64`'s range is negative, which a file refuses. Rust's buffer is never
   `readInto`'s: it fills a list of Dart's own, which Rust copies. An `Exception` either
   throws fails the call into Rust as an `io::Error` of its text, and anything else it
   throws aborts.
