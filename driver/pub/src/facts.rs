@@ -127,6 +127,10 @@ pub struct Impl {
 	/// Its trait, first, and what its self type names. Not its trait's arguments, which a
 	/// caller may leave to inference.
 	pub requires: Vec<Hash>,
+	/// What its self type's outermost constructor is of, when that is an ADT, an extern
+	/// type, or a trait object's trait: the one part of it a caller outside its crate must
+	/// write, since rustc infers the rest from a single impl but never a bare `_`.
+	pub head: Option<Hash>,
 }
 
 /// An item, an impl's or trait's own items apart, as rustc's HIR printer prints it, which

@@ -320,6 +320,11 @@ mod marks {
 	/// External: what a self type from outside the audit wraps, where a caller may infer
 	/// all of it, as in `<Vec<_> as Make<u8>>::make()`.
 	pub struct Wrapped;
+	/// External: what a builtin constructor in a self type wraps, where a caller may write
+	/// the constructor and infer the rest, as in `<&_ as Make<u8>>::make()`.
+	pub struct Borrowed;
+	/// External: the same through a tuple, as in `<(_, u8) as Make<u8>>::make()`.
+	pub struct Paired;
 
 	/// External: an impl of a trait from outside the audit for a type from outside it names
 	/// it, which a caller may use with nothing of the audit's in hand.
@@ -348,6 +353,18 @@ impl Make<u16> for Slot<marks::Inferred> {
 impl Make<u8> for Vec<marks::Wrapped> {
 	fn make() -> u32 {
 		44
+	}
+}
+
+impl Make<u8> for &marks::Borrowed {
+	fn make() -> u32 {
+		45
+	}
+}
+
+impl Make<u8> for (marks::Paired, u8) {
+	fn make() -> u32 {
+		46
 	}
 }
 

@@ -337,7 +337,8 @@ impl<'tcx> Collector<'tcx> {
 						requires.push(hash);
 					}
 				}
-				impls.push(Impl { hash, requires });
+				let head = owner(trait_ref.self_ty()).map(|owner| this.hash(owner));
+				impls.push(Impl { hash, requires, head });
 				// An impl needs every item it declares, whatever calls them.
 				for &item in tcx.associated_item_def_ids(def) {
 					this.refer(item, None);

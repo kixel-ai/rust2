@@ -177,12 +177,9 @@ impl Audit {
 		let mut roots = [Vec::new(), Vec::new()];
 		let mut impls = [Vec::new(), Vec::new()];
 		// What another crate must reach before it can use each impl of a library it links:
-		// its trait, where the audit defines it, and any one type its self type names,
-		// since it may leave the rest to inference, as `Marker` in `Slot::make()` for
-		// `impl Make for Slot<Marker>`. Where its self type names any type from outside
-		// the audit, a caller may use it at once, as `Public::make()` does for
-		// `impl Make<Marker> for Public`, and `<Vec<_> as Make>::make()` for
-		// `impl Make for Vec<Marker>`. Outside crates link a published or foreign library,
+		// its trait and its self type's head, where the audit defines them, since it may
+		// leave the rest to inference, as `Marker` in `Slot::make()` for
+		// `impl Make for Slot<Marker>`. Outside crates link a published or foreign library,
 		// and what those build on.
 		let linked = units
 			.iter()
@@ -284,16 +281,13 @@ impl Audit {
 			for i in &unit.impls {
 				let requires = audited(&i.requires);
 				if unit.lib && !unit.test && linked.contains(unit.package.as_path()) {
-					let (trait_, types) = i.requires.split_first().expect("an impl requires its trait");
-					// A type from outside the audit, as `Vec` in `impl Make for Vec<Marker>`,
-					// lets a caller infer the rest, as `<Vec<_> as Make>::make()` does.
-					let mut any = audited(types);
-					if any.len() < types.len() {
-						any.clear();
-					}
-					external_impls.push((hashes[&i.hash], audited(std::slice::from_ref(trait_)), any));
+					// A head from outside the audit, or a builtin one, needs nothing of it, as
+					// `<Vec<_> as Make>::make()` uses `impl Make for Vec<Marker>` and
+					// `<&_ as Make>::make()` uses `impl Make for &Marker`.
+					let needs: Vec<Hash> = i.requires[..1].iter().chain(&i.head).cloned().collect();
+					external_impls.push((hashes[&i.hash], audited(&needs)));
 				}
-				impls[test].push((hashes[&i.hash], requires, Vec::new()));
+				impls[test].push((hashes[&i.hash], requires));
 			}
 		}
 		// What an external library's API exposes, such as a type of another crate it
@@ -412,8 +406,8 @@ fn verdict(
 }
 
 /// Which definitions `roots` reach over `edges`, with a trait impl reached once all of
-/// its first list is, and any one of its second, if that has any.
-fn reach(edges: &[&Vec<Vec<usize>>], roots: &[usize], impls: &[(usize, Vec<usize>, Vec<usize>)]) -> Vec<bool> {
+/// all it requires is.
+fn reach(edges: &[&Vec<Vec<usize>>], roots: &[usize], impls: &[(usize, Vec<usize>)]) -> Vec<bool> {
 	let n = edges[0].len();
 	let mut live = vec![false; n];
 	let mut queue: VecDeque<usize> = VecDeque::new();
@@ -434,8 +428,8 @@ fn reach(edges: &[&Vec<Vec<usize>>], roots: &[usize], impls: &[(usize, Vec<usize
 				}
 			}
 		}
-		for (i, all, any) in impls {
-			if !live[*i] && all.iter().all(|&r| live[r]) && (any.is_empty() || any.iter().any(|&r| live[r])) {
+		for (i, requires) in impls {
+			if !live[*i] && requires.iter().all(|&r| live[r]) {
 				live[*i] = true;
 				queue.push_back(*i);
 			}
@@ -460,10 +454,7 @@ mod tests {
 		edges[4] = vec![5];
 		edges[6] = vec![7];
 		edges[7] = vec![6];
-		let live = reach(&[&edges], &[0], &[(3, vec![1, 2], vec![]), (8, vec![6], vec![])]);
+		let live = reach(&[&edges], &[0], &[(3, vec![1, 2]), (8, vec![6])]);
 		assert_eq!(live, [true, true, true, true, true, true, false, false, false]);
-		// An impl needing any one of 6 and 2 activates through 2.
-		let live = reach(&[&edges], &[0], &[(3, vec![1], vec![6, 2])]);
-		assert!(live[3] && live[5] && !live[6]);
 	}
 }
