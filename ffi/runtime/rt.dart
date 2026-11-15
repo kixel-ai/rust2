@@ -318,14 +318,14 @@ bool _readerSeek(
 /// on a thread calling into Dart.
 final class Waker extends _Object {
   final ffi.Pointer<ffi.Void> _wake;
-  final ffi.Pointer<ffi.Void> _drop;
+  final ffi.Pointer<ffi.Void> _dropFn;
   final ffi.NativeFinalizer _finalizer;
 
   Waker._(_Waker raw)
       : _wake = raw.wake,
-        _drop = raw.drop,
+        _dropFn = raw.drop,
         _finalizer = _n.finalizer(raw.drop),
-        super(raw.data, true) {
+        super(raw.data, true, false) {
     _finalizer.attach(this, _raw, detach: this);
   }
 
@@ -335,7 +335,7 @@ final class Waker extends _Object {
   @override
   void _free() {
     _finalizer.detach(this);
-    _dartWakerCall(_n.home, _drop, _raw);
+    _dartWakerCall(_n.home, _dropFn, _raw);
   }
 
   /// Wake the task through Rust: a call after [close] throws [StateError].
