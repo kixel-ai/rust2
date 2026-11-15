@@ -1045,21 +1045,20 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					// The longer side's items past the shorter's read and dropped as the first
 					// read starts, after which both have as many left: std's checks again on
 					// each read, which finds them even. Exact sides, which end together, but
-					// each is read even so: the second's read may trim a zip it holds.
+					// each is read even so: the second's read may trim a zip it holds. Each
+					// side's reader is written once, in a loop that both trims and reads it, so
+					// nested zips grow the output linearly.
 					Zipped::Back { even, drops } => {
+						let (ka, kb) = (self.b.fresh("k"), self.b.fresh("k"));
+						out.push(StmtKind::decl(true, &ka, None, Some(Expr::lit("0"))).at(None));
+						out.push(StmtKind::decl(true, &kb, None, Some(Expr::lit("0"))).at(None));
 						let mut trim = Vec::new();
 						let (la, lb) = (self.b.fresh("len"), self.b.fresh("len"));
 						trim.push(StmtKind::decl(false, &la, None, Some(self.len(a))).at(None));
 						trim.push(StmtKind::decl(false, &lb, None, Some(self.len(b))).at(None));
 						let (la, lb) = (Expr::ident(la), Expr::ident(lb));
-						self.trim(
-							a,
-							la.clone().binary("-", lb.clone()),
-							true,
-							drops[0].as_ref(),
-							&mut trim,
-						);
-						self.trim(b, lb.binary("-", la), true, drops[1].as_ref(), &mut trim);
+						trim.push(expr(Expr::ident(&ka).assign(la.clone().binary("-", lb.clone()))));
+						trim.push(expr(Expr::ident(&kb).assign(lb.binary("-", la))));
 						trim.push(expr(Expr::ident(even).assign(Expr::lit("true"))));
 						out.push(
 							StmtKind::If {
@@ -1069,28 +1068,45 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							}
 							.at(None),
 						);
-						// The first side's read, in a block that notes where it ends and holds its
-						// item past it, so the second side is read once either way.
+						// The first side's loop, in a block that notes where it ends, so the second
+						// side is read either way.
 						let (ended, label) = (self.b.fresh("ended"), self.b.fresh("zip"));
 						let set = vec![
 							expr(Expr::ident(&ended).assign(Expr::lit("true"))),
 							StmtKind::Break(Some(label.clone())).at(None),
 						];
-						let mut first = Vec::new();
-						let x = self.read(a, back, indexed, used, &set, &mut first);
-						let held = x.as_ref().map(|x| self.keep(x, &item_of(a), out));
-						if let (Some(held), Some(x)) = (&held, &x) {
-							assign(held, x, &mut first);
-						}
+						let first = Side {
+							k: &ka,
+							drop: drops[0].as_ref(),
+							before: Vec::new(),
+							done: &set,
+						};
+						let (read, x) = self.side(a, first, back, indexed, used, out);
 						out.push(StmtKind::decl(true, &ended, None, Some(Expr::lit("false"))).at(None));
-						out.push(
-							StmtKind::Block {
-								label: Some(label),
-								body: first,
+						// The second side's trim comes before the first side's read, as in std's
+						// `next_back`, so the first side is read once the second's is done.
+						let before = vec![
+							StmtKind::If {
+								cond: Expr::ident(&kb).binary("<=", Expr::lit("0")),
+								then: vec![
+									StmtKind::Block {
+										label: Some(label),
+										body: vec![read],
+									}
+									.at(None),
+								],
+								els: Vec::new(),
 							}
 							.at(None),
-						);
-						let y = self.read(b, back, indexed, used, done, out);
+						];
+						let second = Side {
+							k: &kb,
+							drop: drops[1].as_ref(),
+							before,
+							done,
+						};
+						let (read, y) = self.side(b, second, back, indexed, used, out);
+						out.push(read);
 						out.push(
 							StmtKind::If {
 								cond: Expr::ident(ended),
@@ -1099,12 +1115,55 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							}
 							.at(None),
 						);
-						(held, y)
+						(x, y)
 					}
 				};
 				Some(Val::Tuple(vec![x?, y?]))
 			}
 		}
+	}
+
+	/// A side of a zip read from the back, `node`, read by a loop that runs `side.before`,
+	/// then reads an item: dropped while `side.k` counts down past zero, and else held past
+	/// the loop in variables declared in `decls`. Its reader is written once for both, so
+	/// nested zips don't copy it.
+	fn side(
+		&mut self,
+		node: &Node,
+		side: Side<'_>,
+		back: bool,
+		indexed: bool,
+		used: bool,
+		decls: &mut Vec<Stmt>,
+	) -> (Stmt, Option<Val>) {
+		let label = self.b.fresh("side");
+		let mut body = side.before;
+		let x = self.read(node, back, indexed, used || side.drop.is_some(), side.done, &mut body);
+		let held = x.as_ref().filter(|_| used).map(|x| self.keep(x, &item_of(node), decls));
+		let mut then = Vec::new();
+		if let (Some(held), Some(x)) = (&held, &x) {
+			assign(held, x, &mut then);
+		}
+		then.push(StmtKind::Break(Some(label.clone())).at(None));
+		body.push(
+			StmtKind::If {
+				cond: Expr::ident(side.k).binary("<=", Expr::lit("0")),
+				then,
+				els: Vec::new(),
+			}
+			.at(None),
+		);
+		body.push(StmtKind::Expr(Expr::Postfix(Box::new(Expr::ident(side.k)), "--")).at(None));
+		if let (Some(drop), Some(x)) = (side.drop, &x) {
+			body.push(StmtKind::Expr(drop.clone().call(vec![x.whole()])).at(None));
+		}
+		let read = StmtKind::While {
+			label: Some(label),
+			cond: Expr::lit("true"),
+			body,
+		}
+		.at(None);
+		(read, held)
 	}
 
 	/// `n` items, if more than none, taken from the back of `node`, a side of a zip read
@@ -1188,6 +1247,18 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 		}
 	}
+}
+
+/// How `Fx::side` reads a side of a zip read from the back.
+struct Side<'a> {
+	/// The variable counting the items it trims.
+	k: &'a str,
+	/// What drops a trimmed item.
+	drop: Option<&'a Expr>,
+	/// What its loop runs before each read.
+	before: Vec<Stmt>,
+	/// What runs where it has ended.
+	done: &'a [Stmt],
 }
 
 /// The upper bound of `node`'s size hint, `Infinity` where it has none, as `ZipFold` reads
