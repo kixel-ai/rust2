@@ -329,8 +329,10 @@ const TAKEN: &[&str] = &[
 	"BigInt",
 	"Cancelable",
 	"Cancelled",
+	"Comparable",
 	"Duration",
 	"Exception",
+	"Expando",
 	"FormatException",
 	"Function",
 	"Future",
@@ -650,13 +652,11 @@ impl<'a> Gen<'a> {
 		!matches!(
 			ty,
 			Ty::Buf
-				| Ty::U128
-				| Ty::Duration
+				| Ty::U128 | Ty::Duration
 				| Ty::SocketAddr(_)
 				| Ty::IpAddr(_)
 				| Ty::Struct(_)
-				| Ty::Waker
-				| Ty::ForeignFuture
+				| Ty::Waker | Ty::ForeignFuture
 				| Ty::ForeignReader
 		)
 	}
@@ -2739,4 +2739,53 @@ fn indent(code: &str) -> String {
 		out.pop();
 	}
 	out
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	/// Every type the runtime names unqualified is its own or [`TAKEN`], so no exported
+	/// item shadows it.
+	#[test]
+	fn runtime_names_taken() {
+		let mut code = String::new();
+		for line in RUNTIME.lines() {
+			let line = line.split_once("//").map_or(line, |(code, _)| code);
+			// A string literal names nothing.
+			let mut quote = None;
+			for c in line.chars() {
+				match quote {
+					Some(q) if c == q => quote = None,
+					Some(_) => {}
+					None if c == '\'' || c == '"' => quote = Some(c),
+					None => code.push(c),
+				}
+			}
+			code.push('\n');
+		}
+		// A capitalized word no `.` qualifies, nor part of a longer one.
+		let words: Vec<&str> = (code.char_indices())
+			.filter(|&(i, c)| {
+				c.is_ascii_uppercase() && !code[..i].ends_with(|p: char| p == '.' || p == '_' || p.is_alphanumeric())
+			})
+			.map(|(i, _)| {
+				let rest = &code[i..];
+				&rest[..rest
+					.find(|c: char| !(c == '_' || c.is_alphanumeric()))
+					.unwrap_or(rest.len())]
+			})
+			.collect();
+		let declared: BTreeSet<&str> = ["class ", "enum ", "type ", "typedef "]
+			.iter()
+			.flat_map(|kind| code.split(kind).skip(1))
+			.filter_map(|rest| rest.split(|c: char| !(c == '_' || c.is_alphanumeric())).next())
+			.collect();
+		for word in words {
+			// A one-letter name is a type parameter.
+			if word.len() > 1 && !declared.contains(word) {
+				assert!(TAKEN.contains(&word), "the runtime's `{word}` is not in TAKEN");
+			}
+		}
+	}
 }
