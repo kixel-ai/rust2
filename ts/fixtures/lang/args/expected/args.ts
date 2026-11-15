@@ -158,14 +158,12 @@ export function args(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, sum(data.data, data.start, data.length));
 		rs.byteVecPush(out, len(data.data, data.start, data.length) & 0xff);
 		rs.byteVecPush(out, byRef(data) & 0xff);
-		const leaf = rs.iterSlice(kept(data, kind).items);
+		const s2 = kept(data, kind).items;
+		let front = 0;
+		let back = s2.length;
 		let acc: rs.u8 = 0;
-		while (true) {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				break;
-			}
-			acc = rs.u8WrappingAdd(acc, opaque(x));
+		while (!(front >= back)) {
+			acc = rs.u8WrappingAdd(acc, opaque(s2[front++]));
 		}
 		rs.byteVecPush(out, acc);
 	} else if (_4 === 1) {

@@ -176,13 +176,12 @@ export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const v: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u32 => {
 		return _2 as rs.u32;
 	}), undefined, 4, true);
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x3 = leaf.next();
-		if (x3 === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x3 = s[front++];
 		const i: rs.usize = count++;
 		const b: rs.u8 = x3;
 		const _23: rs.Place<rs.usize> = Counts.count(counts, rs.u8Rem(b, 3) === 0);
@@ -537,13 +536,12 @@ export function lent(data: rs.ByteSlice, out: rs.ByteVec): void {
 	dst3.length = dst3.length + 2;
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(option_unwrapOrDefault$1exlfpa(text).v));
 	const counts: Pair2.Pair2 = { a: undefined, b: undefined };
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x6 = leaf.next();
-		if (x6 === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x6 = s[front++];
 		const i: rs.usize = count++;
 		const b2: rs.u8 = x6;
 		if (rs.usizeRem(i, 2) === 0) {

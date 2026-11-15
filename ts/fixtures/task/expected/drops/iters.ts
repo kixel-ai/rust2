@@ -543,14 +543,12 @@ export function drained(log: Log.Log, id: rs.u32): void {
 	const args26 = [(f: rs.Formatter) => rs.usizeDisplay(_222, f), (f: rs.Formatter) => rs.fmtBool(_225, f)];
 	Log.note(log, rs.fmtFormat(["rest ", args26[0], " ", args26[1]]));
 	rs.drop(one);
-	const leaf = rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(Log.text(sink))));
+	const s = rs.byteSliceView(rs.byteVecSlice(Log.text(sink)));
+	let front = 0;
+	let back2 = s.length;
 	let acc: rs.u32 = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
-		acc = rs.u32Add(acc, x as rs.u32);
+	while (!(front >= back2)) {
+		acc = rs.u32Add(acc, s[front++] as rs.u32);
 	}
 	Log.note(log, rs.fmtFormat(["sink ", (f: rs.Formatter) => rs.u32Display(acc, f)]));
 	sink[Symbol.dispose]();

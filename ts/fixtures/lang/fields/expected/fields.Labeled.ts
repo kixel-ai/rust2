@@ -18,14 +18,12 @@ export class Labeled<T> {
 }
 
 export function sum$u8(self: Labeled<rs.u8>): rs.u32 {
-	const leaf = rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(self.bytesData, self.bytesStart, self.bytesLen)));
+	const s = rs.byteSliceView(new rs.ByteSlice(self.bytesData, self.bytesStart, self.bytesLen));
+	let front = 0;
+	let back = s.length;
 	let acc: rs.u32 = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
-		acc = rs.u32Add(acc, x as rs.u32);
+	while (!(front >= back)) {
+		acc = rs.u32Add(acc, s[front++] as rs.u32);
 	}
 	return rs.u32Add(acc, self.tag as rs.u32);
 }

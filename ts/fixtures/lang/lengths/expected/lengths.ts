@@ -2487,17 +2487,18 @@ export function zipped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const slots: [Uint8Array, [rs.u8, rs.u8]][] = Array.from({ length: 3 }, (): [Uint8Array, [rs.u8, rs.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array3_u8_tuple2_u8_u8(item);
 	});
-	const leaf: rs.Iter<[Uint8Array, [rs.u8, rs.u8]]> = rs.iterSlice(slots);
-	const leaf2: rs.Iter<Uint8Array> = rs.vecIntoIter(rows);
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
+	const s: [Uint8Array, [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	const s2: Uint8Array[] = rows.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
+	while (!(front >= back)) {
+		const x = s[front++];
+		if (front2 >= back2) {
 			break;
 		}
-		const x2 = leaf2.next();
-		if (x2 === rs.DONE) {
-			break;
-		}
+		const x2 = s2[front2++];
 		const uninit = x;
 		rs.ptrWrite(uninit, [copy$array_u8(x2), [51, 3] as [rs.u8, rs.u8]] as [Uint8Array, [rs.u8, rs.u8]]);
 		uninit;

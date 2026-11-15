@@ -260,7 +260,8 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured7[Symbol.dispose]();
 		}), true, true);
-		const leaf = new rs.Range(8, 10);
+		let start2 = 8;
+		let end = 10;
 		const f2 = guard(15);
 		const f3 = (kept2: Guard.Guard, g6: Guard.Guard): Guard.Guard => {
 			let _05!: Guard.Guard;
@@ -285,11 +286,8 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			return _05;
 		};
 		let acc: Guard.Guard = f2;
-		while (true) {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				break;
-			}
+		while (!(start2 >= end)) {
+			const x = start2++;
 			acc = f3(acc, guard(x));
 		}
 		const kept: Guard.Guard = acc;
@@ -306,12 +304,10 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured9[Symbol.dispose]();
 		});
-		const leaf2 = new rs.Range(17, 19);
-		while (true) {
-			const x2 = leaf2.next();
-			if (x2 === rs.DONE) {
-				break;
-			}
+		let start3 = 17;
+		let end2 = 19;
+		while (!(start3 >= end2)) {
+			const x2 = start3++;
 			const y2: Guard.Guard = guard(x2);
 			count(y2);
 		}

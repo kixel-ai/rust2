@@ -180,13 +180,12 @@ export function bounds(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(bytes2)), undefined, true);
 		} else if (_28 === 2) {
 			const queue: rs.VecDeque<Item.Item> = rs.dequeNew(1) as rs.VecDeque<Item.Item>;
-			const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 4)));
+			const s3: Uint8Array = rs.byteSliceView(rs.byteSliceRange(data, 4));
+			let front2: number = 0;
+			const back2: number = s3.length;
 			let count2: number = 0;
-			while (true) {
-				const x3 = leaf2.next();
-				if (x3 === rs.DONE) {
-					break;
-				}
+			while (!(front2 >= back2)) {
+				const x3 = s3[front2++];
 				const n: rs.usize = count2++;
 				const tag: rs.u8 = x3;
 				if (rs.usizeRem(n, 2) === 0) {
@@ -272,13 +271,12 @@ export function bounds(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const b2: Key.Key = _238[1];
 			const set3: rs.BTreeSet<Key.Key> = rs.btreeNew(Key.cmp$cmp_Ord) as rs.BTreeSet<Key.Key>;
 			const map2: rs.BTreeMap<Key.Key, rs.u8> = rs.btreeNew(Key.cmp$cmp_Ord) as rs.BTreeMap<Key.Key, rs.u8>;
-			const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 4)));
+			const s2: Uint8Array = rs.byteSliceView(rs.byteSliceRange(data, 4));
+			let front: number = 0;
+			const back: number = s2.length;
 			let count: number = 0;
-			while (true) {
-				const x2 = leaf.next();
-				if (x2 === rs.DONE) {
-					break;
-				}
+			while (!(front >= back)) {
+				const x2 = s2[front++];
 				const n2: rs.usize = count++;
 				const k: rs.u8 = x2;
 				rs.btreeAdd(set3, { _0: k });

@@ -60,14 +60,12 @@ function new_(inputData: Uint8Array, inputStart: number, inputLen: number, cut: 
  * is documented to change the `Buf`'s current position.
  */
 export function remaining$bytes_Buf(self: Pieces): rs.usize {
-	const leaf = rs.iterSlice(self.parts.items);
+	const s = self.parts.items;
+	let front = 0;
+	let back = s.length;
 	let acc: rs.usize = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
-		acc = rs.usizeAdd(acc, x.length);
+	while (!(front >= back)) {
+		acc = rs.usizeAdd(acc, s[front++].length);
 	}
 	return rs.usizeSub(acc, self.at);
 }

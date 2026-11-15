@@ -652,7 +652,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					self.decl(false, &s, array, v.clone().member("data"), out);
 					v.member("length")
 				} else {
-					let items = if rs(f, "vecIntoIter") { args[0].clone().member("items") } else { args[0].clone() };
+					let items = if rs(f, "vecIntoIter") {
+						args[0].clone().member("items")
+					} else {
+						args[0].clone()
+					};
 					self.decl(false, &s, array, items, out);
 					Expr::ident(&s).member("length")
 				};

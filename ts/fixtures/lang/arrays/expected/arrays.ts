@@ -463,14 +463,12 @@ export function asSlices(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_22 === 6) {
 			written(rs.byteSliceFrom(bytes), rs.sliceFrom(wide), op);
 		} else {
-			const leaf = rs.iterSlice(wide);
+			const s3 = wide;
+			let front = 0;
+			let back = s3.length;
 			let acc: rs.u32 = 0;
-			while (true) {
-				const x = leaf.next();
-				if (x === rs.DONE) {
-					break;
-				}
-				acc = rs.u32Add(acc, x as rs.u32);
+			while (!(front >= back)) {
+				acc = rs.u32Add(acc, s3[front++] as rs.u32);
 			}
 			const dst = out;
 			const word = acc;

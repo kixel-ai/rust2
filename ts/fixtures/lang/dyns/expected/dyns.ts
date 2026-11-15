@@ -133,13 +133,12 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const args15 = [(f: rs.Formatter) => rs.u8Display(_78, f), (f: rs.Formatter) => rs.u8Display(_82, f)];
 		put(out, rs.fmtFormat([args15[0], " ", args15[1], " "]).v);
 		const shapes: rs.Vec<Named.Named> = new rs.Vec();
-		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 3, dataLen - 3)));
+		const s3: Uint8Array = rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 3, dataLen - 3));
+		let front: number = 0;
+		const back: number = s3.length;
 		let count: number = 0;
-		while (true) {
-			const x2 = leaf.next();
-			if (x2 === rs.DONE) {
-				break;
-			}
+		while (!(front >= back)) {
+			const x2 = s3[front++];
 			const i: rs.usize = count++;
 			const x: rs.u8 = x2;
 			const _101: Named.Named = make(rs.u8WrappingAdd(x, i & 0xff), x);
@@ -470,13 +469,12 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const args50 = [(f: rs.Formatter) => rs.fmtOption(some, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(none, f, rs.u8Debug)];
 		put(out, rs.fmtFormat([args50[0], " ", args50[1], " "]).v);
 		const boxes: rs.Vec<Any.Any> = new rs.Vec();
-		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2)));
+		const s: Uint8Array = rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2));
+		let front: number = 0;
+		const back: number = s.length;
 		let count: number = 0;
-		while (true) {
-			const x2 = leaf.next();
-			if (x2 === rs.DONE) {
-				break;
-			}
+		while (!(front >= back)) {
+			const x2 = s[front++];
 			const i: rs.usize = count++;
 			const x: rs.u8 = x2;
 			const _238: rs.u8 = rs.u8Rem(x, 4);
@@ -679,13 +677,12 @@ export function fns(data: rs.ByteSlice, out: rs.ByteVec): void {
 			captured2 = rs.u8WrappingAdd(captured2, x4);
 			return rs.u32Mul(captured2 as rs.u32, 3);
 		});
-		const leaf: rs.Iter<(a0: rs.u8) => rs.u8> = rs.iterSlice(fs.items);
+		const s2: Array<(a0: rs.u8) => rs.u8> = fs.items;
+		let front: number = 0;
+		const back: number = s2.length;
 		let count: number = 0;
-		while (true) {
-			const x5 = leaf.next();
-			if (x5 === rs.DONE) {
-				break;
-			}
+		while (!(front >= back)) {
+			const x5 = s2[front++];
 			const i2 = count++;
 			const y: rs.u8 = x5(option_unwrapOr$1fr498u(rs.byteSliceGet(rs.byteSliceRange(data, 2), i2), b));
 			const _133: rs.u32 = hook.f(y);
@@ -1546,21 +1543,20 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _37: rs.Arc<rs.RefCell<Shape.Shape>> = new rs.ArcDyn(_38, rs.tailDyn(_38.value, { value: (value3: rs.RefCell<Tri.Tri>) => new ofPlace$dyns_Tri(rs.valuePlace(value3)) }));
 		const _41: rs.Arc<rs.RefCell<Noisy.Noisy>> = new rs.Arc(new rs.RefCell(new Noisy.Noisy(a ^ b, rs.arcClone(log))));
 		const shapes: rs.Vec<rs.Arc<rs.RefCell<Shape.Shape>>> = rs.vecFrom([_31, _34, _37, new rs.ArcDyn(_41, rs.tailDyn(_41.value, { value: (value4: rs.RefCell<Noisy.Noisy>) => new of$dyns_Noisy(value4.value) }, rs.drop))]);
-		const leaf: rs.Iter<rs.Arc<rs.RefCell<Shape.Shape>>> = rs.iterSlice(shapes.items);
+		const s3: rs.Arc<rs.RefCell<Shape.Shape>>[] = shapes.items;
+		let front: number = 0;
+		const back: number = s3.length;
 		let count: number = 0;
-		while (true) {
-			const x2 = leaf.next();
-			if (x2 === rs.DONE) {
-				break;
-			}
+		while (!(front >= back)) {
+			const x2 = s3[front++];
 			const i: rs.usize = count++;
 			const _61: rs.RefCell<Shape.Shape> = rs.refCellBorrowMut(x2.value);
 			const _63: rs.u8 = rs.u8WrappingAdd(c, i & 0xff);
 			_61.value.grow$Shape(_63);
 			rs.refMutRelease(_61);
 		}
-		const areas: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(shapes.items), (s3: rs.Arc<rs.RefCell<Shape.Shape>>): rs.u32 => {
-			const _5: rs.RefCell<Shape.Shape> = rs.refCellBorrow(s3.value);
+		const areas: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(shapes.items), (s4: rs.Arc<rs.RefCell<Shape.Shape>>): rs.u32 => {
+			const _5: rs.RefCell<Shape.Shape> = rs.refCellBorrow(s4.value);
 			const _0: rs.u32 = _5.value.area$Shape();
 			rs.refRelease(_5);
 			return _0;
@@ -1583,9 +1579,9 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _114: boolean = !_116.ok;
 		const _123: rs.Result<rs.RefCell<Square.Square>, rs.BorrowMutError> = rs.refCellTryBorrowMut(sq.value);
 		const _121: boolean = !_123.ok;
-		const _127: rs.u8 = result_unwrapOr$0k78oya(result_map$11lf952(rs.refCellTryBorrow(shapes.items[rs.idx(shapes.items, 0)].value), (s4: rs.RefCell<Shape.Shape>): rs.u8 => {
-			const _02: rs.u8 = s4.value.sides$Shape();
-			rs.refRelease(s4);
+		const _127: rs.u8 = result_unwrapOr$0k78oya(result_map$11lf952(rs.refCellTryBorrow(shapes.items[rs.idx(shapes.items, 0)].value), (s5: rs.RefCell<Shape.Shape>): rs.u8 => {
+			const _02: rs.u8 = s5.value.sides$Shape();
+			rs.refRelease(s5);
 			return _02;
 		}), 0);
 		const args62 = [(f: rs.Formatter) => rs.fmtBool(_114, f), (f: rs.Formatter) => rs.fmtBool(_121, f), (f: rs.Formatter) => rs.u8Display(_127, f)];
@@ -1636,11 +1632,11 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const weak: rs.Weak<rs.RefCell<Shape.Shape>> = new rs.Weak(shape);
 		noisy[Symbol.dispose]();
 		const _268: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-		const _272: rs.u32 | undefined = option_map$1rkcfqi(rs.weakUpgrade(weak), (s5: rs.Arc<rs.RefCell<Shape.Shape>>): rs.u32 => {
-			const _52: rs.RefCell<Shape.Shape> = rs.refCellBorrow(s5.value);
+		const _272: rs.u32 | undefined = option_map$1rkcfqi(rs.weakUpgrade(weak), (s6: rs.Arc<rs.RefCell<Shape.Shape>>): rs.u32 => {
+			const _52: rs.RefCell<Shape.Shape> = rs.refCellBorrow(s6.value);
 			const _03: rs.u32 = _52.value.area$Shape();
 			rs.refRelease(_52);
-			s5[Symbol.dispose]();
+			s6[Symbol.dispose]();
 			return _03;
 		});
 		const args67 = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_268.value), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(_272, f, rs.u32Debug)];
@@ -1997,13 +1993,12 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		const n: rs.Cell<rs.u32> = new rs.Cell(a as rs.u32);
 		const sq: rs.Cell<Square.Square> = new rs.Cell({ side: b as rs.u16 });
 		const tri: rs.Cell<Tri.Tri> = new rs.Cell({ tag: "Tall", _0: c } as Tri.Tri);
-		const leaf: rs.Iter<rs.Cell<Shape.Shape>> = rs.iterSlice([rs.tailDyn(n, { v: (value: rs.Cell<rs.u32>) => new ofPlace$u32(value) }), rs.tailDyn(sq, { v: (value2: rs.Cell<Square.Square>) => new of$dyns_Square(value2.v) }), rs.tailDyn(tri, { v: (value3: rs.Cell<Tri.Tri>) => new ofPlace$dyns_Tri(value3) })]);
+		const s: rs.Cell<Shape.Shape>[] = [rs.tailDyn(n, { v: (value: rs.Cell<rs.u32>) => new ofPlace$u32(value) }), rs.tailDyn(sq, { v: (value2: rs.Cell<Square.Square>) => new of$dyns_Square(value2.v) }), rs.tailDyn(tri, { v: (value3: rs.Cell<Tri.Tri>) => new ofPlace$dyns_Tri(value3) })];
+		let front: number = 0;
+		const back: number = s.length;
 		let count: number = 0;
-		while (true) {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				break;
-			}
+		while (!(front >= back)) {
+			const x = s[front++];
 			const i2 = count++;
 			x.v.grow$Shape(rs.u8WrappingAdd(c, i2 & 0xff));
 		}

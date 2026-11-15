@@ -2873,8 +2873,20 @@ pub fn fused_leaves(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 					.map(|(i, &x)| (i as u8) ^ x)
 					.fold(0u8, u8::wrapping_add),
 			);
-			out.push((i8::MIN..i8::MAX).zip(data).rev().filter(|&(i, &x)| (i as u8) < x).count() as u8);
-			out.push((u64::MAX - 3..u64::MAX).rev().zip(a).filter(|&(i, &x)| i as u8 ^ x > 9).count() as u8);
+			out.push(
+				(i8::MIN..i8::MAX)
+					.zip(data)
+					.rev()
+					.filter(|&(i, &x)| (i as u8) < x)
+					.count() as u8,
+			);
+			out.push(
+				(u64::MAX - 3..u64::MAX)
+					.rev()
+					.zip(a)
+					.filter(|&(i, &x)| i as u8 ^ x > 9)
+					.count() as u8,
+			);
 		}
 		// Owned `Vec`s of numbers and an array by value.
 		4 => {
@@ -2924,7 +2936,11 @@ pub fn fused_leaves(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		}
 		// Early exits from a range read in place.
 		6 => {
-			out.push((0..data.len()).zip(a.iter().map(seen!(9))).any(|(i, x)| x as usize % 64 == i) as u8);
+			out.push(
+				(0..data.len())
+					.zip(a.iter().map(seen!(9)))
+					.any(|(i, x)| x as usize % 64 == i) as u8,
+			);
 			out.extend(
 				(n(a.len()) - 9..n(b.len()))
 					.map(|i| i as u8)
