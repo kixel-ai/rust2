@@ -14,9 +14,15 @@ import * as Storage from "./elements.Storage.ts";
  * another, read back through slices made of the pointers.
  */
 export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const v: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u32 => {
-		return rs.u32Mul(_2 as rs.u32, 3);
-	}), undefined, 4, true);
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v2: rs.Vec<rs.u32> = rs.vecWithCapacity(back - front, 4);
+	while (!(front >= back)) {
+		const x = s[front++];
+		v2.items.push(rs.u32Mul(x as rs.u32, 3));
+	}
+	const v: rs.Vec<rs.u32> = v2;
 	rs.iterExtend(v, rs.iterSlice([7, 8]), undefined, 4, true);
 	const len: rs.usize = v.items.length;
 	const at: rs.usize = rs.usizeRem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize, rs.usizeSub(len, 1));
@@ -364,7 +370,14 @@ export function rawSlices(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const tail: rs.Slice<rs.u32> = rs.sliceRange(p.deref(), 1);
 	rs.idx(tail, 0);
 	tail.data[tail.start] = 9;
-	rs.byteVecPush(out, rs.iterSum(rs.iterSlice(rs.sliceItems(p.deref())), rs.u32Add, 0) & 0xff);
+	const s = rs.sliceItems(p.deref());
+	let front = 0;
+	let back2 = s.length;
+	let acc: rs.u32 = 0;
+	while (!(front >= back2)) {
+		acc = rs.u32Add(acc, s[front++]);
+	}
+	rs.byteVecPush(out, acc & 0xff);
 	emit(rs.sliceFrom(v.items), out);
 	const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
 	rs.iterExtendBytes(bytes, rs.iterSlice(Uint8Array.of(3, 4)), undefined, true);
@@ -394,9 +407,9 @@ export function rawSlices(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.idx(_110, 1);
 	rs.byteVecPush(out, _110.data[_110.start + 1] & 0xff);
 	const pointer2 = nn;
-	rs.byteVecPush(out, option_mapOr$0e6re16(pointer2.ptr === rs.NULL ? undefined : pointer2.deref(), 0, (s: rs.Slice<rs.u32>): rs.u32 => {
-		rs.idx(s, 0);
-		return s.data[s.start];
+	rs.byteVecPush(out, option_mapOr$0e6re16(pointer2.ptr === rs.NULL ? undefined : pointer2.deref(), 0, (s2: rs.Slice<rs.u32>): rs.u32 => {
+		rs.idx(s2, 0);
+		return s2.data[s2.start];
 	}) & 0xff);
 	const _121: rs.Slice<rs.u32> = nn.deref();
 	rs.idx(_121, 0);

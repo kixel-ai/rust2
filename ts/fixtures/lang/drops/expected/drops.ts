@@ -524,9 +524,16 @@ export function drops(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}, how, log);
 	} else if (_27 === 5) {
 		ways$drops_InBox_drops_Logged_drops_drops_closure8((b7: rs.u8): InBox.InBox<Logged.Logged> => {
-			return new InBox.InBox(guard(rs.u8Add(b7, 1)), rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(pick, 3)), (i2: rs.u8): Guard.Guard<Logged.Logged> => {
-				return guard(rs.u8Add(rs.u8Add(b7, 2), i2));
-			}), undefined, 16, true));
+			const _314: Guard.Guard<Logged.Logged> = guard(rs.u8Add(b7, 1));
+			let start2 = 0;
+			let end2 = rs.u8Rem(pick, 3);
+			const v2: rs.Vec<Guard.Guard<Logged.Logged>> = rs.vecWithCapacity(Math.max(end2 - start2, 0), 16);
+			while (!(start2 >= end2)) {
+				const x2 = start2++;
+				const y2: Guard.Guard<Logged.Logged> = guard(rs.u8Add(rs.u8Add(b7, 2), x2));
+				v2.items.push(y2);
+			}
+			return new InBox.InBox(_314, v2);
 		}, how, log);
 	} else if (_27 === 6) {
 		ways$drops_Deep_drops_Logged_drops_drops_closure9((b6: rs.u8): Deep.Deep<Logged.Logged> => {
@@ -534,9 +541,16 @@ export function drops(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}, how, log);
 	} else if (_27 === 7) {
 		ways$drops_Tree_drops_Logged_drops_drops_closure10((b5: rs.u8): Tree.Tree<Logged.Logged> => {
-			return new Tree.Tree(either(rs.u8Add(b5, 1)), rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(pick, 3)), (i: rs.u8): Tree.Tree<Logged.Logged> => {
-				return new Tree.Tree(either(rs.u8Add(rs.u8Add(b5, 3), rs.u8Mul(2, i))), new rs.Vec());
-			}), undefined, 32, true));
+			const _311: Either.Either<Logged.Logged> = either(rs.u8Add(b5, 1));
+			let start = 0;
+			let end = rs.u8Rem(pick, 3);
+			const v: rs.Vec<Tree.Tree<Logged.Logged>> = rs.vecWithCapacity(Math.max(end - start, 0), 32);
+			while (!(start >= end)) {
+				const x = start++;
+				const y: Tree.Tree<Logged.Logged> = new Tree.Tree(either(rs.u8Add(rs.u8Add(b5, 3), rs.u8Mul(2, x))), new rs.Vec());
+				v.items.push(y);
+			}
+			return new Tree.Tree(_311, v);
 		}, how, log);
 	} else if (_27 === 8) {
 		ways$drops_Ping_drops_Logged_drops_drops_closure11((b4: rs.u8): Ping.Ping<Logged.Logged> => {

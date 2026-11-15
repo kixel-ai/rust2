@@ -29,11 +29,16 @@ export class ArcNode {
 
 function new_(this_: rs.Weak<ArcNode>, noisy: Noisy.Noisy, more: rs.u8): ArcNode {
 	const _4: rs.Weak<ArcNode> = rs.weakClone(this_);
-	const _5: rs.Vec<rs.Weak<ArcNode>> = rs.iterToVec(rs.iterMap(new rs.Range(0, more), (_2: rs.u8): rs.Weak<ArcNode> => {
-		return rs.weakClone(this_);
-	}), undefined, 4, true);
+	let start = 0;
+	let end = more;
+	const v: rs.Vec<rs.Weak<ArcNode>> = rs.vecWithCapacity(Math.max(end - start, 0), 4);
+	while (!(start >= end)) {
+		start++;
+		const y: rs.Weak<ArcNode> = rs.weakClone(this_);
+		v.items.push(y);
+	}
 	const _13: rs.Arc<ArcNode> | undefined = rs.weakUpgrade(this_);
-	const _0: ArcNode = new ArcNode(_4, _5, noisy, Uint8Array.of(_13 === undefined ? 1 : 0, this_.arc.strong & 0xff, rs.weakWeakCount(this_) & 0xff));
+	const _0: ArcNode = new ArcNode(_4, v, noisy, Uint8Array.of(_13 === undefined ? 1 : 0, this_.arc.strong & 0xff, rs.weakWeakCount(this_) & 0xff));
 	rs.drop(_13);
 	return _0;
 }

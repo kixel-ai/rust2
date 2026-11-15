@@ -38,12 +38,35 @@ export function sender(self: State, arg: rs.u8): rs.WatchSender<Item.Item> | und
 }
 
 export function slot(self: State, arg: rs.u8): rs.Arc<rs.RefCell<rs.WatchReceiver<Item.Item> | undefined>> | undefined {
-	const live: rs.Vec<rs.Arc<rs.RefCell<rs.WatchReceiver<Item.Item> | undefined>>> = rs.iterToVec(rs.iterFilter(rs.iterSlice(self.receivers.items), (s: rs.Arc<rs.RefCell<rs.WatchReceiver<Item.Item> | undefined>>): boolean => {
+	const s2 = self.receivers.items;
+	let front = 0;
+	let back = s2.length;
+	const f = (s: rs.Arc<rs.RefCell<rs.WatchReceiver<Item.Item> | undefined>>): boolean => {
 		const _52: rs.RefCell<rs.WatchReceiver<Item.Item> | undefined> = rs.refCellBorrow(s.value);
 		const _02: boolean = _52.value !== undefined;
 		rs.refRelease(_52);
 		return _02;
-	}), "next", 4);
+	};
+	const d: rs.Arc<rs.RefCell<rs.WatchReceiver<Item.Item> | undefined>>[] = [];
+	let cap = 0;
+	fused2: while (true) {
+		let y!: rs.Arc<rs.RefCell<rs.WatchReceiver<Item.Item> | undefined>>;
+		while (true) {
+			if (front >= back) {
+				break fused2;
+			}
+			const x = s2[front++];
+			if (f(x)) {
+				y = x;
+				break;
+			}
+		}
+		if (d.length === cap) {
+			cap = rs.capReserve(d.length, cap, 1, 4);
+		}
+		d.push(y);
+	}
+	const live: rs.Vec<rs.Arc<rs.RefCell<rs.WatchReceiver<Item.Item> | undefined>>> = new rs.Vec(d, cap);
 	return then$1nwtvlk(!(live.items.length === 0), (): rs.Arc<rs.RefCell<rs.WatchReceiver<Item.Item> | undefined>> => {
 		return rs.arcClone(live.items[rs.idx(live.items, rs.usizeRem(arg as rs.usize, live.items.length))]);
 	});

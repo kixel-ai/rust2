@@ -11,13 +11,21 @@ export function input(kind: rs.u8, data: rs.ByteSlice): rs.ByteVec {
 	if (rs.u8Rem(kind, 2) === 0) {
 		return rs.byteSliceToByteVec(data);
 	}
-	return rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u8 => {
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const f = (_2: rs.u8): rs.u8 => {
 		const _52: rs.usize = rs.u8Rem(_2, 32) as rs.usize;
 		if (!(_52 < 32)) {
 			rs.panic("index out of bounds: the len is " + 32 + " but the index is " + _52);
 		}
 		return Uint8Array.of(0, 65, 127, 192, 193, 194, 223, 224, 225, 237, 238, 239, 240, 241, 244, 245, 128, 143, 144, 159, 160, 191, 128, 143, 144, 159, 160, 191, 128, 191, 152, 187)[_52];
-	}), undefined, true);
+	};
+	const v: rs.ByteVec = rs.byteVecWithCapacity(back - front);
+	while (!(front >= back)) {
+		rs.byteVecPush(v, f(s[front++]));
+	}
+	return v;
 }
 
 export function decodes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {

@@ -515,10 +515,38 @@ export function floats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		dst19.length = dst19.length + 8;
 		rs.byteVecPush(out, rs.f64IsSignNegative(rs.f64FromBits({ hi: 0xfff80000, lo: 0x123 } as rs.u64)) ? 1 : 0);
 		const v2: rs.f64[] = [a, b, 0.5];
-		putF64(out, rs.iterSum(rs.iterSlice(v2), rs.f64Add, -0.0));
-		putF64(out, rs.iterProduct(rs.iterSlice(v2), rs.f64Mul, 1.0));
-		putF64(out, rs.iterSum(rs.iterSlice([]), rs.f64Add, -0.0));
-		putF64(out, rs.iterSum(rs.iterSlice([-0.0, -0.0]), rs.f64Add, -0.0));
+		const s2 = v2;
+		let front = 0;
+		let back = s2.length;
+		let acc: rs.f64 = -0.0;
+		while (!(front >= back)) {
+			acc = rs.f64Add(acc, s2[front++]);
+		}
+		putF64(out, acc);
+		const s3 = v2;
+		let front2 = 0;
+		let back2 = s3.length;
+		let acc2: rs.f64 = 1.0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.f64Mul(acc2, s3[front2++]);
+		}
+		putF64(out, acc2);
+		const s4: rs.f64[] = [];
+		let front3 = 0;
+		let back3 = s4.length;
+		let acc3: rs.f64 = -0.0;
+		while (!(front3 >= back3)) {
+			acc3 = rs.f64Add(acc3, s4[front3++]);
+		}
+		putF64(out, acc3);
+		const s5 = [-0.0, -0.0];
+		let front4 = 0;
+		let back4 = s5.length;
+		let acc4: rs.f64 = -0.0;
+		while (!(front4 >= back4)) {
+			acc4 = rs.f64Add(acc4, s5[front4++]);
+		}
+		putF64(out, acc4);
 		putF64(out, 0.0);
 		const g: Gauge.Gauge = { level: a, peak: b };
 		raise(rs.place(() => g.level, (value) => g.level = value), b);

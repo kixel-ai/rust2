@@ -1,11 +1,12 @@
 //! Iterator chains fused into their consumer: a `count`, `any`, `all`, `fold`, `rfold`,
-//! `sum`, `product`, `for_each`, `find`, `rfind`, `position`, or `for` loop of `map`,
-//! `filter`, `enumerate`, `zip`, and `rev` adaptors over a slice's, a `Vec`'s, or a range's
-//! iterator, or the `rev` of one, is one loop where it is read, not the `rs.Iter` objects
-//! the runtime would chain. A `rev`, `rfold`, or `rfind` reads what it wraps from the back,
-//! each node as its `nextBack` in the runtime does. Each adaptor's `next` in the runtime is one function every chain in the
-//! program calls through, which engines stop inlining once they have seen a few, and each
-//! `zip` and `enumerate` makes a pair per item.
+//! `sum`, `product`, `for_each`, `find`, `rfind`, `position`, `collect` into a `Vec`, or
+//! `for` loop of `map`, `filter`, `enumerate`, `zip`, `skip`, `take`, and `rev` adaptors
+//! over a slice's, a `Vec`'s, or a range's iterator, or the `rev` of one, or of no adaptor
+//! at all, is one loop where it is read, not the `rs.Iter` objects the runtime would
+//! chain. A `rev`, `rfold`, or `rfind` reads what it wraps from the back, each node as its
+//! `nextBack` in the runtime does. Each adaptor's `next` in the runtime is one function
+//! every chain in the program calls through, which engines stop inlining once they have
+//! seen a few, and each `zip` and `enumerate` makes a pair per item.
 //!
 //! The loop reads each slice's or `Vec`'s leaf as its array and two indices, and each range
 //! of integers that fit a number as its bounds, as `SliceIter` and `Range` step them; a leaf
@@ -43,6 +44,10 @@ enum Consumer {
 	ForEach,
 	Find,
 	Position,
+	/// `collect` into a `Vec`, or a `Vec<u8>` if it is one of bytes.
+	Collect {
+		bytes: bool,
+	},
 }
 
 impl Consumer {
@@ -55,6 +60,8 @@ impl Consumer {
 			"iterForEach" => Self::ForEach,
 			"iterFind" | "iterRfind" => Self::Find,
 			"iterPosition" => Self::Position,
+			"iterToVec" => Self::Collect { bytes: false },
+			"iterToByteVec" => Self::Collect { bytes: true },
 			_ => return None,
 		})
 	}
@@ -141,6 +148,22 @@ pub(super) enum Node {
 	Rev {
 		inner: Box<Node>,
 	},
+	/// `n` the items it still skips from the front, as its first read from the front reads
+	/// past them by `nth`, dropping each by `drop`; read from the back, as many as it has left.
+	Skip {
+		inner: Box<Node>,
+		n: String,
+		drop: Option<Expr>,
+	},
+	/// `n` the items it may still yield from the front. Read from the back, `trimmed` once its
+	/// first read has read past what its iterator holds beyond them by `nth_back`, dropping
+	/// each by `drop`.
+	Take {
+		inner: Box<Node>,
+		n: String,
+		drop: Option<Expr>,
+		trimmed: Option<String>,
+	},
 }
 
 /// A closure or value a fused chain reads: what holds it, and, for a closure whose body is
@@ -187,6 +210,11 @@ enum Shape<'tcx> {
 	/// Each side's dropper.
 	Zip(Box<Shape<'tcx>>, Box<Shape<'tcx>>, Trusted, [Option<Expr>; 2], Ty<'tcx>),
 	Rev(Box<Shape<'tcx>>),
+	/// The count and the dropper of what it skips.
+	Skip(Box<Shape<'tcx>>, Expr, Option<Expr>),
+	/// The limit, the dropper of what `next_back` reads past, and whether its fold reads
+	/// its iterator by index.
+	Take(Box<Shape<'tcx>>, Expr, Option<Expr>, bool),
 }
 
 /// A zip's `rs.Trusted`.
@@ -212,9 +240,40 @@ fn adaptor(tcx: ty::TyCtxt<'_>, ty: Ty<'_>) -> Option<&'static str> {
 		["iter", "adapters", "filter", "Filter"] => "filter",
 		["iter", "adapters", "enumerate", "Enumerate"] => "enumerate",
 		["iter", "adapters", "zip", "Zip"] => "zip",
+		["iter", "adapters", "skip", "Skip"] => "skip",
+		["iter", "adapters", "take", "Take"] => "take",
 		["iter", "adapters", "rev", "Rev"] if adaptor(tcx, gargs.type_at(0)).is_some() => "rev",
 		_ => return None,
 	})
+}
+
+/// Whether `f` is a runtime consumer a chain may fuse into.
+pub(super) fn consumes(f: &Expr) -> bool {
+	matches!(peel(f), Expr::Rs(name) if Consumer::of(name).is_some())
+}
+
+/// `ty` without the `Copied` of an iterator of numbers, which the mapping makes the
+/// iterator itself: what a leaf it makes is read as.
+fn uncopied<'tcx>(tcx: ty::TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
+	match ty.kind() {
+		ty::Adt(adt, gargs) if library::std_path(tcx, adt.did()) == ["iter", "adapters", "copied", "Copied"] => {
+			uncopied(tcx, gargs.type_at(0))
+		}
+		_ => ty,
+	}
+}
+
+/// Whether `ty` is an iterator a chain may read in place as its leaf: a slice's, a `Vec`'s,
+/// an array's by value, a range's of integers that fit a number, or the `rev` of one.
+/// The mapping's call decides the rest.
+fn leaf_ty<'tcx>(tcx: ty::TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
+	let ty = uncopied(tcx, ty);
+	if let ty::Adt(adt, gargs) = ty.kind()
+		&& library::std_path(tcx, adt.did()) == ["iter", "adapters", "rev", "Rev"]
+	{
+		return leaf_ty(tcx, gargs.type_at(0));
+	}
+	super::step::array_iter(tcx, ty).is_some() || by_value(tcx, ty).is_some() || super::small_range(tcx, ty)
 }
 
 /// Whether `def_id` is `DoubleEndedIterator::next_back`, or an implementation of it.
@@ -245,8 +304,8 @@ fn off(e: Option<&Expr>) -> bool {
 
 impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// Whether a call of `def_id` on `self_ty` is a consumer whose chain may fuse: a
-	/// consumer of `Iterator` or `DoubleEndedIterator` on one of the adaptors this fuses.
-	/// The mapping's call decides the rest.
+	/// consumer of `Iterator` or `DoubleEndedIterator` on one of the adaptors this fuses,
+	/// or on a leaf it may read in place. The mapping's call decides the rest.
 	pub(super) fn fuses(&self, def_id: rustc_hir::def_id::DefId, gargs: ty::GenericArgs<'tcx>) -> bool {
 		let Some((owner, name)) = std_key(self.tcx, def_id) else {
 			return false;
@@ -254,12 +313,16 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let consumer = match owner.as_str() {
 			"Iterator" => matches!(
 				name.as_str(),
-				"count" | "any" | "all" | "fold" | "sum" | "product" | "for_each" | "find" | "position"
+				"count" | "any" | "all" | "fold" | "sum" | "product" | "for_each" | "find" | "position" | "collect"
 			),
 			"DoubleEndedIterator" => matches!(name.as_str(), "rfold" | "rfind"),
 			_ => false,
 		};
-		consumer && gargs.types().next().is_some_and(|ty| adaptor(self.tcx, ty).is_some())
+		consumer
+			&& gargs
+				.types()
+				.next()
+				.is_some_and(|ty| adaptor(self.tcx, ty).is_some() || leaf_ty(self.tcx, ty))
 	}
 
 	/// The statements that compute `init`, a consumer the mapping made of a chain of type
@@ -285,7 +348,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		// The values it reads, and the flags after them, each of which must be off but a
 		// fold's `owns`, which drops its closure as it ends.
 		let (values, flags): (&[Expr], &[Expr]) = match (consumer, runtime.as_str()) {
-			(Consumer::Count, _) => (&[], rest),
+			(Consumer::Count | Consumer::Collect { .. }, _) => (&[], rest),
 			(Consumer::Fold, _) => rest.split_at_checked(2)?,
 			_ => rest.split_at_checked(1)?,
 		};
@@ -303,12 +366,32 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				false
 			}
 			(Consumer::Find, _) if flags.len() <= 2 => false,
+			(Consumer::Collect { .. }, _) => false,
 			_ if !flags.is_empty() => return None,
 			_ => false,
 		};
+		let collect = match consumer {
+			Consumer::Collect { bytes } => Some(self.collected(bytes, flags, ty)?),
+			_ => None,
+		};
+		let folds = collect.as_ref().map_or(consumer.folds(), |c| c.folds);
 		let shape = self.chain_shape(chain, ty, back)?;
+		if takes_by_index(&shape, folds, back) {
+			return None;
+		}
 		let mut out = Vec::new();
-		let root = self.bind(shape, consumer.folds(), back, span, &mut out);
+		let root = self.bind(shape, folds, back, span, &mut out);
+		// A leaf the runtime makes, which reads itself, or one whose size `collect` may not
+		// know as it reserves.
+		if matches!(root, Node::Leaf { .. }) || collect.as_ref().is_some_and(|c| c.trusted && has_leaf(&root)) {
+			return None;
+		}
+		// The items a leaf read in place has left, which `count` reads by none of them.
+		if consumer == Consumer::Count
+			&& let Node::Slice { .. } | Node::Range { .. } = unrev(&root)
+		{
+			return Some((out, left(unrev(&root))));
+		}
 		// What it reads, held in order, then `sum`'s `add` and zero swapped into `fold`'s.
 		let mut values: Vec<Fun> = values.iter().map(|v| self.fun(v.clone(), None, &mut out)).collect();
 		if !matches!(runtime.as_str(), "iterFold" | "iterRfold") && consumer == Consumer::Fold {
@@ -403,6 +486,66 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				body.push(StmtKind::Expr(Expr::Postfix(Box::new(Expr::ident(&i)), "++")).at(None));
 				Expr::ident(at)
 			}
+			Consumer::Collect { bytes } => {
+				let c = collect.expect("a collect's flags");
+				let x = item.whole();
+				let item_ty = item_of(&root);
+				let vec_ty = |bytes| match bytes {
+					true => Type::Rs("ByteVec", Vec::new()),
+					false => Type::Rs("Vec", vec![item_ty.clone()]),
+				};
+				let v = self.b.fresh("v");
+				let at = Expr::ident(&v);
+				match (c.trusted, c.size) {
+					// As `iterToByteVec`'s, which reserves for what the size hint says is left once
+					// it has an item and no room.
+					(false, None) => {
+						let made = Expr::New(Box::new(Expr::Rs("ByteVec".into())), Vec::new());
+						out.push(StmtKind::decl(false, &v, Some(vec_ty(true)), Some(made)).at(None));
+						let full = at
+							.clone()
+							.member("length")
+							.binary("===", at.clone().member("data").member("length"));
+						let reserve = Expr::rs("byteVecReserve", vec![at.clone(), and_one(lower(&root))]);
+						body.push(if_then(full, vec![StmtKind::Expr(reserve).at(None)]));
+						body.push(StmtKind::Expr(Expr::rs("byteVecPush", vec![at.clone(), x])).at(None));
+						at
+					}
+					// As `iterToVec`'s, of `size`-byte items: the capacity `Vec::push` reserves, from
+					// the size hint, held apart from its items until it is made of them.
+					(false, Some(size)) => {
+						let (d, cap) = (self.b.fresh("d"), self.b.fresh("cap"));
+						let array = Some(Type::Array(Box::new(item_ty.clone())));
+						out.push(StmtKind::decl(false, &d, array, Some(Expr::Array(Vec::new()))).at(None));
+						out.push(StmtKind::decl(true, &cap, None, Some(Expr::lit("0"))).at(None));
+						let len = Expr::ident(&d).member("length");
+						let args = vec![len.clone(), Expr::ident(&cap), and_one(lower(&root)), size];
+						let reserve = Expr::ident(&cap).assign(Expr::rs("capReserve", args));
+						body.push(if_then(
+							len.binary("===", Expr::ident(&cap)),
+							vec![StmtKind::Expr(reserve).at(None)],
+						));
+						body.push(StmtKind::Expr(Expr::ident(&d).member("push").call(vec![x])).at(None));
+						Expr::New(Box::new(Expr::Rs("Vec".into())), vec![Expr::ident(d), Expr::ident(cap)])
+					}
+					// A `TrustedLen` one's, made with room for exactly its upper bound.
+					(true, size) => {
+						let (made, push) = match size {
+							None => (
+								Expr::rs("byteVecWithCapacity", vec![upper(&root)]),
+								Expr::rs("byteVecPush", vec![at.clone(), x]),
+							),
+							Some(size) => (
+								Expr::rs("vecWithCapacity", vec![upper(&root), size]),
+								at.clone().member("items").member("push").call(vec![x]),
+							),
+						};
+						out.push(StmtKind::decl(false, &v, Some(vec_ty(bytes)), Some(made)).at(None));
+						body.push(StmtKind::Expr(push).at(None));
+						at
+					}
+				}
+			}
 		};
 		out.push(
 			StmtKind::While {
@@ -418,6 +561,46 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		}
 		prune(&mut out, &result);
 		Some((out, result))
+	}
+
+	/// How `collect` reads a chain of type `ty` into a `Vec`, or a `Vec<u8>` if `bytes`, by the
+	/// flags the mapping gave the runtime's, or `None` where the runtime's does what the loop
+	/// doesn't: drop the chain, read it by index, or keep the capacity of the `Vec` its items
+	/// came from.
+	fn collected(&mut self, bytes: bool, flags: &[Expr], ty: Ty<'tcx>) -> Option<Collected> {
+		let (take, size, trusted, src) = match bytes {
+			true => (flags.first(), None, flags.get(1), flags.get(2)),
+			false => (flags.first(), flags.get(1), flags.get(2), flags.get(3)),
+		};
+		if flags.len() > if bytes { 3 } else { 4 } || !off(src) {
+			return None;
+		}
+		let next = match take.map(peel) {
+			None => false,
+			Some(Expr::Lit(l)) if l == "undefined" => false,
+			Some(Expr::Str(s)) if s == "next" => true,
+			_ => return None,
+		};
+		// Read by `next`, it drops the chain after, which only one that drops sees.
+		if next && self.b.t.drops(ty) {
+			return None;
+		}
+		let size = match size.map(peel) {
+			None if bytes => None,
+			Some(Expr::Lit(l)) if !bytes && l != "0" && l != "undefined" => Some(Expr::lit(l.clone())),
+			_ => return None,
+		};
+		let trusted = match trusted.map(peel) {
+			None => false,
+			Some(Expr::Lit(l)) if l == "false" || l == "undefined" => false,
+			Some(Expr::Lit(l)) if l == "true" => true,
+			_ => return None,
+		};
+		Some(Collected {
+			size,
+			trusted,
+			folds: trusted && !next,
+		})
 	}
 
 	/// `e` replaced by what the statement just emitted to `out` declares it, if `e` names
@@ -522,11 +705,30 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				{
 					return None;
 				}
+				// A side read by index reads a `skip` by its view by index, which reads what it
+				// skips as it reads its first item, from either end.
+				if matches!(trusted, Trusted::Indexed(_)) && (cuts(&a) || cuts(&b)) {
+					return None;
+				}
 				Some(Shape::Zip(Box::new(a), Box::new(b), trusted, drops, item(ty)?))
 			}
 			"rev" if rs(f, "iterRev") && args.len() == 1 => {
 				Some(Shape::Rev(Box::new(self.chain_shape(&args[0], inner, !back)?)))
 			}
+			"skip" if rs(f, "iterSkip") && (2..=3).contains(&args.len()) => {
+				let inner = self.chain_shape(&args[0], inner, back)?;
+				// A zip's `nth` reads it by index, or by `next` before a fold by its size hint.
+				if zips(&inner) {
+					return None;
+				}
+				Some(Shape::Skip(Box::new(inner), args[1].clone(), given(args.get(2))))
+			}
+			"take" if rs(f, "iterTake") && (2..=4).contains(&args.len()) => Some(Shape::Take(
+				Box::new(self.chain_shape(&args[0], inner, back)?),
+				args[1].clone(),
+				given(args.get(2)),
+				!off(args.get(3)),
+			)),
 			_ => None,
 		}
 	}
@@ -572,6 +774,32 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			Shape::Rev(inner) => Node::Rev {
 				inner: Box::new(self.bind(*inner, folds, !back, span, out)),
 			},
+			// std's `fold` of a `skip` folds what it wraps, and its `rfold` reads it by
+			// `try_rfold`; a `take`'s the other way around.
+			Shape::Skip(inner, count, drop) => {
+				let inner = Box::new(self.bind(*inner, folds && !back, back, span, out));
+				let n = self.b.fresh("skip");
+				self.decl(true, &n, number(), count, out);
+				let drop = drop.map(|d| self.part(d, "drop", Some(dropper(&item_of(&inner))), out));
+				Node::Skip { inner, n, drop }
+			}
+			Shape::Take(inner, limit, drop, _) => {
+				let inner = Box::new(self.bind(*inner, folds && back, back, span, out));
+				let n = self.b.fresh("take");
+				self.decl(true, &n, number(), limit, out);
+				let drop = drop.map(|d| self.part(d, "drop", Some(dropper(&item_of(&inner))), out));
+				let trimmed = back.then(|| {
+					let trimmed = self.b.fresh("trimmed");
+					self.decl(true, &trimmed, Type::Builtin("boolean"), Expr::lit("false"), out);
+					trimmed
+				});
+				Node::Take {
+					inner,
+					n,
+					drop,
+					trimmed,
+				}
+			}
 			Shape::Zip(a, b, trusted, drops, item) => {
 				let a = Box::new(self.bind(*a, false, back, span, out));
 				let b = Box::new(self.bind(*b, false, back, span, out));
@@ -629,6 +857,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// items drop, which a consumer that stops early drops the rest of, and a range that
 	/// needs its type's `Step`.
 	fn in_place(&mut self, e: &Expr, ty: Ty<'tcx>, item: &Type, span: Span, out: &mut Vec<Stmt>) -> Option<Node> {
+		// A leaf's `copied`, which the mapping made the leaf.
+		let ty = uncopied(self.tcx, ty);
 		let number = || Type::Builtin("number");
 		let rs = |f: &Expr, name: &str| matches!(peel(f), Expr::Rs(n) if n == name);
 		match peel(e) {
@@ -694,7 +924,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			self.fused_decls.push((name.to_string(), ty));
 			out.push(StmtKind::Expr(Expr::ident(name).assign(init)).at(None));
 		} else {
-			out.push(StmtKind::decl(mutable, name, None, Some(init)).at(None));
+			// An empty array literal, which TypeScript can't type by itself.
+			let ty = matches!(peel(&init), Expr::Array(items) if items.is_empty()).then_some(ty);
+			out.push(StmtKind::decl(mutable, name, ty, Some(init)).at(None));
 		}
 	}
 
@@ -946,6 +1178,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			} => Expr::ident(end).binary("-", Expr::ident(index)),
 			// Of its size hint, the shorter side's.
 			Node::Zip { a, b, .. } => Expr::ident("Math").member("min").call(vec![self.len(a), self.len(b)]),
+			Node::Skip { inner, n, .. } => max0(self.len(inner).binary("-", Expr::ident(n))),
+			Node::Take { inner, n, .. } => Expr::ident("Math")
+				.member("min")
+				.call(vec![self.len(inner), Expr::ident(n)]),
 			Node::Filter { .. } => unreachable!("a filter has no length"),
 		}
 	}
@@ -1091,6 +1327,55 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				let i = self.b.fresh("i");
 				out.push(StmtKind::decl(false, &i, None, Some(n)).at(None));
 				Some(Val::Tuple(vec![Val::One(Expr::ident(i)), x]))
+			}
+			// As `Skip::next_back` reads: none once what it wraps has no more than it skips.
+			Node::Skip { inner, n, .. } if back => {
+				if !indexed {
+					let ended = self.len(inner).binary("<=", Expr::ident(n));
+					out.push(if_then(ended, done.to_vec()));
+				}
+				self.read(inner, back, indexed, used, done, out)
+			}
+			// As `Skip::next` and `fold` read: what it skips by `nth` first, then what it wraps.
+			Node::Skip { inner, n, drop } => {
+				let k = self.b.fresh("k");
+				let mut skip = vec![
+					StmtKind::decl(false, &k, None, Some(Expr::ident(n))).at(None),
+					expr(Expr::ident(n).assign(Expr::lit("0"))),
+				];
+				self.skip(inner, Expr::ident(&k), false, drop.as_ref(), done, &mut skip);
+				out.push(if_then(Expr::ident(n).binary(">", Expr::lit("0")), skip));
+				self.read(inner, back, indexed, used, done, out)
+			}
+			// As `Take::next` reads: what it wraps, until it has read its limit.
+			Node::Take { inner, n, .. } if !back => {
+				if !indexed {
+					out.push(if_then(Expr::ident(n).binary("===", Expr::lit("0")), done.to_vec()));
+				}
+				out.push(expr(Expr::Postfix(Box::new(Expr::ident(n)), "--")));
+				self.read(inner, back, indexed, used, done, out)
+			}
+			// As `Take::next_back` and `rfold` read: nothing at a limit of none, else past what
+			// its iterator holds beyond the limit by `nth_back` as the first read starts, then
+			// what is left of it.
+			Node::Take {
+				inner,
+				n,
+				drop,
+				trimmed,
+			} => {
+				let trimmed = trimmed.as_ref().expect("a take read from the back");
+				out.push(if_then(Expr::ident(n).binary("===", Expr::lit("0")), done.to_vec()));
+				let k = self.b.fresh("k");
+				let mut trim = vec![
+					expr(Expr::ident(trimmed).assign(Expr::lit("true"))),
+					StmtKind::decl(false, &k, None, Some(self.len(inner).binary("-", Expr::ident(n)))).at(None),
+				];
+				let mut past = Vec::new();
+				self.skip(inner, Expr::ident(&k), true, drop.as_ref(), done, &mut past);
+				trim.push(if_then(Expr::ident(&k).binary(">", Expr::lit("0")), past));
+				out.push(if_then(Expr::ident(trimmed).not(), trim));
+				self.read(inner, back, indexed, used, done, out)
 			}
 			Node::Zip { a, b, how, .. } => {
 				let (x, y) = match how {
@@ -1240,6 +1525,75 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				Some(Val::Tuple(vec![x?, y?]))
 			}
 		}
+	}
+
+	/// Read past `k` items of `node`, more than none, from the back if `back`, as its `nth` or
+	/// `nth_back` of one fewer and then the item it gives dropped by `drop` read past them,
+	/// running `done` where it ends first: a leaf read in place in one step, as `SliceIter`
+	/// and `Range` step, one the runtime makes by its own, and any other item by item, as
+	/// std's `nth` reads each adaptor this fuses but a zip.
+	fn skip(&mut self, node: &Node, k: Expr, back: bool, drop: Option<&Expr>, done: &[Stmt], out: &mut Vec<Stmt>) {
+		let expr = |e: Expr| StmtKind::Expr(e).at(None);
+		match node {
+			Node::Slice { front, back: end, .. } | Node::Range { start: front, end, .. } => {
+				let (at, other) = if back { (end, front) } else { (front, end) };
+				let fewer = Expr::ident(end).binary("-", Expr::ident(front)).binary("<", k.clone());
+				let mut then = vec![expr(Expr::ident(at).assign(Expr::ident(other)))];
+				then.extend(done.iter().cloned());
+				out.push(if_then(fewer, then));
+				let to = Expr::ident(at).binary(if back { "-" } else { "+" }, k);
+				out.push(expr(Expr::ident(at).assign(to)));
+			}
+			Node::Leaf { var, .. } => {
+				let nth = if back { "nthBack" } else { "nth" };
+				let x = self.b.fresh("x");
+				let args = [k.binary("-", Expr::lit("1"))]
+					.into_iter()
+					.chain(drop.cloned())
+					.collect();
+				let item = Expr::ident(var).member(nth).call(args);
+				out.push(StmtKind::decl(false, &x, None, Some(item)).at(None));
+				out.push(ended(&x, done));
+				if let Some(drop) = drop {
+					out.push(expr(drop.clone().call(vec![Expr::ident(&x)])));
+				}
+			}
+			Node::Rev { inner } => self.skip(inner, k, !back, drop, done, out),
+			// `Take::nth_back` at a limit of none, unlike its `next_back`, reads past all of
+			// what it wraps.
+			Node::Take { inner, n, .. } if back => {
+				let l = self.b.fresh("l");
+				let mut none = vec![StmtKind::decl(false, &l, None, Some(self.len(inner))).at(None)];
+				let mut past = Vec::new();
+				self.skip(inner, Expr::ident(&l), back, drop, done, &mut past);
+				none.push(if_then(Expr::ident(&l).binary(">", Expr::lit("0")), past));
+				none.extend(done.iter().cloned());
+				out.push(if_then(Expr::ident(n).binary("===", Expr::lit("0")), none));
+				self.skip_each(node, k, back, drop, done, out);
+			}
+			_ => self.skip_each(node, k, back, drop, done, out),
+		}
+	}
+
+	/// Read past `k` items of `node` one at a time, as `skip` reads past them.
+	fn skip_each(&mut self, node: &Node, k: Expr, back: bool, drop: Option<&Expr>, done: &[Stmt], out: &mut Vec<Stmt>) {
+		let expr = |e: Expr| StmtKind::Expr(e).at(None);
+		let j = self.b.fresh("j");
+		out.push(StmtKind::decl(true, &j, None, Some(k)).at(None));
+		let mut body = vec![expr(Expr::Postfix(Box::new(Expr::ident(&j)), "--"))];
+		if let Some(x) = self.read(node, back, false, drop.is_some(), done, &mut body)
+			&& let Some(drop) = drop
+		{
+			body.push(expr(drop.clone().call(vec![x.whole()])));
+		}
+		out.push(
+			StmtKind::While {
+				label: None,
+				cond: Expr::ident(&j).binary(">", Expr::lit("0")),
+				body,
+			}
+			.at(None),
+		);
 	}
 
 	/// A side of a zip read from the back, `node`, read by a loop that runs `side.before`,
@@ -1409,7 +1763,132 @@ fn upper(node: &Node) -> Expr {
 			..
 		} => Expr::ident(left),
 		Node::Zip { a, b, .. } => min(upper(a), upper(b)),
+		Node::Skip { inner, n, .. } => max0(upper(inner).binary("-", Expr::ident(n))),
+		Node::Take { inner, n, .. } => min(upper(inner), Expr::ident(n)),
 	}
+}
+
+/// The lower bound of `node`'s size hint.
+fn lower(node: &Node) -> Expr {
+	let min = |a, b| Expr::ident("Math").member("min").call(vec![a, b]);
+	match node {
+		Node::Leaf { var, .. } => Expr::ident(var)
+			.member("sizeHint")
+			.call(Vec::new())
+			.index(Expr::lit("0")),
+		Node::Slice { .. } | Node::Range { .. } => left(node),
+		Node::Filter { .. } => Expr::lit("0"),
+		Node::Map { inner, .. } | Node::Enumerate { inner, .. } | Node::Rev { inner } => lower(inner),
+		Node::Zip {
+			how: Zipped::Indexed { index, end, .. },
+			..
+		} => Expr::ident(end).binary("-", Expr::ident(index)),
+		Node::Zip {
+			how: Zipped::Counted { left },
+			..
+		} => Expr::ident(left),
+		Node::Zip { a, b, .. } => min(lower(a), lower(b)),
+		Node::Skip { inner, n, .. } => max0(lower(inner).binary("-", Expr::ident(n))),
+		Node::Take { inner, n, .. } => min(lower(inner), Expr::ident(n)),
+	}
+}
+
+/// `Math.max(e, 0)`.
+fn max0(e: Expr) -> Expr {
+	Expr::ident("Math").member("max").call(vec![e, Expr::lit("0")])
+}
+
+/// `e + 1`, saturating at `usize::MAX` as std's size hints do.
+fn and_one(e: Expr) -> Expr {
+	match peel(&e) {
+		Expr::Lit(l) if l == "0" => Expr::lit("1"),
+		_ => Expr::rs("satAdd", vec![e, Expr::lit("1")]),
+	}
+}
+
+/// `if (cond) { then }`.
+fn if_then(cond: Expr, then: Vec<Stmt>) -> Stmt {
+	StmtKind::If {
+		cond,
+		then,
+		els: Vec::new(),
+	}
+	.at(None)
+}
+
+/// What `node` reads in the other direction, or `node`.
+fn unrev(node: &Node) -> &Node {
+	match node {
+		Node::Rev { inner } => unrev(inner),
+		node => node,
+	}
+}
+
+/// Whether `node` holds an iterator the runtime makes.
+fn has_leaf(node: &Node) -> bool {
+	match node {
+		Node::Leaf { .. } => true,
+		Node::Slice { .. } | Node::Range { .. } => false,
+		Node::Map { inner, .. }
+		| Node::Filter { inner, .. }
+		| Node::Enumerate { inner, .. }
+		| Node::Rev { inner }
+		| Node::Skip { inner, .. }
+		| Node::Take { inner, .. } => has_leaf(inner),
+		Node::Zip { a, b, .. } => has_leaf(a) || has_leaf(b),
+	}
+}
+
+/// Whether `shape` holds a zip.
+fn zips(shape: &Shape<'_>) -> bool {
+	match shape {
+		Shape::Leaf(..) => false,
+		Shape::Zip(..) => true,
+		Shape::Map(inner, ..)
+		| Shape::Filter(inner, ..)
+		| Shape::Enumerate(inner, _)
+		| Shape::Rev(inner)
+		| Shape::Skip(inner, ..)
+		| Shape::Take(inner, ..) => zips(inner),
+	}
+}
+
+/// Whether `shape` holds a `skip` or a `take`.
+fn cuts(shape: &Shape<'_>) -> bool {
+	match shape {
+		Shape::Leaf(..) => false,
+		Shape::Skip(..) | Shape::Take(..) => true,
+		Shape::Zip(a, b, ..) => cuts(a) || cuts(b),
+		Shape::Map(inner, ..) | Shape::Filter(inner, ..) | Shape::Enumerate(inner, _) | Shape::Rev(inner) => {
+			cuts(inner)
+		}
+	}
+}
+
+/// Whether `shape`, read by `fold` if `folds` and from the back if `back`, folds a `take`
+/// that reads its iterator by index: std's reads no further than its iterator's size,
+/// where its `next` would read what a `skip` past the end skips.
+fn takes_by_index(shape: &Shape<'_>, folds: bool, back: bool) -> bool {
+	match shape {
+		Shape::Leaf(..) => false,
+		Shape::Map(inner, ..) | Shape::Filter(inner, ..) | Shape::Enumerate(inner, _) => {
+			takes_by_index(inner, folds, back)
+		}
+		Shape::Rev(inner) => takes_by_index(inner, folds, !back),
+		Shape::Zip(a, b, ..) => takes_by_index(a, false, back) || takes_by_index(b, false, back),
+		Shape::Skip(inner, ..) => takes_by_index(inner, folds && !back, back),
+		Shape::Take(inner, _, _, indexes) => *indexes && folds && !back || takes_by_index(inner, folds && back, back),
+	}
+}
+
+/// How a fused `collect` makes its `Vec`.
+struct Collected {
+	/// The size of an item in bytes, for a `Vec` not of bytes.
+	size: Option<Expr>,
+	/// Whether the chain is `TrustedLen`, so it has room for its upper bound from the start.
+	trusted: bool,
+	/// Whether it reads the chain as `fold` does.
+	folds: bool,
 }
 
 /// How many items `node`, a leaf read in place, has left: a range's none once its start
@@ -1460,7 +1939,7 @@ fn item_of(node: &Node) -> Type {
 		| Node::Filter { item, .. }
 		| Node::Enumerate { item, .. }
 		| Node::Zip { item, .. } => item.clone(),
-		Node::Rev { inner } => item_of(inner),
+		Node::Rev { inner } | Node::Skip { inner, .. } | Node::Take { inner, .. } => item_of(inner),
 	}
 }
 

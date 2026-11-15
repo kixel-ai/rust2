@@ -159,9 +159,12 @@ export function fromIter$iter_FromIterator_ops_Range_u64_u64_array2_ops_Range_u6
 }
 
 export function extend$iter_Extend_ops_Range_u64_u64_array2_ops_Range_u64(self: RangeSet<rs.u64>, iter: rs.Range<rs.u64>[]): void {
-	rs.iterForEach(rs.iterSlice(iter), (range: rs.Range<rs.u64>): undefined => {
-		insert$u64(self, range);
-	});
+	const s = iter;
+	let front = 0;
+	let back = s.length;
+	while (!(front >= back)) {
+		insert$u64(self, s[front++]);
+	}
 }
 
 export function extend$iter_Extend_ops_Range_u64_u64_iter_Filter_iter_Cloned_rangemap_set_Iter_u64_ranges_ranges_closure13(self: RangeSet<rs.u64>, iter: rs.Iter<rs.Range<rs.u64>>): void {

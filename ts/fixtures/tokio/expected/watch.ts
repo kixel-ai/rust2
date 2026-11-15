@@ -224,15 +224,25 @@ export function stepRun(s: watch_State.State, op: rs.u8, arg: rs.u8): void {
 					s.senders.items.push(_219);
 				}
 			} else {
-				const _227: rs.usize | undefined = rs.iterPosition(rs.iterSlice(s.senders.items), (a0: rs.WatchSender<Item.Item> | undefined): boolean => {
-					return a0 !== undefined;
-				});
+				const s2 = s.senders.items;
+				let front = 0;
+				let back = s2.length;
+				let i2 = 0;
+				let at: number | undefined = undefined;
+				while (!(front >= back)) {
+					if (s2[front++] !== undefined) {
+						at = i2;
+						break;
+					}
+					i2++;
+				}
+				const _227: rs.usize | undefined = at;
 				if (_227 !== undefined) {
 					const i: rs.usize = _227;
 					note(rs.stringFrom("drop sender"));
-					const at = rs.idx(s.senders.items, i);
-					rs.drop(s.senders.items[at]);
-					s.senders.items[at] = undefined;
+					const at2 = rs.idx(s.senders.items, i);
+					rs.drop(s.senders.items[at2]);
+					s.senders.items[at2] = undefined;
 				}
 			}
 		} else if (op === 12) {

@@ -117,9 +117,18 @@ export function needsDrops(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return a0 ? 1 : 0;
 	})), undefined, true);
 	rs.byteVecPush(out, (named() & 0xff) ^ (copied() & 0xff));
-	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(droppedByHand$String(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b2: rs.u8): rs.String => {
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const f = (b2: rs.u8): rs.String => {
 		return rs.fmtToString((f: rs.Formatter) => rs.u8Display(b2, f), 0);
-	}), undefined, 12, true))).reverse()), undefined, true);
+	};
+	const v: rs.Vec<rs.String> = rs.vecWithCapacity(back - front, 12);
+	while (!(front >= back)) {
+		const y: rs.String = f(s[front++]);
+		v.items.push(y);
+	}
+	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(droppedByHand$String(v)).reverse()), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(droppedByHand$u8(rs.byteSliceToByteVec(data))).reverse()), undefined, true);
 	const iter: rs.Iter<string> = rs.iterSlice(["lang_manual_fixture::manual::ByHand", "core::option::Option<&[alloc::string::String]>", "lang_manual_fixture::manual::needs_drops::{{closure}}", "[u8]", nameOf$u8(), nameOf$String()]);
 	while (true) {

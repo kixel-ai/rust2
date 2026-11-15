@@ -152,7 +152,9 @@ export function value(self: Input): rs.JsValue {
 
 /** UTF-16 code units, lone surrogates among them. */
 export function units(self: Input): rs.Vec<rs.u16> {
-	return rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(u8(self), 6)), (_2: rs.u8): rs.u16 => {
+	let start = 0;
+	let end = rs.u8Rem(u8(self), 6);
+	const f = (_2: rs.u8): rs.u16 => {
 		const _32: rs.u8 = rs.u8Rem(u8(self), 4);
 		if (_32 === 0) {
 			return 55296 | u8(self) as rs.u16;
@@ -161,7 +163,13 @@ export function units(self: Input): rs.Vec<rs.u16> {
 			return 56320 | u8(self) as rs.u16;
 		}
 		return (u8(self) as rs.u16) | 64;
-	}), undefined, 2, true);
+	};
+	const v: rs.Vec<rs.u16> = rs.vecWithCapacity(Math.max(end - start, 0), 2);
+	while (!(start >= end)) {
+		const y: rs.u16 = f(start++);
+		v.items.push(y);
+	}
+	return v;
 }
 
 //# sourceMappingURL=harness.Input.ts.map

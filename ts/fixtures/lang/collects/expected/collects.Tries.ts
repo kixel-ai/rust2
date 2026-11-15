@@ -21,16 +21,28 @@ export class Tries<T> {
 
 export function fromIter$iter_FromIterator_collects_Item_collects_Item_iter_adapters_GenericShunt_iter_Map_slice_Iter_u8_collects_collects_closure11_Option_never(iter: rs.Iter<Item.Item>): Tries<Item.Item> {
 	const iter2: rs.Iter<Item.Item> = iter;
-	return new Tries(rs.iterToVec(rs.iterMap(new rs.Range(0, 3), (_2: rs.i32): Item.Item | undefined => {
-		return rs.iterToOption(iter2.next());
-	}), undefined, 8, true) as rs.Vec<rs.OptionOf<Item.Item>>);
+	let start = 0;
+	let end = 3;
+	const v: rs.Vec<Item.Item | undefined> = rs.vecWithCapacity(Math.max(end - start, 0), 8);
+	while (!(start >= end)) {
+		start++;
+		const y: Item.Item | undefined = rs.iterToOption(iter2.next());
+		v.items.push(y);
+	}
+	return new Tries(v as rs.Vec<rs.OptionOf<Item.Item>>);
 }
 
 export function fromIter$iter_FromIterator_u8_u8_iter_adapters_GenericShunt_iter_Map_slice_Iter_u8_collects_collects_closure10_Result_never_collects_Item(iter: rs.Iter<rs.u8>): Tries<rs.u8> {
 	const iter2: rs.Iter<rs.u8> = iter;
-	return new Tries(rs.iterToVec(rs.iterMap(new rs.Range(0, 3), (_2: rs.i32): rs.u8 | undefined => {
-		return rs.iterToOption(iter2.next());
-	}), undefined, 2, true) as rs.Vec<rs.OptionOf<rs.u8>>);
+	let start = 0;
+	let end = 3;
+	const v: rs.Vec<rs.u8 | undefined> = rs.vecWithCapacity(Math.max(end - start, 0), 2);
+	while (!(start >= end)) {
+		start++;
+		const y: rs.u8 | undefined = rs.iterToOption(iter2.next());
+		v.items.push(y);
+	}
+	return new Tries(v as rs.Vec<rs.OptionOf<rs.u8>>);
 }
 
 //# sourceMappingURL=collects.Tries.ts.map

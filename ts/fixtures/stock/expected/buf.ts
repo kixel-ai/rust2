@@ -3624,9 +3624,14 @@ export function vecSpares(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				rs.byteVecSetLen(vec, rs.usizeAdd(vec.length, k));
 			} else if (_31 === 1) {
-				const src: rs.ByteVec = rs.iterToByteVec(rs.iterMap(new rs.Range(0, k & 0xff), (i2: rs.u8): rs.u8 => {
-					return rs.u8WrappingAdd(n, i2);
-				}), undefined, true);
+				let start = 0;
+				let end = k & 0xff;
+				const v2: rs.ByteVec = rs.byteVecWithCapacity(Math.max(end - start, 0));
+				while (!(start >= end)) {
+					const x = start++;
+					rs.byteVecPush(v2, rs.u8WrappingAdd(n, x));
+				}
+				const src: rs.ByteVec = v2;
 				const dst = rs.byteSliceRange(spare, 0, k);
 				rs.byteSliceCopyFromSlice(dst, rs.byteVecSlice(src));
 				rs.byteSliceView(dst).reverse();
@@ -4338,9 +4343,14 @@ export function chunkAll$mut_slice_u8(buf: rs.Place<rs.ByteSlice>, dataData: Uin
 export function chunkWrite(chunk: rs.ByteSlice, op: rs.u8, n: rs.u8, out: rs.ByteVec): rs.usize {
 	const room: rs.usize = UninitSlice.len(chunk);
 	const k: rs.usize = rs.usizeRem(n as rs.usize, rs.usizeAdd(room, 1));
-	const src: rs.ByteVec = rs.iterToByteVec(rs.iterMap(new rs.Range(0, k), (i2: rs.usize): rs.u8 => {
-		return rs.u8WrappingAdd(n, i2 & 0xff);
-	}), undefined, true);
+	let start = 0;
+	let end = k;
+	const v: rs.ByteVec = rs.byteVecWithCapacity(Math.max(end - start, 0));
+	while (!(start >= end)) {
+		const x = start++;
+		rs.byteVecPush(v, rs.u8WrappingAdd(n, x & 0xff));
+	}
+	const src: rs.ByteVec = v;
 	const half: rs.usize = rs.usizeDiv(k, 2);
 	b1: {
 		const _20: rs.u8 = rs.u8Rem(op, 13);
@@ -4350,9 +4360,9 @@ export function chunkWrite(chunk: rs.ByteSlice, op: rs.u8, n: rs.u8, out: rs.Byt
 			const back: number = s.length;
 			let count: number = 0;
 			while (!(front >= back)) {
-				const x = s[front++];
+				const x2 = s[front++];
 				const i3 = count++;
-				UninitSlice.writeByte(chunk, i3, x);
+				UninitSlice.writeByte(chunk, i3, x2);
 			}
 			break b1;
 		}

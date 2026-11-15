@@ -465,13 +465,31 @@ export function filled$array0_u8_0(data: rs.ByteSlice, fill: Uint8Array[], out: 
 		}
 		picks.items.push(copy$array_u8(rs.byteSliceToArray(_26)));
 	}
-	const iter3: rs.Iter<[[Uint8Array[], [rs.u8, rs.u8]], Uint8Array | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [Uint8Array[], [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<Uint8Array | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[Uint8Array[], [rs.u8, rs.u8]], Uint8Array | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: Uint8Array | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: Uint8Array | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
@@ -480,7 +498,7 @@ export function filled$array0_u8_0(data: rs.ByteSlice, fill: Uint8Array[], out: 
 				return copy$array_u8(v2);
 			});
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_array0_u8(row), [0, 90] as [rs.u8, rs.u8]] as [Uint8Array[], [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -566,13 +584,31 @@ export function filled$array17_u8_17(data: rs.ByteSlice, fill: Uint8Array[], out
 		}
 		picks.items.push(copy$array_u8(rs.byteSliceToArray(_26)));
 	}
-	const iter3: rs.Iter<[[Uint8Array[], [rs.u8, rs.u8]], Uint8Array | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [Uint8Array[], [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<Uint8Array | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[Uint8Array[], [rs.u8, rs.u8]], Uint8Array | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: Uint8Array | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: Uint8Array | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
@@ -581,7 +617,7 @@ export function filled$array17_u8_17(data: rs.ByteSlice, fill: Uint8Array[], out
 				return copy$array_u8(v2);
 			});
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_array17_u8(row), [17, 90] as [rs.u8, rs.u8]] as [Uint8Array[], [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -667,13 +703,31 @@ export function filled$array1_u8_1(data: rs.ByteSlice, fill: Uint8Array[], out: 
 		}
 		picks.items.push(copy$array_u8(rs.byteSliceToArray(_26)));
 	}
-	const iter3: rs.Iter<[[Uint8Array[], [rs.u8, rs.u8]], Uint8Array | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [Uint8Array[], [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<Uint8Array | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[Uint8Array[], [rs.u8, rs.u8]], Uint8Array | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: Uint8Array | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: Uint8Array | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
@@ -682,7 +736,7 @@ export function filled$array1_u8_1(data: rs.ByteSlice, fill: Uint8Array[], out: 
 				return copy$array_u8(v2);
 			});
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_array1_u8(row), [1, 90] as [rs.u8, rs.u8]] as [Uint8Array[], [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -768,13 +822,31 @@ export function filled$array3_u8_3(data: rs.ByteSlice, fill: Uint8Array[], out: 
 		}
 		picks.items.push(copy$array_u8(rs.byteSliceToArray(_26)));
 	}
-	const iter3: rs.Iter<[[Uint8Array[], [rs.u8, rs.u8]], Uint8Array | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [Uint8Array[], [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<Uint8Array | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[Uint8Array[], [rs.u8, rs.u8]], Uint8Array | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: Uint8Array | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: Uint8Array | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
@@ -783,7 +855,7 @@ export function filled$array3_u8_3(data: rs.ByteSlice, fill: Uint8Array[], out: 
 				return copy$array_u8(v2);
 			});
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_array3_u8(row), [3, 90] as [rs.u8, rs.u8]] as [Uint8Array[], [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -864,13 +936,31 @@ export function filled$lengths_Tagged_u32_0(data: rs.ByteSlice, fill: Tagged.Tag
 	for (const _26 of fill) {
 		picks.items.push(_26);
 	}
-	const iter3: rs.Iter<[[Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]], Tagged.Tagged<rs.u32> | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<Tagged.Tagged<rs.u32> | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]], Tagged.Tagged<rs.u32> | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: Tagged.Tagged<rs.u32> | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: Tagged.Tagged<rs.u32> | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
@@ -879,7 +969,7 @@ export function filled$lengths_Tagged_u32_0(data: rs.ByteSlice, fill: Tagged.Tag
 				return v2;
 			});
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_lengths_Tagged_u32(row), [0, 90] as [rs.u8, rs.u8]] as [Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -921,9 +1011,12 @@ export function filled$lengths_Tagged_u32_0(data: rs.ByteSlice, fill: Tagged.Tag
 	}
 	for (const _124 of slots) {
 		const _131: [Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]] = _124;
-		rs.iterForEach(rs.iterSlice(_131[0]), (v4: Tagged.Tagged<rs.u32>): undefined => {
-			Tagged.put$lengths_Put_u32(v4, out);
-		});
+		const s3 = _131[0];
+		let front3 = 0;
+		let back3 = s3.length;
+		while (!(front3 >= back3)) {
+			Tagged.put$lengths_Put_u32(s3[front3++], out);
+		}
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
@@ -958,13 +1051,31 @@ export function filled$lengths_Tagged_u32_1(data: rs.ByteSlice, fill: Tagged.Tag
 	for (const _26 of fill) {
 		picks.items.push(_26);
 	}
-	const iter3: rs.Iter<[[Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]], Tagged.Tagged<rs.u32> | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<Tagged.Tagged<rs.u32> | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]], Tagged.Tagged<rs.u32> | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: Tagged.Tagged<rs.u32> | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: Tagged.Tagged<rs.u32> | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
@@ -973,7 +1084,7 @@ export function filled$lengths_Tagged_u32_1(data: rs.ByteSlice, fill: Tagged.Tag
 				return v2;
 			});
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_lengths_Tagged_u32(row), [1, 90] as [rs.u8, rs.u8]] as [Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -1015,9 +1126,12 @@ export function filled$lengths_Tagged_u32_1(data: rs.ByteSlice, fill: Tagged.Tag
 	}
 	for (const _124 of slots) {
 		const _131: [Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]] = _124;
-		rs.iterForEach(rs.iterSlice(_131[0]), (v4: Tagged.Tagged<rs.u32>): undefined => {
-			Tagged.put$lengths_Put_u32(v4, out);
-		});
+		const s3 = _131[0];
+		let front3 = 0;
+		let back3 = s3.length;
+		while (!(front3 >= back3)) {
+			Tagged.put$lengths_Put_u32(s3[front3++], out);
+		}
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
@@ -1052,13 +1166,31 @@ export function filled$lengths_Tagged_u32_17(data: rs.ByteSlice, fill: Tagged.Ta
 	for (const _26 of fill) {
 		picks.items.push(_26);
 	}
-	const iter3: rs.Iter<[[Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]], Tagged.Tagged<rs.u32> | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<Tagged.Tagged<rs.u32> | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]], Tagged.Tagged<rs.u32> | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: Tagged.Tagged<rs.u32> | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: Tagged.Tagged<rs.u32> | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
@@ -1067,7 +1199,7 @@ export function filled$lengths_Tagged_u32_17(data: rs.ByteSlice, fill: Tagged.Ta
 				return v2;
 			});
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_lengths_Tagged_u32(row), [17, 90] as [rs.u8, rs.u8]] as [Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -1109,9 +1241,12 @@ export function filled$lengths_Tagged_u32_17(data: rs.ByteSlice, fill: Tagged.Ta
 	}
 	for (const _124 of slots) {
 		const _131: [Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]] = _124;
-		rs.iterForEach(rs.iterSlice(_131[0]), (v4: Tagged.Tagged<rs.u32>): undefined => {
-			Tagged.put$lengths_Put_u32(v4, out);
-		});
+		const s3 = _131[0];
+		let front3 = 0;
+		let back3 = s3.length;
+		while (!(front3 >= back3)) {
+			Tagged.put$lengths_Put_u32(s3[front3++], out);
+		}
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
@@ -1146,13 +1281,31 @@ export function filled$lengths_Tagged_u32_3(data: rs.ByteSlice, fill: Tagged.Tag
 	for (const _26 of fill) {
 		picks.items.push(_26);
 	}
-	const iter3: rs.Iter<[[Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]], Tagged.Tagged<rs.u32> | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<Tagged.Tagged<rs.u32> | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]], Tagged.Tagged<rs.u32> | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: Tagged.Tagged<rs.u32> | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: Tagged.Tagged<rs.u32> | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
@@ -1161,7 +1314,7 @@ export function filled$lengths_Tagged_u32_3(data: rs.ByteSlice, fill: Tagged.Tag
 				return v2;
 			});
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_lengths_Tagged_u32(row), [3, 90] as [rs.u8, rs.u8]] as [Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -1203,9 +1356,12 @@ export function filled$lengths_Tagged_u32_3(data: rs.ByteSlice, fill: Tagged.Tag
 	}
 	for (const _124 of slots) {
 		const _131: [Tagged.Tagged<rs.u32>[], [rs.u8, rs.u8]] = _124;
-		rs.iterForEach(rs.iterSlice(_131[0]), (v4: Tagged.Tagged<rs.u32>): undefined => {
-			Tagged.put$lengths_Put_u32(v4, out);
-		});
+		const s3 = _131[0];
+		let front3 = 0;
+		let back3 = s3.length;
+		while (!(front3 >= back3)) {
+			Tagged.put$lengths_Put_u32(s3[front3++], out);
+		}
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
@@ -1238,13 +1394,31 @@ export function filled$u32_0(data: rs.ByteSlice, fill: rs.u32[], out: rs.ByteVec
 	for (const _26 of fill) {
 		picks.items.push(_26);
 	}
-	const iter3: rs.Iter<[[rs.u32[], [rs.u8, rs.u8]], rs.u32 | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [rs.u32[], [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<rs.u32 | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[rs.u32[], [rs.u8, rs.u8]], rs.u32 | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: rs.u32 | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: rs.u32 | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
@@ -1253,7 +1427,7 @@ export function filled$u32_0(data: rs.ByteSlice, fill: rs.u32[], out: rs.ByteVec
 				return v2;
 			});
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_u32(row), [0, 90] as [rs.u8, rs.u8]] as [rs.u32[], [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -1295,9 +1469,12 @@ export function filled$u32_0(data: rs.ByteSlice, fill: rs.u32[], out: rs.ByteVec
 	}
 	for (const _124 of slots) {
 		const _131: [rs.u32[], [rs.u8, rs.u8]] = _124;
-		rs.iterForEach(rs.iterSlice(_131[0]), (v4: rs.u32): undefined => {
-			put$lengths_Put_u32(v4, out);
-		});
+		const s3 = _131[0];
+		let front3 = 0;
+		let back3 = s3.length;
+		while (!(front3 >= back3)) {
+			put$lengths_Put_u32(s3[front3++], out);
+		}
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
@@ -1330,13 +1507,31 @@ export function filled$u32_1(data: rs.ByteSlice, fill: rs.u32[], out: rs.ByteVec
 	for (const _26 of fill) {
 		picks.items.push(_26);
 	}
-	const iter3: rs.Iter<[[rs.u32[], [rs.u8, rs.u8]], rs.u32 | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [rs.u32[], [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<rs.u32 | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[rs.u32[], [rs.u8, rs.u8]], rs.u32 | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: rs.u32 | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: rs.u32 | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
@@ -1345,7 +1540,7 @@ export function filled$u32_1(data: rs.ByteSlice, fill: rs.u32[], out: rs.ByteVec
 				return v2;
 			});
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_u32(row), [1, 90] as [rs.u8, rs.u8]] as [rs.u32[], [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -1387,9 +1582,12 @@ export function filled$u32_1(data: rs.ByteSlice, fill: rs.u32[], out: rs.ByteVec
 	}
 	for (const _124 of slots) {
 		const _131: [rs.u32[], [rs.u8, rs.u8]] = _124;
-		rs.iterForEach(rs.iterSlice(_131[0]), (v4: rs.u32): undefined => {
-			put$lengths_Put_u32(v4, out);
-		});
+		const s3 = _131[0];
+		let front3 = 0;
+		let back3 = s3.length;
+		while (!(front3 >= back3)) {
+			put$lengths_Put_u32(s3[front3++], out);
+		}
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
@@ -1422,13 +1620,31 @@ export function filled$u32_17(data: rs.ByteSlice, fill: rs.u32[], out: rs.ByteVe
 	for (const _26 of fill) {
 		picks.items.push(_26);
 	}
-	const iter3: rs.Iter<[[rs.u32[], [rs.u8, rs.u8]], rs.u32 | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [rs.u32[], [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<rs.u32 | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[rs.u32[], [rs.u8, rs.u8]], rs.u32 | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: rs.u32 | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: rs.u32 | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
@@ -1437,7 +1653,7 @@ export function filled$u32_17(data: rs.ByteSlice, fill: rs.u32[], out: rs.ByteVe
 				return v2;
 			});
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_u32(row), [17, 90] as [rs.u8, rs.u8]] as [rs.u32[], [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -1479,9 +1695,12 @@ export function filled$u32_17(data: rs.ByteSlice, fill: rs.u32[], out: rs.ByteVe
 	}
 	for (const _124 of slots) {
 		const _131: [rs.u32[], [rs.u8, rs.u8]] = _124;
-		rs.iterForEach(rs.iterSlice(_131[0]), (v4: rs.u32): undefined => {
-			put$lengths_Put_u32(v4, out);
-		});
+		const s3 = _131[0];
+		let front3 = 0;
+		let back3 = s3.length;
+		while (!(front3 >= back3)) {
+			put$lengths_Put_u32(s3[front3++], out);
+		}
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
@@ -1514,13 +1733,31 @@ export function filled$u32_3(data: rs.ByteSlice, fill: rs.u32[], out: rs.ByteVec
 	for (const _26 of fill) {
 		picks.items.push(_26);
 	}
-	const iter3: rs.Iter<[[rs.u32[], [rs.u8, rs.u8]], rs.u32 | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [rs.u32[], [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<rs.u32 | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[rs.u32[], [rs.u8, rs.u8]], rs.u32 | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: rs.u32 | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: rs.u32 | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
@@ -1529,7 +1766,7 @@ export function filled$u32_3(data: rs.ByteSlice, fill: rs.u32[], out: rs.ByteVec
 				return v2;
 			});
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_u32(row), [3, 90] as [rs.u8, rs.u8]] as [rs.u32[], [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -1571,9 +1808,12 @@ export function filled$u32_3(data: rs.ByteSlice, fill: rs.u32[], out: rs.ByteVec
 	}
 	for (const _124 of slots) {
 		const _131: [rs.u32[], [rs.u8, rs.u8]] = _124;
-		rs.iterForEach(rs.iterSlice(_131[0]), (v4: rs.u32): undefined => {
-			put$lengths_Put_u32(v4, out);
-		});
+		const s3 = _131[0];
+		let front3 = 0;
+		let back3 = s3.length;
+		while (!(front3 >= back3)) {
+			put$lengths_Put_u32(s3[front3++], out);
+		}
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
@@ -1606,19 +1846,37 @@ export function filled$u8_0(data: rs.ByteSlice, fill: Uint8Array, out: rs.ByteVe
 	for (const _26 of rs.byteSliceView(rs.byteSliceFrom(fill))) {
 		picks.items.push(_26);
 	}
-	const iter3: rs.Iter<[[Uint8Array, [rs.u8, rs.u8]], rs.u8 | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [Uint8Array, [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<rs.u8 | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[Uint8Array, [rs.u8, rs.u8]], rs.u8 | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: rs.u8 | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: rs.u8 | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
 			row = rs.bytes(0).fill(pick);
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_u8(row), [0, 90] as [rs.u8, rs.u8]] as [Uint8Array, [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -1658,9 +1916,12 @@ export function filled$u8_0(data: rs.ByteSlice, fill: Uint8Array, out: rs.ByteVe
 	}
 	for (const _124 of slots) {
 		const _131: [Uint8Array, [rs.u8, rs.u8]] = _124;
-		rs.iterForEach(rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(_131[0]))), (v4: rs.u8): undefined => {
-			put$lengths_Put_u8(v4, out);
-		});
+		const s3 = rs.byteSliceView(rs.byteSliceFrom(_131[0]));
+		let front3 = 0;
+		let back3 = s3.length;
+		while (!(front3 >= back3)) {
+			put$lengths_Put_u8(s3[front3++], out);
+		}
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
@@ -1693,19 +1954,37 @@ export function filled$u8_1(data: rs.ByteSlice, fill: Uint8Array, out: rs.ByteVe
 	for (const _26 of rs.byteSliceView(rs.byteSliceFrom(fill))) {
 		picks.items.push(_26);
 	}
-	const iter3: rs.Iter<[[Uint8Array, [rs.u8, rs.u8]], rs.u8 | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [Uint8Array, [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<rs.u8 | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[Uint8Array, [rs.u8, rs.u8]], rs.u8 | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: rs.u8 | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: rs.u8 | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
 			row = rs.bytes(1).fill(pick);
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_u8(row), [1, 90] as [rs.u8, rs.u8]] as [Uint8Array, [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -1745,9 +2024,12 @@ export function filled$u8_1(data: rs.ByteSlice, fill: Uint8Array, out: rs.ByteVe
 	}
 	for (const _124 of slots) {
 		const _131: [Uint8Array, [rs.u8, rs.u8]] = _124;
-		rs.iterForEach(rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(_131[0]))), (v4: rs.u8): undefined => {
-			put$lengths_Put_u8(v4, out);
-		});
+		const s3 = rs.byteSliceView(rs.byteSliceFrom(_131[0]));
+		let front3 = 0;
+		let back3 = s3.length;
+		while (!(front3 >= back3)) {
+			put$lengths_Put_u8(s3[front3++], out);
+		}
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
@@ -1780,19 +2062,37 @@ export function filled$u8_17(data: rs.ByteSlice, fill: Uint8Array, out: rs.ByteV
 	for (const _26 of rs.byteSliceView(rs.byteSliceFrom(fill))) {
 		picks.items.push(_26);
 	}
-	const iter3: rs.Iter<[[Uint8Array, [rs.u8, rs.u8]], rs.u8 | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [Uint8Array, [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<rs.u8 | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[Uint8Array, [rs.u8, rs.u8]], rs.u8 | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: rs.u8 | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: rs.u8 | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
 			row = rs.bytes(17).fill(pick);
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_u8(row), [17, 90] as [rs.u8, rs.u8]] as [Uint8Array, [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -1832,9 +2132,12 @@ export function filled$u8_17(data: rs.ByteSlice, fill: Uint8Array, out: rs.ByteV
 	}
 	for (const _124 of slots) {
 		const _131: [Uint8Array, [rs.u8, rs.u8]] = _124;
-		rs.iterForEach(rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(_131[0]))), (v4: rs.u8): undefined => {
-			put$lengths_Put_u8(v4, out);
-		});
+		const s3 = rs.byteSliceView(rs.byteSliceFrom(_131[0]));
+		let front3 = 0;
+		let back3 = s3.length;
+		while (!(front3 >= back3)) {
+			put$lengths_Put_u8(s3[front3++], out);
+		}
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
@@ -1867,19 +2170,37 @@ export function filled$u8_3(data: rs.ByteSlice, fill: Uint8Array, out: rs.ByteVe
 	for (const _26 of rs.byteSliceView(rs.byteSliceFrom(fill))) {
 		picks.items.push(_26);
 	}
-	const iter3: rs.Iter<[[Uint8Array, [rs.u8, rs.u8]], rs.u8 | undefined]> = rs.iterZip(rs.iterSkip(rs.iterSlice(slots), 1), rs.vecIntoIter(picks), "index");
+	const s: [Uint8Array, [rs.u8, rs.u8]][] = slots;
+	let front: number = 0;
+	const back: number = s.length;
+	let skip: number = 1;
+	const s2: Array<rs.u8 | undefined> = picks.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	while (true) {
-		const _41: [[Uint8Array, [rs.u8, rs.u8]], rs.u8 | undefined] | rs.Done = iter3.next();
-		if (_41 === rs.DONE) {
+		if (skip > 0) {
+			const k = skip;
+			skip = 0;
+			if (back - front < k) {
+				front = back;
+				break;
+			}
+			front = front + k;
+		}
+		if (front >= back) {
 			break;
 		}
-		const pick: rs.u8 | undefined = _41[1];
+		const x = s[front++];
+		if (front2 >= back2) {
+			break;
+		}
+		const pick: rs.u8 | undefined = s2[front2++];
 		if (pick === undefined) {
 			row = fill;
 		} else {
 			row = rs.bytes(3).fill(pick);
 		}
-		const uninit2 = _41[0];
+		const uninit2 = x;
 		rs.ptrWrite(uninit2, [copy$array_u8(row), [3, 90] as [rs.u8, rs.u8]] as [Uint8Array, [rs.u8, rs.u8]]);
 		uninit2;
 	}
@@ -1919,9 +2240,12 @@ export function filled$u8_3(data: rs.ByteSlice, fill: Uint8Array, out: rs.ByteVe
 	}
 	for (const _124 of slots) {
 		const _131: [Uint8Array, [rs.u8, rs.u8]] = _124;
-		rs.iterForEach(rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(_131[0]))), (v4: rs.u8): undefined => {
-			put$lengths_Put_u8(v4, out);
-		});
+		const s3 = rs.byteSliceView(rs.byteSliceFrom(_131[0]));
+		let front3 = 0;
+		let back3 = s3.length;
+		while (!(front3 >= back3)) {
+			put$lengths_Put_u8(s3[front3++], out);
+		}
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
