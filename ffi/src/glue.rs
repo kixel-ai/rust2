@@ -1272,8 +1272,8 @@ impl Gen<'_> {
 		}
 	}
 
-	/// An opaque value: its bytes in a struct of `MaybeUninit` units, as its padding may
-	/// be, read and written unaligned, as a unit's alignment may be less than its own.
+	/// An opaque value: its bytes in a struct of `MaybeUninit` units, which any bytes a
+	/// language hands back are, read and written unaligned, as a unit's alignment may be less than its own.
 	fn opaque(&mut self, i: usize, opaque: &Opaque) {
 		let record = &self.abi.api.records[i];
 		let name = self.abi.record(i);
@@ -1293,22 +1293,19 @@ impl Gen<'_> {
 		self.item(format!(
 			"fn lift_{name}(c: &{name}, w: &str, take: bool) -> {path} {{\n\tlet _ = (w, take);\n\tunsafe {{ c.opaque.as_ptr().cast::<{path}>().read_unaligned() }}\n}}\n"
 		));
-		// Its padding on each target, which the write below leaves uninitialized, so no
-		// stale byte of Rust's reaches a language, which may serialize what it holds.
-		let tables: Vec<String> = (record.padding.iter())
-			.map(|(target, ranges)| {
-				let ranges: Vec<String> = ranges.iter().map(|(at, len)| format!("({at}, {len})")).collect();
-				format!(
-					"\t#[cfg({CFG} = {target:?})]\n\tconst PADDING: &[(usize, usize)] = &[{}];\n",
-					ranges.join(", ")
-				)
-			})
+		// Its size on each target, which a `rustc` that ordered its fields to leave padding
+		// would change: the collector proved none can at this size.
+		let sizes: Vec<String> = (record.sizes.iter())
+			.map(|(target, size)| format!("\t#[cfg({CFG} = {target:?})]\n\tconst SIZE: usize = {size};\n"))
 			.collect();
-		self.item(format!("impl {name} {{\n{}}}\n", tables.join("\n")));
-		// Zeroed past its own bytes, and its padding zeroed after the write. Generic, since
-		// an `impl Trait` return hides the type it writes, which the collector checked is this.
+		self.item(format!("impl {name} {{\n{}}}\n", sizes.join("\n")));
 		self.item(format!(
-			"fn lower_{name}<T>(v: T) -> {name} {{\n\tconst {{ assert!(::std::mem::size_of::<T>() == ::std::mem::size_of::<{path}>() && ::std::mem::align_of::<T>() == ::std::mem::align_of::<{path}>()) }};\n\tlet mut c = {name} {{ opaque: [::std::mem::MaybeUninit::zeroed(); {units}] }};\n\tlet at = c.opaque.as_mut_ptr();\n\tunsafe {{ at.cast::<T>().write_unaligned(v) }};\n\tfor &(start, len) in {name}::PADDING {{\n\t\tunsafe {{ at.cast::<u8>().add(start).write_bytes(0, len) }};\n\t}}\n\tc\n}}\n"
+			"const _: () = assert!(::std::mem::size_of::<{path}>() == {name}::SIZE, \"{path} is not the size the export read, so it may have padding\");\n"
+		));
+		// Zeroed past its own bytes. Generic, since an `impl Trait` return hides the type it
+		// writes, which the collector checked is this.
+		self.item(format!(
+			"fn lower_{name}<T>(v: T) -> {name} {{\n\tconst {{ assert!(::std::mem::size_of::<T>() == ::std::mem::size_of::<{path}>() && ::std::mem::align_of::<T>() == ::std::mem::align_of::<{path}>()) }};\n\tlet mut c = {name} {{ opaque: [::std::mem::MaybeUninit::zeroed(); {units}] }};\n\tunsafe {{ c.opaque.as_mut_ptr().cast::<T>().write_unaligned(v) }};\n\tc\n}}\n"
 		));
 		self.value_traits(&name, &path, &ty, record.traits);
 		let owner = Ty::Struct(name.clone());

@@ -92,8 +92,8 @@ public path names, or an error taken by value, is held by value as an opaque han
 | --- | --- |
 | a struct whose fields are all `pub`, not `#[non_exhaustive]`, which map, with no `Drop` of its own | a record: a struct, copied across |
 | an enum with variants whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
-| any other type that is `Copy` and `Send`, with no union or enum whose variants initialize different bytes, such as an `Option<u32>`, in it, such as moq's `Timestamp`, `stats::Traffic`, or std's `Instant` | an opaque value: a struct of its bytes, copied across, which only Rust makes, reads, or changes, with its padding zeroed; its `pub` fields are a getter and a setter, and a `&mut self` method writes back the caller's copy alone, one returning a future or a `Result` refused, since a language raising the error would lose the change; one no export returns is left out, since C could never make one |
-| any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, since its handle is shared, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value |
+| any other type that is `Copy` and `Send`, with no padding under any order of its fields, such as moq's `Timestamp` or `stats::Traffic` | an opaque value: a struct of its bytes, copied across, which only Rust makes, reads, or changes; its `pub` fields are a getter and a setter, and a `&mut self` method writes back the caller's copy alone, one returning a future or a `Result` refused, since a language raising the error would lose the change; one no export returns is left out, since C could never make one |
+| any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, such as std's `Instant`, whose padding a `rustc` may place anywhere, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
 | a `pub` field of an object or opaque value | a getter returning a copy, and a setter assigning in place, as `x.field = value` does |
@@ -271,9 +271,15 @@ where it was while its file is unchanged.
   `Copy` type with private fields, in units of its alignment up to 8 bytes: C copies one
   as any struct, and passes `&self` as a `const <T> *` and `&mut self`, a field's setter
   included, as a `<T> *` Rust writes what the call left back through, so only that copy
-  changes; it never makes or reads one itself, and frees none. Its padding is zero, from a table of each target's padding rustc's
-  layout gives, so no byte Rust left uninitialized reaches a language, which may
-  serialize what it holds. Its size and alignment are the largest of the export's targets, so one
+  changes; it never makes or reads one itself, and frees none. Its fields fill it under
+  any order a `rustc` may give them, with a byte for an enum's tag where no field has a
+  niche to hold it, so it has no padding whichever `rustc` builds the glue, which asserts
+  each target's size. They must also fill a model layout at both 4- and 8-byte pointers,
+  each primitive aligned to its size and a `repr`'s field order kept, so every target
+  decides alike. Any other `Copy` type, such as std's `Instant`, padded on a 64-bit
+  target, or an `Option<u32>`, whose bytes depend on its value, is an object instead, so
+  no byte Rust leaves uninitialized reaches a language, which may serialize what it
+  holds. Its size and alignment are the largest of the export's targets, so one
   header serves them all, a few bytes past a 32-bit target's own. A change of size is an
   ABI change, as a record's field change is.
 - **In and out**: a `&mut` of a value is two parameters, the value passed in as one taken
@@ -615,7 +621,8 @@ caller imports it with no ignores.
   snake_case without their type's name (`moq.TrackProducer.append_group`), and two types
   whose names would match kept apart as Kotlin's are (`TokioConnect_Error`), as are
   top-level names that clash. A keyword, a member Python gives every such class, or a
-  method named as a field takes a trailing `_`.
+  method named as a field takes a trailing `_`. A member or top-level name may be a
+  builtin's (`bytes`, `int`): the module reads each builtin through an alias (`_bytes`).
   Constructors such as `new` stay static methods: `Counter.new(1)`.
 - **Objects** are classes owning their handle, freed once their last reference goes,
   which a call holds until it returns, so there is no `close()`. A `self` method, or
@@ -1058,6 +1065,7 @@ just ffi moq      # export moq's crates at the pinned revision, build them, and 
 just ffi moq-c    # the same export, built in debug, running only moq/moq.c: `just ci`'s check on moq
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
+just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
 just ffi shapes   # round-trip every sampled type shape in every language but KNOWN's, as the nightly does
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
@@ -1126,7 +1134,12 @@ and then ThreadSanitizer, runs `tests/api.c` and `tests/api.cpp` against it, and
 their output to the native transcript; it then drives the C ABI from `tests/miri/api.rs`
 under Miri with strict provenance.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
-writes in place of moq-ffi's remainder. `moq/moq.c` publishes and subscribes to a moq-net
+writes in place of moq-ffi's remainder. The export serves the host and each target
+`just ffi moq-api` staged in `target/moq-api` from the same moq sources, and fails on a
+staged API from other sources. Nightly stages every target moq ships a binding to but the
+host on the host with its C toolchain, Android's in the Android shell from the runner's NDK,
+and runs `just ffi moq` on Linux over all of them, so an item two targets define
+differently fails it. `moq/moq.c` publishes and subscribes to a moq-net
 track in one process, polling each read, scopes an origin to moq-pattern's patterns and
 hands it to a client to publish, polls its driver until the origin's last owner drops, reads an OpusHead into hang's catalog through moq-mux,
 sets and reads a field of the catalog lent to C through `catalog::Producer::mutate`, and

@@ -431,7 +431,7 @@ func script() {
 	print("shifted \(shifted.millis()) \(shifted == moment.after(500))")
 	print("wrapped \(moment.after(UInt64.max).millis()) \(moment == shifted)")
 
-	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	// A value with padding, or bytes that vary, is a handle, as no table says where padding is.
 	let gap = Gap.new(7, 3)
 	print("gap \(gap.sum()) \(gap == Gap.new(7, 3))")
 	let berth = Berth.new(4)
@@ -865,15 +865,15 @@ func script() {
 	// A kept closure, called on another thread after the call that took it returned.
 	print("spawned \(Spawned.new { 7 }.join())")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
-	let start = now()
+	let start = Moment.new(0, 1000)!
 	let calls = Cell(0)
 	let stopped = block {
 		try await drive(start) { now, waiter in
 			calls.value += 1
 			switch calls.value {
-			case 1: return later(now, .milliseconds(5))
+			case 1: return now.after(5)
 			case 2:
-				print("drive \(millis(since(now, start)))")
+				print("drive \(now.millis() - start.millis())")
 				waiter.waker()()
 				return nil
 			default: throw StringError(error: "stopped after \(calls.value)")
@@ -1232,7 +1232,7 @@ func futures() {
 		let freed = Cell(false)
 		// Any Swift error crosses as its description, which Rust returns as its error.
 		let stopped = block {
-			try await drive(now()) { [held = Released(freed)] _, _ in
+			try await drive(Moment.new(0, 1000)!) { [held = Released(freed)] _, _ in
 				_ = held
 				throw Failure(description: "failed")
 			}
