@@ -17,6 +17,9 @@ import urllib.request
 REPO = "kixel-ai/rust2"
 # The reusable pipeline that builds and attests every release archive.
 SIGNER = f"{REPO}/.github/workflows/crabx.yml"
+# The ref every release run starts from. The signer check names only the pipeline's path,
+# which a run dispatched from any branch also carries, and only a merge reaches main.
+SOURCE_REF = "refs/heads/main"
 INDEX = "https://index.crates.io/cr/ab/crabx"
 NPM = "https://registry.npmjs.org"
 HERE = Path(__file__).resolve().parent
@@ -121,7 +124,9 @@ def platform_name(target):
 
 def missing(version):
     """The packages npm lacks at this version."""
-    return [name for name in package_names() if fetch(f"{NPM}/{name}/{version}") is None]
+    # npm publishes a version without its build metadata, so look it up that way.
+    stored = version.split("+", 1)[0]
+    return [name for name in package_names() if fetch(f"{NPM}/{name}/{stored}") is None]
 
 
 def npm_plan():
@@ -131,9 +136,9 @@ def npm_plan():
 
 
 def verify(archive, version):
-    """Check the archive's attestation names the pipeline, rust2, and this crabx version."""
+    """Check the archive's attestation names the pipeline run from main, rust2, and this crabx version."""
     result = subprocess.run(
-        ["gh", "attestation", "verify", str(archive), "--repo", REPO, "--signer-workflow", SIGNER, "--format", "json"],
+        ["gh", "attestation", "verify", str(archive), "--repo", REPO, "--signer-workflow", SIGNER, "--source-ref", SOURCE_REF, "--deny-self-hosted-runners", "--format", "json"],
         check=True,
         capture_output=True,
         text=True,

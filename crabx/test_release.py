@@ -101,6 +101,11 @@ class Plan(unittest.TestCase):
                 r.npm_plan()
             self.assertEqual(out.read_text(), "version=0.2.0\npublish=true\n")
 
+    def test_missing_looks_up_the_version_npm_stores(self):
+        # npm drops build metadata on publish, so 0.2.0+build-5 is stored as 0.2.0.
+        with patch.object(r, "fetch", side_effect=lambda url: b"{}" if url.endswith("/0.2.0") else None):
+            self.assertEqual(r.missing("0.2.0+build-5"), [])
+
 
 class Pack(unittest.TestCase):
     def test_packages_select_by_platform_and_carry_the_binary(self):
@@ -150,7 +155,11 @@ class Pack(unittest.TestCase):
 
         with patch.object(r.subprocess, "run", return_value=attested("crabx", "1.0.0")) as run:
             r.verify(Path("crabx-x86_64-apple-darwin-v1.0.0.tgz"), "1.0.0")
-        self.assertIn("--signer-workflow", run.call_args.args[0])
+        argv = run.call_args.args[0]
+        self.assertEqual(argv[argv.index("--signer-workflow") + 1], r.SIGNER)
+        # The signer names only the pipeline's path, so a run from another branch passes it.
+        self.assertEqual(argv[argv.index("--source-ref") + 1], "refs/heads/main")
+        self.assertIn("--deny-self-hosted-runners", argv)
         for crate, version in (("crabx-pipeline-fixture", "1.0.0"), ("crabx", "1.0.1")):
             with patch.object(r.subprocess, "run", return_value=attested(crate, version)), self.assertRaises(ValueError):
                 r.verify(Path("a.tgz"), "1.0.0")
