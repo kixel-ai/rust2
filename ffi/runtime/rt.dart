@@ -118,8 +118,8 @@ final class PathBuf {
   /// `path`'s UTF-8, throwing an [ArgumentError] where it holds a lone surrogate.
   PathBuf(String path) : _bytes = _utf8(path);
 
-  /// The path of the OS's [bytes], copied: on Windows they must be WTF-8, else it throws an
-  /// [ArgumentError].
+  /// The path of the OS's [bytes], copied, throwing an [ArgumentError] where one is not a
+  /// byte or, on Windows, they are not WTF-8.
   PathBuf.fromBytes(List<int> bytes) : _bytes = _osPath(bytes);
 
   PathBuf._(this._bytes);
@@ -393,8 +393,12 @@ final class SocketAddrV6 extends SocketAddr {
   static SocketAddrV6 _of(_SocketAddrV6 c) => SocketAddrV6._(Ipv6Addr._of(c.ip), c.port, c.flowinfo, c.scope_id);
 }
 
-/// A copy of `bytes`, throwing an [ArgumentError] on Windows where they are not WTF-8.
+/// A copy of `bytes`, throwing an [ArgumentError] where one is not a byte or, on Windows,
+/// they are not WTF-8.
 typed.Uint8List _osPath(List<int> bytes) {
+  if (bytes is! typed.Uint8List && bytes.any((b) => b < 0 || b > 255)) {
+    throw ArgumentError.value(bytes, 'bytes', 'are not all bytes');
+  }
   final copy = typed.Uint8List.fromList(bytes);
   if (io.Platform.isWindows && !_wtf8(copy)) {
     throw ArgumentError.value(bytes, 'bytes', 'is not WTF-8, so names no Windows path');

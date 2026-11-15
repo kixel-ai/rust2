@@ -1513,6 +1513,8 @@ void bounds() {
   final made = api.PathBuf.fromBytes(given);
   given[0] = 0;
   check(made == stray && api.samePath(made) == stray, "a caller's bytes make a path, copied");
+  throws<ArgumentError>(() => api.PathBuf.fromBytes([0x100]), '256 is no path byte');
+  throws<ArgumentError>(() => api.PathBuf.fromBytes([-1]), '-1 is no path byte');
 
   // An address is its family's, checked out of an InternetAddress.
   final loopback = InternetAddress('::1');
