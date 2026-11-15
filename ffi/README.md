@@ -111,7 +111,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
 | `u128` | `<prefix>_u128`: its low and high 64 bits |
-| `NonZero<T>` of an integer but 128-bit | `T`, in every binding too; a zero passed in aborts, which each binding but C++ checks first and raises, and `Option<NonZero<T>>` is `T`'s option |
+| `NonZero<T>` of an integer but 128-bit | `T`, in every binding too; a zero passed in aborts in C and C++, and every other binding checks it first and raises its error. Its option and list are its own, `<prefix>_option_non_zero_<T>` beside `T`'s |
 | `[u8; N]` | `<prefix>_array_u8_<N>`: a struct of its `N` bytes, `items`, copied across; an empty one is refused |
 | `[T; N]` of any other `T`, returned or a constant's value | `Vec<T>` of its `N` items; taken, it is refused |
 | `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: an owned buffer returned; passed in, a view, or a buffer Rust returned, which Rust takes back without a copy unless it sits behind a pointer or in an array; `<prefix>_buf_clone` shares one the caller keeps, which a `Vec<u8>`, `String`, or `PathBuf` parameter then copies, since only a sole owner's allocation becomes a `Vec` |
