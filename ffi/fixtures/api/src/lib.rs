@@ -945,6 +945,84 @@ pub fn reissue_lent(ticket: &Ticket, swap: impl Fn(&Ticket) -> Ticket) -> Ticket
 	swap(ticket)
 }
 
+/// A record holding a `Copy` handle, so its `PartialEq` and `Debug` check that handle.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Seat {
+	pub mark: Mark,
+	pub row: u32,
+}
+
+/// The seat in `row` for `mark`.
+pub fn seat(mark: Mark, row: u32) -> Seat {
+	Seat { mark, row }
+}
+
+impl Seat {
+	/// Its mark's count: a record's method whose receiver holds a checked object.
+	pub fn count(&self) -> u64 {
+		self.mark.count
+	}
+}
+
+/// The counter's value plus the count of each mark beside it: a counter moved in beside
+/// copied checked objects, alone and held in a record and an enum.
+pub fn admit(entry: (Counter, Mark, Seat, Choice)) -> u64 {
+	let (counter, mark, seat, choice) = entry;
+	counter
+		.value
+		.wrapping_add(mark.count)
+		.wrapping_add(seat.mark.count)
+		.wrapping_add(choose(choice))
+}
+
+/// A mark picked, or none: a data enum with an empty variant beside a checked object.
+pub enum Choice {
+	Empty,
+	Picked(Mark),
+}
+
+/// The count of the mark picked, or 0.
+pub fn choose(choice: Choice) -> u64 {
+	match choice {
+		Choice::Empty => 0,
+		Choice::Picked(mark) => mark.count,
+	}
+}
+
+/// A mark and a payload: a record holding a checked handle beside a buffer.
+pub struct Parcel {
+	pub mark: Mark,
+	pub payload: Bytes,
+}
+
+/// Each count and each payload's length, summed: a checked mark beside bytes in a tuple
+/// and in a record lent, and bytes beside a moved counter, so a call a failed check
+/// refuses frees every buffer it was given.
+pub fn heft(marked: (Mark, Bytes), lent: &Parcel, moved: (Counter, Bytes)) -> u64 {
+	let (mark, bytes) = marked;
+	let (counter, more) = moved;
+	let lengths = bytes.len() + lent.payload.len() + more.len();
+	mark.count + lent.mark.count + counter.value + lengths as u64
+}
+
+/// Both counters' values, or an error once they overflow: moved parameters named as what
+/// a binding's own cleanup might bind, an exception `e` and a lambda's `it`.
+pub fn spend(e: Counter, it: Counter) -> Result<u64, String> {
+	e.value.checked_add(it.value).ok_or_else(|| "overflow".to_string())
+}
+
+/// An enum named as the runtime's status, whose constants C would name as its statuses.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Status {
+	Moved,
+	Kept,
+}
+
+/// Whether `status` is `Kept`.
+pub fn is_kept(status: Status) -> bool {
+	status == Status::Kept
+}
+
 /// What `check` returns, a closure with no value but its error.
 pub fn attempt(check: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
 	check()
@@ -1404,12 +1482,45 @@ impl Score {
 		std::mem::take(&mut self.count)
 	}
 
+	/// Adds `mark`'s count to this one, returning the count before: a value's `&mut self`
+	/// beside a checked handle, so a call a failed check refuses leaves the value as it was.
+	pub fn note(&mut self, mark: &Mark) -> u64 {
+		let before = self.count;
+		self.count = self.count.wrapping_add(mark.count);
+		before
+	}
+
 	/// Moves `other`'s count into this one, as `&mut` of a value Rust writes back too, and
 	/// returns both counts before, as a tuple.
 	pub fn absorb(&mut self, other: &mut Score) -> (u64, u64) {
 		let before = (self.count, other.count);
 		self.count = self.count.wrapping_add(std::mem::take(&mut other.count));
 		before
+	}
+}
+
+/// A count beside a slot whose `None` leaves its bytes uninitialized, so a `Copy` handle
+/// rather than a value, which `&mut self` makes checked. A call taking one by value copies
+/// it out of its handle, leaving the caller's as it was.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Mark {
+	count: u64,
+	slot: Option<u32>,
+}
+
+impl Mark {
+	pub fn of(count: u64) -> Self {
+		Self { count, slot: None }
+	}
+
+	pub fn count(&self) -> u64 {
+		self.count
+	}
+
+	/// Adds `by` to the count, in place.
+	pub fn add(&mut self, by: u64) {
+		self.count = self.count.wrapping_add(by);
+		self.slot = Some(0);
 	}
 }
 
@@ -1632,6 +1743,29 @@ pub fn log_on_drop(log: Box<dyn Log>) -> impl Future<Output = ()> + use<> {
 	async move {
 		let _guard = guard;
 		std::future::pending().await
+	}
+}
+
+/// A waker whose wake and drop each log a line to `log` on another thread they wait on.
+pub fn log_waker(log: Box<dyn Log>) -> Waker {
+	Waker::from(Arc::new(LogWake(log)))
+}
+
+struct LogWake(Box<dyn Log>);
+
+impl std::task::Wake for LogWake {
+	fn wake(self: Arc<Self>) {
+		self.wake_by_ref();
+	}
+
+	fn wake_by_ref(self: &Arc<Self>) {
+		on_thread(&*self.0, &[1]);
+	}
+}
+
+impl Drop for LogWake {
+	fn drop(&mut self) {
+		on_thread(&*self.0, &[0]);
 	}
 }
 
@@ -2716,6 +2850,12 @@ pub fn nudge(point: &mut Point, by: i32) {
 	point.y += by;
 }
 
+/// Nudge `point` by the length of `refusal`'s reason: a value Rust writes back beside an
+/// object a check of can fail.
+pub fn nudge_by(point: &mut Point, refusal: &Refusal) {
+	nudge(point, i32::try_from(refusal.reason.len()).unwrap_or(i32::MAX));
+}
+
 /// A config of a crate the facade re-exports nothing from, behind an `Arc`, as moq-tokio's
 /// listener returns rustls's: an opaque handle, which Rust takes back.
 pub fn secure(alpn: &str) -> Arc<tls::Config> {
@@ -3393,6 +3533,18 @@ pub fn reasons(pairs: Vec<(Counter, Refusal)>, last: Option<(Counter, Refusal)>)
 		.join(", ")
 }
 
+/// The length of the note, the bytes, and the reason: bytes beside a class Swift closes
+/// once a move took it, so a call refused before Rust runs frees the bytes it gave Rust.
+pub fn excuse(note: Bytes, entry: (Bytes, Refusal)) -> usize {
+	note.len() + entry.0.len() + entry.1.reason.len()
+}
+
+/// How many of `refusals` `log` keeps, each logged at level 0: a callback the binding gives
+/// before a list whose classes a move may have closed.
+pub fn relay(log: Box<dyn Log>, refusals: Vec<Refusal>) -> u32 {
+	refusals.iter().filter(|r| log.log(0, &r.to_string())).count() as u32
+}
+
 /// Always refuses, for `reason`.
 pub fn refuse(reason: &str) -> Result<u32, Box<Refusal>> {
 	Err(Box::new(Refusal {
@@ -3483,10 +3635,24 @@ impl Worker {
 	}
 }
 
-/// A record only wasm32 has.
+/// A record only wasm32 has, whose std traits fail on another target as its functions do.
 #[cfg(target_arch = "wasm32")]
+#[derive(Debug, Default, PartialEq)]
 pub struct Page {
 	pub size: u32,
+}
+
+/// A record only wasm32 has, holding a checked object, so its std traits take a status.
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug, PartialEq)]
+pub struct Booth {
+	pub mark: Mark,
+}
+
+/// The count of `booth`'s mark.
+#[cfg(target_arch = "wasm32")]
+pub fn booth_count(booth: Booth) -> u64 {
+	booth.mark.count
 }
 
 /// wasm32's page.

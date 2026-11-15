@@ -172,22 +172,22 @@ func throughput(_ track: TrackProducer, _ subscriber: inout TrackSubscriber, _ a
 
 func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 	var out: [(String, Span)] = []
-	let broadcast = BroadcastInfo.new().produce()
+	let broadcast = try BroadcastInfo.new().produce()
 	let track = try broadcast.createTrack("bench", TrackInfo.default().withTimescale(Timescale.MICRO))
 	let frame = Bytes(Data(count: 100))
 	var sum = 0
 
 	var start = begin()
-	for _ in 0..<n where track.isClosed() {
+	for _ in 0..<n where try track.isClosed() {
 		sum += 1
 	}
 	out.append(("call", end(start, "call")))
 
 	var demanded = try track.appendGroup()
-	let demand = demanded.demand()
+	let demand = try demanded.demand()
 	start = begin()
 	for _ in 0..<n {
-		sum &+= Int(demand.sequence())
+		sum &+= Int(try demand.sequence())
 	}
 	out.append(("getter", end(start, "getter")))
 
@@ -195,25 +195,25 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 	// clone each, a handle of its own to the same value. CodSpeed's simulation runs one thread
 	// at a time, which contends for nothing, so it skips them.
 	if !measured {
-		let isClosed = { (t: TrackProducer) -> @Sendable () -> Int in { t.isClosed() ? 1 : 0 } }
-		let sequence = { (d: Shared<GroupDemand>) -> @Sendable () -> Int in { Int(truncatingIfNeeded: d.value.sequence()) } }
-		let shared = Shared(demand.clone())
+		let isClosed = { (t: TrackProducer) -> @Sendable () -> Int in { try! t.isClosed() ? 1 : 0 } }
+		let sequence = { (d: Shared<GroupDemand>) -> @Sendable () -> Int in { Int(truncatingIfNeeded: try! d.value.sequence()) } }
+		let shared = Shared(try demand.clone())
 		out.append(("shared:call", concurrent((0..<threads).map { _ in isClosed(track) })))
-		out.append(("own:call", concurrent((0..<threads).map { _ in isClosed(track.clone()) })))
+		out.append(("own:call", concurrent((0..<threads).map { _ in isClosed(try! track.clone()) })))
 		out.append(("shared:getter", concurrent((0..<threads).map { _ in sequence(shared) })))
-		out.append(("own:getter", concurrent((0..<threads).map { _ in sequence(Shared(demand.clone())) })))
+		out.append(("own:getter", concurrent((0..<threads).map { _ in sequence(Shared(try! demand.clone())) })))
 	}
 	try demanded.finish()
 
 	start = begin()
-	for _ in 0..<n where track.largest() != nil {
+	for _ in 0..<n where try track.largest() != nil {
 		sum += 1
 	}
 	out.append(("record", end(start, "record")))
 
 	start = begin()
 	for _ in 0..<n {
-		_ = track.info()
+		_ = try track.info()
 	}
 	out.append(("object", end(start, "object")))
 
@@ -357,7 +357,7 @@ func round(_ measured: Bool) throws -> ([(String, Span)], Int) {
 	// The last frame's 100 bytes, returned as Bytes, and one of them read.
 	start = begin()
 	for _ in 0..<n {
-		sum += Int(last.payloadGet[0])
+		sum += try Int(last.payloadGet[0])
 	}
 	out.append(("payload", end(start, "payload")))
 	return (out, sum)

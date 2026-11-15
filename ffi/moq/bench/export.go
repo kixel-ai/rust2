@@ -11,6 +11,7 @@ import "C"
 import (
 	"context"
 	"fmt"
+	"io"
 	"runtime"
 	"sync"
 	"syscall"
@@ -206,7 +207,7 @@ func round(measured bool) []result {
 			return func() int { return int(must(d.Sequence())) }
 		}
 		var sharedCalls, ownCalls, sharedGetters, ownGetters []func() int
-		var clones []interface{ Close() }
+		var clones []io.Closer
 		for range threads {
 			t := must(track.Clone())
 			d := must(demand.Clone())

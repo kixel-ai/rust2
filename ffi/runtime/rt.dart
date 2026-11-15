@@ -312,19 +312,37 @@ bool _readerSeek(
   }
 }
 
-/// A waker Rust returned, which its own drop releases once the garbage collector finds
-/// this unreachable.
-final class _Returned implements ffi.Finalizable {
-  final void Function(ffi.Pointer<ffi.Void>) _wake;
-  final ffi.Pointer<ffi.Void> _data;
+/// A waker Rust returned: calling it wakes through Rust, and `close()` drops it, rather
+/// than the garbage collector once it finds this unreachable. Each serves the isolate
+/// while it waits, as an object's call and free do, since either may run Rust that waits
+/// on a thread calling into Dart.
+final class Waker extends _Object {
+  final ffi.Pointer<ffi.Void> _wake;
+  final ffi.Pointer<ffi.Void> _dropFn;
+  final ffi.NativeFinalizer _finalizer;
 
-  _Returned(_Waker raw)
-      : _wake = raw.wake.cast<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>().asFunction(),
-        _data = raw.data {
-    _n.finalizer(raw.drop).attach(this, _data);
+  Waker._(_Waker raw)
+      : _wake = raw.wake,
+        _dropFn = raw.drop,
+        _finalizer = _n.finalizer(raw.drop),
+        super(raw.data, true, false) {
+    _finalizer.attach(this, _raw, detach: this);
   }
 
-  void call() => _wake(_data);
+  @override
+  String get _type => 'Waker';
+
+  @override
+  void _free() {
+    _finalizer.detach(this);
+    _dartWakerCall(_n.home, _dropFn, _raw);
+  }
+
+  /// Wake the task through Rust: a call after [close] throws [StateError].
+  void call() {
+    _dartWakerCall(_n.home, _wake, _hold());
+    _release();
+  }
 }
 
 /// A callback's table and data, as each trait's struct is.
@@ -333,40 +351,52 @@ final class _Callback extends ffi.Struct {
   external ffi.Pointer<ffi.Void> data;
 }
 
-/// What an object owns: its handle, freed once closed and no call holds it, or once the
-/// garbage collector finds it unreachable. A lent one's Rust frees.
+/// What an object owns: its handle, or one Rust lends for a call, which Rust frees. An owned
+/// one of a value Rust checks is Rust's alone to account: [close] drops the value as Rust's
+/// own drop does, failing while a call borrows it, a call after it throws as Rust's check
+/// of a moved value does, and the handle is freed once the garbage collector finds this
+/// unreachable. Any other counts its calls: [close] frees it then, throwing while a call
+/// holds it, and a call after it throws.
 abstract base class _Object implements ffi.Finalizable {
   final ffi.Pointer<ffi.Void> _raw;
 
-  /// The owner's hold until closed, and one for each call.
+  /// The owner's hold until closed, and one for each call, of a counted one.
   int _holds = 1;
   bool _closed = false;
   final bool _owned;
 
+  /// Whether it counts its calls, rather than Rust.
+  final bool _counted;
+
   /// The garbage collector's hold of an owned one's handle, until freed.
   ffi.Pointer<ffi.Void> _own = ffi.nullptr;
 
-  _Object(this._raw, this._owned);
+  _Object(this._raw, bool owned, bool checked) : _owned = owned, _counted = !(owned && checked);
 
   String get _type;
 
   /// Free the handle and detach its finalizer.
   void _free();
 
+  /// Drop the value of one Rust checks, throwing [StateError] if a call borrows it.
+  void _drop() {}
+
   ffi.Pointer<ffi.Void> _hold() {
+    if (!_counted) return _raw;
     if (_closed) throw StateError('$_type is closed');
     _holds++;
     return _raw;
   }
 
   void _release() {
-    if (--_holds == 0 && _owned) _free();
+    if (_counted && --_holds == 0 && _owned) _free();
   }
 
-  /// Free the handle once no call holds it, rather than once the garbage collector finds
-  /// this unreachable: a call after it throws [StateError].
+  /// Close it as [_Object] says; again, it does nothing.
   void close() {
+    if (!_counted) return _drop();
     if (_closed) return;
+    if (_holds != 1) throw StateError('$_type: a handle is already borrowed');
     _closed = true;
     _release();
   }
@@ -590,6 +620,12 @@ final _n = _Native();
 
 final class _Native {
   late final _Stack stack = _Stack();
+
+  /// Where a call that can fail a check writes the failure: one for the isolate, since the
+  /// glue writes it on the isolate's thread as the call returns, once it served every call
+  /// queued meanwhile, and the call reads it before any other can run, and a failure
+  /// clears it.
+  late final ffi.Pointer<ffi.Int32> status = _dartAlloc(4).cast<ffi.Int32>()..value = 0;
   late final isolate.RawReceivePort _port;
   late final ffi.Pointer<ffi.Void> home;
 
@@ -665,10 +701,6 @@ final class _Native {
 
   ffi.NativeFinalizer finalizer(ffi.Pointer<ffi.Void> drop) =>
       _finalizers.putIfAbsent(drop.address, () => ffi.NativeFinalizer(drop.cast()));
-
-  /// A waker Rust returned, as a function waking it through Rust until the garbage
-  /// collector drops it.
-  void Function() returned(_Waker raw) => _Returned(raw).call;
 
   /// `wake` as a waker Rust holds until it drops it, calling it on the isolate's event
   /// loop.

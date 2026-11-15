@@ -19,7 +19,3 @@ Ownership stays automatic: a dropped object is still freed without a call from t
 - Explicit `Close` stays, and the cleanup stays as the backstop; dropping it is refused,
   since a missed `Close` would leak.
 - Re-measure the bench's object return and stamped write.
-
-## Related
-
-- [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - rewrites the same handle word; profile after it lands, or the baselines move

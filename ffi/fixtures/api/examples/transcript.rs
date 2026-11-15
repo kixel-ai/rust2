@@ -381,6 +381,19 @@ fn main() {
 		weighted.total(),
 		weighted.score.count() + step.count()
 	);
+	// A checked mark beside bytes in a tuple and in a record lent, and bytes beside a move.
+	let mut mark = api::Mark::of(1);
+	mark.add(2);
+	let parcel = api::Parcel {
+		mark,
+		payload: Bytes::from_static(b"abc"),
+	};
+	let moved = (Counter::new("w", 1), Bytes::from_static(b"abcd"));
+	println!("heft {}", api::heft((mark, Bytes::from_static(b"ab")), &parcel, moved));
+	// A value's `&mut self` beside a checked handle.
+	let mut noted = api::Score::of(2);
+	let before = noted.note(&api::Mark::of(5));
+	println!("noted {before} {}", noted.count());
 
 	println!("kept {}", api::emit(Print, vec![1, 2, 3, 4]));
 	let logger = Logger::new(Box::new(Print));
@@ -907,6 +920,10 @@ fn main() {
 	let given = api::reissue(api::Ticket::new(7), |t| api::Ticket::new(t.number() + 1)).number();
 	let held = api::reissue(api::Ticket::new(7), |_| kept).number();
 	println!("reissued {given} {held}, cloned {}", api::Ticket::clones());
+	// A record's traits borrow the checked handle it holds.
+	let nines = api::Mark::of(9);
+	let (front, back) = (api::seat(nines, 1), api::seat(nines, 2));
+	println!("seat {front:?} {} {}", front == front.clone(), front == back);
 	// A kept closure, called on another thread after the call that took it returned.
 	println!("spawned {}", api::Spawned::new(|| 7).join());
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
