@@ -42,7 +42,8 @@ async def drive(driver):
 	while True:
 		woken.clear()
 		deadline = driver.poll(moq.clock_now(), waiter)
-		timeout = None if deadline is None else deadline.saturating_duration_since(moq.clock_now()).total_seconds()
+		left = None if deadline is None else deadline.saturating_duration_since(moq.clock_now())
+		timeout = None if left is None else left.secs + left.nanos / 1e9
 		try:
 			await asyncio.wait_for(woken.wait(), timeout)
 		except TimeoutError:

@@ -485,9 +485,9 @@ static bool closures(void) {
 		print("sought error ", landed_err, "\n");
 	}
 	print("non zeros ", api_describe_non_zeros(api_non_zeros()), "\n");
-	api_option_u64 hops[] = {{0}, {.some = true, .value = 1}, {.some = true, .value = UINT64_MAX}};
+	api_option_non_zero_u64 hops[] = {{0}, {.some = true, .value = 1}, {.some = true, .value = UINT64_MAX}};
 	for (size_t i = 0; i < sizeof hops / sizeof hops[0]; i++) {
-		api_option_u64 hop = api_next_hop(hops[i]);
+		api_option_non_zero_u64 hop = api_next_hop(hops[i]);
 		if (hop.some) {
 			printf("hop Some(%llu)\n", (unsigned long long)hop.value);
 		} else {
@@ -2381,7 +2381,7 @@ static int broken(const char *which) {
 	} else if (strcmp(which, "plain variant") == 0) {
 		api_is_family(API_FAMILY_WASM);
 	} else if (strcmp(which, "zero") == 0) {
-		api_next_hop((api_option_u64){.some = true, .value = 0});
+		api_next_hop((api_option_non_zero_u64){.some = true, .value = 0});
 	}
 	return 0;
 }
