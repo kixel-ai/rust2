@@ -483,4 +483,9 @@ mod methods {
 	/// facade exposes, though narrowing it changes no print.
 	#[derives::method_like]
 	pub fn shared() {}
+
+	/// Restored, unreached: alike, though the visibility it picks spans this item, which
+	/// starts at its `pub`.
+	#[derives::method_spanned]
+	pub fn spanned() {}
 }

@@ -616,7 +616,8 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// The visibility `def` writes at `vis`, alike in every narrowing: none, a `pub` the
-	/// narrowing edited, as the `pub` it was, or what rustc reads there.
+	/// narrowing edited, as the `pub` it was, or what rustc reads there. Only a visibility
+	/// spanning just that `pub(crate)` is its token's, as [`Self::token`] reads it.
 	fn visibility(&mut self, def: LocalDefId, vis: rustc_span::Span) -> Option<Option<Hash>> {
 		if vis.is_empty() {
 			return None;
@@ -626,6 +627,7 @@ impl<'tcx> Collector<'tcx> {
 				.narrowed
 				.get(&self.files[span.file as usize])
 				.is_some_and(|read| read.contains(&span.lo))
+			&& span.hi == span.lo + "pub(crate)".len() as u32
 		{
 			return Some(None);
 		}

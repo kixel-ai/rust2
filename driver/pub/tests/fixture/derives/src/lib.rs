@@ -1,4 +1,5 @@
 //! Macros that read their item's visibility, as any may, and one that does not.
+#![feature(proc_macro_span)]
 
 use proc_macro::{TokenStream, TokenTree};
 
@@ -49,6 +50,42 @@ pub fn method_like(_: TokenStream, item: TokenStream) -> TokenStream {
 		.parse()
 		.unwrap();
 	item.into_iter().chain(method).collect()
+}
+
+/// Kept: [`method_like`], but writing `pub` or `pub(crate)`, each spanning its item from
+/// its own `pub` to its end.
+#[proc_macro_attribute]
+pub fn method_spanned(_: TokenStream, item: TokenStream) -> TokenStream {
+	let (visibility, name) = read(item.clone());
+	let span = item
+		.clone()
+		.into_iter()
+		.skip_while(|t| !matches!(t, TokenTree::Ident(i) if i.to_string() == "pub"))
+		.map(|t| t.span())
+		.reduce(|a, b| a.join(b).expect("one file"))
+		.expect("a `pub` item");
+	let visibility = if visibility == "pub" { "pub" } else { "pub(crate)" };
+	let mut method: TokenStream = format!("impl crate::Exposed {{ {visibility} fn {name}_method() -> u32 {{ 59 }} }}")
+		.parse()
+		.unwrap();
+	method = respan(method, span);
+	item.into_iter().chain(method).collect()
+}
+
+/// `stream`, every token of it at `span`.
+fn respan(stream: TokenStream, span: proc_macro::Span) -> TokenStream {
+	stream
+		.into_iter()
+		.map(|mut token| {
+			if let TokenTree::Group(group) = &token {
+				let mut inner = proc_macro::Group::new(group.delimiter(), respan(group.stream(), span));
+				inner.set_span(span);
+				token = TokenTree::Group(inner);
+			}
+			token.set_span(span);
+			token
+		})
+		.collect()
 }
 
 /// Kept: returns its item as it is.

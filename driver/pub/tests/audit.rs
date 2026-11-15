@@ -98,6 +98,7 @@ fn fixture() {
 	// A macro that writes another item's visibility from its input's leaves the print
 	// alike, so the visibility each item writes is compared too.
 	expect("methods::shared", "restored", "unreached");
+	expect("methods::spanned", "restored", "unreached");
 	expect("marks::Unnamed", "external", "crate-only");
 	expect("<(dyn Shape + 'static)>::describe", "external", "unreached");
 	// A `pub` an exported macro holds, though another macro wrote it there.
