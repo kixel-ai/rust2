@@ -16,9 +16,11 @@ use loom::thread;
 const CLOSED: usize = 1;
 /// Set in the hold count once calls contended for it, after which they go to the table.
 const BIAS: usize = 2;
+/// Set beside [`CLOSED`] while an unchecked close decides, which may yet leave it open.
+const CLOSING: usize = 4;
 /// One hold in the count, past the bits above, so the count is below it only once no hold
 /// is left.
-const HELD: usize = 4;
+const HELD: usize = 8;
 /// Set in a slot whose hold a close turned into a count.
 const REVOKED: usize = 1;
 /// The handle's key in a slot, as the bindings use its raw pointer.
@@ -106,16 +108,19 @@ impl Hold {
 	/// Give up the owner's hold once a move or a checked close took the value, freeing the
 	/// handle once no hold is left.
 	fn abandon(&self) {
-		let mut n = self.state.load(SeqCst);
-		loop {
+		let n = loop {
+			let n = self.state.load(SeqCst);
+			if n & CLOSING != 0 {
+				thread::yield_now();
+				continue;
+			}
 			if n & CLOSED != 0 {
 				return;
 			}
-			match self.state.compare_exchange(n, n | CLOSED, SeqCst, SeqCst) {
-				Ok(_) => break,
-				Err(now) => n = now,
+			if self.state.compare_exchange(n, n | CLOSED, SeqCst, SeqCst).is_ok() {
+				break n;
 			}
-		}
+		};
 		fence(SeqCst);
 		if n & BIAS != 0 {
 			for slot in &self.slots {
@@ -130,20 +135,34 @@ impl Hold {
 		self.release(None);
 	}
 
-	/// Close an unchecked handle, which fails while a call holds it: whether it closed.
-	fn close(&self) -> bool {
-		let n = self.state.load(SeqCst);
-		if n & !BIAS != HELD || self.state.compare_exchange(n, n | CLOSED, SeqCst, SeqCst).is_err() {
-			return false;
-		}
+	/// Close an unchecked handle, which fails while a call holds it, and does nothing once
+	/// closed, waiting out another close that is still deciding.
+	fn close(&self) -> Closed {
+		let n = loop {
+			let n = self.state.load(SeqCst);
+			if n & CLOSING != 0 {
+				thread::yield_now();
+				continue;
+			}
+			if n & CLOSED != 0 {
+				return Closed::Already;
+			}
+			if n & !BIAS != HELD {
+				return Closed::Borrowed;
+			}
+			let claim = n | CLOSED | CLOSING;
+			if self.state.compare_exchange(n, claim, SeqCst, SeqCst).is_ok() {
+				break n;
+			}
+		};
 		fence(SeqCst);
 		if n & BIAS != 0 && self.slots.iter().any(|slot| slot.load(SeqCst) == KEY) {
-			self.state.fetch_sub(CLOSED, SeqCst);
-			return false;
+			self.state.fetch_sub(CLOSED | CLOSING, SeqCst);
+			return Closed::Borrowed;
 		}
 		self.state.store(CLOSED, SeqCst);
 		self.free();
-		true
+		Closed::Now
 	}
 
 	/// No hold is left, and the handle was freed once, or not at all while still open.
@@ -160,6 +179,17 @@ impl Hold {
 			}
 		}
 	}
+}
+
+/// What an unchecked close did.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Closed {
+	/// Closed and freed it.
+	Now,
+	/// Found it closed.
+	Already,
+	/// Refused, as a call held it.
+	Borrowed,
 }
 
 fn model(f: impl Fn() + Sync + Send + 'static) {
@@ -243,8 +273,31 @@ fn close_against_biased_call() {
 		let held = thread::spawn(move || call(&other, 1));
 		let closed = hold.close();
 		held.join().unwrap();
-		if !closed {
-			assert!(hold.close());
+		if closed != Closed::Now {
+			assert_eq!(hold.close(), Closed::Now);
+		}
+		hold.settled(true);
+	});
+}
+
+/// Two unchecked closes against a call in the table: one that finds the handle closed
+/// returns only once the other's close stands, never while it may yet be refused.
+#[test]
+fn closes_against_biased_call() {
+	model(|| {
+		let hold = Hold::new(2, true);
+		let (other, call_hold) = (hold.clone(), hold.clone());
+		let held = thread::spawn(move || call(&call_hold, 1));
+		let first = thread::spawn(move || other.close());
+		let second = hold.close();
+		let first = first.join().unwrap();
+		held.join().unwrap();
+		let closes = [first, second];
+		if closes.contains(&Closed::Already) {
+			assert!(closes.contains(&Closed::Now));
+		}
+		if !closes.contains(&Closed::Now) {
+			assert_eq!(hold.close(), Closed::Now);
 		}
 		hold.settled(true);
 	});

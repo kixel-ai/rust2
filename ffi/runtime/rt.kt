@@ -442,10 +442,15 @@ class __Handle(
 	private val drop: __Close? = null,
 ) : __Cleanup(if (free == null) null else owner) {
 	// The holds, one for the owner until closed and one per call, shifted past a bit set
-	// once closed and one set once calls contended for them, after which they hold it in
-	// [SLOTS]: one word, so a handle allocates nothing beside itself and a call reads all
-	// three at once, and below [HELD] only once no hold is left.
+	// once closed, one set while an unchecked [close] decides, and one set once calls
+	// contended for them, after which they hold it in [SLOTS]: one word, so a call reads
+	// them all at once, and below [HELD] only once no hold is left.
 	@kotlin.concurrent.Volatile @kotlin.jvm.JvmField internal var state = HELD
+
+	// What a slot holds for this handle, given once calls first contend for it, before
+	// [BIAS]: unique while the handle lives, unlike [raw], which Rust reuses once freed
+	// even while a closed handle is still reachable.
+	@kotlin.concurrent.Volatile @kotlin.jvm.JvmField internal var key = 0L
 
 	init {
 		if (free != null) track()
@@ -463,10 +468,11 @@ class __Handle(
 	private fun contend(): Int {
 		if (state and BIAS != 0L) {
 			val i = slot()
-			if (SLOTS.compareAndSet(i, 0L, raw)) {
+			val k = key
+			if (SLOTS.compareAndSet(i, 0L, k)) {
 				if (state and CLOSED == 0L) return i
 				// A close claimed it meanwhile, and may have counted this hold.
-				if (!SLOTS.compareAndSet(i, raw, 0L)) {
+				if (!SLOTS.compareAndSet(i, k, 0L)) {
 					SLOTS.set(i, 0L)
 					release(-1)
 				}
@@ -478,6 +484,7 @@ class __Handle(
 			kotlin.check(n and CLOSED == 0L) { "$type is closed" }
 			if (STATE.compareAndSet(this, n, n + HELD)) break
 		}
+		if (key == 0L) KEY.compareAndSet(this, 0L, KEYS.addAndGet(2))
 		while (true) {
 			val n = state
 			if (n and BIAS != 0L || STATE.compareAndSet(this, n, n or BIAS)) return -1
@@ -494,7 +501,7 @@ class __Handle(
 	private fun row(): Int = ((raw ushr 4) * FIBONACCI_LONG ushr (64 - ROW_BITS)).toInt()
 
 	fun release(slot: Int) {
-		if (slot >= 0 && SLOTS.getAndSet(slot, 0L) == raw) return
+		if (slot >= 0 && SLOTS.getAndSet(slot, 0L) == key) return
 		freed(STATE.addAndGet(this, -HELD))
 	}
 
@@ -515,15 +522,20 @@ class __Handle(
 		}
 		while (true) {
 			val n = state
+			// Another close is deciding: wait for its outcome, which may leave it open.
+			if (n and CLOSING != 0L) {
+				java.lang.Thread.yield()
+				continue
+			}
 			if (n and CLOSED != 0L) return
 			kotlin.check(n and BIAS.inv() == HELD) { "$type: a handle is already borrowed" }
-			if (STATE.compareAndSet(this, n, n or CLOSED)) break
+			if (STATE.compareAndSet(this, n, n or CLOSED or CLOSING)) break
 		}
 		// Claimed closed, so a call holding it in the table after this finds it closed, and
 		// one before is in the table. A call that left the table finding it closed held
 		// nothing, so the count is still the owner's alone.
 		if (listed()) {
-			STATE.addAndGet(this, -CLOSED)
+			STATE.addAndGet(this, -(CLOSED or CLOSING))
 			throw IllegalStateException("$type: a handle is already borrowed")
 		}
 		state = CLOSED
@@ -533,9 +545,10 @@ class __Handle(
 	// Whether a call holds it in the table.
 	private fun listed(): Boolean {
 		if (state and BIAS == 0L) return false
+		val k = key
 		var i = row()
 		while (i < SLOTS.length()) {
-			if (SLOTS.get(i) == raw) return true
+			if (SLOTS.get(i) == k) return true
 			i += STRIDE
 		}
 		return false
@@ -557,16 +570,22 @@ class __Handle(
 	fun abandon() {
 		while (true) {
 			val n = state
+			// An unchecked close is deciding: wait for its outcome, which may leave it open.
+			if (n and CLOSING != 0L) {
+				java.lang.Thread.yield()
+				continue
+			}
 			if (n and CLOSED != 0L) return
 			if (STATE.compareAndSet(this, n, n or CLOSED)) break
 		}
 		// Claimed closed, so each call holding it in the table did so before: count them.
 		if (state and BIAS != 0L) {
+			val k = key
 			var i = row()
 			while (i < SLOTS.length()) {
-				if (SLOTS.get(i) == raw) {
+				if (SLOTS.get(i) == k) {
 					STATE.addAndGet(this, HELD)
-					if (!SLOTS.compareAndSet(i, raw, raw or REVOKED)) STATE.addAndGet(this, -HELD)
+					if (!SLOTS.compareAndSet(i, k, k or REVOKED)) STATE.addAndGet(this, -HELD)
 				}
 				i += STRIDE
 			}
@@ -595,7 +614,8 @@ class __Handle(
 	private companion object {
 		const val CLOSED = 1L
 		const val BIAS = 2L
-		const val HELD = 4L
+		const val CLOSING = 4L
+		const val HELD = 8L
 		// Set in a slot whose hold a close counted.
 		const val REVOKED = 1L
 		// Once calls contend for a handle's count, each holds it in a slot of SLOTS instead,
@@ -614,6 +634,10 @@ class __Handle(
 		val SLOTS = java.util.concurrent.atomic.AtomicLongArray(STRIDE shl COLUMN_BITS)
 		val STATE: java.util.concurrent.atomic.AtomicLongFieldUpdater<__Handle> =
 			java.util.concurrent.atomic.AtomicLongFieldUpdater.newUpdater(__Handle::class.java, "state")
+		val KEY: java.util.concurrent.atomic.AtomicLongFieldUpdater<__Handle> =
+			java.util.concurrent.atomic.AtomicLongFieldUpdater.newUpdater(__Handle::class.java, "key")
+		// The last key given, in steps of two, so a key's low bit is clear for [REVOKED].
+		val KEYS = java.util.concurrent.atomic.AtomicLong()
 	}
 }
 

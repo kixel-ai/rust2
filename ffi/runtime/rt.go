@@ -6,13 +6,14 @@
 // cgo makes its own, in ffi_cgo.go; it reaches this through Go's types alone.
 
 // The holds a handle counts, one for its owner until closed and one per call, shifted
-// past a bit set once closed and one set once calls contended for them, after which they
-// hold it in slots_: in one word, so a call reads all three at once, and the count is
-// below held_ only once no hold is left.
+// past a bit set once closed, one set while an unchecked Close decides, and one set once
+// calls contended for them, after which they hold it in slots_: in one word, so a call
+// reads them all at once, and the count is below held_ only once no hold is left.
 const (
-	closed_ = 1
-	bias_   = 2
-	held_   = 4
+	closed_  = 1
+	bias_    = 2
+	closing_ = 4
+	held_    = 8
 )
 
 // Once calls contend for a handle's count, each holds it in a slot of slots_ instead, so
@@ -232,13 +233,18 @@ func (h *Handle_) Close() error {
 	}
 	for {
 		n := h.state.Load()
+		// Another Close is deciding: wait for its outcome, which may leave h open.
+		if n&closing_ != 0 {
+			runtime.Gosched()
+			continue
+		}
 		if n&closed_ != 0 {
 			return nil
 		}
 		if n&^bias_ != held_ {
 			return checkError_{h.name, "a handle is already borrowed", 3}
 		}
-		if h.state.CompareAndSwap(n, n|closed_) {
+		if h.state.CompareAndSwap(n, n|closed_|closing_) {
 			break
 		}
 	}
@@ -246,7 +252,7 @@ func (h *Handle_) Close() error {
 	// one before is in the table. A call that left the table finding it closed held
 	// nothing, so the count is still the owner's alone.
 	if h.listed() {
-		h.state.And(^closed_)
+		h.state.And(^(closed_ | closing_))
 		return checkError_{h.name, "a handle is already borrowed", 3}
 	}
 	h.state.Store(closed_)
@@ -284,6 +290,11 @@ func (h *Handle_) Moved() {
 func (h *Handle_) abandon() {
 	for {
 		n := h.state.Load()
+		// An unchecked Close is deciding: wait for its outcome, which may leave h open.
+		if n&closing_ != 0 {
+			runtime.Gosched()
+			continue
+		}
 		if n&closed_ != 0 {
 			return
 		}
