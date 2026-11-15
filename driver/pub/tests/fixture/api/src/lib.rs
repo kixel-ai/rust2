@@ -355,7 +355,31 @@ macro_rules! call_helper {
 	};
 }
 
+/// Makes an exported macro that calls the helper it is given through `$crate`, where only
+/// what it makes names the helper.
+macro_rules! make_caller {
+	($module:ident, $helper:ident) => {
+		#[macro_export]
+		macro_rules! call_generated {
+			() => {
+				$crate::$module::$helper()
+			};
+		}
+	};
+}
+
+make_caller!(made, generated);
+
+pub mod made {
+	/// External: what the `$crate` path of an exported macro another macro made names,
+	/// though nothing in the audit expands it.
+	pub fn generated() -> u32 {
+		50
+	}
+}
+
 pub mod helpers {
+
 	/// External: what an exported macro's `$crate` path names, though nothing in the audit
 	/// expands it.
 	pub fn called() -> u32 {

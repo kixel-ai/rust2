@@ -30,5 +30,5 @@ pub use api::Part;
 /// External: this library's API, one variant of api's enum.
 pub use api::Picked::One;
 
-/// External: this library's API, an exported macro of api that calls a helper of api.
-pub use api::call_helper;
+/// External: this library's API, exported macros of api that call helpers of api, one another macro made.
+pub use api::{call_generated, call_helper};

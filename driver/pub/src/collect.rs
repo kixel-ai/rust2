@@ -13,7 +13,7 @@ use rustc_ast::tokenstream::TokenTree;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_driver::{Callbacks, Compilation};
 use rustc_hir::def::{DefKind, Res};
-use rustc_hir::def_id::{CRATE_DEF_ID, DefId, LocalDefId};
+use rustc_hir::def_id::{CRATE_DEF_ID, DefId, LOCAL_CRATE, LocalDefId};
 use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::{self as hir, ItemKind, Node, UseKind};
 use rustc_interface::interface::{Compiler, Config};
@@ -321,8 +321,23 @@ impl<'tcx> Collector<'tcx> {
 							TokenTree::Token(token, _) if token.is_keyword(kw::Pub) => {
 								tokens.extend(this.span(token.span));
 							}
-							TokenTree::Token(token, _) if token.kind == TokenKind::Dollar => {
-								this.crate_path(&trees[i + 1..]);
+							// `$crate` as written, which names this crate.
+							TokenTree::Token(token, _)
+								if token.kind == TokenKind::Dollar
+									&& let Some(TokenTree::Token(krate, _)) = trees.get(i + 1)
+									&& krate.is_keyword(kw::Crate) =>
+							{
+								this.crate_path(CRATE_DEF_ID.to_def_id(), &trees[i + 2..]);
+							}
+							// `$crate` as another macro wrote it, which names that macro's crate.
+							TokenTree::Token(token, _) if token.is_keyword(kw::DollarCrate) => {
+								let krate = token
+									.span
+									.ctxt()
+									.outer_expn_data()
+									.macro_def_id
+									.map_or(LOCAL_CRATE, |d| d.krate);
+								this.crate_path(krate.as_def_id(), &trees[i + 1..]);
 							}
 							TokenTree::Token(..) => {}
 							TokenTree::Delimited(.., inner) => stack.push(inner),
@@ -902,17 +917,11 @@ impl<'tcx> Collector<'tcx> {
 		supplied
 	}
 
-	/// What a `$crate::a::b` path in the owner, a macro, names, from the tokens after its
-	/// `$`: each module, re-export, and item along it, as far as modules, enums, and traits
-	/// lead. Its callers name them wherever it expands, though nothing in the audit may.
-	fn crate_path(&mut self, trees: &[&TokenTree]) {
-		let [TokenTree::Token(krate, _), rest @ ..] = trees else {
-			return;
-		};
-		if !krate.is_keyword(kw::Crate) {
-			return;
-		}
-		let mut module = CRATE_DEF_ID.to_def_id();
+	/// What a `$crate::a::b` path in the owner, a macro, names, from `$crate`'s crate root
+	/// and the tokens after it: each module, re-export, and item along it, as far as
+	/// modules, enums, and traits lead. Its callers name them wherever it expands, though
+	/// nothing in the audit may.
+	fn crate_path(&mut self, mut module: DefId, rest: &[&TokenTree]) {
 		for pair in rest.as_chunks::<2>().0 {
 			let [TokenTree::Token(sep, _), TokenTree::Token(segment, _)] = pair else {
 				return;
