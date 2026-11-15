@@ -941,7 +941,8 @@ impl<'a> Gen<'a> {
 	fn lower(&mut self, ty: &Type, e: &str) -> String {
 		match ty {
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
-			Type::Int(int) | Type::NonZero(int) => match int {
+			Type::NonZero(int) => format!("_n.nonZero({})", self.lower(&Type::Int(*int), e)),
+			Type::Int(int) => match int {
 				Int::U8 => format!("_n.u8({e})"),
 				Int::U16 => format!("_n.u16({e})"),
 				Int::U32 => format!("_n.u32({e})"),

@@ -1468,6 +1468,8 @@ void bounds() {
     throws<ArgumentError>(() => api.sameString(lone), 'a lone surrogate in ${lone.codeUnits}');
   }
   throws<ArgumentError>(() => api.PathBuf('\u{dc00}'), 'a path of a lone surrogate');
+  throws<ArgumentError>(() => api.nextHop(api.U64(0)), 'a zero NonZero');
+  throws<ArgumentError>(() => api.fartherHop(const api.PairNonZeroU16(left: 0, right: 1)), 'a zero NonZero field');
 
   // A `u64` is its bits read unsigned, checked into and out of an `int` or a `BigInt`.
   check(api.U64.max.toBigInt() == (BigInt.one << 64) - BigInt.one, 'u64::MAX as a BigInt');

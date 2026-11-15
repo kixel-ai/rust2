@@ -856,7 +856,7 @@ impl<'a> Gen<'a> {
 		let api = self.abi.api;
 		match ty {
 			ty if Abi::is_buf(ty) => true,
-			Type::List(..) | Type::Object(_) | Type::Char => true,
+			Type::List(..) | Type::Object(_) | Type::Char | Type::NonZero(_) => true,
 			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => self.arena(inner),
 			Type::Tuple(elements) => elements.iter().any(|e| self.arena(e)),
 			Type::Record(i) => api.records[*i].fields.iter().any(|f| self.arena(&f.ty)),
@@ -880,12 +880,14 @@ impl<'a> Gen<'a> {
 	}
 
 	/// Whether lowering a `ty` can fail the call before it is made, which then returns an
-	/// error: it holds an object, which may be closed, or text, a char, or a path, whose Go
-	/// types hold values Rust's do not, a path's only on Windows.
+	/// error: it holds an object, which may be closed, or text, a char, a path, or a
+	/// `NonZero`, whose Go types hold values Rust's do not, a path's only on Windows.
 	fn fails(&self, ty: &Type) -> bool {
 		let api = self.abi.api;
 		match ty {
-			Type::Object(_) | Type::Str | Type::String | Type::Char | Type::Path | Type::PathBuf => true,
+			Type::Object(_) | Type::Str | Type::String | Type::Char | Type::Path | Type::PathBuf | Type::NonZero(_) => {
+				true
+			}
 			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => self.fails(inner),
 			Type::Tuple(elements) => elements.iter().any(|e| self.fails(e)),
 			Type::Record(i) => api.records[*i].fields.iter().any(|f| self.fails(&f.ty)),
@@ -937,7 +939,8 @@ impl<'a> Gen<'a> {
 			Type::Slice | Type::Vec | Type::Bytes => format!("a_.bufView({e})"),
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool => format!("C.bool({e})"),
-			Type::Int(int) | Type::NonZero(int) => format!("C.{}({e})", c_int(*int)),
+			Type::Int(int) => format!("C.{}({e})", c_int(*int)),
+			Type::NonZero(int) => format!("C.{}(nonZero_(a_, {e}))", c_int(*int)),
 			Type::F32 => format!("C.float({e})"),
 			Type::F64 => format!("C.double({e})"),
 			Type::Char => format!("a_.char({e})"),
@@ -2176,8 +2179,10 @@ impl<'a> Gen<'a> {
 	/// The C value of a scalar `e` of type `ty` a callback returns, needing no arena.
 	fn lower_scalar(&mut self, ty: &Type, e: &str) -> String {
 		match ty {
-			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 => self.lower(ty, e),
-			// Rust, the caller, has no error to take, so one that is no Unicode scalar aborts.
+			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => self.lower(ty, e),
+			// Rust, the caller, has no error to take, so a zero, or a char that is no Unicode
+			// scalar, aborts.
+			Type::NonZero(int) => self.lower(&Type::Int(*int), e),
 			Type::Char => format!("C.uint32_t({e})"),
 			Type::Enum(i) if self.abi.api.enums[*i].plain() => self.lower(ty, e),
 			other => unreachable!("a callback returns a scalar, not {other:?}"),
@@ -2555,6 +2560,10 @@ impl<'a> Gen<'a> {
 						fail("err_")
 					));
 					args.push(format!("C.uint32_t({name})"));
+				}
+				(Type::NonZero(int), _) => {
+					prelude.push(format!("if {name} == 0 {{\n\t{}\n}}", fail("errNonZero_")));
+					args.push(format!("C.{}({name})", c_int(*int)));
 				}
 				(ty, Ty::Buf) => {
 					// Text and paths are checked before the call.

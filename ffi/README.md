@@ -111,7 +111,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
 | `u128` | `<prefix>_u128`: its low and high 64 bits |
-| `NonZero<T>` of an integer but 128-bit | `T`, in every binding too; a zero passed in aborts, and `Option<NonZero<T>>` is `T`'s option |
+| `NonZero<T>` of an integer but 128-bit | `T`, in every binding too; a zero passed in aborts, which each binding but C++ checks first and raises, and `Option<NonZero<T>>` is `T`'s option |
 | `[u8; N]` | `<prefix>_array_u8_<N>`: a struct of its `N` bytes, `items`, copied across; an empty one is refused |
 | `[T; N]` of any other `T`, returned or a constant's value | `Vec<T>` of its `N` items; taken, it is refused |
 | `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: an owned buffer returned; passed in, a view, or a buffer Rust returned, which Rust takes back without a copy unless it sits behind a pointer or in an array; `<prefix>_buf_clone` shares one the caller keeps, which a `Vec<u8>`, `String`, or `PathBuf` parameter then copies, since only a sole owner's allocation becomes a `Vec` |
@@ -701,7 +701,7 @@ caller imports it with no ignores.
   the runtime's `Duration`, a `NamedTuple` of `secs` and `nanos` as Rust holds them, which
   raises `OverflowError` or `ValueError` passed in out of their range; its `from_timedelta`
   and `to_timedelta` raise rather than lose anything, as a `timedelta` holds only whole
-  microseconds up to 999,999,999 days. A `Range` is a `range`, and an `Err` a raised `<E>Exception`
+  microseconds up to 999,999,999 days. A zero passed for a `NonZero` raises `ValueError`. A `Range` is a `range`, and an `Err` a raised `<E>Exception`
   holding it in `error`, whose `str` is its `Display`. A `[u8; N]` is a generated
   `ArrayU8x<N>`, a `bytes` that raises `ValueError` unless it holds exactly `N`; a
   parameter takes any `bytes` of `N`.
@@ -978,8 +978,8 @@ reads a go.mod.
   `Netip()` and `rt.<Type>Of`, which fail on the wrong family, a zone an `Ipv6Addr` or
   `IpAddr` has no room for, or a flow label `netip` has none for; a scope is a zone of its
   number, and a zone converts by its number or its interface's name. Every one compares
-  with `==`. A `string` that is not UTF-8, or a `rune` that is not a Unicode scalar value,
-  fails the call taking it, anywhere in its arguments, before it is made, with an error
+  with `==`. A `string` that is not UTF-8, a `rune` that is not a Unicode scalar value,
+  or a zero for a `NonZero`, fails the call taking it, anywhere in its arguments, before it is made, with an error
   matching `rt.ErrInvalid`, so every such call returns an `error`, `Equal` of a value
   holding text too, and `String()` and `GoString()` the error's text; what a closure or
   trait Go implements returns Rust has no caller to return one to, so it aborts.
@@ -1076,8 +1076,9 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   `BigInt`; `U64.fromBits` takes any `int`'s bits. Being an extension type, it prints as
   its `int` does, signed: `toRadixString` and `toBigInt` print it unsigned. A narrower
   integer passed in throws a `RangeError` when out of its range, as do a `usize` or
-  `isize` past 32 bits on a 32-bit target. A `char` is a `String` of one Unicode scalar,
-  and any other throws an `ArgumentError`.
+  `isize` past 32 bits on a 32-bit target, and a zero passed for a `NonZero` throws an
+  `ArgumentError`. A `char` is a `String` of one Unicode scalar, and any other throws an
+  `ArgumentError`.
 - **Bytes** a call takes are a `Uint8List`, and text a `String`, which throws an
   `ArgumentError` passed in holding a lone surrogate, since UTF-8 has no form of one and
   Dart's encoder would replace it. Rust keeps Dart's own

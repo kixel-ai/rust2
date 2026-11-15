@@ -1050,16 +1050,16 @@ func script() {
 	} else {
 		fmt.Printf("sought %d\n", at)
 	}
-	fmt.Printf("non zeros %s\n", api.DescribeNonZeros(api.NewNonZeros()))
+	fmt.Printf("non zeros %s\n", must(api.DescribeNonZeros(api.NewNonZeros())))
 	hopFirst, hopLast := uint64(1), uint64(math.MaxUint64)
 	for _, hop := range []*uint64{nil, &hopFirst, &hopLast} {
-		if next := api.NextHop(hop); next != nil {
+		if next := must(api.NextHop(hop)); next != nil {
 			fmt.Printf("hop Some(%d)\n", *next)
 		} else {
 			fmt.Println("hop None")
 		}
 	}
-	fmt.Printf("farther hop %d\n", api.FartherHop(api.PairNonZeroU16{Left: 3, Right: math.MaxUint16}))
+	fmt.Printf("farther hop %d\n", must(api.FartherHop(api.PairNonZeroU16{Left: 3, Right: math.MaxUint16})))
 }
 
 // farReader is a reader whose reads fail, which seeks anywhere from its start, as Rust's
@@ -1731,6 +1731,10 @@ func checked() {
 		_, err = api.SameChar(r)
 		invalid(err, fmt.Sprintf("the rune %d fails the call", r))
 	}
+	// A zero for a NonZero, optional and inside a record.
+	noHop := uint64(0)
+	invalid(second(api.NextHop(&noHop)), "a zero NonZero fails the call")
+	invalid(second(api.FartherHop(api.PairNonZeroU16{Left: 0, Right: 1})), "a record's zero NonZero fails the call")
 
 	// Durations: built exactly, and converted to and from time.Duration where it holds them.
 	invalid(second(rt.NewDuration(math.MaxUint64, 1e9)), "a duration past Rust's longest fails")

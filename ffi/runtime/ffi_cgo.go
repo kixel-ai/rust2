@@ -224,12 +224,13 @@ func liftSocketAddr_(c cSocketAddr) rt.SocketAddr {
 	return rt.SocketAddrFromV4(liftSocketAddrV4_(*(*cSocketAddrV4)(unsafe.Pointer(&c.addr))))
 }
 
-// What a call returns before it is made once it is given text that is not UTF-8 or a rune
-// that is not a Unicode scalar value, which no Rust string or char holds.
+// What a call returns before it is made once it is given text that is not UTF-8, a rune
+// that is not a Unicode scalar value, or a zero for a NonZero, which Rust's types lack.
 var (
 	errText_ = rt.Invalid_("a string is not UTF-8")
 	errRune_ = rt.Invalid_("a rune is not a Unicode scalar value")
 	errPath_ = rt.Invalid_("a path is not WTF-8, as a Windows path is")
+	errNonZero_ = rt.Invalid_("a NonZero is zero")
 )
 
 // checkPath_ is the error a call given the path s returns, or nil for any on a platform
@@ -376,6 +377,15 @@ func (a *arena_) char(r rune) C.uint32_t {
 		a.fail(err)
 	}
 	return C.uint32_t(r)
+}
+
+// nonZero_ is v, a NonZero's integer, failing the call if it is zero.
+func nonZero_[T comparable](a *arena_, v T) T {
+	var zero T
+	if v == zero {
+		a.fail(errNonZero_)
+	}
+	return v
 }
 
 // fail fails the call with err before it is made, unless it already failed.

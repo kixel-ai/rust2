@@ -1319,6 +1319,9 @@ final class _Native {
   int i32(int v) =>
       v >= -0x80000000 && v <= 0x7fffffff ? v : throw RangeError.range(v, -0x80000000, 0x7fffffff);
 
+  /// A `NonZero`'s integer, which Rust's type holds only if it is not zero.
+  int nonZero(int v) => v != 0 ? v : throw ArgumentError.value(v, 'NonZero', 'a NonZero is zero');
+
   /// Whether the library's target has 64-bit words, else 32-bit ones.
   final bool _wide = ffi.sizeOf<ffi.Size>() == 8;
 
