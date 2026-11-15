@@ -214,6 +214,16 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 	Ok(Output { files, names: locked })
 }
 
+/// A call holding `object`'s handle as `h`, in the slot `s`, until it returns: through
+/// `Count`, inlined, then `Contend` once calls contend for it, running `failed` once closed.
+/// `slot` is the runtime's `Slot_`, as the package names it.
+fn hold(slot: &str, object: &str, h: &str, s: &str, failed: &str) -> String {
+	let failed = failed.replace('\n', "\n\t\t");
+	format!(
+		"{h}, {s} := {object}.Handle_.Count(), {slot}{{}}\nif {h} == nil {{\n\tif {h}, {s} = {object}.Handle_.Contend(); {h} == nil {{\n\t\t{failed}\n\t}}\n}}\ndefer unhold_({object}.Handle_, {s}, {object})"
+	)
+}
+
 /// Each error type that is no exported type, named by its key as its C structs are, so two
 /// types never share one, with its type and the crate it belongs to: the last of those
 /// its types do, or the runtime for none. A name its package's types or runtime take
@@ -357,6 +367,7 @@ const TAKEN: &[&str] = &[
 	"ErrBorrowed",
 	"ErrClosed",
 	"Handle_",
+	"Slot_",
 	"LiftBytes_",
 	"BytesBuf_",
 	"GoCall_",
@@ -777,7 +788,8 @@ impl<'a> Gen<'a> {
 			false => format!("{} = {made}", place("value")),
 		};
 		if fields.is_empty() {
-			self.decls.push(format!("static inline void {name}({decls}) {{\n\t{made}\n}}\n"));
+			self.decls
+				.push(format!("static inline void {name}({decls}) {{\n\t{made}\n}}\n"));
 			return (stmts, value);
 		}
 		let (r, typedef) = match lone {
@@ -1567,16 +1579,21 @@ impl<'a> Gen<'a> {
 		// On a target the type is not on, only the binding makes a value of it, and each
 		// trait fails as a function the target lacks does.
 		let limited = !self.abi.api.everywhere(self.abi.on(ty));
+		// Qualified only where a call holds a handle, which imports the runtime's package.
+		let slot = match object {
+			true => self.qualify(Packages::RT, "Slot_"),
+			false => String::new(),
+		};
 		// The receiver, a held handle or the value lowered, and the return of `failed`, an
 		// expression of the error, once a closed object fails the call.
 		let open = |failed: &dyn Fn(&str) -> String| match (object, arena) {
-			(true, _) => (
-				format!(
-					"h_ := self.Handle_.Hold()\nif h_ == nil {{\n\treturn {}\n}}\ndefer unhold_(self.Handle_, self)\n",
-					failed("self.Handle_.Closed()")
-				),
-				format!("(*C.{c})(h_)"),
-			),
+			(true, _) => {
+				let closed = format!("return {}", failed("self.Handle_.Closed()"));
+				(
+					format!("{}\n", hold(&slot, "self", "h_", "s_", &closed)),
+					format!("(*C.{c})(h_)"),
+				)
+			}
 			(false, true) if closable => (
 				format!(
 					"a_ := &arena_{{}}\ndefer a_.finish()\nc_self_ := lower_{c}(a_, self)\nif a_.err != nil {{\n\treturn {}\n}}\n",
@@ -1695,10 +1712,11 @@ impl<'a> Gen<'a> {
 				true => (vec!["bool".to_string(), "error".to_string()], ", nil"),
 				false => (vec!["bool".to_string()], ""),
 			};
+			let closed = format!("return {}", failed("other.Handle_.Closed()"));
 			let body = match (object, arena) {
 				(true, _) => format!(
-					"{open}o_ := other.Handle_.Hold()\nif o_ == nil {{\n\treturn {}\n}}\ndefer unhold_(other.Handle_, other)\n{}return bool(r_){ok}",
-					failed("other.Handle_.Closed()"),
+					"{open}{}\n{}return bool(r_){ok}",
+					hold(&slot, "other", "o_", "os_", &closed),
 					checked(sig("eq", 2, Ty::Bool), &[this, format!("(*C.{c})(o_)")], &failed)
 				),
 				(false, true) if closable => format!(
@@ -2575,10 +2593,8 @@ impl<'a> Gen<'a> {
 			});
 			match c {
 				Ty::Handle { name, .. } => {
-					prelude.push(format!(
-						"h_ := self.Handle_.Hold()\nif h_ == nil {{\n\t{}\n}}\ndefer unhold_(self.Handle_, self)",
-						fail("self.Handle_.Closed()")
-					));
+					let slot = self.qualify(Packages::RT, "Slot_");
+					prelude.push(hold(&slot, "self", "h_", "s_", &fail("self.Handle_.Closed()")));
 					args.push(format!("(*C.{name})(h_)"));
 					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
 					if receiver == Receiver::Owned && !copy {
@@ -2694,12 +2710,18 @@ impl<'a> Gen<'a> {
 					let h = format!("h{k}_");
 					let failed = fail(&format!("{name}.Handle_.Closed()"));
 					match ty.base() {
-						Type::Option(_) => prelude.push(format!(
-							"var {h} unsafe.Pointer\nif {name} != nil {{\n\tif {h} = {name}.Handle_.Hold(); {h} == nil {{\n\t\t{failed}\n\t}}\n\tdefer unhold_({name}.Handle_, {name})\n}}"
-						)),
-						_ => prelude.push(format!(
-							"{h} := {name}.Handle_.Hold()\nif {h} == nil {{\n\t{failed}\n}}\ndefer unhold_({name}.Handle_, {name})"
-						)),
+						Type::Option(_) => {
+							let slot = self.qualify(Packages::RT, "Slot_");
+							let held = hold(&slot, &name, &h, "s_", &failed).replacen(":=", "=", 1);
+							let held = held.replace('\n', "\n\t");
+							prelude.push(format!(
+								"var {h} unsafe.Pointer\nif {name} != nil {{\n\tvar s_ {slot}\n\t{held}\n}}"
+							));
+						}
+						_ => {
+							let slot = self.qualify(Packages::RT, "Slot_");
+							prelude.push(hold(&slot, &name, &h, &format!("{h}s"), &failed));
+						}
 					}
 					args.push(format!("(*C.{c})({h})"));
 				}

@@ -1,33 +1,23 @@
-# [L] Shared borrows that don't contend
+# [S] Swift's one-thread getter back to its cost before the biased borrow
 
 ## Goal
 
-Threads calling `&self` methods on one shared handle cost about what they cost on a handle
-each, in [the binding benchmark](/bench/ffi/README.md)'s concurrent cases, while every
-borrow, move, and close stays checked.
-Today each shared borrow is a compare-and-swap and a `fetch_sub` on the handle's one
-`state`, so on 4 threads C's u64 getter costs 107 ns against 4.1 on a handle each; Kotlin's
-and Go's hold counts, and a Swift class's, add a second contended atomic on the same object
-(Kotlin 378 ns, Go 252).
+Swift's u64 getter on one thread, on a noncopyable `GroupDemand`, costs what it did before
+the reader-biased shared borrow: 3.8 ns in
+[the binding benchmark](/bench/ffi/README.md#concurrent-calls), against 4.6 since.
+C's and C++'s getters call the same Rust export and did not rise, and the shared and own
+rows keep what the biased borrow won.
 
 ## Plan
 
-- Maintainer decision (2026-11-13): ✅ keep this follow-up (rejected: drop).
-
-Recommended: a reader-biased lock in the style of BRAVO (Dice and Kogan, USENIX ATC 2019)
-for handles of `Sync` values in `ffi/runtime/rt.rs`. A shared borrow publishes the handle
-in a slot of a global table hashed by thread and handle, and checks the handle's bias
-flag; an exclusive borrow, a move, or a free clears the bias and waits for the table's
-slots naming the handle to empty, then falls back to the count. A slot collision falls
-back to the count too. The uncontended cost stays one atomic store and one load, so the
-single-thread rows must not rise.
-The language hold counts then need the same treatment: Go's and Kotlin's still count each
-call beside the C ABI's check, while Python's and Dart's borrow through it alone for a
-checked type since [kixel-ai/rust2#730](https://github.com/kixel-ai/rust2/pull/730).
-Rejected for now: per-handle sharded counters, which cost each handle a cache line per
-shard.
-
-Prove it with the benchmark's shared and own rows, CPU first, at the load beside them,
-and a model check (loom or a TLA+ spec) that no exclusive borrow, move, or free overlaps a
-shared borrow.
-
+- The Swift side of the call is byte-identical before and after. What rose is the Rust
+  export's inlined fast path: it now loads the bias, keeps a ticket in a callee-saved
+  register, and tests the ticket's listed bit at release, saving three registers where it
+  saved two. Tried: outlining all but the count (5.6 to 4.4 ns), dropping the bias load
+  (no change), and `#[cold]` on the outlined path (worse, 4.6).
+- Recommended next: pack the bias into the borrow's `state` word, as the bindings' hold
+  counts now do, so the fast path is one load and compare-and-swap again and the release
+  one `fetch_sub`; the loom model in `ffi/tests/borrow.rs` follows it. Otherwise, find why
+  Swift's call through its shared thunk pays for the longer path when C's loop does not.
+- Prove it with the getter row and the shared and own rows, CPU first, at the load beside
+  them.
