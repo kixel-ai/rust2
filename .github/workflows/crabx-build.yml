@@ -1,6 +1,7 @@
 name: Crabx build
 
-# Internal read-only worker, also used by PR fixtures without publishing authority.
+# Internal read-only worker, also used by PR fixtures and release.yml's pre-publish
+# check without publishing authority.
 on:
   workflow_call:
     inputs:

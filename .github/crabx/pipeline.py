@@ -254,7 +254,7 @@ def provenance(item):
 def main():
     mode = sys.argv[1]
     if mode in ("discover", "fixture"):
-        items = discover() if mode == "discover" else [{"name": "crabx-pipeline-fixture", "version": "0.0.0", "sha": os.environ["GITHUB_SHA"], "path": ".github/crabx/fixture"}, {"name": "crabx", "version": "0.1.0", "sha": os.environ["GITHUB_SHA"], "path": "crabx"}]
+        items = discover() if mode == "discover" else [{"name": "crabx-pipeline-fixture", "version": "0.0.0", "sha": os.environ["GITHUB_SHA"], "path": ".github/crabx/fixture"}]
         matrix = [{**item, "target": target, "os": runner} for item in items for target, runner in TARGETS if target in item.get("targets", [t for t, _ in TARGETS])]
         # GitHub's matrix has a hard limit. Do not silently omit old releases.
         if len(matrix) > 256:
