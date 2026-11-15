@@ -201,8 +201,14 @@ fn adaptor(tcx: ty::TyCtxt<'_>, ty: Ty<'_>) -> Option<&'static str> {
 
 /// Whether `def_id` is `DoubleEndedIterator::next_back`, or an implementation of it.
 pub(super) fn is_next_back(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
+	std_key(tcx, def_id).is_some_and(|(owner, name)| owner == "DoubleEndedIterator" && name == "next_back")
+}
+
+/// The trait and name of `def_id`, a method of a std trait or an implementation of one:
+/// a crate's own trait of the same name is not std's.
+fn std_key(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> Option<(String, String)> {
 	let def_id = tcx.trait_item_of(def_id).unwrap_or(def_id);
-	library::key(tcx, def_id).is_some_and(|(owner, name)| owner == "DoubleEndedIterator" && name == "next_back")
+	library::is_std(tcx, def_id).then(|| library::key(tcx, def_id)).flatten()
 }
 
 /// `Some` of an argument that isn't `undefined`.
@@ -221,7 +227,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// consumer of `Iterator` or `DoubleEndedIterator` on one of the adaptors this fuses.
 	/// The mapping's call decides the rest.
 	pub(super) fn fuses(&self, def_id: rustc_hir::def_id::DefId, gargs: ty::GenericArgs<'tcx>) -> bool {
-		let Some((owner, name)) = library::key(self.tcx, def_id) else {
+		let Some((owner, name)) = std_key(self.tcx, def_id) else {
 			return false;
 		};
 		let consumer = match owner.as_str() {
@@ -1060,11 +1066,37 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							}
 							.at(None),
 						);
-						let mut ended = Vec::new();
-						self.read(b, back, indexed, false, done, &mut ended);
-						ended.extend(done.iter().cloned());
-						let x = self.read(a, back, indexed, used, &ended, out);
-						(x, self.read(b, back, indexed, used, done, out))
+						// The first side's read, in a block that notes where it ends and holds its
+						// item past it, so the second side is read once either way.
+						let (ended, label) = (self.b.fresh("ended"), self.b.fresh("zip"));
+						let set = vec![
+							expr(Expr::ident(&ended).assign(Expr::lit("true"))),
+							StmtKind::Break(Some(label.clone())).at(None),
+						];
+						let mut first = Vec::new();
+						let x = self.read(a, back, indexed, used, &set, &mut first);
+						let held = x.as_ref().map(|x| self.keep(x, &item_of(a), out));
+						if let (Some(held), Some(x)) = (&held, &x) {
+							assign(held, x, &mut first);
+						}
+						out.push(StmtKind::decl(true, &ended, None, Some(Expr::lit("false"))).at(None));
+						out.push(
+							StmtKind::Block {
+								label: Some(label),
+								body: first,
+							}
+							.at(None),
+						);
+						let y = self.read(b, back, indexed, used, done, out);
+						out.push(
+							StmtKind::If {
+								cond: Expr::ident(ended),
+								then: done.to_vec(),
+								els: Vec::new(),
+							}
+							.at(None),
+						);
+						(held, y)
 					}
 				};
 				Some(Val::Tuple(vec![x?, y?]))

@@ -2554,7 +2554,7 @@ pub fn fused_back(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			}
 		};
 	}
-	match kind % 12 {
+	match kind % 13 {
 		// By index, each side mapped, which may have side effects: the longer's extra items
 		// are read.
 		0 => out.push(
@@ -2720,6 +2720,39 @@ pub fn fused_back(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 					.zip(a.iter().map(seen!(21)).zip(b).rev())
 					.rev()
 					.fold(0u8, |acc, (x, (y, z))| acc.wrapping_mul(5) ^ x ^ y ^ z),
+			);
+		}
+		// A crate's own `DoubleEndedIterator` and `Iterator` on a std adaptor, which are not
+		// std's, and zips three deep, none by index, read from the back.
+		11 => {
+			mod own {
+				pub trait DoubleEndedIterator {
+					fn next_back(&mut self) -> Option<u8>;
+				}
+				pub trait Iterator {
+					fn count(self) -> usize;
+				}
+				impl<'a, F: FnMut(&'a u8) -> u8> DoubleEndedIterator for std::iter::Map<std::slice::Iter<'a, u8>, F> {
+					fn next_back(&mut self) -> Option<u8> {
+						Some(99)
+					}
+				}
+				impl<'a, F: FnMut(&'a u8) -> u8> Iterator for std::iter::Map<std::slice::Iter<'a, u8>, F> {
+					fn count(self) -> usize {
+						7
+					}
+				}
+			}
+			let mut it = a.iter().map(seen!(25));
+			out.extend(own::DoubleEndedIterator::next_back(&mut it));
+			out.push(own::Iterator::count(b.iter().map(seen!(26))) as u8);
+			out.push(
+				a.iter()
+					.rev()
+					.zip(b.iter().map(seen!(27)).zip(data.iter().rev().zip(a.iter().rev().map(seen!(28)))))
+					.zip(data.iter().rev().map(seen!(29)))
+					.rev()
+					.fold(0u8, |acc, ((x, (y, (z, w))), v)| acc.wrapping_mul(7) ^ x ^ y ^ z ^ w ^ v),
 			);
 		}
 		// An enumerate of a zip not by index, read from the back.

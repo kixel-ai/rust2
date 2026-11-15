@@ -20,4 +20,6 @@ which check for wide integers on each call.
 - Keep a leaf whose items drop, or a wide range, an `rs.Iter`.
 - Re-run `iter/` through `--route`.
 
+Kept by the maintainer on 2026-11-14 ([#814](https://github.com/kixel-ai/rust2/pull/814#issuecomment-6886625382)): ✅ keep (rejected: drop).
+
 Public API: none.
