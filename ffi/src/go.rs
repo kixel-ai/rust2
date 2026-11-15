@@ -695,28 +695,28 @@ impl<'a> Gen<'a> {
 		}
 		let (status, params) = params.split_last().expect("a checked function takes a status");
 		assert!(abi::is_status(&status.1), "{c} takes its status last");
-		let decls: Vec<String> = params.iter().map(|(n, ty)| crate::c::decl(self.abi, ty, n)).collect();
+		// Positional names, since a Rust one may be a C name the shim uses, such as `c`'s own.
+		let names: Vec<String> = (0..params.len()).map(|i| format!("arg{i}")).collect();
+		let decls: Vec<String> = params
+			.iter()
+			.zip(&names)
+			.map(|((_, ty), n)| crate::c::decl(self.abi, ty, n))
+			.collect();
 		let decls = match decls.is_empty() {
 			true => "void".to_string(),
 			false => decls.join(", "),
 		};
-		let args: Vec<&str> = params.iter().map(|(n, _)| n.as_str()).collect();
-		let args = args.join(", ");
+		let args = names.join(", ");
 		let comma = if args.is_empty() { "" } else { ", " };
 		let status_ty = crate::c::decl(self.abi, &Ty::Status, "");
-		// The shim's local, named apart from every parameter.
-		let mut local = "r".to_string();
-		while params.iter().any(|(n, _)| *n == local) {
-			local.push('_');
-		}
 		let decl = match ret {
 			Ty::Void => format!(
-				"static inline {status_ty} {name}({decls}) {{\n\t{status_ty} {local} = 0;\n\t{c}({args}{comma}&{local});\n\treturn {local};\n}}\n"
+				"static inline {status_ty} {name}({decls}) {{\n\t{status_ty} r = 0;\n\t{c}({args}{comma}&r);\n\treturn r;\n}}\n"
 			),
 			ret => {
 				let returned = format!("{p}GoReturned_{bare}");
 				format!(
-					"typedef struct {{\n\t{};\n\t{status_ty} status;\n}} {returned};\n\nstatic inline {returned} {name}({decls}) {{\n\t{returned} {local};\n\t{local}.status = 0;\n\t{local}.value = {c}({args}{comma}&{local}.status);\n\treturn {local};\n}}\n",
+					"typedef struct {{\n\t{};\n\t{status_ty} status;\n}} {returned};\n\nstatic inline {returned} {name}({decls}) {{\n\t{returned} r;\n\tr.status = 0;\n\tr.value = {c}({args}{comma}&r.status);\n\treturn r;\n}}\n",
 					crate::c::decl(self.abi, ret, "value")
 				)
 			}
