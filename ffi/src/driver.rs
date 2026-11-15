@@ -170,7 +170,9 @@ impl Callbacks for Export {
 		if let Output::Census(dir) = &self.output {
 			let abi = Abi::new(&collected.api, &self.facade.lib);
 			// What Swift refuses needs its exclude, as the export says, so it is not exporting.
-			let swift: FxHashSet<_> = crate::swift::refusals(&abi)
+			// Swift exports the API without what takes a JNI value, as the export does.
+			let rest = collected.api.without_jni();
+			let swift: FxHashSet<_> = crate::swift::refusals(&abi.without_jni(&rest))
 				.into_iter()
 				.map(|(f, _)| f.shown.clone())
 				.collect();
@@ -452,7 +454,9 @@ impl Export {
 				.with_span_note(*first_span, format!("{first} is here"))
 				.emit();
 		}
-		for (function, why) in crate::swift::refusals(&abi) {
+		// Swift exports the API without what takes a JNI value, which only Kotlin passes.
+		let rest = api.without_jni();
+		for (function, why) in crate::swift::refusals(&abi.without_jni(&rest)) {
 			tcx.dcx().span_err(
 				function.span,
 				format!("rust2-ffi: {why}; exclude it in the config to leave it out"),
