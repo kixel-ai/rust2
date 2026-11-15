@@ -129,45 +129,62 @@ Each leaver keeps its hooks, so it rejoins by `codspeed_langs` once a pair of ru
 
 ## Concurrent calls
 
-Measured 2026-11-13 on **nixos**, an AMD Ryzen 9 5900XT (16 cores in two 8-core dies, 32
-threads), at rust2 `a7db2666` plus these cases and moq `ffcb7cd9`, through `quest gate`.
-Each cell is the median of 5 rounds, at a load average of 15 to 17 throughout. Rust
-1.98.1, GCC 16.2.0, CPython 3.14.10 (with its GIL), OpenJDK 21.0.13 with Kotlin 2.4.21,
-Swift 6.4, Go 1.27.3. Nanoseconds per call, CPU first, then wall:
+Measured 2026-11-15 on **nixos**, an AMD Ryzen 9 5900XT (16 cores in two 8-core dies, 32
+threads), through `quest gate`, against moq `ffcb7cd9`. Before is rust2 `f84ec06c`, where
+every shared borrow counts on the handle's one `state`. After is the reader-biased
+borrow below. Each program alternated before and after for 5 rounds, at a load average
+of 1.4 to 2.9, and each cell is the median. Rust 1.98.1, GCC 16.2.0, OpenJDK 21.0.13 with
+Kotlin 2.4.21, Swift 6.4, Go 1.27.3. Nanoseconds per call, CPU first, then wall. Kotlin's
+CPU clock ticks in 10 ns, so its CPU cells under 100 ns are coarse.
 
-| call | Rust | C | C++ | Kotlin | Python | Swift | Go |
-|---|---|---|---|---|---|---|---|
-| u64 getter, one thread | 0.4 / 0.4 | 3.7 / 3.7 | 3.6 / 3.6 | 20 / 9.6 | 75 / 75 | 3.7 / 3.7 | 33 / 33 |
-| 4 threads, one shared handle | 0.5 / 0.7 | 107 / 129 | 127 / 143 | 378 / 417 | 1,617 / 2,496 | 114 / 131 | 252 / 255 |
-| 4 threads, a handle each | 0.6 / 0.7 | 4.1 / 4.6 | 4.2 / 4.2 | 10 / 12 | 1,525 / 2,395 | 5.4 / 6.2 | 34 / 36 |
-| handle call, one thread | 3.4 / 3.4 | 7.0 / 7.1 | 7.1 / 7.2 | 20 / 12 | 78 / 78 | 11 / 11 | 35 / 35 |
-| 4 threads, one shared handle | 79 / 88 | 242 / 251 | 229 / 237 | 558 / 530 | 1,653 / 2,595 | 405 / 416 | 312 / 319 |
-| 4 threads, a handle each | 80 / 89 | 138 / 146 | 149 / 159 | 198 / 201 | 1,722 / 2,755 | 162 / 167 | 201 / 206 |
+Before:
+
+| call | C | C++ | Kotlin | Swift | Go |
+|---|---|---|---|---|---|
+| u64 getter, one thread | 3.4 / 3.4 | 3.3 / 3.3 | 20 / 13 | 3.8 / 3.8 | 30 / 30 |
+| 4 threads, one shared handle | 99 / 117 | 123 / 137 | 392 / 403 | 123 / 135 | 232 / 233 |
+| 4 threads, a handle each | 3.8 / 4.1 | 4.2 / 4.5 | 10 / 10 | 7.4 / 8.3 | 34 / 36 |
+| handle call, one thread | 6.4 / 6.5 | 6.5 / 6.5 | 20 / 12 | 10.5 / 10.5 | 31 / 31 |
+| 4 threads, one shared handle | 185 / 190 | 204 / 211 | 415 / 390 | 328 / 335 | 291 / 293 |
+| 4 threads, a handle each | 136 / 141 | 135 / 140 | 168 / 175 | 148 / 153 | 171 / 180 |
+
+After:
+
+| call | C | C++ | Kotlin | Swift | Go |
+|---|---|---|---|---|---|
+| u64 getter, one thread | 3.4 / 3.4 | 3.4 / 3.4 | 20 / 13 | 4.6 / 4.6 | 32 / 32 |
+| 4 threads, one shared handle | 6.9 / 7.7 | 8.0 / 10.5 | 20 / 26 | 11.7 / 12.5 | 39 / 40 |
+| 4 threads, a handle each | 4.2 / 4.6 | 4.2 / 4.6 | 10 / 11 | 9.0 / 9.8 | 34 / 35 |
+| handle call, one thread | 6.4 / 6.5 | 6.4 / 6.5 | 20 / 12 | 9.9 / 10.0 | 32 / 32 |
+| 4 threads, one shared handle | 133 / 145 | 122 / 126 | 128 / 106 | 73 / 83 | 182 / 192 |
+| 4 threads, a handle each | 132 / 141 | 119 / 127 | 192 / 177 | 163 / 168 | 177 / 185 |
 
 What they show:
 
-1. **A shared handle's borrow count is one contended cache line.** Every shared borrow at
-   the C ABI is a compare-and-swap in and a `fetch_sub` out of the handle's `state`, so 4
-   threads on one handle bounce its line: C's getter costs 107 ns against 4.1 on a handle
-   each, near its 3.7 on one thread. A C model of that borrow alone, run on its own after
-   the benchmark at the same load, cost 73 to 157 ns a borrow on one counter and 4 on a
-   counter each, so the gap is that line and nothing else of the binding's.
-2. **A hold count on the same object adds another.** Kotlin's (378) and Go's (252) shared
-   getters, and Swift's shared handle call on `TrackProducer`, still a class (405 against
-   C's 242), pay their own hold count's atomics on the shared object beside the C ABI's.
-   Swift's getter on a noncopyable `GroupDemand`, which has none, costs what C's does.
-3. **moq's read lock is the rest of the handle call.** Rust pays 79 ns on a shared value
-   and 80 on clones of it: the clones share moq's state, so its lock contends in both, and
-   no binding's handle call can drop below that.
-4. **Python's threads serialize on the GIL.** Its glue releases the GIL around each call
-   and takes it back after, so with 4 threads each call hands the GIL to another: 1.5 us of
-   CPU a call either way, 20 times its single thread, and the handle's own contention is
-   lost in it.
+1. **A shared handle's borrow no longer bounces a cache line.** Before, every shared
+   borrow at the C ABI was a compare-and-swap in and a `fetch_sub` out of the handle's
+   `state`, so 4 threads on one handle cost C's getter 99 ns against 3.8 on a handle each.
+   Now, once two borrows meet on the count, the handle is biased, and each later borrow
+   publishes it in its thread's slot of a table instead (`ffi/runtime/rt/borrow.rs`, after
+   BRAVO, Dice and Kogan, USENIX ATC 2019), so threads sharing it write nothing in common.
+   C's shared getter is 6.9 ns, within 2 of a handle each.
+2. **The language hold counts take the same table.** Go's, Kotlin's, and a Swift class's
+   hold count on the object was a second contended line, which now goes to a table of the
+   binding's own: Kotlin's shared getter fell from 392 to 20 ns, Go's from 232 to 39, and
+   Swift's shared handle call on `TrackProducer`, a class, from 328 to 73.
+3. **moq's read lock is the rest of the handle call.** With the handle's lines gone, a
+   shared handle call costs what a handle each does, about 120 to 190 ns: the clones share
+   moq's state, so its lock contends in both.
+4. **The single-thread rows hold, except Swift's getter.** C's, C++'s, and Kotlin's are
+   unchanged. Go's hold costs 0.1 ns more in a Go microbenchmark, within this row's run to
+   run spread of 1 to 2 ns. Swift's getter on a noncopyable `GroupDemand` calls the same
+   Rust export as C's, whose row is flat, yet costs 0.8 ns more from Swift.
 
-The load limits these numbers: 4 threads among 15 to 17 others' leave the scheduler free to
-place them on one die or across both, whose line transfer is slower, which the model's
-twofold spread shows. Read the shared rows as their order of magnitude, against a handle
-each, at the same load.
+The load limits these numbers: 4 threads beside others' leave the scheduler free to place
+them on one die or across both, whose line transfer is slower. Read the shared rows as
+their order of magnitude, against a handle each, at the same load. Rust's and Python's
+columns are not remeasured: Rust borrows natively, and Python's threads serialize on the
+GIL, which dwarfs the handle's own contention.
 
 ## Long-lived reader measurement
 
