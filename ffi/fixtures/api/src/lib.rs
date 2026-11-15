@@ -52,6 +52,12 @@ pub fn has_text(note: Note) -> bool {
 	note.text.is_some()
 }
 
+/// A mark's count, its checked parameter named as its own C function, which no shim calling
+/// it may hide.
+pub fn marked(api_marked: &Mark) -> u64 {
+	api_marked.count
+}
+
 /// A reading: a field of each scalar kind at the edge of its range, a nested record, and
 /// text, so a binding that passes a record's scalars apart from its other fields passes each
 /// exactly.
