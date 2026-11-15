@@ -23,6 +23,12 @@
       inputs.rust-overlay.follows = "rust-overlay";
       inputs.flake-utils.follows = "flake-utils";
     };
+    # CodSpeed's instrument-hooks, which the binding benchmark's programs call around each
+    # case its CPU simulation counts.
+    instrument-hooks = {
+      url = "github:CodSpeedHQ/instrument-hooks/8fd5b878499f819561b33219cdafaa6f8c28b4e4";
+      flake = false;
+    };
   };
 
   outputs =
@@ -33,6 +39,7 @@
       rust-overlay,
       quest,
       ra-jit,
+      instrument-hooks,
       ...
     }:
     flake-utils.lib.eachSystem
@@ -265,6 +272,8 @@
             ];
             # `just ffi bench` builds moq's rs/moq-c, whose VAAPI bindings run bindgen.
             LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+            # ... and its programs over instrument-hooks, for CodSpeed.
+            CODSPEED_INSTRUMENT_HOOKS = "${instrument-hooks}";
           });
           # Clang beside the default shell's GCC, which the nightly builds the exporter's C++ with.
           devShells.clang = self.devShells.${system}.default.overrideAttrs (old: {
@@ -283,13 +292,15 @@
             };
           });
           # `just ffi android` builds the Kotlin's library for an Android device, with the NDK
-          # cargo-ndk finds through ANDROID_NDK_HOME: the SDK and NDK are the caller's, as moq's
-          # Android build takes the GitHub runner image's.
+          # cargo-ndk finds through ANDROID_NDK_HOME, and `just ffi moq-api` stages moq's API on
+          # each Android ABI moq ships: the SDK and NDK are the caller's, as moq's Android build
+          # takes the GitHub runner image's.
           devShells.android = self.devShells.${system}.default.overrideAttrs (old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.cargo-ndk ];
             RUST2_TS_TOOLCHAIN = tsToolchain.override {
               targets = (builtins.fromTOML (builtins.readFile ./ts/rust-toolchain.toml)).toolchain.targets ++ [
                 "aarch64-linux-android"
+                "armv7-linux-androideabi"
                 "x86_64-linux-android"
               ];
             };

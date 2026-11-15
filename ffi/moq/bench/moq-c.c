@@ -1,15 +1,19 @@
 /* bench/export.c's stamped frame writes, through moq's hand-written rs/moq-c: a timed
- * track, groups of 100 frames of 100 bytes, each frame stamped, in wall and CPU time. */
+ * track, groups of 100 frames of 100 bytes, each frame stamped, in wall and CPU time, or
+ * under CodSpeed, once for its CPU simulation to count. */
 
 #define _POSIX_C_SOURCE 199309L
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
+#include "codspeed.h"
 #include "moq.h"
 
-#define GROUPS 10000
+/* A tenth under CodSpeed, as bench/export.c. */
+static int GROUPS = 10000;
 #define FRAMES 100
 
 static double clock_ns(clockid_t clock) {
@@ -28,12 +32,17 @@ int main(void) {
 		return 1;
 	}
 
-	/* Two rounds, printing the second, as bench/export.c does. */
+	/* Two rounds, printing the second, as bench/export.c does; under CodSpeed, one. */
+	bool measured = codspeed_init("ffi/moq/bench/moq-c.c::moq-c");
+	if (measured) {
+		GROUPS /= 10;
+	}
 	uint8_t payload[100] = {0};
 	uint64_t micros = 0;
-	for (int round = 0; round < 2; round++) {
+	for (int round = measured; round < 2; round++) {
 		double wall = clock_ns(CLOCK_MONOTONIC);
 		double cpu = clock_ns(CLOCK_PROCESS_CPUTIME_ID);
+		codspeed_start();
 		for (int g = 0; g < GROUPS; g++) {
 			int32_t group = moq_publish_track_group((uint32_t)track);
 			for (int f = 0; f < FRAMES; f++) {
@@ -44,10 +53,11 @@ int main(void) {
 			}
 			moq_publish_group_finish((uint32_t)group);
 		}
+		codspeed_stop("stamped");
 		wall = (clock_ns(CLOCK_MONOTONIC) - wall) / (GROUPS * FRAMES);
 		cpu = (clock_ns(CLOCK_PROCESS_CPUTIME_ID) - cpu) / (GROUPS * FRAMES);
 
-		if (round == 1) {
+		if (round == 1 && !measured) {
 			printf("stamped\t%f\t%f\n", wall, cpu);
 		}
 	}

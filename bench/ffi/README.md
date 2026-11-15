@@ -14,21 +14,40 @@ has only the stamped write. Each program runs its cases twice and prints the sec
 so a JIT has warmed up, in wall time and in the process's CPU time on every thread.
 `just ffi bench-run` runs each program once a round, records the 1-minute load average
 over each run, and [`report.py`](report.py) prints each case's median over the rounds
-beside the median load, then the export's sizes. Nightly runs it on arm64 Linux into
-the run's summary; nothing fails on a number.
+beside the median load, then the export's build cost and sizes. Each round also times,
+from an emptied target and without a compiler cache, the export (`rust2-ffi`, which
+runs `cargo check` of moq under its driver) beside moq's own `cargo check` of the same
+crates, and the generated crate's release build beside moq's own release build, each with
+its peak RSS, through [`measure.py`](measure.py). Nightly runs it on arm64 Linux into
+the run's summary; nothing fails on a number. [CodSpeed](#codspeed) counts each
+single-threaded case on every push to main and on each PR that can move one.
 
 | case | what it times | BoltFFI's nearest |
 |---|---|---|
 | handle call | `track.is_closed()`: one borrowed handle, a bool back, and moq's own read lock | `noop()` |
 | u64 getter | `demand.sequence()`: one borrowed handle and a field read, so all but 0.4 ns is the binding's | `group.sequence()` |
+| shared call, own call | the handle call on 4 threads at once, on one handle they share, then on a clone each | none |
+| shared getter, own getter | the u64 getter the same way | none |
 | record return | `track.largest()`: an `Option` of two `u64`s, copied across | `track.info()`, a record |
 | object return | `track.info()`: a new handle, freed | none |
-| write | `group.write_frame(at, frame)` with one `Timestamp` handle and 100 B, copied into Rust | `write_frame` |
+| write | `group.write_frame(at, frame)` with one `Timestamp` and 100 B, copied into Rust | `write_frame` |
 | stamped write | the same with a new `Timestamp` per frame, as a caller holding a `u64` must | none |
 | ready read | a 100 B frame written, then read through a new future ready at its first poll | `await noop_async()`, plus a write |
 | woken read | a read started before its frame is written, as the language starts work concurrently, so it suspends and the write's wake resumes it | `await yield_once()`, plus a write |
+| reader loop | one reader and writer live for all groups, including their handoff; Go waits for a real pending poll before writing | none |
+| Swift drained reader | a separate executor diagnostic: one reader drained before each write, without a writer task or permit handoff | none |
 | payload | `frame.payload` of 100 B, handed to the language | none |
 | throughput | groups of 100 frames written and read, each payload's first byte touched, about 64 MiB | throughput |
+
+The four threaded cases start their threads, wait until all are ready, then time each
+making a million calls (Python 100,000), as the single-thread rows do. Wall time is per call
+on one thread and CPU time per call over all of them, so where the threads never meet,
+each equals its single-thread row. A clone is a new handle over the same Rust value, so
+both cases share moq's own state and differ only in the binding's: the gap between them is
+what a binding's run-time checks cost under contention. The handle call also takes moq's
+read lock, which all four threads share in both cases; the getter takes none. C, C++,
+Kotlin, Swift, and Python use OS threads, and Go goroutines. Dart has no number: an
+isolate cannot receive another's object, so no two threads ever borrow one handle.
 
 A woken read starts its read the language's own way: by polling in C, C++, and Rust; a
 `Task` and a yield in Swift and Python; a goroutine and a yield in Go; an undispatched
@@ -36,88 +55,300 @@ coroutine in Kotlin; and an eager call in Dart. So it measures a task's start an
 wake, and in Swift, Python, and Go, a read the scheduler had not yet started is ready
 instead of woken.
 
+The `loop` case removes task creation per frame: one reader loops over all groups and
+one writer supplies them. Kotlin, Python, Dart, and Swift include a permit handoff per
+frame and an acknowledgement before advancing groups, bounding queued work. Swift runs
+on its default global pool. Its writer can race the read's first poll, so this is a
+streaming workload, not an isolated measurement of every read suspending.
+
+Go uses the same pending-context notification as its future correctness tests: `Done`
+notifies the writer only after a poll has pended with its real waker registered. It
+returns nil because this benchmark never cancels. The writer cannot race that poll;
+the final count asserts exactly one pending notification per frame. Go's measured
+handoff is thus after registration, rather than before the call as in the other loops.
+
+Swift also reports `drained`, a separate diagnostic on a preferred executor. This thread
+drains one reader to suspension before each write, then drains it until that frame is
+consumed, checking the count on both sides. It has no writer task or permit handoff and
+must not be ranked against the managed `loop` row. C, C++, and Rust's existing `woken`
+cases already manually poll in one loop; they remain the native floor, without printing
+the same measurement twice under another name.
+
+## CodSpeed
+
+[CodSpeed](https://app.codspeed.io/kixel-ai/rust2) keeps main's history of each
+single-threaded case, and comments on a PR whose run changes a case, with its change per
+case.
+[`codspeed.yml`](../../.github/workflows/codspeed.yml) runs on every push to main, its
+baseline, and on each PR that changes what `just ffi bench` reads: it builds the programs in
+the bench shell, then runs `just ffi codspeed` under CodSpeed's CPU simulation in that
+shell's environment, so Nix itself never runs under Valgrind. It is informational: no
+threshold fails it and no ruleset requires it.
+
+```bash
+nix develop .#bench --command just ffi bench-build
+nix develop .#bench --command codspeed run --mode simulation -- just ffi codspeed  # CodSpeed's CLI, on Ubuntu or Debian
+```
+
+Each program calls CodSpeed's
+[instrument-hooks](https://github.com/CodSpeedHQ/instrument-hooks), which the flake pins,
+through [`codspeed.h`](../../ffi/moq/bench/codspeed.h) and its own FFI around each case:
+one benchmark per language and case, such as `python::write` or `c::throughput[1024]`.
+Under CodSpeed a program runs its round once, without the warm-up round, and with a tenth
+of the groups (so 100,000 calls a case, Python's 10,000), since the simulation counts
+every call exactly and costs 50 to 100 times the program's own time. It skips the
+`shared:*`, `own:*`, and Kotlin's `objects` cases: the simulation runs one thread at a
+time, so it would count a contention that never happens. It counts instructions and
+simulated cache misses, not time, so a system call or a wait costs nothing in it. The
+tables below keep wall and CPU time, and a case's absolute count is for its whole loop,
+not a call: read CodSpeed for each case's change.
+
+A language joins only if its counts hold still: the same build, run twice, must move no
+case far enough for CodSpeed to report a change, which its default 10% regression
+threshold decides. `codspeed_langs` in [`ffi/justfile`](../../ffi/justfile) lists those
+that pass. Measured 2026-11-14 on **nixos** with stock Valgrind 3.27.1 and the flags
+CodSpeed's runner passes, without its fork's cycle estimation, in pairs of runs of one
+build, the largest move of any case between two runs:
+
+| language | largest move | |
+|---|---|---|
+| Rust, C, C++ | none: every count identical | joins |
+| moq-c | 0.36% (`stamped`, with all the calls), 0.1% with a tenth | joins: moq's runtime thread runs beside it |
+| Python | 0.21% (`throughput[1024]`) | joins: asyncio's poll of its selector depends on time |
+| Swift | 52% (`throughput[16384]`), 8.8% in another pair | leaves: the global executor's threads interleave by time |
+| Go | 362% (`stamped`), 330% (`record`), 84% (`loop`) | leaves: its collector and scheduler run inside each case, and its preemption signal crashes Callgrind unless `GODEBUG=asyncpreemptoff=1` |
+| Kotlin | 172% (`call`), 108% (`getter`) | leaves: without the warm-up, the JIT's and collector's threads compile and collect inside each case, and the JVM's C2 code crashes under Valgrind unless its implicit null checks are off |
+| Dart | does not run | leaves: the VM maps its code at an address hint off a page boundary, which Valgrind refuses |
+
+On CI, two runs of one commit (kixel-ai/rust2#805's 11a94ff, a `pull_request` run and a
+`workflow_dispatch` one) left all 58 benchmarks untouched in CodSpeed's comparison: the
+largest move was Python's `throughput[1024]`, 2.4%, then its `throughput[100]` and
+`ready`, under 2%, and every one of Rust's, C's, C++'s, and moq-c's rounded to 0%.
+
+Each leaver keeps its hooks, so it rejoins by `codspeed_langs` once a pair of runs holds.
+
+## Concurrent calls
+
+Measured 2026-11-13 on **nixos**, an AMD Ryzen 9 5900XT (16 cores in two 8-core dies, 32
+threads), at rust2 `a7db2666` plus these cases and moq `ffcb7cd9`, through `quest gate`.
+Each cell is the median of 5 rounds, at a load average of 15 to 17 throughout. Rust
+1.98.1, GCC 16.2.0, CPython 3.14.10 (with its GIL), OpenJDK 21.0.13 with Kotlin 2.4.21,
+Swift 6.4, Go 1.27.3. Nanoseconds per call, CPU first, then wall:
+
+| call | Rust | C | C++ | Kotlin | Python | Swift | Go |
+|---|---|---|---|---|---|---|---|
+| u64 getter, one thread | 0.4 / 0.4 | 3.7 / 3.7 | 3.6 / 3.6 | 20 / 9.6 | 75 / 75 | 3.7 / 3.7 | 33 / 33 |
+| 4 threads, one shared handle | 0.5 / 0.7 | 107 / 129 | 127 / 143 | 378 / 417 | 1,617 / 2,496 | 114 / 131 | 252 / 255 |
+| 4 threads, a handle each | 0.6 / 0.7 | 4.1 / 4.6 | 4.2 / 4.2 | 10 / 12 | 1,525 / 2,395 | 5.4 / 6.2 | 34 / 36 |
+| handle call, one thread | 3.4 / 3.4 | 7.0 / 7.1 | 7.1 / 7.2 | 20 / 12 | 78 / 78 | 11 / 11 | 35 / 35 |
+| 4 threads, one shared handle | 79 / 88 | 242 / 251 | 229 / 237 | 558 / 530 | 1,653 / 2,595 | 405 / 416 | 312 / 319 |
+| 4 threads, a handle each | 80 / 89 | 138 / 146 | 149 / 159 | 198 / 201 | 1,722 / 2,755 | 162 / 167 | 201 / 206 |
+
+What they show:
+
+1. **A shared handle's borrow count is one contended cache line.** Every shared borrow at
+   the C ABI is a compare-and-swap in and a `fetch_sub` out of the handle's `state`, so 4
+   threads on one handle bounce its line: C's getter costs 107 ns against 4.1 on a handle
+   each, near its 3.7 on one thread. A C model of that borrow alone, run on its own after
+   the benchmark at the same load, cost 73 to 157 ns a borrow on one counter and 4 on a
+   counter each, so the gap is that line and nothing else of the binding's.
+2. **A hold count on the same object adds another.** Kotlin's (378) and Go's (252) shared
+   getters, and Swift's shared handle call on `TrackProducer`, still a class (405 against
+   C's 242), pay their own hold count's atomics on the shared object beside the C ABI's.
+   Swift's getter on a noncopyable `GroupDemand`, which has none, costs what C's does.
+3. **moq's read lock is the rest of the handle call.** Rust pays 79 ns on a shared value
+   and 80 on clones of it: the clones share moq's state, so its lock contends in both, and
+   no binding's handle call can drop below that.
+4. **Python's threads serialize on the GIL.** Its glue releases the GIL around each call
+   and takes it back after, so with 4 threads each call hands the GIL to another: 1.5 us of
+   CPU a call either way, 20 times its single thread, and the handle's own contention is
+   lost in it.
+
+The load limits these numbers: 4 threads among 15 to 17 others' leave the scheduler free to
+place them on one die or across both, whose line transfer is slower, which the model's
+twofold spread shows. Read the shared rows as their order of magnitude, against a handle
+each, at the same load.
+
+## Long-lived reader measurement
+
+Measured 2026-11-13 on **nixos**, an AMD Ryzen 9 5900XT (16 cores, 32 threads), after a
+loaded fedora run proved inconclusive. Baseline: rust2 `03782045`, moq `ffcb7cd9`, Swift
+6.4.0, Go 1.27.3, Kotlin 2.4.21 and coroutines 1.10.2, Dart 3.13.0. The binaries and their
+Nix runtime closures were copied from fedora; builds and measurements on nixos ran
+through `quest gate` over SSH. No CPU affinity or scheduler settings were changed.
+
+Five rounds, each program warming up once before printing, in microseconds per 100 B
+frame (write plus read); CPU includes every process thread:
+
+| language / executor | task per read, wall / CPU | reader loop, wall / CPU |
+|---|---|---|
+| Kotlin, runBlocking | 1.88 / 1.94 | 1.80 / 1.83 |
+| Dart, isolate | 2.41 / 2.40 | 2.78 / 2.77 |
+| Swift, global pool | 5.14 / 18.88 | 4.30 / 9.50 |
+| Go | 5.54 / 7.70 | 3.41 / 4.26 |
+
+Go's row uses five fresh rounds. Its task-per-read column uses a goroutine and
+`runtime.Gosched()` before each write; only its reader-loop column uses the pending
+notification in place of the racing permit. Its `loop` verifies all one million reads actually pended with a real
+waker. The other managed rows use the original streaming protocol and include its
+handoff; differences in scheduling mean these numbers are workload costs, not a precise
+ranking of the bindings' wake primitives.
+
+Swift's separate `drained` diagnostic measured **1.22 / 1.21 us**, while its
+contemporaneous default-global loop measured 4.40 / 9.63 us. A separate instrumented
+run recorded 1,010,000 initial pending polls and 1,010,000 polls pending with a real
+waker: all one million reads plus 10,000 group receives. Instrumentation supplied no
+timing results. The global-loop counted run had only about 40% of calls pend with a real
+waker; instrumentation can affect that ratio. The drained loop's structural suspension
+check needs no instrumentation. This diagnostic establishes that the binding honors
+the preferred executor; it does not establish that Swift is faster than other languages.
+
+`perf record -F 499 -g` on the original full Swift program attributed 55.5% of sampled
+cycles to the dispatch-worker subtree, including 43.4% under its semaphore-wait path.
+Kernel addresses were restricted, so kernel function names are unresolved. A separate
+language-only control using the same permit stream, an NSLock-protected continuation
+mailbox, and no Rust measured 3.78 / 8.87 us (median of five after warmup). This supports
+the global executor and permit handoff as the dominant cost. The control's lock differs
+from the binding's atomics, so it cannot give a precise subtraction of binding costs.
+
+Go's profile showed scheduling, cgo transitions, and `selectgo`. An experiment replaced
+its nil-`Done` select with a direct receive. On the original racing loop, five
+alternating pairs suggested a 6% improvement (3.10 to 2.91 us wall). Repeating five
+alternating pairs after forcing every read to pend instead measured **3.41 / 4.26 us
+before and 3.84 / 4.93 us after**. The benefit did not survive the stricter workload,
+so the experiment was dropped. The generated Go wait remains unchanged.
+
+The investigation found no supported runtime change that removes Swift's native pool
+cost while preserving the caller's scheduling. The default Swift loop remains above
+Kotlin's and Dart's. Close the optimization investigation on that explicit limitation,
+rather than promise equal absolute costs across different language schedulers. Future
+measurements retain both the default workload and the isolated executor diagnostic;
+no threshold is an acceptance gate and no runtime speedup is claimed.
+
+The async-start design in [kixel-ai/rust2#741](https://github.com/kixel-ai/rust2/pull/741)
+was still unmerged during these runs. It removes ready-call crossings; a pending call
+still polls again to register its real waker. The harness preserves that design and
+uses the stock public binding APIs.
+
 ## rust2-ffi
 
-Measured 2026-11-10 at rust2 `7383790d` plus this harness, moq `ffcb7cd9`, on an Intel
-Core Ultra 7 270K Plus (24 threads), Linux, **on a loaded shared host**: the 1-minute load
-average, in parentheses beside each number, ran 22 to 29 throughout, so each cell is the
-median of 5 rounds. CPU time leaves out time the program waited preempted, so it moves less
-under load than wall time, but caches and SMT siblings stay shared; take the CPU tables
-first. Rust 1.101.0-nightly 2026-10-14 (the export's default `release` profile, no LTO), GCC 16.2.0,
-CPython 3.14.8, OpenJDK 21.0.12.1 with Kotlin 2.4.21 and kotlinx-coroutines 1.10.2,
-Swift 6.3.3, Go 1.26.10, Dart 3.13.0.
+Measured 2026-11-13 at rust2 `534ef663`, moq `ffcb7cd9`, on an Intel Core Ultra 7 270K
+Plus (24 threads), Linux, on a quiet host: the 1-minute load average, in parentheses
+beside each number, ran 2 to 3, and each cell is the median of 3 rounds. CPU time leaves
+out time the program waited preempted, so take the CPU tables first. Rust
+1.101.0-nightly 2026-10-14 (the export's default `release` profile, no LTO), GCC 16.2.0,
+CPython 3.14.10, OpenJDK 21.0.13 with Kotlin 2.4.21 and kotlinx-coroutines 1.10.2, Swift
+6.4, Go 1.27.3, Dart 3.13.0.
+
+Against main (`7008d1d3`) at the same load, measured in turn four times, a 100 B write
+costs C 4 to 6 ns less, and Swift 6 and Dart 10 more in every pair: per-call cost, since
+each copies a 100 B frame as often as main does. Kotlin and Go each moved within the 15 to
+25 ns its own runs spread, so no row resolves the copy Kotlin lost at 100 B or 1 KiB.
+Bytes Rust returned and a binding passes back cross with no copy, which `ffi/tests`
+checks by address and by drop count.
+
+Re-measured 2026-11-14 on **nixos** (AMD Ryzen 9 5900XT) at rust2 `79c46e70`, which adds
+[#742](https://github.com/kixel-ai/rust2/pull/742)'s by-value `Timestamp`, against
+`7008d1d3`, in turn four times at a load of 5 to 8: a 100 B write cost Swift 124 to 127 ns
+of CPU against 149 to 176, and Dart 236 to 243 against 239 to 346 (241 to 247 in the three
+pairs below load 7). So neither write costs more than it did before #744. A profile of
+Swift's shows nothing of `Native.take` or its `Owner` outside the inlined call, and Dart's
+100 B write adds two compares and two null checks a call, below what these runs resolve.
 
 CPU time counts every thread of the process: the JVM's JIT and GC threads, Go's GC, and the
 Swift global executor's workers. So Kotlin's CPU column runs above its wall column, and
-Swift's woken read spends 16.6 us of CPU for 5.7 us of wall. Throughput from 16 KiB up is
-bound by memory bandwidth, which the host's load shares: its cells moved 2x between runs,
-the Rust floor's included, so read only the 100 B and 1 KiB rows as the bindings' cost.
+Swift's woken read spends 14.1 us of CPU for 4.8 us of wall. Throughput from 16 KiB up is
+bound by memory bandwidth: its cells moved up to 3x between runs even on this quiet host,
+so read only the 100 B and 1 KiB rows as the bindings' cost.
 
 ### Calls (ns per call, CPU time; load average)
 
 | call | Rust | C | C++ | moq-c | Kotlin | Python | Swift | Go | Dart |
 |---|---|---|---|---|---|---|---|---|---|
-| `track.is_closed()`, a handle call | 9.1 (26) | 18 (25) | 18 (26) |  | 60 (26) | 53 (25) | 26 (27) | 49 (26) | 47 (26) |
-| `demand.sequence()`, a u64 getter | 0.4 (26) | 10 (25) | 10 (26) |  | 50 (26) | 47 (25) | 18 (27) | 41 (26) | 29 (26) |
-| `track.largest()`, a record return | 18 (26) | 31 (25) | 31 (26) |  | 230 (26) | 97 (25) | 36 (27) | 76 (26) | 56 (26) |
-| `track.info()`, an object return | 1.1 (26) | 25 (25) | 25 (26) |  | 210 (26) | 97 (25) | 50 (27) | 263 (26) | 242 (26) |
-| `group.write_frame(at, frame)`, 100 B | 132 (26) | 148 (25) | 161 (26) |  | 230 (26) | 196 (25) | 194 (27) | 270 (26) | 209 (26) |
-| the same, with a new `Timestamp` each | 133 (26) | 169 (25) | 177 (26) | 267 (28) | 480 (26) | 336 (25) | 221 (27) | 526 (26) | 454 (26) |
-| a 100 B frame written and read, ready | 205 (26) | 303 (25) | 337 (26) |  | 690 (26) | 560 (25) | 509 (27) | 841 (26) | 735 (26) |
-| the same, read after a wake | 329 (26) | 427 (25) | 461 (26) |  | 1,630 (26) | 6,912 (25) | 16,580 (27) | 4,711 (26) | 1,776 (26) |
-| `frame.payload`, 100 B | 11 (26) | 23 (25) | 24 (26) |  | 70 (26) | 150 (25) | 96 (27) | 165 (26) | 67 (26) |
+| `track.is_closed()`, a handle call | 9.0 (3) | 18 (3) | 18 (3) |  | 60 (3) | 55 (3) | 26 (3) | 47 (3) | 45 (3) |
+| `demand.sequence()`, a u64 getter | 0.4 (3) | 10 (3) | 10 (3) |  | 50 (3) | 49 (3) | 9.9 (3) | 38 (3) | 28 (3) |
+| `track.largest()`, a record return | 18 (3) | 28 (3) | 29 (3) |  | 150 (3) | 99 (3) | 36 (3) | 69 (3) | 55 (3) |
+| `track.info()`, an object return | 1.1 (3) | 31 (3) | 29 (3) |  | 190 (3) | 104 (3) | 38 (3) | 195 (3) | 239 (3) |
+| `group.write_frame(at, frame)`, 100 B | 121 (3) | 143 (3) | 148 (3) |  | 240 (3) | 198 (3) | 179 (3) | 285 (3) | 214 (3) |
+| the same, with a new `Timestamp` each | 122 (3) | 162 (3) | 170 (3) | 219 (3) | 390 (3) | 339 (3) | 208 (3) | 470 (3) | 455 (3) |
+| a 100 B frame written and read, ready | 194 (3) | 301 (3) | 327 (3) |  | 650 (3) | 552 (3) | 471 (3) | 721 (3) | 739 (3) |
+| the same, read after a wake | 308 (3) | 444 (3) | 450 (3) |  | 1,590 (3) | 6,917 (3) | 14,061 (3) | 4,765 (3) | 1,665 (3) |
+| `frame.payload`, 100 B | 10 (3) | 20 (3) | 25 (3) |  | 70 (3) | 155 (3) | 85 (3) | 128 (3) | 68 (3) |
 
 ### Throughput (MB per CPU second, write plus ready read; load average)
 
 | frame | Rust | C | C++ | Kotlin | Python | Swift | Go | Dart |
 |---|---|---|---|---|---|---|---|---|
-| 100 B | 472 (26) | 303 (25) | 300 (26) | 105 (26) | 138 (25) | 162 (27) | 106 (26) | 120 (26) |
-| 1 KiB | 3,444 (26) | 2,394 (25) | 2,267 (26) | 1,341 (26) | 1,240 (25) | 1,135 (27) | 713 (26) | 991 (26) |
-| 16 KiB | 7,324 (26) | 14,822 (25) | 6,923 (26) | 6,554 (26) | 9,460 (25) | 2,156 (27) | 1,820 (26) | 5,536 (26) |
-| 64 KiB | 2,552 (26) | 10,612 (25) | 6,441 (26) | 3,277 (26) | 9,468 (25) | 2,206 (27) | 2,382 (26) | 6,574 (26) |
-| 1 MiB | 3,647 (26) | 3,596 (25) | 5,546 (26) | 3,146 (26) | 3,464 (25) | 3,354 (27) | 2,767 (26) | 3,812 (26) |
+| 100 B | 563 (3) | 326 (3) | 297 (3) | 118 (3) | 138 (3) | 170 (3) | 114 (3) | 126 (3) |
+| 1 KiB | 4,148 (3) | 2,823 (3) | 2,589 (3) | 1,341 (3) | 1,319 (3) | 1,218 (3) | 765 (3) | 1,104 (3) |
+| 16 KiB | 11,331 (3) | 10,982 (3) | 11,715 (3) | 6,554 (3) | 8,784 (3) | 2,434 (3) | 1,648 (3) | 5,682 (3) |
+| 64 KiB | 2,679 (3) | 8,637 (3) | 8,763 (3) | 2,185 (3) | 9,079 (3) | 2,522 (3) | 2,351 (3) | 6,767 (3) |
+| 1 MiB | 3,742 (3) | 3,785 (3) | 6,300 (3) | 3,146 (3) | 3,586 (3) | 3,531 (3) | 4,357 (3) | 3,926 (3) |
 
 ### Calls (ns per call, wall time; load average)
 
 | call | Rust | C | C++ | moq-c | Kotlin | Python | Swift | Go | Dart |
 |---|---|---|---|---|---|---|---|---|---|
-| `track.is_closed()`, a handle call | 9.1 (26) | 18 (25) | 18 (26) |  | 32 (26) | 53 (25) | 26 (27) | 48 (26) | 42 (26) |
-| `demand.sequence()`, a u64 getter | 0.4 (26) | 10 (25) | 10 (26) |  | 24 (26) | 47 (25) | 18 (27) | 41 (26) | 28 (26) |
-| `track.largest()`, a record return | 18 (26) | 31 (25) | 31 (26) |  | 113 (26) | 97 (25) | 37 (27) | 73 (26) | 56 (26) |
-| `track.info()`, an object return | 1.1 (26) | 25 (25) | 25 (26) |  | 137 (26) | 97 (25) | 50 (27) | 255 (26) | 243 (26) |
-| `group.write_frame(at, frame)`, 100 B | 132 (26) | 148 (25) | 161 (26) |  | 239 (26) | 196 (25) | 194 (27) | 274 (26) | 208 (26) |
-| the same, with a new `Timestamp` each | 133 (26) | 172 (25) | 178 (26) | 233 (27) | 331 (26) | 336 (25) | 224 (27) | 539 (26) | 447 (26) |
-| a 100 B frame written and read, ready | 205 (26) | 303 (25) | 341 (26) |  | 544 (26) | 560 (25) | 517 (27) | 903 (26) | 731 (26) |
-| the same, read after a wake | 330 (26) | 431 (25) | 474 (26) |  | 1,600 (26) | 6,912 (25) | 5,697 (27) | 5,061 (26) | 1,766 (26) |
-| `frame.payload`, 100 B | 11 (26) | 23 (25) | 24 (26) |  | 70 (26) | 150 (25) | 96 (27) | 150 (26) | 67 (26) |
+| `track.is_closed()`, a handle call | 9.0 (3) | 18 (3) | 18 (3) |  | 31 (3) | 55 (3) | 26 (3) | 46 (3) | 41 (3) |
+| `demand.sequence()`, a u64 getter | 0.4 (3) | 10 (3) | 10 (3) |  | 24 (3) | 49 (3) | 9.9 (3) | 38 (3) | 28 (3) |
+| `track.largest()`, a record return | 18 (3) | 28 (3) | 29 (3) |  | 74 (3) | 99 (3) | 36 (3) | 65 (3) | 54 (3) |
+| `track.info()`, an object return | 1.1 (3) | 31 (3) | 29 (3) |  | 89 (3) | 104 (3) | 38 (3) | 181 (3) | 238 (3) |
+| `group.write_frame(at, frame)`, 100 B | 122 (3) | 143 (3) | 148 (3) |  | 236 (3) | 198 (3) | 179 (3) | 280 (3) | 211 (3) |
+| the same, with a new `Timestamp` each | 122 (3) | 162 (3) | 170 (3) | 219 (3) | 331 (3) | 339 (3) | 208 (3) | 445 (3) | 445 (3) |
+| a 100 B frame written and read, ready | 194 (3) | 301 (3) | 327 (3) |  | 540 (3) | 552 (3) | 471 (3) | 694 (3) | 732 (3) |
+| the same, read after a wake | 308 (3) | 444 (3) | 450 (3) |  | 1,574 (3) | 6,918 (3) | 4,757 (3) | 3,740 (3) | 1,652 (3) |
+| `frame.payload`, 100 B | 10 (3) | 20 (3) | 25 (3) |  | 67 (3) | 155 (3) | 85 (3) | 115 (3) | 67 (3) |
 
 ### Throughput (MB/s, write plus ready read; load average)
 
 | frame | Rust | C | C++ | Kotlin | Python | Swift | Go | Dart |
 |---|---|---|---|---|---|---|---|---|
-| 100 B | 472 (26) | 299 (25) | 290 (26) | 170 (26) | 138 (25) | 162 (27) | 105 (26) | 121 (26) |
-| 1 KiB | 3,444 (26) | 2,394 (25) | 2,267 (26) | 1,384 (26) | 1,239 (25) | 1,135 (27) | 769 (26) | 1,019 (26) |
-| 16 KiB | 7,324 (26) | 14,824 (25) | 6,923 (26) | 8,822 (26) | 9,464 (25) | 2,156 (27) | 2,072 (26) | 5,618 (26) |
-| 64 KiB | 2,552 (26) | 10,612 (25) | 5,466 (26) | 6,048 (26) | 9,469 (25) | 2,206 (27) | 2,622 (26) | 6,679 (26) |
-| 1 MiB | 3,647 (26) | 3,591 (25) | 5,253 (26) | 3,369 (26) | 3,464 (25) | 3,353 (27) | 2,693 (26) | 3,861 (26) |
+| 100 B | 563 (3) | 326 (3) | 297 (3) | 166 (3) | 138 (3) | 169 (3) | 121 (3) | 127 (3) |
+| 1 KiB | 4,144 (3) | 2,823 (3) | 2,589 (3) | 1,404 (3) | 1,319 (3) | 1,218 (3) | 872 (3) | 1,130 (3) |
+| 16 KiB | 11,330 (3) | 10,982 (3) | 11,715 (3) | 6,096 (3) | 8,784 (3) | 2,433 (3) | 2,196 (3) | 5,729 (3) |
+| 64 KiB | 2,679 (3) | 8,637 (3) | 8,762 (3) | 6,651 (3) | 9,079 (3) | 2,522 (3) | 2,429 (3) | 6,971 (3) |
+| 1 MiB | 3,742 (3) | 3,785 (3) | 6,298 (3) | 3,346 (3) | 3,586 (3) | 3,530 (3) | 4,847 (3) | 3,995 (3) |
+
+### Build (median, from an emptied target)
+
+Measured 2026-11-13 at rust2 `29e70775` plus this harness on the same host, 3 rounds, load
+17 to 28, with no compiler cache. CPU time sums every process cargo ran; peak RSS is the
+largest one's.
+
+| step | wall s | CPU s | peak RSS | load average |
+|---|---|---|---|---|
+| rust2-ffi's export, a `cargo check` of moq under its driver | 36.6 | 231.1 | 873 MiB | 20 |
+| moq's own `cargo check` of the same crates | 29.9 | 218.3 | 878 MiB | 24 |
+| the generated crate's release build, Kotlin and Dart glue included | 417.2 | 843.7 | 3,168 MiB | 25 |
+| moq's own release build of the same crates | 94.1 | 542.0 | 1,550 MiB | 27 |
+
+The export adds about 13 CPU seconds over the check cargo runs anyway, and no peak memory.
+The generated crate's build adds about 300 CPU seconds and 320 wall seconds over moq's own,
+and doubles the peak: that build, not the export, is what a consumer pays on every export.
+Nearly all of the gap is the glue crate's one rustc, and most of that is the fat LTO in one
+codegen unit that moq-ffi's release profile asks for. moq's own build makes only rlibs, so
+it never runs that step, while the generated crate's links optimize everything the export
+reaches in one module. moq's UniFFI moq-ffi, built with that profile, took 877 CPU s and
+2,259 MiB peak on 2026-11-13, beside 720 CPU s and 3,275 MiB for the generated crate a
+revision later, on the same host and load (1 and 3 rounds).
 
 ### Size
 
 | binding | files | raw | gzip | Rust glue, raw / gzip |
 |---|---|---|---|---|
-| C | 1 | 1,604 KiB | 235 KiB | 2,346 KiB / 125 KiB |
-| C++ | 1 | 2,664 KiB | 299 KiB | none |
-| Kotlin | 2 | 2,373 KiB | 318 KiB | 1,649 KiB / 72 KiB |
-| Python | 1 | 1,424 KiB | 217 KiB | 3,678 KiB / 282 KiB |
-| Swift | 3 | 2,231 KiB | 295 KiB | none |
-| Go | 19 | 3,429 KiB | 404 KiB | none |
-| Dart | 1 | 3,921 KiB | 360 KiB | 1,606 KiB / 59 KiB |
+| C | 1 | 1,633 KiB | 242 KiB | 2,416 KiB / 134 KiB |
+| C++ | 1 | 2,865 KiB | 320 KiB | none |
+| Kotlin | 2 | 2,498 KiB | 361 KiB | 1,720 KiB / 79 KiB |
+| Python | 1 | 1,454 KiB | 225 KiB | 3,762 KiB / 294 KiB |
+| Swift | 3 | 2,147 KiB | 302 KiB | none |
+| Go | 23 | 3,554 KiB | 435 KiB | none |
+| Dart | 1 | 4,034 KiB | 376 KiB | 1,643 KiB / 62 KiB |
 
 | native library | as built | stripped |
 |---|---|---|
-| `libmoq.a`, the C ABI that C, C++, Swift, and Go link | 191,403 KiB | 102,985 KiB |
-| `libmoq.so`, with the Kotlin and Dart glue | 60,222 KiB | 45,126 KiB |
-| `python/libmoq.so`, the CPython extension | 54,694 KiB | 41,023 KiB |
+| `libmoq.a`, the C ABI that C, C++, Swift, and Go link | 193,455 KiB | 104,224 KiB |
+| `libmoq.so`, with the Kotlin and Dart glue | 61,361 KiB | 46,029 KiB |
+| `python/libmoq.so`, the CPython extension | 56,145 KiB | 42,166 KiB |
 
 The stand-in exports all of moq-net, kio, and moq-pattern, and hang, moq-mux, and
 moq-tokio's session side, far more than moq-ffi's UniFFI interface, so its sizes do not
@@ -129,13 +360,16 @@ the export's default `release` build, which links all of moq's crates; "stripped
 
 ### What a call spends
 
-From the CPU tables, read against the code each call runs. In order of what it costs moq's
+From the CPU tables of 2026-11-10, measured at rust2 `7383790d` at a load average of 22 to
+29 and since replaced by the tables above, read against the code each call runs. In order of what it costs moq's
 frame path:
 
-1. **A handle per frame timestamp.** `Timestamp` is `Copy` in Rust, but its private fields
-   make it an object, so each stamped frame makes and frees a handle: 21 ns in C, 27 in
-   Swift, 140 in Python, 250 in Kotlin, 260 in Go, and 245 in Dart (stamped write minus
-   write). In Go, Dart, and Kotlin that doubles the write.
+1. **A call per frame timestamp.** `Timestamp` is `Copy` with private fields, so it
+   crosses as its 16 bytes, and a stamped frame allocates and frees nothing in Rust. As
+   a handle, it cost 21 ns in C, 27 in Swift, 140 in Python, 250 in Kotlin, 260 in Go,
+   and 245 in Dart (stamped write minus write, in the tables above); as a value, see
+   [Copy values](#copy-values): what remains is each language's call and, in Kotlin and
+   Python, an object of its own.
 2. **Ownership of a returned object.** An object return costs C 25 ns, but Go 263 and
    Dart 242, ten times C: each new Go object registers `runtime.AddCleanup` and each Dart
    one a `NativeFinalizer`, beside a handle allocation. Kotlin's 137 ns wall (210 CPU) is a phantom
@@ -144,8 +378,8 @@ frame path:
    Dart's 1.8 us add their event loops; Go's 5.1 us and Swift's 5.7 us wall (16.6 us CPU)
    are a goroutine or `Task` and a cross-thread wake per read, and Python's 6.9 us is
    asyncio's, as BoltFFI's Python measured 10 us. This case starts a task per read; a
-   reader looping on one task would skip the start, and is what to measure before changing
-   a generator.
+   reader looping on one task, which skips the start, is measured in
+   [Long-lived reader measurement](#long-lived-reader-measurement).
 4. **A future per read.** Since `<fn>_start` makes a future and polls it in one call, a
    ready read costs C 126 ns over the write where Rust costs 93: one crossing and one
    allocation, down from 176 with four allocations and three crossings. Measured 2026-11-13
@@ -169,24 +403,129 @@ frame path:
 
 For [checks-raise](/quest/m1/ffi-export/checks-raise.md)'s one accounting: the u64
 getter is one borrowed handle and nothing else, so its row less Rust's 0.4 ns is what a
-handle costs a call. C, C++: 10 ns, the runtime's two atomics. Swift: 18, its hold count
-adding two more. Kotlin: 24 wall, Go 41, Dart 29, Python 47, each with its call's own
+handle costs a call. C, C++: 10 ns, the runtime's two atomics. Swift: 9.9, with no hold
+count since the change below. Kotlin: 24 wall, Go 38, Dart 28, Python 49, each with its call's own
 transition besides.
 
 Swift has since made each object a noncopyable struct and dropped its hold count, but for
-a class: a `Copy` object or one thrown as an error. Measured 2026-11-11 at that change, 5
+a class: one thrown as an error. A `Copy` type is a value since [Copy values](#copy-values). Measured 2026-11-11 at that change, 5
 rounds interleaved with C at a load average of 7 to 12, its getter costs 10 ns, as C's
 does, and `track.is_closed()`, on `TrackProducer`, still a class since moq throws it, 26
 against C's 18, as in the table. A change to the accounting moves this row and the handle call's by the
 same amount; measure both, CPU first, at the load beside them.
 
+### Copy values
+
+A `Copy` type with private fields, such as `Timestamp`, crosses by value: a struct of its
+bytes in C, C++, Swift, Go, and Dart, a class over a `LongArray` in Kotlin (a word value
+class when it fits one), and a class of the runtime's `Value` holding its bytes in Python.
+Measured 2026-11-13 at rust2 `7766768f`, moq `ffcb7cd9`, on an AMD Ryzen 9 9950X (32 threads),
+Linux, at a load average of 13 to 15, the median of 3 rounds, in CPU time:
+
+| | C | C++ | Swift | Go | Dart | Kotlin | Python |
+|---|---|---|---|---|---|---|---|
+| write | 163 | 165 | 173 | 260 | 251 | 280 | 224 |
+| stamped write | 161 | 168 | 174 | 293 | 296 | 430 | 384 |
+| stamped minus write | 0 | 3 | 1 | 33 | 45 | 150 (35 wall) | 160 |
+
+C, C++, and Swift pay nothing for the timestamp; Go and Dart pay about their getter's call,
+the `from_micros` itself. Kotlin's 35 ns wall is its call, and its CPU column adds the
+collector's work on each `LongArray`. Python's is a call and a new object. The handle's cost
+in the tables above came from another load, so Python's was also measured against main's
+build on the same host, interleaved over 5 rounds at a load of 10 to 12: stamped minus write
+fell from 205 ns to 166, and the stamped write from 441 to 391.
+
 ### Against the targets
 
 Where the cases match, on wall time: Kotlin's getter costs 24 ns against BoltFFI's 5.8,
-its record return 113 against 61, its write 107 ns over Rust against BoltFFI's 56, and 100 B
-throughput 170 MB/s against 105. Python's getter costs 47 ns against 63, its record return
-97 against 1,120, and 100 B throughput 138 MB/s against 12.1. So Python meets BoltFFI's
-and Kotlin's calls trail it by 2 to 4 times, behind JNI's per-call cost and the hold count.
+its record return 74 against 61, its write 114 ns over Rust against BoltFFI's 56, and 100 B
+throughput 166 MB/s against 105. Python's getter costs 49 ns against 63, its record return
+99 against 1,120, and 100 B throughput 138 MB/s against 12.1. So Python meets BoltFFI's
+and Kotlin's calls trail it by 1.2 to 4 times, behind JNI's per-call cost and the hold count.
+
+## Consumer release profile
+
+Measured on fedora on 2026-11-12, through `quest gate`, with the same pinned
+moq stand-in and three rounds. The exported workspace now carries moq's release
+profile: fat LTO, one codegen unit, and `strip = "symbols"`. Its package override,
+`strip = "debuginfo"` for moq-ffi, was then carried only onto the facade's rlib, so
+these artifacts got `strip = "symbols"`; the export now also gives it to the glue
+package that builds them. Panic behavior is unchanged.
+A paired build of the generated crate with Kotlin and Dart enabled took 404 s with
+this profile and 107 s after removing the profile tables (297 s longer, 3.8 times).
+Both used fresh target directories and the warm mbx compiler cache, so these are
+elapsed build times on a shared host, not cold compiler timings. The corresponding
+static libraries were 95.2 versus 186.7 MiB, and shared libraries 38.7 versus 59.7 MiB.
+The Python extension in the table was built separately by the benchmark harness.
+
+The older tables above remain the default-profile baseline; host load and intervening
+generator changes prevent attributing every difference to LTO alone.
+
+### Calls (ns per call, CPU time; load average)
+
+| call | Rust | C | C++ | moq-c | Kotlin | Python | Swift | Go | Dart |
+|---|---|---|---|---|---|---|---|---|---|
+| `track.is_closed()`, a handle call | 7.9 (17) | 15 (17) | 15 (16) |  | 60 (15) | 58 (14) | 24 (13) | 45 (12) | 41 (11) |
+| `demand.sequence()`, a u64 getter | 0.2 (17) | 7.6 (17) | 7.6 (16) |  | 40 (15) | 49 (14) | 7.9 (13) | 38 (12) | 25 (11) |
+| `track.largest()`, a record return | 16 (17) | 24 (17) | 24 (16) |  | 150 (15) | 104 (14) | 33 (13) | 63 (12) | 49 (11) |
+| `track.info()`, an object return | 1.0 (17) | 25 (17) | 25 (16) |  | 190 (15) | 100 (14) | 34 (13) | 184 (12) | 208 (11) |
+| `group.write_frame(at, frame)`, 100 B | 141 (17) | 148 (17) | 148 (16) |  | 240 (15) | 201 (14) | 178 (13) | 244 (12) | 213 (11) |
+| the same, with a new `Timestamp` each | 140 (17) | 162 (17) | 166 (16) | 199 (15) | 360 (15) | 372 (14) | 209 (13) | 430 (12) | 433 (11) |
+| a 100 B frame written and read, ready | 216 (17) | 293 (17) | 308 (16) |  | 590 (15) | 608 (14) | 441 (13) | 642 (12) | 721 (11) |
+| the same, read after a wake | 332 (17) | 428 (17) | 447 (16) |  | 1,460 (15) | 7,414 (14) | 10,023 (13) | 3,676 (12) | 1,628 (11) |
+| `frame.payload`, 100 B | 14 (17) | 22 (17) | 25 (16) |  | 60 (15) | 176 (14) | 69 (13) | 116 (12) | 60 (11) |
+
+### Throughput (MB per CPU second, write plus ready read; load average)
+
+| frame | Rust | C | C++ | Kotlin | Python | Swift | Go | Dart |
+|---|---|---|---|---|---|---|---|---|
+| 100 B | 481 (17) | 329 (17) | 308 (16) | 118 (15) | 120 (14) | 209 (13) | 131 (12) | 134 (11) |
+| 1 KiB | 3,285 (17) | 2,421 (17) | 2,319 (16) | 1,677 (15) | 1,056 (14) | 1,491 (13) | 899 (12) | 1,107 (11) |
+| 16 KiB | 17,210 (17) | 15,604 (17) | 17,081 (16) | 6,554 (15) | 9,508 (14) | 5,074 (13) | 4,205 (12) | 8,353 (11) |
+| 64 KiB | 6,562 (17) | 16,278 (17) | 14,699 (16) | 3,277 (15) | 14,664 (14) | 6,035 (13) | 8,951 (12) | 11,329 (11) |
+| 1 MiB | 13,758 (17) | 14,106 (17) | 12,541 (16) | 5,243 (15) | 13,183 (14) | 13,543 (13) | 7,577 (12) | 17,641 (11) |
+
+### Calls (ns per call, wall time; load average)
+
+| call | Rust | C | C++ | moq-c | Kotlin | Python | Swift | Go | Dart |
+|---|---|---|---|---|---|---|---|---|---|
+| `track.is_closed()`, a handle call | 8.0 (17) | 15 (17) | 15 (16) |  | 31 (15) | 58 (14) | 24 (13) | 45 (12) | 38 (11) |
+| `demand.sequence()`, a u64 getter | 0.2 (17) | 7.6 (17) | 7.6 (16) |  | 23 (15) | 49 (14) | 7.9 (13) | 38 (12) | 25 (11) |
+| `track.largest()`, a record return | 16 (17) | 24 (17) | 24 (16) |  | 74 (15) | 104 (14) | 33 (13) | 61 (12) | 49 (11) |
+| `track.info()`, an object return | 1.0 (17) | 25 (17) | 25 (16) |  | 80 (15) | 100 (14) | 34 (13) | 170 (12) | 208 (11) |
+| `group.write_frame(at, frame)`, 100 B | 141 (17) | 149 (17) | 149 (16) |  | 233 (15) | 201 (14) | 179 (13) | 242 (12) | 213 (11) |
+| the same, with a new `Timestamp` each | 141 (17) | 163 (17) | 167 (16) | 200 (15) | 321 (15) | 373 (14) | 209 (13) | 407 (12) | 431 (11) |
+| a 100 B frame written and read, ready | 217 (17) | 294 (17) | 310 (16) |  | 499 (15) | 609 (14) | 442 (13) | 622 (12) | 722 (11) |
+| the same, read after a wake | 334 (17) | 430 (17) | 451 (16) |  | 1,442 (15) | 7,436 (14) | 3,218 (13) | 2,980 (12) | 1,629 (11) |
+| `frame.payload`, 100 B | 14 (17) | 22 (17) | 25 (16) |  | 61 (15) | 177 (14) | 69 (13) | 98 (12) | 60 (11) |
+
+### Throughput (MB/s, write plus ready read; load average)
+
+| frame | Rust | C | C++ | Kotlin | Python | Swift | Go | Dart |
+|---|---|---|---|---|---|---|---|---|
+| 100 B | 479 (17) | 328 (17) | 306 (16) | 176 (15) | 120 (14) | 208 (13) | 137 (12) | 134 (11) |
+| 1 KiB | 3,276 (17) | 2,412 (17) | 2,306 (16) | 1,560 (15) | 1,053 (14) | 1,486 (13) | 1,068 (12) | 1,122 (11) |
+| 16 KiB | 17,154 (17) | 15,558 (17) | 17,048 (16) | 11,063 (15) | 9,451 (14) | 5,045 (13) | 4,596 (12) | 8,346 (11) |
+| 64 KiB | 6,544 (17) | 16,232 (17) | 14,568 (16) | 8,295 (15) | 14,643 (14) | 6,015 (13) | 12,256 (12) | 11,776 (11) |
+| 1 MiB | 13,719 (17) | 14,061 (17) | 12,458 (16) | 7,168 (15) | 13,156 (14) | 13,517 (13) | 8,328 (12) | 17,742 (11) |
+
+### Size
+
+| binding | files | raw | gzip | Rust glue, raw / gzip |
+|---|---|---|---|---|
+| C | 1 | 1,633 KiB | 242 KiB | 2,408 KiB / 133 KiB |
+| C++ | 1 | 2,865 KiB | 320 KiB | none |
+| Kotlin | 2 | 2,472 KiB | 358 KiB | 1,697 KiB / 77 KiB |
+| Python | 1 | 1,454 KiB | 225 KiB | 3,756 KiB / 293 KiB |
+| Swift | 3 | 2,141 KiB | 300 KiB | none |
+| Go | 23 | 3,538 KiB | 432 KiB | none |
+| Dart | 1 | 4,019 KiB | 375 KiB | 1,643 KiB / 62 KiB |
+
+| native library | as built | stripped |
+|---|---|---|
+| `libmoq.a`, the C ABI that C, C++, Swift, and Go link | 98,510 KiB | 58,787 KiB |
+| `libmoq.so`, with the Kotlin and Dart glue | 39,847 KiB | 39,847 KiB |
+| `python/libmoq.so`, the CPython extension | 35,277 KiB | 35,277 KiB |
 
 ## BoltFFI comparison
 

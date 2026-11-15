@@ -3190,14 +3190,15 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const shown: rs.Vec<rs.Fmt> = new rs.Vec();
 	const written: rs.Vec<rs.Fmt> = new rs.Vec();
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _17: [rs.usize, rs.u8] | rs.Done = iter.next();
-		if (_17 === rs.DONE) {
+		const x2 = leaf.next();
+		if (x2 === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _17[0];
-		const x: rs.u8 = _17[1];
+		const i: rs.usize = count++;
+		const x: rs.u8 = x2;
 		const _22: rs.u8 = rs.u8Rem(x, 4);
 		if (_22 === 0) {
 			const _25: rs.Fmt = rs.fmtOwned(dropper(x), (value: Dropper.Dropper, f: rs.Formatter) => Dropper.fmt$fmt_Debug(value, f), rs.drop);

@@ -12,7 +12,7 @@
 //! `moq_audio_encoder_finish_`. A `_` doubled at the split would read better, but C++
 //! reserves every name containing `__`. Only the names that clash change.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
@@ -92,6 +92,8 @@ pub enum Ty {
 	Out(Box<Ty>),
 	/// A pointer the callee only reads through: a value's receiver.
 	In(Box<Ty>),
+	/// A pointer the callee reads and writes back through: a value's `&mut self`.
+	InOut(Box<Ty>),
 	/// A function lent for the call, taking its data first: what it takes and returns.
 	Fn(Vec<Ty>, Box<Ty>),
 	/// The data a lent function takes, which Rust only passes back to it.
@@ -114,6 +116,48 @@ pub struct Export {
 	pub named: String,
 	/// For a future: its handle type and the functions over it.
 	pub future: Option<Future>,
+}
+
+/// How the glue calls a value's `&mut self` method for a language whose values are
+/// immutable, which [`Abi::handed_back`] makes.
+#[derive(Clone)]
+pub struct Handed {
+	/// The C name of the method's function, which a clash may have renamed.
+	name: String,
+	/// How many parameters both take after `self`, before the outs.
+	lead: usize,
+	/// Whether the method returns nothing.
+	unit: bool,
+	/// Whether it returns a tuple, which the C function writes through its outs.
+	tuple: bool,
+}
+
+impl Handed {
+	/// The glue's expression, of the handed-back export's C return, calling the C function
+	/// in place on a copy of the value that `args[0]` points to and handing the copy back.
+	/// `args` are of that export's C signature: `self`, what both take after it, then the outs the value and
+	/// each element Rust returns are written through, which the C function takes from the
+	/// one after the value's.
+	pub fn call(&self, args: &[String]) -> String {
+		let lead = self.lead;
+		let mut real = vec!["&mut handed_".to_string()];
+		real.extend(args[1..=lead].iter().cloned());
+		if self.tuple {
+			real.extend(args[lead + 2..].iter().cloned());
+		}
+		let call = format!("crate::{}({})", self.name, real.join(", "));
+		// Apart from the names the glue gives its arguments, which are numbered.
+		let body = match (self.unit, self.tuple) {
+			(true, _) => format!("{call};\n\thanded_"),
+			(_, true) => format!("{call};\n\tstd::ptr::write({}, handed_)", args[lead + 1]),
+			(_, false) => format!(
+				"let handed_r_ = {call};\n\tstd::ptr::write({}, handed_);\n\tstd::ptr::write({}, handed_r_)",
+				args[lead + 1],
+				args[lead + 2]
+			),
+		};
+		format!("unsafe {{\n\tlet mut handed_ = *({});\n\t{body}\n}}", args[0])
+	}
 }
 
 /// The C functions of a future besides the call that makes it.
@@ -161,9 +205,6 @@ pub struct Abi<'a> {
 	pub tuples: BTreeMap<String, Vec<Type>>,
 	/// Each `[u8; N]` struct by C name, with `N`.
 	pub arrays: BTreeMap<String, usize>,
-	/// Each `Copy` object a closure takes or returns by value, which `<T>_copy` copies into
-	/// a new handle as Rust copies it, never running its `Clone`.
-	pub copies: BTreeSet<usize>,
 	/// Every C name claimed.
 	claims: Vec<Claim>,
 	/// The C name of each item whose own clashed.
@@ -183,7 +224,6 @@ impl<'a> Abi<'a> {
 			lists: BTreeMap::new(),
 			tuples: BTreeMap::new(),
 			arrays: BTreeMap::new(),
-			copies: BTreeSet::new(),
 			claims: Vec::new(),
 			renames: HashMap::new(),
 			clashes: Vec::new(),
@@ -677,19 +717,11 @@ impl<'a> Abi<'a> {
 	}
 
 	/// The C function a closure is: after its data, each value it takes, lent for its
-	/// call, a `Copy` object as a handle; then for a `Result`, an out pointer for its value
-	/// and one for its error, returning whether it succeeded, or else its value. A
-	/// value it returns is Rust's: a buffer one `<prefix>_buf_copy` made, or a new handle.
+	/// call; then for a `Result`, an out pointer for its value and one for its error,
+	/// returning whether it succeeded, or else its value. A buffer it returns is Rust's,
+	/// one `<prefix>_buf_copy` made.
 	pub fn closure(&self, closure: &Closure) -> Ty {
-		let mut params: Vec<Ty> = (closure.params.iter())
-			.map(|ty| match ty {
-				Type::Object(i) => Ty::Handle {
-					name: self.object(*i),
-					constant: true,
-				},
-				ty => self.ty(ty),
-			})
-			.collect();
+		let mut params: Vec<Ty> = closure.params.iter().map(|ty| self.ty(ty)).collect();
 		let ok = self.ty(&closure.ok);
 		match &closure.err {
 			None => Ty::Fn(params, Box::new(ok)),
@@ -723,7 +755,9 @@ impl<'a> Abi<'a> {
 							&& (0..self.api.objects.len())
 								.any(|i| self.api.objects[i].copy && &self.object(i) == name)),
 				},
-				// A value's receiver is read through a pointer, and never changed.
+				// A value's receiver is read through a pointer, and written back in place for
+				// `&mut self`.
+				value if receiver == Receiver::Mut => Ty::InOut(Box::new(value.clone())),
 				value => Ty::In(Box::new(value.clone())),
 			};
 			params.push(("self".to_string(), ty));
@@ -740,7 +774,7 @@ impl<'a> Abi<'a> {
 				_ => None,
 			};
 			let ty = match copied {
-				// Taken by value, a `Copy` value is copied out, leaving its handle as it was.
+				// Taken by value, a `Copy` object is copied out, leaving its handle as it was.
 				Some(i) if self.api.objects[i].copy => Ty::Handle {
 					name: self.object(i),
 					constant: true,
@@ -857,6 +891,51 @@ impl<'a> Abi<'a> {
 		out
 	}
 
+	/// A value's `&mut self` method as a language whose values are immutable calls it:
+	/// through `&self`, returning the value as the call left it, before Rust's own return
+	/// or each element of its tuple: that function, its export, and how the glue calls it.
+	/// The export keeps the C name of the method's, which a clash may have renamed. `None`
+	/// for any other function.
+	pub fn handed_back(&self, function: &Function, owner: &Ty, owner_ty: &Type) -> Option<(Function, Export, Handed)> {
+		if function.receiver != Some(Receiver::Mut) || matches!(owner, Ty::Handle { .. }) {
+			return None;
+		}
+		// `written_back` in collect.rs refuses a future's and a `Result`'s.
+		assert!(
+			!function.future && function.err.is_none(),
+			"a value's `&mut self` returns a plain value"
+		);
+		let real = self.export(function, Some(owner));
+		let returned = match &function.ok {
+			Type::Unit => Vec::new(),
+			Type::Tuple(elements) => elements.clone(),
+			ok => vec![ok.clone()],
+		};
+		let back = Function {
+			receiver: Some(Receiver::Ref),
+			ok: match returned.is_empty() {
+				true => owner_ty.clone(),
+				false => Type::Tuple([vec![owner_ty.clone()], returned].concat()),
+			},
+			..function.clone()
+		};
+		// Named as the method is: a rename is keyed by the API's own function.
+		let mut export = self.export(&back, Some(owner));
+		export.call.name = real.call.name.clone();
+		export.named = real.named;
+		let elements = match &function.ok {
+			Type::Tuple(elements) => elements.len(),
+			_ => 0,
+		};
+		let handed = Handed {
+			name: real.call.name,
+			lead: real.call.params.len() - 1 - elements,
+			unit: function.ok == Type::Unit,
+			tuple: elements > 0,
+		};
+		Some((back, export, handed))
+	}
+
 	fn claim(&mut self, name: String, what: String, span: Span, owner: Option<Owner>) {
 		self.claims.push(Claim {
 			name,
@@ -925,8 +1004,11 @@ impl<'a> Abi<'a> {
 			"foreign_future",
 			"foreign_reader",
 			"buf_copy",
+			"buf_clone",
 			"poll",
 			"view",
+			"items",
+			"taken",
 			"borrow",
 			"result",
 			"task",
@@ -935,6 +1017,7 @@ impl<'a> Abi<'a> {
 			"detail",
 			"native",
 			"bytes",
+			"input",
 			"mut",
 			"atomic_load",
 			"atomic_store",
@@ -1122,7 +1205,6 @@ impl<'a> Abi<'a> {
 		let mut lists = BTreeMap::new();
 		let mut tuples: BTreeMap<String, Vec<Type>> = BTreeMap::new();
 		let mut arrays = BTreeMap::new();
-		let mut copies = BTreeSet::new();
 		let mut mixed = Vec::new();
 		let mut stack = types;
 		while let Some(ty) = stack.pop() {
@@ -1155,17 +1237,6 @@ impl<'a> Abi<'a> {
 					stack.extend(elements);
 				}
 				Type::Closure(closure) => {
-					for ty in closure.params.iter().chain([&closure.ok]) {
-						let ty = match ty {
-							Type::Option(inner) => inner,
-							ty => ty,
-						};
-						if let Type::Object(i) = ty
-							&& self.api.objects[*i].copy
-						{
-							copies.insert(*i);
-						}
-					}
 					stack.extend(&closure.params);
 					stack.push(&closure.ok);
 					stack.extend(&closure.err);
@@ -1192,13 +1263,6 @@ impl<'a> Abi<'a> {
 		}
 		for name in arrays.keys() {
 			self.claim(name.clone(), "an array".to_string(), crate_span, None);
-		}
-		for &i in &copies {
-			let object = &self.api.objects[i];
-			let item = Item::Object(i);
-			let name = self.object(i);
-			let what = format!("type `{}`", self.api.rust(&object.path, &object.args));
-			self.claim(format!("{name}_copy"), what, object.span, Self::made(&item, &name));
 		}
 		for (name, elements) in tuples
 			.iter()
@@ -1230,7 +1294,6 @@ impl<'a> Abi<'a> {
 		self.lists = lists;
 		self.tuples = tuples;
 		self.arrays = arrays;
-		self.copies = copies;
 	}
 
 	/// Claim the functions a type's std traits export.

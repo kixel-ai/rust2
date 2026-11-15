@@ -15,6 +15,7 @@ mod call;
 pub mod coroutine;
 mod decided;
 mod encode;
+pub(super) mod fuse;
 pub mod glue;
 pub(super) mod holders;
 mod inline;
@@ -431,6 +432,18 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	stepped: FxHashSet<Local>,
 	/// The borrows `next` steps them by, and what each borrows.
 	stepped_borrows: FxHashMap<Local, Local>,
+	/// Chains of adaptors that only `next` reads, by `fuse`, and the borrows it reads each by.
+	fused_loops: FxHashSet<Local>,
+	fused_borrows: FxHashMap<Local, Local>,
+	/// Each one's parts, held in variables as it is made.
+	fused_nodes: FxHashMap<Local, fuse::Node>,
+	/// Those variables, declared up front, and whether a chain being made declares them so.
+	fused_decls: Vec<(String, Type)>,
+	fused_hoist: bool,
+	/// What each `next` of one assigns, and the closures their chains call, which the loop
+	/// reading them takes apart once it is written.
+	fused_reads: FxHashSet<String>,
+	fused_funs: FxHashSet<String>,
 	/// References a call returns to what its `&mut` argument borrows, as `Cow::to_mut`'s:
 	/// the place each reads and writes, which a store through one rebuilds as a `Ref`'s.
 	reborrows: FxHashMap<Local, Place<'tcx>>,
@@ -557,6 +570,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			range_flags: FxHashMap::default(),
 			stepped: FxHashSet::default(),
 			stepped_borrows: FxHashMap::default(),
+			fused_loops: FxHashSet::default(),
+			fused_borrows: FxHashMap::default(),
+			fused_nodes: FxHashMap::default(),
+			fused_decls: Vec::new(),
+			fused_hoist: false,
+			fused_reads: FxHashSet::default(),
+			fused_funs: FxHashSet::default(),
 			reborrows: FxHashMap::default(),
 			stepped_vars: FxHashMap::default(),
 			stepped_into: FxHashMap::default(),
@@ -749,6 +769,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		self.drop_unread();
 		self.find_next_results();
 		self.find_stepped();
+		self.find_fused();
 		self.unborrow_passed();
 		self.find_halves();
 		self.find_raw_cells();
@@ -1890,6 +1911,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				out.push(StmtKind::Declare { name, ty }.at(None));
 			}
 		}
+		for (name, ty) in std::mem::take(&mut self.fused_decls) {
+			out.push(StmtKind::Declare { name, ty }.at(None));
+		}
 		for name in self.mirror_names() {
 			let ty = Type::Union(vec![Type::Rs("ByteMirror", Vec::new()), Type::Builtin("undefined")]);
 			out.push(StmtKind::Declare { name, ty }.at(None));
@@ -1931,6 +1955,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		cfg::hoist_else(&mut out);
 		declare_in_place(&mut out, &self.widened);
 		cfg::tidy_loops(&mut out);
+		fuse::loop_parts(&mut out, &self.fused_reads);
+		fuse::inline_funs(&mut out, &self.fused_funs);
 		// A loop's own labels first, which its header's `break` names.
 		step::for_of(&mut out);
 		inline::inline_temps(&mut out, &self.shared);
@@ -2114,7 +2140,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// The JS name of a local held in a variable.
-	fn var(&self, local: Local) -> Option<&str> {
+	pub(super) fn var(&self, local: Local) -> Option<&str> {
 		match &self.slots[local] {
 			Slot::Var(name) => Some(name),
 			_ => None,
@@ -2658,6 +2684,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				self.at = at;
 				let start = out.len();
 				self.statement(stmt, out);
+				let start = start.min(out.len());
 				self.locate(&mut out[start..]);
 				self.mirror_after(at, out);
 				if self.returning.contains(&self.at) {
@@ -2677,6 +2704,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		};
 		let start = out.len();
 		let exit = self.terminator(data.terminator(), out);
+		let start = start.min(out.len());
 		self.locate(&mut out[start..]);
 		exit
 	}
@@ -2740,7 +2768,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 	fn assign(&mut self, place: Place<'tcx>, rvalue: &Rvalue<'tcx>, span: Span, out: &mut Vec<Stmt>) {
 		if let Some(local) = place.as_local() {
-			if self.joined.contains(&local) {
+			// A borrow of a fused chain is only `next`'s receiver, which reads the chain's parts.
+			if self.joined.contains(&local) || self.fused_borrows.contains_key(&local) {
 				return;
 			}
 			if self.scalars.contains_key(&local) {
@@ -2886,6 +2915,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let memory = rvalue::memory(rvalue, self) || shares;
 		let parts = self.rereadable_parts.take();
 		if let Some(local) = place.as_local() {
+			if self.fused_loops.contains(&local) {
+				self.make_fused(local, value, pre, span, out);
+				return;
+			}
 			let parts = match rvalue {
 				Rvalue::Aggregate(..) => parts,
 				_ => None,

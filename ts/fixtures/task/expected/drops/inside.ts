@@ -260,7 +260,9 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured7[Symbol.dispose]();
 		}), true, true);
-		const kept: Guard.Guard = rs.iterFold(rs.iterMap(new rs.Range(8, 10), guard), guard(15), (kept2: Guard.Guard, g6: Guard.Guard): Guard.Guard => {
+		const leaf = new rs.Range(8, 10);
+		const f2 = guard(15);
+		const f3 = (kept2: Guard.Guard, g6: Guard.Guard): Guard.Guard => {
 			let _05!: Guard.Guard;
 			let _108: boolean = false;
 			let _92: boolean = false;
@@ -281,7 +283,16 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 				return _05;
 			}
 			return _05;
-		});
+		};
+		let acc: Guard.Guard = f2;
+		while (true) {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				break;
+			}
+			acc = f3(acc, guard(x));
+		}
+		const kept: Guard.Guard = acc;
 		const part4 = Guard.id(kept);
 		Log.note(log, rs.fmtFormat(["kept ", (f: rs.Formatter) => rs.u32Display(part4, f)]));
 		const _604: [Guard.Guard, rs.u32] = [guard(16), 0];
@@ -295,7 +306,15 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured9[Symbol.dispose]();
 		});
-		rs.iterForEach(rs.iterMap(new rs.Range(17, 19), guard), count);
+		const leaf2 = new rs.Range(17, 19);
+		while (true) {
+			const x2 = leaf2.next();
+			if (x2 === rs.DONE) {
+				break;
+			}
+			const y2: Guard.Guard = guard(x2);
+			count(y2);
+		}
 		Log.note(log, rs.stringFrom("lent"));
 		rs.drop(count);
 		kept[Symbol.dispose]();

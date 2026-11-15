@@ -111,7 +111,11 @@ test_lint() { python3 -I .github/crabx/test_pipeline.py; }
 test_sh() { python3 -I sh/dispatch.test.py; }
 test_crabx() { just crabx test; }
 test_driver() { just driver test; }
-test_ffi() { just ffi test; }
+# moq's export at the pin, cut down to C, before the slower test build.
+test_ffi() {
+    just ffi moq-c
+    just ffi test
+}
 test_go() { just go test; }
 # moq-net's translation at the pin, its first consumer, before the slower test build.
 test_ts() {

@@ -893,9 +893,16 @@ export function segments(data: rs.ByteSlice, out: rs.ByteVec): void {
 				continue;
 			}
 		}
-		rs.byteVecPush(out, rs.iterSum(rs.iterMap(rs.iterSlice(log.items), (s: Segment.Segment): rs.u8 => {
-			return s.filled & 0xff;
-		}), rs.u8Add, 0));
+		const leaf = rs.iterSlice(log.items);
+		let acc: rs.u8 = 0;
+		while (true) {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				break;
+			}
+			acc = rs.u8Add(acc, x.filled & 0xff);
+		}
+		rs.byteVecPush(out, acc);
 	}
 }
 
@@ -3486,14 +3493,15 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(w2)), undefined, true);
 		rs.byteVecPush(out, 255);
 	}
-	const iter6: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _218: [rs.usize, rs.u8] | rs.Done = iter6.next();
-		if (_218 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i3: rs.usize = _218[0];
-		const b: rs.u8 = _218[1];
+		const i3: rs.usize = count++;
+		const b: rs.u8 = x;
 		rs.byteVecPush(out, behind(b as rs.u32, i3 & 0xff) & 0xff);
 		rs.byteVecPush(out, cellBehind(then$01qpu7s(rs.u8Rem(b, 3) !== 0, (): rs.Cell<rs.u32> => {
 			return new rs.Cell(b as rs.u32);
@@ -3804,15 +3812,16 @@ export function movedOut(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	const held: HeldCell.HeldCell = ({ c: new rs.Cell(undefined) } as unknown) as HeldCell.HeldCell;
 	const old3: HeldCell.HeldCell = uninitMoved(held);
-	const iter10: rs.Iter<[rs.usize, HeldCell.HeldCell]> = rs.iterEnumerate(rs.iterSlice([held, old3]));
+	const leaf: rs.Iter<HeldCell.HeldCell> = rs.iterSlice([held, old3]);
+	let count: number = 0;
 	while (true) {
-		const _249: [rs.usize, HeldCell.HeldCell] | rs.Done = iter10.next();
-		if (_249 === rs.DONE) {
+		const x3 = leaf.next();
+		if (x3 === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _249[0];
+		const i: rs.usize = count++;
 		const _259: rs.u32 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.u32;
-		const object = _249[1];
+		const object = x3;
 		const value4 = { c: new rs.Cell(new rs.RefCell(rs.u32Add(_259, i as rs.u32))) };
 		const cell3 = object.c;
 		rs.ptrWrite(object, value4);
@@ -3958,14 +3967,15 @@ export function flip(tag: rs.Place<rs.u8>): void {
 
 /** Unions over a type parameter, at a byte's instance and a `u32`'s. */
 export function genericUnions(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _7: [rs.usize, rs.u8] | rs.Done = iter.next();
-		if (_7 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _7[0];
-		const byte: rs.u8 = _7[1];
+		const i: rs.usize = count++;
+		const byte: rs.u8 = x;
 		const wide: rs.u32 = ((((byte as rs.u32) << 16) >>> 0) | i as rs.u32) >>> 0;
 		const iter2: rs.Iter<[rs.u32, rs.u8]> = rs.iterSlice(either$u32(wide, ~wide >>> 0, byte));
 		while (true) {

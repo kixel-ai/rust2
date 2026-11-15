@@ -94,4 +94,7 @@ pub mod env {
 	pub const PACKAGE: &str = "RUST2_FFI_PACKAGE";
 	/// The `[patch]` resolving the facade as cargo did, as TOML with each path absolute.
 	pub const PATCH: &str = "RUST2_FFI_PATCH";
+	/// The dependency the glue would name each crate the facade builds with by, as a TOML
+	/// table from its library's crate name to its keys.
+	pub const CRATES: &str = "RUST2_FFI_CRATES";
 }

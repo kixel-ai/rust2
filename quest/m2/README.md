@@ -26,7 +26,7 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
 
 - ✅ The translator gets a performance pass before the gate judges it:
   multi-byte encodes (now written in place) and
-  [iterator adaptors](/quest/m2/ts-iter-adaptors.md), which
+  iterator adaptors (fused per chain in [#779](https://github.com/kixel-ai/rust2/pull/779)), which
   [the gate's measurement](/quest/m2/wasm/routes.md) requires, and
   [the per-call crossing report](https://github.com/kixel-ai/rust2/pull/760), which finds
   no clear varint lead in Chrome but a remaining lead on frames and async. On the 2026-11-12 nightly

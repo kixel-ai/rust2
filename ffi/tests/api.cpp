@@ -25,12 +25,19 @@
 #ifdef __cpp_lib_span
 #include <span>
 #endif
+#ifdef __cpp_lib_ranges
+#include <ranges>
+#endif
 
 #include "api.hpp"
 
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
+#endif
+
+#ifdef __linux__
+#include <sys/prctl.h>
 #endif
 
 namespace {
@@ -336,6 +343,8 @@ int script() {
 		meters.emplace_back("low", api::Counter::new_("l", 1));
 		meters.emplace_back("high", api::Counter::new_("h", 9));
 		auto board = api::Board::new_(std::move(meters));
+		// The counters a board returns build another, each handle moved back in.
+		board = api::Board::new_(std::move(board).into_counters());
 		std::printf("ranked");
 		auto ranked = board.ranked();
 		for (std::size_t i = 0; i < ranked.size(); i++) {
@@ -345,6 +354,9 @@ int script() {
 			std::printf("%llu", ull(counter.get()));
 		}
 		std::printf("\n");
+		auto best = board.best();
+		print("best ", best.name(), " ");
+		std::printf("%llu\n", ull(best.get()));
 	}
 	{
 		// A map crosses as its pairs and a set as its items, which Rust collects in order,
@@ -556,25 +568,76 @@ int script() {
 		print("", api::describe(event), "\n");
 	}
 
-	// A `Copy` handle passed by value is copied, so it stays usable.
+	// A `Copy` value passed by value is copied, so it stays usable.
 	{
 		api::Stamp stamp = api::Stamp::from_millis(2500);
 		std::printf("secs %llu\n", ull(stamp.secs()));
 		std::printf("later %s\n", yes(api::Stamp::from_millis(3000).later(stamp)));
 		std::printf("secs %llu\n", ull(stamp.secs()));
-		api::Message message = api::Message::new_(&stamp, "body");
+		print("whole ", stamp.whole().debug(), "\n");
+		api::Message message = api::Message::new_(stamp, "body");
 		print("payload ", message.payload_get(), "\n");
 		print("stamp ", message.stamp_get()->debug(), "\n");
 		std::printf("sent %s\n", yes(message.sent()));
-		// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
+		// Setters assign in place: the bytes are copied in, and a `Copy` value copied.
 		api::Stamp reset = api::Stamp::from_millis(4000);
-		message.stamp_set(&reset);
+		message.stamp_set(reset);
 		message.payload_set("edited");
 		print("payload ", message.payload_get(), "\n");
 		print("stamp ", message.stamp_get()->debug(), "\n");
 		std::printf("secs %llu\n", ull(reset.secs()));
-		message.stamp_set(nullptr);
+		message.stamp_set(std::nullopt);
 		std::printf("stamp %s\n", yes(message.stamp_get().has_value()));
+	}
+
+	// A value past a word, copied across: a closure takes and returns one by value.
+	{
+		api::Moment moment = *api::Moment::new_(1500, 1000);
+		std::printf("moment %llu %s\n", ull(moment.millis()), yes(!api::Moment::new_(1, 0).has_value()));
+		api::Moment shifted = api::shifted(moment, [](const api::Moment &m) { return m.after(500); });
+		std::printf("shifted %llu %s\n", ull(shifted.millis()), yes(shifted == moment.after(500)));
+		std::printf("wrapped %llu %s\n", ull(moment.after(UINT64_MAX).millis()), yes(moment == shifted));
+	}
+
+	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	{
+		api::Gap gap = api::Gap::new_(7, 3);
+		std::printf("gap %llu %s\n", ull(gap.sum()), yes(gap == api::Gap::new_(7, 3)));
+		api::Berth berth = api::Berth::new_(4u);
+		std::printf("berth Some(%u) %s\n", *berth.at(), api::Berth::new_(std::nullopt).at() ? "Some" : "None");
+	}
+
+	// A `Copy` type changed in place is a value, whose change reaches only the copy changed.
+	{
+		api::Score score = api::Score::of(2);
+		api::Score step = api::Score::of(3);
+		score.add(step);
+		score.add(step);
+		std::printf("score %llu %llu %llu\n", ull(score.count()), ull(step.doubled().count()), ull(step.count()));
+		api::Score copy = score;
+		std::uint64_t taken = copy.take();
+		std::printf("taken %llu %llu %llu\n", ull(taken), ull(copy.count()), ull(score.count()));
+		api::Score other = step;
+		auto [before0, before1] = copy.absorb(other);
+		std::printf("absorbed %llu %llu %llu %llu %llu\n", ull(before0), ull(before1), ull(copy.count()),
+			ull(other.count()), ull(step.count()));
+		api::Hits hits = api::Hits::of(1, 2);
+		api::Hits kept = hits;
+		hits.add(api::Hits::of(10, 20));
+		hits.hits_set(7);
+		std::printf("hits %llu %u %llu %u %s\n", ull(hits.hits_get()), hits.misses_get(), ull(kept.hits_get()),
+			kept.misses_get(), yes(hits == kept));
+		api::Hits counted = kept;
+		bool counted_same = counted.eq_(kept);
+		std::printf("counted %s %llu\n", yes(counted_same), ull(counted.hits_get()));
+		api::Extent extent = api::Extent::new_(5, 3);
+		api::Extent extent_start = extent;
+		std::uint64_t old = extent.slide(10);
+		extent.start_set(extent.start_get() + 1);
+		std::printf("extent %llu %llu %llu %llu %llu\n", ull(old), ull(extent.start_get()), ull(extent.end()),
+			ull(extent_start.start_get()), ull(extent_start.end()));
+		api::Weighted weighted{step, 4};
+		std::printf("weighted %llu %llu\n", ull(weighted.total()), ull(weighted.score.count() + step.count()));
 	}
 
 	std::uint8_t levels[] = {1, 2, 3, 4};
@@ -639,6 +702,27 @@ int script() {
 			api::Channel_recv_future recv = channel.recv();
 			if (auto payload = recv.poll(waker)) {
 				print("recv ", *payload, "\n");
+			}
+		}
+		// The send happens at the call, and the future borrows the channel and the tag.
+		{
+			api::Channel_tagged_future tagged = channel.tagged("tag");
+			if (auto text = tagged.poll(waker)) {
+				print("tagged ", *text, "\n");
+			}
+		}
+		// So does a future borrowing an optional slice, which the export owns while it is pending.
+		{
+			api::Channel_itemized_future itemized = channel.itemized(std::vector<std::uint32_t>{1, 2, 3});
+			if (auto count = itemized.poll(waker)) {
+				std::printf("itemized %zu\n", *count);
+			}
+		}
+		// Another crate's future borrowing its bytes, which the export owns while it is pending.
+		{
+			api::byte_len_future measuring = api::byte_len("abc");
+			if (auto len = measuring.poll(waker)) {
+				std::printf("byte_len %zu\n", *len);
 			}
 		}
 		channel.send("sized");
@@ -892,6 +976,41 @@ int script() {
 		auto config = api::secure("h3");
 		print("secure ", api::alpn_lent(config), " ");
 		print("", api::alpn(config), "\n");
+		auto cert = api::certify("der");
+		std::printf("cert %llu ", ull(api::cert_len(cert)));
+		print("", api::cert_der(std::move(cert)), " ");
+		std::vector<api::tls_Cert> chain;
+		chain.push_back(api::certify("a"));
+		chain.push_back(api::certify("bc"));
+		std::printf("%llu\n", ull(api::chain_len(std::move(chain))));
+		// Another crate's trait objects: an `Arc`, taken back, and `&'static` ones, held by value.
+		print("resolver ", api::resolved(api::resolver("r1")), "\n");
+		auto codecs = api::Codecs::new_();
+		std::printf("codecs %u\n", unsigned(codecs.ids()));
+		auto listed = codecs.list_get();
+		std::vector<api::tls_Codec> reversed;
+		reversed.push_back(std::move(listed[1]));
+		reversed.push_back(std::move(listed[0]));
+		codecs.list_set(std::move(reversed));
+		std::printf("codecs reversed %u\n", unsigned(codecs.ids()));
+		// A standard library value no type maps, in a handle.
+		auto failure = api::failure("boom");
+		print("failure ", api::failure_message(failure), " ");
+		print("", api::failure_kind(std::move(failure)), "\n");
+		// Iterators, passed as the arrays of their items.
+		std::printf("sum_all %u\n", unsigned(api::sum_all({1, 2, 3})));
+		std::vector<api::Counter> weighed;
+		weighed.push_back(api::Counter::new_("w", 3));
+		std::printf("weigh_all %llu\n", ull(api::weigh_all_Counter(std::move(weighed))));
+		std::printf("offered_len %llu\n", ull(api::offered_len({"h3", "moq-00"})));
+		print("join_words ", api::join_words({"a", "b", "c"}), "\n");
+		// Bytes that must be `'static`, interned.
+		print("der ", api::Der::from_slice("der").bytes(), "\n");
+		print("der again ", api::Der::from_slice("der").bytes(), "\n");
+		auto session = api::resume("h3", 60);
+		print("resume ", session.value().alpn(), " ");
+		std::printf("%u\n", unsigned(session.value().lifetime().seconds));
+		print("resume err ", api::resume("", 60).error(), "\n");
 		auto meters = api::Meters::new_();
 		auto first = meters.first();
 		first.add(2);
@@ -899,6 +1018,15 @@ int script() {
 		std::printf("lent %llu %llu\n", added, ull(meters.first().count()));
 		meters.clear();
 		std::printf("cleared %llu\n", ull(meters.first().count()));
+		auto last = meters.last_get();
+		last.add(4);
+		std::printf("field lent %llu\n", ull(last.add(1)));
+		// An optional field that is not Clone, lent as `Some` of a handle.
+		std::printf("spare %s\n", meters.spare_get() ? "true" : "false");
+		meters.spare_set(api::Meter::default_());
+		auto spare = meters.spare_get();
+		spare->add(5);
+		std::printf("spare lent %llu\n", ull(spare->add(1)));
 		auto tallies = api::Tallies::new_();
 		tallies.first().bump();
 		std::printf("tallied %u\n", tallies.first().bump());
@@ -1046,6 +1174,17 @@ int script() {
 	std::printf("] greetings ");
 	print_strings(api::GREETINGS());
 	std::printf("\n");
+	auto both = api::Shape_BOTH();
+	std::printf("both [");
+	for (std::size_t i = 0; i < both.size(); i++) {
+		print(i == 0 ? "" : ", ", api::Shape_debug(both[i]), "");
+	}
+	std::printf("] primes [");
+	auto primes = api::PRIMES();
+	for (std::size_t i = 0; i < primes.size(); i++) {
+		std::printf("%s%u", i == 0 ? "" : ", ", unsigned(primes[i]));
+	}
+	std::printf("]\n");
 	api::Trail trail = api::Trail::new_({api::Point{1, 2}, api::Point{3, 4}}, {"a", "b"});
 	auto points = trail.points();
 	std::printf("trail [");
@@ -1131,6 +1270,8 @@ int script() {
 		auto ended = api::later(began, {1, 500000000});
 		std::printf("instants %llu %llu %s %s\n", millis(api::since(ended, began)), millis(api::since(began, ended)),
 					began == api::later(began, {0, 0}) ? "true" : "false", began == ended ? "true" : "false");
+		// An instant lent inside an `Option`, which C++ copies.
+		std::printf("has_instant %s %s\n", api::has_instant(began) ? "true" : "false", api::has_instant(std::nullopt) ? "true" : "false");
 	}
 	// tracing's level, and its filter as an optional level whose empty is `OFF`.
 	{
@@ -1146,18 +1287,39 @@ int script() {
 
 	// Closures C++ implements that return what Rust then owns, or that Rust keeps.
 	print("made ", api::made(3, [](std::uint32_t n) { return std::to_string(n) + " times"; }), "\n");
-	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	// A closure taking and returning `Copy` values copies them, never running their `Clone`.
 	{
 		api::Ticket kept = api::Ticket::new_(9);
 		std::uint32_t given =
 			api::reissue(api::Ticket::new_(7), [](const api::Ticket &t) { return api::Ticket::new_(t.number() + 1); })
 				.number();
-		std::uint32_t held = api::reissue(api::Ticket::new_(7), [&kept](const api::Ticket &) {
-			return std::move(kept);
-		}).number();
+		std::uint32_t held = api::reissue(api::Ticket::new_(7), [&kept](const api::Ticket &) { return kept; }).number();
 		std::printf("reissued %u %u, cloned %u\n", static_cast<unsigned>(given), static_cast<unsigned>(held),
 			static_cast<unsigned>(api::Ticket::clones()));
 	}
+	{
+		// `Copy` objects with no C++ copy, beside bytes: a returned vector moves back in,
+		// stored or not, each ticket moved and each name viewed in place.
+		std::vector<std::tuple<api::view, api::Ticket>> lent;
+		lent.emplace_back("a", api::Ticket::new_(1));
+		auto returned = api::tickets(lent);
+		auto again = api::tickets(api::tickets(std::move(returned)));
+		if (again.size() != 1 || std::get<0>(again[0]).str() != "a" || std::get<1>(again[0]).number() != 1) {
+			std::fprintf(stderr, "returned tickets passed back wrong\n");
+			std::abort();
+		}
+	}
+#ifdef __cpp_lib_ranges
+	{
+		// A range whose end is a sentinel of another type than its begin.
+		std::vector<std::string> letters{"p", "q", "r"};
+		auto taken = api::counters(letters | std::views::take_while([](const std::string &n) { return n != "r"; }));
+		if (taken.size() != 2 || taken[1].name().str() != "q") {
+			std::fprintf(stderr, "a sentinel range passed wrong\n");
+			std::abort();
+		}
+	}
+#endif
 	// A kept closure, called on another thread after the call that took it returned.
 	std::printf("spawned %u\n", static_cast<unsigned>(api::Spawned::new_([] { return 7; }).join()));
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
@@ -1520,6 +1682,34 @@ int futures() {
 }
 
 // Who owns each handle and bytes, beyond the transcript, each checked by an assertion.
+// A payload Rust returned goes back to Rust in place: moved in, shared by a copy kept
+// meanwhile, and written back through `&mut`. Its bytes stay where Rust put them, and
+// drop once, with their last owner.
+void forwarding() {
+	std::uint32_t before = api::dropped();
+	api::Channel channel = api::Channel::new_();
+	api::buf payload = api::token_bytes(3, 64);
+	const std::uint8_t *at = payload.data();
+	channel.send(std::move(payload));
+	payload = channel.recv().get();
+	check(payload.data() == at && payload.size() == 64, "a payload moved into Rust stays in place");
+	api::buf kept = payload;
+	check(kept.data() == at, "a copy of Rust's bytes shares them");
+	channel.send(kept);
+	check(channel.recv().get().data() != at, "bytes lent to a call are copied");
+	channel.send(std::move(kept));
+	api::buf shared = channel.recv().get();
+	check(shared.data() == at && payload.data() == at, "a copy moved into Rust stays in place");
+	api::Packet packet = api::next_packet(api::Packet{1, std::move(shared)});
+	check(packet.payload.size() == 64 && api::dropped() == before, "a record carries the payload on");
+	payload = api::buf();
+	packet = api::Packet{};
+	check(api::dropped() == before + 1, "the payload drops once, with its last owner");
+	api::buf digits = api::token_bytes('0', 2);
+	api::put_number(7, digits);
+	check(digits.str() == "007," && api::dropped() == before + 2, "Rust takes its bytes passed for &mut");
+}
+
 int lifetimes() {
 	// Copies of a type whose clone no call tells apart share one handle: a write through
 	// one shows in the other, as it does between clones of an `Arc`.
@@ -1624,7 +1814,7 @@ int lifetimes() {
 	{
 		api::buf payload;
 		{
-			api::Message message = api::Message::new_(nullptr, "kept");
+			api::Message message = api::Message::new_(std::nullopt, "kept");
 			payload = message.payload_get();
 		}
 		check(payload.str() == "kept", "bytes outlive the object they came from");
@@ -1642,6 +1832,8 @@ int lifetimes() {
 		check(api::dropped() == before + 1, "bytes free their owner");
 	}
 
+	forwarding();
+
 	std::printf("lifetimes ok\n");
 	return 0;
 }
@@ -1650,6 +1842,14 @@ int lifetimes() {
 // `tests/api_strict.cpp` refuses at compile time reach the object through a reference or
 // pointer, whose state Clang does not track.
 int broken(const char *which) {
+#ifdef __linux__
+	// Non-dumpable, the expected abort writes no core and never starts the host's crash
+	// handler.
+	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) {
+		std::perror("prctl");
+		return 1;
+	}
+#endif
 	if (std::strcmp(which, "moved") == 0) {
 		api::Counter c = api::Counter::new_("c", 0);
 		api::Counter &same = c;

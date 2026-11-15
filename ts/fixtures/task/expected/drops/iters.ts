@@ -543,10 +543,16 @@ export function drained(log: Log.Log, id: rs.u32): void {
 	const args26 = [(f: rs.Formatter) => rs.usizeDisplay(_222, f), (f: rs.Formatter) => rs.fmtBool(_225, f)];
 	Log.note(log, rs.fmtFormat(["rest ", args26[0], " ", args26[1]]));
 	rs.drop(one);
-	const part6 = rs.iterSum(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(Log.text(sink)))), (_2: rs.u8): rs.u32 => {
-		return _2 as rs.u32;
-	}), rs.u32Add, 0);
-	Log.note(log, rs.fmtFormat(["sink ", (f: rs.Formatter) => rs.u32Display(part6, f)]));
+	const leaf = rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(Log.text(sink))));
+	let acc: rs.u32 = 0;
+	while (true) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
+			break;
+		}
+		acc = rs.u32Add(acc, x as rs.u32);
+	}
+	Log.note(log, rs.fmtFormat(["sink ", (f: rs.Formatter) => rs.u32Display(acc, f)]));
 	sink[Symbol.dispose]();
 	rs.drop(taken);
 	rs.hashDrop(set2, rs.drop);

@@ -5,9 +5,11 @@ fixtures/lock/src/lib.rs:135:1: rust2-ffi: the API breaks the baseline at enum `
 fixtures/lock/src/lib.rs:176:1: rust2-ffi: the API breaks the baseline at const `lock::DEPTH`: its type: it was `u32`, and is now `u64`
 fixtures/lock/src/lib.rs:182:1: rust2-ffi: the API breaks the baseline at const `lock::PAGES`: its type: it was `u16`, and is now `i16`
 fixtures/lock/src/lib.rs:191:1: rust2-ffi: the API breaks the baseline at tuple `((u32,), u64, u8)`: its C name `lock_tuple_tuple_u32_u64_u8` is now `lock_tuple_tuple_u32_u64_u8_`, and `lock_tuple_tuple_u32_u64_u8` names tuple `((u32, u64), u8)`
+fixtures/lock/src/lib.rs:202:1: rust2-ffi: the API breaks the baseline at struct `lock::Tick`: its bytes: 4 aligned to 4, and now 8 aligned to 4
 fixtures/lock/src/lib.rs:21:2: rust2-ffi: the API breaks the baseline at const `lock::limits_max::RATE`: its C name `LOCK_LIMITS_MAX_RATE` is now `LOCK_LIMITS_MAX_RATE_`, and `LOCK_LIMITS_MAX_RATE` names const `lock::limits::MAX_RATE`
-fixtures/lock/src/lib.rs:308:1: rust2-ffi: the API breaks the baseline at enum `lock::Speed`: variant `Fast` is removed; variant `Quick` is added to an exhaustive enum
+fixtures/lock/src/lib.rs:231:1: rust2-ffi: the API breaks the baseline at struct `lock::Beat`: how it is held: a word compared by its bits, and now bytes compared by Rust
 fixtures/lock/src/lib.rs:30:1: rust2-ffi: the API breaks the baseline at fn `lock::removed`: it is removed
+fixtures/lock/src/lib.rs:356:1: rust2-ffi: the API breaks the baseline at enum `lock::Speed`: variant `Fast` is removed; variant `Quick` is added to an exhaustive enum
 fixtures/lock/src/lib.rs:36:1: rust2-ffi: the API breaks the baseline at fn `lock::portable`: it is no longer on wasm32-unknown-unknown
 fixtures/lock/src/lib.rs:46:1: rust2-ffi: the API breaks the baseline at fn `lock::scale`: its parameter `x`'s type; its return type
 fixtures/lock/src/lib.rs:66:2: rust2-ffi: the API breaks the baseline at fn `lock::Meter::add`: its parameter `n`'s type

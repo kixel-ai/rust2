@@ -1200,12 +1200,12 @@ fn is_bitwise(op: &str) -> bool {
 }
 
 fn is_logical(op: &str) -> bool {
-	matches!(op, "&&" | "||")
+	matches!(op, "&&" | "||" | "??")
 }
 
 fn binary_prec(op: &str) -> u8 {
 	match op {
-		"||" => 6,
+		"||" | "??" => 6,
 		"&&" => 7,
 		"|" => 8,
 		"^" => 9,

@@ -3687,15 +3687,16 @@ export function maps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const _159: [rs.usize, rs.usize] = [_160, amount(arg, lens[1], 1)];
 				const a2: rs.usize = _160;
 				const b2: rs.usize = _159[1];
-				const iter2: rs.Iter<[rs.usize, [rs.Result<undefined, rs.TryReserveError>, rs.usize]]> = rs.iterEnumerate(rs.iterSlice([[rs.hashTryReserve(m, a2, 58720256), a2] as [rs.Result<undefined, rs.TryReserveError>, rs.usize], [rs.hashTryReserve(s, b2, 469762048), b2] as [rs.Result<undefined, rs.TryReserveError>, rs.usize]]));
+				const leaf: rs.Iter<[rs.Result<undefined, rs.TryReserveError>, rs.usize]> = rs.iterSlice([[rs.hashTryReserve(m, a2, 58720256), a2] as [rs.Result<undefined, rs.TryReserveError>, rs.usize], [rs.hashTryReserve(s, b2, 469762048), b2] as [rs.Result<undefined, rs.TryReserveError>, rs.usize]]);
+				let count: number = 0;
 				while (true) {
-					const _180: [rs.usize, [rs.Result<undefined, rs.TryReserveError>, rs.usize]] | rs.Done = iter2.next();
-					if (_180 === rs.DONE) {
+					const x = leaf.next();
+					if (x === rs.DONE) {
 						break;
 					}
-					const i: rs.usize = _180[0];
-					const tried: rs.Result<undefined, rs.TryReserveError> = _180[1][0];
-					const n: rs.usize = _180[1][1];
+					const i: rs.usize = count++;
+					const tried: rs.Result<undefined, rs.TryReserveError> = x[0];
+					const n: rs.usize = x[1];
 					rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)]).v), undefined, true);
 					if (!tried.ok) {
 						if (!(i < 2)) {

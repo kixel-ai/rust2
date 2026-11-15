@@ -538,8 +538,10 @@ impl<'a> Gen<'a> {
 
 	/// The glue's expression, an `R<C>`, reading the Python object `o` as the C value of
 	/// `ty`, with what it borrows held in the scope `s`; `m` is the glue's `bool`, whether
-	/// the position moves an object's value out, closing it.
-	fn lift(&mut self, ty: &Type, o: &str, m: &str) -> String {
+	/// the position moves an object's value out, closing it, and `t`, whether Rust takes
+	/// what the position holds, as it takes a value passed by value but not one read
+	/// through a pointer or an array's item, so a buffer crosses there as its own.
+	fn lift(&mut self, ty: &Type, o: &str, m: &str, t: &str) -> String {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
@@ -553,13 +555,13 @@ impl<'a> Gen<'a> {
 			Type::F64 => format!("rt::float_in({o})"),
 			Type::Char => format!("rt::char_in({o})"),
 			Type::Str | Type::String => format!("rt::str_in({o})"),
-			Type::Slice | Type::Vec | Type::Bytes => format!("rt::bytes_in({o}, s)"),
+			Type::Slice | Type::Vec | Type::Bytes => format!("rt::bytes_in({o}, s, {t})"),
 			Type::Path | Type::PathBuf => format!("rt::path_in({o}, s)"),
 			Type::U128 => format!("rt::u128_in({o})"),
 			Type::Duration => format!("rt::duration_in({o})"),
 			Type::SocketAddr(family) => format!("rt::addr_in({o}, {})", family_of(*family)),
 			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_in::<{}>({o}, s)", number(inner)),
-			Type::List(..) => format!("r_{}({o}, s, {m})", self.converter(ty)),
+			Type::List(..) => format!("r_{}({o}, s, {m}, {t})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => {
 					let m = match abi.api.objects[*i].copy || matches!(**inner, Type::Ref(..)) {
@@ -569,29 +571,29 @@ impl<'a> Gen<'a> {
 					format!("rt::hold_opt({o}, {}, s, {m})", self.t(&abi.object(*i)))
 				}
 				base if Abi::is_buf(base) => {
-					let some = self.lift(inner, o, m);
+					let some = self.lift(inner, o, m, t);
 					format!("(if rt::is_none({o}) {{ Ok(crate::rt::Buf::NONE) }} else {{ {some} }})")
 				}
 				Type::List(..) => {
-					let some = self.lift(inner, o, m);
+					let some = self.lift(inner, o, m, t);
 					format!("(if rt::is_none({o}) {{ Ok(crate::rt::List::NONE) }} else {{ {some} }})")
 				}
-				_ => format!("r_{}({o}, s, {m})", self.converter(ty)),
+				_ => format!("r_{}({o}, s, {m}, {t})", self.converter(ty)),
 			},
-			Type::Box(inner) => self.lift(inner, o, m),
-			Type::Ref(_, inner) => self.lift(inner, o, "false"),
-			Type::Record(_) => format!("r_{}({o}, s)", self.c_struct(ty)),
+			Type::Box(inner) => self.lift(inner, o, m, t),
+			Type::Ref(_, inner) => self.lift(inner, o, "false", t),
+			Type::Record(_) => format!("r_{}({o}, s, {t})", self.c_struct(ty)),
 			Type::Enum(i) if abi.api.enums[*i].variants.iter().any(|v| !abi.api.everywhere(v.on)) => {
 				// Checks the member a value is against the library's target.
 				let c = abi.enumeration(*i);
 				match abi.api.enums[*i].plain() {
 					true => format!("rt::member_in({o}, {}).and_then(on_{c})", self.t(&c)),
-					false => format!("r_{c}({o}, s)"),
+					false => format!("r_{c}({o}, s, {t})"),
 				}
 			}
 			Type::Enum(i) => match abi.api.enums[*i].plain() {
 				true => format!("rt::member_in({o}, {})", self.t(&abi.enumeration(*i))),
-				false => format!("r_{}({o}, s)", abi.enumeration(*i)),
+				false => format!("r_{}({o}, s, {t})", abi.enumeration(*i)),
 			},
 			Type::Object(i) => {
 				let m = match abi.api.objects[*i].copy {
@@ -612,7 +614,7 @@ impl<'a> Gen<'a> {
 			Type::Future => format!("rt::future_in({o}, s)"),
 			Type::Range(int) => format!("rt::range_in::<{}>({o})", int.rust()),
 			Type::Bound(_) | Type::Bounds(_) => format!("r_{}({o}, s)", abi.range(ty)),
-			Type::Tuple(_) => format!("r_{}({o}, s, {m})", self.converter(ty)),
+			Type::Tuple(_) => format!("r_{}({o}, s, {m}, {t})", self.converter(ty)),
 			Type::Unit | Type::Closure(..) => unreachable!("{ty:?} is no value Python passes"),
 		}
 	}
@@ -859,11 +861,11 @@ impl<'a> Gen<'a> {
 
 	/// The glue of an option struct `c` holding `inner`, as `r_<name>` and `w_<name>`.
 	fn option(&mut self, name: &str, c: &str, inner: &Type) {
-		let read = self.lift(inner, "o", "m");
+		let read = self.lift(inner, "o", "m", "take");
 		let write = self.lower(inner, "v.value");
 		let _ = write!(
 			self.glue,
-			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\tmatch rt::is_none(o) {{\n\t\ttrue => Ok(crate::{c} {{ some: false, value: unsafe {{ std::mem::zeroed() }} }}),\n\t\tfalse => Ok(crate::{c} {{ some: true, value: {}? }}),\n\t}}\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.some {{\n\t\ttrue => {write},\n\t\tfalse => rt::none(),\n\t}}\n}}\n\n",
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool, take: bool) -> R<crate::{c}> {{\n\tmatch rt::is_none(o) {{\n\t\ttrue => Ok(crate::{c} {{ some: false, value: unsafe {{ std::mem::zeroed() }} }}),\n\t\tfalse => Ok(crate::{c} {{ some: true, value: {}? }}),\n\t}}\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.some {{\n\t\ttrue => {write},\n\t\tfalse => rt::none(),\n\t}}\n}}\n\n",
 			read
 		);
 	}
@@ -875,14 +877,14 @@ impl<'a> Gen<'a> {
 		let mut fields = Vec::new();
 		let mut writes = Vec::new();
 		for (k, ty) in elements.iter().enumerate() {
-			let lift = self.lift(ty, &format!("x{k}"), "m");
+			let lift = self.lift(ty, &format!("x{k}"), "m", "take");
 			reads.push(format!("let x{k} = rt::tuple_item(o, {k}, {n})?;"));
 			fields.push(format!("_{k}: {lift}?"));
 			writes.push(self.lower(ty, &format!("v._{k}")));
 		}
 		let _ = write!(
 			self.glue,
-			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\trt::tuple(vec![{}])\n}}\n\n",
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool, take: bool) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\trt::tuple(vec![{}])\n}}\n\n",
 			reads.join("\n\t"),
 			fields.join(", "),
 			writes.join(", ")
@@ -891,11 +893,12 @@ impl<'a> Gen<'a> {
 
 	/// The glue of a `Vec`'s array `c`, as `r_<name>` and `w_<name>`.
 	fn list(&mut self, name: &str, c: &str, elem: &Type) {
-		let read = self.lift(elem, "o", "m");
+		// An array's items are behind its pointer, which Rust only reads.
+		let read = self.lift(elem, "o", "m", "false");
 		let write = self.lower(elem, "e");
 		let _ = write!(
 			self.glue,
-			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\trt::list_in(o, s, |o, s| {read})\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\trt::list_out(v, |e| {write})\n}}\n\n"
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool, take: bool) -> R<crate::{c}> {{\n\trt::list_in(o, s, |o, s| {read})\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\trt::list_out(v, |e| {write})\n}}\n\n"
 		);
 	}
 
@@ -906,14 +909,16 @@ impl<'a> Gen<'a> {
 		let bare = self.bare(c).to_string();
 		let class = self.class(c);
 		let object = matches!(ty, Type::Object(_));
+		let opaque = matches!(ty, Type::Record(i) if self.abi.api.records[*i].opaque.is_some());
 		// The receiver as the glue reads it: a handle, held for the call, or a value.
 		let this = match object {
 			true => self.lift(
 				&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())),
 				"a[0]",
 				"false",
+				"false",
 			),
-			false => self.lift(ty, "a[0]", "false"),
+			false => self.lift(ty, "a[0]", "false", "false"),
 		};
 		let pass = match object {
 			true => "this",
@@ -952,17 +957,27 @@ impl<'a> Gen<'a> {
 				"\tdef clone(self) -> {class}:\n\t\t\"\"\"{docs}\"\"\"\n\t\t...\n"
 			));
 		}
-		if object && t.eq {
-			let other = self.lift(
-				&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())),
-				"a[1]",
-				"false",
-			);
+		// An opaque value compares through Rust, as an object does; a record's fields
+		// compare as a dataclass's.
+		if (object || opaque) && t.eq {
+			let other = match object {
+				true => self.lift(
+					&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())),
+					"a[1]",
+					"false",
+					"false",
+				),
+				false => self.lift(ty, "a[1]", "false", "false"),
+			};
+			let (a, b) = match object {
+				true => ("this", "other"),
+				false => ("&this", "&other"),
+			};
 			self.native(
 				&format!("{bare}_eq"),
 				2,
 				&format!(
-					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\tlet ret = rt::call(|| crate::{c}_eq(this, other));\n\t\ts.done();\n\t\trt::bool_out(ret)"
+					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\tlet ret = rt::call(|| crate::{c}_eq({a}, {b}));\n\t\ts.done();\n\t\trt::bool_out(ret)"
 				),
 			);
 			// Python makes a class that defines `__eq__` alone unhashable, as `Eq` without `Hash` is.
@@ -1051,12 +1066,32 @@ impl<'a> Gen<'a> {
 		let t = self.register(&c, name.clone());
 		let ty = Type::Record(i);
 		let mut body = Body::default();
+		if record.opaque.is_some() {
+			body.python.push("\t__slots__ = ()\n".to_string());
+		}
 		self.traits(&ty, &c, record.traits, &mut body);
 		let owner = Ty::Struct(c.clone());
 		let data: Vec<String> = record.fields.iter().map(|f| field_name(&f.name)).collect();
 		self.methods(&record.methods, (&ty, &owner, &rust), &data, &[], &mut body);
 		if record.fields.iter().any(|f| own_eq(abi, &f.ty)) {
 			body.python.push(ieee_eq(&name, &data));
+		}
+		if record.opaque.is_some() {
+			let text = format!(
+				"{rust}\n\n{}\n\nIts bytes, which only Rust makes or reads: copy it, but never make one.",
+				record.docs
+			);
+			let _ = write!(
+				self.py,
+				"class {name}(_n.Value):\n{}{}\n\n",
+				docstring(text.trim(), "\t"),
+				body.members().join("\n")
+			);
+			let _ = write!(
+				self.glue,
+				"fn r_{c}(o: *mut PyObject, _s: &mut rt::Scope, _take: bool) -> R<crate::{c}> {{\n\trt::value_in(o, {t})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::value_out({t}, v)\n}}\n\n"
+			);
+			return;
 		}
 		let fields: String = record
 			.fields
@@ -1091,7 +1126,10 @@ impl<'a> Gen<'a> {
 				_ => format!("rt::attr(o, {key}, s)?"),
 			};
 			reads.push(format!("let x{n} = {read};"));
-			fields.push(format!("f{n}: {}?", self.lift(&field.ty, &format!("x{n}"), "false")));
+			fields.push(format!(
+				"f{n}: {}?",
+				self.lift(&field.ty, &format!("x{n}"), "false", "take")
+			));
 			writes.push(format!("({key}, {})", self.lower(&field.ty, &format!("v.f{n}"))));
 		}
 		if record.fields.is_empty() {
@@ -1099,7 +1137,7 @@ impl<'a> Gen<'a> {
 		}
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::record({t}, vec![{}])\n}}\n\n",
+			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, take: bool) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::record({t}, vec![{}])\n}}\n\n",
 			reads.join("\n\t"),
 			fields.join(", "),
 			writes.join(", ")
@@ -1224,7 +1262,10 @@ impl<'a> Gen<'a> {
 					for (k, f) in variant.fields.iter().enumerate() {
 						let key = self.key(&field_name(&f.name));
 						binds.push(format!("let x{k} = rt::attr(o, {key}, s)?;"));
-						fields.push(format!("f{k}: {}?", self.lift(&f.ty, &format!("x{k}"), "false")));
+						fields.push(format!(
+							"f{k}: {}?",
+							self.lift(&f.ty, &format!("x{k}"), "false", "take")
+						));
 						lowers.push(format!("({key}, {})", self.lower(&f.ty, &format!("p.f{k}"))));
 					}
 					reads.push(format!(
@@ -1241,7 +1282,7 @@ impl<'a> Gen<'a> {
 		}
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope) -> R<crate::{c}> {{\n\t{}\n\trt::check(o, {t})?;\n\tcrate::rt::fail(\"python\", \"a variant is of no class of its enum\")\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.tag {{\n{}\n\t\t_ => crate::rt::fail(\"python\", \"an enum's tag is invalid\"),\n\t}}\n}}\n\n",
+			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, take: bool) -> R<crate::{c}> {{\n\t{}\n\trt::check(o, {t})?;\n\tcrate::rt::fail(\"python\", \"a variant is of no class of its enum\")\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.tag {{\n{}\n\t\t_ => crate::rt::fail(\"python\", \"an enum's tag is invalid\"),\n\t}}\n}}\n\n",
 			reads.join("\n\t"),
 			writes.join("\n")
 		);
@@ -1415,22 +1456,11 @@ impl<'a> Gen<'a> {
 
 	/// The glue's expression, an `R<C>`, of the Python object `o` a closure returns as the
 	/// C value of `ty` that Rust then owns: a string copied, as `<prefix>_buf_copy` makes
-	/// one, and a new handle to a copy of an object, made without its `Clone`, so the Python
-	/// object keeps its own.
+	/// one.
 	fn given(&mut self, ty: &Type, o: &str) -> String {
-		let abi = self.abi;
 		match ty {
 			Type::String => format!("rt::str_given({o})"),
-			Type::Object(i) => format!(
-				"rt::hold({o}, {}, s, false).map(|h| crate::{}_copy(h))",
-				self.t(&abi.object(*i)),
-				abi.object(*i)
-			),
-			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {
-				let some = self.given(inner, o);
-				format!("(if rt::is_none({o}) {{ Ok(std::ptr::null()) }} else {{ {some} }})")
-			}
-			_ => self.lift(ty, o, "false"),
+			_ => self.lift(ty, o, "false", "false"),
 		}
 	}
 
@@ -1570,7 +1600,14 @@ impl<'a> Gen<'a> {
 		place: Place,
 	) -> Option<Form> {
 		let abi = self.abi;
-		let export = abi.export(function, owner);
+		// A value is immutable in Python, so its `&mut self` method returns it as the call
+		// left it, calling the C function in place on a copy it hands back.
+		let handed = (owner.zip(owner_ty)).and_then(|(owner, (ty, _))| abi.handed_back(function, owner, ty));
+		let (back, export, handed) = match handed {
+			Some((back, export, handed)) => (Some(back), export, Some(handed)),
+			None => (None, abi.export(function, owner), None),
+		};
+		let function = back.as_ref().unwrap_or(function);
 		let c_name = export.call.name.clone();
 		let bare = self.bare(&c_name).to_string();
 		let owner_c = match owner {
@@ -1619,11 +1656,18 @@ impl<'a> Gen<'a> {
 						Receiver::Ref => Type::Ref(crate::ir::Mutability::Not, Box::new(ty)),
 						Receiver::Mut => Type::Ref(crate::ir::Mutability::Mut, Box::new(ty)),
 					};
-					stmts.push(format!("let p{n} = {}?;", self.lift(&ty, &format!("a[{n}]"), "true")));
+					stmts.push(format!(
+						"let p{n} = {}?;",
+						self.lift(&ty, &format!("a[{n}]"), "true", "true")
+					));
 					c_args.push(format!("p{n}"));
 				}
 				_ => {
-					stmts.push(format!("let p{n} = {}?;", self.lift(&ty, &format!("a[{n}]"), "false")));
+					// Read through a pointer, so Rust takes nothing of it.
+					stmts.push(format!(
+						"let p{n} = {}?;",
+						self.lift(&ty, &format!("a[{n}]"), "false", "false")
+					));
 					c_args.push(format!("&p{n}"));
 				}
 			}
@@ -1646,7 +1690,7 @@ impl<'a> Gen<'a> {
 				(Type::Ref(_, inner), _) if param.ty.written() => {
 					stmts.push(format!(
 						"let h{n} = rt::mut_value(a[{n}], s)?;\n\t\tlet p{n} = {}?;",
-						self.lift(inner, &format!("h{n}"), "true")
+						self.lift(inner, &format!("h{n}"), "true", "true")
 					));
 					c_args.push(format!("p{n}"));
 					written.push((n, (**inner).clone()));
@@ -1674,7 +1718,7 @@ impl<'a> Gen<'a> {
 				_ => {
 					stmts.push(format!(
 						"let p{n} = {}?;",
-						self.lift(&param.ty, &format!("a[{n}]"), "true")
+						self.lift(&param.ty, &format!("a[{n}]"), "true", "true")
 					));
 					c_args.push(format!("p{n}"));
 				}
@@ -1729,13 +1773,21 @@ impl<'a> Gen<'a> {
 				false => self.outs(&outs, &written, &function.ok, err.as_ref(), exception.as_deref(), "ret"),
 			};
 			let args: Vec<String> = c_args.iter().cloned().chain(ptrs).collect();
+			let call = match &handed {
+				Some(h) => h.call(&args),
+				None => format!("crate::{c_name}({})", args.join(", ")),
+			};
 			stmts.push(format!(
-				"{decl}\n\t\tlet ret = rt::call(|| crate::{c_name}({}));\n\t\ts.done();\n\t\t{value}",
-				args.join(", ")
+				"{decl}\n\t\tlet ret = rt::call(|| {call});\n\t\ts.done();\n\t\t{value}"
 			));
 		}
 		// The Python.
 		let mut text = function.docs.clone();
+		if handed.is_some() {
+			text.push_str(
+				"\n\nRust changes a copy of this value, which it returns first, as the call left it: this one never changes.",
+			);
+		}
 		for param in &function.params {
 			let name = param_name(&param.name);
 			if let Type::Closure(closure_) = &param.ty {
@@ -1948,6 +2000,11 @@ fn kw(name: &str) -> String {
 /// A member's Python name: its snake-case name, with `_` appended if a keyword, and until
 /// it is none of `reserved`, such as one Python gives every such class.
 fn member(snake: &str, reserved: &[&str]) -> String {
+	// A positional field's accessor, `0_get`, is `_0_get`, as its field is `_0`.
+	let digit = snake
+		.starts_with(|c: char| c.is_ascii_digit())
+		.then(|| format!("_{snake}"));
+	let snake = digit.as_deref().unwrap_or(snake);
 	if !reserved.contains(&snake) {
 		return kw(snake);
 	}

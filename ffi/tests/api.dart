@@ -7,6 +7,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -189,6 +190,9 @@ Future<void> script() async {
   final board = api.Board([('low', api.Counter('l', 1)), ('high', api.Counter('h', 9))]);
   final ranked = board.ranked();
   print('ranked ${ranked.map((r) => '${r.$1} ${r.$2.name()} ${r.$2.get()}').join(', ')}');
+  final best = board.best();
+  print('best ${best.name()} ${best.get()}');
+  best.close();
   board.close();
   // A map crosses as its pairs and a set as its items, which Rust collects in order, each
   // key once, the last kept.
@@ -334,6 +338,7 @@ Future<void> script() async {
   print('secs ${stamp.secs()}');
   print('later ${api.Stamp.fromMillis(3000).later(stamp)}');
   print('secs ${stamp.secs()}');
+  print('whole ${stamp.whole().debug()}');
   final message = api.Message(stamp, utf8.encode('body'));
   print('payload ${text(message.payloadGet)}');
   print('stamp ${message.stampGet!.debug()}');
@@ -347,6 +352,48 @@ Future<void> script() async {
   print('secs ${reset.secs()}');
   message.stampSet(null);
   print('stamp ${message.stampGet != null}');
+
+  // A value past a word, copied across: a closure takes and returns one by value.
+  final moment = api.Moment.new_(1500, 1000)!;
+  print('moment ${moment.millis()} ${api.Moment.new_(1, 0) == null}');
+  final shifted = api.shifted(moment, (m) => m.after(500));
+  print('shifted ${shifted.millis()} ${shifted == moment.after(500)}');
+  print('wrapped ${moment.after(-1).millis()} ${moment == shifted}');
+
+  // A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+  final gap = api.Gap(7, 3);
+  print('gap ${gap.sum()} ${gap == api.Gap(7, 3)}');
+  final berth = api.Berth(4);
+  print('berth Some(${berth.at()}) ${api.Berth(null).at() == null ? 'None' : 'Some'}');
+
+  // A `Copy` type changed in place is a value, which a `&mut self` method returns as the
+  // call left it, Rust's own return beside it: a change reaches only the copy it replaces.
+  var score = api.Score.of(2);
+  final increment = api.Score.of(3);
+  score = score.add(increment);
+  score = score.add(increment);
+  print('score ${score.count()} ${increment.doubled().count()} ${increment.count()}');
+  var (scoreCopy, taken) = score.take();
+  print('taken $taken ${scoreCopy.count()} ${score.count()}');
+  final otherScore = api.Mut(increment);
+  final (absorbed, before0, before1) = scoreCopy.absorb(otherScore);
+  scoreCopy = absorbed;
+  print('absorbed $before0 $before1 ${scoreCopy.count()} ${otherScore.value.count()} ${increment.count()}');
+  var hits = api.Hits.of(1, 2);
+  final keptHits = hits;
+  hits = hits.add(api.Hits.of(10, 20));
+  hits = hits.hitsSet(7);
+  print('hits ${hits.hitsGet} ${hits.missesGet} ${keptHits.hitsGet} ${keptHits.missesGet} ${hits == keptHits}');
+  final (counted, countedSame) = keptHits.eq(keptHits);
+  print('counted $countedSame ${counted.hitsGet}');
+  var extent = api.Extent(5, 3);
+  final extentStart = extent;
+  final (slid, old) = extent.slide(10);
+  extent = slid;
+  extent = extent.startSet(extent.startGet + 1);
+  print('extent $old ${extent.startGet} ${extent.end()} ${extentStart.startGet} ${extentStart.end()}');
+  final weighted = api.Weighted(score: increment, weight: 4);
+  print('weighted ${weighted.total()} ${weighted.score.count() + increment.count()}');
 
   print('kept ${api.emit(PrintLog(), bytes([1, 2, 3, 4]))}');
   final logger = api.Logger(PrintLog());
@@ -387,6 +434,10 @@ Future<void> script() async {
   // The send happens at the call: the future is dropped unawaited.
   channel.sendLater(utf8.encode('eager'));
   print('recv ${text(await channel.recv())}');
+  // The send happens at the call, and the future borrows the channel and the tag.
+  print('tagged ${await channel.tagged('tag')}');
+  print('itemized ${await channel.itemized(Uint32List.fromList([1, 2, 3]))}');
+  print('byte_len ${await api.byteLen(utf8.encode('abc'))}');
   channel.send(utf8.encode('sized'));
   final (payload, size) = await channel.recvSized();
   print('sized ${text(payload)} $size');
@@ -561,7 +612,39 @@ Future<void> script() async {
   print('nudge ${nudged.value.x} ${nudged.value.y}');
   final config = api.secure('h3');
   print('secure ${api.alpnLent(config)} ${api.alpn(config.clone())}');
+  final cert = api.certify(utf8.encode('der'));
+  final certLen = api.certLen(cert);
+  print('cert $certLen ${text(api.certDer(cert))} ${api.chainLen([api.certify(utf8.encode('a')), api.certify(utf8.encode('bc'))])}');
   config.close();
+  // Another crate's trait objects: an `Arc`, taken back, and `'static` ones, held by value.
+  print('resolver ${api.resolved(api.resolver('r1'))}');
+  final codecs = api.Codecs();
+  print('codecs ${codecs.ids()}');
+  codecs.listSet(codecs.listGet.reversed.toList());
+  print('codecs reversed ${codecs.ids()}');
+  codecs.close();
+  // A standard library value no type maps, in a handle.
+  final failure = api.failure('boom');
+  print('failure ${api.failureMessage(failure)} ${api.failureKind(failure)}');
+  // Iterators, passed as the arrays of their items.
+  print('sum_all ${api.sumAll([1, 2, 3])}');
+  print('weigh_all ${api.weighAllCounter([api.Counter('w', 3)])}');
+  print('offered_len ${api.offeredLen([utf8.encode('h3'), utf8.encode('moq-00')])}');
+  print('join_words ${api.joinWords(['a', 'b', 'c'])}');
+  // Bytes that must be `'static`, interned.
+  for (final label in ['der', 'der again']) {
+    final der = api.Der.fromSlice(utf8.encode('der'));
+    print('$label ${text(der.bytes())}');
+    der.close();
+  }
+  final session = api.resume('h3', 60);
+  print('resume ${session.alpn()} ${session.lifetime().seconds}');
+  session.close();
+  try {
+    api.resume('', 60);
+  } on api.StringException catch (e) {
+    print('resume err ${e.error}');
+  }
   final meters = api.Meters();
   final lentMeter = meters.first();
   lentMeter.add(2);
@@ -569,6 +652,17 @@ Future<void> script() async {
   lentMeter.close();
   meters.clear();
   print('cleared ${meters.first().count()}');
+  final lastMeter = meters.lastGet;
+  lastMeter.add(4);
+  print('field lent ${lastMeter.add(1)}');
+  lastMeter.close();
+  // An optional field that is not Clone, lent as `Some` of a handle.
+  print('spare ${meters.spareGet != null}');
+  meters.spareSet(api.Meter.default_());
+  final spare = meters.spareGet!;
+  spare.add(5);
+  print('spare lent ${spare.add(1)}');
+  spare.close();
   meters.close();
   final tallies = api.Tallies();
   tallies.first().bump();
@@ -645,6 +739,7 @@ Future<void> script() async {
         _ => throw ArgumentError(v),
       }).join(', ')}]';
   print('shapes ${debugs(api.Shape.ALL)} greetings ${quoted(api.GREETINGS)}');
+  print('both ${debugs(api.Shape.BOTH)} primes ${api.PRIMES}');
   final trail = api.Trail([const api.Point(x: 1, y: 2), const api.Point(x: 3, y: 4)], ['a', 'b']);
   print('trail ${debugs(trail.points())} ${debugs(trail.labels())}');
   // Returned iterators, each collected at the call: drained labels are gone after.
@@ -664,14 +759,12 @@ Future<void> script() async {
   for (final section in sections) {
     section.$2.close();
   }
-  // An instant only Rust makes, which each call copies out of its handle, and compares.
+  // An instant only Rust makes, which each call copies, and compares.
   final began = api.now();
   final ended = api.later(began, const Duration(milliseconds: 1500));
   final same = api.later(began, Duration.zero);
   print('instants ${api.since(ended, began).inMilliseconds} ${api.since(began, ended).inMilliseconds} ${began == same} ${began == ended}');
-  began.close();
-  ended.close();
-  same.close();
+  print('has_instant ${api.hasInstant(began)} ${api.hasInstant(null)}');
   // tracing's level, and its filter as an optional level whose null is `OFF`.
   final verbosity = api.Verbosity(api.Level.warn);
   print('verbosity ${api.spell(verbosity.filter())} ${api.spell(api.louder(verbosity.filter()))}');
@@ -681,7 +774,7 @@ Future<void> script() async {
 
   // A closure's string, which Rust takes.
   print('made ${api.made(3, (n) => '$n times')}');
-  // A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+  // A closure taking and returning `Copy` values copies them, never running their `Clone`.
   final nine = api.Ticket(9);
   final renewed = api.reissue(api.Ticket(7), (t) => api.Ticket(t.number() + 1)).number();
   final copied = api.reissue(api.Ticket(7), (_) => nine).number();
@@ -710,7 +803,6 @@ Future<void> script() async {
     'a kept closure wakes its future',
   );
   print('drive $stopped');
-  start.close();
   // A reader the caller implements: dart:io's file, then one whose reads fail.
   final dir = Directory.systemTemp.createTempSync('api');
   final opened = (File('${dir.path}/tail')..writeAsStringSync('hello world')).openSync();
@@ -870,6 +962,14 @@ Future<void> futures() async {
   check(await api.halved(3) == null, 'a future ready with None returns null');
   check(await api.halved(4) == 2, 'a future ready with Some returns its value');
   check(await api.cornerLater() == (1, 1), "a future's borrowed tuple returns whole");
+  // A future's error borrowing its argument crosses as its message, as `parseCert`'s does.
+  check(await api.parseLater('cert') == 4, 'a future with a borrowing error returns Ok');
+  try {
+    await api.parseLater('');
+    check(false, "a future's borrowing error throws");
+  } on api.StringException catch (e) {
+    check(e.error == 'malformed: ', "a future's borrowing error is its message");
+  }
   channel.send(Uint8List(0));
   try {
     await channel.recvNonempty();
@@ -1179,9 +1279,54 @@ Future<void> lent() async {
     pressure();
   }
   check(api.dropped() == before + 2, 'the garbage collector frees bytes once');
+  // Read after, so `big` stays reachable and its drop counts in none of forwarded's checks.
+  await forwarded();
   check(big[65536] == 1, 'lent bytes read back while reachable');
   print('bytes ok');
 }
+
+/// Bytes Rust lent pass back to Rust in place, sent and carried in a record, so a payload
+/// read and written on holds Rust's one buffer, freed once with its last owner: a copy
+/// anywhere would free the token with the first list.
+Future<void> forwarded() async {
+  final before = api.dropped();
+  final channel = api.Channel();
+  Uint8List? held = await relay(channel);
+  final canary = [api.Token(9)];
+  for (var i = 0; i < 3; i++) {
+    pressure();
+  }
+  canary.clear();
+  await collect(() => api.dropped() > before, 'the garbage collector frees an old object');
+  // Collections enough to free every list the relay left, had one held a copy.
+  for (var i = 0; i < 3; i++) {
+    pressure();
+    await step();
+  }
+  check(api.dropped() == before + 1, 'bytes forwarded hold the buffer Rust lent');
+  check(held.length == 65537 && held.every((b) => b == 5), 'forwarded bytes read back');
+  held = null;
+  await collect(() => api.dropped() >= before + 2, 'the garbage collector frees forwarded bytes');
+  for (var i = 0; i < 3; i++) {
+    pressure();
+  }
+  check(api.dropped() == before + 2, 'forwarded bytes free once');
+  channel.close();
+}
+
+/// Lent bytes sent through `channel`, received, and carried on in a packet, whose lists
+/// nothing else keeps.
+@pragma('vm:never-inline')
+Future<Uint8List> relay(api.Channel channel) async {
+  send(channel);
+  return carry(await channel.recv());
+}
+
+@pragma('vm:never-inline')
+void send(api.Channel channel) => channel.send(api.tokenBytes(5, 65537));
+
+@pragma('vm:never-inline')
+Uint8List carry(Uint8List payload) => api.nextPacket(api.Packet(seq: 1, payload: payload)).payload;
 
 /// A view of returned bytes, whose list nothing else keeps.
 @pragma('vm:never-inline')
@@ -1244,6 +1389,15 @@ final class Thrower implements api.SeekableReader {
 
 /// Each breaks a contract, which must fail with a message naming it.
 void broken(String which) {
+  if (Platform.isLinux) {
+    // Non-dumpable, an expected abort writes no core and never starts the host's crash
+    // handler. PR_SET_DUMPABLE is 4.
+    final prctl = ffi.DynamicLibrary.process().lookupFunction<
+        ffi.Int Function(ffi.Int,
+            ffi.VarArgs<(ffi.UnsignedLong, ffi.UnsignedLong, ffi.UnsignedLong, ffi.UnsignedLong)>),
+        int Function(int, int, int, int, int)>('prctl');
+    check(prctl(4, 0, 0, 0, 0) == 0, 'prctl');
+  }
   switch (which) {
     case 'moved':
       final c = api.Counter('c', 0);
@@ -1296,6 +1450,10 @@ Future<void> main(List<String> args) async {
   switch (args) {
     case []:
       await script();
+      // The waiter's returned wakers are Rust clones of a waker whose token keeps the
+      // isolate alive, and only the garbage collector drops them, about a minute idle.
+      await stdout.flush();
+      exit(0);
     case ['futures']:
       await futures();
     case ['owned']:

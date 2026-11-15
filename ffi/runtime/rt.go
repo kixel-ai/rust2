@@ -314,6 +314,27 @@ func LiftBytes_(p unsafe.Pointer) Bytes {
 	return Bytes{owner: lend_(buf), ptr: unsafe.Pointer(buf.ptr), len: int(buf.len)}
 }
 
+// BytesTake_ is what b reads as a buffer Rust takes: a second owner of Rust's buffer,
+// sharing it without a copy, narrowed to b, or a nil owner for Go's memory, which C reads
+// during the call and Rust copies. For the generated packages.
+func BytesTake_(b Bytes) (unsafe.Pointer, int, unsafe.Pointer) {
+	if b.owner == nil {
+		return b.ptr, b.len, nil
+	}
+	// A Bytes of Rust's is one of its batch's buffers, or a range of one.
+	batch := b.owner.batch
+	p := uintptr(b.ptr)
+	for _, buf := range batch.bufs[:batch.n.Load()] {
+		start := uintptr(unsafe.Pointer(buf.ptr))
+		if p >= start && p+uintptr(b.len) <= start+uintptr(buf.len) {
+			owner := cBufClone(buf).owner
+			runtime.KeepAlive(b.owner)
+			return b.ptr, b.len, owner
+		}
+	}
+	panic("a Bytes of Rust's is in none of its batch's buffers")
+}
+
 // BytesBuf_ is what b reads, and what keeps it alive, nil for Go's memory, which a call
 // pins instead. For the generated packages.
 func BytesBuf_(b Bytes) (unsafe.Pointer, int, any) {

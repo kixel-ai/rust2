@@ -12,6 +12,7 @@ name = "reject"
 
 [dependencies]
 dep-fixture = { path = "../dep" }
+tls-fixture = { path = "../tls" }
 
 [lints]
 workspace = true

@@ -17,7 +17,20 @@ pub struct Api {
 	pub constants: Vec<Constant>,
 	/// The crates items belong to, each after every crate it depends on.
 	pub crates: Vec<String>,
+	/// The crates the facade does not re-export whose types an export names, which the
+	/// glue depends on directly. An API from before it reached none.
+	#[serde(default)]
+	pub reached: Vec<Reached>,
 	/// The targets it serves, sorted: one for a single target's, several merged.
+	pub targets: Vec<String>,
+}
+
+/// A crate the glue depends on beside the facade, as the facade resolves it.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Reached {
+	/// Its crate name, its items' second path segment.
+	pub krate: String,
+	/// The targets whose API names its types, sorted.
 	pub targets: Vec<String>,
 }
 
@@ -130,7 +143,8 @@ pub struct Home {
 	pub outside: usize,
 }
 
-/// A struct whose fields are all `pub`: a value, copied across.
+/// A struct whose fields are all `pub`, or a `Copy` type C cannot see inside: a value,
+/// copied across.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Record {
 	pub path: Path,
@@ -150,6 +164,61 @@ pub struct Record {
 	pub tuple: bool,
 	pub methods: Vec<Function>,
 	pub traits: Traits,
+	/// For a `Copy` type with private fields, which has no `fields`: its bytes, which only
+	/// Rust reads or writes, its `pub` fields through accessors among its `methods`.
+	pub opaque: Option<Opaque>,
+	/// For an opaque value, its padding on each target, by target, as `(offset, length)`
+	/// ranges, which the glue zeroes, so no byte Rust leaves uninitialized reaches a
+	/// language. A baseline written before it existed has none, as its records had.
+	#[serde(default)]
+	pub padding: std::collections::BTreeMap<String, Vec<(u64, u64)>>,
+}
+
+/// A `Copy` type held as its bytes, which every language copies and none reads.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Opaque {
+	/// Its size and alignment: on several targets, the largest of each, so one binding
+	/// holds it on all of them.
+	pub size: u64,
+	pub align: u64,
+	/// Whether its bytes are its fields' with no padding between them, each an integer, a
+	/// `bool`, or a `char`, and each struct's `PartialEq` in it, if any, derived or std's,
+	/// so two values Rust calls equal have equal bytes: on several targets, on all of them.
+	pub dense: bool,
+	/// How many lifetime parameters it has, each `'static` in the export, as an object's.
+	pub lifetimes: usize,
+	/// Whether it is a foreign type the facade maps, such as `std::time::Instant`: its path
+	/// is the type's in its own crate.
+	pub foreign: bool,
+}
+
+impl Opaque {
+	/// Whether it fits a 64-bit word, which a language may hold it in with no allocation.
+	pub fn word(&self) -> bool {
+		self.size <= 8
+	}
+
+	/// Whether a language may hold it in a word and compare that word: it fits one and is
+	/// dense, so values Rust calls equal have equal bits. Kotlin's type for it turns on
+	/// this, so a change of it breaks Kotlin's compiled callers.
+	pub fn compared(&self) -> bool {
+		self.word() && self.dense
+	}
+
+	/// The bytes of each unit its C struct holds it in, by its alignment, at most 8.
+	pub fn unit(&self) -> u64 {
+		self.align.clamp(1, 8)
+	}
+
+	/// How many units its C struct holds: at least one, as C has no empty struct.
+	pub fn units(&self) -> u64 {
+		self.size.div_ceil(self.unit()).max(1)
+	}
+
+	/// How many 64-bit words hold its C struct.
+	pub fn words(&self) -> u64 {
+		(self.units() * self.unit()).div_ceil(8)
+	}
 }
 
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -217,8 +286,9 @@ pub struct Object {
 	pub docs: String,
 	/// Whether it is `Sync`: if not, `&self` borrows it on one thread at a time.
 	pub sync: bool,
-	/// Whether it is `Copy`: taken by value, it is copied out of its handle, as Rust
-	/// copies it, rather than moved out.
+	/// Whether it is `Copy`, which only one whose padding depends on its value is, any
+	/// other being a value: taken by value, it is copied out of its handle, as Rust copies
+	/// it, rather than moved out.
 	pub copy: bool,
 	/// Whether copies of its handle may share one value, since no call tells that apart
 	/// from `Clone` but by an `Arc`'s or `Rc`'s count: it is `Clone` and `Sync`, its clone owns no state that changes
@@ -231,9 +301,35 @@ pub struct Object {
 	/// Whether it is a foreign type, such as `url::Url`, that the facade maps rather than
 	/// exports: its path is the type's in its own crate, not in the facade.
 	pub foreign: bool,
-	/// Whether it is a foreign type behind an `Arc`, held erased, which the glue never
-	/// names: a handle with none of its API, which Rust takes back as the `Arc`.
-	pub opaque: bool,
+	/// What its handle holds of another crate's type, held erased, which the glue never
+	/// names: a handle with none of its API. A baseline written before the by-value form
+	/// has a `bool`, the `Arc` form's.
+	#[serde(deserialize_with = "held")]
+	pub opaque: Option<Held>,
+}
+
+/// An [`Object::opaque`], read from a baseline written before the by-value form as the
+/// `bool` the `Arc` form was.
+fn held<'de, D: serde::Deserializer<'de>>(de: D) -> Result<Option<Held>, D::Error> {
+	#[derive(serde::Deserialize)]
+	#[serde(untagged)]
+	enum Either {
+		Arc(bool),
+		Held(Option<Held>),
+	}
+	Ok(match serde::Deserialize::deserialize(de)? {
+		Either::Arc(arc) => arc.then_some(Held::Arc),
+		Either::Held(held) => held,
+	})
+}
+
+/// What an opaque handle holds of another crate's type.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub enum Held {
+	/// An `Arc` of it, which Rust takes back as the `Arc`, and clones share.
+	Arc,
+	/// The value itself, which Rust takes back by value or borrows.
+	Value,
 }
 
 /// A `pub` trait: implemented by the foreign side, through a table of functions.
@@ -287,6 +383,11 @@ pub struct Function {
 	/// For a future, whether the call itself runs code, as a function that is not
 	/// `async` returning one does: the export calls it at once, and polls what it returns.
 	pub eager: bool,
+	/// For an eager future, whether what it returns borrows its arguments: the export owns
+	/// them, as it does an `async fn`'s, and keeps them until the future is dropped. A
+	/// baseline written before it has none.
+	#[serde(default)]
+	pub holds: bool,
 	/// The parameter it polls its task through, if any: C passes a waker for it or, for a
 	/// future made of a returned `Poll`, the future's poll supplies it.
 	pub task: Option<Task>,
@@ -375,8 +476,9 @@ pub enum Receiver {
 pub struct Param {
 	pub name: String,
 	pub ty: Type,
-	/// Whether it is a `&str` that must be `'static`, which the glue interns: it leaks each
-	/// distinct string once and lends that copy to every later call with equal content.
+	/// Whether it is a `&str` or `&[u8]` that must be `'static`, which the glue interns: it
+	/// leaks each distinct value once and lends that copy to every later call with equal
+	/// content.
 	pub interned: bool,
 }
 
@@ -483,11 +585,10 @@ pub enum Type {
 /// A [`Type::Closure`]: what it takes and returns.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Closure {
-	/// Each value it takes, which Rust lends for the call: a value, a borrowed object, or
-	/// a `Copy` object, lent as its handle.
+	/// Each value it takes, which Rust lends for the call: a value or a borrowed object.
 	pub params: Vec<Type>,
-	/// What it returns, or for a `Result`, its value: a value, a `String`, or a `Copy`
-	/// object or an `Option` of one, which the foreign side hands Rust.
+	/// What it returns, or for a `Result`, its value: a value or a `String`, which the
+	/// foreign side hands Rust.
 	pub ok: Type,
 	/// The error of a `Result` it returns: a `String`.
 	pub err: Option<Type>,
@@ -511,6 +612,13 @@ pub enum Collection {
 	BTreeMap,
 	/// `serde_json::Map`, of `String` keys and `serde_json::Value`s.
 	JsonMap,
+	/// `[T; N]` of any `T` but `u8`, which is [`Type::Array`]: only returned.
+	Array(usize),
+	/// `std::vec::IntoIter<T>`, which an `impl Iterator` parameter takes: only a parameter.
+	Iter,
+	/// `std::vec::IntoIter<&str>` or `std::vec::IntoIter<&[u8]>`, of a [`Type::String`] or
+	/// [`Type::Vec`], each lent for the call: only a parameter.
+	IterRef,
 }
 
 /// The addresses a socket address type holds.
@@ -616,11 +724,13 @@ impl Type {
 	/// one array type holds them on every target.
 	pub fn block(&self) -> Option<&Type> {
 		match self {
-			Type::List(Collection::Vec | Collection::Slice | Collection::Box, inner) => match &**inner {
-				Type::Int(Int::Usize | Int::Isize) => None,
-				Type::Int(_) | Type::F32 | Type::F64 => Some(inner),
-				_ => None,
-			},
+			Type::List(Collection::Vec | Collection::Slice | Collection::Box | Collection::Array(_), inner) => {
+				match &**inner {
+					Type::Int(Int::Usize | Int::Isize) => None,
+					Type::Int(_) | Type::F32 | Type::F64 => Some(inner),
+					_ => None,
+				}
+			}
 			_ => None,
 		}
 	}
@@ -645,5 +755,25 @@ impl Type {
 			Type::Option(inner) => inner.buffer().map(|buffer| Type::Option(Box::new(buffer))),
 			_ => None,
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[derive(serde::Deserialize)]
+	struct Opaque {
+		#[serde(deserialize_with = "held")]
+		opaque: Option<Held>,
+	}
+
+	#[test]
+	fn held_reads_an_earlier_baseline() {
+		let read = |json: &str| serde_json::from_str::<Opaque>(json).unwrap().opaque;
+		assert_eq!(read(r#"{"opaque":true}"#), Some(Held::Arc));
+		assert_eq!(read(r#"{"opaque":false}"#), None);
+		assert_eq!(read(r#"{"opaque":"Value"}"#), Some(Held::Value));
+		assert_eq!(read(r#"{"opaque":null}"#), None);
 	}
 }

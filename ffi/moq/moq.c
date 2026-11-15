@@ -201,33 +201,31 @@ int main(void) {
 	moq_group_Consumer_read_frame_future *reading = moq_group_Consumer_read_frame(group);
 	moq_frame_Frame *frame = NULL;
 	CHECK(moq_group_Consumer_read_frame_poll(reading, waker, &frame, &err) == MOQ_POLL_PENDING);
-	CHECK(moq_group_Producer_write_frame(writer, NULL, str("hello"), &err));
+	CHECK(moq_group_Producer_write_frame(writer, (moq_option_Timestamp){0}, str("hello"), &err));
 	CHECK(wakes == 2);
 	CHECK(moq_group_Consumer_read_frame_poll(reading, waker, &frame, &err) == MOQ_POLL_READY);
 	moq_group_Consumer_read_frame_future_free(reading);
 	CHECK(frame != NULL && is(moq_frame_Frame_payload_get(frame), "hello"));
-	CHECK(moq_frame_Frame_timestamp_get(frame) == NULL);
+	CHECK(!moq_frame_Frame_timestamp_get(frame).some);
 	/* When it arrived: kio's clock's `Instant`, from kio's own export. */
-	moq_clock_Instant *arrived = moq_frame_Frame_arrived(frame);
-	moq_clock_Instant *now = moq_clock_now();
-	CHECK(moq_clock_Instant_checked_duration_since(now, arrived).some);
-	moq_clock_Instant_free(now);
-	moq_clock_Instant_free(arrived);
+	moq_clock_Instant arrived = moq_frame_Frame_arrived(frame);
+	moq_clock_Instant now = moq_clock_now();
+	CHECK(moq_clock_Instant_checked_duration_since(&now, arrived).some);
 	moq_frame_Frame_free(frame);
 
-	/* A timestamp is a `Copy` value behind a handle: passing it copies it out. The track
-	 * is untimed, so a timestamped frame is refused. */
-	moq_Timestamp *at = NULL;
-	moq_TimeOverflow *overflow = NULL;
+	/* A timestamp is a `Copy` value C copies, which allocates nothing. The track is
+	 * untimed, so a timestamped frame is refused. */
+	moq_Timestamp at;
+	moq_TimeOverflow overflow;
 	CHECK(moq_Timestamp_from_millis(1500, &at, &overflow));
-	CHECK(moq_Timestamp_as_secs(at) == 1);
-	CHECK(!moq_group_Producer_write_frame(writer, at, str("late"), &err));
+	CHECK(moq_Timestamp_as_secs(&at) == 1);
+	CHECK(!moq_group_Producer_write_frame(writer, (moq_option_Timestamp){.some = true, .value = at}, str("late"), &err));
 	CHECK(err != NULL && is(moq_Error_to_string(err), "frame timestamp doesn't fit its track"));
 	moq_Error_free(err);
-	CHECK(moq_Timestamp_as_secs(at) == 1);
+	CHECK(moq_Timestamp_as_secs(&at) == 1);
 
 	/* The last frame, bytes that are not UTF-8, then the group's end, which reads as None. */
-	CHECK(moq_group_Producer_write_frame(writer, NULL, str("\xffworld"), &err));
+	CHECK(moq_group_Producer_write_frame(writer, (moq_option_Timestamp){0}, str("\xffworld"), &err));
 	CHECK(moq_group_Producer_finish(writer, &err));
 	reading = moq_group_Consumer_read_frame(group);
 	CHECK(moq_group_Consumer_read_frame_poll(reading, waker, &frame, &err) == MOQ_POLL_READY);
@@ -240,7 +238,6 @@ int main(void) {
 	CHECK(frame == NULL);
 	moq_group_Consumer_read_frame_future_free(reading);
 
-	moq_Timestamp_free(at);
 	moq_group_Consumer_free(group);
 	moq_group_Producer_free(writer);
 	moq_track_Subscriber_free(subscriber);
@@ -328,10 +325,8 @@ int main(void) {
 	 * as long as its waiter. It runs until every owner of the origin is gone. */
 	moq_Waiter *waiter = moq_Waiter_new(waker);
 	now = moq_clock_now();
-	moq_clock_Instant *deadline = NULL;
+	moq_option_clock_Instant deadline;
 	CHECK(moq_origin_Driver_poll(driver, now, waiter, &deadline, &err));
-	moq_clock_Instant_free(deadline);
-	moq_clock_Instant_free(now);
 	/* A client publishes the origin through moq-net's generic `with_publisher`, at each
 	 * type that implements its bound, by reference, so C keeps its handle. */
 	moq_Client *client = moq_Client_new();
@@ -344,13 +339,12 @@ int main(void) {
 	/* The last owner's drop wakes the driver, which then finishes, cleanly. */
 	CHECK(wakes > before);
 	now = moq_clock_now();
-	deadline = NULL;
+	deadline = (moq_option_clock_Instant){0};
 	err = NULL;
 	CHECK(!moq_origin_Driver_poll(driver, now, waiter, &deadline, &err));
-	CHECK(deadline == NULL && err != NULL && is(moq_Error_to_string(err), "closed"));
+	CHECK(!deadline.some && err != NULL && is(moq_Error_to_string(err), "closed"));
 	moq_Error_free(err);
 	err = NULL;
-	moq_clock_Instant_free(now);
 	moq_Waiter_free(waiter);
 	moq_origin_Driver_free(driver);
 
@@ -422,9 +416,8 @@ int main(void) {
 	/* A JSON track the catalog lists, published through moq-mux's generic `json_snapshot`
 	 * at a JSON document, and a section C parses from text, set in the lent catalog and
 	 * read back as text. Its track has a timescale, since every write is stamped. */
-	moq_Timescale *milli = moq_Timescale_MILLI();
-	moq_track_Info *status_info = moq_track_Info_with_timescale(moq_track_Info_default(), milli);
-	moq_Timescale_free(milli);
+	moq_track_Info *status_info =
+		moq_track_Info_with_timescale(moq_track_Info_default(), (moq_option_Timescale){.some = true, .value = moq_Timescale_MILLI()});
 	moq_track_Producer *status = NULL;
 	CHECK(moq_broadcast_Producer_create_track(publisher, str("status"), status_info, &status, &err));
 	moq_mux_json_Config *json_config = moq_mux_json_Config_default();
@@ -442,9 +435,7 @@ int main(void) {
 	moq_Json *latest = NULL;
 	moq_buf json_err;
 	CHECK(moq_Json_parse(str("{\"on\": true}"), &latest, &json_err));
-	moq_Timestamp *stamp = moq_Timestamp_now();
-	CHECK(moq_mux_json_Snapshot_Json_update(status_snapshot, latest, stamp, &mux_err));
-	moq_Timestamp_free(stamp);
+	CHECK(moq_mux_json_Snapshot_Json_update(status_snapshot, latest, moq_Timestamp_now(), &mux_err));
 	moq_Json_free(latest);
 	moq_track_Subscriber *status_subscriber = moq_mux_json_Snapshot_Json_consume(status_snapshot);
 	moq_track_Subscriber_recv_group_future *status_receiving = moq_track_Subscriber_recv_group(status_subscriber);
@@ -551,7 +542,7 @@ int main(void) {
 
 	/* A backoff's fields are settings left unset, and the methods of their names resolve them. */
 	moq_tokio_Backoff *backoff = moq_tokio_Backoff_default();
-	CHECK(moq_tokio_Backoff_initial_get(backoff) == NULL);
+	CHECK(!moq_tokio_Backoff_initial_get(backoff).some);
 	moq_duration initial = moq_tokio_Backoff_initial(backoff);
 	CHECK(initial.secs == 1 && initial.nanos == 0);
 	moq_tokio_Backoff_free(backoff);
@@ -601,7 +592,7 @@ int main(void) {
 	CHECK(moq_broadcast_Producer_create_track(live_broadcast, str("video"), NULL, &live_track, &err));
 	moq_group_Producer *live_group = NULL;
 	CHECK(moq_track_Producer_append_group(live_track, &live_group, &err));
-	CHECK(moq_group_Producer_write_frame(live_group, NULL, str("hello"), &err));
+	CHECK(moq_group_Producer_write_frame(live_group, (moq_option_Timestamp){0}, str("hello"), &err));
 	CHECK(moq_group_Producer_finish(live_group, &err));
 	moq_group_Producer_free(live_group);
 

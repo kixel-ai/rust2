@@ -9,6 +9,9 @@ class _n:
 	class Object:
 		__slots__ = ()
 
+	class Value:
+		__slots__ = ()
+
 	class Future:
 		__slots__ = ()
 

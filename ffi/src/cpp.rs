@@ -8,7 +8,8 @@
 //! member or as anything in the namespace, which it would hide. An object is a class owning
 //! its handle through a `std::unique_ptr`, so it moves, or where `Clone` makes a value no
 //! call tells apart but by an `Arc`'s or `Rc`'s count, a `std::shared_ptr` its copies
-//! share; a record a struct; an enum an
+//! share; a record a struct, and a `Copy` type with private fields a class over its C
+//! struct's bytes, which only Rust makes or reads; an enum an
 //! `enum class`, or for one with data a `std::variant` of a struct per variant, with its
 //! methods free functions; a closure, a future, or a reader C++ implements a template
 //! parameter. The runtime they share, [`runtime/rt.hpp`](../runtime/rt.hpp), holds the
@@ -198,11 +199,12 @@ impl<'a> Header<'a> {
 		{
 			return format!("{} &", self.owned(inner));
 		}
+		// Passed by value, so a `buf` Rust made moves back without a copy.
 		if Abi::is_buf(ty) {
-			return format!("::{}::view", self.ns);
+			return format!("::{}::input", self.ns);
 		}
 		match ty {
-			Type::Option(inner) if Abi::is_buf(inner) => format!("::std::optional<::{}::view>", self.ns),
+			Type::Option(inner) if Abi::is_buf(inner) => format!("::std::optional<::{}::input>", self.ns),
 			// Moved out of, each handle as a handle taken by value is.
 			Type::Option(inner) if matches!(inner.base(), Type::List(_, elem) if moves(abi, elem)) => {
 				format!("::std::optional<{}>", self.items(inner.base()))
@@ -245,12 +247,19 @@ impl<'a> Header<'a> {
 		}
 	}
 
-	/// The C++ vector a `Vec` parameter of type `ty` takes: of views, for bytes.
+	/// The C++ type a `Vec` parameter of type `ty` takes: a vector, or, when its items hold
+	/// views, the runtime's `items` lent or `taken` when they move handles, each of which
+	/// also takes a returned vector of `buf`s as it is.
 	fn items(&self, ty: &Type) -> String {
 		let Type::List(_, inner) = ty else {
 			unreachable!("{ty:?} is no Vec")
 		};
-		format!("::std::vector<{}>", self.held(inner))
+		let held = self.held(inner);
+		match (held == self.owned(inner), moves(self.abi, inner)) {
+			(true, _) => format!("::std::vector<{held}>"),
+			(false, true) => format!("::{}::taken<{held}>", self.ns),
+			(false, false) => format!("::{}::items<{held}>", self.ns),
+		}
 	}
 
 	/// The C++ type a parameter's `Vec`, `Option`, or tuple holds a `ty` as: bytes as a view.
@@ -298,6 +307,30 @@ impl<'a> Header<'a> {
 				self.d()
 			),
 			false => String::new(),
+		}
+	}
+
+	/// Whether [`Self::arg`] takes Rust's bytes from a parameter of type `ty`.
+	fn takes(ty: &Type) -> bool {
+		match ty {
+			_ if Abi::is_buf(ty) => true,
+			Type::Option(inner) => Abi::is_buf(inner),
+			Type::Ref(_, inner) | Type::Box(inner) => matches!(inner.base(), Type::Option(o) if Abi::is_buf(o)),
+			_ => false,
+		}
+	}
+
+	/// The C value of parameter `e` of type `ty`: a buffer's `input`, or a value passed for
+	/// `&mut`, hands Rust's bytes over.
+	fn arg(&self, ty: &Type, e: &str) -> String {
+		let d = self.d();
+		match ty {
+			_ if Abi::is_buf(ty) => format!("{d}::access::take({e})"),
+			Type::Option(inner) if Abi::is_buf(inner) => format!("({e} ? {d}::access::take(*{e}) : {d}::none())"),
+			Type::Ref(_, inner) | Type::Box(inner) if matches!(inner.base(), Type::Option(o) if Abi::is_buf(o)) => {
+				self.arg(inner.base(), e)
+			}
+			_ => self.lower(ty, e),
 		}
 	}
 
@@ -482,6 +515,7 @@ impl<'a> Header<'a> {
 			"cstdio",
 			"cstdlib",
 			"cstring",
+			"initializer_list",
 			"ios",
 			"memory",
 			"mutex",
@@ -501,7 +535,7 @@ impl<'a> Header<'a> {
 		);
 		self.line(format!("namespace {ns} {{\n"));
 		self.line(format!(
-			"namespace detail {{\n\nusing c_buf = ::{p}_buf;\nusing c_waker = ::{p}_waker;\nusing c_foreign_future = ::{p}_foreign_future;\nusing c_foreign_reader = ::{p}_foreign_reader;\n\ninline void c_buf_free(c_buf buf) noexcept {{\n\t::{p}_buf_free(buf);\n}}\n\ninline c_buf c_buf_copy(c_buf view) noexcept {{\n\treturn ::{p}_buf_copy(view);\n}}\n\n}} // namespace detail\n"
+			"namespace detail {{\n\nusing c_buf = ::{p}_buf;\nusing c_waker = ::{p}_waker;\nusing c_foreign_future = ::{p}_foreign_future;\nusing c_foreign_reader = ::{p}_foreign_reader;\n\ninline void c_buf_free(c_buf buf) noexcept {{\n\t::{p}_buf_free(buf);\n}}\n\ninline c_buf c_buf_copy(c_buf view) noexcept {{\n\treturn ::{p}_buf_copy(view);\n}}\n\ninline c_buf c_buf_clone(c_buf buf) noexcept {{\n\treturn ::{p}_buf_clone(buf);\n}}\n\n}} // namespace detail\n"
 		));
 		self.out.push_str(RUNTIME);
 		self.line(format!(
@@ -529,9 +563,16 @@ impl<'a> Header<'a> {
 			let name = self.global(&self.name(&abi.enumeration(i)));
 			self.line(format!("enum class {name};"));
 		}
-		for i in 0..api.records.len() {
+
+		// Every class and struct, declared so any signature may name it.
+		for (i, record) in api.records.iter().enumerate() {
 			let name = self.global(&self.name(&abi.record(i)));
-			self.line(format!("struct {name};"));
+			// The key its definition uses, which MSVC's C4099 and Clang's
+			// `-Wmismatched-tags` require match.
+			match record.opaque {
+				Some(_) => self.line(format!("class {name};")),
+				None => self.line(format!("struct {name};")),
+			}
 		}
 		for i in 0..api.objects.len() {
 			let name = self.global(&self.name(&abi.object(i)));
@@ -1079,6 +1120,11 @@ impl<'a> Header<'a> {
 				let owner = Ty::Struct(c.clone());
 				let mut taken = fields.clone();
 				taken.push(name.clone());
+				// An opaque value's bytes are its private member `c_`.
+				if record.opaque.is_some() {
+					taken.push("c_".to_string());
+					members.push("c_".to_string());
+				}
 				for method in &record.methods {
 					let (decl, member) = self.function(method, Some(&owner), Some((&taken, Owner::Member)));
 					body.push(decl);
@@ -1088,11 +1134,27 @@ impl<'a> Header<'a> {
 				while body.last().is_some_and(String::is_empty) {
 					body.pop();
 				}
-				self.line(format!(
-					"{}struct {name} {{\n{}\n}};\n",
-					docs(&record.docs, ""),
-					body.join("\n")
-				));
+				match record.opaque {
+					// Its bytes, which only Rust makes or reads: C++ copies them, but makes
+					// none, as it has no public constructor.
+					Some(_) => {
+						let text = format!(
+							"{}\n\nIts bytes, which only Rust makes or reads: copy it, but never make one.",
+							record.docs
+						);
+						self.line(format!(
+							"{}class {name} {{\npublic:\n{}\n\nprivate:\n\tfriend struct {d}::access;\n\n\texplicit {name}(const ::{c} &c) noexcept : c_(c) {{}}\n\n\t::{c} c_;\n}};\n",
+							docs(text.trim(), ""),
+							body.join("\n"),
+							d = self.d()
+						));
+					}
+					None => self.line(format!(
+						"{}struct {name} {{\n{}\n}};\n",
+						docs(&record.docs, ""),
+						body.join("\n")
+					)),
+				}
 			}
 			Type::Enum(i) => {
 				let e = &abi.api.enums[*i];
@@ -1199,6 +1261,16 @@ impl<'a> Header<'a> {
 			let record = &api.records[i];
 			let c = abi.record(i);
 			let name = self.name(&c);
+			if record.opaque.is_some() {
+				let d = self.d();
+				self.line(format!(
+					"inline ::{c} lower(const ::{ns}::{name} &v) {{\n\treturn {d}::access::bits(v);\n}}\n"
+				));
+				self.line(format!(
+					"inline ::{ns}::{name} lift(const ::{c} &c) {{\n\treturn {d}::access::make<::{ns}::{name}>(c);\n}}\n"
+				));
+				continue;
+			}
 			let lowered: Vec<String> = record
 				.fields
 				.iter()
@@ -1381,6 +1453,14 @@ impl<'a> Header<'a> {
 			_ => &[],
 		};
 		let mut names: Vec<String> = Vec::new();
+		// Whether an argument takes Rust's bytes from its parameter, and the arguments that
+		// may throw, by allocating.
+		let mut taken = false;
+		let mut throwing = Vec::new();
+		// The allocations among them that Rust takes (a kept closure, a future), each by its
+		// argument, its type, its `new`, and what passes the pointer, which a hoisted one holds
+		// in a `unique_ptr` until the call, so a later throw frees it.
+		let mut owned: Vec<(usize, String, String, Option<String>)> = Vec::new();
 		for param in &function.params {
 			let (_, c_ty) = c_params.next().expect("each parameter has its C one");
 			let name = parameter(&param.name, |name| {
@@ -1391,7 +1471,11 @@ impl<'a> Header<'a> {
 			if let Type::Future = param.ty {
 				let f = format!("F{}", templates.len());
 				params.push(format!("{f} {name}"));
-				args.push(format!("{d}::foreign_future(::std::move({name}))"));
+				let new = format!("new {f}(::std::move({name}))");
+				let wrap = format!("{d}::foreign_future");
+				throwing.push(args.len());
+				args.push(format!("{wrap}({new})"));
+				owned.push((args.len() - 1, f.clone(), new, Some(wrap)));
 				templates.push(format!("class {f}"));
 				continue;
 			}
@@ -1417,7 +1501,11 @@ impl<'a> Header<'a> {
 					// Moved or copied into a callable Rust owns, which it destroys through `free`.
 					true => {
 						c_params.next().expect("a kept closure has its free");
-						args.push(format!("new ::std::decay_t<{f}>(::std::forward<{f}>({name}))"));
+						let ty = format!("::std::decay_t<{f}>");
+						let new = format!("new {ty}(::std::forward<{f}>({name}))");
+						throwing.push(args.len());
+						owned.push((args.len(), ty, new.clone(), None));
+						args.push(new);
 						args.push(format!(
 							"[](void *data_) noexcept {{ delete static_cast<::std::decay_t<{f}> *>(data_); }}"
 						));
@@ -1430,17 +1518,51 @@ impl<'a> Header<'a> {
 				continue;
 			}
 			params.push(declare(&self.param(&param.ty), &name));
-			args.push(self.lower(&param.ty, &name));
+			if Self::takes(&param.ty) {
+				taken = true;
+			} else if self.arena(&param.ty) {
+				throwing.push(args.len());
+			}
+			args.push(self.arg(&param.ty, &name));
+		}
+		// Arguments evaluate in no set order, so those that may throw run first, and the call
+		// itself throws nothing: Rust's bytes are taken, and an allocation released to Rust,
+		// only once nothing left before the call can throw and leak them.
+		if taken || throwing.len() > 1 {
+			for &i in &throwing {
+				match owned.iter().find(|(k, ..)| *k == i) {
+					Some((_, ty, new, wrap)) => {
+						prelude.push(format!("::std::unique_ptr<{ty}> c_arg{i}_({new});"));
+						args[i] = match wrap {
+							Some(wrap) => format!("{wrap}(c_arg{i}_.release())"),
+							None => format!("c_arg{i}_.release()"),
+						};
+					}
+					None => {
+						prelude.push(format!("auto c_arg{i}_ = {};", args[i]));
+						args[i] = format!("c_arg{i}_");
+					}
+				}
+			}
 		}
 		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
-		// Each value passed for `&mut` takes what Rust wrote back, on every path.
-		let writes: Vec<String> = (function.params.iter().zip(&names))
-			.filter(|(param, _)| param.ty.written())
-			.map(|(param, name)| {
-				let out = Abi::written(function, &abi::escape(&param.name));
-				format!("{name} = {};", self.lift(param.ty.base(), &format!("c_{out}_")))
-			})
-			.collect();
+		// Each value passed for `&mut` takes what Rust wrote back, on every path, as does a
+		// value's own `&mut self`, which Rust wrote back in place.
+		let mut writes: Vec<String> = match export.call.params.first() {
+			Some((_, Ty::InOut(_))) => {
+				let ty = record(abi, owner_c.as_deref().expect("a member method has its record"));
+				vec![format!("*this = {};", self.lift(&ty, "c_self_"))]
+			}
+			_ => Vec::new(),
+		};
+		writes.extend(
+			(function.params.iter().zip(&names))
+				.filter(|(param, _)| param.ty.written())
+				.map(|(param, name)| {
+					let out = Abi::written(function, &abi::escape(&param.name));
+					format!("{name} = {};", self.lift(param.ty.base(), &format!("c_{out}_")))
+				}),
+		);
 		for (name, _) in &outs {
 			args.push(format!("&c_{name}_"));
 		}
@@ -1633,18 +1755,13 @@ impl<'a> Header<'a> {
 	}
 
 	/// The C value a closure returns Rust of the C++ value `e` of type `ty`, which Rust then
-	/// owns: bytes as a buffer `<prefix>_buf_copy` made, and a `Copy` object as a new handle to
-	/// a copy, made without its `Clone`. `e` is named, so it may be read more than once.
+	/// owns: bytes as a buffer `<prefix>_buf_copy` made. `e` is named, so it may be read more
+	/// than once.
 	fn returned(&self, ty: &Type, e: &str) -> String {
-		let abi = self.abi;
 		let d = self.d();
 		match ty {
 			ty if Abi::is_buf(ty) => format!("{d}::copy_bytes({e})"),
 			Type::Option(inner) if Abi::is_buf(inner) => format!("({e} ? {d}::copy_bytes(*{e}) : {d}::none())"),
-			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {
-				format!("({e} ? {} : nullptr)", self.returned(inner, &format!("(*{e})")))
-			}
-			Type::Object(i) => format!("::{}_copy({d}::access::raw({e}))", abi.object(*i)),
 			ty => self.lower(ty, e),
 		}
 	}

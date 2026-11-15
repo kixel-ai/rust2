@@ -8,17 +8,19 @@
 //! handle, freed in `deinit`, so Swift's compiler checks each move and borrow Rust makes:
 //! `self` is `consuming`, `&mut self` `mutating`, a parameter `consuming`, `borrowing`, or
 //! `inout`, a tuple holding one a struct of its own, and an array of them swift-collections'
-//! `UniqueArray`. An object that is `Copy` or thrown as an error is a final class instead,
-//! since `Swift.Error` requires a copyable type, whose handle a call holds at run time. A
-//! record is a struct; an enum a Swift enum, with
-//! its data as associated values; a trait a protocol; a closure a function type; a future
+//! `UniqueArray`. An object that is `Copy`, which only one C may change is, or thrown as an
+//! error is a final class instead, since `Swift.Error` requires a copyable type, whose
+//! handle a call holds at run time. A record is a struct, and any other `Copy` type with
+//! private fields a struct over the bytes of its C struct, which only Rust makes or reads;
+//! an enum a Swift enum, with its data as associated values; a trait a protocol; a closure a function type; a future
 //! an `async` function; an error a thrown `Swift.Error`. The runtime they share,
 //! [`runtime/rt.swift`](../runtime/rt.swift), holds the classes' handles, the arena a call
 //! lowers nested values into, and the signal a future parks on.
 //!
-//! A call passes bytes and text at its top level as views of Swift's own memory, and
-//! returned bytes are `Data` lending Rust's buffer, so neither is copied; nested in another
-//! value, bytes passed in are copied into the call's arena.
+//! Bytes are the runtime's `Bytes`: those Rust returned lend its buffer, and pass back to
+//! Rust as a second owner of it, so neither way copies them. Swift's own bytes and text
+//! pass as views of Swift's memory at a call's top level, which Rust copies once where it
+//! keeps them; nested in another value, they are copied once into a buffer Rust takes.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
@@ -94,6 +96,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\tstatic func free(_ buf: Buf) {{\n\t\t{p}_buf_free(buf)\n\t}}\n\n\
 		\t/// A buffer Rust owns, holding a copy of what `view` lends.\n\
 		\tstatic func copy(_ view: Buf) -> Buf {{\n\t\t{p}_buf_copy(view)\n\t}}\n\n\
+		\t/// A second owner of `buf`, which Rust returned, sharing its bytes.\n\
+		\tstatic func clone(_ buf: Buf) -> Buf {{\n\t\t{p}_buf_clone(buf)\n\t}}\n\n\
 		\tstatic func load(_ state: UnsafeMutablePointer<Swift.Int>) -> Swift.Int {{\n\t\t{p}_atomic_load(state)\n\t}}\n\n\
 		\tstatic func store(_ state: UnsafeMutablePointer<Swift.Int>, _ value: Swift.Int) {{\n\t\t{p}_atomic_store(state, value)\n\t}}\n\n\
 		\tstatic func add(_ state: UnsafeMutablePointer<Swift.Int>, _ value: Swift.Int) -> Swift.Int {{\n\t\t{p}_atomic_add(state, value)\n\t}}\n\n\
@@ -135,11 +139,12 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 
 /// The standard library's names the runtime and the generated code use unqualified, which
 /// an exported type or function would shadow, and `Swift`, which qualifies the rest. The
-/// runtime's own are the C ABI's: `Native` and `SocketAddr` are claimed as
-/// `<prefix>_native` and `<prefix>_socket_addr`.
+/// runtime's own are the C ABI's: `Native`, `Bytes`, and `SocketAddr` are claimed as
+/// `<prefix>_native`, `<prefix>_bytes`, and `<prefix>_socket_addr`.
 const TAKEN: &[&str] = &[
 	"Array",
 	"Bool",
+	"Bytes",
 	"CancellationError",
 	"Comparable",
 	"CustomDebugStringConvertible",
@@ -152,6 +157,7 @@ const TAKEN: &[&str] = &[
 	"Never",
 	"OpaquePointer",
 	"Optional",
+	"RandomAccessCollection",
 	"Sendable",
 	"SeekOrigin",
 	"SeekableReader",
@@ -175,6 +181,7 @@ const TAKEN: &[&str] = &[
 	"UnsafeMutableRawPointer",
 	"UnsafePointer",
 	"UnsafeRawBufferPointer",
+	"UnsafeRawPointer",
 	"UniqueArray",
 	"Void",
 	"fatalError",
@@ -321,7 +328,7 @@ impl<'a> Gen<'a> {
 			Type::F64 => "Swift.Double".to_string(),
 			Type::Char => "Swift.Unicode.Scalar".to_string(),
 			Type::Str | Type::String | Type::Path | Type::PathBuf => "Swift.String".to_string(),
-			Type::Slice | Type::Vec | Type::Bytes => "Data".to_string(),
+			Type::Slice | Type::Vec | Type::Bytes => "Bytes".to_string(),
 			Type::U128 => "U128".to_string(),
 			Type::Duration => "Swift.Duration".to_string(),
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
@@ -508,7 +515,7 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Str | Type::String => format!("Native.string({e})"),
 			Type::Path | Type::PathBuf => format!("Native.path({e})"),
-			Type::Slice | Type::Vec | Type::Bytes => format!("Native.data({e})"),
+			Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes({e})"),
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
 			Type::Int(int) | Type::NonZero(int) => lift_int(*int, e),
 			Type::Char => format!("Native.scalar({e})"),
@@ -543,7 +550,7 @@ impl<'a> Gen<'a> {
 				Type::Object(_) => format!("{e}.map {{ {}(raw: $0) }}", self.sw(inner)),
 				Type::Str | Type::String => format!("Native.string(option: {e})"),
 				Type::Path | Type::PathBuf => format!("Native.path(option: {e})"),
-				Type::Slice | Type::Vec | Type::Bytes => format!("Native.data(option: {e})"),
+				Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes(option: {e})"),
 				Type::List(..) => format!(
 					"({e}.ptr == nil ? nil : {} as {}?)",
 					self.lift(inner, e),
@@ -581,11 +588,11 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Str | Type::String => format!("Native.string(lent: {e})"),
 			Type::Path | Type::PathBuf => format!("Native.path(lent: {e})"),
-			Type::Slice | Type::Vec | Type::Bytes => format!("Native.data(lent: {e})"),
+			Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes(lent: {e})"),
 			Type::Option(inner) => match inner.base() {
 				Type::Str | Type::String => format!("Native.string(lentOption: {e})"),
 				Type::Path | Type::PathBuf => format!("Native.path(lentOption: {e})"),
-				Type::Slice | Type::Vec | Type::Bytes => format!("Native.data(lentOption: {e})"),
+				Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes(lentOption: {e})"),
 				_ => self.lift(ty, e),
 			},
 			Type::Ref(_, inner) => self.lift_lent(inner, e),
@@ -874,6 +881,9 @@ impl<'a> Gen<'a> {
 		let name = self.class(&c);
 		let rust = abi.api.rust(&record.path, &record.args);
 		let ty = Type::Record(i);
+		if record.opaque.is_some() {
+			return self.opaque(i);
+		}
 		let fields: Vec<(String, String)> = (record.fields.iter())
 			.map(|f| (field_name(&f.name), self.sw(&f.ty)))
 			.collect();
@@ -923,6 +933,37 @@ impl<'a> Gen<'a> {
 			"\tfunc _lower({arena}) -> {c} {{\n\t\t{c}({})\n\t}}\n",
 			lowered.join(", ")
 		));
+		let text = format!("{rust}\n\n{}", record.docs);
+		let _ = write!(
+			self.types,
+			"{}public struct {name}: {} {{\n{}}}\n\n",
+			docs(text.trim(), ""),
+			protocols.join(", "),
+			body.join("\n")
+		);
+	}
+
+	/// A `Copy` type with private fields: a struct over the bytes of its C struct, which
+	/// only Rust makes or reads. Swift copies it as it copies the bytes.
+	fn opaque(&mut self, i: usize) {
+		let abi = self.abi;
+		let record = &abi.api.records[i];
+		let c = abi.record(i);
+		let name = self.class(&c);
+		let rust = abi.api.rust(&record.path, &record.args);
+		let ty = Type::Record(i);
+		let mut members = Vec::new();
+		let mut body = vec![format!(
+			"\t/// Its bytes, which only Rust reads.\n\tlet c_: {c}\n\n\tprivate init(c_: {c}) {{\n\t\tself.c_ = c_\n\t}}\n"
+		)];
+		let mut protocols = vec!["Sendable"];
+		self.traits(&ty, &c, record.traits, &mut body, &mut members, &mut protocols);
+		self.methods(&record.methods, &Ty::Struct(c.clone()), &ty, &mut body, &mut members);
+		self.distinct(&rust, &members);
+		body.push(format!(
+			"\tstatic func _lift(_ c: {c}) -> {name} {{\n\t\t{name}(c_: c)\n\t}}\n"
+		));
+		body.push(format!("\tfunc _lower() -> {c} {{\n\t\tc_\n\t}}\n"));
 		let text = format!("{rust}\n\n{}", record.docs);
 		let _ = write!(
 			self.types,
@@ -1233,7 +1274,7 @@ impl<'a> Gen<'a> {
 			(Type::Future, _) => arg.exprs.push(format!("Native.future({e})")),
 			(ty, Ty::Buf) if Abi::is_buf(ty) || matches!(ty.base(), Type::Option(inner) if Abi::is_buf(inner)) => {
 				let b = format!("b{k}_");
-				arg.open = Some((format!("{tr}Native.view({e}) {{ {b} in"), "}".to_string()));
+				arg.open = Some((format!("{tr}Native.take({e}) {{ {b} in"), "}".to_string()));
 				arg.exprs.push(b);
 			}
 			// A struct the call borrows or consumes, so it lives until the call returns.
@@ -1300,8 +1341,6 @@ impl<'a> Gen<'a> {
 					body.push(format!("defer {{ {l}.handle.end() }}"));
 					args.push(l);
 				}
-				// A `Copy` object, which Swift's class holds a copy of.
-				Type::Object(i) => args.push(format!("{}(raw: {}_copy({p}))", self.sw(ty), self.abi.object(*i))),
 				ty => args.push(self.lift_lent(ty, p)),
 			}
 		}
@@ -1347,26 +1386,14 @@ impl<'a> Gen<'a> {
 		format!("{{ {} in\n\t{}\n}}", params.join(", "), body.join("\n\t"))
 	}
 
-	/// The C value of `e`, of type `ty`, which a closure returns for Rust to own: a scalar
-	/// as it is, text in a buffer `buf_copy` made, and a copy of an object's handle.
+	/// The C value of `e`, of type `ty`, which a closure returns for Rust to own: a value
+	/// as it lowers, and text in a buffer `buf_copy` made.
 	fn returned(&mut self, ty: &Type, e: &str) -> String {
-		let abi = self.abi;
 		match ty {
 			Type::Str | Type::String => format!("Native.owned({e})"),
-			// Kept alive while its handle is copied: once `.handle` is read, ARC may release
-			// the object, whose deinit would free the handle first.
-			Type::Object(i) => format!(
-				"withExtendedLifetime({e}) {{ r_ in r_.handle.with {{ {}_copy($0) }} }}",
-				abi.object(*i)
-			),
-			Type::Option(inner) => match &**inner {
-				Type::Str | Type::String => format!("({e}.map {{ Native.owned($0) }} ?? Native.none)"),
-				Type::Object(i) => format!(
-					"withExtendedLifetime({e}) {{ r_ in r_?.handle.with {{ {}_copy($0) }} ?? nil }}",
-					abi.object(*i)
-				),
-				_ => self.lower(ty, e),
-			},
+			Type::Option(inner) if matches!(**inner, Type::Str | Type::String) => {
+				format!("({e}.map {{ Native.owned($0) }} ?? Native.none)")
+			}
 			ty => self.lower(ty, e),
 		}
 	}
@@ -1442,9 +1469,11 @@ impl<'a> Gen<'a> {
 		// A struct's method takes `self` as Rust does: by value, it consumes it, and Swift
 		// then frees the handle Rust moved the value out of.
 		let unique = owner_ty.is_some_and(|ty| self.unique(ty));
+		// A value's `&mut self` is too, as Rust writes back the value it changed.
+		let value = matches!(export.call.params.first(), Some((_, Ty::InOut(_))));
 		let mutation = match receiver {
 			Some(Receiver::Owned) if unique => "consuming ",
-			Some(Receiver::Mut) if unique => "mutating ",
+			Some(Receiver::Mut) if unique || value => "mutating ",
 			_ => "",
 		};
 		// Only a future or a `Result` throws, and a future only once it is awaited.
@@ -1481,6 +1510,9 @@ impl<'a> Gen<'a> {
 				_ => {
 					arena |= self.arena(&ty);
 					prelude.push(format!("var c_self_ = self._lower({})", self.arena_arg(&ty)));
+					if value {
+						prelude.push(format!("defer {{ self = {} }}", self.lift(&ty, "c_self_")));
+					}
 					arg.exprs.push("&c_self_".to_string());
 				}
 			}
@@ -1550,6 +1582,8 @@ impl<'a> Gen<'a> {
 				1.min(prelude.len()),
 				"let a_ = Native.Arena()\ndefer { a_.finish() }".to_string(),
 			);
+			// Past the receiver, which Rust only reads, Rust takes each value passed.
+			prelude.push("a_.take = true".to_string());
 		}
 		let after: Vec<String> = args.iter().flat_map(|a| a.after.clone()).collect();
 		if !after.is_empty() {

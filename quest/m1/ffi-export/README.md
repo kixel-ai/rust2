@@ -79,12 +79,12 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
 - ✅ The epic's closing work is a child, [ship](/quest/m1/ffi-export/ship.md), which alone
   requires [the refusals epic](/quest/m1/ffi-refusals/README.md). Rejected: the epic
   requiring it, as [#701](https://github.com/kixel-ai/rust2/pull/701) left it, since an
-  epic's `Required` holds back every child, so none could start until moq's pin bump,
-  which waits on a rind release the maintainer holds.
+  epic's `Required` holds back every child, so none could start until moq's pin bump, which
+  then waited on a rind release the maintainer held.
 - ✅ Every change that breaks the C ABI or a generated API is a child here, so it lands
   before moq pins: the fused async start,
-  [owned buffers](/quest/m1/ffi-export/owned-bufs.md), and
-  numeric slices ([#743](https://github.com/kixel-ai/rust2/pull/743)). Work that changes no generated API is
+  owned buffers ([kixel-ai/rust2#744](https://github.com/kixel-ai/rust2/pull/744)), and
+  numeric slices ([kixel-ai/rust2#743](https://github.com/kixel-ai/rust2/pull/743)). Work that changes no generated API is
   [its own epic](/quest/m1/ffi-speed/README.md), which does not hold the pin.
 - Not planned: one walker emitting lift and lower instructions every generator
   implements, as wit-bindgen's `Bindgen` does. A new rule touches 19 to 38 files today,

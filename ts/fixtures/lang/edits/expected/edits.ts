@@ -837,11 +837,19 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const b6: rs.u8 = _26;
 			return text(rs.byteSliceFrom(Uint8Array.of(b6, b6)));
 		}), undefined, 12, true);
-		rs.iterForEach(rs.iterZip(rs.iterSlice(texts2.items), rs.iterSlice(others.items), [false, false]), (_27: [rs.String, rs.String]): undefined => {
+		const leaf = rs.iterSlice(texts2.items);
+		const leaf2 = rs.iterSlice(others.items);
+		let index = 0;
+		const end = Math.min(leaf.len(), leaf2.len());
+		const f = (_27: [rs.String, rs.String]): undefined => {
 			apply$String_mut_String_unit_mem_swap_String((a07: rs.String, a16: rs.String): undefined => {
 				Object.assign(a07, rs.replaceIn(a16, a07));
 			}, _27[0], _27[1]);
-		});
+		};
+		while (!(index >= end)) {
+			index++;
+			f([leaf.next() as rs.String, leaf2.next() as rs.String]);
+		}
 		put(out, rs.strsJoin(texts2.items, "").v);
 		put(out, rs.strsJoin(others.items, "").v);
 	} else {

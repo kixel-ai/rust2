@@ -7,6 +7,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
+
 #include "api.h"
 
 static api_buf str(const char *s) {
@@ -236,15 +240,21 @@ static api_buf made_times(void *data, uint32_t n) {
 	return api_buf_copy(str(text));
 }
 
-/* reissue's closures: a new ticket, and a copy of one C keeps, each Rust's to free. */
-static api_Ticket *reissue_next(void *data, const api_Ticket *ticket) {
+/* reissue's closures: a new ticket, and a copy of one C keeps. */
+static api_Ticket reissue_next(void *data, api_Ticket ticket) {
 	(void)data;
-	return api_Ticket_new(api_Ticket_number(ticket) + 1);
+	return api_Ticket_new(api_Ticket_number(&ticket) + 1);
 }
 
-static api_Ticket *reissue_kept(void *data, const api_Ticket *ticket) {
+static api_Ticket reissue_kept(void *data, api_Ticket ticket) {
 	(void)ticket;
-	return api_Ticket_copy(data);
+	return *(const api_Ticket *)data;
+}
+
+/* shifted's closure: the moment 500 ticks later. */
+static api_Moment moment_after(void *data, api_Moment moment) {
+	(void)data;
+	return api_Moment_after(&moment, 500);
 }
 
 static uint32_t spawned_task(void *data) {
@@ -267,15 +277,15 @@ static api_buf made_view(void *data, uint32_t n) {
  * waiter, which it wakes, then stops. Rust frees it once it drops it. */
 typedef struct {
 	int calls;
-	const api_Instant *start;
+	api_Instant start;
 	bool freed;
 } driver;
 
-static bool drive_poll(void *data, const api_Instant *now, const api_Waiter *waiter, api_Instant **out, api_buf *err) {
+static bool drive_poll(void *data, api_Instant now, const api_Waiter *waiter, api_option_Instant *out, api_buf *err) {
 	driver *d = data;
 	d->calls++;
 	if (d->calls == 1) {
-		*out = api_later(now, (api_duration){.secs = 0, .nanos = 5000000});
+		*out = (api_option_Instant){.some = true, .value = api_later(now, (api_duration){.secs = 0, .nanos = 5000000})};
 		return true;
 	}
 	if (d->calls == 2) {
@@ -284,7 +294,7 @@ static bool drive_poll(void *data, const api_Instant *now, const api_Waiter *wai
 		api_waker returned = api_Waiter_waker(waiter);
 		returned.wake(returned.data);
 		returned.drop(returned.data);
-		*out = NULL;
+		*out = (api_option_Instant){0};
 		return true;
 	}
 	char text[32];
@@ -294,12 +304,12 @@ static bool drive_poll(void *data, const api_Instant *now, const api_Waiter *wai
 }
 
 /* A drive that only ever waits. */
-static bool drive_idle(void *data, const api_Instant *now, const api_Waiter *waiter, api_Instant **out, api_buf *err) {
+static bool drive_idle(void *data, api_Instant now, const api_Waiter *waiter, api_option_Instant *out, api_buf *err) {
 	(void)data;
 	(void)now;
 	(void)waiter;
 	(void)err;
-	*out = NULL;
+	*out = (api_option_Instant){0};
 	return true;
 }
 
@@ -364,6 +374,40 @@ static bool broken_seek(void *data, int whence, int64_t offset, uint64_t *positi
 	return true;
 }
 
+/* The payload sent last, ready at the first poll. */
+static api_buf received(api_Channel *channel) {
+	api_Channel_recv_future *recv = api_Channel_recv(channel);
+	api_buf payload = {0};
+	bool ready = api_Channel_recv_poll(recv, (api_waker){0}, &payload) == API_POLL_READY;
+	api_Channel_recv_future_free(recv);
+	return ready ? payload : (api_buf){0};
+}
+
+/* A payload Rust returned goes back to Rust in place: taken whole, taken narrowed to a
+ * range of it, shared by a second owner while kept, and carried in a record. Its bytes
+ * stay where Rust put them, and drop once, with its last owner. */
+static bool forwarding(void) {
+	uint32_t before = api_dropped();
+	api_Channel *channel = api_Channel_new();
+	api_buf payload = api_token_bytes(3, 64);
+	const uint8_t *at = payload.ptr;
+	api_Channel_send(channel, payload);
+	payload = received(channel);
+	bool same = payload.ptr == at && payload.len == 64;
+	api_Channel_send(channel, (api_buf){.ptr = payload.ptr + 1, .len = 62, .owner = payload.owner});
+	payload = received(channel);
+	same = same && payload.ptr == at + 1 && payload.len == 62;
+	api_Channel_send(channel, api_buf_clone(payload));
+	api_buf shared = received(channel);
+	same = same && shared.ptr == payload.ptr && shared.len == 62;
+	api_buf_free(payload);
+	api_Packet packet = api_next_packet((api_Packet){.seq = 1, .payload = shared});
+	same = same && packet.payload.ptr == at + 1 && api_dropped() == before;
+	api_Packet_free(&packet);
+	api_Channel_free(channel);
+	return same && api_dropped() == before + 1;
+}
+
 static void tail(api_foreign_reader reader) {
 	api_buf bytes;
 	uint64_t at;
@@ -381,17 +425,13 @@ static void tail(api_foreign_reader reader) {
 static bool closures(void) {
 	print("made ", api_made(3, made_times, NULL), "\n");
 
-	/* A closure taking and returning `Copy` objects copies them, never running their `Clone`. */
-	api_Ticket *kept = api_Ticket_new(9);
-	api_Ticket *seven = api_Ticket_new(7);
-	api_Ticket *given = api_reissue(seven, reissue_next, NULL);
-	api_Ticket *held = api_reissue(seven, reissue_kept, kept);
-	printf("reissued %u %u, cloned %u\n", (unsigned)api_Ticket_number(given), (unsigned)api_Ticket_number(held),
+	/* A closure taking and returning `Copy` values copies them, never running their `Clone`. */
+	api_Ticket kept = api_Ticket_new(9);
+	api_Ticket seven = api_Ticket_new(7);
+	api_Ticket given = api_reissue(seven, reissue_next, NULL);
+	api_Ticket held = api_reissue(seven, reissue_kept, &kept);
+	printf("reissued %u %u, cloned %u\n", (unsigned)api_Ticket_number(&given), (unsigned)api_Ticket_number(&held),
 		(unsigned)api_Ticket_clones());
-	api_Ticket_free(held);
-	api_Ticket_free(given);
-	api_Ticket_free(seven);
-	api_Ticket_free(kept);
 
 	/* A kept closure, called on another thread after the call that took it returned. */
 	bool spawned_freed = false;
@@ -403,7 +443,7 @@ static bool closures(void) {
 	}
 
 	api_waker waker = {.wake = wake, .drop = drop, .data = NULL};
-	api_Instant *start = api_now();
+	api_Instant start = api_now();
 	driver d = {.start = start};
 	api_drive_future *drive = api_drive(start, drive_poll, &d, drive_free);
 	api_buf stopped;
@@ -420,7 +460,6 @@ static bool closures(void) {
 	ok = ok && api_drive_poll(drive, waker, &stopped) == API_POLL_PENDING && !idle.freed;
 	api_drive_future_free(drive);
 	ok = ok && idle.freed;
-	api_Instant_free(start);
 
 	memory hello = {.bytes = "hello world", .len = 11};
 	tail((api_foreign_reader){.read = memory_read, .seek = memory_seek, .data = &hello});
@@ -700,6 +739,10 @@ static int script(void) {
 	}
 	printf("\n");
 	api_vec_tuple_string_Counter_free(ranked);
+	api_Counter *best = api_Board_best(board);
+	print("best ", api_Counter_name(best), " ");
+	printf("%llu\n", (unsigned long long)api_Counter_get(best));
+	api_Counter_free(best);
 	api_Board_free(board);
 	/* A map crosses as its pairs and a set as its items, which Rust collects in order, each
 	 * key once, the last kept. */
@@ -973,33 +1016,101 @@ static int script(void) {
 		print("", api_describe(events[i]), "\n");
 	}
 
-	/* A `Copy` handle passed by value is copied, so it stays usable. */
-	api_Stamp *stamp = api_Stamp_from_millis(2500);
-	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(stamp));
-	api_Stamp *later = api_Stamp_from_millis(3000);
-	printf("later %s\n", api_Stamp_later(later, stamp) ? "true" : "false");
-	api_Stamp_free(later);
-	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(stamp));
-	api_Message *message = api_Message_new(stamp, str("body"));
-	api_Stamp_free(stamp);
+	/* A `Copy` value passed by value is copied, so it stays usable, and frees nothing. */
+	api_Stamp stamp = api_Stamp_from_millis(2500);
+	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(&stamp));
+	api_Stamp later = api_Stamp_from_millis(3000);
+	printf("later %s\n", api_Stamp_later(&later, stamp) ? "true" : "false");
+	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(&stamp));
+	api_Stamp rounded = api_Stamp_whole(&stamp);
+	print("whole ", api_Stamp_debug(&rounded), "\n");
+	api_Message *message = api_Message_new((api_option_Stamp){.some = true, .value = stamp}, str("body"));
 	print("payload ", api_Message_payload_get(message), "\n");
-	api_Stamp *read = api_Message_stamp_get(message);
-	print("stamp ", api_Stamp_debug(read), "\n");
-	api_Stamp_free(read);
+	api_option_Stamp read = api_Message_stamp_get(message);
+	print("stamp ", api_Stamp_debug(&read.value), "\n");
 	printf("sent %s\n", api_Message_sent(message) ? "true" : "false");
-	/* Setters assign in place: the bytes are copied in, and a `Copy` handle copied. */
-	api_Stamp *reset = api_Stamp_from_millis(4000);
-	api_Message_stamp_set(message, reset);
+	/* Setters assign in place: the bytes are copied in, and a `Copy` value copied. */
+	api_Stamp reset = api_Stamp_from_millis(4000);
+	api_Message_stamp_set(message, (api_option_Stamp){.some = true, .value = reset});
 	api_Message_payload_set(message, str("edited"));
 	print("payload ", api_Message_payload_get(message), "\n");
 	read = api_Message_stamp_get(message);
-	print("stamp ", api_Stamp_debug(read), "\n");
-	api_Stamp_free(read);
-	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(reset));
-	api_Stamp_free(reset);
-	api_Message_stamp_set(message, NULL);
-	printf("stamp %s\n", api_Message_stamp_get(message) != NULL ? "true" : "false");
+	print("stamp ", api_Stamp_debug(&read.value), "\n");
+	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(&reset));
+	api_Message_stamp_set(message, (api_option_Stamp){0});
+	printf("stamp %s\n", api_Message_stamp_get(message).some ? "true" : "false");
 	api_Message_free(message);
+
+	/* A value past a word, copied across: a closure takes and returns one by value. */
+	api_option_Moment made = api_Moment_new(1500, 1000);
+	api_Moment moment = made.value;
+	printf("moment %llu %s\n", (unsigned long long)api_Moment_millis(&moment),
+		   api_Moment_new(1, 0).some ? "false" : "true");
+	api_Moment shifted = api_shifted(moment, moment_after, NULL);
+	api_Moment later_moment = api_Moment_after(&moment, 500);
+	printf("shifted %llu %s\n", (unsigned long long)api_Moment_millis(&shifted),
+		   api_Moment_eq(&shifted, &later_moment) ? "true" : "false");
+	api_Moment wrapped = api_Moment_after(&moment, UINT64_MAX);
+	printf("wrapped %llu %s\n", (unsigned long long)api_Moment_millis(&wrapped),
+		   api_Moment_eq(&moment, &shifted) ? "true" : "false");
+
+	/* A padded value crosses with its padding zeroed, and one whose bytes vary is a handle. */
+	api_Gap gap = api_Gap_new(7, 3);
+	api_Gap same_gap = api_Gap_new(7, 3);
+	printf("gap %llu %s\n", (unsigned long long)api_Gap_sum(&gap), api_Gap_eq(&gap, &same_gap) ? "true" : "false");
+	/* Its `u64` then its `u8`, so every byte past the ninth is padding Rust made `0xff`. */
+	for (size_t n = 9; n < sizeof gap; n++) {
+		if (((const unsigned char *)&gap)[n] != 0) {
+			fprintf(stderr, "gap's padding byte %zu is not zero\n", n);
+			return 1;
+		}
+	}
+	api_Berth *berth = api_Berth_new((api_option_u32){.some = true, .value = 4});
+	api_Berth *empty_berth = api_Berth_new((api_option_u32){0});
+	api_option_u32 berth_at = api_Berth_at(berth);
+	printf("berth Some(%u) %s\n", berth_at.value, api_Berth_at(empty_berth).some ? "Some" : "None");
+	api_Berth_free(empty_berth);
+	api_Berth_free(berth);
+
+	/* A `Copy` type changed in place is a value, whose change reaches only the copy changed. */
+	api_Score score = api_Score_of(2);
+	api_Score step = api_Score_of(3);
+	api_Score_add(&score, step);
+	api_Score_add(&score, step);
+	api_Score doubled_score = api_Score_doubled(&step);
+	printf("score %llu %llu %llu\n", (unsigned long long)api_Score_count(&score),
+		   (unsigned long long)api_Score_count(&doubled_score), (unsigned long long)api_Score_count(&step));
+	api_Score score_copy = score;
+	uint64_t taken = api_Score_take(&score_copy);
+	printf("taken %llu %llu %llu\n", (unsigned long long)taken, (unsigned long long)api_Score_count(&score_copy),
+		   (unsigned long long)api_Score_count(&score));
+	api_Score other_score = step;
+	uint64_t before0, before1;
+	api_Score_absorb(&score_copy, other_score, &other_score, &before0, &before1);
+	printf("absorbed %llu %llu %llu %llu %llu\n", (unsigned long long)before0, (unsigned long long)before1,
+		   (unsigned long long)api_Score_count(&score_copy), (unsigned long long)api_Score_count(&other_score),
+		   (unsigned long long)api_Score_count(&step));
+	api_Hits hits = api_Hits_of(1, 2);
+	api_Hits kept = hits;
+	api_Hits_add(&hits, api_Hits_of(10, 20));
+	api_Hits_hits_set(&hits, 7);
+	printf("hits %llu %u %llu %u %s\n", (unsigned long long)api_Hits_hits_get(&hits), api_Hits_misses_get(&hits),
+		   (unsigned long long)api_Hits_hits_get(&kept), api_Hits_misses_get(&kept),
+		   api_Hits_eq(&hits, &kept) ? "true" : "false");
+	api_Hits counted = kept;
+	bool counted_same = api_Hits_eq_(&counted, kept);
+	printf("counted %s %llu\n", counted_same ? "true" : "false", (unsigned long long)api_Hits_hits_get(&counted));
+	api_Extent extent = api_Extent_new(5, 3);
+	api_Extent extent_start = extent;
+	uint64_t old = api_Extent_slide(&extent, 10);
+	api_Extent_start_set(&extent, api_Extent_start_get(&extent) + 1);
+	printf("extent %llu %llu %llu %llu %llu\n", (unsigned long long)old,
+		   (unsigned long long)api_Extent_start_get(&extent), (unsigned long long)api_Extent_end(&extent),
+		   (unsigned long long)api_Extent_start_get(&extent_start), (unsigned long long)api_Extent_end(&extent_start));
+	api_Weighted weighted = {.score = step, .weight = 4};
+	printf("weighted %llu %llu\n", (unsigned long long)api_Weighted_total(&weighted),
+		   (unsigned long long)(api_Score_count(&weighted.score) + api_Score_count(&step)));
+	api_Weighted_free(&weighted);
 
 	static const api_Log_vtable print_log = {.free = log_free, .log = log_line};
 	uint8_t levels[] = {1, 2, 3, 4};
@@ -1067,6 +1178,28 @@ static int script(void) {
 		print("recv ", payload, "\n");
 	}
 	api_Channel_recv_future_free(recv);
+	/* The send happens at the call, and the future borrows the channel and the tag. */
+	api_Channel_tagged_future *tagging = api_Channel_tagged(channel, str("tag"));
+	api_buf tagged_text;
+	if (api_Channel_tagged_poll(tagging, waker, &tagged_text) == API_POLL_READY) {
+		print("tagged ", tagged_text, "\n");
+	}
+	api_Channel_tagged_future_free(tagging);
+	/* So does a future borrowing an optional slice, which the export owns while it is pending. */
+	const uint32_t items[] = {1, 2, 3};
+	api_Channel_itemized_future *itemizing = api_Channel_itemized(channel, (api_vec_u32){.ptr = items, .len = 3});
+	size_t itemized;
+	if (api_Channel_itemized_poll(itemizing, waker, &itemized) == API_POLL_READY) {
+		printf("itemized %zu\n", itemized);
+	}
+	api_Channel_itemized_future_free(itemizing);
+	/* Another crate's future borrowing its bytes, which the export owns while it is pending. */
+	api_byte_len_future *measuring = api_byte_len(str("abc"));
+	size_t byte_len;
+	if (api_byte_len_poll(measuring, waker, &byte_len) == API_POLL_READY) {
+		printf("byte_len %zu\n", byte_len);
+	}
+	api_byte_len_future_free(measuring);
 	api_Channel_send(channel, str("sized"));
 	api_Channel_recv_sized_future *sized = api_Channel_recv_sized(channel);
 	size_t len;
@@ -1322,7 +1455,8 @@ static int script(void) {
 
 	/* A path's bytes as the OS holds them, which need not be UTF-8. */
 	api_buf stray = api_stray();
-	api_buf in_stray = api_file(stray, str("f"));
+	/* A second owner of the buffer goes to Rust, which takes it, so stray stays ours. */
+	api_buf in_stray = api_file(api_buf_clone(stray), str("f"));
 	if (in_stray.len != 3 || memcmp(in_stray.ptr, "\xff/f", 3) != 0) {
 		return 1;
 	}
@@ -1375,12 +1509,11 @@ static int script(void) {
 	api_Counter_free(two);
 	api_Counter_free(three);
 
-	/* A value passed for &mut: Rust writes back what the call left, which the caller frees,
-	 * and keeps what it passed. */
+	/* A value passed for &mut: Rust writes back what the call left, which the caller frees.
+	 * A view passed stays the caller's, and a buffer Rust returned Rust takes back. */
 	api_buf encoded, appended;
 	api_put_number(1, str("0,"), &encoded);
 	api_put_number(23, encoded, &appended);
-	api_buf_free(encoded);
 	print("put_number ", appended, "\n");
 	api_tuple_bytes_u32 stamped;
 	uint32_t stamps = api_push_counted((api_tuple_bytes_u32){._0 = str("ab"), ._1 = 1}, 'c', &stamped);
@@ -1391,11 +1524,9 @@ static int script(void) {
 	uint8_t first_digit, last_digit;
 	api_Error digit_error;
 	api_digit(str("7x9"), &digits_left, &first_digit, &digit_error);
-	/* The failed call took a byte too. */
+	/* The failed call took a byte too. Each buffer Rust returned it takes back. */
 	bool skipped = !api_digit(digits_left, &digits_rest, &last_digit, &digit_error);
-	api_buf_free(digits_left);
 	api_digit(digits_rest, &digits_left, &last_digit, &digit_error);
-	api_buf_free(digits_rest);
 	printf("digit %u %s %u %zu\n", first_digit, skipped ? "true" : "false", last_digit, digits_left.len);
 	api_buf_free(digits_left);
 	api_Point nudged = {.x = 1, .y = 2};
@@ -1409,6 +1540,64 @@ static int script(void) {
 	print("", api_alpn(config_copy), "\n");
 	api_tls_Config_free(config_copy);
 	api_tls_Config_free(config);
+	/* Another crate's value by value: an opaque handle, lent or taken back. */
+	api_tls_Cert *cert = api_certify(str("der"));
+	printf("cert %llu ", (unsigned long long)api_cert_len(cert));
+	print("", api_cert_der(cert), " ");
+	api_tls_Cert_free(cert);
+	api_tls_Cert *chain[2] = {api_certify(str("a")), api_certify(str("bc"))};
+	printf("%llu\n", (unsigned long long)api_chain_len((api_vec_tls_Cert){.ptr = chain, .len = 2}));
+	api_tls_Cert_free(chain[0]);
+	api_tls_Cert_free(chain[1]);
+	/* Another crate's trait objects: an `Arc`, taken back, and `&'static` ones, held by value. */
+	api_tls_Resolver *resolver = api_resolver(str("r1"));
+	print("resolver ", api_resolved(resolver), "\n");
+	api_tls_Resolver_free(resolver);
+	api_Codecs *codecs = api_Codecs_new();
+	printf("codecs %u\n", api_Codecs_ids(codecs));
+	api_vec_tls_Codec listed = api_Codecs_list_get(codecs);
+	api_tls_Codec *codecs_reversed[2] = {listed.ptr[1], listed.ptr[0]};
+	api_Codecs_list_set(codecs, (api_vec_tls_Codec){.ptr = codecs_reversed, .len = 2});
+	/* The setter took each handle's value: the array, and the handles, are still ours to free. */
+	api_vec_tls_Codec_free(listed);
+	printf("codecs reversed %u\n", api_Codecs_ids(codecs));
+	api_Codecs_free(codecs);
+	/* A standard library value no type maps, in a handle. */
+	api_std_io_Error *failure = api_failure(str("boom"));
+	print("failure ", api_failure_message(failure), " ");
+	print("", api_failure_kind(failure), "\n");
+	api_std_io_Error_free(failure);
+	/* Iterators, passed as the arrays of their items. */
+	const uint32_t summed_items[] = {1, 2, 3};
+	printf("sum_all %u\n", api_sum_all((api_vec_u32){.ptr = summed_items, .len = 3}));
+	/* Each counter moves in, leaving its handle only to free. */
+	api_Counter *weighed = api_Counter_new(str("w"), 3);
+	printf("weigh_all %llu\n", (unsigned long long)api_weigh_all_Counter((api_vec_Counter){.ptr = &weighed, .len = 1}));
+	api_Counter_free(weighed);
+	const api_buf alpns[] = {str("h3"), str("moq-00")};
+	printf("offered_len %zu\n", api_offered_len((api_vec_bytes){.ptr = alpns, .len = 2}));
+	const api_buf joined_words[] = {str("a"), str("b"), str("c")};
+	print("join_words ", api_join_words((api_vec_string){.ptr = joined_words, .len = 3}), "\n");
+	/* Bytes that must be `'static`, interned. */
+	for (int i = 0; i < 2; i++) {
+		api_Der *der = api_Der_from_slice(str("der"));
+		print(i == 0 ? "der " : "der again ", api_Der_bytes(der), "\n");
+		api_Der_free(der);
+	}
+	/* Another crate's type only signatures name, exported by its path there, and its error,
+	 * which crosses as its message. */
+	api_tls_Session *session;
+	api_buf session_err;
+	if (!api_resume(str("h3"), 60, &session, &session_err)) {
+		return 1;
+	}
+	print("resume ", api_tls_Session_alpn(session), " ");
+	printf("%u\n", api_tls_Session_lifetime(session).seconds);
+	api_tls_Session_free(session);
+	if (api_resume(str(""), 60, &session, &session_err)) {
+		return 1;
+	}
+	print("resume err ", session_err, "\n");
 	/* A borrow of a meter that is not Clone, lent from its owner's handle. */
 	{
 		api_Meters *lender = api_Meters_new();
@@ -1423,6 +1612,21 @@ static int script(void) {
 		again = api_Meters_first(lender);
 		printf("cleared %llu\n", (unsigned long long)api_Meter_count(again));
 		api_Meter_free(again);
+		/* A field that is not Clone, lent as a method's borrowed return is. */
+		api_Meter *last = api_Meters_last_get(lender);
+		api_Meter_add(last, 4);
+		printf("field lent %llu\n", (unsigned long long)api_Meter_add(last, 1));
+		api_Meter_free(last);
+		/* An optional field that is not Clone, lent as `Some` of a handle. */
+		api_Meter *spare = api_Meters_spare_get(lender);
+		printf("spare %s\n", spare != NULL ? "true" : "false");
+		api_Meter *fresh = api_Meter_default();
+		api_Meters_spare_set(lender, fresh);
+		api_Meter_free(fresh);
+		spare = api_Meters_spare_get(lender);
+		api_Meter_add(spare, 5);
+		printf("spare lent %llu\n", (unsigned long long)api_Meter_add(spare, 1));
+		api_Meter_free(spare);
 		api_Meters_free(lender);
 		/* One lent from a handle that is not Sync, on one thread at a time. */
 		api_Tallies *tallies = api_Tallies_new();
@@ -1624,6 +1828,19 @@ static int script(void) {
 	}
 	printf("]\n");
 	api_vec_string_free(greetings);
+	api_vec_Shape shapes_both = api_Shape_BOTH();
+	printf("both [");
+	for (size_t i = 0; i < shapes_both.len; i++) {
+		print(i == 0 ? "" : ", ", api_Shape_debug(&shapes_both.ptr[i]), "");
+	}
+	api_vec_Shape_free(shapes_both);
+	api_vec_u32 primes = api_PRIMES();
+	printf("] primes [");
+	for (size_t i = 0; i < primes.len; i++) {
+		printf("%s%u", i == 0 ? "" : ", ", primes.ptr[i]);
+	}
+	printf("]\n");
+	api_vec_u32_free(primes);
 	api_Point trail_points[] = {{.x = 1, .y = 2}, {.x = 3, .y = 4}};
 	api_buf trail_names[] = {str("a"), str("b")};
 	api_Trail *trail =
@@ -1717,17 +1934,17 @@ static int script(void) {
 	api_vec_tuple_string_Json_free(sections);
 
 	/* An instant only Rust makes, which C copies into each call and compares. */
-	api_Instant *began = api_now();
-	api_Instant *ended = api_later(began, (api_duration){.secs = 1, .nanos = 500000000});
-	api_Instant *same = api_later(began, (api_duration){.secs = 0, .nanos = 0});
+	api_Instant began = api_now();
+	api_Instant ended = api_later(began, (api_duration){.secs = 1, .nanos = 500000000});
+	api_Instant same = api_later(began, (api_duration){.secs = 0, .nanos = 0});
 	api_duration forward = api_since(ended, began);
 	api_duration backward = api_since(began, ended);
 	printf("instants %llu %llu %s %s\n", (unsigned long long)(forward.secs * 1000 + forward.nanos / 1000000),
-		   (unsigned long long)(backward.secs * 1000 + backward.nanos / 1000000), api_Instant_eq(began, same) ? "true" : "false",
-		   api_Instant_eq(began, ended) ? "true" : "false");
-	api_Instant_free(same);
-	api_Instant_free(ended);
-	api_Instant_free(began);
+		   (unsigned long long)(backward.secs * 1000 + backward.nanos / 1000000), api_Instant_eq(&began, &same) ? "true" : "false",
+		   api_Instant_eq(&began, &ended) ? "true" : "false");
+	/* An instant lent inside an `Option`, which C copies. */
+	printf("has_instant %s %s\n", api_has_instant((api_option_Instant){.some = true, .value = began}) ? "true" : "false",
+		   api_has_instant((api_option_Instant){.some = false}) ? "true" : "false");
 
 	/* tracing's level, and its filter as an optional level whose none is `OFF`. */
 	api_Verbosity *verbosity = api_Verbosity_new(API_LEVEL_WARN);
@@ -1754,14 +1971,22 @@ static int script(void) {
 	api_Token_free(twice);
 
 	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	if (drops != 12) {
+	if (drops != 15) {
 		return 1;
 	}
-	return closures() && foreign_futures() && started_futures() ? 0 : 1;
+	return closures() && foreign_futures() && forwarding() && started_futures() ? 0 : 1;
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */
 static int broken(const char *which) {
+#ifdef __linux__
+	/* Non-dumpable, the expected abort writes no core and never starts the host's crash
+	 * handler. */
+	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) {
+		perror("prctl");
+		return 1;
+	}
+#endif
 	if (strcmp(which, "moved") == 0) {
 		api_Counter *c = api_Counter_new(str("c"), 0);
 		api_Label label = api_Counter_into_label(c, (api_option_Point){0});

@@ -116,10 +116,14 @@ fn main() {
 		("low".to_string(), Counter::new("l", 1)),
 		("high".to_string(), Counter::new("h", 9)),
 	]);
+	// The counters a board returns build another, each handle moved back in.
+	let board = api::Board::new(board.into_counters());
 	let ranked: Vec<String> = (board.ranked())
 		.map(|(name, counter)| format!("{name} {} {}", counter.name(), counter.get()))
 		.collect();
 	println!("ranked {}", ranked.join(", "));
+	let best: Counter = board.best().into();
+	println!("best {} {}", best.name(), best.get());
 	let atlas = api::Atlas {
 		points: [("b", 1, 1), ("ab", 2, 3), ("b", 4, 4)]
 			.into_iter()
@@ -297,11 +301,13 @@ fn main() {
 	println!("secs {}", stamp.secs());
 	println!("later {}", Stamp::from_millis(3000).later(stamp));
 	println!("secs {}", stamp.secs());
+	let whole: Stamp = stamp.whole().into();
+	println!("whole {whole:?}");
 	let mut message = Message::new(Some(stamp), Bytes::from_static(b"body"));
 	println!("payload {}", String::from_utf8_lossy(&message.payload));
 	println!("stamp {:?}", message.stamp.unwrap());
 	println!("sent {}", message.sent());
-	// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
+	// Setters assign in place: the bytes are copied in, and a `Copy` value copied.
 	let reset = Stamp::from_millis(4000);
 	message.stamp = Some(reset);
 	message.payload = Bytes::from_static(b"edited");
@@ -310,6 +316,71 @@ fn main() {
 	println!("secs {}", reset.secs());
 	message.stamp = None;
 	println!("stamp {}", message.stamp.is_some());
+
+	// A value past a word, copied across: a closure takes and returns one by value.
+	let moment = api::Moment::new(1500, 1000).unwrap();
+	println!("moment {} {}", moment.millis(), api::Moment::new(1, 0).is_none());
+	let shifted = api::shifted(moment, |m| m.after(500));
+	println!("shifted {} {}", shifted.millis(), shifted == moment.after(500));
+	println!("wrapped {} {}", moment.after(u64::MAX).millis(), moment == shifted);
+
+	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	let gap = api::Gap::new(7, 3);
+	println!("gap {} {}", gap.sum(), gap == api::Gap::new(7, 3));
+	let berth = api::Berth::new(Some(4));
+	println!("berth {:?} {:?}", berth.at(), api::Berth::new(None).at());
+
+	// A `Copy` type changed in place is a value, whose change reaches only the copy changed.
+	let mut score = api::Score::of(2);
+	let step = api::Score::of(3);
+	score.add(step);
+	score.add(step);
+	println!("score {} {} {}", score.count(), step.doubled().count(), step.count());
+	let mut copy = score;
+	let taken = copy.take();
+	println!("taken {taken} {} {}", copy.count(), score.count());
+	let mut other = step;
+	let before = copy.absorb(&mut other);
+	println!(
+		"absorbed {} {} {} {} {}",
+		before.0,
+		before.1,
+		copy.count(),
+		other.count(),
+		step.count()
+	);
+	let mut hits = api::Hits::of(1, 2);
+	let kept = hits;
+	hits.add(api::Hits::of(10, 20));
+	hits.hits = 7;
+	println!(
+		"hits {} {} {} {} {}",
+		hits.hits,
+		hits.misses,
+		kept.hits,
+		kept.misses,
+		hits == kept
+	);
+	let mut counted = kept;
+	let same = api::Hits::eq(&mut counted, kept);
+	println!("counted {same} {}", counted.hits);
+	let mut extent = api::Extent::new(5, 3);
+	let start = extent;
+	let old = extent.slide(10);
+	extent.start += 1;
+	println!(
+		"extent {old} {} {} {} {}",
+		extent.start,
+		extent.end(),
+		start.start,
+		start.end()
+	);
+	let weighted = api::Weighted { score: step, weight: 4 };
+	println!(
+		"weighted {} {}",
+		weighted.total(),
+		weighted.score.count() + step.count()
+	);
 
 	println!("kept {}", api::emit(Print, vec![1, 2, 3, 4]));
 	let logger = Logger::new(Box::new(Print));
@@ -359,6 +430,22 @@ fn main() {
 	let mut recv = pin!(channel.recv());
 	if let Poll::Ready(payload) = recv.as_mut().poll(&mut cx) {
 		println!("recv {}", String::from_utf8_lossy(&payload));
+	}
+	// The send happens at the call, and the future borrows the channel and the tag.
+	let mut tagged = pin!(channel.tagged("tag"));
+	if let Poll::Ready(text) = tagged.as_mut().poll(&mut cx) {
+		println!("tagged {text}");
+	}
+	// So does a future borrowing an optional slice, which the export owns while it is pending.
+	let items = [1u32, 2, 3];
+	let mut itemized = pin!(channel.itemized(Some(&items)));
+	if let Poll::Ready(count) = itemized.as_mut().poll(&mut cx) {
+		println!("itemized {count}");
+	}
+	// Another crate's future borrowing its bytes, which the export owns while it is pending.
+	let bytes = *b"abc";
+	if let Poll::Ready(len) = pin!(api::byte_len(&bytes)).poll(&mut cx) {
+		println!("byte_len {len}");
 	}
 	channel.send(Bytes::from_static(b"sized"));
 	let mut sized = pin!(channel.recv_sized());
@@ -583,12 +670,57 @@ fn main() {
 	println!("nudge {} {}", point.x, point.y);
 	let config = api::secure("h3");
 	println!("secure {} {}", api::alpn_lent(&config), api::alpn(config.clone()));
+	let cert = api::certify(b"der");
+	let chain = vec![api::certify(b"a"), api::certify(b"bc")];
+	println!(
+		"cert {} {} {}",
+		api::cert_len(&cert),
+		String::from_utf8_lossy(&api::cert_der(cert)),
+		api::chain_len(chain)
+	);
+	// Another crate's trait objects: an `Arc`, taken back, and `&'static` ones, held by value.
+	let resolver = api::resolver("r1");
+	println!("resolver {}", api::resolved(resolver));
+	let mut codecs = api::Codecs::new();
+	println!("codecs {}", codecs.ids());
+	let mut list = codecs.list.clone();
+	list.reverse();
+	codecs.list = list;
+	println!("codecs reversed {}", codecs.ids());
+	// A standard library value no type maps, in a handle.
+	let failure = api::failure("boom");
+	println!(
+		"failure {} {}",
+		api::failure_message(&failure),
+		api::failure_kind(failure)
+	);
+	// Iterators, passed as the arrays of their items.
+	println!("sum_all {}", api::sum_all(vec![1u32, 2, 3].into_iter()));
+	println!("weigh_all {}", api::weigh_all(vec![Counter::new("w", 3)].into_iter()));
+	println!("offered_len {}", api::offered_len([&b"h3"[..], b"moq-00"].into_iter()));
+	println!("join_words {}", api::join_words(["a", "b", "c"]));
+	// Bytes that must be `'static`, interned.
+	println!("der {}", String::from_utf8_lossy(&api::Der::from_slice(b"der").bytes()));
+	println!(
+		"der again {}",
+		String::from_utf8_lossy(&api::Der::from_slice(b"der").bytes())
+	);
+	let session = api::resume("h3", 60).unwrap();
+	println!("resume {} {}", session.alpn(), session.lifetime().seconds);
+	println!("resume err {}", api::resume("", 60).err().unwrap());
 	let mut meters = api::Meters::new();
 	let first = meters.first();
 	first.add(2);
 	println!("lent {} {}", first.add(3), meters.first().count());
 	meters.clear();
 	println!("cleared {}", meters.first().count());
+	meters.last.add(4);
+	println!("field lent {}", meters.last.add(1));
+	// An optional field that is not Clone, lent as `Some` of a handle.
+	println!("spare {}", meters.spare.is_some());
+	meters.spare = Some(api::Meter::default());
+	meters.spare.as_ref().unwrap().add(5);
+	println!("spare lent {}", meters.spare.as_ref().unwrap().add(1));
 	let tallies = api::Tallies::new();
 	tallies.first().bump();
 	println!("tallied {}", tallies.first().bump());
@@ -699,6 +831,7 @@ fn main() {
 
 	// Slices, passed in and returned as clones, and the socket address of each family.
 	println!("shapes {:?} greetings {:?}", api::Shape::ALL, api::GREETINGS);
+	println!("both {:?} primes {:?}", api::Shape::BOTH, api::PRIMES);
 	let trail = api::Trail::new(
 		&[api::Point { x: 1, y: 2 }, api::Point { x: 3, y: 4 }],
 		&["a".to_string(), "b".to_string()],
@@ -746,6 +879,12 @@ fn main() {
 		api::since(start, end).as_millis(),
 		start == api::later(start, std::time::Duration::ZERO),
 		start == end
+	);
+	// An instant lent inside an `Option`, which takes no handle.
+	println!(
+		"has_instant {} {}",
+		api::has_instant(&Some(start)),
+		api::has_instant(&None)
 	);
 	let mut verbosity = api::Verbosity::new(tracing::Level::WARN);
 	println!(

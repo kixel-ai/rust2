@@ -111,6 +111,20 @@ pub fn reading_echo(reading: Reading) -> Reading {
 	reading
 }
 
+/// Declares `crowded`, whose parameters take 243 of a JVM method's 255 slots, so flattening
+/// its `Reading` would take 15 more: a binding that counts a `Stamp` as one slot, not the
+/// two of the `long` it crosses as, flattens it past the limit.
+macro_rules! crowded {
+	($($n:ident)*) => {
+		/// The sum of the reading's count, both stamps' millis, and every number.
+		pub fn crowded(reading: Reading, a: Stamp, b: Stamp, $($n: u64),*) -> u64 {
+			reading.count.wrapping_add(a.millis).wrapping_add(b.millis)$(.wrapping_add($n))*
+		}
+	};
+}
+
+crowded!(n0 n1 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12 n13 n14 n15 n16 n17 n18 n19 n20 n21 n22 n23 n24 n25 n26 n27 n28 n29 n30 n31 n32 n33 n34 n35 n36 n37 n38 n39 n40 n41 n42 n43 n44 n45 n46 n47 n48 n49 n50 n51 n52 n53 n54 n55 n56 n57 n58 n59 n60 n61 n62 n63 n64 n65 n66 n67 n68 n69 n70 n71 n72 n73 n74 n75 n76 n77 n78 n79 n80 n81 n82 n83 n84 n85 n86 n87 n88 n89 n90 n91 n92 n93 n94 n95 n96 n97 n98 n99 n100 n101 n102 n103 n104 n105 n106 n107 n108 n109 n110 n111 n112 n113 n114 n115 n116 n117 n118);
+
 /// A plain enumeration.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Shape {
@@ -124,6 +138,136 @@ pub enum Event {
 	Moved(Point),
 	Named { name: String },
 	Done,
+}
+
+/// An enum whose variants are named as types its Kotlin sealed class names: builtins,
+/// the runtime's, and exported types, each of which a nested variant class would shadow.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Clash {
+	Point(Point),
+	Shape(Shape),
+	Event(Event),
+	Double(f64),
+	Float(f32),
+	String(String),
+	Int(i32),
+	Boolean(bool),
+	Native(u32),
+	Bytes(Vec<u8>),
+	Any,
+	Unit,
+	Waker,
+	Mut,
+	Pair(u8, u8),
+	Stamp(i64),
+	Moment(Moment),
+}
+
+impl Clash {
+	/// The clash's point, if it has one.
+	pub fn point(&self) -> Option<Point> {
+		match self {
+			Clash::Point(p) => Some(*p),
+			_ => None,
+		}
+	}
+
+	/// A double variant of `value`.
+	pub fn of(value: f64) -> Clash {
+		Clash::Double(value)
+	}
+
+	/// Its bytes, its text's or its own.
+	pub fn raw(&self) -> Vec<u8> {
+		match self {
+			Clash::Bytes(b) => b.clone(),
+			Clash::String(s) => s.as_bytes().to_vec(),
+			_ => Vec::new(),
+		}
+	}
+
+	/// The reading of `kotlin`, whose float fields the sealed class reads back from their bits
+	/// under a parameter named as the package of Kotlin's builtins.
+	pub fn reading(&self, kotlin: u32) -> Reading {
+		reading(kotlin).unwrap()
+	}
+
+	/// `java` with `kotlin` appended, and its old length through `kotlin`, under parameters
+	/// named as the packages that qualify Kotlin's builtins and the JDK.
+	pub fn listed(mut java: Vec<u32>, kotlin: &mut u32) -> Vec<Vec<u32>> {
+		java.push(*kotlin);
+		*kotlin = java.len() as u32 - 1;
+		vec![java]
+	}
+
+	/// The double clash of `kotlin`, once `first` finishes in the caller's context, which the
+	/// sealed class's body reaches under a parameter named as the package of Kotlin's builtins.
+	pub async fn after(first: impl Future<Output = ()> + Send, kotlin: f64) -> Clash {
+		first.await;
+		Clash::Double(kotlin)
+	}
+
+	/// `lent` then `owned`, each of the byte parameters a sealed class's body names.
+	pub fn joined(&self, lent: &[u8], owned: Vec<u8>, maybe: Option<Vec<u8>>) -> Vec<u8> {
+		[lent, &owned, &maybe.unwrap_or_default()].concat()
+	}
+
+	/// `tag` with this clash's form, from a future that borrows both.
+	#[expect(clippy::manual_async_fn, reason = "the non-`async` form a borrowing future takes")]
+	pub fn tagged<'a>(&'a self, tag: &'a str) -> impl Future<Output = String> + 'a {
+		async move { format!("{tag} {self:?}") }
+	}
+
+	/// A stamp `kotlin` milliseconds in, a value only Rust makes in a word, which the sealed
+	/// class's body builds from its `Long` beside a `Stamp` variant that also takes one.
+	pub fn stamp(&self, kotlin: u64) -> Stamp {
+		Stamp::from_millis(kotlin)
+	}
+
+	/// Its moment, or `kotlin` ticks at a millisecond's rate: a value only Rust makes, past a
+	/// word, which the sealed class's body builds beside its `Moment` variant.
+	pub fn moment(&self, kotlin: u64) -> Moment {
+		match self {
+			Clash::Moment(m) => *m,
+			_ => Moment::new(kotlin, 1000).unwrap(),
+		}
+	}
+
+	/// A point clash at `api`, a parameter named as the Kotlin package that qualifies its type.
+	pub fn at(api: Point) -> Clash {
+		Clash::Point(api)
+	}
+
+	/// `text` with this clash's form and `n`, and `n` doubled through `out`.
+	pub fn describe(&self, text: &str, n: u32, shape: Shape, out: &mut u32) -> String {
+		*out = n * 2;
+		format!("{text} {self:?} {n} {shape:?}")
+	}
+}
+
+/// A record whose field is named as the Kotlin package, which a qualifier in its methods'
+/// bodies would resolve to.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Packaged {
+	pub api: u32,
+}
+
+impl Packaged {
+	/// The point at `api` on both axes.
+	pub fn point(&self) -> Point {
+		Point {
+			x: self.api as i32,
+			y: self.api as i32,
+		}
+	}
+
+	/// The shape of `api`'s parity.
+	pub fn shape(&self) -> Shape {
+		match self.api % 2 {
+			0 => Shape::Square,
+			_ => Shape::Circle,
+		}
+	}
 }
 
 /// An enum whose variant `Init` names an initializer in Swift, and the C union member
@@ -343,12 +487,23 @@ impl Board {
 		}
 	}
 
+	/// Each name and its counter in name order, each handle moved out of the board.
+	pub fn into_counters(self) -> Vec<(String, Counter)> {
+		self.counters.into_iter().collect()
+	}
+
 	/// Each name and its counter, highest first, as hang's `ranked`: each pair borrowed,
 	/// so each crosses as a clone.
 	pub fn ranked(&self) -> impl Iterator<Item = (&String, &Counter)> {
 		let mut ranked: Vec<_> = self.counters.iter().collect();
 		ranked.sort_by_key(|(_, counter)| std::cmp::Reverse(counter.get()));
 		ranked.into_iter()
+	}
+
+	/// Its highest counter, through an `impl Trait` that captures no borrow of the board, so
+	/// it crosses as the counter's handle.
+	pub fn best(&self) -> impl Into<Counter> + use<> {
+		(self.counters.values().max_by_key(|counter| counter.get()).cloned()).unwrap_or_default()
 	}
 }
 
@@ -447,10 +602,13 @@ impl Meter {
 	}
 }
 
-/// Owns a meter it lends.
+/// Owns a meter it lends, and one in a field, lent as the method's is, and an optional one,
+/// lent as `Some` of it.
 #[derive(Default)]
 pub struct Meters {
 	first: Meter,
+	pub last: Meter,
+	pub spare: Option<Meter>,
 }
 
 impl Meters {
@@ -744,7 +902,7 @@ pub fn made<R>(n: u32, make: impl FnOnce(u32) -> R) -> R {
 /// How many times a [`Ticket`]'s `Clone` ran.
 static TICKET_CLONES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
-/// A `Copy` object whose `Clone` counts its calls, which a closure taking or returning one
+/// A `Copy` value whose `Clone` counts its calls, which a closure taking or returning one
 /// never runs, as Rust copies it instead.
 #[derive(Copy, Debug, PartialEq)]
 pub struct Ticket {
@@ -772,6 +930,11 @@ impl Ticket {
 	pub fn clones() -> u32 {
 		TICKET_CLONES.load(std::sync::atomic::Ordering::Relaxed)
 	}
+}
+
+/// Each name and its ticket, as given, so a binding passes back what it returned.
+pub fn tickets(entries: Vec<(String, Ticket)>) -> Vec<(String, Ticket)> {
+	entries
 }
 
 /// The ticket `swap` returns for `ticket`.
@@ -863,6 +1026,27 @@ impl Channel {
 	pub fn send_later(&self, payload: Bytes) -> impl Future<Output = ()> + use<> {
 		self.send(payload);
 		std::future::ready(())
+	}
+
+	/// Sends `tag` at once, as a function that is not `async` runs when called, and returns a
+	/// future that borrows this channel and `tag`: what it next receives, after `tag`.
+	pub fn tagged<'a>(&'a self, tag: &'a str) -> impl Future<Output = String> + 'a {
+		self.send(Bytes::copy_from_slice(tag.as_bytes()));
+		async move {
+			let payload = self.recv().await;
+			format!("{tag} {}", String::from_utf8_lossy(&payload))
+		}
+	}
+
+	/// Sends the sum of `items`, if any, at once, and returns a future that borrows them:
+	/// their count once this channel next receives.
+	pub fn itemized<'a>(&'a self, items: Option<&'a [u32]>) -> impl Future<Output = usize> + 'a {
+		let sum: u32 = items.unwrap_or_default().iter().sum();
+		self.send(Bytes::copy_from_slice(&sum.to_le_bytes()));
+		async move {
+			self.recv().await;
+			items.map_or(0, <[u32]>::len)
+		}
 	}
 
 	/// `recv`'s poll, which does not map: left out, since `recv` exports as a future.
@@ -987,8 +1171,7 @@ impl<F: Future> Future for Within<F> {
 	}
 }
 
-/// A time: an object, since its field is private, but `Copy`, so passing it by value
-/// copies it rather than moving it out of its handle.
+/// A time: `Copy` with a private field, so a value only Rust makes, copied across.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Stamp {
 	millis: u64,
@@ -1003,12 +1186,215 @@ impl Stamp {
 		self.millis / 1000
 	}
 
+	/// It rounded down to whole seconds, through an `impl Trait`, so it crosses as its bytes.
+	pub fn whole(self) -> impl Into<Stamp> + use<> {
+		Self {
+			millis: self.millis / 1000 * 1000,
+		}
+	}
+
 	pub fn later(self, other: Stamp) -> bool {
 		self.millis > other.millis
 	}
 }
 
-/// A stamp and a count: a record holding an object, whose method reads it.
+/// A time on a clock of its own rate, as moq's `Timestamp`: `Copy` with private fields, past
+/// a word on every target, and never all zero bytes, so only a value Rust made may cross.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Moment {
+	ticks: u64,
+	rate: std::num::NonZero<u64>,
+}
+
+impl Moment {
+	/// `ticks` of `rate` a second, or none at a rate of zero.
+	pub fn new(ticks: u64, rate: u64) -> Option<Self> {
+		std::num::NonZero::new(rate).map(|rate| Self { ticks, rate })
+	}
+
+	/// Whole milliseconds since zero.
+	pub fn millis(&self) -> u64 {
+		(u128::from(self.ticks) * 1000 / u128::from(self.rate.get())) as u64
+	}
+
+	/// The moment `ticks` later, at the same rate, wrapping as `u64` does.
+	pub fn after(self, ticks: u64) -> Self {
+		Self {
+			ticks: self.ticks.wrapping_add(ticks),
+			..self
+		}
+	}
+}
+
+/// The moment `shift` returns for `moment`, which C copies in and out.
+pub fn shifted(moment: Moment, shift: impl Fn(Moment) -> Moment) -> Moment {
+	shift(moment)
+}
+
+/// A value with padding, after its `u8`: made from bytes all `0xff`, so its padding likely
+/// holds them, which the export zeroes before any language sees it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Gap {
+	wide: u64,
+	narrow: u8,
+}
+
+impl Gap {
+	pub fn new(wide: u64, narrow: u8) -> Self {
+		// SAFETY: every byte pattern is a `Gap`, whose fields are integers.
+		let mut gap: Gap = unsafe { std::mem::transmute([0xffu8; std::mem::size_of::<Gap>()]) };
+		gap.wide = wide;
+		gap.narrow = narrow;
+		gap
+	}
+
+	pub fn sum(&self) -> u64 {
+		self.wide.wrapping_add(u64::from(self.narrow))
+	}
+}
+
+/// A value named as Kotlin's `LongArray`, which holds a value's words, with a method named
+/// as C++'s member holding its bytes: each generator keeps its own apart.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LongArray {
+	words: [u64; 2],
+}
+
+impl LongArray {
+	pub fn new(low: u64, high: u64) -> Self {
+		LongArray { words: [low, high] }
+	}
+
+	pub fn c_(&self) -> u64 {
+		self.words[0].wrapping_add(self.words[1])
+	}
+}
+
+/// A `Copy` type whose `None` leaves its payload's bytes uninitialized, so no padding table
+/// covers it: a handle, rather than a value.
+#[derive(Clone, Copy, Debug)]
+pub struct Berth {
+	at: Option<u32>,
+}
+
+impl Berth {
+	pub fn new(at: Option<u32>) -> Self {
+		Self { at }
+	}
+
+	pub fn at(&self) -> Option<u32> {
+		self.at
+	}
+}
+
+/// A running count, as moq's `stats::Traffic`: `Copy` with private fields, changed in place
+/// through `&mut self`, so a value whose every copy changes alone.
+#[derive(Clone, Copy, Debug)]
+pub struct Score {
+	count: u64,
+}
+
+impl Score {
+	pub fn of(count: u64) -> Self {
+		Self { count }
+	}
+
+	pub fn count(&self) -> u64 {
+		self.count
+	}
+
+	/// Adds `other`'s count to this one, as Rust copies `other`.
+	pub fn add(&mut self, other: Score) {
+		self.count = self.count.wrapping_add(other.count);
+	}
+
+	/// Twice the count, as Rust copies `self`.
+	pub fn doubled(self) -> Score {
+		Self {
+			count: self.count.wrapping_mul(2),
+		}
+	}
+
+	/// The count, leaving zero in its place.
+	pub fn take(&mut self) -> u64 {
+		std::mem::take(&mut self.count)
+	}
+
+	/// Moves `other`'s count into this one, as `&mut` of a value Rust writes back too, and
+	/// returns both counts before, as a tuple.
+	pub fn absorb(&mut self, other: &mut Score) -> (u64, u64) {
+		let before = (self.count, other.count);
+		self.count = self.count.wrapping_add(std::mem::take(&mut other.count));
+		before
+	}
+}
+
+/// A tally, as moq's `stats::Presence`: `Copy`, its fields `pub` but `#[non_exhaustive]`,
+/// so a value whose fields read and write through accessors.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[non_exhaustive]
+pub struct Hits {
+	pub hits: u64,
+	pub misses: u32,
+}
+
+impl Hits {
+	pub fn of(hits: u64, misses: u32) -> Self {
+		Self { hits, misses }
+	}
+
+	/// Adds `other` into this one, as moq's `add` does.
+	pub fn add(&mut self, other: Hits) {
+		self.hits = self.hits.wrapping_add(other.hits);
+		self.misses = self.misses.wrapping_add(other.misses);
+	}
+
+	/// Whether `other` equals this one, counting it a hit: named as `PartialEq`'s C
+	/// function, which the clash renames.
+	pub fn eq(&mut self, other: Hits) -> bool {
+		let same = *self == other;
+		self.hits = self.hits.wrapping_add(1);
+		same
+	}
+}
+
+/// A span whose `pub` start sits beside a private length, which no record could hold.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Extent {
+	pub start: u64,
+	len: u32,
+}
+
+impl Extent {
+	pub fn new(start: u64, len: u32) -> Self {
+		Self { start, len }
+	}
+
+	pub fn end(&self) -> u64 {
+		self.start.wrapping_add(u64::from(self.len))
+	}
+
+	/// Moves the window `by` later, returning its old start.
+	pub fn slide(&mut self, by: u64) -> u64 {
+		let start = self.start;
+		self.start = start.wrapping_add(by);
+		start
+	}
+}
+
+/// A score and its weight: a record holding a `Copy` handle, copied in and out.
+pub struct Weighted {
+	pub score: Score,
+	pub weight: u32,
+}
+
+impl Weighted {
+	pub fn total(&self) -> u64 {
+		self.score.count.wrapping_mul(u64::from(self.weight))
+	}
+}
+
+/// A stamp and a count: a record holding a value only Rust makes, whose method reads it.
 pub struct Stamped {
 	pub at: Stamp,
 	pub count: u32,
@@ -1021,7 +1407,8 @@ impl Stamped {
 	}
 }
 
-/// A message: an object, since one field is private, whose `pub` fields read as getters.
+/// A message: an object, since one field is private and it is not `Copy`, whose `pub`
+/// fields read as getters.
 #[derive(Clone, Debug)]
 pub struct Message {
 	pub stamp: Option<Stamp>,
@@ -2244,8 +2631,8 @@ pub fn nudge(point: &mut Point, by: i32) {
 	point.y += by;
 }
 
-/// A config of a crate no export is, behind an `Arc`, as moq-tokio's listener returns
-/// rustls's: an opaque handle, which Rust takes back.
+/// A config of a crate the facade re-exports nothing from, behind an `Arc`, as moq-tokio's
+/// listener returns rustls's: an opaque handle, which Rust takes back.
 pub fn secure(alpn: &str) -> Arc<tls::Config> {
 	Arc::new(tls::Config::new(alpn))
 }
@@ -2258,6 +2645,204 @@ pub fn alpn(config: Arc<tls::Config>) -> String {
 /// [`alpn`], lent.
 pub fn alpn_lent(config: &Arc<tls::Config>) -> String {
 	config.alpn().to_string()
+}
+
+/// A certificate of a crate the facade re-exports nothing from, by value, with no public
+/// path there, as moq-tokio's rustls root certificates: an opaque handle, which Rust takes
+/// back or borrows.
+pub fn certify(der: &[u8]) -> tls::held::Cert {
+	tls::held::Cert::new(der)
+}
+
+/// The length of `bytes`, through another crate's future that borrows them but resolves
+/// to an owned count: a future, not an opaque handle.
+pub fn byte_len(bytes: &[u8]) -> tls::held::Pending<'_> {
+	tls::held::Pending(bytes)
+}
+
+/// The length of a certificate [`certify`] made, lent.
+pub fn cert_len(cert: &tls::held::Cert) -> usize {
+	cert.der().len()
+}
+
+/// The bytes of a certificate [`certify`] made, taken back by value.
+pub fn cert_der(cert: tls::held::Cert) -> Vec<u8> {
+	cert.der().to_vec()
+}
+
+/// The total length of a chain of certificates, each taken back by value.
+pub fn chain_len(chain: Vec<tls::held::Cert>) -> usize {
+	chain.iter().map(|cert| cert.der().len()).sum()
+}
+
+/// Another crate's session with no public path there, which no export returns: left out, since C can never
+/// hold one.
+pub fn handover(session: tls::held::Handoff) -> u32 {
+	session.id
+}
+
+/// A certificate's length, or why it is refused: another crate's error, which crosses as
+/// its message though `blame` names it as a handle no export returns.
+pub fn verify(cert: &tls::held::Cert) -> Result<u32, tls::held::Invalid> {
+	match cert.der().len() {
+		0 => Err(tls::held::Invalid {
+			reason: "empty".to_string(),
+		}),
+		len => Ok(len as u32),
+	}
+}
+
+/// `text`'s length, or why it is no certificate: another crate's error borrowing `text`,
+/// which crosses as its message, so nothing outlives the call.
+pub fn parse_cert(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
+	match text.is_empty() {
+		true => Err(tls::held::Malformed(text)),
+		false => Ok(text.len() as u32),
+	}
+}
+
+/// `parse_cert` as a future: its error borrows `text`, which the future owns, so the glue
+/// makes it its message before the future ends.
+pub async fn parse_later(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
+	parse_cert(text)
+}
+
+/// Another crate's error taken back by value, which no export returns: left out.
+pub fn blame(err: tls::held::Invalid) -> String {
+	err.to_string()
+}
+
+/// Another crate's trait object behind an `Arc`: an opaque handle, taken back as the `Arc`.
+pub fn resolver(name: &str) -> Arc<dyn tls::held::Resolver> {
+	Arc::new(tls::held::Named(name.to_string()))
+}
+
+/// The name a resolver resolves, from its handle.
+pub fn resolved(resolver: Arc<dyn tls::held::Resolver>) -> String {
+	resolver.name()
+}
+
+/// A resolver as a tuple struct's field, whose accessors each binding names as its `_0`.
+pub struct Resolving(pub Arc<dyn tls::held::Resolver>);
+
+impl Resolving {
+	pub fn new(name: &str) -> Self {
+		Self(resolver(name))
+	}
+}
+
+/// Codecs, each another crate's `&'static dyn Codec`, held by value in an opaque handle.
+pub struct Codecs {
+	pub list: Vec<&'static dyn tls::held::Codec>,
+	seen: u8,
+}
+
+impl Codecs {
+	pub fn new() -> Self {
+		Self {
+			list: vec![&tls::held::ZLIB, &tls::held::BROTLI],
+			seen: 0,
+		}
+	}
+
+	/// The ids of the listed codecs, in order, as one number of a digit each.
+	pub fn ids(&mut self) -> u32 {
+		self.seen += 1;
+		self.list.iter().fold(0, |n, codec| n * 10 + u32::from(codec.id()))
+	}
+}
+
+impl Default for Codecs {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+/// A standard library value no exported type maps: an opaque handle held by value.
+pub fn failure(message: &str) -> std::io::Error {
+	std::io::Error::other(message.to_string())
+}
+
+/// The failure's message, borrowed from its handle.
+pub fn failure_message(error: &std::io::Error) -> String {
+	error.to_string()
+}
+
+/// The failure's kind, taken back by value.
+pub fn failure_kind(error: std::io::Error) -> String {
+	format!("{:?}", error.kind())
+}
+
+/// The sum of what an iterator yields, which C passes as the array of its items.
+pub fn sum_all(items: impl Iterator<Item = u32>) -> u32 {
+	items.sum()
+}
+
+/// What a counter weighs, owned or borrowed, which C cannot implement for its constant.
+pub trait Weigh {
+	const SCALE: u64;
+	fn weight(&self) -> u64;
+}
+
+impl Weigh for Counter {
+	const SCALE: u64 = 1;
+	fn weight(&self) -> u64 {
+		self.get() * Self::SCALE
+	}
+}
+
+impl Weigh for &Counter {
+	const SCALE: u64 = 10;
+	fn weight(&self) -> u64 {
+		self.get() * Self::SCALE
+	}
+}
+
+/// The weights of an iterator's items summed: C passes the array of its counters, each
+/// moved in, so `&Counter`'s weight is not taken.
+pub fn weigh_all<I: Iterator<Item = W>, W: Weigh>(items: I) -> u64 {
+	items.map(|item| item.weight()).sum()
+}
+
+/// The total length of borrowed byte strings, as moq-tokio's TLS acceptor reads offered ALPNs.
+pub fn offered_len<'a>(alpns: impl Iterator<Item = &'a [u8]>) -> usize {
+	alpns.map(<[u8]>::len).sum()
+}
+
+/// Words joined with spaces: an `IntoIterator` of what converts to `&str`, as moq-tokio's
+/// WebSocket listener takes its protocols.
+pub fn join_words<I, S>(words: I) -> String
+where
+	I: IntoIterator<Item = S>,
+	S: AsRef<str>,
+{
+	let words: Vec<String> = words.into_iter().map(|w| w.as_ref().to_string()).collect();
+	words.join(" ")
+}
+
+/// Bytes that must outlive every handle, as rustls's `CertificateDer::from_slice` borrows
+/// its DER: the glue interns them.
+pub struct Der<'a>(&'a [u8]);
+
+impl<'a> Der<'a> {
+	pub fn from_slice(bytes: &'a [u8]) -> Self {
+		Self(bytes)
+	}
+
+	pub fn bytes(&self) -> Vec<u8> {
+		self.0.to_vec()
+	}
+}
+
+/// Reads a stream no type C holds implements: left out, as C never holds one.
+pub fn pump<T: tls::held::Stream>(mut stream: T) -> u8 {
+	stream.read()
+}
+
+/// A session of `alpn` lasting `seconds`, from a crate the facade re-exports nothing from:
+/// its type exports by its path there, and its error crosses as its message.
+pub fn resume(alpn: &str, seconds: u32) -> Result<tls::Session, tls::Error> {
+	tls::resume(alpn, seconds)
 }
 
 /// `text`'s length, or 0 for none: an optional borrow, lent as the borrow alone is.
@@ -2552,6 +3137,12 @@ pub fn since(later: std::time::Instant, earlier: std::time::Instant) -> Duration
 	later.saturating_duration_since(earlier)
 }
 
+/// Whether `at` holds an instant, lent inside an `Option`: an instant crosses as a `Copy`
+/// object, so lending one inside a value takes no handle.
+pub fn has_instant(at: &Option<std::time::Instant>) -> bool {
+	at.is_some()
+}
+
 /// How much to log, as moq-tokio's `Log` holds it: a field of a foreign enum, and its filter.
 #[non_exhaustive]
 pub struct Verbosity {
@@ -2602,10 +3193,16 @@ impl Site {
 impl Shape {
 	/// Every shape, as a constant slice.
 	pub const ALL: &'static [Shape] = &[Shape::Circle, Shape::Square];
+
+	/// Every shape, as a constant array, returned as the array of its elements.
+	pub const BOTH: [Shape; 2] = [Shape::Circle, Shape::Square];
 }
 
 /// Greetings, as a constant slice of references, each returned as a clone.
 pub const GREETINGS: &[&str] = &["hi", "hello"];
+
+/// Primes, as a constant array of a block's element.
+pub const PRIMES: [u32; 3] = [2, 3, 5];
 
 /// A trail through points, each labeled: slices passed in and lent back out.
 pub struct Trail {
@@ -2768,6 +3365,12 @@ pub fn is_family(family: Family) -> bool {
 #[cfg(target_arch = "wasm32")]
 pub fn wasm_only() -> u32 {
 	32
+}
+
+/// Only wasm32 has it, and it consumes `counter`: a refused call leaves it open.
+#[cfg(target_arch = "wasm32")]
+pub fn wasm_take(counter: Counter) -> Result<u64, Error> {
+	Ok(counter.get())
 }
 
 /// Only wasm32 has it: a call on another target fails before it takes `log`.
@@ -2939,6 +3542,28 @@ pub mod clash {
 	}
 }
 
+/// Changes both coordinates before returning mixed values or an error.
+pub fn return_values(
+	point: &mut Point,
+	fail: bool,
+) -> Result<(String, Option<(u8, i16, u32, u64)>, Vec<Vec<u8>>), Error> {
+	point.x += 1;
+	point.y -= 1;
+	if fail {
+		return Err(Error::Overflow);
+	}
+	Ok((
+		"hé🙂\0".to_string(),
+		Some(widths(u64::MAX)),
+		vec![vec![0, 128, 255], (0..=255).cycle().take(10000).collect()],
+	))
+}
+
+/// Moves the counter into the success value, or drops it on failure.
+pub fn return_moved(counter: Counter, fail: bool) -> Result<Counter, Error> {
+	if fail { Err(Error::Overflow) } else { Ok(counter) }
+}
+
 /// One `NonZero` of each integer, each crossing as its integer.
 #[derive(Clone, Copy, Debug)]
 pub struct NonZeros {
@@ -3036,4 +3661,24 @@ pub enum Builtin {
 pub struct Qualifiers {
 	pub api: f64,
 	pub kotlin: f64,
+}
+
+/// An object named as a class of Kotlin's runtime once was, which keeps its name now the
+/// runtime's take a leading `__`.
+pub struct Handle {
+	count: u32,
+}
+
+impl Handle {
+	pub fn new(count: u32) -> Self {
+		Handle { count }
+	}
+
+	pub fn count(&self) -> u32 {
+		self.count
+	}
+
+	pub async fn later(count: u32) -> Self {
+		Handle { count }
+	}
 }

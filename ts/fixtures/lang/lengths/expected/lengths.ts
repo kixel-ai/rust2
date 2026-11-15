@@ -2487,14 +2487,19 @@ export function zipped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const slots: [Uint8Array, [rs.u8, rs.u8]][] = Array.from({ length: 3 }, (): [Uint8Array, [rs.u8, rs.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array3_u8_tuple2_u8_u8(item);
 	});
-	const iter: rs.Iter<[[Uint8Array, [rs.u8, rs.u8]], Uint8Array]> = rs.iterZip(rs.iterSlice(slots), rs.vecIntoIter(rows), "index");
+	const leaf: rs.Iter<[Uint8Array, [rs.u8, rs.u8]]> = rs.iterSlice(slots);
+	const leaf2: rs.Iter<Uint8Array> = rs.vecIntoIter(rows);
 	while (true) {
-		const _18: [[Uint8Array, [rs.u8, rs.u8]], Uint8Array] | rs.Done = iter.next();
-		if (_18 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const uninit = _18[0];
-		rs.ptrWrite(uninit, [copy$array_u8(_18[1]), [51, 3] as [rs.u8, rs.u8]] as [Uint8Array, [rs.u8, rs.u8]]);
+		const x2 = leaf2.next();
+		if (x2 === rs.DONE) {
+			break;
+		}
+		const uninit = x;
+		rs.ptrWrite(uninit, [copy$array_u8(x2), [51, 3] as [rs.u8, rs.u8]] as [Uint8Array, [rs.u8, rs.u8]]);
 		uninit;
 	}
 	const _28: rs.Iter<[Uint8Array, [rs.u8, rs.u8]]> = rs.iterSkip(rs.iterSlice(slots), 1);

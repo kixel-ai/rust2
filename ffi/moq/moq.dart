@@ -57,7 +57,6 @@ Future<moq.Error> drive(moq.OriginDriver driver) {
       final next = driver.poll(moq.clockNow(), waiter);
       if (next != null) {
         deadline = Timer(next.saturatingDurationSince(moq.clockNow()), poll);
-        next.close();
       }
     } on moq.Error catch (e) {
       waiter.close();
@@ -116,7 +115,7 @@ Future<void> local() async {
   // When it arrived: kio's clock's `Instant`, from kio's own export.
   expect(moq.clockNow().checkedDurationSince(hello.arrived()) != null, 'a frame arrived before now');
 
-  // A timestamp is a `Copy` value behind a handle: passing it copies it out. The track is
+  // A timestamp is a `Copy` value copied across, which allocates nothing. The track is
   // untimed, so a timestamped frame is refused.
   final at = moq.Timestamp.fromMillis(1500);
   expect(at.asSecs() == 1, '1500 ms is 1 s');

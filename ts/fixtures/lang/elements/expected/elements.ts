@@ -130,14 +130,15 @@ export function inline(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const shared: rs.Arc<rs.u8> = new rs.Arc(0);
 	const held: Inline.Inline<rs.Arc<rs.u8>> = Inline.new$sync_Arc_u8();
 	const pairs: Inline.Inline<[rs.u8, rs.u8] | undefined> = Inline.new$Option_tuple2_u8_u8();
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _10: [rs.usize, rs.u8] | rs.Done = iter.next();
-		if (_10 === rs.DONE) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _10[0];
-		const n: rs.u8 = _10[1];
+		const i: rs.usize = count++;
+		const n: rs.u8 = x;
 		if (held.len === 4) {
 			const gone: rs.Arc<rs.u8> = Inline.remove$sync_Arc_u8(held, rs.usizeRem(n as rs.usize, 4));
 			rs.byteVecPush(out, gone.value);
@@ -167,8 +168,8 @@ export function inline(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 		}
 		rs.byteVecPush(out, shared.strong & 0xff);
-		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(Inline.asSlice$sync_Arc_u8(held))), (x: rs.Arc<rs.u8>): rs.u8 => {
-			return x.value;
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(Inline.asSlice$sync_Arc_u8(held))), (x2: rs.Arc<rs.u8>): rs.u8 => {
+			return x2.value;
 		}), undefined, true);
 		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(Inline.asSlice$Option_tuple2_u8_u8(pairs))), (p: [rs.u8, rs.u8] | undefined): Uint8Array => {
 			return option_mapOr$13kt6x8(p, Uint8Array.of(0, 0), (_2: [rs.u8, rs.u8]): Uint8Array => {

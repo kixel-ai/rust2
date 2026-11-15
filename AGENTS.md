@@ -17,4 +17,6 @@ Each project lives in its own top-level directory; the [quest tree](quest/README
 PRs target `main`.
 Run `just ci` before every push.
 
+Review rounds run one local reviewer, `quest review --harness codex`, or `--harness claude` when Codex changed the branch last. Pullfrog's review on the PR is the second reviewer, and its approval is what lands it.
+
 Quests: before any work, run `quest context` and follow it, unless this session already holds its rules.

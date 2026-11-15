@@ -18,9 +18,16 @@ export class Labeled<T> {
 }
 
 export function sum$u8(self: Labeled<rs.u8>): rs.u32 {
-	return rs.u32Add(rs.iterSum(rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(self.bytesData, self.bytesStart, self.bytesLen))), (_22: rs.u8): rs.u32 => {
-		return _22 as rs.u32;
-	}), rs.u32Add, 0), self.tag as rs.u32);
+	const leaf = rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(self.bytesData, self.bytesStart, self.bytesLen)));
+	let acc: rs.u32 = 0;
+	while (true) {
+		const x = leaf.next();
+		if (x === rs.DONE) {
+			break;
+		}
+		acc = rs.u32Add(acc, x as rs.u32);
+	}
+	return rs.u32Add(acc, self.tag as rs.u32);
 }
 
 //# sourceMappingURL=fields.Labeled.ts.map

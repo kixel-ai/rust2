@@ -189,6 +189,8 @@ def script():
 	board = api.Board.new([("low", api.Counter.new("l", 1)), ("high", api.Counter.new("h", 9))])
 	ranked = board.ranked()
 	print("ranked " + ", ".join(f"{name} {counter.name()} {counter.get()}" for name, counter in ranked))
+	best = board.best()
+	print(f"best {best.name()} {best.get()}")
 	# A map crosses as its pairs and a set as its items, which Rust collects in order, each
 	# key once, the last kept.
 	atlas = api.Atlas([("b", api.Point(1, 1)), ("ab", api.Point(2, 3)), ("b", api.Point(4, 4))], [3, 1, 3])
@@ -323,6 +325,7 @@ def script():
 	print(f"secs {stamp.secs()}")
 	print(f"later {flag(api.Stamp.from_millis(3000).later(stamp))}")
 	print(f"secs {stamp.secs()}")
+	print(f"whole {stamp.whole()!r}")
 	message = api.Message.new(stamp, b"body")
 	print(f"payload {text(message.payload_get)}")
 	print(f"stamp {message.stamp_get!r}")
@@ -336,6 +339,51 @@ def script():
 	print(f"secs {reset.secs()}")
 	message.stamp_set(None)
 	print(f"stamp {flag(message.stamp_get is not None)}")
+
+	# A value past a word, copied across: a closure takes and returns one by value.
+	moment = api.Moment.new(1500, 1000)
+	print(f"moment {moment.millis()} {flag(api.Moment.new(1, 0) is None)}")
+	shifted = api.shifted(moment, lambda m: m.after(500))
+	print(f"shifted {shifted.millis()} {flag(shifted == moment.after(500))}")
+	print(f"wrapped {moment.after(2**64 - 1).millis()} {flag(moment == shifted)}")
+	try:
+		api.Moment()
+		check(False, "Python makes no opaque value")
+	except TypeError:
+		pass
+
+	# A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	gap = api.Gap.new(7, 3)
+	print(f"gap {gap.sum()} {flag(gap == api.Gap.new(7, 3))}")
+	berth = api.Berth.new(4)
+	print(f"berth Some({berth.at()}) {'None' if api.Berth.new(None).at() is None else 'Some'}")
+
+	# A `Copy` type changed in place is a value, which a `&mut self` method returns as the
+	# call left it, Rust's own return beside it: a change reaches only the copy it replaces.
+	score = api.Score.of(2)
+	increment = api.Score.of(3)
+	score = score.add(increment)
+	score = score.add(increment)
+	print(f"score {score.count()} {increment.doubled().count()} {increment.count()}")
+	score_copy, taken = score.take()
+	print(f"taken {taken} {score_copy.count()} {score.count()}")
+	other_score = api.Mut(increment)
+	score_copy, before0, before1 = score_copy.absorb(other_score)
+	print(f"absorbed {before0} {before1} {score_copy.count()} {other_score.value.count()} {increment.count()}")
+	hits = api.Hits.of(1, 2)
+	kept_hits = hits
+	hits = hits.add(api.Hits.of(10, 20))
+	hits = hits.hits_set(7)
+	print(f"hits {hits.hits_get} {hits.misses_get} {kept_hits.hits_get} {kept_hits.misses_get} {flag(hits == kept_hits)}")
+	counted, same = kept_hits.eq(kept_hits)
+	print(f"counted {flag(same)} {counted.hits_get}")
+	extent = api.Extent.new(5, 3)
+	extent_start = extent
+	extent, old = extent.slide(10)
+	extent = extent.start_set(extent.start_get + 1)
+	print(f"extent {old} {extent.start_get} {extent.end()} {extent_start.start_get} {extent_start.end()}")
+	weighted = api.Weighted(increment, 4)
+	print(f"weighted {weighted.total()} {weighted.score.count() + increment.count()}")
 
 	print(f"kept {api.emit(PrintLog(), bytes([1, 2, 3, 4]))}")
 	logger = api.Logger.new(PrintLog())
@@ -389,6 +437,10 @@ def script():
 		# The send happens at the call: the future is dropped unawaited.
 		channel.send_later(b"eager")
 		print(f"recv {text(await channel.recv())}")
+		# The send happens at the call, and the future borrows the channel and the tag.
+		print(f"tagged {await channel.tagged('tag')}")
+		print(f"itemized {await channel.itemized(array.array('I', [1, 2, 3]))}")
+		print(f"byte_len {await api.byte_len(b'abc')}")
 		channel.send(b"sized")
 		payload, size = await channel.recv_sized()
 		print(f"sized {text(payload)} {size}")
@@ -569,12 +621,47 @@ def script():
 	print(f"nudge {nudged.value.x} {nudged.value.y}")
 	config = api.secure("h3")
 	print(f"secure {api.alpn_lent(config)} {api.alpn(config.clone())}")
+	cert = api.certify(b"der")
+	print(f"cert {api.cert_len(cert)} {text(api.cert_der(cert))} {api.chain_len([api.certify(b'a'), api.certify(b'bc')])}")
+	# Another crate's trait objects: an `Arc`, taken back, and `'static` ones, held by value.
+	print(f"resolver {api.resolved(api.resolver('r1'))}")
+	codecs = api.Codecs.new()
+	print(f"codecs {codecs.ids()}")
+	codecs.list_set(list(reversed(codecs.list_get)))
+	print(f"codecs reversed {codecs.ids()}")
+	# A standard library value no type maps, in a handle.
+	failure = api.failure("boom")
+	print(f"failure {api.failure_message(failure)} {api.failure_kind(failure)}")
+	# Iterators, passed as the arrays of their items.
+	print(f"sum_all {api.sum_all(iter([1, 2, 3]))}")
+	print(f"weigh_all {api.weigh_all_counter([api.Counter.new('w', 3)])}")
+	print(f"offered_len {api.offered_len([b'h3', b'moq-00'])}")
+	print(f"join_words {api.join_words(['a', 'b', 'c'])}")
+	# Bytes that must be `'static`, interned.
+	print(f"der {text(api.Der.from_slice(b'der').bytes())}")
+	print(f"der again {text(api.Der.from_slice(b'der').bytes())}")
+	session = api.resume("h3", 60)
+	print(f"resume {session.alpn()} {session.lifetime().seconds}")
+	try:
+		api.resume("", 60)
+	except api.StringException as e:
+		print(f"resume err {e.error}")
 	meters = api.Meters.new()
 	first = meters.first()
 	first.add(2)
 	print(f"lent {first.add(3)} {meters.first().count()}")
 	meters.clear()
 	print(f"cleared {meters.first().count()}")
+	lent_last = meters.last_get
+	lent_last.add(4)
+	print(f"field lent {lent_last.add(1)}")
+	# An optional field that is not Clone, lent as `Some` of a handle.
+	print(f"spare {str(meters.spare_get is not None).lower()}")
+	meters.spare_set(api.Meter.default())
+	spare = meters.spare_get
+	assert spare is not None
+	spare.add(5)
+	print(f"spare lent {spare.add(1)}")
 	tallies = api.Tallies.new()
 	tallies.first().bump()
 	print(f"tallied {tallies.first().bump()}")
@@ -637,6 +724,7 @@ def script():
 
 	# Slices, passed in and returned as clones, and the socket address of each family.
 	print(f"shapes {debugs(api.Shape.ALL)} greetings {quoted(api.GREETINGS)}")
+	print(f"both {debugs(api.Shape.BOTH)} primes {list(api.PRIMES)}")
 	trail = api.Trail.new([api.Point(1, 2), api.Point(3, 4)], ["a", "b"])
 	print(f"trail {debugs(trail.points())} {debugs(trail.labels())}")
 	# Returned iterators, each collected at the call: drained labels are gone after.
@@ -658,6 +746,7 @@ def script():
 	ended = api.later(began, datetime.timedelta(milliseconds=1500))
 	same = api.later(began, datetime.timedelta())
 	print(f"instants {api.since(ended, began) // ms} {api.since(began, ended) // ms} {flag(began == same)} {flag(began == ended)}")
+	print(f"has_instant {flag(api.has_instant(began))} {flag(api.has_instant(None))}")
 	# tracing's level, and its filter as an optional level whose None is `OFF`.
 	verbosity = api.Verbosity.new(api.Level.WARN)
 	print(f"verbosity {api.spell(verbosity.filter())} {api.spell(api.louder(verbosity.filter()))}")
@@ -779,6 +868,13 @@ def futures():
 	# future polls again rather than waiting for a wake that already happened.
 	check(loop.run_until_complete(asyncio.wait_for(api.yielded(7), 5)) == 7, "a wake during the poll polls again")
 	check(loop.run_until_complete(api.corner_later()) == (1, 1), "a future's borrowed tuple returns whole")
+	# A future's error borrowing its argument crosses as its message, as `parse_cert`'s does.
+	check(loop.run_until_complete(api.parse_later("cert")) == 4, "a future with a borrowing error returns Ok")
+	try:
+		loop.run_until_complete(api.parse_later(""))
+		check(False, "a future's borrowing error raises")
+	except api.StringException as e:
+		check(e.error == "malformed: ", "a future's borrowing error is its message")
 
 	# Cancelled between its wake and its poll, a receive loses nothing: the payload stays
 	# for the next.
@@ -1200,7 +1296,57 @@ def owned():
 	del cycle
 	gc.collect()
 	check(api.dropped() == before + 5, "the cycle collector frees what a cycle held")
+	forwarding()
+	released_mid_call()
+
+
+def released_mid_call():
+	"""Rust's bytes a call reads in place stay Rust's until it returns, though the view
+	passed is released while the arguments are still being read."""
+	kept = []
+
+	def parts():
+		before = api.dropped()
+		with api.token_bytes(9, 2048) as view:
+			yield view
+		kept.append(api.dropped() == before)
+		yield b"x"
+
+	before = api.dropped()
+	joined = bytes(api.joined(parts()))
+	check(kept == [True], "a call keeps Rust's bytes it was passed a released view of")
+	check(joined == bytes([9]) * 2048 + b"x", "a released view's bytes read back")
+	check(api.dropped() == before + 1, "Rust's bytes drop once the call returns")
 	print("owned ok")
+
+
+def forwarding():
+	"""Rust's bytes, read and passed back, cross in place: whole, sliced, kept while passed
+	on, and in a record. The token's drop shows no copy stood in for them: it comes once,
+	only when the last view of the bytes Rust put it in goes."""
+	loop = asyncio.new_event_loop()
+	channel = api.Channel.new()
+	before = api.dropped()
+	payload = api.token_bytes(3, 64)
+	channel.send(payload)
+	del payload
+	payload = loop.run_until_complete(channel.recv())
+	channel.send(payload[1:63])
+	del payload
+	payload = loop.run_until_complete(channel.recv())
+	check(bytes(payload) == bytes([3]) * 62, "a slice of Rust's bytes crosses as itself")
+	channel.send(payload)
+	kept = loop.run_until_complete(channel.recv())
+	del payload
+	packet = api.next_packet(api.Packet(1, kept))
+	del kept
+	check(api.dropped() == before and len(packet.payload) == 62, "Rust's bytes cross back without a copy")
+	del packet
+	check(api.dropped() == before + 1, "Rust's bytes drop once, with their last view")
+	# Bytes of Python's own cross copied once, and a view of Rust's only read stays theirs.
+	packet = api.next_packet(api.Packet(1, bytearray(b"abc")))
+	check(bytes(packet.payload) == b"abc", "a bytearray crosses copied")
+	loop.close()
 
 
 def values():
@@ -1222,6 +1368,14 @@ def values():
 	raises(TypeError, lambda: api.title(1), "an int is no bool")
 	raises(OverflowError, lambda: api.scaled(2**128, 1), "an int past u128 raises")
 	raises(OverflowError, lambda: api.scaled(-1, 1), "a negative int for a u128 raises")
+
+	# An object reclassed in Python is still what Rust made: its methods refuse it.
+	stamp = api.Stamp.from_millis(5)
+	stamp.__class__ = api.Moment
+	raises(TypeError, lambda: stamp.millis(), "a Stamp reclassed as a Moment is no Moment")
+	counter = api.Counter.new("r", 1)
+	counter.__class__ = api.Berth
+	raises(TypeError, lambda: counter.at(), "a Counter reclassed as a Berth is no Berth")
 
 	# A list of numbers is any buffer of exactly its numbers, one dimension and contiguous,
 	# and returns as an array of them.
@@ -1349,6 +1503,13 @@ def calls():
 
 def broken(which):
 	"""Each breaks a contract, which must fail with a message naming it."""
+	if sys.platform == "linux":
+		# Non-dumpable, an expected abort writes no core and never starts the host's crash
+		# handler. PR_SET_DUMPABLE is 4.
+		import ctypes
+
+		if ctypes.CDLL(None, use_errno=True).prctl(4, 0, 0, 0, 0) != 0:
+			raise OSError(ctypes.get_errno(), "prctl")
 	match which:
 		case "moved":
 			c = api.Counter.new("c", 0)

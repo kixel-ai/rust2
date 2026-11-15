@@ -79,7 +79,7 @@ impl Header<'_> {
 			"/* The index of the library's target among those this header serves:{targets} */\nuint32_t {p}_target(void);\n"
 		));
 		self.line(format!(
-			"/* Bytes. Passed in, a view Rust reads during the call and never frees. Returned,\n * an owned buffer to free once with {p}_buf_free. A null ptr is None. */\ntypedef struct {p}_buf {{\n\tconst uint8_t *ptr;\n\tsize_t len;\n\tvoid *owner;\n}} {p}_buf;\n\nvoid {p}_buf_free({p}_buf buf);\n\n/* An owned copy of view's bytes: what a closure or reader C implements returns Rust,\n * which then owns it. */\n{p}_buf {p}_buf_copy({p}_buf view);\n"
+			"/* Bytes. Returned, an owned buffer to free once with {p}_buf_free, or pass back to\n * Rust by value, ptr and len narrowed to any range of its bytes. Passed by value, one\n * whose owner is set is Rust's from then on, taken without a copy, and one whose owner\n * is NULL is a view Rust reads during the call and never frees; in a value passed by\n * pointer, or an array's item, either is only read. A null ptr is None. */\ntypedef struct {p}_buf {{\n\tconst uint8_t *ptr;\n\tsize_t len;\n\tvoid *owner;\n}} {p}_buf;\n\nvoid {p}_buf_free({p}_buf buf);\n\n/* An owned copy of view's bytes: what a closure or reader C implements returns Rust,\n * which then owns it. */\n{p}_buf {p}_buf_copy({p}_buf view);\n\n/* A second owned buffer of an owned buffer's bytes, sharing them without a copy: what\n * a caller passes Rust while keeping buf. */\n{p}_buf {p}_buf_clone({p}_buf buf);\n"
 		));
 		self.line(format!(
 			"/* A u128: lo holds its low 64 bits and hi its high 64. */\ntypedef struct {p}_u128 {{\n\tuint64_t lo;\n\tuint64_t hi;\n}} {p}_u128;\n"
@@ -205,7 +205,7 @@ impl Header<'_> {
 		for (i, record) in api.records.iter().enumerate() {
 			let name = abi.record(i);
 			self.line(format!("/* {} */", abi.api.rust(&record.path, &record.args)).trim_end());
-			self.value_functions(&name, Ty::Struct(name.clone()), record.traits, true);
+			self.value_functions(&name, Ty::Struct(name.clone()), record.traits, record.opaque.is_none());
 			let owner = Ty::Struct(name.clone());
 			for method in &record.methods {
 				self.function(method, Some(&owner));
@@ -236,16 +236,6 @@ impl Header<'_> {
 			let t = object.traits;
 			if t.clone {
 				self.line(format!("{name} *{name}_clone(const {name} *self);"));
-			}
-			if abi.copies.contains(&i) {
-				self.line(
-					comment(
-						"A new handle to a copy of the value, made as Rust copies it, never running its `Clone`: a closure hands Rust one it takes or returns.",
-						"",
-					)
-					.trim_end(),
-				);
-				self.line(format!("{name} *{name}_copy(const {name} *self);"));
 			}
 			if t.eq {
 				self.line(format!("bool {name}_eq(const {name} *a, const {name} *b);"));
@@ -333,6 +323,15 @@ impl Header<'_> {
 		}
 		if let Some(i) = (0..abi.api.records.len()).find(|&i| &abi.record(i) == name) {
 			let record = &abi.api.records[i];
+			if let Some(opaque) = &record.opaque {
+				self.line(format!(
+					"{}typedef struct {name} {{\n\t/* Its bytes, which only Rust reads: copy it, but never make or change one. */\n\t{} opaque[{}];\n}} {name};\n",
+					comment(&record.docs, ""),
+					c_unit(opaque.unit()),
+					opaque.units()
+				));
+				return;
+			}
 			let fields: Vec<Ty> = record.fields.iter().map(|f| abi.ty(&f.ty)).collect();
 			for field in &fields {
 				self.value(field);
@@ -441,6 +440,9 @@ impl Header<'_> {
 				moved.join(" and ")
 			));
 		}
+		if matches!(export.call.params.first(), Some((_, Ty::InOut(_)))) {
+			docs.push_str("\n\nRust writes what the call left in `self` back in place.");
+		}
 		for param in function.params.iter().filter(|p| p.ty.written()) {
 			let name = abi::escape(&param.name);
 			docs.push_str(&format!(
@@ -473,12 +475,9 @@ impl Header<'_> {
 					"\nA handle it lends lives only for that call of `{name}`: free none, nor move out of one."
 				));
 			}
-			let ok = matches!(closure.ok, Type::String)
-				|| matches!(closure.ok.base(), Type::Object(_))
-				|| matches!(&closure.ok, Type::Option(inner) if matches!(**inner, Type::Object(_)));
-			if ok || closure.err.is_some() {
+			if closure.ok == Type::String || closure.err.is_some() {
 				docs.push_str(&format!(
-					"\nWhat it returns is Rust's: a handle, or a buffer {}_buf_copy made.",
+					"\nA buffer it returns is Rust's, one {}_buf_copy made.",
 					self.abi.prefix
 				));
 			}
@@ -532,7 +531,7 @@ pub fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 		Ty::ForeignFuture => space(&abi.rt("foreign_future")),
 		Ty::ForeignReader => space(&abi.rt("foreign_reader")),
 		Ty::Poll => space(&abi.rt("poll")),
-		Ty::Out(inner) => decl(abi, inner, &format!("*{name}")),
+		Ty::Out(inner) | Ty::InOut(inner) => decl(abi, inner, &format!("*{name}")),
 		Ty::In(inner) => format!("const {}", decl(abi, inner, &format!("*{name}"))),
 		Ty::Fn(params, ret) => {
 			let params: Vec<String> = std::iter::once("void *data".to_string())
@@ -574,6 +573,16 @@ fn comment(docs: &str, indent: &str) -> String {
 
 fn has(traits: Traits) -> bool {
 	traits.eq || traits.display || traits.debug || traits.default
+}
+
+/// The C type of each unit an opaque value's struct holds, of `bytes` bytes.
+pub fn c_unit(bytes: u64) -> &'static str {
+	match bytes {
+		1 => "uint8_t",
+		2 => "uint16_t",
+		4 => "uint32_t",
+		_ => "uint64_t",
+	}
 }
 
 fn c_int(int: Int) -> &'static str {

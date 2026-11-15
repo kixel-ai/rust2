@@ -8,12 +8,16 @@
 
 #[path = "fixtures/shapes.rs"]
 mod shapes;
+#[path = "fixtures/step.rs"]
+mod step;
 
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::OnceLock;
+
+use step::Step;
 
 fn manifest_dir() -> PathBuf {
 	PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -38,19 +42,33 @@ fn host() -> &'static str {
 /// host lacks and a variant of an enum.
 const WASM: &str = "wasm32-unknown-unknown";
 
+/// Cargo, on a `PATH` without what changes each run, as a Cargo shim's session does: build
+/// scripts that read `PATH`, such as pyo3's, would otherwise run again each time, and
+/// rebuild the glue.
 fn cargo() -> Command {
-	Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
+	let mut cmd = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()));
+	cmd.env("PATH", step::path());
+	cmd
 }
 
 fn run(cmd: &mut Command) -> Output {
-	let output = cmd.output().unwrap_or_else(|err| panic!("running {cmd:?}: {err}"));
+	let output = output(cmd);
+	check(cmd, &output);
+	output
+}
+
+fn output(cmd: &mut Command) -> Output {
+	cmd.output().unwrap_or_else(|err| panic!("running {cmd:?}: {err}"))
+}
+
+/// Asserts `cmd` succeeded, printing what it printed if not.
+fn check(cmd: &Command, output: &Output) {
 	assert!(
 		output.status.success(),
 		"{cmd:?} failed:\n{}{}",
 		String::from_utf8_lossy(&output.stdout),
 		String::from_utf8_lossy(&output.stderr)
 	);
-	output
 }
 
 /// Export the fixture `name` into `out` for `targets` into one binding, else the host,
@@ -114,7 +132,7 @@ fn api() -> &'static Api {
 			String::from_utf8_lossy(&output.stderr)
 		);
 		let target = scratch().join("api").join("glue");
-		let build = |feature: &str| {
+		let build = |target: &Path, feature: &str| {
 			run(cargo()
 				.arg("build")
 				.arg("--quiet")
@@ -122,21 +140,23 @@ fn api() -> &'static Api {
 				.arg("--manifest-path")
 				.arg(out.join("Cargo.toml"))
 				.arg("--target-dir")
-				.arg(&target)
+				.arg(target)
 				.args(["--features", feature])
 				// Glue the exporter writes builds without warnings.
 				.env("RUSTFLAGS", "-D warnings --print=native-static-libs"))
 		};
 		// The CPython extension's symbols would leave the C programs' links undefined, so
-		// it builds apart, before the library they link, and moves beside the Python.
-		build("python");
-		std::fs::rename(
-			target.join("debug").join(PYTHON_LIB),
-			out.join("python").join(PYTHON_LIB),
-		)
-		.unwrap();
+		// it builds apart, before the library they link, and is copied beside the Python.
+		// Each build has its own target directory, since cargo keeps one fingerprint of a
+		// package across its features, and each build would make the other's stale.
+		let python = scratch().join("api").join("glue-python");
+		build(&python, "python");
+		step::copy(
+			&python.join("debug").join(PYTHON_LIB),
+			&out.join("python").join(PYTHON_LIB),
+		);
 		// The shared library Kotlin and Dart load.
-		let built = build("kotlin,dart");
+		let built = build(&target, "kotlin,dart");
 		let native = String::from_utf8_lossy(&built.stderr)
 			.lines()
 			.find_map(|line| line.strip_prefix("note: native-static-libs: "))
@@ -174,14 +194,23 @@ fn api_c() {
 	let api = api();
 	let exe = scratch().join("api").join("api-test");
 	let cc = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
-	run(Command::new(cc)
-		.args(["-std=c11", "-pedantic", "-Wall", "-Wextra", "-Werror", "-I"])
-		.arg(api.out.join("include"))
-		.arg(manifest_dir().join("tests").join("api.c"))
-		.arg(api.staticlib())
-		.args(&api.native)
-		.arg("-o")
-		.arg(&exe));
+	let src = manifest_dir().join("tests").join("api.c");
+	let include = api.out.join("include");
+	Step {
+		stamp: &step::stamp(&exe),
+		reads: &[&src, &include, &api.staticlib()],
+		writes: &[&exe],
+	}
+	.run(
+		Command::new(cc)
+			.args(["-std=c11", "-pedantic", "-Wall", "-Wextra", "-Werror", "-I"])
+			.arg(&include)
+			.arg(&src)
+			.arg(api.staticlib())
+			.args(&api.native)
+			.arg("-o")
+			.arg(&exe),
+	);
 	let c = run(&mut Command::new(&exe));
 	assert_eq!(
 		String::from_utf8_lossy(&c.stdout),
@@ -231,7 +260,7 @@ fn api_c() {
 		("zero", "api_next_hop: a NonZero is zero"),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
-		assert!(!output.status.success(), "{case} did not abort");
+		failed(&output, case);
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "{case} printed {stderr}");
 	}
@@ -342,13 +371,13 @@ fn api_cpp() {
 	let api = api();
 	for (standard, plain) in [(17, true), (20, false), (23, true)] {
 		let exe = scratch().join("api").join(format!("api-c++{standard}{EXE_SUFFIX}"));
-		run(&mut cxx(
+		cxx(
 			&api.link(),
 			standard,
 			plain,
 			&manifest_dir().join("tests").join("api.cpp"),
 			&exe,
-		));
+		);
 		let cpp = run(&mut Command::new(&exe));
 		assert_eq!(
 			String::from_utf8_lossy(&cpp.stdout),
@@ -383,7 +412,7 @@ fn api_cpp() {
 			("outlived", OUTLIVED),
 		] {
 			let output = Command::new(&exe).arg(case).output().unwrap();
-			assert!(!output.status.success(), "C++{standard} {case} did not abort");
+			failed(&output, &format!("C++{standard} {case}"));
 			let stderr = String::from_utf8_lossy(&output.stderr);
 			assert!(stderr.contains(message), "C++{standard} {case} printed {stderr}");
 		}
@@ -402,22 +431,38 @@ fn api_cpp() {
 	assert!(headers.len() > 2, "the api fixture has a header per crate: {headers:?}");
 	for header in headers {
 		let src = scratch().join("api").join(format!("alone-{header}.cpp"));
-		std::fs::write(&src, format!("#include \"api/{header}\"\nint main() {{}}\n")).unwrap();
+		step::write(&src, format!("#include \"api/{header}\"\nint main() {{}}\n"));
 		let exe = scratch().join("api").join(format!("alone-{header}{EXE_SUFFIX}"));
-		run(&mut cxx(&api.link(), 17, true, &src, &exe));
+		cxx(&api.link(), 17, true, &src, &exe);
 	}
 
-	// A C++ program whose header names another contract than its library's aborts at load.
+	// A C++ program whose header names another contract than its library's aborts at load,
+	// non-dumpable from a constructor that runs before the header's check, as `broken` is.
 	let mismatched = scratch().join("api").join("contract.cpp");
-	std::fs::write(
+	step::write(
 		&mismatched,
-		"#include \"api.h\"\n#undef API_CONTRACT\n#define API_CONTRACT ((uint64_t)0)\n#include \"api.hpp\"\nint main() {}\n",
-	)
-	.unwrap();
+		r#"#ifdef __linux__
+#include <cstdio>
+#include <cstdlib>
+#include <sys/prctl.h>
+__attribute__((constructor(101))) static void nodump() {
+	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) {
+		std::perror("prctl");
+		std::_Exit(1);
+	}
+}
+#endif
+#include "api.h"
+#undef API_CONTRACT
+#define API_CONTRACT ((uint64_t)0)
+#include "api.hpp"
+int main() {}
+"#,
+	);
 	let contract = scratch().join("api").join(format!("contract{EXE_SUFFIX}"));
-	run(&mut cxx(&api.link(), 17, false, &mismatched, &contract));
+	cxx(&api.link(), 17, false, &mismatched, &contract);
 	let output = Command::new(&contract).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not abort");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api/rt.hpp and the library are from different builds"),
@@ -428,19 +473,35 @@ fn api_cpp() {
 /// Clang's ownership checks: the whole script builds clean under them, and each case of
 /// `tests/api_strict.cpp` fails with its diagnostic.
 fn cpp_strict(api: &Api) {
+	let include = api.out.join("include");
+	// What each case printed, kept apart from the others'; its object is not.
 	let clang = |src: &Path, case: u8| {
 		let mut cmd = Command::new("clang++");
 		cmd.args(["-std=c++17", "-Wconsumed", "-Wdangling", "-Werror", "-c", "-I"])
-			.arg(api.out.join("include"))
+			.arg(&include)
 			.arg(format!("-DCASE={case}"))
 			.arg(src)
 			.arg("-o")
 			.arg(scratch().join("api").join("strict.o"));
-		cmd
+		let stamp = scratch()
+			.join("api")
+			.join("strict")
+			.join(format!("{}-{case}.stamp", src.file_stem().unwrap().to_string_lossy()));
+		let step = Step {
+			stamp: &stamp,
+			reads: &[src, &include],
+			writes: &[],
+		};
+		// Case 0 must build, so only the failing cases keep a failure.
+		match case {
+			0 => step.run(&mut cmd),
+			_ => step.output(&mut cmd),
+		}
 	};
 	let tests = manifest_dir().join("tests");
-	run(&mut clang(&tests.join("api.cpp"), 0));
-	run(&mut clang(&tests.join("api_strict.cpp"), 0));
+	for src in ["api.cpp", "api_strict.cpp"] {
+		clang(&tests.join(src), 0);
+	}
 	for (case, message) in [
 		(
 			1,
@@ -461,8 +522,13 @@ fn cpp_strict(api: &Api) {
 		(5, "'this' argument to member function 'into_label' is an lvalue"),
 		(6, "no matching member function for call to 'emplace'"),
 		(7, "temporary whose address is used as value of local variable 'name'"),
+		(8, "no viable conversion from 'texts'"),
+		(
+			9,
+			"no viable conversion from 'std::vector<std::tuple<api::buf, api::Counter>>'",
+		),
 	] {
-		let output = clang(&tests.join("api_strict.cpp"), case).output().unwrap();
+		let output = clang(&tests.join("api_strict.cpp"), case);
 		assert!(!output.status.success(), "case {case} built");
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "case {case} printed {stderr}");
@@ -487,10 +553,19 @@ impl Api {
 	}
 }
 
-/// A build of the C++ `src` against the `link`ed library into `exe`, at C++`standard`, with
+/// Build the C++ `src` against the `link`ed library into `exe`, at C++`standard`, with
 /// exceptions and RTTI off if `plain`, and warnings as errors: by `CXX` or the platform's
 /// compiler, given MSVC's flags where the target is MSVC's.
-fn cxx(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command {
+fn cxx(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) {
+	let step = Step {
+		stamp: &step::stamp(exe),
+		reads: &[src, &link.include, &link.staticlib],
+		writes: &[exe],
+	};
+	step.run(&mut cxx_command(link, standard, plain, src, exe));
+}
+
+fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command {
 	let include = &link.include;
 	if cfg!(target_env = "msvc") {
 		// cl from a developer environment. Its C++23 is `c++latest`; its objects go beside `exe`.
@@ -524,14 +599,23 @@ fn cxx(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -> Comman
 	if plain {
 		cmd.args(["-fno-exceptions", "-fno-rtti"]);
 	}
-	// -Wshadow stands in for MSVC's warnings that a name hides another.
-	cmd.args(["-pedantic", "-Wall", "-Wextra", "-Wshadow", "-Werror", "-I"])
-		.arg(include)
-		.arg(src)
-		.arg(&link.staticlib)
-		.args(link.native)
-		.arg("-o")
-		.arg(exe);
+	// -Wshadow stands in for MSVC's warnings that a name hides another, and
+	// -Wmismatched-tags for C4099, a class declared `struct` or a struct `class`.
+	cmd.args([
+		"-pedantic",
+		"-Wall",
+		"-Wextra",
+		"-Wshadow",
+		"-Wmismatched-tags",
+		"-Werror",
+		"-I",
+	])
+	.arg(include)
+	.arg(src)
+	.arg(&link.staticlib)
+	.args(link.native)
+	.arg("-o")
+	.arg(exe);
 	cmd
 }
 
@@ -541,35 +625,67 @@ fn cxx(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -> Comman
 fn api_kotlin() {
 	let api = api();
 	let classes = scratch().join("api").join("kotlin");
-	let _ = std::fs::remove_dir_all(&classes);
-	run(&mut kotlinc(&api.out, &classes));
-	let mut classpath = classes.clone().into_os_string();
-	classpath.push(":");
-	classpath.push(coroutines());
-	let java = |args: &[&str]| {
+	let jar = PathBuf::from(coroutines());
+	let step = Step {
+		stamp: &step::stamp(&classes),
+		reads: &[
+			&api.out.join("kotlin").join("api.kt"),
+			&manifest_dir().join("tests").join("api.kt"),
+			&jar,
+		],
+		writes: &[&classes],
+	};
+	step.run(&mut kotlinc(&api.out, &classes));
+	let java = |classpath: &[&Path], args: &[&str]| {
 		let mut cmd = Command::new("kotlin");
 		cmd.arg(format!("-Djava.library.path={}", api.lib.display()))
 			.arg("-cp")
-			.arg(&classpath)
+			.arg(std::env::join_paths(classpath.iter().copied().chain([jar.as_path()])).unwrap())
 			.arg("ApiKt")
 			.args(args);
 		cmd
 	};
-	kotlin(&api.transcript, &java);
+	kotlin(&api.transcript, &|args| java(&[&classes], args));
+
+	let native_returns = run(cargo()
+		.arg("run")
+		.arg("--quiet")
+		.arg("--locked")
+		.arg("--package")
+		.arg("api-fixture")
+		.arg("--example")
+		.arg("returns")
+		.current_dir(manifest_dir()));
+	let kotlin_returns = run(&mut java(&[&classes], &["returns"]));
+	assert_eq!(
+		kotlin_returns.stdout, native_returns.stdout,
+		"Kotlin composite returns differ from native Rust"
+	);
+	let generated = std::fs::read_to_string(api.out.join("kotlin/api.kt")).expect("generated Kotlin");
+	for method in ["divide", "corner", "fingerprint", "return_values"] {
+		let declaration = generated
+			.lines()
+			.find(|line| line.contains(&format!("external fun {method}(")))
+			.expect("return method");
+		assert!(
+			!declaration.ends_with(": ByteArray") && !declaration.ends_with(": ByteArray?"),
+			"{method} still returns an encoded array: {declaration}"
+		);
+	}
 
 	// The same classes, with another contract than the library's in place of theirs,
-	// refuse to load it.
-	let native_class = classes.join("api").join("Native.class");
-	let bytes = std::fs::read(&native_class).unwrap();
+	// refuse to load it: a _Native.class of its own, ahead on the classpath, leaves the
+	// compiled classes as they were.
+	let bytes = std::fs::read(classes.join("api").join("_Native.class")).unwrap();
 	let contract = kotlin_contract(&api.out.join("kotlin").join("api.kt")).to_be_bytes();
 	let at: Vec<usize> = (0..bytes.len() - 8).filter(|&i| bytes[i..i + 8] == contract).collect();
-	assert_eq!(at.len(), 1, "Native.class holds the contract once");
+	assert_eq!(at.len(), 1, "_Native.class holds the contract once");
 	let mut mismatched = bytes.clone();
 	mismatched[at[0]] ^= 0xff;
-	std::fs::write(&native_class, &mismatched).unwrap();
-	let output = java(&[]).output().unwrap();
-	std::fs::write(&native_class, &bytes).unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	let shadow = scratch().join("api").join("kotlin-mismatched");
+	step::write(&shadow.join("api").join("_Native.class"), &mismatched);
+	let output = java(&[&shadow, &classes], &[]).output().unwrap();
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api.kt and the library are from different builds"),
@@ -612,8 +728,9 @@ fn api_android() {
 		.arg(dir.join("lib"))
 		.args(["build", "--quiet", "--locked", "--manifest-path"])
 		.arg(out.join("Cargo.toml"))
+		// Apart from the host's glue, whose units share the export's names.
 		.arg("--target-dir")
-		.arg(scratch().join("api").join("glue"))
+		.arg(dir.join("glue"))
 		.args(["--features", "kotlin"])
 		.env("RUSTFLAGS", "-D warnings"));
 
@@ -621,8 +738,8 @@ fn api_android() {
 	// reaches, which R8 shrinks and renames, keeping only what the rules keep: the
 	// generated ones, and those kotlinx-coroutines' jar holds, which an app's build reads
 	// from it. Kotlin's annotations are on an app's classpath, not in its dex. The
-	// script's functions that hold lent bytes in their own frame are kept too, as R8 would
-	// inline them into their caller, whose frame ART's interpreter keeps reaching the bytes.
+	// script's functions marked `OwnFrame` are kept too, as R8 would inline them into their
+	// caller, whose frame ART's interpreter keeps reaching what they held.
 	let jar = dir.join("app.jar");
 	run(kotlinc(&out, &jar).arg("-include-runtime"));
 	run(Command::new("jar")
@@ -634,7 +751,7 @@ fn api_android() {
 	std::fs::write(
 		&app,
 		format!(
-			"-keep class ApiKt {{ public static void main(java.lang.String[]); static *** lentAround(); static *** lentToBudget*(...); }}\n-dontwarn org.jetbrains.annotations.**\n-printusage {}\n",
+			"-keep class ApiKt {{ public static void main(java.lang.String[]); @OwnFrame static <methods>; }}\n-dontwarn org.jetbrains.annotations.**\n-printusage {}\n",
 			dir.join("usage.txt").display()
 		),
 	)
@@ -726,6 +843,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 	);
 	run(&mut vm(&["futures"]));
 	run(&mut vm(&["owned"]));
+	run(&mut vm(&["clash"]));
 	for (case, message) in [
 		("moved", "Counter is closed"),
 		("boxed moved", "Node is closed"),
@@ -742,11 +860,57 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 	] {
-		let output = vm(&[case]).output().unwrap();
+		// Under a piped core pattern the handler still runs at a limit of 0, so the
+		// status reports a core though none is written.
+		let output = no_core(&mut vm(&[case])).output().unwrap();
 		assert!(!output.status.success(), "Kotlin {case} did not fail");
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Kotlin {case} printed {stderr}");
 	}
+}
+
+/// Asserts the run of `what` failed, as a broken contract must, and on Linux, where the test
+/// programs make themselves non-dumpable, without dumping core: each core costs the host a
+/// write and a run of its crash handler. Elsewhere the host's own core limit decides.
+fn failed(output: &Output, what: &str) {
+	assert!(!output.status.success(), "{what} did not fail");
+	#[cfg(target_os = "linux")]
+	assert!(
+		!std::os::unix::process::ExitStatusExt::core_dumped(&output.status),
+		"{what} dumped core"
+	);
+}
+
+/// `cmd` with a core-size limit of 0 on Linux, so a JVM case that aborts writes no core. The
+/// JVM cannot mark itself non-dumpable as the other test programs do, since JDK 21 calls C
+/// only through a preview API, so the host's crash handler still starts and logs the crash.
+fn no_core(cmd: &mut Command) -> &mut Command {
+	#[cfg(target_os = "linux")]
+	{
+		use std::ffi::{c_int, c_ulong};
+		use std::os::unix::process::CommandExt;
+
+		#[repr(C)]
+		struct Rlimit {
+			cur: c_ulong,
+			max: c_ulong,
+		}
+		unsafe extern "C" {
+			fn setrlimit(resource: c_int, limit: *const Rlimit) -> c_int;
+		}
+		const RLIMIT_CORE: c_int = 4;
+		// SAFETY: setrlimit is async-signal-safe and touches only the child.
+		unsafe {
+			cmd.pre_exec(|| {
+				if setrlimit(RLIMIT_CORE, &Rlimit { cur: 0, max: 0 }) == 0 {
+					Ok(())
+				} else {
+					Err(std::io::Error::last_os_error())
+				}
+			});
+		}
+	}
+	cmd
 }
 
 /// The library `python/api.py` loads from beside itself.
@@ -800,7 +964,7 @@ fn api_python() {
 		("reader kept", "read: a reader kept a view of its buffer past the read"),
 	] {
 		let output = python(&dir, &[case]).output().unwrap();
-		assert!(!output.status.success(), "Python {case} did not fail");
+		failed(&output, &format!("Python {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Python {case} printed {stderr}");
 	}
@@ -808,9 +972,7 @@ fn api_python() {
 	// The same Python, with another contract than the library's in place of its own,
 	// refuses to load it.
 	let mismatched = scratch().join("api").join("python-mismatched");
-	let _ = std::fs::remove_dir_all(&mismatched);
-	std::fs::create_dir_all(&mismatched).unwrap();
-	std::fs::copy(dir.join(PYTHON_LIB), mismatched.join(PYTHON_LIB)).unwrap();
+	step::copy(&dir.join(PYTHON_LIB), &mismatched.join(PYTHON_LIB));
 	let source = std::fs::read_to_string(dir.join("api.py")).unwrap();
 	let at = source
 		.find("_n.contract() != 0x")
@@ -821,9 +983,9 @@ fn api_python() {
 		_ => "0",
 	};
 	let source = format!("{}{flipped}{}", &source[..at], &source[at + 1..]);
-	std::fs::write(mismatched.join("api.py"), source).unwrap();
+	step::write(&mismatched.join("api.py"), source);
 	let output = python(&mismatched, &[]).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api.py and the library are from different builds"),
@@ -837,20 +999,27 @@ fn api_python() {
 #[test]
 fn api_py_types() {
 	let dir = scratch().join("api").join("python-types");
-	let _ = std::fs::remove_dir_all(&dir);
-	std::fs::create_dir_all(&dir).unwrap();
 	let module = dir.join("api.py");
 	let caller = dir.join("api_types.py");
-	std::fs::copy(api().out.join("python").join("api.py"), &module).unwrap();
-	std::fs::copy(manifest_dir().join("tests").join("api_types.py"), &caller).unwrap();
-	run(Command::new("mypy")
-		.args(["--strict", "--python-version", "3.11", "--cache-dir"])
-		.arg(scratch().join("mypy"))
-		.args([&module, &caller]));
+	step::copy(&api().out.join("python").join("api.py"), &module);
+	step::copy(&manifest_dir().join("tests").join("api_types.py"), &caller);
 	// Rooted in `dir`, so `import api` finds the module rather than `tests/api.py`.
 	let config = dir.join("pyrightconfig.json");
-	std::fs::copy(manifest_dir().join("tests").join("pyright.json"), &config).unwrap();
-	run(Command::new("pyright").arg("-p").arg(&config).args([&module, &caller]));
+	step::copy(&manifest_dir().join("tests").join("pyright.json"), &config);
+	let mut mypy = Command::new("mypy");
+	mypy.args(["--strict", "--python-version", "3.11", "--cache-dir"])
+		.arg(scratch().join("mypy"))
+		.args([&module, &caller]);
+	let mut pyright = Command::new("pyright");
+	pyright.arg("-p").arg(&config).args([&module, &caller]);
+	for (checker, mut cmd) in [("mypy", mypy), ("pyright", pyright)] {
+		let step = Step {
+			stamp: &dir.join(format!("{checker}.stamp")),
+			reads: &[&module, &caller, &config],
+			writes: &[],
+		};
+		step.run(&mut cmd);
+	}
 }
 
 /// The contract a Kotlin file checks its library against.
@@ -872,34 +1041,67 @@ fn kotlin_contract(kotlin: &Path) -> u64 {
 fn api_swift() {
 	let api = api();
 	let dir = scratch().join("api").join("swift");
-	let _ = std::fs::remove_dir_all(&dir);
-	std::fs::create_dir_all(&dir).unwrap();
 	let module = api.out.join("swift");
+	let include = api.out.join("include");
 	let source = module.join("api.swift");
 	let collections = swift_collections();
-	run(swiftc(&module, 13)
-		.args(["-swift-version", "5", "-typecheck"])
-		.arg(&source));
-	run(swiftc(&module, 13)
-		.args(["-swift-version", "6", "-parse-as-library", "-module-name", "Api"])
-		.args(["-emit-module", "-emit-module-path"])
-		.arg(dir.join("Api.swiftmodule"))
-		.args(["-emit-library", "-static", "-o"])
-		.arg(dir.join("libApi.a"))
-		.arg(&source));
+	let built = collections_dir();
+	let step = Step {
+		stamp: &dir.join("typecheck.stamp"),
+		reads: &[&module, &include, &built],
+		writes: &[],
+	};
+	step.run(
+		swiftc(&module, 13)
+			.args(["-swift-version", "5", "-typecheck"])
+			.arg(&source),
+	);
+	let (swiftmodule, lib) = (dir.join("Api.swiftmodule"), dir.join("libApi.a"));
+	let step = Step {
+		stamp: &dir.join("Api.stamp"),
+		reads: &[&module, &include, &built],
+		writes: &[&swiftmodule, &lib],
+	};
+	step.run(
+		swiftc(&module, 13)
+			.args(["-swift-version", "6", "-parse-as-library", "-module-name", "Api"])
+			.args(["-emit-module", "-emit-module-path"])
+			.arg(&swiftmodule)
+			.args(["-emit-library", "-static", "-o"])
+			.arg(&lib)
+			.arg(&source),
+	);
 	// The test's executor preference is macOS 15's.
 	let exe = dir.join("api-test");
 	let test = manifest_dir().join("tests").join("api.swift");
-	run(swiftc(&module, 15)
-		.args(["-parse-as-library", "-I"])
-		.arg(&dir)
-		.arg(&test)
-		.arg(dir.join("libApi.a"))
-		.args(&collections)
-		.arg(api.staticlib())
-		.args(&api.native)
-		.arg("-o")
-		.arg(&exe));
+	// The Clang module the test and the contract program import on Linux.
+	let nodump = manifest_dir().join("tests").join("nodump");
+	let step = Step {
+		stamp: &step::stamp(&exe),
+		reads: &[
+			&test,
+			&nodump,
+			&module,
+			&include,
+			&built,
+			&swiftmodule,
+			&lib,
+			&api.staticlib(),
+		],
+		writes: &[&exe],
+	};
+	step.run(
+		swiftc(&module, 15)
+			.args(["-parse-as-library", "-I"])
+			.arg(&dir)
+			.arg(&test)
+			.arg(&lib)
+			.args(&collections)
+			.arg(api.staticlib())
+			.args(&api.native)
+			.arg("-o")
+			.arg(&exe),
+	);
 	let swift = run(&mut Command::new(&exe));
 	assert_eq!(
 		String::from_utf8_lossy(&swift.stdout),
@@ -919,15 +1121,20 @@ fn api_swift() {
 		),
 		("LENT_KEPT", "implicit conversion to 'Tally?' is consuming"),
 	] {
-		let output = swiftc(&module, 15)
-			.args(["-parse-as-library", "-emit-sil", "-o"])
-			.arg(dir.join("broken.sil"))
-			.args(["-I"])
-			.arg(&dir)
-			.arg(format!("-D{case}"))
-			.arg(&test)
-			.output()
-			.unwrap();
+		let step = Step {
+			stamp: &dir.join(format!("{case}.stamp")),
+			reads: &[&test, &nodump, &module, &include, &built, &swiftmodule],
+			writes: &[],
+		};
+		let output = step.output(
+			swiftc(&module, 15)
+				.args(["-parse-as-library", "-emit-sil", "-o"])
+				.arg(dir.join("broken.sil"))
+				.args(["-I"])
+				.arg(&dir)
+				.arg(format!("-D{case}"))
+				.arg(&test),
+		);
 		assert!(!output.status.success(), "Swift {case} compiled");
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Swift {case} printed {stderr}");
@@ -943,7 +1150,7 @@ fn api_swift() {
 		("plain variant", "api_Family.Wasm: it is not on this library's target"),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
-		assert!(!output.status.success(), "Swift {case} did not fail");
+		failed(&output, &format!("Swift {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Swift {case} printed {stderr}");
 	}
@@ -959,21 +1166,32 @@ fn api_swift() {
 	let digit = if &generated[at..at + 1] == "0" { "1" } else { "0" };
 	mismatched.replace_range(at..at + 1, digit);
 	let contract = dir.join("contract");
-	std::fs::create_dir_all(&contract).unwrap();
-	std::fs::write(contract.join("api.swift"), mismatched).unwrap();
-	std::fs::write(contract.join("main.swift"), "_ = dropped()\n").unwrap();
+	let (swift, main) = (contract.join("api.swift"), contract.join("main.swift"));
+	step::write(&swift, mismatched);
+	// Non-dumpable before the check fails, as `broken` is.
+	step::write(
+		&main,
+		"#if os(Linux)\nimport Glibc\nimport NoDump\n\nif nodump() != 0 {\n\tperror(\"prctl\")\n\texit(1)\n}\n#endif\n_ = dropped()\n",
+	);
 	let exe = contract.join("contract");
-	run(swiftc(&module, 13)
-		.args(["-module-name", "Api"])
-		.arg(contract.join("api.swift"))
-		.arg(contract.join("main.swift"))
-		.args(&collections)
-		.arg(api.staticlib())
-		.args(&api.native)
-		.arg("-o")
-		.arg(&exe));
+	let step = Step {
+		stamp: &step::stamp(&exe),
+		reads: &[&swift, &main, &nodump, &module, &include, &built, &api.staticlib()],
+		writes: &[&exe],
+	};
+	step.run(
+		swiftc(&module, 13)
+			.args(["-module-name", "Api"])
+			.arg(&swift)
+			.arg(&main)
+			.args(&collections)
+			.arg(api.staticlib())
+			.args(&api.native)
+			.arg("-o")
+			.arg(&exe),
+	);
 	let output = Command::new(&exe).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api.swift and the library are from different builds"),
@@ -988,10 +1206,13 @@ fn api_swift() {
 fn api_dart() {
 	let api = api();
 	let dir = scratch().join("api").join("dart");
-	let _ = std::fs::remove_dir_all(&dir);
-	std::fs::create_dir_all(&dir).unwrap();
 	let generated = api.out.join("dart");
-	run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&generated));
+	let step = Step {
+		stamp: &dir.join("analyze.stamp"),
+		reads: &[&generated],
+		writes: &[],
+	};
+	step.run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&generated));
 	let lib = api.lib.join(PYTHON_LIB);
 	let exe = dart_compile(
 		"api",
@@ -1032,7 +1253,7 @@ fn api_dart() {
 		("lent stray", "a path from Rust is not UTF-8"),
 	] {
 		let output = dart_run(&exe, &[case]).output().unwrap();
-		assert!(!output.status.success(), "Dart {case} did not fail");
+		failed(&output, &format!("Dart {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Dart {case} printed {stderr}");
 	}
@@ -1044,18 +1265,18 @@ fn api_dart() {
 	let mut mismatched = source.clone();
 	let digit = if &source[at..at + 1] == "0" { "1" } else { "0" };
 	mismatched.replace_range(at..at + 1, digit);
+	// The package apart from the program's directory, which its build writes into.
 	let contract = dir.join("contract");
-	std::fs::create_dir_all(&contract).unwrap();
-	std::fs::write(contract.join("api.dart"), mismatched).unwrap();
+	let package = contract.join("package");
+	step::write(&package.join("api.dart"), mismatched);
 	let main = contract.join("main.dart");
-	std::fs::write(
+	step::write(
 		&main,
 		"import 'package:api/api.dart' as api;\n\nvoid main() => api.dropped();\n",
-	)
-	.unwrap();
-	let exe = dart_compile("api", &contract, &contract, &lib, &main);
+	);
+	let exe = dart_compile("api", &contract, &package, &lib, &main);
 	let output = dart_run(&exe, &[]).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("api.dart and the library are from different builds"),
@@ -1075,13 +1296,12 @@ fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path)
 		.to_path_buf();
 	let config = dir.join("package_config.json");
 	let root = url(package);
-	std::fs::write(
+	step::write(
 		&config,
 		format!(
 			"{{\"configVersion\": 2, \"packages\": [{{\"name\": \"{name}\", \"rootUri\": \"{root}/\", \"packageUri\": \"./\"}}]}}\n"
 		),
-	)
-	.unwrap();
+	);
 	let os = match std::env::consts::OS {
 		"macos" => "macos",
 		"windows" => "windows",
@@ -1092,16 +1312,21 @@ fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path)
 		_ => "x64",
 	};
 	let assets = dir.join("native_assets.yaml");
-	std::fs::write(
+	step::write(
 		&assets,
 		format!(
 			"format-version: [1, 0, 0]\nnative-assets:\n  {os}_{arch}:\n    \"package:{name}/{name}.dart\": [absolute, {:?}]\n",
 			lib.display().to_string()
 		),
-	)
-	.unwrap();
+	);
 	let dill = dir.join(format!("{}.dill", main.file_stem().unwrap().to_string_lossy()));
-	run(
+	// The snapshot names the library by path, so a change to it rebuilds nothing.
+	let step = Step {
+		stamp: &step::stamp(&dill),
+		reads: &[main, package, &config, &assets, &sdk.join("version")],
+		writes: &[&dill],
+	};
+	step.run(
 		Command::new(sdk.join("bin").join(format!("dartaotruntime{EXE_SUFFIX}")))
 			.arg(sdk.join("bin/snapshots/gen_kernel_aot.dart.snapshot"))
 			.arg("--platform")
@@ -1164,9 +1389,9 @@ fn collections_dir() -> PathBuf {
 	manifest_dir().join("target").join("swift-collections").join("build")
 }
 
-/// swiftc, with warnings as errors, finding the C header's module in `module` and
-/// swift-collections' in [`collections_dir`], at this macOS deployment target on macOS: 13
-/// is the oldest the generated `Swift.Duration` allows.
+/// swiftc, with warnings as errors, finding the C header's module in `module`,
+/// swift-collections' in [`collections_dir`], and `tests/nodump`'s, at this macOS deployment
+/// target on macOS: 13 is the oldest the generated `Swift.Duration` allows.
 fn swiftc(module: &Path, macos: u8) -> Command {
 	let mut cmd = Command::new("swiftc");
 	if cfg!(target_os = "macos") {
@@ -1179,7 +1404,9 @@ fn swiftc(module: &Path, macos: u8) -> Command {
 	cmd.args(["-warnings-as-errors", "-I"])
 		.arg(module)
 		.arg("-I")
-		.arg(collections_dir());
+		.arg(collections_dir())
+		.arg("-I")
+		.arg(manifest_dir().join("tests").join("nodump"));
 	cmd
 }
 
@@ -1189,28 +1416,24 @@ fn swiftc(module: &Path, macos: u8) -> Command {
 #[test]
 fn api_go() {
 	let api = api();
-	// The export's Go, the module of a package per crate that it declares, beside the header
-	// as the export lays them out, and the test's module, which requires it.
-	let module = scratch().join("api").join("go");
-	let _ = std::fs::remove_dir_all(&module);
+	let dir = scratch().join("api").join("go");
+	let module = dir.join("module");
+	go_layout(
+		api,
+		&module,
+		&std::fs::read_to_string(manifest_dir().join("tests").join("api.go")).unwrap(),
+	);
 	let export = module.join("export");
-	copy_dir(&api.out.join("go"), &export);
-	std::fs::create_dir_all(module.join("include")).unwrap();
-	std::fs::copy(
-		api.out.join("include").join("api.h"),
-		module.join("include").join("api.h"),
-	)
-	.unwrap();
-	std::fs::copy(manifest_dir().join("tests").join("api.go"), module.join("main.go")).unwrap();
-	std::fs::write(
-		module.join("go.mod"),
-		"module apitest\n\ngo 1.24\n\nrequire api v0.0.0\n\nreplace api => ./export\n",
-	)
-	.unwrap();
-	run(&mut go(&export, api, &["vet", "./..."]));
-	let exe = module.join(format!("api-test{EXE_SUFFIX}"));
-	run(&mut go(&module, api, &["vet", "./..."]));
-	run(go(&module, api, &["build", "-o"]).arg(&exe));
+	for (name, root) in [("vet-export", &export), ("vet", &module)] {
+		let step = Step {
+			stamp: &dir.join(format!("{name}.stamp")),
+			reads: &[&module],
+			writes: &[],
+		};
+		step.run(&mut go(root, api, &["vet", "./..."]));
+	}
+	let exe = dir.join(format!("api-test{EXE_SUFFIX}"));
+	go_build(api, &module, &exe);
 	let output = run(&mut Command::new(&exe));
 	assert_eq!(
 		String::from_utf8_lossy(&output.stdout),
@@ -1228,7 +1451,7 @@ fn api_go() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("nil reader", "a nil io.ReadSeeker"),
-		("returned closed", "Instant is closed"),
+		("returned zero", "a zero Instant, which only Rust makes"),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
 		("outlived", OUTLIVED),
 		("text", "api_greet: a string is not UTF-8"),
@@ -1239,14 +1462,20 @@ fn api_go() {
 		("plain variant", "api_Family.Wasm: it is not on this library's target"),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
-		assert!(!output.status.success(), "Go {case} did not fail");
+		failed(&output, &format!("Go {case}"));
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Go {case} printed {stderr}");
 	}
 
 	// The same packages, with another contract than the library's in place of their own,
-	// refuse it when they load.
-	let runtime = export.join("rt").join("rt.go");
+	// refuse it when they load: in a module of their own, which leaves the test's as it was.
+	let contract = dir.join("contract");
+	go_layout(
+		api,
+		&contract,
+		"package main\n\nimport \"api/api\"\n\nfunc main() {\n\tapi.Dropped()\n}\n",
+	);
+	let runtime = contract.join("export").join("rt").join("rt.go");
 	let generated = std::fs::read_to_string(&runtime).unwrap();
 	let at = generated
 		.find("api_contract() != 0x")
@@ -1255,20 +1484,41 @@ fn api_go() {
 	let mut mismatched = generated.clone();
 	let digit = if &generated[at..at + 1] == "0" { "1" } else { "0" };
 	mismatched.replace_range(at..at + 1, digit);
-	std::fs::write(&runtime, mismatched).unwrap();
-	std::fs::write(
-		module.join("main.go"),
-		"package main\n\nimport \"api/api\"\n\nfunc main() {\n\tapi.Dropped()\n}\n",
-	)
-	.unwrap();
-	run(go(&module, api, &["build", "-o"]).arg(&exe));
+	step::write(&runtime, mismatched);
+	let exe = dir.join(format!("contract-test{EXE_SUFFIX}"));
+	go_build(api, &contract, &exe);
 	let output = Command::new(&exe).output().unwrap();
-	assert!(!output.status.success(), "a mismatched contract did not fail");
+	failed(&output, "a mismatched contract");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		stderr.contains("the Go of api and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+}
+
+/// Lay out `module` as a Go module whose main package is `main`, requiring the export's
+/// module of a package per crate, beside the header as the export lays them out.
+fn go_layout(api: &Api, module: &Path, main: &str) {
+	step::mirror(&api.out.join("go"), &module.join("export"));
+	step::copy(
+		&api.out.join("include").join("api.h"),
+		&module.join("include").join("api.h"),
+	);
+	step::write(&module.join("main.go"), main);
+	step::write(
+		&module.join("go.mod"),
+		"module apitest\n\ngo 1.24\n\nrequire api v0.0.0\n\nreplace api => ./export\n",
+	);
+}
+
+/// Build the Go `module` into `exe` against the api fixture's static library.
+fn go_build(api: &Api, module: &Path, exe: &Path) {
+	let step = Step {
+		stamp: &step::stamp(exe),
+		reads: &[module, &api.staticlib()],
+		writes: &[exe],
+	};
+	step.run(go(module, api, &["build", "-o"]).arg(exe));
 }
 
 /// Under a `go.mod`, the generated packages import each other by its module, as the go
@@ -1303,7 +1553,7 @@ fn go_module() {
 #[test]
 fn go_reserved_packages() {
 	for name in ["rt", "func", "main"] {
-		let package = package(&format!("go_reserved_{name}"));
+		let package = package(&format!("go_reserved_{name}"), &[]);
 		let manifest = format!(
 			"[package]\nname = \"go_reserved_{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"{name}\"\n\n[workspace]\n"
 		);
@@ -1333,7 +1583,7 @@ fn go_reserved_packages() {
 /// `pkg2d`, which Go vets.
 #[test]
 fn go_package_names() {
-	let package = package("go_package_names");
+	let package = package("go_package_names", &[]);
 	let dep = |lib: &str| {
 		(
 			format!(
@@ -1389,6 +1639,210 @@ fn go_package_names() {
 	vet(&go);
 }
 
+/// A type a signature names that the root does not reach, as moq-net's `kio::Pending`,
+/// exports by its public path in its own crate, through a re-export or a module, even from a
+/// crate the facade re-exports nothing from; one no public path names stays refused. Such a
+/// crate's error still crosses as its message, and its type an `Arc` holds stays an opaque
+/// handle, refused bare.
+#[test]
+fn unreached_types() {
+	let package = package(
+		"unreached_types",
+		&[
+			(
+				"ffi.toml",
+				"exclude = [\"seal\", \"bare\", \"opaque\", \"closed\", \"own\", \"Buffer::first\"]\n",
+			),
+			(
+				"Cargo.toml",
+				"[package]\nname = \"unreached_types\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"pkg\"\n\n\
+				[dependencies]\nkio = { package = \"unreached-kio\", path = \"kio\" }\n\
+				net = { package = \"unreached-net\", path = \"net\" }\n\
+				conv = { package = \"unreached-conv\", path = \"conv\" }\n\n[workspace]\nexclude = [\"kio\", \"net\", \"conv\"]\n",
+			),
+			(
+				"src/lib.rs",
+				"pub use kio::Ready;\n\npub fn pending() -> kio::Pending {\n\tkio::Pending(1)\n}\n\n\
+				pub fn version() -> kio::version::Version {\n\tkio::version::Version { major: 2 }\n}\n\n\
+				pub fn seal() -> kio::Sealed {\n\tkio::sealed()\n}\n\n\
+				pub fn connect() -> Result<net::Link, net::Fault> {\n\tnet::connect()\n}\n\n\
+				pub fn handle() -> std::sync::Arc<net::Handle> {\n\tstd::sync::Arc::new(net::Handle(4))\n}\n\n\
+				pub fn bare(handle: &net::Handle) -> u32 {\n\thandle.0\n}\n\n\
+				pub fn opaque() -> Result<(), net::Opaque> {\n\tErr(net::Opaque)\n}\n\n\
+				pub fn closed() -> net::Closed {\n\tnet::closed()\n}\n\n\
+				pub enum Failure {\n\tNet(net::Fault),\n}\n\npub fn fail() -> Failure {\n\tFailure::Net(net::Fault)\n}\n\n\
+				pub struct Buffer(Vec<u32>);\n\nimpl Buffer {\n\tpub fn new() -> Self {\n\t\tSelf(vec![1])\n\t}\n\n\
+				\tpub fn drain(&mut self) -> impl Iterator<Item = u32> + '_ {\n\t\tnet::drain(&mut self.0)\n\t}\n}\n\n\
+				pub fn copied(items: &[u32]) -> impl Iterator<Item = u32> + '_ {\n\titems.iter().copied()\n}\n\n\
+				#[derive(Clone)]\npub struct Held<'a>(&'a u32);\n\nimpl Held<'_> {\n\tpub fn get(&self) -> u32 {\n\t\t*self.0\n\t}\n}\n\n\
+				pub fn wrap(x: &u32) -> impl Clone + '_ {\n\tSome(Held(x))\n}\n\n#[derive(Clone)]\npub struct Own(u32);\n\nimpl Own {\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n\npub fn own() -> impl Clone {\n\tSome(Own(1))\n}\n\n\
+				impl Buffer {\n\tpub fn first(&self) -> impl Clone + '_ {\n\t\tOwn(self.0[0])\n\t}\n}\n\n\
+				pub struct Counter(u32);\n\nimpl Counter {\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n\n\
+				impl Buffer {\n\tfn counter(&self) -> impl Into<Counter> + '_ {\n\t\tCounter(self.0[0])\n\t}\n\n\
+				\tpub fn best(&self) -> impl Into<Counter> + '_ {\n\t\tself.counter()\n\t}\n}\n\n\
+				pub fn copied_again(items: &[u32]) -> impl Iterator<Item = u32> + '_ {\n\tcopied(items)\n}\n\n\
+				pub fn take(value: impl Into<conv::Value>) -> u32 {\n\tvalue.into().get()\n}\n",
+			),
+			(
+				"net/Cargo.toml",
+				"[package]\nname = \"unreached-net\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"net\"\n",
+			),
+			(
+				"net/src/lib.rs",
+				"mod link {\n\tpub struct Link(pub u32);\n\n\timpl Link {\n\t\tpub fn id(&self) -> u32 {\n\t\t\tself.0\n\t\t}\n\t}\n}\n\n\
+				pub use link::Link;\n\npub struct Handle(pub u32);\n\n#[derive(Debug)]\npub struct Fault;\n\n\
+				impl std::fmt::Display for Fault {\n\tfn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n\t\tf.write_str(\"fault\")\n\t}\n}\n\n\
+				impl std::error::Error for Fault {}\n\n\
+				pub struct Opaque;\n\nmod closed {\n\tpub struct Closed;\n}\n\npub type Closed = closed::Closed;\n\n\
+				pub fn closed() -> closed::Closed {\n\tclosed::Closed\n}\n\n\
+				pub fn connect() -> Result<Link, Fault> {\n\tOk(Link(1))\n}\n\n\
+				pub struct Drain<'a>(&'a mut Vec<u32>);\n\n\
+				pub fn drain(items: &mut Vec<u32>) -> Drain<'_> {\n\tDrain(items)\n}\n\n\
+				impl Iterator for Drain<'_> {\n\ttype Item = u32;\n\n\tfn next(&mut self) -> Option<u32> {\n\t\tself.0.pop()\n\t}\n}\n",
+			),
+			(
+				"conv/Cargo.toml",
+				"[package]\nname = \"unreached-conv\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"conv\"\n",
+			),
+			(
+				"conv/src/lib.rs",
+				"pub struct Value(u32);\n\nimpl Value {\n\tpub fn new(n: u32) -> Self {\n\t\tSelf(n)\n\t}\n\n\tpub fn get(&self) -> u32 {\n\t\tself.0\n\t}\n}\n",
+			),
+			(
+				"kio/Cargo.toml",
+				"[package]\nname = \"unreached-kio\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"kio\"\n",
+			),
+			(
+				"kio/src/lib.rs",
+				"pub struct Ready;\n\nmod pollable {\n\tpub struct Pending(pub u32);\n\n\timpl Pending {\n\t\tpub fn id(&self) -> u32 {\n\t\t\tself.0\n\t\t}\n\t}\n}\n\npub use pollable::Pending;\n\n\
+				pub mod version {\n\t#[derive(Clone, Copy)]\n\tpub struct Version {\n\t\tpub major: u32,\n\t}\n}\n\n\
+				mod sealed {\n\tpub struct Sealed(pub u32);\n}\n\npub type Sealed = sealed::Sealed;\n\n\
+				pub fn sealed() -> sealed::Sealed {\n\tsealed::Sealed(3)\n}\n",
+			),
+		],
+	);
+	// The export builds, naming `kio`'s types through its own dependency on `kio`.
+	let out = package.join("out");
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--out")
+		.arg(&out)
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	let glue = std::fs::read_to_string(out.join("src/lib.rs")).unwrap();
+	// An `impl Iterator + '_` collected at the call holds no borrow past it.
+	assert!(glue.contains("fn pkg_copied("), "{glue}");
+	// So does one returning another's, whose hidden type is revealed in full.
+	assert!(glue.contains("fn pkg_copied_again("), "{glue}");
+	// A conversion target only an `impl Into` names is reached, and taken.
+	assert!(
+		glue.contains("rt::Object::<::conv_reached::Value>::take(p0, w)"),
+		"{glue}"
+	);
+	assert!(glue.contains("::kio_reached::Pending"), "{glue}");
+	// `net`'s error crosses as its message, or holds `Failure`, which holds it, an object, and
+	// its `Arc` crosses as an opaque handle.
+	assert!(
+		glue.contains("::net_reached::Link") && !glue.contains("Fault") && !glue.contains("net_reached::Handle"),
+		"{glue}"
+	);
+	// Apart from the export's own build, which cleans the facade each time.
+	run(cargo()
+		.arg("build")
+		.arg("--manifest-path")
+		.arg(out.join("Cargo.toml"))
+		.env("CARGO_TARGET_DIR", package.join("glue")));
+	// Staged on another host, with the checkout elsewhere, the merged export depends on the
+	// exporting host's `kio`, not the staging host's, though only the staged target reaches it.
+	let staged = package.join("wasm.json");
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.args(["--api", staged.to_str().unwrap(), "--target", WASM])
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	let moved = scratch().join("unreached_types-moved");
+	let _ = std::fs::remove_dir_all(&moved);
+	for dir in ["src", "kio", "net", "conv"] {
+		step::mirror(&package.join(dir), &moved.join(dir));
+	}
+	for file in ["Cargo.toml", "ffi.toml"] {
+		std::fs::copy(package.join(file), moved.join(file)).unwrap();
+	}
+	let lib = std::fs::read_to_string(package.join("src/lib.rs")).unwrap();
+	let (head, rest) = lib.split_once("pub fn pending").unwrap();
+	let rest = &rest[rest.find("pub fn seal").unwrap()..];
+	std::fs::write(moved.join("src/lib.rs"), format!("{head}{rest}")).unwrap();
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(moved.join("ffi.toml"))
+		.arg("--out")
+		.arg(moved.join("out"))
+		.arg("--with")
+		.arg(&staged)
+		.env("CARGO_TARGET_DIR", moved.join("build")));
+	let manifest = std::fs::read_to_string(moved.join("out/Cargo.toml")).unwrap();
+	assert!(
+		manifest.contains(&format!("path = {:?}", moved.join("kio").display().to_string()))
+			&& !manifest.contains(&format!("{:?}", package.join("kio").display().to_string())),
+		"{manifest}"
+	);
+	std::fs::write(package.join("ffi.toml"), "").unwrap();
+	let census = package.join("census");
+	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--census")
+		.arg(&census)
+		.env("CARGO_TARGET_DIR", package.join("build"))
+		.output()
+		.unwrap();
+	assert!(
+		output.status.success(),
+		"the census failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let report = std::fs::read_to_string(census.join("unreached_types.md")).unwrap();
+	// `Pending`, `Version`, `Link`, `Failure`, `Buffer`, and `conv::Value` export; `Sealed`
+	// alone is refused as unreached, though an alias names it. `net`'s error in `Failure` is
+	// never reached, so a handle holds it by value, and `Failure`, which holds it, is an object.
+	assert!(report.contains("| Types | 6 | 0 |"), "{report}");
+	assert!(
+		report.contains("- `Failure`: object in a value `net::Fault`"),
+		"{report}"
+	);
+	// A type an `Arc` holds, and a `Result`'s error without `Display`, stay refused as
+	// foreign; one no public path names is held by value instead.
+	for refused in [
+		"fn `bare` at src/lib.rs:23:1: foreign type `net::Handle`",
+		"fn `opaque` at src/lib.rs:27:1: foreign type `net::Opaque`",
+	] {
+		assert!(report.contains(refused), "{report}");
+	}
+	assert!(!report.contains("`closed`"), "{report}");
+	// `impl Iterator + '_` lends a borrow of the receiver, so `drain` is refused and `Drain`
+	// left out with it, rather than glue that does not build; so is `wrap`, whose hidden
+	// `Option` holds a borrowing `Held`.
+	assert!(
+		report.contains("- `Buffer::drain`: type C never holds `net::Drain`"),
+		"{report}"
+	);
+	assert!(report.contains("- `wrap`: type C never holds `Held`"), "{report}");
+	// So is `best`, whose `impl Into<Counter> + '_` hides another `impl Trait` hiding a
+	// `Counter`, an object its handle would hold the receiver's borrow for.
+	assert!(
+		report.contains("- `Buffer::best`: type C never holds `Counter`"),
+		"{report}"
+	);
+	// The glue cannot destructure a hidden type it cannot name, so only an object crosses
+	// through an `impl Trait`: `own`'s `Option` is refused, and `Own` left out with it.
+	assert!(report.contains("- `own`: type C never holds `Own`"), "{report}");
+	assert!(
+		report.contains("fn `seal` at src/lib.rs:11:1: type not reachable from the crate root `kio::sealed::Sealed`"),
+		"{report}"
+	);
+	assert_eq!(report.matches("not reachable").count(), 3, "{report}");
+}
+
 /// `go vet` over an export's `go/`, which the header beside it lets cgo check unlinked.
 fn vet(go: &Path) {
 	run(Command::new("go")
@@ -1397,21 +1851,6 @@ fn vet(go: &Path) {
 		.env("CGO_ENABLED", "1")
 		.env("GOFLAGS", "-buildvcs=false")
 		.env("GOTOOLCHAIN", "local"));
-}
-
-/// A copy of the directory `from` at `to`.
-fn copy_dir(from: &Path, to: &Path) {
-	std::fs::create_dir_all(to).unwrap();
-	for entry in std::fs::read_dir(from).unwrap() {
-		let entry = entry.unwrap();
-		let path = entry.path();
-		match entry.file_type().unwrap().is_dir() {
-			true => copy_dir(&path, &to.join(entry.file_name())),
-			false => {
-				std::fs::copy(&path, to.join(entry.file_name())).unwrap();
-			}
-		}
-	}
 }
 
 /// The go command in `module`, linking cgo against the api fixture's static library.
@@ -1430,6 +1869,108 @@ fn go(module: &Path, api: &Api, args: &[&str]) -> Command {
 		.env("GOFLAGS", "-buildvcs=false")
 		.env("GOTOOLCHAIN", "local");
 	cmd
+}
+
+/// Exporting an unchanged crate again moves no file's mtime, the lockfile's included, so a
+/// build of the export stays fresh, and drops a file it no longer writes from a directory
+/// it owns.
+#[test]
+fn reexport() {
+	let package = package("reexport", &[]);
+	let out = package.join("out");
+	let export = || {
+		run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+			.arg("--config")
+			.arg(package.join("ffi.toml"))
+			.arg("--out")
+			.arg(&out)
+			.env("CARGO_TARGET_DIR", package.join("build")))
+	};
+	export();
+	fn files(dir: &Path) -> Vec<PathBuf> {
+		let mut found = Vec::new();
+		for entry in std::fs::read_dir(dir).unwrap() {
+			let path = entry.unwrap().path();
+			match path.is_dir() {
+				true => found.extend(files(&path)),
+				false => found.push(path),
+			}
+		}
+		found.sort();
+		found
+	}
+	let written = files(&out);
+	assert!(written.contains(&out.join("Cargo.lock")), "{written:?}");
+	// In the past, so a rewrite would move it.
+	let past = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1 << 30);
+	for file in &written {
+		let file = std::fs::File::options().write(true).open(file).unwrap();
+		file.set_modified(past).unwrap();
+	}
+	let stray = out.join("go").join("stray").join("stray.go");
+	step::write(&stray, "package stray\n");
+	export();
+	assert_eq!(files(&out), written, "the second export wrote other files");
+	for file in &written {
+		let mtime = std::fs::metadata(file).unwrap().modified().unwrap();
+		assert_eq!(mtime, past, "the second export rewrote {}", file.display());
+	}
+	assert!(
+		!stray.parent().unwrap().exists(),
+		"the export kept what it no longer writes"
+	);
+}
+
+/// A step replays while what it reads and what it wrote are as it left them, and runs again
+/// once either changes; a failure a test expects replays too.
+#[test]
+fn step_reruns_on_change() {
+	let dir = scratch().join("step");
+	let _ = std::fs::remove_dir_all(&dir);
+	let (input, repo) = (dir.join("input"), dir.join("repo"));
+	step::write(&input, "one");
+	let stamp = dir.join("init.stamp");
+	let step = Step {
+		stamp: &stamp,
+		reads: &[&input],
+		writes: &[&repo],
+	};
+	let head = repo.join(".git").join("HEAD");
+	let past = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1 << 30);
+	// Whether the step ran since `head` was last set in the past.
+	let ran = |run: &dyn Fn()| {
+		let file = std::fs::File::options().write(true).open(&head).unwrap();
+		file.set_modified(past).unwrap();
+		run();
+		std::fs::metadata(&head).unwrap().modified().unwrap() != past
+	};
+	let init = || {
+		step.run(Command::new("git").args(["init", "--quiet"]).arg(&repo));
+	};
+	init();
+	assert!(!ran(&init), "an unchanged step ran again");
+	step::write(&input, "two");
+	assert!(ran(&init), "a step whose input changed replayed");
+	step::write(&repo.join("stray"), "");
+	assert!(ran(&init), "a step whose output changed replayed");
+	assert!(
+		!repo.join("stray").exists(),
+		"a step's run kept what an earlier one left"
+	);
+
+	let stamp = dir.join("failed.stamp");
+	let failed = Step {
+		stamp: &stamp,
+		reads: &[&input],
+		writes: &[],
+	};
+	let first = failed.output(Command::new("git").arg("--no-such-flag"));
+	assert!(
+		!first.status.success() && stamp.exists(),
+		"an expected failure was not kept"
+	);
+	let again = failed.output(Command::new("git").arg("--no-such-flag"));
+	assert_eq!((again.status, again.stderr), (first.status, first.stderr));
 }
 
 /// A relative `CARGO_TARGET_DIR` is the caller's, wherever cargo runs.
@@ -1479,7 +2020,11 @@ fn relative_target() {
 		"- `Lease`: object no export returns",
 		"- `Void`: object no export returns",
 		"- `release`: type C never holds `Lease`",
+		"- `handover`: type C never holds `tls::held::Handoff`",
 		"- `Unnamed`: generic type no export instantiates",
+		"- `blame`: type C never holds `tls::held::Invalid`",
+		// A type parameter only another crate's trait bounds, which no export implements.
+		"- `pump`: bound no type C holds meets `tls::held::Stream`",
 		// An exclude that names what exports, by its generic or instance path or as a field,
 		// even where a method of the field's name is refused.
 		"## Excluded by the config, though it exports",
@@ -1509,6 +2054,10 @@ fn relative_target() {
 			"the census lists `{refused}` as exporting:\n{exporting}"
 		);
 	}
+	// Its error a handle C never holds, `verify` still exports, the error as its message.
+	assert!(!text.contains("`verify`"), "the census lists `verify`:\n{text}");
+	// Nor does `parse_cert`'s, though it borrows the text.
+	assert!(!text.contains("`parse_cert`"), "the census lists `parse_cert`:\n{text}");
 	assert!(dir.join("build").exists());
 }
 
@@ -1713,6 +2262,23 @@ fn lock() {
 		stderr.contains("library `other`: it is now `lock`"),
 		"no library error:\n{stderr}"
 	);
+	// A baseline an earlier export wrote, before records had their padding, still reads.
+	let older = dir.join("older.json");
+	let mut json = String::from_utf8(before.clone()).unwrap();
+	while let Some(at) = json.find(",\"padding\":{") {
+		let end = at + json[at..].find('}').unwrap() + 1;
+		json.replace_range(at..end, "");
+	}
+	std::fs::write(&older, json).unwrap();
+	let args = ["--baseline".as_ref(), older.as_os_str()];
+	let read = exporter("lock", &dir.join("older"), &targets, &args, &[])
+		.output()
+		.expect("running rust2-ffi");
+	assert!(
+		read.status.success(),
+		"a baseline without padding failed:\n{}",
+		String::from_utf8_lossy(&read.stderr)
+	);
 	let locked = |feature: &str| {
 		let args = ["--baseline".as_ref(), baseline.as_os_str()];
 		exporter("lock", &dir.join(feature), &targets, &args, &["--features", feature])
@@ -1837,14 +2403,22 @@ fn feature_of_dependency() {
 	);
 }
 
-/// A one-function package named `name` in its own workspace, written into scratch.
-fn package(name: &str) -> PathBuf {
+/// A one-function package named `name` in its own workspace, written into scratch, with
+/// `files` in place of its own or besides: each written once, so a second run moves no
+/// mtime and cargo finds the package fresh.
+fn package(name: &str, files: &[(&str, &str)]) -> PathBuf {
 	let package = scratch().join(name);
-	std::fs::create_dir_all(package.join("src")).unwrap();
 	let manifest = format!("[package]\nname = \"{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[workspace]\n");
-	std::fs::write(package.join("Cargo.toml"), manifest).unwrap();
-	std::fs::write(package.join("src/lib.rs"), "pub fn one() -> u32 {\n\t1\n}\n").unwrap();
-	std::fs::write(package.join("ffi.toml"), "").unwrap();
+	let defaults = [
+		("Cargo.toml", manifest.as_str()),
+		("src/lib.rs", "pub fn one() -> u32 {\n\t1\n}\n"),
+		("ffi.toml", ""),
+	];
+	let defaults = defaults
+		.into_iter()
+		.filter(|(path, _)| files.iter().all(|(file, _)| file != path));
+	write_all(&package, &defaults.collect::<Vec<_>>());
+	write_all(&package, files);
 	package
 }
 
@@ -1853,7 +2427,7 @@ fn package(name: &str) -> PathBuf {
 /// and starts with `@`, which inside an argfile rustc reads as itself, not another file.
 #[test]
 fn argfile() {
-	let package = package("argfile");
+	let package = package("argfile", &[]);
 	let value = format!("@{}=/", "a".repeat(1 << 21));
 	write_all(
 		&package,
@@ -1888,7 +2462,7 @@ fn census(config: &Path, cargo: &[&str]) -> Command {
 /// check then accepts, nor passes.
 #[test]
 fn locked() {
-	let package = package("locked");
+	let package = package("locked", &[]);
 	let _ = std::fs::remove_file(package.join("Cargo.lock"));
 	let output = census(&package.join("ffi.toml"), &["--locked"]).output().unwrap();
 	assert!(!output.status.success(), "a census without a lockfile passed --locked");
@@ -1900,7 +2474,7 @@ fn locked() {
 #[cfg(unix)]
 #[test]
 fn symlinked() {
-	let package = package("symlinked");
+	let package = package("symlinked", &[]);
 	let link = scratch().join("symlinked-link");
 	if !link.exists() {
 		std::os::unix::fs::symlink(&package, &link).unwrap();
@@ -1918,11 +2492,25 @@ fn symlinked() {
 /// their sources remapped.
 #[test]
 fn lookalike() {
-	let package = package("lookalike");
+	let package = package(
+		"lookalike",
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"lookalike\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"shared\"\n\n\
+				[dependencies]\nshared = { package = \"lookalike-exp\", path = \"exp\" }\n\
+				bytes = { package = \"lookalike-other\", path = \"other\" }\n\n\
+				[workspace]\nexclude = [\"exp\", \"other\"]\n",
+			),
+			(
+				"src/lib.rs",
+				"pub mod exp {\n\tpub use shared::Size;\n}\n\npub mod other {\n\tpub use bytes::Size;\n}\n\n\
+				pub fn total(a: shared::Size, b: bytes::Size) -> u32 {\n\ta.width + b.width\n}\n",
+			),
+		],
+	);
 	let write = |path: &str, text: &str| {
-		let path = package.join(path);
-		std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-		std::fs::write(path, text).unwrap();
+		step::write(&package.join(path), text);
 	};
 	// Both libraries are crate `shared`.
 	for name in ["exp", "other"] {
@@ -1937,18 +2525,6 @@ fn lookalike() {
 			"pub struct Size {\n\tpub width: u32,\n}\n\nimpl Size {\n\tpub fn new(width: u32) -> Self {\n\t\tSelf { width }\n\t}\n}\n",
 		);
 	}
-	write(
-		"Cargo.toml",
-		"[package]\nname = \"lookalike\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"shared\"\n\n\
-		[dependencies]\nshared = { package = \"lookalike-exp\", path = \"exp\" }\n\
-		bytes = { package = \"lookalike-other\", path = \"other\" }\n\n\
-		[workspace]\nexclude = [\"exp\", \"other\"]\n",
-	);
-	write(
-		"src/lib.rs",
-		"pub mod exp {\n\tpub use shared::Size;\n}\n\npub mod other {\n\tpub use bytes::Size;\n}\n\n\
-		pub fn total(a: shared::Size, b: bytes::Size) -> u32 {\n\ta.width + b.width\n}\n",
-	);
 	let out = package.join("out");
 	let remap = format!("--remap-path-prefix={}=/src", package.display());
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
@@ -1978,7 +2554,7 @@ fn lookalike() {
 #[test]
 fn standard_names() {
 	for name in ["core", "alloc", "std"] {
-		let package = package(&format!("standard_{name}"));
+		let package = package(&format!("standard_{name}"), &[]);
 		let manifest = format!(
 			"[package]\nname = \"standard_{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"{name}\"\n\n[workspace]\n"
 		);
@@ -2007,13 +2583,36 @@ fn standard_names() {
 	}
 }
 
+/// The padding of a `Copy` value of a huge array is found without walking or storing its
+/// bytes: a zero-sized element repeated `usize::MAX` times, or a 1 TiB array of bytes, which
+/// no export returns, so it is left out only after its padding is read. An array of padded
+/// elements still zeroes each element's padding.
+#[test]
+fn huge_arrays() {
+	let lib = "#[derive(Clone, Copy)]\npub struct Marker([(); usize::MAX]);\n\nimpl Marker {\n\tpub fn new() -> Self {\n\t\tSelf([(); usize::MAX])\n\t}\n}\n\npub fn take(marker: Marker) -> u32 {\n\tmarker.0.len().count_ones()\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Huge([u8; 1 << 40]);\n\npub fn first(huge: &Huge) -> u8 {\n\thuge.0[0]\n}\n\n\
+		#[derive(Clone, Copy)]\n#[repr(C)]\nstruct Pair {\n\ta: u8,\n\tb: u16,\n}\n\n\
+		#[derive(Clone, Copy)]\npub struct Pairs([Pair; 3]);\n\nimpl Pairs {\n\tpub fn new() -> Self {\n\t\tSelf([Pair { a: 1, b: 2 }; 3])\n\t}\n\n\tpub fn sum(&self) -> u32 {\n\t\tself.0.iter().map(|p| u32::from(p.a) + u32::from(p.b)).sum()\n\t}\n}\n";
+	let package = package("huge_arrays", &[("src/lib.rs", lib)]);
+	export_and_build(&package, &["--offline"]);
+	let header = std::fs::read_to_string(package.join("out/include/huge_arrays.h")).unwrap();
+	assert!(
+		header.contains("\tuint8_t opaque[1];\n} huge_arrays_Marker;"),
+		"Marker is no opaque value:\n{header}"
+	);
+	let glue = std::fs::read_to_string(package.join("out/src/lib.rs")).unwrap();
+	assert!(
+		glue.contains("const PADDING: &[(usize, usize)] = &[(1, 1), (5, 1), (9, 1)];"),
+		"Pairs' padding is not each element's:\n{glue}"
+	);
+}
+
 /// A facade whose lib takes the name of a foreign type's crate maps that crate's type
 /// through a dependency of its own, apart from the glue's dependency on the facade.
 #[test]
 fn foreign_lib_name() {
-	let package = package("foreign_lib_name");
-	write_all(
-		&package,
+	let package = package(
+		"foreign_lib_name",
 		&[
 			(
 				"Cargo.toml",
@@ -2033,9 +2632,8 @@ fn foreign_lib_name() {
 /// would spell them: `serde_json::Value` is `Value`, apart from `Json`.
 #[test]
 fn foreign_role_names() {
-	let package = package("foreign_role_names");
-	write_all(
-		&package,
+	let package = package(
+		"foreign_role_names",
 		&[
 			(
 				"Cargo.toml",
@@ -2059,7 +2657,7 @@ fn foreign_role_names() {
 /// leaves out.
 #[test]
 fn configured_out() {
-	let package = package("configured_out");
+	let package = package("configured_out", &[]);
 	let dep = manifest_dir().join("fixtures/dep");
 	let manifest = format!(
 		"[package]\nname = \"configured_out\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
@@ -2109,9 +2707,8 @@ fn configured_out() {
 /// The glue declares the facade's `rust-version`, raised to the 1.85 its edition needs.
 #[test]
 fn rust_version() {
-	let package = package("rust_version");
-	write_all(
-		&package,
+	let package = package(
+		"rust_version",
 		&[(
 			"Cargo.toml",
 			"[package]\nname = \"rust_version\"\nversion = \"0.0.0\"\nedition = \"2021\"\nrust-version = \"1.70\"\n\n[workspace]\n",
@@ -2132,7 +2729,7 @@ fn rust_version() {
 /// cargo's resolution holds but neither the check nor the glue builds, moves nothing.
 #[test]
 fn dev_feature() {
-	let package = package("dev_feature");
+	let package = package("dev_feature", &[]);
 	let dep = |name: &str, rest: &str| {
 		format!("[package]\nname = \"{name}\"\nversion = \"1.0.0\"\nedition = \"2024\"\n{rest}")
 	};
@@ -2166,9 +2763,8 @@ fn dev_feature() {
 /// the nightly the export checks on: a stable rustc exports the stable item alone.
 #[test]
 fn channel() {
-	let package = package("channel");
-	write_all(
-		&package,
+	let package = package(
+		"channel",
 		&[
 			(
 				"build.rs",
@@ -2242,7 +2838,6 @@ fn stable_rustc() -> PathBuf {
 /// 32-bit `usize`, which Kotlin's 64-bit `ULong` crosses into checked.
 #[test]
 fn target() {
-	let package = package("targeted");
 	let shared = "pub fn halve(n: usize) -> usize {\n\tn / 2\n}\n\n\
 		#[cfg(target_arch = \"wasm32\")]\npub fn wasm() -> u32 {\n\t32\n}\n\n\
 		#[cfg(not(target_arch = \"wasm32\"))]\npub fn desktop() -> u32 {\n\t64\n}\n";
@@ -2250,7 +2845,8 @@ fn target() {
 	let differing = "pub const MAX: usize = usize::MAX;\n\n\
 		#[cfg(target_arch = \"wasm32\")]\npub fn width() -> u32 {\n\t32\n}\n\n\
 		#[cfg(not(target_arch = \"wasm32\"))]\npub fn width() -> u64 {\n\t64\n}\n";
-	write_all(&package, &[("src/lib.rs", &format!("{shared}\n{differing}"))]);
+	// Each run starts from these, and drops `differing` partway, which rebuilds the glue.
+	let package = package("targeted", &[("src/lib.rs", &format!("{shared}\n{differing}"))]);
 	let exporter = |args: &[&str]| {
 		let mut cmd = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"));
 		cmd.arg("--config")
@@ -2271,7 +2867,11 @@ fn target() {
 		"{header}"
 	);
 	assert!(header.contains(&u64::MAX.to_string()), "{header}");
-	build_offline(&host_out, &package.join("glue"));
+	// The exports share a target directory, where each export's units are its own though
+	// they are the same package at the same path in its workspace: on a second run, with
+	// every file's mtime kept, `wasm` would otherwise reuse `merged`'s build script.
+	let target = package.join("glue");
+	build_offline(&host_out, &target);
 	let (wasm, header) = export("wasm", &["--target", WASM]);
 	assert!(
 		header.contains("targeted_wasm(") && !header.contains("targeted_desktop("),
@@ -2281,7 +2881,7 @@ fn target() {
 		header.contains(&u32::MAX.to_string()) && !header.contains(&u64::MAX.to_string()),
 		"{header}"
 	);
-	let glue = |out: &Path, target: &[&str]| {
+	let glue = |out: &Path, args: &[&str]| {
 		let mut cmd = cargo();
 		cmd.args([
 			"check",
@@ -2293,8 +2893,8 @@ fn target() {
 		])
 		.arg(out.join("Cargo.toml"))
 		.arg("--target-dir")
-		.arg(package.join("glue"))
-		.args(target)
+		.arg(&target)
+		.args(args)
 		.env("RUSTFLAGS", "-D warnings");
 		cmd
 	};
@@ -2379,12 +2979,11 @@ fn target() {
 	}
 }
 
-/// Writes each `(path, text)` into `dir`.
+/// Writes each `(path, text)` into `dir`, leaving a file that already holds its text alone,
+/// so cargo finds a package written again fresh.
 fn write_all(dir: &Path, files: &[(&str, &str)]) {
 	for (path, text) in files {
-		let path = dir.join(path);
-		std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-		std::fs::write(path, text).unwrap();
+		step::write(&dir.join(path), text);
 	}
 }
 
@@ -2429,7 +3028,7 @@ fn build_offline(out: &Path, target: &Path) {
 /// warnings in every language's module too, writing no import it leaves unused.
 #[test]
 fn plain() {
-	let package = package("plain");
+	let package = package("plain", &[]);
 	export_and_build(&package, &[]);
 	run(cargo()
 		.args([
@@ -2451,9 +3050,8 @@ fn plain() {
 /// name. So is a dependency of no platform's, which cargo resolves all the same.
 #[test]
 fn patched() {
-	let package = package("patched");
-	write_all(
-		&package,
+	let package = package(
+		"patched",
 		&[
 			(
 				"dep/Cargo.toml",
@@ -2496,6 +3094,13 @@ const COMMIT: [&str; 8] = [
 	"commit",
 ];
 
+/// A commit's dates, fixed so a repository made again from the same files has the same
+/// commits, whose checkout cargo then reuses.
+const GIT_DATES: [(&str, &str); 2] = [
+	("GIT_AUTHOR_DATE", "2000-01-01T00:00:00Z"),
+	("GIT_COMMITTER_DATE", "2000-01-01T00:00:00Z"),
+];
+
 /// The URL of a new git repository in `dir`, whose branch `main` holds `files`.
 fn repository(dir: &Path, files: &[(&str, &str)]) -> String {
 	let _ = std::fs::remove_dir_all(dir);
@@ -2505,7 +3110,7 @@ fn repository(dir: &Path, files: &[(&str, &str)]) -> String {
 		&["add", "."],
 		&COMMIT,
 	] {
-		run(Command::new("git").args(args).current_dir(dir));
+		run(Command::new("git").args(args).envs(GIT_DATES).current_dir(dir));
 	}
 	format!("file://{}", dir.display())
 }
@@ -2514,15 +3119,15 @@ fn repository(dir: &Path, files: &[(&str, &str)]) -> String {
 /// picking one by version, is carried with the version it resolved to.
 #[test]
 fn git_patched() {
-	let package = package("git_patched");
+	let dir = scratch().join("git_patched");
 	let manifest =
 		|version| format!("[package]\nname = \"rust2-ffi-git-dep\"\nversion = \"{version}\"\nedition = \"2024\"\n");
 	let stale = repository(
-		&package.join("stale"),
+		&dir.join("stale"),
 		&[("Cargo.toml", &manifest("1.0.0")), ("src/lib.rs", "")],
 	);
 	let fresh = repository(
-		&package.join("fresh"),
+		&dir.join("fresh"),
 		&[
 			("one/Cargo.toml", &manifest("1.0.0")),
 			("one/src/lib.rs", ""),
@@ -2536,7 +3141,7 @@ fn git_patched() {
 		[patch.\"{stale}\"]\nrust2-ffi-git-dep = {{ git = \"{fresh}\", version = \"1\" }}\n\n\
 		[workspace]\nexclude = [\"stale\", \"fresh\"]\n"
 	);
-	write_all(&package, &[("Cargo.toml", &text)]);
+	let package = package("git_patched", &[("Cargo.toml", &text)]);
 	export_and_build(&package, &[]);
 }
 
@@ -2546,7 +3151,7 @@ fn git_patched() {
 /// replacement from the source it replaces is an error, since no patch can carry it.
 #[test]
 fn replaced() {
-	let package = package("replaced");
+	let package = scratch().join("replaced");
 	// A git repository the dependency names, whose default branch lacks the field the
 	// package reads, named for the package so the spec names it by its URL.
 	let manifest = "[package]\nname = \"rust2-ffi-replaced-dep\"\nversion = \"1.0.0\"\nedition = \"2024\"\n";
@@ -2562,7 +3167,7 @@ fn replaced() {
 		.args(["checkout", "--quiet", "-b", "fixed"])
 		.current_dir(&git));
 	write_all(&git, &[("src/lib.rs", "pub struct Size {\n\tpub width: u32,\n}\n")]);
-	run(Command::new("git").args(COMMIT).current_dir(&git));
+	run(Command::new("git").args(COMMIT).envs(GIT_DATES).current_dir(&git));
 	let files = |replacement: &str| {
 		write_all(
 			&package,
@@ -2608,9 +3213,7 @@ fn replaced() {
 fn config_patched() {
 	let root = scratch().join("config-patched");
 	let write = |path: &str, text: &str| {
-		let path = root.join(path);
-		std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-		std::fs::write(path, text).unwrap();
+		step::write(&root.join(path), text);
 	};
 	let dep = |dir: &str, name: &str, item: &str| {
 		write(
@@ -2680,4 +3283,68 @@ fn config_patched() {
 	);
 	// Built from here, where none of that config is read.
 	build_offline(&out, &root.join("glue"));
+}
+
+/// The workspace's profiles reach the glue's build, with an override of a package the
+/// library builds, but not one of a package only a test builds; an override naming no
+/// package, or `*`, is an error at its line.
+#[test]
+fn profiled() {
+	let package = package("profiled", &[]);
+	let files = |spec: &str| {
+		write_all(
+			&package,
+			&[
+				(
+					"Cargo.toml",
+					&format!(
+						"[package]\nname = \"profiled\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+						[profile.dev]\nopt-level = 1\n\n\
+						[profile.dev.package.\"{spec}\"]\nopt-level = 2\n\n\
+						[profile.dev.package.rust2-ffi-profiled-dev]\nopt-level = 3\n\n\
+						[dev-dependencies]\nrust2-ffi-profiled-dev = {{ path = \"dev\" }}\n\n\
+						[workspace]\nexclude = [\"dev\"]\n"
+					),
+				),
+				("src/lib.rs", "pub fn one() -> u32 {\n\t1\n}\n"),
+				(
+					"dev/Cargo.toml",
+					"[package]\nname = \"rust2-ffi-profiled-dev\"\nversion = \"0.0.0\"\nedition = \"2024\"\n",
+				),
+				("dev/src/lib.rs", ""),
+				("ffi.toml", ""),
+			],
+		);
+	};
+	files("profiled");
+	export_and_build(&package, &[]);
+	let manifest = std::fs::read_to_string(package.join("out/Cargo.toml")).unwrap();
+	let glue: toml::Table = toml::from_str(&manifest).unwrap();
+	assert_eq!(
+		glue["profile"]["dev"]["package"]["profiled"]["opt-level"].as_integer(),
+		Some(2),
+		"{manifest}"
+	);
+	assert_eq!(
+		glue["profile"]["dev"]["package"]["profiled-ffi"]["opt-level"].as_integer(),
+		Some(2),
+		"{manifest}"
+	);
+	assert!(!manifest.contains("rust2-ffi-profiled-dev"), "{manifest}");
+	files("missing");
+	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
+	assert!(!output.status.success(), "an override of no package passed");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("Cargo.toml:9: `profile.dev.package.missing` names no package the workspace resolves"),
+		"{stderr}"
+	);
+	files("*");
+	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
+	assert!(!output.status.success(), "a wildcard override passed");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("Cargo.toml:9: `profile.dev.package.\"*\"` would reach"),
+		"{stderr}"
+	);
 }

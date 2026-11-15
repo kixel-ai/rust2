@@ -176,14 +176,15 @@ export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const v: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u32 => {
 		return _2 as rs.u32;
 	}), undefined, 4, true);
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _18: [rs.usize, rs.u8] | rs.Done = iter.next();
-		if (_18 === rs.DONE) {
+		const x3 = leaf.next();
+		if (x3 === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _18[0];
-		const b: rs.u8 = _18[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x3;
 		const _23: rs.Place<rs.usize> = Counts.count(counts, rs.u8Rem(b, 3) === 0);
 		_23.v = rs.usizeAdd(_23.v, 1);
 		bumpSlot(Counts.count(counts, rs.u8Rem(b, 2) === 0), b);
@@ -393,8 +394,8 @@ export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let iterI4: number = 0;
 	while (true) {
 		const _278: rs.u8 | rs.Done = iterI4 < iterS4.length ? iterS4[iterI4++] : rs.DONE;
-		const _275: (a0: rs.Place<rs.u32>, a1: rs.u8) => undefined = (x3: rs.Place<rs.u32>, b9: rs.u8): undefined => {
-			bump(x3, b9);
+		const _275: (a0: rs.Place<rs.u32>, a1: rs.u8) => undefined = (x4: rs.Place<rs.u32>, b9: rs.u8): undefined => {
+			bump(x4, b9);
 		};
 		if (_278 === rs.DONE) {
 			break;
@@ -536,14 +537,15 @@ export function lent(data: rs.ByteSlice, out: rs.ByteVec): void {
 	dst3.length = dst3.length + 2;
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(option_unwrapOrDefault$1exlfpa(text).v));
 	const counts: Pair2.Pair2 = { a: undefined, b: undefined };
-	const iter2: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _101: [rs.usize, rs.u8] | rs.Done = iter2.next();
-		if (_101 === rs.DONE) {
+		const x6 = leaf.next();
+		if (x6 === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _101[0];
-		const b2: rs.u8 = _101[1];
+		const i: rs.usize = count++;
+		const b2: rs.u8 = x6;
 		if (rs.usizeRem(i, 2) === 0) {
 			if (counts.a === undefined) {
 				counts.a = 0;

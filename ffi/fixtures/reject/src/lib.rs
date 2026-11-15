@@ -17,13 +17,6 @@ pub fn generic<T: Copy>(value: T) -> T {
 	value
 }
 
-/// A future that borrows its argument, from a function that runs when called: the export
-/// would have to keep the argument alive past the call.
-#[allow(clippy::manual_async_fn, reason = "the construct under test")]
-pub fn borrowing(name: &str) -> impl Future<Output = usize> + '_ {
-	async move { name.len() }
-}
-
 /// An option inside an option, through a `Box`: C has one `None` per option.
 pub fn nested(value: Option<Box<Option<u32>>>) -> bool {
 	value.is_some()
@@ -108,8 +101,9 @@ impl<'a> Text<'a> {
 	}
 }
 
-/// Bytes that must be `'static`, which only a string's interning makes them.
-pub fn forever(bytes: &'static [u8]) -> usize {
+/// Bytes lent mutably for as long as the program runs, which interning would alias: every
+/// call with equal bytes would share one copy.
+pub fn forever_mut(bytes: &'static mut [u8]) -> usize {
 	bytes.len()
 }
 
@@ -124,13 +118,109 @@ pub struct Size {
 	pub bytes: u64,
 }
 
-/// Another crate's types, which the facade does not re-export.
-pub fn measure(size: dep::Size) -> dep::Area {
-	dep::Area::new(size)
+/// A waiter of another crate, which a handle holds by value.
+pub fn waiter() -> tls::held::Waiter {
+	tls::held::Waiter::new(std::task::Waker::noop().clone())
+}
+
+/// Not a poll through [`waiter`]'s: the glue cannot name the type a handle holds to make one
+/// from the poll's waker.
+pub fn poll_ready(_waiter: &tls::held::Waiter) -> std::task::Poll<u32> {
+	std::task::Poll::Ready(1)
+}
+
+/// An object holding another crate's session, which C holds as a handle.
+pub struct Link {
+	session: tls::held::Handoff,
+}
+
+impl Link {
+	pub fn new() -> Self {
+		Self {
+			session: tls::held::Handoff { id: 1 },
+		}
+	}
+
+	/// Not lent: a handle holds another crate's value only erased, and by value.
+	pub fn session(&self) -> &tls::held::Handoff {
+		&self.session
+	}
+
+	/// What makes the session a value C holds.
+	pub fn take(self) -> tls::held::Handoff {
+		self.session
+	}
+}
+
+impl Default for Link {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+/// Another crate's type that is not `Send`, which no handle may hold.
+pub fn measure(local: tls::held::Local) -> u32 {
+	local.get()
 }
 
 /// A generic type, which exports at the instances its exports name.
 pub struct Cell<T>(T);
+
+/// An instance naming another crate's type that a handle holds by value, erased.
+pub fn sealed(cert: tls::held::Cert) -> Cell<tls::held::Cert> {
+	Cell(cert)
+}
+
+/// A future returned by a function that is not async, whose output borrows what the
+/// future holds only until it completes.
+pub fn echo(tag: &str) -> impl std::future::Future<Output = &str> + '_ {
+	async move { tag }
+}
+
+/// As `echo`, but the output borrows only inside an error that crosses as its message.
+pub fn blame(tag: &str) -> impl std::future::Future<Output = Result<u32, tls::held::Wrapped<'_, u8>>> + '_ {
+	async move { Err(tls::held::Wrapped(tag, 0)) }
+}
+
+/// As `echo`, but its borrowed output named only by a supertrait of the bound.
+pub fn relay(tag: &str) -> impl tls::held::Borrowing<'_> {
+	async move { tag }
+}
+
+/// As `echo`, but through a future that is not an `impl Future`.
+pub fn resolve(tag: &str) -> tls::held::Lend<'_, u8> {
+	tls::held::Lend(tag, std::marker::PhantomData)
+}
+
+/// A closure taking a `Copy` value of another crate's, which a handle holds.
+pub fn spend(f: impl FnOnce(tls::held::Token) -> u32) -> u32 {
+	f(tls::held::Token(1))
+}
+
+/// A closure returning one.
+pub fn mint(f: impl FnOnce() -> tls::held::Token) -> u32 {
+	f().0
+}
+
+/// Returns another crate's `Copy` value, which a handle holds.
+pub fn token() -> tls::held::Token {
+	tls::held::Token(2)
+}
+
+/// Borrows a slice of them, whose handles C would have to give up.
+pub fn spent(tokens: &[tls::held::Token]) -> u32 {
+	tokens.iter().map(|t| t.0).sum()
+}
+
+/// Returns another crate's value, which a handle holds.
+pub fn issue() -> tls::held::Cert {
+	tls::held::Cert::new(b"der")
+}
+
+/// Takes what converts into it, which only inference could name in the glue.
+pub fn adopt(cert: impl Into<tls::held::Cert>) -> usize {
+	cert.into().der().len()
+}
 
 impl<T> Cell<T> {
 	pub fn new(value: T) -> Self {
@@ -1027,7 +1117,153 @@ pub fn wide_non_zero(n: std::num::NonZero<u128>) -> u128 {
 	n.get()
 }
 
+/// A `Copy` view of bytes it borrows, held across as its bytes.
+#[derive(Clone, Copy)]
+pub struct View<'a> {
+	bytes: &'a [u8],
+}
+
+impl View<'_> {
+	pub fn len(&self) -> usize {
+		self.bytes.len()
+	}
+}
+
+/// A view of nothing, which borrows nothing, so an export returns a `View`.
+pub fn empty_view() -> View<'static> {
+	View { bytes: &[] }
+}
+
+/// Returns a value that borrows its parameter, which C could keep past the borrow.
+pub fn wrap(bytes: &[u8]) -> View<'_> {
+	View { bytes }
+}
+
+/// The same, through an `impl Trait` hiding the value, which holds what it captures.
+pub fn hidden_wrap(bytes: &[u8]) -> impl Clone + '_ {
+	View { bytes }
+}
+
+/// A `Copy` mark held across as its bytes.
+#[derive(Clone, Copy)]
+pub struct Mark {
+	at: u64,
+}
+
+/// A mark at `at`, so an export returns one.
+pub fn mark(at: u64) -> Mark {
+	Mark { at }
+}
+
+/// A closure returning a borrowed value, which C has no reference to hand back.
+pub fn picked(pick: impl Fn() -> &'static Mark) -> u64 {
+	pick().at
+}
+
+/// The same, in an `Option`.
+pub fn maybe_picked(pick: impl Fn() -> Option<&'static Mark>) -> u64 {
+	pick().map_or(0, |mark| mark.at)
+}
+
+/// A future whose output is an `impl Trait` hiding no object, which the glue cannot name.
+pub async fn hidden_answer() -> impl Copy {
+	1_u32
+}
+
+/// A collected iterator whose items are an `impl Trait` hiding no object.
+pub fn hidden_items() -> impl Iterator<Item = impl Copy> {
+	[1_u32].into_iter()
+}
+
+/// An `impl Trait` hiding an `Option`, which the glue cannot take apart.
+pub fn hidden_option() -> impl Clone {
+	Some(1_u32)
+}
+
 /// A boxed slice of bytes, which no buffer form takes.
 pub fn boxed_bytes(bytes: Box<[u8]>) -> usize {
 	bytes.len()
+}
+
+/// An iterator of borrowed strings a future keeps past the call that lent them.
+pub async fn count_later<'a>(words: impl Iterator<Item = &'a str> + Send) -> usize {
+	words.count()
+}
+
+/// An iterator of borrowed objects, which C lends none of inside an array.
+pub fn count_opaques<'a>(items: impl Iterator<Item = &'a Opaque>) -> usize {
+	items.count()
+}
+
+/// A trait object with another auto trait than the one form its handle names.
+pub fn unpin_resolver() -> std::sync::Arc<dyn tls::held::Resolver + Unpin> {
+	std::sync::Arc::new(tls::held::Named("unpin".into()))
+}
+
+/// A trait object that borrows, which no handle outliving the call may hold.
+pub fn borrowed_resolver<'a>(_ids: &'a [u32]) -> std::sync::Arc<dyn tls::held::Resolver + 'a> {
+	std::sync::Arc::new(tls::held::Named("borrowed".into()))
+}
+
+/// A trait-object handle inside a borrowed value, which lifting would take out of C's handle.
+pub fn peek_resolver(resolver: &Option<std::sync::Arc<dyn tls::held::Resolver>>) -> bool {
+	resolver.is_some()
+}
+
+/// A `'static` trait-object handle inside a borrowed value, refused as the `Arc` form is.
+pub fn peek_codec(codec: &Option<&'static dyn tls::held::Codec>) -> bool {
+	codec.is_some()
+}
+
+/// A stream an exported type implements, so the bound is met by a value C holds: refused,
+/// not left out.
+pub struct Pipe(pub u8);
+
+impl tls::held::Stream for Pipe {
+	fn read(&mut self) -> u8 {
+		self.0
+	}
+}
+
+/// Reads one byte of a stream.
+pub fn pump_pipe<T: tls::held::Stream>(mut stream: T) -> u8 {
+	stream.read()
+}
+
+/// A sink a reference to any exported type meets: refused, not left out.
+pub fn pump_sink<T: tls::held::Sink>(sink: T) -> u8 {
+	sink.write(1)
+}
+
+/// A width only `u32`, which C passes by role, meets: refused, not left out.
+pub fn widen<T: tls::held::Width>(x: T) -> u32 {
+	x.bits()
+}
+
+/// A `Copy` count, a value, whose change a raised error or a future would lose, and which a
+/// returned borrow would still hold as it is written back.
+#[derive(Clone, Copy)]
+pub struct Counter {
+	count: u8,
+}
+
+impl Counter {
+	pub fn zero() -> Self {
+		Self { count: 0 }
+	}
+
+	pub fn try_bump(&mut self) -> Result<u8, String> {
+		self.count = self.count.checked_add(1).ok_or("overflow")?;
+		Ok(self.count)
+	}
+
+	pub fn bump_later(&mut self) -> impl std::future::Future<Output = u8> + use<> {
+		self.count += 1;
+		std::future::ready(self.count)
+	}
+
+	pub fn bump_ref(&mut self) -> &u8 {
+		self.count += 1;
+		&self.count
+	}
 }

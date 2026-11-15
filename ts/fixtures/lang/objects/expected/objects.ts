@@ -226,14 +226,15 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const v: rs.Vec<rs.Arc<rs.u8>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.Arc<rs.u8> => {
 		return rs.arcClone(one);
 	}), undefined, 4, true);
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = 0;
 	while (true) {
-		const _18: [rs.usize, rs.u8] | rs.Done = iter.next();
-		if (_18 === rs.DONE) {
+		const x3 = leaf.next();
+		if (x3 === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _18[0];
-		const b: rs.u8 = _18[1];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x3;
 		const _23: rs.Place<rs.Arc<rs.u8>> | undefined = rs.sliceGetMut(rs.sliceFrom(v.items), rs.usizeRem(b as rs.usize, rs.usizeAdd(data.length, 1)));
 		if (_23 !== undefined) {
 			const _34: rs.Arc<rs.u8> = rs.arcClone(two);

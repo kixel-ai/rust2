@@ -419,12 +419,27 @@ export function ordered(log: Log.Log, id: rs.u32): void {
 		rs.btreeAdd(many, _273, rs.drop);
 	}
 	const found: (a0: rs.BTreeSet<Key.Key>) => rs.usize = (many2: rs.BTreeSet<Key.Key>): rs.usize => {
-		return rs.iterCount(rs.iterFilter(new rs.Range(0, 400), (_2: rs.u32): boolean => {
+		const leaf = new rs.Range(0, 400);
+		const f = (_2: rs.u32): boolean => {
 			const _57: Key.Key = Key.new(_2, Log.clone$Clone(sink));
 			const _06: boolean = rs.btreeContains(many2, _57);
 			_57[Symbol.dispose]();
 			return _06;
-		}));
+		};
+		let n9 = 0;
+		fused2: while (true) {
+			while (true) {
+				const x = leaf.next();
+				if (x === rs.DONE) {
+					break fused2;
+				}
+				if (f(x)) {
+					break;
+				}
+			}
+			n9++;
+		}
+		return n9;
 	};
 	const iter3: rs.Iter<rs.u32> = rs.iterStepBy(new rs.Range(0, 400), 3, undefined, 4294967295);
 	while (true) {
@@ -489,9 +504,16 @@ export function hashed(log: Log.Log, id: rs.u32): void {
 	};
 	const tally: (a0: string) => undefined = (what: string): undefined => {
 		const text: rs.ByteVec = Log.text(sink);
-		const sum: rs.u32 = rs.iterSum(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(text))), (_2: rs.u8): rs.u32 => {
-			return _2 as rs.u32;
-		}), rs.u32Add, 0);
+		const leaf = rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(text)));
+		let acc: rs.u32 = 0;
+		while (true) {
+			const x = leaf.next();
+			if (x === rs.DONE) {
+				break;
+			}
+			acc = rs.u32Add(acc, x as rs.u32);
+		}
+		const sum: rs.u32 = acc;
 		const _152: rs.usize = text.length;
 		const args11 = [(f: rs.Formatter) => rs.fmtPad(f, what), (f: rs.Formatter) => rs.usizeDisplay(_152, f), (f: rs.Formatter) => rs.u32Display(sum, f)];
 		Log.note(log, rs.fmtFormat([args11[0], ": ", args11[1], " ", args11[2]]));
