@@ -476,11 +476,17 @@ Future<void> script() async {
   channel.send(utf8.encode('heard'));
   await until(() => wakes == 3, 'the send wakes the context Rust keeps');
   print('woken $wakes');
-  // A returned waker wakes the waiter's task through Rust until it is dropped.
+  // A returned waker wakes the waiter's task through Rust until it is closed, after which
+  // a wake throws.
   final waiter = api.Waiter(() => wakes++);
-  waiter.waker()();
-  waiter.context()();
+  final waker = waiter.waker(), context = waiter.context();
+  waker();
+  context();
   waiter.close();
+  waker.close();
+  context.close();
+  context.close();
+  throws<StateError>(waker.call, 'a closed waker throws');
   await until(() => wakes == 5, 'a returned waker wakes the waiter');
   print('woken $wakes');
 
@@ -820,7 +826,9 @@ Future<void> script() async {
           return now.after(5);
         case 2:
           print('drive ${now.millis() - start.millis()}');
-          waiter.waker()();
+          final waker = waiter.waker();
+          waker();
+          waker.close();
           return null;
         default:
           throw api.StringException('stopped after $calls');
@@ -971,6 +979,14 @@ Future<void> futures() async {
   check(posting.join(), 'a call into Dart made before the isolate waited on its thread');
   check(postedLog.lines == 1, 'the posted call logged');
   await until(() => postedLog.closes == 1, 'an implementation its thread dropped is closed');
+  // So does a returned waker, from its wake and from the close that drops it.
+  final wakeLog = CountLog();
+  final logWaker = api.logWaker(wakeLog);
+  logWaker();
+  check(wakeLog.lines == 1, 'a wake calls into Dart from a joined thread');
+  logWaker.close();
+  check(wakeLog.lines == 2, "a returned waker's close calls into Dart from a joined thread");
+  await until(() => wakeLog.closes == 1, 'the implementation a closed waker held is closed');
   final dropLog = CountLog();
   final dropping = api.logOnDrop(dropLog);
   await step();
@@ -1489,10 +1505,6 @@ Future<void> main(List<String> args) async {
   switch (args) {
     case []:
       await script();
-      // The waiter's returned wakers are Rust clones of a waker whose token keeps the
-      // isolate alive, and only the garbage collector drops them, about a minute idle.
-      await stdout.flush();
-      exit(0);
     case ['futures']:
       await futures();
     case ['owned']:

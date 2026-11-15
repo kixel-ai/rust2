@@ -178,7 +178,7 @@ impl Clash {
 	}
 
 	/// Its bytes, its text's or its own.
-	pub fn raw(&self) -> Vec<u8> {
+	pub fn bytes(&self) -> Vec<u8> {
 		match self {
 			Clash::Bytes(b) => b.clone(),
 			Clash::String(s) => s.as_bytes().to_vec(),
@@ -1653,6 +1653,29 @@ pub fn log_on_drop(log: Box<dyn Log>) -> impl Future<Output = ()> + use<> {
 	async move {
 		let _guard = guard;
 		std::future::pending().await
+	}
+}
+
+/// A waker whose wake and drop each log a line to `log` on another thread they wait on.
+pub fn log_waker(log: Box<dyn Log>) -> Waker {
+	Waker::from(Arc::new(LogWake(log)))
+}
+
+struct LogWake(Box<dyn Log>);
+
+impl std::task::Wake for LogWake {
+	fn wake(self: Arc<Self>) {
+		self.wake_by_ref();
+	}
+
+	fn wake_by_ref(self: &Arc<Self>) {
+		on_thread(&*self.0, &[1]);
+	}
+}
+
+impl Drop for LogWake {
+	fn drop(&mut self) {
+		on_thread(&*self.0, &[0]);
 	}
 }
 

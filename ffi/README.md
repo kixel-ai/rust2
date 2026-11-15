@@ -651,7 +651,8 @@ caller imports it with no ignores.
   snake_case without their type's name (`moq.TrackProducer.append_group`), and two types
   whose names would match kept apart as Kotlin's are (`TokioConnect_Error`), as are
   top-level names that clash. A keyword, a member Python gives every such class, or a
-  method named as a field takes a trailing `_`.
+  method named as a field takes a trailing `_`. A member or top-level name may be a
+  builtin's (`bytes`, `int`): the module reads each builtin through an alias (`_bytes`).
   Constructors such as `new` stay static methods: `Counter.new(1)`.
 - **Objects** are classes owning their handle, freed once their last reference goes,
   which the caller's reference keeps through a call, so there is no `close()`. A `self`
@@ -1074,7 +1075,9 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   `Waiter.pollFuture` does. Rust dropping it cancels it if it is a `Cancelable` still
   running, and one that fails while Rust holds it aborts.
 - A **waker** is a `void Function()`, which runs on the isolate's event loop. One Rust
-  returns wakes through Rust, and the garbage collector drops it.
+  returns is a `Waker`, an object whose `call()` wakes through Rust and whose `close()`
+  drops it; one never closed is dropped once the garbage collector finds it unreachable,
+  and the isolate's own waker keeps the isolate alive until then.
 - **Threads**: Dart runs code only on its isolate's thread, so Rust reaches it from any
   other through the isolate's port, and waits for its event loop to run the call. While
   Rust holds an implementation, a closure, or a reader of the isolate, each call into Rust, a
