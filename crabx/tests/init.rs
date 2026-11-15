@@ -75,3 +75,26 @@ fn refuses_a_repository_without_a_crate() {
 	assert!(String::from_utf8_lossy(&output.stderr).contains("tracks no Cargo.toml"));
 	assert!(!temp.path().join(".github").exists());
 }
+
+#[cfg(unix)]
+#[test]
+fn refuses_a_symlink_out_of_the_repository() {
+	let temp = tempfile::tempdir().unwrap();
+	let origin = temp.path().join("origin");
+	let outside = temp.path().join("outside");
+	fs::create_dir_all(&origin).unwrap();
+	fs::create_dir_all(&outside).unwrap();
+	git(&origin, &["init", "-q", "-b", "main"]);
+	fs::write(origin.join("Cargo.toml"), "").unwrap();
+	std::os::unix::fs::symlink("../outside", origin.join(".github")).unwrap();
+	git(&origin, &["add", "."]);
+	git(
+		&origin,
+		&["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "x"],
+	);
+	git(temp.path(), &["clone", "-q", origin.to_str().unwrap(), "repo"]);
+	let output = init(&temp.path().join("repo"));
+	assert!(!output.status.success());
+	assert!(String::from_utf8_lossy(&output.stderr).contains("not a directory inside the repository"));
+	assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
+}

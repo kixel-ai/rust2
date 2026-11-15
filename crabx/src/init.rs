@@ -25,6 +25,20 @@ pub fn run() -> Result<()> {
 		.context("origin/HEAD names another remote")?;
 	let contents = workflow(branch);
 
+	// Walk to the workflow directory without following a symlink, which a
+	// hostile clone could point outside the repository.
+	let mut dir = root.clone();
+	for component in Path::new(PATH).parent().expect("PATH has a parent") {
+		dir.push(component);
+		match fs::symlink_metadata(&dir) {
+			Ok(meta) if meta.is_dir() => {}
+			Ok(_) => bail!("{} is not a directory inside the repository", dir.display()),
+			Err(error) if error.kind() == io::ErrorKind::NotFound => {
+				fs::create_dir(&dir).with_context(|| format!("create {}", dir.display()))?
+			}
+			Err(error) => return Err(error).with_context(|| format!("read {}", dir.display())),
+		}
+	}
 	let path = root.join(PATH);
 	match fs::read(&path) {
 		Ok(existing) if existing == contents.as_bytes() => {
@@ -38,11 +52,13 @@ pub fn run() -> Result<()> {
 		Err(error) if error.kind() == io::ErrorKind::NotFound => {}
 		Err(error) => return Err(error).with_context(|| format!("read {}", path.display())),
 	}
-	fs::create_dir_all(path.parent().expect("PATH has a parent"))
-		.with_context(|| format!("create {}", path.parent().unwrap().display()))?;
-	// create_new refuses a file another process wrote since the read above.
-	fs::File::create_new(&path)
-		.and_then(|mut file| file.write_all(contents.as_bytes()))
+	// Publish only a complete file, and never over one another process wrote
+	// since the read above.
+	let mut file =
+		tempfile::NamedTempFile::new_in(&dir).with_context(|| format!("create a file in {}", dir.display()))?;
+	file.write_all(contents.as_bytes())
+		.with_context(|| format!("write {}", path.display()))?;
+	file.persist_noclobber(&path)
 		.with_context(|| format!("write {}", path.display()))?;
 	println!("wrote {}; commit it and push it to {branch}", path.display());
 	Ok(())
