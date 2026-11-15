@@ -974,11 +974,12 @@ fn main() {
 	);
 }
 
-/// Print each of `numbers`' lists, its floats as their bits.
+/// Lowercase hex of `bytes`, two digits each.
 fn hex(bytes: &[u8]) -> String {
 	bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
+/// An address's bytes in hex, so the length shows its family.
 fn ip_hex(ip: std::net::IpAddr) -> String {
 	match ip {
 		std::net::IpAddr::V4(v4) => hex(&v4.octets()),
@@ -986,6 +987,7 @@ fn ip_hex(ip: std::net::IpAddr) -> String {
 	}
 }
 
+/// Print each of `numbers`' lists, its floats as their bits.
 fn numbers(what: &str, numbers: &api::Numbers) {
 	println!("{what} u16 {:?}", numbers.u16s);
 	println!("{what} u32 {:?}", numbers.u32s);
