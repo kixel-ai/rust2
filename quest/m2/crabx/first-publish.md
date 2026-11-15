@@ -16,7 +16,44 @@ after the crates.io publish attaches the binaries and then fails at its npm job,
 doesn't trust the workflow until the packages exist: that's expected, and the steps below
 fix it.
 
+The maintainer chose to keep this quest rather than fold its steps into the PR that added
+release.yml ([#826](https://github.com/kixel-ai/rust2/pull/826)).
+
+The installers are served at `crabx.kixel.ai` by GitHub Pages from this repository:
+`.github/workflows/installers.yml` deploys `crabx/install.sh` and `crabx/install.ps1`
+whenever main changes them. kixel.ai's DNS is on Cloudflare, so the record points the
+subdomain at GitHub; a Cloudflare redirect to the raw files was rejected because it lives
+outside the repository and serves whatever path layout main happens to have.
+
 ## Waiting
+
+- Maintainer: verify `kixel.ai` for GitHub Pages in the kixel-ai organization, so no other
+  account can claim `crabx.kixel.ai` if Pages is ever unset. An agent can't: it needs an
+  organization owner and the Cloudflare login. In organization Settings → Pages → Add a
+  domain, enter `kixel.ai`, add the TXT record it shows
+  (`_github-pages-challenge-kixel-ai.kixel.ai`) in Cloudflare, then click Verify.
+- Maintainer: turn on Pages for this repository, built by GitHub Actions, at
+  `crabx.kixel.ai`. An agent can run this once asked; it waits for the maintainer because
+  it changes repository settings. Check `gh api repos/kixel-ai/rust2/pages` shows
+  `"build_type": "workflow"` and `"cname": "crabx.kixel.ai"`, and that the `github-pages`
+  environment lets only `main` deploy.
+
+  ```sh
+  gh api -X POST repos/kixel-ai/rust2/pages -f build_type=workflow
+  gh api -X PUT repos/kixel-ai/rust2/pages -f cname=crabx.kixel.ai
+  ```
+
+- Maintainer: in Cloudflare's DNS for `kixel.ai`, add a `CNAME` record named `crabx` with
+  target `kixel-ai.github.io` and proxy status **DNS only**, so GitHub can issue the
+  certificate. An agent can't: it needs the Cloudflare login. Then deploy and enforce
+  HTTPS once GitHub shows the certificate, and check
+  `curl -fsSL https://crabx.kixel.ai/install.sh | head -3` prints the installer.
+
+  ```sh
+  gh workflow run installers.yml -R kixel-ai/rust2
+  gh api -X PUT repos/kixel-ai/rust2/pages -F https_enforced=true
+  ```
+
 
 - Maintainer: create the `crabx` organization on npmjs.com (free, public packages). An
   agent can't: it needs the maintainer's npm account. Check `npm org ls crabx`.

@@ -1,5 +1,5 @@
 # Install crabx's release binary:
-#   powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/kixel-ai/rust2/main/crabx/install.ps1 | iex"
+#   powershell -ExecutionPolicy Bypass -c "irm https://crabx.kixel.ai/install.ps1 | iex"
 # CRABX_VERSION picks a version instead of the newest stable one on crates.io, and
 # CRABX_INSTALL_DIR the directory instead of ~\.local\bin.
 # A script block keeps its variables out of the session `iex` runs it in, and errors throw

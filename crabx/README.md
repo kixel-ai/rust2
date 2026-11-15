@@ -10,8 +10,8 @@ bunx crabx moq-cli --help
 Or install crabx itself from its release:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/kixel-ai/rust2/main/crabx/install.sh | sh
-powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/kixel-ai/rust2/main/crabx/install.ps1 | iex"
+curl -fsSL https://crabx.kixel.ai/install.sh | sh
+powershell -ExecutionPolicy Bypass -c "irm https://crabx.kixel.ai/install.ps1 | iex"
 cargo install crabx
 ```
 
@@ -94,5 +94,7 @@ to attach attested binaries to the `crabx-vX.Y.Z` release, and publishes the new
 binaries to npm as `crabx` and one `@crabx/<platform>` package per target, each verified against its
 attestation first. Every step skips what is already published, so a rerun finishes a failed release.
 crates.io and npm trust only that workflow, in its `crates-io` and `npm` environments.
+`.github/workflows/installers.yml` serves main's `install.sh` and `install.ps1` at `crabx.kixel.ai`
+through GitHub Pages.
 crabx is GPL-3.0-only because it links binstalk. The other rust2 projects keep their
 existing licenses.

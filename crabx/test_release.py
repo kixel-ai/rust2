@@ -317,6 +317,16 @@ class Workflow(unittest.TestCase):
         self.assertNotIn("pull_request", head)
         self.assertIn("permissions:\n  contents: read\n", head)
 
+    def test_installer_urls_are_deployed(self):
+        # Every crabx.kixel.ai URL users are told to fetch names a file the Pages job copies.
+        site = (HERE.parent / ".github/workflows/installers.yml").read_text()
+        texts = [(HERE / f).read_text() for f in ("README.md", "install.sh", "install.ps1")]
+        urls = {u for t in texts for u in re.findall(r"https://crabx\.kixel\.ai/(\S*?)(?=[\s\"|])", t)}
+        self.assertEqual(urls, {"install.sh", "install.ps1"})
+        for name in urls:
+            self.assertIn(f"crabx/{name}", site)
+        self.assertEqual("".join(texts).count("raw.githubusercontent"), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
