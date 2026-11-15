@@ -229,7 +229,33 @@ func liftSocketAddr_(c cSocketAddr) rt.SocketAddr {
 var (
 	errText_ = rt.Invalid_("a string is not UTF-8")
 	errRune_ = rt.Invalid_("a rune is not a Unicode scalar value")
+	errPath_ = rt.Invalid_("a path is not WTF-8, as a Windows path is")
 )
+
+// checkPath_ is the error a call given the path s returns, or nil for any on a platform
+// whose paths are bytes, or on Windows, WTF-8: UTF-8 but for a surrogate alone, never a
+// lead and a trail apart, which WTF-8 writes as the scalar they make.
+func checkPath_(s string) error {
+	if runtime.GOOS != "windows" || utf8.ValidString(s) {
+		return nil
+	}
+	lead := false
+	for i := 0; i < len(s); {
+		if r, n := utf8.DecodeRuneInString(s[i:]); r != utf8.RuneError || n != 1 {
+			i, lead = i+n, false
+			continue
+		}
+		if i+3 > len(s) || s[i] != 0xED || s[i+1] < 0xA0 || s[i+1] > 0xBF || s[i+2] < 0x80 || s[i+2] > 0xBF {
+			return errPath_
+		}
+		trail := s[i+1] >= 0xB0
+		if trail && lead {
+			return errPath_
+		}
+		i, lead = i+3, !trail
+	}
+	return nil
+}
 
 // checkString_ is the error a call given s returns, or nil for UTF-8.
 func checkString_(s string) error {
@@ -237,6 +263,13 @@ func checkString_(s string) error {
 		return errText_
 	}
 	return nil
+}
+
+func checkPathOption_(s *string) error {
+	if s == nil {
+		return nil
+	}
+	return checkPath_(*s)
 }
 
 func checkStringOption_(s *string) error {
@@ -326,8 +359,12 @@ func (a *arena_) bufString(s string) cBuf {
 	return a.bufPath(s)
 }
 
-// bufPath is a path's bytes, which C reads during the call, pinned: any a string holds.
+// bufPath is a path's bytes, which C reads during the call, pinned: any a string holds,
+// but on Windows only WTF-8, failing the call otherwise.
 func (a *arena_) bufPath(s string) cBuf {
+	if err := checkPath_(s); err != nil {
+		a.fail(err)
+	}
 	b := bufString_(s)
 	a.pin(unsafe.Pointer(b.ptr))
 	return b

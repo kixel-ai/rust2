@@ -719,7 +719,7 @@ func script() {
 	fmt.Printf("peer %s %s\n", peer.GoString(), list(must(peer.Aliases()), quoted))
 	file := must(api.File("dir", "f\\'\"\t"))
 	fmt.Printf("file %s\n", escaped(file))
-	fmt.Printf("parents %s\n", strings.Trim(strings.ReplaceAll(list(api.Parents([]string{file, "/"}), func(p *string) string {
+	fmt.Printf("parents %s\n", strings.Trim(strings.ReplaceAll(list(must(api.Parents([]string{file, "/"})), func(p *string) string {
 		if p == nil {
 			return "none"
 		}
@@ -948,7 +948,7 @@ func script() {
 		fmt.Printf(" %x", must(api.SameChar(c)))
 	}
 	fmt.Println()
-	fmt.Printf("lossless path %x %x\n", api.SamePath("a/é"), api.SamePath(must(api.Stray())))
+	fmt.Printf("lossless path %x %x\n", must(api.SamePath("a/é")), must(api.SamePath(must(api.Stray()))))
 	sameV4 := api.SameSocketAddrV4(rt.SocketAddrV4{IP: rt.Ipv4Addr{255, 255, 255, 255}, Port: math.MaxUint16})
 	sameV6 := api.SameSocketAddrV6(rt.SocketAddrV6{
 		IP:       rt.Ipv6Addr{0, 1, 15: 2},
@@ -1725,7 +1725,7 @@ func checked() {
 	_, err = api.Peer{Names: []string{"\xff"}}.Aliases()
 	invalid(err, "a receiver's string that is not UTF-8 fails the call")
 	check(must(api.SameString("é")) == "é" && must(api.SameString("")) == "", "UTF-8 text crosses whole")
-	check(api.SamePath("\xff") == "\xff", "a path is any bytes")
+	check(must(api.SamePath("\xff")) == "\xff", "a path is any bytes on Unix")
 	// A rune that is a surrogate, past Unicode, or negative.
 	for _, r := range []rune{0xd800, 0xdfff, unicode.MaxRune + 1, -1} {
 		_, err = api.SameChar(r)

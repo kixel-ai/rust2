@@ -1096,6 +1096,15 @@ pub fn path_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Buf> {
 		if PyBytes_AsStringAndSize(encoded, &mut ptr, &mut len) != 0 {
 			return Err(Raised);
 		}
+		// Windows' file system encoding passes a surrogate through, but a lead and a trail
+		// written apart are no path, which WTF-8 writes as the scalar they make.
+		#[cfg(windows)]
+		{
+			let bytes = std::slice::from_raw_parts(ptr.cast::<u8>(), len as usize);
+			if std::str::from_utf8(bytes).is_err() && rt::wtf8(bytes).is_none() {
+				return value_error("a str with a surrogate pair apart is no Windows path");
+			}
+		}
 		Ok(rt::Buf {
 			ptr: ptr.cast_const().cast(),
 			len: len as usize,

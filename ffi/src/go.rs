@@ -880,12 +880,12 @@ impl<'a> Gen<'a> {
 	}
 
 	/// Whether lowering a `ty` can fail the call before it is made, which then returns an
-	/// error: it holds an object, which may be closed, or text or a char, whose Go types hold
-	/// values Rust's do not.
+	/// error: it holds an object, which may be closed, or text, a char, or a path, whose Go
+	/// types hold values Rust's do not, a path's only on Windows.
 	fn fails(&self, ty: &Type) -> bool {
 		let api = self.abi.api;
 		match ty {
-			Type::Object(_) | Type::Str | Type::String | Type::Char => true,
+			Type::Object(_) | Type::Str | Type::String | Type::Char | Type::Path | Type::PathBuf => true,
 			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => self.fails(inner),
 			Type::Tuple(elements) => elements.iter().any(|e| self.fails(e)),
 			Type::Record(i) => api.records[*i].fields.iter().any(|f| self.fails(&f.ty)),
@@ -2557,10 +2557,12 @@ impl<'a> Gen<'a> {
 					args.push(format!("C.uint32_t({name})"));
 				}
 				(ty, Ty::Buf) => {
-					// Text is checked before the call; a path is any bytes.
+					// Text and paths are checked before the call.
 					let check = match ty.buffer() {
 						Some(Type::String) => Some("checkString_"),
+						Some(Type::PathBuf) => Some("checkPath_"),
 						Some(Type::Option(inner)) if *inner == Type::String => Some("checkStringOption_"),
+						Some(Type::Option(inner)) if *inner == Type::PathBuf => Some("checkPathOption_"),
 						_ => None,
 					};
 					if let Some(check) = check {
