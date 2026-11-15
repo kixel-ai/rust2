@@ -2127,8 +2127,10 @@ static bool move_lent_status(void *data, api_Counter *counter) {
 typedef struct {
 	api_Local *local;
 	api_local_later_future *later;
+	api_Local_poll_count_future *count;
 	api_status bumped;
 	api_status polled;
+	api_status counted;
 	api_poll poll;
 } elsewhere;
 
@@ -2137,8 +2139,10 @@ static void *use_elsewhere(void *data) {
 	api_Local_bump(e->local, &e->bumped);
 	uint32_t out = 0;
 	e->poll = api_local_later_poll(e->later, (api_waker){0}, &out, &e->polled);
+	api_Local_poll_count_poll(e->count, (api_waker){0}, &out, &e->counted);
 	api_Local_free(e->local);
 	api_local_later_future_free(e->later);
+	api_Local_poll_count_future_free(e->count);
 	return NULL;
 }
 
@@ -2171,7 +2175,8 @@ static int not_send(void) {
 	api_Local *local = api_Local_new();
 	api_Local *shared = api_Local_share(local, &status);
 	api_Local_bump(local, &status);
-	if (api_Local_bump(shared, &status) != 2 || status != 0) {
+	if (api_Local_bump(shared, &status) != 2 || status != 0 || !api_Local_eq(local, shared, &status) ||
+		api_Local_hash(local, &status) != api_Local_hash(shared, &status) || status != 0) {
 		fprintf(stderr, "a shared local counted apart\n");
 		failed = 1;
 	}
@@ -2182,11 +2187,12 @@ static int not_send(void) {
 		failed = 1;
 	}
 	uint32_t before = api_locals_dropped();
-	elsewhere e = {.local = local, .later = later};
+	elsewhere e = {.local = local, .later = later, .count = api_Local_poll_count(local, &status)};
 	pthread_t thread;
 	pthread_create(&thread, NULL, use_elsewhere, &e);
 	pthread_join(thread, NULL);
-	if (e.bumped != API_STATUS_NOT_SEND || e.polled != API_STATUS_NOT_SEND || e.poll != API_POLL_PENDING ||
+	if (e.bumped != API_STATUS_NOT_SEND || e.polled != API_STATUS_NOT_SEND || e.counted != API_STATUS_NOT_SEND ||
+		e.poll != API_POLL_PENDING ||
 		strcmp(api_status_message(e.bumped), "a value that is not Send is used on another thread than the one that made it") != 0) {
 		fprintf(stderr, "a local used elsewhere wrote %d and %d\n", e.bumped, e.polled);
 		failed = 1;

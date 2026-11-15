@@ -1745,18 +1745,18 @@ impl<T> Object<Unsent<T>> {
 }
 
 impl<T> Object<T> {
-	/// The home `handle`'s value stays on, if that is another thread: a call borrowing or
-	/// moving it runs there, as the thread that made it.
+	/// The thread `handle`'s value stays on, unless it is null: a call borrowing or moving
+	/// it runs there if that is a home elsewhere, as the thread that made it.
 	///
 	/// # Safety
 	/// `handle` is null or a live handle of this type, kept alive through the call.
-	pub unsafe fn away<'a>(handle: *const c_void) -> Option<&'a Thread> {
+	pub unsafe fn owner<'a>(handle: *const c_void) -> Option<&'a Thread> {
 		if handle.is_null() {
 			return None;
 		}
 		// SAFETY: the caller's contract; `owner` never changes.
 		let object = unsafe { &*handle.cast::<Self>() };
-		object.owner.as_deref().filter(|owner| owner.away())
+		object.owner.as_deref()
 	}
 }
 
@@ -2344,6 +2344,17 @@ impl Future {
 				return unsafe { owner.run(|| Self::poll(future, waker, outs, err, status, what)) };
 			}
 			if let Err(refused) = owner.own() {
+				if head.polling.swap(true, Ordering::Acquire) {
+					fail(what, "a future is polled concurrently");
+				}
+				// A waker it never adopted is Rust's to drop, as a poll drops the one it
+				// replaces; the flag keeps the one it holds from changing meanwhile.
+				// SAFETY: the flag makes this the only access.
+				if !unsafe { &(*future).waker }.as_ref().is_some_and(|(last, _)| last.same(&waker)) {
+					// SAFETY: the caller gave it, and nothing else holds it.
+					unsafe { waker.release() };
+				}
+				head.polling.store(false, Ordering::Release);
 				// SAFETY: the caller's contract.
 				return unsafe { failed(status, refused, what) };
 			}

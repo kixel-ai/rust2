@@ -1355,12 +1355,8 @@ impl Gen<'_> {
 				true => String::new(),
 				false => {
 					let params: Vec<String> = params.iter().map(|p| p.to_string()).collect();
-					away(
-						name,
-						&params,
-						&path,
-						params[0].split_once(": ").map_or("this", |(name, _)| name),
-					)
+					let this = params[0].split_once(": ").map_or("this", |(name, _)| name);
+					away(name, &params, &[(path.clone(), this.to_string())])
 				}
 			};
 			if self.abi.checked[i] {
@@ -1425,7 +1421,8 @@ impl Gen<'_> {
 			}
 			let mut params: Vec<String> = handles.iter().map(|h| format!("{h}: {handle}")).collect();
 			params.extend(status.map(|s| format!("{s}: *mut i32")));
-			away(function, &params, &holder, handles[0])
+			let held: Vec<(String, String)> = handles.iter().map(|h| (holder.clone(), h.to_string())).collect();
+			away(function, &params, &held)
 		};
 		if traits.clone {
 			let body = wrap(
@@ -1453,9 +1450,14 @@ impl Gen<'_> {
 			));
 		}
 		if traits.hash {
-			let body = wrap(status, "u64", &format!("let this = {this};\n\trt::hash(&*this)"));
+			let body = wrap(
+				status,
+				"u64",
+				&format!("let this = {this};\n\trt::hash::<{path}>({deref}this)"),
+			);
+			let away = away(&format!("{name}_hash"), &["this"]);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_hash(this: {handle}{param}) -> u64 {{\n\tlet w = \"{name}_hash\";\n\t{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_hash(this: {handle}{param}) -> u64 {{\n\tlet w = \"{name}_hash\";\n\t{away}{body}\n}}\n"
 			));
 		}
 		if traits.display {
@@ -2593,27 +2595,23 @@ impl Gen<'_> {
 			));
 		}
 		let body = stmts.join("\n\t");
-		// The first handle it takes of a value that is not `Send`, which decides the thread
-		// it runs on; a JNI env is its thread's, so a call taking one stays on that thread.
-		let unsent = (!function.jni())
-			.then(|| {
-				let receiver = match (&receiver_ty, function.receiver) {
-					(Some(((_, Type::Object(i)), _)), _) if !self.abi.api.objects[*i].send => {
-						Some((*i, "this".to_string()))
-					}
-					_ => None,
-				};
-				receiver.or_else(|| {
-					(function.params.iter().enumerate())
-						.find_map(|(n, param)| self.unsent_object(&param.ty).map(|i| (i, format!("p{n}"))))
-				})
-			})
-			.flatten()
-			.map(|(i, handle)| (self.object_path(i), handle));
-		let away = |name: &str, params: &[String]| match &unsent {
-			Some((holder, handle)) => away(name, params, holder, handle),
-			None => String::new(),
-		};
+		// The handles it takes of values that is not `Send`, the first present of which
+		// decides the thread it runs on; a JNI env is its thread's, so a call taking one
+		// stays on that thread.
+		let mut unsent: Vec<(String, String)> = Vec::new();
+		if !function.jni() {
+			if let Some(((_, Type::Object(i)), _)) = &receiver_ty
+				&& !self.abi.api.objects[*i].send
+			{
+				unsent.push((self.object_path(*i), "this".to_string()));
+			}
+			for (n, param) in function.params.iter().enumerate() {
+				if let Some(i) = self.unsent_object(&param.ty) {
+					unsent.push((self.object_path(i), format!("p{n}")));
+				}
+			}
+		}
+		let away = |name: &str, params: &[String]| away(name, params, &unsent);
 		if let Some(abi::Future { start, poll, free, .. }) = &export.future {
 			// A function that is not `async` runs when called, and what it returns
 			// borrows nothing, so it is called now; an `async fn` runs when polled.
@@ -2813,12 +2811,23 @@ fn names(params: &[String]) -> String {
 }
 
 /// The statement that runs the C function `name` taking `params` on the home that the
-/// value of `handle`, object `holder`'s, stays on, if that is another thread, calling it
-/// again there and returning what it returns: so a call on a value that is not `Send`
-/// from a binding with no thread that stays put runs on the value's thread.
-fn away(name: &str, params: &[String], holder: &str, handle: &str) -> String {
+/// value of the first present of `handles`, each an object's holder and a handle, stays
+/// on, if that is another thread, calling it again there and returning what it returns:
+/// so a call on a value that is not `Send` from a binding with no thread that stays put
+/// runs on the value's thread. Nothing if it takes no such handle.
+fn away(name: &str, params: &[String], handles: &[(String, String)]) -> String {
+	if handles.is_empty() {
+		return String::new();
+	}
+	let homes: Vec<String> = (handles.iter())
+		.map(|(holder, handle)| format!("unsafe {{ rt::Object::<{holder}>::owner({handle}) }}"))
+		.collect();
 	format!(
-		"if let Some(home) = unsafe {{ rt::Object::<{holder}>::away({handle}) }} {{\n\t\treturn unsafe {{ home.run(move || {name}({})) }};\n\t}}\n\t",
+		"if let Some(home) = {}.filter(|home| home.away()) {{\n\t\treturn unsafe {{ home.run(move || {name}({})) }};\n\t}}\n\t",
+		homes
+			.iter()
+			.skip(1)
+			.fold(homes[0].clone(), |chain, next| format!("{chain}.or_else(|| {next})")),
 		names(params)
 	)
 }

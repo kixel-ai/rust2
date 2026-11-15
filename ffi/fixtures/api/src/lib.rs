@@ -1968,6 +1968,18 @@ impl Local {
 		self.bump()
 	}
 
+	/// What `f` returns, called on this local's thread, where it may use the local again.
+	pub fn visit(&self, f: impl Fn() -> u32) -> u32 {
+		self.here();
+		f()
+	}
+
+	/// Counts once, as a poll: its future holds the local, so is not `Send` either.
+	pub fn poll_count(&self, cx: &mut std::task::Context<'_>) -> std::task::Poll<u32> {
+		let _ = cx;
+		std::task::Poll::Ready(self.bump())
+	}
+
 	/// Whether this runs on its own thread, which every use of it must.
 	pub fn on_own_thread(&self) -> bool {
 		std::thread::current().id() == self.thread
@@ -1975,6 +1987,24 @@ impl Local {
 
 	fn here(&self) {
 		assert!(self.on_own_thread(), "a Local is used off its own thread");
+	}
+}
+
+/// Equal to another handle to the same count.
+impl PartialEq for Local {
+	fn eq(&self, other: &Self) -> bool {
+		self.here();
+		std::rc::Rc::ptr_eq(&self.count, &other.count)
+	}
+}
+
+impl Eq for Local {}
+
+/// Hashed by the count it shares, as its equality compares.
+impl std::hash::Hash for Local {
+	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+		self.here();
+		std::rc::Rc::as_ptr(&self.count).hash(state);
 	}
 }
 
@@ -1991,6 +2021,18 @@ static LOCALS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(
 /// How many locals have dropped, each on its own thread.
 pub fn locals_dropped() -> u32 {
 	LOCALS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// The first local's count bumped if there is one, else the second's.
+pub fn bump_either(first: Option<&Local>, second: &Local) -> u32 {
+	first.unwrap_or(second).bump()
+}
+
+/// A new local, made after a yield: the future is `Send`, but its output is not, so it is
+/// made where the future is polled.
+pub async fn local_after() -> Local {
+	yielded(0).await;
+	Local::new()
 }
 
 /// `n` doubled after a yield, through an `Rc` it holds across it: a future that is not

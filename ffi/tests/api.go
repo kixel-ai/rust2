@@ -1255,6 +1255,11 @@ func futures() {
 	check(must(shared.Bump()) == 2, "a shared local counts together")
 	check(must(local.Later(ctx)) == 3, "a local's future runs on its home")
 	check(must(api.LocalLater(ctx, 5)) == 10, "a future that is not Send runs on a home")
+	check(must(api.BumpEither(nil, local)) == 4, "a call whose first local is absent runs on its second's home")
+	check(must(local.Visit(func() uint32 { return must(local.Bump()) })) == 5, "a callback on a home calls back into its local")
+	made := must(api.LocalAfter(ctx))
+	check(must(made.OnOwnThread()), "a future's output that is not Send is made on its home")
+	ok(made.Close())
 	var wg sync.WaitGroup
 	for range 8 {
 		wg.Add(1)

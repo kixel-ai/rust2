@@ -293,7 +293,9 @@ where it was while its file is unchanged.
   whose C++ copies share one value has `_borrowed`, true while a call or future borrows
   it, so moving it out would fail.
 - **Threads**: a value that is not `Send`, an object or a future, stays on the thread that
-  made it, which alone borrows, moves, polls, or drops it: a call or poll on another
+  made it, which alone borrows, moves, polls, or drops it. A future is such a value if it
+  holds one, as a poll function's holds its receiver and parameters, or makes one, as its
+  output, which its last poll makes on its thread. A call or poll on another
   fails with `<PREFIX>_STATUS_NOT_SEND` before any Rust code runs, so such a future's poll
   takes a trailing `status` too. A `_free` or `_drop` elsewhere drops nothing there: it
   queues the drop to the value's thread, which runs it at its next check of one of its
@@ -302,8 +304,10 @@ where it was while its file is unchanged.
   value, has a twin `<name>_homed` of the same signature, as do its future's start,
   `<name>_start_homed`, and `Default`'s, `<T>_default_homed`: it runs on a home, a thread
   Rust owns, which the value then stays on, and each later call on it, from any thread,
-  runs there while the caller waits, as does a call on a handle it returns. Only a call's
-  receiver and its parameters that are handles, bare or in an `Option`, send it home. A
+  runs there while the caller waits, as does a call on a handle it returns. The first
+  present of a call's receiver and its parameters that are handles, bare or in an
+  `Option`, sends it home. A home waiting on a call into Dart runs meanwhile what that
+  Dart asks of its values. A
   binding whose threads move calls the twins: Go and Dart for every such value, Kotlin
   and Swift for such a future made from none, which a pool's thread then polls.
 - **Opaque values** are `typedef struct <T> { uintN_t opaque[n]; } <T>;`, the bytes of a

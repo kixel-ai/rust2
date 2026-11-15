@@ -3099,6 +3099,12 @@ impl<'tcx> Collector<'tcx> {
 		};
 		// Where Rust's parameters after `self` start: at `self`, when the task takes its place.
 		let first = usize::from(receiver.is_some());
+		// A poll's future holds its receiver and each parameter, so it is not `Send` where
+		// one of them is not.
+		let mut holds_send = match (receiver, self_ty) {
+			(Some(_), Some(self_ty)) => self.is_send(normalize(self_ty), env),
+			_ => true,
+		};
 		let again = |ty: Ty<'tcx>| ty.is_ref() || tcx.type_is_copy_modulo_regions(env, ty);
 		if polled.is_some()
 			&& receiver == Some(Receiver::Owned)
@@ -3141,6 +3147,11 @@ impl<'tcx> Collector<'tcx> {
 					interned: false,
 				});
 				continue;
+			}
+			// What a binding implements, through a type parameter or a trait object, is `Send`.
+			let held = ty.peel_refs();
+			if polled.is_some() && !matches!(held.kind(), ty::Param(_) | ty::Dynamic(..)) {
+				holds_send &= self.is_send(held, env);
 			}
 			if polled.is_some() && !again(ty) {
 				errs.push(why("poll's parameter taken by value that is not Copy", ty.to_string()));
@@ -3213,6 +3224,7 @@ impl<'tcx> Collector<'tcx> {
 			output = normalize(inner);
 			future = true;
 			eager = false;
+			send = holds_send;
 		} else if let Some(inner) = self.future_output(output, env) {
 			// The context C's waker makes lives only for the call.
 			if task.is_some() {
@@ -3243,6 +3255,11 @@ impl<'tcx> Collector<'tcx> {
 			}
 			output = normalize(inner);
 			future = true;
+		}
+		// A future's last poll makes its output, so one whose output is not `Send` stays on
+		// the thread that made it, which a value it makes then stays on, as a home's.
+		if future && !self.is_send(output, env) {
+			send = false;
 		}
 		// A future, polled or async, lifts each value into what it owns, so has nothing to
 		// write back.

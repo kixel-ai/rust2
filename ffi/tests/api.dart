@@ -1073,6 +1073,7 @@ Future<void> futures() async {
   final relayLog = CountLog();
   final relayed = api.logOnDrop(relayLog);
   check(local.bump() == 4 && local.onOwnThread(), 'a call through the relay runs on its home');
+  check(local.visit(() => local.bump()) == 5, 'a callback on a home calls back into its local');
   relayed.cancel();
   await cancelled(relayed, 'a cancelled future that held a relay completes with Cancelled');
   final localsBefore = api.localsDropped();

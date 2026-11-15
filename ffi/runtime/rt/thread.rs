@@ -9,18 +9,19 @@
 //! home owns runs there while the caller waits, so the value never leaves its thread.
 
 use std::cell::OnceCell;
+use std::sync::OnceLock;
 use std::mem::{ManuallyDrop, MaybeUninit};
 use std::panic::AssertUnwindSafe;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Condvar, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 /// A thread values that are not `Send` stay on.
 pub struct Thread {
 	/// Set while `jobs` holds one, so a check on the thread finds it with a load.
 	pending: AtomicBool,
 	jobs: Mutex<Jobs>,
-	/// What a home waits on for a job.
-	ready: Condvar,
+	/// A home's thread, which parks for a job, unparked as one is queued.
+	parked: OnceLock<std::thread::Thread>,
 	/// Whether it is a home, which runs a call from any thread.
 	home: bool,
 }
@@ -139,7 +140,7 @@ impl Thread {
 				queue: Vec::new(),
 				gone,
 			}),
-			ready: Condvar::new(),
+			parked: OnceLock::new(),
 			home,
 		}
 	}
@@ -188,7 +189,9 @@ impl Thread {
 		jobs.queue.push(job);
 		self.pending.store(true, Ordering::Release);
 		drop(jobs);
-		self.ready.notify_one();
+		if let Some(thread) = self.parked.get() {
+			thread.unpark();
+		}
 		Ok(())
 	}
 
@@ -243,20 +246,18 @@ impl Thread {
 	/// it, which a value's record would count.
 	fn serve(self: Arc<Self>) {
 		let me: *const Self = &*self;
+		let _ = self.parked.set(std::thread::current());
 		HERE.with(|here| {
 			let _ = here.0.set(self);
 		});
 		// SAFETY: this thread's record holds it for as long as the thread runs, which is forever.
 		let me = unsafe { &*me };
 		loop {
-			let mut jobs = me.lock();
-			while jobs.queue.is_empty() {
-				jobs = me.ready.wait(jobs).unwrap_or_else(|e| e.into_inner());
+			if !me.pending.load(Ordering::Acquire) {
+				std::thread::park();
+				continue;
 			}
-			me.pending.store(false, Ordering::Relaxed);
-			let queue = std::mem::take(&mut jobs.queue);
-			drop(jobs);
-			queue.into_iter().for_each(Job::run);
+			me.drain();
 			HERE.with(|here| {
 				let record = here.0.get().expect("a home's record is set");
 				if Arc::strong_count(record) == 1 {
@@ -264,6 +265,24 @@ impl Thread {
 				}
 			});
 		}
+	}
+
+	/// Wait until `done`, running each call queued meanwhile if this thread is a home, as one
+	/// a call it waits on makes may be: false at once if it is none, to wait as it would.
+	/// Whatever makes `done` true then unparks this thread.
+	#[cfg(feature = "dart")]
+	pub fn serve_until(done: impl Fn() -> bool) -> bool {
+		let home = HERE.try_with(|here| here.0.get().filter(|thread| thread.home).cloned()).ok().flatten();
+		let Some(home) = home else {
+			return false;
+		};
+		while !done() {
+			match home.pending.load(Ordering::Acquire) {
+				true => home.drain(),
+				false => std::thread::park(),
+			}
+		}
+		true
 	}
 
 	/// Run `f` on this home's thread, which this one waits for: at once if this is it.
