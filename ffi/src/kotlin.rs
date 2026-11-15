@@ -3333,7 +3333,13 @@ fn ret_expr(abi: &Abi<'_>, c: &Ty, ok: &Type) -> String {
 /// The C type of the value a call returns directly, raising its error, if it returns a
 /// result of a scalar, a handle, an opaque value, or nothing and writes back no argument:
 /// `Void` for nothing.
-fn direct(abi: &Abi<'_>, outs: &[(String, Ty)], written: &[(String, Type)], ok: &Type, err: Option<&Type>) -> Option<Ty> {
+fn direct(
+	abi: &Abi<'_>,
+	outs: &[(String, Ty)],
+	written: &[(String, Type)],
+	ok: &Type,
+	err: Option<&Type>,
+) -> Option<Ty> {
 	if err.is_none() || !written.is_empty() {
 		return None;
 	}
