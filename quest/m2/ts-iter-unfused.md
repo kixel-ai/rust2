@@ -9,6 +9,8 @@ hand-written in Chromium and Firefox.
 
 ## Plan
 
+Kept by the maintainer on 2026-11-15 ([#831 comment](https://github.com/kixel-ai/rust2/pull/831#issuecomment-6890381752)): ✅ keep (rejected: drop).
+
 On 2026-11-14, with leaves read in place, Chromium ran `iter/any` at 2.01 against wasm's
 0.43, `iter/skip-take-fold` at 10.8 against 0.245, and `iter/filter-collect` at 9.8
 against 3.16; Firefox ran `iter/any` at 11.6 against 1.13. Each still calls the runtime:
