@@ -2169,8 +2169,8 @@ impl<'a> Gen<'a> {
 			"func free_{c}(p unsafe.Pointer) {{\n\tC.{c}_free((*C.{c})(p))\n}}\n\n\
 			{drop}\
 			// own_{c} owns a handle Rust returned, or is nil for none: the object and its handle\n\
-			// in one allocation, whose cleanup frees the handle.\n\
-			func own_{c}(raw *C.{c}) *{name} {{\n\tif raw == nil {{\n\t\treturn nil\n\t}}\n\to := &struct {{\n\t\tv {name}\n\t\th {handle}\n\t}}{{}}\n\to.h.Init(unsafe.Pointer(raw), free_{c}, {dropping}, \"{local}\")\n\to.v.Handle_ = &o.h\n\to.h.Cleanup = runtime.AddCleanup(&o.v, free_{c}, unsafe.Pointer(raw))\n\treturn &o.v\n}}\n\n\
+			// in one allocation, in the nursery Own puts it in.\n\
+			func own_{c}(raw *C.{c}) *{name} {{\n\tif raw == nil {{\n\t\treturn nil\n\t}}\n\to := &struct {{\n\t\tv {name}\n\t\th {handle}\n\t}}{{}}\n\to.h.Init(unsafe.Pointer(raw), free_{c}, {dropping}, \"{local}\")\n\to.v.Handle_ = &o.h\n\to.h.Own()\n\treturn &o.v\n}}\n\n\
 			// lend_{c} is a handle Rust lends for a call, which it frees itself.\n\
 			func lend_{c}(raw *C.{c}) *{name} {{\n\to := &struct {{\n\t\tv {name}\n\t\th {handle}\n\t}}{{}}\n\to.h.Init(unsafe.Pointer(raw), nil, nil, \"{local}\")\n\to.v.Handle_ = &o.h\n\treturn &o.v\n}}\n\n\
 			// holdOption_{c} is v's handle, held until the call returns, or nil for none.\n\

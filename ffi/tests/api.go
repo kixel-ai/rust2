@@ -1378,7 +1378,81 @@ func owned() {
 	forward()
 	collected(before+1, "a forwarded payload drops once nothing reaches it")
 	uncollected(before+1, "a forwarded payload drops once")
+
+	nursed()
 	fmt.Println("owned ok")
+}
+
+// nursed checks the nursery of the latest objects returned, which a Close leaves at once
+// and the GC frees only once later returns push one out unclosed: each object is freed
+// once, however Close and the nursery race.
+func nursed() {
+	// One P, so every return below shares one nursery, which each GC finds in use, so its
+	// pool never drops it: only the push out of it registers the dropped token. The race
+	// detector's pool drops some at random, which frees it as a dropped nursery does.
+	procs := runtime.GOMAXPROCS(1)
+	before := api.Dropped()
+	unclosed()
+	deadline := time.Now().Add(10 * time.Second)
+	for api.Dropped() < before+1 {
+		check(time.Now().Before(deadline), "the GC frees an object pushed out of its nursery unclosed")
+		fill()
+		runtime.GC()
+		runtime.Gosched()
+	}
+
+	// Closed after the push out registered it, so its cleanup is stopped.
+	kept := api.NewToken(4)
+	fill()
+	kept.Close()
+	check(api.Dropped() == before+2, "closing an object pushed out of its nursery frees it at once")
+	runtime.GOMAXPROCS(procs)
+	uncollected(before+2, "the GC frees nothing a Close freed after a push out")
+
+	// Returned on many goroutines, each closing some of its own and of another's, as
+	// others' returns push them out, and dropping the rest.
+	const workers, each = 8, 1000
+	handoff := make(chan *api.Token, workers*each)
+	var wg sync.WaitGroup
+	for w := range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range each {
+				t := api.NewToken(uint32(i))
+				switch i % 3 {
+				case 0:
+					t.Close()
+				case 1:
+					handoff <- t
+				}
+				if i%3 != 0 {
+					select {
+					case other := <-handoff:
+						other.Close()
+					default:
+					}
+				}
+				if w == 0 && i%100 == 0 {
+					runtime.GC()
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(handoff)
+	for t := range handoff {
+		t.Close()
+	}
+	collected(before+2+workers*each, "the GC frees every object a nursery held unclosed")
+	uncollected(before+2+workers*each, "each object is freed once, however its Close and its nursery race")
+}
+
+// fill returns a nursery's worth of objects, each closed, pushing out every earlier one.
+func fill() {
+	for range 64 {
+		api.NewTally().Close()
+	}
 }
 
 // forward reads a payload Rust returned and writes it back, whole, sliced, and in a

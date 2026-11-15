@@ -286,6 +286,34 @@ fn api_tsan() {
 	sanitized("thread");
 }
 
+/// The Go script under Go's race detector, which catches a race between an object's
+/// `Close` and the nursery that pushes it out on another goroutine.
+#[test]
+#[ignore = "slow: just ffi sanitize"]
+fn api_go_race() {
+	let api = api();
+	let dir = scratch().join("api").join("go-race");
+	let module = dir.join("module");
+	go_layout(
+		api,
+		&module,
+		&std::fs::read_to_string(manifest_dir().join("tests").join("api.go")).unwrap(),
+	);
+	let exe = dir.join(format!("api-test{EXE_SUFFIX}"));
+	run(go(&module, api, &["build", "-race", "-o"]).arg(&exe));
+	// Every report fails the run.
+	let env = [("GORACE", "halt_on_error=1")];
+	let output = run(Command::new(&exe).envs(env));
+	assert_eq!(
+		String::from_utf8_lossy(&output.stdout),
+		api.transcript,
+		"the Go transcript under the race detector differs from the native one"
+	);
+	for case in ["futures", "owned", "closed", "bytes", "closures"] {
+		run(Command::new(&exe).arg(case).envs(env));
+	}
+}
+
 /// Build the api fixture's glue, std included, under the `sanitizer`, and run the C and
 /// C++ scripts against it, built by clang under the same one.
 fn sanitized(sanitizer: &str) {
