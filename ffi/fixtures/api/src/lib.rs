@@ -1283,11 +1283,11 @@ impl LongArray {
 	}
 }
 
-/// A value of 64 words: Kotlin passes one as its words, but two, as its `==` takes, past a
-/// JVM method's 255 slots, so encoded.
+/// A value of 128 words, past what a JVM method's 255 slots hold as `long`s: Kotlin makes
+/// one with no constructor of a parameter each, and passes one encoded.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Wide {
-	words: [u64; 64],
+	words: [u64; 128],
 }
 
 impl Wide {

@@ -290,9 +290,9 @@ fun script() {
 	// A `Result` of one returns it directly, or throws.
 	check(momentAt(1500u, 1000u) == moment && stampAt(5u) == Stamp.fromMillis(5u), "a result's value returns directly")
 	check(runCatching { momentAt(1u, 0u) }.isFailure && runCatching { stampAt(0u) }.isFailure, "a result's error throws")
-	// One of 64 words is passed as its words, but compared encoded.
+	// One of 128 words is made with no constructor of a parameter each, and passed encoded.
 	val broad = Wide.new(ULong.MAX_VALUE)
-	check(broad.sum() == 2016uL - 64uL && broad == Wide.new(ULong.MAX_VALUE) && broad != Wide.new(0u), "a wide value crosses")
+	check(broad.sum() == 8001uL - 1uL && broad == Wide.new(ULong.MAX_VALUE) && broad != Wide.new(0u), "a wide value crosses")
 
 	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
 	val gap = Gap.new(7u, 3u)

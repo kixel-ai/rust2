@@ -864,8 +864,12 @@ impl<'a> Gen<'a> {
 					_ => wrap(e),
 				}
 			}
-			Ty::Struct(name) if opaque_of(self.abi, c).is_some_and(|o| one_word(&o)) => {
-				format!("{}({e})", self.qualified(name))
+			Ty::Struct(name)
+				if let Some(opaque) = opaque_of(self.abi, c)
+					&& one_word(&opaque) =>
+			{
+				let class = self.qualified(name);
+				self.made(&class, &opaque, &[e.to_string()])
 			}
 			Ty::Buf => match (decode(ty), matches!(ty.base(), Type::Option(_)), lent) {
 				(Some(decode), true, _) => format!("{e}?.{decode}"),
@@ -1548,16 +1552,27 @@ impl<'a> Gen<'a> {
 	fn opaque(&mut self, c: &str, name: &str, opaque: &Opaque, docs: &str, body: &str) {
 		let words = opaque.words();
 		let holders = holders(opaque);
-		let fields: Vec<String> = holders
+		// Set after a constructor of none, as a constructor of a parameter each would pass
+		// the 255 JVM slots a method takes past 127 words.
+		let fields: String = holders
 			.iter()
-			.map(|h| format!("@JvmField internal val {h}: Long"))
+			.map(|h| format!("\t@JvmField internal var {h}: Long = 0L\n"))
 			.collect();
-		let head = match word(opaque) {
-			true => format!("@kotlin.jvm.JvmInline\nvalue class {name} internal constructor(internal val bits: Long)"),
-			false => format!("class {name} internal constructor({})", fields.join(", ")),
+		let (head, body) = match word(opaque) {
+			true => (
+				format!("@kotlin.jvm.JvmInline\nvalue class {name} internal constructor(internal val bits: Long)"),
+				body.to_string(),
+			),
+			false => (
+				format!("class {name} internal constructor()"),
+				match body.is_empty() {
+					true => format!(" {{\n{fields}}}"),
+					false => body.replacen(" {\n", &format!(" {{\n{fields}\n"), 1),
+				},
+			),
 		};
 		let write: String = holders.iter().map(|h| format!("\tw.i64(v.{h})\n")).collect();
-		let read = format!("{name}({})", vec!["r.i64()"; holders.len()].join(", "));
+		let read = self.made(name, opaque, &vec!["r.i64()".to_string(); holders.len()]);
 		let _ = write!(self.types, "{docs}{head}{body}\n\n");
 		let _ = write!(
 			self.top,
@@ -1567,6 +1582,21 @@ impl<'a> Gen<'a> {
 			self.glue,
 			"impl Wire for crate::{c} {{\n\tfn read(r: &mut Reader<'_>) -> Self {{\n\t\trt::read_words::<_, {words}>(r)\n\t}}\n\n\tfn write(self, w: &mut Writer) {{\n\t\trt::write_words::<_, {words}>(w, self);\n\t}}\n}}\n\n"
 		);
+	}
+
+	/// The Kotlin expression making the opaque value of class `class` from the `Long`
+	/// expressions `words`, evaluated in order.
+	fn made(&mut self, class: &str, opaque: &Opaque, words: &[String]) -> String {
+		if word(opaque) {
+			return format!("{class}({})", words[0]);
+		}
+		let v = self.fresh("v");
+		let sets: Vec<String> = holders(opaque)
+			.iter()
+			.zip(words)
+			.map(|(h, w)| format!("{v}.{h} = {w}"))
+			.collect();
+		format!("{class}().also {{ {v} -> {} }}", sets.join("; "))
 	}
 
 	fn enumeration(&mut self, i: usize) {
@@ -2555,15 +2585,15 @@ impl<'a> Gen<'a> {
 			value = match (&ok, &words) {
 				(Type::Unit, _) => caught,
 				(_, Some(opaque)) => {
-					let made: Vec<String> = (0..opaque.words()).map(|k| format!("{a}[{k}]")).collect();
+					let words: Vec<String> = (0..opaque.words()).map(|k| format!("{a}[{k}]")).collect();
+					let class = match &c_ok {
+						Ty::Struct(name) => self.qualified(name),
+						_ => unreachable!("an opaque value is a struct"),
+					};
+					let made = self.made(&class, opaque, &words);
 					format!(
-						"_Native.__slots.get()!!.let {{ {a} ->\n{}\n\t{}({})\n}}",
-						indent_by(&caught, 1),
-						match &c_ok {
-							Ty::Struct(name) => self.qualified(name),
-							_ => unreachable!("an opaque value is a struct"),
-						},
-						made.join(", ")
+						"_Native.__slots.get()!!.let {{ {a} ->\n{}\n\t{made}\n}}",
+						indent_by(&caught, 1)
 					)
 				}
 				_ => self.lift(&ok, &c_ok, &format!("({caught})"), false),
@@ -3005,7 +3035,7 @@ impl<'a> Gen<'a> {
 					slot
 				})
 				.collect();
-			return format!("{class}({})", words.join(", "));
+			return self.made(&class, &opaque, &words);
 		}
 		let mut fields = Vec::new();
 		for (k, field) in abi.api.records[i].fields.iter().enumerate() {
