@@ -85,6 +85,7 @@ fn fixture() {
 	expect("helpers::called", "external", "unreached");
 	expect("made::generated", "external", "unreached");
 	expect("nested::generated", "cross-crate", "unreached");
+	expect("grouped", "external", "unreached");
 	// A re-exported variant exposes its enum, with the enum's own API.
 	expect("Picked::label", "external", "unreached");
 	expect("marks::Unnamed", "external", "crate-only");
@@ -114,6 +115,8 @@ fn fixture() {
 	expect("Derived", "narrowed", "unreached");
 	// Narrowing shifts the columns after it on its line, but no line.
 	expect("at_column", "restored", "crate-only");
+	// So does `Location::caller()`, which a `#[track_caller]` function and a panic read.
+	expect("at_caller", "restored", "crate-only");
 	expect("at_line", "narrowed", "crate-only");
 	// A macro that changes only which binding a name picks.
 	expect("shadowed", "restored", "crate-only");

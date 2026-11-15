@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
 
-use rustc_ast::token::TokenKind;
+use rustc_ast::token::{Delimiter, TokenKind};
 use rustc_ast::tokenstream::TokenTree;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_driver::{Callbacks, Compilation};
@@ -506,6 +506,41 @@ impl<'tcx> Collector<'tcx> {
 					}
 				}
 				let span = tcx.hir_span(hir::HirId { owner, local_id: local });
+				// And where an expression that may panic or call a `#[track_caller]`
+				// function is, which `Location::caller()` and a panic report, by the line
+				// and column of its outermost macro call, as rustc computes them.
+				if let Node::Expr(expr) = node.node
+					&& match expr.kind {
+						hir::ExprKind::Call(..)
+						| hir::ExprKind::MethodCall(..)
+						| hir::ExprKind::Index(..)
+						| hir::ExprKind::Unary(hir::UnOp::Neg, _) => true,
+						hir::ExprKind::Binary(op, ..) => matches!(
+							op.node,
+							hir::BinOpKind::Add
+								| hir::BinOpKind::Sub
+								| hir::BinOpKind::Mul
+								| hir::BinOpKind::Div
+								| hir::BinOpKind::Rem
+								| hir::BinOpKind::Shl
+								| hir::BinOpKind::Shr
+						),
+						hir::ExprKind::AssignOp(op, ..) => matches!(
+							op.node,
+							hir::AssignOpKind::AddAssign
+								| hir::AssignOpKind::SubAssign
+								| hir::AssignOpKind::MulAssign
+								| hir::AssignOpKind::DivAssign
+								| hir::AssignOpKind::RemAssign
+								| hir::AssignOpKind::ShlAssign
+								| hir::AssignOpKind::ShrAssign
+						),
+						_ => false,
+					} {
+					let topmost = span.ctxt().outer_expn().expansion_cause().unwrap_or(span);
+					let at = tcx.sess.source_map().lookup_char_pos(topmost.lo());
+					std::hash::Hash::hash(&(local, at.line, at.col_display), &mut hasher);
+				}
 				expansions.extend(self.expansion(span.ctxt().outer_expn()));
 			}
 			let mut expansions: Vec<u32> = expansions.into_iter().collect();
@@ -929,35 +964,50 @@ impl<'tcx> Collector<'tcx> {
 
 	/// What a `$crate::a::b` path in the owner, a macro, names, from `$crate`'s crate root
 	/// and the tokens after it: each module, re-export, and item along it, as far as
-	/// modules, enums, and traits lead. Its callers name them wherever it expands, though
-	/// nothing in the audit may.
-	fn crate_path(&mut self, mut module: DefId, rest: &[&TokenTree]) {
-		for pair in rest.as_chunks::<2>().0 {
-			let [TokenTree::Token(sep, _), TokenTree::Token(segment, _)] = pair else {
-				return;
-			};
-			let (true, Some((ident, _))) = (sep.kind == TokenKind::PathSep, segment.ident()) else {
-				return;
-			};
-			let mut next = None;
-			let children = match module.as_local() {
-				Some(local) => self.tcx.module_children_local(local),
-				None => self.tcx.module_children(module),
-			};
-			for child in children.iter().filter(|c| c.ident.name == ident.name) {
-				for reexport in &child.reexport_chain {
-					if let Some(id) = reexport.id() {
-						self.refer_as(id, None, true);
-					}
-				}
-				let Some(id) = child.res.opt_def_id() else { continue };
-				self.refer_as(id, None, true);
-				if let DefKind::Mod | DefKind::Enum | DefKind::Trait = self.tcx.def_kind(id) {
-					next = Some(id);
+	/// modules, enums, and traits lead, and each path of a braced group, as in
+	/// `use $crate::{a, b::c}`. Its callers name them wherever it expands, though nothing in
+	/// the audit may.
+	fn crate_path(&mut self, module: DefId, rest: &[&TokenTree]) {
+		if let [TokenTree::Token(sep, _), path @ ..] = rest
+			&& sep.kind == TokenKind::PathSep
+		{
+			self.crate_path_segment(module, path);
+		}
+	}
+
+	/// [`Self::crate_path`] from a segment of `module`'s.
+	fn crate_path_segment(&mut self, module: DefId, path: &[&TokenTree]) {
+		match path {
+			[TokenTree::Delimited(.., Delimiter::Brace, inner), ..] => {
+				let trees: Vec<_> = inner.iter().collect();
+				for part in trees.split(|t| matches!(t, TokenTree::Token(token, _) if token.kind == TokenKind::Comma)) {
+					self.crate_path_segment(module, part);
 				}
 			}
-			let Some(next) = next else { return };
-			module = next;
+			[TokenTree::Token(segment, _), rest @ ..] => {
+				let Some((ident, _)) = segment.ident() else { return };
+				let children = match module.as_local() {
+					Some(local) => self.tcx.module_children_local(local),
+					None => self.tcx.module_children(module),
+				};
+				let mut next = None;
+				for child in children.iter().filter(|c| c.ident.name == ident.name) {
+					for reexport in &child.reexport_chain {
+						if let Some(id) = reexport.id() {
+							self.refer_as(id, None, true);
+						}
+					}
+					let Some(id) = child.res.opt_def_id() else { continue };
+					self.refer_as(id, None, true);
+					if let DefKind::Mod | DefKind::Enum | DefKind::Trait = self.tcx.def_kind(id) {
+						next = Some(id);
+					}
+				}
+				if let Some(next) = next {
+					self.crate_path(next, rest);
+				}
+			}
+			_ => {}
 		}
 	}
 

@@ -396,6 +396,21 @@ pub mod nested {
 	}
 }
 
+/// External: a macro facade re-exports, which imports what it calls through a group.
+#[macro_export]
+macro_rules! call_grouped {
+	() => {{
+		use $crate::{grouped as helper, made as _};
+		helper()
+	}};
+}
+
+/// External: what an exported macro's grouped `$crate` import names, though nothing in the
+/// audit expands it.
+pub fn grouped() -> u32 {
+	52
+}
+
 pub mod made {
 	/// External: what the `$crate` path of an exported macro another macro made names,
 	/// though nothing in the audit expands it.

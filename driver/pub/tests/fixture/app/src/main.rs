@@ -65,6 +65,15 @@ pub fn kept_through() -> u32 {
 /// Restored: `column!` reads a column that narrowing the `pub` before it shifts.
 pub fn at_column() -> u32 { column!() }
 
+#[track_caller]
+fn tracked() -> u32 {
+	std::panic::Location::caller().column()
+}
+
+/// Restored: `Location::caller()` reads the column of a call that narrowing the `pub`
+/// before it shifts.
+pub fn at_caller() -> u32 { tracked() }
+
 /// Narrowed: narrowing shifts no line.
 pub fn at_line() -> u32 {
 	line!()
@@ -253,6 +262,7 @@ fn main() {
 	println!("tagged {} {}", tagged(), tagged_tag());
 	println!("kept through {}", kept_through());
 	println!("column {}", at_column());
+	println!("caller column {}", at_caller());
 	println!("line {}", at_line());
 	println!("made {}", made());
 	println!("shadowed {}", shadowed());
