@@ -87,7 +87,7 @@ impl Callbacks for Collect {
 	}
 
 	fn after_analysis<'tcx>(&mut self, _compiler: &Compiler, tcx: TyCtxt<'tcx>) -> Compilation {
-		let mut unit = Collector::unit(tcx);
+		let mut unit = Collector::unit(tcx, &self.edits);
 		unit.embedded = std::mem::take(&mut *self.embedded.lock().expect("not poisoned"));
 		let name = format!("{}-{:016x}-{}.json", unit.crate_name, unit.crate_id, std::process::id());
 		let path = self.facts.join(name);
@@ -196,10 +196,22 @@ struct Collector<'tcx> {
 	expansions: Vec<Expansion>,
 	/// Each expansion's index in `expansions`.
 	expansion_index: FxHashMap<ExpnId, u32>,
+	/// Where each narrowed `pub` starts in the text rustc read, by file: each `pub(crate)`
+	/// before it moved it 7 bytes on.
+	narrowed: FxHashMap<PathBuf, FxHashSet<u32>>,
 }
 
 impl<'tcx> Collector<'tcx> {
-	fn unit(tcx: TyCtxt<'tcx>) -> Unit {
+	fn unit(tcx: TyCtxt<'tcx>, edits: &Edits) -> Unit {
+		let narrowed = edits
+			.iter()
+			.map(|(file, offsets)| {
+				let mut offsets = offsets.clone();
+				offsets.sort();
+				let read = offsets.iter().enumerate().map(|(i, &offset)| offset + 7 * i as u32);
+				(file.clone(), read.collect())
+			})
+			.collect();
 		let mut this = Collector {
 			tcx,
 			cwd: std::env::current_dir().unwrap_or_default(),
@@ -213,6 +225,7 @@ impl<'tcx> Collector<'tcx> {
 			traced: FxHashSet::default(),
 			expansions: Vec::new(),
 			expansion_index: FxHashMap::default(),
+			narrowed,
 		};
 		let types = tcx.crate_types();
 		let proc_macro = types.contains(&CrateType::ProcMacro);
@@ -471,6 +484,21 @@ impl<'tcx> Collector<'tcx> {
 				if matches!(node.node, Node::Synthetic) {
 					continue;
 				}
+				// Printing leaves visibility out, which a macro may write anew from what it
+				// read, as `pub` on a method of another type when its input is `pub`.
+				let written = match node.node {
+					Node::Item(item) => Some((item.owner_id.def_id, item.vis_span)),
+					Node::ImplItem(item) => match item.impl_kind {
+						hir::ImplItemImplKind::Inherent { vis_span } => Some((item.owner_id.def_id, vis_span)),
+						hir::ImplItemImplKind::Trait { .. } => None,
+					},
+					Node::ForeignItem(item) => Some((item.owner_id.def_id, item.vis_span)),
+					Node::Field(field) => Some((field.def_id, field.vis_span)),
+					_ => None,
+				};
+				if let Some((def, vis)) = written {
+					std::hash::Hash::hash(&(local, self.visibility(def, vis)), &mut hasher);
+				}
 				// Printing leaves hygiene out: which binding or loop each name picks.
 				if let Node::Expr(expr) = node.node {
 					let target = match expr.kind {
@@ -585,6 +613,26 @@ impl<'tcx> Collector<'tcx> {
 			return None;
 		}
 		self.span(vis)
+	}
+
+	/// The visibility `def` writes at `vis`, alike in every narrowing: none, a `pub` the
+	/// narrowing edited, as the `pub` it was, or what rustc reads there.
+	fn visibility(&mut self, def: LocalDefId, vis: rustc_span::Span) -> Option<Option<Hash>> {
+		if vis.is_empty() {
+			return None;
+		}
+		if let Some(span) = self.span(vis)
+			&& self
+				.narrowed
+				.get(&self.files[span.file as usize])
+				.is_some_and(|read| read.contains(&span.lo))
+		{
+			return Some(None);
+		}
+		match self.tcx.visibility(def) {
+			ty::Visibility::Public => Some(None),
+			ty::Visibility::Restricted(module) => Some(Some(self.hash(module.to_def_id()))),
+		}
 	}
 
 	/// `span` in source on disk, if it is there.

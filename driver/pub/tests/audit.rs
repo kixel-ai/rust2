@@ -55,6 +55,8 @@ fn fixture() {
 	expect("inner::reexported_dead", "narrowed", "unreached");
 	expect("crate::{use inner::reexported_dead}", "narrowed", "unreached");
 	expect("Outer::is_empty", "narrowed", "unreached");
+	// A live type's fields' types are, as its drop glue runs their destructors.
+	expect("zeroed::dropped_helper", "narrowed", "crate-only");
 	expect("Leaked", "restored", "crate-only");
 	expect("integration_tested", "cross-crate", "test-only");
 	// facade is a library nothing in the workspace depends on: its API, and what that API
@@ -93,6 +95,9 @@ fn fixture() {
 	expect("nested::generated", "external", "unreached");
 	// A re-exported variant exposes its enum, with the enum's own API.
 	expect("Picked::label", "external", "unreached");
+	// A macro that writes another item's visibility from its input's leaves the print
+	// alike, so the visibility each item writes is compared too.
+	expect("methods::shared", "restored", "unreached");
 	expect("marks::Unnamed", "external", "crate-only");
 	expect("<(dyn Shape + 'static)>::describe", "external", "unreached");
 	// A `pub` an exported macro holds, though another macro wrote it there.

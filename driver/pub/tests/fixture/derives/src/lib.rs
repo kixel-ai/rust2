@@ -39,6 +39,18 @@ pub fn export_tag(_: TokenStream, item: TokenStream) -> TokenStream {
 	item.into_iter().chain(tag).collect()
 }
 
+/// Kept: returns its item, and a method of `crate::Exposed` that is `pub` when its item
+/// is, written anew rather than copied.
+#[proc_macro_attribute]
+pub fn method_like(_: TokenStream, item: TokenStream) -> TokenStream {
+	let (visibility, name) = read(item.clone());
+	let visibility = if visibility == "pub" { "pub" } else { "" };
+	let method: TokenStream = format!("impl crate::Exposed {{ {visibility} fn {name}_method() -> u32 {{ 57 }} }}")
+		.parse()
+		.unwrap();
+	item.into_iter().chain(method).collect()
+}
+
 /// Kept: returns its item as it is.
 #[proc_macro_attribute]
 pub fn keep(_: TokenStream, item: TokenStream) -> TokenStream {

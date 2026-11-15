@@ -207,6 +207,13 @@ impl Audit {
 					if def.kind != "Use" {
 						edges[test][index].push(parent);
 					}
+					// A type's fields and variants are live with it, since its drop glue
+					// runs their destructors, however a value of it was made.
+					if matches!(def.kind.as_str(), "Field" | "Variant")
+						&& matches!(defs[parent].kind.as_str(), "Struct" | "Union" | "Enum" | "Variant")
+					{
+						edges[test][parent].push(index);
+					}
 					// An enum's variants and their fields, and a trait's items, are its API;
 					// a struct's fields, only those it makes `pub`; a module's, only what its
 					// crate exports from it.

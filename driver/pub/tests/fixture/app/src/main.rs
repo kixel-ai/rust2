@@ -311,4 +311,25 @@ fn main() {
 	println!("crlf {}", api::crlf::spaced());
 	println!("product {}", std::mem::size_of::<api::Product>());
 	println!("level {}", Level::High as isize);
+	// SAFETY: `Wrapper` holds only a unit struct.
+	drop(unsafe { std::mem::zeroed::<zeroed::Wrapper>() });
+}
+
+mod zeroed {
+	/// A value no expression names, only `Wrapper`'s drop glue.
+	pub struct Dropped;
+
+	impl Drop for Dropped {
+		fn drop(&mut self) {
+			println!("dropped {}", dropped_helper());
+		}
+	}
+
+	/// Narrowed, crate-only: only `Dropped`'s destructor calls it, which `Wrapper`'s drop
+	/// glue runs.
+	pub fn dropped_helper() -> u32 {
+		58
+	}
+
+	pub struct Wrapper(#[allow(dead_code)] Dropped);
 }

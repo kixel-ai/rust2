@@ -477,3 +477,10 @@ pub use outer::Part;
 pub fn size() -> u32 {
 	outer::SIZE
 }
+
+mod methods {
+	/// Restored, unreached: its visibility picks that of a method of `Exposed`, which
+	/// facade exposes, though narrowing it changes no print.
+	#[derives::method_like]
+	pub fn shared() {}
+}
