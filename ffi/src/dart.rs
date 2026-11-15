@@ -899,9 +899,9 @@ impl<'a> Gen<'a> {
 
 	/// The Dart functions owning a handle of the object `c`, whose C type is `handle`: one
 	/// giving the garbage collector a Dart object owning it to free it with, the C function
-	/// freeing it, which the nursery keeps for the isolate's exit, and the one closing it,
-	/// serving the isolate meanwhile: of a checked value, its drop then its free, else its
-	/// free alone, each taking back the garbage collector's hold if it took one.
+	/// freeing it, which the nursery keeps for the isolate's exit, the one freeing it, and of
+	/// a checked value, the one dropping it then freeing it if asked; the last two serve the
+	/// isolate meanwhile and take back the garbage collector's hold if it took one.
 	fn owned(&mut self, c: &str, handle: &Ty, checked: bool) -> Owned {
 		let bare = self.bare(c);
 		let space = &self.space;
@@ -924,42 +924,38 @@ impl<'a> Gen<'a> {
 				"@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>)>(symbol: '{c}_free')\nexternal void _{freeing}(ffi.Pointer<ffi.Void> p0);\n\n"
 			),
 		);
-		let (close, glue, status) = match checked {
-			true => (
-				format!("{space}_close_{bare}"),
-				format!(
-					"let dropped = unsafe {{\n\t\thome.serve(move || {{\n\t\t\tcrate::{c}_drop(raw, status);\n\t\t\tlet dropped = *status == 0;\n\t\t\tif dropped {{\n\t\t\t\tcrate::{c}_free(raw);\n\t\t\t}}\n\t\t\tdropped\n\t\t}})\n\t}};\n\tif dropped && !own.is_null() {{\n\t\tunsafe {{ runtime::disown(own, object) }};\n\t}}"
-				),
-				(
-					", status: *mut i32",
-					", ffi.Pointer<ffi.Int32>",
-					", ffi.Pointer<ffi.Int32> p4",
-				),
-			),
-			false => (
-				format!("{space}_free_{bare}"),
-				format!(
-					"if !own.is_null() {{\n\t\tunsafe {{ runtime::disown(own, object) }};\n\t}}\n\tunsafe {{ home.serve(move || crate::{c}_free(raw)) }}"
-				),
-				("", "", ""),
-			),
-		};
+		let free = format!("{space}_free_{bare}");
 		let _ = write!(
 			self.glue,
-			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {close}(home: *const c_void, own: *mut c_void, object: *mut c_void, raw: {raw}{}) {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\t{glue}\n}}\n\n",
-			status.0
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {free}(home: *const c_void, own: *mut c_void, object: *mut c_void, raw: {raw}) {{\n\tif !own.is_null() {{\n\t\tunsafe {{ runtime::disown(own, object) }};\n\t}}\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || crate::{c}_free(raw)) }}\n}}\n\n"
 		);
 		self.natives.insert(
-			close.clone(),
+			free.clone(),
 			format!(
-				"@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, ffi.Handle, ffi.Pointer<ffi.Void>{})>(symbol: '{close}')\nexternal void _{close}(ffi.Pointer<ffi.Void> p0, ffi.Pointer<ffi.Void> p1, Object p2, ffi.Pointer<ffi.Void> p3{});\n\n",
-				status.1, status.2
+				"@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, ffi.Handle, ffi.Pointer<ffi.Void>)>(symbol: '{free}')\nexternal void _{free}(ffi.Pointer<ffi.Void> p0, ffi.Pointer<ffi.Void> p1, Object p2, ffi.Pointer<ffi.Void> p3);\n\n"
 			),
 		);
+		let close = checked.then(|| {
+			let close = format!("{space}_close_{bare}");
+			// The status stays the call's own while the isolate serves others meanwhile, as a
+			// served call's does.
+			let _ = write!(
+				self.glue,
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {close}(home: *const c_void, own: *mut c_void, object: *mut c_void, raw: {raw}, free: bool, out: *mut i32) {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tlet status = unsafe {{\n\t\thome.serve(move || {{\n\t\t\tlet mut status = 0;\n\t\t\tcrate::{c}_drop(raw, &raw mut status);\n\t\t\tif status == 0 && free {{\n\t\t\t\tcrate::{c}_free(raw);\n\t\t\t}}\n\t\t\tstatus\n\t\t}})\n\t}};\n\tif status != 0 {{\n\t\tunsafe {{ *out = status }};\n\t}} else if free && !own.is_null() {{\n\t\tunsafe {{ runtime::disown(own, object) }};\n\t}}\n}}\n\n"
+			);
+			self.natives.insert(
+				close.clone(),
+				format!(
+					"@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, ffi.Handle, ffi.Pointer<ffi.Void>, ffi.Bool, ffi.Pointer<ffi.Int32>)>(symbol: '{close}')\nexternal void _{close}(ffi.Pointer<ffi.Void> p0, ffi.Pointer<ffi.Void> p1, Object p2, ffi.Pointer<ffi.Void> p3, bool p4, ffi.Pointer<ffi.Int32> p5);\n\n"
+				),
+			);
+			format!("_{close}")
+		});
 		Owned {
 			own: format!("_{own}"),
 			freeing: format!("_{freeing}"),
-			close: format!("_{close}"),
+			free: format!("_{free}"),
+			close,
 		}
 	}
 
@@ -1843,13 +1839,19 @@ impl<'a> Gen<'a> {
 		};
 		let mut members = vec!["close".to_string()];
 		let checked = abi.checked[i];
-		let Owned { own, freeing, close } = self.owned(&c, &owner, checked);
-		let close = match checked {
-			true => format!(
-				"\t@override\n\tvoid _close() {{\n\t\tfinal s_ = _n.status;\n\t\t{close}(_n.home, _own, this, _raw, s_);\n\t\t_status(s_.value, '{c}_drop');\n\t}}\n"
+		let Owned {
+			own,
+			freeing,
+			free,
+			close,
+		} = self.owned(&c, &owner, checked);
+		let close = match close {
+			Some(close) => format!(
+				"\n\t@override\n\tvoid _close(bool free) {{\n\t\tfinal s_ = _n.status;\n\t\t{close}(_n.home, _own, this, _raw, free, s_);\n\t\t_status(s_.value, '{c}_drop');\n\t}}\n"
 			),
-			false => format!("\t@override\n\tvoid _free() => {close}(_n.home, _own, this, _raw);\n"),
+			None => String::new(),
 		};
+		let close = format!("\t@override\n\tvoid _free() => {free}(_n.home, _own, this, _raw);\n{close}");
 		let mut body = vec![format!(
 			"\t{name}._(ffi.Pointer<ffi.Void> raw) : super(raw, true, {checked}) {{\n\t\t_n.nursery.push(this, ffi.Native.addressOf<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>({freeing}).cast());\n\t}}\n\n\t{name}._lent(ffi.Pointer<ffi.Void> raw) : super(raw, false, {checked});\n\n\t@override\n\tString get _type => '{name}';\n\n\t@override\n\tvoid _register() => _own = {own}(this, _raw);\n\n{close}"
 		)];
@@ -2629,8 +2631,10 @@ struct Owned {
 	own: String,
 	/// The C function freeing it.
 	freeing: String,
-	/// Closes it.
-	close: String,
+	/// Frees it.
+	free: String,
+	/// Of a checked value, drops it, then frees it if asked.
+	close: Option<String>,
 }
 
 /// How a function throws its error.

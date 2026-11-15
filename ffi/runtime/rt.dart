@@ -806,22 +806,23 @@ final class _Callback extends ffi.Struct {
   external ffi.Pointer<ffi.Void> data;
 }
 
-/// What an object owns: its handle, or one Rust lends for a call, which Rust frees. An owned
-/// one of a value Rust checks is Rust's alone to account: [close] drops the value as Rust's
-/// own drop does and frees the handle, failing while a call borrows it. Any other counts its
-/// calls: [close] frees it then, throwing while a call holds it. A call after either throws.
-/// One returned waits in the isolate's [_Nursery], where a close frees it without the
-/// garbage collector, which frees it only once pushed out unclosed.
+/// What an object owns: its handle, or one Rust lends for a call, which Rust frees. Each
+/// call holds it, so the handle is freed only once no call does. An owned one of a value
+/// Rust checks is Rust's to account: [close] drops the value as Rust's own drop does,
+/// failing while a call borrows it, and frees the handle with it unless a call holds it.
+/// Any other: [close] frees it then, throwing while a call holds it. A call after either
+/// throws. One returned waits in the isolate's [_Nursery], where a close frees it without
+/// the garbage collector, which frees it only once pushed out unclosed.
 abstract base class _Object implements ffi.Finalizable {
   final ffi.Pointer<ffi.Void> _raw;
 
-  /// The owner's hold until closed, and one for each call, of a counted one.
+  /// The owner's hold until closed, and one for each call.
   int _holds = 1;
   bool _closed = false;
   final bool _owned;
 
-  /// Whether it counts its calls, rather than Rust.
-  final bool _counted;
+  /// Whether Rust checks its borrows, so its close drops the value through Rust.
+  final bool _checked;
 
   /// The garbage collector's hold of an owned one's handle, from when the nursery pushed it
   /// out until freed.
@@ -830,29 +831,29 @@ abstract base class _Object implements ffi.Finalizable {
   /// Its slot in the nursery while there, else -1.
   int _slot = -1;
 
-  _Object(this._raw, bool owned, bool checked) : _owned = owned, _counted = !(owned && checked);
+  _Object(this._raw, bool owned, bool checked) : _owned = owned, _checked = owned && checked;
 
   String get _type;
 
-  /// Free a counted one's handle, and take back the garbage collector's hold of it.
+  /// Free an owned one's handle, and take back the garbage collector's hold of it.
   void _free() {}
 
   /// Give the garbage collector a hold of the handle, as the nursery pushes it out open.
   void _register() {}
 
-  /// Drop the value of one Rust checks, then free its handle and take back the garbage
-  /// collector's hold of it, in one crossing: throwing [StateError], changing nothing, if a
-  /// call borrows it.
-  void _close() {}
+  /// Drop the value of one Rust checks, then, if `free`, free its handle and take back the
+  /// garbage collector's hold of it, in one crossing: throwing [StateError], changing
+  /// nothing, if a call borrows it.
+  void _close(bool free) {}
 
   ffi.Pointer<ffi.Void> _hold() {
     if (_closed) throw StateError('$_type is closed');
-    if (_counted) _holds++;
+    _holds++;
     return _raw;
   }
 
   void _release() {
-    if (_counted && --_holds == 0 && _owned) {
+    if (--_holds == 0 && _owned) {
       _leave();
       _free();
     }
@@ -871,16 +872,27 @@ abstract base class _Object implements ffi.Finalizable {
   /// Close it as [_Object] says; again, it does nothing.
   void close() {
     if (_closed) return;
-    if (!_counted) {
-      final nursed = _leave();
+    if (_checked) {
+      // Closed before Rust drops the value, which may run Dart that reaches it meanwhile.
+      _closed = true;
+      // A call holding it, from a callback or one waiting on a worker, may not have
+      // borrowed the value in Rust yet: the handle outlives its hold, so Rust's check
+      // refuses it.
+      final alone = _holds == 1;
+      final nursed = alone && _leave();
       try {
-        _close();
+        _close(alone);
       } catch (_) {
+        _closed = false;
         // Still open, and out of the nursery, so the garbage collector's.
         if (nursed) _register();
         rethrow;
       }
-      _closed = true;
+      if (alone) {
+        _holds = 0;
+      } else {
+        _release();
+      }
       return;
     }
     if (_holds != 1) throw StateError('$_type: a handle is already borrowed');

@@ -6,6 +6,7 @@
 // contract, which must fail.
 
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'dart:io';
@@ -997,6 +998,41 @@ final class CountLog extends api.Log {
   void close() => closes++;
 }
 
+/// A [CountLog] whose close, which Rust's drop of it runs, then runs `closed`.
+final class ClosingLog extends CountLog {
+  final void Function() closed;
+
+  ClosingLog(this.closed);
+
+  @override
+  void close() {
+    super.close();
+    closed();
+  }
+}
+
+/// A list of objects whose length, read as a call lowers it, first runs `read`.
+final class ReadingList extends ListBase<api.Counter> {
+  final void Function() read;
+
+  ReadingList(this.read);
+
+  @override
+  int get length {
+    read();
+    return 0;
+  }
+
+  @override
+  set length(int n) => throw UnsupportedError('a fixed list');
+
+  @override
+  api.Counter operator [](int i) => throw RangeError.index(i, this);
+
+  @override
+  void operator []=(int i, api.Counter value) => throw UnsupportedError('a fixed list');
+}
+
 /// The futures' semantics beyond the transcript, each checked by an assertion.
 Future<void> futures() async {
   final channel = api.Channel();
@@ -1359,6 +1395,32 @@ void closedObjects() {
   check(api.onFirstThread(), "a call after one this target lacks runs on the isolate's thread");
   check(api.logCounts(spared, 0, open, []) == 1, 'an implementation a call that threw gave none of');
   check(spared.lines == 1 && spared.closes == 3, 'an implementation given once is closed once');
+
+  // Closed by Dart a call runs as it lowers its arguments, after it held the object: the
+  // handle outlives the call's hold, so Rust's check refuses the value the close dropped.
+  final early = api.Counter('early', api.U64(1));
+  closed(
+    () => api.worth([early], ReadingList(early.close)),
+    'Counter',
+    'an object closed while its call lowers the rest',
+  );
+  closed(early.get, 'Counter', 'an object closed during a call, after it');
+
+  // Closed again by Dart its drop runs, which finds it closed, so it is freed once.
+  late api.Journal journal;
+  var during = '';
+  final nested = ClosingLog(() {
+    try {
+      journal.write('x');
+    } on StateError catch (e) {
+      during = e.message;
+    }
+    journal.close();
+  });
+  journal = api.Journal(nested);
+  journal.close();
+  check(nested.closes == 1, 'a close from inside its own drop closes nothing more');
+  check(during == 'Journal is closed', 'an object is closed in Dart while Rust drops it: $during');
 
   // An async call.
   final channel = api.Channel();

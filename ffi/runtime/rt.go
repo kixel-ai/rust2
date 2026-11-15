@@ -187,14 +187,15 @@ func (n *nursery_) evict(i int, h *Handle_) {
 	atomic.StorePointer(&n.raw[i], nil)
 }
 
-// flush registers each handle still open in n, once the pool dropped its ring, so none
-// waits on the others to be collected.
+// flush registers each handle still open in n, once the pool dropped its ring, and lets go
+// of them all, so none waits on the others to be collected while any keeps n.
 func (n *nursery_) flush() {
 	for i := range n.raw {
 		// Loaded first, as push stores it after the handle.
 		if raw := atomic.LoadPointer(&n.raw[i]); raw != nil && raw != evicting_ {
 			n.evict(i, n.held[i])
 		}
+		n.held[i] = nil
 	}
 }
 
