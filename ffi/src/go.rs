@@ -1513,21 +1513,21 @@ impl<'a> Gen<'a> {
 		// On a target the type is not on, only the binding makes a value of it, and each
 		// trait fails as a function the target lacks does.
 		let limited = !self.abi.api.everywhere(self.abi.on(ty));
-		// The receiver, a held handle or the value lowered, and the return of `failed`, an
-		// expression of the error, once a closed object fails the call.
 		// Qualified only where a call holds a handle, which imports the runtime's package.
 		let slot = match object {
 			true => self.qualify(Packages::RT, "Slot_"),
 			false => String::new(),
 		};
+		// The receiver, a held handle or the value lowered, and the return of `failed`, an
+		// expression of the error, once a closed object fails the call.
 		let open = |failed: &dyn Fn(&str) -> String| match (object, arena) {
-			(true, _) => (
-				format!(
-					"{}\n",
-					hold(&slot, "self", "h_", "s_", &format!("return {}", failed("self.Handle_.Closed()")))
-				),
-				format!("(*C.{c})(h_)"),
-			),
+			(true, _) => {
+				let closed = format!("return {}", failed("self.Handle_.Closed()"));
+				(
+					format!("{}\n", hold(&slot, "self", "h_", "s_", &closed)),
+					format!("(*C.{c})(h_)"),
+				)
+			}
 			(false, true) if closable => (
 				format!(
 					"a_ := &arena_{{}}\ndefer a_.finish()\nc_self_ := lower_{c}(a_, self)\nif a_.err != nil {{\n\treturn {}\n}}\n",
@@ -1657,10 +1657,11 @@ impl<'a> Gen<'a> {
 				true => (vec!["bool".to_string(), "error".to_string()], ", nil"),
 				false => (vec!["bool".to_string()], ""),
 			};
+			let closed = format!("return {}", failed("other.Handle_.Closed()"));
 			let body = match (object, arena) {
 				(true, _) => format!(
 					"{open}{}\n{}return bool(r_){ok}",
-					hold(&slot, "other", "o_", "os_", &format!("return {}", failed("other.Handle_.Closed()"))),
+					hold(&slot, "other", "o_", "os_", &closed),
 					checked(&format!("{c}_eq"), &format!("{this}, (*C.{c})(o_)"), &failed)
 				),
 				(false, true) if closable => format!(
@@ -2659,7 +2660,9 @@ impl<'a> Gen<'a> {
 							let slot = self.qualify(Packages::RT, "Slot_");
 							let held = hold(&slot, &name, &h, "s_", &failed).replacen(":=", "=", 1);
 							let held = held.replace('\n', "\n\t");
-							prelude.push(format!("var {h} unsafe.Pointer\nif {name} != nil {{\n\tvar s_ {slot}\n\t{held}\n}}"));
+							prelude.push(format!(
+								"var {h} unsafe.Pointer\nif {name} != nil {{\n\tvar s_ {slot}\n\t{held}\n}}"
+							));
 						}
 						_ => {
 							let slot = self.qualify(Packages::RT, "Slot_");

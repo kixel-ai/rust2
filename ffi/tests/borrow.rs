@@ -117,7 +117,11 @@ fn biased_readers_and_writer() {
 		let wrote = handle.write();
 		let reads: Vec<_> = readers.into_iter().map(|reader| reader.join().unwrap()).collect();
 		match wrote {
-			Ok(()) => assert!(reads.iter().all(|read| matches!(read, Ok(0 | 1) | Err(Status::Exclusive)))),
+			Ok(()) => assert!(
+				reads
+					.iter()
+					.all(|read| matches!(read, Ok(0 | 1) | Err(Status::Exclusive)))
+			),
 			Err(status) => {
 				// A refused writer changed nothing, so every read ran.
 				assert_eq!(status, Status::Borrowed);
@@ -195,7 +199,7 @@ fn shared_column_and_close() {
 				assert_eq!(other, Ok(0));
 			}
 		}
-		assert_eq!(handle.close(), Ok(matches!(closed, Err(_))));
+		assert_eq!(handle.close(), Ok(closed.is_err()));
 		handle.settled();
 	});
 }
