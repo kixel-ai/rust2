@@ -2150,6 +2150,9 @@ static void *use_elsewhere(void *data) {
  * which drops it there. */
 typedef struct {
 	api_Local *local;
+	/* Whether it also makes a future borrowing the local, which then holds it last. */
+	bool later_too;
+	api_Local_later_future *later;
 	atomic_bool made;
 	atomic_bool freed;
 } kept;
@@ -2157,6 +2160,10 @@ typedef struct {
 static void *keep_local(void *data) {
 	kept *k = data;
 	k->local = api_Local_new();
+	if (k->later_too) {
+		api_status status = 0;
+		k->later = api_Local_later(k->local, &status);
+	}
 	atomic_store(&k->made, true);
 	while (!atomic_load(&k->freed)) {
 	}
@@ -2250,6 +2257,22 @@ static int not_send(void) {
 	pthread_join(thread, NULL);
 	if (api_locals_dropped() != before + 1) {
 		fprintf(stderr, "a local freed elsewhere never dropped as its thread exited\n");
+		failed = 1;
+	}
+
+	/* A future freed elsewhere that borrows a local freed before it: dropped as the thread
+	 * exits, the future lets go of the local, whose drop runs there too. */
+	kept l = {.later_too = true};
+	before = api_locals_dropped();
+	pthread_create(&thread, NULL, keep_local, &l);
+	while (!atomic_load(&l.made)) {
+	}
+	api_Local_free(l.local);
+	api_Local_later_future_free(l.later);
+	atomic_store(&l.freed, true);
+	pthread_join(thread, NULL);
+	if (api_locals_dropped() != before + 1) {
+		fprintf(stderr, "a local a future freed elsewhere borrowed never dropped as its thread exited\n");
 		failed = 1;
 	}
 

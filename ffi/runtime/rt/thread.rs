@@ -209,14 +209,20 @@ impl Thread {
 		queue.into_iter().for_each(Job::run);
 	}
 
-	/// The thread exited: drop what was queued, and leak what is freed later.
+	/// The thread exited: drop what was queued, and what those drops queue in turn, as a
+	/// future's drop does its borrowed value's, then leak what is freed later.
 	fn exit(&self) {
-		let queue = {
-			let mut jobs = self.lock();
-			jobs.gone = true;
-			std::mem::take(&mut jobs.queue)
-		};
-		queue.into_iter().for_each(Job::run);
+		loop {
+			let queue = {
+				let mut jobs = self.lock();
+				if jobs.queue.is_empty() {
+					jobs.gone = true;
+					return;
+				}
+				std::mem::take(&mut jobs.queue)
+			};
+			queue.into_iter().for_each(Job::run);
+		}
 	}
 
 	/// A home no value lives on: an idle one, or a new thread. [`Self::release`] gives it

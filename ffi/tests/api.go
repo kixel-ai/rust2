@@ -1257,6 +1257,12 @@ func futures() {
 	check(must(api.LocalLater(ctx, 5)) == 10, "a future that is not Send runs on a home")
 	check(must(api.BumpEither(nil, local)) == 4, "a call whose first local is absent runs on its second's home")
 	check(must(local.Visit(func() uint32 { return must(local.Bump()) })) == 5, "a callback on a home calls back into its local")
+	other := api.NewLocal()
+	nested := must(local.Visit(func() uint32 {
+		return must(other.Visit(func() uint32 { return must(local.Bump()) }))
+	}))
+	check(nested == 6, "a home waiting on another runs a call back into its own local")
+	ok(other.Close())
 	made := must(api.LocalAfter(ctx))
 	check(must(made.OnOwnThread()), "a future's output that is not Send is made on its home")
 	ok(made.Close())
