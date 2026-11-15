@@ -33,3 +33,7 @@ pub use api::Picked::One;
 /// External: this library's API, exported macros of macros that call its helpers, one
 /// another macro made.
 pub use macros::{call_generated, call_globbed, call_grouped, call_helper, call_nested, call_outer};
+
+/// External: this library's API, made by a macro api doesn't export, which keeps none of
+/// api's other exports, since it never expands outside api.
+pub use api::expanded_dead;

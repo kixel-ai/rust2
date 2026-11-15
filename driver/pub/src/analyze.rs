@@ -243,7 +243,8 @@ impl Audit {
 					interface[index].push(parent);
 				}
 				macro_tokens.extend(def.tokens.iter().map(|&s| (index, place(unit, s))));
-				if def.kind.starts_with("Macro") {
+				// A macro its crate doesn't export expands only there, where the audit sees it.
+				if def.kind.starts_with("Macro") && def.exported {
 					macro_crates.push((index, def.hash[0]));
 				}
 				if unit.lib && def.exported {
