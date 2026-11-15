@@ -408,6 +408,68 @@ impl Counter {
 	}
 }
 
+/// What only Kotlin exports: a method taking the env of the Java thread calling.
+impl Counter {
+	/// The value plus `n` if `object` is a Java string, else the value, or an error for a
+	/// null `object`: an env between parameters Kotlin passes.
+	pub fn plus_if_string(&self, n: u64, env: &mut ::jni::Env, object: ::jni::objects::JObject) -> Result<u64, String> {
+		if object.is_null() {
+			return Err("the object is null".to_string());
+		}
+		let string = (env.is_instance_of(&object, ::jni::jni_str!("java/lang/String"))).map_err(|e| e.to_string())?;
+		Ok(if string { self.value + n } else { self.value })
+	}
+}
+
+/// Whether `a` and `b` are the same Java object, or both null: only Kotlin exports it,
+/// passing the env of the thread calling.
+pub fn same_object(
+	a: ::jni::objects::JObject,
+	env: &mut ::jni::Env,
+	b: ::jni::objects::JObject,
+) -> Result<bool, String> {
+	env.is_same_object(&a, &b).map_err(|e| e.to_string())
+}
+
+/// Throws Java's `IllegalStateException("thrown")`, then returns `fail`'s error or a value:
+/// either way, Kotlin gets the exception left pending, as a native method's caller does.
+pub fn thrown(env: &mut ::jni::Env, fail: bool) -> Result<u64, String> {
+	(env.throw_new(
+		::jni::jni_str!("java/lang/IllegalStateException"),
+		::jni::jni_str!("thrown"),
+	))
+	.map_err(|e| e.to_string())?;
+	match fail {
+		true => Err("failed".to_string()),
+		false => Ok(1),
+	}
+}
+
+/// A [`Logger`] for `sink`, after throwing Java's `IllegalStateException("logger")`: the
+/// logger drops, closing `sink` in Kotlin, as Kotlin gets the exception.
+pub fn thrown_logger(env: &mut ::jni::Env, sink: Box<dyn Log>) -> Result<Logger, String> {
+	let thrown = env.throw_new(
+		::jni::jni_str!("java/lang/IllegalStateException"),
+		::jni::jni_str!("logger"),
+	);
+	// jni reports the exception it threw as an error.
+	if let Err(e) = thrown
+		&& !matches!(e, ::jni::errors::Error::JavaException)
+	{
+		return Err(e.to_string());
+	}
+	Ok(Logger::new(sink))
+}
+
+/// A facade module named as the jni crate is, whose items the glue reaches through the
+/// facade, not jni.
+pub mod jni {
+	/// One, through a path whose first segment names the jni crate.
+	pub fn one() -> u32 {
+		1
+	}
+}
+
 /// An impl lifetime its type does not take is the call's, as a method's own is.
 impl<'a> Counter {
 	/// Whether the counter is named `name`, which borrows C's text for the call.

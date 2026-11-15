@@ -16,8 +16,8 @@ use rustc_data_structures::stable_hash::StableHasher;
 use crate::abi::{self, Abi, CFG, Ty};
 use crate::config::Package;
 use crate::ir::{
-	Access, Closure, Collection, Family, Function, Held, Literal, Mutability, On, Opaque, Receiver, Task, TaskKind,
-	Traits, Type,
+	Access, Closure, Collection, Family, Function, Held, Jni, Literal, Mutability, On, Opaque, Receiver, Task,
+	TaskKind, Traits, Type,
 };
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
@@ -115,6 +115,7 @@ pub fn rs(ty: &Ty) -> String {
 		Ty::Out(inner) => format!("*mut {}", rs(inner)),
 		Ty::In(inner) => format!("*const {}", rs(inner)),
 		Ty::InOut(inner) => format!("*mut {}", rs(inner)),
+		Ty::Jni(_) => "*mut ::std::ffi::c_void".to_string(),
 		Ty::Fn(params, ret) => {
 			let params: Vec<String> = std::iter::once("*mut ::std::ffi::c_void".to_string())
 				.chain(params.iter().map(rs))
@@ -266,7 +267,22 @@ impl Crate<'_> {
 		// One only some targets' APIs name builds on those alone, as the facade's does.
 		let mut every = String::new();
 		let mut targeted: std::collections::BTreeMap<&str, String> = Default::default();
-		for r in &api.reached {
+		// jni, on the targets of the functions that take its values, which the glue names
+		// through it. It routes no facade path, since a facade item may be named `jni`.
+		let methods = (api.records.iter().flat_map(|r| &r.methods))
+			.chain(api.enums.iter().flat_map(|e| &e.methods))
+			.chain(api.objects.iter().flat_map(|o| &o.methods));
+		let on = (api.functions.iter().chain(methods))
+			.filter(|f| f.jni())
+			.fold(0, |on, f| on | f.on.0);
+		let jni = (on != 0).then(|| crate::ir::Reached {
+			krate: "jni".to_string(),
+			targets: (api.targets.iter().enumerate())
+				.filter(|(i, _)| on >> i & 1 == 1)
+				.map(|(_, t)| t.clone())
+				.collect(),
+		});
+		for r in api.reached.iter().chain(&jni) {
 			let Some(keys) = self.crates.get(&r.krate) else {
 				return Err(format!(
 					"the facade builds with no crate `{}` here, which the API names",
@@ -334,14 +350,17 @@ impl Crate<'_> {
 				lib = self.abi.prefix,
 			)
 		};
-		let (header, contract) = crate::c::header(self.abi, &self.packages());
-		let cpp = crate::cpp::headers(self.abi, &self.packages())?;
+		// Only Kotlin passes a JNI value, so every other language exports the rest.
+		let rest = self.abi.api.without_jni();
+		let rest = self.abi.without_jni(&rest);
+		let (header, contract) = crate::c::header(&rest, &self.packages());
+		let cpp = crate::cpp::headers(&rest, &self.packages())?;
 		let kotlin = crate::kotlin::generate(self.abi, &self.packages(), contract)?;
-		let python = crate::python::generate(self.abi, &self.packages(), contract)?;
-		let swift = crate::swift::generate(self.abi, &self.packages(), contract)?;
+		let python = crate::python::generate(&rest, &self.packages(), contract)?;
+		let swift = crate::swift::generate(&rest, &self.packages(), contract)?;
 		let (module, go_mod) = go_module(out, &self.abi.prefix)?;
-		let go = crate::go::generate(self.abi, &self.packages(), contract, &module)?;
-		let dart = crate::dart::generate(self.abi, &self.packages(), contract)?;
+		let go = crate::go::generate(&rest, &self.packages(), contract, &module)?;
+		let dart = crate::dart::generate(&rest, &self.packages(), contract)?;
 		let names = [
 			("C++", cpp.names),
 			("Kotlin", kotlin.names),
@@ -844,6 +863,7 @@ impl Gen<'_> {
 			Type::SocketAddr(Family::V6) => format!("{e}.lift_v6(w)"),
 			Type::Waker => format!("{e}.lift()"),
 			Type::Future | Type::Reader => format!("{e}.lift(w)"),
+			Type::Jni(_) => unreachable!("a JNI value is lent by `function`"),
 			// A block is copied out whole.
 			Type::List(c, _) if ty.block().is_some() => format!(
 				"{}::from(unsafe {{ {e}.items(w) }})",
@@ -1130,7 +1150,7 @@ impl Gen<'_> {
 			Type::Object(_) => format!("rt::Object::new({e})"),
 			Type::Callback(..) | Type::Closure(..) => unreachable!("a callback is never returned"),
 			Type::Waker => format!("rt::Waker::lower({e})"),
-			Type::Future | Type::Reader => unreachable!("{ty:?} is never returned"),
+			Type::Future | Type::Reader | Type::Jni(_) => unreachable!("{ty:?} is never returned"),
 			Type::Range(_) => format!("rt::Range::lower({e})"),
 			Type::Bound(_) => format!("rt::Bound::lower({e})"),
 			Type::Bounds(_) => format!("rt::Bounds::lower({e})"),
@@ -2267,6 +2287,14 @@ impl Gen<'_> {
 				|| (function.future && function.task.as_ref().is_some_and(|task| task.at == *at))
 		};
 		let mut places = (0..).filter(|at| !omitted(at));
+		// The env Kotlin's glue passes, which every JNI value the call takes is of.
+		if let Some(k) = function.params.iter().position(|p| p.ty == Type::Jni(Jni::Env)) {
+			let guard = format!(
+				"let mut jni_guard = unsafe {{ ::{}::AttachGuard::from_unowned(p{k}.cast()) }};\n\tlet jni_env = jni_guard.borrow_env_mut();",
+				reached("jni")
+			);
+			sort(&Type::Jni(Jni::Env), &(String::new(), guard, String::new()));
+		}
 		for (n, param) in function.params.iter().enumerate() {
 			let place = places.next().expect("a place for each parameter");
 			let (_, c_ty) = c_params.next().expect("a C parameter for each");
@@ -2297,6 +2325,15 @@ impl Gen<'_> {
 						pass,
 					)
 				}
+				_ if param.ty == Type::Jni(Jni::Env) => (String::new(), String::new(), "&mut *jni_env".to_string()),
+				_ if param.ty == Type::Jni(Jni::Object) => (
+					String::new(),
+					format!(
+						"let a{n} = unsafe {{ ::{}::objects::JObject::from_raw(&*jni_env, p{n}.cast()) }};",
+						reached("jni")
+					),
+					format!("a{n}"),
+				),
 				_ if param.interned && *param.ty.base() == Type::Slice => (
 					String::new(),
 					format!("let a{n} = rt::intern_bytes(unsafe {{ p{n}.hold(w) }}.bytes());"),
@@ -2331,7 +2368,9 @@ impl Gen<'_> {
 					made
 				}
 			};
-			sort(&param.ty, &made);
+			if !made.1.is_empty() {
+				sort(&param.ty, &made);
+			}
 			args.push(made.2);
 		}
 		drop(sort);
@@ -2575,11 +2614,26 @@ impl Gen<'_> {
 			(_, Some(Type::String), _) => format!("({call}).map_err(|e| ::std::string::ToString::to_string(&e))"),
 			_ => call,
 		};
+		// A Java exception the call left pending is what Kotlin gets, as from any native
+		// method: nothing is written for Kotlin's glue to read, and the result drops with
+		// the exception taken, since a destructor may call into Kotlin, then throws it again.
+		let pending = match function.jni() {
+			true => {
+				let zero = match status {
+					Some(_) => "Ok(unsafe { ::std::mem::zeroed() })",
+					None => "unsafe { ::std::mem::zeroed() }",
+				};
+				format!(
+					"\n\tif let Some(thrown) = jni_env.exception_occurred() {{\n\t\tjni_env.exception_clear();\n\t\tdrop(result);\n\t\tlet _ = jni_env.throw(thrown);\n\t\tif !jni_env.exception_check() {{\n\t\t\t::std::process::abort();\n\t\t}}\n\t\treturn {zero};\n\t}}"
+				)
+			}
+			false => String::new(),
+		};
 		self.checking.set(false);
 		self.export(format!(
 			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{}\n}}\n",
 			params.join(", "),
-			wrap(status, &ret, &format!("{body}\n\tlet result = {call};{writes}\n\t{finish}"))
+			wrap(status, &ret, &format!("{body}\n\tlet result = {call};{pending}{writes}\n\t{finish}"))
 		));
 	}
 }

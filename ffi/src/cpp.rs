@@ -160,6 +160,7 @@ impl<'a> Header<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 			Type::Array(n) => format!("::std::array<::std::uint8_t, {n}>"),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
@@ -353,6 +354,7 @@ impl<'a> Header<'a> {
 		}
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 			Type::Array(n) => format!("{d}::lower_array<::{}>({e})", abi.array(*n)),
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 => e.to_string(),

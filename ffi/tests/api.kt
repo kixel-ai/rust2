@@ -532,6 +532,28 @@ fun script() {
 		}
 	}
 	check(Counter.new("five", 5u).intoSum(1u) == 6uL, "a consuming method's parameter named close is its own")
+	// A function taking a JNI env, which Kotlin alone exports, passing its thread's.
+	val any = Any()
+	check(sameObject(any, any) && !sameObject(any, Any()) && sameObject(null, null) && !sameObject(any, null), "a JObject crosses as the reference Kotlin passed")
+	Counter.new("five", 5u).use { five ->
+		check(five.plusIfString(2u, "s") == 7uL && five.plusIfString(2u, 1) == 5uL, "a method takes the env between parameters Kotlin passes")
+		check((runCatching { five.plusIfString(2u, null) }.exceptionOrNull() as? StringException)?.error == "the object is null", "a JNI function's error throws")
+	}
+	for (fail in listOf(false, true)) {
+		val thrown = runCatching { thrown(fail) }.exceptionOrNull()
+		check(thrown is IllegalStateException && thrown.message == "thrown", "an exception the Rust left pending throws, failing or not")
+	}
+	var closed = false
+	val sink = object : Log, AutoCloseable {
+		override fun log(level: UByte, line: String): Boolean = true
+
+		override fun close() {
+			closed = true
+		}
+	}
+	val dropped = runCatching { thrownLogger(sink) }.exceptionOrNull()
+	check(dropped is IllegalStateException && dropped.message == "logger" && closed, "a result dropped for a pending exception closes its callback, then throws it")
+	check(jniOne() == 1u, "a facade module named jni is the facade's")
 	val encoded = Mut(Bytes("0,".encodeToByteArray()))
 	putNumber(1u, encoded)
 	putNumber(23u, encoded)

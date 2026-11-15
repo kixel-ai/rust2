@@ -30,8 +30,8 @@ use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _
 
 use crate::config;
 use crate::ir::{
-	Access, Api, Callback, Closure, Collection, Constant, Dyn, Enum, Family, Field, Function, Held, Home, Int, Literal,
-	Mutability, Object, On, Param, Path, Receiver, Record, Task, TaskKind, Traits, Type, Variant,
+	Access, Api, Callback, Closure, Collection, Constant, Dyn, Enum, Family, Field, Function, Held, Home, Int, Jni,
+	Literal, Mutability, Object, On, Param, Path, Receiver, Record, Task, TaskKind, Traits, Type, Variant,
 };
 
 /// Why something is refused: a construct, ranked by the census, and what it names.
@@ -265,6 +265,8 @@ struct Collector<'tcx> {
 	/// lent from the receiver's handle.
 	lending: std::cell::Cell<bool>,
 	bytes: Option<DefId>,
+	/// `jni::Env` and `jni::objects::JObject`, where some crate builds with jni.
+	jni: Option<Jnis>,
 	/// `std::vec::IntoIter`, which an `impl Iterator` parameter takes.
 	vec_iter: Option<DefId>,
 	/// `serde_json::Map`, a map of `serde_json::Value`s.
@@ -306,6 +308,13 @@ struct Collector<'tcx> {
 	api: Api,
 }
 
+/// jni's types a parameter takes, as [`Type::Jni`].
+#[derive(Clone, Copy)]
+struct Jnis {
+	env: DefId,
+	object: DefId,
+}
+
 /// `tracing::Level`, exported as a plain enum of its five levels, and `LevelFilter`, as an
 /// `Option<Level>` whose `None` is `OFF`.
 #[derive(Clone, Copy)]
@@ -336,6 +345,14 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			.and_then(|child| child.res.opt_def_id())
 	};
 	let bytes = root("bytes", "Bytes");
+	// jni's env and object, which a function Kotlin alone exports takes.
+	let jni = root("jni", "Env").and_then(|env| {
+		let objects = root("jni", "objects")?;
+		let object = (tcx.module_children(objects).iter())
+			.find(|child| child.ident.as_str() == "JObject")
+			.and_then(|child| child.res.opt_def_id())?;
+		Some(Jnis { env, object })
+	});
 	let json_map = root("serde_json", "Map");
 	// What `Vec` iterates by value as.
 	let vec_iter = (|| {
@@ -428,6 +445,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			impls: Default::default(),
 			lending: Default::default(),
 			bytes,
+			jni,
 			vec_iter,
 			json_map,
 			sysroot: sysroot.clone(),
@@ -2634,14 +2652,16 @@ impl<'tcx> Collector<'tcx> {
 
 	/// An opaque value's methods, refusing each through `&mut self` whose change Rust could
 	/// not hand back with what it returns: a future's, which outlives the call, and a
-	/// `Result`'s, whose error a language raising it would lose the change with.
+	/// `Result`'s or a JNI value's, whose error or Java exception a language raising it would
+	/// lose the change with.
 	fn written_back(&mut self, methods: Vec<Function>) -> Vec<Function> {
-		let (refused, kept): (Vec<Function>, Vec<Function>) =
-			(methods.into_iter()).partition(|m| m.receiver == Some(Receiver::Mut) && (m.future || m.err.is_some()));
+		let (refused, kept): (Vec<Function>, Vec<Function>) = (methods.into_iter())
+			.partition(|m| m.receiver == Some(Receiver::Mut) && (m.future || m.err.is_some() || m.jni()));
 		for m in refused {
-			let construct = match m.future {
-				true => "`&mut self` of a value in a future",
-				false => "`&mut self` of a value returning a Result",
+			let construct = match (m.future, m.jni()) {
+				(true, _) => "`&mut self` of a value in a future",
+				(_, true) => "`&mut self` of a value beside a JNI value",
+				_ => "`&mut self` of a value returning a Result",
 			};
 			self.refuse(&m.shown, "method", m.span, vec![why(construct, "")]);
 		}
@@ -3113,6 +3133,21 @@ impl<'tcx> Collector<'tcx> {
 				errs.push(why("poll's parameter taken by value that is not Copy", ty.to_string()));
 				continue;
 			}
+			// What JNI lends a native method, which Kotlin alone passes: a callback's would
+			// lend it from Kotlin to Kotlin, through Rust.
+			if let Some(jni) = self.jni_param(ty) {
+				match callback {
+					true => errs.push(why("JNI value in a callback", ty.to_string())),
+					false => {
+						params.push(Param {
+							name,
+							ty: Type::Jni(jni),
+							interned: false,
+						});
+					}
+				}
+				continue;
+			}
 			match self.ty(ty, Pos::Param) {
 				// C's value is lifted into an owned Rust one, lent only as the parameter
 				// itself, or as `Some` of it. A callback's parameters are lent the other way,
@@ -3220,6 +3255,24 @@ impl<'tcx> Collector<'tcx> {
 		// A reader is lent for the call, which a future outlives.
 		if future && params.iter().any(|p: &Param| *p.ty.base() == Type::Reader) {
 			errs.push(why("reader lent to a future", ""));
+		}
+		// JNI lends its env and references for the native call alone, on its thread.
+		if future && params.iter().any(|p: &Param| matches!(p.ty, Type::Jni(_))) {
+			errs.push(why("JNI value lent to a future", ""));
+		}
+		// A reference is the env's, which the glue lends once.
+		let envs = params.iter().filter(|p: &&Param| p.ty == Type::Jni(Jni::Env)).count();
+		if envs > 1 {
+			errs.push(why("several JNI envs", ""));
+		}
+		if envs == 0 && params.iter().any(|p: &Param| p.ty == Type::Jni(Jni::Object)) {
+			errs.push(why("JObject with no &mut jni::Env", ""));
+		}
+		// A Java exception the call leaves pending takes the place of what it returns, so what
+		// it changed in a `&mut` value would be lost, as a future's would.
+		if params.iter().any(|p: &Param| matches!(p.ty, Type::Jni(_))) && params.iter().any(|p: &Param| p.ty.written())
+		{
+			errs.push(why("&mut of a value beside a JNI value", ""));
 		}
 		// An iterator no other rule maps crosses as the array of its items, all taken at
 		// the call, as `collect` takes them, when no caller could tell; a future's stays
@@ -4741,6 +4794,10 @@ impl<'tcx> Collector<'tcx> {
 				// Another crate's `&'static dyn Trait`, which a handle holds.
 				ty::Ref(region, ..) if self.opaque_value(ty).is_some() => held.push(*region),
 				ty::Ref(region, ..) => lent.push(*region),
+				// JNI lends its env and references for the native call alone.
+				ty::Adt(adt, args) if self.jni.is_some_and(|jni| [jni.env, jni.object].contains(&adt.did())) => {
+					lent.extend(args.regions())
+				}
 				// A trait object a handle holds holds its own lifetime, as `dyn Trait + 'a` does.
 				ty::Dynamic(_, region) if self.held_trait(ty).is_some() => held.push(*region),
 				// An object, an opaque value, or another crate's value an opaque handle holds, holds
@@ -5106,10 +5163,31 @@ impl<'tcx> Collector<'tcx> {
 		})
 	}
 
+	/// The JNI value a parameter of type `ty` takes, if it is one: `&mut jni::Env` or
+	/// `jni::objects::JObject`.
+	fn jni_param(&self, ty: Ty<'tcx>) -> Option<Jni> {
+		let jni = self.jni?;
+		match ty.kind() {
+			ty::Ref(_, inner, ty::Mutability::Mut) if inner.ty_adt_def().is_some_and(|adt| adt.did() == jni.env) => {
+				Some(Jni::Env)
+			}
+			ty::Adt(adt, _) if adt.did() == jni.object => Some(Jni::Object),
+			_ => None,
+		}
+	}
+
 	/// The exported form of `ty` where it appears.
 	fn ty(&self, ty: Ty<'tcx>, pos: Pos) -> Result<Type, Why> {
 		let tcx = self.tcx;
 		Ok(match ty.kind() {
+			// Only a parameter takes a JNI value, which [`Self::jni_param`] maps; any other of
+			// jni's types names its whole API, which no language has a use for.
+			ty::Adt(adt, _) if self.jni.is_some_and(|jni| adt.did().krate == jni.env.krate) => {
+				return Err(why(
+					"JNI type other than a parameter's &mut Env or JObject",
+					ty.to_string(),
+				));
+			}
 			ty::Tuple(list) if list.is_empty() => match pos {
 				Pos::Return => Type::Unit,
 				_ => return Err(why("unit outside a return", "")),
