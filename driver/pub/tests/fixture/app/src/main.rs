@@ -94,6 +94,18 @@ pub mod shim { #[track_caller] pub fn located() -> u32 {
 	std::panic::Location::caller().column()
 } }
 
+struct Tracker;
+
+impl Tracker {
+	#[track_caller]
+	fn column(self) -> u32 {
+		std::panic::Location::caller().column()
+	}
+}
+
+/// Restored: a method call reports the column of its name, after the receiver's `pub`.
+fn at_method() -> u32 { { mod receiver { pub fn tracker() -> super::Tracker { super::Tracker } } receiver::tracker() }.column() }
+
 /// Narrowed: narrowing shifts no line.
 pub fn at_line() -> u32 {
 	line!()
@@ -287,6 +299,7 @@ fn main() {
 	println!("compare {}", compare());
 	let located: fn() -> u32 = shim::located;
 	println!("located column {}", located());
+	println!("method column {}", at_method());
 	println!("line {}", at_line());
 	println!("made {}", made());
 	println!("shadowed {}", shadowed());

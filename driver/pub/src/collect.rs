@@ -1052,7 +1052,12 @@ fn locations<'tcx>(tcx: TyCtxt<'tcx>, id: hir::HirId, expr: &hir::Expr<'tcx>) ->
 	});
 	if let Some((def, args)) = call {
 		if tracks(def, args) {
-			spans.push(expr.span);
+			// A method call reports where its name starts, past the receiver; any other
+			// call, as its MIR's `fn_span`, the whole expression.
+			spans.push(match expr.kind {
+				hir::ExprKind::MethodCall(.., fn_span) => fn_span,
+				_ => expr.span,
+			});
 		}
 		return spans;
 	}
