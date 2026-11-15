@@ -49,7 +49,25 @@ function binary() {
 }
 
 function main() {
-	const child = spawn(binary(), process.argv.slice(2), { stdio: "inherit" });
+	const file = binary();
+	const args = process.argv.slice(2);
+	// Replacing this process makes signals, streams, the exit code, and the PID crabx's own.
+	// Windows has no exec, and Node before 22.15 or 23.11 has no execve: both run crabx as a child.
+	if (process.platform !== "win32" && typeof process.execve === "function") {
+		// The runtime ignores these, and exec keeps an ignored signal ignored but resets a caught one.
+		for (const signal of ["SIGPIPE", "SIGXFSZ"]) process.on(signal, () => {});
+		try {
+			process.execve(file, [file, ...args], process.env);
+		} catch (error) {
+			fail(`cannot run ${file}: ${error.message}`);
+		}
+	}
+	spawnAndWait(file, args);
+}
+
+// Runs crabx as a child and exits as it did.
+function spawnAndWait(file, args) {
+	const child = spawn(file, args, { stdio: "inherit" });
 	// A terminal's Ctrl-C and Ctrl-\ already reach the whole foreground group, crabx included,
 	// so this process only waits for crabx to exit. A supervisor's signals reach only this one.
 	const ignore = () => {};
@@ -60,7 +78,7 @@ function main() {
 			? { SIGINT: ignore }
 			: { SIGINT: ignore, SIGQUIT: ignore, SIGTERM: forward, SIGHUP: forward };
 	for (const [signal, handler] of Object.entries(handlers)) process.on(signal, handler);
-	child.on("error", (error) => fail(`cannot run ${child.spawnfile}: ${error.message}`));
+	child.on("error", (error) => fail(`cannot run ${file}: ${error.message}`));
 	child.on("exit", (code, signal) => {
 		if (signal) {
 			// Die of the same signal, so the caller sees what crabx saw. Node ignores some, such

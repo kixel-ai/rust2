@@ -20,6 +20,8 @@ spec = importlib.util.spec_from_file_location("release", HERE / "release.py")
 r = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(r)
 LAUNCHER = HERE / "npm/crabx.js"
+# Node and Bun exec the binary; "old node" lacks process.execve and runs it as a child.
+RUNTIMES = ("node", "bun", "old node")
 WORKFLOW = HERE.parent / ".github/workflows/release.yml"
 
 
@@ -169,36 +171,57 @@ class Launcher(unittest.TestCase):
         self.package = self.root / r.platform_name(next(t for t, p in r.NPM_TARGETS.items() if p == (platform, arch)))
         (self.package / "bin").mkdir(parents=True)
         (self.package / "package.json").write_text("{}")
+        # A Node without process.execve, to reach the child-process fallback.
+        self.old_node = self.temp / "old-node.js"
+        self.old_node.write_text("process.execve = undefined;\n")
 
     def binary(self, body):
         path = self.package / "bin/crabx"
         path.write_text("#!/bin/sh\n" + body)
         path.chmod(0o755)
 
+    def command(self, runtime):
+        """The launcher under one of the runtimes RUNTIMES names."""
+        launcher = str(self.root / "crabx/crabx.js")
+        return ["node", "--require", str(self.old_node), launcher] if runtime == "old node" else [runtime, launcher]
+
     def launch(self, runtime, *args):
-        return subprocess.run([runtime, str(self.root / "crabx/crabx.js"), *args], capture_output=True, text=True, timeout=30)
+        return subprocess.run([*self.command(runtime), *args], capture_output=True, text=True, timeout=30)
 
     def test_arguments_streams_and_exit_code_pass_through(self):
         self.binary('printf "%s|" "$@"; echo err >&2; exit 7\n')
-        for runtime in ("node", "bun"):
+        for runtime in RUNTIMES:
             result = self.launch(runtime, "moq-cli", "--flag", "two words", "")
             self.assertEqual((result.returncode, result.stdout, result.stderr), (7, "moq-cli|--flag|two words||", "err\n"), runtime)
 
     def test_death_by_signal_passes_through(self):
-        self.binary("kill -TERM $$\n")
-        self.assertEqual(self.launch("node").returncode, -signal.SIGTERM)
-        # Node ignores SIGPIPE, so the shell's code for it stands in.
-        self.binary("kill -PIPE $$\n")
-        self.assertEqual(self.launch("node").returncode, 128 + signal.SIGPIPE)
+        for runtime in RUNTIMES:
+            self.binary("kill -TERM $$\n")
+            self.assertEqual(self.launch(runtime).returncode, -signal.SIGTERM, runtime)
+            # exec resets the runtime's ignored SIGPIPE; a child dies of it, but Node survives it,
+            # so the shell's code for it stands in.
+            self.binary("kill -PIPE $$\n")
+            expected = 128 + signal.SIGPIPE if runtime == "old node" else -signal.SIGPIPE
+            self.assertEqual(self.launch(runtime).returncode, expected, runtime)
 
-    def test_terminate_reaches_the_binary(self):
+    def test_exec_replaces_the_launcher(self):
+        self.binary("echo $$\n")
+        for runtime in ("node", "bun"):
+            child = subprocess.Popen(self.command(runtime), stdout=subprocess.PIPE, text=True)
+            self.assertEqual(child.communicate(timeout=30)[0], f"{child.pid}\n", runtime)
+
+    def test_signals_reach_the_binary(self):
         # `wait` returns as soon as the trapped signal arrives, unlike a foreground sleep.
-        self.binary("trap 'kill $!; echo got TERM; exit 3' TERM\necho ready\nsleep 60 >/dev/null &\nwait\n")
-        child = subprocess.Popen(["node", str(self.root / "crabx/crabx.js")], stdout=subprocess.PIPE, text=True)
-        self.assertEqual(child.stdout.readline(), "ready\n")
-        child.send_signal(signal.SIGTERM)
-        self.assertEqual(child.communicate(timeout=30), ("got TERM\n", None))
-        self.assertEqual(child.returncode, 3)
+        self.binary("trap 'kill $!; echo got INT; exit 2' INT\ntrap 'kill $!; echo got TERM; exit 3' TERM\necho ready\nsleep 60 >/dev/null &\nwait\n")
+        # The fallback ignores SIGINT, which a terminal already sends the binary through the group.
+        cases = [(r, s) for r in ("node", "bun") for s in (signal.SIGINT, signal.SIGTERM)] + [("old node", signal.SIGTERM)]
+        for runtime, sig in cases:
+            child = subprocess.Popen(self.command(runtime), stdout=subprocess.PIPE, text=True)
+            self.assertEqual(child.stdout.readline(), "ready\n")
+            child.send_signal(sig)
+            name = "INT" if sig == signal.SIGINT else "TERM"
+            self.assertEqual(child.communicate(timeout=30), (f"got {name}\n", None), (runtime, name))
+            self.assertEqual(child.returncode, 2 if sig == signal.SIGINT else 3, (runtime, name))
 
     def test_missing_platform_package_fails_loudly(self):
         shutil.rmtree(self.package)
