@@ -325,7 +325,7 @@ class Workflow(unittest.TestCase):
         # Changing the one job that can publish to npm means changing this test too.
         self.assertEqual(jobs()["npm"], """  npm:
     needs: npm-plan
-    if: needs.npm-plan.outputs.publish == 'true'
+    if: ${{ !cancelled() && needs.npm-plan.result == 'success' && needs.npm-plan.outputs.publish == 'true' }}
     runs-on: ubuntu-24.04
     environment: npm
     permissions:
@@ -346,6 +346,12 @@ class Workflow(unittest.TestCase):
           VERSION: ${{ needs.npm-plan.outputs.version }}
         run: python3 crabx/release.py publish "$VERSION"
 """)
+
+    def test_npm_jobs_run_after_a_skipped_crate(self):
+        # A retry skips crate once crates.io has the version; npm must still catch up.
+        found = jobs()
+        for name, needs in (("npm-plan", "binaries"), ("npm", "npm-plan")):
+            self.assertIn(f"if: ${{{{ !cancelled() && needs.{needs}.result == 'success'", found[name], name)
 
     def test_publishing_rights_stay_in_their_jobs(self):
         found = jobs()

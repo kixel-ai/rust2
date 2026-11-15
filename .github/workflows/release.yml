@@ -87,8 +87,11 @@ jobs:
       attestations: write
     uses: kixel-ai/rust2/.github/workflows/crabx.yml@pipeline-v1.0.0
 
+  # A skipped ancestor, such as crate on a retry, skips every job after it unless its own
+  # condition checks a status; these check their direct dependency instead.
   npm-plan:
     needs: binaries
+    if: ${{ !cancelled() && needs.binaries.result == 'success' }}
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.plan.outputs.version }}
@@ -105,7 +108,7 @@ jobs:
   # trusted publishing needs a GitHub-hosted runner.
   npm:
     needs: npm-plan
-    if: needs.npm-plan.outputs.publish == 'true'
+    if: ${{ !cancelled() && needs.npm-plan.result == 'success' && needs.npm-plan.outputs.publish == 'true' }}
     runs-on: ubuntu-24.04
     environment: npm
     permissions:
