@@ -26,3 +26,9 @@ pub use api::{tagged_export_vis, vis_of};
 
 /// External: this library's API, re-exported from api through a glob there.
 pub use api::Part;
+
+/// External: this library's API, one variant of api's enum.
+pub use api::Picked::One;
+
+/// External: this library's API, an exported macro of api that calls a helper of api.
+pub use api::call_helper;

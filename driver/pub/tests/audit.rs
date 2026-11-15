@@ -80,6 +80,10 @@ fn fixture() {
 	expect("marks::Wrapped", "external", "unreached");
 	expect("marks::Borrowed", "external", "unreached");
 	expect("marks::Paired", "external", "unreached");
+	// An exported macro exposes what its `$crate` paths name, though nothing expands it.
+	expect("helpers::called", "external", "unreached");
+	// A re-exported variant exposes its enum, with the enum's own API.
+	expect("Picked::label", "external", "unreached");
 	expect("marks::Unnamed", "external", "crate-only");
 	expect("<(dyn Shape + 'static)>::describe", "external", "unreached");
 	// A `pub` an exported macro holds, though another macro wrote it there.

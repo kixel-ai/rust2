@@ -8,11 +8,12 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
 
+use rustc_ast::token::TokenKind;
 use rustc_ast::tokenstream::TokenTree;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_driver::{Callbacks, Compilation};
 use rustc_hir::def::{DefKind, Res};
-use rustc_hir::def_id::{DefId, LocalDefId};
+use rustc_hir::def_id::{CRATE_DEF_ID, DefId, LocalDefId};
 use rustc_hir::intravisit::{self, Visitor};
 use rustc_hir::{self as hir, ItemKind, Node, UseKind};
 use rustc_interface::interface::{Compiler, Config};
@@ -314,10 +315,14 @@ impl<'tcx> Collector<'tcx> {
 			{
 				let mut stack = vec![&macro_def.body.tokens];
 				while let Some(stream) = stack.pop() {
-					for tree in stream.iter() {
+					let trees: Vec<_> = stream.iter().collect();
+					for (i, tree) in trees.iter().enumerate() {
 						match tree {
 							TokenTree::Token(token, _) if token.is_keyword(kw::Pub) => {
 								tokens.extend(this.span(token.span));
+							}
+							TokenTree::Token(token, _) if token.kind == TokenKind::Dollar => {
+								this.crate_path(&trees[i + 1..]);
 							}
 							TokenTree::Token(..) => {}
 							TokenTree::Delimited(.., inner) => stack.push(inner),
@@ -895,6 +900,46 @@ impl<'tcx> Collector<'tcx> {
 			}
 		}
 		supplied
+	}
+
+	/// What a `$crate::a::b` path in the owner, a macro, names, from the tokens after its
+	/// `$`: each module, re-export, and item along it, as far as modules, enums, and traits
+	/// lead. Its callers name them wherever it expands, though nothing in the audit may.
+	fn crate_path(&mut self, trees: &[&TokenTree]) {
+		let [TokenTree::Token(krate, _), rest @ ..] = trees else {
+			return;
+		};
+		if !krate.is_keyword(kw::Crate) {
+			return;
+		}
+		let mut module = CRATE_DEF_ID.to_def_id();
+		for pair in rest.as_chunks::<2>().0 {
+			let [TokenTree::Token(sep, _), TokenTree::Token(segment, _)] = pair else {
+				return;
+			};
+			let (true, Some((ident, _))) = (sep.kind == TokenKind::PathSep, segment.ident()) else {
+				return;
+			};
+			let mut next = None;
+			let children = match module.as_local() {
+				Some(local) => self.tcx.module_children_local(local),
+				None => self.tcx.module_children(module),
+			};
+			for child in children.iter().filter(|c| c.ident.name == ident.name) {
+				for reexport in &child.reexport_chain {
+					if let Some(id) = reexport.id() {
+						self.refer_as(id, None, true);
+					}
+				}
+				let Some(id) = child.res.opt_def_id() else { continue };
+				self.refer_as(id, None, true);
+				if let DefKind::Mod | DefKind::Enum | DefKind::Trait = self.tcx.def_kind(id) {
+					next = Some(id);
+				}
+			}
+			let Some(next) = next else { return };
+			module = next;
+		}
 	}
 
 	fn with_owner<T>(&mut self, owner: LocalDefId, walk: impl FnOnce(&mut Self) -> T) -> T {

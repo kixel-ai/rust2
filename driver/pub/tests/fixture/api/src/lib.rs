@@ -331,6 +331,38 @@ mod marks {
 	pub struct Unnamed;
 }
 
+/// External: the enum of a variant facade re-exports alone, whose value a caller then has.
+pub enum Picked {
+	One,
+	Two,
+}
+
+impl Picked {
+	/// External: a method a caller may call on the variant facade re-exports.
+	pub fn label(&self) -> u32 {
+		match self {
+			Self::One => 47,
+			Self::Two => 48,
+		}
+	}
+}
+
+/// External: a macro facade re-exports, which nothing in the audit expands.
+#[macro_export]
+macro_rules! call_helper {
+	() => {
+		$crate::helpers::called()
+	};
+}
+
+pub mod helpers {
+	/// External: what an exported macro's `$crate` path names, though nothing in the audit
+	/// expands it.
+	pub fn called() -> u32 {
+		49
+	}
+}
+
 impl Slot<marks::Mark> {
 	/// External: an inherent method of a type facade's API exposes.
 	pub fn get() -> u32 {

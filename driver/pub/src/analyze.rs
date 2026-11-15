@@ -223,9 +223,12 @@ impl Audit {
 					members[owner].push(index);
 				}
 				// An inherent item needs its impl's header, such as `Marker` in
-				// `impl S<Marker>`, wherever it is called.
+				// `impl S<Marker>`, wherever it is called, and a variant or constructor its
+				// type, as `E` for a re-exported `E::V`, whose value a caller then holds.
 				if let Some(&parent) = def.parent.and_then(|p| hashes.get(&p))
-					&& defs[parent].kind == "Impl { of_trait: false }"
+					&& (defs[parent].kind == "Impl { of_trait: false }"
+						|| def.kind == "Variant"
+						|| def.kind.starts_with("Ctor"))
 				{
 					interface[index].push(parent);
 				}
