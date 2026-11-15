@@ -2877,10 +2877,14 @@ fn target() {
 	let shared = "pub fn halve(n: usize) -> usize {\n\tn / 2\n}\n\n\
 		#[cfg(target_arch = \"wasm32\")]\npub fn wasm() -> u32 {\n\t32\n}\n\n\
 		#[cfg(not(target_arch = \"wasm32\"))]\npub fn desktop() -> u32 {\n\t64\n}\n";
-	// Items whose definitions differ between targets, which one binding cannot serve.
+	// Items whose definitions differ between targets, which one binding cannot serve: a
+	// `Copy` type whose array is a `usize` long fills its `repr(C)` layout on a 64-bit
+	// target alone, so it is a value there and a handle on wasm32.
 	let differing = "pub const MAX: usize = usize::MAX;\n\n\
 		#[cfg(target_arch = \"wasm32\")]\npub fn width() -> u32 {\n\t32\n}\n\n\
-		#[cfg(not(target_arch = \"wasm32\"))]\npub fn width() -> u64 {\n\t64\n}\n";
+		#[cfg(not(target_arch = \"wasm32\"))]\npub fn width() -> u64 {\n\t64\n}\n\n\
+		#[derive(Clone, Copy)]\n#[repr(C)]\npub struct WordBytes([u8; size_of::<usize>()], u64);\n\n\
+		pub fn word_bytes() -> WordBytes {\n\tWordBytes([0; size_of::<usize>()], 2)\n}\n";
 	// Each run starts from these, and drops `differing` partway, which rebuilds the glue.
 	let package = package("targeted", &[("src/lib.rs", &format!("{shared}\n{differing}"))]);
 	let exporter = |args: &[&str]| {
@@ -2954,7 +2958,11 @@ fn target() {
 		true => (host(), WASM),
 		false => (WASM, host()),
 	};
-	for what in ["const `targeted::MAX`", "fn `targeted::width`"] {
+	for what in [
+		"const `targeted::MAX`",
+		"fn `targeted::width`",
+		"fn `targeted::word_bytes`",
+	] {
 		let differs = format!("rust2-ffi: {what} differs between {first} and {second}");
 		assert!(stderr.contains(&differs), "{stderr}");
 	}

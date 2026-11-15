@@ -5666,7 +5666,10 @@ fn target(tcx: TyCtxt<'_>) -> String {
 /// primitive aligned to its size. So every target decides alike, and adding one never
 /// turns a value into a handle: std's `Instant`, an `i64` and a `u32`, fills its 12 bytes
 /// on a 32-bit x86 but leaves 4 of 16 on a 64-bit one, and `#[repr(C)] (usize, u64)`
-/// fills its 16 on x86_64 but leaves 4 on wasm32, so both are handles everywhere.
+/// fills its 16 on x86_64 but leaves 4 on wasm32, so both are handles everywhere. A type
+/// whose definition differs between targets, as a field `cfg`'d on one or an array as long
+/// as a `usize`'s bytes, the model sees only as this target defines it; the merge refuses
+/// what that makes differ, as it does any other item defined differently.
 fn full<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	let env = TypingEnv::fully_monomorphized();
 	let ty = tcx.erase_and_anonymize_regions(ty);
