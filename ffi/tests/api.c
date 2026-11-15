@@ -2242,6 +2242,18 @@ static int not_send(void) {
 	if (homed_later != NULL) {
 		api_local_later_future_free(homed_later);
 	}
+	/* A poll through a waiter that is not Send keeps it, so its future is not Send either. */
+	api_LocalWaiter_poll_ready_future *waited = NULL;
+	uint32_t ready = 0;
+	if (api_LocalWaiter_poll_ready_start(2, &ready, &waited) != API_POLL_READY || ready != 2) {
+		fprintf(stderr, "a waiter's own poll returned %u\n", ready);
+		failed = 1;
+	}
+	api_poll_tripled_future *tripled = NULL;
+	if (api_poll_tripled_start(3, &ready, &tripled) != API_POLL_READY || ready != 9) {
+		fprintf(stderr, "a poll through a waiter returned %u\n", ready);
+		failed = 1;
+	}
 	/* Freed here, it drops on its home, which waits for work. */
 	api_Local_free(homed);
 	while (api_locals_dropped() != before_homed + 1) {

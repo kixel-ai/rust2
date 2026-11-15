@@ -3068,6 +3068,8 @@ impl<'tcx> Collector<'tcx> {
 			_ => None,
 		};
 		let mut tasks = Vec::new();
+		// The object a poll's task is made into, which its future keeps between polls.
+		let mut made = None;
 		let mut inputs = sig.inputs().iter().copied().map(normalize).enumerate();
 		let receiver = match has_self {
 			false => None,
@@ -3083,6 +3085,7 @@ impl<'tcx> Collector<'tcx> {
 							&& polled.is_some()
 							&& let Some(kind) = self.task(ty, true) =>
 					{
+						made = Some(*inner);
 						tasks.push(Task { at: 0, kind });
 						None
 					}
@@ -3099,12 +3102,15 @@ impl<'tcx> Collector<'tcx> {
 		};
 		// Where Rust's parameters after `self` start: at `self`, when the task takes its place.
 		let first = usize::from(receiver.is_some());
-		// A poll's future holds its receiver and each parameter, so it is not `Send` where
-		// one of them is not.
+		// A poll's future holds its receiver, each parameter, and the object its task is
+		// made into, so it is not `Send` where one of them is not.
 		let mut holds_send = match (receiver, self_ty) {
 			(Some(_), Some(self_ty)) => self.is_send(normalize(self_ty), env),
 			_ => true,
 		};
+		if let Some(made) = made {
+			holds_send &= self.is_send(made, env);
+		}
 		let again = |ty: Ty<'tcx>| ty.is_ref() || tcx.type_is_copy_modulo_regions(env, ty);
 		if polled.is_some()
 			&& receiver == Some(Receiver::Owned)
@@ -3128,6 +3134,9 @@ impl<'tcx> Collector<'tcx> {
 				.flatten()
 				.map_or_else(|| format!("arg{i}"), |ident| ident.to_string());
 			if !callback && let Some(kind) = self.task(ty, polled.is_some()) {
+				if matches!(kind, TaskKind::Made { .. }) {
+					holds_send &= self.is_send(ty.peel_refs(), env);
+				}
 				// C passes a waker for a context the future does not supply.
 				if polled.is_none() {
 					params.push(Param {

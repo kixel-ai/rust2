@@ -2043,6 +2043,30 @@ pub async fn local_later(n: u32) -> u32 {
 	*n * 2
 }
 
+/// What a poll registers that is not `Send`, as `Waiter` is but through an `Rc`: a future
+/// polling with one keeps it between polls, so is not `Send` either.
+pub struct LocalWaiter(std::rc::Rc<Waker>);
+
+impl LocalWaiter {
+	pub fn new(waker: Waker) -> Self {
+		Self(std::rc::Rc::new(waker))
+	}
+
+	/// `n` at once: a poll of the waiter it is a method of, which exports as a future
+	/// making and keeping it.
+	pub fn poll_ready(&self, n: u32) -> Poll<u32> {
+		let _ = &self.0;
+		Poll::Ready(n)
+	}
+}
+
+/// `n` tripled at once: a poll through a waiter that is not `Send`, which exports as a
+/// future making and keeping it.
+pub fn poll_tripled(waiter: &LocalWaiter, n: u32) -> Poll<u32> {
+	let _ = &waiter.0;
+	Poll::Ready(n * 3)
+}
+
 static DROPPED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 /// A level its clones share through an `Arc`, with no `&mut self` method: a clone no call
