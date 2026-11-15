@@ -356,18 +356,20 @@ int main() {
 		CHECK(is(connect.url_get()->to_string(), "https://relay.example:4443/demo"));
 
 		// A listener's bind, a socket address.
+		moq::socket_addr_v6 addr_v6{};
+		addr_v6.ip.octets[15] = 1;
+		addr_v6.port = 4443;
 		moq::socket_addr addr{};
-		addr.ip[15] = 1;
-		addr.port = 4443;
 		addr.v6 = true;
+		addr.addr.v6 = addr_v6;
 		moq::tokio_listen_Config listen = moq::tokio_listen_Config::default_();
 		listen.bind_set(moq::tokio_listen_Bind(moq::tokio_listen_Bind_Addr{addr}));
 		auto bind = listen.bind_get();
 		CHECK(bind && is(moq::tokio_listen_Bind_to_string(*bind), "[::1]:4443"));
 		// The preferred address of each family, which takes only that family.
-		listen.preferred_v6_set(addr);
+		listen.preferred_v6_set(addr_v6);
 		auto preferred = listen.preferred_v6_get();
-		CHECK(preferred && preferred->v6 && preferred->port == 4443 && !listen.preferred_v4_get());
+		CHECK(preferred && preferred->port == 4443 && !listen.preferred_v4_get());
 		// A constant slice, as a vector of clones.
 		CHECK(!moq::ALPNS().empty());
 	}
@@ -404,14 +406,14 @@ int main() {
 		auto server = std::move(server_config).init();
 		CHECK(server);
 		auto local = server->local_addr();
-		CHECK(local && local->v6 && local->port != 0);
+		CHECK(local && local->v6 && local->addr.v6.port != 0);
 		worker serving_thread;
 		std::atomic<bool> stopped{false};
 		moq::task serving = std::move(*server).serve_publish(served.consume()).then(serving_thread.executor(),
 		                                                                            [&](auto &&) { stopped = true; });
 
 		moq::tokio_connect_Config connect = moq::tokio_connect_Config::default_();
-		connect.url_set(moq::Url::parse("moqt://localhost:" + std::to_string(local->port)).value());
+		connect.url_set(moq::Url::parse("moqt://localhost:" + std::to_string(local->addr.v6.port)).value());
 		moq::tokio_tls_Connect insecure = connect.tls_get();
 		insecure.insecure_set(true);
 		connect.tls_set(std::move(insecure));

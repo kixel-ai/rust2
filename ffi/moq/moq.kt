@@ -7,8 +7,6 @@
 // script drains, after the write that wakes it. A session over QUIC runs on moq-tokio's
 // fallback runtime, whose threads resume Kotlin's.
 
-import java.net.InetAddress
-import java.net.InetSocketAddress
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executor
 import kotlin.time.Duration.Companion.seconds
@@ -284,15 +282,16 @@ fun main() {
 	versions.close()
 	// A socket address, crossing in a listener's bind.
 	val loopback = ByteArray(16).also { it[15] = 1 }
-	val bind = TokioListenBind.Addr(java.net.InetSocketAddress(java.net.Inet6Address.getByAddress(null, loopback, null as java.net.NetworkInterface?), 4443))
+	val bind = TokioListenBind.Addr(SocketAddrV6(Ipv6Addr(loopback), 4443u))
 	expect(bind.toString() == "[::1]:4443", "an IPv6 bind prints as Rust's")
-	val v4 = TokioListenBind.Addr(java.net.InetSocketAddress(java.net.InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)), 0))
+	val preferred = SocketAddrV4(Ipv4Addr(127u, 0u, 0u, 1u), 0u)
+	val v4 = TokioListenBind.Addr(preferred)
 	expect(v4.toString() == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
 	TokioListenConfig.default().use { listen ->
 		listen.bindSet(bind)
 		// The preferred address of each family, which takes only that family.
-		listen.preferredV4Set(v4._0)
-		expect(listen.preferredV4Get == v4._0 && listen.preferredV6Get == null, "a listener keeps its preferred IPv4 address")
+		listen.preferredV4Set(preferred)
+		expect(listen.preferredV4Get == preferred && listen.preferredV6Get == null, "a listener keeps its preferred IPv4 address")
 		expect(listen.bindGet == bind, "a listener's config keeps its bind")
 	}
 	// TLS files, as OS paths, and fingerprints, as strings: none by default.
@@ -316,14 +315,14 @@ fun main() {
 
 			val serverConfig = TokioServerConfig.default()
 			val listen = serverConfig.listenGet
-			listen.bindSet(TokioListenBind.Addr(InetSocketAddress(InetAddress.getByName("::"), 0)))
+			listen.bindSet(TokioListenBind.Addr(SocketAddrV6(Ipv6Addr(ByteArray(16)), 0u)))
 			val tls = listen.tlsGet
 			tls.generateSet(listOf("localhost"))
 			listen.tlsSet(tls)
 			serverConfig.listenSet(listen)
 			val server = serverConfig.init()
 			val local = server.localAddr()
-			expect(local.port != 0, "a server bound to port 0 reads back the port it got")
+			expect(local.port.toInt() != 0, "a server bound to port 0 reads back the port it got")
 			val serving = launch { server.servePublish(served.consume()) }
 
 			val connect = TokioConnectConfig.default()

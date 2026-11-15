@@ -32,6 +32,8 @@ use crate::abi::{self, Abi, Ty, pascal};
 use crate::ir::{Access, Family, Function, Int, Jni, Literal, Mutability, On, Opaque, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.kt");
+/// The runtime's public types, at the generated file's top level.
+const TYPES: &str = include_str!("../runtime/types.kt");
 pub const GLUE_RUNTIME: &str = include_str!("../runtime/jni.rs");
 
 /// What the generator writes: the Kotlin file, the Rust module of JNI functions, and the
@@ -82,7 +84,16 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	let p = &abi.prefix;
 	let mut hasher = StableHasher::new();
 	hasher.write_u64(contract);
-	for part in [&g.types, &g.top, &g.natives, &g.glue, RUNTIME, GLUE_RUNTIME, BYTES] {
+	for part in [
+		&g.types,
+		&g.top,
+		&g.natives,
+		&g.glue,
+		RUNTIME,
+		GLUE_RUNTIME,
+		BYTES,
+		TYPES,
+	] {
 		hasher.write(part.as_bytes());
 	}
 	let contract = Hasher::finish(&hasher);
@@ -105,6 +116,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		"/** Wakes a future's poller. Rust may call [wake] from any thread, any number of times. */\nfun interface Waker {\n\tfun wake()\n}\n\n",
 	);
 	kotlin.push_str(BYTES);
+	kotlin.push_str(TYPES);
+	kotlin.push('\n');
 	kotlin.push_str(
 		"/** A value a call takes `&mut`, which Rust writes back into [value] once it returns, errors included. */\nclass Mut<T>(var value: T)\n\n",
 	);
@@ -115,7 +128,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	}
 	// What the glue calls to read a reader, and to take the error a closure or reader threw.
 	let mut helpers = String::new();
-	let mut looked = vec!["__wake", "__free", "__poll", "__failed", "__refused"];
+	let mut looked = vec!["__wake", "__free", "__poll", "__failed", "__refused", "__invalid"];
 	if g.reads {
 		helpers.push_str(READS);
 		looked.extend(["__read", "__seek", "__io_error"]);
@@ -131,13 +144,13 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		let thrown = g.thrown.get("kotlin.String").expect("a closure's error is a String");
 		let _ = write!(
 			helpers,
-			"\t@kotlin.jvm.JvmStatic private fun __error(thrown: Throwable): ByteArray? = (thrown as? {thrown})?.error?.encodeToByteArray()\n\n"
+			"\t@kotlin.jvm.JvmStatic private fun __error(thrown: Throwable): ByteArray? = (thrown as? {thrown})?.error?.let {{ _utf8(it) }}\n\n"
 		);
 		looked.push("__error");
 	}
 	let _ = write!(
 		kotlin,
-		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __contract(): Long\n\n\t@kotlin.jvm.JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw kotlin.UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@kotlin.jvm.JvmStatic external fun __waker_free(node: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_wake(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_drop(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_free(owner: Long)\n\n\t@kotlin.jvm.JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@kotlin.jvm.JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@kotlin.jvm.JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@kotlin.jvm.JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@kotlin.jvm.JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n\t/** A call a failed run-time check refused, before it moved or changed anything. */\n\tclass __Refused(message: String) : kotlin.IllegalStateException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __refused(message: String): Throwable = __Refused(message)\n\n{helpers}{}{}}}\n",
+		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __contract(): Long\n\n\t@kotlin.jvm.JvmStatic external fun __target(): Int\n\n\t@kotlin.jvm.JvmStatic external fun __usize_max(): Long\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw kotlin.UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@kotlin.jvm.JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@kotlin.jvm.JvmStatic external fun __waker_free(node: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_wake(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __waker_drop(raw: Long)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@kotlin.jvm.JvmStatic external fun __bytes_free(owner: Long)\n\n\t@kotlin.jvm.JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@kotlin.jvm.JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@kotlin.jvm.JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@kotlin.jvm.JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@kotlin.jvm.JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n\t/** A call a failed run-time check refused, before it moved or changed anything. */\n\tclass __Refused(message: String) : kotlin.IllegalStateException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __refused(message: String): Throwable = __Refused(message)\n\n\t/** A call refused before it moved or changed anything, as an argument holds a value its Rust type cannot. */\n\tclass __Invalid(message: String) : kotlin.IllegalArgumentException(message)\n\n\t@kotlin.jvm.JvmStatic private fun __invalid(message: String): Throwable = __Invalid(message)\n\n{helpers}{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -159,6 +172,10 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		#[unsafe(no_mangle)]\n\
 		pub extern \"system\" fn Java_{pkg}__1Native__1_1target(_: *mut JNIEnv, _: jclass) -> jint {{\n\
 		\tcrate::{p}_target() as jint\n\
+		}}\n\n\
+		#[unsafe(no_mangle)]\n\
+		pub extern \"system\" fn Java_{pkg}__1Native__1_1usize_1max(_: *mut JNIEnv, _: jclass) -> jlong {{\n\
+		\tusize::MAX as u64 as jlong\n\
 		}}\n\n\
 		#[unsafe(no_mangle)]\n\
 		pub extern \"system\" fn Java_{pkg}__1Native__1_1waker_1new(env: *mut JNIEnv, _: jclass, waker: jobject) -> jlong {{\n\
@@ -394,15 +411,23 @@ const TAKEN: &[&str] = &[
 	"ByteArray",
 	"Double",
 	"DoubleArray",
+	"Duration",
 	"Exception",
 	"Float",
 	"FloatArray",
 	"Int",
 	"IntArray",
+	"IpAddr",
+	"Ipv4Addr",
+	"Ipv6Addr",
 	"Long",
 	"LongArray",
+	"PathBuf",
 	"Short",
 	"ShortArray",
+	"SocketAddr",
+	"SocketAddrV4",
+	"SocketAddrV6",
 	"StartSeekable",
 	"String",
 	"UByte",
@@ -463,6 +488,9 @@ struct Arg {
 	inside: Vec<String>,
 	/// Kotlin statements once the call returns.
 	after: Vec<String>,
+	/// The glue's statements that may refuse the call, throwing, which run before any
+	/// other, so nothing they leave behind needs freeing.
+	rust_check: Vec<String>,
 	/// The glue's statements before the call, and the C arguments it passes.
 	rust_pre: Vec<String>,
 	rust_args: Vec<String>,
@@ -513,13 +541,14 @@ struct Gen<'a> {
 
 impl<'a> Gen<'a> {
 	/// The Kotlin call `raw`, then `after`, which closes what it moved out, however it ended
-	/// unless a failed check refused it, which moved nothing. It binds no name a parameter
+	/// unless a failed check refused it, or an argument held a value its Rust type cannot,
+	/// which throws `_Native.__Invalid` first: either moved nothing. It binds no name a parameter
 	/// `after` closes may take: its exception's is fresh, and its result is `_`.
 	fn moving(&mut self, raw: &str, after: &[String]) -> String {
 		let after = after.join("; ");
 		let thrown = self.fresh("e");
 		format!(
-			"try {{\n{}\n}} catch ({thrown}: Throwable) {{\n\tif ({thrown} !is _Native.__Refused) {{ {after} }}\n\tthrow {thrown}\n}}.also {{ _ -> {after} }}",
+			"try {{\n{}\n}} catch ({thrown}: Throwable) {{\n\tif ({thrown} !is _Native.__Refused && {thrown} !is _Native.__Invalid) {{ {after} }}\n\tthrow {thrown}\n}}.also {{ _ -> {after} }}",
 			indent_by(raw, 1)
 		)
 	}
@@ -681,11 +710,11 @@ impl<'a> Gen<'a> {
 			Type::Char => "kotlin.Int".to_string(),
 			Type::Str | Type::String => "kotlin.String".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => self.own("Bytes"),
-			Type::Path | Type::PathBuf => "kotlin.String".to_string(),
+			Type::Path | Type::PathBuf => self.own("PathBuf"),
 			Type::U128 => "java.math.BigInteger".to_string(),
-			Type::Duration => "kotlin.time.Duration".to_string(),
-			Type::SocketAddr(_) => "java.net.InetSocketAddress".to_string(),
-			Type::IpAddr(_) => "java.net.InetAddress".to_string(),
+			Type::Duration => self.own("Duration"),
+			Type::SocketAddr(family) => self.own(&format!("SocketAddr{}", family_suffix(*family))),
+			Type::IpAddr(family) => self.own(&format!("Ip{}Addr", family_suffix(*family).to_lowercase())),
 			Type::List(..) if let Some(inner) = ty.block() => format!("kotlin.{}", block(inner).kt),
 			Type::List(_, inner) => format!("kotlin.collections.List<{}>", self.kt(inner)),
 			Type::Waker => self.own("Waker"),
@@ -734,24 +763,25 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Bool => format!("{w}.bool({e})"),
-			Type::Int(int) | Type::NonZero(int) => {
+			Type::Int(int) => {
 				let (method, _) = wire_int(*int);
 				format!("{w}.{method}({})", to_signed(*int, e))
 			}
+			Type::NonZero(int) => {
+				let (method, _) = wire_int(*int);
+				format!("{w}.{method}({})", non_zero(&to_signed(*int, e)))
+			}
 			Type::F32 => format!("{w}.f32({e})"),
 			Type::F64 => format!("{w}.f64({e})"),
-			Type::Char => format!("{w}.i32({e})"),
-			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("{w}.string({e})"),
+			Type::Char => format!("{w}.i32({})", scalar_value(e)),
+			Type::Str | Type::String => format!("{w}.string({e})"),
+			Type::Path | Type::PathBuf => format!("{w}.path({e})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("{w}.bytes({e})"),
 			Type::U128 => format!("{w}.u128({e})"),
 			Type::Array(_) => format!("{w}.raw({e}.bytes)"),
 			Type::Duration => format!("{w}.duration({e})"),
-			Type::SocketAddr(Family::Any) => format!("{w}.socketAddr({e})"),
-			Type::SocketAddr(Family::V4) => format!("{w}.socketAddrV4({e})"),
-			Type::SocketAddr(Family::V6) => format!("{w}.socketAddrV6({e})"),
-			Type::IpAddr(Family::Any) => format!("{w}.ipAddr({e})"),
-			Type::IpAddr(Family::V4) => format!("{w}.ipAddrV4({e})"),
-			Type::IpAddr(Family::V6) => format!("{w}.ipAddrV6({e})"),
+			Type::SocketAddr(family) => format!("{w}.socketAddr{}({e})", family_suffix(*family)),
+			Type::IpAddr(family) => format!("{w}.ip{}Addr({e})", family_suffix(*family).to_lowercase()),
 			Type::List(..) if let Some(inner) = ty.block() => format!("{w}.block({})", block(inner).signed(e)),
 			Type::List(_, inner) => {
 				let (l, v) = (self.fresh("l"), self.fresh("v"));
@@ -818,8 +848,8 @@ impl<'a> Gen<'a> {
 			Type::U128 => format!("{r}.u128()"),
 			Type::Array(n) => format!("{}({r}.raw({n}))", Abi::array_class(*n)),
 			Type::Duration => format!("{r}.duration()"),
-			Type::SocketAddr(_) => format!("{r}.socketAddr()"),
-			Type::IpAddr(_) => format!("{r}.ipAddr()"),
+			Type::SocketAddr(family) => format!("{r}.socketAddr{}()", family_suffix(*family)),
+			Type::IpAddr(family) => format!("{r}.ip{}Addr()", family_suffix(*family).to_lowercase()),
 			Type::List(..) if let Some(inner) = ty.block() => block(inner).read(r, &format!("{r}.i32()")),
 			Type::List(_, inner) => {
 				let item = self.read(inner, r, owned);
@@ -893,9 +923,11 @@ impl<'a> Gen<'a> {
 				let class = self.qualified(name);
 				self.made(&class, &opaque, &[e.to_string()])
 			}
-			Ty::Buf => match (decode(ty), matches!(ty.base(), Type::Option(_)), lent) {
-				(Some(decode), true, _) => format!("{e}?.{decode}"),
-				(Some(decode), false, _) => format!("{e}!!.{decode}"),
+			Ty::Buf => match (copied(ty), matches!(ty.base(), Type::Option(_)), lent) {
+				(Some(true), true, _) => format!("{e}?.decodeToString()"),
+				(Some(true), false, _) => format!("{e}!!.decodeToString()"),
+				(Some(false), true, _) => format!("{e}?.let {{ {}.of(it) }}", self.own("PathBuf")),
+				(Some(false), false, _) => format!("{}.of({e}!!)", self.own("PathBuf")),
 				(None, true, true) => format!("{e}?.let {{ {}(it) }}", self.own("Bytes")),
 				(None, false, true) => format!("{}({e}!!)", self.own("Bytes")),
 				(None, true, false) => format!("_Native.owned({e})"),
@@ -915,7 +947,9 @@ impl<'a> Gen<'a> {
 	fn lower_ret(&mut self, c: &Ty, ty: &Type, e: &str) -> String {
 		match c {
 			Ty::Int(int) => to_signed(*int, e),
-			Ty::Buf => format!("{e}.encodeToByteArray()"),
+			Ty::Char => scalar_value(e),
+			Ty::Buf if copied(ty) == Some(false) => format!("{e}.bytes"),
+			Ty::Buf => format!("_utf8({e})"),
 			Ty::Struct(_)
 				if let Some(opaque) = opaque_of(self.abi, c)
 					&& one_word(&opaque) =>
@@ -959,7 +993,11 @@ impl<'a> Gen<'a> {
 				arg.rust_args.push(p);
 			}
 			Ty::Int(int) => {
-				arg.exprs.push(to_signed(*int, e));
+				let signed = to_signed(*int, e);
+				arg.exprs.push(match ty.base() {
+					Type::NonZero(_) => non_zero(&signed),
+					_ => signed,
+				});
 				arg.rust_args.push(from_jni(*int, &p));
 			}
 			Ty::F32 | Ty::F64 => {
@@ -967,7 +1005,7 @@ impl<'a> Gen<'a> {
 				arg.rust_args.push(p);
 			}
 			Ty::Char => {
-				arg.exprs.push(e.to_string());
+				arg.exprs.push(scalar_value(e));
 				arg.rust_args.push(format!("{p} as u32"));
 			}
 			Ty::Enum(_) => {
@@ -996,13 +1034,28 @@ impl<'a> Gen<'a> {
 				arg.exprs.push(h);
 				arg.rust_args.push(format!("{p} as usize as _"));
 			}
-			// Text crosses as the `String`, encoded once into a buffer Rust takes.
-			Ty::Buf if string(ty) => {
-				*arg.jni.last_mut().expect("pushed above") = "jstring";
-				*arg.native.last_mut().expect("pushed above") = "String?".to_string();
-				arg.exprs.push(e.to_string());
-				arg.rust_pre.push(format!("let b{p} = rt::text(env, {p});"));
-				arg.rust_args.push(format!("b{p}"));
+			// Text crosses as the `String`, encoded once into a buffer Rust takes, and a path
+			// as its bytes, copied once.
+			Ty::Buf if let Some(text) = copied(ty) => {
+				let option = matches!(ty.base(), Type::Option(_));
+				match text {
+					true => {
+						*arg.jni.last_mut().expect("pushed above") = "jstring";
+						*arg.native.last_mut().expect("pushed above") = "String?".to_string();
+						arg.exprs.push(e.to_string());
+						arg.rust_check.push(format!(
+							"let Some(b{p}) = rt::text(env, {p}) else {{\n\t\t\treturn rt::raised();\n\t\t}};"
+						));
+					}
+					false => {
+						arg.exprs.push(match option {
+							true => format!("{e}?.bytes"),
+							false => format!("{e}.bytes"),
+						});
+						arg.rust_pre.push(format!("let b{p} = rt::bytes(env, {p});"));
+					}
+				}
+				arg.rust_args.push(format!("rt::buf(b{p})"));
 			}
 			// Bytes cross as what holds them, Rust's owner or 0, where they start, and how
 			// many, or -1 for none: Rust takes a copy of Kotlin's, or shares its own.
@@ -1108,8 +1161,8 @@ impl<'a> Gen<'a> {
 					arg.inside.extend(writes);
 					arg.exprs.push(format!("{w}.finish()"));
 					arg.exprs.push(format!("{w}.refs()"));
-					arg.rust_pre.push(format!(
-						"let b{p} = rt::bytes(env, {b}).unwrap_or_default();\n\t\tlet mut {r} = rt::Reader::{}(env, &b{p}, {q});",
+					arg.rust_check.push(format!(
+						"let b{p} = rt::bytes(env, {b}).unwrap_or_default();\n\t\tlet Some(mut {r}) = rt::Reader::{}(env, &b{p}, {q}) else {{\n\t\t\treturn rt::raised();\n\t\t}};",
 						// Read through a pointer, Rust keeps nothing of it.
 						match c {
 							Ty::In(_) => "new",
@@ -1123,7 +1176,7 @@ impl<'a> Gen<'a> {
 					_ => format!("a{p}"),
 				});
 			}
-			Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::IpAddr | Ty::Struct(_) | Ty::In(_) => {
+			Ty::U128 | Ty::Duration | Ty::SocketAddr(_) | Ty::IpAddr(_) | Ty::Struct(_) | Ty::In(_) => {
 				let w = self.fresh("w");
 				// Taken by value, each object in a list moves out, as one passed alone does.
 				if moved(abi, ty) {
@@ -1140,14 +1193,15 @@ impl<'a> Gen<'a> {
 				*n += 1;
 				arg.exprs.push(format!("{w}.finish()"));
 				arg.exprs.push(format!("{w}.refs()"));
-				arg.rust_pre.push(format!(
-					"let b{p} = rt::bytes(env, {p}).unwrap_or_default();\n\t\tlet mut r{p} = rt::Reader::{}(env, &b{p}, {q});\n\t\tlet a{p} = r{p}.get();",
+				arg.rust_check.push(format!(
+					"let b{p} = rt::bytes(env, {p}).unwrap_or_default();\n\t\tlet Some(mut r{p}) = rt::Reader::{}(env, &b{p}, {q}) else {{\n\t\t\treturn rt::raised();\n\t\t}};",
 					// Read through a pointer, Rust keeps nothing of it.
 					match c {
 						Ty::In(_) => "new",
 						_ => "taking",
 					}
 				));
+				arg.rust_pre.push(format!("let a{p} = r{p}.get();"));
 				arg.rust_args.push(match c {
 					Ty::In(_) => format!("&a{p}"),
 					_ => format!("a{p}"),
@@ -1364,7 +1418,8 @@ impl<'a> Gen<'a> {
 		// takes, or else encoded.
 		let fits = |n: u64| opaque.is_some_and(|o| 2 * n * o.words() <= 255);
 		// The receiver as the glue takes it: a handle, held for the call, an opaque value's
-		// words, or encoded.
+		// words, or encoded, which the glue reads first.
+		let mut pre = String::new();
 		let (params, open, arg, rust_self): (Vec<(&str, &str)>, _, _, _) = match (object, opaque) {
 			(true, _) => (
 				vec![("jlong", "Long")],
@@ -1383,11 +1438,12 @@ impl<'a> Gen<'a> {
 			}
 			(false, _) => {
 				let write = self.write_value(ty, "w", "this");
+				pre = "let b = rt::bytes(env, p0).unwrap_or_default();\n\t\tlet Some(mut r) = rt::Reader::new(env, &b, p1) else {\n\t\t\treturn rt::raised();\n\t\t};\n\t\t".to_string();
 				(
 					vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
 					format!("_Native.__Writer().use {{ w ->\n\t\t{write}"),
 					"w.finish(), w.refs()".to_string(),
-					"&rt::Reader::new(env, &rt::bytes(env, p0).unwrap_or_default(), p1).get()".to_string(),
+					"&r.get()".to_string(),
 				)
 			}
 		};
@@ -1395,10 +1451,10 @@ impl<'a> Gen<'a> {
 		let status = self.abi.traits_status_of(ty);
 		let checked = |call: &str, name: &str, then: &str| match status {
 			true => format!(
-				"let mut status = 0;\n\t\tlet ret = {}, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{name}\");\n\t\t}}\n\t\t{then}",
+				"{pre}let mut status = 0;\n\t\tlet ret = {}, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::refuse(env, status, \"{name}\");\n\t\t}}\n\t\t{then}",
 				call.strip_suffix(')').expect("a call")
 			),
-			false => format!("let ret = {call};\n\t\t{then}"),
+			false => format!("{pre}let ret = {call};\n\t\t{then}"),
 		};
 		let unary = |g: &mut Self, suffix: &str, sig: &str| {
 			g.native(
@@ -1412,6 +1468,19 @@ impl<'a> Gen<'a> {
 				),
 			);
 			format!("\t{sig} = {open}\n\t\t_Native.{bare}_{suffix}({arg})!!.decodeToString()\n\t}}\n")
+		};
+		// The hash agreeing with an `equals` through Rust's `PartialEq`: Rust's own `Hash`,
+		// folded as `Long.hashCode` folds it, or else one for every value.
+		let hash_code = |g: &mut Self| {
+			if !t.hash {
+				return "\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): kotlin.Int = 0\n".to_string();
+			}
+			let call = format!("crate::{c}_hash({rust_self})");
+			let body = checked(&call, &format!("{c}_hash"), "ret as jlong");
+			g.native(&format!("{bare}_hash"), &params, ("jlong", "Long"), &body);
+			format!(
+				"\t/** Rust's `Hash`, as `Long.hashCode` folds it. */\n\toverride fun hashCode(): kotlin.Int = {open}\n\t\t_Native.{bare}_hash({arg}).hashCode()\n\t}}\n"
+			)
 		};
 		if t.display {
 			// Final, so a data class variant of a sealed class keeps it rather than making
@@ -1463,14 +1532,15 @@ impl<'a> Gen<'a> {
 					let (this, other) = (self.write_value(ty, "w", "this"), self.write_value(ty, "w", "other"));
 					(
 						vec![("jbyteArray", "ByteArray"), ("jobjectArray", "kotlin.Array<Any?>?")],
-						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let mut r = rt::Reader::new(env, &b, p1); crate::{c}_eq(&r.get(), &r.get()) }".replace("{c}", c),
+						"{ let b = rt::bytes(env, p0).unwrap_or_default(); let Some(mut r) = rt::Reader::new(env, &b, p1) else { return rt::raised() }; crate::{c}_eq(&r.get(), &r.get()) }".replace("{c}", c),
 						format!("_Native.__Writer().use {{ w -> {this}; {other}; _Native.{bare}_eq(w.finish(), w.refs()) }}"),
 					)
 				}
 			};
 			self.native(&format!("{bare}_eq"), &params, ("jboolean", "Boolean"), &rust);
+			let hash = hash_code(self);
 			body.push(format!(
-				"\toverride fun equals(other: kotlin.Any?): kotlin.Boolean = other is {class} && {kt}\n\n\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): kotlin.Int = 0\n"
+				"\toverride fun equals(other: kotlin.Any?): kotlin.Boolean = other is {class} && {kt}\n\n{hash}"
 			));
 		}
 		if object && t.eq {
@@ -1484,8 +1554,9 @@ impl<'a> Gen<'a> {
 					"ret",
 				),
 			);
+			let hash = hash_code(self);
 			body.push(format!(
-				"\toverride fun equals(other: kotlin.Any?): kotlin.Boolean =\n\t\tother is {class} && handle.hold {{ a -> other.handle.hold {{ b -> _Native.{bare}_eq(a, b) }} }}\n\n\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): kotlin.Int = 0\n"
+				"\toverride fun equals(other: kotlin.Any?): kotlin.Boolean =\n\t\tother is {class} && handle.hold {{ a -> other.handle.hold {{ b -> _Native.{bare}_eq(a, b) }} }}\n\n{hash}"
 			));
 		}
 		if t.default {
@@ -2086,10 +2157,7 @@ impl<'a> Gen<'a> {
 			}
 			// Encoded, as an option of an opaque value or one past a word, which names no
 			// array or text to refer to.
-			Ty::Struct(_) => {
-				"rt::Reader::new(env, &rt::bytes(env, ret).unwrap_or_default(), ::std::ptr::null_mut()).get()"
-					.to_string()
-			}
+			Ty::Struct(_) => "rt::Reader::plain(&rt::bytes(env, ret).unwrap_or_default()).get()".to_string(),
 			_ => unreachable!("a callback or closure returns no {c_ok:?}"),
 		};
 		let back = match thrown {
@@ -2422,7 +2490,10 @@ impl<'a> Gen<'a> {
 		// A future's call also takes the signal its waker parks, if its first poll pends.
 		let signal = export.future.is_some().then(|| self.fresh("s"));
 		exprs.extend(signal.clone());
-		let mut rust_pre: Vec<String> = args.iter().flat_map(|a| a.rust_pre.clone()).collect();
+		let mut rust_pre: Vec<String> = (args.iter().flat_map(|a| &a.rust_check))
+			.chain(args.iter().flat_map(|a| &a.rust_pre))
+			.cloned()
+			.collect();
 		if status {
 			rust_pre.push("let mut status = 0;".to_string());
 		}
@@ -2891,7 +2962,7 @@ impl<'a> Gen<'a> {
 			let (jni, native) = match c_ret {
 				_ if let Some(b) = &returned => (b.jni, b.signed),
 				// Bytes cross copied or as their owner.
-				Ty::Buf if !string(&ok) => ("jobject", "Any?"),
+				Ty::Buf if copied(&ok).is_none() => ("jobject", "Any?"),
 				Ty::Waker => ("jlong", "Long"),
 				_ => jni_type(abi, &c_ret, &ok),
 			};
@@ -3139,13 +3210,17 @@ impl<'a> Gen<'a> {
 					*n += 1;
 					let (jni, native, kt, rust) = match ty {
 						Type::Bool => ("jboolean", "Boolean", e, p),
-						Type::Int(int) | Type::NonZero(int) => {
+						Type::Int(int) => {
 							let (jni, native) = jni_type(abi, &Ty::Int(*int), ty);
 							(jni, native, to_signed(*int, &e), from_jni(*int, &p))
 						}
+						Type::NonZero(int) => {
+							let (jni, native) = jni_type(abi, &Ty::Int(*int), ty);
+							(jni, native, non_zero(&to_signed(*int, &e)), from_jni(*int, &p))
+						}
 						Type::F32 => ("jfloat", "Float", e, p),
 						Type::F64 => ("jdouble", "Double", e, p),
-						Type::Char => ("jint", "Int", e, format!("{p} as u32")),
+						Type::Char => ("jint", "Int", scalar_value(&e), format!("{p} as u32")),
 						_ => ("jint", "Int", format!("{e}.value"), p),
 					};
 					arg.jni.push(jni);
@@ -3285,7 +3360,7 @@ fn c_slots(c: &Ty) -> usize {
 		Ty::Int(int) if jni_int(*int) == "jlong" => 2,
 		Ty::F64 | Ty::Handle { .. } | Ty::Future(_) => 2,
 		Ty::Buf => 5,
-		Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::IpAddr | Ty::Struct(_) | Ty::In(_) => 2,
+		Ty::U128 | Ty::Duration | Ty::SocketAddr(_) | Ty::IpAddr(_) | Ty::Struct(_) | Ty::In(_) => 2,
 		_ => 1,
 	}
 }
@@ -3406,20 +3481,35 @@ fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
 	}
 }
 
-/// Whether `ty` crosses as a buffer of UTF-8 text, or none.
-fn string(ty: &Type) -> bool {
-	decode(ty).is_some()
-}
-
-/// How Kotlin decodes the buffer of text `ty` crosses as, if it is text: a path, which on
-/// Unix may hold any bytes, throws on those no `String` holds.
-fn decode(ty: &Type) -> Option<&'static str> {
+/// Whether `ty` crosses as text, `Some(true)`, or a path, `Some(false)`, each a buffer
+/// copied whole, or as neither.
+fn copied(ty: &Type) -> Option<bool> {
 	match ty.base() {
-		Type::Option(inner) => decode(inner),
-		Type::Str | Type::String => Some("decodeToString()"),
-		Type::Path | Type::PathBuf => Some("decodeToString(throwOnInvalidSequence = true)"),
+		Type::Option(inner) => copied(inner),
+		Type::Str | Type::String => Some(true),
+		Type::Path | Type::PathBuf => Some(false),
 		_ => None,
 	}
+}
+
+/// The suffix of the runtime's type, and of its codec's method, for an address of `family`.
+fn family_suffix(family: Family) -> &'static str {
+	match family {
+		Family::Any => "",
+		Family::V4 => "V4",
+		Family::V6 => "V6",
+	}
+}
+
+/// The Kotlin `Int` `e` as a `char` crosses, throwing `IllegalArgumentException` unless it is
+/// a Unicode scalar value, as no Rust `char` holds any other.
+fn scalar_value(e: &str) -> String {
+	format!("_Native.__char({e})")
+}
+
+/// The signed JNI integer `e` of a `NonZero`, throwing if it is zero, which no `NonZero` is.
+fn non_zero(e: &str) -> String {
+	format!("_Native.__nonZero({e})")
 }
 
 /// The bound struct of `int`'s pairs of bounds.
@@ -3445,7 +3535,7 @@ fn jni_type(abi: &Abi<'_>, c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 		Ty::Handle { .. } | Ty::Future(_) => ("jlong", "Long"),
 		Ty::Buf => ("jbyteArray", "ByteArray?"),
 		Ty::Struct(_) if matches!(ty.base(), Type::Callback(..)) => ("jobject", "Any"),
-		Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::IpAddr | Ty::Struct(_) | Ty::In(_) => {
+		Ty::U128 | Ty::Duration | Ty::SocketAddr(_) | Ty::IpAddr(_) | Ty::Struct(_) | Ty::In(_) => {
 			("jbyteArray", "ByteArray")
 		}
 		Ty::Fn(..) => ("jobject", "Any"),
@@ -3519,7 +3609,7 @@ fn ret_expr(abi: &Abi<'_>, c: &Ty, ok: &Type) -> String {
 		Ty::Char => "ret as jint".to_string(),
 		Ty::Handle { .. } => "ret as usize as jlong".to_string(),
 		Ty::Waker => "rt::returned(ret)".to_string(),
-		Ty::Buf if string(ok) => "rt::owned(env, ret)".to_string(),
+		Ty::Buf if copied(ok).is_some() => "rt::owned(env, ret)".to_string(),
 		Ty::Buf => "rt::hand(env, ret)".to_string(),
 		_ => format!(
 			"{{ let mut w = rt::Writer::default(); {}; w.array(env) }}",
@@ -3619,8 +3709,7 @@ pub(crate) fn rust_c(abi: &Abi<'_>, c: &Ty) -> String {
 		Ty::Buf => "crate::rt::Buf".to_string(),
 		Ty::U128 => "crate::rt::U128".to_string(),
 		Ty::Duration => "crate::rt::Duration".to_string(),
-		Ty::SocketAddr => "crate::rt::SocketAddr".to_string(),
-		Ty::IpAddr => "crate::rt::IpAddr".to_string(),
+		Ty::SocketAddr(_) | Ty::IpAddr(_) => format!("crate::{}", crate::glue::rs(c)),
 		Ty::Struct(name) => format!("crate::{name}"),
 		Ty::Handle { .. } => "*const std::ffi::c_void".to_string(),
 		Ty::Out(inner) => format!("*mut {}", rust_c(abi, inner)),
@@ -3672,7 +3761,10 @@ fn to_signed(int: Int, e: &str) -> String {
 		Int::U8 => format!("{e}.toByte()"),
 		Int::U16 => format!("{e}.toShort()"),
 		Int::U32 => format!("{e}.toInt()"),
-		Int::U64 | Int::Usize => format!("{e}.toLong()"),
+		Int::U64 => format!("{e}.toLong()"),
+		// Checked against the library's target, which may be 32-bit.
+		Int::Usize => format!("_Native.__usize({e})"),
+		Int::Isize => format!("_Native.__isize({e})"),
 		_ => e.to_string(),
 	}
 }

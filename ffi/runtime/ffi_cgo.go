@@ -1,6 +1,6 @@
 // What each generated package converts its C types with, which cgo makes its own, after
 // the generated code names the export's C types as cBuf, cWaker, cForeignFuture,
-// cForeignReader, cU128, cDuration, and cAddr, its buffer's free and copy as cBufFree and
+// cForeignReader, cU128, cDuration, and each address's, its buffer's free and copy as cBufFree and
 // cBufCopy, and the runtime's callbacks into Go as goCall, goRelease, goPoll, goRead, and
 // goSeek: the arena a call lowers nested values into, values across the C ABI, and what a
 // future waits on.
@@ -123,148 +123,169 @@ func lentBytesOption_(buf cBuf) *[]byte {
 	return &b
 }
 
-// lowerU128_ is a u128 as Rust holds it, from 0 through 2^128 - 1.
-func lowerU128_(v *big.Int) cU128 {
-	if v.Sign() < 0 || v.BitLen() > 128 {
-		panic("an int out of range for Rust's u128")
-	}
-	var b [16]byte
-	v.FillBytes(b[:])
-	var hi, lo uint64
-	for i := range 8 {
-		hi = hi<<8 | uint64(b[i])
-		lo = lo<<8 | uint64(b[8+i])
-	}
-	return cU128{lo: C.uint64_t(lo), hi: C.uint64_t(hi)}
+func lowerU128_(v rt.U128) cU128 {
+	return cU128{lo: C.uint64_t(v.Lo), hi: C.uint64_t(v.Hi)}
 }
 
-func liftU128_(c cU128) *big.Int {
-	hi := new(big.Int).SetUint64(uint64(c.hi))
-	return hi.Lsh(hi, 64).Or(hi, new(big.Int).SetUint64(uint64(c.lo)))
+func liftU128_(c cU128) rt.U128 {
+	return rt.U128{Hi: uint64(c.hi), Lo: uint64(c.lo)}
 }
 
-// lowerDuration_ is a Duration as Rust holds it, which has no negative one.
-func lowerDuration_(d time.Duration) cDuration {
-	if d < 0 {
-		panic("a negative duration has no Rust Duration")
-	}
-	return cDuration{secs: C.uint64_t(d / time.Second), nanos: C.uint32_t(d % time.Second)}
+func lowerDuration_(d rt.Duration) cDuration {
+	return cDuration{secs: C.uint64_t(d.Secs()), nanos: C.uint32_t(d.Nanos())}
 }
 
-// liftDuration_ is a Duration Rust returned, which panics past time.Duration's longest,
-// about 292 years.
-func liftDuration_(c cDuration) time.Duration {
-	secs, nanos := uint64(c.secs), time.Duration(c.nanos)
-	if secs > uint64((math.MaxInt64-nanos)/time.Second) {
-		panic("a Rust Duration past time.Duration's longest")
-	}
-	return time.Duration(secs)*time.Second + nanos
+// liftDuration_ is a Duration Rust returned, whose nanoseconds are below a second, so it
+// never fails.
+func liftDuration_(c cDuration) rt.Duration {
+	d, _ := rt.NewDuration(uint64(c.secs), uint32(c.nanos))
+	return d
 }
 
-// lowerAddr_ is an address as Rust's SocketAddr holds it: a zone names IPv6's scope by
-// its number or its interface's name.
-func lowerAddr_(a netip.AddrPort) cAddr {
-	ip := a.Addr()
-	if !ip.IsValid() {
-		panic("an invalid address has no Rust SocketAddr")
-	}
-	var c cAddr
-	c.port = C.uint16_t(a.Port())
-	if ip.Is4() {
-		b := ip.As4()
-		copy(unsafe.Slice((*byte)(unsafe.Pointer(&c.ip)), 4), b[:])
-		return c
-	}
-	b := ip.As16()
-	copy(unsafe.Slice((*byte)(unsafe.Pointer(&c.ip)), 16), b[:])
-	c.v6 = true
-	if zone := ip.Zone(); zone != "" {
-		if id, err := strconv.ParseUint(zone, 10, 32); err == nil {
-			c.scope_id = C.uint32_t(id)
-		} else if iface, err := net.InterfaceByName(zone); err == nil {
-			c.scope_id = C.uint32_t(iface.Index)
-		} else {
-			panic("an IPv6 zone that names no interface: " + zone)
-		}
-	}
-	return c
+// The addresses, whose C structs hold their octets as Go's arrays do.
+
+func lowerIpv4Addr_(ip rt.Ipv4Addr) cIpv4Addr {
+	return *(*cIpv4Addr)(unsafe.Pointer(&ip))
 }
 
-// lowerAddrV4_ is an IPv4 address, for Rust's SocketAddrV4.
-func lowerAddrV4_(a netip.AddrPort) cAddr {
-	if !a.Addr().Is4() {
-		panic("an address that is not IPv4 has no Rust SocketAddrV4")
-	}
-	return lowerAddr_(a)
+func liftIpv4Addr_(c cIpv4Addr) rt.Ipv4Addr {
+	return *(*rt.Ipv4Addr)(unsafe.Pointer(&c))
 }
 
-// lowerAddrV6_ is an IPv6 address, for Rust's SocketAddrV6.
-func lowerAddrV6_(a netip.AddrPort) cAddr {
-	if !a.Addr().Is6() {
-		panic("an address that is not IPv6 has no Rust SocketAddrV6")
-	}
-	return lowerAddr_(a)
+func lowerIpv6Addr_(ip rt.Ipv6Addr) cIpv6Addr {
+	return *(*cIpv6Addr)(unsafe.Pointer(&ip))
 }
 
-// liftAddr_ is an address Rust returned. Go keeps no IPv6 flow label, so one panics.
-func liftAddr_(c cAddr) netip.AddrPort {
-	b := unsafe.Slice((*byte)(unsafe.Pointer(&c.ip)), 16)
-	if !c.v6 {
-		return netip.AddrPortFrom(netip.AddrFrom4([4]byte(b[:4])), uint16(c.port))
-	}
-	if c.flowinfo != 0 {
-		panic("an IPv6 flow label has no Go form")
-	}
-	ip := netip.AddrFrom16([16]byte(b))
-	if c.scope_id != 0 {
-		ip = ip.WithZone(strconv.FormatUint(uint64(c.scope_id), 10))
-	}
-	return netip.AddrPortFrom(ip, uint16(c.port))
+func liftIpv6Addr_(c cIpv6Addr) rt.Ipv6Addr {
+	return *(*rt.Ipv6Addr)(unsafe.Pointer(&c))
 }
 
-// lowerIp_ is an address as Rust's IpAddr holds it, which has no room for a zone.
-func lowerIp_(ip netip.Addr) cIpAddr {
-	if !ip.IsValid() {
-		panic("an invalid address has no Rust IpAddr")
-	}
-	if ip.Zone() != "" {
-		panic("an IPv6 address with a zone has no Rust IpAddr")
-	}
+func lowerIpAddr_(a rt.IpAddr) cIpAddr {
 	var c cIpAddr
-	if ip.Is4() {
-		b := ip.As4()
-		copy(unsafe.Slice((*byte)(unsafe.Pointer(&c.ip)), 4), b[:])
-		return c
+	if v6, ok := a.V6(); ok {
+		c.v6 = true
+		*(*cIpv6Addr)(unsafe.Pointer(&c.ip)) = lowerIpv6Addr_(v6)
+	} else {
+		v4, _ := a.V4()
+		*(*cIpv4Addr)(unsafe.Pointer(&c.ip)) = lowerIpv4Addr_(v4)
 	}
-	b := ip.As16()
-	copy(unsafe.Slice((*byte)(unsafe.Pointer(&c.ip)), 16), b[:])
-	c.v6 = true
 	return c
 }
 
-// lowerIpV4_ is an IPv4 address, for Rust's Ipv4Addr.
-func lowerIpV4_(ip netip.Addr) cIpAddr {
-	if !ip.Is4() {
-		panic("an address that is not IPv4 has no Rust Ipv4Addr")
+func liftIpAddr_(c cIpAddr) rt.IpAddr {
+	if c.v6 {
+		return rt.IpAddrFromV6(liftIpv6Addr_(*(*cIpv6Addr)(unsafe.Pointer(&c.ip))))
 	}
-	return lowerIp_(ip)
+	return rt.IpAddrFromV4(liftIpv4Addr_(*(*cIpv4Addr)(unsafe.Pointer(&c.ip))))
 }
 
-// lowerIpV6_ is an IPv6 address, for Rust's Ipv6Addr.
-func lowerIpV6_(ip netip.Addr) cIpAddr {
-	if !ip.Is6() {
-		panic("an address that is not IPv6 has no Rust Ipv6Addr")
-	}
-	return lowerIp_(ip)
+func lowerSocketAddrV4_(a rt.SocketAddrV4) cSocketAddrV4 {
+	return cSocketAddrV4{ip: lowerIpv4Addr_(a.IP), port: C.uint16_t(a.Port)}
 }
 
-// liftIp_ is an address Rust returned.
-func liftIp_(c cIpAddr) netip.Addr {
-	b := unsafe.Slice((*byte)(unsafe.Pointer(&c.ip)), 16)
-	if !c.v6 {
-		return netip.AddrFrom4([4]byte(b[:4]))
+func liftSocketAddrV4_(c cSocketAddrV4) rt.SocketAddrV4 {
+	return rt.SocketAddrV4{IP: liftIpv4Addr_(c.ip), Port: uint16(c.port)}
+}
+
+func lowerSocketAddrV6_(a rt.SocketAddrV6) cSocketAddrV6 {
+	return cSocketAddrV6{
+		ip:       lowerIpv6Addr_(a.IP),
+		port:     C.uint16_t(a.Port),
+		flowinfo: C.uint32_t(a.FlowInfo),
+		scope_id: C.uint32_t(a.ScopeID),
 	}
-	return netip.AddrFrom16([16]byte(b))
+}
+
+func liftSocketAddrV6_(c cSocketAddrV6) rt.SocketAddrV6 {
+	return rt.SocketAddrV6{
+		IP:       liftIpv6Addr_(c.ip),
+		Port:     uint16(c.port),
+		FlowInfo: uint32(c.flowinfo),
+		ScopeID:  uint32(c.scope_id),
+	}
+}
+
+func lowerSocketAddr_(a rt.SocketAddr) cSocketAddr {
+	var c cSocketAddr
+	if v6, ok := a.V6(); ok {
+		c.v6 = true
+		*(*cSocketAddrV6)(unsafe.Pointer(&c.addr)) = lowerSocketAddrV6_(v6)
+	} else {
+		v4, _ := a.V4()
+		*(*cSocketAddrV4)(unsafe.Pointer(&c.addr)) = lowerSocketAddrV4_(v4)
+	}
+	return c
+}
+
+func liftSocketAddr_(c cSocketAddr) rt.SocketAddr {
+	if c.v6 {
+		return rt.SocketAddrFromV6(liftSocketAddrV6_(*(*cSocketAddrV6)(unsafe.Pointer(&c.addr))))
+	}
+	return rt.SocketAddrFromV4(liftSocketAddrV4_(*(*cSocketAddrV4)(unsafe.Pointer(&c.addr))))
+}
+
+// What a call returns before it is made once it is given text that is not UTF-8, a rune
+// that is not a Unicode scalar value, or a zero for a NonZero, which Rust's types lack.
+var (
+	errText_ = rt.Invalid_("a string is not UTF-8")
+	errRune_ = rt.Invalid_("a rune is not a Unicode scalar value")
+	errPath_ = rt.Invalid_("a path is not WTF-8, as a Windows path is")
+	errNonZero_ = rt.Invalid_("a NonZero is zero")
+)
+
+// checkPath_ is the error a call given the path s returns, or nil for any on a platform
+// whose paths are bytes, or on Windows, WTF-8: UTF-8 but for a surrogate alone, never a
+// lead and a trail apart, which WTF-8 writes as the scalar they make.
+func checkPath_(s string) error {
+	if runtime.GOOS != "windows" || utf8.ValidString(s) {
+		return nil
+	}
+	lead := false
+	for i := 0; i < len(s); {
+		if r, n := utf8.DecodeRuneInString(s[i:]); r != utf8.RuneError || n != 1 {
+			i, lead = i+n, false
+			continue
+		}
+		if i+3 > len(s) || s[i] != 0xED || s[i+1] < 0xA0 || s[i+1] > 0xBF || s[i+2] < 0x80 || s[i+2] > 0xBF {
+			return errPath_
+		}
+		trail := s[i+1] >= 0xB0
+		if trail && lead {
+			return errPath_
+		}
+		i, lead = i+3, !trail
+	}
+	return nil
+}
+
+// checkString_ is the error a call given s returns, or nil for UTF-8.
+func checkString_(s string) error {
+	if !utf8.ValidString(s) {
+		return errText_
+	}
+	return nil
+}
+
+func checkPathOption_(s *string) error {
+	if s == nil {
+		return nil
+	}
+	return checkPath_(*s)
+}
+
+func checkStringOption_(s *string) error {
+	if s == nil {
+		return nil
+	}
+	return checkString_(*s)
+}
+
+// checkRune_ is the error a call given r returns, or nil for a Unicode scalar value.
+func checkRune_(r rune) error {
+	if !utf8.ValidRune(r) {
+		return errRune_
+	}
+	return nil
 }
 
 // liftList_ is the array Rust returned, each item lifted by lift, which takes what it
@@ -314,8 +335,8 @@ type arena_ struct {
 	// call was made.
 	taken []cBuf
 	made  bool
-	// The first object the call takes that was closed, which fails the call before it is
-	// made.
+	// What first failed the call before it is made: an object it takes that was closed, or
+	// a value it takes that Rust's type does not hold.
 	err error
 }
 
@@ -337,10 +358,47 @@ func (a *arena_) pin(p unsafe.Pointer) {
 	}
 }
 
+// bufString is s, which C reads during the call, pinned, failing the call unless UTF-8.
 func (a *arena_) bufString(s string) cBuf {
+	if err := checkString_(s); err != nil {
+		a.fail(err)
+	}
+	return a.bufPath(s)
+}
+
+// bufPath is a path's bytes, which C reads during the call, pinned: any a string holds,
+// but on Windows only WTF-8, failing the call otherwise.
+func (a *arena_) bufPath(s string) cBuf {
+	if err := checkPath_(s); err != nil {
+		a.fail(err)
+	}
 	b := bufString_(s)
 	a.pin(unsafe.Pointer(b.ptr))
 	return b
+}
+
+// char is r, failing the call unless a Unicode scalar value.
+func (a *arena_) char(r rune) C.uint32_t {
+	if err := checkRune_(r); err != nil {
+		a.fail(err)
+	}
+	return C.uint32_t(r)
+}
+
+// nonZero_ is v, a NonZero's integer, failing the call if it is zero.
+func nonZero_[T comparable](a *arena_, v T) T {
+	var zero T
+	if v == zero {
+		a.fail(errNonZero_)
+	}
+	return v
+}
+
+// fail fails the call with err before it is made, unless it already failed.
+func (a *arena_) fail(err error) {
+	if a.err == nil {
+		a.err = err
+	}
 }
 
 // bufView is the buffer of b, which C reads during the call: Go's memory pinned, and
@@ -372,6 +430,13 @@ func (a *arena_) bufStringOption(s *string) cBuf {
 	return a.bufString(*s)
 }
 
+func (a *arena_) bufPathOption(s *string) cBuf {
+	if s == nil {
+		return cBuf{}
+	}
+	return a.bufPath(*s)
+}
+
 func (a *arena_) bufViewOption(b *rt.Bytes) cBuf {
 	if b == nil {
 		return cBuf{}
@@ -384,9 +449,7 @@ func (a *arena_) bufViewOption(b *rt.Bytes) cBuf {
 func (a *arena_) hold(h *rt.Handle_, o any) unsafe.Pointer {
 	raw, s := h.Hold()
 	if raw == nil {
-		if a.err == nil {
-			a.err = h.Closed()
-		}
+		a.fail(h.Closed())
 		return nil
 	}
 	a.held = append(a.held, held_{h, s, o})

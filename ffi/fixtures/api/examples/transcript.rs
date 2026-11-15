@@ -887,6 +887,80 @@ fn main() {
 		ip_hex(other)
 	);
 
+	// Lossless round trips: each type's edge values, passed through Rust and back.
+	let durations: Vec<String> = [
+		std::time::Duration::ZERO,
+		std::time::Duration::from_nanos(1),
+		std::time::Duration::from_nanos(i64::MAX as u64 + 1),
+		std::time::Duration::MAX,
+	]
+	.into_iter()
+	.map(|d| {
+		let d = api::same_duration(d);
+		format!("{}.{:09}", d.as_secs(), d.subsec_nanos())
+	})
+	.collect();
+	println!("lossless duration {}", durations.join(" "));
+	println!(
+		"lossless u64 {} {} {}",
+		api::same_u64(0),
+		api::same_u64(1 << 63),
+		api::same_u64(u64::MAX)
+	);
+	println!("lossless usize {} {}", api::same_usize(0), api::same_usize(usize::MAX));
+	println!(
+		"lossless isize {} {}",
+		api::same_isize(isize::MIN),
+		api::same_isize(isize::MAX)
+	);
+	println!(
+		"lossless u128 {:032x} {:032x} {:032x}",
+		api::same_u128(0),
+		api::same_u128(1 << 64),
+		api::same_u128(u128::MAX)
+	);
+	let chars: Vec<String> = ['\0', '\u{d7ff}', '\u{e000}', char::MAX]
+		.into_iter()
+		.map(|c| format!("{:x}", u32::from(api::same_char(c))))
+		.collect();
+	println!("lossless char {}", chars.join(" "));
+	let paths: Vec<String> = [std::path::PathBuf::from("a/é"), unspelled()]
+		.into_iter()
+		.map(|p| hex(api::same_path(p).as_os_str().as_encoded_bytes()))
+		.collect();
+	println!("lossless path {}", paths.join(" "));
+	let v4 = api::same_socket_addr_v4(std::net::SocketAddrV4::new(std::net::Ipv4Addr::BROADCAST, u16::MAX));
+	let v6 = api::same_socket_addr_v6(std::net::SocketAddrV6::new(
+		std::net::Ipv6Addr::new(1, 0, 0, 0, 0, 0, 0, 2),
+		3,
+		u32::MAX,
+		u32::MAX,
+	));
+	let addrs: Vec<String> = [v4.into(), v6.into()]
+		.into_iter()
+		.map(|a| socket_hex(api::same_socket_addr(a)))
+		.collect();
+	println!(
+		"lossless socket {} {} {}",
+		socket_hex(v4.into()),
+		socket_hex(v6.into()),
+		addrs.join(" ")
+	);
+	// A key hashes by Rust's `Hash`: equal keys alike, and these two apart.
+	let (a, b) = (api::Key::new("a"), api::Key::new("b"));
+	println!(
+		"key {} {}",
+		a.hash_of() == api::Key::new("a").hash_of(),
+		a.hash_of() == b.hash_of()
+	);
+	println!(
+		"lossless ip {} {}",
+		ip_hex(api::same_ip_addr(std::net::Ipv4Addr::BROADCAST.into())),
+		ip_hex(api::same_ip_addr(
+			std::net::Ipv6Addr::new(0xffff, 0, 0, 0, 0, 0, 0, 1).into()
+		))
+	);
+
 	// Standard and common types: serde_json's map iterator, std's instant, and tracing's
 	// level and its filter.
 	let sections: Vec<String> = api::sections(
@@ -991,9 +1065,38 @@ fn main() {
 	);
 }
 
+/// A path no Rust string spells: on Unix, bytes that are not UTF-8; on Windows, a lone
+/// surrogate, which is WTF-8's `ed a0 80`.
+#[cfg(unix)]
+fn unspelled() -> std::path::PathBuf {
+	api::stray()
+}
+
+/// A path no Rust string spells: on Unix, bytes that are not UTF-8; on Windows, a lone
+/// surrogate, which is WTF-8's `ed a0 80`.
+#[cfg(windows)]
+fn unspelled() -> std::path::PathBuf {
+	<std::ffi::OsString as std::os::windows::ffi::OsStringExt>::from_wide(&[0xd800]).into()
+}
+
 /// Lowercase hex of `bytes`, two digits each.
 fn hex(bytes: &[u8]) -> String {
 	bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// A socket address as its IP's bytes in hex, its port, flow label, and scope, each
+/// IPv6's alone, apart by colons.
+fn socket_hex(addr: std::net::SocketAddr) -> String {
+	match addr {
+		std::net::SocketAddr::V4(v4) => format!("{}:{}", hex(&v4.ip().octets()), v4.port()),
+		std::net::SocketAddr::V6(v6) => format!(
+			"{}:{}:{}:{}",
+			hex(&v6.ip().octets()),
+			v6.port(),
+			v6.flowinfo(),
+			v6.scope_id()
+		),
+	}
 }
 
 /// An address's bytes in hex, so the length shows its family.
