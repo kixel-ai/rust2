@@ -375,7 +375,7 @@ abstract class __Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owne
 		val QUEUE = java.lang.ref.ReferenceQueue<Any>()
 		/** One lock and list of the tracked. */
 		class Stripe {
-			@JvmField var head: __Cleanup? = null
+			@kotlin.jvm.JvmField var head: __Cleanup? = null
 		}
 
 		// A power of two, past the cores a phone or most servers have.
@@ -407,7 +407,7 @@ class __Handle(
 ) : __Cleanup(if (free == null) null else owner) {
 	// The holds, one for the owner until closed and one per call, shifted past a bit set
 	// once closed: one word, so a handle allocates nothing beside itself.
-	@Volatile @JvmField internal var state = HELD
+	@kotlin.concurrent.Volatile @kotlin.jvm.JvmField internal var state = HELD
 
 	init {
 		if (free != null) track()
@@ -563,7 +563,7 @@ class __Signal : java.util.concurrent.atomic.AtomicReference<Any?>(null), Waker 
 	override fun wake() {
 		val parked = getAndSet(WOKEN)
 		if (parked !is kotlinx.coroutines.CancellableContinuation<*>) return
-		@Suppress("UNCHECKED_CAST")
+		@kotlin.Suppress("UNCHECKED_CAST")
 		val c = parked as kotlinx.coroutines.CancellableContinuation<Unit>
 		// Never resumed in place, since the next poll would run inside Rust's wake, which may
 		// hold a lock that poll takes: a dispatcher that would resume here is made to defer,
@@ -614,7 +614,7 @@ class __Pollable(
 
 	// The caller's job reaches it as it starts cancelling, not once its children finish,
 	// which only the internal overload of invokeOnCompletion tells.
-	@OptIn(kotlinx.coroutines.InternalCoroutinesApi::class)
+	@kotlin.OptIn(kotlinx.coroutines.InternalCoroutinesApi::class)
 	fun poll(given: Long): Boolean {
 		val old: Long
 		synchronized(this) {

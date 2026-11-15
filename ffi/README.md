@@ -522,8 +522,10 @@ kotlinx-coroutines. Each value crosses JNI as a scalar, a handle as a `Long`, by
 in as a `ByteArray`, bytes returned as their owner, a block of numbers as its primitive
 array, and anything else encoded into a `ByteArray` as its C struct holds it. A record a
 call takes or returns directly, or in an `Option` returned, crosses as its scalars, a
-nested record's included, as JNI parameters in and through a `LongArray` each thread keeps
-out, with only its other fields encoded.
+nested record's included, and an opaque value as its 64-bit words, as JNI parameters in
+and through a `LongArray` each thread keeps out, with only a record's other fields encoded;
+an opaque value of one word returns as that `Long`. Past the 255 slots a JVM method takes,
+the rest cross encoded.
 
 - **Names** are in a package of the prefix: types in PascalCase without it, members in
   camelCase without their type's name (`moq.TrackProducer.appendGroup`). Pascal case
@@ -556,8 +558,8 @@ out, with only its other fields encoded.
   value** is a class with an internal constructor, so only Rust makes one: of no more than
   8 bytes on every target, with no padding, fields of integers, `bool`s, and `char`s alone, nested or not, and a
   derived or std `PartialEq`, a value class over a `Long`, compared by its bits, which
-  allocates nothing unless Kotlin boxes it, as in a `List` or a nullable; otherwise one over
-  a `LongArray`, whose `==` is Rust's, and whose `hashCode` is 0, since none Kotlin
+  allocates nothing unless Kotlin boxes it, as in a `List` or a nullable; otherwise a class of a `Long` for each 64-bit word of its bytes, which allocates
+  nothing where the JIT sees it does not escape, whose `==` is Rust's, and whose `hashCode` is 0, since none Kotlin
   computes agrees with it. Either is shared by reference, so it never changes: a `&mut
   self` method, a field's setter included, returns the value as the call left it,
   `x = x.add(o)`, and beside Rust's own return, a `Pair`, or each element of its tuple,

@@ -454,7 +454,7 @@ measure them at the load beside them.
 ### Copy values
 
 A `Copy` type with private fields, such as `Timestamp`, crosses by value: a struct of its
-bytes in C, C++, Swift, Go, and Dart, a class over a `LongArray` in Kotlin (a word value
+bytes in C, C++, Swift, Go, and Dart, a class of a `Long` per word in Kotlin (a word value
 class when it fits one), and a class of the runtime's `Value` holding its bytes in Python.
 Measured 2026-11-13 at rust2 `7766768f`, moq `ffcb7cd9`, on an AMD Ryzen 9 9950X (32 threads),
 Linux, at a load average of 13 to 15, the median of 3 rounds, in CPU time:
@@ -466,8 +466,15 @@ Linux, at a load average of 13 to 15, the median of 3 rounds, in CPU time:
 | stamped minus write | 0 | 3 | 1 | 33 | 45 | 150 (35 wall) | 160 |
 
 C, C++, and Swift pay nothing for the timestamp; Go and Dart pay about their getter's call,
-the `from_micros` itself. Kotlin's 35 ns wall is its call, and its CPU column adds the
-collector's work on each `LongArray`. Python's is a call and a new object. The handle's cost
+the `from_micros` itself. Kotlin's 35 ns wall was its call, and its CPU column adds the
+collector's work on each `LongArray`. Since its value is a class of a `Long` per word, and a
+`Result` of one returns its words through the thread's slots rather than encoded, the
+stamped write costs Kotlin 30 ns of wall time over the write, against 270 on main's build:
+measured 2026-11-14 at rust2 `2ec35316`, moq `ffcb7cd9`, on the same host, interleaved over 7
+rounds at a load average of 6 to 17, the medians of each round's difference. Its CPU time,
+which counts the JIT's and collector's threads, ranged from 30 to 300 ns at that load.
+The thread allocates 32 B a stamped frame over the write, the `Timestamp` itself, which
+`write_frame` keeps from the JIT's escape analysis, against 112 on main's. Python's is a call and a new object. The handle's cost
 in the tables above came from another load, so Python's was also measured against main's
 build on the same host, interleaved over 5 rounds at a load of 10 to 12: stamped minus write
 fell from 205 ns to 166, and the stamped write from 441 to 391.
