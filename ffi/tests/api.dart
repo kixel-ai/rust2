@@ -779,6 +779,10 @@ Future<void> script() async {
   print('numbered ${numbered.map((c) => '${c.name()} ${c.get()}').join(', ')}');
   final (next4, next6) = api.nexts(v4, v6);
   print('nexts ${next4.address.address} ${next4.port} ${next6.port} ${next6.scopeId}');
+  final (nextIp4, nextIp6) = api.nextIps(InternetAddress('10.0.0.255'), InternetAddress('::ffff'));
+  final mapped = api.flip(InternetAddress('127.0.0.1'));
+  final ips = [nextIp4, nextIp6, mapped, api.flip(mapped), api.flip(InternetAddress('::1'))];
+  print('ips ${ips.map((ip) => ip.rawAddress.map((b) => b.toRadixString(16).padLeft(2, '0')).join()).join(' ')}');
 
   // serde_json's map iterator, collected as pairs of a key and its document.
   final sections = api.sections([('b', api.Json.parse('[1]')), ('a', api.Json.parse('2'))]);
@@ -1491,6 +1495,13 @@ void broken(String which) {
     case 'family':
       final any = api.SocketAddr(InternetAddress('::'), 1);
       api.nexts(any, any);
+    // An IPv6 address where Rust takes `Ipv4Addr`.
+    case 'ip family':
+      final any = InternetAddress('::');
+      api.nextIps(any, any);
+    // A Unix socket's address, which is no IP address.
+    case 'ip unix':
+      api.flip(InternetAddress('/tmp/api', type: InternetAddressType.unix));
     // No String holds a path that is not UTF-8.
     case 'stray':
       api.stray();

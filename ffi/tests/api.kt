@@ -707,6 +707,13 @@ fun script() {
 	val at6 = java.net.InetSocketAddress(java.net.Inet6Address.getByAddress(null, loopback, 3), 443)
 	val (next4, next6) = nexts(at4, at6)
 	println("nexts ${next4.address.hostAddress} ${next4.port} ${next6.port} ${(next6.address as java.net.Inet6Address).scopeId}")
+	val (nextIp4, nextIp6) = nextIps(
+		java.net.InetAddress.getByAddress(byteArrayOf(10, 0, 0, -1)),
+		java.net.Inet6Address.getByAddress(null, ByteArray(16).also { it[14] = -1; it[15] = -1 }, null as java.net.NetworkInterface?),
+	)
+	val mapped = flip(java.net.InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)))
+	val ips = listOf(nextIp4, nextIp6, mapped, flip(mapped), flip(java.net.Inet6Address.getByAddress(null, loopback, null as java.net.NetworkInterface?)))
+	println("ips ${ips.joinToString(" ") { ip -> ip.address.joinToString("") { "%02x".format(it) } }}")
 
 	// serde_json's map iterator, collected as pairs of a key and its document.
 	val jsonSections = sections(listOf(Pair("b", Json.parse("[1]")), Pair("a", Json.parse("2"))))
@@ -1131,6 +1138,13 @@ fun broken(which: String) {
 			java.net.InetSocketAddress(java.net.Inet6Address.getByAddress(null, ByteArray(16), null as java.net.NetworkInterface?), 1),
 			java.net.InetSocketAddress(java.net.Inet6Address.getByAddress(null, ByteArray(16), null as java.net.NetworkInterface?), 1),
 		)
+		// An IPv6 address where Rust takes `Ipv4Addr`.
+		"ip family" -> nextIps(
+			java.net.Inet6Address.getByAddress(null, ByteArray(16), null as java.net.NetworkInterface?),
+			java.net.Inet6Address.getByAddress(null, ByteArray(16), null as java.net.NetworkInterface?),
+		)
+		// An IPv6 address with a scope, which Rust's `IpAddr` has no room for.
+		"ip scope" -> flip(java.net.Inet6Address.getByAddress(null, ByteArray(16), 3))
 		// No String holds a path that is not UTF-8.
 		"stray" -> stray()
 		// Any exception but a closure's own error, and a reader's IOException, aborts.

@@ -97,6 +97,9 @@ impl Header<'_> {
 			"/* A socket address: IPv4 in the first 4 bytes of ip, with the rest of ip, flowinfo,\n * and scope_id zero, or IPv6 if v6. ip is in network order and port in the host's. */\ntypedef struct {p}_socket_addr {{\n\tuint8_t ip[16];\n\tuint16_t port;\n\tbool v6;\n\tuint32_t flowinfo;\n\tuint32_t scope_id;\n}} {p}_socket_addr;\n"
 		));
 		self.line(format!(
+			"/* An IP address: IPv4 in the first 4 bytes of ip, with the rest zero, or IPv6 if v6.\n * ip is in network order. */\ntypedef struct {p}_ip_addr {{\n\tuint8_t ip[16];\n\tbool v6;\n}} {p}_ip_addr;\n"
+		));
+		self.line(format!(
 			"/* Wakes a future's poller: wake may be called from any thread, any number of\n * times, until drop releases data. A poll passing the same wake and data again\n * reuses the waker. Either function may be null. One Rust returns is the caller's,\n * to drop once or pass back into Rust. */\ntypedef struct {p}_waker {{\n\tvoid (*wake)(void *data);\n\tvoid (*drop)(void *data);\n\tvoid *data;\n}} {p}_waker;\n"
 		));
 		self.line(format!(
@@ -557,6 +560,7 @@ pub fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 		Ty::U128 => space(&abi.rt("u128")),
 		Ty::Duration => space(&abi.rt("duration")),
 		Ty::SocketAddr => space(&abi.rt("socket_addr")),
+		Ty::IpAddr => space(&abi.rt("ip_addr")),
 		Ty::Struct(n) | Ty::Enum(n) => space(n),
 		Ty::Handle { name: n, constant } => match constant {
 			true => format!("const {n} *{name}"),

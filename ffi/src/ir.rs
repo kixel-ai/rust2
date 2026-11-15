@@ -583,6 +583,8 @@ pub enum Type {
 	PathBuf,
 	/// `std::net::SocketAddr`, or `SocketAddrV4` or `SocketAddrV6` for one family.
 	SocketAddr(Family),
+	/// `std::net::IpAddr`, or `Ipv4Addr` or `Ipv6Addr` for one family.
+	IpAddr(Family),
 	/// A collection of `T`, which C passes and returns as an array of its items: `Vec<T>` of
 	/// any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]` too; a boxed
 	/// slice; a set; or a map, whose `T` is the tuple of a key and its value.
@@ -672,10 +674,10 @@ pub enum Collection {
 	IterRef,
 }
 
-/// The addresses a socket address type holds.
+/// The addresses a socket or IP address type holds.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Family {
-	/// IPv4 or IPv6: `SocketAddr`.
+	/// IPv4 or IPv6: `SocketAddr` or `IpAddr`.
 	Any,
 	V4,
 	V6,

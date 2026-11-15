@@ -1258,6 +1258,27 @@ int script() {
 	auto [next4, next6] = api::nexts(at4, at6);
 	std::printf("nexts %u.%u.%u.%u %u %u %u\n", next4.ip[0], next4.ip[1], next4.ip[2], next4.ip[3], next4.port, next6.port,
 				next6.scope_id);
+	{
+		api::ip_addr ip4{}, ip6{}, local4{}, local6{};
+		ip4.ip[0] = 10;
+		ip4.ip[3] = 255;
+		ip6.ip[14] = ip6.ip[15] = 0xff;
+		ip6.v6 = true;
+		local4.ip[0] = 127;
+		local4.ip[3] = 1;
+		local6.ip[15] = 1;
+		local6.v6 = true;
+		auto [nextip4, nextip6] = api::next_ips(ip4, ip6);
+		auto mapped = api::flip(local4);
+		std::printf("ips");
+		for (auto ip : {nextip4, nextip6, mapped, api::flip(mapped), api::flip(local6)}) {
+			std::printf(" ");
+			for (std::size_t b = 0; b < (ip.v6 ? 16u : 4u); b++) {
+				std::printf("%02x", ip.ip[b]);
+			}
+		}
+		std::printf("\n");
+	}
 
 	// serde_json's map iterator, collected as pairs of a key and its document.
 	{
