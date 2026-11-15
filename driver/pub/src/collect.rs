@@ -249,20 +249,23 @@ impl<'tcx> Collector<'tcx> {
 				DefKind::Mod
 					| DefKind::Struct
 					| DefKind::Union
-					| DefKind::Enum | DefKind::Variant
+					| DefKind::Enum
+					| DefKind::Variant
 					| DefKind::Trait
 					| DefKind::TyAlias
 					| DefKind::ForeignTy
 					| DefKind::TraitAlias
 					| DefKind::AssocTy
-					| DefKind::Fn | DefKind::Const
+					| DefKind::Fn
+					| DefKind::Const
 					| DefKind::Static { .. }
 					| DefKind::Ctor(..)
 					| DefKind::AssocFn
 					| DefKind::AssocConst
 					| DefKind::Macro(_)
 					| DefKind::ExternCrate
-					| DefKind::Use | DefKind::ForeignMod
+					| DefKind::Use
+					| DefKind::ForeignMod
 					| DefKind::Impl { .. }
 					| DefKind::Field
 			) {
@@ -282,7 +285,8 @@ impl<'tcx> Collector<'tcx> {
 					.flags
 					.intersects(CodegenFnAttrFlags::USED_COMPILER | CodegenFnAttrFlags::USED_LINKER);
 			if symbol
-				|| used || matches!(kind, DefKind::Const) && tcx.opt_item_name(def) == Some(kw::Underscore)
+				|| used
+				|| matches!(kind, DefKind::Const) && tcx.opt_item_name(def) == Some(kw::Underscore)
 				|| proc_macro && exported
 			{
 				roots.push(hash);
