@@ -993,7 +993,7 @@ extension Native {
 		}
 
 		/// Suspend until a wake since `reset`, at once if one already landed.
-		func park() async {
+		nonisolated(nonsending) func park() async {
 			await withUnsafeContinuation { (continuation: UnsafeContinuation<Void, Never>) in
 				parked = continuation
 				if swap(state, Signal.idle, Signal.parked) != Signal.idle {
@@ -1011,7 +1011,7 @@ extension Native {
 
 	/// Await the future `raw` an eager call made, unpolled, as `run` does, but take nothing,
 	/// even what is ready, if the task is cancelled already, and poll first with no waker.
-	static func made<T: ~Copyable>(
+	nonisolated(nonsending) static func made<T: ~Copyable>(
 		_ raw: OpaquePointer?, _ free: @convention(c) (OpaquePointer?) -> Void,
 		_ poll: (OpaquePointer?, CWaker) throws -> T?
 	) async throws -> T {
@@ -1031,7 +1031,7 @@ extension Native {
 	/// Await the future `raw`, whose first poll pended: poll it until `poll` returns its
 	/// output, then free it. A cancelled task frees it unfinished, which cancels it in Rust
 	/// and loses nothing, and throws `CancellationError`.
-	static func run<T: ~Copyable>(
+	nonisolated(nonsending) static func run<T: ~Copyable>(
 		_ raw: OpaquePointer?, _ free: @convention(c) (OpaquePointer?) -> Void,
 		_ poll: (OpaquePointer?, CWaker) throws -> T?
 	) async throws -> T {
