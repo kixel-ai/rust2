@@ -924,6 +924,14 @@ Future<void> futures() async {
   check(posting.join(), 'a call into Dart made before the isolate waited on its thread');
   check(postedLog.lines == 1, 'the posted call logged');
   await until(() => postedLog.closes == 1, 'an implementation its thread dropped is closed');
+  // So does a returned waker, from its wake and from the close that drops it.
+  final wakeLog = CountLog();
+  final logWaker = api.logWaker(wakeLog);
+  logWaker();
+  check(wakeLog.lines == 1, 'a wake calls into Dart from a joined thread');
+  logWaker.close();
+  check(wakeLog.lines == 2, "a returned waker's close calls into Dart from a joined thread");
+  await until(() => wakeLog.closes == 1, 'the implementation a closed waker held is closed');
   final dropLog = CountLog();
   final dropping = api.logOnDrop(dropLog);
   await step();

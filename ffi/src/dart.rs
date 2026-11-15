@@ -159,6 +159,13 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 			"_Waker",
 		),
 		(
+			"dart_waker_call",
+			"ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>",
+			"ffi.Void",
+			"ffi.Pointer<ffi.Void> p0, ffi.Pointer<ffi.Void> p1, ffi.Pointer<ffi.Void> p2",
+			"void",
+		),
+		(
 			"dart_future",
 			"ffi.Pointer<ffi.Void>, ffi.Int64",
 			"_ForeignFuture",
@@ -281,6 +288,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_init(data: *const c_void) -> bool {{\n\tunsafe {{ runtime::init(data) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub extern \"C\" fn {space}_home(port: i64, dropped: unsafe extern \"C\" fn(i64)) -> *const c_void {{\n\tstd::ptr::from_ref(runtime::home(port, dropped)).cast()\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_waker(home: *const c_void, token: i64) -> rt::Waker {{\n\truntime::waker(unsafe {{ &*home.cast() }}, token)\n}}\n\n\
+		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_waker_call(home: *const c_void, f: unsafe extern \"C\" fn(*mut c_void), data: *mut c_void) {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || f(data)) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_future(home: *const c_void, token: i64) -> rt::ForeignFuture {{\n\truntime::future(unsafe {{ &*home.cast() }}, token)\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_future_done(data: *const c_void, failed: bool) -> bool {{\n\tunsafe {{ runtime::future_done(data, failed) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_relay(home: *const c_void, f: *const c_void, token: i64) -> *mut c_void {{\n\truntime::relay(unsafe {{ &*home.cast() }}, f, token).cast()\n}}\n\n\

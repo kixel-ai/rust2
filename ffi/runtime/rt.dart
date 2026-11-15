@@ -313,15 +313,17 @@ bool _readerSeek(
 }
 
 /// A waker Rust returned: calling it wakes through Rust, and `close()` drops it, rather
-/// than the garbage collector once it finds this unreachable.
+/// than the garbage collector once it finds this unreachable. Each serves the isolate
+/// while it waits, as an object's call and free do, since either may run Rust that waits
+/// on a thread calling into Dart.
 final class Waker extends _Object {
-  final void Function(ffi.Pointer<ffi.Void>) _wake;
-  final void Function(ffi.Pointer<ffi.Void>) _drop;
+  final ffi.Pointer<ffi.Void> _wake;
+  final ffi.Pointer<ffi.Void> _drop;
   final ffi.NativeFinalizer _finalizer;
 
   Waker._(_Waker raw)
-      : _wake = raw.wake.cast<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>().asFunction(),
-        _drop = raw.drop.cast<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>().asFunction(),
+      : _wake = raw.wake,
+        _drop = raw.drop,
         _finalizer = _n.finalizer(raw.drop),
         super(raw.data, true) {
     _finalizer.attach(this, _raw, detach: this);
@@ -333,12 +335,12 @@ final class Waker extends _Object {
   @override
   void _free() {
     _finalizer.detach(this);
-    _drop(_raw);
+    _dartWakerCall(_n.home, _drop, _raw);
   }
 
   /// Wake the task through Rust: a call after [close] throws [StateError].
   void call() {
-    _wake(_hold());
+    _dartWakerCall(_n.home, _wake, _hold());
     _release();
   }
 }
