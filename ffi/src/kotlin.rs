@@ -1035,20 +1035,61 @@ impl<'a> Gen<'a> {
 				));
 			}
 			// A record crosses as its scalars, and its other fields encoded into one `byte[]`;
-			// an opaque value as the words Kotlin holds it in. Only while the call's JVM
+			// an opaque value as the words Kotlin holds it in; an `Option` of either as whether
+			// it is `Some`, then the value's, zero for `None`. Only while the call's JVM
 			// parameters stay within the 255 slots a method takes, which a word always does.
 			Ty::Struct(_) | Ty::In(_)
-				if let Type::Record(i) = ty.base()
-					&& let Some(left) = self.room.checked_sub(weight(abi, *i).saturating_sub(c_slots(c))) =>
+				if let Some((i, option)) = direct_record(ty)
+					&& let Some(left) = self
+						.room
+						.checked_sub((weight(abi, i) + usize::from(option)).saturating_sub(c_slots(c))) =>
 			{
 				self.room = left;
 				arg.jni.clear();
 				arg.native.clear();
 				*n -= 1;
 				let (w, r) = (self.fresh("w"), format!("r{p}"));
+				// The encoded fields' writes can run Kotlin code, such as a custom `List`'s
+				// iterator, before the scalars are read: a `Mut`'s value is read once, first.
+				let raw = e;
+				let held = rest(abi, i) && raw.contains('.');
+				let snap = match held {
+					true => self.fresh("v"),
+					false => raw.to_string(),
+				};
+				let e = snap.as_str();
 				let mut writes = Vec::new();
-				let value = self.flat_in(*i, e, (&mut arg, n), (&w, &mut writes), &r);
-				if rest(abi, *i) {
+				let value = match option {
+					false => self.flat_in(i, e, (&mut arg, n), (&w, &mut writes), &r),
+					// Each of the value's scalars reads it through `o`, bound only when `Some`.
+					true => {
+						let some = format!("p{n}");
+						*n += 1;
+						arg.jni.push("jboolean");
+						arg.native.push("Boolean".to_string());
+						arg.exprs.push(format!("{e} != null"));
+						let o = self.fresh("o");
+						let start = arg.exprs.len();
+						let value = self.flat_in(i, &o, (&mut arg, n), (&w, &mut writes), &r);
+						for (expr, native) in arg.exprs[start..].iter_mut().zip(&arg.native[start..]) {
+							*expr = format!("({e}?.let {{ {o} -> {expr} }} ?: {})", zero(native));
+						}
+						if !writes.is_empty() {
+							writes = vec![format!("{e}?.let {{ {o} ->\n{}\n}}", writes.join("\n"))];
+						}
+						let option = match c {
+							Ty::In(inner) => inner,
+							c => c,
+						};
+						let Ty::Struct(option) = option else {
+							unreachable!("an option crosses as its struct")
+						};
+						format!(
+							"crate::{option} {{ some: {some}, value: if {some} {{ {value} }} else {{ unsafe {{ std::mem::zeroed() }} }} }}"
+						)
+					}
+				};
+				if rest(abi, i) {
 					// Then the arrays and text the rest names, which Rust copies from once.
 					let (b, q) = (format!("p{n}"), format!("p{}", *n + 1));
 					*n += 2;
@@ -1056,6 +1097,9 @@ impl<'a> Gen<'a> {
 					arg.native
 						.extend(["ByteArray", "kotlin.Array<Any?>?"].map(str::to_string));
 					arg.open = Some(format!("_Native.__Writer().use {{ {w} ->"));
+					if held {
+						arg.inside.push(format!("val {e} = {raw}"));
+					}
 					arg.inside.extend(writes);
 					arg.exprs.push(format!("{w}.finish()"));
 					arg.exprs.push(format!("{w}.refs()"));
@@ -2400,7 +2444,7 @@ impl<'a> Gen<'a> {
 		// and its other fields encoded into the `byte[]` it returns; an opaque value as its
 		// words, unless it returns its one word itself.
 		let flat = match (&export.future, outs.is_empty()) {
-			(None, true) if self.room > 0 => returned_record(&ok)
+			(None, true) if self.room > 0 => direct_record(&ok)
 				.filter(|(i, option)| *option || !abi.api.records[*i].opaque.is_some_and(|o| one_word(&o))),
 			_ => None,
 		};
@@ -3241,8 +3285,8 @@ fn c_slots(c: &Ty) -> usize {
 	}
 }
 
-/// The record a function returns directly, and whether in an `Option`.
-fn returned_record(ok: &Type) -> Option<(usize, bool)> {
+/// The record a function returns or takes directly, and whether in an `Option`.
+fn direct_record(ok: &Type) -> Option<(usize, bool)> {
 	match ok.base() {
 		Type::Record(i) => Some((*i, false)),
 		Type::Option(inner) => match inner.base() {
@@ -3250,6 +3294,21 @@ fn returned_record(ok: &Type) -> Option<(usize, bool)> {
 			_ => None,
 		},
 		_ => None,
+	}
+}
+
+/// Kotlin's zero of the native parameter type `native`, which a `None` passes for each of
+/// its value's scalars.
+fn zero(native: &str) -> &'static str {
+	match native {
+		"Boolean" => "false",
+		"Byte" => "(0).toByte()",
+		"Short" => "(0).toShort()",
+		"Int" => "0",
+		"Long" => "0L",
+		"Float" => "0f",
+		"Double" => "0.0",
+		native => unreachable!("{native} is no JNI scalar"),
 	}
 }
 

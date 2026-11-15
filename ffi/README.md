@@ -521,9 +521,10 @@ packages place it in.
 kotlinx-coroutines. Each value crosses JNI as a scalar, a handle as a `Long`, bytes passed
 in as a `ByteArray`, bytes returned as their owner, a block of numbers as its primitive
 array, and anything else encoded into a `ByteArray` as its C struct holds it. A record a
-call takes or returns directly, or in an `Option` returned, crosses as its scalars, a
-nested record's included, and an opaque value as its 64-bit words, as JNI parameters in
-and through a `LongArray` each thread keeps out, with only a record's other fields encoded;
+call takes or returns directly, or in an `Option`, crosses as its scalars, a nested
+record's included, and an opaque value as its 64-bit words, as JNI parameters in, after a
+`Boolean` saying whether an `Option` is `Some` and zeros for `None`, and through a
+`LongArray` each thread keeps out, with only a record's other fields encoded;
 an opaque value of one word returns as that `Long`. Past the 255 slots a JVM method takes,
 the rest cross encoded.
 
