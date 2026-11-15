@@ -753,13 +753,18 @@ export function deque$orders_Part_orders_held_closure3(sData: Uint8Array, sStart
 	const d: rs.VecDeque<Part.Part> = rs.dequeFromVec(rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(sData, sStart + mid, sLen - mid)))), (_2: [rs.usize, rs.u8]): Part.Part => {
 		return f(rs.usizeAdd(_2[0], _17), _2[1]);
 	}), undefined, 2, true), 2) as rs.VecDeque<Part.Part>;
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterRev(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(sData, sStart, mid)))));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(sData, sStart, mid)));
+	let count: number = -1;
 	while (true) {
-		const _23: [rs.usize, rs.u8] | rs.Done = iter.next();
-		if (_23 === rs.DONE) {
+		if (count < 0) {
+			count = leaf.len();
+		}
+		const x = leaf.nextBack();
+		if (x === rs.DONE) {
 			return d;
 		}
-		const _30: Part.Part = f(_23[0], _23[1]);
+		count--;
+		const _30: Part.Part = f(count, x);
 		rs.dequePushFront(d, _30);
 	}
 }
@@ -783,13 +788,18 @@ export function deque$orders_Part_orders_part(sData: Uint8Array, sStart: number,
 	const d: rs.VecDeque<Part.Part> = rs.dequeFromVec(rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(sData, sStart + mid, sLen - mid)))), (_2: [rs.usize, rs.u8]): Part.Part => {
 		return part(rs.usizeAdd(_2[0], _17), _2[1]);
 	}), undefined, 2, true), 2) as rs.VecDeque<Part.Part>;
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterRev(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(sData, sStart, mid)))));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(sData, sStart, mid)));
+	let count: number = -1;
 	while (true) {
-		const _23: [rs.usize, rs.u8] | rs.Done = iter.next();
-		if (_23 === rs.DONE) {
+		if (count < 0) {
+			count = leaf.len();
+		}
+		const x = leaf.nextBack();
+		if (x === rs.DONE) {
 			return d;
 		}
-		const _30: Part.Part = part(_23[0], _23[1]);
+		count--;
+		const _30: Part.Part = part(count, x);
 		rs.dequePushFront(d, _30);
 	}
 }
@@ -813,13 +823,18 @@ export function deque$u8_orders_held_closure11(sData: Uint8Array, sStart: number
 	const d: rs.VecDeque<rs.u8> = rs.dequeFromVec(rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(sData, sStart + mid, sLen - mid)))), (_2: [rs.usize, rs.u8]): rs.u8 => {
 		return f(rs.usizeAdd(_2[0], _17), _2[1]);
 	}), undefined, 1, true), 1, true) as rs.VecDeque<rs.u8>;
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterRev(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(sData, sStart, mid)))));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(sData, sStart, mid)));
+	let count: number = -1;
 	while (true) {
-		const _23: [rs.usize, rs.u8] | rs.Done = iter.next();
-		if (_23 === rs.DONE) {
+		if (count < 0) {
+			count = leaf.len();
+		}
+		const x = leaf.nextBack();
+		if (x === rs.DONE) {
 			return d;
 		}
-		const _30: rs.u8 = f(_23[0], _23[1]);
+		count--;
+		const _30: rs.u8 = f(count, x);
 		rs.dequePushFront(d, _30);
 	}
 }
@@ -843,13 +858,18 @@ export function deque$u8_orders_held_closure8(sData: Uint8Array, sStart: number,
 	const d: rs.VecDeque<rs.u8> = rs.dequeFromVec(rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(sData, sStart + mid, sLen - mid)))), (_2: [rs.usize, rs.u8]): rs.u8 => {
 		return f(rs.usizeAdd(_2[0], _17), _2[1]);
 	}), undefined, 1, true), 1, true) as rs.VecDeque<rs.u8>;
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterRev(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(sData, sStart, mid)))));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(sData, sStart, mid)));
+	let count: number = -1;
 	while (true) {
-		const _23: [rs.usize, rs.u8] | rs.Done = iter.next();
-		if (_23 === rs.DONE) {
+		if (count < 0) {
+			count = leaf.len();
+		}
+		const x = leaf.nextBack();
+		if (x === rs.DONE) {
 			return d;
 		}
-		const _30: rs.u8 = f(_23[0], _23[1]);
+		count--;
+		const _30: rs.u8 = f(count, x);
 		rs.dequePushFront(d, _30);
 	}
 }

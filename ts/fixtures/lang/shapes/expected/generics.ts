@@ -751,14 +751,19 @@ export function projectedCycles(data: rs.ByteSlice, out: rs.ByteVec): void {
 	Even.walk$generics_Flags_vec_IntoIter_u8(even, walked);
 	put(out, walked.v);
 	let swap: Swap.Swap<rs.u16[], Flags.Flags, rs.u16, boolean> | undefined = undefined;
-	const iter2: rs.Iter<[rs.usize, rs.u8]> = rs.iterRev(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))));
+	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	let count: number = -1;
 	while (true) {
-		const _55: [rs.usize, rs.u8] | rs.Done = iter2.next();
-		if (_55 === rs.DONE) {
+		if (count < 0) {
+			count = leaf.len();
+		}
+		const x = leaf.nextBack();
+		if (x === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _55[0];
-		const b2: rs.u8 = _55[1];
+		count--;
+		const i: rs.usize = count;
+		const b2: rs.u8 = x;
 		const _61: boolean = b2 > 64;
 		const _63: rs.Place<Swap.Swap<rs.u16[], Flags.Flags, rs.u16, boolean> | undefined> = rs.place(() => swap, (value) => swap = value);
 		const taken = _63.v;

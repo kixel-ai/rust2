@@ -432,9 +432,11 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	stepped: FxHashSet<Local>,
 	/// The borrows `next` steps them by, and what each borrows.
 	stepped_borrows: FxHashMap<Local, Local>,
-	/// Chains of adaptors that only `next` reads, by `fuse`, and the borrows it reads each by.
+	/// Chains of adaptors that only `next`, or only `next_back`, reads, by `fuse`, the
+	/// borrows it reads each by, and those `next_back` reads.
 	fused_loops: FxHashSet<Local>,
 	fused_borrows: FxHashMap<Local, Local>,
+	fused_back: FxHashSet<Local>,
 	/// Each one's parts, held in variables as it is made.
 	fused_nodes: FxHashMap<Local, fuse::Node>,
 	/// Those variables, declared up front, and whether a chain being made declares them so.
@@ -572,6 +574,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			stepped_borrows: FxHashMap::default(),
 			fused_loops: FxHashSet::default(),
 			fused_borrows: FxHashMap::default(),
+			fused_back: FxHashSet::default(),
 			fused_nodes: FxHashMap::default(),
 			fused_decls: Vec::new(),
 			fused_hoist: false,
@@ -2768,7 +2771,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 	fn assign(&mut self, place: Place<'tcx>, rvalue: &Rvalue<'tcx>, span: Span, out: &mut Vec<Stmt>) {
 		if let Some(local) = place.as_local() {
-			// A borrow of a fused chain is only `next`'s receiver, which reads the chain's parts.
+			// A borrow of a fused chain is only the receiver of `next` or `next_back`, which
+			// reads the chain's parts.
 			if self.joined.contains(&local) || self.fused_borrows.contains_key(&local) {
 				return;
 			}
