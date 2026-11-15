@@ -371,9 +371,19 @@ frame path:
    [Copy values](#copy-values): what remains is each language's call and, in Kotlin and
    Python, an object of its own.
 2. **Ownership of a returned object.** An object return costs C 25 ns, but Go 263 and
-   Dart 242, ten times C: each new Go object registers `runtime.AddCleanup` and each Dart
-   one a `NativeFinalizer`, beside a handle allocation. Kotlin's 137 ns wall (210 CPU) is a phantom
-   reference linked and unlinked under one global lock. Every returned frame, group, and future pays it.
+   Dart 242, ten times C, and most of the difference is each runtime's per-object
+   registration with its collector. Profiled 2026-11-14 on **nixos** with `perf`, for an
+   object returned and closed: Go spends 39% of it in `runtime.AddCleanup` and the
+   `Cleanup.Stop` its `Close` makes, a third in its three cgo crossings (the call, the
+   value's drop, the handle's free), and a tenth in the collector's own threads. Dart's
+   `Dart_NewFinalizableHandle`, its crossing, and the collector finalizing it cost 1,600
+   instructions an object, three quarters of it: without them, a return and close took
+   62 to 65 ns against 176 to 245. Since kixel-ai/rust2#828, a Go object and its handle
+   are one allocation (70 fewer instructions) and a Dart close drops the value without
+   an `_Arena` (136 fewer). [Batched ownership](../../quest/m1/ffi-speed/object-ownership.md)
+   would take the registration off objects closed soon after their return. Kotlin's
+   137 ns wall (210 CPU) is a phantom reference linked and unlinked under one global lock.
+   Every returned frame, group, and future pays it.
 3. **A woken read.** C's 427 ns is Rust's 329 plus a future's crossings. Kotlin's 1.6 us and
    Dart's 1.8 us add their event loops; Go's 5.1 us and Swift's 5.7 us wall (16.6 us CPU)
    are a goroutine or `Task` and a cross-thread wake per read, and Python's 6.9 us is

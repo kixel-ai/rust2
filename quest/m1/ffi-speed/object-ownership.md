@@ -1,21 +1,54 @@
-# [M] Cheaper returned-object ownership in Go and Dart
+# [L] Returned objects closed early skip the collector in Go and Dart
 
 ## Goal
 
 A [rust2-ffi](/ffi/README.md) Go or Dart binding returns an object for close to what C
-pays. [The binding benchmark](/bench/ffi/README.md) measures an object return at 263 ns
-in Go and 242 in Dart against C's 25, and every returned frame, group, and future pays it.
+pays when the caller closes it soon after. [The binding benchmark](/bench/ffi/README.md)
+measures an object return at 263 ns in Go and 242 in Dart against C's 25, and every
+returned frame, group, and future pays it.
 Ownership stays automatic: a dropped object is still freed without a call from the user.
 
 ## Plan
 
-- Profile first: split the cost between the handle allocation, Go's `runtime.AddCleanup`,
-  Dart's `Dart_NewFinalizableHandle`, and the crossing, and fix what dominates.
-- Two candidates this quest first listed are already how the code works, found by the
-  2026-11-12 audit: Dart objects use `Dart_NewFinalizableHandle` with a size of 0
-  (`ffi/runtime/dart.rs`), and Go registers one cleanup with the handle as its argument
-  (`ffi/src/go.rs`'s `own_`). So take candidates from the profile. One left: allocate the
-  wrapper and its handle together, so a return allocates once.
-- Explicit `Close` stays, and the cleanup stays as the backstop; dropping it is refused,
-  since a missed `Close` would leak.
-- Re-measure the bench's object return and stamped write.
+- The profile ([the benchmark's README](/bench/ffi/README.md#what-a-call-spends), item 2)
+  puts most of the cost in each runtime's per-object registration with its collector: Go's
+  `runtime.AddCleanup` and the `Cleanup.Stop` its `Close` makes take 39% of a return and
+  close, and Dart's `Dart_NewFinalizableHandle`, its crossing, and its finalization take
+  three quarters (1,600 instructions). Without the registration, Dart's return and close
+  took 62 to 65 ns against 176 to 245. kixel-ai/rust2#828 took what it could without
+  deferring the registration: one allocation for a Go object and its handle, and no
+  `_Arena` in a Dart close.
+- Rejected, measured: Dart's `NativeFinalizer.attach` without `detach` (770 to 1,070 ns
+  a return), Go's `runtime.SetFinalizer` (13% fewer instructions to register and clear
+  than `AddCleanup` and `Stop`, but it runs every free on one goroutine and keeps each
+  object a collection longer), and leaving Go's cleanup registered at `Close` (290 to 450
+  ns a return against 120, in a microbenchmark).
+- Recommended: a nursery of the last 64 objects returned, which only registers an object
+  with the collector once it leaves the nursery still open. A `close` of an object in the
+  nursery frees its handle at once, with a checked value's drop in the same crossing, and
+  it never registers. Explicit `Close` stays, and the registration stays as the backstop.
+  - Dart: one ring in the isolate's `_n`, holding its objects, whose oldest is registered
+    as today when a return pushes it out. A checked object's handle is then freed at
+    `close`, so its calls check a closed flag in Dart, as a counted one's do (one load a
+    call). One finalizable handle on the ring frees what it still holds at isolate exit.
+  - Go: a ring per P, through a `sync.Pool` as `lending_` pools byte batches. Each
+    object points at its ring and the ring at its objects, so one `AddCleanup` on the ring
+    frees its open slots once all of them are unreachable, as when the pool drops it. A
+    compare-and-swap on the object's slot decides between its `Close` and its eviction.
+- Re-measure the bench's object return and ready read, and check by drop counts in
+  `ffi/tests` that an object dropped in the nursery is freed once evicted and collected.
+
+## Waiting
+
+- Maintainer: accept the later free the nursery brings? An object dropped without `Close`
+  is freed only after up to 64 more returns, or in Go once its ring's other objects are
+  unreachable too, rather than at the next collection. Options: (a) the nursery as
+  planned (recommended: it takes Dart's object return from about 200 ns to about 65, and
+  Go's by about 110 ns, while a closed object never waits); (b) keep today's per-object
+  registration and delete this quest; (c) flush the nursery on a timer each event-loop
+  turn instead of by count (rejected: a timer each turn costs more than it saves when a
+  turn returns one object, as a woken read does).
+
+## Related
+
+- [Shared borrows](/quest/m1/ffi-speed/shared-borrow.md) - rewrites the same handle word
