@@ -23,7 +23,8 @@ Ownership stays automatic: a dropped object is still freed without a call from t
   than `AddCleanup` and `Stop`, but it runs every free on one goroutine and keeps each
   object a collection longer), and leaving Go's cleanup registered at `Close` (290 to 450
   ns a return against 120, in a microbenchmark).
-- Recommended: a nursery of the last 64 objects returned, which only registers an object
+- Settled by the maintainer (2026-11-15, kixel-ai/rust2#828): a nursery of the last 64
+  objects returned, which only registers an object
   with the collector once it leaves the nursery still open. A `close` of an object in the
   nursery frees its handle at once, with a checked value's drop in the same crossing, and
   it never registers. Explicit `Close` stays, and the registration stays as the backstop.
@@ -35,19 +36,14 @@ Ownership stays automatic: a dropped object is still freed without a call from t
     object points at its ring and the ring at its objects, so one `AddCleanup` on the ring
     frees its open slots once all of them are unreachable, as when the pool drops it. A
     compare-and-swap on the object's slot decides between its `Close` and its eviction.
+  - The later free is accepted: an object dropped without `Close` is freed only after up
+    to 64 more returns, or in Go once its ring's other objects are unreachable too,
+    rather than at the next collection. Rejected: keeping today's per-object
+    registration and deleting this quest; flushing the nursery each event-loop turn (a
+    timer each turn costs more than it saves when a turn returns one object, as a woken
+    read does).
 - Re-measure the bench's object return and ready read, and check by drop counts in
   `ffi/tests` that an object dropped in the nursery is freed once evicted and collected.
-
-## Waiting
-
-- Maintainer: accept the later free the nursery brings? An object dropped without `Close`
-  is freed only after up to 64 more returns, or in Go once its ring's other objects are
-  unreachable too, rather than at the next collection. Options: (a) the nursery as
-  planned (recommended: it takes Dart's object return from about 200 ns to about 65, and
-  Go's by about 110 ns, while a closed object never waits); (b) keep today's per-object
-  registration and delete this quest; (c) flush the nursery on a timer each event-loop
-  turn instead of by count (rejected: a timer each turn costs more than it saves when a
-  turn returns one object, as a woken read does).
 
 ## Related
 
