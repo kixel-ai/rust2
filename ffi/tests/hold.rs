@@ -23,7 +23,8 @@ const CLOSING: usize = 4;
 const HELD: usize = 8;
 /// Set in a slot whose hold a close turned into a count.
 const REVOKED: usize = 1;
-/// The handle's key in a slot, as the bindings use its raw pointer.
+/// The handle's key in a slot: an address or id unique while the handle lives, its low bit
+/// clear for [`REVOKED`].
 const KEY: usize = 8;
 
 /// A handle as a binding holds it, beside a table with a slot per column for its row.

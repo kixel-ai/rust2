@@ -214,10 +214,6 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 	Ok(Output { files, names: locked })
 }
 
-/// Each error type that is no exported type, named by its key as its C structs are, so two
-/// types never share one, with its type and the crate it belongs to: the last of those
-/// its types do, or the runtime for none. A name its package's types or runtime take
-/// takes a trailing `_`.
 /// A call holding `object`'s handle as `h`, in the slot `s`, until it returns: through
 /// `Count`, inlined, then `Contend` once calls contend for it, running `failed` once closed.
 /// `slot` is the runtime's `Slot_`, as the package names it.
@@ -228,6 +224,10 @@ fn hold(slot: &str, object: &str, h: &str, s: &str, failed: &str) -> String {
 	)
 }
 
+/// Each error type that is no exported type, named by its key as its C structs are, so two
+/// types never share one, with its type and the crate it belongs to: the last of those
+/// its types do, or the runtime for none. A name its package's types or runtime take
+/// takes a trailing `_`.
 fn thrown(abi: &Abi<'_>, classes: &BTreeMap<String, BTreeSet<String>>) -> BTreeMap<String, (String, Type)> {
 	let api = abi.api;
 	let all = (api.records.iter().flat_map(|r| &r.methods))
