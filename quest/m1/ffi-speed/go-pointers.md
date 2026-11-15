@@ -11,6 +11,9 @@ move the goroutine's stack: `go build -gcflags=-m` over moq's Go packages report
 
 ## Plan
 
+- ✅ Keep this quest, settled by the maintainer on 2026-11-15 in
+  [kixel-ai/rust2#829](https://github.com/kixel-ai/rust2/pull/829#issuecomment-6890842376)
+  (rejected: drop it).
 - Extend the shim each package's cgo preamble defines for a checked call (`checked_c` in
   `ffi/src/go.rs`) to every call that takes a pointer to a Go local: the shim takes a
   value by value and passes C a pointer to its own copy, and returns each out, the error,
