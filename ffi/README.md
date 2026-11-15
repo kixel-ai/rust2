@@ -633,9 +633,10 @@ the rest cross encoded.
   calling thread's, as `tokioTlsInitAndroid(context)` does for moq's `init_android`. A
   `jni::objects::JObject` it takes is an `Any?`, the reference Kotlin passed, which Rust
   holds only during the call. A Java exception its Rust leaves pending is what Kotlin
-  gets, as from any native method, in place of what the call returned. Any other JNI type, an env taken any other way, a
-  `JObject` with no env to hold it under, two envs, or one lent to a future or a trait
-  Kotlin implements is refused.
+  gets, as from any native method, in place of what the call returned, which drops
+  first. Any other JNI type, an env taken any other way, a `JObject` with no env to hold
+  it under, two envs, one lent to a future or a trait Kotlin implements, or one beside a
+  `&mut` value, whose change the exception would lose, is refused.
 - **The contract** is checked when the library loads, before any other call: a Kotlin
   file and a library from different builds throw. That first call also notes the JVM and
   `_Native` for the calls Rust makes into Kotlin, so the library defines no `JNI_OnLoad`,

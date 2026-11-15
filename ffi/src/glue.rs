@@ -267,7 +267,22 @@ impl Crate<'_> {
 		// One only some targets' APIs name builds on those alone, as the facade's does.
 		let mut every = String::new();
 		let mut targeted: std::collections::BTreeMap<&str, String> = Default::default();
-		for r in &api.reached {
+		// jni, on the targets of the functions that take its values, which the glue names
+		// through it. It routes no facade path, since a facade item may be named `jni`.
+		let methods = (api.records.iter().flat_map(|r| &r.methods))
+			.chain(api.enums.iter().flat_map(|e| &e.methods))
+			.chain(api.objects.iter().flat_map(|o| &o.methods));
+		let on = (api.functions.iter().chain(methods))
+			.filter(|f| f.jni())
+			.fold(0, |on, f| on | f.on.0);
+		let jni = (on != 0).then(|| crate::ir::Reached {
+			krate: "jni".to_string(),
+			targets: (api.targets.iter().enumerate())
+				.filter(|(i, _)| on >> i & 1 == 1)
+				.map(|(_, t)| t.clone())
+				.collect(),
+		});
+		for r in api.reached.iter().chain(&jni) {
 			let Some(keys) = self.crates.get(&r.krate) else {
 				return Err(format!(
 					"the facade builds with no crate `{}` here, which the API names",
@@ -2600,14 +2615,17 @@ impl Gen<'_> {
 			_ => call,
 		};
 		// A Java exception the call left pending is what Kotlin gets, as from any native
-		// method: the result drops, and nothing is written for Kotlin's glue to read.
+		// method: nothing is written for Kotlin's glue to read, and the result drops with
+		// the exception taken, since a destructor may call into Kotlin, then throws it again.
 		let pending = match function.jni() {
 			true => {
 				let zero = match status {
 					Some(_) => "Ok(unsafe { ::std::mem::zeroed() })",
 					None => "unsafe { ::std::mem::zeroed() }",
 				};
-				format!("\n\tif jni_env.exception_check() {{\n\t\tdrop(result);\n\t\treturn {zero};\n\t}}")
+				format!(
+					"\n\tif let Some(thrown) = jni_env.exception_occurred() {{\n\t\tjni_env.exception_clear();\n\t\tdrop(result);\n\t\tlet _ = jni_env.throw(thrown);\n\t\tif !jni_env.exception_check() {{\n\t\t\t::std::process::abort();\n\t\t}}\n\t\treturn {zero};\n\t}}"
+				)
 			}
 			false => String::new(),
 		};

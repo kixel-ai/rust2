@@ -523,21 +523,10 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			.filter(|&did| !c.foreign.iter().any(|&(other, _)| other == did))
 			.collect();
 		if more.is_empty() && unreached.is_empty() {
-			let mut api = c.api;
-			// The glue names jni's types where a function takes a JNI value.
-			let methods = (api.records.iter().flat_map(|r| &r.methods))
-				.chain(api.enums.iter().flat_map(|e| &e.methods))
-				.chain(api.objects.iter().flat_map(|o| &o.methods));
-			if let Some(jni) = c.jni
-				&& api.functions.iter().chain(methods).any(Function::jni)
-			{
-				let krate = tcx.crate_name(jni.env.krate).to_string();
-				if !api.reached.iter().any(|r| r.krate == krate) {
-					let targets = api.targets.clone();
-					api.reached.push(crate::ir::Reached { krate, targets });
-				}
-			}
-			return Collected { api, report: c.report };
+			return Collected {
+				api: c.api,
+				report: c.report,
+			};
 		}
 		// A newly reached type may return an object marked an orphan, so those start over.
 		if unreached.is_empty() {
@@ -2663,14 +2652,16 @@ impl<'tcx> Collector<'tcx> {
 
 	/// An opaque value's methods, refusing each through `&mut self` whose change Rust could
 	/// not hand back with what it returns: a future's, which outlives the call, and a
-	/// `Result`'s, whose error a language raising it would lose the change with.
+	/// `Result`'s or a JNI value's, whose error or Java exception a language raising it would
+	/// lose the change with.
 	fn written_back(&mut self, methods: Vec<Function>) -> Vec<Function> {
-		let (refused, kept): (Vec<Function>, Vec<Function>) =
-			(methods.into_iter()).partition(|m| m.receiver == Some(Receiver::Mut) && (m.future || m.err.is_some()));
+		let (refused, kept): (Vec<Function>, Vec<Function>) = (methods.into_iter())
+			.partition(|m| m.receiver == Some(Receiver::Mut) && (m.future || m.err.is_some() || m.jni()));
 		for m in refused {
-			let construct = match m.future {
-				true => "`&mut self` of a value in a future",
-				false => "`&mut self` of a value returning a Result",
+			let construct = match (m.future, m.jni()) {
+				(true, _) => "`&mut self` of a value in a future",
+				(_, true) => "`&mut self` of a value beside a JNI value",
+				_ => "`&mut self` of a value returning a Result",
 			};
 			self.refuse(&m.shown, "method", m.span, vec![why(construct, "")]);
 		}
@@ -3276,6 +3267,12 @@ impl<'tcx> Collector<'tcx> {
 		}
 		if envs == 0 && params.iter().any(|p: &Param| p.ty == Type::Jni(Jni::Object)) {
 			errs.push(why("JObject with no &mut jni::Env", ""));
+		}
+		// A Java exception the call leaves pending takes the place of what it returns, so what
+		// it changed in a `&mut` value would be lost, as a future's would.
+		if params.iter().any(|p: &Param| matches!(p.ty, Type::Jni(_))) && params.iter().any(|p: &Param| p.ty.written())
+		{
+			errs.push(why("&mut of a value beside a JNI value", ""));
 		}
 		// An iterator no other rule maps crosses as the array of its items, all taken at
 		// the call, as `collect` takes them, when no caller could tell; a future's stays

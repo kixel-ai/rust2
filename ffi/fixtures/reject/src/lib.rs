@@ -1283,6 +1283,12 @@ pub fn env_later(env: &mut jni::Env) -> impl std::future::Future<Output = bool> 
 	std::future::ready(env.get_raw().is_null())
 }
 
+/// A `&mut` value beside an env, whose change a Java exception left pending would lose.
+pub fn env_counted(env: &mut jni::Env, count: &mut u32) -> bool {
+	*count += 1;
+	env.get_raw().is_null()
+}
+
 /// An env shared, which no rule maps.
 pub fn shared_env(env: &jni::Env) -> bool {
 	env.get_raw().is_null()

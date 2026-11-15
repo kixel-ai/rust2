@@ -543,6 +543,17 @@ fun script() {
 		val thrown = runCatching { thrown(fail) }.exceptionOrNull()
 		check(thrown is IllegalStateException && thrown.message == "thrown", "an exception the Rust left pending throws, failing or not")
 	}
+	var closed = false
+	val sink = object : Log, AutoCloseable {
+		override fun log(level: UByte, line: String): Boolean = true
+
+		override fun close() {
+			closed = true
+		}
+	}
+	val dropped = runCatching { thrownLogger(sink) }.exceptionOrNull()
+	check(dropped is IllegalStateException && dropped.message == "logger" && closed, "a result dropped for a pending exception closes its callback, then throws it")
+	check(jniOne() == 1u, "a facade module named jni is the facade's")
 	val encoded = Mut(Bytes("0,".encodeToByteArray()))
 	putNumber(1u, encoded)
 	putNumber(23u, encoded)

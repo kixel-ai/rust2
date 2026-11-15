@@ -47,15 +47,16 @@ fixtures/reject/src/lib.rs:1265:2: rust2-ffi: cannot export method `Counter::bum
 fixtures/reject/src/lib.rs:1272:1: rust2-ffi: cannot export fn `object_alone`: JObject with no &mut jni::Env; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:1277:1: rust2-ffi: cannot export fn `two_envs`: several JNI envs; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:1282:1: rust2-ffi: cannot export fn `env_later`: JNI value lent to a future; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:1287:1: rust2-ffi: cannot export fn `shared_env`: JNI type other than a parameter's &mut Env or JObject `jni::Env<'_>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1287:1: rust2-ffi: cannot export fn `env_counted`: &mut of a value beside a JNI value; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:128:1: rust2-ffi: cannot export fn `poll_ready`: Poll with no Context or waiter parameter `std::task::Poll<u32>`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:1292:1: rust2-ffi: cannot export fn `java_string`: JNI type other than a parameter's &mut Env or JObject `jni::objects::JString<'_>`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:1301:1: rust2-ffi: cannot export fn `visit`: trait object `dyn Visit`; exclude it in the config to leave it out
-	fixtures/reject/src/lib.rs:1297:1: note: C cannot implement `Visit`: JNI value in a callback `&mut jni::Env<'_>`
-fixtures/reject/src/lib.rs:1307:1: rust2-ffi: cannot export fn `keep_object`: 'static borrow `jni::objects::JObject<'static>`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:1312:1: rust2-ffi: cannot export fn `bound_object`: 'static borrow `&mut jni::Env<'a>`; 'static borrow `jni::objects::JObject<'a>`; exclude it in the config to leave it out
-	fixtures/reject/src/lib.rs:1312:21: note: `'a` is `'static`, as a handle outlives every call
-	fixtures/reject/src/lib.rs:1312:21: note: `'a` is `'static`, as a handle outlives every call
+fixtures/reject/src/lib.rs:1293:1: rust2-ffi: cannot export fn `shared_env`: JNI type other than a parameter's &mut Env or JObject `jni::Env<'_>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1298:1: rust2-ffi: cannot export fn `java_string`: JNI type other than a parameter's &mut Env or JObject `jni::objects::JString<'_>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1307:1: rust2-ffi: cannot export fn `visit`: trait object `dyn Visit`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:1303:1: note: C cannot implement `Visit`: JNI value in a callback `&mut jni::Env<'_>`
+fixtures/reject/src/lib.rs:1313:1: rust2-ffi: cannot export fn `keep_object`: 'static borrow `jni::objects::JObject<'static>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1318:1: rust2-ffi: cannot export fn `bound_object`: 'static borrow `&mut jni::Env<'a>`; 'static borrow `jni::objects::JObject<'a>`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:1318:21: note: `'a` is `'static`, as a handle outlives every call
+	fixtures/reject/src/lib.rs:1318:21: note: `'a` is `'static`, as a handle outlives every call
 fixtures/reject/src/lib.rs:145:2: rust2-ffi: cannot export method `Link::session`: borrowed return that is not Clone `tls::held::Handoff`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:162:1: rust2-ffi: cannot export fn `measure`: foreign type `tls::held::Local`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:167:1: rust2-ffi: cannot export instance `Cell<std::vec::Vec<String>>`: type argument `std::vec::Vec<String>`; exclude it in the config to leave it out
