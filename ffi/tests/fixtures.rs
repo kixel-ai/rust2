@@ -860,10 +860,6 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 			"outlived",
 			"Native$__Refused: api_Meter_count: a handle lent from another outlived it",
 		),
-		("stray", "MalformedInputException"),
-		("family", "an IPv6 address has no Rust SocketAddrV4"),
-		("ip family", "an IPv6 address has no Rust Ipv4Addr"),
-		("ip scope", "an IPv6 address with a scope has no Rust IpAddr"),
 	] {
 		// Under a piped core pattern the handler still runs at a limit of 0, so the
 		// status reports a core though none is written.

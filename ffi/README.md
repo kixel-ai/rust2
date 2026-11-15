@@ -550,7 +550,8 @@ the rest cross encoded.
   `close()` frees the handle, and throws while a call holds it. One never closed is freed
   once the GC collects it, on a daemon thread a phantom reference queue feeds. A `self`
   method, or passing the object by value, moves its value out and closes it once the call
-  returns. `Clone` is `clone()`, and `PartialEq` is `equals`.
+  returns. `Clone` is `clone()`, `PartialEq` is `equals`, and `Hash` is `hashCode`, Rust's
+  hash folded as `Long.hashCode` folds it, or 0 without one.
   A field is a `val`, `firstGet`, and its setter a function, `firstSet(value)`, named as
   the C ones, since setting an object moves it in and closes its handle, which an
   assignment would hide.
@@ -564,8 +565,8 @@ the rest cross encoded.
   8 bytes on every target, with no padding, fields of integers, `bool`s, and `char`s alone, nested or not, and a
   derived or std `PartialEq`, a value class over a `Long`, compared by its bits, which
   allocates nothing unless Kotlin boxes it, as in a `List` or a nullable; otherwise a class of a `Long` for each 64-bit word of its bytes, which allocates
-  nothing where the JIT sees it does not escape, whose `==` is Rust's, and whose `hashCode` is 0, since none Kotlin
-  computes agrees with it. Either is shared by reference, so it never changes: a `&mut
+  nothing where the JIT sees it does not escape, whose `==` is Rust's, and whose `hashCode` is Rust's `Hash`, or 0
+  without one, since none Kotlin computes agrees with its `==`. Either is shared by reference, so it never changes: a `&mut
   self` method, a field's setter included, returns the value as the call left it,
   `x = x.add(o)`, and beside Rust's own return, a `Pair`, or each element of its tuple,
   `val (y, n) = x.take()`.
@@ -581,21 +582,34 @@ the rest cross encoded.
   64 MiB are lent at once, freed or not; past that, longer ones are copied too, and that
   garbage in Kotlin's heap runs the GC, which frees them. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
   record holding bytes does too; Rust's lent ones are copied across in one call to compare.
-  Strings are `String`, passed in as their UTF-16, which Rust encodes once into UTF-8 as
-  `encodeToByteArray` does, a lone surrogate as `?`; `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
-  target's range, `Option<T>` `T?`, a tuple `Pair` or
+  Strings are `String`, passed in as their UTF-16, which Rust encodes once into UTF-8 before
+  the call reads any argument, so one holding a lone surrogate, which no Rust text holds,
+  throws `IllegalArgumentException` before anything moves; a `char` is an `Int`, which
+  throws `IllegalArgumentException` passed in unless it is a Unicode scalar value; `usize`
+  `ULong` and `isize` `Long`, which throw `IllegalArgumentException` passed in past the
+  library's target's range, as a 32-bit one's is, `Option<T>` `T?`, a tuple `Pair` or
   `Triple`, or else a generated `Tuple<n>`, and also `Tuple2` or `Tuple3` when it holds a
   numeric array or a float anywhere, records included, since `Pair` and `Triple` cannot
-  compare them as Rust does (so a `BTreeMap<String, f64>` is a `List<Tuple2<String, Double>>`), `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
+  compare them as Rust does (so a `BTreeMap<String, f64>` is a `List<Tuple2<String, Double>>`), `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, and an `Err` a thrown `<E>Exception`
   holding it, whose message is its `Display`. A `[u8; N]` is a generated `ArrayU8x<N>`,
   which copies the `ByteArray` it is made of and throws `IllegalArgumentException` unless
   it holds exactly `N` bytes.
-- A **path** is a `String`: one Rust returns that is not UTF-8 throws. A `SocketAddr`,
-  `SocketAddrV4`, or `SocketAddrV6` is a `java.net.InetSocketAddress`, which must be
-  resolved and, for `V4` or `V6`, of that family; one Rust returns with an IPv6 flow
-  label, which Java does not keep, throws. An `IpAddr`, `Ipv4Addr`, or `Ipv6Addr` is a
-  `java.net.InetAddress`, of that family for `Ipv4Addr` or `Ipv6Addr`; one passed in with
-  an IPv6 scope, which Rust does not keep, throws. A `Vec<T>`, `&[T]`, or `Box<[T]>` of a
+- **Std values** no Kotlin or Java type holds exactly are the runtime's own, each holding
+  every Rust value and made only of valid ones, with conversions to and from the
+  idiomatic type that throw `IllegalArgumentException` where the other cannot hold a value
+  exactly. A `Duration` is a `Duration` of `secs: ULong` and `nanos: UInt`, made from and
+  converted to a `kotlin.time.Duration` (`Duration(5.seconds)`, `toKotlinDuration()`),
+  which is never negative or infinite in Rust and drops what is below a millisecond past
+  about 146 years. A path is a `PathBuf` of the OS's bytes, any on Unix and WTF-8 on
+  Windows, made from them or from a `String`, and converted to one or to a
+  `java.nio.file.Path` by `toText()` and `toPath()`, which throw where it is not UTF-8;
+  its `toString()` shows what is not as U+FFFD, as Rust's `display` does. An `IpAddr`
+  is a sealed `IpAddr` of an `Ipv4Addr`, a value class of its bits, or an `Ipv6Addr`,
+  each kept of its family, so an IPv4-mapped address stays IPv6, and a `SocketAddr` a
+  sealed `SocketAddr` of a `SocketAddrV4`, a value class of its address and port, or a
+  `SocketAddrV6`, which keeps its flow label and scope; each prints as Rust does, and
+  converts to and from `java.net`'s, which has no unresolved address in Rust, no scope in
+  an `IpAddr`, and no flow label in Java. A `Vec<T>`, `&[T]`, or `Box<[T]>` of a
   fixed-width integer other than `u8` (bytes) or `u128`, or of a float, is Kotlin's primitive array of it: `ByteArray`,
   `ShortArray`, `IntArray`, or `LongArray` for `i8` through `i64`, `UShortArray`,
   `UIntArray`, or `ULongArray` for `u16` through `u64`, which a caller uses under
