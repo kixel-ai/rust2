@@ -121,15 +121,30 @@ class __Writer {
 		b.putInt(v.size)
 	}
 
-	/** Text as [TEXT] and its place in [refs], which Rust encodes once from, or -1 for none. */
+	/**
+	 * Text as [TEXT], added to [refs], or -1 for none: Rust encodes each in [refs] once,
+	 * before it reads any of the value, so a lone surrogate throws before anything moves.
+	 */
 	fun string(v: String?) {
 		if (v == null) {
 			i32(-1)
 			return
 		}
-		room(8)
-		b.putInt(TEXT)
-		b.putInt(ref(v))
+		i32(TEXT)
+		ref(v)
+	}
+
+	/** A path's bytes as [bytes] encodes Kotlin's, or -1 for none. */
+	fun path(v: PathBuf?) {
+		if (v == null) {
+			i32(-1)
+			return
+		}
+		room(16)
+		b.putInt(KOTLIN)
+		b.putInt(ref(v.bytes))
+		b.putInt(0)
+		b.putInt(v.bytes.size)
 	}
 
 	private var objects: java.util.ArrayList<Any?>? = null
@@ -144,66 +159,60 @@ class __Writer {
 	/** The arrays and text the encoding refers to, which Rust reads in the call, or null for none. */
 	fun refs(): kotlin.Array<Any?>? = objects?.toArray()
 
-	/** An address as Rust's `SocketAddr` holds it, which an unresolved one has no form of. */
-	fun socketAddr(v: java.net.InetSocketAddress) {
-		val ip = kotlin.requireNotNull(v.address) { "an unresolved address has no Rust SocketAddr" }
-		room(16)
-		b.put(ip.address)
-		repeat(16 - ip.address.size) { b.put(0) }
+	/** Whether it is IPv6, then the address of its family. */
+	fun socketAddr(v: SocketAddr) = when (v) {
+		is SocketAddrV4 -> {
+			bool(false)
+			socketAddrV4(v)
+		}
+		is SocketAddrV6 -> {
+			bool(true)
+			socketAddrV6(v)
+		}
+	}
+
+	fun socketAddrV4(v: SocketAddrV4) {
+		ipv4Addr(v.ip)
 		i16(v.port.toShort())
-		bool(ip is java.net.Inet6Address)
-		// Java keeps no flow label.
-		i32(0)
-		i32((ip as? java.net.Inet6Address)?.scopeId ?: 0)
 	}
 
-	/** An IPv4 address, for Rust's `SocketAddrV4`. */
-	fun socketAddrV4(v: java.net.InetSocketAddress) {
-		kotlin.require(v.address !is java.net.Inet6Address) { "an IPv6 address has no Rust SocketAddrV4" }
-		socketAddr(v)
+	fun socketAddrV6(v: SocketAddrV6) {
+		ipv6Addr(v.ip)
+		i16(v.port.toShort())
+		i32(v.flowinfo.toInt())
+		i32(v.scopeId.toInt())
 	}
 
-	/** An IPv6 address, for Rust's `SocketAddrV6`. */
-	fun socketAddrV6(v: java.net.InetSocketAddress) {
-		kotlin.require(v.address !is java.net.Inet4Address) { "an IPv4 address has no Rust SocketAddrV6" }
-		socketAddr(v)
+	/** Whether it is IPv6, then the address of its family. */
+	fun ipAddr(v: IpAddr) = when (v) {
+		is Ipv4Addr -> {
+			bool(false)
+			ipv4Addr(v)
+		}
+		is Ipv6Addr -> {
+			bool(true)
+			ipv6Addr(v)
+		}
 	}
 
-	/** An address as Rust's `IpAddr` holds it, which has no IPv6 scope. */
-	fun ipAddr(v: java.net.InetAddress) {
-		val scope = (v as? java.net.Inet6Address)?.scopeId ?: 0
-		kotlin.require(scope == 0) { "an IPv6 address with a scope has no Rust IpAddr" }
-		room(16)
-		b.put(v.address)
-		repeat(16 - v.address.size) { b.put(0) }
-		bool(v is java.net.Inet6Address)
-	}
+	/** Its octets, the first highest. */
+	fun ipv4Addr(v: Ipv4Addr) = i32(java.lang.Integer.reverseBytes(v.bits.toInt()))
 
-	/** An IPv4 address, for Rust's `Ipv4Addr`. */
-	fun ipAddrV4(v: java.net.InetAddress) {
-		kotlin.require(v !is java.net.Inet6Address) { "an IPv6 address has no Rust Ipv4Addr" }
-		ipAddr(v)
-	}
-
-	/** An IPv6 address, for Rust's `Ipv6Addr`. */
-	fun ipAddrV6(v: java.net.InetAddress) {
-		kotlin.require(v !is java.net.Inet4Address) { "an IPv4 address has no Rust Ipv6Addr" }
-		ipAddr(v)
+	fun ipv6Addr(v: Ipv6Addr) {
+		i64(java.lang.Long.reverseBytes(v.hi))
+		i64(java.lang.Long.reverseBytes(v.lo))
 	}
 
 	/** A `u128`, from 0 through 2^128 - 1. */
 	fun u128(v: java.math.BigInteger) {
-		kotlin.require(v.signum() >= 0 && v.bitLength() <= 128) { "$v is out of range for Rust's u128" }
+		if (v.signum() < 0 || v.bitLength() > 128) throw __Invalid("$v is out of range for Rust's u128")
 		i64(v.toLong())
 		i64(v.shiftRight(64).toLong())
 	}
 
-	fun duration(v: kotlin.time.Duration) {
-		kotlin.require(!v.isNegative()) { "a negative duration has no Rust Duration" }
-		v.toComponents { secs, nanos ->
-			i64(secs)
-			i32(nanos)
-		}
+	fun duration(v: Duration) {
+		i64(v.secs.toLong())
+		i32(v.nanos.toInt())
 	}
 
 	private var held: java.util.ArrayList<__Handle>? = null
@@ -221,7 +230,22 @@ class __Writer {
 		(held ?: java.util.ArrayList<__Handle>().also { held = it }).add(v)
 	}
 
-	fun finish(): ByteArray = b.array().copyOf(b.position())
+	/**
+	 * The encoding, then where [refs] names any, the place in it of each text, in order, and
+	 * how many, which Rust reads first.
+	 */
+	fun finish(): ByteArray {
+		val objects = objects ?: return b.array().copyOf(b.position())
+		var texts = 0
+		for (at in objects.indices) {
+			if (objects[at] is String) {
+				i32(at)
+				texts++
+			}
+		}
+		i32(texts)
+		return b.array().copyOf(b.position())
+	}
 
 	/** Release the handles encoded, once the call that reads them returns. */
 	fun release() {
@@ -318,32 +342,23 @@ class __Reader(private val b: java.nio.ByteBuffer) {
 		return v
 	}
 
-	/** A path, which on Unix may hold bytes no String holds: those throw. */
-	fun path(): String? = bytes()?.decodeToString(throwOnInvalidSequence = true)
+	/** A path, as Rust's bytes of it, or null for none. */
+	fun path(): PathBuf? = bytes()?.let { PathBuf.of(it) }
 
-	fun socketAddr(): java.net.InetSocketAddress {
-		val ip = ByteArray(16)
-		b.get(ip)
-		val port = b.getShort().toInt() and 0xffff
-		val v6 = bool()
-		val flowinfo = b.getInt()
-		val scope = b.getInt()
-		kotlin.check(flowinfo == 0) { "an IPv6 flow label has no Java form" }
-		return java.net.InetSocketAddress(address(ip, v6, scope), port)
-	}
+	/** Whether it is IPv6, then the address of its family. */
+	fun socketAddr(): SocketAddr = if (bool()) socketAddrV6() else socketAddrV4()
 
-	fun ipAddr(): java.net.InetAddress {
-		val ip = ByteArray(16)
-		b.get(ip)
-		return address(ip, bool(), 0)
-	}
+	fun socketAddrV4(): SocketAddrV4 = SocketAddrV4(ipv4Addr(), b.getShort().toUShort())
 
-	// Built as Inet6Address directly, as InetAddress would read an IPv4-mapped one as IPv4.
-	private fun address(ip: ByteArray, v6: Boolean, scope: Int): java.net.InetAddress = when {
-		!v6 -> java.net.InetAddress.getByAddress(ip.copyOf(4))
-		scope == 0 -> java.net.Inet6Address.getByAddress(null, ip, null as java.net.NetworkInterface?)
-		else -> java.net.Inet6Address.getByAddress(null, ip, scope)
-	}
+	fun socketAddrV6(): SocketAddrV6 = SocketAddrV6(ipv6Addr(), b.getShort().toUShort(), b.getInt().toUInt(), b.getInt().toUInt())
+
+	/** Whether it is IPv6, then the address of its family. */
+	fun ipAddr(): IpAddr = if (bool()) ipv6Addr() else ipv4Addr()
+
+	/** Its octets, the first highest. */
+	fun ipv4Addr(): Ipv4Addr = Ipv4Addr(java.lang.Integer.reverseBytes(b.getInt()).toUInt())
+
+	fun ipv6Addr(): Ipv6Addr = Ipv6Addr(java.lang.Long.reverseBytes(b.getLong()), java.lang.Long.reverseBytes(b.getLong()))
 
 	fun u128(): java.math.BigInteger {
 		val lo = b.getLong()
@@ -351,13 +366,29 @@ class __Reader(private val b: java.nio.ByteBuffer) {
 		return java.math.BigInteger(1, java.nio.ByteBuffer.allocate(16).putLong(hi).putLong(lo).array())
 	}
 
-	fun duration(): kotlin.time.Duration {
-		val secs = b.getLong()
-		val nanos = b.getInt()
-		// Past Long.MAX_VALUE seconds, as no Kotlin Duration but its infinite one holds.
-		if (secs < 0) return kotlin.time.Duration.INFINITE
-		return secs.toDuration(kotlin.time.DurationUnit.SECONDS) + nanos.toDuration(kotlin.time.DurationUnit.NANOSECONDS)
-	}
+	fun duration(): Duration = Duration(b.getLong().toULong(), b.getInt().toUInt())
+}
+
+/** The most a `usize` holds on the library's target, whose `isize` holds half. */
+private val USIZE_MAX: ULong = __usize_max().toULong()
+
+/** A `usize` as JNI passes it, throwing past the library's target's, which may be 32-bit. */
+fun __usize(v: ULong): Long {
+	if (v > USIZE_MAX) throw __Invalid("$v is out of range for this target's usize")
+	return v.toLong()
+}
+
+/** An `isize`, throwing past the library's target's, which may be 32-bit. */
+fun __isize(v: Long): Long {
+	val max = (USIZE_MAX shr 1).toLong()
+	if (v > max || v < -max - 1) throw __Invalid("$v is out of range for this target's isize")
+	return v
+}
+
+/** A `char` as JNI passes it, throwing unless [v] is a Unicode scalar value, as every Rust `char` is. */
+fun __char(v: Int): Int {
+	if (v.toUInt() > 0x10ffffu || v ushr 11 == 0x1b) throw __Invalid("$v is no Unicode scalar value, as a Rust char is")
+	return v
 }
 
 /**
@@ -570,7 +601,7 @@ const val LENT = -2
 /** What precedes the place of Kotlin's array of bytes in a writer's `refs`, where an encoded one's length would. */
 const val KOTLIN = -3
 
-/** What precedes the place of Kotlin's text in a writer's `refs`, where an encoded one's length would. */
+/** What marks Kotlin's text, which a writer's `refs` holds, where an encoded one's length would. */
 const val TEXT = -4
 
 /** Bytes a call returned: copied, lent by the owner and length a `LongArray` holds, or null for none. */
