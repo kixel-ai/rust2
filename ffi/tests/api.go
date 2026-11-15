@@ -17,6 +17,7 @@ import (
 	"net/netip"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -491,6 +492,23 @@ func script() {
 	fmt.Printf("extent %d %d %d %d %d\n", old, extent.StartGet(), extent.End(), extentStart.StartGet(), extentStart.End())
 	weighted := api.Weighted{Score: step, Weight: 4}
 	fmt.Printf("weighted %d %d\n", weighted.Total(), weighted.Score.Count()+step.Count())
+	// A checked mark beside bytes in a tuple and in a record lent, and bytes beside a move.
+	mark := api.MarkOf(1)
+	ok(mark.Add(2))
+	parcel := api.Parcel{Mark: mark, Payload: rt.NewBytes([]byte("abc"))}
+	hefted := api.NewCounter("w", 1)
+	fmt.Printf("heft %d\n", must(api.Heft(rt.Tuple2[*api.Mark, rt.Bytes]{V0: mark, V1: rt.NewBytes([]byte("ab"))}, parcel, rt.Tuple2[*api.Counter, rt.Bytes]{V0: hefted, V1: rt.NewBytes([]byte("abcd"))})))
+	hefted.Close()
+	// A value's `&mut self` beside a checked handle.
+	noted := api.ScoreOf(2)
+	notedBy := api.MarkOf(5)
+	notedBefore := must(noted.Note(notedBy))
+	fmt.Printf("noted %d %d\n", notedBefore, noted.Count())
+	notedBy.Close()
+	// Refused over a closed mark, the call writes nothing back.
+	_, refused := noted.Note(notedBy)
+	check(refused != nil && noted.Count() == 7, "a refused note leaves the score as it was")
+	mark.Close()
 
 	// Rust frees the implementation once it drops it, releasing Go's.
 	fmt.Printf("kept %d\n", api.Emit(printLog{}, rt.NewBytes([]byte{1, 2, 3, 4})))
@@ -688,9 +706,9 @@ func script() {
 		return escaped(*p)
 	}), ",", ""), "[]"))
 	// A path that is no UTF-8 is a Go string all the same.
-	check(api.Stray() == "\xff", "a path that is not UTF-8 crosses as its bytes")
+	check(must(api.Stray()) == "\xff", "a path that is not UTF-8 crosses as its bytes")
 	var lent string
-	api.VisitStray(func(path string) { lent = path })
+	ok(api.VisitStray(func(path string) { lent = path }))
 	check(lent == "\xff", "a path Rust lends that is not UTF-8 crosses as its bytes")
 	// An error Rust returns only boxed is its type.
 	_, err = api.Refuse("why")
@@ -918,6 +936,26 @@ func script() {
 	renewed := api.Reissue(seven, func(t api.Ticket) api.Ticket { return api.NewTicket(t.Number() + 1) })
 	copied := api.Reissue(seven, func(api.Ticket) api.Ticket { return nine })
 	fmt.Printf("reissued %d %d, cloned %d\n", renewed.Number(), copied.Number(), api.TicketClones())
+	// A record's traits borrow the checked handle it holds.
+	nines := api.MarkOf(9)
+	front, back := must(api.NewSeat(nines, 1)), must(api.NewSeat(nines, 2))
+	fmt.Printf("seat %s %t %t\n", front.GoString(), must(front.Equal(front)), must(front.Equal(back)))
+	// The packages serve wasm32 too: the traits of a type only wasm32 has fail on the host's
+	// library as its functions do.
+	{
+		_, err := api.PageDefault()
+		check(errors.Is(err, errors.ErrUnsupported), "a Default off the target is unsupported")
+		_, err = api.Page{Size: 1}.Equal(api.Page{Size: 1})
+		check(errors.Is(err, errors.ErrUnsupported), "an Equal off the target is unsupported")
+		booth := api.Booth{Mark: nines}
+		_, err = booth.Equal(booth)
+		check(errors.Is(err, errors.ErrUnsupported), "a checked Equal off the target is unsupported")
+		check(
+			booth.GoString() == "api_Booth_debug: it is not on this library's target",
+			"a GoString off the target reads as its error",
+		)
+	}
+	check(nines.Close() == nil, "a mark closes")
 	// A kept closure, called on another thread after the call that took it returned.
 	spawned := api.NewSpawned(func() uint32 { return 7 })
 	fmt.Printf("spawned %d\n", must(spawned.Join()))
@@ -1177,7 +1215,8 @@ func futures() {
 		check(errors.Is(err, context.DeadlineExceeded), "a receive past its deadline returns its error")
 	}
 
-	// A handle closed while a call waits on it stays alive until the call ends.
+	// Closing a handle a call waiting on it borrows fails, as Rust refuses a drop under a
+	// borrow, and changes nothing: the call ends as it would, and then Close passes.
 	{
 		other := api.NewChannel()
 		watching := watch(ctx)
@@ -1185,9 +1224,13 @@ func futures() {
 		go func() { got <- string(must(other.Recv(watching)).Copy()) }()
 		<-watching.waiting
 		sender := must(other.Clone())
-		other.Close()
+		err := other.Close()
+		check(errors.Is(err, rt.ErrBorrowed) && err.Error() == "api_Channel_drop: a handle is already borrowed", "Close under a waiting call fails")
 		sender.Send(rt.NewBytes([]byte("held")))
-		check(<-got == "held", "a closed handle stays alive in the call waiting on it")
+		check(<-got == "held", "the waiting call ends as it would")
+		check(other.Close() == nil, "Close passes once no call borrows it")
+		_, err = other.Recv(ctx)
+		check(errors.Is(err, rt.ErrClosed) && err.Error() == "Channel is closed", "a call after Close fails")
 		sender.Close()
 	}
 
@@ -1407,30 +1450,28 @@ func closed() {
 		f()
 		return nil
 	}
-	isClosed := func(err error, name, what string) {
-		check(errors.Is(err, rt.ErrClosed) && err.Error() == name+" is closed", what)
+	isClosed := func(err error, want, what string) {
+		check(errors.Is(err, rt.ErrClosed) && err.Error() == want, fmt.Sprintf("%s: %v", what, err))
 	}
-
 	// A method, a trait's, and a field's accessors.
 	c := api.NewCounter("c", 1)
-	c.Close()
-	c.Close()
+	check(c.Close() == nil && c.Close() == nil, "Close, then again, passes")
 	_, err := c.Get()
-	isClosed(err, "Counter", "a method of a closed object")
+	isClosed(err, "Counter is closed", "a method of a closed object")
 	_, err = c.Clone()
-	isClosed(err, "Counter", "Clone of a closed object")
+	isClosed(err, "Counter is closed", "Clone of a closed object")
 	check(c.GoString() == "Counter is closed", "GoString of a closed object is the error")
 	tally := api.NewTally()
 	tally.Close()
 	_, err = api.NewTally().Equal(tally)
-	isClosed(err, "Tally", "Equal with a closed object")
+	isClosed(err, "Tally is closed", "Equal with a closed object")
 	registry := must(api.NewRegistry(api.NewCounter("first", 1)))
 	registry.Close()
 	_, err = registry.FirstGet()
-	isClosed(err, "Registry", "a field's getter of a closed object")
+	isClosed(err, "Registry is closed", "a field's getter of a closed object")
 	// A call that fails moves nothing in.
 	second := api.NewCounter("second", 2)
-	isClosed(registry.FirstSet(second), "Registry", "a field's setter of a closed object")
+	isClosed(registry.FirstSet(second), "Registry is closed", "a field's setter of a closed object")
 	check(must(second.Get()) == 2, "a failed call leaves what it would move")
 
 	// A record's method, whose receiver holds a value only Rust makes: Go's zero value of
@@ -1441,40 +1482,58 @@ func closed() {
 
 	// An argument, alone, or nested where the call holds it through its arena.
 	_, err = api.BumpBoth(api.NewTally(), tally)
-	isClosed(err, "Tally", "a closed argument")
+	isClosed(err, "Tally is closed", "a closed argument")
 	open := api.NewCounter("open", 3)
 	_, err = api.Worth(&[]*api.Counter{open, c}, nil)
-	isClosed(err, "Counter", "a closed object in a list")
+	isClosed(err, "Counter is closed", "a closed object in a list")
 	check(must(open.Get()) == 3, "a failed call leaves the rest of a list")
 
 	// An async call.
 	channel := api.NewChannel()
 	channel.Close()
 	_, err = channel.Recv(ctx)
-	isClosed(err, "Channel", "an async call of a closed object")
+	isClosed(err, "Channel is closed", "an async call of a closed object")
 
-	// Closed by a call that moved it, plain or boxed, or once the callback it was lent to
-	// returned.
-	moved := api.NewCounter("m", 0)
-	must(moved.IntoLabel(nil))
-	_, err = moved.Get()
-	isClosed(err, "Counter", "a method of a moved object")
+	// Moved by a call, plain or boxed, or closed once the callback it was lent to returned.
+	taken := api.NewCounter("m", 0)
+	must(taken.IntoLabel(nil))
+	_, err = taken.Get()
+	isClosed(err, "Counter is closed", "a method of a moved object")
 	tail := must(api.NewNode(1, nil))
 	must(api.NewNode(2, tail))
 	_, err = tail.Sum()
-	isClosed(err, "Node", "a method of a boxed moved object")
+	isClosed(err, "Node is closed", "a method of a boxed moved object")
 	var kept *api.Counter
 	must(must(api.NewRegistry(api.NewCounter("c", 0))).Edit(func(counter *api.Counter) bool {
 		kept = counter
 		return false
 	}))
 	_, err = kept.Get()
-	isClosed(err, "Counter", "a method of a lent object kept past its callback")
+	isClosed(err, "Counter is closed", "a method of a lent object kept past its callback")
 
-	// Close racing calls on other goroutines: each call either runs, holding the handle
-	// so Rust's value outlives it, or returns ErrClosed; Rust's is dropped once.
+	// Close racing calls on other goroutines, of a value Go counts and of one Rust checks.
+	latch := api.LatchDefault()
+	must(latch.Set(5))
+	race(latch, func() (bool, error) {
+		v, err := latch.Get()
+		return err == nil && *v == 5, err
+	}, []string{"Latch is closed"}, "Latch: a handle is already borrowed")
 	before := api.Dropped()
 	token := api.NewToken(5)
+	race(token, func() (bool, error) {
+		id, err := token.IdGet()
+		return id == 5, err
+	}, []string{"Token is closed", "api_Token_id_get: a handle's value was moved out"}, "api_Token_drop: a handle is already borrowed")
+	check(api.Dropped() == before+1, "Close racing calls drops Rust's value once")
+	fmt.Println("closed ok")
+}
+
+// race closes c while 8 goroutines call call on it: each call runs on the live value or,
+// once c is closed, fails with one of closed, which for a value Rust checks includes its
+// moved check, met by a call that held the handle before Close; a Close a running call
+// beats fails with borrowed, as Rust refuses a drop under a borrow, and changes nothing, so
+// the next tries again.
+func race(c interface{ Close() error }, call func() (bool, error), closed []string, borrowed string) {
 	var wg sync.WaitGroup
 	var ran, failed atomic.Int64
 	for range 8 {
@@ -1482,13 +1541,13 @@ func closed() {
 		go func() {
 			defer wg.Done()
 			for {
-				id, err := token.IdGet()
+				live, err := call()
 				if err != nil {
-					isClosed(err, "Token", "a call racing Close")
+					check(errors.Is(err, rt.ErrClosed) && slices.Contains(closed, err.Error()), fmt.Sprintf("a call racing Close: %v", err))
 					failed.Add(1)
 					return
 				}
-				check(id == 5, "a call racing Close reads the live value")
+				check(live, "a call racing Close reads the live value")
 				ran.Add(1)
 			}
 		}()
@@ -1496,10 +1555,16 @@ func closed() {
 	for ran.Load() < 100 {
 		runtime.Gosched()
 	}
-	token.Close()
+	for {
+		err := c.Close()
+		if err == nil {
+			break
+		}
+		check(errors.Is(err, rt.ErrBorrowed) && err.Error() == borrowed, fmt.Sprintf("Close racing a call: %v", err))
+	}
 	wg.Wait()
-	check(failed.Load() == 8 && api.Dropped() == before+1, "Close racing calls drops Rust's value once")
-	fmt.Println("closed ok")
+	check(failed.Load() == 8, "every call after Close fails")
+	check(c.Close() == nil, "Close again passes")
 }
 
 // bytes checks that Bytes Rust returns read Rust's buffer in place, kept alive by any view
@@ -1628,15 +1693,19 @@ func batched() []rt.Bytes {
 // broken breaks a contract, which must fail with a message naming it.
 func broken(which string) {
 	switch which {
+	// A failed check returns an error, which the case raises once it checked its kind.
 	case "outlived":
 		meters := api.NewMeters()
 		first := must(meters.First())
 		ok(meters.Clear())
-		_ = must(first.Count())
+		_, err := first.Count()
+		check(errors.Is(err, rt.ErrClosed), "a handle that outlived its lender is closed")
+		panic(err)
 	case "lent moved":
 		must(api.NewRegistry(api.NewCounter("c", 0))).Edit(func(counter *api.Counter) bool {
-			counter.IntoLabel(nil)
-			return false
+			_, err := counter.IntoLabel(nil)
+			check(errors.Is(err, rt.ErrBorrowed), "a lent handle moved out is borrowed")
+			panic(err)
 		})
 	// An IPv6 address where Rust takes `SocketAddrV4`.
 	case "family":
@@ -1652,7 +1721,9 @@ func broken(which string) {
 		api.Extended(math.MaxInt64, 1)
 	// The packages serve wasm32 too, whose items the host's library lacks.
 	case "target":
-		api.WasmOnly()
+		_, err := api.WasmOnly()
+		check(errors.Is(err, errors.ErrUnsupported), "an item off the target is unsupported")
+		panic(err)
 	case "variant":
 		api.PointerBits(api.PlatformWasm{Bits: 32})
 	case "plain variant":

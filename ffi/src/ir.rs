@@ -35,6 +35,28 @@ pub struct Reached {
 }
 
 impl Api {
+	/// Each object whose handle a call borrows or moves as it lifts a value of `ty`, into
+	/// `out`: its own, and those its records and enums hold. `seen` holds the records and
+	/// enums already walked, as `(is_enum, index)`.
+	pub fn handles(&self, ty: &Type, out: &mut Vec<usize>, seen: &mut Vec<(bool, usize)>) {
+		match ty {
+			Type::Object(i) => out.push(*i),
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => {
+				self.handles(inner, out, seen)
+			}
+			Type::Tuple(elements) => elements.iter().for_each(|ty| self.handles(ty, out, seen)),
+			Type::Record(i) if !seen.contains(&(false, *i)) => {
+				seen.push((false, *i));
+				(self.records[*i].fields.iter()).for_each(|f| self.handles(&f.ty, out, seen));
+			}
+			Type::Enum(i) if !seen.contains(&(true, *i)) => {
+				seen.push((true, *i));
+				(self.enums[*i].variants.iter().flat_map(|v| &v.fields)).for_each(|f| self.handles(&f.ty, out, seen));
+			}
+			_ => {}
+		}
+	}
+
 	/// Whether a value of `ty` holds a float anywhere, its records' and enums' included, so a
 	/// language comparing it itself must use IEEE `==`, as Rust does: NaN unequal even to
 	/// itself, and -0.0 equal to 0.0.

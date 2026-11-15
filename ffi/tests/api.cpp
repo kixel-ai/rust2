@@ -638,6 +638,16 @@ int script() {
 			ull(extent_start.start_get()), ull(extent_start.end()));
 		api::Weighted weighted{step, 4};
 		std::printf("weighted %llu %llu\n", ull(weighted.total()), ull(weighted.score.count() + step.count()));
+		// A checked mark beside bytes in a tuple and in a record lent, and bytes beside a move.
+		api::Mark mark = api::Mark::of(1);
+		mark.add(2);
+		api::Parcel parcel{mark.clone(), api::buf("abc")};
+		std::printf("heft %llu\n", ull(api::heft(std::make_tuple(mark.clone(), api::view("ab")), parcel,
+										 std::make_tuple(api::Counter::new_("w", 1), api::view("abcd")))));
+		// A value's `&mut self` beside a checked handle.
+		api::Score noted = api::Score::of(2);
+		std::uint64_t noted_before = noted.note(api::Mark::of(5));
+		std::printf("noted %llu %llu\n", ull(noted_before), ull(noted.count()));
 	}
 
 	std::uint8_t levels[] = {1, 2, 3, 4};
@@ -1296,6 +1306,12 @@ int script() {
 		std::uint32_t held = api::reissue(api::Ticket::new_(7), [&kept](const api::Ticket &) { return kept; }).number();
 		std::printf("reissued %u %u, cloned %u\n", static_cast<unsigned>(given), static_cast<unsigned>(held),
 			static_cast<unsigned>(api::Ticket::clones()));
+		// A record's traits borrow the checked handle it holds.
+		api::Mark nine = api::Mark::of(9);
+		api::Seat front = api::seat(nine, 1);
+		api::Seat back = api::seat(nine, 2);
+		print("seat ", front.debug(), "");
+		std::printf(" %s %s\n", front == front ? "true" : "false", front == back ? "true" : "false");
 	}
 	{
 		// `Copy` objects with no C++ copy, beside bytes: a returned vector moves back in,

@@ -32,7 +32,7 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   ones ([lossless](/quest/m1/ffi-export/lossless.md)). Rejected: idiomatic types whose
   truncations and aborts become errors; today's mappings.
 - ✅ A failed run-time check raises the language's own error, and a Rust panic aborts
-  ([checks-raise](/quest/m1/ffi-export/checks-raise.md)). Rejected: catching panics at the
+  ([#730](https://github.com/kixel-ai/rust2/pull/730)). Rejected: catching panics at the
   boundary; aborting on every failed check.
 - ✅ A type or future that is not `Send` exports, checked by thread
   ([not-send](/quest/m1/ffi-export/not-send.md)). Rejected: a Rust-owned thread for every

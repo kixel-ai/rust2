@@ -118,6 +118,18 @@ public struct U128: Hashable, Comparable, Sendable, CustomStringConvertible {
 	}
 }
 
+/// A call Rust's rules refuse, thrown before any Rust runs: a handle borrowed in a way
+/// the borrow checker forbids beside another call's, used once its value moved out or its
+/// lend ended, or an item called on a library whose target lacks it.
+public struct CheckError: Swift.Error, CustomStringConvertible, Sendable {
+	/// The function called, by its C name.
+	public let function: Swift.String
+	/// What broke.
+	public let message: Swift.String
+
+	public var description: Swift.String { "\(function): \(message)" }
+}
+
 /// Where a seek counts its offset from, as swift-system's `FileDescriptor.SeekOrigin` and
 /// Rust's `SeekFrom` do.
 public enum SeekOrigin: Sendable {
@@ -537,14 +549,22 @@ extension Native {
 		}
 
 		func hold() -> OpaquePointer? {
+			guard held() else {
+				fatalError("\(type) is closed")
+			}
+			return raw
+		}
+
+		/// Hold it for a call, unless it is closed.
+		func held() -> Bool {
 			var n = load(state)
 			while true {
 				if n & Handle.closed != 0 {
-					fatalError("\(type) is closed")
+					return false
 				}
 				let seen = swap(state, n, n + Handle.held)
 				if seen == n {
-					return raw
+					return true
 				}
 				n = seen
 			}
@@ -560,6 +580,17 @@ extension Native {
 		@inline(__always)
 		func with<R: ~Copyable>(_ body: (OpaquePointer?) throws -> R) rethrows -> R {
 			let raw = hold()
+			defer { release() }
+			return try body(raw)
+		}
+
+		/// Run `body` with the raw handle, held until it returns, or throw for a call of
+		/// `what` if it is closed.
+		@inline(__always)
+		func with<R: ~Copyable>(_ what: StaticString, _ body: (OpaquePointer?) throws -> R) throws -> R {
+			guard held() else {
+				throw CheckError(function: "\(what)", message: "\(type) is closed")
+			}
 			defer { release() }
 			return try body(raw)
 		}
@@ -602,11 +633,29 @@ extension Native {
 		return try handle.with(body)
 	}
 
-	/// What a call lowers nested values into, kept until it returns: copied bytes, arrays,
-	/// and the handles it holds.
+	/// As `with`, throwing for a call of `what` if `handle` is closed.
+	@inline(__always)
+	static func with<R: ~Copyable>(
+		_ what: StaticString, _ handle: Handle?, _ body: (OpaquePointer?) throws -> R
+	) throws -> R {
+		guard let handle else { return try body(nil) }
+		return try handle.with(what, body)
+	}
+
+	/// What a call of `what` lowers nested values into, kept until it returns: copied
+	/// bytes, arrays, and the handles it holds.
 	final class Arena {
 		private var blocks: [UnsafeMutableRawPointer] = []
 		private var held: [Handle] = []
+		/// Each buffer given Rust to take, which the call frees unless it reached C.
+		private var given: [Buf] = []
+		private var reached = false
+		private let what: StaticString
+
+		init(_ what: StaticString) {
+			self.what = what
+		}
+
 		/// Whether bytes lowered now are passed by value, which Rust takes: set once the
 		/// receiver, which Rust only reads, is lowered, and unset inside an array.
 		var take = false
@@ -626,8 +675,8 @@ extension Native {
 		func buf(_ bytes: Bytes) -> Buf {
 			bytes.storage.withUnsafeBytes { raw in
 				guard take else { return copy(raw) }
-				if let owner = bytes.owner, raw.count > 0 { return owner.share(raw) }
-				return Native.copy(view(raw))
+				if let owner = bytes.owner, raw.count > 0 { return give(owner.share(raw)) }
+				return give(Native.copy(view(raw)))
 			}
 		}
 
@@ -635,8 +684,21 @@ extension Native {
 			var text = text
 			return text.withUTF8 { utf8 in
 				guard take else { return copy(UnsafeRawBufferPointer(utf8)) }
-				return Native.copy(view(UnsafeRawBufferPointer(utf8)))
+				return give(Native.copy(view(UnsafeRawBufferPointer(utf8))))
 			}
+		}
+
+		private func give(_ buf: Buf) -> Buf {
+			given.append(buf)
+			return buf
+		}
+
+		/// `result`, what the call's C function returned: it ran, so Rust owns every buffer
+		/// given, taken or freed as the call was refused.
+		@inline(__always)
+		func ran<T>(_ result: T) -> T {
+			reached = true
+			return result
 		}
 
 		func buf(_ bytes: Bytes?) -> Buf {
@@ -647,6 +709,7 @@ extension Native {
 			text.map { buf($0) } ?? none
 		}
 
+		/// The handle of a `Copy` object, which nothing closes, held until the call returns.
 		func hold(_ handle: Handle) -> OpaquePointer? {
 			let raw = handle.hold()
 			held.append(handle)
@@ -655,6 +718,20 @@ extension Native {
 
 		func hold(_ handle: Handle?) -> OpaquePointer? {
 			handle.map { hold($0) } ?? nil
+		}
+
+		/// The handle of an object a move may have closed, held until the call returns, or
+		/// a throw for the call if it is closed.
+		func held(_ handle: Handle) throws -> OpaquePointer? {
+			guard handle.held() else {
+				throw CheckError(function: "\(what)", message: "\(handle.type) is closed")
+			}
+			held.append(handle)
+			return handle.raw
+		}
+
+		func held(_ handle: Handle?) throws -> OpaquePointer? {
+			try handle.map { try held($0) } ?? nil
 		}
 
 		/// `items` as a C array, each lowered by `lower`: never null, so an empty one is
@@ -696,10 +773,16 @@ extension Native {
 			return (UnsafePointer(array), items.count)
 		}
 
-		/// Release what the call held, once it returns.
+		/// Release what the call held, once it returns, and, if a lowering threw before the
+		/// call reached C, each buffer given Rust.
 		func finish() {
 			for handle in held {
 				handle.release()
+			}
+			if !reached {
+				for buf in given {
+					Native.free(buf)
+				}
 			}
 			for block in blocks {
 				block.deallocate()
