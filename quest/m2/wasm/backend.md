@@ -42,8 +42,8 @@ measurement on [the benchmark](/quest/m2/wasm/routes.md):
 - A handle is an integer in an object whose only method is `[Symbol.dispose]`, and a
   `FinalizationRegistry` frees one never disposed, as the other languages' garbage
   collectors do. Measure a returned object with and without the registry: the same
-  pattern is what [object ownership](/quest/m1/ffi-speed/object-ownership.md) found
-  costing ten times a C return in Go and Dart.
+  pattern cost ten times a C return in Go and Dart until kixel-ai/rust2#838 registered
+  only the objects left open past 64 later returns.
 - A future is a `Promise`: the binding polls once at the call, and an imported `wake`
   schedules the next poll on a microtask, never inside the wake. Cancelling frees the
   future and loses nothing. JSPI is not needed, since no Rust code blocks on JS.
