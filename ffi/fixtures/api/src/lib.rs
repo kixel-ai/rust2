@@ -4091,6 +4091,9 @@ impl Key {
 	/// Its hash by std's hasher, which a binding's own of it must equal, as both hash
 	/// through Rust's `Hash` alike.
 	pub fn hash_of(&self) -> u64 {
-		std::hash::BuildHasher::hash_one(&std::hash::BuildHasherDefault::<std::hash::DefaultHasher>::default(), self)
+		std::hash::BuildHasher::hash_one(
+			&std::hash::BuildHasherDefault::<std::hash::DefaultHasher>::default(),
+			self,
+		)
 	}
 }

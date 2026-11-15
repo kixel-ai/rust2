@@ -908,7 +908,11 @@ fn main() {
 		api::same_u64(u64::MAX)
 	);
 	println!("lossless usize {} {}", api::same_usize(0), api::same_usize(usize::MAX));
-	println!("lossless isize {} {}", api::same_isize(isize::MIN), api::same_isize(isize::MAX));
+	println!(
+		"lossless isize {} {}",
+		api::same_isize(isize::MIN),
+		api::same_isize(isize::MAX)
+	);
 	println!(
 		"lossless u128 {:032x} {:032x} {:032x}",
 		api::same_u128(0),
@@ -952,7 +956,9 @@ fn main() {
 	println!(
 		"lossless ip {} {}",
 		ip_hex(api::same_ip_addr(std::net::Ipv4Addr::BROADCAST.into())),
-		ip_hex(api::same_ip_addr(std::net::Ipv6Addr::new(0xffff, 0, 0, 0, 0, 0, 0, 1).into()))
+		ip_hex(api::same_ip_addr(
+			std::net::Ipv6Addr::new(0xffff, 0, 0, 0, 0, 0, 0, 1).into()
+		))
 	);
 
 	// Standard and common types: serde_json's map iterator, std's instant, and tracing's

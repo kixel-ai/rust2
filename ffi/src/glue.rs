@@ -2100,7 +2100,9 @@ impl Gen<'_> {
 						_ => ("hold_path", "v.path()"),
 					};
 					(
-						format!("let {local} = if {c}.is_none() {{ None }} else {{ Some(unsafe {{ {c}.{hold}(w) }}) }};"),
+						format!(
+							"let {local} = if {c}.is_none() {{ None }} else {{ Some(unsafe {{ {c}.{hold}(w) }}) }};"
+						),
 						format!("{local}.as_ref().map(|v| {view})"),
 					)
 				}
