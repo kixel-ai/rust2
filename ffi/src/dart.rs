@@ -1539,7 +1539,12 @@ impl<'a> Gen<'a> {
 				},
 				false => c_ty.clone(),
 			};
-			let f = self.served_fn(&format!("{c}_default"), vec![], ret);
+			// A value that is not `Send` is made on a home, which its calls then run on.
+			let homed = match ty {
+				Type::Object(i) if !self.abi.api.objects[*i].send => "_homed",
+				_ => "",
+			};
+			let f = self.served_fn(&format!("{c}_default{homed}"), vec![], ret);
 			let value = match object {
 				true => format!("{name}._({f}(_n.home))"),
 				false => self.lift(ty, &format!("{f}(_n.home)")),
@@ -2075,7 +2080,9 @@ impl<'a> Gen<'a> {
 				self.handed.insert(export.call.name.clone(), handed);
 				(Some(back), export)
 			}
-			None => (None, abi.export(function, owner)),
+			// Called by a twin that runs it on a home, if it makes a value that is not `Send`
+			// from none, as an isolate moves between threads.
+			None => (None, abi.export(function, owner).on_home()),
 		};
 		let function = handed.as_ref().unwrap_or(function);
 		let c_name = export.call.name.clone();
@@ -2242,12 +2249,30 @@ impl<'a> Gen<'a> {
 			let mut poll_args = vec!["_n.home".to_string(), "f".to_string(), "w".to_string()];
 			let poll_fn = self.served(poll);
 			let free_fn = self.served(free);
-			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
+			let poll_outs: Vec<(String, Ty)> = poll.params[2..]
+				.iter()
+				.filter(|(_, ty)| !abi::is_status(ty))
+				.cloned()
+				.collect();
 			let mut stmts: Vec<String> = Vec::new();
 			for (n, ty) in &poll_outs {
 				stmts.push(self.out_decl(n, ty));
 				poll_args.push(format!("o_{n}"));
 			}
+			// A future that is not `Send` lives on a home, which polls it, so its check fails
+			// only for one a callback made elsewhere.
+			let polled = match poll.status() {
+				Some(_) => {
+					stmts.push("final s_ = _n.status;".to_string());
+					poll_args.push("s_".to_string());
+					format!(
+						"final p_ = {poll_fn}({});\n\t\t_status(s_.value, '{}');\n\t\tswitch (p_) {{",
+						poll_args.join(", "),
+						poll.name
+					)
+				}
+				None => format!("switch ({poll_fn}({})) {{", poll_args.join(", ")),
+			};
 			let ready = match ok {
 				Type::Unit => "null".to_string(),
 				_ => self.lift_outs(&function.ok, &ok),
@@ -2265,9 +2290,8 @@ impl<'a> Gen<'a> {
 			self.helpers.insert(
 				poll_name.clone(),
 				format!(
-					"bool {poll_name}(ffi.Pointer<ffi.Void> f, _Waker w, _Call<{ok_dt}> c) {{\n\tfinal a_ = _n.stack;\n\tfinal m_ = a_.mark();\n\ttry {{\n\t\t{}\n\t\tswitch ({poll_fn}({})) {{\n{}\n\t\t\tdefault:\n\t\t\t\treturn false;\n\t\t}}\n\t}} finally {{\n\t\ta_.reset(m_);\n\t}}\n}}\n\n",
+					"bool {poll_name}(ffi.Pointer<ffi.Void> f, _Waker w, _Call<{ok_dt}> c) {{\n\tfinal a_ = _n.stack;\n\tfinal m_ = a_.mark();\n\ttry {{\n\t\t{}\n\t\t{polled}\n{}\n\t\t\tdefault:\n\t\t\t\treturn false;\n\t\t}}\n\t}} finally {{\n\t\ta_.reset(m_);\n\t}}\n}}\n\n",
 					stmts.join("\n\t\t"),
-					poll_args.join(", "),
 					cases.iter().map(|c| c.replace("\n\t\t", "\n\t\t\t").replacen("\t\tcase", "\t\t\tcase", 1)).collect::<Vec<_>>().join("\n")
 				),
 			);

@@ -2483,11 +2483,17 @@ impl<'a> Gen<'a> {
 		let value;
 		// The C call, with the out pointers after its arguments.
 		let status_arg = status.then(|| "&mut status".to_string());
+		// A future that is not `Send` made from none is made on a home, so a coroutine that
+		// resumes on another thread still polls it there.
+		let made = match (&export.future, export.homed_call()) {
+			(Some(_), Some(homed)) => homed.name,
+			_ => c_name.clone(),
+		};
 		let rust_call = |outs: &[String]| {
 			let args: Vec<String> = rust_args.iter().chain(outs).chain(&status_arg).cloned().collect();
 			let call = match &handed {
 				Some(h) => h.call(&args),
-				None => format!("crate::{c_name}({})", args.join(", ")),
+				None => format!("crate::{made}({})", args.join(", ")),
 			};
 			// An exception the Rust left pending, which the C function dropped its result
 			// for, is thrown once the native method returns with nothing else done.
@@ -2501,7 +2507,16 @@ impl<'a> Gen<'a> {
 			// else the future, which a native poll and free take.
 			let poll_bare = self.bare(&poll.name).to_string();
 			let free_bare = self.bare(&free.name).to_string();
-			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
+			// A future that is not `Send` takes a status its poll writes on another thread.
+			let ps = match poll.status() {
+				Some(_) => ", ps",
+				None => "",
+			};
+			let poll_outs: Vec<(String, Ty)> = poll.params[2..]
+				.iter()
+				.filter(|(_, ty)| *ty != Ty::Out(Box::new(Ty::Status)))
+				.cloned()
+				.collect();
 			let (decl, ptrs, write) = self.glue_outs(&poll_outs, &[], &function.ok, function.err.as_ref());
 			let ok_set = match function.err.is_some() {
 				true => "let ok = ret == 1;\n\t",
@@ -2509,7 +2524,7 @@ impl<'a> Gen<'a> {
 			};
 			let _ = write!(
 				self.glue,
-				"unsafe fn jni_{}(f: *mut c_void, waker: crate::rt::Waker, w: &mut rt::Writer) -> bool {{\n\tlet _ = &w;\n\tunsafe {{\n\t{decl}\n\tlet ret = crate::{}(f as _, waker{});\n\tif ret == 0 {{\n\t\treturn false;\n\t}}\n\t{ok_set}{write}\n\ttrue\n\t}}\n}}\n\nunsafe fn jni_{}(f: *mut c_void) {{\n\tunsafe {{ crate::{}(f as _) }}\n}}\n\n",
+				"unsafe fn jni_{}(f: *mut c_void, waker: crate::rt::Waker, w: &mut rt::Writer, ps: &mut i32) -> bool {{\n\tlet _ = (&w, &ps);\n\tunsafe {{\n\t{decl}\n\tlet ret = crate::{}(f as _, waker{}{ps});\n\tif ret == 0 {{\n\t\treturn false;\n\t}}\n\t{ok_set}{write}\n\ttrue\n\t}}\n}}\n\nunsafe fn jni_{}(f: *mut c_void) {{\n\tunsafe {{ crate::{}(f as _) }}\n}}\n\n",
 				poll.name,
 				poll.name,
 				ptrs.iter().map(|p| format!(", {p}")).collect::<String>(),
@@ -2540,10 +2555,10 @@ impl<'a> Gen<'a> {
 				);
 			}
 			self.native(&bare, &params, ("jobject", "Any?"), &format!(
-				"{}\n\t\tlet f = {};{check}\n\t\tlet w = rt::start(env, f.cast(), {p_signal}, jni_{}, jni_{});\n\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\tw.value(env, &FACTORY, c\"{start_factory}\", std::ptr::null_mut())",
-				rust_pre.join("\n\t\t"), rust_call(&[]), poll.name, free.name));
+				"{}\n\t\tlet f = {};{check}\n\t\tlet Some(w) = rt::start(env, f.cast(), {p_signal}, jni_{}, jni_{}, \"{}\") else {{ return std::ptr::null_mut() }};\n\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\tw.value(env, &FACTORY, c\"{start_factory}\", std::ptr::null_mut())",
+				rust_pre.join("\n\t\t"), rust_call(&[]), poll.name, free.name, poll.name));
 			self.native(&poll_bare, &[("jlong", "Long"), ("jlong", "Long")], ("jobject", "Any?"), &format!(
-				"match rt::poll(p0 as usize as _, p1 as usize as _, jni_{}) {{\n\t\t	Some(w) => {{\n\t\t\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\t\t\tw.value(env, &FACTORY, c\"{poll_factory}\", std::ptr::null_mut())\n\t\t\t}},\n\t\t\tNone => std::ptr::null_mut(),\n\t\t}}", poll.name));
+				"match rt::poll(env, p0 as usize as _, p1 as usize as _, jni_{}, \"{}\") {{\n\t\t	Some(w) => {{\n\t\t\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\t\t\tw.value(env, &FACTORY, c\"{poll_factory}\", std::ptr::null_mut())\n\t\t\t}},\n\t\t\tNone => std::ptr::null_mut(),\n\t\t}}", poll.name, poll.name));
 
 			self.native(
 				&free_bare,

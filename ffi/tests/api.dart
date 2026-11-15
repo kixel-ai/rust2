@@ -999,6 +999,27 @@ Future<void> futures() async {
   check(dropLog.closes == 1, 'a cancel closes the implementation its future held');
   await cancelled(dropping, 'a cancelled future that never finishes completes with Cancelled');
 
+  // A value that is not Send lives on a home, a thread Rust owns, which runs each call on
+  // it: the isolate's thread may change between turns of its event loop, and a call runs
+  // on a worker while Rust holds an implementation. A close drops it there.
+  final local = api.Local();
+  final shared = local.share();
+  local.bump();
+  check(shared.bump() == 2, 'a shared local counts together');
+  check(await local.later() == 3, "a local's future runs on its home");
+  check(await api.localLater(5) == 10, 'a future that is not Send runs on a home');
+  await step();
+  check(local.onOwnThread(), 'a call after a suspension runs on its home');
+  final relayLog = CountLog();
+  final relayed = api.logOnDrop(relayLog);
+  check(local.bump() == 4 && local.onOwnThread(), 'a call through the relay runs on its home');
+  relayed.cancel();
+  await cancelled(relayed, 'a cancelled future that held a relay completes with Cancelled');
+  final localsBefore = api.localsDropped();
+  local.close();
+  check(api.localsDropped() == localsBefore + 1, 'a closed local drops on its home');
+  shared.close();
+
   // A wake that lands while the future polls, before it returns pending, as each of
   // `yielded`'s does, is kept: the future polls again rather than waiting for a wake that
   // already happened.

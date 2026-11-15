@@ -1686,8 +1686,13 @@ impl<'a> Gen<'a> {
 		}
 		let default = t.default.then(|| {
 			let func = format!("{}Default", name.trim_start_matches('*'));
+			// A value that is not `Send` is made on a home, which its calls then run on.
+			let homed = match ty {
+				Type::Object(i) if !self.abi.api.objects[*i].send => "_homed",
+				_ => "",
+			};
 			let lift = match object {
-				true => format!("own_{c}(C.{c}_default())"),
+				true => format!("own_{c}(C.{c}_default{homed}())"),
 				false => format!("lift_{c}(C.{c}_default())"),
 			};
 			let (results, ok) = match limited {
@@ -2433,7 +2438,7 @@ impl<'a> Gen<'a> {
 	/// and a receiver, or else a function of the package.
 	fn function(&mut self, function: &Function, owner: Option<&Ty>, owner_ty: Option<&Type>) -> Method {
 		let abi = self.abi;
-		let export = abi.export(function, owner);
+		let export = abi.export(function, owner).on_home();
 		let c_name = export.call.name.clone();
 		let owner_c = match owner {
 			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.clone()),
@@ -2741,7 +2746,11 @@ impl<'a> Gen<'a> {
 			}
 			body.extend(decls);
 			let zeros: String = (0..oks.len()).map(|k| format!("r{k}_, ")).collect();
-			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
+			let poll_outs: Vec<(String, Ty)> = poll.params[2..]
+				.iter()
+				.filter(|(_, ty)| !abi::is_status(ty))
+				.cloned()
+				.collect();
 			let mut ready: Vec<String> = Vec::new();
 			for (k, ty) in oks.iter().enumerate() {
 				let out = out_name(&function.ok, k);
@@ -2760,11 +2769,26 @@ impl<'a> Gen<'a> {
 			let mut call_args = vec!["f_".to_string(), "w_".to_string()];
 			call_args.extend(ptrs.iter().cloned());
 			let mut polled = decls.clone();
-			polled.push(format!(
-				"switch C.{}({}) {{\n{cases}\n}}\nreturn false, nil",
-				poll.name,
-				call_args.join(", ")
-			));
+			match poll.status() {
+				// A future that is not `Send` lives on a home, which polls it, so its check
+				// fails only for one a callback made elsewhere.
+				Some(_) => {
+					let (call, value) = self.call_checked(poll, &call_args);
+					let error = format!(
+						"{}(int32(c_status_), \"{}\")",
+						self.qualify(Packages::RT, "Status_"),
+						poll.name
+					);
+					polled.push(format!(
+						"{call}\nif c_status_ != 0 {{\n\treturn true, {error}\n}}\nswitch {value} {{\n{cases}\n}}\nreturn false, nil"
+					));
+				}
+				None => polled.push(format!(
+					"switch C.{}({}) {{\n{cases}\n}}\nreturn false, nil",
+					poll.name,
+					call_args.join(", ")
+				)),
+			}
 			let polled = indent(&polled.join("\n"));
 			if function.eager {
 				// An eager call runs Rust, and any callback it makes, before its future

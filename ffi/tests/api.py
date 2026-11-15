@@ -892,6 +892,35 @@ def futures():
 	except api.StringException as e:
 		check(e.error == "malformed: ", "a future's borrowing error is its message")
 
+	# A value that is not Send stays on the thread that made it: a use elsewhere raises, and
+	# its future polls on its thread alone. Freed elsewhere, it drops there at its next call.
+	local = api.Local.new()
+	shared = local.share()
+	local.bump()
+	check(shared.bump() == 2, "a shared local counts together")
+	check(loop.run_until_complete(local.later()) == 3, "a local's future runs on its thread")
+	check(loop.run_until_complete(api.local_later(5)) == 10, "a future that is not Send runs on its thread")
+	raised = []
+
+	def elsewhere():
+		try:
+			local.bump()
+		except RuntimeError as e:
+			raised.append(str(e))
+
+	thread = threading.Thread(target=elsewhere)
+	thread.start()
+	thread.join()
+	check(raised == ["api_Local_bump: a value that is not Send is used on another thread than the one that made it"], "a local used elsewhere raises")
+	before = api.locals_dropped()
+	held = [local]
+	del local
+	thread = threading.Thread(target=held.clear)
+	thread.start()
+	thread.join()
+	check(api.locals_dropped() == before, "a local freed elsewhere waits for its thread")
+	check(shared.bump() == 4 and api.locals_dropped() == before + 1, "a local freed elsewhere drops on its thread")
+
 	# Cancelled between its wake and its poll, a receive loses nothing: the payload stays
 	# for the next.
 	called = False

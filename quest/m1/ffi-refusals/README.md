@@ -80,13 +80,13 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   (exported since by rules for another crate's value, a borrowing future of a function
   that is not `async`, and an object field that is not `Clone`), and
   what the excludes still hide at moq's main, exported since (`IpAddr` by its family, as
-  `SocketAddr` is) but for `server::Listener::accept_with`, which
-  [not-send](/quest/m1/ffi-export/not-send.md) owns;
+  `SocketAddr` is, and `server::Listener::accept_with` as its future need not be `Send`);
   `just ffi census` fails on an exclude that names what exports. The
-  bump is then only the bump. The types refused for not being `Send` (`clock::Entered`,
-  `clock::Rng`, `catalog::Guard`) clear with [not-send](/quest/m1/ffi-export/not-send.md).
+  bump is then only the bump. Of the types refused for not being `Send`, `clock::Entered`
+  and `clock::Rng` export since [#844](https://github.com/kixel-ai/rust2/pull/844), and `catalog::Guard` is left out, as
+  `Producer::modify` returns it borrowing its receiver mutably, which no handle may hold.
 - ✅ The closing work is a child, [no config](/quest/m1/ffi-refusals/no-config.md), as
   [the exporter epic's](/quest/m1/ffi-export/ship.md) is: an epic's `Required` would hold
-  back every child, and this epic's end needs not-send, which is another epic's.
+  back every child.
 
 Public API: the exporter's command line and the C API of every item that exports.

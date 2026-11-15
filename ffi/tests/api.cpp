@@ -1582,6 +1582,26 @@ int futures() {
 		check(got == 7, "a wake during the poll polls again");
 	}
 
+	// A value that is not Send stays on the thread that made it, whose executor polls its
+	// futures; destroyed on another thread, it drops on its own at its next call.
+	{
+		api::Local local = api::Local::new_();
+		api::Local shared = local.share();
+		local.bump();
+		check(shared.bump() == 2, "a shared local counts together");
+		std::uint32_t got = 0;
+		api::task later = local.later().then(q.executor(), [&](std::uint32_t value) { got = value; });
+		q.drain();
+		check(got == 3, "a local's future runs on its thread");
+		api::task doubled = api::local_later(5).then(q.executor(), [&](std::uint32_t value) { got = value; });
+		q.drain();
+		check(got == 10, "a future that is not Send runs on its thread");
+		std::uint32_t before = api::locals_dropped();
+		std::thread([&]() { api::Local gone = std::move(local); }).join();
+		check(api::locals_dropped() == before, "a local destroyed elsewhere waits for its thread");
+		check(shared.bump() == 4 && api::locals_dropped() == before + 1, "a local destroyed elsewhere drops on its thread");
+	}
+
 	// Cancelled between its wake and its poll, a receive loses nothing: the payload stays
 	// for the next.
 	{

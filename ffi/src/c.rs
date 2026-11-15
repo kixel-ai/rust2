@@ -283,6 +283,9 @@ impl Header<'_> {
 			}
 			if t.default {
 				self.line(format!("{name} *{name}_default(void);"));
+				if !object.send {
+					self.line(format!("{name} *{name}_default_homed(void);"));
+				}
 			}
 			let owner = Ty::Handle {
 				name: name.clone(),
@@ -532,14 +535,25 @@ impl Header<'_> {
 		if let Some(future) = &export.future {
 			let handle = &future.handle;
 			self.line(format!("typedef struct {handle} {handle};"));
-			for sig in [&export.call, &future.start, &future.poll, &future.free] {
-				let prototype = self.prototype(sig);
+			let homed = export.homed_call().into_iter().chain(export.homed_start());
+			for sig in [
+				export.call.clone(),
+				future.start.clone(),
+				future.poll.clone(),
+				future.free.clone(),
+			]
+			.into_iter()
+			.chain(homed)
+			{
+				let prototype = self.prototype(&sig);
 				self.line(prototype);
 			}
 			return;
 		}
-		let call = self.prototype(&export.call);
-		self.line(call);
+		for sig in std::iter::once(export.call.clone()).chain(export.homed_call()) {
+			let prototype = self.prototype(&sig);
+			self.line(prototype);
+		}
 	}
 }
 

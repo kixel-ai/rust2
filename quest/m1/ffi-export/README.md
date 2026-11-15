@@ -35,8 +35,8 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   ([#730](https://github.com/kixel-ai/rust2/pull/730)). Rejected: catching panics at the
   boundary; aborting on every failed check.
 - ✅ A type or future that is not `Send` exports, checked by thread
-  ([not-send](/quest/m1/ffi-export/not-send.md)). Rejected: a Rust-owned thread for every
-  such object; keeping the refusal.
+  ([#844](https://github.com/kixel-ai/rust2/pull/844)). Rejected: a Rust-owned thread for every such object; keeping the
+  refusal.
 - ✅ No opt-out: `#[doc(hidden)]` items stay left out, as they are no part of a crate's API,
   but no quest or PR recommends the attribute to get an item past the exporter, and moq
   bans it ([moq-dev/moq#8392](https://github.com/moq-dev/moq/pull/8392)).

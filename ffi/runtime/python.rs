@@ -401,14 +401,7 @@ impl Scope {
 			return Ok(());
 		}
 		self.given();
-		let message = format!("{what}: {}", rt::Status::text(status).to_string_lossy());
-		// A value moved out or outlived is as a closed one, and any other check is a misuse.
-		// SAFETY: static exception types.
-		let exc = match rt::Status::of(status) {
-			Some(rt::Status::Moved | rt::Status::Outlived) => unsafe { PyExc_ValueError },
-			_ => unsafe { PyExc_RuntimeError },
-		};
-		raise(exc, &message)
+		check_status(status, what)
 	}
 
 	/// Note that what the call was given is Rust's.
@@ -425,6 +418,21 @@ impl Scope {
 	pub fn take_held(&mut self) -> Vec<Obj> {
 		self.held.drain(..).collect()
 	}
+}
+
+/// Raise for `what` unless its `status` is zero, as [`Scope::status`] does: a poll's.
+pub fn check_status(status: i32, what: &str) -> R<()> {
+	if status == 0 {
+		return Ok(());
+	}
+	let message = format!("{what}: {}", rt::Status::text(status).to_string_lossy());
+	// A value moved out or outlived is as a closed one, and any other check is a misuse.
+	// SAFETY: static exception types.
+	let exc = match rt::Status::of(status) {
+		Some(rt::Status::Moved | rt::Status::Outlived) => unsafe { PyExc_ValueError },
+		_ => unsafe { PyExc_RuntimeError },
+	};
+	raise(exc, &message)
 }
 
 // Popping rather than draining, as each call drops a scope whose lists are mostly empty.

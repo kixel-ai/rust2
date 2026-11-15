@@ -22,6 +22,7 @@ use crate::ir::{
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
 const BORROW: &str = include_str!("../runtime/rt/borrow.rs");
+const THREAD: &str = include_str!("../runtime/rt/thread.rs");
 
 /// The crate's build script, which refuses to build for a target but `targets`, on which an
 /// item a target compiles would be missing, or one it leaves out left over, and tells the
@@ -396,6 +397,7 @@ impl Crate<'_> {
 		output.file(&out.join("build.rs"), &build(&self.abi.api.targets));
 		output.file(&out.join("src/rt.rs"), RUNTIME);
 		output.file(&out.join("src/rt/borrow.rs"), BORROW);
+		output.file(&out.join("src/rt/thread.rs"), THREAD);
 		output.file(&out.join("include").join(format!("{}.h", self.abi.prefix)), &header);
 		for (path, header) in &cpp.files {
 			output.file(&out.join("include").join(path), header);
@@ -768,9 +770,21 @@ impl Gen<'_> {
 		}
 	}
 
-	/// An object's Rust type: its lifetimes `'static`, as the handle holds it.
+	/// What an object's handle holds: its Rust type, with its lifetimes `'static`, wrapped
+	/// in `rt::Unsent` if it is not `Send`, which keeps it on its thread.
 	fn object_path(&self, i: usize) -> String {
-		self.rust(&Type::Object(i))
+		match self.abi.api.objects[i].send {
+			true => self.rust(&Type::Object(i)),
+			false => format!("rt::Unsent<{}>", self.rust(&Type::Object(i))),
+		}
+	}
+
+	/// A new handle owning `e`, a value of object `i`'s type.
+	fn new_object(&self, i: usize, e: &str) -> String {
+		match self.abi.api.objects[i].send {
+			true => format!("rt::Object::new({e})"),
+			false => format!("rt::Object::unsent({e})"),
+		}
 	}
 
 	/// The Rust spelling of a type a callback's method takes or returns, or a type
@@ -970,6 +984,7 @@ impl Gen<'_> {
 				match object.opaque {
 					Some(Held::Arc) => format!("{value}.arc(w)"),
 					Some(Held::Value) => format!("{value}.take(w)"),
+					None if !object.send => format!("rt::Unsent::into_inner({value})"),
 					None => value,
 				}
 			}
@@ -1005,7 +1020,9 @@ impl Gen<'_> {
 		// Each object the closure borrows, and how it is lent.
 		let lent = |ty: &Type| match ty {
 			Type::Ref(m, inner) => match (&**inner, m) {
+				(&Type::Object(i), Mutability::Mut) if !self.abi.api.objects[i].send => Some((i, "lend_mut_unsent")),
 				(&Type::Object(i), Mutability::Mut) => Some((i, "lend_mut")),
+				(&Type::Object(i), Mutability::Not) if !self.abi.api.objects[i].send => Some((i, "lend_unsent")),
 				(&Type::Object(i), Mutability::Not) if self.abi.api.objects[i].sync => Some((i, "lend")),
 				(&Type::Object(i), Mutability::Not) => Some((i, "lend_local")),
 				_ => None,
@@ -1143,7 +1160,11 @@ impl Gen<'_> {
 			Type::Ref(_, inner) => match &**inner {
 				Type::Str | Type::Slice | Type::Path => self.lower(inner, e),
 				Type::Object(i) if self.lends => {
-					format!("rt::Object::<{}>::lent({e}, lender)", self.object_path(*i))
+					let lent = match self.abi.api.objects[*i].send {
+						true => "lent",
+						false => "lent_unsent",
+					};
+					format!("rt::Object::<{}>::{lent}({e}, lender)", self.object_path(*i))
 				}
 				// A handle in the clone is a new handle, and a slice's clone a `Vec`.
 				inner => self.lower(inner, &format!("::std::borrow::ToOwned::to_owned({e})")),
@@ -1154,7 +1175,7 @@ impl Gen<'_> {
 				Held::Arc => format!("rt::Object::new(rt::Opaque::new({e}))"),
 				Held::Value => format!("rt::Object::new(rt::Owned::new({e}))"),
 			},
-			Type::Object(_) => format!("rt::Object::new({e})"),
+			Type::Object(i) => self.new_object(*i, e),
 			Type::Callback(..) | Type::Closure(..) => unreachable!("a callback is never returned"),
 			Type::Waker => format!("rt::Waker::lower({e})"),
 			Type::Future | Type::Reader | Type::Jni(_) => unreachable!("{ty:?} is never returned"),
@@ -1327,9 +1348,26 @@ impl Gen<'_> {
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: *const ::std::ffi::c_void) {{\n\tunsafe {{ rt::Object::<{path}>::free(this) }}\n}}\n"
 			));
+			// A call on a value that is not `Send` runs on its home, if it has one elsewhere.
+			let away = |name: &str, params: &[&str]| match object.send {
+				true => String::new(),
+				false => {
+					let params: Vec<String> = params.iter().map(|p| p.to_string()).collect();
+					away(
+						name,
+						&params,
+						&path,
+						params[0].split_once(": ").map_or("this", |(name, _)| name),
+					)
+				}
+			};
 			if self.abi.checked[i] {
+				let away = away(
+					&format!("{name}_drop"),
+					&["this: *const ::std::ffi::c_void", "status: *mut i32"],
+				);
 				self.export(format!(
-					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop(this: *const ::std::ffi::c_void, status: *mut i32) {{\n\tlet w = \"{name}_drop\";\n\tif let Err(s) = unsafe {{ rt::Object::<{path}>::close(this, w) }} {{\n\t\tunsafe {{ rt::failed::<()>(status, s, w) }}\n\t}}\n}}\n"
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_drop(this: *const ::std::ffi::c_void, status: *mut i32) {{\n\tlet w = \"{name}_drop\";\n\t{away}if let Err(s) = unsafe {{ rt::Object::<{path}>::close(this, w) }} {{\n\t\tunsafe {{ rt::failed::<()>(status, s, w) }}\n\t}}\n}}\n"
 				));
 			}
 			if object.shared {
@@ -1347,7 +1385,7 @@ impl Gen<'_> {
 			};
 			let borrowing: Vec<String> = ["this", "a", "b"].into_iter().map(borrowing).collect();
 			self.checking.set(false);
-			self.traits(&name, &path, object.traits, status, &borrowing);
+			self.traits(i, object.traits, status, &borrowing);
 			let owner = Ty::Handle {
 				name: name.clone(),
 				constant: false,
@@ -1361,58 +1399,87 @@ impl Gen<'_> {
 		}
 	}
 
-	/// The functions an object's std traits export, borrowing its handles `this`, `a`,
+	/// The functions object `i`'s std traits export, borrowing its handles `this`, `a`,
 	/// and `b` as `borrow` does, which takes `status` if a borrow can fail.
-	fn traits(&mut self, name: &str, path: &str, traits: Traits, status: Option<&str>, borrow: &[String]) {
+	fn traits(&mut self, i: usize, traits: Traits, status: Option<&str>, borrow: &[String]) {
+		let name = self.abi.object(i);
+		let holder = self.object_path(i);
+		let path = self.rust(&Type::Object(i));
+		let send = self.abi.api.objects[i].send;
 		let handle = "*const ::std::ffi::c_void";
 		let [this, a, b] = borrow else {
 			unreachable!("three handles")
 		};
+		// Through the borrow, then its `rt::Unsent` if it is not `Send`.
+		let deref = match send {
+			true => "&*",
+			false => "&**",
+		};
 		let param = status.map(|s| format!(", {s}: *mut i32")).unwrap_or_default();
+		// Each runs on the home of its first handle's value, if that is elsewhere.
+		let away = |function: &str, handles: &[&str]| {
+			if send {
+				return String::new();
+			}
+			let mut params: Vec<String> = handles.iter().map(|h| format!("{h}: {handle}")).collect();
+			params.extend(status.map(|s| format!("{s}: *mut i32")));
+			away(function, &params, &holder, handles[0])
+		};
 		if traits.clone {
 			let body = wrap(
 				status,
 				handle,
-				&format!("let this = {this};\n\trt::Object::new(<{path} as ::std::clone::Clone>::clone(&*this))"),
+				&format!(
+					"let this = {this};\n\t{}",
+					self.new_object(i, &format!("<{path} as ::std::clone::Clone>::clone({deref}this)"))
+				),
 			);
+			let away = away(&format!("{name}_clone"), &["this"]);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_clone(this: {handle}{param}) -> {handle} {{\n\tlet w = \"{name}_clone\";\n\t{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_clone(this: {handle}{param}) -> {handle} {{\n\tlet w = \"{name}_clone\";\n\t{away}{body}\n}}\n"
 			));
 		}
 		if traits.eq {
 			let body = wrap(
 				status,
 				"bool",
-				&format!("let a = {a};\n\tlet b = {b};\n\t<{path} as ::std::cmp::PartialEq>::eq(&*a, &*b)"),
+				&format!("let a = {a};\n\tlet b = {b};\n\t<{path} as ::std::cmp::PartialEq>::eq({deref}a, {deref}b)"),
 			);
+			let away = away(&format!("{name}_eq"), &["a", "b"]);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_eq(a: {handle}, b: {handle}{param}) -> bool {{\n\tlet w = \"{name}_eq\";\n\t{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_eq(a: {handle}, b: {handle}{param}) -> bool {{\n\tlet w = \"{name}_eq\";\n\t{away}{body}\n}}\n"
 			));
 		}
 		if traits.display {
 			let body = wrap(
 				status,
 				"rt::Buf",
-				&format!("let this = {this};\n\trt::Buf::string(::std::string::ToString::to_string(&*this))"),
+				&format!("let this = {this};\n\trt::Buf::string(::std::string::ToString::to_string({deref}this))"),
 			);
+			let away = away(&format!("{name}_to_string"), &["this"]);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_to_string(this: {handle}{param}) -> rt::Buf {{\n\tlet w = \"{name}_to_string\";\n\t{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_to_string(this: {handle}{param}) -> rt::Buf {{\n\tlet w = \"{name}_to_string\";\n\t{away}{body}\n}}\n"
 			));
 		}
 		if traits.debug {
 			let body = wrap(
 				status,
 				"rt::Buf",
-				&format!("let this = {this};\n\trt::Buf::string(format!(\"{{:?}}\", &*this))"),
+				&format!("let this = {this};\n\trt::Buf::string(format!(\"{{:?}}\", {deref}this))"),
 			);
+			let away = away(&format!("{name}_debug"), &["this"]);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_debug(this: {handle}{param}) -> rt::Buf {{\n\tlet w = \"{name}_debug\";\n\t{body}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_debug(this: {handle}{param}) -> rt::Buf {{\n\tlet w = \"{name}_debug\";\n\t{away}{body}\n}}\n"
 			));
 		}
 		if traits.default {
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_default() -> {handle} {{\n\trt::Object::new(<{path} as ::std::default::Default>::default())\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_default() -> {handle} {{\n\t{}\n}}\n",
+				self.new_object(i, &format!("<{path} as ::std::default::Default>::default()"))
 			));
+			if !send {
+				self.export(homed(&format!("{name}_default"), &[], handle));
+			}
 		}
 	}
 
@@ -2025,9 +2092,13 @@ impl Gen<'_> {
 			Type::Ref(m, inner) => match (&**inner, m, future) {
 				(Type::Object(i), _, _) => {
 					let (binding, borrow) = self.borrow(*i, *m, c, future);
-					let pass = match (m, self.abi.api.objects[*i].opaque) {
+					let object = &self.abi.api.objects[*i];
+					let pass = match (m, object.opaque) {
 						(Mutability::Not, Some(_)) => format!("{local}.get(w)"),
 						(Mutability::Mut, Some(_)) => format!("{local}.get_mut(w)"),
+						// Through the borrow, then its `rt::Unsent`.
+						(Mutability::Mut, None) if !object.send => format!("&mut **{local}"),
+						(Mutability::Not, None) if !object.send => format!("&**{local}"),
 						(Mutability::Mut, None) => format!("&mut *{local}"),
 						(Mutability::Not, None) => format!("&*{local}"),
 					};
@@ -2070,9 +2141,12 @@ impl Gen<'_> {
 			Type::Option(opt) if let Type::Ref(m, inner) = &**opt => match (&**inner, future) {
 				(Type::Object(i), _) => {
 					let (binding, borrow) = self.borrow(*i, *m, c, future);
-					let pass = match (m, self.abi.api.objects[*i].opaque) {
+					let object = &self.abi.api.objects[*i];
+					let pass = match (m, object.opaque) {
 						(Mutability::Not, Some(_)) => format!("{local}.as_deref().map(|v| v.get(w))"),
 						(Mutability::Mut, Some(_)) => format!("{local}.as_deref_mut().map(|v| v.get_mut(w))"),
+						(Mutability::Mut, None) if !object.send => format!("{local}.as_deref_mut().map(|v| &mut **v)"),
+						(Mutability::Not, None) if !object.send => format!("{local}.as_deref().map(|v| &**v)"),
 						(Mutability::Mut, None) => format!("{local}.as_deref_mut()"),
 						(Mutability::Not, None) => format!("{local}.as_deref()"),
 					};
@@ -2131,9 +2205,9 @@ impl Gen<'_> {
 			(false, true) => "borrow_arc",
 			(true, true) => "borrow_mut_arc",
 		};
-		let binding = match exclusive {
-			true => "let mut",
-			false => "let",
+		let binding = match m {
+			Mutability::Mut => "let mut",
+			Mutability::Not => "let",
 		};
 		// A type no export can misuse is borrowed shared for a call uncounted.
 		if !exclusive && !future && !self.abi.checked[i] {
@@ -2434,7 +2508,7 @@ impl Gen<'_> {
 				TaskKind::Made { object, make } => {
 					made = format!(
 						"let t_made = t_held.insert(<{}>::{make}(::std::task::Context::waker(t_cx).clone()));\n\t\t\t",
-						self.object_path(*object)
+						self.rust(&Type::Object(*object))
 					);
 					"&*t_made".to_string()
 				}
@@ -2503,6 +2577,27 @@ impl Gen<'_> {
 			));
 		}
 		let body = stmts.join("\n\t");
+		// The first handle it takes of a value that is not `Send`, which decides the thread
+		// it runs on; a JNI env is its thread's, so a call taking one stays on that thread.
+		let unsent = (!function.jni())
+			.then(|| {
+				let receiver = match (&receiver_ty, function.receiver) {
+					(Some(((_, Type::Object(i)), _)), _) if !self.abi.api.objects[*i].send => {
+						Some((*i, "this".to_string()))
+					}
+					_ => None,
+				};
+				receiver.or_else(|| {
+					(function.params.iter().enumerate())
+						.find_map(|(n, param)| self.unsent_object(&param.ty).map(|i| (i, format!("p{n}"))))
+				})
+			})
+			.flatten()
+			.map(|(i, handle)| (self.object_path(i), handle));
+		let away = |name: &str, params: &[String]| match &unsent {
+			Some((holder, handle)) => away(name, params, holder, handle),
+			None => String::new(),
+		};
 		if let Some(abi::Future { start, poll, free, .. }) = &export.future {
 			// A function that is not `async` runs when called, and what it returns
 			// borrows nothing, so it is called now; an `async fn` runs when polled.
@@ -2551,16 +2646,25 @@ impl Gen<'_> {
 			// The make's body, emitted again inside `<fn>_start` so its aborts name the
 			// function C called.
 			let make = format!(
-				"{body}{now}\n\trt::Future::new(async move {{ {later} }}, move |result, outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\tlet _ = (outs, err);\n\t\t{bind}{}\n\t}})",
+				"{body}{now}\n\trt::Future::{}(async move {{ {later} }}, move |result, outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\tlet _ = (outs, err);\n\t\t{bind}{}\n\t}})",
+				match function.send {
+					true => "new",
+					false => "unsent",
+				},
 				self.finish(function, &ok, ("v", "rt::READY", "rt::ERROR"))
 			);
 			self.checking.set(false);
 			let status_param = status.map(|status| format!("{status}: *mut i32"));
+			let make_params: Vec<String> = params.iter().chain(&status_param).cloned().collect();
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{}\n}}\n",
-				params.iter().chain(&status_param).cloned().collect::<Vec<_>>().join(", "),
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{}{}\n}}\n",
+				make_params.join(", "),
+				away(&name, &make_params),
 				wrap(status, "*mut rt::Future", &make)
 			));
+			if export.homed {
+				self.export(homed(&name, &make_params, "*mut rt::Future"));
+			}
 			let poll_params: Vec<String> = poll.params[2..]
 				.iter()
 				.map(|(n, ty)| format!("{n}: {}", rs(ty)))
@@ -2571,8 +2675,10 @@ impl Gen<'_> {
 				Some(_) => "err.cast()",
 				None => "::std::ptr::null_mut()",
 			};
+			// Only a poll of a future that is not `Send` can fail, on another thread.
+			let poll_status = poll.status().unwrap_or("::std::ptr::null_mut()");
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}(future: *mut rt::Future, waker: rt::Waker{}) -> i32 {{\n\tunsafe {{ rt::Future::poll(future, waker, &[{outs}], {err}, \"{}\") }}\n}}\n",
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}(future: *mut rt::Future, waker: rt::Waker{}) -> i32 {{\n\tunsafe {{ rt::Future::poll(future, waker, &[{outs}], {err}, {poll_status}, \"{}\") }}\n}}\n",
 				poll.name,
 				poll_params.iter().map(|p| format!(", {p}")).collect::<String>(),
 				poll.name
@@ -2582,9 +2688,11 @@ impl Gen<'_> {
 				free.name
 			));
 			// The call and its first poll in one: most futures are ready at once. A failed
-			// check writes its status and returns before `future` is written.
+			// check writes its status and returns before `future` is written. It runs on the
+			// thread that made it, so takes no status of its poll's.
+			let poll_outs = poll_params.len() - usize::from(poll.status().is_some());
 			let start_params: Vec<String> = (params.iter().cloned())
-				.chain(poll_params)
+				.chain(poll_params.into_iter().take(poll_outs))
 				.chain(["future: *mut *mut rt::Future".to_string()])
 				.chain(status_param)
 				.collect();
@@ -2592,12 +2700,16 @@ impl Gen<'_> {
 				"let made = {{\n\t{make}\n\t}};\n\tunsafe {{ rt::Future::start(made, &[{outs}], {err}, future, w) }}"
 			);
 			self.export(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}({}) -> i32 {{\n\tlet w = \"{}\";\n\tlet _ = w;\n\t{}\n}}\n",
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {}({}) -> i32 {{\n\tlet w = \"{}\";\n\tlet _ = w;\n\t{}{}\n}}\n",
 				start.name,
 				start_params.join(", "),
 				start.name,
+				away(&start.name, &start_params),
 				wrap(status, "i32", &started)
 			));
+			if export.homed {
+				self.export(homed(&start.name, &start_params, "i32"));
+			}
 			return;
 		}
 		let outs: Vec<String> = export.call.params[params.len()..]
@@ -2638,10 +2750,28 @@ impl Gen<'_> {
 		};
 		self.checking.set(false);
 		self.export(format!(
-			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{}\n}}\n",
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{}{}\n}}\n",
 			params.join(", "),
+			away(&name, &params),
 			wrap(status, &ret, &format!("{body}\n\tlet result = {call};{pending}{writes}\n\t{finish}"))
 		));
+		if export.homed {
+			self.export(homed(&name, &params, &ret));
+		}
+	}
+
+	/// The object that is not `Send` whose handle an argument of `ty` is at its top: by
+	/// value, borrowed, or as `Some` of either.
+	fn unsent_object(&self, ty: &Type) -> Option<usize> {
+		match ty {
+			Type::Object(i) if !self.abi.api.objects[*i].send => Some(*i),
+			Type::Ref(_, inner) | Type::Option(inner) => match &**inner {
+				Type::Object(i) if !self.abi.api.objects[*i].send => Some(*i),
+				Type::Ref(_, inner) => self.unsent_object(inner),
+				_ => None,
+			},
+			_ => None,
+		}
 	}
 }
 
@@ -2655,6 +2785,35 @@ fn wrap(status: Option<&str>, ret: &str, body: &str) -> String {
 	format!(
 		"let checked = (|| -> ::std::result::Result<{ret}, rt::Status> {{\n\t{body_ok}\n\t}})();\n\tmatch checked {{\n\t\tOk(v) => v,\n\t\tErr(s) => unsafe {{ rt::failed({status}, s, w) }},\n\t}}",
 		body_ok = ok_tail(body)
+	)
+}
+
+/// The names of a C function's parameters, `name: type` each, as its arguments.
+fn names(params: &[String]) -> String {
+	let names: Vec<&str> = (params.iter())
+		.map(|p| p.split_once(": ").map_or(p.as_str(), |(name, _)| name))
+		.collect();
+	names.join(", ")
+}
+
+/// The statement that runs the C function `name` taking `params` on the home that the
+/// value of `handle`, object `holder`'s, stays on, if that is another thread, calling it
+/// again there and returning what it returns: so a call on a value that is not `Send`
+/// from a binding with no thread that stays put runs on the value's thread.
+fn away(name: &str, params: &[String], holder: &str, handle: &str) -> String {
+	format!(
+		"if let Some(home) = unsafe {{ rt::Object::<{holder}>::away({handle}) }} {{\n\t\treturn unsafe {{ home.run(move || {name}({})) }};\n\t}}\n\t",
+		names(params)
+	)
+}
+
+/// The twin of the C function `name` taking `params` and returning `ret`, which runs it on
+/// a home, a thread Rust owns, which the value that is not `Send` it makes stays on.
+fn homed(name: &str, params: &[String], ret: &str) -> String {
+	format!(
+		"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_homed({}) -> {ret} {{\n\tlet home = rt::Thread::home();\n\tlet made = unsafe {{ home.run(move || {name}({})) }};\n\trt::Thread::release(home);\n\tmade\n}}\n",
+		params.join(", "),
+		names(params)
 	)
 }
 

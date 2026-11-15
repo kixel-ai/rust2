@@ -183,6 +183,15 @@ final class Cell<T>: @unchecked Sendable {
 
 /// A queue of jobs that a test runs when it chooses: the executor its tasks prefer, so a
 /// call resumes on it.
+/// A value that is not Send, which a test hands another thread to misuse.
+final class Held: @unchecked Sendable {
+	let local: Local
+
+	init(_ local: consuming Local) {
+		self.local = local
+	}
+}
+
 final class Queue: TaskExecutor, @unchecked Sendable {
 	private let lock = NSLock()
 	private var jobs: [UnownedJob] = []
@@ -1145,6 +1154,44 @@ func futures() {
 		q.launch { got.value = try await yielded(7) }
 		q.drain()
 		check(got.value == 7, "a wake during the poll polls again")
+	}
+
+	// A value that is not Send stays on the thread that made it: a use elsewhere throws, and
+	// a release elsewhere drops it on its own thread at its next call. A future that is not
+	// Send made from none lives on a home, so any executor awaits it.
+	do {
+		let held = Cell<Held?>(Held(Local.new()))
+		let shared = try! held.value!.local.share()
+		_ = try! held.value!.local.bump()
+		check(try! shared.bump() == 2, "a shared local counts together")
+		let got = Cell<UInt32>(0)
+		q.launch { got.value = try await held.value!.local.later() }
+		q.drain()
+		check(got.value == 3, "a local's future runs on its thread")
+		check(block { try await localLater(5) } == 10, "a future that is not Send made from none awaits anywhere")
+		let thrown = Cell<String?>(nil)
+		let done = DispatchSemaphore(value: 0)
+		Thread.detachNewThread {
+			do {
+				_ = try held.value!.local.bump()
+			} catch let e as CheckError {
+				thrown.value = "\(e.function): \(e.message)"
+			} catch {}
+			done.signal()
+		}
+		done.wait()
+		check(
+			thrown.value == "api_Local_bump: a value that is not Send is used on another thread than the one that made it",
+			"a local used elsewhere throws: \(String(describing: thrown.value))"
+		)
+		let before = localsDropped()
+		Thread.detachNewThread {
+			held.value = nil
+			done.signal()
+		}
+		done.wait()
+		check(localsDropped() == before, "a local released elsewhere waits for its thread")
+		check(try! shared.bump() == 4 && localsDropped() == before + 1, "a local released elsewhere drops on its thread")
 	}
 
 	// A future whose output is `None` is ready, not pending.

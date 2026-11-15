@@ -1174,6 +1174,39 @@ func futures() {
 	// call polls again rather than waiting for a wake that already happened.
 	check(must(api.Yielded(ctx, 7)) == 7, "a wake during the poll polls again")
 
+	// A value that is not Send lives on a home, a thread Rust owns, which runs each call on
+	// it from any goroutine, and drops it there once closed or collected.
+	local := api.NewLocal()
+	shared := must(local.Share())
+	must(local.Bump())
+	check(must(shared.Bump()) == 2, "a shared local counts together")
+	check(must(local.Later(ctx)) == 3, "a local's future runs on its home")
+	check(must(api.LocalLater(ctx, 5)) == 10, "a future that is not Send runs on a home")
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			check(must(local.OnOwnThread()), "a local's call from any goroutine runs on its home")
+		}()
+	}
+	wg.Wait()
+	before := api.LocalsDropped()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ok(local.Close())
+	}()
+	wg.Wait()
+	check(api.LocalsDropped() == before+1, "a local closed on another goroutine drops on its home")
+	shared = nil
+	deadline := time.Now().Add(10 * time.Second)
+	for api.LocalsDropped() < before+2 {
+		check(time.Now().Before(deadline), "a collected local drops on its home")
+		runtime.GC()
+		runtime.Gosched()
+	}
+
 	// A future's output of None is nil.
 	half := must(api.Halved(ctx, 4))
 	check(half != nil && *half == 2, "a future's Some output reads back")

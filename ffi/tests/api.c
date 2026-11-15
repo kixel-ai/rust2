@@ -4,6 +4,8 @@
  * With an argument, it instead breaks one contract of the ABI, which must abort. */
 
 #include <math.h>
+#include <pthread.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -2022,6 +2024,137 @@ static bool move_lent_status(void *data, api_Counter *counter) {
 }
 
 /* Each check a call fails writes its status through a non-null one, and changes nothing. */
+/* What a second thread does with the main thread's local and future: each use fails as
+ * not Send, and each free queues the drop back to the main thread. */
+typedef struct {
+	api_Local *local;
+	api_local_later_future *later;
+	api_status bumped;
+	api_status polled;
+	api_poll poll;
+} elsewhere;
+
+static void *use_elsewhere(void *data) {
+	elsewhere *e = data;
+	api_Local_bump(e->local, &e->bumped);
+	uint32_t out = 0;
+	e->poll = api_local_later_poll(e->later, (api_waker){0}, &out, &e->polled);
+	api_Local_free(e->local);
+	api_local_later_future_free(e->later);
+	return NULL;
+}
+
+/* A local a second thread makes, which it keeps until told it was freed: then it exits,
+ * which drops it there. */
+typedef struct {
+	api_Local *local;
+	atomic_bool made;
+	atomic_bool freed;
+} kept;
+
+static void *keep_local(void *data) {
+	kept *k = data;
+	k->local = api_Local_new();
+	atomic_store(&k->made, true);
+	while (!atomic_load(&k->freed)) {
+	}
+	return NULL;
+}
+
+static void *make_local(void *data) {
+	*(api_Local **)data = api_Local_new();
+	return NULL;
+}
+
+/* A value that is not Send stays on the thread that made it. */
+static int not_send(void) {
+	int failed = 0;
+	api_status status = 0;
+	api_Local *local = api_Local_new();
+	api_Local *shared = api_Local_share(local, &status);
+	api_Local_bump(local, &status);
+	if (api_Local_bump(shared, &status) != 2 || status != 0) {
+		fprintf(stderr, "a shared local counted apart\n");
+		failed = 1;
+	}
+	api_local_later_future *later = api_local_later(3);
+	uint32_t out = 0;
+	if (api_local_later_poll(later, (api_waker){0}, &out, &status) != API_POLL_PENDING || status != 0) {
+		fprintf(stderr, "a local future finished at once\n");
+		failed = 1;
+	}
+	uint32_t before = api_locals_dropped();
+	elsewhere e = {.local = local, .later = later};
+	pthread_t thread;
+	pthread_create(&thread, NULL, use_elsewhere, &e);
+	pthread_join(thread, NULL);
+	if (e.bumped != API_STATUS_NOT_SEND || e.polled != API_STATUS_NOT_SEND || e.poll != API_POLL_PENDING ||
+		strcmp(api_status_message(e.bumped), "a value that is not Send is used on another thread than the one that made it") != 0) {
+		fprintf(stderr, "a local used elsewhere wrote %d and %d\n", e.bumped, e.polled);
+		failed = 1;
+	}
+	/* Freed elsewhere, it drops here at this thread's next check. */
+	if (api_locals_dropped() != before) {
+		fprintf(stderr, "a local freed elsewhere dropped there\n");
+		failed = 1;
+	}
+	if (api_Local_bump(shared, &status) != 3 || status != 0 || api_locals_dropped() != before + 1) {
+		fprintf(stderr, "a local freed elsewhere never dropped on its thread\n");
+		failed = 1;
+	}
+	api_Local_free(shared);
+
+	/* Freed while its thread runs, it drops there as the thread exits. */
+	kept k = {0};
+	before = api_locals_dropped();
+	pthread_create(&thread, NULL, keep_local, &k);
+	while (!atomic_load(&k.made)) {
+	}
+	api_Local_free(k.local);
+	atomic_store(&k.freed, true);
+	pthread_join(thread, NULL);
+	if (api_locals_dropped() != before + 1) {
+		fprintf(stderr, "a local freed elsewhere never dropped as its thread exited\n");
+		failed = 1;
+	}
+
+	/* Freed once its thread exited, it leaks, saying so. */
+	api_Local *orphan = NULL;
+	pthread_create(&thread, NULL, make_local, &orphan);
+	pthread_join(thread, NULL);
+	api_Local_free(orphan);
+	if (api_locals_dropped() != before + 1) {
+		fprintf(stderr, "a local whose thread exited dropped elsewhere\n");
+		failed = 1;
+	}
+
+	/* Made on a home, a thread Rust owns, it stays there, and each call runs there. */
+	api_Local *homed = api_Local_new_homed();
+	before = api_locals_dropped();
+	status = 0;
+	if (api_Local_bump(homed, &status) != 1 || !api_Local_on_own_thread(homed, &status) || status != 0) {
+		fprintf(stderr, "a homed local ran here, writing %d\n", status);
+		failed = 1;
+	}
+	api_local_later_future *homed_later = NULL;
+	api_poll poll = api_local_later_start_homed(4, &out, &homed_later);
+	while (poll == API_POLL_PENDING) {
+		poll = api_local_later_poll(homed_later, (api_waker){0}, &out, &status);
+	}
+	if (out != 8 || status != 0) {
+		fprintf(stderr, "a homed future returned %u, writing %d\n", out, status);
+		failed = 1;
+	}
+	if (homed_later != NULL) {
+		api_local_later_future_free(homed_later);
+	}
+	/* Freed here, it drops on its home, which waits for work. */
+	api_Local_free(homed);
+	while (api_locals_dropped() != before + 1) {
+	}
+	return failed;
+}
+
 static int statuses(void) {
 	int failed = 0;
 	api_status status = 0;
@@ -2197,7 +2330,7 @@ static int statuses(void) {
 		failed = 1;
 	}
 	api_Registry_free(registry);
-	return failed;
+	return failed | not_send();
 }
 
 static int broken(const char *which) {

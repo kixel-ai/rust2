@@ -18,6 +18,9 @@ use std::task::{Context, Wake};
 
 mod borrow;
 use borrow::{Borrow, EXCLUSIVE, RESERVED, TAKEN, Table};
+mod thread;
+pub use thread::Thread;
+use thread::Dropped;
 
 /// Abort with a message naming the C function whose contract was broken.
 #[cold]
@@ -44,17 +47,20 @@ pub enum Status {
 	Lent = 5,
 	/// A handle lent from another outlived it.
 	Outlived = 6,
+	/// A value that is not `Send` is used on another thread than the one that made it.
+	NotSend = 7,
 }
 
 impl Status {
 	/// Every status, by its number less one.
-	pub const ALL: [Self; 6] = [
+	pub const ALL: [Self; 7] = [
 		Self::Moved,
 		Self::Exclusive,
 		Self::Borrowed,
 		Self::Thread,
 		Self::Lent,
 		Self::Outlived,
+		Self::NotSend,
 	];
 
 	/// What broke, as a binding's error says it after the function's name.
@@ -72,6 +78,7 @@ impl Status {
 			Self::Outlived => {
 				c"a handle lent from another outlived it: the other was borrowed exclusively, moved out, or freed"
 			}
+			Self::NotSend => c"a value that is not Send is used on another thread than the one that made it",
 		}
 	}
 
@@ -902,6 +909,68 @@ pub struct Object<T> {
 	epoch: AtomicUsize,
 	/// For a handle a call returned lent from another's value, that handle.
 	lender: Option<Lender>,
+	/// For a value that is not `Send`, the thread it stays on, which alone borrows, moves,
+	/// or drops it.
+	owner: Option<Arc<Thread>>,
+}
+
+/// A value that is not `Send`, held by a handle that keeps it on the thread that made it:
+/// every borrow, move, and drop of it checks it is on that thread, or for a drop, queues
+/// it there. So a handle to it may cross threads, which the type says to the runtime.
+#[repr(transparent)]
+pub struct Unsent<T>(T);
+
+// SAFETY: only an `Object` holds one, made by `Object::unsent` and its kin, whose every use
+// of it runs on its owner's thread, or for a drop, queues it there.
+unsafe impl<T> Send for Unsent<T> {}
+
+impl Unsent<()> {
+	/// The name of `U`, an `Unsent`, as the value it holds.
+	fn named<U>() -> &'static str {
+		let name = std::any::type_name::<U>();
+		let inner = name.split_once("Unsent<").and_then(|(_, inner)| inner.strip_suffix('>'));
+		inner.unwrap_or(name)
+	}
+}
+
+impl<T> Unsent<T> {
+	/// The value, moved out on its thread.
+	pub fn into_inner(self) -> T {
+		self.0
+	}
+
+	/// A borrowed value, as a borrowed `Unsent` of it.
+	fn from_ref(value: &T) -> &Self {
+		// SAFETY: `repr(transparent)`.
+		unsafe { &*std::ptr::from_ref(value).cast() }
+	}
+
+	fn from_mut(value: &mut T) -> &mut Self {
+		// SAFETY: `repr(transparent)`.
+		unsafe { &mut *std::ptr::from_mut(value).cast() }
+	}
+}
+
+impl<T: Clone> Clone for Unsent<T> {
+	fn clone(&self) -> Self {
+		Self(self.0.clone())
+	}
+}
+
+impl<T: Copy> Copy for Unsent<T> {}
+
+impl<T> Deref for Unsent<T> {
+	type Target = T;
+
+	fn deref(&self) -> &T {
+		&self.0
+	}
+}
+
+impl<T> DerefMut for Unsent<T> {
+	fn deref_mut(&mut self) -> &mut T {
+		&mut self.0
+	}
 }
 
 /// The handle a returned borrow was lent from, and its epoch then: the borrow lives while
@@ -991,6 +1060,13 @@ impl<T> Object<T> {
 	where
 		T: 'static,
 	{
+		Self::owning(value, None)
+	}
+
+	fn owning(value: T, owner: Option<Arc<Thread>>) -> *const c_void
+	where
+		T: 'static,
+	{
 		Arc::into_raw(Arc::new(Self {
 			borrow: Borrow::new(0),
 			depth: UnsafeCell::new(0),
@@ -998,6 +1074,7 @@ impl<T> Object<T> {
 			value: UnsafeCell::new(MaybeUninit::new(value)),
 			epoch: AtomicUsize::new(0),
 			lender: None,
+			owner,
 		}))
 		.cast()
 	}
@@ -1007,6 +1084,10 @@ impl<T> Object<T> {
 	/// exclusively, moved out, or freed, after which a use fails. It is never borrowed
 	/// exclusively nor moved out itself.
 	pub fn lent(value: &T, lender: Lender) -> *const c_void {
+		Self::lent_by(value, lender, None)
+	}
+
+	fn lent_by(value: &T, lender: Lender, owner: Option<Arc<Thread>>) -> *const c_void {
 		Arc::into_raw(Arc::new(Self {
 			borrow: Borrow::new(0),
 			depth: UnsafeCell::new(0),
@@ -1014,6 +1095,7 @@ impl<T> Object<T> {
 			value: UnsafeCell::new(MaybeUninit::uninit()),
 			epoch: AtomicUsize::new(0),
 			lender: Some(lender),
+			owner,
 		}))
 		.cast()
 	}
@@ -1098,6 +1180,7 @@ impl<T> Object<T> {
 	/// Borrow a value that is not `Sync` shared: any number of times on one thread, as
 	/// Rust allows, and on no other thread meanwhile.
 	fn acquire_local(&self, column: &mut usize, level: u32) -> Result<u64, Status> {
+		self.own()?;
 		self.borrow.local(thread())?;
 		// SAFETY: only the thread in the state touches `depth`.
 		unsafe { *self.depth.get() += 1 };
@@ -1167,8 +1250,18 @@ impl<T> Object<T> {
 		}
 	}
 
+	/// Whether this thread may use the value: any may, unless it is not `Send`.
+	#[inline(always)]
+	fn own(&self) -> Result<(), Status> {
+		match &self.owner {
+			None => Ok(()),
+			Some(owner) => owner.own(),
+		}
+	}
+
 	/// Take the value from no borrow to `to`, as an exclusive borrow or a move does.
 	fn acquire_from_zero(&self, to: usize) -> Result<(), Status> {
+		self.own()?;
 		if self.lender.is_some() || (matches!(to, TAKEN | RESERVED) && !self.lent.is_null()) {
 			return Err(Status::Lent);
 		}
@@ -1277,23 +1370,30 @@ impl<T> Object<T> {
 	where
 		T: Sync,
 	{
-		Self::lending(std::ptr::from_ref(value).cast_mut(), 1, 0, what, f)
+		Self::lending(std::ptr::from_ref(value).cast_mut(), 1, 0, None, what, f)
 	}
 
 	/// Lend a value that is not `Sync` shared, as [`Self::lend`], on this thread alone.
 	pub fn lend_local<R>(value: &T, what: &str, f: impl FnOnce(*const c_void) -> R) -> R {
-		Self::lending(std::ptr::from_ref(value).cast_mut(), thread(), 1, what, f)
+		Self::lending(std::ptr::from_ref(value).cast_mut(), thread(), 1, None, what, f)
 	}
 
 	/// Lend `value` exclusively, as `&mut T` lends it.
 	pub fn lend_mut<R>(value: &mut T, what: &str, f: impl FnOnce(*const c_void) -> R) -> R {
-		Self::lending(std::ptr::from_mut(value), 0, 0, what, f)
+		Self::lending(std::ptr::from_mut(value), 0, 0, None, what, f)
 	}
 
 	/// Lend the value at `ptr` to C as a handle while `f` runs, holding the borrow `state`
 	/// and `depth` describe, if any, so C borrows it no further than Rust lent it. C may
 	/// neither move it out, nor free the handle, nor keep a borrow past `f`.
-	fn lending<R>(ptr: *mut T, state: usize, depth: usize, what: &str, f: impl FnOnce(*const c_void) -> R) -> R {
+	fn lending<R>(
+		ptr: *mut T,
+		state: usize,
+		depth: usize,
+		owner: Option<Arc<Thread>>,
+		what: &str,
+		f: impl FnOnce(*const c_void) -> R,
+	) -> R {
 		let object = Arc::new(Self {
 			borrow: Borrow::new(state),
 			depth: UnsafeCell::new(depth),
@@ -1301,6 +1401,7 @@ impl<T> Object<T> {
 			value: UnsafeCell::new(MaybeUninit::uninit()),
 			epoch: AtomicUsize::new(0),
 			lender: None,
+			owner,
 		});
 		// A second count, which a free by C would take, so the handle outlives it.
 		let spare = Arc::clone(&object);
@@ -1424,13 +1525,18 @@ impl<T> Object<T> {
 	/// reserved it to move out, as Rust refuses a drop under a borrow, and does nothing once
 	/// the value is gone. A handle a
 	/// call returned lent from another's value only stops lending it; one lent to C for a
-	/// call fails, as Rust lent it.
+	/// call fails, as Rust lent it. A value that is not `Send`, closed on another thread than
+	/// its own, drops there later, as a free does.
 	///
 	/// # Safety
 	/// As [`Self::borrow`].
 	pub unsafe fn close(handle: *const c_void, what: &str) -> Result<(), Status> {
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
+		let away = object.owner.as_ref().filter(|owner| !owner.is_here());
+		if away.is_none() {
+			object.own()?;
+		}
 		if !object.lent.is_null() && object.lender.is_none() {
 			return Err(Status::Lent);
 		}
@@ -1441,8 +1547,16 @@ impl<T> Object<T> {
 		}
 		object.epoch.fetch_add(1, Ordering::Release);
 		if object.lent.is_null() {
-			// SAFETY: TAKEN excludes every other access, and `Drop` skips a taken value.
-			unsafe { (*object.value.get()).assume_init_drop() };
+			match away {
+				Some(owner) => {
+					// SAFETY: as below; the value moves out to drop on its own thread.
+					let value = unsafe { (*object.value.get()).assume_init_read() };
+					// SAFETY: the value is the owner's.
+					unsafe { Dropped::new(value, owner.clone(), Unsent::<()>::named::<T>()) }.send();
+				}
+				// SAFETY: TAKEN excludes every other access, and `Drop` skips a taken value.
+				None => unsafe { (*object.value.get()).assume_init_drop() },
+			}
 		}
 		Ok(())
 	}
@@ -1481,9 +1595,62 @@ impl<T> Object<T> {
 impl<T> Drop for Object<T> {
 	fn drop(&mut self) {
 		if self.lent.is_null() && *self.borrow.state.get_mut() != TAKEN {
-			// SAFETY: the last reference is gone, and the value is its own and never taken.
-			unsafe { self.value.get_mut().assume_init_drop() };
+			let value = self.value.get_mut();
+			match self.owner.take() {
+				// A value that is not `Send` drops on its own thread.
+				Some(owner) if !owner.is_here() => {
+					// SAFETY: as below; the value moves out to drop there, and nothing reads it here again.
+					let value = unsafe { value.assume_init_read() };
+					// SAFETY: the value is the owner's.
+					unsafe { Dropped::new(value, owner, Unsent::<()>::named::<T>()) }.send();
+				}
+				// SAFETY: the last reference is gone, and the value is its own and never taken.
+				_ => unsafe { value.assume_init_drop() },
+			}
 		}
+	}
+}
+
+impl<T> Object<Unsent<T>> {
+	/// A new handle owning `value`, which is not `Send`, so stays on this thread: a use on
+	/// another fails, and a free there drops it here.
+	pub fn unsent(value: T) -> *const c_void
+	where
+		T: 'static,
+	{
+		Self::owning(Unsent(value), Some(Thread::here()))
+	}
+
+	/// [`Self::lent`] of a value that is not `Send`, on this thread.
+	pub fn lent_unsent(value: &T, lender: Lender) -> *const c_void {
+		Self::lent_by(Unsent::from_ref(value), lender, Some(Thread::here()))
+	}
+
+	/// [`Self::lend_local`] of a value that is not `Send`, on this thread.
+	pub fn lend_unsent<R>(value: &T, what: &str, f: impl FnOnce(*const c_void) -> R) -> R {
+		let ptr = std::ptr::from_ref(Unsent::from_ref(value)).cast_mut();
+		Self::lending(ptr, thread(), 1, Some(Thread::here()), what, f)
+	}
+
+	/// [`Self::lend_mut`] of a value that is not `Send`, on this thread.
+	pub fn lend_mut_unsent<R>(value: &mut T, what: &str, f: impl FnOnce(*const c_void) -> R) -> R {
+		Self::lending(std::ptr::from_mut(Unsent::from_mut(value)), 0, 0, Some(Thread::here()), what, f)
+	}
+}
+
+impl<T> Object<T> {
+	/// The home `handle`'s value stays on, if that is another thread: a call borrowing or
+	/// moving it runs there, as the thread that made it.
+	///
+	/// # Safety
+	/// `handle` is null or a live handle of this type, kept alive through the call.
+	pub unsafe fn away<'a>(handle: *const c_void) -> Option<&'a Thread> {
+		if handle.is_null() {
+			return None;
+		}
+		// SAFETY: the caller's contract; `owner` never changes.
+		let object = unsafe { &*handle.cast::<Self>() };
+		object.owner.as_deref().filter(|owner| owner.away())
 	}
 }
 
@@ -1989,6 +2156,8 @@ pub struct Future {
 	/// The last foreign waker, and the Rust waker around it.
 	waker: Option<(Waker, std::task::Waker)>,
 	polling: AtomicBool,
+	/// For a future that is not `Send`, the thread it stays on, which alone polls or drops it.
+	owner: Option<Arc<Thread>>,
 }
 
 /// The allocation behind a handle: its head first, so the handle points at both.
@@ -2010,12 +2179,31 @@ impl Future {
 		// Send, as any poll may finish the future on another thread.
 		L: Fn(F::Output, &[*mut c_void], *mut c_void) -> i32 + Send + 'static,
 	{
+		Self::make(future, lower, None)
+	}
+
+	/// A future that is not `Send`, which stays on this thread: a poll on another fails,
+	/// unless this is a home, which the poll then runs on, and a free there drops it here.
+	pub fn unsent<F, L>(future: F, lower: L) -> *mut Self
+	where
+		F: std::future::Future + 'static,
+		L: Fn(F::Output, &[*mut c_void], *mut c_void) -> i32 + 'static,
+	{
+		Self::make(future, lower, Some(Thread::here()))
+	}
+
+	fn make<F, L>(future: F, lower: L, owner: Option<Arc<Thread>>) -> *mut Self
+	where
+		F: std::future::Future + 'static,
+		L: Fn(F::Output, &[*mut c_void], *mut c_void) -> i32 + 'static,
+	{
 		let typed = Box::new(Typed {
 			head: Self {
 				poll: poll_typed::<F, L>,
 				drop: drop_typed::<F, L>,
 				waker: None,
 				polling: AtomicBool::new(false),
+				owner,
 			},
 			future: Some(future),
 			lower,
@@ -2023,17 +2211,37 @@ impl Future {
 		Box::into_raw(typed).cast()
 	}
 
-	/// Poll it once with `waker`, writing the result through `outs` and `err` when ready.
+	/// Poll it once with `waker`, writing the result through `outs` and `err` when ready. A
+	/// future that is not `Send` polled on another thread than its own fails, writing the
+	/// status through `status`, or aborting if that is null; one on a home polls there.
 	///
 	/// # Safety
-	/// `future` is a live future handle, and each of `outs` and `err` is null or points
-	/// where the function's result types go.
-	pub unsafe fn poll(future: *mut Self, waker: Waker, outs: &[*mut c_void], err: *mut c_void, what: &str) -> i32 {
+	/// `future` is a live future handle, each of `outs` and `err` is null or points where
+	/// the function's result types go, and `status` is null or points where an `int32_t` goes.
+	pub unsafe fn poll(
+		future: *mut Self,
+		waker: Waker,
+		outs: &[*mut c_void],
+		err: *mut c_void,
+		status: *mut i32,
+		what: &str,
+	) -> i32 {
 		if future.is_null() {
 			fail(what, "a future is null");
 		}
-		// SAFETY: the caller's contract; only the flag is touched before it is held.
+		// SAFETY: the caller's contract; only the flag and the owner are touched before
+		// it is held.
 		let head = unsafe { &*future };
+		if let Some(owner) = &head.owner {
+			if owner.away() {
+				// SAFETY: a home, and this thread waits while it polls.
+				return unsafe { owner.run(|| Self::poll(future, waker, outs, err, status, what)) };
+			}
+			if let Err(refused) = owner.own() {
+				// SAFETY: the caller's contract.
+				return unsafe { failed(status, refused, what) };
+			}
+		}
 		if head.polling.swap(true, Ordering::Acquire) {
 			fail(what, "a future is polled concurrently");
 		}
@@ -2067,8 +2275,9 @@ impl Future {
 			drop: None,
 			data: std::ptr::null_mut(),
 		};
-		// SAFETY: the caller's contract.
-		let result = unsafe { Self::poll(future, none, outs, err, what) };
+		// SAFETY: the caller's contract; the future was made on this thread, or one this
+		// call runs on.
+		let result = unsafe { Self::poll(future, none, outs, err, std::ptr::null_mut(), what) };
 		match result {
 			// SAFETY: the caller's contract.
 			PENDING => unsafe { handle.write(future) },
@@ -2086,10 +2295,29 @@ impl Future {
 	/// # Safety
 	/// `future` is null or a live future handle, freed once and not being polled.
 	pub unsafe fn free(future: *mut Self) {
-		if !future.is_null() {
-			// SAFETY: the caller's contract.
-			unsafe { ((*future).drop)(future) };
+		if future.is_null() {
+			return;
 		}
+		// SAFETY: the caller's contract.
+		let owner = unsafe { &(*future).owner };
+		// A future that is not `Send` drops on its own thread.
+		if let Some(owner) = owner.as_ref().filter(|owner| !owner.is_here()) {
+			// SAFETY: the future is the owner's.
+			unsafe { Dropped::new(Freed(future), owner.clone(), "a future") }.send();
+			return;
+		}
+		// SAFETY: the caller's contract.
+		unsafe { ((*future).drop)(future) };
+	}
+}
+
+/// A future freed on another thread than its own, which drops it.
+struct Freed(*mut Future);
+
+impl Drop for Freed {
+	fn drop(&mut self) {
+		// SAFETY: `Future::free`'s contract, on the future's own thread.
+		unsafe { ((*self.0).drop)(self.0) };
 	}
 }
 

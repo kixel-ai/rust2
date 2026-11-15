@@ -108,6 +108,7 @@ pub enum Ty {
 }
 
 /// A C function: its name, parameters, and return type.
+#[derive(Clone)]
 pub struct Sig {
 	pub name: String,
 	pub params: Vec<(String, Ty)>,
@@ -115,6 +116,15 @@ pub struct Sig {
 }
 
 impl Sig {
+	/// Its twin that runs it on a home: `<name>_homed`, of the same signature.
+	pub fn homed(&self) -> Sig {
+		Sig {
+			name: format!("{}_homed", self.name),
+			params: self.params.clone(),
+			ret: self.ret.clone(),
+		}
+	}
+
 	/// The `status` parameter it takes last, if a call can fail a check of a handle.
 	pub fn status(&self) -> Option<&str> {
 		self.params
@@ -138,6 +148,35 @@ pub struct Export {
 	pub named: String,
 	/// For a future: its handle type and the functions over it.
 	pub future: Option<Future>,
+	/// Whether it makes a value that is not `Send` from none: its call, or for a future its
+	/// start, has a twin of the same signature, `<name>_homed`, that runs it on a home, a
+	/// thread Rust owns, which the value then stays on. A binding with no thread that stays
+	/// put calls that one.
+	pub homed: bool,
+}
+
+impl Export {
+	/// The twin of its call that runs it on a home, if it makes a value that is not `Send`.
+	pub fn homed_call(&self) -> Option<Sig> {
+		self.homed.then(|| self.call.homed())
+	}
+
+	/// It as a binding with no thread that stays put calls it: by its twins that run on a
+	/// home, if it has them.
+	pub fn on_home(mut self) -> Self {
+		if self.homed {
+			self.call = self.call.homed();
+			if let Some(future) = &mut self.future {
+				future.start = future.start.homed();
+			}
+		}
+		self
+	}
+
+	/// The twin of its future's start that runs it on a home, as [`Self::homed_call`].
+	pub fn homed_start(&self) -> Option<Sig> {
+		(self.future.as_ref()).and_then(|future| self.homed.then(|| future.start.homed()))
+	}
 }
 
 /// How the glue calls a value's `&mut self` method for a language whose values are
@@ -202,13 +241,17 @@ pub struct Future {
 
 /// Each `<prefix>_status` a call can fail with, numbered from 1, and what it means, as
 /// the runtime's `Status` names them.
-pub const STATUSES: [(&str, &str); 6] = [
+pub const STATUSES: [(&str, &str); 7] = [
 	("moved", "the handle's value was moved out"),
 	("exclusive", "another call or future borrows the value exclusively"),
 	("borrowed", "another call or future borrows the value"),
 	("thread", "a value that is not Sync is borrowed on another thread"),
 	("lent", "a handle a call lent is borrowed exclusively or moved out"),
 	("outlived", "a handle lent from another outlived it"),
+	(
+		"not_send",
+		"a value that is not Send is used on another thread than the one that made it",
+	),
 ];
 
 /// Whether a call can fail a check of each object's handle, by Rust's rules alone: its
@@ -998,6 +1041,10 @@ impl<'a> Abi<'a> {
 				params: start_params,
 				ret: Ty::Poll,
 			};
+			// A poll of a future that is not `Send` fails on another thread than its own.
+			if !function.send {
+				poll_params.push(("status".to_string(), Ty::Out(Box::new(Ty::Status))));
+			}
 			let poll = Sig {
 				name: format!("{name}_poll"),
 				params: poll_params,
@@ -1021,6 +1068,7 @@ impl<'a> Abi<'a> {
 					free,
 				}),
 				named,
+				homed: self.homed(function, owner),
 			};
 		}
 		let ret = match (&function.err, &function.ok) {
@@ -1042,7 +1090,35 @@ impl<'a> Abi<'a> {
 			call: Sig { name, params, ret },
 			future: None,
 			named,
+			homed: self.homed(function, owner),
 		}
+	}
+
+	/// Whether a call of `function`, a method of `owner` if it has one, makes a value that
+	/// is not `Send`, an object or a future, without taking one: see [`Export::homed`].
+	pub fn homed(&self, function: &Function, owner: Option<&Ty>) -> bool {
+		let unsent = |ty: &Type| {
+			let mut handles = Vec::new();
+			self.api.handles(ty, &mut handles, &mut Vec::new());
+			handles.iter().any(|&i| !self.api.objects[i].send)
+		};
+		let makes =
+			(function.future && !function.send) || unsent(&function.ok) || function.err.as_ref().is_some_and(unsent);
+		let receiver = match (function.receiver, owner) {
+			(Some(_), Some(Ty::Handle { name, .. })) => {
+				(0..self.api.objects.len()).any(|i| &self.object(i) == name && !self.api.objects[i].send)
+			}
+			(Some(_), Some(owner)) => {
+				let records = (0..self.api.records.len()).map(Type::Record);
+				let enums = (0..self.api.enums.len()).map(Type::Enum);
+				records
+					.chain(enums)
+					.find(|ty| &self.ty(ty) == owner)
+					.is_some_and(|ty| unsent(&ty))
+			}
+			_ => false,
+		};
+		makes && !receiver && !function.params.iter().any(|p| unsent(&p.ty))
 	}
 
 	/// Whether a call of `function`, a method of `owner` if it has one, can fail a check of
@@ -1338,6 +1414,15 @@ impl<'a> Abi<'a> {
 				);
 			}
 			self.claim_traits(&item, &name, &what, object.span, object.traits, false);
+			// `Default` of a value that is not `Send` makes one from none.
+			if object.traits.default && !object.send {
+				self.claim(
+					format!("{name}_default_homed"),
+					what.clone(),
+					object.span,
+					Self::made(&item, &name),
+				);
+			}
 			self.claim(
 				name.clone(),
 				what,
@@ -1411,6 +1496,9 @@ impl<'a> Abi<'a> {
 				for made in [handle, &start.name, &poll.name, &free.name] {
 					self.claim(made.clone(), what.clone(), function.span, Self::made(&item, &name));
 				}
+			}
+			for homed in export.homed_call().into_iter().chain(export.homed_start()) {
+				self.claim(homed.name, what.clone(), function.span, Self::made(&item, &name));
 			}
 			types.extend(function.params.iter().map(|p| &p.ty));
 			// A tuple returned whole is written element by element, with no struct of its own.

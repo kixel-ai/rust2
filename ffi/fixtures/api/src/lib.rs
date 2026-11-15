@@ -1914,6 +1914,93 @@ impl Tallies {
 	}
 }
 
+impl Tally {
+	/// Counts once its future, which holds an `Rc` across a yield and so is not `Send`, is
+	/// polled a second time: what a binding polling on a pool runs on a home.
+	pub async fn bump_later(&self) -> u32 {
+		let held = std::rc::Rc::new(());
+		yielded(0).await;
+		drop(held);
+		self.bump()
+	}
+}
+
+/// A count its handles share through an `Rc`, so not `Send`: it stays on the thread that
+/// made it, which alone calls, polls, and drops it, as each method checks.
+pub struct Local {
+	count: std::rc::Rc<std::cell::Cell<u32>>,
+	thread: std::thread::ThreadId,
+}
+
+impl Default for Local {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+impl Local {
+	pub fn new() -> Self {
+		Self {
+			count: std::rc::Rc::new(std::cell::Cell::new(0)),
+			thread: std::thread::current().id(),
+		}
+	}
+
+	/// Counts once, on its own thread.
+	pub fn bump(&self) -> u32 {
+		self.here();
+		self.count.set(self.count.get() + 1);
+		self.count.get()
+	}
+
+	/// Another handle to the same count.
+	pub fn share(&self) -> Local {
+		self.here();
+		Local {
+			count: self.count.clone(),
+			thread: self.thread,
+		}
+	}
+
+	/// Counts once its future, which is not `Send`, is polled a third time.
+	pub async fn later(&self) -> u32 {
+		yielded(0).await;
+		self.bump()
+	}
+
+	/// Whether this runs on its own thread, which every use of it must.
+	pub fn on_own_thread(&self) -> bool {
+		std::thread::current().id() == self.thread
+	}
+
+	fn here(&self) {
+		assert!(self.on_own_thread(), "a Local is used off its own thread");
+	}
+}
+
+impl Drop for Local {
+	fn drop(&mut self) {
+		// A drop elsewhere would panic, which aborts through the C ABI.
+		self.here();
+		LOCALS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+	}
+}
+
+static LOCALS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// How many locals have dropped, each on its own thread.
+pub fn locals_dropped() -> u32 {
+	LOCALS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// `n` doubled after a yield, through an `Rc` it holds across it: a future that is not
+/// `Send`, though nothing it takes is not.
+pub async fn local_later(n: u32) -> u32 {
+	let n = std::rc::Rc::new(n);
+	yielded(0).await;
+	*n * 2
+}
+
 static DROPPED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 /// A level its clones share through an `Arc`, with no `&mut self` method: a clone no call
