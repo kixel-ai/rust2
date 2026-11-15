@@ -101,8 +101,9 @@ type Handle_ struct {
 	state atomic.Int64
 	// Nil for a handle Rust lends, which it frees itself.
 	free func(unsafe.Pointer)
-	// Non-nil for an owned one of a value Rust checks.
-	drop func(unsafe.Pointer) error
+	// Non-nil for an owned one of a value Rust checks: it drops the value, then frees the
+	// handle too if asked and the drop passed.
+	drop func(raw unsafe.Pointer, free bool) error
 	name string
 	// The nursery an owned handle was returned into, and its slot there.
 	nursery *nursery_
@@ -116,7 +117,7 @@ type Handle_ struct {
 // drops the value of, or nil for one Rust does not check. The generated packages allocate
 // it with the object owning it, which each call holding it then keeps reachable: so once
 // the GC collects the object, no call holds the handle, and its cleanup frees it at once.
-func (h *Handle_) Init(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(unsafe.Pointer) error, name string) {
+func (h *Handle_) Init(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(unsafe.Pointer, bool) error, name string) {
 	h.raw, h.free, h.drop, h.name = raw, free, drop, name
 	h.state.Store(held_)
 }
@@ -150,16 +151,20 @@ type ring_ struct {
 // dropped its nursery, so it bounds what a dropped object keeps of Rust's.
 const nurseryLen_ = 64
 
-// nursery_ is the latest handles returned, oldest at next once full. A slot's raw handle is
-// cleared by whichever comes first, of its Close and its eviction, with a compare-and-swap.
+// nursery_ is the latest handles returned, oldest at next once full. Whichever comes first
+// of a handle's Close and its eviction takes its slot, with a compare-and-swap.
 type nursery_ struct {
 	// Kept reachable while here, so an eviction can register them. Only the ring's holder
 	// touches these two.
 	held [nurseryLen_]*Handle_
 	next int
-	// Each slot's raw handle until closed or evicted, else nil.
+	// Each slot's raw handle until closed or evicted, evicting_ while an eviction registers
+	// it, else nil.
 	raw [nurseryLen_]unsafe.Pointer
 }
+
+// evicting_ marks a slot whose eviction is registering its handle, which no raw handle is.
+var evicting_ = unsafe.Pointer(new(byte))
 
 func (n *nursery_) push(h *Handle_) {
 	i := n.next
@@ -172,18 +177,14 @@ func (n *nursery_) push(h *Handle_) {
 	atomic.StorePointer(&n.raw[i], h.raw)
 }
 
-// evict registers h, in slot i, with the GC, unless a Close took the slot first.
+// evict registers h, in slot i, with the GC, unless a Close took the slot first. A Close
+// meanwhile waits until it is registered, so it stops the cleanup.
 func (n *nursery_) evict(i int, h *Handle_) {
-	if atomic.LoadPointer(&n.raw[i]) == nil {
+	if !atomic.CompareAndSwapPointer(&n.raw[i], h.raw, evicting_) {
 		return
 	}
-	// Registered before the slot is given up, so a Close that finds it given up finds the
-	// cleanup to stop.
-	c := runtime.AddCleanup(h, h.free, h.raw)
-	h.cleanup = c
-	if !atomic.CompareAndSwapPointer(&n.raw[i], h.raw, nil) {
-		c.Stop()
-	}
+	h.cleanup = runtime.AddCleanup(h, h.free, h.raw)
+	atomic.StorePointer(&n.raw[i], nil)
 }
 
 // flush registers each handle still open in n, once the pool dropped its ring, so none
@@ -191,19 +192,36 @@ func (n *nursery_) evict(i int, h *Handle_) {
 func (n *nursery_) flush() {
 	for i := range n.raw {
 		// Loaded first, as push stores it after the handle.
-		if atomic.LoadPointer(&n.raw[i]) != nil {
+		if raw := atomic.LoadPointer(&n.raw[i]); raw != nil && raw != evicting_ {
 			n.evict(i, n.held[i])
 		}
 	}
 }
 
 // leave takes h out of its nursery as it closes, before anything frees it, or else stops
-// the cleanup its eviction registered.
+// the cleanup its eviction registered: once, as only a close claims h.
 func (h *Handle_) leave() {
-	if n := h.nursery; n != nil && atomic.CompareAndSwapPointer(&n.raw[h.slot], h.raw, nil) {
-		return
+	if n := h.nursery; n != nil {
+		slot := &n.raw[h.slot]
+		for {
+			raw := atomic.LoadPointer(slot)
+			if raw == h.raw && atomic.CompareAndSwapPointer(slot, raw, nil) {
+				return
+			}
+			if raw != evicting_ && raw != h.raw {
+				break
+			}
+			runtime.Gosched()
+		}
 	}
 	h.cleanup.Stop()
+}
+
+// own registers h with the GC, as an eviction does, once a close that took it out of its
+// nursery failed, leaving it open.
+func (h *Handle_) own() {
+	h.nursery = nil
+	h.cleanup = runtime.AddCleanup(h, h.free, h.raw)
 }
 
 // Hold is the handle, held until Release takes the Slot_, or nil once closed.
@@ -308,11 +326,25 @@ func (h *Handle_) Unlist(s Slot_) {
 // Close closes h as Handle_ says; again, it does nothing.
 func (h *Handle_) Close() error {
 	if h.drop != nil {
+		// Held by no call, as soon after its return: claimed closed so none starts, then the
+		// value dropped and the handle freed in one crossing. A call meanwhile fails as
+		// closed, as one racing any Close may, and a Drop that calls back into Go finds it
+		// closed rather than waiting on itself.
+		if h.state.CompareAndSwap(held_, closed_|closing_) {
+			h.leave()
+			if err := h.drop(h.raw, true); err != nil {
+				h.own()
+				h.state.Store(held_)
+				return err
+			}
+			h.state.Store(closed_)
+			return nil
+		}
 		raw, s := h.Hold()
 		if raw == nil {
 			return nil
 		}
-		err := h.drop(raw)
+		err := h.drop(raw, false)
 		h.Release(s)
 		if err != nil {
 			return err
