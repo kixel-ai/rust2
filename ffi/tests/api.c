@@ -273,28 +273,27 @@ static api_buf made_view(void *data, uint32_t n) {
 	return str("viewed");
 }
 
-/* drive's closure, as the transcript's: asks for a later instant, then waits for its
+/* drive's closure, as the transcript's: asks for a later moment, then waits for its
  * waiter, which it wakes, then stops. Rust frees it once it drops it. */
 typedef struct {
 	int calls;
-	api_Instant start;
+	api_Moment start;
 	bool freed;
 } driver;
 
-static bool drive_poll(void *data, api_Instant now, const api_Waiter *waiter, api_option_Instant *out, api_buf *err) {
+static bool drive_poll(void *data, api_Moment now, const api_Waiter *waiter, api_option_Moment *out, api_buf *err) {
 	driver *d = data;
 	d->calls++;
 	if (d->calls == 1) {
-		*out = (api_option_Instant){.some = true, .value = api_later(now, (api_duration){.secs = 0, .nanos = 5000000})};
+		*out = (api_option_Moment){.some = true, .value = api_Moment_after(&now, 5)};
 		return true;
 	}
 	if (d->calls == 2) {
-		api_duration since = api_since(now, d->start);
-		printf("drive %llu\n", (unsigned long long)(since.secs * 1000 + since.nanos / 1000000));
+		printf("drive %llu\n", (unsigned long long)(api_Moment_millis(&now) - api_Moment_millis(&d->start)));
 		api_waker returned = api_Waiter_waker(waiter);
 		returned.wake(returned.data);
 		returned.drop(returned.data);
-		*out = (api_option_Instant){0};
+		*out = (api_option_Moment){0};
 		return true;
 	}
 	char text[32];
@@ -304,12 +303,12 @@ static bool drive_poll(void *data, api_Instant now, const api_Waiter *waiter, ap
 }
 
 /* A drive that only ever waits. */
-static bool drive_idle(void *data, api_Instant now, const api_Waiter *waiter, api_option_Instant *out, api_buf *err) {
+static bool drive_idle(void *data, api_Moment now, const api_Waiter *waiter, api_option_Moment *out, api_buf *err) {
 	(void)data;
 	(void)now;
 	(void)waiter;
 	(void)err;
-	*out = (api_option_Instant){0};
+	*out = (api_option_Moment){0};
 	return true;
 }
 
@@ -443,7 +442,7 @@ static bool closures(void) {
 	}
 
 	api_waker waker = {.wake = wake, .drop = drop, .data = NULL};
-	api_Instant start = api_now();
+	api_Moment start = api_Moment_new(0, 1000).value;
 	driver d = {.start = start};
 	api_drive_future *drive = api_drive(start, drive_poll, &d, drive_free);
 	api_buf stopped;
@@ -1054,17 +1053,12 @@ static int script(void) {
 	printf("wrapped %llu %s\n", (unsigned long long)api_Moment_millis(&wrapped),
 		   api_Moment_eq(&moment, &shifted) ? "true" : "false");
 
-	/* A padded value crosses with its padding zeroed, and one whose bytes vary is a handle. */
-	api_Gap gap = api_Gap_new(7, 3);
-	api_Gap same_gap = api_Gap_new(7, 3);
-	printf("gap %llu %s\n", (unsigned long long)api_Gap_sum(&gap), api_Gap_eq(&gap, &same_gap) ? "true" : "false");
-	/* Its `u64` then its `u8`, so every byte past the ninth is padding Rust made `0xff`. */
-	for (size_t n = 9; n < sizeof gap; n++) {
-		if (((const unsigned char *)&gap)[n] != 0) {
-			fprintf(stderr, "gap's padding byte %zu is not zero\n", n);
-			return 1;
-		}
-	}
+	/* A value with padding, or bytes that vary, is a handle, as no table says where padding is. */
+	api_Gap *gap = api_Gap_new(7, 3);
+	api_Gap *same_gap = api_Gap_new(7, 3);
+	printf("gap %llu %s\n", (unsigned long long)api_Gap_sum(gap), api_Gap_eq(gap, same_gap) ? "true" : "false");
+	api_Gap_free(same_gap);
+	api_Gap_free(gap);
 	api_Berth *berth = api_Berth_new((api_option_u32){.some = true, .value = 4});
 	api_Berth *empty_berth = api_Berth_new((api_option_u32){0});
 	api_option_u32 berth_at = api_Berth_at(berth);
@@ -1094,8 +1088,9 @@ static int script(void) {
 	api_Hits kept = hits;
 	api_Hits_add(&hits, api_Hits_of(10, 20));
 	api_Hits_hits_set(&hits, 7);
-	printf("hits %llu %u %llu %u %s\n", (unsigned long long)api_Hits_hits_get(&hits), api_Hits_misses_get(&hits),
-		   (unsigned long long)api_Hits_hits_get(&kept), api_Hits_misses_get(&kept),
+	printf("hits %llu %llu %llu %llu %s\n", (unsigned long long)api_Hits_hits_get(&hits),
+		   (unsigned long long)api_Hits_misses_get(&hits), (unsigned long long)api_Hits_hits_get(&kept),
+		   (unsigned long long)api_Hits_misses_get(&kept),
 		   api_Hits_eq(&hits, &kept) ? "true" : "false");
 	api_Hits counted = kept;
 	bool counted_same = api_Hits_eq_(&counted, kept);
@@ -1933,18 +1928,21 @@ static int script(void) {
 	printf("\n");
 	api_vec_tuple_string_Json_free(sections);
 
-	/* An instant only Rust makes, which C copies into each call and compares. */
-	api_Instant began = api_now();
-	api_Instant ended = api_later(began, (api_duration){.secs = 1, .nanos = 500000000});
-	api_Instant same = api_later(began, (api_duration){.secs = 0, .nanos = 0});
+	/* An instant only Rust makes, a handle, as its padding is wherever rustc puts it, which
+	 * each call copies out of, and compares. */
+	api_Instant *began = api_now();
+	api_Instant *ended = api_later(began, (api_duration){.secs = 1, .nanos = 500000000});
+	api_Instant *same = api_later(began, (api_duration){.secs = 0, .nanos = 0});
 	api_duration forward = api_since(ended, began);
 	api_duration backward = api_since(began, ended);
 	printf("instants %llu %llu %s %s\n", (unsigned long long)(forward.secs * 1000 + forward.nanos / 1000000),
-		   (unsigned long long)(backward.secs * 1000 + backward.nanos / 1000000), api_Instant_eq(&began, &same) ? "true" : "false",
-		   api_Instant_eq(&began, &ended) ? "true" : "false");
-	/* An instant lent inside an `Option`, which C copies. */
-	printf("has_instant %s %s\n", api_has_instant((api_option_Instant){.some = true, .value = began}) ? "true" : "false",
-		   api_has_instant((api_option_Instant){.some = false}) ? "true" : "false");
+		   (unsigned long long)(backward.secs * 1000 + backward.nanos / 1000000), api_Instant_eq(began, same) ? "true" : "false",
+		   api_Instant_eq(began, ended) ? "true" : "false");
+	/* An instant lent inside an `Option`, which takes no handle. */
+	printf("has_instant %s %s\n", api_has_instant(began) ? "true" : "false", api_has_instant(NULL) ? "true" : "false");
+	api_Instant_free(same);
+	api_Instant_free(ended);
+	api_Instant_free(began);
 
 	/* tracing's level, and its filter as an optional level whose none is `OFF`. */
 	api_Verbosity *verbosity = api_Verbosity_new(API_LEVEL_WARN);

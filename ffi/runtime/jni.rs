@@ -926,8 +926,8 @@ thread_local! {
 	static SCRATCH: Cell<Vec<MaybeUninit<u8>>> = const { Cell::new(Vec::new()) };
 }
 
-/// Values encoded into a `byte[]` for Kotlin. Its bytes may be uninitialized, as an opaque
-/// value's padding is, so it holds them as such and hands JNI them by pointer.
+/// Values encoded into a `byte[]` for Kotlin. It holds `MaybeUninit` bytes, the units an
+/// opaque value's C struct is made of, and hands JNI them by pointer.
 pub struct Writer(Vec<MaybeUninit<u8>>);
 
 impl Default for Writer {
@@ -1026,7 +1026,7 @@ pub unsafe fn from_words<T: Copy, const W: usize>(env: *mut JNIEnv, array: jlong
 }
 
 /// A new `long[]` of the `W` words an opaque value's C struct is held in: its bytes, then
-/// zeros. Its padding crosses as the bytes it holds, which Kotlin never reads.
+/// zeros.
 pub fn to_words<T: Copy, const W: usize>(env: *mut JNIEnv, value: T) -> jlongArray {
 	const { assert!(size_of::<T>() <= W * size_of::<jlong>()) };
 	let mut words = [std::mem::MaybeUninit::<jlong>::zeroed(); W];
@@ -1056,7 +1056,7 @@ pub fn read_words<T: Copy, const W: usize>(r: &mut Reader<'_>) -> T {
 }
 
 /// Encode an opaque value's C struct as the `W` words Kotlin holds it in: its bytes, then
-/// zeros. Its padding stays uninitialized, as the writer allows, and Kotlin never reads it.
+/// zeros.
 pub fn write_words<T: Copy, const W: usize>(w: &mut Writer, value: T) {
 	const { assert!(size_of::<T>() <= W * size_of::<jlong>() && cfg!(target_endian = "little")) };
 	let n = W * size_of::<jlong>();
