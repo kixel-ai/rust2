@@ -763,9 +763,13 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Bool => format!("{w}.bool({e})"),
-			Type::Int(int) | Type::NonZero(int) => {
+			Type::Int(int) => {
 				let (method, _) = wire_int(*int);
 				format!("{w}.{method}({})", to_signed(*int, e))
+			}
+			Type::NonZero(int) => {
+				let (method, _) = wire_int(*int);
+				format!("{w}.{method}({})", non_zero(&to_signed(*int, e)))
 			}
 			Type::F32 => format!("{w}.f32({e})"),
 			Type::F64 => format!("{w}.f64({e})"),
@@ -989,7 +993,11 @@ impl<'a> Gen<'a> {
 				arg.rust_args.push(p);
 			}
 			Ty::Int(int) => {
-				arg.exprs.push(to_signed(*int, e));
+				let signed = to_signed(*int, e);
+				arg.exprs.push(match ty.base() {
+					Type::NonZero(_) => non_zero(&signed),
+					_ => signed,
+				});
 				arg.rust_args.push(from_jni(*int, &p));
 			}
 			Ty::F32 | Ty::F64 => {
@@ -3158,9 +3166,13 @@ impl<'a> Gen<'a> {
 					*n += 1;
 					let (jni, native, kt, rust) = match ty {
 						Type::Bool => ("jboolean", "Boolean", e, p),
-						Type::Int(int) | Type::NonZero(int) => {
+						Type::Int(int) => {
 							let (jni, native) = jni_type(abi, &Ty::Int(*int), ty);
 							(jni, native, to_signed(*int, &e), from_jni(*int, &p))
+						}
+						Type::NonZero(int) => {
+							let (jni, native) = jni_type(abi, &Ty::Int(*int), ty);
+							(jni, native, non_zero(&to_signed(*int, &e)), from_jni(*int, &p))
 						}
 						Type::F32 => ("jfloat", "Float", e, p),
 						Type::F64 => ("jdouble", "Double", e, p),
@@ -3434,6 +3446,11 @@ fn family_suffix(family: Family) -> &'static str {
 /// a Unicode scalar value, as no Rust `char` holds any other.
 fn scalar_value(e: &str) -> String {
 	format!("_Native.__char({e})")
+}
+
+/// The signed JNI integer `e` of a `NonZero`, throwing if it is zero, which no `NonZero` is.
+fn non_zero(e: &str) -> String {
+	format!("_Native.__nonZero({e})")
 }
 
 /// The bound struct of `int`'s pairs of bounds.

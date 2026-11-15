@@ -925,6 +925,7 @@ fun lossless() {
 
 	// Integers and chars Kotlin holds and Rust does not throw before they cross.
 	for (c in listOf(0xd800, 0xdfff, 0x110000, -1)) check(rejects { sameChar(c) }, "$c is no char")
+	check(rejects { nextHop(0UL) } && rejects { fartherHop(PairNonZeroU16(0u, 1u)) }, "a zero is no NonZero")
 
 	// Text: a lone surrogate throws, passed alone or encoded, before anything moves.
 	check(rejects { sameString("a\ud800") } && rejects { sameString("\udc00b") }, "a lone surrogate is no Rust text")

@@ -385,6 +385,15 @@ fun __isize(v: Long): Long {
 	return v
 }
 
+/** A `NonZero`'s integer as JNI passes it, throwing if it is zero, as no `NonZero` is. */
+fun __nonZero(v: Byte): Byte = if (v != 0.toByte()) v else throw __Invalid("a NonZero is zero")
+
+fun __nonZero(v: Short): Short = if (v != 0.toShort()) v else throw __Invalid("a NonZero is zero")
+
+fun __nonZero(v: Int): Int = if (v != 0) v else throw __Invalid("a NonZero is zero")
+
+fun __nonZero(v: Long): Long = if (v != 0L) v else throw __Invalid("a NonZero is zero")
+
 /** A `char` as JNI passes it, throwing unless [v] is a Unicode scalar value, as every Rust `char` is. */
 fun __char(v: Int): Int {
 	if (v.toUInt() > 0x10ffffu || v ushr 11 == 0x1b) throw __Invalid("$v is no Unicode scalar value, as a Rust char is")

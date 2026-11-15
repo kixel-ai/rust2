@@ -587,7 +587,8 @@ the rest cross encoded.
   throws `IllegalArgumentException` before anything moves; a `char` is an `Int`, which
   throws `IllegalArgumentException` passed in unless it is a Unicode scalar value; `usize`
   `ULong` and `isize` `Long`, which throw `IllegalArgumentException` passed in past the
-  library's target's range, as a 32-bit one's is, `Option<T>` `T?`, a tuple `Pair` or
+  library's target's range, as a 32-bit one's is, and a `NonZero<T>` `T`'s type, which throws
+  `IllegalArgumentException` passed in zero; `Option<T>` is `T?`, a tuple `Pair` or
   `Triple`, or else a generated `Tuple<n>`, and also `Tuple2` or `Tuple3` when it holds a
   numeric array or a float anywhere, records included, since `Pair` and `Triple` cannot
   compare them as Rust does (so a `BTreeMap<String, f64>` is a `List<Tuple2<String, Double>>`), `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, and an `Err` a thrown `<E>Exception`
