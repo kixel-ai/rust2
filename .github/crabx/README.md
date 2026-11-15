@@ -28,8 +28,7 @@ jobs:
     uses: kixel-ai/rust2/.github/workflows/crabx.yml@pipeline-v1.0.0
 ```
 
-Use your default branch in the push filter. The first pipeline release tag must
-be published before this example can run. A caller pins a pipeline release tag
+Use your default branch in the push filter. A caller pins a pipeline release tag
 or its immutable commit. The pipeline checks out its own scripts at the exact
 commit of the called workflow, independently of the caller's checkout.
 
@@ -66,8 +65,10 @@ jobs fails explicitly.
 on PRs with read-only permissions. A manual dispatch also attests the archives
 without creating tags or releases, and bypasses crates.io discovery. Local tests
 exercise discovery, archiving, and publishing with recorded API and Cargo
-responses; the fixture workflow builds the real archives on all six targets. The pipeline release quest owns the first hosted attestation dispatch and pipeline
-release tag; the shipped crabx quest owns the first real crates.io consumer.
+responses; the fixture workflow builds the real archives on all six targets.
+Before tagging a pipeline release, dispatch it on the commit to tag and check each
+archive with `gh attestation verify <archive> -R kixel-ai/rust2 --signer-workflow
+kixel-ai/rust2/.github/workflows/crabx.yml`.
 
 References: [binstall archive defaults](https://github.com/cargo-bins/cargo-binstall/blob/main/SUPPORT.md),
 [reusable job identity](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#job-context),
