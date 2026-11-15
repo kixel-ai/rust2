@@ -159,6 +159,13 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 			"_Waker",
 		),
 		(
+			"dart_waker_call",
+			"ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>",
+			"ffi.Void",
+			"ffi.Pointer<ffi.Void> p0, ffi.Pointer<ffi.Void> p1, ffi.Pointer<ffi.Void> p2",
+			"void",
+		),
+		(
 			"dart_future",
 			"ffi.Pointer<ffi.Void>, ffi.Int64",
 			"_ForeignFuture",
@@ -281,6 +288,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_init(data: *const c_void) -> bool {{\n\tunsafe {{ runtime::init(data) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub extern \"C\" fn {space}_home(port: i64, dropped: unsafe extern \"C\" fn(i64)) -> *const c_void {{\n\tstd::ptr::from_ref(runtime::home(port, dropped)).cast()\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_waker(home: *const c_void, token: i64) -> rt::Waker {{\n\truntime::waker(unsafe {{ &*home.cast() }}, token)\n}}\n\n\
+		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_waker_call(home: *const c_void, f: unsafe extern \"C\" fn(*mut c_void), data: *mut c_void) {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || f(data)) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_future(home: *const c_void, token: i64) -> rt::ForeignFuture {{\n\truntime::future(unsafe {{ &*home.cast() }}, token)\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_future_done(data: *const c_void, failed: bool) -> bool {{\n\tunsafe {{ runtime::future_done(data, failed) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_relay(home: *const c_void, f: *const c_void, token: i64) -> *mut c_void {{\n\truntime::relay(unsafe {{ &*home.cast() }}, f, token).cast()\n}}\n\n\
@@ -329,6 +337,7 @@ const TAKEN: &[&str] = &[
 	"StateError",
 	"String",
 	"UnsupportedError",
+	"Waker",
 	"bool",
 	"convert",
 	"dasync",
@@ -1269,7 +1278,7 @@ impl<'a> Gen<'a> {
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.lift(inner, e),
 			Type::Object(_) => format!("{}._({e})", self.dt(ty)),
-			Type::Waker => format!("_n.returned({e})"),
+			Type::Waker => format!("Waker._({e})"),
 			Type::Record(_)
 			| Type::Enum(_)
 			| Type::List(..)
@@ -2172,7 +2181,11 @@ impl<'a> Gen<'a> {
 		let ok = strip_refs(&function.ok);
 		let err = function.err.as_ref().map(strip_refs);
 		let thrown = err.as_ref().map(|e| self.thrown(e));
-		let ok_dt = self.dt(&ok);
+		// A waker Dart gets is one it can close, unlike one it gives.
+		let ok_dt = match ok {
+			Type::Waker => "Waker".to_string(),
+			_ => self.dt(&ok),
+		};
 
 		// Each call, and each poll and free of its future, serves the isolate while it waits.
 		args.insert(0, "_n.home".to_string());
