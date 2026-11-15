@@ -13,8 +13,12 @@ use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{self, AtomicBool, AtomicUsize, Ordering};
 use std::task::{Context, Wake};
+use std::thread::yield_now;
+
+mod borrow;
+use borrow::{Borrow, EXCLUSIVE, RESERVED, TAKEN, Table};
 
 /// Abort with a message naming the C function whose contract was broken.
 #[cold]
@@ -792,18 +796,39 @@ pub fn char(code: u32, what: &str) -> char {
 	char::from_u32(code).unwrap_or_else(|| fail(what, "a char is not a Unicode scalar value"))
 }
 
-const EXCLUSIVE: usize = usize::MAX;
-const TAKEN: usize = usize::MAX - 1;
-const RESERVED: usize = usize::MAX - 2;
+/// Columns of [`TABLE`]: threads borrowing at once before two share one.
+const COLUMNS: usize = 64;
+/// Rows of [`TABLE`]: handles one thread borrows at once before two share a slot.
+const ROWS: usize = 64;
+
+#[repr(align(64))]
+struct Slots([AtomicUsize; COLUMNS * ROWS]);
+
+static SLOTS: Slots = Slots([const { AtomicUsize::new(0) }; COLUMNS * ROWS]);
+/// Where shared borrows of contended handles go instead of their counts.
+static TABLE: Table<'static> = Table::new(&SLOTS.0, ROWS);
+
+/// This thread's column of [`TABLE`]: threads take them in turn, so no two of the first
+/// [`COLUMNS`] share one. A thread past its thread locals' teardown takes the first.
+fn column() -> usize {
+	static NEXT: AtomicUsize = AtomicUsize::new(0);
+	thread_local!(static COLUMN: std::cell::Cell<usize> = const { std::cell::Cell::new(usize::MAX) });
+	COLUMN
+		.try_with(|column| {
+			if column.get() == usize::MAX {
+				column.set(NEXT.fetch_add(1, Ordering::Relaxed) % COLUMNS);
+			}
+			column.get()
+		})
+		.unwrap_or(0)
+}
 
 /// A value behind a handle: shared through an `Arc`, and borrowed as Rust borrows it, with
-/// the borrow checked at run time. `state` counts shared borrows, or is [`EXCLUSIVE`]
-/// while one exclusive borrow lasts, [`RESERVED`] while a call holds it to move out once its
-/// checks pass, or [`TAKEN`] once the value moved out. A value that is
-/// not `Sync` is shared on one thread at a time instead: `state` is that thread's id, and
-/// `depth` counts its borrows, which only that thread touches.
+/// the borrow checked at run time by `borrow`, which says how. A value that is not `Sync`
+/// is shared on one thread at a time: its state is that thread's id, and `depth` counts its
+/// borrows, which only that thread touches.
 pub struct Object<T> {
-	state: AtomicUsize,
+	borrow: Borrow,
 	depth: UnsafeCell<usize>,
 	/// The value a lent handle points at, where Rust lent it, or null if it owns `value`.
 	lent: *mut T,
@@ -826,31 +851,41 @@ pub struct Lender {
 
 /// A handle another is lent from.
 trait Lends: Send + Sync {
-	/// Borrow the value shared for a use of a handle lent from it, if still at `epoch`.
-	fn hold(&self, epoch: usize, local: bool) -> Result<(), Status>;
+	/// Borrow the value shared for a use of a handle lent from it, if still at `epoch`, as
+	/// the `level`th handle a borrow on the thread in `column` holds.
+	fn hold(&self, epoch: usize, local: bool, column: usize, level: u32) -> Result<u64, Status>;
 	/// End what [`Self::hold`] took.
-	fn unhold(&self, local: bool);
+	fn unhold(&self, local: bool, column: usize, level: u32, listed: u64);
 }
 
 impl<T: Send> Lends for Object<T> {
-	fn hold(&self, epoch: usize, local: bool) -> Result<(), Status> {
-		match local {
-			true => self.acquire_local()?,
-			false => self.acquire()?,
-		}
+	fn hold(&self, epoch: usize, local: bool, column: usize, level: u32) -> Result<u64, Status> {
+		let listed = match local {
+			true => self.acquire_local(column, level)?,
+			false => self.acquire(column, level)?,
+		};
 		if self.epoch.load(Ordering::Acquire) != epoch {
-			self.unhold(local);
+			self.unhold(local, column, level, listed);
 			return Err(Status::Outlived);
 		}
-		Ok(())
+		Ok(listed)
 	}
 
-	fn unhold(&self, local: bool) {
+	fn unhold(&self, local: bool, column: usize, level: u32, listed: u64) {
 		match local {
-			true => self.release_local(),
-			false => Object::release(self),
+			true => self.release_local(column, level, listed),
+			false => self.release(column, level, listed),
 		}
 	}
+}
+
+/// What a shared borrow of a handle took, to give back: the column of the thread that
+/// took it, and which of the handle and the chain of handles it was lent from went to
+/// that column's slots, a bit each.
+#[derive(Clone, Copy)]
+pub struct Ticket {
+	column: usize,
+	listed: u64,
 }
 
 /// This thread's id for [`Object::borrow_local`]: the address of a thread local, which no
@@ -878,7 +913,7 @@ impl<T> Object<T> {
 		T: 'static,
 	{
 		Arc::into_raw(Arc::new(Self {
-			state: AtomicUsize::new(0),
+			borrow: Borrow::new(0),
 			depth: UnsafeCell::new(0),
 			lent: std::ptr::null_mut(),
 			value: UnsafeCell::new(MaybeUninit::new(value)),
@@ -894,7 +929,7 @@ impl<T> Object<T> {
 	/// exclusively nor moved out itself.
 	pub fn lent(value: &T, lender: Lender) -> *const c_void {
 		Arc::into_raw(Arc::new(Self {
-			state: AtomicUsize::new(0),
+			borrow: Borrow::new(0),
 			depth: UnsafeCell::new(0),
 			lent: std::ptr::from_ref(value).cast_mut(),
 			value: UnsafeCell::new(MaybeUninit::uninit()),
@@ -958,91 +993,85 @@ impl<T> Object<T> {
 		unsafe { &*handle.cast::<Self>() }
 	}
 
-	fn acquire(&self) -> Result<(), Status> {
-		let mut state = self.state.load(Ordering::Relaxed);
-		loop {
-			match state {
-				TAKEN => return Err(Status::Moved),
-				EXCLUSIVE | RESERVED => return Err(Status::Exclusive),
-				_ => {}
-			}
-			match self
-				.state
-				.compare_exchange_weak(state, state + 1, Ordering::Acquire, Ordering::Relaxed)
-			{
-				Ok(_) => break,
-				Err(now) => state = now,
-			}
-		}
-		self.hold_lender().inspect_err(|_| {
-			self.state.fetch_sub(1, Ordering::Release);
-		})
+	/// Borrow the value shared, as the `level`th handle of a borrow on the thread in
+	/// `column`: the bits of the handles that went to the table, from `level` on.
+	fn acquire(&self, column: usize, level: u32) -> Result<u64, Status> {
+		// Past a word's bits of lenders, which no export nests, the count holds the rest.
+		let table = (level < u64::BITS).then_some(&TABLE);
+		let listed = u64::from(self.borrow.share(table, column)?) << level.min(u64::BITS - 1);
+		self.hold_lender(column, level + 1)
+			.map(|lenders| listed | lenders)
+			.inspect_err(|_| self.borrow.unshare(&TABLE, column, listed != 0))
 	}
 
 	/// End a shared borrow [`Self::acquire`] took.
-	fn release(&self) {
-		self.release_lender();
-		self.state.fetch_sub(1, Ordering::Release);
+	fn release(&self, column: usize, level: u32, listed: u64) {
+		self.release_lender(column, level + 1, listed);
+		self.borrow.unshare(&TABLE, column, level < u64::BITS && listed >> level & 1 != 0);
 	}
 
 	/// Borrow a value that is not `Sync` shared: any number of times on one thread, as
 	/// Rust allows, and on no other thread meanwhile.
-	fn acquire_local(&self) -> Result<(), Status> {
-		let me = thread();
-		match self.state.compare_exchange(0, me, Ordering::Acquire, Ordering::Relaxed) {
-			Ok(_) => {}
-			Err(owner) if owner == me => {}
-			Err(TAKEN) => return Err(Status::Moved),
-			Err(EXCLUSIVE | RESERVED) => return Err(Status::Exclusive),
-			Err(_) => return Err(Status::Thread),
-		}
-		// SAFETY: only the thread in `state` touches `depth`.
+	fn acquire_local(&self, column: usize, level: u32) -> Result<u64, Status> {
+		self.borrow.local(thread())?;
+		// SAFETY: only the thread in the state touches `depth`.
 		unsafe { *self.depth.get() += 1 };
-		self.hold_lender().inspect_err(|_| self.unlocal())
+		self.hold_lender(column, level + 1).inspect_err(|_| self.unlocal())
 	}
 
 	/// End a shared borrow [`Self::acquire_local`] took, on its thread.
-	fn release_local(&self) {
-		self.release_lender();
+	fn release_local(&self, column: usize, level: u32, listed: u64) {
+		self.release_lender(column, level + 1, listed);
 		self.unlocal();
+	}
+
+	/// The [`Ticket`] of a borrow [`Self::acquire`] takes.
+	fn shared(&self) -> Result<Ticket, Status> {
+		let column = column();
+		Ok(Ticket { column, listed: self.acquire(column, 0)? })
+	}
+
+	/// The [`Ticket`] of a borrow [`Self::acquire_local`] takes, whose column only a lender
+	/// uses.
+	fn local(&self) -> Result<Ticket, Status> {
+		let column = match self.lender {
+			Some(_) => column(),
+			None => 0,
+		};
+		Ok(Ticket { column, listed: self.acquire_local(column, 0)? })
 	}
 
 	/// Count down this thread's borrows, letting go of the value at the last.
 	fn unlocal(&self) {
-		// SAFETY: this thread is the one in `state`, so `depth` is its own.
+		// SAFETY: this thread is the one in the state, so `depth` is its own.
 		let depth = unsafe { &mut *self.depth.get() };
 		*depth -= 1;
 		if *depth == 0 {
-			self.state.store(0, Ordering::Release);
+			self.borrow.set(0);
 		}
 	}
 
 	/// For a handle lent from another, hold that one for a use of this one.
-	fn hold_lender(&self) -> Result<(), Status> {
+	fn hold_lender(&self, column: usize, level: u32) -> Result<u64, Status> {
 		match &self.lender {
-			Some(lender) => lender.handle.hold(lender.epoch, lender.local),
-			None => Ok(()),
+			Some(lender) => lender.handle.hold(lender.epoch, lender.local, column, level),
+			None => Ok(0),
 		}
 	}
 
-	fn release_lender(&self) {
+	fn release_lender(&self, column: usize, level: u32, listed: u64) {
 		if let Some(lender) = &self.lender {
-			lender.handle.unhold(lender.local);
+			lender.handle.unhold(lender.local, column, level, listed);
 		}
 	}
 
-	/// Take `state` from 0 to `to`, as an exclusive borrow or a move does.
+	/// Take the value from no borrow to `to`, as an exclusive borrow or a move does.
 	fn acquire_from_zero(&self, to: usize) -> Result<(), Status> {
 		if self.lender.is_some() || (matches!(to, TAKEN | RESERVED) && !self.lent.is_null()) {
 			return Err(Status::Lent);
 		}
-		match self.state.compare_exchange(0, to, Ordering::Acquire, Ordering::Relaxed) {
-			Ok(_) => Ok(()),
-			Err(TAKEN) => Err(Status::Moved),
-			Err(_) => Err(Status::Borrowed),
-		}
+		self.borrow.take(&TABLE, to)
 	}
-
 	/// Borrow the value shared for a call.
 	///
 	/// # Safety
@@ -1053,8 +1082,8 @@ impl<T> Object<T> {
 	{
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
-		object.acquire()?;
-		Ok(Shared { object })
+		let ticket = object.shared()?;
+		Ok(Shared { object, ticket })
 	}
 
 	/// Borrow the value shared for a call, uncounted: no export borrows a value of its type
@@ -1079,8 +1108,8 @@ impl<T> Object<T> {
 	pub unsafe fn borrow_local<'a>(handle: *const c_void, what: &str) -> Result<Local<'a, T>, Status> {
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
-		object.acquire_local()?;
-		Ok(Local { object })
+		let ticket = object.local()?;
+		Ok(Local { object, ticket })
 	}
 
 	/// Borrow the value exclusively for a call.
@@ -1104,10 +1133,11 @@ impl<T> Object<T> {
 	{
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
-		object.acquire()?;
+		let ticket = object.shared()?;
 		// SAFETY: as above.
 		Ok(SharedArc {
 			object: unsafe { Self::arc(handle, what) },
+			ticket,
 		})
 	}
 
@@ -1162,7 +1192,7 @@ impl<T> Object<T> {
 	/// neither move it out, nor free the handle, nor keep a borrow past `f`.
 	fn lending<R>(ptr: *mut T, state: usize, depth: usize, what: &str, f: impl FnOnce(*const c_void) -> R) -> R {
 		let object = Arc::new(Self {
-			state: AtomicUsize::new(state),
+			borrow: Borrow::new(state),
 			depth: UnsafeCell::new(depth),
 			lent: ptr,
 			value: UnsafeCell::new(MaybeUninit::uninit()),
@@ -1173,7 +1203,7 @@ impl<T> Object<T> {
 		let spare = Arc::clone(&object);
 		let result = f(Arc::as_ptr(&object).cast());
 		match Arc::strong_count(&object) {
-			2 if object.state.load(Ordering::Acquire) == state => {}
+			2 if object.borrow.is(&TABLE, state) => {}
 			1 => fail(what, "a lent handle was freed"),
 			_ => fail(what, "a lent handle is still borrowed"),
 		}
@@ -1189,7 +1219,7 @@ impl<T> Object<T> {
 	pub unsafe fn borrowed(handle: *const c_void, what: &str) -> bool {
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
-		!matches!(object.state.load(Ordering::Acquire), 0 | TAKEN)
+		object.borrow.borrowed(&TABLE)
 	}
 
 	/// Move the value out, leaving the handle to be freed.
@@ -1214,7 +1244,7 @@ impl<T> Object<T> {
 		object.acquire_from_zero(RESERVED)?;
 		// SAFETY: the state outlives `takes`, by the caller's contract; a pointer to it,
 		// so the value's type need not.
-		takes.push(unsafe { &*::std::ptr::addr_of!(object.state) });
+		takes.push(unsafe { &*::std::ptr::addr_of!(object.borrow) });
 		Ok(())
 	}
 
@@ -1229,8 +1259,8 @@ impl<T> Object<T> {
 	{
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
-		object.acquire()?;
-		takes.held.push((handle, Self::unhold));
+		let ticket = object.shared()?;
+		takes.held.push((handle, ticket, Self::unhold));
 		Ok(())
 	}
 
@@ -1241,23 +1271,23 @@ impl<T> Object<T> {
 	pub unsafe fn hold_local<'a>(handle: *const c_void, takes: &mut Takes<'a>, what: &str) -> Result<(), Status> {
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
-		object.acquire_local()?;
-		takes.held.push((handle, Self::unhold_local));
+		let ticket = object.local()?;
+		takes.held.push((handle, ticket, Self::unhold_local));
 		Ok(())
 	}
 
 	/// # Safety
 	/// [`Self::hold`] borrowed `handle`'s value, and this ends that borrow.
-	unsafe fn unhold(handle: *const c_void) {
+	unsafe fn unhold(handle: *const c_void, ticket: Ticket) {
 		// SAFETY: the caller's contract.
-		unsafe { &*handle.cast::<Self>() }.release();
+		unsafe { &*handle.cast::<Self>() }.release(ticket.column, 0, ticket.listed);
 	}
 
 	/// # Safety
 	/// [`Self::hold_local`] borrowed `handle`'s value, and this ends that borrow.
-	unsafe fn unhold_local(handle: *const c_void) {
+	unsafe fn unhold_local(handle: *const c_void, ticket: Ticket) {
 		// SAFETY: the caller's contract.
-		unsafe { &*handle.cast::<Self>() }.release_local();
+		unsafe { &*handle.cast::<Self>() }.release_local(ticket.column, 0, ticket.listed);
 	}
 
 	/// A copy of the value [`Self::hold`] or [`Self::hold_local`] borrowed.
@@ -1301,10 +1331,10 @@ impl<T> Object<T> {
 		if !object.lent.is_null() && object.lender.is_none() {
 			return Err(Status::Lent);
 		}
-		match object.state.compare_exchange(0, TAKEN, Ordering::Acquire, Ordering::Relaxed) {
-			Ok(_) => {}
-			Err(TAKEN) => return Ok(()),
-			Err(_) => return Err(Status::Borrowed),
+		match object.borrow.take(&TABLE, TAKEN) {
+			Ok(()) => {}
+			Err(Status::Moved) => return Ok(()),
+			Err(status) => return Err(status),
 		}
 		object.epoch.fetch_add(1, Ordering::Release);
 		if object.lent.is_null() {
@@ -1347,7 +1377,7 @@ impl<T> Object<T> {
 
 impl<T> Drop for Object<T> {
 	fn drop(&mut self) {
-		if self.lent.is_null() && *self.state.get_mut() != TAKEN {
+		if self.lent.is_null() && *self.borrow.state.get_mut() != TAKEN {
 			// SAFETY: the last reference is gone, and the value is its own and never taken.
 			unsafe { self.value.get_mut().assume_init_drop() };
 		}
@@ -1359,13 +1389,13 @@ impl<T> Drop for Object<T> {
 /// `Copy` values the call copies out borrowed until it drops, after they are copied.
 #[derive(Default)]
 pub struct Takes<'a> {
-	first: [Option<&'a AtomicUsize>; 2],
-	rest: Vec<&'a AtomicUsize>,
-	held: Vec<(*const c_void, unsafe fn(*const c_void))>,
+	first: [Option<&'a Borrow>; 2],
+	rest: Vec<&'a Borrow>,
+	held: Vec<(*const c_void, Ticket, unsafe fn(*const c_void, Ticket))>,
 }
 
 impl<'a> Takes<'a> {
-	fn push(&mut self, state: &'a AtomicUsize) {
+	fn push(&mut self, state: &'a Borrow) {
 		match self.first.iter_mut().find(|slot| slot.is_none()) {
 			Some(slot) => *slot = Some(state),
 			None => self.rest.push(state),
@@ -1375,7 +1405,7 @@ impl<'a> Takes<'a> {
 	/// Mark every value reserved moved out, for the call to move out.
 	pub fn commit(&mut self) {
 		for state in self.first.iter_mut().filter_map(Option::take).chain(self.rest.drain(..)) {
-			state.store(TAKEN, Ordering::Release);
+			state.set(TAKEN);
 		}
 	}
 }
@@ -1383,11 +1413,11 @@ impl<'a> Takes<'a> {
 impl Drop for Takes<'_> {
 	fn drop(&mut self) {
 		for state in self.first.iter().flatten().chain(&self.rest) {
-			state.store(0, Ordering::Release);
+			state.set(0);
 		}
-		for (handle, unhold) in self.held.drain(..) {
+		for (handle, ticket, unhold) in self.held.drain(..) {
 			// SAFETY: `hold` or `hold_local` borrowed it, for this to end.
-			unsafe { unhold(handle) };
+			unsafe { unhold(handle, ticket) };
 		}
 	}
 }
@@ -1417,6 +1447,7 @@ impl<F: FnOnce()> Drop for Unlifted<F> {
 
 pub struct Shared<'a, T> {
 	object: &'a Object<T>,
+	ticket: Ticket,
 }
 
 impl<T> Deref for Shared<'_, T> {
@@ -1429,7 +1460,7 @@ impl<T> Deref for Shared<'_, T> {
 
 impl<T> Drop for Shared<'_, T> {
 	fn drop(&mut self) {
-		self.object.release();
+		self.object.release(self.ticket.column, 0, self.ticket.listed);
 	}
 }
 
@@ -1445,6 +1476,7 @@ impl<T> Deref for Peek<'_, T> {
 
 pub struct Local<'a, T> {
 	object: &'a Object<T>,
+	ticket: Ticket,
 }
 
 impl<T> Deref for Local<'_, T> {
@@ -1457,7 +1489,7 @@ impl<T> Deref for Local<'_, T> {
 
 impl<T> Drop for Local<'_, T> {
 	fn drop(&mut self) {
-		self.object.release_local();
+		self.object.release_local(self.ticket.column, 0, self.ticket.listed);
 	}
 }
 
@@ -1488,12 +1520,13 @@ impl<T> Drop for Exclusive<'_, T> {
 		if self.changed {
 			self.object.epoch.fetch_add(1, Ordering::Release);
 		}
-		self.object.state.store(0, Ordering::Release);
+		self.object.borrow.set(0);
 	}
 }
 
 pub struct SharedArc<T> {
 	object: Arc<Object<T>>,
+	ticket: Ticket,
 }
 
 impl<T> Deref for SharedArc<T> {
@@ -1506,7 +1539,7 @@ impl<T> Deref for SharedArc<T> {
 
 impl<T> Drop for SharedArc<T> {
 	fn drop(&mut self) {
-		self.object.release();
+		self.object.release(self.ticket.column, 0, self.ticket.listed);
 	}
 }
 
@@ -1537,7 +1570,7 @@ impl<T> Drop for ExclusiveArc<T> {
 		if self.changed {
 			self.object.epoch.fetch_add(1, Ordering::Release);
 		}
-		self.object.state.store(0, Ordering::Release);
+		self.object.borrow.set(0);
 	}
 }
 
