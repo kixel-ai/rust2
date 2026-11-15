@@ -2255,14 +2255,18 @@ impl<'a> Gen<'a> {
 			let mut cases = vec![format!("\t\tcase 1:\n\t\t\tc._ready({ready});\n\t\t\treturn true;")];
 			// A start that finished returns a future of its own, complete already if ready:
 			// only one that pended makes a call to poll it again.
-			let mut started = vec![format!("case 1:\n\treturn Cancelable._(Future<{ok_dt}>.syncValue({ready}));")];
+			let mut started = vec![format!(
+				"case 1:\n\treturn Cancelable._(Future<{ok_dt}>.syncValue({ready}));"
+			)];
 			if let (Some(err), Some(thrown)) = (&err, &thrown) {
 				let lifted = self.lift(err, &self.out_value("err", poll_outs.last().map(|(_, t)| t)));
 				let error = thrown_value(thrown, &lifted);
 				cases.push(format!("\t\tcase 2:\n\t\t\tc._error({error});\n\t\t\treturn true;"));
 				// Never complete already: a future that fails with no listener reports its
 				// error as uncaught.
-				started.push(format!("case 2:\n\treturn Cancelable._(Future<{ok_dt}>.error({error}));"));
+				started.push(format!(
+					"case 2:\n\treturn Cancelable._(Future<{ok_dt}>.error({error}));"
+				));
 			}
 			started.push("default:\n\tf_ = o_f_.value;".to_string());
 			let poll_name = format!("_p_{c_name}");
