@@ -84,6 +84,7 @@ const COVERED: &[(&str, &str)] = &[
 	("Waker", "none: a waker holds no value"),
 	("Future", "none: a foreign future is of (), which holds no value"),
 	("Reader", "none: a foreign reader is lent for a call and holds no value"),
+	("Jni", "none: a JNI value is lent for a Kotlin call, which api.kt passes"),
 	("Option", "Option"),
 	("Box", "Box"),
 	("Ref", "every shape, which digest_N and peek_N's closure borrow"),
