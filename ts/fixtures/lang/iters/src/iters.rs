@@ -2749,10 +2749,16 @@ pub fn fused_back(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			out.push(
 				a.iter()
 					.rev()
-					.zip(b.iter().map(seen!(27)).zip(data.iter().rev().zip(a.iter().rev().map(seen!(28)))))
+					.zip(
+						b.iter()
+							.map(seen!(27))
+							.zip(data.iter().rev().zip(a.iter().rev().map(seen!(28)))),
+					)
 					.zip(data.iter().rev().map(seen!(29)))
 					.rev()
-					.fold(0u8, |acc, ((x, (y, (z, w))), v)| acc.wrapping_mul(7) ^ x ^ y ^ z ^ w ^ v),
+					.fold(0u8, |acc, ((x, (y, (z, w))), v)| {
+						acc.wrapping_mul(7) ^ x ^ y ^ z ^ w ^ v
+					}),
 			);
 		}
 		// An enumerate of a zip not by index, read from the back.

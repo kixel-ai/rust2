@@ -208,7 +208,10 @@ pub(super) fn is_next_back(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId
 /// a crate's own trait of the same name is not std's.
 fn std_key(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> Option<(String, String)> {
 	let def_id = tcx.trait_item_of(def_id).unwrap_or(def_id);
-	library::is_std(tcx, def_id).then(|| library::key(tcx, def_id)).flatten()
+	if !library::is_std(tcx, def_id) {
+		return None;
+	}
+	library::key(tcx, def_id)
 }
 
 /// `Some` of an argument that isn't `undefined`.
