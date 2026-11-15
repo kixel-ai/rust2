@@ -1763,7 +1763,7 @@ impl<'a> Gen<'a> {
 			let what = format!("{c}_drop");
 			let f = self.served_fn(&what, vec![owner.clone(), Ty::Out(Box::new(Ty::Status))], Ty::Void);
 			body.push(format!(
-				"\t@override\n\tvoid _drop() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\tfinal s_ = _n.status;\n\t\t\t{f}(_n.home, _raw, s_);\n\t\t\t_status(s_.value, '{what}');\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+				"\t@override\n\tvoid _drop() {{\n\t\tfinal s_ = _n.status;\n\t\t{f}(_n.home, _raw, s_);\n\t\t_status(s_.value, '{what}');\n\t}}\n"
 			));
 		}
 		self.traits(&ty, &c, object.traits, &mut body, &mut members);
