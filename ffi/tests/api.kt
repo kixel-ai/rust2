@@ -283,7 +283,7 @@ fun script() {
 	println("shifted ${shifted.millis()} ${shifted == moment.after(500u)}")
 	println("wrapped ${moment.after(ULong.MAX_VALUE).millis()} ${moment == shifted}")
 
-	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	// A value with padding, or bytes that vary, is a handle, as no table says where padding is.
 	val gap = Gap.new(7u, 3u)
 	println("gap ${gap.sum()} ${gap == Gap.new(7u, 3u)}")
 	val berth = Berth.new(4u)
@@ -536,6 +536,24 @@ fun script() {
 	val cert = certify(Bytes("der".encodeToByteArray()))
 	val certLen = certLen(cert)
 	println("cert $certLen ${certDer(cert).text()} ${chainLen(listOf(certify(Bytes("a".encodeToByteArray())), certify(Bytes("bc".encodeToByteArray()))))}")
+	// Another crate's trait objects: an `Arc`, taken back, and `'static` ones, held by value.
+	println("resolver ${resolved(resolver("r1"))}")
+	Codecs.new().use { codecs ->
+		println("codecs ${codecs.ids()}")
+		codecs.listSet(codecs.listGet.reversed())
+		println("codecs reversed ${codecs.ids()}")
+	}
+	// A standard library value no type maps, in a handle.
+	val failure = failure("boom")
+	println("failure ${failureMessage(failure)} ${failureKind(failure)}")
+	// Iterators, passed as the arrays of their items.
+	println("sum_all ${sumAll(listOf(1u, 2u, 3u))}")
+	println("weigh_all ${weighAllCounter(listOf(Counter.new("w", 3u)))}")
+	println("offered_len ${offeredLen(listOf(Bytes("h3".encodeToByteArray()), Bytes("moq-00".encodeToByteArray())))}")
+	println("join_words ${joinWords(listOf("a", "b", "c"))}")
+	// Bytes that must be `'static`, interned.
+	Der.fromSlice(Bytes("der".encodeToByteArray())).use { println("der ${it.bytes().text()}") }
+	Der.fromSlice(Bytes("der".encodeToByteArray())).use { println("der again ${it.bytes().text()}") }
 	resume("h3", 60u).use { session -> println("resume ${session.alpn()} ${session.lifetime().seconds}") }
 	try {
 		resume("", 60u)
@@ -552,6 +570,13 @@ fun script() {
 		meters.lastGet.use { last ->
 			last.add(4uL)
 			println("field lent ${last.add(1uL)}")
+		}
+		// An optional field that is not Clone, lent as `Some` of a handle.
+		println("spare ${meters.spareGet != null}")
+		meters.spareSet(Meter.default())
+		meters.spareGet!!.use { spare ->
+			spare.add(5uL)
+			println("spare lent ${spare.add(1uL)}")
 		}
 	}
 	Tallies.new().use { tallies ->
@@ -625,6 +650,7 @@ fun script() {
 
 	// Slices, passed in and returned as clones, and the socket address of each family.
 	println("shapes ${Shape.ALL.joinToString(", ", "[", "]") { it.debug() }} greetings ${GREETINGS.joinToString(", ", "[", "]") { "\"$it\"" }}")
+	println("both ${Shape.BOTH.joinToString(", ", "[", "]") { it.debug() }} primes ${PRIMES.joinToString(", ", "[", "]")}")
 	Trail.new(listOf(Point(1, 2), Point(3, 4)), listOf("a", "b")).use { trail ->
 		println("trail ${trail.points().joinToString(", ", "[", "]") { it.debug() }} ${trail.labels().joinToString(", ", "[", "]") { it.debug() }}")
 		// Returned iterators, each collected at the call: drained labels are gone after.
@@ -645,7 +671,7 @@ fun script() {
 	val jsonSections = sections(listOf(Pair("b", Json.parse("[1]")), Pair("a", Json.parse("2"))))
 	println("sections ${jsonSections.joinToString(", ") { (key, value) -> "$key ${value.toText()}" }}")
 	jsonSections.forEach { it.second.close() }
-	// An instant only Rust makes, which each call copies, and compares.
+	// An instant only Rust makes, which each call copies out of its handle, and compares.
 	val began = now()
 	val ended = later(began, 1500.milliseconds)
 	val same = later(began, kotlin.time.Duration.ZERO)
@@ -667,15 +693,15 @@ fun script() {
 	// A kept closure, called on another thread after the call that took it returned.
 	println("spawned ${Spawned.new { 7u }.join()}")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
-	now().let { start ->
+	Moment.new(0u, 1000u)!!.let { start ->
 		var calls = 0
 		val stopped = runBlocking {
 			drive(start) { now, waiter ->
 				calls += 1
 				when (calls) {
-					1 -> later(now, 5.milliseconds)
+					1 -> now.after(5u)
 					2 -> {
-						println("drive ${since(now, start).inWholeMilliseconds}")
+						println("drive ${now.millis() - start.millis()}")
 						waiter.waker().let { waker ->
 							waker.wake()
 							(waker as AutoCloseable).close()
@@ -999,8 +1025,8 @@ fun spawned(n: UInt): java.lang.ref.WeakReference<Any> {
 // A drive whose closure waits for a wake that never comes, launched on [scope].
 @OwnFrame
 fun idle(scope: CoroutineScope): Pair<kotlinx.coroutines.Job, java.lang.ref.WeakReference<Any>> {
-	val start = now()
-	val poll = { _: Instant, _: Waiter -> start.let { null } }
+	val start = Moment.new(0u, 1000u)!!
+	val poll = { _: Moment, _: Waiter -> start.let { null } }
 	val job = scope.launch { drive(start, poll) }
 	return Pair(job, java.lang.ref.WeakReference(poll))
 }
@@ -1058,7 +1084,7 @@ fun broken(which: String) {
 		"stray" -> stray()
 		// Any exception but a closure's own error, and a reader's IOException, aborts.
 		"closure threw" -> made(1u) { throw IllegalStateException("a make failed") }
-		"closure failed" -> now().let { start ->
+		"closure failed" -> Moment.new(0u, 1000u)!!.let { start ->
 			runBlocking { drive(start) { _, _ -> throw IllegalStateException("a poll failed") } }
 		}
 		"reader threw" -> tail(
@@ -1446,7 +1472,7 @@ fun clash() {
 	check(runBlocking { Clash.Int(1).tagged("t") } == "t Int(1)", "clash tagged")
 	check(Clash.Unit.stamp(2500u).secs() == 2uL && Clash.Unit.stamp(5u) == Stamp.fromMillis(5u), "clash stamp")
 	check(all[16].moment(9u) == Moment.new(3u, 1000u) && Clash.Unit.moment(4000u).millis() == 4000uL, "clash moment")
-	check(Clash.String("hi").raw().toByteArray().decodeToString() == "hi", "clash bytes")
+	check(Clash.String("hi").bytes().toByteArray().decodeToString() == "hi", "clash bytes")
 	val out = Mut(0u)
 	check(Clash.Int(4).describe("t", 3u, Shape.SQUARE, out) == "t Int(4) 3 Square" && out.value == 6u, "clash describe")
 	check(Handle.new(5u).use { it.count() } == 5u && runBlocking { Handle.later(6u) }.use { it.count() } == 6u, "an object named as a former runtime class")

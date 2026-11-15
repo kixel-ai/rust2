@@ -360,7 +360,7 @@ Future<void> script() async {
   print('shifted ${shifted.millis()} ${shifted == moment.after(500)}');
   print('wrapped ${moment.after(-1).millis()} ${moment == shifted}');
 
-  // A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+  // A value with padding, or bytes that vary, is a handle, as no table says where padding is.
   final gap = api.Gap(7, 3);
   print('gap ${gap.sum()} ${gap == api.Gap(7, 3)}');
   final berth = api.Berth(4);
@@ -622,6 +622,27 @@ Future<void> script() async {
   final certLen = api.certLen(cert);
   print('cert $certLen ${text(api.certDer(cert))} ${api.chainLen([api.certify(utf8.encode('a')), api.certify(utf8.encode('bc'))])}');
   config.close();
+  // Another crate's trait objects: an `Arc`, taken back, and `'static` ones, held by value.
+  print('resolver ${api.resolved(api.resolver('r1'))}');
+  final codecs = api.Codecs();
+  print('codecs ${codecs.ids()}');
+  codecs.listSet(codecs.listGet.reversed.toList());
+  print('codecs reversed ${codecs.ids()}');
+  codecs.close();
+  // A standard library value no type maps, in a handle.
+  final failure = api.failure('boom');
+  print('failure ${api.failureMessage(failure)} ${api.failureKind(failure)}');
+  // Iterators, passed as the arrays of their items.
+  print('sum_all ${api.sumAll([1, 2, 3])}');
+  print('weigh_all ${api.weighAllCounter([api.Counter('w', 3)])}');
+  print('offered_len ${api.offeredLen([utf8.encode('h3'), utf8.encode('moq-00')])}');
+  print('join_words ${api.joinWords(['a', 'b', 'c'])}');
+  // Bytes that must be `'static`, interned.
+  for (final label in ['der', 'der again']) {
+    final der = api.Der.fromSlice(utf8.encode('der'));
+    print('$label ${text(der.bytes())}');
+    der.close();
+  }
   final session = api.resume('h3', 60);
   print('resume ${session.alpn()} ${session.lifetime().seconds}');
   session.close();
@@ -641,6 +662,13 @@ Future<void> script() async {
   lastMeter.add(4);
   print('field lent ${lastMeter.add(1)}');
   lastMeter.close();
+  // An optional field that is not Clone, lent as `Some` of a handle.
+  print('spare ${meters.spareGet != null}');
+  meters.spareSet(api.Meter.default_());
+  final spare = meters.spareGet!;
+  spare.add(5);
+  print('spare lent ${spare.add(1)}');
+  spare.close();
   meters.close();
   final tallies = api.Tallies();
   tallies.first().bump();
@@ -717,6 +745,7 @@ Future<void> script() async {
         _ => throw ArgumentError(v),
       }).join(', ')}]';
   print('shapes ${debugs(api.Shape.ALL)} greetings ${quoted(api.GREETINGS)}');
+  print('both ${debugs(api.Shape.BOTH)} primes ${api.PRIMES}');
   final trail = api.Trail([const api.Point(x: 1, y: 2), const api.Point(x: 3, y: 4)], ['a', 'b']);
   print('trail ${debugs(trail.points())} ${debugs(trail.labels())}');
   // Returned iterators, each collected at the call: drained labels are gone after.
@@ -736,7 +765,7 @@ Future<void> script() async {
   for (final section in sections) {
     section.$2.close();
   }
-  // An instant only Rust makes, which each call copies, and compares.
+  // An instant only Rust makes, which each call copies out of its handle, and compares.
   final began = api.now();
   final ended = api.later(began, const Duration(milliseconds: 1500));
   final same = api.later(began, Duration.zero);
@@ -761,16 +790,16 @@ Future<void> script() async {
   print('spawned ${spawned.join()}');
   // A kept closure: called again at the instant it asks for, then once its waiter wakes,
   // failing with the exception the binding throws for Rust's error.
-  final start = api.now();
+  final start = api.Moment.new_(0, 1000)!;
   var calls = 0;
   final stopped = await within(
     api.drive(start, (now, waiter) {
       calls++;
       switch (calls) {
         case 1:
-          return api.later(now, const Duration(milliseconds: 5));
+          return now.after(5);
         case 2:
-          print('drive ${api.since(now, start).inMilliseconds}');
+          print('drive ${now.millis() - start.millis()}');
           final waker = waiter.waker();
           waker();
           waker.close();
@@ -1415,7 +1444,7 @@ void broken(String which) {
       api.emit(CountLog(() => throw StateError('a log failed')), bytes([1]));
     // Only the exception of Rust's error fails a closure.
     case 'closure threw':
-      api.drive(api.now(), (_, _) => throw StateError('a poll failed'));
+      api.drive(api.Moment.new_(0, 1000)!, (_, _) => throw StateError('a poll failed'));
     // Only an Exception fails a reader.
     case 'reader threw':
       api.tail(Thrower(), 1);

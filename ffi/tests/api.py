@@ -352,7 +352,7 @@ def script():
 	except TypeError:
 		pass
 
-	# A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	# A value with padding, or bytes that vary, is a handle, as no table says where padding is.
 	gap = api.Gap.new(7, 3)
 	print(f"gap {gap.sum()} {flag(gap == api.Gap.new(7, 3))}")
 	berth = api.Berth.new(4)
@@ -623,6 +623,23 @@ def script():
 	print(f"secure {api.alpn_lent(config)} {api.alpn(config.clone())}")
 	cert = api.certify(b"der")
 	print(f"cert {api.cert_len(cert)} {text(api.cert_der(cert))} {api.chain_len([api.certify(b'a'), api.certify(b'bc')])}")
+	# Another crate's trait objects: an `Arc`, taken back, and `'static` ones, held by value.
+	print(f"resolver {api.resolved(api.resolver('r1'))}")
+	codecs = api.Codecs.new()
+	print(f"codecs {codecs.ids()}")
+	codecs.list_set(list(reversed(codecs.list_get)))
+	print(f"codecs reversed {codecs.ids()}")
+	# A standard library value no type maps, in a handle.
+	failure = api.failure("boom")
+	print(f"failure {api.failure_message(failure)} {api.failure_kind(failure)}")
+	# Iterators, passed as the arrays of their items.
+	print(f"sum_all {api.sum_all(iter([1, 2, 3]))}")
+	print(f"weigh_all {api.weigh_all_counter([api.Counter.new('w', 3)])}")
+	print(f"offered_len {api.offered_len([b'h3', b'moq-00'])}")
+	print(f"join_words {api.join_words(['a', 'b', 'c'])}")
+	# Bytes that must be `'static`, interned.
+	print(f"der {text(api.Der.from_slice(b'der').bytes())}")
+	print(f"der again {text(api.Der.from_slice(b'der').bytes())}")
 	session = api.resume("h3", 60)
 	print(f"resume {session.alpn()} {session.lifetime().seconds}")
 	try:
@@ -638,6 +655,13 @@ def script():
 	lent_last = meters.last_get
 	lent_last.add(4)
 	print(f"field lent {lent_last.add(1)}")
+	# An optional field that is not Clone, lent as `Some` of a handle.
+	print(f"spare {str(meters.spare_get is not None).lower()}")
+	meters.spare_set(api.Meter.default())
+	spare = meters.spare_get
+	assert spare is not None
+	spare.add(5)
+	print(f"spare lent {spare.add(1)}")
 	tallies = api.Tallies.new()
 	tallies.first().bump()
 	print(f"tallied {tallies.first().bump()}")
@@ -700,6 +724,7 @@ def script():
 
 	# Slices, passed in and returned as clones, and the socket address of each family.
 	print(f"shapes {debugs(api.Shape.ALL)} greetings {quoted(api.GREETINGS)}")
+	print(f"both {debugs(api.Shape.BOTH)} primes {list(api.PRIMES)}")
 	trail = api.Trail.new([api.Point(1, 2), api.Point(3, 4)], ["a", "b"])
 	print(f"trail {debugs(trail.points())} {debugs(trail.labels())}")
 	# Returned iterators, each collected at the call: drained labels are gone after.
@@ -740,7 +765,7 @@ def script():
 	# A kept closure, called on another thread after the call that took it returned.
 	print(f"spawned {api.Spawned.new(lambda: 7).join()}")
 	# A kept closure: called again at the instant it asks for, then once its waiter wakes.
-	start = api.now()
+	start = api.Moment.new(0, 1000)
 	calls = 0
 
 	def drive(now, waiter):
@@ -748,9 +773,9 @@ def script():
 		calls += 1
 		match calls:
 			case 1:
-				return api.later(now, datetime.timedelta(milliseconds=5))
+				return now.after(5)
 			case 2:
-				print(f"drive {api.since(now, start) // ms}")
+				print(f"drive {now.millis() - start.millis()}")
 				waiter.waker().wake()
 				return None
 			case _:
@@ -979,7 +1004,7 @@ class Drive:
 
 async def kept():
 	"""Closures Rust keeps past the call, which it lets go of once it drops them."""
-	start = api.now()
+	start = api.Moment.new(0, 1000)
 	stopping = Drive(True)
 	ref = weakref.ref(stopping)
 	check(await api.drive(start, stopping) == "stopped", "a kept closure's error ends its future")
@@ -1026,8 +1051,8 @@ async def kept():
 	gc.collect()
 	check(threads != [threading.get_ident()] and ref() is None, "a spawned closure runs elsewhere, then is let go")
 
-	# What a closure returns, Rust owns: a copy of a string, and a clone of an object.
-	later = api.later(start, datetime.timedelta(milliseconds=7))
+	# What a closure returns, Rust owns: a copy of a moment.
+	later = start.after(7)
 	calls = 0
 
 	def ask(now, waiter):
@@ -1035,11 +1060,11 @@ async def kept():
 		calls += 1
 		if calls == 1:
 			return later
-		check(api.since(now, later) == datetime.timedelta(), "Rust's copy of a returned object is its value")
+		check(now == later, "Rust's copy of a returned moment is its value")
 		raise api.StringException("done")
 
-	check(await api.drive(start, ask) == "done", "a closure's returned object is Rust's own copy")
-	check(api.since(later, start) == datetime.timedelta(milliseconds=7), "a returned object stays the caller's")
+	check(await api.drive(start, ask) == "done", "a closure's returned moment is Rust's own copy")
+	check(later.millis() == 7, "a returned moment stays the caller's")
 
 
 def readers():
@@ -1404,6 +1429,7 @@ def values():
 		path = api.stray()
 		check(os.fsencode(path) == b"\xff", "a path that is not UTF-8 keeps its bytes")
 		check(api.parents([path, os.fsdecode(b"\xfe/\xff")])[1] == os.fsdecode(b"\xfe"), "and crosses back")
+	check(bytes(api.Clash.String("hi").bytes()) == b"hi", "a method named as a builtin runs")
 	print("values ok")
 
 

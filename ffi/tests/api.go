@@ -446,16 +446,12 @@ func script() {
 	fmt.Printf("shifted %d %t\n", shifted.Millis(), shifted.Equal(moment.After(500)))
 	fmt.Printf("wrapped %d %t\n", moment.After(math.MaxUint64).Millis(), moment.Equal(shifted))
 
-	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	// A value with padding, or bytes that vary, is a handle, as no table says where padding is.
 	gap := api.NewGap(7, 3)
-	fmt.Printf("gap %d %t\n", gap.Sum(), gap.Equal(api.NewGap(7, 3)))
-	// Its `u64` then its `u8`, so every byte past the ninth is padding Rust made `0xff`.
-	padding := unsafe.Slice((*byte)(unsafe.Pointer(&gap.Bytes_)), unsafe.Sizeof(gap.Bytes_))[9:]
-	for n, b := range padding {
-		if b != 0 {
-			panic(fmt.Sprintf("gap's padding byte %d is not zero", n+9))
-		}
-	}
+	sameGap := api.NewGap(7, 3)
+	fmt.Printf("gap %d %t\n", must(gap.Sum()), must(gap.Equal(sameGap)))
+	gap.Close()
+	sameGap.Close()
 	four := uint32(4)
 	berth := api.NewBerth(&four)
 	empty := api.NewBerth(nil)
@@ -732,6 +728,28 @@ func script() {
 	cert := api.Certify(rt.NewBytes([]byte("der")))
 	certLen := must(api.CertLen(cert))
 	fmt.Printf("cert %d %s %d\n", certLen, must(api.CertDer(cert)).Copy(), must(api.ChainLen([]*tls.Cert{api.Certify(rt.NewBytes([]byte("a"))), api.Certify(rt.NewBytes([]byte("bc")))})))
+	// Another crate's trait objects: an `Arc`, taken back, and `'static` ones, held by value.
+	fmt.Printf("resolver %s\n", must(api.Resolved(api.Resolver("r1"))))
+	codecs := api.NewCodecs()
+	fmt.Printf("codecs %d\n", must(codecs.Ids()))
+	listed := must(codecs.ListGet())
+	ok(codecs.ListSet([]*tls.Codec{listed[1], listed[0]}))
+	fmt.Printf("codecs reversed %d\n", must(codecs.Ids()))
+	codecs.Close()
+	// A standard library value no type maps, in a handle.
+	failure := api.Failure("boom")
+	fmt.Printf("failure %s %s\n", must(api.FailureMessage(failure)), must(api.FailureKind(failure)))
+	// Iterators, passed as the arrays of their items.
+	fmt.Printf("sum_all %d\n", api.SumAll([]uint32{1, 2, 3}))
+	fmt.Printf("weigh_all %d\n", must(api.WeighAllCounter([]*api.Counter{api.NewCounter("w", 3)})))
+	fmt.Printf("offered_len %d\n", api.OfferedLen([]rt.Bytes{rt.NewBytes([]byte("h3")), rt.NewBytes([]byte("moq-00"))}))
+	fmt.Printf("join_words %s\n", api.JoinWords([]string{"a", "b", "c"}))
+	// Bytes that must be `'static`, interned.
+	for _, label := range []string{"der", "der again"} {
+		der := api.DerFromSlice(rt.NewBytes([]byte("der")))
+		fmt.Printf("%s %s\n", label, must(der.Bytes()).Copy())
+		der.Close()
+	}
 	session := must(api.Resume("h3", 60))
 	fmt.Printf("resume %s %d\n", must(session.Alpn()), must(session.Lifetime()).Seconds)
 	session.Close()
@@ -747,6 +765,12 @@ func script() {
 	lastMeter := must(meters.LastGet())
 	_ = must(lastMeter.Add(4))
 	fmt.Printf("field lent %d\n", must(lastMeter.Add(1)))
+	// An optional field that is not Clone, lent as `Some` of a handle.
+	fmt.Printf("spare %t\n", must(meters.SpareGet()) != nil)
+	ok(meters.SpareSet(api.MeterDefault()))
+	spare := must(meters.SpareGet())
+	_ = must(spare.Add(5))
+	fmt.Printf("spare lent %d\n", must(spare.Add(1)))
 	tallies := api.NewTallies()
 	_ = must(must(tallies.First()).Bump())
 	fmt.Printf("tallied %d\n", must(must(tallies.First()).Bump()))
@@ -838,6 +862,7 @@ func script() {
 
 	// Slices, passed in and returned as clones, and the socket address of each family.
 	fmt.Printf("shapes %s greetings %s\n", list(api.ShapeALL(), func(s api.Shape) string { return shapes[s] }), list(api.GREETINGS(), quoted))
+	fmt.Printf("both %s primes %s\n", list(api.ShapeBOTH(), func(s api.Shape) string { return shapes[s] }), list(api.PRIMES(), func(n uint32) string { return fmt.Sprint(n) }))
 	trail := api.NewTrail([]api.Point{{X: 1, Y: 2}, {X: 3, Y: 4}}, []string{"a", "b"})
 	point := func(p api.Point) string { return p.GoString() }
 	labeled := func(l api.Label) string { return l.GoString() }
@@ -868,13 +893,17 @@ func script() {
 		section.V1.Close()
 	}
 	fmt.Printf("sections %s\n", strings.Join(sectionTexts, ", "))
-	// An instant only Rust makes, which each call copies, and compares.
-	var began std.Instant = api.Now()
-	ended := api.Later(began, 1500*time.Millisecond)
-	same := api.Later(began, 0)
-	fmt.Printf("instants %d %d %t %t\n", api.Since(ended, began).Milliseconds(), api.Since(began, ended).Milliseconds(),
-		began.Equal(same), began.Equal(ended))
-	fmt.Printf("has_instant %t %t\n", api.HasInstant(&began), api.HasInstant(nil))
+	// An instant only Rust makes, a handle, as its padding is wherever rustc puts it, which
+	// each call copies out of, and compares.
+	var began *std.Instant = api.Now()
+	ended := must(api.Later(began, 1500*time.Millisecond))
+	same := must(api.Later(began, 0))
+	fmt.Printf("instants %d %d %t %t\n", must(api.Since(ended, began)).Milliseconds(), must(api.Since(began, ended)).Milliseconds(),
+		must(began.Equal(same)), must(began.Equal(ended)))
+	fmt.Printf("has_instant %t %t\n", must(api.HasInstant(began)), must(api.HasInstant(nil)))
+	began.Close()
+	ended.Close()
+	same.Close()
 	// tracing's level, and its filter as an optional level whose nil is `OFF`.
 	verbosity := api.NewVerbosity(tracingcore.LevelWarn)
 	fmt.Printf("verbosity %s %s\n", api.Spell(must(verbosity.Filter())), api.Spell(api.Louder(must(verbosity.Filter()))))
@@ -893,16 +922,16 @@ func script() {
 	spawned := api.NewSpawned(func() uint32 { return 7 })
 	fmt.Printf("spawned %d\n", must(spawned.Join()))
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
-	driven := api.Now()
+	driven := *api.NewMoment(0, 1000)
 	calls := 0
-	stopped := must(api.Drive(context.Background(), driven, func(now std.Instant, waiter *api.Waiter) (*std.Instant, error) {
+	stopped := must(api.Drive(context.Background(), driven, func(now api.Moment, waiter *api.Waiter) (*api.Moment, error) {
 		calls++
 		switch calls {
 		case 1:
-			later := api.Later(now, 5*time.Millisecond)
+			later := now.After(5)
 			return &later, nil
 		case 2:
-			fmt.Printf("drive %d\n", api.Since(now, driven).Milliseconds())
+			fmt.Printf("drive %d\n", now.Millis()-driven.Millis())
 			must(waiter.Waker())()
 			return nil, nil
 		}
@@ -1028,11 +1057,11 @@ func closures() {
 	{
 		marker, freed := marked()
 		called := make(chan struct{}, 1)
-		start := api.Now()
+		start := *api.NewMoment(0, 1000)
 		cancelled, cancel := context.WithCancel(ctx)
 		done := make(chan error)
 		go func() {
-			_, err := api.Drive(cancelled, start, func(std.Instant, *api.Waiter) (*std.Instant, error) {
+			_, err := api.Drive(cancelled, start, func(api.Moment, *api.Waiter) (*api.Moment, error) {
 				_ = marker[0]
 				select {
 				case called <- struct{}{}:
@@ -1055,11 +1084,11 @@ func closures() {
 
 	// What a closure returns crosses: the instant it asks for, then its error.
 	{
-		start := api.Now()
-		later := api.Later(start, time.Second)
-		var seen []int64
-		stopped := must(api.Drive(ctx, start, func(now std.Instant, _ *api.Waiter) (*std.Instant, error) {
-			seen = append(seen, api.Since(now, start).Milliseconds())
+		start := *api.NewMoment(0, 1000)
+		later := start.After(1000)
+		var seen []uint64
+		stopped := must(api.Drive(ctx, start, func(now api.Moment, _ *api.Waiter) (*api.Moment, error) {
+			seen = append(seen, now.Millis()-start.Millis())
 			if len(seen) == 1 {
 				return &later, nil
 			}
@@ -1630,10 +1659,10 @@ func broken(which string) {
 		api.IsFamily(api.FamilyWasm)
 	case "nil reader":
 		api.Tail(nil, 1)
-	// An instant Go closed, which Rust cannot copy out.
+	// A moment Go made, which Rust cannot read.
 	case "returned zero":
-		api.Drive(context.Background(), api.Now(), func(std.Instant, *api.Waiter) (*std.Instant, error) {
-			return &std.Instant{}, nil
+		api.Drive(context.Background(), *api.NewMoment(0, 1000), func(api.Moment, *api.Waiter) (*api.Moment, error) {
+			return &api.Moment{}, nil
 		})
 	default:
 		check(false, "no case "+which)

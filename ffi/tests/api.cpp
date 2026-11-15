@@ -599,7 +599,7 @@ int script() {
 		std::printf("wrapped %llu %s\n", ull(moment.after(UINT64_MAX).millis()), yes(moment == shifted));
 	}
 
-	// A padded value crosses with its padding zeroed, and one whose bytes vary is a handle.
+	// A value with padding, or bytes that vary, is a handle, as no table says where padding is.
 	{
 		api::Gap gap = api::Gap::new_(7, 3);
 		std::printf("gap %llu %s\n", ull(gap.sum()), yes(gap == api::Gap::new_(7, 3)));
@@ -625,8 +625,8 @@ int script() {
 		api::Hits kept = hits;
 		hits.add(api::Hits::of(10, 20));
 		hits.hits_set(7);
-		std::printf("hits %llu %u %llu %u %s\n", ull(hits.hits_get()), hits.misses_get(), ull(kept.hits_get()),
-			kept.misses_get(), yes(hits == kept));
+		std::printf("hits %llu %llu %llu %llu %s\n", ull(hits.hits_get()), ull(hits.misses_get()), ull(kept.hits_get()),
+			ull(kept.misses_get()), yes(hits == kept));
 		api::Hits counted = kept;
 		bool counted_same = counted.eq_(kept);
 		std::printf("counted %s %llu\n", yes(counted_same), ull(counted.hits_get()));
@@ -983,6 +983,30 @@ int script() {
 		chain.push_back(api::certify("a"));
 		chain.push_back(api::certify("bc"));
 		std::printf("%llu\n", ull(api::chain_len(std::move(chain))));
+		// Another crate's trait objects: an `Arc`, taken back, and `&'static` ones, held by value.
+		print("resolver ", api::resolved(api::resolver("r1")), "\n");
+		auto codecs = api::Codecs::new_();
+		std::printf("codecs %u\n", unsigned(codecs.ids()));
+		auto listed = codecs.list_get();
+		std::vector<api::tls_Codec> reversed;
+		reversed.push_back(std::move(listed[1]));
+		reversed.push_back(std::move(listed[0]));
+		codecs.list_set(std::move(reversed));
+		std::printf("codecs reversed %u\n", unsigned(codecs.ids()));
+		// A standard library value no type maps, in a handle.
+		auto failure = api::failure("boom");
+		print("failure ", api::failure_message(failure), " ");
+		print("", api::failure_kind(std::move(failure)), "\n");
+		// Iterators, passed as the arrays of their items.
+		std::printf("sum_all %u\n", unsigned(api::sum_all({1, 2, 3})));
+		std::vector<api::Counter> weighed;
+		weighed.push_back(api::Counter::new_("w", 3));
+		std::printf("weigh_all %llu\n", ull(api::weigh_all_Counter(std::move(weighed))));
+		std::printf("offered_len %llu\n", ull(api::offered_len({"h3", "moq-00"})));
+		print("join_words ", api::join_words({"a", "b", "c"}), "\n");
+		// Bytes that must be `'static`, interned.
+		print("der ", api::Der::from_slice("der").bytes(), "\n");
+		print("der again ", api::Der::from_slice("der").bytes(), "\n");
 		auto session = api::resume("h3", 60);
 		print("resume ", session.value().alpn(), " ");
 		std::printf("%u\n", unsigned(session.value().lifetime().seconds));
@@ -997,6 +1021,12 @@ int script() {
 		auto last = meters.last_get();
 		last.add(4);
 		std::printf("field lent %llu\n", ull(last.add(1)));
+		// An optional field that is not Clone, lent as `Some` of a handle.
+		std::printf("spare %s\n", meters.spare_get() ? "true" : "false");
+		meters.spare_set(api::Meter::default_());
+		auto spare = meters.spare_get();
+		spare->add(5);
+		std::printf("spare lent %llu\n", ull(spare->add(1)));
 		auto tallies = api::Tallies::new_();
 		tallies.first().bump();
 		std::printf("tallied %u\n", tallies.first().bump());
@@ -1144,6 +1174,17 @@ int script() {
 	std::printf("] greetings ");
 	print_strings(api::GREETINGS());
 	std::printf("\n");
+	auto both = api::Shape_BOTH();
+	std::printf("both [");
+	for (std::size_t i = 0; i < both.size(); i++) {
+		print(i == 0 ? "" : ", ", api::Shape_debug(both[i]), "");
+	}
+	std::printf("] primes [");
+	auto primes = api::PRIMES();
+	for (std::size_t i = 0; i < primes.size(); i++) {
+		std::printf("%s%u", i == 0 ? "" : ", ", unsigned(primes[i]));
+	}
+	std::printf("]\n");
 	api::Trail trail = api::Trail::new_({api::Point{1, 2}, api::Point{3, 4}}, {"a", "b"});
 	auto points = trail.points();
 	std::printf("trail [");
@@ -1229,8 +1270,8 @@ int script() {
 		auto ended = api::later(began, {1, 500000000});
 		std::printf("instants %llu %llu %s %s\n", millis(api::since(ended, began)), millis(api::since(began, ended)),
 					began == api::later(began, {0, 0}) ? "true" : "false", began == ended ? "true" : "false");
-		// An instant lent inside an `Option`, which C++ copies.
-		std::printf("has_instant %s %s\n", api::has_instant(began) ? "true" : "false", api::has_instant(std::nullopt) ? "true" : "false");
+		// An instant lent inside an `Option`, which takes no handle.
+		std::printf("has_instant %s %s\n", api::has_instant(&began) ? "true" : "false", api::has_instant(nullptr) ? "true" : "false");
 	}
 	// tracing's level, and its filter as an optional level whose empty is `OFF`.
 	{
@@ -1283,17 +1324,16 @@ int script() {
 	std::printf("spawned %u\n", static_cast<unsigned>(api::Spawned::new_([] { return 7; }).join()));
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
 	{
-		auto began = api::now();
+		api::Moment began = *api::Moment::new_(0, 1000);
 		int calls = 0;
-		auto drive = api::drive(began, [&](const api::Instant &now, const api::Waiter &waiter) {
-			using result = api::result<std::optional<api::Instant>, std::string>;
+		auto drive = api::drive(began, [&](const api::Moment &now, const api::Waiter &waiter) {
+			using result = api::result<std::optional<api::Moment>, std::string>;
 			calls++;
 			if (calls == 1) {
-				return result::ok(api::later(now, {0, 5000000}));
+				return result::ok(now.after(5));
 			}
 			if (calls == 2) {
-				api::duration since = api::since(now, began);
-				std::printf("drive %llu\n", static_cast<unsigned long long>(since.secs * 1000 + since.nanos / 1000000));
+				std::printf("drive %llu\n", ull(now.millis() - began.millis()));
 				waiter.waker().wake();
 				return result::ok(std::nullopt);
 			}
@@ -1445,10 +1485,10 @@ int foreign_futures() {
 	// A kept closure the future of the call holds, destroyed with it before it finishes.
 	{
 		auto kept = std::make_shared<int>(0);
-		auto start = api::now();
+		api::Moment start = *api::Moment::new_(0, 1000);
 		{
-			auto drive = api::drive(start, [kept](const api::Instant &, const api::Waiter &) {
-				return api::result<std::optional<api::Instant>, api::buf>::ok(std::nullopt);
+			auto drive = api::drive(start, [kept](const api::Moment &, const api::Waiter &) {
+				return api::result<std::optional<api::Moment>, api::buf>::ok(std::nullopt);
 			});
 			check(kept.use_count() == 2, "Rust keeps its own copy of a closure");
 			api::waker waker([]() {});
@@ -1458,9 +1498,9 @@ int foreign_futures() {
 	}
 	// A closure failing with an error any view takes, and a reader's seek failing.
 	{
-		auto start = api::now();
-		auto drive = api::drive(start, [](const api::Instant &, const api::Waiter &) {
-			return api::result<std::optional<api::Instant>, const char *>::err("failed");
+		api::Moment start = *api::Moment::new_(0, 1000);
+		auto drive = api::drive(start, [](const api::Moment &, const api::Waiter &) {
+			return api::result<std::optional<api::Moment>, const char *>::err("failed");
 		});
 		check(std::move(drive).get().str() == "failed", "a closure's error reaches Rust as its message");
 		memory empty{""};

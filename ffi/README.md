@@ -92,8 +92,8 @@ public path names, or an error taken by value, is held by value as an opaque han
 | --- | --- |
 | a struct whose fields are all `pub`, not `#[non_exhaustive]`, which map, with no `Drop` of its own | a record: a struct, copied across |
 | an enum with variants whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
-| any other type that is `Copy` and `Send`, with no union or enum whose variants initialize different bytes, such as an `Option<u32>`, in it, such as moq's `Timestamp`, `stats::Traffic`, or std's `Instant` | an opaque value: a struct of its bytes, copied across, which only Rust makes, reads, or changes, with its padding zeroed; its `pub` fields are a getter and a setter, and a `&mut self` method writes back the caller's copy alone, one returning a future or a `Result` refused, since a language raising the error would lose the change; one no export returns is left out, since C could never make one |
-| any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, since its handle is shared, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value |
+| any other type that is `Copy` and `Send`, with no padding under any order of its fields, such as moq's `Timestamp` or `stats::Traffic` | an opaque value: a struct of its bytes, copied across, which only Rust makes, reads, or changes; its `pub` fields are a getter and a setter, and a `&mut self` method writes back the caller's copy alone, one returning a future or a `Result` refused, since a language raising the error would lose the change; one no export returns is left out, since C could never make one |
+| any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, such as std's `Instant`, whose padding a `rustc` may place anywhere, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
 | a `pub` field of an object or opaque value | a getter returning a copy, and a setter assigning in place, as `x.field = value` does |
@@ -112,14 +112,15 @@ public path names, or an error taken by value, is held by value as an opaque han
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
 | `u128` | `<prefix>_u128`: its low and high 64 bits |
 | `NonZero<T>` of an integer but 128-bit | `T`, in every binding too; a zero passed in aborts, and `Option<NonZero<T>>` is `T`'s option |
-| `[u8; N]` | `<prefix>_array_u8_<N>`: a struct of its `N` bytes, `items`, copied across; an empty one, or one of any other element, is refused |
+| `[u8; N]` | `<prefix>_array_u8_<N>`: a struct of its `N` bytes, `items`, copied across; an empty one is refused |
+| `[T; N]` of any other `T`, returned or a constant's value | `Vec<T>` of its `N` items; taken, it is refused |
 | `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: an owned buffer returned; passed in, a view, or a buffer Rust returned, which Rust takes back without a copy unless it sits behind a pointer or in an array; `<prefix>_buf_clone` shares one the caller keeps, which a `Vec<u8>`, `String`, or `PathBuf` parameter then copies, since only a sole owner's allocation becomes a `Vec` |
 | `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them on Unix, which need not be UTF-8, else UTF-8 |
 | `Duration` | `<prefix>_duration` |
 | `SocketAddr`, `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr`: its IP's bytes, port, and whether it is IPv6; one of the other family passed to `V4` or `V6` aborts |
 | `url::Url` | an object `<prefix>_Url`, made by `<prefix>_Url_parse`, which fails with the parse error's message, and printed by `_to_string` |
-| `Arc<T>` of another crate's `Send` and `Sync` type that no other rule maps, such as `Arc<rustls::ServerConfig>` | an opaque object named by `T`'s crate and name, such as `<prefix>_rustls_ServerConfig`, with `_clone` and `_free` and none of `T`'s API: it only passes back to Rust |
-| another crate's `Send` and `Sync` type taken or returned by value or lent, with no type parameters, that no other rule maps, that is no iterator or future, and that is not reached by its public path, such as one only a `#[doc(hidden)]` module names | an opaque object named as the `Arc` form is, with `_free` and none of `T`'s API, holding the value: Rust takes it back by value, or borrows it; a type also named behind an `Arc` is that form, and refused by value |
+| `Arc<T>` of another crate's `Send` and `Sync` type that no other rule maps, such as `Arc<rustls::ServerConfig>`, or `Arc<dyn Trait>` and `&'static dyn Trait` of another crate's trait without generic arguments, whose auto traits are `Send` and `Sync` but those the trait implies, borrowing nothing C lends, as rustls's `Arc<dyn ResolvesServerCert>` | an opaque object named by `T`'s crate and name, such as `<prefix>_rustls_ServerConfig`, with `_clone` and `_free` and none of `T`'s API: it only passes back to Rust |
+| another crate's `Send` and `Sync` type taken or returned by value or lent, with no type parameters, that no other rule maps, that is no iterator or future, and that is not reached by its public path, such as one only a `#[doc(hidden)]` module names, or a standard library type no other rule maps, such as `io::Error`, named by its full path, `<prefix>_std_io_Error` | an opaque object named as the `Arc` form is, with `_free` and none of `T`'s API, holding the value: Rust takes it back by value, or borrows it; a type also named behind an `Arc` is that form, and refused by value |
 | `std::time::Instant` | an object `<prefix>_Instant`, which only Rust makes, copied into each call that takes it and compared by `_eq`, with none of its methods |
 | `tracing::Level` | `<prefix>_Level`: a C enum of its five levels, `TRACE` to `ERROR` |
 | `tracing::level_filters::LevelFilter` | `Option<tracing::Level>`, whose `None` is `OFF` |
@@ -139,6 +140,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | `impl Into<X>`, where `X` does not map | what a `From` implementation into `X` takes: a source parameter by its bounds as above, so `impl<B: Into<Bytes>> From<B> for Timed<Bytes>` takes `Bytes`, and by each `Into<Y>` whose `Y` does not map, what converts into `Y` in turn, each `Y` once and refusing a chain longer than the crate's recursion limit; any other source as it is, so `impl<'a, V> From<&'a V> for Timed<&'a V>` takes `&V`. Two sources C passes as one buffer, such as `String` and `Vec<u8>`, are refused, unless they are forms of one value, as `&str` and `String` are |
 | `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>`, or `&[Y]` where `X` is `&Y` |
 | `impl io::Read`, not bounded by `Seek` | `&[u8]` |
+| `impl Iterator<Item = X>` taken | `Vec<X>`, whose items Rust iterates; for `X` of `&str` or `&[u8]`, an array of buffers C lends for the call; an iterator of other references, or one a future or a callback takes, is refused |
 | another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
 | a const parameter of a function | an instance of the function at each value an instance of a generic type the signature passes it to has there, where each generic type the signature then names is an instance |
 | a const argument | a `bool` or an integer below 128 bits; any other is refused |
@@ -158,11 +160,11 @@ A record or enum holds only values and `Copy` handles: one with a field that doe
 or that holds itself, is an object instead, and the census lists it. A borrowed return is
 returned as a clone, so it must be `Clone`, and a handle in it is a new handle to the
 clone, but for an object a `&self` method of an object returns borrowed from its receiver
-alone, or an object's `pub` field holds: that one, if not `Clone`, is a lent handle, which holds its receiver and checks it
+alone, or an object's `pub` field holds, bare or as an `Option`'s `Some`: that one, if not `Clone`, is a lent handle, which holds its receiver and checks it
 on each use, on one thread at a time where the receiver is not `Sync`. A handle outlives every call, so every lifetime an
 object takes is `'static`, as is every lifetime that must outlive one; any other lifetime
 is the call's. A signature may not lend C's borrow for one that is `'static`, but for a
-`&str`, which Rust interns, nor return an object that borrows. A parameter is a reference
+`&str` or `&[u8]`, which Rust interns, nor return an object that borrows. A parameter is a reference
 only at its top or as `Some` of an `Option`, lent as the reference alone is, so
 `Option<&T>` is a null or borrowed handle, a null or viewed buffer, or an option of a
 value, and not inside a `Box` or any other type. A `&mut` of a value, but a `str` or a
@@ -170,7 +172,8 @@ slice, is in and out, and not inside an `Option`, a callback, or a future, nor b
 by what the call returns; a `&mut` of another crate's `Arc` is refused. Only a bare
 returned `&Object` is lent, never one inside what a call returns nor its error. What C could never hold, an
 object no export C can call returns or lends to a closure, a generic type no export
-instantiates, and whatever takes one, is left out and listed in the census. Everything
+instantiates, a type parameter bounded by another crate's trait no type C holds implements,
+and whatever takes one, is left out and listed in the census. Everything
 else is refused, and the census counts why.
 
 ## Targets
@@ -268,9 +271,15 @@ where it was while its file is unchanged.
   `Copy` type with private fields, in units of its alignment up to 8 bytes: C copies one
   as any struct, and passes `&self` as a `const <T> *` and `&mut self`, a field's setter
   included, as a `<T> *` Rust writes what the call left back through, so only that copy
-  changes; it never makes or reads one itself, and frees none. Its padding is zero, from a table of each target's padding rustc's
-  layout gives, so no byte Rust left uninitialized reaches a language, which may
-  serialize what it holds. Its size and alignment are the largest of the export's targets, so one
+  changes; it never makes or reads one itself, and frees none. Its fields fill it under
+  any order a `rustc` may give them, with a byte for an enum's tag where no field has a
+  niche to hold it, so it has no padding whichever `rustc` builds the glue, which asserts
+  each target's size. They must also fill a model layout at both 4- and 8-byte pointers,
+  each primitive aligned to its size and a `repr`'s field order kept, so every target
+  decides alike. Any other `Copy` type, such as std's `Instant`, padded on a 64-bit
+  target, or an `Option<u32>`, whose bytes depend on its value, is an object instead, so
+  no byte Rust leaves uninitialized reaches a language, which may serialize what it
+  holds. Its size and alignment are the largest of the export's targets, so one
   header serves them all, a few bytes past a 32-bit target's own. A change of size is an
   ABI change, as a record's field change is.
 - **In and out**: a `&mut` of a value is two parameters, the value passed in as one taken
@@ -283,8 +292,8 @@ where it was while its file is unchanged.
   shared and aborts, naming the function, once it was since borrowed exclusively, moved
   out, or freed, which Rust's borrow checker would refuse. Borrowing a lent handle
   exclusively aborts too, as Rust lent it shared.
-- **Interned strings**: a `&str` a function needs for `'static`, as `Path::from_static`
-  does, is leaked once per distinct content and reused for every later equal one, so a
+- **Interned strings**: a `&str` or `&[u8]` a function needs for `'static`, as
+  `Path::from_static` and `CertificateDer::from_slice` do, is leaked once per distinct content and reused for every later equal one, so a
   caller passing ever-new strings grows the set without bound.
 - **Arrays** of a `Vec` are a pointer, a length, and an owner, as a buffer is: passed
   in, Rust copies each element out of C's array, or for a slice of a fixed-width integer
@@ -610,7 +619,8 @@ caller imports it with no ignores.
   snake_case without their type's name (`moq.TrackProducer.append_group`), and two types
   whose names would match kept apart as Kotlin's are (`TokioConnect_Error`), as are
   top-level names that clash. A keyword, a member Python gives every such class, or a
-  method named as a field takes a trailing `_`.
+  method named as a field takes a trailing `_`. A member or top-level name may be a
+  builtin's (`bytes`, `int`): the module reads each builtin through an alias (`_bytes`).
   Constructors such as `new` stay static methods: `Counter.new(1)`.
 - **Objects** are classes owning their handle, freed once their last reference goes,
   which a call holds until it returns, so there is no `close()`. A `self` method, or
@@ -1055,6 +1065,7 @@ just ffi moq      # export moq's crates at the pinned revision, build them, and 
 just ffi moq-c    # the same export, built in debug, running only moq/moq.c: `just ci`'s check on moq
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
+just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
 just ffi shapes   # round-trip every sampled type shape in every language but KNOWN's, as the nightly does
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
@@ -1123,7 +1134,12 @@ and then ThreadSanitizer, runs `tests/api.c` and `tests/api.cpp` against it, and
 their output to the native transcript; it then drives the C ABI from `tests/miri/api.rs`
 under Miri with strict provenance.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
-writes in place of moq-ffi's remainder. `moq/moq.c` publishes and subscribes to a moq-net
+writes in place of moq-ffi's remainder. The export serves the host and each target
+`just ffi moq-api` staged in `target/moq-api` from the same moq sources, and fails on a
+staged API from other sources. Nightly stages every target moq ships a binding to but the
+host on the host with its C toolchain, Android's in the Android shell from the runner's NDK,
+and runs `just ffi moq` on Linux over all of them, so an item two targets define
+differently fails it. `moq/moq.c` publishes and subscribes to a moq-net
 track in one process, polling each read, scopes an origin to moq-pattern's patterns and
 hands it to a client to publish, polls its driver until the origin's last owner drops, reads an OpusHead into hang's catalog through moq-mux,
 sets and reads a field of the catalog lent to C through `catalog::Producer::mutate`, and

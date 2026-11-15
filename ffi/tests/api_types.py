@@ -4,7 +4,6 @@
 
 import array
 import asyncio
-import datetime
 import io
 
 import api
@@ -38,15 +37,20 @@ class Reader:
 
 tail = api.tail(Reader(), 1)
 
+# A method named as a builtin leaves the builtin its annotations name.
+clash_bytes: memoryview = api.Clash.String("hi").bytes()
+
 
 # Closures returning what Rust owns, or raising the exception of their error.
-def drive(now: api.Instant, waiter: api.Waiter) -> api.Instant | None:
-	if api.since(now, now):
+def drive(now: api.Moment, waiter: api.Waiter) -> api.Moment | None:
+	if now.millis():
 		raise api.StringException("stopped")
-	return api.later(now, datetime.timedelta(milliseconds=5))
+	return now.after(5)
 
 
-stopped: str = asyncio.run(api.drive(api.now(), drive))
+start = api.Moment.new(0, 1000)
+assert start is not None
+stopped: str = asyncio.run(api.drive(start, drive))
 made: str = api.made(3, lambda n: f"{n} times")
 spawned: int = api.Spawned.new(lambda: 7).join()
 polled: None = asyncio.run(api.Waiter.poll_future(asyncio.sleep(0)))

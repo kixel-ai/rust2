@@ -167,11 +167,11 @@ pub struct Record {
 	/// For a `Copy` type with private fields, which has no `fields`: its bytes, which only
 	/// Rust reads or writes, its `pub` fields through accessors among its `methods`.
 	pub opaque: Option<Opaque>,
-	/// For an opaque value, its padding on each target, by target, as `(offset, length)`
-	/// ranges, which the glue zeroes, so no byte Rust leaves uninitialized reaches a
-	/// language. A baseline written before it existed has none, as its records had.
+	/// For an opaque value, its size on each target, by target, which the glue asserts, as
+	/// a value has no padding only at that size. A baseline written before it existed has
+	/// none, as its records had.
 	#[serde(default)]
-	pub padding: std::collections::BTreeMap<String, Vec<(u64, u64)>>,
+	pub sizes: std::collections::BTreeMap<String, u64>,
 }
 
 /// A `Copy` type held as its bytes, which every language copies and none reads.
@@ -286,7 +286,7 @@ pub struct Object {
 	pub docs: String,
 	/// Whether it is `Sync`: if not, `&self` borrows it on one thread at a time.
 	pub sync: bool,
-	/// Whether it is `Copy`, which only one whose padding depends on its value is, any
+	/// Whether it is `Copy`, which only one that may have padding under some layout is, any
 	/// other being a value: taken by value, it is copied out of its handle, as Rust copies
 	/// it, rather than moved out.
 	pub copy: bool,
@@ -476,8 +476,9 @@ pub enum Receiver {
 pub struct Param {
 	pub name: String,
 	pub ty: Type,
-	/// Whether it is a `&str` that must be `'static`, which the glue interns: it leaks each
-	/// distinct string once and lends that copy to every later call with equal content.
+	/// Whether it is a `&str` or `&[u8]` that must be `'static`, which the glue interns: it
+	/// leaks each distinct value once and lends that copy to every later call with equal
+	/// content.
 	pub interned: bool,
 }
 
@@ -611,6 +612,13 @@ pub enum Collection {
 	BTreeMap,
 	/// `serde_json::Map`, of `String` keys and `serde_json::Value`s.
 	JsonMap,
+	/// `[T; N]` of any `T` but `u8`, which is [`Type::Array`]: only returned.
+	Array(usize),
+	/// `std::vec::IntoIter<T>`, which an `impl Iterator` parameter takes: only a parameter.
+	Iter,
+	/// `std::vec::IntoIter<&str>` or `std::vec::IntoIter<&[u8]>`, of a [`Type::String`] or
+	/// [`Type::Vec`], each lent for the call: only a parameter.
+	IterRef,
 }
 
 /// The addresses a socket address type holds.
@@ -716,11 +724,13 @@ impl Type {
 	/// one array type holds them on every target.
 	pub fn block(&self) -> Option<&Type> {
 		match self {
-			Type::List(Collection::Vec | Collection::Slice | Collection::Box, inner) => match &**inner {
-				Type::Int(Int::Usize | Int::Isize) => None,
-				Type::Int(_) | Type::F32 | Type::F64 => Some(inner),
-				_ => None,
-			},
+			Type::List(Collection::Vec | Collection::Slice | Collection::Box | Collection::Array(_), inner) => {
+				match &**inner {
+					Type::Int(Int::Usize | Int::Isize) => None,
+					Type::Int(_) | Type::F32 | Type::F64 => Some(inner),
+					_ => None,
+				}
+			}
 			_ => None,
 		}
 	}
