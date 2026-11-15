@@ -3,6 +3,7 @@ mod cli;
 #[path = "../vendor/binstalk-fetchers/src/lib.rs"]
 #[allow(dead_code)] // The imported library exposes more than the runner consumes.
 mod fetchers;
+mod init;
 mod install;
 mod network;
 #[path = "../vendor/binstalk-target.rs"]
@@ -26,6 +27,14 @@ fn run(args: cli::Args) -> Result<()> {
 		.first()
 		.and_then(|arg| arg.to_str())
 		.context("the crate name must be UTF-8")?;
+	// `init` is crabx's own command; `init@VERSION` still runs the crate named init.
+	if krate.eq_ignore_ascii_case("init") {
+		anyhow::ensure!(
+			args.command.len() == 1 && !args.build && !args.allow_quickinstall && args.bin.is_none() && !args.refresh,
+			"crabx init takes no options or arguments; run the crate named init as init@VERSION"
+		);
+		return init::run();
+	}
 	let spec = cli::Spec::parse(krate)?;
 	let cache = cache::Cache::new(&spec, args.mode())?;
 	if args.refresh {

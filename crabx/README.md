@@ -68,6 +68,13 @@ status. Windows starts the program with inherited console and standard streams a
 returns its exit code. Prebuilt Linux downloads require glibc; musl builds of crabx
 direct users to `--build`.
 
+`crabx init`, run in a public crate repository, writes the caller of
+[rust2's release pipeline](../.github/crabx/README.md) to
+`.github/workflows/binaries.yml`, pinned to its current release, so each crates.io
+version gets attested binaries crabx runs. It takes no options, reads origin's
+default branch from git, and never overwrites a different existing file. Run a crate
+named `init` as `crabx init@VERSION`.
+
 Develop with `just crabx check`, `just crabx test`, and `just crabx run <crate> [args]`.
 crabx is GPL-3.0-only because it links binstalk. The other rust2 projects keep their
 existing licenses.

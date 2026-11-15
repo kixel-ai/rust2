@@ -6,13 +6,14 @@ contains every binary, under binstall's default directory and filename. Builds
 use all crate features so binaries with required features are included; mutually
 exclusive features fail the build rather than silently omit binaries.
 
-Add `.github/workflows/binaries.yml` to a public crate repository:
+Run `crabx init` in a public crate repository to write its caller,
+`.github/workflows/binaries.yml`:
 
 ```yaml
 name: Binaries
 on:
   push:
-    branches: [main]
+    branches: ['main']
     tags: ['v*', '*-v*']
   schedule:
     - cron: '23 7 * * *'
@@ -25,12 +26,13 @@ jobs:
       contents: write
       id-token: write
       attestations: write
-    uses: kixel-ai/rust2/.github/workflows/crabx.yml@pipeline-v1.0.0
+    uses: kixel-ai/rust2/.github/workflows/crabx.yml@87549d30ad59b6d38eed731b484c4c6b6a089162 # pipeline-v1.0.0
 ```
 
-Use your default branch in the push filter. A caller pins a pipeline release tag
-or its immutable commit. The pipeline checks out its own scripts at the exact
-commit of the called workflow, independently of the caller's checkout.
+`crabx init` fills in origin's default branch and pins this release's immutable
+commit, so Dependabot can bump it. It refuses to overwrite a different existing
+file. The pipeline checks out its own scripts at the exact commit of the called
+workflow, independently of the caller's checkout.
 
 Each run discovers tracked crate manifests, looks up crates.io versions published
 since the caller workflow was added, and fills missing target archives. Yanked
@@ -68,7 +70,9 @@ exercise discovery, archiving, and publishing with recorded API and Cargo
 responses; the fixture workflow builds the real archives on all six targets.
 Before tagging a pipeline release, dispatch it on the commit to tag and check each
 archive with `gh attestation verify <archive> -R kixel-ai/rust2 --signer-workflow
-kixel-ai/rust2/.github/workflows/crabx.yml`.
+kixel-ai/rust2/.github/workflows/crabx.yml`. After tagging, point
+`crabx/src/binaries.yml` and the caller above at the tag's commit; a crabx test
+keeps the two identical.
 
 References: [binstall archive defaults](https://github.com/cargo-bins/cargo-binstall/blob/main/SUPPORT.md),
 [reusable job identity](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#job-context),
