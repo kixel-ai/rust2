@@ -174,6 +174,7 @@ impl<'a> Header<'a> {
 			Type::U128 => format!("::{}::u128", self.ns),
 			Type::Duration => format!("::{}::duration", self.ns),
 			Type::SocketAddr(_) => format!("::{}::socket_addr", self.ns),
+			Type::IpAddr(_) => format!("::{}::ip_addr", self.ns),
 			Type::List(_, inner) => format!("::std::vector<{}>", self.owned(inner)),
 			Type::Waker => format!("::{}::waker", self.ns),
 			Type::Option(inner) => format!("::std::optional<{}>", self.owned(inner)),
@@ -359,9 +360,13 @@ impl<'a> Header<'a> {
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("static_cast<uint32_t>({e})"),
-			Type::U128 | Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
-				e.to_string()
-			}
+			Type::U128
+			| Type::Duration
+			| Type::SocketAddr(_)
+			| Type::IpAddr(_)
+			| Type::Range(_)
+			| Type::Bound(_)
+			| Type::Bounds(_) => e.to_string(),
 			Type::Waker => format!("{d}::give({d}::access::raw({e}))"),
 			Type::List(_, inner) if ty.block().is_some() => format!("{d}::block<::{}>({e})", abi.list(inner)),
 			Type::List(_, inner) => {
@@ -425,9 +430,13 @@ impl<'a> Header<'a> {
 		match ty {
 			Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("static_cast<char32_t>({e})"),
-			Type::U128 | Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
-				e.to_string()
-			}
+			Type::U128
+			| Type::Duration
+			| Type::SocketAddr(_)
+			| Type::IpAddr(_)
+			| Type::Range(_)
+			| Type::Bound(_)
+			| Type::Bounds(_) => e.to_string(),
 			Type::List(_, inner) if ty.block().is_some() => format!(
 				"{d}::lift_block<{}>({e}, &::{}_free)",
 				self.owned(inner),
@@ -557,6 +566,7 @@ impl<'a> Header<'a> {
 			("u128".to_string(), format!("{p}_u128")),
 			("duration".to_string(), format!("{p}_duration")),
 			("socket_addr".to_string(), format!("{p}_socket_addr")),
+			("ip_addr".to_string(), format!("{p}_ip_addr")),
 		];
 		if abi.ranges.values().any(|ty| matches!(ty, Type::Bound(_))) {
 			aliases.push(("bound".to_string(), abi.rt("bound")));

@@ -1935,6 +1935,19 @@ static int script(void) {
 	api_nexts(at4, at6, &next4, &next6);
 	printf("nexts %u.%u.%u.%u %u %u %u\n", next4.ip[0], next4.ip[1], next4.ip[2], next4.ip[3], next4.port, next6.port,
 		   next6.scope_id);
+	api_ip_addr ip4 = {.ip = {10, 0, 0, 255}}, ip6 = {.ip = {[14] = 0xff, [15] = 0xff}, .v6 = true};
+	api_ip_addr nextip4, nextip6;
+	api_next_ips(ip4, ip6, &nextip4, &nextip6);
+	api_ip_addr mapped = api_flip((api_ip_addr){.ip = {127, 0, 0, 1}});
+	api_ip_addr ips[] = {nextip4, nextip6, mapped, api_flip(mapped), api_flip((api_ip_addr){.ip = {[15] = 1}, .v6 = true})};
+	printf("ips");
+	for (size_t i = 0; i < sizeof ips / sizeof ips[0]; i++) {
+		printf(" ");
+		for (size_t b = 0; b < (ips[i].v6 ? 16u : 4u); b++) {
+			printf("%02x", ips[i].ip[b]);
+		}
+	}
+	printf("\n");
 
 	/* serde_json's map iterator, collected as pairs of a key and its document. */
 	api_tuple_string_Json section_pairs[2] = {{._0 = str("b")}, {._0 = str("a")}};
@@ -2250,6 +2263,12 @@ static int broken(const char *which) {
 		api_tail((api_foreign_reader){0}, 1, &bytes, &at, &err);
 	} else if (strcmp(which, "bound") == 0) {
 		api_count((api_bounds_u64){.start = {.kind = (api_bound)3}});
+	} else if (strcmp(which, "ip family") == 0) {
+		api_ip_addr v6 = {.ip = {[15] = 1}, .v6 = true};
+		api_ip_addr next4, next6;
+		api_next_ips(v6, v6, &next4, &next6);
+	} else if (strcmp(which, "ip") == 0) {
+		api_flip((api_ip_addr){.ip = {127, 0, 0, 1, 1}});
 	} else if (strcmp(which, "socket") == 0) {
 		api_socket_addr addr = {.ip = {127, 0, 0, 1, 1}};
 		api_ports((api_vec_socket_addr){.ptr = &addr, .len = 1});

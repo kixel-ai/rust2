@@ -1,0 +1,46 @@
+name: Installers
+
+# Serves crabx's installers at https://crabx.kixel.ai/install.sh and /install.ps1 on
+# GitHub Pages, so users run main's copy behind a domain that outlives the repo layout.
+on:
+  push:
+    branches: [main]
+    paths:
+      - crabx/install.sh
+      - crabx/install.ps1
+      - .github/workflows/installers.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installers
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    # Pages lets only main deploy to this environment.
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: crabx
+      - name: Site
+        run: |
+          mkdir site
+          cp crabx/install.sh crabx/install.ps1 site/
+          printf '<meta http-equiv="refresh" content="0; url=https://github.com/kixel-ai/rust2/tree/main/crabx">\n' > site/index.html
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

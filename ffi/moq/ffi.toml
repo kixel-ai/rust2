@@ -13,7 +13,6 @@ exclude = [
     "moq_quic::VarInt::from_u64_unchecked",
     "moq_tokio::accept::Failure::classify",
     "moq_tokio::accept::Health::failed",
-    "moq_tokio::quic::demux::Datagram::local",
     "moq_tokio::quic::driver::connection::Connection::congestion_state",
     "moq_tokio::quic::driver::connection::Connection::poll_closed",
     "moq_tokio::quic::driver::recv::Stream::read",

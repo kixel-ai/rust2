@@ -468,6 +468,9 @@ moq-export checkout="": (moq-write checkout)
         *) lib=libmoq.so ;;
     esac
     cargo build --locked --quiet --release --manifest-path "$out/Cargo.toml" --features python
+    # Cargo links the output to its build of the same features, which a rerun's last move
+    # left here, and mv refuses to move a file onto itself.
+    rm -f "$out/python/$lib"
     mv "$out/target/release/$lib" "$out/python/$lib"
     # The library the C programs link, and the shared one Kotlin and Dart load.
     cargo build --locked --quiet --release --manifest-path "$out/Cargo.toml" --features kotlin,dart 2>&1 | tee target/moq-build.log

@@ -898,6 +898,9 @@ func script() {
 	}), "[]"))
 	next4, next6 := api.Nexts(v4, v6)
 	fmt.Printf("nexts %s %d %d %s\n", next4.Addr(), next4.Port(), next6.Port(), next6.Addr().Zone())
+	nextIp4, nextIp6 := api.NextIps(netip.MustParseAddr("10.0.0.255"), netip.MustParseAddr("::ffff"))
+	mapped := api.Flip(netip.MustParseAddr("127.0.0.1"))
+	fmt.Printf("ips %x %x %x %x %x\n", nextIp4.AsSlice(), nextIp6.AsSlice(), mapped.AsSlice(), api.Flip(mapped).AsSlice(), api.Flip(netip.IPv6Loopback()).AsSlice())
 
 	// serde_json's map iterator, collected as pairs of a key and its document.
 	sections := must(api.Sections([]rt.Tuple2[string, *serdejson.Json]{
@@ -1711,6 +1714,13 @@ func broken(which string) {
 	case "family":
 		any := netip.MustParseAddrPort("[::]:1")
 		api.Nexts(any, any)
+	// An IPv6 address where Rust takes `Ipv4Addr`.
+	case "ip family":
+		any := netip.IPv6Unspecified()
+		api.NextIps(any, any)
+	// An IPv6 address with a zone, which Rust's `IpAddr` has no room for.
+	case "ip scope":
+		api.Flip(netip.MustParseAddr("fe80::1%3"))
 	// No Rust string holds text that is not UTF-8.
 	case "text":
 		api.Greet("\xff", api.ShapeSquare)

@@ -655,6 +655,58 @@ impl SocketAddr {
 	}
 }
 
+/// `std::net::IpAddr`: an IPv4 address in the first 4 bytes of `ip`, with the rest zero, or
+/// an IPv6 address, in network order.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct IpAddr {
+	pub ip: [u8; 16],
+	pub v6: bool,
+}
+
+impl IpAddr {
+	pub fn lift(self, what: &str) -> std::net::IpAddr {
+		if self.v6 {
+			return std::net::Ipv6Addr::from(self.ip).into();
+		}
+		let [a, b, c, d, rest @ ..] = self.ip;
+		if rest != [0; 12] {
+			fail(what, "an IPv4 address has IPv6 bytes");
+		}
+		std::net::Ipv4Addr::new(a, b, c, d).into()
+	}
+
+	/// An IPv4 address, for `Ipv4Addr`: an IPv6 one aborts.
+	pub fn lift_v4(self, what: &str) -> std::net::Ipv4Addr {
+		match self.lift(what) {
+			std::net::IpAddr::V4(ip) => ip,
+			std::net::IpAddr::V6(_) => fail(what, "an IPv6 address where IPv4 is taken"),
+		}
+	}
+
+	/// An IPv6 address, for `Ipv6Addr`: an IPv4 one aborts.
+	pub fn lift_v6(self, what: &str) -> std::net::Ipv6Addr {
+		match self.lift(what) {
+			std::net::IpAddr::V6(ip) => ip,
+			std::net::IpAddr::V4(_) => fail(what, "an IPv4 address where IPv6 is taken"),
+		}
+	}
+
+	pub fn lower(ip: std::net::IpAddr) -> Self {
+		match ip {
+			std::net::IpAddr::V4(v4) => {
+				let mut ip = [0; 16];
+				ip[..4].copy_from_slice(&v4.octets());
+				Self { ip, v6: false }
+			}
+			std::net::IpAddr::V6(v6) => Self {
+				ip: v6.octets(),
+				v6: true,
+			},
+		}
+	}
+}
+
 /// `Vec<T>` across the ABI, as an array of its elements' C values. Passed in, a view Rust
 /// copies each element out of and never frees. Returned, an array the caller frees once,
 /// with what its first `len` elements hold. A null `ptr` is `None`.

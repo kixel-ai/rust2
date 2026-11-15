@@ -118,6 +118,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them on Unix, which need not be UTF-8, else UTF-8 |
 | `Duration` | `<prefix>_duration` |
 | `SocketAddr`, `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr`: its IP's bytes, port, and whether it is IPv6; one of the other family passed to `V4` or `V6` aborts |
+| `IpAddr`, `Ipv4Addr`, `Ipv6Addr` | `<prefix>_ip_addr`: its bytes and whether it is IPv6; one of the other family passed to `Ipv4Addr` or `Ipv6Addr` aborts |
 | `url::Url` | an object `<prefix>_Url`, made by `<prefix>_Url_parse`, which fails with the parse error's message, and printed by `_to_string` |
 | `Arc<T>` of another crate's `Send` and `Sync` type that no other rule maps, such as `Arc<rustls::ServerConfig>`, or `Arc<dyn Trait>` and `&'static dyn Trait` of another crate's trait without generic arguments, whose auto traits are `Send` and `Sync` but those the trait implies, borrowing nothing C lends, as rustls's `Arc<dyn ResolvesServerCert>` | an opaque object named by `T`'s crate and name, such as `<prefix>_rustls_ServerConfig`, with `_clone` and `_free` and none of `T`'s API: it only passes back to Rust |
 | another crate's `Send` and `Sync` type taken or returned by value or lent, with no type parameters, that no other rule maps, that is no iterator or future, and that is not reached by its public path, such as one only a `#[doc(hidden)]` module names, or a standard library type no other rule maps, such as `io::Error`, named by its full path, `<prefix>_std_io_Error` | an opaque object named as the `Arc` form is, with `_free` and none of `T`'s API, holding the value: Rust takes it back by value, or borrows it; a type also named behind an `Arc` is that form, and refused by value |
@@ -476,8 +477,8 @@ packages place it in.
   converts with each item moved, so a returned one passes back even when its items hold a
   `Copy` object C++ cannot copy. One whose items also move a
   handle is taken as `taken`, a `std::vector` of them moved in as it is, or any other such
-  range moved in, each handle moved out of it. A socket address is a `socket_addr` and a
-  `u128` a `u128`, each the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
+  range moved in, each handle moved out of it. A socket address is a `socket_addr`, an IP
+  address an `ip_addr`, and a `u128` a `u128`, each the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error. A `[u8; N]` is a `std::array<std::uint8_t, N>`.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
 - **Closures** are any callable, taken by a template parameter, which Rust calls from any
@@ -521,9 +522,10 @@ packages place it in.
 kotlinx-coroutines. Each value crosses JNI as a scalar, a handle as a `Long`, bytes passed
 in as a `ByteArray`, bytes returned as their owner, a block of numbers as its primitive
 array, and anything else encoded into a `ByteArray` as its C struct holds it. A record a
-call takes or returns directly, or in an `Option` returned, crosses as its scalars, a
-nested record's included, and an opaque value as its 64-bit words, as JNI parameters in
-and through a `LongArray` each thread keeps out, with only a record's other fields encoded;
+call takes or returns directly, or in an `Option`, crosses as its scalars, a nested
+record's included, and an opaque value as its 64-bit words, as JNI parameters in, after a
+`Boolean` saying whether an `Option` is `Some` and zeros for `None`, and through a
+`LongArray` each thread keeps out, with only a record's other fields encoded;
 an opaque value of one word returns as that `Long`. Past the 255 slots a JVM method takes,
 the rest cross encoded.
 
@@ -588,7 +590,9 @@ the rest cross encoded.
 - A **path** is a `String`: one Rust returns that is not UTF-8 throws. A `SocketAddr`,
   `SocketAddrV4`, or `SocketAddrV6` is a `java.net.InetSocketAddress`, which must be
   resolved and, for `V4` or `V6`, of that family; one Rust returns with an IPv6 flow
-  label, which Java does not keep, throws. A `Vec<T>`, `&[T]`, or `Box<[T]>` of a
+  label, which Java does not keep, throws. An `IpAddr`, `Ipv4Addr`, or `Ipv6Addr` is a
+  `java.net.InetAddress`, of that family for `Ipv4Addr` or `Ipv6Addr`; one passed in with
+  an IPv6 scope, which Rust does not keep, throws. A `Vec<T>`, `&[T]`, or `Box<[T]>` of a
   fixed-width integer other than `u8` (bytes) or `u128`, or of a float, is Kotlin's primitive array of it: `ByteArray`,
   `ShortArray`, `IntArray`, or `LongArray` for `i8` through `i64`, `UShortArray`,
   `UIntArray`, or `ULongArray` for `u16` through `u64`, which a caller uses under
@@ -699,6 +703,8 @@ caller imports it with no ignores.
 - A **path** is a `str`, or any path passed in, which crosses as `os.fsencode` encodes it, so
   one that is not UTF-8 keeps its bytes. A `SocketAddr` is the `socket` module's tuple,
   `(host, port)` or `(host, port, flowinfo, scope_id)`, of that family for `V4` or `V6`.
+  An `IpAddr` is an `ipaddress.IPv4Address` or `IPv6Address`, and an `Ipv4Addr` or
+  `Ipv6Addr` the one of its family; one passed in with a scope raises `ValueError`.
   A `Vec<T>` or `&[T]` Rust returns is a `list`, and passed in is any iterable other than a `str`,
   annotated `Iterable`, or `Sequence` in a record, which keeps it. Passing a `Vec` by value closes
   each object in it.
@@ -816,7 +822,8 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   `InlineArray`.
 - A **path** is a `String`: one Rust returns that is not UTF-8 traps. A `SocketAddr`,
   `SocketAddrV4`, or `SocketAddrV6` is the runtime's `SocketAddr`, its IP's 4 or 16 bytes
-  and its port, flow label, and scope, whose family Rust checks. A `Vec<T>`, `&[T]`, or
+  and its port, flow label, and scope, whose family Rust checks. An `IpAddr`, `Ipv4Addr`,
+  or `Ipv6Addr` is the runtime's `IpAddr`, its 4 or 16 bytes. A `Vec<T>`, `&[T]`, or
   `Box<[T]>` is an array, or a `UniqueArray` of objects; one of a fixed-width integer
   other than `u8` (bytes) or `u128`, or of a float, is copied across whole, with no call per item.
 - **Traits** are `Sendable` protocols, which Rust releases once it drops an implementation.
@@ -907,7 +914,11 @@ reads a go.mod.
   object that outlived the one it borrows from, and `rt.ErrBorrowed` for any other. So
   every function whose objects can fail a check returns an `error`. `String()` and
   `GoString()` return a failed check's text, having no error to return; what a closure
-  returns has no caller to return one to, so it aborts with the message.
+  returns has no caller to return one to, so it aborts with the message. A checked call
+  goes through a C function of the package's preamble that keeps the status in a C local
+  and returns it beside the value, so the call allocates nothing for it: cgo moves to the
+  heap any Go local whose address C gets, since C may call back into Go, which can move the
+  goroutine's stack.
 - **Records** are structs, and **plain enums** an `int32` type with a constant per
   variant (`ShapeSquare`). An enum with data is an interface each variant's struct
   implements (`EventMoved{V0: p}`), sealed so only the package's do; its methods are the
@@ -944,7 +955,8 @@ reads a go.mod.
   `time.Duration`: a negative one passed in, or one Rust returns past its 292 years,
   panics. A socket address is a `netip.AddrPort`, whose zone names an IPv6 scope by its
   number or its interface's name; one Rust returns with an IPv6 flow label, which
-  `netip` does not keep, panics. A `Vec<T>`, `&[T]`, or `Box<[T]>` is a `[]T`; one of a
+  `netip` does not keep, panics. An IP address is a `netip.Addr`; one passed in that is
+  invalid, has a zone, or is of the wrong family panics. A `Vec<T>`, `&[T]`, or `Box<[T]>` is a `[]T`; one of a
   fixed-width integer other than `u8` (bytes) or `u128`, or of a float, is lent in place, pinned for the call, as bytes are, and
   one Rust returns is copied out whole.
 - **Errors**: a `Result` returns an `error` last. An exported error type is returned as
@@ -1054,7 +1066,9 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   in throws an `ArgumentError`, and Rust's longest is Dart's. A socket address is a
   `SocketAddr` of an `InternetAddress`, a port, and IPv6's flow label and scope; one passed
   in of the wrong family throws an `ArgumentError`, and a port, label, or scope out of its
-  range a `RangeError`.
+  range a `RangeError`. An IP address is an `InternetAddress`. A Unix socket's
+  `InternetAddress`, or one of the wrong family, passed in for either throws an
+  `ArgumentError`.
 - **Errors**: a `Result`'s error is thrown. An exported error type is thrown as itself,
   implementing `Exception`, and any other in a final class `<T>Exception` holding it as
   `error`, such as `StringException`.

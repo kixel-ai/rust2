@@ -105,6 +105,7 @@ pub fn rs(ty: &Ty) -> String {
 		Ty::U128 => "rt::U128".to_string(),
 		Ty::Duration => "rt::Duration".to_string(),
 		Ty::SocketAddr => "rt::SocketAddr".to_string(),
+		Ty::IpAddr => "rt::IpAddr".to_string(),
 		Ty::Struct(name) => name.clone(),
 		// A C enum is an `int`.
 		Ty::Enum(_) | Ty::Poll | Ty::Status => "i32".to_string(),
@@ -806,6 +807,9 @@ impl Gen<'_> {
 			Type::SocketAddr(Family::Any) => "::std::net::SocketAddr".to_string(),
 			Type::SocketAddr(Family::V4) => "::std::net::SocketAddrV4".to_string(),
 			Type::SocketAddr(Family::V6) => "::std::net::SocketAddrV6".to_string(),
+			Type::IpAddr(Family::Any) => "::std::net::IpAddr".to_string(),
+			Type::IpAddr(Family::V4) => "::std::net::Ipv4Addr".to_string(),
+			Type::IpAddr(Family::V6) => "::std::net::Ipv6Addr".to_string(),
 			Type::List(c, inner) => match (c, &**inner) {
 				// A map's items are its key and value.
 				(Collection::BTreeMap | Collection::JsonMap, Type::Tuple(pair)) => {
@@ -860,9 +864,9 @@ impl Gen<'_> {
 			Type::Path | Type::PathBuf => format!("unsafe {{ {e}.path_in(w, {take}) }}"),
 			Type::U128 => format!("{e}.lift()"),
 			Type::Array(_) => format!("{e}.items"),
-			Type::Duration | Type::SocketAddr(Family::Any) => format!("{e}.lift(w)"),
-			Type::SocketAddr(Family::V4) => format!("{e}.lift_v4(w)"),
-			Type::SocketAddr(Family::V6) => format!("{e}.lift_v6(w)"),
+			Type::Duration | Type::SocketAddr(Family::Any) | Type::IpAddr(Family::Any) => format!("{e}.lift(w)"),
+			Type::SocketAddr(Family::V4) | Type::IpAddr(Family::V4) => format!("{e}.lift_v4(w)"),
+			Type::SocketAddr(Family::V6) | Type::IpAddr(Family::V6) => format!("{e}.lift_v6(w)"),
 			Type::Waker => format!("{e}.lift()"),
 			Type::Future | Type::Reader => format!("{e}.lift(w)"),
 			Type::Jni(_) => unreachable!("a JNI value is lent by `function`"),
@@ -1105,6 +1109,7 @@ impl Gen<'_> {
 			Type::Duration => format!("rt::Duration::lower({e})"),
 			Type::Array(n) => format!("{} {{ items: {e} }}", self.abi.array(*n)),
 			Type::SocketAddr(_) => format!("rt::SocketAddr::lower(::std::net::SocketAddr::from({e}))"),
+			Type::IpAddr(_) => format!("rt::IpAddr::lower(::std::net::IpAddr::from({e}))"),
 			// A block hands over its own allocation.
 			Type::List(Collection::Box | Collection::Array(_), _) if ty.block().is_some() => {
 				format!("rt::List::owned(::std::vec::Vec::from({e}))")

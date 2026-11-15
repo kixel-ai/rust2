@@ -685,6 +685,7 @@ impl<'a> Gen<'a> {
 			Type::U128 => "java.math.BigInteger".to_string(),
 			Type::Duration => "kotlin.time.Duration".to_string(),
 			Type::SocketAddr(_) => "java.net.InetSocketAddress".to_string(),
+			Type::IpAddr(_) => "java.net.InetAddress".to_string(),
 			Type::List(..) if let Some(inner) = ty.block() => format!("kotlin.{}", block(inner).kt),
 			Type::List(_, inner) => format!("kotlin.collections.List<{}>", self.kt(inner)),
 			Type::Waker => self.own("Waker"),
@@ -748,6 +749,9 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(Family::Any) => format!("{w}.socketAddr({e})"),
 			Type::SocketAddr(Family::V4) => format!("{w}.socketAddrV4({e})"),
 			Type::SocketAddr(Family::V6) => format!("{w}.socketAddrV6({e})"),
+			Type::IpAddr(Family::Any) => format!("{w}.ipAddr({e})"),
+			Type::IpAddr(Family::V4) => format!("{w}.ipAddrV4({e})"),
+			Type::IpAddr(Family::V6) => format!("{w}.ipAddrV6({e})"),
 			Type::List(..) if let Some(inner) = ty.block() => format!("{w}.block({})", block(inner).signed(e)),
 			Type::List(_, inner) => {
 				let (l, v) = (self.fresh("l"), self.fresh("v"));
@@ -815,6 +819,7 @@ impl<'a> Gen<'a> {
 			Type::Array(n) => format!("{}({r}.raw({n}))", Abi::array_class(*n)),
 			Type::Duration => format!("{r}.duration()"),
 			Type::SocketAddr(_) => format!("{r}.socketAddr()"),
+			Type::IpAddr(_) => format!("{r}.ipAddr()"),
 			Type::List(..) if let Some(inner) = ty.block() => block(inner).read(r, &format!("{r}.i32()")),
 			Type::List(_, inner) => {
 				let item = self.read(inner, r, owned);
@@ -1035,20 +1040,61 @@ impl<'a> Gen<'a> {
 				));
 			}
 			// A record crosses as its scalars, and its other fields encoded into one `byte[]`;
-			// an opaque value as the words Kotlin holds it in. Only while the call's JVM
+			// an opaque value as the words Kotlin holds it in; an `Option` of either as whether
+			// it is `Some`, then the value's, zero for `None`. Only while the call's JVM
 			// parameters stay within the 255 slots a method takes, which a word always does.
 			Ty::Struct(_) | Ty::In(_)
-				if let Type::Record(i) = ty.base()
-					&& let Some(left) = self.room.checked_sub(weight(abi, *i).saturating_sub(c_slots(c))) =>
+				if let Some((i, option)) = direct_record(ty)
+					&& let Some(left) = self
+						.room
+						.checked_sub((weight(abi, i) + usize::from(option)).saturating_sub(c_slots(c))) =>
 			{
 				self.room = left;
 				arg.jni.clear();
 				arg.native.clear();
 				*n -= 1;
 				let (w, r) = (self.fresh("w"), format!("r{p}"));
+				// The encoded fields' writes can run Kotlin code, such as a custom `List`'s
+				// iterator, before the scalars are read: a `Mut`'s value is read once, first.
+				let raw = e;
+				let held = rest(abi, i) && raw.contains('.');
+				let snap = match held {
+					true => self.fresh("v"),
+					false => raw.to_string(),
+				};
+				let e = snap.as_str();
 				let mut writes = Vec::new();
-				let value = self.flat_in(*i, e, (&mut arg, n), (&w, &mut writes), &r);
-				if rest(abi, *i) {
+				let value = match option {
+					false => self.flat_in(i, e, (&mut arg, n), (&w, &mut writes), &r),
+					// Each of the value's scalars reads it through `o`, bound only when `Some`.
+					true => {
+						let some = format!("p{n}");
+						*n += 1;
+						arg.jni.push("jboolean");
+						arg.native.push("Boolean".to_string());
+						arg.exprs.push(format!("{e} != null"));
+						let o = self.fresh("o");
+						let start = arg.exprs.len();
+						let value = self.flat_in(i, &o, (&mut arg, n), (&w, &mut writes), &r);
+						for (expr, native) in arg.exprs[start..].iter_mut().zip(&arg.native[start..]) {
+							*expr = format!("({e}?.let {{ {o} -> {expr} }} ?: {})", zero(native));
+						}
+						if !writes.is_empty() {
+							writes = vec![format!("{e}?.let {{ {o} ->\n{}\n}}", writes.join("\n"))];
+						}
+						let option = match c {
+							Ty::In(inner) => inner,
+							c => c,
+						};
+						let Ty::Struct(option) = option else {
+							unreachable!("an option crosses as its struct")
+						};
+						format!(
+							"crate::{option} {{ some: {some}, value: if {some} {{ {value} }} else {{ unsafe {{ std::mem::zeroed() }} }} }}"
+						)
+					}
+				};
+				if rest(abi, i) {
 					// Then the arrays and text the rest names, which Rust copies from once.
 					let (b, q) = (format!("p{n}"), format!("p{}", *n + 1));
 					*n += 2;
@@ -1056,6 +1102,9 @@ impl<'a> Gen<'a> {
 					arg.native
 						.extend(["ByteArray", "kotlin.Array<Any?>?"].map(str::to_string));
 					arg.open = Some(format!("_Native.__Writer().use {{ {w} ->"));
+					if held {
+						arg.inside.push(format!("val {e} = {raw}"));
+					}
 					arg.inside.extend(writes);
 					arg.exprs.push(format!("{w}.finish()"));
 					arg.exprs.push(format!("{w}.refs()"));
@@ -1074,7 +1123,7 @@ impl<'a> Gen<'a> {
 					_ => format!("a{p}"),
 				});
 			}
-			Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => {
+			Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::IpAddr | Ty::Struct(_) | Ty::In(_) => {
 				let w = self.fresh("w");
 				// Taken by value, each object in a list moves out, as one passed alone does.
 				if moved(abi, ty) {
@@ -2400,7 +2449,7 @@ impl<'a> Gen<'a> {
 		// and its other fields encoded into the `byte[]` it returns; an opaque value as its
 		// words, unless it returns its one word itself.
 		let flat = match (&export.future, outs.is_empty()) {
-			(None, true) if self.room > 0 => returned_record(&ok)
+			(None, true) if self.room > 0 => direct_record(&ok)
 				.filter(|(i, option)| *option || !abi.api.records[*i].opaque.is_some_and(|o| one_word(&o))),
 			_ => None,
 		};
@@ -3236,13 +3285,13 @@ fn c_slots(c: &Ty) -> usize {
 		Ty::Int(int) if jni_int(*int) == "jlong" => 2,
 		Ty::F64 | Ty::Handle { .. } | Ty::Future(_) => 2,
 		Ty::Buf => 5,
-		Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => 2,
+		Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::IpAddr | Ty::Struct(_) | Ty::In(_) => 2,
 		_ => 1,
 	}
 }
 
-/// The record a function returns directly, and whether in an `Option`.
-fn returned_record(ok: &Type) -> Option<(usize, bool)> {
+/// The record a function returns or takes directly, and whether in an `Option`.
+fn direct_record(ok: &Type) -> Option<(usize, bool)> {
 	match ok.base() {
 		Type::Record(i) => Some((*i, false)),
 		Type::Option(inner) => match inner.base() {
@@ -3250,6 +3299,21 @@ fn returned_record(ok: &Type) -> Option<(usize, bool)> {
 			_ => None,
 		},
 		_ => None,
+	}
+}
+
+/// Kotlin's zero of the native parameter type `native`, which a `None` passes for each of
+/// its value's scalars.
+fn zero(native: &str) -> &'static str {
+	match native {
+		"Boolean" => "false",
+		"Byte" => "(0).toByte()",
+		"Short" => "(0).toShort()",
+		"Int" => "0",
+		"Long" => "0L",
+		"Float" => "0f",
+		"Double" => "0.0",
+		native => unreachable!("{native} is no JNI scalar"),
 	}
 }
 
@@ -3381,7 +3445,9 @@ fn jni_type(abi: &Abi<'_>, c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 		Ty::Handle { .. } | Ty::Future(_) => ("jlong", "Long"),
 		Ty::Buf => ("jbyteArray", "ByteArray?"),
 		Ty::Struct(_) if matches!(ty.base(), Type::Callback(..)) => ("jobject", "Any"),
-		Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => ("jbyteArray", "ByteArray"),
+		Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::IpAddr | Ty::Struct(_) | Ty::In(_) => {
+			("jbyteArray", "ByteArray")
+		}
 		Ty::Fn(..) => ("jobject", "Any"),
 		Ty::Waker => ("jobject", "Waker"),
 		Ty::ForeignReader => ("jobject", "java.nio.channels.SeekableByteChannel"),
@@ -3554,6 +3620,7 @@ pub(crate) fn rust_c(abi: &Abi<'_>, c: &Ty) -> String {
 		Ty::U128 => "crate::rt::U128".to_string(),
 		Ty::Duration => "crate::rt::Duration".to_string(),
 		Ty::SocketAddr => "crate::rt::SocketAddr".to_string(),
+		Ty::IpAddr => "crate::rt::IpAddr".to_string(),
 		Ty::Struct(name) => format!("crate::{name}"),
 		Ty::Handle { .. } => "*const std::ffi::c_void".to_string(),
 		Ty::Out(inner) => format!("*mut {}", rust_c(abi, inner)),

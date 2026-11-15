@@ -471,12 +471,14 @@ static MEMBERS: Gil<Vec<Option<Vec<(i64, Obj)>>>> = Gil::new(Vec::new());
 
 /// The runtime's entries, at the start of the registry: the awaitable a pending future
 /// is, `datetime.timedelta`, `_resume`, which schedules the running loop's dispatch,
-/// `Waker`, and `_Pollable`, which runs an awaitable Rust polls.
+/// `Waker`, `_Pollable`, which runs an awaitable Rust polls, and `ipaddress`'s two classes.
 pub const T_FUTURE: usize = 0;
 const T_TIMEDELTA: usize = 1;
 const T_RESUME: usize = 2;
 const T_WAKER: usize = 3;
 const T_POLLABLE: usize = 4;
+const T_IPV4: usize = 5;
+const T_IPV6: usize = 6;
 
 /// The class registered at `index`.
 pub fn ty(index: usize) -> *mut PyObject {
@@ -1223,6 +1225,48 @@ pub fn addr_out(addr: rt::SocketAddr) -> R<Obj> {
 			uint_out(v6.scope_id().into()),
 		]),
 	}
+}
+
+static PACKED: Key = Key::new(c"packed");
+static SCOPE_ID: Key = Key::new(c"scope_id");
+
+/// An IP address, from an `ipaddress.IPv4Address` or an `IPv6Address` without a scope,
+/// which Rust's `IpAddr` has no room for.
+pub fn ip_in(obj: *mut PyObject, family: Family) -> R<rt::IpAddr> {
+	let v6 = match (is(obj, T_IPV4), is(obj, T_IPV6)) {
+		(true, _) if family == Family::V6 => return value_error("an IPv4 address has no Rust Ipv6Addr"),
+		(_, true) if family == Family::V4 => return value_error("an IPv6 address has no Rust Ipv4Addr"),
+		(true, _) => false,
+		(_, true) => true,
+		_ if family == Family::V4 => return expected(obj, T_IPV4),
+		_ if family == Family::V6 => return expected(obj, T_IPV6),
+		_ => return expected_named(obj, "an IPv4Address or IPv6Address"),
+	};
+	let mut s = Scope::default();
+	if v6 && !is_none(attr(obj, &SCOPE_ID, &mut s)?) {
+		return value_error("an IPv6 address with a scope has no Rust IpAddr");
+	}
+	let packed = attr(obj, &PACKED, &mut s)?;
+	let ip = match v6 {
+		true => array_in::<16>(packed)?,
+		false => {
+			let mut ip = [0; 16];
+			ip[..4].copy_from_slice(&array_in::<4>(packed)?);
+			ip
+		}
+	};
+	Ok(rt::IpAddr { ip, v6 })
+}
+
+/// An `ipaddress.IPv4Address` or `IPv6Address`.
+pub fn ip_out(ip: rt::IpAddr) -> R<Obj> {
+	let (class, packed) = match ip.lift("python") {
+		std::net::IpAddr::V4(v4) => (T_IPV4, v4.octets().to_vec()),
+		std::net::IpAddr::V6(v6) => (T_IPV6, v6.octets().to_vec()),
+	};
+	// SAFETY: the GIL is held.
+	let packed = unsafe { Obj::new(PyBytes_FromStringAndSize(packed.as_ptr().cast(), packed.len() as Py_ssize_t)) };
+	call_py(ty(class), vec![packed])
 }
 
 static START: Key = Key::new(c"start");

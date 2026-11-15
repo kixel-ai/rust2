@@ -233,6 +233,8 @@ fn api_c() {
 		("bound", "api_count: a bound's kind is invalid"),
 		("socket", "api_ports: an IPv4 socket address has IPv6 bytes or fields"),
 		("family", "api_nexts: an IPv6 socket address where IPv4 is taken"),
+		("ip", "api_flip: an IPv4 address has IPv6 bytes"),
+		("ip family", "api_next_ips: an IPv6 address where IPv4 is taken"),
 		("array", "api_vec_u16_free: an array is not as Rust returned it"),
 		("future", "api_after: a future's poll is null"),
 		("started", "api_after_start: a future's poll is null"),
@@ -865,6 +867,8 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		),
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
+		("ip family", "an IPv6 address has no Rust Ipv4Addr"),
+		("ip scope", "an IPv6 address with a scope has no Rust IpAddr"),
 	] {
 		// Under a piped core pattern the handler still runs at a limit of 0, so the
 		// status reports a core though none is written.
@@ -971,6 +975,11 @@ fn api_python() {
 			"ValueError: api_Meter_count: a handle lent from another outlived it",
 		),
 		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
+		("ip family", "ValueError: an IPv6 address has no Rust Ipv4Addr"),
+		(
+			"ip scope",
+			"ValueError: an IPv6 address with a scope has no Rust IpAddr",
+		),
 		("kept threw", "api_Spawned_new: a call into Python raised"),
 		("returned", "api_made: a call into Python raised"),
 		("reader kept", "read: a reader kept a view of its buffer past the read"),
@@ -1160,6 +1169,7 @@ fn api_swift() {
 	}
 	for (case, message) in [
 		("family", "api_nexts: an IPv6 socket address where IPv4 is taken"),
+		("ip family", "api_next_ips: an IPv6 address where IPv4 is taken"),
 		("outlived", OUTLIVED),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
@@ -1269,6 +1279,8 @@ fn api_dart() {
 			"Bad state: api_Meter_count: a handle lent from another outlived it",
 		),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
+		("ip family", "an IPv6 address has no Rust Ipv4Addr"),
+		("ip unix", "a Unix address has no Rust IpAddr"),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
 	] {
@@ -1473,6 +1485,8 @@ fn api_go() {
 		("nil reader", "a nil io.ReadSeeker"),
 		("returned zero", "a zero Moment, which only Rust makes"),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
+		("ip family", "an address that is not IPv4 has no Rust Ipv4Addr"),
+		("ip scope", "an IPv6 address with a zone has no Rust IpAddr"),
 		("outlived", OUTLIVED),
 		("text", "api_greet: a string is not UTF-8"),
 		("callback panicked", "a log failed"),
