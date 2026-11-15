@@ -1013,18 +1013,18 @@ func script() {
 	} catch {
 		check(false, "seekTo throws its io::Error's message")
 	}
-	print("non zeros \(try! describeNonZeros(nonZeros()))")
+	print("non zeros \(describeNonZeros(nonZeros()))")
 	for hop in [nil, 1, UInt64.max] as [UInt64?] {
-		print("hop \(try! nextHop(hop).map { "Some(\($0))" } ?? "None")")
+		print("hop \(nextHop(hop.map { try! NonZero($0) }).map { "Some(\($0))" } ?? "None")")
 	}
-	print("farther hop \(try! fartherHop(PairNonZeroU16(left: 3, right: .max)))")
-	// A zero passed for a `NonZero`, which Swift's integer holds and Rust's type does not,
-	// throws before any Rust runs, in an option and a record's field too.
-	check(refused("api_next_hop") { _ = try nextHop(0) }, "a zero NonZero throws")
-	check(
-		refused("api_Pair_non_zero_u16") { _ = try fartherHop(PairNonZeroU16(left: 0, right: 1)) },
-		"a zero NonZero field throws"
-	)
+	print("farther hop \(fartherHop(PairNonZeroU16(left: try! NonZero(3), right: try! NonZero(.max))))")
+	// A zero, which Swift's integer holds and Rust's `NonZero` does not, makes none, and a
+	// record holding one keeps the protocols its traits give.
+	check(refused("NonZero(_:)") { _ = try NonZero<UInt64>(0) }, "a zero makes no NonZero")
+	check(Set([try! NonZero<Int8>(-1), try! NonZero(-1), try! NonZero(.min)]).count == 2, "a set of NonZero")
+	check(try! NonZero<Int8>(.min) < NonZero(1), "a NonZero compares as its integer")
+	let debug: any CustomDebugStringConvertible = nonZeros()
+	check(debug.debugDescription == describeNonZeros(nonZeros()), "a record of NonZero is Debug")
 	targets()
 }
 
