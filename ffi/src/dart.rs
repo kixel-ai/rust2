@@ -337,23 +337,33 @@ const TAKEN: &[&str] = &[
 	"BigInt",
 	"Cancelable",
 	"Cancelled",
+	"Comparable",
 	"Duration",
 	"Exception",
+	"Expando",
 	"FormatException",
 	"Function",
 	"Future",
+	"IpAddr",
+	"Ipv4Addr",
+	"Ipv6Addr",
 	"List",
 	"Map",
 	"Mut",
 	"Never",
 	"Object",
+	"PathBuf",
 	"RangeError",
+	"RustDuration",
 	"SeekFrom",
 	"SeekableReader",
 	"SocketAddr",
+	"SocketAddrV4",
+	"SocketAddrV6",
 	"StackTrace",
 	"StateError",
 	"String",
+	"U64",
 	"UnsupportedError",
 	"Waker",
 	"bool",
@@ -561,14 +571,17 @@ impl<'a> Gen<'a> {
 			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
-			Type::Int(_) | Type::NonZero(_) => "int".to_string(),
+			Type::Int(int) | Type::NonZero(int) => int_dt(*int).to_string(),
 			Type::F32 | Type::F64 => "double".to_string(),
-			Type::Char | Type::Str | Type::String | Type::Path | Type::PathBuf => "String".to_string(),
+			Type::Char | Type::Str | Type::String => "String".to_string(),
+			Type::Path | Type::PathBuf => "PathBuf".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "typed.Uint8List".to_string(),
 			Type::U128 => "BigInt".to_string(),
-			Type::Duration => "Duration".to_string(),
-			Type::SocketAddr(_) => "SocketAddr".to_string(),
-			Type::IpAddr(_) => "io.InternetAddress".to_string(),
+			Type::Duration => "RustDuration".to_string(),
+			Type::SocketAddr(family) => addr_class(true, *family).to_string(),
+			Type::IpAddr(family) => addr_class(false, *family).to_string(),
+			// `u64`'s block is a `Uint64List` read as `U64`, which an `int` stands for.
+			Type::List(..) if ty.block() == Some(&Type::Int(Int::U64)) => "List<U64>".to_string(),
 			Type::List(..) if let Some(elem) = ty.block() => format!("typed.{}", typed_list(elem)),
 			Type::List(_, inner) => format!("List<{}>", self.dt(inner)),
 			Type::Waker => "void Function()".to_string(),
@@ -649,8 +662,8 @@ impl<'a> Gen<'a> {
 			Ty::Buf
 				| Ty::U128
 				| Ty::Duration
-				| Ty::SocketAddr
-				| Ty::IpAddr
+				| Ty::SocketAddr(_)
+				| Ty::IpAddr(_)
 				| Ty::Struct(_)
 				| Ty::Waker
 				| Ty::ForeignFuture
@@ -665,8 +678,8 @@ impl<'a> Gen<'a> {
 			Ty::Buf => return "_Buf".to_string(),
 			Ty::U128 => return "_U128".to_string(),
 			Ty::Duration => return "_Duration".to_string(),
-			Ty::SocketAddr => return "_Addr".to_string(),
-			Ty::IpAddr => return "_IpAddr".to_string(),
+			Ty::SocketAddr(family) => return format!("_{}", addr_class(true, *family)),
+			Ty::IpAddr(family) => return format!("_{}", addr_class(false, *family)),
 			Ty::Waker => return "_Waker".to_string(),
 			Ty::ForeignFuture => return "_ForeignFuture".to_string(),
 			Ty::ForeignReader => return "_ForeignReader".to_string(),
@@ -971,14 +984,18 @@ impl<'a> Gen<'a> {
 	fn lower(&mut self, ty: &Type, e: &str) -> String {
 		match ty {
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
-			Type::Int(int) | Type::NonZero(int) => match int {
+			Type::NonZero(int) => format!("_n.nonZero({})", self.lower(&Type::Int(*int), e)),
+			Type::Int(int) => match int {
 				Int::U8 => format!("_n.u8({e})"),
 				Int::U16 => format!("_n.u16({e})"),
 				Int::U32 => format!("_n.u32({e})"),
 				Int::I8 => format!("_n.i8({e})"),
 				Int::I16 => format!("_n.i16({e})"),
 				Int::I32 => format!("_n.i32({e})"),
-				_ => e.to_string(),
+				Int::U64 => format!("{e}.bits"),
+				Int::Usize => format!("_n.usize({e})"),
+				Int::Isize => format!("_n.isize({e})"),
+				Int::I64 => e.to_string(),
 			},
 			Type::Char => format!("_n.char({e})"),
 			Type::Enum(_) => format!("{e}._c"),
@@ -999,31 +1016,19 @@ impl<'a> Gen<'a> {
 			return format!("{dst} = {};", self.lower(ty, e));
 		}
 		match ty.base() {
-			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.string({dst}, {e}, {take});"),
+			Type::Str | Type::String => format!("a_.string({dst}, {e}, {take});"),
+			Type::Path | Type::PathBuf => format!("a_.bytes({dst}, {e}._bytes, {take});"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e}, {take});"),
 			Type::U128 => format!("_n.u128({dst}, {e});"),
-			Type::Duration => format!("_n.duration({dst}, {e});"),
+			Type::Duration => format!("{e}._put({dst});"),
 			Type::Array(_) => format!("{e}._write({dst});"),
-			Type::SocketAddr(family) => {
-				let family = match family {
-					Family::Any => "SocketAddr",
-					Family::V4 => "SocketAddrV4",
-					Family::V6 => "SocketAddrV6",
-				};
-				format!("_n.addr({dst}, {e}, '{family}');")
-			}
-			Type::IpAddr(family) => {
-				let family = match family {
-					Family::Any => "IpAddr",
-					Family::V4 => "Ipv4Addr",
-					Family::V6 => "Ipv6Addr",
-				};
-				format!("_n.ip({dst}, {e}, '{family}');")
-			}
+			// The sealed class of either family writes which it is, and each family itself.
+			Type::SocketAddr(Family::Any) => format!("SocketAddr._put({dst}, {e});"),
+			Type::IpAddr(Family::Any) => format!("IpAddr._put({dst}, {e});"),
+			Type::SocketAddr(_) | Type::IpAddr(_) => format!("{e}._put({dst});"),
 			Type::Option(inner) => match inner.base() {
-				Type::Str | Type::String | Type::Path | Type::PathBuf => {
-					format!("a_.string({dst}, {e}, {take});")
-				}
+				Type::Str | Type::String => format!("a_.string({dst}, {e}, {take});"),
+				Type::Path | Type::PathBuf => format!("a_.bytes({dst}, {e}?._bytes, {take});"),
 				Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e}, {take});"),
 				Type::List(..) => {
 					let c = self.c_name(inner);
@@ -1121,11 +1126,15 @@ impl<'a> Gen<'a> {
 				let some = self.write(inner, "v", "c.$value", "t");
 				format!("if (v == null) {{\n\t\tc.$some = false;\n\t}} else {{\n\t\tc.$some = true;\n\t\t{some}\n\t}}")
 			}
-			// A block is copied whole into the arena.
+			// A block is copied whole into the arena: `U64`s as the `int`s they are.
 			Type::List(_, elem) if ty.block().is_some() => {
 				let nt = self.nt(&abi.ty(elem));
+				let v = match **elem {
+					Type::Int(Int::U64) => "v as List<int>",
+					_ => "v",
+				};
 				format!(
-					"if (v == null) {{\n\t\tc.$ptr = ffi.nullptr;\n\t\tc.$len = 0;\n\t\tc.$owner = ffi.nullptr;\n\t\treturn;\n\t}}\n\tfinal p = a_<{nt}>(v.isEmpty ? 1 : v.length);\n\tp.asTypedList(v.length).setAll(0, v);\n\tc.$ptr = p;\n\tc.$len = v.length;\n\tc.$owner = ffi.nullptr;"
+					"if (v == null) {{\n\t\tc.$ptr = ffi.nullptr;\n\t\tc.$len = 0;\n\t\tc.$owner = ffi.nullptr;\n\t\treturn;\n\t}}\n\tfinal p = a_<{nt}>(v.isEmpty ? 1 : v.length);\n\tp.asTypedList(v.length).setAll(0, {v});\n\tc.$ptr = p;\n\tc.$len = v.length;\n\tc.$owner = ffi.nullptr;"
 				)
 			}
 			Type::List(_, elem) => {
@@ -1266,10 +1275,14 @@ impl<'a> Gen<'a> {
 				let class = self.struct_class(&Ty::Struct(c.to_string()));
 				let list = typed_list(block);
 				let free = self.native_fn(&format!("{c}_free"), vec![Ty::Struct(c.to_string())], Ty::Void);
+				let cast = match block {
+					Type::Int(Int::U64) => " as List<U64>",
+					_ => "",
+				};
 				return self.finish_reader(
 					name,
 					format!(
-						"{dt} {{NAME}}({class} c) {{\n\tfinal out = typed.{list}.fromList(c.$ptr.asTypedList(c.$len));\n\t{free}(c);\n\treturn out;\n}}\n\n"
+						"{dt} {{NAME}}({class} c) {{\n\tfinal out = typed.{list}.fromList(c.$ptr.asTypedList(c.$len));\n\t{free}(c);\n\treturn out{cast};\n}}\n\n"
 					),
 				);
 			}
@@ -1296,16 +1309,19 @@ impl<'a> Gen<'a> {
 				};
 				(class, body)
 			}
-			Type::Range(_) => {
+			Type::Range(int) => {
 				let class = self.struct_class(&Ty::Struct(c.to_string()));
-				(class, format!("{dt}(c.$start, c.$end)"))
+				let int = Type::Int(*int);
+				let (start, end) = (self.lift(&int, "c.$start"), self.lift(&int, "c.$end"));
+				(class, format!("{dt}({start}, {end})"))
 			}
-			Type::Bound(_) => {
+			Type::Bound(int) => {
 				let class = self.struct_class(&Ty::Struct(c.to_string()));
+				let value = self.lift(&Type::Int(*int), "c.$value");
 				(
 					class,
 					format!(
-						"switch (c.$kind) {{\n\t\t0 => const {dt}Unbounded(),\n\t\t1 => {dt}Included(c.$value),\n\t\t2 => {dt}Excluded(c.$value),\n\t\t_ => throw StateError('{c}: an invalid kind'),\n\t}}"
+						"switch (c.$kind) {{\n\t\t0 => const {dt}Unbounded(),\n\t\t1 => {dt}Included({value}),\n\t\t2 => {dt}Excluded({value}),\n\t\t_ => throw StateError('{c}: an invalid kind'),\n\t}}"
 					),
 				)
 			}
@@ -1332,22 +1348,23 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Str | Type::String => format!("_n.string({e})"),
-			Type::Path | Type::PathBuf => format!("_n.path({e})"),
+			Type::Path | Type::PathBuf => format!("PathBuf._(_n.bytes({e}))"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("_n.bytes({e})"),
+			Type::Int(Int::U64 | Int::Usize) | Type::NonZero(Int::U64 | Int::Usize) => format!("U64.fromBits({e})"),
 			Type::Bool | Type::F32 | Type::F64 | Type::Int(_) | Type::NonZero(_) => e.to_string(),
 			Type::Char => format!("_n.scalar({e})"),
 			Type::U128 => format!("_n.u128Of({e})"),
-			Type::Duration => format!("_n.durationOf({e})"),
+			Type::Duration => format!("RustDuration._of({e})"),
 			Type::Array(n) => format!("{}._of({e})", Abi::array_class(*n)),
-			Type::SocketAddr(_) => format!("_n.addrOf({e})"),
-			Type::IpAddr(_) => format!("_n.ipOf({e})"),
+			Type::SocketAddr(family) => format!("{}._of({e})", addr_class(true, *family)),
+			Type::IpAddr(family) => format!("{}._of({e})", addr_class(false, *family)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(_) => {
 					let dt = self.dt(inner);
 					format!("({e} == ffi.nullptr ? null : {dt}._({e}))")
 				}
 				Type::Str | Type::String => format!("_n.stringOrNull({e})"),
-				Type::Path | Type::PathBuf => format!("_n.pathOrNull({e})"),
+				Type::Path | Type::PathBuf => format!("({e}.ptr == ffi.nullptr ? null : PathBuf._(_n.bytes({e})))"),
 				Type::Slice | Type::Vec | Type::Bytes => format!("_n.bytesOrNull({e})"),
 				Type::List(..) => {
 					let lifted = self.lift(inner, e);
@@ -1385,11 +1402,13 @@ impl<'a> Gen<'a> {
 	fn lift_lent(&mut self, ty: &Type, e: &str) -> String {
 		match ty {
 			Type::Str | Type::String => format!("_n.stringLent({e})"),
-			Type::Path | Type::PathBuf => format!("_n.pathLent({e})"),
+			Type::Path | Type::PathBuf => format!("PathBuf._(_n.bytesLent({e}))"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("_n.bytesLent({e})"),
 			Type::Option(inner) => match inner.base() {
 				Type::Str | Type::String => format!("_n.stringLentOrNull({e})"),
-				Type::Path | Type::PathBuf => format!("_n.pathLentOrNull({e})"),
+				Type::Path | Type::PathBuf => {
+					format!("({e}.ptr == ffi.nullptr ? null : PathBuf._(_n.bytesLent({e})))")
+				}
 				Type::Slice | Type::Vec | Type::Bytes => format!("_n.bytesLentOrNull({e})"),
 				_ => self.lift(ty, e),
 			},
@@ -1419,6 +1438,7 @@ impl<'a> Gen<'a> {
 				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			let value = match constant.value {
 				Literal::Bool(b) => b.to_string(),
+				Literal::Int(Int::U64 | Int::Usize, v) => format!("U64.fromBits({})", int_literal(v)),
 				Literal::Int(_, v) => int_literal(v),
 			};
 			let _ = write!(self.top, "{}const {name} = {value};\n\n", docs(&constant.docs, ""));
@@ -1467,15 +1487,24 @@ impl<'a> Gen<'a> {
 	fn range(&mut self, c: &str, ty: &Type) {
 		let name = self.class(c);
 		let code = match ty {
-			Type::Range(_) => format!(
-				"/// Rust's `Range`: from `start`, up to but not including `end`.\nfinal class {name} {{\n\tfinal int start;\n\tfinal int end;\n\n\tconst {name}(this.start, this.end);\n\n\t@override\n\tbool operator ==(Object other) => other is {name} && other.start == start && other.end == end;\n\n\t@override\n\tint get hashCode => Object.hash(start, end);\n\n\t@override\n\tString toString() => '$start..$end';\n}}\n\n"
-			),
-			Type::Bound(_) => {
+			Type::Range(int) => {
+				let dt = int_dt(*int);
+				// A `U64` prints unsigned only through its own method.
+				let (start, end) = match dt {
+					"U64" => ("${start.toRadixString(10)}", "${end.toRadixString(10)}"),
+					_ => ("$start", "$end"),
+				};
+				format!(
+					"/// Rust's `Range`: from `start`, up to but not including `end`.\nfinal class {name} {{\n\tfinal {dt} start;\n\tfinal {dt} end;\n\n\tconst {name}(this.start, this.end);\n\n\t@override\n\tbool operator ==(Object other) => other is {name} && other.start == start && other.end == end;\n\n\t@override\n\tint get hashCode => Object.hash(start, end);\n\n\t@override\n\tString toString() => '{start}..{end}';\n}}\n\n"
+				)
+			}
+			Type::Bound(int) => {
+				let dt = int_dt(*int);
 				format!(
 					"/// Rust's `Bound`: what a range's start or end bound does.\nsealed class {name} {{\n\tconst {name}();\n}}\n\n\
 					final class {name}Unbounded extends {name} {{\n\tconst {name}Unbounded();\n\n\t@override\n\tbool operator ==(Object other) => other is {name}Unbounded;\n\n\t@override\n\tint get hashCode => 0;\n}}\n\n\
-					final class {name}Included extends {name} {{\n\tfinal int value;\n\n\tconst {name}Included(this.value);\n\n\t@override\n\tbool operator ==(Object other) => other is {name}Included && other.value == value;\n\n\t@override\n\tint get hashCode => Object.hash(1, value);\n}}\n\n\
-					final class {name}Excluded extends {name} {{\n\tfinal int value;\n\n\tconst {name}Excluded(this.value);\n\n\t@override\n\tbool operator ==(Object other) => other is {name}Excluded && other.value == value;\n\n\t@override\n\tint get hashCode => Object.hash(2, value);\n}}\n\n"
+					final class {name}Included extends {name} {{\n\tfinal {dt} value;\n\n\tconst {name}Included(this.value);\n\n\t@override\n\tbool operator ==(Object other) => other is {name}Included && other.value == value;\n\n\t@override\n\tint get hashCode => Object.hash(1, value);\n}}\n\n\
+					final class {name}Excluded extends {name} {{\n\tfinal {dt} value;\n\n\tconst {name}Excluded(this.value);\n\n\t@override\n\tbool operator ==(Object other) => other is {name}Excluded && other.value == value;\n\n\t@override\n\tint get hashCode => Object.hash(2, value);\n}}\n\n"
 				)
 			}
 			Type::Bounds(int) => {
@@ -1490,8 +1519,8 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The members a type's std traits export: `Display` is `toString()`, `Debug`
-	/// `debug()`, `PartialEq` `==`, `Default` a constructor `default_()`, and `Clone` an
-	/// object's `clone()`.
+	/// `debug()`, `PartialEq` `==` and with `Hash` `hashCode`, `Default` a constructor
+	/// `default_()`, and `Clone` an object's `clone()`.
 	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits, body: &mut Vec<String>, members: &mut Vec<String>) {
 		let name = self.dt(ty);
 		let object = matches!(ty, Type::Object(_));
@@ -1566,10 +1595,24 @@ impl<'a> Gen<'a> {
 			let f = self.served_fn(&what, params(vec![recv.clone(), recv.clone()]), Ty::Bool);
 			let (pa, a) = this(self, "this");
 			let (pb, b) = this(self, "other");
-			let call = call(&f, &format!("{a}, {b}"), &what, &|r| r.to_string());
+			let eq = call(&f, &format!("{a}, {b}"), &what, &|r| r.to_string());
 			body.push(format!(
-				"\t/// Rust's `PartialEq`.\n\t@override\n\tbool operator ==(Object other) {{\n\t\tif (other is! {name}) return false;\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pa}{pb}{call}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n\n\t/// Rust has no `Hash` for it, so it keys no `Set` or `Map`.\n\t@override\n\tint get hashCode => throw UnsupportedError('{name} has no Rust Hash');\n"
+				"\t/// Rust's `PartialEq`.\n\t@override\n\tbool operator ==(Object other) {{\n\t\tif (other is! {name}) return false;\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pa}{pb}{eq}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
 			));
+			// Equal values hash alike only by Rust's own `Hash`, which a type without one lacks.
+			if t.hash {
+				let what = format!("{c}_hash");
+				let f = self.served_fn(&what, params(vec![recv.clone()]), Ty::Int(Int::U64));
+				let (pre, arg) = this(self, "this");
+				let hash = call(&f, &arg, &what, &|r| r.to_string());
+				body.push(format!(
+					"\t/// Rust's `Hash`.\n\t@override\n\tint get hashCode {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pre}{hash}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+				));
+			} else {
+				body.push(format!(
+					"\t/// Rust has no `Hash` for it, so it keys no `Set` or `Map`.\n\t@override\n\tint get hashCode => throw UnsupportedError('{name} has no Rust Hash');\n"
+				));
+			}
 		}
 		if t.default {
 			members.push("new default_".to_string());
@@ -2601,8 +2644,8 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 }
 
 /// The `dart:typed_data` list holding a block's element exactly, bit for bit: a
-/// `Uint64List` reads a `u64` past `i64::MAX` as the negative `int` of its bits, as every
-/// `u64` crosses Dart.
+/// `Uint64List` reads a `u64` past `i64::MAX` as the negative `int` of its bits, which a
+/// `List<U64>` it stands for reads unsigned.
 fn typed_list(elem: &Type) -> &'static str {
 	match elem {
 		Type::Int(Int::U8) => "Uint8List",
@@ -2616,6 +2659,27 @@ fn typed_list(elem: &Type) -> &'static str {
 		Type::F32 => "Float32List",
 		Type::F64 => "Float64List",
 		other => unreachable!("{other:?} is no block's element"),
+	}
+}
+
+/// The Dart type of a Rust integer: `int` but for `u64` and `usize`, whose values past
+/// `i64::MAX` it holds as negative, which `U64` reads unsigned.
+fn int_dt(int: Int) -> &'static str {
+	match int {
+		Int::U64 | Int::Usize => "U64",
+		_ => "int",
+	}
+}
+
+/// The runtime's class of a socket address, or else an IP address, of `family`.
+fn addr_class(socket: bool, family: Family) -> &'static str {
+	match (socket, family) {
+		(true, Family::Any) => "SocketAddr",
+		(true, Family::V4) => "SocketAddrV4",
+		(true, Family::V6) => "SocketAddrV6",
+		(false, Family::Any) => "IpAddr",
+		(false, Family::V4) => "Ipv4Addr",
+		(false, Family::V6) => "Ipv6Addr",
 	}
 }
 
@@ -2727,4 +2791,53 @@ fn indent(code: &str) -> String {
 		out.pop();
 	}
 	out
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	/// Every type the runtime names unqualified is its own or [`TAKEN`], so no exported
+	/// item shadows it.
+	#[test]
+	fn runtime_names_taken() {
+		let mut code = String::new();
+		for line in RUNTIME.lines() {
+			let line = line.split_once("//").map_or(line, |(code, _)| code);
+			// A string literal names nothing.
+			let mut quote = None;
+			for c in line.chars() {
+				match quote {
+					Some(q) if c == q => quote = None,
+					Some(_) => {}
+					None if c == '\'' || c == '"' => quote = Some(c),
+					None => code.push(c),
+				}
+			}
+			code.push('\n');
+		}
+		// A capitalized word no `.` qualifies, nor part of a longer one.
+		let words: Vec<&str> = (code.char_indices())
+			.filter(|&(i, c)| {
+				c.is_ascii_uppercase() && !code[..i].ends_with(|p: char| p == '.' || p == '_' || p.is_alphanumeric())
+			})
+			.map(|(i, _)| {
+				let rest = &code[i..];
+				&rest[..rest
+					.find(|c: char| !(c == '_' || c.is_alphanumeric()))
+					.unwrap_or(rest.len())]
+			})
+			.collect();
+		let declared: BTreeSet<&str> = ["class ", "enum ", "type ", "typedef "]
+			.iter()
+			.flat_map(|kind| code.split(kind).skip(1))
+			.filter_map(|rest| rest.split(|c: char| !(c == '_' || c.is_alphanumeric())).next())
+			.collect();
+		for word in words {
+			// A one-letter name is a type parameter.
+			if word.len() > 1 && !declared.contains(word) {
+				assert!(TAKEN.contains(&word), "the runtime's `{word}` is not in TAKEN");
+			}
+		}
+	}
 }

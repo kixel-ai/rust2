@@ -129,7 +129,7 @@ Future<Map<String, Span>> round() async {
   final demand = demanded.demand();
   start = begin();
   for (var i = 0; i < n; i++) {
-    sink += demand.sequence();
+    sink += demand.sequence().bits;
   }
   out['getter'] = end(start, 'getter');
   demand.close();
@@ -154,14 +154,14 @@ Future<Map<String, Span>> round() async {
   for (var g = 0; g < groups; g++) {
     final group = track.appendGroup();
     for (var f = 0; f < frames; f++) {
-      group.writeFrame(moq.Timestamp.fromMicros(micros++), frame);
+      group.writeFrame(moq.Timestamp.fromMicros(moq.U64(micros++)), frame);
     }
     group.finish();
     group.close();
   }
   out['stamped'] = end(start, 'stamped');
 
-  final at = moq.Timestamp.fromMicros(micros);
+  final at = moq.Timestamp.fromMicros(moq.U64(micros));
   start = begin();
   for (var g = 0; g < groups; g++) {
     final group = track.appendGroup();

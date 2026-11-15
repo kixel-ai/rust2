@@ -470,10 +470,10 @@ static TYPES: Gil<Vec<Obj>> = Gil::new(Vec::new());
 static MEMBERS: Gil<Vec<Option<Vec<(i64, Obj)>>>> = Gil::new(Vec::new());
 
 /// The runtime's entries, at the start of the registry: the awaitable a pending future
-/// is, `datetime.timedelta`, `_resume`, which schedules the running loop's dispatch,
+/// is, the runtime's `Duration`, `_resume`, which schedules the running loop's dispatch,
 /// `Waker`, `_Pollable`, which runs an awaitable Rust polls, and `ipaddress`'s two classes.
 pub const T_FUTURE: usize = 0;
-const T_TIMEDELTA: usize = 1;
+const T_DURATION: usize = 1;
 const T_RESUME: usize = 2;
 const T_WAKER: usize = 3;
 const T_POLLABLE: usize = 4;
@@ -639,6 +639,15 @@ pub fn int_in<T: TryFrom<i128>>(obj: *mut PyObject) -> R<T> {
 		}
 	};
 	T::try_from(value).or_else(|_| overflow_int::<T>())
+}
+
+/// A `NonZero<T>`'s integer, as `int_in`, with a zero raising `ValueError`.
+pub fn nonzero_in<T: TryFrom<i128> + Default + PartialEq>(obj: *mut PyObject) -> R<T> {
+	let value = int_in::<T>(obj)?;
+	match value == T::default() {
+		true => value_error("a NonZero is zero"),
+		false => Ok(value),
+	}
 }
 
 fn overflow_int<T>() -> R<T> {
@@ -1096,6 +1105,15 @@ pub fn path_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Buf> {
 		if PyBytes_AsStringAndSize(encoded, &mut ptr, &mut len) != 0 {
 			return Err(Raised);
 		}
+		// Windows' file system encoding passes a surrogate through, but a lead and a trail
+		// written apart are no path, which WTF-8 writes as the scalar they make.
+		#[cfg(windows)]
+		{
+			let bytes = std::slice::from_raw_parts(ptr.cast::<u8>(), len as usize);
+			if std::str::from_utf8(bytes).is_err() && rt::wtf8(bytes).is_none() {
+				return value_error("a str with a surrogate pair apart is no Windows path");
+			}
+		}
 		Ok(rt::Buf {
 			ptr: ptr.cast_const().cast(),
 			len: len as usize,
@@ -1114,58 +1132,41 @@ pub fn path_out(buf: rt::Buf) -> R<Obj> {
 	}
 }
 
-static DAYS: Key = Key::new(c"days");
-static SECONDS: Key = Key::new(c"seconds");
-static MICROSECONDS: Key = Key::new(c"microseconds");
-static MAX: Key = Key::new(c"max");
-
-/// The days in `timedelta.max`, past which [`duration_out`] gives it.
-const MAX_DAYS: u64 = 999_999_999;
-
-/// A `Duration`, from a `datetime.timedelta` that is not negative: `timedelta.max`, which
-/// [`duration_out`] gives for any longer one, is `Duration::MAX`.
+/// A `Duration`, from the runtime's `Duration`: seconds a `u64` holds, and nanoseconds below
+/// a billion, else `OverflowError` or `ValueError`.
 pub fn duration_in(obj: *mut PyObject) -> R<rt::Duration> {
-	if !is(obj, T_TIMEDELTA) {
-		return expected(obj, T_TIMEDELTA);
+	if !is(obj, T_DURATION) {
+		return expected(obj, T_DURATION);
 	}
-	let mut s = Scope::default();
-	let days: u64 = match int_in::<i64>(attr(obj, &DAYS, &mut s)?)? {
-		days if days < 0 => return value_error("a negative timedelta has no Rust Duration"),
-		days => days as u64,
+	// SAFETY: the GIL is held, and `obj` a `Duration`, a tuple of its two fields.
+	let (secs, nanos) = unsafe { (PyTuple_GetItem(obj, 0), PyTuple_GetItem(obj, 1)) };
+	let duration = rt::Duration {
+		secs: int_in(secs)?,
+		nanos: int_in(nanos)?,
 	};
-	let seconds: u64 = int_in(attr(obj, &SECONDS, &mut s)?)?;
-	let micros: u32 = int_in(attr(obj, &MICROSECONDS, &mut s)?)?;
-	if (days, seconds, micros) == (MAX_DAYS, 86_399, 999_999) {
-		return Ok(rt::Duration::lower(std::time::Duration::MAX));
+	match duration.nanos < 1_000_000_000 {
+		true => Ok(duration),
+		false => value_error("a Duration's nanos are below a billion"),
 	}
-	Ok(rt::Duration {
-		secs: days * 86_400 + seconds,
-		nanos: micros * 1_000,
-	})
 }
 
-/// A `datetime.timedelta`, which holds whole microseconds up to 999,999,999 days: Rust's
-/// nanoseconds are truncated, and a longer one is `timedelta.max`, as Rust's
-/// `Duration::MAX` stands for forever, which [`duration_in`] gives back.
+/// The runtime's `Duration`, made by `tuple`'s own constructor, which (unlike a bare
+/// allocation) marks the hash CPython 3.14+ caches as not yet computed, and skips the
+/// `NamedTuple`'s Python `__new__`.
 pub fn duration_out(duration: rt::Duration) -> R<Obj> {
-	let class = ty(T_TIMEDELTA);
-	// SAFETY: the GIL is held.
+	let items = tuple(vec![uint_out(duration.secs), uint_out(duration.nanos.into())]);
+	let args = tuple(vec![items])?;
+	// SAFETY: the GIL is held; `tuple`'s `tp_new` takes a subclass and, as `tuple(items)`
+	// does, its arguments.
 	unsafe {
-		if duration.secs / 86_400 > MAX_DAYS {
-			return Obj::new(PyObject_GetAttr(class, MAX.get()?));
-		}
-		let args = tuple(vec![
-			int_out(0),
-			uint_out(duration.secs),
-			uint_out(u64::from(duration.nanos / 1_000)),
-		])?;
-		Obj::new(PyObject_CallObject(class, args.ptr()))
+		let new: newfunc = std::mem::transmute(PyType_GetSlot(&raw mut PyTuple_Type, Py_tp_new));
+		Obj::new(new(ty(T_DURATION).cast(), args.ptr(), null_mut()))
 	}
 }
 
 /// Which addresses a socket address type holds.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Family {
+enum Family {
 	Any,
 	V4,
 	V6,
@@ -1173,7 +1174,28 @@ pub enum Family {
 
 /// A socket address, from a tuple as Python's `socket` module writes one: `(host, port)`,
 /// or for IPv6, `(host, port, flowinfo, scope_id)`, its host a numeric address.
-pub fn addr_in(obj: *mut PyObject, family: Family) -> R<rt::SocketAddr> {
+pub fn addr_in(obj: *mut PyObject) -> R<rt::SocketAddr> {
+	socket_in(obj, Family::Any).map(rt::SocketAddr::lower)
+}
+
+/// An IPv4 socket address, as [`addr_in`] takes one.
+pub fn addr_v4_in(obj: *mut PyObject) -> R<rt::SocketAddrV4> {
+	match socket_in(obj, Family::V4)? {
+		std::net::SocketAddr::V4(addr) => Ok(rt::SocketAddrV4::lower(addr)),
+		std::net::SocketAddr::V6(_) => unreachable!("checked IPv4"),
+	}
+}
+
+/// An IPv6 socket address, as [`addr_in`] takes one.
+pub fn addr_v6_in(obj: *mut PyObject) -> R<rt::SocketAddrV6> {
+	match socket_in(obj, Family::V6)? {
+		std::net::SocketAddr::V6(addr) => Ok(rt::SocketAddrV6::lower(addr)),
+		std::net::SocketAddr::V4(_) => unreachable!("checked IPv6"),
+	}
+}
+
+/// A socket address of `family`, as [`addr_in`] takes one.
+fn socket_in(obj: *mut PyObject, family: Family) -> R<std::net::SocketAddr> {
 	// SAFETY: the GIL is held, and `obj` is live.
 	let len = unsafe {
 		if PyTuple_Check(obj) == 0 {
@@ -1205,18 +1227,30 @@ pub fn addr_in(obj: *mut PyObject, family: Family) -> R<rt::SocketAddr> {
 	match (family, addr) {
 		(Family::V4, std::net::SocketAddr::V6(_)) => value_error("an IPv6 address has no Rust SocketAddrV4"),
 		(Family::V6, std::net::SocketAddr::V4(_)) => value_error("an IPv4 address has no Rust SocketAddrV6"),
-		_ => Ok(rt::SocketAddr::lower(addr)),
+		_ => Ok(addr),
 	}
 }
 
-/// A socket address as Python's `socket` module writes one.
+pub fn addr_v4_out(addr: rt::SocketAddrV4) -> R<Obj> {
+	socket_out(addr.lift().into())
+}
+
+pub fn addr_v6_out(addr: rt::SocketAddrV6) -> R<Obj> {
+	socket_out(addr.lift().into())
+}
+
 pub fn addr_out(addr: rt::SocketAddr) -> R<Obj> {
+	socket_out(addr.lift())
+}
+
+/// A socket address as Python's `socket` module writes one.
+fn socket_out(addr: std::net::SocketAddr) -> R<Obj> {
 	let text = |ip: &dyn std::fmt::Display| {
 		let text = ip.to_string();
 		// SAFETY: the GIL is held.
 		unsafe { Obj::new(PyUnicode_FromStringAndSize(text.as_ptr().cast(), text.len() as Py_ssize_t)) }
 	};
-	match addr.lift("python") {
+	match addr {
 		std::net::SocketAddr::V4(v4) => tuple(vec![text(v4.ip()), uint_out(v4.port().into())]),
 		std::net::SocketAddr::V6(v6) => tuple(vec![
 			text(v6.ip()),
@@ -1232,7 +1266,28 @@ static SCOPE_ID: Key = Key::new(c"scope_id");
 
 /// An IP address, from an `ipaddress.IPv4Address` or an `IPv6Address` without a scope,
 /// which Rust's `IpAddr` has no room for.
-pub fn ip_in(obj: *mut PyObject, family: Family) -> R<rt::IpAddr> {
+pub fn ip_in(obj: *mut PyObject) -> R<rt::IpAddr> {
+	address_in(obj, Family::Any).map(rt::IpAddr::lower)
+}
+
+/// An IPv4 address, from an `ipaddress.IPv4Address`.
+pub fn ipv4_in(obj: *mut PyObject) -> R<rt::Ipv4Addr> {
+	match address_in(obj, Family::V4)? {
+		std::net::IpAddr::V4(ip) => Ok(rt::Ipv4Addr::lower(ip)),
+		std::net::IpAddr::V6(_) => unreachable!("checked IPv4"),
+	}
+}
+
+/// An IPv6 address, from an `ipaddress.IPv6Address` without a scope.
+pub fn ipv6_in(obj: *mut PyObject) -> R<rt::Ipv6Addr> {
+	match address_in(obj, Family::V6)? {
+		std::net::IpAddr::V6(ip) => Ok(rt::Ipv6Addr::lower(ip)),
+		std::net::IpAddr::V4(_) => unreachable!("checked IPv6"),
+	}
+}
+
+/// An IP address of `family`, as [`ip_in`] takes one.
+fn address_in(obj: *mut PyObject, family: Family) -> R<std::net::IpAddr> {
 	let v6 = match (is(obj, T_IPV4), is(obj, T_IPV6)) {
 		(true, _) if family == Family::V6 => return value_error("an IPv4 address has no Rust Ipv6Addr"),
 		(_, true) if family == Family::V4 => return value_error("an IPv6 address has no Rust Ipv4Addr"),
@@ -1247,20 +1302,27 @@ pub fn ip_in(obj: *mut PyObject, family: Family) -> R<rt::IpAddr> {
 		return value_error("an IPv6 address with a scope has no Rust IpAddr");
 	}
 	let packed = attr(obj, &PACKED, &mut s)?;
-	let ip = match v6 {
-		true => array_in::<16>(packed)?,
-		false => {
-			let mut ip = [0; 16];
-			ip[..4].copy_from_slice(&array_in::<4>(packed)?);
-			ip
-		}
-	};
-	Ok(rt::IpAddr { ip, v6 })
+	Ok(match v6 {
+		true => std::net::Ipv6Addr::from(array_in::<16>(packed)?).into(),
+		false => std::net::Ipv4Addr::from(array_in::<4>(packed)?).into(),
+	})
+}
+
+pub fn ip_out(ip: rt::IpAddr) -> R<Obj> {
+	address_out(ip.lift())
+}
+
+pub fn ipv4_out(ip: rt::Ipv4Addr) -> R<Obj> {
+	address_out(ip.lift().into())
+}
+
+pub fn ipv6_out(ip: rt::Ipv6Addr) -> R<Obj> {
+	address_out(ip.lift().into())
 }
 
 /// An `ipaddress.IPv4Address` or `IPv6Address`.
-pub fn ip_out(ip: rt::IpAddr) -> R<Obj> {
-	let (class, packed) = match ip.lift("python") {
+fn address_out(ip: std::net::IpAddr) -> R<Obj> {
+	let (class, packed) = match ip {
 		std::net::IpAddr::V4(v4) => (T_IPV4, v4.octets().to_vec()),
 		std::net::IpAddr::V6(v6) => (T_IPV6, v6.octets().to_vec()),
 	};

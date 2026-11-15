@@ -507,15 +507,15 @@ fun script() {
 	} catch (e: StringException) {
 		println("parse err ${e.error}")
 	}
-	val v4 = java.net.InetSocketAddress(java.net.InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)), 8080)
+	val v4 = SocketAddrV4(Ipv4Addr(127u, 0u, 0u, 1u), 8080u)
 	val loopback = ByteArray(16).also { it[15] = 1 }
-	val v6 = java.net.InetSocketAddress(java.net.Inet6Address.getByAddress(null, loopback, 3), 443)
+	val v6 = SocketAddrV6(Ipv6Addr(loopback), 443u, 0u, 3u)
 	println("ports ${ports(listOf(v4, v6)).contentToString()}")
 	val peer = Peer(v6, listOf("a", "b")).next("c")
 	println("peer ${peer.debug()} ${peer.aliases().joinToString(", ", "[", "]") { "\"$it\"" }}")
-	val file = file("dir", "f\\'\"\t")
+	val file = file(PathBuf("dir"), "f\\'\"\t")
 	println("file ${escaped(file)}")
-	println("parents ${parents(listOf(file, "/")).joinToString(" ") { it?.let(::escaped) ?: "none" }}")
+	println("parents ${parents(listOf(file, PathBuf("/"))).joinToString(" ") { it?.let(::escaped) ?: "none" }}")
 	val words = words(" one two  three ")
 	println("words ${words.size} ${words.joinToString(", ", "[", "]") { "\"$it\"" }}")
 	println("sentence ${sentence(words)} ${sentence(null)}")
@@ -669,8 +669,8 @@ fun script() {
 	println("longest ${longest(listOf("a", "abc"))} ${longest(emptyList())}")
 	println("first of Some(\"${firstOf(listOf("a", "b"))}\") ${firstOf(emptyList()) ?: "None"}")
 	val limits = byteLimits(Bytes("a".encodeToByteArray()), Bytes("bc".encodeToByteArray()))
-	val waits = breadth(LimitsDuration(5.milliseconds, 2.seconds))
-	println("limits ${limits.low.toByteArray().decodeToString()} ${limits.high.toByteArray().decodeToString()} breadth ${waits.inWholeMilliseconds}")
+	val waits = breadth(LimitsDuration(Duration(5.milliseconds), Duration(2.seconds)))
+	println("limits ${limits.low.toByteArray().decodeToString()} ${limits.high.toByteArray().decodeToString()} breadth ${waits.toKotlinDuration().inWholeMilliseconds}")
 	val parts = joined(listOf(Bytes("ab".encodeToByteArray()), Bytes(ByteArray(0)), Bytes("c".encodeToByteArray()))).toByteArray().decodeToString()
 	println("joined $parts ${joined(emptyList()).toByteArray().size} read ${readLen(Bytes("hello".encodeToByteArray()))}")
 	val doc = Json.parse("""{"b": [1, 2.5, null], "a": "\u00e9"}""")
@@ -703,17 +703,13 @@ fun script() {
 	val numbered = numbered(listOf("p", "q"))
 	println("numbered ${numbered.joinToString(", ") { "${it.name()} ${it.get()}" }}")
 	numbered.forEach { it.close() }
-	val at4 = java.net.InetSocketAddress(java.net.InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)), 8080)
-	val at6 = java.net.InetSocketAddress(java.net.Inet6Address.getByAddress(null, loopback, 3), 443)
-	val (next4, next6) = nexts(at4, at6)
-	println("nexts ${next4.address.hostAddress} ${next4.port} ${next6.port} ${(next6.address as java.net.Inet6Address).scopeId}")
-	val (nextIp4, nextIp6) = nextIps(
-		java.net.InetAddress.getByAddress(byteArrayOf(10, 0, 0, -1)),
-		java.net.Inet6Address.getByAddress(null, ByteArray(16).also { it[14] = -1; it[15] = -1 }, null as java.net.NetworkInterface?),
-	)
-	val mapped = flip(java.net.InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)))
-	val ips = listOf(nextIp4, nextIp6, mapped, flip(mapped), flip(java.net.Inet6Address.getByAddress(null, loopback, null as java.net.NetworkInterface?)))
-	println("ips ${ips.joinToString(" ") { ip -> ip.address.joinToString("") { "%02x".format(it) } }}")
+	val (next4, next6) = nexts(v4, v6)
+	println("nexts ${next4.ip} ${next4.port} ${next6.port} ${next6.scopeId}")
+	val (nextIp4, nextIp6) = nextIps(Ipv4Addr(10u, 0u, 0u, 255u), Ipv6Addr(ByteArray(16).also { it[14] = -1; it[15] = -1 }))
+	val mapped = flip(Ipv4Addr(127u, 0u, 0u, 1u))
+	val ips = listOf(nextIp4, nextIp6, mapped, flip(mapped), flip(Ipv6Addr(loopback)))
+	println("ips ${ips.joinToString(" ") { ipHex(it) }}")
+	lossless()
 
 	// serde_json's map iterator, collected as pairs of a key and its document.
 	val jsonSections = sections(listOf(Pair("b", Json.parse("[1]")), Pair("a", Json.parse("2"))))
@@ -721,9 +717,9 @@ fun script() {
 	jsonSections.forEach { it.second.close() }
 	// An instant only Rust makes, which each call copies out of its handle, and compares.
 	val began = now()
-	val ended = later(began, 1500.milliseconds)
-	val same = later(began, kotlin.time.Duration.ZERO)
-	println("instants ${since(ended, began).inWholeMilliseconds} ${since(began, ended).inWholeMilliseconds} ${began == same} ${began == ended}")
+	val ended = later(began, Duration(1500.milliseconds))
+	val same = later(began, Duration.ZERO)
+	println("instants ${since(ended, began).toKotlinDuration().inWholeMilliseconds} ${since(began, ended).toKotlinDuration().inWholeMilliseconds} ${began == same} ${began == ended}")
 	println("has_instant ${hasInstant(began)} ${hasInstant(null)}")
 	// tracing's level, and its filter as an optional level whose null is `OFF`.
 	Verbosity.new(Level.WARN).use { verbosity ->
@@ -840,8 +836,8 @@ open class Broken : java.nio.channels.SeekableByteChannel {
 	override fun close() {}
 }
 
-/** A path's UTF-8 bytes as Rust's `escape_ascii` prints them. */
-fun escaped(path: String): String = path.encodeToByteArray().joinToString("") {
+/** A path's bytes as Rust's `escape_ascii` prints them. */
+fun escaped(path: PathBuf): String = path.toByteArray().joinToString("") {
 	when (val b = it.toInt() and 0xff) {
 		'\t'.code -> "\\t"
 		'\r'.code -> "\\r"
@@ -860,6 +856,117 @@ fun check(ok: Boolean, what: String) {
 		System.err.println("failed: $what")
 		kotlin.system.exitProcess(1)
 	}
+}
+
+/** Bytes in hex, as transcript.rs prints them. */
+fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it) }
+
+/** An address's octets in hex, so their length shows its family. */
+fun ipHex(ip: IpAddr): String = hex(
+	when (ip) {
+		is Ipv4Addr -> ip.octets()
+		is Ipv6Addr -> ip.octets()
+	},
+)
+
+/** A socket address as its IP's octets in hex, its port, flow label, and scope, each IPv6's alone. */
+fun socketHex(addr: SocketAddr): String = when (addr) {
+	is SocketAddrV4 -> "${hex(addr.ip.octets())}:${addr.port}"
+	is SocketAddrV6 -> "${hex(addr.ip.octets())}:${addr.port}:${addr.flowinfo}:${addr.scopeId}"
+}
+
+/** Whether [f] throws `IllegalArgumentException`, as a value its Rust type cannot hold does. */
+fun rejects(f: () -> Any?): Boolean = runCatching(f).exceptionOrNull() is IllegalArgumentException
+
+/**
+ * Each type's edge values, passed through Rust and back, as transcript.rs prints them; then
+ * each value the Kotlin type holds and Rust's cannot, which throws, and each conversion to
+ * and from the idiomatic type, which throws where the other cannot hold a value exactly.
+ */
+fun lossless() {
+	val durations = listOf(Duration.ZERO, Duration(0u, 1u), Duration(9223372036u, 854775808u), Duration.MAX)
+		.map { sameDuration(it) }
+	println("lossless duration ${durations.joinToString(" ") { "${it.secs}.${it.nanos.toString().padStart(9, '0')}" }}")
+	println("lossless u64 ${sameU64(0u)} ${sameU64(1uL shl 63)} ${sameU64(ULong.MAX_VALUE)}")
+	println("lossless usize ${sameUsize(0u)} ${sameUsize(ULong.MAX_VALUE)}")
+	println("lossless isize ${sameIsize(Long.MIN_VALUE)} ${sameIsize(Long.MAX_VALUE)}")
+	val two = java.math.BigInteger.valueOf(2)
+	val wides = listOf(java.math.BigInteger.ZERO, two.pow(64), two.pow(128) - java.math.BigInteger.ONE)
+	println("lossless u128 ${wides.joinToString(" ") { sameU128(it).toString(16).padStart(32, '0') }}")
+	println("lossless char ${listOf(0, 0xd7ff, 0xe000, 0x10ffff).joinToString(" ") { sameChar(it).toString(16) }}")
+	// A path no Rust string spells: bytes that are not UTF-8, or on Windows, WTF-8's lone surrogate.
+	val unspelled = when (java.io.File.separatorChar) {
+		'\\' -> byteArrayOf(0xed.toByte(), 0xa0.toByte(), 0x80.toByte())
+		else -> byteArrayOf(-1)
+	}
+	println("lossless path ${listOf(PathBuf("a/é"), PathBuf(unspelled)).joinToString(" ") { hex(samePath(it).toByteArray()) }}")
+	val v4 = sameSocketAddrV4(SocketAddrV4(Ipv4Addr(UInt.MAX_VALUE), UShort.MAX_VALUE))
+	val v6 = sameSocketAddrV6(SocketAddrV6(Ipv6Addr(ByteArray(16).also { it[1] = 1; it[15] = 2 }), 3u, UInt.MAX_VALUE, UInt.MAX_VALUE))
+	println("lossless socket ${socketHex(v4)} ${socketHex(v6)} ${listOf(v4, v6).joinToString(" ") { socketHex(sameSocketAddr(it)) }}")
+	// Kotlin's own hash of a key is Rust's `Hash`, as its `equals` is Rust's `==`.
+	Key.new("a").use { a ->
+		Key.new("a").use { same ->
+			Key.new("b").use { b ->
+				println("key ${a.hashCode() == same.hashCode()} ${a.hashCode() == b.hashCode()}")
+				check(a == same && a != b, "keys compare as Rust's")
+				check(a.hashCode() == a.hashOf().toLong().hashCode(), "a key hashes as Rust's Hash")
+				check(setOf(a, b).contains(same), "a key finds its equal in a set")
+			}
+		}
+	}
+	val v6Max = Ipv6Addr(ByteArray(16).also { it[0] = -1; it[1] = -1; it[15] = 1 })
+	println("lossless ip ${ipHex(sameIpAddr(Ipv4Addr(UInt.MAX_VALUE)))} ${ipHex(sameIpAddr(v6Max))}")
+
+	// Durations: exact both ways, and checked against kotlin.time's.
+	check(rejects { Duration(0u, 1_000_000_000u) }, "a second of nanoseconds is no Duration's")
+	check(rejects { Duration((-1).milliseconds) } && rejects { Duration(kotlin.time.Duration.INFINITE) }, "negative and infinite durations are no Rust Duration")
+	check(Duration(1.5.seconds) == Duration(1u, 500_000_000u) && Duration(1.5.seconds).toKotlinDuration() == 1.5.seconds, "a kotlin.time Duration crosses exactly")
+	check(Duration(0u, 1u) < Duration(1u) && Duration.MAX > Duration(ULong.MAX_VALUE), "durations order as Rust's")
+	check(rejects { Duration.MAX.toKotlinDuration() }, "kotlin.time has no Duration::MAX")
+	// Past about 146 years, kotlin.time holds milliseconds alone.
+	check(rejects { Duration(5_000_000_000u, 1u).toKotlinDuration() }, "kotlin.time drops nanoseconds past 146 years")
+	check(Duration(Duration(5_000_000_000u, 1_000_000u).toKotlinDuration()) == Duration(5_000_000_000u, 1_000_000u), "whole milliseconds past 146 years convert")
+	check(sameDuration(Duration(ULong.MAX_VALUE, 1u)) == Duration(ULong.MAX_VALUE, 1u), "seconds past Long.MAX_VALUE cross")
+
+	// Integers and chars Kotlin holds and Rust does not throw before they cross.
+	for (c in listOf(0xd800, 0xdfff, 0x110000, -1)) check(rejects { sameChar(c) }, "$c is no char")
+	check(rejects { nextHop(0UL) } && rejects { fartherHop(PairNonZeroU16(0u, 1u)) }, "a zero is no NonZero")
+
+	// Text: a lone surrogate throws, passed alone or encoded, before anything moves.
+	check(rejects { sameString("a\ud800") } && rejects { sameString("\udc00b") }, "a lone surrogate is no Rust text")
+	check(sameString("\ud83d\ude00") == "\ud83d\ude00", "a surrogate pair is one char")
+	check(sameString("x".repeat(1023) + "\ud83d\ude00") == "x".repeat(1023) + "\ud83d\ude00", "a pair split across chunks is one char")
+	check(rejects { joinWords(listOf("a", "\ud800")) }, "a lone surrogate in a list throws")
+	val kept = Counter.new("kept", 1u)
+	check(rejects { Board.new(listOf(Pair("\ud800", kept))) }, "a lone surrogate beside a moved object throws")
+	check(kept.get() == 1uL, "an object passed beside text that threw stays open")
+	kept.close()
+
+	// Paths: any bytes on Unix, and text only where it is UTF-8.
+	val stray = stray()
+	check(stray.toByteArray().contentEquals(byteArrayOf(-1)) && stray == PathBuf(byteArrayOf(-1)), "a path keeps bytes no String holds")
+	check(rejects { stray.toText() } && rejects { stray.toPath() } && stray.toString() == "\ufffd", "a path that is not UTF-8 has no text")
+	check(rejects { PathBuf("\ud800") }, "a lone surrogate has no path")
+	check(PathBuf("a/é").toText() == "a/é" && PathBuf("a/é").toPath() == java.nio.file.Paths.get("a/é"), "a UTF-8 path converts")
+	check(_wtf8(byteArrayOf(0xed.toByte(), 0xa0.toByte(), 0x80.toByte())) && !_wtf8(byteArrayOf(0xed.toByte(), 0xa0.toByte(), 0x80.toByte(), 0xed.toByte(), 0xb0.toByte(), 0x80.toByte())), "a lone surrogate is WTF-8, a pair encoded apart is not")
+	check(!_wtf8(byteArrayOf(-1)) && !_wtf8(byteArrayOf(0xc0.toByte(), 0x80.toByte())) && _wtf8("a/é😀".encodeToByteArray()), "WTF-8 is UTF-8 otherwise")
+
+	// Addresses: exact by construction, and checked to and from java.net's.
+	val loopback = ByteArray(16).also { it[15] = 1 }
+	val scoped = java.net.Inet6Address.getByAddress(null, loopback, 3)
+	check(rejects { Ipv6Addr(scoped) } && rejects { IpAddr.of(scoped) } && rejects { Ipv4Addr(ByteArray(3)) }, "a scope or a wrong length is no Rust IP")
+	val unresolved = java.net.InetSocketAddress.createUnresolved("localhost", 1)
+	check(rejects { SocketAddr.of(unresolved) } && rejects { SocketAddrV6(java.net.InetSocketAddress(java.net.InetAddress.getByAddress(byteArrayOf(1, 2, 3, 4)), 1)) }, "an unresolved or other family's address is refused")
+	check(rejects { SocketAddrV6(Ipv6Addr(loopback), 1u, 1u).toInetSocketAddress() }, "Java keeps no flow label")
+	check(rejects { SocketAddrV6(Ipv6Addr(loopback), 1u, 0u, UInt.MAX_VALUE).toInetSocketAddress() }, "Java keeps no scope past Int.MAX_VALUE")
+	val at6 = SocketAddr.of(java.net.InetSocketAddress(scoped, 443))
+	check(at6 == SocketAddrV6(Ipv6Addr(loopback), 443u, 0u, 3u) && at6.toString() == "[::1%3]:443", "an IPv6 address keeps its scope")
+	check(at6.toInetSocketAddress() == java.net.InetSocketAddress(scoped, 443), "an IPv6 address converts back")
+	val mapped = Ipv6Addr(ByteArray(16).also { it[10] = -1; it[11] = -1; it[12] = 127; it[15] = 1 })
+	check(mapped.toString() == "::ffff:127.0.0.1" && (mapped as IpAddr).toInetAddress() is java.net.Inet6Address, "an IPv4-mapped address stays IPv6")
+	check(IpAddr.of(java.net.InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1))) == Ipv4Addr(127u, 0u, 0u, 1u), "an IPv4 address converts")
+	check(Ipv6Addr(ByteArray(16).also { it[1] = 1; it[15] = 2 }).toString() == "1::2" && Ipv6Addr(ByteArray(16)).toString() == "::", "IPv6 prints as Rust's")
+	check(SocketAddrV4(Ipv4Addr(127u, 0u, 0u, 1u), 80u).toString() == "127.0.0.1:80", "IPv4 prints as Rust's")
 }
 
 // A queue of jobs that a test runs when it chooses: the dispatcher coroutines resume on.
@@ -1133,20 +1240,6 @@ fun broken(which: String) {
 			}
 			kept!!.get()
 		}
-		// An IPv6 address where Rust takes `SocketAddrV4`.
-		"family" -> nexts(
-			java.net.InetSocketAddress(java.net.Inet6Address.getByAddress(null, ByteArray(16), null as java.net.NetworkInterface?), 1),
-			java.net.InetSocketAddress(java.net.Inet6Address.getByAddress(null, ByteArray(16), null as java.net.NetworkInterface?), 1),
-		)
-		// An IPv6 address where Rust takes `Ipv4Addr`.
-		"ip family" -> nextIps(
-			java.net.Inet6Address.getByAddress(null, ByteArray(16), null as java.net.NetworkInterface?),
-			java.net.Inet6Address.getByAddress(null, ByteArray(16), null as java.net.NetworkInterface?),
-		)
-		// An IPv6 address with a scope, which Rust's `IpAddr` has no room for.
-		"ip scope" -> flip(java.net.Inet6Address.getByAddress(null, ByteArray(16), 3))
-		// No String holds a path that is not UTF-8.
-		"stray" -> stray()
 		// Any exception but a closure's own error, and a reader's IOException, aborts.
 		"closure threw" -> made(1u) { throw IllegalStateException("a make failed") }
 		"closure failed" -> Moment.new(0u, 1000u)!!.let { start ->
@@ -1171,16 +1264,17 @@ fun broken(which: String) {
 // Rust's bytes only the GC, once no Bytes reaching them is reachable. Rust's bytes up to
 // 1 KiB cross copied, freed at the call, and longer ones lent.
 // Kotlin's text and bytes, which Rust copies or encodes once from where Kotlin keeps them:
-// each reads back as Kotlin's own encoder has it, at a call's top level and in a record.
+// each reads back as it was, at a call's top level and in a record, and text holding a lone
+// surrogate, which UTF-8 has no form of, throws.
 fun encoded() {
-	val texts = listOf(
-		"", "a\u0000b", "é\u4e2d\uD83D\uDE00", "\uD800x", "x\uDC00", "end\uD83D", "\uDE00\uD83D",
-		"a".repeat(1023) + "\uD83D\uDE00", "a".repeat(1023) + "\uD83Dz", "\u4e2d\uD83D\uDE00".repeat(1500),
-	)
+	val texts = listOf("", "a\u0000b", "é\u4e2d\uD83D\uDE00", "a".repeat(1023) + "\uD83D\uDE00", "\u4e2d\uD83D\uDE00".repeat(1500))
 	for (text in texts) {
-		val expected = text.encodeToByteArray().decodeToString()
-		check(greet(text, Shape.SQUARE) == "hello $expected, a Square", "text crosses as its UTF-8")
-		check(tickName(Label(text, null, null)) == expected, "a record's text crosses as its UTF-8")
+		check(greet(text, Shape.SQUARE) == "hello $text, a Square", "text crosses as its UTF-8")
+		check(tickName(Label(text, null, null)) == text, "a record's text crosses as its UTF-8")
+	}
+	for (text in listOf("\uD800x", "x\uDC00", "end\uD83D", "\uDE00\uD83D", "a".repeat(1023) + "\uD83Dz")) {
+		check(rejects { greet(text, Shape.SQUARE) }, "a lone surrogate throws")
+		check(rejects { tickName(Label(text, null, null)) }, "a record's lone surrogate throws")
 	}
 	val body = ByteArray(300) { it.toByte() }
 	val sliced = nextPacket(Packet(1u, Bytes(body).slice(7, 290))).payload

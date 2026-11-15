@@ -112,6 +112,17 @@ def numbers(what, n):
 	print(f"{what} some {'None' if n.some is None else f'Some({n.some.tolist()})'}")
 
 
+def millis(duration):
+	"""A duration in whole milliseconds."""
+	return duration.secs * 1000 + duration.nanos // 1_000_000
+
+
+def socket_hex(addr):
+	"""A socket address as the native script's socket_hex prints it."""
+	ip = ipaddress.ip_address(addr[0]).packed.hex()
+	return ":".join([ip] + [str(part) for part in addr[1:]])
+
+
 def check(ok, what):
 	if not ok:
 		print(f"failed: {what}", file=sys.stderr)
@@ -710,8 +721,8 @@ def script():
 	print(f"longest {api.longest(['a', 'abc'])} {api.longest([])}")
 	print(f'first of Some("{api.first_of(["a", "b"])}") {api.first_of([]) or "None"}')
 	limits = api.byte_limits(b'a', b'bc')
-	waits = api.LimitsDuration(datetime.timedelta(milliseconds=5), datetime.timedelta(seconds=2))
-	breadth = api.breadth(waits) // datetime.timedelta(milliseconds=1)
+	waits = api.LimitsDuration(api.Duration(0, 5_000_000), api.Duration(2))
+	breadth = millis(api.breadth(waits))
 	print(f"limits {bytes(limits.low).decode()} {bytes(limits.high).decode()} breadth {breadth}")
 	joined = bytes(api.joined([b'ab', b'', b'c'])).decode()
 	print(f"joined {joined} {len(api.joined([]))} read {api.read_len(b'hello')}")
@@ -749,15 +760,36 @@ def script():
 	ips = [nextip4, nextip6, mapped, api.flip(mapped), api.flip(ipaddress.IPv6Address("::1"))]
 	print("ips " + " ".join(ip.packed.hex() for ip in ips))
 
+	# Lossless round trips: each type's edge values, passed through Rust and back.
+	durations = [api.Duration(0), api.Duration(0, 1), api.Duration(9223372036, 854775808), api.Duration(2**64 - 1, 999_999_999)]
+	print("lossless duration " + " ".join(f"{d.secs}.{d.nanos:09}" for d in map(api.same_duration, durations)))
+	print(f"lossless u64 {api.same_u64(0)} {api.same_u64(2**63)} {api.same_u64(2**64 - 1)}")
+	usize = 2 ** (struct.calcsize("P") * 8)
+	print(f"lossless usize {api.same_usize(0)} {api.same_usize(usize - 1)}")
+	print(f"lossless isize {api.same_isize(-usize // 2)} {api.same_isize(usize // 2 - 1)}")
+	print("lossless u128 " + " ".join(f"{api.same_u128(v):032x}" for v in [0, 2**64, 2**128 - 1]))
+	print("lossless char " + " ".join(f"{ord(api.same_char(c)):x}" for c in ["\0", "\ud7ff", "\ue000", "\U0010ffff"]))
+	# A path no Rust string spells: bytes that are not UTF-8, or on Windows, WTF-8's lone
+	# surrogate, which its filesystem encoding passes through.
+	paths = ["a/é", os.fsdecode(b"\xff" if os.name == "posix" else b"\xed\xa0\x80")]
+	print("lossless path " + " ".join(os.fsencode(api.same_path(p)).hex() for p in paths))
+	sv4 = api.same_socket_addr_v4(("255.255.255.255", 65535))
+	sv6 = api.same_socket_addr_v6(("1::2", 3, 2**32 - 1, 2**32 - 1))
+	sockets = [sv4, sv6] + [api.same_socket_addr(a) for a in [sv4, sv6]]
+	print("lossless socket " + " ".join(socket_hex(a) for a in sockets))
+	key = api.Key.new("a")
+	print(f"key {flag(hash(key) == hash(api.Key.new('a')))} {flag(hash(key) == hash(api.Key.new('b')))}")
+	ips = [api.same_ip_addr(ipaddress.IPv4Address("255.255.255.255")), api.same_ip_addr(ipaddress.IPv6Address("ffff::1"))]
+	print("lossless ip " + " ".join(ip.packed.hex() for ip in ips))
+
 	# serde_json's map iterator, collected as pairs of a key and its document.
 	sections = api.sections([("b", api.Json.parse("[1]")), ("a", api.Json.parse("2"))])
 	print("sections " + ", ".join(f"{key} {value.to_text()}" for key, value in sections))
 	# An instant only Rust makes, which each call copies out of its handle, and compares.
-	ms = datetime.timedelta(milliseconds=1)
 	began = api.now()
-	ended = api.later(began, datetime.timedelta(milliseconds=1500))
-	same = api.later(began, datetime.timedelta())
-	print(f"instants {api.since(ended, began) // ms} {api.since(began, ended) // ms} {flag(began == same)} {flag(began == ended)}")
+	ended = api.later(began, api.Duration.from_timedelta(datetime.timedelta(milliseconds=1500)))
+	same = api.later(began, api.Duration(0))
+	print(f"instants {millis(api.since(ended, began))} {millis(api.since(began, ended))} {flag(began == same)} {flag(began == ended)}")
 	print(f"has_instant {flag(api.has_instant(began))} {flag(api.has_instant(None))}")
 	# tracing's level, and its filter as an optional level whose None is `OFF`.
 	verbosity = api.Verbosity.new(api.Level.WARN)
@@ -1367,8 +1399,8 @@ def forwarding():
 
 def values():
 	"""The values Python's types bound: integers checked against their Rust type's range,
-	durations truncated to the microsecond up to `timedelta.max`, which stands for longer,
-	and on Unix, a path whose bytes are not UTF-8, which crosses as `os.fsdecode` decodes it,
+	durations and their conversions to and from `timedelta`, which raise rather than lose
+	anything, a key hashing by Rust's `Hash`, a zero passed for a `NonZero`, which raises, and on Unix, a path whose bytes are not UTF-8, which crosses as `os.fsdecode` decodes it,
 	and back as it came. Also a borrowed tuple, returned whole."""
 
 	def raises(error, f, what):
@@ -1422,10 +1454,26 @@ def values():
 	raises(api.ErrorException, lambda: api.corner(False), "a borrowed tuple's error raises")
 
 	td = datetime.timedelta
-	check(api.doubled_ttl(td(seconds=1, microseconds=5)) == td(seconds=2, microseconds=10), "a duration crosses")
-	check(api.doubled_ttl(td(days=600_000_000)) == td.max, "a duration past timedelta's is its max")
-	check(api.doubled_ttl(td.max) == td.max, "timedelta's max is Duration::MAX")
-	raises(ValueError, lambda: api.doubled_ttl(td(seconds=-1)), "a negative duration raises")
+	longest = api.Duration(2**64 - 1, 999_999_999)
+	check(api.doubled_ttl(api.Duration(1, 5)) == api.Duration(2, 10), "a duration crosses")
+	check(api.doubled_ttl(api.Duration(1, 5)) in {api.Duration(2, 10)}, "a returned duration hashes as one Python makes")
+	check(api.doubled_ttl(longest) == longest, "the longest crosses")
+	check(api.Duration(1, 2) < api.Duration(1, 3) < api.Duration(2), "durations order as Rust's")
+	check(api.Duration.from_timedelta(td(days=1, microseconds=5)) == api.Duration(86_400, 5_000), "from a timedelta")
+	check(api.Duration(86_400, 5_000).to_timedelta() == td(days=1, microseconds=5), "to a timedelta")
+	check(api.Duration.from_timedelta(td.max).to_timedelta() == td.max, "timedelta's max round trips")
+	raises(ValueError, lambda: api.Duration.from_timedelta(td(seconds=-1)), "a negative timedelta raises")
+	raises(ValueError, lambda: api.Duration(0, 1).to_timedelta(), "a part of a microsecond raises")
+	raises(OverflowError, lambda: api.Duration(2**64 - 1).to_timedelta(), "past timedelta's max raises")
+	raises(ValueError, lambda: api.doubled_ttl(api.Duration(0, 10**9)), "a billion nanoseconds raises")
+	raises(OverflowError, lambda: api.doubled_ttl(api.Duration(2**64)), "seconds past u64 raise")
+	raises(OverflowError, lambda: api.doubled_ttl(api.Duration(-1)), "negative seconds raise")
+	raises(TypeError, lambda: api.doubled_ttl(td(seconds=1)), "a timedelta is no Duration")
+	raises(ValueError, lambda: api.next_hop(0), "a zero NonZero raises")
+	raises(ValueError, lambda: api.farther_hop(api.PairNonZeroU16(0, 1)), "a zero NonZero field raises")
+	key = api.Key.new("a")
+	check(len({key, api.Key.new("a"), api.Key.new("b")}) == 2, "equal keys are one set member")
+	check(hash(api.Url.parse("https://a/")) == hash(api.Url.parse("https://a/")), "a URL hashes by Rust's Hash")
 
 	# The module serves wasm32 too: what only wasm32 has raises on the host's library.
 	check(api.pointer_bits(api.platform()) == api.pointer_bits(api.Platform.Native(64)) == 64, "the host is native")

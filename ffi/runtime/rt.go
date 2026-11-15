@@ -871,3 +871,292 @@ func (p *pollable_) Close() error {
 	}
 	return nil
 }
+
+// ErrInvalid is what a checked conversion returns, wrapped with what failed, for a value one
+// type holds and the other does not: text that is not UTF-8 or a rune that is not a Unicode
+// scalar value, which a call taking one returns before it is made, or a value outside the
+// type converted to.
+var ErrInvalid = errors.New("invalid")
+
+type invalidError_ string
+
+func (e invalidError_) Error() string {
+	return string(e)
+}
+
+func (e invalidError_) Is(target error) bool {
+	return target == ErrInvalid
+}
+
+// Invalid_ is the error, matching ErrInvalid, that what says. For the generated packages.
+func Invalid_(what string) error {
+	return invalidError_(what)
+}
+
+// Duration is Rust's Duration: whole seconds, and the nanoseconds past them, below a
+// second. The zero Duration is zero, and == compares two.
+type Duration struct {
+	secs  uint64
+	nanos uint32
+}
+
+// NewDuration is secs seconds and nanos nanoseconds, nanoseconds past a second carrying into
+// the seconds as Rust's Duration::new does, failing past Rust's longest.
+func NewDuration(secs uint64, nanos uint32) (Duration, error) {
+	carry := uint64(nanos / 1e9)
+	if secs > math.MaxUint64-carry {
+		return Duration{}, Invalid_("a duration past Rust's longest")
+	}
+	return Duration{secs: secs + carry, nanos: nanos % 1e9}, nil
+}
+
+// DurationOf is d as Rust's Duration, failing on a negative one, which Rust's has none of.
+func DurationOf(d time.Duration) (Duration, error) {
+	if d < 0 {
+		return Duration{}, Invalid_("a negative duration has no Rust Duration")
+	}
+	return Duration{secs: uint64(d / time.Second), nanos: uint32(d % time.Second)}, nil
+}
+
+// Secs is d's whole seconds.
+func (d Duration) Secs() uint64 {
+	return d.secs
+}
+
+// Nanos is d's nanoseconds past its whole seconds, below a second.
+func (d Duration) Nanos() uint32 {
+	return d.nanos
+}
+
+// Std is d as a time.Duration, failing past its longest, about 292 years.
+func (d Duration) Std() (time.Duration, error) {
+	if d.secs > uint64((math.MaxInt64-time.Duration(d.nanos))/time.Second) {
+		return 0, Invalid_("a duration past time.Duration's longest")
+	}
+	return time.Duration(d.secs)*time.Second + time.Duration(d.nanos), nil
+}
+
+// U128 is Rust's u128: its high and its low 64 bits.
+type U128 struct {
+	Hi, Lo uint64
+}
+
+// U128Of is v as a U128, failing outside 0 through 2^128 - 1.
+func U128Of(v *big.Int) (U128, error) {
+	if v.Sign() < 0 || v.BitLen() > 128 {
+		return U128{}, Invalid_("an int outside Rust's u128")
+	}
+	var b [16]byte
+	v.FillBytes(b[:])
+	return U128{Hi: binary.BigEndian.Uint64(b[:8]), Lo: binary.BigEndian.Uint64(b[8:])}, nil
+}
+
+// Big is v as a big.Int.
+func (v U128) Big() *big.Int {
+	var b [16]byte
+	binary.BigEndian.PutUint64(b[:8], v.Hi)
+	binary.BigEndian.PutUint64(b[8:], v.Lo)
+	return new(big.Int).SetBytes(b[:])
+}
+
+// Ipv4Addr is Rust's Ipv4Addr: its octets, in network order.
+type Ipv4Addr [4]byte
+
+// Ipv4AddrOf is ip as an Ipv4Addr, failing unless it is IPv4.
+func Ipv4AddrOf(ip netip.Addr) (Ipv4Addr, error) {
+	if !ip.Is4() {
+		return Ipv4Addr{}, Invalid_("an address that is not IPv4 has no Rust Ipv4Addr")
+	}
+	return ip.As4(), nil
+}
+
+// Netip is ip as a netip.Addr.
+func (ip Ipv4Addr) Netip() netip.Addr {
+	return netip.AddrFrom4(ip)
+}
+
+// Ipv6Addr is Rust's Ipv6Addr: its octets, in network order.
+type Ipv6Addr [16]byte
+
+// Ipv6AddrOf is ip as an Ipv6Addr, failing unless it is IPv6 without a zone, which Rust's
+// has no room for.
+func Ipv6AddrOf(ip netip.Addr) (Ipv6Addr, error) {
+	if !ip.Is6() {
+		return Ipv6Addr{}, Invalid_("an address that is not IPv6 has no Rust Ipv6Addr")
+	}
+	if ip.Zone() != "" {
+		return Ipv6Addr{}, Invalid_("an IPv6 address with a zone has no Rust Ipv6Addr")
+	}
+	return ip.As16(), nil
+}
+
+// Netip is ip as a netip.Addr, IPv6 even where it maps IPv4.
+func (ip Ipv6Addr) Netip() netip.Addr {
+	return netip.AddrFrom16(ip)
+}
+
+// IpAddr is Rust's IpAddr: an Ipv4Addr or an Ipv6Addr. The zero IpAddr is IPv4's 0.0.0.0,
+// and == compares two.
+type IpAddr struct {
+	v4  Ipv4Addr
+	v6  Ipv6Addr
+	is6 bool
+}
+
+// IpAddrFromV4 is ip as an IpAddr.
+func IpAddrFromV4(ip Ipv4Addr) IpAddr {
+	return IpAddr{v4: ip}
+}
+
+// IpAddrFromV6 is ip as an IpAddr.
+func IpAddrFromV6(ip Ipv6Addr) IpAddr {
+	return IpAddr{v6: ip, is6: true}
+}
+
+// IpAddrOf is ip as an IpAddr, of its family, failing on an invalid one or a zone, which
+// Rust's has no room for.
+func IpAddrOf(ip netip.Addr) (IpAddr, error) {
+	if ip.Is4() {
+		return IpAddrFromV4(ip.As4()), nil
+	}
+	if !ip.IsValid() {
+		return IpAddr{}, Invalid_("an invalid address has no Rust IpAddr")
+	}
+	v6, err := Ipv6AddrOf(ip)
+	if err != nil {
+		return IpAddr{}, err
+	}
+	return IpAddrFromV6(v6), nil
+}
+
+// V4 is a's IPv4 address, if it is one.
+func (a IpAddr) V4() (Ipv4Addr, bool) {
+	return a.v4, !a.is6
+}
+
+// V6 is a's IPv6 address, if it is one.
+func (a IpAddr) V6() (Ipv6Addr, bool) {
+	return a.v6, a.is6
+}
+
+// Netip is a as a netip.Addr.
+func (a IpAddr) Netip() netip.Addr {
+	if a.is6 {
+		return a.v6.Netip()
+	}
+	return a.v4.Netip()
+}
+
+// SocketAddrV4 is Rust's SocketAddrV4: an IPv4 address and a port.
+type SocketAddrV4 struct {
+	IP   Ipv4Addr
+	Port uint16
+}
+
+// SocketAddrV4Of is a as a SocketAddrV4, failing unless it is IPv4.
+func SocketAddrV4Of(a netip.AddrPort) (SocketAddrV4, error) {
+	ip, err := Ipv4AddrOf(a.Addr())
+	if err != nil {
+		return SocketAddrV4{}, Invalid_("an address that is not IPv4 has no Rust SocketAddrV4")
+	}
+	return SocketAddrV4{IP: ip, Port: a.Port()}, nil
+}
+
+// Netip is a as a netip.AddrPort.
+func (a SocketAddrV4) Netip() netip.AddrPort {
+	return netip.AddrPortFrom(a.IP.Netip(), a.Port)
+}
+
+// SocketAddrV6 is Rust's SocketAddrV6: an IPv6 address, a port, a flow label, and the scope
+// a link-local address is in, a zone's interface number, or 0 for none.
+type SocketAddrV6 struct {
+	IP       Ipv6Addr
+	Port     uint16
+	FlowInfo uint32
+	ScopeID  uint32
+}
+
+// SocketAddrV6Of is a as a SocketAddrV6, failing unless it is IPv6 with no zone or one naming
+// an interface, by its number or its name, which it holds as that interface's number.
+func SocketAddrV6Of(a netip.AddrPort) (SocketAddrV6, error) {
+	ip := a.Addr()
+	if !ip.Is6() {
+		return SocketAddrV6{}, Invalid_("an address that is not IPv6 has no Rust SocketAddrV6")
+	}
+	v := SocketAddrV6{IP: ip.As16(), Port: a.Port()}
+	if zone := ip.Zone(); zone != "" {
+		if id, err := strconv.ParseUint(zone, 10, 32); err == nil {
+			v.ScopeID = uint32(id)
+		} else if iface, err := net.InterfaceByName(zone); err == nil {
+			v.ScopeID = uint32(iface.Index)
+		} else {
+			return SocketAddrV6{}, Invalid_("an IPv6 zone that names no interface: " + zone)
+		}
+	}
+	return v, nil
+}
+
+// Netip is a as a netip.AddrPort, its scope a zone of its number, failing on a flow label,
+// which netip has no room for.
+func (a SocketAddrV6) Netip() (netip.AddrPort, error) {
+	if a.FlowInfo != 0 {
+		return netip.AddrPort{}, Invalid_("an IPv6 flow label has no netip form")
+	}
+	ip := a.IP.Netip()
+	if a.ScopeID != 0 {
+		ip = ip.WithZone(strconv.FormatUint(uint64(a.ScopeID), 10))
+	}
+	return netip.AddrPortFrom(ip, a.Port), nil
+}
+
+// SocketAddr is Rust's SocketAddr: a SocketAddrV4 or a SocketAddrV6. The zero SocketAddr is
+// IPv4's 0.0.0.0, port 0, and == compares two.
+type SocketAddr struct {
+	v4  SocketAddrV4
+	v6  SocketAddrV6
+	is6 bool
+}
+
+// SocketAddrFromV4 is a as a SocketAddr.
+func SocketAddrFromV4(a SocketAddrV4) SocketAddr {
+	return SocketAddr{v4: a}
+}
+
+// SocketAddrFromV6 is a as a SocketAddr.
+func SocketAddrFromV6(a SocketAddrV6) SocketAddr {
+	return SocketAddr{v6: a, is6: true}
+}
+
+// SocketAddrOf is a as a SocketAddr, of its family, failing on an invalid one or a zone
+// SocketAddrV6Of fails on.
+func SocketAddrOf(a netip.AddrPort) (SocketAddr, error) {
+	if a.Addr().Is4() {
+		return SocketAddrFromV4(SocketAddrV4{IP: a.Addr().As4(), Port: a.Port()}), nil
+	}
+	if !a.Addr().IsValid() {
+		return SocketAddr{}, Invalid_("an invalid address has no Rust SocketAddr")
+	}
+	v6, err := SocketAddrV6Of(a)
+	if err != nil {
+		return SocketAddr{}, err
+	}
+	return SocketAddrFromV6(v6), nil
+}
+
+// V4 is a's IPv4 socket address, if it is one.
+func (a SocketAddr) V4() (SocketAddrV4, bool) {
+	return a.v4, !a.is6
+}
+
+// V6 is a's IPv6 socket address, if it is one.
+func (a SocketAddr) V6() (SocketAddrV6, bool) {
+	return a.v6, a.is6
+}
+
+// Netip is a as a netip.AddrPort, failing as SocketAddrV6's does.
+func (a SocketAddr) Netip() (netip.AddrPort, error) {
+	if a.is6 {
+		return a.v6.Netip()
+	}
+	return a.v4.Netip(), nil
+}
