@@ -20,7 +20,7 @@ use crate::lower::library::{self, Std};
 use crate::ts::{Expr, Key, Stmt, StmtKind, Type};
 
 /// The item type of a slice's or a `Vec`'s iterator, if `ty` is one.
-fn array_iter<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+pub(super) fn array_iter<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	let ty::Adt(adt, args) = ty.kind() else {
 		return None;
 	};
@@ -487,6 +487,15 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		))
 	}
 
+	/// The type of the array a slice's or a `Vec`'s iterator of `item`s reads: a view of
+	/// bytes or an array.
+	pub(super) fn array_ty(&mut self, item: Ty<'tcx>, span: rustc_span::Span) -> Type {
+		match crate::lower::byte(item) {
+			true => Type::Builtin("Uint8Array"),
+			false => Type::Array(Box::new(self.b.t.held_ty(item, span))),
+		}
+	}
+
 	/// The types of a stepped local's variables: its array, index, and any end, or its
 	/// bounds.
 	pub(super) fn stepped_tys(&mut self, local: Local) -> Vec<Type> {
@@ -496,10 +505,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			// What `library::elements` makes of the slice, a view of bytes or an array, or
 			// the array of the slice itself.
 			Some(item) => {
-				let array = match item.kind() {
-					_ if crate::lower::byte(item) => Type::Builtin("Uint8Array"),
-					_ => Type::Array(Box::new(self.b.t.held_ty(item, span))),
-				};
+				let array = self.array_ty(item, span);
 				let n = self.stepped_keys(local).len();
 				std::iter::once(array)
 					.chain(std::iter::repeat_n(Type::Builtin("number"), n - 1))

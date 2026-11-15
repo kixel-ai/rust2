@@ -118,6 +118,13 @@ export function map$1oqs2fe(self: [rs.u8, rs.u16] | undefined, f: (a0: [rs.u8, r
 	return f(self);
 }
 
+export function map$11o103r(self: [rs.u16, rs.u8] | undefined, f: (a0: [rs.u16, rs.u8]) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$1c8069b(self: [rs.u8, rs.u8] | undefined, f: (a0: [rs.u8, rs.u8]) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;

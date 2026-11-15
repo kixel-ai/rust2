@@ -2792,3 +2792,172 @@ fn chained<'a>(data: &'a [u8], log: &'a std::cell::RefCell<Vec<u8>>) -> impl Ite
 		x
 	})
 }
+
+/// Chains whose slice, `Vec`, array, and range leaves translation reads in place, as an
+/// index and a bound: signed, empty, and reversed ranges, ranges at their type's ends, owned
+/// `Vec`s and arrays, read from either end, by index and not, in consumers and `for` loops
+/// and through `next_back`, beside ranges past 2^53, which stay the runtime's. Each closure
+/// logs its calls, so their order and count are part of the output.
+pub fn fused_leaves(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let split = (kind >> 3) as usize % (data.len() + 1);
+	let (a, b) = data.split_at(split);
+	let stop = data.first().copied().unwrap_or(0) % 64;
+	let log = std::cell::RefCell::new(Vec::new());
+	macro_rules! seen {
+		($tag:expr) => {
+			|&x: &u8| {
+				log.borrow_mut().push(x ^ $tag);
+				x
+			}
+		};
+	}
+	let n = |len: usize| len as i32;
+	match kind % 8 {
+		// A signed range below zero beside a slice, by index from either end.
+		0 => {
+			out.push(
+				(-n(a.len()) - 2..n(b.len()))
+					.zip(a)
+					.filter(|&(i, &x)| (i as u8) < x)
+					.count() as u8,
+			);
+			out.push(
+				(-n(b.len())..n(data.len()) - 3)
+					.zip(b)
+					.rev()
+					.fold(0u8, |acc, (i, &x)| acc.wrapping_mul(13) ^ i as u8 ^ x),
+			);
+		}
+		// Ranges whose start passes their end, which yield nothing, read both ways.
+		1 => {
+			let (hi, lo) = (b.len() as u8 + 5, a.len() as u8);
+			out.push((hi..lo).map(|i| a.len() as u8 ^ i).filter(|x| x % 3 != 0).count() as u8);
+			out.push((hi..lo).zip(a.iter().map(seen!(1))).rev().count() as u8);
+			out.push((hi..lo).rev().zip(data).fold(1u8, |acc, (i, x)| acc ^ i ^ x));
+		}
+		// A reversed range, folded by its size hint and read from the back.
+		2 => {
+			out.push(
+				(0..a.len())
+					.rev()
+					.zip(b.iter().map(seen!(2)))
+					.filter(|&(i, x)| (i as u8) < x)
+					.count() as u8,
+			);
+			out.push(
+				(0..data.len() / 2)
+					.rev()
+					.map(|i| i as u8)
+					.zip(a.iter().map(seen!(3)))
+					.rev()
+					.fold(0u8, |acc, (i, x)| acc.wrapping_mul(7) ^ i ^ x),
+			);
+		}
+		// Ranges at the ends of their types.
+		3 => {
+			out.push(
+				(u32::MAX - 4..u32::MAX)
+					.zip(a.iter().map(seen!(4)))
+					.fold(0u8, |acc, (i, x)| acc.wrapping_mul(5) ^ i as u8 ^ x),
+			);
+			out.push(
+				(u32::MAX - 6..u32::MAX)
+					.zip(b.iter().map(seen!(5)))
+					.rev()
+					.fold(0u8, |acc, (i, x)| acc.wrapping_mul(5) ^ i as u8 ^ x),
+			);
+			out.push(
+				(i32::MIN..i32::MIN + 3)
+					.rev()
+					.zip(b)
+					.map(|(i, &x)| (i as u8) ^ x)
+					.fold(0u8, u8::wrapping_add),
+			);
+			out.push((i8::MIN..i8::MAX).zip(data).rev().filter(|&(i, &x)| (i as u8) < x).count() as u8);
+			out.push((u64::MAX - 3..u64::MAX).rev().zip(a).filter(|&(i, &x)| i as u8 ^ x > 9).count() as u8);
+		}
+		// Owned `Vec`s of numbers and an array by value.
+		4 => {
+			let v: Vec<u32> = a.iter().map(|&x| x as u32 * 7).collect();
+			out.extend(v.into_iter().filter(|x| x % 3 != 0).sum::<u32>().to_le_bytes());
+			let w: Vec<u16> = b.iter().map(|&x| x as u16 + 300).collect();
+			out.push(
+				w.into_iter()
+					.rev()
+					.enumerate()
+					.fold(0u8, |acc, (i, x)| acc.wrapping_mul(3) ^ i as u8 ^ x as u8),
+			);
+			let three = [stop, a.len() as u8, b.len() as u8];
+			out.push(
+				three
+					.into_iter()
+					.zip(b.iter().map(seen!(6)))
+					.rev()
+					.filter(|(x, y)| x < y)
+					.count() as u8,
+			);
+			out.extend(three.into_iter().map(|x| x ^ 1).rfind(|x| x % 2 == 0));
+		}
+		// `for` loops and `next_back` over chains of leaves read in place.
+		5 => {
+			for (i, x) in (0..a.len() as u32).rev().zip(b.iter().map(seen!(7))) {
+				if x % 64 == stop {
+					break;
+				}
+				out.push(i as u8 ^ x);
+			}
+			let v: Vec<u16> = a.iter().map(|&x| x as u16 * 3).collect();
+			for x in v.into_iter().filter(|x| x % 5 != 0) {
+				out.extend(x.to_le_bytes());
+			}
+			let mut it = (-3..n(data.len())).zip(a.iter().map(seen!(8)));
+			while let Some((i, x)) = it.next_back() {
+				if x % 64 == stop {
+					break;
+				}
+				out.push(i as u8 ^ x);
+			}
+			let mut it = b.iter().rev().zip(1..9u8).map(|(x, i)| x ^ i);
+			while let Some(x) = it.next() {
+				out.push(x);
+			}
+		}
+		// Early exits from a range read in place.
+		6 => {
+			out.push((0..data.len()).zip(a.iter().map(seen!(9))).any(|(i, x)| x as usize % 64 == i) as u8);
+			out.extend(
+				(n(a.len()) - 9..n(b.len()))
+					.map(|i| i as u8)
+					.zip(b.iter().map(seen!(10)))
+					.position(|(i, x)| i ^ x == stop)
+					.map(|p| p as u8),
+			);
+			out.extend(
+				(5u16..300)
+					.zip(a)
+					.rfind(|&(i, &x)| i as u8 == x ^ stop)
+					.map(|(i, x)| i as u8 ^ x),
+			);
+		}
+		// A side whose items past the shorter's are read back to front, and an enumerate of
+		// a range from the back.
+		_ => {
+			out.push(
+				(0..data.len())
+					.map(|i| {
+						log.borrow_mut().push(i as u8 ^ 11);
+						i as u8
+					})
+					.zip(a.iter().map(seen!(12)))
+					.rev()
+					.filter(|(i, x)| i < x)
+					.count() as u8,
+			);
+			(3..a.len() + 3)
+				.enumerate()
+				.rev()
+				.for_each(|(i, x)| out.push(i as u8 ^ x as u8));
+		}
+	}
+	out.extend_from_slice(&log.borrow());
+}
