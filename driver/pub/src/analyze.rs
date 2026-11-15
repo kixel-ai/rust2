@@ -190,6 +190,9 @@ impl Audit {
 		let mut external_impls = Vec::new();
 		// Every `pub` each macro's definition holds.
 		let mut macro_tokens = Vec::new();
+		// Each macro and its crate, and each crate's exports.
+		let mut macro_crates = Vec::new();
+		let mut crate_api: HashMap<u64, Vec<usize>> = HashMap::new();
 		// What each definition's interface names, and the members of each type or module
 		// that are its API too.
 		let mut interface = vec![Vec::new(); n];
@@ -233,6 +236,12 @@ impl Audit {
 					interface[index].push(parent);
 				}
 				macro_tokens.extend(def.tokens.iter().map(|&s| (index, place(unit, s))));
+				if def.kind.starts_with("Macro") {
+					macro_crates.push((index, def.hash[0]));
+				}
+				if unit.lib && def.exported {
+					crate_api.entry(def.hash[0]).or_default().push(index);
+				}
 			}
 			for r in &unit.refs {
 				let (Some(&from), Some(&to)) = (hashes.get(&r.from), hashes.get(&r.to)) else {
@@ -292,6 +301,12 @@ impl Audit {
 				}
 				impls[test].push((hashes[&i.hash], requires));
 			}
+		}
+		// An external macro expands outside the audit, where it may name anything its crate
+		// exports, through `$crate`, a `local_inner_macros` call, or what its caller passes.
+		// A macro another crate's macro made names that macro, which then keeps its own.
+		for (index, krate) in macro_crates {
+			interface[index].extend(crate_api.get(&krate).into_iter().flatten());
 		}
 		// What an external library's API exposes, such as a type of another crate it
 		// re-exports or returns, is external too, with the type's own API, and the trait

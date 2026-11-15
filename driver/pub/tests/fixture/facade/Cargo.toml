@@ -7,4 +7,4 @@ publish = false
 [dependencies]
 api = { path = "../api" }
 extra = { path = "../extra" }
-globs = { path = "../globs" }
+macros = { path = "../macros" }

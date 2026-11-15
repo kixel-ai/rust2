@@ -21,8 +21,8 @@ pub use api::Products;
 /// External: this library's API, re-exported from api, with their impls.
 pub use api::{Make, Slot};
 
-/// External: this library's API, an exported macro of api, made by another.
-pub use api::{tagged_export_vis, vis_of};
+/// External: this library's API, exported macros of macros, each made by another.
+pub use macros::{tagged_export_vis, vis_of};
 
 /// External: this library's API, re-exported from api through a glob there.
 pub use api::Part;
@@ -30,9 +30,6 @@ pub use api::Part;
 /// External: this library's API, one variant of api's enum.
 pub use api::Picked::One;
 
-/// External: this library's API, exported macros of api that call helpers of api, one another macro made.
-pub use api::{call_generated, call_grouped, call_helper, call_outer};
-pub use globs::call_globbed;
-
-api::make_maker!();
-make_nested!(nested, generated);
+/// External: this library's API, exported macros of macros that call its helpers, one
+/// another macro made.
+pub use macros::{call_generated, call_globbed, call_grouped, call_helper, call_nested, call_outer};

@@ -80,15 +80,17 @@ fn fixture() {
 	expect("marks::Wrapped", "external", "unreached");
 	expect("marks::Borrowed", "external", "unreached");
 	expect("marks::Paired", "external", "unreached");
-	// An exported macro exposes what its `$crate` paths name, though nothing expands it,
-	// and keeps them, wherever they are, when another crate made it.
+	// An exported macro that crates outside the audit may expand keeps all its crate
+	// exports, whatever its paths name, and what its crate doesn't export still narrows.
 	expect("helpers::called", "external", "unreached");
-	expect("made::generated", "external", "unreached");
-	expect("nested::generated", "cross-crate", "unreached");
+	expect("minted::generated", "external", "unreached");
 	expect("grouped", "external", "unreached");
-	// So does a lone-name call under `local_inner_macros`, and a `$crate` glob.
 	expect("inner_helpers::inner_called", "external", "unreached");
 	expect("through_root_glob", "external", "unreached");
+	expect("unnamed", "external", "unreached");
+	expect("hidden::unexported", "narrowed", "crate-only");
+	// So does the crate whose macro made it.
+	expect("nested::generated", "external", "unreached");
 	// A re-exported variant exposes its enum, with the enum's own API.
 	expect("Picked::label", "external", "unreached");
 	expect("marks::Unnamed", "external", "crate-only");
