@@ -41,9 +41,13 @@ export function orders(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}), undefined, 12, true).items, ",");
 	};
 	const short: Uint8Array = Uint8Array.of(3, 1, 3, 2, 1, 5, 4, 0);
-	const long: rs.ByteVec = rs.iterToByteVec(rs.iterMap(new rs.Range(0, 26), (n5: rs.u8): rs.u8 => {
-		return rs.u8Rem(rs.u8Mul(n5, 7), 9);
-	}), undefined, true);
+	let start = 0;
+	let end = 26;
+	const v: rs.ByteVec = rs.byteVecWithCapacity(Math.max(end - start, 0));
+	while (!(start >= end)) {
+		rs.byteVecPush(v, rs.u8Rem(rs.u8Mul(start++, 7), 9));
+	}
+	const long: rs.ByteVec = v;
 	const _21: rs.u8 = rs.u8Rem(arg, 8);
 	if (_21 === 0) {
 		const part29 = rs.byteSliceFrom(short);
@@ -116,9 +120,14 @@ export function orders(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			return key(rs.u32Add(n7, 50), rs.u8Mul(rs.u32Rem(n7, 3) & 0xff, 2));
 		};
 		const guards: (a0: rs.u32, a1: rs.u32) => rs.Vec<Guard.Guard> = (from: rs.u32, to: rs.u32): rs.Vec<Guard.Guard> => {
-			return rs.iterToVec(rs.iterMap(new rs.Range(from, to), (n8: rs.u32): Guard.Guard => {
-				return Guard.new(rs.u32Add(id, n8), Log.clone$Clone(log));
-			}), undefined, 8, true);
+			let start2 = from;
+			let end2 = to;
+			const v2: rs.Vec<Guard.Guard> = rs.vecWithCapacity(Math.max(end2 - start2, 0), 8);
+			while (!(start2 >= end2)) {
+				const y2: Guard.Guard = Guard.new(rs.u32Add(id, start2++), Log.clone$Clone(log));
+				v2.items.push(y2);
+			}
+			return v2;
 		};
 		const part13 = option_map$06w9waf(rs.iterMaxByKey(rs.vecIntoIter(guards(1, 6), rs.drop), by, rs.cmpLt(Ranked.partialCmp$cmp_PartialOrd), true, rs.drop, undefined, rs.drop), (g2: Guard.Guard): rs.u32 => {
 			const _018: rs.u32 = rs.u32Sub(Guard.id(g2), id);

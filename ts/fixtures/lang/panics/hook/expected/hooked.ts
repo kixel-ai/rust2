@@ -438,9 +438,23 @@ export function sited(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (k === 42) {
 			rs.byteVecPush(out, rs.durationSubsecNanos(rs.durationDivF32(rs.durationFromSecs(1), Math.fround(-1.0 - Math.fround(n)), { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/core/src/time.rs", line: 1052, col: 23 })) & 0xff);
 		} else if (k === 43) {
-			rs.byteVecPush(out, rs.iterSum(rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(Uint8Array.of(rs.max(n, 1), 255)))), (a: rs.u8, b: rs.u8) => rs.u8Add(a, b, { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/core/src/iter/traits/accum.rs", line: 206, col: 1 }), 0));
+			const s2 = rs.byteSliceView(rs.byteSliceFrom(Uint8Array.of(rs.max(n, 1), 255)));
+			let front2 = 0;
+			let back2 = s2.length;
+			let acc2: rs.u8 = 0;
+			while (!(front2 >= back2)) {
+				acc2 = rs.u8Add(acc2, s2[front2++], { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/core/src/iter/traits/accum.rs", line: 206, col: 1 });
+			}
+			rs.byteVecPush(out, acc2);
 		} else if (k === 44) {
-			rs.byteVecPush(out, rs.iterProduct(rs.iterSlice([rs.max(n, 2) as rs.u16, 65535]), (a: rs.u16, b: rs.u16) => rs.u16Mul(a, b, { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/core/src/iter/traits/accum.rs", line: 206, col: 1 }), 1) & 0xff);
+			const s = [rs.max(n, 2) as rs.u16, 65535];
+			let front = 0;
+			let back = s.length;
+			let acc: rs.u16 = 1;
+			while (!(front >= back)) {
+				acc = rs.u16Mul(acc, s[front++], { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/core/src/iter/traits/accum.rs", line: 206, col: 1 });
+			}
+			rs.byteVecPush(out, acc & 0xff);
 		} else if (k === 45) {
 			rs.byteVecPush(out, rs.u64Low(rs.durationAsSecs(rs.durationSum(rs.iterSlice([{ secs: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, nanos: 999999999 }, rs.durationFromSecs(rs.max(n, 1) as rs.u64)]), undefined, { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/core/src/time.rs", line: 1513, col: 9 }))) & 0xff);
 		} else if (k === 46) {
@@ -576,9 +590,14 @@ export function joined(kind: rs.u8, n: rs.u8, out: rs.ByteVec): void {
 	} else if (kind === 2) {
 		joined = rs.byteSlicesJoin(rs.sliceFrom(refs(rs.usizeAdd(1 << 15, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 379, col: 19 })).items));
 	} else {
-		joined = rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.slicesJoin(rs.sliceFrom(rs.vecFromElem(rs.sliceFrom(rs.vecFromElem(n as rs.u16, 1 << 16, undefined).items), rs.usizeAdd(1 << 14, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 382, col: 42 }), undefined).items), 2, rs.sliceFrom([1])).items), (_2: rs.u16): rs.u8 => {
-			return _2 & 0xff;
-		}), undefined, true);
+		const s = rs.slicesJoin(rs.sliceFrom(rs.vecFromElem(rs.sliceFrom(rs.vecFromElem(n as rs.u16, 1 << 16, undefined).items), rs.usizeAdd(1 << 14, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 382, col: 42 }), undefined).items), 2, rs.sliceFrom([1])).items;
+		let front = 0;
+		let back = s.length;
+		const v: rs.ByteVec = rs.byteVecWithCapacity(back - front);
+		while (!(front >= back)) {
+			rs.byteVecPush(v, s[front++] & 0xff);
+		}
+		joined = v;
 	}
 	rs.byteVecPush(out, joined.length & 0xff);
 }

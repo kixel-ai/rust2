@@ -112,7 +112,12 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\tstatic func add(_ state: UnsafeMutablePointer<Swift.Int>, _ value: Swift.Int) -> Swift.Int {{\n\t\t{p}_atomic_add(state, value)\n\t}}\n\n\
 		\tstatic func exchange(_ state: UnsafeMutablePointer<Swift.Int>, _ value: Swift.Int) -> Swift.Int {{\n\t\t{p}_atomic_exchange(state, value)\n\t}}\n\n\
 		\t/// Set `state` to `new` if it is `old`, returning what it was.\n\
-		\tstatic func swap(_ state: UnsafeMutablePointer<Swift.Int>, _ old: Swift.Int, _ new: Swift.Int) -> Swift.Int {{\n\t\t{p}_atomic_cas(state, old, new)\n\t}}\n}}\n\n"
+		\tstatic func swap(_ state: UnsafeMutablePointer<Swift.Int>, _ old: Swift.Int, _ new: Swift.Int) -> Swift.Int {{\n\t\t{p}_atomic_cas(state, old, new)\n\t}}\n\n\
+		\t/// `load`, `store`, and `swap`, sequentially consistent: a store and a later load of\n\
+		\t/// another word on two threads each meet the other's.\n\
+		\tstatic func loadSC(_ state: UnsafeMutablePointer<Swift.Int>) -> Swift.Int {{\n\t\t{p}_atomic_load_sc(state)\n\t}}\n\n\
+		\tstatic func storeSC(_ state: UnsafeMutablePointer<Swift.Int>, _ value: Swift.Int) {{\n\t\t{p}_atomic_store_sc(state, value)\n\t}}\n\n\
+		\tstatic func swapSC(_ state: UnsafeMutablePointer<Swift.Int>, _ old: Swift.Int, _ new: Swift.Int) -> Swift.Int {{\n\t\t{p}_atomic_cas_sc(state, old, new)\n\t}}\n}}\n\n"
 	);
 	swift.push_str(RUNTIME);
 	swift.push('\n');
@@ -136,6 +141,9 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		static inline intptr_t {p}_atomic_add(intptr_t *p, intptr_t v) {{\n\treturn __atomic_add_fetch(p, v, __ATOMIC_ACQ_REL);\n}}\n\n\
 		static inline intptr_t {p}_atomic_exchange(intptr_t *p, intptr_t v) {{\n\treturn __atomic_exchange_n(p, v, __ATOMIC_ACQ_REL);\n}}\n\n\
 		static inline intptr_t {p}_atomic_cas(intptr_t *p, intptr_t old, intptr_t new_) {{\n\t__atomic_compare_exchange_n(p, &old, new_, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);\n\treturn old;\n}}\n\n\
+		static inline intptr_t {p}_atomic_load_sc(const intptr_t *p) {{\n\treturn __atomic_load_n(p, __ATOMIC_SEQ_CST);\n}}\n\n\
+		static inline void {p}_atomic_store_sc(intptr_t *p, intptr_t v) {{\n\t__atomic_store_n(p, v, __ATOMIC_SEQ_CST);\n}}\n\n\
+		static inline intptr_t {p}_atomic_cas_sc(intptr_t *p, intptr_t old, intptr_t new_) {{\n\t__atomic_compare_exchange_n(p, &old, new_, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);\n\treturn old;\n}}\n\n\
 		#endif\n"
 	);
 	Ok(Output {

@@ -119,10 +119,10 @@ export function values(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return false;
 	};
 	let n = 0;
-	fused2: while (true) {
+	fused3: while (true) {
 		while (true) {
 			if (front >= back) {
-				break fused2;
+				break fused3;
 			}
 			if (f(s3[front++])) {
 				break;

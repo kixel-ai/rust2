@@ -349,7 +349,8 @@ fn api_miri() {
 	for file in ["Cargo.toml", "Cargo.lock", "build.rs"] {
 		std::fs::copy(api.out.join(file), copy.join(file)).unwrap();
 	}
-	for file in ["rt.rs", "lib.rs"] {
+	std::fs::create_dir_all(copy.join("src").join("rt")).unwrap();
+	for file in ["rt.rs", "rt/borrow.rs", "lib.rs"] {
 		std::fs::copy(api.out.join("src").join(file), copy.join("src").join(file)).unwrap();
 	}
 	let mut lib = std::fs::read_to_string(copy.join("src").join("lib.rs")).unwrap();
@@ -1129,6 +1130,7 @@ fn api_swift() {
 	);
 	run(Command::new(&exe).arg("futures"));
 	run(Command::new(&exe).arg("owned"));
+	run(Command::new(&exe).arg("shared"));
 	// Each in a build of its own, since the first error stops the rest; move checking runs
 	// on SIL, which type-checking alone skips.
 	for (case, message) in [

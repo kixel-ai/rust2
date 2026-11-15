@@ -279,9 +279,17 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _10: rs.u8 = rs.u8Rem(kind, 4);
 		if (_10 === 0) {
 			rs.byteVecPush(out, rs.byteSliceIsAscii(data) ? 1 : 0);
-			rs.byteVecPush(out, rs.iterAll(rs.iterSlice(rs.byteSliceView(data)), (a02: rs.u8): boolean => {
-				return rs.isAsciiHexdigit(a02);
-			}) ? 1 : 0);
+			const s2 = rs.byteSliceView(data);
+			let front = 0;
+			let back = s2.length;
+			let found = true;
+			while (!(front >= back)) {
+				if (!rs.isAsciiHexdigit(s2[front++])) {
+					found = false;
+					break;
+				}
+			}
+			rs.byteVecPush(out, found ? 1 : 0);
 			rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (a03: rs.u8): rs.u8 => {
 				return rs.toAsciiUppercase(a03);
 			}), undefined, true);

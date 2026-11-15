@@ -248,14 +248,14 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _21: rs.u8 = rs.u8Rem(kind, 24);
 	if (_21 === 0) {
-		const part47 = rs.u8SaturatingAdd(a, b);
-		_20(out, part47);
+		const part41 = rs.u8SaturatingAdd(a, b);
+		_20(out, part41);
 	} else if (_21 === 1) {
-		const part46 = rs.u8SaturatingSub(a, b);
-		_20(out, part46);
+		const part40 = rs.u8SaturatingSub(a, b);
+		_20(out, part40);
 	} else if (_21 === 2) {
-		const part45 = rs.u8SaturatingMul(a, b);
-		_20(out, part45);
+		const part39 = rs.u8SaturatingMul(a, b);
+		_20(out, part39);
 	} else if (_21 === 3) {
 		_20(out, rs.u8Div(a, b));
 	} else if (_21 === 4) {
@@ -309,12 +309,12 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		x5 = rs.u8Rem(x5, c);
 		_20(out, x5);
 	} else if (_21 === 15) {
-		const part17 = rs.u8SaturatingAdd(a, b);
-		_20(out, part17);
-		const part18 = rs.u8SaturatingSub(a, b);
-		_20(out, part18);
-		const part19 = rs.u8SaturatingMul(a, c);
-		_20(out, part19);
+		const part11 = rs.u8SaturatingAdd(a, b);
+		_20(out, part11);
+		const part12 = rs.u8SaturatingSub(a, b);
+		_20(out, part12);
+		const part13 = rs.u8SaturatingMul(a, c);
+		_20(out, part13);
 		_20(out, ~b & 0xff);
 		_20(out, a ^ c);
 		_20(out, a & b);
@@ -343,14 +343,14 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _232 ? 1 : 0);
 		}
-		const part14 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part14);
-		const part15 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part15);
+		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_20(out, part8);
+		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_20(out, part9);
 		const _250: rs.u8 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _251: rs.u8 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part16 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part16);
+		const part10 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_20(out, part10);
 	} else if (_21 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_u8(a);
@@ -386,18 +386,54 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		const all: rs.u8[] = [a, b, c];
-		const part8 = rs.iterSum(rs.iterSlice(all), rs.u8SaturatingAdd, 0);
-		_20(out, part8);
-		const part9 = rs.iterSum(rs.iterSlice(all), rs.u8SaturatingAdd, 0);
-		_20(out, part9);
-		const part10 = rs.iterProduct(rs.iterSlice(all), rs.u8SaturatingMul, 1);
-		_20(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u8SaturatingMul, 1);
-		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u8SaturatingAdd, 0);
-		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u8SaturatingMul, 1);
-		_20(out, part13);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u8 = 0;
+		while (!(front >= back)) {
+			acc = rs.u8SaturatingAdd(acc, s[front++]);
+		}
+		_20(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.u8 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.u8SaturatingAdd(acc2, s2[front2++]);
+		}
+		_20(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.u8 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.u8SaturatingMul(acc3, s3[front3++]);
+		}
+		_20(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.u8 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.u8SaturatingMul(acc4, s4[front4++]);
+		}
+		_20(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.u8 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.u8SaturatingAdd(acc5, s5[front5++]);
+		}
+		_20(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.u8 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.u8SaturatingMul(acc6, s6[front6++]);
+		}
+		_20(out, acc6);
 	} else if (_21 === 20) {
 		_20(out, 0);
 		_20(out, a);
@@ -474,14 +510,14 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _21: rs.u8 = rs.u8Rem(kind, 24);
 	if (_21 === 0) {
-		const part47 = rs.u16SaturatingAdd(a, b);
-		_20(out, part47);
+		const part41 = rs.u16SaturatingAdd(a, b);
+		_20(out, part41);
 	} else if (_21 === 1) {
-		const part46 = rs.u16SaturatingSub(a, b);
-		_20(out, part46);
+		const part40 = rs.u16SaturatingSub(a, b);
+		_20(out, part40);
 	} else if (_21 === 2) {
-		const part45 = rs.u16SaturatingMul(a, b);
-		_20(out, part45);
+		const part39 = rs.u16SaturatingMul(a, b);
+		_20(out, part39);
 	} else if (_21 === 3) {
 		_20(out, rs.u16Div(a, b));
 	} else if (_21 === 4) {
@@ -535,12 +571,12 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		x5 = rs.u16Rem(x5, c);
 		_20(out, x5);
 	} else if (_21 === 15) {
-		const part17 = rs.u16SaturatingAdd(a, b);
-		_20(out, part17);
-		const part18 = rs.u16SaturatingSub(a, b);
-		_20(out, part18);
-		const part19 = rs.u16SaturatingMul(a, c);
-		_20(out, part19);
+		const part11 = rs.u16SaturatingAdd(a, b);
+		_20(out, part11);
+		const part12 = rs.u16SaturatingSub(a, b);
+		_20(out, part12);
+		const part13 = rs.u16SaturatingMul(a, c);
+		_20(out, part13);
 		_20(out, ~b & 0xffff);
 		_20(out, a ^ c);
 		_20(out, a & b);
@@ -569,14 +605,14 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _232 ? 1 : 0);
 		}
-		const part14 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part14);
-		const part15 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part15);
+		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_20(out, part8);
+		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_20(out, part9);
 		const _250: rs.u16 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _251: rs.u16 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part16 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part16);
+		const part10 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_20(out, part10);
 	} else if (_21 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_u16(a);
@@ -612,18 +648,54 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		const all: rs.u16[] = [a, b, c];
-		const part8 = rs.iterSum(rs.iterSlice(all), rs.u16SaturatingAdd, 0);
-		_20(out, part8);
-		const part9 = rs.iterSum(rs.iterSlice(all), rs.u16SaturatingAdd, 0);
-		_20(out, part9);
-		const part10 = rs.iterProduct(rs.iterSlice(all), rs.u16SaturatingMul, 1);
-		_20(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u16SaturatingMul, 1);
-		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u16SaturatingAdd, 0);
-		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u16SaturatingMul, 1);
-		_20(out, part13);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u16 = 0;
+		while (!(front >= back)) {
+			acc = rs.u16SaturatingAdd(acc, s[front++]);
+		}
+		_20(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.u16 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.u16SaturatingAdd(acc2, s2[front2++]);
+		}
+		_20(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.u16 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.u16SaturatingMul(acc3, s3[front3++]);
+		}
+		_20(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.u16 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.u16SaturatingMul(acc4, s4[front4++]);
+		}
+		_20(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.u16 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.u16SaturatingAdd(acc5, s5[front5++]);
+		}
+		_20(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.u16 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.u16SaturatingMul(acc6, s6[front6++]);
+		}
+		_20(out, acc6);
 	} else if (_21 === 20) {
 		_20(out, 0);
 		_20(out, a);
@@ -706,14 +778,14 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _21: rs.u8 = rs.u8Rem(kind, 24);
 	if (_21 === 0) {
-		const part47 = rs.u32SaturatingAdd(a, b);
-		_20(out, part47);
+		const part41 = rs.u32SaturatingAdd(a, b);
+		_20(out, part41);
 	} else if (_21 === 1) {
-		const part46 = rs.u32SaturatingSub(a, b);
-		_20(out, part46);
+		const part40 = rs.u32SaturatingSub(a, b);
+		_20(out, part40);
 	} else if (_21 === 2) {
-		const part45 = rs.u32SaturatingMul(a, b);
-		_20(out, part45);
+		const part39 = rs.u32SaturatingMul(a, b);
+		_20(out, part39);
 	} else if (_21 === 3) {
 		_20(out, rs.u32Div(a, b));
 	} else if (_21 === 4) {
@@ -767,12 +839,12 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		x5 = rs.u32Rem(x5, c);
 		_20(out, x5);
 	} else if (_21 === 15) {
-		const part17 = rs.u32SaturatingAdd(a, b);
-		_20(out, part17);
-		const part18 = rs.u32SaturatingSub(a, b);
-		_20(out, part18);
-		const part19 = rs.u32SaturatingMul(a, c);
-		_20(out, part19);
+		const part11 = rs.u32SaturatingAdd(a, b);
+		_20(out, part11);
+		const part12 = rs.u32SaturatingSub(a, b);
+		_20(out, part12);
+		const part13 = rs.u32SaturatingMul(a, c);
+		_20(out, part13);
 		_20(out, ~b >>> 0);
 		_20(out, (a ^ c) >>> 0);
 		_20(out, (a & b) >>> 0);
@@ -801,14 +873,14 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _232 ? 1 : 0);
 		}
-		const part14 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part14);
-		const part15 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part15);
+		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_20(out, part8);
+		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_20(out, part9);
 		const _250: rs.u32 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _251: rs.u32 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part16 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part16);
+		const part10 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_20(out, part10);
 	} else if (_21 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_u32(a);
@@ -844,18 +916,54 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		const all: rs.u32[] = [a, b, c];
-		const part8 = rs.iterSum(rs.iterSlice(all), rs.u32SaturatingAdd, 0);
-		_20(out, part8);
-		const part9 = rs.iterSum(rs.iterSlice(all), rs.u32SaturatingAdd, 0);
-		_20(out, part9);
-		const part10 = rs.iterProduct(rs.iterSlice(all), rs.u32SaturatingMul, 1);
-		_20(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u32SaturatingMul, 1);
-		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u32SaturatingAdd, 0);
-		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u32SaturatingMul, 1);
-		_20(out, part13);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u32 = 0;
+		while (!(front >= back)) {
+			acc = rs.u32SaturatingAdd(acc, s[front++]);
+		}
+		_20(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.u32 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.u32SaturatingAdd(acc2, s2[front2++]);
+		}
+		_20(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.u32 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.u32SaturatingMul(acc3, s3[front3++]);
+		}
+		_20(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.u32 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.u32SaturatingMul(acc4, s4[front4++]);
+		}
+		_20(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.u32 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.u32SaturatingAdd(acc5, s5[front5++]);
+		}
+		_20(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.u32 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.u32SaturatingMul(acc6, s6[front6++]);
+		}
+		_20(out, acc6);
 	} else if (_21 === 20) {
 		_20(out, 0);
 		_20(out, a);
@@ -948,14 +1056,14 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _21: rs.u8 = rs.u8Rem(kind, 24);
 	if (_21 === 0) {
-		const part47 = rs.u64SaturatingAdd(a, b);
-		_20(out, part47);
+		const part41 = rs.u64SaturatingAdd(a, b);
+		_20(out, part41);
 	} else if (_21 === 1) {
-		const part46 = rs.u64SaturatingSub(a, b);
-		_20(out, part46);
+		const part40 = rs.u64SaturatingSub(a, b);
+		_20(out, part40);
 	} else if (_21 === 2) {
-		const part45 = rs.u64SaturatingMul(a, b);
-		_20(out, part45);
+		const part39 = rs.u64SaturatingMul(a, b);
+		_20(out, part39);
 	} else if (_21 === 3) {
 		_20(out, rs.u64Div(a, b));
 	} else if (_21 === 4) {
@@ -1009,12 +1117,12 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		x5 = rs.u64Rem(x5, c);
 		_20(out, x5);
 	} else if (_21 === 15) {
-		const part17 = rs.u64SaturatingAdd(a, b);
-		_20(out, part17);
-		const part18 = rs.u64SaturatingSub(a, b);
-		_20(out, part18);
-		const part19 = rs.u64SaturatingMul(a, c);
-		_20(out, part19);
+		const part11 = rs.u64SaturatingAdd(a, b);
+		_20(out, part11);
+		const part12 = rs.u64SaturatingSub(a, b);
+		_20(out, part12);
+		const part13 = rs.u64SaturatingMul(a, c);
+		_20(out, part13);
 		_20(out, rs.u64Not(b));
 		_20(out, rs.u64Xor(a, c));
 		_20(out, rs.u64And(a, b));
@@ -1043,14 +1151,14 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _232 ? 1 : 0);
 		}
-		const part14 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part14);
-		const part15 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part15);
+		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_20(out, part8);
+		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_20(out, part9);
 		const _250: rs.u64 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _251: rs.u64 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part16 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part16);
+		const part10 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_20(out, part10);
 	} else if (_21 === 17) {
 		const dst2 = out;
 		const word4 = hashed$num_Saturating_u64(a);
@@ -1086,18 +1194,54 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		const all: rs.u64[] = [a, b, c];
-		const part8 = rs.iterSum(rs.iterSlice(all), rs.u64SaturatingAdd, 0);
-		_20(out, part8);
-		const part9 = rs.iterSum(rs.iterSlice(all), rs.u64SaturatingAdd, 0);
-		_20(out, part9);
-		const part10 = rs.iterProduct(rs.iterSlice(all), rs.u64SaturatingMul, 1);
-		_20(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u64SaturatingMul, 1);
-		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u64SaturatingAdd, 0);
-		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u64SaturatingMul, 1);
-		_20(out, part13);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u64 = 0;
+		while (!(front >= back)) {
+			acc = rs.u64SaturatingAdd(acc, s[front++]);
+		}
+		_20(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.u64 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.u64SaturatingAdd(acc2, s2[front2++]);
+		}
+		_20(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.u64 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.u64SaturatingMul(acc3, s3[front3++]);
+		}
+		_20(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.u64 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.u64SaturatingMul(acc4, s4[front4++]);
+		}
+		_20(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.u64 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.u64SaturatingAdd(acc5, s5[front5++]);
+		}
+		_20(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.u64 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.u64SaturatingMul(acc6, s6[front6++]);
+		}
+		_20(out, acc6);
 	} else if (_21 === 20) {
 		_20(out, 0);
 		_20(out, a);
@@ -1212,14 +1356,14 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _21: rs.u8 = rs.u8Rem(kind, 24);
 	if (_21 === 0) {
-		const part47 = rs.u128SaturatingAdd(a, b);
-		_20(out, part47);
+		const part41 = rs.u128SaturatingAdd(a, b);
+		_20(out, part41);
 	} else if (_21 === 1) {
-		const part46 = rs.u128SaturatingSub(a, b);
-		_20(out, part46);
+		const part40 = rs.u128SaturatingSub(a, b);
+		_20(out, part40);
 	} else if (_21 === 2) {
-		const part45 = rs.u128SaturatingMul(a, b);
-		_20(out, part45);
+		const part39 = rs.u128SaturatingMul(a, b);
+		_20(out, part39);
 	} else if (_21 === 3) {
 		_20(out, rs.u128Div(a, b));
 	} else if (_21 === 4) {
@@ -1273,12 +1417,12 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		x5 = rs.u128Rem(x5, c);
 		_20(out, x5);
 	} else if (_21 === 15) {
-		const part17 = rs.u128SaturatingAdd(a, b);
-		_20(out, part17);
-		const part18 = rs.u128SaturatingSub(a, b);
-		_20(out, part18);
-		const part19 = rs.u128SaturatingMul(a, c);
-		_20(out, part19);
+		const part11 = rs.u128SaturatingAdd(a, b);
+		_20(out, part11);
+		const part12 = rs.u128SaturatingSub(a, b);
+		_20(out, part12);
+		const part13 = rs.u128SaturatingMul(a, c);
+		_20(out, part13);
 		_20(out, rs.u128Not(b));
 		_20(out, rs.u128Xor(a, c));
 		_20(out, rs.u128And(a, b));
@@ -1307,14 +1451,14 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _232 ? 1 : 0);
 		}
-		const part14 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part14);
-		const part15 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part15);
+		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_20(out, part8);
+		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_20(out, part9);
 		const _250: rs.u128 = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _251: rs.u128 = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part16 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part16);
+		const part10 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_20(out, part10);
 	} else if (_21 === 17) {
 		const dst2 = out;
 		const word6 = hashed$num_Saturating_u128(a);
@@ -1350,18 +1494,54 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		const all: rs.u128[] = [a, b, c];
-		const part8 = rs.iterSum(rs.iterSlice(all), rs.u128SaturatingAdd, 0);
-		_20(out, part8);
-		const part9 = rs.iterSum(rs.iterSlice(all), rs.u128SaturatingAdd, 0);
-		_20(out, part9);
-		const part10 = rs.iterProduct(rs.iterSlice(all), rs.u128SaturatingMul, 1);
-		_20(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u128SaturatingMul, 1);
-		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u128SaturatingAdd, 0);
-		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u128SaturatingMul, 1);
-		_20(out, part13);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.u128 = 0;
+		while (!(front >= back)) {
+			acc = rs.u128SaturatingAdd(acc, s[front++]);
+		}
+		_20(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.u128 = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.u128SaturatingAdd(acc2, s2[front2++]);
+		}
+		_20(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.u128 = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.u128SaturatingMul(acc3, s3[front3++]);
+		}
+		_20(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.u128 = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.u128SaturatingMul(acc4, s4[front4++]);
+		}
+		_20(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.u128 = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.u128SaturatingAdd(acc5, s5[front5++]);
+		}
+		_20(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.u128 = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.u128SaturatingMul(acc6, s6[front6++]);
+		}
+		_20(out, acc6);
 	} else if (_21 === 20) {
 		_20(out, 0);
 		_20(out, a);
@@ -1480,14 +1660,14 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const _21: rs.u8 = rs.u8Rem(kind, 24);
 	if (_21 === 0) {
-		const part47 = rs.usizeSaturatingAdd(a, b);
-		_20(out, part47);
+		const part41 = rs.usizeSaturatingAdd(a, b);
+		_20(out, part41);
 	} else if (_21 === 1) {
-		const part46 = rs.usizeSaturatingSub(a, b);
-		_20(out, part46);
+		const part40 = rs.usizeSaturatingSub(a, b);
+		_20(out, part40);
 	} else if (_21 === 2) {
-		const part45 = rs.usizeSaturatingMul(a, b);
-		_20(out, part45);
+		const part39 = rs.usizeSaturatingMul(a, b);
+		_20(out, part39);
 	} else if (_21 === 3) {
 		_20(out, rs.usizeDiv(a, b));
 	} else if (_21 === 4) {
@@ -1541,12 +1721,12 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		x5 = rs.usizeRem(x5, c);
 		_20(out, x5);
 	} else if (_21 === 15) {
-		const part17 = rs.usizeSaturatingAdd(a, b);
-		_20(out, part17);
-		const part18 = rs.usizeSaturatingSub(a, b);
-		_20(out, part18);
-		const part19 = rs.usizeSaturatingMul(a, c);
-		_20(out, part19);
+		const part11 = rs.usizeSaturatingAdd(a, b);
+		_20(out, part11);
+		const part12 = rs.usizeSaturatingSub(a, b);
+		_20(out, part12);
+		const part13 = rs.usizeSaturatingMul(a, c);
+		_20(out, part13);
 		_20(out, ~b >>> 0);
 		_20(out, (a ^ c) >>> 0);
 		_20(out, (a & b) >>> 0);
@@ -1575,14 +1755,14 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			rs.byteVecPush(out, _232 ? 1 : 0);
 		}
-		const part14 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
-		_20(out, part14);
-		const part15 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
-		_20(out, part15);
+		const part8 = rs.ordMax(a, b, rs.cmpLt(rs.cmp));
+		_20(out, part8);
+		const part9 = rs.ordMin(a, c, rs.cmpLt(rs.cmp));
+		_20(out, part9);
 		const _250: rs.usize = rs.ordMin(b, c, rs.cmpLt(rs.cmp));
 		const _251: rs.usize = rs.ordMax(b, c, rs.cmpLt(rs.cmp));
-		const part16 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
-		_20(out, part16);
+		const part10 = rs.ordClamp(a, _250, _251, rs.cmpLe(rs.cmp), rs.cmpLt(rs.cmp), rs.cmpGt(rs.cmp));
+		_20(out, part10);
 	} else if (_21 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_usize(a);
@@ -1618,18 +1798,54 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		const all: rs.usize[] = [a, b, c];
-		const part8 = rs.iterSum(rs.iterSlice(all), rs.usizeSaturatingAdd, 0);
-		_20(out, part8);
-		const part9 = rs.iterSum(rs.iterSlice(all), rs.usizeSaturatingAdd, 0);
-		_20(out, part9);
-		const part10 = rs.iterProduct(rs.iterSlice(all), rs.usizeSaturatingMul, 1);
-		_20(out, part10);
-		const part11 = rs.iterProduct(rs.iterSlice(all), rs.usizeSaturatingMul, 1);
-		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.usizeSaturatingAdd, 0);
-		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.usizeSaturatingMul, 1);
-		_20(out, part13);
+		const s = all;
+		let front = 0;
+		let back = s.length;
+		let acc: rs.usize = 0;
+		while (!(front >= back)) {
+			acc = rs.usizeSaturatingAdd(acc, s[front++]);
+		}
+		_20(out, acc);
+		const s2 = all;
+		let front2 = 0;
+		let back2 = s2.length;
+		let acc2: rs.usize = 0;
+		while (!(front2 >= back2)) {
+			acc2 = rs.usizeSaturatingAdd(acc2, s2[front2++]);
+		}
+		_20(out, acc2);
+		const s3 = all;
+		let front3 = 0;
+		let back3 = s3.length;
+		let acc3: rs.usize = 1;
+		while (!(front3 >= back3)) {
+			acc3 = rs.usizeSaturatingMul(acc3, s3[front3++]);
+		}
+		_20(out, acc3);
+		const s4 = all;
+		let front4 = 0;
+		let back4 = s4.length;
+		let acc4: rs.usize = 1;
+		while (!(front4 >= back4)) {
+			acc4 = rs.usizeSaturatingMul(acc4, s4[front4++]);
+		}
+		_20(out, acc4);
+		const s5 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front5 = 0;
+		let back5 = s5.length;
+		let acc5: rs.usize = 0;
+		while (!(front5 >= back5)) {
+			acc5 = rs.usizeSaturatingAdd(acc5, s5[front5++]);
+		}
+		_20(out, acc5);
+		const s6 = rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0));
+		let front6 = 0;
+		let back6 = s6.length;
+		let acc6: rs.usize = 1;
+		while (!(front6 >= back6)) {
+			acc6 = rs.usizeSaturatingMul(acc6, s6[front6++]);
+		}
+		_20(out, acc6);
 	} else if (_21 === 20) {
 		_20(out, 0);
 		_20(out, a);

@@ -1645,7 +1645,15 @@ export function patterns(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	rs.byteVecPush(out, v);
 	const _113: Uint8Array = Uint8Array.of();
-	rs.byteVecPush(out, rs.u8Add(rs.byteSliceFrom(_113).length & 0xff, rs.iterSum(rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(_113))), rs.u8Add, 0)));
+	const _116: rs.u8 = rs.byteSliceFrom(_113).length & 0xff;
+	const s = rs.byteSliceView(rs.byteSliceFrom(_113));
+	let front = 0;
+	let back = s.length;
+	let acc: rs.u8 = 0;
+	while (!(front >= back)) {
+		acc = rs.u8Add(acc, s[front++]);
+	}
+	rs.byteVecPush(out, rs.u8Add(_116, acc));
 	const bytes: Uint8Array = Uint8Array.of(data.length & 0xff, 1, 2);
 	const slice = rs.byteSliceRange(rs.byteSliceFrom(bytes), 1, 3);
 	slice.data[slice.start] = 9;
@@ -2727,13 +2735,16 @@ export function library(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, 0);
 	}
 	let calls: rs.u8 = 0;
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 6);
-	while (true) {
-		const _66: rs.u8 | rs.Done = iter.next();
-		if (_66 === rs.DONE) {
+	const s2: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s2.length;
+	let take: number = 6;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const x: rs.u8 = _66;
+		const x: rs.u8 = s2[front++];
 		const dst6 = out;
 		const byte5 = option_unwrapOr$1fr498u(then$1ldvmdq(rs.u8Rem(x, 2) === 0, (): rs.u8 => {
 			calls = rs.u8Add(calls, 1);

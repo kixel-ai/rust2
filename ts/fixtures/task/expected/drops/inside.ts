@@ -60,7 +60,15 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		start[Symbol.dispose]();
 		r.end[Symbol.dispose]();
 	} else if (_8 === 2) {
-		const v: rs.Vec<Guard.Guard> = rs.iterToVec(rs.iterMap(new rs.Range(1, 6), guard), undefined, 8, true);
+		let start7 = 1;
+		let end6 = 6;
+		const v7: rs.Vec<Guard.Guard> = rs.vecWithCapacity(Math.max(end6 - start7, 0), 8);
+		while (!(start7 >= end6)) {
+			const x6 = start7++;
+			const y6: Guard.Guard = guard(x6);
+			v7.items.push(y6);
+		}
+		const v: rs.Vec<Guard.Guard> = v7;
 		const taken: rs.Vec<Guard.Guard> = rs.iterToVec(rs.dropAfter(new Spent.Spent(guard(10), 1, 3), (range12) => rs.vecDrain(v, rs.boundsOf(range12, Spent.startBound$ops_RangeBounds_usize, Spent.endBound$ops_RangeBounds_usize), rs.drop), rs.drop), "fold", 8, true);
 		const _136: rs.usize = taken.items.length;
 		const _139: rs.usize = v.items.length;
@@ -208,7 +216,15 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const d: Guard.Guard = _534[1];
 		const e: Guard.Guard = _534[2];
 		f = _534[3];
-		const _551: rs.Iter<Guard.Guard> = rs.iterTake(rs.vecIntoIter(rs.iterToVec(rs.iterMap(new rs.Range(1, 5), guard), undefined, 8, true), rs.drop), 2, rs.drop);
+		let start3 = 1;
+		let end2 = 5;
+		const v5: rs.Vec<Guard.Guard> = rs.vecWithCapacity(Math.max(end2 - start3, 0), 8);
+		while (!(start3 >= end2)) {
+			const x2 = start3++;
+			const y2: Guard.Guard = guard(x2);
+			v5.items.push(y2);
+		}
+		const _551: rs.Iter<Guard.Guard> = rs.iterTake(rs.vecIntoIter(v5, rs.drop), 2, rs.drop);
 		const captured3 = c;
 		rs.iterForEach(_551, rs.closure((g2: Guard.Guard): undefined => {
 			const part = Guard.id(captured3);
@@ -219,7 +235,15 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			captured3[Symbol.dispose]();
 		}), true, true);
 		const held: Guard.Guard = guard(14);
-		const _559: rs.Iter<Guard.Guard> = rs.vecIntoIter(rs.iterToVec(rs.iterMap(new rs.Range(5, 8), guard), undefined, 8, true), rs.drop);
+		let start4 = 5;
+		let end3 = 8;
+		const v6: rs.Vec<Guard.Guard> = rs.vecWithCapacity(Math.max(end3 - start4, 0), 8);
+		while (!(start4 >= end3)) {
+			const x3 = start4++;
+			const y3: Guard.Guard = guard(x3);
+			v6.items.push(y3);
+		}
+		const _559: rs.Iter<Guard.Guard> = rs.vecIntoIter(v6, rs.drop);
 		const captured4 = held;
 		const _558: rs.Iter<[Guard.Guard, rs.u32]> = rs.iterMap(_559, rs.closure((g3: Guard.Guard): [Guard.Guard, rs.u32] => {
 			return [g3, Guard.id(captured4)] as [Guard.Guard, rs.u32];
@@ -260,8 +284,8 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured7[Symbol.dispose]();
 		}), true, true);
-		let start2 = 8;
-		let end = 10;
+		let start5 = 8;
+		let end4 = 10;
 		const f2 = guard(15);
 		const f3 = (kept2: Guard.Guard, g6: Guard.Guard): Guard.Guard => {
 			let _05!: Guard.Guard;
@@ -286,9 +310,9 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			return _05;
 		};
 		let acc: Guard.Guard = f2;
-		while (!(start2 >= end)) {
-			const x = start2++;
-			acc = f3(acc, guard(x));
+		while (!(start5 >= end4)) {
+			const x4 = start5++;
+			acc = f3(acc, guard(x4));
 		}
 		const kept: Guard.Guard = acc;
 		const part4 = Guard.id(kept);
@@ -304,12 +328,12 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured9[Symbol.dispose]();
 		});
-		let start3 = 17;
-		let end2 = 19;
-		while (!(start3 >= end2)) {
-			const x2 = start3++;
-			const y2: Guard.Guard = guard(x2);
-			count(y2);
+		let start6 = 17;
+		let end5 = 19;
+		while (!(start6 >= end5)) {
+			const x5 = start6++;
+			const y5: Guard.Guard = guard(x5);
+			count(y5);
 		}
 		Log.note(log, rs.stringFrom("lent"));
 		rs.drop(count);
@@ -332,7 +356,15 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			captured2[Symbol.dispose]();
 		}), undefined, true);
 	} else if (_8 === 8) {
-		const v3: rs.Vec<Guard.Guard> = rs.iterToVec(rs.iterMap(new rs.Range(1, 3), guard), undefined, 8, true);
+		let start2 = 1;
+		let end = 3;
+		const v4: rs.Vec<Guard.Guard> = rs.vecWithCapacity(Math.max(end - start2, 0), 8);
+		while (!(start2 >= end)) {
+			const x = start2++;
+			const y: Guard.Guard = guard(x);
+			v4.items.push(y);
+		}
+		const v3: rs.Vec<Guard.Guard> = v4;
 		rs.drop(rs.dropAfter(new Spent.Spent(guard(10), 1, 4), (range4) => rs.vecDrain(v3, rs.boundsOf(range4, Spent.startBound$ops_RangeBounds_usize, Spent.endBound$ops_RangeBounds_usize), rs.drop), rs.drop));
 		rs.dropVec(v3);
 	} else {

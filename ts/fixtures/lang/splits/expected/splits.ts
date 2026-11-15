@@ -59,9 +59,14 @@ export function second(dataData: Uint8Array, dataStart: number, dataLen: number,
 
 /** A use that needs the slice itself. */
 export function opaque(s: rs.ByteSlice): rs.u8 {
-	return rs.iterFold(rs.iterSlice(rs.byteSliceView(s)), s.length & 0xff, (a: rs.u8, b: rs.u8): rs.u8 => {
-		return rs.u8WrappingAdd(a ^ (a >> 3), b);
-	});
+	const s2 = rs.byteSliceView(s);
+	let front = 0;
+	let back = s2.length;
+	let acc: rs.u8 = s.length & 0xff;
+	while (!(front >= back)) {
+		acc = rs.u8WrappingAdd(acc ^ (acc >> 3), s2[front++]);
+	}
+	return acc;
 }
 
 /** An error made by a call that does something, which runs even when it isn't needed. */

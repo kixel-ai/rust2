@@ -21,6 +21,7 @@ use crate::ir::{
 };
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
+const BORROW: &str = include_str!("../runtime/rt/borrow.rs");
 
 /// The crate's build script, which refuses to build for a target but `targets`, on which an
 /// item a target compiles would be missing, or one it leaves out left over, and tells the
@@ -398,6 +399,7 @@ impl Crate<'_> {
 		output.file(&out.join("src/lib.rs"), &generator.out);
 		output.file(&out.join("build.rs"), &build(&self.abi.api.targets));
 		output.file(&out.join("src/rt.rs"), RUNTIME);
+		output.file(&out.join("src/rt/borrow.rs"), BORROW);
 		output.file(&out.join("include").join(format!("{}.h", self.abi.prefix)), &header);
 		for (path, header) in &cpp.files {
 			output.file(&out.join("include").join(path), header);

@@ -112,14 +112,19 @@ export function chunks(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	} else if (_4 === 1) {
 		const buf: Uint8Array = rs.bytes(4);
-		const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4));
-		while (true) {
-			const _64: [rs.usize, rs.u8] | rs.Done = iter.next();
-			if (_64 === rs.DONE) {
+		const s2: Uint8Array = rs.byteSliceView(data);
+		let front2: number = 0;
+		const back2: number = s2.length;
+		let take: number = 4;
+		let count: number = 0;
+		while (take !== 0) {
+			take--;
+			if (front2 >= back2) {
 				break;
 			}
-			const i: rs.usize = _64[0];
-			const _69: rs.u8 = _64[1];
+			const x2 = s2[front2++];
+			const i: rs.usize = count++;
+			const _69: rs.u8 = x2;
 			if (!(i < 4)) {
 				rs.panic("index out of bounds: the len is " + 4 + " but the index is " + i);
 			}
@@ -199,10 +204,19 @@ export function chunks(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 		}
 	} else if (_4 === 4) {
-		const pairs: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Uint8Array => {
+		const s = rs.byteSliceView(data);
+		let front = 0;
+		let back = s.length;
+		const f = (_2: rs.u8): Uint8Array => {
 			const b2: rs.u8 = _2;
 			return Uint8Array.of(b2, rs.u8WrappingAdd(b2, 3));
-		}), undefined, 2, true);
+		};
+		const v: rs.Vec<Uint8Array> = rs.vecWithCapacity(back - front, 2);
+		while (!(front >= back)) {
+			const y: Uint8Array = f(s[front++]);
+			v.items.push(y);
+		}
+		const pairs: rs.Vec<Uint8Array> = v;
 		if (pairs.items.length >= 2) {
 			const first2: Uint8Array = rs.byteSliceToArray(rs.byteSliceFrom(pairs.items[rs.idx(pairs.items, 0)]));
 			const _195: rs.ByteSlice = rs.byteSliceFrom(pairs.items[rs.idx(pairs.items, 1)]);
