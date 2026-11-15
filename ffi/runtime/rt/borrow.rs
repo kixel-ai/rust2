@@ -27,6 +27,14 @@ pub const RESERVED: usize = usize::MAX - 2;
 /// Marks a slot whose reader has yet to see whether the bias still stands.
 const PENDING: usize = 1;
 
+/// Why a shared borrow is refused in `state`, one of the marks.
+fn refusal(state: usize) -> Status {
+	match state {
+		TAKEN => Status::Moved,
+		_ => Status::Exclusive,
+	}
+}
+
 /// The slots biased shared borrows publish their handles in: a column per thread and a
 /// row per handle, so slots of two threads lie a column apart and never share a cache line
 /// once a column spans one. Two borrows wanting one slot (two handles in one row on one
@@ -84,51 +92,70 @@ impl Borrow {
 		std::ptr::from_ref(self) as usize
 	}
 
-	/// Borrow shared, from the thread in `column` of `table`, or by the count alone without
-	/// one: whether the borrow went to the table, as [`Self::unshare`] takes it.
-	pub fn share(&self, table: Option<&Table<'_>>, column: usize) -> Result<bool, Status> {
+	/// Borrow shared, from the thread in the `column` of `table` it asks for once it would
+	/// use it, or by the count alone without one: whether the borrow went to the table, as
+	/// [`Self::unshare`] takes it.
+	#[inline(always)]
+	pub fn share(&self, table: Option<&Table<'_>>, column: impl FnOnce() -> usize) -> Result<bool, Status> {
 		if let Some(table) = table
 			&& self.bias.load(Relaxed)
+			&& self.list(table, column())
 		{
-			let key = self.key();
-			let slot = table.slot(column, key);
-			if slot.compare_exchange(0, key | PENDING, Relaxed, Relaxed).is_ok() {
-				// The slot is published before the bias is read, as the revocation clears
-				// the bias before it reads the slots, so it either stops this borrow here
-				// or finds it in its scan.
-				fence(SeqCst);
-				if self.bias.load(Acquire) {
-					slot.store(key, Release);
-					return Ok(true);
-				}
-				slot.store(0, Release);
-			}
+			return Ok(true);
 		}
-		let mut state = self.state.load(Relaxed);
-		let mut contended = false;
+		let state = self.state.load(Relaxed);
+		if state >= RESERVED {
+			return Err(refusal(state));
+		}
+		match self.state.compare_exchange(state, state + 1, Acquire, Relaxed) {
+			Ok(_) => Ok(false),
+			Err(now) => self.contend(now).map(|()| false),
+		}
+	}
+
+	/// Publish a shared borrow in its slot, unless another holds the slot or the bias is
+	/// gone: whether it did.
+	#[inline(never)]
+	fn list(&self, table: &Table<'_>, column: usize) -> bool {
+		let key = self.key();
+		let slot = table.slot(column, key);
+		if slot.compare_exchange(0, key | PENDING, Relaxed, Relaxed).is_err() {
+			return false;
+		}
+		// The slot is published before the bias is read, as the revocation clears the bias
+		// before it reads the slots, so it either stops this borrow here or finds it in its
+		// scan.
+		fence(SeqCst);
+		if self.bias.load(Acquire) {
+			slot.store(key, Release);
+			return true;
+		}
+		slot.store(0, Release);
+		false
+	}
+
+	/// Count a shared borrow once another changed the count, now `state`, meanwhile: so
+	/// later ones go to the table. Held count in hand, no exclusive borrow is running to miss
+	/// the bias.
+	#[inline(never)]
+	fn contend(&self, mut state: usize) -> Result<(), Status> {
 		loop {
-			match state {
-				TAKEN => return Err(Status::Moved),
-				EXCLUSIVE | RESERVED => return Err(Status::Exclusive),
-				_ => {}
+			if state >= RESERVED {
+				return Err(refusal(state));
 			}
 			match self.state.compare_exchange(state, state + 1, Acquire, Relaxed) {
 				Ok(_) => break,
-				Err(now) => {
-					state = now;
-					contended = true;
-				}
+				Err(now) => state = now,
 			}
 		}
-		// Another borrow changed the count meanwhile: later ones go to the table. Held
-		// count in hand, no exclusive borrow is running to miss this.
-		if contended && !self.bias.load(Relaxed) {
+		if !self.bias.load(Relaxed) {
 			self.bias.store(true, Release);
 		}
-		Ok(false)
+		Ok(())
 	}
 
 	/// End a shared borrow [`Self::share`] took, in `column` and `listed` as it said.
+	#[inline(always)]
 	pub fn unshare(&self, table: &Table<'_>, column: usize, listed: bool) {
 		match listed {
 			true => table.slot(column, self.key()).store(0, Release),

@@ -808,6 +808,9 @@ static SLOTS: Slots = Slots([const { AtomicUsize::new(0) }; COLUMNS * ROWS]);
 /// Where shared borrows of contended handles go instead of their counts.
 static TABLE: Table<'static> = Table::new(&SLOTS.0, ROWS);
 
+/// A [`Ticket`]'s column before a borrow of it asked for one.
+const NO_COLUMN: usize = usize::MAX;
+
 /// This thread's column of [`TABLE`]: threads take them in turn, so no two of the first
 /// [`COLUMNS`] share one. A thread past its thread locals' teardown takes the first.
 fn column() -> usize {
@@ -853,19 +856,19 @@ pub struct Lender {
 trait Lends: Send + Sync {
 	/// Borrow the value shared for a use of a handle lent from it, if still at `epoch`, as
 	/// the `level`th handle a borrow on the thread in `column` holds.
-	fn hold(&self, epoch: usize, local: bool, column: usize, level: u32) -> Result<u64, Status>;
+	fn hold(&self, epoch: usize, local: bool, column: &mut usize, level: u32) -> Result<u64, Status>;
 	/// End what [`Self::hold`] took.
 	fn unhold(&self, local: bool, column: usize, level: u32, listed: u64);
 }
 
 impl<T: Send> Lends for Object<T> {
-	fn hold(&self, epoch: usize, local: bool, column: usize, level: u32) -> Result<u64, Status> {
+	fn hold(&self, epoch: usize, local: bool, column: &mut usize, level: u32) -> Result<u64, Status> {
 		let listed = match local {
 			true => self.acquire_local(column, level)?,
 			false => self.acquire(column, level)?,
 		};
 		if self.epoch.load(Ordering::Acquire) != epoch {
-			self.unhold(local, column, level, listed);
+			self.unhold(local, *column, level, listed);
 			return Err(Status::Outlived);
 		}
 		Ok(listed)
@@ -879,13 +882,28 @@ impl<T: Send> Lends for Object<T> {
 	}
 }
 
-/// What a shared borrow of a handle took, to give back: the column of the thread that
-/// took it, and which of the handle and the chain of handles it was lent from went to
-/// that column's slots, a bit each.
+/// What a shared borrow of a handle took, to give back: which of the handle and the chain
+/// of handles it was lent from went to the table, a bit each from the lowest, below the
+/// column of the thread that put them there. One word, so a borrow comes back in registers.
 #[derive(Clone, Copy)]
-pub struct Ticket {
-	column: usize,
-	listed: u64,
+pub struct Ticket(u64);
+
+/// The bits of a [`Ticket`] below its column: past as many nested lenders, which no export
+/// makes, the count holds the rest.
+const LEVELS: u32 = u64::BITS - COLUMNS.trailing_zeros();
+
+impl Ticket {
+	fn new(column: usize, listed: u64) -> Self {
+		Self(listed | ((column % COLUMNS) as u64) << LEVELS)
+	}
+
+	fn column(self) -> usize {
+		(self.0 >> LEVELS) as usize
+	}
+
+	fn listed(self) -> u64 {
+		self.0 & ((1 << LEVELS) - 1)
+	}
 }
 
 /// This thread's id for [`Object::borrow_local`]: the address of a thread local, which no
@@ -994,25 +1012,31 @@ impl<T> Object<T> {
 	}
 
 	/// Borrow the value shared, as the `level`th handle of a borrow on the thread in
-	/// `column`: the bits of the handles that went to the table, from `level` on.
-	fn acquire(&self, column: usize, level: u32) -> Result<u64, Status> {
-		// Past a word's bits of lenders, which no export nests, the count holds the rest.
-		let table = (level < u64::BITS).then_some(&TABLE);
-		let listed = u64::from(self.borrow.share(table, column)?) << level.min(u64::BITS - 1);
+	/// `column`, or [`NO_COLUMN`] until a borrow needs it: the bits of the handles that went
+	/// to the table, from `level` on.
+	fn acquire(&self, column: &mut usize, level: u32) -> Result<u64, Status> {
+		let table = (level < LEVELS).then_some(&TABLE);
+		let listed = self.borrow.share(table, || {
+			if *column == NO_COLUMN {
+				*column = self::column();
+			}
+			*column
+		})?;
+		let listed = u64::from(listed) << level.min(LEVELS - 1);
 		self.hold_lender(column, level + 1)
 			.map(|lenders| listed | lenders)
-			.inspect_err(|_| self.borrow.unshare(&TABLE, column, listed != 0))
+			.inspect_err(|_| self.borrow.unshare(&TABLE, *column, listed != 0))
 	}
 
 	/// End a shared borrow [`Self::acquire`] took.
 	fn release(&self, column: usize, level: u32, listed: u64) {
 		self.release_lender(column, level + 1, listed);
-		self.borrow.unshare(&TABLE, column, level < u64::BITS && listed >> level & 1 != 0);
+		self.borrow.unshare(&TABLE, column, level < LEVELS && listed >> level & 1 != 0);
 	}
 
 	/// Borrow a value that is not `Sync` shared: any number of times on one thread, as
 	/// Rust allows, and on no other thread meanwhile.
-	fn acquire_local(&self, column: usize, level: u32) -> Result<u64, Status> {
+	fn acquire_local(&self, column: &mut usize, level: u32) -> Result<u64, Status> {
 		self.borrow.local(thread())?;
 		// SAFETY: only the thread in the state touches `depth`.
 		unsafe { *self.depth.get() += 1 };
@@ -1025,20 +1049,41 @@ impl<T> Object<T> {
 		self.unlocal();
 	}
 
-	/// The [`Ticket`] of a borrow [`Self::acquire`] takes.
+	/// [`Self::acquire`], as a [`Ticket`], inlined for a handle no other lent.
+	#[inline(always)]
 	fn shared(&self) -> Result<Ticket, Status> {
-		let column = column();
-		Ok(Ticket { column, listed: self.acquire(column, 0)? })
+		let mut column = NO_COLUMN;
+		let listed = self.borrow.share(Some(&TABLE), || {
+			column = self::column();
+			column
+		})?;
+		let mut lenders = 0;
+		if self.lender.is_some() {
+			match self.hold_lender(&mut column, 1) {
+				Ok(listed) => lenders = listed,
+				Err(status) => {
+					self.borrow.unshare(&TABLE, column, listed);
+					return Err(status);
+				}
+			}
+		}
+		Ok(Ticket::new(column, u64::from(listed) | lenders))
 	}
 
-	/// The [`Ticket`] of a borrow [`Self::acquire_local`] takes, whose column only a lender
-	/// uses.
+	/// End a shared borrow [`Self::shared`] took.
+	#[inline(always)]
+	fn unshared(&self, ticket: Ticket) {
+		if self.lender.is_some() {
+			self.release_lender(ticket.column(), 1, ticket.listed());
+		}
+		self.borrow.unshare(&TABLE, ticket.column(), ticket.listed() & 1 != 0);
+	}
+
+	/// The [`Ticket`] of a borrow [`Self::acquire_local`] takes.
 	fn local(&self) -> Result<Ticket, Status> {
-		let column = match self.lender {
-			Some(_) => column(),
-			None => 0,
-		};
-		Ok(Ticket { column, listed: self.acquire_local(column, 0)? })
+		let mut column = NO_COLUMN;
+		let listed = self.acquire_local(&mut column, 0)?;
+		Ok(Ticket::new(column, listed))
 	}
 
 	/// Count down this thread's borrows, letting go of the value at the last.
@@ -1052,7 +1097,7 @@ impl<T> Object<T> {
 	}
 
 	/// For a handle lent from another, hold that one for a use of this one.
-	fn hold_lender(&self, column: usize, level: u32) -> Result<u64, Status> {
+	fn hold_lender(&self, column: &mut usize, level: u32) -> Result<u64, Status> {
 		match &self.lender {
 			Some(lender) => lender.handle.hold(lender.epoch, lender.local, column, level),
 			None => Ok(0),
@@ -1076,6 +1121,7 @@ impl<T> Object<T> {
 	///
 	/// # Safety
 	/// `handle` is a live handle of this type, kept alive through the borrow.
+	#[inline(always)]
 	pub unsafe fn borrow<'a>(handle: *const c_void, what: &str) -> Result<Shared<'a, T>, Status>
 	where
 		T: Sync,
@@ -1280,14 +1326,14 @@ impl<T> Object<T> {
 	/// [`Self::hold`] borrowed `handle`'s value, and this ends that borrow.
 	unsafe fn unhold(handle: *const c_void, ticket: Ticket) {
 		// SAFETY: the caller's contract.
-		unsafe { &*handle.cast::<Self>() }.release(ticket.column, 0, ticket.listed);
+		unsafe { &*handle.cast::<Self>() }.unshared(ticket);
 	}
 
 	/// # Safety
 	/// [`Self::hold_local`] borrowed `handle`'s value, and this ends that borrow.
 	unsafe fn unhold_local(handle: *const c_void, ticket: Ticket) {
 		// SAFETY: the caller's contract.
-		unsafe { &*handle.cast::<Self>() }.release_local(ticket.column, 0, ticket.listed);
+		unsafe { &*handle.cast::<Self>() }.release_local(ticket.column(), 0, ticket.listed());
 	}
 
 	/// A copy of the value [`Self::hold`] or [`Self::hold_local`] borrowed.
@@ -1460,7 +1506,7 @@ impl<T> Deref for Shared<'_, T> {
 
 impl<T> Drop for Shared<'_, T> {
 	fn drop(&mut self) {
-		self.object.release(self.ticket.column, 0, self.ticket.listed);
+		self.object.unshared(self.ticket);
 	}
 }
 
@@ -1489,7 +1535,7 @@ impl<T> Deref for Local<'_, T> {
 
 impl<T> Drop for Local<'_, T> {
 	fn drop(&mut self) {
-		self.object.release_local(self.ticket.column, 0, self.ticket.listed);
+		self.object.release_local(self.ticket.column(), 0, self.ticket.listed());
 	}
 }
 
@@ -1539,7 +1585,7 @@ impl<T> Deref for SharedArc<T> {
 
 impl<T> Drop for SharedArc<T> {
 	fn drop(&mut self) {
-		self.object.release(self.ticket.column, 0, self.ticket.listed);
+		self.object.unshared(self.ticket);
 	}
 }
 

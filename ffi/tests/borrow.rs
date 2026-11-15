@@ -51,7 +51,7 @@ impl Handle {
 	/// Read the value under a shared borrow from `column`, if granted.
 	fn read(&self, column: usize) -> Result<u64, Status> {
 		let table = self.table();
-		let listed = self.borrow.share(Some(&table), column)?;
+		let listed = self.borrow.share(Some(&table), || column)?;
 		let value = self.value.with(|value| unsafe { *value });
 		self.borrow.unshare(&table, column, listed);
 		Ok(value)
@@ -147,7 +147,7 @@ fn refused_writer_keeps_bias() {
 		let other = handle.clone();
 		let reader = thread::spawn(move || {
 			let table = other.table();
-			let listed = other.borrow.share(Some(&table), 1)?;
+			let listed = other.borrow.share(Some(&table), || 1)?;
 			let first = other.value.with(|value| unsafe { *value });
 			yield_now();
 			let second = other.value.with(|value| unsafe { *value });
