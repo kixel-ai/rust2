@@ -3,6 +3,24 @@
 Run a crates.io CLI from its author's release assets:
 
 ```sh
+npx crabx moq-cli --help
+bunx crabx moq-cli --help
+```
+
+Or install crabx itself from its release:
+
+```sh
+curl -fsSL https://crabx.kixel.ai/install.sh | sh
+powershell -ExecutionPolicy Bypass -c "irm https://crabx.kixel.ai/install.ps1 | iex"
+cargo install crabx
+```
+
+The installers fetch the newest stable release into `~/.local/bin`; set `CRABX_VERSION` or
+`CRABX_INSTALL_DIR` to choose another. Prebuilt crabx covers x86_64 and arm64 on glibc
+Linux (2.28 or later), macOS, and Windows; elsewhere, such as on musl, use `cargo install`.
+Then:
+
+```sh
 crabx moq-cli --help
 crabx moq-cli@0.14.16 --help
 crabx --bin moq-relay moq-relay --help
@@ -76,5 +94,14 @@ default branch from git, and never overwrites a different existing file. Run a c
 named `init` as `crabx init@VERSION`.
 
 Develop with `just crabx check`, `just crabx test`, and `just crabx run <crate> [args]`.
+
+A release is a PR that bumps `version` in `Cargo.toml`. Once it lands, `.github/workflows/release.yml`
+builds the commit on every target, publishes it to crates.io, runs [the pipeline](../.github/crabx/README.md)
+to attach attested binaries to the `crabx-vX.Y.Z` release, and publishes the newest stable version's
+binaries to npm as `crabx` and one `@crabx/<platform>` package per target, each verified against its
+attestation first. Every step skips what is already published, so a rerun finishes a failed release.
+crates.io and npm trust only that workflow, in its `crates-io` and `npm` environments.
+`.github/workflows/installers.yml` serves main's `install.sh` and `install.ps1` at `crabx.kixel.ai`
+through GitHub Pages.
 crabx is GPL-3.0-only because it links binstalk. The other rust2 projects keep their
 existing licenses.

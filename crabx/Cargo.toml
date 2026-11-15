@@ -6,6 +6,8 @@ rust-version = "1.98"
 description = "Run a Rust CLI from its author's release, without compiling"
 repository = "https://github.com/kixel-ai/rust2"
 license = "GPL-3.0-only"
+# The npm packages and installers ship from the release, not inside the crate.
+exclude = ["install.ps1", "install.sh", "npm", "release.py", "test_release.py"]
 
 [workspace]
 

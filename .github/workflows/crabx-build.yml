@@ -1,6 +1,7 @@
 name: Crabx build
 
-# Internal read-only worker, also used by PR fixtures without publishing authority.
+# Internal read-only worker, also used by PR fixtures and release.yml's pre-publish
+# check without publishing authority.
 on:
   workflow_call:
     inputs:
@@ -8,6 +9,10 @@ on:
         description: Crate revisions and native target runners discovered by the pipeline
         required: true
         type: string
+      upload:
+        description: Upload the archives for the pipeline's publish job; a check that publishes nothing skips it, so its names never collide with the release's
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -61,7 +66,8 @@ jobs:
           ITEM: ${{ toJSON(matrix) }}
           TARGET: ${{ matrix.target }}
         run: python3 pipeline/.github/crabx/pipeline.py build
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - if: inputs.upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: crabx-${{ matrix.name }}@${{ matrix.version }}@${{ matrix.target }}
           path: archives/*.tgz
