@@ -470,10 +470,10 @@ static TYPES: Gil<Vec<Obj>> = Gil::new(Vec::new());
 static MEMBERS: Gil<Vec<Option<Vec<(i64, Obj)>>>> = Gil::new(Vec::new());
 
 /// The runtime's entries, at the start of the registry: the awaitable a pending future
-/// is, `datetime.timedelta`, `_resume`, which schedules the running loop's dispatch,
+/// is, the runtime's `Duration`, `_resume`, which schedules the running loop's dispatch,
 /// `Waker`, `_Pollable`, which runs an awaitable Rust polls, and `ipaddress`'s two classes.
 pub const T_FUTURE: usize = 0;
-const T_TIMEDELTA: usize = 1;
+const T_DURATION: usize = 1;
 const T_RESUME: usize = 2;
 const T_WAKER: usize = 3;
 const T_POLLABLE: usize = 4;
@@ -1114,52 +1114,34 @@ pub fn path_out(buf: rt::Buf) -> R<Obj> {
 	}
 }
 
-static DAYS: Key = Key::new(c"days");
-static SECONDS: Key = Key::new(c"seconds");
-static MICROSECONDS: Key = Key::new(c"microseconds");
-static MAX: Key = Key::new(c"max");
-
-/// The days in `timedelta.max`, past which [`duration_out`] gives it.
-const MAX_DAYS: u64 = 999_999_999;
-
-/// A `Duration`, from a `datetime.timedelta` that is not negative: `timedelta.max`, which
-/// [`duration_out`] gives for any longer one, is `Duration::MAX`.
+/// A `Duration`, from the runtime's `Duration`: seconds a `u64` holds, and nanoseconds below
+/// a billion, else `OverflowError` or `ValueError`.
 pub fn duration_in(obj: *mut PyObject) -> R<rt::Duration> {
-	if !is(obj, T_TIMEDELTA) {
-		return expected(obj, T_TIMEDELTA);
+	if !is(obj, T_DURATION) {
+		return expected(obj, T_DURATION);
 	}
-	let mut s = Scope::default();
-	let days: u64 = match int_in::<i64>(attr(obj, &DAYS, &mut s)?)? {
-		days if days < 0 => return value_error("a negative timedelta has no Rust Duration"),
-		days => days as u64,
+	// SAFETY: the GIL is held, and `obj` a `Duration`, a tuple of its two fields.
+	let (secs, nanos) = unsafe { (PyTuple_GetItem(obj, 0), PyTuple_GetItem(obj, 1)) };
+	let duration = rt::Duration {
+		secs: int_in(secs)?,
+		nanos: int_in(nanos)?,
 	};
-	let seconds: u64 = int_in(attr(obj, &SECONDS, &mut s)?)?;
-	let micros: u32 = int_in(attr(obj, &MICROSECONDS, &mut s)?)?;
-	if (days, seconds, micros) == (MAX_DAYS, 86_399, 999_999) {
-		return Ok(rt::Duration::lower(std::time::Duration::MAX));
+	match duration.nanos < 1_000_000_000 {
+		true => Ok(duration),
+		false => value_error("a Duration's nanos are below a billion"),
 	}
-	Ok(rt::Duration {
-		secs: days * 86_400 + seconds,
-		nanos: micros * 1_000,
-	})
 }
 
-/// A `datetime.timedelta`, which holds whole microseconds up to 999,999,999 days: Rust's
-/// nanoseconds are truncated, and a longer one is `timedelta.max`, as Rust's
-/// `Duration::MAX` stands for forever, which [`duration_in`] gives back.
+/// The runtime's `Duration`, made as a tuple of its fields is, as its class is one.
 pub fn duration_out(duration: rt::Duration) -> R<Obj> {
-	let class = ty(T_TIMEDELTA);
-	// SAFETY: the GIL is held.
+	let secs = uint_out(duration.secs)?;
+	let nanos = uint_out(duration.nanos.into())?;
+	// SAFETY: the GIL is held; a tuple class allocates its items, which each set takes.
 	unsafe {
-		if duration.secs / 86_400 > MAX_DAYS {
-			return Obj::new(PyObject_GetAttr(class, MAX.get()?));
-		}
-		let args = tuple(vec![
-			int_out(0),
-			uint_out(duration.secs),
-			uint_out(u64::from(duration.nanos / 1_000)),
-		])?;
-		Obj::new(PyObject_CallObject(class, args.ptr()))
+		let obj = Obj::new(PyType_GenericAlloc(ty(T_DURATION).cast(), 2))?;
+		PyTuple_SetItem(obj.ptr(), 0, secs.into_ptr());
+		PyTuple_SetItem(obj.ptr(), 1, nanos.into_ptr());
+		Ok(obj)
 	}
 }
 

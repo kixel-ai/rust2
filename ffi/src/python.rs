@@ -98,6 +98,7 @@ const TAKEN: &[&str] = &[
 	"_object",
 	"_range",
 	"ForeignReader",
+	"Duration",
 ];
 
 /// Any buffer, as Python before 3.12's `collections.abc.Buffer` spells it.
@@ -107,11 +108,11 @@ const BUFFER: &str = "_bytes | _bytearray | _memoryview";
 const V4: &str = "_tuple[_str, _int]";
 const V6: &str = "_tuple[_str, _int, _int, _int]";
 
-/// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_TIMEDELTA`,
+/// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_DURATION`,
 /// `T_RESUME`, `T_WAKER`, `T_POLLABLE`, `T_IPV4`, and `T_IPV6`.
 const RUNTIME_TYPES: &[&str] = &[
 	"_Future",
-	"_datetime.timedelta",
+	"Duration",
 	"_resume",
 	"Waker",
 	"_Pollable",
@@ -495,7 +496,7 @@ impl<'a> Gen<'a> {
 			Type::F32 | Type::F64 => "_float".to_string(),
 			Type::Char | Type::Str | Type::String | Type::Path | Type::PathBuf => "_str".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "_memoryview".to_string(),
-			Type::Duration => "_datetime.timedelta".to_string(),
+			Type::Duration => "Duration".to_string(),
 			Type::SocketAddr(family) => match family {
 				Family::V4 => V4.to_string(),
 				Family::V6 => V6.to_string(),
@@ -921,7 +922,7 @@ impl<'a> Gen<'a> {
 
 	/// The Python members a type's std traits export beyond Python's own, with their glue:
 	/// `__str__` from `Display`, `__repr__` from `Debug`, a static `default` from
-	/// `Default`, and `clone` and `__eq__` for an object.
+	/// `Default`, and `clone`, `__eq__`, and `__hash__` from `Hash` for an object.
 	fn traits(&mut self, ty: &Type, c: &str, t: Traits, body: &mut Body) {
 		let bare = self.bare(c).to_string();
 		let class = self.class(c);
@@ -1014,6 +1015,11 @@ impl<'a> Gen<'a> {
 			self.natives.push(format!(
 				"@_staticmethod\ndef {bare}_eq(this: {class}, other: {class}, /) -> _bool: ...\n"
 			));
+		}
+		// Rust's `Hash` makes it hashable again, agreeing with its `__eq__`.
+		if (object || opaque) && t.hash {
+			unary(self, "hash", "__hash__", "", "rt::uint_out(ret)".to_string());
+			body.native.push("\tdef __hash__(self) -> _int: ...\n".to_string());
 		}
 		if t.default {
 			let lower = self.lower(ty, "ret");

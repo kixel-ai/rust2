@@ -115,13 +115,16 @@ public path names, or an error taken by value, is held by value as an opaque han
 | `[u8; N]` | `<prefix>_array_u8_<N>`: a struct of its `N` bytes, `items`, copied across; an empty one is refused |
 | `[T; N]` of any other `T`, returned or a constant's value | `Vec<T>` of its `N` items; taken, it is refused |
 | `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: an owned buffer returned; passed in, a view, or a buffer Rust returned, which Rust takes back without a copy unless it sits behind a pointer or in an array; `<prefix>_buf_clone` shares one the caller keeps, which a `Vec<u8>`, `String`, or `PathBuf` parameter then copies, since only a sole owner's allocation becomes a `Vec` |
-| `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them on Unix, which need not be UTF-8, else UTF-8 |
-| `Duration` | `<prefix>_duration` |
-| `SocketAddr`, `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr`: its IP's bytes, port, and whether it is IPv6; one of the other family passed to `V4` or `V6` aborts |
-| `IpAddr`, `Ipv4Addr`, `Ipv6Addr` | `<prefix>_ip_addr`: its bytes and whether it is IPv6; one of the other family passed to `Ipv4Addr` or `Ipv6Addr` aborts |
+| `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them: on Unix any, on Windows WTF-8, which holds a name that is not UTF-16, else UTF-8 |
+| `Duration` | `<prefix>_duration`: its seconds and nanoseconds; a billion nanoseconds or more passed in aborts |
+| `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr_v4`, `<prefix>_socket_addr_v6`: its IP, port, and for IPv6 its flow label and scope, so each holds its family alone |
+| `SocketAddr` | `<prefix>_socket_addr`: `v6`, and a union `addr` of the two |
+| `Ipv4Addr`, `Ipv6Addr` | `<prefix>_ipv4_addr`, `<prefix>_ipv6_addr`: its bytes in network order |
+| `IpAddr` | `<prefix>_ip_addr`: `v6`, and a union `ip` of the two |
 | `url::Url` | an object `<prefix>_Url`, made by `<prefix>_Url_parse`, which fails with the parse error's message, and printed by `_to_string` |
 | `Arc<T>` of another crate's `Send` and `Sync` type that no other rule maps, such as `Arc<rustls::ServerConfig>`, or `Arc<dyn Trait>` and `&'static dyn Trait` of another crate's trait without generic arguments, whose auto traits are `Send` and `Sync` but those the trait implies, borrowing nothing C lends, as rustls's `Arc<dyn ResolvesServerCert>` | an opaque object named by `T`'s crate and name, such as `<prefix>_rustls_ServerConfig`, with `_clone` and `_free` and none of `T`'s API: it only passes back to Rust |
 | another crate's `Send` and `Sync` type taken or returned by value or lent, with no type parameters, that no other rule maps, that is no iterator or future, and that is not reached by its public path, such as one only a `#[doc(hidden)]` module names, or a standard library type no other rule maps, such as `io::Error`, named by its full path, `<prefix>_std_io_Error` | an opaque object named as the `Arc` form is, with `_free` and none of `T`'s API, holding the value: Rust takes it back by value, or borrows it; a type also named behind an `Arc` is that form, and refused by value |
+| a type implementing `PartialEq` and `Hash` | beside `<T>_eq`, `uint64_t <T>_hash`, its `Hash` through std's hasher with its fixed keys, so equal values hash alike in every binding |
 | `std::time::Instant` | an object `<prefix>_Instant`, which only Rust makes, copied into each call that takes it and compared by `_eq`, with none of its methods |
 | `tracing::Level` | `<prefix>_Level`: a C enum of its five levels, `TRACE` to `ERROR` |
 | `tracing::level_filters::LevelFilter` | `Option<tracing::Level>`, whose `None` is `OFF` |
@@ -426,7 +429,8 @@ packages place it in.
   member or as anything in the namespace, which it would hide.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
   calls `_free`, so they move and never copy, and a `Clone` type's `clone()` crosses into
-  Rust for a value of its own. A type whose copies may share one value, by the rule below,
+  Rust for a value of its own. A type implementing `Hash` has `hash()`, Rust's, by which
+  `std::hash` hashes it. A type whose copies may share one value, by the rule below,
   owns it through a `std::shared_ptr` instead: a copy shares the handle without crossing
   into Rust, and the last copy frees it, on whichever thread drops it. `&self` methods are
   `const`, and `self` methods are `&&`, so a call that moves the value out reads
@@ -673,7 +677,7 @@ caller imports it with no ignores.
 - **Objects** are classes owning their handle, freed once their last reference goes,
   which the caller's reference keeps through a call, so there is no `close()`. A `self`
   method, or passing the object by value, moves its value out, after which a call raises
-  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable. A field is a
+  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable unless the type implements `Hash`, which `hash()` hashes it by. A field is a
   property, `first_get`, and its setter a method, `first_set(value)`, named as the C ones,
   since setting an object moves it in and closes it, which an assignment would hide.
 - **Checks**: a borrow or move Rust's rules refuse raises, naming the function and the rule,
@@ -694,8 +698,10 @@ caller imports it with no ignores.
   returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it
   and its views are released. Those Rust lends a closure or trait method are copied into
   `bytes`. Strings are `str`, `u128` an `int`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
-  `datetime.timedelta`, truncated to the microsecond, with `timedelta.max` for any longer
-  and for `Duration::MAX`, a `Range` a `range`, and an `Err` a raised `<E>Exception`
+  the runtime's `Duration`, a `NamedTuple` of `secs` and `nanos` as Rust holds them, which
+  raises `OverflowError` or `ValueError` passed in out of their range; its `from_timedelta`
+  and `to_timedelta` raise rather than lose anything, as a `timedelta` holds only whole
+  microseconds up to 999,999,999 days. A `Range` is a `range`, and an `Err` a raised `<E>Exception`
   holding it in `error`, whose `str` is its `Display`. A `[u8; N]` is a generated
   `ArrayU8x<N>`, a `bytes` that raises `ValueError` unless it holds exactly `N`; a
   parameter takes any `bytes` of `N`.
