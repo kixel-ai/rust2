@@ -91,6 +91,46 @@ pub fn env() -> *mut JNIEnv {
 	env.cast()
 }
 
+thread_local! {
+	/// The global reference to the exception a call into Rust left pending, to throw once
+	/// the native method returns.
+	static THROWN: Cell<usize> = const { Cell::new(0) };
+}
+
+/// Take the exception the Rust a native method called left pending, if any, so the glue's
+/// own JNI calls run until [`rethrow`] throws it.
+pub fn stash(env: *mut JNIEnv) {
+	// SAFETY: `env` is this thread's.
+	unsafe {
+		if !((**env).v1_2.ExceptionCheck)(env) {
+			return;
+		}
+		let thrown = ((**env).v1_2.ExceptionOccurred)(env);
+		((**env).v1_2.ExceptionClear)(env);
+		let global = ((**env).v1_2.NewGlobalRef)(env, thrown);
+		((**env).v1_2.DeleteLocalRef)(env, thrown);
+		THROWN.set(global as usize);
+	}
+}
+
+/// Throw the exception [`stash`] took, in place of any the glue raised, as a native method
+/// returning with it pending would: Kotlin never sees what the call returned.
+///
+/// # Safety
+/// `env` is this thread's, and the native method returns once this does.
+pub unsafe fn rethrow(env: *mut JNIEnv) {
+	let thrown = THROWN.replace(0) as jobject;
+	if thrown.is_null() {
+		return;
+	}
+	// SAFETY: `env` is this thread's, and `thrown` the global reference `stash` made.
+	unsafe {
+		((**env).v1_2.ExceptionClear)(env);
+		((**env).v1_2.Throw)(env, thrown);
+		((**env).v1_2.DeleteGlobalRef)(env, thrown);
+	}
+}
+
 /// Abort for `what`, printing the Kotlin exception pending, if any.
 pub fn fail(env: *mut JNIEnv, what: &str, msg: &str) -> ! {
 	// SAFETY: `env` is this thread's.

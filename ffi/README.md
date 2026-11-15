@@ -632,7 +632,8 @@ the rest cross encoded.
   other language has one to pass: its Kotlin function leaves the env out and passes its
   calling thread's, as `tokioTlsInitAndroid(context)` does for moq's `init_android`. A
   `jni::objects::JObject` it takes is an `Any?`, the reference Kotlin passed, which Rust
-  holds only during the call. Any other JNI type, an env taken any other way, a
+  holds only during the call. A Java exception its Rust leaves pending is what Kotlin
+  gets, as from any native method, in place of what the call returned. Any other JNI type, an env taken any other way, a
   `JObject` with no env to hold it under, two envs, or one lent to a future or a trait
   Kotlin implements is refused.
 - **The contract** is checked when the library loads, before any other call: a Kotlin

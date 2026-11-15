@@ -427,6 +427,20 @@ pub fn same_object(a: jni::objects::JObject, env: &mut jni::Env, b: jni::objects
 	env.is_same_object(&a, &b).map_err(|e| e.to_string())
 }
 
+/// Throws Java's `IllegalStateException("thrown")`, then returns `fail`'s error or a value:
+/// either way, Kotlin gets the exception left pending, as a native method's caller does.
+pub fn thrown(env: &mut jni::Env, fail: bool) -> Result<u64, String> {
+	(env.throw_new(
+		jni::jni_str!("java/lang/IllegalStateException"),
+		jni::jni_str!("thrown"),
+	))
+	.map_err(|e| e.to_string())?;
+	match fail {
+		true => Err("failed".to_string()),
+		false => Ok(1),
+	}
+}
+
 /// An impl lifetime its type does not take is the call's, as a method's own is.
 impl<'a> Counter {
 	/// Whether the counter is named `name`, which borrows C's text for the call.
