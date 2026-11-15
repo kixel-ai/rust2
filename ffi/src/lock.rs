@@ -566,6 +566,7 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 		let lost: Vec<&str> = [
 			("Clone", ours.clone && !theirs.clone),
 			("PartialEq", ours.eq && !theirs.eq),
+			("Hash", ours.hash && !theirs.hash),
 			("Display", ours.display && !theirs.display),
 			("Debug", ours.debug && !theirs.debug),
 			("Default", ours.default && !theirs.default),

@@ -1079,7 +1079,7 @@ impl<'a> Gen<'a> {
 					_ => format!("a{p}"),
 				});
 			}
-			Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::IpAddr | Ty::Struct(_) | Ty::In(_) => {
+			Ty::U128 | Ty::Duration | Ty::SocketAddr(_) | Ty::IpAddr(_) | Ty::Struct(_) | Ty::In(_) => {
 				let w = self.fresh("w");
 				// Taken by value, each object in a list moves out, as one passed alone does.
 				if moved(abi, ty) {
@@ -3241,7 +3241,7 @@ fn c_slots(c: &Ty) -> usize {
 		Ty::Int(int) if jni_int(*int) == "jlong" => 2,
 		Ty::F64 | Ty::Handle { .. } | Ty::Future(_) => 2,
 		Ty::Buf => 5,
-		Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::IpAddr | Ty::Struct(_) | Ty::In(_) => 2,
+		Ty::U128 | Ty::Duration | Ty::SocketAddr(_) | Ty::IpAddr(_) | Ty::Struct(_) | Ty::In(_) => 2,
 		_ => 1,
 	}
 }
@@ -3386,7 +3386,7 @@ fn jni_type(abi: &Abi<'_>, c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 		Ty::Handle { .. } | Ty::Future(_) => ("jlong", "Long"),
 		Ty::Buf => ("jbyteArray", "ByteArray?"),
 		Ty::Struct(_) if matches!(ty.base(), Type::Callback(..)) => ("jobject", "Any"),
-		Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::IpAddr | Ty::Struct(_) | Ty::In(_) => {
+		Ty::U128 | Ty::Duration | Ty::SocketAddr(_) | Ty::IpAddr(_) | Ty::Struct(_) | Ty::In(_) => {
 			("jbyteArray", "ByteArray")
 		}
 		Ty::Fn(..) => ("jobject", "Any"),
@@ -3560,8 +3560,7 @@ pub(crate) fn rust_c(abi: &Abi<'_>, c: &Ty) -> String {
 		Ty::Buf => "crate::rt::Buf".to_string(),
 		Ty::U128 => "crate::rt::U128".to_string(),
 		Ty::Duration => "crate::rt::Duration".to_string(),
-		Ty::SocketAddr => "crate::rt::SocketAddr".to_string(),
-		Ty::IpAddr => "crate::rt::IpAddr".to_string(),
+		Ty::SocketAddr(_) | Ty::IpAddr(_) => format!("crate::{}", crate::glue::rs(c)),
 		Ty::Struct(name) => format!("crate::{name}"),
 		Ty::Handle { .. } => "*const std::ffi::c_void".to_string(),
 		Ty::Out(inner) => format!("*mut {}", rust_c(abi, inner)),

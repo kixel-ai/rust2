@@ -384,6 +384,10 @@ pub struct Callback {
 pub struct Traits {
 	pub clone: bool,
 	pub eq: bool,
+	/// `Hash`, which a language hashes a value by where its equality is Rust's `PartialEq`.
+	/// A baseline written before it has none.
+	#[serde(default)]
+	pub hash: bool,
 	pub display: bool,
 	pub debug: bool,
 	pub default: bool,

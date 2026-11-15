@@ -1327,37 +1327,95 @@ impl Wire for rt::Duration {
 	}
 }
 
-impl Wire for rt::SocketAddr {
+impl Wire for rt::Ipv4Addr {
 	fn read(r: &mut Reader<'_>) -> Self {
 		Self {
-			ip: std::array::from_fn(|_| r.get()),
+			octets: std::array::from_fn(|_| r.get()),
+		}
+	}
+
+	fn write(self, w: &mut Writer) {
+		self.octets.into_iter().for_each(|b| w.put(b));
+	}
+}
+
+impl Wire for rt::Ipv6Addr {
+	fn read(r: &mut Reader<'_>) -> Self {
+		Self {
+			octets: std::array::from_fn(|_| r.get()),
+		}
+	}
+
+	fn write(self, w: &mut Writer) {
+		self.octets.into_iter().for_each(|b| w.put(b));
+	}
+}
+
+/// Whether it is IPv6, then the address of its family.
+impl Wire for rt::IpAddr {
+	fn read(r: &mut Reader<'_>) -> Self {
+		match r.get::<bool>() {
+			true => Self::lower(r.get::<rt::Ipv6Addr>().lift().into()),
+			false => Self::lower(r.get::<rt::Ipv4Addr>().lift().into()),
+		}
+	}
+
+	fn write(self, w: &mut Writer) {
+		w.put(self.v6);
+		match self.lift() {
+			std::net::IpAddr::V4(ip) => w.put(rt::Ipv4Addr::lower(ip)),
+			std::net::IpAddr::V6(ip) => w.put(rt::Ipv6Addr::lower(ip)),
+		}
+	}
+}
+
+impl Wire for rt::SocketAddrV4 {
+	fn read(r: &mut Reader<'_>) -> Self {
+		Self {
+			ip: r.get(),
 			port: r.get(),
-			v6: r.get(),
+		}
+	}
+
+	fn write(self, w: &mut Writer) {
+		w.put(self.ip);
+		w.put(self.port);
+	}
+}
+
+impl Wire for rt::SocketAddrV6 {
+	fn read(r: &mut Reader<'_>) -> Self {
+		Self {
+			ip: r.get(),
+			port: r.get(),
 			flowinfo: r.get(),
 			scope_id: r.get(),
 		}
 	}
 
 	fn write(self, w: &mut Writer) {
-		self.ip.into_iter().for_each(|b| w.put(b));
+		w.put(self.ip);
 		w.put(self.port);
-		w.put(self.v6);
 		w.put(self.flowinfo);
 		w.put(self.scope_id);
 	}
 }
 
-impl Wire for rt::IpAddr {
+/// Whether it is IPv6, then the address of its family.
+impl Wire for rt::SocketAddr {
 	fn read(r: &mut Reader<'_>) -> Self {
-		Self {
-			ip: std::array::from_fn(|_| r.get()),
-			v6: r.get(),
+		match r.get::<bool>() {
+			true => Self::lower(r.get::<rt::SocketAddrV6>().lift().into()),
+			false => Self::lower(r.get::<rt::SocketAddrV4>().lift().into()),
 		}
 	}
 
 	fn write(self, w: &mut Writer) {
-		self.ip.into_iter().for_each(|b| w.put(b));
 		w.put(self.v6);
+		match self.lift() {
+			std::net::SocketAddr::V4(addr) => w.put(rt::SocketAddrV4::lower(addr)),
+			std::net::SocketAddr::V6(addr) => w.put(rt::SocketAddrV6::lower(addr)),
+		}
 	}
 }
 

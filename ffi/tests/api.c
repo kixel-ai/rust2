@@ -5,6 +5,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef __linux__
@@ -597,11 +598,39 @@ static void print_escaped(const char *before, api_buf buf, const char *after) {
 /* A socket address, as Rust's Display prints the ones the script makes. */
 static void print_addr(api_socket_addr addr) {
 	if (!addr.v6) {
-		printf("%u.%u.%u.%u:%u", addr.ip[0], addr.ip[1], addr.ip[2], addr.ip[3], addr.port);
+		const uint8_t *ip = addr.addr.v4.ip.octets;
+		printf("%u.%u.%u.%u:%u", ip[0], ip[1], ip[2], ip[3], addr.addr.v4.port);
 		return;
 	}
 	/* Only the loopback, `::1`. */
-	printf("[::%u%%%u]:%u", addr.ip[15], addr.scope_id, addr.port);
+	printf("[::%u%%%u]:%u", addr.addr.v6.ip.octets[15], addr.addr.v6.scope_id, addr.addr.v6.port);
+}
+
+/* Bytes in hex. */
+static void print_hex(const uint8_t *bytes, size_t len) {
+	for (size_t i = 0; i < len; i++) {
+		printf("%02x", bytes[i]);
+	}
+}
+
+/* A socket address as the script's socket_hex prints it. */
+static void print_socket_hex(api_socket_addr addr) {
+	if (!addr.v6) {
+		print_hex(addr.addr.v4.ip.octets, 4);
+		printf(":%u", addr.addr.v4.port);
+		return;
+	}
+	print_hex(addr.addr.v6.ip.octets, 16);
+	printf(":%u:%u:%u", addr.addr.v6.port, addr.addr.v6.flowinfo, addr.addr.v6.scope_id);
+}
+
+/* An IP address's bytes in hex, so its length shows its family. */
+static void print_ip_hex(api_ip_addr ip) {
+	if (ip.v6) {
+		print_hex(ip.ip.v6.octets, 16);
+	} else {
+		print_hex(ip.ip.v4.octets, 4);
+	}
 }
 
 /* A bound, as Rust's Debug prints it. */
@@ -1447,8 +1476,8 @@ static int script(void) {
 	}
 
 	api_socket_addr addrs[2] = {
-		{.ip = {127, 0, 0, 1}, .port = 8080},
-		{.ip = {[15] = 1}, .port = 443, .v6 = true, .scope_id = 3},
+		{.addr.v4 = {.ip = {{127, 0, 0, 1}}, .port = 8080}},
+		{.v6 = true, .addr.v6 = {.ip = {{[15] = 1}}, .port = 443, .scope_id = 3}},
 	};
 	api_vec_u16 ports = api_ports((api_vec_socket_addr){.ptr = addrs, .len = 2});
 	printf("ports [%u, %u]\n", ports.ptr[0], ports.ptr[1]);
@@ -1929,24 +1958,93 @@ static int script(void) {
 	}
 	printf("\n");
 	api_vec_Counter_free(numbered);
-	api_socket_addr at4 = {.ip = {127, 0, 0, 1}, .port = 8080};
-	api_socket_addr at6 = {.ip = {[15] = 1}, .port = 443, .v6 = true, .scope_id = 3};
-	api_socket_addr next4, next6;
+	api_socket_addr_v4 at4 = {.ip = {{127, 0, 0, 1}}, .port = 8080};
+	api_socket_addr_v6 at6 = {.ip = {{[15] = 1}}, .port = 443, .scope_id = 3};
+	api_socket_addr_v4 next4;
+	api_socket_addr_v6 next6;
 	api_nexts(at4, at6, &next4, &next6);
-	printf("nexts %u.%u.%u.%u %u %u %u\n", next4.ip[0], next4.ip[1], next4.ip[2], next4.ip[3], next4.port, next6.port,
-		   next6.scope_id);
-	api_ip_addr ip4 = {.ip = {10, 0, 0, 255}}, ip6 = {.ip = {[14] = 0xff, [15] = 0xff}, .v6 = true};
-	api_ip_addr nextip4, nextip6;
+	const uint8_t *n4 = next4.ip.octets;
+	printf("nexts %u.%u.%u.%u %u %u %u\n", n4[0], n4[1], n4[2], n4[3], next4.port, next6.port, next6.scope_id);
+	api_ipv4_addr ip4 = {{10, 0, 0, 255}}, nextip4;
+	api_ipv6_addr ip6 = {{[14] = 0xff, [15] = 0xff}}, nextip6;
 	api_next_ips(ip4, ip6, &nextip4, &nextip6);
-	api_ip_addr mapped = api_flip((api_ip_addr){.ip = {127, 0, 0, 1}});
-	api_ip_addr ips[] = {nextip4, nextip6, mapped, api_flip(mapped), api_flip((api_ip_addr){.ip = {[15] = 1}, .v6 = true})};
+	api_ip_addr mapped = api_flip((api_ip_addr){.ip.v4 = {{127, 0, 0, 1}}});
+	api_ip_addr ips[] = {
+		{.ip.v4 = nextip4},
+		{.v6 = true, .ip.v6 = nextip6},
+		mapped,
+		api_flip(mapped),
+		api_flip((api_ip_addr){.v6 = true, .ip.v6 = {{[15] = 1}}}),
+	};
 	printf("ips");
 	for (size_t i = 0; i < sizeof ips / sizeof ips[0]; i++) {
 		printf(" ");
-		for (size_t b = 0; b < (ips[i].v6 ? 16u : 4u); b++) {
-			printf("%02x", ips[i].ip[b]);
-		}
+		print_ip_hex(ips[i]);
 	}
+	printf("\n");
+
+	/* Lossless round trips: each type's edge values, passed through Rust and back. */
+	api_duration durations[] = {{0, 0}, {0, 1}, {9223372036u, 854775808u}, {UINT64_MAX, 999999999u}};
+	printf("lossless duration");
+	for (size_t i = 0; i < sizeof durations / sizeof durations[0]; i++) {
+		api_duration d = api_same_duration(durations[i]);
+		printf(" %llu.%09u", (unsigned long long)d.secs, d.nanos);
+	}
+	printf("\n");
+	printf("lossless u64 %llu %llu %llu\n", (unsigned long long)api_same_u64(0),
+		   (unsigned long long)api_same_u64(1ull << 63), (unsigned long long)api_same_u64(UINT64_MAX));
+	printf("lossless usize %zu %zu\n", api_same_usize(0), api_same_usize(SIZE_MAX));
+	printf("lossless isize %td %td\n", api_same_isize(PTRDIFF_MIN), api_same_isize(PTRDIFF_MAX));
+	api_u128 u128s[] = {{0, 0}, {0, 1}, {UINT64_MAX, UINT64_MAX}};
+	printf("lossless u128");
+	for (size_t i = 0; i < sizeof u128s / sizeof u128s[0]; i++) {
+		api_u128 v = api_same_u128(u128s[i]);
+		printf(" %016llx%016llx", (unsigned long long)v.hi, (unsigned long long)v.lo);
+	}
+	printf("\n");
+	uint32_t chars[] = {0, 0xd7ff, 0xe000, 0x10ffff};
+	printf("lossless char");
+	for (size_t i = 0; i < sizeof chars / sizeof chars[0]; i++) {
+		printf(" %x", api_same_char(chars[i]));
+	}
+	printf("\n");
+	api_buf same_paths[] = {str("a/\xc3\xa9"), {.ptr = (const uint8_t *)"\xff", .len = 1}};
+	printf("lossless path");
+	for (size_t i = 0; i < sizeof same_paths / sizeof same_paths[0]; i++) {
+		api_buf path = api_same_path(same_paths[i]);
+		printf(" ");
+		print_hex(path.ptr, path.len);
+		api_buf_free(path);
+	}
+	printf("\n");
+	api_socket_addr_v4 sv4 = api_same_socket_addr_v4((api_socket_addr_v4){.ip = {{255, 255, 255, 255}}, .port = UINT16_MAX});
+	api_socket_addr_v6 sv6 = api_same_socket_addr_v6(
+		(api_socket_addr_v6){.ip = {{0, 1, [15] = 2}}, .port = 3, .flowinfo = UINT32_MAX, .scope_id = UINT32_MAX});
+	api_socket_addr sockets[] = {{.addr.v4 = sv4}, {.v6 = true, .addr.v6 = sv6}};
+	printf("lossless socket");
+	for (size_t i = 0; i < 2; i++) {
+		printf(" ");
+		print_socket_hex(sockets[i]);
+	}
+	for (size_t i = 0; i < 2; i++) {
+		printf(" ");
+		print_socket_hex(api_same_socket_addr(sockets[i]));
+	}
+	printf("\n");
+	api_Key *key_a = api_Key_new(str("a")), *key_a2 = api_Key_new(str("a")), *key_b = api_Key_new(str("b"));
+	if (api_Key_hash(key_a) != api_Key_hash_of(key_a)) {
+		fprintf(stderr, "api_Key_hash differs from Rust's own hash\n");
+		abort();
+	}
+	printf("key %s %s\n", api_Key_hash(key_a) == api_Key_hash(key_a2) ? "true" : "false",
+		   api_Key_hash(key_a) == api_Key_hash(key_b) ? "true" : "false");
+	api_Key_free(key_a);
+	api_Key_free(key_a2);
+	api_Key_free(key_b);
+	printf("lossless ip ");
+	print_ip_hex(api_same_ip_addr((api_ip_addr){.ip.v4 = {{255, 255, 255, 255}}}));
+	printf(" ");
+	print_ip_hex(api_same_ip_addr((api_ip_addr){.v6 = true, .ip.v6 = {{0xff, 0xff, [15] = 1}}}));
 	printf("\n");
 
 	/* serde_json's map iterator, collected as pairs of a key and its document. */
@@ -2234,10 +2332,6 @@ static int broken(const char *which) {
 		api_Channel_recv_poll(recv, waker, &payload);
 		api_buf_free(payload);
 		api_Channel_recv_poll(recv, waker, &payload);
-	} else if (strcmp(which, "family") == 0) {
-		api_socket_addr v6 = {.ip = {[15] = 1}, .port = 443, .v6 = true};
-		api_socket_addr next4, next6;
-		api_nexts(v6, v6, &next4, &next6);
 	} else if (strcmp(which, "enum") == 0) {
 		api_greet(str("x"), (api_Shape)2);
 	} else if (strcmp(which, "lent") == 0 || strcmp(which, "lent moved") == 0) {
@@ -2263,15 +2357,6 @@ static int broken(const char *which) {
 		api_tail((api_foreign_reader){0}, 1, &bytes, &at, &err);
 	} else if (strcmp(which, "bound") == 0) {
 		api_count((api_bounds_u64){.start = {.kind = (api_bound)3}});
-	} else if (strcmp(which, "ip family") == 0) {
-		api_ip_addr v6 = {.ip = {[15] = 1}, .v6 = true};
-		api_ip_addr next4, next6;
-		api_next_ips(v6, v6, &next4, &next6);
-	} else if (strcmp(which, "ip") == 0) {
-		api_flip((api_ip_addr){.ip = {127, 0, 0, 1, 1}});
-	} else if (strcmp(which, "socket") == 0) {
-		api_socket_addr addr = {.ip = {127, 0, 0, 1, 1}};
-		api_ports((api_vec_socket_addr){.ptr = &addr, .len = 1});
 	} else if (strcmp(which, "future") == 0) {
 		/* A future with no poll. */
 		api_after((api_foreign_future){0}, 1);

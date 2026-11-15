@@ -279,10 +279,7 @@ impl Emit {
 			Shape::Buf => ("bytes::Bytes".into(), "bytes::Bytes::from(r.bytes())".into()),
 			Shape::Duration => ("std::time::Duration".into(), "r.duration()".into()),
 			Shape::Array(n) => (format!("[u8; {n}]"), "std::array::from_fn(|_| r.next() as u8)".into()),
-			Shape::PathBuf => (
-				"std::path::PathBuf".into(),
-				"std::path::PathBuf::from(r.string())".into(),
-			),
+			Shape::PathBuf => ("std::path::PathBuf".into(), "r.path()".into()),
 			Shape::SocketAddr(family) | Shape::IpAddr(family) => {
 				(format!("std::net::{family}"), format!("r.{}()", family.to_lowercase()))
 			}
@@ -447,9 +444,27 @@ impl Rng {
 		(0..self.below(6)).map(|_| self.next() as u8).collect()
 	}
 
-	/// Up to 2^33 seconds, past 136 years: Go's `time.Duration` holds 292.
+	/// Any, the longest and those past what a nanosecond or millisecond `i64` holds
+	/// among them.
 	fn duration(&mut self) -> std::time::Duration {
-		std::time::Duration::new(self.next() >> 31, (self.next() % 1_000_000_000) as u32)
+		let nanos = match self.below(4) {
+			0 => 0,
+			1 => 999_999_999,
+			_ => (self.next() % 1_000_000_000) as u32,
+		};
+		std::time::Duration::new(self.int(), nanos)
+	}
+
+	/// Text, or on Unix bytes that are not UTF-8, as a path there may hold.
+	fn path(&mut self) -> std::path::PathBuf {
+		#[cfg(unix)]
+		if self.below(3) == 0 {
+			use std::os::unix::ffi::OsStringExt;
+			let mut bytes = self.string().into_bytes();
+			bytes.push(0x80 | self.next() as u8 & 0x3f);
+			return std::ffi::OsString::from_vec(bytes).into();
+		}
+		self.string().into()
 	}
 
 	fn socketaddrv4(&mut self) -> std::net::SocketAddrV4 {
@@ -869,32 +884,6 @@ impl Built {
 	}
 }
 
-/// Whether `shape` or a shape within it meets `f`.
-fn within(shape: &Shape, f: &dyn Fn(&Shape) -> bool) -> bool {
-	f(shape)
-		|| match shape {
-			Shape::Option(inner)
-			| Shape::Vec(inner)
-			| Shape::Set(inner)
-			| Shape::Box(inner)
-			| Shape::Enum(inner)
-			| Shape::Object(inner) => within(inner, f),
-			Shape::Map(key, value) => within(key, f) || within(value, f),
-			Shape::Tuple(elements) | Shape::Record(elements) => elements.iter().any(|e| within(e, f)),
-			_ => false,
-		}
-}
-
-fn duration(shape: &Shape) -> bool {
-	within(shape, &|s| matches!(s, Shape::Duration))
-}
-
-fn ipv6(shape: &Shape) -> bool {
-	within(shape, &|s| {
-		matches!(s, Shape::SocketAddr("SocketAddr" | "SocketAddrV6"))
-	})
-}
-
 /// A round trip a binding gets wrong today.
 struct Known {
 	language: &'static str,
@@ -909,38 +898,7 @@ struct Known {
 /// it gets wrong, the shapes it skips for it, and the quest. The nightly fails on an entry
 /// matching no exported shape, but its shapes stay skipped after a fix, so the quest that
 /// fixes one deletes its entry.
-const KNOWN: &[Known] = &[
-	Known {
-		language: "python",
-		what: "a Duration's nanoseconds",
-		skips: duration,
-		quest: "/quest/m1/ffi-export/lossless.md",
-	},
-	Known {
-		language: "dart",
-		what: "a Duration's nanoseconds",
-		skips: duration,
-		quest: "/quest/m1/ffi-export/lossless.md",
-	},
-	Known {
-		language: "kotlin",
-		what: "a Duration's nanoseconds past 146 years",
-		skips: duration,
-		quest: "/quest/m1/ffi-export/lossless.md",
-	},
-	Known {
-		language: "kotlin",
-		what: "an IPv6 flow label",
-		skips: ipv6,
-		quest: "/quest/m1/ffi-export/lossless.md",
-	},
-	Known {
-		language: "go",
-		what: "an IPv6 flow label",
-		skips: ipv6,
-		quest: "/quest/m1/ffi-export/lossless.md",
-	},
-];
+const KNOWN: &[Known] = &[];
 
 /// A function the C header declares: each parameter's type and name.
 struct Proto {

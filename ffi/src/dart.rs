@@ -641,8 +641,8 @@ impl<'a> Gen<'a> {
 			Ty::Buf
 				| Ty::U128
 				| Ty::Duration
-				| Ty::SocketAddr
-				| Ty::IpAddr
+				| Ty::SocketAddr(_)
+				| Ty::IpAddr(_)
 				| Ty::Struct(_)
 				| Ty::Waker
 				| Ty::ForeignFuture
@@ -657,8 +657,8 @@ impl<'a> Gen<'a> {
 			Ty::Buf => return "_Buf".to_string(),
 			Ty::U128 => return "_U128".to_string(),
 			Ty::Duration => return "_Duration".to_string(),
-			Ty::SocketAddr => return "_Addr".to_string(),
-			Ty::IpAddr => return "_IpAddr".to_string(),
+			Ty::SocketAddr(_) => return "_Addr".to_string(),
+			Ty::IpAddr(_) => return "_IpAddr".to_string(),
 			Ty::Waker => return "_Waker".to_string(),
 			Ty::ForeignFuture => return "_ForeignFuture".to_string(),
 			Ty::ForeignReader => return "_ForeignReader".to_string(),

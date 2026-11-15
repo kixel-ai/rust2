@@ -94,10 +94,7 @@ impl Header<'_> {
 			"typedef struct {p}_duration {{\n\tuint64_t secs;\n\tuint32_t nanos;\n}} {p}_duration;\n"
 		));
 		self.line(format!(
-			"/* A socket address: IPv4 in the first 4 bytes of ip, with the rest of ip, flowinfo,\n * and scope_id zero, or IPv6 if v6. ip is in network order and port in the host's. */\ntypedef struct {p}_socket_addr {{\n\tuint8_t ip[16];\n\tuint16_t port;\n\tbool v6;\n\tuint32_t flowinfo;\n\tuint32_t scope_id;\n}} {p}_socket_addr;\n"
-		));
-		self.line(format!(
-			"/* An IP address: IPv4 in the first 4 bytes of ip, with the rest zero, or IPv6 if v6.\n * ip is in network order. */\ntypedef struct {p}_ip_addr {{\n\tuint8_t ip[16];\n\tbool v6;\n}} {p}_ip_addr;\n"
+			"/* An IPv4 address, in network order. */\ntypedef struct {p}_ipv4_addr {{\n\tuint8_t octets[4];\n}} {p}_ipv4_addr;\n\n/* An IPv6 address, in network order. */\ntypedef struct {p}_ipv6_addr {{\n\tuint8_t octets[16];\n}} {p}_ipv6_addr;\n\n/* An IP address: ip.v6 if v6, else ip.v4. */\ntypedef struct {p}_ip_addr {{\n\tbool v6;\n\tunion {{\n\t\t{p}_ipv4_addr v4;\n\t\t{p}_ipv6_addr v6;\n\t}} ip;\n}} {p}_ip_addr;\n\n/* An IPv4 socket address, its port in the host's order. */\ntypedef struct {p}_socket_addr_v4 {{\n\t{p}_ipv4_addr ip;\n\tuint16_t port;\n}} {p}_socket_addr_v4;\n\n/* An IPv6 socket address, its port in the host's order. */\ntypedef struct {p}_socket_addr_v6 {{\n\t{p}_ipv6_addr ip;\n\tuint16_t port;\n\tuint32_t flowinfo;\n\tuint32_t scope_id;\n}} {p}_socket_addr_v6;\n\n/* A socket address: addr.v6 if v6, else addr.v4. */\ntypedef struct {p}_socket_addr {{\n\tbool v6;\n\tunion {{\n\t\t{p}_socket_addr_v4 v4;\n\t\t{p}_socket_addr_v6 v6;\n\t}} addr;\n}} {p}_socket_addr;\n"
 		));
 		self.line(format!(
 			"/* Wakes a future's poller: wake may be called from any thread, any number of\n * times, until drop releases data. A poll passing the same wake and data again\n * reuses the waker. Either function may be null. One Rust returns is the caller's,\n * to drop once or pass back into Rust. */\ntypedef struct {p}_waker {{\n\tvoid (*wake)(void *data);\n\tvoid (*drop)(void *data);\n\tvoid *data;\n}} {p}_waker;\n"
@@ -275,6 +272,9 @@ impl Header<'_> {
 			if t.eq {
 				self.line(format!("bool {name}_eq(const {name} *a, const {name} *b{status});"));
 			}
+			if t.hash {
+				self.line(format!("uint64_t {name}_hash(const {name} *self{status});"));
+			}
 			if t.display {
 				self.line(format!("{p}_buf {name}_to_string(const {name} *self{status});"));
 			}
@@ -440,6 +440,9 @@ impl Header<'_> {
 		if traits.eq {
 			self.line(format!("bool {name}_eq({a}, {b}{status});"));
 		}
+		if traits.hash {
+			self.line(format!("uint64_t {name}_hash({this}{status});"));
+		}
 		if traits.display {
 			self.line(format!("{p}_buf {name}_to_string({this}{status});"));
 		}
@@ -559,8 +562,8 @@ pub fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 		Ty::Buf => space(&abi.rt("buf")),
 		Ty::U128 => space(&abi.rt("u128")),
 		Ty::Duration => space(&abi.rt("duration")),
-		Ty::SocketAddr => space(&abi.rt("socket_addr")),
-		Ty::IpAddr => space(&abi.rt("ip_addr")),
+		Ty::SocketAddr(family) => space(&abi.rt(crate::abi::addr(true, *family))),
+		Ty::IpAddr(family) => space(&abi.rt(crate::abi::addr(false, *family))),
 		Ty::Struct(n) | Ty::Enum(n) => space(n),
 		Ty::Handle { name: n, constant } => match constant {
 			true => format!("const {n} *{name}"),

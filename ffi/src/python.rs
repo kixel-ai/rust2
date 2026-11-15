@@ -587,8 +587,7 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => format!("rt::path_in({o}, s)"),
 			Type::U128 => format!("rt::u128_in({o})"),
 			Type::Duration => format!("rt::duration_in({o})"),
-			Type::SocketAddr(family) => format!("rt::addr_in({o}, {})", family_of(*family)),
-			Type::IpAddr(family) => format!("rt::ip_in({o}, {})", family_of(*family)),
+			Type::SocketAddr(family) | Type::IpAddr(family) => format!("rt::{}_in({o})", addr_fn(ty, *family)),
 			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_in::<{}>({o}, s)", number(inner)),
 			Type::List(..) => format!("r_{}({o}, s, {t})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
@@ -655,8 +654,7 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => format!("rt::path_out({v})"),
 			Type::U128 => format!("rt::u128_out({v})"),
 			Type::Duration => format!("rt::duration_out({v})"),
-			Type::SocketAddr(_) => format!("rt::addr_out({v})"),
-			Type::IpAddr(_) => format!("rt::ip_out({v})"),
+			Type::SocketAddr(family) | Type::IpAddr(family) => format!("rt::{}_out({v})", addr_fn(ty, *family)),
 			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_out::<{}>({v})", number(inner)),
 			Type::List(..) => format!("w_{}({v})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
@@ -1979,11 +1977,16 @@ impl<'a> Gen<'a> {
 }
 
 /// The glue's name for a socket address family.
-fn family_of(family: Family) -> &'static str {
-	match family {
-		Family::Any => "rt::Family::Any",
-		Family::V4 => "rt::Family::V4",
-		Family::V6 => "rt::Family::V6",
+/// The runtime's name for the converters of a socket or IP address of `family`, before
+/// `_in` or `_out`.
+fn addr_fn(ty: &Type, family: Family) -> &'static str {
+	match (ty, family) {
+		(Type::SocketAddr(_), Family::Any) => "addr",
+		(Type::SocketAddr(_), Family::V4) => "addr_v4",
+		(Type::SocketAddr(_), Family::V6) => "addr_v6",
+		(_, Family::Any) => "ip",
+		(_, Family::V4) => "ipv4",
+		(_, Family::V6) => "ipv6",
 	}
 }
 
