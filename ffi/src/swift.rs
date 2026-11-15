@@ -87,7 +87,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\ttypealias CForeignReader = {p}_foreign_reader\n\
 		\ttypealias CU128 = {p}_u128\n\
 		\ttypealias CDuration = {p}_duration\n\
-		\ttypealias CAddr = {p}_socket_addr\n\n\
+		\ttypealias CAddr = {p}_socket_addr\n\
+		\ttypealias CIpAddr = {p}_ip_addr\n\n\
 		\tstatic func contract() -> Swift.Bool {{\n\t\t{p}_contract() == 0x{contract:016x} && {upper}_CONTRACT == 0x{contract:016x}\n\t}}\n\n\
 		\t/// The index of the library's target among those this file serves.\n\
 		\tstatic let target = Swift.UInt64({p}_target())\n\n\
@@ -143,8 +144,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 
 /// The standard library's names the runtime and the generated code use unqualified, which
 /// an exported type or function would shadow, and `Swift`, which qualifies the rest. The
-/// runtime's own are the C ABI's: `Native`, `Bytes`, and `SocketAddr` are claimed as
-/// `<prefix>_native`, `<prefix>_bytes`, and `<prefix>_socket_addr`.
+/// runtime's own are the C ABI's: `Native`, `Bytes`, `SocketAddr`, and `IpAddr` are claimed
+/// as `<prefix>_native`, `<prefix>_bytes`, `<prefix>_socket_addr`, and `<prefix>_ip_addr`.
 const TAKEN: &[&str] = &[
 	"Array",
 	"Bool",
@@ -159,6 +160,7 @@ const TAKEN: &[&str] = &[
 	"Hashable",
 	"Int",
 	"Int64",
+	"IpAddr",
 	"Never",
 	"OpaquePointer",
 	"Optional",
@@ -350,6 +352,7 @@ impl<'a> Gen<'a> {
 			Type::U128 => "U128".to_string(),
 			Type::Duration => "Swift.Duration".to_string(),
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
+			Type::IpAddr(_) => "IpAddr".to_string(),
 			Type::List(_, inner) if self.unique(inner) => format!("UniqueArray<{}>", self.sw(inner)),
 			Type::List(_, inner) => format!("[{}]", self.sw(inner)),
 			Type::Waker => "@Sendable () -> Void".to_string(),
@@ -398,6 +401,7 @@ impl<'a> Gen<'a> {
 			Ty::U128 => abi.rt("u128"),
 			Ty::Duration => abi.rt("duration"),
 			Ty::SocketAddr => abi.rt("socket_addr"),
+			Ty::IpAddr => abi.rt("ip_addr"),
 			Ty::Struct(n) | Ty::Enum(n) => n.clone(),
 			Ty::Handle { .. } | Ty::Future(_) => "OpaquePointer?".to_string(),
 			Ty::Waker => abi.rt("waker"),
@@ -477,6 +481,7 @@ impl<'a> Gen<'a> {
 			Type::Array(_) => format!("{e}._c"),
 			Type::Duration => format!("Native.duration({e})"),
 			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
+			Type::IpAddr(_) => format!("Native.ipAddr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{e}._lower()"),
 			Type::Waker => format!("Native.waker({e})"),
 			Type::Future => format!("Native.future({e})"),
@@ -581,6 +586,7 @@ impl<'a> Gen<'a> {
 			Type::Array(n) => format!("{}(_c: {e})", Abi::array_class(*n)),
 			Type::Duration => format!("Native.duration({e})"),
 			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
+			Type::IpAddr(_) => format!("Native.ipAddr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{}._lift({e})", self.sw(ty)),
 			// A block is copied out whole, then freed.
 			Type::List(_, inner) if ty.block().is_some() => {

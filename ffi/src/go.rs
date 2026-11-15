@@ -565,7 +565,7 @@ impl<'a> Gen<'a> {
 			/*\n#cgo CFLAGS: -I${{SRCDIR}}/../../include\n#include <stdlib.h>\n#include \"{p}.h\"\n*/\nimport \"C\"\n\n\
 			import (\n\t\"context\"\n\t\"math\"\n\t\"math/big\"\n\t\"net\"\n\t\"net/netip\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"strconv\"\n\t\"time\"\n\t\"unsafe\"\n\n\t\"{rt}\"\n)\n\n\
 			// The runtime's names for the export's C types and functions.\n\
-			type (\n\tcBuf           = C.{p}_buf\n\tcWaker         = C.{p}_waker\n\tcForeignFuture = C.{p}_foreign_future\n\tcForeignReader = C.{p}_foreign_reader\n\tcU128          = C.{p}_u128\n\tcDuration      = C.{p}_duration\n\tcAddr          = C.{p}_socket_addr\n)\n\n\
+			type (\n\tcBuf           = C.{p}_buf\n\tcWaker         = C.{p}_waker\n\tcForeignFuture = C.{p}_foreign_future\n\tcForeignReader = C.{p}_foreign_reader\n\tcU128          = C.{p}_u128\n\tcDuration      = C.{p}_duration\n\tcAddr          = C.{p}_socket_addr\n\tcIpAddr        = C.{p}_ip_addr\n)\n\n\
 			var (\n\tgoCall    = (*[0]byte)(rt.GoCall_())\n\tgoRelease = (*[0]byte)(rt.GoRelease_())\n\tgoPoll    = (*[0]byte)(rt.GoPoll_())\n\tgoRead    = (*[0]byte)(rt.GoRead_())\n\tgoSeek    = (*[0]byte)(rt.GoSeek_())\n)\n\n\
 			func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n\
 			// cBufCopy is a copy of s Rust owns, as a closure returns it.\n\
@@ -785,6 +785,7 @@ impl<'a> Gen<'a> {
 			Type::U128 => "*big.Int".to_string(),
 			Type::Duration => "time.Duration".to_string(),
 			Type::SocketAddr(_) => "netip.AddrPort".to_string(),
+			Type::IpAddr(_) => "netip.Addr".to_string(),
 			Type::List(_, inner) => format!("[]{}", self.go(inner)),
 			Type::Waker => "func()".to_string(),
 			Type::Reader => "io.ReadSeeker".to_string(),
@@ -856,6 +857,7 @@ impl<'a> Gen<'a> {
 			Type::Record(_)
 			| Type::Array(_)
 			| Type::SocketAddr(_)
+			| Type::IpAddr(_)
 			| Type::Range(_)
 			| Type::Bound(_)
 			| Type::Bounds(_)
@@ -878,6 +880,7 @@ impl<'a> Gen<'a> {
 			Ty::U128 => "cU128".to_string(),
 			Ty::Duration => "cDuration".to_string(),
 			Ty::SocketAddr => "cAddr".to_string(),
+			Ty::IpAddr => "cIpAddr".to_string(),
 			Ty::Struct(n) | Ty::Enum(n) => format!("C.{n}"),
 			Ty::Handle { name, .. } | Ty::Future(name) => format!("*C.{name}"),
 			Ty::Waker => "cWaker".to_string(),
@@ -968,6 +971,9 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(Family::Any) => format!("lowerAddr_({e})"),
 			Type::SocketAddr(Family::V4) => format!("lowerAddrV4_({e})"),
 			Type::SocketAddr(Family::V6) => format!("lowerAddrV6_({e})"),
+			Type::IpAddr(Family::Any) => format!("lowerIp_({e})"),
+			Type::IpAddr(Family::V4) => format!("lowerIpV4_({e})"),
+			Type::IpAddr(Family::V6) => format!("lowerIpV6_({e})"),
 			Type::Waker => format!("waker_({e})"),
 			Type::Reader | Type::Future => unreachable!("{ty:?} crosses only as a parameter"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
@@ -1109,6 +1115,7 @@ impl<'a> Gen<'a> {
 				format!("lift_{}({e})", abi.array(*n))
 			}
 			Type::SocketAddr(_) => format!("liftAddr_({e})"),
+			Type::IpAddr(_) => format!("liftIp_({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				self.convert(ty);
 				format!("lift_{}({e})", abi.range(ty))

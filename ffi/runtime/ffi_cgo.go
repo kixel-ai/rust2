@@ -222,6 +222,51 @@ func liftAddr_(c cAddr) netip.AddrPort {
 	return netip.AddrPortFrom(ip, uint16(c.port))
 }
 
+// lowerIp_ is an address as Rust's IpAddr holds it, which has no room for a zone.
+func lowerIp_(ip netip.Addr) cIpAddr {
+	if !ip.IsValid() {
+		panic("an invalid address has no Rust IpAddr")
+	}
+	if ip.Zone() != "" {
+		panic("an IPv6 address with a zone has no Rust IpAddr")
+	}
+	var c cIpAddr
+	if ip.Is4() {
+		b := ip.As4()
+		copy(unsafe.Slice((*byte)(unsafe.Pointer(&c.ip)), 4), b[:])
+		return c
+	}
+	b := ip.As16()
+	copy(unsafe.Slice((*byte)(unsafe.Pointer(&c.ip)), 16), b[:])
+	c.v6 = true
+	return c
+}
+
+// lowerIpV4_ is an IPv4 address, for Rust's Ipv4Addr.
+func lowerIpV4_(ip netip.Addr) cIpAddr {
+	if !ip.Is4() {
+		panic("an address that is not IPv4 has no Rust Ipv4Addr")
+	}
+	return lowerIp_(ip)
+}
+
+// lowerIpV6_ is an IPv6 address, for Rust's Ipv6Addr.
+func lowerIpV6_(ip netip.Addr) cIpAddr {
+	if !ip.Is6() {
+		panic("an address that is not IPv6 has no Rust Ipv6Addr")
+	}
+	return lowerIp_(ip)
+}
+
+// liftIp_ is an address Rust returned.
+func liftIp_(c cIpAddr) netip.Addr {
+	b := unsafe.Slice((*byte)(unsafe.Pointer(&c.ip)), 16)
+	if !c.v6 {
+		return netip.AddrFrom4([4]byte(b[:4]))
+	}
+	return netip.AddrFrom16([16]byte(b))
+}
+
 // liftList_ is the array Rust returned, each item lifted by lift, which takes what it
 // holds.
 func liftList_[CT, T any](ptr *CT, n C.size_t, lift func(CT) T) []T {

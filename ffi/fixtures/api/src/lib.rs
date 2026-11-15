@@ -3587,6 +3587,23 @@ pub fn nexts(
 	(std::net::SocketAddrV4::new(*v4.ip(), v4.port() + 1), v6)
 }
 
+/// Each address one past, wrapping, one IPv4 and one IPv6.
+pub fn next_ips(v4: std::net::Ipv4Addr, v6: std::net::Ipv6Addr) -> (std::net::Ipv4Addr, std::net::Ipv6Addr) {
+	(
+		u32::from(v4).wrapping_add(1).into(),
+		u128::from(v6).wrapping_add(1).into(),
+	)
+}
+
+/// The address in the other family: IPv4 as its IPv4-mapped IPv6, and an IPv4-mapped IPv6
+/// as its IPv4; any other IPv6 stays as it is.
+pub fn flip(ip: std::net::IpAddr) -> std::net::IpAddr {
+	match ip {
+		std::net::IpAddr::V4(v4) => v4.to_ipv6_mapped().into(),
+		std::net::IpAddr::V6(v6) => v6.to_ipv4_mapped().map_or(ip, Into::into),
+	}
+}
+
 /// Why [`refuse`] refused, which Rust returns only boxed.
 #[derive(Debug)]
 pub struct Refusal {

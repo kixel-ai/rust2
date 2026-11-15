@@ -217,13 +217,12 @@ fn main() {
 		scaled((1 << 64) + 1, 1 << 63),
 		scaled(1 << 127, 2)
 	);
-	let hex = |sum: [u8; 4]| sum.iter().map(|b| format!("{b:02x}")).collect::<String>();
 	let mut digest = api::Digest::new();
 	digest.sum = api::fingerprint("deadbeef").unwrap();
 	println!(
 		"digest {} {} {}",
-		hex(digest.sum),
-		hex(digest.flipped([0xff, 0, 0xff, 0])),
+		hex(&digest.sum),
+		hex(&digest.flipped([0xff, 0, 0xff, 0])),
 		api::fingerprint("zz").unwrap_err()
 	);
 	let mut batch: api::Batch = api::Batch::new();
@@ -872,6 +871,21 @@ fn main() {
 	println!("numbered {}", numbered.join(", "));
 	let (v4, v6) = api::nexts("127.0.0.1:8080".parse().unwrap(), "[::1%3]:443".parse().unwrap());
 	println!("nexts {} {} {} {}", v4.ip(), v4.port(), v6.port(), v6.scope_id());
+	// IP addresses of each family, printed as their bytes in hex, so their length shows their
+	// family: an IPv4-mapped IPv6 stays IPv6 through each binding, and comes back as IPv4
+	// only when Rust flips it.
+	let (v4, v6) = api::next_ips("10.0.0.255".parse().unwrap(), "::ffff".parse().unwrap());
+	let mapped = api::flip(std::net::Ipv4Addr::new(127, 0, 0, 1).into());
+	let back = api::flip(mapped);
+	let other = api::flip(std::net::Ipv6Addr::LOCALHOST.into());
+	println!(
+		"ips {} {} {} {} {}",
+		hex(&v4.octets()),
+		hex(&v6.octets()),
+		ip_hex(mapped),
+		ip_hex(back),
+		ip_hex(other)
+	);
 
 	// Standard and common types: serde_json's map iterator, std's instant, and tracing's
 	// level and its filter.
@@ -975,6 +989,19 @@ fn main() {
 		"farther hop {}",
 		api::farther_hop(Pair { left: near, right: far }).get()
 	);
+}
+
+/// Lowercase hex of `bytes`, two digits each.
+fn hex(bytes: &[u8]) -> String {
+	bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// An address's bytes in hex, so the length shows its family.
+fn ip_hex(ip: std::net::IpAddr) -> String {
+	match ip {
+		std::net::IpAddr::V4(v4) => hex(&v4.octets()),
+		std::net::IpAddr::V6(v6) => hex(&v6.octets()),
+	}
 }
 
 /// Print each of `numbers`' lists, its floats as their bits.

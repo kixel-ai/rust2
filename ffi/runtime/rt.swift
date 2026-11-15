@@ -21,6 +21,16 @@ public struct SocketAddr: Hashable, Sendable {
 	}
 }
 
+/// An IP address, as Rust's `IpAddr` holds it.
+public struct IpAddr: Hashable, Sendable {
+	/// The IP in network order: 4 bytes for IPv4, or 16 for IPv6.
+	public var ip: [UInt8]
+
+	public init(ip: [UInt8]) {
+		self.ip = ip
+	}
+}
+
 /// Bytes as Rust holds them: Rust's stay in the buffer it returned, shared without a copy
 /// by every `Bytes` and slice reading them and passed back to Rust uncopied, and Swift's are
 /// a `Data`. Rust's are never lent as a `Data`, so nothing writes into the buffer Rust shares.
@@ -468,17 +478,20 @@ extension Native {
 		U128(high: value.hi, low: value.lo)
 	}
 
-	static func socketAddr(_ addr: SocketAddr) -> CAddr {
-		let v6: Bool
-		switch addr.ip.count {
-		case 4: v6 = false
-		case 16: v6 = true
-		default: fatalError("an IP address is 4 bytes or 16, not \(addr.ip.count)")
+	/// Whether `ip` is IPv6, by its length.
+	static func v6(_ ip: [UInt8]) -> Bool {
+		switch ip.count {
+		case 4: return false
+		case 16: return true
+		default: fatalError("an IP address is 4 bytes or 16, not \(ip.count)")
 		}
+	}
+
+	static func socketAddr(_ addr: SocketAddr) -> CAddr {
 		var c = CAddr()
+		c.v6 = v6(addr.ip)
 		withUnsafeMutableBytes(of: &c.ip) { ip in ip.copyBytes(from: addr.ip) }
 		c.port = addr.port
-		c.v6 = v6
 		c.flowinfo = addr.flowinfo
 		c.scope_id = addr.scopeId
 		return c
@@ -488,6 +501,18 @@ extension Native {
 		var c = c
 		let ip = withUnsafeBytes(of: &c.ip) { ip in Array(ip.prefix(c.v6 ? 16 : 4)) }
 		return SocketAddr(ip: ip, port: c.port, flowinfo: c.flowinfo, scopeId: c.scope_id)
+	}
+
+	static func ipAddr(_ addr: IpAddr) -> CIpAddr {
+		var c = CIpAddr()
+		c.v6 = v6(addr.ip)
+		withUnsafeMutableBytes(of: &c.ip) { ip in ip.copyBytes(from: addr.ip) }
+		return c
+	}
+
+	static func ipAddr(_ c: CIpAddr) -> IpAddr {
+		var c = c
+		return IpAddr(ip: withUnsafeBytes(of: &c.ip) { ip in Array(ip.prefix(c.v6 ? 16 : 4)) })
 	}
 
 	/// The C array Rust returned, as its items each lifted by `lift`, which takes what
