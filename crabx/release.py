@@ -48,7 +48,7 @@ def published():
     """Every crabx version on crates.io, yanked included, mapped to whether it is yanked."""
     body = fetch(INDEX)
     if body is None:
-        raise SystemExit("crabx is not on crates.io yet: its first publish is by hand, as quest/m2/crabx/ship.md says")
+        raise SystemExit("crabx is not on crates.io yet: its first publish is by hand, as quest/m2/crabx/first-publish.md says")
     versions = {}
     for line in body.decode().splitlines():
         entry = json.loads(line)
@@ -86,13 +86,25 @@ def targets():
     return pipeline.TARGETS
 
 
+def tagged(tag):
+    """The commits a tag in the repository names, directly or peeled."""
+    ref = f"refs/tags/{tag}"
+    out = subprocess.run(["git", "ls-remote", f"https://github.com/{REPO}", ref, ref + "^{}"], capture_output=True, text=True, check=True).stdout
+    return {line.split()[0] for line in out.splitlines()}
+
+
 def crate():
     """Decide whether this commit's crabx version is new to crates.io, and what to build first."""
     version = tomllib.loads((HERE / "Cargo.toml").read_text())["package"]["version"]
     if version in published():
         output(publish="false", builds={"include": []})
         return
-    item = {"name": "crabx", "version": version, "sha": os.environ["GITHUB_SHA"], "path": "crabx"}
+    sha = os.environ["GITHUB_SHA"]
+    # The pipeline releases under a bare vX.Y.Z tag naming this commit instead of
+    # crabx-vX.Y.Z, where npm and the installers would never find it.
+    if sha in tagged(f"v{version}"):
+        raise SystemExit(f"v{version} tags this commit, so the pipeline would release crabx under it; delete that tag")
+    item = {"name": "crabx", "version": version, "sha": sha, "path": "crabx"}
     output(publish="true", builds={"include": [{**item, "target": target, "os": runner} for target, runner in targets()]})
 
 

@@ -60,11 +60,11 @@ class Plan(unittest.TestCase):
         with patch.object(r, "fetch", return_value=None), self.assertRaisesRegex(SystemExit, "by hand"):
             r.published()
 
-    def run_crate(self, versions):
+    def run_crate(self, versions, tagged=frozenset()):
         with tempfile.TemporaryDirectory() as temp:
             out = Path(temp) / "out"
             env = {"GITHUB_OUTPUT": str(out), "GITHUB_SHA": "c" * 40}
-            with patch.dict(os.environ, env), patch.object(r, "fetch", return_value=index(*versions)):
+            with patch.dict(os.environ, env), patch.object(r, "fetch", return_value=index(*versions)), patch.object(r, "tagged", return_value=tagged):
                 r.crate()
             return dict(line.split("=", 1) for line in out.read_text().splitlines())
 
@@ -78,6 +78,12 @@ class Plan(unittest.TestCase):
         builds = json.loads(result["builds"])["include"]
         self.assertEqual({b["target"] for b in builds}, set(r.NPM_TARGETS))
         self.assertTrue(all(b["sha"] == "c" * 40 and b["path"] == "crabx" and b["os"] for b in builds))
+
+    def test_crate_refuses_a_bare_version_tag_on_this_commit(self):
+        # The pipeline would release under it, where npm and the installers never look.
+        self.assertEqual(self.run_crate([("0.0.1", False)], {"d" * 40})["publish"], "true")
+        with self.assertRaisesRegex(SystemExit, "delete that tag"):
+            self.run_crate([("0.0.1", False)], {"c" * 40})
 
     def test_npm_plan_publishes_when_any_package_is_missing(self):
         def fetch(url):
@@ -313,6 +319,10 @@ class Workflow(unittest.TestCase):
         self.assertEqual({name for name, job in found.items() if "id-token: write" in job}, {"crate", "binaries", "npm"})
         self.assertEqual({name for name, job in found.items() if "environment:" in job}, {"crate", "npm"})
         self.assertIn("environment: crates-io\n", found["crate"])
+        # Build scripts run only where no OIDC credentials can be requested.
+        self.assertIn("cargo package --locked", found["package"])
+        self.assertNotIn("cargo package", found["crate"])
+        self.assertIn("cargo publish --locked --no-verify", found["crate"])
         head = WORKFLOW.read_text().split("\njobs:\n", 1)[0]
         self.assertNotIn("pull_request", head)
         self.assertIn("permissions:\n  contents: read\n", head)

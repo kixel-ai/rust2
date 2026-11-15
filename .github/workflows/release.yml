@@ -39,9 +39,24 @@ jobs:
     uses: ./.github/workflows/crabx-build.yml
     with:
       builds: ${{ needs.plan.outputs.builds }}
+      # The binaries job uploads the same artifact names in this run.
+      upload: false
+
+  # Packaging runs build scripts, so it runs here, without the publishing job's OIDC
+  # credentials, which every step of that job can request.
+  package:
+    needs: plan
+    if: needs.plan.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: cargo package --locked
+        working-directory: crabx
 
   crate:
-    needs: [plan, check]
+    needs: [plan, check, package]
     if: needs.plan.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     # crates.io trusts this workflow only in this environment, which only main may deploy to.
@@ -53,10 +68,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # Builds run before the job holds a token, so no build script sees one.
-      - name: Package
-        run: cargo package --locked
-        working-directory: crabx
+      # --no-verify builds nothing, so no build script runs beside the token.
       - id: auth
         uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
       - name: Publish
