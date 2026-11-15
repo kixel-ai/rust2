@@ -12,6 +12,7 @@ name = "reject"
 
 [dependencies]
 dep-fixture = { path = "../dep" }
+jni = "0.22.4"
 tls-fixture = { path = "../tls" }
 
 [lints]

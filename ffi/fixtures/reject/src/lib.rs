@@ -1267,3 +1267,38 @@ impl Counter {
 		&self.count
 	}
 }
+
+/// A reference with no env to lend it from.
+pub fn object_alone(object: jni::objects::JObject) -> bool {
+	object.is_null()
+}
+
+/// Two envs, which the glue cannot lend apart.
+pub fn two_envs(a: &mut jni::Env, b: &mut jni::Env) -> bool {
+	a.get_raw() == b.get_raw()
+}
+
+/// An env lent to a future, which outlives the native call that lends it.
+pub fn env_later(env: &mut jni::Env) -> impl std::future::Future<Output = bool> + use<> {
+	std::future::ready(env.get_raw().is_null())
+}
+
+/// An env shared, which no rule maps.
+pub fn shared_env(env: &jni::Env) -> bool {
+	env.get_raw().is_null()
+}
+
+/// A JNI type but `&mut Env` and `JObject`.
+pub fn java_string(string: jni::objects::JString) -> bool {
+	string.is_null()
+}
+
+/// A trait whose method takes an env, which Kotlin would lend to itself through Rust.
+pub trait Visit {
+	fn visit(&self, env: &mut jni::Env) -> bool;
+}
+
+pub fn visit(visitor: Box<dyn Visit>) -> bool {
+	let _ = visitor;
+	false
+}

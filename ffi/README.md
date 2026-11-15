@@ -594,8 +594,17 @@ out, with only its other fields encoded.
   one, as `Waiter.pollFuture` does, is a `suspend fun` taking it, whose future owns it.
 - A **waker** is a `Waker`, which Rust may call from any thread. One Rust returns wakes
   through Rust, and the garbage collector drops it.
+- A function taking a **JNI env**, `&mut jni::Env`, exports to Kotlin alone, since no
+  other language has one to pass: its Kotlin function leaves the env out and passes its
+  calling thread's, as `tokioTlsInitAndroid(context)` does for moq's `init_android`. A
+  `jni::objects::JObject` it takes is an `Any?`, the reference Kotlin passed, which Rust
+  holds only during the call. Any other JNI type, an env taken any other way, a
+  `JObject` with no env to hold it under, two envs, or one lent to a future or a trait
+  Kotlin implements is refused.
 - **The contract** is checked when the library loads, before any other call: a Kotlin
-  file and a library from different builds throw.
+  file and a library from different builds throw. That first call also notes the JVM and
+  `_Native` for the calls Rust makes into Kotlin, so the library defines no `JNI_OnLoad`,
+  and the crate it exports may define its own, as moq-ffi's does.
 - **Shrinking**: `<prefix>.pro` keeps what the JNI glue finds by name, `_Native`, its native
   methods, and the Kotlin functions Rust calls, while R8 strips and renames the rest. An
   Android library ships it as a consumer rule (`consumerProguardFiles`), which its AAR

@@ -315,6 +315,7 @@ name = "reject-fixture"
 version = "0.0.0"
 dependencies = [
  "dep-fixture",
+ "jni",
  "tls-fixture",
 ]
 

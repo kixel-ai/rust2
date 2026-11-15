@@ -5182,7 +5182,10 @@ impl<'tcx> Collector<'tcx> {
 			// Only a parameter takes a JNI value, which [`Self::jni_param`] maps; any other of
 			// jni's types names its whole API, which no language has a use for.
 			ty::Adt(adt, _) if self.jni.is_some_and(|jni| adt.did().krate == jni.env.krate) => {
-				return Err(why("JNI type but a parameter's &mut Env or JObject", ty.to_string()));
+				return Err(why(
+					"JNI type other than a parameter's &mut Env or JObject",
+					ty.to_string(),
+				));
 			}
 			ty::Tuple(list) if list.is_empty() => match pos {
 				Pos::Return => Type::Unit,
