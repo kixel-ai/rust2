@@ -4797,6 +4797,10 @@ impl<'tcx> Collector<'tcx> {
 				// Another crate's `&'static dyn Trait`, which a handle holds.
 				ty::Ref(region, ..) if self.opaque_value(ty).is_some() => held.push(*region),
 				ty::Ref(region, ..) => lent.push(*region),
+				// JNI lends its env and references for the native call alone.
+				ty::Adt(adt, args) if self.jni.is_some_and(|jni| [jni.env, jni.object].contains(&adt.did())) => {
+					lent.extend(args.regions())
+				}
 				// A trait object a handle holds holds its own lifetime, as `dyn Trait + 'a` does.
 				ty::Dynamic(_, region) if self.held_trait(ty).is_some() => held.push(*region),
 				// An object, an opaque value, or another crate's value an opaque handle holds, holds

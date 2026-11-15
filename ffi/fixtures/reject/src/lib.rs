@@ -1302,3 +1302,13 @@ pub fn visit(visitor: Box<dyn Visit>) -> bool {
 	let _ = visitor;
 	false
 }
+
+/// A reference kept past the call that lends it.
+pub fn keep_object(env: &mut jni::Env, object: jni::objects::JObject<'static>) -> bool {
+	env.get_raw().is_null() && object.is_null()
+}
+
+/// A reference a bound keeps past the call that lends it.
+pub fn bound_object<'a: 'static>(env: &mut jni::Env<'a>, object: jni::objects::JObject<'a>) -> bool {
+	env.get_raw().is_null() && object.is_null()
+}

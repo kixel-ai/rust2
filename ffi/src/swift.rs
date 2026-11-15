@@ -1912,7 +1912,9 @@ pub fn refusals<'a>(abi: &Abi<'a>) -> Vec<(&'a Function, String)> {
 		.chain(api.enums.iter().flat_map(|e| &e.methods))
 		.chain(api.objects.iter().flat_map(|o| &o.methods));
 	let mut refusals = Vec::new();
-	for (kind, function) in (api.functions.iter().map(|f| ("fn", f))).chain(methods.map(|f| ("method", f))) {
+	let all = (api.functions.iter().map(|f| ("fn", f))).chain(methods.map(|f| ("method", f)));
+	// Swift never exports what takes a JNI value, which only Kotlin passes.
+	for (kind, function) in all.filter(|(_, f)| !f.jni()) {
 		let what = format!("cannot export {kind} `{}`", function.shown[1..].join("::"));
 		let optional = (function.params.iter())
 			.filter(|p| lent_option(&structs, &p.ty))
