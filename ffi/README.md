@@ -907,7 +907,11 @@ reads a go.mod.
   object that outlived the one it borrows from, and `rt.ErrBorrowed` for any other. So
   every function whose objects can fail a check returns an `error`. `String()` and
   `GoString()` return a failed check's text, having no error to return; what a closure
-  returns has no caller to return one to, so it aborts with the message.
+  returns has no caller to return one to, so it aborts with the message. A checked call
+  goes through a C function of the package's preamble that keeps the status in a C local
+  and returns it beside the value, so the call allocates nothing for it: cgo moves to the
+  heap any Go local whose address C gets, since C may call back into Go, which can move the
+  goroutine's stack.
 - **Records** are structs, and **plain enums** an `int32` type with a constant per
   variant (`ShapeSquare`). An enum with data is an interface each variant's struct
   implements (`EventMoved{V0: p}`), sealed so only the package's do; its methods are the
