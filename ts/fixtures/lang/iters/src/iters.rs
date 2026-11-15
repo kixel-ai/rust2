@@ -3305,6 +3305,52 @@ pub fn fused_cuts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 					.skip(sk)
 					.any(|(i, n)| (n.1 ^ i as u8) % 64 == stop) as u8,
 			);
+			// The same `take` reached through a `rev` and back, and `skip`s and `take`s that read
+			// by `nth` past it reversed, or past another `take`, from the front.
+			let mut it = a
+				.iter()
+				.map(seen!(34))
+				.take(tk / 3)
+				.rev()
+				.enumerate()
+				.rev()
+				.take(sk + 1);
+			while let Some((i, x)) = it.next_back() {
+				out.push(x ^ i as u8);
+			}
+			let mut it = a.iter().map(seen!(38)).take(tk / 3).rev().take(5).rev().take(sk + 1);
+			while let Some(x) = it.next_back() {
+				out.push(x);
+			}
+			out.push(
+				a.iter()
+					.map(seen!(35))
+					.take(tk / 3)
+					.rev()
+					.skip(sk / 2)
+					.skip(sk)
+					.fold(0u8, |acc, x| acc.wrapping_mul(3) ^ x),
+			);
+			out.push(
+				b.iter()
+					.map(seen!(36))
+					.take(tk / 3)
+					.rev()
+					.take(5)
+					.skip(sk)
+					.fold(0u8, |acc, x| acc.wrapping_mul(3) ^ x),
+			);
+			out.push(
+				b.iter()
+					.map(seen!(37))
+					.take(tk)
+					.take(sk + 1)
+					.rev()
+					.skip(sk / 2)
+					.rev()
+					.skip(1)
+					.fold(0u8, |acc, x| acc.wrapping_mul(3) ^ x),
+			);
 		}
 		// Those that stay the runtime's: a `skip` a zip reads by index, a `take` folded by
 		// index, which reads nothing past what it skips, and one read by `next`, which fuses.

@@ -728,10 +728,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 			"take" if rs(f, "iterTake") && (2..=4).contains(&args.len()) => {
 				let inner = self.chain_shape(&args[0], inner, back)?;
-				// `Take::next_back` reads what it wraps by `nth_back`, which reaches a `take` it
-				// holds through each `enumerate` and `skip`, whose `nth_back` at a limit of none
-				// reads past all of what that one wraps.
-				if back && nths_take(&inner) {
+				// `Take::next_back` reads what it wraps by `nth_back`, which may reach a `take`'s,
+				// which at a limit of none reads past all of what that one wraps.
+				if back && nths_take(&inner, true) {
 					return None;
 				}
 				Some(Shape::Take(
@@ -1594,20 +1593,80 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					)),
 				}
 			}
-			// `Take::nth_back` at a limit of none, unlike its `next_back`, reads past all of
-			// what it wraps.
-			Node::Take { inner, n, .. } if back => {
-				let l = self.b.fresh("l");
-				let mut none = vec![StmtKind::decl(false, &l, None, Some(self.len(inner))).at(None)];
+			// `Skip::nth`: what it still skips and `k` more, in one step.
+			Node::Skip { inner, n, .. } if !back => {
+				let skipped = self.b.fresh("s");
+				out.push(StmtKind::decl(false, &skipped, None, Some(Expr::ident(n))).at(None));
+				out.push(StmtKind::Expr(Expr::ident(n).assign(Expr::lit("0"))).at(None));
+				let k = Expr::ident(skipped).binary("+", k);
+				self.skip(inner, k, back, drop, done, out);
+			}
+			// `Skip::nth_back`: past `k` of what it wraps, or, with fewer left, past all of
+			// those.
+			Node::Skip { inner, n, .. } => {
+				let left = max0(self.len(inner).binary("-", Expr::ident(n)));
+				self.skip_most(inner, left, k, back, drop, done, out);
+			}
+			// `Take::nth`: past `k` of what it wraps within its limit, or else past the rest of
+			// its limit.
+			Node::Take { inner, n, .. } if !back => {
+				let fewer = Expr::ident(n).binary("<", k.clone());
+				let m = self.b.fresh("m");
+				let mut then = vec![
+					StmtKind::decl(false, &m, None, Some(Expr::ident(n))).at(None),
+					StmtKind::Expr(Expr::ident(n).assign(Expr::lit("0"))).at(None),
+				];
+				let mut rest = Vec::new();
+				self.skip(inner, Expr::ident(&m), back, drop, done, &mut rest);
+				then.push(if_then(Expr::ident(&m).binary(">", Expr::lit("0")), rest));
+				then.extend(done.iter().cloned());
+				out.push(if_then(fewer, then));
+				let less = Expr::ident(n).assign(Expr::ident(n).binary("-", k.clone()));
+				out.push(StmtKind::Expr(less).at(None));
+				self.skip(inner, k, back, drop, done, out);
+			}
+			// `Take::nth_back`: past what its iterator holds beyond the limit, as a first read
+			// from the back is, then past `k` of the rest, or, with fewer left, past all of
+			// those: all of what it wraps at a limit of none, unlike its `next_back`.
+			Node::Take { inner, n, trimmed, .. } => {
+				let trimmed = trimmed.as_ref().expect("a take read from the back");
+				let t = self.b.fresh("t");
+				let mut trim = vec![
+					StmtKind::Expr(Expr::ident(trimmed).assign(Expr::lit("true"))).at(None),
+					StmtKind::decl(false, &t, None, Some(self.len(inner).binary("-", Expr::ident(n)))).at(None),
+				];
 				let mut past = Vec::new();
-				self.skip(inner, Expr::ident(&l), back, drop, done, &mut past);
-				none.push(if_then(Expr::ident(&l).binary(">", Expr::lit("0")), past));
-				none.extend(done.iter().cloned());
-				out.push(if_then(Expr::ident(n).binary("===", Expr::lit("0")), none));
-				self.skip_each(node, k, back, drop, done, out);
+				self.skip(inner, Expr::ident(&t), back, drop, done, &mut past);
+				trim.push(if_then(Expr::ident(&t).binary(">", Expr::lit("0")), past));
+				out.push(if_then(Expr::ident(trimmed).not(), trim));
+				let left = self.len(inner);
+				self.skip_most(inner, left, k, back, drop, done, out);
 			}
 			_ => self.skip_each(node, k, back, drop, done, out),
 		}
+	}
+
+	/// Read past `k` items of `node`, which has `left`, or past all `left` of them and then
+	/// run `done` where it has fewer.
+	#[allow(clippy::too_many_arguments)]
+	fn skip_most(
+		&mut self,
+		node: &Node,
+		left: Expr,
+		k: Expr,
+		back: bool,
+		drop: Option<&Expr>,
+		done: &[Stmt],
+		out: &mut Vec<Stmt>,
+	) {
+		let l = self.b.fresh("l");
+		out.push(StmtKind::decl(false, &l, None, Some(left)).at(None));
+		let mut all = Vec::new();
+		self.skip(node, Expr::ident(&l), back, drop, done, &mut all);
+		let mut then = vec![if_then(Expr::ident(&l).binary(">", Expr::lit("0")), all)];
+		then.extend(done.iter().cloned());
+		out.push(if_then(Expr::ident(&l).binary("<", k.clone()), then));
+		self.skip(node, k, back, drop, done, out);
 	}
 
 	/// Read past `k` items of `node` one at a time, as `skip` reads past them.
@@ -1888,11 +1947,13 @@ fn zips(shape: &Shape<'_>) -> bool {
 	}
 }
 
-/// Whether `nth_back` of `shape` reaches a `take`'s, through each `enumerate` and `skip`.
-fn nths_take(shape: &Shape<'_>) -> bool {
+/// Whether `nth`, or `nth_back` if `back`, of `shape` reaches a `take`'s `nth_back`, through
+/// each `enumerate`, `skip`, `take`, and `rev`, which reads the other way.
+fn nths_take(shape: &Shape<'_>, back: bool) -> bool {
 	match shape {
-		Shape::Take(..) => true,
-		Shape::Enumerate(inner, _) | Shape::Skip(inner, ..) => nths_take(inner),
+		Shape::Take(inner, ..) => back || nths_take(inner, back),
+		Shape::Enumerate(inner, _) | Shape::Skip(inner, ..) => nths_take(inner, back),
+		Shape::Rev(inner) => nths_take(inner, !back),
 		_ => false,
 	}
 }
