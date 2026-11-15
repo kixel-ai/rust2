@@ -70,6 +70,12 @@ Decided with the maintainer on 2026-11-13, for
   breaking narrowings.
 - ✅ Applying the findings is follow-up work: [rust2's](/quest/m3/pub-apply.md) here,
   and moq's in moq's own quest tree.
+- ✅ (2026-11-14) Validation reads narrowed source through rustc's in-memory
+  `FileLoader` overlay, and the README's Limits names the gap: a build script or proc
+  macro that reads a source file with `std::fs` sees it unnarrowed. Nothing reports
+  which files such code reads, so no check can refuse just those crates. Rejected:
+  validating on a copied tree each round, which also copies the target dir and every
+  path dependency.
 
 Decided with the maintainer on 2026-11-07, the unsafe policy, to stop one-off fixes for
 ever rarer `unsafe`:
