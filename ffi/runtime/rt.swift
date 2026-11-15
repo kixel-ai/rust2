@@ -327,7 +327,7 @@ public struct U128: Hashable, Comparable, Sendable, CustomStringConvertible {
 }
 
 /// Rust's `NonZero<T>`: an integer that is never zero.
-public struct NonZero<T: FixedWidthInteger & Sendable>: Hashable, Comparable, Sendable, CustomStringConvertible {
+public struct NonZero<T: Swift.FixedWidthInteger & Sendable>: Hashable, Comparable, Sendable, CustomStringConvertible {
 	/// The integer, never zero, as Rust's `get`.
 	public let value: T
 

@@ -2461,7 +2461,13 @@ mod tests {
 				continue;
 			};
 			let decl = decl.trim_end_matches('{').trim();
-			let (name, conforms) = decl.split_once(':').unwrap_or((decl, ""));
+			// A generic's parameters, such as `NonZero<T: Swift.FixedWidthInteger>`, name it
+			// no further; the type is its name before them.
+			let decl = match decl.split_once('<') {
+				Some((name, rest)) => name.to_string() + rest.split_once('>').expect("a generic closes").1,
+				None => decl.to_string(),
+			};
+			let (name, conforms) = decl.split_once(':').unwrap_or((&decl, ""));
 			let names = std::iter::once(name).chain(conforms.split(','));
 			// A qualified name, such as `Swift.Error`, cannot clash.
 			for name in (names.map(str::trim)).filter(|n| !n.is_empty() && !n.starts_with('@') && !n.contains('.')) {
