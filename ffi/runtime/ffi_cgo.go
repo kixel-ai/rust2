@@ -280,17 +280,18 @@ func liftList_[CT, T any](ptr *CT, n C.size_t, lift func(CT) T) []T {
 	return out
 }
 
-// unhold_ releases the hold a call took on h, the handle of the object o. Deferred, it
+// unhold_ releases the hold a call took on h, in s, the handle of the object o. Deferred, it
 // keeps o reachable until the call returns, so the GC cannot close h between the call
 // reading and holding it.
-func unhold_(h *rt.Handle_, o any) {
-	h.Release()
+func unhold_(h *rt.Handle_, s rt.Slot_, o any) {
+	h.Release(s)
 	runtime.KeepAlive(o)
 }
 
 // held_ is a handle a call holds, and the object owning it, kept reachable.
 type held_ struct {
 	h *rt.Handle_
+	s rt.Slot_
 	o any
 }
 
@@ -320,7 +321,7 @@ func (a *arena_) finish() {
 		}
 	}
 	for _, held := range a.held {
-		held.h.Release()
+		held.h.Release(held.s)
 	}
 	a.pins.Unpin()
 }
@@ -376,14 +377,14 @@ func (a *arena_) bufViewOption(b *rt.Bytes) cBuf {
 // hold is h, the handle of the object o, held until the call returns, or nil, failing the
 // call, once closed.
 func (a *arena_) hold(h *rt.Handle_, o any) unsafe.Pointer {
-	raw := h.Hold()
+	raw, s := h.Hold()
 	if raw == nil {
 		if a.err == nil {
 			a.err = h.Closed()
 		}
 		return nil
 	}
-	a.held = append(a.held, held_{h, o})
+	a.held = append(a.held, held_{h, s, o})
 	return raw
 }
 

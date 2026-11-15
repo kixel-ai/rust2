@@ -4,36 +4,31 @@
 //! it: it publishes the handle in its own thread's slot of a [`Table`] instead, so threads
 //! sharing a handle write nothing in common. Whatever would conflict with a shared borrow
 //! (an exclusive borrow, a reservation to move out, a move, a drop) takes the count first,
-//! then revokes the bias and fails if a slot still names the handle. A slot whose reader is
-//! still checking the bias is waited out, which takes it a few instructions, so the check
-//! never refuses a borrow the count alone would have let in.
+//! marked [`REVOKING`], then revokes the bias and fails if a slot still names the handle.
+//! Every borrow that meets the mark, or a slot whose reader is still checking the bias,
+//! waits it out, which takes a scan or a few instructions and runs no code but this, so the
+//! check refuses exactly what the count alone would.
 //!
 //! The runtime compiles this beside `rt.rs`, and `ffi/tests/borrow.rs` under loom, each with
-//! its own `atomic`, `yield_now`, and `Status`.
+//! its own `atomic`, `relax`, and `Status`.
 
 use super::Status;
 use super::atomic::Ordering::{Acquire, Relaxed, Release, SeqCst};
 use super::atomic::{AtomicBool, AtomicUsize, fence};
-use super::yield_now;
+use super::relax;
 
 /// The value is borrowed exclusively.
 pub const EXCLUSIVE: usize = usize::MAX;
 /// The value moved out, or a binding's close dropped it.
 pub const TAKEN: usize = usize::MAX - 1;
-/// A call holds the value to move out once its checks pass, or a move or drop holds it
-/// while it revokes the bias.
+/// A call holds the value to move out once its checks pass.
 pub const RESERVED: usize = usize::MAX - 2;
+/// An exclusive borrow, a reservation, a move, or a drop holds the value while it revokes
+/// the bias, to become one of the marks above or give the value back.
+const REVOKING: usize = usize::MAX - 3;
 
 /// Marks a slot whose reader has yet to see whether the bias still stands.
 const PENDING: usize = 1;
-
-/// Why a shared borrow is refused in `state`, one of the marks.
-fn refusal(state: usize) -> Status {
-	match state {
-		TAKEN => Status::Moved,
-		_ => Status::Exclusive,
-	}
-}
 
 /// The slots biased shared borrows publish their handles in: a column per thread and a
 /// row per handle, so slots of two threads lie a column apart and never share a cache line
@@ -104,8 +99,8 @@ impl Borrow {
 			return Ok(true);
 		}
 		let state = self.state.load(Relaxed);
-		if state >= RESERVED {
-			return Err(refusal(state));
+		if state >= REVOKING {
+			return self.contend(state).map(|()| false);
 		}
 		match self.state.compare_exchange(state, state + 1, Acquire, Relaxed) {
 			Ok(_) => Ok(false),
@@ -134,21 +129,33 @@ impl Borrow {
 		false
 	}
 
-	/// Count a shared borrow once another changed the count, now `state`, meanwhile: so
-	/// later ones go to the table. Held count in hand, no exclusive borrow is running to miss
-	/// the bias.
+	/// Count a shared borrow once the count, now `state`, is marked, or another changed it
+	/// meanwhile: so later ones go to the table. Held count in hand, no exclusive borrow is
+	/// running to miss the bias.
 	#[inline(never)]
 	fn contend(&self, mut state: usize) -> Result<(), Status> {
+		let mut contended = false;
+		let mut spins = 0;
 		loop {
-			if state >= RESERVED {
-				return Err(refusal(state));
+			match state {
+				REVOKING => {
+					relax(&mut spins);
+					state = self.state.load(Relaxed);
+					continue;
+				}
+				TAKEN => return Err(Status::Moved),
+				RESERVED | EXCLUSIVE => return Err(Status::Exclusive),
+				_ => {}
 			}
 			match self.state.compare_exchange(state, state + 1, Acquire, Relaxed) {
 				Ok(_) => break,
-				Err(now) => state = now,
+				Err(now) => {
+					state = now;
+					contended = true;
+				}
 			}
 		}
-		if !self.bias.load(Relaxed) {
+		if contended && !self.bias.load(Relaxed) {
 			self.bias.store(true, Release);
 		}
 		Ok(())
@@ -167,24 +174,20 @@ impl Borrow {
 
 	/// Take the value from no borrow to `to`: [`EXCLUSIVE`], [`RESERVED`], or [`TAKEN`].
 	pub fn take(&self, table: &Table<'_>, to: usize) -> Result<(), Status> {
-		// Moved out only once no slot names it, so a borrow refused meanwhile never reports
-		// a move that then fails.
-		let hold = match to {
-			TAKEN => RESERVED,
-			to => to,
-		};
-		match self.state.compare_exchange(0, hold, Acquire, Relaxed) {
-			Ok(_) => {}
-			Err(TAKEN) => return Err(Status::Moved),
-			Err(_) => return Err(Status::Borrowed),
+		let mut spins = 0;
+		loop {
+			match self.state.compare_exchange(0, REVOKING, Acquire, Relaxed) {
+				Ok(_) => break,
+				Err(REVOKING) => relax(&mut spins),
+				Err(TAKEN) => return Err(Status::Moved),
+				Err(_) => return Err(Status::Borrowed),
+			}
 		}
 		if !self.revoke(table) {
 			self.state.store(0, Release);
 			return Err(Status::Borrowed);
 		}
-		if hold != to {
-			self.state.store(to, Relaxed);
-		}
+		self.state.store(to, Release);
 		Ok(())
 	}
 
@@ -192,12 +195,19 @@ impl Borrow {
 	/// its first borrow there. No shared borrow of one goes to the table, as only a `Sync`
 	/// value's does.
 	pub fn local(&self, me: usize) -> Result<bool, Status> {
-		match self.state.compare_exchange(0, me, Acquire, Relaxed) {
-			Ok(_) => Ok(true),
-			Err(owner) if owner == me => Ok(false),
-			Err(TAKEN) => Err(Status::Moved),
-			Err(EXCLUSIVE | RESERVED) => Err(Status::Exclusive),
-			Err(_) => Err(Status::Thread),
+		let mut spins = 0;
+		loop {
+			return match self.state.compare_exchange(0, me, Acquire, Relaxed) {
+				Ok(_) => Ok(true),
+				Err(owner) if owner == me => Ok(false),
+				Err(REVOKING) => {
+					relax(&mut spins);
+					continue;
+				}
+				Err(TAKEN) => Err(Status::Moved),
+				Err(EXCLUSIVE | RESERVED) => Err(Status::Exclusive),
+				Err(_) => Err(Status::Thread),
+			};
 		}
 	}
 
@@ -242,10 +252,11 @@ impl Borrow {
 	/// Whether a slot names this, once each reader still checking the bias is done.
 	fn scan(&self, table: &Table<'_>) -> bool {
 		let key = self.key();
+		let mut spins = 0;
 		for slot in table.named(key) {
 			loop {
 				match slot.load(Acquire) {
-					now if now == key | PENDING => yield_now(),
+					now if now == key | PENDING => relax(&mut spins),
 					now if now == key => return true,
 					_ => break,
 				}

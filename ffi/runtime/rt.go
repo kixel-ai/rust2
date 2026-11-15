@@ -12,6 +12,35 @@ const (
 	held_   = 2
 )
 
+// Once calls contend for a handle's count, each holds it in a slot of slots_ instead, so
+// goroutines sharing a handle write nothing in common. A close that would free the handle
+// claims it closed first, then counts each hold it finds there, which lets go through the
+// count, so the last to let go frees it: ffi/tests/hold.rs models this under loom.
+const (
+	// Set in a slot whose hold a close counted.
+	revoked_ = 1
+	// A cache line of slots to a column, which a goroutine's stack address picks, and a
+	// row, which the handle's address picks: two goroutines in one column, or two handles
+	// in one row on one goroutine, fall back to the count.
+	slotRows_    = 8
+	slotColumns_ = 256
+)
+
+// slots_ is the table, its columns on cache lines of their own.
+var slots_ = func() []atomic.Uintptr {
+	s := make([]atomic.Uintptr, (slotColumns_+1)*slotRows_)
+	skip := (64 - uintptr(unsafe.Pointer(&s[0]))%64) % 64 / 8
+	return s[skip : skip+slotColumns_*slotRows_]
+}()
+
+// fibonacci_ spreads an address's bits into a hash's top ones.
+const fibonacci_ = 0x9E3779B97F4A7C15
+
+// Slot_ is where a hold went: a slot of slots_, or nil for the count.
+type Slot_ struct {
+	p *atomic.Uintptr
+}
+
 // ErrClosed is what a call returns, wrapped with the object's type, once an object it takes
 // is closed: by Close, by a call that moved it into Rust, or, for one Rust lent a callback,
 // once that callback returned.
@@ -66,6 +95,8 @@ func (e closedError_) Is(target error) bool {
 type Handle_ struct {
 	raw   unsafe.Pointer
 	state atomic.Int64
+	// Set once calls contended for state, after which they hold it in slots_.
+	bias atomic.Bool
 	// Nil for a handle Rust lends, which it frees itself.
 	free func(unsafe.Pointer)
 	// Non-nil for an owned one of a value Rust checks.
@@ -84,17 +115,52 @@ func (h *Handle_) Init(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(
 	h.state.Store(held_)
 }
 
-// Hold is the handle, held until Release, or nil once closed.
-func (h *Handle_) Hold() unsafe.Pointer {
+// Hold is the handle, held until Release takes the Slot_, or nil once closed.
+func (h *Handle_) Hold() (unsafe.Pointer, Slot_) {
+	if h.bias.Load() {
+		var here byte
+		column := (uint64(uintptr(unsafe.Pointer(&here))) >> 11) * fibonacci_ >> 56
+		s := &slots_[uintptr(column)*slotRows_+h.row()]
+		key := h.key()
+		if s.CompareAndSwap(0, key) {
+			if h.state.Load()&closed_ == 0 {
+				return h.raw, Slot_{s}
+			}
+			// A close claimed it meanwhile, and may have counted this hold.
+			if !s.CompareAndSwap(key, 0) {
+				s.Store(0)
+				h.Release(Slot_{})
+			}
+			return nil, Slot_{}
+		}
+	}
+	contended := false
 	for {
 		n := h.state.Load()
 		if n&closed_ != 0 {
-			return nil
+			return nil, Slot_{}
 		}
 		if h.state.CompareAndSwap(n, n+held_) {
-			return h.raw
+			break
 		}
+		contended = true
 	}
+	// Another call changed the count meanwhile: later ones go to the table.
+	if contended && !h.bias.Load() {
+		h.bias.Store(true)
+	}
+	return h.raw, Slot_{}
+}
+
+// key is what a slot holds for h: its address, which no other live handle has, and
+// whose low bit is clear for revoked_.
+func (h *Handle_) key() uintptr {
+	return uintptr(unsafe.Pointer(h))
+}
+
+// row is h's row of slots_.
+func (h *Handle_) row() uintptr {
+	return uintptr((uint64(h.key()) >> 4) * fibonacci_ >> 61)
 }
 
 // Closed is the error a call returns once h is closed.
@@ -103,7 +169,10 @@ func (h *Handle_) Closed() error {
 }
 
 // Release gives up a call's hold.
-func (h *Handle_) Release() {
+func (h *Handle_) Release(s Slot_) {
+	if s.p != nil && s.p.Swap(0) == h.key() {
+		return
+	}
 	if h.state.Add(-held_) < held_ && h.free != nil {
 		h.free(h.raw)
 	}
@@ -112,12 +181,12 @@ func (h *Handle_) Release() {
 // Close closes h as Handle_ says; again, it does nothing.
 func (h *Handle_) Close() error {
 	if h.drop != nil {
-		raw := h.Hold()
+		raw, s := h.Hold()
 		if raw == nil {
 			return nil
 		}
 		err := h.drop(raw)
-		h.Release()
+		h.Release(s)
 		if err != nil {
 			return err
 		}
@@ -132,15 +201,38 @@ func (h *Handle_) Close() error {
 		if n != held_ {
 			return checkError_{h.name, "a handle is already borrowed", 3}
 		}
-		if h.state.CompareAndSwap(n, closed_) {
-			// A cleanup left registered until the GC slows each one registered after it.
-			h.Cleanup.Stop()
-			if h.free != nil {
-				h.free(h.raw)
-			}
-			return nil
+		if h.state.CompareAndSwap(n, closed_|held_) {
+			break
 		}
 	}
+	// Claimed closed, so a call holding it in the table after this finds it closed, and
+	// one before is in the table. A call that left the table finding it closed held
+	// nothing, so the count is still the owner's alone.
+	if h.listed() {
+		h.state.Store(held_)
+		return checkError_{h.name, "a handle is already borrowed", 3}
+	}
+	h.state.Store(closed_)
+	// A cleanup left registered until the GC slows each one registered after it.
+	h.Cleanup.Stop()
+	if h.free != nil {
+		h.free(h.raw)
+	}
+	return nil
+}
+
+// listed is whether a call holds h in the table.
+func (h *Handle_) listed() bool {
+	if !h.bias.Load() {
+		return false
+	}
+	key := h.key()
+	for i := h.row(); i < uintptr(len(slots_)); i += slotRows_ {
+		if slots_[i].Load() == key {
+			return true
+		}
+	}
+	return false
 }
 
 // Moved closes an owned handle a call moved the value out of, or Close dropped, freeing it
@@ -158,14 +250,23 @@ func (h *Handle_) abandon() {
 		if n&closed_ != 0 {
 			return
 		}
-		next := (n | closed_) - held_
-		if h.state.CompareAndSwap(n, next) {
-			if next < held_ && h.free != nil {
-				h.free(h.raw)
-			}
-			return
+		if h.state.CompareAndSwap(n, n|closed_) {
+			break
 		}
 	}
+	// Claimed closed, so each call holding it in the table did so before: count them.
+	if h.bias.Load() {
+		key := h.key()
+		for i := h.row(); i < uintptr(len(slots_)); i += slotRows_ {
+			if s := &slots_[i]; s.Load() == key {
+				h.state.Add(held_)
+				if !s.CompareAndSwap(key, key|revoked_) {
+					h.state.Add(-held_)
+				}
+			}
+		}
+	}
+	h.Release(Slot_{})
 }
 
 // End ends a lend, closing the handle, which Rust frees next: a call still holding it

@@ -9,6 +9,17 @@ use loom::sync::Arc;
 use loom::sync::atomic::{self, AtomicUsize};
 use loom::thread::{self, yield_now};
 
+/// Wait out another thread's step, which loom must schedule. Past the first wait, loom
+/// explores no other order of the threads, which would only repeat the wait: its search
+/// would otherwise follow two waiting threads handing the processor back and forth.
+fn relax(spins: &mut u32) {
+	*spins += 1;
+	if *spins > 1 {
+		loom::skip_branch();
+	}
+	yield_now();
+}
+
 /// The runtime's refusals, of which the borrow state returns these.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Status {
@@ -80,7 +91,8 @@ impl Handle {
 	/// No slot names the handle, nor does the count, once every borrow ended.
 	fn settled(&self) {
 		assert!(self.slots.iter().all(|slot| slot.load(atomic::Ordering::Relaxed) == 0));
-		assert!(matches!(self.borrow.state.load(atomic::Ordering::Relaxed), 0 | TAKEN));
+		let state = self.borrow.state.load(atomic::Ordering::Relaxed);
+		assert!(matches!(state, 0 | TAKEN), "state {state:#x}");
 	}
 }
 
@@ -107,8 +119,9 @@ fn biased_readers_and_writer() {
 		match wrote {
 			Ok(()) => assert!(reads.iter().all(|read| matches!(read, Ok(0 | 1) | Err(Status::Exclusive)))),
 			Err(status) => {
+				// A refused writer changed nothing, so every read ran.
 				assert_eq!(status, Status::Borrowed);
-				assert!(reads.iter().any(|read| *read == Ok(0)));
+				assert!(reads.iter().all(|read| *read == Ok(0)));
 			}
 		}
 		handle.settled();
@@ -175,7 +188,7 @@ fn shared_column_and_close() {
 		let other = reader.join().unwrap();
 		assert!(matches!(read, Ok(0)));
 		match closed {
-			Ok(true) => assert!(matches!(other, Ok(0) | Err(Status::Moved | Status::Exclusive))),
+			Ok(true) => assert!(matches!(other, Ok(0) | Err(Status::Moved))),
 			Ok(false) => unreachable!("closed twice"),
 			Err(status) => {
 				assert_eq!(status, Status::Borrowed);

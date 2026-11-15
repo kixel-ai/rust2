@@ -357,6 +357,7 @@ const TAKEN: &[&str] = &[
 	"ErrBorrowed",
 	"ErrClosed",
 	"Handle_",
+	"Slot_",
 	"LiftBytes_",
 	"BytesBuf_",
 	"GoCall_",
@@ -1507,7 +1508,7 @@ impl<'a> Gen<'a> {
 		let open = |failed: &dyn Fn(&str) -> String| match (object, arena) {
 			(true, _) => (
 				format!(
-					"h_ := self.Handle_.Hold()\nif h_ == nil {{\n\treturn {}\n}}\ndefer unhold_(self.Handle_, self)\n",
+					"h_, s_ := self.Handle_.Hold()\nif h_ == nil {{\n\treturn {}\n}}\ndefer unhold_(self.Handle_, s_, self)\n",
 					failed("self.Handle_.Closed()")
 				),
 				format!("(*C.{c})(h_)"),
@@ -1643,7 +1644,7 @@ impl<'a> Gen<'a> {
 			};
 			let body = match (object, arena) {
 				(true, _) => format!(
-					"{open}o_ := other.Handle_.Hold()\nif o_ == nil {{\n\treturn {}\n}}\ndefer unhold_(other.Handle_, other)\n{}return bool(r_){ok}",
+					"{open}o_, os_ := other.Handle_.Hold()\nif o_ == nil {{\n\treturn {}\n}}\ndefer unhold_(other.Handle_, os_, other)\n{}return bool(r_){ok}",
 					failed("other.Handle_.Closed()"),
 					checked(&format!("{c}_eq"), &format!("{this}, (*C.{c})(o_)"), &failed)
 				),
@@ -2523,7 +2524,7 @@ impl<'a> Gen<'a> {
 			match c {
 				Ty::Handle { name, .. } => {
 					prelude.push(format!(
-						"h_ := self.Handle_.Hold()\nif h_ == nil {{\n\t{}\n}}\ndefer unhold_(self.Handle_, self)",
+						"h_, s_ := self.Handle_.Hold()\nif h_ == nil {{\n\t{}\n}}\ndefer unhold_(self.Handle_, s_, self)",
 						fail("self.Handle_.Closed()")
 					));
 					args.push(format!("(*C.{name})(h_)"));
@@ -2642,10 +2643,11 @@ impl<'a> Gen<'a> {
 					let failed = fail(&format!("{name}.Handle_.Closed()"));
 					match ty.base() {
 						Type::Option(_) => prelude.push(format!(
-							"var {h} unsafe.Pointer\nif {name} != nil {{\n\tif {h} = {name}.Handle_.Hold(); {h} == nil {{\n\t\t{failed}\n\t}}\n\tdefer unhold_({name}.Handle_, {name})\n}}"
+							"var {h} unsafe.Pointer\nif {name} != nil {{\n\tvar s_ {}\n\tif {h}, s_ = {name}.Handle_.Hold(); {h} == nil {{\n\t\t{failed}\n\t}}\n\tdefer unhold_({name}.Handle_, s_, {name})\n}}",
+							self.qualify(Packages::RT, "Slot_")
 						)),
 						_ => prelude.push(format!(
-							"{h} := {name}.Handle_.Hold()\nif {h} == nil {{\n\t{failed}\n}}\ndefer unhold_({name}.Handle_, {name})"
+							"{h}, {h}s := {name}.Handle_.Hold()\nif {h} == nil {{\n\t{failed}\n}}\ndefer unhold_({name}.Handle_, {h}s, {name})"
 						)),
 					}
 					args.push(format!("(*C.{c})({h})"));

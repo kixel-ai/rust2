@@ -15,7 +15,6 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicBool, AtomicUsize, Ordering};
 use std::task::{Context, Wake};
-use std::thread::yield_now;
 
 mod borrow;
 use borrow::{Borrow, EXCLUSIVE, RESERVED, TAKEN, Table};
@@ -859,6 +858,16 @@ struct Slots([AtomicUsize; COLUMNS * ROWS]);
 static SLOTS: Slots = Slots([const { AtomicUsize::new(0) }; COLUMNS * ROWS]);
 /// Where shared borrows of contended handles go instead of their counts.
 static TABLE: Table<'static> = Table::new(&SLOTS.0, ROWS);
+
+/// Wait for another thread to finish a step of a handle's borrow check, which runs no code
+/// but the check's: spinning briefly, then yielding in case that thread is descheduled.
+fn relax(spins: &mut u32) {
+	match *spins < 64 {
+		true => std::hint::spin_loop(),
+		false => std::thread::yield_now(),
+	}
+	*spins += 1;
+}
 
 /// A [`Ticket`]'s column before a borrow of it asked for one.
 const NO_COLUMN: usize = usize::MAX;
