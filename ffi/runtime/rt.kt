@@ -208,6 +208,9 @@ class __Writer {
 
 	private var held: java.util.ArrayList<__Handle>? = null
 
+	// The slot each of [held] went to, as [__Handle.hold] says.
+	private var slots = IntArray(0)
+
 	// What holds Rust's bytes encoded in place, which the GC must not free before [release].
 	private var kept: java.util.ArrayList<Any?>? = null
 
@@ -217,15 +220,19 @@ class __Writer {
 			i64(0L)
 			return
 		}
-		i64(v.hold())
-		(held ?: java.util.ArrayList<__Handle>().also { held = it }).add(v)
+		val slot = v.hold()
+		i64(v.raw)
+		val held = held ?: java.util.ArrayList<__Handle>().also { held = it }
+		if (held.size == slots.size) slots = slots.copyOf(kotlin.math.max(4, held.size * 2))
+		slots[held.size] = slot
+		held.add(v)
 	}
 
 	fun finish(): ByteArray = b.array().copyOf(b.position())
 
 	/** Release the handles encoded, once the call that reads them returns. */
 	fun release() {
-		held?.forEach { it.release() }
+		held?.forEachIndexed { i, h -> h.release(slots[i]) }
 		java.lang.ref.Reference.reachabilityFence(kept)
 	}
 
@@ -429,7 +436,7 @@ abstract class __Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owne
  */
 class __Handle(
 	owner: Any,
-	internal val raw: Long,
+	@PublishedApi internal val raw: Long,
 	private val free: __Drop?,
 	private val type: String,
 	private val drop: __Close? = null,
@@ -438,32 +445,65 @@ class __Handle(
 	// once closed: one word, so a handle allocates nothing beside itself.
 	@kotlin.concurrent.Volatile @kotlin.jvm.JvmField internal var state = HELD
 
+	// Set once calls contended for [state], after which they hold it in [SLOTS].
+	@kotlin.concurrent.Volatile @kotlin.jvm.JvmField internal var bias = false
+
 	init {
 		if (free != null) track()
 	}
 
-	fun hold(): Long {
+	/** Hold it for a call, until [release] takes what this returns. Throws once closed. */
+	fun hold(): Int {
+		if (bias) {
+			val i = slot()
+			if (SLOTS.compareAndSet(i, 0L, raw)) {
+				if (state and CLOSED == 0L) return i
+				// A close claimed it meanwhile, and may have counted this hold.
+				if (!SLOTS.compareAndSet(i, raw, 0L)) {
+					SLOTS.set(i, 0L)
+					release(-1)
+				}
+				throw IllegalStateException("$type is closed")
+			}
+		}
+		var contended = false
 		while (true) {
 			val n = state
 			kotlin.check(n and CLOSED == 0L) { "$type is closed" }
-			if (STATE.compareAndSet(this, n, n + HELD)) return raw
+			if (STATE.compareAndSet(this, n, n + HELD)) break
+			contended = true
 		}
+		// Another call changed the count meanwhile: later ones go to the table.
+		if (contended && !bias) bias = true
+		return -1
 	}
 
-	fun release() = freed(STATE.addAndGet(this, -HELD))
+	// This thread's slot of the table for this handle: a column of a cache line per thread,
+	// and a row in it per handle.
+	private fun slot(): Int {
+		val column = (java.lang.Thread.currentThread().hashCode() * FIBONACCI ushr (32 - COLUMN_BITS))
+		return column * STRIDE + row()
+	}
+
+	private fun row(): Int = ((raw ushr 4) * FIBONACCI_LONG ushr (64 - ROW_BITS)).toInt()
+
+	fun release(slot: Int) {
+		if (slot >= 0 && SLOTS.getAndSet(slot, 0L) == raw) return
+		freed(STATE.addAndGet(this, -HELD))
+	}
 
 	/** Close it as [__Handle] says; again, it does nothing. */
 	fun close() {
 		if (drop != null) {
-			while (true) {
-				val n = state
-				if (n and CLOSED != 0L) return
-				if (STATE.compareAndSet(this, n, n + HELD)) break
+			val slot = try {
+				hold()
+			} catch (_: IllegalStateException) {
+				return
 			}
 			try {
 				drop.close(raw)
 			} finally {
-				release()
+				release(slot)
 			}
 			return abandon()
 		}
@@ -471,8 +511,28 @@ class __Handle(
 			val n = state
 			if (n and CLOSED != 0L) return
 			kotlin.check(n == HELD) { "$type: a handle is already borrowed" }
-			if (STATE.compareAndSet(this, n, CLOSED)) return freed(CLOSED)
+			if (STATE.compareAndSet(this, n, CLOSED or HELD)) break
 		}
+		// Claimed closed, so a call holding it in the table after this finds it closed, and
+		// one before is in the table. A call that left the table finding it closed held
+		// nothing, so the count is still the owner's alone.
+		if (listed()) {
+			state = HELD
+			throw IllegalStateException("$type: a handle is already borrowed")
+		}
+		state = CLOSED
+		freed(CLOSED)
+	}
+
+	// Whether a call holds it in the table.
+	private fun listed(): Boolean {
+		if (!bias) return false
+		var i = row()
+		while (i < SLOTS.length()) {
+			if (SLOTS.get(i) == raw) return true
+			i += STRIDE
+		}
+		return false
 	}
 
 	/**
@@ -492,8 +552,20 @@ class __Handle(
 		while (true) {
 			val n = state
 			if (n and CLOSED != 0L) return
-			if (STATE.compareAndSet(this, n, (n or CLOSED) - HELD)) return freed((n or CLOSED) - HELD)
+			if (STATE.compareAndSet(this, n, n or CLOSED)) break
 		}
+		// Claimed closed, so each call holding it in the table did so before: count them.
+		if (bias) {
+			var i = row()
+			while (i < SLOTS.length()) {
+				if (SLOTS.get(i) == raw) {
+					STATE.addAndGet(this, HELD)
+					if (!SLOTS.compareAndSet(i, raw, raw or REVOKED)) STATE.addAndGet(this, -HELD)
+				}
+				i += STRIDE
+			}
+		}
+		release(-1)
 	}
 
 	// Free it once no hold is left.
@@ -506,17 +578,33 @@ class __Handle(
 
 	/** Run [block] with the raw handle, held until it returns. */
 	inline fun <R> hold(block: (Long) -> R): R {
-		val h = hold()
+		val slot = hold()
 		try {
-			return block(h)
+			return block(raw)
 		} finally {
-			release()
+			release(slot)
 		}
 	}
 
 	private companion object {
 		const val CLOSED = 1L
 		const val HELD = 2L
+		// Set in a slot whose hold a close counted.
+		const val REVOKED = 1L
+		// Once calls contend for a handle's count, each holds it in a slot of SLOTS instead,
+		// so threads sharing a handle write nothing in common. A close that would free the
+		// handle claims it closed first, then counts each hold it finds there, which lets go
+		// through the count, so the last to let go frees it: ffi/tests/hold.rs models this.
+		// A cache line of rows to a column, which the thread picks, and a row per handle: two
+		// threads in one column, or two handles in one row on one thread, use the count.
+		const val ROW_BITS = 3
+		const val COLUMN_BITS = 8
+		// Two cache lines to a column, of which it uses one's worth, so a column shares no line
+		// with the next wherever the array starts.
+		const val STRIDE = 2 shl ROW_BITS
+		const val FIBONACCI = -0x61c88647
+		const val FIBONACCI_LONG = -0x61c8864680b583ebL
+		val SLOTS = java.util.concurrent.atomic.AtomicLongArray(STRIDE shl COLUMN_BITS)
 		val STATE: java.util.concurrent.atomic.AtomicLongFieldUpdater<__Handle> =
 			java.util.concurrent.atomic.AtomicLongFieldUpdater.newUpdater(__Handle::class.java, "state")
 	}

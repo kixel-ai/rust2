@@ -553,10 +553,16 @@ extension Native {
 	/// a call moves its value out or a lend ends, frees it only once no call does, and a
 	/// call after `close` traps. A struct needs none of this: Swift's compiler orders every
 	/// call before its move or the end of its lend.
+	///
+	/// Once calls contend for a handle's count, each holds it in a slot of `slots` instead,
+	/// so threads sharing a handle write nothing in common. A close claims it closed first,
+	/// then counts each hold it finds there, which lets go through the count, so the last
+	/// to let go frees it: ffi/tests/hold.rs models this under loom.
 	struct Handle {
 		let raw: OpaquePointer?
 		/// The holds, one for the owner until closed and one per call, shifted past a bit
-		/// set once closed.
+		/// set once closed; then whether calls contended for them, after which they hold it
+		/// in `slots`.
 		let state: UnsafeMutablePointer<Int>
 		/// Null for a handle Rust lends, which it frees itself.
 		let free: (@convention(c) (OpaquePointer?) -> Void)?
@@ -564,38 +570,93 @@ extension Native {
 
 		static let closed = 1
 		static let held = 2
+		/// Set in a slot whose hold a close counted.
+		static let revoked = 1
+		/// A cache line of rows to a column, which the thread's stack picks, and a row per
+		/// handle, with a line between columns: two threads in one column, or two handles in
+		/// one row on one thread, use the count.
+		static let rowBits = 3
+		static let columnBits = 8
+		static let stride = 2 << rowBits
+		/// Only ever touched atomically.
+		nonisolated(unsafe) static let slots: UnsafeMutablePointer<Int> = {
+			let count = stride << columnBits
+			return UnsafeMutableRawPointer.allocate(byteCount: count * MemoryLayout<Int>.stride, alignment: 64)
+				.initializeMemory(as: Int.self, repeating: 0, count: count)
+		}()
 
 		init(_ raw: OpaquePointer?, _ free: (@convention(c) (OpaquePointer?) -> Void)?, _ type: StaticString) {
 			self.raw = raw
 			self.free = free
 			self.type = type
-			state = UnsafeMutablePointer<Int>.allocate(capacity: 1)
+			state = UnsafeMutablePointer<Int>.allocate(capacity: 2)
 			state.initialize(to: Handle.held)
+			(state + 1).initialize(to: 0)
 		}
 
-		func hold() -> OpaquePointer? {
-			guard held() else {
+		private var bias: UnsafeMutablePointer<Int> { state + 1 }
+
+		/// What a slot holds for this handle: its state's address, which no other live
+		/// handle has, and whose low bit is clear for `revoked`.
+		private var key: Int { Int(bitPattern: state) }
+
+		/// This handle's row of `slots`.
+		private var row: Int {
+			let hash = (UInt64(UInt(bitPattern: key)) >> 4) &* 0x9E37_79B9_7F4A_7C15
+			return Int(truncatingIfNeeded: hash >> UInt64(64 - Handle.rowBits))
+		}
+
+		/// Hold it for a call, until `release` takes what this returns. Traps once closed.
+		func hold() -> Int {
+			guard let slot = held() else {
 				fatalError("\(type) is closed")
 			}
-			return raw
+			return slot
 		}
 
-		/// Hold it for a call, unless it is closed.
-		func held() -> Bool {
+		/// Hold it for a call, until `release` takes what this returns, unless it is closed.
+		func held() -> Int? {
+			if loadSC(bias) != 0 {
+				var here = 0
+				let stack = withUnsafeMutablePointer(to: &here) { UInt64(UInt(bitPattern: $0)) }
+				let hash = (stack >> 16) &* 0x9E37_79B9_7F4A_7C15
+				let slot = Int(truncatingIfNeeded: hash >> UInt64(64 - Handle.columnBits)) * Handle.stride + row
+				if swapSC(Handle.slots + slot, 0, key) == 0 {
+					if loadSC(state) & Handle.closed == 0 {
+						return slot
+					}
+					// A close claimed it meanwhile, and may have counted this hold.
+					if swapSC(Handle.slots + slot, key, 0) != key {
+						storeSC(Handle.slots + slot, 0)
+						release(-1)
+					}
+					return nil
+				}
+			}
 			var n = load(state)
+			var contended = false
 			while true {
 				if n & Handle.closed != 0 {
-					return false
+					return nil
 				}
 				let seen = swap(state, n, n + Handle.held)
 				if seen == n {
-					return true
+					break
 				}
 				n = seen
+				contended = true
 			}
+			// Another call changed the count meanwhile: later ones go to the table.
+			if contended && load(bias) == 0 {
+				storeSC(bias, 1)
+			}
+			return -1
 		}
 
-		func release() {
+		func release(_ slot: Int) {
+			if slot >= 0 && exchange(Handle.slots + slot, 0) == key {
+				return
+			}
 			if add(state, -Handle.held) < Handle.held {
 				free?(raw)
 			}
@@ -604,8 +665,8 @@ extension Native {
 		/// Run `body` with the raw handle, held until it returns.
 		@inline(__always)
 		func with<R: ~Copyable>(_ body: (OpaquePointer?) throws -> R) rethrows -> R {
-			let raw = hold()
-			defer { release() }
+			let slot = hold()
+			defer { release(slot) }
 			return try body(raw)
 		}
 
@@ -613,25 +674,39 @@ extension Native {
 		/// `what` if it is closed.
 		@inline(__always)
 		func with<R: ~Copyable>(_ what: StaticString, _ body: (OpaquePointer?) throws -> R) throws -> R {
-			guard held() else {
+			guard let slot = held() else {
 				throw CheckError(function: "\(what)", message: "\(type) is closed")
 			}
-			defer { release() }
+			defer { release(slot) }
 			return try body(raw)
 		}
 
 		func close() {
 			var n = load(state)
-			while n & Handle.closed == 0 {
-				let seen = swap(state, n, (n | Handle.closed) - Handle.held)
-				if seen == n {
-					if (n | Handle.closed) - Handle.held < Handle.held {
-						free?(raw)
-					}
+			while true {
+				if n & Handle.closed != 0 {
 					return
+				}
+				let seen = swapSC(state, n, n | Handle.closed)
+				if seen == n {
+					break
 				}
 				n = seen
 			}
+			// Claimed closed, so each call holding it in the table did so before: count them.
+			if loadSC(bias) != 0 {
+				var slot = row
+				while slot < Handle.stride << Handle.columnBits {
+					if loadSC(Handle.slots + slot) == key {
+						_ = add(state, Handle.held)
+						if swapSC(Handle.slots + slot, key, key | Handle.revoked) != key {
+							_ = add(state, -Handle.held)
+						}
+					}
+					slot += Handle.stride
+				}
+			}
+			release(-1)
 		}
 
 		/// End a lend, closing the handle, which Rust frees next: a call still holding it
@@ -671,7 +746,7 @@ extension Native {
 	/// bytes, arrays, and the handles it holds.
 	final class Arena {
 		private var blocks: [UnsafeMutableRawPointer] = []
-		private var held: [Handle] = []
+		private var held: [(Handle, Int)] = []
 		/// Each buffer given Rust to take, which the call frees unless it reached C.
 		private var given: [Buf] = []
 		private var reached = false
@@ -736,9 +811,8 @@ extension Native {
 
 		/// The handle of a `Copy` object, which nothing closes, held until the call returns.
 		func hold(_ handle: Handle) -> OpaquePointer? {
-			let raw = handle.hold()
-			held.append(handle)
-			return raw
+			held.append((handle, handle.hold()))
+			return handle.raw
 		}
 
 		func hold(_ handle: Handle?) -> OpaquePointer? {
@@ -748,10 +822,10 @@ extension Native {
 		/// The handle of an object a move may have closed, held until the call returns, or
 		/// a throw for the call if it is closed.
 		func held(_ handle: Handle) throws -> OpaquePointer? {
-			guard handle.held() else {
+			guard let slot = handle.held() else {
 				throw CheckError(function: "\(what)", message: "\(handle.type) is closed")
 			}
-			held.append(handle)
+			held.append((handle, slot))
 			return handle.raw
 		}
 
@@ -801,8 +875,8 @@ extension Native {
 		/// Release what the call held, once it returns, and, if a lowering threw before the
 		/// call reached C, each buffer given Rust.
 		func finish() {
-			for handle in held {
-				handle.release()
+			for (handle, slot) in held {
+				handle.release(slot)
 			}
 			if !reached {
 				for buf in given {

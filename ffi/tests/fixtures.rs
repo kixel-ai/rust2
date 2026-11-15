@@ -1138,6 +1138,7 @@ fn api_swift() {
 	);
 	run(Command::new(&exe).arg("futures"));
 	run(Command::new(&exe).arg("owned"));
+	run(Command::new(&exe).arg("shared"));
 	// Each in a build of its own, since the first error stops the rest; move checking runs
 	// on SIL, which type-checking alone skips.
 	for (case, message) in [
