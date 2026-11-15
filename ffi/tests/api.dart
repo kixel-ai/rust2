@@ -1349,7 +1349,7 @@ void closedObjects() {
   closed(() => api.logCounts(spared, 0, open, [c]), 'Counter', 'a closed object in a list after an implementation');
   check(spared.closes == 0, 'a call Dart refuses gives Rust no implementation');
   // Moved out by a call, which only Rust's check sees.
-  final gone = api.Counter('g', 0);
+  final gone = api.Counter('g', api.U64(0));
   gone.intoLabel(null);
   closed(() => api.logCounts(spared, 0, gone, []), 'Counter', 'a moved object after an implementation');
   closed(() => api.logCounts(spared, 0, open, [gone]), 'Counter', 'a moved object in a list after an implementation');
