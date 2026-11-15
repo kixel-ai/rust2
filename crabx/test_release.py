@@ -47,8 +47,8 @@ def archives(directory, version):
 
 class Plan(unittest.TestCase):
     def test_newest_stable_skips_yanked_and_prereleases(self):
-        versions = {"0.9.0": False, "0.10.0": False, "0.11.0": True, "1.0.0-rc.1": False, "0.10.1+build.5": False}
-        self.assertEqual(r.newest_stable(versions), "0.10.1+build.5")
+        versions = {"0.9.0": False, "0.10.0": False, "0.11.0": True, "1.0.0-rc.1": False, "0.10.1+build-5": False}
+        self.assertEqual(r.newest_stable(versions), "0.10.1+build-5")
 
     def test_newest_stable_refuses_garbage_and_nothing(self):
         with self.assertRaises(ValueError):
@@ -250,6 +250,14 @@ esac""")
         installed = self.temp / "home/.local/bin/crabx"
         self.assertEqual(subprocess.run([installed], capture_output=True, text=True).stdout, "crabx 0.10.0\n")
         self.assertIn("add", result.stderr)
+
+    def test_a_hyphen_in_build_metadata_is_stable(self):
+        (self.served / "index").write_bytes(index(("0.10.0", False), ("0.10.1+build-5", False), ("0.11.0-rc.1", False)))
+        name = "crabx-x86_64-unknown-linux-gnu-v0.10.1+build-5"
+        archive(self.served / f"{name}.tgz", {f"{name}/crabx": b"#!/bin/sh\necho crabx 0.10.1+build-5\n"})
+        result = self.install()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(subprocess.run([self.temp / "home/.local/bin/crabx"], capture_output=True, text=True).stdout, "crabx 0.10.1+build-5\n")
 
     def test_a_pinned_version_and_directory(self):
         result = self.install(CRABX_VERSION="0.9.0", CRABX_INSTALL_DIR=str(self.temp / "dir"))

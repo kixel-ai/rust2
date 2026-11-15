@@ -24,7 +24,7 @@
 		# The highest version on crates.io that is neither yanked nor a prerelease.
 		$index = $web.DownloadString('https://index.crates.io/cr/ab/crabx')
 		$version = $index -split "`n" | Where-Object { $_ } | ForEach-Object { $_ | ConvertFrom-Json } |
-			Where-Object { -not $_.yanked -and $_.vers -notmatch '-' } |
+			Where-Object { -not $_.yanked -and ($_.vers -replace '\+.*', '') -notmatch '-' } |
 			Sort-Object { [version]($_.vers -replace '\+.*', '') } | Select-Object -Last 1 -ExpandProperty vers
 		if (-not $version) { throw 'crabx install: crates.io has no stable crabx release' }
 	}

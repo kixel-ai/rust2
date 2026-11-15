@@ -44,7 +44,8 @@ newest() {
     echo "$index" |
         sed -n 's/.*"vers":"\([^"]*\)".*"yanked":false.*/\1/p' |
         awk -F '[.+]' '
-			/-/ { next }
+			{ core = $0; sub(/\+.*/, "", core) }
+			core ~ /-/ { next }
 			!found || $1 > a || ($1 == a && ($2 > b || ($2 == b && $3 > c))) {
 				found = 1; a = $1 + 0; b = $2 + 0; c = $3 + 0; best = $0
 			}
