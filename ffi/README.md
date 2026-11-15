@@ -759,7 +759,8 @@ beside `swift/<prefix>_atomics.h`, the atomics its runtime needs that Swift's st
 library has only from macOS 15: a build puts `swift/` on its import path and links the
 static library. It imports swift-collections' `BasicContainers` for `UniqueArray`, which
 `just ffi swift-collections` builds at the version the tests pin, 1.7.5. It needs Swift 6.2
-and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mode.
+and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mode. Every
+value of a Rust type crosses as one Swift type that holds it exactly, and back unchanged.
 
 - **Names** are as Kotlin's, at the module's top level: types in PascalCase without the
   prefix, members in camelCase without their type's name (`TrackProducer.appendGroup`). A
@@ -779,7 +780,8 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   is an overload with and without it, labelled by its name, as a defaulted argument is:
   `clamped()`, `clamped(low:)`, `clamped(high:)` and `clamped(low:high:)`, up to two per
   function; `Option<&mut T>` is `inout T?`. `Clone` is `clone()`, and `PartialEq` is `==`, which Swift 6.4 makes
-  `Equatable` unless it throws, as below; `Display` is `description` and `Debug`
+  `Equatable` unless it throws, as below, and `Hashable` with `Hash`, whose `hash(into:)`
+  combines Rust's hash; `Display` is `description` and `Debug`
   `debugDescription`, which Swift conforms no noncopyable type to yet. A `Copy` object,
   which Rust copies where it takes one by value, and an object thrown as an error, which
   `Swift.Error` requires be copyable, are final classes instead, whose handle a call
@@ -793,12 +795,14 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   field read stays a property whose getter throws, except one of a noncopyable value,
   whose getter Swift cannot let throw, which is a method, `firstGet()`. Of a type whose
   checks can fail, or a record or enum holding one, `description` and `debugDescription`
-  are getters that throw, and `clone()` and `==` throw, so it conforms to none of
-  `CustomStringConvertible`, `CustomDebugStringConvertible`, and `Equatable`, whose
+  are getters that throw, and `clone()`, `==`, and `hash(into:)` throw, so it conforms to
+  none of `CustomStringConvertible`, `CustomDebugStringConvertible`, `Equatable`, and
+  `Hashable`, whose
   requirements cannot throw. A closed class anywhere in a call's arguments throws too. A
   copy a closure returns, which has no caller to throw to, traps instead.
 - **Records** are structs and **enums** Swift enums, with a variant's data as associated
-  values, all `Sendable`. `PartialEq` is `==`, through Rust's; `Display` is `description`,
+  values, all `Sendable`. `PartialEq` is `==`, through Rust's, and `Hash` `hash(into:)`,
+  making it `Hashable`; `Display` is `description`,
   `Debug` `debugDescription`, each throwing as an object's does when it holds a checked
   one, and `Default` a static `default()`. An **opaque value** is a struct holding its C
   struct, with no public initializer, so only Rust makes one; a `&mut self` method is
@@ -812,17 +816,23 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   writes into a buffer Rust shares.
   Strings are `String`, copied, `char` `Unicode.Scalar`, `usize` `UInt`, `Option<T>` `T?`,
   a tuple a Swift tuple, though a tuple of one is its element, `u128` a `U128` of its
-  `high` and `low` halves until the deployment target allows `UInt128`, and `Duration`
-  `Swift.Duration`. An `Err` is thrown: an exported type as itself, which conforms to
+  `high` and `low` halves until the deployment target allows `UInt128`, and `Duration` the
+  runtime's `RustDuration` of its `secs` and `nanos`, whose initializer throws a
+  `CheckError` for a second's nanoseconds or more. `duration` is it as a `Swift.Duration`,
+  which holds every one, and `RustDuration(_:)` makes one from a `Swift.Duration`,
+  throwing for one negative, past Rust's longest, or with a part below a nanosecond. An `Err` is thrown: an exported type as itself, which conforms to
   `Swift.Error`, and any other in a generated `<T>Error` holding it, whose `init(error:)`
   makes one for a closure to throw back. A `[u8; N]` is a
   generated `ArrayU8x<N>`, a collection holding its bytes inline in C's struct, made by a
   failable initializer from exactly `N` bytes, until the deployment target allows
   `InlineArray`.
-- A **path** is a `String`: one Rust returns that is not UTF-8 traps. A `SocketAddr`,
-  `SocketAddrV4`, or `SocketAddrV6` is the runtime's `SocketAddr`, its IP's 4 or 16 bytes
-  and its port, flow label, and scope, whose family Rust checks. An `IpAddr`, `Ipv4Addr`,
-  or `Ipv6Addr` is the runtime's `IpAddr`, its 4 or 16 bytes. A `Vec<T>`, `&[T]`, or
+- A **path** is the runtime's `PathBuf` of its `bytes`, a `Bytes` sharing Rust's buffer as
+  bytes do, so one that is not UTF-8 keeps them; `PathBuf("a/b")`, or a string literal,
+  makes one, and `string` is its text, or nil if it is not UTF-8. Each address type is the
+  runtime's of its name, as std's: `Ipv4Addr` and `Ipv6Addr` of their `bits`, as
+  `to_bits` gives them, or `octets`, `IpAddr` an enum of `.v4` and `.v6`, `SocketAddrV4`
+  and `SocketAddrV6` of their IP, port, and IPv6's flow label and scope, and `SocketAddr`
+  an enum of either. A `Vec<T>`, `&[T]`, or
   `Box<[T]>` is an array, or a `UniqueArray` of objects; one of a fixed-width integer
   other than `u8` (bytes) or `u128`, or of a float, is copied across whole, with no call per item.
 - **Traits** are `Sendable` protocols, which Rust releases once it drops an implementation.
