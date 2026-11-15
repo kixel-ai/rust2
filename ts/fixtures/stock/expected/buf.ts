@@ -4345,13 +4345,12 @@ export function chunkWrite(chunk: rs.ByteSlice, op: rs.u8, n: rs.u8, out: rs.Byt
 	b1: {
 		const _20: rs.u8 = rs.u8Rem(op, 13);
 		if (_20 === 0) {
-			const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(src)));
+			const s: Uint8Array = rs.byteSliceView(rs.byteVecSlice(src));
+			let front: number = 0;
+			const back: number = s.length;
 			let count: number = 0;
-			while (true) {
-				const x = leaf.next();
-				if (x === rs.DONE) {
-					break;
-				}
+			while (!(front >= back)) {
+				const x = s[front++];
 				const i3 = count++;
 				UninitSlice.writeByte(chunk, i3, x);
 			}
@@ -6088,14 +6087,12 @@ export function vectored(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		const part2 = rs.sliceRange(dst2, 0, n);
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part2), f, (value: rs.ByteSlice, f: rs.Formatter) => rs.fmtList(rs.byteSliceView(value), f, rs.u8Debug))]).v));
-		const leaf = rs.iterSlice(rs.sliceItems(rs.sliceRange(dst2, 0, n)));
+		const s = rs.sliceItems(rs.sliceRange(dst2, 0, n));
+		let front = 0;
+		let back = s.length;
 		let acc: rs.usize = 0;
-		while (true) {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				break;
-			}
-			acc = rs.usizeAdd(acc, x.length);
+		while (!(front >= back)) {
+			acc = rs.usizeAdd(acc, s[front++].length);
 		}
 		const skip: rs.usize = rs.usizeRem(data.data[data.start + 3] as rs.usize, rs.usizeAdd(acc, 2));
 		const _126: rs.Place<rs.ByteSlice> | undefined = rs.sliceFirstMut(dst2);

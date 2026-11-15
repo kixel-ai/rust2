@@ -36,14 +36,12 @@ export function boxed(log: Log.Log, id: rs.u32): void {
 	const _36: Part.Part = new of$drops_Held({ tag: "One", _0: guard(5) } as Held.Held);
 	parts.items.push(_36);
 	rs.sliceSwap(rs.sliceFrom(parts.items), 2, 3);
-	const leaf = rs.iterSlice(parts.items);
+	const s = parts.items;
+	let front = 0;
+	let back = s.length;
 	let acc: rs.u32 = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
-		acc = rs.u32WrappingAdd(acc, x.id$Part());
+	while (!(front >= back)) {
+		acc = rs.u32WrappingAdd(acc, s[front++].id$Part());
 	}
 	Log.note(log, rs.fmtFormat(["ids ", (f: rs.Formatter) => rs.u32Display(acc, f)]));
 	let slot: Part.Part = new of$model_Guard(guard(6));
@@ -109,14 +107,12 @@ export function shared(log: Log.Log, id: rs.u32): void {
 	parts.items.push(new rs.ArcDyn(_77, new of$u32(_77.value)));
 	const weak: rs.Weak<Part.Part> = new rs.Weak(parts.items[rs.idx(parts.items, 1)]);
 	second[Symbol.dispose]();
-	const leaf = rs.iterSlice(parts.items);
+	const s = parts.items;
+	let front = 0;
+	let back = s.length;
 	let acc: rs.u32 = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
-		acc = rs.u32WrappingAdd(acc, x.value.id$Part());
+	while (!(front >= back)) {
+		acc = rs.u32WrappingAdd(acc, s[front++].value.id$Part());
 	}
 	Log.note(log, rs.fmtFormat(["ids ", (f: rs.Formatter) => rs.u32Display(acc, f)]));
 	rs.arcDrop(wrap, lib_drop$drops_Wrap_u32);
@@ -473,15 +469,13 @@ export function fns(log: Log.Log, id: rs.u32): void {
 	let p2: (a0: rs.u32) => rs.u32 = (a0: rs.u32): rs.u32 => {
 		return a0;
 	};
-	const leaf = rs.vecIntoIter(rs.vecFrom([1, 2]));
+	const s2 = rs.vecFrom([1, 2]).items;
+	let front = 0;
+	let back = s2.length;
 	const f3 = rs.place(() => p2, (value7) => p2 = value7).v;
 	let acc: rs.u32 = 0;
-	while (true) {
-		const x4 = leaf.next();
-		if (x4 === rs.DONE) {
-			break;
-		}
-		acc = rs.u32Add(acc, f3(x4));
+	while (!(front >= back)) {
+		acc = rs.u32Add(acc, f3(s2[front++]));
 	}
 	Log.note(log, rs.fmtFormat(["pointer ", (f: rs.Formatter) => rs.u32Display(acc, f)]));
 	const part26 = guard(25);

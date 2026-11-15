@@ -506,13 +506,12 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let deep = 1 as rs.u32 | undefined | rs.None;
 	const tup: rs.Result<[rs.u32, rs.u32], rs.u8> = rs.Ok([1, 2]);
 	let boxedOpt: rs.u32 | undefined = 3;
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s2: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s2.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s2[front++];
 		const i: rs.usize = count++;
 		const by: rs.u8 = x;
 		const _58: rs.u8 = rs.u8Rem(by, 26);

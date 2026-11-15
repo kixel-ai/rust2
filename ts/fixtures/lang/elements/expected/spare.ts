@@ -829,13 +829,12 @@ export function slots$spare_Noted(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const k: rs.usize = rs.usizeRem(n as rs.usize, rs.usizeAdd(spare.length, 1));
 		const _30: rs.u8 = rs.u8Rem(op, 6);
 		if (_30 === 0) {
-			const leaf2: rs.Iter<Noted.Noted> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
+			const s2: Noted.Noted[] = rs.sliceItems(rs.sliceRange(spare, 0, k));
+			let front2: number = 0;
+			const back2: number = s2.length;
 			let count2: number = 0;
-			while (true) {
-				const x2 = leaf2.next();
-				if (x2 === rs.DONE) {
-					break;
-				}
+			while (!(front2 >= back2)) {
+				const x2 = s2[front2++];
 				const i5 = count2++;
 				rs.ptrWrite(x2, Noted.of$spare_Item(n ^ (i5 & 0xff)));
 			}
@@ -843,16 +842,19 @@ export function slots$spare_Noted(data: rs.ByteSlice, out: rs.ByteVec): void {
 				return (new Noted.Noted((undefined as unknown) as rs.u8) as unknown) as Noted.Noted;
 			});
 		} else if (_30 === 1) {
-			const leaf: rs.Iter<Noted.Noted> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
+			const s: Noted.Noted[] = rs.sliceItems(rs.sliceRange(spare, 0, k));
+			const front: number = 0;
+			let back: number = s.length;
 			let count: number = -1;
 			while (true) {
 				if (count < 0) {
-					count = leaf.len();
+					count = back - front;
 				}
-				const x = leaf.nextBack();
-				if (x === rs.DONE) {
+				if (front >= back) {
 					break;
 				}
+				back--;
+				const x = s[back];
 				count--;
 				Object.assign(x, Noted.of$spare_Item(rs.u8WrappingAdd(n, count & 0xff)));
 			}
@@ -927,13 +929,12 @@ export function slots$spare_Pair(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const k: rs.usize = rs.usizeRem(n as rs.usize, rs.usizeAdd(spare.length, 1));
 		const _30: rs.u8 = rs.u8Rem(op, 6);
 		if (_30 === 0) {
-			const leaf2: rs.Iter<Pair.Pair> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
+			const s2: Pair.Pair[] = rs.sliceItems(rs.sliceRange(spare, 0, k));
+			let front2: number = 0;
+			const back2: number = s2.length;
 			let count2: number = 0;
-			while (true) {
-				const x2 = leaf2.next();
-				if (x2 === rs.DONE) {
-					break;
-				}
+			while (!(front2 >= back2)) {
+				const x2 = s2[front2++];
 				const i5 = count2++;
 				rs.ptrWrite(x2, Pair.of$spare_Item(n ^ (i5 & 0xff)));
 			}
@@ -941,16 +942,19 @@ export function slots$spare_Pair(data: rs.ByteSlice, out: rs.ByteVec): void {
 				return ({ a: undefined, b: undefined } as unknown) as Pair.Pair;
 			});
 		} else if (_30 === 1) {
-			const leaf: rs.Iter<Pair.Pair> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
+			const s: Pair.Pair[] = rs.sliceItems(rs.sliceRange(spare, 0, k));
+			const front: number = 0;
+			let back: number = s.length;
 			let count: number = -1;
 			while (true) {
 				if (count < 0) {
-					count = leaf.len();
+					count = back - front;
 				}
-				const x = leaf.nextBack();
-				if (x === rs.DONE) {
+				if (front >= back) {
 					break;
 				}
+				back--;
+				const x = s[back];
 				count--;
 				Object.assign(x, Pair.of$spare_Item(rs.u8WrappingAdd(n, count & 0xff)));
 			}
@@ -1020,13 +1024,12 @@ export function slots$tuple2_u8_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const k: rs.usize = rs.usizeRem(n as rs.usize, rs.usizeAdd(spare.length, 1));
 		const _30: rs.u8 = rs.u8Rem(op, 6);
 		if (_30 === 0) {
-			const leaf2: rs.Iter<[rs.u8, rs.u32]> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
+			const s2: [rs.u8, rs.u32][] = rs.sliceItems(rs.sliceRange(spare, 0, k));
+			let front2: number = 0;
+			const back2: number = s2.length;
 			let count2: number = 0;
-			while (true) {
-				const x2 = leaf2.next();
-				if (x2 === rs.DONE) {
-					break;
-				}
+			while (!(front2 >= back2)) {
+				const x2 = s2[front2++];
 				const i5 = count2++;
 				rs.ptrWrite(x2, copy$tuple2_u8_u32(of$spare_Item_tuple2_u8_u32(n ^ (i5 & 0xff))));
 			}
@@ -1034,16 +1037,19 @@ export function slots$tuple2_u8_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 				return ([undefined, undefined] as unknown) as [rs.u8, rs.u32];
 			});
 		} else if (_30 === 1) {
-			const leaf: rs.Iter<[rs.u8, rs.u32]> = rs.iterSlice(rs.sliceItems(rs.sliceRange(spare, 0, k)));
+			const s: [rs.u8, rs.u32][] = rs.sliceItems(rs.sliceRange(spare, 0, k));
+			const front: number = 0;
+			let back: number = s.length;
 			let count: number = -1;
 			while (true) {
 				if (count < 0) {
-					count = leaf.len();
+					count = back - front;
 				}
-				const x = leaf.nextBack();
-				if (x === rs.DONE) {
+				if (front >= back) {
 					break;
 				}
+				back--;
+				const x = s[back];
 				count--;
 				Object.assign(x, copy$mem_MaybeUninit_tuple2_u8_u32(copy$tuple2_u8_u32(of$spare_Item_tuple2_u8_u32(rs.u8WrappingAdd(n, count & 0xff)))));
 			}

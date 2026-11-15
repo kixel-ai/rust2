@@ -547,13 +547,12 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	rs.byteVecPush(out, popped);
 	const q: rs.VecDeque<rs.u8 | undefined> = rs.dequeNew(2) as rs.VecDeque<rs.u8 | undefined>;
-	const leaf: rs.Iter<rs.u8 | undefined> = rs.iterSlice(items.items);
+	const s2: Array<rs.u8 | undefined> = items.items;
+	let front: number = 0;
+	const back: number = s2.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s2[front++];
 		const i: rs.usize = count++;
 		const o2: rs.u8 | undefined = x;
 		if (rs.usizeRem(i, 2) === 0) {
@@ -656,13 +655,12 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.drop(_517);
 	const by: rs.BTreeMap<rs.u8 | undefined, rs.u8> = rs.btreeNew(rs.cmpOption(rs.cmp)) as rs.BTreeMap<rs.u8 | undefined, rs.u8>;
 	const hashBy: rs.HashMap<rs.u8 | undefined, rs.u8> = rs.hashNew(rs.hashing(rs.hashOption(rs.hash8), rs.same)) as rs.HashMap<rs.u8 | undefined, rs.u8>;
-	const leaf2: rs.Iter<rs.u8 | undefined> = rs.iterSlice(items.items);
+	const s3: Array<rs.u8 | undefined> = items.items;
+	let front2: number = 0;
+	const back2: number = s3.length;
 	let count2: number = 0;
-	while (true) {
-		const x2 = leaf2.next();
-		if (x2 === rs.DONE) {
-			break;
-		}
+	while (!(front2 >= back2)) {
+		const x2 = s3[front2++];
 		const i2: rs.usize = count2++;
 		const o7: rs.u8 | undefined = x2;
 		const _542: rs.Place<rs.u8> = rs.entryOrInsertWithMut(rs.entry(by, o7), (): rs.u8 => {

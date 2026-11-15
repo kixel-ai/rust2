@@ -138,13 +138,12 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		rs.byteVecPush(out, rs.hashLen(map) & 0xff);
 	} else if (_4 === 1) {
 		const map2: rs.HashMap<rs.u64, rs.u8> = rs.hashWithCapacity(4, 58720256, rs.hashing(rs.hash64, rs.u64Eq)) as rs.HashMap<rs.u64, rs.u8>;
-		const leaf2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+		const s2: Uint8Array = rs.byteSliceView(data);
+		let front2: number = 0;
+		const back2: number = s2.length;
 		let count2: number = 0;
-		while (true) {
-			const x2 = leaf2.next();
-			if (x2 === rs.DONE) {
-				break;
-			}
+		while (!(front2 >= back2)) {
+			const x2 = s2[front2++];
 			const i2: rs.usize = count2++;
 			const b: rs.u8 = x2;
 			const k2: rs.u64 = wide(rs.u8Rem(b, 12));
@@ -427,13 +426,12 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}), rs.usizeAdd, 0) & 0xff);
 		rs.byteVecPush(out, rs.hashLen(words) === 0 ? 1 : 0);
 		const clashes: rs.HashMap<Clash.Clash, Tally.Tally> = rs.hashNew(rs.hashing(Clash.hash$Hash_hash_DefaultHasher as (a0: Clash.Clash, a1: rs.Hasher) => undefined, Clash.eq$cmp_PartialEq)) as rs.HashMap<Clash.Clash, Tally.Tally>;
-		const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+		const s: Uint8Array = rs.byteSliceView(data);
+		let front: number = 0;
+		const back: number = s.length;
 		let count: number = 0;
-		while (true) {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				break;
-			}
+		while (!(front >= back)) {
+			const x = s[front++];
 			const i5: rs.usize = count++;
 			const b7: rs.u8 = x;
 			const k6: Clash.Clash = { _0: rs.u8Rem(b7, 8) };
@@ -4876,17 +4874,17 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const mixed: rs.Vec<Mixed.Mixed> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data2)), (_212: rs.u8): Mixed.Mixed => {
 		return { _0: _212 as rs.u16 };
 	}), undefined, 2, true);
-	const leaf: rs.Iter<rs.usize> = new rs.Range(0, data2.length);
-	const leaf2: rs.Iter<rs.usize> = rs.iterRev(new rs.Range(0, data2.length));
-	while (true) {
-		const x4 = leaf.next();
-		if (x4 === rs.DONE) {
+	let start: rs.usize = 0;
+	const end: rs.usize = data2.length;
+	const start2: rs.usize = 0;
+	let end2: rs.usize = data2.length;
+	while (!(start >= end)) {
+		const x4 = start++;
+		if (start2 >= end2) {
 			break;
 		}
-		const x5 = leaf2.next();
-		if (x5 === rs.DONE) {
-			break;
-		}
+		end2--;
+		const x5 = end2;
 		const i: rs.usize = x4;
 		const j: rs.usize = x5;
 		const at = rs.idx(byRef.items, i);
@@ -5436,13 +5434,12 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	}), undefined, true);
 	const set: rs.BTreeSet<ByRef.ByRef> = rs.btreeNew(ByRef.cmp$cmp_Ord_ref) as rs.BTreeSet<ByRef.ByRef>;
 	const map: rs.BTreeMap<[ByRef.ByRef], rs.usize> = rs.btreeNew(rs.cmpTuple<[ByRef.ByRef], rs.Ordering>([ByRef.cmp$cmp_Ord_ref])) as rs.BTreeMap<[ByRef.ByRef], rs.usize>;
-	const leaf3: rs.Iter<ByRef.ByRef> = rs.iterSlice(xs.items);
+	const s: ByRef.ByRef[] = xs.items;
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x7 = leaf3.next();
-		if (x7 === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x7 = s[front++];
 		const i2: rs.usize = count++;
 		const x: ByRef.ByRef = x7;
 		rs.byteVecPush(out, rs.btreeAdd(set, x) ? 1 : 0);
@@ -5486,13 +5483,12 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	}), undefined, true);
 	const set2: rs.BTreeSet<ByVal.ByVal> = rs.btreeNew(ByVal.cmp$cmp_Ord) as rs.BTreeSet<ByVal.ByVal>;
 	const map2: rs.BTreeMap<[ByVal.ByVal], rs.usize> = rs.btreeNew(rs.cmpTuple<[ByVal.ByVal], rs.Ordering>([ByVal.cmp$cmp_Ord])) as rs.BTreeMap<[ByVal.ByVal], rs.usize>;
-	const leaf4: rs.Iter<ByVal.ByVal> = rs.iterSlice(xs2.items);
+	const s2: ByVal.ByVal[] = xs2.items;
+	let front2: number = 0;
+	const back2: number = s2.length;
 	let count2: number = 0;
-	while (true) {
-		const x14 = leaf4.next();
-		if (x14 === rs.DONE) {
-			break;
-		}
+	while (!(front2 >= back2)) {
+		const x14 = s2[front2++];
 		const i3: rs.usize = count2++;
 		const x2: ByVal.ByVal = x14;
 		rs.byteVecPush(out, rs.btreeAdd(set2, x2) ? 1 : 0);
@@ -5536,13 +5532,12 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	}), undefined, true);
 	const set3: rs.BTreeSet<Mixed.Mixed> = rs.btreeNew(Mixed.cmp$cmp_Ord_ref) as rs.BTreeSet<Mixed.Mixed>;
 	const map3: rs.BTreeMap<[Mixed.Mixed], rs.usize> = rs.btreeNew(rs.cmpTuple<[Mixed.Mixed], rs.Ordering>([Mixed.cmp$cmp_Ord_ref])) as rs.BTreeMap<[Mixed.Mixed], rs.usize>;
-	const leaf5: rs.Iter<Mixed.Mixed> = rs.iterSlice(xs3.items);
+	const s3: Mixed.Mixed[] = xs3.items;
+	let front3: number = 0;
+	const back3: number = s3.length;
 	let count3: number = 0;
-	while (true) {
-		const x21 = leaf5.next();
-		if (x21 === rs.DONE) {
-			break;
-		}
+	while (!(front3 >= back3)) {
+		const x21 = s3[front3++];
 		const i4: rs.usize = count3++;
 		const x3: Mixed.Mixed = x21;
 		rs.byteVecPush(out, rs.btreeAdd(set3, x3) ? 1 : 0);

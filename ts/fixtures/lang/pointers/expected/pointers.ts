@@ -893,14 +893,12 @@ export function segments(data: rs.ByteSlice, out: rs.ByteVec): void {
 				continue;
 			}
 		}
-		const leaf = rs.iterSlice(log.items);
+		const s2 = log.items;
+		let front = 0;
+		let back = s2.length;
 		let acc: rs.u8 = 0;
-		while (true) {
-			const x = leaf.next();
-			if (x === rs.DONE) {
-				break;
-			}
-			acc = rs.u8Add(acc, x.filled & 0xff);
+		while (!(front >= back)) {
+			acc = rs.u8Add(acc, s2[front++].filled & 0xff);
 		}
 		rs.byteVecPush(out, acc);
 	}
@@ -3493,13 +3491,12 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(w2)), undefined, true);
 		rs.byteVecPush(out, 255);
 	}
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i3: rs.usize = count++;
 		const b: rs.u8 = x;
 		rs.byteVecPush(out, behind(b as rs.u32, i3 & 0xff) & 0xff);
@@ -3812,13 +3809,12 @@ export function movedOut(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	const held: HeldCell.HeldCell = ({ c: new rs.Cell(undefined) } as unknown) as HeldCell.HeldCell;
 	const old3: HeldCell.HeldCell = uninitMoved(held);
-	const leaf: rs.Iter<HeldCell.HeldCell> = rs.iterSlice([held, old3]);
+	const s2: HeldCell.HeldCell[] = [held, old3];
+	let front: number = 0;
+	const back: number = s2.length;
 	let count: number = 0;
-	while (true) {
-		const x3 = leaf.next();
-		if (x3 === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x3 = s2[front++];
 		const i: rs.usize = count++;
 		const _259: rs.u32 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.u32;
 		const object = x3;
@@ -3967,13 +3963,12 @@ export function flip(tag: rs.Place<rs.u8>): void {
 
 /** Unions over a type parameter, at a byte's instance and a `u32`'s. */
 export function genericUnions(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const leaf: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
 	let count: number = 0;
-	while (true) {
-		const x = leaf.next();
-		if (x === rs.DONE) {
-			break;
-		}
+	while (!(front >= back)) {
+		const x = s[front++];
 		const i: rs.usize = count++;
 		const byte: rs.u8 = x;
 		const wide: rs.u32 = ((((byte as rs.u32) << 16) >>> 0) | i as rs.u32) >>> 0;
