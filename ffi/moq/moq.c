@@ -542,7 +542,7 @@ int main(void) {
 
 	/* A backoff's fields are settings left unset, and the methods of their names resolve them. */
 	moq_tokio_Backoff *backoff = moq_tokio_Backoff_default();
-	CHECK(!moq_tokio_Backoff_initial_get(backoff, NULL).some);
+	CHECK(moq_tokio_Backoff_initial_get(backoff, NULL) == NULL);
 	moq_duration initial = moq_tokio_Backoff_initial(backoff, NULL);
 	CHECK(initial.secs == 1 && initial.nanos == 0);
 	moq_tokio_Backoff_free(backoff);

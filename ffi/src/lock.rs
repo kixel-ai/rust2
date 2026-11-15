@@ -877,7 +877,7 @@ mod tests {
 			methods: vec![],
 			traits: Traits::default(),
 			opaque: None,
-			padding: Default::default(),
+			sizes: Default::default(),
 		}
 	}
 
