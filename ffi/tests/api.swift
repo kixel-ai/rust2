@@ -1367,6 +1367,23 @@ func until(_ done: () -> Bool) {
 	}
 }
 
+// Threads calling one class at once: they contend for its hold count, so later calls hold
+// it in the runtime's table instead, and its release, once they are done, still frees it.
+func shared() {
+	let gap = Gap.new(7, 3)
+	let threads = 8
+	let calls = 100_000
+	let wrong = UnsafeMutablePointer<Int>.allocate(capacity: threads)
+	wrong.initialize(repeating: 0, count: threads)
+	DispatchQueue.concurrentPerform(iterations: threads) { t in
+		for _ in 0..<calls where gap.sum() != 10 || gap.clone().sum() != 10 {
+			wrong[t] += 1
+		}
+	}
+	check((0..<threads).allSatisfy { wrong[$0] == 0 }, "calls sharing a class read its value")
+	wrong.deallocate()
+}
+
 // What frees an object or bytes: Swift's release of the last reference, at once. Returned
 // bytes lend Rust's buffer until it and every slice of it are released.
 func owned() {
@@ -1523,6 +1540,7 @@ struct Main {
 		case nil: script()
 		case "futures": futures()
 		case "owned": owned()
+		case "shared": shared()
 		case let which?: broken(which)
 		}
 	}

@@ -44,7 +44,3 @@ Ownership stays automatic: a dropped object is still freed without a call from t
     read does).
 - Re-measure the bench's object return and ready read, and check by drop counts in
   `ffi/tests` that an object dropped in the nursery is freed once evicted and collected.
-
-## Related
-
-- [Shared borrows](/quest/m1/ffi-speed/shared-borrow.md) - rewrites the same handle word
