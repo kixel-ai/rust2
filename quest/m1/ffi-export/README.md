@@ -29,14 +29,14 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
 - ✅ [Sessions on sans-IO QUIC](/quest/m3/session-quic.md) left the epic for m3, since it
   waits on moq's m3 driver and would hold the epic open. Rejected: m2; staying in m1.
 - ✅ A binding's types are lossless, with checked conversions to and from the idiomatic
-  ones ([lossless](/quest/m1/ffi-export/lossless.md)). Rejected: idiomatic types whose
+  ones ([#832](https://github.com/kixel-ai/rust2/pull/832)). Rejected: idiomatic types whose
   truncations and aborts become errors; today's mappings.
 - ✅ A failed run-time check raises the language's own error, and a Rust panic aborts
   ([#730](https://github.com/kixel-ai/rust2/pull/730)). Rejected: catching panics at the
   boundary; aborting on every failed check.
 - ✅ A type or future that is not `Send` exports, checked by thread
-  ([#844](https://github.com/kixel-ai/rust2/pull/844)). Rejected: a Rust-owned thread for every such object; keeping the
-  refusal.
+  ([#844](https://github.com/kixel-ai/rust2/pull/844)). Rejected: a Rust-owned thread for
+  every such object; keeping the refusal.
 - ✅ No opt-out: `#[doc(hidden)]` items stay left out, as they are no part of a crate's API,
   but no quest or PR recommends the attribute to get an item past the exporter, and moq
   bans it ([moq-dev/moq#8392](https://github.com/moq-dev/moq/pull/8392)).

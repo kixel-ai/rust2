@@ -1815,6 +1815,7 @@ impl<'tcx> Collector<'tcx> {
 				traits: Traits {
 					clone: true,
 					eq: true,
+					hash: true,
 					display: true,
 					debug: false,
 					default: false,
@@ -1933,6 +1934,7 @@ impl<'tcx> Collector<'tcx> {
 				Traits {
 					clone: true,
 					eq: true,
+					hash: true,
 					debug: true,
 					..Traits::default()
 				},
@@ -1943,6 +1945,7 @@ impl<'tcx> Collector<'tcx> {
 				Traits {
 					clone: true,
 					eq: true,
+					hash: true,
 					display: true,
 					debug: true,
 					default: false,
@@ -2743,7 +2746,7 @@ impl<'tcx> Collector<'tcx> {
 					.must_apply_modulo_regions()
 			})
 		};
-		let traits = Traits {
+		let mut traits = Traits {
 			clone: implements(sym::Clone),
 			eq: tcx.lang_items().eq_trait().is_some_and(|tr| {
 				let (infcx, env) = tcx.infer_ctxt().build_with_typing_env(env);
@@ -2751,10 +2754,13 @@ impl<'tcx> Collector<'tcx> {
 					.type_implements_trait(tr, [self_ty, self_ty], env)
 					.must_apply_modulo_regions()
 			}),
+			hash: implements(sym::Hash),
 			display: implements(sym::Display),
 			debug: implements(sym::Debug),
 			default: implements(sym::Default),
 		};
+		// A hash is only of use beside the equality it agrees with.
+		traits.hash &= traits.eq;
 		(methods, traits)
 	}
 

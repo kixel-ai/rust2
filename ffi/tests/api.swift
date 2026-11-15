@@ -129,10 +129,10 @@ func listed<T: ~Copyable>(_ items: borrowing UniqueArray<T>, _ each: (borrowing 
 	return out.joined(separator: ", ")
 }
 
-/// A path's UTF-8 bytes as Rust's `escape_ascii` prints them.
-func escaped(_ path: String) -> String {
+/// A path's bytes as Rust's `escape_ascii` prints them.
+func escaped(_ path: PathBuf) -> String {
 	var out = ""
-	for b in path.utf8 {
+	for b in path.bytes {
 		switch b {
 		case 0x09: out += "\\t"
 		case 0x0d: out += "\\r"
@@ -460,12 +460,15 @@ func script() {
 		print(describe(event))
 	}
 	check(advance(.init_(1)) == .init_(0) && advance(.init_(0)) == .done, "a variant named init crosses")
-	// Rust's seconds are a u64, past Int64's that Swift's components give.
-	let rustMax = Duration.seconds(Int64.max) * 2 + .seconds(1) + .nanoseconds(999_999_999)
-	let past = Duration.seconds(Int64.max) + .seconds(1)
-	check(extended(past, past - .nanoseconds(1)) == rustMax, "a duration past Int64's seconds crosses")
-	check(extended(rustMax - .nanoseconds(3), .nanoseconds(3)) == rustMax, "Rust's longest duration crosses")
+	// Rust's seconds are a u64, past Int64's.
+	let rustMax = try! RustDuration(secs: .max, nanos: 999_999_999)
+	let past = RustDuration.seconds(UInt64(Int64.max) + 1)
+	check(
+		extended(past, try! RustDuration(secs: UInt64(Int64.max), nanos: 999_999_999)) == rustMax,
+		"a duration past Int64's seconds crosses")
+	check(extended(try! RustDuration(secs: .max, nanos: 999_999_996), .nanoseconds(3)) == rustMax, "Rust's longest duration crosses")
 	check(extended(rustMax, .nanoseconds(1)) == nil, "Rust refuses a duration past its longest")
+	durations(rustMax)
 
 	// A `Copy` handle passed by value is copied, so it stays usable.
 	let stamp = Stamp.fromMillis(2500)
@@ -716,9 +719,9 @@ func script() {
 	} catch {
 		check(false, "parse throws its message")
 	}
-	let v4 = SocketAddr(ip: [127, 0, 0, 1], port: 8080)
-	let loopback: [UInt8] = Array(repeating: 0, count: 15) + [1]
-	let v6 = SocketAddr(ip: loopback, port: 443, scopeId: 3)
+	let v4 = SocketAddr.v4(SocketAddrV4(ip: Ipv4Addr(127, 0, 0, 1), port: 8080))
+	let loopback = Ipv6Addr(bits: U128(1))
+	let v6 = SocketAddr.v6(SocketAddrV6(ip: loopback, port: 443, scopeId: 3))
 	print("ports \(ports([v4, v6]))")
 	let peer = Peer(addr: v6, names: ["a", "b"]).next("c")
 	print("peer \(debug(peer)) \(peer.aliases())")
@@ -913,7 +916,7 @@ func script() {
 	let waits = breadth(LimitsDuration(low: .milliseconds(5), high: .seconds(2)))
 	let low = String(decoding: limits.low, as: UTF8.self)
 	let high = String(decoding: limits.high, as: UTF8.self)
-	print("limits \(low) \(high) breadth \(waits.components.seconds * 1000 + waits.components.attoseconds / 1_000_000_000_000_000)")
+	print("limits \(low) \(high) breadth \(waits.secs * 1000 + UInt64(waits.nanos) / 1_000_000)")
 	let parts = String(decoding: Api.joined([Bytes("ab".utf8), Bytes(), Bytes("c".utf8)]), as: UTF8.self)
 	print("joined \(parts) \(Api.joined([]).count) read \(readLen(Bytes("hello".utf8)))")
 	let doc = try! Json.parse(#"{"b": [1, 2.5, null], "a": "é"}"#)
@@ -949,12 +952,13 @@ func script() {
 	print("beyond \(try! trail.beyond(1).map { "\($0.x) \($0.y)" }.joined(separator: ", "))")
 	let numbered = numbered(["p", "q"])
 	print("numbered \(listed(numbered) { "\(try! $0.name()) \(try! $0.get())" })")
-	let (next4, next6) = nexts(SocketAddr(ip: [127, 0, 0, 1], port: 8080), v6)
-	print("nexts \(next4.ip.map(String.init).joined(separator: ".")) \(next4.port) \(next6.port) \(next6.scopeId)")
-	let (nextIp4, nextIp6) = nextIps(IpAddr(ip: [10, 0, 0, 255]), IpAddr(ip: Array(repeating: 0, count: 14) + [255, 255]))
-	let mapped = flip(IpAddr(ip: [127, 0, 0, 1]))
-	let ips = [nextIp4, nextIp6, mapped, flip(mapped), flip(IpAddr(ip: Array(repeating: 0, count: 15) + [1]))]
-	print("ips \(ips.map { $0.ip.map { ($0 < 16 ? "0" : "") + String($0, radix: 16) }.joined() }.joined(separator: " "))")
+	let (next4, next6) = nexts(SocketAddrV4(ip: Ipv4Addr(127, 0, 0, 1), port: 8080), SocketAddrV6(ip: loopback, port: 443, scopeId: 3))
+	print("nexts \(next4.ip.octets.map(String.init).joined(separator: ".")) \(next4.port) \(next6.port) \(next6.scopeId)")
+	let (nextIp4, nextIp6) = nextIps(Ipv4Addr(10, 0, 0, 255), Ipv6Addr(bits: U128(0xffff)))
+	let mapped = flip(.v4(Ipv4Addr(127, 0, 0, 1)))
+	let ips = [IpAddr.v4(nextIp4), .v6(nextIp6), mapped, flip(mapped), flip(.v6(loopback))]
+	print("ips \(ips.map(ipHex).joined(separator: " "))")
+	lossless()
 
 	// serde_json's map iterator, collected as pairs of a key and its document.
 	var sectionPairs = UniqueArray<TupleStringJson>()
@@ -963,10 +967,10 @@ func script() {
 	let jsonSections = try! sections(sectionPairs)
 	print("sections \(listed(jsonSections) { "\($0._0) \(try! $0._1.toText())" })")
 	// An instant only Rust makes, which each call copies out of its handle, and compares.
-	let millis = { (d: Swift.Duration) in d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000 }
+	let millis = { (d: RustDuration) in d.secs * 1000 + UInt64(d.nanos) / 1_000_000 }
 	let began = now()
 	let ended = later(began, .milliseconds(1500))
-	print("instants \(millis(since(ended, began))) \(millis(since(began, ended))) \(began == later(began, .zero)) \(began == ended)")
+	print("instants \(millis(since(ended, began))) \(millis(since(began, ended))) \(began == later(began, .seconds(0))) \(began == ended)")
 	print("has_instant \(hasInstant(began)) \(hasInstant(nil))")
 	// tracing's level, and its filter as an optional level whose nil is `OFF`.
 	var verbosity = Verbosity.new(.warn)
@@ -1020,9 +1024,16 @@ func script() {
 	}
 	print("non zeros \(describeNonZeros(nonZeros()))")
 	for hop in [nil, 1, UInt64.max] as [UInt64?] {
-		print("hop \(nextHop(hop).map { "Some(\($0))" } ?? "None")")
+		print("hop \(nextHop(hop.map { try! NonZero($0) }).map { "Some(\($0))" } ?? "None")")
 	}
-	print("farther hop \(fartherHop(PairNonZeroU16(left: 3, right: .max)))")
+	print("farther hop \(fartherHop(PairNonZeroU16(left: try! NonZero(3), right: try! NonZero(.max))))")
+	// A zero, which Swift's integer holds and Rust's `NonZero` does not, makes none, and a
+	// record holding one keeps the protocols its traits give.
+	check(refused("NonZero(_:)") { _ = try NonZero<UInt64>(0) }, "a zero makes no NonZero")
+	check(Set([try! NonZero<Int8>(-1), try! NonZero(-1), try! NonZero(.min)]).count == 2, "a set of NonZero")
+	check(try! NonZero<Int8>(.min) < NonZero(1), "a NonZero compares as its integer")
+	let debug: any CustomDebugStringConvertible = nonZeros()
+	check(debug.debugDescription == describeNonZeros(nonZeros()), "a record of NonZero is Debug")
 	targets()
 }
 
@@ -1531,6 +1542,108 @@ func lentKept() {
 }
 #endif
 
+/// `bytes` in hex, two digits each.
+func hexBytes(_ bytes: some Sequence<UInt8>) -> String {
+	bytes.map { String($0, radix: 16).leftPadded(2) }.joined()
+}
+
+/// An IP address's octets in hex, so their length shows its family.
+func ipHex(_ ip: IpAddr) -> String {
+	switch ip {
+	case .v4(let ip): return hexBytes(ip.octets)
+	case .v6(let ip): return hexBytes(ip.octets)
+	}
+}
+
+/// A socket address as its IP's octets in hex, its port, flow label, and scope, each
+/// IPv6's alone, apart by colons.
+func socketHex(_ addr: SocketAddr) -> String {
+	switch addr {
+	case .v4(let v4): return "\(hexBytes(v4.ip.octets)):\(v4.port)"
+	case .v6(let v6): return "\(hexBytes(v6.ip.octets)):\(v6.port):\(v6.flowinfo):\(v6.scopeId)"
+	}
+}
+
+/// Whether `body` throws a `CheckError` from `function`.
+func refused(_ function: String, _ body: () throws -> Void) -> Bool {
+	do {
+		try body()
+		return false
+	} catch let e as CheckError {
+		return e.function == function
+	} catch {
+		return false
+	}
+}
+
+/// A `RustDuration`'s conversions to and from `Swift.Duration`, which holds every one, and
+/// those it refuses, each throwing.
+func durations(_ rustMax: RustDuration) {
+	let swiftMax = Duration.seconds(Int64.max) * 2 + .seconds(1) + .nanoseconds(999_999_999)
+	check(rustMax.duration == swiftMax, "Rust's longest duration is a Swift.Duration")
+	check(try! RustDuration(swiftMax) == rustMax, "Rust's longest Swift.Duration is a RustDuration")
+	check(try! RustDuration(.nanoseconds(1_500_000_001)) == RustDuration(secs: 1, nanos: 500_000_001), "a duration converts")
+	check(try! RustDuration(.zero) == .seconds(0) && RustDuration.seconds(0).duration == .zero, "zero converts")
+	check(RustDuration.milliseconds(.max) == (try! RustDuration(secs: UInt64.max / 1000, nanos: 615_000_000)), "milliseconds are total")
+	check(RustDuration.microseconds(1_000_001) == (try! RustDuration(secs: 1, nanos: 1000)), "microseconds are total")
+	check(RustDuration.nanoseconds(.max).duration == .nanoseconds(Int64.max) * 2 + .nanoseconds(1), "nanoseconds are total")
+	check(RustDuration.seconds(1) < (try! RustDuration(secs: 1, nanos: 1)), "durations order as Rust's")
+	check(refused("RustDuration(secs:nanos:)") { _ = try RustDuration(secs: 0, nanos: 1_000_000_000) }, "a second's nanoseconds throw")
+	check(refused("RustDuration(_:)") { _ = try RustDuration(.nanoseconds(-1)) }, "a negative duration throws")
+	check(refused("RustDuration(_:)") { _ = try RustDuration(swiftMax + .nanoseconds(1)) }, "a duration past Rust's longest throws")
+	check(refused("RustDuration(_:)") { _ = try RustDuration(.nanoseconds(1) / 2) }, "a part below a nanosecond throws")
+	check(refused("RustDuration(_:)") { _ = try RustDuration(swiftMax + .nanoseconds(1) / 2) }, "past the longest by less than a nanosecond throws")
+}
+
+/// Each type's edge values, passed through Rust and back, as transcript.rs prints them,
+/// and the conversions to and from each runtime type, which throw or return nil for a
+/// value Rust's type cannot hold.
+func lossless() {
+	let spans = [
+		RustDuration.seconds(0), .nanoseconds(1), .nanoseconds(UInt64(Int64.max) + 1),
+		try! RustDuration(secs: .max, nanos: 999_999_999),
+	].map { sameDuration($0) }
+	print("lossless duration \(spans.map { "\($0.secs).\(String($0.nanos).leftPadded(9))" }.joined(separator: " "))")
+	print("lossless u64 \(sameU64(0)) \(sameU64(1 << 63)) \(sameU64(.max))")
+	print("lossless usize \(sameUsize(0)) \(sameUsize(.max))")
+	print("lossless isize \(sameIsize(.min)) \(sameIsize(.max))")
+	let wides = [U128(0), U128(high: 1, low: 0), U128(high: .max, low: .max)].map { sameU128($0) }
+	print("lossless u128 \(wides.map { hexBytes(withUnsafeBytes(of: ($0.high.bigEndian, $0.low.bigEndian)) { Array($0) }) }.joined(separator: " "))")
+	let chars: [Unicode.Scalar] = ["\0", "\u{d7ff}", "\u{e000}", "\u{10ffff}"]
+	print("lossless char \(chars.map { String(sameChar($0).value, radix: 16) }.joined(separator: " "))")
+	check(sameString("a\u{0}é\u{10ffff}") == "a\u{0}é\u{10ffff}", "text crosses")
+	// A path that is not UTF-8, which no String holds, keeps its bytes.
+	let strayPath = try! stray()
+	check(strayPath.string == nil && PathBuf("a/é").string == "a/é", "a path's text is nil unless UTF-8")
+	print("lossless path \(hexBytes(samePath("a/é").bytes)) \(hexBytes(samePath(strayPath).bytes))")
+	check(samePath(strayPath) == strayPath, "a path that is not UTF-8 crosses back")
+	try! visitStray { path in check(path == strayPath, "a lent path that is not UTF-8 keeps its bytes") }
+	check(samePath(PathBuf(bytes: Bytes([0xff]))) == strayPath, "a caller's bytes make a path")
+	let v4 = sameSocketAddrV4(SocketAddrV4(ip: Ipv4Addr(bits: .max), port: .max))
+	let ip6 = Ipv6Addr(bits: U128(high: 1 << 48, low: 2))
+	let v6 = sameSocketAddrV6(SocketAddrV6(ip: ip6, port: 3, flowinfo: .max, scopeId: .max))
+	let addrs = [SocketAddr.v4(v4), .v6(v6)]
+	print("lossless socket \(addrs.map(socketHex).joined(separator: " ")) \(addrs.map { socketHex(sameSocketAddr($0)) }.joined(separator: " "))")
+	// A key hashes by Rust's `Hash`, which agrees with its `==`.
+	let a = Key.new("a")
+	let b = Key.new("b")
+	print("key \(hashed(a) == hashed(Key.new("a"))) \(hashed(a) == hashed(b))")
+	let edge6 = Ipv6Addr(octets: [0xff, 0xff] + Array(repeating: 0, count: 13) + [1])!
+	print("lossless ip \(ipHex(sameIpAddr(.v4(Ipv4Addr(255, 255, 255, 255))))) \(ipHex(sameIpAddr(.v6(edge6))))")
+	// Octets convert both ways, and only exactly as many as the family holds.
+	check(Ipv4Addr(octets: [1, 2, 3, 4]) == Ipv4Addr(1, 2, 3, 4) && Ipv4Addr(1, 2, 3, 4).bits == 0x0102_0304, "IPv4 octets convert")
+	check(Ipv6Addr(octets: edge6.octets) == edge6 && edge6.bits == U128(high: 0xffff << 48, low: 1), "IPv6 octets convert")
+	check(Ipv4Addr(octets: [1, 2, 3]) == nil && Ipv6Addr(octets: [UInt8](repeating: 0, count: 4)) == nil, "octets of another length convert to nil")
+	check(SocketAddr(ip: .v6(ip6), port: 3) == .v6(SocketAddrV6(ip: ip6, port: 3)) && addrs[1].ip == .v6(ip6) && addrs[0].port == .max, "a socket address is its IP and port")
+}
+
+/// `key`'s hash by Swift's own hasher, which `Hashable` uses.
+func hashed(_ key: borrowing Key) -> Int {
+	var hasher = Swift.Hasher()
+	key.hash(into: &hasher)
+	return hasher.finalize()
+}
+
 // Each breaks a contract, which must fail with a message naming it.
 func broken(_ which: String) {
 	#if os(Linux)
@@ -1555,19 +1668,6 @@ func broken(_ which: String) {
 		} catch {
 			check(false, "a failed check throws a CheckError")
 		}
-	// An IPv6 address where Rust takes `SocketAddrV4`.
-	case "family":
-		let any = SocketAddr(ip: Array(repeating: 0, count: 16), port: 1)
-		_ = nexts(any, any)
-	// An IPv6 address where Rust takes `Ipv4Addr`.
-	case "ip family":
-		let any = IpAddr(ip: Array(repeating: 0, count: 16))
-		_ = nextIps(any, any)
-	// No String holds a path that is not UTF-8.
-	case "stray":
-		_ = try! stray()
-	case "lent stray":
-		try! visitStray { _ in }
 	// The file serves wasm32 too, whose items the host's library lacks, where Swift cannot
 	// throw.
 	case "variant":

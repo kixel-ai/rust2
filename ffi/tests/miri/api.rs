@@ -212,3 +212,19 @@ fn foreign_futures() {
 		assert!(dropped.freed && dropped.waker.is_none());
 	}
 }
+
+/// WTF-8, as a Windows path crosses: a surrogate alone is its own unit, and a lead and
+/// trail written apart, which WTF-8 writes as the scalar they make, are refused.
+#[test]
+fn wtf8() {
+	let units = |s: &str| s.encode_utf16().collect::<Vec<_>>();
+	assert_eq!(rt::wtf8("aé😀".as_bytes()), Some(units("aé😀")));
+	assert_eq!(rt::wtf8(&[0xED, 0xA0, 0x80]), Some(vec![0xD800]));
+	assert_eq!(rt::wtf8(&[b'a', 0xED, 0xB0, 0x80, b'b']), Some(vec![0x61, 0xDC00, 0x62]));
+	assert_eq!(rt::wtf8(&[0xED, 0xB0, 0x80, 0xED, 0xA0, 0x80]), Some(vec![0xDC00, 0xD800]));
+	assert_eq!(rt::wtf8(&[0xED, 0xA0, 0x80, b'x', 0xED, 0xB0, 0x80]), Some(vec![0xD800, 0x78, 0xDC00]));
+	assert_eq!(rt::wtf8(&[0xED, 0xA0, 0x80, 0xED, 0xB0, 0x80]), None);
+	assert_eq!(rt::wtf8(&[0xFF]), None);
+	assert_eq!(rt::wtf8(&[0xED, 0xA0]), None);
+	assert_eq!(rt::wtf8(&[b'a', 0xC3]), None);
+}

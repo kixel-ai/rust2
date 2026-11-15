@@ -22,6 +22,12 @@ mod thread;
 pub use thread::Thread;
 use thread::Dropped;
 
+/// `value`'s `Hash`, through std's hasher with its fixed keys, so a value hashes alike on
+/// every call.
+pub fn hash<T: std::hash::Hash + ?Sized>(value: &T) -> u64 {
+	std::hash::BuildHasher::hash_one(&std::hash::BuildHasherDefault::<std::hash::DefaultHasher>::default(), value)
+}
+
 /// Abort with a message naming the C function whose contract was broken.
 #[cold]
 pub fn fail(what: &str, msg: &str) -> ! {
@@ -347,22 +353,38 @@ impl Buf {
 		}
 	}
 
-	/// As [`Self::vec_in`], as a path: its bytes as the OS holds them on Unix, else UTF-8.
+	/// As [`Self::vec_in`], as a path: its bytes as the OS holds them on Unix, WTF-8 on
+	/// Windows, else UTF-8.
 	///
 	/// # Safety
 	/// As [`Self::bytes_in`].
 	pub unsafe fn path_in(self, what: &str, take: bool) -> std::path::PathBuf {
+		// SAFETY: the caller's contract.
+		let bytes = unsafe { self.vec_in(what, take) };
 		#[cfg(unix)]
 		{
 			use std::os::unix::ffi::OsStringExt;
-			// SAFETY: the caller's contract.
-			std::path::PathBuf::from(std::ffi::OsString::from_vec(unsafe { self.vec_in(what, take) }))
+			std::path::PathBuf::from(std::ffi::OsString::from_vec(bytes))
 		}
 		#[cfg(not(unix))]
-		{
-			// SAFETY: the caller's contract.
-			std::path::PathBuf::from(unsafe { self.string_in(what, take) })
+		match String::from_utf8(bytes) {
+			Ok(s) => std::path::PathBuf::from(s),
+			Err(err) => decoded(err.as_bytes(), what),
 		}
+	}
+
+	/// A path a caller passed in for the call alone, as [`Self::hold`] holds its bytes.
+	///
+	/// # Safety
+	/// As [`Self::hold`].
+	pub unsafe fn hold_path<'a>(self, what: &str) -> HeldPath<'a> {
+		// SAFETY: the caller's contract.
+		let held = unsafe { self.hold(what) };
+		#[cfg(not(unix))]
+		if std::str::from_utf8(held.bytes()).is_err() {
+			return HeldPath::Decoded(decoded(held.bytes(), what));
+		}
+		HeldPath::Held(held)
 	}
 
 	/// The bytes a caller passed in for the call alone: taken where it has an owner, which
@@ -451,27 +473,9 @@ impl Buf {
 		Self::owned(vec.into())
 	}
 
-	/// The path a caller passed in, which it keeps: its bytes as the OS holds them on
-	/// Unix, which may be any, else UTF-8.
-	///
-	/// # Safety
-	/// As [`Self::bytes`].
-	pub unsafe fn path(&self, what: &str) -> &std::path::Path {
-		#[cfg(unix)]
-		{
-			use std::os::unix::ffi::OsStrExt;
-			// SAFETY: the caller's contract.
-			std::path::Path::new(std::ffi::OsStr::from_bytes(unsafe { self.bytes(what) }))
-		}
-		#[cfg(not(unix))]
-		{
-			// SAFETY: the caller's contract.
-			std::path::Path::new(unsafe { self.str(what) })
-		}
-	}
-
 	/// A path handed to the caller: its bytes as the OS holds them on Unix, else as
-	/// Rust encodes them, which is UTF-8 for any path that has a UTF-8 form.
+	/// Rust encodes them: WTF-8 on Windows, which is UTF-8 for any path that has a UTF-8
+	/// form.
 	pub fn path_buf(path: std::path::PathBuf) -> Self {
 		Self::vec(path.into_os_string().into_encoded_bytes())
 	}
@@ -535,19 +539,77 @@ impl Hold<'_> {
 			Err(_) => fail(what, "a string is not UTF-8"),
 		}
 	}
+}
 
-	/// The path these hold: its bytes as the OS holds them on Unix, else UTF-8.
-	pub fn path(&self, what: &str) -> &std::path::Path {
-		#[cfg(unix)]
-		{
-			use std::os::unix::ffi::OsStrExt;
-			let _ = what;
-			std::path::Path::new(std::ffi::OsStr::from_bytes(self.bytes()))
+/// A path passed in for a call: the bytes [`Hold`] holds, or on a platform whose paths
+/// are not bytes, what they decode to where they are not UTF-8.
+pub enum HeldPath<'a> {
+	Held(Hold<'a>),
+	#[cfg(not(unix))]
+	Decoded(std::path::PathBuf),
+}
+
+impl HeldPath<'_> {
+	pub fn path(&self) -> &std::path::Path {
+		match self {
+			#[cfg(unix)]
+			Self::Held(held) => {
+				use std::os::unix::ffi::OsStrExt;
+				std::path::Path::new(std::ffi::OsStr::from_bytes(held.bytes()))
+			}
+			// UTF-8, or else decoded.
+			#[cfg(not(unix))]
+			Self::Held(held) => std::path::Path::new(std::str::from_utf8(held.bytes()).unwrap_or_default()),
+			#[cfg(not(unix))]
+			Self::Decoded(path) => path,
 		}
-		#[cfg(not(unix))]
-		{
-			std::path::Path::new(self.str(what))
+	}
+}
+
+/// The path a caller's bytes encode that are not UTF-8: on Windows, WTF-8, as Rust
+/// encodes a name that is not UTF-16, any other aborting; elsewhere, none.
+#[cfg(not(unix))]
+#[cold]
+fn decoded(bytes: &[u8], what: &str) -> std::path::PathBuf {
+	#[cfg(windows)]
+	if let Some(wide) = wtf8(bytes) {
+		use std::os::windows::ffi::OsStringExt;
+		return std::ffi::OsString::from_wide(&wide).into();
+	}
+	let _ = bytes;
+	fail(what, "a path is not as this platform encodes one")
+}
+
+/// The UTF-16 units of WTF-8 `bytes`, if they are: UTF-8 but for a surrogate alone,
+/// encoded on its own as UTF-8 would a scalar, but never a lead and a trail together,
+/// which WTF-8 encodes as the scalar they make.
+pub fn wtf8(bytes: &[u8]) -> Option<Vec<u16>> {
+	let mut wide = Vec::with_capacity(bytes.len());
+	let (mut rest, mut lead) = (bytes, false);
+	loop {
+		let (text, after) = match std::str::from_utf8(rest) {
+			Ok(text) => (text, &[][..]),
+			Err(err) => {
+				let (valid, after) = rest.split_at(err.valid_up_to());
+				// SAFETY: UTF-8 up to there.
+				(unsafe { std::str::from_utf8_unchecked(valid) }, after)
+			}
+		};
+		if !text.is_empty() {
+			wide.extend(text.encode_utf16());
+			lead = false;
 		}
+		let [0xED, b @ 0xA0..=0xBF, c @ 0x80..=0xBF, ..] = *after else {
+			return after.is_empty().then_some(wide);
+		};
+		let unit = 0xD000 | u16::from(b & 0x3F) << 6 | u16::from(c & 0x3F);
+		let trail = unit >= 0xDC00;
+		if trail && lead {
+			return None;
+		}
+		wide.push(unit);
+		lead = !trail;
+		rest = &after[3..];
 	}
 }
 
@@ -595,121 +657,165 @@ impl Duration {
 	}
 }
 
-/// `std::net::SocketAddr`: an IPv4 address in the first 4 bytes of `ip`, with the rest of
-/// `ip`, `flowinfo`, and `scope_id` zero, or an IPv6 address. `ip` is in network order and
-/// `port` in the host's.
+/// `std::net::Ipv4Addr`, in network order.
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct SocketAddr {
-	pub ip: [u8; 16],
-	pub port: u16,
-	pub v6: bool,
-	pub flowinfo: u32,
-	pub scope_id: u32,
+pub struct Ipv4Addr {
+	pub octets: [u8; 4],
 }
 
-impl SocketAddr {
-	pub fn lift(self, what: &str) -> std::net::SocketAddr {
-		if self.v6 {
-			let ip = std::net::Ipv6Addr::from(self.ip);
-			return std::net::SocketAddrV6::new(ip, self.port, self.flowinfo, self.scope_id).into();
-		}
-		let [a, b, c, d, rest @ ..] = self.ip;
-		if rest != [0; 12] || self.flowinfo != 0 || self.scope_id != 0 {
-			fail(what, "an IPv4 socket address has IPv6 bytes or fields");
-		}
-		std::net::SocketAddrV4::new(std::net::Ipv4Addr::new(a, b, c, d), self.port).into()
+impl Ipv4Addr {
+	pub fn lift(self) -> std::net::Ipv4Addr {
+		self.octets.into()
 	}
 
-	/// An IPv4 address, for `SocketAddrV4`: an IPv6 one aborts.
-	pub fn lift_v4(self, what: &str) -> std::net::SocketAddrV4 {
-		match self.lift(what) {
-			std::net::SocketAddr::V4(addr) => addr,
-			std::net::SocketAddr::V6(_) => fail(what, "an IPv6 socket address where IPv4 is taken"),
-		}
-	}
-
-	/// An IPv6 address, for `SocketAddrV6`: an IPv4 one aborts.
-	pub fn lift_v6(self, what: &str) -> std::net::SocketAddrV6 {
-		match self.lift(what) {
-			std::net::SocketAddr::V6(addr) => addr,
-			std::net::SocketAddr::V4(_) => fail(what, "an IPv4 socket address where IPv6 is taken"),
-		}
-	}
-
-	pub fn lower(addr: std::net::SocketAddr) -> Self {
-		match addr {
-			std::net::SocketAddr::V4(v4) => {
-				let mut ip = [0; 16];
-				ip[..4].copy_from_slice(&v4.ip().octets());
-				Self {
-					ip,
-					port: v4.port(),
-					v6: false,
-					flowinfo: 0,
-					scope_id: 0,
-				}
-			}
-			std::net::SocketAddr::V6(v6) => Self {
-				ip: v6.ip().octets(),
-				port: v6.port(),
-				v6: true,
-				flowinfo: v6.flowinfo(),
-				scope_id: v6.scope_id(),
-			},
-		}
+	pub fn lower(ip: std::net::Ipv4Addr) -> Self {
+		Self { octets: ip.octets() }
 	}
 }
 
-/// `std::net::IpAddr`: an IPv4 address in the first 4 bytes of `ip`, with the rest zero, or
-/// an IPv6 address, in network order.
+/// `std::net::Ipv6Addr`, in network order.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Ipv6Addr {
+	pub octets: [u8; 16],
+}
+
+impl Ipv6Addr {
+	pub fn lift(self) -> std::net::Ipv6Addr {
+		self.octets.into()
+	}
+
+	pub fn lower(ip: std::net::Ipv6Addr) -> Self {
+		Self { octets: ip.octets() }
+	}
+}
+
+/// An [`IpAddr`]'s address, of the family its `v6` names.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union Ip {
+	pub v4: Ipv4Addr,
+	pub v6: Ipv6Addr,
+}
+
+/// `std::net::IpAddr`: `ip.v6` if `v6`, else `ip.v4`.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct IpAddr {
-	pub ip: [u8; 16],
 	pub v6: bool,
+	pub ip: Ip,
 }
 
 impl IpAddr {
-	pub fn lift(self, what: &str) -> std::net::IpAddr {
-		if self.v6 {
-			return std::net::Ipv6Addr::from(self.ip).into();
-		}
-		let [a, b, c, d, rest @ ..] = self.ip;
-		if rest != [0; 12] {
-			fail(what, "an IPv4 address has IPv6 bytes");
-		}
-		std::net::Ipv4Addr::new(a, b, c, d).into()
-	}
-
-	/// An IPv4 address, for `Ipv4Addr`: an IPv6 one aborts.
-	pub fn lift_v4(self, what: &str) -> std::net::Ipv4Addr {
-		match self.lift(what) {
-			std::net::IpAddr::V4(ip) => ip,
-			std::net::IpAddr::V6(_) => fail(what, "an IPv6 address where IPv4 is taken"),
-		}
-	}
-
-	/// An IPv6 address, for `Ipv6Addr`: an IPv4 one aborts.
-	pub fn lift_v6(self, what: &str) -> std::net::Ipv6Addr {
-		match self.lift(what) {
-			std::net::IpAddr::V6(ip) => ip,
-			std::net::IpAddr::V4(_) => fail(what, "an IPv4 address where IPv6 is taken"),
+	pub fn lift(self) -> std::net::IpAddr {
+		// SAFETY: `v6` names the member the caller wrote.
+		match self.v6 {
+			true => unsafe { self.ip.v6 }.lift().into(),
+			false => unsafe { self.ip.v4 }.lift().into(),
 		}
 	}
 
 	pub fn lower(ip: std::net::IpAddr) -> Self {
-		match ip {
-			std::net::IpAddr::V4(v4) => {
-				let mut ip = [0; 16];
-				ip[..4].copy_from_slice(&v4.octets());
-				Self { ip, v6: false }
-			}
-			std::net::IpAddr::V6(v6) => Self {
-				ip: v6.octets(),
-				v6: true,
+		// The other family's bytes are zero, not uninitialized, for a caller copying them.
+		let mut c = Self {
+			v6: ip.is_ipv6(),
+			ip: Ip {
+				v6: Ipv6Addr { octets: [0; 16] },
 			},
+		};
+		match ip {
+			std::net::IpAddr::V4(v4) => c.ip.v4 = Ipv4Addr::lower(v4),
+			std::net::IpAddr::V6(v6) => c.ip.v6 = Ipv6Addr::lower(v6),
 		}
+		c
+	}
+}
+
+/// `std::net::SocketAddrV4`, its port in the host's order.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SocketAddrV4 {
+	pub ip: Ipv4Addr,
+	pub port: u16,
+}
+
+impl SocketAddrV4 {
+	pub fn lift(self) -> std::net::SocketAddrV4 {
+		std::net::SocketAddrV4::new(self.ip.lift(), self.port)
+	}
+
+	pub fn lower(addr: std::net::SocketAddrV4) -> Self {
+		Self {
+			ip: Ipv4Addr::lower(*addr.ip()),
+			port: addr.port(),
+		}
+	}
+}
+
+/// `std::net::SocketAddrV6`, its port in the host's order.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SocketAddrV6 {
+	pub ip: Ipv6Addr,
+	pub port: u16,
+	pub flowinfo: u32,
+	pub scope_id: u32,
+}
+
+impl SocketAddrV6 {
+	pub fn lift(self) -> std::net::SocketAddrV6 {
+		std::net::SocketAddrV6::new(self.ip.lift(), self.port, self.flowinfo, self.scope_id)
+	}
+
+	pub fn lower(addr: std::net::SocketAddrV6) -> Self {
+		Self {
+			ip: Ipv6Addr::lower(*addr.ip()),
+			port: addr.port(),
+			flowinfo: addr.flowinfo(),
+			scope_id: addr.scope_id(),
+		}
+	}
+}
+
+/// A [`SocketAddr`]'s address, of the family its `v6` names.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union Socket {
+	pub v4: SocketAddrV4,
+	pub v6: SocketAddrV6,
+}
+
+/// `std::net::SocketAddr`: `addr.v6` if `v6`, else `addr.v4`.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct SocketAddr {
+	pub v6: bool,
+	pub addr: Socket,
+}
+
+impl SocketAddr {
+	pub fn lift(self) -> std::net::SocketAddr {
+		// SAFETY: `v6` names the member the caller wrote.
+		match self.v6 {
+			true => unsafe { self.addr.v6 }.lift().into(),
+			false => unsafe { self.addr.v4 }.lift().into(),
+		}
+	}
+
+	pub fn lower(addr: std::net::SocketAddr) -> Self {
+		// The other family's bytes are zero, not uninitialized, for a caller copying them.
+		let mut c = Self {
+			v6: addr.is_ipv6(),
+			addr: Socket {
+				v6: SocketAddrV6::lower(std::net::SocketAddrV6::new(std::net::Ipv6Addr::UNSPECIFIED, 0, 0, 0)),
+			},
+		};
+		match addr {
+			std::net::SocketAddr::V4(v4) => c.addr.v4 = SocketAddrV4::lower(v4),
+			std::net::SocketAddr::V6(v6) => c.addr.v6 = SocketAddrV6::lower(v6),
+		}
+		c
 	}
 }
 

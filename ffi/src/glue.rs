@@ -105,8 +105,12 @@ pub fn rs(ty: &Ty) -> String {
 		Ty::Buf => "rt::Buf".to_string(),
 		Ty::U128 => "rt::U128".to_string(),
 		Ty::Duration => "rt::Duration".to_string(),
-		Ty::SocketAddr => "rt::SocketAddr".to_string(),
-		Ty::IpAddr => "rt::IpAddr".to_string(),
+		Ty::SocketAddr(Family::Any) => "rt::SocketAddr".to_string(),
+		Ty::SocketAddr(Family::V4) => "rt::SocketAddrV4".to_string(),
+		Ty::SocketAddr(Family::V6) => "rt::SocketAddrV6".to_string(),
+		Ty::IpAddr(Family::Any) => "rt::IpAddr".to_string(),
+		Ty::IpAddr(Family::V4) => "rt::Ipv4Addr".to_string(),
+		Ty::IpAddr(Family::V6) => "rt::Ipv6Addr".to_string(),
 		Ty::Struct(name) => name.clone(),
 		// A C enum is an `int`.
 		Ty::Enum(_) | Ty::Poll | Ty::Status => "i32".to_string(),
@@ -878,9 +882,8 @@ impl Gen<'_> {
 			Type::Path | Type::PathBuf => format!("unsafe {{ {e}.path_in(w, {take}) }}"),
 			Type::U128 => format!("{e}.lift()"),
 			Type::Array(_) => format!("{e}.items"),
-			Type::Duration | Type::SocketAddr(Family::Any) | Type::IpAddr(Family::Any) => format!("{e}.lift(w)"),
-			Type::SocketAddr(Family::V4) | Type::IpAddr(Family::V4) => format!("{e}.lift_v4(w)"),
-			Type::SocketAddr(Family::V6) | Type::IpAddr(Family::V6) => format!("{e}.lift_v6(w)"),
+			Type::Duration => format!("{e}.lift(w)"),
+			Type::SocketAddr(_) | Type::IpAddr(_) => format!("{e}.lift()"),
 			Type::Waker => format!("{e}.lift()"),
 			Type::Future | Type::Reader => format!("{e}.lift(w)"),
 			Type::Jni(_) => unreachable!("a JNI value is lent by `function`"),
@@ -1125,8 +1128,7 @@ impl Gen<'_> {
 			Type::U128 => format!("rt::U128::lower({e})"),
 			Type::Duration => format!("rt::Duration::lower({e})"),
 			Type::Array(n) => format!("{} {{ items: {e} }}", self.abi.array(*n)),
-			Type::SocketAddr(_) => format!("rt::SocketAddr::lower(::std::net::SocketAddr::from({e}))"),
-			Type::IpAddr(_) => format!("rt::IpAddr::lower(::std::net::IpAddr::from({e}))"),
+			Type::SocketAddr(_) | Type::IpAddr(_) => format!("{}::lower({e})", rs(&self.abi.ty(ty))),
 			// A block hands over its own allocation.
 			Type::List(Collection::Box | Collection::Array(_), _) if ty.block().is_some() => {
 				format!("rt::List::owned(::std::vec::Vec::from({e}))")
@@ -1450,6 +1452,12 @@ impl Gen<'_> {
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_eq(a: {handle}, b: {handle}{param}) -> bool {{\n\tlet w = \"{name}_eq\";\n\t{away}{body}\n}}\n"
 			));
 		}
+		if traits.hash {
+			let body = wrap(status, "u64", &format!("let this = {this};\n\trt::hash(&*this)"));
+			self.export(format!(
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_hash(this: {handle}{param}) -> u64 {{\n\tlet w = \"{name}_hash\";\n\t{body}\n}}\n"
+			));
+		}
 		if traits.display {
 			let body = wrap(
 				status,
@@ -1503,6 +1511,12 @@ impl Gen<'_> {
 			);
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_eq(a: *const {c}, b: *const {c}{param}) -> bool {{\n\tlet w = \"{name}_eq\";\n\t{body}\n}}\n"
+			));
+		}
+		if traits.hash {
+			let body = wrap(status, "u64", &format!("rt::hash::<{path}>(&{lift})"));
+			self.export(format!(
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_hash(this: *const {c}{param}) -> u64 {{\n\tlet w = \"{name}_hash\";\n\t{body}\n}}\n"
 			));
 		}
 		if traits.display {
@@ -2114,8 +2128,8 @@ impl Gen<'_> {
 					format!("{local}.bytes()"),
 				),
 				(Type::Path, Mutability::Not, false) => (
-					format!("let {local} = unsafe {{ {c}.hold(w) }};"),
-					format!("{local}.path(w)"),
+					format!("let {local} = unsafe {{ {c}.hold_path(w) }};"),
+					format!("{local}.path()"),
 				),
 				// A slice of a block is borrowed in place, as bytes are.
 				(list @ Type::List(Collection::Slice, _), Mutability::Not, false) if list.block().is_some() => {
@@ -2156,13 +2170,15 @@ impl Gen<'_> {
 					)
 				}
 				(Type::Str | Type::Slice | Type::Path, false) => {
-					let view = match &**inner {
-						Type::Str => "v.str(w)",
-						Type::Slice => "v.bytes()",
-						_ => "v.path(w)",
+					let (hold, view) = match &**inner {
+						Type::Str => ("hold", "v.str(w)"),
+						Type::Slice => ("hold", "v.bytes()"),
+						_ => ("hold_path", "v.path()"),
 					};
 					(
-						format!("let {local} = if {c}.is_none() {{ None }} else {{ Some(unsafe {{ {c}.hold(w) }}) }};"),
+						format!(
+							"let {local} = if {c}.is_none() {{ None }} else {{ Some(unsafe {{ {c}.{hold}(w) }}) }};"
+						),
 						format!("{local}.as_ref().map(|v| {view})"),
 					)
 				}

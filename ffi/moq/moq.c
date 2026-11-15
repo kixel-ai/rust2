@@ -556,9 +556,9 @@ int main(void) {
 	moq_vec_string_free(alpns);
 	moq_Versions_free(versions);
 	/* A socket address, crossing in a listener's bind, set on its config and read back. */
-	moq_tokio_listen_Bind bind = {.tag = MOQ_TOKIO_LISTEN_BIND_ADDR, .addr = {._0 = {.ip = {[15] = 1}, .port = 4443, .v6 = true}}};
+	moq_tokio_listen_Bind bind = {.tag = MOQ_TOKIO_LISTEN_BIND_ADDR, .addr = {._0 = {.v6 = true, .addr.v6 = {.ip.octets = {[15] = 1}, .port = 4443}}}};
 	CHECK(is(moq_tokio_listen_Bind_to_string(&bind), "[::1]:4443"));
-	moq_tokio_listen_Bind v4 = {.tag = MOQ_TOKIO_LISTEN_BIND_ADDR, .addr = {._0 = {.ip = {127, 0, 0, 1}, .port = 0}}};
+	moq_tokio_listen_Bind v4 = {.tag = MOQ_TOKIO_LISTEN_BIND_ADDR, .addr = {._0 = {.addr.v4 = {.ip.octets = {127, 0, 0, 1}, .port = 0}}}};
 	CHECK(is(moq_tokio_listen_Bind_to_string(&v4), "127.0.0.1:0"));
 	CHECK(!moq_tokio_listen_Bind_eq(&bind, &v4));
 	moq_tokio_listen_Config *listen = moq_tokio_listen_Config_default();
@@ -567,10 +567,10 @@ int main(void) {
 	CHECK(bound.some && moq_tokio_listen_Bind_eq(&bound.value, &bind));
 	moq_tokio_listen_Bind_free(&bound.value);
 	/* The preferred address of each family, which takes only that family. */
-	moq_socket_addr preferred = {.ip = {10, 0, 0, 1}, .port = 4443};
-	moq_tokio_listen_Config_preferred_v4_set(listen, (moq_option_socket_addr){.some = true, .value = preferred}, NULL);
-	moq_option_socket_addr preferred_v4 = moq_tokio_listen_Config_preferred_v4_get(listen, NULL);
-	CHECK(preferred_v4.some && !preferred_v4.value.v6 && preferred_v4.value.ip[0] == 10 && preferred_v4.value.port == 4443);
+	moq_socket_addr_v4 preferred = {.ip.octets = {10, 0, 0, 1}, .port = 4443};
+	moq_tokio_listen_Config_preferred_v4_set(listen, (moq_option_socket_addr_v4){.some = true, .value = preferred}, NULL);
+	moq_option_socket_addr_v4 preferred_v4 = moq_tokio_listen_Config_preferred_v4_get(listen, NULL);
+	CHECK(preferred_v4.some && preferred_v4.value.ip.octets[0] == 10 && preferred_v4.value.port == 4443);
 	CHECK(!moq_tokio_listen_Config_preferred_v6_get(listen, NULL).some);
 	moq_tokio_listen_Config_free(listen);
 	/* A constant slice, as an array of clones. */
@@ -598,7 +598,7 @@ int main(void) {
 
 	moq_tokio_server_Config *server_config = moq_tokio_server_Config_default();
 	moq_tokio_listen_Config *listen_config = moq_tokio_server_Config_listen_get(server_config, NULL);
-	moq_tokio_listen_Bind any = {.tag = MOQ_TOKIO_LISTEN_BIND_ADDR, .addr = {._0 = {.port = 0, .v6 = true}}};
+	moq_tokio_listen_Bind any = {.tag = MOQ_TOKIO_LISTEN_BIND_ADDR, .addr = {._0 = {.v6 = true}}};
 	moq_tokio_listen_Config_bind_set(listen_config, (moq_option_tokio_listen_Bind){.some = true, .value = any}, NULL);
 	moq_tokio_tls_Listen *tls_listen = moq_tokio_tls_Listen_default();
 	moq_buf names[] = {str("localhost")};
@@ -612,14 +612,14 @@ int main(void) {
 	moq_tokio_server_Config_free(server_config);
 	moq_socket_addr local;
 	CHECK(moq_tokio_Server_local_addr(server, &local, &tokio_err, NULL));
-	CHECK(local.v6 && local.port != 0);
+	CHECK(local.v6 && local.addr.v6.port != 0);
 	moq_origin_Consumer *published = moq_origin_Producer_consume(served, NULL);
 	serving = moq_tokio_Server_serve_publish(server, published, NULL);
 	moq_tokio_Server_free(server);
 	moq_origin_Consumer_free(published);
 
 	char address[32];
-	snprintf(address, sizeof address, "moqt://localhost:%u", (unsigned)local.port);
+	snprintf(address, sizeof address, "moqt://localhost:%u", (unsigned)local.addr.v6.port);
 	moq_tokio_connect_Config *dialing = moq_tokio_connect_Config_default();
 	CHECK(moq_Url_parse(str(address), &url, &parse_err));
 	moq_tokio_connect_Config_url_set(dialing, url, NULL);

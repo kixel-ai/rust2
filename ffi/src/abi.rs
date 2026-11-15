@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
-use crate::ir::{Access, Api, Closure, Dyn, Function, Home, Int, Jni, Literal, Mutability, On, Receiver, Type};
+use crate::ir::{Access, Api, Closure, Dyn, Family, Function, Home, Int, Jni, Literal, Mutability, On, Receiver, Type};
 
 /// A C name one item claims twice, which no rename can tell apart: the name, then what
 /// claimed it first and second.
@@ -67,10 +67,10 @@ pub enum Ty {
 	U128,
 	/// `<prefix>_duration`
 	Duration,
-	/// `<prefix>_socket_addr`
-	SocketAddr,
-	/// `<prefix>_ip_addr`
-	IpAddr,
+	/// `<prefix>_socket_addr`, or `_socket_addr_v4` or `_socket_addr_v6` for one family.
+	SocketAddr(Family),
+	/// `<prefix>_ip_addr`, or `_ipv4_addr` or `_ipv6_addr` for one family.
+	IpAddr(Family),
 	/// A struct: a record, a data enum, an option, or a callback's table and data.
 	Struct(String),
 	/// A plain enum, passed as its C enum, which is an `int`.
@@ -131,6 +131,19 @@ impl Sig {
 			.last()
 			.filter(|(_, ty)| is_status(ty))
 			.map(|(name, _)| name.as_str())
+	}
+}
+
+/// The runtime's C struct of a socket address, if `socket`, or else an IP address, of
+/// `family`, after the prefix: a struct per family, so each holds exactly its Rust type.
+pub fn addr(socket: bool, family: Family) -> &'static str {
+	match (socket, family) {
+		(true, Family::Any) => "socket_addr",
+		(true, Family::V4) => "socket_addr_v4",
+		(true, Family::V6) => "socket_addr_v6",
+		(false, Family::Any) => "ip_addr",
+		(false, Family::V4) => "ipv4_addr",
+		(false, Family::V6) => "ipv6_addr",
 	}
 }
 
@@ -624,8 +637,6 @@ impl<'a> Abi<'a> {
 			Type::Enum(i) => (&self.api.enums[*i].shown, &self.api.enums[*i].args),
 			Type::Object(i) => (&self.api.objects[*i].shown, &self.api.objects[*i].args),
 			Type::Ref(_, inner) | Type::Box(inner) => return self.arg_forms(inner),
-			// Apart from its integer's, which an instance of the same item may also take.
-			Type::NonZero(int) => return vec![format!("non_zero_{}", int.rust())],
 			ty => return vec![self.key(ty)],
 		};
 		let segments = self.segments(shown);
@@ -808,15 +819,17 @@ impl<'a> Abi<'a> {
 			Type::Str | Type::String => "string".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "bytes".to_string(),
 			Type::Path | Type::PathBuf => "path".to_string(),
-			Type::Int(int) | Type::NonZero(int) => int.rust().to_string(),
+			Type::Int(int) => int.rust().to_string(),
+			// Apart from its integer's, as a binding checks it is not zero.
+			Type::NonZero(int) => format!("non_zero_{}", int.rust()),
 			Type::F32 => "f32".to_string(),
 			Type::F64 => "f64".to_string(),
 			Type::Char => "char".to_string(),
 			Type::U128 => "u128".to_string(),
 			Type::Duration => "duration".to_string(),
 			Type::Array(n) => format!("array_u8_{n}"),
-			Type::SocketAddr(_) => "socket_addr".to_string(),
-			Type::IpAddr(_) => "ip_addr".to_string(),
+			Type::SocketAddr(family) => addr(true, *family).to_string(),
+			Type::IpAddr(family) => addr(false, *family).to_string(),
 			Type::Option(inner) => format!("option_{}", self.key(inner)),
 			Type::List(_, inner) => format!("vec_{}", self.key(inner)),
 			Type::Tuple(elements) => strip(self.tuple(elements)),
@@ -877,8 +890,8 @@ impl<'a> Abi<'a> {
 			Type::U128 => Ty::U128,
 			Type::Duration => Ty::Duration,
 			Type::Array(n) => Ty::Struct(self.array(*n)),
-			Type::SocketAddr(_) => Ty::SocketAddr,
-			Type::IpAddr(_) => Ty::IpAddr,
+			Type::SocketAddr(family) => Ty::SocketAddr(*family),
+			Type::IpAddr(family) => Ty::IpAddr(*family),
 			Type::Waker => Ty::Waker,
 			Type::Future => Ty::ForeignFuture,
 			Type::Reader => Ty::ForeignReader,
@@ -1291,7 +1304,11 @@ impl<'a> Abi<'a> {
 			"u128",
 			"duration",
 			"socket_addr",
+			"socket_addr_v4",
+			"socket_addr_v6",
 			"ip_addr",
+			"ipv4_addr",
+			"ipv6_addr",
 			"waker",
 			"foreign_future",
 			"foreign_reader",
@@ -1635,6 +1652,9 @@ impl<'a> Abi<'a> {
 		}
 		if traits.eq {
 			claim("eq");
+		}
+		if traits.hash {
+			claim("hash");
 		}
 		if traits.display {
 			claim("to_string");

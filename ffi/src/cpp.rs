@@ -25,7 +25,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::abi::{self, Abi, Ty};
 use crate::c::decl;
-use crate::ir::{Closure, Function, Int, Literal, Receiver, Traits, Type};
+use crate::ir::{Closure, Family, Function, Int, Literal, Receiver, Traits, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.hpp");
 
@@ -48,6 +48,7 @@ pub fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 		files: crate::go::packages(abi),
 		out: String::new(),
 		defs: String::new(),
+		hashes: String::new(),
 		defined: BTreeSet::new(),
 		globals: runtime_names().map(str::to_string).collect(),
 		errors: Vec::new(),
@@ -107,6 +108,8 @@ struct Header<'a> {
 	out: String,
 	/// The definitions, after every type is complete.
 	defs: String,
+	/// `std::hash` of each class Rust hashes, after the namespace.
+	hashes: String,
 	/// The value types written so far, so each is written after what it holds.
 	defined: BTreeSet<String>,
 	/// The names declared in the namespace, which a parameter named alike would hide.
@@ -173,8 +176,8 @@ impl<'a> Header<'a> {
 			}
 			Type::U128 => format!("::{}::u128", self.ns),
 			Type::Duration => format!("::{}::duration", self.ns),
-			Type::SocketAddr(_) => format!("::{}::socket_addr", self.ns),
-			Type::IpAddr(_) => format!("::{}::ip_addr", self.ns),
+			Type::SocketAddr(family) => format!("::{}::{}", self.ns, crate::abi::addr(true, *family)),
+			Type::IpAddr(family) => format!("::{}::{}", self.ns, crate::abi::addr(false, *family)),
 			Type::List(_, inner) => format!("::std::vector<{}>", self.owned(inner)),
 			Type::Waker => format!("::{}::waker", self.ns),
 			Type::Option(inner) => format!("::std::optional<{}>", self.owned(inner)),
@@ -535,6 +538,7 @@ impl<'a> Header<'a> {
 			"cstdio",
 			"cstdlib",
 			"cstring",
+			"functional",
 			"initializer_list",
 			"ios",
 			"memory",
@@ -565,9 +569,13 @@ impl<'a> Header<'a> {
 		let mut aliases = vec![
 			("u128".to_string(), format!("{p}_u128")),
 			("duration".to_string(), format!("{p}_duration")),
-			("socket_addr".to_string(), format!("{p}_socket_addr")),
-			("ip_addr".to_string(), format!("{p}_ip_addr")),
 		];
+		for socket in [true, false] {
+			for family in [Family::Any, Family::V4, Family::V6] {
+				let name = crate::abi::addr(socket, family);
+				aliases.push((name.to_string(), format!("{p}_{name}")));
+			}
+		}
 		if abi.ranges.values().any(|ty| matches!(ty, Type::Bound(_))) {
 			aliases.push(("bound".to_string(), abi.rt("bound")));
 		}
@@ -761,6 +769,8 @@ impl<'a> Header<'a> {
 		let defs = std::mem::take(&mut self.defs);
 		self.out.push_str(&defs);
 		self.line(format!("}} // namespace {ns}\n"));
+		let hashes = std::mem::take(&mut self.hashes);
+		self.out.push_str(&hashes);
 		self.line(format!("#endif // {guard}"));
 		std::mem::take(&mut self.out)
 	}
@@ -932,6 +942,20 @@ impl<'a> Header<'a> {
 			let (a, b) = self.operands();
 			body.push(format!(
 				"\tfriend bool operator==(const {name} &{a}, const {name} &{b}) {{\n\t\treturn ::{c}_eq({a}.raw_.get(), {b}.raw_.get(){status});\n\t}}\n\tfriend bool operator!=(const {name} &{a}, const {name} &{b}) {{\n\t\treturn !({a} == {b});\n\t}}"
+			));
+		}
+		if t.hash {
+			let hash = apart("hash", &name);
+			body.push(format!(
+				"\t/// Rust's `Hash`, agreeing with `==`, as `std::hash` hashes it.\n\tRUST2_FFI_CALLABLE ::std::uint64_t {hash}() const;"
+			));
+			self.def(format!(
+				"inline ::std::uint64_t {name}::{hash}() const {{\n\treturn ::{c}_hash(raw_.get(){status});\n}}\n"
+			));
+			members.push(hash.clone());
+			let q = format!("::{}::{name}", self.ns);
+			self.hashes.push_str(&format!(
+				"namespace std {{\ntemplate <>\nstruct hash<{q}> {{\n\tsize_t operator()(const {q} &value) const noexcept {{\n\t\treturn static_cast<size_t>(value.{hash}());\n\t}}\n}};\n}} // namespace std\n\n"
 			));
 		}
 		self.traits(&name, &c, t, Ok(status), &mut body, &mut members);

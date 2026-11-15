@@ -905,21 +905,22 @@ int script() {
 	}
 
 	api::socket_addr v4{};
-	v4.ip[0] = 127;
-	v4.ip[3] = 1;
-	v4.port = 8080;
+	v4.addr.v4.ip.octets[0] = 127;
+	v4.addr.v4.ip.octets[3] = 1;
+	v4.addr.v4.port = 8080;
 	api::socket_addr v6{};
-	v6.ip[15] = 1;
-	v6.port = 443;
 	v6.v6 = true;
-	v6.scope_id = 3;
+	v6.addr.v6.ip.octets[15] = 1;
+	v6.addr.v6.port = 443;
+	v6.addr.v6.scope_id = 3;
 	auto ports = api::ports({v4, v6});
 	std::printf("ports [%u, %u]\n", ports[0], ports[1]);
 	std::vector<api::buf> names;
 	names.emplace_back(api::view("a"));
 	names.emplace_back(api::view("b"));
 	api::Peer peer = api::Peer{v6, names}.next("c");
-	std::printf("peer Peer { addr: [::%u%%%u]:%u, names: ", peer.addr.ip[15], peer.addr.scope_id, peer.addr.port);
+	std::printf("peer Peer { addr: [::%u%%%u]:%u, names: ", peer.addr.addr.v6.ip.octets[15], peer.addr.addr.v6.scope_id,
+				peer.addr.addr.v6.port);
 	print_strings(peer.names);
 	std::printf(" } ");
 	print_strings(peer.aliases());
@@ -1246,37 +1247,138 @@ int script() {
 		std::printf("%llu", static_cast<unsigned long long>(numbered[i].get()));
 	}
 	std::printf("\n");
-	api::socket_addr at4{};
-	at4.ip[0] = 127;
-	at4.ip[3] = 1;
+	api::socket_addr_v4 at4{};
+	at4.ip.octets[0] = 127;
+	at4.ip.octets[3] = 1;
 	at4.port = 8080;
-	api::socket_addr at6{};
-	at6.ip[15] = 1;
+	api::socket_addr_v6 at6{};
+	at6.ip.octets[15] = 1;
 	at6.port = 443;
-	at6.v6 = true;
 	at6.scope_id = 3;
 	auto [next4, next6] = api::nexts(at4, at6);
-	std::printf("nexts %u.%u.%u.%u %u %u %u\n", next4.ip[0], next4.ip[1], next4.ip[2], next4.ip[3], next4.port, next6.port,
-				next6.scope_id);
+	const auto &n4 = next4.ip.octets;
+	std::printf("nexts %u.%u.%u.%u %u %u %u\n", n4[0], n4[1], n4[2], n4[3], next4.port, next6.port, next6.scope_id);
+	auto print_hex = [](const std::uint8_t *bytes, std::size_t len) {
+		for (std::size_t b = 0; b < len; b++) {
+			std::printf("%02x", bytes[b]);
+		}
+	};
+	auto print_ip = [&](const api::ip_addr &ip) {
+		if (ip.v6) {
+			print_hex(ip.ip.v6.octets, 16);
+		} else {
+			print_hex(ip.ip.v4.octets, 4);
+		}
+	};
+	auto print_socket = [&](const api::socket_addr &addr) {
+		if (addr.v6) {
+			print_hex(addr.addr.v6.ip.octets, 16);
+			std::printf(":%u:%u:%u", addr.addr.v6.port, addr.addr.v6.flowinfo, addr.addr.v6.scope_id);
+		} else {
+			print_hex(addr.addr.v4.ip.octets, 4);
+			std::printf(":%u", addr.addr.v4.port);
+		}
+	};
 	{
-		api::ip_addr ip4{}, ip6{}, local4{}, local6{};
-		ip4.ip[0] = 10;
-		ip4.ip[3] = 255;
-		ip6.ip[14] = ip6.ip[15] = 0xff;
-		ip6.v6 = true;
-		local4.ip[0] = 127;
-		local4.ip[3] = 1;
-		local6.ip[15] = 1;
+		api::ipv4_addr ip4{};
+		ip4.octets[0] = 10;
+		ip4.octets[3] = 255;
+		api::ipv6_addr ip6{};
+		ip6.octets[14] = ip6.octets[15] = 0xff;
+		api::ip_addr local4{}, local6{}, nextip4_{}, nextip6_{};
+		local4.ip.v4.octets[0] = 127;
+		local4.ip.v4.octets[3] = 1;
 		local6.v6 = true;
+		local6.ip.v6.octets[15] = 1;
 		auto [nextip4, nextip6] = api::next_ips(ip4, ip6);
+		nextip4_.ip.v4 = nextip4;
+		nextip6_.v6 = true;
+		nextip6_.ip.v6 = nextip6;
 		auto mapped = api::flip(local4);
 		std::printf("ips");
-		for (auto ip : {nextip4, nextip6, mapped, api::flip(mapped), api::flip(local6)}) {
+		for (auto ip : {nextip4_, nextip6_, mapped, api::flip(mapped), api::flip(local6)}) {
 			std::printf(" ");
-			for (std::size_t b = 0; b < (ip.v6 ? 16u : 4u); b++) {
-				std::printf("%02x", ip.ip[b]);
-			}
+			print_ip(ip);
 		}
+		std::printf("\n");
+	}
+	// Lossless round trips: each type's edge values, passed through Rust and back.
+	{
+		std::printf("lossless duration");
+		for (api::duration ll_dur : {api::duration{0, 0}, api::duration{0, 1}, api::duration{9223372036u, 854775808u},
+								  api::duration{UINT64_MAX, 999999999u}}) {
+			ll_dur = api::same_duration(ll_dur);
+			std::printf(" %llu.%09u", static_cast<unsigned long long>(ll_dur.secs), ll_dur.nanos);
+		}
+		std::printf("\n");
+		std::printf("lossless u64 %llu %llu %llu\n", static_cast<unsigned long long>(api::same_u64(0)),
+					static_cast<unsigned long long>(api::same_u64(1ull << 63)),
+					static_cast<unsigned long long>(api::same_u64(UINT64_MAX)));
+		std::printf("lossless usize %zu %zu\n", api::same_usize(0), api::same_usize(SIZE_MAX));
+		std::printf("lossless isize %td %td\n", api::same_isize(PTRDIFF_MIN), api::same_isize(PTRDIFF_MAX));
+		std::printf("lossless u128");
+		for (api::u128 ll_wide : {api::u128{0, 0}, api::u128{0, 1}, api::u128{UINT64_MAX, UINT64_MAX}}) {
+			ll_wide = api::same_u128(ll_wide);
+			std::printf(" %016llx%016llx", static_cast<unsigned long long>(ll_wide.hi), static_cast<unsigned long long>(ll_wide.lo));
+		}
+		std::printf("\n");
+		std::printf("lossless char");
+		for (char32_t ll_code : {U'\0', static_cast<char32_t>(0xd7ff), static_cast<char32_t>(0xe000), static_cast<char32_t>(0x10ffff)}) {
+			std::printf(" %x", static_cast<unsigned>(api::same_char(ll_code)));
+		}
+		std::printf("\n");
+		// A path no Rust string spells: bytes that are not UTF-8, or on Windows, WTF-8's lone
+		// surrogate.
+#ifdef _WIN32
+		static const std::uint8_t ll_stray[] = {0xed, 0xa0, 0x80};
+#else
+		static const std::uint8_t ll_stray[] = {0xff};
+#endif
+		std::printf("lossless path");
+		for (auto ll_same : {api::same_path("a/\xc3\xa9"), api::same_path(api::view(ll_stray, sizeof ll_stray))}) {
+			std::printf(" ");
+			print_hex(ll_same.data(), ll_same.size());
+		}
+		std::printf("\n");
+		api::socket_addr_v4 ll_sv4{};
+		std::memset(ll_sv4.ip.octets, 0xff, 4);
+		ll_sv4.port = UINT16_MAX;
+		api::socket_addr_v6 ll_sv6{};
+		ll_sv6.ip.octets[1] = 1;
+		ll_sv6.ip.octets[15] = 2;
+		ll_sv6.port = 3;
+		ll_sv6.flowinfo = ll_sv6.scope_id = UINT32_MAX;
+		api::socket_addr ll_sockets[2] = {};
+		ll_sockets[0].addr.v4 = api::same_socket_addr_v4(ll_sv4);
+		ll_sockets[1].v6 = true;
+		ll_sockets[1].addr.v6 = api::same_socket_addr_v6(ll_sv6);
+		std::printf("lossless socket");
+		for (const auto &ll_socket : ll_sockets) {
+			std::printf(" ");
+			print_socket(ll_socket);
+		}
+		for (const auto &ll_socket : ll_sockets) {
+			std::printf(" ");
+			print_socket(api::same_socket_addr(ll_socket));
+		}
+		std::printf("\n");
+		api::Key ll_key_a = api::Key::new_("a"), ll_key_b = api::Key::new_("b");
+		if (ll_key_a.hash() != ll_key_a.hash_of()) {
+			std::fprintf(stderr, "Key::hash differs from Rust's own hash\n");
+			std::exit(1);
+		}
+		std::hash<api::Key> ll_hasher;
+		std::printf("key %s %s\n", ll_hasher(ll_key_a) == ll_hasher(api::Key::new_("a")) ? "true" : "false",
+					ll_hasher(ll_key_a) == ll_hasher(ll_key_b) ? "true" : "false");
+		api::ip_addr ll_edge4{}, ll_edge6{};
+		std::memset(ll_edge4.ip.v4.octets, 0xff, 4);
+		ll_edge6.v6 = true;
+		ll_edge6.ip.v6.octets[0] = ll_edge6.ip.v6.octets[1] = 0xff;
+		ll_edge6.ip.v6.octets[15] = 1;
+		std::printf("lossless ip ");
+		print_ip(api::same_ip_addr(ll_edge4));
+		std::printf(" ");
+		print_ip(api::same_ip_addr(ll_edge6));
 		std::printf("\n");
 	}
 

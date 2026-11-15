@@ -26,7 +26,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Closure, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
+use crate::ir::{Access, Closure, Family, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.swift");
 
@@ -88,8 +88,12 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\ttypealias CForeignReader = {p}_foreign_reader\n\
 		\ttypealias CU128 = {p}_u128\n\
 		\ttypealias CDuration = {p}_duration\n\
-		\ttypealias CAddr = {p}_socket_addr\n\
-		\ttypealias CIpAddr = {p}_ip_addr\n\n\
+		\ttypealias CIpv4Addr = {p}_ipv4_addr\n\
+		\ttypealias CIpv6Addr = {p}_ipv6_addr\n\
+		\ttypealias CIpAddr = {p}_ip_addr\n\
+		\ttypealias CSocketAddrV4 = {p}_socket_addr_v4\n\
+		\ttypealias CSocketAddrV6 = {p}_socket_addr_v6\n\
+		\ttypealias CSocketAddr = {p}_socket_addr\n\n\
 		\tstatic func contract() -> Swift.Bool {{\n\t\t{p}_contract() == 0x{contract:016x} && {upper}_CONTRACT == 0x{contract:016x}\n\t}}\n\n\
 		\t/// The index of the library's target among those this file serves.\n\
 		\tstatic let target = Swift.UInt64({p}_target())\n\n\
@@ -153,8 +157,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 
 /// The standard library's names the runtime and the generated code use unqualified, which
 /// an exported type or function would shadow, and `Swift`, which qualifies the rest. The
-/// runtime's own are the C ABI's: `Native`, `Bytes`, `SocketAddr`, and `IpAddr` are claimed
-/// as `<prefix>_native`, `<prefix>_bytes`, `<prefix>_socket_addr`, and `<prefix>_ip_addr`.
+/// runtime's own are the C ABI's: `Native`, `Bytes`, and each address type are claimed as
+/// `<prefix>_native`, `<prefix>_bytes`, `<prefix>_socket_addr`, and so on.
 const TAKEN: &[&str] = &[
 	"Array",
 	"Bool",
@@ -170,14 +174,21 @@ const TAKEN: &[&str] = &[
 	"Int",
 	"Int64",
 	"IpAddr",
+	"Ipv4Addr",
+	"Ipv6Addr",
 	"Never",
+	"NonZero",
 	"OpaquePointer",
 	"Optional",
+	"PathBuf",
 	"RandomAccessCollection",
+	"RustDuration",
 	"Sendable",
 	"SeekOrigin",
 	"SeekableReader",
 	"SocketAddr",
+	"SocketAddrV4",
+	"SocketAddrV6",
 	"StaticString",
 	"Swift",
 	"Task",
@@ -355,16 +366,22 @@ impl<'a> Gen<'a> {
 			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "Void".to_string(),
 			Type::Bool => "Swift.Bool".to_string(),
-			Type::Int(int) | Type::NonZero(int) => sw_int(*int).to_string(),
+			Type::Int(int) => sw_int(*int).to_string(),
+			Type::NonZero(int) => format!("NonZero<{}>", sw_int(*int)),
 			Type::F32 => "Swift.Float".to_string(),
 			Type::F64 => "Swift.Double".to_string(),
 			Type::Char => "Swift.Unicode.Scalar".to_string(),
-			Type::Str | Type::String | Type::Path | Type::PathBuf => "Swift.String".to_string(),
+			Type::Str | Type::String => "Swift.String".to_string(),
+			Type::Path | Type::PathBuf => "PathBuf".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "Bytes".to_string(),
 			Type::U128 => "U128".to_string(),
-			Type::Duration => "Swift.Duration".to_string(),
-			Type::SocketAddr(_) => "SocketAddr".to_string(),
-			Type::IpAddr(_) => "IpAddr".to_string(),
+			Type::Duration => "RustDuration".to_string(),
+			Type::SocketAddr(Family::Any) => "SocketAddr".to_string(),
+			Type::SocketAddr(Family::V4) => "SocketAddrV4".to_string(),
+			Type::SocketAddr(Family::V6) => "SocketAddrV6".to_string(),
+			Type::IpAddr(Family::Any) => "IpAddr".to_string(),
+			Type::IpAddr(Family::V4) => "Ipv4Addr".to_string(),
+			Type::IpAddr(Family::V6) => "Ipv6Addr".to_string(),
 			Type::List(_, inner) if self.unique(inner) => format!("UniqueArray<{}>", self.sw(inner)),
 			Type::List(_, inner) => format!("[{}]", self.sw(inner)),
 			Type::Waker => "@Sendable () -> Void".to_string(),
@@ -412,8 +429,8 @@ impl<'a> Gen<'a> {
 			Ty::Buf => abi.rt("buf"),
 			Ty::U128 => abi.rt("u128"),
 			Ty::Duration => abi.rt("duration"),
-			Ty::SocketAddr => abi.rt("socket_addr"),
-			Ty::IpAddr => abi.rt("ip_addr"),
+			Ty::SocketAddr(family) => abi.rt(abi::addr(true, *family)),
+			Ty::IpAddr(family) => abi.rt(abi::addr(false, *family)),
 			Ty::Struct(n) | Ty::Enum(n) => n.clone(),
 			Ty::Handle { .. } | Ty::Future(_) => "OpaquePointer?".to_string(),
 			Ty::Waker => abi.rt("waker"),
@@ -487,13 +504,13 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
-			Type::Int(int) | Type::NonZero(int) => lower_int(*int, e),
+			Type::Int(int) => lower_int(*int, e),
+			Type::NonZero(int) => lower_int(*int, &format!("{e}.value")),
 			Type::Char => format!("{e}.value"),
 			Type::U128 => format!("Native.u128({e})"),
 			Type::Array(_) => format!("{e}._c"),
 			Type::Duration => format!("Native.duration({e})"),
-			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
-			Type::IpAddr(_) => format!("Native.ipAddr({e})"),
+			Type::SocketAddr(_) | Type::IpAddr(_) => format!("Native.addr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{e}._lower()"),
 			Type::Waker => format!("Native.waker({e})"),
 			Type::Future => format!("Native.future({e})"),
@@ -592,13 +609,13 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => format!("Native.path({e})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("Native.bytes({e})"),
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
-			Type::Int(int) | Type::NonZero(int) => lift_int(*int, e),
+			Type::Int(int) => lift_int(*int, e),
+			Type::NonZero(int) => format!("NonZero(_unchecked: {})", lift_int(*int, e)),
 			Type::Char => format!("Native.scalar({e})"),
 			Type::U128 => format!("Native.u128({e})"),
 			Type::Array(n) => format!("{}(_c: {e})", Abi::array_class(*n)),
 			Type::Duration => format!("Native.duration({e})"),
-			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
-			Type::IpAddr(_) => format!("Native.ipAddr({e})"),
+			Type::SocketAddr(_) | Type::IpAddr(_) => format!("Native.addr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{}._lift({e})", self.sw(ty)),
 			// A block is copied out whole, then freed.
 			Type::List(_, inner) if ty.block().is_some() => {
@@ -844,8 +861,8 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The members a type's std traits export, with the protocols they conform it to:
-	/// `Display` is `description`, `Debug` `debugDescription`, `PartialEq` `==`, `Default`
-	/// a static `default()`, and `Clone` an object's `clone()`.
+	/// `Display` is `description`, `Debug` `debugDescription`, `PartialEq` `==`, `Hash`
+	/// `hash(into:)`, `Default` a static `default()`, and `Clone` an object's `clone()`.
 	fn traits(
 		&mut self,
 		ty: &Type,
@@ -947,8 +964,12 @@ impl<'a> Gen<'a> {
 			));
 		}
 		if t.eq {
+			// `Hash` agrees with `PartialEq`, so a type with both hashes as Rust does.
 			if !status {
-				protocols.push("Equatable");
+				protocols.push(match t.hash {
+					true => "Hashable",
+					false => "Equatable",
+				});
 			}
 			let what = format!("{c}_eq");
 			let same = |r: &str| r.to_string();
@@ -980,6 +1001,14 @@ impl<'a> Gen<'a> {
 			};
 			body.push(format!(
 				"\tpublic static func == (a: {borrowing}{name}, b: {borrowing}{name}){throws} -> Swift.Bool {{\n\t\t{compare}\n\t}}\n"
+			));
+		}
+		if t.hash {
+			members.push("hash(into:)".to_string());
+			let combine = |r: &str| format!("hasher.combine({r})");
+			body.push(format!(
+				"\t/// Rust's `Hash`, agreeing with `==`.\n\tpublic func hash(into hasher: inout Swift.Hasher){throws} {{\n\t\t{}\n\t}}\n",
+				unary("hash", &combine)
 			));
 		}
 		if t.default {
@@ -1305,12 +1334,12 @@ impl<'a> Gen<'a> {
 			self.types,
 			"{docs}public struct {name}: ~Copyable{sendable} {{\n{body}}}\n\n"
 		);
-		// Swift 6.4 takes a noncopyable type's `Equatable`, but not yet its
+		// Swift 6.4 takes a noncopyable type's `Equatable` and `Hashable`, but not yet its
 		// `CustomStringConvertible` or `CustomDebugStringConvertible`, whose members it keeps.
-		if protocols.contains(&"Equatable") {
+		if let Some(equal) = protocols.iter().find(|p| ["Equatable", "Hashable"].contains(p)) {
 			let _ = write!(
 				self.types,
-				"#if compiler(>=6.4)\nextension {name}: Equatable {{}}\n#endif\n\n"
+				"#if compiler(>=6.4)\nextension {name}: {equal} {{}}\n#endif\n\n"
 			);
 		}
 	}
@@ -1585,8 +1614,8 @@ impl<'a> Gen<'a> {
 	/// as it lowers, and text in a buffer `buf_copy` made.
 	fn returned(&mut self, ty: &Type, e: &str) -> String {
 		match ty {
-			Type::Str | Type::String => format!("Native.owned({e})"),
-			Type::Option(inner) if matches!(**inner, Type::Str | Type::String) => {
+			Type::Str | Type::String | Type::PathBuf => format!("Native.owned({e})"),
+			Type::Option(inner) if matches!(**inner, Type::Str | Type::String | Type::PathBuf) => {
 				format!("({e}.map {{ Native.owned($0) }} ?? Native.none)")
 			}
 			ty => Self::trapping(self.lower(ty, e)),
@@ -2515,7 +2544,13 @@ mod tests {
 				continue;
 			};
 			let decl = decl.trim_end_matches('{').trim();
-			let (name, conforms) = decl.split_once(':').unwrap_or((decl, ""));
+			// A generic's parameters, such as `NonZero<T: Swift.FixedWidthInteger>`, name it
+			// no further; the type is its name before them.
+			let decl = match decl.split_once('<') {
+				Some((name, rest)) => name.to_string() + rest.split_once('>').expect("a generic closes").1,
+				None => decl.to_string(),
+			};
+			let (name, conforms) = decl.split_once(':').unwrap_or((&decl, ""));
 			let names = std::iter::once(name).chain(conforms.split(','));
 			// A qualified name, such as `Swift.Error`, cannot clash.
 			for name in (names.map(str::trim)).filter(|n| !n.is_empty() && !n.starts_with('@') && !n.contains('.')) {

@@ -4113,3 +4113,88 @@ impl Handle {
 		Handle { count }
 	}
 }
+
+// Lossless round trips: each returns what it is given, so a binding passes a type's edge
+// values through Rust and back, and prints what it holds.
+
+/// `v`, as given: the longest `Duration` included.
+pub fn same_duration(v: Duration) -> Duration {
+	v
+}
+
+/// `v`, as given: past `i64::MAX` included.
+pub fn same_u64(v: u64) -> u64 {
+	v
+}
+
+/// `v`, as given: past a 32-bit target's included.
+pub fn same_usize(v: usize) -> usize {
+	v
+}
+
+/// `v`, as given.
+pub fn same_isize(v: isize) -> isize {
+	v
+}
+
+/// `v`, as given.
+pub fn same_u128(v: u128) -> u128 {
+	v
+}
+
+/// `v`, as given.
+pub fn same_char(v: char) -> char {
+	v
+}
+
+/// `v`, as given.
+pub fn same_string(v: String) -> String {
+	v
+}
+
+/// `v`, as given: one whose bytes are not UTF-8 included, as a Unix path may be.
+pub fn same_path(v: std::path::PathBuf) -> std::path::PathBuf {
+	v
+}
+
+/// `v`, as given: a flow label and scope included.
+pub fn same_socket_addr(v: std::net::SocketAddr) -> std::net::SocketAddr {
+	v
+}
+
+/// `v`, as given.
+pub fn same_socket_addr_v4(v: std::net::SocketAddrV4) -> std::net::SocketAddrV4 {
+	v
+}
+
+/// `v`, as given: a flow label and scope included.
+pub fn same_socket_addr_v6(v: std::net::SocketAddrV6) -> std::net::SocketAddrV6 {
+	v
+}
+
+/// `v`, as given.
+pub fn same_ip_addr(v: std::net::IpAddr) -> std::net::IpAddr {
+	v
+}
+
+/// A key: an object whose `Hash` agrees with its `PartialEq`, so a binding hashes it by
+/// Rust's, as a map keyed by it needs.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Key {
+	name: String,
+}
+
+impl Key {
+	pub fn new(name: &str) -> Key {
+		Key { name: name.to_string() }
+	}
+
+	/// Its hash by std's hasher, which a binding's own of it must equal, as both hash
+	/// through Rust's `Hash` alike.
+	pub fn hash_of(&self) -> u64 {
+		std::hash::BuildHasher::hash_one(
+			&std::hash::BuildHasherDefault::<std::hash::DefaultHasher>::default(),
+			self,
+		)
+	}
+}

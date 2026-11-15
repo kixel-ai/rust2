@@ -113,8 +113,11 @@ func drive(driver *net.OriginDriver) <-chan error {
 				return
 			}
 			var deadline <-chan time.Time
+			// A wait past time.Duration's 292 years waits for a wake alone.
 			if next != nil {
-				deadline = time.After(next.SaturatingDurationSince(kio.ClockNow()))
+				if wait, err := next.SaturatingDurationSince(kio.ClockNow()).Std(); err == nil {
+					deadline = time.After(wait)
+				}
 			}
 			select {
 			case <-woken:
@@ -338,10 +341,10 @@ func script() {
 	expect(len(alpns) > 0 && !slices.Contains(alpns, ""), "each version has an ALPN")
 	versions.Close()
 	// A socket address, crossing in a listener's bind.
-	bind := tokio.Bind(tokio.BindAddr{V0: netip.MustParseAddrPort("[::1]:4443")})
+	bind := tokio.Bind(tokio.BindAddr{V0: must(rt.SocketAddrOf(netip.MustParseAddrPort("[::1]:4443")))})
 	expect(fmt.Sprint(bind) == "[::1]:4443", "an IPv6 bind prints as Rust's")
-	v4 := netip.MustParseAddrPort("127.0.0.1:0")
-	expect(tokio.BindAddr{V0: v4}.String() == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
+	v4 := must(rt.SocketAddrV4Of(netip.MustParseAddrPort("127.0.0.1:0")))
+	expect(tokio.BindAddr{V0: rt.SocketAddrFromV4(v4)}.String() == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
 	listen := tokio.ListenConfigDefault()
 	check(listen.BindSet(&bind))
 	// The preferred address of each family, which takes only that family.
@@ -377,14 +380,14 @@ func session() {
 
 	serverConfig := tokio.ServerConfigDefault()
 	listen := must(serverConfig.ListenGet())
-	var bind tokio.Bind = tokio.BindAddr{V0: netip.MustParseAddrPort("[::]:0")}
+	var bind tokio.Bind = tokio.BindAddr{V0: rt.SocketAddrFromV6(rt.SocketAddrV6{})}
 	check(listen.BindSet(&bind))
 	tls := must(listen.TlsGet())
 	check(tls.GenerateSet([]string{"localhost"}))
 	check(listen.TlsSet(tls))
 	check(serverConfig.ListenSet(listen))
 	server := must(serverConfig.Init())
-	local := must(server.LocalAddr())
+	local := must(must(server.LocalAddr()).Netip())
 	expect(local.Port() != 0, "a server bound to port 0 reads back the port it got")
 	serving, stop := context.WithCancel(ctx)
 	defer stop()
