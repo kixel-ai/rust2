@@ -2599,11 +2599,23 @@ impl Gen<'_> {
 			(_, Some(Type::String), _) => format!("({call}).map_err(|e| ::std::string::ToString::to_string(&e))"),
 			_ => call,
 		};
+		// A Java exception the call left pending is what Kotlin gets, as from any native
+		// method: the result drops, and nothing is written for Kotlin's glue to read.
+		let pending = match function.jni() {
+			true => {
+				let zero = match status {
+					Some(_) => "Ok(unsafe { ::std::mem::zeroed() })",
+					None => "unsafe { ::std::mem::zeroed() }",
+				};
+				format!("\n\tif jni_env.exception_check() {{\n\t\tdrop(result);\n\t\treturn {zero};\n\t}}")
+			}
+			false => String::new(),
+		};
 		self.checking.set(false);
 		self.export(format!(
 			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{}\n}}\n",
 			params.join(", "),
-			wrap(status, &ret, &format!("{body}\n\tlet result = {call};{writes}\n\t{finish}"))
+			wrap(status, &ret, &format!("{body}\n\tlet result = {call};{pending}{writes}\n\t{finish}"))
 		));
 	}
 }

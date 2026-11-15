@@ -65,7 +65,6 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		aliases: std::cell::RefCell::new(BTreeSet::new()),
 		dispatchers: Vec::new(),
 		suspends: false,
-		jni: false,
 		reads: false,
 		fails: false,
 		on: On::ALL,
@@ -499,9 +498,6 @@ struct Gen<'a> {
 	/// Whether the function being written suspends, so a future it takes runs in its
 	/// caller's context.
 	suspends: bool,
-	/// Whether the function being written takes a JNI value, so its native method throws
-	/// what the Rust left pending.
-	jni: bool,
 	/// Whether a function takes a reader, which the glue reads through `_Native`.
 	reads: bool,
 	/// Whether a closure fails by throwing, which the glue catches through `_Native`.
@@ -2164,18 +2160,11 @@ impl<'a> Gen<'a> {
 		all.extend(rust);
 		let _ = write!(
 			self.glue,
-			"#[unsafe(no_mangle)]\npub unsafe extern \"system\" fn Java_{}__1Native_{}({}) -> {} {{\n\tlet _ = env;\n\t{body}\n}}\n\n",
+			"#[unsafe(no_mangle)]\npub unsafe extern \"system\" fn Java_{}__1Native_{}({}) -> {} {{\n\tlet _ = env;\n\tunsafe {{\n\t\t{body}\n\t}}\n}}\n\n",
 			mangle(&self.abi.prefix),
 			mangle(bare),
 			all.join(", "),
-			ret.0,
-			// A call taking a JNI value throws what its Rust left pending once the body is done,
-			// on every path: the body runs in a closure, which a `return` in it leaves.
-			body = match self.jni {
-				true =>
-					format!("let ret = (|| unsafe {{\n\t\t{body}\n\t}})();\n\tunsafe {{ rt::rethrow(env) }};\n\tret"),
-				false => format!("unsafe {{\n\t\t{body}\n\t}}"),
-			},
+			ret.0
 		);
 	}
 
@@ -2220,9 +2209,7 @@ impl<'a> Gen<'a> {
 		taken: &[String],
 	) -> Option<String> {
 		let on = std::mem::replace(&mut self.on, function.on);
-		self.jni = function.jni();
 		let code = self.function_on(function, owner, owner_ty, place, taken);
-		self.jni = false;
 		self.on = on;
 		code
 	}
@@ -2449,15 +2436,15 @@ impl<'a> Gen<'a> {
 		let status_arg = status.then(|| "&mut status".to_string());
 		let rust_call = |outs: &[String]| {
 			let args: Vec<String> = rust_args.iter().chain(outs).chain(&status_arg).cloned().collect();
-			match &handed {
+			let call = match &handed {
 				Some(h) => h.call(&args),
-				// An exception the Rust left pending is taken, so the glue's own JNI calls
-				// run, and thrown once the native method returns.
-				None if function.jni() => format!(
-					"{{ let ret = crate::{c_name}({}); rt::stash(env); ret }}",
-					args.join(", ")
-				),
 				None => format!("crate::{c_name}({})", args.join(", ")),
+			};
+			// An exception the Rust left pending, which the C function dropped its result
+			// for, is thrown once the native method returns with nothing else done.
+			match function.jni() {
+				true => format!("{{ let ret = {call}; if rt::pending(env) {{ return std::mem::zeroed(); }} ret }}"),
+				false => call,
 			}
 		};
 		if let Some(abi::Future { poll, free, .. }) = &export.future {
