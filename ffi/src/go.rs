@@ -377,7 +377,6 @@ const TAKEN: &[&str] = &[
 	"SocketAddrFromV4",
 	"SocketAddrFromV6",
 	"Handle_",
-	"NewHandle_",
 	"LiftBytes_",
 	"BytesBuf_",
 	"GoCall_",
@@ -2173,7 +2172,6 @@ impl<'a> Gen<'a> {
 		let (_, local) = self.named(&ty);
 		let name = self.qualified(&ty);
 		let handle = self.qualify(Packages::RT, "Handle_");
-		let new = self.qualify(Packages::RT, "NewHandle_");
 		let (drop, dropping) = match self.abi.checked[i] {
 			true => (
 				format!(
@@ -2202,10 +2200,11 @@ impl<'a> Gen<'a> {
 		format!(
 			"func free_{c}(p unsafe.Pointer) {{\n\tC.{c}_free((*C.{c})(p))\n}}\n\n\
 			{drop}\
-			// own_{c} owns a handle Rust returned, or is nil for none.\n\
-			func own_{c}(raw *C.{c}) *{name} {{\n\tif raw == nil {{\n\t\treturn nil\n\t}}\n\tv := &{name}{{Handle_: {new}(unsafe.Pointer(raw), free_{c}, {dropping}, \"{local}\")}}\n\tv.Handle_.Cleanup = runtime.AddCleanup(v, (*{handle}).Collected, v.Handle_)\n\treturn v\n}}\n\n\
+			// own_{c} owns a handle Rust returned, or is nil for none: the object and its handle\n\
+			// in one allocation, whose cleanup frees the handle.\n\
+			func own_{c}(raw *C.{c}) *{name} {{\n\tif raw == nil {{\n\t\treturn nil\n\t}}\n\to := &struct {{\n\t\tv {name}\n\t\th {handle}\n\t}}{{}}\n\to.h.Init(unsafe.Pointer(raw), free_{c}, {dropping}, \"{local}\")\n\to.v.Handle_ = &o.h\n\to.h.Cleanup = runtime.AddCleanup(&o.v, free_{c}, unsafe.Pointer(raw))\n\treturn &o.v\n}}\n\n\
 			// lend_{c} is a handle Rust lends for a call, which it frees itself.\n\
-			func lend_{c}(raw *C.{c}) *{name} {{\n\treturn &{name}{{Handle_: {new}(unsafe.Pointer(raw), nil, nil, \"{local}\")}}\n}}\n\n\
+			func lend_{c}(raw *C.{c}) *{name} {{\n\to := &struct {{\n\t\tv {name}\n\t\th {handle}\n\t}}{{}}\n\to.h.Init(unsafe.Pointer(raw), nil, nil, \"{local}\")\n\to.v.Handle_ = &o.h\n\treturn &o.v\n}}\n\n\
 			// holdOption_{c} is v's handle, held until the call returns, or nil for none.\n\
 			func holdOption_{c}(a_ *arena_, v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\treturn nil\n\t}}\n\treturn (*C.{c})(a_.hold(v.Handle_, v))\n}}\n\n"
 		)

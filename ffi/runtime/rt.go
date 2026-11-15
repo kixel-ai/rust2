@@ -75,12 +75,13 @@ type Handle_ struct {
 	Cleanup runtime.Cleanup
 }
 
-// NewHandle_ is a handle of raw, which free frees, or nil for one Rust lends, and drop
-// drops the value of, or nil for one Rust does not check.
-func NewHandle_(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(unsafe.Pointer) error, name string) *Handle_ {
-	h := &Handle_{raw: raw, free: free, drop: drop, name: name}
+// Init makes h a handle of raw, which free frees, or nil for one Rust lends, and drop
+// drops the value of, or nil for one Rust does not check. The generated packages allocate
+// it with the object owning it, which each call holding it then keeps reachable: so once
+// the GC collects the object, no call holds the handle, and its cleanup frees it at once.
+func (h *Handle_) Init(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(unsafe.Pointer) error, name string) {
+	h.raw, h.free, h.drop, h.name = raw, free, drop, name
 	h.state.Store(held_)
-	return h
 }
 
 // Hold is the handle, held until Release, or nil once closed.
@@ -147,11 +148,6 @@ func (h *Handle_) Close() error {
 func (h *Handle_) Moved() {
 	// A cleanup left registered until the GC slows each one registered after it.
 	h.Cleanup.Stop()
-	h.abandon()
-}
-
-// Collected frees an owned handle the GC collected the object of, once no call holds it.
-func (h *Handle_) Collected() {
 	h.abandon()
 }
 
