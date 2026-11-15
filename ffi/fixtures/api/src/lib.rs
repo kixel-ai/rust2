@@ -52,6 +52,12 @@ pub fn has_text(note: Note) -> bool {
 	note.text.is_some()
 }
 
+/// A mark's count, its checked parameter named as its own C function, which no shim calling
+/// it may hide.
+pub fn marked(api_marked: &Mark) -> u64 {
+	api_marked.count
+}
+
 /// A reading: a field of each scalar kind at the edge of its range, a nested record, and
 /// text, so a binding that passes a record's scalars apart from its other fields passes each
 /// exactly.
@@ -106,9 +112,17 @@ pub fn reading_debug(n: u32) -> String {
 	reading(n).map_or_else(String::new, |r| format!("{r:?}"))
 }
 
-/// `reading`, passed through Rust and back.
-pub fn reading_echo(reading: Reading) -> Reading {
+/// `reading`, or none, passed through Rust and back.
+pub fn reading_echo(reading: Option<Reading>) -> Option<Reading> {
 	reading
+}
+
+/// Counts `reading` up one and notes it, if there is one.
+pub fn reading_bump(reading: &mut Option<Reading>) {
+	if let Some(r) = reading {
+		r.count = r.count.wrapping_add(1);
+		r.note.push('+');
+	}
 }
 
 /// Declares `crowded`, whose parameters take 243 of a JVM method's 255 slots, so flattening
