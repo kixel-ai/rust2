@@ -50,7 +50,7 @@ export function adaptors(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			if (v5.length === v5.data.length) {
 				rs.byteVecReserve(v5, 1);
 			}
-			rs.byteVecPush(v5, y4);
+			v5.data[v5.length++] = y4;
 		}
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(v5));
 		for (const _18 of rs.iterToVec(rs.iterFilterMap(rs.iterSlice(rs.byteSliceView(data)), (_218: rs.u8): rs.u16 | undefined => {
@@ -16753,7 +16753,7 @@ export function fusedCuts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 					if (v11.length === v11.data.length) {
 						rs.byteVecReserve(v11, 1);
 					}
-					rs.byteVecPush(v11, y5);
+					v11.data[v11.length++] = y5;
 				}
 				const v: rs.ByteVec = v11;
 				_454(out, v.length, v.data.length);
@@ -16904,7 +16904,7 @@ export function fusedCuts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 					if (v17.length === v17.data.length) {
 						rs.byteVecReserve(v17, rs.satAdd(Math.min(0, take11), 1));
 					}
-					rs.byteVecPush(v17, y11);
+					v17.data[v17.length++] = y11;
 				}
 				const v7: rs.ByteVec = v17;
 				_454(out, v7.length, v7.data.length);
@@ -17011,7 +17011,7 @@ export function fusedCuts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 					if (v20.length === v20.data.length) {
 						rs.byteVecReserve(v20, 1);
 					}
-					rs.byteVecPush(v20, y14);
+					v20.data[v20.length++] = y14;
 				}
 				const v10: rs.ByteVec = v20;
 				_454(out, v10.length, v10.data.length);

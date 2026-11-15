@@ -508,7 +508,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							.binary("===", at.clone().member("data").member("length"));
 						let reserve = Expr::rs("byteVecReserve", vec![at.clone(), and_one(lower(&root))]);
 						body.push(if_then(full, vec![StmtKind::Expr(reserve).at(None)]));
-						body.push(StmtKind::Expr(Expr::rs("byteVecPush", vec![at.clone(), x])).at(None));
+						// Written in place: the reserve made room for it, as `byteVecPush`'s finds.
+						let length = Expr::Postfix(Box::new(at.clone().member("length")), "++");
+						let slot = at.clone().member("data").index(length);
+						body.push(StmtKind::Expr(slot.assign(x)).at(None));
 						at
 					}
 					// As `iterToVec`'s, of `size`-byte items: the capacity `Vec::push` reserves, from

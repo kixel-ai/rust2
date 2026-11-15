@@ -924,7 +924,7 @@ export function iterate(chain: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			if (v.length === v.data.length) {
 				rs.byteVecReserve(v, 1);
 			}
-			rs.byteVecPush(v, y4);
+			v.data[v.length++] = y4;
 		}
 		putUsize(out, v.length);
 	} else if (chain === 3) {
