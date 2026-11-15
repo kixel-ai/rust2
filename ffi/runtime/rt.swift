@@ -328,9 +328,10 @@ public struct U128: Hashable, Comparable, Sendable, CustomStringConvertible {
 /// A call Rust's rules refuse, thrown before any Rust runs: a handle borrowed in a way
 /// the borrow checker forbids beside another call's, used once its value moved out or its
 /// lend ended, an item called on a library whose target lacks it, or a value Rust's type
-/// cannot hold given a runtime type's initializer.
+/// cannot hold, such as a zero passed for a `NonZero` or given a runtime type's initializer.
 public struct CheckError: Swift.Error, CustomStringConvertible, Sendable {
-	/// The function called, by its C name, or the runtime initializer.
+	/// The function called, or the record or enum whose value broke, by its C name, or the
+	/// runtime initializer.
 	public let function: Swift.String
 	/// What broke.
 	public let message: Swift.String
@@ -635,6 +636,16 @@ extension Native {
 	/// `path`'s bytes in a buffer Rust owns, as what a closure returns.
 	static func owned(_ path: PathBuf) -> Buf {
 		view(path.bytes) { copy($0) }
+	}
+
+	/// `value`, a `NonZero`'s integer that `what` passes, throwing for a zero, which Rust's
+	/// type cannot hold.
+	@inline(__always)
+	static func nonzero<T: BinaryInteger>(_ value: T, _ what: StaticString) throws -> T {
+		guard value != 0 else {
+			throw CheckError(function: "\(what)", message: "a NonZero is zero")
+		}
+		return value
 	}
 
 	static func scalar(_ code: UInt32) -> Unicode.Scalar {

@@ -1013,11 +1013,18 @@ func script() {
 	} catch {
 		check(false, "seekTo throws its io::Error's message")
 	}
-	print("non zeros \(describeNonZeros(nonZeros()))")
+	print("non zeros \(try! describeNonZeros(nonZeros()))")
 	for hop in [nil, 1, UInt64.max] as [UInt64?] {
-		print("hop \(nextHop(hop).map { "Some(\($0))" } ?? "None")")
+		print("hop \(try! nextHop(hop).map { "Some(\($0))" } ?? "None")")
 	}
-	print("farther hop \(fartherHop(PairNonZeroU16(left: 3, right: .max)))")
+	print("farther hop \(try! fartherHop(PairNonZeroU16(left: 3, right: .max)))")
+	// A zero passed for a `NonZero`, which Swift's integer holds and Rust's type does not,
+	// throws before any Rust runs, in an option and a record's field too.
+	check(refused("api_next_hop") { _ = try nextHop(0) }, "a zero NonZero throws")
+	check(
+		refused("api_Pair_non_zero_u16") { _ = try fartherHop(PairNonZeroU16(left: 0, right: 1)) },
+		"a zero NonZero field throws"
+	)
 	targets()
 }
 

@@ -814,18 +814,22 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   that is not `Sync` on a second thread, throws a `CheckError`, holding the function and
   the rule, before any Rust code runs, so the call changed nothing. So every function whose objects can fail a check `throws`, and a
   field read stays a property whose getter throws, except one of a noncopyable value,
-  whose getter Swift cannot let throw, which is a method, `firstGet()`. Of a type whose
-  checks can fail, or a record or enum holding one, `description` and `debugDescription`
+  whose getter Swift cannot let throw, which is a method, `firstGet()`. A `NonZero<T>` is
+  `T`'s Swift integer, and a zero passed for one, as an argument or anywhere in one, such
+  as an option's, an array's item, or a record's field, throws a `CheckError` too, so
+  every function taking one `throws`. Of a type whose checks can fail, or a record or enum
+  holding one or a `NonZero`, `description` and `debugDescription`
   are getters that throw, and `clone()`, `==`, and `hash(into:)` throw, so it conforms to
   none of `CustomStringConvertible`, `CustomDebugStringConvertible`, `Equatable`, and
   `Hashable`, whose
   requirements cannot throw. A closed class anywhere in a call's arguments throws too. A
-  copy a closure returns, which has no caller to throw to, traps instead.
+  copy or a zero `NonZero` a closure or trait implementation returns, which has no caller
+  to throw to, traps instead.
 - **Records** are structs and **enums** Swift enums, with a variant's data as associated
   values, all `Sendable`. `PartialEq` is `==`, through Rust's, and `Hash` `hash(into:)`,
   making it `Hashable`; `Display` is `description`,
   `Debug` `debugDescription`, each throwing as an object's does when it holds a checked
-  one, and `Default` a static `default()`. An **opaque value** is a struct holding its C
+  one or a `NonZero`, and `Default` a static `default()`. An **opaque value** is a struct holding its C
   struct, with no public initializer, so only Rust makes one; a `&mut self` method is
   `mutating`, and assigns `self` what Rust wrote back.
 - **Bytes** are the runtime's `Bytes`, a `RandomAccessCollection` of `UInt8` whose slices

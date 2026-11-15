@@ -61,6 +61,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		structs: structs(abi),
 		fresh: 0,
 		on: On::ALL,
+		what: String::new(),
 	};
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
@@ -247,6 +248,9 @@ struct Gen<'a> {
 	fresh: usize,
 	/// The targets of the item being written, whose calls check theirs.
 	on: On,
+	/// The C name of the function or type whose values the lowerings being written pass,
+	/// which a zero passed for a `NonZero` throws naming.
+	what: String,
 }
 
 impl<'a> Gen<'a> {
@@ -451,11 +455,38 @@ impl<'a> Gen<'a> {
 	}
 
 	/// Whether lowering a `ty` nested in another value can throw: it holds a class whose
-	/// value a move takes, closing its handle.
+	/// value a move takes, closing its handle, or a `NonZero`, which may be zero.
 	fn throwing(&self, ty: &Type) -> bool {
 		let mut handles = Vec::new();
 		self.abi.api.handles(ty, &mut handles, &mut Vec::new());
-		handles.into_iter().any(|i| self.held(i))
+		handles.into_iter().any(|i| self.held(i)) || self.zeroable(ty, &mut BTreeSet::new())
+	}
+
+	/// Whether a `ty` lowers a `NonZero` anywhere, its records' and enums' fields included,
+	/// but an opaque record's, which only Rust makes.
+	fn zeroable(&self, ty: &Type, seen: &mut BTreeSet<(bool, usize)>) -> bool {
+		let api = self.abi.api;
+		match ty {
+			Type::NonZero(_) => true,
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => {
+				self.zeroable(inner, seen)
+			}
+			Type::Tuple(elements) => elements.iter().any(|e| self.zeroable(e, seen)),
+			// A type already seen is being looked through, so it adds nothing new.
+			Type::Record(i) => {
+				let record = &api.records[*i];
+				record.opaque.is_none()
+					&& seen.insert((false, *i))
+					&& record.fields.iter().any(|f| self.zeroable(&f.ty, seen))
+			}
+			Type::Enum(i) => {
+				seen.insert((true, *i))
+					&& (api.enums[*i].variants.iter())
+						.flat_map(|v| &v.fields)
+						.any(|f| self.zeroable(&f.ty, seen))
+			}
+			_ => false,
+		}
 	}
 
 	/// Whether object `i` is a class a move may close, whose hold for a call can fail.
@@ -465,9 +496,11 @@ impl<'a> Gen<'a> {
 
 	/// `lowered`, a lowering in a function that cannot throw, trapping instead.
 	fn trapping(lowered: String) -> String {
-		match lowered.contains("try ") {
-			true => format!("try! {lowered}"),
-			false => lowered,
+		match lowered.strip_prefix("try ") {
+			// Swift refuses a `try` whose operand is another.
+			Some(rest) => format!("try! {rest}"),
+			None if lowered.contains("try ") => format!("try! {lowered}"),
+			None => lowered,
 		}
 	}
 
@@ -490,7 +523,8 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
-			Type::Int(int) | Type::NonZero(int) => lower_int(*int, e),
+			Type::Int(int) => lower_int(*int, e),
+			Type::NonZero(int) => format!("try Native.nonzero({}, \"{}\")", lower_int(*int, e), self.what),
 			Type::Char => format!("{e}.value"),
 			Type::U128 => format!("Native.u128({e})"),
 			Type::Array(_) => format!("{e}._c"),
@@ -846,8 +880,10 @@ impl<'a> Gen<'a> {
 		let object = matches!(ty, Type::Object(_));
 		let unique = self.unique(ty);
 		// One whose checks can fail throws, so conforms to no protocol of these, whose
-		// requirements cannot throw; any other's checks never fail.
+		// requirements cannot throw; any other's checks never fail. So does a value holding a
+		// `NonZero`, which may be zero, though Rust's function takes no status.
 		let status = self.abi.traits_status_of(ty);
+		let checked = status || self.throwing(ty);
 		// The statements lowering a value receiver for the function `what`, which on a target
 		// the type is not on throws where it can.
 		let value = |what: &str| {
@@ -857,7 +893,7 @@ impl<'a> Gen<'a> {
 			};
 			format!(
 				"{}Native.check()\n\t\t{arena}",
-				self.on(self.on, what, "\n\t\t", status)
+				self.on(self.on, what, "\n\t\t", checked)
 			)
 		};
 		let lower = match self.throwing(ty) {
@@ -895,18 +931,18 @@ impl<'a> Gen<'a> {
 				),
 			}
 		};
-		let throws = match status {
+		let throws = match checked {
 			true => " throws",
 			false => "",
 		};
 		// A property's body, in a getter that throws if the call can.
-		let getter = |body: String| match status {
+		let getter = |body: String| match checked {
 			true => format!("get throws {{\n\t\t\t{}\n\t\t}}", body.replace("\n\t\t", "\n\t\t\t")),
 			false => body,
 		};
 		let text = |r: &str| format!("Native.string({r})");
 		if t.display {
-			if !status {
+			if !checked {
 				protocols.push("CustomStringConvertible");
 			}
 			members.push("description".to_string());
@@ -916,7 +952,7 @@ impl<'a> Gen<'a> {
 			));
 		}
 		if t.debug {
-			if !status {
+			if !checked {
 				protocols.push("CustomDebugStringConvertible");
 			}
 			members.push("debugDescription".to_string());
@@ -935,7 +971,7 @@ impl<'a> Gen<'a> {
 		}
 		if t.eq {
 			// `Hash` agrees with `PartialEq`, so a type with both hashes as Rust does.
-			if !status {
+			if !checked {
 				protocols.push(match t.hash {
 					true => "Hashable",
 					false => "Equatable",
@@ -1059,6 +1095,7 @@ impl<'a> Gen<'a> {
 				}
 			})
 			.collect();
+		self.what = c.clone();
 		let lowered: Vec<String> = (record.fields.iter().zip(&fields))
 			.map(|(f, (name, _))| {
 				let value = self.lower(&f.ty, &format!("self.{name}"));
@@ -1127,6 +1164,7 @@ impl<'a> Gen<'a> {
 		let e = &abi.api.enums[i];
 		self.on = e.on;
 		let c = abi.enumeration(i);
+		self.what = c.clone();
 		let name = self.class(&c);
 		let rust = abi.api.rust(&e.path, &e.args);
 		let ty = Type::Enum(i);
@@ -1290,6 +1328,7 @@ impl<'a> Gen<'a> {
 		let callback = &abi.api.callbacks[i];
 		self.on = callback.on;
 		let c = abi.callback(i);
+		self.what = c.clone();
 		let name = self.class(&c);
 		let rust = callback.path.join("::");
 		let mut body = Vec::new();
@@ -1611,6 +1650,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		let export = abi.export(function, owner);
 		let c_name = export.call.name.clone();
+		self.what = c_name.clone();
 		let owner_c = match owner {
 			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.clone()),
 			_ => None,
@@ -1684,7 +1724,8 @@ impl<'a> Gen<'a> {
 				}
 				_ => {
 					arena |= self.arena(&ty);
-					let t = match self.throwing(&ty) {
+					arg.throws = self.throwing(&ty);
+					let t = match arg.throws {
 						true => "try ",
 						false => "",
 					};
@@ -1741,6 +1782,8 @@ impl<'a> Gen<'a> {
 			arena |= needs;
 			args.push(arg);
 		}
+		// A `NonZero` passed, which may be zero, throws as a failed check does.
+		let throws = throws || args.iter().any(|a| a.throws);
 		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
 		// What runs once the call returns, gated on its checks passing when it can fail one:
 		// a failed check, or an argument whose lowering throws, leaves every argument as it
@@ -1754,6 +1797,25 @@ impl<'a> Gen<'a> {
 			true => format!("defer {{ if c_ran_ {{ {stmts} }} }}"),
 			false => format!("defer {{ {stmts} }}"),
 		};
+		if arena {
+			prelude.insert(
+				1.min(prelude.len()),
+				format!("let a_ = Native.Arena(\"{c_name}\")\ndefer {{ a_.finish() }}"),
+			);
+			// Past the receiver, which Rust only reads, Rust takes each value passed.
+			prelude.push("a_.take = true".to_string());
+		}
+		// A lowering that throws runs before any box or buffer is given, which the call
+		// alone would take: a throw between them would leak it. One in a call that fails no
+		// check, a `NonZero`'s, runs before any argument's end is deferred too, which only a
+		// check gates.
+		if !status || args.iter().any(|a| a.gives || a.takes) {
+			let receiver = usize::from(receiver.is_some());
+			for (k, arg) in args.iter_mut().enumerate().skip(receiver).filter(|(_, a)| a.throws) {
+				prelude.push(format!("let c_arg{k}_ = {}", arg.exprs[0]));
+				arg.exprs[0] = format!("c_arg{k}_");
+			}
+		}
 		// Each value passed for `&mut` takes what Rust wrote back, once the call's own
 		// access to it ends, on every path the call ran, a throw included.
 		let mut written = Vec::new();
@@ -1768,25 +1830,9 @@ impl<'a> Gen<'a> {
 			prelude.push(gate(&format!("{name} = {lifted}")));
 			written.push(out);
 		}
-		if arena {
-			prelude.insert(
-				1.min(prelude.len()),
-				format!("let a_ = Native.Arena(\"{c_name}\")\ndefer {{ a_.finish() }}"),
-			);
-			// Past the receiver, which Rust only reads, Rust takes each value passed.
-			prelude.push("a_.take = true".to_string());
-		}
 		let after: Vec<String> = args.iter().flat_map(|a| a.after.clone()).collect();
 		if !after.is_empty() {
 			prelude.push(gate(&after.join("; ")));
-		}
-		// A lowering that throws runs before any box or buffer is given, which the call
-		// alone would take: a throw between them would leak it.
-		if args.iter().any(|a| a.gives || a.takes) {
-			for (k, arg) in args.iter_mut().enumerate().filter(|(_, a)| a.throws) {
-				prelude.push(format!("let c_arg{k}_ = {}", arg.exprs[0]));
-				arg.exprs[0] = format!("c_arg{k}_");
-			}
 		}
 		let exprs: Vec<String> = args.iter().flat_map(|a| a.exprs.clone()).collect();
 
