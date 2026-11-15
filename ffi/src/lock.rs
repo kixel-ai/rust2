@@ -265,6 +265,18 @@ pub fn breaks(base: &Api, now: &Api, prefix: &str) -> Vec<Break> {
 			changes.push(format!("it is no longer on {}", lost.join(", ")));
 		}
 		changes.extend(changed(&base, &now, &maps, &ours.item, &theirs.item));
+		if let (Item::Object(i), Item::Object(j)) = (ours.item, theirs.item) {
+			match (base.checked[i], now.checked[j]) {
+				(false, true) => changes.push(
+					"its handle is now checked at run time, so each call taking it gains a status, and throws in Swift"
+						.to_string(),
+				),
+				(true, false) => changes.push(
+					"its handle is no longer checked at run time, so each call taking it loses its status".to_string(),
+				),
+				_ => {}
+			}
+		}
 		if ours.c != theirs.c {
 			let mut renamed = format!("its C name `{}` is now `{}`", ours.c, theirs.c);
 			if let Some(other) = now.named(&ours.c) {
@@ -325,6 +337,9 @@ struct Index<'a> {
 	/// Each tuple's struct by its Rust spelling: its C name, and a function that takes or
 	/// returns it.
 	tuples: BTreeMap<String, (String, Span)>,
+	/// Whether a call can fail a check of each object's handle, which gives each call
+	/// taking it a status.
+	checked: Vec<bool>,
 }
 
 impl<'a> Index<'a> {
@@ -460,7 +475,12 @@ impl<'a> Index<'a> {
 				});
 			}
 		}
-		Self { api, entries, tuples }
+		Self {
+			api,
+			entries,
+			tuples,
+			checked: abi.checked.clone(),
+		}
 	}
 
 	/// The item whose C name is `c`.

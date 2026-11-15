@@ -102,6 +102,36 @@ pub fn fail(env: *mut JNIEnv, what: &str, msg: &str) -> ! {
 	rt::fail(what, msg)
 }
 
+static REFUSED: OnceLock<usize> = OnceLock::new();
+
+/// Throw the `_Native.__Refused`, an `IllegalStateException`, a call of `what` raises once
+/// its check failed with `status`, returning a zeroed value Kotlin never reads, as JNI's
+/// pending exception throws once the native method returns. Its own class tells Kotlin
+/// the call moved nothing.
+#[cold]
+pub fn refuse<R>(env: *mut JNIEnv, status: i32, what: &str) -> R {
+	let message = match rt::Status::of(status) {
+		Some(status) => format!("{what}: {}", status.message()),
+		None => format!("{what}: an unknown status {status}"),
+	};
+	let message = std::ffi::CString::new(message).expect("no NUL in a message");
+	let id = method(env, &REFUSED, c"__refused", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
+	// SAFETY: `env` is this thread's, and `__refused` takes the message.
+	unsafe {
+		let text = ((**env).v1_2.NewStringUTF)(env, message.as_ptr());
+		if text.is_null() {
+			fail(env, what, "a message did not fit");
+		}
+		let args = [jvalue { l: text }];
+		let refused = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+		if refused.is_null() || ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, what, "a call into Kotlin threw");
+		}
+		((**env).v1_2.Throw)(env, refused);
+		std::mem::zeroed()
+	}
+}
+
 /// Run `f` calling into Kotlin on this thread, freeing the local references it makes, and
 /// abort if what it calls throws: Rust has nowhere to unwind it to.
 pub fn upcall<R>(what: &str, f: impl FnOnce(*mut JNIEnv) -> R) -> R {
@@ -982,62 +1012,26 @@ impl Writer {
 	}
 }
 
-/// An opaque value's C struct from the `long` Kotlin holds it in: its bytes, at the word's
-/// lowest addresses, as [`to_word`] put them.
-pub fn from_word<T: Copy>(word: jlong) -> T {
-	const { assert!(size_of::<T>() <= size_of::<jlong>()) };
+/// An opaque value's C struct from the `W` `long`s Kotlin holds it in: its bytes, in the
+/// words' order, as [`to_words`] put them.
+pub fn from_words<T: Copy, const W: usize>(words: [jlong; W]) -> T {
+	const { assert!(size_of::<T>() <= W * size_of::<jlong>()) };
 	let mut value = std::mem::MaybeUninit::<T>::zeroed();
 	// SAFETY: `T` is a struct of `MaybeUninit` units, any bytes of which are one.
 	unsafe {
-		std::ptr::copy_nonoverlapping((&raw const word).cast::<u8>(), value.as_mut_ptr().cast::<u8>(), size_of::<T>());
-		value.assume_init()
-	}
-}
-
-/// The `long` Kotlin holds an opaque value's C struct in, which has no padding: Kotlin
-/// compares two by it.
-pub fn to_word<T: Copy>(value: T) -> jlong {
-	const { assert!(size_of::<T>() <= size_of::<jlong>()) };
-	let mut word: jlong = 0;
-	// SAFETY: every byte of a value with no padding is initialized, and the rest are zero.
-	unsafe { std::ptr::copy_nonoverlapping((&raw const value).cast::<u8>(), (&raw mut word).cast::<u8>(), size_of::<T>()) };
-	word
-}
-
-/// An opaque value's C struct from the `W` words of the `long[]` Kotlin holds it in.
-///
-/// # Safety
-/// `array` is a live `long[]`.
-pub unsafe fn from_words<T: Copy, const W: usize>(env: *mut JNIEnv, array: jlongArray) -> T {
-	const { assert!(size_of::<T>() <= W * size_of::<jlong>()) };
-	let mut words = [std::mem::MaybeUninit::<jlong>::zeroed(); W];
-	// SAFETY: `array` is live, and `T` is a struct of `MaybeUninit` units.
-	unsafe {
-		if array.is_null() || ((**env).v1_2.GetArrayLength)(env, array) != W as jsize {
-			fail(env, "jni", "an opaque value's words are not its own");
-		}
-		((**env).v1_2.GetLongArrayRegion)(env, array, 0, W as jsize, words.as_mut_ptr().cast());
-		let mut value = std::mem::MaybeUninit::<T>::zeroed();
 		std::ptr::copy_nonoverlapping(words.as_ptr().cast::<u8>(), value.as_mut_ptr().cast::<u8>(), size_of::<T>());
 		value.assume_init()
 	}
 }
 
-/// A new `long[]` of the `W` words an opaque value's C struct is held in: its bytes, then
-/// zeros.
-pub fn to_words<T: Copy, const W: usize>(env: *mut JNIEnv, value: T) -> jlongArray {
+/// The `W` `long`s Kotlin holds an opaque value's C struct in: its bytes, then zeros.
+/// Kotlin compares a value class of one by it.
+pub fn to_words<T: Copy, const W: usize>(value: T) -> [jlong; W] {
 	const { assert!(size_of::<T>() <= W * size_of::<jlong>()) };
-	let mut words = [std::mem::MaybeUninit::<jlong>::zeroed(); W];
-	// SAFETY: `env` is this thread's; JNI copies the words as bytes.
-	unsafe {
-		std::ptr::copy_nonoverlapping((&raw const value).cast::<u8>(), words.as_mut_ptr().cast::<u8>(), size_of::<T>());
-		let array = ((**env).v1_2.NewLongArray)(env, W as jsize);
-		if array.is_null() {
-			fail(env, "jni", "a long[] is out of memory");
-		}
-		((**env).v1_2.SetLongArrayRegion)(env, array, 0, W as jsize, words.as_ptr().cast());
-		array
-	}
+	let mut words = [0; W];
+	// SAFETY: an opaque value's C struct initializes every byte, as the glue makes it.
+	unsafe { std::ptr::copy_nonoverlapping((&raw const value).cast::<u8>(), words.as_mut_ptr().cast::<u8>(), size_of::<T>()) };
+	words
 }
 
 /// An opaque value's C struct as it crosses encoded: the `W` words Kotlin holds it in,

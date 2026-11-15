@@ -396,28 +396,65 @@ frame path:
 7. **The binding's own call.** Over C's getter: Swift adds 8 ns (its hold count's two
    atomics, since dropped from all but its classes, as below), Kotlin 14 wall (JNI and its hold count), Dart 19 (an `_Arena` per call and
    its hold), Go 31 (cgo, `defer`, and its hold), and Python 37 (argument parsing and the
-   GIL released and taken back, so Rust may call Python from another thread). BoltFFI's
+   GIL released and taken back, so Rust may call Python from another thread); Python's and
+   Dart's hold counts are since dropped for a checked type, as below. BoltFFI's
    Python getter, which holds the GIL, measured 63 ns.
 
 ### Per-handle baseline
 
-For [checks-raise](/quest/m1/ffi-export/checks-raise.md)'s one accounting: the u64
-getter is one borrowed handle and nothing else, so its row less Rust's 0.4 ns is what a
-handle costs a call. C, C++: 10 ns, the runtime's two atomics. Swift: 9.9, with no hold
-count since the change below. Kotlin: 24 wall, Go 38, Dart 28, Python 49, each with its call's own
-transition besides.
+For [#730](https://github.com/kixel-ai/rust2/pull/730)'s one accounting: the u64 getter
+is one borrowed handle and nothing else, so its row less Rust's 0.4 ns is what a handle
+costs a call. Measured 2026-11-13 on desktop at a load average of 2.4 to 4.1, main at
+`7b0958b3` against #730 before Go and Kotlin took their counts back, run alternately: 12
+rounds of main and 6 of #730, median wall ns (CPU ns where it differs). #730 drops the hold
+counts Python and Dart kept beside the runtime's for a checked type, so its call borrows
+through the runtime's two atomics alone, and close drops the value through Rust.
 
-Swift has since made each object a noncopyable struct and dropped its hold count, but for
-a class: one thrown as an error. A `Copy` type is a value since [Copy values](#copy-values). Measured 2026-11-11 at that change, 5
-rounds interleaved with C at a load average of 7 to 12, its getter costs 10 ns, as C's
-does, and `track.is_closed()`, on `TrackProducer`, still a class since moq throws it, 26
-against C's 18, as in the table. A change to the accounting moves this row and the handle call's by the
-same amount; measure both, CPU first, at the load beside them.
+| row | C | Python | Swift | Dart |
+|---|---|---|---|---|
+| handle call, main | 18 | 54 | 26 | 41 (45) |
+| handle call, #730 | 18 | 53 | 26 | 42 (45) |
+| u64 getter, main | 10 | 48 | 10 | 27 |
+| u64 getter, #730 | 10 | 47 | 10 | 28 |
+| object return, main | 29 | 99 | 37 | 238 |
+| object return, #730 | 30 | 98 | 38 | 214 |
+| stamped write, main | 159 | 337 | 205 | 433 |
+| stamped write, #730 | 168 | 332 | 212 | 450 |
+
+Go and Kotlin dropped theirs too at first, and gained 5 to 8 ns on the getter, but a
+handle closed or moved out of was then freed only once the GC found its object
+unreachable, which kept Go's cleanup and Kotlin's phantom reference registered: Go's
+object return went from 183 to 691 ns and its stamped write from 429 to 1,061, Kotlin's
+stamped write from 310 to 613. So each still counts its calls, freeing the handle once a
+close or a move leaves no call holding it. Measured 2026-11-13 on nixos (AMD, 32 threads)
+at a load average of 28 to 47, main at `e9cca797` against #730, 10 runs of each program
+alternating, median wall ns:
+
+| row | Kotlin | Go |
+|---|---|---|
+| handle call, main | 13 | 35 |
+| handle call, #730 | 14 | 49 |
+| u64 getter, main | 12 | 34 |
+| u64 getter, #730 | 11 | 50 |
+| object return, main | 156 | 261 |
+| object return, #730 | 66 | 317 |
+| stamped write, main | 457 | 745 |
+| stamped write, #730 | 441 | 835 |
+
+Kotlin's rows match main's within the noise: its object return's fastest runs took 57 and
+60 ns. Go's checked call allocates its status,
+since cgo moves to the heap a local whose address it passes C, which costs 6 ns in a
+cgo call alone; its close calls Rust's `_drop`, a second crossing an object return and a
+stamped write pay. Dart's checked calls first lost 4 ns to a status allocated per call,
+now one cell per isolate, which the glue fills from the call's own once the call stopped
+serving the isolate, for 1 ns more. Swift's getter costs C's since it dropped its hold count for
+each noncopyable object (2026-11-11), and a `Copy` type is a value since [Copy values](#copy-values). A change to the accounting moves these rows;
+measure them at the load beside them.
 
 ### Copy values
 
 A `Copy` type with private fields, such as `Timestamp`, crosses by value: a struct of its
-bytes in C, C++, Swift, Go, and Dart, a class over a `LongArray` in Kotlin (a word value
+bytes in C, C++, Swift, Go, and Dart, a class of a `Long` per word in Kotlin (a word value
 class when it fits one), and a class of the runtime's `Value` holding its bytes in Python.
 Measured 2026-11-13 at rust2 `7766768f`, moq `ffcb7cd9`, on an AMD Ryzen 9 9950X (32 threads),
 Linux, at a load average of 13 to 15, the median of 3 rounds, in CPU time:
@@ -429,8 +466,15 @@ Linux, at a load average of 13 to 15, the median of 3 rounds, in CPU time:
 | stamped minus write | 0 | 3 | 1 | 33 | 45 | 150 (35 wall) | 160 |
 
 C, C++, and Swift pay nothing for the timestamp; Go and Dart pay about their getter's call,
-the `from_micros` itself. Kotlin's 35 ns wall is its call, and its CPU column adds the
-collector's work on each `LongArray`. Python's is a call and a new object. The handle's cost
+the `from_micros` itself. Kotlin's 35 ns wall was its call, and its CPU column adds the
+collector's work on each `LongArray`. Since its value is a class of a `Long` per word, and a
+`Result` of one returns its words through the thread's slots rather than encoded, the
+stamped write costs Kotlin 30 ns of wall time over the write, against 270 on main's build:
+measured 2026-11-14 at rust2 `2ec35316`, moq `ffcb7cd9`, on the same host, interleaved over 7
+rounds at a load average of 6 to 17, the medians of each round's difference. Its CPU time,
+which counts the JIT's and collector's threads, ranged from 30 to 300 ns at that load.
+The thread allocates 32 B a stamped frame over the write, the `Timestamp` itself, which
+`write_frame` keeps from the JIT's escape analysis, against 112 on main's. Python's is a call and a new object. The handle's cost
 in the tables above came from another load, so Python's was also measured against main's
 build on the same host, interleaved over 5 rounds at a load of 10 to 12: stamped minus write
 fell from 205 ns to 166, and the stamped write from 441 to 391.
