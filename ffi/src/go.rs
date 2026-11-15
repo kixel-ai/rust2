@@ -3137,7 +3137,6 @@ impl<'a> Gen<'a> {
 	}
 }
 
-/// The C name of the out value holding the `k`th of what `declared` returns.
 /// The Go statements `first`, if any, then `rest`.
 fn then(first: &str, rest: &str) -> String {
 	match first.is_empty() {
@@ -3146,6 +3145,7 @@ fn then(first: &str, rest: &str) -> String {
 	}
 }
 
+/// The C name of the out value holding the `k`th of what `declared` returns.
 fn out_name(declared: &Type, k: usize) -> String {
 	match declared {
 		Type::Tuple(_) => format!("c_out{k}_"),
