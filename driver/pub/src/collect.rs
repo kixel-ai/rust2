@@ -329,15 +329,25 @@ impl<'tcx> Collector<'tcx> {
 							{
 								this.crate_path(CRATE_DEF_ID.to_def_id(), &trees[i + 2..]);
 							}
-							// `$crate` as another macro wrote it, which names that macro's crate.
+							// `$crate` as another macro wrote it, which names the crate of one of
+							// the macros its hygiene marks, by rules of rustc's own: try each.
 							TokenTree::Token(token, _) if token.is_keyword(kw::DollarCrate) => {
-								let krate = token
+								let mut crates: Vec<_> = token
 									.span
 									.ctxt()
-									.outer_expn_data()
-									.macro_def_id
-									.map_or(LOCAL_CRATE, |d| d.krate);
-								this.crate_path(krate.as_def_id(), &trees[i + 1..]);
+									.marks()
+									.into_iter()
+									.filter_map(|(mark, _)| mark.expn_data().macro_def_id)
+									.map(|def| def.krate)
+									.collect();
+								crates.sort();
+								crates.dedup();
+								if crates.is_empty() {
+									crates.push(LOCAL_CRATE);
+								}
+								for krate in crates {
+									this.crate_path(krate.as_def_id(), &trees[i + 1..]);
+								}
 							}
 							TokenTree::Token(..) => {}
 							TokenTree::Delimited(.., inner) => stack.push(inner),

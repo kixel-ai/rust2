@@ -80,9 +80,11 @@ fn fixture() {
 	expect("marks::Wrapped", "external", "unreached");
 	expect("marks::Borrowed", "external", "unreached");
 	expect("marks::Paired", "external", "unreached");
-	// An exported macro exposes what its `$crate` paths name, though nothing expands it.
+	// An exported macro exposes what its `$crate` paths name, though nothing expands it,
+	// and keeps them, wherever they are, when another crate made it.
 	expect("helpers::called", "external", "unreached");
 	expect("made::generated", "external", "unreached");
+	expect("nested::generated", "cross-crate", "unreached");
 	// A re-exported variant exposes its enum, with the enum's own API.
 	expect("Picked::label", "external", "unreached");
 	expect("marks::Unnamed", "external", "crate-only");

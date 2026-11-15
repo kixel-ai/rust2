@@ -370,6 +370,32 @@ macro_rules! make_caller {
 
 make_caller!(made, generated);
 
+/// Makes, where it is called, a macro that makes an exported macro calling the helper it
+/// is given through this crate's `$crate`.
+#[macro_export]
+macro_rules! make_maker {
+	() => {
+		macro_rules! make_nested {
+			($module:ident, $helper:ident) => {
+				#[macro_export]
+				macro_rules! call_nested {
+					() => {
+						$crate::$module::$helper()
+					};
+				}
+			};
+		}
+	};
+}
+
+pub mod nested {
+	/// External: what the `$crate` path of an exported macro of facade names, which a
+	/// macro of facade made from one api's macro made there.
+	pub fn generated() -> u32 {
+		51
+	}
+}
+
 pub mod made {
 	/// External: what the `$crate` path of an exported macro another macro made names,
 	/// though nothing in the audit expands it.

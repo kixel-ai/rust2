@@ -32,3 +32,6 @@ pub use api::Picked::One;
 
 /// External: this library's API, exported macros of api that call helpers of api, one another macro made.
 pub use api::{call_generated, call_helper};
+
+api::make_maker!();
+make_nested!(nested, generated);
