@@ -178,7 +178,7 @@ impl Clash {
 	}
 
 	/// Its bytes, its text's or its own.
-	pub fn raw(&self) -> Vec<u8> {
+	pub fn bytes(&self) -> Vec<u8> {
 		match self {
 			Clash::Bytes(b) => b.clone(),
 			Clash::String(s) => s.as_bytes().to_vec(),

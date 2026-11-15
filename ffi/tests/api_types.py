@@ -37,6 +37,9 @@ class Reader:
 
 tail = api.tail(Reader(), 1)
 
+# A method named as a builtin leaves the builtin its annotations name.
+clash_bytes: memoryview = api.Clash.String("hi").bytes()
+
 
 # Closures returning what Rust owns, or raising the exception of their error.
 def drive(now: api.Moment, waiter: api.Waiter) -> api.Moment | None:
