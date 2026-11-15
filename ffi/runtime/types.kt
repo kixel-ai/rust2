@@ -177,6 +177,8 @@ class SocketAddrV6(val ip: Ipv6Addr, override val port: UShort, val flowinfo: UI
 
 	override fun toInetSocketAddress(): java.net.InetSocketAddress {
 		kotlin.require(flowinfo == 0u) { "$this has a flow label, which a java.net.InetSocketAddress has no room for" }
+		// Java takes a scope of an `Int` and ignores a negative one.
+		kotlin.require(scopeId <= Int.MAX_VALUE.toUInt()) { "$this has a scope past Int.MAX_VALUE, which a java.net.Inet6Address has no room for" }
 		val ip = when (scopeId) {
 			0u -> ip.toInetAddress()
 			else -> java.net.Inet6Address.getByAddress(null, ip.octets(), scopeId.toInt())

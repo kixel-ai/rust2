@@ -953,6 +953,7 @@ fun lossless() {
 	val unresolved = java.net.InetSocketAddress.createUnresolved("localhost", 1)
 	check(rejects { SocketAddr.of(unresolved) } && rejects { SocketAddrV6(java.net.InetSocketAddress(java.net.InetAddress.getByAddress(byteArrayOf(1, 2, 3, 4)), 1)) }, "an unresolved or other family's address is refused")
 	check(rejects { SocketAddrV6(Ipv6Addr(loopback), 1u, 1u).toInetSocketAddress() }, "Java keeps no flow label")
+	check(rejects { SocketAddrV6(Ipv6Addr(loopback), 1u, 0u, UInt.MAX_VALUE).toInetSocketAddress() }, "Java keeps no scope past Int.MAX_VALUE")
 	val at6 = SocketAddr.of(java.net.InetSocketAddress(scoped, 443))
 	check(at6 == SocketAddrV6(Ipv6Addr(loopback), 443u, 0u, 3u) && at6.toString() == "[::1%3]:443", "an IPv6 address keeps its scope")
 	check(at6.toInetSocketAddress() == java.net.InetSocketAddress(scoped, 443), "an IPv6 address converts back")
