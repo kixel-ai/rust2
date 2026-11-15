@@ -2118,19 +2118,9 @@ static int not_send(void) {
 		failed = 1;
 	}
 
-	/* Freed once its thread exited, it leaks, saying so. */
-	api_Local *orphan = NULL;
-	pthread_create(&thread, NULL, make_local, &orphan);
-	pthread_join(thread, NULL);
-	api_Local_free(orphan);
-	if (api_locals_dropped() != before + 1) {
-		fprintf(stderr, "a local whose thread exited dropped elsewhere\n");
-		failed = 1;
-	}
-
 	/* Made on a home, a thread Rust owns, it stays there, and each call runs there. */
 	api_Local *homed = api_Local_new_homed();
-	before = api_locals_dropped();
+	uint32_t before_homed = api_locals_dropped();
 	status = 0;
 	if (api_Local_bump(homed, &status) != 1 || !api_Local_on_own_thread(homed, &status) || status != 0) {
 		fprintf(stderr, "a homed local ran here, writing %d\n", status);
@@ -2150,9 +2140,20 @@ static int not_send(void) {
 	}
 	/* Freed here, it drops on its home, which waits for work. */
 	api_Local_free(homed);
-	while (api_locals_dropped() != before + 1) {
+	while (api_locals_dropped() != before_homed + 1) {
 	}
 	return failed;
+}
+
+/* A local freed once its thread exited leaks, saying so, since nothing may drop it. */
+static int orphan(void) {
+	uint32_t before = api_locals_dropped();
+	api_Local *local = NULL;
+	pthread_t thread;
+	pthread_create(&thread, NULL, make_local, &local);
+	pthread_join(thread, NULL);
+	api_Local_free(local);
+	return api_locals_dropped() != before;
 }
 
 static int statuses(void) {
@@ -2330,7 +2331,7 @@ static int statuses(void) {
 		failed = 1;
 	}
 	api_Registry_free(registry);
-	return failed | not_send();
+	return failed;
 }
 
 static int broken(const char *which) {
@@ -2344,6 +2345,12 @@ static int broken(const char *which) {
 #endif
 	if (strcmp(which, "statuses") == 0) {
 		return statuses();
+	}
+	if (strcmp(which, "threads") == 0) {
+		return not_send();
+	}
+	if (strcmp(which, "orphan") == 0) {
+		return orphan();
 	}
 	if (strcmp(which, "moved") == 0) {
 		api_Counter *c = api_Counter_new(str("c"), 0);

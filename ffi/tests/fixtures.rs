@@ -219,6 +219,13 @@ fn api_c() {
 	);
 	// A non-null status takes each failed check, which changed nothing.
 	run(Command::new(&exe).arg("statuses"));
+	// A value that is not Send stays on its thread; one freed after that exited leaks.
+	run(Command::new(&exe).arg("threads"));
+	let orphan = run(Command::new(&exe).arg("orphan"));
+	assert_eq!(
+		String::from_utf8_lossy(&orphan.stderr),
+		"rust2-ffi: api::Local leaks: it is not Send, and its thread exited before it was freed\n"
+	);
 
 	// Each broken contract aborts, naming the function and what broke.
 	for (case, message) in [
@@ -317,7 +324,7 @@ fn sanitized(sanitizer: &str) {
 		("TSAN_OPTIONS", "halt_on_error=1"),
 	];
 	for (compiler, std, src, args) in [
-		("clang", "-std=c11", "api.c", &[][..]),
+		("clang", "-std=c11", "api.c", &["threads"][..]),
 		("clang++", "-std=c++17", "api.cpp", &["futures", "lifetimes"][..]),
 	] {
 		let exe = dir.join(src.replace('.', "-"));
