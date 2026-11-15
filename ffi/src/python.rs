@@ -579,7 +579,8 @@ impl<'a> Gen<'a> {
 				abi.array(*n)
 			),
 			Type::Bool => format!("rt::bool_in({o})"),
-			Type::Int(int) | Type::NonZero(int) => format!("rt::int_in::<{}>({o})", int.rust()),
+			Type::Int(int) => format!("rt::int_in::<{}>({o})", int.rust()),
+			Type::NonZero(int) => format!("rt::nonzero_in::<{}>({o})", int.rust()),
 			Type::F32 => format!("rt::float_in({o}).map(|f| f as f32)"),
 			Type::F64 => format!("rt::float_in({o})"),
 			Type::Char => format!("rt::char_in({o})"),

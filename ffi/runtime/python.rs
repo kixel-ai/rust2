@@ -641,6 +641,15 @@ pub fn int_in<T: TryFrom<i128>>(obj: *mut PyObject) -> R<T> {
 	T::try_from(value).or_else(|_| overflow_int::<T>())
 }
 
+/// A `NonZero<T>`'s integer, as `int_in`, with a zero raising `ValueError`.
+pub fn nonzero_in<T: TryFrom<i128> + Default + PartialEq>(obj: *mut PyObject) -> R<T> {
+	let value = int_in::<T>(obj)?;
+	match value == T::default() {
+		true => value_error("a NonZero is zero"),
+		false => Ok(value),
+	}
+}
+
 fn overflow_int<T>() -> R<T> {
 	let name = std::any::type_name::<T>();
 	overflow(&format!("int out of range for Rust's {name}"))

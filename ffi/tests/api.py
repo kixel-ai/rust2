@@ -1398,7 +1398,7 @@ def forwarding():
 def values():
 	"""The values Python's types bound: integers checked against their Rust type's range,
 	durations and their conversions to and from `timedelta`, which raise rather than lose
-	anything, a key hashing by Rust's `Hash`, and on Unix, a path whose bytes are not UTF-8, which crosses as `os.fsdecode` decodes it,
+	anything, a key hashing by Rust's `Hash`, a zero passed for a `NonZero`, which raises, and on Unix, a path whose bytes are not UTF-8, which crosses as `os.fsdecode` decodes it,
 	and back as it came. Also a borrowed tuple, returned whole."""
 
 	def raises(error, f, what):
@@ -1466,6 +1466,8 @@ def values():
 	raises(OverflowError, lambda: api.doubled_ttl(api.Duration(2**64)), "seconds past u64 raise")
 	raises(OverflowError, lambda: api.doubled_ttl(api.Duration(-1)), "negative seconds raise")
 	raises(TypeError, lambda: api.doubled_ttl(td(seconds=1)), "a timedelta is no Duration")
+	raises(ValueError, lambda: api.next_hop(0), "a zero NonZero raises")
+	raises(ValueError, lambda: api.farther_hop(api.PairNonZeroU16(0, 1)), "a zero NonZero field raises")
 	key = api.Key.new("a")
 	check(len({key, api.Key.new("a"), api.Key.new("b")}) == 2, "equal keys are one set member")
 	check(hash(api.Url.parse("https://a/")) == hash(api.Url.parse("https://a/")), "a URL hashes by Rust's Hash")
