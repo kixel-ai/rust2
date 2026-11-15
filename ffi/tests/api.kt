@@ -1186,7 +1186,13 @@ fun readings() {
 		check(r.ok == (n % 2u == 1u) && r.shape == (if (n % 2u == 1u) Shape.CIRCLE else Shape.SQUARE) && r.note == "reading $n", "reading $n's bool, enum, and text")
 		check(readingEcho(r) == r, "reading $n crosses back")
 		check(r.next() == reading(n + 1u), "reading $n's receiver crosses")
+		val held = Mut<Reading?>(r)
+		readingBump(held)
+		check(held.value == r.copy(count = r.count + 1u, note = r.note + "+"), "reading $n crosses through a Mut both ways")
 	}
+	val none = Mut<Reading?>(null)
+	readingBump(none)
+	check(none.value == null, "no reading crosses through a Mut")
 }
 
 /** A call near the JVM's 255 parameter slots, which a record's flattening must not pass. */

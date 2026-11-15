@@ -111,6 +111,14 @@ pub fn reading_echo(reading: Option<Reading>) -> Option<Reading> {
 	reading
 }
 
+/// Counts `reading` up one and notes it, if there is one.
+pub fn reading_bump(reading: &mut Option<Reading>) {
+	if let Some(r) = reading {
+		r.count = r.count.wrapping_add(1);
+		r.note.push('+');
+	}
+}
+
 /// Declares `crowded`, whose parameters take 243 of a JVM method's 255 slots, so flattening
 /// its `Reading` would take 15 more: a binding that counts a `Stamp` as one slot, not the
 /// two of the `long` it crosses as, flattens it past the limit.

@@ -1049,6 +1049,15 @@ impl<'a> Gen<'a> {
 				arg.native.clear();
 				*n -= 1;
 				let (w, r) = (self.fresh("w"), format!("r{p}"));
+				// The encoded fields' writes can run Kotlin code, such as a custom `List`'s
+				// iterator, before the scalars are read: a `Mut`'s value is read once, first.
+				let raw = e;
+				let held = rest(abi, i) && raw.contains('.');
+				let snap = match held {
+					true => self.fresh("v"),
+					false => raw.to_string(),
+				};
+				let e = snap.as_str();
 				let mut writes = Vec::new();
 				let value = match option {
 					false => self.flat_in(i, e, (&mut arg, n), (&w, &mut writes), &r),
@@ -1088,6 +1097,9 @@ impl<'a> Gen<'a> {
 					arg.native
 						.extend(["ByteArray", "kotlin.Array<Any?>?"].map(str::to_string));
 					arg.open = Some(format!("_Native.__Writer().use {{ {w} ->"));
+					if held {
+						arg.inside.push(format!("val {e} = {raw}"));
+					}
 					arg.inside.extend(writes);
 					arg.exprs.push(format!("{w}.finish()"));
 					arg.exprs.push(format!("{w}.refs()"));
