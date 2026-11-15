@@ -6,10 +6,13 @@
 // cgo makes its own, in ffi_cgo.go; it reaches this through Go's types alone.
 
 // The holds a handle counts, one for its owner until closed and one per call, shifted
-// past a bit set once closed.
+// past a bit set once closed and one set once calls contended for them, after which they
+// hold it in slots_: in one word, so a call reads all three at once, and the count is
+// below held_ only once no hold is left.
 const (
 	closed_ = 1
-	held_   = 2
+	bias_   = 2
+	held_   = 4
 )
 
 // Once calls contend for a handle's count, each holds it in a slot of slots_ instead, so
@@ -95,8 +98,6 @@ func (e closedError_) Is(target error) bool {
 type Handle_ struct {
 	raw   unsafe.Pointer
 	state atomic.Int64
-	// Set once calls contended for state, after which they hold it in slots_.
-	bias atomic.Bool
 	// Nil for a handle Rust lends, which it frees itself.
 	free func(unsafe.Pointer)
 	// Non-nil for an owned one of a value Rust checks.
@@ -117,7 +118,26 @@ func (h *Handle_) Init(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(
 
 // Hold is the handle, held until Release takes the Slot_, or nil once closed.
 func (h *Handle_) Hold() (unsafe.Pointer, Slot_) {
-	if h.bias.Load() {
+	if raw := h.Count(); raw != nil {
+		return raw, Slot_{}
+	}
+	return h.Contend()
+}
+
+// Count is Hold's fast path, inlined into each call: the handle, held in the count until
+// Uncount, unless calls contend for it or it is closed, when it is nil and Contend holds
+// it instead.
+func (h *Handle_) Count() unsafe.Pointer {
+	if n := h.state.Load(); n&(closed_|bias_) == 0 && h.state.CompareAndSwap(n, n+held_) {
+		return h.raw
+	}
+	return nil
+}
+
+// Contend is Hold once Count failed: in the table, unless another handle or goroutine has
+// its slot, then in the count, after which later calls go to the table.
+func (h *Handle_) Contend() (unsafe.Pointer, Slot_) {
+	if h.state.Load()&bias_ != 0 {
 		var here byte
 		column := (uint64(uintptr(unsafe.Pointer(&here))) >> 11) * fibonacci_ >> 56
 		s := &slots_[uintptr(column)*slotRows_+h.row()]
@@ -129,12 +149,11 @@ func (h *Handle_) Hold() (unsafe.Pointer, Slot_) {
 			// A close claimed it meanwhile, and may have counted this hold.
 			if !s.CompareAndSwap(key, 0) {
 				s.Store(0)
-				h.Release(Slot_{})
+				h.Uncount()
 			}
 			return nil, Slot_{}
 		}
 	}
-	contended := false
 	for {
 		n := h.state.Load()
 		if n&closed_ != 0 {
@@ -143,11 +162,11 @@ func (h *Handle_) Hold() (unsafe.Pointer, Slot_) {
 		if h.state.CompareAndSwap(n, n+held_) {
 			break
 		}
-		contended = true
 	}
-	// Another call changed the count meanwhile: later ones go to the table.
-	if contended && !h.bias.Load() {
-		h.bias.Store(true)
+	// Count failed on an unbiased handle only as another call changed the count
+	// meanwhile: later ones go to the table.
+	if h.state.Load()&bias_ == 0 {
+		h.state.Or(bias_)
 	}
 	return h.raw, Slot_{}
 }
@@ -168,13 +187,31 @@ func (h *Handle_) Closed() error {
 	return closedError_{h.name}
 }
 
-// Release gives up a call's hold.
+// Release gives up a call's hold, wherever Hold put it.
 func (h *Handle_) Release(s Slot_) {
-	if s.p != nil && s.p.Swap(0) == h.key() {
-		return
+	if s.Counted() {
+		h.Uncount()
+	} else {
+		h.Unlist(s)
 	}
+}
+
+// Counted is whether a hold is in the count, for Uncount, or a slot, for Unlist.
+func (s Slot_) Counted() bool {
+	return s.p == nil
+}
+
+// Uncount gives up a hold in the count, small enough to inline.
+func (h *Handle_) Uncount() {
 	if h.state.Add(-held_) < held_ && h.free != nil {
 		h.free(h.raw)
+	}
+}
+
+// Unlist gives up a hold in a slot, or in the count once a close counted it.
+func (h *Handle_) Unlist(s Slot_) {
+	if s.p.Swap(0) != h.key() {
+		h.Uncount()
 	}
 }
 
@@ -198,10 +235,10 @@ func (h *Handle_) Close() error {
 		if n&closed_ != 0 {
 			return nil
 		}
-		if n != held_ {
+		if n&^bias_ != held_ {
 			return checkError_{h.name, "a handle is already borrowed", 3}
 		}
-		if h.state.CompareAndSwap(n, closed_|held_) {
+		if h.state.CompareAndSwap(n, n|closed_) {
 			break
 		}
 	}
@@ -209,7 +246,7 @@ func (h *Handle_) Close() error {
 	// one before is in the table. A call that left the table finding it closed held
 	// nothing, so the count is still the owner's alone.
 	if h.listed() {
-		h.state.Store(held_)
+		h.state.And(^closed_)
 		return checkError_{h.name, "a handle is already borrowed", 3}
 	}
 	h.state.Store(closed_)
@@ -223,7 +260,7 @@ func (h *Handle_) Close() error {
 
 // listed is whether a call holds h in the table.
 func (h *Handle_) listed() bool {
-	if !h.bias.Load() {
+	if h.state.Load()&bias_ == 0 {
 		return false
 	}
 	key := h.key()
@@ -255,7 +292,7 @@ func (h *Handle_) abandon() {
 		}
 	}
 	// Claimed closed, so each call holding it in the table did so before: count them.
-	if h.bias.Load() {
+	if h.state.Load()&bias_ != 0 {
 		key := h.key()
 		for i := h.row(); i < uintptr(len(slots_)); i += slotRows_ {
 			if s := &slots_[i]; s.Load() == key {
@@ -266,7 +303,7 @@ func (h *Handle_) abandon() {
 			}
 		}
 	}
-	h.Release(Slot_{})
+	h.Uncount()
 }
 
 // End ends a lend, closing the handle, which Rust frees next: a call still holding it
@@ -274,7 +311,7 @@ func (h *Handle_) abandon() {
 // borrowed.
 func (h *Handle_) End() {
 	h.abandon()
-	if h.state.Load() != closed_ {
+	if h.state.Load()&^bias_ != closed_ {
 		panic(h.name + ": a call still holds it when its lend ends")
 	}
 }

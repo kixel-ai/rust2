@@ -9,13 +9,16 @@
 use loom::cell::UnsafeCell;
 use loom::sync::Arc;
 use loom::sync::atomic::Ordering::SeqCst;
-use loom::sync::atomic::{AtomicBool, AtomicUsize, fence};
+use loom::sync::atomic::{AtomicUsize, fence};
 use loom::thread;
 
 /// Set in the hold count once closed.
 const CLOSED: usize = 1;
-/// One hold in the count.
-const HELD: usize = 2;
+/// Set in the hold count once calls contended for it, after which they go to the table.
+const BIAS: usize = 2;
+/// One hold in the count, past the bits above, so the count is below it only once no hold
+/// is left.
+const HELD: usize = 4;
 /// Set in a slot whose hold a close turned into a count.
 const REVOKED: usize = 1;
 /// The handle's key in a slot, as the bindings use its raw pointer.
@@ -24,7 +27,6 @@ const KEY: usize = 8;
 /// A handle as a binding holds it, beside a table with a slot per column for its row.
 struct Hold {
 	state: AtomicUsize,
-	bias: AtomicBool,
 	slots: Vec<AtomicUsize>,
 	/// What the handle points at: Rust's memory, which the free ends.
 	raw: UnsafeCell<u64>,
@@ -34,8 +36,7 @@ struct Hold {
 impl Hold {
 	fn new(columns: usize, biased: bool) -> Arc<Self> {
 		Arc::new(Self {
-			state: AtomicUsize::new(HELD),
-			bias: AtomicBool::new(biased),
+			state: AtomicUsize::new(HELD | if biased { BIAS } else { 0 }),
 			slots: (0..columns).map(|_| AtomicUsize::new(0)).collect(),
 			raw: UnsafeCell::new(7),
 			freed: AtomicUsize::new(0),
@@ -44,7 +45,13 @@ impl Hold {
 
 	/// Hold the handle from `column`: the slot it went to, if any, or `None` once closed.
 	fn hold(&self, column: usize) -> Option<Option<usize>> {
-		if self.bias.load(SeqCst) && self.slots[column].compare_exchange(0, KEY, SeqCst, SeqCst).is_ok() {
+		// The fast path each binding inlines: the count, while calls neither contend for it
+		// nor find it closed.
+		let n = self.state.load(SeqCst);
+		if n & (CLOSED | BIAS) == 0 && self.state.compare_exchange(n, n + HELD, SeqCst, SeqCst).is_ok() {
+			return Some(None);
+		}
+		if self.state.load(SeqCst) & BIAS != 0 && self.slots[column].compare_exchange(0, KEY, SeqCst, SeqCst).is_ok() {
 			// Loom treats a sequentially consistent access as acquire and release alone,
 			// so a fence stands for what Go's, Kotlin's, and Swift's atomics order.
 			fence(SeqCst);
@@ -59,22 +66,18 @@ impl Hold {
 			return None;
 		}
 		let mut n = self.state.load(SeqCst);
-		let mut contended = false;
 		loop {
 			if n & CLOSED != 0 {
 				return None;
 			}
 			match self.state.compare_exchange(n, n + HELD, SeqCst, SeqCst) {
 				Ok(_) => break,
-				Err(now) => {
-					n = now;
-					contended = true;
-				}
+				Err(now) => n = now,
 			}
 		}
-		if contended && !self.bias.load(SeqCst) {
-			self.bias.store(true, SeqCst);
-		}
+		// The fast path failed on an open handle with no bias only as another call changed
+		// the count meanwhile: later ones go to the table.
+		self.state.fetch_or(BIAS, SeqCst);
 		Some(None)
 	}
 
@@ -114,7 +117,7 @@ impl Hold {
 			}
 		}
 		fence(SeqCst);
-		if self.bias.load(SeqCst) {
+		if n & BIAS != 0 {
 			for slot in &self.slots {
 				if slot.load(SeqCst) == KEY {
 					self.state.fetch_add(HELD, SeqCst);
@@ -129,12 +132,13 @@ impl Hold {
 
 	/// Close an unchecked handle, which fails while a call holds it: whether it closed.
 	fn close(&self) -> bool {
-		if self.state.compare_exchange(HELD, CLOSED | HELD, SeqCst, SeqCst).is_err() {
+		let n = self.state.load(SeqCst);
+		if n & !BIAS != HELD || self.state.compare_exchange(n, n | CLOSED, SeqCst, SeqCst).is_err() {
 			return false;
 		}
 		fence(SeqCst);
-		if self.bias.load(SeqCst) && self.slots.iter().any(|slot| slot.load(SeqCst) == KEY) {
-			self.state.store(HELD, SeqCst);
+		if n & BIAS != 0 && self.slots.iter().any(|slot| slot.load(SeqCst) == KEY) {
+			self.state.fetch_sub(CLOSED, SeqCst);
 			return false;
 		}
 		self.state.store(CLOSED, SeqCst);
@@ -147,11 +151,11 @@ impl Hold {
 		assert!(self.slots.iter().all(|slot| slot.load(SeqCst) == 0));
 		match closed {
 			true => {
-				assert_eq!(self.state.load(SeqCst), CLOSED);
+				assert_eq!(self.state.load(SeqCst) & !BIAS, CLOSED);
 				assert_eq!(self.freed.load(SeqCst), 1);
 			}
 			false => {
-				assert_eq!(self.state.load(SeqCst), HELD);
+				assert_eq!(self.state.load(SeqCst) & !BIAS, HELD);
 				assert_eq!(self.freed.load(SeqCst), 0);
 			}
 		}

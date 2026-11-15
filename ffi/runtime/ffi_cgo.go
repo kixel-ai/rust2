@@ -284,7 +284,12 @@ func liftList_[CT, T any](ptr *CT, n C.size_t, lift func(CT) T) []T {
 // keeps o reachable until the call returns, so the GC cannot close h between the call
 // reading and holding it.
 func unhold_(h *rt.Handle_, s rt.Slot_, o any) {
-	h.Release(s)
+	// Release, with the count's half inlined.
+	if s.Counted() {
+		h.Uncount()
+	} else {
+		h.Unlist(s)
+	}
 	runtime.KeepAlive(o)
 }
 

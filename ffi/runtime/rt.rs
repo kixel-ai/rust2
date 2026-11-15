@@ -1110,25 +1110,21 @@ impl<T> Object<T> {
 		self.unlocal();
 	}
 
-	/// [`Self::acquire`], as a [`Ticket`], inlined for a handle no other lent.
+	/// [`Self::acquire`], as a [`Ticket`]: inlined, for a handle no other lent, as far as
+	/// taking the count when no borrow contends for it.
 	#[inline(always)]
 	fn shared(&self) -> Result<Ticket, Status> {
-		let mut column = NO_COLUMN;
-		let listed = self.borrow.share(Some(&TABLE), || {
-			column = self::column();
-			column
-		})?;
-		let mut lenders = 0;
-		if self.lender.is_some() {
-			match self.hold_lender(&mut column, 1) {
-				Ok(listed) => lenders = listed,
-				Err(status) => {
-					self.borrow.unshare(&TABLE, column, listed);
-					return Err(status);
-				}
-			}
+		if self.lender.is_none() && self.borrow.count() {
+			return Ok(Ticket::new(NO_COLUMN, 0));
 		}
-		Ok(Ticket::new(column, u64::from(listed) | lenders))
+		self.shared_slow()
+	}
+
+	#[inline(never)]
+	fn shared_slow(&self) -> Result<Ticket, Status> {
+		let mut column = NO_COLUMN;
+		let listed = self.acquire(&mut column, 0)?;
+		Ok(Ticket::new(column, listed))
 	}
 
 	/// End a shared borrow [`Self::shared`] took.

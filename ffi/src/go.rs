@@ -218,6 +218,16 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 /// types never share one, with its type and the crate it belongs to: the last of those
 /// its types do, or the runtime for none. A name its package's types or runtime take
 /// takes a trailing `_`.
+/// A call holding `object`'s handle as `h`, in the slot `s`, until it returns: through
+/// `Count`, inlined, then `Contend` once calls contend for it, running `failed` once closed.
+/// `slot` is the runtime's `Slot_`, as the package names it.
+fn hold(slot: &str, object: &str, h: &str, s: &str, failed: &str) -> String {
+	let failed = failed.replace('\n', "\n\t\t");
+	format!(
+		"{h}, {s} := {object}.Handle_.Count(), {slot}{{}}\nif {h} == nil {{\n\tif {h}, {s} = {object}.Handle_.Contend(); {h} == nil {{\n\t\t{failed}\n\t}}\n}}\ndefer unhold_({object}.Handle_, {s}, {object})"
+	)
+}
+
 fn thrown(abi: &Abi<'_>, classes: &BTreeMap<String, BTreeSet<String>>) -> BTreeMap<String, (String, Type)> {
 	let api = abi.api;
 	let all = (api.records.iter().flat_map(|r| &r.methods))
@@ -1505,11 +1515,16 @@ impl<'a> Gen<'a> {
 		let limited = !self.abi.api.everywhere(self.abi.on(ty));
 		// The receiver, a held handle or the value lowered, and the return of `failed`, an
 		// expression of the error, once a closed object fails the call.
+		// Qualified only where a call holds a handle, which imports the runtime's package.
+		let slot = match object {
+			true => self.qualify(Packages::RT, "Slot_"),
+			false => String::new(),
+		};
 		let open = |failed: &dyn Fn(&str) -> String| match (object, arena) {
 			(true, _) => (
 				format!(
-					"h_, s_ := self.Handle_.Hold()\nif h_ == nil {{\n\treturn {}\n}}\ndefer unhold_(self.Handle_, s_, self)\n",
-					failed("self.Handle_.Closed()")
+					"{}\n",
+					hold(&slot, "self", "h_", "s_", &format!("return {}", failed("self.Handle_.Closed()")))
 				),
 				format!("(*C.{c})(h_)"),
 			),
@@ -1644,8 +1659,8 @@ impl<'a> Gen<'a> {
 			};
 			let body = match (object, arena) {
 				(true, _) => format!(
-					"{open}o_, os_ := other.Handle_.Hold()\nif o_ == nil {{\n\treturn {}\n}}\ndefer unhold_(other.Handle_, os_, other)\n{}return bool(r_){ok}",
-					failed("other.Handle_.Closed()"),
+					"{open}{}\n{}return bool(r_){ok}",
+					hold(&slot, "other", "o_", "os_", &format!("return {}", failed("other.Handle_.Closed()"))),
 					checked(&format!("{c}_eq"), &format!("{this}, (*C.{c})(o_)"), &failed)
 				),
 				(false, true) if closable => format!(
@@ -2523,10 +2538,8 @@ impl<'a> Gen<'a> {
 			});
 			match c {
 				Ty::Handle { name, .. } => {
-					prelude.push(format!(
-						"h_, s_ := self.Handle_.Hold()\nif h_ == nil {{\n\t{}\n}}\ndefer unhold_(self.Handle_, s_, self)",
-						fail("self.Handle_.Closed()")
-					));
+					let slot = self.qualify(Packages::RT, "Slot_");
+					prelude.push(hold(&slot, "self", "h_", "s_", &fail("self.Handle_.Closed()")));
 					args.push(format!("(*C.{name})(h_)"));
 					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
 					if receiver == Receiver::Owned && !copy {
@@ -2642,13 +2655,16 @@ impl<'a> Gen<'a> {
 					let h = format!("h{k}_");
 					let failed = fail(&format!("{name}.Handle_.Closed()"));
 					match ty.base() {
-						Type::Option(_) => prelude.push(format!(
-							"var {h} unsafe.Pointer\nif {name} != nil {{\n\tvar s_ {}\n\tif {h}, s_ = {name}.Handle_.Hold(); {h} == nil {{\n\t\t{failed}\n\t}}\n\tdefer unhold_({name}.Handle_, s_, {name})\n}}",
-							self.qualify(Packages::RT, "Slot_")
-						)),
-						_ => prelude.push(format!(
-							"{h}, {h}s := {name}.Handle_.Hold()\nif {h} == nil {{\n\t{failed}\n}}\ndefer unhold_({name}.Handle_, {h}s, {name})"
-						)),
+						Type::Option(_) => {
+							let slot = self.qualify(Packages::RT, "Slot_");
+							let held = hold(&slot, &name, &h, "s_", &failed).replacen(":=", "=", 1);
+							let held = held.replace('\n', "\n\t");
+							prelude.push(format!("var {h} unsafe.Pointer\nif {name} != nil {{\n\tvar s_ {slot}\n\t{held}\n}}"));
+						}
+						_ => {
+							let slot = self.qualify(Packages::RT, "Slot_");
+							prelude.push(hold(&slot, &name, &h, &format!("{h}s"), &failed));
+						}
 					}
 					args.push(format!("(*C.{c})({h})"));
 				}

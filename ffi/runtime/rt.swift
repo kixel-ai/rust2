@@ -561,15 +561,17 @@ extension Native {
 	struct Handle {
 		let raw: OpaquePointer?
 		/// The holds, one for the owner until closed and one per call, shifted past a bit
-		/// set once closed; then whether calls contended for them, after which they hold it
-		/// in `slots`.
+		/// set once closed and one set once calls contended for them, after which they hold
+		/// it in `slots`: one word, so a call reads all three at once, and below `held` only
+		/// once no hold is left.
 		let state: UnsafeMutablePointer<Int>
 		/// Null for a handle Rust lends, which it frees itself.
 		let free: (@convention(c) (OpaquePointer?) -> Void)?
 		let type: StaticString
 
 		static let closed = 1
-		static let held = 2
+		static let bias = 2
+		static let held = 4
 		/// Set in a slot whose hold a close counted.
 		static let revoked = 1
 		/// A cache line of rows to a column, which the thread's stack picks, and a row per
@@ -589,12 +591,9 @@ extension Native {
 			self.raw = raw
 			self.free = free
 			self.type = type
-			state = UnsafeMutablePointer<Int>.allocate(capacity: 2)
+			state = UnsafeMutablePointer<Int>.allocate(capacity: 1)
 			state.initialize(to: Handle.held)
-			(state + 1).initialize(to: 0)
 		}
-
-		private var bias: UnsafeMutablePointer<Int> { state + 1 }
 
 		/// What a slot holds for this handle: its state's address, which no other live
 		/// handle has, and whose low bit is clear for `revoked`.
@@ -615,44 +614,73 @@ extension Native {
 		}
 
 		/// Hold it for a call, until `release` takes what this returns, unless it is closed.
+		@inline(__always)
 		func held() -> Int? {
-			if loadSC(bias) != 0 {
-				var here = 0
-				let stack = withUnsafeMutablePointer(to: &here) { UInt64(UInt(bitPattern: $0)) }
-				let hash = (stack >> 16) &* 0x9E37_79B9_7F4A_7C15
-				let slot = Int(truncatingIfNeeded: hash >> UInt64(64 - Handle.columnBits)) * Handle.stride + row
-				if swapSC(Handle.slots + slot, 0, key) == 0 {
-					if loadSC(state) & Handle.closed == 0 {
-						return slot
-					}
-					// A close claimed it meanwhile, and may have counted this hold.
-					if swapSC(Handle.slots + slot, key, 0) != key {
-						storeSC(Handle.slots + slot, 0)
-						release(-1)
-					}
-					return nil
+			let n = load(state)
+			if n & (Handle.closed | Handle.bias) == 0 && swap(state, n, n + Handle.held) == n {
+				return -1
+			}
+			return contend()
+		}
+
+		/// What `listed` returns when the table's slot was taken, so the call holds the count.
+		private static let unlisted = -2
+
+		/// Hold it in this thread's slot of `slots`: the slot, `unlisted` if another handle
+		/// or thread has it, or nil once closed.
+		@inline(never)
+		private func listed() -> Int? {
+			var here = 0
+			let stack = withUnsafeMutablePointer(to: &here) { UInt64(UInt(bitPattern: $0)) }
+			let hash = (stack >> 16) &* 0x9E37_79B9_7F4A_7C15
+			let slot = Int(truncatingIfNeeded: hash >> UInt64(64 - Handle.columnBits)) * Handle.stride + row
+			if swapSC(Handle.slots + slot, 0, key) != 0 {
+				return Handle.unlisted
+			}
+			if loadSC(state) & Handle.closed == 0 {
+				return slot
+			}
+			// A close claimed it meanwhile, and may have counted this hold.
+			if swapSC(Handle.slots + slot, key, 0) != key {
+				storeSC(Handle.slots + slot, 0)
+				release(-1)
+			}
+			return nil
+		}
+
+		/// `held` once calls contend for it: in the table, unless another handle or thread
+		/// has its slot, then in the count, after which later calls go to the table.
+		@inline(never)
+		private func contend() -> Int? {
+			if load(state) & Handle.bias != 0 {
+				let slot = listed()
+				if slot != Handle.unlisted {
+					return slot
 				}
 			}
 			var n = load(state)
-			var contended = false
 			while true {
 				if n & Handle.closed != 0 {
 					return nil
 				}
 				let seen = swap(state, n, n + Handle.held)
 				if seen == n {
+					n += Handle.held
 					break
 				}
 				n = seen
-				contended = true
 			}
-			// Another call changed the count meanwhile: later ones go to the table.
-			if contended && load(bias) == 0 {
-				storeSC(bias, 1)
+			while n & Handle.bias == 0 {
+				let seen = swap(state, n, n | Handle.bias)
+				if seen == n {
+					break
+				}
+				n = seen
 			}
 			return -1
 		}
 
+		@inline(__always)
 		func release(_ slot: Int) {
 			if slot >= 0 && exchange(Handle.slots + slot, 0) == key {
 				return
@@ -694,7 +722,7 @@ extension Native {
 				n = seen
 			}
 			// Claimed closed, so each call holding it in the table did so before: count them.
-			if loadSC(bias) != 0 {
+			if n & Handle.bias != 0 {
 				var slot = row
 				while slot < Handle.stride << Handle.columnBits {
 					if loadSC(Handle.slots + slot) == key {
@@ -714,7 +742,7 @@ extension Native {
 		/// borrowed.
 		func end() {
 			close()
-			if load(state) != Handle.closed {
+			if load(state) & ~Handle.bias != Handle.closed {
 				fatalError("\(type): a call still holds it when its lend ends")
 			}
 		}

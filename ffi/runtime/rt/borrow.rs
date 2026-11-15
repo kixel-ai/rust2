@@ -108,6 +108,17 @@ impl Borrow {
 		}
 	}
 
+	/// Borrow shared by the count alone, if no borrow sits in the table and none changes
+	/// the count meanwhile: whether it did, leaving the rest to [`Self::share`].
+	#[inline(always)]
+	pub fn count(&self) -> bool {
+		if self.bias.load(Relaxed) {
+			return false;
+		}
+		let state = self.state.load(Relaxed);
+		state < REVOKING && self.state.compare_exchange(state, state + 1, Acquire, Relaxed).is_ok()
+	}
+
 	/// Publish a shared borrow in its slot, unless another holds the slot or the bias is
 	/// gone: whether it did.
 	#[inline(never)]

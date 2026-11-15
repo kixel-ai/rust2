@@ -442,11 +442,10 @@ class __Handle(
 	private val drop: __Close? = null,
 ) : __Cleanup(if (free == null) null else owner) {
 	// The holds, one for the owner until closed and one per call, shifted past a bit set
-	// once closed: one word, so a handle allocates nothing beside itself.
+	// once closed and one set once calls contended for them, after which they hold it in
+	// [SLOTS]: one word, so a handle allocates nothing beside itself and a call reads all
+	// three at once, and below [HELD] only once no hold is left.
 	@kotlin.concurrent.Volatile @kotlin.jvm.JvmField internal var state = HELD
-
-	// Set once calls contended for [state], after which they hold it in [SLOTS].
-	@kotlin.concurrent.Volatile @kotlin.jvm.JvmField internal var bias = false
 
 	init {
 		if (free != null) track()
@@ -454,7 +453,15 @@ class __Handle(
 
 	/** Hold it for a call, until [release] takes what this returns. Throws once closed. */
 	fun hold(): Int {
-		if (bias) {
+		val n = state
+		if (n and (CLOSED or BIAS) == 0L && STATE.compareAndSet(this, n, n + HELD)) return -1
+		return contend()
+	}
+
+	// [hold] once calls contend for it: in the table, unless another handle or thread has
+	// its slot, then in the count, after which later calls go to the table.
+	private fun contend(): Int {
+		if (state and BIAS != 0L) {
 			val i = slot()
 			if (SLOTS.compareAndSet(i, 0L, raw)) {
 				if (state and CLOSED == 0L) return i
@@ -466,16 +473,15 @@ class __Handle(
 				throw IllegalStateException("$type is closed")
 			}
 		}
-		var contended = false
 		while (true) {
 			val n = state
 			kotlin.check(n and CLOSED == 0L) { "$type is closed" }
 			if (STATE.compareAndSet(this, n, n + HELD)) break
-			contended = true
 		}
-		// Another call changed the count meanwhile: later ones go to the table.
-		if (contended && !bias) bias = true
-		return -1
+		while (true) {
+			val n = state
+			if (n and BIAS != 0L || STATE.compareAndSet(this, n, n or BIAS)) return -1
+		}
 	}
 
 	// This thread's slot of the table for this handle: a column of a cache line per thread,
@@ -510,14 +516,14 @@ class __Handle(
 		while (true) {
 			val n = state
 			if (n and CLOSED != 0L) return
-			kotlin.check(n == HELD) { "$type: a handle is already borrowed" }
-			if (STATE.compareAndSet(this, n, CLOSED or HELD)) break
+			kotlin.check(n and BIAS.inv() == HELD) { "$type: a handle is already borrowed" }
+			if (STATE.compareAndSet(this, n, n or CLOSED)) break
 		}
 		// Claimed closed, so a call holding it in the table after this finds it closed, and
 		// one before is in the table. A call that left the table finding it closed held
 		// nothing, so the count is still the owner's alone.
 		if (listed()) {
-			state = HELD
+			STATE.addAndGet(this, -CLOSED)
 			throw IllegalStateException("$type: a handle is already borrowed")
 		}
 		state = CLOSED
@@ -526,7 +532,7 @@ class __Handle(
 
 	// Whether a call holds it in the table.
 	private fun listed(): Boolean {
-		if (!bias) return false
+		if (state and BIAS == 0L) return false
 		var i = row()
 		while (i < SLOTS.length()) {
 			if (SLOTS.get(i) == raw) return true
@@ -541,7 +547,7 @@ class __Handle(
 	 */
 	fun end() {
 		abandon()
-		kotlin.check(state == CLOSED) { "$type: a call still holds it when its lend ends" }
+		kotlin.check(state and BIAS.inv() == CLOSED) { "$type: a call still holds it when its lend ends" }
 	}
 
 	/**
@@ -555,7 +561,7 @@ class __Handle(
 			if (STATE.compareAndSet(this, n, n or CLOSED)) break
 		}
 		// Claimed closed, so each call holding it in the table did so before: count them.
-		if (bias) {
+		if (state and BIAS != 0L) {
 			var i = row()
 			while (i < SLOTS.length()) {
 				if (SLOTS.get(i) == raw) {
@@ -588,7 +594,8 @@ class __Handle(
 
 	private companion object {
 		const val CLOSED = 1L
-		const val HELD = 2L
+		const val BIAS = 2L
+		const val HELD = 4L
 		// Set in a slot whose hold a close counted.
 		const val REVOKED = 1L
 		// Once calls contend for a handle's count, each holds it in a slot of SLOTS instead,
