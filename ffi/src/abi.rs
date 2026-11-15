@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
-use crate::ir::{Access, Api, Closure, Dyn, Function, Home, Int, Literal, On, Receiver, Type};
+use crate::ir::{Access, Api, Closure, Dyn, Function, Home, Int, Jni, Literal, On, Receiver, Type};
 
 /// A C name one item claims twice, which no rename can tell apart: the name, then what
 /// claimed it first and second.
@@ -98,6 +98,8 @@ pub enum Ty {
 	Fn(Vec<Ty>, Box<Ty>),
 	/// The data a lent function takes, which Rust only passes back to it.
 	Data,
+	/// A JNI value's pointer, a `JNIEnv *` or a `jobject`, which only Kotlin's glue passes.
+	Jni(Jni),
 }
 
 /// A C function: its name, parameters, and return type.
@@ -238,6 +240,53 @@ impl<'a> Abi<'a> {
 		}
 		abi.clashes = abi.residue();
 		abi
+	}
+
+	/// This ABI over `api`, the API it was made of without its functions taking a JNI value,
+	/// as every language but Kotlin exports it: each name stays the one the whole API gives
+	/// it, so the C its glue calls keeps the names the crate defines.
+	pub fn without_jni<'b>(&self, api: &'b Api) -> Abi<'b> {
+		// Each function's address in `self.api`, by its address in `api`, which lists the
+		// same functions in the same order but those taking a JNI value.
+		let lists = |api: &'a Api| -> Vec<&'a [Function]> {
+			(api.records.iter().map(|r| &r.methods[..]))
+				.chain(api.enums.iter().map(|e| &e.methods[..]))
+				.chain(api.objects.iter().map(|o| &o.methods[..]))
+				.chain([&api.functions[..]])
+				.collect()
+		};
+		let ours = lists(self.api);
+		let theirs = (api.records.iter().map(|r| &r.methods[..]))
+			.chain(api.enums.iter().map(|e| &e.methods[..]))
+			.chain(api.objects.iter().map(|o| &o.methods[..]))
+			.chain([&api.functions[..]]);
+		let mut moved = HashMap::new();
+		for (ours, theirs) in ours.into_iter().zip(theirs) {
+			let mut theirs = theirs.iter();
+			for function in ours.iter().filter(|f| !f.jni()) {
+				let to = theirs.next().expect("the API without JNI keeps every other function");
+				moved.insert(function as *const Function as usize, to as *const Function as usize);
+			}
+		}
+		let renames = (self.renames.iter())
+			.filter_map(|(item, name)| match item {
+				Item::Function(at) => Some((Item::Function(*moved.get(at)?), name.clone())),
+				item => Some((item.clone(), name.clone())),
+			})
+			.collect();
+		Abi {
+			api,
+			prefix: self.prefix.clone(),
+			suffixes: self.suffixes.clone(),
+			options: self.options.clone(),
+			ranges: self.ranges.clone(),
+			lists: self.lists.clone(),
+			tuples: self.tuples.clone(),
+			arrays: self.arrays.clone(),
+			claims: Vec::new(),
+			renames,
+			clashes: self.clashes.clone(),
+		}
 	}
 
 	/// The `cfg` predicate a crate's Rust compiles what is on `on` under, or none if it is
@@ -687,6 +736,7 @@ impl<'a> Abi<'a> {
 			Type::Waker => Ty::Waker,
 			Type::Future => Ty::ForeignFuture,
 			Type::Reader => Ty::ForeignReader,
+			Type::Jni(jni) => Ty::Jni(*jni),
 			Type::List(_, inner) => Ty::Struct(self.list(inner)),
 			Type::Option(inner) => match Self::nullable(inner) {
 				true => self.ty(inner),

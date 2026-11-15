@@ -539,6 +539,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),

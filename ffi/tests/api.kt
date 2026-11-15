@@ -513,6 +513,13 @@ fun script() {
 		}
 	}
 	check(Counter.new("five", 5u).intoSum(1u) == 6uL, "a consuming method's parameter named close is its own")
+	// A function taking a JNI env, which Kotlin alone exports, passing its thread's.
+	val any = Any()
+	check(sameObject(any, any) && !sameObject(any, Any()) && sameObject(null, null) && !sameObject(any, null), "a JObject crosses as the reference Kotlin passed")
+	Counter.new("five", 5u).use { five ->
+		check(five.plusIfString(2u, "s") == 7uL && five.plusIfString(2u, 1) == 5uL, "a method takes the env between parameters Kotlin passes")
+		check((runCatching { five.plusIfString(2u, null) }.exceptionOrNull() as? StringException)?.error == "the object is null", "a JNI function's error throws")
+	}
 	val encoded = Mut(Bytes("0,".encodeToByteArray()))
 	putNumber(1u, encoded)
 	putNumber(23u, encoded)

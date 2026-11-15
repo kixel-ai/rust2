@@ -22,35 +22,33 @@ pub use jni_sys::*;
 use crate::rt;
 
 /// The JVM, and the global reference to the class holding the native methods and the
-/// Kotlin functions Rust calls, set when the library loads.
+/// Kotlin functions Rust calls, set by the class's first native call.
 static VM: OnceLock<usize> = OnceLock::new();
 static CLASS: OnceLock<usize> = OnceLock::new();
 
-/// Note the JVM and the class `name`, from `JNI_OnLoad`.
+/// Note the JVM and `class`, from its first native call, which its initializer makes. The
+/// library defines no `JNI_OnLoad`, so the crate it exports may define its own.
 ///
 /// # Safety
-/// `vm` is the JVM loading the library, on the thread loading it.
-pub unsafe fn load(vm: *mut JavaVM, name: &CStr) -> jint {
-	let _ = VM.set(vm as usize);
-	let env = env();
-	// SAFETY: `env` is this thread's; the class loader is the one loading the library,
-	// which a thread Rust attaches later cannot reach.
+/// `env` is this thread's, and `class` the native class.
+pub unsafe fn load(env: *mut JNIEnv, class: jclass) {
+	// SAFETY: `env` is this thread's, as the caller's contract says.
 	unsafe {
-		let class = ((**env).v1_2.FindClass)(env, name.as_ptr());
-		if class.is_null() {
-			fail(env, "JNI_OnLoad", "the native class is missing");
+		let mut vm: *mut JavaVM = std::ptr::null_mut();
+		if ((**env).v1_2.GetJavaVM)(env, &mut vm) != JNI_OK {
+			fail(env, "load", "the JVM is missing");
 		}
-		let _ = CLASS.set(((**env).v1_2.NewGlobalRef)(env, class) as usize);
+		let _ = VM.set(vm as usize);
+		CLASS.get_or_init(|| ((**env).v1_2.NewGlobalRef)(env, class) as usize);
 		// JNI permits a VM without direct-buffer access. Refuse it while loading,
 		// before a call can hand over values that its return factory cannot read.
 		let mut probe = 0u8;
 		let buffer = ((**env).v1_4.NewDirectByteBuffer)(env, (&mut probe as *mut u8).cast(), 1);
 		if buffer.is_null() {
-			fail(env, "JNI_OnLoad", "the JVM does not support native return buffers");
+			fail(env, "load", "the JVM does not support native return buffers");
 		}
 		((**env).v1_2.DeleteLocalRef)(env, buffer);
 	}
-	JNI_VERSION_1_6
 }
 
 /// The class holding the Kotlin functions Rust calls.

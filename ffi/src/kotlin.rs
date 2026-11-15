@@ -28,7 +28,7 @@ use std::hash::Hasher;
 use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Family, Function, Int, Literal, Mutability, On, Opaque, Param, Receiver, Type};
+use crate::ir::{Access, Family, Function, Int, Jni, Literal, Mutability, On, Opaque, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.kt");
 pub const GLUE_RUNTIME: &str = include_str!("../runtime/jni.rs");
@@ -136,7 +136,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	}
 	let _ = write!(
 		kotlin,
-		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __waker_wake(raw: Long)\n\n\t@JvmStatic external fun __waker_drop(raw: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n{helpers}{}{}}}\n",
+		"/** The runtime's [_Native.__Eq], by a name no class, field, or member of the binding takes, since\n * each is in Pascal or camel case. */\ninternal val _eq = _Native.__Eq\n\ninternal object _Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call, which it readies the library for: a Kotlin file\n\t\t// and a library from different builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __waker_wake(raw: Long)\n\n\t@JvmStatic external fun __waker_drop(raw: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: __Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: __Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as __Pollable).poll(waker)\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass __Failed(@JvmField val error: ByteArray) : kotlin.RuntimeException(null, null, false, false)\n\n\t@JvmStatic private fun __failed(error: ByteArray): Throwable = __Failed(error)\n\n{helpers}{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -147,12 +147,11 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		mod rt;\n\n\
 		use std::ffi::c_void;\n\
 		use rt::*;\n\n\
+		// No `JNI_OnLoad`, which the library may define for itself: _Native's first call notes\n\
+		// the JVM and the class.\n\
 		#[unsafe(no_mangle)]\n\
-		pub unsafe extern \"system\" fn JNI_OnLoad(vm: *mut JavaVM, _: *mut c_void) -> jint {{\n\
-		\tunsafe {{ rt::load(vm, c\"{p}/_Native\") }}\n\
-		}}\n\n\
-		#[unsafe(no_mangle)]\n\
-		pub extern \"system\" fn Java_{pkg}__1Native__1_1contract(_: *mut JNIEnv, _: jclass) -> jlong {{\n\
+		pub unsafe extern \"system\" fn Java_{pkg}__1Native__1_1contract(env: *mut JNIEnv, class: jclass) -> jlong {{\n\
+		\tunsafe {{ rt::load(env, class) }};\n\
 		\t0x{contract:016x}u64 as jlong\n\
 		}}\n\n\
 		#[unsafe(no_mangle)]\n\
@@ -191,8 +190,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		g.glue,
 		pkg = mangle(p),
 	);
-	// JNI_OnLoad finds _Native by name, the VM binds its native methods by theirs, and the
-	// glue looks up each Kotlin function it calls by its own, which nothing in Kotlin calls.
+	// The VM binds _Native's native methods by its name and theirs, and the glue looks up
+	// each Kotlin function it calls by its own, which nothing in Kotlin calls.
 	// A shrinker still strips _Native and its native methods where nothing reaches them.
 	let mut rules = format!(
 		"# Generated by rust2-ffi: the R8 and ProGuard rules keeping what the JNI glue of {packages} looks up by name. Do not edit.\n\n\
@@ -674,6 +673,8 @@ impl<'a> Gen<'a> {
 			Type::Waker => self.own("Waker"),
 			Type::Reader => "java.nio.channels.SeekableByteChannel".to_string(),
 			Type::Future => "suspend () -> kotlin.Unit".to_string(),
+			Type::Jni(Jni::Object) => "kotlin.Any?".to_string(),
+			Type::Jni(Jni::Env) => unreachable!("Kotlin passes no env of its own"),
 			Type::Option(inner) => format!("{}?", self.kt(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.kt(inner),
 			Type::Record(i) => self.qualified(&abi.record(*i)),
@@ -939,6 +940,11 @@ impl<'a> Gen<'a> {
 			Ty::Enum(_) => {
 				arg.exprs.push(format!("{e}.value"));
 				arg.rust_args.push(p);
+			}
+			// A local reference, which the native call lends.
+			Ty::Jni(_) => {
+				arg.exprs.push(e.to_string());
+				arg.rust_args.push(format!("{p} as _"));
 			}
 			Ty::Handle { .. } => {
 				let h = self.fresh("h");
@@ -2192,6 +2198,14 @@ impl<'a> Gen<'a> {
 		let mut written: Vec<(String, Type)> = Vec::new();
 		for (param, name) in function.params.iter().zip(&names) {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
+			// The env of the thread calling, which JNI passes the native method.
+			if param.ty == Type::Jni(Jni::Env) {
+				args.push(Arg {
+					rust_args: vec!["env as _".to_string()],
+					..Arg::default()
+				});
+				continue;
+			}
 			kt_params.push(format!("{name}: {}", self.kt_param(&param.ty)));
 			let trampoline = match (&param.ty, c) {
 				(Type::Closure(closure), Ty::Fn(..)) => {
@@ -2725,6 +2739,11 @@ impl<'a> Gen<'a> {
 					));
 				}
 			}
+			if param.ty == Type::Jni(Jni::Object) {
+				text.push_str(&format!(
+					"\n\nRust holds `{name}` only during the call, on this thread, as JNI lends it."
+				));
+			}
 			if param.ty == Type::Ref(Mutability::Mut, Box::new(Type::Reader)) {
 				text.push_str(&format!(
 					"\n\nRust reads and seeks `{name}` only during the call, from any thread, one call at a time. An `IOException` it throws is Rust's `io::Error` of its message; any other exception aborts."
@@ -3174,6 +3193,8 @@ fn jni_type(abi: &Abi<'_>, c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 		Ty::Waker => ("jobject", "Waker"),
 		Ty::ForeignReader => ("jobject", "java.nio.channels.SeekableByteChannel"),
 		Ty::ForeignFuture => ("jobject", "Any"),
+		Ty::Jni(Jni::Object) => ("jobject", "Any?"),
+		Ty::Jni(Jni::Env) => unreachable!("the glue passes its own env"),
 		Ty::Poll | Ty::Out(_) | Ty::InOut(_) | Ty::Data => unreachable!("{c:?} never crosses JNI"),
 	}
 }

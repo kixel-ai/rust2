@@ -63,6 +63,17 @@ impl Api {
 		}
 	}
 
+	/// This API without its functions taking a JNI value, which only Kotlin exports.
+	pub fn without_jni(&self) -> Api {
+		let mut api = self.clone();
+		let keep = |methods: &mut Vec<Function>| methods.retain(|f| !f.jni());
+		api.records.iter_mut().for_each(|r| keep(&mut r.methods));
+		api.enums.iter_mut().for_each(|e| keep(&mut e.methods));
+		api.objects.iter_mut().for_each(|o| keep(&mut o.methods));
+		keep(&mut api.functions);
+		api
+	}
+
 	/// Whether an item on `on` is on every target the API serves.
 	pub fn everywhere(&self, on: On) -> bool {
 		on.0 & self.all().0 == self.all().0
@@ -441,6 +452,12 @@ impl Function {
 	pub fn name(&self) -> &str {
 		self.path.last().expect("a function has a name")
 	}
+
+	/// Whether it takes a JNI value, which only Kotlin has to pass: no other language
+	/// exports it.
+	pub fn jni(&self) -> bool {
+		self.params.iter().any(|p| matches!(p.ty, Type::Jni(_)))
+	}
 }
 
 /// A parameter a function polls its task through.
@@ -559,6 +576,8 @@ pub enum Type {
 	/// A reader the foreign side implements, `io::Read` and `io::Seek`: only behind `&mut`
 	/// as a parameter, lent for the call.
 	Reader,
+	/// A JNI value, only as a parameter of a function Kotlin alone exports.
+	Jni(Jni),
 	Option(Box<Type>),
 	/// `Box<T>`, of a non-trait type.
 	Box(Box<Type>),
@@ -595,6 +614,16 @@ pub struct Closure {
 	/// Whether Rust keeps it past the call, calling it from any thread until it frees it,
 	/// rather than only during the call.
 	pub kept: bool,
+}
+
+/// A [`Type::Jni`]: what of the calling Java thread a function takes.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+pub enum Jni {
+	/// `&mut jni::Env`: the env of the thread calling, which Kotlin passes for it.
+	Env,
+	/// `jni::objects::JObject`: a reference to any Java object, or null, which Kotlin passes
+	/// as an `Any?`, valid for the call.
+	Object,
 }
 
 /// The Rust collection a [`Type::List`] is, which Rust builds from its items in order.

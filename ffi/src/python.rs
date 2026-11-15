@@ -477,6 +477,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "None".to_string(),
 			Type::Bool => "_bool".to_string(),
@@ -559,6 +560,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 			Type::Array(n) => format!(
 				"rt::array_in::<{n}>({o}).map(|items| crate::{} {{ items }})",
 				abi.array(*n)
@@ -639,6 +641,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 			Type::Array(n) => format!("rt::array_out(&{v}.items, {})", self.t(&abi.array(*n))),
 			Type::Unit => "rt::none()".to_string(),
 			Type::Bool => format!("rt::bool_out({v})"),

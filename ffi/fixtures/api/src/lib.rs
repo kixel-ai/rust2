@@ -408,6 +408,25 @@ impl Counter {
 	}
 }
 
+/// What only Kotlin exports: a method taking the env of the Java thread calling.
+impl Counter {
+	/// The value plus `n` if `object` is a Java string, else the value, or an error for a
+	/// null `object`: an env between parameters Kotlin passes.
+	pub fn plus_if_string(&self, n: u64, env: &mut jni::Env, object: jni::objects::JObject) -> Result<u64, String> {
+		if object.is_null() {
+			return Err("the object is null".to_string());
+		}
+		let string = (env.is_instance_of(&object, jni::jni_str!("java/lang/String"))).map_err(|e| e.to_string())?;
+		Ok(if string { self.value + n } else { self.value })
+	}
+}
+
+/// Whether `a` and `b` are the same Java object, or both null: only Kotlin exports it,
+/// passing the env of the thread calling.
+pub fn same_object(a: jni::objects::JObject, env: &mut jni::Env, b: jni::objects::JObject) -> Result<bool, String> {
+	env.is_same_object(&a, &b).map_err(|e| e.to_string())
+}
+
 /// An impl lifetime its type does not take is the call's, as a method's own is.
 impl<'a> Counter {
 	/// Whether the counter is named `name`, which borrows C's text for the call.

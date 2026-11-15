@@ -702,6 +702,7 @@ impl<'a> Gen<'a> {
 	fn go(&mut self, ty: &Type) -> String {
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 			Type::Array(n) => format!("[{n}]byte"),
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool => "bool".to_string(),
@@ -879,6 +880,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 			Type::Array(n) => {
 				self.array(*n);
 				format!("lower_{}({e})", abi.array(*n))

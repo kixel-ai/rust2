@@ -530,6 +530,7 @@ pub fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 		Ty::Waker => space(&abi.rt("waker")),
 		Ty::ForeignFuture => space(&abi.rt("foreign_future")),
 		Ty::ForeignReader => space(&abi.rt("foreign_reader")),
+		Ty::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 		Ty::Poll => space(&abi.rt("poll")),
 		Ty::Out(inner) | Ty::InOut(inner) => decl(abi, inner, &format!("*{name}")),
 		Ty::In(inner) => format!("const {}", decl(abi, inner, &format!("*{name}"))),
