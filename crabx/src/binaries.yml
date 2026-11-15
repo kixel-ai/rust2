@@ -1,0 +1,17 @@
+name: Binaries
+on:
+  push:
+    branches: [BRANCH]
+    tags: ['v*', '*-v*']
+  schedule:
+    - cron: '23 7 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release:
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    uses: kixel-ai/rust2/.github/workflows/crabx.yml@87549d30ad59b6d38eed731b484c4c6b6a089162 # pipeline-v1.0.0
