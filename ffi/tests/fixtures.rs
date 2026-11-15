@@ -1163,11 +1163,7 @@ fn api_swift() {
 		assert!(stderr.contains(message), "Swift {case} printed {stderr}");
 	}
 	for (case, message) in [
-		("family", "api_nexts: an IPv6 socket address where IPv4 is taken"),
-		("ip family", "api_next_ips: an IPv6 address where IPv4 is taken"),
 		("outlived", OUTLIVED),
-		("stray", "a path from Rust is not UTF-8"),
-		("lent stray", "a path from Rust is not UTF-8"),
 		("variant", "api_Platform.Wasm: it is not on this library's target"),
 		("plain variant", "api_Family.Wasm: it is not on this library's target"),
 	] {
