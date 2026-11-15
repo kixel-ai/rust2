@@ -106,8 +106,8 @@ pub fn reading_debug(n: u32) -> String {
 	reading(n).map_or_else(String::new, |r| format!("{r:?}"))
 }
 
-/// `reading`, passed through Rust and back.
-pub fn reading_echo(reading: Reading) -> Reading {
+/// `reading`, or none, passed through Rust and back.
+pub fn reading_echo(reading: Option<Reading>) -> Option<Reading> {
 	reading
 }
 

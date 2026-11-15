@@ -1176,6 +1176,7 @@ fun encoded() {
 /** A record's scalars cross apart from its other fields, each exactly, both ways. */
 fun readings() {
 	check(reading(0u) == null && readingDebug(0u) == "", "no reading crosses as none")
+	check(readingEcho(null) == null, "no reading crosses back")
 	for (n in listOf(1u, 2u, 3u, 127u)) {
 		val r = reading(n)!!
 		check(r.debug() == readingDebug(n), "reading $n crosses as Rust holds it: ${r.debug()}")
