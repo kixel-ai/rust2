@@ -1260,15 +1260,18 @@ func futures() {
 	made := must(api.LocalAfter(ctx))
 	check(must(made.OnOwnThread()), "a future's output that is not Send is made on its home")
 	ok(made.Close())
+	fresh := must(api.LocalOrNew(nil))
 	var wg sync.WaitGroup
 	for range 8 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			check(must(local.OnOwnThread()), "a local's call from any goroutine runs on its home")
+			check(must(fresh.OnOwnThread()), "a local made with its optional local absent lives on a home")
 		}()
 	}
 	wg.Wait()
+	ok(fresh.Close())
 	before := api.LocalsDropped()
 	wg.Add(1)
 	go func() {
@@ -1277,6 +1280,8 @@ func futures() {
 	}()
 	wg.Wait()
 	check(api.LocalsDropped() == before+1, "a local closed on another goroutine drops on its home")
+	// Collected only from here, after the count before it.
+	runtime.KeepAlive(shared)
 	shared = nil
 	deadline := time.Now().Add(10 * time.Second)
 	for api.LocalsDropped() < before+2 {

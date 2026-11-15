@@ -1131,7 +1131,18 @@ impl<'a> Abi<'a> {
 			}
 			_ => false,
 		};
-		makes && !receiver && !function.params.iter().any(|p| unsent(&p.ty))
+		// A handle that may be absent leaves the call to a home when it is: the twin runs it
+		// where the first present one stays, else on a home.
+		let optional = |ty: &Type| match ty {
+			Type::Option(inner) => match &**inner {
+				Type::Object(i) => !self.api.objects[*i].send,
+				Type::Ref(_, inner) => matches!(&**inner, Type::Object(i) if !self.api.objects[*i].send),
+				_ => false,
+			},
+			_ => false,
+		};
+		// A JNI env is its thread's, so a call taking one stays there.
+		makes && !receiver && !function.jni() && function.params.iter().all(|p| optional(&p.ty) || !unsent(&p.ty))
 	}
 
 	/// Whether a call of `function`, a method of `owner` if it has one, can fail a check of

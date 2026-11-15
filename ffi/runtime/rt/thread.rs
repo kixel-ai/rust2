@@ -71,6 +71,8 @@ impl Dropped {
 
 	/// Queue it to its thread, or leak it, saying so, if that exited.
 	pub fn send(self) {
+		// Kept until the push returns, so its thread may run the drop first: then this is
+		// the last record, which lets the home go idle.
 		let owner = self.owner.clone();
 		if let Err(Job::Drop(dropped)) = owner.push(Job::Drop(self)) {
 			eprintln!(
@@ -78,6 +80,7 @@ impl Dropped {
 				dropped.what
 			);
 		}
+		Thread::let_go(owner);
 	}
 }
 
@@ -236,9 +239,22 @@ impl Thread {
 	/// Give back a home [`Self::home`] took: idle at once if no value lives on it, else
 	/// once the last that does is dropped.
 	pub fn release(home: Arc<Thread>) {
-		// The home's own thread holds the other count.
-		if Arc::strong_count(&home) == 2 {
-			IDLE.lock().unwrap_or_else(|e| e.into_inner()).push(home);
+		// The home's own thread holds the other count. A greater one may be another
+		// thread's for a moment, so the home sees for itself once this lets go.
+		match Arc::strong_count(&home) {
+			2 => IDLE.lock().unwrap_or_else(|e| e.into_inner()).push(home),
+			_ => Self::let_go(home),
+		}
+	}
+
+	/// Drop `this`, a record of a thread, waking it if it is a home, which then sees
+	/// whether any value still lives on it: no count another thread holds for a moment
+	/// keeps it from going idle.
+	fn let_go(this: Arc<Thread>) {
+		let parked = this.home.then(|| this.parked.get().cloned()).flatten();
+		drop(this);
+		if let Some(thread) = parked {
+			thread.unpark();
 		}
 	}
 
@@ -253,17 +269,36 @@ impl Thread {
 		// SAFETY: this thread's record holds it for as long as the thread runs, which is forever.
 		let me = unsafe { &*me };
 		loop {
-			if !me.pending.load(Ordering::Acquire) {
-				std::thread::park();
-				continue;
+			if me.pending.load(Ordering::Acquire) {
+				me.drain();
 			}
-			me.drain();
+			// Each wake, as by a record let go, checks whether the last record is its own.
+			// None other appears while it is: no value nor caller holds one, nor `IDLE`.
 			HERE.with(|here| {
 				let record = here.0.get().expect("a home's record is set");
 				if Arc::strong_count(record) == 1 {
 					IDLE.lock().unwrap_or_else(|e| e.into_inner()).push(record.clone());
 				}
 			});
+			if !me.pending.load(Ordering::Acquire) {
+				std::thread::park();
+			}
+		}
+	}
+
+	/// This thread's record, if it is a home.
+	fn serving() -> Option<Arc<Thread>> {
+		HERE.try_with(|here| here.0.get().filter(|thread| thread.home).cloned()).ok().flatten()
+	}
+
+	/// Wait until `done`, running each job queued for `home`, this thread, meanwhile:
+	/// whatever makes `done` true then unparks it.
+	fn wait_serving(home: &Thread, done: impl Fn() -> bool) {
+		while !done() {
+			match home.pending.load(Ordering::Acquire) {
+				true => home.drain(),
+				false => std::thread::park(),
+			}
 		}
 	}
 
@@ -272,16 +307,10 @@ impl Thread {
 	/// Whatever makes `done` true then unparks this thread.
 	#[cfg(feature = "dart")]
 	pub fn serve_until(done: impl Fn() -> bool) -> bool {
-		let home = HERE.try_with(|here| here.0.get().filter(|thread| thread.home).cloned()).ok().flatten();
-		let Some(home) = home else {
+		let Some(home) = Self::serving() else {
 			return false;
 		};
-		while !done() {
-			match home.pending.load(Ordering::Acquire) {
-				true => home.drain(),
-				false => std::thread::park(),
-			}
-		}
+		Self::wait_serving(&home, done);
 		true
 	}
 
@@ -316,8 +345,16 @@ impl Thread {
 		if self.push(Job::Run(run)).is_err() {
 			crate::rt::fail("a home", "its thread exited");
 		}
-		while !done.ran.load(Ordering::Acquire) {
-			std::thread::park();
+		let ran = || done.ran.load(Ordering::Acquire);
+		// A home waiting on another runs each call queued for it meanwhile, as one the call
+		// it waits on makes back may be, so two homes calling each other never both wait.
+		match Self::serving() {
+			Some(home) => Self::wait_serving(&home, ran),
+			None => {
+				while !ran() {
+					std::thread::park();
+				}
+			}
 		}
 		// SAFETY: it ran, writing `out`.
 		unsafe { out.assume_init() }

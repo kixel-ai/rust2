@@ -2163,6 +2163,37 @@ static void *keep_local(void *data) {
 	return NULL;
 }
 
+/* A local a second thread bumps, writing why it could not. */
+typedef struct {
+	api_Local *local;
+	uint32_t count;
+	api_status status;
+} bumped;
+
+static void *bump_local(void *data) {
+	bumped *b = data;
+	b->status = 0;
+	b->count = api_Local_bump(b->local, &b->status);
+	return NULL;
+}
+
+/* Two locals on two homes, each visit calling into the other's. */
+typedef struct {
+	api_Local *a;
+	api_Local *b;
+	api_status status;
+} homes;
+
+static uint32_t bump_a(void *data) {
+	homes *h = data;
+	return api_Local_bump(h->a, &h->status);
+}
+
+static uint32_t visit_b(void *data) {
+	homes *h = data;
+	return api_Local_visit(h->b, bump_a, h, &h->status);
+}
+
 static void *make_local(void *data) {
 	*(api_Local **)data = api_Local_new();
 	return NULL;
@@ -2224,7 +2255,6 @@ static int not_send(void) {
 
 	/* Made on a home, a thread Rust owns, it stays there, and each call runs there. */
 	api_Local *homed = api_Local_new_homed();
-	uint32_t before_homed = api_locals_dropped();
 	status = 0;
 	if (api_Local_bump(homed, &status) != 1 || !api_Local_on_own_thread(homed, &status) || status != 0) {
 		fprintf(stderr, "a homed local ran here, writing %d\n", status);
@@ -2242,6 +2272,41 @@ static int not_send(void) {
 	if (homed_later != NULL) {
 		api_local_later_future_free(homed_later);
 	}
+	/* A maker whose optional handle is absent runs on a home, as one taking none does, so
+	 * any thread may use what it makes; with the handle present, it runs where that stays. */
+	uint32_t before_made = api_locals_dropped();
+	bumped b = {.local = api_local_or_new_homed(NULL, &status)};
+	pthread_create(&thread, NULL, bump_local, &b);
+	pthread_join(thread, NULL);
+	if (status != 0 || b.status != 0 || b.count != 1) {
+		fprintf(stderr, "a local made with no handle stayed here, writing %d and %d\n", status, b.status);
+		failed = 1;
+	}
+	api_Local *mine = api_Local_new();
+	bumped m = {.local = api_local_or_new_homed(mine, &status)};
+	pthread_create(&thread, NULL, bump_local, &m);
+	pthread_join(thread, NULL);
+	if (status != 0 || m.status != API_STATUS_NOT_SEND || api_Local_bump(mine, &status) != 1 || status != 0) {
+		fprintf(stderr, "a local made from one here left it, writing %d and %d\n", status, m.status);
+		failed = 1;
+	}
+	api_Local_free(m.local);
+	api_Local_free(mine);
+	api_Local_free(b.local);
+	while (api_locals_dropped() != before_made + 3) {
+	}
+	/* A call on one home's value whose callback calls on another's, which calls back on
+	 * the first's: the first home runs that while it waits on the second. */
+	homes h = {.a = api_Local_new_homed(), .b = api_Local_new_homed()};
+	if (api_Local_visit(h.a, visit_b, &h, &status) != 1 || status != 0 || h.status != 0) {
+		fprintf(stderr, "two homes calling each other wrote %d and %d\n", status, h.status);
+		failed = 1;
+	}
+	before_made = api_locals_dropped();
+	api_Local_free(h.a);
+	api_Local_free(h.b);
+	while (api_locals_dropped() != before_made + 2) {
+	}
 	/* A poll through a waiter that is not Send keeps it, so its future is not Send either. */
 	api_LocalWaiter_poll_ready_future *waited = NULL;
 	uint32_t ready = 0;
@@ -2255,6 +2320,7 @@ static int not_send(void) {
 		failed = 1;
 	}
 	/* Freed here, it drops on its home, which waits for work. */
+	uint32_t before_homed = api_locals_dropped();
 	api_Local_free(homed);
 	while (api_locals_dropped() != before_homed + 1) {
 	}

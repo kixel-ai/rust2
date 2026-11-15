@@ -2023,6 +2023,12 @@ pub fn locals_dropped() -> u32 {
 	LOCALS.load(std::sync::atomic::Ordering::Relaxed)
 }
 
+/// A handle to `local`'s count if there is one, else a new local: made where `local`
+/// stays, or, with none, wherever a local made from nothing would be.
+pub fn local_or_new(local: Option<&Local>) -> Local {
+	local.map_or_else(Local::new, Local::share)
+}
+
 /// The first local's count bumped if there is one, else the second's.
 pub fn bump_either(first: Option<&Local>, second: &Local) -> u32 {
 	first.unwrap_or(second).bump()

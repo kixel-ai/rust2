@@ -1488,7 +1488,7 @@ impl Gen<'_> {
 				self.new_object(i, &format!("<{path} as ::std::default::Default>::default()"))
 			));
 			if !send {
-				self.export(homed(&format!("{name}_default"), &[], handle));
+				self.export(homed(&format!("{name}_default"), &[], handle, &[]));
 			}
 		}
 	}
@@ -2677,7 +2677,7 @@ impl Gen<'_> {
 				wrap(status, "*mut rt::Future", &make)
 			));
 			if export.homed {
-				self.export(homed(&name, &make_params, "*mut rt::Future"));
+				self.export(homed(&name, &make_params, "*mut rt::Future", &unsent));
 			}
 			let poll_params: Vec<String> = poll.params[2..]
 				.iter()
@@ -2722,7 +2722,7 @@ impl Gen<'_> {
 				wrap(status, "i32", &started)
 			));
 			if export.homed {
-				self.export(homed(&start.name, &start_params, "i32"));
+				self.export(homed(&start.name, &start_params, "i32", &unsent));
 			}
 			return;
 		}
@@ -2770,7 +2770,7 @@ impl Gen<'_> {
 			wrap(status, &ret, &format!("{body}\n\tlet result = {call};{pending}{writes}\n\t{finish}"))
 		));
 		if export.homed {
-			self.export(homed(&name, &params, &ret));
+			self.export(homed(&name, &params, &ret, &unsent));
 		}
 	}
 
@@ -2810,33 +2810,46 @@ fn names(params: &[String]) -> String {
 	names.join(", ")
 }
 
+/// The value that is not `Send` the first present of `handles`, each an object's holder
+/// and a handle, stays on: its thread's record, if any is present.
+fn owner(handles: &[(String, String)]) -> String {
+	let homes: Vec<String> = (handles.iter())
+		.map(|(holder, handle)| format!("unsafe {{ rt::Object::<{holder}>::owner({handle}) }}"))
+		.collect();
+	(homes.iter().skip(1)).fold(homes[0].clone(), |chain, next| format!("{chain}.or_else(|| {next})"))
+}
+
 /// The statement that runs the C function `name` taking `params` on the home that the
-/// value of the first present of `handles`, each an object's holder and a handle, stays
-/// on, if that is another thread, calling it again there and returning what it returns:
-/// so a call on a value that is not `Send` from a binding with no thread that stays put
-/// runs on the value's thread. Nothing if it takes no such handle.
+/// value of the first present of `handles` stays on, if that is another thread, calling it
+/// again there and returning what it returns: so a call on a value that is not `Send` from
+/// a binding with no thread that stays put runs on the value's thread. Nothing if it takes
+/// no such handle.
 fn away(name: &str, params: &[String], handles: &[(String, String)]) -> String {
 	if handles.is_empty() {
 		return String::new();
 	}
-	let homes: Vec<String> = (handles.iter())
-		.map(|(holder, handle)| format!("unsafe {{ rt::Object::<{holder}>::owner({handle}) }}"))
-		.collect();
 	format!(
 		"if let Some(home) = {}.filter(|home| home.away()) {{\n\t\treturn unsafe {{ home.run(move || {name}({})) }};\n\t}}\n\t",
-		homes
-			.iter()
-			.skip(1)
-			.fold(homes[0].clone(), |chain, next| format!("{chain}.or_else(|| {next})")),
+		owner(handles),
 		names(params)
 	)
 }
 
 /// The twin of the C function `name` taking `params` and returning `ret`, which runs it on
-/// a home, a thread Rust owns, which the value that is not `Send` it makes stays on.
-fn homed(name: &str, params: &[String], ret: &str) -> String {
+/// a home, a thread Rust owns, which the value that is not `Send` it makes stays on. When
+/// one of `handles`, each optional, is present, it runs where that value stays instead, as
+/// the function itself does.
+fn homed(name: &str, params: &[String], ret: &str, handles: &[(String, String)]) -> String {
+	let present = match handles.is_empty() {
+		true => String::new(),
+		false => format!(
+			"if {}.is_some() {{\n\t\treturn unsafe {{ {name}({}) }};\n\t}}\n\t",
+			owner(handles),
+			names(params)
+		),
+	};
 	format!(
-		"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_homed({}) -> {ret} {{\n\tlet home = rt::Thread::home();\n\tlet made = unsafe {{ home.run(move || {name}({})) }};\n\trt::Thread::release(home);\n\tmade\n}}\n",
+		"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_homed({}) -> {ret} {{\n\t{present}let home = rt::Thread::home();\n\tlet made = unsafe {{ home.run(move || {name}({})) }};\n\trt::Thread::release(home);\n\tmade\n}}\n",
 		params.join(", "),
 		names(params)
 	)

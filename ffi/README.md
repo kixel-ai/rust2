@@ -300,14 +300,17 @@ where it was while its file is unchanged.
   takes a trailing `status` too. A `_free` or `_drop` elsewhere drops nothing there: it
   queues the drop to the value's thread, which runs it at its next check of one of its
   values or as it exits. One freed once its thread exited leaks, printing why, since
-  nothing may drop it. A function that makes such a value from none, taking no such
-  value, has a twin `<name>_homed` of the same signature, as do its future's start,
-  `<name>_start_homed`, and `Default`'s, `<T>_default_homed`: it runs on a home, a thread
-  Rust owns, which the value then stays on, and each later call on it, from any thread,
-  runs there while the caller waits, as does a call on a handle it returns. The first
-  present of a call's receiver and its parameters that are handles, bare or in an
-  `Option`, sends it home. A home waiting on a call into Dart runs meanwhile what that
-  Dart asks of its values. A
+  nothing may drop it. A function that makes such a value, taking none or only in an
+  `Option`, has a twin `<name>_homed` of the same signature, as do its future's start,
+  `<name>_start_homed`, and `Default`'s, `<T>_default_homed`: with no such value passed,
+  it runs on a home, a thread Rust owns, which the value then stays on, and each later
+  call on it, from any thread, runs there while the caller waits, as does a call on a
+  handle it returns; with one passed, it runs where that value stays, as the function
+  does. The first present of a call's receiver and its parameters that are handles of
+  such values, bare or in an `Option`, sends it home. Values from different homes, or one
+  nested in a list or a record, are not sent: the call runs on the first's home, where
+  any other fails its check with `<PREFIX>_STATUS_NOT_SEND`. A home waiting on a call into
+  Dart, or on another home, runs meanwhile what that call asks of its own values. A
   binding whose threads move calls the twins: Go and Dart for every such value, Kotlin
   and Swift for such a future made from none, which a pool's thread then polls.
 - **Opaque values** are `typedef struct <T> { uintN_t opaque[n]; } <T>;`, the bytes of a
