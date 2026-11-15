@@ -32,12 +32,13 @@ Joined across every compilation, the graph gives:
   That includes the re-export a path goes through, the re-exports a glob supplied each name through, the types an expression has, and a tuple constructor's fields.
 - **What crates or tools outside the audit may use**: what a published library exports, and all of an unpublished library the audit does not run.
   The audit runs what has a binary, and the unpublished workspace members that builds on; any other library, such as a translator's fixture, is used outside cargo's view, by tools that may read its source.
-  What that API exposes of another crate stays public too: a re-exported or returned type with its variants, trait impls, and `pub` fields and inherent items, with what their impls' headers name, a trait with its items, a trait impl whose self type's outermost type an outside caller can write, such as `Vec` or `&` (since it may infer the rest), and what that impl names, all of a crate it re-exports with `pub extern crate`, and every `pub` in the definition of a macro it exports, which goes wherever its callers expand it.
+  What that API exposes of another crate stays public too: a re-exported or returned type, or the enum of a re-exported variant, with its variants, trait impls, and `pub` fields and inherent items, with what their impls' headers name, a trait with its items, a trait impl whose self type's outermost type an outside caller can write, such as `Vec` or `&` (since it may infer the rest), and what that impl names, all of a crate it re-exports with `pub extern crate`, and every `pub` in the definition of a macro it exports, which goes wherever its callers expand it, with what its `$crate` paths name.
 
 Narrowing compiles every proposal together, restoring each `pub` a rustc error, or a `private_interfaces` or `private_bounds` lint, points at, until the workspaces check.
 It then requires every name to resolve as before: a narrowed method can compile and still change which method a call picks, such as a slice's `len` through `Deref`.
 And it requires every item to print as it did, by rustc's HIR printer, once macros have expanded.
 That printer leaves visibility out, so an item prints differently only where a macro read a narrowed `pub`: as `stringify!` does a `$v:vis`, as a derive or attribute macro may its whole item, or by position, as `column!` does.
+The print also holds where each expression that reports its caller's location is, such as a call of a `#[track_caller]` function like `unwrap`, or an index or operator that may panic, since `Location::caller()` and a panic read the column a narrowed `pub` before it shifts.
 The audit traces each such item back through the macro calls it came from, however nested, and restores the narrowed tokens they read: those on a call's line up to its end, and those of the item an attribute or derive was given.
 
 ## Limits
