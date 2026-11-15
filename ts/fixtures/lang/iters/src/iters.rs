@@ -3281,6 +3281,30 @@ pub fn fused_cuts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 					.position(|x| x % 64 == stop)
 					.map(|p| p as u8),
 			);
+			// A `take` of none, which `nth_back` reads past all of what it wraps, read so by a
+			// `take` around it and by a `skip` through an `enumerate`.
+			let mut it = a.iter().map(seen!(32)).take(tk / 3).take(sk + 1);
+			while let Some(x) = it.next_back() {
+				out.push(x);
+			}
+			out.push(
+				a.iter()
+					.map(seen!(33))
+					.take(tk / 3)
+					.enumerate()
+					.rev()
+					.skip(sk)
+					.fold(0u8, |acc, (i, x)| acc.wrapping_mul(3) ^ x ^ i as u8),
+			);
+			out.push(
+				b.iter()
+					.map(|&x| Noted(&log, x))
+					.take(tk / 2)
+					.enumerate()
+					.rev()
+					.skip(sk)
+					.any(|(i, n)| (n.1 ^ i as u8) % 64 == stop) as u8,
+			);
 		}
 		// Those that stay the runtime's: a `skip` a zip reads by index, a `take` folded by
 		// index, which reads nothing past what it skips, and one read by `next`, which fuses.

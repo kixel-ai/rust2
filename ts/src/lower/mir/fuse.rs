@@ -726,12 +726,21 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				}
 				Some(Shape::Skip(Box::new(inner), args[1].clone(), given(args.get(2))))
 			}
-			"take" if rs(f, "iterTake") && (2..=4).contains(&args.len()) => Some(Shape::Take(
-				Box::new(self.chain_shape(&args[0], inner, back)?),
-				args[1].clone(),
-				given(args.get(2)),
-				!off(args.get(3)),
-			)),
+			"take" if rs(f, "iterTake") && (2..=4).contains(&args.len()) => {
+				let inner = self.chain_shape(&args[0], inner, back)?;
+				// `Take::next_back` reads what it wraps by `nth_back`, which reaches a `take` it
+				// holds through each `enumerate` and `skip`, whose `nth_back` at a limit of none
+				// reads past all of what that one wraps.
+				if back && nths_take(&inner) {
+					return None;
+				}
+				Some(Shape::Take(
+					Box::new(inner),
+					args[1].clone(),
+					given(args.get(2)),
+					!off(args.get(3)),
+				))
+			}
 			_ => None,
 		}
 	}
@@ -1562,6 +1571,29 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				}
 			}
 			Node::Rev { inner } => self.skip(inner, k, !back, drop, done, out),
+			// `Enumerate::nth` and `nth_back` read past items by what it wraps: from the front,
+			// its count past them, and from the back, a count already started, down past them.
+			Node::Enumerate { inner, count, .. } => {
+				// What drops an item it wraps, as the pair it makes of it.
+				let drop = drop.map(|drop| {
+					let x = self.b.fresh("x");
+					let param = crate::ts::Param {
+						name: x.clone(),
+						ty: Some(item_of(inner)),
+					};
+					let pair = Expr::Array(vec![Expr::lit("0"), Expr::ident(x)]);
+					Expr::Lambda(vec![param], Box::new(drop.clone().call(vec![pair])))
+				});
+				self.skip(inner, k.clone(), back, drop.as_ref(), done, out);
+				let count = Expr::ident(count);
+				match back {
+					false => out.push(StmtKind::Expr(count.clone().assign(count.binary("+", k))).at(None)),
+					true => out.push(if_then(
+						count.clone().binary(">=", Expr::lit("0")),
+						vec![StmtKind::Expr(count.clone().assign(count.binary("-", k))).at(None)],
+					)),
+				}
+			}
 			// `Take::nth_back` at a limit of none, unlike its `next_back`, reads past all of
 			// what it wraps.
 			Node::Take { inner, n, .. } if back => {
@@ -1853,6 +1885,15 @@ fn zips(shape: &Shape<'_>) -> bool {
 		| Shape::Rev(inner)
 		| Shape::Skip(inner, ..)
 		| Shape::Take(inner, ..) => zips(inner),
+	}
+}
+
+/// Whether `nth_back` of `shape` reaches a `take`'s, through each `enumerate` and `skip`.
+fn nths_take(shape: &Shape<'_>) -> bool {
+	match shape {
+		Shape::Take(..) => true,
+		Shape::Enumerate(inner, _) | Shape::Skip(inner, ..) => nths_take(inner),
+		_ => false,
 	}
 }
 
