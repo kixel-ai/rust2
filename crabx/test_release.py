@@ -60,11 +60,11 @@ class Plan(unittest.TestCase):
         with patch.object(r, "fetch", return_value=None), self.assertRaisesRegex(SystemExit, "by hand"):
             r.published()
 
-    def run_crate(self, versions, tagged=frozenset()):
+    def run_crate(self, versions, bare=frozenset()):
         with tempfile.TemporaryDirectory() as temp:
             out = Path(temp) / "out"
             env = {"GITHUB_OUTPUT": str(out), "GITHUB_SHA": "c" * 40}
-            with patch.dict(os.environ, env), patch.object(r, "fetch", return_value=index(*versions)), patch.object(r, "tagged", return_value=tagged):
+            with patch.dict(os.environ, env), patch.object(r, "fetch", return_value=index(*versions)), patch.object(r, "bare_tags", return_value=bare):
                 r.crate()
             return dict(line.split("=", 1) for line in out.read_text().splitlines())
 
@@ -79,11 +79,13 @@ class Plan(unittest.TestCase):
         self.assertEqual({b["target"] for b in builds}, set(r.NPM_TARGETS))
         self.assertTrue(all(b["sha"] == "c" * 40 and b["path"] == "crabx" and b["os"] for b in builds))
 
-    def test_crate_refuses_a_bare_version_tag_on_this_commit(self):
-        # The pipeline would release under it, where npm and the installers never look.
-        self.assertEqual(self.run_crate([("0.0.1", False)], {"d" * 40})["publish"], "true")
-        with self.assertRaisesRegex(SystemExit, "delete that tag"):
-            self.run_crate([("0.0.1", False)], {"c" * 40})
+    def test_crate_refuses_bare_tags_on_new_or_published_versions(self):
+        # The pipeline would release under them, where npm and the installers never look.
+        version = r.tomllib.loads((HERE / "Cargo.toml").read_text())["package"]["version"]
+        self.assertEqual(self.run_crate([("0.0.1", False)], {"9.9.9"})["publish"], "true")
+        for bare in ({version}, {"0.0.1"}):
+            with self.assertRaisesRegex(SystemExit, "delete them"):
+                self.run_crate([("0.0.1", False)], bare)
 
     def test_npm_plan_publishes_when_any_package_is_missing(self):
         def fetch(url):

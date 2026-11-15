@@ -86,25 +86,26 @@ def targets():
     return pipeline.TARGETS
 
 
-def tagged(tag):
-    """The commits a tag in the repository names, directly or peeled."""
-    ref = f"refs/tags/{tag}"
-    out = subprocess.run(["git", "ls-remote", f"https://github.com/{REPO}", ref, ref + "^{}"], capture_output=True, text=True, check=True).stdout
-    return {line.split()[0] for line in out.splitlines()}
+def bare_tags():
+    """Every version the repository tags bare, as vX.Y.Z, rather than per crate."""
+    out = subprocess.run(["git", "ls-remote", "--tags", f"https://github.com/{REPO}", "refs/tags/v*"], capture_output=True, text=True, check=True).stdout
+    return {line.split()[1].removeprefix("refs/tags/v").removesuffix("^{}") for line in out.splitlines()}
 
 
 def crate():
     """Decide whether this commit's crabx version is new to crates.io, and what to build first."""
     version = tomllib.loads((HERE / "Cargo.toml").read_text())["package"]["version"]
-    if version in published():
+    versions = published()
+    # The pipeline releases a version under a bare vX.Y.Z tag naming its published commit
+    # instead of crabx-vX.Y.Z, where npm and the installers would never find it. The
+    # binaries job also backfills published versions, so check those too.
+    clash = bare_tags() & (set(versions) | {version})
+    if clash:
+        raise SystemExit(f"bare tags {', '.join(f'v{v}' for v in sorted(clash))} name crabx versions, so the pipeline could release crabx under them; delete them")
+    if version in versions:
         output(publish="false", builds={"include": []})
         return
-    sha = os.environ["GITHUB_SHA"]
-    # The pipeline releases under a bare vX.Y.Z tag naming this commit instead of
-    # crabx-vX.Y.Z, where npm and the installers would never find it.
-    if sha in tagged(f"v{version}"):
-        raise SystemExit(f"v{version} tags this commit, so the pipeline would release crabx under it; delete that tag")
-    item = {"name": "crabx", "version": version, "sha": sha, "path": "crabx"}
+    item = {"name": "crabx", "version": version, "sha": os.environ["GITHUB_SHA"], "path": "crabx"}
     output(publish="true", builds={"include": [{**item, "target": target, "os": runner} for target, runner in targets()]})
 
 
