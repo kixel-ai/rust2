@@ -509,6 +509,9 @@ func script() {
 	notedBefore := must(noted.Note(notedBy))
 	fmt.Printf("noted %d %d\n", notedBefore, noted.Count())
 	notedBy.Close()
+	// Refused over a closed mark, the call writes nothing back.
+	_, refused := noted.Note(notedBy)
+	check(refused != nil && noted.Count() == 7, "a refused note leaves the score as it was")
 	mark.Close()
 
 	// Rust frees the implementation once it drops it, releasing Go's.

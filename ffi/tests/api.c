@@ -2123,6 +2123,14 @@ static int statuses(void) {
 		fprintf(stderr, "a seat's count with a dropped mark wrote %d\n", status);
 		failed = 1;
 	}
+	/* A value's `&mut self` method refused over a dropped mark leaves the value as it was. */
+	status = 0;
+	api_Score refused = api_Score_of(2);
+	api_Score_note(&refused, dropped, &status);
+	if (status != API_STATUS_MOVED || api_Score_count(&refused) != 2) {
+		fprintf(stderr, "a score noting a dropped mark wrote %d, leaving %llu\n", status, (unsigned long long)api_Score_count(&refused));
+		failed = 1;
+	}
 	status = 0;
 	if (api_choose(empty, &status) != 0 || api_choose(picked, &status) != 3 || status != 0) {
 		fprintf(stderr, "choosing wrote %d\n", status);
