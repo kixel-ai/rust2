@@ -2546,8 +2546,7 @@ impl<'a> Gen<'a> {
 		let everywhere = abi.api.everywhere(function.on);
 		let closable = receiver.is_some() && owner_ty.is_some_and(|ty| self.fails(ty))
 			|| function.params.iter().any(|p| self.fails(&p.ty))
-			|| status
-			|| !everywhere;
+			|| status || !everywhere;
 		if function.err.is_some() || function.future || closable {
 			results.push("error".to_string());
 		}

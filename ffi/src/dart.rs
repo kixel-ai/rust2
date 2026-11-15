@@ -660,13 +660,11 @@ impl<'a> Gen<'a> {
 		!matches!(
 			ty,
 			Ty::Buf
-				| Ty::U128
-				| Ty::Duration
+				| Ty::U128 | Ty::Duration
 				| Ty::SocketAddr(_)
 				| Ty::IpAddr(_)
 				| Ty::Struct(_)
-				| Ty::Waker
-				| Ty::ForeignFuture
+				| Ty::Waker | Ty::ForeignFuture
 				| Ty::ForeignReader
 		)
 	}
@@ -930,7 +928,11 @@ impl<'a> Gen<'a> {
 				format!(
 					"let dropped = unsafe {{\n\t\thome.serve(move || {{\n\t\t\tcrate::{c}_drop(raw, status);\n\t\t\tlet dropped = *status == 0;\n\t\t\tif dropped {{\n\t\t\t\tcrate::{c}_free(raw);\n\t\t\t}}\n\t\t\tdropped\n\t\t}})\n\t}};\n\tif dropped && !own.is_null() {{\n\t\tunsafe {{ runtime::disown(own, object) }};\n\t}}"
 				),
-				(", status: *mut i32", ", ffi.Pointer<ffi.Int32>", ", ffi.Pointer<ffi.Int32> p4"),
+				(
+					", status: *mut i32",
+					", ffi.Pointer<ffi.Int32>",
+					", ffi.Pointer<ffi.Int32> p4",
+				),
 			),
 			false => (
 				format!("{space}_free_{bare}"),
