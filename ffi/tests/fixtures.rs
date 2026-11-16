@@ -1311,10 +1311,7 @@ fn api_web() {
 			"closure threw",
 			"a closure: a call into JavaScript threw Error: a poll failed",
 		),
-		(
-			"later poll threw",
-			"a closure: a call into JavaScript threw Error: a later poll failed",
-		),
+		("later poll trapped", "api_tail: a reader read more than it was asked"),
 		("reader threw", "api_tail: a reader read more than it was asked"),
 		("outlived", OUTLIVED),
 	] {
@@ -1322,6 +1319,14 @@ fn api_web() {
 		assert!(!output.status.success(), "TypeScript {case} did not fail");
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "TypeScript {case} printed {stderr}");
+		// A case checking what follows the failure says it got that far.
+		if case == "later poll trapped" {
+			let stdout = String::from_utf8_lossy(&output.stdout);
+			assert!(
+				stdout.contains("later poll checked"),
+				"TypeScript {case} printed {stdout}"
+			);
+		}
 	}
 
 	// The same binding, with another contract than the module's in place of its own,

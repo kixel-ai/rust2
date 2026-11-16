@@ -1665,8 +1665,9 @@ async function broken(which: string): Promise<void> {
 				bytes(1),
 			);
 			break;
-		case "later poll threw": {
-			// A trap in a later poll rejects its call, and a call woken behind it rejects too.
+		case "later poll trapped": {
+			// A trap in a later poll, Rust's own with nothing of JavaScript's thrown, rejects its
+			// call, and a call woken behind it rejects too.
 			// Each pends, keeping its last waker, until both are woken at once.
 			let woken = false;
 			const wakers: { wake(): void }[] = [];
@@ -1676,7 +1677,7 @@ async function broken(which: string): Promise<void> {
 						wakers[Number(fail)] = Waiter.waker(waiter);
 						return rt.Ok(undefined);
 					}
-					if (fail) throw new Error("a later poll failed");
+					if (fail) api.tail(new Overreader(), 1);
 					return rt.Err("woken");
 				});
 			const settled = (p: Promise<unknown>) =>
@@ -1692,9 +1693,10 @@ async function broken(which: string): Promise<void> {
 				wakers[0].wake();
 			});
 			const [first, second] = await Promise.all([failing, queued]);
-			check(first === "the module aborted, so no call into it runs", `a later poll's trap rejects: ${first}`);
-			check(second === first, `a call woken behind the trap rejects: ${second}`);
-			throw new Error(first);
+			check(first === "unreachable", `a later poll's trap rejects: ${first}`);
+			check(second === "the module aborted, so no call into it runs", `a call woken behind it rejects: ${second}`);
+			print("later poll checked");
+			throw new Error(second);
 		}
 		case "closure threw":
 			await api.drive(Moment.new(0, 1000)!, () => {
