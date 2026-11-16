@@ -620,6 +620,9 @@ impl<'a> Gen<'a> {
 			extern bool {go}_read(void *data, uint8_t *buf, size_t len, size_t *n, {p}_buf *err);\n\
 			extern bool {go}_seek(void *data, int whence, int64_t offset, uint64_t *position, {p}_buf *err);\n\n\
 			static void {go}_bufs_free({p}_buf *bufs, size_t n) {{\n\tfor (size_t i = 0; i < n; i++) {{\n\t\t{p}_buf_free(bufs[i]);\n\t}}\n}}\n\n\
+			// The header's contract, read through C: cgo built by clang reads a uint64_t macro\n\
+			// with its top bit set as a negative constant.\n\
+			static uint64_t {go}_header_contract(void) {{\n\treturn {upper}_CONTRACT;\n}}\n\n\
 			static void {go}_waker_wake({p}_waker w) {{\n\tif (w.wake != NULL) {{\n\t\tw.wake(w.data);\n\t}}\n}}\n\n\
 			static void {go}_waker_drop({p}_waker w) {{\n\tif (w.drop != NULL) {{\n\t\tw.drop(w.data);\n\t}}\n}}\n\
 			*/\nimport \"C\"\n\n\
@@ -637,7 +640,7 @@ impl<'a> Gen<'a> {
 			func cWakerDrop(w cWaker) {{\n\tC.{go}_waker_drop(w)\n}}\n\n\
 			// Go packages and a library from different builds must not mix: checked when the\n\
 			// runtime loads, before any other call.\n\
-			func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{upper}_CONTRACT != 0x{contract:016x} {{\n\t\tpanic(\"the Go of {p} and the library are from different builds\")\n\t}}\n\ttarget_ = uint64(C.{p}_target())\n}}\n\n\
+			func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{go}_header_contract() != 0x{contract:016x} {{\n\t\tpanic(\"the Go of {p} and the library are from different builds\")\n\t}}\n\ttarget_ = uint64(C.{p}_target())\n}}\n\n\
 			// target_ is the index of the library's target among those the packages serve.\n\
 			var target_ uint64\n\n\
 			// On_ panics unless the library's target is among those of on, as the item what is.\n\
