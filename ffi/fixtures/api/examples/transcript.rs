@@ -1012,8 +1012,8 @@ fn main() {
 	let nines = api::Mark::of(9);
 	let (front, back) = (api::seat(nines, 1), api::seat(nines, 2));
 	println!("seat {front:?} {} {}", front == front.clone(), front == back);
-	// A kept closure, called on another thread after the call that took it returned.
-	println!("spawned {}", api::Spawned::new(|| 7).join());
+	// A kept closure, called on another thread after the call that took it returned, is
+	// each native language's own check, since wasm32 has no thread to call it on.
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
 	let start = api::Moment::new(0, 1000).unwrap();
 	let mut calls = 0;
@@ -1086,15 +1086,15 @@ fn finish<F: std::future::Future>(future: F) -> F::Output {
 	}
 }
 
-/// A path no Rust string spells: on Unix, bytes that are not UTF-8; on Windows, a lone
-/// surrogate, which is WTF-8's `ed a0 80`.
-#[cfg(unix)]
+/// A path no Rust string spells: on Unix and WASI, bytes that are not UTF-8; on Windows, a
+/// lone surrogate, which is WTF-8's `ed a0 80`.
+#[cfg(any(unix, target_os = "wasi"))]
 fn unspelled() -> std::path::PathBuf {
 	api::stray()
 }
 
-/// A path no Rust string spells: on Unix, bytes that are not UTF-8; on Windows, a lone
-/// surrogate, which is WTF-8's `ed a0 80`.
+/// A path no Rust string spells: on Unix and WASI, bytes that are not UTF-8; on Windows, a
+/// lone surrogate, which is WTF-8's `ed a0 80`.
 #[cfg(windows)]
 fn unspelled() -> std::path::PathBuf {
 	<std::ffi::OsString as std::os::windows::ffi::OsStringExt>::from_wide(&[0xd800]).into()

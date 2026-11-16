@@ -353,7 +353,7 @@ impl Buf {
 		}
 	}
 
-	/// As [`Self::vec_in`], as a path: its bytes as the OS holds them on Unix, WTF-8 on
+	/// As [`Self::vec_in`], as a path: its bytes as the OS holds them on Unix and WASI, WTF-8 on
 	/// Windows, else UTF-8.
 	///
 	/// # Safety
@@ -361,12 +361,12 @@ impl Buf {
 	pub unsafe fn path_in(self, what: &str, take: bool) -> std::path::PathBuf {
 		// SAFETY: the caller's contract.
 		let bytes = unsafe { self.vec_in(what, take) };
-		#[cfg(unix)]
+		#[cfg(any(unix, target_os = "wasi"))]
 		{
-			use std::os::unix::ffi::OsStringExt;
+			use bytes_os::OsStringExt;
 			std::path::PathBuf::from(std::ffi::OsString::from_vec(bytes))
 		}
-		#[cfg(not(unix))]
+		#[cfg(not(any(unix, target_os = "wasi")))]
 		match String::from_utf8(bytes) {
 			Ok(s) => std::path::PathBuf::from(s),
 			Err(err) => decoded(err.as_bytes(), what),
@@ -380,7 +380,7 @@ impl Buf {
 	pub unsafe fn hold_path<'a>(self, what: &str) -> HeldPath<'a> {
 		// SAFETY: the caller's contract.
 		let held = unsafe { self.hold(what) };
-		#[cfg(not(unix))]
+		#[cfg(not(any(unix, target_os = "wasi")))]
 		if std::str::from_utf8(held.bytes()).is_err() {
 			return HeldPath::Decoded(decoded(held.bytes(), what));
 		}
@@ -473,7 +473,7 @@ impl Buf {
 		Self::owned(vec.into())
 	}
 
-	/// A path handed to the caller: its bytes as the OS holds them on Unix, else as
+	/// A path handed to the caller: its bytes as the OS holds them on Unix and WASI, else as
 	/// Rust encodes them: WTF-8 on Windows, which is UTF-8 for any path that has a UTF-8
 	/// form.
 	pub fn path_buf(path: std::path::PathBuf) -> Self {
@@ -541,26 +541,32 @@ impl Hold<'_> {
 	}
 }
 
+/// The `OsStr` extensions of a platform whose paths are any bytes, as Unix's and WASI's are.
+#[cfg(unix)]
+use std::os::unix::ffi as bytes_os;
+#[cfg(target_os = "wasi")]
+use std::os::wasi::ffi as bytes_os;
+
 /// A path passed in for a call: the bytes [`Hold`] holds, or on a platform whose paths
 /// are not bytes, what they decode to where they are not UTF-8.
 pub enum HeldPath<'a> {
 	Held(Hold<'a>),
-	#[cfg(not(unix))]
+	#[cfg(not(any(unix, target_os = "wasi")))]
 	Decoded(std::path::PathBuf),
 }
 
 impl HeldPath<'_> {
 	pub fn path(&self) -> &std::path::Path {
 		match self {
-			#[cfg(unix)]
+			#[cfg(any(unix, target_os = "wasi"))]
 			Self::Held(held) => {
-				use std::os::unix::ffi::OsStrExt;
+				use bytes_os::OsStrExt;
 				std::path::Path::new(std::ffi::OsStr::from_bytes(held.bytes()))
 			}
 			// UTF-8, or else decoded.
-			#[cfg(not(unix))]
+			#[cfg(not(any(unix, target_os = "wasi")))]
 			Self::Held(held) => std::path::Path::new(std::str::from_utf8(held.bytes()).unwrap_or_default()),
-			#[cfg(not(unix))]
+			#[cfg(not(any(unix, target_os = "wasi")))]
 			Self::Decoded(path) => path,
 		}
 	}
@@ -568,7 +574,7 @@ impl HeldPath<'_> {
 
 /// The path a caller's bytes encode that are not UTF-8: on Windows, WTF-8, as Rust
 /// encodes a name that is not UTF-16, any other aborting; elsewhere, none.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, target_os = "wasi")))]
 #[cold]
 fn decoded(bytes: &[u8], what: &str) -> std::path::PathBuf {
 	#[cfg(windows)]

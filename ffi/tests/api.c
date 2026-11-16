@@ -449,9 +449,9 @@ static bool closures(void) {
 	/* A kept closure, called on another thread after the call that took it returned. */
 	bool spawned_freed = false;
 	api_Spawned *spawned = api_Spawned_new(spawned_task, &spawned_freed, spawned_free);
-	printf("spawned %u\n", (unsigned)api_Spawned_join(spawned, NULL));
+	uint32_t joined = api_Spawned_join(spawned, NULL);
 	api_Spawned_free(spawned);
-	if (!spawned_freed) {
+	if (joined != 7 || !spawned_freed) {
 		return false;
 	}
 

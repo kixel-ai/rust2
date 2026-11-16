@@ -48,9 +48,11 @@ those functions look up by name. `python/<prefix>.py` holds it in Python, over a
 extension the crate builds with `--features python`, `swift/<prefix>.swift` holds it in
 Swift, over the C header as a clang module, `go/` holds it in Go, a package per crate
 over the C ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
-`dart:ffi` and what the crate builds with `--features dart`.
+`dart:ffi` and what the crate builds with `--features dart`. When `wasm32-wasip1` is among
+the targets, `web/` holds it in TypeScript for the web, ES modules over the `.wasm` the
+crate builds with `--target wasm32-wasip1 --features web`.
 An export again rewrites only the files whose content changed, and removes from
-`include/<prefix>/` and `go/` only what it no longer writes, so a build of an unchanged
+`include/<prefix>/`, `go/`, and `web/` only what it no longer writes, so a build of an unchanged
 export stays fresh. The crate's version, `0.0.0+<hash>`, hashes its Rust sources and
 manifest, so exports that differ build apart in a target directory they share.
 
@@ -1255,10 +1257,83 @@ would export, and fails on it, so the list holds only what the export refuses. I
 fails on an `instance not inferred` refusal, which is a bug in the exporter's inference
 rather than in the crate.
 
+## TypeScript (web)
+
+`web/` is TypeScript over the C ABI of the crate built for `wasm32-wasip1` with `--features
+web`, tested on Node 24, whose type stripping runs it as it is. Each file is an ES module a
+bundler takes as it is, importing its neighbors by their `.ts` names; the `.wasm` needs no
+tool run on it after `cargo build`, and no wasm-bindgen. The binding serves
+`wasm32-wasip1` alone: an item another target has and it lacks is left out, not declared to
+fail. `load(source)` of `index.ts` compiles and instantiates the module, from its bytes, a
+`Response`, or a `WebAssembly.Module`, before any other call, and checks its contract and
+target there.
+
+- **The platform** is the web's: the module's std is `wasm32-wasip1`'s, whose imports are a
+  detail between the generated module and its binding, which implements each with the web
+  API for it, so nothing of WASI ships. Its clocks are `performance.now`, from
+  `performance.timeOrigin` for the real-time one; its randomness `crypto.getRandomValues`;
+  its stdout and stderr `console.log` and `console.error`, a line at a time; its
+  environment and arguments empty; and its exit an abort. `load` refuses a module importing
+  anything else. Measured on the api fixture, stripped, with LTO at `opt-level = "s"`, that
+  std costs 24 KB over `wasm32-unknown-unknown`'s (3%), 9.5 KB gzipped, and the glue 2 KB
+  more; `wasm32-unknown-unknown` has no clock, so `Instant::now` panics there.
+- **The API** is rust2-ts's shape: each type is a module of its own, `web/<Type>.ts`, which
+  exports the type by its name and its functions, each taking `self` first, so a caller
+  writes `import * as Counter from "./web/Counter.ts"` and `Counter.get(c)`, and a bundler
+  drops every function no caller names. `index.ts` holds the free functions, the constants,
+  and `load`. Names are the C names without the prefix: a type in Pascal case, and a
+  function in camel case, a constant's in upper case; a reserved word is exported as is
+  from a local with a trailing `$`, so `Counter.new("c", 1)` and `Point.default()` work
+  through the module's namespace.
+- **Values**: a record is a plain object of its fields in camel case, positional ones `_0`,
+  `_1`, and so on; an opaque value an `rt.Opaque`, its bytes, which only Rust makes. A plain
+  enum is a union of its variants' names, and an enum with data a union of objects tagged
+  by `tag`. A tuple is an array, `Option<T>` is `T | undefined`, or `T | rt.None` where `T`
+  can already be `undefined`, `Result<T, E>` an `rt.Result`, `{ ok: true, value }` or `{ ok:
+  false, error }`, and an error is that value, never thrown. `u8` through `u32`, `usize`,
+  `isize`, `f32`, `f64`, and `char` are numbers, each checked as it crosses in; `u64`, `i64`,
+  and `u128` are rust2-ts's `rt.u64` and so on, a number while a safe integer and 32-bit
+  limbs past it, converted from the `bigint` a wasm `i64` is at the boundary, which costs a
+  getter 9% over returning that `bigint` as it is. `String` and `&str` are strings, bytes a
+  `Uint8Array`, a `Vec` of numbers the typed array holding them exactly, any other `Vec` an
+  array, a path an `rt.PathBuf` of its bytes, and `Duration`, the addresses, and the ranges
+  plain objects. A `&mut` value is an `rt.Place`, whose `v` the call writes back, and a
+  value's `&mut self` method returns it first, as Dart's does.
+- **Memory**: each call lowers what it passes onto a stack of the binding's in linear
+  memory, which it gives back once the call returns, and reads what Rust returns at the
+  layouts C's wasm32 ABI gives the header's structs, passing a struct of one scalar as it,
+  any other through a pointer to a copy, and one returned through a pointer passed first.
+  Bytes and text Rust returns are copied out, and the buffer freed at once, so no view
+  outlives a growth of memory, which detaches it; what Rust lends a closure or trait is
+  copied before any call it makes can grow memory. A copy costs what V8's allocation of
+  the `ArrayBuffer` does, about 0.8 µs for 1 KiB on Node 24.
+- **Objects** are an `rt.Handle`, disposed by `[Symbol.dispose]`, as `using` does. Of a
+  checked type, disposing it drops the value through Rust's own `_drop`, which fails while
+  a call borrows it; of any other, it throws while a call holds it. The handle is freed once
+  disposed and no call holds it, so one disposed while a later argument lowers fails the
+  call's check rather than reach Rust freed. A call that meets a disposed handle throws
+  `<Type> is closed`, and a `FinalizationRegistry` frees one never disposed. On Node 24, a returned object disposed
+  costs 0.5 µs, 0.2 µs of it the registry's, against 0.1 µs for the C calls alone.
+- **Traits** are interfaces JavaScript implements, with an optional `close()` Rust calls
+  once it drops an implementation, and **closures** are functions: each is a C function
+  the module imports from `rust2`, whose data is a token the binding finds the value by, so
+  JavaScript never writes the module's function table. Its std traits are functions of its
+  module: `toString`, `debug`, an object's `clone`, `eq`, with `Hash` `hash`, and `default`.
+- **Futures** are an `rt.Call`, a `Promise` with `cancel()`: the call polls once as it is
+  made, and each wake polls again on a microtask, never inside the wake. Cancelling frees
+  the future in Rust, losing nothing, and rejects with `rt.Cancelled`. A future JavaScript
+  implements is any promise, a waker a function, and a reader an `rt.Reader`.
+- **Failure**: a run-time check that fails throws an `Error` naming the C function and the
+  check, as each binding raises. Rust's panic aborts the module, as do a throw out of a
+  closure, trait, or reader, since Rust has nowhere to unwind to: the message goes to
+  `console.error`, and every later call throws, since nothing of Rust's state is sound.
+- **Threads**: none. wasm32 runs Rust on JavaScript's one thread, with no shared memory and
+  no atomics, so no check of a value that is not `Send` or `Sync` can fail.
+
 ## Tests
 
 ```bash
-just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, and Dart
+just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, and TypeScript on Node
 just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart
 just ffi moq-c    # the same export, built in debug, running only moq/moq.c: `just ci`'s check on moq
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
