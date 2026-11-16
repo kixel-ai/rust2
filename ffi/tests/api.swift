@@ -225,6 +225,13 @@ final class Queue: TaskExecutor, @unchecked Sendable {
 	}
 }
 
+/// An actor awaiting an eager future, whose closure Rust calls before the call returns.
+actor Probe {
+	func count(_ n: UInt32) async throws -> UInt32 {
+		try await counted(n) { _ in self.preconditionIsolated("a future runs on its caller's actor") }
+	}
+}
+
 /// `body`'s result, waiting on this thread for it to finish on the global executor.
 func block<T: Sendable>(_ body: @escaping @Sendable () async throws -> T) -> T {
 	let done = DispatchSemaphore(value: 0)
@@ -1228,6 +1235,9 @@ func futures() {
 		check(got.value == .some(nil), "a future ready with None returns nil")
 		check(block { try await halved(4) } == 2, "a future ready with Some returns its value")
 	}
+
+	// A future runs on its caller's actor, never hopping off it and back.
+	check(block { try await Probe().count(2) } == 4, "a future on an actor returns its value")
 
 	// Cancelled between its wake and its poll, a receive loses nothing: the payload stays
 	// for the next.
