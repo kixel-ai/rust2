@@ -36,6 +36,7 @@ import * as Instant from "./web/Instant.ts";
 import * as Json from "./web/Json.ts";
 import * as Key from "./web/Key.ts";
 import * as Label from "./web/Label.ts";
+import * as Labelled from "./web/Labelled.ts";
 import type { Log } from "./web/Log.ts";
 import * as Logger from "./web/Logger.ts";
 import * as Mark from "./web/Mark.ts";
@@ -1304,6 +1305,8 @@ function unclosedWaker(wake: () => void): void {
 function targets(): void {
 	check(api.pointerBits(api.platform()) === 32, "wasm32's variant crosses");
 	check(api.placement().tag === "Anywhere", "a variant wasm32 lacks is left out with its record");
+	const labelled = api.sameLabelled({ tag: "Tagged", tag$: 7 });
+	check(Labelled.debug(labelled) === "Tagged { tag: 7 }", "a variant's field named `tag` crosses as Rust reads it");
 	check(api.pointerBits({ tag: "Native", _0: 64 }) === 64, "the native variant crosses too");
 	check(api.isFamily("Wasm") && !api.isFamily("Native"), "wasm32's plain variant crosses");
 	check(api.wasmOnly() === 32, "an item only wasm32 has");
@@ -1662,6 +1665,37 @@ async function broken(which: string): Promise<void> {
 				bytes(1),
 			);
 			break;
+		case "later poll threw": {
+			// A trap in a later poll rejects its call, and a call woken behind it rejects too.
+			// Each pends, keeping its last waker, until both are woken at once.
+			let woken = false;
+			const wakers: { wake(): void }[] = [];
+			const pend = (fail: boolean) =>
+				api.drive(Moment.new(0, 1000)!, (_now, waiter) => {
+					if (!woken) {
+						wakers[Number(fail)] = Waiter.waker(waiter);
+						return rt.Ok(undefined);
+					}
+					if (fail) throw new Error("a later poll failed");
+					return rt.Err("woken");
+				});
+			const settled = (p: Promise<unknown>) =>
+				p.then(
+					() => "resolved",
+					(e: unknown) => (e instanceof Error ? e.message : String(e)),
+				);
+			const failing = settled(pend(true));
+			const queued = settled(pend(false));
+			setTimeout(() => {
+				woken = true;
+				wakers[1].wake();
+				wakers[0].wake();
+			});
+			const [first, second] = await Promise.all([failing, queued]);
+			check(first === "the module aborted, so no call into it runs", `a later poll's trap rejects: ${first}`);
+			check(second === first, `a call woken behind the trap rejects: ${second}`);
+			throw new Error(first);
+		}
 		case "closure threw":
 			await api.drive(Moment.new(0, 1000)!, () => {
 				throw new Error("a poll failed");

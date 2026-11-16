@@ -3696,6 +3696,18 @@ pub fn pointer_bits(platform: Platform) -> u32 {
 	}
 }
 
+/// A variant whose field is named as a binding's tag naming the variant.
+#[derive(Debug, PartialEq)]
+pub enum Labelled {
+	Tagged { tag: u32 },
+	Bare,
+}
+
+/// `labelled`, as it came.
+pub fn same_labelled(labelled: Labelled) -> Labelled {
+	labelled
+}
+
 /// A core of a native target's CPU: a record wasm32 lacks.
 #[cfg(not(target_arch = "wasm32"))]
 pub struct Core {

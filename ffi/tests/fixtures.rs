@@ -1311,6 +1311,10 @@ fn api_web() {
 			"closure threw",
 			"a closure: a call into JavaScript threw Error: a poll failed",
 		),
+		(
+			"later poll threw",
+			"a closure: a call into JavaScript threw Error: a later poll failed",
+		),
 		("reader threw", "api_tail: a reader read more than it was asked"),
 		("outlived", OUTLIVED),
 	] {
