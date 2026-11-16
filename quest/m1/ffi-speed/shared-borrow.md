@@ -1,23 +1,31 @@
-# [S] Swift's one-thread getter back to its cost before the biased borrow
+# [M] Swift's calls reach the C export directly
 
 ## Goal
 
-Swift's u64 getter on one thread, on a noncopyable `GroupDemand`, costs what it did before
-the reader-biased shared borrow: 3.8 ns in
-[the binding benchmark](/bench/ffi/README.md#concurrent-calls), against 4.6 since.
-C's and C++'s getters call the same Rust export and did not rise, and the shared and own
-rows keep what the biased borrow won.
+A Swift caller of a generated method calls its C export directly, not through a thunk, so
+Swift's u64 getter on one thread costs what C's does (3.4 ns in
+[the binding benchmark](/bench/ffi/README.md#concurrent-calls), against 4.0 to 4.6 now)
+wherever the linker places the code. The generated API stays the same.
 
 ## Plan
 
-- The Swift side of the call is byte-identical before and after. What rose is the Rust
-  export's inlined fast path: it now loads the bias, keeps a ticket in a callee-saved
-  register, and tests the ticket's listed bit at release, saving three registers where it
-  saved two. Tried: outlining all but the count (5.6 to 4.4 ns), dropping the bias load
-  (no change), and `#[cold]` on the outlined path (worse, 4.6).
-- Recommended next: pack the bias into the borrow's `state` word, as the bindings' hold
-  counts now do, so the fast path is one load and compare-and-swap again and the release
-  one `fetch_sub`; the loom model in `ffi/tests/borrow.rs` follows it. Otherwise, find why
-  Swift's call through its shared thunk pays for the longer path when C's loop does not.
-- Prove it with the getter row and the shared and own rows, CPU first, at the load beside
-  them.
+- Found on 2026-11-15, chasing the getter's rise from 3.8 to 4.6 ns after the
+  reader-biased borrow: the borrow is at most 0.2 ns of it. Each wrapper calls one merged thunk
+  (`$s3Moq4PathV3lenSuyKFTm`, from Swift's function merging) that takes the C function as
+  a pointer and calls it indirectly, and the getter's cost follows that code's 64-byte
+  placement: 4.0 to 4.5 ns as all code shifts 16 bytes at a time, flat as the Rust export
+  alone shifts. The earlier count-only borrow costs 4.15 on the same tree, and packing the
+  bias into the count's word, or threading the ticket out of the fast path, moved nothing.
+- Hand-marking `GroupDemand.sequence()` `@inlinable` in the generated Swift, with
+  `@usableFromInline` on `handle`, `Native`, and `Native.status`, made the bench loop call
+  `moq_group_Demand_sequence` directly: 3.5 ns at every 16-byte shift of 0 to 48.
+- Recommended: generate every wrapper `@inlinable`, and `@usableFromInline` on each
+  internal declaration an inlined body names: handles, `Native` and its helpers, the
+  runtime's hold counts in `ffi/runtime/rt.swift`. A consumer already imports the C module
+  the wrappers call, so an inlined body compiles in its module. Measure the handle call's
+  row too (10 ns against C's 6.4), whose class wrapper goes through the same thunk, and
+  report the Swift module's size and compile time beside the rows.
+- Rejected: aligning Swift's functions, which takes a compiler flag from each consumer, and
+  a build setting that turns off function merging, for the same reason.
+- Prove it with the single-thread rows, CPU first, at the load beside them, and at two
+  placements, such as with a 16-byte `.text` pad linked ahead of the Swift objects.

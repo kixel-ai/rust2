@@ -179,6 +179,14 @@ What they show:
    unchanged. Go's hold costs 0.1 ns more in a Go microbenchmark, within this row's run to
    run spread of 1 to 2 ns. Swift's getter on a noncopyable `GroupDemand` calls the same
    Rust export as C's, whose row is flat, yet costs 0.8 ns more from Swift.
+5. **Swift's getter moved with its code's placement, not the borrow.** Swift calls the
+   export through a merged thunk, by an indirect call, at the same bytes before and after.
+   Remeasured at rust2 `c12c4c0e` (3 rounds a cell, load 1.3 to 3.5, CPU ns): shifting all
+   code in 16-byte steps moves the getter between 4.0 and 4.5 with a 64-byte period, and
+   shifting the Rust export alone, by up to 128 bytes, moves it by no more than 0.1. The
+   earlier count-only borrow, rebuilt on the same tree, costs 4.15. A Swift wrapper marked
+   `@inlinable`, so the loop calls the export directly, costs 3.5 at every shift, which
+   [a quest](/quest/m1/ffi-speed/shared-borrow.md) takes up.
 
 The load limits these numbers: 4 threads beside others' leave the scheduler free to place
 them on one die or across both, whose line transfer is slower. Read the shared rows as
