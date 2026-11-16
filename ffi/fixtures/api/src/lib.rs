@@ -819,8 +819,17 @@ impl Slip<'_> {
 }
 
 /// What a [`Ledger`] published, borrowed from it: `Send` and `Clone`, unlike a [`Draft`].
-#[derive(Clone)]
 pub struct Receipt<'a>(&'a u32);
+
+/// Bounded by what always holds, so proving `Receipt<'a>: Clone` asks nothing of `'a`.
+impl<'a> Clone for Receipt<'a>
+where
+	Receipt<'a>: 'a,
+{
+	fn clone(&self) -> Self {
+		Self(self.0)
+	}
+}
 
 impl Receipt<'_> {
 	pub fn count(&self) -> u32 {

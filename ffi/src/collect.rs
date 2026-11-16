@@ -3159,29 +3159,30 @@ impl<'tcx> Collector<'tcx> {
 		// Whether a lifetime an object it takes holds is `'static`, or is named anywhere else
 		// in the signature, itself or through the bounds that relate it to another, so the
 		// value may outlive the call or carry its borrow out. Any other bound naming it ties
-		// it unless the trait solver proves it with no constraint on a lifetime: so
-		// `Receipt<'a>: Clone` does not, while `Receipt<'a>: Any`, whose impl needs
-		// `'static`, does, as does a bound only an impl for one lifetime meets. Its own
-		// where-clauses are left out of the solver's environment, as they would prove it.
+		// it unless the trait solver proves it with no constraint on a lifetime but one that
+		// always holds, as `'a: 'a`: so `Receipt<'a>: Clone` does not, while
+		// `Receipt<'a>: Any`, whose impl needs `'static`, does, as does a bound only an impl
+		// for one lifetime meets. Each is proved in analysis, as a later mode proves a bound
+		// modulo every lifetime, with none of the function's own where-clauses, which would
+		// prove it, and none of what any lifetime outlives.
 		let outlives = self.outlives(def_id);
-		// Fulfilled in analysis, as a later mode proves a bound modulo every lifetime, and in
-		// a probe, whose region obligations and constraints say what it needs of a lifetime.
-		let (infcx, empty) = tcx.infer_ctxt().build_with_typing_env(TypingEnv::new(
-			ty::ParamEnv::empty(),
-			ty::TypingMode::non_body_analysis(),
-		));
+		let empty = ty::ParamEnv::empty();
 		let bounds: Vec<ty::Clause<'tcx>> = (tcx.clauses_of(def_id).instantiate(tcx, args).clauses.iter())
 			.map(|clause| clause.skip_norm_wip())
 			.filter(|clause| clause.as_region_outlives_clause().is_none() && clause.as_type_outlives_clause().is_none())
 			.filter(|&clause| {
-				!infcx.probe(|snapshot| {
-					let before = infcx.num_registered_region_obligations();
-					let ocx = ObligationCtxt::new(&infcx);
-					ocx.register_obligation(Obligation::new(tcx, ObligationCause::dummy(), empty, clause));
-					ocx.evaluate_obligations_error_on_ambiguity().no_errors()
-						&& infcx.num_registered_region_obligations() == before
-						&& !infcx.region_constraints_added_in_snapshot(snapshot)
-				})
+				// An instance's lifetime is the `'static` the glue names it by.
+				let clause = ty::fold_regions(tcx, clause, |region, _| match region.kind() {
+					ty::ReErased => tcx.lifetimes.re_static,
+					_ => region,
+				});
+				let infcx = tcx.infer_ctxt().build(ty::TypingMode::non_body_analysis());
+				let ocx = ObligationCtxt::new(&infcx);
+				ocx.register_obligation(Obligation::new(tcx, ObligationCause::dummy(), empty, clause));
+				!(ocx.evaluate_obligations_error_on_ambiguity().no_errors()
+					&& ocx
+						.resolve_regions(rustc_hir::def_id::CRATE_DEF_ID, empty, [])
+						.is_empty())
 			})
 			.collect();
 		let ties = (unbound.inputs().iter().enumerate()).any(|(n, &input)| {
