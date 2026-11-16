@@ -59,8 +59,25 @@ Only the host native library is packaged. Initial export attempts exposed missin
 CACHEDIR.TAG markers in imported local build artifacts; restoring those markers
 allowed the unchanged exporter to run. No cache tools or checks were disabled.
 
-macOS execution is unverified: this session's host is Linux and `ssh kixtop uname
--a` timed out. Do not delete moq's release workflows on this evidence.
+macOS 26.6.2 arm64 execution passed on kixtop on 2026-11-16, with Xcode 26.6 and
+Apple Swift 6.3.3. In an isolated checkout, `nix develop --command quest gate
+bench/registry/build.sh` built `Api.zip`. From a fresh artifact directory containing
+only the ZIP, native transcript, Swift consumer and verifier, `unzip -q Api.zip`
+and `quest gate bash verify-swift.sh .` built a release SwiftPM consumer outside
+Nix with Apple's compiler. The transcript matched byte for byte, followed by
+`futures ok` and `owned ok`. Both transcripts had SHA-256
+`d1ea7b364eb0cb42e2d770e81afc033b7e3f6b9edbaec87d5c7065f7ff6cef17`.
+`plutil -p Api/ApiFFI.xcframework/Info.plist` and `lipo -info
+Api/ApiFFI.xcframework/macos-arm64/libapi.a` independently confirmed one macOS arm64
+slice.
+
+This execution found two issues: Nix's SDK bundle lacked `libz.tbd` and could not
+serve as Xcode's developer directory, so the macOS builder selects the installed
+Xcode and its SDK explicitly. The fixture's duration-conversion closure needed an
+explicit `@Sendable` type for the consumer's Swift 6 language mode. Both failures
+were reproduced before the fixes and the complete Mac validation passed afterward.
+The GitHub reusable invocation remains unexecuted. Do not delete moq's release
+workflows on this evidence.
 
 ## What each registry still needs
 

@@ -14,15 +14,18 @@ fixture's script. It says what the full version would take for the other registr
 Implementation in progress: [packaging spike](/bench/registry/README.md) and
 `.github/workflows/registry.yml` build the api fixture into native wheels and a
 host-only macOS XCFramework with a Swift source package. Keep this quest until
-the macOS SwiftPM consumer has run successfully. The Linux x86_64 wheel
+the reusable invocation has run successfully. The Linux x86_64 wheel
 consumer passed on CPython 3.14.10, including the native transcript and futures,
-ownership, values and calls. The Linux host cannot execute xcodebuild, and kixtop was
-unreachable on 2026-11-13. The workflow has not been executed in this session.
+ownership, values and calls. On 2026-11-16, kixtop built the macOS arm64
+XCFramework with Xcode 26.6, and a clean SwiftPM consumer with Apple Swift 6.3.3
+matched the native transcript byte for byte and passed futures and ownership.
+The [report](/bench/registry/README.md) records the commands and the two fixes
+this execution required. The GitHub workflow has not been executed.
 The report recommends templates because registry namespace ownership cannot be
 inferred from Cargo metadata; it does not claim moq's workflows can be deleted.
 
-Remaining: exercise the reusable call and macOS clean artifact consumer, record
-the actual results, then finish the report and delete this quest. Do not publish
+Remaining: exercise the reusable call, record the actual results, settle the
+report's recommendation, then finish the report and delete this quest. Do not publish
 the fixture or infer successful packaging from lint alone.
 
 Decided with the maintainer on 2026-11-12, in the quest audit: ✅ a spike, in m2, with moq
@@ -47,6 +50,14 @@ these registries.
   artifacts.
 
 Public API: none; the report proposes one.
+
+## Waiting
+
+- Maintainer: accept the report's no-go conclusion and pursue release templates with
+  shared builders, or continue investigating a configless publisher. Recommend
+  templates: Cargo metadata cannot establish the existing registry identities or
+  hosting policy. This is a direction decision; an agent can collect evidence but
+  cannot choose the maintainer's release strategy.
 
 ## Related
 
