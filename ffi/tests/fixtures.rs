@@ -1264,81 +1264,155 @@ fn wasm_transcript() -> String {
 	String::from_utf8_lossy(&transcript.stdout).into_owned()
 }
 
-/// The generated TypeScript, type-checked with no issue, runs `tests/api.ts`'s script on
-/// Node over the module the crate's `web` feature builds for wasm32-wasip1: it prints what
-/// native Rust prints on that target, then checks its futures, what disposing and the
-/// garbage collector free, what a closed object refuses, how bytes cross, and what a call
-/// lent bytes reads once memory grows, and fails loud on each contract it breaks; a binding
-/// of another contract refuses the module.
-#[test]
-fn api_web() {
-	let api = api();
-	let dir = scratch().join("api").join("web");
-	let target = scratch().join("api").join("glue-web");
-	run(cargo()
-		.args(["build", "--quiet", "--locked", "--manifest-path"])
-		.arg(api.out.join("Cargo.toml"))
-		.arg("--target-dir")
-		.arg(&target)
-		.args(["--target", WEB, "--features", "web"])
-		.env("RUSTFLAGS", "-D warnings"));
-	let wasm = target.join(WEB).join("debug").join("api.wasm");
-	// The script beside a copy of the binding, as a caller's project holds it.
-	step::mirror(&api.out.join("web"), &dir.join("web"));
-	step::copy(&manifest_dir().join("tests").join("api.ts"), &dir.join("api.ts"));
-	step::write(&dir.join("tsconfig.json"), TSCONFIG);
-	run(Command::new("tsc").arg("-p").arg(&dir));
-	let node = |case: Option<&str>| {
-		let mut cmd = Command::new("node");
-		cmd.arg("api.ts").args(case).current_dir(&dir).env("RUST2_WASM", &wasm);
-		cmd
-	};
-	let transcript = run(&mut node(None));
-	assert_eq!(
-		String::from_utf8_lossy(&transcript.stdout),
-		wasm_transcript(),
-		"the TypeScript transcript differs from native Rust's on {WEB}"
-	);
-	for case in ["futures", "owned", "closed", "bytes", "bounds", "grown"] {
-		run(&mut node(Some(case)));
+/// The api fixture's web binding, beside a copy of `tests/api.ts` as a caller's project
+/// holds it, type-checked with no issue, and the module the crate's `web` feature builds
+/// for wasm32-wasip1, built once for each runtime's test.
+struct Web {
+	dir: PathBuf,
+	wasm: PathBuf,
+	/// What native Rust prints running the script on the binding's target.
+	transcript: String,
+}
+
+fn web() -> &'static Web {
+	static WEB_BUILT: OnceLock<Web> = OnceLock::new();
+	WEB_BUILT.get_or_init(|| {
+		let api = api();
+		let dir = scratch().join("api").join("web");
+		let target = scratch().join("api").join("glue-web");
+		run(cargo()
+			.args(["build", "--quiet", "--locked", "--manifest-path"])
+			.arg(api.out.join("Cargo.toml"))
+			.arg("--target-dir")
+			.arg(&target)
+			.args(["--target", WEB, "--features", "web"])
+			.env("RUSTFLAGS", "-D warnings"));
+		step::mirror(&api.out.join("web"), &dir.join("web"));
+		step::copy(&manifest_dir().join("tests").join("api.ts"), &dir.join("api.ts"));
+		step::write(&dir.join("tsconfig.json"), TSCONFIG);
+		run(Command::new("tsc").arg("-p").arg(&dir));
+		Web {
+			dir,
+			wasm: target.join(WEB).join("debug").join("api.wasm"),
+			transcript: wasm_transcript(),
+		}
+	})
+}
+
+/// What a run of `tests/api.ts` did: whether it finished, and what it printed.
+struct Ran {
+	ok: bool,
+	stdout: String,
+	stderr: String,
+}
+
+impl From<Output> for Ran {
+	fn from(output: Output) -> Self {
+		Self {
+			ok: output.status.success(),
+			stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+			stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+		}
 	}
-	for (case, message) in [
-		("moved", "api_Counter_get: a handle's value was moved out"),
-		("boxed moved", "api_Node_sum: a handle's value was moved out"),
-		("lent kept", "Counter is closed"),
-		(
-			"lent moved",
-			"a closure: a call into JavaScript threw Error: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
-		),
-		(
-			"callback threw",
-			"api::Log::log: a call into JavaScript threw Error: a log failed",
-		),
-		(
-			"closure threw",
-			"a closure: a call into JavaScript threw Error: a poll failed",
-		),
-		("later poll trapped", "api_tail: a reader read more than it was asked"),
-		("reader threw", "api_tail: a reader read more than it was asked"),
-		("outlived", OUTLIVED),
-	] {
-		let output = node(Some(case)).output().unwrap();
-		assert!(!output.status.success(), "TypeScript {case} did not fail");
-		let stderr = String::from_utf8_lossy(&output.stderr);
-		assert!(stderr.contains(message), "TypeScript {case} printed {stderr}");
+}
+
+/// The cases of `tests/api.ts` that must pass, after its transcript: `owned` and `bytes`
+/// check what the garbage collector frees, so only a runtime exposing it runs them.
+const WEB_CASES: [&str; 6] = ["futures", "owned", "closed", "bytes", "bounds", "grown"];
+
+/// The cases of `tests/api.ts` that break a contract, each failing with its message.
+const WEB_BROKEN: [(&str, &str); 9] = [
+	("moved", "api_Counter_get: a handle's value was moved out"),
+	("boxed moved", "api_Node_sum: a handle's value was moved out"),
+	("lent kept", "Counter is closed"),
+	(
+		"lent moved",
+		"a closure: a call into JavaScript threw Error: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+	),
+	(
+		"callback threw",
+		"api::Log::log: a call into JavaScript threw Error: a log failed",
+	),
+	(
+		"closure threw",
+		"a closure: a call into JavaScript threw Error: a poll failed",
+	),
+	("later poll trapped", "api_tail: a reader read more than it was asked"),
+	("reader threw", "api_tail: a reader read more than it was asked"),
+	("outlived", OUTLIVED),
+];
+
+/// Checks what `tests/api.ts` did on `runtime`, `ran` naming each case's run: it printed
+/// what native Rust prints on the binding's target, passed each of `cases`, and failed each
+/// broken one with its message.
+fn web_checks(runtime: &str, cases: &[&str], ran: &mut dyn FnMut(Option<&str>) -> Ran) {
+	let transcript = ran(None);
+	assert!(transcript.ok, "{runtime}'s transcript failed:\n{}", transcript.stderr);
+	assert_eq!(
+		transcript.stdout,
+		web().transcript,
+		"{runtime}'s transcript differs from native Rust's on {WEB}"
+	);
+	for &case in cases {
+		let run = ran(Some(case));
+		assert!(run.ok, "{runtime}'s {case} failed:\n{}{}", run.stdout, run.stderr);
+	}
+	for (case, message) in WEB_BROKEN {
+		let run = ran(Some(case));
+		assert!(!run.ok, "{runtime}'s {case} did not fail");
+		assert!(
+			run.stderr.contains(message),
+			"{runtime}'s {case} printed {}",
+			run.stderr
+		);
 		// A case checking what follows the failure says it got that far.
 		if case == "later poll trapped" {
-			let stdout = String::from_utf8_lossy(&output.stdout);
 			assert!(
-				stdout.contains("later poll checked"),
-				"TypeScript {case} printed {stdout}"
+				run.stdout.contains("later poll checked"),
+				"{runtime}'s {case} printed {}",
+				run.stdout
 			);
 		}
+	}
+}
+
+/// `tests/api.ts`'s script on `runtime`, Node or Deno, with `case`, from beside the binding.
+fn web_script(runtime: &str, case: Option<&str>) -> Command {
+	let web = web();
+	let mut cmd = Command::new(runtime);
+	if runtime == "deno" {
+		// Its cache in the test's own directory, and its errors without color, as matched.
+		cmd.args(["run", "--allow-read", "--allow-env"])
+			.env("DENO_DIR", scratch().join("deno"))
+			.env("DENO_NO_UPDATE_CHECK", "1")
+			.env("NO_COLOR", "1");
+	}
+	cmd.arg("api.ts")
+		.args(case)
+		.current_dir(&web.dir)
+		.env("RUST2_WASM", &web.wasm);
+	cmd
+}
+
+/// The generated TypeScript runs `tests/api.ts`'s script on Node and on Deno, over the module
+/// the crate's `web` feature builds for wasm32-wasip1: it prints what native Rust prints on
+/// that target, then checks its futures, what disposing and the garbage collector free, what
+/// a closed object refuses, how bytes cross, and what a call lent bytes reads once memory
+/// grows, and fails loud on each contract it breaks; a binding of another contract refuses
+/// the module.
+#[test]
+fn api_web() {
+	for runtime in ["node", "deno"] {
+		web_checks(runtime, &WEB_CASES, &mut |case| {
+			output(&mut web_script(runtime, case)).into()
+		});
 	}
 
 	// The same binding, with another contract than the module's in place of its own,
 	// refuses it as it loads.
-	let contract = dir.join("contract");
+	let api = api();
+	let web = web();
+	let contract = web.dir.join("contract");
 	step::mirror(&api.out.join("web"), &contract.join("web"));
 	let index = contract.join("web").join("index.ts");
 	let source = std::fs::read_to_string(api.out.join("web").join("index.ts")).unwrap();
@@ -1354,7 +1428,7 @@ fn api_web() {
 	let output = Command::new("node")
 		.arg("main.ts")
 		.current_dir(&contract)
-		.env("RUST2_WASM", &wasm)
+		.env("RUST2_WASM", &web.wasm)
 		.output()
 		.unwrap();
 	assert!(!output.status.success(), "a mismatched contract loaded");
@@ -1363,6 +1437,51 @@ fn api_web() {
 		stderr.contains("index.ts and the module are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+}
+
+/// `api_web`'s checks in headless Chromium and Firefox, which only the bench shell carries:
+/// `tests/browser.ts` bundles the script with Bun and runs each case in a frame of its own.
+/// Firefox exposes no garbage collector to a page, so it runs neither `owned` nor `bytes`.
+#[test]
+#[ignore = "the nightly's, in the bench shell: just ffi browsers"]
+fn api_browsers() {
+	let web = web();
+	for browser in ["chromium", "firefox"] {
+		let cases: Vec<&str> = match browser {
+			"firefox" => WEB_CASES
+				.into_iter()
+				.filter(|c| !matches!(*c, "owned" | "bytes"))
+				.collect(),
+			_ => WEB_CASES.to_vec(),
+		};
+		let all = std::iter::once("-")
+			.chain(cases.iter().copied())
+			.chain(WEB_BROKEN.iter().map(|(case, _)| *case));
+		let output = run(Command::new("bun")
+			.arg(manifest_dir().join("tests").join("browser.ts"))
+			.arg(browser)
+			.arg(&web.dir)
+			.arg(&web.wasm)
+			.arg(scratch().join("api").join(browser))
+			.args(all));
+		let mut runs: std::collections::HashMap<String, Ran> = String::from_utf8_lossy(&output.stdout)
+			.lines()
+			.map(|line| {
+				let v: serde_json::Value = serde_json::from_str(line).expect("browser.ts prints a case's JSON");
+				let text = |key: &str| v[key].as_str().expect("a case's output is text").to_string();
+				let ran = Ran {
+					ok: v["ok"].as_bool().expect("a case says whether it passed"),
+					stdout: text("stdout"),
+					stderr: text("stderr"),
+				};
+				(text("case"), ran)
+			})
+			.collect();
+		web_checks(browser, &cases, &mut |case| {
+			let case = case.unwrap_or("-");
+			runs.remove(case).unwrap_or_else(|| panic!("{browser} ran no {case}"))
+		});
+	}
 }
 
 /// What `tsc` checks a web binding and its caller with: strict, with no name unused, on the

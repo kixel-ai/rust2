@@ -846,11 +846,17 @@ export function out<T>(what: string, f: () => T): T {
 		return f();
 	} catch (e) {
 		if (aborted !== undefined) throw e;
-		return abort(`${what}: a call into JavaScript threw ${e instanceof Error ? (e.stack ?? e) : String(e)}`);
+		return abort(`${what}: a call into JavaScript threw ${thrown(e)}`);
 	} finally {
 		s.d++;
 		top = m;
 	}
+}
+
+/** What `e` says, with its stack: V8's begins with its message, which SpiderMonkey's lacks. */
+function thrown(e: unknown): string {
+	if (!(e instanceof Error) || e.stack === undefined) return String(e);
+	return e.stack.startsWith(String(e)) ? e.stack : `${e}\n${e.stack}`;
 }
 
 /** Write a waker of `t`'s wakes at `dst`. */

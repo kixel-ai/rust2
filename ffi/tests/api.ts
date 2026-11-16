@@ -1,7 +1,8 @@
 // The api fixture's web test: the script fixtures/api/examples/transcript.rs runs as
-// native Rust does on wasm32-wasip1, through the generated TypeScript on Node, from beside
-// the binding's `web` directory. RUST2_WASM is the path of the module, built with the
-// crate's `web` feature. tests/fixtures.rs compares the transcripts.
+// native Rust does on wasm32-wasip1, through the generated TypeScript on Node or Deno, from
+// beside the binding's `web` directory, or in a browser, through tests/browser.ts's
+// `process`. RUST2_WASM is the path of the module, built with the crate's `web` feature.
+// tests/fixtures.rs compares the transcripts.
 //
 // With an argument, it instead checks the futures' semantics, what disposing and the
 // garbage collector free, what a closed object refuses, how returned bytes cross, or what
@@ -156,9 +157,9 @@ function bound(b: Bound): string {
 const bits32 = (v: Float32Array) => list(new Uint32Array(v.buffer, v.byteOffset, v.length));
 const bits64 = (v: Float64Array) => list(new BigUint64Array(v.buffer, v.byteOffset, v.length));
 
-function f64(bits: bigint): number {
-	return new Float64Array(new BigUint64Array([bits]).buffer)[0];
-}
+/** The floats of `bits`, each never a JavaScript number, whose NaN an engine may make its
+ * own: Deno's V8 does, storing one in an array literal. */
+const floats64 = (...bits: bigint[]) => new Float64Array(new BigUint64Array(bits).buffer);
 
 /** Print each of `n`'s lists, its floats as their bits, as transcript.rs does. */
 function numbers(what: string, n: Numbers.Numbers): void {
@@ -920,7 +921,7 @@ async function script(): Promise<void> {
 	);
 	print(`sum u32 ${dec(api.sumU32(new Uint32Array(0)))} ${dec(api.sumU32(new Uint32Array([0xffffffff, 0xffffffff, 2])))}`);
 	print(`doubled i64 ${list(api.doubledI64(new BigInt64Array([-(1n << 63n), -1n, 0n, (1n << 63n) - 1n])))}`);
-	const floats = api.boxedFloats(new Float64Array([-0, f64(0x7ff8000000000001n)]));
+	const floats = api.boxedFloats(floats64(1n << 63n, 0x7ff8000000000001n));
 	print(`boxed floats ${bits64(floats)}`);
 	const summed = api.summed([
 		{ x: 1, y: 2 },
@@ -1724,11 +1725,7 @@ async function broken(which: string): Promise<void> {
 					if (fail) api.tail(new Overreader(), 1);
 					return rt.Err("woken");
 				});
-			const settled = (p: Promise<unknown>) =>
-				p.then(
-					() => "resolved",
-					(e: unknown) => (e instanceof Error ? e.message : String(e)),
-				);
+			const settled = (p: Promise<unknown>) => p.then(() => "resolved", (e: unknown) => e);
 			const failing = settled(pend(true));
 			const queued = settled(pend(false));
 			setTimeout(() => {
@@ -1737,10 +1734,13 @@ async function broken(which: string): Promise<void> {
 				wakers[0].wake();
 			});
 			const [first, second] = await Promise.all([failing, queued]);
-			check(first === "unreachable", `a later poll's trap rejects: ${first}`);
-			check(second === "the module aborted, so no call into it runs", `a call woken behind it rejects: ${second}`);
+			// Each engine words a trap its own way, as V8's "unreachable" and SpiderMonkey's
+			// "unreachable executed".
+			check(first instanceof WebAssembly.RuntimeError, `a later poll's trap rejects: ${String(first)}`);
+			const message = second instanceof Error ? second.message : String(second);
+			check(message === "the module aborted, so no call into it runs", `a call woken behind it rejects: ${message}`);
 			print("later poll checked");
-			throw new Error(second);
+			throw new Error(message);
 		}
 		case "closure threw":
 			await api.drive(Moment.new(0, 1000)!, () => {

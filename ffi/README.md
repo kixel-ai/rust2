@@ -1260,9 +1260,10 @@ rather than in the crate.
 ## TypeScript (web)
 
 `web/` is TypeScript over the C ABI of the crate built for `wasm32-wasip1` with `--features
-web`, tested on Node 24, whose type stripping runs it as it is. Each file is an ES module a
-bundler takes as it is, importing its neighbors by their `.ts` names; the `.wasm` needs no
-tool run on it after `cargo build`, and no wasm-bindgen. The binding serves
+web`, tested on Node 24 and Deno 2, which run it as it is, and nightly in headless Chromium
+and Firefox, bundled by Bun. Each file is an ES module a bundler takes as it is, importing
+its neighbors by their `.ts` names; the `.wasm` needs no tool run on it after `cargo build`,
+and no wasm-bindgen. The binding serves
 `wasm32-wasip1` alone: an item another target has and it lacks is left out, not declared to
 fail. `load(source)` of `index.ts` compiles and instantiates the module, from its bytes, a
 `Response`, or a `WebAssembly.Module`, before any other call, and checks its contract and
@@ -1333,7 +1334,7 @@ target there.
 ## Tests
 
 ```bash
-just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, and TypeScript on Node
+just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, and TypeScript on Node and Deno
 just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart
 just ffi moq-c    # the same export, built in debug, running only moq/moq.c: `just ci`'s check on moq
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
@@ -1341,6 +1342,7 @@ just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
 just ffi shapes   # round-trip every sampled type shape in every language but KNOWN's, as the nightly does
+nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium and Firefox, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it

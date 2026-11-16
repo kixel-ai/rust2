@@ -193,6 +193,11 @@ jobs:
       - name: Census
         run: nix develop --command just ffi census
 
+      # The api fixture's web test in headless Chromium and Firefox, which only the bench
+      # shell carries.
+      - name: Web binding in browsers
+        run: nix develop .#bench --command just ffi browsers
+
       - name: Summarize
         run: awk 'FNR == 1 { refused = 0 } /^## Refused items/ { refused = 1 } !refused' ffi/target/census/*.md >> "$GITHUB_STEP_SUMMARY"
 
