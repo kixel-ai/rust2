@@ -1024,7 +1024,7 @@ func script() {
 	check(nines.Close() == nil, "a mark closes")
 	// A kept closure, called on another thread after the call that took it returned.
 	spawned := api.NewSpawned(func() uint32 { return 7 })
-	fmt.Printf("spawned %d\n", must(spawned.Join()))
+	check(must(spawned.Join()) == 7, "a kept closure runs on another thread")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
 	driven := *api.NewMoment(0, 1000)
 	calls := 0

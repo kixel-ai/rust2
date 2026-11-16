@@ -728,6 +728,46 @@ impl<'a> Abi<'a> {
 			.collect()
 	}
 
+	/// The namespace of `language`'s glue: `<prefix>_<language>`, with a trailing `_` until no C name is it
+	/// or starts with it and a `_`.
+	pub fn space(&self, language: &str) -> String {
+		let abi = self;
+		let api = abi.api;
+		let mut names: Vec<String> = Vec::new();
+		let mut functions: Vec<(&Function, Option<Ty>)> = Vec::new();
+		for (i, record) in api.records.iter().enumerate() {
+			names.push(abi.record(i));
+			functions.extend(record.methods.iter().map(|m| (m, Some(Ty::Struct(abi.record(i))))));
+		}
+		for (i, e) in api.enums.iter().enumerate() {
+			names.push(abi.enumeration(i));
+			functions.extend(e.methods.iter().map(|m| (m, Some(abi.ty(&Type::Enum(i))))));
+		}
+		for (i, object) in api.objects.iter().enumerate() {
+			names.push(abi.object(i));
+			let owner = Ty::Handle {
+				name: abi.object(i),
+				constant: false,
+			};
+			functions.extend(object.methods.iter().map(|m| (m, Some(owner.clone()))));
+		}
+		names.extend((0..api.callbacks.len()).map(|i| abi.callback(i)));
+		functions.extend(api.functions.iter().map(|f| (f, None)));
+		names.extend(
+			functions
+				.into_iter()
+				.map(|(function, owner)| abi.export(function, owner.as_ref()).call.name),
+		);
+		let mut space = abi.rt(language);
+		while names
+			.iter()
+			.any(|name| *name == space || name.starts_with(&format!("{space}_")))
+		{
+			space.push('_');
+		}
+		space
+	}
+
 	/// The prefixed name of a runtime item: `buf` is `moq_buf`.
 	pub fn rt(&self, name: &str) -> String {
 		format!("{}_{name}", self.prefix)

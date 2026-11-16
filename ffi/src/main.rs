@@ -40,6 +40,7 @@ mod lock;
 mod merge;
 mod python;
 mod swift;
+mod web;
 
 use std::process::ExitCode;
 

@@ -948,12 +948,14 @@ pub async fn drive<E>(start: Moment, mut poll: impl FnMut(Moment, &Waiter) -> Re
 	.await
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// A thread running a closure it keeps past the call that made it, which
 /// [`Spawned::join`] waits on.
 pub struct Spawned {
 	thread: std::thread::JoinHandle<u32>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Spawned {
 	pub fn new(task: impl FnOnce() -> u32 + Send + 'static) -> Self {
 		Self {
@@ -1146,6 +1148,7 @@ impl Channel {
 	/// Sends from another thread, before it returns, so the wake lands from that thread, as
 	/// an async runtime's worker wakes a task: the one way Dart, whose isolates share no
 	/// object, has to wake from another thread.
+	#[cfg(not(target_arch = "wasm32"))]
 	pub fn send_from_thread(&self, payload: Bytes) {
 		std::thread::scope(|scope| {
 			scope.spawn(|| self.send(payload));
@@ -1713,17 +1716,20 @@ pub fn emit(log: impl Log, lines: Vec<u8>) -> u32 {
 	lines.iter().filter(|&&n| log.log(n, &format!("line {n}"))).count() as u32
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// [`emit`] on another thread, which the call waits on.
 pub fn emit_from_thread(log: impl Log, lines: Vec<u8>) -> u32 {
 	on_thread(&log, &lines)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// [`emit_from_thread`] before it returns its future, and again once polled.
 pub fn emit_later(log: Box<dyn Log>, lines: Vec<u8>) -> impl Future<Output = u32> + use<> {
 	let eager = on_thread(&*log, &lines);
 	async move { eager + on_thread(&*log, &lines) }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn on_thread(log: &(impl Log + ?Sized), lines: &[u8]) -> u32 {
 	std::thread::scope(|scope| {
 		scope
@@ -1748,10 +1754,12 @@ pub fn counted(n: u32, mut count: impl FnMut(u32)) -> std::future::Ready<Result<
 /// Each line to `keep` on another thread, returning how many it kept: a lent closure may
 /// run on any thread until the call returns.
 pub fn filter(lines: Vec<u8>, mut keep: impl FnMut(u8, &str) -> bool + Send) -> u32 {
-	std::thread::scope(|scope| {
-		let kept = scope.spawn(move || lines.iter().filter(|&&n| keep(n, &format!("line {n}"))).count());
-		kept.join().expect("the thread finishes") as u32
-	})
+	let kept = move || lines.iter().filter(|&&n| keep(n, &format!("line {n}"))).count() as u32;
+	// wasm32 has no other thread, so it runs there on the caller's.
+	#[cfg(target_arch = "wasm32")]
+	return { kept }();
+	#[cfg(not(target_arch = "wasm32"))]
+	std::thread::scope(|scope| scope.spawn(kept).join().expect("the thread finishes"))
 }
 
 /// Logs a line once polled, returning whether it was kept: the future holds `log` until it
@@ -1789,16 +1797,19 @@ impl Logger {
 	}
 
 	/// [`Logger::write`] on another thread, which the call waits on.
+	#[cfg(not(target_arch = "wasm32"))]
 	pub fn write_from_thread(&self, line: &str) -> bool {
 		std::thread::scope(|scope| scope.spawn(|| self.write(line)).join().expect("the thread finishes"))
 	}
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// A thread logging a line to a foreign implementation, which [`LogThread::join`] waits on.
 pub struct LogThread {
 	thread: std::thread::JoinHandle<bool>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl LogThread {
 	pub fn new(log: Box<dyn Log>, line: String) -> Self {
 		Self {
@@ -1812,6 +1823,7 @@ impl LogThread {
 	}
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// A future that never finishes, whose drop logs a line to `log` on another thread it
 /// waits on.
 pub fn log_on_drop(log: Box<dyn Log>) -> impl Future<Output = ()> + use<> {
@@ -1822,13 +1834,16 @@ pub fn log_on_drop(log: Box<dyn Log>) -> impl Future<Output = ()> + use<> {
 	}
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// A waker whose wake and drop each log a line to `log` on another thread they wait on.
 pub fn log_waker(log: Box<dyn Log>) -> Waker {
 	Waker::from(Arc::new(LogWake(log)))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 struct LogWake(Box<dyn Log>);
 
+#[cfg(not(target_arch = "wasm32"))]
 impl std::task::Wake for LogWake {
 	fn wake(self: Arc<Self>) {
 		self.wake_by_ref();
@@ -1839,14 +1854,17 @@ impl std::task::Wake for LogWake {
 	}
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Drop for LogWake {
 	fn drop(&mut self) {
 		on_thread(&*self.0, &[0]);
 	}
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 struct LogOnDrop(Box<dyn Log>);
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Drop for LogOnDrop {
 	fn drop(&mut self) {
 		on_thread(&*self.0, &[0]);
@@ -2843,16 +2861,18 @@ pub fn file(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
 	dir.join(name)
 }
 
-/// A path whose bytes are not UTF-8, as a Unix path may be.
-#[cfg(unix)]
+/// A path whose bytes are not UTF-8, as a Unix or WASI path may be.
+#[cfg(any(unix, target_os = "wasi"))]
 pub fn stray() -> std::path::PathBuf {
-	std::path::PathBuf::from(<std::ffi::OsString as std::os::unix::ffi::OsStringExt>::from_vec(vec![
-		0xff,
-	]))
+	#[cfg(unix)]
+	use std::os::unix::ffi::OsStringExt;
+	#[cfg(target_os = "wasi")]
+	use std::os::wasi::ffi::OsStringExt;
+	std::path::PathBuf::from(std::ffi::OsString::from_vec(vec![0xff]))
 }
 
 /// Lends [`stray`]'s path to `visit`.
-#[cfg(unix)]
+#[cfg(any(unix, target_os = "wasi"))]
 pub fn visit_stray(visit: impl Fn(&std::path::Path)) {
 	visit(&stray());
 }

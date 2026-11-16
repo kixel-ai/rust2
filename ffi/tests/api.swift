@@ -981,7 +981,7 @@ func script() {
 	let back = try! seat(nines, 2)
 	print("seat \(try! front.debugDescription) \(try! front == front) \(try! front == back)")
 	// A kept closure, called on another thread after the call that took it returned.
-	print("spawned \(try! Spawned.new { 7 }.join())")
+	check(try! Spawned.new { 7 }.join() == 7, "a kept closure runs on another thread")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
 	let start = Moment.new(0, 1000)!
 	let calls = Cell(0)

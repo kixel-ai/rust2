@@ -1,0 +1,1263 @@
+// The runtime every generated web binding imports, which rust2-ffi copies beside it: the
+// module and its memory, the stack a call lowers its values into, handles, Rust's integers
+// past 32 bits, futures as promises, what JavaScript implements for Rust, and the web APIs
+// that stand in for what the module's std imports.
+
+declare const brand: unique symbol;
+
+/** A `u64` past 2^53: its high and low 32 bits, each a uint32. */
+export type U64Limbs = { readonly hi: number; readonly lo: number; readonly [brand]: "u64" };
+/** An `i64` past 2^53 in magnitude: its high 32 bits as an int32, and its low as a uint32. */
+export type I64Limbs = { readonly hi: number; readonly lo: number; readonly [brand]: "i64" };
+/** A `u128` past 2^53: four 32-bit limbs, `hi`, `w2`, `w1`, and `lo`, each a uint32. */
+export type U128Limbs = {
+	readonly hi: number;
+	readonly w2: number;
+	readonly w1: number;
+	readonly lo: number;
+	readonly [brand]: "u128";
+};
+
+/**
+ * A number of the Rust integer type `T`: its brand is type-only, so a plain number, such
+ * as a literal, passes for any.
+ */
+type Num<T extends string> = number & { readonly [brand]?: T };
+
+/**
+ * Rust's `u64`: a number while it is a safe integer, at most 2^53 - 1, and its limbs past
+ * that. Each value has one form, so two compare with `===` only as numbers.
+ */
+export type u64 = Num<"u64"> | U64Limbs;
+/** Rust's `i64`: a number while it is a safe integer, and its limbs past that. */
+export type i64 = Num<"i64"> | I64Limbs;
+/** Rust's `u128`: a number while it is a safe integer, and its limbs past that. */
+export type u128 = Num<"u128"> | U128Limbs;
+
+/** Rust's `Result`: `{ ok: true, value }` or `{ ok: false, error }`. */
+export type Result<T, E> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: E };
+
+/** An `Ok`. */
+export function Ok<T>(value: T): Result<T, never> {
+	return { ok: true, value };
+}
+
+/** An `Err`. */
+export function Err<E>(error: E): Result<never, E> {
+	return { ok: false, error };
+}
+
+/** The `None` of an `Option` whose `Some` may be `undefined`, as `Option<()>`'s is. */
+export const None: unique symbol = Symbol("None");
+export type None = typeof None;
+
+/** A place a call writes back what Rust left a `&mut` value as, in `v`. */
+export type Place<T> = { v: T };
+
+/**
+ * A `Copy` type whose fields are private: its bytes, which only Rust makes or reads, so
+ * JavaScript copies one but never makes one.
+ */
+export class Opaque<T extends string = string> {
+	declare readonly [brand]: T;
+	readonly bytes: Uint8Array;
+	constructor(bytes: Uint8Array) {
+		this.bytes = bytes;
+	}
+}
+
+/** An opaque value's bytes, which throw unless it is one of `n` bytes. */
+export function opaque(v: Opaque, n: number): Uint8Array {
+	if (!(v instanceof Opaque) || v.bytes.length !== n) throw new RangeError("a value Rust made is no other's");
+	return v.bytes;
+}
+
+/** Rust's `Duration`: whole seconds, and the nanoseconds below one. */
+export type Duration = { readonly secs: u64; readonly nanos: number };
+
+/** Rust's `PathBuf`: the path's bytes as the OS holds them, which may not be UTF-8. */
+export type PathBuf = { readonly bytes: Uint8Array };
+
+/** The path of `text`, as UTF-8: a lone surrogate throws, as no Rust string holds one. */
+export function pathFrom(text: string): PathBuf {
+	return { bytes: encoded(text) };
+}
+
+/** A path's text: what is not UTF-8 is replaced, as Rust's `Path::display` shows it. */
+export function pathText(path: PathBuf): string {
+	return loose.decode(path.bytes);
+}
+
+/** Rust's `Ipv4Addr`: its 4 bytes in network order. */
+export type Ipv4Addr = { readonly octets: Uint8Array };
+/** Rust's `Ipv6Addr`: its 16 bytes in network order. */
+export type Ipv6Addr = { readonly octets: Uint8Array };
+/** Rust's `IpAddr`. */
+export type IpAddr = { readonly tag: "V4"; readonly _0: Ipv4Addr } | { readonly tag: "V6"; readonly _0: Ipv6Addr };
+/** Rust's `SocketAddrV4`. */
+export type SocketAddrV4 = { readonly ip: Ipv4Addr; readonly port: number };
+/** Rust's `SocketAddrV6`: with its flow label and scope. */
+export type SocketAddrV6 = {
+	readonly ip: Ipv6Addr;
+	readonly port: number;
+	readonly flowinfo: number;
+	readonly scopeId: number;
+};
+/** Rust's `SocketAddr`. */
+export type SocketAddr =
+	| { readonly tag: "V4"; readonly _0: SocketAddrV4 }
+	| { readonly tag: "V6"; readonly _0: SocketAddrV6 };
+
+/** Where a reader's seek counts from, as Rust's `SeekFrom` does. */
+export type SeekFrom = "Start" | "Current" | "End";
+
+/**
+ * Bytes Rust reads and seeks, as its `Read + Seek`, lent for the call it is passed to.
+ * What either method throws reaches Rust as an `io::Error` of its message.
+ */
+export interface Reader {
+	/** Read up to `buffer.length` bytes into `buffer`, returning how many: 0 only at the end. */
+	read(buffer: Uint8Array): number;
+	/**
+	 * Move to `offset` from `from`, returning the position from the start. From `"Start"`,
+	 * `offset` is a `u64`, else an `i64`.
+	 */
+	seek(offset: u64 | i64, from: SeekFrom): u64;
+}
+
+/** The value of a call into Rust's async API: a promise of its result, which `cancel` cancels. */
+export type Call<T> = Promise<T> & {
+	/** Cancel it in Rust unless it finished, losing nothing: it then rejects with `Cancelled`. */
+	cancel(): void;
+};
+
+/** What a cancelled `Call` rejects with. */
+export class Cancelled extends Error {
+	constructor() {
+		super("Cancelled");
+		this.name = "Cancelled";
+	}
+}
+
+/** A waker Rust returned: `wake` wakes its task through Rust, and disposing it drops it. */
+export type Waker = { wake(): void; [Symbol.dispose](): void };
+
+/** The module's exports, which generated code calls by their C names. */
+type Exports = Record<string, any>;
+
+/** The module's exports, once `load` instantiated it. */
+export let w: Exports = new Proxy(
+	{},
+	{
+		get(_, name) {
+			throw new Error(`${String(name)}: the module is not loaded: call load first`);
+		},
+	},
+);
+
+let memory: WebAssembly.Memory;
+let view = new DataView(new ArrayBuffer(0));
+let bytes: Uint8Array<ArrayBuffer> = new Uint8Array(0);
+
+/** A view of the module's memory, made again once memory grows, which detaches the last. */
+export function dv(): DataView {
+	if (view.buffer !== memory.buffer) {
+		view = new DataView(memory.buffer);
+		bytes = new Uint8Array(memory.buffer);
+	}
+	return view;
+}
+
+/** The module's memory as bytes, as [dv] keeps it. */
+export function mem(): Uint8Array<ArrayBuffer> {
+	dv();
+	return bytes;
+}
+
+/**
+ * The state calls share: how many calls into the module are running less how many calls
+ * out of it, which each call into it from JavaScript finds at 0 unless a call trapped,
+ * when a call in did not return.
+ */
+export const s = { d: 0 };
+
+/** Why the module aborted, after which every call throws: nothing of Rust's state is sound. */
+let aborted: unknown;
+
+/** The error of a call into a module that aborted. */
+function dead(): Error {
+	return new Error("the module aborted, so no call into it runs", { cause: aborted });
+}
+
+/** Abort the module with `message`: Rust's own abort, which prints it and traps. */
+export function abort(message: string): never {
+	if (aborted === undefined) {
+		const m = top;
+		const max = message.length * 3;
+		const p = alloc(max, 1);
+		const { written } = encoder.encodeInto(message, mem().subarray(p, p + max));
+		try {
+			w[`${space}_abort`](p, written);
+		} catch (e) {
+			aborted = e;
+		}
+		top = m;
+	}
+	aborted ??= new Error(message);
+	throw dead();
+}
+
+// The stack: memory each call lowers its values into, taking what it needs from the top and
+// giving it back once it returns, so a call Rust makes into JavaScript meanwhile takes and
+// gives back above it.
+const STACK = 1 << 16;
+let base = 0;
+let top = 0;
+/** What did not fit, each its pointer, size, and alignment, freed as the stack falls back. */
+const big: number[] = [];
+/** The handles each running call holds, released once it returns. */
+const held: Handle[] = [];
+/** The tokens of what each running call lends Rust, forgotten once it returns. */
+const lent: number[] = [];
+/** The buffers each running call gives Rust, freed unless Rust took them. */
+const given: number[] = [];
+/** Where each running call found the stack: its top, then the length of each list. */
+const frames: number[] = [];
+
+/** Start a call: what [leave] takes back to. */
+export function enter(): number {
+	if (aborted !== undefined) throw dead();
+	if (s.d !== 0) {
+		aborted = new Error("a call into the module trapped");
+		throw dead();
+	}
+	frames.push(top, big.length, held.length, lent.length, given.length);
+	return frames.length;
+}
+
+/** End the call [enter] started, giving back what it took. */
+export function leave(mark: number): void {
+	frames.length = mark;
+	const g = frames.pop()!;
+	const l = frames.pop()!;
+	const h = frames.pop()!;
+	const b = frames.pop()!;
+	top = frames.pop()!;
+	while (given.length > g) w[`${prefix}_buf_free`](given.pop()!);
+	while (lent.length > l) tokens.delete(lent.pop()!);
+	while (held.length > h) held.pop()!.release();
+	while (big.length > b) {
+		const align = big.pop()!;
+		const size = big.pop()!;
+		w[`${space}_free`](big.pop()!, size, align);
+	}
+}
+
+/** Note that the running call returned, so Rust took what it was given. */
+export function took(): void {
+	given.length = frames[frames.length - 1];
+}
+
+/** `size` bytes aligned to `align`, a power of two, until the running call returns. */
+export function alloc(size: number, align: number): number {
+	const at = (top + align - 1) & -align;
+	if (at + size <= STACK) {
+		top = at + size;
+		return base + at;
+	}
+	const p = w[`${space}_alloc`](size, align) as number;
+	big.push(p, size, align);
+	return p;
+}
+
+/** Throw unless the call `what` wrote no status at `p`: a run-time check failed. */
+export function status(p: number, what: string): void {
+	const n = dv().getInt32(p, true);
+	if (n !== 0) throw new Error(`${what}: ${STATUSES[n - 1] ?? "an unknown status"}`);
+}
+
+const STATUSES = [
+	"a handle's value was moved out",
+	"a handle is borrowed exclusively",
+	"a handle is already borrowed",
+	"a handle is borrowed on another thread",
+	"a handle a call lent is borrowed exclusively or moved out",
+	"a handle lent from another outlived it: the other was borrowed exclusively, moved out, or freed",
+];
+
+/** What each object type's handles do: its name, its free, and its drop, if Rust checks it. */
+export type Kind = {
+	readonly name: string;
+	readonly free: string;
+	readonly drop?: string;
+};
+
+/** The handles' frees the garbage collector makes, of each that was never disposed. */
+const collected = new FinalizationRegistry<[number, string]>(([p, free]) => {
+	if (aborted !== undefined) return;
+	s.d++;
+	w[free](p);
+	s.d--;
+});
+
+/**
+ * A handle to a Rust object. An owned one of a value Rust checks is Rust's alone to
+ * account: disposing it drops the value as Rust's own drop does, failing while a call
+ * borrows it, and then frees it, so a call after it throws. Any other counts the
+ * calls holding it: disposing it frees it then, throwing while a call holds it, and a call
+ * after it throws. Either is freed once the garbage collector finds it unreachable, if it
+ * was never disposed.
+ */
+export class Handle<T extends string = string> {
+	declare readonly [brand]: T;
+	/** The handle's pointer. */
+	readonly p: number;
+	readonly k: Kind;
+	/** The owner's hold until disposed, and one for each call, of a counted one. */
+	h = 1;
+	closed = false;
+	readonly owned: boolean;
+	readonly counted: boolean;
+
+	constructor(p: number, k: Kind, owned: boolean) {
+		this.p = p;
+		this.k = k;
+		this.owned = owned;
+		this.counted = !(owned && k.drop !== undefined);
+		if (owned) collected.register(this, [p, k.free], this);
+	}
+
+	hold(): number {
+		if (this.closed) throw new Error(`${this.k.name} is closed`);
+		if (!this.counted) return this.p;
+		this.h++;
+		return this.p;
+	}
+
+	release(): void {
+		if (this.counted && --this.h === 0 && this.owned) this.free();
+	}
+
+	free(): void {
+		collected.unregister(this);
+		const m = enter();
+		s.d++;
+		w[this.k.free](this.p);
+		s.d--;
+		leave(m);
+	}
+
+	/** Close it as `Handle` says; again, it does nothing. */
+	[Symbol.dispose](): void {
+		if (!this.counted) {
+			if (this.closed) return;
+			const m = enter();
+			try {
+				const st = alloc(4, 4);
+				dv().setInt32(st, 0, true);
+				s.d++;
+				w[this.k.drop!](this.p, st);
+				s.d--;
+				status(st, this.k.drop!);
+			} finally {
+				leave(m);
+			}
+			// Dropped, so no call borrows it, and none can again: its handle is freed now, rather
+			// than by the garbage collector, whose registry costs a returned object ten times
+			// its call once it holds many.
+			this.closed = true;
+			this.free();
+			return;
+		}
+		if (this.closed) return;
+		if (this.h !== 1) throw new Error(`${this.k.name}: a handle is already borrowed`);
+		this.closed = true;
+		this.release();
+	}
+}
+
+/** `handle`'s pointer, held until the running call returns: a closed one throws. */
+export function hold(handle: Handle): number {
+	const p = handle.hold();
+	held.push(handle);
+	return p;
+}
+
+/** [hold] of a handle, or 0 for none. */
+export function holdOr(handle: Handle | undefined): number {
+	return handle === undefined ? 0 : hold(handle);
+}
+
+/** A handle Rust lends for a call, closed after it. */
+export function lentHandle<T extends string>(p: number, k: Kind): Handle<T> {
+	return new Handle<T>(p, k, false);
+}
+
+// Integers.
+
+const TWO32 = 4294967296;
+
+/** `v`, unless it is no integer from `min` through `max`, which throws naming `what`. */
+export function int(v: number, min: number, max: number, what: string): number {
+	if (Number.isInteger(v) && v >= min && v <= max) return v;
+	throw new RangeError(`${v} is no ${what}`);
+}
+
+/** A `NonZero`'s integer, which throws if zero. */
+export function nonZero<T extends number | u64 | i64>(v: T): T {
+	if (v === 0) throw new RangeError("a NonZero is zero");
+	return v;
+}
+
+/** An `f32`: a number a single holds exactly, or NaN. */
+export function f32(v: number): number {
+	if (Math.fround(v) === v || v !== v) return v;
+	throw new RangeError(`${v} is no f32`);
+}
+
+/** A `char`: a Unicode scalar value. */
+export function char(v: number): number {
+	if (Number.isInteger(v) && v >= 0 && v <= 0x10ffff && (v < 0xd800 || v > 0xdfff)) return v;
+	throw new RangeError(`${v} is no char`);
+}
+
+/** The `u64` of its halves, each a uint32. */
+export function u64Of(hi: number, lo: number): u64 {
+	return hi < 0x200000 ? hi * TWO32 + lo : ({ hi, lo } as U64Limbs);
+}
+
+/** The `i64` of its halves, `hi` an int32 and `lo` a uint32. */
+export function i64Of(hi: number, lo: number): i64 {
+	if (hi >= -0x200000 && hi < 0x200000) {
+		const v = hi * TWO32 + lo;
+		if (Number.isSafeInteger(v)) return v;
+	}
+	return { hi, lo } as I64Limbs;
+}
+
+/** A `u64`'s halves, `[hi, lo]`, each a uint32: one out of range throws. */
+export function u64Halves(v: u64): [number, number] {
+	if (typeof v === "number") {
+		if (!Number.isSafeInteger(v) || v < 0) throw new RangeError(`${v} is no u64`);
+		return [Math.floor(v / TWO32), v % TWO32];
+	}
+	if (!(v.hi >= 0x200000 && v.hi <= 0xffffffff && Number.isInteger(v.hi) && v.lo >>> 0 === v.lo)) {
+		throw new RangeError(`${JSON.stringify(v)} is no u64 in its one form`);
+	}
+	return [v.hi, v.lo];
+}
+
+/** An `i64`'s halves, `[hi, lo]`, `hi` an int32 and `lo` a uint32: one out of range throws. */
+export function i64Halves(v: i64): [number, number] {
+	if (typeof v === "number") {
+		if (!Number.isSafeInteger(v)) throw new RangeError(`${v} is no i64`);
+		const hi = Math.floor(v / TWO32);
+		return [hi | 0, v - hi * TWO32];
+	}
+	const safe = v.hi >= -0x200000 && v.hi < 0x200000 && Number.isSafeInteger(v.hi * TWO32 + v.lo);
+	if (safe || v.hi !== (v.hi | 0) || v.lo >>> 0 !== v.lo) {
+		throw new RangeError(`${JSON.stringify(v)} is no i64 in its one form`);
+	}
+	return [v.hi, v.lo];
+}
+
+/** The `u64` at `p`. */
+export function u64Get(p: number): u64 {
+	const d = dv();
+	return u64Of(d.getUint32(p + 4, true), d.getUint32(p, true));
+}
+
+/** The `i64` at `p`. */
+export function i64Get(p: number): i64 {
+	const d = dv();
+	return i64Of(d.getInt32(p + 4, true), d.getUint32(p, true));
+}
+
+/** Write the `u64` `v` at `p`. */
+export function u64Put(p: number, v: u64): void {
+	const [hi, lo] = u64Halves(v);
+	const d = dv();
+	d.setUint32(p, lo, true);
+	d.setUint32(p + 4, hi, true);
+}
+
+/** Write the `i64` `v` at `p`. */
+export function i64Put(p: number, v: i64): void {
+	const [hi, lo] = i64Halves(v);
+	const d = dv();
+	d.setUint32(p, lo, true);
+	d.setInt32(p + 4, hi, true);
+}
+
+/** A `u64` as the `bigint` a wasm `i64` takes. */
+export function u64Big(v: u64): bigint {
+	if (typeof v === "number" && Number.isSafeInteger(v) && v >= 0) return BigInt(v);
+	const [hi, lo] = u64Halves(v);
+	return BigInt.asIntN(64, (BigInt(hi) << 32n) | BigInt(lo));
+}
+
+/** An `i64` as the `bigint` a wasm `i64` takes. */
+export function i64Big(v: i64): bigint {
+	if (typeof v === "number" && Number.isSafeInteger(v)) return BigInt(v);
+	const [hi, lo] = i64Halves(v);
+	return (BigInt(hi) << 32n) | BigInt(lo);
+}
+
+/** The `u64` of what a wasm `i64` returned. */
+export function u64OfBig(v: bigint): u64 {
+	const u = BigInt.asUintN(64, v);
+	return u <= 0x1fffffffffffffn ? Number(u) : u64Of(Number(u >> 32n), Number(u & 0xffffffffn));
+}
+
+/** The `i64` of what a wasm `i64` returned. */
+export function i64OfBig(v: bigint): i64 {
+	return v >= -0x1fffffffffffffn && v <= 0x1fffffffffffffn
+		? Number(v)
+		: i64Of(Number(v >> 32n), Number(BigInt.asUintN(32, v)));
+}
+
+/** The `u128` at `p`, as its low then high 64 bits. */
+export function u128Get(p: number): u128 {
+	const d = dv();
+	const lo = d.getUint32(p, true);
+	const w1 = d.getUint32(p + 4, true);
+	const w2 = d.getUint32(p + 8, true);
+	const hi = d.getUint32(p + 12, true);
+	if (hi === 0 && w2 === 0 && w1 < 0x200000) return w1 * TWO32 + lo;
+	return { hi, w2, w1, lo } as U128Limbs;
+}
+
+/** Write the `u128` `v` at `p`. */
+export function u128Put(p: number, v: u128): void {
+	let words: number[];
+	if (typeof v === "number") {
+		if (!Number.isSafeInteger(v) || v < 0) throw new RangeError(`${v} is no u128`);
+		words = [v % TWO32, Math.floor(v / TWO32), 0, 0];
+	} else {
+		words = [v.lo, v.w1, v.w2, v.hi];
+		const one = words.every((x) => x >>> 0 === x) && (v.hi !== 0 || v.w2 !== 0 || v.w1 >= 0x200000);
+		if (!one) throw new RangeError(`${JSON.stringify(v)} is no u128 in its one form`);
+	}
+	const d = dv();
+	for (let i = 0; i < 4; i++) d.setUint32(p + 4 * i, words[i], true);
+}
+
+/** A `u64` as a `bigint`, for printing or arithmetic. */
+export function u64ToBig(v: u64): bigint {
+	return BigInt.asUintN(64, u64Big(v));
+}
+
+/** An `i64` as a `bigint`. */
+export function i64ToBig(v: i64): bigint {
+	return i64Big(v);
+}
+
+/** A `u128` as a `bigint`. */
+export function u128ToBig(v: u128): bigint {
+	if (typeof v === "number") return BigInt(v);
+	return (BigInt(v.hi) << 96n) | (BigInt(v.w2) << 64n) | (BigInt(v.w1) << 32n) | BigInt(v.lo);
+}
+
+/** The `u64` of a `bigint`, which throws outside its range. */
+export function u64FromBig(v: bigint): u64 {
+	if (v < 0n || v > 0xffffffffffffffffn) throw new RangeError(`${v} is no u64`);
+	return u64OfBig(v);
+}
+
+/** The `i64` of a `bigint`, which throws outside its range. */
+export function i64FromBig(v: bigint): i64 {
+	if (v < -0x8000000000000000n || v > 0x7fffffffffffffffn) throw new RangeError(`${v} is no i64`);
+	return i64OfBig(v);
+}
+
+/** The `u128` of a `bigint`, which throws outside its range. */
+export function u128FromBig(v: bigint): u128 {
+	if (v < 0n || v >> 128n !== 0n) throw new RangeError(`${v} is no u128`);
+	if (v <= 0x1fffffffffffffn) return Number(v);
+	const word = (n: bigint) => Number(BigInt.asUintN(32, v >> n));
+	return { hi: word(96n), w2: word(64n), w1: word(32n), lo: word(0n) } as U128Limbs;
+}
+
+// Text and bytes.
+
+const encoder = new TextEncoder();
+const strict = new TextDecoder("utf-8", { fatal: true });
+const loose = new TextDecoder("utf-8");
+
+/** `text`'s UTF-8, throwing where it holds a lone surrogate, which no Rust string does. */
+export function encoded(text: string): Uint8Array {
+	if (!text.isWellFormed()) throw new RangeError("a string holds a lone surrogate, which no Rust string does");
+	return encoder.encode(text);
+}
+
+/** Write a view of `text`'s UTF-8 on the stack into the buffer at `dst`. */
+export function putStr(dst: number, text: string): void {
+	if (!text.isWellFormed()) throw new RangeError("a string holds a lone surrogate, which no Rust string does");
+	const max = text.length * 3;
+	const p = alloc(max, 1);
+	const { written } = encoder.encodeInto(text, mem().subarray(p, p + max));
+	const d = dv();
+	d.setUint32(dst, p, true);
+	d.setUint32(dst + 4, written, true);
+	d.setUint32(dst + 8, 0, true);
+}
+
+/** Write a view of a copy of `data` on the stack into the buffer at `dst`. */
+export function putBytes(dst: number, data: Uint8Array): void {
+	const p = alloc(data.length, 1);
+	mem().set(data, p);
+	const d = dv();
+	d.setUint32(dst, p, true);
+	d.setUint32(dst + 4, data.length, true);
+	d.setUint32(dst + 8, 0, true);
+}
+
+/** Write the null buffer, `None`, at `dst`. */
+export function putNone(dst: number): void {
+	const d = dv();
+	d.setUint32(dst, 0, true);
+	d.setUint32(dst + 4, 0, true);
+	d.setUint32(dst + 8, 0, true);
+}
+
+/** Whether the buffer at `p` is `None`. */
+export function isNone(p: number): boolean {
+	return dv().getUint32(p, true) === 0;
+}
+
+/** A copy of the bytes the buffer at `p` views. */
+export function bytesLent(p: number): Uint8Array {
+	const d = dv();
+	const ptr = d.getUint32(p, true);
+	const len = d.getUint32(p + 4, true);
+	return mem().slice(ptr, ptr + len);
+}
+
+/** The text of the UTF-8 the buffer at `p` views. */
+export function strLent(p: number): string {
+	const d = dv();
+	const ptr = d.getUint32(p, true);
+	const len = d.getUint32(p + 4, true);
+	return len === 0 ? "" : strict.decode(mem().subarray(ptr, ptr + len));
+}
+
+/** A copy of the bytes of the buffer Rust returned at `p`, which it frees. */
+export function bytes_(p: number): Uint8Array {
+	const out = bytesLent(p);
+	w[`${prefix}_buf_free`](p);
+	return out;
+}
+
+/** The text of the buffer Rust returned at `p`, which it frees. */
+export function str(p: number): string {
+	const out = strLent(p);
+	w[`${prefix}_buf_free`](p);
+	return out;
+}
+
+/** Rust's own copy of `text`, as `buf_copy` makes it, written at `dst`: what a closure returns. */
+export function copied(dst: number, text: string, message = false): void {
+	const m = top;
+	const view = alloc(12, 4);
+	if (message) putBytes(view, encoder.encode(text));
+	else putStr(view, text);
+	s.d++;
+	w[`${prefix}_buf_copy`](dst, view);
+	s.d--;
+	top = m;
+}
+
+/** Rust's own copy of `data`, as `buf_copy` makes it, written at `dst`. */
+export function copiedBytes(dst: number, data: Uint8Array): void {
+	const m = top;
+	const view = alloc(12, 4);
+	putBytes(view, data);
+	s.d++;
+	w[`${prefix}_buf_copy`](dst, view);
+	s.d--;
+	top = m;
+}
+
+/** `bytes`, which throws unless it holds exactly `n`. */
+export function array(data: Uint8Array, n: number): Uint8Array {
+	if (data.length !== n) throw new RangeError(`${data.length} bytes are no [u8; ${n}]`);
+	return data;
+}
+
+/** A path's bytes, which may be any on wasm32, as on Unix. */
+export function pathBytes(path: PathBuf): Uint8Array {
+	return path.bytes;
+}
+
+// Values of std's types, as the C ABI lays them out.
+
+/** The `Duration` at `p`. */
+export function durationGet(p: number): Duration {
+	return { secs: u64Get(p), nanos: dv().getUint32(p + 8, true) };
+}
+
+/** Write the `Duration` `v` at `p`: nanoseconds of a second or more throw. */
+export function durationPut(p: number, v: Duration): void {
+	int(v.nanos, 0, 999999999, "Duration's nanoseconds");
+	u64Put(p, v.secs);
+	dv().setUint32(p + 8, v.nanos, true);
+}
+
+function octets(p: number, n: number): Uint8Array {
+	return mem().slice(p, p + n);
+}
+
+function putOctets(p: number, v: Uint8Array, n: number): void {
+	if (!(v instanceof Uint8Array) || v.length !== n) throw new RangeError(`an address is no ${n} bytes`);
+	mem().set(v, p);
+}
+
+export function ipv4Get(p: number): Ipv4Addr {
+	return { octets: octets(p, 4) };
+}
+
+export function ipv4Put(p: number, v: Ipv4Addr): void {
+	putOctets(p, v.octets, 4);
+}
+
+export function ipv6Get(p: number): Ipv6Addr {
+	return { octets: octets(p, 16) };
+}
+
+export function ipv6Put(p: number, v: Ipv6Addr): void {
+	putOctets(p, v.octets, 16);
+}
+
+export function ipGet(p: number): IpAddr {
+	return dv().getUint8(p) !== 0 ? { tag: "V6", _0: ipv6Get(p + 1) } : { tag: "V4", _0: ipv4Get(p + 1) };
+}
+
+export function ipPut(p: number, v: IpAddr): void {
+	dv().setUint8(p, v.tag === "V6" ? 1 : 0);
+	if (v.tag === "V6") ipv6Put(p + 1, v._0);
+	else if (v.tag === "V4") ipv4Put(p + 1, v._0);
+	else throw new RangeError("an IpAddr is V4 or V6");
+}
+
+export function socketV4Get(p: number): SocketAddrV4 {
+	return { ip: ipv4Get(p), port: dv().getUint16(p + 4, true) };
+}
+
+export function socketV4Put(p: number, v: SocketAddrV4): void {
+	ipv4Put(p, v.ip);
+	dv().setUint16(p + 4, int(v.port, 0, 0xffff, "port"), true);
+}
+
+export function socketV6Get(p: number): SocketAddrV6 {
+	const d = dv();
+	return {
+		ip: ipv6Get(p),
+		port: d.getUint16(p + 16, true),
+		flowinfo: d.getUint32(p + 20, true),
+		scopeId: d.getUint32(p + 24, true),
+	};
+}
+
+export function socketV6Put(p: number, v: SocketAddrV6): void {
+	ipv6Put(p, v.ip);
+	const d = dv();
+	d.setUint16(p + 16, int(v.port, 0, 0xffff, "port"), true);
+	d.setUint32(p + 20, int(v.flowinfo, 0, 0xffffffff, "flow label"), true);
+	d.setUint32(p + 24, int(v.scopeId, 0, 0xffffffff, "scope"), true);
+}
+
+export function socketGet(p: number): SocketAddr {
+	return dv().getUint8(p) !== 0 ? { tag: "V6", _0: socketV6Get(p + 4) } : { tag: "V4", _0: socketV4Get(p + 4) };
+}
+
+export function socketPut(p: number, v: SocketAddr): void {
+	dv().setUint8(p, v.tag === "V6" ? 1 : 0);
+	if (v.tag === "V6") socketV6Put(p + 4, v._0);
+	else if (v.tag === "V4") socketV4Put(p + 4, v._0);
+	else throw new RangeError("a SocketAddr is V4 or V6");
+}
+
+// What JavaScript implements for Rust, each found by its token.
+
+/** Each value Rust holds or a call lends, by token, and what Rust's drop of it calls. */
+const tokens = new Map<number, unknown>();
+const drops = new Map<number, () => void>();
+let token = 0;
+
+/** A token for `value`, which Rust frees through `free`, calling `drop` then. */
+export function give(value: unknown, drop?: () => void): number {
+	const t = ++token;
+	tokens.set(t, value);
+	if (drop) drops.set(t, drop);
+	return t;
+}
+
+/** A token for `value`, forgotten once the running call returns. */
+export function lend(value: unknown): number {
+	const t = ++token;
+	tokens.set(t, value);
+	lent.push(t);
+	return t;
+}
+
+/** The value of `t`. */
+export function find<T>(t: number): T {
+	return tokens.get(t) as T;
+}
+
+/** The table index of each C function the runtime's values take, as `fns` gives them. */
+export const fn = { wake: 0, wakerDrop: 0, free: 0, poll: 0, read: 0, seek: 0 };
+
+/**
+ * Run `f`, which JavaScript does for Rust inside a call, aborting the module on what it
+ * throws, since Rust has nowhere to unwind to.
+ */
+export function out<T>(what: string, f: () => T): T {
+	s.d--;
+	try {
+		return f();
+	} catch (e) {
+		if (aborted !== undefined) throw e;
+		return abort(`${what}: a call into JavaScript threw ${e instanceof Error ? (e.stack ?? e) : String(e)}`);
+	} finally {
+		s.d++;
+	}
+}
+
+/** Write a waker of `t`'s wakes at `dst`. */
+function putWaker(dst: number, t: number): void {
+	const d = dv();
+	d.setUint32(dst, fn.wake, true);
+	d.setUint32(dst + 4, fn.wakerDrop, true);
+	d.setUint32(dst + 8, t, true);
+}
+
+/** What each token's wake calls, and what dropping its last waker calls. */
+const wakes = new Map<number, () => void>();
+
+/** Write at `dst` a waker Rust holds until it drops it, calling `wake` on a microtask. */
+export function wakerOf(dst: number, wake: () => void): void {
+	const t = ++token;
+	wakes.set(t, wake);
+	drops.set(t, () => wakes.delete(t));
+	putWaker(dst, t);
+}
+
+/** A waker Rust returned at `p`, the caller's to wake through Rust and drop once. */
+export function wakerGet(p: number): Waker {
+	const d = dv();
+	const wake = d.getUint32(p, true);
+	const drop = d.getUint32(p + 4, true);
+	const data = d.getUint32(p + 8, true);
+	let dropped = false;
+	const waker = {
+		wake() {
+			if (dropped) throw new Error("Waker is closed");
+			const m = enter();
+			s.d++;
+			w[`${space}_call`](wake, data);
+			s.d--;
+			leave(m);
+		},
+		[Symbol.dispose]() {
+			if (dropped) return;
+			dropped = true;
+			wakers.unregister(waker);
+			const m = enter();
+			s.d++;
+			w[`${space}_call`](drop, data);
+			s.d--;
+			leave(m);
+		},
+	};
+	wakers.register(waker, [drop, data], waker);
+	return waker;
+}
+
+const wakers = new FinalizationRegistry<[number, number]>(([drop, data]) => {
+	if (aborted !== undefined) return;
+	s.d++;
+	w[`${space}_call`](drop, data);
+	s.d--;
+});
+
+/** A future JavaScript gave Rust: its promise's outcome, and the waker of Rust's last poll. */
+type Foreign = { done: boolean; failed: unknown; wake: number; drop: number; data: number; call?: Call<unknown> };
+
+/** Write at `dst` the future Rust polls of `promise`, until it completes. */
+export function futureOf(dst: number, promise: Promise<unknown>): void {
+	const f: Foreign = { done: false, failed: undefined, wake: 0, drop: 0, data: 0 };
+	if (calls.has(promise)) f.call = promise as Call<unknown>;
+	const t = give(f, () => {
+		f.done = true;
+		release(f);
+		f.call?.cancel();
+	});
+	promise.then(
+		() => settle(f, undefined),
+		(e) => settle(f, e ?? new Error("a future given to Rust rejected")),
+	);
+	const d = dv();
+	d.setUint32(dst, fn.poll, true);
+	d.setUint32(dst + 4, fn.free, true);
+	d.setUint32(dst + 8, t, true);
+}
+
+function settle(f: Foreign, failed: unknown): void {
+	if (f.done) return;
+	if (failed !== undefined) {
+		if (!(failed instanceof Cancelled)) abort(`a future given to Rust: it rejected with ${failed}`);
+	}
+	f.done = true;
+	const { wake, data } = f;
+	if (data === 0 || aborted !== undefined) return;
+	const m = enter();
+	s.d++;
+	w[`${space}_call`](wake, data);
+	s.d--;
+	leave(m);
+	release(f);
+}
+
+/** Drop the waker `f` holds, if any. */
+function release(f: Foreign): void {
+	if (f.data === 0 || aborted !== undefined) return;
+	const { drop, data } = f;
+	f.data = 0;
+	const m = enter();
+	s.d++;
+	w[`${space}_call`](drop, data);
+	s.d--;
+	leave(m);
+}
+
+/** Write at `dst` `reader`, lent to Rust for the running call. */
+export function readerOf(dst: number, reader: Reader): void {
+	const d = dv();
+	d.setUint32(dst, fn.read, true);
+	d.setUint32(dst + 4, fn.seek, true);
+	d.setUint32(dst + 8, lend(reader), true);
+}
+
+/** Write the error `e` a reader threw at `err`, as an `io::Error`'s message. */
+function readerError(err: number, e: unknown): false {
+	copied(err, e instanceof Error ? e.message : String(e), true);
+	return false;
+}
+
+/** The functions the module imports from `rust2`: the C functions of what JavaScript implements. */
+function rust2(extra: Record<string, (...args: number[]) => unknown>): Record<string, unknown> {
+	return {
+		...extra,
+		rust2_wake(t: number) {
+			const wake = wakes.get(t);
+			if (wake) queueMicrotask(wake);
+		},
+		rust2_waker_drop(t: number) {
+			drops.get(t)?.();
+			drops.delete(t);
+		},
+		rust2_free(t: number) {
+			out("a drop", () => {
+				const drop = drops.get(t);
+				tokens.delete(t);
+				drops.delete(t);
+				drop?.();
+			});
+		},
+		rust2_future_poll(t: number, waker: number): number {
+			return out("a future's poll", () => {
+				const f = find<Foreign>(t);
+				release(f);
+				const d = dv();
+				if (f.done) {
+					s.d++;
+					w[`${space}_call`](d.getUint32(waker + 4, true), d.getUint32(waker + 8, true));
+					s.d--;
+					return 1;
+				}
+				f.wake = d.getUint32(waker, true);
+				f.drop = d.getUint32(waker + 4, true);
+				f.data = d.getUint32(waker + 8, true);
+				return 0;
+			});
+		},
+		rust2_reader_read(t: number, buf: number, len: number, n: number, err: number): number {
+			return out("a reader's read", () => {
+				const owned = new Uint8Array(len);
+				let got: number;
+				try {
+					got = find<Reader>(t).read(owned);
+				} catch (e) {
+					return readerError(err, e) ? 1 : 0;
+				}
+				if (Number.isInteger(got) && got > 0 && got <= len) mem().set(owned.subarray(0, got), buf);
+				dv().setUint32(n, got >>> 0 === got ? got : 0xffffffff, true);
+				return 1;
+			});
+		},
+		rust2_reader_seek(t: number, whence: number, offset: bigint, position: number, err: number): number {
+			return out("a reader's seek", () => {
+				const from: SeekFrom = whence === 0 ? "Start" : whence === 1 ? "Current" : "End";
+				let at: u64;
+				try {
+					at = find<Reader>(t).seek(from === "Start" ? u64OfBig(offset) : i64OfBig(offset), from);
+				} catch (e) {
+					return readerError(err, e) ? 1 : 0;
+				}
+				u64Put(position, at);
+				return 1;
+			});
+		},
+	};
+}
+
+// Futures: a call into Rust's async API polls its future once as it is made, and again on a
+// microtask each time Rust wakes it, never inside the wake.
+
+/** The calls pending in Rust, by their promise. */
+const calls = new Map<Promise<unknown>, Pending<unknown>>();
+
+/** A future in Rust that pended, until it finishes. */
+class Pending<T> {
+	f: number;
+	/** The waker's token, whose wakes poll it again. */
+	t = 0;
+	polling = false;
+	cancelled = false;
+	scheduled = false;
+	resolve!: (value: T) => void;
+	reject!: (error: unknown) => void;
+	promise!: Call<T>;
+	readonly poll: (f: number, waker: number) => [boolean, T];
+	readonly free: string;
+
+	constructor(f: number, poll: (f: number, waker: number) => [boolean, T], free: string) {
+		this.f = f;
+		this.poll = poll;
+		this.free = free;
+	}
+
+	wake = () => {
+		this.scheduled = false;
+		if (this.f !== 0 && !this.polling) this.step();
+	};
+
+	step(): void {
+		this.polling = true;
+		let done: boolean;
+		let value: T;
+		const m = enter();
+		try {
+			const waker = alloc(12, 4);
+			putWaker(waker, this.t);
+			[done, value] = this.poll(this.f, waker);
+		} catch (e) {
+			leave(m);
+			this.polling = false;
+			this.finish();
+			this.reject(e);
+			return;
+		}
+		leave(m);
+		this.polling = false;
+		if (done) {
+			this.finish();
+			this.resolve(value);
+		} else if (this.cancelled) {
+			this.cancel();
+		}
+	}
+
+	finish(): void {
+		if (this.f === 0) return;
+		const f = this.f;
+		this.f = 0;
+		calls.delete(this.promise);
+		wakes.delete(this.t);
+		if (aborted !== undefined) return;
+		const m = enter();
+		s.d++;
+		w[this.free](f);
+		s.d--;
+		leave(m);
+	}
+
+	cancel(): void {
+		this.finish();
+		this.promise.catch(() => {});
+		this.reject(new Cancelled());
+	}
+}
+
+/**
+ * The `Call` of a future whose first poll gave `first`: its value if ready, or else the
+ * handle of the future that pended, which `poll` polls with a waker and `free` frees.
+ */
+export function pending<T>(f: number, poll: (f: number, waker: number) => [boolean, T], free: string): Call<T> {
+	const p = new Pending<T>(f, poll, free);
+	const promise = new Promise<T>((resolve, reject) => {
+		p.resolve = resolve;
+		p.reject = reject;
+	}) as Call<T>;
+	promise.cancel = () => {
+		if (p.f === 0 || p.cancelled) return;
+		p.cancelled = true;
+		if (!p.polling) p.cancel();
+	};
+	p.promise = promise;
+	calls.set(promise, p as Pending<unknown>);
+	p.t = ++token;
+	wakes.set(p.t, p.wake);
+	p.step();
+	return promise;
+}
+
+/** The `Call` of a future ready at its first poll, with `value`. */
+export function ready<T>(value: T): Call<T> {
+	const promise = Promise.resolve(value) as Call<T>;
+	promise.cancel = () => {};
+	return promise;
+}
+
+/** The `Call` of a future whose first poll failed with `error`. */
+export function failed<T>(error: unknown): Call<T> {
+	const promise = Promise.reject(error) as Call<T>;
+	promise.cancel = () => {};
+	return promise;
+}
+
+// The module, and the web APIs its std imports.
+
+let prefix = "";
+/** The namespace of the glue's C names. */
+let space = "";
+
+const text = { out: "", err: "" };
+
+/** A line of what the module wrote to stdout or stderr, to `console.log` or `console.error`. */
+function written(fd: number, chunk: string): void {
+	const key = fd === 1 ? "out" : "err";
+	let pending = text[key] + chunk;
+	for (let at = pending.indexOf("\n"); at >= 0; at = pending.indexOf("\n")) {
+		(fd === 1 ? console.log : console.error)(pending.slice(0, at));
+		pending = pending.slice(at + 1);
+	}
+	text[key] = pending;
+}
+
+/** What the module's std imports, each the web API standing in for it. */
+const wasi = {
+	clock_time_get(id: number, _precision: bigint, out: number): number {
+		// The realtime clock from `Date.now`'s origin, at `performance.now`'s precision; every
+		// other clock is monotonic.
+		const ms = id === 0 ? performance.timeOrigin + performance.now() : performance.now();
+		const ns = BigInt(Math.floor(ms * 1e6));
+		dv().setBigUint64(out, ns, true);
+		return 0;
+	},
+	clock_res_get(_id: number, out: number): number {
+		dv().setBigUint64(out, 1000n, true);
+		return 0;
+	},
+	random_get(buf: number, len: number): number {
+		// `getRandomValues` fills at most 64 KiB at a time.
+		for (let at = 0; at < len; at += 65536) {
+			crypto.getRandomValues(mem().subarray(buf + at, buf + Math.min(len, at + 65536)));
+		}
+		return 0;
+	},
+	fd_write(fd: number, iovs: number, n: number, nwritten: number): number {
+		// A web page has no stream but the console's.
+		if (fd !== 1 && fd !== 2) return 8;
+		const d = dv();
+		let total = 0;
+		for (let i = 0; i < n; i++) {
+			const ptr = d.getUint32(iovs + 8 * i, true);
+			const len = d.getUint32(iovs + 8 * i + 4, true);
+			written(fd, loose.decode(mem().subarray(ptr, ptr + len)));
+			total += len;
+		}
+		dv().setUint32(nwritten, total, true);
+		return 0;
+	},
+	// A web page has no environment and no arguments.
+	environ_sizes_get(count: number, size: number): number {
+		const d = dv();
+		d.setUint32(count, 0, true);
+		d.setUint32(size, 0, true);
+		return 0;
+	},
+	environ_get(): number {
+		return 0;
+	},
+	args_sizes_get(count: number, size: number): number {
+		return wasi.environ_sizes_get(count, size);
+	},
+	args_get(): number {
+		return 0;
+	},
+	// One thread, with nothing to yield to.
+	sched_yield(): number {
+		return 0;
+	},
+	proc_exit(code: number): never {
+		aborted ??= new Error(`the module exited with ${code}`);
+		throw dead();
+	},
+};
+
+/** What `load` takes the module from. */
+export type Source = WebAssembly.Module | BufferSource | Response | PromiseLike<Response>;
+
+/** What a binding's `load` passes: its C prefix and glue's namespace, its contract and target, and its imports. */
+export type Glue = {
+	readonly prefix: string;
+	readonly space: string;
+	readonly file: string;
+	readonly contract: bigint;
+	readonly target: number;
+	readonly imports: Record<string, (...args: never[]) => unknown>;
+};
+
+/**
+ * Compile and instantiate the module from `source`, checking it is the build `glue` was
+ * generated with, before any call. It refuses an import with no web API standing in for it.
+ */
+export async function load(source: Source, glue: Glue): Promise<void> {
+	if (memory !== undefined) throw new Error(`${glue.file}: the module is loaded already`);
+	let module: WebAssembly.Module;
+	if (source instanceof WebAssembly.Module) module = source;
+	else if (source instanceof ArrayBuffer || ArrayBuffer.isView(source)) module = await WebAssembly.compile(source);
+	else module = await WebAssembly.compileStreaming(source as Response | PromiseLike<Response>);
+	const rust = rust2(glue.imports as Record<string, (...args: number[]) => unknown>);
+	for (const i of WebAssembly.Module.imports(module)) {
+		const known = i.module === "wasi_snapshot_preview1" ? i.name in wasi : i.module === "rust2" && i.name in rust;
+		if (!known) {
+			throw new Error(`${glue.file}: the module imports ${i.module}.${i.name}, which no web API stands in for`);
+		}
+	}
+	const instance = await WebAssembly.instantiate(module, {
+		wasi_snapshot_preview1: wasi,
+		rust2: rust as WebAssembly.ModuleImports,
+	});
+	const exports = instance.exports as Exports;
+	memory = exports.memory as WebAssembly.Memory;
+	prefix = glue.prefix;
+	space = glue.space;
+	exports._initialize?.();
+	if (exports[`${prefix}_contract`]() !== BigInt.asIntN(64, glue.contract)) {
+		throw new Error(`${glue.file} and the module are from different builds`);
+	}
+	if (exports[`${prefix}_target`]() !== glue.target) {
+		throw new Error(`${glue.file}: the module was built for another target than wasm32-wasip1`);
+	}
+	w = exports;
+	base = exports[`${space}_alloc`](STACK, 16);
+	const p = exports[`${space}_fns`]();
+	const d = dv();
+	const names = ["wake", "wakerDrop", "free", "poll", "read", "seek"] as const;
+	names.forEach((name, i) => {
+		fn[name] = d.getUint32(p + 4 * i, true);
+	});
+}
