@@ -486,7 +486,7 @@ frame path:
    (5,298), leaving Dart's own await, which schedules a microtask even for a complete
    future. Go's is the returned frame's ownership (`AddCleanup`, `Cleanup.Stop`, and a
    close's two crossings), and cgo's check and heap allocation of each out pointer, which
-   [Go's pointers](../../quest/m1/ffi-speed/go-pointers.md) takes: what remains after both
+   [kixel-ai/rust2#837](https://github.com/kixel-ai/rust2/pull/837) took: what remains after both
    is one crossing. Off the main thread, glibc's malloc arena for the thread grows and
    trims with `mprotect`, which adds about 60 ns to a write and 20 to a read in C on a
    pthread (`MALLOC_ARENA_MAX=1` removes it). Swift's ready read runs in a task on such a

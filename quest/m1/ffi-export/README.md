@@ -85,7 +85,8 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   before moq pins: the fused async start,
   owned buffers ([kixel-ai/rust2#744](https://github.com/kixel-ai/rust2/pull/744)), and
   numeric slices ([kixel-ai/rust2#743](https://github.com/kixel-ai/rust2/pull/743)). Work that changes no generated API is
-  [its own epic](/quest/m1/ffi-speed/README.md), which does not hold the pin.
+  its own epic, which did not hold the pin and was retired on 2026-11-16 once its children
+  landed.
 - Not planned: one walker emitting lift and lower instructions every generator
   implements, as wit-bindgen's `Bindgen` does. A new rule touches 19 to 38 files today,
   but it would collide with the four `[L]` children that each rewrite every generator.

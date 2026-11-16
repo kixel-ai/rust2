@@ -19,5 +19,5 @@ since moq never builds on it and its only consumers here were the binding benchm
 baseline and nightly jobs. Rejected: keeping it until moq switches; keeping it as is.
 
 Decided with the maintainer on 2026-11-12, in the quest audit: ✅ exporter work that
-changes no generated API is [its own epic](/quest/m1/ffi-speed/README.md), so it does not
-hold moq's pin open. Rejected: keeping it in the exporter's epic.
+changes no generated API is its own epic, so it does not
+hold moq's pin open; the epic retired on 2026-11-16 once its children landed. Rejected: keeping it in the exporter's epic.
