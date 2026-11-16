@@ -25,6 +25,10 @@ export function copy$array_mem_MaybeUninit_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
 }
 
+export function copy$array_u8(v: Uint8Array): Uint8Array {
+	return v.slice();
+}
+
 export function copy$arrayvec_ArrayString_12(v: ArrayString.ArrayString): ArrayString.ArrayString {
 	return { len: v.len, xs: copy$array_mem_MaybeUninit_u8(v.xs) };
 }

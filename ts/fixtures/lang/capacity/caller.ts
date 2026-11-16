@@ -35,8 +35,8 @@ const capacityCases = [
 	),
 	...Array.from({ length: 5 * 2 * 256 }, (_, i) => Uint8Array.of(...op("capacity::vecs"), i % 5, (Math.floor(i / 5) % 2) * 0x11, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 35, Math.floor(i / 10))),
 	...Array.from({ length: 8 * 6 }, (_, i) => Uint8Array.of(...op("capacity::collects"), i % 8, [0, 1, 2, 5, 9, 23][Math.floor(i / 8)], 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)),
-	...Array.from({ length: 48 * 4 * 4 }, (_, i) => {
-		const [step, first, arg] = [i % 48, [0, 0x29, 0x0e, 0x0f][Math.floor(i / 48) % 4], [1, 6, 0xc3, 0xe2][Math.floor(i / 192)]];
+	...Array.from({ length: 54 * 4 * 4 }, (_, i) => {
+		const [step, first, arg] = [i % 54, [0, 0x29, 0x0e, 0x0f][Math.floor(i / 54) % 4], [1, 6, 0xc3, 0xe2][Math.floor(i / 216)]];
 		return Uint8Array.of(...op("capacity::strings"), first, 1, 3, 0, 2, 1, 1, step, arg, step, arg ^ 3, 0, 1);
 	}),
 ];

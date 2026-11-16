@@ -7,8 +7,6 @@
 // script drains, after the write that wakes it. A session over QUIC runs on moq-tokio's
 // fallback runtime, whose threads resume Kotlin's.
 
-import java.net.InetAddress
-import java.net.InetSocketAddress
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executor
 import kotlin.time.Duration.Companion.seconds
@@ -80,7 +78,7 @@ fun main() {
 	scope.launch { frame = first.readFrame() }
 	q.drain()
 	expect(frame == null, "a read waits for a frame")
-	writer.writeFrame(null, "hello".encodeToByteArray())
+	writer.writeFrame(null, Bytes("hello".encodeToByteArray()))
 	expect(q.size == 1, "a frame's arrival wakes the read")
 	q.drain()
 	val hello = frame!!
@@ -89,12 +87,12 @@ fun main() {
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(clockNow().checkedDurationSince(hello.arrived()) != null, "a frame arrived before now")
 
-	// A timestamp is a `Copy` value behind a handle: passing it copies it out. The track is
+	// A timestamp is a `Copy` value copied across, which allocates nothing. The track is
 	// untimed, so a timestamped frame is refused.
 	val at = Timestamp.fromMillis(1500u)
 	expect(at.asSecs() == 1uL, "1500 ms is 1 s")
 	try {
-		writer.writeFrame(at, "late".encodeToByteArray())
+		writer.writeFrame(at, Bytes("late".encodeToByteArray()))
 		expect(false, "a timestamped frame on an untimed track is an error")
 	} catch (e: ErrorException) {
 		expect(e.message == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
@@ -103,7 +101,7 @@ fun main() {
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as null.
 	val world = byteArrayOf(0xff.toByte()) + "world".encodeToByteArray()
-	writer.writeFrame(null, world)
+	writer.writeFrame(null, Bytes(world))
 	writer.finish()
 	runBlocking {
 		expect(first.readFrame()?.payloadGet?.toByteArray()?.contentEquals(world) == true, "the last frame reads")
@@ -175,14 +173,14 @@ fun main() {
 	// moq-mux reads an OpusHead into hang's catalog config: 44.1 kHz in, stereo, which the
 	// catalog lists at the decoder's 48 kHz, keeping the head as its description.
 	val head = "OpusHead".encodeToByteArray() + byteArrayOf(1, 2, 0x38, 0x01, 0x44, 0xac.toByte(), 0, 0, 0, 0, 0)
-	val audio = muxCodecOpusConfig(head)
+	val audio = muxCodecOpusConfig(Bytes(head))
 	expect(audio.sampleRateGet == 48000u, "Opus decodes at 48 kHz")
 	expect(audio.channelCountGet == 2u, "the head is stereo")
 	expect(audio.codecGet == HangCatalogAudioCodec.Opus, "the codec is Opus")
 	expect(audio.descriptionGet?.toByteArray()?.contentEquals(head) == true, "the head is the description")
 	// A truncated head is moq-mux's error.
 	try {
-		muxCodecOpusConfig(head.copyOf(8))
+		muxCodecOpusConfig(Bytes(head.copyOf(8)))
 		expect(false, "a truncated head is an error")
 	} catch (e: MuxErrorException) {
 		expect(e.message.isNotEmpty(), "a truncated head's error has a message")
@@ -284,15 +282,16 @@ fun main() {
 	versions.close()
 	// A socket address, crossing in a listener's bind.
 	val loopback = ByteArray(16).also { it[15] = 1 }
-	val bind = TokioListenBind.Addr(java.net.InetSocketAddress(java.net.Inet6Address.getByAddress(null, loopback, null as java.net.NetworkInterface?), 4443))
+	val bind = TokioListenBind.Addr(SocketAddrV6(Ipv6Addr(loopback), 4443u))
 	expect(bind.toString() == "[::1]:4443", "an IPv6 bind prints as Rust's")
-	val v4 = TokioListenBind.Addr(java.net.InetSocketAddress(java.net.InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)), 0))
+	val preferred = SocketAddrV4(Ipv4Addr(127u, 0u, 0u, 1u), 0u)
+	val v4 = TokioListenBind.Addr(preferred)
 	expect(v4.toString() == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
 	TokioListenConfig.default().use { listen ->
 		listen.bindSet(bind)
 		// The preferred address of each family, which takes only that family.
-		listen.preferredV4Set(v4._0)
-		expect(listen.preferredV4Get == v4._0 && listen.preferredV6Get == null, "a listener keeps its preferred IPv4 address")
+		listen.preferredV4Set(preferred)
+		expect(listen.preferredV4Get == preferred && listen.preferredV6Get == null, "a listener keeps its preferred IPv4 address")
 		expect(listen.bindGet == bind, "a listener's config keeps its bind")
 	}
 	// TLS files, as OS paths, and fingerprints, as strings: none by default.
@@ -311,19 +310,19 @@ fun main() {
 			live.announce(OriginRoute.default())
 			val liveTrack = live.broadcast().createTrack("video", null)
 			val liveGroup = liveTrack.appendGroup()
-			liveGroup.writeFrame(null, "hello".encodeToByteArray())
+			liveGroup.writeFrame(null, Bytes("hello".encodeToByteArray()))
 			liveGroup.finish()
 
 			val serverConfig = TokioServerConfig.default()
 			val listen = serverConfig.listenGet
-			listen.bindSet(TokioListenBind.Addr(InetSocketAddress(InetAddress.getByName("::"), 0)))
+			listen.bindSet(TokioListenBind.Addr(SocketAddrV6(Ipv6Addr(ByteArray(16)), 0u)))
 			val tls = listen.tlsGet
 			tls.generateSet(listOf("localhost"))
 			listen.tlsSet(tls)
 			serverConfig.listenSet(listen)
 			val server = serverConfig.init()
 			val local = server.localAddr()
-			expect(local.port != 0, "a server bound to port 0 reads back the port it got")
+			expect(local.port.toInt() != 0, "a server bound to port 0 reads back the port it got")
 			val serving = launch { server.servePublish(served.consume()) }
 
 			val connect = TokioConnectConfig.default()

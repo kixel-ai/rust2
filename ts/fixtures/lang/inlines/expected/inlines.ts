@@ -109,12 +109,28 @@ export function values(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const halves: rs.Vec<Small.Small> = rs.iterToVec(rs.iterMap(rs.byteSliceChunks(data, 3), Small.from$4), undefined, 12, true);
 	const _46: rs.ByteSlice = Small.bytes$2(two);
 	const _49: rs.ByteSlice = Small.bytes$4(four);
-	const _52: rs.usize = rs.iterCount(rs.iterFilter(rs.iterSlice(halves.items), (h: Small.Small): boolean => {
+	const s3 = halves.items;
+	let front = 0;
+	let back = s3.length;
+	const f = (h: Small.Small): boolean => {
 		if (h.tag === "Inline") {
 			return true;
 		}
 		return false;
-	}));
+	};
+	let n = 0;
+	fused3: while (true) {
+		while (true) {
+			if (front >= back) {
+				break fused3;
+			}
+			if (f(s3[front++])) {
+				break;
+			}
+		}
+		n++;
+	}
+	const _52: rs.usize = n;
 	const _57: Mod.Mod = seven;
 	const _58: Mod.Mod = big;
 	const args8 = [(f: rs.Formatter) => Mod.fmt$fmt_Debug_7(_57, f), (f: rs.Formatter) => Mod.fmt$fmt_Debug_4294967291(_58, f), (f: rs.Formatter) => rs.fmtPad(f, marks.v), (f: rs.Formatter) => Small.fmt$fmt_Debug_2(two, f), (f: rs.Formatter) => Small.fmt$fmt_Debug_4(four, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_46), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_49), f, rs.u8Debug), (f: rs.Formatter) => rs.usizeDisplay(_52, f)];

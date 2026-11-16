@@ -5,14 +5,7 @@ import * as Either from "./generics.Either.ts";
 import * as Wrap from "./generics.Wrap.ts";
 
 export function fmt$fmt_Debug_generics_Either_u8_u16_i16(self: Tagged<Either.Either<rs.u8, rs.u16>, rs.i16>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tagged";
-	const _4: string = "key";
-	const _5: rs.Fmt = (f: rs.Formatter) => Either.fmt$fmt_Debug_u8_u16(self.key, f);
-	const _7: string = "inner";
-	const _8: rs.Fmt = (f: rs.Formatter) => Wrap.fmt$fmt_Debug_i16(self.inner, f);
-	const _10: string = "all";
-	const _11: rs.Fmt = (f: rs.Formatter) => rs.fmtList(self.all.items, f, (value: Wrap.Wrap<rs.i16>, f: rs.Formatter) => Wrap.fmt$fmt_Debug_i16(value, f));
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8), _10, _11));
+	return rs.fmtDebugFields(f, "Tagged key inner all", [(f: rs.Formatter) => Either.fmt$fmt_Debug_u8_u16(self.key, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_i16(self.inner, f), (f: rs.Formatter) => rs.fmtList(self.all.items, f, (value: Wrap.Wrap<rs.i16>, f: rs.Formatter) => Wrap.fmt$fmt_Debug_i16(value, f))]);
 }
 
 /** Two parameters, one nested in another generic type. */

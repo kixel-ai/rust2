@@ -6,10 +6,7 @@ export function fmt$fmt_Debug(self: CollectionAllocErr, f: rs.Formatter): rs.Res
 	if (self.tag === "CapacityOverflow") {
 		return rs.fmtWriteStr(f, "CapacityOverflow");
 	}
-	const _6: string = "AllocErr";
-	const _7: string = "layout";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtLayoutDebug(self.layout, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.fmtDebugStruct(f, _6), _7, _8));
+	return rs.fmtDebugFields(f, "AllocErr layout", [(f: rs.Formatter) => rs.fmtLayoutDebug(self.layout, f)]);
 }
 
 /** Error type for APIs with fallible heap allocation */

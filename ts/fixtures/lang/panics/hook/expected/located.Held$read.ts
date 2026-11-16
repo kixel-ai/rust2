@@ -3,12 +3,7 @@
 import * as rs from "./rs.ts";
 
 export function fmt$read_fmt_Debug(self: Held, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Held";
-	const _4: string = "at";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.fmtLocationDebug(self.at, f);
-	const _7: string = "maybe";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(self.maybe, f, rs.fmtLocationDebug);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Held at maybe", [(f: rs.Formatter) => rs.fmtLocationDebug(self.at, f), (f: rs.Formatter) => rs.fmtOption(self.maybe, f, rs.fmtLocationDebug)]);
 }
 
 export function eq$read_cmp_PartialEq(self: Held, other: Held): boolean {

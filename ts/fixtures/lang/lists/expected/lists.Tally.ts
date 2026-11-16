@@ -7,10 +7,7 @@ export function clone$Clone(self: Tally): Tally {
 }
 
 export function fmt$fmt_Debug(self: Tally, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Tally";
-	const _4: string = "n";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.u16Debug(self.n, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5));
+	return rs.fmtDebugFields(f, "Tally n", [(f: rs.Formatter) => rs.u16Debug(self.n, f)]);
 }
 
 export function default$Default(): Tally {

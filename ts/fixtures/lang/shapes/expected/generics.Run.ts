@@ -5,16 +5,11 @@ import * as rs from "./rs.ts";
 export function fmt$fmt_Debug_u16(self: Run<rs.u16>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	if (self.tag === "Listed") {
 		const arg = self._0 as rs.Vec<rs.u16>;
-		const _5: string = "Listed";
-		const _6: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg.items, f, rs.u16Debug);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _5), _6));
+		return rs.fmtDebugFields(f, "Listed", [(f: rs.Formatter) => rs.fmtList(arg.items, f, rs.u16Debug)]);
 	}
 	if (self.tag === "Fixed") {
 		const __self0: rs.Slice<rs.u16> = rs.sliceFrom(self.array as rs.u16[]);
-		const _9: string = "Fixed";
-		const _10: string = "array";
-		const _11: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.sliceItems(__self0), f, rs.u16Debug);
-		return rs.debugStructFinish(rs.debugStructField(rs.fmtDebugStruct(f, _9), _10, _11));
+		return rs.fmtDebugFields(f, "Fixed array", [(f: rs.Formatter) => rs.fmtList(rs.sliceItems(__self0), f, rs.u16Debug)]);
 	}
 	return rs.fmtWriteStr(f, "Empty");
 }
@@ -22,16 +17,11 @@ export function fmt$fmt_Debug_u16(self: Run<rs.u16>, f: rs.Formatter): rs.Result
 export function fmt$fmt_Debug_u8(self: Run<rs.u8>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	if (self.tag === "Listed") {
 		const arg = self._0 as rs.ByteVec;
-		const _5: string = "Listed";
-		const _6: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(arg), f, rs.u8Debug);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _5), _6));
+		return rs.fmtDebugFields(f, "Listed", [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(arg), f, rs.u8Debug)]);
 	}
 	if (self.tag === "Fixed") {
 		const __self0: rs.ByteSlice = rs.byteSliceFrom(self.array as Uint8Array);
-		const _9: string = "Fixed";
-		const _10: string = "array";
-		const _11: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(__self0), f, rs.u8Debug);
-		return rs.debugStructFinish(rs.debugStructField(rs.fmtDebugStruct(f, _9), _10, _11));
+		return rs.fmtDebugFields(f, "Fixed array", [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(__self0), f, rs.u8Debug)]);
 	}
 	return rs.fmtWriteStr(f, "Empty");
 }

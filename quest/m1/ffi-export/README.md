@@ -29,14 +29,14 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
 - ✅ [Sessions on sans-IO QUIC](/quest/m3/session-quic.md) left the epic for m3, since it
   waits on moq's m3 driver and would hold the epic open. Rejected: m2; staying in m1.
 - ✅ A binding's types are lossless, with checked conversions to and from the idiomatic
-  ones ([lossless](/quest/m1/ffi-export/lossless.md)). Rejected: idiomatic types whose
+  ones ([#832](https://github.com/kixel-ai/rust2/pull/832)). Rejected: idiomatic types whose
   truncations and aborts become errors; today's mappings.
 - ✅ A failed run-time check raises the language's own error, and a Rust panic aborts
-  ([checks-raise](/quest/m1/ffi-export/checks-raise.md)). Rejected: catching panics at the
+  ([#730](https://github.com/kixel-ai/rust2/pull/730)). Rejected: catching panics at the
   boundary; aborting on every failed check.
 - ✅ A type or future that is not `Send` exports, checked by thread
-  ([not-send](/quest/m1/ffi-export/not-send.md)). Rejected: a Rust-owned thread for every
-  such object; keeping the refusal.
+  ([#844](https://github.com/kixel-ai/rust2/pull/844)). Rejected: a Rust-owned thread for
+  every such object; keeping the refusal.
 - ✅ No opt-out: `#[doc(hidden)]` items stay left out, as they are no part of a crate's API,
   but no quest or PR recommends the attribute to get an item past the exporter, and moq
   bans it ([moq-dev/moq#8392](https://github.com/moq-dev/moq/pull/8392)).
@@ -56,8 +56,8 @@ Every generator, the [targets m3 plans](/quest/m3/README.md) included:
   other call, and fails loud on a mismatch (done in all six);
 - keeps the C ABI's bulk and zero-copy payloads, with no per-byte loop on either side (done);
 - wraps the C ABI's futures in the language's native future (done). Those futures already
-  take the result in the poll that finishes them, so a cancel never loses a frame, cost three
-  crossings when ready at once, and reuse a repeated waker. The native future must latch a
+  take the result in the poll that finishes them, so a cancel never loses a frame, cost one
+  crossing when ready at once, and reuse a repeated waker. The native future must latch a
   wake that lands between `PENDING` and parking, prove no loss on cancel in a test that
   forces that window, and pick a semantic for concurrent pollers. Decided with the
   maintainer on 2026-10-27: async lands with each generator, not as its own quest.
@@ -79,13 +79,12 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
 - ✅ The epic's closing work is a child, [ship](/quest/m1/ffi-export/ship.md), which alone
   requires [the refusals epic](/quest/m1/ffi-refusals/README.md). Rejected: the epic
   requiring it, as [#701](https://github.com/kixel-ai/rust2/pull/701) left it, since an
-  epic's `Required` holds back every child, so none could start until moq's pin bump,
-  which waits on a rind release the maintainer holds.
+  epic's `Required` holds back every child, so none could start until moq's pin bump, which
+  then waited on a rind release the maintainer held.
 - ✅ Every change that breaks the C ABI or a generated API is a child here, so it lands
-  before moq pins: [the fused async start](/quest/m1/ffi-export/async-start.md),
-  [owned buffers](/quest/m1/ffi-export/owned-bufs.md),
-  [numeric slices](/quest/m1/ffi-export/numeric-slices.md), and
-  [the API lock](/quest/m1/ffi-export/api-lock.md). Work that changes no generated API is
+  before moq pins: the fused async start,
+  owned buffers ([kixel-ai/rust2#744](https://github.com/kixel-ai/rust2/pull/744)), and
+  numeric slices ([kixel-ai/rust2#743](https://github.com/kixel-ai/rust2/pull/743)). Work that changes no generated API is
   [its own epic](/quest/m1/ffi-speed/README.md), which does not hold the pin.
 - Not planned: one walker emitting lift and lower instructions every generator
   implements, as wit-bindgen's `Bindgen` does. A new rule touches 19 to 38 files today,

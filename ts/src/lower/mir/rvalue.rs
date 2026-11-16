@@ -699,7 +699,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn discriminant(&mut self, scrut: Expr, ty: Ty<'tcx>, next: bool, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		match ty.kind() {
 			ty::Coroutine(def_id, args) => {
-				let info = super::coroutine::info(self.b.t, *def_id, args, span);
+				let info = super::coroutine::info(self.b.t, *def_id, *args, span);
 				scrut.field(info.state)
 			}
 			ty::Adt(adt, _) if adt.is_enum() => {
@@ -772,13 +772,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	) -> Option<Expr> {
 		match kind {
 			AggregateKind::Closure(def_id, args) => {
-				return Some(self.closure(Ty::new_closure(self.tcx, *def_id, args), ops, span, out));
+				return Some(self.closure(Ty::new_closure(self.tcx, *def_id, *args), ops, span, out));
 			}
 			AggregateKind::CoroutineClosure(def_id, args) => {
-				return Some(self.closure(Ty::new_coroutine_closure(self.tcx, *def_id, args), ops, span, out));
+				return Some(self.closure(Ty::new_coroutine_closure(self.tcx, *def_id, *args), ops, span, out));
 			}
 			AggregateKind::Coroutine(def_id, args) => {
-				return Some(super::coroutine::construct(self, *def_id, args, ops, span, out));
+				return Some(super::coroutine::construct(self, *def_id, *args, ops, span, out));
 			}
 			AggregateKind::RawPtr(..) => return Some(self.err(span, "a raw pointer made from parts")),
 			_ => {}
@@ -824,7 +824,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let parts = self
 						.b
 						.t
-						.union_field(self.tcx.adt_def(*def_id), args, active.as_usize(), span);
+						.union_field(self.tcx.adt_def(*def_id), *args, active.as_usize(), span);
 					let field_ty = ops[FieldIdx::ZERO].ty(&self.mir.local_decls, self.tcx);
 					let value = values.pop().expect("a union's field");
 					let value = match parts.len() {
@@ -839,7 +839,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					return Some(same);
 				}
 				let values = self.held_slices(ty, values, span, out);
-				self.adt(*def_id, *variant, args, values, ty, span)
+				self.adt(*def_id, *variant, *args, values, ty, span)
 			}
 			_ => unreachable!(),
 		})
@@ -922,7 +922,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
 		variant: VariantIdx,
-		args: ty::GenericArgsRef<'tcx>,
+		args: ty::GenericArgs<'tcx>,
 		mut values: Vec<Expr>,
 		ty: Ty<'tcx>,
 		span: Span,
@@ -1179,7 +1179,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						coroutine_closure_def_id: def_id,
 						receiver_by_ref: false,
 					}),
-					args,
+					args: *args,
 				};
 				let mir = shim.instantiate_mir_and_normalize_erasing_regions(
 					tcx,

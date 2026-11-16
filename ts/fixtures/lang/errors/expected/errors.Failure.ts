@@ -7,18 +7,12 @@ import * as Leaf from "./errors.Leaf.ts";
 
 export function fmt$fmt_Debug(self: Failure, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	if (self.tag === "Short") {
-		const _5: string = "Short";
-		const _6: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self._0, f);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _5), _6));
+		return rs.fmtDebugFields(f, "Short", [(f: rs.Formatter) => rs.u8Debug(self._0, f)]);
 	}
 	if (self.tag === "Wrapped") {
-		const _9: string = "Wrapped";
-		const _10: rs.Fmt = (f: rs.Formatter) => Leaf.fmt$fmt_Debug(self._0, f);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _9), _10));
+		return rs.fmtDebugFields(f, "Wrapped", [(f: rs.Formatter) => Leaf.fmt$fmt_Debug(self._0, f)]);
 	}
-	const _13: string = "Parse";
-	const _14: rs.Fmt = (f: rs.Formatter) => rs.fmtParseIntErrorDebug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _13), _14));
+	return rs.fmtDebugFields(f, "Parse", [(f: rs.Formatter) => rs.fmtParseIntErrorDebug(self._0, f)]);
 }
 
 /** An error whose source is the crate's, std's, or none. */

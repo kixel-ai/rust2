@@ -2,7 +2,7 @@
 //! through it, to the crate's own functions, constructors, and std's.
 
 use rustc_data_structures::fx::FxHashSet;
-use rustc_middle::ty::{self, GenericArgsRef, Instance, Ty, TypeVisitableExt};
+use rustc_middle::ty::{self, GenericArgs, Instance, Ty, TypeVisitableExt};
 use rustc_span::Span;
 
 use super::library;
@@ -90,7 +90,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 	pub fn call_def(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
-		gargs: GenericArgsRef<'tcx>,
+		gargs: GenericArgs<'tcx>,
 		args: Vec<Expr>,
 		span: Span,
 		out: &mut Vec<Stmt>,
@@ -191,7 +191,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 	fn library_call(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
-		gargs: GenericArgsRef<'tcx>,
+		gargs: GenericArgs<'tcx>,
 		instance: Instance<'tcx>,
 		args: Vec<Expr>,
 		span: Span,
@@ -261,7 +261,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 	fn ctor(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
-		gargs: GenericArgsRef<'tcx>,
+		gargs: GenericArgs<'tcx>,
 		args: Vec<Expr>,
 		span: Span,
 	) -> Expr {
@@ -425,7 +425,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 
 	/// A function item as a value, typed as one: a declared function's `()` result is `void`,
 	/// which a value's type says is `undefined`.
-	pub fn fn_value(&mut self, def_id: rustc_hir::def_id::DefId, gargs: GenericArgsRef<'tcx>, span: Span) -> Expr {
+	pub fn fn_value(&mut self, def_id: rustc_hir::def_id::DefId, gargs: GenericArgs<'tcx>, span: Span) -> Expr {
 		let tcx = self.t.tcx;
 		let sig = self.t.sig(def_id, gargs);
 		// A constructor makes its value, as a call of it does.

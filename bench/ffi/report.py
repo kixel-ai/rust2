@@ -1,9 +1,10 @@
 """The binding benchmark's tables, in Markdown: the median of each case's rounds per language,
 in CPU and wall time, each beside the median 1-minute load average over its rounds, read
-from `just ffi bench-run`'s raw.tsv, and the sizes of the export's generated bindings and
+from `just ffi bench-run`'s raw.tsv; the median time and peak RSS of the export and its
+crate's build, beside moq's own, from its build.tsv; and the sizes of the export's generated bindings and
 native libraries.
 
-Usage: report.py <raw.tsv> <export dir>
+Usage: report.py <raw.tsv> <build.tsv> <export dir>
 """
 
 import collections
@@ -30,13 +31,34 @@ LANGS = [
 CALLS = [
 	("call", "`track.is_closed()`, a handle call"),
 	("getter", "`demand.sequence()`, a u64 getter"),
+	("shared:call", "the handle call on 4 threads, one shared handle"),
+	("own:call", "the same, a handle per thread"),
+	("shared:getter", "the u64 getter on 4 threads, one shared handle"),
+	("own:getter", "the same, a handle per thread"),
 	("record", "`track.largest()`, a record return"),
 	("object", "`track.info()`, an object return"),
+	("objects", "the same from 4 threads at once, Kotlin only"),
 	("write", "`group.write_frame(at, frame)`, 100 B"),
 	("stamped", "the same, with a new `Timestamp` each"),
 	("ready", "a 100 B frame written and read, ready"),
 	("woken", "the same, read after a wake"),
+	("loop", "one managed reader and writer, including their handoff; Go writes only after the read pends"),
+	("drained", "Swift only: one reader on a drained executor, no writer handoff"),
 	("payload", "`frame.payload`, 100 B"),
+]
+
+# What a language does in place of a case it cannot run, printed in that case's cell.
+INSTEAD = {
+	("dart", case): "no: an isolate takes no other's object"
+	for case in ["shared:call", "own:call", "shared:getter", "own:getter"]
+}
+
+# Each step `just ffi bench-run` times from an emptied target, and what it is.
+BUILDS = [
+	("export", "rust2-ffi's export, a `cargo check` of moq under its driver"),
+	("check", "moq's own `cargo check` of the same crates"),
+	("generated", "the generated crate's release build, Kotlin and Dart glue included"),
+	("moq", "moq's own release build of the same crates"),
 ]
 
 SIZES = [100, 1024, 16384, 65536, 1048576]
@@ -44,7 +66,7 @@ SIZES = [100, 1024, 16384, 65536, 1048576]
 # Each binding's generated files, and its Rust glue in the export's crate, under the export.
 BINDINGS = [
 	("C", ["include/moq.h"], ["src/lib.rs", "src/rt.rs"]),
-	("C++", ["include/moq.hpp"], []),
+	("C++", ["include/moq.hpp", "include/moq"], []),
 	("Kotlin", ["kotlin/moq.kt", "kotlin/moq.pro"], ["src/jni"]),
 	("Python", ["python/moq.py"], ["src/python"]),
 	("Swift", ["swift"], []),
@@ -103,7 +125,23 @@ def table(header, rows):
 	return "\n".join(lines)
 
 
-def main(raw_path, export):
+def builds(path):
+	"""The Build table: each step's median wall and CPU seconds and peak RSS, and load."""
+	rounds = collections.defaultdict(list)
+	with open(path) as f:
+		for line in f:
+			step, _, wall, cpu, rss, load = line.rstrip("\n").split("\t")
+			rounds[step].append((float(wall), float(cpu), int(rss), float(load)))
+	rows = []
+	for step, label in BUILDS:
+		if step not in rounds:
+			continue
+		wall, cpu, rss, load = (statistics.median(s[i] for s in rounds[step]) for i in range(4))
+		rows.append([label, f"{wall:,.1f}", f"{cpu:,.1f}", f"{rss / 1048576:,.0f} MiB", f"{load:.0f}"])
+	return table(["step", "wall s", "CPU s", "peak RSS", "load average"], rows)
+
+
+def main(raw_path, build_path, export):
 	rounds = collections.defaultdict(list)
 	with open(raw_path) as f:
 		for line in f:
@@ -116,6 +154,8 @@ def main(raw_path, export):
 	langs = [(key, name) for key, name in LANGS if any(lang == key for lang, _ in median)]
 
 	def cell(lang, case, i):
+		if (lang, case) in INSTEAD:
+			return INSTEAD[(lang, case)]
 		if (lang, case) not in median:
 			return ""
 		values = median[(lang, case)]
@@ -132,6 +172,10 @@ def main(raw_path, export):
 		rows = [[labels[n]] + [cell(lang, f"mbps:{n}", i) for lang, _ in thru] for n in SIZES]
 		print(table(header, rows))
 		print()
+
+	print("### Build (median, from an emptied target)\n")
+	print(builds(build_path))
+	print()
 
 	print("### Size\n")
 	rows = []
@@ -156,6 +200,6 @@ def main(raw_path, export):
 
 
 if __name__ == "__main__":
-	if len(sys.argv) != 3:
+	if len(sys.argv) != 4:
 		sys.exit(__doc__)
-	main(sys.argv[1], sys.argv[2])
+	main(sys.argv[1], sys.argv[2], sys.argv[3])

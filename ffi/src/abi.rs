@@ -12,11 +12,11 @@
 //! `moq_audio_encoder_finish_`. A `_` doubled at the split would read better, but C++
 //! reserves every name containing `__`. Only the names that clash change.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
-use crate::ir::{Access, Api, Closure, Dyn, Function, Home, Int, Literal, On, Receiver, Type};
+use crate::ir::{Access, Api, Closure, Dyn, Family, Function, Home, Int, Jni, Literal, Mutability, On, Receiver, Type};
 
 /// A C name one item claims twice, which no rename can tell apart: the name, then what
 /// claimed it first and second.
@@ -67,8 +67,10 @@ pub enum Ty {
 	U128,
 	/// `<prefix>_duration`
 	Duration,
-	/// `<prefix>_socket_addr`
-	SocketAddr,
+	/// `<prefix>_socket_addr`, or `_socket_addr_v4` or `_socket_addr_v6` for one family.
+	SocketAddr(Family),
+	/// `<prefix>_ip_addr`, or `_ipv4_addr` or `_ipv6_addr` for one family.
+	IpAddr(Family),
 	/// A struct: a record, a data enum, an option, or a callback's table and data.
 	Struct(String),
 	/// A plain enum, passed as its C enum, which is an `int`.
@@ -88,21 +90,66 @@ pub enum Ty {
 	ForeignReader,
 	/// `<prefix>_poll`
 	Poll,
+	/// `<prefix>_status`, an `int32_t`: why a call failed a check of a handle, which a
+	/// function that can fail one writes through its last parameter.
+	Status,
 	/// A pointer the callee writes a result through.
 	Out(Box<Ty>),
 	/// A pointer the callee only reads through: a value's receiver.
 	In(Box<Ty>),
+	/// A pointer the callee reads and writes back through: a value's `&mut self`.
+	InOut(Box<Ty>),
 	/// A function lent for the call, taking its data first: what it takes and returns.
 	Fn(Vec<Ty>, Box<Ty>),
 	/// The data a lent function takes, which Rust only passes back to it.
 	Data,
+	/// A JNI value's pointer, a `JNIEnv *` or a `jobject`, which only Kotlin's glue passes.
+	Jni(Jni),
 }
 
 /// A C function: its name, parameters, and return type.
+#[derive(Clone)]
 pub struct Sig {
 	pub name: String,
 	pub params: Vec<(String, Ty)>,
 	pub ret: Ty,
+}
+
+impl Sig {
+	/// Its twin that runs it on a home: `<name>_homed`, of the same signature.
+	pub fn homed(&self) -> Sig {
+		Sig {
+			name: format!("{}_homed", self.name),
+			params: self.params.clone(),
+			ret: self.ret.clone(),
+		}
+	}
+
+	/// The `status` parameter it takes last, if a call can fail a check of a handle.
+	pub fn status(&self) -> Option<&str> {
+		self.params
+			.last()
+			.filter(|(_, ty)| is_status(ty))
+			.map(|(name, _)| name.as_str())
+	}
+}
+
+/// The runtime's C struct of a socket address, if `socket`, or else an IP address, of
+/// `family`, after the prefix: a struct per family, so each holds exactly its Rust type.
+pub fn addr(socket: bool, family: Family) -> &'static str {
+	match (socket, family) {
+		(true, Family::Any) => "socket_addr",
+		(true, Family::V4) => "socket_addr_v4",
+		(true, Family::V6) => "socket_addr_v6",
+		(false, Family::Any) => "ip_addr",
+		(false, Family::V4) => "ipv4_addr",
+		(false, Family::V6) => "ipv6_addr",
+	}
+}
+
+/// Whether `ty` is a `status` parameter's.
+pub fn is_status(ty: &Ty) -> bool {
+	matches!(ty, Ty::Out(inner) if **inner == Ty::Status)
 }
 
 /// The C side of an exported function.
@@ -112,8 +159,171 @@ pub struct Export {
 	/// The C name its path gives it, which another language names it by, as a clash in C
 	/// renames only C's.
 	pub named: String,
-	/// For a future: its handle type, its poll, and its free.
-	pub future: Option<(String, Sig, Sig)>,
+	/// For a future: its handle type and the functions over it.
+	pub future: Option<Future>,
+	/// Whether it makes a value that is not `Send` from none: its call, or for a future its
+	/// start, has a twin of the same signature, `<name>_homed`, that runs it on a home, a
+	/// thread Rust owns, which the value then stays on. A binding with no thread that stays
+	/// put calls that one.
+	pub homed: bool,
+}
+
+impl Export {
+	/// The twin of its call that runs it on a home, if it makes a value that is not `Send`.
+	pub fn homed_call(&self) -> Option<Sig> {
+		self.homed.then(|| self.call.homed())
+	}
+
+	/// It as a binding with no thread that stays put calls it: by its twins that run on a
+	/// home, if it has them.
+	pub fn on_home(mut self) -> Self {
+		if self.homed {
+			self.call = self.call.homed();
+			if let Some(future) = &mut self.future {
+				future.start = future.start.homed();
+			}
+		}
+		self
+	}
+
+	/// The twin of its future's start that runs it on a home, as [`Self::homed_call`].
+	pub fn homed_start(&self) -> Option<Sig> {
+		(self.future.as_ref()).and_then(|future| self.homed.then(|| future.start.homed()))
+	}
+}
+
+/// How the glue calls a value's `&mut self` method for a language whose values are
+/// immutable, which [`Abi::handed_back`] makes.
+#[derive(Clone)]
+pub struct Handed {
+	/// The C name of the method's function, which a clash may have renamed.
+	name: String,
+	/// How many parameters both take after `self`, before the outs.
+	lead: usize,
+	/// Whether the method returns nothing.
+	unit: bool,
+	/// Whether it returns a tuple, which the C function writes through its outs.
+	tuple: bool,
+	/// Whether both take a status last, as a call that can fail a check does.
+	status: bool,
+}
+
+impl Handed {
+	/// The glue's expression, of the handed-back export's C return, calling the C function
+	/// in place on a copy of the value that `args[0]` points to and handing the copy back.
+	/// `args` are of that export's C signature: `self`, what both take after it, then the outs the value and
+	/// each element Rust returns are written through, which the C function takes from the
+	/// one after the value's, and last the status, if both take one.
+	pub fn call(&self, args: &[String]) -> String {
+		let lead = self.lead;
+		let (args, status) = match self.status {
+			true => args.split_at(args.len() - 1),
+			false => (args, &[][..]),
+		};
+		let mut real = vec!["&mut handed_".to_string()];
+		real.extend(args[1..=lead].iter().cloned());
+		if self.tuple {
+			real.extend(args[lead + 2..].iter().cloned());
+		}
+		real.extend(status.iter().cloned());
+		let call = format!("crate::{}({})", self.name, real.join(", "));
+		// Apart from the names the glue gives its arguments, which are numbered.
+		let body = match (self.unit, self.tuple) {
+			(true, _) => format!("{call};\n\thanded_"),
+			(_, true) => format!("{call};\n\tstd::ptr::write({}, handed_)", args[lead + 1]),
+			(_, false) => format!(
+				"let handed_r_ = {call};\n\tstd::ptr::write({}, handed_);\n\tstd::ptr::write({}, handed_r_)",
+				args[lead + 1],
+				args[lead + 2]
+			),
+		};
+		format!("unsafe {{\n\tlet mut handed_ = *({});\n\t{body}\n}}", args[0])
+	}
+}
+
+/// The C functions of a future besides the call that makes it.
+pub struct Future {
+	/// The handle's type.
+	pub handle: String,
+	/// The call and its first poll in one, which writes a ready result as the poll does and
+	/// hands back the handle only if the future pends.
+	pub start: Sig,
+	pub poll: Sig,
+	pub free: Sig,
+}
+
+/// Each `<prefix>_status` a call can fail with, numbered from 1, and what it means, as
+/// the runtime's `Status` names them.
+pub const STATUSES: [(&str, &str); 7] = [
+	("moved", "the handle's value was moved out"),
+	("exclusive", "another call or future borrows the value exclusively"),
+	("borrowed", "another call or future borrows the value"),
+	("thread", "a value that is not Sync is borrowed on another thread"),
+	("lent", "a handle a call lent is borrowed exclusively or moved out"),
+	("outlived", "a handle lent from another outlived it"),
+	(
+		"not_send",
+		"a value that is not Send is used on another thread than the one that made it",
+	),
+];
+
+/// Whether a call can fail a check of each object's handle, by Rust's rules alone: its
+/// value is not `Sync`, so a borrow on another thread fails; an export borrows it
+/// exclusively or moves it out, so a borrow beside another call's fails; or a handle to
+/// it is lent, by a call returning a borrow or to a closure or trait for a call, so a use
+/// past the lend fails, as may a trait's method returning it. Every other object's handles
+/// are only ever borrowed shared, which never fails, so a call borrows them uncounted.
+fn checked(api: &Api) -> Vec<bool> {
+	/// Mark each object a parameter of type `ty` borrows exclusively, moves, or lends,
+	/// `owned` when `ty` is passed by value rather than behind a shared reference.
+	fn param(api: &Api, ty: &Type, owned: bool, checked: &mut [bool]) {
+		match ty {
+			Type::Object(i) if owned && !api.objects[*i].copy => checked[*i] = true,
+			Type::Ref(Mutability::Mut, inner) => {
+				if let Type::Object(i) = inner.base() {
+					checked[*i] = true;
+				}
+				param(api, inner, true, checked);
+			}
+			Type::Ref(Mutability::Not, inner) => param(api, inner, false, checked),
+			Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => param(api, inner, owned, checked),
+			Type::Tuple(elements) => elements.iter().for_each(|ty| param(api, ty, owned, checked)),
+			Type::Closure(closure) => closure.params.iter().for_each(|ty| lent(api, ty, checked)),
+			// A record or data enum passed by value moves each object it holds.
+			Type::Record(_) | Type::Enum(_) if owned => lent(api, ty, checked),
+			_ => {}
+		}
+	}
+	/// Mark each object a value of `ty` Rust lends the foreign side holds.
+	fn lent(api: &Api, ty: &Type, checked: &mut [bool]) {
+		let mut handles = Vec::new();
+		api.handles(ty, &mut handles, &mut Vec::new());
+		handles.into_iter().for_each(|i| checked[i] = true);
+	}
+	let mut checked: Vec<bool> = api.objects.iter().map(|o| !o.sync).collect();
+	let functions = (api.records.iter().flat_map(|r| &r.methods))
+		.chain(api.enums.iter().flat_map(|e| &e.methods))
+		.chain(&api.functions)
+		.map(|f| (None, f))
+		.chain((api.objects.iter().enumerate()).flat_map(|(i, o)| o.methods.iter().map(move |f| (Some(i), f))));
+	for (owner, f) in functions {
+		match (owner, f.receiver) {
+			(Some(i), Some(Receiver::Mut)) => checked[i] = true,
+			(Some(i), Some(Receiver::Owned)) if !api.objects[i].copy => checked[i] = true,
+			_ => {}
+		}
+		f.params.iter().for_each(|p| param(api, &p.ty, true, &mut checked));
+		if f.lends {
+			lent(api, &f.ok, &mut checked);
+		}
+	}
+	// What an implementation is lent, and what it hands Rust, which moves it out.
+	for method in api.callbacks.iter().flat_map(|c| &c.methods) {
+		method.params.iter().for_each(|p| lent(api, &p.ty, &mut checked));
+		lent(api, &method.ok, &mut checked);
+		method.err.iter().for_each(|err| lent(api, err, &mut checked));
+	}
+	checked
 }
 
 /// `ty` as a clone of each borrow it holds.
@@ -150,9 +360,8 @@ pub struct Abi<'a> {
 	pub tuples: BTreeMap<String, Vec<Type>>,
 	/// Each `[u8; N]` struct by C name, with `N`.
 	pub arrays: BTreeMap<String, usize>,
-	/// Each `Copy` object a closure takes or returns by value, which `<T>_copy` copies into
-	/// a new handle as Rust copies it, never running its `Clone`.
-	pub copies: BTreeSet<usize>,
+	/// Whether a call can fail a check of each object's handle: see [`checked`].
+	pub checked: Vec<bool>,
 	/// Every C name claimed.
 	claims: Vec<Claim>,
 	/// The C name of each item whose own clashed.
@@ -172,7 +381,7 @@ impl<'a> Abi<'a> {
 			lists: BTreeMap::new(),
 			tuples: BTreeMap::new(),
 			arrays: BTreeMap::new(),
-			copies: BTreeSet::new(),
+			checked: checked(api),
 			claims: Vec::new(),
 			renames: HashMap::new(),
 			clashes: Vec::new(),
@@ -187,6 +396,54 @@ impl<'a> Abi<'a> {
 		}
 		abi.clashes = abi.residue();
 		abi
+	}
+
+	/// This ABI over `api`, the API it was made of without its functions taking a JNI value,
+	/// as every language but Kotlin exports it: each name stays the one the whole API gives
+	/// it, so the C its glue calls keeps the names the crate defines.
+	pub fn without_jni<'b>(&self, api: &'b Api) -> Abi<'b> {
+		// Each function's address in `self.api`, by its address in `api`, which lists the
+		// same functions in the same order but those taking a JNI value.
+		let lists = |api: &'a Api| -> Vec<&'a [Function]> {
+			(api.records.iter().map(|r| &r.methods[..]))
+				.chain(api.enums.iter().map(|e| &e.methods[..]))
+				.chain(api.objects.iter().map(|o| &o.methods[..]))
+				.chain([&api.functions[..]])
+				.collect()
+		};
+		let ours = lists(self.api);
+		let theirs = (api.records.iter().map(|r| &r.methods[..]))
+			.chain(api.enums.iter().map(|e| &e.methods[..]))
+			.chain(api.objects.iter().map(|o| &o.methods[..]))
+			.chain([&api.functions[..]]);
+		let mut moved = HashMap::new();
+		for (ours, theirs) in ours.into_iter().zip(theirs) {
+			let mut theirs = theirs.iter();
+			for function in ours.iter().filter(|f| !f.jni()) {
+				let to = theirs.next().expect("the API without JNI keeps every other function");
+				moved.insert(function as *const Function as usize, to as *const Function as usize);
+			}
+		}
+		let renames = (self.renames.iter())
+			.filter_map(|(item, name)| match item {
+				Item::Function(at) => Some((Item::Function(*moved.get(at)?), name.clone())),
+				item => Some((item.clone(), name.clone())),
+			})
+			.collect();
+		Abi {
+			api,
+			prefix: self.prefix.clone(),
+			suffixes: self.suffixes.clone(),
+			options: self.options.clone(),
+			ranges: self.ranges.clone(),
+			lists: self.lists.clone(),
+			tuples: self.tuples.clone(),
+			arrays: self.arrays.clone(),
+			claims: Vec::new(),
+			renames,
+			clashes: self.clashes.clone(),
+			checked: self.checked.clone(),
+		}
 	}
 
 	/// The `cfg` predicate a crate's Rust compiles what is on `on` under, or none if it is
@@ -380,8 +637,6 @@ impl<'a> Abi<'a> {
 			Type::Enum(i) => (&self.api.enums[*i].shown, &self.api.enums[*i].args),
 			Type::Object(i) => (&self.api.objects[*i].shown, &self.api.objects[*i].args),
 			Type::Ref(_, inner) | Type::Box(inner) => return self.arg_forms(inner),
-			// Apart from its integer's, which an instance of the same item may also take.
-			Type::NonZero(int) => return vec![format!("non_zero_{}", int.rust())],
 			ty => return vec![self.key(ty)],
 		};
 		let segments = self.segments(shown);
@@ -516,6 +771,46 @@ impl<'a> Abi<'a> {
 			.collect()
 	}
 
+	/// The namespace of `language`'s glue: `<prefix>_<language>`, with a trailing `_` until no C name is it
+	/// or starts with it and a `_`.
+	pub fn space(&self, language: &str) -> String {
+		let abi = self;
+		let api = abi.api;
+		let mut names: Vec<String> = Vec::new();
+		let mut functions: Vec<(&Function, Option<Ty>)> = Vec::new();
+		for (i, record) in api.records.iter().enumerate() {
+			names.push(abi.record(i));
+			functions.extend(record.methods.iter().map(|m| (m, Some(Ty::Struct(abi.record(i))))));
+		}
+		for (i, e) in api.enums.iter().enumerate() {
+			names.push(abi.enumeration(i));
+			functions.extend(e.methods.iter().map(|m| (m, Some(abi.ty(&Type::Enum(i))))));
+		}
+		for (i, object) in api.objects.iter().enumerate() {
+			names.push(abi.object(i));
+			let owner = Ty::Handle {
+				name: abi.object(i),
+				constant: false,
+			};
+			functions.extend(object.methods.iter().map(|m| (m, Some(owner.clone()))));
+		}
+		names.extend((0..api.callbacks.len()).map(|i| abi.callback(i)));
+		functions.extend(api.functions.iter().map(|f| (f, None)));
+		names.extend(
+			functions
+				.into_iter()
+				.map(|(function, owner)| abi.export(function, owner.as_ref()).call.name),
+		);
+		let mut space = abi.rt(language);
+		while names
+			.iter()
+			.any(|name| *name == space || name.starts_with(&format!("{space}_")))
+		{
+			space.push('_');
+		}
+		space
+	}
+
 	/// The prefixed name of a runtime item: `buf` is `moq_buf`.
 	pub fn rt(&self, name: &str) -> String {
 		format!("{}_{name}", self.prefix)
@@ -564,14 +859,17 @@ impl<'a> Abi<'a> {
 			Type::Str | Type::String => "string".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "bytes".to_string(),
 			Type::Path | Type::PathBuf => "path".to_string(),
-			Type::Int(int) | Type::NonZero(int) => int.rust().to_string(),
+			Type::Int(int) => int.rust().to_string(),
+			// Apart from its integer's, as a binding checks it is not zero.
+			Type::NonZero(int) => format!("non_zero_{}", int.rust()),
 			Type::F32 => "f32".to_string(),
 			Type::F64 => "f64".to_string(),
 			Type::Char => "char".to_string(),
 			Type::U128 => "u128".to_string(),
 			Type::Duration => "duration".to_string(),
 			Type::Array(n) => format!("array_u8_{n}"),
-			Type::SocketAddr(_) => "socket_addr".to_string(),
+			Type::SocketAddr(family) => addr(true, *family).to_string(),
+			Type::IpAddr(family) => addr(false, *family).to_string(),
 			Type::Option(inner) => format!("option_{}", self.key(inner)),
 			Type::List(_, inner) => format!("vec_{}", self.key(inner)),
 			Type::Tuple(elements) => strip(self.tuple(elements)),
@@ -591,7 +889,7 @@ impl<'a> Abi<'a> {
 
 	/// A type by its key, with each tuple spelled as Rust spells it, which tells apart
 	/// tuples that share a C name.
-	fn spell(&self, ty: &Type) -> String {
+	pub fn spell(&self, ty: &Type) -> String {
 		match ty {
 			Type::Tuple(elements) => {
 				let elements: Vec<String> = elements.iter().map(|e| self.spell(e)).collect();
@@ -632,10 +930,12 @@ impl<'a> Abi<'a> {
 			Type::U128 => Ty::U128,
 			Type::Duration => Ty::Duration,
 			Type::Array(n) => Ty::Struct(self.array(*n)),
-			Type::SocketAddr(_) => Ty::SocketAddr,
+			Type::SocketAddr(family) => Ty::SocketAddr(*family),
+			Type::IpAddr(family) => Ty::IpAddr(*family),
 			Type::Waker => Ty::Waker,
 			Type::Future => Ty::ForeignFuture,
 			Type::Reader => Ty::ForeignReader,
+			Type::Jni(jni) => Ty::Jni(*jni),
 			Type::List(_, inner) => Ty::Struct(self.list(inner)),
 			Type::Option(inner) => match Self::nullable(inner) {
 				true => self.ty(inner),
@@ -666,19 +966,11 @@ impl<'a> Abi<'a> {
 	}
 
 	/// The C function a closure is: after its data, each value it takes, lent for its
-	/// call, a `Copy` object as a handle; then for a `Result`, an out pointer for its value
-	/// and one for its error, returning whether it succeeded, or else its value. A
-	/// value it returns is Rust's: a buffer one `<prefix>_buf_copy` made, or a new handle.
+	/// call; then for a `Result`, an out pointer for its value and one for its error,
+	/// returning whether it succeeded, or else its value. A buffer it returns is Rust's,
+	/// one `<prefix>_buf_copy` made.
 	pub fn closure(&self, closure: &Closure) -> Ty {
-		let mut params: Vec<Ty> = (closure.params.iter())
-			.map(|ty| match ty {
-				Type::Object(i) => Ty::Handle {
-					name: self.object(*i),
-					constant: true,
-				},
-				ty => self.ty(ty),
-			})
-			.collect();
+		let mut params: Vec<Ty> = closure.params.iter().map(|ty| self.ty(ty)).collect();
 		let ok = self.ty(&closure.ok);
 		match &closure.err {
 			None => Ty::Fn(params, Box::new(ok)),
@@ -712,7 +1004,9 @@ impl<'a> Abi<'a> {
 							&& (0..self.api.objects.len())
 								.any(|i| self.api.objects[i].copy && &self.object(i) == name)),
 				},
-				// A value's receiver is read through a pointer, and never changed.
+				// A value's receiver is read through a pointer, and written back in place for
+				// `&mut self`.
+				value if receiver == Receiver::Mut => Ty::InOut(Box::new(value.clone())),
 				value => Ty::In(Box::new(value.clone())),
 			};
 			params.push(("self".to_string(), ty));
@@ -729,7 +1023,7 @@ impl<'a> Abi<'a> {
 				_ => None,
 			};
 			let ty = match copied {
-				// Taken by value, a `Copy` value is copied out, leaving its handle as it was.
+				// Taken by value, a `Copy` object is copied out, leaving its handle as it was.
 				Some(i) if self.api.objects[i].copy => Ty::Handle {
 					name: self.object(i),
 					constant: true,
@@ -775,13 +1069,35 @@ impl<'a> Abi<'a> {
 		if let Some(err) = &function.err {
 			outs.push(("err".to_string(), Ty::Out(Box::new(self.returned(err)))));
 		}
+		let status = self.status(function, owner).then(|| {
+			let mut status = "status".to_string();
+			while function.params.iter().any(|p| escape(&p.name) == status) {
+				status.push('_');
+			}
+			(status, Ty::Out(Box::new(Ty::Status)))
+		});
 		if function.future {
 			let handle = format!("{name}_future");
 			let mut poll_params = vec![
 				("future".to_string(), Ty::Future(handle.clone())),
 				("waker".to_string(), Ty::Waker),
 			];
-			poll_params.extend(outs);
+			poll_params.extend(outs.iter().cloned());
+			// The status trails each, as every function's does.
+			let mut start_params = params.clone();
+			start_params.extend(outs);
+			start_params.push(("future".to_string(), Ty::Out(Box::new(Ty::Future(handle.clone())))));
+			start_params.extend(status.clone());
+			params.extend(status);
+			let start = Sig {
+				name: format!("{name}_start"),
+				params: start_params,
+				ret: Ty::Poll,
+			};
+			// A poll of a future that is not `Send` fails on another thread than its own.
+			if !function.send {
+				poll_params.push(("status".to_string(), Ty::Out(Box::new(Ty::Status))));
+			}
 			let poll = Sig {
 				name: format!("{name}_poll"),
 				params: poll_params,
@@ -798,8 +1114,14 @@ impl<'a> Abi<'a> {
 					params,
 					ret: Ty::Future(handle.clone()),
 				},
-				future: Some((handle, poll, free)),
+				future: Some(Future {
+					handle,
+					start,
+					poll,
+					free,
+				}),
 				named,
+				homed: self.homed(function, owner),
 			};
 		}
 		let ret = match (&function.err, &function.ok) {
@@ -816,10 +1138,97 @@ impl<'a> Abi<'a> {
 				self.returned(ok)
 			}
 		};
+		params.extend(status);
 		Export {
 			call: Sig { name, params, ret },
 			future: None,
 			named,
+			homed: self.homed(function, owner),
+		}
+	}
+
+	/// Whether a call of `function`, a method of `owner` if it has one, makes a value that
+	/// is not `Send`, an object or a future, without taking one: see [`Export::homed`].
+	pub fn homed(&self, function: &Function, owner: Option<&Ty>) -> bool {
+		let unsent = |ty: &Type| {
+			let mut handles = Vec::new();
+			self.api.handles(ty, &mut handles, &mut Vec::new());
+			handles.iter().any(|&i| !self.api.objects[i].send)
+		};
+		let makes =
+			(function.future && !function.send) || unsent(&function.ok) || function.err.as_ref().is_some_and(unsent);
+		let receiver = match (function.receiver, owner) {
+			(Some(_), Some(Ty::Handle { name, .. })) => {
+				(0..self.api.objects.len()).any(|i| &self.object(i) == name && !self.api.objects[i].send)
+			}
+			(Some(_), Some(owner)) => {
+				let records = (0..self.api.records.len()).map(Type::Record);
+				let enums = (0..self.api.enums.len()).map(Type::Enum);
+				records
+					.chain(enums)
+					.find(|ty| &self.ty(ty) == owner)
+					.is_some_and(|ty| unsent(&ty))
+			}
+			_ => false,
+		};
+		// A handle that may be absent leaves the call to a home when it is: the twin runs it
+		// where the first present one stays, else on a home.
+		let optional = |ty: &Type| match ty {
+			Type::Option(inner) => match &**inner {
+				Type::Object(i) => !self.api.objects[*i].send,
+				Type::Ref(_, inner) => matches!(&**inner, Type::Object(i) if !self.api.objects[*i].send),
+				_ => false,
+			},
+			_ => false,
+		};
+		// A JNI env is its thread's, so a call taking one stays there.
+		makes && !receiver && !function.jni() && function.params.iter().all(|p| optional(&p.ty) || !unsent(&p.ty))
+	}
+
+	/// Whether a call of `function`, a method of `owner` if it has one, can fail a check of
+	/// a handle it borrows or moves, so it takes a `status` to write why.
+	pub fn status(&self, function: &Function, owner: Option<&Ty>) -> bool {
+		let mut handles = Vec::new();
+		let mut seen = Vec::new();
+		match (function.receiver, owner) {
+			(Some(_), Some(Ty::Handle { name, .. })) => {
+				handles.extend((0..self.api.objects.len()).find(|&i| &self.object(i) == name))
+			}
+			// A record's or enum's receiver lifts each handle it holds.
+			(Some(_), Some(owner)) => {
+				let records = (0..self.api.records.len()).map(Type::Record);
+				let enums = (0..self.api.enums.len()).map(Type::Enum);
+				if let Some(ty) = records.chain(enums).find(|ty| &self.ty(ty) == owner) {
+					self.api.handles(&ty, &mut handles, &mut seen);
+				}
+			}
+			_ => {}
+		}
+		for param in &function.params {
+			self.api.handles(&param.ty, &mut handles, &mut seen);
+		}
+		handles.iter().any(|&i| self.checked[i])
+	}
+
+	/// Whether `<T>_clone`, `_eq`, `_to_string`, `_debug`, and `_copy` of object `i` take a
+	/// `status`, as each borrows its handles shared.
+	pub fn traits_status(&self, i: usize) -> bool {
+		self.checked[i]
+	}
+
+	/// Whether a record's or enum's `<T>_eq`, `_to_string`, and `_debug` take a `status`,
+	/// as each borrows the handles it holds shared.
+	pub fn value_status(&self, ty: &Type) -> bool {
+		let mut handles = Vec::new();
+		self.api.handles(ty, &mut handles, &mut Vec::new());
+		handles.iter().any(|&i| self.checked[i])
+	}
+
+	/// Whether the std trait functions of `ty`, an object, record, or enum, take a `status`.
+	pub fn traits_status_of(&self, ty: &Type) -> bool {
+		match ty {
+			Type::Object(i) => self.traits_status(*i),
+			ty => self.value_status(ty),
 		}
 	}
 
@@ -831,6 +1240,53 @@ impl<'a> Abi<'a> {
 			out.push('_');
 		}
 		out
+	}
+
+	/// A value's `&mut self` method as a language whose values are immutable calls it:
+	/// through `&self`, returning the value as the call left it, before Rust's own return
+	/// or each element of its tuple: that function, its export, and how the glue calls it.
+	/// The export keeps the C name of the method's, which a clash may have renamed. `None`
+	/// for any other function.
+	pub fn handed_back(&self, function: &Function, owner: &Ty, owner_ty: &Type) -> Option<(Function, Export, Handed)> {
+		if function.receiver != Some(Receiver::Mut) || matches!(owner, Ty::Handle { .. }) {
+			return None;
+		}
+		// `written_back` in collect.rs refuses a future's and a `Result`'s.
+		assert!(
+			!function.future && function.err.is_none(),
+			"a value's `&mut self` returns a plain value"
+		);
+		let real = self.export(function, Some(owner));
+		let returned = match &function.ok {
+			Type::Unit => Vec::new(),
+			Type::Tuple(elements) => elements.clone(),
+			ok => vec![ok.clone()],
+		};
+		let back = Function {
+			receiver: Some(Receiver::Ref),
+			ok: match returned.is_empty() {
+				true => owner_ty.clone(),
+				false => Type::Tuple([vec![owner_ty.clone()], returned].concat()),
+			},
+			..function.clone()
+		};
+		// Named as the method is: a rename is keyed by the API's own function.
+		let mut export = self.export(&back, Some(owner));
+		export.call.name = real.call.name.clone();
+		export.named = real.named;
+		let elements = match &function.ok {
+			Type::Tuple(elements) => elements.len(),
+			_ => 0,
+		};
+		let status = usize::from(real.call.status().is_some());
+		let handed = Handed {
+			lead: real.call.params.len() - 1 - elements - status,
+			status: status == 1,
+			name: real.call.name,
+			unit: function.ok == Type::Unit,
+			tuple: elements > 0,
+		};
+		Some((back, export, handed))
 	}
 
 	fn claim(&mut self, name: String, what: String, span: Span, owner: Option<Owner>) {
@@ -892,17 +1348,31 @@ impl<'a> Abi<'a> {
 		for runtime in [
 			"contract",
 			"target",
+			"status",
+			"status_message",
 			"buf",
 			"buf_free",
 			"u128",
 			"duration",
 			"socket_addr",
+			"socket_addr_v4",
+			"socket_addr_v6",
+			"ip_addr",
+			"ipv4_addr",
+			"ipv6_addr",
 			"waker",
 			"foreign_future",
 			"foreign_reader",
 			"buf_copy",
+			"buf_clone",
+			"thread_wake",
+			"thread_drain",
+			// Python's extension module function, beside each native function by this name.
+			"_register",
 			"poll",
 			"view",
+			"items",
+			"taken",
 			"borrow",
 			"result",
 			"task",
@@ -911,6 +1381,7 @@ impl<'a> Abi<'a> {
 			"detail",
 			"native",
 			"bytes",
+			"input",
 			"mut",
 			"atomic_load",
 			"atomic_store",
@@ -922,6 +1393,10 @@ impl<'a> Abi<'a> {
 		}
 		for constant in ["CONTRACT", "POLL_PENDING", "POLL_READY", "POLL_ERROR", "ATOMICS_H"] {
 			let name = format!("{}_{constant}", self.prefix.to_uppercase());
+			self.claim(name, "the runtime".to_string(), crate_span, None);
+		}
+		for (status, _) in STATUSES {
+			let name = format!("{}_STATUS_{}", self.prefix.to_uppercase(), status.to_uppercase());
 			self.claim(name, "the runtime".to_string(), crate_span, None);
 		}
 		let mut types: Vec<&Type> = Vec::new();
@@ -994,6 +1469,14 @@ impl<'a> Abi<'a> {
 				object.span,
 				Self::made(&item, &name),
 			);
+			if self.checked[i] {
+				self.claim(
+					format!("{name}_drop"),
+					what.clone(),
+					object.span,
+					Self::made(&item, &name),
+				);
+			}
 			if object.shared {
 				self.claim(
 					format!("{name}_borrowed"),
@@ -1003,6 +1486,15 @@ impl<'a> Abi<'a> {
 				);
 			}
 			self.claim_traits(&item, &name, &what, object.span, object.traits, false);
+			// `Default` of a value that is not `Send` makes one from none.
+			if object.traits.default && !object.send {
+				self.claim(
+					format!("{name}_default_homed"),
+					what.clone(),
+					object.span,
+					Self::made(&item, &name),
+				);
+			}
 			self.claim(
 				name.clone(),
 				what,
@@ -1066,10 +1558,19 @@ impl<'a> Abi<'a> {
 			);
 			let own = self.own(&item, &name, segments);
 			self.claim(name.clone(), what.clone(), function.span, own);
-			if let Some((handle, poll, free)) = &export.future {
-				for made in [handle, &poll.name, &free.name] {
+			if let Some(Future {
+				handle,
+				start,
+				poll,
+				free,
+			}) = &export.future
+			{
+				for made in [handle, &start.name, &poll.name, &free.name] {
 					self.claim(made.clone(), what.clone(), function.span, Self::made(&item, &name));
 				}
+			}
+			for homed in export.homed_call().into_iter().chain(export.homed_start()) {
+				self.claim(homed.name, what.clone(), function.span, Self::made(&item, &name));
 			}
 			types.extend(function.params.iter().map(|p| &p.ty));
 			// A tuple returned whole is written element by element, with no struct of its own.
@@ -1092,7 +1593,6 @@ impl<'a> Abi<'a> {
 		let mut lists = BTreeMap::new();
 		let mut tuples: BTreeMap<String, Vec<Type>> = BTreeMap::new();
 		let mut arrays = BTreeMap::new();
-		let mut copies = BTreeSet::new();
 		let mut mixed = Vec::new();
 		let mut stack = types;
 		while let Some(ty) = stack.pop() {
@@ -1125,17 +1625,6 @@ impl<'a> Abi<'a> {
 					stack.extend(elements);
 				}
 				Type::Closure(closure) => {
-					for ty in closure.params.iter().chain([&closure.ok]) {
-						let ty = match ty {
-							Type::Option(inner) => inner,
-							ty => ty,
-						};
-						if let Type::Object(i) = ty
-							&& self.api.objects[*i].copy
-						{
-							copies.insert(*i);
-						}
-					}
 					stack.extend(&closure.params);
 					stack.push(&closure.ok);
 					stack.extend(&closure.err);
@@ -1162,13 +1651,6 @@ impl<'a> Abi<'a> {
 		}
 		for name in arrays.keys() {
 			self.claim(name.clone(), "an array".to_string(), crate_span, None);
-		}
-		for &i in &copies {
-			let object = &self.api.objects[i];
-			let item = Item::Object(i);
-			let name = self.object(i);
-			let what = format!("type `{}`", self.api.rust(&object.path, &object.args));
-			self.claim(format!("{name}_copy"), what, object.span, Self::made(&item, &name));
 		}
 		for (name, elements) in tuples
 			.iter()
@@ -1200,7 +1682,6 @@ impl<'a> Abi<'a> {
 		self.lists = lists;
 		self.tuples = tuples;
 		self.arrays = arrays;
-		self.copies = copies;
 	}
 
 	/// Claim the functions a type's std traits export.
@@ -1226,6 +1707,9 @@ impl<'a> Abi<'a> {
 		}
 		if traits.eq {
 			claim("eq");
+		}
+		if traits.hash {
+			claim("hash");
 		}
 		if traits.display {
 			claim("to_string");

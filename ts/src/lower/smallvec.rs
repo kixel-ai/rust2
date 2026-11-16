@@ -56,7 +56,7 @@ pub fn as_vec<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	let global = Ty::new_adt(
 		tcx,
 		tcx.adt_def(tcx.lang_items().get(LangItem::GlobalAlloc)?),
-		ty::List::empty(),
+		ty::GenericArgs::empty(),
 	);
 	let (did, args): (DefId, Vec<GenericArg<'tcx>>) = match tcx.item_name(adt.did()).as_str() {
 		"SmallVec" => (vec, vec![(*elem).into(), global.into()]),
@@ -265,7 +265,7 @@ fn inherent<'tcx>(
 				.iter()
 				.find(|v| v.name.as_str() == "CapacityOverflow")?
 				.ctor_def_id()?;
-			let overflow = b.call_def(overflow, eargs, Vec::new(), span, out);
+			let overflow = b.call_def(overflow, *eargs, Vec::new(), span, out);
 			Some(Expr::Cond(
 				Box::new(ok),
 				Box::new(Expr::Rs("OK".into())),
@@ -409,7 +409,7 @@ fn vec_call<'tcx>(
 	let global = Ty::new_adt(
 		tcx,
 		tcx.adt_def(tcx.lang_items().get(LangItem::GlobalAlloc)?),
-		ty::List::empty(),
+		ty::GenericArgs::empty(),
 	);
 	// `Vec<T>`'s or `Vec<T, A>`'s parameters, then the method's own, which follow
 	// `SmallVec<A>`'s one.

@@ -176,7 +176,13 @@ export function cellOption(dataData: Uint8Array, dataStart: number, dataLen: num
 				rs.byteVecPush(out, 1);
 				put(out, t8);
 			} else {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(0, result.error)));
+				const dst = out;
+				const byte = result.error;
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
+				dst.length = dst.length + 2;
 			}
 		}
 	}
@@ -362,7 +368,13 @@ export function cellString(dataData: Uint8Array, dataStart: number, dataLen: num
 				rs.byteVecPush(out, 1);
 				put(out, t8);
 			} else {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(0, result.error)));
+				const dst = out;
+				const byte = result.error;
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
+				dst.length = dst.length + 2;
 			}
 		}
 	}
@@ -380,7 +392,21 @@ export function cellU64(dataData: Uint8Array, dataStart: number, dataLen: number
 	let result!: rs.Result<rs.u64, rs.u8>;
 	const make: (a0: rs.u8) => rs.u64 = wide;
 	const put: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, t10: rs.u64): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u64ToBeBytes(t10)));
+		const dst = out2;
+		const word = t10;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		rs.byteVecReserve(dst, 8 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word3 >>> 24) & 255;
+		dst.data[pos + 1] = (word3 >>> 16) & 255;
+		dst.data[pos + 2] = (word3 >>> 8) & 255;
+		dst.data[pos + 3] = word3 & 255;
+		dst.data[pos + 4] = (word2 >>> 24) & 255;
+		dst.data[pos + 5] = (word2 >>> 16) & 255;
+		dst.data[pos + 6] = (word2 >>> 8) & 255;
+		dst.data[pos + 7] = word2 & 255;
+		dst.length = dst.length + 8;
 	};
 	let cell: rs.OnceCell<rs.u64> = new rs.OnceCell(undefined);
 	let dataData2: Uint8Array = dataData;
@@ -546,7 +572,13 @@ export function cellU64(dataData: Uint8Array, dataStart: number, dataLen: number
 				rs.byteVecPush(out, 1);
 				put(out, t8);
 			} else {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(0, result.error)));
+				const dst2 = out;
+				const byte = result.error;
+				rs.byteVecReserve(dst2, 2 as rs.usize);
+				const pos2 = dst2.length;
+				dst2.data[pos2 + 0] = 0;
+				dst2.data[pos2 + 1] = byte;
+				dst2.length = dst2.length + 2;
 			}
 		}
 	}
@@ -732,7 +764,13 @@ export function cellU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 				rs.byteVecPush(out, 1);
 				put(out, t8);
 			} else {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(0, result.error)));
+				const dst = out;
+				const byte = result.error;
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
+				dst.length = dst.length + 2;
 			}
 		}
 	}
@@ -911,7 +949,13 @@ export function cellUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 				rs.byteVecPush(out, 1);
 				put(out, t5);
 			} else {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(0, result.error)));
+				const dst = out;
+				const byte = result.error;
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
+				dst.length = dst.length + 2;
 			}
 		}
 	}
@@ -1096,7 +1140,13 @@ export function cellVec(dataData: Uint8Array, dataStart: number, dataLen: number
 				rs.byteVecPush(out, 1);
 				put(out, t8);
 			} else {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(0, result.error)));
+				const dst = out;
+				const byte = result.error;
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
+				dst.length = dst.length + 2;
 			}
 		}
 	}
@@ -1308,7 +1358,13 @@ export function lockOption(dataData: Uint8Array, dataStart: number, dataLen: num
 				rs.byteVecPush(out, 1);
 				put(out, t8);
 			} else {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(0, result.error)));
+				const dst = out;
+				const byte = result.error;
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
+				dst.length = dst.length + 2;
 			}
 		}
 	}
@@ -1494,7 +1550,13 @@ export function lockString(dataData: Uint8Array, dataStart: number, dataLen: num
 				rs.byteVecPush(out, 1);
 				put(out, t8);
 			} else {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(0, result.error)));
+				const dst = out;
+				const byte = result.error;
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
+				dst.length = dst.length + 2;
 			}
 		}
 	}
@@ -1512,7 +1574,21 @@ export function lockU64(dataData: Uint8Array, dataStart: number, dataLen: number
 	let result!: rs.Result<rs.u64, rs.u8>;
 	const make: (a0: rs.u8) => rs.u64 = wide;
 	const put: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, t10: rs.u64): undefined => {
-		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u64ToBeBytes(t10)));
+		const dst = out2;
+		const word = t10;
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		rs.byteVecReserve(dst, 8 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word3 >>> 24) & 255;
+		dst.data[pos + 1] = (word3 >>> 16) & 255;
+		dst.data[pos + 2] = (word3 >>> 8) & 255;
+		dst.data[pos + 3] = word3 & 255;
+		dst.data[pos + 4] = (word2 >>> 24) & 255;
+		dst.data[pos + 5] = (word2 >>> 16) & 255;
+		dst.data[pos + 6] = (word2 >>> 8) & 255;
+		dst.data[pos + 7] = word2 & 255;
+		dst.length = dst.length + 8;
 	};
 	let cell: rs.OnceLock<rs.u64> = new rs.OnceLock(undefined);
 	let dataData2: Uint8Array = dataData;
@@ -1678,7 +1754,13 @@ export function lockU64(dataData: Uint8Array, dataStart: number, dataLen: number
 				rs.byteVecPush(out, 1);
 				put(out, t8);
 			} else {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(0, result.error)));
+				const dst2 = out;
+				const byte = result.error;
+				rs.byteVecReserve(dst2, 2 as rs.usize);
+				const pos2 = dst2.length;
+				dst2.data[pos2 + 0] = 0;
+				dst2.data[pos2 + 1] = byte;
+				dst2.length = dst2.length + 2;
 			}
 		}
 	}
@@ -1864,7 +1946,13 @@ export function lockU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 				rs.byteVecPush(out, 1);
 				put(out, t8);
 			} else {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(0, result.error)));
+				const dst = out;
+				const byte = result.error;
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
+				dst.length = dst.length + 2;
 			}
 		}
 	}
@@ -2043,7 +2131,13 @@ export function lockUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 				rs.byteVecPush(out, 1);
 				put(out, t5);
 			} else {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(0, result.error)));
+				const dst = out;
+				const byte = result.error;
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
+				dst.length = dst.length + 2;
 			}
 		}
 	}
@@ -2228,7 +2322,13 @@ export function lockVec(dataData: Uint8Array, dataStart: number, dataLen: number
 				rs.byteVecPush(out, 1);
 				put(out, t8);
 			} else {
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(0, result.error)));
+				const dst = out;
+				const byte = result.error;
+				rs.byteVecReserve(dst, 2 as rs.usize);
+				const pos = dst.length;
+				dst.data[pos + 0] = 0;
+				dst.data[pos + 1] = byte;
+				dst.length = dst.length + 2;
 			}
 		}
 	}
@@ -2366,7 +2466,13 @@ export function putMaybe(out: rs.ByteVec, t: rs.u8 | undefined): void {
 	if (t === undefined) {
 		rs.byteVecPush(out, 2);
 	} else {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(1, t)));
+		const dst = out;
+		const byte = t;
+		rs.byteVecReserve(dst, 2 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = 1;
+		dst.data[pos + 1] = byte;
+		dst.length = dst.length + 2;
 	}
 }
 

@@ -4,9 +4,7 @@ import * as rs from "./rs.ts";
 import { note } from "./log.ts";
 
 export function fmt$fmt_Debug(self: Item, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Item";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Item", [(f: rs.Formatter) => rs.u8Debug(self._0, f)]);
 }
 
 /** A value sent through a channel, which logs as it drops. */

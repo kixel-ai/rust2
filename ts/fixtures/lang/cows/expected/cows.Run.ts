@@ -7,10 +7,7 @@ export function clone$Clone(self: Run): Run {
 }
 
 export function fmt$fmt_Debug(self: Run, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Run";
-	const _4: string = "words";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.sliceItems(rs.cowSlice(self.words)), f, rs.u16Debug);
-	return rs.debugStructFinish(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5));
+	return rs.fmtDebugFields(f, "Run words", [(f: rs.Formatter) => rs.fmtList(rs.sliceItems(rs.cowSlice(self.words)), f, rs.u16Debug)]);
 }
 
 export function default$Default(): Run {

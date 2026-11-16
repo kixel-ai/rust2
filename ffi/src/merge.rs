@@ -17,6 +17,9 @@ use crate::ir::{Api, Callback, Constant, Enum, Field, Function, Home, Object, On
 /// A target's API, as a check writes it for the export of several targets.
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Target {
+	/// Names are present only in a complete export, after all targets merge.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub names: Option<crate::lock::Names>,
 	/// The facade's package, which every target's must share.
 	pub package: String,
 	/// The features the facade compiled with, which every target's must share, since the
@@ -108,11 +111,11 @@ struct Merged {
 
 /// Where each type of the API being added lands among the merged API's.
 #[derive(Default)]
-struct Maps {
-	records: Vec<usize>,
-	enums: Vec<usize>,
-	objects: Vec<usize>,
-	callbacks: Vec<usize>,
+pub struct Maps {
+	pub records: Vec<usize>,
+	pub enums: Vec<usize>,
+	pub objects: Vec<usize>,
+	pub callbacks: Vec<usize>,
 }
 
 impl Maps {
@@ -129,7 +132,7 @@ impl Maps {
 			.collect()
 	}
 
-	fn ty(&self, ty: &mut Type) {
+	pub fn ty(&self, ty: &mut Type) {
 		match ty {
 			Type::Record(i) => *i = self.records[*i],
 			Type::Enum(i) => *i = self.enums[*i],
@@ -148,15 +151,15 @@ impl Maps {
 		}
 	}
 
-	fn types(&self, types: &mut [Type]) {
+	pub fn types(&self, types: &mut [Type]) {
 		types.iter_mut().for_each(|ty| self.ty(ty));
 	}
 
-	fn fields(&self, fields: &mut [Field]) {
+	pub fn fields(&self, fields: &mut [Field]) {
 		fields.iter_mut().for_each(|f| self.ty(&mut f.ty));
 	}
 
-	fn function(&self, f: &mut Function) {
+	pub fn function(&self, f: &mut Function) {
 		f.params.iter_mut().for_each(|p| self.ty(&mut p.ty));
 		self.ty(&mut f.ok);
 		if let Some(err) = &mut f.err {
@@ -171,7 +174,7 @@ impl Maps {
 		}
 	}
 
-	fn functions(&self, functions: &mut [Function]) {
+	pub fn functions(&self, functions: &mut [Function]) {
 		functions.iter_mut().for_each(|f| self.function(f));
 	}
 }
@@ -184,7 +187,7 @@ fn bare<T: Clone>(item: &T, clear: impl Fn(&mut T)) -> T {
 	item
 }
 
-fn bare_function(f: &Function) -> Function {
+pub fn bare_function(f: &Function) -> Function {
 	bare(f, |f| {
 		f.span = DUMMY_SP;
 		f.docs.clear();
@@ -192,17 +195,24 @@ fn bare_function(f: &Function) -> Function {
 	})
 }
 
-fn bare_record(r: &Record) -> Record {
+pub fn bare_record(r: &Record) -> Record {
 	bare(r, |r| {
 		r.span = DUMMY_SP;
 		r.docs.clear();
 		r.on = On::ALL;
 		r.methods.clear();
 		r.fields.iter_mut().for_each(|f| f.docs.clear());
+		// Merged apart: one binding holds the largest, and each target asserts its own size.
+		if let Some(opaque) = &mut r.opaque {
+			opaque.size = 0;
+			opaque.align = 0;
+			opaque.dense = true;
+		}
+		r.sizes.clear();
 	})
 }
 
-fn bare_enum(e: &Enum) -> Enum {
+pub fn bare_enum(e: &Enum) -> Enum {
 	bare(e, |e| {
 		e.span = DUMMY_SP;
 		e.docs.clear();
@@ -212,7 +222,7 @@ fn bare_enum(e: &Enum) -> Enum {
 	})
 }
 
-fn bare_variant(v: &Variant) -> Variant {
+pub fn bare_variant(v: &Variant) -> Variant {
 	bare(v, |v| {
 		v.on = On::ALL;
 		// Compared apart, as only a plain enum's matter.
@@ -221,7 +231,7 @@ fn bare_variant(v: &Variant) -> Variant {
 	})
 }
 
-fn bare_object(o: &Object) -> Object {
+pub fn bare_object(o: &Object) -> Object {
 	bare(o, |o| {
 		o.span = DUMMY_SP;
 		o.docs.clear();
@@ -230,7 +240,7 @@ fn bare_object(o: &Object) -> Object {
 	})
 }
 
-fn bare_callback(c: &Callback) -> Callback {
+pub fn bare_callback(c: &Callback) -> Callback {
 	bare(c, |c| {
 		c.span = DUMMY_SP;
 		c.docs.clear();
@@ -239,7 +249,7 @@ fn bare_callback(c: &Callback) -> Callback {
 	})
 }
 
-fn bare_constant(c: &Constant) -> Constant {
+pub fn bare_constant(c: &Constant) -> Constant {
 	bare(c, |c| {
 		c.span = DUMMY_SP;
 		c.docs.clear();
@@ -266,6 +276,53 @@ impl Merged {
 		Differs { what, first, second }
 	}
 
+	/// Refuse each item whose path's second segment names a reached crate on a target that
+	/// does not reach it: there it is a facade module of the same name, which the glue
+	/// would route to the reached crate, a dependency of the other targets only.
+	fn collisions(&mut self) {
+		let api = &self.api;
+		let mut items: Vec<(&Vec<String>, On, Span)> = Vec::new();
+		fn functions<'a>(fs: &'a [Function], items: &mut Vec<(&'a Vec<String>, On, Span)>) {
+			fs.iter().for_each(|f| items.push((&f.path, f.on, f.span)))
+		}
+		for r in &api.records {
+			items.push((&r.path, r.on, r.span));
+			functions(&r.methods, &mut items);
+		}
+		for e in &api.enums {
+			items.push((&e.path, e.on, e.span));
+			functions(&e.methods, &mut items);
+		}
+		for o in &api.objects {
+			items.push((&o.path, o.on, o.span));
+			functions(&o.methods, &mut items);
+		}
+		for c in &api.callbacks {
+			items.push((&c.path, c.on, c.span));
+			functions(&c.methods, &mut items);
+		}
+		functions(&api.functions, &mut items);
+		api.constants.iter().for_each(|c| items.push((&c.path, c.on, c.span)));
+		let mut differs = Vec::new();
+		for r in &api.reached {
+			let reaches = On((api.targets.iter().enumerate())
+				.filter(|(_, t)| r.targets.contains(t))
+				.fold(0, |on, (i, _)| on | 1 << i));
+			for &(path, on, span) in &items {
+				let elsewhere = On(on.0 & !reaches.0);
+				if path.get(1) == Some(&r.krate) && elsewhere.0 != 0 {
+					let what = format!(
+						"`{}`, whose `{}` is a crate on one and a module on the other",
+						path.join("::"),
+						r.krate
+					);
+					differs.push(self.differs(what, (reaches, span), (elsewhere, span)));
+				}
+			}
+		}
+		self.differs.extend(differs);
+	}
+
 	/// The merged API, and what differs between its targets, once every target is added.
 	fn finish(mut self) -> (Api, Vec<Differs>) {
 		let renumbered = std::mem::take(&mut self.renumbered);
@@ -288,6 +345,7 @@ impl Merged {
 				}
 			}
 		}
+		self.collisions();
 		match order_crates(&self.api) {
 			Ok(crates) => self.api.crates = crates,
 			Err(cycle) => {
@@ -345,6 +403,16 @@ impl Merged {
 				.unwrap_or(self.api.crates.len());
 			self.api.crates.insert(at, krate.clone());
 		}
+		for reached in api.reached {
+			match self.api.reached.iter_mut().find(|r| r.krate == reached.krate) {
+				Some(ours) => {
+					ours.targets.extend(reached.targets);
+					ours.targets.sort();
+					ours.targets.dedup();
+				}
+				None => self.api.reached.push(reached),
+			}
+		}
 		for (record, at) in api.records.into_iter().zip(maps.records) {
 			let Some(ours) = self.api.records.get(at) else {
 				self.api.records.push(record);
@@ -355,6 +423,12 @@ impl Merged {
 				self.differ(what, (ours.on, ours.span), (record.on, record.span));
 			}
 			self.api.records[at].on.0 |= record.on.0;
+			if let (Some(ours), Some(theirs)) = (&mut self.api.records[at].opaque, record.opaque) {
+				ours.size = ours.size.max(theirs.size);
+				ours.align = ours.align.max(theirs.align);
+				ours.dense &= theirs.dense;
+			}
+			self.api.records[at].sizes.extend(record.sizes);
 			let methods = std::mem::take(&mut self.api.records[at].methods);
 			self.api.records[at].methods = self.functions(methods, record.methods);
 		}
@@ -626,6 +700,10 @@ pub mod span {
 
 	pub fn serialize<S: Serializer>(span: &Span, s: S) -> Result<S::Ok, S::Error> {
 		let located = context(|map, roots| {
+			// A staged span whose file was not on this host as it was: no file names it.
+			if span.is_dummy() {
+				return None;
+			}
 			let span = span.source_callsite();
 			let file = map.lookup_source_file(span.lo());
 			let FileName::Real(real) = &file.name else {
@@ -741,11 +819,45 @@ mod tests {
 			functions: Vec::new(),
 			constants: Vec::new(),
 			crates: ["a", "c"].map(String::from).to_vec(),
+			reached: Vec::new(),
 			targets: ["x", "y"].map(String::from).to_vec(),
 		};
 		let Err(cycle) = order_crates(&api) else {
 			panic!("a cycle")
 		};
 		assert_eq!((cycle.first.0.0, cycle.second.0.0), (2, 1));
+	}
+
+	#[test]
+	fn refuses_a_facade_module_named_as_another_targets_reached_crate() {
+		// On `x`, `f::kio` is the reached crate `kio`; on `y`, a module of the facade.
+		let api = |target: &str, reached: bool| Api {
+			records: Vec::new(),
+			enums: Vec::new(),
+			objects: Vec::new(),
+			callbacks: Vec::new(),
+			functions: Vec::new(),
+			constants: vec![crate::ir::Constant {
+				path: ["f", "kio", "N"].map(String::from).to_vec(),
+				home: Home::default(),
+				span: DUMMY_SP,
+				on: On::ALL,
+				docs: String::new(),
+				value: crate::ir::Literal::Bool(true),
+			}],
+			crates: vec!["f".into()],
+			reached: (reached.then(|| crate::ir::Reached {
+				krate: "kio".into(),
+				targets: vec![target.into()],
+			}))
+			.into_iter()
+			.collect(),
+			targets: vec![target.into()],
+		};
+		let (_, differs) = super::merge(vec![api("x", true), api("y", false)]);
+		assert_eq!(differs.len(), 1);
+		assert_eq!((differs[0].first.0.as_str(), differs[0].second.0.as_str()), ("x", "y"));
+		let (_, differs) = super::merge(vec![api("x", true), api("y", true)]);
+		assert!(differs.is_empty());
 	}
 }

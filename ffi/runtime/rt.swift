@@ -3,21 +3,294 @@
 // bytes and text across the C ABI, and the signal a future parks on. Each helper that
 // returns what its body does takes a noncopyable result, an object's struct.
 
-/// An IP socket address, as Rust's `SocketAddr` holds it.
-public struct SocketAddr: Hashable, Sendable {
-	/// The IP in network order: 4 bytes for IPv4, or 16 for IPv6.
-	public var ip: [UInt8]
+/// An IPv4 address, as Rust's `Ipv4Addr` holds it.
+public struct Ipv4Addr: Hashable, Sendable {
+	/// Its 32 bits, the first octet highest, as Rust's `to_bits` gives them.
+	public var bits: UInt32
+
+	public init(bits: UInt32) {
+		self.bits = bits
+	}
+
+	/// The address `a.b.c.d`.
+	public init(_ a: UInt8, _ b: UInt8, _ c: UInt8, _ d: UInt8) {
+		bits = UInt32(a) << 24 | UInt32(b) << 16 | UInt32(c) << 8 | UInt32(d)
+	}
+
+	/// The address of `octets`, in network order, or nil unless it holds exactly 4.
+	public init?(octets: some Swift.Collection<UInt8>) {
+		guard octets.count == 4 else { return nil }
+		bits = octets.reduce(0) { $0 << 8 | UInt32($1) }
+	}
+
+	/// Its 4 octets, in network order.
+	public var octets: [UInt8] {
+		[24, 16, 8, 0].map { UInt8(truncatingIfNeeded: bits >> $0) }
+	}
+}
+
+/// An IPv6 address, as Rust's `Ipv6Addr` holds it.
+public struct Ipv6Addr: Hashable, Sendable {
+	/// Its 128 bits, the first octet highest, as Rust's `to_bits` gives them.
+	public var bits: U128
+
+	public init(bits: U128) {
+		self.bits = bits
+	}
+
+	/// The address of `octets`, in network order, or nil unless it holds exactly 16.
+	public init?(octets: some Swift.Collection<UInt8>) {
+		guard octets.count == 16 else { return nil }
+		let high = octets.prefix(8).reduce(0) { $0 << 8 | UInt64($1) }
+		bits = U128(high: high, low: octets.dropFirst(8).reduce(0) { $0 << 8 | UInt64($1) })
+	}
+
+	/// Its 16 octets, in network order.
+	public var octets: [UInt8] {
+		[bits.high, bits.low].flatMap { half in stride(from: 56, through: 0, by: -8).map { UInt8(truncatingIfNeeded: half >> $0) } }
+	}
+}
+
+/// An IP address of either family, as Rust's `IpAddr`.
+public enum IpAddr: Hashable, Sendable {
+	case v4(Ipv4Addr)
+	case v6(Ipv6Addr)
+}
+
+/// An IPv4 socket address, as Rust's `SocketAddrV4`.
+public struct SocketAddrV4: Hashable, Sendable {
+	public var ip: Ipv4Addr
 	public var port: UInt16
-	/// IPv6's flow label, zero for IPv4.
+
+	public init(ip: Ipv4Addr, port: UInt16) {
+		self.ip = ip
+		self.port = port
+	}
+}
+
+/// An IPv6 socket address, as Rust's `SocketAddrV6`.
+public struct SocketAddrV6: Hashable, Sendable {
+	public var ip: Ipv6Addr
+	public var port: UInt16
+	/// Its flow label.
 	public var flowinfo: UInt32
-	/// IPv6's scope, zero for IPv4.
+	/// Its scope, as an interface index.
 	public var scopeId: UInt32
 
-	public init(ip: [UInt8], port: UInt16, flowinfo: UInt32 = 0, scopeId: UInt32 = 0) {
+	public init(ip: Ipv6Addr, port: UInt16, flowinfo: UInt32 = 0, scopeId: UInt32 = 0) {
 		self.ip = ip
 		self.port = port
 		self.flowinfo = flowinfo
 		self.scopeId = scopeId
+	}
+}
+
+/// A socket address of either family, as Rust's `SocketAddr`.
+public enum SocketAddr: Hashable, Sendable {
+	case v4(SocketAddrV4)
+	case v6(SocketAddrV6)
+
+	/// `ip` at `port`, with no flow label or scope for IPv6, as Rust's `SocketAddr::new`.
+	public init(ip: IpAddr, port: UInt16) {
+		switch ip {
+		case .v4(let ip): self = .v4(SocketAddrV4(ip: ip, port: port))
+		case .v6(let ip): self = .v6(SocketAddrV6(ip: ip, port: port))
+		}
+	}
+
+	/// Its IP, of its family.
+	public var ip: IpAddr {
+		switch self {
+		case .v4(let addr): return .v4(addr.ip)
+		case .v6(let addr): return .v6(addr.ip)
+		}
+	}
+
+	/// Its port.
+	public var port: UInt16 {
+		switch self {
+		case .v4(let addr): return addr.port
+		case .v6(let addr): return addr.port
+		}
+	}
+}
+
+/// A Rust `Duration`: whole seconds and the nanoseconds past them, below a second, so it
+/// holds every value Rust's does and no other.
+public struct RustDuration: Hashable, Comparable, Sendable {
+	public let secs: UInt64
+	/// Below 1,000,000,000.
+	public let nanos: UInt32
+
+	init(_c: Native.CDuration) {
+		secs = _c.secs
+		nanos = _c.nanos
+	}
+
+	/// `secs` seconds and `nanos` nanoseconds, throwing unless `nanos` is below a second.
+	public init(secs: UInt64, nanos: UInt32) throws {
+		guard nanos < 1_000_000_000 else {
+			throw CheckError(function: "RustDuration(secs:nanos:)", message: "\(nanos) nanoseconds are a second or more")
+		}
+		self.init(_c: Native.CDuration(secs: secs, nanos: nanos))
+	}
+
+	/// `secs` whole seconds.
+	public static func seconds(_ secs: UInt64) -> RustDuration {
+		RustDuration(_c: Native.CDuration(secs: secs, nanos: 0))
+	}
+
+	/// `millis` milliseconds, as Rust's `from_millis`.
+	public static func milliseconds(_ millis: UInt64) -> RustDuration {
+		RustDuration(_c: Native.CDuration(secs: millis / 1000, nanos: UInt32(millis % 1000) * 1_000_000))
+	}
+
+	/// `micros` microseconds, as Rust's `from_micros`.
+	public static func microseconds(_ micros: UInt64) -> RustDuration {
+		RustDuration(_c: Native.CDuration(secs: micros / 1_000_000, nanos: UInt32(micros % 1_000_000) * 1000))
+	}
+
+	/// `nanos` nanoseconds, as Rust's `from_nanos`.
+	public static func nanoseconds(_ nanos: UInt64) -> RustDuration {
+		RustDuration(_c: Native.CDuration(secs: nanos / 1_000_000_000, nanos: UInt32(nanos % 1_000_000_000)))
+	}
+
+	/// `duration`, throwing for one that is negative, has a part below a nanosecond, or is
+	/// past Rust's longest, `UInt64.max` seconds and 999,999,999 nanoseconds.
+	public init(_ duration: Swift.Duration) throws {
+		let what = "RustDuration(_:)"
+		guard duration >= .zero else {
+			throw CheckError(function: what, message: "a negative duration")
+		}
+		guard duration <= RustDuration.longest else {
+			throw CheckError(function: what, message: "a duration past Rust's longest")
+		}
+		// In halves, since `components` gives Int64's seconds, and Rust's are UInt64's.
+		let half = duration / 2
+		let (secs, attos) = half.components
+		let odd = (duration - half * 2).components.attoseconds
+		let (whole, part) = (attos * 2 + odd).quotientAndRemainder(dividingBy: 1_000_000_000)
+		guard part == 0 else {
+			throw CheckError(function: what, message: "a duration with a part below a nanosecond")
+		}
+		// `whole` is below two seconds' nanoseconds.
+		let carry = whole >= 1_000_000_000
+		self.init(_c: Native.CDuration(secs: UInt64(secs) * 2 + (carry ? 1 : 0), nanos: UInt32(carry ? whole - 1_000_000_000 : whole)))
+	}
+
+	/// Rust's longest `Duration`, which `Swift.Duration` holds.
+	static var longest: Swift.Duration {
+		.seconds(Int64.max) * 2 + .seconds(1) + .nanoseconds(999_999_999)
+	}
+
+	/// It as a `Swift.Duration`, which holds every Rust `Duration`.
+	public var duration: Swift.Duration {
+		// Past Int64's seconds, as Rust's may be, in halves.
+		Swift.Duration.seconds(Int64(secs >> 1)) * 2 + .seconds(Int64(secs & 1)) + .nanoseconds(Int64(nanos))
+	}
+
+	public static func < (a: RustDuration, b: RustDuration) -> Bool {
+		(a.secs, a.nanos) < (b.secs, b.nanos)
+	}
+}
+
+/// An OS path, as Rust's `PathBuf` holds it: its bytes, which on Unix need not be UTF-8,
+/// shared with Rust's buffer as `Bytes` are.
+public struct PathBuf: Hashable, Sendable, Swift.ExpressibleByStringLiteral {
+	/// Its bytes as the OS holds them on Unix, or WTF-8 on Windows: UTF-8 for any path
+	/// that has a UTF-8 form.
+	public let bytes: Bytes
+
+	/// The path of the OS's `bytes`, which on Unix may be any.
+	public init(bytes: Bytes) {
+		self.bytes = bytes
+	}
+
+	/// The path `string` names.
+	public init(_ string: Swift.String) {
+		self.init(bytes: Bytes(Data(string.utf8)))
+	}
+
+	public init(stringLiteral string: Swift.String) {
+		self.init(string)
+	}
+
+	/// Its text, or nil if its bytes are not UTF-8.
+	public var string: Swift.String? {
+		var iterator = bytes.makeIterator()
+		var parser = Unicode.UTF8.ForwardParser()
+		while true {
+			switch parser.parseScalar(from: &iterator) {
+			case .valid: continue
+			case .emptyInput: return Swift.String(decoding: bytes, as: UTF8.self)
+			case .error: return nil
+			}
+		}
+	}
+}
+
+/// Bytes as Rust holds them: Rust's stay in the buffer it returned, shared without a copy
+/// by every `Bytes` and slice reading them and passed back to Rust uncopied, and Swift's are
+/// a `Data`. Rust's are never lent as a `Data`, so nothing writes into the buffer Rust shares.
+public struct Bytes: Hashable, Sendable, RandomAccessCollection {
+	// The bytes: Swift's, or a view of Rust's buffer that keeps `owner` alive.
+	let storage: Data
+	// Rust's buffer holding the bytes, or nil for Swift's.
+	let owner: Native.Owner?
+
+	init(storage: Data, owner: Native.Owner?) {
+		self.storage = storage
+		self.owner = owner
+	}
+
+	/// No bytes.
+	public init() {
+		self.init(storage: Data(), owner: nil)
+	}
+
+	/// `data`'s bytes, sharing its storage as `Data` does: a call passing them lends them to
+	/// Rust, which copies them where it keeps them.
+	public init(_ data: Data) {
+		self.init(storage: data, owner: nil)
+	}
+
+	/// `bytes`, copied.
+	public init(_ bytes: some Swift.Sequence<Swift.UInt8>) {
+		self.init(Data(bytes))
+	}
+
+	/// The bytes as a `Data`: Swift's as they are, and Rust's copied.
+	public var data: Data {
+		owner == nil ? storage : Data(storage)
+	}
+
+	/// Indices count from the bytes sliced from, as `Data`'s do.
+	public var startIndex: Swift.Int { storage.startIndex }
+	public var endIndex: Swift.Int { storage.endIndex }
+
+	public subscript(i: Swift.Int) -> Swift.UInt8 {
+		storage[i]
+	}
+
+	/// The bytes in `bounds`, sharing these without a copy.
+	public subscript(bounds: Swift.Range<Swift.Int>) -> Bytes {
+		let slice = storage[bounds]
+		// `Data` may copy a short slice inline: those bytes are Swift's.
+		return Bytes(storage: slice, owner: owner.flatMap { $0.holds(slice) ? $0 : nil })
+	}
+
+	/// Run `body` with the bytes in place, which it must not keep.
+	public func withUnsafeBytes<R>(_ body: (UnsafeRawBufferPointer) throws -> R) rethrows -> R {
+		try storage.withUnsafeBytes(body)
+	}
+
+	/// Whether `a` and `b` hold the same bytes, wherever each keeps them.
+	public static func == (a: Bytes, b: Bytes) -> Swift.Bool {
+		a.storage == b.storage
+	}
+
+	public func hash(into hasher: inout Swift.Hasher) {
+		storage.hash(into: &hasher)
 	}
 }
 
@@ -51,6 +324,41 @@ public struct U128: Hashable, Comparable, Sendable, CustomStringConvertible {
 		let tail = Swift.String(digits)
 		return U128(high: q, low: lowQ).description + Swift.String(repeating: "0", count: 19 - tail.count) + tail
 	}
+}
+
+/// Rust's `NonZero<T>`: an integer that is never zero.
+public struct NonZero<T: Swift.FixedWidthInteger & Sendable>: Hashable, Comparable, Sendable, CustomStringConvertible {
+	/// The integer, never zero, as Rust's `get`.
+	public let value: T
+
+	init(_unchecked value: T) {
+		self.value = value
+	}
+
+	/// `value`, throwing for a zero.
+	public init(_ value: T) throws {
+		guard value != 0 else {
+			throw CheckError(function: "NonZero(_:)", message: "a NonZero is zero")
+		}
+		self.value = value
+	}
+
+	public static func < (a: NonZero, b: NonZero) -> Swift.Bool { a.value < b.value }
+
+	public var description: Swift.String { value.description }
+}
+
+/// A call Rust's rules refuse, thrown before any Rust runs: a handle borrowed in a way
+/// the borrow checker forbids beside another call's, used once its value moved out or its
+/// lend ended, an item called on a library whose target lacks it, or a value Rust's type
+/// cannot hold given a runtime type's initializer, such as a zero given `NonZero`'s.
+public struct CheckError: Swift.Error, CustomStringConvertible, Sendable {
+	/// The function called, by its C name, or the runtime initializer.
+	public let function: Swift.String
+	/// What broke.
+	public let message: Swift.String
+
+	public var description: Swift.String { "\(function): \(message)" }
 }
 
 /// Where a seek counts its offset from, as swift-system's `FileDescriptor.SeekOrigin` and
@@ -173,20 +481,19 @@ extension Native {
 
 	static var none: Buf { Buf(ptr: nil, len: 0, owner: nil) }
 
-	/// `bytes` as a view C reads during `body`, without a copy. Foundation's closure
-	/// returns only a copyable result, so `body`'s leaves through an optional.
+	/// `bytes` as a view C reads during `body`, without a copy. `Data`'s closure returns
+	/// only a copyable result, so `body`'s leaves through an optional.
 	@inline(__always)
-	static func view<R: ~Copyable>(_ bytes: Data, _ body: (Buf) throws -> R) rethrows -> R {
+	static func view<R: ~Copyable>(_ bytes: Bytes, _ body: (Buf) throws -> R) rethrows -> R {
 		var result: R? = nil
-		try bytes.withUnsafeBytes { raw in
-			let ptr = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) ?? UnsafePointer(empty)
-			result = try body(Buf(ptr: ptr, len: raw.count, owner: nil))
+		try bytes.storage.withUnsafeBytes { raw in
+			result = try body(view(raw))
 		}
 		return result.take()!
 	}
 
 	@inline(__always)
-	static func view<R: ~Copyable>(_ bytes: Data?, _ body: (Buf) throws -> R) rethrows -> R {
+	static func view<R: ~Copyable>(_ bytes: Bytes?, _ body: (Buf) throws -> R) rethrows -> R {
 		guard let bytes else { return try body(none) }
 		return try view(bytes, body)
 	}
@@ -197,7 +504,7 @@ extension Native {
 		var text = text
 		var result: R? = nil
 		try text.withUTF8 { utf8 in
-			result = try body(Buf(ptr: utf8.baseAddress ?? UnsafePointer(empty), len: utf8.count, owner: nil))
+			result = try body(view(UnsafeRawBufferPointer(utf8)))
 		}
 		return result.take()!
 	}
@@ -208,28 +515,107 @@ extension Native {
 		return try view(text, body)
 	}
 
-	/// Bytes Rust returned, lent to `Data` without a copy and freed with it.
-	static func data(_ buf: Buf) -> Data {
-		guard let ptr = buf.ptr, buf.len > 0 else {
-			free(buf)
-			return Data()
-		}
-		return Data(
-			bytesNoCopy: UnsafeMutableRawPointer(mutating: ptr), count: buf.len,
-			deallocator: .custom { _, _ in free(buf) })
+	/// A view of `raw`, never null, so empty bytes read as present.
+	@inline(__always)
+	static func view(_ raw: UnsafeRawBufferPointer) -> Buf {
+		Buf(
+			ptr: raw.baseAddress?.assumingMemoryBound(to: UInt8.self) ?? UnsafePointer(empty), len: raw.count,
+			owner: nil)
 	}
 
-	static func data(option buf: Buf) -> Data? {
-		buf.ptr == nil ? nil : data(buf)
+	/// The buffer Rust returned that `Bytes` read, freed once no `Bytes` does.
+	final class Owner: @unchecked Swift.Sendable {
+		let buf: Buf
+
+		init(_ buf: Buf) {
+			self.buf = buf
+		}
+
+		/// Whether `data`'s bytes lie in this buffer rather than in a copy.
+		func holds(_ data: Data) -> Swift.Bool {
+			guard let ptr = buf.ptr else { return false }
+			return data.withUnsafeBytes { raw in
+				guard let base = raw.baseAddress else { return false }
+				let start = UnsafeRawPointer(ptr)
+				return base >= start && base + raw.count <= start + buf.len
+			}
+		}
+
+		deinit {
+			Native.free(buf)
+		}
+
+		/// A second owner of `buf`, narrowed to `raw`, its bytes some `Bytes` reads, which
+		/// Rust takes.
+		func share(_ raw: UnsafeRawBufferPointer) -> Buf {
+			var shared = Native.clone(buf)
+			shared.ptr = raw.baseAddress!.assumingMemoryBound(to: UInt8.self)
+			shared.len = raw.count
+			return shared
+		}
+	}
+
+	/// Bytes Rust returned, lent to `Bytes` without a copy and freed with the last one.
+	static func bytes(_ buf: Buf) -> Bytes {
+		guard let ptr = buf.ptr, buf.len > 0 else {
+			free(buf)
+			return Bytes()
+		}
+		let owner = Owner(buf)
+		let storage = Data(
+			bytesNoCopy: UnsafeMutableRawPointer(mutating: ptr), count: buf.len,
+			deallocator: .custom { _, _ in Swift.withExtendedLifetime(owner) {} })
+		// `Data` copies a few bytes inline, freeing Rust's buffer at once: those are Swift's.
+		return Bytes(storage: storage, owner: owner.holds(storage) ? owner : nil)
+	}
+
+	static func bytes(option buf: Buf) -> Bytes? {
+		buf.ptr == nil ? nil : bytes(buf)
+	}
+
+	/// `bytes` as a buffer Rust takes during `body`: a second owner of Rust's own, or a view
+	/// of Swift's, which Rust copies.
+	@inline(__always)
+	static func take<R: ~Copyable>(_ bytes: Bytes, _ body: (Buf) throws -> R) rethrows -> R {
+		guard let owner = bytes.owner, !bytes.isEmpty else { return try view(bytes, body) }
+		return try body(bytes.storage.withUnsafeBytes { owner.share($0) })
+	}
+
+	@inline(__always)
+	static func take<R: ~Copyable>(_ bytes: Bytes?, _ body: (Buf) throws -> R) rethrows -> R {
+		guard let bytes else { return try body(none) }
+		return try take(bytes, body)
+	}
+
+	/// Text Rust takes during `body`: a view, which Rust copies.
+	@inline(__always)
+	static func take<R: ~Copyable>(_ text: Swift.String, _ body: (Buf) throws -> R) rethrows -> R {
+		try view(text, body)
+	}
+
+	@inline(__always)
+	static func take<R: ~Copyable>(_ text: Swift.String?, _ body: (Buf) throws -> R) rethrows -> R {
+		try view(text, body)
+	}
+
+	/// A path Rust takes during `body`, as its bytes are.
+	@inline(__always)
+	static func take<R: ~Copyable>(_ path: PathBuf, _ body: (Buf) throws -> R) rethrows -> R {
+		try take(path.bytes, body)
+	}
+
+	@inline(__always)
+	static func take<R: ~Copyable>(_ path: PathBuf?, _ body: (Buf) throws -> R) rethrows -> R {
+		try take(path?.bytes, body)
 	}
 
 	/// Bytes C lends a callback for its call, copied.
-	static func data(lent buf: Buf) -> Data {
-		buf.len == 0 ? Data() : Data(bytes: buf.ptr!, count: buf.len)
+	static func bytes(lent buf: Buf) -> Bytes {
+		buf.len == 0 ? Bytes() : Bytes(Data(bytes: buf.ptr!, count: buf.len))
 	}
 
-	static func data(lentOption buf: Buf) -> Data? {
-		buf.ptr == nil ? nil : data(lent: buf)
+	static func bytes(lentOption buf: Buf) -> Bytes? {
+		buf.ptr == nil ? nil : bytes(lent: buf)
 	}
 
 	/// Text Rust returned, copied, then freed.
@@ -251,31 +637,27 @@ extension Native {
 		buf.ptr == nil ? nil : string(lent: buf)
 	}
 
-	/// A path Rust returned, copied, then freed.
-	static func path(_ buf: Buf) -> Swift.String {
-		defer { free(buf) }
-		return path(lent: buf)
+	/// A path Rust returned, its buffer shared as `Bytes` share it.
+	static func path(_ buf: Buf) -> PathBuf {
+		PathBuf(bytes: bytes(buf))
 	}
 
-	static func path(option buf: Buf) -> Swift.String? {
+	static func path(option buf: Buf) -> PathBuf? {
 		buf.ptr == nil ? nil : path(buf)
 	}
 
-	/// A path from Rust, copied, which on Unix may hold bytes no `String` holds: those trap.
-	static func path(lent buf: Buf) -> Swift.String {
-		var bytes = UnsafeBufferPointer(start: buf.ptr, count: buf.len).makeIterator()
-		var parser = Unicode.UTF8.ForwardParser()
-		while true {
-			switch parser.parseScalar(from: &bytes) {
-			case .valid: continue
-			case .emptyInput: return string(lent: buf)
-			case .error: fatalError("a path from Rust is not UTF-8")
-			}
-		}
+	/// A path C lends a callback for its call, copied.
+	static func path(lent buf: Buf) -> PathBuf {
+		PathBuf(bytes: bytes(lent: buf))
 	}
 
-	static func path(lentOption buf: Buf) -> Swift.String? {
+	static func path(lentOption buf: Buf) -> PathBuf? {
 		buf.ptr == nil ? nil : path(lent: buf)
+	}
+
+	/// `path`'s bytes in a buffer Rust owns, as what a closure returns.
+	static func owned(_ path: PathBuf) -> Buf {
+		view(path.bytes) { copy($0) }
 	}
 
 	static func scalar(_ code: UInt32) -> Unicode.Scalar {
@@ -283,37 +665,6 @@ extension Native {
 			fatalError("a char is not a Unicode scalar")
 		}
 		return scalar
-	}
-
-	/// Rust's longest `Duration`: `u64::MAX` seconds and 999,999,999 nanoseconds.
-	static var longest: Swift.Duration {
-		.seconds(Int64.max) * 2 + .seconds(1) + .nanoseconds(999_999_999)
-	}
-
-	static func duration(_ value: Swift.Duration) -> CDuration {
-		if value < .zero {
-			fatalError("a negative duration has no Rust Duration")
-		}
-		if value > longest {
-			fatalError("a duration past Rust's Duration::MAX")
-		}
-		// In halves, since `components` gives Int64's seconds, and Rust's are UInt64's.
-		let half = value / 2
-		let (secs, attos) = half.components
-		let odd = (value - half * 2).components.attoseconds
-		var nanos = (attos * 2 + odd) / 1_000_000_000
-		var whole = UInt64(secs) * 2
-		if nanos >= 1_000_000_000 {
-			nanos -= 1_000_000_000
-			whole += 1
-		}
-		return CDuration(secs: whole, nanos: UInt32(nanos))
-	}
-
-	static func duration(_ value: CDuration) -> Swift.Duration {
-		// Past Int64's seconds, as Rust's may be, in halves.
-		let half = Swift.Duration.seconds(Int64(value.secs >> 1))
-		return half * 2 + .seconds(Int64(value.secs & 1)) + .nanoseconds(Int64(value.nanos))
 	}
 
 	static func u128(_ value: U128) -> CU128 {
@@ -324,26 +675,89 @@ extension Native {
 		U128(high: value.hi, low: value.lo)
 	}
 
-	static func socketAddr(_ addr: SocketAddr) -> CAddr {
-		let v6: Bool
-		switch addr.ip.count {
-		case 4: v6 = false
-		case 16: v6 = true
-		default: fatalError("an IP address is 4 bytes or 16, not \(addr.ip.count)")
-		}
-		var c = CAddr()
-		withUnsafeMutableBytes(of: &c.ip) { ip in ip.copyBytes(from: addr.ip) }
-		c.port = addr.port
-		c.v6 = v6
-		c.flowinfo = addr.flowinfo
-		c.scope_id = addr.scopeId
+	static func duration(_ value: RustDuration) -> CDuration {
+		CDuration(secs: value.secs, nanos: value.nanos)
+	}
+
+	static func duration(_ value: CDuration) -> RustDuration {
+		RustDuration(_c: value)
+	}
+
+	// Each address as its C struct, in network order, and back: every value of either
+	// is one of the other.
+
+	static func addr(_ ip: Ipv4Addr) -> CIpv4Addr {
+		var c = CIpv4Addr()
+		withUnsafeMutableBytes(of: &c.octets) { $0.storeBytes(of: ip.bits.bigEndian, as: UInt32.self) }
 		return c
 	}
 
-	static func socketAddr(_ c: CAddr) -> SocketAddr {
-		var c = c
-		let ip = withUnsafeBytes(of: &c.ip) { ip in Array(ip.prefix(c.v6 ? 16 : 4)) }
-		return SocketAddr(ip: ip, port: c.port, flowinfo: c.flowinfo, scopeId: c.scope_id)
+	static func addr(_ c: CIpv4Addr) -> Ipv4Addr {
+		Ipv4Addr(bits: UInt32(bigEndian: withUnsafeBytes(of: c.octets) { $0.loadUnaligned(as: UInt32.self) }))
+	}
+
+	static func addr(_ ip: Ipv6Addr) -> CIpv6Addr {
+		var c = CIpv6Addr()
+		withUnsafeMutableBytes(of: &c.octets) { octets in
+			octets.storeBytes(of: ip.bits.high.bigEndian, as: UInt64.self)
+			octets.storeBytes(of: ip.bits.low.bigEndian, toByteOffset: 8, as: UInt64.self)
+		}
+		return c
+	}
+
+	static func addr(_ c: CIpv6Addr) -> Ipv6Addr {
+		withUnsafeBytes(of: c.octets) { octets in
+			Ipv6Addr(
+				bits: U128(
+					high: UInt64(bigEndian: octets.loadUnaligned(as: UInt64.self)),
+					low: UInt64(bigEndian: octets.loadUnaligned(fromByteOffset: 8, as: UInt64.self))))
+		}
+	}
+
+	static func addr(_ ip: IpAddr) -> CIpAddr {
+		var c = CIpAddr()
+		switch ip {
+		case .v4(let ip): c.ip.v4 = addr(ip)
+		case .v6(let ip):
+			c.v6 = true
+			c.ip.v6 = addr(ip)
+		}
+		return c
+	}
+
+	static func addr(_ c: CIpAddr) -> IpAddr {
+		c.v6 ? .v6(addr(c.ip.v6)) : .v4(addr(c.ip.v4))
+	}
+
+	static func addr(_ addr: SocketAddrV4) -> CSocketAddrV4 {
+		CSocketAddrV4(ip: Native.addr(addr.ip), port: addr.port)
+	}
+
+	static func addr(_ c: CSocketAddrV4) -> SocketAddrV4 {
+		SocketAddrV4(ip: addr(c.ip), port: c.port)
+	}
+
+	static func addr(_ addr: SocketAddrV6) -> CSocketAddrV6 {
+		CSocketAddrV6(ip: Native.addr(addr.ip), port: addr.port, flowinfo: addr.flowinfo, scope_id: addr.scopeId)
+	}
+
+	static func addr(_ c: CSocketAddrV6) -> SocketAddrV6 {
+		SocketAddrV6(ip: addr(c.ip), port: c.port, flowinfo: c.flowinfo, scopeId: c.scope_id)
+	}
+
+	static func addr(_ addr: SocketAddr) -> CSocketAddr {
+		var c = CSocketAddr()
+		switch addr {
+		case .v4(let addr): c.addr.v4 = Native.addr(addr)
+		case .v6(let addr):
+			c.v6 = true
+			c.addr.v6 = Native.addr(addr)
+		}
+		return c
+	}
+
+	static func addr(_ c: CSocketAddr) -> SocketAddr {
+		c.v6 ? .v6(addr(c.addr.v6)) : .v4(addr(c.addr.v4))
 	}
 
 	/// The C array Rust returned, as its items each lifted by `lift`, which takes what
@@ -351,6 +765,12 @@ extension Native {
 	static func list<C, T>(_ ptr: UnsafePointer<C>?, _ len: Int, _ lift: (C) throws -> T) rethrows -> [T] {
 		guard let ptr else { return [] }
 		return try UnsafeBufferPointer(start: ptr, count: len).map(lift)
+	}
+
+	/// The C array of numbers Rust returned, copied whole.
+	static func block<T>(_ ptr: UnsafePointer<T>?, _ len: Int) -> [T] {
+		guard let ptr else { return [] }
+		return Array(UnsafeBufferPointer(start: ptr, count: len))
 	}
 
 	/// As `list`, of items Swift cannot copy.
@@ -378,17 +798,39 @@ extension Native {
 	/// a call moves its value out or a lend ends, frees it only once no call does, and a
 	/// call after `close` traps. A struct needs none of this: Swift's compiler orders every
 	/// call before its move or the end of its lend.
+	///
+	/// Once calls contend for a handle's count, each holds it in a slot of `slots` instead,
+	/// so threads sharing a handle write nothing in common. A close claims it closed first,
+	/// then counts each hold it finds there, which lets go through the count, so the last
+	/// to let go frees it: ffi/tests/hold.rs models this under loom.
 	struct Handle {
 		let raw: OpaquePointer?
 		/// The holds, one for the owner until closed and one per call, shifted past a bit
-		/// set once closed.
+		/// set once closed and one set once calls contended for them, after which they hold
+		/// it in `slots`: one word, so a call reads all three at once, and below `held` only
+		/// once no hold is left.
 		let state: UnsafeMutablePointer<Int>
 		/// Null for a handle Rust lends, which it frees itself.
 		let free: (@convention(c) (OpaquePointer?) -> Void)?
 		let type: StaticString
 
 		static let closed = 1
-		static let held = 2
+		static let bias = 2
+		static let held = 4
+		/// Set in a slot whose hold a close counted.
+		static let revoked = 1
+		/// A cache line of rows to a column, which the thread's stack picks, and a row per
+		/// handle, with a line between columns: two threads in one column, or two handles in
+		/// one row on one thread, use the count.
+		static let rowBits = 3
+		static let columnBits = 8
+		static let stride = 2 << rowBits
+		/// Only ever touched atomically.
+		nonisolated(unsafe) static let slots: UnsafeMutablePointer<Int> = {
+			let count = stride << columnBits
+			return UnsafeMutableRawPointer.allocate(byteCount: count * Swift.MemoryLayout<Int>.stride, alignment: 64)
+				.initializeMemory(as: Int.self, repeating: 0, count: count)
+		}()
 
 		init(_ raw: OpaquePointer?, _ free: (@convention(c) (OpaquePointer?) -> Void)?, _ type: StaticString) {
 			self.raw = raw
@@ -398,21 +840,96 @@ extension Native {
 			state.initialize(to: Handle.held)
 		}
 
-		func hold() -> OpaquePointer? {
+		/// What a slot holds for this handle: its state's address, which no other live
+		/// handle has, and whose low bit is clear for `revoked`.
+		private var key: Int { Int(bitPattern: state) }
+
+		/// This handle's row of `slots`.
+		private var row: Int {
+			let hash = (UInt64(UInt(bitPattern: key)) >> 4) &* 0x9E37_79B9_7F4A_7C15
+			return Int(truncatingIfNeeded: hash >> UInt64(64 - Handle.rowBits))
+		}
+
+		/// Hold it for a call, until `release` takes what this returns. Traps once closed.
+		func hold() -> Int {
+			guard let slot = held() else {
+				fatalError("\(type) is closed")
+			}
+			return slot
+		}
+
+		/// Hold it for a call, until `release` takes what this returns, unless it is closed.
+		@inline(__always)
+		func held() -> Int? {
+			let n = load(state)
+			if n & (Handle.closed | Handle.bias) == 0 && swap(state, n, n + Handle.held) == n {
+				return -1
+			}
+			return contend()
+		}
+
+		/// What `listed` returns when the table's slot was taken, so the call holds the count.
+		private static let unlisted = -2
+
+		/// Hold it in this thread's slot of `slots`: the slot, `unlisted` if another handle
+		/// or thread has it, or nil once closed.
+		@inline(never)
+		private func listed() -> Int? {
+			var here = 0
+			let stack = withUnsafeMutablePointer(to: &here) { UInt64(UInt(bitPattern: $0)) }
+			let hash = (stack >> 16) &* 0x9E37_79B9_7F4A_7C15
+			let slot = Int(truncatingIfNeeded: hash >> UInt64(64 - Handle.columnBits)) * Handle.stride + row
+			if swapSC(Handle.slots + slot, 0, key) != 0 {
+				return Handle.unlisted
+			}
+			if loadSC(state) & Handle.closed == 0 {
+				return slot
+			}
+			// A close claimed it meanwhile, and may have counted this hold.
+			if swapSC(Handle.slots + slot, key, 0) != key {
+				storeSC(Handle.slots + slot, 0)
+				release(-1)
+			}
+			return nil
+		}
+
+		/// `held` once calls contend for it: in the table, unless another handle or thread
+		/// has its slot, then in the count, after which later calls go to the table.
+		@inline(never)
+		private func contend() -> Int? {
+			if load(state) & Handle.bias != 0 {
+				let slot = listed()
+				if slot != Handle.unlisted {
+					return slot
+				}
+			}
 			var n = load(state)
 			while true {
 				if n & Handle.closed != 0 {
-					fatalError("\(type) is closed")
+					return nil
 				}
 				let seen = swap(state, n, n + Handle.held)
 				if seen == n {
-					return raw
+					n += Handle.held
+					break
 				}
 				n = seen
 			}
+			while n & Handle.bias == 0 {
+				let seen = swap(state, n, n | Handle.bias)
+				if seen == n {
+					break
+				}
+				n = seen
+			}
+			return -1
 		}
 
-		func release() {
+		@inline(__always)
+		func release(_ slot: Int) {
+			if slot >= 0 && exchange(Handle.slots + slot, 0) == key {
+				return
+			}
 			if add(state, -Handle.held) < Handle.held {
 				free?(raw)
 			}
@@ -421,23 +938,48 @@ extension Native {
 		/// Run `body` with the raw handle, held until it returns.
 		@inline(__always)
 		func with<R: ~Copyable>(_ body: (OpaquePointer?) throws -> R) rethrows -> R {
-			let raw = hold()
-			defer { release() }
+			let slot = hold()
+			defer { release(slot) }
+			return try body(raw)
+		}
+
+		/// Run `body` with the raw handle, held until it returns, or throw for a call of
+		/// `what` if it is closed.
+		@inline(__always)
+		func with<R: ~Copyable>(_ what: StaticString, _ body: (OpaquePointer?) throws -> R) throws -> R {
+			guard let slot = held() else {
+				throw CheckError(function: "\(what)", message: "\(type) is closed")
+			}
+			defer { release(slot) }
 			return try body(raw)
 		}
 
 		func close() {
 			var n = load(state)
-			while n & Handle.closed == 0 {
-				let seen = swap(state, n, (n | Handle.closed) - Handle.held)
-				if seen == n {
-					if (n | Handle.closed) - Handle.held < Handle.held {
-						free?(raw)
-					}
+			while true {
+				if n & Handle.closed != 0 {
 					return
+				}
+				let seen = swapSC(state, n, n | Handle.closed)
+				if seen == n {
+					break
 				}
 				n = seen
 			}
+			// Claimed closed, so each call holding it in the table did so before: count them.
+			if n & Handle.bias != 0 {
+				var slot = row
+				while slot < Handle.stride << Handle.columnBits {
+					if loadSC(Handle.slots + slot) == key {
+						_ = add(state, Handle.held)
+						if swapSC(Handle.slots + slot, key, key | Handle.revoked) != key {
+							_ = add(state, -Handle.held)
+						}
+					}
+					slot += Handle.stride
+				}
+			}
+			release(-1)
 		}
 
 		/// End a lend, closing the handle, which Rust frees next: a call still holding it
@@ -445,7 +987,7 @@ extension Native {
 		/// borrowed.
 		func end() {
 			close()
-			if load(state) != Handle.closed {
+			if load(state) & ~Handle.bias != Handle.closed {
 				fatalError("\(type): a call still holds it when its lend ends")
 			}
 		}
@@ -464,11 +1006,32 @@ extension Native {
 		return try handle.with(body)
 	}
 
-	/// What a call lowers nested values into, kept until it returns: copied bytes, arrays,
-	/// and the handles it holds.
+	/// As `with`, throwing for a call of `what` if `handle` is closed.
+	@inline(__always)
+	static func with<R: ~Copyable>(
+		_ what: StaticString, _ handle: Handle?, _ body: (OpaquePointer?) throws -> R
+	) throws -> R {
+		guard let handle else { return try body(nil) }
+		return try handle.with(what, body)
+	}
+
+	/// What a call of `what` lowers nested values into, kept until it returns: copied
+	/// bytes, arrays, and the handles it holds.
 	final class Arena {
 		private var blocks: [UnsafeMutableRawPointer] = []
-		private var held: [Handle] = []
+		private var held: [(Handle, Int)] = []
+		/// Each buffer given Rust to take, which the call frees unless it reached C.
+		private var given: [Buf] = []
+		private var reached = false
+		private let what: StaticString
+
+		init(_ what: StaticString) {
+			self.what = what
+		}
+
+		/// Whether bytes lowered now are passed by value, which Rust takes: set once the
+		/// receiver, which Rust only reads, is lowered, and unset inside an array.
+		var take = false
 
 		func copy(_ bytes: UnsafeRawBufferPointer) -> Buf {
 			guard bytes.count > 0 else {
@@ -480,16 +1043,46 @@ extension Native {
 			return Buf(ptr: block.assumingMemoryBound(to: UInt8.self), len: bytes.count, owner: nil)
 		}
 
-		func buf(_ bytes: Data) -> Buf {
-			bytes.withUnsafeBytes { copy($0) }
+		/// `bytes` for Rust to read, copied here, or where `take`, Rust's own: a second owner
+		/// of a buffer it returned, else a copy it owns, which it takes without another.
+		func buf(_ bytes: Bytes) -> Buf {
+			bytes.storage.withUnsafeBytes { raw in
+				guard take else { return copy(raw) }
+				if let owner = bytes.owner, raw.count > 0 { return give(owner.share(raw)) }
+				return give(Native.copy(view(raw)))
+			}
 		}
 
 		func buf(_ text: Swift.String) -> Buf {
 			var text = text
-			return text.withUTF8 { copy(UnsafeRawBufferPointer($0)) }
+			return text.withUTF8 { utf8 in
+				guard take else { return copy(UnsafeRawBufferPointer(utf8)) }
+				return give(Native.copy(view(UnsafeRawBufferPointer(utf8))))
+			}
 		}
 
-		func buf(_ bytes: Data?) -> Buf {
+		func buf(_ path: PathBuf) -> Buf {
+			buf(path.bytes)
+		}
+
+		func buf(_ path: PathBuf?) -> Buf {
+			buf(path?.bytes)
+		}
+
+		private func give(_ buf: Buf) -> Buf {
+			given.append(buf)
+			return buf
+		}
+
+		/// `result`, what the call's C function returned: it ran, so Rust owns every buffer
+		/// given, taken or freed as the call was refused.
+		@inline(__always)
+		func ran<T>(_ result: T) -> T {
+			reached = true
+			return result
+		}
+
+		func buf(_ bytes: Bytes?) -> Buf {
 			bytes.map { buf($0) } ?? none
 		}
 
@@ -497,14 +1090,28 @@ extension Native {
 			text.map { buf($0) } ?? none
 		}
 
+		/// The handle of a `Copy` object, which nothing closes, held until the call returns.
 		func hold(_ handle: Handle) -> OpaquePointer? {
-			let raw = handle.hold()
-			held.append(handle)
-			return raw
+			held.append((handle, handle.hold()))
+			return handle.raw
 		}
 
 		func hold(_ handle: Handle?) -> OpaquePointer? {
 			handle.map { hold($0) } ?? nil
+		}
+
+		/// The handle of an object a move may have closed, held until the call returns, or
+		/// a throw for the call if it is closed.
+		func held(_ handle: Handle) throws -> OpaquePointer? {
+			guard let slot = handle.held() else {
+				throw CheckError(function: "\(what)", message: "\(handle.type) is closed")
+			}
+			held.append((handle, slot))
+			return handle.raw
+		}
+
+		func held(_ handle: Handle?) throws -> OpaquePointer? {
+			try handle.map { try held($0) } ?? nil
 		}
 
 		/// `items` as a C array, each lowered by `lower`: never null, so an empty one is
@@ -512,9 +1119,21 @@ extension Native {
 		func list<T, C>(_ items: [T], _ lower: (T) throws -> C) rethrows -> (UnsafePointer<C>, Int) {
 			let array = UnsafeMutablePointer<C>.allocate(capacity: Swift.max(items.count, 1))
 			blocks.append(UnsafeMutableRawPointer(array))
+			// Rust only reads an array's items.
+			let take = self.take
+			self.take = false
+			defer { self.take = take }
 			for (i, item) in items.enumerated() {
 				(array + i).initialize(to: try lower(item))
 			}
+			return (UnsafePointer(array), items.count)
+		}
+
+		/// `items`, numbers, as a C array copied whole: never null, as `list`'s.
+		func block<T>(_ items: [T]) -> (UnsafePointer<T>, Int) {
+			let array = UnsafeMutablePointer<T>.allocate(capacity: Swift.max(items.count, 1))
+			blocks.append(UnsafeMutableRawPointer(array))
+			_ = UnsafeMutableBufferPointer(start: array, count: items.count).initialize(from: items)
 			return (UnsafePointer(array), items.count)
 		}
 
@@ -524,16 +1143,26 @@ extension Native {
 		) rethrows -> (UnsafePointer<C>, Int) {
 			let array = UnsafeMutablePointer<C>.allocate(capacity: Swift.max(items.count, 1))
 			blocks.append(UnsafeMutableRawPointer(array))
+			// Rust only reads an array's items.
+			let take = self.take
+			self.take = false
+			defer { self.take = take }
 			for i in 0..<items.count {
 				(array + i).initialize(to: try lower(items[i]))
 			}
 			return (UnsafePointer(array), items.count)
 		}
 
-		/// Release what the call held, once it returns.
+		/// Release what the call held, once it returns, and, if a lowering threw before the
+		/// call reached C, each buffer given Rust.
 		func finish() {
-			for handle in held {
-				handle.release()
+			for (handle, slot) in held {
+				handle.release(slot)
+			}
+			if !reached {
+				for buf in given {
+					Native.free(buf)
+				}
 			}
 			for block in blocks {
 				block.deallocate()
@@ -675,10 +1304,6 @@ extension Native {
 		return { owner.raw.wake?(owner.raw.data) }
 	}
 
-	/// The waker of a future's first poll, which wakes nothing: a poll that pends polls
-	/// again with its signal's.
-	static var idle: CWaker { CWaker(wake: nil, drop: nil, data: nil) }
-
 	/// What a future parks on: it latches a wake that lands between a poll that pends and
 	/// the park, so the next poll sees it.
 	final class Signal: @unchecked Sendable {
@@ -723,7 +1348,7 @@ extension Native {
 		}
 
 		/// Suspend until a wake since `reset`, at once if one already landed.
-		func park() async {
+		nonisolated(nonsending) func park() async {
 			await withUnsafeContinuation { (continuation: UnsafeContinuation<Void, Never>) in
 				parked = continuation
 				if swap(state, Signal.idle, Signal.parked) != Signal.idle {
@@ -733,20 +1358,39 @@ extension Native {
 		}
 	}
 
-	/// Await the future `raw`: poll it until `poll` returns its output, then free it. A
-	/// cancelled task frees it unfinished, which cancels it in Rust and loses nothing, and
-	/// throws `CancellationError`. Its first poll makes no signal, which only a future
-	/// that pends needs.
-	static func run<T: ~Copyable>(
+	/// The call that starts a future and polls it once, whose output, if ready, has the
+	/// type `T` names.
+	static func start<T: ~Copyable>(_: T.Type, _ call: () throws -> T?) rethrows -> T? {
+		try call()
+	}
+
+	/// Await the future `raw` an eager call made, unpolled, as `run` does, but take nothing,
+	/// even what is ready, if the task is cancelled already, and poll first with no waker.
+	nonisolated(nonsending) static func made<T: ~Copyable>(
+		_ raw: OpaquePointer?, _ free: @convention(c) (OpaquePointer?) -> Void,
+		_ poll: (OpaquePointer?, CWaker) throws -> T?
+	) async throws -> T {
+		do {
+			try Task.checkCancellation()
+			if let output = try poll(raw, CWaker(wake: nil, drop: nil, data: nil)) {
+				free(raw)
+				return output
+			}
+		} catch {
+			free(raw)
+			throw error
+		}
+		return try await run(raw, free, poll)
+	}
+
+	/// Await the future `raw`, whose first poll pended: poll it until `poll` returns its
+	/// output, then free it. A cancelled task frees it unfinished, which cancels it in Rust
+	/// and loses nothing, and throws `CancellationError`.
+	nonisolated(nonsending) static func run<T: ~Copyable>(
 		_ raw: OpaquePointer?, _ free: @convention(c) (OpaquePointer?) -> Void,
 		_ poll: (OpaquePointer?, CWaker) throws -> T?
 	) async throws -> T {
 		defer { free(raw) }
-		// A task cancelled already takes nothing, even what is ready.
-		try Task.checkCancellation()
-		if let output = try poll(raw, idle) {
-			return output
-		}
 		let signal = Signal()
 		var given = false
 		// The handler's operation returns only a copyable result, so it leaves through this.

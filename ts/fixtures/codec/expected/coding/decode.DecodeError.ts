@@ -79,14 +79,10 @@ export function fmt$fmt_Debug(self: DecodeError, f: rs.Formatter): rs.Result<und
 		return rs.fmtWriteStr(f, "Long");
 	}
 	if (self.tag === "InvalidString") {
-		const _7: string = "InvalidString";
-		const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtFromUtf8ErrorDebug(self._0, f);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _7), _8));
+		return rs.fmtDebugFields(f, "InvalidString", [(f: rs.Formatter) => rs.fmtFromUtf8ErrorDebug(self._0, f)]);
 	}
 	if (self.tag === "InvalidMessage") {
-		const _11: string = "InvalidMessage";
-		const _12: rs.Fmt = (f: rs.Formatter) => rs.u64Debug(self._0, f);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _11), _12));
+		return rs.fmtDebugFields(f, "InvalidMessage", [(f: rs.Formatter) => rs.u64Debug(self._0, f)]);
 	}
 	if (self.tag === "InvalidSubscribeLocation") {
 		return rs.fmtWriteStr(f, "InvalidSubscribeLocation");
@@ -104,12 +100,7 @@ export function fmt$fmt_Debug(self: DecodeError, f: rs.Formatter): rs.Result<und
 		return rs.fmtWriteStr(f, "ExpectedEnd");
 	}
 	if (self.tag === "MessageTooLarge") {
-		const _21: string = "MessageTooLarge";
-		const _22: string = "size";
-		const _23: rs.Fmt = (f: rs.Formatter) => rs.usizeDebug(self.size, f);
-		const _24: string = "max";
-		const _25: rs.Fmt = (f: rs.Formatter) => rs.usizeDebug(self.max, f);
-		return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _21), _22, _23), _24, _25));
+		return rs.fmtDebugFields(f, "MessageTooLarge size max", [(f: rs.Formatter) => rs.usizeDebug(self.size, f), (f: rs.Formatter) => rs.usizeDebug(self.max, f)]);
 	}
 	if (self.tag === "ExpectedData") {
 		return rs.fmtWriteStr(f, "ExpectedData");
@@ -130,9 +121,7 @@ export function fmt$fmt_Debug(self: DecodeError, f: rs.Formatter): rs.Result<und
 		return rs.fmtWriteStr(f, "Version");
 	}
 	if (self.tag === "Session") {
-		const _34: string = "Session";
-		const _35: rs.Fmt = (f: rs.Formatter) => SessionError.fmt$fmt_Debug(self._0, f);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _34), _35));
+		return rs.fmtDebugFields(f, "Session", [(f: rs.Formatter) => SessionError.fmt$fmt_Debug(self._0, f)]);
 	}
 	if (self.tag === "MalformedAuthToken") {
 		return rs.fmtWriteStr(f, "MalformedAuthToken");

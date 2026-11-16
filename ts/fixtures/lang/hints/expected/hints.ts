@@ -13,13 +13,27 @@ import * as Unit from "./hints.Unit.ts";
 export function put(out: rs.ByteVec, _2: [rs.usize, rs.usize | undefined]): void {
 	const lower: rs.usize = _2[0];
 	const upper: rs.usize | undefined = _2[1];
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(lower as rs.u32)));
+	const dst = out;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = ((lower as rs.u32) >>> 24) & 255;
+	dst.data[pos + 1] = ((lower as rs.u32) >>> 16) & 255;
+	dst.data[pos + 2] = ((lower as rs.u32) >>> 8) & 255;
+	dst.data[pos + 3] = (lower as rs.u32) & 255;
+	dst.length = dst.length + 4;
 	if (upper === undefined) {
 		rs.byteVecPush(out, 0);
 	} else {
 		const upper2: rs.usize = upper;
 		rs.byteVecPush(out, 1);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(upper2 as rs.u32)));
+		const dst2 = out;
+		rs.byteVecReserve(dst2, 4 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = ((upper2 as rs.u32) >>> 24) & 255;
+		dst2.data[pos2 + 1] = ((upper2 as rs.u32) >>> 16) & 255;
+		dst2.data[pos2 + 2] = ((upper2 as rs.u32) >>> 8) & 255;
+		dst2.data[pos2 + 3] = (upper2 as rs.u32) & 255;
+		dst2.length = dst2.length + 4;
 	}
 }
 
@@ -1950,10 +1964,19 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return Uint8Array.of(_245);
 			}), (value: Uint8Array) => rs.iterSlice(value), true, 1, true), steps, out);
 		} else {
-			walk$iter_Flatten_slice_Iter_array2_u8(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_244: rs.u8): Uint8Array => {
+			const s3 = rs.byteSliceView(bytes);
+			let front2 = 0;
+			let back2 = s3.length;
+			const f2 = (_244: rs.u8): Uint8Array => {
 				const b5: rs.u8 = _244;
 				return Uint8Array.of(b5, b5);
-			}), undefined, 2, true).items, rs.byteSliceFrom)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), steps, out);
+			};
+			const v2: rs.Vec<Uint8Array> = rs.vecWithCapacity(back2 - front2, 2);
+			while (!(front2 >= back2)) {
+				const y2: Uint8Array = f2(s3[front2++]);
+				v2.items.push(y2);
+			}
+			walk$iter_Flatten_slice_Iter_array2_u8(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(v2.items, rs.byteSliceFrom)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), steps, out);
 		}
 	} else if (_37 === 14) {
 		const _312: rs.u8 = rs.u8Rem(arm, 6);
@@ -2001,14 +2024,13 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			put(out, it2.sizeHint());
 		}
 	} else if (_37 === 16) {
-		const _353: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_29: rs.u8): rs.char => {
+		const s: rs.String = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_29: rs.u8): rs.char => {
 			const _5: rs.usize = rs.u8Rem(_29, 4) as rs.usize;
 			if (!(_5 < 4)) {
 				rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _5);
 			}
 			return [97, 233, 128512, 2048][_5];
-		});
-		const s: rs.String = rs.stringExtendChars(rs.stringNew(), _353);
+		}));
 		const _355: rs.u8 = rs.u8Rem(arm, 4);
 		if (_355 === 0) {
 			walk$str_Chars(rs.strChars(s.v), steps, out);
@@ -2018,14 +2040,21 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			walk$str_Bytes(rs.strBytes(s.v), steps, out);
 		} else {
 			const t: rs.String = rs.stringClone(s);
-			const _379: rs.RangeFrom<rs.usize> = new rs.RangeFrom(rs.iterSum(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(bytes, 0, rs.usizeDiv(bytes.length, 2)))), (_231: rs.u8): rs.usize => {
+			const s2 = rs.byteSliceView(rs.byteSliceRange(bytes, 0, rs.usizeDiv(bytes.length, 2)));
+			let front = 0;
+			let back = s2.length;
+			const f = (_231: rs.u8): rs.usize => {
 				const _512: rs.usize = rs.u8Rem(_231, 4) as rs.usize;
 				if (!(_512 < 4)) {
 					rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _512);
 				}
 				return [1, 2, 4, 3][_512];
-			}), rs.usizeAdd, 0), rs.usizeStep);
-			walk$string_Drain(rs.stringDrain(t, _379), steps, out);
+			};
+			let acc: rs.usize = 0;
+			while (!(front >= back)) {
+				acc = rs.usizeAdd(acc, f(s2[front++]));
+			}
+			walk$string_Drain(rs.stringDrain(t, new rs.RangeFrom(acc, rs.usizeStep)), steps, out);
 		}
 	} else if (_37 === 17) {
 		const size: rs.usize = rs.usizeAdd(rs.usizeRem(at(1) as rs.usize, 4), 1);
@@ -2674,7 +2703,15 @@ export function fill$array275_u32_iter_Filter_iter_Map_ops_RangeInclusive_u32_hi
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -2743,7 +2780,15 @@ export function fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_Range
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -2812,7 +2857,15 @@ export function fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_Range
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -2881,7 +2934,15 @@ export function fill$array275_u32_iter_Map_ops_RangeInclusive_u32_hints_typed_cl
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -2950,7 +3011,15 @@ export function fill$array275_u32_iter_Skip_iter_Map_ops_RangeInclusive_u32_hint
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3019,7 +3088,15 @@ export function fill$hints_Unit_iter_Filter_iter_Map_ops_RangeInclusive_u32_hint
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3088,7 +3165,15 @@ export function fill$hints_Unit_iter_Map_iter_Flatten_array_IntoIter_ops_RangeIn
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3157,7 +3242,15 @@ export function fill$hints_Unit_iter_Map_iter_Flatten_array_IntoIter_ops_RangeIn
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3226,7 +3319,15 @@ export function fill$hints_Unit_iter_Map_ops_RangeInclusive_u32_hints_typed_clos
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3295,7 +3396,15 @@ export function fill$hints_Unit_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3364,7 +3473,15 @@ export function fill$tuple2_u64_u8_iter_Filter_iter_Map_ops_RangeInclusive_u32_h
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3433,7 +3550,15 @@ export function fill$tuple2_u64_u8_iter_Map_iter_Flatten_array_IntoIter_ops_Rang
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3502,7 +3627,15 @@ export function fill$tuple2_u64_u8_iter_Map_iter_Flatten_array_IntoIter_ops_Rang
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3571,7 +3704,15 @@ export function fill$tuple2_u64_u8_iter_Map_ops_RangeInclusive_u32_hints_typed_c
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3640,7 +3781,15 @@ export function fill$tuple2_u64_u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_hin
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3709,7 +3858,15 @@ export function fill$tuple3_u8_u8_u8_iter_Filter_iter_Map_ops_RangeInclusive_u32
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3778,7 +3935,15 @@ export function fill$tuple3_u8_u8_u8_iter_Map_iter_Flatten_array_IntoIter_ops_Ra
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3847,7 +4012,15 @@ export function fill$tuple3_u8_u8_u8_iter_Map_iter_Flatten_array_IntoIter_ops_Ra
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3916,7 +4089,15 @@ export function fill$tuple3_u8_u8_u8_iter_Map_ops_RangeInclusive_u32_hints_typed
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -3985,7 +4166,15 @@ export function fill$tuple3_u8_u8_u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_h
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -4054,7 +4243,15 @@ export function fill$u32_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -4123,7 +4320,15 @@ export function fill$u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -4192,7 +4397,15 @@ export function fill$u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -4261,7 +4474,15 @@ export function fill$u32_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u3
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -4330,7 +4551,15 @@ export function fill$u32_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_c
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -4399,7 +4628,15 @@ export function fill$u8_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -4468,7 +4705,15 @@ export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -4537,7 +4782,15 @@ export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -4606,7 +4859,15 @@ export function fill$u8_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u8_
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 /** `items` collected into the collection `coll` picks, or extended into one holding `seed`. */
@@ -4675,7 +4936,15 @@ export function fill$u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_cl
 			len = rs.usizeAdd(256, _53.error);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(len as rs.u32)));
+	const dst = out;
+	const word = len as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 }
 
 //# sourceMappingURL=hints.ts.map

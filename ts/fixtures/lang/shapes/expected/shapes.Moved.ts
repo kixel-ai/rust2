@@ -3,10 +3,7 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug(self: Moved, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Moved";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self._0, f);
-	const _6: rs.Fmt = (f: rs.Formatter) => rs.u16Debug(self._1, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4), _6));
+	return rs.fmtDebugFields(f, "Moved", [(f: rs.Formatter) => rs.u8Debug(self._0, f), (f: rs.Formatter) => rs.u16Debug(self._1, f)]);
 }
 
 /** A tuple struct that is not `Copy`, so struct update syntax reads its base in place. */

@@ -78,8 +78,14 @@ impl Header<'_> {
 		self.line(format!(
 			"/* The index of the library's target among those this header serves:{targets} */\nuint32_t {p}_target(void);\n"
 		));
+		let statuses: String = (crate::abi::STATUSES.iter().enumerate())
+			.map(|(n, (status, _))| format!("\t{upper}_STATUS_{} = {},\n", status.to_uppercase(), n + 1))
+			.collect();
 		self.line(format!(
-			"/* Bytes. Passed in, a view Rust reads during the call and never frees. Returned,\n * an owned buffer to free once with {p}_buf_free. A null ptr is None. */\ntypedef struct {p}_buf {{\n\tconst uint8_t *ptr;\n\tsize_t len;\n\tvoid *owner;\n}} {p}_buf;\n\nvoid {p}_buf_free({p}_buf buf);\n\n/* An owned copy of view's bytes: what a closure or reader C implements returns Rust,\n * which then owns it. */\n{p}_buf {p}_buf_copy({p}_buf view);\n"
+			"/* Why a call failed a check of a handle, before it ran any Rust: a borrow or move\n * Rust's borrow checker would refuse. A function that can fail one takes a status\n * last, through which it writes the failure, returning a zeroed value to ignore;\n * passed null, it aborts with the message instead. */\ntypedef int32_t {p}_status;\nenum {{\n{statuses}}};\n\n/* What a status says broke. */\nconst char *{p}_status_message({p}_status status);\n"
+		));
+		self.line(format!(
+			"/* Bytes. Returned, an owned buffer to free once with {p}_buf_free, or pass back to\n * Rust by value, ptr and len narrowed to any range of its bytes. Passed by value, one\n * whose owner is set is Rust's from then on, taken without a copy, and one whose owner\n * is NULL is a view Rust reads during the call and never frees; in a value passed by\n * pointer, or an array's item, either is only read. A null ptr is None. */\ntypedef struct {p}_buf {{\n\tconst uint8_t *ptr;\n\tsize_t len;\n\tvoid *owner;\n}} {p}_buf;\n\nvoid {p}_buf_free({p}_buf buf);\n\n/* An owned copy of view's bytes: what a closure or reader C implements returns Rust,\n * which then owns it. */\n{p}_buf {p}_buf_copy({p}_buf view);\n\n/* A second owned buffer of an owned buffer's bytes, sharing them without a copy: what\n * a caller passes Rust while keeping buf. */\n{p}_buf {p}_buf_clone({p}_buf buf);\n"
 		));
 		self.line(format!(
 			"/* A u128: lo holds its low 64 bits and hi its high 64. */\ntypedef struct {p}_u128 {{\n\tuint64_t lo;\n\tuint64_t hi;\n}} {p}_u128;\n"
@@ -88,11 +94,16 @@ impl Header<'_> {
 			"typedef struct {p}_duration {{\n\tuint64_t secs;\n\tuint32_t nanos;\n}} {p}_duration;\n"
 		));
 		self.line(format!(
-			"/* A socket address: IPv4 in the first 4 bytes of ip, with the rest of ip, flowinfo,\n * and scope_id zero, or IPv6 if v6. ip is in network order and port in the host's. */\ntypedef struct {p}_socket_addr {{\n\tuint8_t ip[16];\n\tuint16_t port;\n\tbool v6;\n\tuint32_t flowinfo;\n\tuint32_t scope_id;\n}} {p}_socket_addr;\n"
+			"/* An IPv4 address, in network order. */\ntypedef struct {p}_ipv4_addr {{\n\tuint8_t octets[4];\n}} {p}_ipv4_addr;\n\n/* An IPv6 address, in network order. */\ntypedef struct {p}_ipv6_addr {{\n\tuint8_t octets[16];\n}} {p}_ipv6_addr;\n\n/* An IP address: ip.v6 if v6, else ip.v4. */\ntypedef struct {p}_ip_addr {{\n\tbool v6;\n\tunion {{\n\t\t{p}_ipv4_addr v4;\n\t\t{p}_ipv6_addr v6;\n\t}} ip;\n}} {p}_ip_addr;\n\n/* An IPv4 socket address, its port in the host's order. */\ntypedef struct {p}_socket_addr_v4 {{\n\t{p}_ipv4_addr ip;\n\tuint16_t port;\n}} {p}_socket_addr_v4;\n\n/* An IPv6 socket address, its port in the host's order. */\ntypedef struct {p}_socket_addr_v6 {{\n\t{p}_ipv6_addr ip;\n\tuint16_t port;\n\tuint32_t flowinfo;\n\tuint32_t scope_id;\n}} {p}_socket_addr_v6;\n\n/* A socket address: addr.v6 if v6, else addr.v4. */\ntypedef struct {p}_socket_addr {{\n\tbool v6;\n\tunion {{\n\t\t{p}_socket_addr_v4 v4;\n\t\t{p}_socket_addr_v6 v6;\n\t}} addr;\n}} {p}_socket_addr;\n"
 		));
 		self.line(format!(
 			"/* Wakes a future's poller: wake may be called from any thread, any number of\n * times, until drop releases data. A poll passing the same wake and data again\n * reuses the waker. Either function may be null. One Rust returns is the caller's,\n * to drop once or pass back into Rust. */\ntypedef struct {p}_waker {{\n\tvoid (*wake)(void *data);\n\tvoid (*drop)(void *data);\n\tvoid *data;\n}} {p}_waker;\n"
 		));
+		if api.unsent() {
+			self.line(format!(
+				"/* A value that is not Send, freed on another thread than the one that made it,\n * drops on that thread at its next call on such a value, or when it exits. A thread\n * running a loop that may call nothing for a while passes {p}_thread_wake a waker,\n * replacing any earlier one, which a free elsewhere wakes from its own thread as it\n * queues a drop: the waker then schedules {p}_thread_drain on the thread, which drops\n * each value queued for the thread it runs on. */\nvoid {p}_thread_wake({p}_waker wake);\nvoid {p}_thread_drain(void);\n"
+			));
+		}
 		self.line(format!(
 			"/* A future C implements, of nothing: Rust polls it from any thread with a waker of\n * its own each time, which C wakes once the future can make progress and drops once,\n * until poll returns true, and calls free with data once it drops the future, done or\n * not. free may be null. */\ntypedef struct {p}_foreign_future {{\n\tbool (*poll)(void *data, {p}_waker waker);\n\tvoid (*free)(void *data);\n\tvoid *data;\n}} {p}_foreign_future;\n"
 		));
@@ -205,7 +216,13 @@ impl Header<'_> {
 		for (i, record) in api.records.iter().enumerate() {
 			let name = abi.record(i);
 			self.line(format!("/* {} */", abi.api.rust(&record.path, &record.args)).trim_end());
-			self.value_functions(&name, Ty::Struct(name.clone()), record.traits, true);
+			self.value_functions(
+				&name,
+				Ty::Struct(name.clone()),
+				record.traits,
+				record.opaque.is_none(),
+				abi.value_status(&Type::Record(i)),
+			);
 			let owner = Ty::Struct(name.clone());
 			for method in &record.methods {
 				self.function(method, Some(&owner));
@@ -219,7 +236,13 @@ impl Header<'_> {
 				continue;
 			}
 			self.line(format!("/* {} */", abi.api.rust(&e.path, &e.args)));
-			self.value_functions(&name, ty.clone(), e.traits, !e.plain());
+			self.value_functions(
+				&name,
+				ty.clone(),
+				e.traits,
+				!e.plain(),
+				abi.value_status(&Type::Enum(i)),
+			);
 			for method in &e.methods {
 				self.function(method, Some(&ty));
 			}
@@ -230,34 +253,44 @@ impl Header<'_> {
 			let docs = format!("{}\n\n{}", abi.api.rust(&object.path, &object.args), object.docs);
 			self.line(comment(docs.trim(), "").trim_end());
 			self.line(format!("void {name}_free({name} *self);"));
-			if object.shared {
-				self.line(format!("bool {name}_borrowed(const {name} *self);"));
-			}
-			let t = object.traits;
-			if t.clone {
-				self.line(format!("{name} *{name}_clone(const {name} *self);"));
-			}
-			if abi.copies.contains(&i) {
+			if abi.checked[i] {
 				self.line(
 					comment(
-						"A new handle to a copy of the value, made as Rust copies it, never running its `Clone`: a closure hands Rust one it takes or returns.",
+						"Drop the value now, as a move out would, leaving the handle to free: a later call fails as moved, and a second drop does nothing. Fails while a call or future borrows the value.",
 						"",
 					)
 					.trim_end(),
 				);
-				self.line(format!("{name} *{name}_copy(const {name} *self);"));
+				self.line(format!("void {name}_drop({name} *self, {p}_status *status);"));
+			}
+			if object.shared {
+				self.line(format!("bool {name}_borrowed(const {name} *self);"));
+			}
+			let t = object.traits;
+			let status = match abi.traits_status(i) {
+				true => format!(", {p}_status *status"),
+				false => String::new(),
+			};
+			if t.clone {
+				self.line(format!("{name} *{name}_clone(const {name} *self{status});"));
 			}
 			if t.eq {
-				self.line(format!("bool {name}_eq(const {name} *a, const {name} *b);"));
+				self.line(format!("bool {name}_eq(const {name} *a, const {name} *b{status});"));
+			}
+			if t.hash {
+				self.line(format!("uint64_t {name}_hash(const {name} *self{status});"));
 			}
 			if t.display {
-				self.line(format!("{p}_buf {name}_to_string(const {name} *self);"));
+				self.line(format!("{p}_buf {name}_to_string(const {name} *self{status});"));
 			}
 			if t.debug {
-				self.line(format!("{p}_buf {name}_debug(const {name} *self);"));
+				self.line(format!("{p}_buf {name}_debug(const {name} *self{status});"));
 			}
 			if t.default {
 				self.line(format!("{name} *{name}_default(void);"));
+				if !object.send {
+					self.line(format!("{name} *{name}_default_homed(void);"));
+				}
 			}
 			let owner = Ty::Handle {
 				name: name.clone(),
@@ -333,6 +366,15 @@ impl Header<'_> {
 		}
 		if let Some(i) = (0..abi.api.records.len()).find(|&i| &abi.record(i) == name) {
 			let record = &abi.api.records[i];
+			if let Some(opaque) = &record.opaque {
+				self.line(format!(
+					"{}typedef struct {name} {{\n\t/* Its bytes, which only Rust reads: copy it, but never make or change one. */\n\t{} opaque[{}];\n}} {name};\n",
+					comment(&record.docs, ""),
+					c_unit(opaque.unit()),
+					opaque.units()
+				));
+				return;
+			}
 			let fields: Vec<Ty> = record.fields.iter().map(|f| abi.ty(&f.ty)).collect();
 			for field in &fields {
 				self.value(field);
@@ -391,8 +433,12 @@ impl Header<'_> {
 	}
 
 	/// The functions a value type's std traits export, and its `free` if it owns memory.
-	fn value_functions(&mut self, name: &str, ty: Ty, traits: Traits, free: bool) {
+	fn value_functions(&mut self, name: &str, ty: Ty, traits: Traits, free: bool, status: bool) {
 		let p = &self.abi.prefix;
+		let status = match status {
+			true => format!(", {p}_status *status"),
+			false => String::new(),
+		};
 		let this = self.decl(&Ty::In(Box::new(ty.clone())), "self");
 		let a = self.decl(&Ty::In(Box::new(ty.clone())), "a");
 		let b = self.decl(&Ty::In(Box::new(ty.clone())), "b");
@@ -400,13 +446,16 @@ impl Header<'_> {
 			self.line(format!("void {name}_free({name} *self);"));
 		}
 		if traits.eq {
-			self.line(format!("bool {name}_eq({a}, {b});"));
+			self.line(format!("bool {name}_eq({a}, {b}{status});"));
+		}
+		if traits.hash {
+			self.line(format!("uint64_t {name}_hash({this}{status});"));
 		}
 		if traits.display {
-			self.line(format!("{p}_buf {name}_to_string({this});"));
+			self.line(format!("{p}_buf {name}_to_string({this}{status});"));
 		}
 		if traits.debug {
-			self.line(format!("{p}_buf {name}_debug({this});"));
+			self.line(format!("{p}_buf {name}_debug({this}{status});"));
 		}
 		if traits.default {
 			self.line(format!("{} {name}_default(void);", self.decl(&ty, "")));
@@ -441,6 +490,9 @@ impl Header<'_> {
 				moved.join(" and ")
 			));
 		}
+		if matches!(export.call.params.first(), Some((_, Ty::InOut(_)))) {
+			docs.push_str("\n\nRust writes what the call left in `self` back in place.");
+		}
 		for param in function.params.iter().filter(|p| p.ty.written()) {
 			let name = abi::escape(&param.name);
 			docs.push_str(&format!(
@@ -473,12 +525,9 @@ impl Header<'_> {
 					"\nA handle it lends lives only for that call of `{name}`: free none, nor move out of one."
 				));
 			}
-			let ok = matches!(closure.ok, Type::String)
-				|| matches!(closure.ok.base(), Type::Object(_))
-				|| matches!(&closure.ok, Type::Option(inner) if matches!(**inner, Type::Object(_)));
-			if ok || closure.err.is_some() {
+			if closure.ok == Type::String || closure.err.is_some() {
 				docs.push_str(&format!(
-					"\nWhat it returns is Rust's: a handle, or a buffer {}_buf_copy made.",
+					"\nA buffer it returns is Rust's, one {}_buf_copy made.",
 					self.abi.prefix
 				));
 			}
@@ -491,18 +540,28 @@ impl Header<'_> {
 			));
 		}
 		self.out.push_str(&comment(docs.trim(), ""));
-		if let Some((handle, poll, free)) = &export.future {
+		if let Some(future) = &export.future {
+			let handle = &future.handle;
 			self.line(format!("typedef struct {handle} {handle};"));
-			let call = self.prototype(&export.call);
-			let poll = self.prototype(poll);
-			let free = self.prototype(free);
-			self.line(call);
-			self.line(poll);
-			self.line(free);
+			let homed = export.homed_call().into_iter().chain(export.homed_start());
+			for sig in [
+				export.call.clone(),
+				future.start.clone(),
+				future.poll.clone(),
+				future.free.clone(),
+			]
+			.into_iter()
+			.chain(homed)
+			{
+				let prototype = self.prototype(&sig);
+				self.line(prototype);
+			}
 			return;
 		}
-		let call = self.prototype(&export.call);
-		self.line(call);
+		for sig in std::iter::once(export.call.clone()).chain(export.homed_call()) {
+			let prototype = self.prototype(&sig);
+			self.line(prototype);
+		}
 	}
 }
 
@@ -522,7 +581,8 @@ pub fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 		Ty::Buf => space(&abi.rt("buf")),
 		Ty::U128 => space(&abi.rt("u128")),
 		Ty::Duration => space(&abi.rt("duration")),
-		Ty::SocketAddr => space(&abi.rt("socket_addr")),
+		Ty::SocketAddr(family) => space(&abi.rt(crate::abi::addr(true, *family))),
+		Ty::IpAddr(family) => space(&abi.rt(crate::abi::addr(false, *family))),
 		Ty::Struct(n) | Ty::Enum(n) => space(n),
 		Ty::Handle { name: n, constant } => match constant {
 			true => format!("const {n} *{name}"),
@@ -532,8 +592,10 @@ pub fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 		Ty::Waker => space(&abi.rt("waker")),
 		Ty::ForeignFuture => space(&abi.rt("foreign_future")),
 		Ty::ForeignReader => space(&abi.rt("foreign_reader")),
+		Ty::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 		Ty::Poll => space(&abi.rt("poll")),
-		Ty::Out(inner) => decl(abi, inner, &format!("*{name}")),
+		Ty::Status => space(&abi.rt("status")),
+		Ty::Out(inner) | Ty::InOut(inner) => decl(abi, inner, &format!("*{name}")),
 		Ty::In(inner) => format!("const {}", decl(abi, inner, &format!("*{name}"))),
 		Ty::Fn(params, ret) => {
 			let params: Vec<String> = std::iter::once("void *data".to_string())
@@ -575,6 +637,16 @@ fn comment(docs: &str, indent: &str) -> String {
 
 fn has(traits: Traits) -> bool {
 	traits.eq || traits.display || traits.debug || traits.default
+}
+
+/// The C type of each unit an opaque value's struct holds, of `bytes` bytes.
+pub fn c_unit(bytes: u64) -> &'static str {
+	match bytes {
+		1 => "uint8_t",
+		2 => "uint16_t",
+		4 => "uint32_t",
+		_ => "uint64_t",
+	}
 }
 
 fn c_int(int: Int) -> &'static str {

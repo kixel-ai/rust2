@@ -1,0 +1,28 @@
+[package]
+name = "lock-fixture"
+description = "An API whose features break it, or add to it, against the baseline exported without them"
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# The export's prefix.
+[lib]
+name = "lock"
+
+[features]
+# Breaks the API twice for each kind of break: a C name another item takes, an item
+# removed, a signature changed, a field changed, and a variant changed.
+next = []
+# Adds to the API, which the baseline lets pass.
+added = []
+# Renames binding items while keeping every C name.
+names = []
+members = []
+wrappers = []
+closures = []
+defaults = []
+thrown = []
+
+[lints]
+workspace = true

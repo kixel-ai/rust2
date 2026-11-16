@@ -4,9 +4,7 @@ import * as rs from "./rs.ts";
 import { DROPS } from "./statics.ts";
 
 export function fmt$fmt_Debug(self: Dropped, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Dropped";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Dropped", [(f: rs.Formatter) => rs.u8Debug(self._0, f)]);
 }
 
 /** Logs its id when it drops. */

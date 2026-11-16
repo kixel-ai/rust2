@@ -84,7 +84,7 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let n = data.first().copied().unwrap_or(0);
 	hook();
 	let v = vec![n, n];
-	match kind % 37 {
+	match kind % 38 {
 		0 => panic!("literal"),
 		1 => panic!("formatted {n}"),
 		2 => out.push(v[usize::from(n) + 2]),
@@ -133,6 +133,7 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let x = std::num::NonZero::new(i16::from(n.max(200))).unwrap();
 			out.extend_from_slice(&unsafe { x.unchecked_mul(x) }.get().to_be_bytes());
 		}
+		36 => unimplemented!(),
 		_ => {
 			let len = HashMap::<u8, u8>::with_capacity(usize::MAX).len();
 			out.push(len as u8);

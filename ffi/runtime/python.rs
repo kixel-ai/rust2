@@ -243,10 +243,66 @@ pub fn call<T>(f: impl FnOnce() -> T) -> T {
 	// SAFETY: released just above.
 	unsafe { PyEval_RestoreThread(state) };
 	RUNNING.set(outer);
+	// First, as a drain it queues at once may be one to resume.
+	if rt::Thread::made() {
+		drains();
+	}
 	if !RESUMES.with_borrow(Vec::is_empty) {
 		resume();
 	}
 	result
+}
+
+/// The token of a drain, which no future or `Waker` takes.
+const DRAIN: i64 = 0;
+
+/// A call made a value that is not `Send`: give this thread a wake that queues a drain on
+/// the event loop running here, if one is, so a free on another thread reaches an idle
+/// loop, which its `Queue.drain` then runs.
+#[cold]
+fn drains() {
+	// SAFETY: the GIL is held. An exception the caller has set is kept aside while Python
+	// runs, and put back after.
+	unsafe {
+		let (mut kind, mut value, mut trace) = (null_mut(), null_mut(), null_mut());
+		PyErr_Fetch(&mut kind, &mut value, &mut trace);
+		// With no loop running here, the thread drains at its next call instead.
+		let running = running_loop();
+		let woken = DRAINS.with_borrow(|drains| {
+			drains.upgrade().is_some_and(|queue| queue.event_loop == running && !queue.closed.load(Ordering::Relaxed))
+		});
+		if running != 0 && !woken {
+			match Obj::new(PyObject_CallNoArgs(ty(T_DRAINS))).and_then(|queue| queue_of(queue.ptr())) {
+				Ok(queue) => drain_on(&queue),
+				// The thread drains at its next call instead, and an interrupt its Python ran
+				// into is raised again at the thread's next chance.
+				Err(Raised) if PyErr_ExceptionMatches(PyExc_KeyboardInterrupt) != 0 => {
+					PyErr_Clear();
+					PyErr_SetInterrupt();
+				}
+				Err(Raised) => PyErr_WriteUnraisable(ty(T_DRAINS)),
+			}
+		}
+		PyErr_Restore(kind, value, trace);
+	}
+}
+
+/// Wake this thread through `queue` for each drain.
+fn drain_on(queue: &Arc<Queue>) {
+	let weak = Arc::downgrade(queue);
+	DRAINS.set(weak.clone());
+	rt::Thread::wake_here(Arc::new(move || {
+		if let Some(queue) = weak.upgrade() {
+			queue.push(DRAIN);
+		}
+	}));
+}
+
+/// `drain()`, on the thread running its loop: drop what other threads freed of the
+/// thread's values that are not `Send`.
+unsafe extern "C" fn queue_drain(_: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
+	call(rt::Thread::drain_here);
+	wrap(none)
 }
 
 thread_local! {
@@ -258,6 +314,8 @@ thread_local! {
 	static RUNNING: Cell<usize> = const { Cell::new(0) };
 	/// The queues woken on their loop's thread during the calls it is in.
 	static RESUMES: RefCell<Vec<Arc<Queue>>> = const { RefCell::new(Vec::new()) };
+	/// The queue this thread's wake queues a drain on.
+	static DRAINS: RefCell<std::sync::Weak<Queue>> = const { RefCell::new(std::sync::Weak::new()) };
 }
 
 static GET_RUNNING_LOOP: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
@@ -361,15 +419,14 @@ impl Key {
 }
 
 /// What a call borrows from Python until it returns: the objects and copies whose memory
-/// it reads, the handles it holds and those it moves out of, and what it
-/// gives Rust, taken back if the call never happens.
+/// it reads, the lent handles it holds, and what it gives Rust, taken back if the call
+/// never happens.
 #[derive(Default)]
 pub struct Scope {
 	keep: Vec<Obj>,
 	arrays: Vec<Box<dyn std::any::Any>>,
-	/// The handles held, each with whether the call moves its value out. Inline, as a
-	/// call holds few, so holding one allocates nothing.
-	held: smallvec::SmallVec<[(Obj, bool); 4]>,
+	/// The lent handles held. Inline, as a call holds few, so holding one allocates nothing.
+	held: smallvec::SmallVec<[Obj; 4]>,
 	/// The objects Rust lends a callback, ended once it returns.
 	lent: Vec<Obj>,
 	/// Python implementations and wakers given to Rust, taken back unless the call
@@ -378,6 +435,8 @@ pub struct Scope {
 	nodes: Vec<rt::Waker>,
 	/// Awaitables given to Rust, freed unless the call happens.
 	futures: Vec<rt::ForeignFuture>,
+	/// Buffers handed to Rust, which takes them, freed unless the call happens.
+	bufs: Vec<rt::Buf>,
 }
 
 impl Scope {
@@ -388,31 +447,59 @@ impl Scope {
 		ptr
 	}
 
-	/// Note that the call happened: what it moved out of is closed, and what it was given
-	/// is Rust's.
+	/// Note that the call happened: what it was given is Rust's.
 	pub fn done(&mut self) {
-		for (held, moved) in &self.held {
-			if *moved {
-				// SAFETY: a handle this scope holds, so live.
-				unsafe { close(held.ptr().cast()) };
-			}
+		self.given();
+	}
+
+	/// Raise for the call of `what` unless its `status` is zero: a run-time check failed,
+	/// so Rust moved nothing out, though it took and dropped what it was given.
+	pub fn status(&mut self, status: i32, what: &str) -> R<()> {
+		if status == 0 {
+			return Ok(());
 		}
+		self.given();
+		check_status(status, what)
+	}
+
+	/// Note that what the call was given is Rust's.
+	fn given(&mut self) {
 		while let Some(given) = self.given.pop() {
 			given.into_ptr();
 		}
 		self.nodes.clear();
 		self.futures.clear();
+		self.bufs.clear();
 	}
 
 	/// The handles held, which a future keeps until it ends.
 	pub fn take_held(&mut self) -> Vec<Obj> {
-		self.held.drain(..).map(|(held, _)| held).collect()
+		self.held.drain(..).collect()
 	}
+}
+
+/// Raise for `what` unless its `status` is zero, as [`Scope::status`] does: a poll's.
+pub fn check_status(status: i32, what: &str) -> R<()> {
+	if status == 0 {
+		return Ok(());
+	}
+	let message = format!("{what}: {}", rt::Status::text(status).to_string_lossy());
+	// A value moved out or outlived is as a closed one, and any other check is a misuse.
+	// SAFETY: static exception types.
+	let exc = match rt::Status::of(status) {
+		Some(rt::Status::Moved | rt::Status::Outlived) => unsafe { PyExc_ValueError },
+		_ => unsafe { PyExc_RuntimeError },
+	};
+	raise(exc, &message)
 }
 
 // Popping rather than draining, as each call drops a scope whose lists are mostly empty.
 impl Drop for Scope {
 	fn drop(&mut self) {
+		while let Some(buf) = self.bufs.pop() {
+			// SAFETY: a buffer the call never took.
+			unsafe { buf.free() };
+		}
 		while let Some(waker) = self.nodes.pop() {
 			// SAFETY: a waker the call never took.
 			unsafe { waker.release() };
@@ -434,7 +521,7 @@ impl Drop for Scope {
 			// SAFETY: an object [`lent`] made.
 			unsafe { end(lent.ptr().cast()) };
 		}
-		while let Some((held, _)) = self.held.pop() {
+		while let Some(held) = self.held.pop() {
 			// SAFETY: a handle this scope holds.
 			unsafe { release(held.ptr().cast()) };
 		}
@@ -449,13 +536,17 @@ static TYPES: Gil<Vec<Obj>> = Gil::new(Vec::new());
 static MEMBERS: Gil<Vec<Option<Vec<(i64, Obj)>>>> = Gil::new(Vec::new());
 
 /// The runtime's entries, at the start of the registry: the awaitable a pending future
-/// is, `datetime.timedelta`, `_resume`, which schedules the running loop's dispatch,
-/// `Waker`, and `_Pollable`, which runs an awaitable Rust polls.
+/// is, the runtime's `Duration`, `_resume`, which schedules the running loop's dispatch,
+/// `Waker`, `_Pollable`, which runs an awaitable Rust polls, `ipaddress`'s two classes, and
+/// `_drains`, which returns the running loop's queue.
 pub const T_FUTURE: usize = 0;
-const T_TIMEDELTA: usize = 1;
+const T_DURATION: usize = 1;
 const T_RESUME: usize = 2;
 const T_WAKER: usize = 3;
 const T_POLLABLE: usize = 4;
+const T_IPV4: usize = 5;
+const T_IPV6: usize = 6;
+const T_DRAINS: usize = 7;
 
 /// The class registered at `index`.
 pub fn ty(index: usize) -> *mut PyObject {
@@ -618,6 +709,15 @@ pub fn int_in<T: TryFrom<i128>>(obj: *mut PyObject) -> R<T> {
 	T::try_from(value).or_else(|_| overflow_int::<T>())
 }
 
+/// A `NonZero<T>`'s integer, as `int_in`, with a zero raising `ValueError`.
+pub fn nonzero_in<T: TryFrom<i128> + Default + PartialEq>(obj: *mut PyObject) -> R<T> {
+	let value = int_in::<T>(obj)?;
+	match value == T::default() {
+		true => value_error("a NonZero is zero"),
+		false => Ok(value),
+	}
+}
+
 fn overflow_int<T>() -> R<T> {
 	let name = std::any::type_name::<T>();
 	overflow(&format!("int out of range for Rust's {name}"))
@@ -732,10 +832,12 @@ pub fn str_out(buf: rt::Buf) -> R<Obj> {
 	}
 }
 
-/// The bytes of `bytes`, read in place, or of any other object with the buffer protocol,
-/// such as a `bytearray` or a `memoryview`, copied: the call runs without the GIL, so
-/// another thread could write storage that is not immutable while Rust reads it.
-pub fn bytes_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Buf> {
+/// The bytes of `bytes`, or of a `memoryview` of Rust's, read in place, or of any other
+/// object with the buffer protocol, such as a `bytearray`, copied: the call runs without
+/// the GIL, so another thread could write storage that is not immutable while Rust reads
+/// it. Where Rust takes the buffer, `take`, Rust's bytes cross shared and a copy crosses
+/// as Rust's own, so neither is copied again.
+pub fn bytes_in(obj: *mut PyObject, s: &mut Scope, take: bool) -> R<rt::Buf> {
 	// SAFETY: the GIL is held, and `obj` is live.
 	unsafe {
 		if PyBytes_Check(obj) != 0 {
@@ -751,25 +853,62 @@ pub fn bytes_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Buf> {
 				owner: null_mut(),
 			});
 		}
-		// SAFETY: `Py_buffer` is plain data, which the call fills.
+		// SAFETY: `Py_buffer` is plain data, which the call fills. Its format, which a
+		// `memoryview` passes on, marks Rust's bytes.
 		let mut view: Py_buffer = std::mem::zeroed();
-		if PyObject_GetBuffer(obj, &mut view, PyBUF_SIMPLE) != 0 {
+		if PyObject_GetBuffer(obj, &mut view, PyBUF_FORMAT | PyBUF_ND) != 0 {
 			return Err(Raised);
 		}
-		let copy = match view.len {
-			0 => Vec::new(),
-			len => std::slice::from_raw_parts(view.buf.cast_const().cast::<u8>(), len as usize).to_vec(),
+		let ptr = view.buf.cast_const().cast::<u8>();
+		let len = view.len as usize;
+		let buf = match (std::ptr::eq(view.format, RUST_FORMAT.as_ptr()), take) {
+			// Rust's, which never change, read in place: a second owner of them kept for
+			// the call, since releasing `obj`, a view, mid-call could free them.
+			(true, false) => {
+				let owner = (*view.internal.cast::<Bytes>()).buf.owner.cast::<bytes::Bytes>();
+				s.arrays.push(Box::new((*owner).clone()));
+				rt::Buf {
+					ptr,
+					len,
+					owner: null_mut(),
+				}
+			}
+			(true, true) => {
+				let shared = (*view.internal.cast::<Bytes>()).buf.share("python");
+				s.bufs.push(shared);
+				rt::Buf { ptr, len, ..shared }
+			}
+			(false, _) => {
+				let copy = match len {
+					0 => Vec::new(),
+					len => std::slice::from_raw_parts(ptr, len).to_vec(),
+				};
+				match take {
+					true => {
+						let owned = rt::Buf::vec(copy);
+						s.bufs.push(owned);
+						owned
+					}
+					false => {
+						let buf = rt::Buf {
+							ptr: copy.as_ptr(),
+							len: copy.len(),
+							owner: null_mut(),
+						};
+						s.arrays.push(Box::new(copy));
+						buf
+					}
+				}
+			}
 		};
 		PyBuffer_Release(&mut view);
-		let buf = rt::Buf {
-			ptr: copy.as_ptr(),
-			len: copy.len(),
-			owner: null_mut(),
-		};
-		s.arrays.push(Box::new(copy));
 		Ok(buf)
 	}
 }
+
+/// The format of a view of Rust's bytes: unsigned bytes, at an address no other exporter
+/// uses, which marks them, its `internal` then their owner.
+static RUST_FORMAT: [c_char; 2] = [b'B' as c_char, 0];
 
 /// Bytes Rust returned, as a read-only `memoryview` that lends them without a copy until
 /// it and every view of it are released.
@@ -790,6 +929,157 @@ pub fn bytes_out(buf: rt::Buf) -> R<Obj> {
 		(*owner.ptr().cast::<Bytes>()).buf = buf;
 		Obj::new(PyMemoryView_FromObject(owner.ptr()))
 	}
+}
+
+/// A number whose lists cross as one block: an `array.array` of the typecode `CODE`,
+/// whose C type CPython's `array` checks at load is exactly as wide, and which a buffer's
+/// format matches by its `KIND` of number and width.
+pub trait Number: Copy + 'static {
+	const CODE: &'static CStr;
+	const KIND: Kind;
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+	Signed,
+	Unsigned,
+	Float,
+}
+
+macro_rules! number {
+	($($ty:ty => $code:literal $kind:ident),*) => {
+		$(impl Number for $ty {
+			const CODE: &'static CStr = $code;
+			const KIND: Kind = Kind::$kind;
+		})*
+
+		/// Each number's typecode and width, which the module checks as it loads.
+		const NUMBERS: &[(&CStr, usize)] = &[$(($code, size_of::<$ty>())),*];
+	};
+}
+
+number!(
+	u16 => c"H" Unsigned, u32 => c"I" Unsigned, u64 => c"Q" Unsigned,
+	i8 => c"b" Signed, i16 => c"h" Signed, i32 => c"i" Signed, i64 => c"q" Signed,
+	f32 => c"f" Float, f64 => c"d" Float
+);
+
+/// `array.array`, and its `frombytes`.
+static ARRAY: std::sync::OnceLock<(Static, Static)> = std::sync::OnceLock::new();
+
+/// The kind of number a buffer's `struct` format holds, if a single native one: its byte
+/// order the host's, its width the buffer's own `itemsize`.
+fn kind(format: &[u8]) -> Option<Kind> {
+	let native: &[u8] = match cfg!(target_endian = "little") {
+		true => b"@=<",
+		false => b"@=>!",
+	};
+	let code = match format {
+		[order, code] if native.contains(order) => *code,
+		[code] => *code,
+		_ => return None,
+	};
+	match code {
+		b'b' | b'h' | b'i' | b'l' | b'q' | b'n' => Some(Kind::Signed),
+		b'B' | b'H' | b'I' | b'L' | b'Q' | b'N' => Some(Kind::Unsigned),
+		b'f' | b'd' => Some(Kind::Float),
+		_ => None,
+	}
+}
+
+/// The numbers of any object with the buffer protocol whose items are exactly `T`s, one
+/// dimension and C-contiguous, such as an `array.array`, a `memoryview` cast to their
+/// format, or a numpy array: copied once, as the call runs without the GIL and another
+/// thread could write them while Rust reads.
+pub fn block_in<T: Number>(obj: *mut PyObject, s: &mut Scope) -> R<rt::List<T>> {
+	// SAFETY: the GIL is held, and `obj` is live.
+	unsafe {
+		// SAFETY: `Py_buffer` is plain data, which the call fills.
+		let mut view: Py_buffer = std::mem::zeroed();
+		if PyObject_GetBuffer(obj, &mut view, PyBUF_C_CONTIGUOUS | PyBUF_FORMAT) != 0 {
+			return Err(Raised);
+		}
+		let format: &[u8] = match view.format.is_null() {
+			true => b"B",
+			false => CStr::from_ptr(view.format).to_bytes(),
+		};
+		let exact = view.ndim == 1 && kind(format) == Some(T::KIND) && view.itemsize as usize == size_of::<T>();
+		if !exact {
+			let format = String::from_utf8_lossy(format).into_owned();
+			let (ndim, itemsize) = (view.ndim, view.itemsize);
+			PyBuffer_Release(&mut view);
+			return type_error(&format!(
+				"expected a buffer of '{}', got {ndim} dimensions of '{format}' {itemsize} bytes wide",
+				T::CODE.to_string_lossy()
+			));
+		}
+		let len = view.len as usize / size_of::<T>();
+		let mut items = Vec::<T>::with_capacity(len);
+		// A byte copy, as the buffer need not be aligned for `T`.
+		std::ptr::copy_nonoverlapping(view.buf.cast_const().cast::<u8>(), items.as_mut_ptr().cast::<u8>(), len * size_of::<T>());
+		items.set_len(len);
+		PyBuffer_Release(&mut view);
+		let items = Box::new(items);
+		let list = rt::List {
+			ptr: items.as_ptr(),
+			len: items.len(),
+			owner: null_mut(),
+		};
+		s.arrays.push(items);
+		Ok(list)
+	}
+}
+
+/// Numbers Rust returned, as an `array.array` of their typecode, filled in one copy.
+pub fn block_out<T: Number>(list: rt::List<T>) -> R<Obj> {
+	let out = (|| {
+		let (array, frombytes) = ARRAY.get().expect("loaded");
+		// SAFETY: the GIL is held.
+		let code = unsafe { Obj::new(PyUnicode_FromString(T::CODE.as_ptr())) };
+		let out = call_py(array.ptr(), vec![code])?;
+		if list.len > 0 {
+			// SAFETY: an array Rust returned, live until it is freed below.
+			let view = unsafe {
+				Obj::new(PyMemoryView_FromMemory(
+					list.ptr.cast_mut().cast(),
+					(list.len * size_of::<T>()) as Py_ssize_t,
+					PyBUF_READ,
+				))
+			};
+			// SAFETY: the GIL is held, and `out` is live.
+			call_py(frombytes.ptr(), vec![Ok(unsafe { Obj::borrowed(out.ptr()) }), view])?;
+		}
+		Ok(out)
+	})();
+	// SAFETY: an array Rust returned, of numbers, which hold nothing.
+	unsafe { list.free("python", |_| {}) };
+	out
+}
+
+/// Note `array.array`, failing unless each number's typecode is exactly as wide.
+unsafe fn arrays() -> R<()> {
+	// SAFETY: the GIL is held.
+	unsafe {
+		let module = Obj::new(PyImport_ImportModule(c"array".as_ptr()))?;
+		let array = Obj::new(PyObject_GetAttrString(module.ptr(), c"array".as_ptr()))?;
+		let frombytes = Obj::new(PyObject_GetAttrString(array.ptr(), c"frombytes".as_ptr()))?;
+		for &(code, size) in NUMBERS {
+			let empty = call_py(array.ptr(), vec![Obj::new(PyUnicode_FromString(code.as_ptr()))])?;
+			let width = Obj::new(PyObject_GetAttrString(empty.ptr(), c"itemsize".as_ptr()))?;
+			let width = PyLong_AsSsize_t(width.ptr());
+			if width != size as Py_ssize_t {
+				return raise(
+					PyExc_ImportError,
+					&format!(
+						"array typecode '{}' is {width} bytes wide here, not {size}",
+						code.to_string_lossy()
+					),
+				);
+			}
+		}
+		let _ = ARRAY.set((Static(array), Static(frombytes)));
+	}
+	Ok(())
 }
 
 /// A `[u8; N]`, from `bytes` of exactly `N`, as its class holds them.
@@ -818,6 +1108,46 @@ pub fn array_out(items: &[u8], index: usize) -> R<Obj> {
 	call_py(ty(index), vec![bytes])
 }
 
+/// A `Value`'s header, before its bytes.
+#[repr(C)]
+struct ValueHead {
+	ob_base: PyVarObject,
+	/// The class registered at this index made it: Python can reassign `__class__`, to
+	/// any class of `Value`'s layout, whose bytes may be fewer or another type's.
+	index: usize,
+}
+
+/// The `Copy` value a `Value` of the class registered at `index` holds, which only Rust
+/// made: Python makes none, as `Value` disallows it.
+pub fn value_in<T: Copy>(obj: *mut PyObject, index: usize) -> R<T> {
+	if !is(obj, index) {
+		return expected(obj, index);
+	}
+	// SAFETY: the GIL is held, and `obj` a `Value`; once its index matches, one
+	// `value_out` made of a `T`, which its class always holds; `T` is a struct of
+	// `MaybeUninit` units.
+	unsafe {
+		if (*obj.cast::<ValueHead>()).index != index {
+			return expected(obj, index);
+		}
+		Ok(obj.cast::<u8>().add(size_of::<ValueHead>()).cast::<T>().read_unaligned())
+	}
+}
+
+/// A new `Value` of the class registered at `index`, holding `value` in place.
+pub fn value_out<T: Copy>(index: usize, value: T) -> R<Obj> {
+	let class = ty(index);
+	// SAFETY: the GIL is held, `class` subclasses `Value`, whose items are its bytes, and
+	// the object is `size_of::<T>()` of them past its header.
+	unsafe {
+		let alloc: allocfunc = std::mem::transmute(PyType_GetSlot(class.cast(), Py_tp_alloc));
+		let obj = Obj::new(alloc(class.cast(), size_of::<T>() as Py_ssize_t))?;
+		(*obj.ptr().cast::<ValueHead>()).index = index;
+		obj.ptr().cast::<u8>().add(size_of::<ValueHead>()).cast::<T>().write_unaligned(value);
+		Ok(obj)
+	}
+}
+
 /// Bytes Rust lends a callback for its call, copied into `bytes`.
 pub fn lent_bytes(buf: rt::Buf) -> R<Obj> {
 	// SAFETY: the GIL is held, and a buffer Rust lent for the call.
@@ -828,19 +1158,29 @@ pub fn lent_bytes(buf: rt::Buf) -> R<Obj> {
 }
 
 /// A path's bytes, from a `str`, `bytes`, or `os.PathLike`, as `os.fsencode` encodes it,
-/// so a name a Unix path holds that is not UTF-8 crosses as it came.
+/// so a name a Unix path holds that is not UTF-8 crosses as it came, and so does a NUL,
+/// which a Rust path holds and `PyUnicode_FSConverter` refuses.
 pub fn path_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Buf> {
-	let mut encoded: *mut PyObject = null_mut();
-	// SAFETY: the GIL is held, and `obj` is live; the converter writes a new `bytes`.
+	// SAFETY: the GIL is held, and `obj` is live; each call returns a new reference.
 	unsafe {
-		if PyUnicode_FSConverter(obj, (&raw mut encoded).cast()) == 0 {
-			return Err(Raised);
-		}
-		let encoded = s.keep(Obj::new(encoded)?);
+		let path = s.keep(Obj::new(PyOS_FSPath(obj))?);
+		let encoded = match PyBytes_Check(path) != 0 {
+			true => path,
+			false => s.keep(Obj::new(PyUnicode_EncodeFSDefault(path))?),
+		};
 		let mut ptr: *mut c_char = null_mut();
 		let mut len = 0;
 		if PyBytes_AsStringAndSize(encoded, &mut ptr, &mut len) != 0 {
 			return Err(Raised);
+		}
+		// Windows' file system encoding passes a surrogate through, but a lead and a trail
+		// written apart are no path, which WTF-8 writes as the scalar they make.
+		#[cfg(windows)]
+		{
+			let bytes = std::slice::from_raw_parts(ptr.cast::<u8>(), len as usize);
+			if std::str::from_utf8(bytes).is_err() && rt::wtf8(bytes).is_none() {
+				return value_error("a str with a surrogate pair apart is no Windows path");
+			}
 		}
 		Ok(rt::Buf {
 			ptr: ptr.cast_const().cast(),
@@ -860,58 +1200,41 @@ pub fn path_out(buf: rt::Buf) -> R<Obj> {
 	}
 }
 
-static DAYS: Key = Key::new(c"days");
-static SECONDS: Key = Key::new(c"seconds");
-static MICROSECONDS: Key = Key::new(c"microseconds");
-static MAX: Key = Key::new(c"max");
-
-/// The days in `timedelta.max`, past which [`duration_out`] gives it.
-const MAX_DAYS: u64 = 999_999_999;
-
-/// A `Duration`, from a `datetime.timedelta` that is not negative: `timedelta.max`, which
-/// [`duration_out`] gives for any longer one, is `Duration::MAX`.
+/// A `Duration`, from the runtime's `Duration`: seconds a `u64` holds, and nanoseconds below
+/// a billion, else `OverflowError` or `ValueError`.
 pub fn duration_in(obj: *mut PyObject) -> R<rt::Duration> {
-	if !is(obj, T_TIMEDELTA) {
-		return expected(obj, T_TIMEDELTA);
+	if !is(obj, T_DURATION) {
+		return expected(obj, T_DURATION);
 	}
-	let mut s = Scope::default();
-	let days: u64 = match int_in::<i64>(attr(obj, &DAYS, &mut s)?)? {
-		days if days < 0 => return value_error("a negative timedelta has no Rust Duration"),
-		days => days as u64,
+	// SAFETY: the GIL is held, and `obj` a `Duration`, a tuple of its two fields.
+	let (secs, nanos) = unsafe { (PyTuple_GetItem(obj, 0), PyTuple_GetItem(obj, 1)) };
+	let duration = rt::Duration {
+		secs: int_in(secs)?,
+		nanos: int_in(nanos)?,
 	};
-	let seconds: u64 = int_in(attr(obj, &SECONDS, &mut s)?)?;
-	let micros: u32 = int_in(attr(obj, &MICROSECONDS, &mut s)?)?;
-	if (days, seconds, micros) == (MAX_DAYS, 86_399, 999_999) {
-		return Ok(rt::Duration::lower(std::time::Duration::MAX));
+	match duration.nanos < 1_000_000_000 {
+		true => Ok(duration),
+		false => value_error("a Duration's nanos are below a billion"),
 	}
-	Ok(rt::Duration {
-		secs: days * 86_400 + seconds,
-		nanos: micros * 1_000,
-	})
 }
 
-/// A `datetime.timedelta`, which holds whole microseconds up to 999,999,999 days: Rust's
-/// nanoseconds are truncated, and a longer one is `timedelta.max`, as Rust's
-/// `Duration::MAX` stands for forever, which [`duration_in`] gives back.
+/// The runtime's `Duration`, made by `tuple`'s own constructor, which (unlike a bare
+/// allocation) marks the hash CPython 3.14+ caches as not yet computed, and skips the
+/// `NamedTuple`'s Python `__new__`.
 pub fn duration_out(duration: rt::Duration) -> R<Obj> {
-	let class = ty(T_TIMEDELTA);
-	// SAFETY: the GIL is held.
+	let items = tuple(vec![uint_out(duration.secs), uint_out(duration.nanos.into())]);
+	let args = tuple(vec![items])?;
+	// SAFETY: the GIL is held; `tuple`'s `tp_new` takes a subclass and, as `tuple(items)`
+	// does, its arguments.
 	unsafe {
-		if duration.secs / 86_400 > MAX_DAYS {
-			return Obj::new(PyObject_GetAttr(class, MAX.get()?));
-		}
-		let args = tuple(vec![
-			int_out(0),
-			uint_out(duration.secs),
-			uint_out(u64::from(duration.nanos / 1_000)),
-		])?;
-		Obj::new(PyObject_CallObject(class, args.ptr()))
+		let new: newfunc = std::mem::transmute(PyType_GetSlot(&raw mut PyTuple_Type, Py_tp_new));
+		Obj::new(new(ty(T_DURATION).cast(), args.ptr(), null_mut()))
 	}
 }
 
 /// Which addresses a socket address type holds.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Family {
+enum Family {
 	Any,
 	V4,
 	V6,
@@ -919,7 +1242,28 @@ pub enum Family {
 
 /// A socket address, from a tuple as Python's `socket` module writes one: `(host, port)`,
 /// or for IPv6, `(host, port, flowinfo, scope_id)`, its host a numeric address.
-pub fn addr_in(obj: *mut PyObject, family: Family) -> R<rt::SocketAddr> {
+pub fn addr_in(obj: *mut PyObject) -> R<rt::SocketAddr> {
+	socket_in(obj, Family::Any).map(rt::SocketAddr::lower)
+}
+
+/// An IPv4 socket address, as [`addr_in`] takes one.
+pub fn addr_v4_in(obj: *mut PyObject) -> R<rt::SocketAddrV4> {
+	match socket_in(obj, Family::V4)? {
+		std::net::SocketAddr::V4(addr) => Ok(rt::SocketAddrV4::lower(addr)),
+		std::net::SocketAddr::V6(_) => unreachable!("checked IPv4"),
+	}
+}
+
+/// An IPv6 socket address, as [`addr_in`] takes one.
+pub fn addr_v6_in(obj: *mut PyObject) -> R<rt::SocketAddrV6> {
+	match socket_in(obj, Family::V6)? {
+		std::net::SocketAddr::V6(addr) => Ok(rt::SocketAddrV6::lower(addr)),
+		std::net::SocketAddr::V4(_) => unreachable!("checked IPv6"),
+	}
+}
+
+/// A socket address of `family`, as [`addr_in`] takes one.
+fn socket_in(obj: *mut PyObject, family: Family) -> R<std::net::SocketAddr> {
 	// SAFETY: the GIL is held, and `obj` is live.
 	let len = unsafe {
 		if PyTuple_Check(obj) == 0 {
@@ -951,18 +1295,30 @@ pub fn addr_in(obj: *mut PyObject, family: Family) -> R<rt::SocketAddr> {
 	match (family, addr) {
 		(Family::V4, std::net::SocketAddr::V6(_)) => value_error("an IPv6 address has no Rust SocketAddrV4"),
 		(Family::V6, std::net::SocketAddr::V4(_)) => value_error("an IPv4 address has no Rust SocketAddrV6"),
-		_ => Ok(rt::SocketAddr::lower(addr)),
+		_ => Ok(addr),
 	}
 }
 
-/// A socket address as Python's `socket` module writes one.
+pub fn addr_v4_out(addr: rt::SocketAddrV4) -> R<Obj> {
+	socket_out(addr.lift().into())
+}
+
+pub fn addr_v6_out(addr: rt::SocketAddrV6) -> R<Obj> {
+	socket_out(addr.lift().into())
+}
+
 pub fn addr_out(addr: rt::SocketAddr) -> R<Obj> {
+	socket_out(addr.lift())
+}
+
+/// A socket address as Python's `socket` module writes one.
+fn socket_out(addr: std::net::SocketAddr) -> R<Obj> {
 	let text = |ip: &dyn std::fmt::Display| {
 		let text = ip.to_string();
 		// SAFETY: the GIL is held.
 		unsafe { Obj::new(PyUnicode_FromStringAndSize(text.as_ptr().cast(), text.len() as Py_ssize_t)) }
 	};
-	match addr.lift("python") {
+	match addr {
 		std::net::SocketAddr::V4(v4) => tuple(vec![text(v4.ip()), uint_out(v4.port().into())]),
 		std::net::SocketAddr::V6(v6) => tuple(vec![
 			text(v6.ip()),
@@ -971,6 +1327,76 @@ pub fn addr_out(addr: rt::SocketAddr) -> R<Obj> {
 			uint_out(v6.scope_id().into()),
 		]),
 	}
+}
+
+static PACKED: Key = Key::new(c"packed");
+static SCOPE_ID: Key = Key::new(c"scope_id");
+
+/// An IP address, from an `ipaddress.IPv4Address` or an `IPv6Address` without a scope,
+/// which Rust's `IpAddr` has no room for.
+pub fn ip_in(obj: *mut PyObject) -> R<rt::IpAddr> {
+	address_in(obj, Family::Any).map(rt::IpAddr::lower)
+}
+
+/// An IPv4 address, from an `ipaddress.IPv4Address`.
+pub fn ipv4_in(obj: *mut PyObject) -> R<rt::Ipv4Addr> {
+	match address_in(obj, Family::V4)? {
+		std::net::IpAddr::V4(ip) => Ok(rt::Ipv4Addr::lower(ip)),
+		std::net::IpAddr::V6(_) => unreachable!("checked IPv4"),
+	}
+}
+
+/// An IPv6 address, from an `ipaddress.IPv6Address` without a scope.
+pub fn ipv6_in(obj: *mut PyObject) -> R<rt::Ipv6Addr> {
+	match address_in(obj, Family::V6)? {
+		std::net::IpAddr::V6(ip) => Ok(rt::Ipv6Addr::lower(ip)),
+		std::net::IpAddr::V4(_) => unreachable!("checked IPv6"),
+	}
+}
+
+/// An IP address of `family`, as [`ip_in`] takes one.
+fn address_in(obj: *mut PyObject, family: Family) -> R<std::net::IpAddr> {
+	let v6 = match (is(obj, T_IPV4), is(obj, T_IPV6)) {
+		(true, _) if family == Family::V6 => return value_error("an IPv4 address has no Rust Ipv6Addr"),
+		(_, true) if family == Family::V4 => return value_error("an IPv6 address has no Rust Ipv4Addr"),
+		(true, _) => false,
+		(_, true) => true,
+		_ if family == Family::V4 => return expected(obj, T_IPV4),
+		_ if family == Family::V6 => return expected(obj, T_IPV6),
+		_ => return expected_named(obj, "an IPv4Address or IPv6Address"),
+	};
+	let mut s = Scope::default();
+	if v6 && !is_none(attr(obj, &SCOPE_ID, &mut s)?) {
+		return value_error("an IPv6 address with a scope has no Rust IpAddr");
+	}
+	let packed = attr(obj, &PACKED, &mut s)?;
+	Ok(match v6 {
+		true => std::net::Ipv6Addr::from(array_in::<16>(packed)?).into(),
+		false => std::net::Ipv4Addr::from(array_in::<4>(packed)?).into(),
+	})
+}
+
+pub fn ip_out(ip: rt::IpAddr) -> R<Obj> {
+	address_out(ip.lift())
+}
+
+pub fn ipv4_out(ip: rt::Ipv4Addr) -> R<Obj> {
+	address_out(ip.lift().into())
+}
+
+pub fn ipv6_out(ip: rt::Ipv6Addr) -> R<Obj> {
+	address_out(ip.lift().into())
+}
+
+/// An `ipaddress.IPv4Address` or `IPv6Address`.
+fn address_out(ip: std::net::IpAddr) -> R<Obj> {
+	let (class, packed) = match ip {
+		std::net::IpAddr::V4(v4) => (T_IPV4, v4.octets().to_vec()),
+		std::net::IpAddr::V6(v6) => (T_IPV6, v6.octets().to_vec()),
+	};
+	// SAFETY: the GIL is held.
+	let packed = unsafe { Obj::new(PyBytes_FromStringAndSize(packed.as_ptr().cast(), packed.len() as Py_ssize_t)) };
+	call_py(ty(class), vec![packed])
 }
 
 static START: Key = Key::new(c"start");
@@ -1414,14 +1840,18 @@ pub unsafe extern "C" fn free_callback(data: *mut c_void) {
 }
 
 /// An object owning a handle Rust returned, or one Rust lends for a call: the instance
-/// of a class of the generated Python, which subclasses `Object`.
+/// of a class of the generated Python, which subclasses `Object`. An owned one is freed
+/// once its last reference goes, which no call outlives: Rust's own check fails a use
+/// after its value moved out. A lent one counts its calls, so its lend ends with none.
 #[repr(C)]
 pub struct Handle {
 	ob_base: PyObject,
+	/// The class registered at this index made it: Python can reassign `__class__`.
+	index: usize,
 	raw: *const c_void,
 	/// What frees the handle: none for one Rust lends, or once freed.
 	free: Option<unsafe extern "C" fn(*const c_void)>,
-	/// The calls holding it, each of which it outlives.
+	/// The calls holding a lent one, each of which it outlives.
 	holds: usize,
 	closed: bool,
 }
@@ -1460,6 +1890,7 @@ fn handle(raw: *const c_void, index: usize, free: Option<unsafe extern "C" fn(*c
 			return Err(Raised);
 		};
 		let handle = obj.ptr().cast::<Handle>();
+		(*handle).index = index;
 		(*handle).raw = raw;
 		(*handle).free = free;
 		(*handle).holds = 0;
@@ -1468,59 +1899,43 @@ fn handle(raw: *const c_void, index: usize, free: Option<unsafe extern "C" fn(*c
 	}
 }
 
-/// The handle `obj` owns, an object of the class registered at `index`, held for the
-/// call; `moved` when the call moves its value out, after which `obj` is closed.
-pub fn hold(obj: *mut PyObject, index: usize, s: &mut Scope, moved: bool) -> R<*const c_void> {
+/// The handle `obj` owns, an object of the class registered at `index`, for the call,
+/// which the caller's reference keeps; a lent one held until the call returns.
+pub fn hold(obj: *mut PyObject, index: usize, s: &mut Scope) -> R<*const c_void> {
 	check(obj, index)?;
 	let handle = obj.cast::<Handle>();
 	// SAFETY: an object of a class that subclasses `Object`, and the GIL is held.
 	unsafe {
+		if (*handle).index != index {
+			return expected(obj, index);
+		}
+		if (*handle).free.is_some() {
+			return Ok((*handle).raw);
+		}
 		if (*handle).closed {
 			return value_error(&format!("{} is closed", type_name(ty(index))));
 		}
 		(*handle).holds += 1;
-		s.held.push((Obj::borrowed(obj), moved));
+		s.held.push(Obj::borrowed(obj));
 		Ok((*handle).raw)
 	}
 }
 
 /// [`hold`], or a null handle for `None`.
-pub fn hold_opt(obj: *mut PyObject, index: usize, s: &mut Scope, moved: bool) -> R<*const c_void> {
+pub fn hold_opt(obj: *mut PyObject, index: usize, s: &mut Scope) -> R<*const c_void> {
 	match is_none(obj) {
 		true => Ok(null()),
-		false => hold(obj, index, s, moved),
+		false => hold(obj, index, s),
 	}
 }
 
-/// Let go of a call's hold, freeing the handle if it was closed meanwhile.
+/// Let go of a call's hold of a lent handle.
 ///
 /// # Safety
 /// `handle` is live, and held.
 unsafe fn release(handle: *mut Handle) {
 	// SAFETY: the caller's contract.
-	unsafe {
-		(*handle).holds -= 1;
-		if (*handle).closed && (*handle).holds == 0 {
-			free_now(handle);
-		}
-	}
-}
-
-/// Close a handle: freed now, or once the last call holding it returns.
-///
-/// # Safety
-/// `handle` is live.
-pub unsafe fn close(handle: *mut Handle) {
-	// SAFETY: the caller's contract.
-	unsafe {
-		if (*handle).closed {
-			return;
-		}
-		(*handle).closed = true;
-		if (*handle).holds == 0 {
-			free_now(handle);
-		}
-	}
+	unsafe { (*handle).holds -= 1 };
 }
 
 /// End a lend, closing its handle, which Rust frees next: a call still holding it would
@@ -1535,7 +1950,7 @@ unsafe fn end(handle: *mut Handle) {
 			let name = type_name(Py_TYPE(handle.cast()).cast());
 			rt::fail(&name, "a call still holds it when its lend ends");
 		}
-		close(handle);
+		(*handle).closed = true;
 	}
 }
 
@@ -1652,7 +2067,13 @@ unsafe extern "C" fn bytes_getbuffer(obj: *mut PyObject, view: *mut Py_buffer, f
 	// SAFETY: Python asks a live `Bytes` for a view.
 	unsafe {
 		let buf = (*obj.cast::<Bytes>()).buf;
-		PyBuffer_FillInfo(view, obj, buf.ptr.cast_mut().cast(), buf.len as Py_ssize_t, 1, flags)
+		let filled = PyBuffer_FillInfo(view, obj, buf.ptr.cast_mut().cast(), buf.len as Py_ssize_t, 1, flags);
+		// A `memoryview` keeps both in each view of it, its slices included.
+		if filled == 0 && !(*view).format.is_null() {
+			(*view).format = RUST_FORMAT.as_ptr().cast_mut();
+			(*view).internal = obj.cast();
+		}
+		filled
 	}
 }
 
@@ -1674,6 +2095,9 @@ pub struct Queue {
 	woken: AtomicBool,
 	/// The address of its event loop, which [`RUNNING`] matches while it runs a call.
 	event_loop: usize,
+	/// Whether its `Queue` was deallocated, as it is once its loop goes, after which
+	/// another loop may take the address.
+	closed: AtomicBool,
 	/// How many of its futures are parked and its `Waker`s alive, which a wake may queue.
 	waits: Arc<AtomicUsize>,
 	tx: Socket,
@@ -1878,6 +2302,7 @@ unsafe extern "C" fn queue_new(class: *mut PyTypeObject, args: *mut PyObject, _:
 				signaled: AtomicBool::new(false),
 				woken: AtomicBool::new(false),
 				event_loop,
+				closed: AtomicBool::new(false),
 				waits: Arc::new(AtomicUsize::new(0)),
 				tx,
 				rx,
@@ -1891,7 +2316,9 @@ unsafe extern "C" fn queue_new(class: *mut PyTypeObject, args: *mut PyObject, _:
 unsafe extern "C" fn queue_dealloc(obj: *mut PyObject) {
 	// SAFETY: Python deallocates a `Queue` once.
 	unsafe {
-		drop((*obj.cast::<QueueObj>()).queue.take());
+		if let Some(queue) = (*obj.cast::<QueueObj>()).queue.take() {
+			queue.closed.store(true, Ordering::Relaxed);
+		}
 		dealloc(obj);
 	}
 }
@@ -2350,6 +2777,7 @@ fn is_type(obj: *mut PyObject, slot: &std::sync::OnceLock<Static>) -> bool {
 }
 
 static OBJECT: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
+static VALUE_BASE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
 static FUTURE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
 static QUEUE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
 static NODE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
@@ -2445,10 +2873,11 @@ static FUTURE_METHODS: Methods<4> = Methods(UnsafeCell::new([
 	END,
 ]));
 
-static QUEUE_METHODS: Methods<4> = Methods(UnsafeCell::new([
+static QUEUE_METHODS: Methods<5> = Methods(UnsafeCell::new([
 	noargs(c"fileno", queue_fileno),
 	onearg(c"take", queue_take),
 	noargs(c"signaled", queue_signaled),
+	noargs(c"drain", queue_drain),
 	END,
 ]));
 
@@ -2474,13 +2903,30 @@ unsafe fn add_type(
 	flags: u64,
 	slots: &mut [PyType_Slot],
 ) -> R<()> {
+	// SAFETY: the caller's contract.
+	unsafe { add_sized(module, cell, name, size, 0, flags, slots) }
+}
+
+/// [`add_type`], of objects each `itemsize` bytes longer per item.
+///
+/// # Safety
+/// As [`add_type`]'s.
+unsafe fn add_sized(
+	module: *mut PyObject,
+	cell: &std::sync::OnceLock<Static>,
+	name: &CStr,
+	size: usize,
+	itemsize: usize,
+	flags: u64,
+	slots: &mut [PyType_Slot],
+) -> R<()> {
 	let qualified = format!("{}.{}\0", module_name(module), name.to_str().expect("ASCII"));
 	// Python keeps the name for the type's life.
 	let qualified: &'static str = Box::leak(qualified.into_boxed_str());
 	let mut spec = PyType_Spec {
 		name: qualified.as_ptr().cast(),
 		basicsize: size as c_int,
-		itemsize: 0,
+		itemsize: itemsize as c_int,
 		flags: (Py_TPFLAGS_DEFAULT as u64 | flags) as _,
 		slots: slots.as_mut_ptr(),
 	};
@@ -2537,6 +2983,14 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 			),
 			slot(0, null_mut()),
 		])?;
+		// Its items are a value's bytes, past the header.
+		add_sized(module, &VALUE_BASE, c"Value", size_of::<ValueHead>(), 1, base, &mut [
+			slot(
+				Py_tp_doc,
+				c"A Rust `Copy` value's bytes, which only Rust makes or reads.".as_ptr().cast_mut().cast(),
+			),
+			slot(0, null_mut()),
+		])?;
 		add_type(module, &FUTURE, c"Future", size_of::<Future>(), base, &mut [
 			slot(Py_tp_dealloc, future_dealloc as *mut c_void),
 			slot(Py_tp_methods, FUTURE_METHODS.ptr().cast()),
@@ -2588,6 +3042,7 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 		let asyncio = Obj::new(PyImport_ImportModule(c"asyncio".as_ptr()))?;
 		let get = Obj::new(PyObject_GetAttrString(asyncio.ptr(), c"_get_running_loop".as_ptr()))?;
 		let _ = GET_RUNNING_LOOP.set(Static(get));
+		arrays()?;
 	}
 	Ok(())
 }

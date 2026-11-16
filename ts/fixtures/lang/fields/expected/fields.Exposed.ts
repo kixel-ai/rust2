@@ -3,12 +3,7 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug(self: Exposed, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Exposed";
-	const _4: string = "buf";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(self.buf), f, rs.u8Debug);
-	const _7: string = "at";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.at, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Exposed buf at", [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(self.buf), f, rs.u8Debug), (f: rs.Formatter) => rs.u8Debug(self.at, f)]);
 }
 
 /** A `pub` field, which stays whole. */

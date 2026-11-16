@@ -6,9 +6,8 @@ Work that waits on evidence or has no consumer yet: two waits on upstream's buil
 levers ([relink](/quest/m3/relink.md) and [TPDE](/quest/m3/tpde.md)) and
 [the benchmark on bare metal](/quest/m3/bench-metal.md), the translator's features that
 wait on [the gate](/quest/m2/wasm/README.md), the binding targets planned ahead of a
-consumer, what waits on moq, [crabx's GitHub App](/quest/m3/crabx-app.md), and two spikes
-of what a rustc driver can do for any crate: [a crates.io census](/quest/m3/crates-census.md)
-and [a dead `pub` finder](/quest/m3/dead-pub.md).
+consumer, what waits on moq, [crabx's GitHub App](/quest/m3/crabx-app.md), and
+[narrowing rust2's own `pub`](/quest/m3/pub-apply.md) with rust2-pub.
 
 ## Plan
 
@@ -41,15 +40,42 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   ([rustc_codegen_cranelift#1567](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1567)
   and [#1712](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1712)) were
   still open. Rejected: keeping it with the ceiling stated.
-- ✅ Two spikes join with no consumer waiting:
-  [the crates.io census](/quest/m3/crates-census.md) and
-  [the dead `pub` finder](/quest/m3/dead-pub.md). Considered and left out: a build doctor
+- ✅ [The dead `pub` spike](https://github.com/kixel-ai/rust2/pull/763) joins with no consumer waiting. Considered and left out: a build doctor
   that ranks why an edit rebuilt slowly, which conflicts with build speed keeping only
   what costs nothing; a cancel-safety report for exported futures, likely mostly false
   positives; a general semver checker, which cargo-semver-checks is taking into cargo; a
   Rust generator over the C ABI as a rebuild firewall; and driver-generated derives,
   since proc macros measured 0.2% of a clean build
   ([#64](https://github.com/kixel-ai/rust2/pull/64)).
+
+The [dead `pub` spike](https://github.com/kixel-ai/rust2/pull/763) finished on
+2026-11-13 with a go for a compiler-validated audit that preserves original resolved
+references, which [rust2-pub](/driver/pub/README.md) now is. The raw
+graph still fails moq publicity checks. A compiler-only narrowing loop can silently
+redirect method dispatch: the native fixture changes 99 to 3, while the graph
+retains the original method. Neither alone is an automatic cleanup tool, and
+neither establishes the absence of external API consumers. The PR holds the census,
+collective mutation checks and comparison.
+
+Decided with the maintainer on 2026-11-13, for
+[rust2-pub](https://github.com/kixel-ai/rust2/pull/785):
+
+- ✅ Validation fingerprints every item as rustc's HIR printer prints it after macro
+  expansion, which leaves visibility out, and traces a changed item back through the
+  macro calls it came from to the narrowed `pub` they read. It replaces the derive
+  fingerprint and the rule that kept every `pub` passed to a macro. Rejected: adding a
+  check per macro kind, where each review round found one more.
+- ✅ What a published crate exports, and all of an unpublished library the audit never
+  runs, stays public. Rejected: also reporting a published crate's unused exports as
+  breaking narrowings.
+- ✅ Applying the findings is follow-up work: [rust2's](/quest/m3/pub-apply.md) here,
+  and moq's in moq's own quest tree.
+- ✅ (2026-11-14) Validation reads narrowed source through rustc's in-memory
+  `FileLoader` overlay, and the README's Limits names the gap: a build script or proc
+  macro that reads a source file with `std::fs` sees it unnarrowed. Nothing reports
+  which files such code reads, so no check can refuse just those crates. Rejected:
+  validating on a copied tree each round, which also copies the target dir and every
+  path dependency.
 
 Decided with the maintainer on 2026-11-07, the unsafe policy, to stop one-off fixes for
 ever rarer `unsafe`:

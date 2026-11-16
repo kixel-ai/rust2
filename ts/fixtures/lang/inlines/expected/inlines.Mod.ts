@@ -3,15 +3,11 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug_4294967291(self: Mod, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Mod";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.u32Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Mod", [(f: rs.Formatter) => rs.u32Debug(self._0, f)]);
 }
 
 export function fmt$fmt_Debug_7(self: Mod, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Mod";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.u32Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, "Mod", [(f: rs.Formatter) => rs.u32Debug(self._0, f)]);
 }
 
 /** An integer modulo `M`, whose `+` wraps there. */

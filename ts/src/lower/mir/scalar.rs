@@ -504,7 +504,7 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 						.variant(VariantIdx::from_usize(v))
 						.fields
 						.iter()
-						.map(|f| f.ty(tcx, args).skip_norm_wip())
+						.map(|f| f.ty(tcx, *args).skip_norm_wip())
 						.collect();
 					if tys.iter().any(|t| uninhabited(*t)) {
 						return Some(None);
@@ -1631,7 +1631,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						values.push(fx.build(field, None, &parts[at..at + field.size()], span));
 						at += field.size();
 					}
-					fx.adt(adt.did(), VariantIdx::from_usize(v), args, values, *ty, span)
+					fx.adt(adt.did(), VariantIdx::from_usize(v), *args, values, *ty, span)
 				};
 				match known {
 					Some(v) => make(self, v),

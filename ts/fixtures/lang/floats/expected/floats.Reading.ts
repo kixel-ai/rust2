@@ -3,14 +3,7 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug(self: Reading, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Reading";
-	const _4: string = "level";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.f64Debug(self.level, f);
-	const _7: string = "peak";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(self.peak, f, rs.f64Debug);
-	const _10: string = "history";
-	const _11: rs.Fmt = (f: rs.Formatter) => rs.fmtList(self.history.items, f, rs.f64Debug);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8), _10, _11));
+	return rs.fmtDebugFields(f, "Reading level peak history", [(f: rs.Formatter) => rs.f64Debug(self.level, f), (f: rs.Formatter) => rs.fmtOption(self.peak, f, rs.f64Debug), (f: rs.Formatter) => rs.fmtList(self.history.items, f, rs.f64Debug)]);
 }
 
 /** A reading whose derived `Debug` writes each `f64` with the placeholder's options. */

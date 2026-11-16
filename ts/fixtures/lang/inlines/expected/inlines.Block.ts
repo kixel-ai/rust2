@@ -5,15 +5,13 @@ import * as rs from "./rs.ts";
 export function fmt$fmt_Debug_0(self: Block, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const _3: string = "Block";
 	const _6: rs.ByteSlice = rs.byteSliceFrom(self._0);
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_6), f, rs.u8Debug);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, _3, [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_6), f, rs.u8Debug)]);
 }
 
 export function fmt$fmt_Debug_3(self: Block, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const _3: string = "Block";
 	const _6: rs.ByteSlice = rs.byteSliceFrom(self._0);
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_6), f, rs.u8Debug);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
+	return rs.fmtDebugFields(f, _3, [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_6), f, rs.u8Debug)]);
 }
 
 /** Bytes of a length, which copy. */

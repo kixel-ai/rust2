@@ -83,6 +83,8 @@ pub mod env {
 	/// The file to write the target's API into instead of exporting, absolute, for the
 	/// export of several targets to merge.
 	pub const API: &str = "RUST2_FFI_API";
+	/// The API an earlier export wrote, absolute, which the export's must not break.
+	pub const BASELINE: &str = "RUST2_FFI_BASELINE";
 	/// The other targets' APIs the export merges with its own, as a list of paths.
 	pub const MERGE: &str = "RUST2_FFI_MERGE";
 	/// The directories a staged API's spans are relative to, as a list of paths: the
@@ -92,4 +94,7 @@ pub mod env {
 	pub const PACKAGE: &str = "RUST2_FFI_PACKAGE";
 	/// The `[patch]` resolving the facade as cargo did, as TOML with each path absolute.
 	pub const PATCH: &str = "RUST2_FFI_PATCH";
+	/// The dependency the glue would name each crate the facade builds with by, as a TOML
+	/// table from its library's crate name to its keys.
+	pub const CRATES: &str = "RUST2_FFI_CRATES";
 }

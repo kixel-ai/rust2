@@ -24,27 +24,51 @@ export function hint(_1: [rs.usize, rs.usize | undefined], out: rs.ByteVec): voi
 
 /** A sum of a part, which tells parts of different lengths or contents apart. */
 export function sum(part: rs.ByteSlice): rs.u8 {
-	return rs.iterFold(rs.iterSlice(rs.byteSliceView(part)), part.length & 0xff, (acc: rs.u8, _32: rs.u8): rs.u8 => {
-		return rs.u8WrappingAdd(rs.u8WrappingMul(acc, 31), _32);
-	});
+	const s = rs.byteSliceView(part);
+	let front = 0;
+	let back = s.length;
+	let acc2: rs.u8 = part.length & 0xff;
+	while (!(front >= back)) {
+		const x = s[front++];
+		acc2 = rs.u8WrappingAdd(rs.u8WrappingMul(acc2, 31), x);
+	}
+	return acc2;
 }
 
 export function sumWords(part: rs.Slice<rs.u16>): rs.u8 {
-	return rs.iterFold(rs.iterSlice(rs.sliceItems(part)), part.length & 0xff, (acc: rs.u8, _32: rs.u16): rs.u8 => {
-		return rs.u8WrappingMul(acc, 31) ^ ((_32 >> 3) & 0xff);
-	});
+	const s = rs.sliceItems(part);
+	let front = 0;
+	let back = s.length;
+	let acc2: rs.u8 = part.length & 0xff;
+	while (!(front >= back)) {
+		const x = s[front++];
+		acc2 = rs.u8WrappingMul(acc2, 31) ^ ((x >> 3) & 0xff);
+	}
+	return acc2;
 }
 
 export function sumPairs(part: rs.Slice<Pair.Pair>): rs.u8 {
-	return rs.iterFold(rs.iterSlice(rs.sliceItems(part)), part.length & 0xff, (acc: rs.u8, p: Pair.Pair): rs.u8 => {
-		return rs.u8WrappingMul(acc, 31) ^ p.a ^ ((p.b >> 4) & 0xff);
-	});
+	const s = rs.sliceItems(part);
+	let front = 0;
+	let back = s.length;
+	let acc2: rs.u8 = part.length & 0xff;
+	while (!(front >= back)) {
+		const x = s[front++];
+		acc2 = rs.u8WrappingMul(acc2, 31) ^ x.a ^ ((x.b >> 4) & 0xff);
+	}
+	return acc2;
 }
 
 export function sumTexts(part: rs.Slice<rs.String>): rs.u8 {
-	return rs.iterFold(rs.iterSlice(rs.sliceItems(part)), part.length & 0xff, (acc: rs.u8, s: rs.String): rs.u8 => {
-		return rs.u8WrappingAdd(rs.u8WrappingMul(acc, 31), s.len & 0xff);
-	});
+	const s2 = rs.sliceItems(part);
+	let front = 0;
+	let back = s2.length;
+	let acc2: rs.u8 = part.length & 0xff;
+	while (!(front >= back)) {
+		const x = s2[front++];
+		acc2 = rs.u8WrappingAdd(rs.u8WrappingMul(acc2, 31), x.len & 0xff);
+	}
+	return acc2;
 }
 
 export function sumTwos(part: rs.ArraySlice<rs.ByteSlice>): rs.u8 {
@@ -185,20 +209,44 @@ export function separated(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		}
 		const bound: rs.u16 = _13;
 		const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
-		const words: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
-			return rs.u16Mul(_2 as rs.u16, 257);
-		}), undefined, 2, true);
-		const pairs: rs.Vec<Pair.Pair> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_24: rs.u8): Pair.Pair => {
+		const s = rs.byteSliceView(data);
+		let front = 0;
+		let back12 = s.length;
+		const v: rs.Vec<rs.u16> = rs.vecWithCapacity(back12 - front, 2);
+		while (!(front >= back12)) {
+			const x = s[front++];
+			v.items.push(rs.u16Mul(x as rs.u16, 257));
+		}
+		const words: rs.Vec<rs.u16> = v;
+		const s2 = rs.byteSliceView(data);
+		let front2 = 0;
+		let back13 = s2.length;
+		const f2 = (_24: rs.u8): Pair.Pair => {
 			const b2: rs.u8 = _24;
 			return { a: b2, b: rs.u16Mul(b2 as rs.u16, 3) };
-		}), undefined, 4, true);
-		const texts: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_27: rs.u8): rs.String => {
+		};
+		const v2: rs.Vec<Pair.Pair> = rs.vecWithCapacity(back13 - front2, 4);
+		while (!(front2 >= back13)) {
+			const y2: Pair.Pair = f2(s2[front2++]);
+			v2.items.push(y2);
+		}
+		const pairs: rs.Vec<Pair.Pair> = v2;
+		const s3 = rs.byteSliceView(data);
+		let front3 = 0;
+		let back14 = s3.length;
+		const f3 = (_27: rs.u8): rs.String => {
 			const _7: rs.usize = rs.usizeRem(_27 as rs.usize, 3);
 			if (!(_7 < 3)) {
 				rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _7);
 			}
 			return rs.stringFrom(["", "a", "ab"][_7]);
-		}), undefined, 12, true);
+		};
+		const v3: rs.Vec<rs.String> = rs.vecWithCapacity(back14 - front3, 12);
+		while (!(front3 >= back14)) {
+			const y3: rs.String = f3(s3[front3++]);
+			v3.items.push(y3);
+		}
+		const texts: rs.Vec<rs.String> = v3;
 		const test: (a0: rs.u8) => boolean = (_28: rs.u8): boolean => {
 			const b4: rs.u8 = _28;
 			const _73: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
@@ -219,11 +267,11 @@ export function separated(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			rs.refMutRelease(_63);
 			return (p35.a as rs.u16) < bound;
 		};
-		const testTexts: (a0: rs.String) => boolean = (s: rs.String): boolean => {
+		const testTexts: (a0: rs.String) => boolean = (s4: rs.String): boolean => {
 			const _67: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log);
-			rs.byteVecPush(_67.value, (s.len & 0xff) | 128);
+			rs.byteVecPush(_67.value, (s4.len & 0xff) | 128);
 			rs.refMutRelease(_67);
-			return s.len < rs.usizeRem(bound as rs.usize, 3);
+			return s4.len < rs.usizeRem(bound as rs.usize, 3);
 		};
 		b2: {
 			const _35: rs.u8 = rs.u8Rem(kind, 8);

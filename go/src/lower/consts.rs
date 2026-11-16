@@ -53,7 +53,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			return match ty.kind() {
 				ty::Adt(adt, args) => {
 					let variant = d.variant.unwrap_or(rustc_abi::FIRST_VARIANT);
-					self.adt_lit(*adt, variant, args, &values, &go, span)
+					self.adt_lit(*adt, variant, *args, &values, &go, span)
 				}
 				_ => format!("{go}{{{}}}", values.join(", ")),
 			};

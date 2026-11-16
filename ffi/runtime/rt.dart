@@ -3,35 +3,455 @@
 // text across the C ABI, and the port that wakes, dropped wakers, and calls into Dart from
 // other threads reach the isolate through.
 
-/// An IP socket address, as Rust's `SocketAddr` holds it.
-final class SocketAddr {
-  /// Its IP, IPv4 or IPv6.
-  final io.InternetAddress address;
+/// Rust's `u64` or `usize`: an `int`'s 64 bits read unsigned, so it holds every value
+/// exactly, at no cost over the `int`. Its operators compare unsigned, but as an extension
+/// type it has the `int`'s own `toString`, signed: print [toBigInt] or [toRadixString].
+extension type const U64.fromBits(int bits) {
+  /// `value`, throwing a [RangeError] if negative.
+  U64(int value) : bits = value {
+    if (value < 0) throw RangeError.range(value, 0, null, 'value');
+  }
+
+  /// `value`, throwing a [RangeError] outside `u64`'s range.
+  factory U64.fromBigInt(BigInt value) {
+    if (value.isNegative || value.bitLength > 64) {
+      throw RangeError("$value is out of range for Rust's u64");
+    }
+    return U64.fromBits(value.toSigned(64).toInt());
+  }
+
+  /// `u64::MAX`.
+  static const max = U64.fromBits(-1);
+
+  /// As an `int`, throwing a [RangeError] past its largest.
+  int toInt() => bits >= 0 ? bits : throw RangeError("${toBigInt()} is past int's largest");
+
+  BigInt toBigInt() => bits >= 0 ? BigInt.from(bits) : BigInt.from(bits).toUnsigned(64);
+
+  /// Its digits in `radix`, unsigned.
+  String toRadixString(int radix) {
+    RangeError.checkValueInInterval(radix, 2, 36, 'radix');
+    if (bits >= 0) return bits.toRadixString(radix);
+    // Halved to fit `int`, so the quotient is at most one short.
+    var q = ((bits >>> 1) ~/ radix) << 1;
+    var r = bits - q * radix;
+    if (r >= radix) {
+      q++;
+      r -= radix;
+    }
+    return '${q.toRadixString(radix)}${r.toRadixString(radix)}';
+  }
+
+  int compareTo(U64 other) => (bits ^ _sign).compareTo(other.bits ^ _sign);
+
+  bool operator <(U64 other) => (bits ^ _sign) < (other.bits ^ _sign);
+  bool operator <=(U64 other) => (bits ^ _sign) <= (other.bits ^ _sign);
+  bool operator >(U64 other) => (bits ^ _sign) > (other.bits ^ _sign);
+  bool operator >=(U64 other) => (bits ^ _sign) >= (other.bits ^ _sign);
+
+  /// The sign bit, flipped to compare the bits unsigned as signed.
+  static const _sign = -0x8000000000000000;
+}
+
+/// Rust's `Duration`: whole seconds, a `u64`, and the nanoseconds below one, so it holds
+/// every value exactly, which a [Duration], of microseconds within `int`'s range, does not.
+final class RustDuration implements Comparable<RustDuration> {
+  final U64 secs;
+
+  /// From 0 through 999999999.
+  final int nanos;
+
+  /// `secs` and `nanos`, throwing a [RangeError] unless `nanos` is below a second.
+  RustDuration(this.secs, [this.nanos = 0]) {
+    RangeError.checkValueInInterval(nanos, 0, 999999999, 'nanos');
+  }
+
+  const RustDuration._(this.secs, this.nanos);
+
+  static const zero = RustDuration._(U64.fromBits(0), 0);
+
+  /// `duration`, throwing an [ArgumentError] if negative.
+  factory RustDuration.from(Duration duration) {
+    final us = duration.inMicroseconds;
+    if (us < 0) throw ArgumentError.value(duration, 'duration', 'is negative');
+    return RustDuration._(U64.fromBits(us ~/ 1000000), us % 1000000 * 1000);
+  }
+
+  /// As a [Duration], throwing a [RangeError] where it holds part of a microsecond or is
+  /// past the longest, 9223372036854.775807 seconds.
+  Duration toDuration() {
+    final s = secs.bits;
+    if (nanos % 1000 != 0 || s < 0 || s > 9223372036854 || s == 9223372036854 && nanos > 775807000) {
+      throw RangeError('$this is no Duration');
+    }
+    return Duration(microseconds: s * 1000000 + nanos ~/ 1000);
+  }
+
+  @override
+  bool operator ==(Object other) => other is RustDuration && other.secs == secs && other.nanos == nanos;
+
+  @override
+  int get hashCode => Object.hash(secs.bits, nanos);
+
+  @override
+  int compareTo(RustDuration other) {
+    final bySecs = secs.compareTo(other.secs);
+    return bySecs != 0 ? bySecs : nanos.compareTo(other.nanos);
+  }
+
+  @override
+  String toString() => '${secs.toRadixString(10)}.${nanos.toString().padLeft(9, '0')}s';
+
+  void _put(_Duration c) {
+    c.secs = secs.bits;
+    c.nanos = nanos;
+  }
+
+  static RustDuration _of(_Duration c) => RustDuration._(U64.fromBits(c.secs), c.nanos);
+}
+
+/// Rust's `PathBuf`: the path's bytes as the OS holds them, which on Unix may be any, so
+/// it holds every path exactly, which a [String] does not. On Windows they are WTF-8.
+final class PathBuf {
+  final typed.Uint8List _bytes;
+
+  /// `path`'s UTF-8, throwing an [ArgumentError] where it holds a lone surrogate.
+  PathBuf(String path) : _bytes = _utf8(path);
+
+  /// The path of the OS's [bytes], copied, throwing an [ArgumentError] where one is not a
+  /// byte or, on Windows, they are not WTF-8.
+  PathBuf.fromBytes(List<int> bytes) : _bytes = _osPath(bytes);
+
+  PathBuf._(this._bytes);
+
+  /// Its bytes, which never change.
+  typed.Uint8List get bytes => _bytes.asUnmodifiableView();
+
+  /// As a [String], throwing a [FormatException] where it is not UTF-8.
+  String toFilePath() => convert.utf8.decode(_bytes);
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! PathBuf || other._bytes.length != _bytes.length) return false;
+    for (var i = 0; i < _bytes.length; i++) {
+      if (other._bytes[i] != _bytes[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll(_bytes);
+
+  /// Its text, as Rust's `Path::display` shows it: what is not UTF-8 is replaced.
+  @override
+  String toString() => convert.utf8.decode(_bytes, allowMalformed: true);
+}
+
+/// Rust's `IpAddr`: an [Ipv4Addr] or an [Ipv6Addr].
+sealed class IpAddr {
+  const IpAddr._();
+
+  /// `address`'s IP, throwing an [ArgumentError] for a Unix address, or an IPv6 one with a
+  /// scope, which Rust's has none of.
+  factory IpAddr.from(io.InternetAddress address) => switch (address.type) {
+    io.InternetAddressType.IPv4 => Ipv4Addr.from(address),
+    io.InternetAddressType.IPv6 => Ipv6Addr.from(address),
+    _ => throw ArgumentError.value(address, 'address', 'is no IP address'),
+  };
+
+  /// Its bytes in network order: 4 of IPv4, or 16 of IPv6.
+  typed.Uint8List get octets;
+
+  io.InternetAddress toInternetAddress() => io.InternetAddress.fromRawAddress(octets);
+
+  @override
+  String toString() => toInternetAddress().address;
+
+  static void _put(_IpAddr c, IpAddr v) {
+    switch (v) {
+      case Ipv4Addr():
+        c.v6 = false;
+        v._put(c.ip.v4);
+      case Ipv6Addr():
+        c.v6 = true;
+        v._put(c.ip.v6);
+    }
+  }
+
+  static IpAddr _of(_IpAddr c) => c.v6 ? Ipv6Addr._of(c.ip.v6) : Ipv4Addr._of(c.ip.v4);
+}
+
+/// The octets of `list`, which must be `n`, each from 0 through 255.
+typed.Uint8List _ipOctets(List<int> list, int n) {
+  if (list.length != n || list.any((b) => b < 0 || b > 255)) {
+    throw ArgumentError.value(list, 'octets', 'are not $n bytes');
+  }
+  return typed.Uint8List.fromList(list);
+}
+
+/// The IP of `address` of the family `type`, throwing an [ArgumentError] for another.
+typed.Uint8List _ipRaw(io.InternetAddress address, io.InternetAddressType type) {
+  if (address.type != type) throw ArgumentError.value(address, 'address', 'is no $type address');
+  // A scope shows only in its text.
+  if (address.address.contains('%')) {
+    throw ArgumentError.value(address, 'address', "has a scope, which Rust's IPv6 address has none of");
+  }
+  return address.rawAddress;
+}
+
+/// Rust's `Ipv4Addr`.
+final class Ipv4Addr extends IpAddr {
+  /// Its octets, the first highest.
+  final int _bits;
+
+  const Ipv4Addr._(this._bits) : super._();
+
+  /// The address of `octets`, throwing an [ArgumentError] unless they are 4 bytes.
+  factory Ipv4Addr.fromOctets(List<int> octets) => Ipv4Addr._(_ipWord(_ipOctets(octets, 4), 0, 4));
+
+  /// `address`, throwing an [ArgumentError] unless it is IPv4.
+  factory Ipv4Addr.from(io.InternetAddress address) =>
+      Ipv4Addr._(_ipWord(_ipRaw(address, io.InternetAddressType.IPv4), 0, 4));
+
+  @override
+  typed.Uint8List get octets => typed.Uint8List(4)..buffer.asByteData().setUint32(0, _bits);
+
+  @override
+  bool operator ==(Object other) => other is Ipv4Addr && other._bits == _bits;
+
+  @override
+  int get hashCode => _bits.hashCode;
+
+  void _put(_Ipv4Addr c) {
+    final o = c.octets;
+    for (var i = 0; i < 4; i++) {
+      o[i] = _bits >>> (24 - 8 * i) & 0xff;
+    }
+  }
+
+  static Ipv4Addr _of(_Ipv4Addr c) {
+    final o = c.octets;
+    return Ipv4Addr._(o[0] << 24 | o[1] << 16 | o[2] << 8 | o[3]);
+  }
+}
+
+/// The big-endian word of `bytes`' `n` from `at`.
+int _ipWord(typed.Uint8List bytes, int at, int n) {
+  var word = 0;
+  for (var i = at; i < at + n; i++) {
+    word = word << 8 | bytes[i];
+  }
+  return word;
+}
+
+/// Rust's `Ipv6Addr`.
+final class Ipv6Addr extends IpAddr {
+  /// Its first 8 octets and its last, each word's first highest.
+  final int _hi, _lo;
+
+  const Ipv6Addr._(this._hi, this._lo) : super._();
+
+  factory Ipv6Addr._bytes(typed.Uint8List bytes) => Ipv6Addr._(_ipWord(bytes, 0, 8), _ipWord(bytes, 8, 8));
+
+  /// The address of `octets`, throwing an [ArgumentError] unless they are 16 bytes.
+  factory Ipv6Addr.fromOctets(List<int> octets) => Ipv6Addr._bytes(_ipOctets(octets, 16));
+
+  /// `address`, throwing an [ArgumentError] unless it is IPv6 with no scope.
+  factory Ipv6Addr.from(io.InternetAddress address) => Ipv6Addr._bytes(_ipRaw(address, io.InternetAddressType.IPv6));
+
+  @override
+  typed.Uint8List get octets => typed.Uint8List(16)
+    ..buffer.asByteData().setUint64(0, _hi)
+    ..buffer.asByteData().setUint64(8, _lo);
+
+  @override
+  bool operator ==(Object other) => other is Ipv6Addr && other._hi == _hi && other._lo == _lo;
+
+  @override
+  int get hashCode => Object.hash(_hi, _lo);
+
+  void _put(_Ipv6Addr c) {
+    final o = c.octets;
+    for (var i = 0; i < 8; i++) {
+      o[i] = _hi >>> (56 - 8 * i) & 0xff;
+      o[i + 8] = _lo >>> (56 - 8 * i) & 0xff;
+    }
+  }
+
+  static Ipv6Addr _of(_Ipv6Addr c) {
+    final o = c.octets;
+    var hi = 0, lo = 0;
+    for (var i = 0; i < 8; i++) {
+      hi = hi << 8 | o[i];
+      lo = lo << 8 | o[i + 8];
+    }
+    return Ipv6Addr._(hi, lo);
+  }
+}
+
+/// Rust's `SocketAddr`: a [SocketAddrV4] or a [SocketAddrV6].
+sealed class SocketAddr {
+  const SocketAddr._();
+
+  /// `ip` at `port`, which IPv6 has with no flow label or scope, throwing a [RangeError]
+  /// for a port past 65535.
+  factory SocketAddr(IpAddr ip, int port) => switch (ip) {
+    Ipv4Addr() => SocketAddrV4(ip, port),
+    Ipv6Addr() => SocketAddrV6(ip, port),
+  };
+
+  IpAddr get ip;
+  int get port;
+
+  static void _put(_SocketAddr c, SocketAddr v) {
+    switch (v) {
+      case SocketAddrV4():
+        c.v6 = false;
+        v._put(c.addr.v4);
+      case SocketAddrV6():
+        c.v6 = true;
+        v._put(c.addr.v6);
+    }
+  }
+
+  static SocketAddr _of(_SocketAddr c) => c.v6 ? SocketAddrV6._of(c.addr.v6) : SocketAddrV4._of(c.addr.v4);
+}
+
+/// Rust's `SocketAddrV4`.
+final class SocketAddrV4 extends SocketAddr {
+  @override
+  final Ipv4Addr ip;
+  @override
   final int port;
 
-  /// IPv6's flow label, zero for IPv4.
-  final int flowinfo;
+  /// `ip` at `port`, throwing a [RangeError] for a port past 65535.
+  SocketAddrV4(this.ip, this.port) : super._() {
+    RangeError.checkValueInInterval(port, 0, 0xffff, 'port');
+  }
 
-  /// IPv6's scope, zero for IPv4.
+  const SocketAddrV4._(this.ip, this.port) : super._();
+
+  @override
+  bool operator ==(Object other) => other is SocketAddrV4 && other.ip == ip && other.port == port;
+
+  @override
+  int get hashCode => Object.hash(ip, port);
+
+  @override
+  String toString() => '$ip:$port';
+
+  void _put(_SocketAddrV4 c) {
+    ip._put(c.ip);
+    c.port = port;
+  }
+
+  static SocketAddrV4 _of(_SocketAddrV4 c) => SocketAddrV4._(Ipv4Addr._of(c.ip), c.port);
+}
+
+/// Rust's `SocketAddrV6`.
+final class SocketAddrV6 extends SocketAddr {
+  @override
+  final Ipv6Addr ip;
+  @override
+  final int port;
+
+  /// Its flow label.
+  final int flowinfo;
   final int scopeId;
 
-  const SocketAddr(this.address, this.port, {this.flowinfo = 0, this.scopeId = 0});
+  /// `ip` at `port`, throwing a [RangeError] for a port past 65535, or a flow label or
+  /// scope past `u32`'s range.
+  SocketAddrV6(this.ip, this.port, {this.flowinfo = 0, this.scopeId = 0}) : super._() {
+    RangeError.checkValueInInterval(port, 0, 0xffff, 'port');
+    RangeError.checkValueInInterval(flowinfo, 0, 0xffffffff, 'flowinfo');
+    RangeError.checkValueInInterval(scopeId, 0, 0xffffffff, 'scopeId');
+  }
+
+  const SocketAddrV6._(this.ip, this.port, this.flowinfo, this.scopeId) : super._();
 
   @override
   bool operator ==(Object other) =>
-      other is SocketAddr &&
-      other.address == address &&
+      other is SocketAddrV6 &&
+      other.ip == ip &&
       other.port == port &&
       other.flowinfo == flowinfo &&
       other.scopeId == scopeId;
 
   @override
-  int get hashCode => Object.hash(address, port, flowinfo, scopeId);
+  int get hashCode => Object.hash(ip, port, flowinfo, scopeId);
 
   @override
-  String toString() => address.type == io.InternetAddressType.IPv6
-      ? '[${address.address}]:$port'
-      : '${address.address}:$port';
+  String toString() => scopeId == 0 ? '[$ip]:$port' : '[$ip%$scopeId]:$port';
+
+  void _put(_SocketAddrV6 c) {
+    ip._put(c.ip);
+    c.port = port;
+    c.flowinfo = flowinfo;
+    c.scope_id = scopeId;
+  }
+
+  static SocketAddrV6 _of(_SocketAddrV6 c) => SocketAddrV6._(Ipv6Addr._of(c.ip), c.port, c.flowinfo, c.scope_id);
+}
+
+/// A copy of `bytes`, throwing an [ArgumentError] where one is not a byte or, on Windows,
+/// they are not WTF-8.
+typed.Uint8List _osPath(List<int> bytes) {
+  if (bytes is! typed.Uint8List && bytes.any((b) => b < 0 || b > 255)) {
+    throw ArgumentError.value(bytes, 'bytes', 'are not all bytes');
+  }
+  final copy = typed.Uint8List.fromList(bytes);
+  if (io.Platform.isWindows && !_wtf8(copy)) {
+    throw ArgumentError.value(bytes, 'bytes', 'is not WTF-8, so names no Windows path');
+  }
+  return copy;
+}
+
+/// Whether `bytes` are WTF-8, as Rust encodes a Windows path: UTF-8, but for a surrogate
+/// alone, encoded as a scalar would be, though never a lead then a trail.
+bool _wtf8(typed.Uint8List bytes) {
+  var at = 0;
+  var lead = false;
+  while (at < bytes.length) {
+    final b = bytes[at];
+    final (n, min) = switch (b) {
+      < 0x80 => (1, 0),
+      >= 0xc2 && <= 0xdf => (2, 0x80),
+      >= 0xe0 && <= 0xef => (3, 0x800),
+      >= 0xf0 && <= 0xf4 => (4, 0x10000),
+      _ => (0, 0),
+    };
+    if (n == 0) return false;
+    if (at + n > bytes.length) return false;
+    var c = n == 1 ? b : b & (0x7f >> n);
+    for (var k = 1; k < n; k++) {
+      final next = bytes[at + k];
+      if (next & 0xc0 != 0x80) return false;
+      c = (c << 6) | (next & 0x3f);
+    }
+    if (c < min || c > 0x10ffff) return false;
+    final surrogate = c >= 0xd800 && c <= 0xdfff;
+    if (surrogate && c >= 0xdc00 && lead) return false;
+    lead = surrogate && c < 0xdc00;
+    at += n;
+  }
+  return true;
+}
+
+/// `text`'s UTF-8, throwing an [ArgumentError] where it holds a lone surrogate, which no
+/// Rust string does: Dart's encoder would replace it.
+typed.Uint8List _utf8(String text) {
+  final n = text.length;
+  for (var i = 0; i < n; i++) {
+    final unit = text.codeUnitAt(i);
+    if (unit & 0xf800 != 0xd800) continue;
+    // A lead followed by a trail is one scalar.
+    if (unit < 0xdc00 && i + 1 < n && text.codeUnitAt(i + 1) & 0xfc00 == 0xdc00) {
+      i++;
+      continue;
+    }
+    throw ArgumentError.value(text, 'text', 'holds a lone surrogate at $i, which no Rust string does');
+  }
+  return convert.utf8.encode(text);
 }
 
 /// A value a call reads and writes back, as Rust's `&mut` of a value: the call leaves
@@ -62,44 +482,33 @@ extension type Cancelable<T>._(Future<T> _future) implements Future<T> {
   void cancel() => _n.calls[_future]?.cancel();
 }
 
-/// Poll `f` once with no waker, and if it pends, again with one: its future.
-Cancelable<T> _call<T>(
-  ffi.Pointer<ffi.Void> f,
-  void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>) free,
-  bool Function(ffi.Pointer<ffi.Void>, _Waker, _Call<T>) poll,
-) {
-  final call = _Call<T>._(f, free, poll);
-  call._step(_n.idle);
-  final first = call._first;
-  if (first != null) return Cancelable._(first);
-  final done = call._done = dasync.Completer<T>();
-  _n.calls[done.future] = call;
-  // Pending: poll again with a waker, which its first poll had no use for.
+/// The future of `call`, whose start left the future in Rust that pended: polled again
+/// here with a waker, which its first poll had no use for.
+Cancelable<T> _call<T>(_Call<T> call) {
+  final future = call._done.future;
+  _n.calls[future] = call;
   call._token = _n.listen(call._wake);
   call._waker = _n.waker(call._token);
   call._step(call._waker!);
-  return Cancelable._(done.future);
+  return Cancelable._(future);
 }
 
-/// A [Cancelable]'s future in Rust, until it finishes.
+/// A [Cancelable]'s future in Rust, from when its start pended until it finishes.
 final class _Call<T> {
+  /// The future in Rust, until it finishes.
   ffi.Pointer<ffi.Void> _f;
   final void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>) _free;
 
   /// Poll once, completing this if it finished: whether it did.
   final bool Function(ffi.Pointer<ffi.Void>, _Waker, _Call<T>) _poll;
 
-  /// What its first poll finished with, which no one awaits yet.
-  Future<T>? _first;
-
-  /// What completes it once its first poll pended.
-  dasync.Completer<T>? _done;
+  final _done = dasync.Completer<T>();
   _Waker? _waker;
   int _token = 0;
   bool _polling = false;
   bool _cancelled = false;
 
-  _Call._(this._f, this._free, this._poll);
+  _Call._(this._free, this._poll, this._f);
 
   void _wake() {
     if (_f != ffi.nullptr) _step(_waker!);
@@ -124,33 +533,16 @@ final class _Call<T> {
     }
   }
 
-  /// Complete it with what Rust returned, from its poll: synchronously at the first, as
-  /// nothing listens yet.
-  void _ready(T value) {
-    final done = _done;
-    if (done == null) {
-      _first = (dasync.Completer<T>.sync()..complete(value)).future;
-    } else {
-      done.complete(value);
-    }
-  }
+  /// Complete it with what Rust returned, from its poll.
+  void _ready(T value) => _done.complete(value);
 
-  /// Complete it with the error Rust returned, from its poll: never synchronously, since a
-  /// future that fails with no listener reports its error as uncaught.
-  void _error(Object error, [StackTrace? stack]) {
-    final done = _done;
-    if (done == null) {
-      _first = Future<T>.error(error, stack);
-    } else {
-      done.completeError(error, stack);
-    }
-  }
+  /// Complete it with the error Rust returned, from its poll.
+  void _error(Object error, [StackTrace? stack]) => _done.completeError(error, stack);
 
   void _finish() {
     _free(_n.home, _f);
     _f = ffi.nullptr;
-    final done = _done;
-    if (done != null) _n.calls.remove(done.future);
+    _n.calls.remove(_done.future);
     if (_token != 0) {
       _n.forget(_token);
       _token = 0;
@@ -160,8 +552,8 @@ final class _Call<T> {
   void _cancel() {
     _finish();
     // Awaiting it is optional once cancelled.
-    _done!.future.ignore();
-    _done!.completeError(const Cancelled());
+    _done.future.ignore();
+    _done.completeError(const Cancelled());
   }
 
   void cancel() {
@@ -192,17 +584,52 @@ final class _Duration extends ffi.Struct {
   external int nanos;
 }
 
-final class _Addr extends ffi.Struct {
+final class _Ipv4Addr extends ffi.Struct {
+  @ffi.Array(4)
+  external ffi.Array<ffi.Uint8> octets;
+}
+
+final class _Ipv6Addr extends ffi.Struct {
   @ffi.Array(16)
-  external ffi.Array<ffi.Uint8> ip;
-  @ffi.Uint16()
-  external int port;
+  external ffi.Array<ffi.Uint8> octets;
+}
+
+final class _Ip extends ffi.Union {
+  external _Ipv4Addr v4;
+  external _Ipv6Addr v6;
+}
+
+final class _IpAddr extends ffi.Struct {
   @ffi.Bool()
   external bool v6;
+  external _Ip ip;
+}
+
+final class _SocketAddrV4 extends ffi.Struct {
+  external _Ipv4Addr ip;
+  @ffi.Uint16()
+  external int port;
+}
+
+final class _SocketAddrV6 extends ffi.Struct {
+  external _Ipv6Addr ip;
+  @ffi.Uint16()
+  external int port;
   @ffi.Uint32()
   external int flowinfo;
   @ffi.Uint32()
   external int scope_id;
+}
+
+final class _Socket extends ffi.Union {
+  external _SocketAddrV4 v4;
+  external _SocketAddrV6 v6;
+}
+
+final class _SocketAddr extends ffi.Struct {
+  @ffi.Bool()
+  external bool v6;
+  external _Socket addr;
 }
 
 final class _Waker extends ffi.Struct {
@@ -240,8 +667,8 @@ abstract interface class SeekableReader {
   int readInto(typed.Uint8List buffer);
 
   /// Move to `offset` from `from`, returning the position from the start. From
-  /// [SeekFrom.start], `offset` and the position are a `u64`'s 64 bits, as every `u64` in
-  /// Dart is, so one past `i64`'s range is negative.
+  /// [SeekFrom.start], `offset` and the position are a `u64`'s 64 bits, as [U64.bits] holds
+  /// them, so one past `i64`'s range is negative.
   int seek(int offset, SeekFrom from);
 }
 
@@ -290,7 +717,7 @@ bool _readerRead(
     n.value = got;
     return true;
   } on Exception catch (e) {
-    _n.setBuf(err, _n.copied(e.toString()));
+    _n.setBuf(err, _n.copied(e.toString(), message: true));
     return false;
   } catch (e, s) {
     _n.abort("a reader's read", e, s);
@@ -309,26 +736,44 @@ bool _readerSeek(
     position.value = (_n.lent[data.address] as SeekableReader).seek(offset, SeekFrom.values[whence]);
     return true;
   } on Exception catch (e) {
-    _n.setBuf(err, _n.copied(e.toString()));
+    _n.setBuf(err, _n.copied(e.toString(), message: true));
     return false;
   } catch (e, s) {
     _n.abort("a reader's seek", e, s);
   }
 }
 
-/// A waker Rust returned, which its own drop releases once the garbage collector finds
-/// this unreachable.
-final class _Returned implements ffi.Finalizable {
-  final void Function(ffi.Pointer<ffi.Void>) _wake;
-  final ffi.Pointer<ffi.Void> _data;
+/// A waker Rust returned: calling it wakes through Rust, and `close()` drops it, rather
+/// than the garbage collector once it finds this unreachable. Each serves the isolate
+/// while it waits, as an object's call and free do, since either may run Rust that waits
+/// on a thread calling into Dart.
+final class Waker extends _Object {
+  final ffi.Pointer<ffi.Void> _wake;
+  final ffi.Pointer<ffi.Void> _dropFn;
+  final ffi.NativeFinalizer _finalizer;
 
-  _Returned(_Waker raw)
-      : _wake = raw.wake.cast<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>().asFunction(),
-        _data = raw.data {
-    _n.finalizer(raw.drop).attach(this, _data);
+  Waker._(_Waker raw)
+      : _wake = raw.wake,
+        _dropFn = raw.drop,
+        _finalizer = _n.finalizer(raw.drop),
+        super(raw.data, true, false) {
+    _finalizer.attach(this, _raw, detach: this);
   }
 
-  void call() => _wake(_data);
+  @override
+  String get _type => 'Waker';
+
+  @override
+  void _free() {
+    _finalizer.detach(this);
+    _dartWakerCall(_n.home, _dropFn, _raw);
+  }
+
+  /// Wake the task through Rust: a call after [close] throws [StateError].
+  void call() {
+    _dartWakerCall(_n.home, _wake, _hold());
+    _release();
+  }
 }
 
 /// A callback's table and data, as each trait's struct is.
@@ -337,8 +782,13 @@ final class _Callback extends ffi.Struct {
   external ffi.Pointer<ffi.Void> data;
 }
 
-/// What an object owns: its handle, freed once closed and no call holds it, or once the
-/// garbage collector finds it unreachable. A lent one's Rust frees.
+/// What an object owns: its handle, or one Rust lends for a call, which Rust frees. Each
+/// call holds it, so the handle is freed only once no call does. An owned one of a value
+/// Rust checks is Rust's to account: [close] drops the value as Rust's own drop does,
+/// failing while a call borrows it, and frees the handle with it unless a call holds it.
+/// Any other: [close] frees it then, throwing while a call holds it. A call after either
+/// throws. One returned waits in the isolate's [_Nursery], where a close frees it without
+/// the garbage collector, which frees it only once pushed out unclosed.
 abstract base class _Object implements ffi.Finalizable {
   final ffi.Pointer<ffi.Void> _raw;
 
@@ -347,15 +797,30 @@ abstract base class _Object implements ffi.Finalizable {
   bool _closed = false;
   final bool _owned;
 
-  /// The garbage collector's hold of an owned one's handle, until freed.
+  /// Whether Rust checks its borrows, so its close drops the value through Rust.
+  final bool _checked;
+
+  /// The garbage collector's hold of an owned one's handle, from when the nursery pushed it
+  /// out until freed.
   ffi.Pointer<ffi.Void> _own = ffi.nullptr;
 
-  _Object(this._raw, this._owned);
+  /// Its slot in the nursery while there, else -1.
+  int _slot = -1;
+
+  _Object(this._raw, bool owned, bool checked) : _owned = owned, _checked = owned && checked;
 
   String get _type;
 
-  /// Free the handle and detach its finalizer.
-  void _free();
+  /// Free an owned one's handle, and take back the garbage collector's hold of it.
+  void _free() {}
+
+  /// Give the garbage collector a hold of the handle, as the nursery pushes it out open.
+  void _register() {}
+
+  /// Drop the value of one Rust checks, then, if `free`, free its handle and take back the
+  /// garbage collector's hold of it, in one crossing: throwing [StateError], changing
+  /// nothing, if a call borrows it.
+  void _close(bool free) {}
 
   ffi.Pointer<ffi.Void> _hold() {
     if (_closed) throw StateError('$_type is closed');
@@ -364,15 +829,91 @@ abstract base class _Object implements ffi.Finalizable {
   }
 
   void _release() {
-    if (--_holds == 0 && _owned) _free();
+    if (--_holds == 0 && _owned) {
+      _leave();
+      _free();
+    }
   }
 
-  /// Free the handle once no call holds it, rather than once the garbage collector finds
-  /// this unreachable: a call after it throws [StateError].
+  /// Take it out of the nursery, returning whether it was there: before its free, which
+  /// may run Dart that returns objects into the nursery meanwhile.
+  bool _leave() {
+    final slot = _slot;
+    if (slot < 0) return false;
+    _slot = -1;
+    _n.nursery.leave(slot);
+    return true;
+  }
+
+  /// Close it as [_Object] says; again, it does nothing.
   void close() {
     if (_closed) return;
+    if (_checked) {
+      // Closed before Rust drops the value, which may run Dart that reaches it meanwhile.
+      _closed = true;
+      // A call holding it, from a callback or one waiting on a worker, may not have
+      // borrowed the value in Rust yet: the handle outlives its hold, so Rust's check
+      // refuses it.
+      final alone = _holds == 1;
+      final nursed = alone && _leave();
+      try {
+        _close(alone);
+      } catch (_) {
+        _closed = false;
+        // Still open, and out of the nursery, so the garbage collector's.
+        if (nursed) _register();
+        rethrow;
+      }
+      if (alone) {
+        _holds = 0;
+      } else {
+        _release();
+      }
+      return;
+    }
+    if (_holds != 1) throw StateError('$_type: a handle is already borrowed');
     _closed = true;
     _release();
+  }
+}
+
+/// How many of the latest objects returned the nursery holds: one dropped unclosed is freed
+/// only once this many more were returned, so it bounds what a dropped object keeps of
+/// Rust's.
+const _nurseryLen = 64;
+
+/// The latest objects returned, oldest at [_next] once full: a close takes one out without
+/// the garbage collector's hold of its handle, which costs more than the rest of a return
+/// and close together, and one pushed out still open takes that hold then. Rust keeps a copy
+/// of each slot's handle and the C function freeing it, and frees what is still in them once
+/// the garbage collector finds the nursery unreachable, as when the isolate exits.
+final class _Nursery {
+  final List<_Object?> _held = List<_Object?>.filled(_nurseryLen, null);
+  int _next = 0;
+
+  /// What Rust keeps: the length, then each slot's handle, then each one's free function,
+  /// null while the slot is out.
+  late final ffi.Pointer<ffi.Pointer<ffi.Void>> _slots = _dartNursery(this, _nurseryLen);
+
+  /// Hold `object`, owned, whose handle `free` frees.
+  void push(_Object object, ffi.Pointer<ffi.Void> free) {
+    final i = _next;
+    _next = i + 1 == _nurseryLen ? 0 : i + 1;
+    final old = _held[i];
+    if (old != null) {
+      old._slot = -1;
+      old._register();
+    }
+    _held[i] = object;
+    object._slot = i;
+    final slots = _slots;
+    slots[1 + i] = object._raw;
+    slots[1 + _nurseryLen + i] = free;
+  }
+
+  void leave(int slot) {
+    _held[slot] = null;
+    _slots[1 + slot] = ffi.nullptr;
   }
 }
 
@@ -424,6 +965,12 @@ final class _Arena implements ffi.Allocator {
   List<_Object>? _more;
   List<int>? _lent;
 
+  /// The buffers it gave Rust to take, freed unless the call took them.
+  List<_Buf>? _given;
+
+  /// The lent bytes it passed a view of, kept reachable until the call returns.
+  List<typed.Uint8List>? _viewed;
+
   _Arena() : _stack = _n.stack, _mark = _n.stack.mark();
 
   @override
@@ -455,8 +1002,18 @@ final class _Arena implements ffi.Allocator {
     return relay;
   }
 
+  /// Note that the call returned, so Rust took each buffer it was given.
+  void took() => _given = null;
+
   /// Give back what the call took.
   void end() {
+    final given = _given;
+    if (given != null) {
+      for (final buf in given) {
+        _bufFree(buf);
+      }
+    }
+    _viewed = null;
     final lent = _lent;
     if (lent != null) {
       for (var i = 0; i < lent.length; i += 2) {
@@ -474,24 +1031,50 @@ final class _Arena implements ffi.Allocator {
     _stack.reset(_mark);
   }
 
-  /// `bytes`, copied: never a null pointer, so an empty one is told apart from none.
-  void bytes(_Buf dst, typed.Uint8List? bytes) {
+  /// `bytes`, never a null pointer, so an empty one is told apart from none. Where Rust
+  /// [take]s them, a buffer it owns: a second owner of bytes Rust lent, else from
+  /// [_takeFrom] bytes a copy into a buffer of its own. Else a view: of bytes Rust lent, in
+  /// place, else of a copy here, which Rust copies again where it keeps them.
+  void bytes(_Buf dst, typed.Uint8List? bytes, bool take) {
     if (bytes == null) {
       dst.ptr = ffi.nullptr;
       dst.len = 0;
-    } else {
-      final ptr = this<ffi.Uint8>(bytes.isEmpty ? 1 : bytes.length);
-      ptr.asTypedList(bytes.length).setAll(0, bytes);
-      dst.ptr = ptr;
-      dst.len = bytes.length;
+      dst.owner = ffi.nullptr;
+      return;
     }
+    // Only a list longer than [_lend] can be Rust's.
+    final lent = bytes.length > _lend ? _n.lentBytes[bytes] : null;
+    if (lent != null) {
+      dst.ptr = ffi.Pointer.fromAddress(lent.ptr);
+      dst.len = bytes.length;
+      dst.owner = ffi.nullptr;
+      // Reachable through the call, so its finalizer cannot free the owner under Rust,
+      // even while [_bufClone] shares it.
+      (_viewed ??= []).add(bytes);
+      if (take) {
+        dst.owner = ffi.Pointer.fromAddress(lent.owner);
+        _give(dst, _bufClone(dst));
+      }
+      return;
+    }
+    if (take && bytes.length >= _takeFrom) {
+      final buf = _dartBuf(bytes.length);
+      buf.ptr.asTypedList(bytes.length).setAll(0, bytes);
+      _give(dst, buf);
+      return;
+    }
+    final ptr = this<ffi.Uint8>(bytes.isEmpty ? 1 : bytes.length);
+    ptr.asTypedList(bytes.length).setAll(0, bytes);
+    dst.ptr = ptr;
+    dst.len = bytes.length;
     dst.owner = ffi.nullptr;
   }
 
-  /// `text`'s UTF-8, copied.
-  void string(_Buf dst, String? text) {
+  /// `text`'s UTF-8, copied: into a buffer Rust owns where it [take]s it, from [_takeFrom]
+  /// bytes.
+  void string(_Buf dst, String? text, bool take) {
     if (text == null) {
-      bytes(dst, null);
+      bytes(dst, null, take);
       return;
     }
     final units = text.codeUnits;
@@ -505,7 +1088,13 @@ final class _Arena implements ffi.Allocator {
       }
     }
     if (!ascii) {
-      bytes(dst, convert.utf8.encode(text));
+      bytes(dst, _utf8(text), take);
+      return;
+    }
+    if (take && n >= _takeFrom) {
+      final buf = _dartBuf(n);
+      buf.ptr.asTypedList(n).setAll(0, units);
+      _give(dst, buf);
       return;
     }
     final ptr = this<ffi.Uint8>(n == 0 ? 1 : n);
@@ -516,15 +1105,47 @@ final class _Arena implements ffi.Allocator {
   }
 }
 
+/// Dart's own bytes Rust takes from this long are copied into a buffer Rust allocates, and
+/// shorter ones onto the arena's stack, which Rust copies again: on the binding benchmark,
+/// the call to allocate Rust's buffer costs more than the second copy of 100 bytes, and
+/// less than that of 1 KiB.
+const _takeFrom = 1024;
+
+extension on _Arena {
+  /// Write `buf`, Rust's own, to `dst`, freed unless the call takes it.
+  void _give(_Buf dst, _Buf buf) {
+    dst.ptr = buf.ptr;
+    dst.len = buf.len;
+    dst.owner = buf.owner;
+    (_given ??= []).add(dst);
+  }
+}
+
+/// Where a list of bytes Rust lent reads them, and their owner.
+final class _Lent {
+  final int ptr;
+  final int owner;
+
+  _Lent(this.ptr, this.owner);
+}
+
 /// The isolate's share of the runtime: checked against the library before any other
 /// call, then its stack, its port, and what Rust holds of its Dart values by token.
 final _n = _Native();
 
 final class _Native {
   late final _Stack stack = _Stack();
+
+  /// Where a call that can fail a check writes the failure: one for the isolate, since the
+  /// glue writes it on the isolate's thread as the call returns, once it served every call
+  /// queued meanwhile, and the call reads it before any other can run, and a failure
+  /// clears it.
+  late final ffi.Pointer<ffi.Int32> status = _dartAlloc(4).cast<ffi.Int32>()..value = 0;
+
+  /// The latest objects returned.
+  late final _Nursery nursery = _Nursery();
   late final isolate.RawReceivePort _port;
   late final ffi.Pointer<ffi.Void> home;
-  final _Waker idle = ffi.Struct.create<_Waker>();
 
   /// What a token's wake calls, and its drop.
   final Map<int, void Function()> _wakes = {};
@@ -532,6 +1153,9 @@ final class _Native {
 
   /// The closures lent for a call, and the implementations Rust holds, by token.
   final Map<int, Object> lent = {};
+
+  /// Each list of bytes Rust lent, which passes back to Rust in place.
+  final lentBytes = Expando<_Lent>();
 
   /// The calls pending in Rust, by their future.
   final Map<Future<Object?>, _Call<Object?>> calls = {};
@@ -595,10 +1219,6 @@ final class _Native {
 
   ffi.NativeFinalizer finalizer(ffi.Pointer<ffi.Void> drop) =>
       _finalizers.putIfAbsent(drop.address, () => ffi.NativeFinalizer(drop.cast()));
-
-  /// A waker Rust returned, as a function waking it through Rust until the garbage
-  /// collector drops it.
-  void Function() returned(_Waker raw) => _Returned(raw).call;
 
   /// `wake` as a waker Rust holds until it drops it, calling it on the isolate's event
   /// loop.
@@ -707,12 +1327,16 @@ final class _Native {
     ..data = a.lend(reader, _readers);
 
   /// `text` as a buffer Rust owns, as `buf_copy` makes it: what a closure or a reader
-  /// hands Rust.
-  _Buf copied(String text) {
+  /// hands Rust. A lone surrogate throws, or in a `message` is replaced.
+  _Buf copied(String text, {bool message = false}) {
     final a = _Arena();
     try {
       final view = a<_Buf>();
-      a.string(view.ref, text);
+      if (message) {
+        a.bytes(view.ref, convert.utf8.encode(text), false);
+      } else {
+        a.string(view.ref, text, false);
+      }
       return _bufCopy(view.ref);
     } finally {
       a.end();
@@ -725,20 +1349,6 @@ final class _Native {
     dst.ref.owner = src.owner;
   }
 
-  /// A handle Rust takes, of a clone of `object`'s value: what a closure returns of a
-  /// `Copy` object, which Rust copies out of it and frees.
-  ffi.Pointer<ffi.Void> handOver(
-    _Object object,
-    ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>) clone,
-  ) {
-    final raw = object._hold();
-    try {
-      return clone(home, raw);
-    } finally {
-      object._release();
-    }
-  }
-
   /// Abort with what a call into Dart threw, which Rust has nowhere to unwind to.
   Never abort(String what, Object error, StackTrace stack) => fail('$what: a call into Dart threw $error\n$stack');
 
@@ -746,7 +1356,7 @@ final class _Native {
   Never fail(String text) {
     final a = _Arena();
     final buf = a<_Buf>();
-    a.string(buf.ref, text);
+    a.bytes(buf.ref, convert.utf8.encode(text), false);
     _dartAbort(buf.ref);
     throw StateError('unreachable');
   }
@@ -761,7 +1371,9 @@ final class _Native {
       _bufFree(buf);
       return copy;
     }
-    return buf.ptr.asTypedList(len, finalizer: _ownerFree, token: buf.owner).asUnmodifiableView();
+    final list = buf.ptr.asTypedList(len, finalizer: _ownerFree, token: buf.owner).asUnmodifiableView();
+    lentBytes[list] = _Lent(buf.ptr.address, buf.owner.address);
+    return list;
   }
 
   typed.Uint8List? bytesOrNull(_Buf buf) => buf.ptr == ffi.nullptr ? null : bytes(buf);
@@ -785,30 +1397,6 @@ final class _Native {
   String stringLent(_Buf buf) => buf.len == 0 ? '' : convert.utf8.decode(buf.ptr.asTypedList(buf.len));
 
   String? stringLentOrNull(_Buf buf) => buf.ptr == ffi.nullptr ? null : stringLent(buf);
-
-  /// A path Rust returned, copied, then freed.
-  String path(_Buf buf) {
-    try {
-      return pathLent(buf);
-    } finally {
-      _bufFree(buf);
-    }
-  }
-
-  String? pathOrNull(_Buf buf) => buf.ptr == ffi.nullptr ? null : path(buf);
-
-  /// A path from Rust, copied, which on Unix may hold bytes no `String` holds: those
-  /// abort, since a throw would leave the rest of a list or record being lifted unfreed.
-  String pathLent(_Buf buf) {
-    if (buf.len == 0) return '';
-    try {
-      return const convert.Utf8Decoder(allowMalformed: false).convert(buf.ptr.asTypedList(buf.len));
-    } on FormatException {
-      fail('a path from Rust is not UTF-8');
-    }
-  }
-
-  String? pathLentOrNull(_Buf buf) => buf.ptr == ffi.nullptr ? null : pathLent(buf);
 
   /// A `char`, one Unicode scalar.
   int char(String text) {
@@ -834,67 +1422,6 @@ final class _Native {
   BigInt u128Of(_U128 c) =>
       BigInt.from(c.hi).toUnsigned(64) << 64 | BigInt.from(c.lo).toUnsigned(64);
 
-  /// Rust's `Duration::MAX`, and any longer than Dart's longest, is that.
-  static const _longest = Duration(microseconds: 0x7fffffffffffffff);
-
-  void duration(_Duration dst, Duration value) {
-    if (value.isNegative) {
-      throw ArgumentError.value(value, 'duration', 'a negative Duration has no Rust Duration');
-    }
-    if (value == _longest) {
-      dst.secs = -1;
-      dst.nanos = 999999999;
-      return;
-    }
-    final us = value.inMicroseconds;
-    dst.secs = us ~/ 1000000;
-    dst.nanos = (us % 1000000) * 1000;
-  }
-
-  /// A Rust `Duration`, truncated to the microsecond.
-  Duration durationOf(_Duration c) {
-    final secs = c.secs;
-    // Past Dart's longest, 9223372036854.775807 seconds, read as `u64`: negative is past
-    // `i64`.
-    if (secs < 0 || secs > 9223372036854 || secs == 9223372036854 && c.nanos ~/ 1000 >= 775807) {
-      return _longest;
-    }
-    return Duration(microseconds: secs * 1000000 + c.nanos ~/ 1000);
-  }
-
-  void addr(_Addr dst, SocketAddr value, String family) {
-    final ip = value.address.rawAddress;
-    final v6 = value.address.type == io.InternetAddressType.IPv6;
-    if (family == 'V4' && v6 || family == 'V6' && !v6) {
-      throw ArgumentError.value(
-        value,
-        'addr',
-        'an IP${v6 ? 'v6' : 'v4'} address has no Rust SocketAddr$family',
-      );
-    }
-    for (var i = 0; i < 16; i++) {
-      dst.ip[i] = i < ip.length ? ip[i] : 0;
-    }
-    dst.port = u16(value.port);
-    dst.v6 = v6;
-    dst.flowinfo = u32(value.flowinfo);
-    dst.scope_id = u32(value.scopeId);
-  }
-
-  SocketAddr addrOf(_Addr c) {
-    final n = c.v6 ? 16 : 4;
-    final ip = typed.Uint8List(n);
-    for (var i = 0; i < n; i++) {
-      ip[i] = c.ip[i];
-    }
-    return SocketAddr(
-      io.InternetAddress.fromRawAddress(ip),
-      c.port,
-      flowinfo: c.flowinfo,
-      scopeId: c.scope_id,
-    );
-  }
-
   int u8(int v) => v >= 0 && v <= 0xff ? v : throw RangeError.range(v, 0, 0xff);
   int u16(int v) => v >= 0 && v <= 0xffff ? v : throw RangeError.range(v, 0, 0xffff);
   int u32(int v) => v >= 0 && v <= 0xffffffff ? v : throw RangeError.range(v, 0, 0xffffffff);
@@ -902,6 +1429,18 @@ final class _Native {
   int i16(int v) => v >= -0x8000 && v <= 0x7fff ? v : throw RangeError.range(v, -0x8000, 0x7fff);
   int i32(int v) =>
       v >= -0x80000000 && v <= 0x7fffffff ? v : throw RangeError.range(v, -0x80000000, 0x7fffffff);
+
+  /// A `NonZero`'s integer, which Rust's type holds only if it is not zero.
+  int nonZero(int v) => v != 0 ? v : throw ArgumentError.value(v, 'NonZero', 'a NonZero is zero');
+
+  /// Whether the library's target has 64-bit words, else 32-bit ones.
+  final bool _wide = ffi.sizeOf<ffi.Size>() == 8;
+
+  /// A `usize`, which on a 32-bit target holds only 32 bits.
+  int usize(U64 v) => _wide || v.bits >>> 32 == 0 ? v.bits : throw RangeError("${v.toBigInt()} is past this target's usize");
+
+  /// An `isize`, which on a 32-bit target holds only 32 bits.
+  int isize(int v) => _wide ? v : i32(v);
 }
 
 /// What Rust calls on the isolate's thread once it drops an implementation.

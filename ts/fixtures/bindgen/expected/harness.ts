@@ -367,10 +367,15 @@ export function arrays(input: Input.Input, out: rs.String): void {
 	const part4 = rs.jsToVec(rs.jsGlobal("Array").from(rs.jsArray(strings, (item3: rs.String) => rs.jsString(item3))), (item4: unknown) => rs.jsToString(item4));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["strings ", (f: rs.Formatter) => rs.fmtList(part4.items, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
 	const _170: rs.Slice<rs.f64> = rs.sliceFrom([Input.f64(input), Input.f64(input)]);
-	const part5 = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.jsToVec(rs.jsGlobal("Array").from(rs.jsTyped(rs.global.Float64Array, _170, false)), (item5: unknown) => rs.jsToF64(item5)).items), (f: rs.f64): rs.u64 => {
-		return rs.f64ToBits(f);
-	}), undefined, 8, true);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["floats ", (f: rs.Formatter) => rs.fmtList(part5.items, f, rs.u64Debug), "\n"]), rs.fmtErrorDebug);
+	const s = rs.jsToVec(rs.jsGlobal("Array").from(rs.jsTyped(rs.global.Float64Array, _170, false)), (item5: unknown) => rs.jsToF64(item5)).items;
+	let front = 0;
+	let back2 = s.length;
+	const v2: rs.Vec<rs.u64> = rs.vecWithCapacity(back2 - front, 8);
+	while (!(front >= back2)) {
+		const y: rs.u64 = rs.f64ToBits(s[front++]);
+		v2.items.push(y);
+	}
+	rs.resultUnwrap(rs.fmtWriteString(out, ["floats ", (f: rs.Formatter) => rs.fmtList(v2.items, f, rs.u64Debug), "\n"]), rs.fmtErrorDebug);
 	const _185: rs.Slice<rs.u64> = rs.sliceFrom([Input.u64(input), { hi: 0xffffffff, lo: 0xffffffff } as rs.u64]);
 	for (const v of rs.jsToVec(rs.jsGlobal("Array").from(rs.jsTyped(rs.global.BigUint64Array, _185, true)), (item6: unknown) => item6 as rs.JsValue).items) {
 		show(out, "wide", v);

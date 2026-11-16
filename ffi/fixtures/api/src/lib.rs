@@ -15,6 +15,9 @@ pub use dep::*;
 /// The largest value a [`Counter`] reaches.
 pub const LIMIT: u64 = 1000;
 
+/// The largest `i64`, past what a binding's float holds exactly.
+pub const FAR: i64 = i64::MAX;
+
 /// A point: a record, since every field is `pub`. Its docs reach the header, where a
 /// comment such as `/* this */` must not close the header's own.
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
@@ -52,6 +55,93 @@ pub fn has_text(note: Note) -> bool {
 	note.text.is_some()
 }
 
+/// A mark's count, its checked parameter named as its own C function, which no shim calling
+/// it may hide.
+pub fn marked(api_marked: &Mark) -> u64 {
+	api_marked.count
+}
+
+/// A reading: a field of each scalar kind at the edge of its range, a nested record, and
+/// text, so a binding that passes a record's scalars apart from its other fields passes each
+/// exactly.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Reading {
+	pub ok: bool,
+	pub level: f32,
+	pub ratio: f64,
+	pub mark: char,
+	pub shape: Shape,
+	pub at: Point,
+	pub note: String,
+	pub count: u64,
+	pub offset: i8,
+	pub len: usize,
+	pub tag: u16,
+}
+
+impl Reading {
+	/// The reading after this one, by its `tag`.
+	pub fn next(&self) -> Option<Reading> {
+		reading(u32::from(u16::MAX - self.tag) + 1)
+	}
+}
+
+/// The reading `n`, or none for 0.
+pub fn reading(n: u32) -> Option<Reading> {
+	(n != 0).then(|| Reading {
+		ok: n % 2 == 1,
+		level: -(n as f32) / 2.0,
+		ratio: f64::MAX / f64::from(n),
+		mark: char::from_u32(0x10FFFF - n).unwrap_or(char::REPLACEMENT_CHARACTER),
+		shape: match n % 2 {
+			1 => Shape::Circle,
+			_ => Shape::Square,
+		},
+		at: Point {
+			x: i32::MIN + n as i32,
+			y: -(n as i32),
+		},
+		note: format!("reading {n}"),
+		count: u64::MAX - u64::from(n),
+		offset: i8::MIN.wrapping_add(n as i8),
+		len: usize::MAX - n as usize,
+		tag: u16::MAX - n as u16,
+	})
+}
+
+/// The `Debug` form of `reading(n)`, or empty for none, which a binding compares its own
+/// copy's with.
+pub fn reading_debug(n: u32) -> String {
+	reading(n).map_or_else(String::new, |r| format!("{r:?}"))
+}
+
+/// `reading`, or none, passed through Rust and back.
+pub fn reading_echo(reading: Option<Reading>) -> Option<Reading> {
+	reading
+}
+
+/// Counts `reading` up one and notes it, if there is one.
+pub fn reading_bump(reading: &mut Option<Reading>) {
+	if let Some(r) = reading {
+		r.count = r.count.wrapping_add(1);
+		r.note.push('+');
+	}
+}
+
+/// Declares `crowded`, whose parameters take 243 of a JVM method's 255 slots, so flattening
+/// its `Reading` would take 15 more: a binding that counts a `Stamp` as one slot, not the
+/// two of the `long` it crosses as, flattens it past the limit.
+macro_rules! crowded {
+	($($n:ident)*) => {
+		/// The sum of the reading's count, both stamps' millis, and every number.
+		pub fn crowded(reading: Reading, a: Stamp, b: Stamp, $($n: u64),*) -> u64 {
+			reading.count.wrapping_add(a.millis).wrapping_add(b.millis)$(.wrapping_add($n))*
+		}
+	};
+}
+
+crowded!(n0 n1 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12 n13 n14 n15 n16 n17 n18 n19 n20 n21 n22 n23 n24 n25 n26 n27 n28 n29 n30 n31 n32 n33 n34 n35 n36 n37 n38 n39 n40 n41 n42 n43 n44 n45 n46 n47 n48 n49 n50 n51 n52 n53 n54 n55 n56 n57 n58 n59 n60 n61 n62 n63 n64 n65 n66 n67 n68 n69 n70 n71 n72 n73 n74 n75 n76 n77 n78 n79 n80 n81 n82 n83 n84 n85 n86 n87 n88 n89 n90 n91 n92 n93 n94 n95 n96 n97 n98 n99 n100 n101 n102 n103 n104 n105 n106 n107 n108 n109 n110 n111 n112 n113 n114 n115 n116 n117 n118);
+
 /// A plain enumeration.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Shape {
@@ -65,6 +155,136 @@ pub enum Event {
 	Moved(Point),
 	Named { name: String },
 	Done,
+}
+
+/// An enum whose variants are named as types its Kotlin sealed class names: builtins,
+/// the runtime's, and exported types, each of which a nested variant class would shadow.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Clash {
+	Point(Point),
+	Shape(Shape),
+	Event(Event),
+	Double(f64),
+	Float(f32),
+	String(String),
+	Int(i32),
+	Boolean(bool),
+	Native(u32),
+	Bytes(Vec<u8>),
+	Any,
+	Unit,
+	Waker,
+	Mut,
+	Pair(u8, u8),
+	Stamp(i64),
+	Moment(Moment),
+}
+
+impl Clash {
+	/// The clash's point, if it has one.
+	pub fn point(&self) -> Option<Point> {
+		match self {
+			Clash::Point(p) => Some(*p),
+			_ => None,
+		}
+	}
+
+	/// A double variant of `value`.
+	pub fn of(value: f64) -> Clash {
+		Clash::Double(value)
+	}
+
+	/// Its bytes, its text's or its own.
+	pub fn bytes(&self) -> Vec<u8> {
+		match self {
+			Clash::Bytes(b) => b.clone(),
+			Clash::String(s) => s.as_bytes().to_vec(),
+			_ => Vec::new(),
+		}
+	}
+
+	/// The reading of `kotlin`, whose float fields the sealed class reads back from their bits
+	/// under a parameter named as the package of Kotlin's builtins.
+	pub fn reading(&self, kotlin: u32) -> Reading {
+		reading(kotlin).unwrap()
+	}
+
+	/// `java` with `kotlin` appended, and its old length through `kotlin`, under parameters
+	/// named as the packages that qualify Kotlin's builtins and the JDK.
+	pub fn listed(mut java: Vec<u32>, kotlin: &mut u32) -> Vec<Vec<u32>> {
+		java.push(*kotlin);
+		*kotlin = java.len() as u32 - 1;
+		vec![java]
+	}
+
+	/// The double clash of `kotlin`, once `first` finishes in the caller's context, which the
+	/// sealed class's body reaches under a parameter named as the package of Kotlin's builtins.
+	pub async fn after(first: impl Future<Output = ()> + Send, kotlin: f64) -> Clash {
+		first.await;
+		Clash::Double(kotlin)
+	}
+
+	/// `lent` then `owned`, each of the byte parameters a sealed class's body names.
+	pub fn joined(&self, lent: &[u8], owned: Vec<u8>, maybe: Option<Vec<u8>>) -> Vec<u8> {
+		[lent, &owned, &maybe.unwrap_or_default()].concat()
+	}
+
+	/// `tag` with this clash's form, from a future that borrows both.
+	#[expect(clippy::manual_async_fn, reason = "the non-`async` form a borrowing future takes")]
+	pub fn tagged<'a>(&'a self, tag: &'a str) -> impl Future<Output = String> + 'a {
+		async move { format!("{tag} {self:?}") }
+	}
+
+	/// A stamp `kotlin` milliseconds in, a value only Rust makes in a word, which the sealed
+	/// class's body builds from its `Long` beside a `Stamp` variant that also takes one.
+	pub fn stamp(&self, kotlin: u64) -> Stamp {
+		Stamp::from_millis(kotlin)
+	}
+
+	/// Its moment, or `kotlin` ticks at a millisecond's rate: a value only Rust makes, past a
+	/// word, which the sealed class's body builds beside its `Moment` variant.
+	pub fn moment(&self, kotlin: u64) -> Moment {
+		match self {
+			Clash::Moment(m) => *m,
+			_ => Moment::new(kotlin, 1000).unwrap(),
+		}
+	}
+
+	/// A point clash at `api`, a parameter named as the Kotlin package that qualifies its type.
+	pub fn at(api: Point) -> Clash {
+		Clash::Point(api)
+	}
+
+	/// `text` with this clash's form and `n`, and `n` doubled through `out`.
+	pub fn describe(&self, text: &str, n: u32, shape: Shape, out: &mut u32) -> String {
+		*out = n * 2;
+		format!("{text} {self:?} {n} {shape:?}")
+	}
+}
+
+/// A record whose field is named as the Kotlin package, which a qualifier in its methods'
+/// bodies would resolve to.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Packaged {
+	pub api: u32,
+}
+
+impl Packaged {
+	/// The point at `api` on both axes.
+	pub fn point(&self) -> Point {
+		Point {
+			x: self.api as i32,
+			y: self.api as i32,
+		}
+	}
+
+	/// The shape of `api`'s parity.
+	pub fn shape(&self) -> Shape {
+		match self.api % 2 {
+			0 => Shape::Square,
+			_ => Shape::Circle,
+		}
+	}
 }
 
 /// An enum whose variant `Init` names an initializer in Swift, and the C union member
@@ -205,6 +425,68 @@ impl Counter {
 	}
 }
 
+/// What only Kotlin exports: a method taking the env of the Java thread calling.
+impl Counter {
+	/// The value plus `n` if `object` is a Java string, else the value, or an error for a
+	/// null `object`: an env between parameters Kotlin passes.
+	pub fn plus_if_string(&self, n: u64, env: &mut ::jni::Env, object: ::jni::objects::JObject) -> Result<u64, String> {
+		if object.is_null() {
+			return Err("the object is null".to_string());
+		}
+		let string = (env.is_instance_of(&object, ::jni::jni_str!("java/lang/String"))).map_err(|e| e.to_string())?;
+		Ok(if string { self.value + n } else { self.value })
+	}
+}
+
+/// Whether `a` and `b` are the same Java object, or both null: only Kotlin exports it,
+/// passing the env of the thread calling.
+pub fn same_object(
+	a: ::jni::objects::JObject,
+	env: &mut ::jni::Env,
+	b: ::jni::objects::JObject,
+) -> Result<bool, String> {
+	env.is_same_object(&a, &b).map_err(|e| e.to_string())
+}
+
+/// Throws Java's `IllegalStateException("thrown")`, then returns `fail`'s error or a value:
+/// either way, Kotlin gets the exception left pending, as a native method's caller does.
+pub fn thrown(env: &mut ::jni::Env, fail: bool) -> Result<u64, String> {
+	(env.throw_new(
+		::jni::jni_str!("java/lang/IllegalStateException"),
+		::jni::jni_str!("thrown"),
+	))
+	.map_err(|e| e.to_string())?;
+	match fail {
+		true => Err("failed".to_string()),
+		false => Ok(1),
+	}
+}
+
+/// A [`Logger`] for `sink`, after throwing Java's `IllegalStateException("logger")`: the
+/// logger drops, closing `sink` in Kotlin, as Kotlin gets the exception.
+pub fn thrown_logger(env: &mut ::jni::Env, sink: Box<dyn Log>) -> Result<Logger, String> {
+	let thrown = env.throw_new(
+		::jni::jni_str!("java/lang/IllegalStateException"),
+		::jni::jni_str!("logger"),
+	);
+	// jni reports the exception it threw as an error.
+	if let Err(e) = thrown
+		&& !matches!(e, ::jni::errors::Error::JavaException)
+	{
+		return Err(e.to_string());
+	}
+	Ok(Logger::new(sink))
+}
+
+/// A facade module named as the jni crate is, whose items the glue reaches through the
+/// facade, not jni.
+pub mod jni {
+	/// One, through a path whose first segment names the jni crate.
+	pub fn one() -> u32 {
+		1
+	}
+}
+
 /// An impl lifetime its type does not take is the call's, as a method's own is.
 impl<'a> Counter {
 	/// Whether the counter is named `name`, which borrows C's text for the call.
@@ -284,12 +566,23 @@ impl Board {
 		}
 	}
 
+	/// Each name and its counter in name order, each handle moved out of the board.
+	pub fn into_counters(self) -> Vec<(String, Counter)> {
+		self.counters.into_iter().collect()
+	}
+
 	/// Each name and its counter, highest first, as hang's `ranked`: each pair borrowed,
 	/// so each crosses as a clone.
 	pub fn ranked(&self) -> impl Iterator<Item = (&String, &Counter)> {
 		let mut ranked: Vec<_> = self.counters.iter().collect();
 		ranked.sort_by_key(|(_, counter)| std::cmp::Reverse(counter.get()));
 		ranked.into_iter()
+	}
+
+	/// Its highest counter, through an `impl Trait` that captures no borrow of the board, so
+	/// it crosses as the counter's handle.
+	pub fn best(&self) -> impl Into<Counter> + use<> {
+		(self.counters.values().max_by_key(|counter| counter.get()).cloned()).unwrap_or_default()
 	}
 }
 
@@ -388,10 +681,13 @@ impl Meter {
 	}
 }
 
-/// Owns a meter it lends.
+/// Owns a meter it lends, and one in a field, lent as the method's is, and an optional one,
+/// lent as `Some` of it.
 #[derive(Default)]
 pub struct Meters {
 	first: Meter,
+	pub last: Meter,
+	pub spare: Option<Meter>,
 }
 
 impl Meters {
@@ -638,11 +934,9 @@ impl Waiter {
 
 /// Calls `poll` until it fails, returning its error: with `start`, then with each instant
 /// it asks for, as if the clock reached it at once, or once its waiter is woken, with the
-/// last one again. A closure its future keeps, as kio's `clock::drive` keeps one.
-pub async fn drive<E>(
-	start: std::time::Instant,
-	mut poll: impl FnMut(std::time::Instant, &Waiter) -> Result<Option<std::time::Instant>, E> + Unpin,
-) -> E {
+/// last one again. A closure its future keeps, as kio's `clock::drive` keeps one, over a
+/// moment as kio's is over its own padding-free instant.
+pub async fn drive<E>(start: Moment, mut poll: impl FnMut(Moment, &Waiter) -> Result<Option<Moment>, E> + Unpin) -> E {
 	let mut now = start;
 	std::future::poll_fn(move |cx| {
 		let waiter = Waiter::new(cx.waker().clone());
@@ -657,12 +951,14 @@ pub async fn drive<E>(
 	.await
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// A thread running a closure it keeps past the call that made it, which
 /// [`Spawned::join`] waits on.
 pub struct Spawned {
 	thread: std::thread::JoinHandle<u32>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Spawned {
 	pub fn new(task: impl FnOnce() -> u32 + Send + 'static) -> Self {
 		Self {
@@ -685,7 +981,7 @@ pub fn made<R>(n: u32, make: impl FnOnce(u32) -> R) -> R {
 /// How many times a [`Ticket`]'s `Clone` ran.
 static TICKET_CLONES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
-/// A `Copy` object whose `Clone` counts its calls, which a closure taking or returning one
+/// A `Copy` value whose `Clone` counts its calls, which a closure taking or returning one
 /// never runs, as Rust copies it instead.
 #[derive(Copy, Debug, PartialEq)]
 pub struct Ticket {
@@ -715,6 +1011,11 @@ impl Ticket {
 	}
 }
 
+/// Each name and its ticket, as given, so a binding passes back what it returned.
+pub fn tickets(entries: Vec<(String, Ticket)>) -> Vec<(String, Ticket)> {
+	entries
+}
+
 /// The ticket `swap` returns for `ticket`.
 pub fn reissue(ticket: Ticket, swap: impl Fn(Ticket) -> Ticket) -> Ticket {
 	swap(ticket)
@@ -723,6 +1024,84 @@ pub fn reissue(ticket: Ticket, swap: impl Fn(Ticket) -> Ticket) -> Ticket {
 /// The ticket `swap` returns for a lent `ticket`, which Go spells as `reissue`'s closure.
 pub fn reissue_lent(ticket: &Ticket, swap: impl Fn(&Ticket) -> Ticket) -> Ticket {
 	swap(ticket)
+}
+
+/// A record holding a `Copy` handle, so its `PartialEq` and `Debug` check that handle.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Seat {
+	pub mark: Mark,
+	pub row: u32,
+}
+
+/// The seat in `row` for `mark`.
+pub fn seat(mark: Mark, row: u32) -> Seat {
+	Seat { mark, row }
+}
+
+impl Seat {
+	/// Its mark's count: a record's method whose receiver holds a checked object.
+	pub fn count(&self) -> u64 {
+		self.mark.count
+	}
+}
+
+/// The counter's value plus the count of each mark beside it: a counter moved in beside
+/// copied checked objects, alone and held in a record and an enum.
+pub fn admit(entry: (Counter, Mark, Seat, Choice)) -> u64 {
+	let (counter, mark, seat, choice) = entry;
+	counter
+		.value
+		.wrapping_add(mark.count)
+		.wrapping_add(seat.mark.count)
+		.wrapping_add(choose(choice))
+}
+
+/// A mark picked, or none: a data enum with an empty variant beside a checked object.
+pub enum Choice {
+	Empty,
+	Picked(Mark),
+}
+
+/// The count of the mark picked, or 0.
+pub fn choose(choice: Choice) -> u64 {
+	match choice {
+		Choice::Empty => 0,
+		Choice::Picked(mark) => mark.count,
+	}
+}
+
+/// A mark and a payload: a record holding a checked handle beside a buffer.
+pub struct Parcel {
+	pub mark: Mark,
+	pub payload: Bytes,
+}
+
+/// Each count and each payload's length, summed: a checked mark beside bytes in a tuple
+/// and in a record lent, and bytes beside a moved counter, so a call a failed check
+/// refuses frees every buffer it was given.
+pub fn heft(marked: (Mark, Bytes), lent: &Parcel, moved: (Counter, Bytes)) -> u64 {
+	let (mark, bytes) = marked;
+	let (counter, more) = moved;
+	let lengths = bytes.len() + lent.payload.len() + more.len();
+	mark.count + lent.mark.count + counter.value + lengths as u64
+}
+
+/// Both counters' values, or an error once they overflow: moved parameters named as what
+/// a binding's own cleanup might bind, an exception `e` and a lambda's `it`.
+pub fn spend(e: Counter, it: Counter) -> Result<u64, String> {
+	e.value.checked_add(it.value).ok_or_else(|| "overflow".to_string())
+}
+
+/// An enum named as the runtime's status, whose constants C would name as its statuses.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Status {
+	Moved,
+	Kept,
+}
+
+/// Whether `status` is `Kept`.
+pub fn is_kept(status: Status) -> bool {
+	status == Status::Kept
 }
 
 /// What `check` returns, a closure with no value but its error.
@@ -772,6 +1151,7 @@ impl Channel {
 	/// Sends from another thread, before it returns, so the wake lands from that thread, as
 	/// an async runtime's worker wakes a task: the one way Dart, whose isolates share no
 	/// object, has to wake from another thread.
+	#[cfg(not(target_arch = "wasm32"))]
 	pub fn send_from_thread(&self, payload: Bytes) {
 		std::thread::scope(|scope| {
 			scope.spawn(|| self.send(payload));
@@ -804,6 +1184,27 @@ impl Channel {
 	pub fn send_later(&self, payload: Bytes) -> impl Future<Output = ()> + use<> {
 		self.send(payload);
 		std::future::ready(())
+	}
+
+	/// Sends `tag` at once, as a function that is not `async` runs when called, and returns a
+	/// future that borrows this channel and `tag`: what it next receives, after `tag`.
+	pub fn tagged<'a>(&'a self, tag: &'a str) -> impl Future<Output = String> + 'a {
+		self.send(Bytes::copy_from_slice(tag.as_bytes()));
+		async move {
+			let payload = self.recv().await;
+			format!("{tag} {}", String::from_utf8_lossy(&payload))
+		}
+	}
+
+	/// Sends the sum of `items`, if any, at once, and returns a future that borrows them:
+	/// their count once this channel next receives.
+	pub fn itemized<'a>(&'a self, items: Option<&'a [u32]>) -> impl Future<Output = usize> + 'a {
+		let sum: u32 = items.unwrap_or_default().iter().sum();
+		self.send(Bytes::copy_from_slice(&sum.to_le_bytes()));
+		async move {
+			self.recv().await;
+			items.map_or(0, <[u32]>::len)
+		}
 	}
 
 	/// `recv`'s poll, which does not map: left out, since `recv` exports as a future.
@@ -928,8 +1329,7 @@ impl<F: Future> Future for Within<F> {
 	}
 }
 
-/// A time: an object, since its field is private, but `Copy`, so passing it by value
-/// copies it rather than moving it out of its handle.
+/// A time: `Copy` with a private field, so a value only Rust makes, copied across.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Stamp {
 	millis: u64,
@@ -944,12 +1344,335 @@ impl Stamp {
 		self.millis / 1000
 	}
 
+	/// It rounded down to whole seconds, through an `impl Trait`, so it crosses as its bytes.
+	pub fn whole(self) -> impl Into<Stamp> + use<> {
+		Self {
+			millis: self.millis / 1000 * 1000,
+		}
+	}
+
 	pub fn later(self, other: Stamp) -> bool {
 		self.millis > other.millis
 	}
 }
 
-/// A stamp and a count: a record holding an object, whose method reads it.
+/// A time on a clock of its own rate, as moq's `Timestamp`: `Copy` with private fields, past
+/// a word on every target, and never all zero bytes, so only a value Rust made may cross.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Moment {
+	ticks: u64,
+	rate: std::num::NonZero<u64>,
+}
+
+impl Moment {
+	/// `ticks` of `rate` a second, or none at a rate of zero.
+	pub fn new(ticks: u64, rate: u64) -> Option<Self> {
+		std::num::NonZero::new(rate).map(|rate| Self { ticks, rate })
+	}
+
+	/// Whole milliseconds since zero.
+	pub fn millis(&self) -> u64 {
+		(u128::from(self.ticks) * 1000 / u128::from(self.rate.get())) as u64
+	}
+
+	/// The moment `ticks` later, at the same rate, wrapping as `u64` does.
+	pub fn after(self, ticks: u64) -> Self {
+		Self {
+			ticks: self.ticks.wrapping_add(ticks),
+			..self
+		}
+	}
+}
+
+/// `ticks` of `rate` a second, failing at a rate of zero: a value past a word in a `Result`.
+pub fn moment_at(ticks: u64, rate: u64) -> Result<Moment, String> {
+	Moment::new(ticks, rate).ok_or_else(|| "a rate of zero".to_string())
+}
+
+/// The stamp `millis` from zero, failing at zero: a value of a word in a `Result`.
+pub fn stamp_at(millis: u64) -> Result<Stamp, String> {
+	match millis {
+		0 => Err("zero".to_string()),
+		millis => Ok(Stamp::from_millis(millis)),
+	}
+}
+
+/// The moment `shift` returns for `moment`, which C copies in and out.
+pub fn shifted(moment: Moment, shift: impl Fn(Moment) -> Moment) -> Moment {
+	shift(moment)
+}
+
+/// A `Copy` value with padding, after its `u8`, which crosses as a handle, since the glue's
+/// `rustc` may order its fields to put the padding anywhere.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Gap {
+	wide: u64,
+	narrow: u8,
+}
+
+impl Gap {
+	pub fn new(wide: u64, narrow: u8) -> Self {
+		Self { wide, narrow }
+	}
+
+	pub fn sum(&self) -> u64 {
+		self.wide.wrapping_add(u64::from(self.narrow))
+	}
+}
+
+/// A value named as Kotlin's `LongArray`, which holds a returned value's words, with methods named
+/// as C++'s member holding its bytes and Kotlin's `also`, which makes a value past a word: each
+/// generator keeps its own apart.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LongArray {
+	words: [u64; 2],
+}
+
+impl LongArray {
+	pub fn new(low: u64, high: u64) -> Self {
+		LongArray { words: [low, high] }
+	}
+
+	pub fn c_(&self) -> u64 {
+		self.words[0].wrapping_add(self.words[1])
+	}
+
+	/// Calls `f` with its low word.
+	pub fn also(&self, f: impl Fn(u64)) {
+		f(self.words[0])
+	}
+}
+
+/// A type named as the annotation Kotlin's fields take, which the binding qualifies.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct JvmField {
+	pub n: u32,
+}
+
+/// A type named as the annotation Kotlin's static methods take, which the binding qualifies.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct JvmStatic {
+	pub n: u32,
+}
+
+/// A type named as the annotation Kotlin opts in to an API with, which the binding qualifies.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct OptIn {
+	pub n: u32,
+}
+
+/// The sum of a `JvmField`, a `JvmStatic`, and an `OptIn`.
+pub fn jvm_sum(field: JvmField, method: JvmStatic, opt: OptIn) -> u32 {
+	field.n.wrapping_add(method.n).wrapping_add(opt.n)
+}
+
+/// A value of 128 words, past what a JVM method's 255 slots hold as `long`s: Kotlin makes
+/// one with no constructor of a parameter each, and passes one encoded.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Wide {
+	words: [u64; 128],
+}
+
+impl Wide {
+	/// Words `seed`, `seed + 1`, and on, wrapping.
+	pub fn new(seed: u64) -> Self {
+		Self {
+			words: std::array::from_fn(|k| seed.wrapping_add(k as u64)),
+		}
+	}
+
+	pub fn sum(&self) -> u64 {
+		self.words.iter().fold(0, |a, w| a.wrapping_add(*w))
+	}
+}
+
+/// A moment and a count: a record holding a value past a word, flattened as its words.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Clocked {
+	pub at: Moment,
+	pub count: u32,
+}
+
+/// `clocked`, its moment `ticks` later and its count one more.
+pub fn clocked_after(clocked: Clocked, ticks: u64) -> Clocked {
+	Clocked {
+		at: clocked.at.after(ticks),
+		count: clocked.count + 1,
+	}
+}
+
+/// Declares `crammed`, whose numbers take 248 of a JVM method's 255 slots, so its first
+/// moment crosses as its words and its second, past the limit, encoded.
+macro_rules! crammed {
+	($($n:ident)*) => {
+		/// Both moments' millis and every number, summed.
+		pub fn crammed(a: Moment, b: Moment, $($n: u64),*) -> u64 {
+			a.millis().wrapping_add(b.millis())$(.wrapping_add($n))*
+		}
+	};
+}
+
+crammed!(n0 n1 n2 n3 n4 n5 n6 n7 n8 n9 n10 n11 n12 n13 n14 n15 n16 n17 n18 n19 n20 n21 n22 n23 n24 n25 n26 n27 n28 n29 n30 n31 n32 n33 n34 n35 n36 n37 n38 n39 n40 n41 n42 n43 n44 n45 n46 n47 n48 n49 n50 n51 n52 n53 n54 n55 n56 n57 n58 n59 n60 n61 n62 n63 n64 n65 n66 n67 n68 n69 n70 n71 n72 n73 n74 n75 n76 n77 n78 n79 n80 n81 n82 n83 n84 n85 n86 n87 n88 n89 n90 n91 n92 n93 n94 n95 n96 n97 n98 n99 n100 n101 n102 n103 n104 n105 n106 n107 n108 n109 n110 n111 n112 n113 n114 n115 n116 n117 n118 n119 n120 n121 n122 n123);
+
+/// A `Copy` type whose `None` leaves its payload's bytes uninitialized, so no padding table
+/// covers it: a handle, rather than a value.
+#[derive(Clone, Copy, Debug)]
+pub struct Berth {
+	at: Option<u32>,
+}
+
+impl Berth {
+	pub fn new(at: Option<u32>) -> Self {
+		Self { at }
+	}
+
+	pub fn at(&self) -> Option<u32> {
+		self.at
+	}
+}
+
+/// A running count, as moq's `stats::Traffic`: `Copy` with private fields, changed in place
+/// through `&mut self`, so a value whose every copy changes alone.
+#[derive(Clone, Copy, Debug)]
+pub struct Score {
+	count: u64,
+}
+
+impl Score {
+	pub fn of(count: u64) -> Self {
+		Self { count }
+	}
+
+	pub fn count(&self) -> u64 {
+		self.count
+	}
+
+	/// Adds `other`'s count to this one, as Rust copies `other`.
+	pub fn add(&mut self, other: Score) {
+		self.count = self.count.wrapping_add(other.count);
+	}
+
+	/// Twice the count, as Rust copies `self`.
+	pub fn doubled(self) -> Score {
+		Self {
+			count: self.count.wrapping_mul(2),
+		}
+	}
+
+	/// The count, leaving zero in its place.
+	pub fn take(&mut self) -> u64 {
+		std::mem::take(&mut self.count)
+	}
+
+	/// Adds `mark`'s count to this one, returning the count before: a value's `&mut self`
+	/// beside a checked handle, so a call a failed check refuses leaves the value as it was.
+	pub fn note(&mut self, mark: &Mark) -> u64 {
+		let before = self.count;
+		self.count = self.count.wrapping_add(mark.count);
+		before
+	}
+
+	/// Moves `other`'s count into this one, as `&mut` of a value Rust writes back too, and
+	/// returns both counts before, as a tuple.
+	pub fn absorb(&mut self, other: &mut Score) -> (u64, u64) {
+		let before = (self.count, other.count);
+		self.count = self.count.wrapping_add(std::mem::take(&mut other.count));
+		before
+	}
+}
+
+/// A count beside a slot whose `None` leaves its bytes uninitialized, so a `Copy` handle
+/// rather than a value, which `&mut self` makes checked. A call taking one by value copies
+/// it out of its handle, leaving the caller's as it was.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Mark {
+	count: u64,
+	slot: Option<u32>,
+}
+
+impl Mark {
+	pub fn of(count: u64) -> Self {
+		Self { count, slot: None }
+	}
+
+	pub fn count(&self) -> u64 {
+		self.count
+	}
+
+	/// Adds `by` to the count, in place.
+	pub fn add(&mut self, by: u64) {
+		self.count = self.count.wrapping_add(by);
+		self.slot = Some(0);
+	}
+}
+
+/// A tally, as moq's `stats::Presence`: `Copy`, its fields `pub` but `#[non_exhaustive]`,
+/// so a value whose fields read and write through accessors, each a `u64`, so it has no
+/// padding.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[non_exhaustive]
+pub struct Hits {
+	pub hits: u64,
+	pub misses: u64,
+}
+
+impl Hits {
+	pub fn of(hits: u64, misses: u64) -> Self {
+		Self { hits, misses }
+	}
+
+	/// Adds `other` into this one, as moq's `add` does.
+	pub fn add(&mut self, other: Hits) {
+		self.hits = self.hits.wrapping_add(other.hits);
+		self.misses = self.misses.wrapping_add(other.misses);
+	}
+
+	/// Whether `other` equals this one, counting it a hit: named as `PartialEq`'s C
+	/// function, which the clash renames.
+	pub fn eq(&mut self, other: Hits) -> bool {
+		let same = *self == other;
+		self.hits = self.hits.wrapping_add(1);
+		same
+	}
+}
+
+/// A span whose `pub` start sits beside a private length, which no record could hold.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Extent {
+	pub start: u64,
+	len: u64,
+}
+
+impl Extent {
+	pub fn new(start: u64, len: u64) -> Self {
+		Self { start, len }
+	}
+
+	pub fn end(&self) -> u64 {
+		self.start.wrapping_add(self.len)
+	}
+
+	/// Moves the window `by` later, returning its old start.
+	pub fn slide(&mut self, by: u64) -> u64 {
+		let start = self.start;
+		self.start = start.wrapping_add(by);
+		start
+	}
+}
+
+/// A score and its weight: a record holding a `Copy` handle, copied in and out.
+pub struct Weighted {
+	pub score: Score,
+	pub weight: u32,
+}
+
+impl Weighted {
+	pub fn total(&self) -> u64 {
+		self.score.count.wrapping_mul(u64::from(self.weight))
+	}
+}
+
+/// A stamp and a count: a record holding a value only Rust makes, whose method reads it.
 pub struct Stamped {
 	pub at: Stamp,
 	pub count: u32,
@@ -962,7 +1685,8 @@ impl Stamped {
 	}
 }
 
-/// A message: an object, since one field is private, whose `pub` fields read as getters.
+/// A message: an object, since one field is private and it is not `Copy`, whose `pub`
+/// fields read as getters.
 #[derive(Clone, Debug)]
 pub struct Message {
 	pub stamp: Option<Stamp>,
@@ -995,17 +1719,20 @@ pub fn emit(log: impl Log, lines: Vec<u8>) -> u32 {
 	lines.iter().filter(|&&n| log.log(n, &format!("line {n}"))).count() as u32
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// [`emit`] on another thread, which the call waits on.
 pub fn emit_from_thread(log: impl Log, lines: Vec<u8>) -> u32 {
 	on_thread(&log, &lines)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// [`emit_from_thread`] before it returns its future, and again once polled.
 pub fn emit_later(log: Box<dyn Log>, lines: Vec<u8>) -> impl Future<Output = u32> + use<> {
 	let eager = on_thread(&*log, &lines);
 	async move { eager + on_thread(&*log, &lines) }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn on_thread(log: &(impl Log + ?Sized), lines: &[u8]) -> u32 {
 	std::thread::scope(|scope| {
 		scope
@@ -1015,13 +1742,27 @@ fn on_thread(log: &(impl Log + ?Sized), lines: &[u8]) -> u32 {
 	})
 }
 
+/// A record named as Swift's own error a cancelled task throws, which the binding renames.
+pub struct CancellationError {
+	pub code: u32,
+}
+
+/// Each of `0..n` to `count` before it returns its future, then `n` doubled once polled,
+/// or `Overflow`: an eager, fallible future that lends a closure.
+pub fn counted(n: u32, mut count: impl FnMut(u32)) -> std::future::Ready<Result<u32, Error>> {
+	(0..n).for_each(&mut count);
+	std::future::ready(n.checked_mul(2).ok_or(Error::Overflow))
+}
+
 /// Each line to `keep` on another thread, returning how many it kept: a lent closure may
 /// run on any thread until the call returns.
 pub fn filter(lines: Vec<u8>, mut keep: impl FnMut(u8, &str) -> bool + Send) -> u32 {
-	std::thread::scope(|scope| {
-		let kept = scope.spawn(move || lines.iter().filter(|&&n| keep(n, &format!("line {n}"))).count());
-		kept.join().expect("the thread finishes") as u32
-	})
+	let kept = move || lines.iter().filter(|&&n| keep(n, &format!("line {n}"))).count() as u32;
+	// wasm32 has no other thread, so it runs there on the caller's.
+	#[cfg(target_arch = "wasm32")]
+	return { kept }();
+	#[cfg(not(target_arch = "wasm32"))]
+	std::thread::scope(|scope| scope.spawn(kept).join().expect("the thread finishes"))
 }
 
 /// Logs a line once polled, returning whether it was kept: the future holds `log` until it
@@ -1059,16 +1800,40 @@ impl Logger {
 	}
 
 	/// [`Logger::write`] on another thread, which the call waits on.
+	#[cfg(not(target_arch = "wasm32"))]
 	pub fn write_from_thread(&self, line: &str) -> bool {
 		std::thread::scope(|scope| scope.spawn(|| self.write(line)).join().expect("the thread finishes"))
 	}
 }
 
+/// A [`Logger`] its `&mut self` method makes checked, so a binding's close drops it through
+/// Rust, running its implementation's close inside that drop.
+pub struct Journal {
+	sink: Box<dyn Log>,
+}
+
+impl Journal {
+	pub fn new(sink: Box<dyn Log>) -> Self {
+		Self { sink }
+	}
+
+	/// Log to `sink` from now on, dropping the implementation before it.
+	pub fn redirect(&mut self, sink: Box<dyn Log>) {
+		self.sink = sink;
+	}
+
+	pub fn write(&self, line: &str) -> bool {
+		self.sink.log(0, line)
+	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 /// A thread logging a line to a foreign implementation, which [`LogThread::join`] waits on.
 pub struct LogThread {
 	thread: std::thread::JoinHandle<bool>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl LogThread {
 	pub fn new(log: Box<dyn Log>, line: String) -> Self {
 		Self {
@@ -1082,6 +1847,7 @@ impl LogThread {
 	}
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// A future that never finishes, whose drop logs a line to `log` on another thread it
 /// waits on.
 pub fn log_on_drop(log: Box<dyn Log>) -> impl Future<Output = ()> + use<> {
@@ -1092,8 +1858,37 @@ pub fn log_on_drop(log: Box<dyn Log>) -> impl Future<Output = ()> + use<> {
 	}
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+/// A waker whose wake and drop each log a line to `log` on another thread they wait on.
+pub fn log_waker(log: Box<dyn Log>) -> Waker {
+	Waker::from(Arc::new(LogWake(log)))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+struct LogWake(Box<dyn Log>);
+
+#[cfg(not(target_arch = "wasm32"))]
+impl std::task::Wake for LogWake {
+	fn wake(self: Arc<Self>) {
+		self.wake_by_ref();
+	}
+
+	fn wake_by_ref(self: &Arc<Self>) {
+		on_thread(&*self.0, &[1]);
+	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Drop for LogWake {
+	fn drop(&mut self) {
+		on_thread(&*self.0, &[0]);
+	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 struct LogOnDrop(Box<dyn Log>);
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Drop for LogOnDrop {
 	fn drop(&mut self) {
 		on_thread(&*self.0, &[0]);
@@ -1159,6 +1954,180 @@ impl Tallies {
 	pub fn first(&self) -> &Tally {
 		&self.first
 	}
+}
+
+impl Tally {
+	/// Counts once its future, which holds an `Rc` across a yield and so is not `Send`, is
+	/// polled a second time: what a binding polling on a pool runs on a home.
+	pub async fn bump_later(&self) -> u32 {
+		let held = std::rc::Rc::new(());
+		yielded(0).await;
+		drop(held);
+		self.bump()
+	}
+}
+
+/// A count its handles share through an `Rc`, so not `Send`: it stays on the thread that
+/// made it, which alone calls, polls, and drops it, as each method checks.
+pub struct Local {
+	count: std::rc::Rc<std::cell::Cell<u32>>,
+	thread: std::thread::ThreadId,
+}
+
+impl Default for Local {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+impl Local {
+	pub fn new() -> Self {
+		Self {
+			count: std::rc::Rc::new(std::cell::Cell::new(0)),
+			thread: std::thread::current().id(),
+		}
+	}
+
+	/// Counts once, on its own thread.
+	pub fn bump(&self) -> u32 {
+		self.here();
+		self.count.set(self.count.get() + 1);
+		self.count.get()
+	}
+
+	/// Another handle to the same count.
+	pub fn share(&self) -> Local {
+		self.here();
+		Local {
+			count: self.count.clone(),
+			thread: self.thread,
+		}
+	}
+
+	/// Counts once its future, which is not `Send`, is polled a third time.
+	pub async fn later(&self) -> u32 {
+		yielded(0).await;
+		self.bump()
+	}
+
+	/// What `f` returns, called on this local's thread, where it may use the local again.
+	pub fn visit(&self, f: impl Fn() -> u32) -> u32 {
+		self.here();
+		f()
+	}
+
+	/// Counts once, as a poll: its future holds the local, so is not `Send` either.
+	pub fn poll_count(&self, cx: &mut std::task::Context<'_>) -> std::task::Poll<u32> {
+		let _ = cx;
+		std::task::Poll::Ready(self.bump())
+	}
+
+	/// Which thread it lives on, numbered from 1 in the order each first asked.
+	pub fn thread_number(&self) -> u64 {
+		self.here();
+		static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+		thread_local!(static NUMBER: u64 = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+		NUMBER.with(|number| *number)
+	}
+
+	/// Whether this runs on its own thread, which every use of it must.
+	pub fn on_own_thread(&self) -> bool {
+		std::thread::current().id() == self.thread
+	}
+
+	fn here(&self) {
+		assert!(self.on_own_thread(), "a Local is used off its own thread");
+	}
+}
+
+/// Equal to another handle to the same count.
+impl PartialEq for Local {
+	fn eq(&self, other: &Self) -> bool {
+		self.here();
+		std::rc::Rc::ptr_eq(&self.count, &other.count)
+	}
+}
+
+impl Eq for Local {}
+
+/// Hashed by the count it shares, as its equality compares.
+impl std::hash::Hash for Local {
+	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+		self.here();
+		std::rc::Rc::as_ptr(&self.count).hash(state);
+	}
+}
+
+impl Drop for Local {
+	fn drop(&mut self) {
+		// A drop elsewhere would panic, which aborts through the C ABI.
+		self.here();
+		LOCALS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+	}
+}
+
+static LOCALS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// How many locals have dropped, each on its own thread.
+pub fn locals_dropped() -> u32 {
+	LOCALS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// A handle to `local`'s count if there is one, else a new local: made where `local`
+/// stays, or, with none, wherever a local made from nothing would be.
+pub fn local_or_new(local: Option<&Local>) -> Local {
+	local.map_or_else(Local::new, Local::share)
+}
+
+/// `local_or_new` after a yield: a future that is not `Send`, made where `local` stays,
+/// or, with none, wherever a local made from nothing would be.
+pub async fn local_or_new_later(local: Option<&Local>) -> Local {
+	yielded(0).await;
+	local_or_new(local)
+}
+
+/// The first local's count bumped if there is one, else the second's.
+pub fn bump_either(first: Option<&Local>, second: &Local) -> u32 {
+	first.unwrap_or(second).bump()
+}
+
+/// A new local, made after a yield: the future is `Send`, but its output is not, so it is
+/// made where the future is polled.
+pub async fn local_after() -> Local {
+	yielded(0).await;
+	Local::new()
+}
+
+/// `n` doubled after a yield, through an `Rc` it holds across it: a future that is not
+/// `Send`, though nothing it takes is not.
+pub async fn local_later(n: u32) -> u32 {
+	let n = std::rc::Rc::new(n);
+	yielded(0).await;
+	*n * 2
+}
+
+/// What a poll registers that is not `Send`, as `Waiter` is but through an `Rc`: a future
+/// polling with one keeps it between polls, so is not `Send` either.
+pub struct LocalWaiter(std::rc::Rc<Waker>);
+
+impl LocalWaiter {
+	pub fn new(waker: Waker) -> Self {
+		Self(std::rc::Rc::new(waker))
+	}
+
+	/// `n` at once: a poll of the waiter it is a method of, which exports as a future
+	/// making and keeping it.
+	pub fn poll_ready(&self, n: u32) -> Poll<u32> {
+		let _ = &self.0;
+		Poll::Ready(n)
+	}
+}
+
+/// `n` tripled at once: a poll through a waiter that is not `Send`, which exports as a
+/// future making and keeping it.
+pub fn poll_tripled(waiter: &LocalWaiter, n: u32) -> Poll<u32> {
+	let _ = &waiter.0;
+	Poll::Ready(n * 3)
 }
 
 static DROPPED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
@@ -1296,11 +2265,18 @@ pub fn next_packet(packet: Packet) -> Packet {
 pub struct Retry {
 	pub limit: Option<u32>,
 	pub delay: Option<u32>,
+	/// Its field exports, but the method of its name is refused, so the config excludes
+	/// both, and the census lists only `field@Retry::jitter` as excluding what exports.
+	pub jitter: u32,
 }
 
 impl Retry {
 	pub fn new(limit: Option<u32>) -> Self {
-		Self { limit, delay: None }
+		Self {
+			limit,
+			delay: None,
+			jitter: 0,
+		}
 	}
 
 	pub fn limit(&self) -> u32 {
@@ -1313,6 +2289,11 @@ impl Retry {
 
 	pub fn set_limit(&mut self, limit: u32) {
 		self.limit = Some(limit);
+	}
+
+	/// The jitter capped by `cap`, if any: a nested `Option`, which the export refuses.
+	pub fn jitter(&self, cap: Option<Box<Option<u32>>>) -> u32 {
+		cap.and_then(|cap| *cap).map_or(self.jitter, |cap| self.jitter.min(cap))
 	}
 }
 
@@ -1857,6 +2838,13 @@ impl Seed<u64> for Point {
 	}
 }
 
+/// A point scales an area of dep-fixture's by its distance from the origin along each axis.
+impl dep::Factor<u32> for Point {
+	fn factor(&self) -> u32 {
+		self.x.unsigned_abs() + self.y.unsigned_abs()
+	}
+}
+
 impl Seed<u64> for Size {
 	fn seed(&self) -> u64 {
 		u64::from(self.width) * u64::from(self.height)
@@ -2071,16 +3059,18 @@ pub fn file(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
 	dir.join(name)
 }
 
-/// A path whose bytes are not UTF-8, as a Unix path may be.
-#[cfg(unix)]
+/// A path whose bytes are not UTF-8, as a Unix or WASI path may be.
+#[cfg(any(unix, target_os = "wasi"))]
 pub fn stray() -> std::path::PathBuf {
-	std::path::PathBuf::from(<std::ffi::OsString as std::os::unix::ffi::OsStringExt>::from_vec(vec![
-		0xff,
-	]))
+	#[cfg(unix)]
+	use std::os::unix::ffi::OsStringExt;
+	#[cfg(target_os = "wasi")]
+	use std::os::wasi::ffi::OsStringExt;
+	std::path::PathBuf::from(std::ffi::OsString::from_vec(vec![0xff]))
 }
 
 /// Lends [`stray`]'s path to `visit`.
-#[cfg(unix)]
+#[cfg(any(unix, target_os = "wasi"))]
 pub fn visit_stray(visit: impl Fn(&std::path::Path)) {
 	visit(&stray());
 }
@@ -2154,8 +3144,14 @@ pub fn nudge(point: &mut Point, by: i32) {
 	point.y += by;
 }
 
-/// A config of a crate no export is, behind an `Arc`, as moq-tokio's listener returns
-/// rustls's: an opaque handle, which Rust takes back.
+/// Nudge `point` by the length of `refusal`'s reason: a value Rust writes back beside an
+/// object a check of can fail.
+pub fn nudge_by(point: &mut Point, refusal: &Refusal) {
+	nudge(point, i32::try_from(refusal.reason.len()).unwrap_or(i32::MAX));
+}
+
+/// A config of a crate the facade re-exports nothing from, behind an `Arc`, as moq-tokio's
+/// listener returns rustls's: an opaque handle, which Rust takes back.
 pub fn secure(alpn: &str) -> Arc<tls::Config> {
 	Arc::new(tls::Config::new(alpn))
 }
@@ -2168,6 +3164,204 @@ pub fn alpn(config: Arc<tls::Config>) -> String {
 /// [`alpn`], lent.
 pub fn alpn_lent(config: &Arc<tls::Config>) -> String {
 	config.alpn().to_string()
+}
+
+/// A certificate of a crate the facade re-exports nothing from, by value, with no public
+/// path there, as moq-tokio's rustls root certificates: an opaque handle, which Rust takes
+/// back or borrows.
+pub fn certify(der: &[u8]) -> tls::held::Cert {
+	tls::held::Cert::new(der)
+}
+
+/// The length of `bytes`, through another crate's future that borrows them but resolves
+/// to an owned count: a future, not an opaque handle.
+pub fn byte_len(bytes: &[u8]) -> tls::held::Pending<'_> {
+	tls::held::Pending(bytes)
+}
+
+/// The length of a certificate [`certify`] made, lent.
+pub fn cert_len(cert: &tls::held::Cert) -> usize {
+	cert.der().len()
+}
+
+/// The bytes of a certificate [`certify`] made, taken back by value.
+pub fn cert_der(cert: tls::held::Cert) -> Vec<u8> {
+	cert.der().to_vec()
+}
+
+/// The total length of a chain of certificates, each taken back by value.
+pub fn chain_len(chain: Vec<tls::held::Cert>) -> usize {
+	chain.iter().map(|cert| cert.der().len()).sum()
+}
+
+/// Another crate's session with no public path there, which no export returns: left out, since C can never
+/// hold one.
+pub fn handover(session: tls::held::Handoff) -> u32 {
+	session.id
+}
+
+/// A certificate's length, or why it is refused: another crate's error, which crosses as
+/// its message though `blame` names it as a handle no export returns.
+pub fn verify(cert: &tls::held::Cert) -> Result<u32, tls::held::Invalid> {
+	match cert.der().len() {
+		0 => Err(tls::held::Invalid {
+			reason: "empty".to_string(),
+		}),
+		len => Ok(len as u32),
+	}
+}
+
+/// `text`'s length, or why it is no certificate: another crate's error borrowing `text`,
+/// which crosses as its message, so nothing outlives the call.
+pub fn parse_cert(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
+	match text.is_empty() {
+		true => Err(tls::held::Malformed(text)),
+		false => Ok(text.len() as u32),
+	}
+}
+
+/// `parse_cert` as a future: its error borrows `text`, which the future owns, so the glue
+/// makes it its message before the future ends.
+pub async fn parse_later(text: &str) -> Result<u32, tls::held::Malformed<'_>> {
+	parse_cert(text)
+}
+
+/// Another crate's error taken back by value, which no export returns: left out.
+pub fn blame(err: tls::held::Invalid) -> String {
+	err.to_string()
+}
+
+/// Another crate's trait object behind an `Arc`: an opaque handle, taken back as the `Arc`.
+pub fn resolver(name: &str) -> Arc<dyn tls::held::Resolver> {
+	Arc::new(tls::held::Named(name.to_string()))
+}
+
+/// The name a resolver resolves, from its handle.
+pub fn resolved(resolver: Arc<dyn tls::held::Resolver>) -> String {
+	resolver.name()
+}
+
+/// A resolver as a tuple struct's field, whose accessors each binding names as its `_0`.
+pub struct Resolving(pub Arc<dyn tls::held::Resolver>);
+
+impl Resolving {
+	pub fn new(name: &str) -> Self {
+		Self(resolver(name))
+	}
+}
+
+/// Codecs, each another crate's `&'static dyn Codec`, held by value in an opaque handle.
+pub struct Codecs {
+	pub list: Vec<&'static dyn tls::held::Codec>,
+	seen: u8,
+}
+
+impl Codecs {
+	pub fn new() -> Self {
+		Self {
+			list: vec![&tls::held::ZLIB, &tls::held::BROTLI],
+			seen: 0,
+		}
+	}
+
+	/// The ids of the listed codecs, in order, as one number of a digit each.
+	pub fn ids(&mut self) -> u32 {
+		self.seen += 1;
+		self.list.iter().fold(0, |n, codec| n * 10 + u32::from(codec.id()))
+	}
+}
+
+impl Default for Codecs {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+/// A standard library value no exported type maps: an opaque handle held by value.
+pub fn failure(message: &str) -> std::io::Error {
+	std::io::Error::other(message.to_string())
+}
+
+/// The failure's message, borrowed from its handle.
+pub fn failure_message(error: &std::io::Error) -> String {
+	error.to_string()
+}
+
+/// The failure's kind, taken back by value.
+pub fn failure_kind(error: std::io::Error) -> String {
+	format!("{:?}", error.kind())
+}
+
+/// The sum of what an iterator yields, which C passes as the array of its items.
+pub fn sum_all(items: impl Iterator<Item = u32>) -> u32 {
+	items.sum()
+}
+
+/// What a counter weighs, owned or borrowed, which C cannot implement for its constant.
+pub trait Weigh {
+	const SCALE: u64;
+	fn weight(&self) -> u64;
+}
+
+impl Weigh for Counter {
+	const SCALE: u64 = 1;
+	fn weight(&self) -> u64 {
+		self.get() * Self::SCALE
+	}
+}
+
+impl Weigh for &Counter {
+	const SCALE: u64 = 10;
+	fn weight(&self) -> u64 {
+		self.get() * Self::SCALE
+	}
+}
+
+/// The weights of an iterator's items summed: C passes the array of its counters, each
+/// moved in, so `&Counter`'s weight is not taken.
+pub fn weigh_all<I: Iterator<Item = W>, W: Weigh>(items: I) -> u64 {
+	items.map(|item| item.weight()).sum()
+}
+
+/// The total length of borrowed byte strings, as moq-tokio's TLS acceptor reads offered ALPNs.
+pub fn offered_len<'a>(alpns: impl Iterator<Item = &'a [u8]>) -> usize {
+	alpns.map(<[u8]>::len).sum()
+}
+
+/// Words joined with spaces: an `IntoIterator` of what converts to `&str`, as moq-tokio's
+/// WebSocket listener takes its protocols.
+pub fn join_words<I, S>(words: I) -> String
+where
+	I: IntoIterator<Item = S>,
+	S: AsRef<str>,
+{
+	let words: Vec<String> = words.into_iter().map(|w| w.as_ref().to_string()).collect();
+	words.join(" ")
+}
+
+/// Bytes that must outlive every handle, as rustls's `CertificateDer::from_slice` borrows
+/// its DER: the glue interns them.
+pub struct Der<'a>(&'a [u8]);
+
+impl<'a> Der<'a> {
+	pub fn from_slice(bytes: &'a [u8]) -> Self {
+		Self(bytes)
+	}
+
+	pub fn bytes(&self) -> Vec<u8> {
+		self.0.to_vec()
+	}
+}
+
+/// Reads a stream no type C holds implements: left out, as C never holds one.
+pub fn pump<T: tls::held::Stream>(mut stream: T) -> u8 {
+	stream.read()
+}
+
+/// A session of `alpn` lasting `seconds`, from a crate the facade re-exports nothing from:
+/// its type exports by its path there, and its error crosses as its message.
+pub fn resume(alpn: &str, seconds: u32) -> Result<tls::Session, tls::Error> {
+	tls::resume(alpn, seconds)
 }
 
 /// `text`'s length, or 0 for none: an optional borrow, lent as the borrow alone is.
@@ -2184,6 +3378,14 @@ pub async fn either_later(text: Option<&str>) -> usize {
 /// `payload` after `prefix`, if any.
 pub fn prefixed(payload: &[u8], prefix: Option<&[u8]>) -> Vec<u8> {
 	[prefix.unwrap_or_default(), payload].concat()
+}
+
+/// The sum of `a`, `b`, and `c`, if any: a list owned, then lent as a slice and as itself.
+pub fn sum_lists(a: Vec<i32>, b: Option<&[i32]>, c: Option<&Vec<i32>>) -> i32 {
+	a.iter()
+		.chain(b.unwrap_or_default())
+		.chain(c.into_iter().flatten())
+		.sum()
 }
 
 /// `point`'s coordinates summed, or 0 for none: an optional value, lent shared.
@@ -2232,6 +3434,141 @@ pub fn less(value: u32, _value: u32) -> u32 {
 /// Each row's sum.
 pub fn sums(rows: Vec<Vec<u32>>) -> Vec<u32> {
 	rows.iter().map(|row| row.iter().sum()).collect()
+}
+
+/// Each set's least item, from sets, which no block holds, nested as `sums`' rows are.
+pub fn least(sets: Vec<std::collections::BTreeSet<u32>>) -> Vec<std::collections::BTreeSet<u32>> {
+	sets.into_iter().map(|set| set.into_iter().take(1).collect()).collect()
+}
+
+/// `items` without its last, beside that last, or 0 when empty: a tuple holding a block.
+pub fn split_last(mut items: Vec<i32>) -> (Vec<i32>, u32) {
+	let last = items.pop().unwrap_or(0);
+	(items, last.unsigned_abs())
+}
+
+/// A record whose field takes the name a language's `equals` gives its argument.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Shadowed {
+	pub other: Vec<i32>,
+	pub a: u8,
+	pub b: u8,
+}
+
+/// A list of each fixed-width integer and float type, each crossing as one block.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Numbers {
+	pub u16s: Vec<u16>,
+	pub u32s: Box<[u32]>,
+	pub u64s: Vec<u64>,
+	pub i8s: Vec<i8>,
+	pub i16s: Vec<i16>,
+	pub i32s: Vec<i32>,
+	pub i64s: Vec<i64>,
+	pub f32s: Vec<f32>,
+	pub f64s: Vec<f64>,
+	pub some: Option<Vec<i32>>,
+}
+
+impl Numbers {
+	/// Each type's edges: its least, 0, 1, and its greatest; for floats, also -0.0, the
+	/// least subnormal, the infinities, and a NaN with a payload.
+	pub fn edges() -> Self {
+		Self {
+			u16s: vec![0, 1, u16::MAX],
+			u32s: Box::new([0, 1, u32::MAX]),
+			u64s: vec![0, 1, u64::MAX],
+			i8s: vec![i8::MIN, -1, 0, 1, i8::MAX],
+			i16s: vec![i16::MIN, -1, 0, 1, i16::MAX],
+			i32s: vec![i32::MIN, -1, 0, 1, i32::MAX],
+			i64s: vec![i64::MIN, -1, 0, 1, i64::MAX],
+			f32s: vec![
+				f32::MIN,
+				-0.0,
+				f32::from_bits(1),
+				f32::MAX,
+				f32::NEG_INFINITY,
+				f32::INFINITY,
+				f32::from_bits(0x7fc0_0001),
+			],
+			f64s: vec![
+				f64::MIN,
+				-0.0,
+				f64::from_bits(1),
+				f64::MAX,
+				f64::NEG_INFINITY,
+				f64::INFINITY,
+				f64::from_bits(0x7ff8_0000_0000_0001),
+			],
+			some: Some(Vec::new()),
+		}
+	}
+
+	/// Only the float lists hold anything: one zero each, negative when `negative` is.
+	pub fn zero(negative: bool) -> Self {
+		let zero = if negative { -0.0 } else { 0.0 };
+		Self {
+			u16s: Vec::new(),
+			u32s: Box::new([]),
+			u64s: Vec::new(),
+			i8s: Vec::new(),
+			i16s: Vec::new(),
+			i32s: Vec::new(),
+			i64s: Vec::new(),
+			f32s: vec![zero as f32],
+			f64s: vec![zero],
+			some: None,
+		}
+	}
+
+	/// Each list reversed, and `some` too where present.
+	pub fn reversed(mut self) -> Self {
+		self.u16s.reverse();
+		self.u32s.reverse();
+		self.u64s.reverse();
+		self.i8s.reverse();
+		self.i16s.reverse();
+		self.i32s.reverse();
+		self.i64s.reverse();
+		self.f32s.reverse();
+		self.f64s.reverse();
+		if let Some(some) = &mut self.some {
+			some.reverse();
+		}
+		self
+	}
+}
+
+/// A float beside a record of float lists, both compared as Rust's `==` compares floats.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Measure {
+	pub value: f64,
+	pub numbers: Numbers,
+}
+
+impl Measure {
+	/// `value` beside [`Numbers::zero`] of `negative`.
+	pub fn new(value: f64, negative: bool) -> Self {
+		Self {
+			value,
+			numbers: Numbers::zero(negative),
+		}
+	}
+}
+
+/// The sum of `items`, borrowed in place.
+pub fn sum_u32(items: &[u32]) -> u64 {
+	items.iter().map(|&v| u64::from(v)).sum()
+}
+
+/// `items` doubled, wrapping, from a borrowed slice.
+pub fn doubled_i64(items: &[i64]) -> Vec<i64> {
+	items.iter().map(|v| v.wrapping_mul(2)).collect()
+}
+
+/// `items` back as Rust took them, boxed.
+pub fn boxed_floats(items: Box<[f64]>) -> Box<[f64]> {
+	items
 }
 
 /// The points added up, from anything that iterates them.
@@ -2319,6 +3656,12 @@ pub fn since(later: std::time::Instant, earlier: std::time::Instant) -> Duration
 	later.saturating_duration_since(earlier)
 }
 
+/// Whether `at` holds an instant, lent inside an `Option`: an instant crosses as a `Copy`
+/// object, so lending one inside a value takes no handle.
+pub fn has_instant(at: &Option<std::time::Instant>) -> bool {
+	at.is_some()
+}
+
 /// How much to log, as moq-tokio's `Log` holds it: a field of a foreign enum, and its filter.
 #[non_exhaustive]
 pub struct Verbosity {
@@ -2369,10 +3712,16 @@ impl Site {
 impl Shape {
 	/// Every shape, as a constant slice.
 	pub const ALL: &'static [Shape] = &[Shape::Circle, Shape::Square];
+
+	/// Every shape, as a constant array, returned as the array of its elements.
+	pub const BOTH: [Shape; 2] = [Shape::Circle, Shape::Square];
 }
 
 /// Greetings, as a constant slice of references, each returned as a clone.
 pub const GREETINGS: &[&str] = &["hi", "hello"];
+
+/// Primes, as a constant array of a block's element.
+pub const PRIMES: [u32; 3] = [2, 3, 5];
 
 /// A trail through points, each labeled: slices passed in and lent back out.
 pub struct Trail {
@@ -2456,6 +3805,23 @@ pub fn nexts(
 	(std::net::SocketAddrV4::new(*v4.ip(), v4.port() + 1), v6)
 }
 
+/// Each address one past, wrapping, one IPv4 and one IPv6.
+pub fn next_ips(v4: std::net::Ipv4Addr, v6: std::net::Ipv6Addr) -> (std::net::Ipv4Addr, std::net::Ipv6Addr) {
+	(
+		u32::from(v4).wrapping_add(1).into(),
+		u128::from(v6).wrapping_add(1).into(),
+	)
+}
+
+/// The address in the other family: IPv4 as its IPv4-mapped IPv6, and an IPv4-mapped IPv6
+/// as its IPv4; any other IPv6 stays as it is.
+pub fn flip(ip: std::net::IpAddr) -> std::net::IpAddr {
+	match ip {
+		std::net::IpAddr::V4(v4) => v4.to_ipv6_mapped().into(),
+		std::net::IpAddr::V6(v6) => v6.to_ipv4_mapped().map_or(ip, Into::into),
+	}
+}
+
 /// Why [`refuse`] refused, which Rust returns only boxed.
 #[derive(Debug)]
 pub struct Refusal {
@@ -2476,6 +3842,18 @@ pub fn reasons(pairs: Vec<(Counter, Refusal)>, last: Option<(Counter, Refusal)>)
 		.map(|(counter, refusal)| format!("{} {refusal}", counter.name))
 		.collect::<Vec<_>>()
 		.join(", ")
+}
+
+/// The length of the note, the bytes, and the reason: bytes beside a class Swift closes
+/// once a move took it, so a call refused before Rust runs frees the bytes it gave Rust.
+pub fn excuse(note: Bytes, entry: (Bytes, Refusal)) -> usize {
+	note.len() + entry.0.len() + entry.1.reason.len()
+}
+
+/// How many of `refusals` `log` keeps, each logged at level 0: a callback the binding gives
+/// before a list whose classes a move may have closed.
+pub fn relay(log: Box<dyn Log>, refusals: Vec<Refusal>) -> u32 {
+	refusals.iter().filter(|r| log.log(0, &r.to_string())).count() as u32
 }
 
 /// Always refuses, for `reason`.
@@ -2513,6 +3891,39 @@ pub fn pointer_bits(platform: Platform) -> u32 {
 	}
 }
 
+/// A variant whose field is named as a binding's tag naming the variant.
+#[derive(Debug, PartialEq)]
+pub enum Labelled {
+	Tagged { tag: u32 },
+	Bare,
+}
+
+/// `labelled`, as it came.
+pub fn same_labelled(labelled: Labelled) -> Labelled {
+	labelled
+}
+
+/// A core of a native target's CPU: a record wasm32 lacks.
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Core {
+	pub id: u32,
+}
+
+/// Where work runs, with a variant only native targets have holding a record only they
+/// have, which wasm32's binding reads no field of.
+pub enum Placement {
+	/// Wherever the target runs it.
+	Anywhere,
+	/// On one core of a native target.
+	#[cfg(not(target_arch = "wasm32"))]
+	Pinned(Core),
+}
+
+/// Where the library's target runs work.
+pub fn placement() -> Placement {
+	Placement::Anywhere
+}
+
 /// The family of the library's target, a plain enum with a variant only wasm32 has.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Family {
@@ -2535,6 +3946,12 @@ pub fn is_family(family: Family) -> bool {
 #[cfg(target_arch = "wasm32")]
 pub fn wasm_only() -> u32 {
 	32
+}
+
+/// Only wasm32 has it, and it consumes `counter`: a refused call leaves it open.
+#[cfg(target_arch = "wasm32")]
+pub fn wasm_take(counter: Counter) -> Result<u64, Error> {
+	Ok(counter.get())
 }
 
 /// Only wasm32 has it: a call on another target fails before it takes `log`.
@@ -2562,10 +3979,24 @@ impl Worker {
 	}
 }
 
-/// A record only wasm32 has.
+/// A record only wasm32 has, whose std traits fail on another target as its functions do.
 #[cfg(target_arch = "wasm32")]
+#[derive(Debug, Default, PartialEq)]
 pub struct Page {
 	pub size: u32,
+}
+
+/// A record only wasm32 has, holding a checked object, so its std traits take a status.
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug, PartialEq)]
+pub struct Booth {
+	pub mark: Mark,
+}
+
+/// The count of `booth`'s mark.
+#[cfg(target_arch = "wasm32")]
+pub fn booth_count(booth: Booth) -> u64 {
+	booth.mark.count
 }
 
 /// wasm32's page.
@@ -2604,6 +4035,18 @@ pub enum VecClashTone {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct StartSeekable {
 	pub at: u64,
+}
+
+/// Whether two floats are equal as `1`, named as the helper Kotlin's records compare through.
+pub fn same(a: f64, b: f64) -> i32 {
+	i32::from(a == b)
+}
+
+/// A count of doubles, named as Kotlin's primitive array of them: Kotlin's name takes a
+/// trailing `_`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DoubleArray {
+	pub len: u32,
 }
 
 pub mod clash {
@@ -2694,6 +4137,28 @@ pub mod clash {
 	}
 }
 
+/// Changes both coordinates before returning mixed values or an error.
+pub fn return_values(
+	point: &mut Point,
+	fail: bool,
+) -> Result<(String, Option<(u8, i16, u32, u64)>, Vec<Vec<u8>>), Error> {
+	point.x += 1;
+	point.y -= 1;
+	if fail {
+		return Err(Error::Overflow);
+	}
+	Ok((
+		"hé🙂\0".to_string(),
+		Some(widths(u64::MAX)),
+		vec![vec![0, 128, 255], (0..=255).cycle().take(10000).collect()],
+	))
+}
+
+/// Moves the counter into the success value, or drops it on failure.
+pub fn return_moved(counter: Counter, fail: bool) -> Result<Counter, Error> {
+	if fail { Err(Error::Overflow) } else { Ok(counter) }
+}
+
 /// One `NonZero` of each integer, each crossing as its integer.
 #[derive(Clone, Copy, Debug)]
 pub struct NonZeros {
@@ -2739,4 +4204,161 @@ pub fn next_hop(hop: Option<NonZero<u64>>) -> Option<NonZero<u64>> {
 /// behind a `Box`.
 pub fn farther_hop(hops: Pair<NonZero<u16>>) -> Box<NonZero<u16>> {
 	Box::new(hops.left.max(hops.right))
+}
+
+/// Three optional borrowed counters, past what Swift takes, so the config leaves it out.
+pub fn among(first: Option<&Counter>, second: Option<&Counter>, third: Option<&Counter>) -> u64 {
+	[first, second, third].into_iter().flatten().map(|c| c.value).sum()
+}
+
+/// A record named as C++'s `==` names its first argument, which must not hide it.
+#[allow(non_camel_case_types)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct a {
+	pub b: u8,
+}
+
+/// An enum named as C++'s `==` names its first argument.
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum b {
+	One,
+	Two(u8),
+}
+
+/// A handle named as C++'s `==` names its first argument.
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq)]
+pub struct c {
+	value: u8,
+}
+
+impl c {
+	/// A handle holding `value`.
+	pub fn new(value: u8) -> Self {
+		c { value }
+	}
+}
+
+/// An enum whose variants are named as what a Kotlin variant class's `equals` and
+/// `hashCode` name, which must not take the variants for them.
+#[derive(Clone, PartialEq)]
+pub enum Builtin {
+	Any(Vec<i32>),
+	Boolean(f64),
+	Int(f64),
+	Native(f64),
+}
+
+/// A record whose fields are named as the package and as `kotlin`, which Kotlin's
+/// generated `equals` and `hashCode` must not take for those.
+#[derive(Clone, PartialEq)]
+pub struct Qualifiers {
+	pub api: f64,
+	pub kotlin: f64,
+}
+
+/// An object named as a class of Kotlin's runtime once was, which keeps its name now the
+/// runtime's take a leading `__`.
+pub struct Handle {
+	count: u32,
+}
+
+impl Handle {
+	pub fn new(count: u32) -> Self {
+		Handle { count }
+	}
+
+	pub fn count(&self) -> u32 {
+		self.count
+	}
+
+	pub async fn later(count: u32) -> Self {
+		Handle { count }
+	}
+}
+
+// Lossless round trips: each returns what it is given, so a binding passes a type's edge
+// values through Rust and back, and prints what it holds.
+
+/// `v`, as given: the longest `Duration` included.
+pub fn same_duration(v: Duration) -> Duration {
+	v
+}
+
+/// `v`, as given: past `i64::MAX` included.
+pub fn same_u64(v: u64) -> u64 {
+	v
+}
+
+/// `v`, as given: past a 32-bit target's included.
+pub fn same_usize(v: usize) -> usize {
+	v
+}
+
+/// `v`, as given.
+pub fn same_isize(v: isize) -> isize {
+	v
+}
+
+/// `v`, as given.
+pub fn same_u128(v: u128) -> u128 {
+	v
+}
+
+/// `v`, as given.
+pub fn same_char(v: char) -> char {
+	v
+}
+
+/// `v`, as given.
+pub fn same_string(v: String) -> String {
+	v
+}
+
+/// `v`, as given: one whose bytes are not UTF-8 included, as a Unix path may be.
+pub fn same_path(v: std::path::PathBuf) -> std::path::PathBuf {
+	v
+}
+
+/// `v`, as given: a flow label and scope included.
+pub fn same_socket_addr(v: std::net::SocketAddr) -> std::net::SocketAddr {
+	v
+}
+
+/// `v`, as given.
+pub fn same_socket_addr_v4(v: std::net::SocketAddrV4) -> std::net::SocketAddrV4 {
+	v
+}
+
+/// `v`, as given: a flow label and scope included.
+pub fn same_socket_addr_v6(v: std::net::SocketAddrV6) -> std::net::SocketAddrV6 {
+	v
+}
+
+/// `v`, as given.
+pub fn same_ip_addr(v: std::net::IpAddr) -> std::net::IpAddr {
+	v
+}
+
+/// A key: an object whose `Hash` agrees with its `PartialEq`, so a binding hashes it by
+/// Rust's, as a map keyed by it needs.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Key {
+	name: String,
+}
+
+impl Key {
+	pub fn new(name: &str) -> Key {
+		Key { name: name.to_string() }
+	}
+
+	/// Its hash by std's hasher, which a binding's own of it must equal, as both hash
+	/// through Rust's `Hash` alike.
+	pub fn hash_of(&self) -> u64 {
+		std::hash::BuildHasher::hash_one(
+			&std::hash::BuildHasherDefault::<std::hash::DefaultHasher>::default(),
+			self,
+		)
+	}
 }

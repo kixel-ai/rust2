@@ -2,19 +2,20 @@
 # type-checks alongside it but never runs. Each list it passes in holds one alternative of
 # a widened element type, or is no `list` at all, as a caller's own may be.
 
+import array
 import asyncio
-import datetime
 import io
 
 import api
 
 v4s: list[tuple[str, int]] = [("127.0.0.1", 8080)]
-ports: list[int] = api.ports(v4s)
+ports: array.array[int] = api.ports(v4s)
 ports = api.ports(addr for addr in v4s)
 
-rows: list[list[int]] = [[1, 2], [3]]
-sums: list[int] = api.sums(rows)
-sums = api.sums(((1, 2), (3,)))
+rows: list[array.array[int]] = [array.array("I", [1, 2]), array.array("I", [3])]
+sums: array.array[int] = api.sums(rows)
+sums = api.sums(memoryview(row) for row in rows)
+floats: array.array[float] = api.boxed_floats(array.array("d", [0.5]))
 
 names: tuple[str, ...] = ("a", "b")
 peer = api.Peer(v4s[0], names)
@@ -36,15 +37,20 @@ class Reader:
 
 tail = api.tail(Reader(), 1)
 
+# A method named as a builtin leaves the builtin its annotations name.
+clash_bytes: memoryview = api.Clash.String("hi").bytes()
+
 
 # Closures returning what Rust owns, or raising the exception of their error.
-def drive(now: api.Instant, waiter: api.Waiter) -> api.Instant | None:
-	if api.since(now, now):
+def drive(now: api.Moment, waiter: api.Waiter) -> api.Moment | None:
+	if now.millis():
 		raise api.StringException("stopped")
-	return api.later(now, datetime.timedelta(milliseconds=5))
+	return now.after(5)
 
 
-stopped: str = asyncio.run(api.drive(api.now(), drive))
+start = api.Moment.new(0, 1000)
+assert start is not None
+stopped: str = asyncio.run(api.drive(start, drive))
 made: str = api.made(3, lambda n: f"{n} times")
 spawned: int = api.Spawned.new(lambda: 7).join()
 polled: None = asyncio.run(api.Waiter.poll_future(asyncio.sleep(0)))

@@ -500,9 +500,6 @@ export function writes(data: rs.ByteSlice, out: rs.ByteVec): void {
 }
 
 export function written$cell_LazyCell_statics_Dropped_statics_cell_closure0(op: rs.u8, make: (a0: rs.u8) => rs.LazyCell<Dropped.Dropped>, out: rs.ByteVec): void {
-	const _18: (a0: rs.LazyCell<Dropped.Dropped>) => rs.String = (l: rs.LazyCell<Dropped.Dropped>): rs.String => {
-		return rs.fmtFormat([(f: rs.Formatter) => l.debug(f, "LazyCell", (value: Dropped.Dropped, f: rs.Formatter) => Dropped.fmt$fmt_Debug(value, f)), "|"]);
-	};
 	let _103: boolean = false;
 	let a: rs.LazyCell<Dropped.Dropped> = make(1);
 	let b: rs.LazyCell<Dropped.Dropped> = make(2);
@@ -513,6 +510,9 @@ export function written$cell_LazyCell_statics_Dropped_statics_cell_closure0(op: 
 	if ((op & 2) !== 0) {
 		rs.byteVecPush(out, b.force()._0);
 	}
+	const _18: (a0: rs.LazyCell<Dropped.Dropped>) => rs.String = (l: rs.LazyCell<Dropped.Dropped>): rs.String => {
+		return rs.fmtFormat([(f: rs.Formatter) => l.debug(f, "LazyCell", (value: Dropped.Dropped, f: rs.Formatter) => Dropped.fmt$fmt_Debug(value, f)), "|"]);
+	};
 	const _20: rs.u8 = rs.u8Rem(op >> 2, 7);
 	if (_20 === 0) {
 		const _25: rs.LazyCell<Dropped.Dropped> = a;
@@ -566,9 +566,6 @@ export function written$cell_LazyCell_statics_Dropped_statics_cell_closure0(op: 
 }
 
 export function written$sync_LazyLock_statics_Dropped_statics_lock_closure0(op: rs.u8, make: (a0: rs.u8) => rs.LazyLock<Dropped.Dropped>, out: rs.ByteVec): void {
-	const _18: (a0: rs.LazyLock<Dropped.Dropped>) => rs.String = (l: rs.LazyLock<Dropped.Dropped>): rs.String => {
-		return rs.fmtFormat([(f: rs.Formatter) => l.debug(f, "LazyLock", (value: Dropped.Dropped, f: rs.Formatter) => Dropped.fmt$fmt_Debug(value, f)), "|"]);
-	};
 	let _103: boolean = false;
 	let a: rs.LazyLock<Dropped.Dropped> = make(1);
 	let b: rs.LazyLock<Dropped.Dropped> = make(2);
@@ -579,6 +576,9 @@ export function written$sync_LazyLock_statics_Dropped_statics_lock_closure0(op: 
 	if ((op & 2) !== 0) {
 		rs.byteVecPush(out, b.force()._0);
 	}
+	const _18: (a0: rs.LazyLock<Dropped.Dropped>) => rs.String = (l: rs.LazyLock<Dropped.Dropped>): rs.String => {
+		return rs.fmtFormat([(f: rs.Formatter) => l.debug(f, "LazyLock", (value: Dropped.Dropped, f: rs.Formatter) => Dropped.fmt$fmt_Debug(value, f)), "|"]);
+	};
 	const _20: rs.u8 = rs.u8Rem(op >> 2, 7);
 	if (_20 === 0) {
 		const _25: rs.LazyLock<Dropped.Dropped> = a;

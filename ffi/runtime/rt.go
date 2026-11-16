@@ -6,16 +6,78 @@
 // cgo makes its own, in ffi_cgo.go; it reaches this through Go's types alone.
 
 // The holds a handle counts, one for its owner until closed and one per call, shifted
-// past a bit set once closed.
+// past a bit set once closed, one set while an unchecked Close decides, and one set once
+// calls contended for them, after which they hold it in slots_: in one word, so a call
+// reads them all at once, and the count is below held_ only once no hold is left.
 const (
-	closed_ = 1
-	held_   = 2
+	closed_  = 1
+	bias_    = 2
+	closing_ = 4
+	held_    = 8
 )
+
+// Once calls contend for a handle's count, each holds it in a slot of slots_ instead, so
+// goroutines sharing a handle write nothing in common. A close that would free the handle
+// claims it closed first, then counts each hold it finds there, which lets go through the
+// count, so the last to let go frees it: ffi/tests/hold.rs models this under loom.
+const (
+	// Set in a slot whose hold a close counted.
+	revoked_ = 1
+	// A cache line of slots to a column, which a goroutine's stack address picks, and a
+	// row, which the handle's address picks: two goroutines in one column, or two handles
+	// in one row on one goroutine, fall back to the count.
+	slotRows_    = 8
+	slotColumns_ = 256
+)
+
+// slots_ is the table, its columns on cache lines of their own.
+var slots_ = func() []atomic.Uintptr {
+	s := make([]atomic.Uintptr, (slotColumns_+1)*slotRows_)
+	skip := (64 - uintptr(unsafe.Pointer(&s[0]))%64) % 64 / 8
+	return s[skip : skip+slotColumns_*slotRows_]
+}()
+
+// fibonacci_ spreads an address's bits into a hash's top ones.
+const fibonacci_ = 0x9E3779B97F4A7C15
+
+// Slot_ is where a hold went: a slot of slots_, or nil for the count.
+type Slot_ struct {
+	p *atomic.Uintptr
+}
 
 // ErrClosed is what a call returns, wrapped with the object's type, once an object it takes
 // is closed: by Close, by a call that moved it into Rust, or, for one Rust lent a callback,
 // once that callback returned.
 var ErrClosed = errors.New("closed")
+
+// ErrBorrowed is what a call returns, wrapped with the function's name, once Rust's rules
+// refuse a borrow it makes: of an object another call or future borrows in a way the
+// borrow checker forbids beside it, or of one that is not Sync from a second thread.
+var ErrBorrowed = errors.New("borrowed")
+
+// checkError_ is what a call returns once Rust refuses it before running: its status, or 0
+// for an item not on the library's target, which matches errors.ErrUnsupported.
+type checkError_ struct {
+	what    string
+	message string
+	status  int32
+}
+
+func (e checkError_) Error() string {
+	return e.what + ": " + e.message
+}
+
+func (e checkError_) Is(target error) bool {
+	switch e.status {
+	case 0:
+		return target == errors.ErrUnsupported
+	// Moved out, or lent from a handle that since changed: closed either way.
+	case 1, 6:
+		return target == ErrClosed
+	default:
+		return target == ErrBorrowed
+	}
+}
 
 type closedError_ struct {
 	name string
@@ -29,37 +91,204 @@ func (e closedError_) Is(target error) bool {
 	return target == ErrClosed
 }
 
-// Handle_ is what an object owns, or is lent for a call: each call holds it, so Close frees
-// it only once no call does, and a call after Close returns ErrClosed. For the generated
-// packages, which share it: use none of it.
+// Handle_ is what an object owns, or is lent for a call: each call holds it, so it is
+// freed only once no call does, and a call after Close returns ErrClosed. Close of one
+// whose value Rust checks, which drop drops, drops the value as Rust's own drop does,
+// failing while a call borrows it in Rust; of any other, it fails while a call holds it.
+// For the generated packages, which share it: use none of it.
 type Handle_ struct {
 	raw   unsafe.Pointer
 	state atomic.Int64
 	// Nil for a handle Rust lends, which it frees itself.
 	free func(unsafe.Pointer)
+	// Non-nil for an owned one of a value Rust checks: it drops the value, then frees the
+	// handle too if asked and the drop passed.
+	drop func(raw unsafe.Pointer, free bool) error
 	name string
-	// What closes an owned handle the GC finds unclosed.
-	Cleanup runtime.Cleanup
+	// The nursery an owned handle was returned into, and its slot there.
+	nursery *nursery_
+	slot    int
+	// What frees an owned handle once the GC collects its object, from when it leaves its
+	// nursery still open.
+	cleanup runtime.Cleanup
 }
 
-// NewHandle_ is a handle of raw, which free frees, or nil for one Rust lends.
-func NewHandle_(raw unsafe.Pointer, free func(unsafe.Pointer), name string) *Handle_ {
-	h := &Handle_{raw: raw, free: free, name: name}
+// Init makes h a handle of raw, which free frees, or nil for one Rust lends, and drop
+// drops the value of, or nil for one Rust does not check. The generated packages allocate
+// it with the object owning it, which each call holding it then keeps reachable: so once
+// the GC collects the object, no call holds the handle, and its cleanup frees it at once.
+func (h *Handle_) Init(raw unsafe.Pointer, free func(unsafe.Pointer), drop func(unsafe.Pointer, bool) error, name string) {
+	h.raw, h.free, h.drop, h.name = raw, free, drop, name
 	h.state.Store(held_)
-	return h
 }
 
-// Hold is the handle, held until Release, or nil once closed.
-func (h *Handle_) Hold() unsafe.Pointer {
+// Own puts h, which Rust returned and its object owns, in a nursery of the latest
+// returned, where a Close frees it without the GC's registration, which costs more than
+// the rest of a return and close together. One that leaves it open, pushed out by later
+// returns or with its nursery once the pool drops that, is registered then. For the
+// generated packages.
+func (h *Handle_) Own() {
+	r, _ := nurseries_.Get().(*ring_)
+	if r == nil {
+		r = &ring_{n: new(nursery_)}
+		runtime.AddCleanup(r, (*nursery_).flush, r.n)
+	}
+	r.n.push(h)
+	nurseries_.Put(r)
+}
+
+// nurseries_ holds the ring each P returns its objects into; a GC drops an idle one.
+var nurseries_ sync.Pool
+
+// ring_ is what the pool holds of a nursery, which its handles point at: so its cleanup
+// runs once the pool dropped it, whatever its handles do.
+type ring_ struct {
+	n *nursery_
+}
+
+// nurseryLen_ is how many of the latest objects returned a nursery holds: an object
+// dropped unclosed is freed only once this many more were returned on its P, or the pool
+// dropped its nursery, so it bounds what a dropped object keeps of Rust's.
+const nurseryLen_ = 64
+
+// nursery_ is the latest handles returned, oldest at next once full. Whichever comes first
+// of a handle's Close and its eviction takes its slot, with a compare-and-swap.
+type nursery_ struct {
+	// Kept reachable while here, so an eviction can register them. Only the ring's holder
+	// touches these two.
+	held [nurseryLen_]*Handle_
+	next int
+	// Each slot's raw handle until closed or evicted, evicting_ while an eviction registers
+	// it, else nil.
+	raw [nurseryLen_]unsafe.Pointer
+}
+
+// evicting_ marks a slot whose eviction is registering its handle, which no raw handle is.
+var evicting_ = unsafe.Pointer(new(byte))
+
+func (n *nursery_) push(h *Handle_) {
+	i := n.next
+	n.next = (i + 1) % nurseryLen_
+	if old := n.held[i]; old != nil {
+		n.evict(i, old)
+	}
+	n.held[i] = h
+	h.nursery, h.slot = n, i
+	atomic.StorePointer(&n.raw[i], h.raw)
+}
+
+// evict registers h, in slot i, with the GC, unless a Close took the slot first. A Close
+// meanwhile waits until it is registered, so it stops the cleanup.
+func (n *nursery_) evict(i int, h *Handle_) {
+	if !atomic.CompareAndSwapPointer(&n.raw[i], h.raw, evicting_) {
+		return
+	}
+	h.cleanup = runtime.AddCleanup(h, h.free, h.raw)
+	atomic.StorePointer(&n.raw[i], nil)
+}
+
+// flush registers each handle still open in n, once the pool dropped its ring, and lets go
+// of them all, so none waits on the others to be collected while any keeps n.
+func (n *nursery_) flush() {
+	for i := range n.raw {
+		// Loaded first, as push stores it after the handle.
+		if raw := atomic.LoadPointer(&n.raw[i]); raw != nil && raw != evicting_ {
+			n.evict(i, n.held[i])
+		}
+		n.held[i] = nil
+	}
+}
+
+// leave takes h out of its nursery as it closes, before anything frees it, or else stops
+// the cleanup its eviction registered: once, as only a close claims h.
+func (h *Handle_) leave() {
+	if n := h.nursery; n != nil {
+		slot := &n.raw[h.slot]
+		for {
+			raw := atomic.LoadPointer(slot)
+			if raw == h.raw && atomic.CompareAndSwapPointer(slot, raw, nil) {
+				return
+			}
+			if raw != evicting_ && raw != h.raw {
+				break
+			}
+			runtime.Gosched()
+		}
+	}
+	h.cleanup.Stop()
+}
+
+// own registers h with the GC, as an eviction does, once a close that took it out of its
+// nursery failed, leaving it open.
+func (h *Handle_) own() {
+	h.nursery = nil
+	h.cleanup = runtime.AddCleanup(h, h.free, h.raw)
+}
+
+// Hold is the handle, held until Release takes the Slot_, or nil once closed.
+func (h *Handle_) Hold() (unsafe.Pointer, Slot_) {
+	if raw := h.Count(); raw != nil {
+		return raw, Slot_{}
+	}
+	return h.Contend()
+}
+
+// Count is Hold's fast path, inlined into each call: the handle, held in the count until
+// Uncount, unless calls contend for it or it is closed, when it is nil and Contend holds
+// it instead.
+func (h *Handle_) Count() unsafe.Pointer {
+	if n := h.state.Load(); n&(closed_|bias_) == 0 && h.state.CompareAndSwap(n, n+held_) {
+		return h.raw
+	}
+	return nil
+}
+
+// Contend is Hold once Count failed: in the table, unless another handle or goroutine has
+// its slot, then in the count, after which later calls go to the table.
+func (h *Handle_) Contend() (unsafe.Pointer, Slot_) {
+	if h.state.Load()&bias_ != 0 {
+		var here byte
+		column := (uint64(uintptr(unsafe.Pointer(&here))) >> 11) * fibonacci_ >> 56
+		s := &slots_[uintptr(column)*slotRows_+h.row()]
+		key := h.key()
+		if s.CompareAndSwap(0, key) {
+			if h.state.Load()&closed_ == 0 {
+				return h.raw, Slot_{s}
+			}
+			// A close claimed it meanwhile, and may have counted this hold.
+			if !s.CompareAndSwap(key, 0) {
+				s.Store(0)
+				h.Uncount()
+			}
+			return nil, Slot_{}
+		}
+	}
 	for {
 		n := h.state.Load()
 		if n&closed_ != 0 {
-			return nil
+			return nil, Slot_{}
 		}
 		if h.state.CompareAndSwap(n, n+held_) {
-			return h.raw
+			break
 		}
 	}
+	// Count failed on an unbiased handle only as another call changed the count
+	// meanwhile: later ones go to the table.
+	if h.state.Load()&bias_ == 0 {
+		h.state.Or(bias_)
+	}
+	return h.raw, Slot_{}
+}
+
+// key is what a slot holds for h: its address, which no other live handle has, and
+// whose low bit is clear for revoked_.
+func (h *Handle_) key() uintptr {
+	return uintptr(unsafe.Pointer(h))
+}
+
+// row is h's row of slots_.
+func (h *Handle_) row() uintptr {
+	return uintptr((uint64(h.key()) >> 4) * fibonacci_ >> 61)
 }
 
 // Closed is the error a call returns once h is closed.
@@ -67,39 +296,153 @@ func (h *Handle_) Closed() error {
 	return closedError_{h.name}
 }
 
-// Release gives up a call's hold.
-func (h *Handle_) Release() {
+// Release gives up a call's hold, wherever Hold put it.
+func (h *Handle_) Release(s Slot_) {
+	if s.Counted() {
+		h.Uncount()
+	} else {
+		h.Unlist(s)
+	}
+}
+
+// Counted is whether a hold is in the count, for Uncount, or a slot, for Unlist.
+func (s Slot_) Counted() bool {
+	return s.p == nil
+}
+
+// Uncount gives up a hold in the count, small enough to inline.
+func (h *Handle_) Uncount() {
 	if h.state.Add(-held_) < held_ && h.free != nil {
 		h.free(h.raw)
 	}
 }
 
-// Close gives up the owner's hold, freeing the handle once no call holds it; again, it
-// does nothing.
-func (h *Handle_) Close() {
+// Unlist gives up a hold in a slot, or in the count once a close counted it.
+func (h *Handle_) Unlist(s Slot_) {
+	if s.p.Swap(0) != h.key() {
+		h.Uncount()
+	}
+}
+
+// Close closes h as Handle_ says; again, it does nothing.
+func (h *Handle_) Close() error {
+	if h.drop != nil {
+		// Held by no call, as soon after its return: claimed closed so none starts, then the
+		// value dropped and the handle freed in one crossing. A call meanwhile fails as
+		// closed, as one racing any Close may, and a Drop that calls back into Go finds it
+		// closed rather than waiting on itself.
+		if h.state.CompareAndSwap(held_, closed_|closing_) {
+			h.leave()
+			if err := h.drop(h.raw, true); err != nil {
+				h.own()
+				h.state.Store(held_)
+				return err
+			}
+			h.state.Store(closed_)
+			return nil
+		}
+		raw, s := h.Hold()
+		if raw == nil {
+			return nil
+		}
+		err := h.drop(raw, false)
+		h.Release(s)
+		if err != nil {
+			return err
+		}
+		h.Moved()
+		return nil
+	}
 	for {
 		n := h.state.Load()
+		// Another Close is deciding: wait for its outcome, which may leave h open.
+		if n&closing_ != 0 {
+			runtime.Gosched()
+			continue
+		}
+		if n&closed_ != 0 {
+			return nil
+		}
+		if n&^bias_ != held_ {
+			return checkError_{h.name, "a handle is already borrowed", 3}
+		}
+		if h.state.CompareAndSwap(n, n|closed_|closing_) {
+			break
+		}
+	}
+	// Claimed closed, so a call holding it in the table after this finds it closed, and
+	// one before is in the table. A call that left the table finding it closed held
+	// nothing, so the count is still the owner's alone.
+	if h.listed() {
+		h.state.And(^(closed_ | closing_))
+		return checkError_{h.name, "a handle is already borrowed", 3}
+	}
+	h.state.Store(closed_)
+	h.leave()
+	if h.free != nil {
+		h.free(h.raw)
+	}
+	return nil
+}
+
+// listed is whether a call holds h in the table.
+func (h *Handle_) listed() bool {
+	if h.state.Load()&bias_ == 0 {
+		return false
+	}
+	key := h.key()
+	for i := h.row(); i < uintptr(len(slots_)); i += slotRows_ {
+		if slots_[i].Load() == key {
+			return true
+		}
+	}
+	return false
+}
+
+// Moved closes an owned handle a call moved the value out of, or Close dropped, freeing it
+// once no call holds it.
+func (h *Handle_) Moved() {
+	h.abandon()
+}
+
+// abandon gives up the owner's hold, freeing it once no call holds it.
+func (h *Handle_) abandon() {
+	for {
+		n := h.state.Load()
+		// An unchecked Close is deciding: wait for its outcome, which may leave h open.
+		if n&closing_ != 0 {
+			runtime.Gosched()
+			continue
+		}
 		if n&closed_ != 0 {
 			return
 		}
-		next := (n | closed_) - held_
-		if h.state.CompareAndSwap(n, next) {
-			// A cleanup left registered until the GC slows each one registered after it.
-			h.Cleanup.Stop()
-			if next < held_ && h.free != nil {
-				h.free(h.raw)
-			}
-			return
+		if h.state.CompareAndSwap(n, n|closed_) {
+			break
 		}
 	}
+	h.leave()
+	// Claimed closed, so each call holding it in the table did so before: count them.
+	if h.state.Load()&bias_ != 0 {
+		key := h.key()
+		for i := h.row(); i < uintptr(len(slots_)); i += slotRows_ {
+			if s := &slots_[i]; s.Load() == key {
+				h.state.Add(held_)
+				if !s.CompareAndSwap(key, key|revoked_) {
+					h.state.Add(-held_)
+				}
+			}
+		}
+	}
+	h.Uncount()
 }
 
 // End ends a lend, closing the handle, which Rust frees next: a call still holding it
 // would reach the freed handle, so it panics, as Rust's own check fails once a call
 // borrowed.
 func (h *Handle_) End() {
-	h.Close()
-	if h.state.Load() != closed_ {
+	h.abandon()
+	if h.state.Load()&^bias_ != closed_ {
 		panic(h.name + ": a call still holds it when its lend ends")
 	}
 }
@@ -312,6 +655,27 @@ func LiftBytes_(p unsafe.Pointer) Bytes {
 		return b
 	}
 	return Bytes{owner: lend_(buf), ptr: unsafe.Pointer(buf.ptr), len: int(buf.len)}
+}
+
+// BytesTake_ is what b reads as a buffer Rust takes: a second owner of Rust's buffer,
+// sharing it without a copy, narrowed to b, or a nil owner for Go's memory, which C reads
+// during the call and Rust copies. For the generated packages.
+func BytesTake_(b Bytes) (unsafe.Pointer, int, unsafe.Pointer) {
+	if b.owner == nil {
+		return b.ptr, b.len, nil
+	}
+	// A Bytes of Rust's is one of its batch's buffers, or a range of one.
+	batch := b.owner.batch
+	p := uintptr(b.ptr)
+	for _, buf := range batch.bufs[:batch.n.Load()] {
+		start := uintptr(unsafe.Pointer(buf.ptr))
+		if p >= start && p+uintptr(b.len) <= start+uintptr(buf.len) {
+			owner := cBufClone(buf).owner
+			runtime.KeepAlive(b.owner)
+			return b.ptr, b.len, owner
+		}
+	}
+	panic("a Bytes of Rust's is in none of its batch's buffers")
 }
 
 // BytesBuf_ is what b reads, and what keeps it alive, nil for Go's memory, which a call
@@ -539,4 +903,293 @@ func (p *pollable_) Close() error {
 		cWakerDrop(waker)
 	}
 	return nil
+}
+
+// ErrInvalid is what a checked conversion returns, wrapped with what failed, for a value one
+// type holds and the other does not: text that is not UTF-8 or a rune that is not a Unicode
+// scalar value, which a call taking one returns before it is made, or a value outside the
+// type converted to.
+var ErrInvalid = errors.New("invalid")
+
+type invalidError_ string
+
+func (e invalidError_) Error() string {
+	return string(e)
+}
+
+func (e invalidError_) Is(target error) bool {
+	return target == ErrInvalid
+}
+
+// Invalid_ is the error, matching ErrInvalid, that what says. For the generated packages.
+func Invalid_(what string) error {
+	return invalidError_(what)
+}
+
+// Duration is Rust's Duration: whole seconds, and the nanoseconds past them, below a
+// second. The zero Duration is zero, and == compares two.
+type Duration struct {
+	secs  uint64
+	nanos uint32
+}
+
+// NewDuration is secs seconds and nanos nanoseconds, nanoseconds past a second carrying into
+// the seconds as Rust's Duration::new does, failing past Rust's longest.
+func NewDuration(secs uint64, nanos uint32) (Duration, error) {
+	carry := uint64(nanos / 1e9)
+	if secs > math.MaxUint64-carry {
+		return Duration{}, Invalid_("a duration past Rust's longest")
+	}
+	return Duration{secs: secs + carry, nanos: nanos % 1e9}, nil
+}
+
+// DurationOf is d as Rust's Duration, failing on a negative one, which Rust's has none of.
+func DurationOf(d time.Duration) (Duration, error) {
+	if d < 0 {
+		return Duration{}, Invalid_("a negative duration has no Rust Duration")
+	}
+	return Duration{secs: uint64(d / time.Second), nanos: uint32(d % time.Second)}, nil
+}
+
+// Secs is d's whole seconds.
+func (d Duration) Secs() uint64 {
+	return d.secs
+}
+
+// Nanos is d's nanoseconds past its whole seconds, below a second.
+func (d Duration) Nanos() uint32 {
+	return d.nanos
+}
+
+// Std is d as a time.Duration, failing past its longest, about 292 years.
+func (d Duration) Std() (time.Duration, error) {
+	if d.secs > uint64((math.MaxInt64-time.Duration(d.nanos))/time.Second) {
+		return 0, Invalid_("a duration past time.Duration's longest")
+	}
+	return time.Duration(d.secs)*time.Second + time.Duration(d.nanos), nil
+}
+
+// U128 is Rust's u128: its high and its low 64 bits.
+type U128 struct {
+	Hi, Lo uint64
+}
+
+// U128Of is v as a U128, failing outside 0 through 2^128 - 1.
+func U128Of(v *big.Int) (U128, error) {
+	if v.Sign() < 0 || v.BitLen() > 128 {
+		return U128{}, Invalid_("an int outside Rust's u128")
+	}
+	var b [16]byte
+	v.FillBytes(b[:])
+	return U128{Hi: binary.BigEndian.Uint64(b[:8]), Lo: binary.BigEndian.Uint64(b[8:])}, nil
+}
+
+// Big is v as a big.Int.
+func (v U128) Big() *big.Int {
+	var b [16]byte
+	binary.BigEndian.PutUint64(b[:8], v.Hi)
+	binary.BigEndian.PutUint64(b[8:], v.Lo)
+	return new(big.Int).SetBytes(b[:])
+}
+
+// Ipv4Addr is Rust's Ipv4Addr: its octets, in network order.
+type Ipv4Addr [4]byte
+
+// Ipv4AddrOf is ip as an Ipv4Addr, failing unless it is IPv4.
+func Ipv4AddrOf(ip netip.Addr) (Ipv4Addr, error) {
+	if !ip.Is4() {
+		return Ipv4Addr{}, Invalid_("an address that is not IPv4 has no Rust Ipv4Addr")
+	}
+	return ip.As4(), nil
+}
+
+// Netip is ip as a netip.Addr.
+func (ip Ipv4Addr) Netip() netip.Addr {
+	return netip.AddrFrom4(ip)
+}
+
+// Ipv6Addr is Rust's Ipv6Addr: its octets, in network order.
+type Ipv6Addr [16]byte
+
+// Ipv6AddrOf is ip as an Ipv6Addr, failing unless it is IPv6 without a zone, which Rust's
+// has no room for.
+func Ipv6AddrOf(ip netip.Addr) (Ipv6Addr, error) {
+	if !ip.Is6() {
+		return Ipv6Addr{}, Invalid_("an address that is not IPv6 has no Rust Ipv6Addr")
+	}
+	if ip.Zone() != "" {
+		return Ipv6Addr{}, Invalid_("an IPv6 address with a zone has no Rust Ipv6Addr")
+	}
+	return ip.As16(), nil
+}
+
+// Netip is ip as a netip.Addr, IPv6 even where it maps IPv4.
+func (ip Ipv6Addr) Netip() netip.Addr {
+	return netip.AddrFrom16(ip)
+}
+
+// IpAddr is Rust's IpAddr: an Ipv4Addr or an Ipv6Addr. The zero IpAddr is IPv4's 0.0.0.0,
+// and == compares two.
+type IpAddr struct {
+	v4  Ipv4Addr
+	v6  Ipv6Addr
+	is6 bool
+}
+
+// IpAddrFromV4 is ip as an IpAddr.
+func IpAddrFromV4(ip Ipv4Addr) IpAddr {
+	return IpAddr{v4: ip}
+}
+
+// IpAddrFromV6 is ip as an IpAddr.
+func IpAddrFromV6(ip Ipv6Addr) IpAddr {
+	return IpAddr{v6: ip, is6: true}
+}
+
+// IpAddrOf is ip as an IpAddr, of its family, failing on an invalid one or a zone, which
+// Rust's has no room for.
+func IpAddrOf(ip netip.Addr) (IpAddr, error) {
+	if ip.Is4() {
+		return IpAddrFromV4(ip.As4()), nil
+	}
+	if !ip.IsValid() {
+		return IpAddr{}, Invalid_("an invalid address has no Rust IpAddr")
+	}
+	v6, err := Ipv6AddrOf(ip)
+	if err != nil {
+		return IpAddr{}, err
+	}
+	return IpAddrFromV6(v6), nil
+}
+
+// V4 is a's IPv4 address, if it is one.
+func (a IpAddr) V4() (Ipv4Addr, bool) {
+	return a.v4, !a.is6
+}
+
+// V6 is a's IPv6 address, if it is one.
+func (a IpAddr) V6() (Ipv6Addr, bool) {
+	return a.v6, a.is6
+}
+
+// Netip is a as a netip.Addr.
+func (a IpAddr) Netip() netip.Addr {
+	if a.is6 {
+		return a.v6.Netip()
+	}
+	return a.v4.Netip()
+}
+
+// SocketAddrV4 is Rust's SocketAddrV4: an IPv4 address and a port.
+type SocketAddrV4 struct {
+	IP   Ipv4Addr
+	Port uint16
+}
+
+// SocketAddrV4Of is a as a SocketAddrV4, failing unless it is IPv4.
+func SocketAddrV4Of(a netip.AddrPort) (SocketAddrV4, error) {
+	ip, err := Ipv4AddrOf(a.Addr())
+	if err != nil {
+		return SocketAddrV4{}, Invalid_("an address that is not IPv4 has no Rust SocketAddrV4")
+	}
+	return SocketAddrV4{IP: ip, Port: a.Port()}, nil
+}
+
+// Netip is a as a netip.AddrPort.
+func (a SocketAddrV4) Netip() netip.AddrPort {
+	return netip.AddrPortFrom(a.IP.Netip(), a.Port)
+}
+
+// SocketAddrV6 is Rust's SocketAddrV6: an IPv6 address, a port, a flow label, and the scope
+// a link-local address is in, a zone's interface number, or 0 for none.
+type SocketAddrV6 struct {
+	IP       Ipv6Addr
+	Port     uint16
+	FlowInfo uint32
+	ScopeID  uint32
+}
+
+// SocketAddrV6Of is a as a SocketAddrV6, failing unless it is IPv6 with no zone or one naming
+// an interface, by its number or its name, which it holds as that interface's number.
+func SocketAddrV6Of(a netip.AddrPort) (SocketAddrV6, error) {
+	ip := a.Addr()
+	if !ip.Is6() {
+		return SocketAddrV6{}, Invalid_("an address that is not IPv6 has no Rust SocketAddrV6")
+	}
+	v := SocketAddrV6{IP: ip.As16(), Port: a.Port()}
+	if zone := ip.Zone(); zone != "" {
+		if id, err := strconv.ParseUint(zone, 10, 32); err == nil {
+			v.ScopeID = uint32(id)
+		} else if iface, err := net.InterfaceByName(zone); err == nil {
+			v.ScopeID = uint32(iface.Index)
+		} else {
+			return SocketAddrV6{}, Invalid_("an IPv6 zone that names no interface: " + zone)
+		}
+	}
+	return v, nil
+}
+
+// Netip is a as a netip.AddrPort, its scope a zone of its number, failing on a flow label,
+// which netip has no room for.
+func (a SocketAddrV6) Netip() (netip.AddrPort, error) {
+	if a.FlowInfo != 0 {
+		return netip.AddrPort{}, Invalid_("an IPv6 flow label has no netip form")
+	}
+	ip := a.IP.Netip()
+	if a.ScopeID != 0 {
+		ip = ip.WithZone(strconv.FormatUint(uint64(a.ScopeID), 10))
+	}
+	return netip.AddrPortFrom(ip, a.Port), nil
+}
+
+// SocketAddr is Rust's SocketAddr: a SocketAddrV4 or a SocketAddrV6. The zero SocketAddr is
+// IPv4's 0.0.0.0, port 0, and == compares two.
+type SocketAddr struct {
+	v4  SocketAddrV4
+	v6  SocketAddrV6
+	is6 bool
+}
+
+// SocketAddrFromV4 is a as a SocketAddr.
+func SocketAddrFromV4(a SocketAddrV4) SocketAddr {
+	return SocketAddr{v4: a}
+}
+
+// SocketAddrFromV6 is a as a SocketAddr.
+func SocketAddrFromV6(a SocketAddrV6) SocketAddr {
+	return SocketAddr{v6: a, is6: true}
+}
+
+// SocketAddrOf is a as a SocketAddr, of its family, failing on an invalid one or a zone
+// SocketAddrV6Of fails on.
+func SocketAddrOf(a netip.AddrPort) (SocketAddr, error) {
+	if a.Addr().Is4() {
+		return SocketAddrFromV4(SocketAddrV4{IP: a.Addr().As4(), Port: a.Port()}), nil
+	}
+	if !a.Addr().IsValid() {
+		return SocketAddr{}, Invalid_("an invalid address has no Rust SocketAddr")
+	}
+	v6, err := SocketAddrV6Of(a)
+	if err != nil {
+		return SocketAddr{}, err
+	}
+	return SocketAddrFromV6(v6), nil
+}
+
+// V4 is a's IPv4 socket address, if it is one.
+func (a SocketAddr) V4() (SocketAddrV4, bool) {
+	return a.v4, !a.is6
+}
+
+// V6 is a's IPv6 socket address, if it is one.
+func (a SocketAddr) V6() (SocketAddrV6, bool) {
+	return a.v6, a.is6
+}
+
+// Netip is a as a netip.AddrPort, failing as SocketAddrV6's does.
+func (a SocketAddr) Netip() (netip.AddrPort, error) {
+	if a.is6 {
+		return a.v6.Netip()
+	}
+	return a.v4.Netip(), nil
 }

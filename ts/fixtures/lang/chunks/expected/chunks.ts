@@ -75,24 +75,56 @@ export function chunks(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part7: number = out$tuple2_ref_array4_u8_ref_slice_u8.p_1Start;
 		const part8: number = out$tuple2_ref_array4_u8_ref_slice_u8.p_1Len;
 		if (err === undefined) {
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(word(new rs.ByteSlice(part3, part4, part5)))));
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes((((part3[part4 + 1] << 8) | part3[part4 + 2]) << 16) >> 16)));
+			const dst = out;
+			const word_ = word(new rs.ByteSlice(part3, part4, part5));
+			rs.byteVecReserve(dst, 4 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = (word_ >>> 24) & 255;
+			dst.data[pos + 1] = (word_ >>> 16) & 255;
+			dst.data[pos + 2] = (word_ >>> 8) & 255;
+			dst.data[pos + 3] = word_ & 255;
+			dst.length = dst.length + 4;
+			const dst2 = out;
+			const word2 = (((part3[part4 + 1] << 8) | part3[part4 + 2]) << 16) >> 16;
+			rs.byteVecReserve(dst2, 2 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = (word2 >>> 8) & 255;
+			dst2.data[pos2 + 1] = word2 & 255;
+			dst2.length = dst2.length + 2;
 			const _42: [rs.u8, rs.ByteSlice, rs.u8] = ends(part3, part4, part5);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_42[0], _42[2], _42[1].data[_42[1].start], _42[1].data[_42[1].start + 1], _42[1].length & 0xff)));
+			const dst3 = out;
+			const byte = _42[0];
+			const byte2 = _42[2];
+			const byte3 = _42[1].data[_42[1].start];
+			const byte4 = _42[1].data[_42[1].start + 1];
+			const byte5 = _42[1].length & 0xff;
+			rs.byteVecReserve(dst3, 5 as rs.usize);
+			const pos3 = dst3.length;
+			dst3.data[pos3 + 0] = byte;
+			dst3.data[pos3 + 1] = byte2;
+			dst3.data[pos3 + 2] = byte3;
+			dst3.data[pos3 + 3] = byte4;
+			dst3.data[pos3 + 4] = byte5;
+			dst3.length = dst3.length + 5;
 			rs.byteVecExtendFromSlice(out, new rs.ByteSlice(part6, part7, part8));
 		} else {
 			rs.byteVecPush(out, err as rs.u8);
 		}
 	} else if (_4 === 1) {
 		const buf: Uint8Array = rs.bytes(4);
-		const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4));
-		while (true) {
-			const _64: [rs.usize, rs.u8] | rs.Done = iter.next();
-			if (_64 === rs.DONE) {
+		const s2: Uint8Array = rs.byteSliceView(data);
+		let front2: number = 0;
+		const back2: number = s2.length;
+		let take: number = 4;
+		let count: number = 0;
+		while (take !== 0) {
+			take--;
+			if (front2 >= back2) {
 				break;
 			}
-			const i: rs.usize = _64[0];
-			const _69: rs.u8 = _64[1];
+			const x2 = s2[front2++];
+			const i: rs.usize = count++;
+			const _69: rs.u8 = x2;
 			if (!(i < 4)) {
 				rs.panic("index out of bounds: the len is " + 4 + " but the index is " + i);
 			}
@@ -119,7 +151,16 @@ export function chunks(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			});
 			const part2 = new rs.ByteSlice(data.data, data.start + 2, data.length - 2);
 			const read: (a0: rs.usize) => rs.u8 = reader(pick(a, b, rs.usizeRem(data.length, 2) === 0));
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(read(0), read(1), read(3))));
+			const dst4 = out;
+			const byte6 = read(0);
+			const byte7 = read(1);
+			const byte8 = read(3);
+			rs.byteVecReserve(dst4, 3 as rs.usize);
+			const pos4 = dst4.length;
+			dst4.data[pos4 + 0] = byte6;
+			dst4.data[pos4 + 1] = byte7;
+			dst4.data[pos4 + 2] = byte8;
+			dst4.length = dst4.length + 3;
 			const both: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
 				if (!(i2 < 2)) {
 					rs.panic("index out of bounds: the len is " + 2 + " but the index is " + i2);
@@ -130,7 +171,14 @@ export function chunks(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return _3 ^ b.data[b.start + i2];
 			};
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(both(0), both(1))));
+			const dst5 = out;
+			const byte9 = both(0);
+			const byte10 = both(1);
+			rs.byteVecReserve(dst5, 2 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = byte9;
+			dst5.data[pos5 + 1] = byte10;
+			dst5.length = dst5.length + 2;
 			rs.byteVecExtendFromSlice(out, b);
 			rs.byteVecPush(out, part2.length & 0xff);
 		}
@@ -156,10 +204,19 @@ export function chunks(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 		}
 	} else if (_4 === 4) {
-		const pairs: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Uint8Array => {
+		const s = rs.byteSliceView(data);
+		let front = 0;
+		let back = s.length;
+		const f = (_2: rs.u8): Uint8Array => {
 			const b2: rs.u8 = _2;
 			return Uint8Array.of(b2, rs.u8WrappingAdd(b2, 3));
-		}), undefined, 2, true);
+		};
+		const v: rs.Vec<Uint8Array> = rs.vecWithCapacity(back - front, 2);
+		while (!(front >= back)) {
+			const y: Uint8Array = f(s[front++]);
+			v.items.push(y);
+		}
+		const pairs: rs.Vec<Uint8Array> = v;
 		if (pairs.items.length >= 2) {
 			const first2: Uint8Array = rs.byteSliceToArray(rs.byteSliceFrom(pairs.items[rs.idx(pairs.items, 0)]));
 			const _195: rs.ByteSlice = rs.byteSliceFrom(pairs.items[rs.idx(pairs.items, 1)]);
@@ -211,7 +268,15 @@ export function chunks(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(sum)));
+		const dst6 = out;
+		const word3 = sum;
+		rs.byteVecReserve(dst6, 4 as rs.usize);
+		const pos6 = dst6.length;
+		dst6.data[pos6 + 0] = (word3 >>> 24) & 255;
+		dst6.data[pos6 + 1] = (word3 >>> 16) & 255;
+		dst6.data[pos6 + 2] = (word3 >>> 8) & 255;
+		dst6.data[pos6 + 3] = word3 & 255;
+		dst6.length = dst6.length + 4;
 		rs.byteVecExtendFromSlice(out, new rs.ByteSlice(restData3, restStart3, restLen3));
 	}
 }

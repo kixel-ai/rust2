@@ -612,10 +612,9 @@ export function mutexMapped(data: rs.ByteSlice, out: rs.ByteVec): void {
  * as std writes what each lends.
  */
 export function printed(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _4: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b: rs.u8): rs.char => {
+	const text: rs.String = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b: rs.u8): rs.char => {
 		return rs.u8Add(97, rs.u8Rem(b, 26)) as rs.char;
-	});
-	const text: rs.String = rs.stringExtendChars(rs.stringNew(), _4);
+	}));
 	const mutex: rs.Mutex<[rs.u8, rs.String]> = new rs.Mutex([data.length & 0xff, rs.stringClone(text)] as [rs.u8, rs.String]);
 	const lock: rs.RefCell<[rs.ByteVec, rs.String]> = new rs.RefCell([rs.byteSliceToByteVec(data), text] as [rs.ByteVec, rs.String]);
 	const guard: rs.Mutex<[rs.u8, rs.String]> = rs.mutexLock(mutex);
@@ -703,7 +702,14 @@ export function downgraded(data: rs.ByteSlice, out: rs.ByteVec): void {
 			write2.value = rs.u32Add(write2.value, op as rs.u32);
 			const read2: rs.RefCell<rs.u32> = rs.rwLockDowngrade(write2);
 			const other: rs.RefCell<rs.u32> = rs.rwLockRead(number);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of((read2.value & 0xff) ^ (other.value & 0xff), held$u32(number))));
+			const dst = out;
+			const byte = (read2.value & 0xff) ^ (other.value & 0xff);
+			const byte2 = held$u32(number);
+			rs.byteVecReserve(dst, 2 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = byte;
+			dst.data[pos + 1] = byte2;
+			dst.length = dst.length + 2;
 			if (!((op & 16) === 0)) {
 				rs.refRelease(other);
 				rs.byteVecPush(out, held$u32(number));
@@ -779,7 +785,14 @@ export function downgraded(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_181.data[_181.start] = _175;
 			const read4: rs.RefCell<Uint8Array> = rs.rwLockDowngrade(write4);
 			const _192: rs.ByteSlice = rs.byteSliceFrom(read4.value);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_192.data[_192.start], held$array4_u8(quad))));
+			const dst2 = out;
+			const byte3 = _192.data[_192.start];
+			const byte4 = held$array4_u8(quad);
+			rs.byteVecReserve(dst2, 2 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = byte3;
+			dst2.data[pos2 + 1] = byte4;
+			dst2.length = dst2.length + 2;
 			rs.refRelease(read4);
 		}
 	}

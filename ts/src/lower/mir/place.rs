@@ -209,7 +209,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						&& adt.is_union() =>
 				{
 					let rest = &place.projection[read + 1..];
-					let (parts, n, part_ty) = self.union_part(*adt, args, field.as_usize(), field_ty, rest, span);
+					let (parts, n, part_ty) = self.union_part(*adt, *args, field.as_usize(), field_ty, rest, span);
 					consumed = n;
 					e = self.b.t.of_slots(e, part_ty, &parts, span);
 				}
@@ -383,7 +383,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	pub(super) fn union_part(
 		&mut self,
 		adt: ty::AdtDef<'tcx>,
-		args: ty::GenericArgsRef<'tcx>,
+		args: ty::GenericArgs<'tcx>,
 		field: usize,
 		field_ty: Ty<'tcx>,
 		rest: &[ProjectionElem<Local, Ty<'tcx>>],
@@ -419,7 +419,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				continue;
 			}
 			let rest = &place.projection[i + 1..];
-			let (parts, n, _) = self.union_part(*adt, args, field.as_usize(), field_ty, rest, span);
+			let (parts, n, _) = self.union_part(*adt, *args, field.as_usize(), field_ty, rest, span);
 			let whole = crate::lower::unions::whole(&parts);
 			return (n == rest.len() && !whole).then(|| (base.to_place(tcx), parts));
 		}
@@ -592,7 +592,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		match Std::of(tcx, adt.did()) {
 			Some(Std::Option | Std::Poll) => {
 				let payload = adt.variant(variant).fields.iter().next()?;
-				Some(self.b.t.ty(payload.ty(tcx, args).skip_norm_wip(), span))
+				Some(self.b.t.ty(payload.ty(tcx, *args).skip_norm_wip(), span))
 			}
 			Some(Std::Result) => {
 				let payload = self.b.t.ty(args.type_at(variant.index()), span);
@@ -601,7 +601,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			// What `control_flow_field` reads of each variant.
 			Some(Std::ControlFlow) => {
 				let (breaks, continues) = (args.type_at(0), args.type_at(1));
-				Some(match (Flow::of(tcx, args), variant.index()) {
+				Some(match (Flow::of(tcx, *args), variant.index()) {
 					(Flow::Option, 0) => self.b.t.ty(continues, span),
 					(Flow::Option, _) => match self.b.t.erases_to(continues).undefined {
 						true => crate::ts::Type::Rs("None", vec![]),
@@ -616,7 +616,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let def = adt.variant(variant);
 				let mut fields = vec![("tag".to_string(), crate::ts::Type::StrLit(def.name.to_string()))];
 				for (i, field) in def.fields.iter().enumerate() {
-					let ty = self.b.t.ty(field.ty(tcx, args).skip_norm_wip(), span);
+					let ty = self.b.t.ty(field.ty(tcx, *args).skip_norm_wip(), span);
 					fields.push((crate::lower::field_name(field.name.as_str(), i), ty));
 				}
 				Some(crate::ts::Type::Object(fields))
@@ -639,7 +639,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		match ty.kind() {
 			ty::Tuple(_) => base.index(Expr::lit(field.index().to_string())),
 			ty::Coroutine(def_id, args) => {
-				let info = super::coroutine::info(self.b.t, *def_id, args, span);
+				let info = super::coroutine::info(self.b.t, *def_id, *args, span);
 				match variant {
 					None => base.field(info.upvars[field.index()]),
 					Some(variant) => {
@@ -665,7 +665,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Some(Std::Bound | Std::TryLockError) => {
 					let ty::Adt(_, args) = ty.kind() else { unreachable!() };
 					let variant = adt.variant(variant.unwrap_or(rustc_abi::FIRST_VARIANT));
-					let held = variant.fields[field].ty(tcx, args).skip_norm_wip();
+					let held = variant.fields[field].ty(tcx, *args).skip_norm_wip();
 					let fields = vec![
 						("tag".to_string(), crate::ts::Type::StrLit(variant.name.to_string())),
 						("_0".to_string(), self.b.t.ty(held, span)),
@@ -726,7 +726,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					match def.name.as_str() {
 						name if crate::lower::bindgen::js_field(tcx, adt.did()) == Some(name) => base,
 						_ if def
-							.ty(tcx, args)
+							.ty(tcx, *args)
 							.skip_norm_wip()
 							.ty_adt_def()
 							.is_some_and(|f| f.is_phantom_data()) =>
@@ -760,7 +760,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						}
 					};
 					let ty::Adt(_, args) = ty.kind() else { unreachable!() };
-					self.b.t.held_field(read, def.did, args, span)
+					self.b.t.held_field(read, def.did, *args, span)
 				}
 				_ => self.err(span, format!("a field of `{ty}`")),
 			},
@@ -1030,7 +1030,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			) {
 				break;
 			}
-			value = narrowed(self.adt(adt.did(), *variant, args, vec![value], ty, span));
+			value = narrowed(self.adt(adt.did(), *variant, *args, vec![value], ty, span));
 			(at, rebuilt) = (base, true);
 		}
 		match rebuilt {
@@ -1339,7 +1339,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			self.err(span, format!("setting the discriminant of `{ty}`"));
 			return None;
 		};
-		let info = super::coroutine::info(self.b.t, *def_id, args, span);
+		let info = super::coroutine::info(self.b.t, *def_id, *args, span);
 		let mut out = Vec::new();
 		let target = self.place_expr(place, span, &mut out);
 		Some(StmtKind::Expr(target.field(info.state).assign(Expr::lit(variant.as_u32().to_string()))).at(None))
@@ -1352,7 +1352,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let tcx = self.tcx;
 		match ty.kind() {
 			ty::Coroutine(def_id, args) => {
-				let info = super::coroutine::info(self.b.t, *def_id, args, span);
+				let info = super::coroutine::info(self.b.t, *def_id, *args, span);
 				scrut
 					.clone()
 					.field(info.state)
@@ -1750,11 +1750,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			{
 				let values = (adt.non_enum_variant().fields.iter())
 					.map(|f| {
-						let t = self.b.t.field_ty(f.did, args);
+						let t = self.b.t.field_ty(f.did, *args);
 						self.zero(t, span)
 					})
 					.collect();
-				self.adt(adt.did(), rustc_abi::FIRST_VARIANT, args, values, ty, span)
+				self.adt(adt.did(), rustc_abi::FIRST_VARIANT, *args, values, ty, span)
 			}
 			_ => {
 				let env = self.b.t.typing_env_pub();
@@ -1767,7 +1767,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				let memory = Allocation::from_bytes(
 					vec![0; layout.size.bytes_usize()],
-					layout.align.abi,
+					layout.align,
 					rustc_ast::Mutability::Not,
 					(),
 				);
@@ -1791,11 +1791,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				};
 				let values = (adt.variant(variant).fields.iter())
 					.map(|f| {
-						let t = self.b.t.field_ty(f.did, args);
+						let t = self.b.t.field_ty(f.did, *args);
 						self.zero(t, span)
 					})
 					.collect();
-				self.adt(adt.did(), variant, args, values, ty, span)
+				self.adt(adt.did(), variant, *args, values, ty, span)
 			}
 		}
 	}
@@ -1834,7 +1834,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				ty::Adt(adt, args) => self.adt(
 					adt.did(),
 					d.variant.unwrap_or(rustc_abi::FIRST_VARIANT),
-					args,
+					*args,
 					values,
 					ty,
 					span,
@@ -2501,7 +2501,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	pub(super) fn made_out_of_step(
 		&self,
 		def_id: rustc_hir::def_id::DefId,
-		gargs: ty::GenericArgsRef<'tcx>,
+		gargs: ty::GenericArgs<'tcx>,
 		pointee: Place<'tcx>,
 	) -> Option<String> {
 		let tcx = self.tcx;
@@ -2514,7 +2514,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				&& let ty::Adt(adt, args) = pointee.ty(&self.mir.local_decls, tcx).ty.kind() =>
 			{
 				let unsafe_cell = adt.non_enum_variant().fields[FieldIdx::ZERO]
-					.ty(tcx, args)
+					.ty(tcx, *args)
 					.skip_norm_wip();
 				tcx.mk_place_field(
 					tcx.mk_place_field(pointee, FieldIdx::ZERO, unsafe_cell),

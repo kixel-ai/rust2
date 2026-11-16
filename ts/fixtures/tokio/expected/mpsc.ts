@@ -182,13 +182,13 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 			const item2: Item.Item = mpsc_State.item(s);
 			_522 = true;
 			const _60: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
-			b24: {
+			b25: {
 				if (_60 !== undefined) {
 					if (_60.tag === "Bounded") {
 						const tx3: rs.MpscSender<Item.Item> = _60._0;
 						_522 = false;
 						Executor.spawn$mpsc_step_run_closure4(s.exec, new stepRunFuture$closure4(tx3, arg, item2));
-						break b24;
+						break b25;
 					}
 				}
 				if (_60 !== undefined) {
@@ -203,7 +203,7 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 			const first: Item.Item = mpsc_State.item(s);
 			_524 = true;
 			const _69: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
-			b20: {
+			b21: {
 				if (_69 !== undefined) {
 					if (_69.tag === "Bounded") {
 						const tx4: rs.MpscSender<Item.Item> = _69._0;
@@ -211,7 +211,7 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 						const sent: rs.usize = rs.usizeRem(arg >> 4 as rs.usize, 3);
 						_524 = false;
 						Executor.spawn$mpsc_step_run_closure5(s.exec, new stepRunFuture$closure5(tx4, n, first, sent));
-						break b20;
+						break b21;
 					}
 				}
 				if (_69 !== undefined) {
@@ -249,16 +249,35 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 				drop$mpsc_Tx(_86);
 			}
 		} else if (op === 7) {
-			const live: rs.Vec<rs.usize> = rs.iterToVec(rs.iterFilter(new rs.Range(0, s.owned.items.length), (_24: rs.usize): boolean => {
-				return s.owned.items[rs.idx(s.owned.items, _24)] !== undefined;
-			}), "next", 4);
+			let start2 = 0;
+			let end2 = s.owned.items.length;
+			const d2: rs.usize[] = [];
+			let cap2 = 0;
+			fused4: while (true) {
+				let y2!: rs.usize;
+				while (true) {
+					if (start2 >= end2) {
+						break fused4;
+					}
+					const x2 = start2++;
+					if (s.owned.items[rs.idx(s.owned.items, x2)] !== undefined) {
+						y2 = x2;
+						break;
+					}
+				}
+				if (d2.length === cap2) {
+					cap2 = rs.capReserve(d2.length, cap2, 1, 4);
+				}
+				d2.push(y2);
+			}
+			const live: rs.Vec<rs.usize> = new rs.Vec(d2, cap2);
 			if (!(live.items.length === 0)) {
 				const at5 = rs.idx(s.owned.items, live.items[rs.idx(live.items, rs.usizeRem(arg as rs.usize, live.items.length))]);
 				const taken2 = s.owned.items[at5];
 				s.owned.items[at5] = undefined;
 				const permit2: rs.MpscOwnedPermit<Item.Item> = rs.optionExpect(taken2, "live");
 				const _134: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, 0);
-				b12: {
+				b13: {
 					if (_134 !== undefined) {
 						if (_134.tag === "Bounded") {
 							const tx6: rs.MpscSender<Item.Item> = _134._0;
@@ -273,7 +292,7 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 							const args42 = [(f: rs.Formatter) => rs.fmtBool(_145, f), (f: rs.Formatter) => rs.fmtBool(_149, f)];
 							note(rs.fmtFormat(["same ", args42[0], " ", args42[1]]));
 							tx6[Symbol.dispose]();
-							break b12;
+							break b13;
 						}
 					}
 					if (_134 !== undefined) {
@@ -429,9 +448,28 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 			}
 			rs.refMutRelease(_383);
 		} else if (op === 13) {
-			const live2: rs.Vec<rs.usize> = rs.iterToVec(rs.iterFilter(new rs.Range(0, s.senders.items.length), (_2: rs.usize): boolean => {
-				return s.senders.items[rs.idx(s.senders.items, _2)] !== undefined;
-			}), "next", 4);
+			let start = 0;
+			let end = s.senders.items.length;
+			const d: rs.usize[] = [];
+			let cap = 0;
+			fused2: while (true) {
+				let y!: rs.usize;
+				while (true) {
+					if (start >= end) {
+						break fused2;
+					}
+					const x = start++;
+					if (s.senders.items[rs.idx(s.senders.items, x)] !== undefined) {
+						y = x;
+						break;
+					}
+				}
+				if (d.length === cap) {
+					cap = rs.capReserve(d.length, cap, 1, 4);
+				}
+				d.push(y);
+			}
+			const live2: rs.Vec<rs.usize> = new rs.Vec(d, cap);
 			const _397: rs.usize | undefined = rs.sliceGet(rs.sliceFrom(live2.items), rs.usizeRem(arg as rs.usize, rs.max(live2.items.length, 1)));
 			if (_397 !== undefined) {
 				const i2: rs.usize = _397;

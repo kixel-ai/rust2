@@ -3,10 +3,7 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug(self: Pair, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Pair";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self._0, f);
-	const _6: rs.Fmt = (f: rs.Formatter) => rs.i64Debug(self._1, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4), _6));
+	return rs.fmtDebugFields(f, "Pair", [(f: rs.Formatter) => rs.u8Debug(self._0, f), (f: rs.Formatter) => rs.i64Debug(self._1, f)]);
 }
 
 export function eq$cmp_PartialEq(self: Pair, other: Pair): boolean {

@@ -39,6 +39,11 @@ bool same(Uint8List? a, List<int> b) => a != null && a.length == b.length && a.i
 /// Let the event loop run what is ready.
 Future<void> step() => Future<void>.delayed(Duration.zero);
 
+/// `d` rounded up to the microsecond, as a timer waits at least that long: a Rust duration
+/// holds nanoseconds, which `toDuration` refuses to drop.
+Duration rounded(moq.RustDuration d) =>
+    moq.RustDuration(d.secs).toDuration() + Duration(microseconds: (d.nanos + 999) ~/ 1000);
+
 /// Poll `driver` from the isolate's event loop: on each wake, and at the deadline each poll
 /// returns, through a [Timer], with one waiter held across polls, since what a poll
 /// registers lives only as long as its waiter. It completes once the driver finishes, with
@@ -56,8 +61,7 @@ Future<moq.Error> drive(moq.OriginDriver driver) {
     try {
       final next = driver.poll(moq.clockNow(), waiter);
       if (next != null) {
-        deadline = Timer(next.saturatingDurationSince(moq.clockNow()), poll);
-        next.close();
+        deadline = Timer(rounded(next.saturatingDurationSince(moq.clockNow())), poll);
       }
     } on moq.Error catch (e) {
       waiter.close();
@@ -116,10 +120,10 @@ Future<void> local() async {
   // When it arrived: kio's clock's `Instant`, from kio's own export.
   expect(moq.clockNow().checkedDurationSince(hello.arrived()) != null, 'a frame arrived before now');
 
-  // A timestamp is a `Copy` value behind a handle: passing it copies it out. The track is
+  // A timestamp is a `Copy` value copied across, which allocates nothing. The track is
   // untimed, so a timestamped frame is refused.
-  final at = moq.Timestamp.fromMillis(1500);
-  expect(at.asSecs() == 1, '1500 ms is 1 s');
+  final at = moq.Timestamp.fromMillis(moq.U64(1500));
+  expect(at.asSecs() == moq.U64(1), '1500 ms is 1 s');
   throws<moq.Error>(
     () => writer.writeFrame(at, utf8.encode('late')),
     (e) => '$e' == "frame timestamp doesn't fit its track",
@@ -212,12 +216,12 @@ Future<void> catalog() async {
   );
 
   // A subscription's ranges, from any iterable of them: a list.
-  final groups = moq.TrackRange.groups(const moq.BoundsU64(moq.BoundU64Included(2), moq.BoundU64Excluded(6)));
+  final groups = moq.TrackRange.groups(moq.BoundsU64(moq.BoundU64Included(moq.U64(2)), moq.BoundU64Excluded(moq.U64(6))));
   final ranges = [moq.TrackRange.live(), groups];
   final ranged = moq.TrackSubscription.default_().withRanges(ranges).rangesGet;
   expect(ranged.length == 2 && ranged[0] == ranges[0] && ranged[1] == ranges[1], 'a subscription keeps its ranges');
-  expect(groups.start == const moq.TrackAnchorAbsolute(2), 'groups start at their first');
-  expect(groups.end == const moq.TrackAnchorAbsolute(6), 'groups end before their end');
+  expect(groups.start == moq.TrackAnchorAbsolute(moq.U64(2)), 'groups start at their first');
+  expect(groups.end == moq.TrackAnchorAbsolute(moq.U64(6)), 'groups end before their end');
 
   // A catalog at moq-mux's untyped extension, from the config Dart builds, whose generic
   // `is_claimed` is named by the last segment of its argument, and whose `mutate` lends
@@ -311,9 +315,9 @@ void config() {
   expect(alpns.isNotEmpty && alpns.every((a) => a.isNotEmpty), 'each version has an ALPN');
   versions.close();
   // A socket address, crossing in a listener's bind.
-  final bind = moq.TokioListenBindAddr(moq.SocketAddr(InternetAddress('::1'), 4443));
+  final bind = moq.TokioListenBindAddr(moq.SocketAddr(moq.IpAddr.from(InternetAddress('::1')), 4443));
   expect('$bind' == '[::1]:4443', "an IPv6 bind prints as Rust's");
-  final v4 = moq.SocketAddr(InternetAddress('127.0.0.1'), 0);
+  final v4 = moq.SocketAddrV4(moq.Ipv4Addr.from(InternetAddress('127.0.0.1')), 0);
   expect('${moq.TokioListenBindAddr(v4)}' == '127.0.0.1:0', "an IPv4 bind prints as Rust's");
   final listen = moq.TokioListenConfig.default_();
   listen.bindSet(bind);
@@ -345,7 +349,7 @@ Future<void> session() async {
 
   final serverConfig = moq.TokioServerConfig.default_();
   final listen = serverConfig.listenGet;
-  listen.bindSet(moq.TokioListenBindAddr(moq.SocketAddr(InternetAddress('::'), 0)));
+  listen.bindSet(moq.TokioListenBindAddr(moq.SocketAddr(moq.IpAddr.from(InternetAddress('::')), 0)));
   final tls = listen.tlsGet;
   tls.generateSet(['localhost']);
   listen.tlsSet(tls);

@@ -1065,7 +1065,7 @@ fn lends<'tcx>(tcx: TyCtxt<'tcx>, crates: &Crates<'tcx>, ty: Ty<'tcx>) -> bool {
 				ty::Adt(adt, args) if crates.translates(adt.did()) && seen.insert(t) => {
 					stack.extend(
 						adt.all_fields()
-							.map(|field| (field.ty(tcx, args).skip_norm_wip(), depth + 1)),
+							.map(|field| (field.ty(tcx, *args).skip_norm_wip(), depth + 1)),
 					);
 				}
 				_ => {}

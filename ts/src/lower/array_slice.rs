@@ -20,7 +20,7 @@ pub fn of_arrays(ty: Ty<'_>) -> bool {
 
 /// Whether std's `def_id` of `args` is a method of a slice of arrays the runtime's own
 /// functions map, which take and lend the arrays where the slice holds them.
-pub fn native<'tcx>(tcx: TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args: ty::GenericArgsRef<'tcx>) -> bool {
+pub fn native<'tcx>(tcx: TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args: ty::GenericArgs<'tcx>) -> bool {
 	let Some((owner, name)) = library::key(tcx, def_id) else {
 		return false;
 	};

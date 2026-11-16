@@ -29,5 +29,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 			counts::addressed_arcs(data, out)
 		}),
 		("counts::addressed_rcs", |_, data, out| counts::addressed_rcs(data, out)),
+		("counts::pointed_arcs", |_, data, out| counts::pointed_arcs(data, out)),
+		("counts::pointed_rcs", |_, data, out| counts::pointed_rcs(data, out)),
 	]
 }

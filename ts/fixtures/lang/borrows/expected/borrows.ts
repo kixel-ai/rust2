@@ -176,8 +176,8 @@ export function guards(data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (_116.ok) {
 				rs.byteVecPush(out, 254);
 			} else {
-				const part3 = new rs.BorrowMutError();
-				const args5 = [(f: rs.Formatter) => rs.borrowMutErrorDisplay(part3, f), (f: rs.Formatter) => rs.borrowMutErrorDebug(part3, f)];
+				const _119: rs.BorrowMutError = new rs.BorrowMutError();
+				const args5 = [(f: rs.Formatter) => rs.borrowMutErrorDisplay(_119, f), (f: rs.Formatter) => rs.borrowMutErrorDebug(_119, f)];
 				rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 			}
 			if (_116.ok) {
@@ -190,8 +190,8 @@ export function guards(data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (_141.ok) {
 				rs.byteVecPush(out, 254);
 			} else {
-				const part4 = new rs.BorrowError();
-				const args6 = [(f: rs.Formatter) => rs.borrowErrorDisplay(part4, f), (f: rs.Formatter) => rs.borrowErrorDebug(part4, f)];
+				const _144: rs.BorrowError = new rs.BorrowError();
+				const args6 = [(f: rs.Formatter) => rs.borrowErrorDisplay(_144, f), (f: rs.Formatter) => rs.borrowErrorDebug(_144, f)];
 				rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v));
 			}
 			if (_141.ok) {
@@ -213,7 +213,14 @@ export function guards(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const id: rs.RefCell<rs.u8> = rs.refMap(_169, ((t3: Tagged.Tagged): rs.u8 => {
 				return t3.id;
 			})(_169.value));
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(n.value & 0xff, id.value)));
+			const dst = out;
+			const byte = n.value & 0xff;
+			const byte2 = id.value;
+			rs.byteVecReserve(dst, 2 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = byte;
+			dst.data[pos + 1] = byte2;
+			dst.length = dst.length + 2;
 			const _186: rs.Result<rs.RefCell<Tagged.Tagged>, rs.BorrowMutError> = rs.refCellTryBorrowMut(tagged);
 			rs.byteVecPush(out, !_186.ok ? 1 : 0);
 			drop$Result_cell_RefMut_borrows_Tagged_cell_BorrowMutError(_186);
@@ -334,7 +341,13 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.refMutRelease(again);
 			const _52: rs.u8 = borrowed$borrows_Parts(parts);
 			const _58: rs.RefCell<Parts.Parts> = rs.refCellBorrow(parts);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_52, _58.value.n & 0xff)));
+			const dst = out;
+			const byte2 = _58.value.n & 0xff;
+			rs.byteVecReserve(dst, 2 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = _52;
+			dst.data[pos + 1] = byte2;
+			dst.length = dst.length + 2;
 			rs.refRelease(_58);
 			const _61: rs.RefCell<rs.u32> = rs.refCellBorrowMut(number);
 			const whole: rs.RefCell<rs.u32> = rs.refMutMap(_61, ((n7: rs.Place<rs.u32>): rs.Place<rs.u32> => {
@@ -390,7 +403,13 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _161: rs.RefCell<Parts.Parts> = rs.refCellBorrow(parts);
 			const _158: rs.u8 = _161.value.tagged.id;
 			const _167: rs.RefCell<Parts.Parts> = rs.refCellBorrow(parts);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_158, _167.value.tagged.n & 0xff)));
+			const dst2 = out;
+			const byte3 = _167.value.tagged.n & 0xff;
+			rs.byteVecReserve(dst2, 2 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = _158;
+			dst2.data[pos2 + 1] = byte3;
+			dst2.length = dst2.length + 2;
 			rs.refRelease(_167);
 			rs.refRelease(_161);
 		} else if (_29 === 3) {
@@ -416,7 +435,14 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 			})(_195.value));
 			if (_194.ok) {
 				const last: rs.RefCell<rs.u8> = _194.value;
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(last.value, borrowed$borrows_Parts(parts))));
+				const dst3 = out;
+				const byte4 = last.value;
+				const byte5 = borrowed$borrows_Parts(parts);
+				rs.byteVecReserve(dst3, 2 as rs.usize);
+				const pos3 = dst3.length;
+				dst3.data[pos3 + 0] = byte4;
+				dst3.data[pos3 + 1] = byte5;
+				dst3.length = dst3.length + 2;
 				rs.refRelease(last);
 			} else {
 				const whole3: rs.RefCell<Parts.Parts> = _194.error;
@@ -455,7 +481,16 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 			})(_247.value));
 			const n2: rs.RefCell<rs.u32> = _246[0];
 			const bytes2: rs.RefCell<rs.ByteVec> = _246[1];
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(n2.value & 0xff, bytes2.value.length & 0xff, borrowed$borrows_Parts(parts))));
+			const dst4 = out;
+			const byte6 = n2.value & 0xff;
+			const byte7 = bytes2.value.length & 0xff;
+			const byte8 = borrowed$borrows_Parts(parts);
+			rs.byteVecReserve(dst4, 3 as rs.usize);
+			const pos4 = dst4.length;
+			dst4.data[pos4 + 0] = byte6;
+			dst4.data[pos4 + 1] = byte7;
+			dst4.data[pos4 + 2] = byte8;
+			dst4.length = dst4.length + 3;
 			rs.refRelease(n2);
 			rs.byteVecPush(out, borrowed$borrows_Parts(parts));
 			rs.refRelease(bytes2);
@@ -482,7 +517,13 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			const _305: rs.u8 = borrowed$borrows_Parts(parts);
 			const _311: rs.RefCell<Parts.Parts> = rs.refCellBorrow(parts);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_305, _311.value.n & 0xff)));
+			const dst5 = out;
+			const byte9 = _311.value.n & 0xff;
+			rs.byteVecReserve(dst5, 2 as rs.usize);
+			const pos5 = dst5.length;
+			dst5.data[pos5 + 0] = _305;
+			dst5.data[pos5 + 1] = byte9;
+			dst5.length = dst5.length + 2;
 			rs.refRelease(_311);
 			const _316: rs.RefCell<Parts.Parts> = rs.refCellBorrowMut(parts);
 			const parts4 = ((p9: Parts.Parts): [rs.ByteSlice, rs.ByteSlice] => {
@@ -556,7 +597,14 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _390: rs.u32 = rs.u32Add(n4.value, 1);
 			const args3 = [(f: rs.Formatter) => rs.fmtPad(f, _387), (f: rs.Formatter) => rs.u32Display(_390, f)];
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args3[0], " ", args3[1]]).v));
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(borrowed$borrows_Parts(parts), borrowed$u32(number))));
+			const dst6 = out;
+			const byte10 = borrowed$borrows_Parts(parts);
+			const byte11 = borrowed$u32(number);
+			rs.byteVecReserve(dst6, 2 as rs.usize);
+			const pos6 = dst6.length;
+			dst6.data[pos6 + 0] = byte10;
+			dst6.data[pos6 + 1] = byte11;
+			dst6.length = dst6.length + 2;
 			drop$tuple2_cell_Ref_str_cell_RefMut_u32([text3, n4] as [rs.RefCell<string>, rs.RefCell<rs.u32>]);
 			const _411: rs.RefCell<Parts.Parts> = rs.refCellBorrowMut(parts);
 			const quad: rs.RefCell<Uint8Array> = rs.refMutMap(_411, rs.partPlace(rs.byteSliceView(((p2: Parts.Parts): rs.ByteSlice => {
@@ -603,16 +651,32 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _458: rs.u8 = _459.data[_459.start];
 			const _465: rs.ByteSlice = high2.value;
 			rs.idx(_465, 1);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_458 ^ _465.data[_465.start + 1], borrowed$array4_u8(bytes4))));
+			const dst7 = out;
+			const byte12 = _458 ^ _465.data[_465.start + 1];
+			const byte13 = borrowed$array4_u8(bytes4);
+			rs.byteVecReserve(dst7, 2 as rs.usize);
+			const pos7 = dst7.length;
+			dst7.data[pos7 + 0] = byte12;
+			dst7.data[pos7 + 1] = byte13;
+			dst7.length = dst7.length + 2;
 			rs.refRelease(high2);
 			rs.refRelease(low2);
 		}
 		flush(log.value, out);
 	}
 	const last2: Parts.Parts = parts.value;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(last2.n & 0xff, last2.tagged.id, option_mapOr$031uhqp(last2.maybe, 253, (m2: rs.u16): rs.u8 => {
+	const dst8 = out;
+	const byte14 = last2.n & 0xff;
+	const byte15 = last2.tagged.id;
+	const byte16 = option_mapOr$031uhqp(last2.maybe, 253, (m2: rs.u16): rs.u8 => {
 		return m2 & 0xff;
-	}))));
+	});
+	rs.byteVecReserve(dst8, 3 as rs.usize);
+	const pos8 = dst8.length;
+	dst8.data[pos8 + 0] = byte14;
+	dst8.data[pos8 + 1] = byte15;
+	dst8.data[pos8 + 2] = byte16;
+	dst8.length = dst8.length + 3;
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(last2.text.v));
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(last2.bytes));
 	last2[Symbol.dispose]();
@@ -660,9 +724,15 @@ export function tries(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			const _64: rs.u8 = borrowed$borrows_Parts(parts);
 			const _70: rs.RefCell<Parts.Parts> = rs.refCellBorrow(parts);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_64, option_mapOr$031uhqp(_70.value.maybe, 253, (m2: rs.u16): rs.u8 => {
+			const dst = out;
+			const byte = option_mapOr$031uhqp(_70.value.maybe, 253, (m2: rs.u16): rs.u8 => {
 				return m2 & 0xff;
-			}))));
+			});
+			rs.byteVecReserve(dst, 2 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = _64;
+			dst.data[pos + 1] = byte;
+			dst.length = dst.length + 2;
 			rs.refRelease(_70);
 			const _73: rs.RefCell<Parts.Parts> = rs.refCellBorrowMut(parts);
 			const part = ((p10: Parts.Parts): rs.Result<rs.ByteVec, undefined> => {
@@ -714,16 +784,37 @@ export function tries(data: rs.ByteSlice, out: rs.ByteVec): void {
 				})(last.value));
 				if (tried3.ok) {
 					const b: rs.RefCell<rs.u8> = tried3.value;
-					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(b.value, borrowed$borrows_Parts(parts))));
+					const dst2 = out;
+					const byte2 = b.value;
+					const byte3 = borrowed$borrows_Parts(parts);
+					rs.byteVecReserve(dst2, 2 as rs.usize);
+					const pos2 = dst2.length;
+					dst2.data[pos2 + 0] = byte2;
+					dst2.data[pos2 + 1] = byte3;
+					dst2.length = dst2.length + 2;
 					rs.refRelease(b);
 				} else {
 					const b2: rs.RefCell<rs.u8> = tried3.error[0];
-					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(b2.value ^ tried3.error[1], borrowed$borrows_Parts(parts))));
+					const dst3 = out;
+					const byte4 = b2.value ^ tried3.error[1];
+					const byte5 = borrowed$borrows_Parts(parts);
+					rs.byteVecReserve(dst3, 2 as rs.usize);
+					const pos3 = dst3.length;
+					dst3.data[pos3 + 0] = byte4;
+					dst3.data[pos3 + 1] = byte5;
+					dst3.length = dst3.length + 2;
 					rs.refRelease(b2);
 				}
 			} else {
 				const whole3: rs.RefCell<Parts.Parts> = _127.error[0];
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(whole3.value.n & 0xff, _127.error[1] & 0xff)));
+				const dst4 = out;
+				const byte6 = whole3.value.n & 0xff;
+				const byte7 = _127.error[1] & 0xff;
+				rs.byteVecReserve(dst4, 2 as rs.usize);
+				const pos4 = dst4.length;
+				dst4.data[pos4 + 0] = byte6;
+				dst4.data[pos4 + 1] = byte7;
+				dst4.length = dst4.length + 2;
 				rs.refRelease(whole3);
 			}
 			rs.byteVecPush(out, borrowed$borrows_Parts(parts));
@@ -810,9 +901,16 @@ export function tries(data: rs.ByteSlice, out: rs.ByteVec): void {
 		flush(log.value, out);
 	}
 	const last2: Parts.Parts = parts.value;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(last2.n & 0xff, option_mapOr$031uhqp(last2.maybe, 253, (m3: rs.u16): rs.u8 => {
+	const dst5 = out;
+	const byte8 = last2.n & 0xff;
+	const byte9 = option_mapOr$031uhqp(last2.maybe, 253, (m3: rs.u16): rs.u8 => {
 		return m3 & 0xff;
-	}))));
+	});
+	rs.byteVecReserve(dst5, 2 as rs.usize);
+	const pos5 = dst5.length;
+	dst5.data[pos5 + 0] = byte8;
+	dst5.data[pos5 + 1] = byte9;
+	dst5.length = dst5.length + 2;
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(last2.text.v));
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(last2.bytes));
 	last2[Symbol.dispose]();
@@ -835,7 +933,14 @@ export function leaks(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_16 === 0) {
 			const whole: [rs.u16, rs.ByteVec] = rs.refCellBorrow(pair).value;
 			const other: rs.RefCell<[rs.u16, rs.ByteVec]> = rs.refCellBorrow(pair);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of((whole[0] & 0xff) ^ (other.value[1].length & 0xff), borrowed$tuple2_u16_Vec_u8(pair))));
+			const dst = out;
+			const byte = (whole[0] & 0xff) ^ (other.value[1].length & 0xff);
+			const byte2 = borrowed$tuple2_u16_Vec_u8(pair);
+			rs.byteVecReserve(dst, 2 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = byte;
+			dst.data[pos + 1] = byte2;
+			dst.length = dst.length + 2;
 			rs.refRelease(other);
 			const _40: rs.RefCell<[rs.u16, rs.ByteVec]> = rs.refCellBorrow(pair);
 			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.refMap(_40, ((p2: [rs.u16, rs.ByteVec]): rs.ByteVec => {
@@ -852,7 +957,13 @@ export function leaks(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_60.v = (_60.v ^ 1) >>> 0;
 			const _66: rs.u8 = borrowed$u32(number);
 			const _72: rs.RefCell<rs.u32> = rs.refCellBorrow(number);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_66, _72.value & 0xff)));
+			const dst2 = out;
+			const byte3 = _72.value & 0xff;
+			rs.byteVecReserve(dst2, 2 as rs.usize);
+			const pos2 = dst2.length;
+			dst2.data[pos2 + 0] = _66;
+			dst2.data[pos2 + 1] = byte3;
+			dst2.length = dst2.length + 2;
 			rs.refRelease(_72);
 			const whole2: [rs.u16, rs.ByteVec] = rs.refCellBorrowMut(pair).value;
 			whole2[0] = rs.u16Add(whole2[0], op as rs.u16);

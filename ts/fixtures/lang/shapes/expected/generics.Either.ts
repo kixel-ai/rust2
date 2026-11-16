@@ -6,45 +6,30 @@ import * as Point from "./shapes.Point.ts";
 
 export function fmt$fmt_Debug_shapes_Point_u8(self: Either<Point.Point, rs.u8>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	if (self.tag === "Left") {
-		const _5: string = "Left";
-		const _6: rs.Fmt = (f: rs.Formatter) => Point.fmt$fmt_Debug(self._0, f);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _5), _6));
+		return rs.fmtDebugFields(f, "Left", [(f: rs.Formatter) => Point.fmt$fmt_Debug(self._0, f)]);
 	}
 	if (self.tag === "Right") {
-		const _9: string = "Right";
-		const _10: string = "value";
-		const _11: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.value, f);
-		return rs.debugStructFinish(rs.debugStructField(rs.fmtDebugStruct(f, _9), _10, _11));
+		return rs.fmtDebugFields(f, "Right value", [(f: rs.Formatter) => rs.u8Debug(self.value, f)]);
 	}
 	return rs.fmtWriteStr(f, "Neither");
 }
 
 export function fmt$fmt_Debug_u8_shapes_Point(self: Either<rs.u8, Point.Point>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	if (self.tag === "Left") {
-		const _5: string = "Left";
-		const _6: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self._0, f);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _5), _6));
+		return rs.fmtDebugFields(f, "Left", [(f: rs.Formatter) => rs.u8Debug(self._0, f)]);
 	}
 	if (self.tag === "Right") {
-		const _9: string = "Right";
-		const _10: string = "value";
-		const _11: rs.Fmt = (f: rs.Formatter) => Point.fmt$fmt_Debug(self.value, f);
-		return rs.debugStructFinish(rs.debugStructField(rs.fmtDebugStruct(f, _9), _10, _11));
+		return rs.fmtDebugFields(f, "Right value", [(f: rs.Formatter) => Point.fmt$fmt_Debug(self.value, f)]);
 	}
 	return rs.fmtWriteStr(f, "Neither");
 }
 
 export function fmt$fmt_Debug_u8_u16(self: Either<rs.u8, rs.u16>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	if (self.tag === "Left") {
-		const _5: string = "Left";
-		const _6: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self._0, f);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _5), _6));
+		return rs.fmtDebugFields(f, "Left", [(f: rs.Formatter) => rs.u8Debug(self._0, f)]);
 	}
 	if (self.tag === "Right") {
-		const _9: string = "Right";
-		const _10: string = "value";
-		const _11: rs.Fmt = (f: rs.Formatter) => rs.u16Debug(self.value, f);
-		return rs.debugStructFinish(rs.debugStructField(rs.fmtDebugStruct(f, _9), _10, _11));
+		return rs.fmtDebugFields(f, "Right value", [(f: rs.Formatter) => rs.u16Debug(self.value, f)]);
 	}
 	return rs.fmtWriteStr(f, "Neither");
 }

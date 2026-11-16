@@ -27,13 +27,16 @@ export function read$cycles_Countdown_cycles_cycles_closure4(it: Countdown.Count
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -75,13 +78,16 @@ export function read$iter_Chain_slice_Iter_u8_iter_Take_iter_Rev_slice_Iter_u8_c
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -123,13 +129,16 @@ export function read$iter_Cycle_slice_Iter_u8_cycles_cycles_closure1(it: rs.Iter
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -171,13 +180,16 @@ export function read$iter_Cycle_vec_IntoIter_cycles_Logged_cycles_owned_closure6
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: Logged.Logged) => boolean = (_2: Logged.Logged): boolean => {
@@ -222,13 +234,16 @@ export function read$iter_Empty_u8_cycles_cycles_closure3(it: rs.Iter<rs.u8>, st
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -270,13 +285,16 @@ export function read$iter_Enumerate_slice_Iter_u8_cycles_cycles_closure9(it: rs.
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: [rs.usize, rs.u8]) => boolean = (_2: [rs.usize, rs.u8]): boolean => {
@@ -318,13 +336,16 @@ export function read$iter_Filter_iter_Map_iter_Take_slice_Iter_u8_cycles_closure
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -367,13 +388,16 @@ export function read$iter_Filter_slice_Iter_u8_cycles_cycles_closure8_cycles_cyc
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -415,13 +439,16 @@ export function read$iter_Flatten_slice_Chunks_u8_cycles_cycles_closure1(it: rs.
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -463,13 +490,16 @@ export function read$iter_Peekable_slice_Iter_u8_cycles_cycles_closure1(it: rs.P
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -511,13 +541,16 @@ export function read$iter_Skip_slice_Iter_u8_cycles_cycles_closure1(it: rs.Iter<
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -559,13 +592,16 @@ export function read$iter_StepBy_slice_Iter_u8_cycles_cycles_closure1(it: rs.Ite
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -607,13 +643,16 @@ export function read$iter_Take_slice_Iter_u8_cycles_cycles_closure1(it: rs.Iter<
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -655,13 +694,16 @@ export function read$ops_RangeInclusive_u8_cycles_cycles_closure6(it: rs.RangeIn
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -703,13 +745,16 @@ export function read$ops_RangeInclusive_u8_cycles_cycles_closure7(it: rs.RangeIn
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -751,13 +796,16 @@ export function read$ops_Range_u8_cycles_cycles_closure5(it: rs.Range<rs.u8>, st
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -799,13 +847,16 @@ export function read$option_IntoIter_u8_cycles_cycles_closure2(it: rs.Iter<rs.u8
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -847,13 +898,16 @@ export function read$slice_Iter_u8_cycles_cycles_closure1(it: rs.Iter<rs.u8>, st
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$188iunt(_8[1], 254, (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	}))), undefined, true);
-	const iter: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 12);
-	while (true) {
-		const _22: rs.u8 | rs.Done = iter.next();
-		if (_22 === rs.DONE) {
+	const s: Uint8Array = rs.byteSliceView(steps);
+	let front: number = 0;
+	const back: number = s.length;
+	let take: number = 12;
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
 			break;
 		}
-		const step: rs.u8 = _22;
+		const step: rs.u8 = s[front++];
 		const n: rs.usize = rs.usizeRem(step >> 2 as rs.usize, 9);
 		let left: rs.usize = n;
 		const nth: (a0: rs.u8) => boolean = (_2: rs.u8): boolean => {
@@ -896,73 +950,73 @@ export function cycles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	if (_12 === 0) {
 		const it: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 		rs.iterNth(it, n);
-		read$slice_Iter_u8_cycles_cycles_closure1(it, steps, (x18: rs.u8): rs.u8 => {
-			return x18;
+		read$slice_Iter_u8_cycles_cycles_closure1(it, steps, (x19: rs.u8): rs.u8 => {
+			return x19;
 		}, out);
 		const it2: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
 		rs.iterForEach(rs.iterBorrow(it2), (_a03: rs.u8): undefined => {
 			undefined;
 		});
-		read$slice_Iter_u8_cycles_cycles_closure1(it2, steps, (x19: rs.u8): rs.u8 => {
-			return x19;
-		}, out);
-		read$slice_Iter_u8_cycles_cycles_closure1(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, 0))), steps, (x20: rs.u8): rs.u8 => {
+		read$slice_Iter_u8_cycles_cycles_closure1(it2, steps, (x20: rs.u8): rs.u8 => {
 			return x20;
 		}, out);
-		read$iter_Take_slice_Iter_u8_cycles_cycles_closure1(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), n), steps, (x21: rs.u8): rs.u8 => {
+		read$slice_Iter_u8_cycles_cycles_closure1(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, 0))), steps, (x21: rs.u8): rs.u8 => {
 			return x21;
 		}, out);
-		read$option_IntoIter_u8_cycles_cycles_closure2(rs.iterOption(n & 0xff), steps, (x22: rs.u8): rs.u8 => {
+		read$iter_Take_slice_Iter_u8_cycles_cycles_closure1(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), n), steps, (x22: rs.u8): rs.u8 => {
 			return x22;
 		}, out);
-		rs.iterEmpty();
-		read$iter_Empty_u8_cycles_cycles_closure3(rs.iterEmpty() as rs.Iter<rs.u8>, steps, (x23: rs.u8): rs.u8 => {
+		read$option_IntoIter_u8_cycles_cycles_closure2(rs.iterOption(n & 0xff), steps, (x23: rs.u8): rs.u8 => {
 			return x23;
 		}, out);
-		read$cycles_Countdown_cycles_cycles_closure4({ _0: rs.u8Mul(n & 0xff, 2) }, steps, (x24: rs.u8): rs.u8 => {
+		rs.iterEmpty();
+		read$iter_Empty_u8_cycles_cycles_closure3(rs.iterEmpty() as rs.Iter<rs.u8>, steps, (x24: rs.u8): rs.u8 => {
 			return x24;
+		}, out);
+		read$cycles_Countdown_cycles_cycles_closure4({ _0: rs.u8Mul(n & 0xff, 2) }, steps, (x25: rs.u8): rs.u8 => {
+			return x25;
 		}, out);
 	} else if (_12 === 1) {
 		const lo: rs.u8 = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 8);
 		const hi: rs.u8 = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceGet(data, 1), 9), 12);
-		read$ops_Range_u8_cycles_cycles_closure5(new rs.Range(lo, hi), steps, (x8: rs.u8): rs.u8 => {
-			return x8;
+		read$ops_Range_u8_cycles_cycles_closure5(new rs.Range(lo, hi), steps, (x9: rs.u8): rs.u8 => {
+			return x9;
 		}, out);
 		const range: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(lo, hi, rs.u8Step);
 		range.next();
-		read$ops_RangeInclusive_u8_cycles_cycles_closure6(range.clone(), steps, (x9: rs.u8): rs.u8 => {
-			return x9;
+		read$ops_RangeInclusive_u8_cycles_cycles_closure6(range.clone(), steps, (x10: rs.u8): rs.u8 => {
+			return x10;
 		}, out);
 		rs.iterForEach(rs.iterBorrow(range), (_a02: rs.u8): undefined => {
 			undefined;
 		});
-		read$ops_RangeInclusive_u8_cycles_cycles_closure7(range, steps, (x10: rs.u8): rs.u8 => {
-			return x10;
+		read$ops_RangeInclusive_u8_cycles_cycles_closure7(range, steps, (x11: rs.u8): rs.u8 => {
+			return x11;
 		}, out);
 		read$iter_Filter_slice_Iter_u8_cycles_cycles_closure8_cycles_cycles_closure1(rs.iterFilter(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): boolean => {
 			return rs.u8Rem(_25, 3) !== 0;
-		}), steps, (x12: rs.u8): rs.u8 => {
-			return x12;
-		}, out);
-		read$iter_Chain_slice_Iter_u8_iter_Take_iter_Rev_slice_Iter_u8_cycles_cycles_closure1(rs.iterChain(rs.iterSlice(rs.byteSliceView(data)), rs.iterTake(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), 2)), steps, (x13: rs.u8): rs.u8 => {
+		}), steps, (x13: rs.u8): rs.u8 => {
 			return x13;
 		}, out);
-		read$iter_StepBy_slice_Iter_u8_cycles_cycles_closure1(rs.iterStepBy(rs.iterSlice(rs.byteSliceView(data)), rs.usizeAdd(n, 1)), steps, (x14: rs.u8): rs.u8 => {
+		read$iter_Chain_slice_Iter_u8_iter_Take_iter_Rev_slice_Iter_u8_cycles_cycles_closure1(rs.iterChain(rs.iterSlice(rs.byteSliceView(data)), rs.iterTake(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), 2)), steps, (x14: rs.u8): rs.u8 => {
 			return x14;
 		}, out);
-		read$iter_Skip_slice_Iter_u8_cycles_cycles_closure1(rs.iterSkip(rs.iterSlice(rs.byteSliceView(data)), n), steps, (x15: rs.u8): rs.u8 => {
+		read$iter_StepBy_slice_Iter_u8_cycles_cycles_closure1(rs.iterStepBy(rs.iterSlice(rs.byteSliceView(data)), rs.usizeAdd(n, 1)), steps, (x15: rs.u8): rs.u8 => {
 			return x15;
+		}, out);
+		read$iter_Skip_slice_Iter_u8_cycles_cycles_closure1(rs.iterSkip(rs.iterSlice(rs.byteSliceView(data)), n), steps, (x16: rs.u8): rs.u8 => {
+			return x16;
 		}, out);
 		read$iter_Enumerate_slice_Iter_u8_cycles_cycles_closure9(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), steps, (_29: [rs.usize, rs.u8]): rs.u8 => {
 			return (_29[0] & 0xff) ^ _29[1];
 		}, out);
 		const peeked: rs.Peekable<rs.u8> = rs.iterPeekable(rs.iterSlice(rs.byteSliceView(data)));
 		rs.peekablePeek(peeked);
-		read$iter_Peekable_slice_Iter_u8_cycles_cycles_closure1(peeked, steps, (x16: rs.u8): rs.u8 => {
-			return x16;
-		}, out);
-		read$iter_Flatten_slice_Chunks_u8_cycles_cycles_closure1(rs.iterFlatten(rs.byteSliceChunks(data, rs.usizeAdd(n, 1)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true), steps, (x17: rs.u8): rs.u8 => {
+		read$iter_Peekable_slice_Iter_u8_cycles_cycles_closure1(peeked, steps, (x17: rs.u8): rs.u8 => {
 			return x17;
+		}, out);
+		read$iter_Flatten_slice_Chunks_u8_cycles_cycles_closure1(rs.iterFlatten(rs.byteSliceChunks(data, rs.usizeAdd(n, 1)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true), steps, (x18: rs.u8): rs.u8 => {
+			return x18;
 		}, out);
 	} else if (_12 === 2) {
 		const m: rs.usize = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceLast(data), 0), 40) as rs.usize;
@@ -1005,13 +1059,13 @@ export function cycles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		let iterStart: rs.usize = 0;
 		const iterEnd: rs.usize = _180;
 		while (iterStart++ < iterEnd) {
-			rs.byteVecPush(out, option_mapOr$0vxw5sq(rs.iterToOption(it3.next()), 238, (x6: rs.u8): rs.u8 => {
-				return x6;
+			rs.byteVecPush(out, option_mapOr$0vxw5sq(rs.iterToOption(it3.next()), 238, (x7: rs.u8): rs.u8 => {
+				return x7;
 			}));
 		}
 		rs.byteVecPush(out, rs.ownedCount(rs.iterTake(rs.iterBorrow(it3), m)) & 0xff);
-		rs.byteVecPush(out, rs.iterFold(rs.iterTake(rs.iterCycle(pausing, { v: rs.closureClone }), m), 0, (a3: rs.u8, x7: rs.u8): rs.u8 => {
-			return rs.u8WrappingAdd(a3, x7);
+		rs.byteVecPush(out, rs.iterFold(rs.iterTake(rs.iterCycle(pausing, { v: rs.closureClone }), m), 0, (a3: rs.u8, x8: rs.u8): rs.u8 => {
+			return rs.u8WrappingAdd(a3, x8);
 		}, true));
 		rs.drop(it3);
 	} else if (_12 === 3) {
@@ -1022,13 +1076,16 @@ export function cycles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const it4: rs.Iter<rs.u8> = rs.iterCycle(rs.iterSlice(rs.byteSliceView(data)));
 		rs.iterNth(it4, n);
 		const clone: rs.Iter<rs.u8> = it4.clone();
-		const iter2: rs.Iter<rs.u8> = rs.iterTake(rs.iterSlice(rs.byteSliceView(steps)), 16);
-		while (true) {
-			const _210: rs.u8 | rs.Done = iter2.next();
-			if (_210 === rs.DONE) {
+		const s: Uint8Array = rs.byteSliceView(steps);
+		let front: number = 0;
+		const back: number = s.length;
+		let take: number = 16;
+		while (take !== 0) {
+			take--;
+			if (front >= back) {
 				break;
 			}
-			const step: rs.u8 = _210;
+			const step: rs.u8 = s[front++];
 			const _215: rs.u8 = step & 3;
 			if (_215 === 0) {
 				item = rs.iterToOption(it4.next());
@@ -1039,16 +1096,16 @@ export function cycles(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			} else {
 				item = rs.iterNth(clone, rs.usizeRem(step >> 2 as rs.usize, 9));
 			}
-			rs.byteVecPush(out, option_mapOr$0vxw5sq(item, 238, (x: rs.u8): rs.u8 => {
-				return x;
+			rs.byteVecPush(out, option_mapOr$0vxw5sq(item, 238, (x2: rs.u8): rs.u8 => {
+				return x2;
 			}));
 		}
 		rs.byteVecPush(out, rs.iterCycle(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, 0)))).clone().sizeHint()[0] & 0xff);
-		read$iter_Cycle_slice_Iter_u8_cycles_cycles_closure1(it4.clone(), steps, (x2: rs.u8): rs.u8 => {
-			return x2;
-		}, out);
-		read$iter_Cycle_slice_Iter_u8_cycles_cycles_closure1(rs.iterCycle(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, 0)))), steps, (x3: rs.u8): rs.u8 => {
+		read$iter_Cycle_slice_Iter_u8_cycles_cycles_closure1(it4.clone(), steps, (x3: rs.u8): rs.u8 => {
 			return x3;
+		}, out);
+		read$iter_Cycle_slice_Iter_u8_cycles_cycles_closure1(rs.iterCycle(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, 0)))), steps, (x4: rs.u8): rs.u8 => {
+			return x4;
 		}, out);
 	}
 }
@@ -1167,22 +1224,33 @@ export function owned(data: rs.ByteSlice, n: rs.usize, steps: rs.ByteSlice, out:
 	const logged: (a0: rs.u8) => Logged.Logged = (id: rs.u8): Logged.Logged => {
 		return new Logged.Logged(id, rs.arcClone(log));
 	};
-	const it: rs.Iter<Logged.Logged> = rs.vecIntoIter(rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4), (_2: rs.u8): Logged.Logged => {
-		return logged(_2 & 112);
-	}), undefined, 8, true), rs.drop);
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	let take = 4;
+	const v: rs.Vec<Logged.Logged> = rs.vecWithCapacity(Math.min(back - front, take), 8);
+	while (take !== 0) {
+		take--;
+		if (front >= back) {
+			break;
+		}
+		const y: Logged.Logged = logged(s[front++] & 112);
+		v.items.push(y);
+	}
+	const it: rs.Iter<Logged.Logged> = rs.vecIntoIter(v, rs.drop);
 	rs.drop(rs.iterToOption(it.next()));
 	flush(log.value, out);
 	const it2: rs.Iter<Logged.Logged> = rs.iterCycle(it, { v: Logged.clone$Clone });
 	flush(log.value, out);
-	rs.iterExtendBytes(out, rs.iterOption(option_map$191eeea(rs.iterNth(it2, n, rs.drop), (x: Logged.Logged): rs.u8 => {
-		const _03: rs.u8 = Logged.id(x);
-		x[Symbol.dispose]();
+	rs.iterExtendBytes(out, rs.iterOption(option_map$191eeea(rs.iterNth(it2, n, rs.drop), (x2: Logged.Logged): rs.u8 => {
+		const _03: rs.u8 = Logged.id(x2);
+		x2[Symbol.dispose]();
 		return _03;
 	})), undefined, true);
 	flush(log.value, out);
-	rs.iterExtendBytes(out, rs.iterOption(option_map$191eeea(rs.iterNth(it2, rs.usizeAdd(n, 3), rs.drop), (x2: Logged.Logged): rs.u8 => {
-		const _04: rs.u8 = Logged.id(x2);
-		x2[Symbol.dispose]();
+	rs.iterExtendBytes(out, rs.iterOption(option_map$191eeea(rs.iterNth(it2, rs.usizeAdd(n, 3), rs.drop), (x3: Logged.Logged): rs.u8 => {
+		const _04: rs.u8 = Logged.id(x3);
+		x3[Symbol.dispose]();
 		return _04;
 	})), undefined, true);
 	flush(log.value, out);
@@ -1190,9 +1258,9 @@ export function owned(data: rs.ByteSlice, n: rs.usize, steps: rs.ByteSlice, out:
 	rs.iterExtendBytes(out, rs.iterOption(option_map$191eeea(rs.iterFind(it2, (_22: Logged.Logged): boolean => {
 		left = rs.usizeWrappingSub(left, 1);
 		return left === 4294967295;
-	}, rs.drop), (x3: Logged.Logged): rs.u8 => {
-		const _06: rs.u8 = Logged.id(x3);
-		x3[Symbol.dispose]();
+	}, rs.drop), (x4: Logged.Logged): rs.u8 => {
+		const _06: rs.u8 = Logged.id(x4);
+		x4[Symbol.dispose]();
 		return _06;
 	})), undefined, true);
 	flush(log.value, out);
@@ -1200,9 +1268,9 @@ export function owned(data: rs.ByteSlice, n: rs.usize, steps: rs.ByteSlice, out:
 	flush(log.value, out);
 	rs.drop(it2);
 	flush(log.value, out);
-	read$iter_Cycle_vec_IntoIter_cycles_Logged_cycles_owned_closure6(clone, steps, (x4: Logged.Logged): rs.u8 => {
-		const _07: rs.u8 = Logged.id(x4);
-		x4[Symbol.dispose]();
+	read$iter_Cycle_vec_IntoIter_cycles_Logged_cycles_owned_closure6(clone, steps, (x5: Logged.Logged): rs.u8 => {
+		const _07: rs.u8 = Logged.id(x5);
+		x5[Symbol.dispose]();
 		return _07;
 	}, out);
 	flush(log.value, out);

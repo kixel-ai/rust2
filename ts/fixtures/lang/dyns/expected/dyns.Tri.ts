@@ -18,9 +18,7 @@ export function fmt$fmt_Debug(self: Tri, f: rs.Formatter): rs.Result<undefined, 
 	if (self.tag === "Flat") {
 		return rs.fmtWriteStr(f, "Flat");
 	}
-	const _6: string = "Tall";
-	const _7: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self._0, f);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _6), _7));
+	return rs.fmtDebugFields(f, "Tall", [(f: rs.Formatter) => rs.u8Debug(self._0, f)]);
 }
 
 /** An enum, which JS copies, so `&mut self` reaches it through a place. */

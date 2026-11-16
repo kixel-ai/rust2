@@ -263,6 +263,7 @@ inline const ::std::uint8_t *bytes(const void *data, ::std::size_t len) noexcept
 } // namespace detail
 
 class buf;
+class input;
 
 // An object Rust lends a closure as `&mut`: its methods through `->`, but neither a move
 // nor a copy of it, which would keep the loan past the call.
@@ -318,7 +319,8 @@ public:
 };
 
 // Owned bytes: returned by Rust without a copy, or copied from C++. They outlive the object
-// they came from; a view or span of them lives only as long as they do.
+// they came from; a view or span of them lives only as long as they do. A copy of Rust's
+// shares its bytes, and one moved into a call's `input` goes back to Rust without a copy.
 class buf {
 	// Rust's when `owner` is set, else C++'s, allocated with `new[]` unless empty.
 	detail::c_buf raw_;
@@ -344,7 +346,14 @@ public:
 			raw_ = detail::c_buf{copy, bytes.size(), nullptr};
 		}
 	}
-	buf(const buf &other) : buf(view(other)) {}
+	// A second owner of Rust's bytes, shared, or a copy of C++'s.
+	buf(const buf &other) : buf() {
+		if (other.raw_.owner != nullptr) {
+			raw_ = detail::c_buf_clone(other.raw_);
+		} else {
+			*this = buf(view(other));
+		}
+	}
 	buf(buf &&other) noexcept : raw_(::std::exchange(other.raw_, detail::c_buf{nullptr, 0, nullptr})) {}
 	buf &operator=(const buf &other) {
 		if (this != &other) {
@@ -380,6 +389,146 @@ public:
 	}
 
 	friend struct detail::access;
+	friend class input;
+};
+
+// Bytes passed to a call: a view of anything a view takes, read during the call, or a `buf`
+// moved in, which Rust takes without a copy if it made it, else reads and C++ frees after.
+// Made for its call alone, so it is neither copied nor kept.
+class input {
+	detail::c_buf raw_;
+	// C++'s bytes moved in, freed once the call returns.
+	buf held_;
+
+public:
+	input(const char *text) noexcept : input(view(text)) {}
+	template <class R, class = ::std::enable_if_t<::std::is_constructible_v<view, const R &> &&
+	                                              !::std::is_pointer_v<::std::decay_t<R>>>>
+	input(const R &range RUST2_FFI_LIFETIMEBOUND) noexcept {
+		view v(range);
+		raw_ = detail::c_buf{v.data(), v.size(), nullptr};
+	}
+	input(buf &&bytes) noexcept {
+		if (bytes.raw_.owner != nullptr) {
+			raw_ = ::std::exchange(bytes.raw_, detail::c_buf{nullptr, 0, nullptr});
+		} else {
+			held_ = ::std::move(bytes);
+			raw_ = detail::c_buf{held_.data(), held_.size(), nullptr};
+		}
+	}
+	input(input &&other) noexcept
+		: raw_(::std::exchange(other.raw_, detail::c_buf{nullptr, 0, nullptr})), held_(::std::move(other.held_)) {}
+	input(const input &) = delete;
+	input &operator=(const input &) = delete;
+	input &operator=(input &&) = delete;
+	// What no call took: Rust's bytes go back to it.
+	~input() {
+		if (raw_.owner != nullptr) {
+			detail::c_buf_free(raw_);
+		}
+	}
+
+	friend struct detail::access;
+};
+
+namespace detail {
+// Whether each item of the range `R` lives as long as `R` does, so a `T` made of it may view
+// its bytes: a reference into `R`, or a `T` itself, but no other temporary, such as the
+// `std::string` a C++20 transform may yield, which dies before the call reads it.
+template <class R, class T, class Item = decltype(*::std::begin(::std::declval<R &>()))>
+inline constexpr bool lasting = ::std::is_reference_v<Item> || ::std::is_same_v<::std::decay_t<Item>, T>;
+} // namespace detail
+
+// Items lent to a call whose items hold bytes, such as `view`s: a `std::vector<T>` in place,
+// or any other range whose items convert to `T`, such as the `std::vector<buf>` a call
+// returned or a `std::vector<std::string>`, converted item by item.
+template <class T>
+class items {
+	::std::vector<T> converted_;
+	const T *data_;
+	::std::size_t size_;
+
+public:
+	items(const ::std::vector<T> &vector RUST2_FFI_LIFETIMEBOUND) noexcept : data_(vector.data()), size_(vector.size()) {}
+	// Copied, since a list's array may not outlive the call's first full-expression.
+	items(::std::initializer_list<T> list) : converted_(list), data_(converted_.data()), size_(converted_.size()) {}
+	template <class R,
+	          class = ::std::enable_if_t<!::std::is_same_v<::std::decay_t<R>, ::std::vector<T>> &&
+	                                     !::std::is_same_v<::std::decay_t<R>, items> && detail::lasting<const R, T> &&
+	                                     ::std::is_convertible_v<decltype(*::std::begin(::std::declval<const R &>())), T>>>
+	items(const R &range RUST2_FFI_LIFETIMEBOUND) {
+		// A loop, since a C++20 range's end may be a sentinel of another type than its begin.
+		for (auto &&item : range) {
+			converted_.emplace_back(item);
+		}
+		data_ = converted_.data();
+		size_ = converted_.size();
+	}
+	// A vector moved in, each item moved: a returned `std::vector<std::tuple<buf, H>>` whose
+	// `H` is a `Copy` object with no C++ copy. Only an owning vector, since a moved view's
+	// items belong to the caller.
+	template <class U, class = ::std::enable_if_t<!::std::is_same_v<U, T> && ::std::is_convertible_v<U &&, T>>>
+	items(::std::vector<U> &&vector RUST2_FFI_LIFETIMEBOUND) {
+		converted_.reserve(vector.size());
+		for (auto &item : vector) {
+			converted_.emplace_back(::std::move(item));
+		}
+		data_ = converted_.data();
+		size_ = converted_.size();
+	}
+	// A copy would point into the original's converted items.
+	items(const items &) = delete;
+	items &operator=(const items &) = delete;
+	// A moved vector keeps its array, so the pointer stays valid.
+	items(items &&other) noexcept = default;
+
+	const T *begin() const noexcept {
+		return data_;
+	}
+	const T *end() const noexcept {
+		return data_ + size_;
+	}
+	::std::size_t size() const noexcept {
+		return size_;
+	}
+	bool empty() const noexcept {
+		return size_ == 0;
+	}
+};
+
+// Items moved into a call whose items hold both bytes, as `view`s, and handles it takes: a
+// `std::vector<T>` as it is, or any other range moved in whose items convert to `T`, such as
+// the `std::vector<std::tuple<buf, H>>` a call returned, each handle moved out of it. Its
+// views point into the range's bytes, which live until the call's full-expression ends.
+template <class T>
+class taken {
+	::std::vector<T> items_;
+
+public:
+	taken() noexcept = default;
+	taken(::std::vector<T> &&vector) noexcept : items_(::std::move(vector)) {}
+	// A range moved in, never one lent: its handles move out.
+	template <class R, class = ::std::enable_if_t<!::std::is_reference_v<R> && !::std::is_same_v<R, ::std::vector<T>> &&
+	                                              !::std::is_same_v<R, taken> && detail::lasting<R, T> &&
+	                                              ::std::is_convertible_v<decltype(::std::move(*::std::begin(::std::declval<R &>()))), T>>>
+	taken(R &&range RUST2_FFI_LIFETIMEBOUND) {
+		for (auto &&item : range) {
+			items_.emplace_back(::std::move(item));
+		}
+	}
+
+	T *begin() noexcept {
+		return items_.data();
+	}
+	T *end() noexcept {
+		return items_.data() + items_.size();
+	}
+	::std::size_t size() const noexcept {
+		return items_.size();
+	}
+	bool empty() const noexcept {
+		return items_.empty();
+	}
 };
 
 // What a fallible call returns: its value, or the error that stopped it.
@@ -532,12 +681,13 @@ public:
 
 namespace detail {
 
-// `f`, any future of nothing, such as a binding's `future` of `void`, as the future Rust
-// polls: from any thread, with a waker of its own each time, until its `poll` returns
-// true, and destroyed once Rust drops it, finished or not.
+// `f`, any future of nothing, such as a binding's `future` of `void`, allocated by the
+// caller, as the future Rust polls: from any thread, with a waker of its own each time,
+// until its `poll` returns true, and destroyed once Rust drops it, finished or not.
+// Allocation is the caller's, so a caller that may throw first can hold `f` until the call.
 template <class F>
-c_foreign_future foreign_future(F f) {
-	static_assert(::std::is_same_v<decltype(f.poll(::std::declval<const waker &>())), bool>,
+c_foreign_future foreign_future(F *f) noexcept {
+	static_assert(::std::is_same_v<decltype(f->poll(::std::declval<const waker &>())), bool>,
 	              "a future Rust polls has `bool poll(const waker &)`, as a future of void does");
 	struct calls {
 		static bool poll(void *data, c_waker w) noexcept {
@@ -547,7 +697,7 @@ c_foreign_future foreign_future(F f) {
 			delete static_cast<F *>(data);
 		}
 	};
-	return c_foreign_future{&calls::poll, &calls::free, new F(::std::move(f))};
+	return c_foreign_future{&calls::poll, &calls::free, f};
 }
 
 } // namespace detail
@@ -563,6 +713,33 @@ namespace detail {
 // A future driven on an executor, which a `task` cancels.
 struct task_node : node {
 	virtual void cancel() noexcept = 0;
+	// Post a drain of what other threads freed of this thread's values that are not
+	// `Send` to the executor.
+	virtual void drain() noexcept = 0;
+};
+
+// What a free elsewhere of a value of its thread that is not `Send` wakes: the thread's
+// latest task, which posts a drain to its executor, until the task is gone. Rust holds it
+// rather than the task, so a gone task's callback and executor are freed with it.
+class drainer final : public node {
+	::std::mutex mutex_;
+	task_node *task_;
+
+public:
+	explicit drainer(task_node *task) noexcept : task_(task) {}
+
+	void wake() noexcept override {
+		::std::lock_guard<::std::mutex> lock(mutex_);
+		if (task_ != nullptr) {
+			task_->drain();
+		}
+	}
+
+	// Called as the task goes, after which it is never woken again.
+	void detach() noexcept {
+		::std::lock_guard<::std::mutex> lock(mutex_);
+		task_ = nullptr;
+	}
 };
 
 template <class Op, class Exec, class F>
@@ -665,6 +842,20 @@ struct access {
 	static c_buf raw(const view &v) noexcept {
 		return c_buf{v.data_, v.size_, nullptr};
 	}
+	// What a call passes Rust, which takes Rust's bytes from then on.
+	static c_buf take(input &in) noexcept {
+		c_buf raw = in.raw_;
+		in.raw_.owner = nullptr;
+		return raw;
+	}
+	// A value passed for `&mut`, which takes what Rust writes back: Rust's bytes move to
+	// Rust, and C++'s it reads.
+	static c_buf take(buf &b) noexcept {
+		if (b.raw_.owner == nullptr) {
+			return raw(view(b));
+		}
+		return ::std::exchange(b.raw_, c_buf{nullptr, 0, nullptr});
+	}
 	static buf adopt(c_buf raw) noexcept {
 		return buf(raw);
 	}
@@ -685,6 +876,16 @@ struct access {
 	template <class T>
 	static auto own(T &object) {
 		return object.raw_.own();
+	}
+	// A `Copy` value's C struct, which only Rust reads.
+	template <class T>
+	static auto bits(const T &value) noexcept {
+		return value.c_;
+	}
+	// The `Copy` value of the C struct `c` Rust made.
+	template <class T, class C>
+	static T make(const C &c) noexcept {
+		return T(c);
 	}
 	// `raw` owned by a `T`.
 	template <class T, class R>
@@ -778,21 +979,42 @@ public:
 	// `items` as the C array `C`, each lowered by `lower`: never null, so an empty one is
 	// told apart from a missing one. Each item is mutable where `items` is, so a handle
 	// moved in can be owned alone.
+	// The array is no `std::vector`, whose `bool` form holds no array, and `items` may be
+	// one, whose items are proxies rather than references.
 	template <class C, class R, class F>
 	C list(R &items, F lower) {
 		using E = ::std::remove_const_t<::std::remove_pointer_t<decltype(C{}.ptr)>>;
-		auto array = ::std::make_shared<::std::vector<E>>();
-		array->reserve(items.size());
-		for (auto &item : items) {
-			array->push_back(lower(item));
-		}
 		static const E empty{};
-		const E *ptr = array->empty() ? &empty : array->data();
-		::std::size_t len = array->size();
+		::std::size_t len = items.size();
+		if (len == 0) {
+			return C{&empty, 0, nullptr};
+		}
+		::std::shared_ptr<E[]> array(new E[len]);
+		::std::size_t i = 0;
+		for (auto &&item : items) {
+			array[i++] = lower(item);
+		}
+		const E *ptr = array.get();
 		held_.push_back(::std::move(array));
 		return C{ptr, len, nullptr};
 	}
 };
+
+// The numbers of `items` as the C array `C`, in place: never null, so an empty one is
+// told apart from a missing one.
+template <class C, class T>
+C block(const ::std::vector<T> &items) {
+	static const T empty{};
+	return C{items.empty() ? &empty : items.data(), items.size(), nullptr};
+}
+
+// The C array of numbers `c` Rust returned, copied whole, then freed.
+template <class T, class C, class Free>
+::std::vector<T> lift_block(C c, Free free) {
+	::std::vector<T> out(c.ptr, c.ptr + c.len);
+	free(c);
+	return out;
+}
 
 // The C array `c` Rust returned, as `T`s each lifted by `lift`, which takes what its
 // element holds; `free` then frees the array alone.
@@ -843,6 +1065,8 @@ class driver final : public task_node {
 	// Held across each call to the executor, so `cancel` returns only once none is under
 	// way, and none starts after.
 	::std::mutex posting_;
+	// What its thread's frees elsewhere wake while it is the thread's latest task, if any.
+	drainer *drainer_ = nullptr;
 	// Null once the future finished or was cancelled.
 	typename Op::raw *raw_;
 	Exec exec_;
@@ -923,6 +1147,11 @@ public:
 	}
 
 	void cancel() noexcept override {
+		// First, so no drain is under way or starts once this returns.
+		if (drainer_ != nullptr) {
+			drainer_->detach();
+			::std::exchange(drainer_, nullptr)->unref();
+		}
 		// From its own callback, the future is already gone.
 		if (on_.load(::std::memory_order_relaxed) != ::std::this_thread::get_id()) {
 			::std::lock_guard<::std::mutex> lock(mutex_);
@@ -936,6 +1165,19 @@ public:
 		}
 		unref();
 	}
+
+	void drain() noexcept override {
+		::std::lock_guard<::std::mutex> lock(posting_);
+		// It drains the thread it runs on, which is this one's only if the executor runs it
+		// here; a job elsewhere leaves the drops to this thread's next call.
+		exec_([]() { c_thread_drain(); });
+	}
+
+	// Be its thread's latest task, which its frees elsewhere wake.
+	void drains() {
+		drainer_ = new drainer(this);
+		c_thread_wake(give(drainer_));
+	}
 };
 
 template <class Op, class Exec, class F>
@@ -943,6 +1185,11 @@ void spawn(task &slot, typename Op::raw *raw, Exec exec, F f) {
 	auto *d = new driver<Op, Exec, F>(raw, ::std::move(exec), ::std::move(f));
 	slot = task();
 	slot.node_ = d;
+	// The latest executor of this thread drains what other threads free of its values
+	// that are not `Send`, though it calls nothing into Rust, until its task is gone.
+	if constexpr (drains) {
+		d->drains();
+	}
 	d->wake();
 }
 

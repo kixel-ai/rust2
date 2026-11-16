@@ -47,9 +47,8 @@ cgo adds 1.15 MB and a libc dependency.
 
 Decided with the maintainer on 2026-11-12, in the quest audit:
 
-- ✅ `go/` leaves the merge gate for the nightly
-  ([its quest](/quest/m0/go-nightly.md)). Rejected: keeping it in the gate; deleting
-  `go/`, which stays rejected.
+- ✅ `go/` left the merge gate for the nightly: `just ci` selects it only for a diff
+  under `go/`. Rejected: keeping it in the gate; deleting `go/`, which stays rejected.
 - ✅ The four Go API quests planned from
   [#614](https://github.com/kixel-ai/rust2/pull/614)'s follow-ups are folded in here as
   notes, since none can start while the epic is parked and each rewrote the same

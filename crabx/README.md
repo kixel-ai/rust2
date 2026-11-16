@@ -1,0 +1,107 @@
+# crabx
+
+Run a crates.io CLI from its author's release assets:
+
+```sh
+npx crabx moq-cli --help
+bunx crabx moq-cli --help
+```
+
+Or install crabx itself from its release:
+
+```sh
+curl -fsSL https://crabx.kixel.ai/install.sh | sh
+powershell -ExecutionPolicy Bypass -c "irm https://crabx.kixel.ai/install.ps1 | iex"
+cargo install crabx
+```
+
+The installers fetch the newest stable release into `~/.local/bin`; set `CRABX_VERSION` or
+`CRABX_INSTALL_DIR` to choose another. Prebuilt crabx covers x86_64 and arm64 on glibc
+Linux (2.28 or later), macOS, and Windows; elsewhere, such as on musl, use `cargo install`.
+Then:
+
+```sh
+crabx moq-cli --help
+crabx moq-cli@0.14.16 --help
+crabx --bin moq-relay moq-relay --help
+```
+
+Options go before the crate. Everything after it, including flags, spaces, and
+non-UTF-8 arguments on Unix, goes to the downloaded binary. A crate with several
+binaries uses the one named after the crate, or its only binary. Otherwise choose
+`--bin NAME`.
+Registry lookups and cache keys are case-insensitive. The explicit `--build` path
+preserves the typed crate spelling for Cargo. Binary names passed through `--bin`
+retain their spelling.
+
+crabx uses binstalk's release discovery, archive layouts, and signature verification.
+It never installs into `~/.cargo/bin`. Missing prebuilt assets are an error. Pass
+`--build` explicitly to run `cargo install --locked` into crabx's cache instead.
+`--allow-quickinstall` permits cargo-quickinstall's third-party builds after the
+author's releases; those have a separate cache from the default trust policy.
+Quickinstall downloads require its minisign signature; a missing signature is an error.
+
+For GitHub repositories, crabx checks GitHub's attestations API for the downloaded
+archive's SHA-256 before installing anything. Public Sigstore bundles verify their
+certificate, SCT, signature, artifact digest, and transparency log against Sigstore's
+production trust root. GitHub's timestamp-only bundles use GitHub's separate CA and
+timestamp authority, verifying the certificate, signature, digest, and RFC 3161 time.
+Both roots refresh through TUF. A malformed bundle, wrong repository, or verification/API
+failure is an error. No published attestation is allowed, as are author releases hosted
+outside GitHub. Binstalk's configured minisign checks remain enabled. Optional
+`GH_TOKEN` or `GITHUB_TOKEN` credentials raise GitHub's API rate limit; they are sent
+only to GitHub's attestation API.
+
+Workflow certificates must name the crate's repository and either that repository's
+workflow or rust2's reusable pipeline. Source refs must be tags or branches, excluding
+pull-request refs. A tag must match the asset's release tag or version. Branch-triggered
+builds are accepted so the pipeline can backfill published crates. GitHub release
+attestations must carry GitHub's release-service identity and sign the crate's
+repository and matching release tag. The verified result
+stays with the cached entry; a pinned, cached invocation makes no network request and
+requires neither Cargo nor GitHub's CLI.
+
+Caches live in the operating system's user cache directory, under
+`crabx/v1/<host>/<trust-policy>/<crate>/<version>`. Entries are staged, verified, and
+published atomically under a per-crate lock. An incomplete or corrupt entry fails
+loudly. Build and quickinstall entries cannot satisfy the default author's-release
+policy.
+The next uncached installation removes abandoned `install-*` staging directories
+under that lock. Malformed refresh state also fails with its path; delete that file
+to reset update tracking. Pinned invocations do not read refresh state.
+
+An unpinned invocation runs its cached version immediately and starts a detached
+sparse-index refresh and installation for the next invocation. The refresh retains the newest stable,
+non-yanked version, never a prerelease. A yank can select an older version. Only one
+refresh per crate and policy runs at a time. Network errors leave the cached version
+available. Each repeated error for a discovered version is reported once, on the next
+unpinned invocation. Failed refreshes retry after 30 seconds, doubling to at most 30 minutes;
+a successful refresh resets that delay. Conditional index requests retain their validator
+even when installation fails, and an unchanged index still retries the pending installation.
+A newly discovered version becomes current only after installation succeeds. Release requests
+have a five-minute total timeout and a 30-second read timeout.
+
+Unix uses `exec`, preserving the PID, arguments, standard streams, signals, and exit
+status. Windows starts the program with inherited console and standard streams and
+returns its exit code. Prebuilt Linux downloads require glibc; musl builds of crabx
+direct users to `--build`.
+
+`crabx init`, run in a public crate repository, writes the caller of
+[rust2's release pipeline](../.github/crabx/README.md) to
+`.github/workflows/binaries.yml`, pinned to its current release, so each crates.io
+version gets attested binaries crabx runs. It takes no options, reads origin's
+default branch from git, and never overwrites a different existing file. Run a crate
+named `init` as `crabx init@VERSION`.
+
+Develop with `just crabx check`, `just crabx test`, and `just crabx run <crate> [args]`.
+
+A release is a PR that bumps `version` in `Cargo.toml`. Once it lands, `.github/workflows/release.yml`
+builds the commit on every target, publishes it to crates.io, runs [the pipeline](../.github/crabx/README.md)
+to attach attested binaries to the `crabx-vX.Y.Z` release, and publishes the newest stable version's
+binaries to npm as `crabx` and one `@crabx/<platform>` package per target, each verified against its
+attestation first. Every step skips what is already published, so a rerun finishes a failed release.
+crates.io and npm trust only that workflow, in its `crates-io` and `npm` environments.
+`.github/workflows/installers.yml` serves main's `install.sh` and `install.ps1` at `crabx.kixel.ai`
+through GitHub Pages.
+crabx is GPL-3.0-only because it links binstalk. The other rust2 projects keep their
+existing licenses.

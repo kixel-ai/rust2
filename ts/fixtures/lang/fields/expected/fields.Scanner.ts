@@ -11,12 +11,7 @@ export function clone$Clone(self: Scanner): Scanner {
 
 export function fmt$fmt_Debug(self: Scanner, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const arg = new rs.ByteSlice(self.bufData, self.bufStart, self.bufLen);
-	const _3: string = "Scanner";
-	const _4: string = "buf";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(arg), f, rs.u8Debug);
-	const _7: string = "read";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.usizeDebug(self.read, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Scanner buf read", [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(arg), f, rs.u8Debug), (f: rs.Formatter) => rs.usizeDebug(self.read, f)]);
 }
 
 export function eq$cmp_PartialEq(self: Scanner, other: Scanner): boolean {

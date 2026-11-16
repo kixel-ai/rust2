@@ -16,6 +16,11 @@ continues, and for which crates.
 
 ## Plan
 
+The [per-item crossing spike](https://github.com/kixel-ai/rust2/pull/760) finds no clear
+varint lead in Chrome, with frames and async still favoring wasm and Firefox medians
+favoring wasm throughout; it recommends no backend design or priority change, since
+the hand-written byte boundary and per-call task setup do not measure generated bindings.
+
 Decided with the maintainer on 2026-11-09, in the quest audit:
 
 - ✅ WASM ships, and TypeScript must beat it: rust2-ts is "an experiment to see if it can be
@@ -30,6 +35,9 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   [the WASI target](/quest/m3/wasi.md) serves hosts with no JavaScript, in m3 as the
   other targets planned ahead of a consumer are. Rejected: one `wasm32-wasip1` module for
   both, with the binding implementing its imports.
+  On 2026-11-16 the maintainer let [#847](https://github.com/kixel-ai/rust2/pull/847)'s
+  first slice land on `wasm32-wasip1`'s std, its imports implemented with web APIs, for now:
+  [the backend](/quest/m2/wasm/backend.md) moves the web target off it.
 - ✅ m2, with per-target export in m1, which landed in
   [#689](https://github.com/kixel-ai/rust2/pull/689) and
   [#700](https://github.com/kixel-ai/rust2/pull/700). Rejected: all of it in m1; all of it

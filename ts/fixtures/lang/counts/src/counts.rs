@@ -2,7 +2,7 @@
 //! made and dropped: cloned, downgraded, upgraded, made dangling, made holding handles to
 //! itself, unwrapped by `into_inner`, and held in a `Vec`, an `Option`, a struct, and a closure, of a value and of a
 //! trait object; the values `get_mut` and `make_mut` write, alone or shared, and where
-//! `as_ptr` says each value is; and the clones `Option`'s and an iterator's `cloned` make,
+//! `as_ptr` says each value is, an `Arc`'s and a `Weak`'s; and the clones `Option`'s and an iterator's `cloned` make,
 //! through each type's `Clone`.
 
 use std::cell::{Cell, RefCell};
@@ -60,9 +60,126 @@ macro_rules! counts {
 		$cloned:ident,
 		$shared:ident,
 		$addressed:ident,
+		$pointed:ident,
+		$entry:ident,
 		$Ptr:ident,
 		$weak:ident
 	) => {
+		/// Notes as it drops whether the `Weak` in its slot points at it, as an index keyed
+		/// by identity tells its own entry from another's.
+		struct $entry {
+			id: u8,
+			slot: Arc<Mutex<Option<$weak::Weak<$entry>>>>,
+			log: Arc<Mutex<Vec<u8>>>,
+		}
+
+		impl Drop for $entry {
+			fn drop(&mut self) {
+				let own = self
+					.slot
+					.lock()
+					.unwrap()
+					.as_ref()
+					.is_some_and(|owner| std::ptr::eq(owner.as_ptr(), self));
+				self.log.lock().unwrap().extend([self.id, u8::from(own)]);
+			}
+		}
+
+		/// Each byte an operation on pools of strong and weak handles of entries and on the
+		/// slot their drops read, the rest of it the handle it picks: where `Weak::as_ptr`
+		/// points, against `as_ptr` and references of live and dropped values and other
+		/// `Weak`s, `Weak::new`'s included; and of a byte JS copies, which `make_mut` moves
+		/// away from its `Weak`, and of an array, read through it.
+		pub fn $pointed(data: &[u8], out: &mut Vec<u8>) {
+			let log = Arc::new(Mutex::new(Vec::new()));
+			let slot: Arc<Mutex<Option<$weak::Weak<$entry>>>> = Arc::default();
+			let entry = |id: u8| {
+				$Ptr::new($entry {
+					id,
+					slot: slot.clone(),
+					log: log.clone(),
+				})
+			};
+			let mut strong = vec![entry(0)];
+			let mut weak = vec![$weak::Weak::new()];
+			// Where each dropped value was, which a `Weak` keeps allocated so no other value
+			// is put there.
+			let mut dropped: Vec<(*const $entry, $weak::Weak<$entry>)> = Vec::new();
+			let mut number = $Ptr::new(1u8);
+			let mut kept = $Ptr::downgrade(&number);
+			let pair = $Ptr::new([2u8, 3]);
+			let pair_weak = $Ptr::downgrade(&pair);
+			let units = ($weak::Weak::<()>::new(), $weak::Weak::<[u8; 2]>::new());
+			for &op in data {
+				let pick = usize::from(op >> 3);
+				match op % 8 {
+					0 => strong.push(entry(op)),
+					1 => weak.push($Ptr::downgrade(&strong[pick % strong.len()])),
+					2 => weak.push($weak::Weak::new()),
+					3 => *slot.lock().unwrap() = Some(weak[pick % weak.len()].clone()),
+					4 if strong.len() > 1 => {
+						let gone = strong.swap_remove(pick % strong.len());
+						let (at, kept) = ($Ptr::as_ptr(&gone), $Ptr::downgrade(&gone));
+						// The last strong one's value, moved out of the allocation its `Weak`
+						// keeps, is at an address of its own as it drops.
+						if op & 0x80 != 0
+							&& let Some(value) = $Ptr::into_inner(gone)
+						{
+							out.extend([
+								u8::from(std::ptr::eq(kept.as_ptr(), &value)),
+								u8::from(std::ptr::eq(at, &value)),
+								u8::from(kept.upgrade().is_none()),
+							]);
+						}
+						dropped.push((at, kept));
+					}
+					4 => *slot.lock().unwrap() = None,
+					5 => {
+						let owner = &weak[pick % weak.len()];
+						let p = owner.as_ptr();
+						out.push(u8::from(std::ptr::eq(p, $weak::Weak::<$entry>::new().as_ptr())));
+						out.extend(strong.iter().map(|s| u8::from(std::ptr::eq(p, $Ptr::as_ptr(s)))));
+						out.extend(strong.iter().map(|s| u8::from(std::ptr::eq(p, &**s))));
+						out.extend(dropped.iter().map(|(at, _)| u8::from(std::ptr::eq(p, *at))));
+						out.extend(weak.iter().map(|other| u8::from(std::ptr::eq(p, other.as_ptr()))));
+						out.push(u8::from(p.is_null()));
+						out.push(owner.upgrade().map_or(0xfe, |e| e.id));
+					}
+					6 => {
+						if op & 0x80 != 0 {
+							kept = $Ptr::downgrade(&number);
+						}
+						*$Ptr::make_mut(&mut number) ^= op;
+						let at = kept.as_ptr().cast::<()>();
+						out.push(u8::from(std::ptr::eq(at, $Ptr::as_ptr(&number).cast::<()>())));
+						let none = $weak::Weak::<u16>::new().as_ptr().cast::<()>();
+						out.push(u8::from(std::ptr::eq(at, none)));
+						out.push(u8::from(std::ptr::eq(
+							$weak::Weak::<u8>::new().as_ptr().cast(),
+							none,
+						)));
+						if kept.strong_count() > 0 {
+							out.push(unsafe { *kept.as_ptr() });
+						}
+						out.push(*number);
+					}
+					_ => {
+						out.extend_from_slice(unsafe { &*pair_weak.as_ptr() });
+						out.push(pair[0]);
+						// `Weak::new`'s, at one address whatever it points at.
+						let none = $weak::Weak::<u8>::new().as_ptr().cast::<()>();
+						out.push(u8::from(std::ptr::eq(units.0.as_ptr(), none)));
+						let past = units.1.as_ptr().cast::<u8>().wrapping_add(usize::from(op >> 7));
+						out.push(u8::from(past.is_null()));
+					}
+				}
+				flush(&log, out);
+			}
+			*slot.lock().unwrap() = None;
+			drop((strong, weak, dropped));
+			flush(&log, out);
+		}
+
 		/// Holds a handle that doesn't keep its value.
 		struct $holder<T> {
 			weak: $weak::Weak<T>,
@@ -564,6 +681,8 @@ counts!(
 	cloned_arcs,
 	ArcShared,
 	addressed_arcs,
+	pointed_arcs,
+	ArcEntry,
 	Arc,
 	sync
 );
@@ -577,6 +696,8 @@ counts!(
 	cloned_rcs,
 	RcShared,
 	addressed_rcs,
+	pointed_rcs,
+	RcEntry,
 	Rc,
 	rc
 );

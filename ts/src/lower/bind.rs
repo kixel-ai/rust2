@@ -10,7 +10,7 @@ use std::path::{Component, Path, PathBuf};
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::{CRATE_DEF_ID, DefId};
 use rustc_metadata::creader::CStore;
-use rustc_middle::ty::{self, Instance, InstanceKind, TyCtxt, TypeVisitableExt};
+use rustc_middle::ty::{self, CallerBoundsIterator as _, Instance, InstanceKind, TyCtxt, TypeVisitableExt};
 use rustc_span::Span;
 
 use super::{Translator, camel, names};
@@ -231,7 +231,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The symbol of a bound type, from its binding's file. `span` is where `args` reach it.
-	pub fn bound_type(&mut self, adt: ty::AdtDef<'tcx>, args: ty::GenericArgsRef<'tcx>, span: Span) -> Option<SymId> {
+	pub fn bound_type(&mut self, adt: ty::AdtDef<'tcx>, args: ty::GenericArgs<'tcx>, span: Span) -> Option<SymId> {
 		let def_id = adt.did();
 		let drop = self.bound_drops(def_id)?;
 		// What it holds drops only where it does.
@@ -361,13 +361,17 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				_ => None,
 			})
 			.collect();
-		tcx.param_env(def_id).caller_bounds().find_map(|clause| {
-			let pred = clause.as_trait_clause()?.skip_binder();
-			match pred.self_ty().kind() {
-				ty::Param(p) if !held.contains(&p.index) && !tcx.is_sizedness_trait(pred.def_id()) => Some(p.name),
-				_ => None,
-			}
-		})
+		tcx.param_env(def_id)
+			.caller_bounds()
+			.all_clauses(tcx)
+			.iter()
+			.find_map(|clause| {
+				let pred = clause.as_trait_clause()?.skip_binder();
+				match pred.self_ty().kind() {
+					ty::Param(p) if !held.contains(&p.index) && !tcx.is_sizedness_trait(pred.def_id()) => Some(p.name),
+					_ => None,
+				}
+			})
 	}
 
 	/// A symbol of a binding's file, named as the file exports it, which reaches the file.

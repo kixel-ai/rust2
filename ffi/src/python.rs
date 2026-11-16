@@ -37,6 +37,7 @@ pub const GLUE_RUNTIME: &str = include_str!("../runtime/python.rs");
 /// What the generator writes: the Python module, and the Rust module of the extension it
 /// loads.
 pub struct Output {
+	pub names: BTreeMap<String, String>,
 	pub python: String,
 	pub glue: String,
 }
@@ -54,13 +55,27 @@ const TAKEN: &[&str] = &[
 	"_wakeups",
 	"_wakeup",
 	"_resume",
+	"_drains",
 	"_Const",
 	"_PENDING",
 	"_consts",
 	"_abc",
+	"_array",
 	"_asyncio",
 	"_dataclass",
+	"_same",
+	"_all",
+	"_dict",
+	"_float",
+	"_int",
+	"_memoryview",
+	"_TypeError",
+	"_list",
+	"_tuple",
+	"_type",
+	"_zip",
 	"_datetime",
+	"_ipaddress",
 	"_enum",
 	"_socket",
 	"_sys",
@@ -76,25 +91,43 @@ const TAKEN: &[&str] = &[
 	"_Exception",
 	"_ValueError",
 	"_AttributeError",
+	"_BaseException",
+	"_ImportError",
+	"_NotImplementedError",
+	"_bool",
+	"_bytearray",
+	"_object",
+	"_range",
 	"ForeignReader",
+	"Duration",
 ];
 
 /// Any buffer, as Python before 3.12's `collections.abc.Buffer` spells it.
-const BUFFER: &str = "bytes | bytearray | memoryview";
+const BUFFER: &str = "_bytes | _bytearray | _memoryview";
 
 /// A socket address as Python's `socket` module holds it: IPv4's, and IPv6's.
-const V4: &str = "tuple[str, int]";
-const V6: &str = "tuple[str, int, int, int]";
+const V4: &str = "_tuple[_str, _int]";
+const V6: &str = "_tuple[_str, _int, _int, _int]";
 
-/// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_TIMEDELTA`,
-/// `T_RESUME`, `T_WAKER`, and `T_POLLABLE`.
-const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume", "Waker", "_Pollable"];
+/// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_DURATION`,
+/// `T_RESUME`, `T_WAKER`, `T_POLLABLE`, `T_IPV4`, `T_IPV6`, and `T_DRAINS`.
+const RUNTIME_TYPES: &[&str] = &[
+	"_Future",
+	"Duration",
+	"_resume",
+	"Waker",
+	"_Pollable",
+	"_ipaddress.IPv4Address",
+	"_ipaddress.IPv6Address",
+	"_drains",
+];
 
 /// The Python for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike. The Python's own contract hashes the header's with everything it and its
 /// glue add, as their conversions change with no C declaration changing.
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
+		locked: BTreeMap::new(),
 		abi,
 		classes: abi.classes(|_| (String::new(), 0), |name| TAKEN.contains(&name)),
 		py: String::new(),
@@ -110,6 +143,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		exceptions: BTreeMap::new(),
 		thrown: HashMap::new(),
 		names: BTreeMap::new(),
+		converters: HashMap::new(),
 		errors: Vec::new(),
 		on: On::ALL,
 	};
@@ -119,6 +153,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
 	}
+	g.locked = crate::lock::types(abi, &g.classes);
 	g.write();
 	if !g.errors.is_empty() {
 		return Err(g.errors.join("\n"));
@@ -141,7 +176,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	// What only runs: the registry, and the module's constants, declared above for type
 	// checkers and made by `__getattr__` on each read.
 	let mut body = format!(
-		"{RUNTIME}\n{}{}if _typing.TYPE_CHECKING:\n{declared}else:\n\t_n._register(\n{registry}\t)\n\n\t_consts = {{\n{consts}\t}}\n\n\tdef __getattr__(name: str) -> object:\n\t\t\"\"\"A constant, made anew each time it is read, as Rust makes it.\"\"\"\n\t\tget = _consts.get(name)\n\t\tif get is None:\n\t\t\traise _AttributeError(f\"module {{__name__!r}} has no attribute {{name!r}}\")\n\t\treturn get()\n",
+		"{RUNTIME}\n{}{}if _typing.TYPE_CHECKING:\n{declared}else:\n\t_n._register(\n{registry}\t)\n\n\t_consts = {{\n{consts}\t}}\n\n\tdef __getattr__(name: _str) -> _object:\n\t\t\"\"\"A constant, made anew each time it is read, as Rust makes it.\"\"\"\n\t\tget = _consts.get(name)\n\t\tif get is None:\n\t\t\traise _AttributeError(f\"module {{__name__!r}} has no attribute {{name!r}}\")\n\t\treturn get()\n",
 		g.py, g.top
 	);
 	let mut hasher = StableHasher::new();
@@ -157,8 +192,10 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\"\"\"The pub API of {packages}, over the CPython extension built into the library beside this file.\"\"\"\n\n\
 		from __future__ import annotations\n\n\
 		import abc as _abc\n\
+		import array as _array\n\
 		import asyncio as _asyncio\n\
 		import datetime as _datetime\n\
+		import ipaddress as _ipaddress\n\
 		import enum as _enum\n\
 		import inspect as _inspect\n\
 		import socket as _socket\n\
@@ -166,18 +203,56 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		import typing as _typing\n\
 		import weakref as _weakref\n\
 		from builtins import AttributeError as _AttributeError\n\
+		from builtins import BaseException as _BaseException\n\
 		from builtins import Exception as _Exception\n\
+		from builtins import ImportError as _ImportError\n\
+		from builtins import NotImplementedError as _NotImplementedError\n\
+		from builtins import TypeError as _TypeError\n\
 		from builtins import ValueError as _ValueError\n\
+		from builtins import all as _all\n\
+		from builtins import bool as _bool\n\
+		from builtins import bytearray as _bytearray\n\
 		from builtins import bytes as _bytes\n\
+		from builtins import dict as _dict\n\
+		from builtins import float as _float\n\
+		from builtins import int as _int\n\
 		from builtins import isinstance as _isinstance\n\
 		from builtins import len as _len\n\
+		from builtins import list as _list\n\
+		from builtins import memoryview as _memoryview\n\
+		from builtins import object as _object\n\
 		from builtins import property as _property\n\
+		from builtins import range as _range\n\
 		from builtins import staticmethod as _staticmethod\n\
 		from builtins import str as _str\n\
+		from builtins import tuple as _tuple\n\
+		from builtins import type as _type\n\
+		from builtins import zip as _zip\n\
 		from dataclasses import dataclass as _dataclass\n\n\
 		_get_running_loop = _asyncio.get_running_loop\n\
 		_T = _typing.TypeVar(\"_T\")\n\n\n\
-		def _load() -> object:\n\
+		def _same(a: _object, b: _object, /) -> _bool:\n\
+		\t\"\"\"Whether a and b are equal as Rust's `==` compares them: never by identity, so a NaN\n\
+		\tequals nothing, while a list's, tuple's, or dict's own `==` takes an item as equal to itself.\"\"\"\n\
+		\tif _isinstance(a, (_list, _tuple)):\n\
+		\t\txs = _typing.cast(\"_typing.Sequence[_object]\", a)\n\
+		\t\tys = _typing.cast(\"_typing.Sequence[_object]\", b)\n\
+		\t\treturn _type(xs) is _type(ys) and _len(xs) == _len(ys) and _all(_same(x, y) for x, y in _zip(xs, ys))\n\
+		\tif _isinstance(a, _dict):\n\
+		\t\tif not _isinstance(b, _dict):\n\
+		\t\t\treturn False\n\
+		\t\tm = _typing.cast(\"_typing.Mapping[_object, _object]\", a)\n\
+		\t\tn = _typing.cast(\"_typing.Mapping[_object, _object]\", b)\n\
+		\t\treturn m.keys() == n.keys() and _all(_same(v, n[k]) for k, v in m.items())\n\
+		\tif a is None or b is None or _isinstance(a, (_int, _float, _str)):\n\
+		\t\treturn a == b\n\
+		\ttry:\n\
+		\t\t# Any buffer, through a memoryview, which compares numbers as Rust does, where\n\
+		\t\t# numpy's own `==` compares item by item into another array.\n\
+		\t\treturn _memoryview(_typing.cast(\"_bytes\", a)) == _memoryview(_typing.cast(\"_bytes\", b))\n\
+		\texcept _TypeError:\n\
+		\t\treturn a == b\n\n\n\
+		def _load() -> _object:\n\
 		\timport importlib.machinery\n\
 		\timport importlib.util\n\
 		\timport os\n\n\
@@ -194,7 +269,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\t# Checked before any other call: a Python file and a library from different builds\n\
 		\t# must not mix.\n\
 		\tif _n.contract() != 0x{contract:016x}:\n\
-		\t\traise ImportError(\"{p}.py and the library are from different builds\")\n\
+		\t\traise _ImportError(\"{p}.py and the library are from different builds\")\n\
 		_PENDING = _n.PENDING\n\n\n"
 	);
 	body.insert_str(0, &head);
@@ -247,7 +322,11 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		g.members.len(),
 		g.members.iter().map(|m| format!("\t{m},\n")).collect::<String>(),
 	);
-	Ok(Output { python: body, glue })
+	Ok(Output {
+		names: g.locked,
+		python: body,
+		glue,
+	})
 }
 
 /// How a function's Python form is held.
@@ -323,6 +402,7 @@ impl Body {
 }
 
 struct Gen<'a> {
+	locked: BTreeMap<String, String>,
 	abi: &'a Abi<'a>,
 	/// Each exported type's name, by its C name.
 	classes: HashMap<String, String>,
@@ -350,6 +430,10 @@ struct Gen<'a> {
 	thrown: HashMap<String, String>,
 	/// Each module-level Python name, with what claimed it.
 	names: BTreeMap<String, String>,
+	/// The suffix of the glue's `r_` and `w_` of each option, tuple, and list type by
+	/// its C struct and what the struct holds: types of one struct, such as a `Vec` of
+	/// `SocketAddrV4` and one of `SocketAddr`, convert apart.
+	converters: HashMap<(String, Vec<Type>), String>,
 	errors: Vec<String>,
 	/// The targets of the item being written, whose native functions check theirs.
 	on: On,
@@ -406,20 +490,25 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "None".to_string(),
-			Type::Bool => "bool".to_string(),
-			Type::Int(_) | Type::NonZero(_) | Type::U128 => "int".to_string(),
-			Type::F32 | Type::F64 => "float".to_string(),
-			Type::Char | Type::Str | Type::String | Type::Path | Type::PathBuf => "str".to_string(),
-			Type::Slice | Type::Vec | Type::Bytes => "memoryview".to_string(),
-			Type::Duration => "_datetime.timedelta".to_string(),
+			Type::Bool => "_bool".to_string(),
+			Type::Int(_) | Type::NonZero(_) | Type::U128 => "_int".to_string(),
+			Type::F32 | Type::F64 => "_float".to_string(),
+			Type::Char | Type::Str | Type::String | Type::Path | Type::PathBuf => "_str".to_string(),
+			Type::Slice | Type::Vec | Type::Bytes => "_memoryview".to_string(),
+			Type::Duration => "Duration".to_string(),
 			Type::SocketAddr(family) => match family {
 				Family::V4 => V4.to_string(),
 				Family::V6 => V6.to_string(),
 				Family::Any => format!("{V4} | {V6}"),
 			},
-			Type::List(_, inner) => format!("list[{}]", self.py_ty(inner)),
+			Type::IpAddr(Family::V4) => "_ipaddress.IPv4Address".to_string(),
+			Type::IpAddr(Family::V6) => "_ipaddress.IPv6Address".to_string(),
+			Type::IpAddr(Family::Any) => "_ipaddress.IPv4Address | _ipaddress.IPv6Address".to_string(),
+			Type::List(_, inner) if ty.block().is_some() => format!("_array.array[{}]", self.py_ty(inner)),
+			Type::List(_, inner) => format!("_list[{}]", self.py_ty(inner)),
 			Type::Waker => "Waker".to_string(),
 			Type::Reader => "ForeignReader".to_string(),
 			Type::Future => "_typing.Awaitable[None]".to_string(),
@@ -434,11 +523,11 @@ impl<'a> Gen<'a> {
 				let params: Vec<String> = params.iter().map(|p| self.py_lent(p)).collect();
 				format!("_typing.Callable[[{}], {}]", params.join(", "), self.py_param(ret))
 			}
-			Type::Range(_) => "range".to_string(),
+			Type::Range(_) => "_range".to_string(),
 			Type::Bound(_) | Type::Bounds(_) => self.class(&abi.range(ty)),
 			Type::Tuple(elements) => {
 				let elements: Vec<String> = elements.iter().map(|e| self.py_ty(e)).collect();
-				format!("tuple[{}]", elements.join(", "))
+				format!("_tuple[{}]", elements.join(", "))
 			}
 		}
 	}
@@ -462,83 +551,77 @@ impl<'a> Gen<'a> {
 	fn py_in(&self, ty: &Type, list: &str) -> String {
 		match ty {
 			Type::Slice | Type::Vec | Type::Bytes => BUFFER.to_string(),
-			Type::Path | Type::PathBuf => "str".to_string(),
+			Type::Path | Type::PathBuf => "_str".to_string(),
 			// Python's own IPv6 address may leave out its flowinfo and scope_id.
 			Type::SocketAddr(Family::V6) => format!("{V4} | {V6}"),
+			// Any buffer of its numbers, as numpy's arrays are too.
+			Type::List(..) if ty.block().is_some() => format!("{} | _memoryview", self.py_ty(ty)),
 			Type::List(_, inner) => format!("{list}[{}]", self.py_in(inner, list)),
 			Type::Option(inner) => format!("{} | None", self.py_in(inner, list)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.py_in(inner, list),
 			Type::Tuple(elements) => {
 				let elements: Vec<String> = elements.iter().map(|e| self.py_in(e, list)).collect();
-				format!("tuple[{}]", elements.join(", "))
+				format!("_tuple[{}]", elements.join(", "))
 			}
 			_ => self.py_ty(ty),
 		}
 	}
 
 	/// The glue's expression, an `R<C>`, reading the Python object `o` as the C value of
-	/// `ty`, with what it borrows held in the scope `s`; `m` is the glue's `bool`, whether
-	/// the position moves an object's value out, closing it.
-	fn lift(&mut self, ty: &Type, o: &str, m: &str) -> String {
+	/// `ty`, with what it borrows held in the scope `s`; `t` is the glue's `bool`, whether
+	/// Rust takes what the position holds, as it takes a value passed by value but not one
+	/// read through a pointer or an array's item, so a buffer crosses there as its own.
+	fn lift(&mut self, ty: &Type, o: &str, t: &str) -> String {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 			Type::Array(n) => format!(
 				"rt::array_in::<{n}>({o}).map(|items| crate::{} {{ items }})",
 				abi.array(*n)
 			),
 			Type::Bool => format!("rt::bool_in({o})"),
-			Type::Int(int) | Type::NonZero(int) => format!("rt::int_in::<{}>({o})", int.rust()),
+			Type::Int(int) => format!("rt::int_in::<{}>({o})", int.rust()),
+			Type::NonZero(int) => format!("rt::nonzero_in::<{}>({o})", int.rust()),
 			Type::F32 => format!("rt::float_in({o}).map(|f| f as f32)"),
 			Type::F64 => format!("rt::float_in({o})"),
 			Type::Char => format!("rt::char_in({o})"),
 			Type::Str | Type::String => format!("rt::str_in({o})"),
-			Type::Slice | Type::Vec | Type::Bytes => format!("rt::bytes_in({o}, s)"),
+			Type::Slice | Type::Vec | Type::Bytes => format!("rt::bytes_in({o}, s, {t})"),
 			Type::Path | Type::PathBuf => format!("rt::path_in({o}, s)"),
 			Type::U128 => format!("rt::u128_in({o})"),
 			Type::Duration => format!("rt::duration_in({o})"),
-			Type::SocketAddr(family) => format!("rt::addr_in({o}, {})", family_of(*family)),
-			Type::List(..) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
+			Type::SocketAddr(family) | Type::IpAddr(family) => format!("rt::{}_in({o})", addr_fn(ty, *family)),
+			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_in::<{}>({o}, s)", number(inner)),
+			Type::List(..) => format!("r_{}({o}, s, {t})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
-				Type::Object(i) => {
-					let m = match abi.api.objects[*i].copy || matches!(**inner, Type::Ref(..)) {
-						true => "false",
-						false => m,
-					};
-					format!("rt::hold_opt({o}, {}, s, {m})", self.t(&abi.object(*i)))
-				}
+				Type::Object(i) => format!("rt::hold_opt({o}, {}, s)", self.t(&abi.object(*i))),
 				base if Abi::is_buf(base) => {
-					let some = self.lift(inner, o, m);
+					let some = self.lift(inner, o, t);
 					format!("(if rt::is_none({o}) {{ Ok(crate::rt::Buf::NONE) }} else {{ {some} }})")
 				}
 				Type::List(..) => {
-					let some = self.lift(inner, o, m);
+					let some = self.lift(inner, o, t);
 					format!("(if rt::is_none({o}) {{ Ok(crate::rt::List::NONE) }} else {{ {some} }})")
 				}
-				_ => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
+				_ => format!("r_{}({o}, s, {t})", self.converter(ty)),
 			},
-			Type::Box(inner) => self.lift(inner, o, m),
-			Type::Ref(_, inner) => self.lift(inner, o, "false"),
-			Type::Record(_) => format!("r_{}({o}, s)", self.c_struct(ty)),
+			Type::Box(inner) => self.lift(inner, o, t),
+			Type::Ref(_, inner) => self.lift(inner, o, t),
+			Type::Record(_) => format!("r_{}({o}, s, {t})", self.c_struct(ty)),
 			Type::Enum(i) if abi.api.enums[*i].variants.iter().any(|v| !abi.api.everywhere(v.on)) => {
 				// Checks the member a value is against the library's target.
 				let c = abi.enumeration(*i);
 				match abi.api.enums[*i].plain() {
 					true => format!("rt::member_in({o}, {}).and_then(on_{c})", self.t(&c)),
-					false => format!("r_{c}({o}, s)"),
+					false => format!("r_{c}({o}, s, {t})"),
 				}
 			}
 			Type::Enum(i) => match abi.api.enums[*i].plain() {
 				true => format!("rt::member_in({o}, {})", self.t(&abi.enumeration(*i))),
-				false => format!("r_{}({o}, s)", abi.enumeration(*i)),
+				false => format!("r_{}({o}, s, {t})", abi.enumeration(*i)),
 			},
-			Type::Object(i) => {
-				let m = match abi.api.objects[*i].copy {
-					true => "false",
-					false => m,
-				};
-				format!("rt::hold({o}, {}, s, {m})", self.t(&abi.object(*i)))
-			}
+			Type::Object(i) => format!("rt::hold({o}, {}, s)", self.t(&abi.object(*i))),
 			Type::Callback(i, _) => {
 				let c = abi.callback(*i);
 				format!(
@@ -551,7 +634,7 @@ impl<'a> Gen<'a> {
 			Type::Future => format!("rt::future_in({o}, s)"),
 			Type::Range(int) => format!("rt::range_in::<{}>({o})", int.rust()),
 			Type::Bound(_) | Type::Bounds(_) => format!("r_{}({o}, s)", abi.range(ty)),
-			Type::Tuple(_) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
+			Type::Tuple(_) => format!("r_{}({o}, s, {t})", self.converter(ty)),
 			Type::Unit | Type::Closure(..) => unreachable!("{ty:?} is no value Python passes"),
 		}
 	}
@@ -562,6 +645,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Jni(_) => unreachable!("only Kotlin exports what takes a JNI value"),
 			Type::Array(n) => format!("rt::array_out(&{v}.items, {})", self.t(&abi.array(*n))),
 			Type::Unit => "rt::none()".to_string(),
 			Type::Bool => format!("rt::bool_out({v})"),
@@ -574,8 +658,9 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => format!("rt::path_out({v})"),
 			Type::U128 => format!("rt::u128_out({v})"),
 			Type::Duration => format!("rt::duration_out({v})"),
-			Type::SocketAddr(_) => format!("rt::addr_out({v})"),
-			Type::List(..) => format!("w_{}({v})", self.c_struct(ty)),
+			Type::SocketAddr(family) | Type::IpAddr(family) => format!("rt::{}_out({v})", addr_fn(ty, *family)),
+			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_out::<{}>({v})", number(inner)),
+			Type::List(..) => format!("w_{}({v})", self.converter(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => format!(
 					"rt::object_opt({v}, {}, crate::{}_free)",
@@ -586,7 +671,7 @@ impl<'a> Gen<'a> {
 					let some = self.lower(inner, "v");
 					format!("{{ let v = {v}; if v.is_none() {{ rt::none() }} else {{ {some} }} }}")
 				}
-				_ => format!("w_{}({v})", self.c_struct(ty)),
+				_ => format!("w_{}({v})", self.converter(ty)),
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.lower(inner, v),
 			Type::Record(_) => format!("w_{}({v})", self.c_struct(ty)),
@@ -605,7 +690,7 @@ impl<'a> Gen<'a> {
 				format!("{{ let r = {v}; rt::range_out({start}, {end}) }}")
 			}
 			Type::Bound(_) | Type::Bounds(_) => format!("w_{}({v})", abi.range(ty)),
-			Type::Tuple(_) => format!("w_{}({v})", self.c_struct(ty)),
+			Type::Tuple(_) => format!("w_{}({v})", self.converter(ty)),
 			Type::Waker => format!("rt::waker_out({v})"),
 			Type::Callback(..) | Type::Closure(..) | Type::Future | Type::Reader => {
 				unreachable!("{ty:?} is no value Rust returns")
@@ -619,6 +704,52 @@ impl<'a> Gen<'a> {
 			Ty::Struct(name) => name,
 			other => unreachable!("{ty:?} crosses as {other:?}, no struct"),
 		}
+	}
+
+	/// The suffix of the glue's `r_` and `w_` converting the option, tuple, or list `ty`,
+	/// written here the first time, so a block's struct gets no item-by-item glue: its C
+	/// struct's name for the type the struct was made for, else a name of its own.
+	fn converter(&mut self, ty: &Type) -> String {
+		let abi = self.abi;
+		let c = self.c_struct(ty);
+		let (held, made): (Vec<Type>, Vec<Type>) = match strip_refs(ty) {
+			Type::Option(inner) => (vec![*inner], vec![abi.options[&c].clone()]),
+			Type::List(_, elem) => (vec![*elem], vec![abi.lists[&c].clone()]),
+			Type::Tuple(elements) => (elements, abi.tuples[&c].clone()),
+			other => unreachable!("{other:?} has no converter"),
+		};
+		let held: Vec<Type> = held.iter().map(strip_refs).collect();
+		let key = (c.clone(), held.clone());
+		if let Some(name) = self.converters.get(&key) {
+			return name.clone();
+		}
+		// A numbered name must miss every converter's: each type's own, and the others numbered.
+		let taken = |name: &str| {
+			abi.options.contains_key(name)
+				|| abi.lists.contains_key(name)
+				|| abi.tuples.contains_key(name)
+				|| abi.ranges.contains_key(name)
+				|| abi.arrays.contains_key(name)
+				|| (0..abi.api.records.len()).any(|i| abi.record(i) == name)
+				|| (0..abi.api.enums.len()).any(|i| abi.enumeration(i) == name)
+				|| (0..abi.api.objects.len()).any(|i| abi.object(i) == name)
+				|| self.converters.values().any(|n| n == name)
+		};
+		let made: Vec<Type> = made.iter().map(strip_refs).collect();
+		let name = match held == made {
+			true => c.clone(),
+			false => (self.converters.len() + 2..)
+				.map(|k| format!("{c}_{k}"))
+				.find(|name| !taken(name))
+				.expect("some number is free"),
+		};
+		self.converters.insert(key, name.clone());
+		match strip_refs(ty) {
+			Type::Option(_) => self.option(&name, &c, &held[0]),
+			Type::List(..) => self.list(&name, &c, &held[0]),
+			_ => self.tuple(&name, &c, &held),
+		}
+		name
 	}
 
 	fn write(&mut self) {
@@ -635,12 +766,6 @@ impl<'a> Gen<'a> {
 		for (c, ty) in &abi.ranges.clone() {
 			self.range(c, ty);
 		}
-		for (c, inner) in &abi.options.clone() {
-			self.option(c, inner);
-		}
-		for (c, elements) in &abi.tuples.clone() {
-			self.tuple(c, elements);
-		}
 		for (c, n) in &abi.arrays {
 			let name = Abi::array_class(*n);
 			self.register(c, name.clone());
@@ -649,12 +774,11 @@ impl<'a> Gen<'a> {
 				"class {name}(_bytes):\n\t\"\"\"A Rust `[u8; {n}]`: exactly {n} bytes.\"\"\"\n\n\t__slots__ = ()\n\n\tdef __new__(cls, value: {BUFFER}) -> _typing.Self:\n\t\tself = _bytes.__new__(cls, value)\n\t\tif _len(self) != {n}:\n\t\t\traise _ValueError(f\"{{_len(self)}} bytes, not {n}\")\n\t\treturn self\n\n\n"
 			);
 		}
-		for (c, elem) in &abi.lists.clone() {
-			self.list(c, elem);
-		}
 		for constant in &api.constants {
 			let name = self.bare(&abi.name(&constant.path)).to_uppercase();
 			let name = self.claim(&name, format!("const `{}`", constant.path.join("::")));
+			self.locked
+				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			let value = match constant.value {
 				Literal::Bool(true) => "True".to_string(),
 				Literal::Bool(false) => "False".to_string(),
@@ -701,7 +825,7 @@ impl<'a> Gen<'a> {
 			let py = self.py_ty(ty);
 			let _ = write!(
 				self.py,
-				"class {name}(_Exception):\n\t\"\"\"A `{py}` Rust returned as an error, in `error`, whose `str` is the exception's.\"\"\"\n\n\tdef __init__(self, error: {py}) -> None:\n\t\t_Exception.__init__(self, error)\n\t\tself.error = error\n\n\tdef __str__(self) -> str:\n\t\treturn _str(self.error)\n\n\n"
+				"class {name}(_Exception):\n\t\"\"\"A `{py}` Rust returned as an error, in `error`, whose `str` is the exception's.\"\"\"\n\n\tdef __init__(self, error: {py}) -> None:\n\t\t_Exception.__init__(self, error)\n\t\tself.error = error\n\n\tdef __str__(self) -> _str:\n\t\treturn _str(self.error)\n\n\n"
 			);
 		}
 	}
@@ -717,7 +841,7 @@ impl<'a> Gen<'a> {
 				let (kind, value) = (self.key("kind"), self.key("value"));
 				let t_bound = self.t(&bound);
 				(
-					"\tkind: Bound\n\tvalue: int\n".to_string(),
+					"\tkind: Bound\n\tvalue: _int\n".to_string(),
 					format!(
 						"let k = rt::field(o, {t}, {kind}, s)?;\n\tlet v = rt::attr(o, {value}, s)?;\n\tOk(crate::{c} {{ kind: rt::member_in(k, {t_bound})?, value: rt::int_in::<{r}>(v)? }})",
 						t = self.t(c),
@@ -756,55 +880,57 @@ impl<'a> Gen<'a> {
 		);
 	}
 
-	/// The glue of an option struct.
-	fn option(&mut self, c: &str, inner: &Type) {
-		let read = self.lift(inner, "o", "m");
+	/// The glue of an option struct `c` holding `inner`, as `r_<name>` and `w_<name>`.
+	fn option(&mut self, name: &str, c: &str, inner: &Type) {
+		let read = self.lift(inner, "o", "take");
 		let write = self.lower(inner, "v.value");
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\tmatch rt::is_none(o) {{\n\t\ttrue => Ok(crate::{c} {{ some: false, value: unsafe {{ std::mem::zeroed() }} }}),\n\t\tfalse => Ok(crate::{c} {{ some: true, value: {}? }}),\n\t}}\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.some {{\n\t\ttrue => {write},\n\t\tfalse => rt::none(),\n\t}}\n}}\n\n",
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, take: bool) -> R<crate::{c}> {{\n\tmatch rt::is_none(o) {{\n\t\ttrue => Ok(crate::{c} {{ some: false, value: unsafe {{ std::mem::zeroed() }} }}),\n\t\tfalse => Ok(crate::{c} {{ some: true, value: {}? }}),\n\t}}\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.some {{\n\t\ttrue => {write},\n\t\tfalse => rt::none(),\n\t}}\n}}\n\n",
 			read
 		);
 	}
 
-	/// The glue of a tuple struct, element by element.
-	fn tuple(&mut self, c: &str, elements: &[Type]) {
+	/// The glue of a tuple struct `c`, element by element, as `r_<name>` and `w_<name>`.
+	fn tuple(&mut self, name: &str, c: &str, elements: &[Type]) {
 		let n = elements.len();
 		let mut reads = Vec::new();
 		let mut fields = Vec::new();
 		let mut writes = Vec::new();
 		for (k, ty) in elements.iter().enumerate() {
-			let lift = self.lift(ty, &format!("x{k}"), "m");
+			let lift = self.lift(ty, &format!("x{k}"), "take");
 			reads.push(format!("let x{k} = rt::tuple_item(o, {k}, {n})?;"));
 			fields.push(format!("_{k}: {lift}?"));
 			writes.push(self.lower(ty, &format!("v._{k}")));
 		}
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::tuple(vec![{}])\n}}\n\n",
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, take: bool) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\trt::tuple(vec![{}])\n}}\n\n",
 			reads.join("\n\t"),
 			fields.join(", "),
 			writes.join(", ")
 		);
 	}
 
-	/// The glue of a `Vec`'s array.
-	fn list(&mut self, c: &str, elem: &Type) {
-		let read = self.lift(elem, "o", "m");
+	/// The glue of a `Vec`'s array `c`, as `r_<name>` and `w_<name>`.
+	fn list(&mut self, name: &str, c: &str, elem: &Type) {
+		// An array's items are behind its pointer, which Rust only reads.
+		let read = self.lift(elem, "o", "false");
 		let write = self.lower(elem, "e");
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\trt::list_in(o, s, |o, s| {read})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::list_out(v, |e| {write})\n}}\n\n"
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, take: bool) -> R<crate::{c}> {{\n\trt::list_in(o, s, |o, s| {read})\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\trt::list_out(v, |e| {write})\n}}\n\n"
 		);
 	}
 
 	/// The Python members a type's std traits export beyond Python's own, with their glue:
 	/// `__str__` from `Display`, `__repr__` from `Debug`, a static `default` from
-	/// `Default`, and `clone` and `__eq__` for an object.
+	/// `Default`, and `clone`, `__eq__`, and `__hash__` from `Hash` for an object.
 	fn traits(&mut self, ty: &Type, c: &str, t: Traits, body: &mut Body) {
 		let bare = self.bare(c).to_string();
 		let class = self.class(c);
 		let object = matches!(ty, Type::Object(_));
+		let opaque = matches!(ty, Type::Record(i) if self.abi.api.records[*i].opaque.is_some());
 		// The receiver as the glue reads it: a handle, held for the call, or a value.
 		let this = match object {
 			true => self.lift(
@@ -817,6 +943,16 @@ impl<'a> Gen<'a> {
 		let pass = match object {
 			true => "this",
 			false => "&this",
+		};
+		// An object whose run-time checks may fail passes each its status, which raises.
+		let checked = self.abi.traits_status_of(ty);
+		let (status, arg) = match checked {
+			true => ("let mut status = 0;\n\t\t", ", &mut status"),
+			false => ("", ""),
+		};
+		let check = |suffix: &str| match checked {
+			true => format!("\n\t\ts.status(status, \"{c}_{suffix}\")?;"),
+			false => String::new(),
 		};
 		let unary = |g: &mut Self, suffix: &str, member: &str, docs: &str, lower: String| {
 			let d = Direct {
@@ -831,17 +967,18 @@ impl<'a> Gen<'a> {
 				&format!("{bare}_{suffix}"),
 				d,
 				&format!(
-					"let this = {this}?;\n\t\tlet ret = rt::call(|| crate::{c}_{suffix}({pass}));\n\t\ts.done();\n\t\t{lower}"
+					"let this = {this}?;\n\t\t{status}let ret = rt::call(|| crate::{c}_{suffix}({pass}{arg}));{}\n\t\ts.done();\n\t\t{lower}",
+					check(suffix)
 				),
 			);
 		};
 		if t.display {
 			unary(self, "to_string", "__str__", "", "rt::str_out(ret)".to_string());
-			body.native.push("\tdef __str__(self) -> str: ...\n".to_string());
+			body.native.push("\tdef __str__(self) -> _str: ...\n".to_string());
 		}
 		if t.debug {
 			unary(self, "debug", "__repr__", "", "rt::str_out(ret)".to_string());
-			body.native.push("\tdef __repr__(self) -> str: ...\n".to_string());
+			body.native.push("\tdef __repr__(self) -> _str: ...\n".to_string());
 		}
 		if object && t.clone {
 			let lower = self.lower(ty, "ret");
@@ -851,26 +988,41 @@ impl<'a> Gen<'a> {
 				"\tdef clone(self) -> {class}:\n\t\t\"\"\"{docs}\"\"\"\n\t\t...\n"
 			));
 		}
-		if object && t.eq {
-			let other = self.lift(
-				&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())),
-				"a[1]",
-				"false",
-			);
+		// An opaque value compares through Rust, as an object does; a record's fields
+		// compare as a dataclass's.
+		if (object || opaque) && t.eq {
+			let other = match object {
+				true => self.lift(
+					&Type::Ref(crate::ir::Mutability::Not, Box::new(ty.clone())),
+					"a[1]",
+					"false",
+				),
+				false => self.lift(ty, "a[1]", "false"),
+			};
+			let (a, b) = match object {
+				true => ("this", "other"),
+				false => ("&this", "&other"),
+			};
 			self.native(
 				&format!("{bare}_eq"),
 				2,
 				&format!(
-					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\tlet ret = rt::call(|| crate::{c}_eq(this, other));\n\t\ts.done();\n\t\trt::bool_out(ret)"
+					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\t{status}let ret = rt::call(|| crate::{c}_eq({a}, {b}{arg}));{}\n\t\ts.done();\n\t\trt::bool_out(ret)",
+					check("eq")
 				),
 			);
 			// Python makes a class that defines `__eq__` alone unhashable, as `Eq` without `Hash` is.
 			body.python.push(format!(
-				"\tdef __eq__(self, other: object) -> bool:\n\t\treturn _isinstance(other, {class}) and _n.{bare}_eq(self, other)\n"
+				"\tdef __eq__(self, other: _object) -> _bool:\n\t\treturn _isinstance(other, {class}) and _n.{bare}_eq(self, other)\n"
 			));
 			self.natives.push(format!(
-				"@_staticmethod\ndef {bare}_eq(this: {class}, other: {class}, /) -> bool: ...\n"
+				"@_staticmethod\ndef {bare}_eq(this: {class}, other: {class}, /) -> _bool: ...\n"
 			));
+		}
+		// Rust's `Hash` makes it hashable again, agreeing with its `__eq__`.
+		if (object || opaque) && t.hash {
+			unary(self, "hash", "__hash__", "", "rt::uint_out(ret)".to_string());
+			body.native.push("\tdef __hash__(self) -> _int: ...\n".to_string());
 		}
 		if t.default {
 			let lower = self.lower(ty, "ret");
@@ -950,10 +1102,33 @@ impl<'a> Gen<'a> {
 		let t = self.register(&c, name.clone());
 		let ty = Type::Record(i);
 		let mut body = Body::default();
+		if record.opaque.is_some() {
+			body.python.push("\t__slots__ = ()\n".to_string());
+		}
 		self.traits(&ty, &c, record.traits, &mut body);
 		let owner = Ty::Struct(c.clone());
 		let data: Vec<String> = record.fields.iter().map(|f| field_name(&f.name)).collect();
 		self.methods(&record.methods, (&ty, &owner, &rust), &data, &[], &mut body);
+		if record.fields.iter().any(|f| own_eq(abi, &f.ty)) {
+			body.python.push(ieee_eq(&name, &data));
+		}
+		if record.opaque.is_some() {
+			let text = format!(
+				"{rust}\n\n{}\n\nIts bytes, which only Rust makes or reads: copy it, but never make one.",
+				record.docs
+			);
+			let _ = write!(
+				self.py,
+				"class {name}(_n.Value):\n{}{}\n\n",
+				docstring(text.trim(), "\t"),
+				body.members().join("\n")
+			);
+			let _ = write!(
+				self.glue,
+				"fn r_{c}(o: *mut PyObject, _s: &mut rt::Scope, _take: bool) -> R<crate::{c}> {{\n\trt::value_in(o, {t})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::value_out({t}, v)\n}}\n\n"
+			);
+			return;
+		}
 		let fields: String = record
 			.fields
 			.iter()
@@ -987,7 +1162,7 @@ impl<'a> Gen<'a> {
 				_ => format!("rt::attr(o, {key}, s)?"),
 			};
 			reads.push(format!("let x{n} = {read};"));
-			fields.push(format!("f{n}: {}?", self.lift(&field.ty, &format!("x{n}"), "false")));
+			fields.push(format!("f{n}: {}?", self.lift(&field.ty, &format!("x{n}"), "take")));
 			writes.push(format!("({key}, {})", self.lower(&field.ty, &format!("v.f{n}"))));
 		}
 		if record.fields.is_empty() {
@@ -995,7 +1170,7 @@ impl<'a> Gen<'a> {
 		}
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::record({t}, vec![{}])\n}}\n\n",
+			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, take: bool) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::record({t}, vec![{}])\n}}\n\n",
 			reads.join("\n\t"),
 			fields.join(", "),
 			writes.join(", ")
@@ -1087,6 +1262,10 @@ impl<'a> Gen<'a> {
 				.collect();
 			let fields = match fields.is_empty() {
 				true => "\tpass\n".to_string(),
+				false if variant.fields.iter().any(|f| own_eq(abi, &f.ty)) => {
+					let names: Vec<String> = variant.fields.iter().map(|f| field_name(&f.name)).collect();
+					format!("{fields}\n{}", ieee_eq(&class, &names))
+				}
 				false => fields,
 			};
 			let _ = write!(
@@ -1116,7 +1295,7 @@ impl<'a> Gen<'a> {
 					for (k, f) in variant.fields.iter().enumerate() {
 						let key = self.key(&field_name(&f.name));
 						binds.push(format!("let x{k} = rt::attr(o, {key}, s)?;"));
-						fields.push(format!("f{k}: {}?", self.lift(&f.ty, &format!("x{k}"), "false")));
+						fields.push(format!("f{k}: {}?", self.lift(&f.ty, &format!("x{k}"), "take")));
 						lowers.push(format!("({key}, {})", self.lower(&f.ty, &format!("p.f{k}"))));
 					}
 					reads.push(format!(
@@ -1133,7 +1312,7 @@ impl<'a> Gen<'a> {
 		}
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope) -> R<crate::{c}> {{\n\t{}\n\trt::check(o, {t})?;\n\tcrate::rt::fail(\"python\", \"a variant is of no class of its enum\")\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.tag {{\n{}\n\t\t_ => crate::rt::fail(\"python\", \"an enum's tag is invalid\"),\n\t}}\n}}\n\n",
+			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, take: bool) -> R<crate::{c}> {{\n\t{}\n\trt::check(o, {t})?;\n\tcrate::rt::fail(\"python\", \"a variant is of no class of its enum\")\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.tag {{\n{}\n\t\t_ => crate::rt::fail(\"python\", \"an enum's tag is invalid\"),\n\t}}\n}}\n\n",
 			reads.join("\n\t"),
 			writes.join("\n")
 		);
@@ -1180,8 +1359,13 @@ impl<'a> Gen<'a> {
 		self.register(&c, name.clone());
 		let mut body = Vec::new();
 		let mut table = vec!["free: Some(rt::free_callback)".to_string()];
+		let mut names: Vec<String> = Vec::new();
 		for (n, method) in callback.methods.iter().enumerate() {
-			let member = member(&abi::snake(method.name()), &[]);
+			// A name an earlier method took, its own takes a trailing `_` against.
+			let reserved: Vec<&str> = names.iter().map(String::as_str).collect();
+			let member = member(&abi::snake(method.name()), &reserved);
+			names.push(member.clone());
+			crate::lock::function(&mut self.locked, method, &member);
 			let params: Vec<String> = std::iter::once("self".to_string())
 				.chain(
 					method
@@ -1232,9 +1416,9 @@ impl<'a> Gen<'a> {
 	/// The Python annotation of a value Rust lends a callback or closure: its bytes copied.
 	fn py_lent(&self, ty: &Type) -> String {
 		match ty.base() {
-			Type::Slice | Type::Vec | Type::Bytes => "bytes".to_string(),
+			Type::Slice | Type::Vec | Type::Bytes => "_bytes".to_string(),
 			Type::Option(inner) if matches!(inner.base(), Type::Slice | Type::Vec | Type::Bytes) => {
-				"bytes | None".to_string()
+				"_bytes | None".to_string()
 			}
 			_ => self.py_ty(ty),
 		}
@@ -1306,21 +1490,10 @@ impl<'a> Gen<'a> {
 
 	/// The glue's expression, an `R<C>`, of the Python object `o` a closure returns as the
 	/// C value of `ty` that Rust then owns: a string copied, as `<prefix>_buf_copy` makes
-	/// one, and a new handle to a copy of an object, made without its `Clone`, so the Python
-	/// object keeps its own.
+	/// one.
 	fn given(&mut self, ty: &Type, o: &str) -> String {
-		let abi = self.abi;
 		match ty {
 			Type::String => format!("rt::str_given({o})"),
-			Type::Object(i) => format!(
-				"rt::hold({o}, {}, s, false).map(|h| crate::{}_copy(h))",
-				self.t(&abi.object(*i)),
-				abi.object(*i)
-			),
-			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {
-				let some = self.given(inner, o);
-				format!("(if rt::is_none({o}) {{ Ok(std::ptr::null()) }} else {{ {some} }})")
-			}
 			_ => self.lift(ty, o, "false"),
 		}
 	}
@@ -1339,7 +1512,7 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String => "StringException".to_string(),
 			_ => format!("{}Exception", pascal_type(&py)),
 		};
-		match self.thrown.get(&name) {
+		let thrown = match self.thrown.get(&name) {
 			Some(thrown) => thrown.clone(),
 			None => {
 				let thrown = self.claim(&name, format!("the exception of `{py}`"));
@@ -1348,7 +1521,9 @@ impl<'a> Gen<'a> {
 				self.register(&format!("exc_{thrown}"), thrown.clone());
 				thrown
 			}
-		}
+		};
+		self.locked.insert(crate::lock::error_key(self.abi, e), thrown.clone());
+		thrown
 	}
 
 	/// The glue's expression, an `R<Obj>`, of a buffer `p` Rust lends for a call: text
@@ -1459,7 +1634,14 @@ impl<'a> Gen<'a> {
 		place: Place,
 	) -> Option<Form> {
 		let abi = self.abi;
-		let export = abi.export(function, owner);
+		// A value is immutable in Python, so its `&mut self` method returns it as the call
+		// left it, calling the C function in place on a copy it hands back.
+		let handed = (owner.zip(owner_ty)).and_then(|(owner, (ty, _))| abi.handed_back(function, owner, ty));
+		let (back, export, handed) = match handed {
+			Some((back, export, handed)) => (Some(back), export, Some(handed)),
+			None => (None, abi.export(function, owner), None),
+		};
+		let function = back.as_ref().unwrap_or(function);
 		let c_name = export.call.name.clone();
 		let bare = self.bare(&c_name).to_string();
 		let owner_c = match owner {
@@ -1481,6 +1663,8 @@ impl<'a> Gen<'a> {
 			(Place::Top, false) => self.claim(&member, format!("fn `{}`", function.path.join("::"))),
 			_ => member,
 		};
+
+		crate::lock::function(&mut self.locked, function, &member);
 
 		// The glue: each argument read, the call, and its value lowered.
 		let mut stmts = Vec::new();
@@ -1510,6 +1694,7 @@ impl<'a> Gen<'a> {
 					c_args.push(format!("p{n}"));
 				}
 				_ => {
+					// Read through a pointer, so Rust takes nothing of it.
 					stmts.push(format!("let p{n} = {}?;", self.lift(&ty, &format!("a[{n}]"), "false")));
 					c_args.push(format!("&p{n}"));
 				}
@@ -1579,16 +1764,34 @@ impl<'a> Gen<'a> {
 				exception.as_deref(),
 			);
 		}
-		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
+		// A call that fails a run-time check writes its status, which raises once it returns.
+		let (status, check) = match export.call.status() {
+			Some(_) => (
+				"let mut status = 0;\n\t\t".to_string(),
+				format!("\n\t\ts.status(status, \"{c_name}\")?;"),
+			),
+			None => (String::new(), String::new()),
+		};
+		let status_arg = export.call.status().map(|_| "&mut status".to_string());
 
 		// The outs follow the unstripped return: a borrowed tuple is one struct, not its elements.
 		let ok = strip_refs(&function.ok);
 		let err = function.err.as_ref().map(strip_refs);
 		let exception = err.as_ref().map(|e| self.exception(e));
-		if let Some((_, poll, free)) = &export.future {
-			let poll_outs = &poll.params[2..];
+		if let Some(abi::Future { poll, free, .. }) = &export.future {
+			let poll_outs: Vec<(String, Ty)> = poll.params[2..]
+				.iter()
+				.filter(|(_, ty)| !abi::is_status(ty))
+				.cloned()
+				.collect();
+			// A poll of a future that is not `Send` on another thread raises.
+			let (ps, ps_check) = match poll.status() {
+				Some(_) => (", &mut ps", format!("\n\t\trt::check_status(ps, \"{}\")?;", poll.name)),
+				None => ("", String::new()),
+			};
 			let (decl, ptrs, value) = self.outs(
-				poll_outs,
+				&poll_outs,
 				&[],
 				&function.ok,
 				err.as_ref(),
@@ -1597,14 +1800,14 @@ impl<'a> Gen<'a> {
 			);
 			let _ = write!(
 				self.glue,
-				"unsafe fn poll_{c_name}(f: *mut std::ffi::c_void, w: crate::rt::Waker) -> R<Option<Obj>> {{\n\tunsafe {{\n\t\t{decl}\n\t\tlet r = rt::call(|| crate::{}(f as _, w{}));\n\t\tif r == 0 {{\n\t\t\treturn Ok(None);\n\t\t}}\n\t\t{value}.map(Some)\n\t}}\n}}\n\nunsafe fn free_{c_name}(f: *mut std::ffi::c_void) {{\n\tunsafe {{ crate::{}(f as _) }}\n}}\n\n",
+				"unsafe fn poll_{c_name}(f: *mut std::ffi::c_void, w: crate::rt::Waker) -> R<Option<Obj>> {{\n\tunsafe {{\n\t\tlet mut ps = 0;\n\t\tlet _ = &mut ps;\n\t\t{decl}\n\t\tlet r = rt::call(|| crate::{}(f as _, w{}{ps}));{ps_check}\n\t\tif r == 0 {{\n\t\t\treturn Ok(None);\n\t\t}}\n\t\t{value}.map(Some)\n\t}}\n}}\n\nunsafe fn free_{c_name}(f: *mut std::ffi::c_void) {{\n\tunsafe {{ crate::{}(f as _) }}\n}}\n\n",
 				poll.name,
 				ptrs.iter().map(|p| format!(", {p}")).collect::<String>(),
 				free.name,
 			);
 			stmts.push(format!(
-				"let f = rt::call(|| crate::{c_name}({}));\n\t\ts.done();\n\t\trt::start(f.cast(), poll_{c_name}, free_{c_name}, s, {})",
-				c_args.join(", "),
+				"{status}let f = rt::call(|| crate::{c_name}({}));{check}\n\t\ts.done();\n\t\trt::start(f.cast(), poll_{c_name}, free_{c_name}, s, {})",
+				c_args.iter().chain(&status_arg).cloned().collect::<Vec<_>>().join(", "),
 				function.eager
 			));
 		} else {
@@ -1615,14 +1818,22 @@ impl<'a> Gen<'a> {
 				}
 				false => self.outs(&outs, &written, &function.ok, err.as_ref(), exception.as_deref(), "ret"),
 			};
-			let args: Vec<String> = c_args.iter().cloned().chain(ptrs).collect();
+			let args: Vec<String> = c_args.iter().cloned().chain(ptrs).chain(status_arg).collect();
+			let call = match &handed {
+				Some(h) => h.call(&args),
+				None => format!("crate::{c_name}({})", args.join(", ")),
+			};
 			stmts.push(format!(
-				"{decl}\n\t\tlet ret = rt::call(|| crate::{c_name}({}));\n\t\ts.done();\n\t\t{value}",
-				args.join(", ")
+				"{decl}\n\t\t{status}let ret = rt::call(|| {call});{check}\n\t\ts.done();\n\t\t{value}"
 			));
 		}
 		// The Python.
 		let mut text = function.docs.clone();
+		if handed.is_some() {
+			text.push_str(
+				"\n\nRust changes a copy of this value, which it returns first, as the call left it: this one never changes.",
+			);
+		}
 		for param in &function.params {
 			let name = param_name(&param.name);
 			if let Type::Closure(closure_) = &param.ty {
@@ -1784,11 +1995,16 @@ impl<'a> Gen<'a> {
 }
 
 /// The glue's name for a socket address family.
-fn family_of(family: Family) -> &'static str {
-	match family {
-		Family::Any => "rt::Family::Any",
-		Family::V4 => "rt::Family::V4",
-		Family::V6 => "rt::Family::V6",
+/// The runtime's name for the converters of a socket or IP address of `family`, before
+/// `_in` or `_out`.
+fn addr_fn(ty: &Type, family: Family) -> &'static str {
+	match (ty, family) {
+		(Type::SocketAddr(_), Family::Any) => "addr",
+		(Type::SocketAddr(_), Family::V4) => "addr_v4",
+		(Type::SocketAddr(_), Family::V6) => "addr_v6",
+		(_, Family::Any) => "ip",
+		(_, Family::V4) => "ipv4",
+		(_, Family::V6) => "ipv6",
 	}
 }
 
@@ -1833,13 +2049,22 @@ fn kw(name: &str) -> String {
 }
 
 /// A member's Python name: its snake-case name, with `_` appended if a keyword, and until
-/// it is none of `reserved`, such as one Python gives every such class.
+/// it is none of `reserved`, such as one Python gives every such class, nor of [`TAKEN`]:
+/// a member named as a runtime alias, such as `_int`, would be what a later annotation
+/// `-> _int` names in the class body.
 fn member(snake: &str, reserved: &[&str]) -> String {
-	if !reserved.contains(&snake) {
-		return kw(snake);
+	// A positional field's accessor, `0_get`, is `_0_get`, as its field is `_0`.
+	let digit = snake
+		.starts_with(|c: char| c.is_ascii_digit())
+		.then(|| format!("_{snake}"));
+	// A keyword's `_` first, so a reservation is checked against the name the class emits.
+	let snake = kw(digit.as_deref().unwrap_or(snake));
+	let taken = |name: &str| reserved.contains(&name) || TAKEN.contains(&name);
+	if !taken(&snake) {
+		return snake;
 	}
 	let mut name = format!("{snake}_");
-	while reserved.contains(&name.as_str()) {
+	while taken(&name) {
 		name.push('_');
 	}
 	name
@@ -1904,4 +2129,53 @@ fn docstring(docs: &str, indent: &str) -> String {
 	}
 	out.push_str("\"\"\"\n");
 	out
+}
+
+/// The Rust type of a block's number.
+fn number(ty: &Type) -> &'static str {
+	match ty {
+		Type::Int(int) => int.rust(),
+		Type::F32 => "f32",
+		Type::F64 => "f64",
+		other => unreachable!("{other:?} is no block's number"),
+	}
+}
+
+/// Whether a record or variant holding `ty` needs [`ieee_eq`]: `ty` holds a float, or a
+/// block, which may be a buffer passed in whose own `==` compares item by item.
+fn own_eq(abi: &Abi, ty: &Type) -> bool {
+	abi.api.holds_float(ty) || ty.holds_block()
+}
+
+/// The `__eq__` of the dataclass `class` of `fields`, comparing as Rust's `==` does. A
+/// dataclass's own compares tuples of its fields, which take a value as equal to itself, so
+/// a NaN it holds would equal itself, and a numpy array it holds would raise.
+fn ieee_eq(class: &str, fields: &[String]) -> String {
+	let same: Vec<String> = fields
+		.iter()
+		.map(|f| format!(" and _same(self.{f}, other.{f})"))
+		.collect();
+	format!(
+		"\tdef __eq__(self, other: _object) -> _bool:\n\t\treturn _isinstance(other, {class}){}\n",
+		same.concat()
+	)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::member;
+
+	#[test]
+	fn member_keeps_clear_of_the_runtime_aliases() {
+		assert_eq!(member("_int", &[]), "_int_");
+		assert_eq!(member("_int", &["_int_"]), "_int__");
+		assert_eq!(member("joined", &[]), "joined");
+		assert_eq!(member("bytes", &[]), "bytes");
+		assert_eq!(member("name", &["name"]), "name_");
+		// A callback's `_int` then `_int_` keep apart: the second reserves the first's name.
+		assert_eq!(member("_int_", &[member("_int", &[]).as_str()]), "_int__");
+		// A callback's `async_` then `async` (raw `r#async`) keep apart: the keyword's `_` is added before the check.
+		assert_eq!(member("async", &[member("async_", &[]).as_str()]), "async__");
+		assert_eq!(member("async_", &[member("async", &[]).as_str()]), "async__");
+	}
 }

@@ -65,11 +65,17 @@ export function rename(name: rs.Place<rs.String | undefined>, b: rs.u8): rs.Stri
 /** A `&mut Option` passed on from inside a closure std calls. */
 export function largestOf(seen: rs.Place<rs.u8 | undefined>, items: rs.ByteSlice): rs.u8 {
 	let taken: rs.u8 = 0;
-	rs.iterForEach(rs.iterSlice(rs.byteSliceView(items)), (_2: rs.u8): undefined => {
+	const s = rs.byteSliceView(items);
+	let front = 0;
+	let back = s.length;
+	const f = (_2: rs.u8): undefined => {
 		if (takeLargest(seen, _2) !== undefined) {
 			taken = rs.u8WrappingAdd(taken, 1);
 		}
-	});
+	};
+	while (!(front >= back)) {
+		f(s[front++]);
+	}
 	return taken;
 }
 
@@ -168,30 +174,28 @@ export function fill(seen: rs.Place<rs.u8 | undefined>, s: rs.String, next: rs.u
 
 export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _170!: rs.u8;
-	const _117: (a0: rs.u8 | undefined | rs.None) => rs.u8 = (o: rs.u8 | undefined | rs.None): rs.u8 => {
-		return option_mapOr$1rg5gkk(o, 221, (o2: rs.u8 | undefined): rs.u8 => {
-			return option_unwrapOr$1fr498u(o2, 238);
-		});
-	};
-	const _275: (a0: rs.Place<rs.u32>, a1: rs.u8) => undefined = (x3: rs.Place<rs.u32>, b8: rs.u8): undefined => {
-		bump(x3, b8);
-	};
 	const by: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 3);
 	let local: rs.u32 = 7;
 	bumpThrice(rs.place(() => local, (value) => local = value), by);
 	const counts: Counts.Counts = { hits: 0, misses: 0 };
 	const held: rs.u32[] = [1, 2, 3];
-	const v: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u32 => {
-		return _2 as rs.u32;
-	}), undefined, 4, true);
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
-	while (true) {
-		const _18: [rs.usize, rs.u8] | rs.Done = iter.next();
-		if (_18 === rs.DONE) {
-			break;
-		}
-		const i: rs.usize = _18[0];
-		const b: rs.u8 = _18[1];
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v2: rs.Vec<rs.u32> = rs.vecWithCapacity(back - front, 4);
+	while (!(front >= back)) {
+		const x3 = s[front++];
+		v2.items.push(x3 as rs.u32);
+	}
+	const v: rs.Vec<rs.u32> = v2;
+	const s2: Uint8Array = rs.byteSliceView(data);
+	let front2: number = 0;
+	const back2: number = s2.length;
+	let count: number = 0;
+	while (!(front2 >= back2)) {
+		const x4 = s2[front2++];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x4;
 		const _23: rs.Place<rs.usize> = Counts.count(counts, rs.u8Rem(b, 3) === 0);
 		_23.v = rs.usizeAdd(_23.v, 1);
 		bumpSlot(Counts.count(counts, rs.u8Rem(b, 2) === 0), b);
@@ -203,20 +207,65 @@ export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const at2 = rs.idx(v.items, i);
 		bump(rs.place(() => v.items[at2], (value3) => v.items[at2] = value3), 1);
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(local)));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(counts.hits as rs.u32)));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(counts.misses as rs.u32)));
+	const dst = out;
+	const word = local;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
+	const dst2 = out;
+	const word2 = counts.hits as rs.u32;
+	rs.byteVecReserve(dst2, 4 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
+	dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
+	dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
+	dst2.data[pos2 + 3] = word2 & 255;
+	dst2.length = dst2.length + 4;
+	const dst3 = out;
+	const word3 = counts.misses as rs.u32;
+	rs.byteVecReserve(dst3, 4 as rs.usize);
+	const pos3 = dst3.length;
+	dst3.data[pos3 + 0] = (word3 >>> 24) & 255;
+	dst3.data[pos3 + 1] = (word3 >>> 16) & 255;
+	dst3.data[pos3 + 2] = (word3 >>> 8) & 255;
+	dst3.data[pos3 + 3] = word3 & 255;
+	dst3.length = dst3.length + 4;
 	const iter2: rs.Iter<rs.u32> = rs.iterChain(rs.iterSlice(held), rs.iterSlice(v.items));
 	while (true) {
 		const _67: rs.u32 | rs.Done = iter2.next();
 		if (_67 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_67)));
+		const dst4 = out;
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (_67 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (_67 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (_67 >>> 8) & 255;
+		dst4.data[pos4 + 3] = _67 & 255;
+		dst4.length = dst4.length + 4;
 	}
 	let wide: rs.u64 = { hi: 0xffffffff, lo: 0xfffffffc } as rs.u64;
 	shiftWide(rs.place(() => wide, (value4) => wide = value4), by);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(wide)));
+	const dst5 = out;
+	const word4 = wide;
+	const word5 = rs.intWord(word4, 0);
+	const word6 = rs.intWord(word4, 32);
+	rs.byteVecReserve(dst5, 8 as rs.usize);
+	const pos5 = dst5.length;
+	dst5.data[pos5 + 0] = (word6 >>> 24) & 255;
+	dst5.data[pos5 + 1] = (word6 >>> 16) & 255;
+	dst5.data[pos5 + 2] = (word6 >>> 8) & 255;
+	dst5.data[pos5 + 3] = word6 & 255;
+	dst5.data[pos5 + 4] = (word5 >>> 24) & 255;
+	dst5.data[pos5 + 5] = (word5 >>> 16) & 255;
+	dst5.data[pos5 + 6] = (word5 >>> 8) & 255;
+	dst5.data[pos5 + 7] = word5 & 255;
+	dst5.length = dst5.length + 8;
 	let seen: rs.u8 | undefined = undefined;
 	rs.byteVecPush(out, largestOf(rs.place(() => seen, (value5) => seen = value5), data));
 	rs.byteVecPush(out, option_unwrapOr$1fr498u(seen, 238));
@@ -238,6 +287,11 @@ export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}));
 	}
 	let nested = rs.None as rs.u8 | undefined | rs.None;
+	const _117: (a0: rs.u8 | undefined | rs.None) => rs.u8 = (o: rs.u8 | undefined | rs.None): rs.u8 => {
+		return option_mapOr$1rg5gkk(o, 221, (o2: rs.u8 | undefined): rs.u8 => {
+			return option_unwrapOr$1fr498u(o2, 238);
+		});
+	};
 	const old2: rs.u8 | undefined | rs.None = nested;
 	nested = by;
 	rs.byteVecPush(out, _117(old2));
@@ -255,7 +309,16 @@ export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		refuse(rs.place(() => fetch, (value9) => fetch = value9));
 		pushTo(text, rs.u8Add(97, rs.u8Rem(b3, 26)) as rs.char);
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(boxed.n, pair[0], pair[1])));
+	const dst6 = out;
+	const byte = boxed.n;
+	const byte2 = pair[0];
+	const byte3 = pair[1];
+	rs.byteVecReserve(dst6, 3 as rs.usize);
+	const pos6 = dst6.length;
+	dst6.data[pos6 + 0] = byte;
+	dst6.data[pos6 + 1] = byte2;
+	dst6.data[pos6 + 2] = byte3;
+	dst6.length = dst6.length + 3;
 	if (fetch.tag === "Idle") {
 		_170 = 0;
 	} else if (fetch.tag === "Pending") {
@@ -298,7 +361,14 @@ export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	p = b5;
 	bumpByte(r);
 	p.n = rs.u8Add(p.n, 10);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a.n, b5.n)));
+	const dst7 = out;
+	const byte4 = a.n;
+	const byte5 = b5.n;
+	rs.byteVecReserve(dst7, 2 as rs.usize);
+	const pos7 = dst7.length;
+	dst7.data[pos7 + 0] = byte4;
+	dst7.data[pos7 + 1] = byte5;
+	dst7.length = dst7.length + 2;
 	const hash: rs.HashMap<rs.u8, rs.u32> = rs.hashNew() as rs.HashMap<rs.u8, rs.u32>;
 	const tree: rs.BTreeMap<rs.u8, rs.u32> = rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u32>;
 	for (const b6 of rs.byteSliceView(data)) {
@@ -321,18 +391,49 @@ export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const k: rs.u8 = _264[0];
 		const x: rs.u32 = _264[1];
 		rs.byteVecPush(out, k);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(x)));
+		const dst8 = out;
+		rs.byteVecReserve(dst8, 4 as rs.usize);
+		const pos8 = dst8.length;
+		dst8.data[pos8 + 0] = (x >>> 24) & 255;
+		dst8.data[pos8 + 1] = (x >>> 16) & 255;
+		dst8.data[pos8 + 2] = (x >>> 8) & 255;
+		dst8.data[pos8 + 3] = x & 255;
+		dst8.length = dst8.length + 4;
 	}
 	let total: rs.u32 = 0;
-	for (const b7 of rs.byteSliceView(data)) {
-		_275(rs.place(() => total, (value15) => total = value15), b7);
+	const iterS4: Uint8Array = rs.byteSliceView(data);
+	let iterI4: number = 0;
+	while (true) {
+		const _278: rs.u8 | rs.Done = iterI4 < iterS4.length ? iterS4[iterI4++] : rs.DONE;
+		const _275: (a0: rs.Place<rs.u32>, a1: rs.u8) => undefined = (x5: rs.Place<rs.u32>, b9: rs.u8): undefined => {
+			bump(x5, b9);
+		};
+		if (_278 === rs.DONE) {
+			break;
+		}
+		_275(rs.place(() => total, (value15) => total = value15), _278);
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(total)));
+	const dst9 = out;
+	const word7 = total;
+	rs.byteVecReserve(dst9, 4 as rs.usize);
+	const pos9 = dst9.length;
+	dst9.data[pos9 + 0] = (word7 >>> 24) & 255;
+	dst9.data[pos9 + 1] = (word7 >>> 16) & 255;
+	dst9.data[pos9 + 2] = (word7 >>> 8) & 255;
+	dst9.data[pos9 + 3] = word7 & 255;
+	dst9.length = dst9.length + 4;
 	const _293: [rs.u32, rs.u32] = [by as rs.u32, option_unwrapOr$1fr498u(rs.byteSliceGet(data, 1), 5) as rs.u32];
 	let x2: rs.u32 = _293[0];
 	let y: rs.u32 = _293[1];
 	readThrough(rs.place(() => x2, (value16) => x2 = value16), rs.place(() => y, (value17) => y = value17), out);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(x2 & 0xff, y & 0xff)));
+	const dst10 = out;
+	const byte6 = x2 & 0xff;
+	const byte7 = y & 0xff;
+	rs.byteVecReserve(dst10, 2 as rs.usize);
+	const pos10 = dst10.length;
+	dst10.data[pos10 + 0] = byte6;
+	dst10.data[pos10 + 1] = byte7;
+	dst10.length = dst10.length + 2;
 	let boxed2: rs.u8 | undefined = undefined as rs.u8 | undefined;
 	const _314: rs.u8 = total & 0xff;
 	derefBox(rs.place(() => boxed2, (value18) => boxed2 = value18), _314);
@@ -408,30 +509,53 @@ export function lent(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_52[0] = _52[0] ^ 1;
 		}
 		const _61: rs.Place<rs.u32 | undefined> = rs.place(() => seen, (value8) => seen = value8);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_mapOr$1ldmp8y(option_andThen$1x5wmg5(_61.v === undefined ? undefined : rs.place(() => _61.v as rs.u32, (value9) => _61.v = value9), (x4: rs.Place<rs.u32>): rs.Place<rs.u32> | undefined => {
+		const dst = out;
+		const word = option_mapOr$1ldmp8y(option_andThen$1x5wmg5(_61.v === undefined ? undefined : rs.place(() => _61.v as rs.u32, (value9) => _61.v = value9), (x4: rs.Place<rs.u32>): rs.Place<rs.u32> | undefined => {
 			return thenSome$1c6ozzd(rs.u32Rem(x4.v, 3) === 0, x4);
 		}), 0, (x5: rs.Place<rs.u32>): rs.u32 => {
 			x5.v = rs.u32Mul(x5.v, 2);
 			return x5.v;
-		}))));
+		});
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 		if (text === undefined) {
 			text = rs.stringNew();
 		}
 		rs.stringPush(text as rs.String, rs.u8Add(97, rs.u8Rem(b, 26)) as rs.char);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(seen, 61166))));
+		const dst2 = out;
+		const word2 = option_unwrapOr$1b5hww3(seen, 61166);
+		rs.byteVecReserve(dst2, 4 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word2 & 255;
+		dst2.length = dst2.length + 4;
 	}
 	const _82: [rs.u8, rs.u8] = option_unwrapOr$0w1py1w(last, [238, 238] as [rs.u8, rs.u8]);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_82[0], _82[1])));
+	const dst3 = out;
+	const byte = _82[0];
+	const byte2 = _82[1];
+	rs.byteVecReserve(dst3, 2 as rs.usize);
+	const pos3 = dst3.length;
+	dst3.data[pos3 + 0] = byte;
+	dst3.data[pos3 + 1] = byte2;
+	dst3.length = dst3.length + 2;
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(option_unwrapOrDefault$1exlfpa(text).v));
 	const counts: Pair2.Pair2 = { a: undefined, b: undefined };
-	const iter2: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
-	while (true) {
-		const _101: [rs.usize, rs.u8] | rs.Done = iter2.next();
-		if (_101 === rs.DONE) {
-			break;
-		}
-		const i: rs.usize = _101[0];
-		const b2: rs.u8 = _101[1];
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
+	let count: number = 0;
+	while (!(front >= back)) {
+		const x6 = s[front++];
+		const i: rs.usize = count++;
+		const b2: rs.u8 = x6;
 		if (rs.usizeRem(i, 2) === 0) {
 			if (counts.a === undefined) {
 				counts.a = 0;
@@ -480,7 +604,15 @@ export function lent(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_154 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(_154, 61166))));
+		const dst4 = out;
+		const word3 = option_unwrapOr$1b5hww3(_154, 61166);
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word3 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word3 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word3 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word3 & 255;
+		dst4.length = dst4.length + 4;
 	}
 	defaulted(data, out);
 	taken(data, out);
@@ -552,15 +684,22 @@ export function restock(listing: Listing.Listing, b: rs.u8): rs.ByteVec | undefi
  */
 export function taken(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let held: rs.ByteVec = rs.byteSliceToByteVec(data);
-	let wide: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u32 => {
-		return rs.u32Mul(_2 as rs.u32, 1000);
-	}), undefined, 4, true);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(poll$taken_refs_taken_closure1(data, (b4: rs.u8): boolean => {
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v: rs.Vec<rs.u32> = rs.vecWithCapacity(back - front, 4);
+	while (!(front >= back)) {
+		const x = s[front++];
+		v.items.push(rs.u32Mul(x as rs.u32, 1000));
+	}
+	let wide: rs.Vec<rs.u32> = v;
+	const dst = out;
+	const word = poll$taken_refs_taken_closure1(data, (b4: rs.u8): boolean => {
 		const taken = held;
 		held = new rs.ByteVec();
-		for (const x of rs.byteVecView(taken)) {
-			if (rs.u8Rem(x, 3) !== rs.u8Rem(b4, 3)) {
-				rs.byteVecPush(held, rs.u8Div(x, 2));
+		for (const x2 of rs.byteVecView(taken)) {
+			if (rs.u8Rem(x2, 3) !== rs.u8Rem(b4, 3)) {
+				rs.byteVecPush(held, rs.u8Div(x2, 2));
 			}
 		}
 		((): undefined => {
@@ -568,12 +707,19 @@ export function taken(data: rs.ByteSlice, out: rs.ByteVec): void {
 			wide = new rs.Vec();
 			wide = rs.iterToVec(rs.iterMap(rs.iterFilter(rs.vecIntoIter(old2), (_25: rs.u32): boolean => {
 				return _25 > (b4 as rs.u32);
-			}), (x3: rs.u32): rs.u32 => {
-				return rs.u32Div(x3, 2);
+			}), (x4: rs.u32): rs.u32 => {
+				return rs.u32Div(x4, 2);
 			}), "next", 4, false, 4);
 		})();
 		return held.length === 0;
-	}) as rs.u32)));
+	}) as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(held));
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(wide.items, f, rs.u32Debug)]).v));
 	const pair: [rs.ByteVec, Listing.Listing] = [rs.byteSliceToByteVec(data), Listing.default$Default()];
@@ -594,9 +740,13 @@ export function taken(data: rs.ByteSlice, out: rs.ByteVec): void {
 		pair[1].stale = taken2;
 		rs.byteVecPush(pair[1].listed, b6);
 	};
-	rs.iterForEach(rs.iterSlice(rs.byteSliceView(data)), (_26: rs.u8): undefined => {
-		list(_26);
-	});
+	const s2 = rs.byteSliceView(data);
+	let front2 = 0;
+	let back2 = s2.length;
+	while (!(front2 >= back2)) {
+		const x5 = s2[front2++];
+		list(x5);
+	}
 	for (const _57 of rs.byteSliceView(data)) {
 		const _63: rs.ByteVec = option_unwrapOrDefault$0w012ed(restock(pair[1], _57));
 		rs.iterExtendBytes(swapped, rs.byteVecIntoIter(_63), undefined, true);
@@ -620,14 +770,29 @@ export function poll$taken_refs_taken_closure1(data: rs.ByteSlice, f: (a0: rs.u8
  */
 export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _326!: rs.u8;
-	const v: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u32 => {
-		return _2 as rs.u32;
-	}), undefined, 4, true);
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v2: rs.Vec<rs.u32> = rs.vecWithCapacity(back - front, 4);
+	while (!(front >= back)) {
+		const x7 = s[front++];
+		v2.items.push(x7 as rs.u32);
+	}
+	const v: rs.Vec<rs.u32> = v2;
 	const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
-	const pairs: rs.Vec<[rs.u8, rs.u8 | undefined]> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): [rs.u8, rs.u8 | undefined] => {
+	const s2 = rs.byteSliceView(data);
+	let front2 = 0;
+	let back2 = s2.length;
+	const f2 = (_22: rs.u8): [rs.u8, rs.u8 | undefined] => {
 		const b8: rs.u8 = _22;
 		return [b8, rs.u8CheckedSub(b8, 100)] as [rs.u8, rs.u8 | undefined];
-	}), undefined, 3, true);
+	};
+	const v3: rs.Vec<[rs.u8, rs.u8 | undefined]> = rs.vecWithCapacity(back2 - front2, 3);
+	while (!(front2 >= back2)) {
+		const y3: [rs.u8, rs.u8 | undefined] = f2(s2[front2++]);
+		v3.items.push(y3);
+	}
+	const pairs: rs.Vec<[rs.u8, rs.u8 | undefined]> = v3;
 	const by: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 1);
 	const _13: rs.Place<rs.u32> | undefined = rs.sliceFirstMut(rs.sliceFrom(v.items));
 	if (_13 !== undefined) {
@@ -680,22 +845,31 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		_86[1].v = rs.u32Add(_86[1].v, _86[0].v as rs.u32);
 		_86[0].v = rs.u8WrappingAdd(_86[0].v, _86[0].v);
 	}
-	const _97: [rs.u8, rs.u8 | undefined] | undefined = rs.iterFind(rs.iterSlice(pairs.items), (_23: [rs.u8, rs.u8 | undefined]): boolean => {
-		return rs.u8Rem(_23[0], 3) === 0;
-	});
+	const s3 = pairs.items;
+	let front3 = 0;
+	let back3 = s3.length;
+	let found: [rs.u8, rs.u8 | undefined] | rs.Done = rs.DONE;
+	while (!(front3 >= back3)) {
+		const x9 = s3[front3++];
+		if (rs.u8Rem(x9[0], 3) === 0) {
+			found = x9;
+			break;
+		}
+	}
+	const _97: [rs.u8, rs.u8 | undefined] | undefined = rs.iterToOption(found);
 	if (_97 !== undefined) {
-		_97[1] = option_mapOr$0vxw5sq(_97[1], 0, (s: rs.u8): rs.u8 => {
-			return rs.u8WrappingAdd(s, 1);
+		_97[1] = option_mapOr$0vxw5sq(_97[1], 0, (s4: rs.u8): rs.u8 => {
+			return rs.u8WrappingAdd(s4, 1);
 		});
 	}
-	const most: rs.Place<rs.u32> | undefined = rs.iterMaxByKey(rs.iterSliceMut(rs.sliceFrom(v.items)), (x7: rs.Place<rs.u32>): rs.u32 => {
-		return x7.v;
+	const most: rs.Place<rs.u32> | undefined = rs.iterMaxByKey(rs.iterSliceMut(rs.sliceFrom(v.items)), (x10: rs.Place<rs.u32>): rs.u32 => {
+		return x10.v;
 	}, rs.lt);
 	if (most !== undefined) {
 		most.v = 0;
 	}
-	const iter5: rs.Iter<rs.Place<rs.u32>> = rs.vecIntoIter(rs.iterToVec(rs.iterFilter(rs.iterSliceMut(rs.sliceFrom(v.items)), (x8: rs.Place<rs.u32>): boolean => {
-		return rs.u32Rem(x8.v, 2) === 0;
+	const iter5: rs.Iter<rs.Place<rs.u32>> = rs.vecIntoIter(rs.iterToVec(rs.iterFilter(rs.iterSliceMut(rs.sliceFrom(v.items)), (x11: rs.Place<rs.u32>): boolean => {
+		return rs.u32Rem(x11.v, 2) === 0;
 	}), "next", 4));
 	while (true) {
 		const _120: rs.Place<rs.u32> | rs.Done = iter5.next();
@@ -727,11 +901,26 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	}
 	for (const _153 of v.items) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_153)));
+		const dst = out;
+		const word = _153;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 	}
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(bytes));
 	for (const _168 of pairs.items) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_168[0], option_unwrapOr$1fr498u(_168[1], 238))));
+		const dst2 = out;
+		const byte = _168[0];
+		const byte2 = option_unwrapOr$1fr498u(_168[1], 238);
+		rs.byteVecReserve(dst2, 2 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = byte;
+		dst2.data[pos2 + 1] = byte2;
+		dst2.length = dst2.length + 2;
 	}
 	const iter10: rs.Iter<rs.u32> = rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(grid, rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2);
 	while (true) {
@@ -739,18 +928,25 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_186 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_186)));
+		const dst3 = out;
+		rs.byteVecReserve(dst3, 4 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = (_186 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (_186 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (_186 >>> 8) & 255;
+		dst3.data[pos3 + 3] = _186 & 255;
+		dst3.length = dst3.length + 4;
 	}
 	const hash: rs.HashMap<rs.u8, [rs.u8, rs.u8]> = rs.hashNew() as rs.HashMap<rs.u8, [rs.u8, rs.u8]>;
 	const tree: rs.BTreeMap<rs.u8, rs.u32> = rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u32>;
 	const queue: rs.VecDeque<rs.u32> = rs.dequeNew(4) as rs.VecDeque<rs.u32>;
 	for (const b2 of rs.byteSliceView(data)) {
-		rs.entryOrInsert(rs.entryAndModify(rs.entry(hash, rs.u8Rem(b2, 5)), (x9: [rs.u8, rs.u8]): undefined => {
-			x9[1] = rs.u8WrappingAdd(x9[1], b2);
+		rs.entryOrInsert(rs.entryAndModify(rs.entry(hash, rs.u8Rem(b2, 5)), (x12: [rs.u8, rs.u8]): undefined => {
+			x12[1] = rs.u8WrappingAdd(x12[1], b2);
 		}), [b2, 0] as [rs.u8, rs.u8]);
 		const _213: rs.u32 = b2 as rs.u32;
-		const _214: rs.Place<rs.u32> = rs.entryOrInsertWithMut(rs.entryAndModifyMut(rs.entry(tree, rs.u8Rem(b2, 4)), (x10: rs.Place<rs.u32>): undefined => {
-			x10.v = rs.u32Add(x10.v, 1);
+		const _214: rs.Place<rs.u32> = rs.entryOrInsertWithMut(rs.entryAndModifyMut(rs.entry(tree, rs.u8Rem(b2, 4)), (x13: rs.Place<rs.u32>): undefined => {
+			x13.v = rs.u32Add(x13.v, 1);
 		}), (): rs.u32 => {
 			return 0;
 		});
@@ -815,8 +1011,8 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_300 === 1) {
 			const _306: rs.Place<rs.u8 | undefined> | undefined = nested === rs.None ? undefined : rs.place(() => nested as rs.u8 | undefined, (value2) => nested = value2);
 			if (_306 !== undefined) {
-				_306.v = option_map$1yjmt5m(_306.v, (x11: rs.u8): rs.u8 => {
-					return rs.u8WrappingAdd(x11, 1);
+				_306.v = option_map$1yjmt5m(_306.v, (x14: rs.u8): rs.u8 => {
+					return rs.u8WrappingAdd(x14, 1);
 				});
 			}
 		} else {
@@ -901,12 +1097,12 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		_408.v = _408.v ^ 255;
 		rs.btreeInsert(tree, 9, _408.v as rs.u32);
 	}
-	rs.hashRetain(hash, (k4: rs.u8, x12: [rs.u8, rs.u8]): boolean => {
-		x12[1] = x12[1] ^ k4;
+	rs.hashRetain(hash, (k4: rs.u8, x15: [rs.u8, rs.u8]): boolean => {
+		x15[1] = x15[1] ^ k4;
 		return k4 !== rs.u8Rem(by, 5);
 	});
-	rs.btreeRetainMut(tree, (k5: rs.u8, x13: rs.Place<rs.u32>): boolean => {
-		x13.v = rs.u32Add(x13.v, 1);
+	rs.btreeRetainMut(tree, (k5: rs.u8, x16: rs.Place<rs.u32>): boolean => {
+		x16.v = rs.u32Add(x16.v, 1);
 		return k5 !== rs.u8Rem(by, 4);
 	});
 	const iter25: rs.Iter<rs.Place<rs.u32>> = rs.dequeIterMut(queue);
@@ -929,9 +1125,9 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 	if (_443 !== undefined) {
 		_443.v = rs.u32Add(_443.v, 300);
 	}
-	rs.dequeRetainMut(queue, (x14: rs.Place<rs.u32>): boolean => {
-		x14.v = rs.u32Add(x14.v, 1);
-		return rs.u32Rem(x14.v, 3) !== 0;
+	rs.dequeRetainMut(queue, (x17: rs.Place<rs.u32>): boolean => {
+		x17.v = rs.u32Add(x17.v, 1);
+		return rs.u32Rem(x17.v, 3) !== 0;
 	});
 	const scalars: rs.HashMap<rs.u8, rs.u32> = rs.hashNew() as rs.HashMap<rs.u8, rs.u32>;
 	for (const b4 of rs.byteSliceView(data)) {
@@ -967,7 +1163,14 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const k: rs.u8 = _490[0];
 		const x2: rs.u32 = _490[1];
 		rs.byteVecPush(out, k);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(x2)));
+		const dst4 = out;
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (x2 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (x2 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (x2 >>> 8) & 255;
+		dst4.data[pos4 + 3] = x2 & 255;
+		dst4.length = dst4.length + 4;
 	}
 	const paired: rs.HashMap<[rs.u8, rs.u8], rs.u32> = rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same]))) as rs.HashMap<[rs.u8, rs.u8], rs.u32>;
 	for (const b5 of rs.byteSliceView(data)) {
@@ -994,8 +1197,8 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		_533.v = rs.u32Mul(_533.v, 2);
 	}
-	rs.hashRetainMut(paired, (k6: [rs.u8, rs.u8], x15: rs.Place<rs.u32>): boolean => {
-		x15.v = rs.u32Add(x15.v, 1);
+	rs.hashRetainMut(paired, (k6: [rs.u8, rs.u8], x18: rs.Place<rs.u32>): boolean => {
+		x18.v = rs.u32Add(x18.v, 1);
 		return k6[1] === 0;
 	});
 	const _541: rs.Iter<[[rs.u8, rs.u8], rs.u32]> = rs.hashIter(paired);
@@ -1008,8 +1211,20 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const a: rs.u8 = _545[0][0];
 		const b6: rs.u8 = _545[0][1];
 		const x3: rs.u32 = _545[1];
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a, b6)));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(x3)));
+		const dst5 = out;
+		rs.byteVecReserve(dst5, 2 as rs.usize);
+		const pos5 = dst5.length;
+		dst5.data[pos5 + 0] = a;
+		dst5.data[pos5 + 1] = b6;
+		dst5.length = dst5.length + 2;
+		const dst6 = out;
+		rs.byteVecReserve(dst6, 4 as rs.usize);
+		const pos6 = dst6.length;
+		dst6.data[pos6 + 0] = (x3 >>> 24) & 255;
+		dst6.data[pos6 + 1] = (x3 >>> 16) & 255;
+		dst6.data[pos6 + 2] = (x3 >>> 8) & 255;
+		dst6.data[pos6 + 3] = x3 & 255;
+		dst6.length = dst6.length + 4;
 	}
 	const _560: rs.Iter<[rs.u8, [rs.u8, rs.u8]]> = rs.hashIter(hash);
 	const iter34: rs.Iter<[rs.u8, [rs.u8, rs.u8]]> = rs.btreeIter(rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, [rs.u8, rs.u8]>, _560, true, undefined, undefined, "next", 3));
@@ -1018,7 +1233,16 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_564 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_564[0], _564[1][0], _564[1][1])));
+		const dst7 = out;
+		const byte3 = _564[0];
+		const byte4 = _564[1][0];
+		const byte5 = _564[1][1];
+		rs.byteVecReserve(dst7, 3 as rs.usize);
+		const pos7 = dst7.length;
+		dst7.data[pos7 + 0] = byte3;
+		dst7.data[pos7 + 1] = byte4;
+		dst7.data[pos7 + 2] = byte5;
+		dst7.length = dst7.length + 3;
 	}
 	const iter35: rs.Iter<[rs.u8, rs.u32]> = rs.btreeIter(tree);
 	while (true) {
@@ -1029,7 +1253,14 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const k3: rs.u8 = _577[0];
 		const x5: rs.u32 = _577[1];
 		rs.byteVecPush(out, k3);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(x5)));
+		const dst8 = out;
+		rs.byteVecReserve(dst8, 4 as rs.usize);
+		const pos8 = dst8.length;
+		dst8.data[pos8 + 0] = (x5 >>> 24) & 255;
+		dst8.data[pos8 + 1] = (x5 >>> 16) & 255;
+		dst8.data[pos8 + 2] = (x5 >>> 8) & 255;
+		dst8.data[pos8 + 3] = x5 & 255;
+		dst8.length = dst8.length + 4;
 	}
 	const iter36: rs.Iter<rs.u32> = rs.dequeIntoIter(queue);
 	while (true) {
@@ -1037,7 +1268,14 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_590 === rs.DONE) {
 			break;
 		}
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_590)));
+		const dst9 = out;
+		rs.byteVecReserve(dst9, 4 as rs.usize);
+		const pos9 = dst9.length;
+		dst9.data[pos9 + 0] = (_590 >>> 24) & 255;
+		dst9.data[pos9 + 1] = (_590 >>> 16) & 255;
+		dst9.data[pos9 + 2] = (_590 >>> 8) & 255;
+		dst9.data[pos9 + 3] = _590 & 255;
+		dst9.length = dst9.length + 4;
 	}
 }
 
@@ -1074,13 +1312,39 @@ export function kept(data: rs.ByteSlice, out: rs.ByteVec): void {
 	i = rs.usizeRem(rs.usizeAdd(i, 1), rs.byteSliceFrom(v).length);
 	r = y;
 	held.at = y;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(part, _44.n, y.pair.n, _82.pair.n, copied.pair.n, _48.pair.n, copied.pair.n)));
+	const dst = out;
+	const byte = _44.n;
+	const byte2 = y.pair.n;
+	const byte3 = _82.pair.n;
+	const byte4 = copied.pair.n;
+	const byte5 = _48.pair.n;
+	const byte6 = copied.pair.n;
+	rs.byteVecReserve(dst, 7 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = part;
+	dst.data[pos + 1] = byte;
+	dst.data[pos + 2] = byte2;
+	dst.data[pos + 3] = byte3;
+	dst.data[pos + 4] = byte4;
+	dst.data[pos + 5] = byte5;
+	dst.data[pos + 6] = byte6;
+	dst.length = dst.length + 7;
 	const _73: rs.u8 = part ^ _44.n;
 	const _77: rs.usize = i;
 	if (!(_77 < 4)) {
 		rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _77);
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_73, v[_77], r.pair.n, held.at.pair.n)));
+	const dst2 = out;
+	const byte7 = v[_77];
+	const byte8 = r.pair.n;
+	const byte9 = held.at.pair.n;
+	rs.byteVecReserve(dst2, 4 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = _73;
+	dst2.data[pos2 + 1] = byte7;
+	dst2.data[pos2 + 2] = byte8;
+	dst2.data[pos2 + 3] = byte9;
+	dst2.length = dst2.length + 4;
 }
 
 export function seenOf(data: rs.ByteSlice): rs.u8 | undefined {
@@ -1251,11 +1515,25 @@ export function toRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 		}
 		rs.byteVecPush(out, bytes.length & 0xff);
-		let tail2: rs.Slice<rs.u32> = rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 1))), (_2: rs.u8): rs.u32 => {
-			return ((_2 as rs.u32) << 8) >>> 0;
-		}), undefined, 4, true).items);
+		const s2 = rs.byteSliceView(rs.byteSliceRange(data, 1));
+		let front2 = 0;
+		let back = s2.length;
+		const v: rs.Vec<rs.u32> = rs.vecWithCapacity(back - front2, 4);
+		while (!(front2 >= back)) {
+			const x2 = s2[front2++];
+			v.items.push(((x2 as rs.u32) << 8) >>> 0);
+		}
+		let tail2: rs.Slice<rs.u32> = rs.sliceFrom(v.items);
 		while (tail2.length >= 1) {
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(tail2.data[tail2.start])));
+			const dst = out;
+			const word = tail2.data[tail2.start];
+			rs.byteVecReserve(dst, 4 as rs.usize);
+			const pos = dst.length;
+			dst.data[pos + 0] = (word >>> 24) & 255;
+			dst.data[pos + 1] = (word >>> 16) & 255;
+			dst.data[pos + 2] = (word >>> 8) & 255;
+			dst.data[pos + 3] = word & 255;
+			dst.length = dst.length + 4;
 			tail2 = rs.sliceRange(tail2, 1);
 		}
 		const text: rs.String = rs.stringNew();
@@ -1274,10 +1552,26 @@ export function toRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		b3 = swapped;
 		const old2 = b3;
 		b3 = rs.byteSliceFrom(Uint8Array.of());
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a.length & 0xff, b3.length & 0xff, old2.length & 0xff)));
+		const dst2 = out;
+		const byte = a.length & 0xff;
+		const byte2 = b3.length & 0xff;
+		const byte3 = old2.length & 0xff;
+		rs.byteVecReserve(dst2, 3 as rs.usize);
+		const pos2 = dst2.length;
+		dst2.data[pos2 + 0] = byte;
+		dst2.data[pos2 + 1] = byte2;
+		dst2.data[pos2 + 2] = byte3;
+		dst2.length = dst2.length + 3;
 		const taken2 = a;
 		a = rs.byteSliceFrom(new Uint8Array(0));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a.length & 0xff, taken2.length & 0xff)));
+		const dst3 = out;
+		const byte4 = a.length & 0xff;
+		const byte5 = taken2.length & 0xff;
+		rs.byteVecReserve(dst3, 2 as rs.usize);
+		const pos3 = dst3.length;
+		dst3.data[pos3 + 0] = byte4;
+		dst3.data[pos3 + 1] = byte5;
+		dst3.length = dst3.length + 2;
 		let left: rs.ByteSlice = rs.byteSliceRange(data, 1);
 		const skip: (a0: rs.usize) => rs.usize = (n2: rs.usize): rs.usize => {
 			const at: rs.usize = rs.min(n2, left.length);
@@ -1287,12 +1581,17 @@ export function toRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, skip(rs.usizeRem(n, 3)) & 0xff);
 		rs.byteVecPush(out, skip(1) & 0xff);
 		rs.byteVecPush(out, left.length & 0xff);
-		const pairs: rs.Vec<Pair.Pair> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 1))), (_22: rs.u8): Pair.Pair => {
-			return { n: _22 };
-		}), undefined, 1, true);
+		const s3 = rs.byteSliceView(rs.byteSliceRange(data, 1));
+		let front3 = 0;
+		let back2 = s3.length;
+		const v2: rs.Vec<Pair.Pair> = rs.vecWithCapacity(back2 - front3, 1);
+		while (!(front3 >= back2)) {
+			const y3: Pair.Pair = { n: s3[front3++] };
+			v2.items.push(y3);
+		}
 		const first: Pair.Pair = { n: 0 };
 		let largest: Pair.Pair = first;
-		for (const _147 of pairs.items) {
+		for (const _147 of v2.items) {
 			keepLarger(rs.place(() => largest, (value3) => largest = value3), _147);
 		}
 		rs.byteVecPush(out, largest.n);
@@ -1301,17 +1600,57 @@ export function toRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		let r: rs.Place<rs.u32> = rs.place(() => x, (value4) => x = value4);
 		retarget(rs.place(() => r, (value5) => r = value5), rs.place(() => y, (value6) => y = value6), n & 0xff);
 		r.v = rs.u32Add(r.v, 1000);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(x)));
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(y)));
+		const dst4 = out;
+		const word2 = x;
+		rs.byteVecReserve(dst4, 4 as rs.usize);
+		const pos4 = dst4.length;
+		dst4.data[pos4 + 0] = (word2 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word2 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word2 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word2 & 255;
+		dst4.length = dst4.length + 4;
+		const dst5 = out;
+		const word3 = y;
+		rs.byteVecReserve(dst5, 4 as rs.usize);
+		const pos5 = dst5.length;
+		dst5.data[pos5 + 0] = (word3 >>> 24) & 255;
+		dst5.data[pos5 + 1] = (word3 >>> 16) & 255;
+		dst5.data[pos5 + 2] = (word3 >>> 8) & 255;
+		dst5.data[pos5 + 3] = word3 & 255;
+		dst5.length = dst5.length + 4;
 		let count: rs.u32 = 0;
 		const pair: Pair.Pair = { n: 1 };
 		let _182: rs.Place<rs.u32> = rs.place(() => count, (value7) => count = value7);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(tallyAll$mut_u32(rs.place(() => _182, (value8) => _182 = value8), rs.byteSliceRange(data, 1)))));
+		const dst6 = out;
+		const word4 = tallyAll$mut_u32(rs.place(() => _182, (value8) => _182 = value8), rs.byteSliceRange(data, 1));
+		rs.byteVecReserve(dst6, 4 as rs.usize);
+		const pos6 = dst6.length;
+		dst6.data[pos6 + 0] = (word4 >>> 24) & 255;
+		dst6.data[pos6 + 1] = (word4 >>> 16) & 255;
+		dst6.data[pos6 + 2] = (word4 >>> 8) & 255;
+		dst6.data[pos6 + 3] = word4 & 255;
+		dst6.length = dst6.length + 4;
 		let _189: Pair.Pair = pair;
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(tallyAll$mut_refs_Pair(rs.place(() => _189, (value9) => _189 = value9), rs.byteSliceRange(data, 1)))));
+		const dst7 = out;
+		const word5 = tallyAll$mut_refs_Pair(rs.place(() => _189, (value9) => _189 = value9), rs.byteSliceRange(data, 1));
+		rs.byteVecReserve(dst7, 4 as rs.usize);
+		const pos7 = dst7.length;
+		dst7.data[pos7 + 0] = (word5 >>> 24) & 255;
+		dst7.data[pos7 + 1] = (word5 >>> 16) & 255;
+		dst7.data[pos7 + 2] = (word5 >>> 8) & 255;
+		dst7.data[pos7 + 3] = word5 & 255;
+		dst7.length = dst7.length + 4;
 		let _197: rs.Place<rs.u32> = rs.place(() => count, (value10) => count = value10);
 		let _196: rs.Place<rs.Place<rs.u32>> = rs.place(() => _197, (value11) => _197 = value11);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(tallyAll$mut_mut_u32(rs.place(() => _196, (value12) => _196 = value12), rs.byteSliceRange(data, 1)))));
+		const dst8 = out;
+		const word6 = tallyAll$mut_mut_u32(rs.place(() => _196, (value12) => _196 = value12), rs.byteSliceRange(data, 1));
+		rs.byteVecReserve(dst8, 4 as rs.usize);
+		const pos8 = dst8.length;
+		dst8.data[pos8 + 0] = (word6 >>> 24) & 255;
+		dst8.data[pos8 + 1] = (word6 >>> 16) & 255;
+		dst8.data[pos8 + 2] = (word6 >>> 8) & 255;
+		dst8.data[pos8 + 3] = word6 & 255;
+		dst8.length = dst8.length + 4;
 		rs.byteVecPush(out, pair.n);
 		const it: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 1)));
 		rs.byteVecPush(out, nextTwo$mut_iter_Copied_slice_Iter_u8(it));
@@ -1534,14 +1873,40 @@ export function compared(split: rs.u8, dataData: Uint8Array, dataStart: number, 
 	}
 	const left: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart, mid);
 	const right: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + mid, dataLen - mid);
-	const a: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(left)), (b2: rs.u8): rs.u8 => {
-		return rs.u8Rem(b2, 3);
-	}), undefined, true);
-	const b: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(right)), (b3: rs.u8): rs.u8 => {
-		return rs.u8Rem(b3, 3);
-	}), undefined, true);
-	const x: rs.Vec<rs.f32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(left)), few), undefined, 4, true);
-	const y: rs.Vec<rs.f32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(right)), few), undefined, 4, true);
+	const s = rs.byteSliceView(left);
+	let front = 0;
+	let back = s.length;
+	const v: rs.ByteVec = rs.byteVecWithCapacity(back - front);
+	while (!(front >= back)) {
+		rs.byteVecPush(v, rs.u8Rem(s[front++], 3));
+	}
+	const a: rs.ByteVec = v;
+	const s2 = rs.byteSliceView(right);
+	let front2 = 0;
+	let back2 = s2.length;
+	const v2: rs.ByteVec = rs.byteVecWithCapacity(back2 - front2);
+	while (!(front2 >= back2)) {
+		rs.byteVecPush(v2, rs.u8Rem(s2[front2++], 3));
+	}
+	const b: rs.ByteVec = v2;
+	const s3 = rs.byteSliceView(left);
+	let front3 = 0;
+	let back3 = s3.length;
+	const v3: rs.Vec<rs.f32> = rs.vecWithCapacity(back3 - front3, 4);
+	while (!(front3 >= back3)) {
+		const y4: rs.f32 = few(s3[front3++]);
+		v3.items.push(y4);
+	}
+	const x: rs.Vec<rs.f32> = v3;
+	const s4 = rs.byteSliceView(right);
+	let front4 = 0;
+	let back4 = s4.length;
+	const v4: rs.Vec<rs.f32> = rs.vecWithCapacity(back4 - front4, 4);
+	while (!(front4 >= back4)) {
+		const y5: rs.f32 = few(s4[front4++]);
+		v4.items.push(y5);
+	}
+	const y: rs.Vec<rs.f32> = v4;
 	let one: rs.u8 | undefined = rs.byteSliceFirst(rs.byteVecSlice(b));
 	const _32: boolean = rs.iterEq(rs.iterSliceMut(rs.byteVecSlice(a)), rs.iterSliceMut(rs.byteVecSlice(b)), rs.cellBy(rs.same), true);
 	const _37: boolean = !rs.iterEq(rs.iterSliceMut(rs.byteVecSlice(a)), rs.iterSliceMut(rs.byteVecSlice(b)), rs.cellBy(rs.same), true);

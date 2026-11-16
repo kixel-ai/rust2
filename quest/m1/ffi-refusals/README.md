@@ -66,24 +66,28 @@ items, 41 of them in moq-tokio, and 6 types.
 
 Decided with the maintainer on 2026-11-12, in the quest audit:
 
-- ✅ The exporter pins moq on its own, apart from rust2-ts's pin
-  ([own pin](/quest/m1/ffi-refusals/own-pin.md)), so its bump no longer waits on rind
-  building for wasm32, which only the translator needs. Rejected: one pin for both, at the
-  cost of two revisions to bump.
+- ✅ The exporter pins moq on its own, apart from rust2-ts's pin, so its bump no longer
+  waits on rind building for wasm32, which only the translator needs. Rejected: one pin for
+  both, at the cost of two revisions to bump.
 - The last per-construct child landed in
   [#710](https://github.com/kixel-ai/rust2/pull/710), yet the Goal is not reached: the
   2026-11-11 nightly census
   ([run 43038758163](https://github.com/kixel-ai/rust2/actions/runs/43038758163)) still
-  refuses 94 items and 5 types at the pin, behind `ffi/moq/ffi.toml`'s 100 excludes, and
+  refuses 94 items and 5 types at the pin, behind `ffi/moq/ffi.toml`'s then 100 excludes, and
   moq's `main` adds the 36 errors [the pin bump](/quest/m1/ffi-refusals/moq-pin.md)
   measured. So each construct left has a child again:
-  `NonZero`, which exports,
-  [the rest at moq's main](/quest/m1/ffi-refusals/moq-main.md), and
-  [the excludes that hide what exports](/quest/m1/ffi-refusals/stale-excludes.md); the
-  bump is then only the bump. The types refused for not being `Send` (`clock::Entered`,
-  `clock::Rng`, `catalog::Guard`) clear with [not-send](/quest/m1/ffi-export/not-send.md).
+  `NonZero`, which exports, the rest of the errors at moq's main
+  (exported since by rules for another crate's value, a borrowing future of a function
+  that is not `async`, and an object field that is not `Clone`), and
+  what the excludes still hide at moq's main, exported since (`IpAddr` by its family, as
+  `SocketAddr` is, and `server::Listener::accept_with` as its future need not be `Send`);
+  `just ffi census` fails on an exclude that names what exports. The
+  bump is then only the bump. Of the types refused for not being `Send`, `clock::Entered`
+  and `clock::Rng` export since [#844](https://github.com/kixel-ai/rust2/pull/844), and `catalog::Guard` is left out, as
+  `Producer::modify` returns it borrowing its receiver mutably, which no handle may hold
+  until [an exclusive lend](/quest/m1/exclusive-lend.md) exports it.
 - ✅ The closing work is a child, [no config](/quest/m1/ffi-refusals/no-config.md), as
   [the exporter epic's](/quest/m1/ffi-export/ship.md) is: an epic's `Required` would hold
-  back every child, and this epic's end needs not-send, which is another epic's.
+  back every child.
 
 Public API: the exporter's command line and the C API of every item that exports.

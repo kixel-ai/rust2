@@ -9,7 +9,7 @@ use rustc_hir as hir;
 use rustc_hir::def_id::DefId;
 use rustc_index::IndexVec;
 use rustc_middle::mir::{self, CoroutineSavedLocal, Operand};
-use rustc_middle::ty::{self, EarlyBinder, GenericArgsRef, Instance};
+use rustc_middle::ty::{self, EarlyBinder, GenericArgs, Instance};
 use rustc_span::Span;
 
 use super::{Env, Fx};
@@ -38,7 +38,7 @@ impl Info<'_> {
 }
 
 /// The class of the coroutine `def_id` with `args`, made the first time.
-pub fn info<'tcx>(t: &mut Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRef<'tcx>, span: Span) -> Info<'tcx> {
+pub fn info<'tcx>(t: &mut Translator<'_, 'tcx>, def_id: DefId, args: GenericArgs<'tcx>, span: Span) -> Info<'tcx> {
 	let instance = Instance::new_raw(def_id, args);
 	if let Some(info) = t.coroutines.get(&instance) {
 		return info.clone();
@@ -434,7 +434,7 @@ pub fn of_async_fn<'tcx>(t: &mut Translator<'_, 'tcx>, instance: Instance<'tcx>,
 pub fn construct<'tcx>(
 	fx: &mut Fx<'_, '_, '_, 'tcx>,
 	def_id: DefId,
-	args: GenericArgsRef<'tcx>,
+	args: GenericArgs<'tcx>,
 	ops: &IndexVec<FieldIdx, Operand<'tcx>>,
 	span: Span,
 	out: &mut Vec<Stmt>,

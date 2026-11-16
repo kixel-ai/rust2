@@ -7,84 +7,39 @@ import * as Point from "./shapes.Point.ts";
 import * as Shape from "./shapes.Shape.ts";
 
 export function fmt$fmt_Debug_Option_u8(self: Wrap<rs.u8 | undefined>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Wrap";
-	const _4: string = "value";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(self.value, f, rs.u8Debug);
-	const _7: string = "count";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.count, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Wrap value count", [(f: rs.Formatter) => rs.fmtOption(self.value, f, rs.u8Debug), (f: rs.Formatter) => rs.u8Debug(self.count, f)]);
 }
 
 export function fmt$fmt_Debug_Result_u8_shapes_Shape(self: Wrap<rs.Result<rs.u8, Shape.Shape>>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Wrap";
-	const _4: string = "value";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.fmtResult(self.value, f, rs.u8Debug, (value: Shape.Shape, f: rs.Formatter) => Shape.fmt$fmt_Debug(value, f));
-	const _7: string = "count";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.count, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Wrap value count", [(f: rs.Formatter) => rs.fmtResult(self.value, f, rs.u8Debug, (value: Shape.Shape, f: rs.Formatter) => Shape.fmt$fmt_Debug(value, f)), (f: rs.Formatter) => rs.u8Debug(self.count, f)]);
 }
 
 export function fmt$fmt_Debug_Vec_u16(self: Wrap<rs.Vec<rs.u16>>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Wrap";
-	const _4: string = "value";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.fmtList(self.value.items, f, rs.u16Debug);
-	const _7: string = "count";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.count, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Wrap value count", [(f: rs.Formatter) => rs.fmtList(self.value.items, f, rs.u16Debug), (f: rs.Formatter) => rs.u8Debug(self.count, f)]);
 }
 
 export function fmt$fmt_Debug_fmt_Pair(self: Wrap<Pair.Pair>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Wrap";
-	const _4: string = "value";
-	const _5: rs.Fmt = (f: rs.Formatter) => Pair.fmt$fmt_Debug(self.value, f);
-	const _7: string = "count";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.count, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Wrap value count", [(f: rs.Formatter) => Pair.fmt$fmt_Debug(self.value, f), (f: rs.Formatter) => rs.u8Debug(self.count, f)]);
 }
 
 export function fmt$fmt_Debug_generics_Wrap_fmt_Pair(self: Wrap<Wrap<Pair.Pair>>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Wrap";
-	const _4: string = "value";
-	const _5: rs.Fmt = (f: rs.Formatter) => fmt$fmt_Debug_fmt_Pair(self.value, f);
-	const _7: string = "count";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.count, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Wrap value count", [(f: rs.Formatter) => fmt$fmt_Debug_fmt_Pair(self.value, f), (f: rs.Formatter) => rs.u8Debug(self.count, f)]);
 }
 
 export function fmt$fmt_Debug_i16(self: Wrap<rs.i16>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Wrap";
-	const _4: string = "value";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.i16Debug(self.value, f);
-	const _7: string = "count";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.count, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Wrap value count", [(f: rs.Formatter) => rs.i16Debug(self.value, f), (f: rs.Formatter) => rs.u8Debug(self.count, f)]);
 }
 
 export function fmt$fmt_Debug_shapes_Point(self: Wrap<Point.Point>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Wrap";
-	const _4: string = "value";
-	const _5: rs.Fmt = (f: rs.Formatter) => Point.fmt$fmt_Debug(self.value, f);
-	const _7: string = "count";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.count, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Wrap value count", [(f: rs.Formatter) => Point.fmt$fmt_Debug(self.value, f), (f: rs.Formatter) => rs.u8Debug(self.count, f)]);
 }
 
 export function fmt$fmt_Debug_shapes_Shape(self: Wrap<Shape.Shape>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Wrap";
-	const _4: string = "value";
-	const _5: rs.Fmt = (f: rs.Formatter) => Shape.fmt$fmt_Debug(self.value, f);
-	const _7: string = "count";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.count, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Wrap value count", [(f: rs.Formatter) => Shape.fmt$fmt_Debug(self.value, f), (f: rs.Formatter) => rs.u8Debug(self.count, f)]);
 }
 
 export function fmt$fmt_Debug_u8(self: Wrap<rs.u8>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Wrap";
-	const _4: string = "value";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.value, f);
-	const _7: string = "count";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self.count, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8));
+	return rs.fmtDebugFields(f, "Wrap value count", [(f: rs.Formatter) => rs.u8Debug(self.value, f), (f: rs.Formatter) => rs.u8Debug(self.count, f)]);
 }
 
 export function eq$cmp_PartialEq_fmt_Pair(self: Wrap<Pair.Pair>, other: Wrap<Pair.Pair>): boolean {
@@ -196,13 +151,41 @@ export function area$shapes_Area_shapes_Shape(self: Wrap<Shape.Shape>): rs.u64 {
 /** A default method, monomorphized for each type. */
 export function describe$shapes_Area_shapes_Meters(self: Wrap<Meters.Meters>, out: rs.ByteVec): void {
 	rs.byteVecPush(out, 0);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(area$shapes_Area_shapes_Meters(self))));
+	const dst = out;
+	const word = area$shapes_Area_shapes_Meters(self);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word3 >>> 24) & 255;
+	dst.data[pos + 1] = (word3 >>> 16) & 255;
+	dst.data[pos + 2] = (word3 >>> 8) & 255;
+	dst.data[pos + 3] = word3 & 255;
+	dst.data[pos + 4] = (word2 >>> 24) & 255;
+	dst.data[pos + 5] = (word2 >>> 16) & 255;
+	dst.data[pos + 6] = (word2 >>> 8) & 255;
+	dst.data[pos + 7] = word2 & 255;
+	dst.length = dst.length + 8;
 }
 
 /** A default method, monomorphized for each type. */
 export function describe$shapes_Area_shapes_Shape(self: Wrap<Shape.Shape>, out: rs.ByteVec): void {
 	rs.byteVecPush(out, 4);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(area$shapes_Area_shapes_Shape(self))));
+	const dst = out;
+	const word = area$shapes_Area_shapes_Shape(self);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word3 >>> 24) & 255;
+	dst.data[pos + 1] = (word3 >>> 16) & 255;
+	dst.data[pos + 2] = (word3 >>> 8) & 255;
+	dst.data[pos + 3] = word3 & 255;
+	dst.data[pos + 4] = (word2 >>> 24) & 255;
+	dst.data[pos + 5] = (word2 >>> 16) & 255;
+	dst.data[pos + 6] = (word2 >>> 8) & 255;
+	dst.data[pos + 7] = word2 & 255;
+	dst.length = dst.length + 8;
 }
 
 //# sourceMappingURL=generics.Wrap.ts.map

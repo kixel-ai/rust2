@@ -9,13 +9,37 @@ export function put$searches_Item_ref_str(self: string, out: rs.ByteVec): void {
 }
 
 export function put$searches_Item_tuple2_usize_ref_str(self: [rs.usize, string], out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(self[0] as rs.u32)));
+	const dst = out;
+	const word = self[0] as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
 	harness_put(out, self[1]);
 }
 
 export function put$searches_Item_tuple2_usize_char(self: [rs.usize, rs.char], out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(self[0] as rs.u32)));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(self[1] as rs.u32)));
+	const dst = out;
+	const word = self[0] as rs.u32;
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
+	dst.length = dst.length + 4;
+	const dst2 = out;
+	const word2 = self[1] as rs.u32;
+	rs.byteVecReserve(dst2, 4 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
+	dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
+	dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
+	dst2.data[pos2 + 3] = word2 & 255;
+	dst2.length = dst2.length + 4;
 }
 
 /**
@@ -3600,7 +3624,15 @@ export function putOffset(out: rs.ByteVec, i: rs.usize | undefined): void {
 	if (i === undefined) {
 		rs.byteVecPush(out, 254);
 	} else {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(i as rs.u32)));
+		const dst = out;
+		const word = i as rs.u32;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 	}
 }
 
@@ -3683,8 +3715,7 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			front$tuple2_usize_ref_str_str_RMatchIndices_char(rs.strRmatchIndices(_50, String.fromCodePoint(c)), out);
 		}
 	} else if (_42 === 1) {
-		const _109: rs.Iter<rs.char> = rs.iterTake(rs.iterSkip(rs.strChars(s.v), rs.u8Div(pick, 64) as rs.usize), rs.u8Rem(rs.u8Div(pick, 16), 4) as rs.usize);
-		const needle: rs.String = rs.stringExtendChars(rs.stringNew(), _109);
+		const needle: rs.String = rs.stringFromChars(rs.iterTake(rs.iterSkip(rs.strChars(s.v), rs.u8Div(pick, 64) as rs.usize), rs.u8Rem(rs.u8Div(pick, 16), 4) as rs.usize));
 		const _125: string = s.v;
 		const _127: rs.u8 = rs.u8Rem(m, 9);
 		if (_127 === 0) {
@@ -3861,7 +3892,15 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	}
 	const _501: rs.RefCell<rs.Vec<rs.char>> = rs.refCellBorrow(seen);
 	for (const _504 of _501.value.items) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_504 as rs.u32)));
+		const dst = out;
+		const word = _504 as rs.u32;
+		rs.byteVecReserve(dst, 4 as rs.usize);
+		const pos = dst.length;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
+		dst.length = dst.length + 4;
 	}
 	rs.refRelease(_501);
 }
@@ -3871,14 +3910,13 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
  * low bits of each byte, read from the end each byte's high bit picks.
  */
 export function texts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _5: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.char => {
+	const s: rs.String = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.char => {
 		const _52: rs.usize = rs.u8Rem(_2, 16) as rs.usize;
 		if (!(_52 < 16)) {
 			rs.panic("index out of bounds: the len is " + 16 + " but the index is " + _52);
 		}
 		return [10, 13, 97, 32, 9, 11, 133, 160, 5760, 8202, 8203, 8232, 12288, 65279, 233, 128512][_52];
-	});
-	const s: rs.String = rs.stringExtendChars(rs.stringNew(), _5);
+	}));
 	const _7: rs.u8 = rs.u8Rem(kind, 5);
 	if (_7 === 0) {
 		both$tuple2_usize_char_str_CharIndices(rs.strCharIndices(s.v), data, out);

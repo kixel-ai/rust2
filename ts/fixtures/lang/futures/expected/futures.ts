@@ -256,14 +256,14 @@ export function dropped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _103: boolean = false;
 	let _102: boolean = false;
 	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
-	while (true) {
-		const _10: [rs.usize, rs.u8] | rs.Done = iter.next();
-		if (_10 === rs.DONE) {
-			break;
-		}
-		const i: rs.usize = _10[0];
-		const b: rs.u8 = _10[1];
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
+	let count2: number = 0;
+	while (!(front >= back)) {
+		const x = s[front++];
+		const i: rs.usize = count2++;
+		const b: rs.u8 = x;
 		const before: Logged.Logged = new Logged.Logged(b, rs.arcClone(log));
 		const r: rs.Ready<Logged.Logged> = new rs.Ready(new Logged.Logged(b ^ 128, rs.arcClone(log)), rs.drop);
 		_103 = true;
@@ -487,13 +487,22 @@ export function nested(b: rs.u8): rs.Poll<rs.u8> | rs.OuterPending {
  * writes them.
  */
 export function hashes(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const polls: rs.Vec<rs.Poll<rs.u8>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.Poll<rs.u8> => {
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const f = (_2: rs.u8): rs.Poll<rs.u8> => {
 		const b2: rs.u8 = _2;
 		if (!(rs.u8Rem(b2, 4) === 0)) {
 			return b2;
 		}
 		return rs.Pending;
-	}), undefined, 2, true);
+	};
+	const v: rs.Vec<rs.Poll<rs.u8>> = rs.vecWithCapacity(back - front, 2);
+	while (!(front >= back)) {
+		const y: rs.Poll<rs.u8> = f(s[front++]);
+		v.items.push(y);
+	}
+	const polls: rs.Vec<rs.Poll<rs.u8>> = v;
 	for (const _9 of polls.items) {
 		const h: rs.Hasher = rs.hasher();
 		rs.hashPoll(rs.hash8)(_9, h);
@@ -569,9 +578,12 @@ export function wakers(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (maybe !== undefined) {
 			maybe.wakeByRef();
 		}
-		rs.iterForEach(rs.iterSlice(pair), (a03: rs.Waker): undefined => {
-			a03.wakeByRef();
-		});
+		const s = pair;
+		let front = 0;
+		let back = s.length;
+		while (!(front >= back)) {
+			s[front++].wakeByRef();
+		}
 		drop$tuple2_task_Waker_Option_task_Waker([source, from] as [rs.Waker, rs.Waker | undefined]);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(a.strong & 0xff, b.strong & 0xff)), undefined, true);
 	}

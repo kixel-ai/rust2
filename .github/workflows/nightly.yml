@@ -87,8 +87,84 @@ jobs:
       - name: Summary
         run: cat ts/target/bench/report.md >> "$GITHUB_STEP_SUMMARY"
 
+  # moq's API on each target moq ships a binding to but the export's host, which the export
+  # merges into one binding: each staged where its C toolchain is, which moq's build scripts
+  # need even for a check. Linux's job takes Android's from the runner image's NDK.
+  ffi-api:
+    name: Stage moq's API (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux and Android
+            os: ubuntu-24.04
+            targets: x86_64-unknown-linux-gnu aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+          - name: Apple
+            os: macos-latest
+            targets: aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+          - name: Windows
+            os: windows-latest
+            targets: x86_64-pc-windows-msvc
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # ffi/rust-toolchain.toml links to ts/'s.
+      - name: Symlinks
+        if: runner.os == 'Windows'
+        run: git config --global core.symlinks true
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - if: runner.os == 'Linux'
+        uses: ./.github/actions/nix
+
+      # Elsewhere no Nix, as the C++ job: the runner's rustup installs rust-toolchain.toml's
+      # channel, and the targets it lacks.
+      - name: Install just
+        if: runner.os != 'Linux'
+        uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+        with:
+          tool: just
+
+      - name: Targets
+        if: runner.os != 'Linux'
+        working-directory: ffi
+        run: |
+          read -ra targets <<< "$TARGETS"
+          rustup target add "${targets[@]}"
+        env:
+          TARGETS: ${{ matrix.targets }}
+
+      - name: Stage
+        run: |
+          read -ra targets <<< "$TARGETS"
+          for target in "${targets[@]}"; do
+            if [ "$RUNNER_OS" = Linux ]; then
+              nix develop .#android --command just ffi moq-api "$target"
+            else
+              just ffi moq-api "$target"
+            fi
+          done
+        env:
+          TARGETS: ${{ matrix.targets }}
+
+      - name: Upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ffi-api-${{ runner.os }}
+          path: ffi/target/moq-api
+          if-no-files-found: error
+
   ffi:
     name: Export moq-net to C
+    needs: ffi-api
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
 
@@ -100,9 +176,22 @@ jobs:
 
       - uses: ./.github/actions/nix
 
-      # moq-net's pub API at the pinned moq revision, exported, built, and driven from C.
+      - name: Download
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ffi-api-*
+          path: ffi/target/moq-api
+          merge-multiple: true
+
+      # moq's pub API at the pinned moq revision on every target moq ships, merged into one
+      # binding, which fails on an item two targets define differently; built for the host,
+      # and driven from each language.
       - name: Export
         run: nix develop --command just ffi moq
+
+      # Every sampled type shape round-tripped in every language; the gate runs a subset.
+      - name: Shapes
+        run: nix develop --command just ffi shapes
 
       # What exports, and every refusal, ranked.
       - name: Census
@@ -121,6 +210,24 @@ jobs:
       # and off. C stays GCC's, so the export the steps above built stays fresh.
       - name: Clang
         run: nix develop .#clang --command bash -c 'export CC=gcc; just ffi test cpp && just ffi moq-cpp'
+
+  # The api fixture's C and C++ scripts against glue built under AddressSanitizer and
+  # ThreadSanitizer, and its C ABI driven from Rust under Miri.
+  ffi-sanitize:
+    name: Export to C under sanitizers and Miri
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Sanitize
+        run: nix develop .#sanitize --command just ffi sanitize
 
   # The C++ header with the compilers the job above lacks, through the same checks, the
   # Python on the platforms the job above lacks, and on macOS the Swift with Apple's
@@ -155,7 +262,7 @@ jobs:
       # No Nix: its dev shell would replace the system compiler under test. The runner's
       # rustup installs rust-toolchain.toml's channel.
       - name: Install just
-        uses: taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68 # v2.88.1
+        uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
         with:
           tool: just
 
@@ -273,12 +380,51 @@ jobs:
           name: census
           path: ts/target/census
 
+  # Every driver on the newest nightly rust-overlay names, so the next bump's breaks are
+  # known before it starts. It fails no merge and opens no issue: the report waits on
+  # every job but this one. Each module runs after another's failure.
+  canary:
+    name: Newest nightly
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Toolchain
+        id: toolchain
+        run: |
+          channel=$(sh/canary.sh)
+          echo "Canary on \`$channel\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Driver
+        if: ${{ !cancelled() && steps.toolchain.outcome == 'success' }}
+        run: nix develop --command bash -c 'just driver check && just driver test'
+
+      - name: Export
+        if: ${{ !cancelled() && steps.toolchain.outcome == 'success' }}
+        run: nix develop --command bash -c 'just ffi check && just ffi test'
+
+      - name: Go
+        if: ${{ !cancelled() && steps.toolchain.outcome == 'success' }}
+        run: nix develop --command bash -c 'just go check && just go test'
+
+      - name: TypeScript
+        if: ${{ !cancelled() && steps.toolchain.outcome == 'success' }}
+        run: nix develop --command bash -c 'just ts check && just ts moq && just ts test'
+
   # A scheduled run's failure opens one issue, or comments on the one still open, and a
   # pass closes it, so a suite only this workflow runs cannot fail unseen. Only the
   # schedule, which runs main, gets the write token: a dispatch can run any branch.
   report:
     name: Report
-    needs: [gate, ts, bench, ffi, ffi-cpp, ffi-android, ffi-bench, census]
+    needs: [gate, ts, bench, ffi-api, ffi, ffi-sanitize, ffi-cpp, ffi-android, ffi-bench, census]
     if: ${{ !cancelled() && github.event_name == 'schedule' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5

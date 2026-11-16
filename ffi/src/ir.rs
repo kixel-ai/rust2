@@ -17,11 +17,99 @@ pub struct Api {
 	pub constants: Vec<Constant>,
 	/// The crates items belong to, each after every crate it depends on.
 	pub crates: Vec<String>,
+	/// The crates the facade does not re-export whose types an export names, which the
+	/// glue depends on directly. An API from before it reached none.
+	#[serde(default)]
+	pub reached: Vec<Reached>,
 	/// The targets it serves, sorted: one for a single target's, several merged.
 	pub targets: Vec<String>,
 }
 
+/// A crate the glue depends on beside the facade, as the facade resolves it.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Reached {
+	/// Its crate name, its items' second path segment.
+	pub krate: String,
+	/// The targets whose API names its types, sorted.
+	pub targets: Vec<String>,
+}
+
 impl Api {
+	/// Each object whose handle a call borrows or moves as it lifts a value of `ty`, into
+	/// `out`: its own, and those its records and enums hold. `seen` holds the records and
+	/// enums already walked, as `(is_enum, index)`.
+	pub fn handles(&self, ty: &Type, out: &mut Vec<usize>, seen: &mut Vec<(bool, usize)>) {
+		match ty {
+			Type::Object(i) => out.push(*i),
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => {
+				self.handles(inner, out, seen)
+			}
+			Type::Tuple(elements) => elements.iter().for_each(|ty| self.handles(ty, out, seen)),
+			Type::Record(i) if !seen.contains(&(false, *i)) => {
+				seen.push((false, *i));
+				(self.records[*i].fields.iter()).for_each(|f| self.handles(&f.ty, out, seen));
+			}
+			Type::Enum(i) if !seen.contains(&(true, *i)) => {
+				seen.push((true, *i));
+				(self.enums[*i].variants.iter().flat_map(|v| &v.fields)).for_each(|f| self.handles(&f.ty, out, seen));
+			}
+			_ => {}
+		}
+	}
+
+	/// Whether a value of `ty` holds a float anywhere, its records' and enums' included, so a
+	/// language comparing it itself must use IEEE `==`, as Rust does: NaN unequal even to
+	/// itself, and -0.0 equal to 0.0.
+	pub fn holds_float(&self, ty: &Type) -> bool {
+		self.floats(ty, &mut std::collections::HashSet::new())
+	}
+
+	fn floats(&self, ty: &Type, seen: &mut std::collections::HashSet<(bool, usize)>) -> bool {
+		match ty {
+			Type::F32 | Type::F64 => true,
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => {
+				self.floats(inner, seen)
+			}
+			Type::Tuple(elements) => elements.iter().any(|e| self.floats(e, seen)),
+			// A type already seen is being looked through, so it adds nothing new.
+			Type::Record(i) => {
+				seen.insert((false, *i)) && self.records[*i].fields.iter().any(|f| self.floats(&f.ty, seen))
+			}
+			Type::Enum(i) => {
+				seen.insert((true, *i))
+					&& (self.enums[*i].variants.iter())
+						.flat_map(|v| &v.fields)
+						.any(|f| self.floats(&f.ty, seen))
+			}
+			_ => false,
+		}
+	}
+
+	/// This API without its functions taking a JNI value, which only Kotlin exports.
+	pub fn without_jni(&self) -> Api {
+		let mut api = self.clone();
+		let keep = |methods: &mut Vec<Function>| methods.retain(|f| !f.jni());
+		api.records.iter_mut().for_each(|r| keep(&mut r.methods));
+		api.enums.iter_mut().for_each(|e| keep(&mut e.methods));
+		api.objects.iter_mut().for_each(|o| keep(&mut o.methods));
+		keep(&mut api.functions);
+		api
+	}
+
+	/// Whether a call may make a value that is not `Send`, an object or a future, whose
+	/// thread a binding running a loop gives a wake to drain its frees elsewhere.
+	pub fn unsent(&self) -> bool {
+		let records = self.records.iter().flat_map(|r| &r.methods);
+		let enums = self.enums.iter().flat_map(|e| &e.methods);
+		let objects = self.objects.iter().flat_map(|o| &o.methods);
+		self.objects.iter().any(|o| !o.send)
+			|| records
+				.chain(enums)
+				.chain(objects)
+				.chain(&self.functions)
+				.any(|f| f.future && !f.send)
+	}
+
 	/// Whether an item on `on` is on every target the API serves.
 	pub fn everywhere(&self, on: On) -> bool {
 		on.0 & self.all().0 == self.all().0
@@ -102,7 +190,8 @@ pub struct Home {
 	pub outside: usize,
 }
 
-/// A struct whose fields are all `pub`: a value, copied across.
+/// A struct whose fields are all `pub`, or a `Copy` type C cannot see inside: a value,
+/// copied across.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Record {
 	pub path: Path,
@@ -122,6 +211,61 @@ pub struct Record {
 	pub tuple: bool,
 	pub methods: Vec<Function>,
 	pub traits: Traits,
+	/// For a `Copy` type with private fields, which has no `fields`: its bytes, which only
+	/// Rust reads or writes, its `pub` fields through accessors among its `methods`.
+	pub opaque: Option<Opaque>,
+	/// For an opaque value, its size on each target, by target, which the glue asserts, as
+	/// a value has no padding only at that size. A baseline written before it existed has
+	/// none, as its records had.
+	#[serde(default)]
+	pub sizes: std::collections::BTreeMap<String, u64>,
+}
+
+/// A `Copy` type held as its bytes, which every language copies and none reads.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Opaque {
+	/// Its size and alignment: on several targets, the largest of each, so one binding
+	/// holds it on all of them.
+	pub size: u64,
+	pub align: u64,
+	/// Whether its bytes are its fields' with no padding between them, each an integer, a
+	/// `bool`, or a `char`, and each struct's `PartialEq` in it, if any, derived or std's,
+	/// so two values Rust calls equal have equal bytes: on several targets, on all of them.
+	pub dense: bool,
+	/// How many lifetime parameters it has, each `'static` in the export, as an object's.
+	pub lifetimes: usize,
+	/// Whether it is a foreign type the facade maps, such as `std::time::Instant`: its path
+	/// is the type's in its own crate.
+	pub foreign: bool,
+}
+
+impl Opaque {
+	/// Whether it fits a 64-bit word, which a language may hold it in with no allocation.
+	pub fn word(&self) -> bool {
+		self.size <= 8
+	}
+
+	/// Whether a language may hold it in a word and compare that word: it fits one and is
+	/// dense, so values Rust calls equal have equal bits. Kotlin's type for it turns on
+	/// this, so a change of it breaks Kotlin's compiled callers.
+	pub fn compared(&self) -> bool {
+		self.word() && self.dense
+	}
+
+	/// The bytes of each unit its C struct holds it in, by its alignment, at most 8.
+	pub fn unit(&self) -> u64 {
+		self.align.clamp(1, 8)
+	}
+
+	/// How many units its C struct holds: at least one, as C has no empty struct.
+	pub fn units(&self) -> u64 {
+		self.size.div_ceil(self.unit()).max(1)
+	}
+
+	/// How many 64-bit words hold its C struct.
+	pub fn words(&self) -> u64 {
+		(self.units() * self.unit()).div_ceil(8)
+	}
 }
 
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -187,10 +331,17 @@ pub struct Object {
 	/// The targets it compiles on.
 	pub on: On,
 	pub docs: String,
-	/// Whether it is `Sync`: if not, `&self` borrows it on one thread at a time.
+	/// Whether it is `Sync`: if not, `&self` borrows it on one thread at a time. One that is
+	/// not `Send` is not, as only its thread borrows it.
 	pub sync: bool,
-	/// Whether it is `Copy`: taken by value, it is copied out of its handle, as Rust
-	/// copies it, rather than moved out.
+	/// Whether it is `Send`: if not, its value stays on the thread that made it, which alone
+	/// borrows, moves, or drops it. A baseline written before it has none, as every
+	/// object was.
+	#[serde(default = "yes")]
+	pub send: bool,
+	/// Whether it is `Copy`, which only one that may have padding under some layout is, any
+	/// other being a value: taken by value, it is copied out of its handle, as Rust copies
+	/// it, rather than moved out.
 	pub copy: bool,
 	/// Whether copies of its handle may share one value, since no call tells that apart
 	/// from `Clone` but by an `Arc`'s or `Rc`'s count: it is `Clone` and `Sync`, its clone owns no state that changes
@@ -203,9 +354,35 @@ pub struct Object {
 	/// Whether it is a foreign type, such as `url::Url`, that the facade maps rather than
 	/// exports: its path is the type's in its own crate, not in the facade.
 	pub foreign: bool,
-	/// Whether it is a foreign type behind an `Arc`, held erased, which the glue never
-	/// names: a handle with none of its API, which Rust takes back as the `Arc`.
-	pub opaque: bool,
+	/// What its handle holds of another crate's type, held erased, which the glue never
+	/// names: a handle with none of its API. A baseline written before the by-value form
+	/// has a `bool`, the `Arc` form's.
+	#[serde(deserialize_with = "held")]
+	pub opaque: Option<Held>,
+}
+
+/// An [`Object::opaque`], read from a baseline written before the by-value form as the
+/// `bool` the `Arc` form was.
+fn held<'de, D: serde::Deserializer<'de>>(de: D) -> Result<Option<Held>, D::Error> {
+	#[derive(serde::Deserialize)]
+	#[serde(untagged)]
+	enum Either {
+		Arc(bool),
+		Held(Option<Held>),
+	}
+	Ok(match serde::Deserialize::deserialize(de)? {
+		Either::Arc(arc) => arc.then_some(Held::Arc),
+		Either::Held(held) => held,
+	})
+}
+
+/// What an opaque handle holds of another crate's type.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub enum Held {
+	/// An `Arc` of it, which Rust takes back as the `Arc`, and clones share.
+	Arc,
+	/// The value itself, which Rust takes back by value or borrows.
+	Value,
 }
 
 /// A `pub` trait: implemented by the foreign side, through a table of functions.
@@ -227,6 +404,10 @@ pub struct Callback {
 pub struct Traits {
 	pub clone: bool,
 	pub eq: bool,
+	/// `Hash`, which a language hashes a value by where its equality is Rust's `PartialEq`.
+	/// A baseline written before it has none.
+	#[serde(default)]
+	pub hash: bool,
 	pub display: bool,
 	pub debug: bool,
 	pub default: bool,
@@ -259,9 +440,19 @@ pub struct Function {
 	/// For a future, whether the call itself runs code, as a function that is not
 	/// `async` returning one does: the export calls it at once, and polls what it returns.
 	pub eager: bool,
+	/// For an eager future, whether what it returns borrows its arguments: the export owns
+	/// them, as it does an `async fn`'s, and keeps them until the future is dropped. A
+	/// baseline written before it has none.
+	#[serde(default)]
+	pub holds: bool,
 	/// The parameter it polls its task through, if any: C passes a waker for it or, for a
 	/// future made of a returned `Poll`, the future's poll supplies it.
 	pub task: Option<Task>,
+	/// For a future, whether it is `Send`: if not, it stays on the thread that made it,
+	/// which alone polls or drops it. A baseline written before it has none, as every
+	/// future was.
+	#[serde(default = "yes")]
+	pub send: bool,
 	/// Whether it returns another crate's iterator, whose items the export collects into
 	/// the array it returns.
 	pub collect: bool,
@@ -312,6 +503,12 @@ impl Function {
 	pub fn name(&self) -> &str {
 		self.path.last().expect("a function has a name")
 	}
+
+	/// Whether it takes a JNI value, which only Kotlin has to pass: no other language
+	/// exports it.
+	pub fn jni(&self) -> bool {
+		self.params.iter().any(|p| matches!(p.ty, Type::Jni(_)))
+	}
 }
 
 /// A parameter a function polls its task through.
@@ -347,8 +544,9 @@ pub enum Receiver {
 pub struct Param {
 	pub name: String,
 	pub ty: Type,
-	/// Whether it is a `&str` that must be `'static`, which the glue interns: it leaks each
-	/// distinct string once and lends that copy to every later call with equal content.
+	/// Whether it is a `&str` or `&[u8]` that must be `'static`, which the glue interns: it
+	/// leaks each distinct value once and lends that copy to every later call with equal
+	/// content.
 	pub interned: bool,
 }
 
@@ -414,9 +612,11 @@ pub enum Type {
 	PathBuf,
 	/// `std::net::SocketAddr`, or `SocketAddrV4` or `SocketAddrV6` for one family.
 	SocketAddr(Family),
+	/// `std::net::IpAddr`, or `Ipv4Addr` or `Ipv6Addr` for one family.
+	IpAddr(Family),
 	/// A collection of `T`, which C passes and returns as an array of its items: `Vec<T>` of
-	/// any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]` too; a set;
-	/// or a map, whose `T` is the tuple of a key and its value.
+	/// any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]` too; a boxed
+	/// slice; a set; or a map, whose `T` is the tuple of a key and its value.
 	List(Collection, Box<Type>),
 	/// `std::task::Waker`, only as a parameter taken by value or a return: a returned
 	/// `&Waker` is its clone, and a returned `Context` its waker's.
@@ -429,6 +629,8 @@ pub enum Type {
 	/// A reader the foreign side implements, `io::Read` and `io::Seek`: only behind `&mut`
 	/// as a parameter, lent for the call.
 	Reader,
+	/// A JNI value, only as a parameter of a function Kotlin alone exports.
+	Jni(Jni),
 	Option(Box<Type>),
 	/// `Box<T>`, of a non-trait type.
 	Box(Box<Type>),
@@ -455,11 +657,10 @@ pub enum Type {
 /// A [`Type::Closure`]: what it takes and returns.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Closure {
-	/// Each value it takes, which Rust lends for the call: a value, a borrowed object, or
-	/// a `Copy` object, lent as its handle.
+	/// Each value it takes, which Rust lends for the call: a value or a borrowed object.
 	pub params: Vec<Type>,
-	/// What it returns, or for a `Result`, its value: a value, a `String`, or a `Copy`
-	/// object or an `Option` of one, which the foreign side hands Rust.
+	/// What it returns, or for a `Result`, its value: a value or a `String`, which the
+	/// foreign side hands Rust.
 	pub ok: Type,
 	/// The error of a `Result` it returns: a `String`.
 	pub err: Option<Type>,
@@ -468,23 +669,44 @@ pub struct Closure {
 	pub kept: bool,
 }
 
+/// A [`Type::Jni`]: what of the calling Java thread a function takes.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+pub enum Jni {
+	/// `&mut jni::Env`: the env of the thread calling, which Kotlin passes for it.
+	Env,
+	/// `jni::objects::JObject`: a reference to any Java object, or null, which Kotlin passes
+	/// as an `Any?`, valid for the call.
+	Object,
+}
+
 /// The Rust collection a [`Type::List`] is, which Rust builds from its items in order.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Collection {
-	/// `Vec<T>`, or behind a reference, `[T]`.
+	/// `Vec<T>`
 	Vec,
+	/// `[T]`, only behind a reference.
+	Slice,
+	/// `Box<[T]>`
+	Box,
 	/// `std::collections::BTreeSet<T>`
 	BTreeSet,
 	/// `std::collections::BTreeMap<K, V>`
 	BTreeMap,
 	/// `serde_json::Map`, of `String` keys and `serde_json::Value`s.
 	JsonMap,
+	/// `[T; N]` of any `T` but `u8`, which is [`Type::Array`]: only returned.
+	Array(usize),
+	/// `std::vec::IntoIter<T>`, which an `impl Iterator` parameter takes: only a parameter.
+	Iter,
+	/// `std::vec::IntoIter<&str>` or `std::vec::IntoIter<&[u8]>`, of a [`Type::String`] or
+	/// [`Type::Vec`], each lent for the call: only a parameter.
+	IterRef,
 }
 
-/// The addresses a socket address type holds.
+/// The addresses a socket or IP address type holds.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Family {
-	/// IPv4 or IPv6: `SocketAddr`.
+	/// IPv4 or IPv6: `SocketAddr` or `IpAddr`.
 	Any,
 	V4,
 	V6,
@@ -578,6 +800,33 @@ impl Type {
 		}
 	}
 
+	/// The element of a list that crosses as one block of its C values, which a binding
+	/// holds as the language's primitive array: a `Vec`, slice, or boxed slice of a
+	/// fixed-width integer or a float. `usize` and `isize` differ in width by target, so no
+	/// one array type holds them on every target.
+	pub fn block(&self) -> Option<&Type> {
+		match self {
+			Type::List(Collection::Vec | Collection::Slice | Collection::Box | Collection::Array(_), inner) => {
+				match &**inner {
+					Type::Int(Int::Usize | Int::Isize) => None,
+					Type::Int(_) | Type::F32 | Type::F64 => Some(inner),
+					_ => None,
+				}
+			}
+			_ => None,
+		}
+	}
+
+	/// Whether this type holds a block anywhere but in a record or enum, which compare their own.
+	pub fn holds_block(&self) -> bool {
+		match self {
+			_ if self.block().is_some() => true,
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => inner.holds_block(),
+			Type::Tuple(elements) => elements.iter().any(Type::holds_block),
+			_ => false,
+		}
+	}
+
 	/// What the buffer C passes for this type holds, in whatever form Rust takes it: a
 	/// string, bytes, or a path, or an `Option` of one, which C passes as a null buffer.
 	pub fn buffer(&self) -> Option<Type> {
@@ -588,5 +837,30 @@ impl Type {
 			Type::Option(inner) => inner.buffer().map(|buffer| Type::Option(Box::new(buffer))),
 			_ => None,
 		}
+	}
+}
+
+/// `true`, the default of a flag a baseline written before it lacks.
+fn yes() -> bool {
+	true
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[derive(serde::Deserialize)]
+	struct Opaque {
+		#[serde(deserialize_with = "held")]
+		opaque: Option<Held>,
+	}
+
+	#[test]
+	fn held_reads_an_earlier_baseline() {
+		let read = |json: &str| serde_json::from_str::<Opaque>(json).unwrap().opaque;
+		assert_eq!(read(r#"{"opaque":true}"#), Some(Held::Arc));
+		assert_eq!(read(r#"{"opaque":false}"#), None);
+		assert_eq!(read(r#"{"opaque":"Value"}"#), Some(Held::Value));
+		assert_eq!(read(r#"{"opaque":null}"#), None);
 	}
 }

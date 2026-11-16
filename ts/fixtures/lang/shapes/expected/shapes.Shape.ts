@@ -8,19 +8,9 @@ export function fmt$fmt_Debug(self: Shape, f: rs.Formatter): rs.Result<undefined
 		return rs.fmtWriteStr(f, "Dot");
 	}
 	if (self.tag === "Line") {
-		const _7: string = "Line";
-		const _8: rs.Fmt = (f: rs.Formatter) => Point.fmt$fmt_Debug(self._0, f);
-		const _9: rs.Fmt = (f: rs.Formatter) => Point.fmt$fmt_Debug(self._1, f);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.debugTupleField(rs.fmtDebugTuple(f, _7), _8), _9));
+		return rs.fmtDebugFields(f, "Line", [(f: rs.Formatter) => Point.fmt$fmt_Debug(self._0, f), (f: rs.Formatter) => Point.fmt$fmt_Debug(self._1, f)]);
 	}
-	const _14: string = "Rect";
-	const _15: string = "corner";
-	const _16: rs.Fmt = (f: rs.Formatter) => Point.fmt$fmt_Debug(self.corner, f);
-	const _17: string = "width";
-	const _18: rs.Fmt = (f: rs.Formatter) => rs.u16Debug(self.width, f);
-	const _19: string = "height";
-	const _20: rs.Fmt = (f: rs.Formatter) => rs.u16Debug(self.height, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _14), _15, _16), _17, _18), _19, _20));
+	return rs.fmtDebugFields(f, "Rect corner width height", [(f: rs.Formatter) => Point.fmt$fmt_Debug(self.corner, f), (f: rs.Formatter) => rs.u16Debug(self.width, f), (f: rs.Formatter) => rs.u16Debug(self.height, f)]);
 }
 
 export function eq$cmp_PartialEq(self: Shape, other: Shape): boolean {
@@ -56,7 +46,21 @@ export type Shape =
 /** A default method, monomorphized for each type. */
 export function describe$shapes_Area(self: Shape, out: rs.ByteVec): void {
 	rs.byteVecPush(out, 4);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(area$shapes_Area(self))));
+	const dst = out;
+	const word = area$shapes_Area(self);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
+	rs.byteVecReserve(dst, 8 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = (word3 >>> 24) & 255;
+	dst.data[pos + 1] = (word3 >>> 16) & 255;
+	dst.data[pos + 2] = (word3 >>> 8) & 255;
+	dst.data[pos + 3] = word3 & 255;
+	dst.data[pos + 4] = (word2 >>> 24) & 255;
+	dst.data[pos + 5] = (word2 >>> 16) & 255;
+	dst.data[pos + 6] = (word2 >>> 8) & 255;
+	dst.data[pos + 7] = word2 & 255;
+	dst.length = dst.length + 8;
 }
 
 export function area$shapes_Area(self: Shape): rs.u64 {

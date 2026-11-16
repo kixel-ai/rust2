@@ -111,13 +111,13 @@ impl<'tcx> Translator<'tcx> {
 	}
 
 	/// The slice a `slice::Iter` with `args` walks, whose first is the slice's lifetime.
-	fn iter_slice(&self, args: ty::GenericArgsRef<'tcx>) -> Ty<'tcx> {
+	fn iter_slice(&self, args: ty::GenericArgs<'tcx>) -> Ty<'tcx> {
 		let elem = args.types().next().expect("a slice iterator's element type");
 		Ty::new_slice(self.tcx, elem)
 	}
 
 	/// A field's type at `args`.
-	fn mono_field_ty(&self, field: &ty::FieldDef, args: ty::GenericArgsRef<'tcx>) -> Ty<'tcx> {
+	fn mono_field_ty(&self, field: &ty::FieldDef, args: ty::GenericArgs<'tcx>) -> Ty<'tcx> {
 		let fty = field.ty(self.tcx, args).skip_norm_wip();
 		self.tcx
 			.normalize_erasing_regions(TypingEnv::fully_monomorphized(), Unnormalized::new_wip(fty))
@@ -248,7 +248,7 @@ impl<'tcx> Translator<'tcx> {
 	fn hand_adt(
 		&mut self,
 		adt: AdtDef<'tcx>,
-		args: ty::GenericArgsRef<'tcx>,
+		args: ty::GenericArgs<'tcx>,
 		hand: Hand,
 		body: &mut Vec<String>,
 		span: Span,

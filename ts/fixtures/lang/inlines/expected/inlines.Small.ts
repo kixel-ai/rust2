@@ -6,27 +6,17 @@ import { copy$array_u8 } from "./lib.ts";
 export function fmt$fmt_Debug_2(self: Small, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	if (self.tag === "Inline") {
 		const __self0: rs.ByteSlice = rs.byteSliceFrom(self._0);
-		const _6: string = "Inline";
-		const _7: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(__self0), f, rs.u8Debug);
-		const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self._1, f);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.debugTupleField(rs.fmtDebugTuple(f, _6), _7), _8));
+		return rs.fmtDebugFields(f, "Inline", [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(__self0), f, rs.u8Debug), (f: rs.Formatter) => rs.u8Debug(self._1, f)]);
 	}
-	const _11: string = "Heap";
-	const _12: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(self._0), f, rs.u8Debug);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _11), _12));
+	return rs.fmtDebugFields(f, "Heap", [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(self._0), f, rs.u8Debug)]);
 }
 
 export function fmt$fmt_Debug_4(self: Small, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	if (self.tag === "Inline") {
 		const __self0: rs.ByteSlice = rs.byteSliceFrom(self._0);
-		const _6: string = "Inline";
-		const _7: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(__self0), f, rs.u8Debug);
-		const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(self._1, f);
-		return rs.debugTupleFinish(rs.debugTupleField(rs.debugTupleField(rs.fmtDebugTuple(f, _6), _7), _8));
+		return rs.fmtDebugFields(f, "Inline", [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(__self0), f, rs.u8Debug), (f: rs.Formatter) => rs.u8Debug(self._1, f)]);
 	}
-	const _11: string = "Heap";
-	const _12: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(self._0), f, rs.u8Debug);
-	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _11), _12));
+	return rs.fmtDebugFields(f, "Heap", [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(self._0), f, rs.u8Debug)]);
 }
 
 /** What `N` bytes hold, inline or else on the heap, as an enum generic over its length. */

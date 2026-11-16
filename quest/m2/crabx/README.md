@@ -53,9 +53,6 @@ Decided with the maintainer on 2026-11-12, in /quest-plan:
   [later](/quest/m3/crabx-app.md). Rejected: the App in the first cut; no App.
 - ✅ m2, the App in m3. Rejected: m1; m3.
 
-rust2-lint is no consumer: it is `publish = false`, and as a rustc driver it needs the
-matching nightly's `rustc-dev` at run time.
-
 moq switching its release workflows to the pipeline is moq's quest, filed from this
 plan's PR; it owns keeping moq's armv7 build, Homebrew asset names, and `.deb`/`.rpm`
 packages, alongside or instead of the pipeline.

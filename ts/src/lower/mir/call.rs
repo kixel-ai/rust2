@@ -5,7 +5,7 @@
 
 use rustc_abi::{FieldIdx, VariantIdx};
 use rustc_middle::mir::{Operand, Place, ProjectionElem};
-use rustc_middle::ty::{self, GenericArgsRef, Instance, Ty, TyCtxt};
+use rustc_middle::ty::{self, GenericArgs, Instance, Ty, TyCtxt};
 use rustc_span::{Span, Spanned};
 
 use super::{Fx, Slot};
@@ -44,6 +44,20 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let fn_ty = func.ty(&self.mir.local_decls, tcx);
 		let result = dest.ty(&self.mir.local_decls, tcx).ty;
 		let mut pre = Vec::new();
+		// A consumer of a chain that may fuse into one loop, its chain's type, and a fold's
+		// accumulator's: its value is held in a variable, which `fuse` then computes.
+		let fusing = match *fn_ty.kind() {
+			ty::FnDef(def_id, gargs) if dest.as_local().is_some() && self.fuses(def_id, gargs.skip_binder()) => {
+				let gargs = gargs.skip_binder();
+				let acc = library::key(tcx, def_id)
+					.filter(|(_, name)| matches!(name.as_str(), "fold" | "rfold" | "sum" | "product"))
+					.map(|_| gargs.type_at(1));
+				Some((gargs.type_at(0), acc))
+			}
+			_ => None,
+		};
+		// A chain only `next` reads, whose parts `fuse` holds in variables as it is made.
+		let fused_loop = dest.as_local().filter(|l| self.fused_loops.contains(l));
 		let (value, effect) = match *fn_ty.kind() {
 			// A binding's export, which takes what JS passes, as std's mappings do not.
 			ty::FnDef(def_id, gargs) if self.b.t.binds(def_id, gargs.skip_binder()) => (
@@ -56,6 +70,29 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					"`{path}` of a reference to an array of bytes it is generic over, which its mapping would take as the array, not as a slice of it"
 				);
 				(self.err(span, msg), true)
+			}
+			// `next` of a fused chain, from its parts.
+			ty::FnDef(def_id, _)
+				if crate::lower::iter::is_next(tcx, def_id)
+					&& let Some(value) = self.fused_next(&args[0].node, span, &mut pre) =>
+			{
+				(value, true)
+			}
+			// `next_back` of a fused chain read from the back, from its parts, as an `Option`.
+			ty::FnDef(def_id, gargs)
+				if super::fuse::is_next_back(tcx, def_id)
+					&& let Some(value) = self.fused_next(&args[0].node, span, &mut pre) =>
+			{
+				let item = self
+					.b
+					.t
+					.iter_item(gargs.skip_binder().type_at(0))
+					.expect("an iterator's item");
+				let none = self.b.t.none_arg(item);
+				(
+					Expr::rs("iterToOption", [value].into_iter().chain(none).collect()),
+					true,
+				)
 			}
 			// `next` into a local that holds the protocol's item or `rs.DONE`, unconverted.
 			ty::FnDef(def_id, gargs)
@@ -149,8 +186,56 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			Some(loc) if effect => Expr::Located(loc, Box::new(value)),
 			_ => value,
 		};
+		if let Some(local) = fused_loop {
+			self.make_fused(local, value, pre, span, out);
+			return;
+		}
+		let mut effect = effect;
+		let (mut value, fused) = match fusing {
+			Some((ty, acc)) => {
+				let name = self.b.fresh("fused");
+				pre.push(StmtKind::decl(false, &name, None, Some(value)).at(None));
+				(Expr::ident(&name), Some((name, ty, acc)))
+			}
+			None => (value, None),
+		};
 		if !pre.is_empty() {
 			self.emit(pre, false, out);
+		}
+		// The consumer, once its chain is folded into it, as one loop, or else its value.
+		if let Some((name, ty, acc)) = fused
+			&& let Some(Stmt {
+				kind: StmtKind::Decl {
+					name: decl,
+					init: Some(_),
+					..
+				},
+				..
+			}) = out.last()
+			&& *decl == name
+			&& let Some(Stmt {
+				kind: StmtKind::Decl { init: Some(init), .. },
+				..
+			}) = out.pop()
+		{
+			let mut init = init;
+			// Only a consumer's: what wraps one, as `rs.dropAfter` wraps one that drops its
+			// closure, takes the closure first.
+			if let Expr::Call(f, args) = peel_mut(&mut init)
+				&& super::fuse::consumes(f)
+				&& let Some(chain) = args.first_mut()
+			{
+				self.take_held(chain, out);
+			}
+			value = match self.fuse(&init, ty, acc, span) {
+				// What the call does is the loop's now, and its value only a variable's.
+				Some((stmts, result)) => {
+					out.extend(stmts);
+					effect = false;
+					result
+				}
+				None => init,
+			};
 		}
 		// What an `Iterator::next` returns, by the protocol, unless a `next` made it already.
 		let value = match dest.as_local() {
@@ -257,7 +342,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn call_def(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
-		gargs: GenericArgsRef<'tcx>,
+		gargs: GenericArgs<'tcx>,
 		args: &[Spanned<Operand<'tcx>>],
 		result: Ty<'tcx>,
 		span: Span,
@@ -430,7 +515,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn std_places(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
-		gargs: GenericArgsRef<'tcx>,
+		gargs: GenericArgs<'tcx>,
 		result: Ty<'tcx>,
 		span: Span,
 	) -> Option<Expr> {
@@ -564,7 +649,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn intercept(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
-		gargs: GenericArgsRef<'tcx>,
+		gargs: GenericArgs<'tcx>,
 		args: &[Spanned<Operand<'tcx>>],
 		dest: Place<'tcx>,
 		span: Span,
@@ -876,7 +961,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					return done(Expr::rs("stringExtendArray", vec![s, items]), true);
 				}
 				done(
-					crate::lower::iter::string_extend(self.b, s, items, item, iter, span)?,
+					crate::lower::iter::string_extend(self.b, s, items, item, (source, iter), span)?,
 					true,
 				)
 			}
@@ -1785,7 +1870,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn fmt_write(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
-		gargs: GenericArgsRef<'tcx>,
+		gargs: GenericArgs<'tcx>,
 		args: &[Spanned<Operand<'tcx>>],
 		dest: Place<'tcx>,
 		span: Span,
@@ -2159,7 +2244,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn index(
 		&mut self,
 		name: &str,
-		gargs: GenericArgsRef<'tcx>,
+		gargs: GenericArgs<'tcx>,
 		args: &[Spanned<Operand<'tcx>>],
 		dest: Place<'tcx>,
 		span: Span,
@@ -2418,7 +2503,7 @@ fn int_named(name: &str) -> Option<Int> {
 /// How a `ControlFlow` type is represented.
 fn flow<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Flow {
 	match ty.kind() {
-		ty::Adt(_, args) => Flow::of(tcx, args),
+		ty::Adt(_, args) => Flow::of(tcx, *args),
 		_ => unreachable!("checked by the caller"),
 	}
 }
@@ -2442,7 +2527,7 @@ pub fn control_flow_test<'tcx>(
 	let ty::Adt(_, args) = ty.kind() else {
 		unreachable!("checked by the caller")
 	};
-	Flow::test(fx.b.t, args, scrut.clone(), continues)
+	Flow::test(fx.b.t, *args, scrut.clone(), continues)
 }
 
 /// A field of a `ControlFlow`: `Continue`'s value, or `Break`'s, which for `?` is the
@@ -2547,5 +2632,13 @@ fn copied_slice(read: &Expr) -> Option<Expr> {
 			args.first().cloned()
 		}
 		_ => None,
+	}
+}
+
+/// `e` within any locations around it.
+fn peel_mut(e: &mut Expr) -> &mut Expr {
+	match e {
+		Expr::Located(_, e) => peel_mut(e),
+		e => e,
 	}
 }

@@ -25,8 +25,24 @@ import * as RangeSet from "./rangemap/set.RangeSet.ts";
 
 /** A range's bounds, as eight bytes. */
 export function put(out: rs.ByteVec, start: rs.u64, end: rs.u64): void {
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u64Low(start)).reverse()));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.u64Low(end)).reverse()));
+	const dst = out;
+	const word = rs.u64Low(start);
+	rs.byteVecReserve(dst, 4 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = word & 255;
+	dst.data[pos + 1] = (word >>> 8) & 255;
+	dst.data[pos + 2] = (word >>> 16) & 255;
+	dst.data[pos + 3] = (word >>> 24) & 255;
+	dst.length = dst.length + 4;
+	const dst2 = out;
+	const word2 = rs.u64Low(end);
+	rs.byteVecReserve(dst2, 4 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = word2 & 255;
+	dst2.data[pos2 + 1] = (word2 >>> 8) & 255;
+	dst2.data[pos2 + 2] = (word2 >>> 16) & 255;
+	dst2.data[pos2 + 3] = (word2 >>> 24) & 255;
+	dst2.length = dst2.length + 4;
 }
 
 /** Each range of `ranges`, then a marker. */

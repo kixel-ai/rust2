@@ -19,7 +19,7 @@ use rustc_span::{FileName, Span, sym};
 
 use crate::abi::Abi;
 use crate::config::{self, Config};
-use crate::ir::Api;
+use crate::ir::{self, Api};
 use crate::{census, collect, glue, merge};
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
@@ -42,8 +42,13 @@ pub fn run(args: Vec<String>) -> ExitCode {
 	})
 }
 
+/// The file in the export that holds its API, which `--baseline` reads back.
+pub const API_FILE: &str = "api.json";
+
 /// Compiles the facade, exporting its API after analysis.
 struct Export {
+	/// Each crate the facade builds with, as [`config::env::CRATES`] has them.
+	crates: std::collections::BTreeMap<String, String>,
 	config: Config,
 	output: Output,
 	/// The facade's package, with the features rustc compiles it with.
@@ -55,6 +60,8 @@ struct Export {
 	merge: Vec<PathBuf>,
 	/// The directories a staged API's spans are relative to.
 	roots: Vec<PathBuf>,
+	/// The API an earlier export wrote, which this one's must not break.
+	baseline: Option<PathBuf>,
 }
 
 /// What the job writes.
@@ -112,13 +119,28 @@ impl Export {
 			.map(str::to_string)
 			.collect();
 		let patch = std::env::var(config::env::PATCH).map_err(|_| format!("{} is unset", config::env::PATCH))?;
+		let crates = std::env::var(config::env::CRATES).map_err(|_| format!("{} is unset", config::env::CRATES))?;
+		let crates: toml::Table = crates
+			.parse()
+			.map_err(|err| format!("{} is malformed: {err}", config::env::CRATES))?;
+		let crates = (crates.into_iter())
+			.map(|(lib, keys)| match keys {
+				toml::Value::String(keys) => Ok((lib, keys)),
+				_ => Err(format!("{} is malformed: {lib}", config::env::CRATES)),
+			})
+			.collect::<Result<_, String>>()?;
+		let baseline = std::env::var_os(config::env::BASELINE)
+			.filter(|p| !p.is_empty())
+			.map(PathBuf::from);
 		Ok(Some(Self {
+			crates,
 			config,
 			output,
 			facade,
 			patch,
 			merge,
 			roots,
+			baseline,
 		}))
 	}
 }
@@ -132,16 +154,30 @@ impl Callbacks for Export {
 			root: self.facade.root(),
 			package: &self.facade.name,
 			// A census counts the whole API, whatever the config leaves out.
+			crates: &self.crates,
 			exclude: match self.output {
 				Output::Census(_) => &[],
 				Output::Dir(_) | Output::Api(_) => &self.config.exclude,
+			},
+			// It lists instead each item one names that exports.
+			audit: match self.output {
+				Output::Census(_) => &self.config.exclude,
+				Output::Dir(_) | Output::Api(_) => &[],
 			},
 		};
 		let collected = collect::collect(tcx, &facade);
 		let report = &collected.report;
 		if let Output::Census(dir) = &self.output {
 			let abi = Abi::new(&collected.api, &self.facade.lib);
-			let text = census::render(&collected.api, report, &abi.clashes, &|span| at(tcx, span));
+			// What Swift refuses needs its exclude, as the export says, so it is not exporting.
+			// Swift exports the API without what takes a JNI value, as the export does.
+			let rest = collected.api.without_jni();
+			let swift: FxHashSet<_> = crate::swift::refusals(&abi.without_jni(&rest))
+				.into_iter()
+				.map(|(f, _)| f.shown.clone())
+				.collect();
+			let exporting = exporting(&collected.api, &report.audited, &swift);
+			let text = census::render(&collected.api, report, &exporting, &abi.clashes, &|span| at(tcx, span));
 			// A census reports what a crate uses, but a missed instance is the exporter's bug.
 			for refusal in &report.refusals {
 				if refusal.why.iter().any(|why| why.construct == collect::NOT_INFERRED) {
@@ -150,6 +186,13 @@ impl Callbacks for Export {
 			}
 			if let Err(err) = write(&dir.join(format!("{}.md", report.package)), &text) {
 				tcx.dcx().err(format!("rust2-ffi: {err}"));
+			}
+			// An exclude that leaves out what would export hides that much of the API.
+			for (exclude, exported) in &exporting {
+				tcx.dcx().err(format!(
+					"rust2-ffi: exclude `{exclude}` in the config leaves out `{}`, which exports",
+					exported.join("`, `")
+				));
 			}
 			return stop_on_errors(tcx);
 		}
@@ -165,6 +208,7 @@ impl Callbacks for Export {
 		}
 		// Refusals still let the export go on to report each clash, but write nothing.
 		let target = merge::Target {
+			names: None,
 			package: self.facade.name.clone(),
 			features: self.facade.features.clone(),
 			exclude: self.config.exclude.clone(),
@@ -175,8 +219,8 @@ impl Callbacks for Export {
 			Output::Api(_) if tcx.dcx().has_errors().is_some() => Ok(()),
 			Output::Api(path) => target.write(path, tcx.sess.source_map(), &self.roots),
 			Output::Dir(out) => match self.merged(tcx, target) {
-				Some(api) => self.export(tcx, &api, out),
-				None => Ok(()),
+				Some(api) => self.export(tcx, api, out),
+				_ => Ok(()),
 			},
 		};
 		if let Err(err) = written {
@@ -186,14 +230,75 @@ impl Callbacks for Export {
 	}
 }
 
+/// Each exclude whose item would export without it, and that item's paths: what an
+/// exclude checked, from [`collect::Report::audited`], that the census's API holds by the
+/// same path, except a function `refused` names by its shown path, since a generic's
+/// instances share a span but Swift may refuse only some.
+fn exporting(
+	api: &Api,
+	audited: &[(String, Vec<String>)],
+	refused: &FxHashSet<ir::Path>,
+) -> Vec<(String, Vec<String>)> {
+	// Every path an exported item is checked by, from the facade's root, as the walk checks it.
+	let mut paths = FxHashSet::default();
+	let mut add = |path: &[String]| {
+		paths.insert(path[1..].join("::"));
+	};
+	let methods = |methods: &[ir::Function], add: &mut dyn FnMut(&[String])| {
+		for f in methods.iter().filter(|f| !refused.contains(&f.shown)) {
+			match f.access {
+				// A field is checked by `field@` and, unless a method or constant takes its
+				// name, by its path, which then names that method or constant instead.
+				ir::Access::Field { shared, .. } => {
+					let mut key = f.shown.clone();
+					key[1].insert_str(0, "field@");
+					add(&key);
+					if !shared {
+						add(&f.shown);
+					}
+				}
+				_ => add(&f.shown),
+			}
+		}
+	};
+	for r in &api.records {
+		add(&r.shown);
+		methods(&r.methods, &mut add);
+	}
+	for e in &api.enums {
+		add(&e.shown);
+		methods(&e.methods, &mut add);
+	}
+	for o in &api.objects {
+		add(&o.shown);
+		methods(&o.methods, &mut add);
+	}
+	for c in &api.callbacks {
+		add(&c.path);
+		methods(&c.methods, &mut add);
+	}
+	methods(&api.functions, &mut add);
+	for c in &api.constants {
+		add(&c.path);
+	}
+	(audited.iter())
+		.filter_map(|(exclude, named)| {
+			let mut exported: Vec<String> = named.iter().filter(|path| paths.contains(*path)).cloned().collect();
+			exported.sort();
+			exported.dedup();
+			(!exported.is_empty()).then(|| (exclude.clone(), exported))
+		})
+		.collect()
+}
+
 impl Export {
 	/// This target's API merged with the other targets', or none once a difference
 	/// between two of them is an error.
-	fn merged(&self, tcx: TyCtxt<'_>, ours: merge::Target) -> Option<Api> {
+	fn merged(&self, tcx: TyCtxt<'_>, ours: merge::Target) -> Option<merge::Target> {
 		if self.merge.is_empty() {
-			return Some(ours.api);
+			return Some(ours);
 		}
-		let mut apis = vec![ours.api];
+		let mut apis = vec![ours.api.clone()];
 		let mut unmergeable = false;
 		for path in &self.merge {
 			let theirs = match merge::Target::read(path, tcx.sess.source_map(), &self.roots) {
@@ -260,11 +365,85 @@ impl Export {
 			};
 			err.emit();
 		}
-		differs.is_empty().then_some(api)
+		differs.is_empty().then_some(merge::Target { api, ..ours })
+	}
+
+	/// Read and validate the baseline once before comparing either compatibility layer.
+	fn baseline(&self, tcx: TyCtxt<'_>, ours: &merge::Target) -> Result<Option<merge::Target>, ()> {
+		let Some(path) = &self.baseline else {
+			return Ok(None);
+		};
+		let base = match merge::Target::read(path, tcx.sess.source_map(), &self.roots) {
+			Ok(base) => base,
+			Err(err) => {
+				tcx.dcx().err(format!("rust2-ffi: the baseline: {err}"));
+				return Err(());
+			}
+		};
+		if base.package != ours.package {
+			tcx.dcx().err(format!(
+				"rust2-ffi: the baseline {} is package `{}`'s API, not `{}`'s",
+				path.display(),
+				base.package,
+				ours.package
+			));
+			return Err(());
+		}
+		Ok(Some(base))
+	}
+
+	/// The baseline's binding names, or an error if it lacks any language's. A baseline from
+	/// before names were kept still has its structure checked first, so its re-export accepts
+	/// no break that check would have reported.
+	fn baseline_names<'b>(&self, tcx: TyCtxt<'_>, base: &'b merge::Target) -> Option<&'b crate::lock::Names> {
+		let Some(names) = &base.names else {
+			tcx.dcx()
+				.err("rust2-ffi: the baseline lacks binding names; export it again with this rust2-ffi");
+			return None;
+		};
+		if ["C++", "Kotlin", "Swift", "Go", "Dart", "Python"]
+			.iter()
+			.any(|language| !names.contains_key(*language))
+		{
+			tcx.dcx()
+				.err("rust2-ffi: the baseline lacks a binding's name table; export it again with this rust2-ffi");
+			return None;
+		}
+		Some(names)
+	}
+
+	/// Compare one compatibility layer against the baseline: its structure, or with `names`,
+	/// the baseline's binding names and the export's, the names the generators made.
+	fn locked(
+		&self,
+		tcx: TyCtxt<'_>,
+		base: &merge::Target,
+		abi: &Abi<'_>,
+		names: Option<(&crate::lock::Names, &crate::lock::Names)>,
+	) -> bool {
+		let path = self.baseline.as_ref().expect("baseline supplied");
+		let breaks = match names {
+			None => crate::lock::breaks(&base.api, abi.api, &self.facade.lib),
+			Some((then, now)) => crate::lock::name_breaks(then, now, &base.api, abi),
+		};
+		let help = format!(
+			"to accept the break, export without --baseline and replace {} with the export's {API_FILE}",
+			path.display()
+		);
+		for b in &breaks {
+			let what = format!("rust2-ffi: the API breaks the baseline at {}", b.what);
+			let err = match b.span.is_dummy() {
+				true => tcx.dcx().struct_err(what),
+				false => tcx.dcx().struct_span_err(b.span, what),
+			};
+			err.with_help(help.clone()).emit();
+		}
+		breaks.is_empty()
 	}
 
 	/// Write the export of `api` into `out`, or fail on two items that share a C name.
-	fn export(&self, tcx: TyCtxt<'_>, api: &Api, out: &Path) -> Result<(), String> {
+	fn export(&self, tcx: TyCtxt<'_>, mut target: merge::Target, out: &Path) -> Result<(), String> {
+		let api = &target.api;
 		let abi = Abi::new(api, &self.facade.lib);
 		for (name, (first, first_span), (second, second_span)) in &abi.clashes {
 			tcx.dcx()
@@ -275,21 +454,46 @@ impl Export {
 				.with_span_note(*first_span, format!("{first} is here"))
 				.emit();
 		}
-		for (span, why) in crate::swift::refusals(&abi) {
+		// Swift exports the API without what takes a JNI value, which only Kotlin passes.
+		let rest = api.without_jni();
+		for (function, why) in crate::swift::refusals(&abi.without_jni(&rest)) {
 			tcx.dcx().span_err(
-				span,
+				function.span,
 				format!("rust2-ffi: {why}; exclude it in the config to leave it out"),
 			);
 		}
-		if tcx.dcx().has_errors().is_some() {
+		let can_generate = tcx.dcx().has_errors().is_none();
+		let baseline = match self.baseline(tcx, &target) {
+			Ok(base) => base,
+			Err(()) => return Ok(()),
+		};
+		let structure_kept = baseline.as_ref().is_none_or(|base| self.locked(tcx, base, &abi, None));
+		// A baseline without names fails the export, but the generators still run, so their
+		// own refusals show now rather than after the baseline is exported again.
+		let names = baseline.as_ref().map(|base| self.baseline_names(tcx, base));
+		let names_complete = names.is_none_or(|names| names.is_some());
+		let baseline = baseline.as_ref().zip(names.flatten());
+		if !can_generate {
 			return Ok(());
 		}
 		let glue = glue::Crate {
 			abi: &abi,
 			facade: &self.facade,
 			patch: &self.patch,
+			crates: &self.crates,
 		};
-		glue.write(out)
+		let generated = glue.generate(out)?;
+		if let Some(path) = &self.baseline {
+			generated.check_baseline(path)?;
+		}
+		let names_kept =
+			baseline.is_none_or(|(base, names)| self.locked(tcx, base, &abi, Some((names, &generated.names))));
+		if !structure_kept || !names_complete || !names_kept {
+			return Ok(());
+		}
+		target.names = Some(generated.write()?);
+
+		target.write(&out.join(API_FILE), tcx.sess.source_map(), &self.roots)
 	}
 }
 
@@ -344,11 +548,39 @@ fn at(tcx: TyCtxt<'_>, span: Span) -> String {
 	format!("{name}:{line}:{col}")
 }
 
+/// Write `text` to `path` unless it already holds it, so its mtime moves only on a change.
+/// A changed file is written beside `path` and renamed over it, so a reader sees the old
+/// content or the new, never neither or part, and a link at `path` goes and leaves what it
+/// points to.
 pub fn write(path: &Path, text: &str) -> Result<(), String> {
-	if let Some(dir) = path.parent() {
-		std::fs::create_dir_all(dir).map_err(|err| format!("creating {}: {err}", dir.display()))?;
+	if std::fs::read(path).is_ok_and(|old| old == text.as_bytes()) {
+		return Ok(());
 	}
-	std::fs::write(path, text).map_err(|err| format!("writing {}: {err}", path.display()))
+	let (Some(dir), Some(name)) = (path.parent(), path.file_name()) else {
+		return Err(format!("writing {}: not a file path", path.display()));
+	};
+	std::fs::create_dir_all(dir).map_err(|err| format!("creating {}: {err}", dir.display()))?;
+	let mut temp = std::ffi::OsString::from(".");
+	temp.push(name);
+	temp.push(".rust2-ffi");
+	let temp = dir.join(temp);
+	// A link left at the temporary path goes first, so the write cannot follow it.
+	match std::fs::remove_file(&temp) {
+		Err(err) if err.kind() != std::io::ErrorKind::NotFound => {
+			return Err(format!("removing {}: {err}", temp.display()));
+		}
+		_ => {}
+	}
+	std::fs::File::options()
+		.write(true)
+		.create_new(true)
+		.open(&temp)
+		.and_then(|mut file| std::io::Write::write_all(&mut file, text.as_bytes()))
+		.map_err(|err| format!("writing {}: {err}", temp.display()))?;
+	std::fs::rename(&temp, path).map_err(|err| {
+		let _ = std::fs::remove_file(&temp);
+		format!("writing {}: {err}", path.display())
+	})
 }
 
 /// Whether the struct, enum, or union `adt` declares a field or variant `name` under a

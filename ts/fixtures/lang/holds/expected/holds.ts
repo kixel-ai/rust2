@@ -224,15 +224,15 @@ export function closures(a: rs.u8, b: rs.u8, data: rs.ByteSlice, out: rs.ByteVec
 			return arr[i2];
 		});
 	}
-	const iter3: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
-	while (true) {
-		const _61: [rs.usize, rs.u8] | rs.Done = iter3.next();
-		if (_61 === rs.DONE) {
-			break;
-		}
-		const captured = _61[0];
+	const s: Uint8Array = rs.byteSliceView(data);
+	let front: number = 0;
+	const back: number = s.length;
+	let count: number = 0;
+	while (!(front >= back)) {
+		const x = s[front++];
+		const captured = count++;
 		const _68: () => rs.u8 = (): rs.u8 => {
-			return rs.u8WrappingAdd(_61[1], captured & 0xff);
+			return rs.u8WrappingAdd(x, captured & 0xff);
 		};
 		fs.items.push(_68);
 	}

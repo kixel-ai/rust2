@@ -198,7 +198,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			}
 			ty::Tuple(tys) => Some((tys.to_vec(), false)),
 			ty::Adt(adt, args) if adt.is_struct() && Std::of(self.tcx, adt.did()).is_none() && self.own(adt.did()) => {
-				Some((adt.all_fields().map(|f| self.field_ty(f.did, args)).collect(), false))
+				Some((adt.all_fields().map(|f| self.field_ty(f.did, *args)).collect(), false))
 			}
 			_ => None,
 		}
@@ -272,7 +272,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
 				Some(Std::MaybeUninit | Std::ManuallyDrop) => self.empty(args.type_at(0)),
 				Some(_) => false,
-				None => adt.is_struct() && adt.all_fields().all(|f| self.empty(self.field_ty(f.did, args))),
+				None => adt.is_struct() && adt.all_fields().all(|f| self.empty(self.field_ty(f.did, *args))),
 			},
 			_ => false,
 		}
@@ -336,12 +336,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						let plain = self.plain(info.sym);
 						let values = (adt.non_enum_variant().fields.iter())
 							.map(|f| {
-								let t = self.field_ty(f.did, args);
+								let t = self.field_ty(f.did, *args);
 								let value = match plain {
 									true => self.shell(t, span),
 									false => self.uninit(t, span),
 								};
-								self.field_value(value, adt.did(), f.did, args, span)
+								self.field_value(value, adt.did(), f.did, *args, span)
 							})
 							.collect();
 						self.construct(info.sym, &ctor, &fields, values)
@@ -362,7 +362,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 pub fn from_reference<'tcx>(
 	tcx: ty::TyCtxt<'tcx>,
 	def_id: rustc_hir::def_id::DefId,
-	args: ty::GenericArgsRef<'tcx>,
+	args: ty::GenericArgs<'tcx>,
 ) -> bool {
 	let Some((owner, name)) = super::library::key(tcx, def_id) else {
 		return false;
@@ -492,7 +492,7 @@ pub fn lends(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
 /// Whether std's `def_id` with `args` is one that only makes a pointer or points one
 /// elsewhere, reads through it, or drops what it points at, as this module maps them, or
 /// an atomic's, which holds a pointer as a value, so it gives no part another object.
-pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args: ty::GenericArgsRef<'tcx>) -> bool {
+pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args: ty::GenericArgs<'tcx>) -> bool {
 	let keeps = matches!(
 		super::library::key(tcx, def_id),
 		Some((owner, name)) if matches!(
@@ -527,11 +527,7 @@ pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args
 /// own iterator's that its `next` reads through, an `IoSlice`'s and a `&mut` to a slice of
 /// them, which `advance` and `advance_slices` move, and a well-known crate's, such as a
 /// `Bytes` that `Buf::advance` moves past its front.
-fn takes_place<'tcx>(
-	t: &Translator<'_, 'tcx>,
-	def_id: rustc_hir::def_id::DefId,
-	args: ty::GenericArgsRef<'tcx>,
-) -> bool {
+fn takes_place<'tcx>(t: &Translator<'_, 'tcx>, def_id: rustc_hir::def_id::DefId, args: ty::GenericArgs<'tcx>) -> bool {
 	matches!(
 		super::library::key(t.tcx, def_id),
 		Some((owner, name)) if matches!(owner.as_str(), "MaybeUninit" | "ManuallyDrop" | "IoSlice")
@@ -553,7 +549,7 @@ fn takes_place<'tcx>(
 pub fn pointees<'tcx>(
 	t: &Translator<'_, 'tcx>,
 	def_id: rustc_hir::def_id::DefId,
-	args: ty::GenericArgsRef<'tcx>,
+	args: ty::GenericArgs<'tcx>,
 ) -> Vec<bool> {
 	let takes_place = takes_place(t, def_id, args);
 	let sig = t.tcx.fn_sig(def_id).instantiate_identity().skip_norm_wip();
@@ -609,6 +605,30 @@ pub fn call<'tcx>(
 	let deref = |ty: Ty<'tcx>, p: Expr, shared: bool| match slice_of_bytes(ty) {
 		true => p.member("derefBytes").call(vec![Expr::lit(shared.to_string())]),
 		false => p.member("deref").call(Vec::new()),
+	};
+	// `Arc::as_ptr` of `arc`, an `Arc` or an `Rc` as `of` says, of a value no trait object
+	// is in: a pointer to a slice or an array it holds, and else the pointer `from_raw` and
+	// the counts take back to it, made of `arc` spilled if `spill`. One to an object finds
+	// it by that object, which each copy of its type then needs of its own, as a
+	// comparison of pointers to it does.
+	let arc_ptr = |b: &mut Body<'_, '_, 'tcx>, arc: Expr, of: &str, spill: bool, out: &mut Vec<Stmt>| {
+		match kind(b, pointee()) {
+			Some(Pointee::Slice) => return raw_of(pointee(), arc.member("value")),
+			Some(Pointee::Array) => return to_pointer(b, arc.member("value")),
+			_ => {}
+		}
+		let arc = match spill {
+			true => b.spill(arc, "arc", out),
+			false => arc,
+		};
+		let p = match kind(b, pointee()) {
+			Some(Pointee::Place) => Expr::rs("arcPlace", vec![arc.clone()]),
+			_ => {
+				b.t.compare(pointee());
+				arc.clone().member("value")
+			}
+		};
+		Expr::rs("arcRaw", vec![arc, p, Expr::Str(of.into())])
 	};
 	let mut args = args.into_iter();
 	let mut arg = || args.next().expect("an argument");
@@ -784,16 +804,13 @@ pub fn call<'tcx>(
 		// where a reference to it points, a pointer to which is made as `ptr::from_ref`
 		// makes one.
 		("Arc" | "Rc", "as_ptr" | "into_raw" | "from_raw" | "increment_strong_count" | "decrement_strong_count")
+		| ("Weak", "as_ptr")
 			if pointee().is_trait() || super::dynamic::unsized_object(b.t.tcx, pointee()) =>
 		{
 			b.err(span, format!("a raw pointer to the `{}` an `Arc` holds", pointee()))
 		}
 		("Arc" | "Rc", "as_ptr") if matches!(kind(b, pointee()), Some(Pointee::Slice | Pointee::Array)) => {
-			let value = arg().member("value");
-			match kind(b, pointee()) {
-				Some(Pointee::Slice) => raw_of(pointee(), value),
-				_ => to_pointer(b, value),
-			}
+			arc_ptr(b, arg(), owner, false, out)
 		}
 		// A raw pointer `from_raw` takes back to its `Arc` is one JS keeps the identity of.
 		("Arc" | "Rc", "into_raw" | "from_raw" | "increment_strong_count" | "decrement_strong_count")
@@ -807,19 +824,41 @@ pub fn call<'tcx>(
 				),
 			)
 		}
-		// The pointer, which `from_raw` and the counts take back to the `Arc` it is of. One
-		// to an object finds it by that object, which each copy of its type then needs of
-		// its own, as a comparison of pointers to it does.
-		("Arc" | "Rc", "as_ptr" | "into_raw") => {
-			let arc = b.spill(arg(), "arc", out);
-			let p = match kind(b, pointee()) {
-				Some(Pointee::Place) => Expr::rs("arcPlace", vec![arc.clone()]),
-				_ => {
-					b.t.compare(pointee());
-					arc.clone().member("value")
-				}
+		("Arc" | "Rc", "as_ptr" | "into_raw") => arc_ptr(b, arg(), owner, true, out),
+		// The pointer of the `Arc` it is of, as `Arc::as_ptr` gives it, whether or not any
+		// strong one is left. One of `Weak::new`'s has no allocation, which std's dangling
+		// address says. While `new_cyclic` makes the value, a value JS keeps as an object
+		// isn't there to point at yet, so the translator refuses those, once it has seen
+		// every `new_cyclic`.
+		("Weak", "as_ptr") if kind(b, pointee()) == Some(Pointee::Slice) => b.err(
+			span,
+			format!(
+				"`Weak::as_ptr` of `{}`, whose length JS keeps nowhere for a `Weak::new` unsized to one",
+				pointee()
+			),
+		),
+		("Weak", "as_ptr") => {
+			let tcx = b.t.tcx;
+			let imp = tcx.inherent_impl_of_assoc(call.def_id).expect("an inherent function");
+			let of = match tcx.type_of(imp).skip_binder().kind() {
+				ty::Adt(adt, _) if tcx.is_diagnostic_item(rustc_span::sym::ArcWeak, adt.did()) => "Arc",
+				_ => "Rc",
 			};
-			Expr::rs("arcRaw", vec![arc, p, Expr::Str(owner.into())])
+			if kind(b, pointee()) != Some(Pointee::Place) {
+				b.t.weak_pointer(pointee(), of, span);
+			}
+			// A pointer to `()` is the `*const ()` every pointer there casts to.
+			let dangling = match b.t.identity_pointee(pointee()) {
+				true => "WEAK_DANGLING_UNIT",
+				false => "WEAK_DANGLING",
+			};
+			let arc = b.spill(Expr::rs("weakArc", vec![arg()]), "arc", out);
+			let p = arc_ptr(b, arc.clone(), of, false, out);
+			Expr::Cond(
+				Box::new(arc.binary("===", Expr::undefined())),
+				Box::new(Expr::Rs(dangling.into())),
+				Box::new(p),
+			)
 		}
 		("Arc" | "Rc", "from_raw") => Expr::rs("arcFromRaw", vec![arg(), Expr::Str(owner.into())]),
 		("Arc" | "Rc", "increment_strong_count") => {
@@ -1293,7 +1332,7 @@ pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'t
 	let (tcx, env) = (b.t.tcx, b.t.typing_env_pub());
 	let key = |t: Ty<'tcx>| Expr::Str(tcx.erase_and_anonymize_regions(t).to_string());
 	let align = |t: Ty<'tcx>| {
-		let align = tcx.layout_of(env.as_query_input(t)).map_or(1, |l| l.align.abi.bytes());
+		let align = tcx.layout_of(env.as_query_input(t)).map_or(1, |l| l.align.bytes());
 		Expr::lit(align.to_string())
 	};
 	if b.t.identity_pointee(into) {

@@ -23,6 +23,12 @@
       inputs.rust-overlay.follows = "rust-overlay";
       inputs.flake-utils.follows = "flake-utils";
     };
+    # CodSpeed's instrument-hooks, which the binding benchmark's programs call around each
+    # case its CPU simulation counts.
+    instrument-hooks = {
+      url = "github:CodSpeedHQ/instrument-hooks/8fd5b878499f819561b33219cdafaa6f8c28b4e4";
+      flake = false;
+    };
   };
 
   outputs =
@@ -33,6 +39,7 @@
       rust-overlay,
       quest,
       ra-jit,
+      instrument-hooks,
       ...
     }:
     flake-utils.lib.eachSystem
@@ -149,37 +156,34 @@
                 # The tests need node, tsc, and wasm builds: `just ts test` runs them.
                 doCheck = false;
               };
-          # The mono budget lint, on the same nightly for the same reasons.
-          rust2-lint =
+          # The public-visibility audit, on the same nightly, run by cargo as rustc.
+          rust2-pub =
             (pkgs.makeRustPlatform {
               cargo = tsToolchain;
               rustc = tsToolchain;
             }).buildRustPackage
               {
-                pname = "rust2-lint";
+                pname = "rust2-pub";
                 version = "0.0.0";
                 src = pkgs.lib.fileset.toSource {
-                  root = ./driver;
-                  fileset = pkgs.lib.fileset.unions [
-                    ./driver/Cargo.toml
-                    ./driver/Cargo.lock
-                    ./driver/src
-                  ];
+                  root = ./.;
+                  fileset = ./driver;
                 };
+                buildAndTestSubdir = "driver/pub";
+                cargoRoot = "driver";
                 cargoLock.lockFile = ./driver/Cargo.lock;
-                cargoBuildFlags = [
-                  "--bin"
-                  "rust2-lint"
-                ];
                 RUSTFLAGS = "-C link-args=-Wl,-rpath,${tsToolchain}/lib";
                 nativeBuildInputs = [ pkgs.makeWrapper ];
+                # It checks with its own nightly's cargo and rustc, which build scripts run
+                # as `$RUSTC`, unless the caller names others.
                 postInstall = ''
-                  wrapProgram $out/bin/rust2-lint --set-default CARGO ${tsToolchain}/bin/cargo
+                  wrapProgram $out/bin/rust2-pub \
+                    --set-default CARGO ${tsToolchain}/bin/cargo \
+                    --set-default RUSTC ${tsToolchain}/bin/rustc
                 '';
-                # `just driver test` runs the fixtures.
+                # The tests run cargo on a fixture workspace: `just driver test` runs them.
                 doCheck = false;
               };
-
           # rust2-ffi's generated async Kotlin needs coroutines on the
           # classpath; nixpkgs has no jar.
           kotlinx-coroutines = pkgs.fetchurl {
@@ -191,7 +195,7 @@
           packages = {
             quest = quest-cli;
             ts = rust2-ts;
-            lint = rust2-lint;
+            pub = rust2-pub;
           }
           # ra-jit and its toolchain for the benchmark's ra-jit variants, which build it
           # only when they run: it compiles from source. ra-jit skips Intel macOS.
@@ -297,19 +301,35 @@
             ];
             # `just ffi bench` builds moq's rs/moq-c, whose VAAPI bindings run bindgen.
             LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+            # ... and its programs over instrument-hooks, for CodSpeed.
+            CODSPEED_INSTRUMENT_HOOKS = "${instrument-hooks}";
           });
           # Clang beside the default shell's GCC, which the nightly builds the exporter's C++ with.
           devShells.clang = self.devShells.${system}.default.overrideAttrs (old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.clang ];
           });
+          # `just ffi sanitize` builds the glue with the nightly's sanitizers, linked by clang, and
+          # runs it under the nightly's Miri. llvm-symbolizer names the frames of a report.
+          devShells.sanitize = self.devShells.${system}.clang.overrideAttrs (old: {
+            nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.llvm ];
+            RUST2_TS_TOOLCHAIN = tsToolchain.override {
+              extensions =
+                (builtins.fromTOML (builtins.readFile ./ts/rust-toolchain.toml)).toolchain.components
+                ++ [
+                  "miri"
+                ];
+            };
+          });
           # `just ffi android` builds the Kotlin's library for an Android device, with the NDK
-          # cargo-ndk finds through ANDROID_NDK_HOME: the SDK and NDK are the caller's, as moq's
-          # Android build takes the GitHub runner image's.
+          # cargo-ndk finds through ANDROID_NDK_HOME, and `just ffi moq-api` stages moq's API on
+          # each Android ABI moq ships: the SDK and NDK are the caller's, as moq's Android build
+          # takes the GitHub runner image's.
           devShells.android = self.devShells.${system}.default.overrideAttrs (old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.cargo-ndk ];
             RUST2_TS_TOOLCHAIN = tsToolchain.override {
               targets = (builtins.fromTOML (builtins.readFile ./ts/rust-toolchain.toml)).toolchain.targets ++ [
                 "aarch64-linux-android"
+                "armv7-linux-androideabi"
                 "x86_64-linux-android"
               ];
             };

@@ -15,7 +15,7 @@ export function next$iter_Iterator(self: Short): rs.u8 | rs.Done {
 }
 
 export function sizeHint$iter_Iterator(self: Short): [rs.usize, rs.usize | undefined] {
-	const len: rs.usize = rs.usizeAdd(self._0 as rs.usize, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 439, col: 19 });
+	const len: rs.usize = rs.usizeAdd(self._0 as rs.usize, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 440, col: 19 });
 	return [len, len] as [rs.usize, rs.usize | undefined];
 }
 

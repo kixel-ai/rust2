@@ -2,14 +2,18 @@
 //! thread a call into Kotlin runs on, and the wakers a Kotlin future parks on.
 //!
 //! A value Kotlin passes is a JNI scalar, a handle as a `long`, its bytes as a `byte[]`,
-//! or anything else encoded into a `byte[]`: little-endian, field by field, as the C
+//! or composite returns constructed by a Kotlin factory over scoped native memory.
+//! The codec (also used for parameters) is little-endian, field by field, as the C
 //! struct holds it, with a buffer as its length (-1 for none) and its bytes, and an array
-//! as its length (-1 for none) and its elements. Bytes Rust returns cross copied when short,
+//! as its length (-1 for none) and its elements; a record passed or returned directly
+//! crosses its scalars as parameters, or through Kotlin's `long[]` slots, apart from the
+//! rest. Bytes Rust returns cross copied when short,
 //! and otherwise as their owner, which a Kotlin `Bytes` reads through a call each until the
 //! GC collects it.
 
 use std::cell::Cell;
 use std::ffi::{CStr, c_void};
+use std::mem::MaybeUninit;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -18,27 +22,33 @@ pub use jni_sys::*;
 use crate::rt;
 
 /// The JVM, and the global reference to the class holding the native methods and the
-/// Kotlin functions Rust calls, set when the library loads.
+/// Kotlin functions Rust calls, set by the class's first native call.
 static VM: OnceLock<usize> = OnceLock::new();
 static CLASS: OnceLock<usize> = OnceLock::new();
 
-/// Note the JVM and the class `name`, from `JNI_OnLoad`.
+/// Note the JVM and `class`, from its first native call, which its initializer makes. The
+/// library defines no `JNI_OnLoad`, so the crate it exports may define its own.
 ///
 /// # Safety
-/// `vm` is the JVM loading the library, on the thread loading it.
-pub unsafe fn load(vm: *mut JavaVM, name: &CStr) -> jint {
-	let _ = VM.set(vm as usize);
-	let env = env();
-	// SAFETY: `env` is this thread's; the class loader is the one loading the library,
-	// which a thread Rust attaches later cannot reach.
+/// `env` is this thread's, and `class` the native class.
+pub unsafe fn load(env: *mut JNIEnv, class: jclass) {
+	// SAFETY: `env` is this thread's, as the caller's contract says.
 	unsafe {
-		let class = ((**env).v1_2.FindClass)(env, name.as_ptr());
-		if class.is_null() {
-			fail(env, "JNI_OnLoad", "the native class is missing");
+		let mut vm: *mut JavaVM = std::ptr::null_mut();
+		if ((**env).v1_2.GetJavaVM)(env, &mut vm) != JNI_OK {
+			fail(env, "load", "the JVM is missing");
 		}
-		let _ = CLASS.set(((**env).v1_2.NewGlobalRef)(env, class) as usize);
+		let _ = VM.set(vm as usize);
+		CLASS.get_or_init(|| ((**env).v1_2.NewGlobalRef)(env, class) as usize);
+		// JNI permits a VM without direct-buffer access. Refuse it while loading,
+		// before a call can hand over values that its return factory cannot read.
+		let mut probe = 0u8;
+		let buffer = ((**env).v1_4.NewDirectByteBuffer)(env, (&mut probe as *mut u8).cast(), 1);
+		if buffer.is_null() {
+			fail(env, "load", "the JVM does not support native return buffers");
+		}
+		((**env).v1_2.DeleteLocalRef)(env, buffer);
 	}
-	JNI_VERSION_1_6
 }
 
 /// The class holding the Kotlin functions Rust calls.
@@ -81,6 +91,14 @@ pub fn env() -> *mut JNIEnv {
 	env.cast()
 }
 
+/// Whether the Rust a native method called left a Java exception pending, which the
+/// native method then returns with, unread, for Kotlin to throw, as any native method's
+/// caller would.
+pub fn pending(env: *mut JNIEnv) -> bool {
+	// SAFETY: `env` is this thread's.
+	unsafe { ((**env).v1_2.ExceptionCheck)(env) }
+}
+
 /// Abort for `what`, printing the Kotlin exception pending, if any.
 pub fn fail(env: *mut JNIEnv, what: &str, msg: &str) -> ! {
 	// SAFETY: `env` is this thread's.
@@ -90,6 +108,66 @@ pub fn fail(env: *mut JNIEnv, what: &str, msg: &str) -> ! {
 		}
 	}
 	rt::fail(what, msg)
+}
+
+static REFUSED: OnceLock<usize> = OnceLock::new();
+
+/// Throw the `_Native.__Refused`, an `IllegalStateException`, a call of `what` raises once
+/// its check failed with `status`, returning a zeroed value Kotlin never reads, as JNI's
+/// pending exception throws once the native method returns. Its own class tells Kotlin
+/// the call moved nothing.
+#[cold]
+pub fn refuse<R>(env: *mut JNIEnv, status: i32, what: &str) -> R {
+	let message = match rt::Status::of(status) {
+		Some(status) => format!("{what}: {}", status.message()),
+		None => format!("{what}: an unknown status {status}"),
+	};
+	let message = std::ffi::CString::new(message).expect("no NUL in a message");
+	let id = method(env, &REFUSED, c"__refused", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
+	// SAFETY: `env` is this thread's, and `__refused` takes the message.
+	unsafe {
+		let text = ((**env).v1_2.NewStringUTF)(env, message.as_ptr());
+		if text.is_null() {
+			fail(env, what, "a message did not fit");
+		}
+		let args = [jvalue { l: text }];
+		let refused = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+		if refused.is_null() || ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, what, "a call into Kotlin threw");
+		}
+		((**env).v1_2.Throw)(env, refused);
+		std::mem::zeroed()
+	}
+}
+
+static INVALID: OnceLock<usize> = OnceLock::new();
+
+/// Throw the `_Native.__Invalid`, an `IllegalArgumentException`, an argument holding a
+/// value its Rust type cannot raises, which the native method then returns with, as
+/// [`raised`] does. Its own class tells Kotlin the call moved nothing.
+#[cold]
+fn invalid(env: *mut JNIEnv, message: &CStr) {
+	let id = method(env, &INVALID, c"__invalid", c"(Ljava/lang/String;)Ljava/lang/Throwable;");
+	// SAFETY: `env` is this thread's, and `__invalid` takes the message.
+	unsafe {
+		let text = ((**env).v1_2.NewStringUTF)(env, message.as_ptr());
+		if text.is_null() {
+			fail(env, "jni", "a message did not fit");
+		}
+		let args = [jvalue { l: text }];
+		let invalid = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+		if invalid.is_null() || ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, "jni", "a call into Kotlin threw");
+		}
+		((**env).v1_2.Throw)(env, invalid);
+	}
+}
+
+/// What a native method returns once it threw, which Kotlin never reads: zeroed, as a
+/// JNI scalar or a null reference is.
+pub fn raised<R>() -> R {
+	// SAFETY: a native method returns only JNI scalars and references, all valid zeroed.
+	unsafe { std::mem::zeroed() }
 }
 
 /// Run `f` calling into Kotlin on this thread, freeing the local references it makes, and
@@ -137,26 +215,214 @@ pub fn bytes(env: *mut JNIEnv, array: jbyteArray) -> Option<Vec<u8>> {
 	}
 }
 
-/// A view of `bytes`, or a null view for none.
-pub fn view(bytes: &Option<Vec<u8>>) -> rt::Buf {
-	match bytes {
-		Some(bytes) => rt::Buf::view(bytes),
-		None => rt::Buf::NONE,
+/// A number Kotlin holds in the primitive array of its width, which crosses JNI whole.
+pub trait Prim: Copy {
+	/// Copy `len` of `array`'s numbers into `into`.
+	///
+	/// # Safety
+	/// `array` is a live array of this width holding `len`, and `into` has room for them.
+	unsafe fn get(env: *mut JNIEnv, array: jarray, len: jsize, into: *mut Self);
+
+	/// A new array of `len` numbers.
+	///
+	/// # Safety
+	/// `env` is this thread's.
+	unsafe fn new(env: *mut JNIEnv, len: jsize) -> jarray;
+
+	/// Copy `len` numbers from `from` into `array`.
+	///
+	/// # Safety
+	/// `array` is a live array of this width holding `len`, and `from` holds them.
+	unsafe fn set(env: *mut JNIEnv, array: jarray, len: jsize, from: *const Self);
+}
+
+macro_rules! prim {
+	($($t:ty: $get:ident, $new:ident, $set:ident;)*) => {$(
+		impl Prim for $t {
+			unsafe fn get(env: *mut JNIEnv, array: jarray, len: jsize, into: *mut Self) {
+				// SAFETY: the caller's contract.
+				unsafe { ((**env).v1_2.$get)(env, array, 0, len, into.cast()) }
+			}
+
+			unsafe fn new(env: *mut JNIEnv, len: jsize) -> jarray {
+				// SAFETY: the caller's contract.
+				unsafe { ((**env).v1_2.$new)(env, len) }
+			}
+
+			unsafe fn set(env: *mut JNIEnv, array: jarray, len: jsize, from: *const Self) {
+				// SAFETY: the caller's contract.
+				unsafe { ((**env).v1_2.$set)(env, array, 0, len, from.cast()) }
+			}
+		}
+	)*};
+}
+
+prim! {
+	i8: GetByteArrayRegion, NewByteArray, SetByteArrayRegion;
+	u16: GetShortArrayRegion, NewShortArray, SetShortArrayRegion;
+	i16: GetShortArrayRegion, NewShortArray, SetShortArrayRegion;
+	u32: GetIntArrayRegion, NewIntArray, SetIntArrayRegion;
+	i32: GetIntArrayRegion, NewIntArray, SetIntArrayRegion;
+	u64: GetLongArrayRegion, NewLongArray, SetLongArrayRegion;
+	i64: GetLongArrayRegion, NewLongArray, SetLongArrayRegion;
+	f32: GetFloatArrayRegion, NewFloatArray, SetFloatArrayRegion;
+	f64: GetDoubleArrayRegion, NewDoubleArray, SetDoubleArrayRegion;
+}
+
+/// A primitive array's numbers, copied in one call.
+pub fn block<T: Prim>(env: *mut JNIEnv, array: jarray) -> Vec<T> {
+	if array.is_null() {
+		rt::fail("jni", "a primitive array is null");
 	}
+	// SAFETY: `array` is a live array of `T`'s width the call was given.
+	unsafe {
+		let len = ((**env).v1_2.GetArrayLength)(env, array);
+		let mut items = Vec::<T>::with_capacity(len as usize);
+		T::get(env, array, len, items.as_mut_ptr());
+		items.set_len(len as usize);
+		items
+	}
+}
+
+/// `items` as the C array a call takes, which keeps them.
+pub fn list<T: Copy>(items: &[T]) -> rt::List<T> {
+	rt::List {
+		ptr: items.as_ptr(),
+		len: items.len(),
+		owner: std::ptr::null_mut(),
+	}
+}
+
+/// A new primitive array of the numbers Rust returned, which it frees once copied.
+pub fn new_block<T: Prim>(env: *mut JNIEnv, list: rt::List<T>) -> jarray {
+	// SAFETY: an array Rust returned, freed here once copied.
+	unsafe {
+		let items = list.items("jni");
+		let Ok(len) = jsize::try_from(items.len()) else {
+			rt::fail("jni", "an array is too long for a Kotlin array")
+		};
+		let array = T::new(env, len);
+		if array.is_null() {
+			fail(env, "jni", "a primitive array is out of memory");
+		}
+		T::set(env, array, len, items.as_ptr());
+		list.free("jni", |_| {});
+		array
+	}
+}
+
+/// A `String`'s UTF-8, encoded once, or none for null; or else, for one holding a lone
+/// surrogate, which UTF-8 has no form of, none at all, having thrown.
+pub fn text(env: *mut JNIEnv, text: jstring) -> Option<Option<Vec<u8>>> {
+	match text.is_null() {
+		true => Some(None),
+		false => utf8(env, text).map(Some),
+	}
+}
+
+/// Bytes Rust takes, or none.
+pub fn buf(bytes: Option<Vec<u8>>) -> rt::Buf {
+	bytes.map_or(rt::Buf::NONE, rt::Buf::vec)
+}
+
+/// A live `String`'s UTF-8, or none for one holding a lone surrogate, having thrown. JNI's
+/// own UTF-8 is modified, which differs for NUL and past the BMP, so the UTF-16 is read a
+/// chunk at a time and encoded here, checked as it is.
+fn utf8(env: *mut JNIEnv, text: jstring) -> Option<Vec<u8>> {
+	const CHUNK: usize = 1024;
+	// SAFETY: `text` is a live `String` the call was given.
+	let len = unsafe { ((**env).v1_2.GetStringLength)(env, text) } as usize;
+	let mut out = Vec::with_capacity(len);
+	let mut chunk = [0u16; CHUNK];
+	let mut at = 0;
+	while at < len {
+		let n = (len - at).min(CHUNK);
+		// SAFETY: `at + n` is within the string, and `chunk` holds `n`.
+		unsafe { ((**env).v1_2.GetStringRegion)(env, text, at as jint, n as jint, chunk.as_mut_ptr()) };
+		let mut units = &chunk[..n];
+		// A pair split across chunks is read whole with the next.
+		if at + n < len && (0xD800..0xDC00).contains(&units[n - 1]) {
+			units = &units[..n - 1];
+		}
+		at += units.len();
+		for c in char::decode_utf16(units.iter().copied()) {
+			match c {
+				Ok(c) if c.is_ascii() => out.push(c as u8),
+				Ok(c) => out.extend_from_slice(c.encode_utf8(&mut [0; 4]).as_bytes()),
+				Err(_) => {
+					invalid(env, c"a String with a lone surrogate has no UTF-8, as Rust's text is");
+					return None;
+				}
+			}
+		}
+	}
+	Some(out)
+}
+
+/// `len` bytes of a live `byte[]` from `start`, copied, failing loud past its end, which
+/// Kotlin's `Bytes` checks first.
+fn region(env: *mut JNIEnv, array: jbyteArray, start: jint, len: jint) -> Vec<u8> {
+	let Ok(n) = usize::try_from(len) else {
+		rt::fail("jni", "bytes passed have a negative length")
+	};
+	let mut bytes = Vec::<u8>::with_capacity(n);
+	// SAFETY: `array` is a live `byte[]`; JNI checks the range, throwing past its end.
+	unsafe {
+		((**env).v1_2.GetByteArrayRegion)(env, array, start, len, bytes.as_mut_ptr().cast());
+		if ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, "jni", "bytes passed are past their array's end");
+		}
+		bytes.set_len(n);
+	}
+	bytes
+}
+
+/// Bytes Kotlin passes as a `Bytes` holds them, for Rust to take: none where `len` is -1,
+/// else those from `start` of what a non-zero `owner` holds, shared without a copy, or of
+/// the `byte[]` `held`, copied once.
+///
+/// # Safety
+/// A non-zero `owner` came from [`hand`], and `held` keeps it from being freed.
+pub unsafe fn passed(env: *mut JNIEnv, held: jobject, owner: jlong, start: jint, len: jint) -> rt::Buf {
+	if len == -1 {
+		return rt::Buf::NONE;
+	}
+	if owner != 0 {
+		// SAFETY: the caller's contract.
+		let bytes = unsafe { range(owner, start, len) };
+		let buf = rt::Buf {
+			ptr: bytes.as_ptr(),
+			len: bytes.len(),
+			owner: owner as usize as _,
+		};
+		// SAFETY: as above.
+		return unsafe { buf.share("jni") };
+	}
+	rt::Buf::vec(region(env, held, start, len))
 }
 
 /// A new `byte[]` holding `bytes`.
 pub fn array(env: *mut JNIEnv, bytes: &[u8]) -> jbyteArray {
-	let Ok(len) = jsize::try_from(bytes.len()) else {
+	// SAFETY: `bytes` holds its length in bytes.
+	unsafe { raw_array(env, bytes.as_ptr(), bytes.len()) }
+}
+
+/// A new `byte[]` of the `len` bytes at `bytes`, which JNI copies as they are, so any may
+/// be uninitialized.
+///
+/// # Safety
+/// `bytes` reaches `len` bytes.
+unsafe fn raw_array(env: *mut JNIEnv, bytes: *const u8, len: usize) -> jbyteArray {
+	let Ok(len) = jsize::try_from(len) else {
 		rt::fail("jni", "a buffer is too long for a byte[]")
 	};
-	// SAFETY: `env` is this thread's, and `bytes` holds `len` bytes.
+	// SAFETY: `env` is this thread's, and `bytes` reaches `len` bytes.
 	unsafe {
 		let array = ((**env).v1_2.NewByteArray)(env, len);
 		if array.is_null() {
 			fail(env, "jni", "a byte[] is out of memory");
 		}
-		((**env).v1_2.SetByteArrayRegion)(env, array, 0, len, bytes.as_ptr().cast());
+		((**env).v1_2.SetByteArrayRegion)(env, array, 0, len, bytes.cast());
 		array
 	}
 }
@@ -188,7 +454,7 @@ fn lends(len: usize) -> bool {
 	false
 }
 
-/// A buffer Rust returned or lent, as Kotlin's `Native.owned` takes it: null for none, a
+/// A buffer Rust returned or lent, as Kotlin's `_Native.owned` takes it: null for none, a
 /// `byte[]` copy, freeing the buffer, or where it [`lends`] a `long[]` holding the owner it
 /// lends them through and their length.
 ///
@@ -321,6 +587,14 @@ pub unsafe fn lent(env: *mut JNIEnv, buf: rt::Buf) -> jbyteArray {
 	}
 }
 
+/// Set the first of Kotlin's `long[]` `slots` to `values`: a returned record's scalars,
+/// which cross with no `byte[]` to allocate and decode. Slots shorter than `values` throw.
+pub fn slots(env: *mut JNIEnv, slots: jlongArray, values: &[i64]) {
+	// SAFETY: `env` is this thread's, `slots` a live `long[]` the call was given, and
+	// `values` holds `values.len()` longs, which a record's few scalars fit a `jsize`.
+	unsafe { ((**env).v1_2.SetLongArrayRegion)(env, slots, 0, values.len() as jsize, values.as_ptr()) }
+}
+
 /// A global reference to a Kotlin value, which Rust may hold on any thread.
 pub fn global(env: *mut JNIEnv, value: jobject) -> *mut c_void {
 	if value.is_null() {
@@ -437,16 +711,25 @@ pub unsafe fn give(node: *mut Node) -> rt::Waker {
 	lend(node)
 }
 
-/// Poll a future with a waker, writing its result into the writer if it finished.
-pub type Poll = unsafe fn(*mut c_void, rt::Waker, &mut Writer) -> bool;
+/// Poll a future with a waker, writing its result into the writer if it finished, or a
+/// failed check's status into the last, for a future that is not `Send`.
+pub type Poll = unsafe fn(*mut c_void, rt::Waker, &mut Writer, &mut i32) -> bool;
 
 /// Poll the future just made, and free it if it finished: the call and its first poll are
-/// one crossing. Its result is a bool, true when finished, then the result, or else the
+/// one crossing. Its writer holds a bool, true when finished, then the result, or else the
 /// future and the waker node made for `signal`, which Kotlin polls and frees.
 ///
 /// # Safety
 /// `future` is a live future that `poll` and `free` take, and `signal` a Kotlin `Waker`.
-pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll: Poll, free: unsafe fn(*mut c_void)) -> jbyteArray {
+/// None once a poll's check failed, which throws as the native method returns.
+pub unsafe fn start(
+	env: *mut JNIEnv,
+	future: *mut c_void,
+	signal: jobject,
+	poll: Poll,
+	free: unsafe fn(*mut c_void),
+	what: &str,
+) -> Option<Writer> {
 	let mut w = Writer::default();
 	w.put(true);
 	// Most futures are ready at once, so the first poll takes no waker: a node costs a
@@ -456,28 +739,36 @@ pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll
 		drop: None,
 		data: std::ptr::null_mut(),
 	};
+	let mut status = 0;
 	// SAFETY: the caller's contract.
-	if unsafe { poll(future, none, &mut w) } {
-		// SAFETY: as above, and it finished.
+	let ready = unsafe { poll(future, none, &mut w, &mut status) };
+	if ready || status != 0 {
+		// SAFETY: as above, and it finished, or is never polled again.
 		unsafe { free(future) };
-		return w.array(env);
+		return match status {
+			0 => Some(w),
+			_ => {
+				refuse::<()>(env, status, what);
+				None
+			}
+		};
 	}
 	// Pending, so polled again with the waker it parks on, which replaces the first.
 	let node = node(env, signal);
 	// SAFETY: as above, and `node` holds a reference for this.
-	if unsafe { poll(future, give(node), &mut w) } {
+	if unsafe { poll(future, give(node), &mut w, &mut status) } {
 		// SAFETY: as above.
 		unsafe {
 			free(future);
 			unref(node.cast());
 		}
-		return w.array(env);
+		return Some(w);
 	}
 	let mut w = Writer::default();
 	w.put(false);
 	w.put(future);
 	w.put(node.cast::<c_void>());
-	w.array(env)
+	Some(w)
 }
 
 /// Poll `future` again with `node`, whose reference Rust holds from the first poll that
@@ -485,12 +776,18 @@ pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll
 ///
 /// # Safety
 /// `future` is a live future that `poll` takes, and Rust holds a reference to `node`.
-pub unsafe fn poll(env: *mut JNIEnv, future: *mut c_void, node: *mut Node, poll: Poll) -> jbyteArray {
+/// A failed check throws as the native method returns, which ignores its null.
+pub unsafe fn poll(env: *mut JNIEnv, future: *mut c_void, node: *mut Node, poll: Poll, what: &str) -> Option<Writer> {
 	let mut w = Writer::default();
+	let mut status = 0;
 	// SAFETY: the caller's contract.
-	match unsafe { poll(future, lend(node), &mut w) } {
-		true => w.array(env),
-		false => std::ptr::null_mut(),
+	match unsafe { poll(future, lend(node), &mut w, &mut status) } {
+		true => Some(w),
+		false if status != 0 => {
+			refuse::<()>(env, status, what);
+			None
+		}
+		false => None,
 	}
 }
 
@@ -604,6 +901,23 @@ fn caught(env: *mut JNIEnv, what: &str, cache: &OnceLock<usize>, name: &CStr) ->
 	}
 }
 
+static FAILED: OnceLock<usize> = OnceLock::new();
+
+/// Raise the error a function returned, encoded in `w`, as the `_Native.__Failed` Kotlin turns
+/// into its exception: a call's success path then returns its value with no `byte[]`.
+pub fn raise(env: *mut JNIEnv, w: Writer) {
+	let id = method(env, &FAILED, c"__failed", c"([B)Ljava/lang/Throwable;");
+	let args = [jvalue { l: w.array(env) }];
+	// SAFETY: `env` is this thread's, and `__failed` takes the error's bytes.
+	unsafe {
+		let failed = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+		if failed.is_null() || ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, "jni", "a call into Kotlin threw");
+		}
+		((**env).v1_2.Throw)(env, failed);
+	}
+}
+
 /// A Kotlin `Waker` passed by value: Rust holds its only reference.
 pub fn waker(env: *mut JNIEnv, waker: jobject) -> rt::Waker {
 	lend(node(env, waker))
@@ -637,11 +951,110 @@ pub unsafe fn drop_returned(raw: jlong) {
 pub struct Reader<'a> {
 	bytes: &'a [u8],
 	arrays: Vec<Box<dyn std::any::Any>>,
+	/// The call's thread, and the arrays the encoding names by place.
+	env: *mut JNIEnv,
+	refs: jobjectArray,
+	/// The UTF-8 of each text the encoding names, in order, and how many it has read.
+	texts: Vec<Vec<u8>>,
+	read: usize,
+	/// Whether the value read is one Rust takes, so Rust's own bytes in it, outside an
+	/// array, cross as a second owner of them rather than a view.
+	take: bool,
 }
 
 impl<'a> Reader<'a> {
-	pub fn new(bytes: &'a [u8]) -> Self {
-		Self { bytes, arrays: Vec::new() }
+	/// A reader of a value Rust only reads, as through a pointer, whose encoding names
+	/// the objects of `refs` by place, with the place of each text after it; or none,
+	/// having thrown, if a text holds a lone surrogate. Each text is encoded before any of
+	/// the value is read, so nothing read needs freeing when one throws.
+	pub fn new(env: *mut JNIEnv, bytes: &'a [u8], refs: jobjectArray) -> Option<Self> {
+		let mut r = Self::plain(bytes);
+		if refs.is_null() {
+			return Some(r);
+		}
+		(r.env, r.refs) = (env, refs);
+		let count = r.trailer(1)[0];
+		let places = r.trailer(count as usize);
+		r.texts = Vec::with_capacity(places.len());
+		for place in places {
+			let text = r.object(place, |env, text| utf8(env, text))?;
+			r.texts.push(text);
+		}
+		Some(r)
+	}
+
+	/// A reader of a value passed by value, which Rust takes.
+	pub fn taking(env: *mut JNIEnv, bytes: &'a [u8], refs: jobjectArray) -> Option<Self> {
+		Self::new(env, bytes, refs).map(|r| Self { take: true, ..r })
+	}
+
+	/// A reader of a value that names no object, as a callback's return.
+	pub fn plain(bytes: &'a [u8]) -> Self {
+		Self {
+			bytes,
+			arrays: Vec::new(),
+			env: std::ptr::null_mut(),
+			refs: std::ptr::null_mut(),
+			texts: Vec::new(),
+			read: 0,
+			take: false,
+		}
+	}
+
+	/// The last `n` `i32`s of the encoding, taken off its end.
+	fn trailer(&mut self, n: usize) -> Vec<i32> {
+		let Some(at) = self.bytes.len().checked_sub(4 * n) else {
+			rt::fail("jni", "an encoded value is truncated");
+		};
+		let (head, tail) = self.bytes.split_at(at);
+		self.bytes = head;
+		tail.chunks_exact(4)
+			.map(|b| i32::from_le_bytes(b.try_into().expect("4 bytes")))
+			.collect()
+	}
+
+	/// What `make` makes of the object at `at` of `refs`.
+	fn object<T>(&mut self, at: i32, make: impl FnOnce(*mut JNIEnv, jobject) -> T) -> T {
+		if self.refs.is_null() {
+			rt::fail("jni", "an encoded value names an object, but none were passed");
+		}
+		let env = self.env;
+		// SAFETY: `refs` is the live `Object[]` the call was given; JNI throws past its end.
+		let object = unsafe { ((**env).v1_2.GetObjectArrayElement)(env, self.refs, at) };
+		// SAFETY: as above.
+		if object.is_null() || unsafe { ((**env).v1_2.ExceptionCheck)(env) } {
+			fail(env, "jni", "an encoded value names no object");
+		}
+		let made = make(env, object);
+		// SAFETY: a local reference made here.
+		unsafe { ((**env).v1_2.DeleteLocalRef)(env, object) };
+		made
+	}
+
+	/// The next text the encoding names, as [`Self::kept`] keeps it.
+	fn text(&mut self) -> rt::Buf {
+		let Some(text) = self.texts.get_mut(self.read) else {
+			rt::fail("jni", "an encoded value names more text than it has");
+		};
+		self.read += 1;
+		match self.take {
+			true => rt::Buf::vec(std::mem::take(text)),
+			// The vector's heap block, which the view reads, stays put until the reader drops.
+			false => rt::Buf::view(text),
+		}
+	}
+
+	/// Bytes made once by `make` from the object at `at` of `refs`: taken where the reader
+	/// takes, else kept until it drops and read in place.
+	fn referred(&mut self, at: i32, make: impl FnOnce(*mut JNIEnv, jobject) -> Vec<u8>) -> rt::Buf {
+		let bytes = self.object(at, make);
+		if self.take {
+			return rt::Buf::vec(bytes);
+		}
+		let view = rt::Buf::view(&bytes);
+		// The vector's heap block, which the view reads, stays put as the box moves.
+		self.arrays.push(Box::new(bytes));
+		view
 	}
 
 	fn take(&mut self, n: usize) -> &'a [u8] {
@@ -659,13 +1072,13 @@ impl<'a> Reader<'a> {
 }
 
 thread_local! {
-	/// The buffer a writer encodes into, kept between calls so a result allocates nothing
-	/// but its `byte[]`.
-	static SCRATCH: Cell<Vec<u8>> = const { Cell::new(Vec::new()) };
+	/// The native codec buffer, kept between calls and lent only while a return factory runs.
+	static SCRATCH: Cell<Vec<MaybeUninit<u8>>> = const { Cell::new(Vec::new()) };
 }
 
-/// Values encoded into a `byte[]` for Kotlin.
-pub struct Writer(Vec<u8>);
+/// Values encoded into a `byte[]` for Kotlin. It holds `MaybeUninit` bytes, the units an
+/// opaque value's C struct is made of, and hands JNI them by pointer.
+pub struct Writer(Vec<MaybeUninit<u8>>);
 
 impl Default for Writer {
 	fn default() -> Self {
@@ -690,7 +1103,85 @@ impl Writer {
 	}
 
 	pub fn array(self, env: *mut JNIEnv) -> jbyteArray {
-		array(env, &self.0)
+		// SAFETY: the vector holds its length in bytes, which JNI copies as they are.
+		unsafe { raw_array(env, self.0.as_ptr().cast(), self.0.len()) }
+	}
+
+	fn extend(&mut self, bytes: &[u8]) {
+		// SAFETY: a `u8` is a `MaybeUninit<u8>`.
+		self.0.extend_from_slice(unsafe { &*(std::ptr::from_ref(bytes) as *const [MaybeUninit<u8>]) });
+	}
+
+	/// Construct a Kotlin value while this writer's native buffer is alive. The generated
+	/// factory reads it completely and retains neither the buffer nor its reader.
+	pub fn value(self, env: *mut JNIEnv, cache: &OnceLock<usize>, name: &CStr, back: jobject) -> jobject {
+		let id = method(env, cache, name, c"(Ljava/nio/ByteBuffer;[Ljava/lang/Object;)Ljava/lang/Object;");
+		let len = i32::try_from(self.0.len()).unwrap_or_else(|_| rt::fail("jni", "a value is too large for a ByteBuffer"));
+		// SAFETY: this writer owns the allocation through the synchronous factory call.
+		// Even an empty Vec has a non-null aligned pointer. Kotlin cannot retain the view.
+		unsafe {
+			let buffer = ((**env).v1_4.NewDirectByteBuffer)(env, self.0.as_ptr() as *mut c_void, len as jlong);
+			if buffer.is_null() {
+				fail(env, "jni", "cannot make a return buffer");
+			}
+			let args = [jvalue { l: buffer }, jvalue { l: back }];
+			let result = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+			// A declared Rust error is thrown by the factory, after applying writebacks.
+			// Leave it pending for the JVM, including a null success such as Option::None.
+			((**env).v1_2.DeleteLocalRef)(env, buffer);
+			result
+		}
+	}
+}
+
+/// An opaque value's C struct from the `W` `long`s Kotlin holds it in: its bytes, in the
+/// words' order, as [`to_words`] put them.
+pub fn from_words<T: Copy, const W: usize>(words: [jlong; W]) -> T {
+	const { assert!(size_of::<T>() <= W * size_of::<jlong>()) };
+	let mut value = std::mem::MaybeUninit::<T>::zeroed();
+	// SAFETY: `T` is a struct of `MaybeUninit` units, any bytes of which are one.
+	unsafe {
+		std::ptr::copy_nonoverlapping(words.as_ptr().cast::<u8>(), value.as_mut_ptr().cast::<u8>(), size_of::<T>());
+		value.assume_init()
+	}
+}
+
+/// The `W` `long`s Kotlin holds an opaque value's C struct in: its bytes, then zeros.
+/// Kotlin compares a value class of one by it.
+pub fn to_words<T: Copy, const W: usize>(value: T) -> [jlong; W] {
+	const { assert!(size_of::<T>() <= W * size_of::<jlong>()) };
+	let mut words = [0; W];
+	// SAFETY: an opaque value's C struct initializes every byte, as the glue makes it.
+	unsafe { std::ptr::copy_nonoverlapping((&raw const value).cast::<u8>(), words.as_mut_ptr().cast::<u8>(), size_of::<T>()) };
+	words
+}
+
+/// An opaque value's C struct as it crosses encoded: the `W` words Kotlin holds it in,
+/// whose little-endian bytes are its own on a little-endian target.
+pub fn read_words<T: Copy, const W: usize>(r: &mut Reader<'_>) -> T {
+	const { assert!(size_of::<T>() <= W * size_of::<jlong>() && cfg!(target_endian = "little")) };
+	let bytes = r.take(W * size_of::<jlong>());
+	let mut value = std::mem::MaybeUninit::<T>::zeroed();
+	// SAFETY: `T` is a struct of `MaybeUninit` units, any bytes of which are one.
+	unsafe {
+		std::ptr::copy_nonoverlapping(bytes.as_ptr(), value.as_mut_ptr().cast::<u8>(), size_of::<T>());
+		value.assume_init()
+	}
+}
+
+/// Encode an opaque value's C struct as the `W` words Kotlin holds it in: its bytes, then
+/// zeros.
+pub fn write_words<T: Copy, const W: usize>(w: &mut Writer, value: T) {
+	const { assert!(size_of::<T>() <= W * size_of::<jlong>() && cfg!(target_endian = "little")) };
+	let n = W * size_of::<jlong>();
+	w.0.reserve(n);
+	let start = w.0.len();
+	// SAFETY: the vector has room for `n` more bytes, each written before its length grows.
+	unsafe {
+		let at = w.0.as_mut_ptr().add(start).cast::<u8>();
+		std::ptr::write_bytes(at, 0, n);
+		std::ptr::copy_nonoverlapping((&raw const value).cast::<u8>(), at, size_of::<T>());
+		w.0.set_len(start + n);
 	}
 }
 
@@ -709,7 +1200,7 @@ macro_rules! scalar {
 			}
 
 			fn write(self, w: &mut Writer) {
-				w.0.extend_from_slice(&self.to_le_bytes());
+				w.extend(&self.to_le_bytes());
 			}
 		}
 	)*};
@@ -723,7 +1214,7 @@ impl<const N: usize> Wire for [u8; N] {
 	}
 
 	fn write(self, w: &mut Writer) {
-		w.0.extend_from_slice(&self);
+		w.extend(&self);
 	}
 }
 
@@ -738,7 +1229,8 @@ impl Wire for bool {
 }
 
 /// What crosses as 64 bits, at the target's width: on a 32-bit target, a value past it
-/// has no `usize` or `isize` to be.
+/// has no `usize` or `isize` to be, which Kotlin's `__usize` and `__isize` throw on before
+/// it crosses, so this never fails for a value Kotlin passes.
 pub fn narrow<T: TryFrom<W>, W>(wide: W) -> T {
 	match T::try_from(wide) {
 		Ok(v) => v,
@@ -799,11 +1291,38 @@ impl Wire for rt::Waker {
 }
 
 impl Wire for rt::Buf {
-	/// A view of the encoded bytes, which outlive the call.
+	/// A view of the encoded bytes, or after [`LENT`] of those Rust lent Kotlin, in place,
+	/// either of which outlives the call.
 	fn read(r: &mut Reader<'_>) -> Self {
-		match usize::try_from(r.get::<i32>()) {
-			Ok(len) => rt::Buf::view(r.take(len)),
-			Err(_) => rt::Buf::NONE,
+		match r.get::<i32>() {
+			LENT => {
+				let owner = r.get::<i64>();
+				let (start, len) = (r.get::<i32>(), r.get::<i32>());
+				// SAFETY: an owner Kotlin keeps from being freed until the call returns.
+				let bytes = unsafe { range(owner, start, len) };
+				let view = rt::Buf::view(bytes);
+				match r.take {
+					false => view,
+					// SAFETY: as above.
+					true => unsafe {
+						rt::Buf {
+							owner: owner as usize as _,
+							..view
+						}
+						.share("jni")
+					},
+				}
+			}
+			KOTLIN => {
+				let at = r.get::<i32>();
+				let (start, len) = (r.get::<i32>(), r.get::<i32>());
+				r.referred(at, |env, array| region(env, array, start, len))
+			}
+			TEXT => r.text(),
+			len => match usize::try_from(len) {
+				Ok(len) => rt::Buf::view(r.take(len)),
+				Err(_) => rt::Buf::NONE,
+			},
 		}
 	}
 
@@ -818,7 +1337,7 @@ impl Wire for rt::Buf {
 			rt::fail("jni", "a buffer is too long for a byte[]")
 		};
 		w.put(len);
-		w.0.extend_from_slice(bytes);
+		w.extend(bytes);
 		// SAFETY: as above.
 		unsafe { self.free() };
 	}
@@ -829,6 +1348,14 @@ pub struct Owned<T>(pub T);
 
 /// What precedes a lent buffer's owner where an encoded one's length would.
 const LENT: i32 = -2;
+
+/// What precedes the place in a call's objects of Kotlin's `byte[]`, then where its bytes
+/// start and how many, where an encoded buffer's length would.
+const KOTLIN: i32 = -3;
+
+/// What marks the next of a call's texts, which its objects hold, where an encoded buffer's
+/// length would.
+const TEXT: i32 = -4;
 
 impl Wire for Owned<rt::Buf> {
 	fn read(_: &mut Reader<'_>) -> Self {
@@ -853,7 +1380,7 @@ impl Wire for Owned<rt::Buf> {
 			w.put(len);
 			// SAFETY: a buffer Rust returned or lent, freed here once copied.
 			unsafe {
-				w.0.extend_from_slice(buf.bytes("jni"));
+				w.extend(buf.bytes("jni"));
 				buf.free();
 			}
 		}
@@ -912,23 +1439,95 @@ impl Wire for rt::Duration {
 	}
 }
 
-impl Wire for rt::SocketAddr {
+impl Wire for rt::Ipv4Addr {
 	fn read(r: &mut Reader<'_>) -> Self {
 		Self {
-			ip: std::array::from_fn(|_| r.get()),
+			octets: std::array::from_fn(|_| r.get()),
+		}
+	}
+
+	fn write(self, w: &mut Writer) {
+		self.octets.into_iter().for_each(|b| w.put(b));
+	}
+}
+
+impl Wire for rt::Ipv6Addr {
+	fn read(r: &mut Reader<'_>) -> Self {
+		Self {
+			octets: std::array::from_fn(|_| r.get()),
+		}
+	}
+
+	fn write(self, w: &mut Writer) {
+		self.octets.into_iter().for_each(|b| w.put(b));
+	}
+}
+
+/// Whether it is IPv6, then the address of its family.
+impl Wire for rt::IpAddr {
+	fn read(r: &mut Reader<'_>) -> Self {
+		match r.get::<bool>() {
+			true => Self::lower(r.get::<rt::Ipv6Addr>().lift().into()),
+			false => Self::lower(r.get::<rt::Ipv4Addr>().lift().into()),
+		}
+	}
+
+	fn write(self, w: &mut Writer) {
+		w.put(self.v6);
+		match self.lift() {
+			std::net::IpAddr::V4(ip) => w.put(rt::Ipv4Addr::lower(ip)),
+			std::net::IpAddr::V6(ip) => w.put(rt::Ipv6Addr::lower(ip)),
+		}
+	}
+}
+
+impl Wire for rt::SocketAddrV4 {
+	fn read(r: &mut Reader<'_>) -> Self {
+		Self {
+			ip: r.get(),
 			port: r.get(),
-			v6: r.get(),
+		}
+	}
+
+	fn write(self, w: &mut Writer) {
+		w.put(self.ip);
+		w.put(self.port);
+	}
+}
+
+impl Wire for rt::SocketAddrV6 {
+	fn read(r: &mut Reader<'_>) -> Self {
+		Self {
+			ip: r.get(),
+			port: r.get(),
 			flowinfo: r.get(),
 			scope_id: r.get(),
 		}
 	}
 
 	fn write(self, w: &mut Writer) {
-		self.ip.into_iter().for_each(|b| w.put(b));
+		w.put(self.ip);
 		w.put(self.port);
-		w.put(self.v6);
 		w.put(self.flowinfo);
 		w.put(self.scope_id);
+	}
+}
+
+/// Whether it is IPv6, then the address of its family.
+impl Wire for rt::SocketAddr {
+	fn read(r: &mut Reader<'_>) -> Self {
+		match r.get::<bool>() {
+			true => Self::lower(r.get::<rt::SocketAddrV6>().lift().into()),
+			false => Self::lower(r.get::<rt::SocketAddrV4>().lift().into()),
+		}
+	}
+
+	fn write(self, w: &mut Writer) {
+		w.put(self.v6);
+		match self.lift() {
+			std::net::SocketAddr::V4(addr) => w.put(rt::SocketAddrV4::lower(addr)),
+			std::net::SocketAddr::V6(addr) => w.put(rt::SocketAddrV6::lower(addr)),
+		}
 	}
 }
 
@@ -939,7 +1538,10 @@ impl<T: Wire + Copy + 'static> Wire for rt::List<T> {
 		let Ok(len) = usize::try_from(r.get::<i32>()) else {
 			return Self::NONE;
 		};
+		// Rust only reads an array's items.
+		let take = std::mem::replace(&mut r.take, false);
 		let items: Box<[T]> = (0..len).map(|_| r.get()).collect();
+		r.take = take;
 		let list = Self {
 			ptr: items.as_ptr(),
 			len,

@@ -211,7 +211,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 				match info.repr {
 					AdtRepr::Struct { ctor, fields } => {
 						let values = (def.fields.iter().zip(values))
-							.map(|(field, v)| self.t.field_value(v, adt.did(), field.did, args, span))
+							.map(|(field, v)| self.t.field_value(v, adt.did(), field.did, *args, span))
 							.collect();
 						self.t.construct(info.sym, &ctor, &fields, values)
 					}

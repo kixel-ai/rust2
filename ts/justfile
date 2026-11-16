@@ -19,8 +19,8 @@ bindgen := "fixtures/bindgen/Cargo.toml"
 # The WebCodecs fixture, its own workspace like the wasm-bindgen fixture, behind web-sys's unstable APIs.
 encoder := "fixtures/encoder/Cargo.toml"
 
-# The moq revision `moq` and `census` translate and `just ffi` exports by default: the one
-# the model fixture builds. Read without taplo, which the nightly's runners outside Nix lack.
+# The moq revision `moq` and `census` translate by default: the one the model fixture builds.
+# The exporter has its own pin in ffi/justfile. Read without taplo, which the nightly's runners outside Nix lack.
 moq_rev_match := replace_regex(read(model), '(?s).*\nmoq-net = \{[^\n]*\brev = "([0-9a-f]{40})".*', '$1')
 moq_rev := if moq_rev_match =~ '^[0-9a-f]{40}$' { moq_rev_match } else { error("no moq-net rev in " + model) }
 

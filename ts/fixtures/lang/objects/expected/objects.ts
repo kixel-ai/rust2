@@ -149,12 +149,24 @@ export function replaceCaptured(a: rs.Slice<rs.u16>, to: rs.u16): rs.u16[] {
 
 /** A pinned box is what it holds in JS: here a `Vec`, whose length changes. */
 export function repinAll(v: rs.Vec<rs.Arc<rs.u8>>, with_: rs.Arc<rs.u8>, n: rs.u8): rs.usize {
-	const old: rs.Vec<rs.Arc<rs.u8>> = rs.replaceIn(v, rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(n, 3)), (_2: rs.u8): rs.Arc<rs.u8> => {
-		return rs.arcClone(with_);
-	}), undefined, 4, true));
-	const _12: rs.Vec<rs.Arc<rs.u8>> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(n, 4)), (_22: rs.u8): rs.Arc<rs.u8> => {
-		return rs.arcClone(with_);
-	}), undefined, 4, true);
+	let start = 0;
+	let end = rs.u8Rem(n, 3);
+	const v2: rs.Vec<rs.Arc<rs.u8>> = rs.vecWithCapacity(Math.max(end - start, 0), 4);
+	while (!(start >= end)) {
+		start++;
+		const y: rs.Arc<rs.u8> = rs.arcClone(with_);
+		v2.items.push(y);
+	}
+	const old: rs.Vec<rs.Arc<rs.u8>> = rs.replaceIn(v, v2);
+	let start2 = 0;
+	let end2 = rs.u8Rem(n, 4);
+	const v3: rs.Vec<rs.Arc<rs.u8>> = rs.vecWithCapacity(Math.max(end2 - start2, 0), 4);
+	while (!(start2 >= end2)) {
+		start2++;
+		const y2: rs.Arc<rs.u8> = rs.arcClone(with_);
+		v3.items.push(y2);
+	}
+	const _12: rs.Vec<rs.Arc<rs.u8>> = v3;
 	rs.dropVec(v);
 	Object.assign(v, _12);
 	const _0: rs.usize = old.items.length;
@@ -179,11 +191,16 @@ export function swapAll(a: rs.Vec<rs.Arc<rs.u8>>, b: rs.Vec<rs.Arc<rs.u8>>): voi
 }
 
 export function refill(v: rs.Vec<rs.Arc<rs.u8>>, bytes: rs.ByteVec, with_: rs.Arc<rs.u8>, n: rs.u8): void {
-	const _5: rs.Vec<rs.Arc<rs.u8>> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(n, 4)), (_2: rs.u8): rs.Arc<rs.u8> => {
-		return rs.arcClone(with_);
-	}), undefined, 4, true);
+	let start = 0;
+	let end = rs.u8Rem(n, 4);
+	const v2: rs.Vec<rs.Arc<rs.u8>> = rs.vecWithCapacity(Math.max(end - start, 0), 4);
+	while (!(start >= end)) {
+		start++;
+		const y: rs.Arc<rs.u8> = rs.arcClone(with_);
+		v2.items.push(y);
+	}
 	rs.dropVec(v);
-	Object.assign(v, _5);
+	Object.assign(v, v2);
 	Object.assign(bytes, rs.byteVecOf(n, rs.u8Rem(n, 3) as rs.usize));
 }
 
@@ -223,17 +240,24 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const by: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 5);
 	const one: rs.Arc<rs.u8> = new rs.Arc(by);
 	const two: rs.Arc<rs.u8> = new rs.Arc(rs.u8WrappingAdd(by, 1));
-	const v: rs.Vec<rs.Arc<rs.u8>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.Arc<rs.u8> => {
-		return rs.arcClone(one);
-	}), undefined, 4, true);
-	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
-	while (true) {
-		const _18: [rs.usize, rs.u8] | rs.Done = iter.next();
-		if (_18 === rs.DONE) {
-			break;
-		}
-		const i: rs.usize = _18[0];
-		const b: rs.u8 = _18[1];
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v2: rs.Vec<rs.Arc<rs.u8>> = rs.vecWithCapacity(back - front, 4);
+	while (!(front >= back)) {
+		s[front++];
+		const y: rs.Arc<rs.u8> = rs.arcClone(one);
+		v2.items.push(y);
+	}
+	const v: rs.Vec<rs.Arc<rs.u8>> = v2;
+	const s2: Uint8Array = rs.byteSliceView(data);
+	let front2: number = 0;
+	const back2: number = s2.length;
+	let count: number = 0;
+	while (!(front2 >= back2)) {
+		const x4 = s2[front2++];
+		const i: rs.usize = count++;
+		const b: rs.u8 = x4;
 		const _23: rs.Place<rs.Arc<rs.u8>> | undefined = rs.sliceGetMut(rs.sliceFrom(v.items), rs.usizeRem(b as rs.usize, rs.usizeAdd(data.length, 1)));
 		if (_23 !== undefined) {
 			const _34: rs.Arc<rs.u8> = rs.arcClone(two);
@@ -295,7 +319,14 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _122: rs.usize = rs.u8Rem(_116, 16) as rs.usize;
 		reserve(rs.place(() => buffer, (value2) => buffer = value2), _122);
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(buffer.value.length & 0xff, reader.value.length & 0xff)));
+	const dst = out;
+	const byte2 = buffer.value.length & 0xff;
+	const byte3 = reader.value.length & 0xff;
+	rs.byteVecReserve(dst, 2 as rs.usize);
+	const pos = dst.length;
+	dst.data[pos + 0] = byte2;
+	dst.data[pos + 1] = byte3;
+	dst.length = dst.length + 2;
 	rs.byteVecPush(out, reader.strong & 0xff);
 	let pinned: rs.Arc<rs.u8> = new rs.Arc(by);
 	const _145: rs.u8 = rs.u8WrappingAdd(by, 7);
@@ -305,12 +336,42 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let boxed: rs.Arc<rs.u8> = rs.arcClone(held);
 	const _156: rs.u8 = rs.u8WrappingAdd(by, 9);
 	rebox(rs.place(() => boxed, (value4) => boxed = value4), _156);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(boxed.value, held.strong & 0xff)));
+	const dst2 = out;
+	const byte4 = boxed.value;
+	const byte5 = held.strong & 0xff;
+	rs.byteVecReserve(dst2, 2 as rs.usize);
+	const pos2 = dst2.length;
+	dst2.data[pos2 + 0] = byte4;
+	dst2.data[pos2 + 1] = byte5;
+	dst2.length = dst2.length + 2;
 	const lent: rs.Arc<rs.u8> = held;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(lent.strong & 0xff, lent.value, through$ref_Pin_sync_Arc_u8(pinned))));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(throughArc$ref_sync_Arc_u8(held), throughMutex$ref_sync_Mutex_u8(lockedBy(by)))));
+	const dst3 = out;
+	const byte6 = lent.strong & 0xff;
+	const byte7 = lent.value;
+	const byte8 = through$ref_Pin_sync_Arc_u8(pinned);
+	rs.byteVecReserve(dst3, 3 as rs.usize);
+	const pos3 = dst3.length;
+	dst3.data[pos3 + 0] = byte6;
+	dst3.data[pos3 + 1] = byte7;
+	dst3.data[pos3 + 2] = byte8;
+	dst3.length = dst3.length + 3;
+	const dst4 = out;
+	const byte9 = throughArc$ref_sync_Arc_u8(held);
+	const byte10 = throughMutex$ref_sync_Mutex_u8(lockedBy(by));
+	rs.byteVecReserve(dst4, 2 as rs.usize);
+	const pos4 = dst4.length;
+	dst4.data[pos4 + 0] = byte9;
+	dst4.data[pos4 + 1] = byte10;
+	dst4.length = dst4.length + 2;
 	let _199: rs.Arc<rs.u8> = rs.arcClone(held);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(throughArc$mut_sync_Arc_u8(rs.place(() => _199, (value5) => _199 = value5)), through$mut_Pin_sync_Arc_u8(rs.place(() => pinned, (value6) => pinned = value6)))));
+	const dst5 = out;
+	const byte11 = throughArc$mut_sync_Arc_u8(rs.place(() => _199, (value5) => _199 = value5));
+	const byte12 = through$mut_Pin_sync_Arc_u8(rs.place(() => pinned, (value6) => pinned = value6));
+	rs.byteVecReserve(dst5, 2 as rs.usize);
+	const pos5 = dst5.length;
+	dst5.data[pos5 + 0] = byte11;
+	dst5.data[pos5 + 1] = byte12;
+	dst5.length = dst5.length + 2;
 	_199[Symbol.dispose]();
 	rs.byteVecPush(out, throughMutex$mut_sync_Mutex_u8(lockedBy(by)));
 	let byte: rs.u8 = by;
@@ -341,7 +402,14 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, pinnedByte);
 	let owned: rs.Arc<rs.u8> = rs.arcClone(held);
 	const lent2: rs.Place<rs.Arc<rs.u8>> = rs.place(() => owned, (value14) => owned = value14);
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(lent2.v.strong & 0xff, lent2.v.value)));
+	const dst6 = out;
+	const byte13 = lent2.v.strong & 0xff;
+	const byte14 = lent2.v.value;
+	rs.byteVecReserve(dst6, 2 as rs.usize);
+	const pos6 = dst6.length;
+	dst6.data[pos6 + 0] = byte13;
+	dst6.data[pos6 + 1] = byte14;
+	dst6.length = dst6.length + 2;
 	const locked: rs.Mutex<rs.Vec<rs.Arc<rs.u8>>> = new rs.Mutex(v);
 	const _287: rs.Mutex<rs.Vec<rs.Arc<rs.u8>>> = rs.mutexLock(locked);
 	const taken3 = _287.value;
@@ -395,7 +463,14 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), "next", 2);
 	rs.sliceSort(rs.sliceFrom(keys.items), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 2, true);
 	for (const _394 of keys.items) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_394[0], _394[1])));
+		const dst7 = out;
+		const byte15 = _394[0];
+		const byte16 = _394[1];
+		rs.byteVecReserve(dst7, 2 as rs.usize);
+		const pos7 = dst7.length;
+		dst7.data[pos7 + 0] = byte15;
+		dst7.data[pos7 + 1] = byte16;
+		dst7.length = dst7.length + 2;
 	}
 	const _404: rs.Vec<rs.Arc<rs.u8>> = rs.vecFrom([rs.arcClone(one)]);
 	const w: Window.Window = new Window.Window(by, _404);
@@ -469,10 +544,35 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 			swapWindows(a, b7);
 		}
 		const old2: rs.u16[] = replaceCaptured(rs.sliceFrom(array), x as rs.u16);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(old2[0] & 0xff, old2[1] & 0xff)));
+		const dst8 = out;
+		const byte17 = old2[0] & 0xff;
+		const byte18 = old2[1] & 0xff;
+		rs.byteVecReserve(dst8, 2 as rs.usize);
+		const pos8 = dst8.length;
+		dst8.data[pos8 + 0] = byte17;
+		dst8.data[pos8 + 1] = byte18;
+		dst8.length = dst8.length + 2;
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a.start, a.held.items.length & 0xff, b7.start, b7.held.items.length & 0xff)));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(array[0] & 0xff, array[1] & 0xff)));
+	const dst9 = out;
+	const byte19 = a.start;
+	const byte20 = a.held.items.length & 0xff;
+	const byte21 = b7.start;
+	const byte22 = b7.held.items.length & 0xff;
+	rs.byteVecReserve(dst9, 4 as rs.usize);
+	const pos9 = dst9.length;
+	dst9.data[pos9 + 0] = byte19;
+	dst9.data[pos9 + 1] = byte20;
+	dst9.data[pos9 + 2] = byte21;
+	dst9.data[pos9 + 3] = byte22;
+	dst9.length = dst9.length + 4;
+	const dst10 = out;
+	const byte23 = array[0] & 0xff;
+	const byte24 = array[1] & 0xff;
+	rs.byteVecReserve(dst10, 2 as rs.usize);
+	const pos10 = dst10.length;
+	dst10.data[pos10 + 0] = byte23;
+	dst10.data[pos10 + 1] = byte24;
+	dst10.length = dst10.length + 2;
 	const wakes: rs.Arc<Wakes.Wakes> = new rs.Arc({ _0: new rs.Atomic(0) });
 	const counting: rs.Waker = rs.arcWaker(rs.arcClone(wakes), Wakes.wake$task_Wake as (a0: rs.Arc<Wakes.Wakes>) => undefined, (arc: rs.Arc<Wakes.Wakes>) => arc[Symbol.dispose]());
 	const noop: rs.Waker = rs.NOOP_WAKER.clone();

@@ -177,7 +177,7 @@ impl<'tcx> Translator<'tcx> {
 	}
 
 	/// A field's monomorphic type.
-	fn field_of(&self, field: &ty::FieldDef, args: ty::GenericArgsRef<'tcx>) -> Ty<'tcx> {
+	fn field_of(&self, field: &ty::FieldDef, args: ty::GenericArgs<'tcx>) -> Ty<'tcx> {
 		let fty = field.ty(self.tcx, args).skip_norm_wip();
 		self.tcx
 			.normalize_erasing_regions(self.env(), ty::Unnormalized::new_wip(fty))

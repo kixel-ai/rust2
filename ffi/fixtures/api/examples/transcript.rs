@@ -116,10 +116,14 @@ fn main() {
 		("low".to_string(), Counter::new("l", 1)),
 		("high".to_string(), Counter::new("h", 9)),
 	]);
+	// The counters a board returns build another, each handle moved back in.
+	let board = api::Board::new(board.into_counters());
 	let ranked: Vec<String> = (board.ranked())
 		.map(|(name, counter)| format!("{name} {} {}", counter.name(), counter.get()))
 		.collect();
 	println!("ranked {}", ranked.join(", "));
+	let best: Counter = board.best().into();
+	println!("best {} {}", best.name(), best.get());
 	let atlas = api::Atlas {
 		points: [("b", 1, 1), ("ab", 2, 3), ("b", 4, 4)]
 			.into_iter()
@@ -213,13 +217,12 @@ fn main() {
 		scaled((1 << 64) + 1, 1 << 63),
 		scaled(1 << 127, 2)
 	);
-	let hex = |sum: [u8; 4]| sum.iter().map(|b| format!("{b:02x}")).collect::<String>();
 	let mut digest = api::Digest::new();
 	digest.sum = api::fingerprint("deadbeef").unwrap();
 	println!(
 		"digest {} {} {}",
-		hex(digest.sum),
-		hex(digest.flipped([0xff, 0, 0xff, 0])),
+		hex(&digest.sum),
+		hex(&digest.flipped([0xff, 0, 0xff, 0])),
 		api::fingerprint("zz").unwrap_err()
 	);
 	let mut batch: api::Batch = api::Batch::new();
@@ -297,11 +300,13 @@ fn main() {
 	println!("secs {}", stamp.secs());
 	println!("later {}", Stamp::from_millis(3000).later(stamp));
 	println!("secs {}", stamp.secs());
+	let whole: Stamp = stamp.whole().into();
+	println!("whole {whole:?}");
 	let mut message = Message::new(Some(stamp), Bytes::from_static(b"body"));
 	println!("payload {}", String::from_utf8_lossy(&message.payload));
 	println!("stamp {:?}", message.stamp.unwrap());
 	println!("sent {}", message.sent());
-	// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
+	// Setters assign in place: the bytes are copied in, and a `Copy` value copied.
 	let reset = Stamp::from_millis(4000);
 	message.stamp = Some(reset);
 	message.payload = Bytes::from_static(b"edited");
@@ -310,6 +315,84 @@ fn main() {
 	println!("secs {}", reset.secs());
 	message.stamp = None;
 	println!("stamp {}", message.stamp.is_some());
+
+	// A value past a word, copied across: a closure takes and returns one by value.
+	let moment = api::Moment::new(1500, 1000).unwrap();
+	println!("moment {} {}", moment.millis(), api::Moment::new(1, 0).is_none());
+	let shifted = api::shifted(moment, |m| m.after(500));
+	println!("shifted {} {}", shifted.millis(), shifted == moment.after(500));
+	println!("wrapped {} {}", moment.after(u64::MAX).millis(), moment == shifted);
+
+	// A value with padding, or bytes that vary, is a handle, as no table says where padding is.
+	let gap = api::Gap::new(7, 3);
+	println!("gap {} {}", gap.sum(), gap == api::Gap::new(7, 3));
+	let berth = api::Berth::new(Some(4));
+	println!("berth {:?} {:?}", berth.at(), api::Berth::new(None).at());
+
+	// A `Copy` type changed in place is a value, whose change reaches only the copy changed.
+	let mut score = api::Score::of(2);
+	let step = api::Score::of(3);
+	score.add(step);
+	score.add(step);
+	println!("score {} {} {}", score.count(), step.doubled().count(), step.count());
+	let mut copy = score;
+	let taken = copy.take();
+	println!("taken {taken} {} {}", copy.count(), score.count());
+	let mut other = step;
+	let before = copy.absorb(&mut other);
+	println!(
+		"absorbed {} {} {} {} {}",
+		before.0,
+		before.1,
+		copy.count(),
+		other.count(),
+		step.count()
+	);
+	let mut hits = api::Hits::of(1, 2);
+	let kept = hits;
+	hits.add(api::Hits::of(10, 20));
+	hits.hits = 7;
+	println!(
+		"hits {} {} {} {} {}",
+		hits.hits,
+		hits.misses,
+		kept.hits,
+		kept.misses,
+		hits == kept
+	);
+	let mut counted = kept;
+	let same = api::Hits::eq(&mut counted, kept);
+	println!("counted {same} {}", counted.hits);
+	let mut extent = api::Extent::new(5, 3);
+	let start = extent;
+	let old = extent.slide(10);
+	extent.start += 1;
+	println!(
+		"extent {old} {} {} {} {}",
+		extent.start,
+		extent.end(),
+		start.start,
+		start.end()
+	);
+	let weighted = api::Weighted { score: step, weight: 4 };
+	println!(
+		"weighted {} {}",
+		weighted.total(),
+		weighted.score.count() + step.count()
+	);
+	// A checked mark beside bytes in a tuple and in a record lent, and bytes beside a move.
+	let mut mark = api::Mark::of(1);
+	mark.add(2);
+	let parcel = api::Parcel {
+		mark,
+		payload: Bytes::from_static(b"abc"),
+	};
+	let moved = (Counter::new("w", 1), Bytes::from_static(b"abcd"));
+	println!("heft {}", api::heft((mark, Bytes::from_static(b"ab")), &parcel, moved));
+	// A value's `&mut self` beside a checked handle.
+	let mut noted = api::Score::of(2);
+	let before = noted.note(&api::Mark::of(5));
+	println!("noted {before} {}", noted.count());
 
 	println!("kept {}", api::emit(Print, vec![1, 2, 3, 4]));
 	let logger = Logger::new(Box::new(Print));
@@ -359,6 +442,22 @@ fn main() {
 	let mut recv = pin!(channel.recv());
 	if let Poll::Ready(payload) = recv.as_mut().poll(&mut cx) {
 		println!("recv {}", String::from_utf8_lossy(&payload));
+	}
+	// The send happens at the call, and the future borrows the channel and the tag.
+	let mut tagged = pin!(channel.tagged("tag"));
+	if let Poll::Ready(text) = tagged.as_mut().poll(&mut cx) {
+		println!("tagged {text}");
+	}
+	// So does a future borrowing an optional slice, which the export owns while it is pending.
+	let items = [1u32, 2, 3];
+	let mut itemized = pin!(channel.itemized(Some(&items)));
+	if let Poll::Ready(count) = itemized.as_mut().poll(&mut cx) {
+		println!("itemized {count}");
+	}
+	// Another crate's future borrowing its bytes, which the export owns while it is pending.
+	let bytes = *b"abc";
+	if let Poll::Ready(len) = pin!(api::byte_len(&bytes)).poll(&mut cx) {
+		println!("byte_len {len}");
 	}
 	channel.send(Bytes::from_static(b"sized"));
 	let mut sized = pin!(channel.recv_sized());
@@ -583,12 +682,57 @@ fn main() {
 	println!("nudge {} {}", point.x, point.y);
 	let config = api::secure("h3");
 	println!("secure {} {}", api::alpn_lent(&config), api::alpn(config.clone()));
+	let cert = api::certify(b"der");
+	let chain = vec![api::certify(b"a"), api::certify(b"bc")];
+	println!(
+		"cert {} {} {}",
+		api::cert_len(&cert),
+		String::from_utf8_lossy(&api::cert_der(cert)),
+		api::chain_len(chain)
+	);
+	// Another crate's trait objects: an `Arc`, taken back, and `&'static` ones, held by value.
+	let resolver = api::resolver("r1");
+	println!("resolver {}", api::resolved(resolver));
+	let mut codecs = api::Codecs::new();
+	println!("codecs {}", codecs.ids());
+	let mut list = codecs.list.clone();
+	list.reverse();
+	codecs.list = list;
+	println!("codecs reversed {}", codecs.ids());
+	// A standard library value no type maps, in a handle.
+	let failure = api::failure("boom");
+	println!(
+		"failure {} {}",
+		api::failure_message(&failure),
+		api::failure_kind(failure)
+	);
+	// Iterators, passed as the arrays of their items.
+	println!("sum_all {}", api::sum_all(vec![1u32, 2, 3].into_iter()));
+	println!("weigh_all {}", api::weigh_all(vec![Counter::new("w", 3)].into_iter()));
+	println!("offered_len {}", api::offered_len([&b"h3"[..], b"moq-00"].into_iter()));
+	println!("join_words {}", api::join_words(["a", "b", "c"]));
+	// Bytes that must be `'static`, interned.
+	println!("der {}", String::from_utf8_lossy(&api::Der::from_slice(b"der").bytes()));
+	println!(
+		"der again {}",
+		String::from_utf8_lossy(&api::Der::from_slice(b"der").bytes())
+	);
+	let session = api::resume("h3", 60).unwrap();
+	println!("resume {} {}", session.alpn(), session.lifetime().seconds);
+	println!("resume err {}", api::resume("", 60).err().unwrap());
 	let mut meters = api::Meters::new();
 	let first = meters.first();
 	first.add(2);
 	println!("lent {} {}", first.add(3), meters.first().count());
 	meters.clear();
 	println!("cleared {}", meters.first().count());
+	meters.last.add(4);
+	println!("field lent {}", meters.last.add(1));
+	// An optional field that is not Clone, lent as `Some` of a handle.
+	println!("spare {}", meters.spare.is_some());
+	meters.spare = Some(api::Meter::default());
+	meters.spare.as_ref().unwrap().add(5);
+	println!("spare lent {}", meters.spare.as_ref().unwrap().add(1));
 	let tallies = api::Tallies::new();
 	tallies.first().bump();
 	println!("tallied {}", tallies.first().bump());
@@ -616,6 +760,39 @@ fn main() {
 	);
 	println!("less {}", api::less(5, 2));
 	println!("sums {:?}", api::sums(vec![vec![1, 2], Vec::new(), vec![3]]));
+	let least = api::least(vec![[3, 1].into(), Default::default(), [2].into()]);
+	println!(
+		"least {}",
+		least
+			.iter()
+			.map(|set| format!("{:?}", set.iter().collect::<Vec<_>>()))
+			.collect::<Vec<_>>()
+			.join(" ")
+	);
+	numbers("edges", &api::Numbers::edges());
+	numbers("reversed", &api::Numbers::edges().reversed());
+	let edges = api::Numbers::edges();
+	let nan = api::Measure::new(f64::NAN, false);
+	println!(
+		"float equal {} {} {} {} {}",
+		// Each value against itself, which a NaN it holds makes unequal.
+		PartialEq::eq(&edges, &edges),
+		edges == api::Numbers::edges(),
+		api::Numbers::zero(true) == api::Numbers::zero(false),
+		PartialEq::eq(&nan, &nan),
+		api::Measure::new(-0.0, true) == api::Measure::new(0.0, false)
+	);
+	println!(
+		"sum u32 {} {}",
+		api::sum_u32(&[]),
+		api::sum_u32(&[u32::MAX, u32::MAX, 2])
+	);
+	println!("doubled i64 {:?}", api::doubled_i64(&[i64::MIN, -1, 0, i64::MAX]));
+	let floats = api::boxed_floats(Box::new([-0.0, f64::from_bits(0x7ff8_0000_0000_0001)]));
+	println!(
+		"boxed floats {:?}",
+		floats.iter().map(|f| f.to_bits()).collect::<Vec<_>>()
+	);
 	let summed = api::summed([Point { x: 1, y: 2 }, Point { x: -4, y: 6 }]);
 	let none = api::summed([]);
 	println!("summed {} {} {} {}", summed.x, summed.y, none.x, none.y);
@@ -666,6 +843,7 @@ fn main() {
 
 	// Slices, passed in and returned as clones, and the socket address of each family.
 	println!("shapes {:?} greetings {:?}", api::Shape::ALL, api::GREETINGS);
+	println!("both {:?} primes {:?}", api::Shape::BOTH, api::PRIMES);
 	let trail = api::Trail::new(
 		&[api::Point { x: 1, y: 2 }, api::Point { x: 3, y: 4 }],
 		&["a".to_string(), "b".to_string()],
@@ -693,6 +871,95 @@ fn main() {
 	println!("numbered {}", numbered.join(", "));
 	let (v4, v6) = api::nexts("127.0.0.1:8080".parse().unwrap(), "[::1%3]:443".parse().unwrap());
 	println!("nexts {} {} {} {}", v4.ip(), v4.port(), v6.port(), v6.scope_id());
+	// IP addresses of each family, printed as their bytes in hex, so their length shows their
+	// family: an IPv4-mapped IPv6 stays IPv6 through each binding, and comes back as IPv4
+	// only when Rust flips it.
+	let (v4, v6) = api::next_ips("10.0.0.255".parse().unwrap(), "::ffff".parse().unwrap());
+	let mapped = api::flip(std::net::Ipv4Addr::new(127, 0, 0, 1).into());
+	let back = api::flip(mapped);
+	let other = api::flip(std::net::Ipv6Addr::LOCALHOST.into());
+	println!(
+		"ips {} {} {} {} {}",
+		hex(&v4.octets()),
+		hex(&v6.octets()),
+		ip_hex(mapped),
+		ip_hex(back),
+		ip_hex(other)
+	);
+
+	// Lossless round trips: each type's edge values, passed through Rust and back.
+	let durations: Vec<String> = [
+		std::time::Duration::ZERO,
+		std::time::Duration::from_nanos(1),
+		std::time::Duration::from_nanos(i64::MAX as u64 + 1),
+		std::time::Duration::MAX,
+	]
+	.into_iter()
+	.map(|d| {
+		let d = api::same_duration(d);
+		format!("{}.{:09}", d.as_secs(), d.subsec_nanos())
+	})
+	.collect();
+	println!("lossless duration {}", durations.join(" "));
+	println!(
+		"lossless u64 {} {} {}",
+		api::same_u64(0),
+		api::same_u64(1 << 63),
+		api::same_u64(u64::MAX)
+	);
+	println!("lossless usize {} {}", api::same_usize(0), api::same_usize(usize::MAX));
+	println!(
+		"lossless isize {} {}",
+		api::same_isize(isize::MIN),
+		api::same_isize(isize::MAX)
+	);
+	println!(
+		"lossless u128 {:032x} {:032x} {:032x}",
+		api::same_u128(0),
+		api::same_u128(1 << 64),
+		api::same_u128(u128::MAX)
+	);
+	let chars: Vec<String> = ['\0', '\u{d7ff}', '\u{e000}', char::MAX]
+		.into_iter()
+		.map(|c| format!("{:x}", u32::from(api::same_char(c))))
+		.collect();
+	println!("lossless char {}", chars.join(" "));
+	let paths: Vec<String> = [std::path::PathBuf::from("a/é"), unspelled()]
+		.into_iter()
+		.map(|p| hex(api::same_path(p).as_os_str().as_encoded_bytes()))
+		.collect();
+	println!("lossless path {}", paths.join(" "));
+	let v4 = api::same_socket_addr_v4(std::net::SocketAddrV4::new(std::net::Ipv4Addr::BROADCAST, u16::MAX));
+	let v6 = api::same_socket_addr_v6(std::net::SocketAddrV6::new(
+		std::net::Ipv6Addr::new(1, 0, 0, 0, 0, 0, 0, 2),
+		3,
+		u32::MAX,
+		u32::MAX,
+	));
+	let addrs: Vec<String> = [v4.into(), v6.into()]
+		.into_iter()
+		.map(|a| socket_hex(api::same_socket_addr(a)))
+		.collect();
+	println!(
+		"lossless socket {} {} {}",
+		socket_hex(v4.into()),
+		socket_hex(v6.into()),
+		addrs.join(" ")
+	);
+	// A key hashes by Rust's `Hash`: equal keys alike, and these two apart.
+	let (a, b) = (api::Key::new("a"), api::Key::new("b"));
+	println!(
+		"key {} {}",
+		a.hash_of() == api::Key::new("a").hash_of(),
+		a.hash_of() == b.hash_of()
+	);
+	println!(
+		"lossless ip {} {}",
+		ip_hex(api::same_ip_addr(std::net::Ipv4Addr::BROADCAST.into())),
+		ip_hex(api::same_ip_addr(
+			std::net::Ipv6Addr::new(0xffff, 0, 0, 0, 0, 0, 0, 1).into()
+		))
+	);
 
 	// Standard and common types: serde_json's map iterator, std's instant, and tracing's
 	// level and its filter.
@@ -713,6 +980,12 @@ fn main() {
 		api::since(start, end).as_millis(),
 		start == api::later(start, std::time::Duration::ZERO),
 		start == end
+	);
+	// An instant lent inside an `Option`, which takes no handle.
+	println!(
+		"has_instant {} {}",
+		api::has_instant(&Some(start)),
+		api::has_instant(&None)
 	);
 	let mut verbosity = api::Verbosity::new(tracing::Level::WARN);
 	println!(
@@ -735,17 +1008,21 @@ fn main() {
 	let given = api::reissue(api::Ticket::new(7), |t| api::Ticket::new(t.number() + 1)).number();
 	let held = api::reissue(api::Ticket::new(7), |_| kept).number();
 	println!("reissued {given} {held}, cloned {}", api::Ticket::clones());
-	// A kept closure, called on another thread after the call that took it returned.
-	println!("spawned {}", api::Spawned::new(|| 7).join());
+	// A record's traits borrow the checked handle it holds.
+	let nines = api::Mark::of(9);
+	let (front, back) = (api::seat(nines, 1), api::seat(nines, 2));
+	println!("seat {front:?} {} {}", front == front.clone(), front == back);
+	// A kept closure, called on another thread after the call that took it returned, is
+	// each native language's own check, since wasm32 has no thread to call it on.
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
-	let start = api::now();
+	let start = api::Moment::new(0, 1000).unwrap();
 	let mut calls = 0;
-	let mut drive = pin!(api::drive(start, |now, waiter: &Waiter| {
+	let mut drive = pin!(api::drive(start, |now: api::Moment, waiter: &Waiter| {
 		calls += 1;
 		match calls {
-			1 => Ok(Some(api::later(now, std::time::Duration::from_millis(5)))),
+			1 => Ok(Some(now.after(5))),
 			2 => {
-				println!("drive {}", api::since(now, start).as_millis());
+				println!("drive {}", now.millis() - start.millis());
 				waiter.waker().wake_by_ref();
 				Ok(None)
 			}
@@ -786,6 +1063,89 @@ fn main() {
 		"farther hop {}",
 		api::farther_hop(Pair { left: near, right: far }).get()
 	);
+	// A value that is not `Send`, all on this thread: a handle to a local's count, and a
+	// local made from none.
+	let local = api::Local::new();
+	let shared = api::local_or_new(Some(&local));
+	let bumped = local.bump();
+	println!("local {bumped} {}", shared.bump());
+	println!("local fresh {}", api::local_or_new(None).bump());
+	println!("local either {}", api::bump_either(None, &shared));
+	println!("local later {}", finish(api::local_or_new_later(Some(&local))).bump());
+	println!("local later fresh {}", finish(api::local_or_new_later(None)).bump());
+}
+
+/// `future`'s output, polled on this thread until it is ready.
+fn finish<F: std::future::Future>(future: F) -> F::Output {
+	let mut future = pin!(future);
+	let mut cx = Context::from_waker(Waker::noop());
+	loop {
+		if let Poll::Ready(output) = future.as_mut().poll(&mut cx) {
+			return output;
+		}
+	}
+}
+
+/// A path no Rust string spells: on Unix and WASI, bytes that are not UTF-8; on Windows, a
+/// lone surrogate, which is WTF-8's `ed a0 80`.
+#[cfg(any(unix, target_os = "wasi"))]
+fn unspelled() -> std::path::PathBuf {
+	api::stray()
+}
+
+/// A path no Rust string spells: on Unix and WASI, bytes that are not UTF-8; on Windows, a
+/// lone surrogate, which is WTF-8's `ed a0 80`.
+#[cfg(windows)]
+fn unspelled() -> std::path::PathBuf {
+	<std::ffi::OsString as std::os::windows::ffi::OsStringExt>::from_wide(&[0xd800]).into()
+}
+
+/// Lowercase hex of `bytes`, two digits each.
+fn hex(bytes: &[u8]) -> String {
+	bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// A socket address as its IP's bytes in hex, its port, flow label, and scope, each
+/// IPv6's alone, apart by colons.
+fn socket_hex(addr: std::net::SocketAddr) -> String {
+	match addr {
+		std::net::SocketAddr::V4(v4) => format!("{}:{}", hex(&v4.ip().octets()), v4.port()),
+		std::net::SocketAddr::V6(v6) => format!(
+			"{}:{}:{}:{}",
+			hex(&v6.ip().octets()),
+			v6.port(),
+			v6.flowinfo(),
+			v6.scope_id()
+		),
+	}
+}
+
+/// An address's bytes in hex, so the length shows its family.
+fn ip_hex(ip: std::net::IpAddr) -> String {
+	match ip {
+		std::net::IpAddr::V4(v4) => hex(&v4.octets()),
+		std::net::IpAddr::V6(v6) => hex(&v6.octets()),
+	}
+}
+
+/// Print each of `numbers`' lists, its floats as their bits.
+fn numbers(what: &str, numbers: &api::Numbers) {
+	println!("{what} u16 {:?}", numbers.u16s);
+	println!("{what} u32 {:?}", numbers.u32s);
+	println!("{what} u64 {:?}", numbers.u64s);
+	println!("{what} i8 {:?}", numbers.i8s);
+	println!("{what} i16 {:?}", numbers.i16s);
+	println!("{what} i32 {:?}", numbers.i32s);
+	println!("{what} i64 {:?}", numbers.i64s);
+	println!(
+		"{what} f32 {:?}",
+		numbers.f32s.iter().map(|f| f.to_bits()).collect::<Vec<_>>()
+	);
+	println!(
+		"{what} f64 {:?}",
+		numbers.f64s.iter().map(|f| f.to_bits()).collect::<Vec<_>>()
+	);
+	println!("{what} some {:?}", numbers.some);
 }
 
 /// A reader whose reads fail, as `tests/api.c`'s broken one does: each seek lands at 0.

@@ -401,7 +401,7 @@ pub fn trait_call<'tcx>(
 	let ty::Adt(_, handle_args) = self_ty.peel_refs().kind() else {
 		return Err(args);
 	};
-	let value = held(handle_args);
+	let value = held(*handle_args);
 	let span = call.span;
 	let mut args = args.into_iter();
 	let mut arg = || args.next().expect("an argument");
@@ -458,7 +458,7 @@ pub fn debug<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, f: Exp
 		return None;
 	};
 	let handle = Handle::of(tcx, adt.did())?;
-	let shown = |b: &mut Body<'_, '_, 'tcx>| b.fmt_fn(super::fmt::Trait::Debug, held(args), span);
+	let shown = |b: &mut Body<'_, '_, 'tcx>| b.fmt_fn(super::fmt::Trait::Debug, held(*args), span);
 	Some(match handle {
 		Handle::WatchSender => Expr::rs("watchSenderDebug", vec![value, f, shown(b)]),
 		Handle::WatchReceiver => Expr::rs("watchReceiverDebug", vec![value, f, shown(b)]),
@@ -498,7 +498,7 @@ pub fn lends(tcx: TyCtxt<'_>, did: DefId) -> bool {
 
 /// The type of the values a handle's channel holds, its one type parameter, after the
 /// lifetime of a `watch::Ref`.
-pub fn held<'tcx>(args: ty::GenericArgsRef<'tcx>) -> Ty<'tcx> {
+pub fn held<'tcx>(args: ty::GenericArgs<'tcx>) -> Ty<'tcx> {
 	args.types().next().expect("a channel's value type")
 }
 
@@ -511,7 +511,7 @@ fn err_of(ty: Ty<'_>) -> Ty<'_> {
 }
 
 /// The constructor of `ty`'s variant named `variant`, or of its struct.
-fn ctor<'tcx>(ty: Ty<'tcx>, variant: Option<&str>) -> (DefId, ty::GenericArgsRef<'tcx>) {
+fn ctor<'tcx>(ty: Ty<'tcx>, variant: Option<&str>) -> (DefId, ty::GenericArgs<'tcx>) {
 	let ty::Adt(adt, args) = ty.kind() else {
 		unreachable!("tokio's errors are structs and enums")
 	};
@@ -523,7 +523,7 @@ fn ctor<'tcx>(ty: Ty<'tcx>, variant: Option<&str>) -> (DefId, ty::GenericArgsRef
 			.expect("tokio's error variant"),
 		None => adt.non_enum_variant(),
 	};
-	(variant.ctor_def_id().expect("a tuple or unit constructor"), args)
+	(variant.ctor_def_id().expect("a tuple or unit constructor"), *args)
 }
 
 /// A value of `ty`'s variant `variant`, or of its struct, of `fields`.

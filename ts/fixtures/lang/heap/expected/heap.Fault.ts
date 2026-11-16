@@ -6,10 +6,7 @@ export function fmt$fmt_Debug(self: Fault, f: rs.Formatter): rs.Result<undefined
 	if (self.tag === "Overflow") {
 		return rs.fmtWriteStr(f, "Overflow");
 	}
-	const _6: string = "Alloc";
-	const _7: string = "layout";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtLayoutDebug(self.layout, f);
-	return rs.debugStructFinish(rs.debugStructField(rs.fmtDebugStruct(f, _6), _7, _8));
+	return rs.fmtDebugFields(f, "Alloc layout", [(f: rs.Formatter) => rs.fmtLayoutDebug(self.layout, f)]);
 }
 
 export type Fault = { tag: "Overflow" } | { tag: "Alloc"; layout: rs.Layout };

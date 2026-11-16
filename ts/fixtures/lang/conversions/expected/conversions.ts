@@ -142,9 +142,15 @@ export function put$conversions_Value_array2_u32(self: rs.Slice<rs.u32>, out: rs
 
 /** The value `data` makes from `at`. */
 export function make$conversions_Value_Vec_u32(data: rs.ByteSlice, at: rs.usize): rs.Vec<rs.u32> {
-	return rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(byte(data, at), 4) as rs.usize), (i: rs.usize): rs.u32 => {
-		return byte(data, rs.usizeAdd(rs.usizeAdd(at, i), 1)) as rs.u32;
-	}), undefined, 4, true);
+	let start = 0;
+	let end = rs.u8Rem(byte(data, at), 4) as rs.usize;
+	const v: rs.Vec<rs.u32> = rs.vecWithCapacity(Math.max(end - start, 0), 4);
+	while (!(start >= end)) {
+		const x = start++;
+		const y: rs.u32 = byte(data, rs.usizeAdd(rs.usizeAdd(at, x), 1)) as rs.u32;
+		v.items.push(y);
+	}
+	return v;
 }
 
 /** Its bytes. */
@@ -157,9 +163,14 @@ export function put$conversions_Value_Vec_u32(self: rs.Vec<rs.u32>, out: rs.Byte
 
 /** The value `data` makes from `at`. */
 export function make$conversions_Value_Vec_u8(data: rs.ByteSlice, at: rs.usize): rs.ByteVec {
-	return rs.iterToByteVec(rs.iterMap(new rs.Range(0, rs.u8Rem(byte(data, at), 4) as rs.usize), (i: rs.usize): rs.u8 => {
-		return byte(data, rs.usizeAdd(rs.usizeAdd(at, i), 1));
-	}), undefined, true);
+	let start = 0;
+	let end = rs.u8Rem(byte(data, at), 4) as rs.usize;
+	const v: rs.ByteVec = rs.byteVecWithCapacity(Math.max(end - start, 0));
+	while (!(start >= end)) {
+		const x = start++;
+		rs.byteVecPush(v, byte(data, rs.usizeAdd(rs.usizeAdd(at, x), 1)));
+	}
+	return v;
 }
 
 /** Its bytes. */
@@ -4615,10 +4626,14 @@ export function boxedKept(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtend(words, rs.iterMap(new rs.Range(0, rs.u8Rem(byte(data, 1), 4)), (a0: rs.u8): rs.u32 => {
 		return a0 as rs.u32;
 	}), undefined, 4, true);
-	const _19: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u8Rem(byte(data, 2), 6)), (a02: rs.u8): rs.u32 => {
-		return a02 as rs.u32;
-	}), undefined, 4, true);
-	rs.vecCloneFrom(words, _19, 4);
+	let start = 0;
+	let end = rs.u8Rem(byte(data, 2), 6);
+	const v: rs.Vec<rs.u32> = rs.vecWithCapacity(Math.max(end - start, 0), 4);
+	while (!(start >= end)) {
+		const x = start++;
+		v.items.push(x as rs.u32);
+	}
+	rs.vecCloneFrom(words, v, 4);
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(words.items.length & 0xff, rs.vecCapacity(words, 4) & 0xff)), undefined, true);
 	const kept: Kept.Kept = { id: byte(data, 5), from: 0 };
 	const _40: Kept.Kept = { id: byte(data, 6), from: 0 };
@@ -5164,9 +5179,14 @@ export function lentOne$u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function searched$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _45!: rs.usize;
 	let _75!: [rs.u8, rs.usize];
-	const v: rs.Vec<rs.u16 | undefined> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.min(data.length, 24)), (i2: rs.usize): rs.u16 | undefined => {
-		return make$conversions_Value_Option_u16(data, i2);
-	}), undefined, 4, true);
+	let start = 0;
+	let end = rs.min(data.length, 24);
+	const v2: rs.Vec<rs.u16 | undefined> = rs.vecWithCapacity(Math.max(end - start, 0), 4);
+	while (!(start >= end)) {
+		const y: rs.u16 | undefined = make$conversions_Value_Option_u16(data, start++);
+		v2.items.push(y);
+	}
+	const v: rs.Vec<rs.u16 | undefined> = v2;
 	rs.sliceSort(rs.sliceFrom(v.items), rs.cmpLt(rs.cmpOption(rs.cmp)), 4, true);
 	const tagged: rs.Vec<[rs.u16 | undefined, rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterCloned(rs.iterSlice(v.items)), new rs.RangeFrom(0, rs.u8Step), "len"), undefined, 6, true);
 	const iter: rs.Iter<rs.usize> = rs.iterSlice([0, 1, 2, 3, v.items.length]);
@@ -5221,9 +5241,14 @@ export function searched$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function searched$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _45!: rs.usize;
 	let _75!: [rs.u8, rs.usize];
-	const v: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.min(data.length, 24)), (i2: rs.usize): rs.String => {
-		return make$conversions_Value_String(data, i2);
-	}), undefined, 12, true);
+	let start = 0;
+	let end = rs.min(data.length, 24);
+	const v2: rs.Vec<rs.String> = rs.vecWithCapacity(Math.max(end - start, 0), 12);
+	while (!(start >= end)) {
+		const y: rs.String = make$conversions_Value_String(data, start++);
+		v2.items.push(y);
+	}
+	const v: rs.Vec<rs.String> = v2;
 	rs.sliceSort(rs.sliceFrom(v.items), rs.cmpLt(rs.cmpStr), 12, true);
 	const tagged: rs.Vec<[rs.String, rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterMap(rs.iterSlice(v.items), (a0: rs.String): rs.String => {
 		return rs.stringClone(a0);
@@ -5280,9 +5305,14 @@ export function searched$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function searched$Vec_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _45!: rs.usize;
 	let _75!: [rs.u8, rs.usize];
-	const v: rs.Vec<rs.Vec<rs.u32>> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.min(data.length, 24)), (i2: rs.usize): rs.Vec<rs.u32> => {
-		return make$conversions_Value_Vec_u32(data, i2);
-	}), undefined, 12, true);
+	let start = 0;
+	let end = rs.min(data.length, 24);
+	const v2: rs.Vec<rs.Vec<rs.u32>> = rs.vecWithCapacity(Math.max(end - start, 0), 12);
+	while (!(start >= end)) {
+		const y: rs.Vec<rs.u32> = make$conversions_Value_Vec_u32(data, start++);
+		v2.items.push(y);
+	}
+	const v: rs.Vec<rs.Vec<rs.u32>> = v2;
 	rs.sliceSort(rs.sliceFrom(v.items), rs.cmpLt(rs.cmpSlice(rs.cmp)), 12, true);
 	const tagged: rs.Vec<[rs.Vec<rs.u32>, rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterMap(rs.iterSlice(v.items), (a0: rs.Vec<rs.u32>): rs.Vec<rs.u32> => {
 		return rs.vecFrom(a0.items.slice());
@@ -5339,9 +5369,14 @@ export function searched$Vec_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function searched$Vec_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _45!: rs.usize;
 	let _75!: [rs.u8, rs.usize];
-	const v: rs.Vec<rs.ByteVec> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.min(data.length, 24)), (i2: rs.usize): rs.ByteVec => {
-		return make$conversions_Value_Vec_u8(data, i2);
-	}), undefined, 12, true);
+	let start = 0;
+	let end = rs.min(data.length, 24);
+	const v2: rs.Vec<rs.ByteVec> = rs.vecWithCapacity(Math.max(end - start, 0), 12);
+	while (!(start >= end)) {
+		const y: rs.ByteVec = make$conversions_Value_Vec_u8(data, start++);
+		v2.items.push(y);
+	}
+	const v: rs.Vec<rs.ByteVec> = v2;
 	rs.sliceSort(rs.sliceFrom(v.items), rs.cmpLt(rs.cmpBytes), 12, true);
 	const tagged: rs.Vec<[rs.ByteVec, rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterMap(rs.iterSlice(v.items), (a0: rs.ByteVec): rs.ByteVec => {
 		return rs.byteVecFrom(rs.byteVecView(a0));
@@ -5461,9 +5496,14 @@ export function searched$array0_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function searched$array1_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _45!: rs.usize;
 	let _75!: [rs.u8, rs.usize];
-	const v: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.min(data.length, 24)), (i2: rs.usize): Uint8Array => {
-		return make$conversions_Value_array1_u8(data, i2);
-	}), undefined, 1, true);
+	let start = 0;
+	let end = rs.min(data.length, 24);
+	const v2: rs.Vec<Uint8Array> = rs.vecWithCapacity(Math.max(end - start, 0), 1);
+	while (!(start >= end)) {
+		const y: Uint8Array = make$conversions_Value_array1_u8(data, start++);
+		v2.items.push(y);
+	}
+	const v: rs.Vec<Uint8Array> = v2;
 	rs.arraySliceBy(rs.arraySliceFrom(v.items, rs.byteSliceFrom), (arrays) => rs.sliceSort(arrays, rs.cmpLt(rs.cmpBytes), 1, true));
 	const tagged: rs.Vec<[Uint8Array, rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom(v.items, rs.byteSliceFrom)), rs.byteSliceToArray), new rs.RangeFrom(0, rs.u8Step), "len"), undefined, 2, true);
 	const iter: rs.Iter<rs.usize> = rs.iterSlice([0, 1, 2, 3, v.items.length]);
@@ -5524,9 +5564,14 @@ export function searched$array1_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function searched$array2_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _45!: rs.usize;
 	let _75!: [rs.u8, rs.usize];
-	const v: rs.Vec<rs.u32[]> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.min(data.length, 24)), (i2: rs.usize): rs.u32[] => {
-		return make$conversions_Value_array2_u32(data, i2);
-	}), undefined, 8, true);
+	let start = 0;
+	let end = rs.min(data.length, 24);
+	const v2: rs.Vec<rs.u32[]> = rs.vecWithCapacity(Math.max(end - start, 0), 8);
+	while (!(start >= end)) {
+		const y: rs.u32[] = make$conversions_Value_array2_u32(data, start++);
+		v2.items.push(y);
+	}
+	const v: rs.Vec<rs.u32[]> = v2;
 	rs.arraySliceBy(rs.arraySliceFrom(v.items, rs.sliceFrom), (arrays) => rs.sliceSort(arrays, rs.cmpLt(rs.cmpSlice(rs.cmp)), 8, true));
 	const tagged: rs.Vec<[rs.u32[], rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom(v.items, rs.sliceFrom)), rs.sliceToArray), new rs.RangeFrom(0, rs.u8Step), "len"), undefined, 12, true);
 	const iter: rs.Iter<rs.usize> = rs.iterSlice([0, 1, 2, 3, v.items.length]);
@@ -5587,9 +5632,14 @@ export function searched$array2_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function searched$array3_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _45!: rs.usize;
 	let _75!: [rs.u8, rs.usize];
-	const v: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.min(data.length, 24)), (i2: rs.usize): Uint8Array => {
-		return make$conversions_Value_array3_u8(data, i2);
-	}), undefined, 3, true);
+	let start = 0;
+	let end = rs.min(data.length, 24);
+	const v2: rs.Vec<Uint8Array> = rs.vecWithCapacity(Math.max(end - start, 0), 3);
+	while (!(start >= end)) {
+		const y: Uint8Array = make$conversions_Value_array3_u8(data, start++);
+		v2.items.push(y);
+	}
+	const v: rs.Vec<Uint8Array> = v2;
 	rs.arraySliceBy(rs.arraySliceFrom(v.items, rs.byteSliceFrom), (arrays) => rs.sliceSort(arrays, rs.cmpLt(rs.cmpBytes), 3, true));
 	const tagged: rs.Vec<[Uint8Array, rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom(v.items, rs.byteSliceFrom)), rs.byteSliceToArray), new rs.RangeFrom(0, rs.u8Step), "len"), undefined, 4, true);
 	const iter: rs.Iter<rs.usize> = rs.iterSlice([0, 1, 2, 3, v.items.length]);
@@ -5650,9 +5700,14 @@ export function searched$array3_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function searched$array40_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _45!: rs.usize;
 	let _75!: [rs.u8, rs.usize];
-	const v: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.min(data.length, 24)), (i2: rs.usize): Uint8Array => {
-		return make$conversions_Value_array40_u8(data, i2);
-	}), undefined, 40, true);
+	let start = 0;
+	let end = rs.min(data.length, 24);
+	const v2: rs.Vec<Uint8Array> = rs.vecWithCapacity(Math.max(end - start, 0), 40);
+	while (!(start >= end)) {
+		const y: Uint8Array = make$conversions_Value_array40_u8(data, start++);
+		v2.items.push(y);
+	}
+	const v: rs.Vec<Uint8Array> = v2;
 	rs.arraySliceBy(rs.arraySliceFrom(v.items, rs.byteSliceFrom), (arrays) => rs.sliceSort(arrays, rs.cmpLt(rs.cmpBytes), 40, true));
 	const tagged: rs.Vec<[Uint8Array, rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom(v.items, rs.byteSliceFrom)), rs.byteSliceToArray), new rs.RangeFrom(0, rs.u8Step), "len"), undefined, 41, true);
 	const iter: rs.Iter<rs.usize> = rs.iterSlice([0, 1, 2, 3, v.items.length]);
@@ -5713,9 +5768,14 @@ export function searched$array40_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function searched$conversions_Logged(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _45!: rs.usize;
 	let _75!: [rs.u8, rs.usize];
-	const v: rs.Vec<Logged.Logged> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.min(data.length, 24)), (i2: rs.usize): Logged.Logged => {
-		return Logged.make$conversions_Value(data, i2);
-	}), undefined, 8, true);
+	let start = 0;
+	let end = rs.min(data.length, 24);
+	const v2: rs.Vec<Logged.Logged> = rs.vecWithCapacity(Math.max(end - start, 0), 8);
+	while (!(start >= end)) {
+		const y: Logged.Logged = Logged.make$conversions_Value(data, start++);
+		v2.items.push(y);
+	}
+	const v: rs.Vec<Logged.Logged> = v2;
 	rs.sliceSort(rs.sliceFrom(v.items), rs.cmpLt(Logged.partialCmp$cmp_PartialOrd), 8, true);
 	const tagged: rs.Vec<[Logged.Logged, rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterMap(rs.iterSlice(v.items), Logged.clone$Clone), new rs.RangeFrom(0, rs.u8Step), "len", rs.drop), undefined, 12, true);
 	const iter: rs.Iter<rs.usize> = rs.iterSlice([0, 1, 2, 3, v.items.length]);
@@ -5773,9 +5833,14 @@ export function searched$conversions_Logged(data: rs.ByteSlice, out: rs.ByteVec)
 export function searched$conversions_Named(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _45!: rs.usize;
 	let _75!: [rs.u8, rs.usize];
-	const v: rs.Vec<Named.Named> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.min(data.length, 24)), (i2: rs.usize): Named.Named => {
-		return Named.make$conversions_Value(data, i2);
-	}), undefined, 16, true);
+	let start = 0;
+	let end = rs.min(data.length, 24);
+	const v2: rs.Vec<Named.Named> = rs.vecWithCapacity(Math.max(end - start, 0), 16);
+	while (!(start >= end)) {
+		const y: Named.Named = Named.make$conversions_Value(data, start++);
+		v2.items.push(y);
+	}
+	const v: rs.Vec<Named.Named> = v2;
 	rs.sliceSort(rs.sliceFrom(v.items), rs.cmpLt(Named.partialCmp$cmp_PartialOrd), 16, true);
 	const tagged: rs.Vec<[Named.Named, rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterMap(rs.iterSlice(v.items), Named.clone$Clone), new rs.RangeFrom(0, rs.u8Step), "len"), undefined, 20, true);
 	const iter: rs.Iter<rs.usize> = rs.iterSlice([0, 1, 2, 3, v.items.length]);
@@ -5830,9 +5895,14 @@ export function searched$conversions_Named(data: rs.ByteSlice, out: rs.ByteVec):
 export function searched$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _45!: rs.usize;
 	let _75!: [rs.u8, rs.usize];
-	const v: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.min(data.length, 24)), (i2: rs.usize): rs.u32 => {
-		return make$conversions_Value_u32(data, i2);
-	}), undefined, 4, true);
+	let start = 0;
+	let end = rs.min(data.length, 24);
+	const v2: rs.Vec<rs.u32> = rs.vecWithCapacity(Math.max(end - start, 0), 4);
+	while (!(start >= end)) {
+		const y: rs.u32 = make$conversions_Value_u32(data, start++);
+		v2.items.push(y);
+	}
+	const v: rs.Vec<rs.u32> = v2;
 	rs.sliceSort(rs.sliceFrom(v.items), rs.lt, 4, true);
 	const tagged: rs.Vec<[rs.u32, rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterCloned(rs.iterSlice(v.items)), new rs.RangeFrom(0, rs.u8Step), "len"), undefined, 8, true);
 	const iter: rs.Iter<rs.usize> = rs.iterSlice([0, 1, 2, 3, v.items.length]);
@@ -5887,9 +5957,14 @@ export function searched$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function searched$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _45!: rs.usize;
 	let _75!: [rs.u8, rs.usize];
-	const v: rs.Vec<rs.u64> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.min(data.length, 24)), (i2: rs.usize): rs.u64 => {
-		return make$conversions_Value_u64(data, i2);
-	}), undefined, 8, true);
+	let start = 0;
+	let end = rs.min(data.length, 24);
+	const v2: rs.Vec<rs.u64> = rs.vecWithCapacity(Math.max(end - start, 0), 8);
+	while (!(start >= end)) {
+		const y: rs.u64 = make$conversions_Value_u64(data, start++);
+		v2.items.push(y);
+	}
+	const v: rs.Vec<rs.u64> = v2;
 	rs.sliceSort(rs.sliceFrom(v.items), rs.lt, 8, true);
 	const tagged: rs.Vec<[rs.u64, rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterCloned(rs.iterSlice(v.items)), new rs.RangeFrom(0, rs.u8Step), "len"), undefined, 16, true);
 	const iter: rs.Iter<rs.usize> = rs.iterSlice([0, 1, 2, 3, v.items.length]);
@@ -5944,9 +6019,13 @@ export function searched$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function searched$u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _45!: rs.usize;
 	let _75!: [rs.u8, rs.usize];
-	const v: rs.ByteVec = rs.iterToByteVec(rs.iterMap(new rs.Range(0, rs.min(data.length, 24)), (i2: rs.usize): rs.u8 => {
-		return make$conversions_Value_u8(data, i2);
-	}), undefined, true);
+	let start = 0;
+	let end = rs.min(data.length, 24);
+	const v2: rs.ByteVec = rs.byteVecWithCapacity(Math.max(end - start, 0));
+	while (!(start >= end)) {
+		rs.byteVecPush(v2, make$conversions_Value_u8(data, start++));
+	}
+	const v: rs.ByteVec = v2;
 	rs.byteSliceView(rs.byteVecSlice(v)).sort();
 	const tagged: rs.Vec<[rs.u8, rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterCloned(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(v)))), new rs.RangeFrom(0, rs.u8Step), "len"), undefined, 2, true);
 	const iter: rs.Iter<rs.usize> = rs.iterSlice([0, 1, 2, 3, v.length]);
@@ -5996,13 +6075,18 @@ export function searched$u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 /** What wasm32 lays out each value in, and a slice or a `str` of what `data` holds. */
 export function measured(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const n: rs.usize = data.length;
-	const wide: rs.Vec<rs.u64> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u64 => {
-		return _2 as rs.u64;
-	}), undefined, 8, true);
-	const _8: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): rs.char => {
+	const s = rs.byteSliceView(data);
+	let front = 0;
+	let back = s.length;
+	const v: rs.Vec<rs.u64> = rs.vecWithCapacity(back - front, 8);
+	while (!(front >= back)) {
+		const x = s[front++];
+		v.items.push(x as rs.u64);
+	}
+	const wide: rs.Vec<rs.u64> = v;
+	const text: rs.String = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): rs.char => {
 		return _25 as rs.char;
-	});
-	const text: rs.String = rs.stringExtendChars(rs.stringNew(), _8);
+	}));
 	Named.make$conversions_Value(data, 0);
 	const _13: rs.usize = rs.byteSliceRange(data, 0, 0).length;
 	rs.byteSliceRange(data, 0, 0);
@@ -6055,7 +6139,11 @@ export function pointed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const p: rs.ByteSlice = rs.byteSliceFrom(a);
 	p.data[p.start] = p.data[p.start] ^ 16;
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(a));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a[1])));
+	const dst = out;
+	const byte = a[1];
+	rs.byteVecReserve(dst, 1 as rs.usize);
+	dst.data[dst.length + 0] = byte;
+	dst.length = dst.length + 1;
 }
 
 /**
@@ -6591,10 +6679,9 @@ export function referenced$u8(data: rs.ByteSlice, out: rs.ByteVec): void {
  * `Vec`s behind `&`, `&mut`, and a reference to one, as moq's buffers reach them.
  */
 export function referencedBytes(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _4: rs.Iter<rs.char> = rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4), (_2: rs.u8): rs.char => {
+	const text: rs.String = rs.stringFromChars(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4), (_2: rs.u8): rs.char => {
 		return _2 as rs.char;
-	});
-	const text: rs.String = rs.stringExtendChars(rs.stringNew(), _4);
+	}));
 	const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
 	readBytes$ref_str(text.v, out);
 	readBytes$ref_String(text, out);

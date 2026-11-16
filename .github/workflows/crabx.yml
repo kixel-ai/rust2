@@ -1,0 +1,132 @@
+name: Crabx pipeline
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'schedule' ||
+       github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request')
+    runs-on: ubuntu-24.04
+    outputs:
+      builds: ${{ steps.plan.outputs.builds }}
+      releases: ${{ steps.plan.outputs.releases }}
+      any: ${{ steps.plan.outputs.any }}
+      fixture: ${{ steps.mode.outputs.fixture }}
+    steps:
+      - name: Require a public repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" != false ]]; then
+            echo '::error::The crabx pipeline supports public repositories only.'
+            exit 1
+          fi
+      # Read new job identity fields through JSON until actionlint knows their types.
+      - id: identity
+        env:
+          JOB: ${{ toJSON(job) }}
+        shell: bash
+        run: |
+          for field in workflow_repository workflow_sha workflow_ref; do
+            value=$(jq -er --arg field "$field" '.[$field] | select(type == "string" and length > 0)' <<< "$JOB")
+            echo "$field=$value" >> "$GITHUB_OUTPUT"
+          done
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ steps.identity.outputs.workflow_repository }}
+          ref: ${{ steps.identity.outputs.workflow_sha }}
+          path: pipeline
+          persist-credentials: false
+      - id: mode
+        env:
+          CALLER: ${{ github.workflow_ref }}
+        run: |
+          if [[ "$CALLER" == kixel-ai/rust2/.github/workflows/crabx-test.yml@* ]]; then
+            echo fixture=true >> "$GITHUB_OUTPUT"
+          else
+            echo fixture=false >> "$GITHUB_OUTPUT"
+          fi
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CALLER_WORKFLOW: ${{ github.workflow_ref }}
+          MODE: ${{ steps.mode.outputs.fixture == 'true' && 'fixture' || 'discover' }}
+        run: python3 pipeline/.github/crabx/pipeline.py "$MODE"
+
+  build:
+    needs: discover
+    if: needs.discover.outputs.any == 'true'
+    uses: ./.github/workflows/crabx-build.yml
+    with:
+      builds: ${{ needs.discover.outputs.builds }}
+
+  publish:
+    needs: [discover, build]
+    # Crate builds never run with publishing credentials. PR fixtures stay read-only.
+    # A failed build fails the run but holds back only its own crate, whose missing
+    # archive stops its publish job before attestation.
+    if: >-
+      !cancelled() && needs.discover.result == 'success' &&
+      needs.discover.outputs.any == 'true' &&
+      github.event_name != 'pull_request'
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.releases) }}
+      # Each run contributes at most one pending publisher to a shared tag.
+      max-parallel: 1
+    concurrency:
+      group: crabx-${{ github.repository }}-${{ matrix.tag }}
+      cancel-in-progress: false
+    steps:
+      # Read new job identity fields through JSON until actionlint knows their types.
+      - id: identity
+        env:
+          JOB: ${{ toJSON(job) }}
+        shell: bash
+        run: |
+          for field in workflow_repository workflow_sha workflow_ref; do
+            value=$(jq -er --arg field "$field" '.[$field] | select(type == "string" and length > 0)' <<< "$JOB")
+            echo "$field=$value" >> "$GITHUB_OUTPUT"
+          done
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ steps.identity.outputs.workflow_repository }}
+          ref: ${{ steps.identity.outputs.workflow_sha }}
+          path: pipeline
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: crabx-${{ matrix.name }}@${{ matrix.version }}@*
+          merge-multiple: true
+          path: archives
+      - name: Record the actual published source commit
+        env:
+          ITEM: ${{ toJSON(matrix) }}
+          PIPELINE_WORKFLOW: ${{ steps.identity.outputs.workflow_ref }}
+          PIPELINE_SHA: ${{ steps.identity.outputs.workflow_sha }}
+        run: python3 pipeline/.github/crabx/pipeline.py provenance
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: archives/*.tgz
+          predicate-type: https://slsa.dev/provenance/v1
+          predicate-path: predicate.json
+      - name: Publish release
+        if: needs.discover.outputs.fixture != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ITEM: ${{ toJSON(matrix) }}
+        run: python3 pipeline/.github/crabx/pipeline.py publish

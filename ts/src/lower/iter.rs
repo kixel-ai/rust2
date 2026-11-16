@@ -284,7 +284,7 @@ fn erases(tcx: TyCtxt<'_>, def_id: DefId, name: &str) -> Option<(Span, String)> 
 		/// Whether a call of `def_id` for `args` runs the crate's code over `B` or `F`, or code
 		/// that can tell them apart: anything but `F`'s calls and std's iterators', which take
 		/// any `B` and `F`.
-		fn tells(&mut self, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> bool {
+		fn tells(&mut self, def_id: DefId, args: ty::GenericArgs<'tcx>) -> bool {
 			let tcx = self.tcx;
 			let any = tcx.trait_of_assoc(def_id).is_some_and(|tr| {
 				tcx.is_fn_trait(tr)
@@ -333,7 +333,7 @@ fn erases(tcx: TyCtxt<'_>, def_id: DefId, name: &str) -> Option<(Span, String)> 
 		fn visit_const_operand(&mut self, c: &ConstOperand<'tcx>, loc: Location) {
 			let args = match c.const_ {
 				mir::Const::Unevaluated(uv, _) => uv.args,
-				_ => ty::List::empty(),
+				_ => ty::GenericArgs::empty(),
 			};
 			let params = std::mem::take(&mut self.params);
 			if self.over(c.const_.ty().into(), &params, false) || args.iter().any(|a| self.over(a, &params, false)) {
@@ -1169,7 +1169,9 @@ pub fn call<'tcx>(
 		{
 			let imp = tcx.inherent_impl_of_assoc(call.def_id)?;
 			let generics = tcx.generics_of(imp).count();
-			tcx.type_of(imp).instantiate(tcx, &gargs[..generics]).skip_norm_wip()
+			tcx.type_of(imp)
+				.instantiate(tcx, &gargs.as_slice()[..generics])
+				.skip_norm_wip()
 		}
 		_ => return None,
 	};
@@ -1644,7 +1646,7 @@ fn undefined(e: &Expr) -> bool {
 /// only a census's instance, which never runs, has.
 pub(super) fn layout<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Result<(u64, u64), Expr> {
 	match b.t.tcx.layout_of(b.t.typing_env_pub().as_query_input(ty)) {
-		Ok(layout) => Ok((layout.size.bytes(), layout.align.abi.bytes())),
+		Ok(layout) => Ok((layout.size.bytes(), layout.align.bytes())),
 		Err(_) if ty.has_param() => Err(Expr::undefined()),
 		Err(_) => Err(b.err(span, format!("reserving for `{ty}`, whose layout is unknown"))),
 	}
@@ -1713,7 +1715,7 @@ fn std_iter_path(tcx: ty::TyCtxt<'_>, ty: Ty<'_>) -> Option<Vec<String>> {
 /// The function or `Iterator` method named for `ty`, one of std's iterators of zero-sized
 /// fields, as `from_fn` makes a `FromFn` and `map` a `Map`, and its generic arguments: what
 /// MIR reads as a constant, rather than from that call, makes it of its fields in order.
-pub(super) fn maker<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> Option<(DefId, ty::GenericArgsRef<'tcx>)> {
+pub(super) fn maker<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> Option<(DefId, ty::GenericArgs<'tcx>)> {
 	let tcx = t.tcx;
 	let ty::Adt(adt, args) = ty.kind() else {
 		return None;
@@ -1765,7 +1767,7 @@ pub(super) fn maker<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> Option<(Def
 	});
 	let sig = tcx.fn_sig(make).instantiate(tcx, gargs).skip_norm_wip();
 	let sig = tcx.instantiate_bound_regions_with_erased(sig);
-	let fields = adt.non_enum_variant().fields.iter().map(|f| t.field_ty(f.did, args));
+	let fields = adt.non_enum_variant().fields.iter().map(|f| t.field_ty(f.did, *args));
 	(sig.output() == ty && sig.inputs().iter().copied().eq(fields)).then_some((make, gargs))
 }
 
@@ -2224,7 +2226,14 @@ fn collect<'tcx>(
 					let drops = iter_drops(b, from, span);
 					Expr::rs("stringFromStrings", tail(vec![iter], vec![drops]))
 				}
-				_ => string_extend(b, Expr::rs("stringNew", vec![]), iter, item, from, span)?,
+				// std's own for a `str::escape_default`, and room for the least the iterator
+				// says it has for any other of chars, but not of `&char`s.
+				_ if str_escape_default(b.t, from) => Expr::rs("stringFromEscapeDefault", vec![iter]),
+				_ if item.is_char() => {
+					let drops = iter_drops(b, from, span);
+					Expr::rs("stringFromChars", tail(vec![iter], vec![drops]))
+				}
+				_ => string_extend(b, Expr::rs("stringNew", vec![]), iter, item, (from, from), span)?,
 			};
 			Some(match std {
 				Std::Box => s.member("v"),
@@ -2267,17 +2276,21 @@ pub(super) fn str_array(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Array(elem, _) if elem.is_ref() && elem.peel_refs().is_str())
 }
 
-/// `s` extended by `items`, an iterator of type `iter` of `item`s, as `String`'s `Extend`
-/// reads it, by `for_each`: of chars, through any `&`, or of text, a `&str`, `String`,
-/// `Box<str>`, or `Cow<str>`.
+/// `s` extended by `items`, an iterator of type `iter` of `item`s made of a `source`, as
+/// `String`'s `Extend` reads it, by `for_each`: of chars, through any `&`, or of text, a
+/// `&str`, `String`, `Box<str>`, or `Cow<str>`. std specializes on `source`'s own type,
+/// so a wrapper whose `into_iter` is a `str::EscapeDefault` is read as any other.
 pub(super) fn string_extend<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	s: Expr,
 	items: Expr,
 	item: Ty<'tcx>,
-	iter: Ty<'tcx>,
+	(source, iter): (Ty<'tcx>, Ty<'tcx>),
 	span: Span,
 ) -> Option<Expr> {
+	if str_escape_default(b.t, source) {
+		return Some(Expr::rs("stringExtendEscapeDefault", vec![s, items]));
+	}
 	let extend = if text_items(b.t, item)? {
 		"stringExtend"
 	} else {
@@ -2285,6 +2298,12 @@ pub(super) fn string_extend<'tcx>(
 	};
 	let drops = iter_drops(b, iter, span);
 	Some(Expr::rs(extend, tail(vec![s, items], vec![drops])))
+}
+
+/// Whether `ty` is `str::EscapeDefault`, which `String`'s `Extend`, `FromIterator`, and
+/// `ToString` reserve for by its parts.
+pub(super) fn str_escape_default<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
+	matches!(ty.kind(), ty::Adt(adt, _) if library::std_path(t.tcx, adt.did()) == ["str", "iter", "EscapeDefault"])
 }
 
 /// Whether a `String` extends by `item`s of text, a `&str`, `String`, `Box<str>`, or
@@ -2311,7 +2330,7 @@ fn try_flow<'tcx>(b: &Body<'_, '_, 'tcx>, r: Ty<'tcx>) -> Option<(bool, Option<E
 	};
 	match b.t.std_of(r)? {
 		Std::Option => Some((true, b.t.none_arg(args.type_at(0)))),
-		Std::ControlFlow if library::Flow::of(b.t.tcx, args) == library::Flow::Option => {
+		Std::ControlFlow if library::Flow::of(b.t.tcx, *args) == library::Flow::Option => {
 			Some((true, b.t.none_arg(args.type_at(1))))
 		}
 		Std::Result | Std::ControlFlow => Some((false, None)),
@@ -2461,7 +2480,7 @@ fn in_place<'tcx>(t: &Translator<'_, 'tcx>, iter: Ty<'tcx>, elem: Ty<'tcx>) -> O
 	// As std's `in_place_collectible`, where `None`, an overflow, is 0.
 	(!from.is_zst()
 		&& !to.is_zst()
-		&& from.align.abi == to.align.abi
+		&& from.align == to.align
 		&& merge > 0
 		&& expand > 0
 		&& u128::from(from.size.bytes()) * merge >= u128::from(to.size.bytes()) * expand)

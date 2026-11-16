@@ -1512,12 +1512,11 @@ function fromUtf16(len: number, unit: (i: number) => number): Result<RsString, F
 
 /**
  * The `String` of `len` units, `unit(i)` the `i`th, U+FFFD for each surrogate without its
- * pair, as `String::from_utf16_lossy` collects them: room for half a char a unit, which
+ * pair, as `String::from_utf16_lossy` collects them: a capacity of half a char a unit, which
  * each char's push grows.
  */
 function fromUtf16Lossy(len: number, unit: (i: number) => number): RsString {
-	const s = stringNew();
-	stringReserve(s, Math.ceil(len / 2) as usize);
+	const s = stringWithCapacity(Math.ceil(len / 2) as usize);
 	stringPushChars(s, fromUtf16Units(len, unit, true) as string);
 	return s;
 }
@@ -1668,6 +1667,11 @@ export function stringExtendChars(s: RsString, it: Iter<char>, drops = false): R
 	stringReserve(s, it.sizeHint()[0] as usize);
 	iterForEach(it, (c) => stringPush(s, c), drops);
 	return s;
+}
+
+/** `FromIterator<char>` of `String`: room for the least `it` says it has, then `stringExtendChars`. */
+export function stringFromChars(it: Iter<char>, drops = false): RsString {
+	return stringExtendChars(stringWithCapacity(it.sizeHint()[0] as usize), it, drops);
 }
 
 /** `String` as a tuple's part, of chars, which reserves as `stringReserve`. */
