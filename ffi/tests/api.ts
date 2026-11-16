@@ -37,6 +37,7 @@ import * as Json from "./web/Json.ts";
 import * as Key from "./web/Key.ts";
 import * as Label from "./web/Label.ts";
 import * as Labelled from "./web/Labelled.ts";
+import * as Local from "./web/Local.ts";
 import type { Log } from "./web/Log.ts";
 import * as Logger from "./web/Logger.ts";
 import * as Mark from "./web/Mark.ts";
@@ -1099,6 +1100,14 @@ async function script(): Promise<void> {
 		print(next === undefined ? "hop None" : `hop Some(${dec(next)})`);
 	}
 	print(`farther hop ${api.fartherHop({ left: 3, right: 0xffff })}`);
+	const local = Local.new();
+	const shared = api.localOrNew(local);
+	const bumped = Local.bump(local);
+	print(`local ${bumped} ${Local.bump(shared)}`);
+	print(`local fresh ${Local.bump(api.localOrNew(undefined))}`);
+	print(`local either ${api.bumpEither(undefined, shared)}`);
+	print(`local later ${Local.bump(await api.localOrNewLater(local))}`);
+	print(`local later fresh ${Local.bump(await api.localOrNewLater(undefined))}`);
 }
 
 /** The IPv6 address whose last 16 bits are `last`. */
@@ -1118,6 +1127,24 @@ async function futures(): Promise<void> {
 	// `yielded`'s does, is kept: the future polls again rather than waiting for a wake that
 	// already happened.
 	check((await within(api.yielded(7), "a wake during the poll polls again")) === 7, "yielded returns its value");
+
+	// A value that is not Send stays on JavaScript's one thread, so its check never fails:
+	// its futures poll, a callback calls back into it, and disposing it drops it there.
+	{
+		const local = Local.new();
+		const shared = Local.share(local);
+		Local.bump(local);
+		check(Local.bump(shared) === 2, "a shared local counts together");
+		check((await within(Local.later(local), "a local's future")) === 3, "a local's future polls on its thread");
+		check((await within(api.localLater(5), "a future that is not Send")) === 10, "a future that is not Send polls");
+		check((await Local.pollCount(local)) === 4, "a local's poll counts");
+		check(Local.visit(local, () => Local.bump(local)) === 5, "a callback calls back into its local");
+		check(Local.onOwnThread(local), "a local stays on its thread");
+		const before = api.localsDropped();
+		close(local);
+		check(api.localsDropped() === before + 1, "a disposed local drops");
+		close(shared);
+	}
 
 	// A future's output of None is undefined, and its error is its Err.
 	check((await api.halved(3)) === undefined, "a future ready with None returns undefined");
@@ -1343,6 +1370,23 @@ async function closedObjects(): Promise<void> {
 	const open = Counter.new("open", 3);
 	closed(() => api.worth([open, c], []), "Counter", "a disposed object in a list");
 	closed(() => api.worth([open], [c]), "Counter", "a disposed object in a later list");
+	// Disposed while a later argument lowers, after its pointer was passed: the call fails
+	// Rust's check of it, and its handle is freed only once the call lets it go, so no other
+	// handle made meanwhile takes its place.
+	const early = Counter.new("early", 4);
+	const kept: Counter.Counter[] = [];
+	const disposing = new Proxy([] as Counter.Counter[], {
+		get(target, key, receiver) {
+			if (key === "length") {
+				close(early);
+				kept.push(Counter.new("meanwhile", 5));
+			}
+			return Reflect.get(target, key, receiver);
+		},
+	});
+	closed(() => api.worth([early], disposing), "Counter", "an object disposed while a later argument lowers");
+	check(Counter.get(kept[0]!) === 5, "a handle made meanwhile is its own");
+	close(kept[0]!);
 	closed(
 		() =>
 			Board.new([

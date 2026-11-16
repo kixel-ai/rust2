@@ -1309,9 +1309,10 @@ target there.
   the `ArrayBuffer` does, about 0.8 µs for 1 KiB on Node 24.
 - **Objects** are an `rt.Handle`, disposed by `[Symbol.dispose]`, as `using` does. Of a
   checked type, disposing it drops the value through Rust's own `_drop`, which fails while
-  a call borrows it, then frees the handle; of any other, it frees the handle, and throws
-  while a call holds it. A call that meets a disposed handle throws `<Type> is closed`, and
-  a `FinalizationRegistry` frees one never disposed. On Node 24, a returned object disposed
+  a call borrows it; of any other, it throws while a call holds it. The handle is freed once
+  disposed and no call holds it, so one disposed while a later argument lowers fails the
+  call's check rather than reach Rust freed. A call that meets a disposed handle throws
+  `<Type> is closed`, and a `FinalizationRegistry` frees one never disposed. On Node 24, a returned object disposed
   costs 0.5 µs, 0.2 µs of it the registry's, against 0.1 µs for the C calls alone.
 - **Traits** are interfaces JavaScript implements, with an optional `close()` Rust calls
   once it drops an implementation, and **closures** are functions: each is a C function

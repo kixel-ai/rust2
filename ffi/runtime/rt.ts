@@ -329,41 +329,41 @@ const collected = new FinalizationRegistry<[number, string]>(([p, free]) => {
 });
 
 /**
- * A handle to a Rust object. An owned one of a value Rust checks is Rust's alone to
- * account: disposing it drops the value as Rust's own drop does, failing while a call
- * borrows it, and then frees it, so a call after it throws. Any other counts the
- * calls holding it: disposing it frees it then, throwing while a call holds it, and a call
- * after it throws. Either is freed once the garbage collector finds it unreachable, if it
- * was never disposed.
+ * A handle to a Rust object, which counts the calls holding it. An owned one of a value
+ * Rust checks is Rust's to account: disposing it drops the value as Rust's own drop does,
+ * failing while a call borrows it, so a call after it throws. Any other throws if disposed
+ * while a call holds it. Either is freed once disposed and no call holds it, since a call
+ * still lowering its arguments has passed its pointer, or once the garbage collector finds
+ * it unreachable, if it was never disposed.
  */
 export class Handle<T extends string = string> {
 	declare readonly [brand]: T;
 	/** The handle's pointer. */
 	readonly p: number;
 	readonly k: Kind;
-	/** The owner's hold until disposed, and one for each call, of a counted one. */
+	/** The owner's hold until disposed, and one for each call. */
 	h = 1;
 	closed = false;
 	readonly owned: boolean;
-	readonly counted: boolean;
+	/** Whether disposing it drops its value through Rust's `_drop`. */
+	readonly checked: boolean;
 
 	constructor(p: number, k: Kind, owned: boolean) {
 		this.p = p;
 		this.k = k;
 		this.owned = owned;
-		this.counted = !(owned && k.drop !== undefined);
+		this.checked = owned && k.drop !== undefined;
 		if (owned) collected.register(this, [p, k.free], this);
 	}
 
 	hold(): number {
 		if (this.closed) throw new Error(`${this.k.name} is closed`);
-		if (!this.counted) return this.p;
 		this.h++;
 		return this.p;
 	}
 
 	release(): void {
-		if (this.counted && --this.h === 0 && this.owned) this.free();
+		if (--this.h === 0 && this.owned) this.free();
 	}
 
 	free(): void {
@@ -377,8 +377,8 @@ export class Handle<T extends string = string> {
 
 	/** Close it as `Handle` says; again, it does nothing. */
 	[Symbol.dispose](): void {
-		if (!this.counted) {
-			if (this.closed) return;
+		if (this.closed) return;
+		if (this.checked) {
 			const m = enter();
 			try {
 				const st = alloc(4, 4);
@@ -390,15 +390,12 @@ export class Handle<T extends string = string> {
 			} finally {
 				leave(m);
 			}
-			// Dropped, so no call borrows it, and none can again: its handle is freed now, rather
-			// than by the garbage collector, whose registry costs a returned object ten times
-			// its call once it holds many.
-			this.closed = true;
-			this.free();
-			return;
+			// Dropped, so a call that still holds it fails Rust's check, and none can hold it
+			// again: it is freed with its last hold, rather than by the garbage collector, whose
+			// registry costs a returned object ten times its call once it holds many.
+		} else if (this.h !== 1) {
+			throw new Error(`${this.k.name}: a handle is already borrowed`);
 		}
-		if (this.closed) return;
-		if (this.h !== 1) throw new Error(`${this.k.name}: a handle is already borrowed`);
 		this.closed = true;
 		this.release();
 	}
