@@ -933,6 +933,8 @@ Future<void> script() async {
   print('local $bumped ${shared.bump()}');
   print('local fresh ${api.localOrNew(null).bump()}');
   print('local either ${api.bumpEither(null, shared)}');
+  print('local later ${(await api.localOrNewLater(local)).bump()}');
+  print('local later fresh ${(await api.localOrNewLater(null)).bump()}');
 }
 
 /// A reader whose reads fail, as the transcript's: each seek lands at 0.

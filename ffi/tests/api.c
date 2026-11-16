@@ -507,6 +507,18 @@ static bool closures(void) {
 		api_Local *fresh = api_local_or_new(NULL, &local_status);
 		printf("local fresh %u\n", api_Local_bump(fresh, &local_status));
 		printf("local either %u\n", api_bump_either(NULL, shared, &local_status));
+		const api_Local *froms[2] = {local, NULL};
+		const char *labels[2] = {"local later", "local later fresh"};
+		for (int i = 0; i < 2; i++) {
+			api_local_or_new_later_future *later = api_local_or_new_later(froms[i], &local_status);
+			api_Local *made = NULL;
+			while (local_status == 0 &&
+				   api_local_or_new_later_poll(later, (api_waker){0}, &made, &local_status) == API_POLL_PENDING) {
+			}
+			printf("%s %u\n", labels[i], made ? api_Local_bump(made, &local_status) : 0);
+			api_Local_free(made);
+			api_local_or_new_later_future_free(later);
+		}
 		if (local_status != 0) {
 			ok = false;
 		}

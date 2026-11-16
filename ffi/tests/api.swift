@@ -1034,6 +1034,13 @@ func script() {
 		print("local \(bumped) \(try! shared.bump())")
 		print("local fresh \(try! localOrNew().bump())")
 		print("local either \(try! bumpEither(shared))")
+		// Made on this thread, so awaited on the executor the script drains on it.
+		let held = Held(local)
+		let later = Cell<UInt32>(0)
+		q.launch { later.value = try await localOrNewLater(local: held.local).bump() }
+		q.drain()
+		print("local later \(later.value)")
+		print("local later fresh \(block { try await localOrNewLater().bump() })")
 	}
 	// A zero, which Swift's integer holds and Rust's `NonZero` does not, makes none, and a
 	// record holding one keeps the protocols its traits give.

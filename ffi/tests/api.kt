@@ -788,6 +788,8 @@ fun script() {
 	println("local $bumped ${shared.bump()}")
 	println("local fresh ${localOrNew(null).bump()}")
 	println("local either ${bumpEither(null, shared)}")
+	println("local later ${runBlocking { localOrNewLater(local) }.bump()}")
+	println("local later fresh ${runBlocking { localOrNewLater(null) }.bump()}")
 }
 
 // A channel whose reads fail, which seeks anywhere from its start, as Rust's `Cursor` does.

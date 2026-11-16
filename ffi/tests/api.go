@@ -1066,6 +1066,8 @@ func script() {
 	fmt.Printf("local %d %d\n", bumped, must(shared.Bump()))
 	fmt.Printf("local fresh %d\n", must(must(api.LocalOrNew(nil)).Bump()))
 	fmt.Printf("local either %d\n", must(api.BumpEither(nil, shared)))
+	fmt.Printf("local later %d\n", must(must(api.LocalOrNewLater(ctx, local)).Bump()))
+	fmt.Printf("local later fresh %d\n", must(must(api.LocalOrNewLater(ctx, nil)).Bump()))
 }
 
 // farReader is a reader whose reads fail, which seeks anywhere from its start, as Rust's

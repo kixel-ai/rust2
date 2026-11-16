@@ -1514,6 +1514,16 @@ int script() {
 		std::printf("local %u %u\n", static_cast<unsigned>(bumped), static_cast<unsigned>(shared.bump()));
 		std::printf("local fresh %u\n", static_cast<unsigned>(api::local_or_new(nullptr).bump()));
 		std::printf("local either %u\n", static_cast<unsigned>(api::bump_either(nullptr, shared)));
+		api::waker waker([]() {});
+		const api::Local *froms[] = {&local, nullptr};
+		for (const api::Local *from : froms) {
+			api::local_or_new_later_future later = api::local_or_new_later(from);
+			auto made = later.poll(waker);
+			while (!made) {
+				made = later.poll(waker);
+			}
+			std::printf("local later%s %u\n", from ? "" : " fresh", static_cast<unsigned>(made->bump()));
+		}
 	}
 
 	// A returned `Vec<&Token>` holds clones, which the vector drops.

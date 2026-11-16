@@ -852,6 +852,10 @@ def script():
 	print(f"local {bumped} {shared.bump()}")
 	print(f"local fresh {api.local_or_new(None).bump()}")
 	print(f"local either {api.bump_either(None, shared)}")
+	loop = asyncio.new_event_loop()
+	print(f"local later {loop.run_until_complete(api.local_or_new_later(local)).bump()}")
+	print(f"local later fresh {loop.run_until_complete(api.local_or_new_later(None)).bump()}")
+	loop.close()
 
 
 class Elementwise(array.array):
