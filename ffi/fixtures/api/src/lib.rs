@@ -796,16 +796,19 @@ impl Ledger {
 	pub fn slip(&mut self) -> Slip<'_> {
 		Slip {
 			receipt: Receipt(&self.published),
+			global: Receipt(&7),
 			here: std::marker::PhantomData,
 		}
 	}
 }
 
 /// A receipt kept on the thread that took it: `Clone` and not `Send`, with a field that
-/// borrows what the slip borrows, so reading it would carry the ledger's borrow out.
+/// borrows what the slip borrows, so reading it would carry the ledger's borrow out, and
+/// one that borrows only what lives as long as the program.
 #[derive(Clone)]
 pub struct Slip<'a> {
 	pub receipt: Receipt<'a>,
+	pub global: Receipt<'static>,
 	here: std::marker::PhantomData<std::rc::Rc<()>>,
 }
 
@@ -917,6 +920,15 @@ pub fn lasting(draft: &Draft<'static>) -> bool {
 /// What `receipt` counts: its bound lets it live as long as the program, so passing one a
 /// [`Ledger`] lends fails, as Rust refuses it.
 pub fn stored<'a: 'static>(receipt: Receipt<'a>) -> u32 {
+	receipt.count()
+}
+
+/// What `receipt` counts: its bound implies it lives as long as the program, as `Any`'s
+/// does, so passing one a [`Ledger`] lends fails too.
+pub fn erased<'a>(receipt: Receipt<'a>) -> u32
+where
+	Receipt<'a>: std::any::Any,
+{
 	receipt.count()
 }
 

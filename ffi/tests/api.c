@@ -2668,6 +2668,12 @@ static int statuses(void) {
 			fprintf(stderr, "a lent receipt stored wrote %d\n", status);
 			failed = 1;
 		}
+		status = 0;
+		api_erased(receipt, &status);
+		if (status != API_STATUS_LENT) {
+			fprintf(stderr, "a lent receipt erased wrote %d\n", status);
+			failed = 1;
+		}
 		api_Receipt_free(receipt);
 		api_Slip *slip = api_Ledger_slip(ledger, NULL);
 		api_Slip *twin = api_Slip_clone(slip, NULL);
@@ -2678,6 +2684,14 @@ static int statuses(void) {
 			fprintf(stderr, "a lent slip's receipt wrote %d\n", status);
 			failed = 1;
 		}
+		/* A field that borrows only what outlives the ledger reads as ever. */
+		status = 0;
+		api_Receipt *global = api_Slip_global_get(twin, &status);
+		if (status != 0 || api_Receipt_count(global, NULL) != 7) {
+			fprintf(stderr, "a lent slip's global receipt wrote %d\n", status);
+			failed = 1;
+		}
+		api_Receipt_free(global);
 		api_Slip_free(twin);
 		status = 0;
 		api_Ledger_seal(ledger, &status);

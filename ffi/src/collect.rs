@@ -2730,8 +2730,15 @@ impl<'tcx> Collector<'tcx> {
 				}
 			};
 			// A field holding what borrows, as an object of the object's lifetime does, carries
-			// that borrow out through its getter and in through its setter.
-			let ties = !self.lifetimes(ty).0.is_empty();
+			// that borrow out through its getter and in through its setter, unless the field's
+			// own type names no lifetime but `'static` and no type parameter.
+			let independent =
+				(tcx.type_of(field.did).instantiate_identity().skip_norm_wip().walk()).all(|arg| match arg.kind() {
+					GenericArgKind::Lifetime(region) => region.is_static(),
+					GenericArgKind::Type(ty) => !matches!(ty.kind(), ty::Param(_)),
+					GenericArgKind::Const(_) => true,
+				});
+			let ties = !independent && !self.lifetimes(ty).0.is_empty();
 			match mapped {
 				Ok((get, set)) => {
 					let accessor = |receiver, params, ok, set| Function {
@@ -3151,8 +3158,13 @@ impl<'tcx> Collector<'tcx> {
 		});
 		// Whether a lifetime an object it takes holds is `'static`, or is named anywhere else
 		// in the signature, itself or through the bounds that relate it to another, so the
-		// value may outlive the call or carry its borrow out.
+		// value may outlive the call or carry its borrow out. Any other bound naming it may
+		// imply one, as `Receipt<'a>: Any` implies `'a: 'static`, so it ties too.
 		let outlives = self.outlives(def_id);
+		let bounds: Vec<ty::Clause<'tcx>> = (tcx.clauses_of(def_id).instantiate(tcx, args).clauses.iter())
+			.map(|clause| clause.skip_norm_wip())
+			.filter(|clause| clause.as_region_outlives_clause().is_none() && clause.as_type_outlives_clause().is_none())
+			.collect();
 		let ties = (unbound.inputs().iter().enumerate()).any(|(n, &input)| {
 			self.lifetimes(input).0.into_iter().any(|region| {
 				let mut related = vec![region];
@@ -3172,6 +3184,9 @@ impl<'tcx> Collector<'tcx> {
 						.any(|arg| arg.as_region().is_some_and(|r| related.contains(&r)))
 				};
 				related.iter().any(|r| r.is_static())
+					|| bounds
+						.iter()
+						.any(|clause| tcx.any_free_region_meets(clause, |r| related.contains(&r)))
 					|| names(unbound.output())
 					|| (unbound.inputs().iter().enumerate()).any(|(m, &other)| m != n && names(other))
 			})
