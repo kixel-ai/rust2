@@ -99,6 +99,11 @@ impl Header<'_> {
 		self.line(format!(
 			"/* Wakes a future's poller: wake may be called from any thread, any number of\n * times, until drop releases data. A poll passing the same wake and data again\n * reuses the waker. Either function may be null. One Rust returns is the caller's,\n * to drop once or pass back into Rust. */\ntypedef struct {p}_waker {{\n\tvoid (*wake)(void *data);\n\tvoid (*drop)(void *data);\n\tvoid *data;\n}} {p}_waker;\n"
 		));
+		if api.unsent() {
+			self.line(format!(
+				"/* A value that is not Send, freed on another thread than the one that made it,\n * drops on that thread at its next call on such a value, or when it exits. A thread\n * running a loop that may call nothing for a while passes {p}_thread_wake a waker,\n * replacing any earlier one, which a free elsewhere wakes from its own thread as it\n * queues a drop: the waker then schedules {p}_thread_drain on the thread, which drops\n * each value queued for the thread it runs on. */\nvoid {p}_thread_wake({p}_waker wake);\nvoid {p}_thread_drain(void);\n"
+			));
+		}
 		self.line(format!(
 			"/* A future C implements, of nothing: Rust polls it from any thread with a waker of\n * its own each time, which C wakes once the future can make progress and drops once,\n * until poll returns true, and calls free with data once it drops the future, done or\n * not. free may be null. */\ntypedef struct {p}_foreign_future {{\n\tbool (*poll)(void *data, {p}_waker waker);\n\tvoid (*free)(void *data);\n\tvoid *data;\n}} {p}_foreign_future;\n"
 		));

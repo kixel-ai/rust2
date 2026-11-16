@@ -6,6 +6,9 @@
 class _n:
 	PENDING: _object
 
+	@_staticmethod
+	def drain() -> None: ...
+
 	class Object:
 		__slots__ = ()
 

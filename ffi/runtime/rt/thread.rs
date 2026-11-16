@@ -2,13 +2,15 @@
 //! records the thread that made it, which alone borrows, polls, moves, or drops it: a use
 //! on another thread fails its check, and a free there queues the drop to its thread,
 //! which runs it at its next check, when it exits, or at once if it waits for work. One
-//! freed once its thread exited leaks, saying so, as nothing may drop it.
+//! freed once its thread exited leaks, saying so, as nothing may drop it. A binding whose
+//! thread runs a loop, as a Python event loop or a C++ executor, gives the thread a
+//! [`Wake`], which schedules a drain on that loop so a free reaches an idle thread.
 //!
 //! A home is a thread Rust owns, for a binding with no thread of its own that stays put,
 //! as a goroutine or a Dart isolate moves between threads: a call it makes on a value a
 //! home owns runs there while the caller waits, so the value never leaves its thread.
 
-use std::cell::OnceCell;
+use std::cell::{Cell, OnceCell};
 use std::sync::OnceLock;
 use std::mem::{ManuallyDrop, MaybeUninit};
 use std::panic::AssertUnwindSafe;
@@ -31,7 +33,13 @@ struct Jobs {
 	queue: Vec<Job>,
 	/// Whether the thread exited, so that nothing queued runs.
 	gone: bool,
+	/// Called, from the thread that queues, as the queue goes from empty to not.
+	wake: Option<Wake>,
 }
+
+/// What schedules a drain of a thread's queue on the loop it runs, from any thread:
+/// [`Thread::drain_here`] there does it.
+pub type Wake = Arc<dyn Fn() + Send + Sync>;
 
 enum Job {
 	Drop(Dropped),
@@ -119,8 +127,9 @@ impl Job {
 	}
 }
 
-/// The record of the thread it is a field of, until the thread exits, then empty.
-struct Here(OnceCell<Arc<Thread>>);
+/// The record of the thread it is a field of, until the thread exits, then empty, and
+/// whether a value made here since [`Thread::made`] last looked asked for it.
+struct Here(OnceCell<Arc<Thread>>, Cell<bool>);
 
 impl Drop for Here {
 	fn drop(&mut self) {
@@ -130,7 +139,7 @@ impl Drop for Here {
 	}
 }
 
-thread_local!(static HERE: Here = const { Here(OnceCell::new()) });
+thread_local!(static HERE: Here = const { Here(OnceCell::new(), Cell::new(false)) });
 
 /// The homes no value lives on, idle until a call takes one.
 static IDLE: Mutex<Vec<Arc<Thread>>> = Mutex::new(Vec::new());
@@ -142,6 +151,7 @@ impl Thread {
 			jobs: Mutex::new(Jobs {
 				queue: Vec::new(),
 				gone,
+				wake: None,
 			}),
 			parked: OnceLock::new(),
 			home,
@@ -151,8 +161,39 @@ impl Thread {
 	/// This thread's record, which a value it makes keeps. A thread past its thread locals'
 	/// teardown has one that is gone, so a value it makes is used nowhere and leaks.
 	pub fn here() -> Arc<Thread> {
-		HERE.try_with(|here| here.0.get_or_init(|| Arc::new(Self::new(false, false))).clone())
-			.unwrap_or_else(|_| Arc::new(Self::new(false, true)))
+		HERE.try_with(|here| {
+			here.1.set(true);
+			here.0.get_or_init(|| Arc::new(Self::new(false, false))).clone()
+		})
+		.unwrap_or_else(|_| Arc::new(Self::new(false, true)))
+	}
+
+	/// Whether this thread made a value that is not `Send` since this last asked: a binding
+	/// whose thread runs a loop then gives it a [`Wake`] for the loop running.
+	#[inline]
+	pub fn made() -> bool {
+		HERE.try_with(|here| here.1.replace(false)).unwrap_or(false)
+	}
+
+	/// Have each free elsewhere of a value of this thread call `wake` as it queues the
+	/// first drop since the last drain, in place of any earlier one: the thread's loop
+	/// then drains, though it calls nothing.
+	pub fn wake_here(wake: Wake) {
+		let thread = Self::here();
+		let old = thread.lock().wake.replace(wake);
+		// Outside the lock, as a foreign drop may take its own.
+		drop(old);
+	}
+
+	/// Run what other threads queued for this thread, if any: what a [`Wake`] schedules.
+	pub fn drain_here() {
+		let _ = HERE.try_with(|here| {
+			if let Some(thread) = here.0.get()
+				&& thread.pending.load(Ordering::Acquire)
+			{
+				thread.drain();
+			}
+		});
 	}
 
 	/// Whether this is its thread.
@@ -190,10 +231,15 @@ impl Thread {
 			return Err(job);
 		}
 		jobs.queue.push(job);
-		self.pending.store(true, Ordering::Release);
+		let first = !self.pending.swap(true, Ordering::Release);
+		let wake = jobs.wake.clone().filter(|_| first);
 		drop(jobs);
 		if let Some(thread) = self.parked.get() {
 			thread.unpark();
+		}
+		// Outside the lock, as it calls into the binding.
+		if let Some(wake) = wake {
+			wake();
 		}
 		Ok(())
 	}
@@ -217,6 +263,9 @@ impl Thread {
 				let mut jobs = self.lock();
 				if jobs.queue.is_empty() {
 					jobs.gone = true;
+					let wake = jobs.wake.take();
+					drop(jobs);
+					drop(wake);
 					return;
 				}
 				std::mem::take(&mut jobs.queue)

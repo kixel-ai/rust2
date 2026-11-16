@@ -246,7 +246,58 @@ pub fn call<T>(f: impl FnOnce() -> T) -> T {
 	if !RESUMES.with_borrow(Vec::is_empty) {
 		resume();
 	}
+	if rt::Thread::made() {
+		drains();
+	}
 	result
+}
+
+/// The token of a drain, which no future or `Waker` takes.
+const DRAIN: i64 = 0;
+
+/// A call made a value that is not `Send`: give this thread a wake that queues a drain on
+/// the event loop running here, if one is, so a free on another thread reaches an idle
+/// loop, which `_n.drain` then runs.
+#[cold]
+fn drains() {
+	// SAFETY: the GIL is held. An exception the caller has set is kept aside while Python
+	// runs, and put back after.
+	unsafe {
+		let (mut kind, mut value, mut trace) = (null_mut(), null_mut(), null_mut());
+		PyErr_Fetch(&mut kind, &mut value, &mut trace);
+		match Obj::new(PyObject_CallNoArgs(ty(T_DRAINS))) {
+			Ok(queue) if is_type(queue.ptr(), &QUEUE) => {
+				if let Ok(queue) = queue_of(queue.ptr()) {
+					drain_on(&queue);
+				}
+			}
+			// No loop runs here: the thread drains at its next call instead.
+			Ok(_) => {}
+			Err(Raised) => PyErr_WriteUnraisable(ty(T_DRAINS)),
+		}
+		PyErr_Restore(kind, value, trace);
+	}
+}
+
+/// Wake this thread through `queue` for each drain, unless it does already.
+fn drain_on(queue: &Arc<Queue>) {
+	let same = DRAINS.with_borrow(|drains| std::ptr::eq(drains.as_ptr(), Arc::as_ptr(queue)) && drains.strong_count() != 0);
+	if same {
+		return;
+	}
+	let weak = Arc::downgrade(queue);
+	DRAINS.set(weak.clone());
+	rt::Thread::wake_here(Arc::new(move || {
+		if let Some(queue) = weak.upgrade() {
+			queue.push(DRAIN);
+		}
+	}));
+}
+
+/// `drain()`: drop what other threads freed of this thread's values that are not `Send`.
+unsafe extern "C" fn drain_py(_: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
+	call(rt::Thread::drain_here);
+	wrap(none)
 }
 
 thread_local! {
@@ -258,6 +309,8 @@ thread_local! {
 	static RUNNING: Cell<usize> = const { Cell::new(0) };
 	/// The queues woken on their loop's thread during the calls it is in.
 	static RESUMES: RefCell<Vec<Arc<Queue>>> = const { RefCell::new(Vec::new()) };
+	/// The queue this thread's wake queues a drain on.
+	static DRAINS: RefCell<std::sync::Weak<Queue>> = const { RefCell::new(std::sync::Weak::new()) };
 }
 
 static GET_RUNNING_LOOP: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
@@ -479,7 +532,8 @@ static MEMBERS: Gil<Vec<Option<Vec<(i64, Obj)>>>> = Gil::new(Vec::new());
 
 /// The runtime's entries, at the start of the registry: the awaitable a pending future
 /// is, the runtime's `Duration`, `_resume`, which schedules the running loop's dispatch,
-/// `Waker`, `_Pollable`, which runs an awaitable Rust polls, and `ipaddress`'s two classes.
+/// `Waker`, `_Pollable`, which runs an awaitable Rust polls, `ipaddress`'s two classes, and
+/// `_drains`, which returns the running loop's queue.
 pub const T_FUTURE: usize = 0;
 const T_DURATION: usize = 1;
 const T_RESUME: usize = 2;
@@ -487,6 +541,7 @@ const T_WAKER: usize = 3;
 const T_POLLABLE: usize = 4;
 const T_IPV4: usize = 5;
 const T_IPV6: usize = 6;
+const T_DRAINS: usize = 7;
 
 /// The class registered at `index`.
 pub fn ty(index: usize) -> *mut PyObject {
@@ -2822,7 +2877,11 @@ static NODE_METHODS: Methods<3> = Methods(UnsafeCell::new([
 
 static RETURNED_METHODS: Methods<2> = Methods(UnsafeCell::new([noargs(c"wake", returned_wake), END]));
 
-static REGISTER: Methods<2> = Methods(UnsafeCell::new([method(c"_register", register), END]));
+static REGISTER: Methods<3> = Methods(UnsafeCell::new([
+	method(c"_register", register),
+	noargs(c"drain", drain_py),
+	END,
+]));
 
 /// Make a type from `slots` and add it to `module` by its name, noting it in `cell`.
 ///

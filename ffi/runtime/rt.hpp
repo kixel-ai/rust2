@@ -713,7 +713,14 @@ namespace detail {
 // A future driven on an executor, which a `task` cancels.
 struct task_node : node {
 	virtual void cancel() noexcept = 0;
+	// Post a drain of what other threads freed of this thread's values that are not
+	// `Send` to the executor, unless the task is gone.
+	virtual void drain() noexcept = 0;
 };
+
+inline void drain_node(void *data) noexcept {
+	static_cast<task_node *>(static_cast<node *>(data))->drain();
+}
 
 template <class Op, class Exec, class F>
 class driver;
@@ -1038,6 +1045,8 @@ class driver final : public task_node {
 	// Held across each call to the executor, so `cancel` returns only once none is under
 	// way, and none starts after.
 	::std::mutex posting_;
+	// Whether the task is gone, under `posting_`, after which the executor is never called.
+	bool gone_ = false;
 	// Null once the future finished or was cancelled.
 	typename Op::raw *raw_;
 	Exec exec_;
@@ -1128,8 +1137,18 @@ public:
 		// this, the executor is never called again.
 		{
 			::std::lock_guard<::std::mutex> lock(posting_);
+			gone_ = true;
 		}
 		unref();
+	}
+
+	void drain() noexcept override {
+		::std::lock_guard<::std::mutex> lock(posting_);
+		if (!gone_) {
+			// It drains the thread it runs on, which is this one's only if the executor
+			// runs it here; a job elsewhere leaves the drops to this thread's next call.
+			exec_([]() { c_thread_drain(); });
+		}
 	}
 };
 
@@ -1138,6 +1157,12 @@ void spawn(task &slot, typename Op::raw *raw, Exec exec, F f) {
 	auto *d = new driver<Op, Exec, F>(raw, ::std::move(exec), ::std::move(f));
 	slot = task();
 	slot.node_ = d;
+	// The latest executor of this thread drains what other threads free of its values
+	// that are not `Send`, though it calls nothing into Rust, until its task is gone.
+	if constexpr (drains) {
+		d->ref();
+		c_thread_wake(c_waker{&drain_node, &drop_node, static_cast<node *>(d)});
+	}
 	d->wake();
 }
 
