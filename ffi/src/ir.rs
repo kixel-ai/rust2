@@ -317,8 +317,14 @@ pub struct Object {
 	/// The targets it compiles on.
 	pub on: On,
 	pub docs: String,
-	/// Whether it is `Sync`: if not, `&self` borrows it on one thread at a time.
+	/// Whether it is `Sync`: if not, `&self` borrows it on one thread at a time. One that is
+	/// not `Send` is not, as only its thread borrows it.
 	pub sync: bool,
+	/// Whether it is `Send`: if not, its value stays on the thread that made it, which alone
+	/// borrows, moves, or drops it. A baseline written before it has none, as every
+	/// object was.
+	#[serde(default = "yes")]
+	pub send: bool,
 	/// Whether it is `Copy`, which only one that may have padding under some layout is, any
 	/// other being a value: taken by value, it is copied out of its handle, as Rust copies
 	/// it, rather than moved out.
@@ -428,6 +434,11 @@ pub struct Function {
 	/// The parameter it polls its task through, if any: C passes a waker for it or, for a
 	/// future made of a returned `Poll`, the future's poll supplies it.
 	pub task: Option<Task>,
+	/// For a future, whether it is `Send`: if not, it stays on the thread that made it,
+	/// which alone polls or drops it. A baseline written before it has none, as every
+	/// future was.
+	#[serde(default = "yes")]
+	pub send: bool,
 	/// Whether it returns another crate's iterator, whose items the export collects into
 	/// the array it returns.
 	pub collect: bool,
@@ -813,6 +824,11 @@ impl Type {
 			_ => None,
 		}
 	}
+}
+
+/// `true`, the default of a flag a baseline written before it lacks.
+fn yes() -> bool {
+	true
 }
 
 #[cfg(test)]

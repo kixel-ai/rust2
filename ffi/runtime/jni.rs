@@ -711,8 +711,9 @@ pub unsafe fn give(node: *mut Node) -> rt::Waker {
 	lend(node)
 }
 
-/// Poll a future with a waker, writing its result into the writer if it finished.
-pub type Poll = unsafe fn(*mut c_void, rt::Waker, &mut Writer) -> bool;
+/// Poll a future with a waker, writing its result into the writer if it finished, or a
+/// failed check's status into the last, for a future that is not `Send`.
+pub type Poll = unsafe fn(*mut c_void, rt::Waker, &mut Writer, &mut i32) -> bool;
 
 /// Poll the future just made, and free it if it finished: the call and its first poll are
 /// one crossing. Its writer holds a bool, true when finished, then the result, or else the
@@ -720,7 +721,15 @@ pub type Poll = unsafe fn(*mut c_void, rt::Waker, &mut Writer) -> bool;
 ///
 /// # Safety
 /// `future` is a live future that `poll` and `free` take, and `signal` a Kotlin `Waker`.
-pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll: Poll, free: unsafe fn(*mut c_void)) -> Writer {
+/// None once a poll's check failed, which throws as the native method returns.
+pub unsafe fn start(
+	env: *mut JNIEnv,
+	future: *mut c_void,
+	signal: jobject,
+	poll: Poll,
+	free: unsafe fn(*mut c_void),
+	what: &str,
+) -> Option<Writer> {
 	let mut w = Writer::default();
 	w.put(true);
 	// Most futures are ready at once, so the first poll takes no waker: a node costs a
@@ -730,28 +739,36 @@ pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll
 		drop: None,
 		data: std::ptr::null_mut(),
 	};
+	let mut status = 0;
 	// SAFETY: the caller's contract.
-	if unsafe { poll(future, none, &mut w) } {
-		// SAFETY: as above, and it finished.
+	let ready = unsafe { poll(future, none, &mut w, &mut status) };
+	if ready || status != 0 {
+		// SAFETY: as above, and it finished, or is never polled again.
 		unsafe { free(future) };
-		return w;
+		return match status {
+			0 => Some(w),
+			_ => {
+				refuse::<()>(env, status, what);
+				None
+			}
+		};
 	}
 	// Pending, so polled again with the waker it parks on, which replaces the first.
 	let node = node(env, signal);
 	// SAFETY: as above, and `node` holds a reference for this.
-	if unsafe { poll(future, give(node), &mut w) } {
+	if unsafe { poll(future, give(node), &mut w, &mut status) } {
 		// SAFETY: as above.
 		unsafe {
 			free(future);
 			unref(node.cast());
 		}
-		return w;
+		return Some(w);
 	}
 	let mut w = Writer::default();
 	w.put(false);
 	w.put(future);
 	w.put(node.cast::<c_void>());
-	w
+	Some(w)
 }
 
 /// Poll `future` again with `node`, whose reference Rust holds from the first poll that
@@ -759,11 +776,17 @@ pub unsafe fn start(env: *mut JNIEnv, future: *mut c_void, signal: jobject, poll
 ///
 /// # Safety
 /// `future` is a live future that `poll` takes, and Rust holds a reference to `node`.
-pub unsafe fn poll(future: *mut c_void, node: *mut Node, poll: Poll) -> Option<Writer> {
+/// A failed check throws as the native method returns, which ignores its null.
+pub unsafe fn poll(env: *mut JNIEnv, future: *mut c_void, node: *mut Node, poll: Poll, what: &str) -> Option<Writer> {
 	let mut w = Writer::default();
+	let mut status = 0;
 	// SAFETY: the caller's contract.
-	match unsafe { poll(future, lend(node), &mut w) } {
+	match unsafe { poll(future, lend(node), &mut w, &mut status) } {
 		true => Some(w),
+		false if status != 0 => {
+			refuse::<()>(env, status, what);
+			None
+		}
 		false => None,
 	}
 }

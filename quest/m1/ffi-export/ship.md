@@ -20,4 +20,3 @@ then see change. A sibling planned later adds itself to `Required` here.
 ## Required
 
 - [Refusals](/quest/m1/ffi-refusals/README.md) - the census lists no refusals at the moq pin, and `ffi.toml` is gone
-- [Not Send](/quest/m1/ffi-export/not-send.md) - the types and futures that export checked by thread

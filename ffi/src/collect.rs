@@ -1710,7 +1710,9 @@ impl<'tcx> Collector<'tcx> {
 					Decl::Object(i) => {
 						*i = api.objects.len();
 						let ty = tcx.type_of(def_id).instantiate(tcx, site.args).skip_norm_wip();
-						let sync = implements(tcx, ty, def_id, sym::Sync);
+						// Only the thread a value that is not `Send` stays on borrows it.
+						let send = implements(tcx, ty, def_id, sym::Send);
+						let sync = send && implements(tcx, ty, def_id, sym::Sync);
 						let copy = implements(tcx, ty, def_id, sym::Copy);
 						let lifetimes = tcx.generics_of(def_id).own_counts().lifetimes;
 						api.objects.push(Object {
@@ -1722,6 +1724,7 @@ impl<'tcx> Collector<'tcx> {
 							on: On::ALL,
 							docs,
 							sync,
+							send,
 							copy,
 							shared: false,
 							lifetimes,
@@ -1864,6 +1867,7 @@ impl<'tcx> Collector<'tcx> {
 				on: On::ALL,
 				docs,
 				sync: true,
+				send: true,
 				copy: false,
 				// A held value is moved out of its handle, as an object of the crate's is, and
 				// its clone is no part of the API.
@@ -1915,6 +1919,7 @@ impl<'tcx> Collector<'tcx> {
 			eager: false,
 			holds: false,
 			task: None,
+			send: true,
 			collect: false,
 			lends: false,
 			access: Access::Parse,
@@ -1966,6 +1971,7 @@ impl<'tcx> Collector<'tcx> {
 						eager: false,
 						holds: false,
 						task: None,
+						send: true,
 						collect: false,
 						lends: false,
 						access: Access::Text,
@@ -1994,6 +2000,7 @@ impl<'tcx> Collector<'tcx> {
 			on: On::ALL,
 			docs: docs.to_string(),
 			sync: true,
+			send: true,
 			copy: implements(tcx, self_ty, def_id, sym::Copy),
 			shared: traits.clone && self.clone_shares(self_ty, def_id),
 			lifetimes: 0,
@@ -2094,10 +2101,10 @@ impl<'tcx> Collector<'tcx> {
 		}
 	}
 
-	/// An object, if the type can move across threads, or if it is also `Copy`, a value C
-	/// holds as its bytes, unless it may have padding, whose bytes the glue's `rustc` could
-	/// place anywhere (see [`full`]). Shared borrows of an object that is not `Sync` are
-	/// exclusive.
+	/// An object, or if the type is `Send` and `Copy`, a value C holds as its bytes, unless
+	/// it may have padding, whose bytes the glue's `rustc` could place anywhere (see
+	/// [`full`]). Shared borrows of an object that is not `Sync` are on one thread at a
+	/// time, and one that is not `Send` stays on the thread that made it.
 	fn object(&self, site: &Site<'tcx>) -> Decl {
 		let (tcx, ty, def_id) = (self.tcx, self.site_ty(site), site.key.def_id);
 		let copy = implements(tcx, ty, def_id, sym::Copy) && full(tcx, ty);
@@ -2108,10 +2115,10 @@ impl<'tcx> Collector<'tcx> {
 			};
 			return Decl::Refused(why(construct, ""));
 		}
-		match (implements(tcx, ty, def_id, sym::Send), copy) {
-			(true, true) => Decl::Value(0),
-			(true, false) => Decl::Object(0),
-			(false, _) => Decl::Refused(why("object not Send", "")),
+		// A value that is not `Send` is an object, whose handle keeps it on its thread.
+		match implements(tcx, ty, def_id, sym::Send) && copy {
+			true => Decl::Value(0),
+			false => Decl::Object(0),
 		}
 	}
 
@@ -2616,6 +2623,7 @@ impl<'tcx> Collector<'tcx> {
 						eager: false,
 						holds: false,
 						task: None,
+						send: true,
 						collect: false,
 						lends: false,
 						access: Access::Field { shared, set },
@@ -3060,6 +3068,8 @@ impl<'tcx> Collector<'tcx> {
 			_ => None,
 		};
 		let mut tasks = Vec::new();
+		// The object a poll's task is made into, which its future keeps between polls.
+		let mut made = None;
 		let mut inputs = sig.inputs().iter().copied().map(normalize).enumerate();
 		let receiver = match has_self {
 			false => None,
@@ -3075,6 +3085,7 @@ impl<'tcx> Collector<'tcx> {
 							&& polled.is_some()
 							&& let Some(kind) = self.task(ty, true) =>
 					{
+						made = Some(*inner);
 						tasks.push(Task { at: 0, kind });
 						None
 					}
@@ -3091,6 +3102,15 @@ impl<'tcx> Collector<'tcx> {
 		};
 		// Where Rust's parameters after `self` start: at `self`, when the task takes its place.
 		let first = usize::from(receiver.is_some());
+		// A poll's future holds its receiver, each parameter, and the object its task is
+		// made into, so it is not `Send` where one of them is not.
+		let mut holds_send = match (receiver, self_ty) {
+			(Some(_), Some(self_ty)) => self.is_send(normalize(self_ty), env),
+			_ => true,
+		};
+		if let Some(made) = made {
+			holds_send &= self.is_send(made, env);
+		}
 		let again = |ty: Ty<'tcx>| ty.is_ref() || tcx.type_is_copy_modulo_regions(env, ty);
 		if polled.is_some()
 			&& receiver == Some(Receiver::Owned)
@@ -3114,6 +3134,9 @@ impl<'tcx> Collector<'tcx> {
 				.flatten()
 				.map_or_else(|| format!("arg{i}"), |ident| ident.to_string());
 			if !callback && let Some(kind) = self.task(ty, polled.is_some()) {
+				if matches!(kind, TaskKind::Made { .. }) {
+					holds_send &= self.is_send(ty.peel_refs(), env);
+				}
 				// C passes a waker for a context the future does not supply.
 				if polled.is_none() {
 					params.push(Param {
@@ -3133,6 +3156,11 @@ impl<'tcx> Collector<'tcx> {
 					interned: false,
 				});
 				continue;
+			}
+			// What a binding implements, through a type parameter or a trait object, is `Send`.
+			let held = ty.peel_refs();
+			if polled.is_some() && !matches!(held.kind(), ty::Param(_) | ty::Dynamic(..)) {
+				holds_send &= self.is_send(held, env);
 			}
 			if polled.is_some() && !again(ty) {
 				errs.push(why("poll's parameter taken by value that is not Copy", ty.to_string()));
@@ -3193,6 +3221,7 @@ impl<'tcx> Collector<'tcx> {
 			errs.push(why("several task parameters", ""));
 		}
 		let mut future = false;
+		let mut send = true;
 		let mut eager = !tcx.asyncness(def_id).is_async();
 		if let Some(inner) = polled {
 			if task.is_none() {
@@ -3204,6 +3233,7 @@ impl<'tcx> Collector<'tcx> {
 			output = normalize(inner);
 			future = true;
 			eager = false;
+			send = holds_send;
 		} else if let Some(inner) = self.future_output(output, env) {
 			// The context C's waker makes lives only for the call.
 			if task.is_some() {
@@ -3222,9 +3252,8 @@ impl<'tcx> Collector<'tcx> {
 				ty::ParamEnv::new(tcx, env.param_env.caller_bounds().all_clauses(tcx).iter().chain(marked)),
 				env.typing_mode(),
 			);
-			if !self.is_send(output, kept) {
-				errs.push(why("future not Send", ""));
-			}
+			// A future that is not `Send` stays on the thread that made it.
+			send = self.is_send(output, kept);
 			// An eager future holds what it borrows only until it completes, so its output
 			// may borrow none of it.
 			if eager && borrows && self.output_borrows(unbound.output(), inner, &statics) {
@@ -3235,6 +3264,11 @@ impl<'tcx> Collector<'tcx> {
 			}
 			output = normalize(inner);
 			future = true;
+		}
+		// A future's last poll makes its output, so one whose output is not `Send` stays on
+		// the thread that made it, which a value it makes then stays on, as a home's.
+		if future && !self.is_send(output, env) {
+			send = false;
 		}
 		// A future, polled or async, lifts each value into what it owns, so has nothing to
 		// write back.
@@ -3401,6 +3435,7 @@ impl<'tcx> Collector<'tcx> {
 				eager: future && eager,
 				holds: future && eager && borrows,
 				task,
+				send,
 				collect,
 				lends,
 				access: Access::Call,
@@ -4806,10 +4841,16 @@ impl<'tcx> Collector<'tcx> {
 				// A trait object a handle holds holds its own lifetime, as `dyn Trait + 'a` does.
 				ty::Dynamic(_, region) if self.held_trait(ty).is_some() => held.push(*region),
 				// An object, an opaque value, or another crate's value an opaque handle holds, holds
-				// what its lifetime parameters name.
+				// what its lifetime parameters name. Looked up with regions erased, since they may
+				// be the signature's bound ones, which a key never names.
 				ty::Adt(adt, args)
-					if matches!(self.decl(adt.did(), *args), Some(Decl::Object(_) | Decl::Value(_)))
-						|| self.opaque_value(ty).is_some() =>
+					if matches!(
+						self.decl(
+							adt.did(),
+							ty::fold_regions(self.tcx, *args, |_, _| self.tcx.lifetimes.re_erased)
+						),
+						Some(Decl::Object(_) | Decl::Value(_))
+					) || self.opaque_value(ty).is_some() =>
 				{
 					held.extend(args.regions())
 				}
@@ -5130,6 +5171,7 @@ impl<'tcx> Collector<'tcx> {
 				eager: false,
 				holds: false,
 				task: None,
+				send: true,
 				collect: false,
 				lends: false,
 				access: Access::Const,

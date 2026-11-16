@@ -1842,7 +1842,11 @@ impl<'a> Header<'a> {
 		};
 		let name = self.name(handle);
 		let output = self.output(function);
-		let outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
+		let outs: Vec<(String, Ty)> = poll.params[2..]
+			.iter()
+			.filter(|(_, ty)| !abi::is_status(ty))
+			.cloned()
+			.collect();
 		let (declared, ok, err) = self.outs(function, &outs, &output);
 		let ok = match (&function.err, &function.ok) {
 			(None, Type::Unit) => "out.emplace();".to_string(),
@@ -1850,6 +1854,11 @@ impl<'a> Header<'a> {
 		};
 		let mut args = vec!["f".to_string(), "w".to_string()];
 		args.extend(outs.iter().map(|(name, _)| format!("&c_{name}_")));
+		// A poll on another thread than a future's that is not `Send` aborts, as C++ throws
+		// nothing.
+		if poll.status().is_some() {
+			args.push("nullptr".to_string());
+		}
 		let upper = abi.prefix.to_uppercase();
 		let mut cases = vec![format!("\t\tcase {upper}_POLL_READY:\n\t\t\t{ok}\n\t\t\tbreak;")];
 		if let Some(err) = err {

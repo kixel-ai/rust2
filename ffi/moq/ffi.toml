@@ -4,10 +4,6 @@
 # only what the facade re-exports.
 exclude = [
     "bytes",
-    "clock::Deadlines::enter",
-    "clock::Entered",
-    "clock::Rng",
-    "clock::rng",
     "hang::moq_net",
     "kio",
     "moq_quic::VarInt::from_u64_unchecked",
@@ -23,10 +19,6 @@ exclude = [
     "moq_tokio::websocket::Listener::accept",
     "mp4_atom::TrunSamples::iter",
     "mp4_atom::Tx3g::box_record",
-    "mux::catalog::Guard",
-    "mux::catalog::Producer::modify",
-    "mux::catalog::Producer<moq::mux::catalog::hang::Extra>::modify",
-    "mux::catalog::Producer<moq::mux::container::ts::Ext>::modify",
     "mux::container::Producer<moq::mux::catalog::hang::Container, moq::hang::catalog::AudioConfig>::modify",
     "mux::container::Producer<moq::mux::catalog::hang::Container, moq::hang::catalog::BinaryConfig>::modify",
     "mux::container::Producer<moq::mux::catalog::hang::Container, moq::hang::catalog::JsonConfig>::modify",

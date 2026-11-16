@@ -48,7 +48,7 @@ measurement on [the benchmark](/quest/m2/wasm/routes.md):
   schedules the next poll on a microtask, never inside the wake. Cancelling frees the
   future and loses nothing. JSPI is not needed, since no Rust code blocks on JS.
 - One thread: no atomics, no shared memory, no COOP or COEP headers. A type that is not
-  `Send` exports with no check ([not-send](/quest/m1/ffi-export/not-send.md)).
+  `Send` exports with no thread check, which the native targets make ([#844](https://github.com/kixel-ai/rust2/pull/844)).
 - The runtime's `fail` writes its message to `console.error`.
 - A struct passed by value is passed indirectly in wasm's C ABI, which the binding must
   match from the target's layouts, not the host's.

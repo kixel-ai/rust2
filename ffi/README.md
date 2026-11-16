@@ -93,7 +93,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | a struct whose fields are all `pub`, not `#[non_exhaustive]`, which map, with no `Drop` of its own | a record: a struct, copied across |
 | an enum with variants whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
 | any other type that is `Copy` and `Send`, with no padding under any order of its fields, such as moq's `Timestamp` or `stats::Traffic` | an opaque value: a struct of its bytes, copied across, which only Rust makes, reads, or changes; its `pub` fields are a getter and a setter, and a `&mut self` method writes back the caller's copy alone, one returning a future or a `Result` refused, since a language raising the error would lose the change; one no export returns is left out, since C could never make one |
-| any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, such as std's `Instant`, whose padding a `rustc` may place anywhere, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value |
+| any other type | an object: an opaque handle to an `Arc`, freed with `_free`; one that is `Copy`, such as std's `Instant`, whose padding a `rustc` may place anywhere, is copied out of its handle where Rust takes it by value, and a closure neither takes nor returns one by value; one that is not `Send`, such as kio's `clock::Entered`, stays on the thread that made it, as [the C ABI](#the-c-abi)'s threads say |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
 | a `pub` field of an object or opaque value | a getter returning a copy, and a setter assigning in place, as `x.field = value` does |
@@ -292,6 +292,28 @@ where it was while its file is unchanged.
   while a getter's copy is C's own: a nested field is got, set, and set back. A type
   whose C++ copies share one value has `_borrowed`, true while a call or future borrows
   it, so moving it out would fail.
+- **Threads**: a value that is not `Send`, an object or a future, stays on the thread that
+  made it, which alone borrows, moves, polls, or drops it. A future is such a value if it
+  holds one, as a poll function's holds its receiver and parameters, or makes one, as its
+  output, which its last poll makes on its thread. A call or poll on another
+  fails with `<PREFIX>_STATUS_NOT_SEND` before any Rust code runs, so such a future's poll
+  takes a trailing `status` too. A `_free` or `_drop` elsewhere drops nothing there: it
+  queues the drop to the value's thread, which runs it at its next check of one of its
+  values or as it exits. One freed once its thread exited leaks, printing why, since
+  nothing may drop it. A function that makes such a value, taking none or only in an
+  `Option`, has a twin `<name>_homed` of the same signature, as do its future's start,
+  `<name>_start_homed`, and `Default`'s, `<T>_default_homed`: with no such value passed,
+  it runs on a home, a thread Rust owns, which the value then stays on, and each later
+  call on it, from any thread, runs there while the caller waits, as does a call on a
+  value that is not `Send` it returns; with one passed, it runs as the function does. The first present of
+  a call's receiver and its parameters that are handles of such values, bare or in an
+  `Option`, sends it to that value's home, if it lives on one; a value made on a thread
+  the caller owns is not sent, so a call on it from another thread fails its check. Values from different homes, or one
+  nested in a list or a record, are not sent: the call runs on the first's home, where
+  any other fails its check with `<PREFIX>_STATUS_NOT_SEND`. A home waiting on a call into
+  Dart, or on another home, runs meanwhile what that call asks of its own values. A
+  binding whose threads move calls the twins: Go and Dart for every such value, Kotlin
+  and Swift for such a future made from none, which a pool's thread then polls.
 - **Opaque values** are `typedef struct <T> { uintN_t opaque[n]; } <T>;`, the bytes of a
   `Copy` type with private fields, in units of its alignment up to 8 bytes: C copies one
   as any struct, and passes `&self` as a `const <T> *` and `&mut self`, a field's setter
@@ -447,7 +469,9 @@ packages place it in.
   No export keeps a view or reference past its call, so none carries
   `[[clang::lifetime_capture_by]]`; the first that does adds it.
 - **Checks**: a call passes no `status`, so a borrow or move Rust's rules refuse aborts
-  with its message, naming the function, as C's does with a NULL one.
+  with its message, naming the function, as C's does with a NULL one: so does a use or
+  poll of a value that is not `Send` on another thread than the one that made it, and
+  one destroyed on another drops on its own thread at its next call or as it exits.
 - **Sharing** stands in for `clone` where no call can tell the two apart but by counting
   an `Arc`'s or `Rc`'s clones, which the exporter decides at compile time. A type's copies share when it is `Clone`; `Sync`,
   since one that is not is borrowed on one thread at a time, which copies on two threads
@@ -552,7 +576,12 @@ the rest cross encoded.
   once the GC collects it, on a daemon thread a phantom reference queue feeds. A `self`
   method, or passing the object by value, moves its value out and closes it once the call
   returns. `Clone` is `clone()`, `PartialEq` is `equals`, and `Hash` is `hashCode`, Rust's
-  hash folded as `Long.hashCode` folds it, or 0 without one.
+  hash folded as `Long.hashCode` folds it, or 0 without one. A value that is not `Send`
+  throws an `IllegalStateException` when used on another thread than the one that made
+  it, and closed or collected on another, it drops on its own at its next call or as it
+  exits. A future that is not `Send` made from none lives on a home, so a coroutine a
+  dispatcher resumes on any thread polls it; one a value's method makes stays on that
+  value's thread.
   A field is a `val`, `firstGet`, and its setter a function, `firstSet(value)`, named as
   the C ones, since setting an object moves it in and closes its handle, which an
   assignment would hide.
@@ -698,7 +727,10 @@ caller imports it with no ignores.
   since setting an object moves it in and closes it, which an assignment would hide.
 - **Checks**: a borrow or move Rust's rules refuse raises, naming the function and the rule,
   before any Rust code runs, so the call changed nothing: `ValueError` for a value moved out, or a lent object that outlived the one it
-  borrows from, as for a closed object, and `RuntimeError` for any other.
+  borrows from, as for a closed object, and `RuntimeError` for any other, as for a value
+  that is not `Send` used on another thread than the one that made it. Freed on another,
+  as the collector or the last reference there frees it, such a value drops on its own
+  thread at its next call or as it exits.
 - **Records** are slotted dataclasses, compared by their fields, a float by IEEE `==` even
   against itself, as Rust does, and **enums** an `Enum`
   of upper-case members, or for one with data a class of a dataclass per variant,
@@ -810,7 +842,14 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   holds until it returns, and moving its value out closes it, after which a call throws. A
   field is a computed property, `firstGet`, and its setter a function, `firstSet(value)`,
   named as the C ones, since setting an object moves it in, which an assignment would hide.
-  An object is `Sendable`, since Rust checks each borrow at run time.
+  An object is `Sendable` where Rust lets it cross threads, checking each borrow at run
+  time: a class if its type is `Send` and `Sync`, since its holders share it, and a
+  noncopyable struct if `Send`, since it only moves. A record, enum, or tuple struct is
+  `Sendable` only if each handle it holds is, so Swift's compiler keeps the others on one
+  task, and a use on another thread anyway, as after a suspension that resumed elsewhere,
+  throws a `CheckError`. A type thrown as an error is `Sendable` unchecked, since
+  `Swift.Error` requires it. A future that is not `Send` made from none lives on a home, so
+  any executor awaits it.
 - **Checks**: a borrow or move Rust's rules refuse at run time, such as a borrow of a value
   that is not `Sync` on a second thread, throws a `CheckError`, holding the function and
   the rule, before any Rust code runs, so the call changed nothing. So every function whose objects can fail a check `throws`, and a
@@ -954,6 +993,9 @@ reads a go.mod.
   and returns it beside the value, so the call allocates nothing for it: cgo moves to the
   heap any Go local whose address C gets, since C may call back into Go, which can move the
   goroutine's stack.
+- **Threads**: a goroutine moves between threads, so a value that is not `Send` is made on
+  a home, a thread Rust owns, which runs each call on it, from any goroutine, while the
+  goroutine's thread waits, and drops it there once closed or collected.
 - **Records** are structs, and **plain enums** an `int32` type with a constant per
   variant (`ShapeSquare`). An enum with data is an interface each variant's struct
   implements (`EventMoved{V0: p}`), sealed so only the package's do; its methods are the
@@ -1177,7 +1219,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   future's poll and `cancel()` included, runs on a thread of its own, acting as the
   caller's for the handles it borrows, while the isolate's thread runs what Rust calls
   into Dart meanwhile. Any other call runs on the isolate's thread, since nothing it waits
-  on can call into Dart.
+  on can call into Dart. An isolate may move between threads, so a value that is not
+  `Send` is made on a home, a thread Rust owns, which runs each call on it.
 - **The contract** is checked at the first call, before any other: a Dart file and a
   library from different builds throw a `StateError`.
 
