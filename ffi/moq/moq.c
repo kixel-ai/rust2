@@ -413,6 +413,30 @@ int main(void) {
 	int listed_stats = 0;
 	CHECK(moq_mux_catalog_Producer_Extra_mutate(catalog, lists_stats, &listed_stats, &mux_err, NULL));
 	CHECK(listed_stats == 1);
+	/* The same field through `modify`'s guard, a handle holding the catalog borrowed
+	 * exclusively until the guard commits or drops: a call on the catalog meanwhile fails
+	 * before any Rust code runs. A commit publishes the cleared field, and a drop the
+	 * restored one. */
+	moq_mux_catalog_Guard_Extra *guard = NULL;
+	CHECK(moq_mux_catalog_Producer_Extra_modify(catalog, &guard, &mux_err, NULL));
+	moq_hang_catalog_Stats *guarded = moq_mux_catalog_Guard_Extra_stats_get(guard, NULL);
+	moq_hang_catalog_Stats *want = moq_hang_catalog_Stats_new(str("stats"));
+	CHECK(guarded != NULL && moq_hang_catalog_Stats_eq(guarded, want, NULL));
+	moq_hang_catalog_Stats_free(guarded);
+	moq_status held = 0;
+	moq_mux_catalog_Producer_Extra_mutate(catalog, lists_stats, &listed_stats, &mux_err, &held);
+	CHECK(held == MOQ_STATUS_BORROWED);
+	moq_mux_catalog_Guard_Extra_stats_set(guard, NULL, NULL);
+	CHECK(moq_mux_catalog_Guard_Extra_commit(guard, &mux_err, NULL));
+	moq_mux_catalog_Guard_Extra_free(guard);
+	CHECK(moq_mux_catalog_Producer_Extra_mutate(catalog, lists_stats, &listed_stats, &mux_err, NULL));
+	CHECK(listed_stats == 1);
+	CHECK(moq_mux_catalog_Producer_Extra_modify(catalog, &guard, &mux_err, NULL));
+	moq_mux_catalog_Guard_Extra_stats_set(guard, want, NULL);
+	moq_hang_catalog_Stats_free(want);
+	moq_mux_catalog_Guard_Extra_free(guard);
+	CHECK(moq_mux_catalog_Producer_Extra_mutate(catalog, lists_stats, &listed_stats, &mux_err, NULL));
+	CHECK(listed_stats == 2);
 	/* A JSON track the catalog lists, published through moq-mux's generic `json_snapshot`
 	 * at a JSON document, and a section C parses from text, set in the lent catalog and
 	 * read back as text. Its track has a timescale, since every write is stamped. */

@@ -135,6 +135,45 @@ fn close_while_reserved() {
 	}
 }
 
+/// A draft the ledger's `edit` lends holds the ledger's exclusive borrow until it drops:
+/// through a commit that moves it out, past a free of the ledger, and shared by a receipt's
+/// clone, which the last copy gives back.
+#[test]
+fn exclusive_lend() {
+	unsafe {
+		let null = std::ptr::null_mut();
+		let mut err = std::mem::MaybeUninit::<api_Error>::uninit();
+		let mut draft = std::ptr::null();
+		let ledger = api_Ledger_new();
+		assert!(api_Ledger_edit(ledger, &mut draft, err.as_mut_ptr(), null));
+		api_Draft_write(draft, view("first"), null);
+		let mut status = 0;
+		api_Ledger_published(ledger, &mut status);
+		assert_eq!(status, rt::Status::Exclusive as i32);
+		assert_eq!(api_Draft_commit(draft, null), 1);
+		api_Draft_free(draft);
+		assert_eq!(api_Ledger_published(ledger, null), 1);
+		assert!(api_Ledger_edit(ledger, &mut draft, err.as_mut_ptr(), null));
+		api_Ledger_free(ledger);
+		api_Draft_write(draft, view("second"), null);
+		assert_eq!(api_Draft_lines(draft, null), 2);
+		assert_eq!(api_Draft_commit(draft, null), 2);
+		api_Draft_free(draft);
+		let ledger = api_Ledger_new();
+		let receipt = api_Ledger_receipt(ledger, null);
+		let copy = api_Receipt_clone(receipt, null);
+		api_Receipt_free(receipt);
+		api_Ledger_seal(ledger, &mut status);
+		assert_eq!(status, rt::Status::Borrowed as i32);
+		assert_eq!(api_Receipt_count(copy, null), 0);
+		api_Receipt_free(copy);
+		status = 0;
+		api_Ledger_seal(ledger, &mut status);
+		assert_eq!(status, 0);
+		api_Ledger_free(ledger);
+	}
+}
+
 #[test]
 fn buffers() {
 	unsafe {

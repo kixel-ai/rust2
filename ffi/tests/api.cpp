@@ -1042,6 +1042,43 @@ int script() {
 		tallies.first().bump();
 		std::printf("tallied %u\n", tallies.first().bump());
 	}
+	{
+		// A draft borrowing its ledger exclusively until it is destroyed, through which its
+		// sheet's members are reached by Deref and DerefMut.
+		auto ledger = api::Ledger::new_();
+		{
+			auto draft = ledger.edit().value();
+			draft.title_set("minutes");
+			draft.write("first");
+			print("draft ", draft.title_get(), " ");
+			std::printf("%u ", draft.lines());
+			print("", draft.describe(), " ");
+			std::printf("%s\n", yes(draft.edited()));
+			std::printf("committed %u\n", std::move(draft).commit());
+		}
+		print("ledger ", ledger.title(), " ");
+		std::printf("%u\n", ledger.published());
+		{
+			auto draft = ledger.edit().value();
+			std::printf("read %u %s\n", draft.lines(), yes(draft.edited()));
+		}
+		{
+			auto draft = ledger.edit().value();
+			draft.write("second");
+		}
+		std::printf("dropped %u\n", ledger.published());
+		std::printf("receipt %u\n", ledger.receipt().count());
+		{
+			auto marker = api::Marker::new_(api::input("m"), 3, 5);
+			marker.y_set(7);
+			std::printf("forwarded %u %u %d %d", api::Pad_u16::wide().title(), api::Layered::new_().lines(),
+			            marker.x_get(), marker.y_get());
+			print(" [", api::Pad_u8::small().describe(), "]");
+			print(" [", api::Pad_u16::wide().describe(), "]\n");
+		}
+		ledger.seal();
+		print("sealed ", api::Error_to_string(ledger.edit().error()), "\n");
+	}
 
 	std::printf("chunks [");
 	auto chunks = api::chunks("abcde", 2);
@@ -2098,6 +2135,11 @@ int broken(const char *which) {
 		recv.poll(waker);
 	} else if (std::strcmp(which, "null view") == 0) {
 		api::len(api::view(nullptr, 1));
+	} else if (std::strcmp(which, "lent ledger") == 0) {
+		// A ledger used while a draft holds its exclusive borrow.
+		api::Ledger ledger = api::Ledger::new_();
+		api::Draft draft = ledger.edit().value();
+		ledger.published();
 	} else if (std::strcmp(which, "outlived") == 0) {
 		api::Meters meters = api::Meters::new_();
 		api::Meter first = meters.first();

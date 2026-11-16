@@ -707,6 +707,46 @@ Future<void> script() async {
   final tallies = api.Tallies();
   tallies.first().bump();
   print('tallied ${tallies.first().bump()}');
+  // A draft borrowing its ledger exclusively until it closes, through which its sheet's
+  // members are reached by Deref and DerefMut: the ledger refuses any other use meanwhile.
+  final ledger = api.Ledger();
+  var draft = ledger.edit();
+  draft.titleSet('minutes');
+  draft.write('first');
+  print('draft ${draft.titleGet} ${draft.lines()} ${draft.describe()} ${draft.edited()}');
+  try {
+    ledger.published();
+    check(false, 'a lent ledger refuses a read');
+  } on StateError catch (e) {
+    check(e.message == 'api_Ledger_published: a handle is borrowed exclusively', 'a lent ledger: $e');
+  }
+  print('committed ${draft.commit()}');
+  print('ledger ${ledger.title()} ${ledger.published()}');
+  draft = ledger.edit();
+  print('read ${draft.lines()} ${draft.edited()}');
+  draft.close();
+  draft = ledger.edit();
+  draft.write('second');
+  draft.close();
+  print('dropped ${ledger.published()}');
+  final receipt = ledger.receipt();
+  print('receipt ${receipt.count()}');
+  receipt.close();
+  final padSmall = api.PadU8.small(), padWide = api.PadU16.wide(), layered = api.Layered();
+  final marker = api.Marker('m', 3, 5);
+  marker.ySet(7);
+  print('forwarded ${padWide.title()} ${layered.lines()} ${marker.xGet} ${marker.yGet} '
+      '[${padSmall.describe()}] [${padWide.describe()}]');
+  for (final handle in [padSmall, padWide, layered, marker]) {
+    handle.close();
+  }
+  ledger.seal();
+  try {
+    ledger.edit().close();
+  } on api.Error catch (e) {
+    print('sealed $e');
+  }
+  ledger.close();
   tallies.close();
   print('chunks ${api.chunks(utf8.encode('abcde'), api.U64(2))}');
   final counters = api.counters(['x', 'y']);

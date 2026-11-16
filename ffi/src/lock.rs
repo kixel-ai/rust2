@@ -779,11 +779,13 @@ fn fields(what: &str, ours: &[crate::ir::Field], theirs: &[crate::ir::Field]) ->
 /// What of the function `ours` changed in `theirs`, both bare and of one key.
 fn signature(ours: &Function, theirs: &Function) -> Vec<String> {
 	let (mut ours, mut theirs) = (ours.clone(), theirs.clone());
-	// Which name the config gives a field: no binding names it otherwise.
+	// Which name the config gives a field: no binding names it otherwise. Nor whether a held
+	// handle fails it, which only a newer export lends and a baseline written before it lacks.
 	for f in [&mut ours, &mut theirs] {
 		if let Access::Field { shared, .. } = &mut f.access {
 			*shared = false;
 		}
+		f.ties = false;
 	}
 	let mut changes = Vec::new();
 	if ours.receiver != theirs.receiver {
@@ -848,6 +850,9 @@ mod tests {
 				send: true,
 				collect: false,
 				lends: false,
+				lends_mut: false,
+				derefs: 0,
+				ties: false,
 				access: Access::Call,
 				instance: None,
 				home: Home {
@@ -970,5 +975,13 @@ mod tests {
 		assert_eq!(changes.len(), 1);
 		assert!(changes[0].what.contains("lock_b"));
 		assert!(changes[0].what.contains("lock_a"));
+	}
+
+	#[test]
+	fn ties_is_not_a_break() {
+		let base = api();
+		let mut now = base.clone();
+		now.functions[0].ties = true;
+		assert!(breaks(&base, &now, "lock").is_empty());
 	}
 }

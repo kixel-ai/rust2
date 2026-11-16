@@ -58,13 +58,18 @@ fixtures/reject/src/lib.rs:1336:1: rust2-ffi: cannot export fn `keep_object`: 's
 fixtures/reject/src/lib.rs:1341:1: rust2-ffi: cannot export fn `bound_object`: 'static borrow `&mut jni::Env<'a>`; 'static borrow `jni::objects::JObject<'a>`; exclude it in the config to leave it out
 	fixtures/reject/src/lib.rs:1341:21: note: `'a` is `'static`, as a handle outlives every call
 	fixtures/reject/src/lib.rs:1341:21: note: `'a` is `'static`, as a handle outlives every call
+fixtures/reject/src/lib.rs:1365:2: rust2-ffi: cannot export method `Slot<u8>::view`: returned object that borrows `SlotView<'_, u8>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1371:2: rust2-ffi: cannot export method `Slot<u8>::peek`: returned object that borrows `SlotView<'_, u8>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1423:2: rust2-ffi: cannot export method `Slot<u8>::hold`: returned object that borrows `SlotHold<'a>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1431:2: rust2-ffi: cannot export method `Slot<u8>::tag`: returned object that borrows `SlotTag<'_>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1436:2: rust2-ffi: cannot export method `Slot<u8>::lens`: returned object that borrows `SlotLens<'_>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1441:2: rust2-ffi: cannot export method `Slot<u8>::peer`: returned object that borrows `SlotPeer<'_>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:145:2: rust2-ffi: cannot export method `Link::session`: borrowed return that is not Clone `tls::held::Handoff`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:162:1: rust2-ffi: cannot export fn `measure`: foreign type `tls::held::Local`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:167:1: rust2-ffi: cannot export instance `Cell<std::vec::Vec<String>>`: type argument `std::vec::Vec<String>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:167:1: rust2-ffi: cannot export instance `Cell<tls::held::Cert>`: type argument `tls::held::Cert`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:16:1: rust2-ffi: cannot export fn `generic`: generic parameter `std::marker::Copy`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:170:1: rust2-ffi: cannot export fn `sealed`: refused type `reject::Cell<tls::held::Cert>`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:187:2: rust2-ffi: cannot export method `Slot<u8>::lock`: returned object that borrows `SlotGuard<'_, u8>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:199:1: rust2-ffi: cannot export fn `echo`: borrowing output of a future from a function that is not async `&str`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:204:1: rust2-ffi: cannot export fn `blame`: borrowing output of a future from a function that is not async `std::result::Result<u32, tls::held::Wrapped<'_, u8>>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:209:1: rust2-ffi: cannot export fn `relay`: borrowing output of a future from a function that is not async `&str`; exclude it in the config to leave it out

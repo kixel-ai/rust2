@@ -21,6 +21,12 @@ already rejects; and "exclude it in the config" in `ffi/src/driver.rs`'s refusal
 2026-11-04, and no exclude stands in for a rule. This is its last child, split out by the
 2026-11-12 audit so the epic needs no `Required` of its own.
 
+Since [#848](https://github.com/kixel-ai/rust2/pull/848) exports an exclusive lend, rustls's
+`ClientConfig::dangerous` returns a held `DangerousClientConfig`, whose `pub cfg: &'a mut
+ClientConfig` field `ffi/moq/ffi.toml` excludes: no rule yet exports an object's `pub` field
+holding a reference, which would need its own rule, such as a getter through the reference
+and no setter.
+
 One deletion needs no clean census and may land in any sibling's PR first:
 `go/bench/ffi.toml` with the `--config` in `go/justfile`'s bench recipe.
 

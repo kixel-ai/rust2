@@ -684,6 +684,41 @@ def script():
 	tallies = api.Tallies.new()
 	tallies.first().bump()
 	print(f"tallied {tallies.first().bump()}")
+	# A draft borrowing its ledger exclusively until its last reference goes, through which
+	# its sheet's members are reached by Deref and DerefMut: the ledger refuses any other use
+	# meanwhile.
+	ledger = api.Ledger.new()
+	draft = ledger.edit()
+	draft.title_set("minutes")
+	draft.write("first")
+	print(f"draft {draft.title_get} {draft.lines()} {draft.describe()} {flag(draft.edited())}")
+	try:
+		ledger.published()
+		check(False, "a lent ledger refuses a read")
+	except RuntimeError as e:
+		check(str(e) == "api_Ledger_published: a handle is borrowed exclusively", repr(e))
+	print(f"committed {draft.commit()}")
+	del draft
+	print(f"ledger {ledger.title()} {ledger.published()}")
+	draft = ledger.edit()
+	print(f"read {draft.lines()} {flag(draft.edited())}")
+	del draft
+	draft = ledger.edit()
+	draft.write("second")
+	del draft
+	print(f"dropped {ledger.published()}")
+	print(f"receipt {ledger.receipt().count()}")
+	marker = api.Marker.new("m", 3, 5)
+	marker.y_set(7)
+	print(
+		f"forwarded {api.PadU16.wide().title()} {api.Layered.new().lines()} {marker.x_get} {marker.y_get}"
+		f" [{api.PadU8.small().describe()}] [{api.PadU16.wide().describe()}]"
+	)
+	ledger.seal()
+	try:
+		ledger.edit()
+	except api.ErrorException as e:
+		print(f"sealed {e}")
 	print(f"chunks {[list(data(chunk)) for chunk in api.chunks(b'abcde', 2)]}")
 	counters = api.counters(["x", "y"])
 	print("counters " + ", ".join(f"{c.name()} {c.get()}" for c in counters))

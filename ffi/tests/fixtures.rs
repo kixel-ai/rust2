@@ -99,6 +99,33 @@ fn exporter(name: &str, out: &Path, targets: &[&str], args: &[&std::ffi::OsStr],
 	command
 }
 
+/// What `Deref` forwards: a member the object or a nearer target has hides one past it, even
+/// a target that does not export, a method only a method and a field only a field, and the
+/// config leaves out a forwarded member by the object's path, a field sharing a method's by
+/// `field@`. An exclude naming nothing fails the export, so each one here was forwarded.
+#[test]
+fn deref_shadowing() {
+	let header = std::fs::read_to_string(api().out.join("include").join("api.h")).unwrap();
+	for present in [
+		"api_Layered_lines(",
+		"api_Pad_u16_title(",
+		"api_Marker_x_get(",
+		"api_Marker_x_set(",
+		"api_Marker_y_get(",
+	] {
+		assert!(header.contains(present), "{present} is not exported");
+	}
+	for absent in [
+		"api_Layered_describe(",
+		"api_Pad_u16_lines(",
+		"api_Pad_u16_title_get(",
+		"api_Marker_x(",
+		"api_Marker_y(",
+	] {
+		assert!(!header.contains(absent), "{absent} is exported");
+	}
+}
+
 /// The api fixture, exported and built once for each language's test.
 struct Api {
 	/// The export.
@@ -449,6 +476,7 @@ fn api_cpp() {
 			("overread", "api_tail: a reader read more than it was asked"),
 			("null view", "a view of null bytes has a length"),
 			("outlived", OUTLIVED),
+			("lent ledger", "api_Ledger_published: a handle is borrowed exclusively"),
 		] {
 			let output = Command::new(&exe).arg(case).output().unwrap();
 			failed(&output, &format!("C++{standard} {case}"));

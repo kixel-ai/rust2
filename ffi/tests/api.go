@@ -812,6 +812,41 @@ func script() {
 	tallies := api.NewTallies()
 	_ = must(must(tallies.First()).Bump())
 	fmt.Printf("tallied %d\n", must(must(tallies.First()).Bump()))
+	// A draft borrowing its ledger exclusively until it closes, through which its sheet's
+	// members are reached by Deref and DerefMut: the ledger refuses any other use meanwhile.
+	ledger := api.NewLedger()
+	draft := must(ledger.Edit())
+	check(draft.TitleSet("minutes") == nil, "a draft's title sets")
+	check(draft.Write("first") == nil, "a draft writes")
+	fmt.Printf("draft %s %d %s %t\n", must(draft.TitleGet()), must(draft.Lines()), must(draft.Describe()), must(draft.Edited()))
+	_, exclusive := ledger.Published()
+	check(
+		errors.Is(exclusive, rt.ErrBorrowed) && exclusive.Error() == "api_Ledger_published: a handle is borrowed exclusively",
+		fmt.Sprintf("a lent ledger refuses a read: %v", exclusive),
+	)
+	fmt.Printf("committed %d\n", must(draft.Commit()))
+	fmt.Printf("ledger %s %d\n", must(ledger.Title()), must(ledger.Published()))
+	draft = must(ledger.Edit())
+	fmt.Printf("read %d %t\n", must(draft.Lines()), must(draft.Edited()))
+	check(draft.Close() == nil, "a draft closes")
+	draft = must(ledger.Edit())
+	check(draft.Write("second") == nil, "a draft writes")
+	check(draft.Close() == nil, "a draft closes")
+	fmt.Printf("dropped %d\n", must(ledger.Published()))
+	receipt := must(ledger.Receipt())
+	fmt.Printf("receipt %d\n", must(receipt.Count()))
+	check(receipt.Close() == nil, "a receipt closes")
+	padSmall, padWide, layered := api.PadU8Small(), api.PadU16Wide(), api.NewLayered()
+	marker := must(api.NewMarker("m", 3, 5))
+	check(marker.YSet(7) == nil, "a marker's point sets")
+	fmt.Printf("forwarded %d %d %d %d [%s] [%s]\n", must(padWide.Title()), must(layered.Lines()), must(marker.XGet()), must(marker.YGet()), must(padSmall.Describe()), must(padWide.Describe()))
+	for _, closer := range []interface{ Close() error }{padSmall, padWide, layered, marker} {
+		check(closer.Close() == nil, "a forwarding handle closes")
+	}
+	check(ledger.Seal() == nil, "a ledger seals")
+	_, sealed := ledger.Edit()
+	fmt.Printf("sealed %s\n", sealed)
+	check(ledger.Close() == nil, "a ledger closes")
 	fmt.Printf("chunks %s\n", list(api.Chunks(rt.NewBytes([]byte("abcde")), 2), func(b rt.Bytes) string { return list(b.Copy(), number) }))
 	counters := must(api.Counters([]string{"x", "y"}))
 	fmt.Printf("counters %s\n", strings.Trim(list(counters, func(c *api.Counter) string {
