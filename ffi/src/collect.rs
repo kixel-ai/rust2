@@ -3220,14 +3220,14 @@ impl<'tcx> Collector<'tcx> {
 				ty::AssocKind::Fn { has_self: true, .. }
 			);
 		let unbound = sig.skip_binder();
-		let exclusive = (self.exclusive(def_id, unbound, has_self)).filter(|_| {
+		let exclusive = (self.exclusive(def_id, unbound, has_self)).filter(|&region| {
 			// Its lifetimes free, as a call's are: the late-bound ones its own.
 			let free = tcx.liberate_late_bound_regions(def_id, sig).output();
 			let ok = match free.kind() {
 				ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Result, adt.did()) => args.type_at(0),
 				_ => free,
 			};
-			self.lifetime_generic(ok)
+			self.lifetime_generic(ok) && self.lend_bounds_hold(def_id, args, region)
 		});
 		let (statics, lifetimes, interned) = self.borrows(def_id, unbound, exclusive);
 		errs.extend(lifetimes);
@@ -5035,6 +5035,33 @@ impl<'tcx> Collector<'tcx> {
 		let env = TypingEnv::fully_monomorphized();
 		tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(projection))
 			.is_ok_and(|next| !next.walk().any(|arg| arg.as_region().is_some()))
+	}
+
+	/// Whether each bound of `def_id` at `args` that names the lend's lifetime `region` holds
+	/// with it free: the glue's lend gives the call a borrow of any lifetime, so a bound only
+	/// `'static` meets, as `&'static mut Self: Tr` alone would, lets the callee keep the
+	/// borrow past the lend. Each is proved as `ties` proves a bound, with no where-clause
+	/// and no lifetime relation assumed.
+	fn lend_bounds_hold(&self, def_id: DefId, args: ty::GenericArgs<'tcx>, region: ty::Region<'tcx>) -> bool {
+		let tcx = self.tcx;
+		let empty = ty::ParamEnv::empty();
+		(tcx.clauses_of(def_id).instantiate(tcx, args).clauses.iter())
+			.map(|clause| clause.skip_norm_wip())
+			.filter(|&clause| tcx.any_free_region_meets(&clause, |r| r == region))
+			.all(|clause| {
+				// An instance's lifetime is the `'static` the glue names it by.
+				let clause = ty::fold_regions(tcx, clause, |r, _| match r.kind() {
+					ty::ReErased => tcx.lifetimes.re_static,
+					_ => r,
+				});
+				let infcx = tcx.infer_ctxt().build(ty::TypingMode::non_body_analysis());
+				let ocx = ObligationCtxt::new(&infcx);
+				ocx.register_obligation(Obligation::new(tcx, ObligationCause::dummy(), empty, clause));
+				ocx.evaluate_obligations_error_on_ambiguity().no_errors()
+					&& ocx
+						.resolve_regions(rustc_hir::def_id::CRATE_DEF_ID, empty, [])
+						.is_empty()
+			})
 	}
 
 	/// Each `'long: 'short` the bounds of `def_id`'s signature name.

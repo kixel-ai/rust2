@@ -177,7 +177,9 @@ exclusive lend: a `&mut self` method of an object returning an object, bare or a
 guard does, which its handle holds with the receiver's exclusive borrow; a copy would
 carry the borrow past it. Each of its `Clone`, `PartialEq`, `Hash`, `Debug`, `Display`,
 `Deref`, and `DerefMut` must hold at every lifetime, as the binding calls them on the
-`'static` form, and its `Deref` target must name no lifetime. A parameter is a reference
+`'static` form, and its `Deref` target must name no lifetime. So must each of the
+method's own bounds naming the receiver's lifetime, as the binding's lend gives the call a
+borrow of any lifetime. A parameter is a reference
 only at its top or as `Some` of an `Option`, lent as the reference alone is, so
 `Option<&T>` is a null or borrowed handle, a null or viewed buffer, or an option of a
 value, and not inside a `Box` or any other type. A `&mut` of a value, but a `str` or a

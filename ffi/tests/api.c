@@ -2692,6 +2692,16 @@ static int statuses(void) {
 			failed = 1;
 		}
 		api_Receipt_free(receipt);
+		/* A lend bounded on its own borrow by a trait every lifetime meets borrows the
+		 * ledger as any lend does. */
+		receipt = api_Ledger_noted(ledger, NULL);
+		status = 0;
+		api_Ledger_seal(ledger, &status);
+		if (status != API_STATUS_BORROWED || api_Receipt_count(receipt, NULL) != 0) {
+			fprintf(stderr, "a ledger a noted receipt borrows wrote %d\n", status);
+			failed = 1;
+		}
+		api_Receipt_free(receipt);
 		api_Slip *slip = api_Ledger_slip(ledger, NULL);
 		api_Slip *twin = api_Slip_clone(slip, NULL);
 		api_Slip_free(slip);

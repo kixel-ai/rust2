@@ -793,6 +793,15 @@ impl Ledger {
 		Receipt(&self.published)
 	}
 
+	/// A receipt from a method bounded on its own borrow, by a trait that holds at every
+	/// lifetime, so the lend still exports.
+	pub fn noted<'a>(&'a mut self) -> Receipt<'a>
+	where
+		&'a mut Self: noted::Noted<'a>,
+	{
+		Receipt(&self.published)
+	}
+
 	/// Files `item` beside what the ledger published, generic over what counts itself.
 	pub fn file<T: Totaled>(&mut self, item: T) -> Filed<'_, T> {
 		Filed {
@@ -808,6 +817,13 @@ impl Ledger {
 			here: std::marker::PhantomData,
 		}
 	}
+}
+
+mod noted {
+	/// Implemented for a borrow of a ledger of any lifetime.
+	pub trait Noted<'a> {}
+
+	impl<'a> Noted<'a> for &'a mut super::Ledger {}
 }
 
 /// A receipt kept on the thread that took it: `Clone` and not `Send`, with a field that

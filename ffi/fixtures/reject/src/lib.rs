@@ -1406,7 +1406,27 @@ impl<'a> std::ops::Deref for SlotPeer<'a> {
 	}
 }
 
+/// A hold with no trait at all, which the lend's own bound keeps refused.
+pub struct SlotHold<'a>(&'a mut u8);
+
+mod pin {
+	/// Implemented for a `'static` borrow of a slot alone, which a callee bounded by it
+	/// could keep.
+	pub trait StaticOnly<'a> {}
+
+	impl StaticOnly<'static> for &'static mut super::Slot<u8> {}
+}
+
 impl Slot<u8> {
+	/// Refused: its bound holds only for a `'static` borrow of the slot, which the lend's
+	/// borrow is not.
+	pub fn hold<'a>(&'a mut self) -> SlotHold<'a>
+	where
+		&'a mut Self: pin::StaticOnly<'a>,
+	{
+		SlotHold(&mut self.0)
+	}
+
 	/// Refused: its tag's `Clone` holds only for `'static`.
 	pub fn tag(&mut self) -> SlotTag<'_> {
 		SlotTag(&mut self.0)
@@ -1429,6 +1449,13 @@ impl SlotTag<'static> {
 	/// A tag of its own, which keeps the type reachable without a slot.
 	pub fn fixed() -> Self {
 		SlotTag(Box::leak(Box::new(0)))
+	}
+}
+
+impl SlotHold<'static> {
+	/// A hold of its own, which keeps the type reachable without a slot.
+	pub fn fixed() -> Self {
+		SlotHold(Box::leak(Box::new(0)))
 	}
 }
 
