@@ -848,6 +848,9 @@ mod tests {
 				send: true,
 				collect: false,
 				lends: false,
+				lends_mut: false,
+				derefs: 0,
+				ties: false,
 				access: Access::Call,
 				instance: None,
 				home: Home {

@@ -736,6 +736,31 @@ fn main() {
 	let tallies = api::Tallies::new();
 	tallies.first().bump();
 	println!("tallied {}", tallies.first().bump());
+	// A draft borrowing its ledger exclusively, through which its sheet's members are
+	// reached by `Deref` and `DerefMut`.
+	let mut ledger = api::Ledger::new();
+	let mut draft = ledger.edit().unwrap();
+	draft.title = "minutes".to_string();
+	draft.write("first");
+	println!(
+		"draft {} {} {} {}",
+		draft.title,
+		draft.lines(),
+		draft.describe(),
+		draft.edited()
+	);
+	println!("committed {}", draft.commit());
+	println!("ledger {} {}", ledger.title(), ledger.published());
+	let draft = ledger.edit().unwrap();
+	println!("read {} {}", draft.lines(), draft.edited());
+	drop(draft);
+	let mut draft = ledger.edit().unwrap();
+	draft.write("second");
+	drop(draft);
+	println!("dropped {}", ledger.published());
+	println!("receipt {}", ledger.receipt().count());
+	ledger.seal();
+	println!("sealed {}", ledger.edit().err().unwrap());
 	println!("chunks {:?}", api::chunks(b"abcde", 2));
 	let mut counters = api::counters(vec!["x".to_string(), "y".to_string()]);
 	let names: Vec<String> = counters.iter().map(|c| format!("{} {}", c.name(), c.get())).collect();

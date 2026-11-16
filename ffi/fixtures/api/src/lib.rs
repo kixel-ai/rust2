@@ -738,6 +738,154 @@ impl Registry {
 /// The address of the counter [`Registry::edit`] lends.
 static EDITING: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
+/// A sheet a [`Draft`] edits in place: [`Ledger::edit`] lends the ledger exclusively until
+/// the draft drops, as moq-mux's `catalog::Producer::modify` lends its catalog.
+#[derive(Default)]
+pub struct Ledger {
+	sheet: Mutex<Sheet>,
+	published: u32,
+	sealed: bool,
+}
+
+impl Ledger {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// A draft of the sheet, which borrows this ledger exclusively until it drops: fails
+	/// once sealed.
+	pub fn edit(&mut self) -> Result<Draft<'_>, Error> {
+		if self.sealed {
+			return Err(Error::Overflow);
+		}
+		Ok(Draft {
+			sheet: self.sheet.lock().expect("a draft never panics holding the lock"),
+			published: &mut self.published,
+			edited: false,
+		})
+	}
+
+	/// How many drafts published an edit.
+	pub fn published(&self) -> u32 {
+		self.published
+	}
+
+	/// The sheet's title, read through its lock.
+	pub fn title(&self) -> String {
+		self.sheet.lock().expect("a draft never panics holding the lock").title.clone()
+	}
+
+	/// Refuses every later draft.
+	pub fn seal(&mut self) {
+		self.sealed = true;
+	}
+
+	/// What this ledger published, which borrows it exclusively while any copy of the
+	/// receipt lives, as a `&mut self` method's borrowing return does in Rust.
+	pub fn receipt(&mut self) -> Receipt<'_> {
+		Receipt(&self.published)
+	}
+}
+
+/// What a [`Ledger`] published, borrowed from it: `Send` and `Clone`, unlike a [`Draft`].
+#[derive(Clone)]
+pub struct Receipt<'a>(&'a u32);
+
+impl Receipt<'_> {
+	pub fn count(&self) -> u32 {
+		*self.0
+	}
+}
+
+/// What a [`Draft`] derefs to: a title, and the lines written under it.
+#[derive(Clone, Debug, Default)]
+pub struct Sheet {
+	pub title: String,
+	lines: Vec<String>,
+}
+
+impl Sheet {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// How many lines it holds.
+	pub fn lines(&self) -> u32 {
+		self.lines.len() as u32
+	}
+
+	/// Adds a line.
+	pub fn write(&mut self, line: &str) {
+		self.lines.push(line.to_string());
+	}
+
+	/// The sheet in a word, which a draft's own `describe` shadows, as in Rust.
+	pub fn describe(&self) -> String {
+		format!("sheet {}", self.title)
+	}
+}
+
+/// An edit of a [`Ledger`]'s sheet, reached through `Deref` and `DerefMut`, and published
+/// once it commits or drops if a `DerefMut` marked it, as moq-mux's `catalog::Guard` does.
+/// Not `Send`, as the lock it holds is not.
+pub struct Draft<'a> {
+	sheet: std::sync::MutexGuard<'a, Sheet>,
+	published: &'a mut u32,
+	edited: bool,
+}
+
+impl Draft<'_> {
+	/// Whether a `DerefMut` marked it, which a read through `Deref` does not.
+	pub fn edited(&self) -> bool {
+		self.edited
+	}
+
+	/// The draft in a word, shadowing its sheet's.
+	pub fn describe(&self) -> String {
+		format!("draft of {} lines", self.sheet.lines())
+	}
+
+	/// Publishes the edit, if any, returning how many the ledger published: the drop then
+	/// publishes nothing.
+	pub fn commit(mut self) -> u32 {
+		self.publish();
+		*self.published
+	}
+
+	fn publish(&mut self) {
+		if std::mem::take(&mut self.edited) {
+			*self.published += 1;
+		}
+	}
+}
+
+impl std::ops::Deref for Draft<'_> {
+	type Target = Sheet;
+
+	fn deref(&self) -> &Sheet {
+		&self.sheet
+	}
+}
+
+impl std::ops::DerefMut for Draft<'_> {
+	fn deref_mut(&mut self) -> &mut Sheet {
+		self.edited = true;
+		&mut self.sheet
+	}
+}
+
+impl Drop for Draft<'_> {
+	fn drop(&mut self) {
+		self.publish();
+	}
+}
+
+/// Whether `draft` is marked: it must live as long as the program, which a draft
+/// [`Ledger::edit`] lends never does, so passing one fails, as Rust refuses it.
+pub fn lasting(draft: &Draft<'static>) -> bool {
+	draft.edited
+}
+
 /// A name that may borrow its text: its only generic parameter is a lifetime, so a
 /// handle holds `Name<'static>`, which borrows nothing.
 #[derive(Clone, Debug, PartialEq)]

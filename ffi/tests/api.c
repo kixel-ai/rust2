@@ -1718,6 +1718,40 @@ static int script(void) {
 		api_Tally_free(tallied);
 		api_Tallies_free(tallies);
 	}
+	/* A draft borrowing its ledger exclusively until it drops, through which its sheet's
+	 * members are reached by Deref and DerefMut. */
+	{
+		api_Ledger *ledger = api_Ledger_new();
+		api_Draft *draft;
+		api_Error err;
+		api_Ledger_edit(ledger, &draft, &err, NULL);
+		api_Draft_title_set(draft, str("minutes"), NULL);
+		api_Draft_write(draft, str("first"), NULL);
+		print("draft ", api_Draft_title_get(draft, NULL), " ");
+		printf("%u ", api_Draft_lines(draft, NULL));
+		print("", api_Draft_describe(draft, NULL), " ");
+		printf("%s\n", api_Draft_edited(draft, NULL) ? "true" : "false");
+		printf("committed %u\n", api_Draft_commit(draft, NULL));
+		api_Draft_free(draft);
+		print("ledger ", api_Ledger_title(ledger, NULL), " ");
+		printf("%u\n", api_Ledger_published(ledger, NULL));
+		api_Ledger_edit(ledger, &draft, &err, NULL);
+		printf("read %u %s\n", api_Draft_lines(draft, NULL), api_Draft_edited(draft, NULL) ? "true" : "false");
+		api_Draft_free(draft);
+		api_Ledger_edit(ledger, &draft, &err, NULL);
+		api_Draft_write(draft, str("second"), NULL);
+		api_Draft_free(draft);
+		printf("dropped %u\n", api_Ledger_published(ledger, NULL));
+		api_Receipt *receipt = api_Ledger_receipt(ledger, NULL);
+		printf("receipt %u\n", api_Receipt_count(receipt, NULL));
+		api_Receipt_free(receipt);
+		api_Ledger_seal(ledger, NULL);
+		if (!api_Ledger_edit(ledger, &draft, &err, NULL)) {
+			print("sealed ", api_Error_to_string(&err), "\n");
+			api_Error_free(&err);
+		}
+		api_Ledger_free(ledger);
+	}
 
 	api_vec_bytes chunks = api_chunks(str("abcde"), 2);
 	printf("chunks [");
@@ -2535,6 +2569,98 @@ static int statuses(void) {
 		failed = 1;
 	}
 	api_Channel_free(channel);
+
+	/* A draft holds its ledger's exclusive borrow until it drops: any other use of the
+	 * ledger fails meanwhile, as Rust's borrow checker refuses it, and a commit, a close,
+	 * or a free of the draft gives it back. */
+	{
+		api_Ledger *ledger = api_Ledger_new();
+		api_Draft *draft;
+		api_Error err;
+		api_Ledger_edit(ledger, &draft, &err, NULL);
+		status = 0;
+		api_Ledger_published(ledger, &status);
+		if (status != API_STATUS_EXCLUSIVE) {
+			fprintf(stderr, "a read of a lent ledger wrote %d\n", status);
+			failed = 1;
+		}
+		status = 0;
+		api_Draft *second;
+		if (api_Ledger_edit(ledger, &second, &err, &status) || status != API_STATUS_BORROWED) {
+			fprintf(stderr, "a second draft of a lent ledger wrote %d\n", status);
+			failed = 1;
+		}
+		status = 0;
+		api_Ledger_drop(ledger, &status);
+		if (status != API_STATUS_BORROWED) {
+			fprintf(stderr, "a drop of a lent ledger wrote %d\n", status);
+			failed = 1;
+		}
+		/* A draft that must outlive the program, which a lent one never does. */
+		status = 0;
+		if (api_lasting(draft, &status) || status != API_STATUS_LENT) {
+			fprintf(stderr, "a lent draft passed as lasting wrote %d\n", status);
+			failed = 1;
+		}
+		api_Draft_write(draft, str("x"), NULL);
+		status = 0;
+		if (api_Draft_commit(draft, &status) != 1 || status != 0) {
+			fprintf(stderr, "a commit wrote %d\n", status);
+			failed = 1;
+		}
+		/* The commit moved the draft out and gave the borrow back. */
+		status = 0;
+		api_Draft_lines(draft, &status);
+		if (status != API_STATUS_MOVED) {
+			fprintf(stderr, "a committed draft wrote %d\n", status);
+			failed = 1;
+		}
+		status = 0;
+		if (api_Ledger_published(ledger, &status) != 1 || status != 0) {
+			fprintf(stderr, "a ledger after a commit wrote %d\n", status);
+			failed = 1;
+		}
+		api_Draft_free(draft);
+		/* A close gives it back too, publishing what the draft marked. */
+		api_Ledger_edit(ledger, &draft, &err, NULL);
+		api_Draft_write(draft, str("y"), NULL);
+		status = 0;
+		api_Draft_drop(draft, &status);
+		if (status != 0 || api_Ledger_published(ledger, &status) != 2 || status != 0) {
+			fprintf(stderr, "a ledger after a close wrote %d\n", status);
+			failed = 1;
+		}
+		api_Draft_free(draft);
+		/* The ledger freed while lent drops once the draft does, which still works. */
+		api_Ledger_edit(ledger, &draft, &err, NULL);
+		api_Ledger_free(ledger);
+		api_Draft_write(draft, str("z"), NULL);
+		status = 0;
+		if (api_Draft_commit(draft, &status) != 3 || status != 0) {
+			fprintf(stderr, "a draft of a freed ledger wrote %d\n", status);
+			failed = 1;
+		}
+		api_Draft_free(draft);
+		/* Clones of a receipt share its borrow, which the last one to drop gives back. */
+		ledger = api_Ledger_new();
+		api_Receipt *receipt = api_Ledger_receipt(ledger, NULL);
+		api_Receipt *copy = api_Receipt_clone(receipt, NULL);
+		api_Receipt_free(receipt);
+		status = 0;
+		api_Ledger_seal(ledger, &status);
+		if (status != API_STATUS_BORROWED || api_Receipt_count(copy, NULL) != 0) {
+			fprintf(stderr, "a ledger a cloned receipt borrows wrote %d\n", status);
+			failed = 1;
+		}
+		api_Receipt_free(copy);
+		status = 0;
+		api_Ledger_seal(ledger, &status);
+		if (status != 0) {
+			fprintf(stderr, "a ledger after its receipts wrote %d\n", status);
+			failed = 1;
+		}
+		api_Ledger_free(ledger);
+	}
 
 	status = 0;
 	api_Meters *meters = api_Meters_new();

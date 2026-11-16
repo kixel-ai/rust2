@@ -390,6 +390,7 @@ impl Crate<'_> {
 			contract,
 			dependency: dependency(&facade.root()),
 			lends: false,
+			holding: Cell::new(false),
 			on: On::ALL,
 			out: String::new(),
 			checking: Cell::new(false),
@@ -556,6 +557,9 @@ struct Gen<'a> {
 	/// Whether the function being written returns a borrow lent from its receiver's
 	/// handle, which `lender` holds.
 	lends: bool,
+	/// Whether the value being lowered is what an exclusive lend returns, whose handle
+	/// holds the receiver's borrow `a_self_loan` holds.
+	holding: Cell<bool>,
 	/// The targets of the item being written, which compile what names its Rust types.
 	on: On,
 	out: String,
@@ -1177,6 +1181,13 @@ impl Gen<'_> {
 				Held::Arc => format!("rt::Object::new(rt::Opaque::new({e}))"),
 				Held::Value => format!("rt::Object::new(rt::Owned::new({e}))"),
 			},
+			Type::Object(i) if self.holding.get() => {
+				let holding = match self.abi.api.objects[*i].send {
+					true => "holding",
+					false => "holding_unsent",
+				};
+				format!("rt::Object::{holding}({e}, Some(a_self_loan.loan()))")
+			}
 			Type::Object(i) => self.new_object(*i, e),
 			Type::Callback(..) | Type::Closure(..) => unreachable!("a callback is never returned"),
 			Type::Waker => format!("rt::Waker::lower({e})"),
@@ -1425,14 +1436,15 @@ impl Gen<'_> {
 			away(function, &params, &held)
 		};
 		if traits.clone {
-			let body = wrap(
-				status,
-				handle,
-				&format!(
-					"let this = {this};\n\t{}",
-					self.new_object(i, &format!("<{path} as ::std::clone::Clone>::clone({deref}this)"))
-				),
-			);
+			let clone = format!("<{path} as ::std::clone::Clone>::clone({deref}this)");
+			// A clone of a value holding an exclusive lend shares it, as Rust's clones of a
+			// borrowing value share their borrow.
+			let clone = match (self.abi.held[i], send) {
+				(true, true) => format!("rt::Object::holding({clone}, this.loan())"),
+				(true, false) => format!("rt::Object::holding_unsent(rt::Unsent::into_inner({clone}), this.loan())"),
+				(false, _) => self.new_object(i, &clone),
+			};
+			let body = wrap(status, handle, &format!("let this = {this};\n\t{clone}"));
 			let away = away(&format!("{name}_clone"), &["this"]);
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_clone(this: {handle}{param}) -> {handle} {{\n\tlet w = \"{name}_clone\";\n\t{away}{body}\n}}\n"
@@ -2290,11 +2302,16 @@ impl Gen<'_> {
 				Type::Unit => format!("let _ = result;\n\t{ready}"),
 				_ => format!("let v = result;\n\t{write_ok}\n\t{ready}"),
 			},
-			Some(err) => format!(
-				"match result {{\n\t\tOk(v) => {{\n\t\t\tlet _ = &v;\n\t\t\t{write_ok}\n\t\t\t{ready}\n\t\t}}\n\t\tErr(e) => {{\n\t\t\tunsafe {{ rt::write::<{}>(err.cast(), || {}) }};\n\t\t\t{error}\n\t\t}}\n\t}}",
-				rs(&self.abi.ty(err)),
-				self.lower(err, "e")
-			),
+			Some(err) => {
+				// What an exclusive lend fails with holds no borrow.
+				let holding = self.holding.replace(false);
+				let lowered = self.lower(err, "e");
+				self.holding.set(holding);
+				format!(
+					"match result {{\n\t\tOk(v) => {{\n\t\t\tlet _ = &v;\n\t\t\t{write_ok}\n\t\t\t{ready}\n\t\t}}\n\t\tErr(e) => {{\n\t\t\tunsafe {{ rt::write::<{}>(err.cast(), || {lowered}) }};\n\t\t\t{error}\n\t\t}}\n\t}}",
+					rs(&self.abi.ty(err)),
+				)
+			}
 		}
 	}
 
@@ -2325,6 +2342,8 @@ impl Gen<'_> {
 		let mut moves = Vec::new();
 		let mut stmts = Vec::new();
 		let mut releases = Vec::new();
+		// What gives back the exclusive lend each value a call ends held, once it returns.
+		let mut ended = Vec::new();
 		let mut sort =
 			|ty: &Type, (reserve, stmt, _): &(String, String, String)| match (reserve.is_empty(), self.checks(ty)) {
 				(false, _) => {
@@ -2348,9 +2367,37 @@ impl Gen<'_> {
 						Receiver::Mut => Type::Ref(Mutability::Mut, Box::new(Type::Object(*i))),
 						Receiver::Owned => Type::Object(*i),
 					};
-					let made = self.arg(&ty, "this", "a_self", future);
+					let made = match receiver {
+						// The receiver's exclusive borrow, kept alive past the call by the
+						// handle it returns, as Rust keeps it while that value lives.
+						Receiver::Mut if function.lends_mut => {
+							let (_, borrow) = self.borrow(*i, Mutability::Mut, "this", true);
+							let pass = match self.abi.api.objects[*i].send {
+								true => "a_self",
+								false => "&mut **a_self",
+							};
+							(
+								String::new(),
+								format!("let mut a_self_loan = {borrow};\n\tlet a_self = unsafe {{ a_self_loan.lend() }};"),
+								pass.to_string(),
+							)
+						}
+						Receiver::Owned if self.ends(function, *i) => {
+							ended.push(format!("unsafe {{ rt::Object::<{}>::end(this) }};", self.object_path(*i)));
+							self.ending(*i, "this", "a_self")
+						}
+						_ => self.arg(&ty, "this", "a_self", future),
+					};
+					if function.ties && self.abi.held[*i] {
+						sort(&Type::Object(*i), &(String::new(), self.unheld(*i, "this"), String::new()));
+					}
 					sort(&ty, &made);
-					args.push(made.2);
+					// Through each `Deref` to the type whose method it is, as Rust's auto-deref.
+					let deref = match receiver {
+						Receiver::Mut => "::std::ops::DerefMut::deref_mut",
+						_ => "::std::ops::Deref::deref",
+					};
+					args.push((0..function.derefs).fold(made.2, |pass, _| format!("{deref}({pass})")));
 					if function.holds && *receiver != Receiver::Owned {
 						held.push("a_self".to_string());
 					}
@@ -2458,7 +2505,33 @@ impl Gen<'_> {
 					if function.holds && lent {
 						held.push(format!("a{n}"));
 					}
-					let made = self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future);
+					// A handle an exclusive lend may have returned, as C passes one: by value,
+					// borrowed, or as `Some` of either.
+					let top = match &param.ty {
+						Type::Option(inner) => inner,
+						ty => ty,
+					};
+					let held_object = match top {
+						Type::Ref(_, inner) => match **inner {
+							Type::Object(j) => Some(j),
+							_ => None,
+						},
+						Type::Object(j) => Some(*j),
+						_ => None,
+					}
+					.filter(|&j| self.abi.held[j]);
+					if let Some(j) = held_object
+						&& function.ties
+					{
+						sort(&Type::Object(j), &(String::new(), self.unheld(j, &format!("p{n}")), String::new()));
+					}
+					let made = match (&param.ty, held_object) {
+						(Type::Object(j), Some(_)) if self.ends(function, *j) => {
+							ended.push(format!("unsafe {{ rt::Object::<{}>::end(p{n}) }};", self.object_path(*j)));
+							self.ending(*j, &format!("p{n}"), &format!("a{n}"))
+						}
+						_ => self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future),
+					};
 					if !made.0.is_empty()
 						&& let Some(release) = self.release(&param.ty, &format!("p{n}"))
 					{
@@ -2563,13 +2636,23 @@ impl Gen<'_> {
 			Some((_, owner_type)) => format!("<{}>::{}", self.rust(owner_type), function.name()),
 			None => self.path(&function.path),
 		};
+		let mut turbofish = String::new();
 		if let Some(instance) = function.instance.as_ref().filter(|i| !i.args.is_empty()) {
 			let args: Vec<String> = (instance.args.iter())
 				.map(|ty| ty.as_ref().map_or_else(|| "_".to_string(), |ty| self.rust(ty)))
 				.collect();
-			callee = format!("{callee}::<{}>", args.join(", "));
+			turbofish = format!("::<{}>", args.join(", "));
+			callee = format!("{callee}{turbofish}");
 		}
 		let call = match function.access {
+			// A method of the type the receiver derefs to, which the glue need not name: its
+			// receiver is that type's already, whose inherent method a call finds first.
+			Access::Call if function.derefs > 0 => format!(
+				"({}).{}{turbofish}({})",
+				args[0],
+				function.name(),
+				args[1..].join(", ")
+			),
 			Access::Call => format!("{callee}({})", args.join(", ")),
 			Access::Field { set: false, .. } => format!("&({}).{}", args[0], function.name()),
 			Access::Field { set: true, .. } => format!("({}).{} = {}", args[0], function.name(), args[1]),
@@ -2733,11 +2816,14 @@ impl Gen<'_> {
 		params.extend(outs);
 		let ret = rs(&export.call.ret);
 		self.lends = function.lends;
+		self.holding.set(function.lends_mut);
 		let finish = match function.err {
 			Some(_) => self.finish(function, &function.ok, ("v", "true", "false")),
 			None => self.finish(function, &function.ok, ("", "", "")),
 		};
 		self.lends = false;
+		self.holding.set(false);
+		let ended: String = ended.iter().map(|end| format!("\n\t{end}")).collect();
 		let call = match (function.collect, &function.err, &function.access) {
 			// An iterator's items, all taken now.
 			(true, ..) => format!("::std::iter::Iterator::collect::<::std::vec::Vec<_>>({call})"),
@@ -2767,11 +2853,41 @@ impl Gen<'_> {
 			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{}{}\n}}\n",
 			params.join(", "),
 			away(&name, &params),
-			wrap(status, &ret, &format!("{body}\n\tlet result = {call};{pending}{writes}\n\t{finish}"))
+			wrap(status, &ret, &format!("{body}\n\tlet result = {call};{ended}{pending}{writes}\n\t{finish}"))
 		));
 		if export.homed {
 			self.export(homed(&name, &params, &ret, &unsent));
 		}
+	}
+
+	/// Whether a call of `function` ends a value of object `i` it takes by value at its top:
+	/// none of the value's lifetimes names anything else in its signature, so the value, and
+	/// any exclusive lend it holds, cannot outlive a synchronous call.
+	fn ends(&self, function: &Function, i: usize) -> bool {
+		self.abi.held[i] && !function.ties && !function.future && function.access == Access::Call
+	}
+
+	/// An argument of object `i` taken by value from its handle `c`, which may hold an
+	/// exclusive lend, as [`Self::arg`] makes one: the call it moves into gives the lend back
+	/// once it returns, as `end` does.
+	fn ending(&self, i: usize, c: &str, local: &str) -> (String, String, String) {
+		let reserve = self.checked(&format!(
+			"unsafe {{ rt::Object::<{}>::reserve_ending({c}, takes, w) }}",
+			self.object_path(i)
+		)) + ";";
+		self.reserved.set(true);
+		let lifted = self.lift(&Type::Object(i), c, "true");
+		self.reserved.set(false);
+		(reserve, format!("let {local} = {lifted};"), local.to_string())
+	}
+
+	/// The check that object `i`'s handle `c` holds no exclusive lend, for a call whose
+	/// signature would carry its borrow past the value.
+	fn unheld(&self, i: usize, c: &str) -> String {
+		self.checked(&format!(
+			"unsafe {{ rt::Object::<{}>::unheld({c}, w) }}",
+			self.object_path(i)
+		)) + ";"
 	}
 
 	/// The object that is not `Send` whose handle an argument of `ty` is at its top: by
