@@ -69,6 +69,7 @@ const TAKEN: &[&str] = &[
 	"Int16Array",
 	"Int32Array",
 	"Map",
+	"Math",
 	"Number",
 	"Object",
 	"Promise",
@@ -279,22 +280,25 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Option<O
 /// The imports of the runtime and the glue that `code` names.
 fn module_imports(code: &str) -> String {
 	let mut out = String::new();
-	if uses(code, "rt") {
+	// Each use of either is a member's, which a field or parameter of that name is not.
+	if uses(code, "rt.") {
 		out.push_str("import * as rt from \"./rt.ts\";\n");
 	}
-	if uses(code, "g") {
+	if uses(code, "g.") {
 		out.push_str("import * as g from \"./glue.ts\";\n");
 	}
 	out
 }
 
-/// Whether `code` names `name` as a whole identifier, not a property.
+/// Whether `code` names `name` as a whole identifier, not a property, or for a `name`
+/// ending in `.`, reads a member of it.
 fn uses(code: &str, name: &str) -> bool {
 	let ident = |c: char| c.is_ascii_alphanumeric() || c == '_' || c == '$';
 	code.match_indices(name).any(|(at, _)| {
 		let before = code[..at].chars().next_back();
 		let after = code[at + name.len()..].chars().next();
-		!before.is_some_and(|c| ident(c) || c == '.' || c == '"') && !after.is_some_and(ident)
+		let whole = name.ends_with('.') || !after.is_some_and(ident);
+		!before.is_some_and(|c| ident(c) || c == '.' || c == '"') && whole
 	})
 }
 
@@ -1064,7 +1068,7 @@ impl<'a> Gen<'a> {
 						let (_, at) = self.place(&tys);
 						for (f, at) in variant.fields.iter().zip(at) {
 							let value = self.get_o(&f.ty, &format!("p + {}", u + at));
-							fields.push(format!("{}: {value}", field_name(&f.name)));
+							fields.push(format!("{}: {value}", variant_field(&f.name)));
 						}
 					}
 					cases.push(format!("\t\tcase {n}:\n\t\t\treturn {{ {} }};", fields.join(", ")));
@@ -1220,7 +1224,7 @@ impl<'a> Gen<'a> {
 						for (f, at) in variant.fields.iter().zip(at) {
 							body.push(self.put(
 								&f.ty,
-								&format!("v.{}", field_name(&f.name)),
+								&format!("v.{}", variant_field(&f.name)),
 								&format!("p + {}", u + at),
 								take,
 							));
@@ -1373,6 +1377,15 @@ fn camel(name: &str) -> String {
 /// A field's name: in camel case, and `_0` for a positional one.
 fn field_name(name: &str) -> String {
 	camel(name)
+}
+
+/// A data enum variant's field's name: a field's, but `tag$` for one named `tag`, which
+/// names the variant.
+fn variant_field(name: &str) -> String {
+	match field_name(name) {
+		name if name == "tag" => "tag$".to_string(),
+		name => name,
+	}
 }
 
 /// A parameter's name: in camel case, with `_` appended if a reserved word.
@@ -1989,7 +2002,7 @@ impl Gen<'_> {
 				for variant in here {
 					let mut fields = vec![format!("tag: \"{}\"", variant.name)];
 					for field in &variant.fields {
-						fields.push(format!("{}: {}", field_name(&field.name), self.tt(&field.ty)));
+						fields.push(format!("{}: {}", variant_field(&field.name), self.tt(&field.ty)));
 					}
 					cases.push(format!("{{ {} }}", fields.join("; ")));
 				}
@@ -2581,4 +2594,31 @@ fn out_decl(g: &Gen<'_>, name: &str, ty: &Ty) -> String {
 	};
 	let l = g.layout(inner);
 	format!("const o_{name} = rt.alloc({}, {});", l.size.max(1), l.align)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	/// A field or parameter named as a namespace imports nothing; a member read imports it.
+	#[test]
+	fn imports_follow_member_reads() {
+		assert_eq!(
+			module_imports("type Rgb = { r: number; g: number };\nfunction f(rt: number) {}"),
+			""
+		);
+		assert_eq!(
+			module_imports("return g.f(rt.alloc(4, 4));"),
+			"import * as rt from \"./rt.ts\";\nimport * as g from \"./glue.ts\";\n"
+		);
+		assert!(!uses("x.rt.y", "rt."));
+	}
+
+	/// A variant's field named `tag` keeps clear of the tag naming the variant.
+	#[test]
+	fn variant_field_clears_tag() {
+		assert_eq!(variant_field("tag"), "tag$");
+		assert_eq!(variant_field("tag_name"), "tagName");
+		assert_eq!(field_name("tag"), "tag");
+	}
 }

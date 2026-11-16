@@ -240,8 +240,6 @@ const big: number[] = [];
 const held: Handle[] = [];
 /** The tokens of what each running call lends Rust, forgotten once it returns. */
 const lent: number[] = [];
-/** The buffers each running call gives Rust, freed unless Rust took them. */
-const given: number[] = [];
 /** Where each running call found the stack: its top, then the length of each list. */
 const frames: number[] = [];
 
@@ -252,19 +250,17 @@ export function enter(): number {
 		aborted = new Error("a call into the module trapped");
 		throw dead();
 	}
-	frames.push(top, big.length, held.length, lent.length, given.length);
+	frames.push(top, big.length, held.length, lent.length);
 	return frames.length;
 }
 
 /** End the call [enter] started, giving back what it took. */
 export function leave(mark: number): void {
 	frames.length = mark;
-	const g = frames.pop()!;
 	const l = frames.pop()!;
 	const h = frames.pop()!;
 	const b = frames.pop()!;
 	top = frames.pop()!;
-	while (given.length > g) w[`${prefix}_buf_free`](given.pop()!);
 	while (lent.length > l) tokens.delete(lent.pop()!);
 	while (held.length > h) held.pop()!.release();
 	while (big.length > b) {
@@ -272,11 +268,6 @@ export function leave(mark: number): void {
 		const size = big.pop()!;
 		w[`${space}_free`](big.pop()!, size, align);
 	}
-}
-
-/** Note that the running call returned, so Rust took what it was given. */
-export function took(): void {
-	given.length = frames[frames.length - 1];
 }
 
 /** `size` bytes aligned to `align`, a power of two, until the running call returns. */
@@ -835,6 +826,8 @@ export const fn = { wake: 0, wakerDrop: 0, free: 0, poll: 0, read: 0, seek: 0 };
  * throws, since Rust has nowhere to unwind to.
  */
 export function out<T>(what: string, f: () => T): T {
+	// What `f` takes of the stack, it gives back: a value lowered there is read by now.
+	const m = top;
 	s.d--;
 	try {
 		return f();
@@ -843,6 +836,7 @@ export function out<T>(what: string, f: () => T): T {
 		return abort(`${what}: a call into JavaScript threw ${e instanceof Error ? (e.stack ?? e) : String(e)}`);
 	} finally {
 		s.d++;
+		top = m;
 	}
 }
 
@@ -1047,7 +1041,6 @@ class Pending<T> {
 	t = 0;
 	polling = false;
 	cancelled = false;
-	scheduled = false;
 	resolve!: (value: T) => void;
 	reject!: (error: unknown) => void;
 	promise!: Call<T>;
@@ -1061,7 +1054,6 @@ class Pending<T> {
 	}
 
 	wake = () => {
-		this.scheduled = false;
 		if (this.f !== 0 && !this.polling) this.step();
 	};
 
