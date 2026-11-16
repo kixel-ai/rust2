@@ -2433,8 +2433,11 @@ impl Gen<'_> {
 		if let Some(abi::Future { start, poll, free, .. }) = &export.future {
 			ret_t = format!("rt.Call<{value_t}>");
 			// Its outputs, without the thread check a future that is not `Send` polls with.
-			let poll_outs: Vec<(String, Ty)> =
-				poll.params[2..].iter().filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
+			let poll_outs: Vec<(String, Ty)> = poll.params[2..]
+				.iter()
+				.filter(|(_, ty)| !abi::is_status(ty))
+				.cloned()
+				.collect();
 			// The poll, which completes the future.
 			let poll_name = format!("p_{}", self.bare(&c_name));
 			let mut poll_lines = Vec::new();
@@ -2454,7 +2457,13 @@ impl Gen<'_> {
 			let failed = err
 				.as_ref()
 				.map(|err| format!("rt.Err({})", self.get(err, "o_err", true)));
-			let ret = self.invoke(&poll.name, poll_args, &poll.ret, poll.status().is_some(), &mut poll_lines);
+			let ret = self.invoke(
+				&poll.name,
+				poll_args,
+				&poll.ret,
+				poll.status().is_some(),
+				&mut poll_lines,
+			);
 			let Ret::Value(r) = ret else {
 				unreachable!("a poll returns its state")
 			};
