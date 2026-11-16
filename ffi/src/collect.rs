@@ -2309,6 +2309,8 @@ impl<'tcx> Collector<'tcx> {
 		let tcx = self.tcx;
 		// Each object whose type derefs to another type, which forwards that one's methods.
 		let mut chains = Vec::new();
+		// Each struct record's site, whose fields an object deref'ing to it forwards.
+		let mut records = rustc_data_structures::fx::FxHashMap::default();
 		for (def_id, path) in self.items.clone() {
 			let span = tcx.def_span(def_id);
 			let kind = tcx.def_kind(def_id);
@@ -2368,6 +2370,9 @@ impl<'tcx> Collector<'tcx> {
 				let args = self.args(&site).expect("settled");
 				match decl {
 					Some(Decl::Record(index)) => {
+						if kind == DefKind::Struct {
+							records.insert(index, site.clone());
+						}
 						let variants = self.fields(&site).expect("settled");
 						let variant = variants.into_iter().next().expect("a struct has a variant");
 						let (methods, traits) = self.methods(&site);
@@ -2424,13 +2429,13 @@ impl<'tcx> Collector<'tcx> {
 			}
 		}
 		for (object, names, chain) in chains {
-			self.forward(object, names, chain);
+			self.forward(object, names, chain, &records);
 		}
 	}
 
-	/// The types `ty` derefs to in turn, as Rust's auto-deref reaches them, each that exports
-	/// with how many `Deref`s reach it and whether each of them is a `DerefMut`.
-	fn derefs(&self, mut ty: Ty<'tcx>) -> Vec<(Key<'tcx>, Ty<'tcx>, usize, bool)> {
+	/// The types `ty` derefs to in turn, as Rust's auto-deref reaches them, each with its key
+	/// if it has one, how many `Deref`s reach it, and whether each of them is a `DerefMut`.
+	fn derefs(&self, mut ty: Ty<'tcx>) -> Vec<(Option<Key<'tcx>>, Ty<'tcx>, usize, bool)> {
 		let tcx = self.tcx;
 		let lang = tcx.lang_items();
 		let (Some(deref), Some(target)) = (lang.deref_trait(), lang.deref_target()) else {
@@ -2462,67 +2467,87 @@ impl<'tcx> Collector<'tcx> {
 			}
 			seen.push(next);
 			ty = next;
-			if let ty::Adt(adt, args) = ty.kind() {
-				let key = self.key(adt.did(), *args);
-				if matches!(
-					self.decls.get(&key),
-					Some(Decl::Object(_) | Decl::Value(_) | Decl::Record(_) | Decl::Enum(_))
-				) {
-					chain.push((key, ty, derefs, mutable));
-				}
-			}
+			// Each, exported or not, as its members hide those of a type past it.
+			let key = match ty.kind() {
+				ty::Adt(adt, args) => Some(self.key(adt.did(), *args)),
+				_ => None,
+			};
+			chain.push((key, ty, derefs, mutable));
 		}
 		chain
 	}
 
-	/// The names of `ty`'s `pub` inherent methods and fields, exported or not, which hide any
-	/// a type it derefs to has, as they do in Rust: a method of each inherent impl that applies
-	/// to `ty`, whose own bounds Rust checks only once it picked the method.
-	fn member_names(&self, ty: Ty<'tcx>) -> Vec<String> {
+	/// The names of `ty`'s `pub` inherent methods, then of its `pub` fields, exported or not,
+	/// which hide any method or field of the same name a type it derefs to has, as they do in
+	/// Rust: a method of each inherent impl that applies to `ty`, whose own bounds Rust checks
+	/// only once it picked the method. A method never hides a field, nor a field a method.
+	fn member_names(&self, ty: Ty<'tcx>) -> (Vec<String>, Vec<String>) {
 		let tcx = self.tcx;
 		let ty::Adt(adt, _) = ty.kind() else {
-			return Vec::new();
+			return (Vec::new(), Vec::new());
 		};
 		let def_id = adt.did();
-		let mut names: Vec<String> = (tcx.inherent_impls(def_id).iter())
+		let methods = (tcx.inherent_impls(def_id).iter())
 			.filter(|&&imp| self.impl_args(imp, ty).is_some())
 			.flat_map(|&imp| tcx.associated_items(imp).in_definition_order())
 			.filter(|item| matches!(item.kind, ty::AssocKind::Fn { has_self: true, .. }))
 			.filter(|item| tcx.visibility(item.def_id).is_public())
 			.map(|item| item.name().to_string())
 			.collect();
+		let mut fields = Vec::new();
 		if tcx.def_kind(def_id) == DefKind::Struct {
-			let fields = tcx.adt_def(def_id).non_enum_variant().fields.iter();
-			names.extend(fields.filter(|f| f.vis.is_public()).map(|f| f.name.to_string()));
+			let all = tcx.adt_def(def_id).non_enum_variant().fields.iter();
+			fields.extend(all.filter(|f| f.vis.is_public()).map(|f| f.name.to_string()));
 		}
-		names
+		(methods, fields)
 	}
 
 	/// Give object `object` the methods and field accessors of each type it derefs to, as
 	/// Rust's auto-deref reaches them: each one through `&self`, and through `&mut self` while
 	/// every `Deref` on the way is a `DerefMut`, unless a nearer type's member takes its name.
 	/// A target forwards what it exports itself, so its config and refusals hold here too.
-	fn forward(&mut self, object: usize, mut names: Vec<String>, chain: Vec<(Key<'tcx>, Ty<'tcx>, usize, bool)>) {
+	fn forward(
+		&mut self,
+		object: usize,
+		mut names: (Vec<String>, Vec<String>),
+		chain: Vec<(Option<Key<'tcx>>, Ty<'tcx>, usize, bool)>,
+		records: &rustc_data_structures::fx::FxHashMap<usize, Site<'tcx>>,
+	) {
 		let (path, shown) = {
 			let o = &self.api.objects[object];
 			(o.path.clone(), o.shown.clone())
 		};
 		for (key, ty, derefs, mutable) in chain {
-			let methods = match self.decls.get(&key) {
-				Some(Decl::Object(u)) => &self.api.objects[*u].methods,
-				Some(Decl::Value(u) | Decl::Record(u)) => &self.api.records[*u].methods,
-				Some(Decl::Enum(u)) => &self.api.enums[*u].methods,
-				_ => continue,
+			let members = match key.and_then(|key| self.decls.get(&key).cloned()) {
+				Some(Decl::Object(u)) => self.api.objects[u].methods.clone(),
+				Some(Decl::Value(u)) => self.api.records[u].methods.clone(),
+				// A record's fields cross with it, so reaching them through the object takes
+				// accessors of their own.
+				Some(Decl::Record(u)) => {
+					let mut members = match records.get(&u) {
+						Some(site) => self.accessors(site),
+						None => Vec::new(),
+					};
+					members.extend(self.api.records[u].methods.iter().cloned());
+					members
+				}
+				Some(Decl::Enum(u)) => self.api.enums[u].methods.clone(),
+				_ => Vec::new(),
 			};
-			let forwarded: Vec<Function> = (methods.iter())
-				.filter(|m| m.derefs == 0 && !names.iter().any(|name| name == m.name()))
+			let forwarded: Vec<Function> = (members.into_iter())
+				.filter(|m| {
+					let hiding = match m.access {
+						Access::Field { .. } => &names.1,
+						_ => &names.0,
+					};
+					m.derefs == 0 && !hiding.iter().any(|name| name == m.name())
+				})
 				.filter(|m| match m.receiver {
 					Some(Receiver::Ref) => true,
 					Some(Receiver::Mut) => mutable,
 					_ => false,
 				})
-				.map(|m| {
-					let mut m = m.clone();
+				.map(|mut m| {
 					let name = |p: &Path| p.last().expect("a method has a name").clone();
 					m.path = [&path[..], &[name(&m.path)]].concat();
 					m.shown = [&shown[..], &[name(&m.shown)]].concat();
@@ -2530,8 +2555,13 @@ impl<'tcx> Collector<'tcx> {
 					m
 				})
 				.collect();
+			// The config names a forwarded member by the object's path, as it does the
+			// object's own.
+			let forwarded: Vec<Function> = (forwarded.into_iter()).filter(|m| !self.exclude(&m.shown)).collect();
 			self.api.objects[object].methods.extend(forwarded);
-			names.extend(self.member_names(ty));
+			let (methods, fields) = self.member_names(ty);
+			names.0.extend(methods);
+			names.1.extend(fields);
 		}
 	}
 

@@ -1039,6 +1039,82 @@ impl Pad<u16> {
 	pub fn tag(&self) -> u16 {
 		self.tag
 	}
+
+	/// A method named as the sheet's field, which hides no field: `title` still reaches the
+	/// sheet's, as Rust's field access does.
+	pub fn title(&self) -> u16 {
+		self.tag
+	}
+}
+
+mod layers {
+	/// Between a layered sheet and its sheet: no path from the crate root names it, so it
+	/// does not export, yet its `describe` hides the sheet's, as in Rust.
+	pub struct Middle(pub(crate) super::Sheet);
+
+	impl Middle {
+		pub fn describe(&self) -> String {
+			"middle".to_string()
+		}
+	}
+
+	impl std::ops::Deref for Middle {
+		type Target = super::Sheet;
+
+		fn deref(&self) -> &super::Sheet {
+			&self.0
+		}
+	}
+}
+
+/// A sheet behind a layer, which forwards what the layer does not hide.
+pub struct Layered(layers::Middle);
+
+impl Layered {
+	pub fn new() -> Self {
+		Self(layers::Middle(Sheet::new()))
+	}
+}
+
+impl std::ops::Deref for Layered {
+	type Target = layers::Middle;
+
+	fn deref(&self) -> &layers::Middle {
+		&self.0
+	}
+}
+
+/// A named point, which derefs mutably to a record, whose fields it reaches.
+pub struct Marker {
+	point: Point,
+	label: String,
+}
+
+impl Marker {
+	pub fn new(label: &str, x: i32, y: i32) -> Self {
+		Self {
+			point: Point { x, y },
+			label: label.to_string(),
+		}
+	}
+
+	pub fn label(&self) -> String {
+		self.label.clone()
+	}
+}
+
+impl std::ops::Deref for Marker {
+	type Target = Point;
+
+	fn deref(&self) -> &Point {
+		&self.point
+	}
+}
+
+impl std::ops::DerefMut for Marker {
+	fn deref_mut(&mut self) -> &mut Point {
+		&mut self.point
+	}
 }
 
 /// A name that may borrow its text: its only generic parameter is a lifetime, so a

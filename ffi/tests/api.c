@@ -2730,6 +2730,29 @@ static int statuses(void) {
 		}
 		api_buf_free(padded);
 		api_buf_free(sheeted);
+		/* A method hides no field: `Pad<u16>`'s `title` beside its sheet's. */
+		api_buf titled = api_Pad_u16_title_get(wide);
+		if (api_Pad_u16_title(wide) != 2 || titled.len != 0) {
+			fprintf(stderr, "a pad's title is %u and its sheet's %.*s\n", api_Pad_u16_title(wide), (int)titled.len,
+			        (const char *)titled.ptr);
+			failed = 1;
+		}
+		api_buf_free(titled);
+		/* A sheet behind a layer that does not export, whose `lines` it reaches. */
+		api_Layered *layered = api_Layered_new();
+		if (api_Layered_lines(layered) != 0) {
+			fprintf(stderr, "a layered sheet has lines\n");
+			failed = 1;
+		}
+		api_Layered_free(layered);
+		/* A record's fields, reached through `Deref` and written through `DerefMut`. */
+		api_Marker *marker = api_Marker_new(str("m"), 3, 5);
+		api_Marker_y_set(marker, 7, NULL);
+		if (api_Marker_x_get(marker, NULL) != 3 || api_Marker_y_get(marker, NULL) != 7) {
+			fprintf(stderr, "a marker's point is %d, %d\n", api_Marker_x_get(marker, NULL), api_Marker_y_get(marker, NULL));
+			failed = 1;
+		}
+		api_Marker_free(marker);
 		api_Pad_u8_free(small);
 		api_Pad_u16_free(wide);
 	}
