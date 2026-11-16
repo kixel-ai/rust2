@@ -840,7 +840,7 @@ def script():
 	front, back = api.seat(nines, 1), api.seat(nines, 2)
 	print(f"seat {front!r} {str(front == api.seat(nines, 1)).lower()} {str(front == back).lower()}")
 	# A kept closure, called on another thread after the call that took it returned.
-	print(f"spawned {api.Spawned.new(lambda: 7).join()}")
+	check(api.Spawned.new(lambda: 7).join() == 7, "a kept closure runs on another thread")
 	# A kept closure: called again at the instant it asks for, then once its waiter wakes.
 	start = api.Moment.new(0, 1000)
 	calls = 0

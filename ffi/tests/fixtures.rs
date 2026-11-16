@@ -38,9 +38,12 @@ fn host() -> &'static str {
 	})
 }
 
-/// The target the api fixture's binding serves besides the host's, which has an item the
-/// host lacks and a variant of an enum.
+/// A wasm32 target, which has an item the host lacks and a variant of an enum.
 const WASM: &str = "wasm32-unknown-unknown";
+
+/// The target the api fixture's binding serves besides the host's: wasm32, whose std
+/// imports its platform, which the web binding implements with web APIs.
+const WEB: &str = "wasm32-wasip1";
 
 /// Cargo, on a `PATH` without what changes each run, as a Cargo shim's session does: build
 /// scripts that read `PATH`, such as pyo3's, would otherwise run again each time, and
@@ -124,8 +127,8 @@ fn api() -> &'static Api {
 		// A feature of the facade's that enables one in a crate it re-exports, which the C
 		// library must build with.
 		let features = ["--features", "doubled"];
-		// One binding for the host and wasm32, which only the host builds and runs.
-		let output = export("api", &out, &[host(), WASM], &features);
+		// One binding for the host and wasm32, which the web binding runs.
+		let output = export("api", &out, &[host(), WEB], &features);
 		assert!(
 			output.status.success(),
 			"exporting failed:\n{}",
@@ -726,7 +729,7 @@ fn api_android() {
 		abi => panic!("the android shell's toolchain has no target for the device's ABI {abi}"),
 	};
 	let out = dir.join("out");
-	let output = export("api", &out, &[target, WASM], &["--features", "doubled"]);
+	let output = export("api", &out, &[target, WEB], &["--features", "doubled"]);
 	assert!(
 		output.status.success(),
 		"exporting for {target} failed:\n{}",
@@ -1222,6 +1225,169 @@ fn api_swift() {
 		"a mismatched contract printed {stderr}"
 	);
 }
+
+/// The fixture's script compiled for wasm32-wasip1 and run under Node's WASI: native Rust on
+/// the target the web binding serves, whose `usize` is 32 bits.
+fn wasm_transcript() -> String {
+	let built = run(cargo()
+		.args([
+			"build",
+			"--quiet",
+			"--locked",
+			"--package",
+			"api-fixture",
+			"--example",
+			"transcript",
+			"--features",
+			"doubled",
+			"--target",
+			WEB,
+			"--target-dir",
+		])
+		.arg(scratch().join("api").join("transcript-wasm"))
+		.current_dir(manifest_dir()));
+	assert!(built.status.success());
+	let wasm = scratch()
+		.join("api")
+		.join("transcript-wasm")
+		.join(WEB)
+		.join("debug")
+		.join("examples")
+		.join("transcript.wasm");
+	let script = "import { WASI } from 'node:wasi';\n\
+		import { readFileSync } from 'node:fs';\n\
+		const wasi = new WASI({ version: 'preview1', args: [], env: {}, returnOnExit: false });\n\
+		const module = await WebAssembly.compile(readFileSync(process.argv[1]));\n\
+		wasi.start(await WebAssembly.instantiate(module, wasi.getImportObject()));\n";
+	let transcript = run(Command::new("node")
+		.args(["--no-warnings", "--input-type=module", "-e", script])
+		.arg(wasm));
+	String::from_utf8_lossy(&transcript.stdout).into_owned()
+}
+
+/// The generated TypeScript, type-checked with no issue, runs `tests/api.ts`'s script on
+/// Node over the module the crate's `web` feature builds for wasm32-wasip1: it prints what
+/// native Rust prints on that target, then checks its futures, what disposing and the
+/// garbage collector free, what a closed object refuses, how bytes cross, and what a call
+/// lent bytes reads once memory grows, and fails loud on each contract it breaks; a binding
+/// of another contract refuses the module.
+#[test]
+fn api_web() {
+	let api = api();
+	let dir = scratch().join("api").join("web");
+	let target = scratch().join("api").join("glue-web");
+	run(cargo()
+		.args(["build", "--quiet", "--locked", "--manifest-path"])
+		.arg(api.out.join("Cargo.toml"))
+		.arg("--target-dir")
+		.arg(&target)
+		.args(["--target", WEB, "--features", "web"])
+		.env("RUSTFLAGS", "-D warnings"));
+	let wasm = target.join(WEB).join("debug").join("api.wasm");
+	// The script beside a copy of the binding, as a caller's project holds it.
+	step::mirror(&api.out.join("web"), &dir.join("web"));
+	step::copy(&manifest_dir().join("tests").join("api.ts"), &dir.join("api.ts"));
+	step::write(&dir.join("tsconfig.json"), TSCONFIG);
+	run(Command::new("tsc").arg("-p").arg(&dir));
+	let node = |case: Option<&str>| {
+		let mut cmd = Command::new("node");
+		cmd.arg("api.ts").args(case).current_dir(&dir).env("RUST2_WASM", &wasm);
+		cmd
+	};
+	let transcript = run(&mut node(None));
+	assert_eq!(
+		String::from_utf8_lossy(&transcript.stdout),
+		wasm_transcript(),
+		"the TypeScript transcript differs from native Rust's on {WEB}"
+	);
+	for case in ["futures", "owned", "closed", "bytes", "bounds", "grown"] {
+		run(&mut node(Some(case)));
+	}
+	for (case, message) in [
+		("moved", "api_Counter_get: a handle's value was moved out"),
+		("boxed moved", "api_Node_sum: a handle's value was moved out"),
+		("lent kept", "Counter is closed"),
+		(
+			"lent moved",
+			"a closure: a call into JavaScript threw Error: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
+		),
+		(
+			"callback threw",
+			"api::Log::log: a call into JavaScript threw Error: a log failed",
+		),
+		(
+			"closure threw",
+			"a closure: a call into JavaScript threw Error: a poll failed",
+		),
+		("later poll trapped", "api_tail: a reader read more than it was asked"),
+		("reader threw", "api_tail: a reader read more than it was asked"),
+		("outlived", OUTLIVED),
+	] {
+		let output = node(Some(case)).output().unwrap();
+		assert!(!output.status.success(), "TypeScript {case} did not fail");
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(stderr.contains(message), "TypeScript {case} printed {stderr}");
+		// A case checking what follows the failure says it got that far.
+		if case == "later poll trapped" {
+			let stdout = String::from_utf8_lossy(&output.stdout);
+			assert!(
+				stdout.contains("later poll checked"),
+				"TypeScript {case} printed {stdout}"
+			);
+		}
+	}
+
+	// The same binding, with another contract than the module's in place of its own,
+	// refuses it as it loads.
+	let contract = dir.join("contract");
+	step::mirror(&api.out.join("web"), &contract.join("web"));
+	let index = contract.join("web").join("index.ts");
+	let source = std::fs::read_to_string(api.out.join("web").join("index.ts")).unwrap();
+	let at = source.find("contract: 0x").expect("the binding checks its contract") + "contract: 0x".len();
+	let mut mismatched = source.clone();
+	let digit = if &source[at..at + 1] == "0" { "1" } else { "0" };
+	mismatched.replace_range(at..at + 1, digit);
+	step::write(&index, mismatched);
+	step::write(
+		&contract.join("main.ts"),
+		"import { readFileSync } from \"node:fs\";\nimport * as api from \"./web/index.ts\";\n\nawait api.load(readFileSync(process.env.RUST2_WASM!));\n",
+	);
+	let output = Command::new("node")
+		.arg("main.ts")
+		.current_dir(&contract)
+		.env("RUST2_WASM", &wasm)
+		.output()
+		.unwrap();
+	assert!(!output.status.success(), "a mismatched contract loaded");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("index.ts and the module are from different builds"),
+		"a mismatched contract printed {stderr}"
+	);
+}
+
+/// What `tsc` checks a web binding and its caller with: strict, with no name unused, on the
+/// ES2024 a binding needs, as Node runs it, with no ambient types but the DOM's and Node's.
+const TSCONFIG: &str = r#"{
+	"compilerOptions": {
+		"strict": true,
+		"noEmit": true,
+		"pretty": false,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"target": "es2024",
+		"lib": ["es2024", "esnext.disposable", "dom"],
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
+		"verbatimModuleSyntax": true,
+		"erasableSyntaxOnly": true,
+		"skipLibCheck": true,
+		"types": []
+	},
+	"include": ["api.ts", "web/*.ts"]
+}
+"#;
 
 /// The generated Dart, analyzed with no issue, runs `tests/api.dart`'s script, which prints
 /// the native transcript, then its futures, what closing and the garbage collector free,
