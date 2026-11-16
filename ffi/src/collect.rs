@@ -4932,10 +4932,12 @@ impl<'tcx> Collector<'tcx> {
 		};
 		// Whether `tr` holds for `ty`, and whether it does with its lifetimes left free.
 		let holds = |tr: DefId, ty: Ty<'tcx>, free: bool| {
-			let ty = match free {
-				true => ty,
-				false => ty::fold_regions(tcx, ty, |_, _| tcx.lifetimes.re_static),
-			};
+			// An instance's erased lifetime is the `'static` the glue names it by; the
+			// lend's own stays free.
+			let ty = ty::fold_regions(tcx, ty, |region, _| match (free, region.kind()) {
+				(true, ty::ReErased) | (false, _) => tcx.lifetimes.re_static,
+				(true, _) => region,
+			});
 			let infcx = tcx.infer_ctxt().build(ty::TypingMode::non_body_analysis());
 			let ocx = ObligationCtxt::new(&infcx);
 			ocx.register_obligation(Obligation::new(tcx, ObligationCause::dummy(), empty, trait_ref(tr, ty)));

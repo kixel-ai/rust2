@@ -793,6 +793,14 @@ impl Ledger {
 		Receipt(&self.published)
 	}
 
+	/// Files `item` beside what the ledger published, generic over what counts itself.
+	pub fn file<T: Totaled>(&mut self, item: T) -> Filed<'_, T> {
+		Filed {
+			published: &self.published,
+			item,
+		}
+	}
+
 	pub fn slip(&mut self) -> Slip<'_> {
 		Slip {
 			receipt: Receipt(&self.published),
@@ -939,6 +947,31 @@ where
 	Receipt<'a>: Clone,
 {
 	receipt.clone().count()
+}
+
+/// An item filed with a ledger, whose `Clone` asks that it outlive its borrow, as it always
+/// does: an instance's erased lifetime stands beside the lend's.
+pub struct Filed<'a, T> {
+	published: &'a u32,
+	item: T,
+}
+
+impl<'a, T: Clone> Clone for Filed<'a, T>
+where
+	Filed<'a, T>: 'a,
+{
+	fn clone(&self) -> Self {
+		Self {
+			published: self.published,
+			item: self.item.clone(),
+		}
+	}
+}
+
+impl<T: Totaled + Clone> Filed<'_, T> {
+	pub fn count(&self) -> u32 {
+		*self.published + self.item.clone().total()
+	}
 }
 
 /// What counts itself, implemented only for a receipt that lives as long as the program.
