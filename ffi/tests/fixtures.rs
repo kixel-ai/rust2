@@ -1303,8 +1303,14 @@ fn api_web() {
 			"lent moved",
 			"a closure: a call into JavaScript threw Error: api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
-		("callback threw", "api::Log::log: a call into JavaScript threw Error: a log failed"),
-		("closure threw", "a closure: a call into JavaScript threw Error: a poll failed"),
+		(
+			"callback threw",
+			"api::Log::log: a call into JavaScript threw Error: a log failed",
+		),
+		(
+			"closure threw",
+			"a closure: a call into JavaScript threw Error: a poll failed",
+		),
 		("reader threw", "api_tail: a reader read more than it was asked"),
 		("outlived", OUTLIVED),
 	] {
