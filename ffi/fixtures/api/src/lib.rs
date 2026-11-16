@@ -2037,6 +2037,13 @@ pub fn local_or_new(local: Option<&Local>) -> Local {
 	local.map_or_else(Local::new, Local::share)
 }
 
+/// `local_or_new` after a yield: a future that is not `Send`, made where `local` stays,
+/// or, with none, wherever a local made from nothing would be.
+pub async fn local_or_new_later(local: Option<&Local>) -> Local {
+	yielded(0).await;
+	local_or_new(local)
+}
+
 /// The first local's count bumped if there is one, else the second's.
 pub fn bump_either(first: Option<&Local>, second: &Local) -> u32 {
 	first.unwrap_or(second).bump()

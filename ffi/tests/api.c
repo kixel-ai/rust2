@@ -2185,6 +2185,23 @@ static void *bump_local(void *data) {
 	return NULL;
 }
 
+/* A future making a local, which a second thread polls until it finishes or fails. */
+typedef struct {
+	api_local_or_new_later_future *future;
+	api_Local *out;
+	api_poll poll;
+	api_status status;
+} polled_later;
+
+static void *poll_later(void *data) {
+	polled_later *p = data;
+	p->status = 0;
+	do {
+		p->poll = api_local_or_new_later_poll(p->future, (api_waker){0}, &p->out, &p->status);
+	} while (p->poll == API_POLL_PENDING && p->status == 0);
+	return NULL;
+}
+
 /* Two locals on two homes, each visit calling into the other's. */
 typedef struct {
 	api_Local *a;
@@ -2317,6 +2334,47 @@ static int not_send(void) {
 	api_Local_free(m.local);
 	api_Local_free(mine);
 	api_Local_free(b.local);
+	while (api_locals_dropped() != before_made + 3) {
+	}
+	/* So does such a future, which a second thread then polls: on its home with the
+	 * handle absent, and failing its check with it present, as it stays here. */
+	before_made = api_locals_dropped();
+	polled_later none = {0};
+	if (api_local_or_new_later_start_homed(NULL, &none.out, &none.future, &status) != API_POLL_PENDING ||
+		status != 0) {
+		fprintf(stderr, "a future made with no handle finished at once, writing %d\n", status);
+		failed = 1;
+	}
+	pthread_create(&thread, NULL, poll_later, &none);
+	pthread_join(thread, NULL);
+	if (none.poll != API_POLL_READY || none.status != 0 || api_Local_bump(none.out, &status) != 1 || status != 0) {
+		fprintf(stderr, "a future made with no handle left its home, writing %d and %d\n", none.status, status);
+		failed = 1;
+	}
+	api_Local *here = api_Local_new();
+	polled_later some = {0};
+	if (api_local_or_new_later_start_homed(here, &some.out, &some.future, &status) != API_POLL_PENDING ||
+		status != 0) {
+		fprintf(stderr, "a future made from a local here finished at once, writing %d\n", status);
+		failed = 1;
+	}
+	pthread_create(&thread, NULL, poll_later, &some);
+	pthread_join(thread, NULL);
+	if (some.status != API_STATUS_NOT_SEND) {
+		fprintf(stderr, "a future made from a local here was polled elsewhere, writing %d\n", some.status);
+		failed = 1;
+	}
+	poll_later(&some);
+	if (some.poll != API_POLL_READY || some.status != 0 || api_Local_bump(some.out, &status) != 1 ||
+		api_Local_bump(here, &status) != 2 || status != 0) {
+		fprintf(stderr, "a future made from a local here did not share it, writing %d and %d\n", some.status, status);
+		failed = 1;
+	}
+	api_local_or_new_later_future_free(none.future);
+	api_local_or_new_later_future_free(some.future);
+	api_Local_free(none.out);
+	api_Local_free(some.out);
+	api_Local_free(here);
 	while (api_locals_dropped() != before_made + 3) {
 	}
 	/* A call on one home's value whose callback calls on another's, which calls back on
