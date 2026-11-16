@@ -265,15 +265,18 @@ fn drains() {
 	unsafe {
 		let (mut kind, mut value, mut trace) = (null_mut(), null_mut(), null_mut());
 		PyErr_Fetch(&mut kind, &mut value, &mut trace);
-		match Obj::new(PyObject_CallNoArgs(ty(T_DRAINS))) {
-			Ok(queue) if is_type(queue.ptr(), &QUEUE) => {
-				if let Ok(queue) = queue_of(queue.ptr()) {
-					drain_on(&queue);
+		// With no loop running here, the thread drains at its next call instead.
+		if running_loop() != 0 {
+			match Obj::new(PyObject_CallNoArgs(ty(T_DRAINS))).and_then(|queue| queue_of(queue.ptr())) {
+				Ok(queue) => drain_on(&queue),
+				// The thread drains at its next call instead, and an interrupt its Python ran
+				// into is raised again at the thread's next chance.
+				Err(Raised) if PyErr_ExceptionMatches(PyExc_KeyboardInterrupt) != 0 => {
+					PyErr_Clear();
+					PyErr_SetInterrupt();
 				}
+				Err(Raised) => PyErr_WriteUnraisable(ty(T_DRAINS)),
 			}
-			// No loop runs here: the thread drains at its next call instead.
-			Ok(_) => {}
-			Err(Raised) => PyErr_WriteUnraisable(ty(T_DRAINS)),
 		}
 		PyErr_Restore(kind, value, trace);
 	}

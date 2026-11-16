@@ -91,11 +91,10 @@ def _resume() -> _n.Queue | None:
 	return w.queue
 
 
-def _drains() -> _n.Queue | None:
-	"""The queue of the loop running here, if any, which a free on another thread of a value
-	this thread made that is not Send queues a drain on."""
-	loop = _get_running_loop()
-	return None if loop is None else _wakeup(loop).queue
+def _drains() -> _n.Queue:
+	"""The queue of the loop running here, which a free on another thread of a value this
+	thread made that is not Send queues a drain on."""
+	return _wakeup(_get_running_loop()).queue
 
 
 def _wakeup(loop: _asyncio.AbstractEventLoop) -> _Wakeup:
