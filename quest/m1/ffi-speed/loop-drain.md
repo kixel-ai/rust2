@@ -17,8 +17,10 @@ drain on Python's wake queue and on a C++ executor when a free elsewhere queues 
 Rejected: waiting for the owner's next call or exit, as #844 does.
 
 - `rt/thread.rs`'s owner record gains an optional wake the binding sets, which the queue
-  calls once when it goes from empty to non-empty. Kotlin, Swift, Go, and Dart already
-  send such values to a home, which drains on each wake, so they set none.
+  calls once when it goes from empty to non-empty. Go and Dart already send every such
+  value to a home, which drains on each wake, so they set none. Kotlin and Swift home only
+  a future made from none; a value they make stays on the caller's thread, which has no
+  loop Rust can post to, so it keeps draining at its next call or exit, outside this quest.
 - Python: the owner's wake queues a drain token on the wake queue its futures use, with
   the same byte to the loop's socket, and the loop's dispatch drains on the loop thread.
   The binding sets the wake when a value that is not `Send` is first made on a thread
