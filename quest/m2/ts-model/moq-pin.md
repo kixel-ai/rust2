@@ -16,7 +16,9 @@ building for wasm32. Rejected: one bump for both pins, which holds the exporter 
 Held on 2026-11-13: at moq's `main` (`d8005479`) the lock still resolves rind 0.3.1, so the bump
 below fails `just ci`'s `ts` test (through `just ts moq`) and `just ts census`, both on rind's
 wasm32 inline asm. The fixture stays at its current pin until rind 0.4 is on moq's `main`, so the
-branch's checks stay green meanwhile. The steps below are the bump once that holds.
+branch's checks stay green meanwhile. The maintainer settled it on 2026-11-14: ✅ keep the bump
+held until rind 0.4 is published and moq moves to it (rejected: push the bump to `d8005479` now
+as a red draft; pin an older moq revision now). The steps below are the bump once that holds.
 
 - Set `rev` in `ts/fixtures/model/Cargo.toml` to moq's `main`, then run `cargo update -p moq-net`
   there, as its comment says.
