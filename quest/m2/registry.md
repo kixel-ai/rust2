@@ -20,7 +20,12 @@ ownership, values and calls. On 2026-11-16, kixtop built the macOS arm64
 XCFramework with Xcode 26.6, and a clean SwiftPM consumer with Apple Swift 6.3.3
 matched the native transcript byte for byte and passed futures and ownership.
 The [report](/bench/registry/README.md) records the commands and the fixes
-this execution required. The GitHub workflow has not been executed.
+this execution required. GitHub Actions run
+[43968322384](https://github.com/kixel-ai/rust2/actions/runs/43968322384)
+built both packages and passed the clean Linux consumer. The Mac wheel import
+failed on a Nix-store libiconv dependency. The builder now selects Apple's linker,
+and wheel packaging rejects non-system dylib dependencies; rerun both consumers
+to validate the fix.
 The maintainer accepted release templates with shared builders because registry
 namespace ownership cannot be inferred from Cargo metadata; it does not claim moq's workflows can be deleted.
 

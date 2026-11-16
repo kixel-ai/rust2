@@ -1,8 +1,14 @@
 # Registry packaging spike
 
-Recommendation: generate release templates for moq. A single configless publisher
+Accepted direction: generate release templates for moq. A single configless publisher
 cannot infer registry ownership from Cargo metadata. Shared package builders are
 still useful. This spike publishes nothing and changes no binding semantics.
+
+The maintainer [accepted the no-go on 2026-11-16](https://github.com/kixel-ai/rust2/pull/761#issuecomment-6930429582):
+release templates with shared builders are the full version (rejected: keep
+investigating a configless publisher; stop the spike with no full version).
+The [follow-up quest](/quest/m2/release-templates.md) starts with moq's existing
+Python and Swift releases and preserves their identities and platform policy.
 
 `build.sh` exports the existing api fixture (including its existing exclusion file),
 builds a CPython stable-ABI library, writes a wheel, and on macOS wraps a separate
@@ -84,8 +90,15 @@ After merging main to resolve the fixture conflict, the current source passed
 again with the transcript hash above. Apple Swift still warns about a pointer
 capture in the fixture's separate shared-call stress test; the consumer exercises
 the transcript, futures and ownership, not that stress test.
-The GitHub reusable invocation remains unexecuted. Do not delete moq's release
-workflows on this evidence.
+The first GitHub reusable invocation,
+[run 43968322384](https://github.com/kixel-ai/rust2/actions/runs/43968322384),
+built both platforms and passed the clean Linux consumer. The macOS wheel
+installed but could not import: Nix's linker wrapper embedded a Nix-store
+libiconv dependency absent from the consumer runner. The builder now uses
+Apple's linker, and macOS wheel packaging inspects `otool -L` and refuses any
+dependency outside system libraries and frameworks. Its dylib ID is relative.
+This fix still needs a successful GitHub consumer run. Do not delete moq's
+release workflows on this evidence.
 
 ## What each registry still needs
 

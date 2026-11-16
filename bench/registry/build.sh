@@ -8,6 +8,9 @@ if [[ $(uname) == Darwin ]]; then
     DEVELOPER_DIR=$(env -u DEVELOPER_DIR /usr/bin/xcode-select -p)
     export SDKROOT
     SDKROOT=$(env -u SDKROOT /usr/bin/xcrun --sdk macosx --show-sdk-path)
+    # Nix's linker wrapper injects store libraries unavailable to wheel consumers.
+    export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=/usr/bin/clang
+    export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=/usr/bin/clang
 fi
 cd "$(dirname "$0")/../.."
 rm -rf ffi/target/registry

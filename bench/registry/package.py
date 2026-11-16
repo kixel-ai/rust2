@@ -54,6 +54,18 @@ def wheel():
         if not glibc or max(glibc) > (2, 39):
             raise SystemExit("wheel requires glibc newer than the Ubuntu 24.04 consumer")
         binary = binary_copy
+    elif sys.platform == "darwin":
+        binary_copy = OUT / library
+        shutil.copyfile(binary, binary_copy)
+        run("/usr/bin/install_name_tool", "-id", f"@rpath/{library}", str(binary_copy))
+        dynamic = run("/usr/bin/otool", "-L", str(binary_copy), capture_output=True, text=True).stdout
+        needed = {line.strip().split(" (", 1)[0] for line in dynamic.splitlines()[1:]}
+        external = {name for name in needed if name != f"@rpath/{library}"
+                    and not name.startswith(("/usr/lib/", "/System/Library/Frameworks/"))}
+        if external:
+            raise SystemExit(f"unpackaged native dependencies: {dynamic}")
+        print(dynamic, end="")
+        binary = binary_copy
     files = {
         "api/__init__.py": (EXPORT / "python/api.py").read_bytes(),
         f"api/{library}": binary.read_bytes(),
