@@ -2477,10 +2477,6 @@ impl<'tcx> Collector<'tcx> {
 		chain
 	}
 
-	/// The names of `ty`'s `pub` inherent methods, then of its `pub` fields, exported or not,
-	/// which hide any method or field of the same name a type it derefs to has, as they do in
-	/// Rust: a method of each inherent impl that applies to `ty`, whose own bounds Rust checks
-	/// only once it picked the method. A method never hides a field, nor a field a method.
 	/// The names of `ty`'s `pub` inherent functions, with `self` or not, and constants, which
 	/// share its path with a field of the same name, as `field_key` counts them.
 	fn path_names(&self, ty: Ty<'tcx>) -> Vec<String> {
@@ -2504,6 +2500,10 @@ impl<'tcx> Collector<'tcx> {
 			.collect()
 	}
 
+	/// The names of `ty`'s `pub` inherent methods, then of its `pub` fields, exported or not,
+	/// which hide any method or field of the same name a type it derefs to has, as they do in
+	/// Rust: a method of each inherent impl that applies to `ty`, whose own bounds Rust checks
+	/// only once it picked the method. A method never hides a field, nor a field a method.
 	fn member_names(&self, ty: Ty<'tcx>) -> (Vec<String>, Vec<String>) {
 		let tcx = self.tcx;
 		let ty::Adt(adt, _) = ty.kind() else {
