@@ -1325,6 +1325,8 @@ impl<'a> Abi<'a> {
 			"foreign_reader",
 			"buf_copy",
 			"buf_clone",
+			"thread_wake",
+			"thread_drain",
 			"poll",
 			"view",
 			"items",

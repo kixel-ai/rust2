@@ -714,13 +714,33 @@ namespace detail {
 struct task_node : node {
 	virtual void cancel() noexcept = 0;
 	// Post a drain of what other threads freed of this thread's values that are not
-	// `Send` to the executor, unless the task is gone.
+	// `Send` to the executor.
 	virtual void drain() noexcept = 0;
 };
 
-inline void drain_node(void *data) noexcept {
-	static_cast<task_node *>(static_cast<node *>(data))->drain();
-}
+// What a free elsewhere of a value of its thread that is not `Send` wakes: the thread's
+// latest task, which posts a drain to its executor, until the task is gone. Rust holds it
+// rather than the task, so a gone task's callback and executor are freed with it.
+class drainer final : public node {
+	::std::mutex mutex_;
+	task_node *task_;
+
+public:
+	explicit drainer(task_node *task) noexcept : task_(task) {}
+
+	void wake() noexcept override {
+		::std::lock_guard<::std::mutex> lock(mutex_);
+		if (task_ != nullptr) {
+			task_->drain();
+		}
+	}
+
+	// Called as the task goes, after which it is never woken again.
+	void detach() noexcept {
+		::std::lock_guard<::std::mutex> lock(mutex_);
+		task_ = nullptr;
+	}
+};
 
 template <class Op, class Exec, class F>
 class driver;
@@ -1045,8 +1065,8 @@ class driver final : public task_node {
 	// Held across each call to the executor, so `cancel` returns only once none is under
 	// way, and none starts after.
 	::std::mutex posting_;
-	// Whether the task is gone, under `posting_`, after which the executor is never called.
-	bool gone_ = false;
+	// What its thread's frees elsewhere wake while it is the thread's latest task, if any.
+	drainer *drainer_ = nullptr;
 	// Null once the future finished or was cancelled.
 	typename Op::raw *raw_;
 	Exec exec_;
@@ -1127,6 +1147,11 @@ public:
 	}
 
 	void cancel() noexcept override {
+		// First, so no drain is under way or starts once this returns.
+		if (drainer_ != nullptr) {
+			drainer_->detach();
+			::std::exchange(drainer_, nullptr)->unref();
+		}
 		// From its own callback, the future is already gone.
 		if (on_.load(::std::memory_order_relaxed) != ::std::this_thread::get_id()) {
 			::std::lock_guard<::std::mutex> lock(mutex_);
@@ -1137,18 +1162,21 @@ public:
 		// this, the executor is never called again.
 		{
 			::std::lock_guard<::std::mutex> lock(posting_);
-			gone_ = true;
 		}
 		unref();
 	}
 
 	void drain() noexcept override {
 		::std::lock_guard<::std::mutex> lock(posting_);
-		if (!gone_) {
-			// It drains the thread it runs on, which is this one's only if the executor
-			// runs it here; a job elsewhere leaves the drops to this thread's next call.
-			exec_([]() { c_thread_drain(); });
-		}
+		// It drains the thread it runs on, which is this one's only if the executor runs it
+		// here; a job elsewhere leaves the drops to this thread's next call.
+		exec_([]() { c_thread_drain(); });
+	}
+
+	// Be its thread's latest task, which its frees elsewhere wake.
+	void drains() {
+		drainer_ = new drainer(this);
+		c_thread_wake(give(drainer_));
 	}
 };
 
@@ -1160,8 +1188,7 @@ void spawn(task &slot, typename Op::raw *raw, Exec exec, F f) {
 	// The latest executor of this thread drains what other threads free of its values
 	// that are not `Send`, though it calls nothing into Rust, until its task is gone.
 	if constexpr (drains) {
-		d->ref();
-		c_thread_wake(c_waker{&drain_node, &drop_node, static_cast<node *>(d)});
+		d->drains();
 	}
 	d->wake();
 }

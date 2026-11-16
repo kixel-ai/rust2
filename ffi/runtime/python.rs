@@ -243,11 +243,12 @@ pub fn call<T>(f: impl FnOnce() -> T) -> T {
 	// SAFETY: released just above.
 	unsafe { PyEval_RestoreThread(state) };
 	RUNNING.set(outer);
-	if !RESUMES.with_borrow(Vec::is_empty) {
-		resume();
-	}
+	// First, as a drain it queues at once may be one to resume.
 	if rt::Thread::made() {
 		drains();
+	}
+	if !RESUMES.with_borrow(Vec::is_empty) {
+		resume();
 	}
 	result
 }

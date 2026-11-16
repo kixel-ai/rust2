@@ -965,9 +965,22 @@ def futures():
 
 	# Made while a loop runs, one freed elsewhere drops on the loop's next turn, though the
 	# loop calls nothing into Rust meanwhile.
+	# One made with no loop running and freed elsewhere waits, until a value made while one
+	# runs gives the thread its wake.
+	early = [api.Local.new()]
+	before = api.locals_dropped()
+	thread = threading.Thread(target=early.clear)
+	thread.start()
+	thread.join()
+	check(api.locals_dropped() == before, "a local freed elsewhere with no wake waits")
+
 	async def idle() -> None:
-		held = [api.Local.new()]
 		before = api.locals_dropped()
+		held = [api.Local.new()]
+		await asyncio.sleep(0)
+		await asyncio.sleep(0)
+		check(api.locals_dropped() == before + 1, "a drop queued before its thread's wake drains once it is set")
+		before += 1
 		freed = loop.create_future()
 
 		def free() -> None:

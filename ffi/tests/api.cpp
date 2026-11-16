@@ -1725,7 +1725,8 @@ int futures() {
 
 		// An executor running the drain on another thread leaves it to the next call.
 		queue away;
-		api::task there = api::yielded(7).then(away.executor(), [&](std::uint32_t value) { got = value; });
+		auto kept = std::make_shared<int>(0);
+		api::task there = api::yielded(7).then(away.executor(), [&got, kept](std::uint32_t value) { got = value; });
 		api::Local other = shared.share();
 		std::thread([&]() { api::Local gone = std::move(other); }).join();
 		std::thread([&]() { away.drain(); }).join();
@@ -1734,10 +1735,22 @@ int futures() {
 
 		// Once the latest task is gone, its executor is never called again.
 		there = api::task();
+		check(kept.use_count() == 1, "a gone task's callback is freed, though its thread's wake outlives it");
 		api::Local last = shared.share();
 		std::thread([&]() { api::Local gone = std::move(last); }).join();
 		check(away.jobs.empty(), "a drain is never posted to a gone task's executor");
 		check(shared.bump() == 5 && api::locals_dropped() == before + 3, "a local destroyed elsewhere drops at its next call");
+
+		// A drop queued before its thread's first task drains through that task's executor.
+		std::thread([]() {
+			queue mine;
+			api::Local early = api::Local::new_();
+			std::uint32_t was = api::locals_dropped();
+			std::thread([&]() { api::Local gone = std::move(early); }).join();
+			api::task first = api::yielded(1).then(mine.executor(), [](std::uint32_t) {});
+			mine.drain();
+			check(api::locals_dropped() == was + 1, "a drop queued before its thread's first task drains through it");
+		}).join();
 	}
 
 	// Cancelled between its wake and its poll, a receive loses nothing: the payload stays

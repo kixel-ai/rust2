@@ -177,12 +177,19 @@ impl Thread {
 
 	/// Have each free elsewhere of a value of this thread call `wake` as it queues the
 	/// first drop since the last drain, in place of any earlier one: the thread's loop
-	/// then drains, though it calls nothing.
+	/// then drains, though it calls nothing. A drop already queued wakes it at once, as
+	/// no earlier wake may have scheduled its drain.
 	pub fn wake_here(wake: Wake) {
 		let thread = Self::here();
-		let old = thread.lock().wake.replace(wake);
-		// Outside the lock, as a foreign drop may take its own.
+		let mut jobs = thread.lock();
+		let now = thread.pending.load(Ordering::Relaxed).then(|| wake.clone());
+		let old = jobs.wake.replace(wake);
+		drop(jobs);
+		// Outside the lock, as a foreign drop or wake may take its own.
 		drop(old);
+		if let Some(wake) = now {
+			wake();
+		}
 	}
 
 	/// Run what other threads queued for this thread, if any: what a [`Wake`] schedules.
