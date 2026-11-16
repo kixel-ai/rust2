@@ -84,7 +84,7 @@ The macOS builder selects the installed Xcode and its SDK explicitly: Nix's SDK
 bundle lacks `libz.tbd` and cannot serve as Xcode's developer directory. The current
 spike exports the same WASI target as the fixture suite, so target availability
 agrees, and the Swift fixture avoids shadowing its `debug()` helper in Swift 6.
-The original external-call pin, commit `901f7baa`, also passed Mac validation; that
+The original external-call pin, commit `901f7baa`, also passed Swift validation; that
 older fixture needs an explicit `@Sendable` type on its duration-conversion helper.
 After merging main to resolve the fixture conflict, the current source passed
 again with the transcript hash above. Apple Swift still warns about a pointer
@@ -97,8 +97,44 @@ installed but could not import: Nix's linker wrapper embedded a Nix-store
 libiconv dependency absent from the consumer runner. The builder now uses
 Apple's linker, and macOS wheel packaging inspects `otool -L` and refuses any
 dependency outside system libraries and frameworks. Its dylib ID is relative.
-This fix still needs a successful GitHub consumer run. Do not delete moq's
-release workflows on this evidence.
+The next GitHub invocation passed both artifact consumers, as recorded below.
+Do not delete moq's release workflows on this evidence.
+
+## GitHub invocation and artifact handoff
+
+On 2026-11-16, ran `gh workflow run check.yml --repo kixel-ai/rust2 --ref
+quest/m2/registry`. The registered manual Check workflow called
+`./.github/workflows/registry.yml` at
+`13710f7b7f1dcc649fa5cdabff348b497bc835ff` in
+[run 43971814703](https://github.com/kixel-ai/rust2/actions/runs/43971814703).
+Direct dispatch of `registry.yml` returned 404 because that new workflow was not
+yet registered on the default branch. The manual caller also runs the existing
+full Check job; nightly's report now includes the reusable job's result.
+
+Both builders passed and uploaded `registry-ubuntu-24.04-arm` and
+`registry-macos-26`. Separate jobs downloaded these artifacts without checkout,
+Nix, Rust, exporter or source paths. They created a venv, installed the wheel
+with `pip install --no-index --no-deps artifacts/*.whl`, and ran the copied
+verifier with Python's `-I` from a clean directory.
+[Linux arm64](https://github.com/kixel-ai/rust2/actions/runs/43971814703/job/133671565856)
+and [macOS arm64](https://github.com/kixel-ai/rust2/actions/runs/43971814703/job/133671565931)
+each printed `installed wheel: transcript matches Rust; futures, ownership,
+values and calls pass`. The macOS 26.7.2 consumer then unpacked `Api.zip` and ran
+`bash verify-swift.sh .`: SwiftPM's release build passed, its transcript matched
+Rust byte for byte, then `futures ok` and `owned ok` passed. Both consumer jobs
+removed their workspaces successfully.
+
+The Mac builder's independent `otool -L` check reported only the relative dylib
+ID, `/usr/lib/libiconv.2.dylib` and `/usr/lib/libSystem.B.dylib`. The external-call
+fixture pin now uses this validated revision, including the Apple linker fix.
+Downloaded both uploaded artifacts with `gh run download 43971814703 --repo
+kixel-ai/rust2 --dir .tmp/registry-verified-artifacts`: independent ZIP inspection
+verified both wheels' complete RECORD coverage, sizes and SHA-256 hashes, and
+the XCFramework plist described exactly one macOS arm64 slice. Both packaged
+native transcripts had SHA-256
+`729ffddcec8928c564d29fd1ee3c4fc34ccaecf18900d34be63c4e6fd0a50714`.
+This completes the fixture-packaging spike and establishes the artifact handoff,
+not a configless publisher or moq release migration.
 
 ## What each registry still needs
 

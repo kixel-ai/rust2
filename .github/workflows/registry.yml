@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: kixel-ai/rust2
-          ref: ${{ github.repository == 'kixel-ai/rust2' && github.sha || '901f7baae79bb6d59690e18ee411f3a8c6209c7c' }}
+          ref: ${{ github.repository == 'kixel-ai/rust2' && github.sha || '13710f7b7f1dcc649fa5cdabff348b497bc835ff' }}
           persist-credentials: false
       - uses: ./.github/actions/nix
       - name: Build fixture packages
