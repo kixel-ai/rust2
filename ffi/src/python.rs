@@ -56,7 +56,6 @@ const TAKEN: &[&str] = &[
 	"_wakeup",
 	"_resume",
 	"_drains",
-	"_register",
 	"_Const",
 	"_PENDING",
 	"_consts",
