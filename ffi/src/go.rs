@@ -1794,8 +1794,13 @@ impl<'a> Gen<'a> {
 		}
 		let default = t.default.then(|| {
 			let func = format!("{}Default", name.trim_start_matches('*'));
+			// A value that is not `Send` is made on a home, which its calls then run on.
+			let homed = match ty {
+				Type::Object(i) if !self.abi.api.objects[*i].send => "_homed",
+				_ => "",
+			};
 			let lift = match object {
-				true => format!("own_{c}(C.{c}_default())"),
+				true => format!("own_{c}(C.{c}_default{homed}())"),
 				false => format!("lift_{c}(C.{c}_default())"),
 			};
 			let (results, ok) = match limited {
@@ -2533,7 +2538,7 @@ impl<'a> Gen<'a> {
 	/// and a receiver, or else a function of the package.
 	fn function(&mut self, function: &Function, owner: Option<&Ty>, owner_ty: Option<&Type>) -> Method {
 		let abi = self.abi;
-		let export = abi.export(function, owner);
+		let export = abi.export(function, owner).on_home();
 		let c_name = export.call.name.clone();
 		let owner_c = match owner {
 			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.clone()),
@@ -2894,10 +2899,18 @@ impl<'a> Gen<'a> {
 			let cases = cases.join("\n");
 			// Lifts what a call or a poll wrote, once either reports the future finished.
 			let (call, value) = self.call_sig(poll, &["f_".to_string(), "w_".to_string()]);
-			let polled = indent(&then(
-				&call,
-				&format!("switch {value} {{\n{cases}\n}}\nreturn false, nil"),
-			));
+			let mut rest = format!("switch {value} {{\n{cases}\n}}\nreturn false, nil");
+			// A future that is not `Send` lives on a home, which polls it, so its check fails
+			// only for one a callback made elsewhere.
+			if poll.status().is_some() {
+				let error = format!(
+					"{}(int32(c_status_), \"{}\")",
+					self.qualify(Packages::RT, "Status_"),
+					poll.name
+				);
+				rest = format!("if c_status_ != 0 {{\n\treturn true, {error}\n}}\n{rest}");
+			}
+			let polled = indent(&then(&call, &rest));
 			if function.eager {
 				// An eager call runs Rust, and any callback it makes, before its future
 				// exists, and a callback may cancel the context: so it is made, then the

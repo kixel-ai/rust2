@@ -179,6 +179,14 @@ What they show:
    unchanged. Go's hold costs 0.1 ns more in a Go microbenchmark, within this row's run to
    run spread of 1 to 2 ns. Swift's getter on a noncopyable `GroupDemand` calls the same
    Rust export as C's, whose row is flat, yet costs 0.8 ns more from Swift.
+5. **Swift's getter moved with its code's placement, not the borrow.** Swift calls the
+   export through a merged thunk, by an indirect call, at the same bytes before and after.
+   Remeasured at rust2 `c12c4c0e` (3 rounds a cell, load 1.3 to 3.5, CPU ns): shifting all
+   code in 16-byte steps moves the getter between 4.0 and 4.5 with a 64-byte period, and
+   shifting the Rust export alone, by up to 128 bytes, moves it by no more than 0.1. The
+   earlier count-only borrow, rebuilt on the same tree, costs 4.15. A Swift wrapper marked
+   `@inlinable`, so the loop calls the export directly, costs 3.5 at every shift, which
+   [a quest](/quest/m1/ffi-speed/shared-borrow.md) takes up.
 
 The load limits these numbers: 4 threads beside others' leave the scheduler free to place
 them on one die or across both, whose line transfer is slower. Read the shared rows as
@@ -422,6 +430,23 @@ frame path:
    Go 414, Dart 522, Python 445, and Kotlin 590 (from 381, 556, 868, 659, and 615). Go's and
    Dart's include the returned frame's ownership, about 190 and 215 ns over C's object return;
    the rest is each language's own await.
+
+   Profiled 2026-11-15 on **nixos** in user-space instructions a read adds to a write, a
+   million reads alone in each language: C 1,360, Swift 2,248, Go 4,790, and Dart 5,776.
+   Swift's await spent most of its share in `Task.isCancelled`'s lookup of the current
+   task, the async frame's allocation, and `swift_task_switch`, the hop a `nonisolated`
+   async function makes onto the global executor; since kixel-ai/rust2#839 a future is
+   `nonisolated(nonsending)` and makes no hop (2,104), which on a caller's actor saves two
+   jobs a read (9.9 us a ready read on the main actor, then 0.32). Dart's start made a call
+   object and a completer before it knew it was ready; it now returns `Future.syncValue`
+   (5,298), leaving Dart's own await, which schedules a microtask even for a complete
+   future. Go's is the returned frame's ownership (`AddCleanup`, `Cleanup.Stop`, and a
+   close's two crossings), and cgo's check and heap allocation of each out pointer, which
+   [Go's pointers](../../quest/m1/ffi-speed/go-pointers.md) takes: what remains after both
+   is one crossing. Off the main thread, glibc's malloc arena for the thread grows and
+   trims with `mprotect`, which adds about 60 ns to a write and 20 to a read in C on a
+   pthread (`MALLOC_ARENA_MAX=1` removes it). Swift's ready read runs in a task on such a
+   thread and its write above on the main one, so its ready row carries it and C's does not.
 5. **Kotlin's record codec.** A record return costs Kotlin 113 ns wall against C's 31,
    through the byte-array codec; Swift, which reads the C struct, costs 37.
 6. **The handle borrow at the C ABI.** The u64 getter costs Rust 0.4 ns and C 10: the

@@ -846,6 +846,16 @@ def script():
 		next = api.next_hop(hop)
 		print("hop None" if next is None else f"hop Some({next})")
 	print(f"farther hop {api.farther_hop(api.PairNonZeroU16(3, 0xFFFF))}")
+	local = api.Local.new()
+	shared = api.local_or_new(local)
+	bumped = local.bump()
+	print(f"local {bumped} {shared.bump()}")
+	print(f"local fresh {api.local_or_new(None).bump()}")
+	print(f"local either {api.bump_either(None, shared)}")
+	loop = asyncio.new_event_loop()
+	print(f"local later {loop.run_until_complete(api.local_or_new_later(local)).bump()}")
+	print(f"local later fresh {loop.run_until_complete(api.local_or_new_later(None)).bump()}")
+	loop.close()
 
 
 class Elementwise(array.array):
@@ -923,6 +933,35 @@ def futures():
 		check(False, "a future's borrowing error raises")
 	except api.StringException as e:
 		check(e.error == "malformed: ", "a future's borrowing error is its message")
+
+	# A value that is not Send stays on the thread that made it: a use elsewhere raises, and
+	# its future polls on its thread alone. Freed elsewhere, it drops there at its next call.
+	local = api.Local.new()
+	shared = local.share()
+	local.bump()
+	check(shared.bump() == 2, "a shared local counts together")
+	check(loop.run_until_complete(local.later()) == 3, "a local's future runs on its thread")
+	check(loop.run_until_complete(api.local_later(5)) == 10, "a future that is not Send runs on its thread")
+	raised = []
+
+	def elsewhere():
+		try:
+			local.bump()
+		except RuntimeError as e:
+			raised.append(str(e))
+
+	thread = threading.Thread(target=elsewhere)
+	thread.start()
+	thread.join()
+	check(raised == ["api_Local_bump: a value that is not Send is used on another thread than the one that made it"], "a local used elsewhere raises")
+	before = api.locals_dropped()
+	held = [local]
+	del local
+	thread = threading.Thread(target=held.clear)
+	thread.start()
+	thread.join()
+	check(api.locals_dropped() == before, "a local freed elsewhere waits for its thread")
+	check(shared.bump() == 4 and api.locals_dropped() == before + 1, "a local freed elsewhere drops on its thread")
 
 	# Cancelled between its wake and its poll, a receive loses nothing: the payload stays
 	# for the next.

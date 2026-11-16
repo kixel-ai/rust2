@@ -1063,6 +1063,27 @@ fn main() {
 		"farther hop {}",
 		api::farther_hop(Pair { left: near, right: far }).get()
 	);
+	// A value that is not `Send`, all on this thread: a handle to a local's count, and a
+	// local made from none.
+	let local = api::Local::new();
+	let shared = api::local_or_new(Some(&local));
+	let bumped = local.bump();
+	println!("local {bumped} {}", shared.bump());
+	println!("local fresh {}", api::local_or_new(None).bump());
+	println!("local either {}", api::bump_either(None, &shared));
+	println!("local later {}", finish(api::local_or_new_later(Some(&local))).bump());
+	println!("local later fresh {}", finish(api::local_or_new_later(None)).bump());
+}
+
+/// `future`'s output, polled on this thread until it is ready.
+fn finish<F: std::future::Future>(future: F) -> F::Output {
+	let mut future = pin!(future);
+	let mut cx = Context::from_waker(Waker::noop());
+	loop {
+		if let Poll::Ready(output) = future.as_mut().poll(&mut cx) {
+			return output;
+		}
+	}
 }
 
 /// A path no Rust string spells: on Unix, bytes that are not UTF-8; on Windows, a lone

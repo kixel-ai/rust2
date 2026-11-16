@@ -58,6 +58,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		errors: Vec::new(),
 		thrown: BTreeMap::new(),
 		conforms: BTreeSet::new(),
+		unsent_errors: BTreeSet::new(),
 		structs: structs(abi),
 		fresh: 0,
 		on: On::ALL,
@@ -251,6 +252,9 @@ struct Gen<'a> {
 	thrown: BTreeMap<String, Type>,
 	/// The exported types thrown as errors, which conform to `Swift.Error`.
 	conforms: BTreeSet<String>,
+	/// Those of them that are not `Sendable`, which `Swift.Error` requires: each conforms
+	/// unchecked, as its run-time checks keep it on its thread.
+	unsent_errors: BTreeSet<String>,
 	/// The objects that are noncopyable structs: each but those `Copy` or thrown.
 	structs: BTreeSet<usize>,
 	fresh: usize,
@@ -769,16 +773,26 @@ impl<'a> Gen<'a> {
 				self.top.push('\n');
 			}
 		}
+		// `Swift.Error` is `Sendable`, so an error holding a value Swift keeps on one thread
+		// is so unchecked: its value's run-time checks still keep it there.
 		for (name, ty) in &self.thrown.clone() {
 			let sw = self.sw(ty);
+			let unchecked = match self.sendable(ty).is_empty() {
+				true => ", @unchecked Sendable",
+				false => "",
+			};
 			let _ = write!(
 				self.types,
-				"/// A `{}` Rust returned as an error, or a closure throws for Rust to return.\npublic struct {name}: Swift.Error, CustomStringConvertible {{\n\tpublic let error: {sw}\n\n\tpublic init(error: {sw}) {{\n\t\tself.error = error\n\t}}\n\n\tpublic var description: Swift.String {{\n\t\t\"\\(error)\"\n\t}}\n}}\n\n",
+				"/// A `{}` Rust returned as an error, or a closure throws for Rust to return.\npublic struct {name}: Swift.Error{unchecked}, CustomStringConvertible {{\n\tpublic let error: {sw}\n\n\tpublic init(error: {sw}) {{\n\t\tself.error = error\n\t}}\n\n\tpublic var description: Swift.String {{\n\t\t\"\\(error)\"\n\t}}\n}}\n\n",
 				sw.trim_start_matches("Swift.")
 			);
 		}
 		for name in &self.conforms.clone() {
-			let _ = write!(self.types, "extension {name}: Swift.Error {{}}\n\n");
+			let unchecked = match self.unsent_errors.contains(name) {
+				true => ", @unchecked Sendable",
+				false => "",
+			};
+			let _ = write!(self.types, "extension {name}: Swift.Error{unchecked} {{}}\n\n");
 		}
 	}
 
@@ -795,9 +809,13 @@ impl<'a> Gen<'a> {
 			.collect();
 		let assigns: String = (0..elements.len()).map(|n| format!("\t\tself._{n} = _{n}\n")).collect();
 		let shown: Vec<&str> = types.iter().map(|t| t.trim_start_matches("Swift.")).collect();
+		let sendable = match self.sendable(&Type::Tuple(elements.to_vec())).is_empty() {
+			true => "",
+			false => ", Sendable",
+		};
 		let _ = write!(
 			self.types,
-			"/// The tuple `({})`, as a struct, since it holds a value Swift cannot copy. Frozen, so\n/// another module may move each element out.\n@frozen public struct {name}: ~Copyable, Sendable {{\n{fields}\n\tpublic init({}) {{\n{assigns}\t}}\n}}\n\n",
+			"/// The tuple `({})`, as a struct, since it holds a value Swift cannot copy. Frozen, so\n/// another module may move each element out.\n@frozen public struct {name}: ~Copyable{sendable} {{\n{fields}\n\tpublic init({}) {{\n{assigns}\t}}\n}}\n\n",
 			shown.join(", "),
 			params.join(", ")
 		);
@@ -1056,7 +1074,7 @@ impl<'a> Gen<'a> {
 			.collect();
 		let assigns: String = fields.iter().map(|(f, _)| format!("\t\tself.{f} = {f}\n")).collect();
 		body.push(format!("\tpublic init({}) {{\n{assigns}\t}}\n", params.join(", ")));
-		let mut protocols = vec!["Sendable"];
+		let mut protocols = self.sendable(&ty);
 		self.traits(&ty, &c, record.traits, &mut body, &mut members, &mut protocols);
 		self.methods(&record.methods, &Ty::Struct(c.clone()), &ty, &mut body, &mut members);
 		self.distinct(&rust, &members);
@@ -1096,9 +1114,9 @@ impl<'a> Gen<'a> {
 		let text = format!("{rust}\n\n{}", record.docs);
 		let _ = write!(
 			self.types,
-			"{}public struct {name}: {} {{\n{}}}\n\n",
+			"{}public struct {name}{} {{\n{}}}\n\n",
 			docs(text.trim(), ""),
-			protocols.join(", "),
+			conform(&protocols),
 			body.join("\n")
 		);
 	}
@@ -1116,7 +1134,7 @@ impl<'a> Gen<'a> {
 		let mut body = vec![format!(
 			"\t/// Its bytes, which only Rust reads.\n\tlet c_: {c}\n\n\tprivate init(c_: {c}) {{\n\t\tself.c_ = c_\n\t}}\n"
 		)];
-		let mut protocols = vec!["Sendable"];
+		let mut protocols = self.sendable(&ty);
 		self.traits(&ty, &c, record.traits, &mut body, &mut members, &mut protocols);
 		self.methods(&record.methods, &Ty::Struct(c.clone()), &ty, &mut body, &mut members);
 		self.distinct(&rust, &members);
@@ -1127,9 +1145,9 @@ impl<'a> Gen<'a> {
 		let text = format!("{rust}\n\n{}", record.docs);
 		let _ = write!(
 			self.types,
-			"{}public struct {name}: {} {{\n{}}}\n\n",
+			"{}public struct {name}{} {{\n{}}}\n\n",
 			docs(text.trim(), ""),
-			protocols.join(", "),
+			conform(&protocols),
 			body.join("\n")
 		);
 	}
@@ -1204,7 +1222,7 @@ impl<'a> Gen<'a> {
 			}
 		}
 		let mut body = cases;
-		let mut protocols = vec!["Sendable"];
+		let mut protocols = self.sendable(&ty);
 		self.traits(&ty, &c, e.traits, &mut body, &mut members, &mut protocols);
 		let owner = abi.ty(&ty);
 		self.methods(&e.methods, &owner, &ty, &mut body, &mut members);
@@ -1238,11 +1256,31 @@ impl<'a> Gen<'a> {
 		let text = format!("{rust}\n\n{}", e.docs);
 		let _ = write!(
 			self.types,
-			"{}public enum {name}: {} {{\n{}}}\n\n",
+			"{}public enum {name}{} {{\n{}}}\n\n",
 			docs(text.trim(), ""),
-			protocols.join(", "),
+			conform(&protocols),
 			body.join("\n")
 		);
+	}
+
+	/// `Sendable`, for a value whose every handle Rust lets cross threads: see
+	/// [`Self::sends`].
+	fn sendable(&self, ty: &Type) -> Vec<&'static str> {
+		let mut handles = Vec::new();
+		self.abi.api.handles(ty, &mut handles, &mut Vec::new());
+		match handles.iter().all(|&i| self.sends(i)) {
+			true => vec!["Sendable"],
+			false => Vec::new(),
+		}
+	}
+
+	/// Whether object `i` is `Sendable`: a class shares its value between the threads that
+	/// hold it, so only one Rust shares, `Send` and `Sync`; a noncopyable struct only moves
+	/// to another, so one that is `Send`. Swift's compiler then keeps any other on one
+	/// thread at a time, as its run-time checks do.
+	fn sends(&self, i: usize) -> bool {
+		let object = &self.abi.api.objects[i];
+		object.send && (object.sync || self.unique(&Type::Object(i)))
 	}
 
 	fn object(&mut self, i: usize) {
@@ -1264,7 +1302,12 @@ impl<'a> Gen<'a> {
 				"\tlet handle: Native.Handle\n\n\tinit(raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, {c}_free, \"{name}\")\n\t}}\n\n\tinit(lent raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, nil, \"{name}\")\n\t}}\n\n\tdeinit {{\n\t\thandle.drop()\n\t}}\n"
 			),
 		}];
-		let mut protocols = vec!["@unchecked Sendable"];
+		// Rust checks each borrow at run time, so it is `Sendable` unless its value stays on
+		// one thread, or is shared on one at a time, which Swift's compiler then enforces.
+		let mut protocols = match self.sends(i) {
+			true => vec!["@unchecked Sendable"],
+			false => Vec::new(),
+		};
 		self.traits(&ty, &c, object.traits, &mut body, &mut members, &mut protocols);
 		let owner = Ty::Handle {
 			name: c.clone(),
@@ -1278,14 +1321,18 @@ impl<'a> Gen<'a> {
 		if !unique {
 			let _ = write!(
 				self.types,
-				"{docs}public final class {name}: {} {{\n{body}}}\n\n",
-				protocols.join(", ")
+				"{docs}public final class {name}{} {{\n{body}}}\n\n",
+				conform(&protocols)
 			);
 			return;
 		}
+		let sendable = match self.sends(i) {
+			true => ", @unchecked Sendable",
+			false => "",
+		};
 		let _ = write!(
 			self.types,
-			"{docs}public struct {name}: ~Copyable, @unchecked Sendable {{\n{body}}}\n\n"
+			"{docs}public struct {name}: ~Copyable{sendable} {{\n{body}}}\n\n"
 		);
 		// Swift 6.4 takes a noncopyable type's `Equatable` and `Hashable`, but not yet its
 		// `CustomStringConvertible` or `CustomDebugStringConvertible`, whose members it keeps.
@@ -1834,8 +1881,11 @@ impl<'a> Gen<'a> {
 			true => format!("a_.ran({call})"),
 			false => call,
 		};
+		// A future that is not `Send` made from none is made on a home, where it stays, so
+		// a poll from any thread of the task's executor runs there.
+		let make = export.homed_call().map_or_else(|| c_name.clone(), |homed| homed.name);
 		let call = reached(format!(
-			"{c_name}({})",
+			"{make}({})",
 			exprs.iter().chain(&status_arg).cloned().collect::<Vec<_>>().join(", ")
 		));
 		let made = check
@@ -1847,7 +1897,9 @@ impl<'a> Gen<'a> {
 				Some(made) => format!("{made}\n{}(f_)", free.name),
 				None => format!("{}({call})", free.name),
 			});
-			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
+			// A poll that can fail, of a future that is not `Send`, throws.
+			let poll_status = poll.status().is_some();
+			let poll_outs: Vec<(String, Ty)> = poll.params[2..poll.params.len() - usize::from(poll_status)].to_vec();
 			let decls: Vec<String> = poll_outs.iter().map(|(n, ty)| self.out_decl(n, ty)).collect();
 			let ptrs: Vec<String> = poll_outs.iter().map(|(n, _)| format!("&c_{n}_")).collect();
 			let ready = match ok {
@@ -1872,7 +1924,10 @@ impl<'a> Gen<'a> {
 				.chain(["&f_".to_string()])
 				.chain(status_arg.iter().cloned())
 				.collect();
-			let started = reached(format!("{}({})", start.name, start_args.join(", ")));
+			let start = export
+				.homed_start()
+				.map_or_else(|| start.name.clone(), |homed| homed.name);
+			let started = reached(format!("{start}({})", start_args.join(", ")));
 			match &check {
 				Some(check) => {
 					inner.push(format!("let c_poll_ = {started}"));
@@ -1882,12 +1937,21 @@ impl<'a> Gen<'a> {
 				None => inner.push(format!("switch {started} {{\n{cases}\n}}")),
 			}
 			let mut body = decls;
-			let call_args: Vec<String> = ["f_".to_string(), "w_".to_string()].into_iter().chain(ptrs).collect();
-			body.push(format!(
-				"switch {}({}) {{\n{cases}\n}}",
-				poll.name,
-				call_args.join(", ")
-			));
+			let mut call_args: Vec<String> = ["f_".to_string(), "w_".to_string()].into_iter().chain(ptrs).collect();
+			match poll_status {
+				true => {
+					body.push("var c_ps_: Swift.Int32 = 0".to_string());
+					call_args.push("&c_ps_".to_string());
+					body.push(format!("let c_poll_ = {}({})", poll.name, call_args.join(", ")));
+					body.push(format!("try Native.status(c_ps_, \"{}\")", poll.name));
+					body.push(format!("switch c_poll_ {{\n{cases}\n}}"));
+				}
+				false => body.push(format!(
+					"switch {}({}) {{\n{cases}\n}}",
+					poll.name,
+					call_args.join(", ")
+				)),
+			}
 			tail = Some(format!(
 				"return try await Native.run(f_, {}) {{ f_, w_ in\n{}\n}}",
 				free.name,
@@ -2096,10 +2160,16 @@ impl<'a> Gen<'a> {
 			member.clone(),
 		);
 
+		// A future runs on its caller's executor, as Swift 6.2's `nonisolated(nonsending)`
+		// says, so a call ready at its first poll never hops off an actor and back.
+		let isolation = match function.future {
+			true => "nonisolated(nonsending) ",
+			false => "",
+		};
 		let head = match var {
 			true => format!("public {stat}var {member}{}", ret.replacen(" -> ", ": ", 1)),
 			false => format!(
-				"public {stat}{mutation}func {member}({}){effects}{ret}",
+				"{isolation}public {stat}{mutation}func {member}({}){effects}{ret}",
 				params.join(", ")
 			),
 		};
@@ -2142,6 +2212,9 @@ impl<'a> Gen<'a> {
 		match err.base() {
 			Type::Record(_) | Type::Enum(_) | Type::Object(_) => {
 				self.conforms.insert(self.sw(err));
+				if self.sendable(err.base()).is_empty() {
+					self.unsent_errors.insert(self.sw(err));
+				}
 				Thrown::Itself
 			}
 			_ => {
@@ -2447,6 +2520,14 @@ fn indent(code: &str) -> String {
 		out.pop();
 	}
 	out
+}
+
+/// The conformances a type declares, as `: A, B`, or nothing for none.
+fn conform(protocols: &[&str]) -> String {
+	match protocols.is_empty() {
+		true => String::new(),
+		false => format!(": {}", protocols.join(", ")),
+	}
 }
 
 #[cfg(test)]

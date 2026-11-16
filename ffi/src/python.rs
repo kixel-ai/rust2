@@ -1778,9 +1778,18 @@ impl<'a> Gen<'a> {
 		let err = function.err.as_ref().map(strip_refs);
 		let exception = err.as_ref().map(|e| self.exception(e));
 		if let Some(abi::Future { poll, free, .. }) = &export.future {
-			let poll_outs = &poll.params[2..];
+			let poll_outs: Vec<(String, Ty)> = poll.params[2..]
+				.iter()
+				.filter(|(_, ty)| !abi::is_status(ty))
+				.cloned()
+				.collect();
+			// A poll of a future that is not `Send` on another thread raises.
+			let (ps, ps_check) = match poll.status() {
+				Some(_) => (", &mut ps", format!("\n\t\trt::check_status(ps, \"{}\")?;", poll.name)),
+				None => ("", String::new()),
+			};
 			let (decl, ptrs, value) = self.outs(
-				poll_outs,
+				&poll_outs,
 				&[],
 				&function.ok,
 				err.as_ref(),
@@ -1789,7 +1798,7 @@ impl<'a> Gen<'a> {
 			);
 			let _ = write!(
 				self.glue,
-				"unsafe fn poll_{c_name}(f: *mut std::ffi::c_void, w: crate::rt::Waker) -> R<Option<Obj>> {{\n\tunsafe {{\n\t\t{decl}\n\t\tlet r = rt::call(|| crate::{}(f as _, w{}));\n\t\tif r == 0 {{\n\t\t\treturn Ok(None);\n\t\t}}\n\t\t{value}.map(Some)\n\t}}\n}}\n\nunsafe fn free_{c_name}(f: *mut std::ffi::c_void) {{\n\tunsafe {{ crate::{}(f as _) }}\n}}\n\n",
+				"unsafe fn poll_{c_name}(f: *mut std::ffi::c_void, w: crate::rt::Waker) -> R<Option<Obj>> {{\n\tunsafe {{\n\t\tlet mut ps = 0;\n\t\tlet _ = &mut ps;\n\t\t{decl}\n\t\tlet r = rt::call(|| crate::{}(f as _, w{}{ps}));{ps_check}\n\t\tif r == 0 {{\n\t\t\treturn Ok(None);\n\t\t}}\n\t\t{value}.map(Some)\n\t}}\n}}\n\nunsafe fn free_{c_name}(f: *mut std::ffi::c_void) {{\n\tunsafe {{ crate::{}(f as _) }}\n}}\n\n",
 				poll.name,
 				ptrs.iter().map(|p| format!(", {p}")).collect::<String>(),
 				free.name,
