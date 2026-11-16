@@ -101,19 +101,25 @@ fn exporter(name: &str, out: &Path, targets: &[&str], args: &[&std::ffi::OsStr],
 
 /// What `Deref` forwards: a member the object or a nearer target has hides one past it, even
 /// a target that does not export, a method only a method and a field only a field, and the
-/// config leaves out a forwarded member by the object's path.
+/// config leaves out a forwarded member by the object's path, a field sharing a method's by
+/// `field@`. An exclude naming nothing fails the export, so each one here was forwarded.
 #[test]
 fn deref_shadowing() {
 	let header = std::fs::read_to_string(api().out.join("include").join("api.h")).unwrap();
 	for present in [
 		"api_Layered_lines(",
 		"api_Pad_u16_title(",
-		"api_Pad_u16_title_get(",
+		"api_Marker_x_get(",
 		"api_Marker_x_set(",
 	] {
 		assert!(header.contains(present), "{present} is not exported");
 	}
-	for absent in ["api_Layered_describe(", "api_Pad_u16_lines("] {
+	for absent in [
+		"api_Layered_describe(",
+		"api_Pad_u16_lines(",
+		"api_Pad_u16_title_get(",
+		"api_Marker_x(",
+	] {
 		assert!(!header.contains(absent), "{absent} is exported");
 	}
 }

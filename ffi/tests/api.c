@@ -2730,14 +2730,11 @@ static int statuses(void) {
 		}
 		api_buf_free(padded);
 		api_buf_free(sheeted);
-		/* A method hides no field: `Pad<u16>`'s `title` beside its sheet's. */
-		api_buf titled = api_Pad_u16_title_get(wide);
-		if (api_Pad_u16_title(wide) != 2 || titled.len != 0) {
-			fprintf(stderr, "a pad's title is %u and its sheet's %.*s\n", api_Pad_u16_title(wide), (int)titled.len,
-			        (const char *)titled.ptr);
+		/* `Pad<u16>`'s own `title`, whose path the config shares with its sheet's field. */
+		if (api_Pad_u16_title(wide) != 2) {
+			fprintf(stderr, "a pad's title is %u\n", api_Pad_u16_title(wide));
 			failed = 1;
 		}
-		api_buf_free(titled);
 		/* A sheet behind a layer that does not export, whose `lines` it reaches. */
 		api_Layered *layered = api_Layered_new();
 		if (api_Layered_lines(layered) != 0) {

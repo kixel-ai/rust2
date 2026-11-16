@@ -2517,6 +2517,7 @@ impl<'tcx> Collector<'tcx> {
 			let o = &self.api.objects[object];
 			(o.path.clone(), o.shown.clone())
 		};
+		let mut all = Vec::new();
 		for (key, ty, derefs, mutable) in chain {
 			let members = match key.and_then(|key| self.decls.get(&key).cloned()) {
 				Some(Decl::Object(u)) => self.api.objects[u].methods.clone(),
@@ -2555,14 +2556,33 @@ impl<'tcx> Collector<'tcx> {
 					m
 				})
 				.collect();
-			// The config names a forwarded member by the object's path, as it does the
-			// object's own.
-			let forwarded: Vec<Function> = (forwarded.into_iter()).filter(|m| !self.exclude(&m.shown)).collect();
-			self.api.objects[object].methods.extend(forwarded);
+			all.extend(forwarded);
 			let (methods, fields) = self.member_names(ty);
 			names.0.extend(methods);
 			names.1.extend(fields);
 		}
+		// The config names a forwarded member by the object's path, as it does the object's
+		// own: a field by `field@` where a method of the object or of a type on its chain
+		// shares its path, which then names the method alone.
+		let mut kept = Vec::new();
+		for mut m in all {
+			let keep = match &mut m.access {
+				Access::Field { shared, .. } => {
+					*shared = names
+						.0
+						.iter()
+						.any(|name| name == m.path.last().expect("a field has a name"));
+					let mut key = m.shown.clone();
+					key[1].insert_str(0, "field@");
+					!self.exclude(&key) && (*shared || !self.exclude(&m.shown))
+				}
+				_ => !self.exclude(&m.shown),
+			};
+			if keep {
+				kept.push(m);
+			}
+		}
+		self.api.objects[object].methods.extend(kept);
 	}
 
 	/// Drop each foreign type's object that no export names, so a crate that only builds

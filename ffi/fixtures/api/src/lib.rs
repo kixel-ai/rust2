@@ -1101,6 +1101,11 @@ impl Marker {
 	pub fn label(&self) -> String {
 		self.label.clone()
 	}
+
+	/// A method sharing its path with the point's field, which the config leaves out alone.
+	pub fn x(&self) -> i32 {
+		self.point.x
+	}
 }
 
 impl std::ops::Deref for Marker {
