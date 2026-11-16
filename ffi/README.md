@@ -928,13 +928,15 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   returns wakes through Rust and drops once Swift releases it.
 - **The contract** is checked once, at the first call into the library: a Swift file and a
   library from different builds trap.
-- **Every body inlines into its caller.** Each function, initializer, subscript, and
-  computed property is `@inlinable`, and what they name `@usableFromInline`, so a consumer
-  in another module calls the C function directly, with no flag of its own: Swift
-  otherwise merges like wrappers into one that calls the C function through a pointer,
-  whose cost follows where the linker places it. Their cold paths, a failed check's error
-  and a handle's free, stay out of line, so the optimizer finds a call worth inlining. The
-  module's `.swiftmodule` holds the bodies, about 5 times its size without them.
+- **Every body may inline into its caller.** Each function, initializer, subscript, and
+  computed property is `@inlinable`, and what they name `@usableFromInline`, so a
+  consumer's optimizer in another module can inline a call and reach the C function
+  directly, with no flag of its own. Where it declines, the call goes to the module's
+  copy, which Swift may merge with like wrappers into one that calls the C function
+  through a pointer, whose cost follows where the linker places it. Their cold paths, a
+  failed check's error and a handle's free, stay out of line, so a call more often looks
+  worth inlining. The module's `.swiftmodule` holds the bodies, about 5 times its size
+  without them.
 
 ## Go
 
