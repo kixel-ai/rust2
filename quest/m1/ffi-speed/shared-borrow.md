@@ -27,5 +27,6 @@ wherever the linker places the code. The generated API stays the same.
   report the Swift module's size and compile time beside the rows.
 - Rejected: aligning Swift's functions, which takes a compiler flag from each consumer, and
   a build setting that turns off function merging, for the same reason.
-- Prove it with the single-thread rows, CPU first, at the load beside them, and at two
-  placements, such as with a 16-byte `.text` pad linked ahead of the Swift objects.
+- Prove it with the single-thread rows, CPU first, at the load beside them, at each
+  placement in the 64-byte period: a `.text` pad of 0, 16, 32, and 48 bytes linked ahead
+  of the Swift objects.
