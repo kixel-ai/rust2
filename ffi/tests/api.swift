@@ -1027,6 +1027,14 @@ func script() {
 		print("hop \(nextHop(hop.map { try! NonZero($0) }).map { "Some(\($0))" } ?? "None")")
 	}
 	print("farther hop \(fartherHop(PairNonZeroU16(left: try! NonZero(3), right: try! NonZero(.max))))")
+	do {
+		let local = Local.new()
+		let shared = try! localOrNew(local: local)
+		let bumped = try! local.bump()
+		print("local \(bumped) \(try! shared.bump())")
+		print("local fresh \(try! localOrNew().bump())")
+		print("local either \(try! bumpEither(shared))")
+	}
 	// A zero, which Swift's integer holds and Rust's `NonZero` does not, makes none, and a
 	// record holding one keeps the protocols its traits give.
 	check(refused("NonZero(_:)") { _ = try NonZero<UInt64>(0) }, "a zero makes no NonZero")

@@ -498,6 +498,22 @@ static bool closures(void) {
 		}
 	}
 	printf("farther hop %u\n", (unsigned)api_farther_hop((api_Pair_non_zero_u16){.left = 3, .right = UINT16_MAX}));
+	{
+		api_status local_status = 0;
+		api_Local *local = api_Local_new();
+		api_Local *shared = api_local_or_new(local, &local_status);
+		uint32_t once = api_Local_bump(local, &local_status);
+		printf("local %u %u\n", once, api_Local_bump(shared, &local_status));
+		api_Local *fresh = api_local_or_new(NULL, &local_status);
+		printf("local fresh %u\n", api_Local_bump(fresh, &local_status));
+		printf("local either %u\n", api_bump_either(NULL, shared, &local_status));
+		if (local_status != 0) {
+			ok = false;
+		}
+		api_Local_free(fresh);
+		api_Local_free(shared);
+		api_Local_free(local);
+	}
 	return ok;
 }
 

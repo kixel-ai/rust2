@@ -927,6 +927,12 @@ Future<void> script() async {
     print(next == null ? 'hop None' : 'hop Some(${next.toRadixString(10)})');
   }
   print('farther hop ${api.fartherHop(const api.PairNonZeroU16(left: 3, right: 0xFFFF))}');
+  final local = api.Local();
+  final shared = api.localOrNew(local);
+  final bumped = local.bump();
+  print('local $bumped ${shared.bump()}');
+  print('local fresh ${api.localOrNew(null).bump()}');
+  print('local either ${api.bumpEither(null, shared)}');
 }
 
 /// A reader whose reads fail, as the transcript's: each seek lands at 0.

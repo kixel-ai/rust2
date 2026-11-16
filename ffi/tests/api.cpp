@@ -1507,6 +1507,14 @@ int script() {
 		}
 	}
 	std::printf("farther hop %u\n", static_cast<unsigned>(api::farther_hop(api::Pair_non_zero_u16{3, UINT16_MAX})));
+	{
+		api::Local local = api::Local::new_();
+		api::Local shared = api::local_or_new(&local);
+		std::uint32_t bumped = local.bump();
+		std::printf("local %u %u\n", static_cast<unsigned>(bumped), static_cast<unsigned>(shared.bump()));
+		std::printf("local fresh %u\n", static_cast<unsigned>(api::local_or_new(nullptr).bump()));
+		std::printf("local either %u\n", static_cast<unsigned>(api::bump_either(nullptr, shared)));
+	}
 
 	// A returned `Vec<&Token>` holds clones, which the vector drops.
 	api::Token twice = api::Token::new_(9);

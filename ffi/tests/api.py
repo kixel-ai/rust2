@@ -846,6 +846,12 @@ def script():
 		next = api.next_hop(hop)
 		print("hop None" if next is None else f"hop Some({next})")
 	print(f"farther hop {api.farther_hop(api.PairNonZeroU16(3, 0xFFFF))}")
+	local = api.Local.new()
+	shared = api.local_or_new(local)
+	bumped = local.bump()
+	print(f"local {bumped} {shared.bump()}")
+	print(f"local fresh {api.local_or_new(None).bump()}")
+	print(f"local either {api.bump_either(None, shared)}")
 
 
 class Elementwise(array.array):

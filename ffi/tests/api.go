@@ -1060,6 +1060,12 @@ func script() {
 		}
 	}
 	fmt.Printf("farther hop %d\n", must(api.FartherHop(api.PairNonZeroU16{Left: 3, Right: math.MaxUint16})))
+	local := api.NewLocal()
+	shared := must(api.LocalOrNew(local))
+	bumped := must(local.Bump())
+	fmt.Printf("local %d %d\n", bumped, must(shared.Bump()))
+	fmt.Printf("local fresh %d\n", must(must(api.LocalOrNew(nil)).Bump()))
+	fmt.Printf("local either %d\n", must(api.BumpEither(nil, shared)))
 }
 
 // farReader is a reader whose reads fail, which seeks anywhere from its start, as Rust's

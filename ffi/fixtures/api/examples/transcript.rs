@@ -1063,6 +1063,14 @@ fn main() {
 		"farther hop {}",
 		api::farther_hop(Pair { left: near, right: far }).get()
 	);
+	// A value that is not `Send`, all on this thread: a handle to a local's count, and a
+	// local made from none.
+	let local = api::Local::new();
+	let shared = api::local_or_new(Some(&local));
+	let bumped = local.bump();
+	println!("local {bumped} {}", shared.bump());
+	println!("local fresh {}", api::local_or_new(None).bump());
+	println!("local either {}", api::bump_either(None, &shared));
 }
 
 /// A path no Rust string spells: on Unix, bytes that are not UTF-8; on Windows, a lone

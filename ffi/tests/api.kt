@@ -782,6 +782,12 @@ fun script() {
 		println("hop ${nextHop(hop)?.let { "Some($it)" } ?: "None"}")
 	}
 	println("farther hop ${fartherHop(PairNonZeroU16(3u, UShort.MAX_VALUE))}")
+	val local = Local.new()
+	val shared = localOrNew(local)
+	val bumped = local.bump()
+	println("local $bumped ${shared.bump()}")
+	println("local fresh ${localOrNew(null).bump()}")
+	println("local either ${bumpEither(null, shared)}")
 }
 
 // A channel whose reads fail, which seeks anywhere from its start, as Rust's `Cursor` does.
