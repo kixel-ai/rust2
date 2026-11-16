@@ -305,7 +305,7 @@ where it was while its file is unchanged.
   `<name>_start_homed`, and `Default`'s, `<T>_default_homed`: with no such value passed,
   it runs on a home, a thread Rust owns, which the value then stays on, and each later
   call on it, from any thread, runs there while the caller waits, as does a call on a
-  handle it returns; with one passed, it runs as the function does. The first present of
+  value that is not `Send` it returns; with one passed, it runs as the function does. The first present of
   a call's receiver and its parameters that are handles of such values, bare or in an
   `Option`, sends it to that value's home, if it lives on one; a value made on a thread
   the caller owns is not sent, so a call on it from another thread fails its check. Values from different homes, or one
