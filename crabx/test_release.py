@@ -251,6 +251,7 @@ require("node:child_process").spawn = () => {
         child.emit("exit", 7, null);
         return true;
     };
+    // Keep one event-loop turn alive so Node dispatches the pending OS signal.
     setImmediate(() => {});
     process.kill(process.pid, "SIGTERM");
     return child;

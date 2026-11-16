@@ -19,7 +19,6 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[2]
 EXPORT = ROOT / "ffi/target/registry-export"
 OUT = ROOT / "ffi/target/registry"
-COLLECTIONS = re.search(r'swift_collections_rev := "([a-f0-9]{40})"', (ROOT / "ffi/justfile").read_text()).group(1)
 
 
 def run(*args, **kwargs):
@@ -46,7 +45,7 @@ def wheel():
         run("patchelf", "--remove-rpath", str(binary_copy))
         dynamic = run("readelf", "-d", str(binary_copy), capture_output=True, text=True).stdout
         needed = set(re.findall(r"Shared library: \[(.*?)\]", dynamic))
-        allowed = {"libgcc_s.so.1", "libc.so.6", "ld-linux-x86-64.so.2", "ld-linux-aarch64.so.1"}
+        allowed = {"libgcc_s.so.1", "libc.so.6", "libm.so.6", "ld-linux-x86-64.so.2", "ld-linux-aarch64.so.1"}
         if needed - allowed or "RPATH" in dynamic or "RUNPATH" in dynamic:
             raise SystemExit(f"unpackaged native dependencies: {dynamic}")
         versions = run("readelf", "--version-info", str(binary_copy), capture_output=True, text=True).stdout
@@ -94,6 +93,10 @@ def swift():
     """Wrap the host's C static library in an XCFramework and Swift source package."""
     if sys.platform != "darwin":
         raise SystemExit("XCFramework packaging requires Apple's xcodebuild on macOS")
+    revision = re.search(r'swift_collections_rev := "([a-f0-9]{40})"', (ROOT / "ffi/justfile").read_text())
+    if revision is None:
+        raise SystemExit("ffi/justfile must name an immutable swift_collections_rev")
+    collections = revision.group(1)
     package = OUT / "Api"
     if package.exists():
         shutil.rmtree(package)
@@ -125,14 +128,14 @@ def swift():
             settings.append(f".linkedFramework({json.dumps(next(flags))})")
         else:
             raise SystemExit(f"unsupported native linker flag: {flag}")
-    (package / "collections-revision.txt").write_text(COLLECTIONS + "\n")
+    (package / "collections-revision.txt").write_text(collections + "\n")
     (package / "Package.swift").write_text('''// swift-tools-version: 6.2
 import PackageDescription
 let package = Package(
     name: "Api",
     platforms: [.macOS(.v15)],
     products: [.library(name: "Api", targets: ["Api"])],
-    dependencies: [.package(url: "https://github.com/apple/swift-collections", revision: "''' + COLLECTIONS + '''")],
+    dependencies: [.package(url: "https://github.com/apple/swift-collections", revision: "''' + collections + '''")],
     targets: [
         .binaryTarget(name: "ApiFFI", path: "ApiFFI.xcframework"),
         .target(name: "Api", dependencies: ["ApiFFI", .product(name: "BasicContainers", package: "swift-collections")], linkerSettings: [''' + ", ".join(settings) + '''])
