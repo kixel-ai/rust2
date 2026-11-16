@@ -84,7 +84,8 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   `just ffi census` fails on an exclude that names what exports. The
   bump is then only the bump. Of the types refused for not being `Send`, `clock::Entered`
   and `clock::Rng` export since [#844](https://github.com/kixel-ai/rust2/pull/844), and `catalog::Guard` is left out, as
-  `Producer::modify` returns it borrowing its receiver mutably, which no handle may hold.
+  `Producer::modify` returns it borrowing its receiver mutably, which no handle may hold
+  until [an exclusive lend](/quest/m1/exclusive-lend.md) exports it.
 - ✅ The closing work is a child, [no config](/quest/m1/ffi-refusals/no-config.md), as
   [the exporter epic's](/quest/m1/ffi-export/ship.md) is: an epic's `Required` would hold
   back every child.
