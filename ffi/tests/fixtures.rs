@@ -111,6 +111,7 @@ fn deref_shadowing() {
 		"api_Pad_u16_title(",
 		"api_Marker_x_get(",
 		"api_Marker_x_set(",
+		"api_Marker_y_get(",
 	] {
 		assert!(header.contains(present), "{present} is not exported");
 	}
@@ -119,6 +120,7 @@ fn deref_shadowing() {
 		"api_Pad_u16_lines(",
 		"api_Pad_u16_title_get(",
 		"api_Marker_x(",
+		"api_Marker_y(",
 	] {
 		assert!(!header.contains(absent), "{absent} is exported");
 	}

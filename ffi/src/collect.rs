@@ -2415,7 +2415,7 @@ impl<'tcx> Collector<'tcx> {
 						let self_ty = self.site_ty(&site);
 						let chain = self.derefs(self_ty);
 						if !chain.is_empty() {
-							chains.push((index, self.member_names(self_ty), chain));
+							chains.push((index, self.member_names(self_ty), self.path_names(self_ty), chain));
 						}
 						let shared = traits.clone && self.clone_shares(self.site_ty(&site), def_id);
 						let object = &mut self.api.objects[index];
@@ -2428,8 +2428,8 @@ impl<'tcx> Collector<'tcx> {
 				}
 			}
 		}
-		for (object, names, chain) in chains {
-			self.forward(object, names, chain, &records);
+		for (object, names, paths, chain) in chains {
+			self.forward(object, names, paths, chain, &records);
 		}
 	}
 
@@ -2481,6 +2481,29 @@ impl<'tcx> Collector<'tcx> {
 	/// which hide any method or field of the same name a type it derefs to has, as they do in
 	/// Rust: a method of each inherent impl that applies to `ty`, whose own bounds Rust checks
 	/// only once it picked the method. A method never hides a field, nor a field a method.
+	/// The names of `ty`'s `pub` inherent functions, with `self` or not, and constants, which
+	/// share its path with a field of the same name, as `field_key` counts them.
+	fn path_names(&self, ty: Ty<'tcx>) -> Vec<String> {
+		let tcx = self.tcx;
+		let ty::Adt(adt, _) = ty.kind() else {
+			return Vec::new();
+		};
+		(tcx.inherent_impls(adt.did()).iter())
+			.filter_map(|&imp| Some((imp, self.impl_args(imp, ty)?)))
+			.flat_map(|(imp, parent)| {
+				tcx.associated_items(imp)
+					.in_definition_order()
+					.map(move |item| (item, parent))
+			})
+			.filter(|(item, parent)| {
+				matches!(item.kind, ty::AssocKind::Fn { .. } | ty::AssocKind::Const { .. })
+					&& tcx.visibility(item.def_id).is_public()
+					&& self.applies(item.def_id, *parent)
+			})
+			.map(|(item, _)| item.name().to_string())
+			.collect()
+	}
+
 	fn member_names(&self, ty: Ty<'tcx>) -> (Vec<String>, Vec<String>) {
 		let tcx = self.tcx;
 		let ty::Adt(adt, _) = ty.kind() else {
@@ -2510,6 +2533,7 @@ impl<'tcx> Collector<'tcx> {
 		&mut self,
 		object: usize,
 		mut names: (Vec<String>, Vec<String>),
+		paths: Vec<String>,
 		chain: Vec<(Option<Key<'tcx>>, Ty<'tcx>, usize, bool)>,
 		records: &rustc_data_structures::fx::FxHashMap<usize, Site<'tcx>>,
 	) {
@@ -2562,16 +2586,14 @@ impl<'tcx> Collector<'tcx> {
 			names.1.extend(fields);
 		}
 		// The config names a forwarded member by the object's path, as it does the object's
-		// own: a field by `field@` where a method of the object or of a type on its chain
-		// shares its path, which then names the method alone.
+		// own: a field by `field@` where the object's function or constant, or a method of a
+		// type on its chain, shares its path, which then names that item alone.
 		let mut kept = Vec::new();
 		for mut m in all {
 			let keep = match &mut m.access {
 				Access::Field { shared, .. } => {
-					*shared = names
-						.0
-						.iter()
-						.any(|name| name == m.path.last().expect("a field has a name"));
+					let field = m.path.last().expect("a field has a name");
+					*shared = names.0.iter().chain(&paths).any(|name| name == field);
 					let mut key = m.shown.clone();
 					key[1].insert_str(0, "field@");
 					!self.exclude(&key) && (*shared || !self.exclude(&m.shown))

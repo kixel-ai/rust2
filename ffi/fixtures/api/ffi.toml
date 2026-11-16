@@ -8,13 +8,15 @@
 # function instance is left out by its path, as `depth_past` at `polar::Point` is, and a
 # method a `Deref` forwards by the object's, as `Pad<u16>::lines` is. A forwarded field
 # sharing its path with a method is `field@`, as `Pad<u16>`'s `title` is, so `Marker::x`
-# leaves out its method alone. Swift refuses `among`, so the census takes its exclude.
+# leaves out its method alone, as `Marker::y` does its function without `self`. Swift
+# refuses `among`, so the census takes its exclude.
 exclude = [
     "among",
     "Copied",
     "Layer",
     "Node::next",
     "Marker::x",
+    "Marker::y",
     "Pad<u16>::lines",
     "Pair<u8, api::Size>::swap",
     "Queued",

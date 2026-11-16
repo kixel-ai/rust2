@@ -1106,6 +1106,12 @@ impl Marker {
 	pub fn x(&self) -> i32 {
 		self.point.x
 	}
+
+	/// A function without `self` sharing its path with the point's field, which the config
+	/// leaves out alone too.
+	pub fn y() -> i32 {
+		0
+	}
 }
 
 impl std::ops::Deref for Marker {
