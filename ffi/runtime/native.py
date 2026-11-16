@@ -7,7 +7,7 @@ class _n:
 	PENDING: _object
 
 	@_staticmethod
-	def drain() -> None: ...
+	def _drain() -> None: ...
 
 	class Object:
 		__slots__ = ()

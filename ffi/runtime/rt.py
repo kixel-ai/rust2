@@ -61,7 +61,7 @@ class _Wakeup:
 		for token in self.queue.take(read):
 			if token == 0:
 				# Other threads freed values of this thread that are not Send.
-				_n.drain()
+				_n._drain()
 				continue
 			if token < 0:
 				self.wakers.pop(-token, None)

@@ -161,11 +161,14 @@ impl Thread {
 	/// This thread's record, which a value it makes keeps. A thread past its thread locals'
 	/// teardown has one that is gone, so a value it makes is used nowhere and leaks.
 	pub fn here() -> Arc<Thread> {
-		HERE.try_with(|here| {
-			here.1.set(true);
-			here.0.get_or_init(|| Arc::new(Self::new(false, false))).clone()
-		})
-		.unwrap_or_else(|_| Arc::new(Self::new(false, true)))
+		let _ = HERE.try_with(|here| here.1.set(true));
+		Self::record()
+	}
+
+	/// This thread's record, as [`Self::here`] without noting a value made.
+	fn record() -> Arc<Thread> {
+		HERE.try_with(|here| here.0.get_or_init(|| Arc::new(Self::new(false, false))).clone())
+			.unwrap_or_else(|_| Arc::new(Self::new(false, true)))
 	}
 
 	/// Whether this thread made a value that is not `Send` since this last asked: a binding
@@ -180,7 +183,7 @@ impl Thread {
 	/// then drains, though it calls nothing. A drop already queued wakes it at once, as
 	/// no earlier wake may have scheduled its drain.
 	pub fn wake_here(wake: Wake) {
-		let thread = Self::here();
+		let thread = Self::record();
 		let mut jobs = thread.lock();
 		let now = thread.pending.load(Ordering::Relaxed).then(|| wake.clone());
 		let old = jobs.wake.replace(wake);
