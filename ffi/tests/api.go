@@ -836,6 +836,13 @@ func script() {
 	receipt := must(ledger.Receipt())
 	fmt.Printf("receipt %d\n", must(receipt.Count()))
 	check(receipt.Close() == nil, "a receipt closes")
+	padSmall, padWide, layered := api.PadU8Small(), api.PadU16Wide(), api.NewLayered()
+	marker := must(api.NewMarker("m", 3, 5))
+	check(marker.YSet(7) == nil, "a marker's point sets")
+	fmt.Printf("forwarded %d %d %d %d [%s] [%s]\n", must(padWide.Title()), must(layered.Lines()), must(marker.XGet()), must(marker.YGet()), must(padSmall.Describe()), must(padWide.Describe()))
+	for _, closer := range []interface{ Close() error }{padSmall, padWide, layered, marker} {
+		check(closer.Close() == nil, "a forwarding handle closes")
+	}
 	check(ledger.Seal() == nil, "a ledger seals")
 	_, sealed := ledger.Edit()
 	fmt.Printf("sealed %s\n", sealed)

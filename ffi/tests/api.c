@@ -1745,6 +1745,21 @@ static int script(void) {
 		api_Receipt *receipt = api_Ledger_receipt(ledger, NULL);
 		printf("receipt %u\n", api_Receipt_count(receipt, NULL));
 		api_Receipt_free(receipt);
+		{
+			api_Pad_u8 *small = api_Pad_u8_small();
+			api_Pad_u16 *wide = api_Pad_u16_wide();
+			api_Layered *layered = api_Layered_new();
+			api_Marker *marker = api_Marker_new(str("m"), 3, 5);
+			api_Marker_y_set(marker, 7, NULL);
+			printf("forwarded %u %u %d %d", api_Pad_u16_title(wide), api_Layered_lines(layered),
+			       api_Marker_x_get(marker, NULL), api_Marker_y_get(marker, NULL));
+			print(" [", api_Pad_u8_describe(small), "]");
+			print(" [", api_Pad_u16_describe(wide), "]\n");
+			api_Marker_free(marker);
+			api_Layered_free(layered);
+			api_Pad_u16_free(wide);
+			api_Pad_u8_free(small);
+		}
 		api_Ledger_seal(ledger, NULL);
 		if (!api_Ledger_edit(ledger, &draft, &err, NULL)) {
 			print("sealed ", api_Error_to_string(&err), "\n");

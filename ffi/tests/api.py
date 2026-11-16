@@ -708,6 +708,12 @@ def script():
 	del draft
 	print(f"dropped {ledger.published()}")
 	print(f"receipt {ledger.receipt().count()}")
+	marker = api.Marker.new("m", 3, 5)
+	marker.y_set(7)
+	print(
+		f"forwarded {api.PadU16.wide().title()} {api.Layered.new().lines()} {marker.x_get} {marker.y_get}"
+		f" [{api.PadU8.small().describe()}] [{api.PadU16.wide().describe()}]"
+	)
 	ledger.seal()
 	try:
 		ledger.edit()

@@ -38,11 +38,13 @@ import * as Json from "./web/Json.ts";
 import * as Key from "./web/Key.ts";
 import * as Label from "./web/Label.ts";
 import * as Labelled from "./web/Labelled.ts";
+import * as Layered from "./web/Layered.ts";
 import * as Ledger from "./web/Ledger.ts";
 import * as Local from "./web/Local.ts";
 import type { Log } from "./web/Log.ts";
 import * as Logger from "./web/Logger.ts";
 import * as Mark from "./web/Mark.ts";
+import * as Marker from "./web/Marker.ts";
 import * as Measure from "./web/Measure.ts";
 import * as Message from "./web/Message.ts";
 import * as Meter from "./web/Meter.ts";
@@ -52,6 +54,8 @@ import * as Name from "./web/Name.ts";
 import * as Node from "./web/Node.ts";
 import * as Numbers from "./web/Numbers.ts";
 import * as OuterInnerU8 from "./web/OuterInnerU8.ts";
+import * as PadU16 from "./web/PadU16.ts";
+import * as PadU8 from "./web/PadU8.ts";
 import * as PairSizeU8 from "./web/PairSizeU8.ts";
 import * as PairU32 from "./web/PairU32.ts";
 import * as PairU8Size from "./web/PairU8Size.ts";
@@ -924,6 +928,18 @@ async function script(): Promise<void> {
 	const receipt = Ledger.receipt(ledger);
 	print(`receipt ${Receipt.count(receipt)}`);
 	close(receipt);
+	{
+		const small = PadU8.small();
+		const wide = PadU16.wide();
+		const layered = Layered.new$();
+		const marker = Marker.new$("m", 3, 5);
+		Marker.ySet(marker, 7);
+		print(
+			`forwarded ${PadU16.title(wide)} ${Layered.lines(layered)} ${Marker.xGet(marker)} ${Marker.yGet(marker)} ` +
+				`[${PadU8.describe(small)}] [${PadU16.describe(wide)}]`,
+		);
+		for (const handle of [small, wide, layered, marker]) close(handle);
+	}
 	Ledger.seal(ledger);
 	const sealed = Ledger.edit(ledger);
 	if (!sealed.ok) print(`sealed ${Error_.toString(sealed.error)}`);

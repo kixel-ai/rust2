@@ -730,6 +730,14 @@ Future<void> script() async {
   final receipt = ledger.receipt();
   print('receipt ${receipt.count()}');
   receipt.close();
+  final padSmall = api.PadU8.small(), padWide = api.PadU16.wide(), layered = api.Layered();
+  final marker = api.Marker('m', 3, 5);
+  marker.ySet(7);
+  print('forwarded ${padWide.title()} ${layered.lines()} ${marker.xGet} ${marker.yGet} '
+      '[${padSmall.describe()}] [${padWide.describe()}]');
+  for (final handle in [padSmall, padWide, layered, marker]) {
+    handle.close();
+  }
   ledger.seal();
   try {
     ledger.edit().close();

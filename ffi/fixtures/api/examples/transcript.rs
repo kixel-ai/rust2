@@ -759,6 +759,19 @@ fn main() {
 	drop(draft);
 	println!("dropped {}", ledger.published());
 	println!("receipt {}", ledger.receipt().count());
+	// Members a `Deref` reaches: past an unexported target, beside a method of the same
+	// name, and a field a method's path shares.
+	let mut marker = api::Marker::new("m", 3, 5);
+	marker.y = 7;
+	println!(
+		"forwarded {} {} {} {} [{}] [{}]",
+		api::Pad::<u16>::wide().title(),
+		api::Layered::new().lines(),
+		marker.x,
+		marker.y,
+		api::Pad::<u8>::small().describe(),
+		api::Pad::<u16>::wide().describe()
+	);
 	ledger.seal();
 	println!("sealed {}", ledger.edit().err().unwrap());
 	println!("chunks {:?}", api::chunks(b"abcde", 2));

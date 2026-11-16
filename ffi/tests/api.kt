@@ -642,6 +642,14 @@ fun script() {
 		ledger.edit().use { it.write("second") }
 		println("dropped ${ledger.published()}")
 		println("receipt ${ledger.receipt().use { it.count() }}")
+		Marker.new("m", 3, 5).use { marker ->
+			marker.ySet(7)
+			val title = PadU16.wide().use { it.title() }
+			val lines = Layered.new().use { it.lines() }
+			val small = PadU8.small().use { it.describe() }
+			val wide = PadU16.wide().use { it.describe() }
+			println("forwarded $title $lines ${marker.xGet} ${marker.yGet} [$small] [$wide]")
+		}
 		ledger.seal()
 		try {
 			ledger.edit().close()

@@ -1068,6 +1068,14 @@ int script() {
 		}
 		std::printf("dropped %u\n", ledger.published());
 		std::printf("receipt %u\n", ledger.receipt().count());
+		{
+			auto marker = api::Marker::new_(api::input("m"), 3, 5);
+			marker.y_set(7);
+			std::printf("forwarded %u %u %d %d", api::Pad_u16::wide().title(), api::Layered::new_().lines(),
+			            marker.x_get(), marker.y_get());
+			print(" [", api::Pad_u8::small().describe(), "]");
+			print(" [", api::Pad_u16::wide().describe(), "]\n");
+		}
 		ledger.seal();
 		print("sealed ", api::Error_to_string(ledger.edit().error()), "\n");
 	}

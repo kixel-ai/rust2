@@ -922,6 +922,10 @@ func script() {
 		_ = consume second
 		print("dropped \(try! ledger.published())")
 		print("receipt \(try! ledger.receipt().count())")
+		var marker = Marker.new("m", 3, 5)
+		try! marker.ySet(7)
+		print("forwarded \(PadU16.wide().title()) \(Layered.new().lines()) \(try! marker.xGet) \(try! marker.yGet) [\(PadU8.small().describe())] [\(PadU16.wide().describe())]")
+		_ = consume marker
 		try! ledger.seal()
 		do {
 			_ = try ledger.edit()
