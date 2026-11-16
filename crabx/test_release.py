@@ -238,6 +238,28 @@ class Launcher(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("is not installed; reinstall crabx without omitting optional dependencies", result.stderr)
 
+    def test_signal_during_spawn_reaches_the_binary(self):
+        self.binary("exit 7\n")
+        # Deliver a real signal while spawn returns its child, before the launcher can
+        # take its next step. The stand-in child exits only once it receives that signal.
+        self.old_node.write_text('''process.execve = undefined;
+const { EventEmitter } = require("node:events");
+require("node:child_process").spawn = () => {
+    const child = new EventEmitter();
+    child.kill = (signal) => {
+        process.stdout.write(`forwarded ${signal}\\n`);
+        child.emit("exit", 7, null);
+        return true;
+    };
+    // Keep one event-loop turn alive so Node dispatches the pending OS signal.
+    setImmediate(() => {});
+    process.kill(process.pid, "SIGTERM");
+    return child;
+};
+''')
+        result = self.launch("old node")
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (7, "forwarded SIGTERM\n", ""))
+
 
 @unittest.skipIf(sys.platform == "win32", "install.sh is for Unix")
 class Install(unittest.TestCase):

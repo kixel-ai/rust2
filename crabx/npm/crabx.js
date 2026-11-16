@@ -67,7 +67,6 @@ function main() {
 
 // Runs crabx as a child and exits as it did.
 function spawnAndWait(file, args) {
-	const child = spawn(file, args, { stdio: "inherit" });
 	// A terminal's Ctrl-C and Ctrl-\ already reach the whole foreground group, crabx included,
 	// so this process only waits for crabx to exit. A supervisor's signals reach only this one.
 	const ignore = () => {};
@@ -78,6 +77,8 @@ function spawnAndWait(file, args) {
 			? { SIGINT: ignore }
 			: { SIGINT: ignore, SIGQUIT: ignore, SIGTERM: forward, SIGHUP: forward };
 	for (const [signal, handler] of Object.entries(handlers)) process.on(signal, handler);
+	// The child can run before spawn returns, so catch supervisor signals before starting it.
+	const child = spawn(file, args, { stdio: "inherit" });
 	child.on("error", (error) => fail(`cannot run ${file}: ${error.message}`));
 	child.on("exit", (code, signal) => {
 		if (signal) {
