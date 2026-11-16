@@ -424,7 +424,7 @@ jobs:
   # schedule, which runs main, gets the write token: a dispatch can run any branch.
   report:
     name: Report
-    needs: [gate, ts, bench, ffi-api, ffi, ffi-sanitize, ffi-cpp, ffi-android, ffi-bench, census]
+    needs: [registry-spike, gate, ts, bench, ffi-api, ffi, ffi-sanitize, ffi-cpp, ffi-android, ffi-bench, census]
     if: ${{ !cancelled() && github.event_name == 'schedule' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5

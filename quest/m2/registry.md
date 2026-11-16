@@ -21,12 +21,18 @@ XCFramework with Xcode 26.6, and a clean SwiftPM consumer with Apple Swift 6.3.3
 matched the native transcript byte for byte and passed futures and ownership.
 The [report](/bench/registry/README.md) records the commands and the fixes
 this execution required. The GitHub workflow has not been executed.
-The report recommends templates because registry namespace ownership cannot be
-inferred from Cargo metadata; it does not claim moq's workflows can be deleted.
+The maintainer accepted release templates with shared builders because registry
+namespace ownership cannot be inferred from Cargo metadata; it does not claim moq's workflows can be deleted.
 
-Remaining: exercise the reusable call, record the actual results, settle the
-report's recommendation, then finish the report and delete this quest. Do not publish
+Remaining: exercise the reusable call, record the actual results, finish the report and delete this quest. Do not publish
 the fixture or infer successful packaging from lint alone.
+
+Decided with the maintainer on 2026-11-16 ([decision](https://github.com/kixel-ai/rust2/pull/761#issuecomment-6930429582)):
+✅ accept the no-go and build release templates with shared builders (rejected:
+keep investigating a configless publisher; stop the spike with no full version).
+Cargo metadata cannot establish registry identities or hosting policy. The full
+version is [release templates](/quest/m2/release-templates.md); it is outside this
+fixture-packaging spike.
 
 Decided with the maintainer on 2026-11-12, in the quest audit: ✅ a spike, in m2, with moq
 as its consumer. moq carries about 13 `release-*-ffi` and `release-*-lib`
@@ -50,14 +56,6 @@ these registries.
   artifacts.
 
 Public API: none; the report proposes one.
-
-## Waiting
-
-- Maintainer: accept the report's no-go conclusion and pursue release templates with
-  shared builders, or continue investigating a configless publisher. Recommend
-  templates: Cargo metadata cannot establish the existing registry identities or
-  hosting policy. This is a direction decision; an agent can collect evidence but
-  cannot choose the maintainer's release strategy.
 
 ## Related
 
