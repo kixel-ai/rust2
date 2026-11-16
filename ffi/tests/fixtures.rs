@@ -418,10 +418,7 @@ fn api_cpp() {
 			("overread", "api_tail: a reader read more than it was asked"),
 			("null view", "a view of null bytes has a length"),
 			("outlived", OUTLIVED),
-			(
-				"lent ledger",
-				"api_Ledger_published: a handle is borrowed exclusively",
-			),
+			("lent ledger", "api_Ledger_published: a handle is borrowed exclusively"),
 		] {
 			let output = Command::new(&exe).arg(case).output().unwrap();
 			failed(&output, &format!("C++{standard} {case}"));

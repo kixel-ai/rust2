@@ -2438,7 +2438,11 @@ impl<'tcx> Collector<'tcx> {
 		let env = TypingEnv::fully_monomorphized();
 		let (infcx, param_env) = tcx.infer_ctxt().build_with_typing_env(env);
 		let implements = |tr: Option<DefId>, ty: Ty<'tcx>| {
-			tr.is_some_and(|tr| infcx.type_implements_trait(tr, [ty], param_env).must_apply_modulo_regions())
+			tr.is_some_and(|tr| {
+				infcx
+					.type_implements_trait(tr, [ty], param_env)
+					.must_apply_modulo_regions()
+			})
 		};
 		let mut chain = Vec::new();
 		let mut mutable = true;
@@ -2512,9 +2516,9 @@ impl<'tcx> Collector<'tcx> {
 				})
 				.map(|m| {
 					let mut m = m.clone();
-					let own = |p: &Path| [&p[..], &[m.path.last().expect("a method has a name").clone()]].concat();
-					m.path = own(&path);
-					m.shown = [&shown[..], &[m.shown.last().expect("a method has a name").clone()]].concat();
+					let name = |p: &Path| p.last().expect("a method has a name").clone();
+					m.path = [&path[..], &[name(&m.path)]].concat();
+					m.shown = [&shown[..], &[name(&m.shown)]].concat();
 					m.derefs = derefs;
 					m
 				})

@@ -2378,18 +2378,26 @@ impl Gen<'_> {
 							};
 							(
 								String::new(),
-								format!("let mut a_self_loan = {borrow};\n\tlet a_self = unsafe {{ a_self_loan.lend() }};"),
+								format!(
+									"let mut a_self_loan = {borrow};\n\tlet a_self = unsafe {{ a_self_loan.lend() }};"
+								),
 								pass.to_string(),
 							)
 						}
 						Receiver::Owned if self.ends(function, *i) => {
-							ended.push(format!("unsafe {{ rt::Object::<{}>::end(this) }};", self.object_path(*i)));
+							ended.push(format!(
+								"unsafe {{ rt::Object::<{}>::end(this) }};",
+								self.object_path(*i)
+							));
 							self.ending(*i, "this", "a_self")
 						}
 						_ => self.arg(&ty, "this", "a_self", future),
 					};
 					if function.ties && self.abi.held[*i] {
-						sort(&Type::Object(*i), &(String::new(), self.unheld(*i, "this"), String::new()));
+						sort(
+							&Type::Object(*i),
+							&(String::new(), self.unheld(*i, "this"), String::new()),
+						);
 					}
 					sort(&ty, &made);
 					// Through each `Deref` to the type whose method it is, as Rust's auto-deref.
@@ -2523,11 +2531,17 @@ impl Gen<'_> {
 					if let Some(j) = held_object
 						&& function.ties
 					{
-						sort(&Type::Object(j), &(String::new(), self.unheld(j, &format!("p{n}")), String::new()));
+						sort(
+							&Type::Object(j),
+							&(String::new(), self.unheld(j, &format!("p{n}")), String::new()),
+						);
 					}
 					let made = match (&param.ty, held_object) {
 						(Type::Object(j), Some(_)) if self.ends(function, *j) => {
-							ended.push(format!("unsafe {{ rt::Object::<{}>::end(p{n}) }};", self.object_path(*j)));
+							ended.push(format!(
+								"unsafe {{ rt::Object::<{}>::end(p{n}) }};",
+								self.object_path(*j)
+							));
 							self.ending(*j, &format!("p{n}"), &format!("a{n}"))
 						}
 						_ => self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future),
@@ -2647,12 +2661,9 @@ impl Gen<'_> {
 		let call = match function.access {
 			// A method of the type the receiver derefs to, which the glue need not name: its
 			// receiver is that type's already, whose inherent method a call finds first.
-			Access::Call if function.derefs > 0 => format!(
-				"({}).{}{turbofish}({})",
-				args[0],
-				function.name(),
-				args[1..].join(", ")
-			),
+			Access::Call if function.derefs > 0 => {
+				format!("({}).{}{turbofish}({})", args[0], function.name(), args[1..].join(", "))
+			}
 			Access::Call => format!("{callee}({})", args.join(", ")),
 			Access::Field { set: false, .. } => format!("&({}).{}", args[0], function.name()),
 			Access::Field { set: true, .. } => format!("({}).{} = {}", args[0], function.name(), args[1]),

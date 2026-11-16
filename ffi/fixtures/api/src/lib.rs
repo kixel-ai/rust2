@@ -772,7 +772,11 @@ impl Ledger {
 
 	/// The sheet's title, read through its lock.
 	pub fn title(&self) -> String {
-		self.sheet.lock().expect("a draft never panics holding the lock").title.clone()
+		self.sheet
+			.lock()
+			.expect("a draft never panics holding the lock")
+			.title
+			.clone()
 	}
 
 	/// Refuses every later draft.

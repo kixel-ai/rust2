@@ -183,7 +183,7 @@ impl Slot<u8> {
 		Self(0)
 	}
 
-	/// A guard that borrows its handle, which a new handle would outlive.
+	/// A guard that borrows its handle exclusively, which its own handle holds: exported.
 	pub fn lock(&mut self) -> SlotGuard<'_, u8> {
 		SlotGuard(&mut self.0)
 	}
@@ -1340,4 +1340,28 @@ pub fn keep_object(env: &mut jni::Env, object: jni::objects::JObject<'static>) -
 /// A reference a bound keeps past the call that lends it.
 pub fn bound_object<'a: 'static>(env: &mut jni::Env<'a>, object: jni::objects::JObject<'a>) -> bool {
 	env.get_raw().is_null() && object.is_null()
+}
+
+/// A view sharing its slot's borrow.
+pub struct SlotView<'a, T>(&'a T);
+
+impl SlotView<'static, u8> {
+	/// A view of a constant, which keeps the view reachable without its slot.
+	pub fn fixed() -> Self {
+		Self(&7)
+	}
+}
+
+impl<T: Copy> SlotView<'_, T> {
+	pub fn get(&self) -> T {
+		*self.0
+	}
+}
+
+impl Slot<u8> {
+	/// A view that borrows its handle shared, which a new handle would outlive: only a
+	/// `&mut self` method's borrowing object holds its receiver's borrow.
+	pub fn view(&self) -> SlotView<'_, u8> {
+		SlotView(&self.0)
+	}
 }
