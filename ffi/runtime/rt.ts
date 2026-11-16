@@ -54,22 +54,40 @@ export type None = typeof None;
 /** A place a call writes back what Rust left a `&mut` value as, in `v`. */
 export type Place<T> = { v: T };
 
+// The key only `opaqueMade` holds, and the private field's accessors.
+const minting: unique symbol = Symbol("minting");
+let made: (bytes: Uint8Array) => Opaque;
+let bytesOf: (v: Opaque) => Uint8Array | undefined;
+
 /**
  * A `Copy` type whose fields are private: its bytes, which only Rust makes or reads, so
  * JavaScript copies one but never makes one.
  */
 export class Opaque<T extends string = string> {
 	declare readonly [brand]: T;
-	readonly bytes: Uint8Array;
-	constructor(bytes: Uint8Array) {
-		this.bytes = bytes;
+	// Private, so no caller makes or changes one: the bytes may hold what Rust forbids, such
+	// as a zero `NonZero`.
+	readonly #bytes: Uint8Array;
+	private constructor(bytes: Uint8Array, key: symbol) {
+		if (key !== minting) throw new TypeError("only Rust makes an opaque value");
+		this.#bytes = bytes;
+	}
+	static {
+		made = (bytes) => new Opaque(bytes, minting);
+		bytesOf = (v) => (#bytes in v ? v.#bytes : undefined);
 	}
 }
 
-/** An opaque value's bytes, which throw unless it is one of `n` bytes. */
+/** The generated glue's only: the opaque value of bytes Rust wrote. */
+export function opaqueMade(bytes: Uint8Array): Opaque {
+	return made(bytes);
+}
+
+/** An opaque value's bytes, which throw unless it is one Rust made, of `n` bytes. */
 export function opaque(v: Opaque, n: number): Uint8Array {
-	if (!(v instanceof Opaque) || v.bytes.length !== n) throw new RangeError("a value Rust made is no other's");
-	return v.bytes;
+	const bytes = bytesOf(v);
+	if (bytes === undefined || bytes.length !== n) throw new RangeError("a value Rust made is no other's");
+	return bytes;
 }
 
 /** Rust's `Duration`: whole seconds, and the nanoseconds below one. */
@@ -581,8 +599,9 @@ export function u128FromBig(v: bigint): u128 {
 // Text and bytes.
 
 const encoder = new TextEncoder();
-const strict = new TextDecoder("utf-8", { fatal: true });
-const loose = new TextDecoder("utf-8");
+// A leading U+FEFF is text Rust holds, not a mark to drop.
+const strict = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+const loose = new TextDecoder("utf-8", { ignoreBOM: true });
 
 /** `text`'s UTF-8, throwing where it holds a lone surrogate, which no Rust string does. */
 export function encoded(text: string): Uint8Array {
@@ -1136,6 +1155,9 @@ let space = "";
 const text = { out: "", err: "" };
 
 /** A line of what the module wrote to stdout or stderr, to `console.log` or `console.error`. */
+/** Stdout's and stderr's decoders, each keeping a character a write splits for the next. */
+const streams = [new TextDecoder("utf-8", { ignoreBOM: true }), new TextDecoder("utf-8", { ignoreBOM: true })];
+
 function written(fd: number, chunk: string): void {
 	const key = fd === 1 ? "out" : "err";
 	let pending = text[key] + chunk;
@@ -1175,7 +1197,7 @@ const wasi = {
 		for (let i = 0; i < n; i++) {
 			const ptr = d.getUint32(iovs + 8 * i, true);
 			const len = d.getUint32(iovs + 8 * i + 4, true);
-			written(fd, loose.decode(mem().subarray(ptr, ptr + len)));
+			written(fd, streams[fd - 1].decode(mem().subarray(ptr, ptr + len), { stream: true }));
 			total += len;
 		}
 		dv().setUint32(nwritten, total, true);

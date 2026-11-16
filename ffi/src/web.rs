@@ -1033,7 +1033,7 @@ impl<'a> Gen<'a> {
 			Type::Record(i) if abi.api.records[*i].opaque.is_some() => {
 				let size = self.layout(&Ty::Struct(c.to_string())).size;
 				let t = self.tt(ty);
-				format!("void o;\n\treturn new rt.Opaque(rt.mem().slice(p, p + {size})) as {t};")
+				format!("void o;\n\treturn rt.opaqueMade(rt.mem().slice(p, p + {size})) as {t};")
 			}
 			Type::Record(i) => {
 				let record = &abi.api.records[*i];
@@ -1054,6 +1054,10 @@ impl<'a> Gen<'a> {
 				let (_, u) = self.union(&payloads);
 				let mut cases = Vec::new();
 				for (n, variant) in e.variants.iter().enumerate() {
+					// A variant the target lacks reads no fields, whose types it may lack too.
+					if !self.here(variant.on) {
+						continue;
+					}
 					let mut fields = vec![format!("tag: \"{}\"", variant.name)];
 					if !variant.fields.is_empty() {
 						let tys: Vec<Ty> = variant.fields.iter().map(|f| abi.ty(&f.ty)).collect();
@@ -1062,9 +1066,6 @@ impl<'a> Gen<'a> {
 							let value = self.get_o(&f.ty, &format!("p + {}", u + at));
 							fields.push(format!("{}: {value}", field_name(&f.name)));
 						}
-					}
-					if !self.here(variant.on) {
-						continue;
 					}
 					cases.push(format!("\t\tcase {n}:\n\t\t\treturn {{ {} }};", fields.join(", ")));
 				}
@@ -1831,10 +1832,11 @@ fn closed(lines: &[String], body: &[String], lent: &[String]) -> String {
 	code.join("\n")
 }
 
-/// A method's name in camel case, with `$` appended if a reserved word.
+/// A trait method's name in camel case, with `$` appended if a reserved word or `close`.
 fn method_name(name: &str) -> String {
 	let name = camel(name);
-	match RESERVED.contains(&name.as_str()) {
+	// `close` is the hook Rust calls once it drops an implementation.
+	match RESERVED.contains(&name.as_str()) || name == "close" {
 		true => format!("{name}$"),
 		false => name,
 	}
@@ -1861,27 +1863,16 @@ impl Gen<'_> {
 				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			let value = match constant.value {
 				Literal::Bool(b) => b.to_string(),
-				Literal::Int(Int::U64 | Int::I64, v) if v.unsigned_abs() > (1 << 53) - 1 => {
+				// Past a safe integer, the type's constructor of its halves, by the type and
+				// not the sign: `i64::MAX` is an `rt.i64`.
+				Literal::Int(int @ (Int::U64 | Int::I64), v) if v.unsigned_abs() > (1 << 53) - 1 => {
 					let bits = v as u64;
-					let of = match v < 0 {
-						true => "i64Of",
-						false => "u64Of",
-					};
-					let hi = match v < 0 {
-						true => ((bits >> 32) as u32 as i32).to_string(),
-						false => (bits >> 32).to_string(),
-					};
-					format!("rt.{of}({hi}, {})", bits as u32)
+					match int {
+						Int::I64 => format!("rt.i64Of({}, {})", (bits >> 32) as u32 as i32, bits as u32),
+						_ => format!("rt.u64Of({}, {})", bits >> 32, bits as u32),
+					}
 				}
-				Literal::Int(int, v) => {
-					let t = match int {
-						Int::U64 => ": rt.u64",
-						Int::I64 => ": rt.i64",
-						_ => "",
-					};
-					let _ = t;
-					v.to_string()
-				}
+				Literal::Int(_, v) => v.to_string(),
 			};
 			let ty = match constant.value {
 				Literal::Bool(_) => "boolean",
@@ -2042,6 +2033,15 @@ impl Gen<'_> {
 		let mut taken = BTreeSet::new();
 		self.traits(&ty, &c, object.traits, &mut taken);
 		self.methods(&object.methods, &owner, &ty, &mut taken);
+	}
+
+	/// The TypeScript type of what a function returns: a waker Rust returns is one
+	/// JavaScript can wake and drop, unlike the function a parameter takes.
+	fn returned_t(&mut self, ty: &Type) -> String {
+		match ty {
+			Type::Waker => "rt.Waker".to_string(),
+			_ => self.tt(ty),
+		}
 	}
 
 	fn callback(&mut self, i: usize) {
@@ -2404,10 +2404,7 @@ impl Gen<'_> {
 
 		let ok = strip_refs(&function.ok);
 		let err = function.err.as_ref().map(strip_refs);
-		let ok_t = match ok {
-			Type::Waker => "rt.Waker".to_string(),
-			_ => self.tt(&ok),
-		};
+		let ok_t = self.returned_t(&ok);
 		let value_t = match &err {
 			Some(err) => {
 				let err_t = self.tt(err);
@@ -2452,10 +2449,10 @@ impl Gen<'_> {
 			let value_g = match &err {
 				Some(err) => {
 					let err_t = self.tt(err);
-					let ok_t = self.tt(&ok);
+					let ok_t = self.returned_t(&ok);
 					format!("rt.Result<{}, {err_t}>", self.value(&ok, &ok_t))
 				}
-				None => self.tt(&ok),
+				None => self.returned_t(&ok),
 			};
 			self.module = module_;
 			self.helpers.insert(

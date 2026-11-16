@@ -336,6 +336,7 @@ class Far implements rt.Reader {
 
 async function script(): Promise<void> {
 	print(`limit ${dec(api.LIMIT)}`);
+	check(`${rt.i64ToBig(api.FAR)}` === "9223372036854775807", "a constant past a safe integer keeps its type");
 
 	const p = Point.offset({ x: 1, y: 2 }, 2, 3);
 	print(`offset ${p.x} ${p.y}`);
@@ -565,6 +566,9 @@ async function script(): Promise<void> {
 
 	// A value past a word, copied across: a closure takes and returns one by value.
 	const moment = Moment.new(1500, 1000)!;
+	const Forged = rt.Opaque as unknown as new (bytes: Uint8Array) => Moment.Moment;
+	throws(() => new Forged(new Uint8Array(16)), TypeError, "a caller's opaque value");
+	throws(() => Moment.millis({ bytes: new Uint8Array(16) } as unknown as Moment.Moment), RangeError, "a lookalike");
 	print(`moment ${dec(Moment.millis(moment))} ${Moment.new(1, 0) === undefined}`);
 	const shifted = api.shifted(moment, (m) => Moment.after(m, 500));
 	print(`shifted ${dec(Moment.millis(shifted))} ${Moment.eq(shifted, Moment.after(moment, 500))}`);
@@ -1298,6 +1302,7 @@ function unclosedWaker(wake: () => void): void {
 /** The binding serves wasm32 alone, whose items are each here. */
 function targets(): void {
 	check(api.pointerBits(api.platform()) === 32, "wasm32's variant crosses");
+	check(api.placement().tag === "Anywhere", "a variant wasm32 lacks is left out with its record");
 	check(api.pointerBits({ tag: "Native", _0: 64 }) === 64, "the native variant crosses too");
 	check(api.isFamily("Wasm") && !api.isFamily("Native"), "wasm32's plain variant crosses");
 	check(api.wasmOnly() === 32, "an item only wasm32 has");
@@ -1470,6 +1475,8 @@ function bounds(): void {
 
 	// Text is UTF-8 in Rust, which a lone surrogate has no form in.
 	check(api.sameString("\u{1f600}é\u{10ffff}") === "\u{1f600}é\u{10ffff}", "a pair of surrogates");
+	check(api.sameString("\u{feff}hi") === "\u{feff}hi", "a leading U+FEFF is text");
+	check(rt.pathText(api.samePath(rt.pathFrom("\u{feff}a"))) === "\u{feff}a", "a path's leading U+FEFF is text");
 	for (const lone of ["\ud800", "a\udc00", "\udbff\ud800", "\udc00\ud800", "é\ud800"]) {
 		throws(() => api.sameString(lone), RangeError, `a lone surrogate in ${[...lone].map((u) => u.charCodeAt(0))}`);
 	}

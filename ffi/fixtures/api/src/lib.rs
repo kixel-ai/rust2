@@ -15,6 +15,9 @@ pub use dep::*;
 /// The largest value a [`Counter`] reaches.
 pub const LIMIT: u64 = 1000;
 
+/// The largest `i64`, past what a binding's float holds exactly.
+pub const FAR: i64 = i64::MAX;
+
 /// A point: a record, since every field is `pub`. Its docs reach the header, where a
 /// comment such as `/* this */` must not close the header's own.
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
@@ -3691,6 +3694,27 @@ pub fn pointer_bits(platform: Platform) -> u32 {
 		#[cfg(target_arch = "wasm32")]
 		Platform::Wasm { bits } => bits,
 	}
+}
+
+/// A core of a native target's CPU: a record wasm32 lacks.
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Core {
+	pub id: u32,
+}
+
+/// Where work runs, with a variant only native targets have holding a record only they
+/// have, which wasm32's binding reads no field of.
+pub enum Placement {
+	/// Wherever the target runs it.
+	Anywhere,
+	/// On one core of a native target.
+	#[cfg(not(target_arch = "wasm32"))]
+	Pinned(Core),
+}
+
+/// Where the library's target runs work.
+pub fn placement() -> Placement {
+	Placement::Anywhere
 }
 
 /// The family of the library's target, a plain enum with a variant only wasm32 has.
