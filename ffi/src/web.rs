@@ -1192,7 +1192,7 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Record(i) if abi.api.records[*i].opaque.is_some() => {
 				let size = self.layout(&Ty::Struct(c.to_string())).size;
-				format!("rt.mem().set(rt.opaque(v, {size}), p);")
+				format!("rt.opaquePut(v, {size}, p);")
 			}
 			Type::Record(i) => {
 				let record = &abi.api.records[*i];

@@ -83,11 +83,14 @@ export function opaqueMade(bytes: Uint8Array): Opaque {
 	return made(bytes);
 }
 
-/** An opaque value's bytes, which throw unless it is one Rust made, of `n` bytes. */
-export function opaque(v: Opaque, n: number): Uint8Array {
+/**
+ * Copy an opaque value's bytes into memory at `p`, throwing unless it is one Rust made, of
+ * `n` bytes. It returns nothing, so the bytes never reach a caller to change.
+ */
+export function opaquePut(v: Opaque, n: number, p: number): void {
 	const bytes = bytesOf(v);
 	if (bytes === undefined || bytes.length !== n) throw new RangeError("a value Rust made is no other's");
-	return bytes;
+	mem().set(bytes, p);
 }
 
 /** Rust's `Duration`: whole seconds, and the nanoseconds below one. */
