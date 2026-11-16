@@ -1323,6 +1323,11 @@ enum Shape {
 	Union(Vec<Vec<Ty>>),
 }
 
+/// Whether `ty` is bytes, which a call returns as an `rt.Bytes`.
+fn lends(ty: &Type) -> bool {
+	matches!(ty, Type::Slice | Type::Vec | Type::Bytes)
+}
+
 /// Whether a value of `ty` can be `undefined`, so its `Option` keeps `None` apart as `rt.None`.
 fn undefinable(ty: &Type) -> bool {
 	matches!(ty.base(), Type::Unit | Type::Option(_))
@@ -1515,7 +1520,7 @@ impl Gen<'_> {
 		match ret {
 			Ret::None => "undefined".to_string(),
 			Ret::Value(e) => self.lift(ty, e, true),
-			Ret::At(p) => self.get(ty, p, true),
+			Ret::At(p) => self.returned(ty, p),
 		}
 	}
 
@@ -2053,6 +2058,30 @@ impl Gen<'_> {
 	fn returned_t(&mut self, ty: &Type) -> String {
 		match ty {
 			Type::Waker => "rt.Waker".to_string(),
+			ty if lends(ty) => "rt.Bytes".to_string(),
+			Type::Option(inner) if lends(inner) => "rt.Bytes | undefined".to_string(),
+			_ => self.tt(ty),
+		}
+	}
+
+	/// The value of type `ty` a call returns at `p`: bytes as an `rt.Bytes`, which may lend
+	/// Rust's buffer, as nothing inside another value does, since only a caller holding the
+	/// bytes alone disposes them.
+	fn returned(&mut self, ty: &Type, p: &str) -> String {
+		match ty {
+			ty if lends(ty) => format!("rt.returnedBytes({p})"),
+			Type::Option(inner) if lends(inner) => format!("(rt.isNone({p}) ? undefined : rt.returnedBytes({p}))"),
+			_ => self.get(ty, p, true),
+		}
+	}
+
+	/// The TypeScript type of a parameter: bytes may also be an `rt.Bytes` a call returned,
+	/// which passes back with no copy.
+	fn param_t(&mut self, ty: &Type) -> String {
+		match ty {
+			ty if lends(ty) => "Uint8Array | rt.Bytes".to_string(),
+			Type::Option(inner) if lends(inner) => "Uint8Array | rt.Bytes | undefined".to_string(),
+			Type::Box(inner) | Type::Ref(_, inner) => self.param_t(inner),
 			_ => self.tt(ty),
 		}
 	}
@@ -2371,7 +2400,7 @@ impl Gen<'_> {
 				writes.push(format!("{value} = {read};"));
 				continue;
 			}
-			let t = self.tt(&param.ty);
+			let t = self.param_t(&param.ty);
 			params.push(format!("{name}: {t}"));
 			match (&param.ty, c) {
 				(Type::Closure(closure), Ty::Fn(..)) => {
@@ -2411,6 +2440,11 @@ impl Gen<'_> {
 				}
 				(ty, c) => {
 					lines.push(self.pass(ty, c, &name, &a));
+					// Rust takes `Bytes` by value: lent bytes become a second owner of its
+					// buffer once nothing left to lower can throw, so none is given in vain.
+					if matches!(ty, Type::Bytes) || matches!(ty, Type::Option(inner) if **inner == Type::Bytes) {
+						gives.push(format!("rt.shared({a}, {name});"));
+					}
 					args.push(a);
 				}
 			}
@@ -2597,7 +2631,7 @@ impl Gen<'_> {
 					.collect();
 				format!("[{}]", lifted.join(", "))
 			}
-			_ => self.get(ok, "o_out", true),
+			_ => self.returned(ok, "o_out"),
 		}
 	}
 }

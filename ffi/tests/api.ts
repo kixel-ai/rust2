@@ -111,7 +111,7 @@ function hex128(v: rt.u128): string {
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const enc = (text: string) => encoder.encode(text);
-const text = (data: Uint8Array) => decoder.decode(data);
+const text = (data: Uint8Array | rt.Bytes) => decoder.decode(data.slice());
 const bytes = (...values: number[]) => new Uint8Array(values);
 
 /** A list as Rust's `Debug` prints one. */
@@ -645,7 +645,7 @@ async function script(): Promise<void> {
 	const channel = Channel.new();
 	let wakes = 0;
 	// Polled at the call, it pends, and the wake the send posts resumes it from the event loop.
-	let got: Uint8Array | undefined;
+	let got: rt.Bytes | undefined;
 	const recv = Channel.recv(channel);
 	void recv.then((payload) => (got = payload));
 	await step();
@@ -1485,31 +1485,82 @@ async function closedCall(f: () => Promise<unknown>, type: string, what: string)
 	check(false, what);
 }
 
-/** Returned bytes are a copy, so Rust's buffer is freed at the call, whatever their length,
- * and a change to them reaches nothing of Rust's. */
+/** Bytes a call returns up to 64 are a copy, Rust's freed at the call; past that they lend
+ * Rust's buffer, freed once disposed and no call views it, or by the garbage collector, and
+ * passed back to Rust they share it. Either reads the same, and refuses a read once disposed. */
 async function lent(): Promise<void> {
 	let before = api.dropped();
-	for (const n of [65536, 65537]) {
-		const got = api.tokenBytes(1, n);
-		check(api.dropped() === ++before, `${n} bytes are copied and Rust's freed at the call`);
-		check(got.length === n && got.every((b) => b === 1), `${n} copied bytes read back`);
+	const small = api.tokenBytes(1, 64);
+	check(api.dropped() === ++before, "64 bytes are copied and Rust's freed at the call");
+	check(small.length === 64 && [...small].every((b) => b === 1), "copied bytes read back");
+	close(small);
+	closed(() => small.at(0), "Bytes", "disposed copied bytes refuse a read");
+	for (const n of [65, 65537]) {
+		const big = api.tokenBytes(2, n);
+		check(api.dropped() === before, `${n} bytes lend Rust's buffer`);
+		const copy = big.slice();
+		check(big.length === n && copy.length === n && copy.every((b) => b === 2), `${n} lent bytes read back`);
+		check(big.at(-1) === 2 && big.at(n) === undefined && big.slice(1, 3).length === 2, "lent bytes read as a Uint8Array's do");
+		// A copy out is the caller's, which reaches nothing of Rust's.
+		copy[0] = 3;
+		check(big.at(0) === 2, "a copy out of lent bytes is the caller's");
+		close(big);
+		check(api.dropped() === ++before, `disposing ${n} lent bytes frees Rust's buffer`);
+		close(big);
+		check(api.dropped() === before, "disposing them again frees nothing");
+		closed(() => big.slice(), "Bytes", "disposed lent bytes refuse a read");
+		closed(() => api.len(big), "Bytes", "disposed lent bytes refuse a call");
 	}
-	// A copy is the caller's to change, and passes back to Rust as it was left.
-	const channel = Channel.new();
+	// Passed back, lent bytes cross in place: viewed for a call, or a second owner of Rust's
+	// buffer for one that keeps them, so the buffer outlives the bytes disposed after.
 	const sent = api.tokenBytes(5, 65537);
-	before++;
-	sent[0] = 6;
+	check(api.len(sent) === 65537, "lent bytes viewed for a call");
+	const channel = Channel.new();
 	Channel.send(channel, sent);
-	sent[1] = 7;
+	close(sent);
+	check(api.dropped() === before, "lent bytes sent share Rust's buffer");
 	const got = await within(Channel.recv(channel), "a receive of what was sent");
-	check(got.length === 65537 && got[0] === 6 && got[1] === 5 && sent[1] === 7, "bytes sent are copied in at the call");
-	const carried = api.nextPacket({ seq: 1, payload: got }).payload;
-	check(carried.length === 65537 && carried[0] === 6 && carried.subarray(1).every((b) => b === 5), "bytes carried in a record");
+	check(got.length === 65537 && got.at(0) === 5 && got.at(-1) === 5, "lent bytes sent read back");
+	close(got);
+	check(api.dropped() === ++before, "the last owner of lent bytes frees them");
 	close(channel);
-	// No copy holds anything of Rust's, so collecting frees nothing more.
+	// Disposed while a later argument lowers, lent bytes stay Rust's for the call it is in,
+	// and are freed once it returns.
+	const viewed = api.tokenBytes(6, 100);
+	const prefix = new Proxy(enc("ab"), {
+		get(target, key) {
+			if (key === "length") close(viewed);
+			return Reflect.get(target, key);
+		},
+	});
+	const joined = api.prefixed(viewed, prefix).slice();
+	check(joined.length === 102 && text(joined.subarray(0, 2)) === "ab" && joined.subarray(2).every((b) => b === 6), "bytes a call views read whole");
+	check(api.dropped() === ++before, "bytes disposed during a call are freed once it returns");
+	// The garbage collector frees lent bytes nobody disposed.
+	unclosedBytes();
+	await collect(() => api.dropped() > before, "the garbage collector frees lent bytes nobody disposed");
 	await settle();
-	check(api.dropped() === before, "returned bytes hold nothing of Rust's");
+	check(api.dropped() === ++before, "the garbage collector frees lent bytes once");
+	// Past a quarter of memory lent and not yet freed, bytes are copied, so bytes nobody
+	// disposed, which the collector frees only once its own heap prompts it, grow memory by
+	// no more than a third.
+	const kept: rt.Bytes[] = [];
+	for (let lending = true; lending; ) {
+		const dropped = api.dropped();
+		kept.push(api.tokenBytes(7, 1 << 20));
+		lending = api.dropped() === dropped;
+		check(kept.length < 1000, "lent bytes copy past a quarter of memory");
+	}
+	check((kept.length - 1) << 20 <= rt.mem().buffer.byteLength / 4, "at most a quarter of memory is lent");
+	before = api.dropped();
+	for (const b of kept) close(b);
+	check(api.dropped() === before + kept.length - 1, "disposing frees each lent");
 	print("bytes ok");
+}
+
+/** Lent bytes, left for the garbage collector. */
+function unclosedBytes(): void {
+	api.tokenBytes(8, 1000);
 }
 
 /** Values at the edges of what Rust takes and returns, and each value Rust's type lacks,
@@ -1640,6 +1691,21 @@ function grown(): void {
 	// A reader fills the buffer Rust lends it after growing memory.
 	const tail = api.tail(new BytesReader(enc("hello world"), grow), 5);
 	check(tail.ok && text(tail.value[0]) === "world" && tail.value[1] === 6, "a reader's read after memory grew");
+	// Lent bytes read Rust's buffer through memory as it is now, and pass back in place.
+	const held = api.tokenBytes(4, 1000);
+	grow();
+	check(held.at(999) === 4 && held.slice().every((b) => b === 4), "lent bytes read after memory grew");
+	check(api.len(held) === 1000, "lent bytes viewed for a call after memory grew");
+	const channel = Channel.new();
+	Channel.send(channel, held);
+	grow();
+	// What grew memory dropped tokens of its own.
+	const before = api.dropped();
+	Channel.clear(channel);
+	close(channel);
+	check(api.dropped() === before && held.at(0) === 4, "lent bytes shared after memory grew");
+	close(held);
+	check(api.dropped() === before + 1, "lent bytes disposed after memory grew free Rust's buffer");
 	print("grown ok");
 }
 
