@@ -462,11 +462,11 @@ struct Gen<'a> {
 	top: String,
 	helpers: BTreeMap<String, String>,
 	exports: String,
-	/// The C declarations of what Go exports, and the definitions of the checked calls'
-	/// shims, for the preamble.
+	/// The C declarations of what Go exports, and the definitions of the calls' shims, for
+	/// the preamble.
 	decls: Vec<String>,
-	/// The name of each checked call's shim the preamble defines.
-	checked: BTreeSet<String>,
+	/// The name of each call's shim the preamble defines.
+	shims: BTreeSet<String>,
 	/// Each closure type's trampoline, by its Go type.
 	closures: HashMap<Closure, String>,
 	/// The arity of each tuple type the package names.
@@ -516,7 +516,7 @@ impl<'a> Gen<'a> {
 			helpers: BTreeMap::new(),
 			exports: String::new(),
 			decls: Vec::new(),
-			checked: BTreeSet::new(),
+			shims: BTreeSet::new(),
 			closures: HashMap::new(),
 			tuples: BTreeSet::new(),
 			names,
@@ -711,63 +711,129 @@ impl<'a> Gen<'a> {
 		&c[self.abi.prefix.len() + 1..]
 	}
 
-	/// The C function the preamble adds to call `c`, whose last parameter in `params` is its
-	/// status, with a status of its own, which it returns: alone for a `void` `c`, else as
-	/// `status` beside `c`'s value, as `value`. A Go pointer passed to C moves to the heap, as
-	/// C may call back into Go and grow the stack it pointed into; a C local never moves, and
-	/// cgo returns a value into the moved stack.
-	fn checked_c(&mut self, c: &str, params: &[(String, Ty)], ret: &Ty) -> String {
+	/// The call of the C function `c` with `args`, an argument for each parameter in `params`
+	/// but an out: the statements making it, and the expression of its value, empty for none.
+	///
+	/// A Go pointer passed to C moves to the heap, as C may call back into Go and grow the
+	/// stack it pointed into. So a call passing one goes through a shim the preamble adds,
+	/// which takes each value C reads by value and passes C a pointer to its own copy, and
+	/// returns what C writes: a C local never moves, and cgo returns a value into the moved
+	/// stack. The statements bind each out `n` to `c_<n>_`, the status to `c_status_`, and a
+	/// future's handle to `f_`, and write a value C writes back to `c_<n>_`.
+	fn call(&mut self, c: &str, params: &[(String, Ty)], ret: &Ty, args: &[String]) -> (String, String) {
+		let args = args.join(", ");
+		if !params
+			.iter()
+			.any(|(_, ty)| matches!(ty, Ty::In(_) | Ty::Out(_) | Ty::InOut(_)))
+		{
+			return (String::new(), format!("C.{c}({args})"));
+		}
 		let p = &self.abi.prefix;
 		let bare = self.bare(c);
-		let name = format!("{p}GoChecked_{bare}");
-		if !self.checked.insert(name.clone()) {
-			return name;
+		let name = format!("{p}GoCall_{bare}");
+		let returned = format!("{p}GoReturned_{bare}");
+		// What the shim returns: C's value as `value`, then what each parameter writes, as
+		// `status` or by its position, with the Go statement binding it.
+		let mut fields: Vec<(String, Ty, Option<String>)> = Vec::new();
+		if !matches!(ret, Ty::Void) {
+			fields.push(("value".to_string(), ret.clone(), None));
 		}
-		let (status, params) = params.split_last().expect("a checked function takes a status");
-		assert!(abi::is_status(&status.1), "{c} takes its status last");
-		// Positional names, since a Rust one may be a C name the shim uses, such as `c`'s own.
-		let names: Vec<String> = (0..params.len()).map(|i| format!("arg{i}")).collect();
-		let decls: Vec<String> = params
-			.iter()
-			.zip(&names)
-			.map(|((_, ty), n)| crate::c::decl(self.abi, ty, n))
-			.collect();
+		for (i, (n, ty)) in params.iter().enumerate() {
+			let (field, inner, bind) = match ty {
+				Ty::Out(inner) => match **inner {
+					Ty::Status => ("status".to_string(), inner, "c_status_ :=".to_string()),
+					Ty::Future(_) => (format!("p{i}"), inner, "f_ =".to_string()),
+					_ => (format!("p{i}"), inner, format!("c_{n}_ :=")),
+				},
+				Ty::InOut(inner) => (format!("p{i}"), inner, format!("c_{n}_ =")),
+				_ => continue,
+			};
+			fields.push((field, (**inner).clone(), Some(bind)));
+		}
+		// No result returns nothing, and a lone one returns by itself, as `r`; more return in a
+		// struct.
+		let lone = fields.len() == 1;
+		let place = |field: &str| match lone {
+			true => "r".to_string(),
+			false => format!("r.{field}"),
+		};
+		let shim = format!("C.{name}({args})");
+		let (stmts, value) = match &fields[..] {
+			[] | [(_, _, None)] => (String::new(), shim),
+			[(_, _, Some(bind))] => (format!("{bind} {shim}"), String::new()),
+			fields => {
+				let mut stmts = vec![format!("c_ret_ := {shim}")];
+				let mut value = String::new();
+				for (field, _, bind) in fields {
+					match bind {
+						Some(bind) => stmts.push(format!("{bind} c_ret_.{field}")),
+						None => value = format!("c_ret_.{field}"),
+					}
+				}
+				(stmts.join("\n"), value)
+			}
+		};
+		if !self.shims.insert(name.clone()) {
+			return (stmts, value);
+		}
+		// The shim's parameters and C's arguments, by position, since a Rust name may be a C
+		// name the shim uses, such as `c`'s own.
+		let mut decls = Vec::new();
+		let mut passed = Vec::new();
+		let mut back = String::new();
+		for (i, (_, ty)) in params.iter().enumerate() {
+			match ty {
+				Ty::Out(inner) if matches!(**inner, Ty::Status) => passed.push(format!("&{}", place("status"))),
+				Ty::Out(_) => passed.push(format!("&{}", place(&format!("p{i}")))),
+				Ty::In(inner) | Ty::InOut(inner) => {
+					decls.push(crate::c::decl(self.abi, inner, &format!("arg{i}")));
+					passed.push(format!("&arg{i}"));
+					if matches!(ty, Ty::InOut(_)) {
+						back.push_str(&format!("\t{} = arg{i};\n", place(&format!("p{i}"))));
+					}
+				}
+				ty => {
+					decls.push(crate::c::decl(self.abi, ty, &format!("arg{i}")));
+					passed.push(format!("arg{i}"));
+				}
+			}
+		}
 		let decls = match decls.is_empty() {
 			true => "void".to_string(),
 			false => decls.join(", "),
 		};
-		let args = names.join(", ");
-		let comma = if args.is_empty() { "" } else { ", " };
-		let status_ty = crate::c::decl(self.abi, &Ty::Status, "");
-		let decl = match ret {
-			Ty::Void => format!(
-				"static inline {status_ty} {name}({decls}) {{\n\t{status_ty} r = 0;\n\t{c}({args}{comma}&r);\n\treturn r;\n}}\n"
-			),
-			ret => {
-				let returned = format!("{p}GoReturned_{bare}");
-				format!(
-					"typedef struct {{\n\t{};\n\t{status_ty} status;\n}} {returned};\n\nstatic inline {returned} {name}({decls}) {{\n\t{returned} r;\n\tr.status = 0;\n\tr.value = {c}({args}{comma}&r.status);\n\treturn r;\n}}\n",
-					crate::c::decl(self.abi, ret, "value")
+		let made = format!("{c}({});", passed.join(", "));
+		let made = match matches!(ret, Ty::Void) {
+			true => made,
+			false => format!("{} = {made}", place("value")),
+		};
+		if fields.is_empty() {
+			self.decls
+				.push(format!("static inline void {name}({decls}) {{\n\t{made}\n}}\n"));
+			return (stmts, value);
+		}
+		let (r, typedef) = match lone {
+			true => (crate::c::decl(self.abi, &fields[0].1, ""), String::new()),
+			false => {
+				let members: String = (fields.iter())
+					.map(|(field, ty, _)| format!("\t{};\n", crate::c::decl(self.abi, ty, field)))
+					.collect();
+				(
+					returned.clone(),
+					format!("typedef struct {{\n{members}}} {returned};\n\n"),
 				)
 			}
 		};
-		self.decls.push(decl);
-		name
+		// Zeroed, so Go never reads a stale pointer from what C left unwritten.
+		self.decls.push(format!(
+			"{typedef}static inline {r} {name}({decls}) {{\n\t{r} r = {{0}};\n\t{made}\n{back}\treturn r;\n}}\n"
+		));
+		(stmts, value)
 	}
 
-	/// The call of `sig`, which takes a status, with `args`, every argument but the status:
-	/// the statements binding its status to `c_status_`, and the expression of its value, if
-	/// it returns one.
-	fn call_checked(&mut self, sig: &abi::Sig, args: &[String]) -> (String, String) {
-		let shim = self.checked_c(&sig.name, &sig.params, &sig.ret);
-		let args = args.join(", ");
-		match sig.ret {
-			Ty::Void => (format!("c_status_ := C.{shim}({args})"), String::new()),
-			_ => (
-				format!("c_ret_ := C.{shim}({args})\nc_status_ := c_ret_.status"),
-				"c_ret_.value".to_string(),
-			),
-		}
+	/// The call of `sig` with `args`, as [`Self::call`] makes it.
+	fn call_sig(&mut self, sig: &abi::Sig, args: &[String]) -> (String, String) {
+		self.call(&sig.name, &sig.params, &sig.ret, args)
 	}
 
 	/// The Go name of the runtime's C type `c`, such as a range's.
@@ -1565,13 +1631,13 @@ impl<'a> Gen<'a> {
 					"a_ := &arena_{{}}\ndefer a_.finish()\nc_self_ := lower_{c}(a_, self)\nif a_.err != nil {{\n\treturn {}\n}}\n",
 					failed("a_.err")
 				),
-				"&c_self_".to_string(),
+				"c_self_".to_string(),
 			),
 			(false, true) => (
 				format!("a_ := &arena_{{}}\ndefer a_.finish()\nc_self_ := lower_{c}(a_, self)\n"),
-				"&c_self_".to_string(),
+				"c_self_".to_string(),
 			),
-			(false, false) => (format!("c_self_ := lower_{c}(self)\n"), "&c_self_".to_string()),
+			(false, false) => (format!("c_self_ := lower_{c}(self)\n"), "c_self_".to_string()),
 		};
 		let method =
 			|docs: &str, member: &str, params: Vec<(String, String)>, results: Vec<String>, body: String| Method {
@@ -1589,7 +1655,7 @@ impl<'a> Gen<'a> {
 			true => self.qualify(Packages::RT, "Status_"),
 			false => String::new(),
 		};
-		// Each trait's C function, with its shim if a check can fail it.
+		// Each trait's C function, its status last if a check can fail it.
 		let this_ty = match object {
 			true => Ty::Handle {
 				name: c.to_string(),
@@ -1597,44 +1663,33 @@ impl<'a> Gen<'a> {
 			},
 			false => Ty::In(Box::new(self.abi.ty(ty))),
 		};
-		let mut shims = HashMap::new();
-		if status {
-			let status_param = ("status".to_string(), Ty::Out(Box::new(Ty::Status)));
-			let this = ("self".to_string(), this_ty.clone());
-			let mut shim = |what: &str, params: Vec<(String, Ty)>, ret: Ty| {
-				let f = format!("{c}_{what}");
-				let params: Vec<(String, Ty)> = params.into_iter().chain([status_param.clone()]).collect();
-				let shim = self.checked_c(&f, &params, &ret);
-				shims.insert(f, shim);
+		let sig = |what: &str, n: usize, ret: Ty| abi::Sig {
+			name: format!("{c}_{what}"),
+			params: (0..n)
+				.map(|k| (format!("p{k}"), this_ty.clone()))
+				.chain(status.then(|| ("status".to_string(), Ty::Out(Box::new(Ty::Status)))))
+				.collect(),
+			ret,
+		};
+		let clone_ret = Ty::Handle {
+			name: c.to_string(),
+			constant: false,
+		};
+		// The call of `sig` with `args`, binding its result to `r_` after returning `failed`
+		// of its status's error, if it can fail a check.
+		let mut checked = |sig: abi::Sig, args: &[String], failed: &dyn Fn(&str) -> String| {
+			let (call, value) = self.call_sig(&sig, args);
+			let fail = match status {
+				true => format!(
+					"if c_status_ != 0 {{\n\treturn {}\n}}\n",
+					failed(&format!("{status_error}(int32(c_status_), \"{}\")", sig.name))
+				),
+				false => String::new(),
 			};
-			if t.display {
-				shim("to_string", vec![this.clone()], Ty::Buf);
+			match call.is_empty() {
+				true => format!("{fail}r_ := {value}\n"),
+				false => format!("{call}\n{fail}r_ := {value}\n"),
 			}
-			if t.debug {
-				shim("debug", vec![this.clone()], Ty::Buf);
-			}
-			if object && t.clone {
-				let handle = Ty::Handle {
-					name: c.to_string(),
-					constant: false,
-				};
-				shim("clone", vec![this.clone()], handle);
-			}
-			if t.eq && closable {
-				let a = ("a".to_string(), this_ty.clone());
-				let b = ("b".to_string(), this_ty.clone());
-				shim("eq", vec![a, b], Ty::Bool);
-			}
-		}
-		// The call of `f` with `args`, binding its result to `r_` then returning `failed` of
-		// its status's error, if it can fail a check.
-		let checked = |f: &str, args: &str, failed: &dyn Fn(&str) -> String| match status {
-			true => format!(
-				"c_ret_ := C.{}({args})\nif c_ret_.status != 0 {{\n\treturn {}\n}}\nr_ := c_ret_.value\n",
-				shims[f],
-				failed(&format!("{status_error}(int32(c_ret_.status), \"{f}\")"))
-			),
-			false => format!("r_ := C.{f}({args})\n"),
 		};
 		// fmt's String and GoString return no error, so a closed one, or a failed check, reads
 		// as the error.
@@ -1649,7 +1704,7 @@ impl<'a> Gen<'a> {
 				vec!["string".to_string()],
 				format!(
 					"{open}{}return liftString_(r_)",
-					checked(&format!("{c}_to_string"), &this, &text)
+					checked(sig("to_string", 1, Ty::Buf), &[this], &text)
 				),
 			));
 		}
@@ -1662,7 +1717,7 @@ impl<'a> Gen<'a> {
 				vec!["string".to_string()],
 				format!(
 					"{open}{}return liftString_(r_)",
-					checked(&format!("{c}_debug"), &this, &text)
+					checked(sig("debug", 1, Ty::Buf), &[this], &text)
 				),
 			));
 		}
@@ -1675,7 +1730,7 @@ impl<'a> Gen<'a> {
 				vec![name.clone(), "error".to_string()],
 				format!(
 					"{open}{}return own_{c}(r_), nil",
-					checked(&format!("{c}_clone"), &this, &|e| format!("nil, {e}"))
+					checked(sig("clone", 1, clone_ret.clone()), &[this], &|e| format!("nil, {e}"))
 				),
 			));
 		}
@@ -1694,19 +1749,21 @@ impl<'a> Gen<'a> {
 				(true, _) => format!(
 					"{open}{}\n{}return bool(r_){ok}",
 					hold(&slot, "other", "o_", "os_", &closed),
-					checked(&format!("{c}_eq"), &format!("{this}, (*C.{c})(o_)"), &failed)
+					checked(sig("eq", 2, Ty::Bool), &[this, format!("(*C.{c})(o_)")], &failed)
 				),
 				(false, true) if closable => format!(
 					"{open}c_other_ := lower_{c}(a_, other)\nif a_.err != nil {{\n\treturn {}\n}}\n{}return bool(r_){ok}",
 					failed("a_.err"),
-					checked(&format!("{c}_eq"), &format!("{this}, &c_other_"), &failed)
+					checked(sig("eq", 2, Ty::Bool), &[this, "c_other_".to_string()], &failed)
 				),
-				(false, true) => {
-					format!("{open}c_other_ := lower_{c}(a_, other)\nreturn bool(C.{c}_eq({this}, &c_other_)){ok}")
-				}
-				(false, false) => {
-					format!("{open}c_other_ := lower_{c}(other)\nreturn bool(C.{c}_eq({this}, &c_other_)){ok}")
-				}
+				(false, true) => format!(
+					"{open}c_other_ := lower_{c}(a_, other)\n{}return bool(r_){ok}",
+					checked(sig("eq", 2, Ty::Bool), &[this, "c_other_".to_string()], &failed)
+				),
+				(false, false) => format!(
+					"{open}c_other_ := lower_{c}(other)\n{}return bool(r_){ok}",
+					checked(sig("eq", 2, Ty::Bool), &[this, "c_other_".to_string()], &failed)
+				),
 			};
 			methods.push(method(
 				"Equal is Rust's PartialEq.",
@@ -2190,28 +2247,25 @@ impl<'a> Gen<'a> {
 		let name = self.qualified(&ty);
 		let handle = self.qualify(Packages::RT, "Handle_");
 		let (drop, dropping) = match self.abi.checked[i] {
-			true => (
-				format!(
-					"// drop_{c} drops the value of the handle p, which Rust checks.\n\
-					func drop_{c}(p unsafe.Pointer) error {{\n\treturn {status_}(int32(C.{shim}((*C.{c})(p))), \"{c}_drop\")\n}}\n\n",
-					shim = self.checked_c(
-						&format!("{c}_drop"),
-						&[
-							(
-								"self".to_string(),
-								Ty::Handle {
-									name: c.clone(),
-									constant: false,
-								},
-							),
-							("status".to_string(), Ty::Out(Box::new(Ty::Status))),
-						],
-						&Ty::Void,
+			true => {
+				let handle = Ty::Handle {
+					name: c.clone(),
+					constant: false,
+				};
+				let params = [
+					("self".to_string(), handle),
+					("status".to_string(), Ty::Out(Box::new(Ty::Status))),
+				];
+				let (call, _) = self.call(&format!("{c}_drop"), &params, &Ty::Void, &[format!("(*C.{c})(p)")]);
+				let status_ = self.qualify(Packages::RT, "Status_");
+				(
+					format!(
+						"// drop_{c} drops the value of the handle p, which Rust checks.\n\
+						func drop_{c}(p unsafe.Pointer) error {{\n\t{call}\n\treturn {status_}(int32(c_status_), \"{c}_drop\")\n}}\n\n"
 					),
-					status_ = self.qualify(Packages::RT, "Status_"),
-				),
-				format!("drop_{c}"),
-			),
+					format!("drop_{c}"),
+				)
+			}
 			false => (String::new(), "nil".to_string()),
 		};
 		format!(
@@ -2600,7 +2654,7 @@ impl<'a> Gen<'a> {
 						false => "",
 					};
 					prelude.push(format!("c_self_ := lower_{c}({a}{deref}self)"));
-					args.push("&c_self_".to_string());
+					args.push("c_self_".to_string());
 					checked |= self.fails(&ty);
 				}
 			}
@@ -2816,7 +2870,6 @@ impl<'a> Gen<'a> {
 			}
 			body.extend(decls);
 			let zeros: String = (0..oks.len()).map(|k| format!("r{k}_, ")).collect();
-			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
 			let mut ready: Vec<String> = Vec::new();
 			for (k, ty) in oks.iter().enumerate() {
 				let out = out_name(&function.ok, k);
@@ -2830,28 +2883,17 @@ impl<'a> Gen<'a> {
 			}
 			let cases = cases.join("\n");
 			// Lifts what a call or a poll wrote, once either reports the future finished.
-			let decls: Vec<String> = poll_outs.iter().map(|(n, ty)| self.out_decl(n, ty)).collect();
-			let ptrs: Vec<String> = poll_outs.iter().map(|(n, _)| format!("&c_{n}_")).collect();
-			let mut call_args = vec!["f_".to_string(), "w_".to_string()];
-			call_args.extend(ptrs.iter().cloned());
-			let mut polled = decls.clone();
-			polled.push(format!(
-				"switch C.{}({}) {{\n{cases}\n}}\nreturn false, nil",
-				poll.name,
-				call_args.join(", ")
+			let (call, value) = self.call_sig(poll, &["f_".to_string(), "w_".to_string()]);
+			let polled = indent(&then(
+				&call,
+				&format!("switch {value} {{\n{cases}\n}}\nreturn false, nil"),
 			));
-			let polled = indent(&polled.join("\n"));
 			if function.eager {
 				// An eager call runs Rust, and any callback it makes, before its future
 				// exists, and a callback may cancel the context: so it is made, then the
 				// context checked, then polled, never started.
-				match status {
-					true => {
-						let (call, value) = self.call_checked(&export.call, &args);
-						body.push(format!("{call}\nf_ := {value}"));
-					}
-					false => body.push(format!("f_ := C.{c_name}({})", args.join(", "))),
-				}
+				let (call, value) = self.call_sig(&export.call, &args);
+				body.push(then(&call, &format!("f_ := {value}")));
 				body.extend(failed.clone());
 				body.push(format!("defer C.{}(f_)", free.name));
 				body.push(format!(
@@ -2864,30 +2906,25 @@ impl<'a> Gen<'a> {
 				// and dropped unpolled, as Rust drops one it never awaits. Making an `async fn`'s
 				// future runs nothing, so the check needs no repeat after it.
 				// What it moved out of closes once its checks passed, as the future owns it.
+				let (call, value) = self.call_sig(&export.call, &args);
+				let free_made = format!("C.{}({value})", free.name);
 				let made = match status {
-					true if moved.is_empty() => {
-						let shim = self.checked_c(&c_name, &export.call.params, &export.call.ret);
-						format!("C.{}(C.{shim}({}).value)", free.name, args.join(", "))
-					}
+					true if moved.is_empty() => format!("{call}\nif c_status_ == 0 {{\n\t{free_made}\n}}"),
 					true => {
-						let (call, value) = self.call_checked(&export.call, &args);
 						let moved = moved.replace('\n', "\n\t");
-						format!("{call}\nC.{}({value})\nif c_status_ == 0 {{\n\t{moved}\n}}", free.name)
+						format!("{call}\nif c_status_ == 0 {{\n\t{free_made}\n\t{moved}\n}}")
 					}
-					false => format!("C.{}(C.{c_name}({}))", free.name, args.join(", ")),
+					false => then(&call, &free_made),
 				};
 				body.push(format!(
 					"if err_ := ctx.Err(); err_ != nil {{\n{}\n\treturn {zeros}err_\n}}",
 					indent(&made)
 				));
-				// The status, which the shim passes, follows every out, and the future's handle.
-				let mut start_args = args.clone();
-				start_args.extend(ptrs.iter().cloned());
-				start_args.push("&f_".to_string());
-				let mut inner = decls;
+				// The shim returns each out, the future's handle, and the status.
+				let (call, value) = self.call_sig(start, &args);
+				let mut inner = Vec::new();
 				match status {
 					true => {
-						let (call, value) = self.call_checked(start, &start_args);
 						inner.push(format!(
 							"{call}\nstarted_ := {value}\nif c_status_ != 0 {{\n\treturn true, {status_error}\n}}"
 						));
@@ -2896,10 +2933,7 @@ impl<'a> Gen<'a> {
 						}
 						inner.push(format!("switch started_ {{\n{cases}\n}}\nreturn false, nil"));
 					}
-					false => {
-						let started = format!("C.{}({})", start.name, start_args.join(", "));
-						inner.push(format!("switch {started} {{\n{cases}\n}}\nreturn false, nil"))
-					}
+					false => inner.push(format!("{call}\nswitch {value} {{\n{cases}\n}}\nreturn false, nil")),
 				}
 				body.push(format!("var f_ *C.{handle}"));
 				body.push(format!(
@@ -2916,18 +2950,13 @@ impl<'a> Gen<'a> {
 			returns.push("err_".to_string());
 			body.push(format!("return {}", returns.join(", ")));
 		} else {
-			for (n, ty) in &outs {
-				body.push(self.out_decl(n, ty));
+			// A shim's call is made here, and binds each out; a plain call is the value.
+			let (made, mut call) = self.call_sig(&export.call, &args);
+			if !made.is_empty() {
+				body.push(made);
 			}
-			let mut call_args = args.clone();
-			// The status, which the shim passes, follows every out.
-			call_args.extend(outs.iter().map(|(n, _)| format!("&c_{n}_")));
-			let mut call = format!("C.{c_name}({})", call_args.join(", "));
 			// Made first, so a failed check returns before any result is read.
 			let made = failed.map(|failed| {
-				let (checked, value) = self.call_checked(&export.call, &call_args);
-				body.push(checked);
-				call = value;
 				let made = match (&err, &export.call.ret) {
 					(Some(_), _) => {
 						body.push(format!("ok_ := {call}"));
@@ -2976,7 +3005,9 @@ impl<'a> Gen<'a> {
 						String::new()
 					}
 					None => {
-						body.push(call);
+						if !call.is_empty() {
+							body.push(call);
+						}
 						String::new()
 					}
 				};
@@ -3017,7 +3048,9 @@ impl<'a> Gen<'a> {
 					}
 				}
 				(None, false) if !outs.is_empty() => {
-					body.push(call);
+					if !call.is_empty() {
+						body.push(call);
+					}
 					let mut values: Vec<String> = (oks.iter().enumerate())
 						.map(|(k, ty)| {
 							let out = out_name(&function.ok, k);
@@ -3086,14 +3119,6 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// The declaration of the local the call writes the out value `name` of C type `ty` to.
-	fn out_decl(&self, name: &str, ty: &Ty) -> String {
-		let Ty::Out(inner) = ty else {
-			unreachable!("an out parameter is a pointer")
-		};
-		format!("var c_{name}_ {}", self.c_go(inner))
-	}
-
 	/// The Go error of the C error `e` of type `err`: itself if an exported type, which then
 	/// implements `error`, or else in a struct of its own.
 	fn lift_err(&mut self, err: &Type, e: &str) -> String {
@@ -3109,6 +3134,14 @@ impl<'a> Gen<'a> {
 				format!("{name}{{Value: {lifted}}}")
 			}
 		}
+	}
+}
+
+/// The Go statements `first`, if any, then `rest`.
+fn then(first: &str, rest: &str) -> String {
+	match first.is_empty() {
+		true => rest.to_string(),
+		false => format!("{first}\n{rest}"),
 	}
 }
 

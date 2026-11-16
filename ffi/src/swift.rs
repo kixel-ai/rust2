@@ -2096,10 +2096,16 @@ impl<'a> Gen<'a> {
 			member.clone(),
 		);
 
+		// A future runs on its caller's executor, as Swift 6.2's `nonisolated(nonsending)`
+		// says, so a call ready at its first poll never hops off an actor and back.
+		let isolation = match function.future {
+			true => "nonisolated(nonsending) ",
+			false => "",
+		};
 		let head = match var {
 			true => format!("public {stat}var {member}{}", ret.replacen(" -> ", ": ", 1)),
 			false => format!(
-				"public {stat}{mutation}func {member}({}){effects}{ret}",
+				"{isolation}public {stat}{mutation}func {member}({}){effects}{ret}",
 				params.join(", ")
 			),
 		};
