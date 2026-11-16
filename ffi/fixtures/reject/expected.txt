@@ -58,7 +58,8 @@ fixtures/reject/src/lib.rs:1336:1: rust2-ffi: cannot export fn `keep_object`: 's
 fixtures/reject/src/lib.rs:1341:1: rust2-ffi: cannot export fn `bound_object`: 'static borrow `&mut jni::Env<'a>`; 'static borrow `jni::objects::JObject<'a>`; exclude it in the config to leave it out
 	fixtures/reject/src/lib.rs:1341:21: note: `'a` is `'static`, as a handle outlives every call
 	fixtures/reject/src/lib.rs:1341:21: note: `'a` is `'static`, as a handle outlives every call
-fixtures/reject/src/lib.rs:1364:2: rust2-ffi: cannot export method `Slot<u8>::view`: returned object that borrows `SlotView<'_, u8>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1365:2: rust2-ffi: cannot export method `Slot<u8>::view`: returned object that borrows `SlotView<'_, u8>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:1371:2: rust2-ffi: cannot export method `Slot<u8>::peek`: returned object that borrows `SlotView<'_, u8>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:145:2: rust2-ffi: cannot export method `Link::session`: borrowed return that is not Clone `tls::held::Handoff`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:162:1: rust2-ffi: cannot export fn `measure`: foreign type `tls::held::Local`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:167:1: rust2-ffi: cannot export instance `Cell<std::vec::Vec<String>>`: type argument `std::vec::Vec<String>`; exclude it in the config to leave it out

@@ -2659,7 +2659,48 @@ static int statuses(void) {
 			fprintf(stderr, "a ledger after its receipts wrote %d\n", status);
 			failed = 1;
 		}
+		/* A receipt whose bound lets it live as long as the program, and a field of a
+		 * slip's clone, which would carry the ledger's borrow out, each fail as lent. */
+		receipt = api_Ledger_receipt(ledger, NULL);
+		status = 0;
+		api_stored(receipt, &status);
+		if (status != API_STATUS_LENT || api_Receipt_count(receipt, NULL) != 0) {
+			fprintf(stderr, "a lent receipt stored wrote %d\n", status);
+			failed = 1;
+		}
+		api_Receipt_free(receipt);
+		api_Slip *slip = api_Ledger_slip(ledger, NULL);
+		api_Slip *twin = api_Slip_clone(slip, NULL);
+		api_Slip_free(slip);
+		status = 0;
+		api_Slip_receipt_get(twin, &status);
+		if (status != API_STATUS_LENT || api_Slip_count(twin, NULL) != 0) {
+			fprintf(stderr, "a lent slip's receipt wrote %d\n", status);
+			failed = 1;
+		}
+		api_Slip_free(twin);
+		status = 0;
+		api_Ledger_seal(ledger, &status);
+		if (status != 0) {
+			fprintf(stderr, "a ledger after its slips wrote %d\n", status);
+			failed = 1;
+		}
 		api_Ledger_free(ledger);
+		/* Only `Pad<u8>`'s own `describe` hides its sheet's. */
+		api_Pad_u8 *small = api_Pad_u8_small();
+		api_Pad_u16 *wide = api_Pad_u16_wide();
+		api_buf padded = api_Pad_u8_describe(small);
+		api_buf sheeted = api_Pad_u16_describe(wide);
+		if (padded.len != 5 || memcmp(padded.ptr, "pad 1", 5) != 0 || sheeted.len != 6 ||
+		    memcmp(sheeted.ptr, "sheet ", 6) != 0 || api_Pad_u16_tag(wide) != 2) {
+			fprintf(stderr, "pads describe as %.*s and %.*s\n", (int)padded.len, (const char *)padded.ptr,
+			        (int)sheeted.len, (const char *)sheeted.ptr);
+			failed = 1;
+		}
+		api_buf_free(padded);
+		api_buf_free(sheeted);
+		api_Pad_u8_free(small);
+		api_Pad_u16_free(wide);
 	}
 
 	status = 0;

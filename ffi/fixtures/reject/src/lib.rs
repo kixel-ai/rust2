@@ -1342,7 +1342,8 @@ pub fn bound_object<'a: 'static>(env: &mut jni::Env<'a>, object: jni::objects::J
 	env.get_raw().is_null() && object.is_null()
 }
 
-/// A view sharing its slot's borrow.
+/// A view sharing its slot's borrow, which a copy carries.
+#[derive(Clone, Copy)]
 pub struct SlotView<'a, T>(&'a T);
 
 impl SlotView<'static, u8> {
@@ -1362,6 +1363,12 @@ impl Slot<u8> {
 	/// A view that borrows its handle shared, which a new handle would outlive: only a
 	/// `&mut self` method's borrowing object holds its receiver's borrow.
 	pub fn view(&self) -> SlotView<'_, u8> {
+		SlotView(&self.0)
+	}
+
+	/// A view that borrows its handle exclusively, but whose copies would carry the borrow
+	/// past the one handle that holds it.
+	pub fn peek(&mut self) -> SlotView<'_, u8> {
 		SlotView(&self.0)
 	}
 }

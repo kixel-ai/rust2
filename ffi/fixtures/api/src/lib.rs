@@ -792,6 +792,27 @@ impl Ledger {
 	pub fn receipt(&mut self) -> Receipt<'_> {
 		Receipt(&self.published)
 	}
+
+	pub fn slip(&mut self) -> Slip<'_> {
+		Slip {
+			receipt: Receipt(&self.published),
+			here: std::marker::PhantomData,
+		}
+	}
+}
+
+/// A receipt kept on the thread that took it: `Clone` and not `Send`, with a field that
+/// borrows what the slip borrows, so reading it would carry the ledger's borrow out.
+#[derive(Clone)]
+pub struct Slip<'a> {
+	pub receipt: Receipt<'a>,
+	here: std::marker::PhantomData<std::rc::Rc<()>>,
+}
+
+impl Slip<'_> {
+	pub fn count(&self) -> u32 {
+		self.receipt.count()
+	}
 }
 
 /// What a [`Ledger`] published, borrowed from it: `Send` and `Clone`, unlike a [`Draft`].
@@ -891,6 +912,53 @@ impl Drop for Draft<'_> {
 /// [`Ledger::edit`] lends never does, so passing one fails, as Rust refuses it.
 pub fn lasting(draft: &Draft<'static>) -> bool {
 	draft.edited
+}
+
+/// What `receipt` counts: its bound lets it live as long as the program, so passing one a
+/// [`Ledger`] lends fails, as Rust refuses it.
+pub fn stored<'a: 'static>(receipt: Receipt<'a>) -> u32 {
+	receipt.count()
+}
+
+/// A sheet with a tag, which derefs to the sheet: only `Pad<u8>` has a `describe` of its
+/// own, which hides the sheet's, while `Pad<u16>`'s is the sheet's, as in Rust.
+pub struct Pad<T> {
+	sheet: Sheet,
+	tag: T,
+}
+
+impl<T> std::ops::Deref for Pad<T> {
+	type Target = Sheet;
+
+	fn deref(&self) -> &Sheet {
+		&self.sheet
+	}
+}
+
+impl Pad<u8> {
+	pub fn small() -> Self {
+		Self {
+			sheet: Sheet::new(),
+			tag: 1,
+		}
+	}
+
+	pub fn describe(&self) -> String {
+		format!("pad {}", self.tag)
+	}
+}
+
+impl Pad<u16> {
+	pub fn wide() -> Self {
+		Self {
+			sheet: Sheet::new(),
+			tag: 2,
+		}
+	}
+
+	pub fn tag(&self) -> u16 {
+		self.tag
+	}
 }
 
 /// A name that may borrow its text: its only generic parameter is a lifetime, so a

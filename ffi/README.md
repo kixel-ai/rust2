@@ -173,8 +173,9 @@ object takes is `'static`, as is every lifetime that must outlive one; any other
 is the call's. A signature may not lend C's borrow for one that is `'static`, but for a
 `&str` or `&[u8]`, which Rust interns, nor return an object that borrows, but for an
 exclusive lend: a `&mut self` method of an object returning an object, bare or as a
-`Result`'s `Ok`, that borrows the receiver's lifetime alone, as a lock's guard does, which
-its handle holds with the receiver's exclusive borrow. A parameter is a reference
+`Result`'s `Ok`, that borrows the receiver's lifetime alone and is not `Copy`, as a lock's
+guard does, which its handle holds with the receiver's exclusive borrow; a copy would
+carry the borrow past it. A parameter is a reference
 only at its top or as `Some` of an `Option`, lent as the reference alone is, so
 `Option<&T>` is a null or borrowed handle, a null or viewed buffer, or an option of a
 value, and not inside a `Box` or any other type. A `&mut` of a value, but a `str` or a
@@ -351,9 +352,11 @@ where it was while its file is unchanged.
   `commit(self)` does, which gives the borrow back once the call returns. Until then the
   receiver fails each call with `<PREFIX>_STATUS_EXCLUSIVE` or `<PREFIX>_STATUS_BORROWED`,
   and its `_free` leaves the value to the lend. A clone shares the borrow, which the last
-  copy gives back. A call that could keep the value past it, one taking an object whose
-  lifetime is `'static` or ties it to another argument or the return, fails with
-  `<PREFIX>_STATUS_LENT`, as does a move into anything but a plain call.
+  copy gives back. A call that could keep the value past it or carry its borrow out fails
+  with `<PREFIX>_STATUS_LENT`, as does a move into anything but a plain call: one taking an
+  object whose lifetime is `'static`, or ties it to another argument or the return, itself
+  or through the signature's bounds, and a field's getter or setter where the field holds
+  what borrows.
 - **Interned strings**: a `&str` or `&[u8]` a function needs for `'static`, as
   `Path::from_static` and `CertificateDer::from_slice` do, is leaked once per distinct content and reused for every later equal one, so a
   caller passing ever-new strings grows the set without bound.

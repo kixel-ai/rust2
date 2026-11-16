@@ -1465,7 +1465,7 @@ impl Gen<'_> {
 			// borrowing value share their borrow.
 			let clone = match (self.abi.held[i], send) {
 				(true, true) => format!("rt::Object::holding({clone}, this.loan())"),
-				(true, false) => format!("rt::Object::holding_unsent(rt::Unsent::into_inner({clone}), this.loan())"),
+				(true, false) => format!("rt::Object::holding_unsent({clone}, this.loan())"),
 				(false, _) => self.new_object(i, &clone),
 			};
 			let body = wrap(status, handle, &format!("let this = {this};\n\t{clone}"));
