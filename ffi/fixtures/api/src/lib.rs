@@ -1980,6 +1980,14 @@ impl Local {
 		std::task::Poll::Ready(self.bump())
 	}
 
+	/// Which thread it lives on, numbered from 1 in the order each first asked.
+	pub fn thread_number(&self) -> u64 {
+		self.here();
+		static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+		thread_local!(static NUMBER: u64 = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+		NUMBER.with(|number| *number)
+	}
+
 	/// Whether this runs on its own thread, which every use of it must.
 	pub fn on_own_thread(&self) -> bool {
 		std::thread::current().id() == self.thread

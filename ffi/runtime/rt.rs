@@ -1700,19 +1700,25 @@ impl<T> Object<T> {
 
 impl<T> Drop for Object<T> {
 	fn drop(&mut self) {
+		let mut owner = self.owner.take();
 		if self.lent.is_null() && *self.borrow.state.get_mut() != TAKEN {
 			let value = self.value.get_mut();
-			match self.owner.take() {
+			match owner.take_if(|owner| !owner.is_here()) {
 				// A value that is not `Send` drops on its own thread.
-				Some(owner) if !owner.is_here() => {
+				Some(owner) => {
 					// SAFETY: as below; the value moves out to drop there, and nothing reads it here again.
 					let value = unsafe { value.assume_init_read() };
 					// SAFETY: the value is the owner's.
 					unsafe { Dropped::new(value, owner, Unsent::<()>::named::<T>()) }.send();
 				}
 				// SAFETY: the last reference is gone, and the value is its own and never taken.
-				_ => unsafe { value.assume_init_drop() },
+				None => unsafe { value.assume_init_drop() },
 			}
+		}
+		// A handle whose value dropped already, as one closed or lent, may hold the last
+		// record of its home but the home's own: letting go wakes the home to see so.
+		if let Some(owner) = owner {
+			Thread::let_go(owner);
 		}
 	}
 }

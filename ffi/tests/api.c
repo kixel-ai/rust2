@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef __linux__
 #include <sys/prctl.h>
@@ -2329,6 +2330,35 @@ static int not_send(void) {
 	api_Local_free(h.a);
 	api_Local_free(h.b);
 	while (api_locals_dropped() != before_made + 2) {
+	}
+	/* A home whose value was closed, then freed elsewhere, goes idle, so a later value made
+	 * from none lives there: one of the next few, as the home sees it in its own time. */
+	api_Local *closed = api_Local_new_homed();
+	uint64_t closed_on = api_Local_thread_number(closed, &status);
+	api_Local_drop(closed, &status);
+	api_Local_free(closed);
+	api_Local *made[100];
+	size_t count = 0;
+	bool reused = false;
+	while (count < 100 && !reused) {
+		made[count] = api_Local_new_homed();
+		reused = api_Local_thread_number(made[count], &status) == closed_on;
+		count++;
+		struct timespec start, now;
+		timespec_get(&start, TIME_UTC);
+		do {
+			timespec_get(&now, TIME_UTC);
+		} while (!reused && (now.tv_sec - start.tv_sec) * 1000000000L + (now.tv_nsec - start.tv_nsec) < 20000000L);
+	}
+	if (!reused || status != 0) {
+		fprintf(stderr, "a home whose value was closed never went idle, writing %d\n", status);
+		failed = 1;
+	}
+	before_made = api_locals_dropped();
+	for (size_t i = 0; i < count; i++) {
+		api_Local_free(made[i]);
+	}
+	while (api_locals_dropped() != before_made + count) {
 	}
 	/* A poll through a waiter that is not Send keeps it, so its future is not Send either. */
 	api_LocalWaiter_poll_ready_future *waited = NULL;

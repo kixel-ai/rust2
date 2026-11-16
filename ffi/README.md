@@ -305,9 +305,10 @@ where it was while its file is unchanged.
   `<name>_start_homed`, and `Default`'s, `<T>_default_homed`: with no such value passed,
   it runs on a home, a thread Rust owns, which the value then stays on, and each later
   call on it, from any thread, runs there while the caller waits, as does a call on a
-  handle it returns; with one passed, it runs where that value stays, as the function
-  does. The first present of a call's receiver and its parameters that are handles of
-  such values, bare or in an `Option`, sends it home. Values from different homes, or one
+  handle it returns; with one passed, it runs as the function does. The first present of
+  a call's receiver and its parameters that are handles of such values, bare or in an
+  `Option`, sends it to that value's home, if it lives on one; a value made on a thread
+  the caller owns is not sent, so a call on it from another thread fails its check. Values from different homes, or one
   nested in a list or a record, are not sent: the call runs on the first's home, where
   any other fails its check with `<PREFIX>_STATUS_NOT_SEND`. A home waiting on a call into
   Dart, or on another home, runs meanwhile what that call asks of its own values. A

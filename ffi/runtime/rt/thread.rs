@@ -256,7 +256,7 @@ impl Thread {
 	/// Drop `this`, a record of a thread, waking it if it is a home, which then sees
 	/// whether any value still lives on it: no count another thread holds for a moment
 	/// keeps it from going idle.
-	fn let_go(this: Arc<Thread>) {
+	pub fn let_go(this: Arc<Thread>) {
 		let parked = this.home.then(|| this.parked.get().cloned()).flatten();
 		drop(this);
 		if let Some(thread) = parked {
