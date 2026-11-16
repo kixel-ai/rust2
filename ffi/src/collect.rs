@@ -3148,7 +3148,15 @@ impl<'tcx> Collector<'tcx> {
 				ty::AssocKind::Fn { has_self: true, .. }
 			);
 		let unbound = sig.skip_binder();
-		let exclusive = self.exclusive(def_id, unbound, has_self);
+		let exclusive = (self.exclusive(def_id, unbound, has_self)).filter(|_| {
+			// Its lifetimes free, as a call's are: the late-bound ones its own.
+			let free = tcx.liberate_late_bound_regions(def_id, sig).output();
+			let ok = match free.kind() {
+				ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Result, adt.did()) => args.type_at(0),
+				_ => free,
+			};
+			self.lifetime_generic(ok)
+		});
 		let (statics, lifetimes, interned) = self.borrows(def_id, unbound, exclusive);
 		errs.extend(lifetimes);
 		// Whether what it returns borrows: any lifetime in it that is not `'static`.
@@ -4896,6 +4904,63 @@ impl<'tcx> Collector<'tcx> {
 				sym::Copy,
 			))
 		.then_some(region)
+	}
+
+	/// Whether each trait the glue calls on a value of `ty`, its type's `'static` form, holds
+	/// at every lifetime `ty` names, as do its `Deref` and `DerefMut`, whose target names no
+	/// lifetime: one implemented for `'static` alone could keep what a value an exclusive
+	/// lend holds borrows past the lend. Each is proved with no where-clause and no lifetime
+	/// relation assumed, as a bound of a function is.
+	fn lifetime_generic(&self, ty: Ty<'tcx>) -> bool {
+		let tcx = self.tcx;
+		let lang = tcx.lang_items();
+		let empty = ty::ParamEnv::empty();
+		let named = [
+			sym::Clone,
+			sym::PartialEq,
+			sym::Hash,
+			sym::Debug,
+			rustc_span::sym::Display,
+		];
+		let traits: Vec<DefId> = (named.iter().filter_map(|&name| tcx.get_diagnostic_item(name)))
+			.chain(lang.deref_trait())
+			.chain(lang.deref_mut_trait())
+			.collect();
+		let trait_ref = |tr: DefId, ty: Ty<'tcx>| match Some(tr) == tcx.get_diagnostic_item(sym::PartialEq) {
+			true => ty::TraitRef::new(tcx, tr, [ty, ty]),
+			false => ty::TraitRef::new(tcx, tr, [ty]),
+		};
+		// Whether `tr` holds for `ty`, and whether it does with its lifetimes left free.
+		let holds = |tr: DefId, ty: Ty<'tcx>, free: bool| {
+			let ty = match free {
+				true => ty,
+				false => ty::fold_regions(tcx, ty, |_, _| tcx.lifetimes.re_static),
+			};
+			let infcx = tcx.infer_ctxt().build(ty::TypingMode::non_body_analysis());
+			let ocx = ObligationCtxt::new(&infcx);
+			ocx.register_obligation(Obligation::new(tcx, ObligationCause::dummy(), empty, trait_ref(tr, ty)));
+			ocx.evaluate_obligations_error_on_ambiguity().no_errors()
+				&& (!free
+					|| ocx
+						.resolve_regions(rustc_hir::def_id::CRATE_DEF_ID, empty, [])
+						.is_empty())
+		};
+		if traits.iter().any(|&tr| holds(tr, ty, false) && !holds(tr, ty, true)) {
+			return false;
+		}
+		// A target naming no lifetime reaches nothing the lend's borrow does; one naming any
+		// would need its own traits proved at the lend's lifetime, which the export does not.
+		let (Some(deref), Some(target)) = (lang.deref_trait(), lang.deref_target()) else {
+			return true;
+		};
+		if !holds(deref, ty, false) {
+			return true;
+		}
+		let erased = ty::fold_regions(tcx, ty, |_, _| tcx.lifetimes.re_static);
+		let projection = Ty::new_projection(tcx, ty::IsRigid::No, target, [erased]);
+		let env = TypingEnv::fully_monomorphized();
+		tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(projection))
+			.is_ok_and(|next| !next.walk().any(|arg| arg.as_region().is_some()))
 	}
 
 	/// Each `'long: 'short` the bounds of `def_id`'s signature name.

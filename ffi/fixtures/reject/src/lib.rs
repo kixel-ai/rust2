@@ -1372,3 +1372,76 @@ impl Slot<u8> {
 		SlotView(&self.0)
 	}
 }
+
+/// A tag whose `Clone` is implemented for `'static` alone, which a clone through a handle
+/// would call on a value whose borrow is shorter.
+pub struct SlotTag<'a>(&'a mut u8);
+
+impl Clone for SlotTag<'static> {
+	fn clone(&self) -> Self {
+		SlotTag(Box::leak(Box::new(*self.0)))
+	}
+}
+
+/// A lens whose `Deref` is implemented for `'static` alone.
+pub struct SlotLens<'a>(&'a mut u8);
+
+impl std::ops::Deref for SlotLens<'static> {
+	type Target = u8;
+
+	fn deref(&self) -> &u8 {
+		self.0
+	}
+}
+
+/// A peer that derefs to a view of the same borrow, whose own traits the export does not
+/// prove at the lend's lifetime.
+pub struct SlotPeer<'a>(SlotView<'a, u8>, &'a mut u8);
+
+impl<'a> std::ops::Deref for SlotPeer<'a> {
+	type Target = SlotView<'a, u8>;
+
+	fn deref(&self) -> &SlotView<'a, u8> {
+		&self.0
+	}
+}
+
+impl Slot<u8> {
+	/// Refused: its tag's `Clone` holds only for `'static`.
+	pub fn tag(&mut self) -> SlotTag<'_> {
+		SlotTag(&mut self.0)
+	}
+
+	/// Refused: its lens's `Deref` holds only for `'static`.
+	pub fn lens(&mut self) -> SlotLens<'_> {
+		SlotLens(&mut self.0)
+	}
+
+	/// Refused: its peer's `Deref` target names the lend's lifetime.
+	pub fn peer(&mut self) -> SlotPeer<'_> {
+		let Slot(value) = self;
+		let view: &u8 = Box::leak(Box::new(*value));
+		SlotPeer(SlotView(view), value)
+	}
+}
+
+impl SlotTag<'static> {
+	/// A tag of its own, which keeps the type reachable without a slot.
+	pub fn fixed() -> Self {
+		SlotTag(Box::leak(Box::new(0)))
+	}
+}
+
+impl SlotLens<'static> {
+	/// A lens of its own, which keeps the type reachable without a slot.
+	pub fn fixed() -> Self {
+		SlotLens(Box::leak(Box::new(0)))
+	}
+}
+
+impl SlotPeer<'static> {
+	/// A peer of its own, which keeps the type reachable without a slot.
+	pub fn fixed() -> Self {
+		SlotPeer(SlotView(&0), Box::leak(Box::new(0)))
+	}
+}
