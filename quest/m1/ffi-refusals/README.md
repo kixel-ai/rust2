@@ -83,9 +83,9 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   `SocketAddr` is, and `server::Listener::accept_with` as its future need not be `Send`);
   `just ffi census` fails on an exclude that names what exports. The
   bump is then only the bump. Of the types refused for not being `Send`, `clock::Entered`
-  and `clock::Rng` export since [#844](https://github.com/kixel-ai/rust2/pull/844), and `catalog::Guard` is left out, as
-  `Producer::modify` returns it borrowing its receiver mutably, which no handle may hold
-  until [an exclusive lend](/quest/m1/exclusive-lend.md) exports it.
+  and `clock::Rng` export since [#844](https://github.com/kixel-ai/rust2/pull/844), and `catalog::Guard` since
+  [#848](https://github.com/kixel-ai/rust2/pull/848), whose handle holds the exclusive lend
+  of the receiver `Producer::modify` borrows mutably.
 - ✅ The closing work is a child, [no config](/quest/m1/ffi-refusals/no-config.md), as
   [the exporter epic's](/quest/m1/ffi-export/ship.md) is: an epic's `Required` would hold
   back every child.
