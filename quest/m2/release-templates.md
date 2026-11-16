@@ -11,6 +11,9 @@ native Rust before any publication.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-16 at the packaging spike's merge pick:
+✅ keep this follow-up unchanged (rejected: drop it).
+
 Decided with the maintainer on 2026-11-16 in the
 [packaging spike](https://github.com/kixel-ai/rust2/pull/761#issuecomment-6930429582):
 ✅ release templates with shared builders (rejected: keep investigating a
