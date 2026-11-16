@@ -301,7 +301,9 @@ where it was while its file is unchanged.
   fails with `<PREFIX>_STATUS_NOT_SEND` before any Rust code runs, so such a future's poll
   takes a trailing `status` too. A `_free` or `_drop` elsewhere drops nothing there: it
   queues the drop to the value's thread, which runs it at its next check of one of its
-  values or as it exits. One freed once its thread exited leaks, printing why, since
+  values or as it exits. A thread running a loop that may call nothing for a while
+  passes `<prefix>_thread_wake` a waker, which such a free wakes so the loop schedules
+  `<prefix>_thread_drain` there. One freed once its thread exited leaks, printing why, since
   nothing may drop it. A function that makes such a value, taking none or only in an
   `Option`, has a twin `<name>_homed` of the same signature, as do its future's start,
   `<name>_start_homed`, and `Default`'s, `<T>_default_homed`: with no such value passed,
@@ -473,7 +475,9 @@ packages place it in.
 - **Checks**: a call passes no `status`, so a borrow or move Rust's rules refuse aborts
   with its message, naming the function, as C's does with a NULL one: so does a use or
   poll of a value that is not `Send` on another thread than the one that made it, and
-  one destroyed on another drops on its own thread at its next call or as it exits.
+  one destroyed on another drops on its own thread: a job posted to the executor of the
+  thread's latest `then` or `via` drops it, while that task lives and if the job runs on
+  the thread, else its next call or its exit does.
 - **Sharing** stands in for `clone` where no call can tell the two apart but by counting
   an `Arc`'s or `Rc`'s clones, which the exporter decides at compile time. A type's copies share when it is `Clone`; `Sync`,
   since one that is not is borrowed on one thread at a time, which copies on two threads
@@ -732,7 +736,9 @@ caller imports it with no ignores.
   borrows from, as for a closed object, and `RuntimeError` for any other, as for a value
   that is not `Send` used on another thread than the one that made it. Freed on another,
   as the collector or the last reference there frees it, such a value drops on its own
-  thread at its next call or as it exits.
+  thread: on the next turn of the event loop that ran there when a call made a value that
+  is not `Send`, though the loop calls nothing into Rust, else at its next call or as it
+  exits.
 - **Records** are slotted dataclasses, compared by their fields, a float by IEEE `==` even
   against itself, as Rust does, and **enums** an `Enum`
   of upper-case members, or for one with data a class of a dataclass per variant,

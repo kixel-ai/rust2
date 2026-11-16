@@ -96,6 +96,20 @@ impl Api {
 		api
 	}
 
+	/// Whether a call may make a value that is not `Send`, an object or a future, whose
+	/// thread a binding running a loop gives a wake to drain its frees elsewhere.
+	pub fn unsent(&self) -> bool {
+		let records = self.records.iter().flat_map(|r| &r.methods);
+		let enums = self.enums.iter().flat_map(|e| &e.methods);
+		let objects = self.objects.iter().flat_map(|o| &o.methods);
+		self.objects.iter().any(|o| !o.send)
+			|| records
+				.chain(enums)
+				.chain(objects)
+				.chain(&self.functions)
+				.any(|f| f.future && !f.send)
+	}
+
 	/// Whether an item on `on` is on every target the API serves.
 	pub fn everywhere(&self, on: On) -> bool {
 		on.0 & self.all().0 == self.all().0

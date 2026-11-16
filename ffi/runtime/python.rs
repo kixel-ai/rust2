@@ -243,10 +243,66 @@ pub fn call<T>(f: impl FnOnce() -> T) -> T {
 	// SAFETY: released just above.
 	unsafe { PyEval_RestoreThread(state) };
 	RUNNING.set(outer);
+	// First, as a drain it queues at once may be one to resume.
+	if rt::Thread::made() {
+		drains();
+	}
 	if !RESUMES.with_borrow(Vec::is_empty) {
 		resume();
 	}
 	result
+}
+
+/// The token of a drain, which no future or `Waker` takes.
+const DRAIN: i64 = 0;
+
+/// A call made a value that is not `Send`: give this thread a wake that queues a drain on
+/// the event loop running here, if one is, so a free on another thread reaches an idle
+/// loop, which its `Queue.drain` then runs.
+#[cold]
+fn drains() {
+	// SAFETY: the GIL is held. An exception the caller has set is kept aside while Python
+	// runs, and put back after.
+	unsafe {
+		let (mut kind, mut value, mut trace) = (null_mut(), null_mut(), null_mut());
+		PyErr_Fetch(&mut kind, &mut value, &mut trace);
+		// With no loop running here, the thread drains at its next call instead.
+		let running = running_loop();
+		let woken = DRAINS.with_borrow(|drains| {
+			drains.upgrade().is_some_and(|queue| queue.event_loop == running && !queue.closed.load(Ordering::Relaxed))
+		});
+		if running != 0 && !woken {
+			match Obj::new(PyObject_CallNoArgs(ty(T_DRAINS))).and_then(|queue| queue_of(queue.ptr())) {
+				Ok(queue) => drain_on(&queue),
+				// The thread drains at its next call instead, and an interrupt its Python ran
+				// into is raised again at the thread's next chance.
+				Err(Raised) if PyErr_ExceptionMatches(PyExc_KeyboardInterrupt) != 0 => {
+					PyErr_Clear();
+					PyErr_SetInterrupt();
+				}
+				Err(Raised) => PyErr_WriteUnraisable(ty(T_DRAINS)),
+			}
+		}
+		PyErr_Restore(kind, value, trace);
+	}
+}
+
+/// Wake this thread through `queue` for each drain.
+fn drain_on(queue: &Arc<Queue>) {
+	let weak = Arc::downgrade(queue);
+	DRAINS.set(weak.clone());
+	rt::Thread::wake_here(Arc::new(move || {
+		if let Some(queue) = weak.upgrade() {
+			queue.push(DRAIN);
+		}
+	}));
+}
+
+/// `drain()`, on the thread running its loop: drop what other threads freed of the
+/// thread's values that are not `Send`.
+unsafe extern "C" fn queue_drain(_: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
+	call(rt::Thread::drain_here);
+	wrap(none)
 }
 
 thread_local! {
@@ -258,6 +314,8 @@ thread_local! {
 	static RUNNING: Cell<usize> = const { Cell::new(0) };
 	/// The queues woken on their loop's thread during the calls it is in.
 	static RESUMES: RefCell<Vec<Arc<Queue>>> = const { RefCell::new(Vec::new()) };
+	/// The queue this thread's wake queues a drain on.
+	static DRAINS: RefCell<std::sync::Weak<Queue>> = const { RefCell::new(std::sync::Weak::new()) };
 }
 
 static GET_RUNNING_LOOP: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
@@ -479,7 +537,8 @@ static MEMBERS: Gil<Vec<Option<Vec<(i64, Obj)>>>> = Gil::new(Vec::new());
 
 /// The runtime's entries, at the start of the registry: the awaitable a pending future
 /// is, the runtime's `Duration`, `_resume`, which schedules the running loop's dispatch,
-/// `Waker`, `_Pollable`, which runs an awaitable Rust polls, and `ipaddress`'s two classes.
+/// `Waker`, `_Pollable`, which runs an awaitable Rust polls, `ipaddress`'s two classes, and
+/// `_drains`, which returns the running loop's queue.
 pub const T_FUTURE: usize = 0;
 const T_DURATION: usize = 1;
 const T_RESUME: usize = 2;
@@ -487,6 +546,7 @@ const T_WAKER: usize = 3;
 const T_POLLABLE: usize = 4;
 const T_IPV4: usize = 5;
 const T_IPV6: usize = 6;
+const T_DRAINS: usize = 7;
 
 /// The class registered at `index`.
 pub fn ty(index: usize) -> *mut PyObject {
@@ -2035,6 +2095,9 @@ pub struct Queue {
 	woken: AtomicBool,
 	/// The address of its event loop, which [`RUNNING`] matches while it runs a call.
 	event_loop: usize,
+	/// Whether its `Queue` was deallocated, as it is once its loop goes, after which
+	/// another loop may take the address.
+	closed: AtomicBool,
 	/// How many of its futures are parked and its `Waker`s alive, which a wake may queue.
 	waits: Arc<AtomicUsize>,
 	tx: Socket,
@@ -2239,6 +2302,7 @@ unsafe extern "C" fn queue_new(class: *mut PyTypeObject, args: *mut PyObject, _:
 				signaled: AtomicBool::new(false),
 				woken: AtomicBool::new(false),
 				event_loop,
+				closed: AtomicBool::new(false),
 				waits: Arc::new(AtomicUsize::new(0)),
 				tx,
 				rx,
@@ -2252,7 +2316,9 @@ unsafe extern "C" fn queue_new(class: *mut PyTypeObject, args: *mut PyObject, _:
 unsafe extern "C" fn queue_dealloc(obj: *mut PyObject) {
 	// SAFETY: Python deallocates a `Queue` once.
 	unsafe {
-		drop((*obj.cast::<QueueObj>()).queue.take());
+		if let Some(queue) = (*obj.cast::<QueueObj>()).queue.take() {
+			queue.closed.store(true, Ordering::Relaxed);
+		}
 		dealloc(obj);
 	}
 }
@@ -2807,10 +2873,11 @@ static FUTURE_METHODS: Methods<4> = Methods(UnsafeCell::new([
 	END,
 ]));
 
-static QUEUE_METHODS: Methods<4> = Methods(UnsafeCell::new([
+static QUEUE_METHODS: Methods<5> = Methods(UnsafeCell::new([
 	noargs(c"fileno", queue_fileno),
 	onearg(c"take", queue_take),
 	noargs(c"signaled", queue_signaled),
+	noargs(c"drain", queue_drain),
 	END,
 ]));
 

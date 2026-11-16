@@ -558,8 +558,15 @@ impl<'a> Header<'a> {
 			"#if defined(__cpp_impl_coroutine) && __cpp_impl_coroutine >= 201902L && __has_include(<coroutine>)\n#include <coroutine>\n#endif\n",
 		);
 		self.line(format!("namespace {ns} {{\n"));
+		// Whether a call makes a value that is not `Send`, whose thread an executor drains.
+		let drains = match self.abi.api.unsent() {
+			true => format!(
+				"inline constexpr bool drains = true;\n\ninline void c_thread_wake(c_waker wake) noexcept {{\n\t::{p}_thread_wake(wake);\n}}\n\ninline void c_thread_drain() noexcept {{\n\t::{p}_thread_drain();\n}}\n\n"
+			),
+			false => "inline constexpr bool drains = false;\n\ninline void c_thread_wake(c_waker) noexcept {}\n\ninline void c_thread_drain() noexcept {}\n\n".to_string(),
+		};
 		self.line(format!(
-			"namespace detail {{\n\nusing c_buf = ::{p}_buf;\nusing c_waker = ::{p}_waker;\nusing c_foreign_future = ::{p}_foreign_future;\nusing c_foreign_reader = ::{p}_foreign_reader;\n\ninline void c_buf_free(c_buf buf) noexcept {{\n\t::{p}_buf_free(buf);\n}}\n\ninline c_buf c_buf_copy(c_buf view) noexcept {{\n\treturn ::{p}_buf_copy(view);\n}}\n\ninline c_buf c_buf_clone(c_buf buf) noexcept {{\n\treturn ::{p}_buf_clone(buf);\n}}\n\n}} // namespace detail\n"
+			"namespace detail {{\n\nusing c_buf = ::{p}_buf;\nusing c_waker = ::{p}_waker;\nusing c_foreign_future = ::{p}_foreign_future;\nusing c_foreign_reader = ::{p}_foreign_reader;\n\ninline void c_buf_free(c_buf buf) noexcept {{\n\t::{p}_buf_free(buf);\n}}\n\ninline c_buf c_buf_copy(c_buf view) noexcept {{\n\treturn ::{p}_buf_copy(view);\n}}\n\ninline c_buf c_buf_clone(c_buf buf) noexcept {{\n\treturn ::{p}_buf_clone(buf);\n}}\n\n{drains}}} // namespace detail\n"
 		));
 		self.out.push_str(RUNTIME);
 		self.line(format!(

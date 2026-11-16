@@ -1319,6 +1319,15 @@ impl Gen<'_> {
 			"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_status_message(status: i32) -> *const ::std::ffi::c_char {{\n\trt::Status::text(status).as_ptr()\n}}\n"
 		));
 
+		if api.unsent() {
+			self.line(format!(
+				"#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_thread_drain() {{\n\trt::Thread::drain_here()\n}}\n"
+			));
+			self.line(format!(
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_thread_wake(wake: rt::Waker) {{\n\tlet wake = wake.lift();\n\trt::Thread::wake_here(::std::sync::Arc::new(move || wake.wake_by_ref()))\n}}\n"
+			));
+		}
+
 		for (name, ty) in &self.abi.ranges {
 			let (kind, int) = match ty {
 				Type::Range(int) => ("Range", int),

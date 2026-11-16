@@ -55,6 +55,7 @@ const TAKEN: &[&str] = &[
 	"_wakeups",
 	"_wakeup",
 	"_resume",
+	"_drains",
 	"_Const",
 	"_PENDING",
 	"_consts",
@@ -109,7 +110,7 @@ const V4: &str = "_tuple[_str, _int]";
 const V6: &str = "_tuple[_str, _int, _int, _int]";
 
 /// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_DURATION`,
-/// `T_RESUME`, `T_WAKER`, `T_POLLABLE`, `T_IPV4`, and `T_IPV6`.
+/// `T_RESUME`, `T_WAKER`, `T_POLLABLE`, `T_IPV4`, `T_IPV6`, and `T_DRAINS`.
 const RUNTIME_TYPES: &[&str] = &[
 	"_Future",
 	"Duration",
@@ -118,6 +119,7 @@ const RUNTIME_TYPES: &[&str] = &[
 	"_Pollable",
 	"_ipaddress.IPv4Address",
 	"_ipaddress.IPv6Address",
+	"_drains",
 ];
 
 /// The Python for `abi`, whose header's contract is `contract`, or the names two items
