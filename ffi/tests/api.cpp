@@ -1460,7 +1460,10 @@ int script() {
 	}
 #endif
 	// A kept closure, called on another thread after the call that took it returned.
-	std::printf("spawned %u\n", static_cast<unsigned>(api::Spawned::new_([] { return 7; }).join()));
+	if (api::Spawned::new_([] { return 7; }).join() != 7) {
+		std::fprintf(stderr, "failed: a kept closure runs on another thread\n");
+		return 1;
+	}
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
 	{
 		api::Moment began = *api::Moment::new_(0, 1000);

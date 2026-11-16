@@ -347,6 +347,8 @@ impl Crate<'_> {
 			python = [\"dep:pyo3-ffi\", \"dep:pyo3-build-config\", \"dep:smallvec\"]\n\
 			# What dart/{lib}.dart calls that `dart:ffi` lacks.\n\
 			dart = []\n\
+			# What web/index.ts calls that the C ABI lacks, built for wasm32-wasip1.\n\
+			web = []\n\
 			\n\
 			{targeted}\
 			[workspace]\n\
@@ -368,7 +370,8 @@ impl Crate<'_> {
 		let (module, go_mod) = go_module(out, &self.abi.prefix)?;
 		let go = crate::go::generate(&rest, &self.packages(), contract, &module)?;
 		let dart = crate::dart::generate(&rest, &self.packages(), contract)?;
-		let names = [
+		let web = crate::web::generate(&rest, &self.packages(), contract)?;
+		let mut names: std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>> = [
 			("C++", cpp.names),
 			("Kotlin", kotlin.names),
 			("Python", python.names),
@@ -379,10 +382,18 @@ impl Crate<'_> {
 		.into_iter()
 		.map(|(language, names)| (language.to_string(), names))
 		.collect();
+		if let Some(web) = &web {
+			names.insert("TypeScript".to_string(), web.names.clone());
+		}
 		let mut output = Output {
 			names,
 			files: Vec::new(),
-			stale: vec![out.join("include").join(&self.abi.prefix), out.join("go")],
+			stale: vec![
+				out.join("include").join(&self.abi.prefix),
+				out.join("go"),
+				out.join("web"),
+				out.join("src").join("web"),
+			],
 		};
 		let mut generator = Gen {
 			abi: self.abi,
@@ -394,6 +405,7 @@ impl Crate<'_> {
 			out: String::new(),
 			checking: Cell::new(false),
 			reserved: Cell::new(false),
+			web: web.is_some(),
 		};
 		generator.lib();
 		output.file(&out.join("Cargo.toml"), &manifest("0.0.0"));
@@ -425,6 +437,13 @@ impl Crate<'_> {
 		output.file(&out.join("src/dart/mod.rs"), &dart.glue);
 		output.file(&out.join("src/dart/runtime.rs"), crate::dart::GLUE_RUNTIME);
 		output.file(&out.join("dart").join(format!("{}.dart", self.abi.prefix)), &dart.dart);
+		if let Some(web) = web {
+			output.file(&out.join("src/web/mod.rs"), &web.glue);
+			output.file(&out.join("src/web/runtime.rs"), crate::web::GLUE_RUNTIME);
+			for (path, text) in &web.files {
+				output.file(&out.join("web").join(path), text);
+			}
+		}
 		let swift_dir = out.join("swift");
 		output.file(&swift_dir.join(format!("{}.swift", self.abi.prefix)), &swift.swift);
 		output.file(&swift_dir.join("module.modulemap"), &swift.modulemap);
@@ -565,6 +584,8 @@ struct Gen<'a> {
 	/// Whether the argument being lifted had its moved handles reserved, so its lift moves
 	/// their values out unchecked.
 	reserved: Cell<bool>,
+	/// Whether the API serves the web, whose glue the crate's `web` feature builds.
+	web: bool,
 }
 
 impl Gen<'_> {
@@ -1266,6 +1287,9 @@ impl Gen<'_> {
 		self.line("#[cfg(feature = \"kotlin\")]\nmod jni;\n");
 		self.line("#[cfg(feature = \"python\")]\nmod python;\n");
 		self.line("#[cfg(feature = \"dart\")]\nmod dart;\n");
+		if self.web {
+			self.line("#[cfg(all(feature = \"web\", target_arch = \"wasm32\"))]\nmod web;\n");
+		}
 		// The facade may export nothing, which cargo would call unused.
 		self.line(format!("use {} as _;\n", self.dependency));
 

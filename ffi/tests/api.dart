@@ -880,7 +880,7 @@ Future<void> script() async {
   print('seat ${front.debug()} ${front == api.seat(nines, 1)} ${front == back}');
   // A kept closure, called on another thread after the call that took it returned.
   final spawned = api.Spawned(() => 7);
-  print('spawned ${spawned.join()}');
+  check(spawned.join() == 7, 'a kept closure runs on another thread');
   // A kept closure: called again at the instant it asks for, then once its waiter wakes,
   // failing with the exception the binding throws for Rust's error.
   final start = api.Moment.new_(api.U64(0), api.U64(1000))!;

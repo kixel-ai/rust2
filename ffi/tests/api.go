@@ -726,9 +726,9 @@ func script() {
 		return escaped(*p)
 	}), ",", ""), "[]"))
 	// A path that is no UTF-8 is a Go string all the same.
-	check(must(api.Stray()) == "\xff", "a path that is not UTF-8 crosses as its bytes")
+	check(api.Stray() == "\xff", "a path that is not UTF-8 crosses as its bytes")
 	var lent string
-	ok(api.VisitStray(func(path string) { lent = path }))
+	api.VisitStray(func(path string) { lent = path })
 	check(lent == "\xff", "a path Rust lends that is not UTF-8 crosses as its bytes")
 	// An error Rust returns only boxed is its type.
 	_, err = api.Refuse("why")
@@ -948,7 +948,7 @@ func script() {
 		fmt.Printf(" %x", must(api.SameChar(c)))
 	}
 	fmt.Println()
-	fmt.Printf("lossless path %x %x\n", must(api.SamePath("a/é")), must(api.SamePath(must(api.Stray()))))
+	fmt.Printf("lossless path %x %x\n", must(api.SamePath("a/é")), must(api.SamePath(api.Stray())))
 	sameV4 := api.SameSocketAddrV4(rt.SocketAddrV4{IP: rt.Ipv4Addr{255, 255, 255, 255}, Port: math.MaxUint16})
 	sameV6 := api.SameSocketAddrV6(rt.SocketAddrV6{
 		IP:       rt.Ipv6Addr{0, 1, 15: 2},
@@ -1023,8 +1023,8 @@ func script() {
 	}
 	check(nines.Close() == nil, "a mark closes")
 	// A kept closure, called on another thread after the call that took it returned.
-	spawned := api.NewSpawned(func() uint32 { return 7 })
-	fmt.Printf("spawned %d\n", must(spawned.Join()))
+	spawned := must(api.NewSpawned(func() uint32 { return 7 }))
+	check(must(spawned.Join()) == 7, "a kept closure runs on another thread")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
 	driven := *api.NewMoment(0, 1000)
 	calls := 0
@@ -1160,7 +1160,7 @@ func closures() {
 	// A kept closure Rust releases once it drops it, after its thread called it.
 	{
 		marker, freed := marked()
-		spawned := api.NewSpawned(func() uint32 { return uint32(marker[0]) + 1 })
+		spawned := must(api.NewSpawned(func() uint32 { return uint32(marker[0]) + 1 }))
 		check(must(spawned.Join()) == 1, "a kept closure runs on Rust's thread")
 		released(freed, "Rust releases a kept closure it dropped")
 	}

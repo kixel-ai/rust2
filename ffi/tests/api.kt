@@ -740,7 +740,7 @@ fun script() {
 	val rear = seat(nines, 2u)
 	println("seat ${front.debug()} ${front == front.copy()} ${front == rear}")
 	// A kept closure, called on another thread after the call that took it returned.
-	println("spawned ${Spawned.new { 7u }.join()}")
+	check(Spawned.new { 7u }.join() == 7u, "a kept closure runs on another thread")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
 	Moment.new(0u, 1000u)!!.let { start ->
 		var calls = 0

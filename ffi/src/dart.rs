@@ -87,7 +87,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		trampolines: Vec::new(),
 		fresh: 0,
 		on: On::ALL,
-		space: Gen::space(abi),
+		space: abi.space("dart"),
 		handed: BTreeMap::new(),
 	};
 	g.locked = crate::lock::types(abi, &g.classes);
@@ -475,45 +475,6 @@ impl<'a> Gen<'a> {
 	/// The Dart name of the C type `c`.
 	fn class(&self, c: &str) -> String {
 		type_name(&self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c))))
-	}
-
-	/// The glue's namespace: `<prefix>_dart`, with a trailing `_` until no C name is it
-	/// or starts with it and a `_`.
-	fn space(abi: &Abi<'_>) -> String {
-		let api = abi.api;
-		let mut names: Vec<String> = Vec::new();
-		let mut functions: Vec<(&Function, Option<Ty>)> = Vec::new();
-		for (i, record) in api.records.iter().enumerate() {
-			names.push(abi.record(i));
-			functions.extend(record.methods.iter().map(|m| (m, Some(Ty::Struct(abi.record(i))))));
-		}
-		for (i, e) in api.enums.iter().enumerate() {
-			names.push(abi.enumeration(i));
-			functions.extend(e.methods.iter().map(|m| (m, Some(abi.ty(&Type::Enum(i))))));
-		}
-		for (i, object) in api.objects.iter().enumerate() {
-			names.push(abi.object(i));
-			let owner = Ty::Handle {
-				name: abi.object(i),
-				constant: false,
-			};
-			functions.extend(object.methods.iter().map(|m| (m, Some(owner.clone()))));
-		}
-		names.extend((0..api.callbacks.len()).map(|i| abi.callback(i)));
-		functions.extend(api.functions.iter().map(|f| (f, None)));
-		names.extend(
-			functions
-				.into_iter()
-				.map(|(function, owner)| abi.export(function, owner.as_ref()).call.name),
-		);
-		let mut space = abi.rt("dart");
-		while names
-			.iter()
-			.any(|name| *name == space || name.starts_with(&format!("{space}_")))
-		{
-			space.push('_');
-		}
-		space
 	}
 
 	/// The top-level Dart name `what` takes, `name` unless that is taken.
