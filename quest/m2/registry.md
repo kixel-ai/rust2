@@ -19,7 +19,7 @@ consumer passed on CPython 3.14.10, including the native transcript and futures,
 ownership, values and calls. On 2026-11-16, kixtop built the macOS arm64
 XCFramework with Xcode 26.6, and a clean SwiftPM consumer with Apple Swift 6.3.3
 matched the native transcript byte for byte and passed futures and ownership.
-The [report](/bench/registry/README.md) records the commands and the two fixes
+The [report](/bench/registry/README.md) records the commands and the fixes
 this execution required. The GitHub workflow has not been executed.
 The report recommends templates because registry namespace ownership cannot be
 inferred from Cargo metadata; it does not claim moq's workflows can be deleted.

@@ -1054,8 +1054,8 @@ func script() {
 	check(refused("NonZero(_:)") { _ = try NonZero<UInt64>(0) }, "a zero makes no NonZero")
 	check(Set([try! NonZero<Int8>(-1), try! NonZero(-1), try! NonZero(.min)]).count == 2, "a set of NonZero")
 	check(try! NonZero<Int8>(.min) < NonZero(1), "a NonZero compares as its integer")
-	let debug: any CustomDebugStringConvertible = nonZeros()
-	check(debug.debugDescription == describeNonZeros(nonZeros()), "a record of NonZero is Debug")
+	let debuggable: any CustomDebugStringConvertible = nonZeros()
+	check(debuggable.debugDescription == describeNonZeros(nonZeros()), "a record of NonZero is Debug")
 	targets()
 }
 

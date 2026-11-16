@@ -12,7 +12,7 @@ fi
 cd "$(dirname "$0")/../.."
 rm -rf ffi/target/registry
 host=$(rustc -vV | sed -n 's/^host: //p')
-just ffi run --target "$host" --target wasm32-unknown-unknown --config fixtures/api/ffi.toml --manifest-path fixtures/api/Cargo.toml --out target/registry-export -- --features doubled
+just ffi run --target "$host" --target wasm32-wasip1 --config fixtures/api/ffi.toml --manifest-path fixtures/api/Cargo.toml --out target/registry-export -- --features doubled
 cargo build --locked --release --manifest-path ffi/target/registry-export/Cargo.toml --features python
 python3 bench/registry/package.py wheel
 cargo run --quiet --locked --manifest-path ffi/Cargo.toml --package api-fixture --example transcript --features doubled >ffi/target/registry/native.txt

@@ -53,7 +53,7 @@ ownership, values and calls. A separate ZIP inspection checked RECORD coverage,
 file sizes and SHA-256 hashes. The full `quest gate nix develop --command just ci`
 passed, including the exporter's existing Python and Swift differential tests.
 
-The export includes host and wasm32 API descriptions, as the existing fixture
+The export includes host and wasm32-wasip1 API descriptions, as the existing fixture
 suite does: its values test checks that wasm32-only calls are refused on the host.
 Only the host native library is packaged. Initial export attempts exposed missing
 CACHEDIR.TAG markers in imported local build artifacts; restoring those markers
@@ -63,19 +63,27 @@ macOS 26.6.2 arm64 execution passed on kixtop on 2026-11-16, with Xcode 26.6 and
 Apple Swift 6.3.3. In an isolated checkout, `nix develop --command quest gate
 bench/registry/build.sh` built `Api.zip`. From a fresh artifact directory containing
 only the ZIP, native transcript, Swift consumer and verifier, `unzip -q Api.zip`
-and `quest gate bash verify-swift.sh .` built a release SwiftPM consumer outside
-Nix with Apple's compiler. The transcript matched byte for byte, followed by
+and the verifier built a release SwiftPM consumer with Apple's compiler. It ran
+through `nix develop --command quest gate env -i HOME=/Users/kixelated
+PATH=/usr/bin:/bin:/usr/sbin:/sbin /bin/bash <artifact-directory>/verify-swift.sh
+<artifact-directory>`, so the consumer inherited only the host home and Apple
+toolchain search path. The transcript matched byte for byte, followed by
 `futures ok` and `owned ok`. Both transcripts had SHA-256
-`d1ea7b364eb0cb42e2d770e81afc033b7e3f6b9edbaec87d5c7065f7ff6cef17`.
+`729ffddcec8928c564d29fd1ee3c4fc34ccaecf18900d34be63c4e6fd0a50714`.
 `plutil -p Api/ApiFFI.xcframework/Info.plist` and `lipo -info
 Api/ApiFFI.xcframework/macos-arm64/libapi.a` independently confirmed one macOS arm64
 slice.
 
-This execution found two issues: Nix's SDK bundle lacked `libz.tbd` and could not
-serve as Xcode's developer directory, so the macOS builder selects the installed
-Xcode and its SDK explicitly. The fixture's duration-conversion closure needed an
-explicit `@Sendable` type for the consumer's Swift 6 language mode. Both failures
-were reproduced before the fixes and the complete Mac validation passed afterward.
+The macOS builder selects the installed Xcode and its SDK explicitly: Nix's SDK
+bundle lacks `libz.tbd` and cannot serve as Xcode's developer directory. The current
+spike exports the same WASI target as the fixture suite, so target availability
+agrees, and the Swift fixture avoids shadowing its `debug()` helper in Swift 6.
+The original external-call pin, commit `901f7baa`, also passed Mac validation; that
+older fixture needs an explicit `@Sendable` type on its duration-conversion helper.
+After merging main to resolve the fixture conflict, the current source passed
+again with the transcript hash above. Apple Swift still warns about a pointer
+capture in the fixture's separate shared-call stress test; the consumer exercises
+the transcript, futures and ownership, not that stress test.
 The GitHub reusable invocation remains unexecuted. Do not delete moq's release
 workflows on this evidence.
 
