@@ -449,8 +449,15 @@ frame path:
    instructions an object, three quarters of it: without them, a return and close took
    62 to 65 ns against 176 to 245. Since kixel-ai/rust2#828, a Go object and its handle
    are one allocation (70 fewer instructions) and a Dart close drops the value without
-   an `_Arena` (136 fewer). [Batched ownership](../../quest/m1/ffi-speed/object-ownership.md)
-   would take the registration off objects closed soon after their return. Kotlin's
+   an `_Arena` (136 fewer). Since kixel-ai/rust2#838, an object closed within 64 returns
+   of its own skips the registration: each Go P and each Dart isolate holds its last 64
+   returned objects in a nursery, registering only one pushed out unclosed, and a checked
+   object's close drops and frees in one crossing. Measured 2026-11-15 on **nixos** at a
+   load average of 4 to 24, 8 rounds alternating with main at `72880f48`, median wall ns:
+   Go's object return fell from 254 to 174 and Dart's from 225 to 96, Go's ready read from
+   833 to 728 and Dart's from 1,020 to 786, and Dart's woken read from 2,930 to 2,274.
+   What Go has left is mostly its two cgo crossings, the call and the close, and the pool
+   that finds its P's nursery. Kotlin's
    137 ns wall (210 CPU) is a phantom reference linked and unlinked under one global lock.
    Every returned frame, group, and future pays it.
 3. **A woken read.** C's 427 ns is Rust's 329 plus a future's crossings. Kotlin's 1.6 us and

@@ -183,7 +183,7 @@ impl Slot<u8> {
 		Self(0)
 	}
 
-	/// A guard that borrows its handle, which a new handle would outlive.
+	/// A guard that borrows its handle exclusively, which its own handle holds: exported.
 	pub fn lock(&mut self) -> SlotGuard<'_, u8> {
 		SlotGuard(&mut self.0)
 	}
@@ -1340,4 +1340,135 @@ pub fn keep_object(env: &mut jni::Env, object: jni::objects::JObject<'static>) -
 /// A reference a bound keeps past the call that lends it.
 pub fn bound_object<'a: 'static>(env: &mut jni::Env<'a>, object: jni::objects::JObject<'a>) -> bool {
 	env.get_raw().is_null() && object.is_null()
+}
+
+/// A view sharing its slot's borrow, which a copy carries.
+#[derive(Clone, Copy)]
+pub struct SlotView<'a, T>(&'a T);
+
+impl SlotView<'static, u8> {
+	/// A view of a constant, which keeps the view reachable without its slot.
+	pub fn fixed() -> Self {
+		Self(&7)
+	}
+}
+
+impl<T: Copy> SlotView<'_, T> {
+	pub fn get(&self) -> T {
+		*self.0
+	}
+}
+
+impl Slot<u8> {
+	/// A view that borrows its handle shared, which a new handle would outlive: only a
+	/// `&mut self` method's borrowing object holds its receiver's borrow.
+	pub fn view(&self) -> SlotView<'_, u8> {
+		SlotView(&self.0)
+	}
+
+	/// A view that borrows its handle exclusively, but whose copies would carry the borrow
+	/// past the one handle that holds it.
+	pub fn peek(&mut self) -> SlotView<'_, u8> {
+		SlotView(&self.0)
+	}
+}
+
+/// A tag whose `Clone` is implemented for `'static` alone, which a clone through a handle
+/// would call on a value whose borrow is shorter.
+pub struct SlotTag<'a>(&'a mut u8);
+
+impl Clone for SlotTag<'static> {
+	fn clone(&self) -> Self {
+		SlotTag(Box::leak(Box::new(*self.0)))
+	}
+}
+
+/// A lens whose `Deref` is implemented for `'static` alone.
+pub struct SlotLens<'a>(&'a mut u8);
+
+impl std::ops::Deref for SlotLens<'static> {
+	type Target = u8;
+
+	fn deref(&self) -> &u8 {
+		self.0
+	}
+}
+
+/// A peer that derefs to a view of the same borrow, whose own traits the export does not
+/// prove at the lend's lifetime.
+pub struct SlotPeer<'a>(SlotView<'a, u8>, &'a mut u8);
+
+impl<'a> std::ops::Deref for SlotPeer<'a> {
+	type Target = SlotView<'a, u8>;
+
+	fn deref(&self) -> &SlotView<'a, u8> {
+		&self.0
+	}
+}
+
+/// A hold with no trait at all, which the lend's own bound keeps refused.
+pub struct SlotHold<'a>(&'a mut u8);
+
+mod pin {
+	/// Implemented for a `'static` borrow of a slot alone, which a callee bounded by it
+	/// could keep.
+	pub trait StaticOnly<'a> {}
+
+	impl StaticOnly<'static> for &'static mut super::Slot<u8> {}
+}
+
+impl Slot<u8> {
+	/// Refused: its bound holds only for a `'static` borrow of the slot, which the lend's
+	/// borrow is not.
+	pub fn hold<'a>(&'a mut self) -> SlotHold<'a>
+	where
+		&'a mut Self: pin::StaticOnly<'a>,
+	{
+		SlotHold(&mut self.0)
+	}
+
+	/// Refused: its tag's `Clone` holds only for `'static`.
+	pub fn tag(&mut self) -> SlotTag<'_> {
+		SlotTag(&mut self.0)
+	}
+
+	/// Refused: its lens's `Deref` holds only for `'static`.
+	pub fn lens(&mut self) -> SlotLens<'_> {
+		SlotLens(&mut self.0)
+	}
+
+	/// Refused: its peer's `Deref` target names the lend's lifetime.
+	pub fn peer(&mut self) -> SlotPeer<'_> {
+		let Slot(value) = self;
+		let view: &u8 = Box::leak(Box::new(*value));
+		SlotPeer(SlotView(view), value)
+	}
+}
+
+impl SlotTag<'static> {
+	/// A tag of its own, which keeps the type reachable without a slot.
+	pub fn fixed() -> Self {
+		SlotTag(Box::leak(Box::new(0)))
+	}
+}
+
+impl SlotHold<'static> {
+	/// A hold of its own, which keeps the type reachable without a slot.
+	pub fn fixed() -> Self {
+		SlotHold(Box::leak(Box::new(0)))
+	}
+}
+
+impl SlotLens<'static> {
+	/// A lens of its own, which keeps the type reachable without a slot.
+	pub fn fixed() -> Self {
+		SlotLens(Box::leak(Box::new(0)))
+	}
+}
+
+impl SlotPeer<'static> {
+	/// A peer of its own, which keeps the type reachable without a slot.
+	pub fn fixed() -> Self {
+		SlotPeer(SlotView(&0), Box::leak(Box::new(0)))
+	}
 }

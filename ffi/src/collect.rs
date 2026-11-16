@@ -1922,6 +1922,9 @@ impl<'tcx> Collector<'tcx> {
 			send: true,
 			collect: false,
 			lends: false,
+			lends_mut: false,
+			derefs: 0,
+			ties: false,
 			access: Access::Parse,
 			instance: None,
 			home: Home::default(),
@@ -1974,6 +1977,9 @@ impl<'tcx> Collector<'tcx> {
 						send: true,
 						collect: false,
 						lends: false,
+						lends_mut: false,
+						derefs: 0,
+						ties: false,
 						access: Access::Text,
 						instance: None,
 						home: Home::default(),
@@ -2301,6 +2307,10 @@ impl<'tcx> Collector<'tcx> {
 	/// Fill in every declaration, then the functions and constants.
 	fn define(&mut self) {
 		let tcx = self.tcx;
+		// Each object whose type derefs to another type, which forwards that one's methods.
+		let mut chains = Vec::new();
+		// Each struct record's site, whose fields an object deref'ing to it forwards.
+		let mut records = rustc_data_structures::fx::FxHashMap::default();
 		for (def_id, path) in self.items.clone() {
 			let span = tcx.def_span(def_id);
 			let kind = tcx.def_kind(def_id);
@@ -2360,6 +2370,9 @@ impl<'tcx> Collector<'tcx> {
 				let args = self.args(&site).expect("settled");
 				match decl {
 					Some(Decl::Record(index)) => {
+						if kind == DefKind::Struct {
+							records.insert(index, site.clone());
+						}
 						let variants = self.fields(&site).expect("settled");
 						let variant = variants.into_iter().next().expect("a struct has a variant");
 						let (methods, traits) = self.methods(&site);
@@ -2399,6 +2412,11 @@ impl<'tcx> Collector<'tcx> {
 						if kind == DefKind::Struct {
 							methods.splice(0..0, self.accessors(&site));
 						}
+						let self_ty = self.site_ty(&site);
+						let chain = self.derefs(self_ty);
+						if !chain.is_empty() {
+							chains.push((index, self.member_names(self_ty), self.path_names(self_ty), chain));
+						}
 						let shared = traits.clone && self.clone_shares(self.site_ty(&site), def_id);
 						let object = &mut self.api.objects[index];
 						object.args = args;
@@ -2410,6 +2428,183 @@ impl<'tcx> Collector<'tcx> {
 				}
 			}
 		}
+		for (object, names, paths, chain) in chains {
+			self.forward(object, names, paths, chain, &records);
+		}
+	}
+
+	/// The types `ty` derefs to in turn, as Rust's auto-deref reaches them, each with its key
+	/// if it has one, how many `Deref`s reach it, and whether each of them is a `DerefMut`.
+	fn derefs(&self, mut ty: Ty<'tcx>) -> Vec<(Option<Key<'tcx>>, Ty<'tcx>, usize, bool)> {
+		let tcx = self.tcx;
+		let lang = tcx.lang_items();
+		let (Some(deref), Some(target)) = (lang.deref_trait(), lang.deref_target()) else {
+			return Vec::new();
+		};
+		let env = TypingEnv::fully_monomorphized();
+		let (infcx, param_env) = tcx.infer_ctxt().build_with_typing_env(env);
+		let implements = |tr: Option<DefId>, ty: Ty<'tcx>| {
+			tr.is_some_and(|tr| {
+				infcx
+					.type_implements_trait(tr, [ty], param_env)
+					.must_apply_modulo_regions()
+			})
+		};
+		let mut chain = Vec::new();
+		let mut mutable = true;
+		let mut seen = vec![ty];
+		for derefs in 1..=tcx.recursion_limit().0 {
+			if !implements(Some(deref), ty) {
+				break;
+			}
+			mutable &= implements(lang.deref_mut_trait(), ty);
+			let projection = Ty::new_projection(tcx, ty::IsRigid::No, target, [ty]);
+			let Ok(next) = tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(projection)) else {
+				break;
+			};
+			if seen.contains(&next) {
+				break;
+			}
+			seen.push(next);
+			ty = next;
+			// Each, exported or not, as its members hide those of a type past it.
+			let key = match ty.kind() {
+				ty::Adt(adt, args) => Some(self.key(adt.did(), *args)),
+				_ => None,
+			};
+			chain.push((key, ty, derefs, mutable));
+		}
+		chain
+	}
+
+	/// The names of `ty`'s `pub` inherent functions, with `self` or not, and constants, which
+	/// share its path with a field of the same name, as `field_key` counts them.
+	fn path_names(&self, ty: Ty<'tcx>) -> Vec<String> {
+		let tcx = self.tcx;
+		let ty::Adt(adt, _) = ty.kind() else {
+			return Vec::new();
+		};
+		(tcx.inherent_impls(adt.did()).iter())
+			.filter_map(|&imp| Some((imp, self.impl_args(imp, ty)?)))
+			.flat_map(|(imp, parent)| {
+				tcx.associated_items(imp)
+					.in_definition_order()
+					.map(move |item| (item, parent))
+			})
+			.filter(|(item, parent)| {
+				matches!(item.kind, ty::AssocKind::Fn { .. } | ty::AssocKind::Const { .. })
+					&& tcx.visibility(item.def_id).is_public()
+					&& self.applies(item.def_id, *parent)
+			})
+			.map(|(item, _)| item.name().to_string())
+			.collect()
+	}
+
+	/// The names of `ty`'s `pub` inherent methods, then of its `pub` fields, exported or not,
+	/// which hide any method or field of the same name a type it derefs to has, as they do in
+	/// Rust: a method of each inherent impl that applies to `ty`, whose own bounds Rust checks
+	/// only once it picked the method. A method never hides a field, nor a field a method.
+	fn member_names(&self, ty: Ty<'tcx>) -> (Vec<String>, Vec<String>) {
+		let tcx = self.tcx;
+		let ty::Adt(adt, _) = ty.kind() else {
+			return (Vec::new(), Vec::new());
+		};
+		let def_id = adt.did();
+		let methods = (tcx.inherent_impls(def_id).iter())
+			.filter(|&&imp| self.impl_args(imp, ty).is_some())
+			.flat_map(|&imp| tcx.associated_items(imp).in_definition_order())
+			.filter(|item| matches!(item.kind, ty::AssocKind::Fn { has_self: true, .. }))
+			.filter(|item| tcx.visibility(item.def_id).is_public())
+			.map(|item| item.name().to_string())
+			.collect();
+		let mut fields = Vec::new();
+		if tcx.def_kind(def_id) == DefKind::Struct {
+			let all = tcx.adt_def(def_id).non_enum_variant().fields.iter();
+			fields.extend(all.filter(|f| f.vis.is_public()).map(|f| f.name.to_string()));
+		}
+		(methods, fields)
+	}
+
+	/// Give object `object` the methods and field accessors of each type it derefs to, as
+	/// Rust's auto-deref reaches them: each one through `&self`, and through `&mut self` while
+	/// every `Deref` on the way is a `DerefMut`, unless a nearer type's member takes its name.
+	/// A target forwards what it exports itself, so its config and refusals hold here too.
+	fn forward(
+		&mut self,
+		object: usize,
+		mut names: (Vec<String>, Vec<String>),
+		paths: Vec<String>,
+		chain: Vec<(Option<Key<'tcx>>, Ty<'tcx>, usize, bool)>,
+		records: &rustc_data_structures::fx::FxHashMap<usize, Site<'tcx>>,
+	) {
+		let (path, shown) = {
+			let o = &self.api.objects[object];
+			(o.path.clone(), o.shown.clone())
+		};
+		let mut all = Vec::new();
+		for (key, ty, derefs, mutable) in chain {
+			let members = match key.and_then(|key| self.decls.get(&key).cloned()) {
+				Some(Decl::Object(u)) => self.api.objects[u].methods.clone(),
+				Some(Decl::Value(u)) => self.api.records[u].methods.clone(),
+				// A record's fields cross with it, so reaching them through the object takes
+				// accessors of their own.
+				Some(Decl::Record(u)) => {
+					let mut members = match records.get(&u) {
+						Some(site) => self.accessors(site),
+						None => Vec::new(),
+					};
+					members.extend(self.api.records[u].methods.iter().cloned());
+					members
+				}
+				Some(Decl::Enum(u)) => self.api.enums[u].methods.clone(),
+				_ => Vec::new(),
+			};
+			let forwarded: Vec<Function> = (members.into_iter())
+				.filter(|m| {
+					let hiding = match m.access {
+						Access::Field { .. } => &names.1,
+						_ => &names.0,
+					};
+					m.derefs == 0 && !hiding.iter().any(|name| name == m.name())
+				})
+				.filter(|m| match m.receiver {
+					Some(Receiver::Ref) => true,
+					Some(Receiver::Mut) => mutable,
+					_ => false,
+				})
+				.map(|mut m| {
+					let name = |p: &Path| p.last().expect("a method has a name").clone();
+					m.path = [&path[..], &[name(&m.path)]].concat();
+					m.shown = [&shown[..], &[name(&m.shown)]].concat();
+					m.derefs = derefs;
+					m
+				})
+				.collect();
+			all.extend(forwarded);
+			let (methods, fields) = self.member_names(ty);
+			names.0.extend(methods);
+			names.1.extend(fields);
+		}
+		// The config names a forwarded member by the object's path, as it does the object's
+		// own: a field by `field@` where the object's function or constant, or a method of a
+		// type on its chain, shares its path, which then names that item alone.
+		let mut kept = Vec::new();
+		for mut m in all {
+			let keep = match &mut m.access {
+				Access::Field { shared, .. } => {
+					let field = m.path.last().expect("a field has a name");
+					*shared = names.0.iter().chain(&paths).any(|name| name == field);
+					let mut key = m.shown.clone();
+					key[1].insert_str(0, "field@");
+					!self.exclude(&key) && (*shared || !self.exclude(&m.shown))
+				}
+				_ => !self.exclude(&m.shown),
+			};
+			if keep {
+				kept.push(m);
+			}
+		}
+		self.api.objects[object].methods.extend(kept);
 	}
 
 	/// Drop each foreign type's object that no export names, so a crate that only builds
@@ -2606,6 +2801,16 @@ impl<'tcx> Collector<'tcx> {
 					}
 				}
 			};
+			// A field holding what borrows, as an object of the object's lifetime does, carries
+			// that borrow out through its getter and in through its setter, unless the field's
+			// own type names no lifetime but `'static` and no type parameter.
+			let independent =
+				(tcx.type_of(field.did).instantiate_identity().skip_norm_wip().walk()).all(|arg| match arg.kind() {
+					GenericArgKind::Lifetime(region) => region.is_static(),
+					GenericArgKind::Type(ty) => !matches!(ty.kind(), ty::Param(_)),
+					GenericArgKind::Const(_) => true,
+				});
+			let ties = !independent && !self.lifetimes(ty).0.is_empty();
 			match mapped {
 				Ok((get, set)) => {
 					let accessor = |receiver, params, ok, set| Function {
@@ -2626,6 +2831,9 @@ impl<'tcx> Collector<'tcx> {
 						send: true,
 						collect: false,
 						lends: false,
+						lends_mut: false,
+						derefs: 0,
+						ties,
 						access: Access::Field { shared, set },
 						instance: None,
 						home: Home::default(),
@@ -3006,23 +3214,90 @@ impl<'tcx> Collector<'tcx> {
 		};
 		let env = TypingEnv::post_analysis(tcx, def_id);
 		let sig = tcx.fn_sig(def_id).instantiate(tcx, args).skip_norm_wip();
-		let (statics, lifetimes, interned) = self.borrows(def_id, sig.skip_binder());
-		errs.extend(lifetimes);
-		// Whether what it returns borrows: any lifetime in it that is not `'static`.
-		let borrows = sig.skip_binder().output().walk().any(|arg| match arg.kind() {
-			GenericArgKind::Lifetime(region) => !statics.contains(&region),
-			_ => false,
-		});
-		let names = tcx.fn_arg_idents(def_id);
 		let has_self = matches!(tcx.def_kind(def_id), DefKind::AssocFn)
 			&& matches!(
 				tcx.associated_item(def_id).kind,
 				ty::AssocKind::Fn { has_self: true, .. }
 			);
+		let unbound = sig.skip_binder();
+		let exclusive = (self.exclusive(def_id, unbound, has_self)).filter(|&region| {
+			// Its lifetimes free, as a call's are: the late-bound ones its own.
+			let free = tcx.liberate_late_bound_regions(def_id, sig).output();
+			let ok = match free.kind() {
+				ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Result, adt.did()) => args.type_at(0),
+				_ => free,
+			};
+			self.lifetime_generic(ok) && self.lend_bounds_hold(def_id, args, region)
+		});
+		let (statics, lifetimes, interned) = self.borrows(def_id, unbound, exclusive);
+		errs.extend(lifetimes);
+		// Whether what it returns borrows: any lifetime in it that is not `'static`.
+		let borrows = unbound.output().walk().any(|arg| match arg.kind() {
+			GenericArgKind::Lifetime(region) => !statics.contains(&region),
+			_ => false,
+		});
+		// Whether a lifetime an object it takes holds is `'static`, or is named anywhere else
+		// in the signature, itself or through the bounds that relate it to another, so the
+		// value may outlive the call or carry its borrow out. Any other bound naming it ties
+		// it unless the trait solver proves it with no constraint on a lifetime but one that
+		// always holds, as `'a: 'a`: so `Receipt<'a>: Clone` does not, while
+		// `Receipt<'a>: Any`, whose impl needs `'static`, does, as does a bound only an impl
+		// for one lifetime meets. Each is proved in analysis, as a later mode proves a bound
+		// modulo every lifetime, with none of the function's own where-clauses, which would
+		// prove it, and none of what any lifetime outlives.
+		let outlives = self.outlives(def_id);
+		let empty = ty::ParamEnv::empty();
+		let bounds: Vec<ty::Clause<'tcx>> = (tcx.clauses_of(def_id).instantiate(tcx, args).clauses.iter())
+			.map(|clause| clause.skip_norm_wip())
+			.filter(|clause| clause.as_region_outlives_clause().is_none() && clause.as_type_outlives_clause().is_none())
+			.filter(|&clause| {
+				// An instance's lifetime is the `'static` the glue names it by.
+				let clause = ty::fold_regions(tcx, clause, |region, _| match region.kind() {
+					ty::ReErased => tcx.lifetimes.re_static,
+					_ => region,
+				});
+				let infcx = tcx.infer_ctxt().build(ty::TypingMode::non_body_analysis());
+				let ocx = ObligationCtxt::new(&infcx);
+				ocx.register_obligation(Obligation::new(tcx, ObligationCause::dummy(), empty, clause));
+				!(ocx.evaluate_obligations_error_on_ambiguity().no_errors()
+					&& ocx
+						.resolve_regions(rustc_hir::def_id::CRATE_DEF_ID, empty, [])
+						.is_empty())
+			})
+			.collect();
+		let ties = (unbound.inputs().iter().enumerate()).any(|(n, &input)| {
+			self.lifetimes(input).0.into_iter().any(|region| {
+				let mut related = vec![region];
+				let mut i = 0;
+				while let Some(&at) = related.get(i) {
+					for &(long, short) in &outlives {
+						for (from, to) in [(long, short), (short, long)] {
+							if from == at && !related.contains(&to) {
+								related.push(to);
+							}
+						}
+					}
+					i += 1;
+				}
+				let names = |ty: Ty<'tcx>| {
+					ty.walk()
+						.any(|arg| arg.as_region().is_some_and(|r| related.contains(&r)))
+				};
+				// An instance's lifetime is erased, and the glue names it `'static`.
+				related
+					.iter()
+					.any(|r| r.is_static() || matches!(r.kind(), ty::ReErased))
+					|| bounds
+						.iter()
+						.any(|clause| tcx.any_free_region_meets(clause, |r| related.contains(&r)))
+					|| names(unbound.output())
+					|| (unbound.inputs().iter().enumerate()).any(|(m, &other)| m != n && names(other))
+			})
+		});
+		let names = tcx.fn_arg_idents(def_id);
 		// What it returns may borrow an object that is not `Clone` from a `&self` of an
 		// object's alone, whose handle then lends it: Rust lends it only while no exclusive
 		// borrow of the receiver begins, as the handle checks.
-		let unbound = sig.skip_binder();
 		let lendable = match unbound.inputs().first().map(|ty| ty.kind()) {
 			Some(&ty::Ref(region, inner, ty::Mutability::Not))
 				if has_self
@@ -3399,6 +3674,11 @@ impl<'tcx> Collector<'tcx> {
 			}
 		}
 		let lends = ok.as_ref().is_ok_and(lent) && !self.is_clone(ok_ty.peel_refs());
+		let lends_mut = exclusive.is_some() && !future && !collect && matches!(ok, Ok(Type::Object(_)));
+		// The borrow `borrows` let through is the lend's, or nothing may hold it.
+		if exclusive.is_some() && !lends_mut && ok.is_ok() {
+			errs.push(why("returned object that borrows", unbound.output().to_string()));
+		}
 		let ok = ok.map_err(|why| errs.push(why)).ok();
 		let err = match err {
 			Some(Ok(err)) => Some(err),
@@ -3438,6 +3718,9 @@ impl<'tcx> Collector<'tcx> {
 				send,
 				collect,
 				lends,
+				lends_mut,
+				derefs: 0,
+				ties,
 				access: Access::Call,
 				instance,
 				home: Home::default(),
@@ -3867,7 +4150,7 @@ impl<'tcx> Collector<'tcx> {
 	fn sources(&self, def_id: DefId, target: Ty<'tcx>, outlives: bool) -> Result<Vec<(Ty<'tcx>, bool, DefId)>, Why> {
 		let tcx = self.tcx;
 		let sig = tcx.fn_sig(def_id).instantiate_identity().skip_norm_wip();
-		let (statics, ..) = self.borrows(def_id, sig.skip_binder());
+		let (statics, ..) = self.borrows(def_id, sig.skip_binder(), None);
 		// Each target, with whether what converts into it must outlive the call, and how
 		// many conversions it is from the parameter.
 		let root = target;
@@ -4660,15 +4943,130 @@ impl<'tcx> Collector<'tcx> {
 			.ok()
 	}
 
-	/// The lifetimes the export makes `'static`, and why a signature's borrows cannot
-	/// cross. A handle outlives every call, so it holds the `'static` form of its type:
-	/// each lifetime an object takes, in the impl's type, an argument, or the return, is
-	/// `'static`, as is each lifetime that must outlive one. A borrow C lends lives only
-	/// for the call, so it may take none of them, but a `&str` parameter, which the glue
-	/// interns; every other lifetime is the call's. Also returns the inputs it interns.
-	fn borrows(&self, def_id: DefId, sig: ty::FnSig<'tcx>) -> (Vec<ty::Region<'tcx>>, Vec<Why>, Vec<usize>) {
+	/// The lifetime of the `&mut self` of an object's that what it returns alone borrows, if
+	/// any: an object, bare or as a `Result`'s value, whose handle then holds that exclusive
+	/// borrow until its value drops, as Rust holds it while the object lives.
+	fn exclusive(&self, def_id: DefId, sig: ty::FnSig<'tcx>, has_self: bool) -> Option<ty::Region<'tcx>> {
 		let tcx = self.tcx;
-		// Each `'long: 'short` the signature's bounds name.
+		let object = |ty: Ty<'tcx>| {
+			matches!(ty.kind(), ty::Adt(adt, args)
+				if matches!(self.decl(adt.did(), ty::fold_regions(tcx, *args, |_, _| tcx.lifetimes.re_erased)), Some(Decl::Object(_))))
+		};
+		let &ty::Ref(region, receiver, ty::Mutability::Mut) = sig.inputs().first()?.kind() else {
+			return None;
+		};
+		if !has_self || !object(receiver) || region.is_static() {
+			return None;
+		}
+		let names = |ty: Ty<'tcx>| ty.walk().any(|arg| arg.as_region() == Some(region));
+		let ok = match sig.output().kind() {
+			ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Result, adt.did()) => {
+				(!names(args.type_at(1))).then(|| args.type_at(0))?
+			}
+			_ => sig.output(),
+		};
+		// A copy would carry the borrow without the lend, which only a handle holds.
+		(object(ok)
+			&& names(ok)
+			&& !sig.inputs()[1..].iter().any(|&input| names(input))
+			&& !implements(
+				tcx,
+				ty::fold_regions(tcx, ok, |_, _| tcx.lifetimes.re_erased),
+				def_id,
+				sym::Copy,
+			))
+		.then_some(region)
+	}
+
+	/// Whether each trait the glue calls on a value of `ty`, its type's `'static` form, holds
+	/// at every lifetime `ty` names, as do its `Deref` and `DerefMut`, whose target names no
+	/// lifetime: one implemented for `'static` alone could keep what a value an exclusive
+	/// lend holds borrows past the lend. Each is proved with no where-clause and no lifetime
+	/// relation assumed, as a bound of a function is.
+	fn lifetime_generic(&self, ty: Ty<'tcx>) -> bool {
+		let tcx = self.tcx;
+		let lang = tcx.lang_items();
+		let empty = ty::ParamEnv::empty();
+		let named = [
+			sym::Clone,
+			sym::PartialEq,
+			sym::Hash,
+			sym::Debug,
+			rustc_span::sym::Display,
+		];
+		let traits: Vec<DefId> = (named.iter().filter_map(|&name| tcx.get_diagnostic_item(name)))
+			.chain(lang.deref_trait())
+			.chain(lang.deref_mut_trait())
+			.collect();
+		let trait_ref = |tr: DefId, ty: Ty<'tcx>| match Some(tr) == tcx.get_diagnostic_item(sym::PartialEq) {
+			true => ty::TraitRef::new(tcx, tr, [ty, ty]),
+			false => ty::TraitRef::new(tcx, tr, [ty]),
+		};
+		// Whether `tr` holds for `ty`, and whether it does with its lifetimes left free.
+		let holds = |tr: DefId, ty: Ty<'tcx>, free: bool| {
+			// An instance's erased lifetime is the `'static` the glue names it by; the
+			// lend's own stays free.
+			let ty = ty::fold_regions(tcx, ty, |region, _| match (free, region.kind()) {
+				(true, ty::ReErased) | (false, _) => tcx.lifetimes.re_static,
+				(true, _) => region,
+			});
+			let infcx = tcx.infer_ctxt().build(ty::TypingMode::non_body_analysis());
+			let ocx = ObligationCtxt::new(&infcx);
+			ocx.register_obligation(Obligation::new(tcx, ObligationCause::dummy(), empty, trait_ref(tr, ty)));
+			ocx.evaluate_obligations_error_on_ambiguity().no_errors()
+				&& (!free
+					|| ocx
+						.resolve_regions(rustc_hir::def_id::CRATE_DEF_ID, empty, [])
+						.is_empty())
+		};
+		if traits.iter().any(|&tr| holds(tr, ty, false) && !holds(tr, ty, true)) {
+			return false;
+		}
+		// A target naming no lifetime reaches nothing the lend's borrow does; one naming any
+		// would need its own traits proved at the lend's lifetime, which the export does not.
+		let (Some(deref), Some(target)) = (lang.deref_trait(), lang.deref_target()) else {
+			return true;
+		};
+		if !holds(deref, ty, false) {
+			return true;
+		}
+		let erased = ty::fold_regions(tcx, ty, |_, _| tcx.lifetimes.re_static);
+		let projection = Ty::new_projection(tcx, ty::IsRigid::No, target, [erased]);
+		let env = TypingEnv::fully_monomorphized();
+		tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(projection))
+			.is_ok_and(|next| !next.walk().any(|arg| arg.as_region().is_some()))
+	}
+
+	/// Whether each bound of `def_id` at `args` that names the lend's lifetime `region` holds
+	/// with it free: the glue's lend gives the call a borrow of any lifetime, so a bound only
+	/// `'static` meets, as `&'static mut Self: Tr` alone would, lets the callee keep the
+	/// borrow past the lend. Each is proved as `ties` proves a bound, with no where-clause
+	/// and no lifetime relation assumed.
+	fn lend_bounds_hold(&self, def_id: DefId, args: ty::GenericArgs<'tcx>, region: ty::Region<'tcx>) -> bool {
+		let tcx = self.tcx;
+		let empty = ty::ParamEnv::empty();
+		(tcx.clauses_of(def_id).instantiate(tcx, args).clauses.iter())
+			.map(|clause| clause.skip_norm_wip())
+			.filter(|&clause| tcx.any_free_region_meets(&clause, |r| r == region))
+			.all(|clause| {
+				// An instance's lifetime is the `'static` the glue names it by.
+				let clause = ty::fold_regions(tcx, clause, |r, _| match r.kind() {
+					ty::ReErased => tcx.lifetimes.re_static,
+					_ => r,
+				});
+				let infcx = tcx.infer_ctxt().build(ty::TypingMode::non_body_analysis());
+				let ocx = ObligationCtxt::new(&infcx);
+				ocx.register_obligation(Obligation::new(tcx, ObligationCause::dummy(), empty, clause));
+				ocx.evaluate_obligations_error_on_ambiguity().no_errors()
+					&& ocx
+						.resolve_regions(rustc_hir::def_id::CRATE_DEF_ID, empty, [])
+						.is_empty()
+			})
+	}
+
+	/// Each `'long: 'short` the bounds of `def_id`'s signature name.
+	fn outlives(&self, def_id: DefId) -> Vec<(ty::Region<'tcx>, ty::Region<'tcx>)> {
+		let tcx = self.tcx;
 		let mut outlives = Vec::new();
 		for clause in tcx.clauses_of(def_id).instantiate_identity(tcx).clauses {
 			let clause = clause.skip_norm_wip();
@@ -4685,6 +5083,23 @@ impl<'tcx> Collector<'tcx> {
 				);
 			}
 		}
+		outlives
+	}
+
+	/// The lifetimes the export makes `'static`, and why a signature's borrows cannot
+	/// cross. A handle outlives every call, so it holds the `'static` form of its type:
+	/// each lifetime an object takes, in the impl's type, an argument, or the return, is
+	/// `'static`, as is each lifetime that must outlive one. A borrow C lends lives only
+	/// for the call, so it may take none of them, but a `&str` parameter, which the glue
+	/// interns; every other lifetime is the call's. Also returns the inputs it interns.
+	fn borrows(
+		&self,
+		def_id: DefId,
+		sig: ty::FnSig<'tcx>,
+		exclusive: Option<ty::Region<'tcx>>,
+	) -> (Vec<ty::Region<'tcx>>, Vec<Why>, Vec<usize>) {
+		let tcx = self.tcx;
+		let outlives = self.outlives(def_id);
 		let close = |statics: &mut Vec<ty::Region<'tcx>>| {
 			while let Some(&(long, _)) = outlives
 				.iter()
@@ -4757,7 +5172,10 @@ impl<'tcx> Collector<'tcx> {
 			}
 		}
 		close(&mut statics);
-		if (lent.iter()).any(|(region, n, _)| !interned.contains(n) && statics[returned..].contains(region)) {
+		// But for the receiver an exclusive lend borrows, which the returned handle holds.
+		if (lent.iter()).any(|(region, n, _)| {
+			!interned.contains(n) && Some(*region) != exclusive && statics[returned..].contains(region)
+		}) {
 			errs.push(why("returned object that borrows", sig.output().to_string()));
 		}
 		(statics, errs, interned)
@@ -5174,6 +5592,9 @@ impl<'tcx> Collector<'tcx> {
 				send: true,
 				collect: false,
 				lends: false,
+				lends_mut: false,
+				derefs: 0,
+				ties: false,
 				access: Access::Const,
 				instance: None,
 				home: Home::default(),

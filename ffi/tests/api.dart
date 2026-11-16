@@ -6,9 +6,11 @@
 // contract, which must fail.
 
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:api/api.dart' as api;
@@ -705,6 +707,46 @@ Future<void> script() async {
   final tallies = api.Tallies();
   tallies.first().bump();
   print('tallied ${tallies.first().bump()}');
+  // A draft borrowing its ledger exclusively until it closes, through which its sheet's
+  // members are reached by Deref and DerefMut: the ledger refuses any other use meanwhile.
+  final ledger = api.Ledger();
+  var draft = ledger.edit();
+  draft.titleSet('minutes');
+  draft.write('first');
+  print('draft ${draft.titleGet} ${draft.lines()} ${draft.describe()} ${draft.edited()}');
+  try {
+    ledger.published();
+    check(false, 'a lent ledger refuses a read');
+  } on StateError catch (e) {
+    check(e.message == 'api_Ledger_published: a handle is borrowed exclusively', 'a lent ledger: $e');
+  }
+  print('committed ${draft.commit()}');
+  print('ledger ${ledger.title()} ${ledger.published()}');
+  draft = ledger.edit();
+  print('read ${draft.lines()} ${draft.edited()}');
+  draft.close();
+  draft = ledger.edit();
+  draft.write('second');
+  draft.close();
+  print('dropped ${ledger.published()}');
+  final receipt = ledger.receipt();
+  print('receipt ${receipt.count()}');
+  receipt.close();
+  final padSmall = api.PadU8.small(), padWide = api.PadU16.wide(), layered = api.Layered();
+  final marker = api.Marker('m', 3, 5);
+  marker.ySet(7);
+  print('forwarded ${padWide.title()} ${layered.lines()} ${marker.xGet} ${marker.yGet} '
+      '[${padSmall.describe()}] [${padWide.describe()}]');
+  for (final handle in [padSmall, padWide, layered, marker]) {
+    handle.close();
+  }
+  ledger.seal();
+  try {
+    ledger.edit().close();
+  } on api.Error catch (e) {
+    print('sealed $e');
+  }
+  ledger.close();
   tallies.close();
   print('chunks ${api.chunks(utf8.encode('abcde'), api.U64(2))}');
   final counters = api.counters(['x', 'y']);
@@ -878,7 +920,7 @@ Future<void> script() async {
   print('seat ${front.debug()} ${front == api.seat(nines, 1)} ${front == back}');
   // A kept closure, called on another thread after the call that took it returned.
   final spawned = api.Spawned(() => 7);
-  print('spawned ${spawned.join()}');
+  check(spawned.join() == 7, 'a kept closure runs on another thread');
   // A kept closure: called again at the instant it asks for, then once its waiter wakes,
   // failing with the exception the binding throws for Rust's error.
   final start = api.Moment.new_(api.U64(0), api.U64(1000))!;
@@ -1002,6 +1044,41 @@ final class CountLog extends api.Log {
 
   @override
   void close() => closes++;
+}
+
+/// A [CountLog] whose close, which Rust's drop of it runs, then runs `closed`.
+final class ClosingLog extends CountLog {
+  final void Function() closed;
+
+  ClosingLog(this.closed);
+
+  @override
+  void close() {
+    super.close();
+    closed();
+  }
+}
+
+/// A list of objects whose length, read as a call lowers it, first runs `read`.
+final class ReadingList extends ListBase<api.Counter> {
+  final void Function() read;
+
+  ReadingList(this.read);
+
+  @override
+  int get length {
+    read();
+    return 0;
+  }
+
+  @override
+  set length(int n) => throw UnsupportedError('a fixed list');
+
+  @override
+  api.Counter operator [](int i) => throw RangeError.index(i, this);
+
+  @override
+  void operator []=(int i, api.Counter value) => throw UnsupportedError('a fixed list');
 }
 
 /// The futures' semantics beyond the transcript, each checked by an assertion.
@@ -1254,17 +1331,41 @@ Future<void> owned() async {
   check(api.dropped() == before + 1, 'closing again frees nothing');
   closed(() => token.idGet, 'Token', 'a closed token refuses a read');
 
+  // Freed only once later returns push it out of the nursery.
   unclosed();
+  for (var i = 0; i < 3; i++) {
+    pressure();
+  }
+  check(api.dropped() == before + 1, 'the nursery keeps what nobody closed');
+  fill();
   await collect(() => api.dropped() >= before + 2, 'the garbage collector frees what nobody closed');
   for (var i = 0; i < 3; i++) {
     pressure();
   }
   check(api.dropped() == before + 2, 'the garbage collector frees each once');
 
+  // Closed once pushed out of the nursery, which gave the garbage collector its hold: the
+  // close takes it back, so the collector frees nothing more.
+  final kept = api.Token(4);
+  fill();
+  kept.close();
+  check(api.dropped() == before + 3, 'closing an object pushed out of the nursery frees it at once');
+  for (var i = 0; i < 3; i++) {
+    pressure();
+  }
+  await step();
+  check(api.dropped() == before + 3, 'the garbage collector frees nothing a close freed');
+
+  // An isolate's nursery frees what it still holds once the isolate exits.
+  final exited = api.dropped();
+  await Isolate.run(unclosed);
+  await collect(() => api.dropped() > exited, "an isolate's exit frees what its nursery held");
+
   // An implementation an object the garbage collector frees held is closed from the event
   // loop, as no drop in the collector may call into Dart.
   final log = CountLog();
   unclosedLogger(log);
+  fill();
   await collect(() => log.closes == 1, 'the garbage collector frees what an object it frees holds');
   targets();
   print('owned ok');
@@ -1294,6 +1395,13 @@ void targets() {
   final booth = api.Booth(mark: api.Mark.of(api.U64(1)));
   lacks(() => booth.debug(), 'api_Booth_debug');
   lacks(() => booth == api.Booth(mark: booth.mark), 'api_Booth_eq');
+}
+
+/// Return a nursery's worth of objects, each closed, pushing out every earlier one.
+void fill() {
+  for (var i = 0; i < 64; i++) {
+    api.Tally().close();
+  }
 }
 
 @pragma('vm:never-inline')
@@ -1345,12 +1453,44 @@ void closedObjects() {
   throws<RangeError>(() => api.logCounts(spared, 256, open, []), 'an integer out of range after an implementation');
   closed(() => api.logCounts(spared, 0, c, []), 'Counter', 'a closed object after an implementation');
   closed(() => api.logCounts(spared, 0, open, [c]), 'Counter', 'a closed object in a list after an implementation');
+  check(spared.closes == 0, 'a call Dart refuses gives Rust no implementation');
+  // Moved out by a call, which only Rust's check sees.
+  final gone = api.Counter('g', api.U64(0));
+  gone.intoLabel(null);
+  closed(() => api.logCounts(spared, 0, gone, []), 'Counter', 'a moved object after an implementation');
+  closed(() => api.logCounts(spared, 0, open, [gone]), 'Counter', 'a moved object in a list after an implementation');
   check(spared.closes == 2, 'a call whose check throws drops the implementation it gave Rust');
   check(api.onFirstThread(), "a call after one that threw runs on the isolate's thread");
   lacks(() => api.wasmLog(spared), 'api_wasm_log');
   check(api.onFirstThread(), "a call after one this target lacks runs on the isolate's thread");
   check(api.logCounts(spared, 0, open, []) == 1, 'an implementation a call that threw gave none of');
   check(spared.lines == 1 && spared.closes == 3, 'an implementation given once is closed once');
+
+  // Closed by Dart a call runs as it lowers its arguments, after it held the object: the
+  // handle outlives the call's hold, so Rust's check refuses the value the close dropped.
+  final early = api.Counter('early', api.U64(1));
+  closed(
+    () => api.worth([early], ReadingList(early.close)),
+    'Counter',
+    'an object closed while its call lowers the rest',
+  );
+  closed(early.get, 'Counter', 'an object closed during a call, after it');
+
+  // Closed again by Dart its drop runs, which finds it closed, so it is freed once.
+  late api.Journal journal;
+  var during = '';
+  final nested = ClosingLog(() {
+    try {
+      journal.write('x');
+    } on StateError catch (e) {
+      during = e.message;
+    }
+    journal.close();
+  });
+  journal = api.Journal(nested);
+  journal.close();
+  check(nested.closes == 1, 'a close from inside its own drop closes nothing more');
+  check(during == 'Journal is closed', 'an object is closed in Dart while Rust drops it: $during');
 
   // An async call.
   final channel = api.Channel();
@@ -1419,6 +1559,7 @@ Future<void> lent() async {
     pressure();
   }
   canary.clear();
+  fill();
   await collect(() => api.dropped() > before, 'the garbage collector frees an old object');
   check(api.dropped() == before + 1, "a view keeps Rust's buffer");
   check(view.length == 10 && view.every((b) => b == 2), "a view reads Rust's buffer after its list is gone");
@@ -1446,6 +1587,7 @@ Future<void> forwarded() async {
     pressure();
   }
   canary.clear();
+  fill();
   await collect(() => api.dropped() > before, 'the garbage collector frees an old object');
   // Collections enough to free every list the relay left, had one held a copy.
   for (var i = 0; i < 3; i++) {

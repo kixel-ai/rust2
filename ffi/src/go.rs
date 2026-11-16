@@ -620,6 +620,9 @@ impl<'a> Gen<'a> {
 			extern bool {go}_read(void *data, uint8_t *buf, size_t len, size_t *n, {p}_buf *err);\n\
 			extern bool {go}_seek(void *data, int whence, int64_t offset, uint64_t *position, {p}_buf *err);\n\n\
 			static void {go}_bufs_free({p}_buf *bufs, size_t n) {{\n\tfor (size_t i = 0; i < n; i++) {{\n\t\t{p}_buf_free(bufs[i]);\n\t}}\n}}\n\n\
+			// The header's contract, read through C: cgo built by clang reads a uint64_t macro\n\
+			// with its top bit set as a negative constant.\n\
+			static uint64_t {go}_header_contract(void) {{\n\treturn {upper}_CONTRACT;\n}}\n\n\
 			static void {go}_waker_wake({p}_waker w) {{\n\tif (w.wake != NULL) {{\n\t\tw.wake(w.data);\n\t}}\n}}\n\n\
 			static void {go}_waker_drop({p}_waker w) {{\n\tif (w.drop != NULL) {{\n\t\tw.drop(w.data);\n\t}}\n}}\n\
 			*/\nimport \"C\"\n\n\
@@ -637,7 +640,7 @@ impl<'a> Gen<'a> {
 			func cWakerDrop(w cWaker) {{\n\tC.{go}_waker_drop(w)\n}}\n\n\
 			// Go packages and a library from different builds must not mix: checked when the\n\
 			// runtime loads, before any other call.\n\
-			func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{upper}_CONTRACT != 0x{contract:016x} {{\n\t\tpanic(\"the Go of {p} and the library are from different builds\")\n\t}}\n\ttarget_ = uint64(C.{p}_target())\n}}\n\n\
+			func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{go}_header_contract() != 0x{contract:016x} {{\n\t\tpanic(\"the Go of {p} and the library are from different builds\")\n\t}}\n\ttarget_ = uint64(C.{p}_target())\n}}\n\n\
 			// target_ is the index of the library's target among those the packages serve.\n\
 			var target_ uint64\n\n\
 			// On_ panics unless the library's target is among those of on, as the item what is.\n\
@@ -829,6 +832,22 @@ impl<'a> Gen<'a> {
 			"{typedef}static inline {r} {name}({decls}) {{\n\t{r} r = {{0}};\n\t{made}\n{back}\treturn r;\n}}\n"
 		));
 		(stmts, value)
+	}
+
+	/// The C shim dropping the value of the object `c`'s handle, which Rust checks, then
+	/// freeing the handle if asked and the drop passed: a close in one crossing.
+	fn close_c(&mut self, c: &str) -> String {
+		let name = format!("{}GoClose_{}", self.abi.prefix, self.bare(c));
+		let handle = Ty::Handle {
+			name: c.to_string(),
+			constant: false,
+		};
+		let decl = crate::c::decl(self.abi, &handle, "self");
+		let status = crate::c::decl(self.abi, &Ty::Status, "");
+		self.decls.push(format!(
+			"static inline {status} {name}({decl}, int free) {{\n\t{status} r = 0;\n\t{c}_drop(self, &r);\n\tif (r == 0 && free) {{\n\t\t{c}_free(self);\n\t}}\n\treturn r;\n}}\n"
+		));
+		name
 	}
 
 	/// The call of `sig` with `args`, as [`Self::call`] makes it.
@@ -2252,33 +2271,24 @@ impl<'a> Gen<'a> {
 		let name = self.qualified(&ty);
 		let handle = self.qualify(Packages::RT, "Handle_");
 		let (drop, dropping) = match self.abi.checked[i] {
-			true => {
-				let handle = Ty::Handle {
-					name: c.clone(),
-					constant: false,
-				};
-				let params = [
-					("self".to_string(), handle),
-					("status".to_string(), Ty::Out(Box::new(Ty::Status))),
-				];
-				let (call, _) = self.call(&format!("{c}_drop"), &params, &Ty::Void, &[format!("(*C.{c})(p)")]);
-				let status_ = self.qualify(Packages::RT, "Status_");
-				(
-					format!(
-						"// drop_{c} drops the value of the handle p, which Rust checks.\n\
-						func drop_{c}(p unsafe.Pointer) error {{\n\t{call}\n\treturn {status_}(int32(c_status_), \"{c}_drop\")\n}}\n\n"
-					),
-					format!("drop_{c}"),
-				)
-			}
+			true => (
+				format!(
+					"// drop_{c} drops the value of the handle p, which Rust checks, then frees p if free\n\
+					// and the drop passed.\n\
+					func drop_{c}(p unsafe.Pointer, free bool) error {{\n\tvar f C.int\n\tif free {{\n\t\tf = 1\n\t}}\n\treturn {status_}(int32(C.{shim}((*C.{c})(p), f)), \"{c}_drop\")\n}}\n\n",
+					shim = self.close_c(&c),
+					status_ = self.qualify(Packages::RT, "Status_"),
+				),
+				format!("drop_{c}"),
+			),
 			false => (String::new(), "nil".to_string()),
 		};
 		format!(
 			"func free_{c}(p unsafe.Pointer) {{\n\tC.{c}_free((*C.{c})(p))\n}}\n\n\
 			{drop}\
 			// own_{c} owns a handle Rust returned, or is nil for none: the object and its handle\n\
-			// in one allocation, whose cleanup frees the handle.\n\
-			func own_{c}(raw *C.{c}) *{name} {{\n\tif raw == nil {{\n\t\treturn nil\n\t}}\n\to := &struct {{\n\t\tv {name}\n\t\th {handle}\n\t}}{{}}\n\to.h.Init(unsafe.Pointer(raw), free_{c}, {dropping}, \"{local}\")\n\to.v.Handle_ = &o.h\n\to.h.Cleanup = runtime.AddCleanup(&o.v, free_{c}, unsafe.Pointer(raw))\n\treturn &o.v\n}}\n\n\
+			// in one allocation, in the nursery Own puts it in.\n\
+			func own_{c}(raw *C.{c}) *{name} {{\n\tif raw == nil {{\n\t\treturn nil\n\t}}\n\to := &struct {{\n\t\tv {name}\n\t\th {handle}\n\t}}{{}}\n\to.h.Init(unsafe.Pointer(raw), free_{c}, {dropping}, \"{local}\")\n\to.v.Handle_ = &o.h\n\to.h.Own()\n\treturn &o.v\n}}\n\n\
 			// lend_{c} is a handle Rust lends for a call, which it frees itself.\n\
 			func lend_{c}(raw *C.{c}) *{name} {{\n\to := &struct {{\n\t\tv {name}\n\t\th {handle}\n\t}}{{}}\n\to.h.Init(unsafe.Pointer(raw), nil, nil, \"{local}\")\n\to.v.Handle_ = &o.h\n\treturn &o.v\n}}\n\n\
 			// holdOption_{c} is v's handle, held until the call returns, or nil for none.\n\

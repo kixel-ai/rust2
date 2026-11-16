@@ -736,6 +736,44 @@ fn main() {
 	let tallies = api::Tallies::new();
 	tallies.first().bump();
 	println!("tallied {}", tallies.first().bump());
+	// A draft borrowing its ledger exclusively, through which its sheet's members are
+	// reached by `Deref` and `DerefMut`.
+	let mut ledger = api::Ledger::new();
+	let mut draft = ledger.edit().unwrap();
+	draft.title = "minutes".to_string();
+	draft.write("first");
+	println!(
+		"draft {} {} {} {}",
+		draft.title,
+		draft.lines(),
+		draft.describe(),
+		draft.edited()
+	);
+	println!("committed {}", draft.commit());
+	println!("ledger {} {}", ledger.title(), ledger.published());
+	let draft = ledger.edit().unwrap();
+	println!("read {} {}", draft.lines(), draft.edited());
+	drop(draft);
+	let mut draft = ledger.edit().unwrap();
+	draft.write("second");
+	drop(draft);
+	println!("dropped {}", ledger.published());
+	println!("receipt {}", ledger.receipt().count());
+	// Members a `Deref` reaches: past an unexported target, beside a method of the same
+	// name, and a field a method's path shares.
+	let mut marker = api::Marker::new("m", 3, 5);
+	marker.y = 7;
+	println!(
+		"forwarded {} {} {} {} [{}] [{}]",
+		api::Pad::<u16>::wide().title(),
+		api::Layered::new().lines(),
+		marker.x,
+		marker.y,
+		api::Pad::<u8>::small().describe(),
+		api::Pad::<u16>::wide().describe()
+	);
+	ledger.seal();
+	println!("sealed {}", ledger.edit().err().unwrap());
 	println!("chunks {:?}", api::chunks(b"abcde", 2));
 	let mut counters = api::counters(vec!["x".to_string(), "y".to_string()]);
 	let names: Vec<String> = counters.iter().map(|c| format!("{} {}", c.name(), c.get())).collect();
@@ -1012,8 +1050,8 @@ fn main() {
 	let nines = api::Mark::of(9);
 	let (front, back) = (api::seat(nines, 1), api::seat(nines, 2));
 	println!("seat {front:?} {} {}", front == front.clone(), front == back);
-	// A kept closure, called on another thread after the call that took it returned.
-	println!("spawned {}", api::Spawned::new(|| 7).join());
+	// A kept closure, called on another thread after the call that took it returned, is
+	// each native language's own check, since wasm32 has no thread to call it on.
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
 	let start = api::Moment::new(0, 1000).unwrap();
 	let mut calls = 0;
@@ -1086,15 +1124,15 @@ fn finish<F: std::future::Future>(future: F) -> F::Output {
 	}
 }
 
-/// A path no Rust string spells: on Unix, bytes that are not UTF-8; on Windows, a lone
-/// surrogate, which is WTF-8's `ed a0 80`.
-#[cfg(unix)]
+/// A path no Rust string spells: on Unix and WASI, bytes that are not UTF-8; on Windows, a
+/// lone surrogate, which is WTF-8's `ed a0 80`.
+#[cfg(any(unix, target_os = "wasi"))]
 fn unspelled() -> std::path::PathBuf {
 	api::stray()
 }
 
-/// A path no Rust string spells: on Unix, bytes that are not UTF-8; on Windows, a lone
-/// surrogate, which is WTF-8's `ed a0 80`.
+/// A path no Rust string spells: on Unix and WASI, bytes that are not UTF-8; on Windows, a
+/// lone surrogate, which is WTF-8's `ed a0 80`.
 #[cfg(windows)]
 fn unspelled() -> std::path::PathBuf {
 	<std::ffi::OsString as std::os::windows::ffi::OsStringExt>::from_wide(&[0xd800]).into()

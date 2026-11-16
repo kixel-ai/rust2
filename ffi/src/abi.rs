@@ -316,6 +316,12 @@ fn checked(api: &Api) -> Vec<bool> {
 		if f.lends {
 			lent(api, &f.ok, &mut checked);
 		}
+		// A handle holding an exclusive lend refuses what would carry the borrow past it.
+		if f.lends_mut
+			&& let Type::Object(j) = f.ok
+		{
+			checked[j] = true;
+		}
 	}
 	// What an implementation is lent, and what it hands Rust, which moves it out.
 	for method in api.callbacks.iter().flat_map(|c| &c.methods) {
@@ -324,6 +330,21 @@ fn checked(api: &Api) -> Vec<bool> {
 		method.err.iter().for_each(|err| lent(api, err, &mut checked));
 	}
 	checked
+}
+
+/// Whether an exclusive lend returns each object.
+fn held(api: &Api) -> Vec<bool> {
+	let mut held = vec![false; api.objects.len()];
+	let functions = (api.records.iter().flat_map(|r| &r.methods))
+		.chain(api.enums.iter().flat_map(|e| &e.methods))
+		.chain(api.objects.iter().flat_map(|o| &o.methods))
+		.chain(&api.functions);
+	for f in functions.filter(|f| f.lends_mut) {
+		if let Type::Object(j) = f.ok {
+			held[j] = true;
+		}
+	}
+	held
 }
 
 /// `ty` as a clone of each borrow it holds.
@@ -362,6 +383,9 @@ pub struct Abi<'a> {
 	pub arrays: BTreeMap<String, usize>,
 	/// Whether a call can fail a check of each object's handle: see [`checked`].
 	pub checked: Vec<bool>,
+	/// Whether an exclusive lend returns each object, whose handle may then hold its
+	/// receiver's borrow.
+	pub held: Vec<bool>,
 	/// Every C name claimed.
 	claims: Vec<Claim>,
 	/// The C name of each item whose own clashed.
@@ -382,6 +406,7 @@ impl<'a> Abi<'a> {
 			tuples: BTreeMap::new(),
 			arrays: BTreeMap::new(),
 			checked: checked(api),
+			held: held(api),
 			claims: Vec::new(),
 			renames: HashMap::new(),
 			clashes: Vec::new(),
@@ -443,6 +468,7 @@ impl<'a> Abi<'a> {
 			renames,
 			clashes: self.clashes.clone(),
 			checked: self.checked.clone(),
+			held: self.held.clone(),
 		}
 	}
 
@@ -769,6 +795,46 @@ impl<'a> Abi<'a> {
 				cs.into_iter().zip(unique(names, &taken))
 			})
 			.collect()
+	}
+
+	/// The namespace of `language`'s glue: `<prefix>_<language>`, with a trailing `_` until no C name is it
+	/// or starts with it and a `_`.
+	pub fn space(&self, language: &str) -> String {
+		let abi = self;
+		let api = abi.api;
+		let mut names: Vec<String> = Vec::new();
+		let mut functions: Vec<(&Function, Option<Ty>)> = Vec::new();
+		for (i, record) in api.records.iter().enumerate() {
+			names.push(abi.record(i));
+			functions.extend(record.methods.iter().map(|m| (m, Some(Ty::Struct(abi.record(i))))));
+		}
+		for (i, e) in api.enums.iter().enumerate() {
+			names.push(abi.enumeration(i));
+			functions.extend(e.methods.iter().map(|m| (m, Some(abi.ty(&Type::Enum(i))))));
+		}
+		for (i, object) in api.objects.iter().enumerate() {
+			names.push(abi.object(i));
+			let owner = Ty::Handle {
+				name: abi.object(i),
+				constant: false,
+			};
+			functions.extend(object.methods.iter().map(|m| (m, Some(owner.clone()))));
+		}
+		names.extend((0..api.callbacks.len()).map(|i| abi.callback(i)));
+		functions.extend(api.functions.iter().map(|f| (f, None)));
+		names.extend(
+			functions
+				.into_iter()
+				.map(|(function, owner)| abi.export(function, owner.as_ref()).call.name),
+		);
+		let mut space = abi.rt(language);
+		while names
+			.iter()
+			.any(|name| *name == space || name.starts_with(&format!("{space}_")))
+		{
+			space.push('_');
+		}
+		space
 	}
 
 	/// The prefixed name of a runtime item: `buf` is `moq_buf`.
@@ -1325,6 +1391,10 @@ impl<'a> Abi<'a> {
 			"foreign_reader",
 			"buf_copy",
 			"buf_clone",
+			"thread_wake",
+			"thread_drain",
+			// Python's extension module function, beside each native function by this name.
+			"_register",
 			"poll",
 			"view",
 			"items",

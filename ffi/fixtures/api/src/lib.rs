@@ -15,6 +15,9 @@ pub use dep::*;
 /// The largest value a [`Counter`] reaches.
 pub const LIMIT: u64 = 1000;
 
+/// The largest `i64`, past what a binding's float holds exactly.
+pub const FAR: i64 = i64::MAX;
+
 /// A point: a record, since every field is `pub`. Its docs reach the header, where a
 /// comment such as `/* this */` must not close the header's own.
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
@@ -738,6 +741,409 @@ impl Registry {
 /// The address of the counter [`Registry::edit`] lends.
 static EDITING: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
+/// A sheet a [`Draft`] edits in place: [`Ledger::edit`] lends the ledger exclusively until
+/// the draft drops, as moq-mux's `catalog::Producer::modify` lends its catalog.
+#[derive(Default)]
+pub struct Ledger {
+	sheet: Mutex<Sheet>,
+	published: u32,
+	sealed: bool,
+}
+
+impl Ledger {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// A draft of the sheet, which borrows this ledger exclusively until it drops: fails
+	/// once sealed.
+	pub fn edit(&mut self) -> Result<Draft<'_>, Error> {
+		if self.sealed {
+			return Err(Error::Overflow);
+		}
+		Ok(Draft {
+			sheet: self.sheet.lock().expect("a draft never panics holding the lock"),
+			published: &mut self.published,
+			edited: false,
+		})
+	}
+
+	/// How many drafts published an edit.
+	pub fn published(&self) -> u32 {
+		self.published
+	}
+
+	/// The sheet's title, read through its lock.
+	pub fn title(&self) -> String {
+		self.sheet
+			.lock()
+			.expect("a draft never panics holding the lock")
+			.title
+			.clone()
+	}
+
+	/// Refuses every later draft.
+	pub fn seal(&mut self) {
+		self.sealed = true;
+	}
+
+	/// What this ledger published, which borrows it exclusively while any copy of the
+	/// receipt lives, as a `&mut self` method's borrowing return does in Rust.
+	pub fn receipt(&mut self) -> Receipt<'_> {
+		Receipt(&self.published)
+	}
+
+	/// A receipt from a method bounded on its own borrow, by a trait that holds at every
+	/// lifetime, so the lend still exports.
+	pub fn noted<'a>(&'a mut self) -> Receipt<'a>
+	where
+		&'a mut Self: noted::Noted<'a>,
+	{
+		Receipt(&self.published)
+	}
+
+	/// Files `item` beside what the ledger published, generic over what counts itself.
+	pub fn file<T: Totaled>(&mut self, item: T) -> Filed<'_, T> {
+		Filed {
+			published: &self.published,
+			item,
+		}
+	}
+
+	pub fn slip(&mut self) -> Slip<'_> {
+		Slip {
+			receipt: Receipt(&self.published),
+			global: Receipt(&7),
+			here: std::marker::PhantomData,
+		}
+	}
+}
+
+mod noted {
+	/// Implemented for a borrow of a ledger of any lifetime.
+	pub trait Noted<'a> {}
+
+	impl<'a> Noted<'a> for &'a mut super::Ledger {}
+}
+
+/// A receipt kept on the thread that took it: `Clone` and not `Send`, with a field that
+/// borrows what the slip borrows, so reading it would carry the ledger's borrow out, and
+/// one that borrows only what lives as long as the program.
+#[derive(Clone)]
+pub struct Slip<'a> {
+	pub receipt: Receipt<'a>,
+	pub global: Receipt<'static>,
+	here: std::marker::PhantomData<std::rc::Rc<()>>,
+}
+
+impl Slip<'_> {
+	pub fn count(&self) -> u32 {
+		self.receipt.count()
+	}
+}
+
+/// What a [`Ledger`] published, borrowed from it: `Send` and `Clone`, unlike a [`Draft`].
+pub struct Receipt<'a>(&'a u32);
+
+/// Bounded by what always holds, so proving `Receipt<'a>: Clone` asks nothing of `'a`.
+impl<'a> Clone for Receipt<'a>
+where
+	Receipt<'a>: 'a,
+{
+	fn clone(&self) -> Self {
+		Self(self.0)
+	}
+}
+
+impl Receipt<'_> {
+	pub fn count(&self) -> u32 {
+		*self.0
+	}
+}
+
+/// What a [`Draft`] derefs to: a title, and the lines written under it.
+#[derive(Clone, Debug, Default)]
+pub struct Sheet {
+	pub title: String,
+	lines: Vec<String>,
+}
+
+impl Sheet {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// How many lines it holds.
+	pub fn lines(&self) -> u32 {
+		self.lines.len() as u32
+	}
+
+	/// Adds a line.
+	pub fn write(&mut self, line: &str) {
+		self.lines.push(line.to_string());
+	}
+
+	/// The sheet in a word, which a draft's own `describe` shadows, as in Rust.
+	pub fn describe(&self) -> String {
+		format!("sheet {}", self.title)
+	}
+}
+
+/// An edit of a [`Ledger`]'s sheet, reached through `Deref` and `DerefMut`, and published
+/// once it commits or drops if a `DerefMut` marked it, as moq-mux's `catalog::Guard` does.
+/// Not `Send`, as the lock it holds is not.
+pub struct Draft<'a> {
+	sheet: std::sync::MutexGuard<'a, Sheet>,
+	published: &'a mut u32,
+	edited: bool,
+}
+
+impl Draft<'_> {
+	/// Whether a `DerefMut` marked it, which a read through `Deref` does not.
+	pub fn edited(&self) -> bool {
+		self.edited
+	}
+
+	/// The draft in a word, shadowing its sheet's.
+	pub fn describe(&self) -> String {
+		format!("draft of {} lines", self.sheet.lines())
+	}
+
+	/// Publishes the edit, if any, returning how many the ledger published: the drop then
+	/// publishes nothing.
+	pub fn commit(mut self) -> u32 {
+		self.publish();
+		*self.published
+	}
+
+	fn publish(&mut self) {
+		if std::mem::take(&mut self.edited) {
+			*self.published += 1;
+		}
+	}
+}
+
+impl std::ops::Deref for Draft<'_> {
+	type Target = Sheet;
+
+	fn deref(&self) -> &Sheet {
+		&self.sheet
+	}
+}
+
+impl std::ops::DerefMut for Draft<'_> {
+	fn deref_mut(&mut self) -> &mut Sheet {
+		self.edited = true;
+		&mut self.sheet
+	}
+}
+
+impl Drop for Draft<'_> {
+	fn drop(&mut self) {
+		self.publish();
+	}
+}
+
+/// Whether `draft` is marked: it must live as long as the program, which a draft
+/// [`Ledger::edit`] lends never does, so passing one fails, as Rust refuses it.
+pub fn lasting(draft: &Draft<'static>) -> bool {
+	draft.edited
+}
+
+/// What `receipt` counts: its bound lets it live as long as the program, so passing one a
+/// [`Ledger`] lends fails, as Rust refuses it.
+pub fn stored<'a: 'static>(receipt: Receipt<'a>) -> u32 {
+	receipt.count()
+}
+
+/// What `receipt` counts, through a bound that holds for any lifetime, so a [`Ledger`]'s
+/// lent receipt moves in, and the ledger is free once it returns.
+pub fn tallied<'a>(receipt: Receipt<'a>) -> u32
+where
+	Receipt<'a>: Clone,
+{
+	receipt.clone().count()
+}
+
+/// An item filed with a ledger, whose `Clone` asks that it outlive its borrow, as it always
+/// does: an instance's erased lifetime stands beside the lend's.
+pub struct Filed<'a, T> {
+	published: &'a u32,
+	item: T,
+}
+
+impl<'a, T: Clone> Clone for Filed<'a, T>
+where
+	Filed<'a, T>: 'a,
+{
+	fn clone(&self) -> Self {
+		Self {
+			published: self.published,
+			item: self.item.clone(),
+		}
+	}
+}
+
+impl<T: Totaled + Clone> Filed<'_, T> {
+	pub fn count(&self) -> u32 {
+		*self.published + self.item.clone().total()
+	}
+}
+
+/// What counts itself, implemented only for a receipt that lives as long as the program.
+pub trait Totaled {
+	fn total(self) -> u32;
+}
+
+impl Totaled for Receipt<'static> {
+	fn total(self) -> u32 {
+		self.count()
+	}
+}
+
+/// What `totaled` counts: the instance a binding calls takes a receipt that lives as long
+/// as the program, so passing one a [`Ledger`] lends fails.
+pub fn summed_up<T: Totaled>(totaled: T) -> u32 {
+	totaled.total()
+}
+
+/// What `receipt` counts: its bound implies it lives as long as the program, as `Any`'s
+/// does, so passing one a [`Ledger`] lends fails too.
+pub fn erased<'a>(receipt: Receipt<'a>) -> u32
+where
+	Receipt<'a>: std::any::Any,
+{
+	receipt.count()
+}
+
+/// A sheet with a tag, which derefs to the sheet: only `Pad<u8>` has a `describe` of its
+/// own, which hides the sheet's, while `Pad<u16>`'s is the sheet's, as in Rust.
+pub struct Pad<T> {
+	sheet: Sheet,
+	tag: T,
+}
+
+impl<T> std::ops::Deref for Pad<T> {
+	type Target = Sheet;
+
+	fn deref(&self) -> &Sheet {
+		&self.sheet
+	}
+}
+
+impl Pad<u8> {
+	pub fn small() -> Self {
+		Self {
+			sheet: Sheet::new(),
+			tag: 1,
+		}
+	}
+
+	pub fn describe(&self) -> String {
+		format!("pad {}", self.tag)
+	}
+}
+
+impl Pad<u16> {
+	pub fn wide() -> Self {
+		Self {
+			sheet: Sheet::new(),
+			tag: 2,
+		}
+	}
+
+	pub fn tag(&self) -> u16 {
+		self.tag
+	}
+
+	/// A method named as the sheet's field, which hides no field: `title` still reaches the
+	/// sheet's, as Rust's field access does.
+	pub fn title(&self) -> u16 {
+		self.tag
+	}
+}
+
+mod layers {
+	/// Between a layered sheet and its sheet: no path from the crate root names it, so it
+	/// does not export, yet its `describe` hides the sheet's, as in Rust.
+	pub struct Middle(pub(crate) super::Sheet);
+
+	impl Middle {
+		pub fn describe(&self) -> String {
+			"middle".to_string()
+		}
+	}
+
+	impl std::ops::Deref for Middle {
+		type Target = super::Sheet;
+
+		fn deref(&self) -> &super::Sheet {
+			&self.0
+		}
+	}
+}
+
+/// A sheet behind a layer, which forwards what the layer does not hide.
+pub struct Layered(layers::Middle);
+
+impl Layered {
+	pub fn new() -> Self {
+		Self(layers::Middle(Sheet::new()))
+	}
+}
+
+impl std::ops::Deref for Layered {
+	type Target = layers::Middle;
+
+	fn deref(&self) -> &layers::Middle {
+		&self.0
+	}
+}
+
+/// A named point, which derefs mutably to a record, whose fields it reaches.
+pub struct Marker {
+	point: Point,
+	label: String,
+}
+
+impl Marker {
+	pub fn new(label: &str, x: i32, y: i32) -> Self {
+		Self {
+			point: Point { x, y },
+			label: label.to_string(),
+		}
+	}
+
+	pub fn label(&self) -> String {
+		self.label.clone()
+	}
+
+	/// A method sharing its path with the point's field, which the config leaves out alone.
+	pub fn x(&self) -> i32 {
+		self.point.x
+	}
+
+	/// A function without `self` sharing its path with the point's field, which the config
+	/// leaves out alone too.
+	pub fn y() -> i32 {
+		0
+	}
+}
+
+impl std::ops::Deref for Marker {
+	type Target = Point;
+
+	fn deref(&self) -> &Point {
+		&self.point
+	}
+}
+
+impl std::ops::DerefMut for Marker {
+	fn deref_mut(&mut self) -> &mut Point {
+		&mut self.point
+	}
+}
+
 /// A name that may borrow its text: its only generic parameter is a lifetime, so a
 /// handle holds `Name<'static>`, which borrows nothing.
 #[derive(Clone, Debug, PartialEq)]
@@ -948,12 +1354,14 @@ pub async fn drive<E>(start: Moment, mut poll: impl FnMut(Moment, &Waiter) -> Re
 	.await
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// A thread running a closure it keeps past the call that made it, which
 /// [`Spawned::join`] waits on.
 pub struct Spawned {
 	thread: std::thread::JoinHandle<u32>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Spawned {
 	pub fn new(task: impl FnOnce() -> u32 + Send + 'static) -> Self {
 		Self {
@@ -1146,6 +1554,7 @@ impl Channel {
 	/// Sends from another thread, before it returns, so the wake lands from that thread, as
 	/// an async runtime's worker wakes a task: the one way Dart, whose isolates share no
 	/// object, has to wake from another thread.
+	#[cfg(not(target_arch = "wasm32"))]
 	pub fn send_from_thread(&self, payload: Bytes) {
 		std::thread::scope(|scope| {
 			scope.spawn(|| self.send(payload));
@@ -1713,17 +2122,20 @@ pub fn emit(log: impl Log, lines: Vec<u8>) -> u32 {
 	lines.iter().filter(|&&n| log.log(n, &format!("line {n}"))).count() as u32
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// [`emit`] on another thread, which the call waits on.
 pub fn emit_from_thread(log: impl Log, lines: Vec<u8>) -> u32 {
 	on_thread(&log, &lines)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// [`emit_from_thread`] before it returns its future, and again once polled.
 pub fn emit_later(log: Box<dyn Log>, lines: Vec<u8>) -> impl Future<Output = u32> + use<> {
 	let eager = on_thread(&*log, &lines);
 	async move { eager + on_thread(&*log, &lines) }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn on_thread(log: &(impl Log + ?Sized), lines: &[u8]) -> u32 {
 	std::thread::scope(|scope| {
 		scope
@@ -1748,10 +2160,12 @@ pub fn counted(n: u32, mut count: impl FnMut(u32)) -> std::future::Ready<Result<
 /// Each line to `keep` on another thread, returning how many it kept: a lent closure may
 /// run on any thread until the call returns.
 pub fn filter(lines: Vec<u8>, mut keep: impl FnMut(u8, &str) -> bool + Send) -> u32 {
-	std::thread::scope(|scope| {
-		let kept = scope.spawn(move || lines.iter().filter(|&&n| keep(n, &format!("line {n}"))).count());
-		kept.join().expect("the thread finishes") as u32
-	})
+	let kept = move || lines.iter().filter(|&&n| keep(n, &format!("line {n}"))).count() as u32;
+	// wasm32 has no other thread, so it runs there on the caller's.
+	#[cfg(target_arch = "wasm32")]
+	return { kept }();
+	#[cfg(not(target_arch = "wasm32"))]
+	std::thread::scope(|scope| scope.spawn(kept).join().expect("the thread finishes"))
 }
 
 /// Logs a line once polled, returning whether it was kept: the future holds `log` until it
@@ -1789,16 +2203,40 @@ impl Logger {
 	}
 
 	/// [`Logger::write`] on another thread, which the call waits on.
+	#[cfg(not(target_arch = "wasm32"))]
 	pub fn write_from_thread(&self, line: &str) -> bool {
 		std::thread::scope(|scope| scope.spawn(|| self.write(line)).join().expect("the thread finishes"))
 	}
 }
 
+/// A [`Logger`] its `&mut self` method makes checked, so a binding's close drops it through
+/// Rust, running its implementation's close inside that drop.
+pub struct Journal {
+	sink: Box<dyn Log>,
+}
+
+impl Journal {
+	pub fn new(sink: Box<dyn Log>) -> Self {
+		Self { sink }
+	}
+
+	/// Log to `sink` from now on, dropping the implementation before it.
+	pub fn redirect(&mut self, sink: Box<dyn Log>) {
+		self.sink = sink;
+	}
+
+	pub fn write(&self, line: &str) -> bool {
+		self.sink.log(0, line)
+	}
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 /// A thread logging a line to a foreign implementation, which [`LogThread::join`] waits on.
 pub struct LogThread {
 	thread: std::thread::JoinHandle<bool>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl LogThread {
 	pub fn new(log: Box<dyn Log>, line: String) -> Self {
 		Self {
@@ -1812,6 +2250,7 @@ impl LogThread {
 	}
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// A future that never finishes, whose drop logs a line to `log` on another thread it
 /// waits on.
 pub fn log_on_drop(log: Box<dyn Log>) -> impl Future<Output = ()> + use<> {
@@ -1822,13 +2261,16 @@ pub fn log_on_drop(log: Box<dyn Log>) -> impl Future<Output = ()> + use<> {
 	}
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// A waker whose wake and drop each log a line to `log` on another thread they wait on.
 pub fn log_waker(log: Box<dyn Log>) -> Waker {
 	Waker::from(Arc::new(LogWake(log)))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 struct LogWake(Box<dyn Log>);
 
+#[cfg(not(target_arch = "wasm32"))]
 impl std::task::Wake for LogWake {
 	fn wake(self: Arc<Self>) {
 		self.wake_by_ref();
@@ -1839,14 +2281,17 @@ impl std::task::Wake for LogWake {
 	}
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Drop for LogWake {
 	fn drop(&mut self) {
 		on_thread(&*self.0, &[0]);
 	}
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 struct LogOnDrop(Box<dyn Log>);
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Drop for LogOnDrop {
 	fn drop(&mut self) {
 		on_thread(&*self.0, &[0]);
@@ -3017,16 +3462,18 @@ pub fn file(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
 	dir.join(name)
 }
 
-/// A path whose bytes are not UTF-8, as a Unix path may be.
-#[cfg(unix)]
+/// A path whose bytes are not UTF-8, as a Unix or WASI path may be.
+#[cfg(any(unix, target_os = "wasi"))]
 pub fn stray() -> std::path::PathBuf {
-	std::path::PathBuf::from(<std::ffi::OsString as std::os::unix::ffi::OsStringExt>::from_vec(vec![
-		0xff,
-	]))
+	#[cfg(unix)]
+	use std::os::unix::ffi::OsStringExt;
+	#[cfg(target_os = "wasi")]
+	use std::os::wasi::ffi::OsStringExt;
+	std::path::PathBuf::from(std::ffi::OsString::from_vec(vec![0xff]))
 }
 
 /// Lends [`stray`]'s path to `visit`.
-#[cfg(unix)]
+#[cfg(any(unix, target_os = "wasi"))]
 pub fn visit_stray(visit: impl Fn(&std::path::Path)) {
 	visit(&stray());
 }
@@ -3845,6 +4292,39 @@ pub fn pointer_bits(platform: Platform) -> u32 {
 		#[cfg(target_arch = "wasm32")]
 		Platform::Wasm { bits } => bits,
 	}
+}
+
+/// A variant whose field is named as a binding's tag naming the variant.
+#[derive(Debug, PartialEq)]
+pub enum Labelled {
+	Tagged { tag: u32 },
+	Bare,
+}
+
+/// `labelled`, as it came.
+pub fn same_labelled(labelled: Labelled) -> Labelled {
+	labelled
+}
+
+/// A core of a native target's CPU: a record wasm32 lacks.
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Core {
+	pub id: u32,
+}
+
+/// Where work runs, with a variant only native targets have holding a record only they
+/// have, which wasm32's binding reads no field of.
+pub enum Placement {
+	/// Wherever the target runs it.
+	Anywhere,
+	/// On one core of a native target.
+	#[cfg(not(target_arch = "wasm32"))]
+	Pinned(Core),
+}
+
+/// Where the library's target runs work.
+pub fn placement() -> Placement {
+	Placement::Anywhere
 }
 
 /// The family of the library's target, a plain enum with a variant only wasm32 has.

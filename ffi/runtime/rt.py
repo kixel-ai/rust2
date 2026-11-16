@@ -59,6 +59,10 @@ class _Wakeup:
 	def dispatch(self, read: _bool) -> None:
 		loop: _asyncio.AbstractEventLoop | None = None
 		for token in self.queue.take(read):
+			if token == 0:
+				# Other threads freed values of this thread that are not Send.
+				self.queue.drain()
+				continue
 			if token < 0:
 				self.wakers.pop(-token, None)
 				continue
@@ -85,6 +89,12 @@ def _resume() -> _n.Queue | None:
 		return None
 	loop.call_soon(w.dispatch, False)
 	return w.queue
+
+
+def _drains() -> _n.Queue:
+	"""The queue of the loop running here, which a free on another thread of a value this
+	thread made that is not Send queues a drain on."""
+	return _wakeup(_get_running_loop()).queue
 
 
 def _wakeup(loop: _asyncio.AbstractEventLoop) -> _Wakeup:

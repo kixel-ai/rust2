@@ -726,9 +726,9 @@ func script() {
 		return escaped(*p)
 	}), ",", ""), "[]"))
 	// A path that is no UTF-8 is a Go string all the same.
-	check(must(api.Stray()) == "\xff", "a path that is not UTF-8 crosses as its bytes")
+	check(api.Stray() == "\xff", "a path that is not UTF-8 crosses as its bytes")
 	var lent string
-	ok(api.VisitStray(func(path string) { lent = path }))
+	api.VisitStray(func(path string) { lent = path })
 	check(lent == "\xff", "a path Rust lends that is not UTF-8 crosses as its bytes")
 	// An error Rust returns only boxed is its type.
 	_, err = api.Refuse("why")
@@ -812,6 +812,41 @@ func script() {
 	tallies := api.NewTallies()
 	_ = must(must(tallies.First()).Bump())
 	fmt.Printf("tallied %d\n", must(must(tallies.First()).Bump()))
+	// A draft borrowing its ledger exclusively until it closes, through which its sheet's
+	// members are reached by Deref and DerefMut: the ledger refuses any other use meanwhile.
+	ledger := api.NewLedger()
+	draft := must(ledger.Edit())
+	check(draft.TitleSet("minutes") == nil, "a draft's title sets")
+	check(draft.Write("first") == nil, "a draft writes")
+	fmt.Printf("draft %s %d %s %t\n", must(draft.TitleGet()), must(draft.Lines()), must(draft.Describe()), must(draft.Edited()))
+	_, exclusive := ledger.Published()
+	check(
+		errors.Is(exclusive, rt.ErrBorrowed) && exclusive.Error() == "api_Ledger_published: a handle is borrowed exclusively",
+		fmt.Sprintf("a lent ledger refuses a read: %v", exclusive),
+	)
+	fmt.Printf("committed %d\n", must(draft.Commit()))
+	fmt.Printf("ledger %s %d\n", must(ledger.Title()), must(ledger.Published()))
+	draft = must(ledger.Edit())
+	fmt.Printf("read %d %t\n", must(draft.Lines()), must(draft.Edited()))
+	check(draft.Close() == nil, "a draft closes")
+	draft = must(ledger.Edit())
+	check(draft.Write("second") == nil, "a draft writes")
+	check(draft.Close() == nil, "a draft closes")
+	fmt.Printf("dropped %d\n", must(ledger.Published()))
+	receipt := must(ledger.Receipt())
+	fmt.Printf("receipt %d\n", must(receipt.Count()))
+	check(receipt.Close() == nil, "a receipt closes")
+	padSmall, padWide, layered := api.PadU8Small(), api.PadU16Wide(), api.NewLayered()
+	marker := must(api.NewMarker("m", 3, 5))
+	check(marker.YSet(7) == nil, "a marker's point sets")
+	fmt.Printf("forwarded %d %d %d %d [%s] [%s]\n", must(padWide.Title()), must(layered.Lines()), must(marker.XGet()), must(marker.YGet()), must(padSmall.Describe()), must(padWide.Describe()))
+	for _, closer := range []interface{ Close() error }{padSmall, padWide, layered, marker} {
+		check(closer.Close() == nil, "a forwarding handle closes")
+	}
+	check(ledger.Seal() == nil, "a ledger seals")
+	_, sealed := ledger.Edit()
+	fmt.Printf("sealed %s\n", sealed)
+	check(ledger.Close() == nil, "a ledger closes")
 	fmt.Printf("chunks %s\n", list(api.Chunks(rt.NewBytes([]byte("abcde")), 2), func(b rt.Bytes) string { return list(b.Copy(), number) }))
 	counters := must(api.Counters([]string{"x", "y"}))
 	fmt.Printf("counters %s\n", strings.Trim(list(counters, func(c *api.Counter) string {
@@ -948,7 +983,7 @@ func script() {
 		fmt.Printf(" %x", must(api.SameChar(c)))
 	}
 	fmt.Println()
-	fmt.Printf("lossless path %x %x\n", must(api.SamePath("a/é")), must(api.SamePath(must(api.Stray()))))
+	fmt.Printf("lossless path %x %x\n", must(api.SamePath("a/é")), must(api.SamePath(api.Stray())))
 	sameV4 := api.SameSocketAddrV4(rt.SocketAddrV4{IP: rt.Ipv4Addr{255, 255, 255, 255}, Port: math.MaxUint16})
 	sameV6 := api.SameSocketAddrV6(rt.SocketAddrV6{
 		IP:       rt.Ipv6Addr{0, 1, 15: 2},
@@ -1023,8 +1058,8 @@ func script() {
 	}
 	check(nines.Close() == nil, "a mark closes")
 	// A kept closure, called on another thread after the call that took it returned.
-	spawned := api.NewSpawned(func() uint32 { return 7 })
-	fmt.Printf("spawned %d\n", must(spawned.Join()))
+	spawned := must(api.NewSpawned(func() uint32 { return 7 }))
+	check(must(spawned.Join()) == 7, "a kept closure runs on another thread")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
 	driven := *api.NewMoment(0, 1000)
 	calls := 0
@@ -1160,7 +1195,7 @@ func closures() {
 	// A kept closure Rust releases once it drops it, after its thread called it.
 	{
 		marker, freed := marked()
-		spawned := api.NewSpawned(func() uint32 { return uint32(marker[0]) + 1 })
+		spawned := must(api.NewSpawned(func() uint32 { return uint32(marker[0]) + 1 }))
 		check(must(spawned.Join()) == 1, "a kept closure runs on Rust's thread")
 		released(freed, "Rust releases a kept closure it dropped")
 	}
@@ -1508,7 +1543,81 @@ func owned() {
 	forward()
 	collected(before+1, "a forwarded payload drops once nothing reaches it")
 	uncollected(before+1, "a forwarded payload drops once")
+
+	nursed()
 	fmt.Println("owned ok")
+}
+
+// nursed checks the nursery of the latest objects returned, which a Close leaves at once
+// and the GC frees only once later returns push one out unclosed: each object is freed
+// once, however Close and the nursery race.
+func nursed() {
+	// One P, so every return below shares one nursery, which each GC finds in use, so its
+	// pool never drops it: only the push out of it registers the dropped token. The race
+	// detector's pool drops some at random, which frees it as a dropped nursery does.
+	procs := runtime.GOMAXPROCS(1)
+	before := api.Dropped()
+	unclosed()
+	deadline := time.Now().Add(10 * time.Second)
+	for api.Dropped() < before+1 {
+		check(time.Now().Before(deadline), "the GC frees an object pushed out of its nursery unclosed")
+		fill()
+		runtime.GC()
+		runtime.Gosched()
+	}
+
+	// Closed after the push out registered it, so its cleanup is stopped.
+	kept := api.NewToken(4)
+	fill()
+	kept.Close()
+	check(api.Dropped() == before+2, "closing an object pushed out of its nursery frees it at once")
+	runtime.GOMAXPROCS(procs)
+	uncollected(before+2, "the GC frees nothing a Close freed after a push out")
+
+	// Returned on many goroutines, each closing some of its own and of another's, as
+	// others' returns push them out, and dropping the rest.
+	const workers, each = 8, 1000
+	handoff := make(chan *api.Token, workers*each)
+	var wg sync.WaitGroup
+	for w := range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range each {
+				t := api.NewToken(uint32(i))
+				switch i % 3 {
+				case 0:
+					t.Close()
+				case 1:
+					handoff <- t
+				}
+				if i%3 != 0 {
+					select {
+					case other := <-handoff:
+						other.Close()
+					default:
+					}
+				}
+				if w == 0 && i%100 == 0 {
+					runtime.GC()
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(handoff)
+	for t := range handoff {
+		t.Close()
+	}
+	collected(before+2+workers*each, "the GC frees every object a nursery held unclosed")
+	uncollected(before+2+workers*each, "each object is freed once, however its Close and its nursery race")
+}
+
+// fill returns a nursery's worth of objects, each closed, pushing out every earlier one.
+func fill() {
+	for range 64 {
+		api.NewTally().Close()
+	}
 }
 
 // forward reads a payload Rust returned and writes it back, whole, sliced, and in a

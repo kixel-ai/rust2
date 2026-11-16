@@ -449,9 +449,9 @@ static bool closures(void) {
 	/* A kept closure, called on another thread after the call that took it returned. */
 	bool spawned_freed = false;
 	api_Spawned *spawned = api_Spawned_new(spawned_task, &spawned_freed, spawned_free);
-	printf("spawned %u\n", (unsigned)api_Spawned_join(spawned, NULL));
+	uint32_t joined = api_Spawned_join(spawned, NULL);
 	api_Spawned_free(spawned);
-	if (!spawned_freed) {
+	if (joined != 7 || !spawned_freed) {
 		return false;
 	}
 
@@ -1718,6 +1718,55 @@ static int script(void) {
 		api_Tally_free(tallied);
 		api_Tallies_free(tallies);
 	}
+	/* A draft borrowing its ledger exclusively until it drops, through which its sheet's
+	 * members are reached by Deref and DerefMut. */
+	{
+		api_Ledger *ledger = api_Ledger_new();
+		api_Draft *draft;
+		api_Error err;
+		api_Ledger_edit(ledger, &draft, &err, NULL);
+		api_Draft_title_set(draft, str("minutes"), NULL);
+		api_Draft_write(draft, str("first"), NULL);
+		print("draft ", api_Draft_title_get(draft, NULL), " ");
+		printf("%u ", api_Draft_lines(draft, NULL));
+		print("", api_Draft_describe(draft, NULL), " ");
+		printf("%s\n", api_Draft_edited(draft, NULL) ? "true" : "false");
+		printf("committed %u\n", api_Draft_commit(draft, NULL));
+		api_Draft_free(draft);
+		print("ledger ", api_Ledger_title(ledger, NULL), " ");
+		printf("%u\n", api_Ledger_published(ledger, NULL));
+		api_Ledger_edit(ledger, &draft, &err, NULL);
+		printf("read %u %s\n", api_Draft_lines(draft, NULL), api_Draft_edited(draft, NULL) ? "true" : "false");
+		api_Draft_free(draft);
+		api_Ledger_edit(ledger, &draft, &err, NULL);
+		api_Draft_write(draft, str("second"), NULL);
+		api_Draft_free(draft);
+		printf("dropped %u\n", api_Ledger_published(ledger, NULL));
+		api_Receipt *receipt = api_Ledger_receipt(ledger, NULL);
+		printf("receipt %u\n", api_Receipt_count(receipt, NULL));
+		api_Receipt_free(receipt);
+		{
+			api_Pad_u8 *small = api_Pad_u8_small();
+			api_Pad_u16 *wide = api_Pad_u16_wide();
+			api_Layered *layered = api_Layered_new();
+			api_Marker *marker = api_Marker_new(str("m"), 3, 5);
+			api_Marker_y_set(marker, 7, NULL);
+			printf("forwarded %u %u %d %d", api_Pad_u16_title(wide), api_Layered_lines(layered),
+			       api_Marker_x_get(marker, NULL), api_Marker_y_get(marker, NULL));
+			print(" [", api_Pad_u8_describe(small), "]");
+			print(" [", api_Pad_u16_describe(wide), "]\n");
+			api_Marker_free(marker);
+			api_Layered_free(layered);
+			api_Pad_u16_free(wide);
+			api_Pad_u8_free(small);
+		}
+		api_Ledger_seal(ledger, NULL);
+		if (!api_Ledger_edit(ledger, &draft, &err, NULL)) {
+			print("sealed ", api_Error_to_string(&err), "\n");
+			api_Error_free(&err);
+		}
+		api_Ledger_free(ledger);
+	}
 
 	api_vec_bytes chunks = api_chunks(str("abcde"), 2);
 	printf("chunks [");
@@ -2535,6 +2584,200 @@ static int statuses(void) {
 		failed = 1;
 	}
 	api_Channel_free(channel);
+
+	/* A draft holds its ledger's exclusive borrow until it drops: any other use of the
+	 * ledger fails meanwhile, as Rust's borrow checker refuses it, and a commit, a close,
+	 * or a free of the draft gives it back. */
+	{
+		api_Ledger *ledger = api_Ledger_new();
+		api_Draft *draft;
+		api_Error err;
+		api_Ledger_edit(ledger, &draft, &err, NULL);
+		status = 0;
+		api_Ledger_published(ledger, &status);
+		if (status != API_STATUS_EXCLUSIVE) {
+			fprintf(stderr, "a read of a lent ledger wrote %d\n", status);
+			failed = 1;
+		}
+		status = 0;
+		api_Draft *second;
+		if (api_Ledger_edit(ledger, &second, &err, &status) || status != API_STATUS_BORROWED) {
+			fprintf(stderr, "a second draft of a lent ledger wrote %d\n", status);
+			failed = 1;
+		}
+		status = 0;
+		api_Ledger_drop(ledger, &status);
+		if (status != API_STATUS_BORROWED) {
+			fprintf(stderr, "a drop of a lent ledger wrote %d\n", status);
+			failed = 1;
+		}
+		/* A draft that must outlive the program, which a lent one never does. */
+		status = 0;
+		if (api_lasting(draft, &status) || status != API_STATUS_LENT) {
+			fprintf(stderr, "a lent draft passed as lasting wrote %d\n", status);
+			failed = 1;
+		}
+		api_Draft_write(draft, str("x"), NULL);
+		status = 0;
+		if (api_Draft_commit(draft, &status) != 1 || status != 0) {
+			fprintf(stderr, "a commit wrote %d\n", status);
+			failed = 1;
+		}
+		/* The commit moved the draft out and gave the borrow back. */
+		status = 0;
+		api_Draft_lines(draft, &status);
+		if (status != API_STATUS_MOVED) {
+			fprintf(stderr, "a committed draft wrote %d\n", status);
+			failed = 1;
+		}
+		status = 0;
+		if (api_Ledger_published(ledger, &status) != 1 || status != 0) {
+			fprintf(stderr, "a ledger after a commit wrote %d\n", status);
+			failed = 1;
+		}
+		api_Draft_free(draft);
+		/* A close gives it back too, publishing what the draft marked. */
+		api_Ledger_edit(ledger, &draft, &err, NULL);
+		api_Draft_write(draft, str("y"), NULL);
+		status = 0;
+		api_Draft_drop(draft, &status);
+		if (status != 0 || api_Ledger_published(ledger, &status) != 2 || status != 0) {
+			fprintf(stderr, "a ledger after a close wrote %d\n", status);
+			failed = 1;
+		}
+		api_Draft_free(draft);
+		/* The ledger freed while lent drops once the draft does, which still works. */
+		api_Ledger_edit(ledger, &draft, &err, NULL);
+		api_Ledger_free(ledger);
+		api_Draft_write(draft, str("z"), NULL);
+		status = 0;
+		if (api_Draft_commit(draft, &status) != 3 || status != 0) {
+			fprintf(stderr, "a draft of a freed ledger wrote %d\n", status);
+			failed = 1;
+		}
+		api_Draft_free(draft);
+		/* Clones of a receipt share its borrow, which the last one to drop gives back. */
+		ledger = api_Ledger_new();
+		api_Receipt *receipt = api_Ledger_receipt(ledger, NULL);
+		api_Receipt *copy = api_Receipt_clone(receipt, NULL);
+		api_Receipt_free(receipt);
+		status = 0;
+		api_Ledger_seal(ledger, &status);
+		if (status != API_STATUS_BORROWED || api_Receipt_count(copy, NULL) != 0) {
+			fprintf(stderr, "a ledger a cloned receipt borrows wrote %d\n", status);
+			failed = 1;
+		}
+		api_Receipt_free(copy);
+		status = 0;
+		api_Ledger_seal(ledger, &status);
+		if (status != 0) {
+			fprintf(stderr, "a ledger after its receipts wrote %d\n", status);
+			failed = 1;
+		}
+		/* A receipt whose bound lets it live as long as the program, and a field of a
+		 * slip's clone, which would carry the ledger's borrow out, each fail as lent. */
+		receipt = api_Ledger_receipt(ledger, NULL);
+		status = 0;
+		api_stored(receipt, &status);
+		if (status != API_STATUS_LENT || api_Receipt_count(receipt, NULL) != 0) {
+			fprintf(stderr, "a lent receipt stored wrote %d\n", status);
+			failed = 1;
+		}
+		status = 0;
+		api_erased(receipt, &status);
+		if (status != API_STATUS_LENT) {
+			fprintf(stderr, "a lent receipt erased wrote %d\n", status);
+			failed = 1;
+		}
+		status = 0;
+		api_summed_up_Receipt(receipt, &status);
+		if (status != API_STATUS_LENT) {
+			fprintf(stderr, "a lent receipt summed up wrote %d\n", status);
+			failed = 1;
+		}
+		status = 0;
+		if (api_tallied(receipt, &status) != 0 || status != 0) {
+			fprintf(stderr, "a lent receipt tallied wrote %d\n", status);
+			failed = 1;
+		}
+		status = 0;
+		api_Ledger_seal(ledger, &status);
+		if (status != 0) {
+			fprintf(stderr, "a ledger after its receipt moved into a call wrote %d\n", status);
+			failed = 1;
+		}
+		api_Receipt_free(receipt);
+		/* A lend bounded on its own borrow by a trait every lifetime meets borrows the
+		 * ledger as any lend does. */
+		receipt = api_Ledger_noted(ledger, NULL);
+		status = 0;
+		api_Ledger_seal(ledger, &status);
+		if (status != API_STATUS_BORROWED || api_Receipt_count(receipt, NULL) != 0) {
+			fprintf(stderr, "a ledger a noted receipt borrows wrote %d\n", status);
+			failed = 1;
+		}
+		api_Receipt_free(receipt);
+		api_Slip *slip = api_Ledger_slip(ledger, NULL);
+		api_Slip *twin = api_Slip_clone(slip, NULL);
+		api_Slip_free(slip);
+		status = 0;
+		api_Slip_receipt_get(twin, &status);
+		if (status != API_STATUS_LENT || api_Slip_count(twin, NULL) != 0) {
+			fprintf(stderr, "a lent slip's receipt wrote %d\n", status);
+			failed = 1;
+		}
+		/* A field that borrows only what outlives the ledger reads as ever. */
+		status = 0;
+		api_Receipt *global = api_Slip_global_get(twin, &status);
+		if (status != 0 || api_Receipt_count(global, NULL) != 7) {
+			fprintf(stderr, "a lent slip's global receipt wrote %d\n", status);
+			failed = 1;
+		}
+		api_Receipt_free(global);
+		api_Slip_free(twin);
+		status = 0;
+		api_Ledger_seal(ledger, &status);
+		if (status != 0) {
+			fprintf(stderr, "a ledger after its slips wrote %d\n", status);
+			failed = 1;
+		}
+		api_Ledger_free(ledger);
+		/* Only `Pad<u8>`'s own `describe` hides its sheet's. */
+		api_Pad_u8 *small = api_Pad_u8_small();
+		api_Pad_u16 *wide = api_Pad_u16_wide();
+		api_buf padded = api_Pad_u8_describe(small);
+		api_buf sheeted = api_Pad_u16_describe(wide);
+		if (padded.len != 5 || memcmp(padded.ptr, "pad 1", 5) != 0 || sheeted.len != 6 ||
+		    memcmp(sheeted.ptr, "sheet ", 6) != 0 || api_Pad_u16_tag(wide) != 2) {
+			fprintf(stderr, "pads describe as %.*s and %.*s\n", (int)padded.len, (const char *)padded.ptr,
+			        (int)sheeted.len, (const char *)sheeted.ptr);
+			failed = 1;
+		}
+		api_buf_free(padded);
+		api_buf_free(sheeted);
+		/* `Pad<u16>`'s own `title`, whose path the config shares with its sheet's field. */
+		if (api_Pad_u16_title(wide) != 2) {
+			fprintf(stderr, "a pad's title is %u\n", api_Pad_u16_title(wide));
+			failed = 1;
+		}
+		/* A sheet behind a layer that does not export, whose `lines` it reaches. */
+		api_Layered *layered = api_Layered_new();
+		if (api_Layered_lines(layered) != 0) {
+			fprintf(stderr, "a layered sheet has lines\n");
+			failed = 1;
+		}
+		api_Layered_free(layered);
+		/* A record's fields, reached through `Deref` and written through `DerefMut`. */
+		api_Marker *marker = api_Marker_new(str("m"), 3, 5);
+		api_Marker_y_set(marker, 7, NULL);
+		if (api_Marker_x_get(marker, NULL) != 3 || api_Marker_y_get(marker, NULL) != 7) {
+			fprintf(stderr, "a marker's point is %d, %d\n", api_Marker_x_get(marker, NULL), api_Marker_y_get(marker, NULL));
+			failed = 1;
+		}
+		api_Marker_free(marker);
+		api_Pad_u8_free(small);
+		api_Pad_u16_free(wide);
+	}
 
 	status = 0;
 	api_Meters *meters = api_Meters_new();

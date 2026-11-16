@@ -1042,6 +1042,43 @@ int script() {
 		tallies.first().bump();
 		std::printf("tallied %u\n", tallies.first().bump());
 	}
+	{
+		// A draft borrowing its ledger exclusively until it is destroyed, through which its
+		// sheet's members are reached by Deref and DerefMut.
+		auto ledger = api::Ledger::new_();
+		{
+			auto draft = ledger.edit().value();
+			draft.title_set("minutes");
+			draft.write("first");
+			print("draft ", draft.title_get(), " ");
+			std::printf("%u ", draft.lines());
+			print("", draft.describe(), " ");
+			std::printf("%s\n", yes(draft.edited()));
+			std::printf("committed %u\n", std::move(draft).commit());
+		}
+		print("ledger ", ledger.title(), " ");
+		std::printf("%u\n", ledger.published());
+		{
+			auto draft = ledger.edit().value();
+			std::printf("read %u %s\n", draft.lines(), yes(draft.edited()));
+		}
+		{
+			auto draft = ledger.edit().value();
+			draft.write("second");
+		}
+		std::printf("dropped %u\n", ledger.published());
+		std::printf("receipt %u\n", ledger.receipt().count());
+		{
+			auto marker = api::Marker::new_(api::input("m"), 3, 5);
+			marker.y_set(7);
+			std::printf("forwarded %u %u %d %d", api::Pad_u16::wide().title(), api::Layered::new_().lines(),
+			            marker.x_get(), marker.y_get());
+			print(" [", api::Pad_u8::small().describe(), "]");
+			print(" [", api::Pad_u16::wide().describe(), "]\n");
+		}
+		ledger.seal();
+		print("sealed ", api::Error_to_string(ledger.edit().error()), "\n");
+	}
 
 	std::printf("chunks [");
 	auto chunks = api::chunks("abcde", 2);
@@ -1460,7 +1497,10 @@ int script() {
 	}
 #endif
 	// A kept closure, called on another thread after the call that took it returned.
-	std::printf("spawned %u\n", static_cast<unsigned>(api::Spawned::new_([] { return 7; }).join()));
+	if (api::Spawned::new_([] { return 7; }).join() != 7) {
+		std::fprintf(stderr, "failed: a kept closure runs on another thread\n");
+		return 1;
+	}
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
 	{
 		api::Moment began = *api::Moment::new_(0, 1000);
@@ -1703,7 +1743,8 @@ int futures() {
 	}
 
 	// A value that is not Send stays on the thread that made it, whose executor polls its
-	// futures; destroyed on another thread, it drops on its own at its next call.
+	// futures; destroyed on another thread, it drops on its own, posted to the executor of
+	// its thread's latest task, or else at its next call.
 	{
 		api::Local local = api::Local::new_();
 		api::Local shared = local.share();
@@ -1719,7 +1760,37 @@ int futures() {
 		std::uint32_t before = api::locals_dropped();
 		std::thread([&]() { api::Local gone = std::move(local); }).join();
 		check(api::locals_dropped() == before, "a local destroyed elsewhere waits for its thread");
-		check(shared.bump() == 4 && api::locals_dropped() == before + 1, "a local destroyed elsewhere drops on its thread");
+		q.drain();
+		check(api::locals_dropped() == before + 1, "a local destroyed elsewhere drops on its idle executor");
+
+		// An executor running the drain on another thread leaves it to the next call.
+		queue away;
+		auto kept = std::make_shared<int>(0);
+		api::task there = api::yielded(7).then(away.executor(), [&got, kept](std::uint32_t value) { got = value; });
+		api::Local other = shared.share();
+		std::thread([&]() { api::Local gone = std::move(other); }).join();
+		std::thread([&]() { away.drain(); }).join();
+		check(got == 7 && api::locals_dropped() == before + 1, "a drain on another thread drops nothing of this one");
+		check(shared.bump() == 4 && api::locals_dropped() == before + 2, "a local destroyed elsewhere drops on its thread");
+
+		// Once the latest task is gone, its executor is never called again.
+		there = api::task();
+		check(kept.use_count() == 1, "a gone task's callback is freed, though its thread's wake outlives it");
+		api::Local last = shared.share();
+		std::thread([&]() { api::Local gone = std::move(last); }).join();
+		check(away.jobs.empty(), "a drain is never posted to a gone task's executor");
+		check(shared.bump() == 5 && api::locals_dropped() == before + 3, "a local destroyed elsewhere drops at its next call");
+
+		// A drop queued before its thread's first task drains through that task's executor.
+		std::thread([]() {
+			queue mine;
+			api::Local early = api::Local::new_();
+			std::uint32_t was = api::locals_dropped();
+			std::thread([&]() { api::Local gone = std::move(early); }).join();
+			api::task first = api::yielded(1).then(mine.executor(), [](std::uint32_t) {});
+			mine.drain();
+			check(api::locals_dropped() == was + 1, "a drop queued before its thread's first task drains through it");
+		}).join();
 	}
 
 	// Cancelled between its wake and its poll, a receive loses nothing: the payload stays
@@ -2064,6 +2135,11 @@ int broken(const char *which) {
 		recv.poll(waker);
 	} else if (std::strcmp(which, "null view") == 0) {
 		api::len(api::view(nullptr, 1));
+	} else if (std::strcmp(which, "lent ledger") == 0) {
+		// A ledger used while a draft holds its exclusive borrow.
+		api::Ledger ledger = api::Ledger::new_();
+		api::Draft draft = ledger.edit().value();
+		ledger.published();
 	} else if (std::strcmp(which, "outlived") == 0) {
 		api::Meters meters = api::Meters::new_();
 		api::Meter first = meters.first();
