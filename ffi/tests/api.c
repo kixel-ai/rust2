@@ -2675,6 +2675,12 @@ static int statuses(void) {
 			failed = 1;
 		}
 		status = 0;
+		api_summed_up_Receipt(receipt, &status);
+		if (status != API_STATUS_LENT) {
+			fprintf(stderr, "a lent receipt summed up wrote %d\n", status);
+			failed = 1;
+		}
+		status = 0;
 		if (api_tallied(receipt, &status) != 0 || status != 0) {
 			fprintf(stderr, "a lent receipt tallied wrote %d\n", status);
 			failed = 1;

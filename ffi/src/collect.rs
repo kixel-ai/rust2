@@ -3203,7 +3203,10 @@ impl<'tcx> Collector<'tcx> {
 					ty.walk()
 						.any(|arg| arg.as_region().is_some_and(|r| related.contains(&r)))
 				};
-				related.iter().any(|r| r.is_static())
+				// An instance's lifetime is erased, and the glue names it `'static`.
+				related
+					.iter()
+					.any(|r| r.is_static() || matches!(r.kind(), ty::ReErased))
 					|| bounds
 						.iter()
 						.any(|clause| tcx.any_free_region_meets(clause, |r| related.contains(&r)))

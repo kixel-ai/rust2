@@ -941,6 +941,23 @@ where
 	receipt.clone().count()
 }
 
+/// What counts itself, implemented only for a receipt that lives as long as the program.
+pub trait Totaled {
+	fn total(self) -> u32;
+}
+
+impl Totaled for Receipt<'static> {
+	fn total(self) -> u32 {
+		self.count()
+	}
+}
+
+/// What `totaled` counts: the instance a binding calls takes a receipt that lives as long
+/// as the program, so passing one a [`Ledger`] lends fails.
+pub fn summed_up<T: Totaled>(totaled: T) -> u32 {
+	totaled.total()
+}
+
 /// What `receipt` counts: its bound implies it lives as long as the program, as `Any`'s
 /// does, so passing one a [`Ledger`] lends fails too.
 pub fn erased<'a>(receipt: Receipt<'a>) -> u32
