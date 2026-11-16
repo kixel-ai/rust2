@@ -978,8 +978,13 @@ reads a go.mod.
   would, and returns an error matching `rt.ErrBorrowed` instead while a call on another
   goroutine borrows the value, as Rust refuses that drop, leaving the value to a later
   `Close()`. Of any other type, `Close()` frees the handle, and returns an error matching
-  `rt.ErrBorrowed` while a call holds it. A second `Close()` does nothing, and one never
-  closed is freed once the GC collects it, through `runtime.AddCleanup`. A call that meets
+  `rt.ErrBorrowed` while a call holds it; one no call holds, as soon after its return,
+  drops and frees in one crossing. A second `Close()` does nothing. A returned object waits
+  in a nursery of the last 64 its P returned, where `Close()` frees it without the GC's
+  registration (`runtime.AddCleanup` and its `Stop`), which costs more than the rest of a
+  return and close. One never closed is registered once pushed out, by 64 later returns or
+  with its nursery once the GC drops that from its `sync.Pool`, and freed once the GC
+  collects it after. A call that meets
   a closed object, as its receiver or anywhere in its arguments, returns an error matching
   `rt.ErrClosed`, so every such call returns an `error`; `String()` and `GoString()`,
   which return none, return the error's text. A `self` method, or passing the object by
@@ -1116,12 +1121,16 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   declares or a data enum's variant class, are kept apart as Kotlin's are. The glue's C
   names are `<prefix>_dart_`, with a `_` more for each C name of the export already there.
 - **Objects** are final classes owning their handle. Of a checked type, `close()` drops
-  the value through Rust's own `_drop`, as Rust's `drop` would: a call after it throws a
-  `StateError` as for a value moved out, and a `close()` while a call borrows the value,
-  from a closure that call runs, throws one instead, as Rust refuses that drop. Of any
-  other type, `close()` frees the handle, and throws while a call holds it. A second
-  `close()` does nothing, and the handle itself is freed once the garbage collector finds
-  the object unreachable, through a finalizable handle of Dart's C API. Any call that meets
+  the value through Rust's own `_drop`, as Rust's `drop` would, and frees the handle in
+  the same crossing, and a `close()` while a call borrows the value, from a closure that
+  call runs, throws a `StateError` instead, as Rust refuses that drop. Of any other type,
+  `close()` frees the handle, and throws while a call holds it. A second `close()` does
+  nothing. A returned object waits in the isolate's nursery of the last 64 returned, where
+  `close()` frees it without the garbage collector's registration (a finalizable handle of
+  Dart's C API), which costs more than the rest of a return and close. One never closed is
+  registered once 64 later returns push it out, and freed once the garbage collector finds
+  it unreachable after; one still in the nursery when the isolate exits is freed then. Any
+  call that meets
   a closed object, as its receiver or anywhere in its arguments, throws a `StateError`
   before Rust sees it. A `self` method, or passing the object by value, moves its value
   out. `Clone` is `clone()`, and a `pub`
@@ -1344,7 +1353,7 @@ just ffi shapes   # round-trip every sampled type shape in every language but KN
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
-nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan and TSan, and its C ABI under Miri
+nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan and TSan, its Go under the race detector, and its C ABI under Miri
 ```
 
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
@@ -1380,7 +1389,8 @@ It runs with nixpkgs' Swift on Linux, and nightly with Apple's on macOS.
 way, plus a context done before the call, a deadline, and a handle closed during a call,
 checks that bytes cross both ways, that a `Bytes` keeps Rust's buffer while only a sub-view
 or a reader reaches it and that the GC frees it once none does, that the GC frees an object
-never closed, and that each kind of call meeting a closed object, including one racing
+never closed once 64 later returns push it out of its nursery, that each object of many
+goroutines' returns, closes, and drops is freed once, and that each kind of call meeting a closed object, including one racing
 `Close`, returns `rt.ErrClosed`, and breaks
 each runtime check, which must panic with its message; a runtime package from another
 build must fail its contract check. The `target` test exports a package for the host, for wasm32, and for both into one
@@ -1404,8 +1414,8 @@ feature breaks the API twice for each kind of break, once in an item only wasm32
 error matching `fixtures/lock/expected.txt`.
 `just ffi sanitize`, run nightly, rebuilds the `api` export with std under AddressSanitizer
 and then ThreadSanitizer, runs `tests/api.c` and `tests/api.cpp` against it, and matches
-their output to the native transcript; it then drives the C ABI from `tests/miri/api.rs`
-under Miri with strict provenance.
+their output to the native transcript; it runs `tests/api.go` under Go's race detector;
+and it drives the C ABI from `tests/miri/api.rs` under Miri with strict provenance.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. The export serves the host and each target
 `just ffi moq-api` staged in `target/moq-api` from the same moq sources, and fails on a

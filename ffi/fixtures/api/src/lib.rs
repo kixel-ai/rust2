@@ -1806,6 +1806,27 @@ impl Logger {
 	}
 }
 
+/// A [`Logger`] its `&mut self` method makes checked, so a binding's close drops it through
+/// Rust, running its implementation's close inside that drop.
+pub struct Journal {
+	sink: Box<dyn Log>,
+}
+
+impl Journal {
+	pub fn new(sink: Box<dyn Log>) -> Self {
+		Self { sink }
+	}
+
+	/// Log to `sink` from now on, dropping the implementation before it.
+	pub fn redirect(&mut self, sink: Box<dyn Log>) {
+		self.sink = sink;
+	}
+
+	pub fn write(&self, line: &str) -> bool {
+		self.sink.log(0, line)
+	}
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 /// A thread logging a line to a foreign implementation, which [`LogThread::join`] waits on.
 pub struct LogThread {
