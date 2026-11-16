@@ -1042,10 +1042,11 @@ impl<'a> Gen<'a> {
 			Type::Record(i) => {
 				let record = &abi.api.records[*i];
 				let at = offsets(self);
-				let fields: Vec<String> = (record.fields.iter().zip(at))
-					.map(|(f, at)| {
+				let names = field_names(&record.fields);
+				let fields: Vec<String> = (record.fields.iter().zip(at).zip(names))
+					.map(|((f, at), name)| {
 						let value = self.get_o(&f.ty, &format!("p + {at}"));
-						format!("{}: {value}", field_name(&f.name))
+						format!("{name}: {value}")
 					})
 					.collect();
 				format!("void o;\n\treturn {{ {} }};", fields.join(", "))
@@ -1066,9 +1067,9 @@ impl<'a> Gen<'a> {
 					if !variant.fields.is_empty() {
 						let tys: Vec<Ty> = variant.fields.iter().map(|f| abi.ty(&f.ty)).collect();
 						let (_, at) = self.place(&tys);
-						for (f, at) in variant.fields.iter().zip(at) {
+						for ((f, at), name) in variant.fields.iter().zip(at).zip(variant_fields(&variant.fields)) {
 							let value = self.get_o(&f.ty, &format!("p + {}", u + at));
-							fields.push(format!("{}: {value}", variant_field(&f.name)));
+							fields.push(format!("{name}: {value}"));
 						}
 					}
 					cases.push(format!("\t\tcase {n}:\n\t\t\treturn {{ {} }};", fields.join(", ")));
@@ -1201,8 +1202,9 @@ impl<'a> Gen<'a> {
 			Type::Record(i) => {
 				let record = &abi.api.records[*i];
 				let at = offsets(self);
-				let lines: Vec<String> = (record.fields.iter().zip(at))
-					.map(|(f, at)| self.put(&f.ty, &format!("v.{}", field_name(&f.name)), &format!("p + {at}"), take))
+				let names = field_names(&record.fields);
+				let lines: Vec<String> = (record.fields.iter().zip(at).zip(names))
+					.map(|((f, at), name)| self.put(&f.ty, &format!("v.{name}"), &format!("p + {at}"), take))
 					.collect();
 				lines.join("\n")
 			}
@@ -1221,13 +1223,8 @@ impl<'a> Gen<'a> {
 					if !variant.fields.is_empty() {
 						let tys: Vec<Ty> = variant.fields.iter().map(|f| abi.ty(&f.ty)).collect();
 						let (_, at) = self.place(&tys);
-						for (f, at) in variant.fields.iter().zip(at) {
-							body.push(self.put(
-								&f.ty,
-								&format!("v.{}", variant_field(&f.name)),
-								&format!("p + {}", u + at),
-								take,
-							));
+						for ((f, at), name) in variant.fields.iter().zip(at).zip(variant_fields(&variant.fields)) {
+							body.push(self.put(&f.ty, &format!("v.{name}"), &format!("p + {}", u + at), take));
 						}
 					}
 					body.push("return;".to_string());
@@ -1379,13 +1376,19 @@ fn field_name(name: &str) -> String {
 	camel(name)
 }
 
-/// A data enum variant's field's name: a field's, but `tag$` for one named `tag`, which
-/// names the variant.
-fn variant_field(name: &str) -> String {
-	match field_name(name) {
+/// The names of a record's fields, each a field's, and distinct: `foo` and `foo_`, both
+/// `foo` in camel case, are `foo` and `foo2`.
+fn field_names(fields: &[crate::ir::Field]) -> Vec<String> {
+	abi::distinct(fields.iter().map(|f| field_name(&f.name)))
+}
+
+/// The names of a data enum variant's fields: a record's, but `tag$` for one named `tag`,
+/// which names the variant.
+fn variant_fields(fields: &[crate::ir::Field]) -> Vec<String> {
+	abi::distinct(fields.iter().map(|f| match field_name(&f.name) {
 		name if name == "tag" => "tag$".to_string(),
 		name => name,
-	}
+	}))
 }
 
 /// A parameter's name: in camel case, with `_` appended if a reserved word.
@@ -1562,19 +1565,23 @@ impl Gen<'_> {
 		match c {
 			Ty::Void => lines.push(format!("{e};")),
 			c if Self::plain(c) => lines.push(format!("return {};", self.lower(ty, e))),
-			c => match self.scalar(c) {
-				Some(w) => {
-					let l = self.layout(c);
-					let put = self.put(ty, e, "o$", true);
-					lines.push(format!(
-						"const o$ = rt.alloc({}, {});\n{put}\nreturn rt.dv().get{}(o$, true);",
-						l.size.max(8),
-						l.align.max(4),
-						Self::word(w).0
-					));
+			c => {
+				// The implementation runs once, though a writer may read what it returns twice.
+				lines.push(format!("const v$ = {e};"));
+				match self.scalar(c) {
+					Some(w) => {
+						let l = self.layout(c);
+						let put = self.put(ty, "v$", "o$", true);
+						lines.push(format!(
+							"const o$ = rt.alloc({}, {});\n{put}\nreturn rt.dv().get{}(o$, true);",
+							l.size.max(8),
+							l.align.max(4),
+							Self::word(w).0
+						));
+					}
+					None => lines.push(self.put(ty, "v$", "r$", true)),
 				}
-				None => lines.push(self.put(ty, e, "r$", true)),
-			},
+			}
 		}
 	}
 
@@ -1960,15 +1967,8 @@ impl Gen<'_> {
 				format!("{}export type {name} = rt.Opaque<\"{name}\">;\n\n", docs(&text, ""))
 			}
 			None => {
-				let fields: Vec<String> = (record.fields.iter())
-					.map(|f| {
-						format!(
-							"{}\t{}: {};\n",
-							docs(&f.docs, "\t"),
-							field_name(&f.name),
-							self.tt(&f.ty)
-						)
-					})
+				let fields: Vec<String> = (record.fields.iter().zip(field_names(&record.fields)))
+					.map(|(f, name)| format!("{}\t{name}: {};\n", docs(&f.docs, "\t"), self.tt(&f.ty)))
 					.collect();
 				let text = format!("{rust}\n\n{}", record.docs);
 				format!("{}export type {name} = {{\n{}}};\n\n", docs(&text, ""), fields.concat())
@@ -2001,8 +2001,8 @@ impl Gen<'_> {
 				let here: Vec<_> = e.variants.iter().filter(|v| self.here(v.on)).collect();
 				for variant in here {
 					let mut fields = vec![format!("tag: \"{}\"", variant.name)];
-					for field in &variant.fields {
-						fields.push(format!("{}: {}", variant_field(&field.name), self.tt(&field.ty)));
+					for (field, name) in variant.fields.iter().zip(variant_fields(&variant.fields)) {
+						fields.push(format!("{name}: {}", self.tt(&field.ty)));
 					}
 					cases.push(format!("{{ {} }}", fields.join("; ")));
 				}
@@ -2349,7 +2349,11 @@ impl Gen<'_> {
 			}
 			args.push("self$".to_string());
 		}
-		let names = abi::distinct(function.params.iter().map(|param| param_name(&param.name)));
+		// Distinct from each other, and from the receiver's `self`.
+		let receiving = receiver.is_some() as usize;
+		let names = (function.params.iter()).map(|param| param_name(&param.name));
+		let names = abi::distinct(["self".to_string()].into_iter().take(receiving).chain(names));
+		let names = names.into_iter().skip(receiving);
 		let mut writes = Vec::new();
 		for (k, (param, name)) in function.params.iter().zip(names).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
@@ -2614,11 +2618,21 @@ mod tests {
 		assert!(!uses("x.rt.y", "rt."));
 	}
 
-	/// A variant's field named `tag` keeps clear of the tag naming the variant.
+	fn fields(names: &[&str]) -> Vec<crate::ir::Field> {
+		(names.iter())
+			.map(|name| crate::ir::Field {
+				name: name.to_string(),
+				docs: String::new(),
+				ty: Type::Unit,
+			})
+			.collect()
+	}
+
+	/// A variant's field named `tag` keeps clear of the tag naming the variant, and fields
+	/// alike in camel case keep apart.
 	#[test]
-	fn variant_field_clears_tag() {
-		assert_eq!(variant_field("tag"), "tag$");
-		assert_eq!(variant_field("tag_name"), "tagName");
-		assert_eq!(field_name("tag"), "tag");
+	fn field_names_distinct() {
+		assert_eq!(variant_fields(&fields(&["tag", "tag_name"])), ["tag$", "tagName"]);
+		assert_eq!(field_names(&fields(&["tag", "foo", "foo_"])), ["tag", "foo", "foo2"]);
 	}
 }

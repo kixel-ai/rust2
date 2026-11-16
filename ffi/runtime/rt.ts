@@ -205,6 +205,15 @@ export const s = { d: 0 };
 /** Why the module aborted, after which every call throws: nothing of Rust's state is sound. */
 let aborted: unknown;
 
+/**
+ * Whether Rust may run: no call aborted, nor trapped, which unwinds past the `s.d--` after
+ * it and leaves `s.d` raised wherever JavaScript runs next.
+ */
+function live(): boolean {
+	if (s.d !== 0) aborted ??= new Error("a call into the module trapped");
+	return aborted === undefined;
+}
+
 /** The error of a call into a module that aborted. */
 function dead(): Error {
 	return new Error("the module aborted, so no call into it runs", { cause: aborted });
@@ -262,6 +271,12 @@ export function leave(mark: number): void {
 	const b = frames.pop()!;
 	top = frames.pop()!;
 	while (lent.length > l) tokens.delete(lent.pop()!);
+	// After a trap, Rust's state is unsound: forget what the call took, calling none of it.
+	if (!live()) {
+		held.length = h;
+		big.length = b;
+		return;
+	}
 	while (held.length > h) held.pop()!.release();
 	while (big.length > b) {
 		const align = big.pop()!;
@@ -306,7 +321,7 @@ export type Kind = {
 
 /** The handles' frees the garbage collector makes, of each that was never disposed. */
 const collected = new FinalizationRegistry<[number, string]>(([p, free]) => {
-	if (aborted !== undefined) return;
+	if (!live()) return;
 	s.d++;
 	w[free](p);
 	s.d--;
@@ -891,7 +906,7 @@ export function wakerGet(p: number): Waker {
 }
 
 const wakers = new FinalizationRegistry<[number, number]>(([drop, data]) => {
-	if (aborted !== undefined) return;
+	if (!live()) return;
 	s.d++;
 	w[`${space}_call`](drop, data);
 	s.d--;
@@ -1061,16 +1076,21 @@ class Pending<T> {
 		this.polling = true;
 		let done: boolean;
 		let value: T;
-		const m = enter();
+		let m = 0;
 		try {
+			m = enter();
 			const waker = alloc(12, 4);
 			putWaker(waker, this.t);
 			[done, value] = this.poll(this.f, waker);
 		} catch (e) {
-			leave(m);
-			this.polling = false;
-			this.finish();
-			this.reject(e);
+			// The promise settles whatever the cleanup throws.
+			try {
+				if (m !== 0) leave(m);
+				this.polling = false;
+				this.finish();
+			} finally {
+				this.reject(e);
+			}
 			return;
 		}
 		leave(m);
@@ -1089,7 +1109,7 @@ class Pending<T> {
 		this.f = 0;
 		calls.delete(this.promise);
 		wakes.delete(this.t);
-		if (aborted !== undefined) return;
+		if (!live()) return;
 		const m = enter();
 		s.d++;
 		w[this.free](f);
@@ -1242,14 +1262,31 @@ export type Glue = {
  * generated with, before any call. It refuses an import with no web API standing in for it.
  */
 export async function load(source: Source, glue: Glue): Promise<void> {
-	if (memory !== undefined) throw new Error(`${glue.file}: the module is loaded already`);
+	if (loading || loaded) throw new Error(`${glue.file}: the module is loaded already`);
+	// Taken before the first await, so a second load meanwhile is refused; given back on a
+	// failure, so a load after one may succeed.
+	loading = true;
+	try {
+		await instantiate(source, glue);
+		loaded = true;
+	} finally {
+		loading = false;
+	}
+}
+
+let loading = false;
+let loaded = false;
+
+async function instantiate(source: Source, glue: Glue): Promise<void> {
 	let module: WebAssembly.Module;
 	if (source instanceof WebAssembly.Module) module = source;
 	else if (source instanceof ArrayBuffer || ArrayBuffer.isView(source)) module = await WebAssembly.compile(source);
 	else module = await WebAssembly.compileStreaming(source as Response | PromiseLike<Response>);
 	const rust = rust2(glue.imports as Record<string, (...args: number[]) => unknown>);
 	for (const i of WebAssembly.Module.imports(module)) {
-		const known = i.module === "wasi_snapshot_preview1" ? i.name in wasi : i.module === "rust2" && i.name in rust;
+		// Its own, not what every object inherits, such as `toString`.
+		const known =
+			i.module === "wasi_snapshot_preview1" ? Object.hasOwn(wasi, i.name) : i.module === "rust2" && Object.hasOwn(rust, i.name);
 		if (!known) {
 			throw new Error(`${glue.file}: the module imports ${i.module}.${i.name}, which no web API stands in for`);
 		}

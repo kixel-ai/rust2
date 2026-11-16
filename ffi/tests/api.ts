@@ -9,6 +9,7 @@
 
 import * as api from "./web/index.ts";
 import * as rt from "./web/rt.ts";
+import * as g from "./web/glue.ts";
 import * as Area from "./web/Area.ts";
 import * as Atlas from "./web/Atlas.ts";
 import * as Batch from "./web/Batch.ts";
@@ -1682,7 +1683,14 @@ async function broken(which: string): Promise<void> {
 async function main(): Promise<void> {
 	const path = process.env["RUST2_WASM"];
 	check(path !== undefined, "RUST2_WASM names the module");
-	await api.load(process.getBuiltinModule("node:fs").readFileSync(path!));
+	const module = await WebAssembly.compile(process.getBuiltinModule("node:fs").readFileSync(path!));
+	// A load that fails leaves the next free to succeed, and a load while one runs is refused.
+	const glue = { prefix: "api", space: "api_web", file: "stale.ts", contract: 1n, target: 0, imports: g.imports };
+	const message = (p: Promise<void>) => p.then(() => "", (e: unknown) => (e instanceof Error ? e.message : String(e)));
+	check((await message(rt.load(module, glue))) === "stale.ts and the module are from different builds", "a stale load");
+	const first = api.load(module);
+	check((await message(api.load(module))) === "index.ts: the module is loaded already", "a load meanwhile");
+	await first;
 	const which = process.argv[2];
 	switch (which) {
 		case undefined:
