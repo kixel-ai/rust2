@@ -258,7 +258,7 @@ const DRAIN: i64 = 0;
 
 /// A call made a value that is not `Send`: give this thread a wake that queues a drain on
 /// the event loop running here, if one is, so a free on another thread reaches an idle
-/// loop, which `_n._drain` then runs.
+/// loop, which its `Queue.drain` then runs.
 #[cold]
 fn drains() {
 	// SAFETY: the GIL is held. An exception the caller has set is kept aside while Python
@@ -298,8 +298,9 @@ fn drain_on(queue: &Arc<Queue>) {
 	}));
 }
 
-/// `_drain()`: drop what other threads freed of this thread's values that are not `Send`.
-unsafe extern "C" fn drain_py(_: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
+/// `drain()`, on the thread running its loop: drop what other threads freed of the
+/// thread's values that are not `Send`.
+unsafe extern "C" fn queue_drain(_: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
 	call(rt::Thread::drain_here);
 	wrap(none)
 }
@@ -2872,10 +2873,11 @@ static FUTURE_METHODS: Methods<4> = Methods(UnsafeCell::new([
 	END,
 ]));
 
-static QUEUE_METHODS: Methods<4> = Methods(UnsafeCell::new([
+static QUEUE_METHODS: Methods<5> = Methods(UnsafeCell::new([
 	noargs(c"fileno", queue_fileno),
 	onearg(c"take", queue_take),
 	noargs(c"signaled", queue_signaled),
+	noargs(c"drain", queue_drain),
 	END,
 ]));
 
@@ -2887,11 +2889,7 @@ static NODE_METHODS: Methods<3> = Methods(UnsafeCell::new([
 
 static RETURNED_METHODS: Methods<2> = Methods(UnsafeCell::new([noargs(c"wake", returned_wake), END]));
 
-static REGISTER: Methods<3> = Methods(UnsafeCell::new([
-	method(c"_register", register),
-	noargs(c"_drain", drain_py),
-	END,
-]));
+static REGISTER: Methods<2> = Methods(UnsafeCell::new([method(c"_register", register), END]));
 
 /// Make a type from `slots` and add it to `module` by its name, noting it in `cell`.
 ///

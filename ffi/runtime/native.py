@@ -6,9 +6,6 @@
 class _n:
 	PENDING: _object
 
-	@_staticmethod
-	def _drain() -> None: ...
-
 	class Object:
 		__slots__ = ()
 
@@ -30,6 +27,8 @@ class _n:
 		def fileno(self) -> _int: ...
 
 		def take(self, read: _bool, /) -> _list[_int]: ...
+
+		def drain(self) -> None: ...
 
 	class Node:
 		def __init__(self, queue: _n.Queue, /) -> None: ...
