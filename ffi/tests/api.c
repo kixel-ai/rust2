@@ -2674,6 +2674,17 @@ static int statuses(void) {
 			fprintf(stderr, "a lent receipt erased wrote %d\n", status);
 			failed = 1;
 		}
+		status = 0;
+		if (api_tallied(receipt, &status) != 0 || status != 0) {
+			fprintf(stderr, "a lent receipt tallied wrote %d\n", status);
+			failed = 1;
+		}
+		status = 0;
+		api_Ledger_seal(ledger, &status);
+		if (status != 0) {
+			fprintf(stderr, "a ledger after its receipt moved into a call wrote %d\n", status);
+			failed = 1;
+		}
 		api_Receipt_free(receipt);
 		api_Slip *slip = api_Ledger_slip(ledger, NULL);
 		api_Slip *twin = api_Slip_clone(slip, NULL);

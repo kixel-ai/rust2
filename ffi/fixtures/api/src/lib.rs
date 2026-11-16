@@ -923,6 +923,15 @@ pub fn stored<'a: 'static>(receipt: Receipt<'a>) -> u32 {
 	receipt.count()
 }
 
+/// What `receipt` counts, through a bound that holds for any lifetime, so a [`Ledger`]'s
+/// lent receipt moves in, and the ledger is free once it returns.
+pub fn tallied<'a>(receipt: Receipt<'a>) -> u32
+where
+	Receipt<'a>: Clone,
+{
+	receipt.clone().count()
+}
+
 /// What `receipt` counts: its bound implies it lives as long as the program, as `Any`'s
 /// does, so passing one a [`Ledger`] lends fails too.
 pub fn erased<'a>(receipt: Receipt<'a>) -> u32
