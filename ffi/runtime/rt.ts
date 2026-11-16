@@ -1269,6 +1269,12 @@ export async function load(source: Source, glue: Glue): Promise<void> {
 	try {
 		await instantiate(source, glue);
 		loaded = true;
+	} catch (e) {
+		// What the refused instance left, such as a `proc_exit` in its initializer, is not
+		// the next one's.
+		aborted = undefined;
+		s.d = 0;
+		throw e;
 	} finally {
 		loading = false;
 	}
