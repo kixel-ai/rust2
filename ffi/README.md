@@ -875,8 +875,9 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   `SeekFrom::Start` takes a `UInt64`, calls `seek(start:)`, which by default throws. Rust
   calls it from any thread, one call at a time, and reads a thrown error's `description`
   as its `io::Error`'s message.
-- **Futures** are `async throws` functions, which resume on the task's executor, never
-  inside a wake. Cancelling the task frees the future, losing nothing, and throws
+- **Futures** are `async throws` functions that run on their caller's executor
+  (`nonisolated(nonsending)`), so a call ready at its first poll never leaves the caller's
+  actor, and one that suspends resumes there, never inside a wake. Cancelling the task frees the future, losing nothing, and throws
   `CancellationError`. Each call is its own future, so it has one poller. The call makes
   and polls it in one crossing, `_start`, before suspending, and makes the signal it parks
   on only if that poll pends; the signal latches a wake that lands before it parks.
@@ -1156,7 +1157,7 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 - **Futures** are `Cancelable<T>`, a `Future<T>` completed on the isolate that made it:
   an extension type on Dart's own future, which `await` takes its shortest path through.
   The call makes and polls it in one crossing, `_start`, returning it complete if that
-  poll finished, and makes a waker only if it pends. A wake, from any
+  poll finished, and makes the state that polls it again, and a waker, only if it pends. A wake, from any
   thread, posts to the isolate's port, and its event loop polls again, so a wake never
   polls inside Rust, and one that lands during a poll is kept. `cancel()` frees the
   future unless it finished, which cancels it in Rust and loses nothing: the next call
