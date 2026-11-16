@@ -782,6 +782,14 @@ fun script() {
 		println("hop ${nextHop(hop)?.let { "Some($it)" } ?: "None"}")
 	}
 	println("farther hop ${fartherHop(PairNonZeroU16(3u, UShort.MAX_VALUE))}")
+	val local = Local.new()
+	val shared = localOrNew(local)
+	val bumped = local.bump()
+	println("local $bumped ${shared.bump()}")
+	println("local fresh ${localOrNew(null).bump()}")
+	println("local either ${bumpEither(null, shared)}")
+	println("local later ${runBlocking { localOrNewLater(local) }.bump()}")
+	println("local later fresh ${runBlocking { localOrNewLater(null) }.bump()}")
 }
 
 // A channel whose reads fail, which seeks anywhere from its start, as Rust's `Cursor` does.
@@ -1031,6 +1039,33 @@ fun futures() {
 		scope.launch { got = yielded(7u) }
 		q.drain()
 		check(got == 7u, "a wake during the poll polls again")
+	}
+
+	// A value that is not Send stays on the thread that made it: a use elsewhere throws, and
+	// its future polls on its thread. Closed elsewhere, it drops there at its next call. One
+	// such future made from none lives on a home, so it polls from any thread.
+	run {
+		val local = Local.new()
+		val shared = local.share()
+		local.bump()
+		check(shared.bump() == 2u, "a shared local counts together")
+		var got = 0u
+		scope.launch { got = local.later() }
+		q.drain()
+		check(got == 3u, "a local's future runs on its thread")
+		got = runBlocking(Dispatchers.Default) { localLater(5u) }
+		check(got == 10u, "a future that is not Send made from none polls on a pool")
+		var thrown: Throwable? = null
+		thread { thrown = runCatching { local.bump() }.exceptionOrNull() }.join()
+		check(
+			thrown is IllegalStateException && thrown?.message == "api_Local_bump: a value that is not Send is used on another thread than the one that made it",
+			"a local used elsewhere throws: $thrown",
+		)
+		val before = localsDropped()
+		thread { local.close() }.join()
+		check(localsDropped() == before, "a local closed elsewhere waits for its thread")
+		check(shared.bump() == 4u && localsDropped() == before + 1u, "a local closed elsewhere drops on its thread")
+		shared.close()
 	}
 
 	// Cancelled between its wake and its poll, a receive loses nothing: the payload stays

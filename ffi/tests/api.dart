@@ -927,6 +927,14 @@ Future<void> script() async {
     print(next == null ? 'hop None' : 'hop Some(${next.toRadixString(10)})');
   }
   print('farther hop ${api.fartherHop(const api.PairNonZeroU16(left: 3, right: 0xFFFF))}');
+  final local = api.Local();
+  final shared = api.localOrNew(local);
+  final bumped = local.bump();
+  print('local $bumped ${shared.bump()}');
+  print('local fresh ${api.localOrNew(null).bump()}');
+  print('local either ${api.bumpEither(null, shared)}');
+  print('local later ${(await api.localOrNewLater(local)).bump()}');
+  print('local later fresh ${(await api.localOrNewLater(null)).bump()}');
 }
 
 /// A reader whose reads fail, as the transcript's: each seek lands at 0.
@@ -1058,6 +1066,28 @@ Future<void> futures() async {
   check(dropLog.lines == 1, "a cancel calls into the implementation its future's drop holds");
   check(dropLog.closes == 1, 'a cancel closes the implementation its future held');
   await cancelled(dropping, 'a cancelled future that never finishes completes with Cancelled');
+
+  // A value that is not Send lives on a home, a thread Rust owns, which runs each call on
+  // it: the isolate's thread may change between turns of its event loop, and a call runs
+  // on a worker while Rust holds an implementation. A close drops it there.
+  final local = api.Local();
+  final shared = local.share();
+  local.bump();
+  check(shared.bump() == 2, 'a shared local counts together');
+  check(await local.later() == 3, "a local's future runs on its home");
+  check(await api.localLater(5) == 10, 'a future that is not Send runs on a home');
+  await step();
+  check(local.onOwnThread(), 'a call after a suspension runs on its home');
+  final relayLog = CountLog();
+  final relayed = api.logOnDrop(relayLog);
+  check(local.bump() == 4 && local.onOwnThread(), 'a call through the relay runs on its home');
+  check(local.visit(() => local.bump()) == 5, 'a callback on a home calls back into its local');
+  relayed.cancel();
+  await cancelled(relayed, 'a cancelled future that held a relay completes with Cancelled');
+  final localsBefore = api.localsDropped();
+  local.close();
+  check(api.localsDropped() == localsBefore + 1, 'a closed local drops on its home');
+  shared.close();
 
   // A wake that lands while the future polls, before it returns pending, as each of
   // `yielded`'s does, is kept: the future polls again rather than waiting for a wake that

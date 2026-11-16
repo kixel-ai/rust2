@@ -310,6 +310,7 @@ const STATUSES = [
 	"a handle is borrowed on another thread",
 	"a handle a call lent is borrowed exclusively or moved out",
 	"a handle lent from another outlived it: the other was borrowed exclusively, moved out, or freed",
+	"a value that is not Send is used on another thread than the one that made it",
 ];
 
 /** What each object type's handles do: its name, its free, and its drop, if Rust checks it. */

@@ -171,6 +171,29 @@ pub fn sealed(cert: tls::held::Cert) -> Cell<tls::held::Cert> {
 	Cell(cert)
 }
 
+/// A generic type whose guard borrows it.
+pub struct Slot<T>(T);
+
+/// A guard borrowing its slot, an instance of which an export names with the lifetime its
+/// signature binds.
+pub struct SlotGuard<'a, T>(&'a mut T);
+
+impl Slot<u8> {
+	pub fn new() -> Self {
+		Self(0)
+	}
+
+	/// A guard that borrows its handle, which a new handle would outlive.
+	pub fn lock(&mut self) -> SlotGuard<'_, u8> {
+		SlotGuard(&mut self.0)
+	}
+
+	/// A guard of a slot of its own, borrowing nothing, so C holds one.
+	pub fn leaked() -> SlotGuard<'static, u8> {
+		SlotGuard(Box::leak(Box::new(0)))
+	}
+}
+
 /// A future returned by a function that is not async, whose output borrows what the
 /// future holds only until it completes.
 pub fn echo(tag: &str) -> impl std::future::Future<Output = &str> + '_ {

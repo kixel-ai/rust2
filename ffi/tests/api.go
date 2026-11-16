@@ -1060,6 +1060,14 @@ func script() {
 		}
 	}
 	fmt.Printf("farther hop %d\n", must(api.FartherHop(api.PairNonZeroU16{Left: 3, Right: math.MaxUint16})))
+	local := api.NewLocal()
+	shared := must(api.LocalOrNew(local))
+	bumped := must(local.Bump())
+	fmt.Printf("local %d %d\n", bumped, must(shared.Bump()))
+	fmt.Printf("local fresh %d\n", must(must(api.LocalOrNew(nil)).Bump()))
+	fmt.Printf("local either %d\n", must(api.BumpEither(nil, shared)))
+	fmt.Printf("local later %d\n", must(must(api.LocalOrNewLater(ctx, local)).Bump()))
+	fmt.Printf("local later fresh %d\n", must(must(api.LocalOrNewLater(ctx, nil)).Bump()))
 }
 
 // farReader is a reader whose reads fail, which seeks anywhere from its start, as Rust's
@@ -1246,6 +1254,55 @@ func futures() {
 	// A wake that lands while the future polls, before it returns pending, is kept: the
 	// call polls again rather than waiting for a wake that already happened.
 	check(must(api.Yielded(ctx, 7)) == 7, "a wake during the poll polls again")
+
+	// A value that is not Send lives on a home, a thread Rust owns, which runs each call on
+	// it from any goroutine, and drops it there once closed or collected.
+	local := api.NewLocal()
+	shared := must(local.Share())
+	must(local.Bump())
+	check(must(shared.Bump()) == 2, "a shared local counts together")
+	check(must(local.Later(ctx)) == 3, "a local's future runs on its home")
+	check(must(api.LocalLater(ctx, 5)) == 10, "a future that is not Send runs on a home")
+	check(must(api.BumpEither(nil, local)) == 4, "a call whose first local is absent runs on its second's home")
+	check(must(local.Visit(func() uint32 { return must(local.Bump()) })) == 5, "a callback on a home calls back into its local")
+	other := api.NewLocal()
+	nested := must(local.Visit(func() uint32 {
+		return must(other.Visit(func() uint32 { return must(local.Bump()) }))
+	}))
+	check(nested == 6, "a home waiting on another runs a call back into its own local")
+	ok(other.Close())
+	made := must(api.LocalAfter(ctx))
+	check(must(made.OnOwnThread()), "a future's output that is not Send is made on its home")
+	ok(made.Close())
+	fresh := must(api.LocalOrNew(nil))
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			check(must(local.OnOwnThread()), "a local's call from any goroutine runs on its home")
+			check(must(fresh.OnOwnThread()), "a local made with its optional local absent lives on a home")
+		}()
+	}
+	wg.Wait()
+	ok(fresh.Close())
+	before := api.LocalsDropped()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ok(local.Close())
+	}()
+	wg.Wait()
+	check(api.LocalsDropped() == before+1, "a local closed on another goroutine drops on its home")
+	// Collected only from here, after the count before it.
+	runtime.KeepAlive(shared)
+	shared = nil
+	deadline := time.Now().Add(10 * time.Second)
+	for api.LocalsDropped() < before+2 {
+		check(time.Now().Before(deadline), "a collected local drops on its home")
+		runtime.GC()
+		runtime.Gosched()
+	}
 
 	// A future's output of None is nil.
 	half := must(api.Halved(ctx, 4))

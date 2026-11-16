@@ -1510,6 +1510,24 @@ int script() {
 		}
 	}
 	std::printf("farther hop %u\n", static_cast<unsigned>(api::farther_hop(api::Pair_non_zero_u16{3, UINT16_MAX})));
+	{
+		api::Local local = api::Local::new_();
+		api::Local shared = api::local_or_new(&local);
+		std::uint32_t bumped = local.bump();
+		std::printf("local %u %u\n", static_cast<unsigned>(bumped), static_cast<unsigned>(shared.bump()));
+		std::printf("local fresh %u\n", static_cast<unsigned>(api::local_or_new(nullptr).bump()));
+		std::printf("local either %u\n", static_cast<unsigned>(api::bump_either(nullptr, shared)));
+		api::waker waker([]() {});
+		const api::Local *froms[] = {&local, nullptr};
+		for (const api::Local *from : froms) {
+			api::local_or_new_later_future later = api::local_or_new_later(from);
+			auto made = later.poll(waker);
+			while (!made) {
+				made = later.poll(waker);
+			}
+			std::printf("local later%s %u\n", from ? "" : " fresh", static_cast<unsigned>(made->bump()));
+		}
+	}
 
 	// A returned `Vec<&Token>` holds clones, which the vector drops.
 	api::Token twice = api::Token::new_(9);
@@ -1685,6 +1703,26 @@ int futures() {
 		api::task task = api::yielded(7).then(q.executor(), [&](std::uint32_t value) { got = value; });
 		q.drain();
 		check(got == 7, "a wake during the poll polls again");
+	}
+
+	// A value that is not Send stays on the thread that made it, whose executor polls its
+	// futures; destroyed on another thread, it drops on its own at its next call.
+	{
+		api::Local local = api::Local::new_();
+		api::Local shared = local.share();
+		local.bump();
+		check(shared.bump() == 2, "a shared local counts together");
+		std::uint32_t got = 0;
+		api::task later = local.later().then(q.executor(), [&](std::uint32_t value) { got = value; });
+		q.drain();
+		check(got == 3, "a local's future runs on its thread");
+		api::task doubled = api::local_later(5).then(q.executor(), [&](std::uint32_t value) { got = value; });
+		q.drain();
+		check(got == 10, "a future that is not Send runs on its thread");
+		std::uint32_t before = api::locals_dropped();
+		std::thread([&]() { api::Local gone = std::move(local); }).join();
+		check(api::locals_dropped() == before, "a local destroyed elsewhere waits for its thread");
+		check(shared.bump() == 4 && api::locals_dropped() == before + 1, "a local destroyed elsewhere drops on its thread");
 	}
 
 	// Cancelled between its wake and its poll, a receive loses nothing: the payload stays

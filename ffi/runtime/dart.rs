@@ -226,17 +226,20 @@ impl Home {
 			// SAFETY: this thread waits below until the job ran, so `run` outlives its use.
 			run: Mutex::new(Some(unsafe { Run::new(&mut run) })),
 			thread: rt::thread(),
+			waiter: std::thread::current(),
 			done: Mutex::new(false),
 			ran: Condvar::new(),
 		});
 		if !self.push(Task::Call(job.clone())) {
 			rt::fail(what, "the Dart isolate it calls into has exited");
 		}
-		let mut done = job.done.lock().unwrap_or_else(|e| e.into_inner());
-		while !*done {
-			done = job.ran.wait(done).unwrap_or_else(|e| e.into_inner());
+		// A home runs meanwhile what the Dart it calls asks of the values it holds.
+		if !rt::Thread::serve_until(|| *job.done.lock().unwrap_or_else(|e| e.into_inner())) {
+			let mut done = job.done.lock().unwrap_or_else(|e| e.into_inner());
+			while !*done {
+				done = job.ran.wait(done).unwrap_or_else(|e| e.into_inner());
+			}
 		}
-		drop(done);
 		// SAFETY: the job is done only once it ran.
 		unsafe { out.assume_init() }
 	}
@@ -404,6 +407,8 @@ pub struct Job {
 	run: Mutex<Option<Run>>,
 	/// The waiting thread, which the isolate's acts as while it runs the call.
 	thread: usize,
+	/// The waiting thread, which a home's wait parks.
+	waiter: std::thread::Thread,
 	done: Mutex<bool>,
 	ran: Condvar,
 }
@@ -419,6 +424,7 @@ impl Job {
 		}
 		*self.done.lock().unwrap_or_else(|e| e.into_inner()) = true;
 		self.ran.notify_all();
+		self.waiter.unpark();
 	}
 }
 
