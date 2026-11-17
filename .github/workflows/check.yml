@@ -12,9 +12,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  registry-spike:
-    name: Registry package consumers
-    uses: ./.github/workflows/registry.yml
+  bindings:
+    name: Binding packages
+    uses: ./.github/workflows/bindings-test.yml
 
   check:
     name: Check

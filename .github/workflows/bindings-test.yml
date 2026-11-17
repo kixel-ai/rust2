@@ -1,0 +1,29 @@
+name: Binding packages test
+
+# bindings.yml on the api fixture, whose consumers must print native Rust's transcript byte
+# for byte, and on moq's stand-in facade at the exporter's moq pin, its first consumer.
+# Read-only: nothing here publishes.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: api fixture
+    uses: ./.github/workflows/bindings.yml
+    with:
+      manifest-path: ffi/fixtures/api/Cargo.toml
+      features: doubled
+      example: transcript
+      python-check: ffi/tests/api.py
+      swift-check: ffi/tests/api.swift
+
+  moq:
+    name: moq stand-in
+    uses: ./.github/workflows/bindings.yml
+    with:
+      manifest-path: ffi/target/moq-ffi/Cargo.toml
+      python-check: ffi/moq/moq.py
+      swift-check: ffi/moq/moq.swift
