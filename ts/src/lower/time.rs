@@ -15,7 +15,7 @@ const U64: Int = Int {
 };
 
 /// A call of a `Duration` function, or its arguments back if it is none of theirs.
-pub fn call<'tcx>(
+pub(crate) fn call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	call: &Call<'tcx>,
 	owner: &str,
@@ -80,13 +80,13 @@ pub fn call<'tcx>(
 }
 
 /// `Duration::ZERO`, which `Default` makes.
-pub fn zero() -> Expr {
+pub(crate) fn zero() -> Expr {
 	object(U64.lit(0), Expr::lit("0"))
 }
 
 /// A `Duration` constant from its value tree: its seconds, and its `Nanoseconds`, which
 /// holds its `u32` in a pattern type.
-pub fn constant<'tcx>(fields: &[(Ty<'tcx>, ValTree<'tcx>)]) -> Option<Expr> {
+pub(crate) fn constant<'tcx>(fields: &[(Ty<'tcx>, ValTree<'tcx>)]) -> Option<Expr> {
 	let [(_, secs), (_, nanos)] = fields else {
 		return None;
 	};
@@ -105,7 +105,7 @@ pub fn constant<'tcx>(fields: &[(Ty<'tcx>, ValTree<'tcx>)]) -> Option<Expr> {
 }
 
 /// A `Duration` of `secs` whole seconds and `nanos` nanoseconds.
-pub fn object(secs: Expr, nanos: Expr) -> Expr {
+pub(crate) fn object(secs: Expr, nanos: Expr) -> Expr {
 	Expr::Object(vec![
 		(Key::Name("secs".into()), secs),
 		(Key::Name("nanos".into()), nanos),

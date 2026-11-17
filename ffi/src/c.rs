@@ -10,7 +10,7 @@ use crate::ir::{Function, Int, Literal, Receiver, Traits, Type};
 
 /// The header for `abi`, as `<prefix>.h`, and its contract: a hash of what it declares,
 /// which the library returns from `<prefix>_contract`.
-pub fn header(abi: &Abi<'_>, packages: &str) -> (String, u64) {
+pub(crate) fn header(abi: &Abi<'_>, packages: &str) -> (String, u64) {
 	let mut h = Header {
 		abi,
 		out: String::new(),
@@ -566,7 +566,7 @@ impl Header<'_> {
 }
 
 /// `ty` declaring `name`: a parameter, field, or, with an empty name, a type.
-pub fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
+pub(crate) fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 	let space = |t: &str| match name.is_empty() {
 		true => t.to_string(),
 		false => format!("{t} {name}"),
@@ -640,7 +640,7 @@ fn has(traits: Traits) -> bool {
 }
 
 /// The C type of each unit an opaque value's struct holds, of `bytes` bytes.
-pub fn c_unit(bytes: u64) -> &'static str {
+pub(crate) fn c_unit(bytes: u64) -> &'static str {
 	match bytes {
 		1 => "uint8_t",
 		2 => "uint16_t",

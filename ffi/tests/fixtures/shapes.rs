@@ -738,7 +738,8 @@ fn refused(dir: &Path) -> Vec<String> {
 /// Each variant of the IR's `Type`, from its source.
 fn ir_variants() -> Vec<String> {
 	let ir = std::fs::read_to_string(manifest_dir().join("src").join("ir.rs")).unwrap();
-	let body = ir.split_once("pub enum Type {").expect("ir.rs declares Type").1;
+	// The declaration whatever its visibility, which only the crate needs.
+	let body = ir.split_once("enum Type {").expect("ir.rs declares Type").1;
 	let body = &body[..body.find("\n}").unwrap()];
 	body.lines()
 		.map(str::trim)

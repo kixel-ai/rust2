@@ -32,11 +32,11 @@ const RUNTIME: &str = include_str!("../runtime/rt.swift");
 
 /// What the generator writes: the Swift file, the clang module map it imports the C
 /// header through, and the header of atomics that module adds.
-pub struct Output {
-	pub names: BTreeMap<String, String>,
-	pub swift: String,
-	pub modulemap: String,
-	pub atomics: String,
+pub(crate) struct Output {
+	pub(crate) names: BTreeMap<String, String>,
+	pub(crate) swift: String,
+	pub(crate) modulemap: String,
+	pub(crate) atomics: String,
 }
 
 /// The name of the clang module of the C header: `api` is `ApiFFI`.
@@ -46,7 +46,7 @@ fn module(prefix: &str) -> String {
 
 /// The Swift for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike.
-pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
+pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		locked: BTreeMap::new(),
 		abi,
@@ -2263,7 +2263,7 @@ const MAX_OPTIONAL: usize = 2;
 /// refuses before any language is generated: one taking more optional borrowed structs
 /// than [`MAX_OPTIONAL`], or returning an error that holds one, which `Swift.Error`
 /// requires be copyable.
-pub fn refusals<'a>(abi: &Abi<'a>) -> Vec<(&'a Function, String)> {
+pub(crate) fn refusals<'a>(abi: &Abi<'a>) -> Vec<(&'a Function, String)> {
 	let structs = structs(abi);
 	let api = abi.api;
 	let methods = (api.records.iter().flat_map(|r| &r.methods))

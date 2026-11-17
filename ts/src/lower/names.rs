@@ -59,7 +59,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// The module of the type or trait `def_id`, beside its Rust module, named for it and
 	/// for any items it is nested in below that module: `copy.Pair` for `copy::Pair`, and
 	/// `copy.Pair$run` for a `Pair` declared in `copy::run`.
-	pub fn type_module(&self, def_id: DefId) -> ModPath {
+	pub(crate) fn type_module(&self, def_id: DefId) -> ModPath {
 		let mut name = self.tcx.item_name(def_id).to_string();
 		let enclosing = enclosing(self.tcx, def_id);
 		if !enclosing.is_empty() {
@@ -183,7 +183,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 
 /// A function's name before escaping and its suffix: a thread-local key's initializer by
 /// its key, as the macro names it alike for every key.
-pub fn fn_base(tcx: TyCtxt<'_>, def_id: DefId) -> String {
+pub(crate) fn fn_base(tcx: TyCtxt<'_>, def_id: DefId) -> String {
 	match library::local_init(tcx, def_id) {
 		Some(key) => format!("{}$init", tcx.item_name(key)),
 		None => camel(tcx.item_name(def_id).as_str()),
@@ -191,7 +191,7 @@ pub fn fn_base(tcx: TyCtxt<'_>, def_id: DefId) -> String {
 }
 
 /// The name of the class of a coroutine of the function `name`.
-pub fn future_base(name: &str) -> String {
+pub(crate) fn future_base(name: &str) -> String {
 	format!("{}Future", camel(name))
 }
 
@@ -210,7 +210,7 @@ fn importable(names: &mut Names, name: &str, module: ModPath) {
 /// and its length, and a tuple as `tuple` and its length, before what they hold; all
 /// joined by `_`: `ref_slice_u8` for `&[u8]`, and `Option_tuple2_u8_array4_u8` for
 /// `Option<(u8, [u8; 4])>`.
-pub fn ty<'tcx>(tcx: TyCtxt<'tcx>, t: Ty<'tcx>) -> String {
+pub(crate) fn ty<'tcx>(tcx: TyCtxt<'tcx>, t: Ty<'tcx>) -> String {
 	let parts: Vec<String> = match t.kind() {
 		// Its arguments, but not defaults such as a `Vec`'s allocator.
 		ty::Adt(adt, adt_args) => {
@@ -310,7 +310,7 @@ fn reference(mutability: ty::Mutability) -> &'static str {
 
 /// A trait with its type arguments, but not defaults such as `PartialEq`'s `Self`:
 /// `cmp_PartialEq_ref_str`.
-pub fn trait_name<'tcx>(tcx: TyCtxt<'tcx>, trait_ref: ty::TraitRef<'tcx>) -> String {
+pub(crate) fn trait_name<'tcx>(tcx: TyCtxt<'tcx>, trait_ref: ty::TraitRef<'tcx>) -> String {
 	let trait_args = tcx
 		.generics_of(trait_ref.def_id)
 		.own_args_no_defaults(tcx, trait_ref.args.as_slice());
@@ -325,7 +325,7 @@ pub fn trait_name<'tcx>(tcx: TyCtxt<'tcx>, trait_ref: ty::TraitRef<'tcx>) -> Str
 /// `hints::typed::{closure#1}`, with an impl as [`impl_name`] names it; another crate's
 /// type, trait, or function by its public path under its crate, as `bytes_Bytes`, but std's
 /// without its crate or a module its item repeats: `Option`, `fmt_Display`, `io_Error`.
-pub fn path(tcx: TyCtxt<'_>, def_id: DefId) -> String {
+pub(crate) fn path(tcx: TyCtxt<'_>, def_id: DefId) -> String {
 	let mut parts = Vec::new();
 	path_parts(tcx, def_id, &mut parts);
 	parts.join("_")
@@ -366,7 +366,7 @@ fn path_parts(tcx: TyCtxt<'_>, def_id: DefId, parts: &mut Vec<String>) {
 
 /// A definition's name in what defines it, or a closure's as Rust numbers it there:
 /// `closure1` for `{closure#1}`.
-pub fn segment(tcx: TyCtxt<'_>, def_id: DefId) -> String {
+pub(crate) fn segment(tcx: TyCtxt<'_>, def_id: DefId) -> String {
 	let data = tcx.def_key(def_id).disambiguated_data;
 	match data.data.name() {
 		DefPathDataName::Named(name) => name.to_string(),
@@ -412,7 +412,7 @@ fn impl_name(tcx: TyCtxt<'_>, imp: DefId) -> String {
 /// The items `def_id` is nested in below its module, as [`path`] names them: `u16s` for
 /// `captures::u16s::through`. None for an item of a module, nor of an impl or a trait of
 /// one, which a suffix names by its trait and self type.
-pub fn enclosing(tcx: TyCtxt<'_>, def_id: DefId) -> Vec<String> {
+pub(crate) fn enclosing(tcx: TyCtxt<'_>, def_id: DefId) -> Vec<String> {
 	let mut parent = tcx.parent(def_id);
 	if matches!(tcx.def_kind(parent), DefKind::Impl { .. } | DefKind::Trait) {
 		parent = tcx.parent(parent);

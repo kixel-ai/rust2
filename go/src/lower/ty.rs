@@ -12,13 +12,13 @@ use super::{Translator, TypeKey, names};
 
 impl<'tcx> Translator<'tcx> {
 	/// The Go type of a monomorphic Rust type.
-	pub fn ty(&mut self, ty: Ty<'tcx>, span: Span) -> String {
+	pub(crate) fn ty(&mut self, ty: Ty<'tcx>, span: Span) -> String {
 		self.go_ty(ty, span, false)
 	}
 
 	/// Whether values of `ty` have no Go result: `()` and `!`, which a function returning
 	/// them declares no result for.
-	pub fn no_value(ty: Ty<'tcx>) -> bool {
+	pub(crate) fn no_value(ty: Ty<'tcx>) -> bool {
 		ty.is_unit() || ty.is_never()
 	}
 
@@ -285,7 +285,7 @@ impl<'tcx> Translator<'tcx> {
 }
 
 /// The Go field holding a variant's fields.
-pub fn variant_field(name: &str) -> String {
+pub(crate) fn variant_field(name: &str) -> String {
 	names::escaped(name)
 }
 

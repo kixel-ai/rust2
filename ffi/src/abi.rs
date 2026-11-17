@@ -20,7 +20,7 @@ use crate::ir::{Access, Api, Closure, Dyn, Family, Function, Home, Int, Jni, Lit
 
 /// A C name one item claims twice, which no rename can tell apart: the name, then what
 /// claimed it first and second.
-pub type Clash = (String, (String, Span), (String, Span));
+pub(crate) type Clash = (String, (String, Span), (String, Span));
 
 /// What a C name names, which a clash renames: a type, a function by its address in the
 /// API, a constant by its path, or a tuple by its elements.
@@ -53,7 +53,7 @@ struct Claim {
 
 /// A C type, as a parameter, field, or return value takes it.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Ty {
+pub(crate) enum Ty {
 	Void,
 	Bool,
 	Int(Int),
@@ -109,15 +109,15 @@ pub enum Ty {
 
 /// A C function: its name, parameters, and return type.
 #[derive(Clone)]
-pub struct Sig {
-	pub name: String,
-	pub params: Vec<(String, Ty)>,
-	pub ret: Ty,
+pub(crate) struct Sig {
+	pub(crate) name: String,
+	pub(crate) params: Vec<(String, Ty)>,
+	pub(crate) ret: Ty,
 }
 
 impl Sig {
 	/// Its twin that runs it on a home: `<name>_homed`, of the same signature.
-	pub fn homed(&self) -> Sig {
+	pub(crate) fn homed(&self) -> Sig {
 		Sig {
 			name: format!("{}_homed", self.name),
 			params: self.params.clone(),
@@ -126,7 +126,7 @@ impl Sig {
 	}
 
 	/// The `status` parameter it takes last, if a call can fail a check of a handle.
-	pub fn status(&self) -> Option<&str> {
+	pub(crate) fn status(&self) -> Option<&str> {
 		self.params
 			.last()
 			.filter(|(_, ty)| is_status(ty))
@@ -136,7 +136,7 @@ impl Sig {
 
 /// The runtime's C struct of a socket address, if `socket`, or else an IP address, of
 /// `family`, after the prefix: a struct per family, so each holds exactly its Rust type.
-pub fn addr(socket: bool, family: Family) -> &'static str {
+pub(crate) fn addr(socket: bool, family: Family) -> &'static str {
 	match (socket, family) {
 		(true, Family::Any) => "socket_addr",
 		(true, Family::V4) => "socket_addr_v4",
@@ -148,35 +148,35 @@ pub fn addr(socket: bool, family: Family) -> &'static str {
 }
 
 /// Whether `ty` is a `status` parameter's.
-pub fn is_status(ty: &Ty) -> bool {
+pub(crate) fn is_status(ty: &Ty) -> bool {
 	matches!(ty, Ty::Out(inner) if **inner == Ty::Status)
 }
 
 /// The C side of an exported function.
-pub struct Export {
+pub(crate) struct Export {
 	/// The function itself: for a future, the call that makes it.
-	pub call: Sig,
+	pub(crate) call: Sig,
 	/// The C name its path gives it, which another language names it by, as a clash in C
 	/// renames only C's.
-	pub named: String,
+	pub(crate) named: String,
 	/// For a future: its handle type and the functions over it.
-	pub future: Option<Future>,
+	pub(crate) future: Option<Future>,
 	/// Whether it makes a value that is not `Send` from none: its call, or for a future its
 	/// start, has a twin of the same signature, `<name>_homed`, that runs it on a home, a
 	/// thread Rust owns, which the value then stays on. A binding with no thread that stays
 	/// put calls that one.
-	pub homed: bool,
+	pub(crate) homed: bool,
 }
 
 impl Export {
 	/// The twin of its call that runs it on a home, if it makes a value that is not `Send`.
-	pub fn homed_call(&self) -> Option<Sig> {
+	pub(crate) fn homed_call(&self) -> Option<Sig> {
 		self.homed.then(|| self.call.homed())
 	}
 
 	/// It as a binding with no thread that stays put calls it: by its twins that run on a
 	/// home, if it has them.
-	pub fn on_home(mut self) -> Self {
+	pub(crate) fn on_home(mut self) -> Self {
 		if self.homed {
 			self.call = self.call.homed();
 			if let Some(future) = &mut self.future {
@@ -187,7 +187,7 @@ impl Export {
 	}
 
 	/// The twin of its future's start that runs it on a home, as [`Self::homed_call`].
-	pub fn homed_start(&self) -> Option<Sig> {
+	pub(crate) fn homed_start(&self) -> Option<Sig> {
 		(self.future.as_ref()).and_then(|future| self.homed.then(|| future.start.homed()))
 	}
 }
@@ -195,7 +195,7 @@ impl Export {
 /// How the glue calls a value's `&mut self` method for a language whose values are
 /// immutable, which [`Abi::handed_back`] makes.
 #[derive(Clone)]
-pub struct Handed {
+pub(crate) struct Handed {
 	/// The C name of the method's function, which a clash may have renamed.
 	name: String,
 	/// How many parameters both take after `self`, before the outs.
@@ -214,7 +214,7 @@ impl Handed {
 	/// `args` are of that export's C signature: `self`, what both take after it, then the outs the value and
 	/// each element Rust returns are written through, which the C function takes from the
 	/// one after the value's, and last the status, if both take one.
-	pub fn call(&self, args: &[String]) -> String {
+	pub(crate) fn call(&self, args: &[String]) -> String {
 		let lead = self.lead;
 		let (args, status) = match self.status {
 			true => args.split_at(args.len() - 1),
@@ -242,19 +242,19 @@ impl Handed {
 }
 
 /// The C functions of a future besides the call that makes it.
-pub struct Future {
+pub(crate) struct Future {
 	/// The handle's type.
-	pub handle: String,
+	pub(crate) handle: String,
 	/// The call and its first poll in one, which writes a ready result as the poll does and
 	/// hands back the handle only if the future pends.
-	pub start: Sig,
-	pub poll: Sig,
-	pub free: Sig,
+	pub(crate) start: Sig,
+	pub(crate) poll: Sig,
+	pub(crate) free: Sig,
 }
 
 /// Each `<prefix>_status` a call can fail with, numbered from 1, and what it means, as
 /// the runtime's `Status` names them.
-pub const STATUSES: [(&str, &str); 7] = [
+pub(crate) const STATUSES: [(&str, &str); 7] = [
 	("moved", "the handle's value was moved out"),
 	("exclusive", "another call or future borrows the value exclusively"),
 	("borrowed", "another call or future borrows the value"),
@@ -363,39 +363,39 @@ fn owned(ty: &Type) -> Type {
 type Suffixes = HashMap<Vec<Type>, String>;
 
 /// The `cfg` the crate's build script sets to the target it builds for.
-pub const CFG: &str = "rust2_ffi_target";
+pub(crate) const CFG: &str = "rust2_ffi_target";
 
-pub struct Abi<'a> {
-	pub api: &'a Api,
-	pub prefix: String,
+pub(crate) struct Abi<'a> {
+	pub(crate) api: &'a Api,
+	pub(crate) prefix: String,
 	/// Each generic item's instances, by whether it is a function and its C name, with
 	/// the suffix that names each by its arguments.
 	suffixes: std::cell::RefCell<HashMap<(bool, String), Suffixes>>,
 	/// Each `Option<T>` struct by C name, with `T`.
-	pub options: BTreeMap<String, Type>,
+	pub(crate) options: BTreeMap<String, Type>,
 	/// Each range, bound, and pair of bounds struct by C name, with its type.
-	pub ranges: BTreeMap<String, Type>,
+	pub(crate) ranges: BTreeMap<String, Type>,
 	/// Each `Vec<T>` struct by C name, with `T`.
-	pub lists: BTreeMap<String, Type>,
+	pub(crate) lists: BTreeMap<String, Type>,
 	/// Each tuple struct by C name, with its elements.
-	pub tuples: BTreeMap<String, Vec<Type>>,
+	pub(crate) tuples: BTreeMap<String, Vec<Type>>,
 	/// Each `[u8; N]` struct by C name, with `N`.
-	pub arrays: BTreeMap<String, usize>,
+	pub(crate) arrays: BTreeMap<String, usize>,
 	/// Whether a call can fail a check of each object's handle: see [`checked`].
-	pub checked: Vec<bool>,
+	pub(crate) checked: Vec<bool>,
 	/// Whether an exclusive lend returns each object, whose handle may then hold its
 	/// receiver's borrow.
-	pub held: Vec<bool>,
+	pub(crate) held: Vec<bool>,
 	/// Every C name claimed.
 	claims: Vec<Claim>,
 	/// The C name of each item whose own clashed.
 	renames: HashMap<Item, String>,
 	/// Each name one item claims twice.
-	pub clashes: Vec<Clash>,
+	pub(crate) clashes: Vec<Clash>,
 }
 
 impl<'a> Abi<'a> {
-	pub fn new(api: &'a Api, prefix: &str) -> Self {
+	pub(crate) fn new(api: &'a Api, prefix: &str) -> Self {
 		let mut abi = Self {
 			api,
 			prefix: prefix.to_string(),
@@ -426,7 +426,7 @@ impl<'a> Abi<'a> {
 	/// This ABI over `api`, the API it was made of without its functions taking a JNI value,
 	/// as every language but Kotlin exports it: each name stays the one the whole API gives
 	/// it, so the C its glue calls keeps the names the crate defines.
-	pub fn without_jni<'b>(&self, api: &'b Api) -> Abi<'b> {
+	pub(crate) fn without_jni<'b>(&self, api: &'b Api) -> Abi<'b> {
 		// Each function's address in `self.api`, by its address in `api`, which lists the
 		// same functions in the same order but those taking a JNI value.
 		let lists = |api: &'a Api| -> Vec<&'a [Function]> {
@@ -474,7 +474,7 @@ impl<'a> Abi<'a> {
 
 	/// The `cfg` predicate a crate's Rust compiles what is on `on` under, or none if it is
 	/// on every target: its build script sets [`CFG`] to the target it builds for.
-	pub fn cfg(&self, on: On) -> Option<String> {
+	pub(crate) fn cfg(&self, on: On) -> Option<String> {
 		if self.api.everywhere(on) {
 			return None;
 		}
@@ -483,7 +483,7 @@ impl<'a> Abi<'a> {
 	}
 
 	/// The targets every type `ty` names is on, which a value of it is on.
-	pub fn on(&self, ty: &Type) -> On {
+	pub(crate) fn on(&self, ty: &Type) -> On {
 		let api = self.api;
 		let mut on = On::ALL;
 		crate::ir::each(ty, &mut |ty| {
@@ -556,7 +556,7 @@ impl<'a> Abi<'a> {
 	}
 
 	/// The C name for a Rust path, which starts with the facade's root.
-	pub fn name(&self, path: &[String]) -> String {
+	pub(crate) fn name(&self, path: &[String]) -> String {
 		std::iter::once(self.prefix.clone())
 			.chain(self.segments(path))
 			.collect::<Vec<_>>()
@@ -572,19 +572,19 @@ impl<'a> Abi<'a> {
 	}
 
 	/// A constant's name for a path: the name in upper case.
-	pub fn constant(&self, path: &[String]) -> String {
+	pub(crate) fn constant(&self, path: &[String]) -> String {
 		self.renamed(Item::Constant(path.to_vec()), || self.name(path).to_uppercase())
 	}
 
-	pub fn record(&self, i: usize) -> String {
+	pub(crate) fn record(&self, i: usize) -> String {
 		self.renamed(Item::Record(i), || self.unrenamed(&Item::Record(i)))
 	}
 
-	pub fn enumeration(&self, i: usize) -> String {
+	pub(crate) fn enumeration(&self, i: usize) -> String {
 		self.renamed(Item::Enum(i), || self.unrenamed(&Item::Enum(i)))
 	}
 
-	pub fn object(&self, i: usize) -> String {
+	pub(crate) fn object(&self, i: usize) -> String {
 		self.renamed(Item::Object(i), || self.unrenamed(&Item::Object(i)))
 	}
 
@@ -720,7 +720,7 @@ impl<'a> Abi<'a> {
 		})
 	}
 
-	pub fn callback(&self, i: usize) -> String {
+	pub(crate) fn callback(&self, i: usize) -> String {
 		self.renamed(Item::Callback(i), || self.unrenamed(&Item::Callback(i)))
 	}
 
@@ -729,7 +729,7 @@ impl<'a> Abi<'a> {
 	/// names: `scope` gives
 	/// the scope a type's [`Home`] puts it in, and how many leading segments of its path its
 	/// name there leaves out.
-	pub fn classes(
+	pub(crate) fn classes(
 		&self,
 		scope: impl Fn(&Home) -> (String, usize),
 		taken: impl Fn(&str) -> bool,
@@ -799,7 +799,7 @@ impl<'a> Abi<'a> {
 
 	/// The namespace of `language`'s glue: `<prefix>_<language>`, with a trailing `_` until no C name is it
 	/// or starts with it and a `_`.
-	pub fn space(&self, language: &str) -> String {
+	pub(crate) fn space(&self, language: &str) -> String {
 		let abi = self;
 		let api = abi.api;
 		let mut names: Vec<String> = Vec::new();
@@ -838,22 +838,22 @@ impl<'a> Abi<'a> {
 	}
 
 	/// The prefixed name of a runtime item: `buf` is `moq_buf`.
-	pub fn rt(&self, name: &str) -> String {
+	pub(crate) fn rt(&self, name: &str) -> String {
 		format!("{}_{name}", self.prefix)
 	}
 
 	/// The C name of `Option<inner>`'s struct.
-	pub fn option(&self, inner: &Type) -> String {
+	pub(crate) fn option(&self, inner: &Type) -> String {
 		format!("{}_option_{}", self.prefix, self.key(inner))
 	}
 
 	/// The C name of `Vec<elem>`'s struct: `<prefix>_vec_string`.
-	pub fn list(&self, elem: &Type) -> String {
+	pub(crate) fn list(&self, elem: &Type) -> String {
 		format!("{}_vec_{}", self.prefix, self.key(elem))
 	}
 
 	/// The C name of a tuple's struct: `<prefix>_tuple_string_u64`.
-	pub fn tuple(&self, elements: &[Type]) -> String {
+	pub(crate) fn tuple(&self, elements: &[Type]) -> String {
 		self.renamed(Item::Tuple(elements.iter().map(owned).collect()), || {
 			let keys: Vec<String> = elements.iter().map(|e| self.key(e)).collect();
 			format!("{}_tuple_{}", self.prefix, keys.join("_"))
@@ -861,23 +861,23 @@ impl<'a> Abi<'a> {
 	}
 
 	/// The C name of `[u8; n]`'s struct: `<prefix>_array_u8_32`.
-	pub fn array(&self, n: usize) -> String {
+	pub(crate) fn array(&self, n: usize) -> String {
 		format!("{}_array_u8_{n}", self.prefix)
 	}
 
 	/// The class a language with no fixed-size array of its own generates for `[u8; n]`:
 	/// `ArrayU8x32`, which no exported type may take.
-	pub fn array_class(n: usize) -> String {
+	pub(crate) fn array_class(n: usize) -> String {
 		format!("ArrayU8x{n}")
 	}
 
 	/// The C name of a range, bound, or pair of bounds struct: `<prefix>_range_u64`.
-	pub fn range(&self, ty: &Type) -> String {
+	pub(crate) fn range(&self, ty: &Type) -> String {
 		format!("{}_{}", self.prefix, self.key(ty))
 	}
 
 	/// A type's name within the prefix, for naming the structs and instances built from it.
-	pub fn key(&self, ty: &Type) -> String {
+	pub(crate) fn key(&self, ty: &Type) -> String {
 		let strip = |name: String| name[self.prefix.len() + 1..].to_string();
 		match ty {
 			Type::Unit => "unit".to_string(),
@@ -915,7 +915,7 @@ impl<'a> Abi<'a> {
 
 	/// A type by its key, with each tuple spelled as Rust spells it, which tells apart
 	/// tuples that share a C name.
-	pub fn spell(&self, ty: &Type) -> String {
+	pub(crate) fn spell(&self, ty: &Type) -> String {
 		match ty {
 			Type::Tuple(elements) => {
 				let elements: Vec<String> = elements.iter().map(|e| self.spell(e)).collect();
@@ -929,7 +929,7 @@ impl<'a> Abi<'a> {
 	}
 
 	/// Whether `ty` crosses as a `<prefix>_buf`.
-	pub fn is_buf(ty: &Type) -> bool {
+	pub(crate) fn is_buf(ty: &Type) -> bool {
 		matches!(
 			ty.base(),
 			Type::Str | Type::String | Type::Slice | Type::Vec | Type::Bytes | Type::Path | Type::PathBuf
@@ -938,12 +938,12 @@ impl<'a> Abi<'a> {
 
 	/// Whether `Option<ty>` crosses as `ty`, with a null pointer for `None`: a handle, a
 	/// buffer, or a `Vec`'s array.
-	pub fn nullable(ty: &Type) -> bool {
+	pub(crate) fn nullable(ty: &Type) -> bool {
 		matches!(ty.base(), Type::Object(_) | Type::List(..)) || Self::is_buf(ty)
 	}
 
 	/// The C type of `ty` as a value: a parameter, field, or what a function returns.
-	pub fn ty(&self, ty: &Type) -> Ty {
+	pub(crate) fn ty(&self, ty: &Type) -> Ty {
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => Ty::Void,
@@ -995,7 +995,7 @@ impl<'a> Abi<'a> {
 	/// call; then for a `Result`, an out pointer for its value and one for its error,
 	/// returning whether it succeeded, or else its value. A buffer it returns is Rust's,
 	/// one `<prefix>_buf_copy` made.
-	pub fn closure(&self, closure: &Closure) -> Ty {
+	pub(crate) fn closure(&self, closure: &Closure) -> Ty {
 		let mut params: Vec<Ty> = closure.params.iter().map(|ty| self.ty(ty)).collect();
 		let ok = self.ty(&closure.ok);
 		match &closure.err {
@@ -1017,7 +1017,7 @@ impl<'a> Abi<'a> {
 	}
 
 	/// The C signature of `function`, a method of the type named `owner` if it has one.
-	pub fn export(&self, function: &Function, owner: Option<&Ty>) -> Export {
+	pub(crate) fn export(&self, function: &Function, owner: Option<&Ty>) -> Export {
 		let name = self.function_name(function, owner);
 		let named = self.unrenamed_function(function, owner);
 		let mut params = Vec::new();
@@ -1175,7 +1175,7 @@ impl<'a> Abi<'a> {
 
 	/// Whether a call of `function`, a method of `owner` if it has one, makes a value that
 	/// is not `Send`, an object or a future, without taking one: see [`Export::homed`].
-	pub fn homed(&self, function: &Function, owner: Option<&Ty>) -> bool {
+	pub(crate) fn homed(&self, function: &Function, owner: Option<&Ty>) -> bool {
 		let unsent = |ty: &Type| {
 			let mut handles = Vec::new();
 			self.api.handles(ty, &mut handles, &mut Vec::new());
@@ -1213,7 +1213,7 @@ impl<'a> Abi<'a> {
 
 	/// Whether a call of `function`, a method of `owner` if it has one, can fail a check of
 	/// a handle it borrows or moves, so it takes a `status` to write why.
-	pub fn status(&self, function: &Function, owner: Option<&Ty>) -> bool {
+	pub(crate) fn status(&self, function: &Function, owner: Option<&Ty>) -> bool {
 		let mut handles = Vec::new();
 		let mut seen = Vec::new();
 		match (function.receiver, owner) {
@@ -1238,20 +1238,20 @@ impl<'a> Abi<'a> {
 
 	/// Whether `<T>_clone`, `_eq`, `_to_string`, `_debug`, and `_copy` of object `i` take a
 	/// `status`, as each borrows its handles shared.
-	pub fn traits_status(&self, i: usize) -> bool {
+	pub(crate) fn traits_status(&self, i: usize) -> bool {
 		self.checked[i]
 	}
 
 	/// Whether a record's or enum's `<T>_eq`, `_to_string`, and `_debug` take a `status`,
 	/// as each borrows the handles it holds shared.
-	pub fn value_status(&self, ty: &Type) -> bool {
+	pub(crate) fn value_status(&self, ty: &Type) -> bool {
 		let mut handles = Vec::new();
 		self.api.handles(ty, &mut handles, &mut Vec::new());
 		handles.iter().any(|&i| self.checked[i])
 	}
 
 	/// Whether the std trait functions of `ty`, an object, record, or enum, take a `status`.
-	pub fn traits_status_of(&self, ty: &Type) -> bool {
+	pub(crate) fn traits_status_of(&self, ty: &Type) -> bool {
 		match ty {
 			Type::Object(i) => self.traits_status(*i),
 			ty => self.value_status(ty),
@@ -1260,7 +1260,7 @@ impl<'a> Abi<'a> {
 
 	/// The out pointer Rust writes back the value C passed for `&mut` as parameter `name`
 	/// through, named apart from every parameter of `function`.
-	pub fn written(function: &Function, name: &str) -> String {
+	pub(crate) fn written(function: &Function, name: &str) -> String {
 		let mut out = format!("{name}_out");
 		while function.params.iter().any(|p| escape(&p.name) == out) {
 			out.push('_');
@@ -1273,7 +1273,12 @@ impl<'a> Abi<'a> {
 	/// or each element of its tuple: that function, its export, and how the glue calls it.
 	/// The export keeps the C name of the method's, which a clash may have renamed. `None`
 	/// for any other function.
-	pub fn handed_back(&self, function: &Function, owner: &Ty, owner_ty: &Type) -> Option<(Function, Export, Handed)> {
+	pub(crate) fn handed_back(
+		&self,
+		function: &Function,
+		owner: &Ty,
+		owner_ty: &Type,
+	) -> Option<(Function, Export, Handed)> {
 		if function.receiver != Some(Receiver::Mut) || matches!(owner, Ty::Handle { .. }) {
 			return None;
 		}
@@ -1794,7 +1799,7 @@ fn shortest(group: &[Vec<Vec<String>>]) -> Vec<String> {
 /// segments they all share, so `tokio::ConnectError` and `tokio::connect::Error` are
 /// `TokioConnectError` and `TokioConnect_Error`. Two that still match, as segments apart
 /// only by case do, stay alike for the language's claim to refuse at both.
-pub fn apart<'s>(items: impl IntoIterator<Item = &'s [String]>) -> Vec<String> {
+pub(crate) fn apart<'s>(items: impl IntoIterator<Item = &'s [String]>) -> Vec<String> {
 	let items: Vec<&[String]> = items.into_iter().collect();
 	let joined: Vec<String> = items.iter().map(|segments| pascal(&segments.join("_"))).collect();
 	let mut groups: HashMap<&str, Vec<usize>> = HashMap::new();
@@ -1817,7 +1822,7 @@ pub fn apart<'s>(items: impl IntoIterator<Item = &'s [String]>) -> Vec<String> {
 
 /// A name in Pascal case, word by word as [`snake`] splits it: `track_Producer` and
 /// `TrackProducer` are `TrackProducer`, and `BOXED` is `Boxed`.
-pub fn pascal(name: &str) -> String {
+pub(crate) fn pascal(name: &str) -> String {
 	snake(name)
 		.split('_')
 		.filter(|s| !s.is_empty())
@@ -1833,13 +1838,13 @@ pub fn pascal(name: &str) -> String {
 
 /// The C name of the struct of an enum's variant's fields: its own in Rust's case, after
 /// the enum's.
-pub fn payload(name: &str, variant: &str) -> String {
+pub(crate) fn payload(name: &str, variant: &str) -> String {
 	format!("{name}_{variant}")
 }
 
 /// A Rust identifier in snake case: `TrackProducer` is `track_producer`, and a name
 /// already in snake case stays as it is.
-pub fn snake(name: &str) -> String {
+pub(crate) fn snake(name: &str) -> String {
 	let chars: Vec<char> = name.chars().collect();
 	let mut out = String::new();
 	for (i, &c) in chars.iter().enumerate() {
@@ -1864,7 +1869,12 @@ pub fn snake(name: &str) -> String {
 
 /// The name `what` takes in a scope whose names so far are `names`: `name`, with a trailing
 /// `_` until neither `taken` nor an earlier item names it.
-pub fn claim(names: &mut BTreeMap<String, String>, taken: impl Fn(&str) -> bool, name: &str, what: String) -> String {
+pub(crate) fn claim(
+	names: &mut BTreeMap<String, String>,
+	taken: impl Fn(&str) -> bool,
+	name: &str,
+	what: String,
+) -> String {
 	let mut free = name.to_string();
 	while taken(&free) || names.contains_key(&free) {
 		free.push('_');
@@ -1875,7 +1885,7 @@ pub fn claim(names: &mut BTreeMap<String, String>, taken: impl Fn(&str) -> bool,
 
 /// Names made distinct from each other and from what `taken` names: one taken, or an
 /// earlier one's, takes a trailing `_` until it is neither, never becoming another's own.
-pub fn unique(names: Vec<String>, taken: impl Fn(&str) -> bool) -> Vec<String> {
+pub(crate) fn unique(names: Vec<String>, taken: impl Fn(&str) -> bool) -> Vec<String> {
 	let mut used = std::collections::BTreeSet::new();
 	(names.iter())
 		.map(|name| {
@@ -1891,7 +1901,7 @@ pub fn unique(names: Vec<String>, taken: impl Fn(&str) -> bool) -> Vec<String> {
 
 /// A language's names of parameters made distinct where Rust's differ only in what its
 /// case drops, such as underscores: a later one takes the lowest free number after it.
-pub fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {
+pub(crate) fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {
 	let names: Vec<String> = names.into_iter().collect();
 	let mut taken = std::collections::BTreeSet::new();
 	(names.iter())
@@ -1912,7 +1922,7 @@ pub fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {
 /// appended, and one starting with a digit with `_` prepended. Appended, since MSVC reads
 /// `_inline`, `_asm`, and `_try` as keywords too; a name already ending in `_` takes
 /// another, so no two names escape to one.
-pub fn escape(name: &str) -> String {
+pub(crate) fn escape(name: &str) -> String {
 	const KEYWORDS: &[&str] = &[
 		"auto",
 		"bool",
@@ -2025,7 +2035,7 @@ pub fn escape(name: &str) -> String {
 }
 
 /// What a callback parameter needs, by the form it takes.
-pub fn dyn_wrap(form: Dyn, expr: &str) -> String {
+pub(crate) fn dyn_wrap(form: Dyn, expr: &str) -> String {
 	match form {
 		Dyn::Impl => expr.to_string(),
 		Dyn::Box => format!("::std::boxed::Box::new({expr})"),

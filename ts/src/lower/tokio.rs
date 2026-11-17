@@ -15,7 +15,7 @@ use crate::ts::{Expr, Stmt};
 /// A handle of one of tokio's channels, or what one lends, which JS keeps as a class of
 /// `rs/tokio.ts`'s.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Handle {
+pub(crate) enum Handle {
 	/// `mpsc::Sender<T>` and `UnboundedSender<T>`.
 	MpscSender,
 	/// `mpsc::Receiver<T>` and `UnboundedReceiver<T>`.
@@ -35,7 +35,7 @@ pub enum Handle {
 
 impl Handle {
 	/// The handle `did` is, if it is one of tokio's.
-	pub fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Self> {
+	pub(crate) fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Self> {
 		if tcx.crate_name(did.krate).as_str() != "tokio" || !matches!(tcx.def_kind(did), DefKind::Struct) {
 			return None;
 		}
@@ -57,7 +57,7 @@ impl Handle {
 	}
 
 	/// The handle `ty` is, if it is one.
-	pub fn of_ty(tcx: TyCtxt<'_>, ty: Ty<'_>) -> Option<Self> {
+	pub(crate) fn of_ty(tcx: TyCtxt<'_>, ty: Ty<'_>) -> Option<Self> {
 		match ty.kind() {
 			ty::Adt(adt, _) => Self::of(tcx, adt.did()),
 			_ => None,
@@ -65,7 +65,7 @@ impl Handle {
 	}
 
 	/// Its class in `rs/tokio.ts`.
-	pub fn class(self) -> &'static str {
+	pub(crate) fn class(self) -> &'static str {
 		match self {
 			Self::MpscSender => "MpscSender",
 			Self::MpscReceiver => "MpscReceiver",
@@ -85,7 +85,7 @@ impl Handle {
 /// Whether `did`, an item of tokio, has a mapping in place of its MIR: a handle, a function
 /// or impl of one, the future of one of their `async fn`s, a channel's constructor, or what
 /// `select!` calls. The mapping stands in for it or refuses it.
-pub fn mapped(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn mapped(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	if tcx.crate_name(did.krate).as_str() != "tokio" {
 		return false;
 	}
@@ -122,7 +122,12 @@ fn free(tcx: TyCtxt<'_>, did: DefId) -> Option<(&'static str, &'static str)> {
 }
 
 /// A call of one of tokio's functions: its mapping, or a refusal.
-pub fn call<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>, out: &mut Vec<Stmt>) -> Option<Expr> {
+pub(crate) fn call<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	call: &Call<'tcx>,
+	args: Vec<Expr>,
+	out: &mut Vec<Stmt>,
+) -> Option<Expr> {
 	let tcx = b.t.tcx;
 	let name = tcx.item_name(call.def_id);
 	let name = name.as_str();
@@ -376,7 +381,7 @@ fn free_call<'tcx>(
 
 /// A call of a std trait's method on one of tokio's handles: its mapping, or its arguments
 /// back for std's own mapping, as `Debug`'s and `IntoFuture`'s.
-pub fn trait_call<'tcx>(
+pub(crate) fn trait_call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	call: &Call<'tcx>,
 	owner: &str,
@@ -452,7 +457,7 @@ pub fn trait_call<'tcx>(
 
 /// `Debug` of one of tokio's handles, as tokio writes it, or a refusal of an mpsc one but
 /// a weak sender, which writes addresses.
-pub fn debug<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, f: Expr, span: Span) -> Option<Expr> {
+pub(crate) fn debug<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, f: Expr, span: Span) -> Option<Expr> {
 	let tcx = b.t.tcx;
 	let ty::Adt(adt, args) = ty.kind() else {
 		return None;
@@ -485,7 +490,7 @@ fn of<'tcx>(b: &mut Body<'_, '_, 'tcx>, name: &str, value: Ty<'tcx>, args: Vec<E
 
 /// Whether `did` is a watch sender's `send_modify` or `send_if_modified`, whose mapping
 /// hands its closure a value JS copies as its place, and writes that back.
-pub fn lends(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn lends(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	let Some(imp) = tcx.inherent_impl_of_assoc(did) else {
 		return false;
 	};
@@ -498,7 +503,7 @@ pub fn lends(tcx: TyCtxt<'_>, did: DefId) -> bool {
 
 /// The type of the values a handle's channel holds, its one type parameter, after the
 /// lifetime of a `watch::Ref`.
-pub fn held<'tcx>(args: ty::GenericArgs<'tcx>) -> Ty<'tcx> {
+pub(crate) fn held<'tcx>(args: ty::GenericArgs<'tcx>) -> Ty<'tcx> {
 	args.types().next().expect("a channel's value type")
 }
 

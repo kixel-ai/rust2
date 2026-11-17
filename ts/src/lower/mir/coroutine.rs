@@ -20,25 +20,30 @@ use crate::ts::{self, Expr, FieldId, FieldInit, Item, Param, Stmt, SymId, Type};
 
 /// A coroutine instance's class.
 #[derive(Clone)]
-pub struct Info<'tcx> {
-	pub sym: SymId,
+pub(crate) struct Info<'tcx> {
+	pub(crate) sym: SymId,
 	/// Which state it is in: rustc's discriminant.
-	pub state: FieldId,
-	pub upvars: Vec<FieldId>,
-	pub saved: IndexVec<CoroutineSavedLocal, FieldId>,
+	pub(crate) state: FieldId,
+	pub(crate) upvars: Vec<FieldId>,
+	pub(crate) saved: IndexVec<CoroutineSavedLocal, FieldId>,
 	variant_fields: IndexVec<VariantIdx, IndexVec<FieldIdx, CoroutineSavedLocal>>,
 	_tcx: std::marker::PhantomData<ty::Ty<'tcx>>,
 }
 
 impl Info<'_> {
 	/// The saved local a variant's field is.
-	pub fn layout_variant_field(&self, variant: VariantIdx, field: FieldIdx) -> CoroutineSavedLocal {
+	pub(crate) fn layout_variant_field(&self, variant: VariantIdx, field: FieldIdx) -> CoroutineSavedLocal {
 		self.variant_fields[variant][field]
 	}
 }
 
 /// The class of the coroutine `def_id` with `args`, made the first time.
-pub fn info<'tcx>(t: &mut Translator<'_, 'tcx>, def_id: DefId, args: GenericArgs<'tcx>, span: Span) -> Info<'tcx> {
+pub(crate) fn info<'tcx>(
+	t: &mut Translator<'_, 'tcx>,
+	def_id: DefId,
+	args: GenericArgs<'tcx>,
+	span: Span,
+) -> Info<'tcx> {
 	let instance = Instance::new_raw(def_id, args);
 	if let Some(info) = t.coroutines.get(&instance) {
 		return info.clone();
@@ -392,7 +397,7 @@ fn strip_writes(stmts: &mut Vec<Stmt>, fields: &FxHashSet<FieldId>) {
 
 /// The class of the future the `async fn` `instance` returns, if its body only moves its
 /// arguments, in order, into it: a call can then make the future itself.
-pub fn of_async_fn<'tcx>(t: &mut Translator<'_, 'tcx>, instance: Instance<'tcx>, span: Span) -> Option<SymId> {
+pub(crate) fn of_async_fn<'tcx>(t: &mut Translator<'_, 'tcx>, instance: Instance<'tcx>, span: Span) -> Option<SymId> {
 	use rustc_middle::mir::{AggregateKind, Rvalue, StatementKind, TerminatorKind};
 	if !t.tcx.asyncness(instance.def_id()).is_async() {
 		return None;
@@ -431,7 +436,7 @@ pub fn of_async_fn<'tcx>(t: &mut Translator<'_, 'tcx>, instance: Instance<'tcx>,
 }
 
 /// A coroutine made in place: `new Class(...captures)`.
-pub fn construct<'tcx>(
+pub(crate) fn construct<'tcx>(
 	fx: &mut Fx<'_, '_, '_, 'tcx>,
 	def_id: DefId,
 	args: GenericArgs<'tcx>,

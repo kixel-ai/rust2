@@ -30,15 +30,15 @@ use crate::ir::{Closure, Family, Function, Int, Literal, Receiver, Traits, Type}
 const RUNTIME: &str = include_str!("../runtime/rt.hpp");
 
 /// The generated C++ headers and their public names.
-pub struct Output {
+pub(crate) struct Output {
 	/// Each header by its path under `include/`.
-	pub files: Vec<(String, String)>,
-	pub names: BTreeMap<String, String>,
+	pub(crate) files: Vec<(String, String)>,
+	pub(crate) names: BTreeMap<String, String>,
 }
 
 /// The headers for `abi`: the umbrella `<prefix>.hpp`, the shared `<prefix>/rt.hpp`, and a
 /// `<prefix>/<package>.hpp` per crate; or the members two items name alike.
-pub fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
+pub(crate) fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 	let p = &abi.prefix;
 	let mut h = Header {
 		locked: BTreeMap::new(),
@@ -2034,7 +2034,7 @@ fn cpp_int(int: Int) -> &'static str {
 
 /// A name C++ would read as a keyword with `_` appended, and one starting with a digit
 /// with `_` prepended, as C's are.
-pub fn escape(name: &str) -> String {
+pub(crate) fn escape(name: &str) -> String {
 	const KEYWORDS: &[&str] = &[
 		"alignas",
 		"alignof",

@@ -11,7 +11,7 @@ use std::str;
 
 /// A schema whose programs decode here, by its `SCHEMA_VERSION`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Schema {
+pub(crate) enum Schema {
 	/// wasm-bindgen 0.2.128 and 0.2.129.
 	V0_2_128,
 	/// wasm-bindgen 0.2.130.
@@ -20,13 +20,13 @@ pub enum Schema {
 
 impl Schema {
 	/// Every supported schema, oldest first.
-	pub const ALL: [Schema; 2] = [Schema::V0_2_128, Schema::V0_2_130];
+	pub(crate) const ALL: [Schema; 2] = [Schema::V0_2_128, Schema::V0_2_130];
 
-	pub fn of(version: &str) -> Option<Self> {
+	pub(crate) fn of(version: &str) -> Option<Self> {
 		Self::ALL.into_iter().find(|s| s.version() == version)
 	}
 
-	pub fn version(self) -> &'static str {
+	pub(crate) fn version(self) -> &'static str {
 		match self {
 			Schema::V0_2_128 => "0.2.128",
 			Schema::V0_2_130 => "0.2.130",
@@ -35,10 +35,10 @@ impl Schema {
 }
 
 /// Why a program didn't decode.
-pub type Error = String;
+pub(crate) type Error = String;
 
 /// The bytes of a program left to decode, in its schema.
-pub struct Data<'src> {
+pub(crate) struct Data<'src> {
 	bytes: &'src [u8],
 	schema: Schema,
 }
@@ -51,12 +51,12 @@ impl<'src> Data<'src> {
 	}
 }
 
-pub trait Decode<'src>: Sized {
+pub(crate) trait Decode<'src>: Sized {
 	fn decode(data: &mut Data<'src>) -> Result<Self, Error>;
 }
 
 /// Decode `bytes`, a whole program of `schema`.
-pub fn program(bytes: &[u8], schema: Schema) -> Result<Program<'_>, Error> {
+pub(crate) fn program(bytes: &[u8], schema: Schema) -> Result<Program<'_>, Error> {
 	let mut data = Data { bytes, schema };
 	let program = Program::decode(&mut data)?;
 	match data.bytes.is_empty() {
@@ -66,7 +66,7 @@ pub fn program(bytes: &[u8], schema: Schema) -> Result<Program<'_>, Error> {
 }
 
 /// A string the macro wrote, or that an expression it wrote evaluated to.
-pub struct LitOrExpr<'src>(pub &'src str);
+pub(crate) struct LitOrExpr<'src>(pub(crate) &'src str);
 
 impl<'src> Decode<'src> for LitOrExpr<'src> {
 	fn decode(data: &mut Data<'src>) -> Result<Self, Error> {
@@ -144,8 +144,8 @@ impl<'src, T: Decode<'src>> Decode<'src> for Option<T> {
 macro_rules! decode_struct {
 	($name:ident ($($lt:tt)*) { $($(#[since($since:ident)])? $field:ident: $ty:ty,)* }) => {
 		#[allow(dead_code, reason = "decoded to read what follows, whether or not translation reads it")]
-		pub struct $name <$($lt)*> {
-			$(pub $field: decode_struct!(@ty $($since)? $ty),)*
+		pub(crate) struct $name <$($lt)*> {
+			$(pub(crate) $field: decode_struct!(@ty $($since)? $ty),)*
 		}
 
 		impl<'a> Decode<'a> for $name <$($lt)*> {
@@ -171,7 +171,7 @@ macro_rules! decode_struct {
 macro_rules! decode_enum {
 	($name:ident ($($lt:tt)*) { $($variant:ident $(($ty:ty))?,)* }) => {
 		#[allow(dead_code, reason = "decoded to read what follows, whether or not translation reads it")]
-		pub enum $name <$($lt)*> {
+		pub(crate) enum $name <$($lt)*> {
 			$($variant $(($ty))?,)*
 		}
 
@@ -389,7 +389,7 @@ decode_struct!(LocalModule('a) {
 /// length-prefixed JSON prefix naming the schema, then a length-prefixed program, as many
 /// times as the static holds. A schema other than the supported ones is an error naming
 /// them, since its programs would decode wrongly.
-pub fn section(mut bytes: &[u8]) -> Result<Vec<(Schema, &[u8])>, Error> {
+pub(crate) fn section(mut bytes: &[u8]) -> Result<Vec<(Schema, &[u8])>, Error> {
 	fn chunk<'a>(bytes: &mut &'a [u8]) -> Result<&'a [u8], Error> {
 		let (len, rest) = bytes.split_first_chunk::<4>().ok_or("a section ends inside a length")?;
 		let len = u32::from_le_bytes(*len) as usize;

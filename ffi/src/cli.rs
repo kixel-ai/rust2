@@ -34,7 +34,7 @@ replace it to accept a break.
 --census writes a Markdown report, <dir>/<package>.md, of what exports and of every
 construct the export refuses, instead of exporting.";
 
-pub fn run(args: &[String]) -> ExitCode {
+pub(crate) fn run(args: &[String]) -> ExitCode {
 	match try_run(args) {
 		Ok(code) => code,
 		Err(err) => {

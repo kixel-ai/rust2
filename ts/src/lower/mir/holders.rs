@@ -89,12 +89,12 @@ pub(in crate::lower) struct Memo<'tcx> {
 
 /// The locals that may hold a pointer, and where one may escape them.
 pub(in crate::lower) struct Held<'tcx> {
-	pub all: DenseBitSet<Local>,
+	pub(crate) all: DenseBitSet<Local>,
 	/// What each of `all` holds none of the pointers in, as a [`Mask`].
 	masks: FxHashMap<Local, Mask<'tcx>>,
 	/// Those that may hold a pointer to a part of what one points at, or to anything else
 	/// made of it, rather than only to its whole.
-	pub parts: DenseBitSet<Local>,
+	pub(crate) parts: DenseBitSet<Local>,
 	/// Those, not among `parts`, that may hold pointers std's code or indexing made of one
 	/// instead, as an iterator over its elements does: each of a type that tells what it
 	/// points at, a whole value of that type or of one holding it.
@@ -112,7 +112,7 @@ pub(in crate::lower) struct Held<'tcx> {
 	behind: DenseBitSet<Local>,
 	/// Where one may escape where liveness can't follow it: into memory, a closure, an
 	/// async body's state (which is memory), or a call that may keep it.
-	pub escapes: Vec<Location>,
+	pub(crate) escapes: Vec<Location>,
 }
 
 /// A local's whole assignments, the locals its mutable borrows are, and whether anything
@@ -182,7 +182,7 @@ pub(in crate::lower) enum Filled {
 }
 
 impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
-	pub fn new(
+	pub(crate) fn new(
 		t: &'x Translator<'a, 'tcx>,
 		mir: &'x mir::Body<'tcx>,
 		env: TypingEnv<'tcx>,
@@ -205,7 +205,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	/// at holds it only once it is put in memory, which is an escape. Only a pointer read
 	/// after counts then, not one into memory a holder reaches. `root` holds none of them in
 	/// what `mask` names.
-	pub fn holders(&self, root: Local, holds: Holds, loads: bool, mask: Mask<'tcx>) -> Held<'tcx> {
+	pub(crate) fn holders(&self, root: Local, holds: Holds, loads: bool, mask: Mask<'tcx>) -> Held<'tcx> {
 		let mir = self.mir;
 		let mut held = Held {
 			all: DenseBitSet::new_empty(mir.local_decls.len()),
@@ -665,7 +665,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	}
 
 	/// Whether a value of `ty` could hold a pointer or a reference, in any field of any type.
-	pub fn carries(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn carries(&self, ty: Ty<'tcx>) -> bool {
 		self.holds_pointer(ty, true)
 	}
 
@@ -679,13 +679,13 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	/// Whether safe code could put a pointer or a reference in a value of `ty`: as
 	/// [`Self::carries`], but std's types hold only what their type arguments do, as the
 	/// pointers of their own are private.
-	pub fn takes_pointer(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn takes_pointer(&self, ty: Ty<'tcx>) -> bool {
 		self.holds_pointer_as(ty, true, true)
 	}
 
 	/// Whether a value of `ty` points at memory safe code could put a pointer or a
 	/// reference in, as [`Self::takes_pointer`] tells, through a pointer it holds.
-	pub fn points_at_taker(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn points_at_taker(&self, ty: Ty<'tcx>) -> bool {
 		let tcx = self.t.tcx;
 		let mut seen = FxHashSet::default();
 		let mut stack = vec![ty];
@@ -727,7 +727,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	/// Whether a value of `ty` could hold a raw pointer, which names no region of the
 	/// reference it was made from: in a field, behind a reference, in a std type's type
 	/// argument or a [`raw_carrier`], in a type parameter's value, or in a trait object's.
-	pub fn hides_raw_pointer(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn hides_raw_pointer(&self, ty: Ty<'tcx>) -> bool {
 		let tcx = self.t.tcx;
 		let mut seen = FxHashSet::default();
 		let mut stack = vec![ty];
@@ -808,7 +808,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	/// the whole of what it was made for, which the write fills in place and gives only its
 	/// parts other objects, or, as one made by std's code or indexing, to no part of a
 	/// `filled` value.
-	pub fn fresh(
+	pub(crate) fn fresh(
 		&self,
 		filled: Filled,
 		ty: Ty<'tcx>,
@@ -1290,7 +1290,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	}
 
 	/// Rustc's liveness of the body's locals.
-	pub fn liveness(&self) -> ResultsCursor<'x, 'tcx, MaybeLiveLocals> {
+	pub(crate) fn liveness(&self) -> ResultsCursor<'x, 'tcx, MaybeLiveLocals> {
 		MaybeLiveLocals
 			.iterate_to_fixpoint(self.t.tcx, self.mir, None)
 			.into_results_cursor(self.mir)
@@ -1317,7 +1317,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 
 	/// Whether a pointer `local` holds may point into one of the body's own locals, as
 	/// [`Self::origins`] finds where it came from, or can't tell.
-	pub fn may_point_into_locals(&self, local: Local) -> bool {
+	pub(crate) fn may_point_into_locals(&self, local: Local) -> bool {
 		self.origins(local, None)
 			.is_none_or(|sources| sources.iter().any(|source| matches!(source, Source::Local(_))))
 	}

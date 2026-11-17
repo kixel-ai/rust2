@@ -33,7 +33,7 @@ use super::ty::variant_field;
 type Exit = cfg::Exit<Cond>;
 
 /// Translate one function instance, or `None` after reporting what it refuses.
-pub fn function<'tcx>(t: &mut Translator<'tcx>, instance: Instance<'tcx>, reached: Span) -> Option<String> {
+pub(crate) fn function<'tcx>(t: &mut Translator<'tcx>, instance: Instance<'tcx>, reached: Span) -> Option<String> {
 	let mir = instance_mir(t, instance, reached)?;
 	let name = t.funcs[&instance].clone();
 	let mut fx = Fx::new(t, &mir, reached, instance.def_id().is_local());
@@ -131,9 +131,9 @@ fn instance_mir<'tcx>(t: &mut Translator<'tcx>, instance: Instance<'tcx>, reache
 	}
 }
 
-pub struct Fx<'a, 'tcx> {
-	pub t: &'a mut Translator<'tcx>,
-	pub tcx: TyCtxt<'tcx>,
+pub(crate) struct Fx<'a, 'tcx> {
+	pub(crate) t: &'a mut Translator<'tcx>,
+	pub(crate) tcx: TyCtxt<'tcx>,
 	mir: &'a mir::Body<'tcx>,
 	/// What first reached this function, which a refusal in another crate's points at too.
 	reached: Span,
@@ -163,15 +163,15 @@ pub struct Fx<'a, 'tcx> {
 }
 
 /// A place as Go reads and writes it, and its Rust type.
-pub struct GoPlace<'tcx> {
-	pub expr: String,
-	pub ty: Ty<'tcx>,
+pub(crate) struct GoPlace<'tcx> {
+	pub(crate) expr: String,
+	pub(crate) ty: Ty<'tcx>,
 }
 
 impl<'a, 'tcx> Fx<'a, 'tcx> {
 	/// Lowering in `mir`, reached from `reached`, of the translated crate if `local`. An
 	/// item outside any body, such as a constant's value, is lowered in an empty one.
-	pub fn new(t: &'a mut Translator<'tcx>, mir: &'a mir::Body<'tcx>, reached: Span, local: bool) -> Self {
+	pub(crate) fn new(t: &'a mut Translator<'tcx>, mir: &'a mir::Body<'tcx>, reached: Span, local: bool) -> Self {
 		let mut temps = Temps::new(mir);
 		let split = split_locals(t, mir, &temps);
 		temps.foldable.retain(|l| !split.contains_key(l));
@@ -196,7 +196,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	}
 
 	/// Report a construct translation refuses, here and where it was reached from.
-	pub fn err(&mut self, span: Span, msg: impl Into<String>) -> String {
+	pub(crate) fn err(&mut self, span: Span, msg: impl Into<String>) -> String {
 		let msg = format!("{} is not supported", msg.into());
 		self.ok = false;
 		self.t.failed = true;
@@ -212,7 +212,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		"struct{}{}".into()
 	}
 
-	pub fn ty(&mut self, ty: Ty<'tcx>, span: Span) -> String {
+	pub(crate) fn ty(&mut self, ty: Ty<'tcx>, span: Span) -> String {
 		self.t.ty(ty, span)
 	}
 
@@ -768,7 +768,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	}
 
 	/// A place's Go expression.
-	pub fn place(&mut self, place: Place<'tcx>, span: Span) -> GoPlace<'tcx> {
+	pub(crate) fn place(&mut self, place: Place<'tcx>, span: Span) -> GoPlace<'tcx> {
 		let local = place.local;
 		let ty = self.mir.local_decls[local].ty;
 		let (mut expr, mut pty, skip) = match self.split.get(&local).cloned() {
@@ -892,7 +892,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		GoPlace { expr, ty: pty.ty }
 	}
 
-	pub fn operand(&mut self, op: &Operand<'tcx>, span: Span) -> String {
+	pub(crate) fn operand(&mut self, op: &Operand<'tcx>, span: Span) -> String {
 		match op {
 			Operand::Copy(place) | Operand::Move(place) => self.place(*place, span).expr,
 			Operand::Constant(c) => self.constant(c, span),
@@ -905,7 +905,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	}
 
 	/// The value of an enum's tag for `variant`, as a Go literal of its type.
-	pub fn discr(&mut self, adt: ty::AdtDef<'tcx>, variant: rustc_abi::VariantIdx, span: Span) -> String {
+	pub(crate) fn discr(&mut self, adt: ty::AdtDef<'tcx>, variant: rustc_abi::VariantIdx, span: Span) -> String {
 		let tcx = self.tcx;
 		let discr_ty = adt.repr().discr_type().to_ty(tcx);
 		let value = adt.discriminant_for_variant(tcx, variant).val;
@@ -913,7 +913,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	}
 
 	/// An integer of type `ty` from its bits, as a typed Go literal.
-	pub fn int_lit(&mut self, ty: Ty<'tcx>, bits: u128, span: Span) -> String {
+	pub(crate) fn int_lit(&mut self, ty: Ty<'tcx>, bits: u128, span: Span) -> String {
 		let go = self.ty(ty, span);
 		let size = int_bits(self.tcx, ty);
 		let text = match ty.kind() {
@@ -1025,7 +1025,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 
 	/// An ADT's value of `variant` from its fields' values, as a Go composite literal of
 	/// its type `go`.
-	pub fn adt_lit(
+	pub(crate) fn adt_lit(
 		&mut self,
 		adt: ty::AdtDef<'tcx>,
 		variant: rustc_abi::VariantIdx,
@@ -1079,7 +1079,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 
 	/// A Go function literal of `body`, run at once, returning a value of `ty` as
 	/// [`Fx::variant`] gives it: a bound call of it.
-	pub fn returning(&mut self, ty: Ty<'tcx>, body: String, span: Span) -> library::Bound {
+	pub(crate) fn returning(&mut self, ty: Ty<'tcx>, body: String, span: Span) -> library::Bound {
 		match self.t.split(ty, span) {
 			Some(split) => library::Bound::Parts(format!("func(){} {{ {body} }}()", split.results())),
 			None => library::Bound::Expr(format!("func() {} {{ {body} }}()", self.ty(ty, span))),
@@ -1088,7 +1088,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 
 	/// The value of the enum `ty`'s variant `variant` of `fields`, as a function literal
 	/// [`Fx::returning`] it returns: whole, or as its parts where Go holds it split.
-	pub fn variant(&mut self, ty: Ty<'tcx>, variant: usize, fields: &[String], span: Span) -> String {
+	pub(crate) fn variant(&mut self, ty: Ty<'tcx>, variant: usize, fields: &[String], span: Span) -> String {
 		let ty::Adt(adt, args) = *ty.kind() else {
 			return self.err(span, format!("a variant of `{ty}`, which is no enum"));
 		};
@@ -1114,17 +1114,17 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 	}
 
-	pub fn t_env(&self) -> ty::TypingEnv<'tcx> {
+	pub(crate) fn t_env(&self) -> ty::TypingEnv<'tcx> {
 		self.t.env()
 	}
 
-	pub fn mir_decls(&self) -> &'a mir::LocalDecls<'tcx> {
+	pub(crate) fn mir_decls(&self) -> &'a mir::LocalDecls<'tcx> {
 		&self.mir.local_decls
 	}
 
 	/// An operand Go evaluates at run time: a constant made a value through `val`, since
 	/// Go refuses an expression of constants that overflows, where Rust's wraps.
-	pub fn runtime(&mut self, op: &Operand<'tcx>, span: Span) -> String {
+	pub(crate) fn runtime(&mut self, op: &Operand<'tcx>, span: Span) -> String {
 		let v = self.operand(op, span);
 		match op {
 			Operand::Constant(_) => format!("val({v})"),
@@ -1199,7 +1199,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	}
 
 	/// `fmt::Result`, which formatting functions return.
-	pub fn fmt_result_ty(&self) -> Ty<'tcx> {
+	pub(crate) fn fmt_result_ty(&self) -> Ty<'tcx> {
 		let tcx = self.tcx;
 		let result = tcx
 			.get_diagnostic_item(rustc_span::sym::Result)
@@ -1224,7 +1224,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	}
 
 	/// `&mut Formatter`, which formatting functions take.
-	pub fn formatter_ref_ty(&self) -> Ty<'tcx> {
+	pub(crate) fn formatter_ref_ty(&self) -> Ty<'tcx> {
 		let tcx = self.tcx;
 		let core = tcx
 			.crates(())
@@ -1705,7 +1705,7 @@ fn assign_all(parts: &[(String, String)], out: &mut String) {
 }
 
 /// The width of an integer type, or a `char`'s or a `bool`'s, in bits.
-pub fn int_bits<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> u32 {
+pub(crate) fn int_bits<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> u32 {
 	match ty.kind() {
 		ty::Int(i) => i.bit_width().unwrap_or(tcx.data_layout.pointer_size().bits()) as u32,
 		ty::Uint(u) => u.bit_width().unwrap_or(tcx.data_layout.pointer_size().bits()) as u32,

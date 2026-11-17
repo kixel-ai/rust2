@@ -6,8 +6,7 @@ Work that waits on evidence or has no consumer yet: two waits on upstream's buil
 levers ([relink](/quest/m3/relink.md) and [TPDE](/quest/m3/tpde.md)) and
 [the benchmark on bare metal](/quest/m3/bench-metal.md), the translator's features that
 wait on [the gate](/quest/m2/wasm/README.md), the binding targets planned ahead of a
-consumer, what waits on moq, [crabx's GitHub App](/quest/m3/crabx-app.md), and
-[narrowing rust2's own `pub`](/quest/m3/pub-apply.md) with rust2-pub.
+consumer, what waits on moq, and [crabx's GitHub App](/quest/m3/crabx-app.md).
 
 ## Plan
 
@@ -68,8 +67,8 @@ Decided with the maintainer on 2026-11-13, for
 - ✅ What a published crate exports, and all of an unpublished library the audit never
   runs, stays public. Rejected: also reporting a published crate's unused exports as
   breaking narrowings.
-- ✅ Applying the findings is follow-up work: [rust2's](/quest/m3/pub-apply.md) here,
-  and moq's in moq's own quest tree.
+- ✅ Applying the findings is follow-up work: rust2's here (applied), and moq's in moq's
+  own quest tree.
 - ✅ (2026-11-14) Validation reads narrowed source through rustc's in-memory
   `FileLoader` overlay, and the README's Limits names the gap: a build script or proc
   macro that reads a source file with `std::fs` sees it unnarrowed. Nothing reports

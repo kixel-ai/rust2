@@ -16,14 +16,14 @@ use super::library::{self, Call};
 use crate::ts::{Expr, Stmt};
 
 /// Whether `krate` is smallvec.
-pub fn is_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
+pub(crate) fn is_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
 	tcx.crate_name(krate).as_str() == "smallvec"
 }
 
 /// Whether `did`, an item of smallvec, maps rather than translates: all of it but
 /// `CollectionAllocErr`, the error of its `try_` methods, and that error's impls, which
 /// translate from its MIR.
-pub fn mapped(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn mapped(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	let error =
 		|ty: Ty<'_>| matches!(ty.kind(), ty::Adt(adt, _) if tcx.item_name(adt.did()).as_str() == "CollectionAllocErr");
 	let mut item = did;
@@ -42,7 +42,7 @@ pub fn mapped(tcx: TyCtxt<'_>, did: DefId) -> bool {
 
 /// What `ty` is in JS if it is smallvec's `SmallVec`, `Drain`, or `IntoIter` of an array:
 /// std's `Vec`, `vec::Drain`, or `vec::IntoIter` of its elements.
-pub fn as_vec<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+pub(crate) fn as_vec<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	let ty::Adt(adt, args) = ty.kind() else {
 		return None;
 	};
@@ -71,7 +71,7 @@ pub fn as_vec<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 }
 
 /// `value` with each of smallvec's types in it replaced by what [`as_vec`] says it is.
-pub fn fold<'tcx, T: TypeFoldable<TyCtxt<'tcx>>>(tcx: TyCtxt<'tcx>, value: T) -> T {
+pub(crate) fn fold<'tcx, T: TypeFoldable<TyCtxt<'tcx>>>(tcx: TyCtxt<'tcx>, value: T) -> T {
 	value.fold_with(&mut AsVec { tcx })
 }
 
@@ -115,7 +115,7 @@ fn array<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, Option<u64>
 
 /// A call of smallvec's function or of a std trait's on a `SmallVec`: its mapping, `None` if
 /// it has none, or its arguments back if it is no such call.
-pub fn call<'tcx>(
+pub(crate) fn call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	call: &Call<'tcx>,
 	owner: &str,
@@ -527,7 +527,7 @@ fn extended<'tcx>(b: &mut Body<'_, '_, 'tcx>, items: Expr, iter: Ty<'tcx>, n: Ex
 }
 
 /// `collect` into `ty`, if it is a `SmallVec`, of `items`, an `rs.Iter` of type `iter`.
-pub fn collect<'tcx>(
+pub(crate) fn collect<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	ty: Ty<'tcx>,
 	items: Expr,

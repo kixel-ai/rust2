@@ -36,11 +36,11 @@ use crate::ir::{
 
 /// Why something is refused: a construct, ranked by the census, and what it names.
 #[derive(Clone, Debug)]
-pub struct Why {
-	pub construct: &'static str,
-	pub detail: String,
+pub(crate) struct Why {
+	pub(crate) construct: &'static str,
+	pub(crate) detail: String,
 	/// Where else the reason lies, and what is there.
-	pub note: Option<(Span, String)>,
+	pub(crate) note: Option<(Span, String)>,
 }
 
 /// Types of crates that are no export, by crate and name, each exported as an object where
@@ -59,7 +59,7 @@ const FOREIGN: [(&str, &str, &str); 3] = [
 const BOTH: &str = "another crate's type both by value and in an Arc";
 
 /// The construct of an instance inference missed: a bug in the exporter, not the crate.
-pub const NOT_INFERRED: &str = "instance not inferred";
+pub(crate) const NOT_INFERRED: &str = "instance not inferred";
 
 /// What C can never hold: left out and listed in the census rather than refused, since
 /// exporting it would need constructors or returns the crate has no use for.
@@ -134,57 +134,57 @@ fn trait_unsafety(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Why> {
 }
 
 /// An item the export refuses, with every reason found.
-pub struct Refusal {
+pub(crate) struct Refusal {
 	/// Its path from its crate's root.
-	pub path: String,
+	pub(crate) path: String,
 	/// What kind of item it is: `fn`, `method`, `struct`, ...
-	pub kind: &'static str,
-	pub span: Span,
-	pub why: Vec<Why>,
+	pub(crate) kind: &'static str,
+	pub(crate) span: Span,
+	pub(crate) why: Vec<Why>,
 }
 
 /// What collection found.
-pub struct Collected {
-	pub api: Api,
-	pub report: Report,
+pub(crate) struct Collected {
+	pub(crate) api: Api,
+	pub(crate) report: Report,
 }
 
 /// The facade, the local crate.
-pub struct Facade<'a> {
+pub(crate) struct Facade<'a> {
 	/// The first segment of its items' paths in the IR.
-	pub root: String,
-	pub package: &'a str,
+	pub(crate) root: String,
+	pub(crate) package: &'a str,
 	/// Paths from its root the config leaves out.
-	pub exclude: &'a [String],
+	pub(crate) exclude: &'a [String],
 	/// The dependency the glue names each crate it builds with by, by its crate name.
-	pub crates: &'a std::collections::BTreeMap<String, String>,
+	pub(crate) crates: &'a std::collections::BTreeMap<String, String>,
 	/// Paths from its root a census checks, without leaving out what they name: each
 	/// path one names is recorded in [`Report::audited`], as the exclude would have checked it.
-	pub audit: &'a [String],
+	pub(crate) audit: &'a [String],
 }
 
 /// What collection found in the facade, by paths from its root.
-pub struct Report {
-	pub package: String,
+pub(crate) struct Report {
+	pub(crate) package: String,
 	/// The facade's root, the first segment of its items' paths in the IR.
-	pub root: String,
-	pub refusals: Vec<Refusal>,
+	pub(crate) root: String,
+	pub(crate) refusals: Vec<Refusal>,
 	/// Records and enums exported as objects, since a field does not map: the first.
-	pub opaque: Vec<(String, Why)>,
+	pub(crate) opaque: Vec<(String, Why)>,
 	/// Traits no foreign implementation can implement, left out: the first reason.
-	pub traits: Vec<(String, Why)>,
+	pub(crate) traits: Vec<(String, Why)>,
 	/// `poll_x` methods that do not map, left out since `x` exports as a future.
-	pub twins: Vec<String>,
+	pub(crate) twins: Vec<String>,
 	/// `#[doc(hidden)]` items, by path.
-	pub hidden: Vec<String>,
+	pub(crate) hidden: Vec<String>,
 	/// Items C can never hold or call, by path, and why.
-	pub unheld: Vec<(String, Why)>,
+	pub(crate) unheld: Vec<(String, Why)>,
 	/// Excluded paths, and how many items each left out.
-	pub excluded: Vec<(String, usize)>,
+	pub(crate) excluded: Vec<(String, usize)>,
 	/// A census's audited paths, and each path one names, whether or not that item exports.
-	pub audited: Vec<(String, Vec<String>)>,
+	pub(crate) audited: Vec<(String, Vec<String>)>,
 	/// Type aliases, which export nothing of their own.
-	pub aliases: Vec<String>,
+	pub(crate) aliases: Vec<String>,
 }
 
 /// How an exported crate's type is exported, once decided.
@@ -336,7 +336,7 @@ fn order(tcx: TyCtxt<'_>) -> Vec<CrateNum> {
 }
 
 /// Collect the facade's API, leaving out what its `exclude` names.
-pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
+pub(crate) fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 	// A type at a crate's root, by the crate's name and its own.
 	let root = |krate: &str, name: &str| {
 		let krate = *tcx.crates(()).iter().find(|&&k| tcx.crate_name(k).as_str() == krate)?;

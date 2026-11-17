@@ -9,7 +9,7 @@ use rustc_middle::ty::{self, GenericArgKind, Instance, InstanceKind, ShimKind, T
 use rustc_span::Span;
 
 /// Go's keywords and predeclared identifiers, which a package-level name must not shadow.
-pub const PREDECLARED: &[&str] = &[
+pub(crate) const PREDECLARED: &[&str] = &[
 	"break",
 	"case",
 	"chan",
@@ -87,7 +87,7 @@ pub const PREDECLARED: &[&str] = &[
 /// walked rather than listed, and an alias of a type with the alias's own parameters
 /// stands for the type where no other path reaches it. Each comes with the span of the
 /// name that exports it.
-pub fn public(tcx: TyCtxt<'_>) -> Vec<(String, DefId, Span)> {
+pub(crate) fn public(tcx: TyCtxt<'_>) -> Vec<(String, DefId, Span)> {
 	let root = CRATE_DEF_ID.to_def_id();
 	let mut items = Vec::new();
 	let mut aliased = Vec::new();
@@ -132,7 +132,7 @@ pub fn public(tcx: TyCtxt<'_>) -> Vec<(String, DefId, Span)> {
 }
 
 /// The item a path names in another crate, from its root through modules.
-pub fn resolve_in(tcx: TyCtxt<'_>, krate: rustc_hir::def_id::CrateNum, path: &[&str]) -> Option<DefId> {
+pub(crate) fn resolve_in(tcx: TyCtxt<'_>, krate: rustc_hir::def_id::CrateNum, path: &[&str]) -> Option<DefId> {
 	let mut item = krate.as_def_id();
 	for segment in path {
 		item = tcx.module_children(item).iter().find_map(|child| match child.res {
@@ -148,7 +148,7 @@ pub fn resolve_in(tcx: TyCtxt<'_>, krate: rustc_hir::def_id::CrateNum, path: &[&
 }
 
 /// A root's exported Go name: its path in camel case, `harness::run` as `HarnessRun`.
-pub fn exported(path: &str) -> String {
+pub(crate) fn exported(path: &str) -> String {
 	path.split("::")
 		.flat_map(|segment| segment.split('_'))
 		.map(|word| {
@@ -164,7 +164,7 @@ pub fn exported(path: &str) -> String {
 /// A constant's or static's exported Go name: its path as [`exported`] names it, but each
 /// upper-case word of its own name capitalized as Go names constants, `limits::MAX_LEN`
 /// as `LimitsMaxLen`.
-pub fn exported_value(path: &str) -> String {
+pub(crate) fn exported_value(path: &str) -> String {
 	let (owner, name) = path.rsplit_once("::").map_or(("", path), |(o, n)| (o, n));
 	let words: Vec<String> = name
 		.split('_')
@@ -178,12 +178,12 @@ pub fn exported_value(path: &str) -> String {
 
 /// Whether Go exports `name` as written: an ASCII identifier with a leading uppercase
 /// letter, so no Unicode letter or mark Rust allows and Go does not can reach Go's output.
-pub fn is_exported(name: &str) -> bool {
+pub(crate) fn is_exported(name: &str) -> bool {
 	name.starts_with(|c: char| c.is_ascii_uppercase()) && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
 /// `name` as a Go identifier: anything but letters, digits, and `_` becomes `_`.
-pub fn ident(name: &str) -> String {
+pub(crate) fn ident(name: &str) -> String {
 	let mut out: String = name
 		.chars()
 		.map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' })
@@ -203,7 +203,7 @@ pub fn ident(name: &str) -> String {
 /// name Go would export, or that starts with `_`, takes a leading `_`, which keeps the
 /// mapping one to one; a `pub` one that is not ASCII with a leading lowercase letter is
 /// refused where its type is declared.
-pub fn field(field: &ty::FieldDef, index: usize) -> String {
+pub(crate) fn field(field: &ty::FieldDef, index: usize) -> String {
 	let name = field.name.as_str();
 	if name.parse::<usize>().is_ok() || name.is_empty() {
 		return format!("F{index}");
@@ -221,7 +221,7 @@ pub fn field(field: &ty::FieldDef, index: usize) -> String {
 
 /// A field's or variant's name kept off Go's keywords and the enum's `tag`, by a trailing
 /// `_`, which a name ending in one takes too, so two names never escape to one.
-pub fn escaped(name: &str) -> String {
+pub(crate) fn escaped(name: &str) -> String {
 	match name == "tag" || name.ends_with('_') || PREDECLARED.contains(&name) {
 		true => format!("{name}_"),
 		false => name.to_string(),
@@ -230,7 +230,7 @@ pub fn escaped(name: &str) -> String {
 
 /// The base of a static's Go name, unexported: its path, with its crate when not the
 /// translated one.
-pub fn static_base(tcx: TyCtxt<'_>, def_id: DefId) -> String {
+pub(crate) fn static_base(tcx: TyCtxt<'_>, def_id: DefId) -> String {
 	let mut base = String::from("static");
 	if def_id.krate != LOCAL_CRATE {
 		base = format!("{base}_{}", tcx.crate_name(def_id.krate));
@@ -240,7 +240,7 @@ pub fn static_base(tcx: TyCtxt<'_>, def_id: DefId) -> String {
 
 /// The base of a function instance's Go name: its owner and name, its crate when not the
 /// translated one, and its type arguments.
-pub fn func_base<'tcx>(tcx: TyCtxt<'tcx>, instance: Instance<'tcx>) -> String {
+pub(crate) fn func_base<'tcx>(tcx: TyCtxt<'tcx>, instance: Instance<'tcx>) -> String {
 	let def_id = instance.def_id();
 	let mut parts = Vec::new();
 	if def_id.krate != LOCAL_CRATE {
@@ -263,7 +263,7 @@ pub fn func_base<'tcx>(tcx: TyCtxt<'tcx>, instance: Instance<'tcx>) -> String {
 }
 
 /// An item's name under the type or module that owns it.
-pub fn item_base(tcx: TyCtxt<'_>, def_id: DefId) -> String {
+pub(crate) fn item_base(tcx: TyCtxt<'_>, def_id: DefId) -> String {
 	match tcx.def_kind(def_id) {
 		DefKind::Closure => format!("{}_closure", item_base(tcx, tcx.parent(def_id))),
 		DefKind::AssocFn | DefKind::AssocConst => {
@@ -298,7 +298,7 @@ pub fn item_base(tcx: TyCtxt<'_>, def_id: DefId) -> String {
 }
 
 /// A short name for a type, in names of functions instantiated with it.
-pub fn ty_short<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> String {
+pub(crate) fn ty_short<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> String {
 	match ty.kind() {
 		ty::Bool => "bool".into(),
 		ty::Char => "char".into(),

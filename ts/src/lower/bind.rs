@@ -47,7 +47,7 @@ struct File {
 
 /// What the translation knows of the config's bindings.
 #[derive(Default)]
-pub struct Bindings<'tcx> {
+pub(crate) struct Bindings<'tcx> {
 	items: rustc_data_structures::fx::FxHashMap<DefId, Binding>,
 	files: rustc_data_structures::fx::FxHashMap<ModPath, File>,
 	/// The symbol of each bound type, and of each export, by its module and name.
@@ -178,7 +178,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether `def_id` is a bound type or function, or a function of a bound type in an
 	/// impl of the type's own crate: translation never reads it.
-	pub fn bound(&self, def_id: DefId) -> bool {
+	pub(crate) fn bound(&self, def_id: DefId) -> bool {
 		self.binder(def_id).is_some()
 	}
 
@@ -210,12 +210,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Whether `def_id` is of a crate that translates, rather than bound.
-	pub fn own(&self, def_id: DefId) -> bool {
+	pub(crate) fn own(&self, def_id: DefId) -> bool {
 		self.crates.translates(def_id) && !self.bindings.items.contains_key(&def_id)
 	}
 
 	/// Why `def_id`, which isn't [`own`](Self::own), isn't the crate's to translate.
-	pub fn foreign(&self, def_id: DefId) -> &'static str {
+	pub(crate) fn foreign(&self, def_id: DefId) -> &'static str {
 		match self.bindings.items.contains_key(&def_id) {
 			true => "bound to TypeScript",
 			false => "from another crate",
@@ -223,7 +223,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Whether a bound type's value drops through its `[Symbol.dispose]`, if it is one.
-	pub fn bound_drops(&self, def_id: DefId) -> Option<bool> {
+	pub(crate) fn bound_drops(&self, def_id: DefId) -> Option<bool> {
 		match self.bindings.items.get(&def_id)?.kind {
 			Kind::Type { drop } => Some(drop),
 			Kind::Function => None,
@@ -231,7 +231,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The symbol of a bound type, from its binding's file. `span` is where `args` reach it.
-	pub fn bound_type(&mut self, adt: ty::AdtDef<'tcx>, args: ty::GenericArgs<'tcx>, span: Span) -> Option<SymId> {
+	pub(crate) fn bound_type(
+		&mut self,
+		adt: ty::AdtDef<'tcx>,
+		args: ty::GenericArgs<'tcx>,
+		span: Span,
+	) -> Option<SymId> {
 		let def_id = adt.did();
 		let drop = self.bound_drops(def_id)?;
 		// What it holds drops only where it does.
@@ -275,7 +280,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// The export a call of `instance` calls, if a binding stands in for it, checked
 	/// against the instance's signature. `span` is where it is reached.
-	pub fn bound_fn(&mut self, instance: Instance<'tcx>, span: Span) -> Option<SymId> {
+	pub(crate) fn bound_fn(&mut self, instance: Instance<'tcx>, span: Span) -> Option<SymId> {
 		let tcx = self.tcx;
 		let module = self.bound_module(instance)?.clone();
 		let def_id = instance.def_id();
@@ -326,7 +331,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The module of the binding that stands in for `instance`, if one does.
-	pub fn bound_module(&self, instance: Instance<'tcx>) -> Option<&ModPath> {
+	pub(crate) fn bound_module(&self, instance: Instance<'tcx>) -> Option<&ModPath> {
 		let InstanceKind::Item(def_id) = instance.def else {
 			return None;
 		};
@@ -447,7 +452,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 /// The module `tsc` checks the bindings in, which no Rust module or binding can be: the
 /// runtime's directory holds only the runtime.
-pub fn check_module() -> ModPath {
+pub(crate) fn check_module() -> ModPath {
 	vec!["rs".into(), "bind".into()]
 }
 
@@ -467,7 +472,7 @@ fn export_name(tcx: TyCtxt<'_>, def_id: DefId) -> String {
 
 /// The item `segments` name under `module`, through modules, and then a type's inherent
 /// functions.
-pub fn resolve_in(tcx: TyCtxt<'_>, mut item: DefId, segments: &[&str]) -> Option<DefId> {
+pub(crate) fn resolve_in(tcx: TyCtxt<'_>, mut item: DefId, segments: &[&str]) -> Option<DefId> {
 	for (i, segment) in segments.iter().enumerate() {
 		item = match tcx.def_kind(item) {
 			DefKind::Mod => {

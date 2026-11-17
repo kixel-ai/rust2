@@ -16,7 +16,7 @@ use crate::ts::{Expr, Key, Param, Stmt, StmtKind, Type};
 
 /// A formatting trait.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Trait {
+pub(crate) enum Trait {
 	Display,
 	Debug,
 	LowerHex,
@@ -29,7 +29,7 @@ pub enum Trait {
 
 impl Trait {
 	/// The trait `did` is, if it is one of these.
-	pub fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Self> {
+	pub(crate) fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Self> {
 		match library::std_path(tcx, did)
 			.iter()
 			.map(String::as_str)
@@ -80,7 +80,7 @@ impl Trait {
 /// What a `format_args!` argument's constructor, `Argument::new_display` and the like,
 /// makes: a value written by a trait, or `None` for a width or precision, as in `{:1$}`.
 /// Otherwise, the construct outside the subset that it is.
-pub fn argument(name: &str) -> Result<Option<Trait>, &'static str> {
+pub(crate) fn argument(name: &str) -> Result<Option<Trait>, &'static str> {
 	Ok(Some(match name {
 		"new_display" => Trait::Display,
 		"new_debug" => Trait::Debug,
@@ -103,7 +103,7 @@ fn formatter() -> Type {
 
 impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 	/// The formatting trait of a `&dyn Debug` or the like.
-	pub fn fmt_object(&self, ty: Ty<'tcx>) -> Option<Trait> {
+	pub(crate) fn fmt_object(&self, ty: Ty<'tcx>) -> Option<Trait> {
 		let ty::Ref(_, inner, _) = ty.kind() else {
 			return None;
 		};
@@ -114,7 +114,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 	}
 
 	/// `value`, a `ty`, written by `tr` to `f`, through the impl for `ty`.
-	pub fn fmt_call(&mut self, tr: Trait, ty: Ty<'tcx>, value: Expr, f: Expr, span: Span) -> Expr {
+	pub(crate) fn fmt_call(&mut self, tr: Trait, ty: Ty<'tcx>, value: Expr, f: Expr, span: Span) -> Expr {
 		let tcx = self.t.tcx;
 		let Some(method) = tr.method(tcx) else {
 			return self.err(span, format!("no `{}::fmt`", tr.name()));
@@ -129,7 +129,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 	}
 
 	/// A function writing a `ty` by `tr`: `(value, f) => ...`, or the runtime's own.
-	pub fn fmt_fn(&mut self, tr: Trait, ty: Ty<'tcx>, span: Span) -> Expr {
+	pub(crate) fn fmt_fn(&mut self, tr: Trait, ty: Ty<'tcx>, span: Span) -> Expr {
 		let body = self.fmt_call(tr, ty, Expr::ident("value"), Expr::ident("f"), span);
 		if let Expr::Call(callee, args) = &body
 			&& let [Expr::Ident(value), Expr::Ident(f)] = args.as_slice()
@@ -154,7 +154,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 
 	/// `value`, a `ty`, ready to be written by `tr`: `(f) => ...`. It is read now, once,
 	/// as a placeholder's or a `&dyn Debug`'s value is.
-	pub fn fmt_value(&mut self, tr: Trait, ty: Ty<'tcx>, value: Expr, span: Span, out: &mut Vec<Stmt>) -> Expr {
+	pub(crate) fn fmt_value(&mut self, tr: Trait, ty: Ty<'tcx>, value: Expr, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let value = match value.is_path() {
 			true => value,
 			false => self.spill(value, "arg", out),
@@ -186,7 +186,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	/// provided method of the crate's impl writes through its `write_str`, and its
 	/// `write_fmt` through the runtime's port of `fmt::write`, which calls its `write_str`
 	/// and `write_char` as std does. `None` for any other writer.
-	pub fn fmt_write(
+	pub(crate) fn fmt_write(
 		&mut self,
 		def_id: DefId,
 		w: Ty<'tcx>,
@@ -262,7 +262,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	/// `fmt::Write`'s `name` of the `String` `s`, writing `arg`, a `fmt::Arguments` whose only
 	/// piece is `literal` if it is one, in place: what the call returns. What a placeholder
 	/// wrote before an error stays written.
-	pub fn string_write(
+	pub(crate) fn string_write(
 		&mut self,
 		name: &str,
 		s: Expr,
@@ -313,7 +313,7 @@ fn pure(e: &Expr) -> bool {
 }
 
 /// std's impl of `tr` for `ty`, writing `value` to `f`; `None` if it has none here.
-pub fn std_impl<'tcx>(
+pub(crate) fn std_impl<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	tr: Trait,
 	ty: Ty<'tcx>,
@@ -1041,7 +1041,7 @@ fn adaptor_debug<'tcx>(
 }
 
 /// One part of a `format_args!` template.
-pub enum Piece {
+pub(crate) enum Piece {
 	Lit(String),
 	/// A placeholder writing the `index`th argument.
 	Arg {
@@ -1051,7 +1051,7 @@ pub enum Piece {
 }
 
 /// A placeholder's options, from `FormattingOptions`' flags.
-pub struct Spec {
+pub(crate) struct Spec {
 	fill: char,
 	align: Option<char>,
 	plus: bool,
@@ -1064,14 +1064,14 @@ pub struct Spec {
 
 /// A width or precision: in the template, or the `index`th argument's.
 #[derive(Clone, Copy)]
-pub enum Count {
+pub(crate) enum Count {
 	Is(u16),
 	Arg(usize),
 }
 
 impl Spec {
 	/// The runtime's `Spec` object, or `None` for the defaults. `arg` reads an argument.
-	pub fn object(&self, arg: impl Fn(usize) -> Expr) -> Option<Expr> {
+	pub(crate) fn object(&self, arg: impl Fn(usize) -> Expr) -> Option<Expr> {
 		let count = |count: Count| match count {
 			Count::Is(n) => Expr::lit(n.to_string()),
 			Count::Arg(index) => Expr::rs("fmtCountOf", vec![arg(index)]),
@@ -1119,7 +1119,7 @@ const DEFAULT_FLAGS: u32 = ' ' as u32 | 3 << 29;
 
 /// Decode a template as `core::fmt::write` reads it: literal pieces, and placeholders
 /// with their argument and options. The `-` flag is dropped, as std's impls ignore it.
-pub fn decode(template: &[u8]) -> Result<Vec<Piece>, &'static str> {
+pub(crate) fn decode(template: &[u8]) -> Result<Vec<Piece>, &'static str> {
 	const TRUNCATED: &str = "a truncated template";
 	let byte = |i: usize| template.get(i).copied().ok_or(TRUNCATED);
 	let u16_at = |i: usize| Ok::<_, &str>(u16::from_le_bytes([byte(i)?, byte(i + 1)?]));

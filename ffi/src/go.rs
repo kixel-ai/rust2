@@ -101,13 +101,13 @@ impl Packages {
 }
 
 /// The generated Go files and their public names.
-pub struct Output {
-	pub files: Vec<(String, String)>,
-	pub names: BTreeMap<String, String>,
+pub(crate) struct Output {
+	pub(crate) files: Vec<(String, String)>,
+	pub(crate) names: BTreeMap<String, String>,
 }
 
 /// Each crate's Go package name, by crate, which also names its C++ header.
-pub fn packages(abi: &Abi<'_>) -> BTreeMap<String, String> {
+pub(crate) fn packages(abi: &Abi<'_>) -> BTreeMap<String, String> {
 	let mut by_crate = Packages::new(abi, "").by_crate;
 	by_crate.remove(Packages::RT);
 	by_crate.into_iter().map(|(krate, (name, _))| (krate, name)).collect()
@@ -115,7 +115,7 @@ pub fn packages(abi: &Abi<'_>) -> BTreeMap<String, String> {
 
 /// The Go for `abi`, whose header's contract is `contract`, as each file under `go/` by its
 /// path there, for the module path `module` of `go/`; or the names two items claim alike.
-pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> Result<Output, String> {
+pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> Result<Output, String> {
 	let set = Packages::new(abi, module);
 	let types = abi.classes(|home| (home.krate.clone(), home.outside - 1), |_| false);
 	let mut locked = crate::lock::types(abi, &types);

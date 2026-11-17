@@ -94,7 +94,7 @@ fn collection(c: Collection) -> String {
 }
 
 /// The Rust spelling of a C type.
-pub fn rs(ty: &Ty) -> String {
+pub(crate) fn rs(ty: &Ty) -> String {
 	match ty {
 		Ty::Void => "()".to_string(),
 		Ty::Bool => "bool".to_string(),
@@ -134,21 +134,21 @@ pub fn rs(ty: &Ty) -> String {
 }
 
 /// The crate that builds the C ABI.
-pub struct Crate<'a> {
-	pub abi: &'a Abi<'a>,
+pub(crate) struct Crate<'a> {
+	pub(crate) abi: &'a Abi<'a>,
 	/// The facade, a dependency of the crate.
-	pub facade: &'a Package,
+	pub(crate) facade: &'a Package,
 	/// The `[patch]` table the crate's own workspace resolves the exports with, as the
 	/// check did.
-	pub patch: &'a str,
+	pub(crate) patch: &'a str,
 	/// The dependency on each crate the facade builds with, by its crate name, as this
 	/// host resolves it, which a staged API's crates are named by too.
-	pub crates: &'a std::collections::BTreeMap<String, String>,
+	pub(crate) crates: &'a std::collections::BTreeMap<String, String>,
 }
 
 /// Generated files and the names checked before any file is written.
-pub struct Output {
-	pub names: crate::lock::Names,
+pub(crate) struct Output {
+	pub(crate) names: crate::lock::Names,
 	files: Vec<(PathBuf, String)>,
 	/// Directories the export owns, where an earlier export may have written files for
 	/// crates or packages this one has not.
@@ -161,7 +161,7 @@ impl Output {
 	}
 
 	/// Refuse a baseline below a directory the export owns, which removes what it did not write.
-	pub fn check_baseline(&self, baseline: &Path) -> Result<(), String> {
+	pub(crate) fn check_baseline(&self, baseline: &Path) -> Result<(), String> {
 		let baseline =
 			std::fs::canonicalize(baseline).map_err(|err| format!("reading {}: {err}", baseline.display()))?;
 		for dir in &self.stale {
@@ -179,7 +179,7 @@ impl Output {
 	/// Write a validated export, removing the C++ headers and Go files an earlier one wrote
 	/// that this one does not. A file whose content is unchanged keeps its mtime, so a build
 	/// of the export that cargo or a consumer fingerprints stays fresh.
-	pub fn write(self) -> Result<crate::lock::Names, String> {
+	pub(crate) fn write(self) -> Result<crate::lock::Names, String> {
 		let files: HashSet<&Path> = self.files.iter().map(|(path, _)| path.as_path()).collect();
 		for dir in &self.stale {
 			match std::fs::symlink_metadata(dir) {
@@ -236,7 +236,7 @@ impl Crate<'_> {
 	/// `python/<prefix>.py`, whose CPython extension its `python` feature builds,
 	/// `swift/<prefix>.swift` with the clang module it imports the header through, and
 	/// `go/<prefix>.go`, and `dart/<prefix>.dart`, whose glue its `dart` feature builds.
-	pub fn generate(&self, out: &Path) -> Result<Output, String> {
+	pub(crate) fn generate(&self, out: &Path) -> Result<Output, String> {
 		// Cargo unifies in what the facade enables in its dependencies.
 		let facade = self.facade;
 		let mut features: Vec<String> = facade.features.iter().map(|f| format!("{f:?}")).collect();

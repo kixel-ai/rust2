@@ -14,7 +14,7 @@ use crate::ts::{Expr, Key, Param, Stmt};
 
 impl<'tcx> Translator<'_, 'tcx> {
 	/// `Future::Output` of `ty`, if it is a `dyn Future`, whose JS value is an `rs.Future`.
-	pub fn dyn_future(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	pub(crate) fn dyn_future(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 		let ty::Dynamic(preds, ..) = ty.kind() else {
 			return None;
 		};
@@ -26,7 +26,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 	}
 
 	/// `Future::Output` of `ty`, a future.
-	pub fn future_output(&mut self, ty: Ty<'tcx>, span: Span) -> Ty<'tcx> {
+	pub(crate) fn future_output(&mut self, ty: Ty<'tcx>, span: Span) -> Ty<'tcx> {
 		let tcx = self.tcx;
 		let output = tcx.lang_items().future_output().and_then(|item| {
 			let projection = Ty::new_projection(tcx, ty::IsRigid::No, item, [ty]);
@@ -44,7 +44,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	/// `value`, a `from` coerced to `to`, which points at a `dyn Future` through
 	/// references, boxes, and pins, whose JS value is what they point at, or an `rs.Place`
 	/// of it for a `&mut` to a reference.
-	pub fn dyn_future(&mut self, from: Ty<'tcx>, to: Ty<'tcx>, value: Expr, span: Span) -> Expr {
+	pub(crate) fn dyn_future(&mut self, from: Ty<'tcx>, to: Ty<'tcx>, value: Expr, span: Span) -> Expr {
 		let tcx = self.t.tcx;
 		let (mut pointee, mut target, mut borrowed, mut value) = (from, to, false, value);
 		while !matches!(target.kind(), ty::Dynamic(..)) {
@@ -71,7 +71,14 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	/// `value`, a `from` that is a future, as an `rs.Future`: itself if it is one already,
 	/// and else an `rs.DynFuture` over its `Future` impl, which drops it with itself unless
 	/// `borrowed`. A borrowed one that is `dropped` must not drop what it borrows.
-	pub fn future_object(&mut self, from: Ty<'tcx>, value: Expr, borrowed: bool, dropped: bool, span: Span) -> Expr {
+	pub(crate) fn future_object(
+		&mut self,
+		from: Ty<'tcx>,
+		value: Expr,
+		borrowed: bool,
+		dropped: bool,
+		span: Span,
+	) -> Expr {
 		let tcx = self.t.tcx;
 		let object = match from.kind() {
 			ty::Dynamic(..) | ty::Coroutine(..) => true,
@@ -119,7 +126,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 
 /// A call of a standard library function on these types, or its arguments back if it is
 /// none of theirs. `Ok(None)` refuses it.
-pub fn call<'tcx>(
+pub(crate) fn call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	call: &Call<'tcx>,
 	owner: &str,
@@ -736,7 +743,7 @@ fn once<'tcx>(
 }
 
 /// A `Box<pointee>`, if `pointee` is a slice or text, whose value an `rs.Arc` of it holds.
-pub fn shared_box<'tcx>(tcx: ty::TyCtxt<'tcx>, pointee: Ty<'tcx>) -> Option<Ty<'tcx>> {
+pub(crate) fn shared_box<'tcx>(tcx: ty::TyCtxt<'tcx>, pointee: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	matches!(pointee.kind(), ty::Slice(_) | ty::Str).then(|| Ty::new_box(tcx, pointee))
 }
 
@@ -848,7 +855,7 @@ fn lend_value<'tcx>(b: &Body<'_, '_, 'tcx>, call: &Call<'tcx>, holder: Expr) -> 
 }
 
 /// `OnceCell::new()` or `OnceLock::new()` of `cell`: empty.
-pub fn once_new<'tcx>(b: &Body<'_, '_, 'tcx>, cell: Ty<'tcx>) -> Expr {
+pub(crate) fn once_new<'tcx>(b: &Body<'_, '_, 'tcx>, cell: Ty<'tcx>) -> Expr {
 	let ty::Adt(_, args) = cell.kind() else {
 		unreachable!("a one-time cell is a struct")
 	};
@@ -859,7 +866,7 @@ pub fn once_new<'tcx>(b: &Body<'_, '_, 'tcx>, cell: Ty<'tcx>) -> Expr {
 }
 
 /// `Once::new()`: an `rs.OnceLock` holding nothing, as no function has run.
-pub fn once_unrun() -> Expr {
+pub(crate) fn once_unrun() -> Expr {
 	Expr::New(Box::new(Expr::Rs("OnceLock".into())), vec![Expr::undefined()])
 }
 
@@ -889,7 +896,7 @@ fn binary<'tcx>(b: &mut Body<'_, '_, 'tcx>, op: BinOp, not: bool, ty: Ty<'tcx>, 
 }
 
 /// The `atomic::Ordering` variant `index`: its discriminant.
-pub fn atomic_ordering(index: VariantIdx) -> Expr {
+pub(crate) fn atomic_ordering(index: VariantIdx) -> Expr {
 	Expr::lit(index.as_u32().to_string())
 }
 
@@ -931,7 +938,7 @@ fn arc_waker<'tcx>(b: &mut Body<'_, '_, 'tcx>, arc: Ty<'tcx>, value: Expr, raw: 
 }
 
 /// A `RawWaker` of `data` and `vtable`: an `rs.RawWaker`, under std's names.
-pub fn raw_waker(data: Expr, vtable: Expr) -> Expr {
+pub(crate) fn raw_waker(data: Expr, vtable: Expr) -> Expr {
 	Expr::Object(vec![
 		(Key::Name("data".into()), data),
 		(Key::Name("vtable".into()), vtable),

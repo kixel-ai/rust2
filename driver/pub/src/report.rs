@@ -74,19 +74,19 @@ struct ItemReport {
 	named_by_own_crate: Option<String>,
 }
 
-pub const UNCHECKED: &str = "Only the cargo targets, features, and host platform checked here: \
+pub(crate) const UNCHECKED: &str = "Only the cargo targets, features, and host platform checked here: \
 	doctests, other features and platforms, and crates outside the audited workspaces are unseen.";
 
 /// The audit's inputs, for the report.
-pub struct Scope<'a> {
-	pub root: &'a Path,
-	pub workspaces: Vec<&'a Path>,
-	pub cargo_args: &'a [String],
+pub(crate) struct Scope<'a> {
+	pub(crate) root: &'a Path,
+	pub(crate) workspaces: Vec<&'a Path>,
+	pub(crate) cargo_args: &'a [String],
 }
 
 /// Write `report.json`, `report.txt`, and `narrow.patch` into `out`, and return the
 /// summary.
-pub fn write(out: &Path, scope: &Scope, audit: &Audit, validation: &Validation) -> Result<String, String> {
+pub(crate) fn write(out: &Path, scope: &Scope, audit: &Audit, validation: &Validation) -> Result<String, String> {
 	let mut lines = Lines::default();
 	let mut tokens = Vec::new();
 	for (t, token) in audit.tokens.iter().enumerate() {

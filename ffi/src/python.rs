@@ -32,14 +32,14 @@ use crate::kotlin::{indent_by, rust_c, strip_refs};
 
 const RUNTIME: &str = include_str!("../runtime/rt.py");
 const NATIVE: &str = include_str!("../runtime/native.py");
-pub const GLUE_RUNTIME: &str = include_str!("../runtime/python.rs");
+pub(crate) const GLUE_RUNTIME: &str = include_str!("../runtime/python.rs");
 
 /// What the generator writes: the Python module, and the Rust module of the extension it
 /// loads.
-pub struct Output {
-	pub names: BTreeMap<String, String>,
-	pub python: String,
-	pub glue: String,
+pub(crate) struct Output {
+	pub(crate) names: BTreeMap<String, String>,
+	pub(crate) python: String,
+	pub(crate) glue: String,
 }
 
 /// The runtime's names the generated Python uses unqualified, which no exported item may
@@ -125,7 +125,7 @@ const RUNTIME_TYPES: &[&str] = &[
 /// The Python for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike. The Python's own contract hashes the header's with everything it and its
 /// glue add, as their conversions change with no C declaration changing.
-pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
+pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		locked: BTreeMap::new(),
 		abi,

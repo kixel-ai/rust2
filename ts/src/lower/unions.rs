@@ -20,14 +20,14 @@ use super::{AdtRepr, Translator};
 use crate::ts::{Expr, Key, Type};
 
 /// Each field's parts.
-pub type Fields = Vec<Vec<Part>>;
+pub(crate) type Fields = Vec<Vec<Part>>;
 
 /// An instance's fields' parts, and each of its slots by name, with the type it holds.
-pub type Overlay<'tcx> = (Fields, Vec<(String, Ty<'tcx>)>);
+pub(crate) type Overlay<'tcx> = (Fields, Vec<(String, Ty<'tcx>)>);
 
 /// How a union's definition lays out its slots.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Layout {
+pub(crate) enum Layout {
 	/// Alike in every instance, which its definition types.
 	Typed,
 	/// By each instance, which only it decides: its definition is an `rs.Slots`.
@@ -38,13 +38,13 @@ pub enum Layout {
 
 /// A part of a union's field, kept whole in a slot.
 #[derive(Clone)]
-pub struct Part {
+pub(crate) struct Part {
 	/// The field indices to it from the field.
-	pub path: Vec<usize>,
-	pub slot: String,
+	pub(crate) path: Vec<usize>,
+	pub(crate) slot: String,
 	/// Whether a read casts the slot to it: the slot holds an `Option` of it, which a read
 	/// narrows, or its union's definition is an `rs.Slots`.
-	pub cast: bool,
+	pub(crate) cast: bool,
 }
 
 /// A part of a field kept whole, at `offset` for `size` bytes.
@@ -59,7 +59,7 @@ struct Leaf<'tcx> {
 impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The slots of union `adt` with `args`, laid out in `env`: an error if its fields
 	/// overlap in values JS keeps apart. `typed` is whether its definition types its slots.
-	pub fn overlay(
+	pub(crate) fn overlay(
 		&self,
 		env: TypingEnv<'tcx>,
 		adt: AdtDef<'tcx>,
@@ -71,7 +71,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// How union `adt`'s definition lays out its slots, and their types where it types
 	/// them: refused if the fields whose layout it knows overlap in values JS keeps apart.
-	pub fn defined_overlay(&self, adt: AdtDef<'tcx>) -> Result<(Layout, Vec<(String, Ty<'tcx>)>), String> {
+	pub(crate) fn defined_overlay(&self, adt: AdtDef<'tcx>) -> Result<(Layout, Vec<(String, Ty<'tcx>)>), String> {
 		let tcx = self.tcx;
 		let env = TypingEnv::post_analysis(tcx, adt.did());
 		let identity = ty::GenericArgs::identity_for_item(tcx, adt.did());
@@ -223,13 +223,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The TypeScript type of union `adt`'s slots.
-	pub fn overlay_ty(&mut self, slots: Vec<(String, Ty<'tcx>)>, span: Span) -> Type {
+	pub(crate) fn overlay_ty(&mut self, slots: Vec<(String, Ty<'tcx>)>, span: Span) -> Type {
 		Type::Object(slots.into_iter().map(|(name, ty)| (name, self.ty(ty, span))).collect())
 	}
 
 	/// The slots of union `adt` with `args`, laid out the first time: none, refused, if its
 	/// fields overlap in values JS keeps apart.
-	pub fn laid_out(&mut self, adt: AdtDef<'tcx>, args: GenericArgs<'tcx>, span: Span) -> Overlay<'tcx> {
+	pub(crate) fn laid_out(&mut self, adt: AdtDef<'tcx>, args: GenericArgs<'tcx>, span: Span) -> Overlay<'tcx> {
 		let AdtRepr::Slots(layout) = self.adt(adt, span).repr else {
 			unreachable!("a union")
 		};
@@ -264,7 +264,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// The slots `value`, a field of a union of type `ty`, puts in it: each part's
 	/// expression, by its slot.
-	pub fn slots_of(&mut self, value: Expr, ty: Ty<'tcx>, parts: &[Part], span: Span) -> Vec<(String, Expr)> {
+	pub(crate) fn slots_of(&mut self, value: Expr, ty: Ty<'tcx>, parts: &[Part], span: Span) -> Vec<(String, Expr)> {
 		parts
 			.iter()
 			.map(|part| (part.slot.clone(), self.part_of(value.clone(), ty, &part.path, span)))
@@ -293,7 +293,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// A `ty`, made of the parts in `parts` of the union `base`.
-	pub fn of_slots(&mut self, base: Expr, ty: Ty<'tcx>, parts: &[Part], span: Span) -> Expr {
+	pub(crate) fn of_slots(&mut self, base: Expr, ty: Ty<'tcx>, parts: &[Part], span: Span) -> Expr {
 		if let [part] = parts
 			&& part.path.is_empty()
 		{
@@ -343,13 +343,19 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The parts of field `field` of union `adt` with `args`.
-	pub fn union_field(&mut self, adt: AdtDef<'tcx>, args: GenericArgs<'tcx>, field: usize, span: Span) -> Vec<Part> {
+	pub(crate) fn union_field(
+		&mut self,
+		adt: AdtDef<'tcx>,
+		args: GenericArgs<'tcx>,
+		field: usize,
+		span: Span,
+	) -> Vec<Part> {
 		self.laid_out(adt, args, span).0.swap_remove(field)
 	}
 }
 
 /// The parts of `parts` within part `i` of what they make, by their paths from it.
-pub fn within(parts: &[Part], i: usize) -> Vec<Part> {
+pub(crate) fn within(parts: &[Part], i: usize) -> Vec<Part> {
 	parts
 		.iter()
 		.filter(|part| part.path.first() == Some(&i))
@@ -361,7 +367,7 @@ pub fn within(parts: &[Part], i: usize) -> Vec<Part> {
 }
 
 /// Whether `parts` are one slot's, whole.
-pub fn whole(parts: &[Part]) -> bool {
+pub(crate) fn whole(parts: &[Part]) -> bool {
 	matches!(parts, [part] if part.path.is_empty())
 }
 
@@ -371,7 +377,7 @@ fn slot_name(offset: u64) -> String {
 }
 
 /// A union of slots, `slots` set and every other `undefined`, as a `ty`.
-pub fn made(slots: Vec<(String, Expr)>, ty: Type) -> Expr {
+pub(crate) fn made(slots: Vec<(String, Expr)>, ty: Type) -> Expr {
 	let object = Expr::Object(slots.into_iter().map(|(name, e)| (Key::Name(name), e)).collect());
 	Expr::As(Box::new(Expr::As(Box::new(object), Type::Builtin("unknown"))), ty)
 }

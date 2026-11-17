@@ -32,7 +32,7 @@ use crate::ts::{Expr, Key, Param, Stmt, StmtKind, Type};
 /// from is, in the file as the native build names it, by line and column from 1. The column
 /// counts a tab as 4, which rustc reads from the file's source, so a dependency's file,
 /// imported without it, is loaded first.
-pub fn location(tcx: TyCtxt<'_>, span: Span) -> Expr {
+pub(crate) fn location(tcx: TyCtxt<'_>, span: Span) -> Expr {
 	let topmost = span.ctxt().outer_expn().expansion_cause().unwrap_or(span);
 	let map = tcx.sess.source_map();
 	map.ensure_source_file_source_present(&map.lookup_source_file(topmost.lo()));
@@ -516,7 +516,7 @@ const BYTES_DEBUG: &[&str] = &["bytes_mut_set_len"];
 /// The `rs.Sites` of the toolchain's std, which `rs.setHook` takes: where each panic
 /// [`SITES`] names is, as the native build names it, and each [`BYTES`] names, in the
 /// program's `bytes`, if it has one.
-pub fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
+pub(crate) fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
 	let tcx = t.tcx;
 	let mut props = Vec::new();
 	for &(key, file, after, needle) in SITES {
@@ -625,7 +625,7 @@ fn panics(tcx: TyCtxt<'_>, def_id: DefId, tracked: bool) -> Vec<Span> {
 /// `panic!`: the call in the MIR its crate compiled, outside what that inlined, whose file is
 /// named as the native build names it under any `--remap-path-prefix`. `None` without that
 /// MIR, or with other than one such call.
-pub fn own_panic(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Expr> {
+pub(crate) fn own_panic(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Expr> {
 	match panics(tcx, def_id, false)[..] {
 		[span] => Some(location(tcx, span)),
 		_ => None,
@@ -633,7 +633,7 @@ pub fn own_panic(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Expr> {
 }
 
 /// Where std's `def_id` panics, if [`CALLEES`] names it.
-pub fn callee_site(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Expr> {
+pub(crate) fn callee_site(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Expr> {
 	let path = library::std_path(tcx, def_id).join("::");
 	let &(_, file, after, needle) = CALLEES.iter().find(|(callee, ..)| *callee == path)?;
 	Some(found(tcx, file, &[after], needle))
@@ -642,7 +642,7 @@ pub fn callee_site(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Expr> {
 /// Where std's `Sum` of `Duration`s panics, or of `&Duration`s if `by_ref`, or else an
 /// integer's `Sum` or `Product`: the call of the macro its impl is, as a macro's panic is
 /// where it is called. `Iterator::sum` reaches each, so no one place in [`CALLEES`] holds.
-pub fn sum_site(tcx: TyCtxt<'_>, duration: Option<bool>) -> Expr {
+pub(crate) fn sum_site(tcx: TyCtxt<'_>, duration: Option<bool>) -> Expr {
 	match duration {
 		Some(false) => found(tcx, "core/src/time.rs", &["impl Sum for Duration"], "sum_durations!("),
 		Some(true) => found(
@@ -663,7 +663,7 @@ fn site(tcx: TyCtxt<'_>, key: &str) -> Expr {
 
 /// Where a `RefCell`'s `method`, of `PartialEq`, `PartialOrd`, or `Ord`, borrows each: its
 /// own, then the other's, either of which panics while it is mutably borrowed.
-pub fn cell_sites(tcx: TyCtxt<'_>, method: &str) -> [Expr; 2] {
+pub(crate) fn cell_sites(tcx: TyCtxt<'_>, method: &str) -> [Expr; 2] {
 	let header = format!("fn {method}(&self, other: &RefCell<T>)");
 	[
 		found(tcx, "core/src/cell.rs", &[&header], "borrow("),
@@ -730,7 +730,7 @@ fn position(text: &str, after: &[&str], needle: &str) -> Option<(usize, usize)> 
 }
 
 /// The `rs.Location` of `file`, `line`, and `col`.
-pub fn object(file: String, line: impl ToString, col: impl ToString) -> Expr {
+pub(crate) fn object(file: String, line: impl ToString, col: impl ToString) -> Expr {
 	Expr::Object(vec![
 		(Key::Name("file".into()), Expr::Str(file)),
 		(Key::Name("line".into()), Expr::lit(line.to_string())),
@@ -740,25 +740,25 @@ pub fn object(file: String, line: impl ToString, col: impl ToString) -> Expr {
 
 /// Whether a call of `instance` passes its caller's location: the crate's own, as std's
 /// read it only to say where they panic, which the runtime's functions take instead.
-pub fn tracks<'tcx>(t: &Translator<'_, 'tcx>, instance: Instance<'tcx>) -> bool {
+pub(crate) fn tracks<'tcx>(t: &Translator<'_, 'tcx>, instance: Instance<'tcx>) -> bool {
 	t.crates.translates(instance.def_id()) && instance.def.requires_caller_location(t.tcx)
 }
 
 /// Whether `def_id` is `Location::caller`, which gives the location its call passes.
-pub fn is_caller(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
+pub(crate) fn is_caller(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
 	library::inherent_std(tcx, def_id) == Some(Std::Location) && tcx.item_name(def_id).as_str() == "caller"
 }
 
 /// Whether a call of the crate's trait method `def_id` through a trait object passes its
 /// caller's location, as its declaration's `#[track_caller]` says.
-pub fn tracks_virtual(t: &Translator<'_, '_>, def_id: DefId) -> bool {
+pub(crate) fn tracks_virtual(t: &Translator<'_, '_>, def_id: DefId) -> bool {
 	t.crates.translates(def_id) && InstanceKind::Virtual(def_id, 0).requires_caller_location(t.tcx)
 }
 
 impl<'tcx> Body<'_, '_, 'tcx> {
 	/// The location a call of `instance`, which takes its caller's, passes: the one the
 	/// crate's call of it gave.
-	pub fn caller_arg(&mut self, instance: Instance<'tcx>, span: Span) -> Expr {
+	pub(crate) fn caller_arg(&mut self, instance: Instance<'tcx>, span: Span) -> Expr {
 		match self.site.take() {
 			Some((at, location)) if at == instance => location,
 			site => {
@@ -776,7 +776,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 
 	/// The function `instance` as a pointer, which passes its own location, as rustc's
 	/// shim does, or `None` if it takes none.
-	pub fn reified(&mut self, instance: Instance<'tcx>, span: Span) -> Option<Expr> {
+	pub(crate) fn reified(&mut self, instance: Instance<'tcx>, span: Span) -> Option<Expr> {
 		let tcx = self.t.tcx;
 		if !tracks(self.t, instance) {
 			return None;
@@ -807,7 +807,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 
 /// Refuse `instance`, which std's code calls, if it takes its caller's location, which is
 /// then in std's source.
-pub fn refuse_std_call<'tcx>(t: &mut Translator<'_, 'tcx>, instance: Instance<'tcx>) {
+pub(crate) fn refuse_std_call<'tcx>(t: &mut Translator<'_, 'tcx>, instance: Instance<'tcx>) {
 	if tracks(t, instance) {
 		let path = t.tcx.def_path_str(instance.def_id());
 		let msg = format!("`{path}`, a `#[track_caller]` function std's code calls, whose caller is in std's source");
@@ -816,7 +816,7 @@ pub fn refuse_std_call<'tcx>(t: &mut Translator<'_, 'tcx>, instance: Instance<'t
 }
 
 /// The type of the parameter a `#[track_caller]` function takes its caller's location by.
-pub fn param_ty() -> Type {
+pub(crate) fn param_ty() -> Type {
 	Type::Rs("Location", Vec::new())
 }
 
@@ -902,14 +902,14 @@ fn split(text: &str) -> Vec<&str> {
 
 /// Pass `at` to each call in `stmts` of a runtime function that takes where it panics,
 /// which was given nowhere yet.
-pub fn locate(stmts: &mut [Stmt], at: &Expr) {
+pub(crate) fn locate(stmts: &mut [Stmt], at: &Expr) {
 	for stmt in stmts {
 		stmt_exprs(stmt, &mut |e| locate_expr(e, at));
 	}
 }
 
 /// Pass `at` as [`locate`] does, within `e`.
-pub fn locate_expr(e: &mut Expr, at: &Expr) {
+pub(crate) fn locate_expr(e: &mut Expr, at: &Expr) {
 	walk(e, &mut |e| {
 		if let Some((args, index)) = unlocated(e) {
 			args.resize_with(index, Expr::undefined);
@@ -919,7 +919,7 @@ pub fn locate_expr(e: &mut Expr, at: &Expr) {
 }
 
 /// Whether `stmts` call a runtime function that takes where it panics without saying where.
-pub fn unlocated_in(stmts: &mut [Stmt]) -> bool {
+pub(crate) fn unlocated_in(stmts: &mut [Stmt]) -> bool {
 	let mut found = false;
 	for stmt in stmts {
 		stmt_exprs(stmt, &mut |e| walk(e, &mut |e| found |= unlocated(e).is_some()));

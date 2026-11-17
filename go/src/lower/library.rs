@@ -13,7 +13,7 @@ use super::body::{Fx, int_bits};
 
 /// A library type Go holds as a type of its own.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Mapped {
+pub(crate) enum Mapped {
 	/// `Vec<T>`: a Go slice, which the runtime grows as std's does, by doubling.
 	Vec,
 	/// `slice::Iter<T>`: the slice left.
@@ -35,7 +35,7 @@ pub enum Mapped {
 impl Mapped {
 	/// Whether its Go type is laid out as the translation lays out any ADT, so its fields
 	/// and variants are reached as theirs are.
-	pub fn is_runtime_layout(self) -> bool {
+	pub(crate) fn is_runtime_layout(self) -> bool {
 		matches!(
 			self,
 			Mapped::Option | Mapped::Result | Mapped::Runtime("Ordering" | "fmtError")
@@ -44,7 +44,7 @@ impl Mapped {
 }
 
 /// An item's path, with its crate: `alloc::vec::Vec`.
-pub fn path(tcx: TyCtxt<'_>, did: DefId) -> String {
+pub(crate) fn path(tcx: TyCtxt<'_>, did: DefId) -> String {
 	format!(
 		"{}{}",
 		tcx.crate_name(did.krate),
@@ -53,7 +53,7 @@ pub fn path(tcx: TyCtxt<'_>, did: DefId) -> String {
 }
 
 /// The Go type a library ADT stands for, if it is one.
-pub fn mapped(tcx: TyCtxt<'_>, did: DefId) -> Option<Mapped> {
+pub(crate) fn mapped(tcx: TyCtxt<'_>, did: DefId) -> Option<Mapped> {
 	if did.is_local() {
 		return None;
 	}
@@ -81,13 +81,13 @@ pub fn mapped(tcx: TyCtxt<'_>, did: DefId) -> Option<Mapped> {
 }
 
 /// Whether `did` is `Display` or `Debug`, whose trait objects the runtime's `fmtDyn` is.
-pub fn fmt_trait(tcx: TyCtxt<'_>, did: DefId) -> bool {
+pub(crate) fn fmt_trait(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	matches!(path(tcx, did).as_str(), "core::fmt::Display" | "core::fmt::Debug")
 }
 
 /// Why dropping a value of `ty` is refused, if it runs code: a `Drop` impl translation does
 /// not run. Freeing memory is Go's collector's.
-pub fn drop_refused<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> Option<String> {
+pub(crate) fn drop_refused<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>) -> Option<String> {
 	refused_in(tcx, env, ty, &mut Vec::new())
 }
 
@@ -129,7 +129,7 @@ fn refused_in<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>, seen:
 /// What a bound call is in Go: an expression assigned to the call's destination, or the
 /// parts of a destination Go holds split, as an expression of as many values, or a
 /// statement.
-pub enum Bound {
+pub(crate) enum Bound {
 	Expr(String),
 	Parts(String),
 	Stmt(String),
@@ -176,7 +176,7 @@ fn head<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> String {
 const INTS: &[&str] = &["u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32", "i64", "isize"];
 
 /// The Go for a call of `instance` that a binding stands in for, if one does.
-pub fn call<'tcx>(
+pub(crate) fn call<'tcx>(
 	fx: &mut Fx<'_, 'tcx>,
 	instance: Instance<'tcx>,
 	args: &[&Operand<'tcx>],
@@ -197,7 +197,7 @@ pub fn call<'tcx>(
 }
 
 /// [`call`] of arguments already in Go, of types `tys`.
-pub fn call_with<'tcx>(
+pub(crate) fn call_with<'tcx>(
 	fx: &mut Fx<'_, 'tcx>,
 	instance: Instance<'tcx>,
 	a: Vec<String>,
@@ -485,7 +485,13 @@ fn copy_check<'tcx>(fx: &mut Fx<'_, 'tcx>, elem: Ty<'tcx>, span: Span) {
 
 /// A Go `func(*Formatter) fmtResult` that formats `value`, a `&ty` in Go, by `ty`'s impl
 /// of the formatting trait `name`, through its binding if it has one.
-pub fn fmt_call<'tcx>(fx: &mut Fx<'_, 'tcx>, name: &str, ty: Ty<'tcx>, value: &str, span: Span) -> Option<String> {
+pub(crate) fn fmt_call<'tcx>(
+	fx: &mut Fx<'_, 'tcx>,
+	name: &str,
+	ty: Ty<'tcx>,
+	value: &str,
+	span: Span,
+) -> Option<String> {
 	let tcx = fx.tcx;
 	let trait_id = tcx
 		.all_traits_including_private()

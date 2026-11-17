@@ -16,24 +16,24 @@ use crate::ir::{Api, Callback, Constant, Enum, Field, Function, Home, Object, On
 
 /// A target's API, as a check writes it for the export of several targets.
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct Target {
+pub(crate) struct Target {
 	/// Names are present only in a complete export, after all targets merge.
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	pub names: Option<crate::lock::Names>,
+	pub(crate) names: Option<crate::lock::Names>,
 	/// The facade's package, which every target's must share.
-	pub package: String,
+	pub(crate) package: String,
 	/// The features the facade compiled with, which every target's must share, since the
 	/// crate enables one set.
-	pub features: Vec<String>,
+	pub(crate) features: Vec<String>,
 	/// The config's `exclude`, which every target's must share.
-	pub exclude: Vec<String>,
-	pub api: Api,
+	pub(crate) exclude: Vec<String>,
+	pub(crate) api: Api,
 }
 
 impl Target {
 	/// Write it to `path`, with each span as its file and offsets in `source_map`, the
 	/// file relative to the first of `roots` it is in.
-	pub fn write(&self, path: &Path, source_map: &SourceMap, roots: &[PathBuf]) -> Result<(), String> {
+	pub(crate) fn write(&self, path: &Path, source_map: &SourceMap, roots: &[PathBuf]) -> Result<(), String> {
 		let json = span::with(source_map, roots, || serde_json::to_string(self))
 			.map_err(|err| format!("writing {}: {err}", path.display()))?;
 		crate::driver::write(path, &json)
@@ -41,7 +41,7 @@ impl Target {
 
 	/// Read what [`Self::write`] wrote, with each span loaded into `source_map` from
 	/// `roots`, or none where its file is not on this host as it was.
-	pub fn read(path: &Path, source_map: &SourceMap, roots: &[PathBuf]) -> Result<Self, String> {
+	pub(crate) fn read(path: &Path, source_map: &SourceMap, roots: &[PathBuf]) -> Result<Self, String> {
 		let json = std::fs::read_to_string(path).map_err(|err| format!("reading {}: {err}", path.display()))?;
 		span::with(source_map, roots, || serde_json::from_str(&json))
 			.map_err(|err| format!("reading {}: {err}", path.display()))
@@ -50,15 +50,15 @@ impl Target {
 
 /// An item two targets compile differently, which one binding cannot serve: what it is,
 /// then each target with its span there.
-pub struct Differs {
-	pub what: String,
-	pub first: (String, Span),
-	pub second: (String, Span),
+pub(crate) struct Differs {
+	pub(crate) what: String,
+	pub(crate) first: (String, Span),
+	pub(crate) second: (String, Span),
 }
 
 /// The APIs of several targets, one each, merged into one serving them all, with every
 /// item that differs between two of them.
-pub fn merge(mut apis: Vec<Api>) -> (Api, Vec<Differs>) {
+pub(crate) fn merge(mut apis: Vec<Api>) -> (Api, Vec<Differs>) {
 	apis.sort_by(|a, b| a.targets.cmp(&b.targets));
 	let targets: Vec<String> = apis.iter().flat_map(|api| api.targets.clone()).collect();
 	let mut apis = apis.into_iter().enumerate().map(|(i, mut api)| {
@@ -111,11 +111,11 @@ struct Merged {
 
 /// Where each type of the API being added lands among the merged API's.
 #[derive(Default)]
-pub struct Maps {
-	pub records: Vec<usize>,
-	pub enums: Vec<usize>,
-	pub objects: Vec<usize>,
-	pub callbacks: Vec<usize>,
+pub(crate) struct Maps {
+	pub(crate) records: Vec<usize>,
+	pub(crate) enums: Vec<usize>,
+	pub(crate) objects: Vec<usize>,
+	pub(crate) callbacks: Vec<usize>,
 }
 
 impl Maps {
@@ -132,7 +132,7 @@ impl Maps {
 			.collect()
 	}
 
-	pub fn ty(&self, ty: &mut Type) {
+	pub(crate) fn ty(&self, ty: &mut Type) {
 		match ty {
 			Type::Record(i) => *i = self.records[*i],
 			Type::Enum(i) => *i = self.enums[*i],
@@ -151,15 +151,15 @@ impl Maps {
 		}
 	}
 
-	pub fn types(&self, types: &mut [Type]) {
+	pub(crate) fn types(&self, types: &mut [Type]) {
 		types.iter_mut().for_each(|ty| self.ty(ty));
 	}
 
-	pub fn fields(&self, fields: &mut [Field]) {
+	pub(crate) fn fields(&self, fields: &mut [Field]) {
 		fields.iter_mut().for_each(|f| self.ty(&mut f.ty));
 	}
 
-	pub fn function(&self, f: &mut Function) {
+	pub(crate) fn function(&self, f: &mut Function) {
 		f.params.iter_mut().for_each(|p| self.ty(&mut p.ty));
 		self.ty(&mut f.ok);
 		if let Some(err) = &mut f.err {
@@ -174,7 +174,7 @@ impl Maps {
 		}
 	}
 
-	pub fn functions(&self, functions: &mut [Function]) {
+	pub(crate) fn functions(&self, functions: &mut [Function]) {
 		functions.iter_mut().for_each(|f| self.function(f));
 	}
 }
@@ -187,7 +187,7 @@ fn bare<T: Clone>(item: &T, clear: impl Fn(&mut T)) -> T {
 	item
 }
 
-pub fn bare_function(f: &Function) -> Function {
+pub(crate) fn bare_function(f: &Function) -> Function {
 	bare(f, |f| {
 		f.span = DUMMY_SP;
 		f.docs.clear();
@@ -195,7 +195,7 @@ pub fn bare_function(f: &Function) -> Function {
 	})
 }
 
-pub fn bare_record(r: &Record) -> Record {
+pub(crate) fn bare_record(r: &Record) -> Record {
 	bare(r, |r| {
 		r.span = DUMMY_SP;
 		r.docs.clear();
@@ -212,7 +212,7 @@ pub fn bare_record(r: &Record) -> Record {
 	})
 }
 
-pub fn bare_enum(e: &Enum) -> Enum {
+pub(crate) fn bare_enum(e: &Enum) -> Enum {
 	bare(e, |e| {
 		e.span = DUMMY_SP;
 		e.docs.clear();
@@ -222,7 +222,7 @@ pub fn bare_enum(e: &Enum) -> Enum {
 	})
 }
 
-pub fn bare_variant(v: &Variant) -> Variant {
+pub(crate) fn bare_variant(v: &Variant) -> Variant {
 	bare(v, |v| {
 		v.on = On::ALL;
 		// Compared apart, as only a plain enum's matter.
@@ -231,7 +231,7 @@ pub fn bare_variant(v: &Variant) -> Variant {
 	})
 }
 
-pub fn bare_object(o: &Object) -> Object {
+pub(crate) fn bare_object(o: &Object) -> Object {
 	bare(o, |o| {
 		o.span = DUMMY_SP;
 		o.docs.clear();
@@ -240,7 +240,7 @@ pub fn bare_object(o: &Object) -> Object {
 	})
 }
 
-pub fn bare_callback(c: &Callback) -> Callback {
+pub(crate) fn bare_callback(c: &Callback) -> Callback {
 	bare(c, |c| {
 		c.span = DUMMY_SP;
 		c.docs.clear();
@@ -249,7 +249,7 @@ pub fn bare_callback(c: &Callback) -> Callback {
 	})
 }
 
-pub fn bare_constant(c: &Constant) -> Constant {
+pub(crate) fn bare_constant(c: &Constant) -> Constant {
 	bare(c, |c| {
 		c.span = DUMMY_SP;
 		c.docs.clear();
@@ -648,7 +648,7 @@ fn cycle(crates: &[String], before: &[std::collections::BTreeMap<usize, (On, Spa
 }
 
 /// Spans as their file and byte offsets, which a later session loads that file for.
-pub mod span {
+pub(crate) mod span {
 	use std::cell::Cell;
 	use std::path::{Path, PathBuf};
 
@@ -662,7 +662,7 @@ pub mod span {
 
 	/// Run `f` with spans read and written through `source_map`, their files relative to
 	/// `roots`.
-	pub fn with<R>(source_map: &SourceMap, roots: &[PathBuf], f: impl FnOnce() -> R) -> R {
+	pub(crate) fn with<R>(source_map: &SourceMap, roots: &[PathBuf], f: impl FnOnce() -> R) -> R {
 		let previous = CONTEXT.replace(Some((source_map, roots)));
 		let result = f();
 		CONTEXT.set(previous);
@@ -698,7 +698,7 @@ pub mod span {
 		})
 	}
 
-	pub fn serialize<S: Serializer>(span: &Span, s: S) -> Result<S::Ok, S::Error> {
+	pub(crate) fn serialize<S: Serializer>(span: &Span, s: S) -> Result<S::Ok, S::Error> {
 		let located = context(|map, roots| {
 			// A staged span whose file was not on this host as it was: no file names it.
 			if span.is_dummy() {
@@ -725,7 +725,7 @@ pub mod span {
 		located.serialize(s)
 	}
 
-	pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Span, D::Error> {
+	pub(crate) fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Span, D::Error> {
 		let Some(located) = Option::<Located>::deserialize(d)? else {
 			return Ok(DUMMY_SP);
 		};
@@ -752,7 +752,7 @@ pub mod span {
 }
 
 /// The path a target's API is staged at in `dir`.
-pub fn staged(dir: &Path, target: &str) -> PathBuf {
+pub(crate) fn staged(dir: &Path, target: &str) -> PathBuf {
 	dir.join(format!("{target}.json"))
 }
 

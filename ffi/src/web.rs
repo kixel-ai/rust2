@@ -34,18 +34,18 @@ use crate::kotlin::strip_refs;
 const RUNTIME: &str = include_str!("../runtime/rt.ts");
 
 /// The Rust runtime the crate's `web` feature builds.
-pub const GLUE_RUNTIME: &str = include_str!("../runtime/web.rs");
+pub(crate) const GLUE_RUNTIME: &str = include_str!("../runtime/web.rs");
 
 /// The target the binding serves: wasm32, against the std that imports its platform, which
 /// the binding implements with web APIs.
-pub const TARGET: &str = "wasm32-wasip1";
+pub(crate) const TARGET: &str = "wasm32-wasip1";
 
 /// What the generator writes: each TypeScript file by its name under `web/`, and the Rust
 /// glue the crate's `web` feature builds.
-pub struct Output {
-	pub names: BTreeMap<String, String>,
-	pub files: Vec<(String, String)>,
-	pub glue: String,
+pub(crate) struct Output {
+	pub(crate) names: BTreeMap<String, String>,
+	pub(crate) files: Vec<(String, String)>,
+	pub(crate) glue: String,
 }
 
 /// Names a type may not take: a file beside it, case aside, as a case-insensitive file
@@ -162,7 +162,7 @@ fn round(n: u32, align: u32) -> u32 {
 
 /// The TypeScript for `abi`'s items on [`TARGET`], whose header's contract is `contract`,
 /// or none if the API does not serve it.
-pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Option<Output>, String> {
+pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Option<Output>, String> {
 	let api = abi.api;
 	let Some(web) = api.targets.iter().position(|t| t == TARGET) else {
 		return Ok(None);

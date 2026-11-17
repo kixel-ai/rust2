@@ -17,15 +17,15 @@ use crate::ts::{Expr, Key, Type};
 
 /// An integer type, by width and signedness. `usize` and `isize` are 32 bits.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Int {
-	pub bits: u32,
-	pub signed: bool,
+pub(crate) struct Int {
+	pub(crate) bits: u32,
+	pub(crate) signed: bool,
 	/// `usize` or `isize`, which are named so in the runtime.
-	pub pointer: bool,
+	pub(crate) pointer: bool,
 }
 
 impl Int {
-	pub fn of(ty: Ty<'_>) -> Option<Self> {
+	pub(crate) fn of(ty: Ty<'_>) -> Option<Self> {
 		let (bits, signed, pointer) = match ty.kind() {
 			ty::Int(int) => match int {
 				ty::IntTy::Isize => (32, true, true),
@@ -41,16 +41,16 @@ impl Int {
 	}
 
 	/// Whether values past 2^53 are runtime objects rather than numbers.
-	pub fn big(self) -> bool {
+	pub(crate) fn big(self) -> bool {
 		self.bits > 32
 	}
 
 	/// The TypeScript type of a value, named as the runtime's: `rs.u32`.
-	pub fn ty(self) -> Type {
+	pub(crate) fn ty(self) -> Type {
 		Type::Rs(self.rs(), Vec::new())
 	}
 
-	pub fn min(self) -> i128 {
+	pub(crate) fn min(self) -> i128 {
 		match (self.signed, self.bits) {
 			(true, 128) => i128::MIN,
 			(true, bits) => -(1i128 << (bits - 1)),
@@ -58,7 +58,7 @@ impl Int {
 		}
 	}
 
-	pub fn max(self) -> u128 {
+	pub(crate) fn max(self) -> u128 {
 		match (self.signed, self.bits) {
 			(true, bits) => (1u128 << (bits - 1)) - 1,
 			(false, 128) => u128::MAX,
@@ -67,7 +67,7 @@ impl Int {
 	}
 
 	/// `value as Self`: its low bits, read with this type's sign.
-	pub fn fold(self, value: i128) -> i128 {
+	pub(crate) fn fold(self, value: i128) -> i128 {
 		let size = rustc_abi::Size::from_bits(self.bits);
 		let bits = size.truncate(value as u128);
 		match self.signed {
@@ -77,7 +77,7 @@ impl Int {
 	}
 
 	/// The runtime's name for the type: `rs.u32`.
-	pub fn rs(self) -> &'static str {
+	pub(crate) fn rs(self) -> &'static str {
 		match (self.signed, self.bits, self.pointer) {
 			(false, _, true) => "usize",
 			(true, _, true) => "isize",
@@ -95,7 +95,7 @@ impl Int {
 	}
 
 	/// `value` as a literal of this type. A `u128` past `i128::MAX` is its bits.
-	pub fn lit(self, value: i128) -> Expr {
+	pub(crate) fn lit(self, value: i128) -> Expr {
 		let text = match self.signed {
 			true => value.to_string(),
 			false => (value as u128).to_string(),
@@ -131,17 +131,17 @@ impl Int {
 	}
 
 	/// A call of the type's runtime function `name`: `rs.u8Add` for `add`.
-	pub fn method(self, name: &str, args: Vec<Expr>) -> Expr {
+	pub(crate) fn method(self, name: &str, args: Vec<Expr>) -> Expr {
 		self.func(name).call(args)
 	}
 
 	/// The type's runtime function `name`, uncalled.
-	pub fn func(self, name: &str) -> Expr {
+	pub(crate) fn func(self, name: &str) -> Expr {
 		Expr::rs_of(self.rs(), name)
 	}
 
 	/// `value`, an exact integer of at most 32 bits, wrapped into this narrow type's range.
-	pub fn wrap(self, value: Expr) -> Expr {
+	pub(crate) fn wrap(self, value: Expr) -> Expr {
 		debug_assert!(!self.big());
 		match (self.signed, self.bits) {
 			(false, 32) => value.binary(">>>", Expr::lit("0")),
@@ -155,7 +155,7 @@ impl Int {
 	}
 
 	/// A comparison, `===` or `<` for instance, of two values of this type.
-	pub fn compare(self, js: &'static str, l: Expr, r: Expr) -> Expr {
+	pub(crate) fn compare(self, js: &'static str, l: Expr, r: Expr) -> Expr {
 		// A wide value has one form, so it equals a number literal only as that number.
 		let literal = |e: &Expr| matches!(e, Expr::Lit(_));
 		if !self.big() || (matches!(js, "===" | "!==") && (literal(&l) || literal(&r))) {
@@ -174,13 +174,13 @@ impl Int {
 }
 
 /// An operand, and its value when it is a constant.
-pub struct Operand {
-	pub expr: Expr,
-	pub value: Option<i128>,
+pub(crate) struct Operand {
+	pub(crate) expr: Expr,
+	pub(crate) value: Option<i128>,
 }
 
 /// Fold a constant operation on `int`s as Rust would, or `None` if it overflows.
-pub fn fold(op: BinOp, a: i128, b: i128, int: Int) -> Option<i128> {
+pub(crate) fn fold(op: BinOp, a: i128, b: i128, int: Int) -> Option<i128> {
 	// 128-bit values don't all fit the fold's `i128`.
 	if int.bits == 128 {
 		return None;
@@ -208,7 +208,7 @@ pub fn fold(op: BinOp, a: i128, b: i128, int: Int) -> Option<i128> {
 	(int.min()..=int.max() as i128).contains(&value).then_some(value)
 }
 
-pub fn binary<'tcx>(
+pub(crate) fn binary<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	op: BinOp,
 	l: Operand,
@@ -347,14 +347,14 @@ pub fn binary<'tcx>(
 
 /// How a `Wrapping`'s or a `Saturating`'s operators overflow.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Overflow {
+pub(crate) enum Overflow {
 	Wrap,
 	Saturate,
 }
 
 impl Overflow {
 	/// The prefix of the integer methods that overflow so: `wrapping` for `wrapping_pow`.
-	pub fn prefix(self) -> &'static str {
+	pub(crate) fn prefix(self) -> &'static str {
 		match self {
 			Self::Wrap => "wrapping",
 			Self::Saturate => "saturating",
@@ -362,7 +362,7 @@ impl Overflow {
 	}
 
 	/// The runtime's name for the integer method that overflows so: `wrappingAdd` for `Add`.
-	pub fn method(self, op: &str) -> String {
+	pub(crate) fn method(self, op: &str) -> String {
 		match self {
 			Self::Wrap => format!("wrapping{op}"),
 			Self::Saturate => format!("saturating{op}"),
@@ -374,7 +374,7 @@ impl Overflow {
 /// `saturating_*` computes it. Arithmetic wraps or saturates, and a `Wrapping`'s shift masks
 /// its amount to the width. A zero divisor panics, as does a `Saturating`'s `MIN % -1`, whose
 /// `Rem` is the integer's.
-pub fn overflowing<'tcx>(
+pub(crate) fn overflowing<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	overflow: Overflow,
 	op: BinOp,
@@ -417,7 +417,7 @@ pub fn overflowing<'tcx>(
 	int.method(&overflow.method(name), vec![l.expr, r.expr])
 }
 
-pub fn unary<'tcx>(b: &mut Body<'_, '_, 'tcx>, op: UnOp, value: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+pub(crate) fn unary<'tcx>(b: &mut Body<'_, '_, 'tcx>, op: UnOp, value: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
 	let ty = ty.peel_refs();
 	if let Some(float) = float::Float::of(ty) {
 		return float::unary(b, float, op, value, span);
@@ -444,7 +444,7 @@ pub fn unary<'tcx>(b: &mut Body<'_, '_, 'tcx>, op: UnOp, value: Expr, ty: Ty<'tc
 }
 
 /// `value as to`.
-pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Operand, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
+pub(crate) fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Operand, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
 	if from.is_floating_point() || to.is_floating_point() {
 		return float::cast(b, value, from, to, span);
 	}

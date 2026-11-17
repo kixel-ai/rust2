@@ -12,7 +12,7 @@ use crate::ts::{Expr, Key};
 
 impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 	/// A constant's value tree as a JS value of type `ty`.
-	pub fn value(&mut self, ty: Ty<'tcx>, valtree: ValTree<'tcx>, span: Span) -> Expr {
+	pub(crate) fn value(&mut self, ty: Ty<'tcx>, valtree: ValTree<'tcx>, span: Span) -> Expr {
 		let tcx = self.t.tcx;
 		let leaf = |v: ValTree<'tcx>| v.try_to_leaf();
 		let children = |v: ValTree<'tcx>| -> Vec<(Ty<'tcx>, ValTree<'tcx>)> {

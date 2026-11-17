@@ -9,7 +9,7 @@ use super::library::Call;
 use crate::ts::{Expr, Key};
 
 /// A call of a `Layout` or allocator function, or its arguments back if it is none of theirs.
-pub fn call<'tcx>(
+pub(crate) fn call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	call: &Call<'tcx>,
 	owner: &str,
@@ -50,7 +50,7 @@ pub fn call<'tcx>(
 }
 
 /// A `Layout` of `size` bytes aligned to `align`.
-pub fn object(size: Expr, align: Expr) -> Expr {
+pub(crate) fn object(size: Expr, align: Expr) -> Expr {
 	Expr::Object(vec![
 		(Key::Name("size".into()), size),
 		(Key::Name("align".into()), align),
