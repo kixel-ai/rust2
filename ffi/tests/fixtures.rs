@@ -2463,8 +2463,19 @@ fn lacks() {
 	assert!(!output.status.success(), "exporting lacks succeeded");
 	// Each `module.name` a refusal names.
 	let named: std::collections::BTreeSet<String> = (errors(&output).iter())
-		.flat_map(|error| error.split('`').skip(1).step_by(2).map(str::to_string).collect::<Vec<_>>())
-		.filter(|token| token.split_once('.').is_some_and(|(m, n)| !m.is_empty() && !n.contains(['.', ' ', ':'])))
+		.flat_map(|error| {
+			error
+				.split('`')
+				.skip(1)
+				.step_by(2)
+				.map(str::to_string)
+				.collect::<Vec<_>>()
+		})
+		.filter(|token| {
+			token
+				.split_once('.')
+				.is_some_and(|(m, n)| !m.is_empty() && !n.contains(['.', ' ', ':']))
+		})
 		.collect();
 	let target = dir.join("glue");
 	run(cargo()
@@ -2499,7 +2510,10 @@ fn lacks() {
 		}
 	}
 	assert!(!lacking.is_empty(), "the module imports nothing the host lacks");
-	assert_eq!(lacking, named, "the module's imports the host lacks, and what the export refused");
+	assert_eq!(
+		lacking, named,
+		"the module's imports the host lacks, and what the export refused"
+	);
 }
 
 /// Each of rust2-ffi's errors the export printed, sorted: at its span, then each of its

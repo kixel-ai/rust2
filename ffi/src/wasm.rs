@@ -15,7 +15,6 @@ use std::process::Command;
 
 use rustc_data_structures::fx::{FxHashMap, FxHashSet, FxIndexMap, FxIndexSet};
 use rustc_driver::{Callbacks, Compilation};
-use rustc_structures::NativeLibKind;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE};
 use rustc_interface::interface::{Compiler, Config};
@@ -24,6 +23,7 @@ use rustc_middle::mir::interpret::{AllocId, GlobalAlloc};
 use rustc_middle::mono::{CollectionMode, MonoItem};
 use rustc_middle::ty::{self, Instance, InstanceKind, TyCtxt};
 use rustc_span::{DUMMY_SP, Span};
+use rustc_structures::NativeLibKind;
 
 /// A target whose binding implements its module's imports, so the export refuses what its
 /// host lacks.
@@ -140,7 +140,9 @@ impl Walk {
 		}
 		let target = args.windows(2).find(|w| w[0] == "--target").map(|w| w[1].as_str());
 		let Some(host) = target.and_then(host) else {
-			return Err(format!("{package} is checked for {target:?}, whose host the export does not know"));
+			return Err(format!(
+				"{package} is checked for {target:?}, whose host the export does not know"
+			));
 		};
 		let own = std::env::var(env::OWN).map_err(|_| format!("{} is unset", env::OWN))?;
 		Ok(Some(Self {
@@ -191,7 +193,10 @@ impl<'tcx> Node<'tcx> {
 
 /// Where a walk ends: a function the module imports, or one it links from C.
 enum Leaf {
-	Import { module: String, name: String },
+	Import {
+		module: String,
+		name: String,
+	},
 	C(String),
 	/// A browser API wasm-bindgen would import, which on a WASI target it compiles to a
 	/// function that panics instead.
@@ -231,7 +236,10 @@ impl<'tcx> Graph<'tcx> {
 		let symbols = Symbols::new(tcx);
 		// wasm-bindgen names each import's stand-in after the import: `__wbg_` for a browser
 		// API, `__wbindgen_` for its own.
-		let bindgen = tcx.crates(()).iter().any(|&krate| tcx.crate_name(krate).as_str() == "wasm_bindgen");
+		let bindgen = tcx
+			.crates(())
+			.iter()
+			.any(|&krate| tcx.crate_name(krate).as_str() == "wasm_bindgen");
 		let stub = |def_id: DefId| {
 			let name = tcx.item_name(def_id);
 			(bindgen && (name.as_str().starts_with("__wbg_") || name.as_str().starts_with("__wbindgen_")))
@@ -346,7 +354,8 @@ impl<'tcx> Graph<'tcx> {
 				self.add(Node::Fn(instance), Some((from, DUMMY_SP)));
 			}
 			GlobalAlloc::VTable(ty, dyn_ty) => {
-				let principal = (dyn_ty.principal()).map(|principal| tcx.instantiate_bound_regions_with_erased(principal));
+				let principal =
+					(dyn_ty.principal()).map(|principal| tcx.instantiate_bound_regions_with_erased(principal));
 				self.alloc(tcx, tcx.vtable_allocation((ty, principal)), from, seen);
 			}
 			GlobalAlloc::TypeId { .. } => {}
@@ -401,7 +410,10 @@ impl Symbols {
 		let def_id = node.def_id();
 		if let Some(module) = tcx.wasm_import_module_map(def_id.krate).get(&def_id) {
 			// Imported by its link name, under a symbol rustc mangles apart from other modules'.
-			let name = tcx.codegen_fn_attrs(def_id).symbol_name.unwrap_or_else(|| tcx.item_name(def_id));
+			let name = tcx
+				.codegen_fn_attrs(def_id)
+				.symbol_name
+				.unwrap_or_else(|| tcx.item_name(def_id));
 			return Resolved::Leaf(Leaf::Import {
 				module: module.clone(),
 				name: name.to_string(),
@@ -523,7 +535,9 @@ impl Linker {
 		for krate in std::iter::once(LOCAL_CRATE).chain(tcx.crates(()).iter().copied()) {
 			// A library of C's: wasm32 links no other kind, and a `wasm_import_module` is none.
 			let libs_of = tcx.native_libraries(krate).iter();
-			for lib in libs_of.filter(|lib| matches!(lib.kind, NativeLibKind::Static { .. } | NativeLibKind::Unspecified)) {
+			for lib in
+				libs_of.filter(|lib| matches!(lib.kind, NativeLibKind::Static { .. } | NativeLibKind::Unspecified))
+			{
 				let name = lib.name;
 				let file = format!("lib{name}.a");
 				let Some(found) = search.iter().map(|dir| dir.join(&file)).find(|path| path.is_file()) else {
@@ -544,7 +558,7 @@ impl Linker {
 
 	/// What the module imports for the C function or static `name`, each by module and
 	/// name, or none if no library defines it.
-	fn imports(&self, name: &str) -> Result<Option<Vec<(String, String)>>, String> {
+	fn imports(&self, name: &str) -> Result<Option<Vec<Import>>, String> {
 		let out = self.dir.join(format!("rust2-ffi-{}-{name}.wasm", std::process::id()));
 		// What the C library needs of the module's own code, which compiler-builtins and std
 		// define, it may leave undefined: the module's link finds it.
@@ -568,13 +582,18 @@ impl Linker {
 		if !exports.iter().any(|export| export == name) {
 			return Ok(None);
 		}
-		Ok(Some(imports.into_iter().filter(|(module, _)| module != "env").collect()))
+		Ok(Some(
+			imports.into_iter().filter(|(module, _)| module != "env").collect(),
+		))
 	}
 }
 
+/// A function a module imports, by module and name.
+type Import = (String, String);
+
 /// A wasm module's function imports, by module and name, and its exports: a function's, or
 /// a static's global.
-fn linked(wasm: &[u8]) -> wasmparser::Result<(Vec<(String, String)>, Vec<String>)> {
+fn linked(wasm: &[u8]) -> wasmparser::Result<(Vec<Import>, Vec<String>)> {
 	let (mut imports, mut exports) = (Vec::new(), Vec::new());
 	for payload in wasmparser::Parser::new(0).parse_all(wasm) {
 		match payload? {
@@ -647,7 +666,13 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 				continue;
 			}
 			// A shim's own spans are the compiler's: a type's drop is refused at the type.
-			let shim = !matches!(graph.nodes[from], Node::Fn(Instance { def: InstanceKind::Item(_), .. }));
+			let shim = !matches!(
+				graph.nodes[from],
+				Node::Fn(Instance {
+					def: InstanceKind::Item(_),
+					..
+				})
+			);
 			let span = match glue(from) {
 				false if span.is_dummy() || shim => item_span(tcx, graph.nodes[from]),
 				false => span,
@@ -679,7 +704,11 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 				continue;
 			}
 			reached.extend(lacks.by_leaf.get(&at).into_iter().flatten().cloned());
-			stack.extend((graph.edges[at].iter()).map(|&(next, _)| next).filter(|&next| tainted[next]));
+			stack.extend(
+				(graph.edges[at].iter())
+					.map(|&(next, _)| next)
+					.filter(|&next| tainted[next]),
+			);
 		}
 		reached.sort();
 		reached.dedup();
@@ -750,10 +779,10 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 			err = err.with_note(through(&path));
 		}
 		err.with_note(format!(
-				"the module exports it through `{}`",
-				tcx.item_name(graph.nodes[export].def_id())
-			))
-			.emit();
+			"the module exports it through `{}`",
+			tcx.item_name(graph.nodes[export].def_id())
+		))
+		.emit();
 	}
 }
 

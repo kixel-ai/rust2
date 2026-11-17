@@ -45,7 +45,9 @@ pub const TARGET: &str = "wasm32-wasip1";
 pub fn wasi() -> &'static [&'static str] {
 	static WASI: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
 	WASI.get_or_init(|| {
-		let start = RUNTIME.find("\nconst wasi = {\n").expect("rt.ts declares its WASI functions");
+		let start = RUNTIME
+			.find("\nconst wasi = {\n")
+			.expect("rt.ts declares its WASI functions");
 		let body = &RUNTIME[start..];
 		let body = &body[..body.find("\n};\n").expect("rt.ts closes its WASI functions")];
 		// A method at the object's own level: one tab, its name, then its parameters.

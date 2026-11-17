@@ -10,13 +10,13 @@ publish = false
 [lib]
 name = "lacks"
 
+[features]
+# A call of a C function no library defines, which fails the module's link, so a build
+# without it can compare the module's imports with what the export refused.
+undefined = []
+
 [dependencies]
 web-sys = { version = "0.3.107", features = ["console"] }
 
 [lints]
 workspace = true
-
-[features]
-# A call of a C function no library defines, which fails the module's link, so a build
-# without it can compare the module's imports with what the export refused.
-undefined = []
