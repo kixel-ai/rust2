@@ -1329,12 +1329,15 @@ target there.
   no change here: every crate builds with `-Zalways-encode-mir`, std's from the dev
   shell's MIR sysroot or else `-Zbuild-std`, which doubles the export's peak memory, as
   [measured](../bench/ffi/README.md#the-exports-build-cost); a native export reads no MIR.
-  A C symbol no linked library defines, which would fail the module's link, is refused the
-  same way, as is a call into wasm-bindgen, whose imports on `wasm32-wasip1` compile to
-  stubs that panic. `thread::spawn` and a socket's `connect` and `bind` import nothing
-  there and return an error, as Rust's own build for the target does, so they are not
-  refused. `load` still refuses a module importing anything else. Measured on the api
-  fixture, stripped, with LTO at `opt-level = "s"`, that std costs 24 KB over
+  A C function or static no linked library defines, which would fail the module's link, is
+  refused the same way, as is a call into wasm-bindgen, whose imports on `wasm32-wasip1`
+  compile to stubs that panic. `thread::Builder::spawn` and a socket's `connect` and `bind`
+  import nothing there and return an error, as Rust's own build for the target does, so
+  they are not refused; `thread::spawn` panics on that error, which aborts the module. The
+  walk checks the generated crate, so unlike the export's other refusals it runs once
+  `out/` is written, and a refused export leaves that `out/` behind, failed, as a refused
+  `Cargo.lock` does. `load` still refuses a module importing anything else. Measured on
+  the api fixture, stripped, with LTO at `opt-level = "s"`, that std costs 24 KB over
   `wasm32-unknown-unknown`'s (3%), 9.5 KB gzipped, and the glue 2 KB more;
   `wasm32-unknown-unknown` has no clock, so `Instant::now` panics there.
 - **The API** is rust2-ts's shape: each type is a module of its own, `web/<Type>.ts`, which

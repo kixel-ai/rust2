@@ -210,7 +210,9 @@ impl Callbacks for Export {
 				));
 			}
 		}
-		// Refusals still let the export go on to report each clash, but write nothing.
+		// Refusals still let the export go on to report each clash, but write nothing. Those
+		// of the CLI's later steps, the lockfile's and the web target's walk, come once the
+		// export is written, which they check.
 		let target = merge::Target {
 			names: None,
 			package: self.facade.name.clone(),

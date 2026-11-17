@@ -113,6 +113,21 @@ unsafe extern "C" {
 	/// A C function calling one nothing defines.
 	#[cfg(feature = "undefined")]
 	fn needs_missing();
+	/// A C function reading a static nothing defines.
+	#[cfg(feature = "undefined")]
+	fn needs_data() -> i32;
+	/// A C function calling the function `LACKS_TABLE` holds.
+	fn needs_table();
+}
+
+/// What the C library calls through, which reads a file.
+#[cfg(target_arch = "wasm32")]
+#[unsafe(no_mangle)]
+static LACKS_TABLE: extern "C" fn() = tabled;
+
+#[cfg(target_arch = "wasm32")]
+extern "C" fn tabled() {
+	let _ = std::fs::metadata("table");
 }
 
 /// What the C library calls back, which reads a file.
@@ -134,6 +149,20 @@ pub fn called_back() {
 pub fn missed() {
 	// SAFETY: the fixture is only exported, never run.
 	unsafe { needs_missing() }
+}
+
+/// A call of C, which reads what nothing defines.
+#[cfg(all(target_arch = "wasm32", feature = "undefined"))]
+pub fn read_missing() -> i32 {
+	// SAFETY: the fixture is only exported, never run.
+	unsafe { needs_data() }
+}
+
+/// A call of C, which calls through a static the crate defines.
+#[cfg(target_arch = "wasm32")]
+pub fn tabled_call() {
+	// SAFETY: the fixture is only exported, never run.
+	unsafe { needs_table() }
 }
 
 /// What the module runs when it loads, which no export calls.

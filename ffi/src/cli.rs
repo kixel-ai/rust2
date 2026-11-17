@@ -93,11 +93,13 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let roots = std::env::join_paths(std::iter::once(workspace).chain(cargo_home))
 		.map_err(|err| format!("joining the roots of spans: {err}"))?;
 	let baseline = own.baseline.unwrap_or_default();
-	let sysroot = crate::wasm::sysroot()?;
 	// A target with a host checks std's MIR too, from the sysroot or else from source.
-	let cargo_args = |target: &str, args: Vec<String>| match crate::wasm::host(target).is_some() && sysroot.is_none() {
-		true => [args, vec![crate::wasm::STD.to_string()]].concat(),
-		false => args,
+	let cargo_args = |target: &str, args: Vec<String>| -> Result<Vec<String>, String> {
+		let build_std = crate::wasm::host(target).is_some() && crate::wasm::sysroot(target)?.is_none();
+		Ok(match build_std {
+			true => [args, vec![crate::wasm::STD.to_string()]].concat(),
+			false => args,
+		})
 	};
 	let check = |target: &str, output: (&str, &std::ffi::OsStr), merge: &std::ffi::OsStr, baseline: &Path| {
 		Check {
@@ -107,7 +109,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 			root: None,
 			// Always named, so cargo's config never picks another: the exports are found on it.
 			target: Some(target),
-			args: &cargo_args(target, args.cargo.clone()),
+			args: &cargo_args(target, args.cargo.clone())?,
 			target_dir: None,
 			dir: None,
 			env: &[
@@ -177,7 +179,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		package: &glue,
 		root: None,
 		target: Some(crate::web::TARGET),
-		args: &cargo_args(crate::web::TARGET, cargo),
+		args: &cargo_args(crate::web::TARGET, cargo)?,
 		target_dir: Some(&target_dir),
 		dir: Some(picks.dir),
 		env: &[

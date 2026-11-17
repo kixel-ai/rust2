@@ -35,8 +35,9 @@ hosts that are WASI runtimes. Planned in m3 before a consumer asks, as
   as [the web target](/ffi/README.md#typescript-web) refuses its own: this target adds its
   host's entry to `ffi/src/wasm.rs`'s `HOSTS`, the WASI imports that host implements, and
   the walk and its MIR build need nothing more. What imports nothing, it cannot refuse:
-  on `wasm32-wasip1`, `thread::spawn` and a socket's `connect` and `bind` return an error
-  without calling the host, as Rust's own build for the target does, while a socket a host
+  on `wasm32-wasip1`, `thread::Builder::spawn` and a socket's `connect` and `bind` return
+  an error without calling the host, as Rust's own build for the target does, and
+  `thread::spawn` panics on it, while a socket a host
   passes in imports `sock_accept` and `sock_shutdown`, refused where the host lacks them.
 
 Public API: the name of the WASI target and what it writes, if it lands.

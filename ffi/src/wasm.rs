@@ -68,7 +68,7 @@ pub const STD: &str = "-Zbuild-std=core,alloc,std,panic_abort";
 
 /// A sysroot of std checked with its MIR for each target with a host, which flake.nix
 /// builds once per toolchain beside rust2-ts's, if set: absolute.
-pub fn sysroot() -> Result<Option<String>, String> {
+fn sysroot_dir() -> Result<Option<String>, String> {
 	let dir = match std::env::var(SYSROOT) {
 		Ok(dir) if !dir.is_empty() => dir,
 		Err(std::env::VarError::NotUnicode(_)) => return Err(format!("{SYSROOT} is not UTF-8")),
@@ -79,15 +79,22 @@ pub fn sysroot() -> Result<Option<String>, String> {
 		.into_os_string()
 		.into_string()
 		.expect("a UTF-8 path resolves to a UTF-8 path");
-	for host in HOSTS {
-		let lib = Path::new(&dir).join("lib/rustlib").join(host.target).join("lib");
-		if !lib.is_dir() {
-			return Err(format!(
-				"{SYSROOT} is {dir}, which holds no std for {} in {}",
-				host.target,
-				lib.display()
-			));
-		}
+	Ok(Some(dir))
+}
+
+/// The [`sysroot_dir`] a crate for `target`, which has a host, compiles with, if set, or
+/// an error if it holds no std for `target`. Only a target with a host reads it, so a
+/// native export runs under whatever sysroot is set.
+pub fn sysroot(target: &str) -> Result<Option<String>, String> {
+	let Some(dir) = sysroot_dir()? else {
+		return Ok(None);
+	};
+	let lib = Path::new(&dir).join("lib/rustlib").join(target).join("lib");
+	if !lib.is_dir() {
+		return Err(format!(
+			"{SYSROOT} is {dir}, which holds no std for {target} in {}",
+			lib.display()
+		));
 	}
 	Ok(Some(dir))
 }
@@ -100,14 +107,15 @@ const SYSROOT: &str = "RUST2_TS_SYSROOT";
 /// unit's fingerprint, names the flags and the sysroot, so a target directory keeps
 /// nothing compiled without them.
 pub fn flags(args: &[String], added: &mut Vec<String>) -> Result<(), String> {
-	let sysroot = sysroot()?;
 	if args[1..] == ["-vV"] {
+		let sysroot = sysroot_dir()?;
 		println!("rust2-ffi-mir: {} {}", MIR.join(" "), sysroot.as_deref().unwrap_or(STD));
 	}
 	// The target's crates only: build scripts and proc macros run on the host, with its std.
-	if args.windows(2).any(|w| w[0] == "--target" && host(&w[1]).is_some()) {
+	let target = args.windows(2).find(|w| w[0] == "--target" && host(&w[1]).is_some());
+	if let Some([_, target]) = target {
 		added.extend(MIR.map(str::to_string));
-		if let Some(sysroot) = sysroot {
+		if let Some(sysroot) = sysroot(target)? {
 			added.extend(["--sysroot".to_string(), sysroot]);
 		}
 	}
@@ -620,7 +628,11 @@ impl Linker {
 				libs_of.filter(|lib| matches!(lib.kind, NativeLibKind::Static { .. } | NativeLibKind::Unspecified))
 			{
 				let name = lib.name;
-				let file = format!("lib{name}.a");
+				// `+verbatim` names the archive's file as it is.
+				let file = match lib.verbatim {
+					Some(true) => name.to_string(),
+					_ => format!("lib{name}.a"),
+				};
 				let Some(found) = search.iter().map(|dir| dir.join(&file)).find(|path| path.is_file()) else {
 					return Err(format!(
 						"`{}` links the C library `{name}`, which is in no directory the check searches",
@@ -642,9 +654,17 @@ impl Linker {
 	fn imports(&self, name: &str) -> Result<Option<Linked>, String> {
 		let out = self.dir.join(format!("rust2-ffi-{}-{name}.wasm", std::process::id()));
 		// What the C library needs of the module's own code, such as compiler-builtins' or a
-		// crate's callback, it leaves undefined, which the link imports from `env`.
+		// crate's callback, it leaves undefined: a function the link imports from `env`, and
+		// a static, which no import can stand in for, it warns of by name.
 		let output = Command::new(&self.lld)
-			.args(["-flavor", "wasm", "--no-entry", "--allow-undefined"])
+			.args([
+				"-flavor",
+				"wasm",
+				"--no-entry",
+				"--no-demangle",
+				"--color-diagnostics=never",
+			])
+			.args(["--import-undefined", "--warn-unresolved-symbols"])
 			.arg(format!("--export-if-defined={name}"))
 			.arg("-o")
 			.arg(&out)
@@ -664,10 +684,16 @@ impl Linker {
 			return Ok(None);
 		}
 		let (needs, imports): (Vec<Import>, Vec<Import>) = imports.into_iter().partition(|(module, _)| module == "env");
-		Ok(Some(Linked {
-			imports,
-			undefined: needs.into_iter().map(|(_, name)| name).collect(),
-		}))
+		let statics = (String::from_utf8_lossy(&output.stderr).lines())
+			.filter_map(|line| {
+				line.split_once(": undefined symbol: ")
+					.map(|(_, name)| name.trim().to_string())
+			})
+			.collect::<Vec<_>>();
+		let mut undefined: Vec<String> = needs.into_iter().map(|(_, name)| name).chain(statics).collect();
+		undefined.sort();
+		undefined.dedup();
+		Ok(Some(Linked { imports, undefined }))
 	}
 }
 
