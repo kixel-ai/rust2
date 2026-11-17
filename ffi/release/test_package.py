@@ -53,6 +53,14 @@ class Names(unittest.TestCase):
         self.assertEqual(package.pascal("moq_ffi"), "MoqFfi")
         self.assertEqual(package.pascal("api"), "Api")
 
+    def test_library_of_any_crate_type(self):
+        for kinds in (["lib"], ["rlib"], ["dylib"], ["cdylib", "rlib"], ["staticlib"]):
+            targets = [{"kind": kinds, "name": "dep-fixture"}, {"kind": ["example"], "name": "transcript"}]
+            self.assertEqual(package.library({"name": "dep-fixture", "targets": targets}), "dep_fixture", kinds)
+        for targets in ([{"kind": ["proc-macro"], "name": "derive"}], [{"kind": ["bin"], "name": "tool"}]):
+            with self.assertRaises(SystemExit):
+                package.library({"name": "tool", "targets": targets})
+
     def test_wheel_platforms(self):
         self.assertEqual(package.wheel_platform("aarch64-apple-darwin"), "macosx_11_0_arm64")
         self.assertEqual(package.wheel_platform("x86_64-pc-windows-msvc"), "win_amd64")

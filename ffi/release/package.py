@@ -43,6 +43,8 @@ WHEEL_TARGETS = [
     "aarch64-apple-darwin",
     "x86_64-pc-windows-msvc",
 ]
+# Cargo metadata names a library target by its crate types; a proc-macro is no library to export.
+LIBRARY_KINDS = {"lib", "rlib", "dylib", "cdylib", "staticlib"}
 COLLECTIONS = "https://github.com/apple/swift-collections"
 SEMVER = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-(alpha|beta|rc)\.(0|[1-9][0-9]*))?")
 
@@ -54,7 +56,15 @@ def run(*args, **kwargs):
 
 def output(*args, **kwargs):
     """A tool's standard output, failing the build when it fails."""
-    return run(*args, capture_output=True, text=True, **kwargs).stdout
+    return run(*args, capture_output=True, encoding="utf-8", **kwargs).stdout
+
+
+def library(package):
+    """The package's library target name, as Rust spells it, whatever crate types it declares."""
+    libs = [t for t in package["targets"] if LIBRARY_KINDS & set(t["kind"])]
+    if len(libs) != 1:
+        raise SystemExit(f"{package['name']} has no library to export")
+    return libs[0]["name"].replace("-", "_")
 
 
 def facts(manifest):
@@ -65,9 +75,6 @@ def facts(manifest):
     package = next((p for p in meta["packages"] if Path(p["manifest_path"]).resolve() == path), None)
     if package is None:
         raise SystemExit(f"{manifest} is a virtual manifest: name the package to export")
-    libs = [t for t in package["targets"] if "lib" in t["kind"] or "cdylib" in t["kind"] or "staticlib" in t["kind"]]
-    if len(libs) != 1:
-        raise SystemExit(f"{package['name']} has no library to export")
     return {
         "name": package["name"],
         "version": package["version"],
@@ -76,7 +83,7 @@ def facts(manifest):
         "license_file": package.get("license_file"),
         "repository": package.get("repository"),
         "homepage": package.get("homepage"),
-        "lib": libs[0]["name"].replace("-", "_"),
+        "lib": library(package),
         "dir": str(path.parent),
         "workspace": meta["workspace_root"],
         "examples": sorted(t["name"] for t in package["targets"] if "example" in t["kind"]),
@@ -100,7 +107,7 @@ def pascal(name):
 
 def python_floor(export):
     """The oldest CPython the export's stable-ABI extension loads in, from its glue's pyo3 feature."""
-    found = set(re.findall(r'"abi3-py3([0-9]+)"', (Path(export) / "Cargo.toml").read_text()))
+    found = set(re.findall(r'"abi3-py3([0-9]+)"', (Path(export) / "Cargo.toml").read_text(encoding="utf-8")))
     if len(found) != 1:
         raise SystemExit(f"{export}/Cargo.toml names no single abi3 floor: {sorted(found)}")
     return int(found.pop())
@@ -248,7 +255,7 @@ def collections():
     rust2 pins it by revision; a package resolved by version may depend only on a version, so
     the tag at that revision stands in, and its absence is an error.
     """
-    revision = re.search(r'swift_collections_rev := "([0-9a-f]{40})"', (ROOT / "ffi/justfile").read_text())
+    revision = re.search(r'swift_collections_rev := "([0-9a-f]{40})"', (ROOT / "ffi/justfile").read_text(encoding="utf-8"))
     if revision is None:
         raise SystemExit("ffi/justfile pins no swift_collections_rev")
     tags = output("git", "ls-remote", "--tags", COLLECTIONS)
@@ -339,10 +346,10 @@ def swift(info, export, libs, natives, out):
     headers.mkdir(parents=True)
     shutil.copy(export / "include" / f"{lib}.h", headers)
     shutil.copy(export / "swift" / f"{lib}_atomics.h", headers)
-    modulemap = (export / "swift/module.modulemap").read_text()
+    modulemap = (export / "swift/module.modulemap").read_text(encoding="utf-8")
     if f"../include/{lib}.h" not in modulemap:
         raise SystemExit("the module map no longer names ../include: update the packager")
-    (headers / "module.modulemap").write_text(modulemap.replace(f"../include/{lib}.h", f"{lib}.h"))
+    (headers / "module.modulemap").write_text(modulemap.replace(f"../include/{lib}.h", f"{lib}.h"), encoding="utf-8")
     framework = out / f"{module}FFI.xcframework"
     args = ["xcodebuild", "-create-xcframework"]
     for target in APPLE_TARGETS:
@@ -356,7 +363,7 @@ def swift(info, export, libs, natives, out):
     swift_sum = output("swift", "package", "compute-checksum", archive).strip()
     if swift_sum != checksum:
         raise SystemExit(f"swift computes {swift_sum}, not {checksum}")
-    (out / "checksum.txt").write_text(checksum + "\n")
+    (out / "checksum.txt").write_text(checksum + "\n", encoding="utf-8")
     package = out / "package"
     sources = package / "Sources" / module
     sources.mkdir(parents=True)
@@ -365,14 +372,14 @@ def swift(info, export, libs, natives, out):
         shutil.copy(path, package)
     by_platform = {}
     for target, apple in APPLE_TARGETS.items():
-        by_platform.setdefault(apple, set()).add(Path(natives[target]).read_text().strip())
+        by_platform.setdefault(apple, set()).add(Path(natives[target]).read_text(encoding="utf-8").strip())
     flags = {}
     for apple, found in by_platform.items():
         if len(found) != 1:
             raise SystemExit(f"{apple}'s slices link different native libraries: {sorted(found)}")
         flags[apple] = found.pop()
     state = {"collections": collections(), "settings": linker_settings(flags), "module": module}
-    (out / "swift.json").write_text(json.dumps(state, indent=2) + "\n")
+    (out / "swift.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
     shutil.rmtree(framework)
     return state
 
@@ -380,19 +387,19 @@ def swift(info, export, libs, natives, out):
 def release_manifest(out, url):
     """Package.swift naming the hosted ZIP at `url` by its checksum."""
     out = Path(out)
-    state = json.loads((out / "swift.json").read_text())
-    checksum = (out / "checksum.txt").read_text().strip()
+    state = json.loads((out / "swift.json").read_text(encoding="utf-8"))
+    checksum = (out / "checksum.txt").read_text(encoding="utf-8").strip()
     binary = f'.binaryTarget(name: "{state["module"]}FFI", url: {json.dumps(url)}, checksum: "{checksum}")'
     text = package_swift(state["module"], state["collections"], state["settings"], binary)
-    (out / "package" / "Package.swift").write_text(text)
+    (out / "package" / "Package.swift").write_text(text, encoding="utf-8")
 
 
 def local_manifest(state, package, framework):
     """Package.swift naming an unpacked XCFramework by path, for a consumer before any upload."""
     package = Path(package)
-    state = json.loads(Path(state).read_text())
+    state = json.loads(Path(state).read_text(encoding="utf-8"))
     binary = f'.binaryTarget(name: "{state["module"]}FFI", path: {json.dumps(os.path.relpath(framework, package))})'
-    (package / "Package.swift").write_text(package_swift(state["module"], state["collections"], state["settings"], binary))
+    (package / "Package.swift").write_text(package_swift(state["module"], state["collections"], state["settings"], binary), encoding="utf-8")
 
 
 def compare(native, actual, what):
@@ -427,7 +434,7 @@ def exporter(manifest, features, *args):
     if not config.exists():
         # The exporter still requires a config file; an empty one leaves nothing out.
         config = Path(tempfile.mkdtemp()) / "ffi.toml"
-        config.write_text("")
+        config.write_text("", encoding="utf-8")
     cargo = ["--", "--features", features] if features.strip() else []
     run("cargo", "run", "--locked", "--release", "--quiet", "--", "--config", config, "--manifest-path", manifest,
         *args, *cargo, cwd=ROOT / "ffi")
@@ -455,7 +462,7 @@ def export(args):
 def cargo(manifest, *args, env=None):
     """Cargo with the package's own toolchain, as rustup finds it from the package's directory."""
     return run("cargo", *args, cwd=Path(manifest).resolve().parent, env={**os.environ, **(env or {})},
-               capture_output=True, text=True)
+               capture_output=True, encoding="utf-8")
 
 
 def build(args):
@@ -497,14 +504,14 @@ def build(args):
             static = out / "static" / target
             static.mkdir(parents=True)
             shutil.copy(export_dir / "target-swift" / target / "release" / f"lib{lib}.a", static)
-            (static / "native.txt").write_text(notes[0].strip() + "\n")
+            (static / "native.txt").write_text(notes[0].strip() + "\n", encoding="utf-8")
     # The generated sources, for the Swift package and the hosts' agreement.
     # Text this writes is LF on every host, as the jobs reading it compare bytes.
     for part in ("include", "swift", "python"):
         shutil.copytree(export_dir / part, out / "export" / part, dirs_exist_ok=True)
     shutil.copy(crate, out / "export")
-    (out / "digest.txt").write_text(digest(export_dir, lib) + "\n", newline="\n")
-    (out / "lib.txt").write_text(lib + "\n", newline="\n")
+    (out / "digest.txt").write_text(digest(export_dir, lib) + "\n", newline="\n", encoding="utf-8")
+    (out / "lib.txt").write_text(lib + "\n", newline="\n", encoding="utf-8")
     # Native output for a host whose wheel a consumer runs; an iOS slice runs nowhere here.
     if args.example and any(target in WHEEL_TARGETS for target in args.targets):
         if args.example not in info["examples"]:
@@ -532,7 +539,7 @@ def template(info, manifest, rust2, mirror):
         "MIRROR_OWNER": mirror.split("/")[0],
         "MIRROR_REPO": mirror.split("/")[1],
     }
-    text = (HERE / "release.yml").read_text()
+    text = (HERE / "release.yml").read_text(encoding="utf-8")
     for key, value in values.items():
         text = text.replace(f"@{key}@", value)
     leftover = sorted(set(re.findall(r"@[A-Z0-9_]+@", text)))
@@ -550,10 +557,10 @@ def init(args):
     relative = manifest.resolve().relative_to(root).as_posix()
     path = root / ".github" / "workflows" / f"release-{info['name']}.yml"
     text = template(info, relative, rust2, args.swift_mirror)
-    if path.exists() and path.read_text() != text:
+    if path.exists() and path.read_text(encoding="utf-8") != text:
         raise SystemExit(f"{path} exists; delete it to write the release workflow")
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, newline="\n")
+    path.write_text(text, newline="\n", encoding="utf-8")
     print(path)
 
 
