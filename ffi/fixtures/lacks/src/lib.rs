@@ -104,6 +104,59 @@ pub fn linked() {
 	unsafe { undefined() }
 }
 
+// `src/needs.ll`, which the build script compiles for wasm32 alone.
+#[cfg(target_arch = "wasm32")]
+#[link(name = "needs", kind = "static")]
+unsafe extern "C" {
+	/// A C function calling `lacks_callback` back.
+	fn needs_callback();
+	/// A C function calling one nothing defines.
+	#[cfg(feature = "undefined")]
+	fn needs_missing();
+}
+
+/// What the C library calls back, which reads a file.
+#[cfg(target_arch = "wasm32")]
+#[unsafe(no_mangle)]
+extern "C" fn lacks_callback() {
+	let _ = std::fs::metadata("callback");
+}
+
+/// A call of C, which calls back into Rust.
+#[cfg(target_arch = "wasm32")]
+pub fn called_back() {
+	// SAFETY: the fixture is only exported, never run.
+	unsafe { needs_callback() }
+}
+
+/// A call of C, which calls what nothing defines.
+#[cfg(all(target_arch = "wasm32", feature = "undefined"))]
+pub fn missed() {
+	// SAFETY: the fixture is only exported, never run.
+	unsafe { needs_missing() }
+}
+
+/// What the module runs when it loads, which no export calls.
+#[used]
+#[unsafe(link_section = ".init_array")]
+static STARTUP: extern "C" fn() = startup;
+
+extern "C" fn startup() {
+	let _ = std::fs::metadata("startup");
+}
+
+#[link(wasm_import_module = "rust2")]
+unsafe extern "C" {
+	/// A function of the binding's own module that the binding does not implement.
+	fn rust2_spoof();
+}
+
+/// A call of what the module imports from the binding's module by a name it lacks.
+pub fn spoofed() {
+	// SAFETY: the fixture is only exported, never run.
+	unsafe { rust2_spoof() }
+}
+
 #[link(wasm_import_module = "page")]
 unsafe extern "C" {
 	/// A function of a module the binding does not implement.

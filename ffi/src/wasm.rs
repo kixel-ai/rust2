@@ -5,8 +5,10 @@
 //! checks it for the target, as `cargo build` would compile it, and walks every function
 //! the module's exports reach: through std, `dyn`, function pointers, statics, and drop
 //! glue, as rustc's monomorphization collector does, but into every crate's MIR rather than
-//! stopping at another crate's code. Each walk ends at a function the module imports, or
-//! one it links from C, whose imports a link of that function alone shows. What reaches an
+//! stopping at another crate's code, from each export and each function the module runs
+//! when it loads. Each walk ends at a function the module imports, or one it links from C,
+//! whose imports a link of that function alone shows, and which goes on into each Rust
+//! function the C calls back. What reaches an
 //! import the host lacks is refused at the call in the crate's own code nearest it, so a
 //! new std needs no change here: the imports, not a list of std's paths, decide.
 
@@ -16,9 +18,9 @@ use std::process::Command;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet, FxIndexMap, FxIndexSet};
 use rustc_driver::{Callbacks, Compilation};
 use rustc_hir::def::DefKind;
-use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE};
+use rustc_hir::def_id::{CrateNum, DefId, DefIndex, LOCAL_CRATE};
 use rustc_interface::interface::{Compiler, Config};
-use rustc_middle::middle::exported_symbols::ExportedSymbol;
+use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
 use rustc_middle::mir::interpret::{AllocId, GlobalAlloc};
 use rustc_middle::mono::{CollectionMode, MonoItem};
 use rustc_middle::ty::{self, Instance, InstanceKind, TyCtxt};
@@ -40,12 +42,15 @@ const HOSTS: &[Host] = &[Host {
 	target: crate::web::TARGET,
 	name: "the web target",
 	implements: |module, name| match module {
-		// What JavaScript implements, which the glue imports and its binding provides.
-		"rust2" => true,
 		"wasi_snapshot_preview1" => crate::web::wasi().contains(&name),
 		_ => false,
 	},
 }];
+
+/// The module a binding implements the generated crate's imports from: what JavaScript
+/// implements, each beside its declaration, so another crate's import from it is one the
+/// host lacks, by any name.
+const GLUE_MODULE: &str = "rust2";
 
 /// The host of `target`, if the export knows it.
 pub fn host(target: &str) -> Option<&'static Host> {
@@ -164,8 +169,8 @@ impl Callbacks for Walk {
 	fn after_analysis<'tcx>(&mut self, _compiler: &Compiler, tcx: TyCtxt<'tcx>) -> Compilation {
 		if tcx.dcx().has_errors().is_none() {
 			let own = |krate: CrateNum| krate != LOCAL_CRATE && self.own.contains(tcx.crate_name(krate).as_str());
-			let graph = Graph::walk(tcx);
-			let lacks = Lacks::find(tcx, &graph, self.host);
+			let graph = Graph::walk(tcx, self.host);
+			let lacks = Lacks::find(&graph, self.host);
 			report(tcx, &graph, &lacks, &own, self.host);
 		}
 		match tcx.dcx().has_errors() {
@@ -187,6 +192,14 @@ impl<'tcx> Node<'tcx> {
 		match self {
 			Node::Fn(instance) => instance.def_id(),
 			Node::Static(def_id) => def_id,
+		}
+	}
+
+	/// The Rust function or static `def_id` defines under a symbol of its own.
+	fn defined(tcx: TyCtxt<'tcx>, def_id: DefId) -> Self {
+		match tcx.def_kind(def_id) {
+			DefKind::Static { .. } => Node::Static(def_id),
+			_ => Node::Fn(Instance::mono(tcx, def_id)),
 		}
 	}
 }
@@ -212,15 +225,29 @@ struct Graph<'tcx> {
 	origin: Vec<usize>,
 	/// The nodes the walk ends at.
 	leaves: FxHashMap<usize, Leaf>,
+	/// Each C leaf's link, or none for a symbol no library defines.
+	linked: FxHashMap<usize, Option<Linked>>,
+	/// The statics the module runs a function of when it loads, which it holds whether or not
+	/// an export reaches them.
+	inits: FxIndexSet<usize>,
+}
+
+/// What a C function's link shows: what it imports from the host, and what it calls of the
+/// module's own code that no Rust crate defines either, which fails the module's link.
+struct Linked {
+	imports: Vec<Import>,
+	undefined: Vec<String>,
 }
 
 impl<'tcx> Graph<'tcx> {
-	fn walk(tcx: TyCtxt<'tcx>) -> Self {
+	fn walk(tcx: TyCtxt<'tcx>, host: &Host) -> Self {
 		let mut graph = Graph {
 			nodes: FxIndexSet::default(),
 			edges: Vec::new(),
 			origin: Vec::new(),
 			leaves: FxHashMap::default(),
+			linked: FxHashMap::default(),
+			inits: FxIndexSet::default(),
 		};
 		// The module's exports: each function the crate gives a symbol of its own.
 		for def_id in tcx.hir_crate_items(()).definitions() {
@@ -234,6 +261,12 @@ impl<'tcx> Graph<'tcx> {
 			}
 		}
 		let symbols = Symbols::new(tcx);
+		for &def_id in &symbols.inits {
+			let at = graph.add(Node::Static(def_id), None);
+			graph.origin[at] = at;
+			graph.inits.insert(at);
+		}
+		let mut linker = None;
 		// wasm-bindgen names each import's stand-in after the import: `__wbg_` for a browser
 		// API, `__wbindgen_` for its own.
 		let bindgen = tcx
@@ -254,13 +287,12 @@ impl<'tcx> Graph<'tcx> {
 			if tcx.is_foreign_item(def_id) {
 				match symbols.resolve(tcx, node) {
 					Resolved::Rust(def_id) => {
-						let to = match tcx.def_kind(def_id) {
-							DefKind::Static { .. } => Node::Static(def_id),
-							_ => Node::Fn(Instance::mono(tcx, def_id)),
-						};
-						graph.add(to, Some((at, DUMMY_SP)));
+						graph.add(Node::defined(tcx, def_id), Some((at, DUMMY_SP)));
 					}
 					Resolved::Leaf(leaf) => {
+						if let Leaf::C(name) = &leaf {
+							graph.link(tcx, host, &symbols, &mut linker, at, name);
+						}
 						graph.leaves.insert(at, leaf);
 					}
 					Resolved::Nothing => {}
@@ -361,6 +393,49 @@ impl<'tcx> Graph<'tcx> {
 			GlobalAlloc::TypeId { .. } => {}
 		}
 	}
+
+	/// Link the C leaf `at`, named `name`, and walk on into each Rust function or static it
+	/// calls back, as a C library may call what a Rust crate defines for it.
+	fn link(
+		&mut self,
+		tcx: TyCtxt<'tcx>,
+		host: &Host,
+		symbols: &Symbols,
+		linker: &mut Option<Option<Linker>>,
+		at: usize,
+		name: &str,
+	) {
+		let linker = linker.get_or_insert_with(|| {
+			Linker::new(tcx, host)
+				.inspect_err(|err| {
+					tcx.dcx().err(format!("rust2-ffi: {err}"));
+				})
+				.ok()
+		});
+		let Some(linker) = linker else {
+			return;
+		};
+		match linker.imports(name) {
+			Ok(None) => {
+				self.linked.insert(at, None);
+			}
+			Ok(Some((imports, needs))) => {
+				let mut undefined = Vec::new();
+				for need in needs {
+					match symbols.defined.get(&need) {
+						Some(&def_id) => {
+							self.add(Node::defined(tcx, def_id), Some((at, DUMMY_SP)));
+						}
+						None => undefined.push(need),
+					}
+				}
+				self.linked.insert(at, Some(Linked { imports, undefined }));
+			}
+			Err(err) => {
+				tcx.dcx().err(format!("rust2-ffi: {err}"));
+			}
+		}
+	}
 }
 
 /// What a foreign item's symbol is.
@@ -368,29 +443,44 @@ enum Resolved {
 	/// A Rust function or static some crate defines under it.
 	Rust(DefId),
 	Leaf(Leaf),
-	/// One the link makes that uses nothing, as the allocator's marker static.
+	/// One that uses nothing the host lacks: the allocator's marker static the link makes,
+	/// or a function the generated crate imports, which its binding implements.
 	Nothing,
 }
 
 /// The Rust items each crate defines under a symbol of their own, which a foreign item of
-/// another crate may name.
+/// another crate, or a C library, may name; and the statics the module runs a function of
+/// when it loads.
 struct Symbols {
 	defined: FxHashMap<String, DefId>,
+	inits: Vec<DefId>,
 }
 
 impl Symbols {
+	/// Read from every definition of every crate: a crate `cargo check` compiled records no
+	/// symbols it exports, which only a crate compiled to code computes.
 	fn new(tcx: TyCtxt<'_>) -> Self {
-		let mut defined = FxHashMap::default();
+		let (mut defined, mut inits) = (FxHashMap::default(), Vec::new());
+		let cstore = rustc_metadata::creader::CStore::from_tcx(tcx);
+		// A proc macro links nothing into the module, and its metadata holds its macros alone.
+		let macros: FxHashSet<CrateNum> = cstore.all_proc_macro_def_ids(tcx).map(|def_id| def_id.krate).collect();
 		for krate in std::iter::once(LOCAL_CRATE).chain(tcx.crates(()).iter().copied()) {
-			let symbols = match krate {
-				LOCAL_CRATE => &[][..],
-				_ => tcx.exported_non_generic_symbols(krate),
+			let definitions: Vec<DefId> = match krate {
+				LOCAL_CRATE => tcx.hir_crate_items(()).definitions().map(|d| d.to_def_id()).collect(),
+				_ if macros.contains(&krate) => continue,
+				_ => (0..cstore.num_def_ids_untracked(krate))
+					.map(|index| DefId {
+						krate,
+						index: DefIndex::from_usize(index),
+					})
+					.collect(),
 			};
-			for (symbol, _) in symbols {
-				let ExportedSymbol::NonGeneric(def_id) = *symbol else {
-					continue;
-				};
-				if !tcx.def_kind(def_id).has_codegen_attrs() {
+			for def_id in definitions {
+				let kind = tcx.def_kind(def_id);
+				if !matches!(kind, DefKind::Fn | DefKind::AssocFn | DefKind::Static { .. })
+					|| tcx.is_foreign_item(def_id)
+					|| tcx.generics_of(def_id).requires_monomorphization(tcx)
+				{
 					continue;
 				}
 				let attrs = tcx.codegen_fn_attrs(def_id);
@@ -401,14 +491,29 @@ impl Symbols {
 				for &(foreign, ..) in &attrs.foreign_item_symbol_aliases {
 					defined.insert(tcx.symbol_name(Instance::mono(tcx, foreign)).name.to_string(), def_id);
 				}
+				// A static the link keeps in `.init_array`, each of whose functions the
+				// module's start calls.
+				if matches!(kind, DefKind::Static { .. })
+					&& attrs
+						.flags
+						.intersects(CodegenFnAttrFlags::USED_COMPILER | CodegenFnAttrFlags::USED_LINKER)
+					&& attrs
+						.link_section
+						.is_some_and(|section| section.as_str().starts_with(".init_array"))
+				{
+					inits.push(def_id);
+				}
 			}
 		}
-		Self { defined }
+		Self { defined, inits }
 	}
 
 	fn resolve<'tcx>(&self, tcx: TyCtxt<'tcx>, node: Node<'tcx>) -> Resolved {
 		let def_id = node.def_id();
 		if let Some(module) = tcx.wasm_import_module_map(def_id.krate).get(&def_id) {
+			if module == GLUE_MODULE && def_id.krate == LOCAL_CRATE {
+				return Resolved::Nothing;
+			}
 			// Imported by its link name, under a symbol rustc mangles apart from other modules'.
 			let name = tcx
 				.codegen_fn_attrs(def_id)
@@ -462,49 +567,26 @@ enum Lack {
 }
 
 impl Lacks {
-	fn find(tcx: TyCtxt<'_>, graph: &Graph<'_>, host: &Host) -> Self {
+	fn find(graph: &Graph<'_>, host: &Host) -> Self {
+		let import = |module: &str, name: &str| {
+			(!(host.implements)(module, name)).then(|| Lack::Import(format!("{module}.{name}")))
+		};
 		let mut by_leaf = FxHashMap::default();
-		let mut c = Vec::new();
 		for (&at, leaf) in &graph.leaves {
-			match leaf {
-				Leaf::Import { module, name } => {
-					let lacks = match (host.implements)(module, name) {
-						true => Vec::new(),
-						false => vec![Lack::Import(format!("{module}.{name}"))],
-					};
-					by_leaf.insert(at, lacks);
-				}
-				Leaf::C(name) => c.push((at, name.as_str())),
-				Leaf::Bindgen(name) => {
-					by_leaf.insert(at, vec![Lack::Bindgen(name.clone())]);
-				}
-			}
-		}
-		if !c.is_empty() {
-			match Linker::new(tcx, host) {
-				Ok(linker) => {
-					for (at, name) in c {
-						match linker.imports(name) {
-							Ok(Some(imports)) => {
-								let lacks = (imports.into_iter())
-									.filter(|(module, name)| !(host.implements)(module, name))
-									.map(|(module, name)| Lack::Import(format!("{module}.{name}")))
-									.collect();
-								by_leaf.insert(at, lacks);
-							}
-							Ok(None) => {
-								by_leaf.insert(at, vec![Lack::Undefined(name.to_string())]);
-							}
-							Err(err) => {
-								tcx.dcx().err(format!("rust2-ffi: {err}"));
-							}
-						}
-					}
-				}
-				Err(err) => {
-					tcx.dcx().err(format!("rust2-ffi: {err}"));
-				}
-			}
+			let lacks = match leaf {
+				Leaf::Import { module, name } => import(module, name).into_iter().collect(),
+				Leaf::C(name) => match graph.linked.get(&at) {
+					Some(Some(linked)) => (linked.imports.iter())
+						.filter_map(|(module, name)| import(module, name))
+						.chain(linked.undefined.iter().cloned().map(Lack::Undefined))
+						.collect(),
+					Some(None) => vec![Lack::Undefined(name.clone())],
+					// Its link failed, which is refused already.
+					None => Vec::new(),
+				},
+				Leaf::Bindgen(name) => vec![Lack::Bindgen(name.clone())],
+			};
+			by_leaf.insert(at, lacks);
 		}
 		Self { by_leaf }
 	}
@@ -557,11 +639,12 @@ impl Linker {
 	}
 
 	/// What the module imports for the C function or static `name`, each by module and
-	/// name, or none if no library defines it.
-	fn imports(&self, name: &str) -> Result<Option<Vec<Import>>, String> {
+	/// name, and what it needs of the module's own code, each by symbol; or none if no
+	/// library defines it.
+	fn imports(&self, name: &str) -> Result<Option<(Vec<Import>, Vec<String>)>, String> {
 		let out = self.dir.join(format!("rust2-ffi-{}-{name}.wasm", std::process::id()));
-		// What the C library needs of the module's own code, which compiler-builtins and std
-		// define, it may leave undefined: the module's link finds it.
+		// What the C library needs of the module's own code, such as compiler-builtins' or a
+		// crate's callback, it leaves undefined, which the link imports from `env`.
 		let output = Command::new(&self.lld)
 			.args(["-flavor", "wasm", "--no-entry", "--allow-undefined"])
 			.arg(format!("--export-if-defined={name}"))
@@ -582,9 +665,8 @@ impl Linker {
 		if !exports.iter().any(|export| export == name) {
 			return Ok(None);
 		}
-		Ok(Some(
-			imports.into_iter().filter(|(module, _)| module != "env").collect(),
-		))
+		let (needs, imports): (Vec<Import>, Vec<Import>) = imports.into_iter().partition(|(module, _)| module == "env");
+		Ok(Some((imports, needs.into_iter().map(|(_, name)| name).collect())))
 	}
 }
 
@@ -687,6 +769,13 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 			refused.entry((span, to)).or_insert(graph.origin[from]);
 		}
 	}
+	// What another crate runs when the module loads, which no call of the crate's own code
+	// reaches, at that crate's static.
+	for &at in &graph.inits {
+		if tainted[at] && !mine(at) {
+			refused.entry((item_span(tcx, graph.nodes[at]), at)).or_insert(at);
+		}
+	}
 	let path = |to: usize| {
 		let mut path = vec![to];
 		while let Some(next) = toward[*path.last().expect("a path has a node")] {
@@ -761,8 +850,18 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 		let path = path(to);
 		let what = match graph.leaves.get(&to) {
 			Some(Leaf::Import { .. }) => "the module imports".to_string(),
-			Some(Leaf::C(_) | Leaf::Bindgen(_)) => "this calls".to_string(),
-			None => format!(
+			Some(Leaf::Bindgen(_)) => "this calls".to_string(),
+			// A C function nothing defines is what it lacks itself.
+			Some(Leaf::C(name))
+				if lacks
+					.by_leaf
+					.get(&to)
+					.is_some_and(|l| l[..] == [Lack::Undefined(name.clone())]) =>
+			{
+				"this calls".to_string()
+			}
+			Some(Leaf::C(name)) => format!("the C function `{name}` reaches"),
+			_ => format!(
 				"{} reaches",
 				describe(tcx, graph, to).unwrap_or_else(|| "this".to_string())
 			),
@@ -778,10 +877,11 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 		if path.len() > 1 {
 			err = err.with_note(through(&path));
 		}
-		err.with_note(format!(
-			"the module exports it through `{}`",
-			tcx.item_name(graph.nodes[export].def_id())
-		))
+		let name = tcx.item_name(graph.nodes[export].def_id());
+		err.with_note(match graph.inits.contains(&export) {
+			true => format!("the module runs it when it loads, through `{name}`"),
+			false => format!("the module exports it through `{name}`"),
+		})
 		.emit();
 	}
 }

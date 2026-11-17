@@ -138,6 +138,9 @@ pub struct Check<'a> {
 	/// Where cargo builds, absolute, if not [`target_dir`]'s for the manifest: another
 	/// package's, whose crates this check then shares.
 	pub target_dir: Option<&'a Path>,
+	/// Where cargo runs, which it reads its config and a `--config` path from, absolute, if
+	/// not the package's directory: another package's, whose config this check then shares.
+	pub dir: Option<&'a Path>,
 }
 
 impl Check<'_> {
@@ -149,7 +152,7 @@ impl Check<'_> {
 			Some(dir) => dir.to_path_buf(),
 			None => target_dir(self.tool, Some(self.manifest))?,
 		};
-		let package_dir = self.manifest.parent().expect("a manifest path has a parent");
+		let package_dir = (self.dir).unwrap_or_else(|| self.manifest.parent().expect("a manifest path has a parent"));
 		let cargo = |subcommand: &str| {
 			let mut cmd = cargo();
 			// Cargo reads its config from where it runs, so run where the package is.

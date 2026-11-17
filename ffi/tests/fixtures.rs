@@ -2493,13 +2493,17 @@ fn lacks() {
 		.filter_map(|line| line.strip_prefix('\t')?.split_once('(').map(|(name, _)| name))
 		.filter(|name| name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
 		.collect();
+	// The binding's own module's functions: each the generated TypeScript names.
+	let binding: String = (std::fs::read_dir(out.join("web")).unwrap())
+		.map(|entry| std::fs::read_to_string(entry.unwrap().path()).unwrap())
+		.collect();
 	let mut lacking = std::collections::BTreeSet::new();
 	for payload in wasmparser::Parser::new(0).parse_all(&wasm) {
 		if let wasmparser::Payload::ImportSection(section) = payload.unwrap() {
 			for import in section.into_imports() {
 				let import = import.unwrap();
 				let has = match import.module {
-					"rust2" => true,
+					"rust2" => binding.contains(import.name),
 					"wasi_snapshot_preview1" => implemented.contains(&import.name),
 					_ => false,
 				};

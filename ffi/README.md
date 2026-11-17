@@ -1323,18 +1323,20 @@ target there.
   import, such as the file system, sockets, or another module's function, is refused at
   export, at the span of each call in the crate's own code that reaches it, naming the
   imports it reaches and the path down to them. The export walks MIR from each exported
-  function through every call, `dyn` implementation, function pointer, static, and drop it
-  can reach, std's included, so a new std needs no change here: every crate builds with
-  `-Zalways-encode-mir`, std's from the dev shell's MIR sysroot or else `-Zbuild-std`,
-  which doubles the export's peak memory, as
-  [measured](../bench/ffi/README.md#the-exports-build-cost); a native export reads no MIR. A C symbol no linked library defines, which would fail the module's link, is
-  refused the same way, as is a call into wasm-bindgen, whose imports on `wasm32-wasip1`
-  compile to stubs that panic. `thread::spawn` and a socket's `connect` and `bind` import
-  nothing there and return an error, as Rust's own build for the target does, so they are
-  not refused. `load` still refuses a module importing anything else. Measured on the api fixture, stripped, with LTO at
-  `opt-level = "s"`, that std costs 24 KB over `wasm32-unknown-unknown`'s (3%), 9.5 KB
-  gzipped, and the glue 2 KB more; `wasm32-unknown-unknown` has no clock, so
-  `Instant::now` panics there.
+  function, and each one a crate's `.init_array` static runs when the module loads,
+  through every call, `dyn` implementation, function pointer, static, and drop it can
+  reach, std's included, and into C and whatever Rust the C calls back, so a new std needs
+  no change here: every crate builds with `-Zalways-encode-mir`, std's from the dev
+  shell's MIR sysroot or else `-Zbuild-std`, which doubles the export's peak memory, as
+  [measured](../bench/ffi/README.md#the-exports-build-cost); a native export reads no MIR.
+  A C symbol no linked library defines, which would fail the module's link, is refused the
+  same way, as is a call into wasm-bindgen, whose imports on `wasm32-wasip1` compile to
+  stubs that panic. `thread::spawn` and a socket's `connect` and `bind` import nothing
+  there and return an error, as Rust's own build for the target does, so they are not
+  refused. `load` still refuses a module importing anything else. Measured on the api
+  fixture, stripped, with LTO at `opt-level = "s"`, that std costs 24 KB over
+  `wasm32-unknown-unknown`'s (3%), 9.5 KB gzipped, and the glue 2 KB more;
+  `wasm32-unknown-unknown` has no clock, so `Instant::now` panics there.
 - **The API** is rust2-ts's shape: each type is a module of its own, `web/<Type>.ts`, which
   exports the type by its name and its functions, each taking `self` first, so a caller
   writes `import * as Counter from "./web/Counter.ts"` and `Counter.get(c)`, and a bundler

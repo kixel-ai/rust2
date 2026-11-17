@@ -109,6 +109,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 			target: Some(target),
 			args: &cargo_args(target, args.cargo.clone()),
 			target_dir: None,
+			dir: None,
 			env: &[
 				// The wrapper's answer to cargo's query names the sysroot, which cargo would
 				// otherwise cache by the executables alone.
@@ -165,7 +166,10 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		.collect();
 	let own = own.join(",");
 	let target_dir = rust2_driver::cargo::target_dir("rust2-ffi", Some(&args.manifest))?;
+	// Resolved as `lock` resolved it, under the check's profile, whose `cfg`s the glue was
+	// generated against.
 	let mut cargo = picks.resolving().args();
+	cargo.extend(profile_args(&args.cargo));
 	cargo.extend(["--features".to_string(), "web".to_string()]);
 	Check {
 		tool: "rust2-ffi",
@@ -175,6 +179,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		target: Some(crate::web::TARGET),
 		args: &cargo_args(crate::web::TARGET, cargo),
 		target_dir: Some(&target_dir),
+		dir: Some(picks.dir),
 		env: &[
 			("CARGO_CACHE_RUSTC_INFO", "0".as_ref()),
 			(crate::wasm::env::PACKAGE, glue.as_ref()),
@@ -723,6 +728,21 @@ fn run_cargo(manifest: &Path, subcommand: &[&str], picks: &Picks<'_>) -> Result<
 	}
 }
 
+/// The cargo args that pick the profile: `--release`, `-r`, and `--profile`.
+fn profile_args(cargo: &[String]) -> Vec<String> {
+	let mut picked = Vec::new();
+	let mut args = cargo.iter();
+	while let Some(arg) = args.next() {
+		match arg.as_str() {
+			"--release" | "-r" => picked.push(arg.clone()),
+			"--profile" => picked.extend([Some(arg), args.next()].into_iter().flatten().cloned()),
+			_ if arg.starts_with("--profile=") => picked.push(arg.clone()),
+			_ => {}
+		}
+	}
+	picked
+}
+
 /// What the cargo args pick for how the check resolves its dependencies.
 struct Picks<'a> {
 	/// Where cargo runs, which its config and a `--config` path are read from: the facade's.
@@ -930,6 +950,20 @@ mod tests {
 			("bar@1", "1.0.0", false),
 		] {
 			assert_eq!(matches(spec, &package(version)), Ok(want), "{spec} against {version}");
+		}
+	}
+
+	#[test]
+	fn reads_what_picks_the_profile() {
+		for (cargo, want) in [
+			(&["--release", "--locked"][..], &["--release"][..]),
+			(&["-r"], &["-r"]),
+			(&["--features", "a", "--profile", "bench"], &["--profile", "bench"]),
+			(&["--profile=bench", "--offline"], &["--profile=bench"]),
+			(&["--features", "release"], &[]),
+		] {
+			let cargo: Vec<String> = cargo.iter().map(|s| s.to_string()).collect();
+			assert_eq!(profile_args(&cargo), want, "{cargo:?}");
 		}
 	}
 
