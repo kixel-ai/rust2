@@ -30,8 +30,11 @@ refuses to overwrite a different file. Then, outside the repository:
 
 Releasing is pushing `<crate>-v<version>`, the crate's version, which the release checks.
 Called without a tag, such as from a nightly, it runs everything up to publication.
-A failed release is rerun as is: each publishing job finishes what an earlier run left,
-uploading only what is missing and failing where a registry already holds other bytes.
+A release that failed while publishing is recovered with **Re-run failed jobs**, which keeps
+the run's successful build and its artifacts: each publishing job then finishes what the
+first attempt left, uploading only what is missing. A rebuild makes other bytes, as wheels
+and the XCFramework archive carry build times, so **Re-run all jobs** fails wherever a
+registry already holds the first attempt's files.
 A Cargo prerelease, such as `1.0.0-rc.1`, is a GitHub prerelease too.
 
 The builder takes the crate's `Cargo.toml` and four optional inputs the caller's tests own:

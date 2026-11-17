@@ -12,7 +12,9 @@ name: Release @NAME@ bindings
 #   the `swift-mirror` environment.
 #
 # To release, push the tag @NAME@-v<version>, naming the crate's version. Without a tag, as
-# from a nightly's workflow_call, every job up to publication runs.
+# from a nightly's workflow_call, every job up to publication runs. If publishing fails, use
+# "Re-run failed jobs": it reuses this run's build, and the publishing jobs upload only what
+# is missing. A rebuild's files differ, so "Re-run all jobs" stops at any already published.
 on:
   push:
     tags:
