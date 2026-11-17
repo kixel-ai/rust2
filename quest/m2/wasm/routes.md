@@ -12,6 +12,16 @@ this is the measurement [the gate](/quest/m2/wasm/README.md) reads.
 
 Decided with the maintainer on 2026-11-09: this is the measurement the gate reads.
 
+Decided with the maintainer on 2026-11-17, on
+[#860](https://github.com/kixel-ai/rust2/pull/860#issuecomment-6947175990):
+
+- ✅ `just ts bench`'s routes land in #860, and this quest keeps only the binding benchmark's
+  cases through the translation, blocked on the model epic (rejected: holding #860 until the
+  model translates; dropping these cases).
+- ✅ The `wasm2js` route lowers the hand-boundary `wasm checked` build, which isolates the
+  lowering's cost (rejected: teaching the generated binding to load a lowered rust2-wasm
+  module, which needs a new `load` source and `i64` legalization on the binding).
+
 - [#860](https://github.com/kixel-ai/rust2/pull/860) gave `just ts bench` its rust2-wasm and
   `wasm2js` routes, each route's build time and cold start, and the `wasm-checked` profile,
   so the codec's and the handoff's routes run the same checks. What is left needs moq's
