@@ -212,7 +212,8 @@ def repair(wheel, target, out):
 def check_wheel(path):
     """Fail unless RECORD covers every file with its true size and hash, as pip checks it."""
     with zipfile.ZipFile(path) as archive:
-        names = set(archive.namelist())
+        # Repair tools add directory entries, which RECORD never lists.
+        names = {n for n in archive.namelist() if not n.endswith("/")}
         records = [n for n in names if n.endswith(".dist-info/RECORD")]
         if len(records) != 1:
             raise SystemExit(f"{path.name} has {len(records)} RECORD files")
@@ -414,7 +415,9 @@ def consume_python(check, native, module):
     if result.returncode:
         raise SystemExit(f"{check} failed on the installed wheel with status {result.returncode}")
     if native:
-        compare(Path(native).read_bytes(), result.stdout, "installed wheel")
+        # Windows' CPython writes text-mode stdout with CRLF, where Rust's println! writes LF.
+        actual = result.stdout.replace(b"\r\n", b"\n") if sys.platform == "win32" else result.stdout
+        compare(Path(native).read_bytes(), actual, "installed wheel")
 
 
 def exporter(manifest, features, *args):
@@ -500,7 +503,8 @@ def build(args):
     shutil.copy(crate, out / "export")
     (out / "digest.txt").write_text(digest(export_dir, lib) + "\n")
     (out / "lib.txt").write_text(lib + "\n")
-    if args.example:
+    # Native output for a host whose wheel a consumer runs; an iOS slice runs nowhere here.
+    if args.example and any(target in WHEEL_TARGETS for target in args.targets):
         if args.example not in info["examples"]:
             raise SystemExit(f"{info['name']} has no example {args.example}: it has {info['examples']}")
         features = ["--features", args.features] if args.features.strip() else []

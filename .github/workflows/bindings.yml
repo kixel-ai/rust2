@@ -182,9 +182,16 @@ jobs:
           - host: linux-arm64
             os: ubuntu-24.04-arm
             targets: aarch64-unknown-linux-gnu
-          - host: apple
+          # One leg per Apple slice: a 3-core runner takes about 20 minutes for each of moq's.
+          - host: apple-darwin
             os: macos-26
-            targets: aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim
+            targets: aarch64-apple-darwin
+          - host: apple-ios
+            os: macos-26
+            targets: aarch64-apple-ios
+          - host: apple-ios-sim
+            os: macos-26
+            targets: aarch64-apple-ios-sim
           - host: windows
             os: windows-latest
             targets: x86_64-pc-windows-msvc
@@ -309,15 +316,16 @@ jobs:
         run: just ffi standin && cp ffi/moq/ffi.toml ffi/target/moq-ffi/ffi.toml
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: ${{ needs.facts.outputs.name }}-build-apple
+          pattern: ${{ needs.facts.outputs.name }}-build-apple-*
           path: apple
+          merge-multiple: true
       - name: Package
         env:
           URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.facts.outputs.tag }}/${{ needs.facts.outputs.module }}FFI.xcframework.zip
         run: |
           args=()
           for target in aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim; do
-            args+=(--lib "$target=$PWD/$(ls apple/static/"$target"/*.a)" --native "$target=$PWD/apple/static/$target/native.txt")
+            args+=(--lib "$target=$(echo "$PWD"/apple/static/"$target"/*.a)" --native "$target=$PWD/apple/static/$target/native.txt")
           done
           cd source
           python3 -I ../rust2/ffi/release/package.py swift --manifest-path "$MANIFEST" --export ../apple/export "${args[@]}" --url "$URL" --out ../swift
@@ -339,7 +347,7 @@ jobs:
             os: ubuntu-24.04
           - host: linux-arm64
             os: ubuntu-24.04-arm
-          - host: apple
+          - host: apple-darwin
             os: macos-26
           - host: windows
             os: windows-latest
@@ -405,7 +413,7 @@ jobs:
           path: swift
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: ${{ needs.facts.outputs.name }}-build-apple
+          name: ${{ needs.facts.outputs.name }}-build-apple-darwin
           path: apple
       - name: Consume
         env:

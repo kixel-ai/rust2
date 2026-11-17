@@ -88,6 +88,21 @@ class Wheel(unittest.TestCase):
             self.assertIn("License-Expression: MIT OR Apache-2.0\n", meta)
             self.assertIn("Project-URL: Repository, https://github.com/moq-dev/moq\n", meta)
 
+    def test_directory_entries_are_not_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            library = root / "libmoq.dylib"
+            library.write_bytes(b"\xcf\xfa\xed\xfe")
+            wheel = package.write_wheel(info(root), export(root / "export"), library, "aarch64-apple-darwin", root)
+            repaired = root / "repaired.whl"
+            # As delocate and auditwheel rewrite a wheel: each directory listed before its files.
+            with zipfile.ZipFile(wheel) as src, zipfile.ZipFile(repaired, "w") as dst:
+                dst.writestr("moq/", b"")
+                dst.writestr("moq_ffi-0.4.12.dist-info/", b"")
+                for name in src.namelist():
+                    dst.writestr(name, src.read(name))
+            package.check_wheel(repaired)
+
     def test_a_tampered_record_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
