@@ -237,8 +237,8 @@ def digest(export, lib):
     paths = [export / "python" / f"{lib}.py", export / "include" / f"{lib}.h", *sorted((export / "swift").iterdir())]
     for path in paths:
         hasher.update(path.relative_to(export).as_posix().encode() + b"\0")
-        # Git may check text out with CRLF on Windows; the generated files are LF.
-        hasher.update(path.read_bytes().replace(b"\r\n", b"\n") + b"\0")
+        # Exact bytes: each wheel ships its own host's module.
+        hasher.update(path.read_bytes() + b"\0")
     return hasher.hexdigest()
 
 
@@ -499,11 +499,12 @@ def build(args):
             shutil.copy(export_dir / "target-swift" / target / "release" / f"lib{lib}.a", static)
             (static / "native.txt").write_text(notes[0].strip() + "\n")
     # The generated sources, for the Swift package and the hosts' agreement.
+    # Text this writes is LF on every host, as the jobs reading it compare bytes.
     for part in ("include", "swift", "python"):
         shutil.copytree(export_dir / part, out / "export" / part, dirs_exist_ok=True)
     shutil.copy(crate, out / "export")
-    (out / "digest.txt").write_text(digest(export_dir, lib) + "\n")
-    (out / "lib.txt").write_text(lib + "\n")
+    (out / "digest.txt").write_text(digest(export_dir, lib) + "\n", newline="\n")
+    (out / "lib.txt").write_text(lib + "\n", newline="\n")
     # Native output for a host whose wheel a consumer runs; an iOS slice runs nowhere here.
     if args.example and any(target in WHEEL_TARGETS for target in args.targets):
         if args.example not in info["examples"]:
@@ -552,7 +553,7 @@ def init(args):
     if path.exists() and path.read_text() != text:
         raise SystemExit(f"{path} exists; delete it to write the release workflow")
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text)
+    path.write_text(text, newline="\n")
     print(path)
 
 

@@ -123,12 +123,12 @@ class Wheel(unittest.TestCase):
 
 
 class Digest(unittest.TestCase):
-    def test_line_endings_do_not_split_the_hosts(self):
+    def test_any_byte_splits_the_hosts(self):
         with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
             first, second = export(Path(a)), export(Path(b))
-            (second / "python/moq.py").write_bytes(b"PENDING = 0\r\n")
             self.assertEqual(package.digest(first, "moq"), package.digest(second, "moq"))
-            (second / "swift/moq.swift").write_text("import Other\n")
+            # A Windows checkout once turned the embedded runtime CRLF.
+            (second / "python/moq.py").write_bytes(b"PENDING = 0\r\n")
             self.assertNotEqual(package.digest(first, "moq"), package.digest(second, "moq"))
 
 
