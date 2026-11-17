@@ -59,8 +59,8 @@ const features = [
 ];
 
 /**
- * Builds the routes of `fixtures/<name>` (`codec` or `task`) into `tools.out`, its translation
- * into `translated` there: the crate `<name>-fixture`, and its facade in `web/`.
+ * Builds the routes of `fixtures/<name>` (`codec` or `task`), the crate `<name>-fixture` and
+ * its facade in `web/`, into `tools.out`, and its translation into the directory `translated`.
  */
 export async function build(name: string, translated: string, tools: Tools): Promise<Built> {
 	const { root, out, scratch } = tools;
@@ -72,7 +72,7 @@ export async function build(name: string, translated: string, tools: Tools): Pro
 		lowered: join(out, `${name}-wasm2js.mjs`),
 		export: join(out, `${name}-web`),
 		exported: join(out, `${name}-web.wasm`),
-		translated: join(out, translated),
+		translated,
 		steps,
 	};
 
