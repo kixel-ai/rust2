@@ -651,6 +651,26 @@ profile), Dart 3.13.0. C and Dart are from the same run, for scale; wall ns per 
 An object return pays the handle's `FinalizationRegistry` entry, as Go's and Dart's pay
 their collectors'. Firefox runs every row at about 2 to 3 times Node's.
 
+### The export's build cost
+
+The web export [refuses what its host lacks](../../ffi/README.md#typescript-web) by
+walking MIR, so it builds every crate with `-Zalways-encode-mir`, takes std's from the
+dev shell's MIR sysroot, and checks the glue crate a second time to walk it. Measured
+2026-11-17 on the same host, the stand-in's export from an emptied target through
+[`measure.py`](measure.py), at rust2 `3b2e79f0` (signatures alone) and `0dc269dc` (with
+the refusal), 3 rounds each, alternating, at a load average of 24 to 31; medians:
+
+| export | wall s | CPU s | peak RSS |
+|---|---|---|---|
+| signatures alone | 27.1 | 76.4 | 856 MiB |
+| with the refusal | 45.7 | 87.8 | 1,773 MiB |
+
+The refusal adds about 11 CPU seconds, and its walk of the stand-in's 299,455 reachable
+instances takes 6.5 s of them. Wall time ranged 24 to 60 s and 39 to 69 s between rounds
+at this load, so its gap is rough; the walk's check runs after moq's crates, with nothing
+beside it. Peak memory doubles, steady across rounds. A native export reads no MIR and
+pays none of it.
+
 ### Lending returned bytes
 
 Bytes a call returns are an [`rt.Bytes`](../../ffi/README.md#typescript-web): up to 64 B a copy, and

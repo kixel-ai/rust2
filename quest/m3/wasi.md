@@ -32,8 +32,12 @@ hosts that are WASI runtimes. Planned in m3 before a consumer asks, as
   checked at run time, a lent closure, a future that loses nothing on cancel, and bytes
   lent without a copy.
 - What a WASI host lacks is refused at export, at the span of the call that reaches it,
-  as on every target: threads on `wasm32-wasip1`, and sockets there too.
-  [The refusal](/quest/m2/wasm/refuse.md) builds it for both wasm32 targets.
+  as [the web target](/ffi/README.md#typescript-web) refuses its own: this target adds its
+  host's entry to `ffi/src/wasm.rs`'s `HOSTS`, the WASI imports that host implements, and
+  the walk and its MIR build need nothing more. What imports nothing, it cannot refuse:
+  on `wasm32-wasip1`, `thread::spawn` and a socket's `connect` and `bind` return an error
+  without calling the host, as Rust's own build for the target does, while a socket a host
+  passes in imports `sock_accept` and `sock_shutdown`, refused where the host lacks them.
 
 Public API: the name of the WASI target and what it writes, if it lands.
 
@@ -43,5 +47,4 @@ Public API: the name of the WASI target and what it writes, if it lands.
 
 ## Related
 
-- [Refusing what a wasm32 target lacks](/quest/m2/wasm/refuse.md) - the export-time refusal this target shares with the web's
 - [moq in pure Go](/quest/m4/go/README.md) - parked until a consumer needs pure Go, and to weigh a WASI runtime first when one does
