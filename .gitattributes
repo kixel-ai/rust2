@@ -1,2 +1,5 @@
 quest/** merge=quest
 driver/pub/tests/fixture/api/src/crlf.rs -text
+# The exporter embeds its runtime in every binding it writes, so a Windows checkout must
+# keep LF for the output, and its contract hash, to match every other host's.
+ffi/runtime/** text eol=lf
