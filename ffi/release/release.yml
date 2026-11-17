@@ -11,8 +11,8 @@ name: Release @NAME@ bindings
 #   The mirror's token comes from a GitHub App installed on it, whose ID and key live in
 #   the `swift-mirror` environment.
 #
-# Push a @NAME@-v<version> tag matching the crate's version to release. Without a tag, as a
-# nightly's workflow_call, every job up to publication runs.
+# To release, push the tag @NAME@-v<version>, naming the crate's version. Without a tag, as
+# from a nightly's workflow_call, every job up to publication runs.
 on:
   push:
     tags:

@@ -61,7 +61,8 @@ SWIFT
 cd "$work/consumer"
 swift build -c release
 .build/release/Check >"$work/actual.txt"
-if [[ -f "$apple/native.txt" ]]; then
+# Only a check program prints the transcript; the stub prints nothing.
+if [[ -f "$apple/checks/main.swift" && -f "$apple/native.txt" ]]; then
     python3 -I "$here/package.py" compare "$apple/native.txt" "$work/actual.txt"
 fi
 echo "installed Swift package: builds for macOS, iOS and the iOS Simulator, and its check passes"
