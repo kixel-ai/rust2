@@ -485,7 +485,8 @@ def build(args):
             # The C library alone, apart from the Python extension, whose CPython symbols it
             # would leave undefined; its own target directory, since cargo does not rebuild
             # for a changed deployment target.
-            built = cargo(args.manifest_path, "rustc", "--locked", "--release", "--manifest-path", crate,
+            # Uncolored, so the note below reads as written whatever the caller's terminal.
+            built = cargo(args.manifest_path, "rustc", "--color", "never", "--locked", "--release", "--manifest-path", crate,
                           "--target", target, "--target-dir", export_dir / "target-swift", "--lib",
                           "--crate-type", "staticlib", "--", "--print=native-static-libs",
                           env={name: SWIFT_PLATFORMS[apple]})
