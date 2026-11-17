@@ -218,3 +218,9 @@ pub fn seeded() -> usize {
 pub fn greet() {
 	println!("hello from {:?}", std::env::var("USER").ok());
 }
+
+/// What the module exports as C's, which no export of the binding calls.
+#[unsafe(no_mangle)]
+extern "C" fn lacks_exported() {
+	let _ = std::fs::metadata("exported");
+}

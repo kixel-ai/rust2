@@ -15,6 +15,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use rustc_attr_ir::LangItem;
+use rustc_attr_parsing::eval_config_entry;
+use rustc_crate_store::NativeLib;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet, FxIndexMap, FxIndexSet};
 use rustc_driver::{Callbacks, Compilation};
 use rustc_hir::def::DefKind;
@@ -238,6 +241,14 @@ struct Graph<'tcx> {
 	/// The statics the module runs a function of when it loads, which it holds whether or not
 	/// an export reaches them.
 	inits: FxIndexSet<usize>,
+	/// What another crate exports from the module, which it holds whether or not the
+	/// generated crate's exports reach it, though no binding calls it.
+	kept: FxIndexSet<usize>,
+	/// How many times each node's function is already instantiated on the way it was first
+	/// reached, as rustc's collector counts against the recursion limit.
+	depth: Vec<usize>,
+	/// The node each node was first reached from.
+	parent: Vec<Option<usize>>,
 }
 
 /// What a C function's link shows: what it imports from the host, and what it calls of the
@@ -257,7 +268,11 @@ impl<'tcx> Graph<'tcx> {
 			leaves: FxHashMap::default(),
 			linked: FxHashMap::default(),
 			inits: FxIndexSet::default(),
+			kept: FxIndexSet::default(),
+			depth: Vec::new(),
+			parent: Vec::new(),
 		};
+		whole_archives(tcx, host);
 		// The module's exports: each function the crate gives a symbol of its own.
 		for def_id in tcx.hir_crate_items(()).definitions() {
 			let def_id = def_id.to_def_id();
@@ -275,6 +290,12 @@ impl<'tcx> Graph<'tcx> {
 			graph.origin[at] = at;
 			graph.inits.insert(at);
 		}
+		for &def_id in &symbols.kept {
+			let at = graph.add(Node::defined(tcx, def_id), None);
+			if graph.origin[at] == at {
+				graph.kept.insert(at);
+			}
+		}
 		let mut linker = None;
 		// wasm-bindgen names each import's stand-in after the import: `__wbg_` for a browser
 		// API, `__wbindgen_` for its own.
@@ -282,11 +303,16 @@ impl<'tcx> Graph<'tcx> {
 			.crates(())
 			.iter()
 			.any(|&krate| tcx.crate_name(krate).as_str() == "wasm_bindgen");
+		// A stand-in has no symbol of its own, unlike wasm-bindgen's runtime functions the
+		// module exports to JavaScript, such as `__wbindgen_free`.
 		let stub = |def_id: DefId| {
 			let name = tcx.item_name(def_id);
-			(bindgen && (name.as_str().starts_with("__wbg_") || name.as_str().starts_with("__wbindgen_")))
-				.then(|| name.to_string())
+			(bindgen
+				&& (name.as_str().starts_with("__wbg_") || name.as_str().starts_with("__wbindgen_"))
+				&& !tcx.codegen_fn_attrs(def_id).contains_extern_indicator())
+			.then(|| name.to_string())
 		};
+		let limit = tcx.recursion_limit();
 		let mut next = 0;
 		while next < graph.nodes.len() {
 			let at = next;
@@ -347,7 +373,24 @@ impl<'tcx> Graph<'tcx> {
 							MonoItem::Static(def_id) => Node::Static(def_id),
 							MonoItem::GlobalAsm(_) => continue,
 						};
-						graph.add(to, Some((at, item.span)));
+						let to = graph.add(to, Some((at, item.span)));
+						// An instance within instances of itself past the limit, as of a
+						// function calling itself with an ever larger type, is refused as
+						// rustc's collector refuses it, rather than walked without end.
+						let depth = graph.depth[to];
+						let depth = match graph.nodes[to] {
+							Node::Fn(instance) if tcx.is_lang_item(instance.def_id(), LangItem::DropGlue) => depth / 4,
+							_ => depth,
+						};
+						if !limit.value_within_limit(depth) {
+							tcx.dcx().span_fatal(
+								item.span,
+								format!(
+									"rust2-ffi: reached the recursion limit while instantiating `{}`",
+									tcx.def_path_str(graph.nodes[to].def_id())
+								),
+							);
+						}
 					}
 				}
 				Node::Static(def_id) => {
@@ -370,6 +413,17 @@ impl<'tcx> Graph<'tcx> {
 		if new {
 			self.edges.push(Vec::new());
 			self.origin.push(from.map_or(at, |(from, _)| self.origin[from]));
+			self.parent.push(from.map(|(from, _)| from));
+			// The nearest node on the way here of the same function, one deeper than it.
+			let mut up = from.map(|(from, _)| from);
+			let depth = loop {
+				match up {
+					Some(above) if self.nodes[above].def_id() == node.def_id() => break self.depth[above] + 1,
+					Some(above) => up = self.parent[above],
+					None => break 0,
+				}
+			};
+			self.depth.push(depth);
 		}
 		if let Some((from, span)) = from {
 			self.edges[from].push((at, span));
@@ -456,10 +510,11 @@ enum Resolved {
 }
 
 /// The Rust items each crate defines under a symbol of their own, which a foreign item of
-/// another crate, or a C library, may name; and the statics the module runs a function of
-/// when it loads.
+/// another crate, or a C library, may name; those of them other crates than the generated
+/// one export from the module; and the statics the module runs a function of when it loads.
 struct Symbols {
 	defined: FxHashMap<String, DefId>,
+	kept: Vec<DefId>,
 	inits: Vec<DefId>,
 }
 
@@ -467,7 +522,7 @@ impl Symbols {
 	/// Read from every definition of every crate: a crate `cargo check` compiled records no
 	/// symbols it exports, which only a crate compiled to code computes.
 	fn new(tcx: TyCtxt<'_>) -> Self {
-		let (mut defined, mut inits) = (FxHashMap::default(), Vec::new());
+		let (mut defined, mut kept, mut inits) = (FxHashMap::default(), Vec::new(), Vec::new());
 		let cstore = rustc_metadata::creader::CStore::from_tcx(tcx);
 		// A proc macro links nothing into the module, and its metadata holds its macros alone.
 		let macros: FxHashSet<CrateNum> = cstore.all_proc_macro_def_ids(tcx).map(|def_id| def_id.krate).collect();
@@ -493,6 +548,15 @@ impl Symbols {
 				let attrs = tcx.codegen_fn_attrs(def_id);
 				if attrs.contains_extern_indicator() {
 					defined.insert(tcx.symbol_name(Instance::mono(tcx, def_id)).name.to_string(), def_id);
+					// What another crate exports from the module as C's, as a cdylib does
+					// each such item of every crate but the compiler's builtins, unless std
+					// keeps it to itself.
+					if krate != LOCAL_CRATE
+						&& !tcx.is_compiler_builtins(krate)
+						&& !attrs.flags.contains(CodegenFnAttrFlags::RUSTC_STD_INTERNAL_SYMBOL)
+					{
+						kept.push(def_id);
+					}
 				}
 				// An implementation of an externally implementable item, under the item's name.
 				for &(foreign, ..) in &attrs.foreign_item_symbol_aliases {
@@ -512,7 +576,7 @@ impl Symbols {
 				}
 			}
 		}
-		Self { defined, inits }
+		Self { defined, kept, inits }
 	}
 
 	fn resolve<'tcx>(&self, tcx: TyCtxt<'tcx>, node: Node<'tcx>) -> Resolved {
@@ -615,18 +679,17 @@ impl Linker {
 		let lld = rustc_session::filesearch::make_target_bin_path(sysroot, rustc_session::config::host_tuple())
 			.join("rust-lld");
 		let own = sysroot.join("lib/rustlib").join(host.target).join("lib/self-contained");
-		let mut libs = vec![own.join("libc.a")];
+		let libc = own.join("libc.a");
+		let mut libs = Vec::new();
 		let search: Vec<PathBuf> = (tcx.sess.target_filesearch())
 			.search_paths(rustc_session::search_paths::PathKind::Native)
 			.map(|path| path.dir.to_path_buf())
 			.chain([own])
 			.collect();
+		// In the link's order, the crate's own first and the C library last, so a library
+		// defining one of libc's symbols defines it here as it does in the module.
 		for krate in std::iter::once(LOCAL_CRATE).chain(tcx.crates(()).iter().copied()) {
-			// A library of C's: wasm32 links no other kind, and a `wasm_import_module` is none.
-			let libs_of = tcx.native_libraries(krate).iter();
-			for lib in
-				libs_of.filter(|lib| matches!(lib.kind, NativeLibKind::Static { .. } | NativeLibKind::Unspecified))
-			{
+			for lib in c_libraries(tcx, krate) {
 				let name = lib.name;
 				// `+verbatim` names the archive's file as it is.
 				let file = match lib.verbatim {
@@ -639,11 +702,12 @@ impl Linker {
 						tcx.crate_name(krate)
 					));
 				};
-				if !libs.contains(&found) {
+				if found != libc && !libs.contains(&found) {
 					libs.push(found);
 				}
 			}
 		}
+		libs.push(libc);
 		let dir = tcx.sess.io.temps_dir.clone().or_else(|| tcx.sess.io.output_dir.clone());
 		let dir = dir.ok_or("the check has no output directory to link in")?;
 		Ok(Self { lld, libs, dir })
@@ -665,6 +729,9 @@ impl Linker {
 				"--color-diagnostics=never",
 			])
 			.args(["--import-undefined", "--warn-unresolved-symbols"])
+			// What each C object it pulls in runs when the module loads, as the module's
+			// start calls it.
+			.arg("--export-if-defined=__wasm_call_ctors")
 			.arg(format!("--export-if-defined={name}"))
 			.arg("-o")
 			.arg(&out)
@@ -694,6 +761,40 @@ impl Linker {
 		undefined.sort();
 		undefined.dedup();
 		Ok(Some(Linked { imports, undefined }))
+	}
+}
+
+/// The C libraries `krate` links for the target being checked: wasm32 links no other kind,
+/// and a `wasm_import_module` is none.
+fn c_libraries<'a>(tcx: TyCtxt<'a>, krate: CrateNum) -> impl Iterator<Item = &'a NativeLib> {
+	(tcx.native_libraries(krate).iter())
+		.filter(|lib| matches!(lib.kind, NativeLibKind::Static { .. } | NativeLibKind::Unspecified))
+		.filter(move |lib| (lib.cfg.as_ref()).is_none_or(|cfg| eval_config_entry(tcx.sess, cfg).as_bool()))
+}
+
+/// Refuse each C library a crate links whole: the module runs or exports what it holds
+/// that no call names, which the walk cannot reach.
+fn whole_archives(tcx: TyCtxt<'_>, host: &Host) {
+	for krate in std::iter::once(LOCAL_CRATE).chain(tcx.crates(()).iter().copied()) {
+		for lib in c_libraries(tcx, krate) {
+			if let NativeLibKind::Static {
+				whole_archive: Some(true),
+				..
+			} = lib.kind
+			{
+				let span = (lib.foreign_module).map_or_else(|| tcx.def_span(krate.as_def_id()), |m| tcx.def_span(m));
+				tcx.dcx().span_err(
+					span,
+					format!(
+						"rust2-ffi: `{}` links the C library `{}` with `+whole-archive`, whose code no call names, so the export cannot check what {}'s module imports for it; link it without `+whole-archive` for {}",
+						tcx.crate_name(krate),
+						lib.name,
+						host.target,
+						host.target
+					),
+				);
+			}
+		}
 	}
 }
 
@@ -810,8 +911,9 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 		}
 		path
 	};
-	// Everything `to` reaches the same way that the module cannot have, said.
-	let reached = |to: usize| {
+	// Everything `to` reaches the same way that the module cannot have, said: only what
+	// fails the module's load or link unless something calls `to`.
+	let reached = |to: usize, called: bool| {
 		let mut seen = FxHashSet::default();
 		let mut stack = vec![to];
 		let mut reached = Vec::new();
@@ -833,7 +935,8 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 			match lack {
 				Lack::Import(name) => imports.push(name.as_str()),
 				Lack::Undefined(name) => undefined.push(name.as_str()),
-				Lack::Bindgen(name) => bindgen.push(name.as_str()),
+				Lack::Bindgen(name) if called => bindgen.push(name.as_str()),
+				Lack::Bindgen(_) => {}
 			}
 		}
 		let mut said = Vec::new();
@@ -867,13 +970,21 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 			tcx.dcx()
 				.struct_err(format!(
 					"rust2-ffi: the generated crate reaches {} through std; this is a bug in rust2-ffi",
-					reached(to),
+					reached(to, true),
 				))
 				.with_note(through(&path))
 				.emit();
 		}
 	}
+	// What another crate exports, which no call of the crate's own code reaches, at that
+	// crate's item, if the module cannot load or link with it.
+	for &at in &graph.kept {
+		if tainted[at] && !mine(at) && !reached(at, false).is_empty() {
+			refused.entry((item_span(tcx, graph.nodes[at]), at)).or_insert(at);
+		}
+	}
 	for ((span, to), export) in refused {
+		let called = !(to == export && graph.kept.contains(&to));
 		let path = path(to);
 		let what = match graph.leaves.get(&to) {
 			Some(Leaf::Import { .. }) => "the module imports".to_string(),
@@ -897,7 +1008,7 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 			span,
 			format!(
 				"rust2-ffi: {what} {}; leave it out of {}'s build with a `cfg`, or exclude its export in the config",
-				reached(to),
+				reached(to, called),
 				host.target
 			),
 		);

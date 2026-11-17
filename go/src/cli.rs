@@ -45,6 +45,8 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		// targets, as the host's `usize` is.
 		target: Some(rustc_session::config::host_tuple()),
 		args: &cargo,
+		target_dir: None,
+		dir: None,
 		env: &[
 			(env::PACKAGE, package.as_ref()),
 			(env::OUT, out.as_os_str()),
