@@ -25,18 +25,18 @@ const CACHEDIR_TAG: &str = "Signature: 8a477f597d28d172789f06886806bc55
 ";
 
 /// The root package that checks `package` with the browser's picks.
-pub struct Root {
+pub(crate) struct Root {
 	/// Its `Cargo.toml`, absolute.
-	pub manifest: PathBuf,
+	pub(crate) manifest: PathBuf,
 	/// The cargo args for the check through it: the package's features move into the
 	/// root's dependency on it, since cargo takes none on the command line for a package
 	/// outside the workspace.
-	pub cargo: Vec<String>,
+	pub(crate) cargo: Vec<String>,
 }
 
 /// The root package for `package` of `manifest`, written in `dir`, if what it builds with
 /// for [`TARGET`] holds a crate that leaves the browser's randomness to the binary.
-pub fn root(manifest: &Path, package: &str, dir: &Path, cargo: &[String]) -> Result<Option<Root>, String> {
+pub(crate) fn root(manifest: &Path, package: &str, dir: &Path, cargo: &[String]) -> Result<Option<Root>, String> {
 	let args = Args::parse(cargo)?;
 	let packages = tree(manifest, package, "normal", &args)?;
 	let picks: Vec<_> = (packages.iter())

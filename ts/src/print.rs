@@ -9,18 +9,18 @@ use oxc_sourcemap::SourceMapBuilder;
 use crate::program::{HEADER, ModPath, Program, SymKind, item_sym, module_file, unique};
 use crate::ts::{Ctor, Expr, FieldInit, Function, Item, Key, Loc, Param, Stmt, StmtKind, SymId, Type};
 
-pub struct Printed {
-	pub code: String,
+pub(crate) struct Printed {
+	pub(crate) code: String,
 	/// The source map, as JSON.
-	pub map: String,
+	pub(crate) map: String,
 	/// Its mappings: each zero-based line and UTF-16 column of `code` and the Rust it maps to.
-	pub tokens: Vec<(u32, u32, Loc)>,
+	pub(crate) tokens: Vec<(u32, u32, Loc)>,
 	/// Each item's symbol by the zero-based line of `code` it starts on.
-	pub items: Vec<(u32, SymId)>,
+	pub(crate) items: Vec<(u32, SymId)>,
 }
 
 /// Print one module's items to the file at `path`.
-pub fn module(program: &Program, module: &ModPath, items: &[&Item], path: &Path) -> Result<Printed, String> {
+pub(crate) fn module(program: &Program, module: &ModPath, items: &[&Item], path: &Path) -> Result<Printed, String> {
 	let bindings = Bindings::new(program, module, items)?;
 	let mut p = Printer {
 		program,
@@ -141,12 +141,12 @@ pub fn module(program: &Program, module: &ModPath, items: &[&Item], path: &Path)
 
 /// Functions printed apart from any module, each item they refer to by the name given here
 /// and the function itself unnamed: the same text for two functions that print the same.
-pub struct Texts {
+pub(crate) struct Texts {
 	bindings: Bindings,
 }
 
 impl Texts {
-	pub fn new(names: HashMap<SymId, String>) -> Self {
+	pub(crate) fn new(names: HashMap<SymId, String>) -> Self {
 		Self {
 			bindings: Bindings {
 				names,
@@ -156,11 +156,11 @@ impl Texts {
 		}
 	}
 
-	pub fn set(&mut self, id: SymId, name: String) {
+	pub(crate) fn set(&mut self, id: SymId, name: String) {
 		self.bindings.names.insert(id, name);
 	}
 
-	pub fn text(&self, program: &Program, f: &Function) -> String {
+	pub(crate) fn text(&self, program: &Program, f: &Function) -> String {
 		let mut p = Printer {
 			program,
 			bindings: &self.bindings,
@@ -1236,7 +1236,7 @@ fn prec(e: &Expr) -> u8 {
 }
 
 /// A JS string literal.
-pub fn quote(s: &str) -> String {
+pub(crate) fn quote(s: &str) -> String {
 	let mut out = String::with_capacity(s.len() + 2);
 	out.push('"');
 	for ch in s.chars() {

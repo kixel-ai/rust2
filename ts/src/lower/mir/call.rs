@@ -2510,7 +2510,7 @@ fn flow<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Flow {
 
 /// The test that `scrut`, a `ControlFlow`, is `Continue` (variant 0) or `Break`, where
 /// `next` says it is what `?` on a `next` result branches to, which holds the same.
-pub fn control_flow_test<'tcx>(
+pub(crate) fn control_flow_test<'tcx>(
 	fx: &mut Fx<'_, '_, '_, 'tcx>,
 	scrut: &Expr,
 	ty: Ty<'tcx>,
@@ -2532,7 +2532,7 @@ pub fn control_flow_test<'tcx>(
 
 /// A field of a `ControlFlow`: `Continue`'s value, or `Break`'s, which for `?` is the
 /// value it was applied to.
-pub fn control_flow_field<'tcx>(
+pub(crate) fn control_flow_field<'tcx>(
 	fx: &mut Fx<'_, '_, '_, 'tcx>,
 	base: Expr,
 	ty: Ty<'tcx>,
@@ -2549,7 +2549,7 @@ pub fn control_flow_field<'tcx>(
 }
 
 /// A `ControlFlow` made in place.
-pub fn control_flow<'tcx>(
+pub(crate) fn control_flow<'tcx>(
 	fx: &mut Fx<'_, '_, '_, 'tcx>,
 	ty: Ty<'tcx>,
 	variant: VariantIdx,

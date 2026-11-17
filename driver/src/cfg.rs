@@ -471,7 +471,7 @@ impl<S: Syntax, L: Lower<S>> Dispatch<'_, S, L> {
 }
 
 /// Drop the jumps that only fall through, then the labels nothing targets.
-pub fn simplify<S: Syntax>(stmts: &mut Vec<S>) {
+pub(crate) fn simplify<S: Syntax>(stmts: &mut Vec<S>) {
 	for stmt in stmts.iter_mut() {
 		match stmt.view_mut() {
 			Form::Block { label, body } => {

@@ -23,7 +23,7 @@ use crate::ir::{self, Api};
 use crate::{census, collect, glue, merge};
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
-pub fn run(args: Vec<String>) -> ExitCode {
+pub(crate) fn run(args: Vec<String>) -> ExitCode {
 	// A build script's probe of the compiler, as `rustversion` and `autocfg` make, runs the
 	// rustc cargo resolved, the one the glue builds with, rather than this nightly, so the
 	// check exports no item a nightly probe enables that the glue's build then lacks. Cargo
@@ -43,7 +43,7 @@ pub fn run(args: Vec<String>) -> ExitCode {
 }
 
 /// The file in the export that holds its API, which `--baseline` reads back.
-pub const API_FILE: &str = "api.json";
+pub(crate) const API_FILE: &str = "api.json";
 
 /// Compiles the facade, exporting its API after analysis.
 struct Export {
@@ -552,7 +552,7 @@ fn at(tcx: TyCtxt<'_>, span: Span) -> String {
 /// A changed file is written beside `path` and renamed over it, so a reader sees the old
 /// content or the new, never neither or part, and a link at `path` goes and leaves what it
 /// points to.
-pub fn write(path: &Path, text: &str) -> Result<(), String> {
+pub(crate) fn write(path: &Path, text: &str) -> Result<(), String> {
 	if std::fs::read(path).is_ok_and(|old| old == text.as_bytes()) {
 		return Ok(());
 	}

@@ -17,7 +17,7 @@ use crate::ts::{self, Expr, Param, Stmt, StmtKind, Type};
 
 /// What [`Translator::glue_all`] asks of what an instance's glue drops through.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Asked {
+pub(crate) enum Asked {
 	/// That JS sees none of it drop.
 	Inert,
 	/// That each drops through its own `[Symbol.dispose]`, giving glue where it needs it if so.
@@ -26,7 +26,7 @@ pub enum Asked {
 
 impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether dropping a `ty` does something JS can see.
-	pub fn drops(&mut self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn drops(&mut self, ty: Ty<'tcx>) -> bool {
 		if let Some(vec) = super::smallvec::as_vec(self.tcx, ty) {
 			return self.drops(vec);
 		}
@@ -170,7 +170,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether any field of `adt` with `args` drops, counting one of a type parameter only
 	/// if `params`.
-	pub fn fields_drop(&mut self, adt: AdtDef<'tcx>, args: ty::GenericArgs<'tcx>, params: bool) -> bool {
+	pub(crate) fn fields_drop(&mut self, adt: AdtDef<'tcx>, args: ty::GenericArgs<'tcx>, params: bool) -> bool {
 		let tcx = self.tcx;
 		let env = self.typing_env_pub();
 		adt.all_fields().any(|field| {
@@ -514,7 +514,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// What drops the `ty` in `value`, or `None` if JS would see nothing drop.
-	pub fn drop_value(&mut self, value: Expr, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+	pub(crate) fn drop_value(&mut self, value: Expr, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
 		// Lifetimes don't change how a value drops, so a type generic over them alone, as a
 		// class's field may be, has the glue of any instance.
 		let ty = self.tcx.erase_and_anonymize_regions(ty);
@@ -660,7 +660,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// A function dropping a `ty`, or `None` if JS would see nothing drop or translation
 	/// refused it: `rs.drop` for a value with `[Symbol.dispose]`, or else its glue.
-	pub fn drop_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+	pub(crate) fn drop_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
 		let ty = self.tcx.erase_and_anonymize_regions(ty);
 		if let Some(vec) = super::smallvec::as_vec(self.tcx, ty) {
 			return self.drop_fn(vec, span);
@@ -707,14 +707,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// What drops a `ty`, as a runtime function takes it after its own arguments:
 	/// `undefined` if JS would see nothing drop, or if translation refused it.
-	pub fn dropper(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
+	pub(crate) fn dropper(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
 		self.drop_fn(ty, span).unwrap_or_else(Expr::undefined)
 	}
 
 	/// What drops each of `tys`, as a runtime function takes them after its own arguments:
 	/// `undefined` for one that drops nothing, up to the last that drops. `None` if
 	/// translation refused one.
-	pub fn droppers(&mut self, tys: impl IntoIterator<Item = Ty<'tcx>>, span: Span) -> Option<Vec<Expr>> {
+	pub(crate) fn droppers(&mut self, tys: impl IntoIterator<Item = Ty<'tcx>>, span: Span) -> Option<Vec<Expr>> {
 		let mut droppers = Vec::new();
 		let mut used = 0;
 		for ty in tys {
@@ -757,7 +757,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Statements dropping what a closure of type `ty` owns, whose captures are `captures`:
 	/// each that drops, in order, as rustc's glue drops a closure. Its `[Symbol.dispose]`, and what ends an `FnOnce` body that drops
 	/// its closure whole.
-	pub fn closure_glue(&mut self, ty: Ty<'tcx>, captures: &[Capture], span: Span) -> Vec<Stmt> {
+	pub(crate) fn closure_glue(&mut self, ty: Ty<'tcx>, captures: &[Capture], span: Span) -> Vec<Stmt> {
 		let upvars = super::captured(ty).expect("closure glue of a closure");
 		let mut steps = Vec::new();
 		for (capture, ty) in captures.iter().zip(upvars) {
@@ -771,7 +771,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Give a class whose own fields or `Drop` impl drop its drop glue up front, so JS
 	/// that holds one can drop it. One that drops only through a type parameter gets
 	/// it once an instance that drops does.
-	pub fn drop_glue(&mut self, adt: AdtDef<'tcx>, info: &Adt, span: Span) {
+	pub(crate) fn drop_glue(&mut self, adt: AdtDef<'tcx>, info: &Adt, span: Span) {
 		let identity = ty::GenericArgs::identity_for_item(self.tcx, adt.did());
 		if adt.has_dtor(self.tcx) || self.fields_drop(adt, identity, false) {
 			self.glue(adt, info, span);

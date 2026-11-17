@@ -12,14 +12,14 @@ use rustc_middle::mir::{self, BasicBlock, Local, Location, Place, PlaceElem};
 
 /// Which locals can be held back: those assigned whole once and read once, and never
 /// borrowed nor changed in place, in the blocks translation emits.
-pub struct Temps {
-	pub foldable: HashSet<Local>,
+pub(crate) struct Temps {
+	pub(crate) foldable: HashSet<Local>,
 	/// Locals something borrows, which a call or a write through a pointer can change.
-	pub borrowed: HashSet<Local>,
+	pub(crate) borrowed: HashSet<Local>,
 }
 
 impl Temps {
-	pub fn new(mir: &mir::Body<'_>) -> Self {
+	pub(crate) fn new(mir: &mir::Body<'_>) -> Self {
 		let mut count = Count {
 			reads: vec![0; mir.local_decls.len()],
 			defs: vec![0; mir.local_decls.len()],
@@ -59,7 +59,7 @@ impl Temps {
 	}
 
 	/// What `visit` reaches, given to a [`Collect`].
-	pub fn access(&self, visit: impl FnOnce(&mut Collect<'_>)) -> Access {
+	pub(crate) fn access(&self, visit: impl FnOnce(&mut Collect<'_>)) -> Access {
 		let mut collect = Collect {
 			borrowed: &self.borrowed,
 			acc: Access::default(),
@@ -153,21 +153,21 @@ impl Use {
 
 /// What one statement or terminator reads and writes, outside its own effect.
 #[derive(Default)]
-pub struct Access {
+pub(crate) struct Access {
 	/// Locals it reads, a pointer it reads through included.
-	pub reads: Vec<Local>,
+	pub(crate) reads: Vec<Local>,
 	/// Whether it reads memory a call or a write through a pointer could change: through
 	/// a pointer, or a local something borrows.
-	pub memory: bool,
+	pub(crate) memory: bool,
 	/// Locals it assigns, whole or in part.
-	pub writes: Vec<Local>,
+	pub(crate) writes: Vec<Local>,
 	/// Whether it writes such memory.
-	pub writes_memory: bool,
+	pub(crate) writes_memory: bool,
 }
 
 impl Access {
 	/// What a value computed from its reads does, before what it folds in.
-	pub fn does(&self) -> Does {
+	pub(crate) fn does(&self) -> Does {
 		Does {
 			effect: false,
 			memory: self.memory,
@@ -176,7 +176,7 @@ impl Access {
 	}
 }
 
-pub struct Collect<'a> {
+pub(crate) struct Collect<'a> {
 	borrowed: &'a HashSet<Local>,
 	acc: Access,
 }
@@ -225,17 +225,17 @@ impl<'tcx> Visitor<'tcx> for Collect<'_> {
 
 /// What evaluating a temporary's value does, as far as moving it goes.
 #[derive(Clone, Default)]
-pub struct Does {
+pub(crate) struct Does {
 	/// Whether it calls something, which can change memory and panic.
-	pub effect: bool,
+	pub(crate) effect: bool,
 	/// Whether it reads memory a call or a write through a pointer could change.
-	pub memory: bool,
+	pub(crate) memory: bool,
 	/// The locals it reads, which an assignment to must not pass it.
-	pub reads: Vec<Local>,
+	pub(crate) reads: Vec<Local>,
 }
 
 impl Does {
-	pub fn join(&mut self, other: &Does) {
+	pub(crate) fn join(&mut self, other: &Does) {
 		self.effect |= other.effect;
 		self.memory |= other.memory;
 		self.reads.extend_from_slice(&other.reads);
@@ -248,32 +248,32 @@ impl Does {
 }
 
 /// A temporary's value, held back to fold into the one expression that reads it.
-pub struct Pending {
-	pub local: Local,
-	pub expr: String,
-	pub does: Does,
+pub(crate) struct Pending {
+	pub(crate) local: Local,
+	pub(crate) expr: String,
+	pub(crate) does: Does,
 }
 
 /// What a statement or terminator does besides reading and writing its places.
 #[derive(Clone, Copy, Default)]
-pub struct Effect {
+pub(crate) struct Effect {
 	/// A call, which can change memory.
-	pub writes: bool,
+	pub(crate) writes: bool,
 	/// A call or an assertion.
-	pub panics: bool,
+	pub(crate) panics: bool,
 }
 
 /// The temporaries held back, in the order their values were computed, and those the
 /// statement being emitted folds in.
 #[derive(Default)]
-pub struct Held {
-	pub pending: Vec<Pending>,
+pub(crate) struct Held {
+	pub(crate) pending: Vec<Pending>,
 	/// The locals of temporaries the statement being emitted may fold in.
 	folding: HashSet<Local>,
 	/// What the temporaries folded in so far do.
 	folded: Does,
 	/// The locals of temporaries emitted as assignments, which need declaring.
-	pub emitted: Vec<Local>,
+	pub(crate) emitted: Vec<Local>,
 }
 
 impl Held {
@@ -281,7 +281,7 @@ impl Held {
 	/// temporary that can't wait past it, and those before them that can't run after
 	/// them, and let it fold in the rest it reads. If `ends`, control goes on to code
 	/// emitted elsewhere, so nothing waits.
-	pub fn begin(&mut self, acc: &Access, effect: Effect, ends: bool, out: &mut String) {
+	pub(crate) fn begin(&mut self, acc: &Access, effect: Effect, ends: bool, out: &mut String) {
 		let read: Vec<bool> = self.pending.iter().map(|p| acc.reads.contains(&p.local)).collect();
 		let mut flush: Vec<bool> = self
 			.pending
@@ -345,13 +345,13 @@ impl Held {
 	}
 
 	/// Whether the value held back for `local` does more than read.
-	pub fn effects(&self, local: Local) -> bool {
+	pub(crate) fn effects(&self, local: Local) -> bool {
 		self.pending.iter().any(|p| p.local == local && p.does.effect)
 	}
 
 	/// Drop the value held back for `local`, which the statement being emitted no longer
 	/// reads, emitting it into `out` only if it does more than read.
-	pub fn discard(&mut self, local: Local, out: &mut String) {
+	pub(crate) fn discard(&mut self, local: Local, out: &mut String) {
 		self.folding.remove(&local);
 		if let Some(i) = self.pending.iter().position(|p| p.local == local) {
 			let p = self.pending.remove(i);
@@ -364,7 +364,7 @@ impl Held {
 	/// How the statement being emitted reads `local`: as its value, parenthesized unless
 	/// it is an operand already, if it folds it in. If `allowed` is false, where Go would
 	/// evaluate it twice, late, or not at all, it is emitted before the statement instead.
-	pub fn take(&mut self, local: Local, allowed: bool) -> Take {
+	pub(crate) fn take(&mut self, local: Local, allowed: bool) -> Take {
 		if !self.folding.contains(&local) {
 			return Take::Var;
 		}
@@ -387,7 +387,7 @@ impl Held {
 
 	/// After emitting the statement: emit into `out` each temporary it read but did not
 	/// fold in, and give what those it folded in do.
-	pub fn end(&mut self, out: &mut String) -> Does {
+	pub(crate) fn end(&mut self, out: &mut String) -> Does {
 		let folding = std::mem::take(&mut self.folding);
 		let pending = std::mem::take(&mut self.pending);
 		for p in pending {
@@ -406,7 +406,7 @@ impl Held {
 }
 
 /// How a statement reads a local.
-pub enum Take {
+pub(crate) enum Take {
 	/// As the value held back for it.
 	Folded(String),
 	/// As its variable, which the value held back for it is assigned to first.
@@ -418,7 +418,7 @@ pub enum Take {
 /// Whether Go reads `expr` as one operand wherever it stands: a name, a call, a
 /// conversion, or a selector or index of one, with nothing outside brackets but names
 /// and dots. A composite literal is not, as it would end an `if`'s condition.
-pub fn operand(expr: &str) -> bool {
+pub(crate) fn operand(expr: &str) -> bool {
 	let mut depth = 0usize;
 	let mut chars = expr.chars();
 	while let Some(c) = chars.next() {
@@ -445,7 +445,7 @@ pub fn operand(expr: &str) -> bool {
 
 /// The block `bb`'s terminator goes on to alone, if only it goes there, so what it holds
 /// back can wait into that block.
-pub fn carried(mir: &mir::Body<'_>, bb: BasicBlock, term: &mir::Terminator<'_>) -> Option<BasicBlock> {
+pub(crate) fn carried(mir: &mir::Body<'_>, bb: BasicBlock, term: &mir::Terminator<'_>) -> Option<BasicBlock> {
 	use mir::TerminatorKind as K;
 	let target = match &term.kind {
 		K::Goto { target, .. } | K::Drop { target, .. } | K::Assert { target, .. } => *target,

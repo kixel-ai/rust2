@@ -9,29 +9,29 @@ use super::library;
 use super::{AdtRepr, Translator, escape};
 use crate::ts::{Expr, Key, Param, Stmt, StmtKind};
 
-pub struct Body<'b, 'a, 'tcx> {
-	pub t: &'b mut Translator<'a, 'tcx>,
+pub(crate) struct Body<'b, 'a, 'tcx> {
+	pub(crate) t: &'b mut Translator<'a, 'tcx>,
 	/// Every name in the function, so none shadows another.
 	names: FxHashSet<String>,
 	/// Which of the function's parameters are byte slices it takes as their parts, by
 	/// [`Translator::parted`], until its own body takes them.
-	pub parted: Vec<bool>,
+	pub(crate) parted: Vec<bool>,
 	/// Where the function hands back its `Ok`'s parts, by [`Translator::slotted`], until
 	/// its own body takes it.
-	pub slotted: Option<super::mir::Slotted<'tcx>>,
+	pub(crate) slotted: Option<super::mir::Slotted<'tcx>>,
 	/// The function the call being lowered calls, if it takes its caller's location, and
 	/// the location the call passes, until a call of it takes it.
-	pub site: Option<(Instance<'tcx>, Expr)>,
+	pub(crate) site: Option<(Instance<'tcx>, Expr)>,
 	/// The std function the call being lowered maps, in a program with a panic hook, and
 	/// where its panics are, if rustc says, until its mapping takes it.
-	pub std_site: Option<(Instance<'tcx>, Option<Expr>)>,
+	pub(crate) std_site: Option<(Instance<'tcx>, Option<Expr>)>,
 	/// Where the std function whose mapping is being lowered panics, in a program with a
 	/// panic hook, if known.
-	pub panic_at: Option<Expr>,
+	pub(crate) panic_at: Option<Expr>,
 }
 
 impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
-	pub fn new(t: &'b mut Translator<'a, 'tcx>) -> Self {
+	pub(crate) fn new(t: &'b mut Translator<'a, 'tcx>) -> Self {
 		Body {
 			t,
 			names: FxHashSet::default(),
@@ -43,13 +43,13 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		}
 	}
 
-	pub fn err(&mut self, span: Span, msg: impl Into<String>) -> Expr {
+	pub(crate) fn err(&mut self, span: Span, msg: impl Into<String>) -> Expr {
 		self.t.err(span, msg);
 		Expr::undefined()
 	}
 
 	/// A name no other binding in the function has.
-	pub fn fresh(&mut self, base: &str) -> String {
+	pub(crate) fn fresh(&mut self, base: &str) -> String {
 		let base = escape(base);
 		let mut name = base.clone();
 		let mut n = 2;
@@ -60,14 +60,21 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		name
 	}
 
-	pub fn spill(&mut self, value: Expr, base: &str, out: &mut Vec<Stmt>) -> Expr {
+	pub(crate) fn spill(&mut self, value: Expr, base: &str, out: &mut Vec<Stmt>) -> Expr {
 		let name = self.fresh(base);
 		out.push(StmtKind::decl(false, name.clone(), None, Some(value)).at(None));
 		Expr::ident(name)
 	}
 
 	/// `From::from(value)`, converting a `from` into a `to`.
-	pub fn convert(&mut self, value: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
+	pub(crate) fn convert(
+		&mut self,
+		value: Expr,
+		from: Ty<'tcx>,
+		to: Ty<'tcx>,
+		span: Span,
+		out: &mut Vec<Stmt>,
+	) -> Expr {
 		if from == to {
 			return value;
 		}
@@ -87,7 +94,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 	}
 
 	/// A call of `def_id` with `gargs`, from wherever it resolves.
-	pub fn call_def(
+	pub(crate) fn call_def(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
 		gargs: GenericArgs<'tcx>,
@@ -339,7 +346,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 
 	/// A call of `instance`, whose body translates, with `values`, each byte slice it takes
 	/// as its parts split into them.
-	pub fn direct_call(
+	pub(crate) fn direct_call(
 		&mut self,
 		instance: Instance<'tcx>,
 		values: Vec<Expr>,
@@ -399,7 +406,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 
 	/// A value of one of std's types made of zero-sized `values`, which MIR reads as a
 	/// constant rather than from what made it, or `values` back for another type.
-	pub fn zero_sized_std(&mut self, ty: Ty<'tcx>, values: Vec<Expr>, span: Span) -> Result<Expr, Vec<Expr>> {
+	pub(crate) fn zero_sized_std(&mut self, ty: Ty<'tcx>, values: Vec<Expr>, span: Span) -> Result<Expr, Vec<Expr>> {
 		let tcx = self.t.tcx;
 		let ty::Adt(adt, _) = ty.kind() else {
 			return Err(values);
@@ -425,7 +432,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 
 	/// A function item as a value, typed as one: a declared function's `()` result is `void`,
 	/// which a value's type says is `undefined`.
-	pub fn fn_value(&mut self, def_id: rustc_hir::def_id::DefId, gargs: GenericArgs<'tcx>, span: Span) -> Expr {
+	pub(crate) fn fn_value(&mut self, def_id: rustc_hir::def_id::DefId, gargs: GenericArgs<'tcx>, span: Span) -> Expr {
 		let tcx = self.t.tcx;
 		let sig = self.t.sig(def_id, gargs);
 		// A constructor makes its value, as a call of it does.

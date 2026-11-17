@@ -10,33 +10,33 @@ use serde::Deserialize;
 use crate::facts::{self, Unit};
 
 /// One workspace, and the cargo arguments that select what of it to check.
-pub struct Workspace {
-	pub manifest: PathBuf,
-	pub root: PathBuf,
+pub(crate) struct Workspace {
+	pub(crate) manifest: PathBuf,
+	pub(crate) root: PathBuf,
 	/// Where the audit builds, apart from the workspace's own builds.
-	pub target: PathBuf,
+	pub(crate) target: PathBuf,
 	/// Every package with source on disk: its members and their path dependencies.
-	pub local: BTreeMap<PathBuf, Package>,
+	pub(crate) local: BTreeMap<PathBuf, Package>,
 }
 
 /// A package with source on disk.
 #[derive(Clone)]
-pub struct Package {
+pub(crate) struct Package {
 	/// Cargo's id for it, which `cargo clean -p` takes.
-	pub id: String,
+	pub(crate) id: String,
 	/// Whether `cargo publish` may publish it.
-	pub publishable: bool,
+	pub(crate) publishable: bool,
 	/// Whether it is a member of the workspace.
-	pub member: bool,
+	pub(crate) member: bool,
 	/// Whether it has a binary, which the audit's packages are consumed by running.
-	pub bin: bool,
+	pub(crate) bin: bool,
 	/// The directories of the local packages that depend on it other than to test it.
-	pub dependents: BTreeSet<PathBuf>,
+	pub(crate) dependents: BTreeSet<PathBuf>,
 }
 
 /// Every workspace's local packages, each described once: a package two workspaces share
 /// is a member of either, and its dependents are those of both.
-pub fn packages(workspaces: &[Workspace]) -> BTreeMap<&Path, Package> {
+pub(crate) fn packages(workspaces: &[Workspace]) -> BTreeMap<&Path, Package> {
 	let mut packages: BTreeMap<&Path, Package> = BTreeMap::new();
 	for (dir, package) in workspaces.iter().flat_map(|w| &w.local) {
 		match packages.entry(dir.as_path()) {
@@ -103,7 +103,7 @@ struct DepKind {
 
 impl Workspace {
 	/// The workspace `manifest` belongs to, resolved as `args` resolve it.
-	pub fn load(manifest: &Path, args: &[String]) -> Result<Self, String> {
+	pub(crate) fn load(manifest: &Path, args: &[String]) -> Result<Self, String> {
 		let manifest =
 			&std::fs::canonicalize(manifest).map_err(|err| format!("resolving {}: {err}", manifest.display()))?;
 		let output = cargo()
@@ -174,7 +174,13 @@ impl Workspace {
 	/// Check the workspace with this binary as rustc, writing each local crate's
 	/// [`Unit`] into `facts` and reading the source with `edits`, if given, narrowed.
 	/// Every local package recompiles: cargo can't see the edits.
-	pub fn check(&self, args: &[String], facts: &Path, local: &Path, edits: Option<&Path>) -> Result<Check, String> {
+	pub(crate) fn check(
+		&self,
+		args: &[String],
+		facts: &Path,
+		local: &Path,
+		edits: Option<&Path>,
+	) -> Result<Check, String> {
 		let exe = std::env::current_exe().map_err(|err| format!("finding this executable: {err}"))?;
 		let mut clean = self.cargo("clean");
 		clean.args(clean_args(args));
@@ -257,11 +263,11 @@ impl Workspace {
 }
 
 /// What a `cargo check` printed.
-pub struct Check {
-	pub success: bool,
-	pub diagnostics: Vec<Diagnostic>,
+pub(crate) struct Check {
+	pub(crate) success: bool,
+	pub(crate) diagnostics: Vec<Diagnostic>,
 	/// How many local crates cargo says it compiled, each of which writes a [`Unit`].
-	pub compiled: usize,
+	pub(crate) compiled: usize,
 }
 
 #[derive(Deserialize)]
@@ -274,36 +280,36 @@ struct Message {
 
 /// A rustc diagnostic, as its JSON gives it.
 #[derive(Deserialize, Clone)]
-pub struct Diagnostic {
-	pub message: String,
-	pub level: String,
-	pub code: Option<Code>,
-	pub spans: Vec<DiagnosticSpan>,
-	pub children: Vec<Diagnostic>,
-	pub rendered: Option<String>,
+pub(crate) struct Diagnostic {
+	pub(crate) message: String,
+	pub(crate) level: String,
+	pub(crate) code: Option<Code>,
+	pub(crate) spans: Vec<DiagnosticSpan>,
+	pub(crate) children: Vec<Diagnostic>,
+	pub(crate) rendered: Option<String>,
 }
 
 #[derive(Deserialize, Clone)]
-pub struct Code {
-	pub code: String,
+pub(crate) struct Code {
+	pub(crate) code: String,
 }
 
 #[derive(Deserialize, Clone)]
-pub struct DiagnosticSpan {
-	pub file_name: PathBuf,
-	pub byte_start: u32,
-	pub byte_end: u32,
-	pub expansion: Option<Box<Expansion>>,
+pub(crate) struct DiagnosticSpan {
+	pub(crate) file_name: PathBuf,
+	pub(crate) byte_start: u32,
+	pub(crate) byte_end: u32,
+	pub(crate) expansion: Option<Box<Expansion>>,
 }
 
 #[derive(Deserialize, Clone)]
-pub struct Expansion {
-	pub span: DiagnosticSpan,
-	pub def_site_span: DiagnosticSpan,
+pub(crate) struct Expansion {
+	pub(crate) span: DiagnosticSpan,
+	pub(crate) def_site_span: DiagnosticSpan,
 }
 
 /// Every [`Unit`] in `dir`.
-pub fn units(dir: &Path) -> Result<Vec<Unit>, String> {
+pub(crate) fn units(dir: &Path) -> Result<Vec<Unit>, String> {
 	let mut units = Vec::new();
 	let entries = std::fs::read_dir(dir).map_err(|err| format!("reading {}: {err}", dir.display()))?;
 	for entry in entries {

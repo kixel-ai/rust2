@@ -29,7 +29,7 @@ use crate::ts::{Expr, Key, Stmt, StmtKind, Type};
 
 /// How a local held as its parts lays them out.
 #[derive(Clone, Debug)]
-pub enum Shape<'tcx> {
+pub(crate) enum Shape<'tcx> {
 	/// No JS value: `()`.
 	Unit,
 	/// One JS value, held whole: a number, a reference to one, an `Option` of one, or an
@@ -529,23 +529,23 @@ const ERR: &str = "err";
 /// and returns its error or `undefined`, or, if the first part is `returned`, it returns
 /// that or `undefined` for an error, and writes the rest, or the error, into the slot.
 #[derive(Clone, Debug)]
-pub struct Slotted<'tcx> {
-	pub sym: crate::ts::SymId,
+pub(crate) struct Slotted<'tcx> {
+	pub(crate) sym: crate::ts::SymId,
 	/// The `Result` the function returns in Rust.
-	pub ret: Ty<'tcx>,
+	pub(crate) ret: Ty<'tcx>,
 	/// Its error type.
-	pub err: Ty<'tcx>,
+	pub(crate) err: Ty<'tcx>,
 	/// The `Ok` payload's layout, which has no enum.
-	pub ok: Shape<'tcx>,
+	pub(crate) ok: Shape<'tcx>,
 	/// Each part's field in the slot, in order.
-	pub fields: Vec<String>,
+	pub(crate) fields: Vec<String>,
 	/// Whether the first part, a number, is returned rather than written.
-	pub returned: bool,
+	pub(crate) returned: bool,
 }
 
 impl<'tcx> Slotted<'tcx> {
 	/// The slot's field of part `i`, read or written.
-	pub fn field(&self, i: usize) -> Expr {
+	pub(crate) fn field(&self, i: usize) -> Expr {
 		assert!(i > 0 || !self.returned, "the first part is returned");
 		Expr::Sym(self.sym).member(self.fields[i].clone())
 	}
@@ -556,13 +556,13 @@ impl<'tcx> Slotted<'tcx> {
 	}
 
 	/// The slot's field of the error.
-	pub fn err_field(&self) -> Expr {
+	pub(crate) fn err_field(&self) -> Expr {
 		Expr::Sym(self.sym).member(ERR)
 	}
 
 	/// What a caller that keeps the result whole makes of what the call returned, `ret`
 	/// (a name), read at once: the `Ok` of the slot's parts, or the `Err`.
-	pub fn rebuild(&self, t: &mut crate::lower::Translator<'_, 'tcx>, ret: &str, span: Span) -> Expr {
+	pub(crate) fn rebuild(&self, t: &mut crate::lower::Translator<'_, 'tcx>, ret: &str, span: Span) -> Expr {
 		let first = self.returned.then(|| Expr::ident(ret));
 		let parts: Vec<Expr> = first
 			.into_iter()

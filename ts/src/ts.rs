@@ -8,24 +8,24 @@ use std::collections::HashSet;
 use rust2_driver::cfg;
 
 /// A translated item: a function, struct, or type alias.
-pub type SymId = usize;
+pub(crate) type SymId = usize;
 
 /// A field of a translated struct, named with the other names its class may define.
-pub type FieldId = usize;
+pub(crate) type FieldId = usize;
 
 /// A position in a Rust source file, for the source map.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Loc {
+pub(crate) struct Loc {
 	/// An index into the program's source files.
-	pub file: u32,
+	pub(crate) file: u32,
 	/// Zero-based line.
-	pub line: u32,
+	pub(crate) line: u32,
 	/// Zero-based UTF-16 column, as source maps count them.
-	pub col: u32,
+	pub(crate) col: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Expr {
+pub(crate) enum Expr {
 	Ident(String),
 	This,
 	/// A translated item, named at print time.
@@ -62,31 +62,31 @@ pub enum Expr {
 
 /// A property name.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Key {
+pub(crate) enum Key {
 	Name(String),
 	Field(FieldId),
 }
 
 impl Expr {
-	pub fn ident(name: impl Into<String>) -> Self {
+	pub(crate) fn ident(name: impl Into<String>) -> Self {
 		Self::Ident(name.into())
 	}
 
-	pub fn lit(text: impl Into<String>) -> Self {
+	pub(crate) fn lit(text: impl Into<String>) -> Self {
 		Self::Lit(text.into())
 	}
 
-	pub fn undefined() -> Self {
+	pub(crate) fn undefined() -> Self {
 		Self::lit("undefined")
 	}
 
-	pub fn member(self, name: impl Into<String>) -> Self {
+	pub(crate) fn member(self, name: impl Into<String>) -> Self {
 		Self::Member(Box::new(self), Key::Name(name.into()))
 	}
 
 	/// What `self` reads, if it is an `rs.Place` made here: `rs.place(() => read, set)`, or
 	/// `rs.arrayAsPtr(array, index)`, which a borrow of an element in bounds makes.
-	pub fn place_read(&self) -> Option<Expr> {
+	pub(crate) fn place_read(&self) -> Option<Expr> {
 		let Self::Call(f, args) = self else { return None };
 		match (&**f, args.as_slice()) {
 			(Self::Rs(name), [Self::Lambda(params, read), _]) if name == "place" && params.is_empty() => {
@@ -97,27 +97,27 @@ impl Expr {
 		}
 	}
 
-	pub fn field(self, field: FieldId) -> Self {
+	pub(crate) fn field(self, field: FieldId) -> Self {
 		Self::Member(Box::new(self), Key::Field(field))
 	}
 
-	pub fn index(self, index: Expr) -> Self {
+	pub(crate) fn index(self, index: Expr) -> Self {
 		Self::Index(Box::new(self), Box::new(index))
 	}
 
-	pub fn call(self, args: Vec<Expr>) -> Self {
+	pub(crate) fn call(self, args: Vec<Expr>) -> Self {
 		Self::Call(Box::new(self), args)
 	}
 
 	/// A call of the runtime function `rs.<name>`.
-	pub fn rs(name: impl Into<String>, args: Vec<Expr>) -> Self {
+	pub(crate) fn rs(name: impl Into<String>, args: Vec<Expr>) -> Self {
 		Self::Rs(name.into()).call(args)
 	}
 
 	/// `rs.Ok(value)`, or `rs.Err(value)` if not `ok`: for `undefined`, `rs.OK` or `rs.ERR`,
 	/// one object every evaluation shares, since nothing writes into a result in place and
 	/// `undefined` holds nothing to write into.
-	pub fn result(ok: bool, value: Expr) -> Self {
+	pub(crate) fn result(ok: bool, value: Expr) -> Self {
 		let unit = matches!(&value, Self::Lit(text) if text == "undefined");
 		match (ok, unit) {
 			(true, true) => Self::Rs("OK".into()),
@@ -128,25 +128,25 @@ impl Expr {
 	}
 
 	/// The runtime function `name` of what `of` names: `rs.u8Add` for `("u8", "add")`.
-	pub fn rs_of(of: &str, name: &str) -> Self {
+	pub(crate) fn rs_of(of: &str, name: &str) -> Self {
 		let mut chars = name.chars();
 		let first = chars.next().map(|c| c.to_ascii_uppercase()).into_iter();
 		Self::Rs(format!("{of}{}{}", first.collect::<String>(), chars.as_str()))
 	}
 
-	pub fn binary(self, op: &'static str, rhs: Expr) -> Self {
+	pub(crate) fn binary(self, op: &'static str, rhs: Expr) -> Self {
 		Self::Binary(Box::new(self), op, Box::new(rhs))
 	}
 
-	pub fn unary(op: &'static str, arg: Expr) -> Self {
+	pub(crate) fn unary(op: &'static str, arg: Expr) -> Self {
 		Self::Unary(op, Box::new(arg))
 	}
 
-	pub fn assign(self, value: Expr) -> Self {
+	pub(crate) fn assign(self, value: Expr) -> Self {
 		Self::Assign(Box::new(self), Box::new(value))
 	}
 
-	pub fn not(self) -> Self {
+	pub(crate) fn not(self) -> Self {
 		match self {
 			Self::Unary("!", inner) => *inner,
 			Self::Lit(t) if t == "true" => Self::lit("false"),
@@ -158,7 +158,7 @@ impl Expr {
 	}
 
 	/// This without an outer `as`, where the context already gives the type.
-	pub fn typed(self) -> Self {
+	pub(crate) fn typed(self) -> Self {
 		match self {
 			// Limbs keep theirs, which the brand of their type requires, and an `rs.RangeBound` its
 			// own, without which a declaration narrows to the one variant it is made as.
@@ -180,7 +180,7 @@ impl Expr {
 
 	/// Whether evaluating this can neither do anything nor see anything change:
 	/// a literal, or `this`.
-	pub fn is_constant(&self) -> bool {
+	pub(crate) fn is_constant(&self) -> bool {
 		match self {
 			Self::Lit(_) | Self::Str(_) | Self::This | Self::Sym(_) | Self::Rs(_) => true,
 			Self::Located(_, e) => e.is_constant(),
@@ -194,7 +194,7 @@ impl Expr {
 	}
 
 	/// The text of a path of names, the same for two paths that read the same place.
-	pub fn path_key(&self) -> Option<String> {
+	pub(crate) fn path_key(&self) -> Option<String> {
 		match self {
 			Self::Ident(name) => Some(name.clone()),
 			Self::This => Some("this".into()),
@@ -211,7 +211,7 @@ impl Expr {
 	}
 
 	/// The expression under its source locations.
-	pub fn unlocated(&self) -> &Self {
+	pub(crate) fn unlocated(&self) -> &Self {
 		match self {
 			Self::Located(_, e) => e.unlocated(),
 			e => e,
@@ -220,7 +220,7 @@ impl Expr {
 
 	/// Whether evaluating this twice is free and gives the same value both times, so a
 	/// pattern may read it more than once: a name, or a member path from one.
-	pub fn is_path(&self) -> bool {
+	pub(crate) fn is_path(&self) -> bool {
 		match self {
 			Self::Ident(_) | Self::This => true,
 			Self::Member(base, _) => base.is_path(),
@@ -236,19 +236,19 @@ fn wide(ty: &Type) -> bool {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Param {
-	pub name: String,
-	pub ty: Option<Type>,
+pub(crate) struct Param {
+	pub(crate) name: String,
+	pub(crate) ty: Option<Type>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Stmt {
-	pub kind: StmtKind,
-	pub loc: Option<Loc>,
+pub(crate) struct Stmt {
+	pub(crate) kind: StmtKind,
+	pub(crate) loc: Option<Loc>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum StmtKind {
+pub(crate) enum StmtKind {
 	Expr(Expr),
 	Decl {
 		mutable: bool,
@@ -296,12 +296,12 @@ pub enum StmtKind {
 }
 
 impl StmtKind {
-	pub fn at(self, loc: Option<Loc>) -> Stmt {
+	pub(crate) fn at(self, loc: Option<Loc>) -> Stmt {
 		Stmt { kind: self, loc }
 	}
 
 	/// `const name = init`, or `let` if `mutable`.
-	pub fn decl(mutable: bool, name: impl Into<String>, ty: Option<Type>, init: Option<Expr>) -> Self {
+	pub(crate) fn decl(mutable: bool, name: impl Into<String>, ty: Option<Type>, init: Option<Expr>) -> Self {
 		let init = match ty {
 			Some(_) => init.map(Expr::typed),
 			None => init,
@@ -449,7 +449,7 @@ impl cfg::Cond for Expr {
 }
 
 /// Each item `stmts` name as a value, to rename.
-pub fn syms_mut(stmts: &mut [Stmt], f: &mut impl FnMut(&mut SymId)) {
+pub(crate) fn syms_mut(stmts: &mut [Stmt], f: &mut impl FnMut(&mut SymId)) {
 	for stmt in stmts {
 		match &mut stmt.kind {
 			StmtKind::Expr(e) | StmtKind::Return(Some(e)) => e.syms_mut(f),
@@ -481,7 +481,7 @@ pub fn syms_mut(stmts: &mut [Stmt], f: &mut impl FnMut(&mut SymId)) {
 
 impl Expr {
 	/// Each item the expression names as a value, to rename.
-	pub fn syms_mut(&mut self, f: &mut impl FnMut(&mut SymId)) {
+	pub(crate) fn syms_mut(&mut self, f: &mut impl FnMut(&mut SymId)) {
 		match self {
 			Expr::Sym(id) => f(id),
 			Expr::Arrow(_, _, body) => syms_mut(body, f),
@@ -515,7 +515,7 @@ impl Expr {
 /// Mark `_name` each parameter that `body` never names, as `noUnusedParameters` wants,
 /// and those of each function `body` makes: decided from the output, whatever reads
 /// lowering left out.
-pub fn mark_unread(params: &mut [Param], body: &mut [Stmt]) {
+pub(crate) fn mark_unread(params: &mut [Param], body: &mut [Stmt]) {
 	let free = free_names(body);
 	mark_params(params, &free, declared(body));
 }
@@ -588,7 +588,7 @@ fn free_names(stmts: &mut [Stmt]) -> HashSet<String> {
 
 impl Expr {
 	/// Mark the unread parameters of each function this makes, as [`mark_unread`] does.
-	pub fn mark_unread(&mut self) {
+	pub(crate) fn mark_unread(&mut self) {
 		self.free_names(&mut HashSet::new());
 	}
 
@@ -643,7 +643,7 @@ fn function_free(params: &mut [Param], inner: HashSet<String>, declared: HashSet
 
 impl Expr {
 	/// Each item the expression reads as it is evaluated, outside the functions it makes.
-	pub fn eager_syms(&self, f: &mut impl FnMut(SymId)) {
+	pub(crate) fn eager_syms(&self, f: &mut impl FnMut(SymId)) {
 		match self {
 			Expr::Sym(id) => f(*id),
 			Expr::Arrow(..) | Expr::Lambda(..) => {}
@@ -674,7 +674,7 @@ impl Expr {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Type {
+pub(crate) enum Type {
 	/// A built-in type: `number`, `bigint`, `boolean`, `string`, `void`, `never`,
 	/// `undefined`, `Uint8Array`.
 	Builtin(&'static str),
@@ -697,13 +697,13 @@ pub enum Type {
 
 impl Type {
 	/// Whether it names the type parameter `param`.
-	pub fn names(&self, param: &str) -> bool {
+	pub(crate) fn names(&self, param: &str) -> bool {
 		self.any(&|t| matches!(t, Type::Param(name) if name == param))
 	}
 
 	/// Whether a type `f` picks is where TypeScript takes no other: in a function type's
 	/// parameter, or in a type argument of a generic type.
-	pub fn takes(&self, f: &impl Fn(&Type) -> bool) -> bool {
+	pub(crate) fn takes(&self, f: &impl Fn(&Type) -> bool) -> bool {
 		match self {
 			Type::Func(params, ret) => params.iter().any(|t| t.any(f)) || ret.takes(f),
 			Type::Param(_) | Type::Builtin(_) | Type::StrLit(_) | Type::Later(_) => false,
@@ -717,7 +717,7 @@ impl Type {
 	}
 
 	/// It with each type parameter `f` gives a type for replaced.
-	pub fn subst(&self, f: &impl Fn(&str) -> Option<Type>) -> Type {
+	pub(crate) fn subst(&self, f: &impl Fn(&str) -> Option<Type>) -> Type {
 		let all = |tys: &[Type]| tys.iter().map(|t| t.subst(f)).collect();
 		match self {
 			Type::Param(name) => f(name).unwrap_or_else(|| self.clone()),
@@ -733,7 +733,7 @@ impl Type {
 	}
 
 	/// Whether it, or any type in it, is one `f` picks.
-	pub fn any(&self, f: &impl Fn(&Type) -> bool) -> bool {
+	pub(crate) fn any(&self, f: &impl Fn(&Type) -> bool) -> bool {
 		f(self)
 			|| match self {
 				Type::Param(_) | Type::Builtin(_) | Type::StrLit(_) | Type::Later(_) => false,
@@ -748,7 +748,7 @@ impl Type {
 
 	/// It with each [`Type::Later`] replaced by the arguments `later` gives it, if it gives
 	/// any, or `None` if one reaches itself.
-	pub fn fill(&mut self, later: &impl Fn(usize) -> Option<Vec<Type>>) -> Option<()> {
+	pub(crate) fn fill(&mut self, later: &impl Fn(usize) -> Option<Vec<Type>>) -> Option<()> {
 		self.fill_from(later, &mut Vec::new())
 	}
 
@@ -795,26 +795,26 @@ impl Type {
 }
 
 #[derive(Clone, Debug)]
-pub struct Function {
-	pub sym: SymId,
-	pub params: Vec<Param>,
-	pub ret: Type,
-	pub body: Vec<Stmt>,
-	pub loc: Option<Loc>,
-	pub doc: Option<String>,
+pub(crate) struct Function {
+	pub(crate) sym: SymId,
+	pub(crate) params: Vec<Param>,
+	pub(crate) ret: Type,
+	pub(crate) body: Vec<Stmt>,
+	pub(crate) loc: Option<Loc>,
+	pub(crate) doc: Option<String>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Field {
-	pub id: FieldId,
-	pub ty: Type,
-	pub doc: Option<String>,
+pub(crate) struct Field {
+	pub(crate) id: FieldId,
+	pub(crate) ty: Type,
+	pub(crate) doc: Option<String>,
 	/// What the field starts as, if not a constructor argument.
-	pub init: FieldInit,
+	pub(crate) init: FieldInit,
 }
 
 #[derive(Clone, Debug)]
-pub enum FieldInit {
+pub(crate) enum FieldInit {
 	/// The constructor's argument.
 	Ctor,
 	/// `name: ty = value`.
@@ -825,7 +825,7 @@ pub enum FieldInit {
 
 /// How a struct is constructed, as a class; a plain object is a literal of its fields.
 #[derive(Clone, Debug)]
-pub enum Ctor {
+pub(crate) enum Ctor {
 	/// `new C()`, for a struct without fields.
 	Unit,
 	/// `new C(a, b)`: its fields in declaration order, which allocates no object for them.
@@ -833,7 +833,7 @@ pub enum Ctor {
 }
 
 #[derive(Clone, Debug)]
-pub enum Item {
+pub(crate) enum Item {
 	/// A struct: an interface, or a class if it may drop.
 	Struct {
 		sym: SymId,

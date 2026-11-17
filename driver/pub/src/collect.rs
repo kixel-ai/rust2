@@ -28,7 +28,7 @@ use rustc_structures::CrateType;
 use crate::facts::{self, Def, Edits, Expansion, Hash, Impl, Import, Printed, Ref, Site, Unit};
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
-pub fn run(args: Vec<String>) -> ExitCode {
+pub(crate) fn run(args: Vec<String>) -> ExitCode {
 	rust2_driver::rustc::run("rust2-pub", args, |_, _| {
 		Ok(Collect::for_package()?.map(|job| Box::new(job) as rust2_driver::rustc::Job))
 	})
@@ -145,7 +145,7 @@ impl FileLoader for Narrowed {
 
 /// Whether `text` holds the keyword `pub` at `at`. Whether it is bare, rather than
 /// `pub(crate)`, is rustc's to say: `pub (u8, u8)` is a public tuple field.
-pub fn is_pub(text: &[u8], at: usize) -> bool {
+pub(crate) fn is_pub(text: &[u8], at: usize) -> bool {
 	let ident = |b: &u8| b.is_ascii_alphanumeric() || *b == b'_';
 	text.get(at..at + 3) == Some(b"pub")
 		&& !at.checked_sub(1).and_then(|i| text.get(i)).is_some_and(ident)

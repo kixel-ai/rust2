@@ -14,7 +14,7 @@ wherever --manifest-path says, to a Go package in <dir> named after the crate, e
 its whole `pub` API. Cargo args, such as --features, are passed to `cargo check`, which
 checks with the dev profile on the host, with std checked from source.";
 
-pub fn run(args: &[String]) -> ExitCode {
+pub(crate) fn run(args: &[String]) -> ExitCode {
 	match try_run(args) {
 		Ok(code) => code,
 		Err(err) => {

@@ -8,34 +8,34 @@ use serde::Deserialize;
 /// What to translate from one crate.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
-pub struct Config {
+pub(crate) struct Config {
 	/// The cargo package whose library is translated.
-	pub package: String,
+	pub(crate) package: String,
 	/// Paths from the crate root to the items to translate: a function, or a type with
 	/// its non-generic methods. Everything they reach comes along.
-	pub roots: Vec<String>,
+	pub(crate) roots: Vec<String>,
 	/// Paths from the crate root to types whose `Display` and `Debug` impls come along,
 	/// so callers can print them as Rust does.
 	#[serde(default)]
-	pub printable: Vec<String>,
+	pub(crate) printable: Vec<String>,
 	/// Hand-written TypeScript that stands in for a Rust item, by the item's path: from
 	/// the crate root, or else from a crate it depends on, by the name the crate gives it.
 	#[serde(default)]
-	pub bind: BTreeMap<String, Bind>,
+	pub(crate) bind: BTreeMap<String, Bind>,
 	/// The directory `ts.toml` is in, which binding files are relative to.
 	#[serde(skip)]
-	pub dir: PathBuf,
+	pub(crate) dir: PathBuf,
 }
 
 /// The TypeScript file that stands in for an item.
 #[derive(Debug, Deserialize)]
 #[serde(from = "BindToml")]
-pub struct Bind {
+pub(crate) struct Bind {
 	/// Relative to `ts.toml`, and copied to the same path in the output.
-	pub file: PathBuf,
+	pub(crate) file: PathBuf,
 	/// Whether a bound type's value drops through its `[Symbol.dispose]` where Rust drops
 	/// it. Without it, dropping one does nothing JS sees.
-	pub drop: bool,
+	pub(crate) drop: bool,
 }
 
 /// A binding as written: its file alone, or a table.
@@ -64,7 +64,7 @@ impl From<BindToml> for Bind {
 }
 
 impl Config {
-	pub fn load(path: &Path) -> Result<Self, String> {
+	pub(crate) fn load(path: &Path) -> Result<Self, String> {
 		let text = std::fs::read_to_string(path).map_err(|err| format!("reading {}: {err}", path.display()))?;
 		let mut config: Self = toml::from_str(&text).map_err(|err| format!("parsing {}: {err}", path.display()))?;
 		config.dir = path.parent().unwrap_or(Path::new("")).to_path_buf();
@@ -73,13 +73,13 @@ impl Config {
 }
 
 /// Environment variables the CLI hands the wrapper.
-pub mod env {
+pub(crate) mod env {
 	/// The `ts.toml` path, absolute.
-	pub const CONFIG: &str = "RUST2_TS_CONFIG";
+	pub(crate) const CONFIG: &str = "RUST2_TS_CONFIG";
 	/// The output directory, absolute.
-	pub const OUT: &str = "RUST2_TS_OUT";
+	pub(crate) const OUT: &str = "RUST2_TS_OUT";
 	/// Where to write a census instead of translating, absolute.
-	pub const CENSUS: &str = "RUST2_TS_CENSUS";
+	pub(crate) const CENSUS: &str = "RUST2_TS_CENSUS";
 	/// A sysroot of std checked for translation, which flake.nix builds once per toolchain.
-	pub const SYSROOT: &str = "RUST2_TS_SYSROOT";
+	pub(crate) const SYSROOT: &str = "RUST2_TS_SYSROOT";
 }

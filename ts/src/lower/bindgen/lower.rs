@@ -15,7 +15,7 @@ use crate::lower::library::Std;
 use crate::ts::{Expr, Key, Param, Stmt, StmtKind, Type};
 
 /// A call of `instance`, which is wasm-bindgen's `glue`, given `args`.
-pub fn call<'tcx>(
+pub(crate) fn call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	instance: Instance<'tcx>,
 	glue: Glue<'tcx>,
@@ -60,7 +60,7 @@ pub fn call<'tcx>(
 
 /// A constant `JsValue` of a slot wasm-bindgen reserves, `idx`: `undefined`, `null`,
 /// `true`, or `false`.
-pub fn constant(idx: u32) -> Option<Expr> {
+pub(crate) fn constant(idx: u32) -> Option<Expr> {
 	// `JSIDX_OFFSET` and the reserved slots after it, as wasm-bindgen's `__rt` numbers them.
 	Some(Expr::lit(match idx.checked_sub(1024)? {
 		0 => "undefined",
@@ -532,7 +532,7 @@ fn intrinsic(name: &str, mut args: Vec<Expr>) -> Option<Expr> {
 }
 
 /// The string enum `did` is, as the JS strings of its variants, if a program declares it.
-pub fn string_enum(b: &Body<'_, '_, '_>, did: DefId) -> Option<Expr> {
+pub(crate) fn string_enum(b: &Body<'_, '_, '_>, did: DefId) -> Option<Expr> {
 	let tcx = b.t.tcx;
 	let adt = tcx.adt_def(did);
 	let last = adt.variants().iter().last()?;

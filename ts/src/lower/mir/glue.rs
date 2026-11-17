@@ -16,7 +16,7 @@ use crate::ts::{self, Expr, Param, StmtKind, SymId, Type};
 
 /// The function dropping a `ty`, made the first time, or `None` for a type over
 /// parameters, whose glue only an instance can say.
-pub fn shim<'tcx>(t: &mut Translator<'_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<SymId> {
+pub(crate) fn shim<'tcx>(t: &mut Translator<'_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<SymId> {
 	if let Some(&sym) = t.drop_shims.get(&ty) {
 		return Some(sym);
 	}
@@ -90,6 +90,6 @@ pub fn shim<'tcx>(t: &mut Translator<'_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Opt
 }
 
 /// `value` dropped by its glue.
-pub fn call(sym: SymId, value: Expr) -> Expr {
+pub(crate) fn call(sym: SymId, value: Expr) -> Expr {
 	Expr::Sym(sym).call(vec![value])
 }

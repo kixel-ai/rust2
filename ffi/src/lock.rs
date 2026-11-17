@@ -19,10 +19,10 @@ use crate::ir::{Access, Api, Constant, Function, Literal, On, Opaque, Traits, Ty
 use crate::merge::{self, Maps};
 
 /// Each language's public names, keyed by the item's kind and Rust path.
-pub type Names = BTreeMap<String, BTreeMap<String, String>>;
+pub(crate) type Names = BTreeMap<String, BTreeMap<String, String>>;
 
 /// A generator's names for exported types, translated from C keys to stable item keys.
-pub fn types(abi: &Abi<'_>, classes: &std::collections::HashMap<String, String>) -> BTreeMap<String, String> {
+pub(crate) fn types(abi: &Abi<'_>, classes: &std::collections::HashMap<String, String>) -> BTreeMap<String, String> {
 	let api = abi.api;
 	let records = api.records.iter().enumerate().map(|(i, r)| (abi.record(i), &r.shown));
 	let enums = api
@@ -47,7 +47,11 @@ pub fn types(abi: &Abi<'_>, classes: &std::collections::HashMap<String, String>)
 /// Record names made for enum variants by a generator's collision rules.
 ///
 /// `variant` gives a variant's name by its enum's C name and its Rust name, if it has one.
-pub fn variants(abi: &Abi<'_>, names: &mut BTreeMap<String, String>, variant: impl Fn(&str, &str) -> Option<String>) {
+pub(crate) fn variants(
+	abi: &Abi<'_>,
+	names: &mut BTreeMap<String, String>,
+	variant: impl Fn(&str, &str) -> Option<String>,
+) {
 	for (i, e) in abi.api.enums.iter().enumerate() {
 		for v in &e.variants {
 			if let Some(name) = variant(&abi.enumeration(i), &v.name) {
@@ -58,13 +62,13 @@ pub fn variants(abi: &Abi<'_>, names: &mut BTreeMap<String, String>, variant: im
 }
 
 /// Record the final public name of a function or field accessor.
-pub fn function(names: &mut BTreeMap<String, String>, function: &Function, name: &str) {
+pub(crate) fn function(names: &mut BTreeMap<String, String>, function: &Function, name: &str) {
 	names.insert(function_key(function), name.to_string());
 }
 
 /// The shared exception identity after references lose ownership. `Abi::key` already folds
 /// references and borrowed strings everywhere but a tuple, which `Abi::spell` spells itself.
-pub fn error_key(abi: &Abi<'_>, ty: &Type) -> String {
+pub(crate) fn error_key(abi: &Abi<'_>, ty: &Type) -> String {
 	fn owned(ty: &Type) -> Type {
 		match ty {
 			Type::Ref(_, inner) => owned(inner),
@@ -79,7 +83,7 @@ pub fn error_key(abi: &Abi<'_>, ty: &Type) -> String {
 ///
 /// An item whose C name `base_api`, the baseline's API, gave it changed is already a structural
 /// break, so its binding names, which follow from the C name, are not reported again.
-pub fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'_>) -> Vec<Break> {
+pub(crate) fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'_>) -> Vec<Break> {
 	let api = abi.api;
 	let index = Index::with(abi);
 	let baseline = Index::new(base_api, &abi.prefix);
@@ -203,15 +207,15 @@ pub fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'_>) -> 
 }
 
 /// An item the export's API breaks the baseline's at: where, and how.
-pub struct Break {
+pub(crate) struct Break {
 	/// The item's span in the export, or the baseline's if the export lacks it, or none.
-	pub span: Span,
+	pub(crate) span: Span,
 	/// The item, then each way it breaks.
-	pub what: String,
+	pub(crate) what: String,
 }
 
 /// Every break of `base`, the baseline, by `now`, the export's API, both prefixed `prefix`.
-pub fn breaks(base: &Api, now: &Api, prefix: &str) -> Vec<Break> {
+pub(crate) fn breaks(base: &Api, now: &Api, prefix: &str) -> Vec<Break> {
 	// Every path starts with the facade's root, which prefixes every C name.
 	let root = (base.records.iter().map(|r| &r.shown))
 		.chain(base.enums.iter().map(|e| &e.shown))
@@ -543,12 +547,12 @@ impl<'a> Entry<'a> {
 }
 
 /// A type's key: one for every kind, so a type that becomes another kind is changed.
-pub fn type_key(path: &[String]) -> String {
+pub(crate) fn type_key(path: &[String]) -> String {
 	format!("type {}", path.join("::"))
 }
 
 /// A function or accessor identity, independent of its generated name.
-pub fn function_key(function: &Function) -> String {
+pub(crate) fn function_key(function: &Function) -> String {
 	let kind = match function.access {
 		Access::Field { set: false, .. } => "get",
 		Access::Field { set: true, .. } => "set",

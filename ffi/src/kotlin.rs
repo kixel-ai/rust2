@@ -34,21 +34,21 @@ use crate::ir::{Access, Family, Function, Int, Jni, Literal, Mutability, On, Opa
 const RUNTIME: &str = include_str!("../runtime/rt.kt");
 /// The runtime's public types, at the generated file's top level.
 const TYPES: &str = include_str!("../runtime/types.kt");
-pub const GLUE_RUNTIME: &str = include_str!("../runtime/jni.rs");
+pub(crate) const GLUE_RUNTIME: &str = include_str!("../runtime/jni.rs");
 
 /// What the generator writes: the Kotlin file, the Rust module of JNI functions, and the
 /// R8 and ProGuard rules keeping what that module looks up by name.
-pub struct Output {
-	pub names: BTreeMap<String, String>,
-	pub kotlin: String,
-	pub glue: String,
-	pub rules: String,
+pub(crate) struct Output {
+	pub(crate) names: BTreeMap<String, String>,
+	pub(crate) kotlin: String,
+	pub(crate) glue: String,
+	pub(crate) rules: String,
 }
 
 /// The Kotlin for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike. The Kotlin's own contract hashes the header's with everything it and its
 /// glue add, as JNI's signatures and encodings change with no C declaration changing.
-pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
+pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		locked: BTreeMap::new(),
 		abi,

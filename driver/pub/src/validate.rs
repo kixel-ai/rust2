@@ -10,7 +10,7 @@ use crate::cargo::{Diagnostic, DiagnosticSpan, Workspace};
 use crate::facts::{Edits, Hash, Span, Unit};
 
 /// Why a proposed token stays `pub`.
-pub enum Restored {
+pub(crate) enum Restored {
 	/// rustc's diagnostic pointed at it: its code, if any, and message.
 	Diagnostic(Option<String>, String),
 	/// Narrowing it changed what a name resolves to, at this place.
@@ -22,25 +22,29 @@ pub enum Restored {
 }
 
 /// What the validation ends with.
-pub struct Validation {
+pub(crate) struct Validation {
 	/// The tokens narrowed together, by index in [`Audit::tokens`].
-	pub narrowed: BTreeSet<usize>,
-	pub restored: BTreeMap<usize, Restored>,
+	pub(crate) narrowed: BTreeSet<usize>,
+	pub(crate) restored: BTreeMap<usize, Restored>,
 	/// How many checks it took.
-	pub rounds: usize,
+	pub(crate) rounds: usize,
 }
 
 /// The audit's run: where it writes, and what it checks.
-pub struct Run<'a> {
-	pub workspaces: &'a [Workspace],
-	pub args: &'a [String],
-	pub out: &'a Path,
-	pub local: &'a Path,
+pub(crate) struct Run<'a> {
+	pub(crate) workspaces: &'a [Workspace],
+	pub(crate) args: &'a [String],
+	pub(crate) out: &'a Path,
+	pub(crate) local: &'a Path,
 }
 
 impl Run<'_> {
 	/// Check every workspace, narrowed by `edits` if given, into `facts`.
-	pub fn check(&self, name: &str, edits: Option<&Edits>) -> Result<(bool, Vec<Diagnostic>, Vec<Unit>), String> {
+	pub(crate) fn check(
+		&self,
+		name: &str,
+		edits: Option<&Edits>,
+	) -> Result<(bool, Vec<Diagnostic>, Vec<Unit>), String> {
 		let facts = self.out.join("facts").join(name);
 		if facts.exists() {
 			std::fs::remove_dir_all(&facts).map_err(|err| format!("clearing {}: {err}", facts.display()))?;
@@ -81,7 +85,7 @@ impl Run<'_> {
 }
 
 /// Narrow every token the audit proposes, restoring until the workspaces check alike.
-pub fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validation, String> {
+pub(crate) fn validate(run: &Run, audit: &Audit, original: &[Unit]) -> Result<Validation, String> {
 	let mut active: BTreeSet<usize> = (0..audit.tokens.len())
 		.filter(|&t| audit.tokens[t].verdict == crate::analyze::Verdict::Narrow)
 		.collect();
@@ -350,7 +354,7 @@ fn fails(diagnostic: &Diagnostic) -> bool {
 }
 
 /// The tokens' offsets, by file.
-pub fn edits(audit: &Audit, active: &BTreeSet<usize>) -> Edits {
+pub(crate) fn edits(audit: &Audit, active: &BTreeSet<usize>) -> Edits {
 	let mut edits = Edits::new();
 	for &t in active {
 		let place = &audit.tokens[t].place;

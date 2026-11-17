@@ -12,10 +12,10 @@ use crate::config::{self, Config};
 use crate::{check, cli, lower, program};
 
 /// The wrapped rustc's path, which names the commit its std's prebuilt files remap to.
-pub static RUSTC: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+pub(crate) static RUSTC: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
-pub fn run(args: Vec<String>) -> ExitCode {
+pub(crate) fn run(args: Vec<String>) -> ExitCode {
 	if let Some(rustc) = args.get(1) {
 		let _ = RUSTC.set(rustc.clone());
 	}

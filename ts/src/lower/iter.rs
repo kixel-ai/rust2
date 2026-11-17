@@ -24,12 +24,12 @@ fn trait_items(tcx: ty::TyCtxt<'_>) -> Option<(DefId, DefId)> {
 }
 
 /// `Iterator::next`.
-pub fn next_fn(tcx: ty::TyCtxt<'_>) -> Option<DefId> {
+pub(crate) fn next_fn(tcx: ty::TyCtxt<'_>) -> Option<DefId> {
 	Some(trait_items(tcx)?.0)
 }
 
 /// Whether `def_id` is `Iterator::next`, or an impl's.
-pub fn is_next(tcx: ty::TyCtxt<'_>, def_id: DefId) -> bool {
+pub(crate) fn is_next(tcx: ty::TyCtxt<'_>, def_id: DefId) -> bool {
 	let Some((next, _)) = trait_items(tcx) else {
 		return false;
 	};
@@ -40,7 +40,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// `Iterator::Item` of `ty`, if `ty` is an iterator. A type over parameters, which a
 	/// generic type's fields and a census have, may leave it a projection; a field's
 	/// normalizes by its type's bounds.
-	pub fn iter_item(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	pub(crate) fn iter_item(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 		let tcx = self.tcx;
 		let (_, item) = trait_items(tcx)?;
 		let projection = Ty::new_projection(tcx, ty::IsRigid::No, item, [ty]);
@@ -52,7 +52,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// `Iterator::Item` of `ty`, if it is a `dyn Iterator`, `dyn DoubleEndedIterator`,
 	/// `dyn ExactSizeIterator`, or `dyn FusedIterator`, whose JS value is an `rs.Iter` of its
 	/// items.
-	pub fn dyn_iter(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	pub(crate) fn dyn_iter(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 		let ty::Dynamic(preds, ..) = ty.kind() else {
 			return None;
 		};
@@ -169,7 +169,7 @@ const RESOLVED: [&str; 25] = [
 /// `DoubleEndedIterator` impl overrides another that std calls in its place, such as `map`,
 /// which std's `flat_map` calls, or whose own method taking a closure tells it, or what else
 /// it is generic over, apart from the ones `closure_args` translates it for.
-pub fn check_impl(t: &mut Translator<'_, '_>, next_fn: DefId) {
+pub(crate) fn check_impl(t: &mut Translator<'_, '_>, next_fn: DefId) {
 	let tcx = t.tcx;
 	let Some(imp) = tcx.impl_of_assoc(next_fn) else {
 		return;
@@ -623,7 +623,7 @@ fn held<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 
 /// Whether `ty` is an iterator of the crate's own whose `&mut` is an `rs.Place`, which std's
 /// methods taking `&mut self` read through, as its `next` does.
-pub fn held_own<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
+pub(crate) fn held_own<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
 	matches!(ty.kind(), ty::Adt(adt, _) if t.own(adt.did())) && t.iter_item(ty).is_some() && t.needs_place(ty)
 }
 
@@ -669,7 +669,7 @@ fn own_back<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, iter: Expr) -> Optio
 }
 
 /// `iter.next()` by the protocol, for an iterator of type `ty`: an item or `rs.DONE`.
-pub fn next<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, iter: Expr) -> Expr {
+pub(crate) fn next<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, iter: Expr) -> Expr {
 	match own_next(b, ty) {
 		Some(instance) => {
 			super::caller::refuse_std_call(b.t, instance);
@@ -685,7 +685,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	/// `dyn Iterator`: an `rs.iterDyn` of the `rs.Iter` it is, which reads it by the methods
 	/// std's vtable has and else by `next`, as std's defaults read a trait object, and drops
 	/// it if the box owned it. An upcast from another is the same `rs.Iter`.
-	pub fn dyn_iter(&mut self, from: Ty<'tcx>, to: Ty<'tcx>, value: Expr, span: Span) -> Expr {
+	pub(crate) fn dyn_iter(&mut self, from: Ty<'tcx>, to: Ty<'tcx>, value: Expr, span: Span) -> Expr {
 		let Some(pointee) = from.builtin_deref(true).filter(|_| to.builtin_deref(true).is_some()) else {
 			return self.err(span, format!("a coercion to `{to}`, which is not supported yet"));
 		};
@@ -729,7 +729,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 /// What `IntoIterator::into_iter` makes of `value`, a `ty`: an `rs.Iter`, or `None` for a
 /// type without a mapping. One that owns what it yields, by value, is given what drops
 /// each, and the crate's own iterator what drops it.
-pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
+pub(crate) fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
 	let ty = super::smallvec::fold(b.t.tcx, ty);
 	let (peeled, value) = peel_iter(b, ty, value);
 	let it = peeled_into_iter(b, peeled, value, span)?;
@@ -930,7 +930,7 @@ pub(super) fn iter_of<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> Option<Ty
 
 /// `ty`, a reference to a box of a slice or an array, as one to what the box holds, which
 /// JS keeps as the box.
-pub fn unbox_ref<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
+pub(crate) fn unbox_ref<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 	match *ty.kind() {
 		ty::Ref(region, inner, mutability)
 			if let Some(held) = inner.boxed_ty()
@@ -944,7 +944,7 @@ pub fn unbox_ref<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 
 /// Whether `ty` is a `&mut` to a `&mut`, which is an `rs.Place` of it, or a box of one,
 /// which is what it holds.
-pub fn through_mut(ty: Ty<'_>) -> bool {
+pub(crate) fn through_mut(ty: Ty<'_>) -> bool {
 	match ty.boxed_ty() {
 		Some(inner) => through_mut(inner),
 		None => matches!(*ty.kind(), ty::Ref(_, inner, ty::Mutability::Mut) if inner.is_ref()),
@@ -953,7 +953,7 @@ pub fn through_mut(ty: Ty<'_>) -> bool {
 
 /// `value`, a `ty`, read through each box and `&mut` to a `&mut` that std's `Iterator` for
 /// `Box<I>` and `&mut I` forward through, down to the last `&mut` and its JS value.
-pub fn peel_mut<'tcx>(mut ty: Ty<'tcx>, mut value: Expr) -> (Ty<'tcx>, Expr) {
+pub(crate) fn peel_mut<'tcx>(mut ty: Ty<'tcx>, mut value: Expr) -> (Ty<'tcx>, Expr) {
 	while through_mut(ty) {
 		ty = match ty.boxed_ty() {
 			Some(inner) => inner,
@@ -970,7 +970,7 @@ pub fn peel_mut<'tcx>(mut ty: Ty<'tcx>, mut value: Expr) -> (Ty<'tcx>, Expr) {
 /// `Iterator` for `&mut I` and `Box<I>` forward through, down to the iterator: a `&mut` to it
 /// and that `&mut`'s JS value where a reference was read, else the iterator itself, and a
 /// box of a trait object where none was, which drops it. JS holds a box as what it holds.
-pub fn peel_iter<'tcx>(b: &Body<'_, '_, 'tcx>, mut ty: Ty<'tcx>, mut value: Expr) -> (Ty<'tcx>, Expr) {
+pub(crate) fn peel_iter<'tcx>(b: &Body<'_, '_, 'tcx>, mut ty: Ty<'tcx>, mut value: Expr) -> (Ty<'tcx>, Expr) {
 	let tcx = b.t.tcx;
 	let held = |ty: Ty<'tcx>, borrowed: bool| {
 		ty.boxed_ty()
@@ -1022,7 +1022,7 @@ fn not_bound<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) {
 /// The mapping of a call on or to an iterator, if it is one. Where std drops an item it
 /// skips, rejects, or holds, or an iterator it takes by value, the runtime function is
 /// given what drops it after its own arguments.
-pub fn call<'tcx>(
+pub(crate) fn call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	call: &Call<'tcx>,
 	owner: &str,

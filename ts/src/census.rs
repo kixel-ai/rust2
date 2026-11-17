@@ -10,23 +10,23 @@ use std::fmt::Write;
 use std::path::Path;
 
 /// What a census found.
-pub struct Census {
+pub(crate) struct Census {
 	/// Function instances translated or refused.
-	pub functions: usize,
+	pub(crate) functions: usize,
 	/// Generic functions no instance reached, lowered over their own type parameters.
-	pub polymorphic: usize,
+	pub(crate) polymorphic: usize,
 	/// Each refusal once.
-	pub refusals: Vec<Refusal>,
+	pub(crate) refusals: Vec<Refusal>,
 }
 
 /// A construct translation refuses, where it starts: at the macro call for macro-made
 /// code. `file` is empty, and `line` and `col` are 0, for code without a location.
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Refusal {
-	pub file: String,
-	pub line: usize,
-	pub col: usize,
-	pub message: String,
+pub(crate) struct Refusal {
+	pub(crate) file: String,
+	pub(crate) line: usize,
+	pub(crate) col: usize,
+	pub(crate) message: String,
 }
 
 impl Refusal {
@@ -43,7 +43,7 @@ type Groups<'a, K> = BTreeMap<K, Vec<&'a Refusal>>;
 impl Census {
 	/// The census of `krate` from `roots`, or every item where there are none, as Markdown:
 	/// refusals ranked by construct, by API, and by type or path, then every span.
-	pub fn render(&self, krate: &str, roots: &[String]) -> String {
+	pub(crate) fn render(&self, krate: &str, roots: &[String]) -> String {
 		let mut refusals = self.refusals.clone();
 		// The crate's own code first, so a group's first span is in it when it can be.
 		refusals.sort_by(|a, b| (Path::new(&a.file).is_absolute(), a).cmp(&(Path::new(&b.file).is_absolute(), b)));

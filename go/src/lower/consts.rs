@@ -14,7 +14,7 @@ use super::body::Fx;
 
 impl<'a, 'tcx> Fx<'a, 'tcx> {
 	/// A constant operand's value.
-	pub fn constant(&mut self, c: &mir::ConstOperand<'tcx>, span: Span) -> String {
+	pub(crate) fn constant(&mut self, c: &mir::ConstOperand<'tcx>, span: Span) -> String {
 		let ty = c.ty();
 		match c.const_.eval(self.tcx, self.t_env(), span) {
 			Ok(val) => self.const_value(val, ty, span),
@@ -23,7 +23,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	}
 
 	/// The value of a constant `val` of type `ty`.
-	pub fn const_value(&mut self, val: ConstValue, ty: Ty<'tcx>, span: Span) -> String {
+	pub(crate) fn const_value(&mut self, val: ConstValue, ty: Ty<'tcx>, span: Span) -> String {
 		let tcx = self.tcx;
 		if ty.is_unit() {
 			return "struct{}{}".into();
@@ -220,7 +220,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	}
 
 	/// The type of a static.
-	pub fn static_ty(&self, def_id: DefId) -> Ty<'tcx> {
+	pub(crate) fn static_ty(&self, def_id: DefId) -> Ty<'tcx> {
 		let ty = self.tcx.type_of(def_id).instantiate_identity().skip_norm_wip();
 		self.tcx
 			.normalize_erasing_regions(self.t_env(), ty::Unnormalized::new_wip(ty))
@@ -231,7 +231,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	/// Rust's uses of a static do. A static whose value reaches back to it is assigned in
 	/// an `init`, since Go refuses a variable whose initializer refers to it. `span` is
 	/// where it is used.
-	pub fn static_var(&mut self, def_id: DefId, span: Span) -> String {
+	pub(crate) fn static_var(&mut self, def_id: DefId, span: Span) -> String {
 		let tcx = self.tcx;
 		if let Some(name) = self.t.statics.get(&def_id) {
 			if self.t.initializing.contains(&def_id) {
@@ -372,7 +372,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 
 	/// The bytes a `&str` or `&[u8]` constant `val` of type `ty` points to, in constant
 	/// memory or a static's.
-	pub fn slice_bytes(&mut self, val: ConstValue, ty: Ty<'tcx>, span: Span) -> Option<&'tcx [u8]> {
+	pub(crate) fn slice_bytes(&mut self, val: ConstValue, ty: Ty<'tcx>, span: Span) -> Option<&'tcx [u8]> {
 		let (alloc, start, len) = match val {
 			ConstValue::Slice { alloc_id, meta } => (alloc_id, Size::ZERO, meta),
 			ConstValue::Indirect { alloc_id, offset } => self.fat_pointer(alloc_id, offset, ty, span)?,
@@ -386,12 +386,12 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 }
 
 /// Bytes as a Go `[]uint8` literal, through a string literal.
-pub fn bytes_lit(bytes: &[u8]) -> String {
+pub(crate) fn bytes_lit(bytes: &[u8]) -> String {
 	format!("[]uint8({})", go_string(bytes))
 }
 
 /// Bytes as a Go string literal.
-pub fn go_string(bytes: &[u8]) -> String {
+pub(crate) fn go_string(bytes: &[u8]) -> String {
 	let mut s = String::from("\"");
 	for &b in bytes {
 		match b {

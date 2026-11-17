@@ -62,7 +62,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// The JS expression of `place`, read without a copy.
-	pub fn place_expr(&mut self, place: Place<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
+	pub(crate) fn place_expr(&mut self, place: Place<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let tcx = self.tcx;
 		if let Some(why) = self.alloc_bytes(place).map(String::from).or_else(|| self.beside(place)) {
 			return self.err(span, why);
@@ -769,7 +769,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// An operand's value, copied if it is a `Copy` aggregate read from a place that keeps it.
-	pub fn operand(&mut self, op: &Operand<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
+	pub(crate) fn operand(&mut self, op: &Operand<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		match op {
 			// An array read through a reference, copied out of its slice.
 			Operand::Copy(place) | Operand::Move(place) if self.in_array(*place) => {
@@ -1430,7 +1430,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// A constant operand's value.
-	pub fn constant(&mut self, c: &mir::ConstOperand<'tcx>, span: Span) -> Expr {
+	pub(crate) fn constant(&mut self, c: &mir::ConstOperand<'tcx>, span: Span) -> Expr {
 		let tcx = self.tcx;
 		let env = self.b.t.typing_env_pub();
 		if let Some(key) = self.local_key_of(c) {
@@ -2159,12 +2159,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 }
 
 /// Whether `ty` is `[u8]`, which is an `rs.ByteSlice`.
-pub fn byte_slice(ty: Ty<'_>) -> bool {
+pub(crate) fn byte_slice(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Slice(elem) if crate::lower::byte(*elem))
 }
 
 /// The runtime's class of a slice of `elem`: `ByteSlice` of bytes, and `Slice` of others.
-pub fn slice_class(elem: Ty<'_>) -> &'static str {
+pub(crate) fn slice_class(elem: Ty<'_>) -> &'static str {
 	match crate::lower::byte(elem) {
 		true => "ByteSlice",
 		false => "Slice",
@@ -2172,14 +2172,14 @@ pub fn slice_class(elem: Ty<'_>) -> &'static str {
 }
 
 /// Element `i` of `slice`, an `rs.Slice` or `rs.ByteSlice` that reading twice reads the same.
-pub fn slice_at(slice: Expr, i: Expr) -> Expr {
+pub(crate) fn slice_at(slice: Expr, i: Expr) -> Expr {
 	let at = super::scalar::add(slice_member(slice.clone(), "start"), i);
 	slice_member(slice, "data").index(at)
 }
 
 /// The field `key` of `slice`, an `rs.ByteSlice`: its part, if it is made in place of parts
 /// that do nothing, as a local held as its parts reads.
-pub fn slice_member(slice: Expr, key: &str) -> Expr {
+pub(crate) fn slice_member(slice: Expr, key: &str) -> Expr {
 	if let Some([data, start, length]) = made_slice(&slice) {
 		return match key {
 			"data" => data.clone(),
@@ -2193,7 +2193,7 @@ pub fn slice_member(slice: Expr, key: &str) -> Expr {
 
 /// The object and fields of `target`, if it is a struct's byte slice field held as its
 /// parts, as [`Translator::read_field`] reads it.
-pub fn split_target(target: &Expr) -> Option<(&Expr, [crate::ts::FieldId; 3])> {
+pub(crate) fn split_target(target: &Expr) -> Option<(&Expr, [crate::ts::FieldId; 3])> {
 	fn field(e: &Expr) -> Option<(&Expr, crate::ts::FieldId)> {
 		match e {
 			Expr::Member(base, crate::ts::Key::Field(id)) => Some((base, *id)),
@@ -2227,7 +2227,7 @@ fn reads_fields(e: &Expr, ids: &[crate::ts::FieldId]) -> bool {
 }
 
 /// The parts of `slice`, if it is an `rs.ByteSlice` or `rs.Slice` made in place.
-pub fn made_slice(slice: &Expr) -> Option<&[Expr; 3]> {
+pub(crate) fn made_slice(slice: &Expr) -> Option<&[Expr; 3]> {
 	match slice {
 		Expr::New(f, args) if matches!(&**f, Expr::Rs(name) if name == "ByteSlice" || name == "Slice") => {
 			args.as_slice().try_into().ok()
@@ -2239,7 +2239,7 @@ pub fn made_slice(slice: &Expr) -> Option<&[Expr; 3]> {
 /// Whether `ty` is a struct of one field that JS represents as that field: a wrapper
 /// around a pointer, such as the `ResumeTy` and `NonNull` an async body passes its
 /// context in.
-pub fn transparent<'tcx>(t: &crate::lower::Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
+pub(crate) fn transparent<'tcx>(t: &crate::lower::Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
 	let ty::Adt(adt, _) = ty.kind() else {
 		return false;
 	};
@@ -2271,7 +2271,7 @@ fn changes_captures<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 
 /// Whether the body of `ty`, a closure, writes a capture that holds state, which a JS
 /// closure sharing its variables would write for each copy of it.
-pub fn writes_captures<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
+pub(crate) fn writes_captures<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	let (ty::Closure(def_id, _) | ty::CoroutineClosure(def_id, _)) = ty.kind() else {
 		return false;
 	};

@@ -30,7 +30,7 @@ published library exports, and all of an unpublished library the audit does not 
 which only a package with a binary does, and the unpublished members it builds on. A
 translator's fixture is such a library.";
 
-pub fn run(args: &[String]) -> ExitCode {
+pub(crate) fn run(args: &[String]) -> ExitCode {
 	match try_run(args) {
 		Ok(code) => code,
 		Err(err) => {

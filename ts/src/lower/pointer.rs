@@ -44,7 +44,7 @@ use super::{AdtRepr, ObjectKind, Translator};
 use crate::ts::{Expr, Key, Stmt, StmtKind, Type};
 
 /// What a type that [keeps cells](Translator::keeps_cells) holds.
-pub enum KeptCells<'tcx> {
+pub(crate) enum KeptCells<'tcx> {
 	/// A cell's value.
 	Cell(Ty<'tcx>),
 	/// Each field's type, and whether it keeps cells.
@@ -53,7 +53,7 @@ pub enum KeptCells<'tcx> {
 
 /// What a raw pointer to a type is in JS.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Pointee {
+pub(crate) enum Pointee {
 	/// An `rs.Place` of the value, which JS copies.
 	Place,
 	/// The object it points at.
@@ -68,7 +68,7 @@ pub enum Pointee {
 
 impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// What a raw pointer to `ty` is.
-	pub fn pointee(&self, ty: Ty<'tcx>) -> Pointee {
+	pub(crate) fn pointee(&self, ty: Ty<'tcx>) -> Pointee {
 		// Only an instance decides what a parameter is.
 		if self.polymorphic() && ty.has_param() {
 			return Pointee::Object;
@@ -101,19 +101,19 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The runtime's function `name` of the slice a pointer or reference to `ty`, a
 	/// `[T; N]` through any `MaybeUninit`s, is: `byteSlice{name}` of bytes, `arraySlice{name}`
 	/// of arrays, and else `slice{name}`.
-	pub fn array_rs(&self, ty: Ty<'tcx>, name: &str) -> Expr {
+	pub(crate) fn array_rs(&self, ty: Ty<'tcx>, name: &str) -> Expr {
 		super::array_fn(self.uninit_inner(ty), name)
 	}
 
 	/// Whether a pointer to `ty` is an identity: one to `()`, through any `MaybeUninit`s.
-	pub fn identity_pointee(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn identity_pointee(&self, ty: Ty<'tcx>) -> bool {
 		self.uninit_inner(ty).is_unit()
 	}
 
 	/// Why pointers to `ty` that are not null can't compare, if they can't: Rust leaves
 	/// where a value of no bytes is unspecified, but a pointer to `()` is an identity. Notes
 	/// the comparison of objects, for [`Self::taken`].
-	pub fn incomparable(&mut self, ty: Ty<'tcx>) -> Option<String> {
+	pub(crate) fn incomparable(&mut self, ty: Ty<'tcx>) -> Option<String> {
 		if self.identity_pointee(ty) {
 			return None;
 		}
@@ -153,13 +153,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// What tells whether two pointers to `ty` point at the same place where `===` can't:
 	/// the slices' of an array.
-	pub fn same_fn(&self, ty: Ty<'tcx>) -> Option<Expr> {
+	pub(crate) fn same_fn(&self, ty: Ty<'tcx>) -> Option<Expr> {
 		(self.pointee(ty) == Pointee::Array).then(|| self.array_rs(ty, "Same"))
 	}
 
 	/// What a `MaybeUninit` or `ManuallyDrop` holds, through any number of them, or `ty`
 	/// itself: JS keeps each as what it holds, and an `UninitSlice` as its slice.
-	pub fn uninit_inner(&self, ty: Ty<'tcx>) -> Ty<'tcx> {
+	pub(crate) fn uninit_inner(&self, ty: Ty<'tcx>) -> Ty<'tcx> {
 		let mut ty = super::stock::uninit_slice(self.tcx, ty).unwrap_or(ty);
 		while let ty::Adt(adt, args) = ty.kind()
 			&& matches!(Std::of(self.tcx, adt.did()), Some(Std::MaybeUninit | Std::ManuallyDrop))
@@ -173,13 +173,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// `rs.Cell` it holds, writing into it in place, so a pointer `get` gave into one before
 	/// sees the write: a cell, or a tuple or a crate's struct a pointer is the object of, a
 	/// field of which keeps cells. Any other part is given the new value's, one object deep.
-	pub fn keeps_cells(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn keeps_cells(&self, ty: Ty<'tcx>) -> bool {
 		self.kept_cells(ty).is_some()
 	}
 
 	/// What a `ty` that [keeps cells](Self::keeps_cells) holds: a cell's value, or each
 	/// field of a tuple or struct, and whether it keeps cells too.
-	pub fn kept_cells(&self, ty: Ty<'tcx>) -> Option<KeptCells<'tcx>> {
+	pub(crate) fn kept_cells(&self, ty: Ty<'tcx>) -> Option<KeptCells<'tcx>> {
 		let (fields, cell) = self.kept_parts(ty)?;
 		if cell {
 			return Some(KeptCells::Cell(fields[0]));
@@ -208,7 +208,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// `MaybeUninit` or `ManuallyDrop` in it holds, which a write keeps nowhere, so a pointer
 	/// `get` gave into one would not see it: one of them holding a value that
 	/// [keeps cells](Self::keeps_cells), or a part such a write reaches holding one.
-	pub fn wraps_cells(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn wraps_cells(&self, ty: Ty<'tcx>) -> bool {
 		let inner = self.uninit_inner(ty);
 		if inner != ty {
 			return self.keeps_cells(inner) || self.wraps_cells(inner);
@@ -220,7 +220,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether only an instance decides what a pointer or reference to `ty` is, as in a
 	/// generic type's definition: `ty` a type parameter, an array of one, either through
 	/// `MaybeUninit`s, or a binding's generic type, which an instance decides is `Copy`.
-	pub fn instance_pointee(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn instance_pointee(&self, ty: Ty<'tcx>) -> bool {
 		if self.polymorphic() || !ty.has_param() {
 			return false;
 		}
@@ -233,7 +233,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The TypeScript type of a raw pointer or `NonNull` to `pointee`.
-	pub fn pointer_ty(&mut self, pointee: Ty<'tcx>, span: Span) -> Type {
+	pub(crate) fn pointer_ty(&mut self, pointee: Ty<'tcx>, span: Span) -> Type {
 		if self.instance_pointee(pointee) {
 			return Type::Rs("Ptr", vec![self.ty(pointee, span)]);
 		}
@@ -256,7 +256,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether a `ty` has no bytes, so a write of one through any pointer, even a dangling
 	/// one, writes nothing.
-	pub fn zero_sized(&self, ty: Ty<'tcx>) -> bool {
+	pub(crate) fn zero_sized(&self, ty: Ty<'tcx>) -> bool {
 		let env = self.typing_env_pub();
 		self.tcx
 			.layout_of(env.as_query_input(ty))
@@ -279,7 +279,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// What `ty` points at, if it is a raw pointer that is an `rs.Place`.
-	pub fn raw_place(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	pub(crate) fn raw_place(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 		match ty.kind() {
 			ty::RawPtr(inner, _) if self.pointee(*inner) == Pointee::Place => Some(*inner),
 			_ => None,
@@ -288,14 +288,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// A `MaybeUninit<ty>` that holds nothing yet: its parts kept as objects are there, so
 	/// a pointer to one can initialize it, holding nothing yet themselves.
-	pub fn uninit(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
+	pub(crate) fn uninit(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
 		let ts_ty = self.ty(ty, span);
 		let empty = self.shell(ty, span);
 		Expr::As(Box::new(Expr::As(Box::new(empty), Type::Builtin("unknown"))), ts_ty)
 	}
 
 	/// What a `MaybeUninit<ty>` that holds nothing yet is, untyped.
-	pub fn shell(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
+	pub(crate) fn shell(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
 		// A `MaybeUninit<u8>` is 0, as a typed array's bytes are before a write, so it is never
 		// `undefined`.
 		if !ty.is_integral() && super::byte(ty) {
@@ -359,7 +359,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 /// reference, points at: `UnsafeCell::get`, `MaybeUninit::as_ptr` and `as_mut_ptr`,
 /// `ptr::from_ref` and `from_mut`, and `NonNull::from` and `into` of a reference to its
 /// pointee, which only std's impl converts, as any other would overlap it.
-pub fn from_reference<'tcx>(
+pub(crate) fn from_reference<'tcx>(
 	tcx: ty::TyCtxt<'tcx>,
 	def_id: rustc_hir::def_id::DefId,
 	args: ty::GenericArgs<'tcx>,
@@ -388,7 +388,7 @@ pub fn from_reference<'tcx>(
 /// `MaybeUninit`, `ManuallyDrop`, `UnsafeCell`, or `Box` function that runs none of the
 /// crate's code and keeps what it is given nowhere but in what it returns.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Derives {
+pub(crate) enum Derives {
 	/// Where its first argument points, as a whole.
 	Same,
 	/// Anywhere its arguments reach, if anywhere.
@@ -398,7 +398,7 @@ pub enum Derives {
 }
 
 /// How std's `def_id` derives what it returns, if [`Derives`] describes it.
-pub fn derives(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> Option<Derives> {
+pub(crate) fn derives(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> Option<Derives> {
 	if !super::library::is_std(tcx, def_id) {
 		return None;
 	}
@@ -432,7 +432,7 @@ pub fn derives(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> Option<
 
 /// Whether std's `def_id`, which [`derives`] describes, keeps its second argument where its
 /// first points.
-pub fn stores(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
+pub(crate) fn stores(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
 	matches!(
 		super::library::key(tcx, def_id),
 		Some((owner, name)) if matches!(owner.as_str(), "ptr" | "NonNull" | "MaybeUninit" | "Box")
@@ -441,7 +441,7 @@ pub fn stores(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
 }
 
 /// Whether std's `def_id` returns memory nothing points into yet.
-pub fn allocates(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
+pub(crate) fn allocates(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
 	super::library::is_std(tcx, def_id)
 		&& matches!(
 			super::library::key(tcx, def_id),
@@ -458,7 +458,7 @@ pub fn allocates(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool 
 /// assign it, and a whole write of what `slice::from_mut`, `array::from_mut`,
 /// `Cell::from_mut`, or `UnsafeCell::from_mut` makes does. `mem::replace`'s value is no
 /// such one.
-pub fn rebinds(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> &'static [usize] {
+pub(crate) fn rebinds(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> &'static [usize] {
 	match super::library::key(tcx, def_id) {
 		Some((owner, name)) => match (owner.as_str(), name.as_str()) {
 			("mem", "replace" | "take")
@@ -474,7 +474,7 @@ pub fn rebinds(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> &'stati
 
 /// Whether std's `def_id` is one this module maps that lends a place: it makes the
 /// `rs.Place` of the `&mut` it returns.
-pub fn lends(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
+pub(crate) fn lends(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
 	matches!(
 		super::library::key(tcx, def_id),
 		Some((owner, name)) if matches!(
@@ -492,7 +492,11 @@ pub fn lends(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
 /// Whether std's `def_id` with `args` is one that only makes a pointer or points one
 /// elsewhere, reads through it, or drops what it points at, as this module maps them, or
 /// an atomic's, which holds a pointer as a value, so it gives no part another object.
-pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args: ty::GenericArgs<'tcx>) -> bool {
+pub(crate) fn keeps<'tcx>(
+	tcx: ty::TyCtxt<'tcx>,
+	def_id: rustc_hir::def_id::DefId,
+	args: ty::GenericArgs<'tcx>,
+) -> bool {
 	let keeps = matches!(
 		super::library::key(tcx, def_id),
 		Some((owner, name)) if matches!(
@@ -546,7 +550,7 @@ fn takes_place<'tcx>(t: &Translator<'_, 'tcx>, def_id: rustc_hir::def_id::DefId,
 /// Which of std's `def_id`'s parameters its mapping of `args` takes as what the `&mut` it
 /// declares points at, rather than the `rs.Place` that `&mut` may be: not a type parameter
 /// that one instantiates, as `Pin::new`'s pointer.
-pub fn pointees<'tcx>(
+pub(crate) fn pointees<'tcx>(
 	t: &Translator<'_, 'tcx>,
 	def_id: rustc_hir::def_id::DefId,
 	args: ty::GenericArgs<'tcx>,
@@ -564,7 +568,7 @@ pub fn pointees<'tcx>(
 /// A call of std's raw pointer, `NonNull`, `MaybeUninit`, `ManuallyDrop`, `UnsafeCell`, or
 /// `Box` functions that make or take a raw pointer or what one points at: its mapping,
 /// `None` if it has none, or its arguments back if it is no such call.
-pub fn call<'tcx>(
+pub(crate) fn call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	call: &Call<'tcx>,
 	owner: &str,
@@ -1229,7 +1233,7 @@ pub fn call<'tcx>(
 /// itself, if it can't: one JS reaches through a slice's places, or a view of bytes, is a
 /// new one each borrow, and one to a value of no fixed size loses its size. Of a place,
 /// only an `Arc`'s is the value's one, which the body must show.
-pub fn unerasable<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<String> {
+pub(crate) fn unerasable<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<String> {
 	if b.t.polymorphic() && ty.has_param() {
 		return None;
 	}
@@ -1257,7 +1261,7 @@ pub fn unerasable<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<String> 
 }
 
 /// Why a borrow's pointer to `ty`, which JS copies, can't be erased to a `*const ()`.
-pub fn erased_place(ty: Ty<'_>) -> String {
+pub(crate) fn erased_place(ty: Ty<'_>) -> String {
 	format!("a pointer to `{ty}` cast to one to `()`, whose JS value is a place of its own each borrow")
 }
 
@@ -1320,7 +1324,7 @@ fn unmodeled<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, what: &str) -> Option<S
 /// `MaybeUninit` holds or the other way, erased to or back from a `*const ()`, the pointer
 /// to the first element of the array or slice it points at, or one to a slice as one to an
 /// array of its elements.
-pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
+pub(crate) fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
 	let (inner, into) = (b.t.uninit_inner(from), b.t.uninit_inner(to));
 	// Bytes are bytes, initialized or not, so a slice of either is the same `rs.ByteSlice`.
 	let byte_slice = |t: Ty<'tcx>| matches!(t.kind(), ty::Slice(e) if super::byte(*e));
@@ -1394,7 +1398,7 @@ fn pointer_self<'tcx>(b: &Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> Option<Ty<'t
 }
 
 /// What `ty` points at if it is a raw pointer or a `NonNull`, which compare by address.
-pub fn raw_pointee<'tcx>(tcx: ty::TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+pub(crate) fn raw_pointee<'tcx>(tcx: ty::TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	match ty.kind() {
 		ty::RawPtr(pointee, _) => Some(*pointee),
 		ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::NonNull) => Some(args.type_at(0)),
@@ -1701,7 +1705,7 @@ fn object_field<'tcx>(b: &mut Body<'_, '_, 'tcx>, object: Expr, ty: Ty<'tcx>, i:
 /// Why a reborrow through a raw pointer of `ty`, an array a `MaybeUninit` or `ManuallyDrop`
 /// holds of other than bytes, is refused: its reference is the array, which part of an array
 /// has none of its own, so a shared one would be a copy at another address.
-pub fn uninit_reborrow(ty: Ty<'_>) -> String {
+pub(crate) fn uninit_reborrow(ty: Ty<'_>) -> String {
 	format!(
 		"a reborrow of `{ty}` through a raw pointer, which may point into part of an array with no JS array of its own to lend, which is not supported yet"
 	)
@@ -1709,7 +1713,7 @@ pub fn uninit_reborrow(ty: Ty<'_>) -> String {
 
 /// Whether `ty` is `[u8]`, one of `MaybeUninit<u8>`, or an `UninitSlice`, whose slices are
 /// `rs.ByteSlice`s.
-pub fn slice_of_bytes(ty: Ty<'_>) -> bool {
+pub(crate) fn slice_of_bytes(ty: Ty<'_>) -> bool {
 	match ty.kind() {
 		ty::Slice(elem) => super::byte(*elem),
 		// The context every lowering runs in, as for [`super::byte`].
@@ -1720,13 +1724,13 @@ pub fn slice_of_bytes(ty: Ty<'_>) -> bool {
 
 /// Whether `ty`, a raw pointer's pointee, is a slice of arrays, which an
 /// `rs.RawArraySlice` points at.
-pub fn slice_of_arrays(ty: Ty<'_>) -> bool {
+pub(crate) fn slice_of_arrays(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Slice(elem) if elem.is_array())
 }
 
 /// Whether pointers `x` and `y` to `ty` point at the same place: the same object or
 /// bytes, or null both.
-pub fn compare<'tcx>(b: &mut Body<'_, '_, 'tcx>, x: Expr, y: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+pub(crate) fn compare<'tcx>(b: &mut Body<'_, '_, 'tcx>, x: Expr, y: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
 	let null = |e: &Expr| matches!(e, Expr::Rs(n) if n == "NULL");
 	match b.t.incomparable(ty) {
 		Some(why) if !null(&x) && !null(&y) => b.err(span, why),

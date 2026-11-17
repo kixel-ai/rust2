@@ -11,7 +11,7 @@ use std::io::{BufRead, Write};
 use std::time::{Duration, Instant};
 
 /// Time `run` on the workloads read from stdin.
-pub fn main(run: fn(&[u8]) -> Vec<u8>) {
+pub(crate) fn main(run: fn(&[u8]) -> Vec<u8>) {
 	let args: Vec<String> = std::env::args().skip(1).collect();
 	let [sample, rounds] = args.as_slice() else {
 		panic!("usage: bench <sample ms> <rounds> < workloads");

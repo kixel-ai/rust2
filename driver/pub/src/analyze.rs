@@ -13,7 +13,7 @@ use crate::facts::{Hash, Unit};
 /// How far a definition is reached, from least to most.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Debug)]
 #[serde(rename_all = "kebab-case")]
-pub enum Category {
+pub(crate) enum Category {
 	/// Nothing the workspaces run reaches it.
 	Unreached,
 	/// Only tests reach it.
@@ -26,47 +26,47 @@ pub enum Category {
 
 /// A place in source: an absolute file and its bytes.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct Place {
-	pub file: PathBuf,
-	pub lo: u32,
-	pub hi: u32,
+pub(crate) struct Place {
+	pub(crate) file: PathBuf,
+	pub(crate) lo: u32,
+	pub(crate) hi: u32,
 }
 
 /// A definition, joined across every compilation of its crate.
-pub struct Def {
-	pub crate_name: String,
-	pub kind: String,
-	pub path: String,
-	pub span: Option<Place>,
+pub(crate) struct Def {
+	pub(crate) crate_name: String,
+	pub(crate) kind: String,
+	pub(crate) path: String,
+	pub(crate) span: Option<Place>,
 	/// Whether another crate can name it.
-	pub exported: bool,
+	pub(crate) exported: bool,
 	/// Part of a library's API that crates or tools outside the audit may use.
-	pub external: bool,
-	pub symbol: bool,
-	pub category: Category,
+	pub(crate) external: bool,
+	pub(crate) symbol: bool,
+	pub(crate) category: Category,
 	/// The first other crate's definition that names it, and where.
-	pub cross: Option<Evidence>,
+	pub(crate) cross: Option<Evidence>,
 	/// The first definition in its own crate that names it, and where.
-	pub local: Option<Evidence>,
+	pub(crate) local: Option<Evidence>,
 }
 
 /// A definition that names another, and where.
 #[derive(Clone)]
-pub struct Evidence {
-	pub from: usize,
-	pub site: Option<Place>,
+pub(crate) struct Evidence {
+	pub(crate) from: usize,
+	pub(crate) site: Option<Place>,
 }
 
 /// A `pub` written in source, and every definition it makes public.
-pub struct Token {
-	pub place: Place,
-	pub defs: Vec<usize>,
-	pub verdict: Verdict,
+pub(crate) struct Token {
+	pub(crate) place: Place,
+	pub(crate) defs: Vec<usize>,
+	pub(crate) verdict: Verdict,
 }
 
 /// Whether a token can narrow to `pub(crate)`, as far as the graph sees.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Verdict {
+pub(crate) enum Verdict {
 	/// No other crate names what it makes public.
 	Narrow,
 	/// Another crate in the audit names one of its definitions.
@@ -84,15 +84,15 @@ pub enum Verdict {
 }
 
 /// The joined graph.
-pub struct Audit {
-	pub defs: Vec<Def>,
-	pub tokens: Vec<Token>,
+pub(crate) struct Audit {
+	pub(crate) defs: Vec<Def>,
+	pub(crate) tokens: Vec<Token>,
 	/// Each compilation's definitions, by hash.
-	pub hashes: HashMap<Hash, usize>,
+	pub(crate) hashes: HashMap<Hash, usize>,
 }
 
 impl Audit {
-	pub fn new(workspaces: &[Workspace], units: &[Unit]) -> Result<Self, String> {
+	pub(crate) fn new(workspaces: &[Workspace], units: &[Unit]) -> Result<Self, String> {
 		let packages = crate::cargo::packages(workspaces);
 		let consumed = consumed(&packages);
 		let mut defs: Vec<Def> = Vec::new();

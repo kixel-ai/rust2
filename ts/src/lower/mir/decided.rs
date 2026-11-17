@@ -30,7 +30,7 @@ use crate::lower::Crates;
 use crate::lower::collections::trait_fn;
 
 /// Fold each switch in `body` that an enclosing switch or a `bool` decided.
-pub fn fold<'tcx>(tcx: TyCtxt<'tcx>, crates: &Crates<'tcx>, body: &mut mir::Body<'tcx>) {
+pub(crate) fn fold<'tcx>(tcx: TyCtxt<'tcx>, crates: &Crates<'tcx>, body: &mut mir::Body<'tcx>) {
 	let flow = Flow::new(tcx, crates, body);
 	let entry = flow.solve(body);
 	let mut folded = false;
@@ -234,7 +234,7 @@ type Implication<'tcx> = (Local, Place<'tcx>, Implied);
 /// TypeScript may have narrowed the place before a change it doesn't see, as a call's,
 /// or by a library call's test.
 #[derive(Default)]
-pub struct Narrowing<'tcx> {
+pub(crate) struct Narrowing<'tcx> {
 	/// The statements reading the discriminant that a widened switch tests.
 	widened: FxHashSet<Location>,
 	/// Places read as a variant TypeScript may not have narrowed them to, with where.
@@ -245,24 +245,24 @@ pub struct Narrowing<'tcx> {
 
 impl<'tcx> Narrowing<'tcx> {
 	/// Whether the switch on the discriminant read `at` tests its place widened.
-	pub fn widened(&self, at: Location) -> bool {
+	pub(crate) fn widened(&self, at: Location) -> bool {
 		self.widened.contains(&at)
 	}
 
 	/// Whether `place`, read `at` as one of its variants, is cast to it.
-	pub fn stale(&self, at: Location, place: Place<'tcx>) -> bool {
+	pub(crate) fn stale(&self, at: Location, place: Place<'tcx>) -> bool {
 		self.stale.contains(&(at, place))
 	}
 
 	/// The locals whose variant a library call's test reads, which TypeScript narrows as
 	/// it does a switch's.
-	pub fn tested(&self) -> impl Iterator<Item = Local> + '_ {
+	pub(crate) fn tested(&self) -> impl Iterator<Item = Local> + '_ {
 		self.tested.iter().copied()
 	}
 }
 
 /// Where `body`'s tests and payload reads must see a place's whole type.
-pub fn narrowing<'tcx>(tcx: TyCtxt<'tcx>, crates: &Crates<'tcx>, body: &mir::Body<'tcx>) -> Narrowing<'tcx> {
+pub(crate) fn narrowing<'tcx>(tcx: TyCtxt<'tcx>, crates: &Crates<'tcx>, body: &mir::Body<'tcx>) -> Narrowing<'tcx> {
 	let mut flow = Flow::new(tcx, crates, body);
 	// A widened test narrows nothing, which can leave a later test to widen too.
 	loop {

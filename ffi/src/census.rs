@@ -12,7 +12,7 @@ use crate::ir::{Access, Api, Function};
 
 /// The census of the facade as Markdown, listing `exporting`, each exclude whose item
 /// would export and its paths; `at` locates a span.
-pub fn render(
+pub(crate) fn render(
 	api: &Api,
 	collected: &Report,
 	exporting: &[(String, Vec<String>)],

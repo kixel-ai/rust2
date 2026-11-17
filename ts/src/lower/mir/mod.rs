@@ -12,11 +12,11 @@
 
 mod alloc;
 mod call;
-pub mod coroutine;
+pub(crate) mod coroutine;
 mod decided;
 mod encode;
 pub(super) mod fuse;
-pub mod glue;
+pub(crate) mod glue;
 pub(super) mod holders;
 mod inline;
 mod memory;
@@ -36,8 +36,8 @@ use rustc_middle::mir::{self, BasicBlock, Local, Operand, Place, Rvalue, Stateme
 use rustc_middle::ty::{self, EarlyBinder, Instance, Ty, TyCtxt, TypingEnv};
 use rustc_span::{Span, Spanned};
 
-pub use self::place::{made_slice, slice_member, writes_captures};
-pub use self::scalar::Slotted;
+pub(crate) use self::place::{made_slice, slice_member, writes_captures};
+pub(crate) use self::scalar::Slotted;
 use super::Translator;
 use super::body::Body;
 use super::copy::field_ty;
@@ -48,7 +48,7 @@ use crate::ts::{self, Expr, Param, Stmt, StmtKind, Type};
 type Exit = cfg::Exit<Expr>;
 
 /// Translate one function instance's body from its MIR.
-pub fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>) -> Option<ts::Function> {
+pub(crate) fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>) -> Option<ts::Function> {
 	let tcx = t.tcx;
 	let def_id = instance.def_id();
 	let span = tcx.def_span(def_id);
@@ -96,7 +96,7 @@ pub fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>
 /// A function as a value: an arrow whose body is its reify shim, which calls it as a
 /// written call does, so std's that replace what a `&mut` borrows, such as `mem::take`,
 /// lower as their calls do. Its spans are `span`'s, where the function is named.
-pub fn fn_value<'tcx>(
+pub(crate) fn fn_value<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	def_id: rustc_hir::def_id::DefId,
 	args: ty::GenericArgs<'tcx>,
@@ -283,7 +283,7 @@ fn std_refused<'tcx>(tcx: TyCtxt<'tcx>, body: &mir::Body<'tcx>) -> Option<&'stat
 
 /// What `_1` is.
 #[derive(Clone)]
-pub enum Env {
+pub(crate) enum Env {
 	/// A parameter like any other.
 	Plain,
 	/// A closure's environment, whose fields are what it captured.
@@ -296,12 +296,12 @@ pub enum Env {
 
 /// What a closure captured.
 #[derive(Clone)]
-pub struct Capture {
-	pub value: Expr,
+pub(crate) struct Capture {
+	pub(crate) value: Expr,
 	/// Whether `value` is the place a `&mut` captured by reference borrows, which the
 	/// closure reads and writes as JS's do, rather than an `rs.Place` of it or the object
 	/// there.
-	pub pointee: bool,
+	pub(crate) pointee: bool,
 }
 
 /// How a MIR local lowers.
@@ -352,10 +352,10 @@ struct Pending {
 	loc: Option<ts::Loc>,
 }
 
-pub struct Fx<'m, 'b, 'a, 'tcx> {
-	pub b: &'m mut Body<'b, 'a, 'tcx>,
-	pub mir: &'m mir::Body<'tcx>,
-	pub tcx: TyCtxt<'tcx>,
+pub(crate) struct Fx<'m, 'b, 'a, 'tcx> {
+	pub(crate) b: &'m mut Body<'b, 'a, 'tcx>,
+	pub(crate) mir: &'m mir::Body<'tcx>,
+	pub(crate) tcx: TyCtxt<'tcx>,
 	env: Env,
 	/// The parameter a `#[track_caller]` function takes its caller's location by.
 	caller: Option<String>,
@@ -392,7 +392,7 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	/// Locals some statement assigns, which need a declaration.
 	assigned: IndexVec<Local, bool>,
 	span: Span,
-	pub labels: u32,
+	pub(crate) labels: u32,
 	/// Whether this is an `Iterator::next`'s body, which returns an item or `rs.DONE`.
 	next: bool,
 	/// Blocks whose only statement is `unreachable`.
@@ -517,7 +517,7 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 }
 
 impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
-	pub fn new(b: &'m mut Body<'b, 'a, 'tcx>, mir: &'m mir::Body<'tcx>, env: Env, span: Span) -> Self {
+	pub(crate) fn new(b: &'m mut Body<'b, 'a, 'tcx>, mir: &'m mir::Body<'tcx>, env: Env, span: Span) -> Self {
 		let tcx = b.t.tcx;
 		let n = mir.local_decls.len();
 		let (parted, slot) = match env {
@@ -613,7 +613,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		fx
 	}
 
-	pub fn err(&mut self, span: Span, msg: impl Into<String>) -> Expr {
+	pub(crate) fn err(&mut self, span: Span, msg: impl Into<String>) -> Expr {
 		self.b.t.err(span, msg);
 		Expr::undefined()
 	}
@@ -1795,7 +1795,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 	/// The parameters: `_1` through the argument count, but a closure's environment or a
 	/// coroutine's `this`.
-	pub fn params(&mut self) -> Vec<Param> {
+	pub(crate) fn params(&mut self) -> Vec<Param> {
 		let mut params = Vec::new();
 		let skip = match self.env {
 			Env::Plain | Env::Shim => 0,
@@ -1822,7 +1822,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// The body: its locals' declarations, then its blocks as structured statements.
-	pub fn lower(&mut self) -> Vec<Stmt> {
+	pub(crate) fn lower(&mut self) -> Vec<Stmt> {
 		// A parameter changed in place gets its own copy, since the caller's may be shared.
 		let mut entry = Vec::new();
 		// A slice passed as its parts that isn't held so, made from them.
@@ -2941,7 +2941,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// Hold `value` in a path that reads it again for free.
-	pub fn path(&mut self, value: Expr, base: &str, out: &mut Vec<Stmt>) -> Expr {
+	pub(crate) fn path(&mut self, value: Expr, base: &str, out: &mut Vec<Stmt>) -> Expr {
 		if value.is_path() {
 			self.materialize(&value, out);
 			return value;
@@ -4413,7 +4413,7 @@ fn compares(op: &str) -> bool {
 /// `e` with comparisons of two number literals or two boolean ones, and their negations,
 /// worked out. `tsc` refuses an equality of two literals that differ, as an instance of a
 /// generic function can compare its constants.
-pub fn fold(e: Expr) -> Expr {
+pub(crate) fn fold(e: Expr) -> Expr {
 	match e {
 		Expr::Binary(l, op, r) => {
 			let (l, r) = (fold(*l), fold(*r));

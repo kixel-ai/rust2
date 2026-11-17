@@ -21,32 +21,32 @@ use super::{Translator, names};
 const REGISTERS: usize = 4;
 
 /// An enum's parts: its tag, then each variant's fields in order.
-pub struct Split<'tcx> {
+pub(crate) struct Split<'tcx> {
 	/// The Go type of the whole enum.
-	pub go: String,
-	pub parts: Vec<Part<'tcx>>,
+	pub(crate) go: String,
+	pub(crate) parts: Vec<Part<'tcx>>,
 }
 
-pub struct Part<'tcx> {
+pub(crate) struct Part<'tcx> {
 	/// Its variable's suffix: `tag`, or its variant's and field's indices, `v1_0`, which no
 	/// two parts share as two names joined could.
-	pub name: String,
+	pub(crate) name: String,
 	/// Its selector in the whole value: `.tag`, `.Ok.F0`.
-	pub path: String,
+	pub(crate) path: String,
 	/// The Go field of its variant, and its own: `Ok` and `F0`.
 	label: String,
 	field_name: String,
-	pub ty: Ty<'tcx>,
-	pub go: String,
+	pub(crate) ty: Ty<'tcx>,
+	pub(crate) go: String,
 	/// The variant and field it is, or `None` for the tag.
-	pub field: Option<(VariantIdx, FieldIdx)>,
+	pub(crate) field: Option<(VariantIdx, FieldIdx)>,
 	/// Whether it is over four words, which a function returns through a pointer.
-	pub big: bool,
+	pub(crate) big: bool,
 }
 
 impl<'tcx> Split<'tcx> {
 	/// The part of variant `variant`'s field `field`.
-	pub fn part(&self, variant: VariantIdx, field: FieldIdx) -> usize {
+	pub(crate) fn part(&self, variant: VariantIdx, field: FieldIdx) -> usize {
 		self.parts
 			.iter()
 			.position(|p| p.field == Some((variant, field)))
@@ -55,13 +55,13 @@ impl<'tcx> Split<'tcx> {
 
 	/// The results of a function returning the enum: its parts but those it writes
 	/// through pointers, as `func` writes them after its parameters.
-	pub fn results(&self) -> String {
+	pub(crate) fn results(&self) -> String {
 		let small: Vec<&str> = self.parts.iter().filter(|p| !p.big).map(|p| p.go.as_str()).collect();
 		format!(" ({})", small.join(", "))
 	}
 
 	/// The whole enum from its parts' values, as a Go composite literal.
-	pub fn rebuild(&self, values: &[String]) -> String {
+	pub(crate) fn rebuild(&self, values: &[String]) -> String {
 		let mut fields = vec![format!("tag: {}", values[0])];
 		let mut i = 1;
 		while i < self.parts.len() {
@@ -86,7 +86,7 @@ impl<'tcx> Split<'tcx> {
 impl<'tcx> Translator<'tcx> {
 	/// The parts of `ty`, if Go is to hold it split: an enum of over four words, laid out
 	/// as the translation lays out any enum.
-	pub fn split(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Rc<Split<'tcx>>> {
+	pub(crate) fn split(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Rc<Split<'tcx>>> {
 		if let Some(split) = self.splits.get(&ty) {
 			return split.clone();
 		}
@@ -155,7 +155,7 @@ impl<'tcx> Translator<'tcx> {
 
 	/// The Go types of a signature's parameters, out-pointers last, and its results, as
 	/// `func` writes them after its parameters.
-	pub fn sig_types(&mut self, inputs: &[Ty<'tcx>], output: Ty<'tcx>, span: Span) -> (Vec<String>, String) {
+	pub(crate) fn sig_types(&mut self, inputs: &[Ty<'tcx>], output: Ty<'tcx>, span: Span) -> (Vec<String>, String) {
 		let mut params = Vec::new();
 		for input in inputs {
 			match self.split(*input, span) {

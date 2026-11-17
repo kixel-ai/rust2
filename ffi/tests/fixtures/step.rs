@@ -14,19 +14,19 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 /// A build step: its stamp holds the key it last ran with, what it printed, and a digest of
 /// what it wrote, so a run with the same key replays that output instead of running it.
-pub struct Step<'a> {
+pub(crate) struct Step<'a> {
 	/// Where the key and the output are kept between runs.
-	pub stamp: &'a Path,
+	pub(crate) stamp: &'a Path,
 	/// The files and directories the step reads besides its program, by content.
-	pub reads: &'a [&'a Path],
+	pub(crate) reads: &'a [&'a Path],
 	/// The files and directories it writes, which a replay needs as it left them; each is
 	/// removed before the step runs, so nothing an earlier run wrote outlives it.
-	pub writes: &'a [&'a Path],
+	pub(crate) writes: &'a [&'a Path],
 }
 
 impl Step<'_> {
 	/// The output of `cmd`, which must succeed.
-	pub fn run(&self, cmd: &mut Command) -> Output {
+	pub(crate) fn run(&self, cmd: &mut Command) -> Output {
 		let output = self.execute(cmd, false);
 		super::check(cmd, &output);
 		output
@@ -34,7 +34,7 @@ impl Step<'_> {
 
 	/// The output of `cmd`, whether it succeeds or fails, as a compile a test expects to
 	/// fail does.
-	pub fn output(&self, cmd: &mut Command) -> Output {
+	pub(crate) fn output(&self, cmd: &mut Command) -> Output {
 		self.execute(cmd, true)
 	}
 
@@ -279,7 +279,7 @@ fn inherited() -> &'static [(OsString, OsString)] {
 
 /// `PATH` without the directories in the temporary one, where a shell, or a Cargo shim's
 /// session, puts what it makes anew each run.
-pub fn path() -> OsString {
+pub(crate) fn path() -> OsString {
 	let temp = std::env::temp_dir();
 	let path = std::env::var_os("PATH").unwrap_or_default();
 	let kept = std::env::split_paths(&path).filter(|dir| !dir.starts_with(&temp));
@@ -333,7 +333,7 @@ fn remove(path: &Path) {
 }
 
 /// Write `text` to `path` unless it already holds it, creating its directory.
-pub fn write(path: &Path, text: impl AsRef<[u8]>) {
+pub(crate) fn write(path: &Path, text: impl AsRef<[u8]>) {
 	let text = text.as_ref();
 	if std::fs::read(path).is_ok_and(|old| old == text) {
 		return;
@@ -343,14 +343,14 @@ pub fn write(path: &Path, text: impl AsRef<[u8]>) {
 }
 
 /// Copy the file `from` to `to` unless `to` already holds what it holds.
-pub fn copy(from: &Path, to: &Path) {
+pub(crate) fn copy(from: &Path, to: &Path) {
 	let bytes = std::fs::read(from).unwrap_or_else(|err| panic!("reading {}: {err}", from.display()));
 	write(to, bytes);
 }
 
 /// Make the directory `to` a copy of `from`, rewriting only what differs and removing what
 /// `from` lacks.
-pub fn mirror(from: &Path, to: &Path) {
+pub(crate) fn mirror(from: &Path, to: &Path) {
 	std::fs::create_dir_all(to).unwrap();
 	let mut names = Vec::new();
 	for entry in std::fs::read_dir(from).unwrap() {
@@ -378,7 +378,7 @@ pub fn mirror(from: &Path, to: &Path) {
 }
 
 /// The stamp of a step that writes `output`: beside it, named after all of it.
-pub fn stamp(output: &Path) -> PathBuf {
+pub(crate) fn stamp(output: &Path) -> PathBuf {
 	let mut name = output.as_os_str().to_owned();
 	name.push(".stamp");
 	name.into()

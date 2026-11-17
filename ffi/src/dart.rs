@@ -33,7 +33,7 @@ use crate::kotlin::strip_refs;
 const RUNTIME: &str = include_str!("../runtime/rt.dart");
 
 /// The Rust runtime the crate's `dart` feature builds.
-pub const GLUE_RUNTIME: &str = include_str!("../runtime/dart.rs");
+pub(crate) const GLUE_RUNTIME: &str = include_str!("../runtime/dart.rs");
 
 /// Bytes Rust returns up to this long are copied into Dart's memory, and longer ones lent
 /// to it: a lent list's finalizer, and the external size it charges the garbage collector,
@@ -41,15 +41,15 @@ pub const GLUE_RUNTIME: &str = include_str!("../runtime/dart.rs");
 const LEND: usize = 64 * 1024;
 
 /// What the generator writes: the Dart, and the Rust glue the crate's `dart` feature builds.
-pub struct Output {
-	pub names: BTreeMap<String, String>,
-	pub dart: String,
-	pub glue: String,
+pub(crate) struct Output {
+	pub(crate) names: BTreeMap<String, String>,
+	pub(crate) dart: String,
+	pub(crate) glue: String,
 }
 
 /// The Dart for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike.
-pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
+pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	// What the runtime and the ranges' and arrays' classes, which the ABI names, take.
 	let ranges: BTreeSet<String> = (abi.ranges.iter())
 		.flat_map(|(c, ty)| {

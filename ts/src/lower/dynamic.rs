@@ -33,7 +33,7 @@ use crate::ts::{self, Expr, FieldId, FieldInit, Item, Key, Param, Stmt, StmtKind
 
 /// A trait that objects of it translate for: its type and the type's parameters, its
 /// methods in vtable order, and the values its objects wrap.
-pub struct Object<'tcx> {
+pub(crate) struct Object<'tcx> {
 	sym: SymId,
 	/// Its type's parameters, each by its name: the trait's own type parameters, then the
 	/// associated types its objects bind that no supertrait binds already.
@@ -73,21 +73,21 @@ struct Method<'tcx> {
 
 /// The class a coercion wraps a value of one type in, and its field holding the value.
 #[derive(Clone, Copy)]
-pub struct Class {
-	pub sym: SymId,
-	pub v: FieldId,
+pub(crate) struct Class {
+	pub(crate) sym: SymId,
+	pub(crate) v: FieldId,
 }
 
 /// A `dyn Fn`, `dyn FnMut`, or `dyn FnOnce`: its trait, and the signature it calls by.
-pub struct DynFn<'tcx> {
-	pub kind: ty::ClosureKind,
-	pub inputs: Vec<Ty<'tcx>>,
-	pub output: Ty<'tcx>,
+pub(crate) struct DynFn<'tcx> {
+	pub(crate) kind: ty::ClosureKind,
+	pub(crate) inputs: Vec<Ty<'tcx>>,
+	pub(crate) output: Ty<'tcx>,
 }
 
 /// How a wrapper class holds the value a pointer to it was unsized from.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Held {
+pub(crate) enum Held {
 	/// Its value, from `&T` or `Box<T>`: the class is an `rs.Place` of it, as a `v`.
 	Value,
 	/// The `rs.Place` a `&mut T` to a value JS copies is.
@@ -97,7 +97,7 @@ pub enum Held {
 impl<'tcx> Translator<'_, 'tcx> {
 	/// The function trait and signature of `ty`, if it is a `dyn Fn`, `dyn FnMut`, or
 	/// `dyn FnOnce`, whose JS value is the function it was made of.
-	pub fn dyn_fn(&self, ty: Ty<'tcx>) -> Option<DynFn<'tcx>> {
+	pub(crate) fn dyn_fn(&self, ty: Ty<'tcx>) -> Option<DynFn<'tcx>> {
 		let tcx = self.tcx;
 		let ty::Dynamic(preds, ..) = ty.kind() else {
 			return None;
@@ -119,7 +119,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 
 	/// `ty`'s `TypeId`: rustc's hash of it, as 32 hex digits, or `undefined` in a census over
 	/// type parameters, where only an instance decides what `ty` is.
-	pub fn type_id(&self, ty: Ty<'tcx>) -> Expr {
+	pub(crate) fn type_id(&self, ty: Ty<'tcx>) -> Expr {
 		match self.polymorphic() && ty.has_param() {
 			true => Expr::undefined(),
 			false => Expr::Str(format!("{:032x}", self.tcx.type_id_hash(ty).as_u128())),
@@ -128,7 +128,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 
 	/// The function trait that calls the closure, async closure, or `dyn Fn*` that `ty` is,
 	/// or boxes.
-	pub fn owned_fn(&self, ty: Ty<'tcx>) -> Option<ty::ClosureKind> {
+	pub(crate) fn owned_fn(&self, ty: Ty<'tcx>) -> Option<ty::ClosureKind> {
 		let ty = self.unboxed(ty);
 		match ty.kind() {
 			ty::Closure(..) | ty::CoroutineClosure(..) => super::closure_kind(ty),
@@ -138,7 +138,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 	}
 
 	/// What `ty` owns through any boxes and `AssertUnwindSafe`s.
-	pub fn unboxed(&self, mut ty: Ty<'tcx>) -> Ty<'tcx> {
+	pub(crate) fn unboxed(&self, mut ty: Ty<'tcx>) -> Ty<'tcx> {
 		while let ty::Adt(adt, args) = ty.kind()
 			&& matches!(Std::of(self.tcx, adt.did()), Some(Std::Box | Std::AssertUnwindSafe))
 		{
@@ -148,7 +148,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 	}
 
 	/// The type of the trait object `ty`, a `dyn Trait`, its trait's made the first time.
-	pub fn object(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Type> {
+	pub(crate) fn object(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Type> {
 		let ty::Dynamic(preds, ..) = ty.kind() else {
 			return None;
 		};
@@ -423,7 +423,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// Whether an upcast from the trait object `from` to `to`, a made object, is cast to
 	/// `to`'s type: a generic trait's, whose methods have a form only its arguments decide
 	/// where `from`'s have another.
-	pub fn upcast_retypes(&self, from: Ty<'tcx>, to: Ty<'tcx>) -> bool {
+	pub(crate) fn upcast_retypes(&self, from: Ty<'tcx>, to: Ty<'tcx>) -> bool {
 		let to = principal(to).expect("an object's trait");
 		principal(from) != Some(to) && !self.objects[&to].params.is_empty()
 	}
@@ -432,7 +432,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// its arguments as the crate's functions do. A `&dyn Debug` or `&dyn Display` is a
 	/// function writing its value instead, a `dyn Future` an `rs.Future`, and a
 	/// `dyn Iterator` an `rs.Iter`.
-	pub fn dispatches(&self, instance: Instance<'tcx>) -> bool {
+	pub(crate) fn dispatches(&self, instance: Instance<'tcx>) -> bool {
 		let ty::InstanceKind::Virtual(..) = instance.def else {
 			return false;
 		};
@@ -452,7 +452,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// object of the trait object `to` holds, and those it holds later. One class serves
 	/// every trait object of its type, so a downcast finds it whichever trait's object the
 	/// value became.
-	pub fn object_class(&mut self, from: Ty<'tcx>, to: Ty<'tcx>, held: Held, span: Span) -> Option<Class> {
+	pub(crate) fn object_class(&mut self, from: Ty<'tcx>, to: Ty<'tcx>, held: Held, span: Span) -> Option<Class> {
 		let tcx = self.tcx;
 		let from = tcx.erase_and_anonymize_regions(from);
 		let to = tcx.erase_and_anonymize_regions(to);
@@ -708,18 +708,18 @@ fn is_any(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
 }
 
 /// Whether `def_id` is std's `Error`.
-pub fn is_error(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
+pub(crate) fn is_error(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
 	tcx.is_diagnostic_item(rustc_span::Symbol::intern("Error"), def_id)
 }
 
 /// Whether `ty` is a `dyn Error`.
-pub fn is_error_object(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
+pub(crate) fn is_error_object(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
 	principal(ty).is_some_and(|p| is_error(tcx, p))
 }
 
 /// Whether `ty` is a `dyn Any`.
 /// `dyn Any`, whose object's class a value of any type has.
-pub fn any_object(tcx: TyCtxt<'_>) -> Option<Ty<'_>> {
+pub(crate) fn any_object(tcx: TyCtxt<'_>) -> Option<Ty<'_>> {
 	let any = tcx.get_diagnostic_item(rustc_span::Symbol::intern("Any"))?;
 	let preds = tcx.mk_poly_existential_predicates(&[ty::Binder::dummy(ty::ExistentialPredicate::Trait(
 		ty::ExistentialTraitRef::new(tcx, any, std::iter::empty::<ty::GenericArg<'_>>()),
@@ -727,13 +727,13 @@ pub fn any_object(tcx: TyCtxt<'_>) -> Option<Ty<'_>> {
 	Some(Ty::new_dynamic(tcx, preds, tcx.lifetimes.re_erased))
 }
 
-pub fn is_any_object(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
+pub(crate) fn is_any_object(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
 	principal(ty).is_some_and(|p| is_any(tcx, p))
 }
 
 /// Whether `ty` is a trait object, or a struct whose last field, through any structs it is
 /// in, is one.
-pub fn unsized_object<'tcx>(tcx: TyCtxt<'tcx>, mut ty: Ty<'tcx>) -> bool {
+pub(crate) fn unsized_object<'tcx>(tcx: TyCtxt<'tcx>, mut ty: Ty<'tcx>) -> bool {
 	while let ty::Adt(adt, args) = ty.kind()
 		&& adt.is_struct()
 		&& let Some(last) = adt.non_enum_variant().tail_opt()
@@ -887,7 +887,7 @@ impl<'tcx> TypeFolder<TyCtxt<'tcx>> for Bindings<'_, 'tcx> {
 impl<'tcx> Body<'_, '_, 'tcx> {
 	/// A call of the trait method `def_id` on a trait object, `args[0]`, through the method
 	/// its object has.
-	pub fn virtual_call(&mut self, def_id: DefId, object: Ty<'tcx>, mut args: Vec<Expr>, span: Span) -> Expr {
+	pub(crate) fn virtual_call(&mut self, def_id: DefId, object: Ty<'tcx>, mut args: Vec<Expr>, span: Span) -> Expr {
 		let object = self.t.tcx.erase_and_anonymize_regions(object);
 		if self.t.object(object, span).is_none() {
 			return Expr::undefined();
@@ -937,7 +937,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 
 	/// `value`, a `&T`, `&mut T`, or `Box<T>`, unsized to `to`, the same pointer to a trait
 	/// object.
-	pub fn object_of(&mut self, value: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
+	pub(crate) fn object_of(&mut self, value: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
 		let tcx = self.t.tcx;
 		let unsupported = |b: &mut Self| b.err(span, format!("a coercion to `{to}`, which is not supported yet"));
 		let (Some(pointee), Some(object)) = (from.builtin_deref(true), to.builtin_deref(true)) else {
@@ -1026,7 +1026,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	/// that is the `rs.Place` of a library value, such as a cell, unsizes to the place of
 	/// what a box of the value there unsizes to as each read finds it, since it may be
 	/// uninitialized or replaced until then.
-	pub fn raw_object(&mut self, p: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
+	pub(crate) fn raw_object(&mut self, p: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
 		let tcx = self.t.tcx;
 		let (Some(pointee), Some(object)) = (from.builtin_deref(true), to.builtin_deref(true)) else {
 			return self.err(span, format!("a coercion to `{to}`, which is not supported yet"));
@@ -1198,7 +1198,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 /// A call of `dyn Any`'s or `dyn Error`'s `is`, `downcast_ref`, or `downcast_mut`, or of a
 /// `Box`'s, `Arc`'s, or `Rc`'s `downcast`, each of which checks for the class a coercion
 /// wrapped a value of its type in, or its arguments back if it is none of these.
-pub fn call<'tcx>(
+pub(crate) fn call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	call: &super::library::Call<'tcx>,
 	owner: &str,
