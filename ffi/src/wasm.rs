@@ -233,7 +233,8 @@ struct Graph<'tcx> {
 }
 
 /// What a C function's link shows: what it imports from the host, and what it calls of the
-/// module's own code that no Rust crate defines either, which fails the module's link.
+/// module's own code, each by symbol, which once walked is what no Rust crate defines
+/// either, failing the module's link.
 struct Linked {
 	imports: Vec<Import>,
 	undefined: Vec<String>,
@@ -419,17 +420,15 @@ impl<'tcx> Graph<'tcx> {
 			Ok(None) => {
 				self.linked.insert(at, None);
 			}
-			Ok(Some((imports, needs))) => {
-				let mut undefined = Vec::new();
-				for need in needs {
-					match symbols.defined.get(&need) {
-						Some(&def_id) => {
-							self.add(Node::defined(tcx, def_id), Some((at, DUMMY_SP)));
-						}
-						None => undefined.push(need),
+			Ok(Some(mut linked)) => {
+				linked.undefined.retain(|need| match symbols.defined.get(need) {
+					Some(&def_id) => {
+						self.add(Node::defined(tcx, def_id), Some((at, DUMMY_SP)));
+						false
 					}
-				}
-				self.linked.insert(at, Some(Linked { imports, undefined }));
+					None => true,
+				});
+				self.linked.insert(at, Some(linked));
 			}
 			Err(err) => {
 				tcx.dcx().err(format!("rust2-ffi: {err}"));
@@ -638,10 +637,9 @@ impl Linker {
 		Ok(Self { lld, libs, dir })
 	}
 
-	/// What the module imports for the C function or static `name`, each by module and
-	/// name, and what it needs of the module's own code, each by symbol; or none if no
-	/// library defines it.
-	fn imports(&self, name: &str) -> Result<Option<(Vec<Import>, Vec<String>)>, String> {
+	/// What the module imports for the C function or static `name`, and what it calls of the
+	/// module's own code, or none if no library defines it.
+	fn imports(&self, name: &str) -> Result<Option<Linked>, String> {
 		let out = self.dir.join(format!("rust2-ffi-{}-{name}.wasm", std::process::id()));
 		// What the C library needs of the module's own code, such as compiler-builtins' or a
 		// crate's callback, it leaves undefined, which the link imports from `env`.
@@ -666,7 +664,10 @@ impl Linker {
 			return Ok(None);
 		}
 		let (needs, imports): (Vec<Import>, Vec<Import>) = imports.into_iter().partition(|(module, _)| module == "env");
-		Ok(Some((imports, needs.into_iter().map(|(_, name)| name).collect())))
+		Ok(Some(Linked {
+			imports,
+			undefined: needs.into_iter().map(|(_, name)| name).collect(),
+		}))
 	}
 }
 
