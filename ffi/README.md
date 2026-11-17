@@ -1305,9 +1305,10 @@ rather than in the crate.
 ## TypeScript (web)
 
 `web/` is TypeScript over the C ABI of the crate built for `wasm32-wasip1` with `--features
-web`, tested on Node 24, whose type stripping runs it as it is. Each file is an ES module a
-bundler takes as it is, importing its neighbors by their `.ts` names; the `.wasm` needs no
-tool run on it after `cargo build`, and no wasm-bindgen. The binding serves
+web`, tested on Node 24 and Deno 2, which run it as it is, and nightly in headless Chromium
+and Firefox, bundled by Bun. Each file is an ES module a bundler takes as it is, importing
+its neighbors by their `.ts` names; the `.wasm` needs no tool run on it after `cargo build`,
+and no wasm-bindgen. The binding serves
 `wasm32-wasip1` alone: an item another target has and it lacks is left out, not declared to
 fail. `load(source)` of `index.ts` compiles and instantiates the module, from its bytes, a
 `Response`, or a `WebAssembly.Module`, before any other call, and checks its contract and
@@ -1340,18 +1341,39 @@ target there.
   and `u128` are rust2-ts's `rt.u64` and so on, a number while a safe integer and 32-bit
   limbs past it, converted from the `bigint` a wasm `i64` is at the boundary, which costs a
   getter 9% over returning that `bigint` as it is. `String` and `&str` are strings, bytes a
-  `Uint8Array`, a `Vec` of numbers the typed array holding them exactly, any other `Vec` an
-  array, a path an `rt.PathBuf` of its bytes, and `Duration`, the addresses, and the ranges
-  plain objects. A `&mut` value is an `rt.Place`, whose `v` the call writes back, and a
+  `Uint8Array`, or an `rt.Bytes` where a call returns them (below), a `Vec` of numbers the
+  typed array holding them exactly, any other `Vec` an array, a path an `rt.PathBuf` of its
+  bytes, and `Duration`, the addresses, and the ranges plain objects. A `&mut` value is an `rt.Place`, whose `v` the call writes back, and a
   value's `&mut self` method returns it first, as Dart's does.
 - **Memory**: each call lowers what it passes onto a stack of the binding's in linear
   memory, which it gives back once the call returns, and reads what Rust returns at the
   layouts C's wasm32 ABI gives the header's structs, passing a struct of one scalar as it,
   any other through a pointer to a copy, and one returned through a pointer passed first.
-  Bytes and text Rust returns are copied out, and the buffer freed at once, so no view
-  outlives a growth of memory, which detaches it; what Rust lends a closure or trait is
-  copied before any call it makes can grow memory. A copy costs what V8's allocation of
-  the `ArrayBuffer` does, about 0.8 µs for 1 KiB on Node 24.
+  Text Rust returns is copied out, and its buffer freed at once, so no view outlives a
+  growth of memory, which detaches it; what Rust lends a closure or trait is copied before
+  any call it makes can grow memory.
+- **Bytes** a call returns, its own result or inside an `Option`, `rt.Result`, or `rt.Call`,
+  are an `rt.Bytes`, the runtime's own type: `length`, `at(i)`, iteration, and `slice()`,
+  which copies them into the idiomatic `Uint8Array`. Past 64 bytes it lends Rust's buffer
+  in place, read through memory as it is at each read, so a growth detaches nothing a
+  caller holds; up to 64 it holds a copy, since an engine keeps a typed array that short
+  in its own heap, which costs less than a lend. Disposing it, as `using` does, frees Rust's
+  buffer once no call reading it in place is running, and a read after throws `Bytes is
+  closed`, whichever it holds. One never disposed waits for the `FinalizationRegistry`,
+  which runs only once the collector does for its own heap, which no lent buffer grows: so
+  past a quarter of memory lent and not yet freed, or once memory has grown by a third
+  since none were, a call copies instead, so bytes nobody disposes grow memory by no more
+  than a third, even a slice keeping a larger buffer whole. Held lent bytes therefore
+  turn later returns into copies once memory grows a third, until they are disposed. Passed to a call, an `rt.Bytes` crosses
+  in place for one that reads it, as a second owner of Rust's buffer for one that takes a
+  `Bytes`, and copied by Rust for one that takes a `Vec`, which owns its bytes alone. Bytes
+  inside another value, such as a record's field or a list's item, are copied into a
+  `Uint8Array`, since only a caller holding them alone disposes them. No view of Rust's buffer reaches a caller, as a `Uint8Array` over memory
+  would: it detaches once memory grows, writes what Rust's other owners of the bytes read,
+  and through a `subarray` or its `buffer` outlives the buffer it views. On Node 24, a lent
+  payload costs 0.4 µs a call at any length, against a copy's 0.5 µs at 100 B, 1.1 µs at
+  1 KiB, and 97 µs at 1 MiB; [the benchmark](../bench/ffi/README.md#lending-returned-bytes)
+  has each engine's.
 - **Objects** are an `rt.Handle`, disposed by `[Symbol.dispose]`, as `using` does. Of a
   checked type, disposing it drops the value through Rust's own `_drop`, which fails while
   a call borrows it; of any other, it throws while a call holds it. The handle is freed once
@@ -1378,7 +1400,7 @@ target there.
 ## Tests
 
 ```bash
-just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, and TypeScript on Node
+just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, Dart, and TypeScript on Node and Deno
 just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart
 just ffi moq-c    # the same export, built in debug, running only moq/moq.c: `just ci`'s check on moq
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
@@ -1386,6 +1408,7 @@ just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
 just ffi shapes   # round-trip every sampled type shape in every language but KNOWN's, as the nightly does
+nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium and Firefox, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it

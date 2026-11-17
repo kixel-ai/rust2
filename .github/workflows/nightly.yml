@@ -211,6 +211,24 @@ jobs:
       - name: Clang
         run: nix develop .#clang --command bash -c 'export CC=gcc; just ffi test cpp && just ffi moq-cpp'
 
+  # The api fixture's web test in headless Chromium and Firefox, which only the bench shell
+  # carries: a job of its own, so a browser's failure hides no other result.
+  ffi-web:
+    name: Web binding in browsers
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Browsers
+        run: nix develop .#bench --command just ffi browsers
+
   # The api fixture's C and C++ scripts against glue built under AddressSanitizer and
   # ThreadSanitizer, and its C ABI driven from Rust under Miri.
   ffi-sanitize:
@@ -424,7 +442,7 @@ jobs:
   # schedule, which runs main, gets the write token: a dispatch can run any branch.
   report:
     name: Report
-    needs: [registry-spike, gate, ts, bench, ffi-api, ffi, ffi-sanitize, ffi-cpp, ffi-android, ffi-bench, census]
+    needs: [registry-spike, gate, ts, bench, ffi-api, ffi, ffi-web, ffi-sanitize, ffi-cpp, ffi-android, ffi-bench, census]
     if: ${{ !cancelled() && github.event_name == 'schedule' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5

@@ -245,8 +245,8 @@ let base = 0;
 let top = 0;
 /** What did not fit, each its pointer, size, and alignment, freed as the stack falls back. */
 const big: number[] = [];
-/** The handles each running call holds, released once it returns. */
-const held: Handle[] = [];
+/** The handles, and lent bytes, each running call holds, released once it returns. */
+const held: (Handle | Bytes)[] = [];
 /** The tokens of what each running call lends Rust, forgotten once it returns. */
 const lent: number[] = [];
 /** Where each running call found the stack: its top, then the length of each list. */
@@ -277,7 +277,11 @@ export function leave(mark: number): void {
 		big.length = b;
 		return;
 	}
-	while (held.length > h) held.pop()!.release();
+	while (held.length > h) {
+		const x = held.pop()!;
+		if (x instanceof Handle) x.release();
+		else bytesRelease(x);
+	}
 	while (big.length > b) {
 		const align = big.pop()!;
 		const size = big.pop()!;
@@ -628,14 +632,49 @@ export function putStr(dst: number, text: string): void {
 	d.setUint32(dst + 8, 0, true);
 }
 
-/** Write a view of a copy of `data` on the stack into the buffer at `dst`. */
-export function putBytes(dst: number, data: Uint8Array): void {
+/**
+ * Write a view of `data` into the buffer at `dst`: of Rust's buffer it lent, in place,
+ * which the call holds until it returns, else of a copy on the stack.
+ */
+export function putBytes(dst: number, data: Uint8Array | Bytes): void {
+	if (data instanceof Bytes) {
+		const read = bytesRead(data, true);
+		if (!(read instanceof Uint8Array)) {
+			const d = dv();
+			d.setUint32(dst, read[0], true);
+			d.setUint32(dst + 4, read[2], true);
+			d.setUint32(dst + 8, 0, true);
+			return;
+		}
+		data = read;
+	}
 	const p = alloc(data.length, 1);
 	mem().set(data, p);
 	const d = dv();
 	d.setUint32(dst, p, true);
 	d.setUint32(dst + 4, data.length, true);
 	d.setUint32(dst + 8, 0, true);
+}
+
+/**
+ * Make the view [putBytes] wrote at `dst` of `data`, if it lent Rust's buffer, a second
+ * owner of it, which Rust takes with no copy. A call's last step before it reaches Rust,
+ * so nothing that throws after leaves the owner given.
+ */
+export function shared(dst: number, data: Uint8Array | Bytes | undefined): void {
+	if (!(data instanceof Bytes)) return;
+	const read = bytesRead(data, false);
+	if (read instanceof Uint8Array) return;
+	const m = top;
+	const view = alloc(12, 4);
+	const d = dv();
+	d.setUint32(view, read[0], true);
+	d.setUint32(view + 4, read[2], true);
+	d.setUint32(view + 8, read[1], true);
+	s.d++;
+	w[`${prefix}_buf_clone`](dst, view);
+	s.d--;
+	top = m;
 }
 
 /** Write the null buffer, `None`, at `dst`. */
@@ -672,6 +711,155 @@ export function bytes_(p: number): Uint8Array {
 	const out = bytesLent(p);
 	w[`${prefix}_buf_free`](p);
 	return out;
+}
+
+/**
+ * Bytes up to this many that a call returns are copied out: an engine keeps a typed array
+ * this short in its own heap, so the copy costs less than lending Rust's buffer, and past
+ * it V8's copy, which needs a buffer of its own, costs more than the lend. SpiderMonkey's
+ * lend costs more than its copy up to about 4 KiB, as bench/ffi/README.md measures.
+ */
+const LEND = 64;
+
+/**
+ * How many bytes of Rust's buffers are lent and not yet freed, by their length: a `Vec`
+ * crosses with no spare capacity, but a `Bytes` may be a slice of a larger buffer it keeps
+ * whole, as Rust's own value does, which its length does not show.
+ */
+let lentLength = 0;
+
+/** Memory's size when no bytes were last lent. */
+let unlentSize = 0;
+
+/** The frees the garbage collector makes of lent bytes never disposed: each owner and length. */
+const unlent = new FinalizationRegistry<[number, number]>(([owner, length]) => {
+	if (live()) ownerFree(owner, length);
+});
+
+/** Free the owner of `length` lent bytes, which frees Rust's buffer once it is the last. */
+function ownerFree(owner: number, length: number): void {
+	lentLength -= length;
+	const m = enter();
+	const buf = alloc(12, 4);
+	const d = dv();
+	d.setUint32(buf, 0, true);
+	d.setUint32(buf + 4, 0, true);
+	d.setUint32(buf + 8, owner, true);
+	s.d++;
+	w[`${prefix}_buf_free`](buf);
+	s.d--;
+	leave(m);
+}
+
+// The private fields' accessors, which only the runtime holds.
+let bytesMade: (ptr: number, length: number, owner: number, copy: Uint8Array | undefined) => Bytes;
+let bytesRead: (b: Bytes, hold: boolean) => Uint8Array | [ptr: number, owner: number, length: number];
+let bytesRelease: (b: Bytes) => void;
+
+/**
+ * Bytes a call returns. `slice()` copies them into a `Uint8Array`, `at(i)` reads one, and
+ * passed to a call that reads them or takes a `Bytes`, they cross with no copy. Past 64
+ * bytes, they are Rust's own buffer,
+ * lent in place, which disposing frees, as `using` does, or else the garbage collector;
+ * up to 64, and past a quarter of memory lent, a copy, which reads and disposes the same.
+ * A read after disposing throws. No view of Rust's buffer reaches a caller: it would detach
+ * once memory grows, write what other owners of the bytes read, and outlive the buffer.
+ */
+export class Bytes {
+	// How many bytes it holds, private so that no caller's write reaches what Rust reads.
+	readonly #length: number;
+	// Rust's buffer and its owner, both 0 for a copy.
+	readonly #ptr: number;
+	readonly #owner: number;
+	readonly #copy: Uint8Array | undefined;
+	/** The owner's hold until disposed, and one for each call viewing Rust's buffer. */
+	#h = 1;
+	#closed = false;
+
+	private constructor(key: symbol, ptr: number, length: number, owner: number, copy: Uint8Array | undefined) {
+		if (key !== minting) throw new TypeError("only Rust makes bytes it returned");
+		this.#ptr = ptr;
+		this.#length = length;
+		this.#owner = owner;
+		this.#copy = copy;
+		if (owner !== 0) {
+			lentLength += length;
+			unlent.register(this, [owner, length], this);
+		}
+	}
+
+	/** How many bytes it holds. */
+	get length(): number {
+		return this.#length;
+	}
+
+	/** The byte at `index`, from the end where it is negative, as `Uint8Array`'s `at`. */
+	at(index: number): number | undefined {
+		if (this.#closed) throw new Error("Bytes is closed");
+		let i = Math.trunc(index) || 0;
+		if (i < 0) i += this.#length;
+		if (i < 0 || i >= this.#length) return undefined;
+		return this.#copy !== undefined ? this.#copy[i] : mem()[this.#ptr + i];
+	}
+
+	/** A copy of the bytes from `start` up to `end`, as `Uint8Array`'s `slice`. */
+	slice(start?: number, end?: number): Uint8Array<ArrayBuffer> {
+		if (this.#closed) throw new Error("Bytes is closed");
+		const all = this.#copy ?? mem().subarray(this.#ptr, this.#ptr + this.#length);
+		return all.slice(start, end) as Uint8Array<ArrayBuffer>;
+	}
+
+	/** Each byte in turn, each read as `at` reads it. */
+	*[Symbol.iterator](): IterableIterator<number> {
+		for (let i = 0; i < this.#length; i++) yield this.at(i)!;
+	}
+
+	/** Free Rust's buffer, once no call views it; again, it does nothing. */
+	[Symbol.dispose](): void {
+		if (this.#closed) return;
+		this.#closed = true;
+		this.#release();
+	}
+
+	#release(): void {
+		if (--this.#h === 0 && this.#owner !== 0) {
+			unlent.unregister(this);
+			ownerFree(this.#owner, this.#length);
+		}
+	}
+
+	static {
+		bytesMade = (ptr, length, owner, copy) => new Bytes(minting, ptr, length, owner, copy);
+		bytesRead = (b, hold) => {
+			// A read without a hold is the call's own, which took its hold first, so disposing
+			// since closes nothing it reads.
+			if (hold && b.#closed) throw new Error("Bytes is closed");
+			if (b.#copy !== undefined) return b.#copy;
+			if (hold) {
+				b.#h++;
+				held.push(b);
+			}
+			return [b.#ptr, b.#owner, b.#length];
+		};
+		bytesRelease = (b) => b.#release();
+	}
+}
+
+/** The bytes of the buffer Rust returned at `p`: lent past [LEND] bytes, else copied and freed. */
+export function returnedBytes(p: number): Bytes {
+	const d = dv();
+	const ptr = d.getUint32(p, true);
+	const len = d.getUint32(p + 4, true);
+	// So that lent bytes a caller forgot to dispose, which the collector frees only once it
+	// runs for its own heap, make memory grow by no more than a third: they lend while their
+	// length stays under a quarter of memory, and while memory has grown by no more than a
+	// third since none were lent, which bounds what slices keep that their length does not.
+	const size = memory.buffer.byteLength;
+	if (lentLength === 0) unlentSize = size;
+	if (len > LEND && lentLength + len <= size / 4 && size - unlentSize <= unlentSize / 3) {
+		return bytesMade(ptr, len, d.getUint32(p + 8, true), undefined);
+	}
+	return bytesMade(0, len, 0, bytes_(p));
 }
 
 /** The text of the buffer Rust returned at `p`, which it frees. */
@@ -846,11 +1034,17 @@ export function out<T>(what: string, f: () => T): T {
 		return f();
 	} catch (e) {
 		if (aborted !== undefined) throw e;
-		return abort(`${what}: a call into JavaScript threw ${e instanceof Error ? (e.stack ?? e) : String(e)}`);
+		return abort(`${what}: a call into JavaScript threw ${thrown(e)}`);
 	} finally {
 		s.d++;
 		top = m;
 	}
+}
+
+/** What `e` says, with its stack: V8's begins with its message, which SpiderMonkey's lacks. */
+function thrown(e: unknown): string {
+	if (!(e instanceof Error) || e.stack === undefined) return String(e);
+	return e.stack.startsWith(String(e)) ? e.stack : `${e}\n${e.stack}`;
 }
 
 /** Write a waker of `t`'s wakes at `dst`. */

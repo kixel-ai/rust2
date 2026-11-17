@@ -255,6 +255,8 @@
               typescript
               bun
               esbuild
+              # rust2-ffi's web binding runs its test on Deno as well as Node.
+              deno
               # Its wasm-bindgen fixture's native side runs through the CLI's JS glue, whose
               # version must match the fixture's locked wasm-bindgen exactly.
               wasm-bindgen-cli_0_2_129
@@ -293,7 +295,8 @@
               unset shim
             '';
           };
-          # `just ts bench` adds Chrome and Firefox as engines. Apart for their size.
+          # `just ts bench` adds Chrome and Firefox as engines, and `just ffi browsers` runs the
+          # web binding's test in them. Apart for their size.
           devShells.bench = self.devShells.${system}.default.overrideAttrs (old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [
               pkgs.chromium
