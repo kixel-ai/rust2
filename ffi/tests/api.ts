@@ -1536,6 +1536,17 @@ async function lent(): Promise<void> {
 	const joined = api.prefixed(viewed, prefix).slice();
 	check(joined.length === 102 && text(joined.subarray(0, 2)) === "ab" && joined.subarray(2).every((b) => b === 6), "bytes a call views read whole");
 	check(api.dropped() === ++before, "bytes disposed during a call are freed once it returns");
+	// So are bytes a call takes by value, which Rust gets a second owner of.
+	const given = api.tokenBytes(10, 100);
+	const high = new Proxy(enc("bc"), {
+		get(target, key) {
+			if (key === "length") close(given);
+			return Reflect.get(target, key);
+		},
+	});
+	const limits = api.byteLimits(given, high);
+	check(limits.low.length === 100 && limits.low.every((b) => b === 10) && text(limits.high) === "bc", "bytes given and disposed during a call read whole");
+	check(api.dropped() === ++before, "bytes given and disposed during a call are freed once Rust drops them");
 	// Bytes a call returned pass as an optional borrowed argument too.
 	const optional = api.tokenBytes(8, 100);
 	const suffixed = api.prefixed(enc("cd"), optional).slice();

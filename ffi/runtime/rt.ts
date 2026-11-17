@@ -826,7 +826,9 @@ export class Bytes {
 	static {
 		bytesMade = (ptr, length, owner, copy) => new Bytes(minting, ptr, length, owner, copy);
 		bytesRead = (b, hold) => {
-			if (b.#closed) throw new Error("Bytes is closed");
+			// A read without a hold is the call's own, which took its hold first, so disposing
+			// since closes nothing it reads.
+			if (hold && b.#closed) throw new Error("Bytes is closed");
 			if (b.#copy !== undefined) return b.#copy;
 			if (hold) {
 				b.#h++;
