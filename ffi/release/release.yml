@@ -64,12 +64,42 @@ jobs:
           pattern: @NAME@-build-*
           path: dist
           merge-multiple: true
+      # A rerun uploads only the wheels PyPI lacks, and fails on one it hosts with other bytes.
+      - name: Skip the wheels PyPI hosts
+        id: missing
+        env:
+          PROJECT: '@NAME@'
+        shell: python3 -I {0}
+        run: |
+          import hashlib, json, os, pathlib, sys, urllib.error, urllib.request
+          url = f"https://pypi.org/simple/{os.environ['PROJECT']}/"
+          request = urllib.request.Request(url, headers={"Accept": "application/vnd.pypi.simple.v1+json"})
+          try:
+              with urllib.request.urlopen(request) as response:
+                  hosted = {f["filename"]: f["hashes"].get("sha256") for f in json.load(response)["files"]}
+          except urllib.error.HTTPError as error:
+              if error.code != 404:
+                  raise
+              hosted = {}
+          missing = 0
+          for wheel in sorted(pathlib.Path("dist/wheels").glob("*.whl")):
+              if wheel.name not in hosted:
+                  missing += 1
+              elif hosted[wheel.name] == hashlib.sha256(wheel.read_bytes()).hexdigest():
+                  print(f"PyPI already hosts {wheel.name}")
+                  wheel.unlink()
+              else:
+                  sys.exit(f"::error::PyPI hosts another {wheel.name}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              print(f"upload={'true' if missing else 'false'}", file=output)
       - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
+        if: steps.missing.outputs.upload == 'true'
         with:
           packages-dir: dist/wheels/
 
   # The XCFramework the mirror's Package.swift names, uploaded once: a consumer that
-  # resolved its checksum must never see other bytes at that URL.
+  # resolved its checksum must never see other bytes at that URL. The release stays a draft
+  # until its asset is up, as an immutable release takes no asset once published.
   github-release:
     needs: [build, tag]
     runs-on: ubuntu-24.04
@@ -85,15 +115,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           ASSET: ${{ needs.build.outputs.module }}FFI.xcframework.zip
+          # Cargo's prerelease, such as 1.0.0-rc.1, is GitHub's too.
+          PRERELEASE: ${{ contains(needs.build.outputs.version, '-') }}
         run: |
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null; then
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" --notes ""
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --prerelease="$PRERELEASE" --title "$TAG" --notes ""
           fi
           if gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$ASSET" --dir existing; then
             cmp "existing/$ASSET" "swift/$ASSET" || { echo "::error::$TAG already hosts another $ASSET"; exit 1; }
           else
             gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "swift/$ASSET"
           fi
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
 
   # The hosted package, resolved by URL and checksum as a user's SwiftPM resolves it,
   # before the mirror points anyone at it.
@@ -161,6 +194,7 @@ jobs:
           git rm -r --quiet --ignore-unmatch .
           cp -R ../swift/package/. .
           git add --all
-          git commit --quiet -m "$VERSION"
+          # A rerun whose branch already holds this package, but no tag, commits nothing.
+          git diff --cached --quiet || git commit --quiet -m "$VERSION"
           git tag "$VERSION"
-          git push --quiet origin HEAD "refs/tags/$VERSION"
+          git push --quiet --atomic origin HEAD "refs/tags/$VERSION"

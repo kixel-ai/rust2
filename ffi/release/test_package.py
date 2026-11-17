@@ -96,6 +96,10 @@ class Wheel(unittest.TestCase):
             self.assertIn("License-Expression: MIT OR Apache-2.0\n", meta)
             self.assertIn("Project-URL: Repository, https://github.com/moq-dev/moq\n", meta)
 
+    def test_refuses_a_legacy_license(self):
+        with self.assertRaises(SystemExit):
+            package.metadata(info("/src", license="MIT/Apache-2.0"), 11)
+
     def test_directory_entries_are_not_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -50,8 +50,18 @@ SEMVER = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-(alph
 
 
 def run(*args, **kwargs):
-    """Run a tool, failing the build when it fails."""
-    return subprocess.run([str(a) for a in args], check=True, **kwargs)
+    """Run a tool, failing the build with its captured output when it fails."""
+    try:
+        return subprocess.run([str(a) for a in args], check=True, **kwargs)
+    except subprocess.CalledProcessError as error:
+        for stream in (error.stdout, error.stderr):
+            if isinstance(stream, bytes):
+                sys.stderr.flush()
+                sys.stderr.buffer.write(stream)
+            elif stream:
+                sys.stderr.write(stream)
+        sys.stderr.flush()
+        raise SystemExit(f"{error.cmd[0]} failed with status {error.returncode}") from None
 
 
 def output(*args, **kwargs):
@@ -130,6 +140,9 @@ def metadata(info, floor):
     if info["description"]:
         lines.append(f"Summary: {' '.join(info['description'].split())}")
     if info["license"]:
+        # Cargo still takes the legacy MIT/Apache-2.0, which PyPI refuses only at upload.
+        if "/" in info["license"]:
+            raise SystemExit(f"license {info['license']!r} is no SPDX expression: write it with OR")
         lines.append(f"License-Expression: {info['license']}")
     lines += [f"License-File: {path.name}" for path in licenses(info)]
     for label, url in (("Homepage", info["homepage"]), ("Repository", info["repository"])):
@@ -208,7 +221,8 @@ def repair(wheel, target, out):
         run("delocate-wheel", "--require-archs", "arm64", "--require-target-macos-version", MACOS_WHEEL,
             "-w", out, wheel)
     else:
-        run("delvewheel", "repair", "--wheel-dir", out, wheel)
+        # The wheel's library is a .dll, which delvewheel analyzes only when asked.
+        run("delvewheel", "repair", "--analyze-existing", "--wheel-dir", out, wheel)
     repaired = list(Path(out).glob("*.whl"))
     if len(repaired) != 1:
         raise SystemExit(f"repair wrote {len(repaired)} wheels into {out}")
