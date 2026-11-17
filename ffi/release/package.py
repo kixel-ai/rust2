@@ -196,13 +196,12 @@ def repair(wheel, target, out):
     Path(out).mkdir(parents=True, exist_ok=True)
     if "linux" in target:
         arch = target.split("-")[0]
-        run(sys.executable, "-m", "auditwheel", "repair", "--plat", f"manylinux_{GLIBC.replace('.', '_')}_{arch}",
-            "--strip", "-w", out, wheel)
+        run("auditwheel", "repair", "--plat", f"manylinux_{GLIBC.replace('.', '_')}_{arch}", "-w", out, wheel)
     elif "apple" in target:
-        run(sys.executable, "-m", "delocate.cmd.delocate_wheel", "--require-archs", "arm64",
-            "--require-target-macos-version", MACOS_WHEEL, "-w", out, wheel)
+        run("delocate-wheel", "--require-archs", "arm64", "--require-target-macos-version", MACOS_WHEEL,
+            "-w", out, wheel)
     else:
-        run(sys.executable, "-m", "delvewheel", "repair", "--wheel-dir", out, wheel)
+        run("delvewheel", "repair", "--wheel-dir", out, wheel)
     repaired = list(Path(out).glob("*.whl"))
     if len(repaired) != 1:
         raise SystemExit(f"repair wrote {len(repaired)} wheels into {out}")

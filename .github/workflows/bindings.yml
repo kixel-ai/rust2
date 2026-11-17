@@ -51,6 +51,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
+      name: ${{ steps.facts.outputs.name }}
       version: ${{ steps.facts.outputs.version }}
       tag: ${{ steps.facts.outputs.tag }}
       module: ${{ steps.facts.outputs.module }}
@@ -163,7 +164,7 @@ jobs:
           python3 -I rust2/ffi/release/package.py api --manifest-path "source/$MANIFEST" --features "$FEATURES" --out api "${targets[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: bindings-api-${{ matrix.host }}
+          name: ${{ needs.facts.outputs.name }}-api-${{ matrix.host }}
           path: api
           if-no-files-found: error
 
@@ -234,7 +235,7 @@ jobs:
           cargo build --locked --release
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: bindings-api-*
+          pattern: ${{ needs.facts.outputs.name }}-api-*
           path: api
           merge-multiple: true
       - name: Export
@@ -260,20 +261,20 @@ jobs:
           if [[ -n "$SWIFT_CHECK" ]]; then cp "source/$SWIFT_CHECK" dist/checks/main.swift; fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: bindings-build-${{ matrix.host }}
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
           path: dist
           if-no-files-found: error
 
   # The hosts' exports must be one binding: a module and a library from different builds
   # refuse to load, but two wheels of different bindings would each load.
   agree:
-    needs: build
+    needs: [facts, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: bindings-build-*
+          pattern: ${{ needs.facts.outputs.name }}-build-*
           path: builds
       - run: |
           sort -u builds/*/digest.txt > digests
@@ -308,7 +309,7 @@ jobs:
         run: just ffi standin && cp ffi/moq/ffi.toml ffi/target/moq-ffi/ffi.toml
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: bindings-build-apple
+          name: ${{ needs.facts.outputs.name }}-build-apple
           path: apple
       - name: Package
         env:
@@ -322,7 +323,7 @@ jobs:
           python3 -I ../rust2/ffi/release/package.py swift --manifest-path "$MANIFEST" --export ../apple/export "${args[@]}" --url "$URL" --out ../swift
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: bindings-swift
+          name: ${{ needs.facts.outputs.name }}-swift
           path: swift
           if-no-files-found: error
 
@@ -357,7 +358,7 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: bindings-build-${{ matrix.host }}
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
           path: dist
       - name: Python floor
         id: floor
@@ -400,11 +401,11 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: bindings-swift
+          name: ${{ needs.facts.outputs.name }}-swift
           path: swift
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: bindings-build-apple
+          name: ${{ needs.facts.outputs.name }}-build-apple
           path: apple
       - name: Consume
         env:
