@@ -17,6 +17,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  registry-spike:
+    name: Registry package consumers
+    uses: ./.github/workflows/registry.yml
+
   # The full check over every module, catching what a merge group's diff-scoped
   # `just ci` let into main.
   gate:
@@ -438,7 +442,7 @@ jobs:
   # schedule, which runs main, gets the write token: a dispatch can run any branch.
   report:
     name: Report
-    needs: [gate, ts, bench, ffi-api, ffi, ffi-web, ffi-sanitize, ffi-cpp, ffi-android, ffi-bench, census]
+    needs: [registry-spike, gate, ts, bench, ffi-api, ffi, ffi-web, ffi-sanitize, ffi-cpp, ffi-android, ffi-bench, census]
     if: ${{ !cancelled() && github.event_name == 'schedule' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5

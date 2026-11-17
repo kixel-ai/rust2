@@ -47,6 +47,7 @@ exclude = [
     "rustls::ConfigBuilder<moq_tokio::rustls::ServerConfig, moq::rustls::WantsVerifier>",
     "rustls::ConfigBuilder<moq_tokio::rustls::ServerConfig, moq_tokio::rustls::server::WantsServerCert>",
     "rustls::client::Resumption::store",
+    "rustls::client::danger::DangerousClientConfig::cfg",
     "tokio::server::Request::within",
     "tokio::tls::Serve::resolver",
 ]

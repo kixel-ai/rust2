@@ -1029,6 +1029,36 @@ pub struct Object<T> {
 	/// For a value that is not `Send`, the thread it stays on, which alone borrows, moves,
 	/// or drops it.
 	owner: Option<Arc<Thread>>,
+	/// For a value a call returned borrowing another handle's value exclusively, that borrow,
+	/// given back only once the value dropped, wherever it drops. Touched only by what
+	/// holds the value as [`TAKEN`], or by the last reference's drop.
+	loan: UnsafeCell<Option<Loan>>,
+	/// Whether `loan` started out holding a borrow, so moving the value out fails but into a
+	/// call that ends the value with the borrow: never changes.
+	held: bool,
+}
+
+/// An exclusive borrow of another handle's value, which a value Rust returned borrowing it
+/// holds: given back once the last value sharing it drops, as clones of a borrowing value
+/// share their borrow in Rust.
+#[derive(Clone)]
+pub struct Loan(#[expect(dead_code, reason = "held for its drop")] Arc<dyn Send + Sync>);
+
+impl<T: Send + 'static> ExclusiveArc<T> {
+	/// The value, borrowed for as long as the loan it becomes lives.
+	///
+	/// # Safety
+	/// What the returned reference lends outlives neither this nor the [`Loan`] it becomes.
+	pub unsafe fn lend<'a>(&mut self) -> &'a mut T {
+		self.changed = true;
+		// SAFETY: the exclusive borrow is held, for as long as the caller's contract says.
+		unsafe { &mut *self.object.value() }
+	}
+
+	/// This borrow, held by the value a call returned borrowing it.
+	pub fn loan(self) -> Loan {
+		Loan(Arc::new(self))
+	}
 }
 
 /// A value that is not `Send`, held by a handle that keeps it on the thread that made it:
@@ -1192,6 +1222,37 @@ impl<T> Object<T> {
 			epoch: AtomicUsize::new(0),
 			lender: None,
 			owner,
+			loan: UnsafeCell::new(None),
+			held: false,
+		}))
+		.cast()
+	}
+
+	/// A new handle owning `value`, which holds `loan`, the exclusive borrow of another
+	/// handle's value it was returned borrowing: given back once `value` drops, and never
+	/// carried out with the value but by a call that ends it, as [`Self::reserve_ending`]
+	/// lets one.
+	pub fn holding(value: T, loan: Option<Loan>) -> *const c_void
+	where
+		T: 'static,
+	{
+		Self::holding_by(value, loan, None)
+	}
+
+	fn holding_by(value: T, loan: Option<Loan>, owner: Option<Arc<Thread>>) -> *const c_void
+	where
+		T: 'static,
+	{
+		Arc::into_raw(Arc::new(Self {
+			borrow: Borrow::new(0),
+			depth: UnsafeCell::new(0),
+			lent: std::ptr::null_mut(),
+			value: UnsafeCell::new(MaybeUninit::new(value)),
+			epoch: AtomicUsize::new(0),
+			lender: None,
+			owner,
+			held: loan.is_some(),
+			loan: UnsafeCell::new(loan),
 		}))
 		.cast()
 	}
@@ -1213,6 +1274,8 @@ impl<T> Object<T> {
 			epoch: AtomicUsize::new(0),
 			lender: Some(lender),
 			owner,
+			loan: UnsafeCell::new(None),
+			held: false,
 		}))
 		.cast()
 	}
@@ -1376,10 +1439,17 @@ impl<T> Object<T> {
 		}
 	}
 
-	/// Take the value from no borrow to `to`, as an exclusive borrow or a move does.
+	/// Take the value from no borrow to `to`, as an exclusive borrow or a move does. A value
+	/// holding an exclusive lend moves out only as `ending` lets it, as the call it moves
+	/// into then ends it with the lend.
 	fn acquire_from_zero(&self, to: usize) -> Result<(), Status> {
+		self.acquire_ending(to, false)
+	}
+
+	fn acquire_ending(&self, to: usize, ending: bool) -> Result<(), Status> {
 		self.own()?;
-		if self.lender.is_some() || (matches!(to, TAKEN | RESERVED) && !self.lent.is_null()) {
+		let moved = matches!(to, TAKEN | RESERVED);
+		if self.lender.is_some() || (moved && (!self.lent.is_null() || (self.held && !ending))) {
 			return Err(Status::Lent);
 		}
 		self.borrow.take(&TABLE, to)
@@ -1519,6 +1589,8 @@ impl<T> Object<T> {
 			epoch: AtomicUsize::new(0),
 			lender: None,
 			owner,
+			loan: UnsafeCell::new(None),
+			held: false,
 		});
 		// A second count, which a free by C would take, so the handle outlives it.
 		let spare = Arc::clone(&object);
@@ -1567,6 +1639,45 @@ impl<T> Object<T> {
 		// so the value's type need not.
 		takes.push(unsafe { &*::std::ptr::addr_of!(object.borrow) });
 		Ok(())
+	}
+
+	/// [`Self::reserve`] for a call the value ends in, as its lifetimes name nothing else
+	/// the call takes or returns: a value holding an exclusive lend may move out into it,
+	/// and [`Self::end`] gives the lend back once the call returns.
+	///
+	/// # Safety
+	/// As [`Self::reserve`].
+	pub unsafe fn reserve_ending<'a>(handle: *const c_void, takes: &mut Takes<'a>, what: &str) -> Result<(), Status> {
+		// SAFETY: the caller's contract.
+		let object = unsafe { Self::get(handle, what) };
+		object.acquire_ending(RESERVED, true)?;
+		// SAFETY: as in `reserve`.
+		takes.push(unsafe { &*::std::ptr::addr_of!(object.borrow) });
+		Ok(())
+	}
+
+	/// Give back the exclusive lend a value moved out by [`Self::reserve_ending`] held, now
+	/// that the call it moved into returned, and the value with it.
+	///
+	/// # Safety
+	/// `handle` is a live handle of this type whose value such a call moved out.
+	pub unsafe fn end(handle: *const c_void) {
+		// SAFETY: the caller's contract: TAKEN excludes every other use of the loan.
+		drop(unsafe { (*(*handle.cast::<Self>()).loan.get()).take() });
+	}
+
+	/// Fail a call whose signature would carry a borrow out of the value, or let the value
+	/// outlive it, if the value holds an exclusive lend, whose borrow lasts only as long as
+	/// the value.
+	///
+	/// # Safety
+	/// `handle` is null or a live handle of this type.
+	pub unsafe fn unheld(handle: *const c_void, what: &str) -> Result<(), Status> {
+		// SAFETY: the caller's contract; `held` never changes.
+		match !handle.is_null() && unsafe { Self::get(handle, what) }.held {
+			true => Err(Status::Lent),
+			false => Ok(()),
+		}
 	}
 
 	/// Borrow a `Copy` value shared until `takes` drops, so [`Self::held`] copies it out
@@ -1664,15 +1775,21 @@ impl<T> Object<T> {
 		}
 		object.epoch.fetch_add(1, Ordering::Release);
 		if object.lent.is_null() {
+			// SAFETY: TAKEN excludes every other access to the loan.
+			let loan = unsafe { (*object.loan.get()).take() };
 			match away {
 				Some(owner) => {
-					// SAFETY: as below; the value moves out to drop on its own thread.
+					// SAFETY: as below; the value moves out to drop on its own thread, before
+					// the lend it holds is given back.
 					let value = unsafe { (*object.value.get()).assume_init_read() };
 					// SAFETY: the value is the owner's.
-					unsafe { Dropped::new(value, owner.clone(), Unsent::<()>::named::<T>()) }.send();
+					unsafe { Dropped::new((value, loan), owner.clone(), Unsent::<()>::named::<T>()) }.send();
 				}
-				// SAFETY: TAKEN excludes every other access, and `Drop` skips a taken value.
-				None => unsafe { (*object.value.get()).assume_init_drop() },
+				None => {
+					// SAFETY: TAKEN excludes every other access, and `Drop` skips a taken value.
+					unsafe { (*object.value.get()).assume_init_drop() };
+					drop(loan);
+				}
 			}
 		}
 		Ok(())
@@ -1712,6 +1829,8 @@ impl<T> Object<T> {
 impl<T> Drop for Object<T> {
 	fn drop(&mut self) {
 		let mut owner = self.owner.take();
+		// Given back only once the value dropped, wherever it drops.
+		let loan = self.loan.get_mut().take();
 		if self.lent.is_null() && *self.borrow.state.get_mut() != TAKEN {
 			let value = self.value.get_mut();
 			match owner.take_if(|owner| !owner.is_here()) {
@@ -1720,11 +1839,16 @@ impl<T> Drop for Object<T> {
 					// SAFETY: as below; the value moves out to drop there, and nothing reads it here again.
 					let value = unsafe { value.assume_init_read() };
 					// SAFETY: the value is the owner's.
-					unsafe { Dropped::new(value, owner, Unsent::<()>::named::<T>()) }.send();
+					unsafe { Dropped::new((value, loan), owner, Unsent::<()>::named::<T>()) }.send();
 				}
-				// SAFETY: the last reference is gone, and the value is its own and never taken.
-				None => unsafe { value.assume_init_drop() },
+				None => {
+					// SAFETY: the last reference is gone, and the value is its own and never taken.
+					unsafe { value.assume_init_drop() };
+					drop(loan);
+				}
 			}
+		} else {
+			drop(loan);
 		}
 		// A handle whose value dropped already, as one closed or lent, may hold the last
 		// record of its home but the home's own: letting go wakes the home to see so.
@@ -1742,6 +1866,14 @@ impl<T> Object<Unsent<T>> {
 		T: 'static,
 	{
 		Self::owning(Unsent(value), Some(Thread::here()))
+	}
+
+	/// [`Self::holding`] of a value that is not `Send`, on this thread.
+	pub fn holding_unsent(value: T, loan: Option<Loan>) -> *const c_void
+	where
+		T: 'static,
+	{
+		Self::holding_by(Unsent(value), loan, Some(Thread::here()))
 	}
 
 	/// [`Self::lent`] of a value that is not `Send`, on this thread.
@@ -1843,6 +1975,14 @@ pub struct Shared<'a, T> {
 	ticket: Ticket,
 }
 
+impl<T> Shared<'_, T> {
+	/// The exclusive lend the value holds, for a clone of it to share.
+	pub fn loan(&self) -> Option<Loan> {
+		// SAFETY: the shared borrow excludes the TAKEN that alone changes the hold.
+		unsafe { (*self.object.loan.get()).clone() }
+	}
+}
+
 impl<T> Deref for Shared<'_, T> {
 	type Target = T;
 	fn deref(&self) -> &T {
@@ -1870,6 +2010,14 @@ impl<T> Deref for Peek<'_, T> {
 pub struct Local<'a, T> {
 	object: &'a Object<T>,
 	ticket: Ticket,
+}
+
+impl<T> Local<'_, T> {
+	/// The exclusive lend the value holds, for a clone of it to share.
+	pub fn loan(&self) -> Option<Loan> {
+		// SAFETY: the shared borrow excludes the TAKEN that alone changes the hold.
+		unsafe { (*self.object.loan.get()).clone() }
+	}
 }
 
 impl<T> Deref for Local<'_, T> {

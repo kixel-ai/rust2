@@ -203,14 +203,58 @@ What they show:
    code in 16-byte steps moves the getter between 4.0 and 4.5 with a 64-byte period, and
    shifting the Rust export alone, by up to 128 bytes, moves it by no more than 0.1. The
    earlier count-only borrow, rebuilt on the same tree, costs 4.15. A Swift wrapper marked
-   `@inlinable`, so the loop calls the export directly, costs 3.5 at every shift, which
-   [a quest](/quest/m1/ffi-speed/shared-borrow.md) takes up.
+   `@inlinable`, so the loop calls the export directly, costs 3.5 at every shift, as
+   every generated wrapper now is: [Swift's inlined calls](#swifts-inlined-calls).
 
 The load limits these numbers: 4 threads beside others' leave the scheduler free to place
 them on one die or across both, whose line transfer is slower. Read the shared rows as
 their order of magnitude, against a handle each, at the same load. Rust's and Python's
 columns are not remeasured: Rust borrows natively, and Python's threads serialize on the
 GIL, which dwarfs the handle's own contention.
+
+## Swift's inlined calls
+
+Measured 2026-11-16 on **nixos**, as above, through `quest gate`, against moq `ffcb7cd9`.
+Before is rust2 `8ae7404b`, whose wrappers a consumer calls into the Swift module; after,
+every generated body is `@inlinable`, so the bench program's loop calls the C export
+itself. Each cell is the median of 3 rounds, before and after alternating at each
+placement, at a load average of 2.3 to 6.2: a `.text` pad of 0, 16, 32, or 48 bytes,
+linked ahead of the Swift objects, shifts all code through the 64-byte period the getter's
+cost followed. Nanoseconds per call, CPU first, then wall; C's getter costs 3.4 and its
+handle call 6.4.
+
+| call | pad 0 | pad 16 | pad 32 | pad 48 |
+|---|---|---|---|---|
+| u64 getter, before | 4.84 / 4.87 | 4.46 / 4.48 | 4.38 / 4.40 | 4.71 / 4.73 |
+| u64 getter, after | 3.39 / 3.40 | 3.39 / 3.42 | 3.38 / 3.39 | 3.33 / 3.34 |
+| handle call, before | 10.08 / 10.12 | 10.11 / 10.16 | 9.95 / 10.02 | 9.97 / 10.02 |
+| handle call, after | 9.87 / 9.92 | 9.85 / 9.91 | 9.90 / 9.95 | 9.79 / 9.84 |
+| getter, 4 threads, a handle each, before | 9.84 / 10.49 | 8.75 / 9.99 | 8.21 / 9.11 | 9.32 / 10.09 |
+| getter, 4 threads, a handle each, after | 7.24 / 7.88 | 6.99 / 7.71 | 6.71 / 7.19 | 6.92 / 7.93 |
+| object, before | 26.52 / 26.61 | 26.55 / 26.68 | 25.68 / 25.77 | 25.91 / 25.99 |
+| object, after | 27.62 / 27.74 | 30.22 / 30.34 | 27.72 / 27.84 | 26.68 / 26.78 |
+| ready read, before | 458 / 460 | 461 / 463 | 452 / 454 | 449 / 451 |
+| ready read, after | 443 / 445 | 445 / 447 | 436 / 438 | 440 / 442 |
+
+1. **The getter costs C's at every placement.** Its loop calls `moq_group_Demand_sequence`
+   directly, with no merged thunk between, so where the linker puts code no longer moves it.
+2. **The handle call inlines too, but keeps its hold.** `TrackProducer` is a class, whose
+   call holds its handle with a compare-and-swap and lets go with an add of its own, about
+   3.4 ns over C's. Its body first inlined only once a failed check's error, a handle's
+   free, and the release of a hold in the table moved out of line, and the handle's
+   constants became computed properties, which another module folds instead of reading
+   through an accessor.
+3. **A call the optimizer declines to inline still goes through the thunk.** The program's
+   `track.info()`, whose object it then drops, calls the module's copy before and after, so
+   its cost still follows placement: 26.7 to 30.2 against 25.7 to 26.6. Most other rows
+   fell a little: the record by up to 2 ns at three placements, a write by 1.5 to 6, a
+   stamped write by 2.6 to 5.5, and the ready read, an `async` call, by 9 to 16.
+   Throughput is bimodal on either side, about 2,200 or 8,600 MB/s for 16 KiB frames in a
+   run, as the global executor's threads interleave.
+4. **The cost is in the Swift module's build.** moq's module, 90,000 lines of Swift, takes
+   81 to 89 s to build with `-O` against 66, its `.swiftmodule` 19.1 MB against 3.6, and its
+   library 11.6 to 11.8 MB against 11.5; the bench program's own build is unchanged, 1.2 to
+   2.1 s.
 
 ## Long-lived reader measurement
 
@@ -423,8 +467,15 @@ frame path:
    instructions an object, three quarters of it: without them, a return and close took
    62 to 65 ns against 176 to 245. Since kixel-ai/rust2#828, a Go object and its handle
    are one allocation (70 fewer instructions) and a Dart close drops the value without
-   an `_Arena` (136 fewer). [Batched ownership](../../quest/m1/ffi-speed/object-ownership.md)
-   would take the registration off objects closed soon after their return. Kotlin's
+   an `_Arena` (136 fewer). Since kixel-ai/rust2#838, an object closed within 64 returns
+   of its own skips the registration: each Go P and each Dart isolate holds its last 64
+   returned objects in a nursery, registering only one pushed out unclosed, and a checked
+   object's close drops and frees in one crossing. Measured 2026-11-15 on **nixos** at a
+   load average of 4 to 24, 8 rounds alternating with main at `72880f48`, median wall ns:
+   Go's object return fell from 254 to 174 and Dart's from 225 to 96, Go's ready read from
+   833 to 728 and Dart's from 1,020 to 786, and Dart's woken read from 2,930 to 2,274.
+   What Go has left is mostly its two cgo crossings, the call and the close, and the pool
+   that finds its P's nursery. Kotlin's
    137 ns wall (210 CPU) is a phantom reference linked and unlinked under one global lock.
    Every returned frame, group, and future pays it.
 3. **A woken read.** C's 427 ns is Rust's 329 plus a future's crossings. Kotlin's 1.6 us and
@@ -453,7 +504,7 @@ frame path:
    (5,298), leaving Dart's own await, which schedules a microtask even for a complete
    future. Go's is the returned frame's ownership (`AddCleanup`, `Cleanup.Stop`, and a
    close's two crossings), and cgo's check and heap allocation of each out pointer, which
-   [Go's pointers](../../quest/m1/ffi-speed/go-pointers.md) takes: what remains after both
+   [kixel-ai/rust2#837](https://github.com/kixel-ai/rust2/pull/837) took: what remains after both
    is one crossing. Off the main thread, glibc's malloc arena for the thread grows and
    trims with `mprotect`, which adds about 60 ns to a write and 20 to a read in C on a
    pthread (`MALLOC_ARENA_MAX=1` removes it). Swift's ready read runs in a task on such a

@@ -892,6 +892,50 @@ func script() {
 		_ = try! tallies.first().bump()
 		print("tallied \(try! tallies.first().bump())")
 	}
+	do {
+		// A draft borrowing its ledger exclusively until it is consumed, through which its
+		// sheet's members are reached by Deref and DerefMut: the ledger refuses any other use
+		// meanwhile.
+		var ledger = Ledger.new()
+		var draft = try! ledger.edit()
+		try! draft.titleSet("minutes")
+		try! draft.write("first")
+		print("draft \(try! draft.titleGet) \(try! draft.lines()) \(try! draft.describe()) \(try! draft.edited())")
+		do {
+			_ = try ledger.published()
+			check(false, "a lent ledger refuses a read")
+		} catch let e as CheckError {
+			check(
+				e.function == "api_Ledger_published" && e.message == "a handle is borrowed exclusively",
+				"a lent ledger threw \(e)"
+			)
+		} catch {
+			check(false, "a lent ledger threw \(error)")
+		}
+		print("committed \(try! draft.commit())")
+		print("ledger \(try! ledger.title()) \(try! ledger.published())")
+		let read = try! ledger.edit()
+		print("read \(try! read.lines()) \(try! read.edited())")
+		_ = consume read
+		var second = try! ledger.edit()
+		try! second.write("second")
+		_ = consume second
+		print("dropped \(try! ledger.published())")
+		print("receipt \(try! ledger.receipt().count())")
+		var marker = Marker.new("m", 3, 5)
+		try! marker.ySet(7)
+		print("forwarded \(PadU16.wide().title()) \(Layered.new().lines()) \(try! marker.xGet) \(try! marker.yGet) [\(PadU8.small().describe())] [\(PadU16.wide().describe())]")
+		_ = consume marker
+		try! ledger.seal()
+		do {
+			_ = try ledger.edit()
+			check(false, "a sealed ledger refuses a draft")
+		} catch let e as Api.Error {
+			print("sealed \(e)")
+		} catch {
+			check(false, "a sealed ledger throws an Error")
+		}
+	}
 	print("chunks \(chunks(Bytes("abcde".utf8), 2).map { Array($0) })")
 	var counters = counters(["x", "y"])
 	print("counters \(listed(counters) { "\(try! $0.name()) \(try! $0.get())" })")
@@ -1054,8 +1098,8 @@ func script() {
 	check(refused("NonZero(_:)") { _ = try NonZero<UInt64>(0) }, "a zero makes no NonZero")
 	check(Set([try! NonZero<Int8>(-1), try! NonZero(-1), try! NonZero(.min)]).count == 2, "a set of NonZero")
 	check(try! NonZero<Int8>(.min) < NonZero(1), "a NonZero compares as its integer")
-	let debug: any CustomDebugStringConvertible = nonZeros()
-	check(debug.debugDescription == describeNonZeros(nonZeros()), "a record of NonZero is Debug")
+	let debuggable: any CustomDebugStringConvertible = nonZeros()
+	check(debuggable.debugDescription == describeNonZeros(nonZeros()), "a record of NonZero is Debug")
 	targets()
 }
 

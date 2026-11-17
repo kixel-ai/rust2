@@ -31,6 +31,9 @@ At `ffcb7cd9`, `container::Producer::modify` returns moq-mux's
 `quic::driver` re-exports moq-quic's `stream::Id` but not the `Side` its `new` and
 `initiator` take (2). Both are moq's to fix; the stand-in's narrowing to moq-tokio's
 session side also drops `quic::driver`.
+Once `Guard` is reachable, `container::Producer::modify` exports as an exclusive lend, as
+`catalog::Producer::modify` does since [#848](https://github.com/kixel-ai/rust2/pull/848), so
+the bump drops its excludes from `ffi/moq/ffi.toml`.
 
 Decided with the maintainer on 2026-11-07, in the quest audit: one pin bump for both, since
 each is an XS bump of the same pin line. Rejected: one bump per moq quest. Superseded on

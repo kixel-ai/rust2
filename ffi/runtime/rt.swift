@@ -358,6 +358,11 @@ public struct CheckError: Swift.Error, CustomStringConvertible, Sendable {
 	/// What broke.
 	public let message: Swift.String
 
+	init(function: Swift.String, message: Swift.String) {
+		self.function = function
+		self.message = message
+	}
+
 	public var description: Swift.String { "\(function): \(message)" }
 }
 
@@ -396,6 +401,8 @@ extension SeekableReader {
 extension Native {
 	/// A seek past `Int64.max` of a reader with no `seek(start:)` of its own.
 	struct SeekPast: Swift.Error, CustomStringConvertible {
+		init() {}
+
 		var description: Swift.String { "a seek past Int64.max of a reader with no seek(start:)" }
 	}
 }
@@ -814,17 +821,17 @@ extension Native {
 		let free: (@convention(c) (OpaquePointer?) -> Void)?
 		let type: StaticString
 
-		static let closed = 1
-		static let bias = 2
-		static let held = 4
+		static var closed: Int { 1 }
+		static var bias: Int { 2 }
+		static var held: Int { 4 }
 		/// Set in a slot whose hold a close counted.
-		static let revoked = 1
+		static var revoked: Int { 1 }
 		/// A cache line of rows to a column, which the thread's stack picks, and a row per
 		/// handle, with a line between columns: two threads in one column, or two handles in
 		/// one row on one thread, use the count.
-		static let rowBits = 3
-		static let columnBits = 8
-		static let stride = 2 << rowBits
+		static var rowBits: Int { 3 }
+		static var columnBits: Int { 8 }
+		static var stride: Int { 2 << rowBits }
 		/// Only ever touched atomically.
 		nonisolated(unsafe) static let slots: UnsafeMutablePointer<Int> = {
 			let count = stride << columnBits
@@ -853,9 +860,22 @@ extension Native {
 		/// Hold it for a call, until `release` takes what this returns. Traps once closed.
 		func hold() -> Int {
 			guard let slot = held() else {
-				fatalError("\(type) is closed")
+				closed()
 			}
 			return slot
+		}
+
+		/// Trap for a call of a closed handle: out of line, so a caller's inlined call stays
+		/// small enough to inline.
+		@inline(never)
+		func closed() -> Never {
+			fatalError("\(type) is closed")
+		}
+
+		/// The error a call of `what` throws once it is closed, out of line as `closed` is.
+		@inline(never)
+		func closed(_ what: StaticString) -> CheckError {
+			CheckError(function: "\(what)", message: "\(type) is closed")
 		}
 
 		/// Hold it for a call, until `release` takes what this returns, unless it is closed.
@@ -927,12 +947,25 @@ extension Native {
 
 		@inline(__always)
 		func release(_ slot: Int) {
-			if slot >= 0 && exchange(Handle.slots + slot, 0) == key {
-				return
+			if slot >= 0 {
+				release(listed: slot)
+			} else if add(state, -Handle.held) < Handle.held {
+				freed()
 			}
-			if add(state, -Handle.held) < Handle.held {
-				free?(raw)
+		}
+
+		/// `release` of a hold in `slots`, out of line, as `closed` is.
+		@inline(never)
+		func release(listed slot: Int) {
+			if exchange(Handle.slots + slot, 0) != key && add(state, -Handle.held) < Handle.held {
+				freed()
 			}
+		}
+
+		/// Free it once its last hold lets go: out of line, as `closed` is.
+		@inline(never)
+		func freed() {
+			free?(raw)
 		}
 
 		/// Run `body` with the raw handle, held until it returns.
@@ -948,7 +981,7 @@ extension Native {
 		@inline(__always)
 		func with<R: ~Copyable>(_ what: StaticString, _ body: (OpaquePointer?) throws -> R) throws -> R {
 			guard let slot = held() else {
-				throw CheckError(function: "\(what)", message: "\(type) is closed")
+				throw closed(what)
 			}
 			defer { release(slot) }
 			return try body(raw)
@@ -1104,7 +1137,7 @@ extension Native {
 		/// a throw for the call if it is closed.
 		func held(_ handle: Handle) throws -> OpaquePointer? {
 			guard let slot = handle.held() else {
-				throw CheckError(function: "\(what)", message: "\(handle.type) is closed")
+				throw handle.closed(what)
 			}
 			held.append((handle, slot))
 			return handle.raw
@@ -1307,9 +1340,9 @@ extension Native {
 	/// What a future parks on: it latches a wake that lands between a poll that pends and
 	/// the park, so the next poll sees it.
 	final class Signal: @unchecked Sendable {
-		static let idle = 0
-		static let woken = 1
-		static let parked = 2
+		static var idle: Int { 0 }
+		static var woken: Int { 1 }
+		static var parked: Int { 2 }
 
 		/// Which of those it is, changed only atomically.
 		private let state = UnsafeMutablePointer<Swift.Int>.allocate(capacity: 1)

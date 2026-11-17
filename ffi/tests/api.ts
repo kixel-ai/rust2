@@ -28,6 +28,7 @@ import * as Counter from "./web/Counter.ts";
 import * as Cursor from "./web/Cursor.ts";
 import * as Der from "./web/Der.ts";
 import * as Digest from "./web/Digest.ts";
+import * as Draft from "./web/Draft.ts";
 import * as Error_ from "./web/Error_.ts";
 import type * as Event from "./web/Event.ts";
 import * as Extent from "./web/Extent.ts";
@@ -38,10 +39,13 @@ import * as Json from "./web/Json.ts";
 import * as Key from "./web/Key.ts";
 import * as Label from "./web/Label.ts";
 import * as Labelled from "./web/Labelled.ts";
+import * as Layered from "./web/Layered.ts";
+import * as Ledger from "./web/Ledger.ts";
 import * as Local from "./web/Local.ts";
 import type { Log } from "./web/Log.ts";
 import * as Logger from "./web/Logger.ts";
 import * as Mark from "./web/Mark.ts";
+import * as Marker from "./web/Marker.ts";
 import * as Measure from "./web/Measure.ts";
 import * as Message from "./web/Message.ts";
 import * as Meter from "./web/Meter.ts";
@@ -51,11 +55,14 @@ import * as Name from "./web/Name.ts";
 import * as Node from "./web/Node.ts";
 import * as Numbers from "./web/Numbers.ts";
 import * as OuterInnerU8 from "./web/OuterInnerU8.ts";
+import * as PadU16 from "./web/PadU16.ts";
+import * as PadU8 from "./web/PadU8.ts";
 import * as PairSizeU8 from "./web/PairSizeU8.ts";
 import * as PairU32 from "./web/PairU32.ts";
 import * as PairU8Size from "./web/PairU8Size.ts";
 import * as Peer from "./web/Peer.ts";
 import * as Point from "./web/Point.ts";
+import * as Receipt from "./web/Receipt.ts";
 import * as Registry from "./web/Registry.ts";
 import * as Retry from "./web/Retry.ts";
 import * as Score from "./web/Score.ts";
@@ -895,6 +902,49 @@ async function script(): Promise<void> {
 	Tally.bump(Tallies.first(tallies));
 	print(`tallied ${Tally.bump(Tallies.first(tallies))}`);
 	close(tallies);
+	// A draft the ledger's `edit` lends holds the ledger borrowed exclusively until it closes,
+	// and its sheet's members are reached by Deref and DerefMut: the ledger refuses any other
+	// use meanwhile.
+	const ledger = Ledger.new();
+	const edit = (): Draft.Draft => {
+		const edited = Ledger.edit(ledger);
+		if (!edited.ok) throw new Error("an unsealed ledger lends a draft");
+		return edited.value;
+	};
+	let draft = edit();
+	Draft.titleSet(draft, "minutes");
+	Draft.write(draft, "first");
+	print(`draft ${Draft.titleGet(draft)} ${Draft.lines(draft)} ${Draft.describe(draft)} ${Draft.edited(draft)}`);
+	borrowed(() => Ledger.published(ledger), "api_Ledger_published: a handle is borrowed exclusively", "a lent ledger refuses a read");
+	print(`committed ${Draft.commit(draft)}`);
+	close(draft);
+	print(`ledger ${Ledger.title(ledger)} ${Ledger.published(ledger)}`);
+	draft = edit();
+	print(`read ${Draft.lines(draft)} ${Draft.edited(draft)}`);
+	close(draft);
+	draft = edit();
+	Draft.write(draft, "second");
+	close(draft);
+	print(`dropped ${Ledger.published(ledger)}`);
+	const receipt = Ledger.receipt(ledger);
+	print(`receipt ${Receipt.count(receipt)}`);
+	close(receipt);
+	{
+		const small = PadU8.small();
+		const wide = PadU16.wide();
+		const layered = Layered.new$();
+		const marker = Marker.new$("m", 3, 5);
+		Marker.ySet(marker, 7);
+		print(
+			`forwarded ${PadU16.title(wide)} ${Layered.lines(layered)} ${Marker.xGet(marker)} ${Marker.yGet(marker)} ` +
+				`[${PadU8.describe(small)}] [${PadU16.describe(wide)}]`,
+		);
+		for (const handle of [small, wide, layered, marker]) close(handle);
+	}
+	Ledger.seal(ledger);
+	const sealed = Ledger.edit(ledger);
+	if (!sealed.ok) print(`sealed ${Error_.toString(sealed.error)}`);
+	close(ledger);
 	print(`chunks ${list(api.chunks(enc("abcde"), 2).map(list))}`);
 	const counters = api.counters(["x", "y"]);
 	print(`counters ${counters.map((n) => `${Counter.name(n)} ${dec(Counter.get(n))}`).join(", ")}`);

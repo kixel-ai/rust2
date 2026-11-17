@@ -96,6 +96,20 @@ impl Api {
 		api
 	}
 
+	/// Whether a call may make a value that is not `Send`, an object or a future, whose
+	/// thread a binding running a loop gives a wake to drain its frees elsewhere.
+	pub fn unsent(&self) -> bool {
+		let records = self.records.iter().flat_map(|r| &r.methods);
+		let enums = self.enums.iter().flat_map(|e| &e.methods);
+		let objects = self.objects.iter().flat_map(|o| &o.methods);
+		self.objects.iter().any(|o| !o.send)
+			|| records
+				.chain(enums)
+				.chain(objects)
+				.chain(&self.functions)
+				.any(|f| f.future && !f.send)
+	}
+
 	/// Whether an item on `on` is on every target the API serves.
 	pub fn everywhere(&self, on: On) -> bool {
 		on.0 & self.all().0 == self.all().0
@@ -446,6 +460,20 @@ pub struct Function {
 	/// lent from its receiver's: shared, until the receiver's value is borrowed
 	/// exclusively, moved out, or freed.
 	pub lends: bool,
+	/// Whether it is a `&mut self` method of an object returning an object that borrows its
+	/// receiver, which C holds as a handle owning that value and the receiver's exclusive
+	/// borrow, given back once the value drops. A baseline written before it has none.
+	#[serde(default)]
+	pub lends_mut: bool,
+	/// For a method of a type its receiver's type derefs to, how many `Deref`s reach it from
+	/// the receiver's handle, each a `DerefMut` for `&mut self`, as Rust's auto-deref does.
+	#[serde(default)]
+	pub derefs: usize,
+	/// Whether a lifetime of an object it takes is `'static`, or names something else in the
+	/// signature, so the value may outlive the call or carry its borrow out of it: a handle an
+	/// exclusive lend returned fails it, since its borrow is the lend's.
+	#[serde(default)]
+	pub ties: bool,
 	/// What it reads: Rust's function, a field it reads or writes, or a constant named as it is.
 	pub access: Access,
 	/// The instance it is, if a type parameter exports at several.

@@ -624,6 +624,39 @@ fun script() {
 		tallies.first().use { it.bump() }
 		println("tallied ${tallies.first().use { it.bump() }}")
 	}
+	// A draft borrowing its ledger exclusively until it closes, through which its sheet's
+	// members are reached by Deref and DerefMut: the ledger refuses any other use meanwhile.
+	Ledger.new().use { ledger ->
+		val draft = ledger.edit()
+		draft.titleSet("minutes")
+		draft.write("first")
+		println("draft ${draft.titleGet} ${draft.lines()} ${draft.describe()} ${draft.edited()}")
+		val refused = runCatching { ledger.published() }.exceptionOrNull()
+		check(
+			refused is IllegalStateException && refused.message == "api_Ledger_published: a handle is borrowed exclusively",
+			"a lent ledger refuses a read: $refused",
+		)
+		println("committed ${draft.commit()}")
+		println("ledger ${ledger.title()} ${ledger.published()}")
+		ledger.edit().use { println("read ${it.lines()} ${it.edited()}") }
+		ledger.edit().use { it.write("second") }
+		println("dropped ${ledger.published()}")
+		println("receipt ${ledger.receipt().use { it.count() }}")
+		Marker.new("m", 3, 5).use { marker ->
+			marker.ySet(7)
+			val title = PadU16.wide().use { it.title() }
+			val lines = Layered.new().use { it.lines() }
+			val small = PadU8.small().use { it.describe() }
+			val wide = PadU16.wide().use { it.describe() }
+			println("forwarded $title $lines ${marker.xGet} ${marker.yGet} [$small] [$wide]")
+		}
+		ledger.seal()
+		try {
+			ledger.edit().close()
+		} catch (e: ErrorException) {
+			println("sealed ${e.message}")
+		}
+	}
 	println("chunks ${chunks(Bytes("abcde".encodeToByteArray()), 2uL).map { it.toByteArray().toList() }}")
 	val counters = counters(listOf("x", "y"))
 	println("counters ${counters.joinToString(", ") { "${it.name()} ${it.get()}" }}")

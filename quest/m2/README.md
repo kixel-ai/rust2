@@ -5,8 +5,8 @@
 Research work with a named consumer that is not waiting on it yet: rust2-wasm, moq's
 browser route, the TypeScript translator that has to beat it,
 [crabx](/quest/m2/crabx/README.md), which runs moq's CLIs without a Rust toolchain, and
-[registry publishing](/quest/m2/registry.md), which would replace moq's binding release
-workflows.
+[release templates](/quest/m2/release-templates.md), which would share moq's binding
+package builders while preserving its registry and platform policy.
 
 ## Plan
 

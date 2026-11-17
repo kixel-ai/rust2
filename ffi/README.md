@@ -104,6 +104,7 @@ public path names, or an error taken by value, is held by value as an opaque han
 | a type parameter or `impl` taken by value and bounded by `Future` or `IntoFuture`, whose every bound `Pin<Box<dyn Future<Output = ()> + Send>>` meets, as kio's `clock::timeout` takes, or taken as `Pin<&mut F>` by a poll, as kio's `Waiter::poll_future` takes | `<prefix>_foreign_future`: a future of `()` C implements, which Rust takes as that type, or which the future the poll makes owns and pins; a future of another output is refused |
 | a type parameter or `impl` bounded by `Read` and `Seek` alone, behind `&mut`, which no lifetime bound or return lets outlive the call, as moq-mux's `container::mp4::repair` takes | `<prefix>_foreign_reader`: a `read` and a `seek` C implements and their data, lent for the call; any other reader is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
+| an object's `Deref` to an exported type, followed as far as the chain reaches | the target's `pub` methods and fields, a record's too, on the object, as auto-deref finds them: a method the object or a nearer target has, exported or not, hides a method, and a field a field; a `&mut self` method or a setter only while every `Deref` on the way is a `DerefMut`; and the config names each by the object's path |
 | a `()` parameter of a function, not of a callback's method | nothing: C passes no argument for it |
 | `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
@@ -170,7 +171,15 @@ alone, or an object's `pub` field holds, bare or as an `Option`'s `Some`: that o
 on each use, on one thread at a time where the receiver is not `Sync`. A handle outlives every call, so every lifetime an
 object takes is `'static`, as is every lifetime that must outlive one; any other lifetime
 is the call's. A signature may not lend C's borrow for one that is `'static`, but for a
-`&str` or `&[u8]`, which Rust interns, nor return an object that borrows. A parameter is a reference
+`&str` or `&[u8]`, which Rust interns, nor return an object that borrows, but for an
+exclusive lend: a `&mut self` method of an object returning an object, bare or as a
+`Result`'s `Ok`, that borrows the receiver's lifetime alone and is not `Copy`, as a lock's
+guard does, which its handle holds with the receiver's exclusive borrow; a copy would
+carry the borrow past it. Each of its `Clone`, `PartialEq`, `Hash`, `Debug`, `Display`,
+`Deref`, and `DerefMut` must hold at every lifetime, as the binding calls them on the
+`'static` form, and its `Deref` target must name no lifetime. So must each of the
+method's own bounds naming the receiver's lifetime, as the binding's lend gives the call a
+borrow of any lifetime. A parameter is a reference
 only at its top or as `Some` of an `Option`, lent as the reference alone is, so
 `Option<&T>` is a null or borrowed handle, a null or viewed buffer, or an option of a
 value, and not inside a `Box` or any other type. A `&mut` of a value, but a `str` or a
@@ -301,7 +310,9 @@ where it was while its file is unchanged.
   fails with `<PREFIX>_STATUS_NOT_SEND` before any Rust code runs, so such a future's poll
   takes a trailing `status` too. A `_free` or `_drop` elsewhere drops nothing there: it
   queues the drop to the value's thread, which runs it at its next check of one of its
-  values or as it exits. One freed once its thread exited leaks, printing why, since
+  values or as it exits. A thread running a loop that may call nothing for a while
+  passes `<prefix>_thread_wake` a waker, which such a free wakes so the loop schedules
+  `<prefix>_thread_drain` there. One freed once its thread exited leaks, printing why, since
   nothing may drop it. A function that makes such a value, taking none or only in an
   `Option`, has a twin `<name>_homed` of the same signature, as do its future's start,
   `<name>_start_homed`, and `Default`'s, `<T>_default_homed`: with no such value passed,
@@ -341,6 +352,17 @@ where it was while its file is unchanged.
   shared and fails with `<PREFIX>_STATUS_OUTLIVED` once it was since borrowed exclusively,
   moved out, or freed, which Rust's borrow checker would refuse. Borrowing a lent handle
   exclusively, or moving it out, fails with `<PREFIX>_STATUS_LENT`, as Rust lent it.
+- **Exclusive lends**, a `&mut self` method's returned object that borrows its receiver,
+  such as a guard, are owned handles that hold the receiver borrowed exclusively until the
+  value drops: by `_drop`, by `_free` of the last handle, or by a call it moves into, as
+  `commit(self)` does, which gives the borrow back once the call returns. Until then the
+  receiver fails each call with `<PREFIX>_STATUS_EXCLUSIVE` or `<PREFIX>_STATUS_BORROWED`,
+  and its `_free` leaves the value to the lend. A clone shares the borrow, which the last
+  copy gives back. A call that could keep the value past it or carry its borrow out fails
+  with `<PREFIX>_STATUS_LENT`, as does a move into anything but a plain call: one taking an
+  object whose lifetime is `'static`, or ties it to another argument or the return, itself
+  or through the signature's bounds, and a field's getter or setter where the field holds
+  what borrows.
 - **Interned strings**: a `&str` or `&[u8]` a function needs for `'static`, as
   `Path::from_static` and `CertificateDer::from_slice` do, is leaked once per distinct content and reused for every later equal one, so a
   caller passing ever-new strings grows the set without bound.
@@ -473,7 +495,9 @@ packages place it in.
 - **Checks**: a call passes no `status`, so a borrow or move Rust's rules refuse aborts
   with its message, naming the function, as C's does with a NULL one: so does a use or
   poll of a value that is not `Send` on another thread than the one that made it, and
-  one destroyed on another drops on its own thread at its next call or as it exits.
+  one destroyed on another drops on its own thread: a job posted to the executor of the
+  thread's latest `then` or `via` drops it, while that task lives and if the job runs on
+  the thread, else its next call or its exit does.
 - **Sharing** stands in for `clone` where no call can tell the two apart but by counting
   an `Arc`'s or `Rc`'s clones, which the exporter decides at compile time. A type's copies share when it is `Clone`; `Sync`,
   since one that is not is borrowed on one thread at a time, which copies on two threads
@@ -732,7 +756,9 @@ caller imports it with no ignores.
   borrows from, as for a closed object, and `RuntimeError` for any other, as for a value
   that is not `Send` used on another thread than the one that made it. Freed on another,
   as the collector or the last reference there frees it, such a value drops on its own
-  thread at its next call or as it exits.
+  thread: on the next turn of the event loop that ran there when a call made a value that
+  is not `Send`, though the loop calls nothing into Rust, else at its next call or as it
+  exits.
 - **Records** are slotted dataclasses, compared by their fields, a float by IEEE `==` even
   against itself, as Rust does, and **enums** an `Enum`
   of upper-case members, or for one with data a class of a dataclass per variant,
@@ -930,6 +956,16 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
   returns wakes through Rust and drops once Swift releases it.
 - **The contract** is checked once, at the first call into the library: a Swift file and a
   library from different builds trap.
+- **Every body may inline into its caller.** Each function, initializer, subscript, and
+  computed property is `@inlinable`, and what they name `@usableFromInline`, so a
+  consumer's optimizer in another module can inline a call and reach the C function
+  directly, with no flag of its own. Where it declines, the call goes to the module's
+  copy, which Swift may merge with like wrappers into one that calls the C function
+  through a pointer, whose cost follows where the linker places it. Their cold paths, a
+  failed check's error and a handle's free, stay out of line, so a call more often looks
+  worth inlining. The module's `.swiftmodule` holds the bodies, about 5 times its size
+  without them.
+
 ## Go
 
 `go/` holds a Go package per crate whose items the facade exports, over the C header
@@ -978,8 +1014,13 @@ reads a go.mod.
   would, and returns an error matching `rt.ErrBorrowed` instead while a call on another
   goroutine borrows the value, as Rust refuses that drop, leaving the value to a later
   `Close()`. Of any other type, `Close()` frees the handle, and returns an error matching
-  `rt.ErrBorrowed` while a call holds it. A second `Close()` does nothing, and one never
-  closed is freed once the GC collects it, through `runtime.AddCleanup`. A call that meets
+  `rt.ErrBorrowed` while a call holds it; one no call holds, as soon after its return,
+  drops and frees in one crossing. A second `Close()` does nothing. A returned object waits
+  in a nursery of the last 64 its P returned, where `Close()` frees it without the GC's
+  registration (`runtime.AddCleanup` and its `Stop`), which costs more than the rest of a
+  return and close. One never closed is registered once pushed out, by 64 later returns or
+  with its nursery once the GC drops that from its `sync.Pool`, and freed once the GC
+  collects it after. A call that meets
   a closed object, as its receiver or anywhere in its arguments, returns an error matching
   `rt.ErrClosed`, so every such call returns an `error`; `String()` and `GoString()`,
   which return none, return the error's text. A `self` method, or passing the object by
@@ -1116,12 +1157,16 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   declares or a data enum's variant class, are kept apart as Kotlin's are. The glue's C
   names are `<prefix>_dart_`, with a `_` more for each C name of the export already there.
 - **Objects** are final classes owning their handle. Of a checked type, `close()` drops
-  the value through Rust's own `_drop`, as Rust's `drop` would: a call after it throws a
-  `StateError` as for a value moved out, and a `close()` while a call borrows the value,
-  from a closure that call runs, throws one instead, as Rust refuses that drop. Of any
-  other type, `close()` frees the handle, and throws while a call holds it. A second
-  `close()` does nothing, and the handle itself is freed once the garbage collector finds
-  the object unreachable, through a finalizable handle of Dart's C API. Any call that meets
+  the value through Rust's own `_drop`, as Rust's `drop` would, and frees the handle in
+  the same crossing, and a `close()` while a call borrows the value, from a closure that
+  call runs, throws a `StateError` instead, as Rust refuses that drop. Of any other type,
+  `close()` frees the handle, and throws while a call holds it. A second `close()` does
+  nothing. A returned object waits in the isolate's nursery of the last 64 returned, where
+  `close()` frees it without the garbage collector's registration (a finalizable handle of
+  Dart's C API), which costs more than the rest of a return and close. One never closed is
+  registered once 64 later returns push it out, and freed once the garbage collector finds
+  it unreachable after; one still in the nursery when the isolate exits is freed then. Any
+  call that meets
   a closed object, as its receiver or anywhere in its arguments, throws a `StateError`
   before Rust sees it. A `self` method, or passing the object by value, moves its value
   out. `Clone` is `clone()`, and a `pub`
@@ -1367,7 +1412,7 @@ nix develop .#bench --command just ffi browsers  # api's TypeScript in headless 
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 nix develop .#bench --command just ffi codspeed  # after bench-build, each single-threaded case once under CodSpeed's CPU simulation, as the CodSpeed workflow runs it
-nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan and TSan, and its C ABI under Miri
+nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan and TSan, its Go under the race detector, and its C ABI under Miri
 ```
 
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
@@ -1403,7 +1448,8 @@ It runs with nixpkgs' Swift on Linux, and nightly with Apple's on macOS.
 way, plus a context done before the call, a deadline, and a handle closed during a call,
 checks that bytes cross both ways, that a `Bytes` keeps Rust's buffer while only a sub-view
 or a reader reaches it and that the GC frees it once none does, that the GC frees an object
-never closed, and that each kind of call meeting a closed object, including one racing
+never closed once 64 later returns push it out of its nursery, that each object of many
+goroutines' returns, closes, and drops is freed once, and that each kind of call meeting a closed object, including one racing
 `Close`, returns `rt.ErrClosed`, and breaks
 each runtime check, which must panic with its message; a runtime package from another
 build must fail its contract check. The `target` test exports a package for the host, for wasm32, and for both into one
@@ -1427,8 +1473,8 @@ feature breaks the API twice for each kind of break, once in an item only wasm32
 error matching `fixtures/lock/expected.txt`.
 `just ffi sanitize`, run nightly, rebuilds the `api` export with std under AddressSanitizer
 and then ThreadSanitizer, runs `tests/api.c` and `tests/api.cpp` against it, and matches
-their output to the native transcript; it then drives the C ABI from `tests/miri/api.rs`
-under Miri with strict provenance.
+their output to the native transcript; it runs `tests/api.go` under Go's race detector;
+and it drives the C ABI from `tests/miri/api.rs` under Miri with strict provenance.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. The export serves the host and each target
 `just ffi moq-api` staged in `target/moq-api` from the same moq sources, and fails on a

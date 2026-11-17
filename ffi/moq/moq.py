@@ -199,6 +199,19 @@ def catalog(loop):
 
 	producer.mutate(count)
 	expect(read == 1, "mutate lends the catalog once")
+	# The same catalog through `modify`'s guard, a handle holding the producer borrowed
+	# exclusively until it commits: a call on the producer meanwhile raises before any Rust
+	# code runs.
+	guard = producer.modify()
+	expect(guard.to_json().startswith("{"), "a guard reads the catalog it derefs to")
+	try:
+		producer.mutate(count)
+		expect(False, "a call on a producer its guard borrows raises")
+	except RuntimeError:
+		pass
+	guard.commit()
+	producer.mutate(count)
+	expect(read == 2, "a committed guard gives its producer back")
 
 	# A JSON track the catalog lists, published through moq-mux's generic `json_snapshot` at
 	# a JSON document, and a section Python parses from text, set in the lent catalog and

@@ -741,6 +741,409 @@ impl Registry {
 /// The address of the counter [`Registry::edit`] lends.
 static EDITING: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
+/// A sheet a [`Draft`] edits in place: [`Ledger::edit`] lends the ledger exclusively until
+/// the draft drops, as moq-mux's `catalog::Producer::modify` lends its catalog.
+#[derive(Default)]
+pub struct Ledger {
+	sheet: Mutex<Sheet>,
+	published: u32,
+	sealed: bool,
+}
+
+impl Ledger {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// A draft of the sheet, which borrows this ledger exclusively until it drops: fails
+	/// once sealed.
+	pub fn edit(&mut self) -> Result<Draft<'_>, Error> {
+		if self.sealed {
+			return Err(Error::Overflow);
+		}
+		Ok(Draft {
+			sheet: self.sheet.lock().expect("a draft never panics holding the lock"),
+			published: &mut self.published,
+			edited: false,
+		})
+	}
+
+	/// How many drafts published an edit.
+	pub fn published(&self) -> u32 {
+		self.published
+	}
+
+	/// The sheet's title, read through its lock.
+	pub fn title(&self) -> String {
+		self.sheet
+			.lock()
+			.expect("a draft never panics holding the lock")
+			.title
+			.clone()
+	}
+
+	/// Refuses every later draft.
+	pub fn seal(&mut self) {
+		self.sealed = true;
+	}
+
+	/// What this ledger published, which borrows it exclusively while any copy of the
+	/// receipt lives, as a `&mut self` method's borrowing return does in Rust.
+	pub fn receipt(&mut self) -> Receipt<'_> {
+		Receipt(&self.published)
+	}
+
+	/// A receipt from a method bounded on its own borrow, by a trait that holds at every
+	/// lifetime, so the lend still exports.
+	pub fn noted<'a>(&'a mut self) -> Receipt<'a>
+	where
+		&'a mut Self: noted::Noted<'a>,
+	{
+		Receipt(&self.published)
+	}
+
+	/// Files `item` beside what the ledger published, generic over what counts itself.
+	pub fn file<T: Totaled>(&mut self, item: T) -> Filed<'_, T> {
+		Filed {
+			published: &self.published,
+			item,
+		}
+	}
+
+	pub fn slip(&mut self) -> Slip<'_> {
+		Slip {
+			receipt: Receipt(&self.published),
+			global: Receipt(&7),
+			here: std::marker::PhantomData,
+		}
+	}
+}
+
+mod noted {
+	/// Implemented for a borrow of a ledger of any lifetime.
+	pub trait Noted<'a> {}
+
+	impl<'a> Noted<'a> for &'a mut super::Ledger {}
+}
+
+/// A receipt kept on the thread that took it: `Clone` and not `Send`, with a field that
+/// borrows what the slip borrows, so reading it would carry the ledger's borrow out, and
+/// one that borrows only what lives as long as the program.
+#[derive(Clone)]
+pub struct Slip<'a> {
+	pub receipt: Receipt<'a>,
+	pub global: Receipt<'static>,
+	here: std::marker::PhantomData<std::rc::Rc<()>>,
+}
+
+impl Slip<'_> {
+	pub fn count(&self) -> u32 {
+		self.receipt.count()
+	}
+}
+
+/// What a [`Ledger`] published, borrowed from it: `Send` and `Clone`, unlike a [`Draft`].
+pub struct Receipt<'a>(&'a u32);
+
+/// Bounded by what always holds, so proving `Receipt<'a>: Clone` asks nothing of `'a`.
+impl<'a> Clone for Receipt<'a>
+where
+	Receipt<'a>: 'a,
+{
+	fn clone(&self) -> Self {
+		Self(self.0)
+	}
+}
+
+impl Receipt<'_> {
+	pub fn count(&self) -> u32 {
+		*self.0
+	}
+}
+
+/// What a [`Draft`] derefs to: a title, and the lines written under it.
+#[derive(Clone, Debug, Default)]
+pub struct Sheet {
+	pub title: String,
+	lines: Vec<String>,
+}
+
+impl Sheet {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// How many lines it holds.
+	pub fn lines(&self) -> u32 {
+		self.lines.len() as u32
+	}
+
+	/// Adds a line.
+	pub fn write(&mut self, line: &str) {
+		self.lines.push(line.to_string());
+	}
+
+	/// The sheet in a word, which a draft's own `describe` shadows, as in Rust.
+	pub fn describe(&self) -> String {
+		format!("sheet {}", self.title)
+	}
+}
+
+/// An edit of a [`Ledger`]'s sheet, reached through `Deref` and `DerefMut`, and published
+/// once it commits or drops if a `DerefMut` marked it, as moq-mux's `catalog::Guard` does.
+/// Not `Send`, as the lock it holds is not.
+pub struct Draft<'a> {
+	sheet: std::sync::MutexGuard<'a, Sheet>,
+	published: &'a mut u32,
+	edited: bool,
+}
+
+impl Draft<'_> {
+	/// Whether a `DerefMut` marked it, which a read through `Deref` does not.
+	pub fn edited(&self) -> bool {
+		self.edited
+	}
+
+	/// The draft in a word, shadowing its sheet's.
+	pub fn describe(&self) -> String {
+		format!("draft of {} lines", self.sheet.lines())
+	}
+
+	/// Publishes the edit, if any, returning how many the ledger published: the drop then
+	/// publishes nothing.
+	pub fn commit(mut self) -> u32 {
+		self.publish();
+		*self.published
+	}
+
+	fn publish(&mut self) {
+		if std::mem::take(&mut self.edited) {
+			*self.published += 1;
+		}
+	}
+}
+
+impl std::ops::Deref for Draft<'_> {
+	type Target = Sheet;
+
+	fn deref(&self) -> &Sheet {
+		&self.sheet
+	}
+}
+
+impl std::ops::DerefMut for Draft<'_> {
+	fn deref_mut(&mut self) -> &mut Sheet {
+		self.edited = true;
+		&mut self.sheet
+	}
+}
+
+impl Drop for Draft<'_> {
+	fn drop(&mut self) {
+		self.publish();
+	}
+}
+
+/// Whether `draft` is marked: it must live as long as the program, which a draft
+/// [`Ledger::edit`] lends never does, so passing one fails, as Rust refuses it.
+pub fn lasting(draft: &Draft<'static>) -> bool {
+	draft.edited
+}
+
+/// What `receipt` counts: its bound lets it live as long as the program, so passing one a
+/// [`Ledger`] lends fails, as Rust refuses it.
+pub fn stored<'a: 'static>(receipt: Receipt<'a>) -> u32 {
+	receipt.count()
+}
+
+/// What `receipt` counts, through a bound that holds for any lifetime, so a [`Ledger`]'s
+/// lent receipt moves in, and the ledger is free once it returns.
+pub fn tallied<'a>(receipt: Receipt<'a>) -> u32
+where
+	Receipt<'a>: Clone,
+{
+	receipt.clone().count()
+}
+
+/// An item filed with a ledger, whose `Clone` asks that it outlive its borrow, as it always
+/// does: an instance's erased lifetime stands beside the lend's.
+pub struct Filed<'a, T> {
+	published: &'a u32,
+	item: T,
+}
+
+impl<'a, T: Clone> Clone for Filed<'a, T>
+where
+	Filed<'a, T>: 'a,
+{
+	fn clone(&self) -> Self {
+		Self {
+			published: self.published,
+			item: self.item.clone(),
+		}
+	}
+}
+
+impl<T: Totaled + Clone> Filed<'_, T> {
+	pub fn count(&self) -> u32 {
+		*self.published + self.item.clone().total()
+	}
+}
+
+/// What counts itself, implemented only for a receipt that lives as long as the program.
+pub trait Totaled {
+	fn total(self) -> u32;
+}
+
+impl Totaled for Receipt<'static> {
+	fn total(self) -> u32 {
+		self.count()
+	}
+}
+
+/// What `totaled` counts: the instance a binding calls takes a receipt that lives as long
+/// as the program, so passing one a [`Ledger`] lends fails.
+pub fn summed_up<T: Totaled>(totaled: T) -> u32 {
+	totaled.total()
+}
+
+/// What `receipt` counts: its bound implies it lives as long as the program, as `Any`'s
+/// does, so passing one a [`Ledger`] lends fails too.
+pub fn erased<'a>(receipt: Receipt<'a>) -> u32
+where
+	Receipt<'a>: std::any::Any,
+{
+	receipt.count()
+}
+
+/// A sheet with a tag, which derefs to the sheet: only `Pad<u8>` has a `describe` of its
+/// own, which hides the sheet's, while `Pad<u16>`'s is the sheet's, as in Rust.
+pub struct Pad<T> {
+	sheet: Sheet,
+	tag: T,
+}
+
+impl<T> std::ops::Deref for Pad<T> {
+	type Target = Sheet;
+
+	fn deref(&self) -> &Sheet {
+		&self.sheet
+	}
+}
+
+impl Pad<u8> {
+	pub fn small() -> Self {
+		Self {
+			sheet: Sheet::new(),
+			tag: 1,
+		}
+	}
+
+	pub fn describe(&self) -> String {
+		format!("pad {}", self.tag)
+	}
+}
+
+impl Pad<u16> {
+	pub fn wide() -> Self {
+		Self {
+			sheet: Sheet::new(),
+			tag: 2,
+		}
+	}
+
+	pub fn tag(&self) -> u16 {
+		self.tag
+	}
+
+	/// A method named as the sheet's field, which hides no field: `title` still reaches the
+	/// sheet's, as Rust's field access does.
+	pub fn title(&self) -> u16 {
+		self.tag
+	}
+}
+
+mod layers {
+	/// Between a layered sheet and its sheet: no path from the crate root names it, so it
+	/// does not export, yet its `describe` hides the sheet's, as in Rust.
+	pub struct Middle(pub(crate) super::Sheet);
+
+	impl Middle {
+		pub fn describe(&self) -> String {
+			"middle".to_string()
+		}
+	}
+
+	impl std::ops::Deref for Middle {
+		type Target = super::Sheet;
+
+		fn deref(&self) -> &super::Sheet {
+			&self.0
+		}
+	}
+}
+
+/// A sheet behind a layer, which forwards what the layer does not hide.
+pub struct Layered(layers::Middle);
+
+impl Layered {
+	pub fn new() -> Self {
+		Self(layers::Middle(Sheet::new()))
+	}
+}
+
+impl std::ops::Deref for Layered {
+	type Target = layers::Middle;
+
+	fn deref(&self) -> &layers::Middle {
+		&self.0
+	}
+}
+
+/// A named point, which derefs mutably to a record, whose fields it reaches.
+pub struct Marker {
+	point: Point,
+	label: String,
+}
+
+impl Marker {
+	pub fn new(label: &str, x: i32, y: i32) -> Self {
+		Self {
+			point: Point { x, y },
+			label: label.to_string(),
+		}
+	}
+
+	pub fn label(&self) -> String {
+		self.label.clone()
+	}
+
+	/// A method sharing its path with the point's field, which the config leaves out alone.
+	pub fn x(&self) -> i32 {
+		self.point.x
+	}
+
+	/// A function without `self` sharing its path with the point's field, which the config
+	/// leaves out alone too.
+	pub fn y() -> i32 {
+		0
+	}
+}
+
+impl std::ops::Deref for Marker {
+	type Target = Point;
+
+	fn deref(&self) -> &Point {
+		&self.point
+	}
+}
+
+impl std::ops::DerefMut for Marker {
+	fn deref_mut(&mut self) -> &mut Point {
+		&mut self.point
+	}
+}
+
 /// A name that may borrow its text: its only generic parameter is a lifetime, so a
 /// handle holds `Name<'static>`, which borrows nothing.
 #[derive(Clone, Debug, PartialEq)]
@@ -1803,6 +2206,27 @@ impl Logger {
 	#[cfg(not(target_arch = "wasm32"))]
 	pub fn write_from_thread(&self, line: &str) -> bool {
 		std::thread::scope(|scope| scope.spawn(|| self.write(line)).join().expect("the thread finishes"))
+	}
+}
+
+/// A [`Logger`] its `&mut self` method makes checked, so a binding's close drops it through
+/// Rust, running its implementation's close inside that drop.
+pub struct Journal {
+	sink: Box<dyn Log>,
+}
+
+impl Journal {
+	pub fn new(sink: Box<dyn Log>) -> Self {
+		Self { sink }
+	}
+
+	/// Log to `sink` from now on, dropping the implementation before it.
+	pub fn redirect(&mut self, sink: Box<dyn Log>) {
+		self.sink = sink;
+	}
+
+	pub fn write(&self, line: &str) -> bool {
+		self.sink.log(0, line)
 	}
 }
 
