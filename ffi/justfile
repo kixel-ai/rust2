@@ -18,10 +18,10 @@ moq_rev := "ffcb7cd9748422daa30e935ec464108b5a8ebb71"
 swift_collections_rev := "f96b909e1a9e469620bc5037c1e24e00153f376f"
 
 # The binding benchmark's programs, each a language, as bench-program runs them.
-bench_langs := "rust c cpp moq-c kotlin python swift go dart"
+bench_langs := "rust c cpp moq-c kotlin python swift go dart ts-node ts-chromium ts-firefox"
 
 # Those whose cases CodSpeed counts the same on every run of one commit: bench/ffi/README.md's CodSpeed section says why Swift, Kotlin, Go, and Dart do not.
-codspeed_langs := "rust c cpp moq-c python"
+codspeed_langs := "rust c cpp moq-c python ts-node"
 
 default:
     @just --list
@@ -71,8 +71,8 @@ census checkout="": (standin checkout)
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
 bench checkout="": (bench-build checkout) bench-run
 
-# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, and Dart through the export, and C through moq's hand-written rs/moq-c.
-bench-build checkout="": (moq-export checkout) codspeed-hooks
+# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, and Dart through the export, TypeScript through the wasm32 stand-in's, and C through moq's hand-written rs/moq-c.
+bench-build checkout="": (moq-export checkout) (moq-web checkout) ts-program codspeed-hooks
     #!/usr/bin/env bash
     set -euo pipefail
     [ -n "${LIBCLANG_PATH:-}" ] || { echo "LIBCLANG_PATH is unset: run this in the bench shell, nix develop .#bench" >&2; exit 1; }
@@ -107,7 +107,7 @@ bench-build checkout="": (moq-export checkout) codspeed-hooks
     {{ quote(just_executable()) }} swift-module -O
     swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I target/swift-collections/build -I "$out/swift" -I "$hooks" moq/bench/export.swift target/swift/libMoq.a -L target/swift-collections/build -lBasicContainers -lInternalCollectionsUtilities -lSpanPreview "$out/target/release/libmoq.a" "$hooks/libcodspeed.a" -lpthread -ldl -lm -o target/bench-export-swift
 
-# Build moq/bench/codspeed.c over the bench shell's instrument-hooks into target/codspeed: a static library the compiled programs link, a shared one with the JNI functions that Kotlin, Python, and Dart load, and a module map Swift imports it by.
+# Build moq/bench/codspeed.c over the bench shell's instrument-hooks into target/codspeed: a static library the compiled programs link, a shared one with the JNI functions that Kotlin, Python, and Dart load, the addon Node loads, and a module map Swift imports it by.
 [private]
 codspeed-hooks:
     #!/usr/bin/env bash
@@ -128,6 +128,8 @@ codspeed-hooks:
     cc "${flags[@]}" -c moq/bench/codspeed.c -o "$dir/codspeed.o"
     ar rcs "$dir/libcodspeed.a" "$dir/codspeed.o" "$dir/core.o"
     cc "${flags[@]}" -shared -DCODSPEED_JNI -isystem "${JAVA_HOME:?}/include" -isystem "$JAVA_HOME/include/$jni" moq/bench/codspeed.c "$dir/core.o" -o "$dir/$lib"
+    node=$(dirname "$(dirname "$(realpath "$(command -v node)")")")/include/node
+    cc "${flags[@]}" -shared -isystem "$node" -I moq/bench moq/bench/codspeed-node.c "$dir/codspeed.o" "$dir/core.o" -o "$dir/codspeed.node"
     cp moq/bench/codspeed.h "$dir/"
     printf 'module CodSpeed {\n    header "codspeed.h"\n    export *\n}\n' > "$dir/module.modulemap"
 
@@ -191,13 +193,14 @@ bench-run rounds="3":
             run "$lang"
         done
     done
-    python3 -I ../bench/ffi/report.py "$raw" "$builds" "$out" > target/bench/report.md
+    python3 -I ../bench/ffi/report.py "$raw" "$builds" "$out" target/export/moq-web > target/bench/report.md
     cat target/bench/report.md
 
 # Run what bench-build built once each, under `codspeed run` in the bench shell's environment, so CodSpeed's CPU simulation counts each single-threaded case: the CodSpeed workflow's run.
 codspeed:
     #!/usr/bin/env bash
     set -euo pipefail
+    export RUST2_CODSPEED=1
     for lang in {{ codspeed_langs }}; do
         {{ quote(just_executable()) }} bench-program "$lang"
     done
@@ -212,7 +215,9 @@ bench-program lang:
         macos) hooks=$PWD/target/codspeed/libcodspeed.dylib ;;
         *) hooks=$PWD/target/codspeed/libcodspeed.so ;;
     esac
-    case "{{ lang }}" in
+    wasm=target/export/moq-web/target/wasm32-wasip1/release/moq.wasm
+    lang={{ lang }}
+    case "$lang" in
         rust) exec target/bench-rust/target/release/bench ;;
         c) exec target/bench-export ;;
         cpp) exec target/bench-export-cpp ;;
@@ -222,6 +227,14 @@ bench-program lang:
         swift) exec target/bench-export-swift ;;
         go) exec target/bench-go/bench ;;
         dart) exec dart target/bench-dart/main.dill "$hooks" ;;
+        ts-node)
+            # Under CodSpeed, V8 runs on this thread alone and collects on a schedule its
+            # allocations set, not time, and export.ts collects before each case, so its counts
+            # hold still between runs.
+            flags=()
+            [ -z "${RUST2_CODSPEED:-}" ] || flags=(--expose-gc --predictable --predictable-gc-schedule --single-threaded --v8-pool-size=0)
+            exec node ${flags[@]+"${flags[@]}"} target/bench-ts/export.ts "$wasm" "$PWD/target/codspeed/codspeed.node" ;;
+        ts-chromium | ts-firefox) exec bun target/bench-ts/browser.ts "${lang#ts-}" "$wasm" "target/bench-browser/${lang#ts-}" ;;
         *) echo "bench-program: no language {{ lang }}" >&2; exit 1 ;;
     esac
 
@@ -341,6 +354,22 @@ go-module dir main:
     cp {{ main }} "$dir/main.go"
     printf 'module moqtest\n\ngo 1.24\n\nrequire moq v0.0.0\n\nreplace moq => ./export\n' > "$dir/go.mod"
 
+# Lay out target/bench-ts as the TypeScript benchmark beside target/export/moq-web's binding, as a caller imports it, and check it with tsc as api_web checks its script.
+[private]
+ts-program:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dir=target/bench-ts
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    cp -r target/export/moq-web/web "$dir/web"
+    cp moq/bench/export.ts moq/bench/browser.ts "$dir/"
+    printf '%s\n' '{"compilerOptions": {"strict": true, "noEmit": true, "noUnusedLocals": true, "noUnusedParameters": true,' \
+        '"target": "es2024", "lib": ["es2024", "esnext.disposable", "dom"], "module": "esnext", "moduleResolution": "bundler",' \
+        '"allowImportingTsExtensions": true, "verbatimModuleSyntax": true, "erasableSyntaxOnly": true, "skipLibCheck": true, "types": []},' \
+        '"include": ["export.ts", "web/*.ts"]}' > "$dir/tsconfig.json"
+    tsc -p "$dir"
+
 # Lay out target/<dir> as a Dart program whose main is <main>, importing the export's Dart as package:moq/moq.dart, whose native asset is the shared library, as a package's build hook would bundle it, which `dart compile` has no flag for; analyze it, and compile it into target/<dir>/main.dill.
 [private]
 dart-program dir main:
@@ -455,6 +484,12 @@ moq-api target checkout="": (standin checkout)
     fi
     printf '%s\n' "$before" > "target/moq-api/$target.source"
 
+# Export the wasm32 stand-in, moq's crates but moq-tokio, into target/export/moq-web for wasm32-wasip1, and build its module for the web binding.
+[private]
+moq-web checkout="": (standin checkout "web")
+    cargo run --locked --quiet -- --config moq/web.toml --manifest-path target/moq-ffi-web/Cargo.toml --target wasm32-wasip1 --out target/export/moq-web
+    cargo build --locked --quiet --release --manifest-path target/export/moq-web/Cargo.toml --target wasm32-wasip1 --features web
+
 # Export moq's crates' C ABI into target/export/moq and build it, with the libraries a program linking it needs besides in target/moq-native.
 [private]
 moq-export checkout="": (moq-write checkout)
@@ -480,9 +515,9 @@ moq-export checkout="": (moq-write checkout)
     cargo build --locked --quiet --release --manifest-path "$out/Cargo.toml" --features kotlin,dart 2>&1 | tee target/moq-build.log
     sed -n 's/^note: native-static-libs: //p' target/moq-build.log > target/moq-native
 
-# Write target/moq-ffi, a facade re-exporting what moq-ffi ships from moq's crates, from the pinned moq revision or a checkout: the export follows its re-exports, as it will moq-ffi's remainder's.
+# Write target/moq-ffi, a facade re-exporting what moq-ffi ships from moq's crates, from the pinned moq revision or a checkout: the export follows its re-exports, as it will moq-ffi's remainder's. With `web`, target/moq-ffi-web, the same without moq-tokio, which builds for no wasm32 target.
 [private]
-standin checkout="":
+standin checkout="" web="":
     #!/usr/bin/env bash
     set -euo pipefail
     src="{{ checkout }}"
@@ -499,6 +534,11 @@ standin checkout="":
     # moq-ffi's dependencies, each with the features moq-ffi turns on, such as moq-mux's
     # async wrappers, read from its manifest.
     deps=(hang kio moq-mux moq-net moq-pattern moq-tokio)
+    # rustls-native-certs, under moq-tokio, has no platform module on wasm32-wasip1.
+    if [ -n "{{ web }}" ]; then
+        dir=target/moq-ffi-web
+        deps=(hang kio moq-mux moq-net moq-pattern)
+    fi
     features=$(cd "$src" && cargo metadata --format-version 1 --no-deps \
         | jq -c '[.packages[] | select(.name == "moq-ffi") | .dependencies[] | select(.kind == null) | {key: .name, value: .features}] | from_entries')
     mkdir -p "$dir/src"
@@ -544,6 +584,8 @@ standin checkout="":
     pub mod mux {
         pub use ::moq_mux::*;
     }
+    EOF
+    [ -n "{{ web }}" ] || cat >> "$dir/src/lib.rs.new" <<'EOF'
 
     pub mod tokio {
         pub use ::moq_tokio::cli::Duration;

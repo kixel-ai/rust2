@@ -1296,9 +1296,9 @@ target there.
   and `u128` are rust2-ts's `rt.u64` and so on, a number while a safe integer and 32-bit
   limbs past it, converted from the `bigint` a wasm `i64` is at the boundary, which costs a
   getter 9% over returning that `bigint` as it is. `String` and `&str` are strings, bytes a
-  `Uint8Array`, or an `rt.Bytes` where a call returns them (below), a `Vec` of numbers the typed array holding them exactly, any other `Vec` an
-  array, a path an `rt.PathBuf` of its bytes, and `Duration`, the addresses, and the ranges
-  plain objects. A `&mut` value is an `rt.Place`, whose `v` the call writes back, and a
+  `Uint8Array`, or an `rt.Bytes` where a call returns them (below), a `Vec` of numbers the
+  typed array holding them exactly, any other `Vec` an array, a path an `rt.PathBuf` of its
+  bytes, and `Duration`, the addresses, and the ranges plain objects. A `&mut` value is an `rt.Place`, whose `v` the call writes back, and a
   value's `&mut self` method returns it first, as Dart's does.
 - **Memory**: each call lowers what it passes onto a stack of the binding's in linear
   memory, which it gives back once the call returns, and reads what Rust returns at the
@@ -1319,14 +1319,14 @@ target there.
   past a quarter of memory lent and not yet freed, a call copies instead, and bytes nobody
   disposes grow memory by no more than a third. Passed to a call, an `rt.Bytes` crosses
   in place for one that reads it, as a second owner of Rust's buffer for one that takes a
-  `Bytes`, and copied by Rust for one that takes a `Vec`, which owns its bytes alone. Bytes inside another value, such as a record's field or a
-  list's item, are copied into a `Uint8Array`, since only a caller holding them alone
-  disposes them. No view of Rust's buffer reaches a caller, as a `Uint8Array` over memory
+  `Bytes`, and copied by Rust for one that takes a `Vec`, which owns its bytes alone. Bytes
+  inside another value, such as a record's field or a list's item, are copied into a
+  `Uint8Array`, since only a caller holding them alone disposes them. No view of Rust's buffer reaches a caller, as a `Uint8Array` over memory
   would: it detaches once memory grows, writes what Rust's other owners of the bytes read,
   and through a `subarray` or its `buffer` outlives the buffer it views. On Node 24, a lent
   payload costs 0.4 µs a call at any length, against a copy's 0.5 µs at 100 B, 1.1 µs at
-  1 KiB, and 97 µs at 1 MiB; [the benchmark](../bench/ffi/README.md#typescript) has each
-  engine's.
+  1 KiB, and 97 µs at 1 MiB; [the benchmark](../bench/ffi/README.md#lending-returned-bytes)
+  has each engine's.
 - **Objects** are an `rt.Handle`, disposed by `[Symbol.dispose]`, as `using` does. Of a
   checked type, disposing it drops the value through Rust's own `_drop`, which fails while
   a call borrows it; of any other, it throws while a call holds it. The handle is freed once

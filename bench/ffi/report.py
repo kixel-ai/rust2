@@ -2,9 +2,9 @@
 in CPU and wall time, each beside the median 1-minute load average over its rounds, read
 from `just ffi bench-run`'s raw.tsv; the median time and peak RSS of the export and its
 crate's build, beside moq's own, from its build.tsv; and the sizes of the export's generated bindings and
-native libraries.
+native libraries, and of the wasm32 stand-in's TypeScript and module.
 
-Usage: report.py <raw.tsv> <build.tsv> <export dir>
+Usage: report.py <raw.tsv> <build.tsv> <export dir> <web export dir>
 """
 
 import collections
@@ -26,7 +26,13 @@ LANGS = [
 	("swift", "Swift"),
 	("go", "Go"),
 	("dart", "Dart"),
+	("ts-node", "TS (Node)"),
+	("ts-chromium", "TS (Chromium)"),
+	("ts-firefox", "TS (Firefox)"),
 ]
+
+# The TypeScript programs, which run Rust on one JavaScript thread.
+TS = ["ts-node", "ts-chromium", "ts-firefox"]
 
 CALLS = [
 	("call", "`track.is_closed()`, a handle call"),
@@ -48,9 +54,9 @@ CALLS = [
 ]
 
 # What a language does in place of a case it cannot run, printed in that case's cell.
-INSTEAD = {
-	("dart", case): "no: an isolate takes no other's object"
-	for case in ["shared:call", "own:call", "shared:getter", "own:getter"]
+THREADED = ["shared:call", "own:call", "shared:getter", "own:getter"]
+INSTEAD = {("dart", case): "no: an isolate takes no other's object" for case in THREADED} | {
+	(lang, case): "no: one thread" for lang in TS for case in THREADED
 }
 
 # Each step `just ffi bench-run` times from an emptied target, and what it is.
@@ -63,6 +69,9 @@ BUILDS = [
 
 SIZES = [100, 1024, 16384, 65536, 1048576]
 
+LABELS = {16: "16 B", 64: "64 B", 100: "100 B", 256: "256 B", 1024: "1 KiB", 4096: "4 KiB", 16384: "16 KiB"}
+LABELS |= {65536: "64 KiB", 262144: "256 KiB", 1048576: "1 MiB"}
+
 # Each binding's generated files, and its Rust glue in the export's crate, under the export.
 BINDINGS = [
 	("C", ["include/moq.h"], ["src/lib.rs", "src/rt.rs"]),
@@ -73,6 +82,10 @@ BINDINGS = [
 	("Go", ["go"], []),
 	("Dart", ["dart/moq.dart"], ["src/dart"]),
 ]
+
+# The TypeScript, under the wasm32 stand-in's export, and the glue its module builds with.
+WEB_BINDING = ("TypeScript", ["web"], ["src/lib.rs", "src/rt.rs", "src/web"])
+WASM = ("`moq.wasm`, the wasm32 stand-in's module, with the web glue", "target/wasm32-wasip1/release/moq.wasm")
 
 # The shared library's suffix, as `just ffi moq-export` names it on each platform it builds on.
 SHARED = "dylib" if sys.platform == "darwin" else "so"
@@ -111,6 +124,27 @@ def size(paths):
 	return raw, zipped
 
 
+def wasm_stripped(data):
+	"""A wasm module without its custom sections, its names and debug info among them."""
+	out = bytearray(data[:8])
+	at = 8
+	while at < len(data):
+		section = data[at]
+		size = shift = 0
+		end = at + 1
+		while True:
+			byte = data[end]
+			size |= (byte & 0x7F) << shift
+			shift += 7
+			end += 1
+			if byte < 0x80:
+				break
+		if section != 0:
+			out += data[at : end + size]
+		at = end + size
+	return bytes(out)
+
+
 def kib(n):
 	return f"{n / 1024:,.0f} KiB"
 
@@ -141,7 +175,7 @@ def builds(path):
 	return table(["step", "wall s", "CPU s", "peak RSS", "load average"], rows)
 
 
-def main(raw_path, build_path, export):
+def main(raw_path, build_path, export, web):
 	rounds = collections.defaultdict(list)
 	with open(raw_path) as f:
 		for line in f:
@@ -159,19 +193,29 @@ def main(raw_path, build_path, export):
 		if (lang, case) not in median:
 			return ""
 		values = median[(lang, case)]
+		# A browser has no clock of its CPU time.
+		if values[i] != values[i]:
+			return ""
 		return f"{number(values[i])} ({values[2]:.0f})"
 
 	thru = [(key, name) for key, name in langs if (key, f"mbps:{SIZES[0]}") in median]
-	labels = {100: "100 B", 1024: "1 KiB", 16384: "16 KiB", 65536: "64 KiB", 1048576: "1 MiB"}
+	payloads = sorted({int(case.split(":")[1]) for _, case in median if case.startswith("payload:")})
+	sized = [(key, name) for key, name in langs if any((key, f"payload:{n}") in median for n in payloads)]
 	for i, clock, rate in [(1, "CPU", "MB per CPU second"), (0, "wall", "MB/s")]:
 		print(f"### Calls (ns per call, {clock} time; load average)\n")
 		header = ["call"] + [name for _, name in langs]
 		print(table(header, [[label] + [cell(lang, case, i) for lang, _ in langs] for case, label in CALLS]))
 		print(f"\n### Throughput ({rate}, write plus ready read; load average)\n")
 		header = ["frame"] + [name for _, name in thru]
-		rows = [[labels[n]] + [cell(lang, f"mbps:{n}", i) for lang, _ in thru] for n in SIZES]
+		rows = [[LABELS[n]] + [cell(lang, f"mbps:{n}", i) for lang, _ in thru] for n in SIZES]
 		print(table(header, rows))
 		print()
+		if sized:
+			print(f"### `frame.payload` by size (ns per call, {clock} time; load average)\n")
+			header = ["payload"] + [name for _, name in sized]
+			rows = [[LABELS[n]] + [cell(lang, f"payload:{n}", i) for lang, _ in sized] for n in payloads]
+			print(table(header, rows))
+			print()
 
 	print("### Build (median, from an emptied target)\n")
 	print(builds(build_path))
@@ -179,10 +223,10 @@ def main(raw_path, build_path, export):
 
 	print("### Size\n")
 	rows = []
-	for name, generated, glue in BINDINGS:
-		raw, zipped = size(files(export, generated))
-		glue_raw, glue_zipped = size(files(export, glue))
-		count = len(files(export, generated))
+	for root, (name, generated, glue) in [(export, b) for b in BINDINGS] + [(web, WEB_BINDING)]:
+		raw, zipped = size(files(root, generated))
+		glue_raw, glue_zipped = size(files(root, glue))
+		count = len(files(root, generated))
 		glue_cell = f"{kib(glue_raw)} / {kib(glue_zipped)}" if glue else "none"
 		rows.append([name, str(count), kib(raw), kib(zipped), glue_cell])
 	print(table(["binding", "files", "raw", "gzip", "Rust glue, raw / gzip"], rows))
@@ -196,10 +240,14 @@ def main(raw_path, build_path, export):
 			shutil.copyfile(full, copy)
 			subprocess.run([*STRIP, copy], check=True)
 			rows.append([label, kib(os.path.getsize(full)), kib(os.path.getsize(copy))])
+	label, path = WASM
+	with open(os.path.join(web, path), "rb") as f:
+		data = f.read()
+	rows.append([label, kib(len(data)), kib(len(wasm_stripped(data)))])
 	print(table(["native library", "as built", "stripped"], rows))
 
 
 if __name__ == "__main__":
-	if len(sys.argv) != 4:
+	if len(sys.argv) != 5:
 		sys.exit(__doc__)
-	main(sys.argv[1], sys.argv[2], sys.argv[3])
+	main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])

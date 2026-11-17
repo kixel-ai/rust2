@@ -10,7 +10,9 @@ nix develop .#bench --command just ffi bench-run 5  # rerun what bench-build bui
 
 `ffi/moq/bench/export.*` time the same cases in each language, `export.rs` the floor
 on the stand-in's API from Rust, and `moq-c.c` moq's hand-written rs/moq-c, which
-has only the stamped write. Each program runs its cases twice and prints the second,
+has only the stamped write. `export.ts` runs on Node and, through `browser.ts`, in
+headless Chromium and Firefox, over a wasm32-wasip1 build of the stand-in
+([TypeScript](#typescript)). Each program runs its cases twice and prints the second,
 so a JIT has warmed up, in wall time and in the process's CPU time on every thread.
 `just ffi bench-run` runs each program once a round, records the 1-minute load average
 over each run, and [`report.py`](report.py) prints each case's median over the rounds
@@ -37,6 +39,7 @@ single-threaded case on every push to main and on each PR that can move one.
 | reader loop | one reader and writer live for all groups, including their handoff; Go waits for a real pending poll before writing | none |
 | Swift drained reader | a separate executor diagnostic: one reader drained before each write, without a writer task or permit handoff | none |
 | payload | `frame.payload` of 100 B, handed to the language | none |
+| payload by size | the same from 16 B to 1 MiB, TypeScript only, where it finds where lending beats a copy | none |
 | throughput | groups of 100 frames written and read, each payload's first byte touched, about 64 MiB | throughput |
 
 The four threaded cases start their threads, wait until all are ready, then time each
@@ -48,15 +51,17 @@ what a binding's run-time checks cost under contention. The handle call also tak
 read lock, which all four threads share in both cases; the getter takes none. C, C++,
 Kotlin, Swift, and Python use OS threads, and Go goroutines. Dart has no number: an
 isolate cannot receive another's object, so no two threads ever borrow one handle.
+TypeScript has none either: the module runs on the one JavaScript thread that loaded it.
 
 A woken read starts its read the language's own way: by polling in C, C++, and Rust; a
 `Task` and a yield in Swift and Python; a goroutine and a yield in Go; an undispatched
-coroutine in Kotlin; and an eager call in Dart. So it measures a task's start and its
+coroutine in Kotlin; an eager call in Dart; and in TypeScript, a promise made before the
+write, which polls once and pends. So it measures a task's start and its
 wake, and in Swift, Python, and Go, a read the scheduler had not yet started is ready
 instead of woken.
 
 The `loop` case removes task creation per frame: one reader loops over all groups and
-one writer supplies them. Kotlin, Python, Dart, and Swift include a permit handoff per
+one writer supplies them. Kotlin, Python, Dart, Swift, and TypeScript include a permit handoff per
 frame and an acknowledgement before advancing groups, bounding queued work. Swift runs
 on its default global pool. Its writer can race the read's first poll, so this is a
 streaming workload, not an isolated measurement of every read suspending.
@@ -119,6 +124,19 @@ build, the largest move of any case between two runs:
 | Go | 362% (`stamped`), 330% (`record`), 84% (`loop`) | leaves: its collector and scheduler run inside each case, and its preemption signal crashes Callgrind unless `GODEBUG=asyncpreemptoff=1` |
 | Kotlin | 172% (`call`), 108% (`getter`) | leaves: without the warm-up, the JIT's and collector's threads compile and collect inside each case, and the JVM's C2 code crashes under Valgrind unless its implicit null checks are off |
 | Dart | does not run | leaves: the VM maps its code at an address hint off a page boundary, which Valgrind refuses |
+| TypeScript (Node) | 2.6% (`ready`), every other case under 2.3% | joins, with V8's flags below |
+
+Node joined on 2026-11-16, measured on **fedora** the same way, Node 24.22.2. With V8's
+default flags, two runs moved `write` 113%, `stamped` 69%, and `ready` 49%: V8 compiles,
+sweeps, and collects on its own threads, by time. `--predictable --single-threaded
+--v8-pool-size=0` keeps all of that on the main thread, which left 36%
+(`payload[1048576]`); `--predictable-gc-schedule`, so a collection follows allocation
+rather than time, left 16% (`throughput[1048576]`); and a full `gc()` before each case,
+through `--expose-gc`, left the 2.6% above. `just ffi codspeed` passes all four flags
+under `RUST2_CODSPEED`, and `bench-run`, which times, passes none. The Chromium and Firefox
+columns stay out: CodSpeed's simulation runs one process, not a browser. Building the
+wasm32 module adds about 5 minutes to the workflow's build, and Node's cases about 6 to its
+simulation.
 
 On CI, two runs of one commit (kixel-ai/rust2#805's 11a94ff, a `pull_request` run and a
 `workflow_dispatch` one) left all 58 benchmarks untouched in CodSpeed's comparison: the
@@ -542,6 +560,81 @@ its record return 74 against 61, its write 114 ns over Rust against BoltFFI's 56
 throughput 166 MB/s against 105. Python's getter costs 49 ns against 63, its record return
 99 against 1,120, and 100 B throughput 138 MB/s against 12.1. So Python meets BoltFFI's
 and Kotlin's calls trail it by 1.2 to 4 times, behind JNI's per-call cost and the hold count.
+
+## TypeScript
+
+The web binding runs over its own export of the stand-in, `target/moq-ffi-web`: the same
+crates less moq-tokio, which pulls in rustls-native-certs, with no wasm32-wasip1 platform
+module, and so less the items that name it ([`moq/web.toml`](../../ffi/moq/web.toml)).
+Nothing builds for wasm32-unknown-unknown, where getrandom 0.4 has no backend without a
+config flag. `export.ts` imports the generated modules as a caller would, and disposes each
+handle and payload it gets. A browser gives no process CPU clock, so its columns are wall
+time only.
+
+Measured 2026-11-16 on **fedora**, an AMD Ryzen 9 9950X (16 cores, 32 threads), at rust2
+`ecfb751c` plus this harness, moq `ffcb7cd9`, 3 rounds at a load average of 31 to 51. Node
+24.22.2, Chromium 157.0.8103.38, Firefox 159.0.1, Rust 1.98.1 for the module (moq's release
+profile), Dart 3.13.0. C and Dart are from the same run, for scale; wall ns per call.
+
+| call | C | Dart | Node | Chromium | Firefox |
+|---|---|---|---|---|---|
+| `track.is_closed()`, a handle call | 19 | 70 | 64 | 52 | 148 |
+| `demand.sequence()`, a u64 getter | 9.1 | 46 | 69 | 54 | 126 |
+| `track.largest()`, a record return | 32 | 87 | 106 | 89 | 204 |
+| `track.info()`, an object return | 33 | 272 | 355 | 272 | 1,104 |
+| `group.write_frame(at, frame)`, 100 B | 193 | 349 | 415 | 639 | 827 |
+| the same, with a new `Timestamp` each | 196 | 474 | 575 | 650 | 1,108 |
+| a 100 B frame written and read, ready | 369 | 1,057 | 1,344 | 1,041 | 2,878 |
+| the same, read after a wake | 518 | 1,966 | 2,487 | 2,936 | 4,491 |
+| one reader and writer, with their handoff |  | 2,434 | 2,269 | 3,686 | 5,146 |
+| `frame.payload`, 100 B | 29 | 81 | 385 | 299 | 1,157 |
+
+| frame, MB/s | C | Dart | Node | Chromium | Firefox |
+|---|---|---|---|---|---|
+| 100 B | 271 | 95 | 60 | 58 | 21 |
+| 1 KiB | 2,061 | 1,044 | 605 | 591 | 255 |
+| 16 KiB | 12,814 | 6,423 | 6,541 | 6,469 | 2,513 |
+| 64 KiB | 10,312 | 6,871 | 12,228 | 11,070 | 7,218 |
+| 1 MiB | 8,912 | 8,164 | 16,127 | 16,986 | 12,071 |
+
+An object return pays the handle's `FinalizationRegistry` entry, as Go's and Dart's pay
+their collectors'. Firefox runs every row at about 2 to 3 times Node's.
+
+### Lending returned bytes
+
+Bytes a call returns are an [`rt.Bytes`](../../ffi/README.md#typescript-web): up to 64 B a copy, and
+past that, Rust's own buffer, read through the memory on each access and freed on dispose.
+Measured before and after it on the same host on 2026-11-16, one build each, a round apart
+at a load average of 13 to 30, `frame.payload` in wall ns, copy then lend:
+
+| payload | Node | Chromium | Firefox |
+|---|---|---|---|
+| 16 B, copied in both | 160 / 220 | 170 / 141 | 154 / 208 |
+| 64 B, copied in both | 152 / 202 | 145 / 150 | 145 / 197 |
+| 100 B | 527 / 418 | 602 / 254 | 329 / 702 |
+| 256 B | 489 / 400 | 1,104 / 242 | 352 / 759 |
+| 1 KiB | 1,123 / 381 | 1,122 / 235 | 440 / 780 |
+| 4 KiB | 1,433 / 395 | 1,402 / 233 | 724 / 717 |
+| 16 KiB | 2,798 / 364 | 3,996 / 236 | 1,586 / 900 |
+| 64 KiB | 9,370 / 359 | 15,332 / 232 | 4,432 / 690 |
+| 1 MiB | 96,547 / 378 | 210,601 / 225 | 190,762 / 527 |
+
+V8 keeps a typed array of up to 64 B in its own heap, and past it gives the copy a backing
+store of its own, so its copy jumps from about 150 ns to 500 at 100 B, where a lend costs
+250 to 420 at any length. That is the crossover, and V8 runs Chrome, Edge, Node, Deno, and
+Electron. SpiderMonkey's copy stays cheap to 1 KiB and its lend costs it about 750 ns, so
+its crossover is near 4 KiB; JavaScriptCore's, measured in Bun 1.4.4, is between 256 and
+512 B (a copy of 256 B costs 112 ns against a lend's 123, of 512 B 192 against 126). The
+threshold is one constant for every engine: 64 B costs Firefox about 350 to 400 ns a
+payload from 100 B to 1 KiB, and any higher one would cost V8 more at each length below it.
+The bytes up to it now pay about 50 ns on Node and Firefox for the `rt.Bytes` around their
+copy, against a bare `Uint8Array` before.
+
+A lend needs a dispose: the collector cannot see wasm memory, so it never hurries to free
+what it lends. In a probe of a million 100 B lends left to the collector on Node, all
+million were still held at the loop's end, and each cost 628 ns against a disposed lend's
+275. So `rt.Bytes` lends only while lent bytes stay under a quarter of the memory, and
+copies past that.
 
 ## Consumer release profile
 
