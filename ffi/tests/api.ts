@@ -1586,7 +1586,17 @@ async function lent(): Promise<void> {
 	const joined = api.prefixed(viewed, prefix).slice();
 	check(joined.length === 102 && text(joined.subarray(0, 2)) === "ab" && joined.subarray(2).every((b) => b === 6), "bytes a call views read whole");
 	check(api.dropped() === ++before, "bytes disposed during a call are freed once it returns");
-	// So are bytes a call takes by value, which Rust gets a second owner of.
+	// A Bytes' length is its own: no caller's write or definition changes what Rust reads.
+	const fixed = api.tokenBytes(11, 100);
+	throws(() => {
+		(fixed as { length: number }).length = 1 << 20;
+	}, TypeError, "a Bytes' length is read-only");
+	Object.defineProperty(fixed, "length", { value: 1 << 20 });
+	check(api.len(fixed) === 100 && fixed.slice().length === 100, "a Bytes' length shadowed reaches no read");
+	close(fixed);
+	check(api.dropped() === ++before, "bytes whose length was shadowed are freed whole");
+	// Bytes a call takes by value, which Rust gets a second owner of, disposed while a later
+	// argument lowers, read whole and are freed once Rust drops them.
 	const given = api.tokenBytes(10, 100);
 	const high = new Proxy(enc("bc"), {
 		get(target, key) {

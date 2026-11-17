@@ -642,7 +642,7 @@ export function putBytes(dst: number, data: Uint8Array | Bytes): void {
 		if (!(read instanceof Uint8Array)) {
 			const d = dv();
 			d.setUint32(dst, read[0], true);
-			d.setUint32(dst + 4, data.length, true);
+			d.setUint32(dst + 4, read[2], true);
 			d.setUint32(dst + 8, 0, true);
 			return;
 		}
@@ -669,7 +669,7 @@ export function shared(dst: number, data: Uint8Array | Bytes | undefined): void 
 	const view = alloc(12, 4);
 	const d = dv();
 	d.setUint32(view, read[0], true);
-	d.setUint32(view + 4, data.length, true);
+	d.setUint32(view + 4, read[2], true);
 	d.setUint32(view + 8, read[1], true);
 	s.d++;
 	w[`${prefix}_buf_clone`](dst, view);
@@ -753,7 +753,7 @@ function ownerFree(owner: number, length: number): void {
 
 // The private fields' accessors, which only the runtime holds.
 let bytesMade: (ptr: number, length: number, owner: number, copy: Uint8Array | undefined) => Bytes;
-let bytesRead: (b: Bytes, hold: boolean) => Uint8Array | [ptr: number, owner: number];
+let bytesRead: (b: Bytes, hold: boolean) => Uint8Array | [ptr: number, owner: number, length: number];
 let bytesRelease: (b: Bytes) => void;
 
 /**
@@ -766,8 +766,8 @@ let bytesRelease: (b: Bytes) => void;
  * once memory grows, write what other owners of the bytes read, and outlive the buffer.
  */
 export class Bytes {
-	/** How many bytes it holds. */
-	readonly length: number;
+	// How many bytes it holds, private so that no caller's write reaches what Rust reads.
+	readonly #length: number;
 	// Rust's buffer and its owner, both 0 for a copy.
 	readonly #ptr: number;
 	readonly #owner: number;
@@ -779,7 +779,7 @@ export class Bytes {
 	private constructor(key: symbol, ptr: number, length: number, owner: number, copy: Uint8Array | undefined) {
 		if (key !== minting) throw new TypeError("only Rust makes bytes it returned");
 		this.#ptr = ptr;
-		this.length = length;
+		this.#length = length;
 		this.#owner = owner;
 		this.#copy = copy;
 		if (owner !== 0) {
@@ -788,25 +788,30 @@ export class Bytes {
 		}
 	}
 
+	/** How many bytes it holds. */
+	get length(): number {
+		return this.#length;
+	}
+
 	/** The byte at `index`, from the end where it is negative, as `Uint8Array`'s `at`. */
 	at(index: number): number | undefined {
 		if (this.#closed) throw new Error("Bytes is closed");
 		let i = Math.trunc(index) || 0;
-		if (i < 0) i += this.length;
-		if (i < 0 || i >= this.length) return undefined;
+		if (i < 0) i += this.#length;
+		if (i < 0 || i >= this.#length) return undefined;
 		return this.#copy !== undefined ? this.#copy[i] : mem()[this.#ptr + i];
 	}
 
 	/** A copy of the bytes from `start` up to `end`, as `Uint8Array`'s `slice`. */
 	slice(start?: number, end?: number): Uint8Array<ArrayBuffer> {
 		if (this.#closed) throw new Error("Bytes is closed");
-		const all = this.#copy ?? mem().subarray(this.#ptr, this.#ptr + this.length);
+		const all = this.#copy ?? mem().subarray(this.#ptr, this.#ptr + this.#length);
 		return all.slice(start, end) as Uint8Array<ArrayBuffer>;
 	}
 
 	/** Each byte in turn, each read as `at` reads it. */
 	*[Symbol.iterator](): IterableIterator<number> {
-		for (let i = 0; i < this.length; i++) yield this.at(i)!;
+		for (let i = 0; i < this.#length; i++) yield this.at(i)!;
 	}
 
 	/** Free Rust's buffer, once no call views it; again, it does nothing. */
@@ -819,7 +824,7 @@ export class Bytes {
 	#release(): void {
 		if (--this.#h === 0 && this.#owner !== 0) {
 			unlent.unregister(this);
-			ownerFree(this.#owner, this.length);
+			ownerFree(this.#owner, this.#length);
 		}
 	}
 
@@ -834,7 +839,7 @@ export class Bytes {
 				b.#h++;
 				held.push(b);
 			}
-			return [b.#ptr, b.#owner];
+			return [b.#ptr, b.#owner, b.#length];
 		};
 		bytesRelease = (b) => b.#release();
 	}
