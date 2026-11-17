@@ -474,11 +474,15 @@ function render(): string {
 		"",
 		"## Size and build",
 		"",
-		"Bytes for the same workloads, as timed: minified by Bun where JS, and for `rust2-wasm` its",
-		"`.wasm` and its binding together. Each build is timed from an emptied target directory",
-		"without a compiler cache, its dependencies included, in wall and CPU seconds: `wasm2js`'s",
-		"includes `wasm checked`'s build, `rust2-wasm`'s rust2-ffi's export and the export's build,",
-		"`translated`'s rust2-ts's translation, and every JS route's its bundling by Bun.",
+		"Bytes of each route's own files for the same workloads, as timed: minified by Bun where JS,",
+		"and for `rust2-wasm` its `.wasm`, its binding, and the loader that fetches the module, while",
+		"the hand-boundary wasm32 rows are the `.wasm` alone, without the few lines of JS a caller",
+		"needs to copy its input in and its output out. Each build step is timed from an emptied target",
+		"directory of its own, without a compiler cache, its dependencies included, in wall and CPU",
+		"seconds, so a route of two cargo steps pays for its dependencies twice where a consumer's",
+		"one pipeline would share them: `wasm2js`'s includes `wasm checked`'s build, `rust2-wasm`'s",
+		"rust2-ffi's export and the export's build, `translated`'s rust2-ts's translation, and every",
+		"JS route's its bundling by Bun.",
 		"",
 		"| route | raw | gzip | build wall s | build CPU s |",
 		"| --- | ---: | ---: | ---: | ---: |",
@@ -536,7 +540,7 @@ function renderCold(): string[] {
 			const found = cold.find((c) => c.route === route);
 			return found ? cell(found.ms) : "";
 		};
-		const routes = engine.cold.codec.map((c) => c.route);
+		const routes = [...new Set([...engine.cold.codec, ...engine.cold.handoff].map((c) => c.route))];
 		lines.push(
 			"",
 			`### ${engine.engine}`,
