@@ -387,10 +387,10 @@ def release_manifest(out, url):
     (out / "package" / "Package.swift").write_text(text)
 
 
-def local_manifest(package, framework):
+def local_manifest(state, package, framework):
     """Package.swift naming an unpacked XCFramework by path, for a consumer before any upload."""
     package = Path(package)
-    state = json.loads((package.parent / "swift.json").read_text())
+    state = json.loads(Path(state).read_text())
     binary = f'.binaryTarget(name: "{state["module"]}FFI", path: {json.dumps(os.path.relpath(framework, package))})'
     (package / "Package.swift").write_text(package_swift(state["module"], state["collections"], state["settings"], binary))
 
@@ -586,6 +586,7 @@ def main():
     p.add_argument("--url", required=True, help="where the release hosts the ZIP")
     p.add_argument("--out", required=True)
     p = sub.add_parser("swift-local", help="point an unpacked package at a local XCFramework")
+    p.add_argument("--state", required=True, help="the swift.json `swift` wrote")
     p.add_argument("--package", required=True)
     p.add_argument("--framework", required=True)
     p = sub.add_parser("consume-python", help="run a check program, or an import, on the installed wheel")
@@ -623,7 +624,7 @@ def main():
         swift(info, args.export, pairs(args.lib), pairs(args.native), args.out)
         release_manifest(args.out, args.url)
     elif args.command == "swift-local":
-        local_manifest(args.package, args.framework)
+        local_manifest(args.state, args.package, args.framework)
     elif args.command == "consume-python":
         consume_python(args.check, args.native, args.module)
     elif args.command == "compare":

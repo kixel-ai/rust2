@@ -16,7 +16,7 @@ trap 'rm -rf "$work"' EXIT
 cp -R "$swift/package" "$work/$module"
 # SwiftPM takes a local binary target only from inside the package.
 (cd "$work/$module" && unzip -q "$swift/${module}FFI.xcframework.zip")
-python3 -I "$here/package.py" swift-local --package "$work/$module" --framework "$work/$module/${module}FFI.xcframework"
+python3 -I "$here/package.py" swift-local --state "$swift/swift.json" --package "$work/$module" --framework "$work/$module/${module}FFI.xcframework"
 
 (
     cd "$work/$module"
