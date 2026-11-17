@@ -93,6 +93,12 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let roots = std::env::join_paths(std::iter::once(workspace).chain(cargo_home))
 		.map_err(|err| format!("joining the roots of spans: {err}"))?;
 	let baseline = own.baseline.unwrap_or_default();
+	let sysroot = crate::wasm::sysroot()?;
+	// A target with a host checks std's MIR too, from the sysroot or else from source.
+	let cargo_args = |target: &str, args: Vec<String>| match crate::wasm::host(target).is_some() && sysroot.is_none() {
+		true => [args, vec![crate::wasm::STD.to_string()]].concat(),
+		false => args,
+	};
 	let check = |target: &str, output: (&str, &std::ffi::OsStr), merge: &std::ffi::OsStr, baseline: &Path| {
 		Check {
 			tool: "rust2-ffi",
@@ -101,8 +107,12 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 			root: None,
 			// Always named, so cargo's config never picks another: the exports are found on it.
 			target: Some(target),
-			args: &args.cargo,
+			args: &cargo_args(target, args.cargo.clone()),
+			target_dir: None,
 			env: &[
+				// The wrapper's answer to cargo's query names the sysroot, which cargo would
+				// otherwise cache by the executables alone.
+				("CARGO_CACHE_RUSTC_INFO", "0".as_ref()),
 				(config::env::CONFIG, args.config.as_os_str()),
 				(config::env::PACKAGE, line.as_ref()),
 				(config::env::PATCH, patch.as_ref()),
@@ -137,10 +147,41 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		std::fs::remove_dir_all(&stage).map_err(|err| format!("removing {}: {err}", stage.display()))?;
 	}
 	let code = code?;
-	if output.0 == config::env::OUT && code == ExitCode::SUCCESS {
-		lock(&checked, &output.1, &picks)?;
+	if output.0 != config::env::OUT || code != ExitCode::SUCCESS {
+		return Ok(code);
 	}
-	Ok(code)
+	lock(&checked, &output.1, &picks)?;
+	// The web binding is written when the export serves its target, whose host lacks what
+	// the generated crate may reach: walked in the facade's target directory, which holds
+	// every crate it builds with already.
+	if !output.1.join("web").join("index.ts").exists() {
+		return Ok(code);
+	}
+	let glue = format!("{}-ffi", facade.name);
+	let own: Vec<String> = (checked.metadata.packages.iter())
+		.filter(|p| p.source.is_none())
+		.flat_map(|p| p.targets.iter().filter(|t| t.kind.iter().any(|k| k.contains("lib"))))
+		.map(|t| t.name.replace('-', "_"))
+		.collect();
+	let own = own.join(",");
+	let target_dir = rust2_driver::cargo::target_dir("rust2-ffi", Some(&args.manifest))?;
+	let mut cargo = picks.resolving().args();
+	cargo.extend(["--features".to_string(), "web".to_string()]);
+	Check {
+		tool: "rust2-ffi",
+		manifest: &output.1.join("Cargo.toml"),
+		package: &glue,
+		root: None,
+		target: Some(crate::web::TARGET),
+		args: &cargo_args(crate::web::TARGET, cargo),
+		target_dir: Some(&target_dir),
+		env: &[
+			("CARGO_CACHE_RUSTC_INFO", "0".as_ref()),
+			(crate::wasm::env::PACKAGE, glue.as_ref()),
+			(crate::wasm::env::OWN, own.as_ref()),
+		],
+	}
+	.run()
 }
 
 /// Write the generated crate's lockfile: the check's, with what the crate adds of its own

@@ -1,0 +1,22 @@
+[package]
+name = "lacks-fixture"
+description = "Exports whose wasm32-wasip1 module would import what the web target's host lacks, each refused at the call that reaches it"
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# The export's prefix.
+[lib]
+name = "lacks"
+
+[dependencies]
+web-sys = { version = "0.3.107", features = ["console"] }
+
+[lints]
+workspace = true
+
+[features]
+# A call of a C function no library defines, which fails the module's link, so a build
+# without it can compare the module's imports with what the export refused.
+undefined = []

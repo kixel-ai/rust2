@@ -26,6 +26,7 @@ rust2-driver = { path = "../driver" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.154"
 toml = "1.1.8"
+wasmparser = { version = "0.263.0", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 loom = "0.7.3"

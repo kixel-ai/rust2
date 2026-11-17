@@ -135,6 +135,9 @@ pub struct Check<'a> {
 	pub args: &'a [String],
 	/// The environment cargo runs in, which the wrapper reads its job from.
 	pub env: &'a [(&'a str, &'a OsStr)],
+	/// Where cargo builds, absolute, if not [`target_dir`]'s for the manifest: another
+	/// package's, whose crates this check then shares.
+	pub target_dir: Option<&'a Path>,
 }
 
 impl Check<'_> {
@@ -142,7 +145,10 @@ impl Check<'_> {
 	/// stale, so the package always recompiles.
 	pub fn run(&self) -> Result<ExitCode, String> {
 		let exe = std::env::current_exe().map_err(|err| format!("finding this executable: {err}"))?;
-		let target_dir = target_dir(self.tool, Some(self.manifest))?;
+		let target_dir = match self.target_dir {
+			Some(dir) => dir.to_path_buf(),
+			None => target_dir(self.tool, Some(self.manifest))?,
+		};
 		let package_dir = self.manifest.parent().expect("a manifest path has a parent");
 		let cargo = |subcommand: &str| {
 			let mut cmd = cargo();

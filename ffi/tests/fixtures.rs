@@ -2440,6 +2440,68 @@ fn reject() {
 	assert_eq!(errors.join("\n") + "\n", expected);
 }
 
+/// What the web target's host lacks, refused at the call in the crate's own code nearest
+/// it, by every route the walk follows. Without the call of an undefined C function, whose
+/// module would not link, the module builds anyway: what it imports that the binding does
+/// not implement is exactly what the refusals name.
+#[test]
+fn lacks() {
+	let dir = scratch().join("lacks");
+	let output = export("lacks", &dir.join("undefined"), &[WEB], &["--features", "undefined"]);
+	assert!(!output.status.success(), "exporting lacks succeeded");
+	let prefix = format!("{}/", manifest_dir().display());
+	let refused: Vec<String> = errors(&output).iter().map(|e| e.replace(&prefix, "")).collect();
+	let expected = manifest_dir().join("fixtures/lacks/expected.txt");
+	if std::env::var_os("UPDATE_EXPECT").is_some() {
+		std::fs::write(&expected, refused.join("\n") + "\n").unwrap();
+	} else {
+		assert_eq!(refused.join("\n") + "\n", std::fs::read_to_string(&expected).unwrap());
+	}
+
+	let out = dir.join("out");
+	let output = export("lacks", &out, &[WEB], &[]);
+	assert!(!output.status.success(), "exporting lacks succeeded");
+	// Each `module.name` a refusal names.
+	let named: std::collections::BTreeSet<String> = (errors(&output).iter())
+		.flat_map(|error| error.split('`').skip(1).step_by(2).map(str::to_string).collect::<Vec<_>>())
+		.filter(|token| token.split_once('.').is_some_and(|(m, n)| !m.is_empty() && !n.contains(['.', ' ', ':'])))
+		.collect();
+	let target = dir.join("glue");
+	run(cargo()
+		.args(["build", "--quiet", "--locked", "--manifest-path"])
+		.arg(out.join("Cargo.toml"))
+		.arg("--target-dir")
+		.arg(&target)
+		.args(["--target", WEB, "--features", "web"]));
+	let wasm = std::fs::read(target.join(WEB).join("debug").join("lacks.wasm")).unwrap();
+	// The WASI functions the runtime implements, each a method of its `wasi` object.
+	let runtime = std::fs::read_to_string(manifest_dir().join("runtime/rt.ts")).unwrap();
+	let wasi = &runtime[runtime.find("\nconst wasi = {\n").unwrap()..];
+	let wasi = &wasi[..wasi.find("\n};\n").unwrap()];
+	let implemented: Vec<&str> = (wasi.lines())
+		.filter_map(|line| line.strip_prefix('\t')?.split_once('(').map(|(name, _)| name))
+		.filter(|name| name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+		.collect();
+	let mut lacking = std::collections::BTreeSet::new();
+	for payload in wasmparser::Parser::new(0).parse_all(&wasm) {
+		if let wasmparser::Payload::ImportSection(section) = payload.unwrap() {
+			for import in section.into_imports() {
+				let import = import.unwrap();
+				let has = match import.module {
+					"rust2" => true,
+					"wasi_snapshot_preview1" => implemented.contains(&import.name),
+					_ => false,
+				};
+				if !has {
+					lacking.insert(format!("{}.{}", import.module, import.name));
+				}
+			}
+		}
+	}
+	assert!(!lacking.is_empty(), "the module imports nothing the host lacks");
+	assert_eq!(lacking, named, "the module's imports the host lacks, and what the export refused");
+}
+
 /// Each of rust2-ffi's errors the export printed, sorted: at its span, then each of its
 /// notes at its own.
 fn errors(output: &Output) -> Vec<String> {
