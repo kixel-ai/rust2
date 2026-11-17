@@ -14,8 +14,9 @@ trap 'rm -rf "$work"' EXIT
 # The ZIP a release hosts, unpacked as SwiftPM would after checking its checksum.
 [[ "$(shasum -a 256 "$swift/${module}FFI.xcframework.zip" | cut -d' ' -f1)" == "$(cat "$swift/checksum.txt")" ]]
 cp -R "$swift/package" "$work/$module"
-(cd "$work" && unzip -q "$swift/${module}FFI.xcframework.zip")
-python3 -I "$here/package.py" swift-local --package "$work/$module" --framework "$work/${module}FFI.xcframework"
+# SwiftPM takes a local binary target only from inside the package.
+(cd "$work/$module" && unzip -q "$swift/${module}FFI.xcframework.zip")
+python3 -I "$here/package.py" swift-local --package "$work/$module" --framework "$work/$module/${module}FFI.xcframework"
 
 (
     cd "$work/$module"
@@ -32,7 +33,8 @@ else
     printf 'import %s\n\n@main\nstruct Check {\n\tstatic func main() {}\n}\n' "$module" >"$work/consumer/Sources/Check/Check.swift"
 fi
 collections=$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["collections"])' "$swift/swift.json")
-# The check program may use newer APIs than the package needs, such as an executor's.
+# The check program may use newer APIs than the package needs, such as an executor's, and
+# builds in Swift 5's language mode, as rust2's own tests build it; the package builds in 6.
 cat >"$work/consumer/Package.swift" <<SWIFT
 // swift-tools-version: 6.2
 import PackageDescription
@@ -45,10 +47,14 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-collections", exact: "$collections"),
     ],
     targets: [
-        .executableTarget(name: "Check", dependencies: [
-            .product(name: "$module", package: "$module"),
-            .product(name: "BasicContainers", package: "swift-collections"),
-        ]),
+        .executableTarget(
+            name: "Check",
+            dependencies: [
+                .product(name: "$module", package: "$module"),
+                .product(name: "BasicContainers", package: "swift-collections"),
+            ],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
     ]
 )
 SWIFT
