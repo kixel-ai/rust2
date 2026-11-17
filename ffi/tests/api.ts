@@ -1536,6 +1536,12 @@ async function lent(): Promise<void> {
 	const joined = api.prefixed(viewed, prefix).slice();
 	check(joined.length === 102 && text(joined.subarray(0, 2)) === "ab" && joined.subarray(2).every((b) => b === 6), "bytes a call views read whole");
 	check(api.dropped() === ++before, "bytes disposed during a call are freed once it returns");
+	// Bytes a call returned pass as an optional borrowed argument too.
+	const optional = api.tokenBytes(8, 100);
+	const suffixed = api.prefixed(enc("cd"), optional).slice();
+	check(suffixed.length === 102 && suffixed.subarray(0, 100).every((b) => b === 8) && text(suffixed.subarray(100)) === "cd", "returned bytes pass as an optional argument");
+	close(optional);
+	check(api.dropped() === ++before, "returned bytes passed as an optional argument stay the caller's");
 	// The garbage collector frees lent bytes nobody disposed.
 	unclosedBytes();
 	await collect(() => api.dropped() > before, "the garbage collector frees lent bytes nobody disposed");

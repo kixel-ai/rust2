@@ -721,7 +721,10 @@ export function bytes_(p: number): Uint8Array {
  */
 const LEND = 64;
 
-/** How many bytes of Rust's buffers are lent and not yet freed. */
+/**
+ * How many bytes of Rust's buffers are lent and not yet freed, by their length: a `Vec`
+ * crosses with no spare capacity, and a `Bytes` keeps what Rust's own value keeps.
+ */
 let lentLength = 0;
 
 /** The frees the garbage collector makes of lent bytes never disposed: each owner and length. */

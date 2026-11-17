@@ -2080,7 +2080,7 @@ impl Gen<'_> {
 	fn param_t(&mut self, ty: &Type) -> String {
 		match ty {
 			ty if lends(ty) => "Uint8Array | rt.Bytes".to_string(),
-			Type::Option(inner) if lends(inner) => "Uint8Array | rt.Bytes | undefined".to_string(),
+			Type::Option(inner) if lends(inner.base()) => "Uint8Array | rt.Bytes | undefined".to_string(),
 			Type::Box(inner) | Type::Ref(_, inner) => self.param_t(inner),
 			_ => self.tt(ty),
 		}

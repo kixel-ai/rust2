@@ -118,8 +118,9 @@ codspeed-hooks:
     rm -rf "$dir"
     mkdir -p "$dir"
     case "{{ os() }}" in
-        macos) lib=libcodspeed.dylib jni=darwin ;;
-        *) lib=libcodspeed.so jni=linux ;;
+        # Node's addon leaves its napi_* symbols to the node executable that loads it.
+        macos) lib=libcodspeed.dylib jni=darwin addon=(-undefined dynamic_lookup) ;;
+        *) lib=libcodspeed.so jni=linux addon=() ;;
     esac
     # instrument-hooks' generated C warns, harmlessly, its guide says, and puts C23's
     # attributes where C23 refuses them.
@@ -129,7 +130,7 @@ codspeed-hooks:
     ar rcs "$dir/libcodspeed.a" "$dir/codspeed.o" "$dir/core.o"
     cc "${flags[@]}" -shared -DCODSPEED_JNI -isystem "${JAVA_HOME:?}/include" -isystem "$JAVA_HOME/include/$jni" moq/bench/codspeed.c "$dir/core.o" -o "$dir/$lib"
     node=$(dirname "$(dirname "$(realpath "$(command -v node)")")")/include/node
-    cc "${flags[@]}" -shared -isystem "$node" -I moq/bench moq/bench/codspeed-node.c "$dir/codspeed.o" "$dir/core.o" -o "$dir/codspeed.node"
+    cc "${flags[@]}" -shared -isystem "$node" -I moq/bench moq/bench/codspeed-node.c "$dir/codspeed.o" "$dir/core.o" ${addon[@]+"${addon[@]}"} -o "$dir/codspeed.node"
     cp moq/bench/codspeed.h "$dir/"
     printf 'module CodSpeed {\n    header "codspeed.h"\n    export *\n}\n' > "$dir/module.modulemap"
 
