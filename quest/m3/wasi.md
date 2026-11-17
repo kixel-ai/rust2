@@ -12,7 +12,7 @@ should be, what each costs a call, and which of the exporter's rules each can ke
 ## Plan
 
 Decided with the maintainer on 2026-11-09: ✅ web and WASI are separate targets.
-[The web target](/quest/m2/wasm/backend.md) calls web APIs directly; this one is for
+[The web target](/ffi/README.md#typescript-web) calls web APIs directly; this one is for
 hosts that are WASI runtimes. Planned in m3 before a consumer asks, as
 [m3](/quest/m3/README.md#plan) records for the other targets. Rejected: one
 `wasm32-wasip1` module serving both.
@@ -44,5 +44,4 @@ Public API: the name of the WASI target and what it writes, if it lands.
 ## Related
 
 - [Refusing what a wasm32 target lacks](/quest/m2/wasm/refuse.md) - the export-time refusal this target shares with the web's
-- [The web target's std](/quest/m2/wasm/backend.md) - whether the web module keeps `wasm32-wasip1`'s std, which this target is
 - [moq in pure Go](/quest/m4/go/README.md) - parked until a consumer needs pure Go, and to weigh a WASI runtime first when one does

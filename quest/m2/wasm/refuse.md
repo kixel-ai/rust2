@@ -13,7 +13,7 @@ refuses what its host lacks the same way, such as threads and sockets on `wasm32
 
 ## Plan
 
-Split out of [the web target's quest](/quest/m2/wasm/backend.md) in
+Split out of the web target's quest in
 [#851](https://github.com/kixel-ai/rust2/pull/851), as its Plan recommended once the
 exporter's MIR reading was sized: it is most of the work, and WASI needs the same.
 
@@ -38,5 +38,4 @@ Public API: none; an export that reaches what its target lacks fails where its m
 
 ## Related
 
-- [The web target's std](/quest/m2/wasm/backend.md) - its option (3) refuses std's clock and output through this
 - [The WASI target](/quest/m3/wasi.md) - refuses what a WASI host lacks the same way

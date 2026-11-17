@@ -47,7 +47,3 @@ Decided with the maintainer on 2026-11-09: this is the measurement
   exports, so the generated binding may need its own entry for that route.
 
 Public API: none.
-
-## Related
-
-- [The web target's std](/quest/m2/wasm/backend.md) - which std the rust2-wasm route's module ships, and so its size
