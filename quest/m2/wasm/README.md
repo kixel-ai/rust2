@@ -37,7 +37,10 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   both, with the binding implementing its imports.
   On 2026-11-16 the maintainer let [#847](https://github.com/kixel-ai/rust2/pull/847)'s
   first slice land on `wasm32-wasip1`'s std, its imports implemented with web APIs, for now:
-  [the backend](/quest/m2/wasm/backend.md) moves the web target off it.
+  [the backend](/quest/m2/wasm/backend.md) moves the web target off it. Sizing that move in
+  [#851](https://github.com/kixel-ai/rust2/pull/851) found std has no clock, randomness,
+  or output off `wasm32-wasip1`, and moq does not build there, so the backend now waits on
+  the maintainer's choice, recommending the target stay.
 - ✅ m2, with per-target export in m1, which landed in
   [#689](https://github.com/kixel-ai/rust2/pull/689) and
   [#700](https://github.com/kixel-ai/rust2/pull/700). Rejected: all of it in m1; all of it
@@ -70,11 +73,9 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   languages' bindings have; a surface per route.
 - Open, with no owner yet: the gate's own deliverable, moq-net running in a browser
   through rust2-wasm, needs a transport adapter over WebTransport, and
-  [the backend](/quest/m2/wasm/backend.md) recommends refusing a crate that imports
-  browser APIs. moq's tree plans none of it. Plan it with moq's tree before the gate's
+  [the refusal](/quest/m2/wasm/refuse.md) refuses a crate that imports browser APIs
+  through wasm-bindgen. moq's tree plans none of it. Plan it with moq's tree before the gate's
   last child lands.
-- Deno is in the Goal and tested by no child, and is not in the flake. The backend tests
-  it or the Goal drops it.
 
 The gate sets no threshold, as the other benchmarks set none: rust2-go's "within 2x of
 cgo" was the maintainer's call from its report too. It compares every workload all routes

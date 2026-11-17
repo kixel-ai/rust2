@@ -4,14 +4,14 @@
 
 `just ts bench` ([the TS benchmark](/ts/README.md#bench)) times each workload through two
 more routes, in Chrome, Firefox, Node, and Bun: the fixture's `pub` API exported by
-[rust2-wasm](/quest/m2/wasm/backend.md), called through its generated binding, and the
+[rust2-wasm](/ffi/README.md#typescript-web), called through its generated binding, and the
 same `.wasm` lowered to JavaScript by Binaryen's `wasm2js`. Each route's output must match
 native Rust's first, and the report gives each route's shipped bytes, raw and gzipped,
 with its `.wasm` or runtime included, its cold start, from a fresh worker to its first
 result with `WebAssembly.compile` or the module's evaluation inside the time, and how long
 it takes to build. [The binding benchmark](/bench/ffi/README.md)'s cases, which cross
 handles, records, objects, reads, and payloads, run through the translation too, beside
-the column [the backend](/quest/m2/wasm/backend.md) adds for rust2-wasm.
+rust2-wasm's TypeScript column there.
 
 ## Plan
 
@@ -48,6 +48,6 @@ Decided with the maintainer on 2026-11-09: this is the measurement
 
 Public API: none.
 
-## Required
+## Related
 
-- [The exporter's web target](/quest/m2/wasm/backend.md) - the binding the new route calls through
+- [The web target's std](/quest/m2/wasm/backend.md) - which std the rust2-wasm route's module ships, and so its size
