@@ -1,7 +1,7 @@
 name: Binding packages test
 
-# bindings.yml on the api fixture, whose consumers must print native Rust's transcript byte
-# for byte, and on moq's stand-in facade at the exporter's moq pin, its first consumer.
+# bindings.yml on the api fixture, whose Python consumers must print native Rust's transcript
+# byte for byte, and on moq's stand-in facade at the exporter's moq pin, its first consumer.
 # Read-only: nothing here publishes.
 on:
   workflow_call:
@@ -18,7 +18,8 @@ jobs:
       features: doubled
       example: transcript
       python-check: ffi/tests/api.py
-      swift-check: ffi/tests/api.swift
+      # No swift-check: api.swift compiles against the fixture's own test export, of the host
+      # and wasm32-wasip1, not this one's targets. Its transcript stays the exporter's tests'.
 
   moq:
     name: moq stand-in

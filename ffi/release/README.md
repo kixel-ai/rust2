@@ -68,8 +68,9 @@ packages. Without a check, a consumer only imports the module.
    With an `example`, each must print native Rust's stdout byte for byte.
 
 rust2 runs it on every manual Check and nightly through
-[`bindings-test.yml`](/.github/workflows/bindings-test.yml): on the api fixture, against
-its native transcript, and on moq's stand-in facade at the exporter's moq pin.
+[`bindings-test.yml`](/.github/workflows/bindings-test.yml): on the api fixture, whose
+wheels must print its native transcript, and on moq's stand-in facade at the exporter's moq
+pin, through `moq/moq.py` and `moq/moq.swift`.
 
 ## Other registries
 
