@@ -1,0 +1,421 @@
+name: Binding packages
+
+# The shared, read-only builder of a crate's rust2-ffi Python wheels and Swift package, which
+# a release workflow ffi/release/package.py's `init` writes calls at a pinned rust2 commit.
+# It publishes nothing and holds no credentials: the caller's own jobs publish what it
+# uploads, once its consumers pass. See ffi/release/README.md.
+on:
+  workflow_call:
+    inputs:
+      manifest-path:
+        description: The Cargo.toml of the package whose pub API the bindings export
+        required: true
+        type: string
+      features:
+        description: Cargo features the export and every build turn on, space-separated
+        default: ''
+        type: string
+      example:
+        description: An example of the package whose stdout every check program must print
+        default: ''
+        type: string
+      python-check:
+        description: A program run on each installed wheel from a clean directory
+        default: ''
+        type: string
+      swift-check:
+        description: The main.swift of an executable run on the installed Swift package
+        default: ''
+        type: string
+    outputs:
+      version:
+        description: The package's Cargo version
+        value: ${{ jobs.facts.outputs.version }}
+      tag:
+        description: The release tag the hosted XCFramework URL names, <package>-v<version>
+        value: ${{ jobs.facts.outputs.tag }}
+      module:
+        description: The Swift module, whose XCFramework is <module>FFI.xcframework.zip
+        value: ${{ jobs.facts.outputs.module }}
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  MANIFEST: ${{ inputs.manifest-path }}
+  FEATURES: ${{ inputs.features }}
+
+jobs:
+  facts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      name: ${{ steps.facts.outputs.name }}
+      version: ${{ steps.facts.outputs.version }}
+      tag: ${{ steps.facts.outputs.tag }}
+      module: ${{ steps.facts.outputs.module }}
+      fixture: ${{ steps.mode.outputs.fixture }}
+      rust2: ${{ steps.identity.outputs.workflow_repository }}
+      rust2-sha: ${{ steps.identity.outputs.workflow_sha }}
+    steps:
+      # Read new job identity fields through JSON until actionlint knows their types.
+      - id: identity
+        env:
+          JOB: ${{ toJSON(job) }}
+        run: |
+          for field in workflow_repository workflow_sha; do
+            value=$(jq -er --arg field "$field" '.[$field] | select(type == "string" and length > 0)' <<< "$JOB")
+            echo "$field=$value" >> "$GITHUB_OUTPUT"
+          done
+      # rust2's own test exports moq's stand-in facade, which `just ffi standin` writes from
+      # moq's pinned sources: no repository holds it.
+      - id: mode
+        env:
+          RUST2: ${{ steps.identity.outputs.workflow_repository }}
+        run: |
+          if [[ "$RUST2" == "$GITHUB_REPOSITORY" && "$MANIFEST" == ffi/target/moq-ffi/Cargo.toml ]]; then
+            echo fixture=true >> "$GITHUB_OUTPUT"
+          else
+            echo fixture=false >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ steps.identity.outputs.workflow_repository }}
+          ref: ${{ steps.identity.outputs.workflow_sha }}
+          path: rust2
+          persist-credentials: false
+      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+        if: steps.mode.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: steps.mode.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin && cp ffi/moq/ffi.toml ffi/target/moq-ffi/ffi.toml
+      - id: facts
+        working-directory: source
+        run: python3 -I ../rust2/ffi/release/package.py facts --manifest-path "$MANIFEST" >> "$GITHUB_OUTPUT"
+
+  # Each target's API, checked on the host whose C toolchain its build scripts need, for
+  # every build host's export to merge into one binding.
+  api:
+    needs: facts
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x64
+            os: ubuntu-24.04
+            targets: x86_64-unknown-linux-gnu
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+            targets: aarch64-unknown-linux-gnu
+          - host: apple
+            os: macos-26
+            targets: aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim
+          - host: windows
+            os: windows-latest
+            targets: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # ffi/rust-toolchain.toml links to ts/'s.
+      - if: runner.os == 'Windows'
+        run: git config --global core.symlinks true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          persist-credentials: false
+      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+        if: needs.facts.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin && cp ffi/moq/ffi.toml ffi/target/moq-ffi/ffi.toml
+      - name: Exporter
+        working-directory: rust2/ffi
+        env:
+          TARGETS: ${{ matrix.targets }}
+        run: |
+          read -ra targets <<< "$TARGETS"
+          rustup target add "${targets[@]}"
+          cargo build --locked --release
+      - name: Stage
+        env:
+          TARGETS: ${{ matrix.targets }}
+        run: |
+          read -ra targets <<< "$TARGETS"
+          python3 -I rust2/ffi/release/package.py api --manifest-path "source/$MANIFEST" --features "$FEATURES" --out api "${targets[@]}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-api-${{ matrix.host }}
+          path: api
+          if-no-files-found: error
+
+  # Each host exports the binding with every target's API, builds its own targets, and runs
+  # the native example the consumers compare with.
+  build:
+    needs: [facts, api]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x64
+            os: ubuntu-24.04
+            targets: x86_64-unknown-linux-gnu
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+            targets: aarch64-unknown-linux-gnu
+          # One leg per Apple slice: a 3-core runner takes about 20 minutes for each of moq's.
+          - host: apple-darwin
+            os: macos-26
+            targets: aarch64-apple-darwin
+          - host: apple-ios
+            os: macos-26
+            targets: aarch64-apple-ios
+          - host: apple-ios-sim
+            os: macos-26
+            targets: aarch64-apple-ios-sim
+          - host: windows
+            os: windows-latest
+            targets: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - if: runner.os == 'Windows'
+        run: git config --global core.symlinks true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          persist-credentials: false
+      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+        if: needs.facts.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin && cp ffi/moq/ffi.toml ffi/target/moq-ffi/ffi.toml
+      # The tools that build and repair, apart from the CPython the consumers test on.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Packaging tools
+        run: |
+          case "$RUNNER_OS" in
+            Linux) python -m pip install auditwheel==6.8.2 patchelf==0.17.2.4 cargo-zigbuild==0.24.1 ziglang==0.17.1 ;;
+            macOS) python -m pip install delocate==0.13.0 ;;
+            Windows) python -m pip install delvewheel==1.13.2 ;;
+          esac
+      - name: Exporter
+        working-directory: rust2/ffi
+        env:
+          TARGETS: ${{ matrix.targets }}
+        run: |
+          read -ra targets <<< "$TARGETS"
+          rustup target add "${targets[@]}"
+          cargo build --locked --release
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ needs.facts.outputs.name }}-api-*
+          path: api
+          merge-multiple: true
+      - name: Export
+        env:
+          TARGETS: ${{ matrix.targets }}
+        run: |
+          read -ra targets <<< "$TARGETS"
+          python3 -I rust2/ffi/release/package.py export --manifest-path "source/$MANIFEST" --features "$FEATURES" --api api --out export "${targets[@]}"
+      - name: Build
+        env:
+          TARGETS: ${{ matrix.targets }}
+          EXAMPLE: ${{ inputs.example }}
+        run: |
+          read -ra targets <<< "$TARGETS"
+          python -I rust2/ffi/release/package.py build --manifest-path "source/$MANIFEST" --features "$FEATURES" --export export --out dist --example "$EXAMPLE" "${targets[@]}"
+      - name: Checks
+        env:
+          PYTHON_CHECK: ${{ inputs.python-check }}
+          SWIFT_CHECK: ${{ inputs.swift-check }}
+        run: |
+          mkdir -p dist/checks
+          if [[ -n "$PYTHON_CHECK" ]]; then cp "source/$PYTHON_CHECK" dist/checks/check.py; fi
+          if [[ -n "$SWIFT_CHECK" ]]; then cp "source/$SWIFT_CHECK" dist/checks/main.swift; fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
+          path: dist
+          if-no-files-found: error
+
+  # The hosts' exports must be one binding: a module and a library from different builds
+  # refuse to load, but two wheels of different bindings would each load.
+  agree:
+    needs: [facts, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ needs.facts.outputs.name }}-build-*
+          path: builds
+      - run: |
+          sort -u builds/*/digest.txt > digests
+          cat builds/*/digest.txt
+          if [[ $(wc -l < digests) != 1 ]]; then
+            echo '::error::The build hosts exported different bindings.'
+            exit 1
+          fi
+
+  swift:
+    needs: [facts, build]
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          persist-credentials: false
+      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+        if: needs.facts.outputs.fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.fixture == 'true'
+        working-directory: source
+        run: just ffi standin && cp ffi/moq/ffi.toml ffi/target/moq-ffi/ffi.toml
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ${{ needs.facts.outputs.name }}-build-apple-*
+          path: apple
+          merge-multiple: true
+      - name: Package
+        env:
+          URL: https://github.com/${{ github.repository }}/releases/download/${{ needs.facts.outputs.tag }}/${{ needs.facts.outputs.module }}FFI.xcframework.zip
+        run: |
+          args=()
+          for target in aarch64-apple-darwin aarch64-apple-ios aarch64-apple-ios-sim; do
+            args+=(--lib "$target=$(echo "$PWD"/apple/static/"$target"/*.a)" --native "$target=$PWD/apple/static/$target/native.txt")
+          done
+          cd source
+          python3 -I ../rust2/ffi/release/package.py swift --manifest-path "$MANIFEST" --export ../apple/export "${args[@]}" --url "$URL" --out ../swift
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-swift
+          path: swift
+          if-no-files-found: error
+
+  # A fresh environment per wheel, on the oldest CPython its stable ABI claims, with no
+  # checkout, Rust, or source path: what a user's `pip install` gets.
+  python:
+    needs: [facts, build, agree]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x64
+            os: ubuntu-24.04
+          - host: linux-arm64
+            os: ubuntu-24.04-arm
+          - host: apple-darwin
+            os: macos-26
+          - host: windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-${{ matrix.host }}
+          path: dist
+      - name: Python floor
+        id: floor
+        run: |
+          shopt -s nullglob
+          wheels=(dist/wheels/*.whl)
+          [[ ${#wheels[@]} == 1 ]] || { echo "::error::expected one wheel, found ${wheels[*]}"; exit 1; }
+          tag=$(basename "${wheels[0]}" .whl | cut -d- -f3)
+          [[ "$tag" =~ ^cp3([0-9]+)$ ]] || { echo "::error::no CPython floor in ${wheels[0]}"; exit 1; }
+          echo "version=3.${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ steps.floor.outputs.version }}
+      - name: Install and run
+        run: |
+          python -m venv "$RUNNER_TEMP/env"
+          if [[ "$RUNNER_OS" == Windows ]]; then py="$RUNNER_TEMP/env/Scripts/python.exe"; else py="$RUNNER_TEMP/env/bin/python"; fi
+          "$py" -m pip install --no-index --no-deps dist/wheels/*.whl
+          args=()
+          if [[ -f dist/native.txt ]]; then args+=(--native dist/native.txt); fi
+          if [[ -f dist/checks/check.py ]]; then
+            "$py" -I rust2/ffi/release/package.py consume-python --check dist/checks/check.py "${args[@]}"
+          else
+            "$py" -I rust2/ffi/release/package.py consume-python --import "$(cat dist/lib.txt)"
+          fi
+
+  # A new SwiftPM package whose only library is the staged package, as a user's would be,
+  # run on macOS and built for iOS devices and simulators.
+  swift-consumer:
+    needs: [facts, swift, agree]
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-swift
+          path: swift
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-build-apple-darwin
+          path: apple
+      - name: Consume
+        env:
+          MODULE: ${{ needs.facts.outputs.module }}
+        run: bash rust2/ffi/release/consume-swift.sh swift apple

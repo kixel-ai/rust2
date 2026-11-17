@@ -91,7 +91,7 @@ if [[ -n "$query" ]]; then
     exit
 fi
 
-scripts=(bench/*/*.sh sh/*.sh)
+scripts=(bench/*/*.sh ffi/release/*.sh sh/*.sh)
 
 # One function per module and phase; a module skips a phase it has none for.
 check_lint() {
@@ -113,6 +113,7 @@ test_crabx() { just crabx test; }
 test_driver() { just driver test; }
 # moq's export at the pin, cut down to C, before the slower test build.
 test_ffi() {
+    python3 -I ffi/release/test_package.py
     just ffi moq-c
     just ffi test
 }
