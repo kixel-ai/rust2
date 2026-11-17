@@ -1436,28 +1436,41 @@ does, whose products pass 2^53, then added by its `checked_add` and ordered by i
 whose cross products do too, integers sorted, searched for their greatest and least,
 and kept in a `BinaryHeap`, TS packets numbered through `as_chunks_mut` as moq-mux
 numbers them, each also read by value, a copy of its bytes, and frames' `Bytes` split off a
-group's, cloned, sliced, and dropped, as moq-net's model hands them to its consumers. Each runs four ways: natively, as wasm32 at the
-size-optimized profile moq's WASM shipped with, hand-written (moq's `js/net` in `bench/moq.ts` and its `Timestamp`
+group's, cloned, sliced, and dropped, as moq-net's model hands them to its consumers. Each runs seven ways: natively; as wasm32 at the
+size-optimized profile moq's WASM shipped with, through `fixtures/wasm.rs`'s hand-written
+boundary; the same at `wasm-checked`, that profile with the overflow checks and debug
+assertions the translation keeps; that build lowered to JavaScript by Binaryen's `wasm2js`;
+through [rust2-wasm](../ffi/README.md#typescript-web), the export of a facade whose `pub`
+API is `bench::run` alone (`fixtures/codec/web`), built at `wasm-checked` for
+`wasm32-wasip1` and called through its generated TypeScript; hand-written (moq's `js/net` in `bench/moq.ts` and its `Timestamp`
 in `bench/timestamp.ts`, ES iterator helpers in `bench/iter.ts`, a sorted array in
 `bench/sorted.ts`, `bigint` in `bench/rescale.ts`, as moq's `js/hang` converts
 timescales, typed arrays and a heap of its own in `bench/order.ts`, offsets into one
-`Uint8Array` in `bench/packets.ts`, and `subarray`s in `bench/frames.ts`), and translated; every route's output must match
-native Rust's first. The JS routes run minified, the same bundles whose size it reports,
-in Node, Bun, Chrome, and Firefox, with the WASM route's copies across the boundary timed
+`Uint8Array` in `bench/packets.ts`, and `subarray`s in `bench/frames.ts`); and translated. Every route's output must match
+native Rust's first. The four routes the translation is compared with run the same checks,
+so rust2-wasm against `wasm checked` is the generated binding's cost, `wasm2js` against it
+the lowering's, and `wasm checked` against `wasm` the checks'. The JS routes run minified, the same bundles whose size it reports,
+in Node, Bun, Chrome, and Firefox, with the reference WASM route's copies across the boundary timed
 apart from its compute, and an A/A copy of the
-translation to show the noise. Each route runs alone in a worker of its own, since routes
+translation to show the noise. `bench/build.ts` builds every route from the fixtures'
+source, timing each build from an emptied target directory without a compiler cache, and
+each round's fresh worker times its route's cold start, from loading its files to its
+first output, compiling its `.wasm` or evaluating its JavaScript included; each `.wasm` is
+compiled with a custom section of its own, since V8 shares a module's code across a
+process. Each route runs alone in a worker of its own, since routes
 in one realm share type profiles and run slower loaded second, and each round starts every
 route's worker afresh: a worker keeps the inlining and deopts it settles into for the whole
 run, which put identical copies of a route up to 1.6x apart in Chrome, so a round is one
 sample of each workload from fresh workers. Each round warms up and times the routes and
 workloads in a new random order, so no route keeps a slot that runs it faster or slower
 than identical code in another; the report records the seed. It also records the host and engine versions,
-and each route's bundle size raw and gzipped. It sets no threshold; the nightly workflow
+and each route's shipped bytes raw and gzipped, rust2-wasm's `.wasm` and binding together. It sets no threshold; the nightly workflow
 runs it and posts the report to its summary. Each browser's page reports each step it
 starts, and one that runs 30 s fails the run, naming it.
 
 The task fixture's `bench::run` times an async handoff: a value sent to a task parked on
-its channel, read through 1, 4, or 16 async functions. Its translation runs polled at
+its channel, read through 1, 4, or 16 async functions, through the same wasm32 routes, its
+facade in `fixtures/task/web`. Its translation runs polled at
 once, as natively, and on `rs.spawn`; its hand-written route is the same handoff with
 promises, as moq's TypeScript writes it.
 
@@ -1476,4 +1489,4 @@ workloads still settle into one of two speeds per worker, up to 2x apart, so on 
 their A/A stayed 6-35% wide while the median workload's was 1-3%. The report's
 A/A line also gives the noise of a family's geometric mean, the steadier gauge.
 
-The bench shell adds Chromium and Firefox.
+The bench shell adds Chromium, Firefox, and Binaryen.

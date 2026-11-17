@@ -296,11 +296,13 @@
             '';
           };
           # `just ts bench` adds Chrome and Firefox as engines, and `just ffi browsers` runs the
-          # web binding's test in them. Apart for their size.
+          # web binding's test in them. Apart for their size. Binaryen's wasm2js lowers the
+          # bench's wasm32 build to JavaScript for its wasm2js route.
           devShells.bench = self.devShells.${system}.default.overrideAttrs (old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [
               pkgs.chromium
               pkgs.firefox
+              pkgs.binaryen
             ];
             # `just ffi bench` builds moq's rs/moq-c, whose VAAPI bindings run bindgen.
             LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";

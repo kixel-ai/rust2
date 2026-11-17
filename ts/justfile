@@ -114,32 +114,28 @@ moq-pin:
     GIT_NO_LAZY_FETCH=1 git -C target/moq cat-file -e {{ moq_rev }}^{commit} 2> /dev/null || git -C target/moq fetch --quiet origin {{ moq_rev }}
     git -C target/moq checkout --quiet --detach {{ moq_rev }}
 
-# Time the codec natively, as moq's WASM, as moq's hand-written TS, and translated, in Node, Bun, Chrome, and Firefox; `--route name=dir` adds another run's translations.
+# Time the codec natively, as moq's WASM, through rust2-ffi's export, lowered by wasm2js, as moq's hand-written TS, and translated, in Node, Bun, Chrome, and Firefox, with each route's size, build, and cold start; `--route name=dir` adds another run's translations.
 [arg("route", long)]
 bench checkout="" route="": (moq checkout)
     #!/usr/bin/env bash
     set -euo pipefail
-    for tool in bun chromium firefox; do
+    for tool in bun chromium firefox wasm2js; do
         command -v "$tool" > /dev/null || { echo "$tool is missing: run this in the bench shell, nix develop .#bench" >&2; exit 1; }
     done
     src="{{ checkout }}"
     [ -n "$src" ] || src=target/moq
     route=()
     [ -z "{{ route }}" ] || route=(--route "{{ route }}")
-    out=target/bench
-    cargo run --locked --quiet -- --config fixtures/codec/ts.toml --out "$out/translated"
-    cargo build --locked --quiet --package codec-fixture --features bench --target wasm32-unknown-unknown --profile wasm-release
+    # The translators, built as a consumer installs them; bench/build.ts times each route's
+    # build with them.
+    cargo build --locked --quiet --release
+    cargo build --locked --quiet --release --manifest-path ../ffi/Cargo.toml
     cargo build --locked --quiet --package codec-fixture --example bench --release
-    cargo run --locked --quiet -- --config fixtures/task/ts.toml --out "$out/task"
-    cargo build --locked --quiet --package task-fixture --features bench --target wasm32-unknown-unknown --profile wasm-release
     cargo build --locked --quiet --package task-fixture --example handoff --release
     # moq's hand-written TS imports its npm dependencies; its postinstall builds libav.
     (cd "$src" && bun install --frozen-lockfile --ignore-scripts --filter @moq/net)
-    bun bench/main.ts --translated "$out/translated" --moq "$src" --out "$out" \
-        --wasm target/wasm32-unknown-unknown/wasm-release/codec_fixture.wasm --native target/release/examples/bench \
-        --task "$out/task" \
-        --task-wasm target/wasm32-unknown-unknown/wasm-release/task_fixture.wasm --task-native target/release/examples/handoff \
-        "${route[@]}"
+    bun bench/main.ts --rust2-ts target/release/rust2-ts --rust2-ffi ../ffi/target/release/rust2-ffi --moq "$src" --out target/bench \
+        --native target/release/examples/bench --task-native target/release/examples/handoff "${route[@]}"
 
 # Run cargo on the pinned nightly.
 cargo *args:
