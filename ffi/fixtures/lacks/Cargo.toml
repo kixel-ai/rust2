@@ -14,6 +14,9 @@ name = "lacks"
 # A call of a C function no library defines, which fails the module's link, so a build
 # without it can compare the module's imports with what the export refused.
 undefined = []
+# A function calling itself with an ever larger type, which the walk refuses at the
+# recursion limit, as rustc's collector does, rather than walk without end.
+recursion = []
 
 [dependencies]
 web-sys = { version = "0.3.107", features = ["console"] }

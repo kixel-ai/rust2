@@ -2440,6 +2440,20 @@ fn reject() {
 	assert_eq!(errors.join("\n") + "\n", expected);
 }
 
+/// A function instantiating itself without end, two ways at each step, refused at the
+/// recursion limit as rustc's collector refuses it, rather than walked until memory runs out.
+#[test]
+fn lacks_recursion() {
+	let dir = scratch().join("lacks").join("recursion");
+	let output = export("lacks", &dir, &[WEB], &["--features", "recursion"]);
+	assert!(!output.status.success(), "exporting lacks succeeded");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("rust2-ffi: reached the recursion limit while instantiating `lacks::nest`"),
+		"{stderr}"
+	);
+}
+
 /// What the web target's host lacks, refused at the call in the crate's own code nearest
 /// it, by every route the walk follows. Without the call of an undefined C function, whose
 /// module would not link, the module builds anyway: what it imports that the binding does

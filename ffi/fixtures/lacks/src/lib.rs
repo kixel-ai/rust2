@@ -224,3 +224,21 @@ pub fn greet() {
 extern "C" fn lacks_exported() {
 	let _ = std::fs::metadata("exported");
 }
+
+/// Polymorphic recursion two ways at each step, which a breadth-first walk would expand
+/// exponentially before reaching the limit.
+#[cfg(feature = "recursion")]
+#[allow(unconditional_recursion)]
+fn nest<T>(deeper: bool) {
+	if deeper {
+		nest::<(T,)>(deeper)
+	} else {
+		nest::<[T; 1]>(deeper)
+	}
+}
+
+/// A call of what instantiates itself without end.
+#[cfg(feature = "recursion")]
+pub fn nested(deeper: bool) {
+	nest::<u8>(deeper)
+}

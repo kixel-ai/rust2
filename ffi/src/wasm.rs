@@ -244,11 +244,6 @@ struct Graph<'tcx> {
 	/// What another crate exports from the module, which it holds whether or not the
 	/// generated crate's exports reach it, though no binding calls it.
 	kept: FxIndexSet<usize>,
-	/// How many times each node's function is already instantiated on the way it was first
-	/// reached, as rustc's collector counts against the recursion limit.
-	depth: Vec<usize>,
-	/// The node each node was first reached from.
-	parent: Vec<Option<usize>>,
 }
 
 /// What a C function's link shows: what it imports from the host, and what it calls of the
@@ -269,8 +264,6 @@ impl<'tcx> Graph<'tcx> {
 			linked: FxHashMap::default(),
 			inits: FxIndexSet::default(),
 			kept: FxIndexSet::default(),
-			depth: Vec::new(),
-			parent: Vec::new(),
 		};
 		whole_archives(tcx, host);
 		// The module's exports: each function the crate gives a symbol of its own.
@@ -297,110 +290,141 @@ impl<'tcx> Graph<'tcx> {
 			}
 		}
 		let mut linker = None;
-		// wasm-bindgen names each import's stand-in after the import: `__wbg_` for a browser
-		// API, `__wbindgen_` for its own.
-		let bindgen = tcx
-			.crates(())
-			.iter()
-			.any(|&krate| tcx.crate_name(krate).as_str() == "wasm_bindgen");
-		// A stand-in has no symbol of its own, unlike wasm-bindgen's runtime functions the
-		// module exports to JavaScript, such as `__wbindgen_free`.
+		// wasm-bindgen names each import's stand-in after the import: `__wbg_<name>_<hash>`,
+		// with 16 hex digits of hash, for a browser API its macro declares in any crate, and
+		// `__wbindgen_<name>` for its own, in its own crate. A stand-in has no symbol of its
+		// own, unlike its runtime functions the module exports to JavaScript, such as
+		// `__wbindgen_free`.
+		let bindgen = (tcx.crates(()).iter()).find(|&&krate| tcx.crate_name(krate).as_str() == "wasm_bindgen");
 		let stub = |def_id: DefId| {
+			let bindgen = *bindgen?;
 			let name = tcx.item_name(def_id);
-			(bindgen
-				&& (name.as_str().starts_with("__wbg_") || name.as_str().starts_with("__wbindgen_"))
-				&& !tcx.codegen_fn_attrs(def_id).contains_extern_indicator())
-			.then(|| name.to_string())
+			let name = name.as_str();
+			let generated = name
+				.strip_prefix("__wbg_")
+				.and_then(|rest| rest.rsplit_once('_'))
+				.is_some_and(|(_, hash)| hash.len() == 16 && hash.bytes().all(|b| b.is_ascii_hexdigit()));
+			let own = def_id.krate == bindgen && name.starts_with("__wbindgen_");
+			((generated || own) && !tcx.codegen_fn_attrs(def_id).contains_extern_indicator()).then(|| name.to_string())
 		};
 		let limit = tcx.recursion_limit();
-		let mut next = 0;
-		while next < graph.nodes.len() {
-			let at = next;
-			next += 1;
-			let node = graph.nodes[at];
-			let def_id = node.def_id();
-			if tcx.is_foreign_item(def_id) {
-				match symbols.resolve(tcx, node) {
-					Resolved::Rust(def_id) => {
-						graph.add(Node::defined(tcx, def_id), Some((at, DUMMY_SP)));
-					}
-					Resolved::Leaf(leaf) => {
-						if let Leaf::C(name) = &leaf {
-							graph.link(tcx, host, &symbols, &mut linker, at, name);
-						}
-						graph.leaves.insert(at, leaf);
-					}
-					Resolved::Nothing => {}
+		// Depth first, as rustc's collector walks, counting the instances of each function on
+		// the way down: one within instances of itself past the limit, as of a function
+		// calling itself with an ever larger type, is refused as the collector refuses it,
+		// rather than walked without end.
+		enum Step {
+			Enter(usize, Span),
+			Exit(DefId),
+		}
+		let mut stack: Vec<Step> = (0..graph.nodes.len())
+			.rev()
+			.map(|at| Step::Enter(at, DUMMY_SP))
+			.collect();
+		let mut entered = FxHashSet::default();
+		let mut depths: FxHashMap<DefId, usize> = FxHashMap::default();
+		while let Some(step) = stack.pop() {
+			let (at, span) = match step {
+				Step::Enter(at, span) => (at, span),
+				Step::Exit(def_id) => {
+					*depths.get_mut(&def_id).expect("entered") -= 1;
+					continue;
 				}
+			};
+			if !entered.insert(at) {
 				continue;
 			}
-			match node {
-				Node::Fn(instance) => {
-					if let InstanceKind::Item(def_id) = instance.def
-						&& matches!(tcx.def_kind(def_id), DefKind::Fn)
-						&& let Some(name) = stub(def_id)
-					{
-						graph.leaves.insert(at, Leaf::Bindgen(name));
-						continue;
-					}
-					if let InstanceKind::Item(def_id) = instance.def {
-						// A constructor's body only builds its value.
-						if matches!(tcx.def_kind(def_id), DefKind::Ctor(..)) {
-							continue;
+			let node = graph.nodes[at];
+			let def_id = node.def_id();
+			let depth = depths.entry(def_id).or_default();
+			// Drop glue nests tightly, and rustc gives it more room.
+			let deep = match node {
+				Node::Fn(instance) if tcx.is_lang_item(instance.def_id(), LangItem::DropGlue) => *depth / 4,
+				_ => *depth,
+			};
+			if !limit.value_within_limit(deep) {
+				let span = if span.is_dummy() { tcx.def_span(def_id) } else { span };
+				tcx.dcx().span_fatal(
+					span,
+					format!(
+						"rust2-ffi: reached the recursion limit while instantiating `{}`",
+						tcx.def_path_str(def_id)
+					),
+				);
+			}
+			*depth += 1;
+			stack.push(Step::Exit(def_id));
+			'expand: {
+				if tcx.is_foreign_item(def_id) {
+					match symbols.resolve(tcx, node) {
+						Resolved::Rust(def_id) => {
+							graph.add(Node::defined(tcx, def_id), Some((at, DUMMY_SP)));
 						}
-						if !tcx.is_mir_available(def_id) {
+						Resolved::Leaf(leaf) => {
+							if let Leaf::C(name) = &leaf {
+								graph.link(tcx, host, &symbols, &mut linker, at, name);
+							}
+							graph.leaves.insert(at, leaf);
+						}
+						Resolved::Nothing => {}
+					}
+					break 'expand;
+				}
+				match node {
+					Node::Fn(instance) => {
+						if let InstanceKind::Item(def_id) = instance.def
+							&& matches!(tcx.def_kind(def_id), DefKind::Fn)
+							&& let Some(name) = stub(def_id)
+						{
+							graph.leaves.insert(at, Leaf::Bindgen(name));
+							break 'expand;
+						}
+						if let InstanceKind::Item(def_id) = instance.def {
+							// A constructor's body only builds its value.
+							if matches!(tcx.def_kind(def_id), DefKind::Ctor(..)) {
+								break 'expand;
+							}
+							if !tcx.is_mir_available(def_id) {
+								tcx.dcx().span_err(
+									tcx.def_span(def_id),
+									format!(
+										"rust2-ffi: `{}` of crate `{}` has no MIR to follow, which every crate a target with a host compiles with; this is a bug in rust2-ffi",
+										tcx.def_path_str(def_id),
+										tcx.crate_name(def_id.krate)
+									),
+								);
+								break 'expand;
+							}
+						}
+						let Ok((used, _)) = tcx.items_of_instance((instance, CollectionMode::UsedItems)) else {
 							tcx.dcx().span_err(
 								tcx.def_span(def_id),
-								format!(
-									"rust2-ffi: `{}` of crate `{}` has no MIR to follow, which every crate a target with a host compiles with; this is a bug in rust2-ffi",
-									tcx.def_path_str(def_id),
-									tcx.crate_name(def_id.krate)
-								),
+								format!("rust2-ffi: `{instance}` does not normalize; this is a bug in rust2-ffi"),
 							);
-							continue;
+							break 'expand;
+						};
+						for item in used {
+							let to = match item.node {
+								MonoItem::Fn(instance) => Node::Fn(instance),
+								MonoItem::Static(def_id) => Node::Static(def_id),
+								MonoItem::GlobalAsm(_) => continue,
+							};
+							graph.add(to, Some((at, item.span)));
 						}
 					}
-					let Ok((used, _)) = tcx.items_of_instance((instance, CollectionMode::UsedItems)) else {
-						tcx.dcx().span_err(
-							tcx.def_span(def_id),
-							format!("rust2-ffi: `{instance}` does not normalize; this is a bug in rust2-ffi"),
-						);
-						continue;
-					};
-					for item in used {
-						let to = match item.node {
-							MonoItem::Fn(instance) => Node::Fn(instance),
-							MonoItem::Static(def_id) => Node::Static(def_id),
-							MonoItem::GlobalAsm(_) => continue,
-						};
-						let to = graph.add(to, Some((at, item.span)));
-						// An instance within instances of itself past the limit, as of a
-						// function calling itself with an ever larger type, is refused as
-						// rustc's collector refuses it, rather than walked without end.
-						let depth = graph.depth[to];
-						let depth = match graph.nodes[to] {
-							Node::Fn(instance) if tcx.is_lang_item(instance.def_id(), LangItem::DropGlue) => depth / 4,
-							_ => depth,
-						};
-						if !limit.value_within_limit(depth) {
-							tcx.dcx().span_fatal(
-								item.span,
-								format!(
-									"rust2-ffi: reached the recursion limit while instantiating `{}`",
-									tcx.def_path_str(graph.nodes[to].def_id())
-								),
-							);
+					Node::Static(def_id) => {
+						// What its value points to: functions, vtables' methods, and other statics.
+						if let Ok(alloc) = tcx.eval_static_initializer(def_id) {
+							let mut seen = FxHashSet::default();
+							for &prov in alloc.inner().provenance().ptrs().values() {
+								graph.alloc(tcx, prov.alloc_id(), at, &mut seen);
+							}
 						}
 					}
 				}
-				Node::Static(def_id) => {
-					// What its value points to: functions, vtables' methods, and other statics.
-					if let Ok(alloc) = tcx.eval_static_initializer(def_id) {
-						let mut seen = FxHashSet::default();
-						for &prov in alloc.inner().provenance().ptrs().values() {
-							graph.alloc(tcx, prov.alloc_id(), at, &mut seen);
-						}
-					}
+			}
+			for &(to, span) in graph.edges[at].iter().rev() {
+				if !entered.contains(&to) {
+					stack.push(Step::Enter(to, span));
 				}
 			}
 		}
@@ -413,17 +437,6 @@ impl<'tcx> Graph<'tcx> {
 		if new {
 			self.edges.push(Vec::new());
 			self.origin.push(from.map_or(at, |(from, _)| self.origin[from]));
-			self.parent.push(from.map(|(from, _)| from));
-			// The nearest node on the way here of the same function, one deeper than it.
-			let mut up = from.map(|(from, _)| from);
-			let depth = loop {
-				match up {
-					Some(above) if self.nodes[above].def_id() == node.def_id() => break self.depth[above] + 1,
-					Some(above) => up = self.parent[above],
-					None => break 0,
-				}
-			};
-			self.depth.push(depth);
 		}
 		if let Some((from, span)) = from {
 			self.edges[from].push((at, span));
@@ -688,7 +701,7 @@ impl Linker {
 			.collect();
 		// In the link's order, the crate's own first and the C library last, so a library
 		// defining one of libc's symbols defines it here as it does in the module.
-		for krate in std::iter::once(LOCAL_CRATE).chain(tcx.crates(()).iter().copied()) {
+		for krate in std::iter::once(LOCAL_CRATE).chain(tcx.postorder_cnums(()).iter().rev().copied()) {
 			for lib in c_libraries(tcx, krate) {
 				let name = lib.name;
 				// `+verbatim` names the archive's file as it is.
