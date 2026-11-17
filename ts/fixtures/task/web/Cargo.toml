@@ -1,0 +1,13 @@
+[package]
+name = "task-web"
+description = "task-fixture's benchmark entry alone, which rust2-ffi exports for the bench's rust2-wasm route"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+task-fixture = { path = ".." }
+
+[lints]
+workspace = true

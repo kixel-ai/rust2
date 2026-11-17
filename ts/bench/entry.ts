@@ -88,7 +88,7 @@ function work() {
 			request,
 			reply,
 			(file) => import(new URL(file, import.meta.url).href),
-			async (file) => new Wasm(await WebAssembly.compile(await load(file))),
+			load,
 		);
 	if (threads) threads.parentPort?.once("message", start);
 	else onmessage = (e: MessageEvent<Load>) => start(e.data);
@@ -115,20 +115,29 @@ async function main() {
 	// another, and runs in a worker of its own. The A/A route is the translation again: its
 	// spread from the first is the measurement's noise.
 	const route = (route: string, file: string, exported = "run", slice = false): Subject => ({ route, file, exported, slice });
+	// The wasm32 builds: the reference, the build with the translation's checks, and that
+	// build lowered to JavaScript.
+	const builds = (prefix: string): Subject[] => [
+		{ route: "wasm", wasm: `${prefix}.wasm`, lowered: false, copies: true },
+		{ route: "wasm checked", wasm: `${prefix}-checked.wasm`, lowered: false, copies: false },
+		{ route: "wasm2js", wasm: `${prefix}-wasm2js.js`, lowered: true, copies: false },
+	];
 	const wasm = new Wasm(await WebAssembly.compile(await load("bench.wasm")));
 	const routes = [
-		{ wasm: "bench.wasm" },
+		...builds("bench"),
+		route("rust2-wasm", "rust2-wasm.js"),
 		route("hand-written", "moq.js"),
 		route("translated", "translated.js", "run", true),
 		route("A/A", "translated-aa.js", "run", true),
 	];
 	if (config.route) routes.push(route(config.route, "route.js", "run", true));
-	const timings = await measure(wasm, routes, parse(config.workloads), spawn, options);
+	const codec = await measure(wasm, routes, parse(config.workloads), spawn, options);
 
 	// The async handoff: the translation polled at once by a one-task executor, as the
 	// native and WASM routes are, and on the runtime's microtask executor.
 	const handoffRoutes = [
-		{ wasm: "task.wasm" },
+		...builds("task"),
+		route("rust2-wasm", "task-rust2-wasm.js"),
 		route("hand-written", "task-hand.js", "handWritten"),
 		route("translated", "task-translated.js"),
 		route("spawned", "task-spawned.js", "spawn"),
@@ -136,8 +145,8 @@ async function main() {
 	];
 	if (config.route) handoffRoutes.push(route(config.route, "task-route.js"));
 	const taskWasm = new Wasm(await WebAssembly.compile(await load("task.wasm")));
-	timings.push(...(await measure(taskWasm, handoffRoutes, parse(config.handoffs), spawn, options)));
-	return { engine: engine(), timings };
+	const handoff = await measure(taskWasm, handoffRoutes, parse(config.handoffs), spawn, options);
+	return { engine: engine(), timings: [...codec.timings, ...handoff.timings], cold: { codec: codec.cold, handoff: handoff.cold } };
 }
 
 if (worker) {

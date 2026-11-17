@@ -19,6 +19,7 @@ members = [
     "fixtures/bind",
     "fixtures/census",
     "fixtures/codec",
+    "fixtures/codec/web",
     "fixtures/crates",
     # A fixture per module of the language, beside what they share.
     "fixtures/lang/*",
@@ -27,6 +28,7 @@ members = [
     "fixtures/share",
     "fixtures/stock",
     "fixtures/task",
+    "fixtures/task/web",
     "fixtures/tokio",
 ]
 resolver = "3"
@@ -67,3 +69,10 @@ lto = "fat"
 codegen-units = 1
 strip = "symbols"
 opt-level = "z"
+
+# wasm-release with the checks the translation keeps, overflow checks and debug assertions,
+# so the bench's wasm32 routes built with it run what the translated route runs.
+[profile.wasm-checked]
+inherits = "wasm-release"
+overflow-checks = true
+debug-assertions = true

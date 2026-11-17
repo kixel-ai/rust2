@@ -1,16 +1,18 @@
 // Times every workload on every route in one engine, after checking that each route's
-// output matches the wasm32 build's, which is native Rust's. The WASM route is timed in
-// three parts: copying the input in, running, and copying the output out.
+// output matches the wasm32 build's, which is native Rust's. A wasm32 build's route times
+// its run alone, and the reference's also copying the input in and the output out.
 //
 // Each route runs alone in a realm of its own, a worker, which `measure` drives one
 // sample at a time. Routes in one realm share its state: JavaScriptCore merges the type
 // profiles of modules with the same text, a module two routes call sees both routes'
 // types, and V8 ran a route 2-12% slower loaded after an identical copy than before it.
+// Each round's worker is fresh, so its first result is the route's cold start.
 
-import type { Wasm } from "../tests/wasm.ts";
+import { type Exports, Wasm } from "../tests/wasm.ts";
+import { fresh } from "./fresh.ts";
 import type { Workload } from "./workloads.ts";
 
-/** What one realm times: a route's bundle, or the wasm32 build's three steps. */
+/** What one realm times: a route's bundle, or a wasm32 build through `fixtures/wasm.rs`. */
 export type Subject =
 	| {
 			route: string;
@@ -21,7 +23,14 @@ export type Subject =
 			/** Whether `exported` returns the translation's `{ data, length }` rather than bytes. */
 			slice: boolean;
 	  }
-	| { wasm: string };
+	| {
+			route: string;
+			/** The `.wasm`, or with `lowered`, the bundle of wasm2js's lowering of one. */
+			wasm: string;
+			lowered: boolean;
+			/** Whether copying the input in and the output out are timed apart, as `<route> copy-in` and `copy-out`. */
+			copies: boolean;
+	  };
 
 /** What a realm is told first: what to load, and where later requests arrive. */
 export interface Load {
@@ -77,6 +86,18 @@ export interface Timing {
 	ns: number[];
 }
 
+/** A route's cold starts: milliseconds from a fresh worker's load of it to its first output, one per round. */
+export interface Cold {
+	route: string;
+	ms: number[];
+}
+
+/** What `measure` found. */
+export interface Measured {
+	timings: Timing[];
+	cold: Cold[];
+}
+
 interface Body {
 	workload: Workload;
 	route: string;
@@ -107,7 +128,7 @@ export async function measure(
 	workloads: Workload[],
 	spawn: () => Link,
 	options: Options,
-): Promise<Timing[]> {
+): Promise<Measured> {
 	const { progress, sampleMs } = options;
 	const want = workloads.map((workload) => {
 		const output = wasm.call(workload.input);
@@ -116,6 +137,7 @@ export async function measure(
 	});
 	// Each subject's timings, one per body, which every round's worker lists alike.
 	const timings: Timing[][] = [];
+	const cold: Cold[] = subjects.map(({ route }) => ({ route, ms: [] }));
 	const span = `${workloads[0].name} through ${workloads[workloads.length - 1].name}`;
 	const random = prng(options.seed);
 	for (let round = 0; round < options.rounds; round++) {
@@ -130,7 +152,9 @@ export async function measure(
 				links.push(link);
 				const control = new Int32Array(new SharedArrayBuffer(12));
 				link.post({ subject, workloads, sampleMs, control });
-				const list = (await link.reply()) as { route: string; workload: number }[];
+				const loaded = (await link.reply()) as { bodies: { route: string; workload: number }[]; cold: number };
+				const list = loaded.bodies;
+				cold[s].ms.push(loaded.cold);
 				const realm = (op: Op, arg: number) => {
 					control[1] = op;
 					control[2] = arg;
@@ -142,7 +166,6 @@ export async function measure(
 				list.forEach(({ workload: w }, index) => {
 					bodies.push({ realm, index, timing: timings[s][index], items: workloads[w].items, calls: 0 });
 				});
-				if (!("route" in subject)) continue;
 				progress(`checking ${subject.route} for ${of}`);
 				for (const [i, workload] of workloads.entries()) {
 					const got = await realm(Op.Output, i);
@@ -172,34 +195,45 @@ export async function measure(
 			for (const link of links) link.close();
 		}
 	}
-	return timings.flat();
+	return { timings: timings.flat(), cold };
 }
 
 /**
- * A realm's side of `measure`: loads `load.subject`, importing a route's bundle with
- * `bundle` and instantiating the wasm32 build with `wasm`, then answers each request
- * through `reply` until the worker is closed.
+ * A realm's side of `measure`: loads `load.subject`, importing a bundle with `bundle` and
+ * compiling a `.wasm`'s bytes from `wasm`, then answers each request through `reply`
+ * until the worker is closed. Its first reply gives the cold start: from the load to the
+ * first workload's output.
  */
 export async function serve(
 	load: Load,
 	reply: (reply: Reply) => void,
 	bundle: (file: string) => Promise<Record<string, unknown>>,
-	wasm: (file: string) => Promise<Wasm>,
+	wasm: (file: string) => Promise<Uint8Array>,
 ): Promise<void> {
 	const { subject, workloads, sampleMs, control } = load;
 	const bodies: Body[] = [];
 	const body = (workload: Workload, route: string, call: () => unknown, setup?: () => void) =>
 		bodies.push({ workload, route, setup, call, async: false, calls: 1 });
-	let output: ((workload: number) => Promise<Uint8Array>) | undefined;
+	let output: (workload: number) => Promise<Uint8Array>;
+	let cold: number;
 	try {
+		const start = performance.now();
 		if ("wasm" in subject) {
-			const instance = await wasm(subject.wasm);
+			const instance = subject.lowered
+				? new Wasm((await bundle(subject.wasm)) as unknown as Exports)
+				: new Wasm(await WebAssembly.compile(fresh(await wasm(subject.wasm))));
+			output = async (i) => {
+				const out = instance.call(workloads[i].input);
+				if (!(out instanceof Uint8Array)) throw new Error(`${subject.route} traps: ${JSON.stringify(out)}`);
+				return out;
+			};
 			for (const workload of workloads) {
 				const { input } = workload;
 				let len = 0;
-				body(workload, "wasm", () => instance.run(), () => instance.input(input));
-				body(workload, "wasm copy-in", () => instance.input(input));
-				body(workload, "wasm copy-out", () => instance.output(len), () => {
+				body(workload, subject.route, () => instance.run(), () => instance.input(input));
+				if (!subject.copies) continue;
+				body(workload, `${subject.route} copy-in`, () => instance.input(input));
+				body(workload, `${subject.route} copy-out`, () => instance.output(len), () => {
 					instance.input(input);
 					len = instance.run();
 				});
@@ -212,15 +246,16 @@ export async function serve(
 			output = async (i) => view((await run(workloads[i].input)) as never);
 			for (const workload of workloads) body(workload, subject.route, () => run(workload.input));
 		}
+		await output(0);
+		cold = performance.now() - start;
 	} catch (err) {
 		return reply(failure(err));
 	}
-	reply({ value: bodies.map((b) => ({ route: b.route, workload: workloads.indexOf(b.workload) })) });
+	reply({ value: { bodies: bodies.map((b) => ({ route: b.route, workload: workloads.indexOf(b.workload) })), cold } });
 
 	async function answer(op: Op, arg: number): Promise<unknown> {
 		switch (op) {
 			case Op.Output:
-				if (!output) throw new Error("the wasm32 build is the reference, which has no output to check");
 				return hex(await output(arg));
 			case Op.Warm: {
 				const body = bodies[arg];

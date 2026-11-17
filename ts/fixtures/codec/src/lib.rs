@@ -27,13 +27,15 @@ mod lite {
 	pub use version::Version;
 }
 mod version;
-#[cfg(target_arch = "wasm32")]
+// wasm32-unknown-unknown alone: on wasm32-wasip1, rust2-ffi exports the crate, and a module
+// built from that export would carry these exports too.
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 #[path = "../../wasm.rs"]
 mod wasm;
-/// What the wasm32 build exports: the benchmark's workloads with `bench`, else the harness.
-#[cfg(all(target_arch = "wasm32", feature = "bench"))]
+/// What the wasm32-unknown-unknown build exports: the benchmark's workloads with `bench`, else the harness.
+#[cfg(all(target_arch = "wasm32", target_os = "unknown", feature = "bench"))]
 use bench::run as entry;
-#[cfg(all(target_arch = "wasm32", not(feature = "bench")))]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown", not(feature = "bench")))]
 use harness::run as entry;
 
 pub use version::*;
