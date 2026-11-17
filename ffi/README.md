@@ -1316,8 +1316,10 @@ target there.
   buffer once no call reading it in place is running, and a read after throws `Bytes is
   closed`, whichever it holds. One never disposed waits for the `FinalizationRegistry`,
   which runs only once the collector does for its own heap, which no lent buffer grows: so
-  past a quarter of memory lent and not yet freed, a call copies instead, and bytes nobody
-  disposes grow memory by no more than a third. Passed to a call, an `rt.Bytes` crosses
+  past a quarter of memory lent and not yet freed, or once memory has grown by a third
+  since none were, a call copies instead, so bytes nobody disposes grow memory by no more
+  than a third, even a slice keeping a larger buffer whole. Held lent bytes therefore
+  turn later returns into copies once memory grows a third, until they are disposed. Passed to a call, an `rt.Bytes` crosses
   in place for one that reads it, as a second owner of Rust's buffer for one that takes a
   `Bytes`, and copied by Rust for one that takes a `Vec`, which owns its bytes alone. Bytes
   inside another value, such as a record's field or a list's item, are copied into a

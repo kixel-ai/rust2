@@ -2223,6 +2223,12 @@ pub fn token_bytes(id: u32, len: u32) -> Bytes {
 	Bytes::from_owner(Owner(Token::new(id), vec![id as u8; len as usize]))
 }
 
+/// The first `len` of the `of` bytes [`token_bytes`] makes: a slice that keeps its whole
+/// buffer.
+pub fn token_slice(id: u32, len: u32, of: u32) -> Bytes {
+	token_bytes(id, of).slice(..len as usize)
+}
+
 /// A payload and its sequence number: a record, whose bytes cross in both ways.
 pub struct Packet {
 	pub seq: u32,

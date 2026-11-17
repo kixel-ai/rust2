@@ -1561,6 +1561,19 @@ async function lent(): Promise<void> {
 	before = api.dropped();
 	for (const b of kept) close(b);
 	check(api.dropped() === before + kept.length - 1, "disposing frees each lent");
+	// A slice keeps its whole buffer, which its length does not show, so lending also stops
+	// once memory has grown by a third since none were lent.
+	const slices: rt.Bytes[] = [];
+	for (let lending = true; lending; ) {
+		const dropped = api.dropped();
+		slices.push(api.tokenSlice(9, 100, 1 << 20));
+		lending = api.dropped() === dropped;
+		check(slices.length < 1000, "slices of lent buffers copy once memory grows a third");
+	}
+	check(slices.length > 1 && slices[0]!.at(99) === 9, "a slice of a buffer lends");
+	before = api.dropped();
+	for (const b of slices) close(b);
+	check(api.dropped() === before + slices.length - 1, "disposing frees each slice lent");
 	print("bytes ok");
 }
 

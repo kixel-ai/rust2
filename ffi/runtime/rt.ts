@@ -723,9 +723,13 @@ const LEND = 64;
 
 /**
  * How many bytes of Rust's buffers are lent and not yet freed, by their length: a `Vec`
- * crosses with no spare capacity, and a `Bytes` keeps what Rust's own value keeps.
+ * crosses with no spare capacity, but a `Bytes` may be a slice of a larger buffer it keeps
+ * whole, as Rust's own value does, which its length does not show.
  */
 let lentLength = 0;
+
+/** Memory's size when no bytes were last lent. */
+let unlentSize = 0;
 
 /** The frees the garbage collector makes of lent bytes never disposed: each owner and length. */
 const unlent = new FinalizationRegistry<[number, number]>(([owner, length]) => {
@@ -840,8 +844,12 @@ export function returnedBytes(p: number): Bytes {
 	const ptr = d.getUint32(p, true);
 	const len = d.getUint32(p + 4, true);
 	// So that lent bytes a caller forgot to dispose, which the collector frees only once it
-	// runs for its own heap, make memory grow by no more than a third.
-	if (len > LEND && lentLength + len <= memory.buffer.byteLength / 4) {
+	// runs for its own heap, make memory grow by no more than a third: they lend while their
+	// length stays under a quarter of memory, and while memory has grown by no more than a
+	// third since none were lent, which bounds what slices keep that their length does not.
+	const size = memory.buffer.byteLength;
+	if (lentLength === 0) unlentSize = size;
+	if (len > LEND && lentLength + len <= size / 4 && size - unlentSize <= unlentSize / 3) {
 		return bytesMade(ptr, len, d.getUint32(p + 8, true), undefined);
 	}
 	return bytesMade(0, len, 0, bytes_(p));

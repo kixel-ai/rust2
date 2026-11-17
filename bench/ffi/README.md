@@ -634,7 +634,8 @@ A lend needs a dispose: the collector cannot see wasm memory, so it never hurrie
 what it lends. In a probe of a million 100 B lends left to the collector on Node, all
 million were still held at the loop's end, and each cost 628 ns against a disposed lend's
 275. So `rt.Bytes` lends only while lent bytes stay under a quarter of the memory, and
-copies past that.
+while the memory has grown by no more than a third since none were lent, which bounds
+a returned slice that keeps a larger buffer whole; it copies past either.
 
 ## Consumer release profile
 
