@@ -469,7 +469,12 @@ impl Buf {
 		Self::owned(string.into())
 	}
 
-	pub fn vec(vec: Vec<u8>) -> Self {
+	#[cfg_attr(not(feature = "web"), allow(unused_mut))]
+	pub fn vec(mut vec: Vec<u8>) -> Self {
+		// The web binding budgets the bytes it holds lent by their length, so their buffer
+		// keeps no spare capacity; wasi-libc's allocator shrinks it in place.
+		#[cfg(feature = "web")]
+		vec.shrink_to_fit();
 		Self::owned(vec.into())
 	}
 

@@ -15,8 +15,8 @@ numbers in the PR.
 Decided with the maintainer on 2026-11-09, in the quest audit: ✅ planned in m3 before a
 consumer asks ([m3](/quest/m3/README.md#plan)).
 
-- rust2-wasm will load in Node and Bun once [its backend](/quest/m2/wasm/backend.md)
-  lands, so a native addon must earn its cost
+- rust2-wasm ([the web target](/ffi/README.md#typescript-web)) loads in Node, Deno, and
+  Bun, so a native addon must earn its cost
   (a 3,000 to 5,000 line generator, and a binary per platform) in speed or in what wasm
   cannot do: threads, sockets, and the file system, which a library such as moq-tokio
   needs for native QUIC.
@@ -42,4 +42,3 @@ Public API: the generated TypeScript API and the `node` feature, if it lands.
 ## Required
 
 - [Exporter](/quest/m1/ffi-export/README.md) - the C ABI, its lossless types, and its checks are settled before a new generator copies them
-- [The exporter's web target](/quest/m2/wasm/backend.md) - the route the addon is measured against, whose TypeScript API it should match

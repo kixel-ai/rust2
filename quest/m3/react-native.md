@@ -16,7 +16,7 @@ consumer asks ([m3](/quest/m3/README.md#plan)).
   UniFFI's annotations; its releases trail UniFFI's (no release read UniFFI 0.32 by
   2026-11-09).
 - It builds on what exists: `rt.hpp`'s futures and executors for the JS thread's
-  scheduling, and the TypeScript API [rust2-wasm](/quest/m2/wasm/backend.md) generates,
+  scheduling, and the TypeScript API [rust2-wasm](/ffi/README.md#typescript-web) generates,
   which this should match so one application's code calls either.
 - The JS runtime is single-threaded while Rust wakes from any thread, so a wake posts to
   the runtime's `CallInvoker`, never polling inside the wake, as every other binding's does.
@@ -39,4 +39,3 @@ Public API: the generated module's TypeScript API.
 ## Required
 
 - [Exporter](/quest/m1/ffi-export/README.md) - the C ABI, its lossless types, and its checks are settled before a new generator copies them
-- [The exporter's web target](/quest/m2/wasm/backend.md) - the TypeScript API this matches, and the route it is measured against

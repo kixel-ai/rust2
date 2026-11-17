@@ -1,7 +1,8 @@
 // The api fixture's web test: the script fixtures/api/examples/transcript.rs runs as
-// native Rust does on wasm32-wasip1, through the generated TypeScript on Node, from beside
-// the binding's `web` directory. RUST2_WASM is the path of the module, built with the
-// crate's `web` feature. tests/fixtures.rs compares the transcripts.
+// native Rust does on wasm32-wasip1, through the generated TypeScript on Node or Deno, from
+// beside the binding's `web` directory, or in a browser, through tests/browser.ts's
+// `process`. RUST2_WASM is the path of the module, built with the crate's `web` feature.
+// tests/fixtures.rs compares the transcripts.
 //
 // With an argument, it instead checks the futures' semantics, what disposing and the
 // garbage collector free, what a closed object refuses, how returned bytes cross, or what
@@ -117,7 +118,7 @@ function hex128(v: rt.u128): string {
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const enc = (text: string) => encoder.encode(text);
-const text = (data: Uint8Array) => decoder.decode(data);
+const text = (data: Uint8Array | rt.Bytes) => decoder.decode(data.slice());
 const bytes = (...values: number[]) => new Uint8Array(values);
 
 /** A list as Rust's `Debug` prints one. */
@@ -163,9 +164,9 @@ function bound(b: Bound): string {
 const bits32 = (v: Float32Array) => list(new Uint32Array(v.buffer, v.byteOffset, v.length));
 const bits64 = (v: Float64Array) => list(new BigUint64Array(v.buffer, v.byteOffset, v.length));
 
-function f64(bits: bigint): number {
-	return new Float64Array(new BigUint64Array([bits]).buffer)[0];
-}
+/** The floats of `bits`, each never a JavaScript number, whose NaN an engine may make its
+ * own: Deno's V8 does, storing one in an array literal. */
+const floats64 = (...bits: bigint[]) => new Float64Array(new BigUint64Array(bits).buffer);
 
 /** Print each of `n`'s lists, its floats as their bits, as transcript.rs does. */
 function numbers(what: string, n: Numbers.Numbers): void {
@@ -651,7 +652,7 @@ async function script(): Promise<void> {
 	const channel = Channel.new();
 	let wakes = 0;
 	// Polled at the call, it pends, and the wake the send posts resumes it from the event loop.
-	let got: Uint8Array | undefined;
+	let got: rt.Bytes | undefined;
 	const recv = Channel.recv(channel);
 	void recv.then((payload) => (got = payload));
 	await step();
@@ -970,7 +971,7 @@ async function script(): Promise<void> {
 	);
 	print(`sum u32 ${dec(api.sumU32(new Uint32Array(0)))} ${dec(api.sumU32(new Uint32Array([0xffffffff, 0xffffffff, 2])))}`);
 	print(`doubled i64 ${list(api.doubledI64(new BigInt64Array([-(1n << 63n), -1n, 0n, (1n << 63n) - 1n])))}`);
-	const floats = api.boxedFloats(new Float64Array([-0, f64(0x7ff8000000000001n)]));
+	const floats = api.boxedFloats(floats64(1n << 63n, 0x7ff8000000000001n));
 	print(`boxed floats ${bits64(floats)}`);
 	const summed = api.summed([
 		{ x: 1, y: 2 },
@@ -1534,31 +1535,122 @@ async function closedCall(f: () => Promise<unknown>, type: string, what: string)
 	check(false, what);
 }
 
-/** Returned bytes are a copy, so Rust's buffer is freed at the call, whatever their length,
- * and a change to them reaches nothing of Rust's. */
+/** Bytes a call returns up to 64 are a copy, Rust's freed at the call; past that they lend
+ * Rust's buffer, freed once disposed and no call views it, or by the garbage collector, and
+ * passed back to Rust they share it. Either reads the same, and refuses a read once disposed. */
 async function lent(): Promise<void> {
 	let before = api.dropped();
-	for (const n of [65536, 65537]) {
-		const got = api.tokenBytes(1, n);
-		check(api.dropped() === ++before, `${n} bytes are copied and Rust's freed at the call`);
-		check(got.length === n && got.every((b) => b === 1), `${n} copied bytes read back`);
+	const small = api.tokenBytes(1, 64);
+	check(api.dropped() === ++before, "64 bytes are copied and Rust's freed at the call");
+	check(small.length === 64 && [...small].every((b) => b === 1), "copied bytes read back");
+	close(small);
+	closed(() => small.at(0), "Bytes", "disposed copied bytes refuse a read");
+	for (const n of [65, 65537]) {
+		const big = api.tokenBytes(2, n);
+		check(api.dropped() === before, `${n} bytes lend Rust's buffer`);
+		const copy = big.slice();
+		check(big.length === n && copy.length === n && copy.every((b) => b === 2), `${n} lent bytes read back`);
+		check(big.at(-1) === 2 && big.at(n) === undefined && big.slice(1, 3).length === 2, "lent bytes read as a Uint8Array's do");
+		// A copy out is the caller's, which reaches nothing of Rust's.
+		copy[0] = 3;
+		check(big.at(0) === 2, "a copy out of lent bytes is the caller's");
+		close(big);
+		check(api.dropped() === ++before, `disposing ${n} lent bytes frees Rust's buffer`);
+		close(big);
+		check(api.dropped() === before, "disposing them again frees nothing");
+		closed(() => big.slice(), "Bytes", "disposed lent bytes refuse a read");
+		closed(() => api.len(big), "Bytes", "disposed lent bytes refuse a call");
 	}
-	// A copy is the caller's to change, and passes back to Rust as it was left.
-	const channel = Channel.new();
+	// Passed back, lent bytes cross in place: viewed for a call, or a second owner of Rust's
+	// buffer for one that keeps them, so the buffer outlives the bytes disposed after.
 	const sent = api.tokenBytes(5, 65537);
-	before++;
-	sent[0] = 6;
+	check(api.len(sent) === 65537, "lent bytes viewed for a call");
+	const channel = Channel.new();
 	Channel.send(channel, sent);
-	sent[1] = 7;
+	close(sent);
+	check(api.dropped() === before, "lent bytes sent share Rust's buffer");
 	const got = await within(Channel.recv(channel), "a receive of what was sent");
-	check(got.length === 65537 && got[0] === 6 && got[1] === 5 && sent[1] === 7, "bytes sent are copied in at the call");
-	const carried = api.nextPacket({ seq: 1, payload: got }).payload;
-	check(carried.length === 65537 && carried[0] === 6 && carried.subarray(1).every((b) => b === 5), "bytes carried in a record");
+	check(got.length === 65537 && got.at(0) === 5 && got.at(-1) === 5, "lent bytes sent read back");
+	close(got);
+	check(api.dropped() === ++before, "the last owner of lent bytes frees them");
 	close(channel);
-	// No copy holds anything of Rust's, so collecting frees nothing more.
+	// Disposed while a later argument lowers, lent bytes stay Rust's for the call it is in,
+	// and are freed once it returns.
+	const viewed = api.tokenBytes(6, 100);
+	const prefix = new Proxy(enc("ab"), {
+		get(target, key) {
+			if (key === "length") close(viewed);
+			return Reflect.get(target, key);
+		},
+	});
+	const joined = api.prefixed(viewed, prefix).slice();
+	check(joined.length === 102 && text(joined.subarray(0, 2)) === "ab" && joined.subarray(2).every((b) => b === 6), "bytes a call views read whole");
+	check(api.dropped() === ++before, "bytes disposed during a call are freed once it returns");
+	// A Bytes' length is its own: no caller's write or definition changes what Rust reads.
+	const fixed = api.tokenBytes(11, 100);
+	throws(() => {
+		(fixed as { length: number }).length = 1 << 20;
+	}, TypeError, "a Bytes' length is read-only");
+	Object.defineProperty(fixed, "length", { value: 1 << 20 });
+	check(api.len(fixed) === 100 && fixed.slice().length === 100, "a Bytes' length shadowed reaches no read");
+	close(fixed);
+	check(api.dropped() === ++before, "bytes whose length was shadowed are freed whole");
+	// Bytes a call takes by value, which Rust gets a second owner of, disposed while a later
+	// argument lowers, read whole and are freed once Rust drops them.
+	const given = api.tokenBytes(10, 100);
+	const high = new Proxy(enc("bc"), {
+		get(target, key) {
+			if (key === "length") close(given);
+			return Reflect.get(target, key);
+		},
+	});
+	const limits = api.byteLimits(given, high);
+	check(limits.low.length === 100 && limits.low.every((b) => b === 10) && text(limits.high) === "bc", "bytes given and disposed during a call read whole");
+	check(api.dropped() === ++before, "bytes given and disposed during a call are freed once Rust drops them");
+	// Bytes a call returned pass as an optional borrowed argument too.
+	const optional = api.tokenBytes(8, 100);
+	const suffixed = api.prefixed(enc("cd"), optional).slice();
+	check(suffixed.length === 102 && suffixed.subarray(0, 100).every((b) => b === 8) && text(suffixed.subarray(100)) === "cd", "returned bytes pass as an optional argument");
+	close(optional);
+	check(api.dropped() === ++before, "returned bytes passed as an optional argument stay the caller's");
+	// The garbage collector frees lent bytes nobody disposed.
+	unclosedBytes();
+	await collect(() => api.dropped() > before, "the garbage collector frees lent bytes nobody disposed");
 	await settle();
-	check(api.dropped() === before, "returned bytes hold nothing of Rust's");
+	check(api.dropped() === ++before, "the garbage collector frees lent bytes once");
+	// Past a quarter of memory lent and not yet freed, bytes are copied, so bytes nobody
+	// disposed, which the collector frees only once its own heap prompts it, grow memory by
+	// no more than a third.
+	const kept: rt.Bytes[] = [];
+	for (let lending = true; lending; ) {
+		const dropped = api.dropped();
+		kept.push(api.tokenBytes(7, 1 << 20));
+		lending = api.dropped() === dropped;
+		check(kept.length < 1000, "lent bytes copy past a quarter of memory");
+	}
+	check((kept.length - 1) << 20 <= rt.mem().buffer.byteLength / 4, "at most a quarter of memory is lent");
+	before = api.dropped();
+	for (const b of kept) close(b);
+	check(api.dropped() === before + kept.length - 1, "disposing frees each lent");
+	// A slice keeps its whole buffer, which its length does not show, so lending also stops
+	// once memory has grown by a third since none were lent.
+	const slices: rt.Bytes[] = [];
+	for (let lending = true; lending; ) {
+		const dropped = api.dropped();
+		slices.push(api.tokenSlice(9, 100, 1 << 20));
+		lending = api.dropped() === dropped;
+		check(slices.length < 1000, "slices of lent buffers copy once memory grows a third");
+	}
+	check(slices.length > 1 && slices[0]!.at(99) === 9, "a slice of a buffer lends");
+	before = api.dropped();
+	for (const b of slices) close(b);
+	check(api.dropped() === before + slices.length - 1, "disposing frees each slice lent");
 	print("bytes ok");
+}
+
+/** Lent bytes, left for the garbage collector. */
+function unclosedBytes(): void {
+	api.tokenBytes(8, 1000);
 }
 
 /** Values at the edges of what Rust takes and returns, and each value Rust's type lacks,
@@ -1689,6 +1781,21 @@ function grown(): void {
 	// A reader fills the buffer Rust lends it after growing memory.
 	const tail = api.tail(new BytesReader(enc("hello world"), grow), 5);
 	check(tail.ok && text(tail.value[0]) === "world" && tail.value[1] === 6, "a reader's read after memory grew");
+	// Lent bytes read Rust's buffer through memory as it is now, and pass back in place.
+	const held = api.tokenBytes(4, 1000);
+	grow();
+	check(held.at(999) === 4 && held.slice().every((b) => b === 4), "lent bytes read after memory grew");
+	check(api.len(held) === 1000, "lent bytes viewed for a call after memory grew");
+	const channel = Channel.new();
+	Channel.send(channel, held);
+	grow();
+	// What grew memory dropped tokens of its own.
+	const before = api.dropped();
+	Channel.clear(channel);
+	close(channel);
+	check(api.dropped() === before && held.at(0) === 4, "lent bytes shared after memory grew");
+	close(held);
+	check(api.dropped() === before + 1, "lent bytes disposed after memory grew free Rust's buffer");
 	print("grown ok");
 }
 
@@ -1774,11 +1881,7 @@ async function broken(which: string): Promise<void> {
 					if (fail) api.tail(new Overreader(), 1);
 					return rt.Err("woken");
 				});
-			const settled = (p: Promise<unknown>) =>
-				p.then(
-					() => "resolved",
-					(e: unknown) => (e instanceof Error ? e.message : String(e)),
-				);
+			const settled = (p: Promise<unknown>) => p.then(() => "resolved", (e: unknown) => e);
 			const failing = settled(pend(true));
 			const queued = settled(pend(false));
 			setTimeout(() => {
@@ -1787,10 +1890,13 @@ async function broken(which: string): Promise<void> {
 				wakers[0].wake();
 			});
 			const [first, second] = await Promise.all([failing, queued]);
-			check(first === "unreachable", `a later poll's trap rejects: ${first}`);
-			check(second === "the module aborted, so no call into it runs", `a call woken behind it rejects: ${second}`);
+			// Each engine words a trap its own way, as V8's "unreachable" and SpiderMonkey's
+			// "unreachable executed".
+			check(first instanceof WebAssembly.RuntimeError, `a later poll's trap rejects: ${String(first)}`);
+			const message = second instanceof Error ? second.message : String(second);
+			check(message === "the module aborted, so no call into it runs", `a call woken behind it rejects: ${message}`);
 			print("later poll checked");
-			throw new Error(second);
+			throw new Error(message);
 		}
 		case "closure threw":
 			await api.drive(Moment.new(0, 1000)!, () => {

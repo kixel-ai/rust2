@@ -30,14 +30,10 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   [the model epic](/quest/m2/ts-model/README.md)'s 2026-11-01 "the translated model is
   moq's browser route". Rejected: JS-only staying the goal, with rust2-wasm only a
   baseline; pausing rust2-ts until rust2-wasm is measured.
-- ✅ Web and WASI are separate targets. [The web target](/quest/m2/wasm/backend.md) calls
-  web APIs directly, `performance.now` for its clock, and ships nothing of WASI;
-  [the WASI target](/quest/m3/wasi.md) serves hosts with no JavaScript, in m3 as the
-  other targets planned ahead of a consumer are. Rejected: one `wasm32-wasip1` module for
-  both, with the binding implementing its imports.
-  On 2026-11-16 the maintainer let [#847](https://github.com/kixel-ai/rust2/pull/847)'s
-  first slice land on `wasm32-wasip1`'s std, its imports implemented with web APIs, for now:
-  [the backend](/quest/m2/wasm/backend.md) moves the web target off it.
+- ✅ Web and WASI are separate targets. [The web target](/ffi/README.md#typescript-web) calls
+  web APIs directly, `performance.now` for its clock; [the WASI target](/quest/m3/wasi.md)
+  serves hosts with no JavaScript, in m3 as the other targets planned ahead of a consumer
+  are. Rejected: one module for both.
 - ✅ m2, with per-target export in m1, which landed in
   [#689](https://github.com/kixel-ai/rust2/pull/689) and
   [#700](https://github.com/kixel-ai/rust2/pull/700). Rejected: all of it in m1; all of it
@@ -53,7 +49,7 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   crossed and the boundary was paid once; startup was timed nowhere; and the wasm route
   was built release at `opt-level = "z"` while the translation came from the dev profile,
   with overflow checks and debug assertions on. So
-  [the backend](/quest/m2/wasm/backend.md) adds a TypeScript column to
+  [#851](https://github.com/kixel-ai/rust2/pull/851) added a TypeScript column to
   [the binding benchmark](/bench/ffi/README.md), whose cases cross handles, records,
   objects, reads, and payloads, and [the measurement](/quest/m2/wasm/routes.md) adds the
   translation of the same cases, a cold start, and matching build profiles. Rejected:
@@ -70,11 +66,24 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   languages' bindings have; a surface per route.
 - Open, with no owner yet: the gate's own deliverable, moq-net running in a browser
   through rust2-wasm, needs a transport adapter over WebTransport, and
-  [the backend](/quest/m2/wasm/backend.md) recommends refusing a crate that imports
-  browser APIs. moq's tree plans none of it. Plan it with moq's tree before the gate's
+  [the refusal](/quest/m2/wasm/refuse.md) refuses a crate that imports browser APIs
+  through wasm-bindgen. moq's tree plans none of it. Plan it with moq's tree before the gate's
   last child lands.
-- Deno is in the Goal and tested by no child, and is not in the flake. The backend tests
-  it or the Goal drops it.
+
+Decided with the maintainer on 2026-11-16, on
+[#851](https://github.com/kixel-ai/rust2/pull/851)'s findings:
+
+- ✅ The web target stays on `wasm32-wasip1`'s std, its WASI imports implemented in `rt.ts`
+  with web APIs. This reverses the 2026-11-09 goal of a web module with nothing of WASI:
+  off it, std's `Instant::now`, `SystemTime::now`, and randomness panic and its output is
+  discarded, with no hook to give it any, and moq does not build, since getrandom 0.4 has
+  no backend there without wasm-bindgen. Rejected: answering std's WASI calls inside the
+  module, whose randomness import sits behind a toolchain-mangled symbol; moving to
+  `wasm32-unknown-unknown` and refusing every clock call at export; waiting for an upstream
+  std hook.
+- ✅ The web binding's test runs on Node and Deno in the gate, and in headless Chromium
+  and Firefox nightly through `just ffi browsers`, in the bench shell that carries them.
+  Rejected: both browsers in `just ffi test`.
 
 The gate sets no threshold, as the other benchmarks set none: rust2-go's "within 2x of
 cgo" was the maintainer's call from its report too. It compares every workload all routes

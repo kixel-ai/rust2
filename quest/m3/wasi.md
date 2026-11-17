@@ -12,7 +12,7 @@ should be, what each costs a call, and which of the exporter's rules each can ke
 ## Plan
 
 Decided with the maintainer on 2026-11-09: ✅ web and WASI are separate targets.
-[The web target](/quest/m2/wasm/backend.md) calls web APIs directly; this one is for
+[The web target](/ffi/README.md#typescript-web) calls web APIs directly; this one is for
 hosts that are WASI runtimes. Planned in m3 before a consumer asks, as
 [m3](/quest/m3/README.md#plan) records for the other targets. Rejected: one
 `wasm32-wasip1` module serving both.
@@ -33,14 +33,15 @@ hosts that are WASI runtimes. Planned in m3 before a consumer asks, as
   lent without a copy.
 - What a WASI host lacks is refused at export, at the span of the call that reaches it,
   as on every target: threads on `wasm32-wasip1`, and sockets there too.
+  [The refusal](/quest/m2/wasm/refuse.md) builds it for both wasm32 targets.
 
 Public API: the name of the WASI target and what it writes, if it lands.
 
 ## Required
 
 - [Exporter](/quest/m1/ffi-export/README.md) - the C ABI, its lossless types, and its checks are settled before a new target copies them
-- [The exporter's web target](/quest/m2/wasm/backend.md) - the wasm32 layouts, lent bytes, and single-thread rules this shares
 
 ## Related
 
+- [Refusing what a wasm32 target lacks](/quest/m2/wasm/refuse.md) - the export-time refusal this target shares with the web's
 - [moq in pure Go](/quest/m4/go/README.md) - parked until a consumer needs pure Go, and to weigh a WASI runtime first when one does
