@@ -931,7 +931,9 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 	// reaches, at that crate's static.
 	for &at in &graph.inits {
 		if tainted[at] && !mine(at) {
-			refused.entry((item_span(tcx, graph.nodes[at]), at)).or_insert((at, true));
+			refused
+				.entry((item_span(tcx, graph.nodes[at]), at))
+				.or_insert((at, true));
 		}
 	}
 	let path = |to: usize| {
@@ -1010,7 +1012,9 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 	// crate's item, if the module cannot load or link with it.
 	for &at in &graph.kept {
 		if tainted[at] && !mine(at) {
-			refused.entry((item_span(tcx, graph.nodes[at]), at)).or_insert((at, false));
+			refused
+				.entry((item_span(tcx, graph.nodes[at]), at))
+				.or_insert((at, false));
 		}
 	}
 	for ((span, to), (export, called)) in refused {
