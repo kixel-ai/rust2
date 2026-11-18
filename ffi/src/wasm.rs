@@ -881,14 +881,14 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 	// the module's load calls, unlike what only another crate's export reaches. What a C
 	// library calls back counts as called: a constructor of the C objects its link pulls in
 	// may call it at load, and the probe cannot tell a constructor's call from another's.
+	let back: FxHashSet<usize> = (graph.leaves.iter())
+		.filter(|(_, leaf)| matches!(leaf, Leaf::C(_)))
+		.flat_map(|(&at, _)| graph.edges[at].iter().map(|&(next, _)| next))
+		.collect();
 	let mut called = vec![false; len];
 	let mut stack: Vec<usize> = (0..len)
 		.filter(|&at| graph.origin[at] == at && !graph.kept.contains(&at))
-		.chain(
-			(graph.leaves.iter())
-				.filter(|(_, leaf)| matches!(leaf, Leaf::C(_)))
-				.flat_map(|(&at, _)| graph.edges[at].iter().map(|&(next, _)| next)),
-		)
+		.chain(back.iter().copied())
 		.collect();
 	while let Some(at) = stack.pop() {
 		if !std::mem::replace(&mut called[at], true) {
@@ -1016,12 +1016,13 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 		}
 	}
 	// What another crate exports, which no call of the crate's own code reaches, at that
-	// crate's item, if the module cannot load or link with it.
+	// crate's item, if the module cannot load or link with it, or if C calls it back, as a
+	// constructor may at load, where no call of the crate's own code names it.
 	for &at in &graph.kept {
 		if tainted[at] && !mine(at) {
 			refused
 				.entry((item_span(tcx, graph.nodes[at]), at))
-				.or_insert((at, false));
+				.or_insert((at, back.contains(&at)));
 		}
 	}
 	for ((span, to), (export, called)) in refused {
