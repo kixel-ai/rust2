@@ -878,10 +878,17 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 		}
 	}
 	// What the generated crate's exports and the module's start reach, which a binding or
-	// the module's load calls, unlike what only another crate's export reaches.
+	// the module's load calls, unlike what only another crate's export reaches. What a C
+	// library calls back counts as called: a constructor of the C objects its link pulls in
+	// may call it at load, and the probe cannot tell a constructor's call from another's.
 	let mut called = vec![false; len];
 	let mut stack: Vec<usize> = (0..len)
 		.filter(|&at| graph.origin[at] == at && !graph.kept.contains(&at))
+		.chain(
+			(graph.leaves.iter())
+				.filter(|(_, leaf)| matches!(leaf, Leaf::C(_)))
+				.flat_map(|(&at, _)| graph.edges[at].iter().map(|&(next, _)| next)),
+		)
 		.collect();
 	while let Some(at) = stack.pop() {
 		if !std::mem::replace(&mut called[at], true) {

@@ -233,6 +233,30 @@ extern "C" fn lacks_logged() {
 	web_sys::console::log_1(&"exported".into());
 }
 
+#[cfg(target_arch = "wasm32")]
+#[link(name = "needs", kind = "static")]
+unsafe extern "C" {
+	/// A C function whose object's constructor calls `lacks_constructed` back at load.
+	fn needs_ctor();
+}
+
+/// What the module exports as C's, which no export of the binding calls, but whose call
+/// pulls in a C object the module's start constructs.
+#[cfg(target_arch = "wasm32")]
+#[unsafe(no_mangle)]
+extern "C" fn lacks_pulled() {
+	// SAFETY: the fixture is only exported, never run.
+	unsafe { needs_ctor() }
+}
+
+/// What the C object's constructor calls back at load, calling a browser API: refused,
+/// since the module's start runs it.
+#[cfg(target_arch = "wasm32")]
+#[unsafe(no_mangle)]
+extern "C" fn lacks_constructed() {
+	web_sys::console::log_1(&"constructed".into());
+}
+
 /// Polymorphic recursion two ways at each step, which a breadth-first walk would expand
 /// exponentially before reaching the limit.
 #[cfg(feature = "recursion")]
