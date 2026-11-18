@@ -225,6 +225,14 @@ extern "C" fn lacks_exported() {
 	let _ = std::fs::metadata("exported");
 }
 
+/// What the module exports as C's, which no export of the binding calls, calling a browser
+/// API: wasm-bindgen's panicking stand-in fails neither the module's load nor its link, so it
+/// is not refused.
+#[unsafe(no_mangle)]
+extern "C" fn lacks_logged() {
+	web_sys::console::log_1(&"exported".into());
+}
+
 /// Polymorphic recursion two ways at each step, which a breadth-first walk would expand
 /// exponentially before reaching the limit.
 #[cfg(feature = "recursion")]

@@ -283,9 +283,10 @@ impl<'tcx> Graph<'tcx> {
 			graph.origin[at] = at;
 			graph.inits.insert(at);
 		}
+		// A static the module runs when it loads is called, whatever else exports it.
 		for &def_id in &symbols.kept {
 			let at = graph.add(Node::defined(tcx, def_id), None);
-			if graph.origin[at] == at {
+			if !graph.inits.contains(&at) {
 				graph.kept.insert(at);
 			}
 		}
@@ -876,9 +877,21 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 			}
 		}
 	}
+	// What the generated crate's exports and the module's start reach, which a binding or
+	// the module's load calls, unlike what only another crate's export reaches.
+	let mut called = vec![false; len];
+	let mut stack: Vec<usize> = (0..len)
+		.filter(|&at| graph.origin[at] == at && !graph.kept.contains(&at))
+		.collect();
+	while let Some(at) = stack.pop() {
+		if !std::mem::replace(&mut called[at], true) {
+			stack.extend(graph.edges[at].iter().map(|&(next, _)| next));
+		}
+	}
 	// Each call into that, from the crate's own code or from the generated crate's, by
-	// where it is refused, with the node it calls and the export it serves.
-	let mut refused: FxIndexMap<(Span, usize), usize> = FxIndexMap::default();
+	// where it is refused, with the node it calls, the export it serves, and whether
+	// anything calls it.
+	let mut refused: FxIndexMap<(Span, usize), (usize, bool)> = FxIndexMap::default();
 	let mut runtime: FxIndexSet<usize> = FxIndexSet::default();
 	for (from, edges) in graph.edges.iter().enumerate() {
 		if !mine(from) && !glue(from) {
@@ -907,14 +920,18 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 				// Its call names the export's item, whose own span says where.
 				true => item_span(tcx, graph.nodes[to]),
 			};
-			refused.entry((span, to)).or_insert(graph.origin[from]);
+			// A generic function's instances share its spans, some perhaps called and some not.
+			let entry = refused.entry((span, to)).or_insert((graph.origin[from], called[from]));
+			if called[from] && !entry.1 {
+				*entry = (graph.origin[from], true);
+			}
 		}
 	}
 	// What another crate runs when the module loads, which no call of the crate's own code
 	// reaches, at that crate's static.
 	for &at in &graph.inits {
 		if tainted[at] && !mine(at) {
-			refused.entry((item_span(tcx, graph.nodes[at]), at)).or_insert(at);
+			refused.entry((item_span(tcx, graph.nodes[at]), at)).or_insert((at, true));
 		}
 	}
 	let path = |to: usize| {
@@ -992,12 +1009,16 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 	// What another crate exports, which no call of the crate's own code reaches, at that
 	// crate's item, if the module cannot load or link with it.
 	for &at in &graph.kept {
-		if tainted[at] && !mine(at) && !reached(at, false).is_empty() {
-			refused.entry((item_span(tcx, graph.nodes[at]), at)).or_insert(at);
+		if tainted[at] && !mine(at) {
+			refused.entry((item_span(tcx, graph.nodes[at]), at)).or_insert((at, false));
 		}
 	}
-	for ((span, to), export) in refused {
-		let called = !(to == export && graph.kept.contains(&to));
+	for ((span, to), (export, called)) in refused {
+		// What no binding calls is refused only where the module cannot load or link with it.
+		let said = reached(to, called);
+		if said.is_empty() {
+			continue;
+		}
 		let path = path(to);
 		let what = match graph.leaves.get(&to) {
 			Some(Leaf::Import { .. }) => "the module imports".to_string(),
@@ -1020,8 +1041,7 @@ fn report<'tcx>(tcx: TyCtxt<'tcx>, graph: &Graph<'tcx>, lacks: &Lacks, own: &dyn
 		let mut err = tcx.dcx().struct_span_err(
 			span,
 			format!(
-				"rust2-ffi: {what} {}; leave it out of {}'s build with a `cfg`, or exclude its export in the config",
-				reached(to, called),
+				"rust2-ffi: {what} {said}; leave it out of {}'s build with a `cfg`, or exclude its export in the config",
 				host.target
 			),
 		);
