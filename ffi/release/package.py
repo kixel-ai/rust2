@@ -715,7 +715,7 @@ def zip_diff(one, two):
 
 
 def ar_members(path):
-    """An archive's members as `{name: (content hash, time, owner, group, mode)}`, with its symbol table and names table by their own."""
+    """An archive's members as `{name: (content, time, owner, group, mode)}`, with its symbol table and names table by their own."""
     data = Path(path).read_bytes()
     if data[:8] != b"!<arch>\n":
         raise SystemExit(f"{path} is no archive")
@@ -735,15 +735,25 @@ def ar_members(path):
         # A name twice, as an archive may hold, is told apart by its place.
         while name in members:
             name += "'"
-        members[name] = (hashlib.sha256(body).hexdigest(), date, uid, gid, mode)
+        members[name] = (body, date, uid, gid, mode)
     return members
 
 
 def ar_diff(one, two):
-    """The members two archives hold differently."""
+    """The members two archives hold differently, each with where its content first differs."""
     left, right = ar_members(one), ar_members(two)
-    return [f"  {name}: {left.get(name)} against {right.get(name)}"
-            for name in sorted(left.keys() | right.keys()) if left.get(name) != right.get(name)]
+    lines = []
+    for name in sorted(left.keys() | right.keys()):
+        a, b = left.get(name), right.get(name)
+        if a == b:
+            continue
+        if a is None or b is None:
+            lines.append(f"  {name}: only in the {'first' if b is None else 'second'}")
+            continue
+        at = next((i for i, (x, y) in enumerate(zip(a[0], b[0])) if x != y), min(len(a[0]), len(b[0])))
+        lines.append(f"  {name}: {len(a[0])} against {len(b[0])} bytes, {a[1:]} against {b[1:]}; first differing byte {at}: "
+                     f"{a[0][max(at - 24, 0):at + 40]!r} against {b[0][max(at - 24, 0):at + 40]!r}")
+    return lines
 
 
 def same(first, second):
