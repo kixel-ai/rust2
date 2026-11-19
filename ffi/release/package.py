@@ -14,6 +14,7 @@ import io
 import json
 import os
 from pathlib import Path
+import plistlib
 import re
 import shlex
 import shutil
@@ -389,6 +390,15 @@ def min_os(archive):
     return max(versions)
 
 
+def sort_plist(path):
+    """Rewrite an XCFramework's Info.plist with its libraries in name order, which xcodebuild lists in a random one."""
+    with open(path, "rb") as source:
+        plist = plistlib.load(source)
+    plist["AvailableLibraries"].sort(key=lambda library: library["LibraryIdentifier"])
+    with open(path, "wb") as sink:
+        plistlib.dump(plist, sink, sort_keys=True)
+
+
 def zip_tree(root, path, stamp):
     """The directory `root` as a ZIP holding it as its top-level directory, as `ditto --keepParent` does."""
     entries = [(f"{root.name}/", b"", 0o755)]
@@ -436,6 +446,7 @@ def swift(info, export, libs, natives, out):
             args += ["-library", libs[target], "-headers", headers]
         # libtool, which xcodebuild runs on each library, stamps the time unless told not to.
         run(*args, "-output", tree, env={**os.environ, "ZERO_AR_DATE": "1"})
+        sort_plist(tree / "Info.plist")
         zip_tree(tree, zipped, info["epoch"])
     if archive.read_bytes() != (again / archive.name).read_bytes():
         raise SystemExit("xcodebuild made different XCFrameworks from the same libraries:\n"

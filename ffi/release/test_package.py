@@ -200,6 +200,18 @@ class Reproducible(unittest.TestCase):
                     "MoqFFI.xcframework/", "MoqFFI.xcframework/Info.plist", "MoqFFI.xcframework/macos/",
                     "MoqFFI.xcframework/macos/libmoq.a"])
 
+    def test_xcframework_plist_lists_libraries_in_name_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "Info.plist"
+            libraries = [{"LibraryIdentifier": name} for name in ("macos-arm64", "ios-arm64-simulator", "ios-arm64")]
+            for order in (libraries, libraries[::-1]):
+                path.write_bytes(package.plistlib.dumps({"AvailableLibraries": order, "CFBundlePackageType": "XFWK"}))
+                package.sort_plist(path)
+                first = path.read_bytes() if order is libraries else first
+            self.assertEqual(path.read_bytes(), first)
+            self.assertEqual([x["LibraryIdentifier"] for x in package.plistlib.loads(first)["AvailableLibraries"]],
+                             ["ios-arm64", "ios-arm64-simulator", "macos-arm64"])
+
     def test_a_symlink_in_the_xcframework_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             tree = Path(tmp) / "MoqFFI.xcframework"
