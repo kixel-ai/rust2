@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -234,11 +235,12 @@ class Reproducible(unittest.TestCase):
             self.assertEqual(package.epoch(tmp), 1_700_000_000)
 
     def test_paths_are_remapped_and_rustflags_kept(self):
-        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"RUSTFLAGS": "-C target-cpu=native", "CARGO_HOME": "/home/u/.cargo"}):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"RUSTFLAGS": "-C target-cpu=native -Lnative=C:\\deps", "CARGO_HOME": "/home/u/.cargo"}):
             os.environ.pop("CARGO_ENCODED_RUSTFLAGS", None)
             env = package.reproducible(info(tmp), Path(tmp) / "export", "x86_64-unknown-linux-gnu")
             flags = env["CARGO_ENCODED_RUSTFLAGS"].split("\x1f")
-            self.assertEqual(flags[:2], ["-C", "target-cpu=native"])
+            # Cargo splits on whitespace alone, so a Windows path keeps its backslash.
+            self.assertEqual(flags[:3], ["-C", "target-cpu=native", "-Lnative=C:\\deps"])
             self.assertIn(f"--remap-path-prefix={tmp}/export=/export", flags)
             # The deeper directory comes last, as rustc prefers the last match.
             self.assertLess(flags.index(f"--remap-path-prefix={tmp}=/source"), flags.index(f"--remap-path-prefix={tmp}/export=/export"))
@@ -310,6 +312,28 @@ class Sbom(unittest.TestCase):
                 {"ref": "pkg:cargo/dep@1.2.3", "dependsOn": []},
                 {"ref": "pkg:cargo/moq-ffi@0.4.12", "dependsOn": ["pkg:cargo/dep@1.2.3"]},
             ])
+
+
+    def test_one_version_from_two_sources_is_two_components(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            crate = self.crate(root)
+            # The same name and version again, from a git repository.
+            fork = root / "fork"
+            shutil.copytree(root / "dep", fork)
+            git = ["git", "-C", str(fork), "-c", "user.name=t", "-c", "user.email=t@t"]
+            subprocess.run([*git, "init", "-q"], check=True)
+            subprocess.run([*git, "add", "."], check=True)
+            subprocess.run([*git, "commit", "-q", "-m", "x"], check=True)
+            manifest = crate.read_text().replace("[build-dependencies]", f'forked = {{ package = "dep", git = "file://{fork}" }}\n[build-dependencies]')
+            crate.write_text(manifest)
+            # A local repository, which cargo fetches without a network.
+            subprocess.run(["cargo", "generate-lockfile", "--manifest-path", crate], check=True, capture_output=True)
+            document = json.loads(package.sbom(info(tmp, name="moq-ffi", version="0.4.12"), crate))
+            refs = [c["bom-ref"] for c in document["components"]]
+            self.assertEqual(len(refs), 2)
+            self.assertIn("pkg:cargo/dep@1.2.3", refs)
+            self.assertTrue(any(ref.startswith("pkg:cargo/dep@1.2.3?vcs_url=git%2Bfile") for ref in refs), refs)
 
 
 class Digest(unittest.TestCase):

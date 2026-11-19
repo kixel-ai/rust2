@@ -23,6 +23,7 @@ import sys
 import tempfile
 import time
 import tomllib
+import urllib.parse
 import zipfile
 
 HERE = Path(__file__).resolve().parent
@@ -48,6 +49,7 @@ WHEEL_TARGETS = [
 ]
 # Cargo metadata names a library target by its crate types; a proc-macro is no library to export.
 LIBRARY_KINDS = {"lib", "rlib", "dylib", "cdylib", "staticlib"}
+CRATES_IO = "registry+https://github.com/rust-lang/crates.io-index"
 COLLECTIONS = "https://github.com/apple/swift-collections"
 # The first date a ZIP entry can hold, and so the earliest SOURCE_DATE_EPOCH a build takes.
 ZIP_EPOCH = 315532800
@@ -588,7 +590,7 @@ def reproducible(info, export_dir, target):
     for found in rustflags_config(info["dir"], target):
         raise SystemExit(f"{found} sets rustflags, which the reproducible build's RUSTFLAGS would replace: export RUSTFLAGS instead")
     flags = os.environ.get("CARGO_ENCODED_RUSTFLAGS", "").split("\x1f") if "CARGO_ENCODED_RUSTFLAGS" in os.environ \
-        else shlex.split(os.environ.get("RUSTFLAGS", ""))
+        else os.environ.get("RUSTFLAGS", "").split()
     flags += [f"--remap-path-prefix={old}={new}" for old, new in pairs]
     env = {"SOURCE_DATE_EPOCH": str(info["epoch"])}
     if "msvc" in target:
@@ -613,7 +615,16 @@ def sbom(info, crate):
     checksums = {(p["name"], p["version"], p.get("source")): p["checksum"] for p in lock["package"] if "checksum" in p}
     packages = {p["id"]: p for p in meta["packages"]}
     nodes = {n["id"]: n for n in meta["resolve"]["nodes"]}
-    purl = lambda p: f"pkg:cargo/{p['name']}@{p['version']}"  # noqa: E731
+    def purl(package):
+        """The crate's package URL, qualified by its source unless that is crates.io, so two sources of one version stay two components."""
+        base = f"pkg:cargo/{package['name']}@{package['version']}"
+        source = package.get("source") or ""
+        if source.startswith("registry+") and source != CRATES_IO:
+            return f"{base}?repository_url={urllib.parse.quote(source[len('registry+'):], safe='')}"
+        if source.startswith("git+"):
+            return f"{base}?vcs_url={urllib.parse.quote(source, safe='')}"
+        return base
+
     root = f"pkg:cargo/{info['name']}@{info['version']}"
     # The generated crate is the package it exports: its dependencies are the package's.
     ref = lambda i: root if i == meta["resolve"]["root"] or purl(packages[i]) == root else purl(packages[i])  # noqa: E731
@@ -629,7 +640,7 @@ def sbom(info, crate):
                    and not any("proc-macro" in t["kind"] for t in packages[d["pkg"]]["targets"])]
         depends.setdefault(ref(node), set()).update(ref(i) for i in shipped)
         queue += shipped
-    components = {ref(i): packages[i] for i in seen if ref(i) != root}
+    components = {ref(i): packages[i] for i in sorted(seen) if ref(i) != root}
     def component(name, package):
         out = {"type": "library", "bom-ref": name, "name": package["name"], "version": package["version"], "purl": name}
         if package.get("license"):
