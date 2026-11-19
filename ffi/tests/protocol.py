@@ -94,6 +94,10 @@ def run(op: str, args: list[str]) -> str:
 			return str(at(args[0]).count())
 		case "receipt_clone":
 			slots[a] = at(args[1]).clone()
+		case "tallied":
+			return str(api.tallied(at(args[0])))
+		case "stored":
+			return str(api.stored(at(args[0])))
 		case "tally_new":
 			slots[a] = api.Tally.new()
 		case "tally_bump":
