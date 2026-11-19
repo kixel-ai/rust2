@@ -730,7 +730,13 @@ the rest cross encoded.
 same library on the stable ABI, so one build loads in CPython 3.11 and later. The module
 loads the library from beside itself: `lib<prefix>.so`, `lib<prefix>.dylib`, or
 `<prefix>.dll`. Its glue converts each Python value to the C value and calls the C ABI
-function in-process, so a call is one crossing, which releases the GIL while Rust runs.
+function in-process, so a call is one crossing, which releases the GIL while Rust runs,
+so Rust may call Python back from any thread meanwhile. A leaf keeps it: a read or write of
+a primitive `pub` field of a `Send` object reached without a `Deref`, or a `PartialEq` or
+`Hash` derived, or std's, down to primitives, which the export proves runs no code but
+std's and the glue's, waits on no lock, and calls no Python, so it cannot deadlock on the
+GIL (`Abi::leaf` in `src/abi.rs` gives the argument). A field read costs 28 ns that way,
+against 89 releasing it ([the benchmark](../bench/ffi/README.md#leaf-calls)).
 Each function, method, and property but an `async def` is the extension's own, bound in
 the module or set on its class as it loads, so a call enters it with no Python frame
 between; the Python declares them under `typing.TYPE_CHECKING`, for type checkers. They
@@ -1266,8 +1272,11 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   future's poll and `cancel()` included, runs on a thread of its own, acting as the
   caller's for the handles it borrows, while the isolate's thread runs what Rust calls
   into Dart meanwhile. Any other call runs on the isolate's thread, since nothing it waits
-  on can call into Dart. An isolate may move between threads, so a value that is not
-  `Send` is made on a home, a thread Rust owns, which runs each call on it.
+  on can call into Dart. A leaf, as Python's keeps the GIL across, is a leaf call (`isLeaf`)
+  on the isolate's thread, with no hop and no arena: a field read costs 13 ns,
+  against 34, and while Rust holds a closure, against 3 us. An isolate may move between
+  threads, so a value that is not `Send` is made on a home, a thread Rust owns, which runs
+  each call on it.
 - **The contract** is checked at the first call, before any other: a Dart file and a
   library from different builds throw a `StateError`.
 
