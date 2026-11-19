@@ -239,8 +239,7 @@ export function run(self: Executor): void {
 
 /** Which live tasks are woken and waiting for a poll. */
 export function woken(self: Executor): rs.String {
-	const items: Array<exec_Task.Task | undefined> = self.tasks.items;
-	const s = rs.sliceItems(new rs.Slice(items, 0, items.length));
+	const s = self.tasks.items;
 	let front = 0;
 	let back = s.length;
 	let count = 0;
@@ -276,8 +275,7 @@ export function woken(self: Executor): rs.String {
 		}
 		d.push(y3);
 	}
-	const items2: rs.String[] = new rs.Vec(d, cap).items;
-	return rs.strsJoin(rs.sliceItems(new rs.Slice(items2, 0, items2.length)), ",");
+	return rs.strsJoin(new rs.Vec(d, cap).items, ",");
 }
 
 /** Drop the live task `arg` picks, if any. */

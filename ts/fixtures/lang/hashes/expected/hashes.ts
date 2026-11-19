@@ -1044,10 +1044,8 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		const words: rs.Vec<rs.u16> = v3;
 		digest$Vec_u16(words, out);
-		const from: number = rs.usizeDiv(words.items.length, 2);
-		const items: rs.u16[] = words.items;
-		rs.rangeCheck(items.length, from, items.length);
-		digest$slice_u16(new rs.Slice(items, from, items.length - from), out);
+		const part = rs.usizeDiv(words.items.length, 2);
+		digest$slice_u16(rs.sliceRange(rs.sliceFrom(words.items), part), out);
 		digest$array3_u32(rs.sliceFrom([n, (n ^ 1) >>> 0, n >>> 3]), out);
 		digest$cmp_Ordering(rs.cmp(n & 0xff, rs.u128Low(w(4, 1)) & 0xff), out);
 		digest$time_Duration(rs.durationNew(rs.u64Cast(w(0, 6)), rs.u32Rem(n, 1000000000)), out);
@@ -1204,13 +1202,10 @@ export function random(data: rs.ByteSlice, out: rs.ByteVec): void {
 		v.items.push(rs.u64Mul(x2 as rs.u64, 1103823438081));
 	}
 	const keys: rs.Vec<rs.u64> = v;
-	const items: rs.u64[] = keys.items;
-	const _119: (a0: rs.u64) => rs.u64 = (k2: rs.u64): rs.u64 => {
+	rs.sliceSort(rs.sliceFrom(keys.items), rs.keyLt((k2: rs.u64): rs.u64 => {
 		return rs.hashOne(rs.buildHasher(other.state), k2, rs.hash64);
-	};
-	rs.sliceSort(new rs.Slice(items, 0, items.length), rs.keyLt(_119, rs.lt), 8, true);
-	const items2: rs.u64[] = keys.items;
-	rs.sliceSort(new rs.Slice(items2, 0, items2.length), rs.lt, 8, true);
+	}, rs.lt), 8, true);
+	rs.sliceSort(rs.sliceFrom(keys.items), rs.lt, 8, true);
 	for (const _127 of keys.items) {
 		const dst = out;
 		const word = _127;
@@ -1352,10 +1347,9 @@ export function hashInto$hashes_Bare(h: Bare.Bare, data: rs.ByteSlice): void {
 	}
 	const words: rs.Vec<rs.u16> = v;
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const from: number = rs.usizeDiv(words.items.length, 2);
-	const items: rs.u16[] = words.items;
-	rs.rangeCheck(items.length, from, items.length);
-	rs.hashInts(2)(new rs.Slice(items, from, items.length - from), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	const part = rs.usizeDiv(words.items.length, 2);
+	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
+	rs.hashInts(2)(_111, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	const _119: rs.Slice<rs.u64> = rs.sliceFrom([b, rs.u64Shl(b, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b)]);
 	rs.hashInts(8)(_119, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	const _127: rs.Slice<rs.i128> = rs.sliceFrom([rs.i128Cast(a), rs.i128Neg(rs.i128Cast(a))]);
@@ -1439,10 +1433,9 @@ export function hashInto$hashes_Full(h: Full.Full, data: rs.ByteSlice): void {
 	}
 	const words: rs.Vec<rs.u16> = v;
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const from: number = rs.usizeDiv(words.items.length, 2);
-	const items: rs.u16[] = words.items;
-	rs.rangeCheck(items.length, from, items.length);
-	rs.hashInts(2)(new rs.Slice(items, from, items.length - from), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	const part = rs.usizeDiv(words.items.length, 2);
+	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
+	rs.hashInts(2)(_111, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	const _119: rs.Slice<rs.u64> = rs.sliceFrom([b, rs.u64Shl(b, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b)]);
 	rs.hashInts(8)(_119, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	const _127: rs.Slice<rs.i128> = rs.sliceFrom([rs.i128Cast(a), rs.i128Neg(rs.i128Cast(a))]);
@@ -1526,10 +1519,9 @@ export function hashInto$hashes_Partial(h: Partial.Partial, data: rs.ByteSlice):
 	}
 	const words: rs.Vec<rs.u16> = v;
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const from: number = rs.usizeDiv(words.items.length, 2);
-	const items: rs.u16[] = words.items;
-	rs.rangeCheck(items.length, from, items.length);
-	rs.hashInts(2)(new rs.Slice(items, from, items.length - from), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	const part = rs.usizeDiv(words.items.length, 2);
+	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
+	rs.hashInts(2)(_111, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	const _119: rs.Slice<rs.u64> = rs.sliceFrom([b, rs.u64Shl(b, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b)]);
 	rs.hashInts(8)(_119, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	const _127: rs.Slice<rs.i128> = rs.sliceFrom([rs.i128Cast(a), rs.i128Neg(rs.i128Cast(a))]);
@@ -1613,10 +1605,9 @@ export function hashInto$hashes_Switch(h: rs.Place<Switch.Switch>, data: rs.Byte
 	}
 	const words: rs.Vec<rs.u16> = v;
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const from: number = rs.usizeDiv(words.items.length, 2);
-	const items: rs.u16[] = words.items;
-	rs.rangeCheck(items.length, from, items.length);
-	rs.hashInts(2)(new rs.Slice(items, from, items.length - from), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	const part = rs.usizeDiv(words.items.length, 2);
+	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
+	rs.hashInts(2)(_111, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	const _119: rs.Slice<rs.u64> = rs.sliceFrom([b, rs.u64Shl(b, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b)]);
 	rs.hashInts(8)(_119, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	const _127: rs.Slice<rs.i128> = rs.sliceFrom([rs.i128Cast(a), rs.i128Neg(rs.i128Cast(a))]);
@@ -1819,8 +1810,7 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(keyed, _44) ? 1 : 0);
 	}
 	const held: rs.Vec<[Key.Key, rs.u8]> = rs.iterToVec(rs.hashIter(keyed), "next", 8);
-	const items: [Key.Key, rs.u8][] = held.items;
-	rs.sliceSort(new rs.Slice(items, 0, items.length), rs.cmpLt(rs.cmpTuple<[Key.Key, rs.u8], rs.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rs.cmp])), 8, true);
+	rs.sliceSort(rs.sliceFrom(held.items), rs.cmpLt(rs.cmpTuple<[Key.Key, rs.u8], rs.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rs.cmp])), 8, true);
 	for (const _63 of held.items) {
 		rs.byteVecPush(out, _63[0]._0 & 0xff);
 		put(out, _63[0]._1.v);
@@ -1885,8 +1875,7 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.hashExtendKeys(seen, rs.hashKeys(small, undefined, undefined, rs.drop), undefined, undefined, 469762048);
 	rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	const keys: rs.Vec<Key.Key> = rs.iterToVec(rs.hashKeys(keyed, undefined, undefined, rs.drop), "next", 16);
-	const items2: Key.Key[] = keys.items;
-	rs.sliceSort(new rs.Slice(items2, 0, items2.length), rs.cmpLt(Key.partialCmp$cmp_PartialOrd), 16, true);
+	rs.sliceSort(rs.sliceFrom(keys.items), rs.cmpLt(Key.partialCmp$cmp_PartialOrd), 16, true);
 	rs.byteVecPush(out, keys.items.length & 0xff);
 	const iter3: rs.Iter<Noisy.Noisy> = rs.hashValues(taken, rs.drop, undefined, rs.drop);
 	while (true) {
@@ -1946,8 +1935,7 @@ export function compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Sp
 	}
 	rs.vecTruncate(calls, rs.usizeDiv(calls.items.length, 2));
 	if (len > 1) {
-		const items: rs.u32[] = calls.items;
-		rs.sliceSort(new rs.Slice(items, 0, items.length), rs.lt, 4, true);
+		rs.sliceSort(rs.sliceFrom(calls.items), rs.lt, 4, true);
 	}
 	rs.byteVecPush(out, calls.items.length & 0xff);
 	for (const _39 of calls.items) {
@@ -1987,8 +1975,7 @@ export function compared$collections_HashSet_hashes_Sided_hashes_Spread(a: rs.Ha
 	}
 	rs.vecTruncate(calls, rs.usizeDiv(calls.items.length, 2));
 	if (len > 1) {
-		const items: rs.u32[] = calls.items;
-		rs.sliceSort(new rs.Slice(items, 0, items.length), rs.lt, 4, true);
+		rs.sliceSort(rs.sliceFrom(calls.items), rs.lt, 4, true);
 	}
 	rs.byteVecPush(out, calls.items.length & 0xff);
 	for (const _39 of calls.items) {
@@ -2253,8 +2240,7 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(keyed, _128) ? 1 : 0);
 	}
 	const entries: rs.Vec<[Key.Key, rs.u8]> = rs.iterToVec(rs.hashIter(keyed), "next", 8);
-	const items: [Key.Key, rs.u8][] = entries.items;
-	rs.sliceSort(new rs.Slice(items, 0, items.length), rs.cmpLt(rs.cmpTuple<[Key.Key, rs.u8], rs.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rs.cmp])), 8, true);
+	rs.sliceSort(rs.sliceFrom(entries.items), rs.cmpLt(rs.cmpTuple<[Key.Key, rs.u8], rs.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rs.cmp])), 8, true);
 	for (const _147 of entries.items) {
 		rs.byteVecPush(out, _147[0]._0 & 0xff);
 		put(out, _147[0]._1.v);

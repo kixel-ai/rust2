@@ -167,8 +167,7 @@ export function chars(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}), "next", 4, false, 4);
 		const sorted: rs.BTreeSet<rs.char> = rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.char>;
 		const seen: rs.HashSet<rs.char> = rs.hashNew() as rs.HashSet<rs.char>;
-		const items: rs.char[] = cs.items;
-		const s: rs.char[] = rs.sliceItems(new rs.Slice(items, 0, items.length));
+		const s: rs.char[] = cs.items;
 		let front: number = 0;
 		const back: number = s.length;
 		let count: number = 0;
@@ -486,9 +485,7 @@ export function encodes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			rs.byteVecPush(out, rs.stringLen(rs.charEncodeUtf8(c, rs.byteSliceRange(rs.byteSliceFrom(bytes2), 2)).v) & 0xff);
 			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(bytes2));
 			const units2: rs.Vec<rs.u16> = rs.vecFromElem(7, 4, undefined);
-			const items2: rs.u16[] = units2.items;
-			rs.rangeCheck(items2.length, 1, items2.length);
-			rs.byteVecPush(out, rs.charEncodeUtf16(c, new rs.Slice(items2, 1, items2.length - 1)).length & 0xff);
+			rs.byteVecPush(out, rs.charEncodeUtf16(c, rs.sliceRange(rs.sliceFrom(units2.items), 1)).length & 0xff);
 			for (const _94 of units2.items) {
 				const dst2 = out;
 				const word = _94;
@@ -503,8 +500,7 @@ export function encodes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				return rs.u8Rem(_2, 5) as rs.usize;
 			});
 			put(out, rs.charEncodeUtf8(c, rs.byteVecSlice(rs.byteVecOf(0, n2))).v);
-			const items: rs.u16[] = rs.vecFromElem(0, rs.usizeRem(n2, 3), undefined).items;
-			rs.byteVecPush(out, rs.charEncodeUtf16(c, new rs.Slice(items, 0, items.length)).length & 0xff);
+			rs.byteVecPush(out, rs.charEncodeUtf16(c, rs.sliceFrom(rs.vecFromElem(0, rs.usizeRem(n2, 3), undefined).items)).length & 0xff);
 		}
 	}
 }
@@ -521,11 +517,9 @@ export function decodes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		return (p.data[p.start] << 8) | option_unwrapOr$1fr498u(rs.byteSliceGet(p, 1), 0);
 	}), undefined, 2, true);
 	if (rs.u8Rem(kind, 2) === 0) {
-		const items2: rs.u16[] = units.items;
-		it = rs.charDecodeUtf16(rs.iterSlice(rs.sliceItems(new rs.Slice(items2, 0, items2.length))));
+		it = rs.charDecodeUtf16(rs.iterSlice(units.items));
 	} else {
-		const items: rs.u16[] = units.items;
-		it = rs.charDecodeUtf16(rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length))));
+		it = rs.charDecodeUtf16(rs.iterSlice(units.items));
 	}
 	let last: rs.DecodeUtf16Error | undefined = undefined;
 	while (true) {

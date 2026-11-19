@@ -35,10 +35,8 @@ export function boxed(log: Log.Log, id: rs.u32): void {
 	parts.items.push(_28);
 	const _36: Part.Part = new of$drops_Held({ tag: "One", _0: guard(5) } as Held.Held);
 	parts.items.push(_36);
-	const items: Part.Part[] = parts.items;
-	rs.sliceSwap(new rs.Slice(items, 0, items.length), 2, 3);
-	const items2: Part.Part[] = parts.items;
-	const s = rs.sliceItems(new rs.Slice(items2, 0, items2.length));
+	rs.sliceSwap(rs.sliceFrom(parts.items), 2, 3);
+	const s = parts.items;
 	let front = 0;
 	let back = s.length;
 	let acc: rs.u32 = 0;
@@ -109,8 +107,7 @@ export function shared(log: Log.Log, id: rs.u32): void {
 	parts.items.push(new rs.ArcDyn(_77, new of$u32(_77.value)));
 	const weak: rs.Weak<Part.Part> = new rs.Weak(parts.items[rs.idx(parts.items, 1)]);
 	second[Symbol.dispose]();
-	const items: rs.Arc<Part.Part>[] = parts.items;
-	const s = rs.sliceItems(new rs.Slice(items, 0, items.length));
+	const s = parts.items;
 	let front = 0;
 	let back = s.length;
 	let acc: rs.u32 = 0;

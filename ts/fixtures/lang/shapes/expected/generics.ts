@@ -292,24 +292,14 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		v2.items.push(x5 as rs.u16);
 	}
 	const data3: rs.Vec<rs.u16> = v2;
-	const items: rs.u16[] = data3.items;
-	const n2: rs.u16 = option_unwrapOrDefault$0w7995p(rs.sliceFirst(new rs.Slice(items, 0, items.length)));
-	const _129: rs.Vec<rs.u16> = rs.vecFrom(data3.items.slice());
-	const items2: rs.u16[] = data3.items;
-	const _133: rs.Slice<rs.u16> = rs.sliceFrom(rs.vecFrom(data3.items.slice()).items);
-	const items3: rs.u16[] = data3.items;
-	const _128: rs.u16[] = Array.from({ length: 3 }, (): rs.u16 => {
+	const n2: rs.u16 = option_unwrapOrDefault$0w7995p(rs.sliceFirst(rs.sliceFrom(data3.items)));
+	const runs2: Runs.Runs<rs.u16> = new Runs.Runs(Array.from({ length: 3 }, (): rs.u16 => {
 		return n2;
-	});
-	const _136: rs.Cow<rs.u16> = new rs.Borrowed(new rs.Slice(items3, 0, items3.length));
-	const _139: rs.Vec<rs.u16[]> = new rs.Vec();
-	const _140: rs.Vec<rs.u16> | undefined = then$01xsbgy(rs.usizeRem(data3.items.length, 2) === 0, (): rs.Vec<rs.u16> => {
+	}), rs.vecFrom(data3.items.slice()), rs.sliceFrom(data3.items), rs.sliceFrom(rs.vecFrom(data3.items.slice()).items), new rs.Borrowed(rs.sliceFrom(data3.items)), new rs.Vec() as rs.Vec<rs.ArrayOf<rs.u16>>, then$01xsbgy(rs.usizeRem(data3.items.length, 2) === 0, (): rs.Vec<rs.u16> => {
 		return new rs.Vec();
-	});
-	const runs2: Runs.Runs<rs.u16> = new Runs.Runs(_128, _129, new rs.Slice(items2, 0, items2.length), _133, _136, _139 as rs.Vec<rs.ArrayOf<rs.u16>>, _140);
+	}));
 	const before2: Runs.Runs<rs.u16> = Runs.clone$Clone_u16(runs2);
-	const items4: rs.u16[] = data3.items;
-	const s4: rs.u16[] = rs.sliceItems(new rs.Slice(items4, 0, items4.length));
+	const s4: rs.u16[] = data3.items;
 	let front4: number = 0;
 	const back4: number = s4.length;
 	let take2: number = 3;
@@ -325,23 +315,20 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	if (_160 !== undefined) {
 		fill$u16(_160, n2);
 	}
-	const slice: rs.Slice<rs.u16> = rs.sliceFrom(runs2.array as rs.u16[]);
-	rs.rangeCheck(slice.length, 1, slice.length);
-	fill$u16(new rs.Slice(slice.data, slice.start + 1, slice.length - 1), 7 as rs.u16);
+	fill$u16(rs.sliceRange(rs.sliceFrom(runs2.array as rs.u16[]), 1), 7 as rs.u16);
 	const taken4 = runs2.list as rs.Vec<rs.u16>;
 	(runs2.list as rs.Vec<rs.u16>) = new rs.Vec();
 	const taken2: rs.Vec<rs.u16> = taken4;
-	const items5: rs.u16[] = taken2.items;
-	const part = new rs.Slice(items5, 0, items5.length);
-	const lent2: Lends.Lends<rs.u16> = { run: part, last: ((a02: rs.Slice<rs.u16>): rs.u16 | undefined => {
+	const _175: rs.Slice<rs.u16> = rs.sliceFrom(taken2.items);
+	const lent2: Lends.Lends<rs.u16> = { run: _175, last: ((a02: rs.Slice<rs.u16>): rs.u16 | undefined => {
 		return rs.sliceLast(a02);
 	}) as (a0: rs.SliceOf<rs.u16>) => rs.Ptr<rs.u16> | undefined };
 	const last2: rs.u16 | undefined = (lent2.last as (a0: rs.Slice<rs.u16>) => rs.u16 | undefined)(runs2.view as rs.Slice<rs.u16>);
-	const _181: rs.Place<rs.u16> | undefined = rs.sliceLastMut(part);
+	const _181: rs.Place<rs.u16> | undefined = rs.sliceLastMut(_175);
 	if (_181 !== undefined) {
 		_181.v = n2;
 	}
-	fill$u16(part, 3 as rs.u16);
+	fill$u16(_175, 3 as rs.u16);
 	const run2: Run.Run<rs.u16> = Runs.run$u16(runs2);
 	const fixed2: Fixed.Fixed<rs.u16> = new Fixed.Fixed([n2, n2], 1);
 	const copy2: Fixed.Fixed<rs.u16> = copy$generics_Fixed_u16(fixed2);
@@ -368,19 +355,16 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const ticks: rs.Vec<Ticked.Ticked> = v3;
 	const _246: Ticked.Ticked[] = [tick(1), tick(2), tick(3)];
 	const _256: rs.Vec<Ticked.Ticked> = rs.vecFrom(ticks.items.map(Ticked.clone$Clone));
-	const items6: Ticked.Ticked[] = ticks.items;
+	const _258: rs.Slice<Ticked.Ticked> = rs.sliceFrom(ticks.items);
 	const _260: rs.Slice<Ticked.Ticked> = rs.sliceFrom([tick(4)]);
 	if (rs.usizeRem(data.length, 2) === 0) {
-		const items7: Ticked.Ticked[] = ticks.items;
-		_266 = new rs.Borrowed(new rs.Slice(items7, 0, items7.length));
+		_266 = new rs.Borrowed(rs.sliceFrom(ticks.items));
 	} else {
 		_266 = rs.vecFrom([tick(7)]);
 	}
-	const _277: rs.Vec<Ticked.Ticked[]> = rs.vecFrom([[tick(5), tick(6)]]);
-	const _286: rs.Vec<Ticked.Ticked> | undefined = option_map$0ggarad(rs.byteSliceFirst(data), (_210: rs.u8): rs.Vec<Ticked.Ticked> => {
+	new Runs.Runs(_246, _256, _258, _260, _266, rs.vecFrom([[tick(5), tick(6)]]) as rs.Vec<rs.ArrayOf<Ticked.Ticked>>, option_map$0ggarad(rs.byteSliceFirst(data), (_210: rs.u8): rs.Vec<Ticked.Ticked> => {
 		return rs.vecFrom([tick(~_210 & 0xff)]);
-	});
-	new Runs.Runs(_246, _256, new rs.Slice(items6, 0, items6.length), _260, _266, _277 as rs.Vec<rs.ArrayOf<Ticked.Ticked>>, _286)[Symbol.dispose]();
+	}))[Symbol.dispose]();
 	const _292: rs.usize = rs.usizeRem(data.length, 3);
 	if (_292 === 0) {
 		run3 = { tag: "Listed", _0: rs.vecFrom([tick(8)]) } as Run.Run<Ticked.Ticked>;
@@ -573,11 +557,9 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 		v2.items.push(rs.u16Mul(x2 as rs.u16, 257));
 	}
 	const items2: rs.Vec<rs.u16> = v2;
-	const _62: rs.u16 = ((b7: rs.u8): rs.u16 => {
+	const drain2: Drained.Drained<rs.u16[], rs.u16> = Drained.new$array2_u16(((b7: rs.u8): rs.u16 => {
 		return rs.u16Mul(b7 as rs.u16, 257);
-	})(90);
-	const items6: rs.u16[] = items2.items;
-	const drain2: Drained.Drained<rs.u16[], rs.u16> = Drained.new$array2_u16(_62, new rs.Slice(items6, 0, items6.length));
+	})(90), rs.sliceFrom(items2.items));
 	let count2: rs.usize = 0;
 	while (Drained.next$array2_u16(drain2) !== undefined) {
 		count2 = rs.usizeAdd(count2, 1);
@@ -585,10 +567,8 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _76: rs.u16 = ((b8: rs.u8): rs.u16 => {
 		return rs.u16Mul(b8 as rs.u16, 257);
 	})(1);
-	const from: number = rs.usizeDiv(items2.items.length, 2);
-	const items7: rs.u16[] = items2.items;
-	rs.rangeCheck(items7.length, from, items7.length);
-	const batch2: Batch.Batch<rs.u16[], rs.u16> = new Batch.Batch(Drained.new$array2_u16(_76, new rs.Slice(items7, from, items7.length - from)), 0);
+	const part2 = rs.usizeDiv(items2.items.length, 2);
+	const batch2: Batch.Batch<rs.u16[], rs.u16> = new Batch.Batch(Drained.new$array2_u16(_76, rs.sliceRange(rs.sliceFrom(items2.items), part2)), 0);
 	const half2: rs.u16 | undefined = Batch.take$array2_u16(batch2);
 	const _101: rs.usize = count2;
 	const arg5 = drain2.last;
@@ -605,17 +585,14 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put(out, rs.fmtFormat([args20[0], " ", args20[1], " ", args20[2], " ", args20[3], " ", args20[4], " ", args20[5], " ", args20[6]]).v);
 	const items3: rs.Vec<undefined> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): undefined => {}), undefined, 0, true);
 	((_26: rs.u8): undefined => {})(90);
-	const items8: undefined[] = items3.items;
-	const drain3: Drained.Drained<undefined[], undefined> = Drained.new$array3_unit(undefined, new rs.Slice(items8, 0, items8.length));
+	const drain3: Drained.Drained<undefined[], undefined> = Drained.new$array3_unit(undefined, rs.sliceFrom(items3.items));
 	let count3: rs.usize = 0;
 	while (Drained.next$array3_unit(drain3) !== rs.None) {
 		count3 = rs.usizeAdd(count3, 1);
 	}
 	((_210: rs.u8): undefined => {})(1);
-	const from2: number = rs.usizeDiv(items3.items.length, 2);
-	const items9: undefined[] = items3.items;
-	rs.rangeCheck(items9.length, from2, items9.length);
-	const batch3: Batch.Batch<undefined[], undefined> = new Batch.Batch(Drained.new$array3_unit(undefined, new rs.Slice(items9, from2, items9.length - from2)), 0);
+	const part3 = rs.usizeDiv(items3.items.length, 2);
+	const batch3: Batch.Batch<undefined[], undefined> = new Batch.Batch(Drained.new$array3_unit(undefined, rs.sliceRange(rs.sliceFrom(items3.items), part3)), 0);
 	const half3: undefined | rs.None = Batch.take$array3_unit(batch3);
 	const _156: rs.usize = count3;
 	const arg9 = drain3.last;
@@ -639,11 +616,9 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 		v3.items.push(y3);
 	}
 	const items4: rs.Vec<rs.u8 | undefined> = v3;
-	const _172: rs.u8 | undefined = ((b10: rs.u8): rs.u8 | undefined => {
+	const drain4: Drained.Drained<Array<rs.u8 | undefined>, rs.u8 | undefined> = Drained.new$array1_Option_u8(((b10: rs.u8): rs.u8 | undefined => {
 		return thenSome$0quywni(rs.u8Rem(b10, 3) !== 0, b10);
-	})(90);
-	const items10: Array<rs.u8 | undefined> = items4.items;
-	const drain4: Drained.Drained<Array<rs.u8 | undefined>, rs.u8 | undefined> = Drained.new$array1_Option_u8(_172, new rs.Slice(items10, 0, items10.length));
+	})(90), rs.sliceFrom(items4.items));
 	let count4: rs.usize = 0;
 	while (Drained.next$array1_Option_u8(drain4) !== rs.None) {
 		count4 = rs.usizeAdd(count4, 1);
@@ -651,10 +626,8 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _186: rs.u8 | undefined = ((b11: rs.u8): rs.u8 | undefined => {
 		return thenSome$0quywni(rs.u8Rem(b11, 3) !== 0, b11);
 	})(1);
-	const from3: number = rs.usizeDiv(items4.items.length, 2);
-	const items11: Array<rs.u8 | undefined> = items4.items;
-	rs.rangeCheck(items11.length, from3, items11.length);
-	const batch4: Batch.Batch<Array<rs.u8 | undefined>, rs.u8 | undefined> = new Batch.Batch(Drained.new$array1_Option_u8(_186, new rs.Slice(items11, from3, items11.length - from3)), 0);
+	const part4 = rs.usizeDiv(items4.items.length, 2);
+	const batch4: Batch.Batch<Array<rs.u8 | undefined>, rs.u8 | undefined> = new Batch.Batch(Drained.new$array1_Option_u8(_186, rs.sliceRange(rs.sliceFrom(items4.items), part4)), 0);
 	const half4: rs.u8 | undefined | rs.None = Batch.take$array1_Option_u8(batch4);
 	const _211: rs.usize = count4;
 	const arg12 = drain4.last;
@@ -678,11 +651,9 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 		v4.items.push((x4 & 1) !== 0);
 	}
 	const items5: rs.Vec<boolean> = v4;
-	const _227: boolean = ((b13: rs.u8): boolean => {
+	const drain5: Drained.Drained<Flags.Flags, boolean> = Drained.new$generics_Flags(((b13: rs.u8): boolean => {
 		return (b13 & 1) !== 0;
-	})(90);
-	const items12: boolean[] = items5.items;
-	const drain5: Drained.Drained<Flags.Flags, boolean> = Drained.new$generics_Flags(_227, new rs.Slice(items12, 0, items12.length));
+	})(90), rs.sliceFrom(items5.items));
 	let count5: rs.usize = 0;
 	while (Drained.next$generics_Flags(drain5) !== undefined) {
 		count5 = rs.usizeAdd(count5, 1);
@@ -690,10 +661,8 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _241: boolean = ((b14: rs.u8): boolean => {
 		return (b14 & 1) !== 0;
 	})(1);
-	const from4: number = rs.usizeDiv(items5.items.length, 2);
-	const items13: boolean[] = items5.items;
-	rs.rangeCheck(items13.length, from4, items13.length);
-	const batch5: Batch.Batch<Flags.Flags, boolean> = new Batch.Batch(Drained.new$generics_Flags(_241, new rs.Slice(items13, from4, items13.length - from4)), 0);
+	const part5 = rs.usizeDiv(items5.items.length, 2);
+	const batch5: Batch.Batch<Flags.Flags, boolean> = new Batch.Batch(Drained.new$generics_Flags(_241, rs.sliceRange(rs.sliceFrom(items5.items), part5)), 0);
 	const half5: boolean | undefined = Batch.take$generics_Flags(batch5);
 	const _266: rs.usize = count5;
 	const arg16 = drain5.last;
@@ -779,8 +748,8 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _454: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
 		const _458: rs.u8 = kept2.item;
 		const _459: rs.u8 = kept2.store[0];
-		const slice2 = kept2.rest as rs.ByteVec;
-		rs.iterExtendBytes(_454.value, rs.iterSlice(Uint8Array.of(_458, _459, slice2.data[rs.idx(slice2, 0)])), undefined, true);
+		const slice6 = kept2.rest as rs.ByteVec;
+		rs.iterExtendBytes(_454.value, rs.iterSlice(Uint8Array.of(_458, _459, slice6.data[rs.idx(slice6, 0)])), undefined, true);
 		rs.refMutRelease(_454);
 		const owner: Ticked.Ticked = tick(b2 ^ 4);
 		const _472: rs.Vec<Ticked.Ticked> = rs.vecFrom([owner]);

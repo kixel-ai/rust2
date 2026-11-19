@@ -42,8 +42,7 @@ export function item(self: State): Item.Item {
 }
 
 export function sender(self: State, arg: rs.u8): mpsc_Tx.Tx | undefined {
-	const items: Array<mpsc_Tx.Tx | undefined> = self.senders.items;
-	const live: rs.Vec<mpsc_Tx.Tx> = rs.iterToVec(rs.iterFlatten(rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length))), (value: mpsc_Tx.Tx | undefined) => rs.iterOption(value), true, undefined, true), "next", 4);
+	const live: rs.Vec<mpsc_Tx.Tx> = rs.iterToVec(rs.iterFlatten(rs.iterSlice(self.senders.items), (value: mpsc_Tx.Tx | undefined) => rs.iterOption(value), true, undefined, true), "next", 4);
 	return then$01448og(!(live.items.length === 0), (): mpsc_Tx.Tx => {
 		return mpsc_Tx.clone$Clone(live.items[rs.idx(live.items, rs.usizeRem(arg as rs.usize, live.items.length))]);
 	});

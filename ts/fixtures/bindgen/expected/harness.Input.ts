@@ -146,8 +146,8 @@ export function value(self: Input): rs.JsValue {
 	if (_2 === 10) {
 		return wasm_bindgen_from$convert_From_u32_wasm_bindgen_JsValue(rs.u32Rem(u32(self), 1000));
 	}
-	const items: rs.u16[] = units(self).items;
-	return rs.jsSpreadMethod(rs.jsGlobal("String"), "fromCharCode", [], rs.jsTyped(rs.global.Uint16Array, new rs.Slice(items, 0, items.length), false)) as rs.JsValue;
+	const _20: rs.Slice<rs.u16> = rs.sliceFrom(units(self).items);
+	return rs.jsSpreadMethod(rs.jsGlobal("String"), "fromCharCode", [], rs.jsTyped(rs.global.Uint16Array, _20, false)) as rs.JsValue;
 }
 
 /** UTF-16 code units, lone surrogates among them. */

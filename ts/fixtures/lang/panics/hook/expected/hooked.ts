@@ -501,13 +501,9 @@ export function sited(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const part2 = rs.usizeRem(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 331, col: 81 });
 			rs.byteSliceCopyFromSlice(_451, rs.byteSliceRange(rs.byteVecSlice(v), 0, part2, { file: "fixtures/lang/panics/src/hooked.rs", line: 331, col: 78 }), { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/core/src/mem/maybe_uninit.rs", line: 1205, col: 14 });
 		} else if (k === 70) {
-			const _461: rs.Slice<rs.String> = rs.sliceFrom(Array.from({ length: 2 }, (): rs.String => {
+			rs.sliceWriteCloneOfSlice(rs.sliceFrom(Array.from({ length: 2 }, (): rs.String => {
 				return (undefined as unknown) as rs.String;
-			}));
-			const _465: rs.Slice<rs.String> = rs.sliceFrom([rs.stringNew()]);
-			const to: number = rs.usizeRem(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 332, col: 106 });
-			rs.rangeCheck(_465.length, 0, to, { file: "fixtures/lang/panics/src/hooked.rs", line: 332, col: 103 });
-			rs.sliceWriteCloneOfSlice(_461, new rs.Slice(_465.data, _465.start, to), (a0: rs.String): rs.String => {
+			})), rs.sliceRange(rs.sliceFrom([rs.stringNew()]), 0, rs.usizeRem(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 332, col: 106 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 332, col: 103 }), (a0: rs.String): rs.String => {
 				return rs.stringClone(a0);
 			}, { file: "/rustc/3ef0c22cdb86ac42dc6b8f0f1ec36857daa6f2a1/library/core/src/mem/maybe_uninit.rs", line: 1265, col: 9 });
 		} else if (k === 71) {
@@ -536,8 +532,7 @@ export function sited(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (k === 78) {
 			rs.vecInsert(rs.vecFrom([n as rs.u16]), rs.usizeAdd(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 349, col: 41 }), 0, { file: "fixtures/lang/panics/src/hooked.rs", line: 349, col: 34 });
 		} else if (k === 79) {
-			const items: rs.u16[] = rs.vecSplitOff(rs.vecFrom([n as rs.u16]), rs.usizeAdd(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 350, col: 55 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 350, col: 45 }).items;
-			rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length))), (_29: rs.u16): rs.u8 => {
+			rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.vecSplitOff(rs.vecFrom([n as rs.u16]), rs.usizeAdd(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 350, col: 55 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 350, col: 45 }).items), (_29: rs.u16): rs.u8 => {
 				return _29 & 0xff;
 			}), undefined, true);
 		} else if (k === 80) {
@@ -589,21 +584,13 @@ export function joined(kind: rs.u8, n: rs.u8, out: rs.ByteVec): void {
 		return rs.vecFromElem(rs.byteSliceRange(rs.byteVecSlice(big), 0, undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 375, col: 40 }), count, undefined);
 	};
 	if (kind === 0) {
-		const items6: rs.ByteSlice[] = refs(rs.usizeAdd(1 << 16, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 377, col: 19 })).items;
-		joined = rs.byteSlicesJoin(new rs.Slice(items6, 0, items6.length));
+		joined = rs.byteSlicesJoin(rs.sliceFrom(refs(rs.usizeAdd(1 << 16, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 377, col: 19 })).items));
 	} else if (kind === 1) {
-		const items5: rs.ByteSlice[] = refs(rs.usizeAdd(1 << 16, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 378, col: 19 })).items;
-		joined = rs.byteSlicesJoin(new rs.Slice(items5, 0, items5.length), rs.byteSliceFrom(Uint8Array.of(n)));
+		joined = rs.byteSlicesJoin(rs.sliceFrom(refs(rs.usizeAdd(1 << 16, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 378, col: 19 })).items), rs.byteSliceFrom(Uint8Array.of(n)));
 	} else if (kind === 2) {
-		const items4: rs.ByteSlice[] = refs(rs.usizeAdd(1 << 15, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 379, col: 19 })).items;
-		joined = rs.byteSlicesJoin(new rs.Slice(items4, 0, items4.length));
+		joined = rs.byteSlicesJoin(rs.sliceFrom(refs(rs.usizeAdd(1 << 15, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 379, col: 19 })).items));
 	} else {
-		const items: rs.u16[] = rs.vecFromElem(n as rs.u16, 1 << 16, undefined).items;
-		const _53: rs.usize = rs.usizeAdd(1 << 14, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 382, col: 42 });
-		const items2: rs.Slice<rs.u16>[] = rs.vecFromElem(new rs.Slice(items, 0, items.length), _53, undefined).items;
-		const slice2: rs.Slice<rs.u16> = rs.sliceFrom([1]);
-		const items3: rs.u16[] = rs.slicesJoin(new rs.Slice(items2, 0, items2.length), 2, slice2).items;
-		const s = rs.sliceItems(new rs.Slice(items3, 0, items3.length));
+		const s = rs.slicesJoin(rs.sliceFrom(rs.vecFromElem(rs.sliceFrom(rs.vecFromElem(n as rs.u16, 1 << 16, undefined).items), rs.usizeAdd(1 << 14, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 382, col: 42 }), undefined).items), 2, rs.sliceFrom([1])).items;
 		let front = 0;
 		let back = s.length;
 		const v: rs.ByteVec = rs.byteVecWithCapacity(back - front);

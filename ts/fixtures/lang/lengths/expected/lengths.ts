@@ -2625,15 +2625,13 @@ export function repeated$lengths_Loud(_dataData: Uint8Array, _dataStart: number,
 	const rows: Row.Row<Loud.Loud>[] = [new Row.Row(y, [1, 2] as [rs.u8, rs.u8]), new Row.Row(x, [3, 4] as [rs.u8, rs.u8])];
 	const copies: rs.Vec<Row.Row<Loud.Loud>> = rs.iterToVec(rs.iterCopied(rs.iterSlice(rows), copy$lengths_Row_lengths_Loud), undefined, 4, true);
 	rs.byteVecPush(out, copies.items.length & 0xff);
-	const items: Row.Row<Loud.Loud>[] = copies.items;
-	const _19: Row.Row<Loud.Loud> | undefined = rs.sliceFirst(new rs.Slice(items, 0, items.length));
+	const _19: Row.Row<Loud.Loud> | undefined = rs.sliceFirst(rs.sliceFrom(copies.items));
 	if (_19 !== undefined) {
 		Object.assign(_19, new Row.Row(x, [48, 49] as [rs.u8, rs.u8]));
 		const tags: [rs.u8, rs.u8] = _19._1;
 		tags[0] = tags[0] ^ 16;
 	}
-	const items2: Row.Row<Loud.Loud>[] = copies.items;
-	const _27: Row.Row<Loud.Loud> | undefined = rs.sliceGet(new rs.Slice(items2, 0, items2.length), 1);
+	const _27: Row.Row<Loud.Loud> | undefined = rs.sliceGet(rs.sliceFrom(copies.items), 1);
 	if (_27 !== undefined) {
 		_27._1[1] = _27._1[1] ^ 32;
 	}
@@ -2646,15 +2644,13 @@ export function repeated$lengths_Loud(_dataData: Uint8Array, _dataStart: number,
 	}
 	const repeats: rs.Vec<Row.Row<Loud.Loud>> = rs.vecFromElem(new Row.Row(x, [5, 6] as [rs.u8, rs.u8]), rs.usizeAdd(1, rs.usizeRem(dataLen, 3)), Row.clone$Clone_lengths_Loud);
 	rs.byteVecPush(out, repeats.items.length & 0xff);
-	const items3: Row.Row<Loud.Loud>[] = repeats.items;
-	const _57: Row.Row<Loud.Loud> | undefined = rs.sliceFirst(new rs.Slice(items3, 0, items3.length));
+	const _57: Row.Row<Loud.Loud> | undefined = rs.sliceFirst(rs.sliceFrom(repeats.items));
 	if (_57 !== undefined) {
 		Object.assign(_57, new Row.Row(x, [48, 49] as [rs.u8, rs.u8]));
 		const tags2: [rs.u8, rs.u8] = _57._1;
 		tags2[0] = tags2[0] ^ 16;
 	}
-	const items4: Row.Row<Loud.Loud>[] = repeats.items;
-	const _65: Row.Row<Loud.Loud> | undefined = rs.sliceGet(new rs.Slice(items4, 0, items4.length), 1);
+	const _65: Row.Row<Loud.Loud> | undefined = rs.sliceGet(rs.sliceFrom(repeats.items), 1);
 	if (_65 !== undefined) {
 		_65._1[1] = _65._1[1] ^ 32;
 	}
@@ -2688,15 +2684,13 @@ export function repeated$u8(_dataData: Uint8Array, _dataStart: number, dataLen: 
 	const rows: Row.Row<rs.u8>[] = [new Row.Row(y, [1, 2] as [rs.u8, rs.u8]), new Row.Row(x, [3, 4] as [rs.u8, rs.u8])];
 	const copies: rs.Vec<Row.Row<rs.u8>> = rs.iterToVec(rs.iterCopied(rs.iterSlice(rows), copy$lengths_Row_u8), undefined, 3, true);
 	rs.byteVecPush(out, copies.items.length & 0xff);
-	const items: Row.Row<rs.u8>[] = copies.items;
-	const _19: Row.Row<rs.u8> | undefined = rs.sliceFirst(new rs.Slice(items, 0, items.length));
+	const _19: Row.Row<rs.u8> | undefined = rs.sliceFirst(rs.sliceFrom(copies.items));
 	if (_19 !== undefined) {
 		Object.assign(_19, new Row.Row(x, [48, 49] as [rs.u8, rs.u8]));
 		const tags: [rs.u8, rs.u8] = _19._1;
 		tags[0] = tags[0] ^ 16;
 	}
-	const items2: Row.Row<rs.u8>[] = copies.items;
-	const _27: Row.Row<rs.u8> | undefined = rs.sliceGet(new rs.Slice(items2, 0, items2.length), 1);
+	const _27: Row.Row<rs.u8> | undefined = rs.sliceGet(rs.sliceFrom(copies.items), 1);
 	if (_27 !== undefined) {
 		_27._1[1] = _27._1[1] ^ 32;
 	}
@@ -2709,15 +2703,13 @@ export function repeated$u8(_dataData: Uint8Array, _dataStart: number, dataLen: 
 	}
 	const repeats: rs.Vec<Row.Row<rs.u8>> = rs.vecFromElem(new Row.Row(x, [5, 6] as [rs.u8, rs.u8]), rs.usizeAdd(1, rs.usizeRem(dataLen, 3)), copy$lengths_Row_u8);
 	rs.byteVecPush(out, repeats.items.length & 0xff);
-	const items3: Row.Row<rs.u8>[] = repeats.items;
-	const _57: Row.Row<rs.u8> | undefined = rs.sliceFirst(new rs.Slice(items3, 0, items3.length));
+	const _57: Row.Row<rs.u8> | undefined = rs.sliceFirst(rs.sliceFrom(repeats.items));
 	if (_57 !== undefined) {
 		Object.assign(_57, new Row.Row(x, [48, 49] as [rs.u8, rs.u8]));
 		const tags2: [rs.u8, rs.u8] = _57._1;
 		tags2[0] = tags2[0] ^ 16;
 	}
-	const items4: Row.Row<rs.u8>[] = repeats.items;
-	const _65: Row.Row<rs.u8> | undefined = rs.sliceGet(new rs.Slice(items4, 0, items4.length), 1);
+	const _65: Row.Row<rs.u8> | undefined = rs.sliceGet(rs.sliceFrom(repeats.items), 1);
 	if (_65 !== undefined) {
 		_65._1[1] = _65._1[1] ^ 32;
 	}
@@ -2750,15 +2742,13 @@ export function loud(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const rows: Row.Row<Loud.Loud>[] = [new Row.Row({ _0: byte(0) }, [1, 2] as [rs.u8, rs.u8]), new Row.Row({ _0: byte(2) }, [3, 4] as [rs.u8, rs.u8])];
 	const copies: rs.Vec<Row.Row<Loud.Loud>> = rs.iterToVec(rs.iterCopied(rs.iterSlice(rows), copy$lengths_Row_lengths_Loud), undefined, 4, true);
 	rs.byteVecPush(out, copies.items.length & 0xff);
-	const items: Row.Row<Loud.Loud>[] = copies.items;
-	const _26: Row.Row<Loud.Loud> | undefined = rs.sliceFirst(new rs.Slice(items, 0, items.length));
+	const _26: Row.Row<Loud.Loud> | undefined = rs.sliceFirst(rs.sliceFrom(copies.items));
 	if (_26 !== undefined) {
 		Object.assign(_26, new Row.Row({ _0: byte(2) }, [48, 49] as [rs.u8, rs.u8]));
 		const tags: [rs.u8, rs.u8] = _26._1;
 		tags[0] = tags[0] ^ 16;
 	}
-	const items2: Row.Row<Loud.Loud>[] = copies.items;
-	const _38: Row.Row<Loud.Loud> | undefined = rs.sliceGet(new rs.Slice(items2, 0, items2.length), 1);
+	const _38: Row.Row<Loud.Loud> | undefined = rs.sliceGet(rs.sliceFrom(copies.items), 1);
 	if (_38 !== undefined) {
 		_38._1[1] = _38._1[1] ^ 32;
 	}
@@ -2771,15 +2761,13 @@ export function loud(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	const repeats: rs.Vec<Row.Row<Loud.Loud>> = rs.vecFromElem(new Row.Row({ _0: byte(2) }, [5, 6] as [rs.u8, rs.u8]), rs.usizeAdd(1, rs.usizeRem(data.length, 3)), Row.clone$Clone_lengths_Loud);
 	rs.byteVecPush(out, repeats.items.length & 0xff);
-	const items3: Row.Row<Loud.Loud>[] = repeats.items;
-	const _72: Row.Row<Loud.Loud> | undefined = rs.sliceFirst(new rs.Slice(items3, 0, items3.length));
+	const _72: Row.Row<Loud.Loud> | undefined = rs.sliceFirst(rs.sliceFrom(repeats.items));
 	if (_72 !== undefined) {
 		Object.assign(_72, new Row.Row({ _0: byte(2) }, [48, 49] as [rs.u8, rs.u8]));
 		const tags2: [rs.u8, rs.u8] = _72._1;
 		tags2[0] = tags2[0] ^ 16;
 	}
-	const items4: Row.Row<Loud.Loud>[] = repeats.items;
-	const _84: Row.Row<Loud.Loud> | undefined = rs.sliceGet(new rs.Slice(items4, 0, items4.length), 1);
+	const _84: Row.Row<Loud.Loud> | undefined = rs.sliceGet(rs.sliceFrom(repeats.items), 1);
 	if (_84 !== undefined) {
 		_84._1[1] = _84._1[1] ^ 32;
 	}

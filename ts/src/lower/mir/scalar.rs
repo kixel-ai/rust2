@@ -1193,6 +1193,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let mut passed: FxHashSet<(Location, Place<'tcx>)> = FxHashSet::default();
 		// Those some def gives parts that are not one object's already.
 		let mut parted: FxHashSet<Local> = FxHashSet::default();
+		// Those a slice std makes of what holds its elements assigns.
+		let mut sourced: Vec<Local> = Vec::new();
 		for (bb, data) in mir.basic_blocks.iter_enumerated() {
 			for (i, stmt) in data.statements.iter().enumerate() {
 				if self.noops.contains(&(bb, i)) {
@@ -1253,6 +1255,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					match self.producer(bb, func, args, &shapes[&local], shapes) {
 						Some(producer) => {
 							parted.insert(local);
+							if let Producer::Source { .. } = producer {
+								sourced.push(local);
+							}
 							let size = shapes[&local].size();
 							for part in 0..size {
 								copies.push((local, part, self.produced_copy(producer, part, args, shapes)));
@@ -1302,6 +1307,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			passed: &'s FxHashSet<(Location, Place<'tcx>)>,
 			made: Vec<Made>,
 			bad: FxHashSet<Local>,
+			/// Those some read takes apart.
+			apart: FxHashSet<Local>,
 		}
 		impl<'tcx> Visitor<'tcx> for Reads<'_, 'tcx> {
 			fn visit_place(&mut self, place: &Place<'tcx>, cx: PlaceContext, at: Location) {
@@ -1331,6 +1338,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					PlaceContext::NonMutatingUse(_) => {}
 				}
 				if self.taken.contains(&at) || self.passed.contains(&(at, *place)) {
+					self.apart.insert(place.local);
 					return;
 				}
 				let (node, n) = walk(shape, place.projection);
@@ -1348,7 +1356,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					) => true,
 					_ => false,
 				};
-				if !part {
+				if part {
+					self.apart.insert(place.local);
+				} else {
 					self.made.push(Made {
 						block: at.block,
 						local: place.local,
@@ -1364,9 +1374,13 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			passed: &passed,
 			made: Vec::new(),
 			bad: FxHashSet::default(),
+			apart: FxHashSet::default(),
 		};
 		reads.visit_body(mir);
 		bad.extend(reads.bad);
+		// A slice of a `Vec` that every read makes whole is made once by its call, as
+		// before, where what reads it may read the `Vec`'s items in place.
+		bad.extend(sourced.into_iter().filter(|l| !reads.apart.contains(l)));
 		// Each part's origins: the parts whose assignment made what it may hold, through
 		// copies, each made again only where its local is assigned.
 		let mut origins: FxHashMap<(Local, usize), FxHashSet<(Local, usize)>> = FxHashMap::default();

@@ -253,8 +253,7 @@ export function copies(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const n: rs.usize = items.items.length;
 		const _13: rs.u8 = rs.u8Rem(first, 6);
 		if (_13 === 0) {
-			const items4: rs.u16[] = items.items;
-			v = rs.smallVecFromSlice(new rs.Slice(items4, 0, items4.length), 3, undefined);
+			v = rs.smallVecFromSlice(rs.sliceFrom(items.items), 3, undefined);
 		} else if (_13 === 1) {
 			v = new rs.Vec([1, 2, 3]);
 		} else if (_13 === 2) {
@@ -262,12 +261,10 @@ export function copies(dataData: Uint8Array, dataStart: number, dataLen: number,
 		} else if (_13 === 3) {
 			v = rs.smallVecFromElem(7, n, 3, undefined, undefined);
 		} else if (_13 === 4) {
-			const items3: rs.u16[] = items.items;
-			const _21: rs.Iter<rs.u16> = rs.iterSlice(rs.sliceItems(new rs.Slice(items3, 0, items3.length)));
+			const _21: rs.Iter<rs.u16> = rs.iterSlice(items.items);
 			v = rs.smallVecExtend(new rs.Vec(), _21, 3, 2, "next");
 		} else {
-			const items2: rs.u16[] = items.items;
-			v = rs.smallVecCloned(rs.sliceToArray(new rs.Slice(items2, 0, items2.length)), undefined);
+			v = rs.smallVecCloned(items.items.slice(), undefined);
 		}
 		put(out, v.items.length);
 		put(out, rs.smallVecCapacity(v, 3));
@@ -275,18 +272,15 @@ export function copies(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const _38: rs.u8 = rs.u8Rem(first >> 3, 4);
 		if (_38 === 0) {
 			const _43: rs.Vec<rs.u16> = v;
-			const to: number = rs.usizeDiv(n, 2);
-			const items6: rs.u16[] = items.items;
-			rs.rangeCheck(items6.length, 0, to);
+			const part2 = rs.usizeDiv(n, 2);
+			const _44: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(items.items), 0, part2);
 			const small = _43;
-			rs.smallVecInsertFromSlice(small, small.items.length, new rs.Slice(items6, 0, to), 3, 2, undefined);
+			rs.smallVecInsertFromSlice(small, small.items.length, _44, 3, 2, undefined);
 		} else if (_38 === 1) {
 			const _49: rs.Vec<rs.u16> = v;
 			const _50: rs.usize = rs.usizeDiv(v.items.length, 2);
-			const from: number = rs.usizeDiv(n, 2);
-			const items5: rs.u16[] = items.items;
-			rs.rangeCheck(items5.length, from, items5.length);
-			rs.smallVecInsertFromSlice(_49, _50, new rs.Slice(items5, from, items5.length - from), 3, 2, undefined);
+			const part = rs.usizeDiv(n, 2);
+			rs.smallVecInsertFromSlice(_49, _50, rs.sliceRange(rs.sliceFrom(items.items), part), 3, 2, undefined);
 		} else if (_38 === 2) {
 			rs.smallVecShrinkToFit(v, 3, 2);
 		} else {
@@ -296,8 +290,7 @@ export function copies(dataData: Uint8Array, dataStart: number, dataLen: number,
 		put(out, rs.smallVecCapacity(v, 3));
 		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(v.items, f, rs.u16Debug)]).v), undefined, true);
 		const _83: rs.Vec<rs.u16> = v;
-		const items7: rs.u16[] = items.items;
-		const _85: rs.Vec<rs.u16> = rs.smallVecFromSlice(new rs.Slice(items7, 0, items7.length), 3, undefined);
+		const _85: rs.Vec<rs.u16> = rs.smallVecFromSlice(rs.sliceFrom(items.items), 3, undefined);
 		rs.byteVecPush(out, rs.eqSlice(rs.same)(_83, _85) ? 1 : 0);
 		const s2 = v.items;
 		let front2 = 0;

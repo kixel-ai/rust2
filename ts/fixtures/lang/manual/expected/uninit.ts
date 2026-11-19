@@ -70,19 +70,15 @@ export function uninits(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return _79;
 	});
 	const k: rs.usize = rs.min(wide.items.length, rs.sliceFrom(words).length);
-	const slice: rs.Slice<rs.u16> = rs.sliceFrom(words);
-	rs.rangeCheck(slice.length, 0, k);
-	const items: rs.u16[] = wide.items;
-	rs.rangeCheck(items.length, 0, k);
-	const dst2 = new rs.Slice(slice.data, slice.start, k);
-	rs.sliceCopyFromSlice(dst2, new rs.Slice(items, 0, k));
+	const _88: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words), 0, k);
+	const slice = rs.sliceFrom(wide.items);
+	const dst2 = _88;
+	rs.sliceCopyFromSlice(dst2, rs.sliceRange(slice, 0, k));
 	const _86: rs.Place<rs.u16> | undefined = rs.sliceFirstMut(dst2);
 	if (_86 !== undefined) {
 		_86.v = _86.v ^ 257;
 	}
-	const slice2: rs.Slice<rs.u16> = rs.sliceFrom(words);
-	rs.rangeCheck(slice2.length, 0, k);
-	for (const _102 of rs.sliceItems(new rs.Slice(slice2.data, slice2.start, k))) {
+	for (const _102 of rs.sliceItems(rs.sliceRange(rs.sliceFrom(words), 0, k))) {
 		const dst6 = out;
 		const word = _102;
 		rs.byteVecReserve(dst6, 2 as rs.usize);
@@ -121,12 +117,10 @@ export function uninits(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteSliceCopyFromSlice(dst5, rs.byteSliceRange(data, 0, 0));
 			dst5;
 		} else if (_155 === 255) {
-			const slice3: rs.Slice<rs.u16> = rs.sliceFrom(words);
-			rs.rangeCheck(slice3.length, 0, 1);
-			const items2: rs.u16[] = wide.items;
-			rs.rangeCheck(items2.length, 0, 0);
-			const dst4 = new rs.Slice(slice3.data, slice3.start, 1);
-			rs.sliceCopyFromSlice(dst4, new rs.Slice(items2, 0, 0));
+			const _164: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words), 0, 1);
+			const slice2 = rs.sliceFrom(wide.items);
+			const dst4 = _164;
+			rs.sliceCopyFromSlice(dst4, rs.sliceRange(slice2, 0, 0));
 			dst4;
 		}
 	}
@@ -192,14 +186,12 @@ export function boxedUninits(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const strings: rs.Slice<rs.String> = rs.sliceNewUninit(src.items.length, 12, (): rs.String => {
 		return (undefined as unknown) as rs.String;
 	});
-	const items: rs.String[] = src.items;
-	rs.sliceSort(rs.sliceWriteCloneOfSlice(strings, new rs.Slice(items, 0, items.length), (a0: rs.String): rs.String => {
+	rs.sliceSort(rs.sliceWriteCloneOfSlice(strings, rs.sliceFrom(src.items), (a0: rs.String): rs.String => {
 		return rs.stringClone(a0);
 	}), rs.cmpLt(rs.cmpStr), 12, true);
-	const items2: rs.String[] = src.items;
-	rs.sliceReverse(rs.sliceWriteCloneOfSlice(strings, new rs.Slice(items2, 0, items2.length), (a02: rs.String): rs.String => {
+	rs.sliceReverse(rs.sliceRange(rs.sliceWriteCloneOfSlice(strings, rs.sliceFrom(src.items), (a02: rs.String): rs.String => {
 		return rs.stringClone(a02);
-	}));
+	}), 0));
 	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(strings)), (s2: rs.String): rs.Iter<rs.u8> => {
 		return rs.strBytes(s2.v);
 	}, undefined, true), "next");
@@ -216,10 +208,8 @@ export function boxedUninits(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const counted: rs.Slice<Counted.Counted> = rs.sliceNewUninit(src2.items.length, 8, (): Counted.Counted => {
 		return (new Counted.Counted((undefined as unknown) as rs.u8, (undefined as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Counted.Counted;
 	});
-	const items3: Counted.Counted[] = src2.items;
-	rs.sliceWriteCloneOfSlice(counted, new rs.Slice(items3, 0, items3.length), Counted.clone$Clone);
-	const items4: Counted.Counted[] = src2.items;
-	rs.sliceWriteCloneOfSlice(counted, new rs.Slice(items4, 0, items4.length), Counted.clone$Clone);
+	rs.sliceWriteCloneOfSlice(counted, rs.sliceFrom(src2.items), Counted.clone$Clone);
+	rs.sliceWriteCloneOfSlice(counted, rs.sliceFrom(src2.items), Counted.clone$Clone);
 	rs.byteVecPush(out, copy$tuple2_u8_u8(counts.v)[0]);
 	rs.byteVecPush(out, copy$tuple2_u8_u8(counts.v)[1]);
 	const counted2: rs.Slice<Counted.Counted> = counted;
@@ -247,12 +237,9 @@ export function boxedUninits(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_162 === 252) {
 			rs.byteSliceWriteCloneOfSlice(rs.byteSliceNewUninit(1), rs.byteSliceRange(data, 0, 0));
 		} else if (_162 === 253) {
-			const _171: rs.Slice<Counted.Counted> = rs.sliceNewUninit(0, 8, (): Counted.Counted => {
+			rs.sliceWriteCloneOfSlice(rs.sliceNewUninit(0, 8, (): Counted.Counted => {
 				return (new Counted.Counted((undefined as unknown) as rs.u8, (undefined as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Counted.Counted;
-			});
-			const items5: Counted.Counted[] = src2.items;
-			rs.rangeCheck(items5.length, 0, 1);
-			rs.sliceWriteCloneOfSlice(_171, new rs.Slice(items5, 0, 1), Counted.clone$Clone);
+			}), rs.sliceRange(rs.sliceFrom(src2.items), 0, 1), Counted.clone$Clone);
 		}
 	}
 	rs.dropVec(src2);

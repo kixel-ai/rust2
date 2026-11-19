@@ -112,10 +112,8 @@ export function math(input: Input.Input, out: rs.String): void {
 	const _105: rs.i32 = Input.u32(input) | 0;
 	const part9 = rs.jsToU32(rs.jsGlobal("Math").clz32(_105));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["clz32 ", (f: rs.Formatter) => rs.u32Display(part9, f), "\n"]), rs.fmtErrorDebug);
-	const _122: rs.Slice<rs.f64> = rs.sliceFrom([y, Input.f64(input), Input.f64(input)]);
-	const to: number = rs.u8Rem(Input.u8(input), 4) as rs.usize;
-	rs.rangeCheck(_122.length, 0, to);
-	const part11 = opBits(rs.jsToF64(rs.jsSpreadMethod(rs.jsGlobal("Math"), "max", [x], rs.jsTyped(rs.global.Float64Array, new rs.Slice(_122.data, _122.start, to), false))));
+	const _121: rs.Slice<rs.f64> = rs.sliceRange(rs.sliceFrom([y, Input.f64(input), Input.f64(input)]), 0, rs.u8Rem(Input.u8(input), 4) as rs.usize);
+	const part11 = opBits(rs.jsToF64(rs.jsSpreadMethod(rs.jsGlobal("Math"), "max", [x], rs.jsTyped(rs.global.Float64Array, _121, false))));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["max_of ", (f: rs.Formatter) => rs.u64Debug(part11, f), "\n"]), rs.fmtErrorDebug);
 }
 
@@ -203,8 +201,8 @@ export function text(input: Input.Input, out: rs.String): void {
 	})(rs.jsGlobal("String")(((some: rs.String | undefined) => some === undefined ? undefined : rs.jsString(some))(maybe)));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["string_option ", (f: rs.Formatter) => rs.fmtOption(part3, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
 	const units: rs.Vec<rs.u16> = Input.units(input);
-	const items: rs.u16[] = units.items;
-	const js: rs.JsValue = rs.jsSpreadMethod(rs.jsGlobal("String"), "fromCharCode", [], rs.jsTyped(rs.global.Uint16Array, new rs.Slice(items, 0, items.length), false)) as rs.JsValue;
+	const _47: rs.Slice<rs.u16> = rs.sliceFrom(units.items);
+	const js: rs.JsValue = rs.jsSpreadMethod(rs.jsGlobal("String"), "fromCharCode", [], rs.jsTyped(rs.global.Uint16Array, _47, false)) as rs.JsValue;
 	const _54: rs.u32 = rs.jsToU32(rs.jsAny(js).length);
 	const args30 = [(f: rs.Formatter) => rs.fmtList(units.items, f, rs.u16Debug), (f: rs.Formatter) => rs.u32Display(_54, f)];
 	rs.resultUnwrap(rs.fmtWriteString(out, ["units ", args30[0], " length ", args30[1], "\n"]), rs.fmtErrorDebug);
@@ -369,8 +367,7 @@ export function arrays(input: Input.Input, out: rs.String): void {
 	const part4 = rs.jsToVec(rs.jsGlobal("Array").from(rs.jsArray(strings, (item3: rs.String) => rs.jsString(item3))), (item4: unknown) => rs.jsToString(item4));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["strings ", (f: rs.Formatter) => rs.fmtList(part4.items, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), "\n"]), rs.fmtErrorDebug);
 	const _170: rs.Slice<rs.f64> = rs.sliceFrom([Input.f64(input), Input.f64(input)]);
-	const items: rs.f64[] = rs.jsToVec(rs.jsGlobal("Array").from(rs.jsTyped(rs.global.Float64Array, _170, false)), (item5: unknown) => rs.jsToF64(item5)).items;
-	const s = rs.sliceItems(new rs.Slice(items, 0, items.length));
+	const s = rs.jsToVec(rs.jsGlobal("Array").from(rs.jsTyped(rs.global.Float64Array, _170, false)), (item5: unknown) => rs.jsToF64(item5)).items;
 	let front = 0;
 	let back2 = s.length;
 	const v2: rs.Vec<rs.u64> = rs.vecWithCapacity(back2 - front, 8);
@@ -773,10 +770,8 @@ export function edges(input: Input.Input, out: rs.String): void {
 	} else {
 		errorClass(out, "spread threw", _37.error);
 	}
-	const _59: rs.Slice<rs.u32> = rs.sliceFrom([Input.u32(input), Input.u32(input)]);
-	const to: number = rs.u8Rem(Input.u8(input), 3) as rs.usize;
-	rs.rangeCheck(_59.length, 0, to);
-	const part4 = rs.jsToU32(rs.jsSpreadMethod(rs.jsGlobal("rustFresh"), "of", [], rs.jsTyped(rs.global.Uint32Array, new rs.Slice(_59.data, _59.start, to), false)));
+	const _58: rs.Slice<rs.u32> = rs.sliceRange(rs.sliceFrom([Input.u32(input), Input.u32(input)]), 0, rs.u8Rem(Input.u8(input), 3) as rs.usize);
+	const part4 = rs.jsToU32(rs.jsSpreadMethod(rs.jsGlobal("rustFresh"), "of", [], rs.jsTyped(rs.global.Uint32Array, _58, false)));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["fresh of ", (f: rs.Formatter) => rs.u32Display(part4, f), "\n"]), rs.fmtErrorDebug);
 	const _76: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(16777215);
 	const sentinel: rs.u8 | undefined = ((got: unknown): rs.u8 | undefined => {

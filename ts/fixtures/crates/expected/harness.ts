@@ -27,8 +27,7 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 		const y: Item.Item = { _0: s[front++] };
 		v.items.push(y);
 	}
-	const items2: Item.Item[] = v.items;
-	const _29: Item.Item | undefined = heaviest$harness_Item(new rs.Slice(items2, 0, items2.length));
+	const _29: Item.Item | undefined = heaviest$harness_Item(rs.sliceFrom(v.items));
 	if (_29 !== undefined) {
 		rs.byteVecPush(out, _29._0);
 	}
@@ -65,8 +64,7 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 		rs.iterExtendBytes(out, rs.iterSlice(_87), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(item._0, n & 0xff)), undefined, true);
 		const boxed: rs.Vec<Tally.Tally> = rs.vecFrom([new of$crates_dep_Guard(guard), new of$harness_Item(item), new of$u32(n)]);
-		const items3: Tally.Tally[] = boxed.items;
-		rs.sliceSwap(new rs.Slice(items3, 0, items3.length), 0, 2);
+		rs.sliceSwap(rs.sliceFrom(boxed.items), 0, 2);
 		rs.vecTruncate(boxed, 2, rs.drop);
 		const iterS: Tally.Tally[] = boxed.items;
 		let iterI: number = 0;

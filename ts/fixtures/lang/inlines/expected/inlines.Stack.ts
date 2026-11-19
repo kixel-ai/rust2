@@ -151,45 +151,27 @@ export function pop$u8_3(self: Stack<rs.u8>): rs.u8 | undefined {
 }
 
 export function iter$String_0(self: Stack<rs.String>): rs.Iter<rs.String> {
-	const _4: rs.Slice<rs.String | undefined> = rs.sliceFrom(self.items);
-	const to: number = self.len;
-	rs.rangeCheck(_4.length, 0, to);
-	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(new rs.Slice(_4.data, _4.start, to))), (value: rs.String | undefined) => rs.iterOption(value), true, undefined, true);
+	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(self.items), 0, self.len))), (value: rs.String | undefined) => rs.iterOption(value), true, undefined, true);
 }
 
 export function iter$String_2(self: Stack<rs.String>): rs.Iter<rs.String> {
-	const _4: rs.Slice<rs.String | undefined> = rs.sliceFrom(self.items);
-	const to: number = self.len;
-	rs.rangeCheck(_4.length, 0, to);
-	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(new rs.Slice(_4.data, _4.start, to))), (value: rs.String | undefined) => rs.iterOption(value), true, undefined, true);
+	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(self.items), 0, self.len))), (value: rs.String | undefined) => rs.iterOption(value), true, undefined, true);
 }
 
 export function iter$inlines_Stack_u8_1_2(self: Stack<Stack<rs.u8>>): rs.Iter<Stack<rs.u8>> {
-	const _4: rs.Slice<Stack<rs.u8> | undefined> = rs.sliceFrom(self.items);
-	const to: number = self.len;
-	rs.rangeCheck(_4.length, 0, to);
-	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(new rs.Slice(_4.data, _4.start, to))), (value: Stack<rs.u8> | undefined) => rs.iterOption(value), true, undefined, true);
+	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(self.items), 0, self.len))), (value: Stack<rs.u8> | undefined) => rs.iterOption(value), true, undefined, true);
 }
 
 export function iter$inlines_Text_2_4(self: Stack<Text.Text>): rs.Iter<Text.Text> {
-	const _4: rs.Slice<Text.Text | undefined> = rs.sliceFrom(self.items);
-	const to: number = self.len;
-	rs.rangeCheck(_4.length, 0, to);
-	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(new rs.Slice(_4.data, _4.start, to))), (value: Text.Text | undefined) => rs.iterOption(value), true, undefined, true);
+	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(self.items), 0, self.len))), (value: Text.Text | undefined) => rs.iterOption(value), true, undefined, true);
 }
 
 export function iter$u8_1(self: Stack<rs.u8>): rs.Iter<rs.u8> {
-	const _4: rs.Slice<rs.u8 | undefined> = rs.sliceFrom(self.items);
-	const to: number = self.len;
-	rs.rangeCheck(_4.length, 0, to);
-	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(new rs.Slice(_4.data, _4.start, to))), (value: rs.u8 | undefined) => rs.iterOption(value), true, undefined, true);
+	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(self.items), 0, self.len))), (value: rs.u8 | undefined) => rs.iterOption(value), true, undefined, true);
 }
 
 export function iter$u8_3(self: Stack<rs.u8>): rs.Iter<rs.u8> {
-	const _4: rs.Slice<rs.u8 | undefined> = rs.sliceFrom(self.items);
-	const to: number = self.len;
-	rs.rangeCheck(_4.length, 0, to);
-	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(new rs.Slice(_4.data, _4.start, to))), (value: rs.u8 | undefined) => rs.iterOption(value), true, undefined, true);
+	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(self.items), 0, self.len))), (value: rs.u8 | undefined) => rs.iterOption(value), true, undefined, true);
 }
 
 export function drop$ops_Drop_String_0(self: Stack<rs.String>): void {

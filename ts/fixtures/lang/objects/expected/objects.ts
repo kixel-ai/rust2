@@ -258,17 +258,14 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x4 = s2[front2++];
 		const i: rs.usize = count++;
 		const b: rs.u8 = x4;
-		const items: rs.Arc<rs.u8>[] = v.items;
-		const _26: rs.usize = rs.usizeRem(b as rs.usize, rs.usizeAdd(data.length, 1));
-		const _23: rs.Place<rs.Arc<rs.u8>> | undefined = rs.sliceGetMut(new rs.Slice(items, 0, items.length), _26);
+		const _23: rs.Place<rs.Arc<rs.u8>> | undefined = rs.sliceGetMut(rs.sliceFrom(v.items), rs.usizeRem(b as rs.usize, rs.usizeAdd(data.length, 1)));
 		if (_23 !== undefined) {
 			const _34: rs.Arc<rs.u8> = rs.arcClone(two);
 			_23.v[Symbol.dispose]();
 			_23.v = _34;
 		}
 		if (rs.u8Rem(b, 3) === 0) {
-			const items2: rs.Arc<rs.u8>[] = v.items;
-			const _39: rs.Place<rs.Arc<rs.u8>> | undefined = rs.sliceGetMut(new rs.Slice(items2, 0, items2.length), i);
+			const _39: rs.Place<rs.Arc<rs.u8>> | undefined = rs.sliceGetMut(rs.sliceFrom(v.items), i);
 			if (_39 !== undefined) {
 				const _44: rs.Arc<rs.u8> = new rs.Arc(b);
 				_39.v[Symbol.dispose]();
@@ -276,9 +273,7 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 		}
 	}
-	const _46: rs.Slice<rs.Arc<rs.u8>> = rs.sliceFrom([one, two]);
-	const items3: rs.Arc<rs.u8>[] = v.items;
-	counts(out, _46, new rs.Slice(items3, 0, items3.length));
+	counts(out, rs.sliceFrom([one, two]), rs.sliceFrom(v.items));
 	let maybe: rs.Arc<rs.u8> | undefined = rs.arcClone(one);
 	const _56: rs.Place<rs.Arc<rs.u8>> | undefined = maybe === undefined ? undefined : rs.place(() => maybe as rs.Arc<rs.u8>, (value) => maybe = value);
 	if (_56 !== undefined) {
@@ -291,8 +286,7 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 		a2[Symbol.dispose]();
 		return _02;
 	}));
-	const items4: rs.Arc<rs.u8>[] = v.items;
-	const iter2: rs.Iter<[rs.Place<rs.Arc<rs.u8>>, rs.u8]> = rs.iterZip(rs.iterSliceMut(new rs.Slice(items4, 0, items4.length)), rs.iterSlice(rs.byteSliceView(data)), [false, false]);
+	const iter2: rs.Iter<[rs.Place<rs.Arc<rs.u8>>, rs.u8]> = rs.iterZip(rs.iterSliceMut(rs.sliceFrom(v.items)), rs.iterSlice(rs.byteSliceView(data)), [false, false]);
 	while (true) {
 		const _71: [rs.Place<rs.Arc<rs.u8>>, rs.u8] | rs.Done = iter2.next();
 		if (_71 === rs.DONE) {
@@ -304,8 +298,7 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_71[0].v = _79;
 		}
 	}
-	const items5: rs.Arc<rs.u8>[] = v.items;
-	const _81: rs.Place<rs.Arc<rs.u8>> | undefined = rs.sliceLastMut(new rs.Slice(items5, 0, items5.length));
+	const _81: rs.Place<rs.Arc<rs.u8>> | undefined = rs.sliceLastMut(rs.sliceFrom(v.items));
 	if (_81 !== undefined) {
 		const _86: rs.Arc<rs.u8> = new rs.Arc(rs.u8WrappingMul(by, 3));
 		_81.v[Symbol.dispose]();
@@ -319,9 +312,7 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	})(two);
 	rs.byteVecPush(out, kept.value);
 	kept[Symbol.dispose]();
-	const _103: rs.Slice<rs.Arc<rs.u8>> = rs.sliceFrom([one, two]);
-	const items6: rs.Arc<rs.u8>[] = v.items;
-	counts(out, _103, new rs.Slice(items6, 0, items6.length));
+	counts(out, rs.sliceFrom([one, two]), rs.sliceFrom(v.items));
 	let buffer: rs.Arc<rs.ByteVec> = new rs.Arc(rs.byteSliceToByteVec(data));
 	const reader: rs.Arc<rs.ByteVec> = rs.arcClone(buffer);
 	for (const _116 of rs.byteSliceView(data)) {
@@ -425,9 +416,7 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	_287.value = new rs.Vec();
 	const taken: rs.Vec<rs.Arc<rs.u8>> = taken3;
 	rs.mutexUnlock(_287);
-	const _291: rs.Slice<rs.Arc<rs.u8>> = rs.sliceFrom([one, two]);
-	const items7: rs.Arc<rs.u8>[] = taken.items;
-	counts(out, _291, new rs.Slice(items7, 0, items7.length));
+	counts(out, rs.sliceFrom([one, two]), rs.sliceFrom(taken.items));
 	const _298: rs.Vec<rs.Arc<rs.u8>> = rs.vecFrom([rs.arcClone(two)]);
 	const _304: rs.Mutex<rs.Vec<rs.Arc<rs.u8>>> = rs.mutexLock(locked);
 	rs.dropVec(_304.value);
@@ -436,8 +425,7 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.dropVec(taken);
 	const _309: rs.Slice<rs.Arc<rs.u8>> = rs.sliceFrom([one, two]);
 	const _317: rs.Mutex<rs.Vec<rs.Arc<rs.u8>>> = rs.mutexLock(locked);
-	const items8: rs.Arc<rs.u8>[] = _317.value.items;
-	counts(out, _309, new rs.Slice(items8, 0, items8.length));
+	counts(out, _309, rs.sliceFrom(_317.value.items));
 	rs.mutexUnlock(_317);
 	const cell: rs.RefCell<rs.Vec<rs.Arc<rs.u8>>> = new rs.RefCell(rs.vecFrom([rs.arcClone(one)]));
 	const _328: rs.RefCell<rs.Vec<rs.Arc<rs.u8>>> = rs.refCellBorrowMut(cell);
@@ -450,13 +438,10 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.dropVec(_338.value);
 	_338.value = _330;
 	rs.refMutRelease(_338);
-	const _341: rs.Slice<rs.Arc<rs.u8>> = rs.sliceFrom([one, two]);
-	const items9: rs.Arc<rs.u8>[] = taken2.items;
-	counts(out, _341, new rs.Slice(items9, 0, items9.length));
+	counts(out, rs.sliceFrom([one, two]), rs.sliceFrom(taken2.items));
 	const _349: rs.Slice<rs.Arc<rs.u8>> = rs.sliceFrom([one, two]);
 	const _357: rs.RefCell<rs.Vec<rs.Arc<rs.u8>>> = rs.refCellBorrow(cell);
-	const items10: rs.Arc<rs.u8>[] = _357.value.items;
-	counts(out, _349, new rs.Slice(items10, 0, items10.length));
+	counts(out, _349, rs.sliceFrom(_357.value.items));
 	rs.refRelease(_357);
 	const sets: rs.HashMap<rs.u8, rs.BTreeSet<rs.u8>> = rs.hashNew() as rs.HashMap<rs.u8, rs.BTreeSet<rs.u8>>;
 	const _363: rs.Iter<rs.u8> = rs.iterSlice(rs.byteSliceView(data));
@@ -476,8 +461,7 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const keys: rs.Vec<[rs.u8, rs.u8]> = rs.iterToVec(rs.iterMap(rs.hashIter(sets), (_22: [rs.u8, rs.BTreeSet<rs.u8>]): [rs.u8, rs.u8] => {
 		return [_22[0], rs.btreeLen(_22[1]) & 0xff] as [rs.u8, rs.u8];
 	}), "next", 2);
-	const items11: [rs.u8, rs.u8][] = keys.items;
-	rs.sliceSort(new rs.Slice(items11, 0, items11.length), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 2, true);
+	rs.sliceSort(rs.sliceFrom(keys.items), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 2, true);
 	for (const _394 of keys.items) {
 		const dst7 = out;
 		const byte15 = _394[0];
@@ -513,9 +497,7 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_422 === 4) {
 			if (rs.u8Rem(b4, 2) === 0) {
 				const mine: rs.Vec<rs.Arc<rs.u8>> = swapIn(other, two);
-				const _439: rs.Slice<rs.Arc<rs.u8>> = rs.sliceFrom([one, two]);
-				const items12: rs.Arc<rs.u8>[] = mine.items;
-				counts(out, _439, new rs.Slice(items12, 0, items12.length));
+				counts(out, rs.sliceFrom([one, two]), rs.sliceFrom(mine.items));
 				rs.dropVec(mine);
 				continue;
 			}
@@ -526,9 +508,7 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	for (const _455 of rs.byteSliceView(data)) {
 		rs.byteVecPush(out, repinAll(pinnedAll, one, _455) & 0xff);
 	}
-	const _465: rs.Slice<rs.Arc<rs.u8>> = rs.sliceFrom([one, two]);
-	const items13: rs.Arc<rs.u8>[] = pinnedAll.items;
-	counts(out, _465, new rs.Slice(items13, 0, items13.length));
+	counts(out, rs.sliceFrom([one, two]), rs.sliceFrom(pinnedAll.items));
 	rs.dropVec(pinnedAll);
 	const pair: rs.Arc<rs.u8>[] = [rs.arcClone(one), rs.arcClone(two)];
 	reset(rs.sliceFrom(pair), two);
@@ -536,12 +516,8 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.dropAll(pair);
 	rs.byteVecPush(out, w.start);
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(bytes));
-	const _499: rs.Slice<rs.Arc<rs.u8>> = rs.sliceFrom([one, two]);
-	const items14: rs.Arc<rs.u8>[] = w.held.items;
-	counts(out, _499, new rs.Slice(items14, 0, items14.length));
-	const _507: rs.Slice<rs.Arc<rs.u8>> = rs.sliceFrom([one, two]);
-	const items15: rs.Arc<rs.u8>[] = other.items;
-	counts(out, _507, new rs.Slice(items15, 0, items15.length));
+	counts(out, rs.sliceFrom([one, two]), rs.sliceFrom(w.held.items));
+	counts(out, rs.sliceFrom([one, two]), rs.sliceFrom(other.items));
 	const q: rs.VecDeque<rs.u8> = rs.dequeFromArray(Uint8Array.of(by), 1, true) as rs.VecDeque<rs.u8>;
 	const map: rs.HashMap<rs.u8, rs.u8> = rs.hashNew() as rs.HashMap<rs.u8, rs.u8>;
 	for (const _519 of rs.byteSliceView(data)) {

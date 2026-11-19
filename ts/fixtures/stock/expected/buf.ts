@@ -175,8 +175,7 @@ export function bytesMut(data: rs.ByteSlice, out: rs.ByteVec): void {
 					rs.idx(_150, at);
 					_150.data[_150.start + at] = _150.data[_150.start + at] ^ 255;
 				}
-				const items4: rs.BytesMut[] = pieces.items;
-				const _155: rs.BytesMut | undefined = rs.sliceLast(new rs.Slice(items4, 0, items4.length));
+				const _155: rs.BytesMut | undefined = rs.sliceLast(rs.sliceFrom(pieces.items));
 				if (_155 !== undefined) {
 					rs.bytesMutReserve(_155, 2 as rs.usize);
 					const pos2 = _155.start + _155.length;
@@ -236,9 +235,7 @@ export function bytesMut(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 			} else {
 				if (_20 === 22) {
-					const items3: rs.ByteSlice[] = frozen.items;
-					const _230: rs.usize = rs.usizeRem(n, rs.usizeAdd(frozen.items.length, 1));
-					const _227: rs.ByteSlice | undefined = rs.sliceGet(new rs.Slice(items3, 0, items3.length), _230);
+					const _227: rs.ByteSlice | undefined = rs.sliceGet(rs.sliceFrom(frozen.items), rs.usizeRem(n, rs.usizeAdd(frozen.items.length, 1)));
 					if (_227 !== undefined) {
 						const _240: rs.ByteSlice = rs.bytesClone(_227);
 						frozen.items.push(_240);
@@ -283,8 +280,7 @@ export function bytesMut(data: rs.ByteSlice, out: rs.ByteVec): void {
 					continue;
 				}
 				if (_20 === 24) {
-					const items2: rs.ByteSlice[] = frozen.items;
-					const _268: rs.Place<rs.ByteSlice> | undefined = rs.sliceLastMut(new rs.Slice(items2, 0, items2.length));
+					const _268: rs.Place<rs.ByteSlice> | undefined = rs.sliceLastMut(rs.sliceFrom(frozen.items));
 					if (_268 !== undefined) {
 						const _273: rs.usize = rs.usizeRem(n, 3);
 						if (_273 === 0) {
@@ -301,8 +297,7 @@ export function bytesMut(data: rs.ByteSlice, out: rs.ByteVec): void {
 					continue;
 				}
 				if (_20 === 25) {
-					const items: rs.BytesMut[] = pieces.items;
-					const _286: rs.BytesMut | undefined = rs.sliceLast(new rs.Slice(items, 0, items.length));
+					const _286: rs.BytesMut | undefined = rs.sliceLast(rs.sliceFrom(pieces.items));
 					if (_286 !== undefined) {
 						buf = rs.replaceIn(_286, buf);
 						continue;
@@ -6096,19 +6091,15 @@ export function vectored(data: rs.ByteSlice, out: rs.ByteVec): void {
 			n = buf_impl_chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf(boxed, dst2);
 		}
 		rs.byteVecPush(out, n & 0xff);
-		const to: number = n;
-		rs.rangeCheck(dst2.length, 0, to);
-		for (const _86 of rs.sliceItems(new rs.Slice(dst2.data, dst2.start, to))) {
+		for (const _86 of rs.sliceItems(rs.sliceRange(dst2, 0, n))) {
 			rs.byteVecPush(out, _86.length & 0xff);
 			rs.byteVecExtendFromSlice(out, _86);
 		}
-		const to2: number = n;
-		rs.rangeCheck(dst2.length, 0, to2);
-		const arg = new rs.Slice(dst2.data, dst2.start, to2);
+		const to: number = n;
+		rs.rangeCheck(dst2.length, 0, to);
+		const arg = new rs.Slice(dst2.data, dst2.start, to);
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(arg), f, (value: rs.ByteSlice, f: rs.Formatter) => rs.fmtList(rs.byteSliceView(value), f, rs.u8Debug))]).v));
-		const to3: number = n;
-		rs.rangeCheck(dst2.length, 0, to3);
-		const s = rs.sliceItems(new rs.Slice(dst2.data, dst2.start, to3));
+		const s = rs.sliceItems(rs.sliceRange(dst2, 0, n));
 		let front = 0;
 		let back = s.length;
 		let acc: rs.usize = 0;
@@ -6123,9 +6114,7 @@ export function vectored(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.ioSliceAdvance(rs.place(() => one, (value2) => one = value2), _132);
 			rs.byteVecExtendFromSlice(out, one);
 		}
-		const to4: number = n;
-		rs.rangeCheck(dst2.length, 0, to4);
-		let left: rs.Slice<rs.ByteSlice> = new rs.Slice(dst2.data, dst2.start, to4);
+		let left: rs.Slice<rs.ByteSlice> = rs.sliceRange(dst2, 0, n);
 		rs.ioSliceAdvanceSlices(rs.place(() => left, (value3) => left = value3), skip);
 		rs.byteVecPush(out, left.length & 0xff);
 		for (const _159 of rs.sliceItems(left)) {

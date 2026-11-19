@@ -412,8 +412,7 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const tags: rs.Vec<Tagged.Tagged<rs.String>> = v;
 	const _7: rs.u8 = rs.u8Rem(kind, 4);
 	if (_7 === 0) {
-		const items5: Tagged.Tagged<rs.String>[] = tags.items;
-		const _11: Tagged.Tagged<rs.String> | undefined = rs.sliceFirst(new rs.Slice(items5, 0, items5.length));
+		const _11: Tagged.Tagged<rs.String> | undefined = rs.sliceFirst(rs.sliceFrom(tags.items));
 		const t: Tagged.Tagged<rs.String> = option_unwrapOrDefault$0348bav(_11 === undefined ? undefined : Tagged.clone$Clone_String(_11));
 		const _15: rs.u8 = t.n;
 		Tagged.default$Default_u8();
@@ -428,14 +427,11 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.iterCount(rs.iterEmpty() as rs.Iter<rs.u8>) & 0xff);
 	} else if (_7 === 1) {
 		const sorted: rs.Vec<Tagged.Tagged<rs.String>> = rs.vecFrom(tags.items.map(Tagged.clone$Clone_String));
-		const items2: Tagged.Tagged<rs.String>[] = sorted.items;
-		rs.sliceSort(new rs.Slice(items2, 0, items2.length), rs.cmpLt(Tagged.partialCmp$cmp_PartialOrd_String), 1, true);
-		const items3: Tagged.Tagged<rs.String>[] = sorted.items;
-		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items3, 0, items3.length))), (t3: Tagged.Tagged<rs.String>): rs.u8 => {
+		rs.sliceSort(rs.sliceFrom(sorted.items), rs.cmpLt(Tagged.partialCmp$cmp_PartialOrd_String), 1, true);
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(sorted.items), (t3: Tagged.Tagged<rs.String>): rs.u8 => {
 			return t3.n;
 		}), undefined, true);
-		const items4: Tagged.Tagged<rs.String>[] = tags.items;
-		const iter: rs.Iter<rs.Slice<Tagged.Tagged<rs.String>>> = rs.sliceWindows(new rs.Slice(items4, 0, items4.length), 2);
+		const iter: rs.Iter<rs.Slice<Tagged.Tagged<rs.String>>> = rs.sliceWindows(rs.sliceFrom(tags.items), 2);
 		while (true) {
 			const _76: rs.Slice<Tagged.Tagged<rs.String>> | rs.Done = iter.next();
 			if (_76 === rs.DONE) {
@@ -469,8 +465,7 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, Names.eq$cmp_PartialEq(_168, _176) ? 1 : 0);
 		const _183: Names.Names = Names.default$Default();
 		rs.byteVecPush(out, Names.cmp$cmp_Ord(_168, _183) === 0 ? 1 : 0);
-		const items: Tagged.Tagged<rs.String>[] = tags.items;
-		const s2 = rs.sliceItems(new rs.Slice(items, 0, items.length));
+		const s2 = tags.items;
 		let front2 = 0;
 		let back2 = s2.length;
 		let found = true;
@@ -621,8 +616,7 @@ export function unread(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		drop$zeros_Lock_zeros_Loud(Lock.new$zeros_Loud(undefined));
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.atomicLoad(LOG, 0))), undefined, true);
 	} else if (_9 === 1) {
-		const items: undefined[] = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): undefined => {}), undefined, 0, true).items;
-		const s = rs.sliceItems(new rs.Slice(items, 0, items.length));
+		const s = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): undefined => {}), undefined, 0, true).items;
 		let front = 0;
 		let back = s.length;
 		let n2 = 0;
@@ -713,8 +707,7 @@ export function writes(kind: rs.u8, _dataData: Uint8Array, _dataStart: number, d
 		}));
 		rs.sliceSwap(units, 0, n as rs.usize);
 		const v: rs.Vec<Unit.Unit> = rs.vecFromElem({}, 2, undefined);
-		const items: Unit.Unit[] = v.items;
-		rs.sliceSwap(new rs.Slice(items, 0, items.length), 0, 1);
+		rs.sliceSwap(rs.sliceFrom(v.items), 0, 1);
 		rs.byteVecPush(out, (units.length & 0xff) | (((v.items.length & 0xff) << 4) & 0xff));
 		const _141: rs.Cell<undefined> = new rs.Cell(undefined);
 		rs.cellReplace(_141, undefined);

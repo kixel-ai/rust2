@@ -3891,8 +3891,7 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}
 	}
 	const _501: rs.RefCell<rs.Vec<rs.char>> = rs.refCellBorrow(seen);
-	const items: rs.char[] = _501.value.items;
-	for (const _504 of rs.sliceItems(new rs.Slice(items, 0, items.length))) {
+	for (const _504 of _501.value.items) {
 		const dst = out;
 		const word = _504 as rs.u32;
 		rs.byteVecReserve(dst, 4 as rs.usize);

@@ -35,8 +35,7 @@ export function consumer(self: Channel): Consumer.Consumer {
 
 /** Send `value` through the first producer, if one is open. */
 export function send(self: Channel, value: rs.u64): boolean {
-	const items: Producer.Producer[] = self.producers.items;
-	const _3: Producer.Producer | undefined = rs.sliceFirst(new rs.Slice(items, 0, items.length));
+	const _3: Producer.Producer | undefined = rs.sliceFirst(rs.sliceFrom(self.producers.items));
 	if (_3 === undefined) {
 		return false;
 	}
@@ -56,8 +55,7 @@ export function close(self: Channel): boolean {
 
 /** Open another producer, if one is open to clone. */
 export function cloneProducer(self: Channel): boolean {
-	const items: Producer.Producer[] = self.producers.items;
-	const _3: Producer.Producer | undefined = rs.sliceFirst(new rs.Slice(items, 0, items.length));
+	const _3: Producer.Producer | undefined = rs.sliceFirst(rs.sliceFrom(self.producers.items));
 	if (_3 === undefined) {
 		return false;
 	}

@@ -2591,13 +2591,10 @@ export function chunksVectored$bytes_Buf_buf_Pieces(self: Take<Pieces.Pieces>, d
 		const slices: rs.ByteSlice[] = Array.from({ length: 16 }, (): rs.ByteSlice => {
 			return _6;
 		});
-		const _12: rs.Slice<rs.ByteSlice> = rs.sliceFrom(slices);
-		const to: number = rs.min(dst.length, 16);
-		rs.rangeCheck(_12.length, 0, to);
-		const cnt: rs.usize = Pieces.chunksVectored$bytes_Buf(self.inner, new rs.Slice(_12.data, _12.start, to));
+		const _11: rs.Slice<rs.ByteSlice> = rs.sliceRange(rs.sliceFrom(slices), 0, rs.min(dst.length, 16));
+		const cnt: rs.usize = Pieces.chunksVectored$bytes_Buf(self.inner, _11);
 		let limit: rs.usize = self.limit;
-		rs.rangeCheck(dst.length, 0, cnt);
-		const iter: rs.Iter<[rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]]> = rs.iterEnumerate(rs.iterZip(rs.iterSliceMut(new rs.Slice(dst.data, dst.start, cnt)), rs.iterSlice(slices), [false, false]));
+		const iter: rs.Iter<[rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]]> = rs.iterEnumerate(rs.iterZip(rs.iterSliceMut(rs.sliceRange(dst, 0, cnt)), rs.iterSlice(slices), [false, false]));
 		while (true) {
 			const _28: [rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]] | rs.Done = iter.next();
 			if (_28 === rs.DONE) {
@@ -2652,13 +2649,10 @@ export function chunksVectored$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, d
 		const slices: rs.ByteSlice[] = Array.from({ length: 16 }, (): rs.ByteSlice => {
 			return _6;
 		});
-		const _12: rs.Slice<rs.ByteSlice> = rs.sliceFrom(slices);
-		const to: number = rs.min(dst.length, 16);
-		rs.rangeCheck(_12.length, 0, to);
-		const cnt: rs.usize = buf_impl_chunksVectored$bytes_Buf_bytes_Bytes(self.inner, new rs.Slice(_12.data, _12.start, to));
+		const _11: rs.Slice<rs.ByteSlice> = rs.sliceRange(rs.sliceFrom(slices), 0, rs.min(dst.length, 16));
+		const cnt: rs.usize = buf_impl_chunksVectored$bytes_Buf_bytes_Bytes(self.inner, _11);
 		let limit: rs.usize = self.limit;
-		rs.rangeCheck(dst.length, 0, cnt);
-		const iter: rs.Iter<[rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]]> = rs.iterEnumerate(rs.iterZip(rs.iterSliceMut(new rs.Slice(dst.data, dst.start, cnt)), rs.iterSlice(slices), [false, false]));
+		const iter: rs.Iter<[rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]]> = rs.iterEnumerate(rs.iterZip(rs.iterSliceMut(rs.sliceRange(dst, 0, cnt)), rs.iterSlice(slices), [false, false]));
 		while (true) {
 			const _28: [rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]] | rs.Done = iter.next();
 			if (_28 === rs.DONE) {
@@ -2713,13 +2707,10 @@ export function chunksVectored$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>, 
 		const slices: rs.ByteSlice[] = Array.from({ length: 16 }, (): rs.ByteSlice => {
 			return _6;
 		});
-		const _12: rs.Slice<rs.ByteSlice> = rs.sliceFrom(slices);
-		const to: number = rs.min(dst.length, 16);
-		rs.rangeCheck(_12.length, 0, to);
-		const cnt: rs.usize = buf_impl_chunksVectored$bytes_Buf_ref_slice_u8(self.inner, new rs.Slice(_12.data, _12.start, to));
+		const _11: rs.Slice<rs.ByteSlice> = rs.sliceRange(rs.sliceFrom(slices), 0, rs.min(dst.length, 16));
+		const cnt: rs.usize = buf_impl_chunksVectored$bytes_Buf_ref_slice_u8(self.inner, _11);
 		let limit: rs.usize = self.limit;
-		rs.rangeCheck(dst.length, 0, cnt);
-		const iter: rs.Iter<[rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]]> = rs.iterEnumerate(rs.iterZip(rs.iterSliceMut(new rs.Slice(dst.data, dst.start, cnt)), rs.iterSlice(slices), [false, false]));
+		const iter: rs.Iter<[rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]]> = rs.iterEnumerate(rs.iterZip(rs.iterSliceMut(rs.sliceRange(dst, 0, cnt)), rs.iterSlice(slices), [false, false]));
 		while (true) {
 			const _28: [rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]] | rs.Done = iter.next();
 			if (_28 === rs.DONE) {

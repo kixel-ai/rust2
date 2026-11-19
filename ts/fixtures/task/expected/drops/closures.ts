@@ -547,8 +547,7 @@ export function iterated(log: Log.Log, id: rs.u32): void {
 	const k: Guard.Guard = _313[0];
 	const l: Guard.Guard = _313[1];
 	const m: Guard.Guard = _313[2];
-	const items2: Guard.Guard[] = items.items;
-	const _325: rs.Iter<Guard.Guard> = rs.iterSlice(rs.sliceItems(new rs.Slice(items2, 0, items2.length)));
+	const _325: rs.Iter<Guard.Guard> = rs.iterSlice(items.items);
 	const captured13 = k;
 	const _328: (a0: Guard.Guard) => boolean = rs.closure((g13: Guard.Guard): boolean => {
 		return Guard.id(g13) === Guard.id(captured13);
@@ -556,8 +555,7 @@ export function iterated(log: Log.Log, id: rs.u32): void {
 		captured13[Symbol.dispose]();
 	});
 	const any: boolean = rs.dropAfter(_328, () => rs.iterAny(_325, _328));
-	const items3: Guard.Guard[] = items.items;
-	const _332: rs.Iter<Guard.Guard> = rs.iterSlice(rs.sliceItems(new rs.Slice(items3, 0, items3.length)));
+	const _332: rs.Iter<Guard.Guard> = rs.iterSlice(items.items);
 	const captured14 = l;
 	const _335: (a0: Guard.Guard) => boolean = rs.closure((g14: Guard.Guard): boolean => {
 		return Guard.id(g14) === rs.u32Sub(Guard.id(captured14), 3);
@@ -567,8 +565,7 @@ export function iterated(log: Log.Log, id: rs.u32): void {
 	const found: rs.u32 | undefined = option_map$06w9waf(rs.dropAfter(_335, () => rs.iterFind(_332, _335)), (g15: Guard.Guard): rs.u32 => {
 		return Guard.id(g15);
 	});
-	const items4: Guard.Guard[] = items.items;
-	const _338: rs.Iter<Guard.Guard> = rs.iterSlice(rs.sliceItems(new rs.Slice(items4, 0, items4.length)));
+	const _338: rs.Iter<Guard.Guard> = rs.iterSlice(items.items);
 	const captured15 = m;
 	const _341: (a0: Guard.Guard) => boolean = rs.closure((g16: Guard.Guard): boolean => {
 		return rs.u32Add(Guard.id(g16), 2) === Guard.id(captured15);

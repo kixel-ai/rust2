@@ -33,8 +33,7 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 
 /** The first byte that picks the case named `name`, which `caller.ts` targets by. */
 export function op(name: string): rs.u8 {
-	const items: [string, (a0: rs.ByteSlice, a1: rs.String) => undefined][] = cases().items;
-	const s = rs.sliceItems(new rs.Slice(items, 0, items.length));
+	const s = cases().items;
 	let front = 0;
 	let back = s.length;
 	let i2 = 0;

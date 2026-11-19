@@ -483,8 +483,7 @@ export function shares(data: rs.ByteSlice, out: rs.ByteVec): void {
 	lenses.items.push(copy$shapes_Lens(lens));
 	const _114: rs.Iter<Lens.Lens> = rs.iterSlice([lens]);
 	rs.iterExtend(lenses, rs.iterMap(_114, copy$shapes_Lens), undefined, 8, true);
-	const items: Lens.Lens[] = lenses.items;
-	const iter4: rs.Iter<Lens.Lens> = rs.iterCopied(rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length))), copy$shapes_Lens);
+	const iter4: rs.Iter<Lens.Lens> = rs.iterCopied(rs.iterSlice(lenses.items), copy$shapes_Lens);
 	while (true) {
 		const _124: Lens.Lens | rs.Done = iter4.next();
 		if (_124 === rs.DONE) {
@@ -531,8 +530,7 @@ export function shares(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, writeAt(rs.byteSliceFrom(bytes), at, a));
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(bytes));
 	const points: rs.Vec<Point.Point> = rs.vecFromElem(copy$shapes_Point(Point.new(a as rs.i32, 0)), 2, copy$shapes_Point);
-	const items2: Point.Point[] = points.items;
-	movedAt(new rs.Slice(items2, 0, items2.length), at);
+	movedAt(rs.sliceFrom(points.items), at);
 	const dst4 = out;
 	const byte5 = points.items[rs.idx(points.items, 0)].x & 0xff;
 	const byte6 = points.items[rs.idx(points.items, 1)].x & 0xff;

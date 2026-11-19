@@ -199,8 +199,7 @@ export function counts$dyn_dyns_Named(arcs: rs.Slice<rs.Arc<Named.Named>>): rs.S
 		const y: rs.String = f(s[front++]);
 		v.items.push(y);
 	}
-	const items: rs.String[] = v.items;
-	return rs.strsJoin(rs.sliceItems(new rs.Slice(items, 0, items.length)), ",");
+	return rs.strsJoin(v.items, ",");
 }
 
 export function counts$dyn_dyns_Shape(arcs: rs.Slice<rs.Arc<Shape.Shape>>): rs.String {
@@ -216,8 +215,7 @@ export function counts$dyn_dyns_Shape(arcs: rs.Slice<rs.Arc<Shape.Shape>>): rs.S
 		const y: rs.String = f(s[front++]);
 		v.items.push(y);
 	}
-	const items: rs.String[] = v.items;
-	return rs.strsJoin(rs.sliceItems(new rs.Slice(items, 0, items.length)), ",");
+	return rs.strsJoin(v.items, ",");
 }
 
 export function counts$dyns_Hits(arcs: rs.Slice<rs.Arc<Hits.Hits>>): rs.String {
@@ -233,8 +231,7 @@ export function counts$dyns_Hits(arcs: rs.Slice<rs.Arc<Hits.Hits>>): rs.String {
 		const y: rs.String = f(s[front++]);
 		v.items.push(y);
 	}
-	const items: rs.String[] = v.items;
-	return rs.strsJoin(rs.sliceItems(new rs.Slice(items, 0, items.length)), ",");
+	return rs.strsJoin(v.items, ",");
 }
 
 export function counts$dyns_Square(arcs: rs.Slice<rs.Arc<Square.Square>>): rs.String {
@@ -250,8 +247,7 @@ export function counts$dyns_Square(arcs: rs.Slice<rs.Arc<Square.Square>>): rs.St
 		const y: rs.String = f(s[front++]);
 		v.items.push(y);
 	}
-	const items: rs.String[] = v.items;
-	return rs.strsJoin(rs.sliceItems(new rs.Slice(items, 0, items.length)), ",");
+	return rs.strsJoin(v.items, ",");
 }
 
 export function shared(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
@@ -322,8 +318,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 			v.items.push(y);
 		}
 		const objects: rs.Vec<rs.Arc<Shape.Shape>> = v;
-		const items: rs.Arc<Shape.Shape>[] = objects.items;
-		const s3 = rs.sliceItems(new rs.Slice(items, 0, items.length));
+		const s3 = objects.items;
 		let front = 0;
 		let back = s3.length;
 		let acc: rs.u32 = 0;
@@ -369,8 +364,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 			v2.items.push(y2);
 		}
 		const tris: rs.Vec<rs.Arc<Named.Named>> = v2;
-		const items2: rs.Arc<Named.Named>[] = tris.items;
-		const kept: rs.Vec<rs.Arc<Named.Named>> = rs.iterToVec(rs.iterMap(rs.iterStepBy(rs.iterSlice(rs.sliceItems(new rs.Slice(items2, 0, items2.length))), 2), (a0: rs.Arc<Named.Named>): rs.Arc<Named.Named> => {
+		const kept: rs.Vec<rs.Arc<Named.Named>> = rs.iterToVec(rs.iterMap(rs.iterStepBy(rs.iterSlice(tris.items), 2), (a0: rs.Arc<Named.Named>): rs.Arc<Named.Named> => {
 			return rs.arcClone(a0);
 		}), undefined, 8, true);
 		for (const _292 of tris.items) {
@@ -385,8 +379,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		for (const _322 of kept.items) {
 			_322.value.tally$Shape(rs.place(() => total, (value) => total = value));
 		}
-		const items3: rs.Arc<Named.Named>[] = kept.items;
-		const s5 = rs.sliceItems(new rs.Slice(items3, 0, items3.length));
+		const s5 = kept.items;
 		let front3 = 0;
 		let back3 = s5.length;
 		const v3: rs.Vec<rs.Arc<Named.Named>> = rs.vecWithCapacity(back3 - front3, 4);
@@ -394,8 +387,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 			const x5 = s5[front3++];
 			v3.items.push(x5);
 		}
-		const items4: rs.Arc<Named.Named>[] = v3.items;
-		const _337: rs.String = counts$dyn_dyns_Named(new rs.Slice(items4, 0, items4.length));
+		const _337: rs.String = counts$dyn_dyns_Named(rs.sliceFrom(v3.items));
 		const args36 = [(f: rs.Formatter) => rs.u32Display(total, f), (f: rs.Formatter) => rs.fmtPad(f, _337.v)];
 		put(out, rs.fmtFormat([args36[0], " ", args36[1]]).v);
 		rs.dropVec(kept);
@@ -598,8 +590,7 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			}
 		}
 		rs.drop(iter5);
-		const items: Any.Any[] = kept.items;
-		const iter6: rs.Iter<rs.Place<Any.Any>> = rs.iterRev(rs.iterSliceMut(new rs.Slice(items, 0, items.length)));
+		const iter6: rs.Iter<rs.Place<Any.Any>> = rs.iterRev(rs.iterSliceMut(rs.sliceFrom(kept.items)));
 		while (true) {
 			const _316: rs.Place<Any.Any> | rs.Done = iter6.next();
 			if (_316 === rs.DONE) {
@@ -751,15 +742,13 @@ export function fns(data: rs.ByteSlice, out: rs.ByteVec): void {
 		};
 		fs.items.push(_94);
 		const turn: rs.usize = rs.usizeRem(b as rs.usize, fs.items.length);
-		const items: Array<(a0: rs.u8) => rs.u8> = fs.items;
-		rs.sliceSwap(new rs.Slice(items, 0, items.length), 0, turn);
+		rs.sliceSwap(rs.sliceFrom(fs.items), 0, turn);
 		let captured2: rs.u8 = 0;
 		const hook: Hook.Hook = new Hook.Hook((x4: rs.u8): rs.u32 => {
 			captured2 = rs.u8WrappingAdd(captured2, x4);
 			return rs.u32Mul(captured2 as rs.u32, 3);
 		});
-		const items2: Array<(a0: rs.u8) => rs.u8> = fs.items;
-		const s2: Array<(a0: rs.u8) => rs.u8> = rs.sliceItems(new rs.Slice(items2, 0, items2.length));
+		const s2: Array<(a0: rs.u8) => rs.u8> = fs.items;
 		let front: number = 0;
 		const back: number = s2.length;
 		let count: number = 0;
@@ -1233,16 +1222,12 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			}
 		}
 		rs.drop(iter);
-		const items: rs.Arc<Shape.Shape>[] = rcs.items;
-		const kept: rs.Vec<rs.Arc<Shape.Shape>> = rs.iterToVec(rs.iterMap(rs.iterStepBy(rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length))), 2), (a0: rs.Arc<Shape.Shape>): rs.Arc<Shape.Shape> => {
+		const kept: rs.Vec<rs.Arc<Shape.Shape>> = rs.iterToVec(rs.iterMap(rs.iterStepBy(rs.iterSlice(rcs.items), 2), (a0: rs.Arc<Shape.Shape>): rs.Arc<Shape.Shape> => {
 			return rs.arcClone(a0);
 		}), undefined, 8, true);
-		const items2: rs.Arc<Shape.Shape>[] = rcs.items;
-		const _268: rs.Iter<rs.u32> = rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items2, 0, items2.length))), (s5: rs.Arc<Shape.Shape>): rs.u32 => {
+		const part2 = rs.iterToVec(rs.iterChain(rs.iterMap(rs.iterSlice(rcs.items), (s5: rs.Arc<Shape.Shape>): rs.u32 => {
 			return s5.value.area$Shape();
-		});
-		const items3: rs.Arc<Shape.Shape>[] = arcs.items;
-		const part2 = rs.iterToVec(rs.iterChain(_268, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items3, 0, items3.length))), (s6: rs.Arc<Shape.Shape>): rs.u32 => {
+		}), rs.iterMap(rs.iterSlice(arcs.items), (s6: rs.Arc<Shape.Shape>): rs.u32 => {
 			return s6.value.area$Shape();
 		})), undefined, 4, true);
 		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part2.items, f, rs.u32Debug), " "]).v);
@@ -1643,8 +1628,7 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _37: rs.Arc<rs.RefCell<Shape.Shape>> = new rs.ArcDyn(_38, rs.tailDyn(_38.value, { value: (value3: rs.RefCell<Tri.Tri>) => new ofPlace$dyns_Tri(rs.valuePlace(value3)) }));
 		const _41: rs.Arc<rs.RefCell<Noisy.Noisy>> = new rs.Arc(new rs.RefCell(new Noisy.Noisy(a ^ b, rs.arcClone(log))));
 		const shapes: rs.Vec<rs.Arc<rs.RefCell<Shape.Shape>>> = rs.vecFrom([_31, _34, _37, new rs.ArcDyn(_41, rs.tailDyn(_41.value, { value: (value4: rs.RefCell<Noisy.Noisy>) => new of$dyns_Noisy(value4.value) }, rs.drop))]);
-		const items: rs.Arc<rs.RefCell<Shape.Shape>>[] = shapes.items;
-		const s3: rs.Arc<rs.RefCell<Shape.Shape>>[] = rs.sliceItems(new rs.Slice(items, 0, items.length));
+		const s3: rs.Arc<rs.RefCell<Shape.Shape>>[] = shapes.items;
 		let front: number = 0;
 		const back: number = s3.length;
 		let count: number = 0;
@@ -1656,8 +1640,7 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_61.value.grow$Shape(_63);
 			rs.refMutRelease(_61);
 		}
-		const items2: rs.Arc<rs.RefCell<Shape.Shape>>[] = shapes.items;
-		const s5 = rs.sliceItems(new rs.Slice(items2, 0, items2.length));
+		const s5 = shapes.items;
 		let front2 = 0;
 		let back2 = s5.length;
 		const f2 = (s4: rs.Arc<rs.RefCell<Shape.Shape>>): rs.u32 => {
@@ -1918,8 +1901,7 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _741: rs.RefCell<Guarded.Guarded<Shape.Shape>> = rs.refCellBorrowMut(cell2.value);
 		_741.value.value.grow$Shape(a);
 		rs.refMutRelease(_741);
-		const items3: Guarded.Guarded<Shape.Shape>[] = guarded.items;
-		const s8 = rs.sliceItems(new rs.Slice(items3, 0, items3.length));
+		const s8 = guarded.items;
 		let front3 = 0;
 		let back3 = s8.length;
 		const v3: rs.Vec<rs.u32> = rs.vecWithCapacity(back3 - front3, 4);
@@ -2427,8 +2409,7 @@ export function taken$Option_u8(s: Source.Source<rs.u8 | undefined>): rs.String 
 			break;
 		}
 	}
-	const items: rs.String[] = taken.items;
-	return rs.strsJoin(rs.sliceItems(new rs.Slice(items, 0, items.length)), ",");
+	return rs.strsJoin(taken.items, ",");
 }
 
 export function taken$String(s: Source.Source<rs.String>): rs.String {
@@ -2442,8 +2423,7 @@ export function taken$String(s: Source.Source<rs.String>): rs.String {
 			break;
 		}
 	}
-	const items: rs.String[] = taken.items;
-	return rs.strsJoin(rs.sliceItems(new rs.Slice(items, 0, items.length)), ",");
+	return rs.strsJoin(taken.items, ",");
 }
 
 export function taken$u32(s: Source.Source<rs.u32>): rs.String {
@@ -2457,8 +2437,7 @@ export function taken$u32(s: Source.Source<rs.u32>): rs.String {
 			break;
 		}
 	}
-	const items: rs.String[] = taken.items;
-	return rs.strsJoin(rs.sliceItems(new rs.Slice(items, 0, items.length)), ",");
+	return rs.strsJoin(taken.items, ",");
 }
 
 export function taken$unit(s: Source.Source<undefined>): rs.String {
@@ -2467,8 +2446,7 @@ export function taken$unit(s: Source.Source<undefined>): rs.String {
 		const _8: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.fmtUnit(undefined, f)]);
 		taken.items.push(_8);
 	}
-	const items: rs.String[] = taken.items;
-	return rs.strsJoin(rs.sliceItems(new rs.Slice(items, 0, items.length)), ",");
+	return rs.strsJoin(taken.items, ",");
 }
 
 export function generics(data: rs.ByteSlice, out: rs.ByteVec): void {
@@ -2596,8 +2574,7 @@ export function generics(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const tasks: rs.Vec<Task.Task<undefined>> = rs.vecFrom([new of$dyns_Steps({ _0: 1, _1: a as rs.u32 })]);
 		const square: Task.Task<rs.u32> = new of$dyns_Square({ side: c as rs.u16 });
 		tasks.items[rs.idx(tasks.items, 0)].run$Task();
-		const items2: Task.Task<undefined>[] = tasks.items;
-		const ran: rs.usize = rs.iterCount(rs.iterMap(rs.iterSliceMut(new rs.Slice(items2, 0, items2.length)), (t: rs.Place<Task.Task<undefined>>): undefined => {
+		const ran: rs.usize = rs.iterCount(rs.iterMap(rs.iterSliceMut(rs.sliceFrom(tasks.items)), (t: rs.Place<Task.Task<undefined>>): undefined => {
 			t.v.run$Task();
 		}));
 		const _408: rs.u32 = square.run$Task();

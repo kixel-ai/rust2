@@ -9,8 +9,7 @@ export interface Seq {
 
 export function fmt$fmt_Debug(self: Seq, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const _5: rs.DebugList = rs.fmtDebugList(f);
-	const items: Pair.Pair[] = self._0.items;
-	const _6: rs.Iter<Pair.Pair> = rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length)));
+	const _6: rs.Iter<Pair.Pair> = rs.iterSlice(self._0.items);
 	return rs.debugListFinish(rs.debugListEntries(_5, _6, (value: Pair.Pair, f: rs.Formatter) => Pair.fmt$fmt_Debug(value, f)));
 }
 

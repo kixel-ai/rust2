@@ -6675,9 +6675,8 @@ export function advance$bytes_Buf_ref_slice_u8_bytes_BytesMut(self: Chain<rs.Byt
  */
 export function chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf_bytes_Bytes(self: Chain<Buf.Buf, rs.ByteSlice>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
 	const n: rs.usize = buf_impl_chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf(self.a, dst);
-	const from: number = n;
-	rs.rangeCheck(dst.length, from, dst.length);
-	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_bytes_Bytes(self.b, new rs.Slice(dst.data, dst.start + from, dst.length - from)));
+	const _7: rs.Slice<rs.ByteSlice> = rs.sliceRange(dst, n);
+	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_bytes_Bytes(self.b, _7));
 }
 
 /**
@@ -6711,9 +6710,8 @@ export function chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf_bytes_Bytes(sel
  */
 export function chunksVectored$bytes_Buf_buf_Pieces_bytes_Bytes(self: Chain<Pieces.Pieces, rs.ByteSlice>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
 	const n: rs.usize = Pieces.chunksVectored$bytes_Buf(self.a, dst);
-	const from: number = n;
-	rs.rangeCheck(dst.length, from, dst.length);
-	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_bytes_Bytes(self.b, new rs.Slice(dst.data, dst.start + from, dst.length - from)));
+	const _7: rs.Slice<rs.ByteSlice> = rs.sliceRange(dst, n);
+	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_bytes_Bytes(self.b, _7));
 }
 
 /**
@@ -6747,9 +6745,8 @@ export function chunksVectored$bytes_Buf_buf_Pieces_bytes_Bytes(self: Chain<Piec
  */
 export function chunksVectored$bytes_Buf_buf_Provided_mut_ref_slice_u8(self: Chain<Provided.Provided, rs.Place<rs.ByteSlice>>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
 	const n: rs.usize = Provided.chunksVectored$bytes_Buf(self.a, dst);
-	const from: number = n;
-	rs.rangeCheck(dst.length, from, dst.length);
-	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_mut_ref_slice_u8(self.b, new rs.Slice(dst.data, dst.start + from, dst.length - from)));
+	const _7: rs.Slice<rs.ByteSlice> = rs.sliceRange(dst, n);
+	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_mut_ref_slice_u8(self.b, _7));
 }
 
 /**
@@ -6783,9 +6780,8 @@ export function chunksVectored$bytes_Buf_buf_Provided_mut_ref_slice_u8(self: Cha
  */
 export function chunksVectored$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(self: Chain<Chain<Buf.Buf, rs.ByteSlice>, rs.ByteSlice>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
 	const n: rs.usize = chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf_bytes_Bytes(self.a, dst);
-	const from: number = n;
-	rs.rangeCheck(dst.length, from, dst.length);
-	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_ref_slice_u8(self.b, new rs.Slice(dst.data, dst.start + from, dst.length - from)));
+	const _7: rs.Slice<rs.ByteSlice> = rs.sliceRange(dst, n);
+	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_ref_slice_u8(self.b, _7));
 }
 
 /**
@@ -6819,9 +6815,8 @@ export function chunksVectored$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf
  */
 export function chunksVectored$bytes_Buf_bytes_buf_Chain_buf_Pieces_bytes_Bytes_ref_slice_u8(self: Chain<Chain<Pieces.Pieces, rs.ByteSlice>, rs.ByteSlice>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
 	const n: rs.usize = chunksVectored$bytes_Buf_buf_Pieces_bytes_Bytes(self.a, dst);
-	const from: number = n;
-	rs.rangeCheck(dst.length, from, dst.length);
-	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_ref_slice_u8(self.b, new rs.Slice(dst.data, dst.start + from, dst.length - from)));
+	const _7: rs.Slice<rs.ByteSlice> = rs.sliceRange(dst, n);
+	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_ref_slice_u8(self.b, _7));
 }
 
 /**

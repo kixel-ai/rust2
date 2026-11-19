@@ -210,8 +210,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}), [new rs.Vec() as rs.Vec<Guard.Guard>, new rs.Vec() as rs.Vec<Guard.Guard>], rs.vecPart(8), true, true);
 		const odd: rs.Vec<Guard.Guard> = _189[0];
 		const even: rs.Vec<Guard.Guard> = _189[1];
-		const items6: Guard.Guard[] = odd.items;
-		const s2 = rs.sliceItems(new rs.Slice(items6, 0, items6.length));
+		const s2 = odd.items;
 		let front2 = 0;
 		let back2 = s2.length;
 		const v5: rs.Vec<rs.u32> = rs.vecWithCapacity(back2 - front2, 4);
@@ -342,10 +341,10 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["flat ", (f: rs.Formatter) => rs.u32Display(part9, f)]));
 	} else if (_17 === 7) {
 		const v2: rs.Vec<Guard.Guard> = rs.iterToVec(rs.iterSlice(rs.arrayMap([3, 1, 4, 5, 2], guard), rs.drop), "fold", 8, true);
-		const items3: Guard.Guard[] = v2.items;
+		const _380: rs.Slice<Guard.Guard> = rs.sliceFrom(v2.items);
 		_679 = false;
 		const captured12 = c;
-		rs.sliceSortByCachedKey(new rs.Slice(items3, 0, items3.length), rs.closure((g8: Guard.Guard): Key.Key => {
+		rs.sliceSortByCachedKey(_380, rs.closure((g8: Guard.Guard): Key.Key => {
 			const _910: rs.u32 = Guard.id(g8);
 			const _1113: rs.u32 = Guard.id(captured12);
 			const args86 = [(f: rs.Formatter) => rs.u32Display(_910, f), (f: rs.Formatter) => rs.u32Display(_1113, f)];
@@ -354,8 +353,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured12[Symbol.dispose]();
 		}), rs.cmpLt(rs.cmpTuple<[Key.Key, rs.usize], rs.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rs.cmp])), 16, true, false, true, rs.drop);
-		const items4: Guard.Guard[] = v2.items;
-		const s = rs.sliceItems(new rs.Slice(items4, 0, items4.length));
+		const s = v2.items;
 		let front = 0;
 		let back = s.length;
 		const v4: rs.Vec<rs.u32> = rs.vecWithCapacity(back - front, 4);
@@ -365,11 +363,9 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}
 		Log.note(log, rs.fmtFormat(["sorted ", (f: rs.Formatter) => rs.fmtList(v4.items, f, rs.u32Debug)]));
 		const w: rs.Vec<rs.u32> = rs.vecFrom([3, 1, 2]);
-		const items5: rs.u32[] = w.items;
-		const _403: (a0: rs.u32) => rs.u32 = (_210: rs.u32): rs.u32 => {
+		rs.sliceSortByCachedKey(rs.sliceFrom(w.items), (_210: rs.u32): rs.u32 => {
 			return rs.u32Add(_210, Guard.id(d));
-		};
-		rs.sliceSortByCachedKey(new rs.Slice(items5, 0, items5.length), _403, rs.cmpLt(rs.cmpTuple<[rs.u32, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmp), rs.cmp])), 8, true, true);
+		}, rs.cmpLt(rs.cmpTuple<[rs.u32, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmp), rs.cmp])), 8, true, true);
 		Log.note(log, rs.fmtFormat(["rev ", (f: rs.Formatter) => rs.fmtList(w.items, f, rs.u32Debug)]));
 		rs.dropVec(v2);
 	} else if (_17 === 8) {
@@ -518,13 +514,12 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			return _08;
 		}, true), "next", 4, false, 8);
 		const empty: rs.Vec<Guard.Guard> = new rs.Vec();
-		const items: Guard.Guard[] = empty.items;
-		rs.sliceSortByCachedKey(new rs.Slice(items, 0, items.length), Guard.id, rs.cmpLt(rs.cmpTuple<[rs.u32, rs.usize], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 8, true, true);
+		rs.sliceSortByCachedKey(rs.sliceFrom(empty.items), Guard.id, rs.cmpLt(rs.cmpTuple<[rs.u32, rs.usize], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 8, true, true);
 		const one: rs.Vec<Guard.Guard> = guards(1, 2);
 		const e5: Guard.Guard = guard(22);
-		const items2: Guard.Guard[] = one.items;
+		const _603: rs.Slice<Guard.Guard> = rs.sliceFrom(one.items);
 		const captured5 = e5;
-		rs.sliceSortByCachedKey(new rs.Slice(items2, 0, items2.length), rs.closure((g7: Guard.Guard): rs.u32 => {
+		rs.sliceSortByCachedKey(_603, rs.closure((g7: Guard.Guard): rs.u32 => {
 			return rs.u32Add(Guard.id(g7), Guard.id(captured5));
 		}, (): void => {
 			captured5[Symbol.dispose]();

@@ -170,8 +170,7 @@ export function bounds(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			})), undefined, true);
 			rs.byteVecPush(out, drain.len() & 0xff);
 			rs.drop(drain);
-			const items2: rs.u32[] = words.items;
-			rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items2, 0, items2.length))), (_217: rs.u32): rs.u8 => {
+			rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(words.items), (_217: rs.u32): rs.u8 => {
 				return _217 & 0xff;
 			}), undefined, true);
 		} else if (_28 === 1) {
@@ -325,8 +324,7 @@ export function bounds(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			flush(out);
 		}
 		flush(out);
-		const items3: Item.Item[] = items.items;
-		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items3, 0, items3.length))), (x10: Item.Item): rs.u8 => {
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(items.items), (x10: Item.Item): rs.u8 => {
 			return x10.tag;
 		}), undefined, true);
 		rs.dropVec(items);

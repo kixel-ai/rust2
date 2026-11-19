@@ -1218,28 +1218,24 @@ export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const one: rs.Vec<Cloned.Cloned> = rs.vecFrom([{ depth: a, name: rs.stringClone(name) }]);
 	rs.byteVecPush(out, one.items[rs.idx(one.items, 0)].depth);
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.byteVecOf(b, n)));
-	const items: rs.u16[] = rs.vecFromElem(rs.u16Mul(a as rs.u16, 257), n, undefined).items;
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length))), (w: rs.u16): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.vecFromElem(rs.u16Mul(a as rs.u16, 257), n, undefined).items), (w: rs.u16): rs.u8 => {
 		return rs.u16Shr(w, 4) & 0xff;
 	}), undefined, true);
 	const tuples: rs.Vec<[rs.u8, rs.u8]> = rs.vecFromElem([a, b] as [rs.u8, rs.u8], n, copy$tuple2_u8_u8);
 	if (n > 0) {
 		tuples.items[rs.idx(tuples.items, 0)][0] = 238;
 	}
-	const items2: [rs.u8, rs.u8][] = tuples.items;
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items2, 0, items2.length))), (t: [rs.u8, rs.u8]): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(tuples.items), (t: [rs.u8, rs.u8]): rs.u8 => {
 		return t[0] ^ t[1];
 	}), undefined, true);
 	rs.byteVecPush(out, rs.vecFromElem(rs.stringClone(name), n, (a0: rs.String): rs.String => {
 		return rs.stringClone(a0);
 	}).items.length & 0xff);
 	const cloned: rs.Vec<Cloned.Cloned> = rs.vecFromElem({ depth: 0, name }, n, Cloned.clone$Clone);
-	const items3: Cloned.Cloned[] = cloned.items;
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items3, 0, items3.length))), (c: Cloned.Cloned): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(cloned.items), (c: Cloned.Cloned): rs.u8 => {
 		return c.depth;
 	}), undefined, true);
-	const items4: Cloned.Cloned[] = cloned.items;
-	const s2 = rs.sliceItems(new rs.Slice(items4, 0, items4.length));
+	const s2 = cloned.items;
 	let front = 0;
 	let back = s2.length;
 	let found = true;
@@ -1250,8 +1246,7 @@ export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	}
 	rs.byteVecPush(out, found ? 1 : 0);
-	const items5: Bumped.Bumped[] = rs.vecFromElem({ _0: b }, n, Bumped.clone$Clone).items;
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items5, 0, items5.length))), (o: Bumped.Bumped): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.vecFromElem({ _0: b }, n, Bumped.clone$Clone).items), (o: Bumped.Bumped): rs.u8 => {
 		return o._0;
 	}), undefined, true);
 	const pair: [rs.u8, rs.u8] = [a, b];
@@ -1278,12 +1273,10 @@ export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	dst.data[pos + 2] = byte;
 	dst.data[pos + 3] = a;
 	dst.length = dst.length + 4;
-	const items6: [rs.u8, rs.u8][] = repeated.items;
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(rs.sliceItems(new rs.Slice(items6, 0, items6.length))), rs.iterSlice(again.items)), (t2: [rs.u8, rs.u8]): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(repeated.items), rs.iterSlice(again.items)), (t2: [rs.u8, rs.u8]): rs.u8 => {
 		return t2[1];
 	}), undefined, true);
-	const items7: Bumped.Bumped[] = bumps.items;
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(rs.sliceItems(new rs.Slice(items7, 0, items7.length))), rs.iterSlice(kept.items)), (o2: Bumped.Bumped): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(bumps.items), rs.iterSlice(kept.items)), (o2: Bumped.Bumped): rs.u8 => {
 		return o2._0;
 	}), undefined, true);
 	const grown: rs.ByteVec = rs.byteVecFrom(rs.byteVecView(bytes));
@@ -1292,26 +1285,23 @@ export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	_167.data[_167.start] = _167.data[_167.start] ^ 255;
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(grown));
 	const _178: rs.ByteVec = rs.byteVecOf(b, n);
-	const items8: rs.ByteVec[] = rs.vecFrom([bytes, _178]).items;
-	for (const _183 of rs.sliceItems(new rs.Slice(items8, 0, items8.length))) {
+	for (const _183 of rs.vecFrom([bytes, _178]).items) {
 		rs.byteVecPush(out, _183.length & 0xff);
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_183));
 	}
 	const wrapped: rs.Vec<Wrap.Wrap<rs.u8>> = rs.vecFromElem(new Wrap.Wrap(a, b), n, copy$collections_Wrap_u8);
 	if (n > 0) {
-		const items9: Wrap.Wrap<rs.u8>[] = wrapped.items;
+		const items: Wrap.Wrap<rs.u8>[] = wrapped.items;
 		const _197: rs.usize = rs.usizeSub(n, 1);
-		if (_197 >= items9.length) {
-			rs.panic("index out of bounds: the len is " + items9.length + " but the index is " + _197);
+		if (_197 >= items.length) {
+			rs.panic("index out of bounds: the len is " + items.length + " but the index is " + _197);
 		}
-		items9[_197].count = items9[_197].count ^ 255;
+		items[_197].count = items[_197].count ^ 255;
 	}
-	const items10: Wrap.Wrap<rs.u8>[] = wrapped.items;
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items10, 0, items10.length))), (w2: Wrap.Wrap<rs.u8>): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(wrapped.items), (w2: Wrap.Wrap<rs.u8>): rs.u8 => {
 		return w2.value ^ w2.count;
 	}), undefined, true);
-	const items11: rs.String[] = names.items;
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items11, 0, items11.length))), (s3: rs.String): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(names.items), (s3: rs.String): rs.u8 => {
 		return s3.len & 0xff;
 	}), undefined, true);
 }
@@ -1375,8 +1365,7 @@ export function stores(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const old: [rs.u8, rs.u8] = old2;
 	const at8 = rs.idx(v.items, 0);
 	v.items[at8][1] = v.items[at8][1] ^ 16;
-	const items: [rs.u8, rs.u8][] = v.items;
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length))), (p: [rs.u8, rs.u8]): Uint8Array => {
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(v.items), (p: [rs.u8, rs.u8]): Uint8Array => {
 		return Uint8Array.of(p[0], p[1]);
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
 	const dst = out;
@@ -1527,8 +1516,7 @@ export function sorted$collections_OptionMap_Option_String_collections_HashMap_u
 	const all: rs.Vec<[rs.u8, rs.String | undefined]> = rs.iterToVec(rs.iterMap(rs.hashIter(self), (_2: [rs.u8, rs.String | undefined]): [rs.u8, rs.String | undefined] => {
 		return [_2[0], option_clone$0dg4ec5(_2[1])] as [rs.u8, rs.String | undefined];
 	}), "next", 16);
-	const items: [rs.u8, rs.String | undefined][] = all.items;
-	rs.sliceSort(new rs.Slice(items, 0, items.length), rs.keyLt((_22: [rs.u8, rs.String | undefined]): rs.u8 => {
+	rs.sliceSort(rs.sliceFrom(all.items), rs.keyLt((_22: [rs.u8, rs.String | undefined]): rs.u8 => {
 		return _22[0];
 	}, rs.lt), 16, true);
 	return all;
@@ -1538,8 +1526,7 @@ export function sorted$collections_OptionMap_Option_u8_collections_HashMap_u8_Op
 	const all: rs.Vec<[rs.u8, rs.u8 | undefined]> = rs.iterToVec(rs.iterMap(rs.hashIter(self), (_2: [rs.u8, rs.u8 | undefined]): [rs.u8, rs.u8 | undefined] => {
 		return [_2[0], _2[1]] as [rs.u8, rs.u8 | undefined];
 	}), "next", 3);
-	const items: [rs.u8, rs.u8 | undefined][] = all.items;
-	rs.sliceSort(new rs.Slice(items, 0, items.length), rs.keyLt((_22: [rs.u8, rs.u8 | undefined]): rs.u8 => {
+	rs.sliceSort(rs.sliceFrom(all.items), rs.keyLt((_22: [rs.u8, rs.u8 | undefined]): rs.u8 => {
 		return _22[0];
 	}, rs.lt), 3, true);
 	return all;
@@ -1551,8 +1538,7 @@ export function sorted$collections_OptionMap_unit_collections_HashMap_u8_unit(se
 		_2[1];
 		return [_5, undefined] as [rs.u8, undefined];
 	}), "next", 1);
-	const items: [rs.u8, undefined][] = all.items;
-	rs.sliceSort(new rs.Slice(items, 0, items.length), rs.keyLt((_22: [rs.u8, undefined]): rs.u8 => {
+	rs.sliceSort(rs.sliceFrom(all.items), rs.keyLt((_22: [rs.u8, undefined]): rs.u8 => {
 		return _22[0];
 	}, rs.lt), 1, true);
 	return all;
@@ -1842,8 +1828,7 @@ export function optionals(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " "]).v));
 		}
 		const all: rs.Vec<[[rs.u8, boolean], rs.u8 | undefined]> = rs.iterToVec(rs.hashIter(map), "next", 4);
-		const items: [[rs.u8, boolean], rs.u8 | undefined][] = all.items;
-		rs.sliceSort(new rs.Slice(items, 0, items.length), rs.cmpLt(rs.cmpTuple<[[rs.u8, boolean], rs.u8 | undefined], rs.Ordering | undefined>([rs.cmpTuple<[rs.u8, boolean], rs.Ordering | undefined>([rs.cmp, rs.cmp]), rs.cmpOption(rs.cmp)])), 4, true);
+		rs.sliceSort(rs.sliceFrom(all.items), rs.cmpLt(rs.cmpTuple<[[rs.u8, boolean], rs.u8 | undefined], rs.Ordering | undefined>([rs.cmpTuple<[rs.u8, boolean], rs.Ordering | undefined>([rs.cmp, rs.cmp]), rs.cmpOption(rs.cmp)])), 4, true);
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(all.items, f, (value: [[rs.u8, boolean], rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0][0], f), (f: rs.Formatter) => rs.fmtBool(value[0][1], f)], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))]).v));
 	}
 }
@@ -3708,36 +3693,31 @@ export function putHints$u8_collections_hash_set_Union_u8_hash_RandomState(items
 
 /** [`put_all`] of `items` in order. */
 export function putSorted$Option_u8(items: rs.Vec<rs.u8 | undefined>, put: (a0: rs.u8 | undefined) => rs.u8, out: rs.ByteVec): void {
-	const items2: Array<rs.u8 | undefined> = items.items;
-	rs.sliceSort(new rs.Slice(items2, 0, items2.length), rs.cmpLt(rs.cmpOption(rs.cmp)), 4, true);
+	rs.sliceSort(rs.sliceFrom(items.items), rs.cmpLt(rs.cmpOption(rs.cmp)), 4, true);
 	putAll$Option_u8_vec_IntoIter_ref_Option_u8(rs.vecIntoIter(items), put, out);
 }
 
 /** [`put_all`] of `items` in order. */
 export function putSorted$array2_u8(items: rs.Vec<rs.ByteSlice>, put: (a0: rs.ByteSlice) => rs.u8, out: rs.ByteVec): void {
-	const items2: rs.ByteSlice[] = items.items;
-	rs.sliceSort(new rs.Slice(items2, 0, items2.length), rs.cmpLt(rs.cmpBytes), 4, true);
+	rs.sliceSort(rs.sliceFrom(items.items), rs.cmpLt(rs.cmpBytes), 4, true);
 	putAll$array2_u8_vec_IntoIter_ref_array2_u8(rs.vecIntoIter(items), put, out);
 }
 
 /** [`put_all`] of `items` in order. */
 export function putSorted$cmp_Reverse_Option_u8(items: rs.Vec<rs.u8 | undefined>, put: (a0: rs.u8 | undefined) => rs.u8, out: rs.ByteVec): void {
-	const items2: Array<rs.u8 | undefined> = items.items;
-	rs.sliceSort(new rs.Slice(items2, 0, items2.length), rs.cmpLt(rs.cmpReverse(rs.cmpOption(rs.cmp))), 4, true);
+	rs.sliceSort(rs.sliceFrom(items.items), rs.cmpLt(rs.cmpReverse(rs.cmpOption(rs.cmp))), 4, true);
 	putAll$cmp_Reverse_Option_u8_vec_IntoIter_ref_cmp_Reverse_Option_u8(rs.vecIntoIter(items), put, out);
 }
 
 /** [`put_all`] of `items` in order. */
 export function putSorted$collections_Nibble(items: rs.Vec<Nibble.Nibble>, put: (a0: Nibble.Nibble) => rs.u8, out: rs.ByteVec): void {
-	const items2: Nibble.Nibble[] = items.items;
-	rs.sliceSort(new rs.Slice(items2, 0, items2.length), rs.cmpLt(Nibble.partialCmp$cmp_PartialOrd), 4, true);
+	rs.sliceSort(rs.sliceFrom(items.items), rs.cmpLt(Nibble.partialCmp$cmp_PartialOrd), 4, true);
 	putAll$collections_Nibble_vec_IntoIter_ref_collections_Nibble(rs.vecIntoIter(items), put, out);
 }
 
 /** [`put_all`] of `items` in order. */
 export function putSorted$u8(items: rs.Vec<rs.u8>, put: (a0: rs.u8) => rs.u8, out: rs.ByteVec): void {
-	const items2: rs.u8[] = items.items;
-	rs.sliceSort(new rs.Slice(items2, 0, items2.length), rs.lt, 4, true);
+	rs.sliceSort(rs.sliceFrom(items.items), rs.lt, 4, true);
 	putAll$u8_vec_IntoIter_ref_u8(rs.vecIntoIter(items), put, out);
 }
 
@@ -3821,23 +3801,23 @@ export function unlikeEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		return [{ _0: rs.u16Add(at(0), 12) }, { _0: rs.u16Add(at(1), 12) }];
 	};
 	const mine: rs.Vec<Left.Left> = lefts();
-	const items: Right.Right[] = rights_.items;
+	const _22: rs.Slice<Right.Right> = rs.sliceFrom(rights_.items);
 	putEq(rs.eqSeq((a: Left.Left, b6: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a, b6);
-	})(mine, new rs.Slice(items, 0, items.length)), log, out);
+	})(mine, _22), log, out);
 	putEq(!rs.eqSeq((a2: Left.Left, b7: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a2, b7);
 	})(mine, rights_), log, out);
-	const items2: Left.Left[] = mine.items;
-	const items3: Right.Right[] = rights_.items;
+	const _32: rs.Slice<Left.Left> = rs.sliceFrom(mine.items);
+	const _34: rs.Slice<Right.Right> = rs.sliceFrom(rights_.items);
 	putEq(rs.eqSeq((a3: Left.Left, b8: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a3, b8);
-	})(new rs.Slice(items2, 0, items2.length), new rs.Slice(items3, 0, items3.length)), log, out);
+	})(_32, _34), log, out);
 	putEq(rs.eqSeq(Right.eq$cmp_PartialEq_collections_Left)(rights_, mine), log, out);
-	const items4: Left.Left[] = mine.items;
+	const items: Left.Left[] = mine.items;
 	putEq(rs.eqSeq((a4: Left.Left, b9: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a4, b9);
-	})(new rs.Slice(items4, 0, items4.length), rights_), log, out);
+	})(new rs.Slice(items, 0, items.length), rights_), log, out);
 	const _53: rs.Slice<Right.Right> = rs.sliceFrom(pair());
 	putEq(rs.eqSeq((a5: Left.Left, b10: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a5, b10);
@@ -3846,12 +3826,11 @@ export function unlikeEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	putEq(rs.eqSeq((a6: Left.Left, b11: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a6, b11);
 	})(mine, _61), log, out);
-	const items5: Left.Left[] = mine.items;
-	const _67: rs.Slice<Left.Left> = new rs.Slice(items5, 0, items5.length);
+	const _68: rs.Slice<Left.Left> = rs.sliceFrom(mine.items);
 	const _70: rs.Slice<Right.Right> = rs.sliceFrom(pair());
 	putEq(rs.eqSeq((a7: Left.Left, b12: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a7, b12);
-	})(_67, _70), log, out);
+	})(_68, _70), log, out);
 	const two: Left.Left[] = [{ _0: at(0), _1: log }, { _0: at(1), _1: log }];
 	const _87: rs.Slice<Left.Left> = rs.sliceFrom(two);
 	const _88: rs.Slice<Right.Right> = rs.sliceFrom(pair());
@@ -3864,15 +3843,15 @@ export function unlikeEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		return !Left.ne$cmp_PartialEq_collections_Right(a9, b14);
 	})(_94, _95), log, out);
 	const _101: rs.Slice<Left.Left> = rs.sliceFrom(two);
-	const items6: Right.Right[] = rights_.items;
+	const _102: rs.Slice<Right.Right> = rs.sliceFrom(rights_.items);
 	putEq(rs.eqSeq((a10: Left.Left, b15: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a10, b15);
-	})(_101, new rs.Slice(items6, 0, items6.length)), log, out);
+	})(_101, _102), log, out);
 	const _107: rs.Slice<Left.Left> = rs.sliceFrom(two);
-	const items7: Right.Right[] = rights_.items;
+	const _109: rs.Slice<Right.Right> = rs.sliceFrom(rights_.items);
 	putEq(rs.eqSeq((a11: Left.Left, b16: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a11, b16);
-	})(_107, new rs.Slice(items7, 0, items7.length)), log, out);
+	})(_107, _109), log, out);
 	const _115: rs.Vec<Left.Left> = new rs.Vec();
 	const _117: rs.Vec<Right.Right> = new rs.Vec();
 	putEq(rs.eqSeq((a12: Left.Left, b17: Right.Right): boolean => {
@@ -3887,8 +3866,8 @@ export function unlikeEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	})(mine, rs.sliceFrom([])), log, out);
 	const _133: rs.ByteVec = rs.byteSliceToByteVec(data);
 	putEq(rs.eqSeq(eq$cmp_PartialEq_collections_Right_u8)(_133, rights_), log, out);
-	const items8: Right.Right[] = rights_.items;
-	putEq(rs.eqSeq(eq$cmp_PartialEq_collections_Right_u8)(data, new rs.Slice(items8, 0, items8.length)), log, out);
+	const _140: rs.Slice<Right.Right> = rs.sliceFrom(rights_.items);
+	putEq(rs.eqSeq(eq$cmp_PartialEq_collections_Right_u8)(data, _140), log, out);
 	const pairs: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterMap(rs.byteSliceChunksExact(data, 2), (c: rs.ByteSlice): Uint8Array => {
 		rs.idx(c, 0);
 		const _36: rs.u8 = c.data[c.start];
@@ -3896,22 +3875,19 @@ export function unlikeEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		return Uint8Array.of(_36, c.data[c.start + 1]);
 	}), undefined, 2, true);
 	const _148: rs.ArraySlice<rs.ByteSlice> = rs.arraySliceFrom(pairs.items, rs.byteSliceFrom);
-	const to: number = rs.min(pairs.items.length, rights_.items.length);
-	const items9: Right.Right[] = rights_.items;
-	rs.rangeCheck(items9.length, 0, to);
+	const part = rs.min(pairs.items.length, rights_.items.length);
+	const _150: rs.Slice<Right.Right> = rs.sliceRange(rs.sliceFrom(rights_.items), 0, part);
 	putEq(rs.eqSeq((a15: Uint8Array, b20: Right.Right): boolean => {
 		return ((a0: rs.ByteSlice, a1: Right.Right): boolean => {
 			return eq$cmp_PartialEq_collections_Right_array2_u8(a0.data, a0.start, a0.length, a1);
 		})(rs.byteSliceFrom(a15), b20);
-	})(_148, new rs.Slice(items9, 0, to)), log, out);
+	})(_148, _150), log, out);
 	const _162: rs.Vec<rs.Vec<Left.Left>> = rs.vecFrom([lefts(), lefts()]);
-	const items10: Right.Right[] = rights_.items;
-	const items11: Right.Right[] = rights_.items;
+	const _168: rs.Slice<rs.Slice<Right.Right>> = rs.sliceFrom([rs.sliceFrom(rights_.items), rs.sliceFrom(rights_.items)]);
 	putEq(rs.eqSeq(rs.eqSeq((a16: Left.Left, b21: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a16, b21);
-	}))(_162, rs.sliceFrom([new rs.Slice(items10, 0, items10.length), new rs.Slice(items11, 0, items11.length)])), log, out);
-	const items12: Right.Right[] = rights_.items;
-	const s2 = rs.sliceItems(new rs.Slice(items12, 0, items12.length));
+	}))(_162, _168), log, out);
+	const s2 = rights_.items;
 	let front2 = 0;
 	let back2 = s2.length;
 	const v2: rs.Vec<Right.Right> = rs.vecWithCapacity(back2 - front2, 4);
@@ -3921,8 +3897,7 @@ export function unlikeEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	}
 	const refs: rs.Vec<Right.Right> = v2;
 	putEq(rs.eqSeq(Left.eq$cmp_PartialEq_ref_collections_Right)(mine, refs), log, out);
-	const items13: Left.Left[] = mine.items;
-	const s3 = rs.sliceItems(new rs.Slice(items13, 0, items13.length));
+	const s3 = mine.items;
 	let front3 = 0;
 	let back3 = s3.length;
 	const v3: rs.Vec<Left.Left> = rs.vecWithCapacity(back3 - front3, 4);
@@ -3933,8 +3908,7 @@ export function unlikeEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	putEq(rs.eqSeq((a17: Left.Left, b22: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a17, b22);
 	})(v3, refs), log, out);
-	const items14: Left.Left[] = lefts().items;
-	const s4 = rs.sliceItems(new rs.Slice(items14, 0, items14.length));
+	const s4 = lefts().items;
 	let front4 = 0;
 	let back4 = s4.length;
 	const v4: rs.Vec<Left.Left> = rs.vecWithCapacity(back4 - front4, 4);
@@ -3951,8 +3925,7 @@ export function unlikeEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		const y2: Odd.Odd = { _0: s5[front5++] as rs.u16 };
 		v5.items.push(y2);
 	}
-	const items15: Odd.Odd[] = v5.items;
-	const s6 = rs.sliceItems(new rs.Slice(items15, 0, items15.length));
+	const s6 = v5.items;
 	let front6 = 0;
 	let back6 = s6.length;
 	const v6: rs.Vec<Odd.Odd> = rs.vecWithCapacity(back6 - front6, 4);
@@ -3976,21 +3949,21 @@ export function unlikeEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		const _245: Left.Left = { _0: _239 as rs.u16, _1: log };
 		rs.dequePushBack(q, _245);
 	}
-	const items16: Right.Right[] = rights_.items;
+	const _252: rs.Slice<Right.Right> = rs.sliceFrom(rights_.items);
 	putEq(rs.eqSeq((a18: Left.Left, b24: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a18, b24);
-	})(q, new rs.Slice(items16, 0, items16.length)), log, out);
+	})(q, _252), log, out);
 	putEq(rs.eqSeq((a19: Left.Left, b25: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a19, b25);
 	})(q, rights_), log, out);
-	const items17: Right.Right[] = rights_.items;
+	const _264: rs.Slice<Right.Right> = rs.sliceFrom(rights_.items);
 	putEq(!rs.eqSeq((a20: Left.Left, b26: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a20, b26);
-	})(q, new rs.Slice(items17, 0, items17.length)), log, out);
-	const items18: Right.Right[] = rights_.items;
+	})(q, _264), log, out);
+	const items2: Right.Right[] = rights_.items;
 	putEq(rs.eqSeq((a21: Left.Left, b27: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a21, b27);
-	})(q, new rs.Slice(items18, 0, items18.length)), log, out);
+	})(q, new rs.Slice(items2, 0, items2.length)), log, out);
 	const _278: rs.Slice<Right.Right> = rs.sliceFrom(pair());
 	putEq(rs.eqSeq((a22: Left.Left, b28: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a22, b28);
@@ -4053,21 +4026,20 @@ export function unlikeEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		v8.items.push(y4);
 	}
 	const exact: rs.Vec<Right.Right> = v8;
-	const items19: Right.Right[] = exact.items;
-	putEq(rs.peekableNextIfEq(it, new rs.Slice(items19, 0, items19.length), (a02: rs.Vec<Left.Left>, a110: rs.Slice<Right.Right>): boolean => {
+	const _392: rs.Slice<Right.Right> = rs.sliceFrom(exact.items);
+	putEq(rs.peekableNextIfEq(it, _392, (a02: rs.Vec<Left.Left>, a110: rs.Slice<Right.Right>): boolean => {
 		return rs.eqSeq((a25: Left.Left, b34: Right.Right): boolean => {
 			return !Left.ne$cmp_PartialEq_collections_Right(a25, b34);
 		})(a02, a110);
 	}) !== undefined, log, out);
-	const items20: Right.Right[] = rights_.items;
-	putEq(rs.peekableNextIfEq(it, new rs.Slice(items20, 0, items20.length), (a03: rs.Vec<Left.Left>, a111: rs.Slice<Right.Right>): boolean => {
+	const _401: rs.Slice<Right.Right> = rs.sliceFrom(rights_.items);
+	putEq(rs.peekableNextIfEq(it, _401, (a03: rs.Vec<Left.Left>, a111: rs.Slice<Right.Right>): boolean => {
 		return rs.eqSeq((a26: Left.Left, b35: Right.Right): boolean => {
 			return !Left.ne$cmp_PartialEq_collections_Right(a26, b35);
 		})(a03, a111);
 	}) !== undefined, log, out);
-	const items21: Right.Right[] = exact.items;
-	rs.rangeCheck(items21.length, 0, half);
-	putEq(rs.peekableNextIfEq(it, new rs.Slice(items21, 0, half), (a04: rs.Vec<Left.Left>, a112: rs.Slice<Right.Right>): boolean => {
+	const _409: rs.Slice<Right.Right> = rs.sliceRange(rs.sliceFrom(exact.items), 0, half);
+	putEq(rs.peekableNextIfEq(it, _409, (a04: rs.Vec<Left.Left>, a112: rs.Slice<Right.Right>): boolean => {
 		return rs.eqSeq((a27: Left.Left, b36: Right.Right): boolean => {
 			return !Left.ne$cmp_PartialEq_collections_Right(a27, b36);
 		})(a04, a112);
@@ -4091,8 +4063,7 @@ export function unlikeEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 export function wrapped$collections_Picky(v: rs.Slice<Picky.Picky>): rs.VecDeque<Picky.Picky> {
 	const half: rs.usize = rs.usizeDiv(v.length, 2);
 	const q: rs.VecDeque<Picky.Picky> = rs.dequeNew(8) as rs.VecDeque<Picky.Picky>;
-	rs.rangeCheck(v.length, 0, half);
-	const iter: rs.Iter<Picky.Picky> = rs.iterRev(rs.iterSlice(rs.sliceItems(new rs.Slice(v.data, v.start, half))));
+	const iter: rs.Iter<Picky.Picky> = rs.iterRev(rs.iterSlice(rs.sliceItems(rs.sliceRange(v, 0, half))));
 	while (true) {
 		const _12: Picky.Picky | rs.Done = iter.next();
 		if (_12 === rs.DONE) {
@@ -4101,8 +4072,7 @@ export function wrapped$collections_Picky(v: rs.Slice<Picky.Picky>): rs.VecDeque
 		const _18: Picky.Picky = Picky.clone$Clone(_12);
 		rs.dequePushFront(q, _18);
 	}
-	rs.rangeCheck(v.length, half, v.length);
-	const _21: rs.Iter<Picky.Picky> = rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(v.data, v.start + half, v.length - half))), Picky.clone$Clone);
+	const _21: rs.Iter<Picky.Picky> = rs.iterMap(rs.iterSlice(rs.sliceItems(rs.sliceRange(v, half))), Picky.clone$Clone);
 	rs.dequeExtend(q, _21, undefined, true);
 	return q;
 }
@@ -4385,16 +4355,16 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	putEq(!rs.eqSlice((a3: Picky.Picky, b3: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a3, b3);
 	})(a, b), log, out);
-	const items: Picky.Picky[] = a.items;
-	const items2: Picky.Picky[] = b.items;
+	const _50: rs.Slice<Picky.Picky> = rs.sliceFrom(a.items);
+	const _52: rs.Slice<Picky.Picky> = rs.sliceFrom(b.items);
 	putEq(rs.eqSlice((a4: Picky.Picky, b4: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a4, b4);
-	})(new rs.Slice(items, 0, items.length), new rs.Slice(items2, 0, items2.length)), log, out);
-	const items3: Picky.Picky[] = a.items;
-	const items4: Picky.Picky[] = b.items;
+	})(_50, _52), log, out);
+	const items: Picky.Picky[] = a.items;
+	const items2: Picky.Picky[] = b.items;
 	putEq(!rs.eqSlice((a5: Picky.Picky, b5: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a5, b5);
-	})(new rs.Slice(items3, 0, items3.length), new rs.Slice(items4, 0, items4.length)), log, out);
+	})(new rs.Slice(items, 0, items.length), new rs.Slice(items2, 0, items2.length)), log, out);
 	const _69: rs.Vec<Picky.Picky> = new rs.Vec();
 	const _71: rs.Vec<Picky.Picky> = new rs.Vec();
 	putEq(rs.eqSlice((a6: Picky.Picky, b6: Picky.Picky): boolean => {
@@ -4404,17 +4374,17 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	putEq(!rs.eqSlice((a7: Picky.Picky, b7: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a7, b7);
 	})(_76, b), log, out);
-	const items5: Picky.Picky[] = a.items;
-	const args = [new rs.Slice(items5, 0, items5.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items3: Picky.Picky[] = a.items;
+	const args = [new rs.Slice(items3, 0, items3.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _83: Picky.Picky = one(args[0], args[1]);
-	const items6: Picky.Picky[] = a.items;
-	const args2 = [new rs.Slice(items6, 0, items6.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items4: Picky.Picky[] = a.items;
+	const args2 = [new rs.Slice(items4, 0, items4.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _82: Picky.Picky[] = [_83, one(args2[0], args2[1])];
-	const items7: Picky.Picky[] = b.items;
-	const args3 = [new rs.Slice(items7, 0, items7.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items5: Picky.Picky[] = b.items;
+	const args3 = [new rs.Slice(items5, 0, items5.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _94: Picky.Picky = one(args3[0], args3[1]);
-	const items8: Picky.Picky[] = b.items;
-	const args4 = [new rs.Slice(items8, 0, items8.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items6: Picky.Picky[] = b.items;
+	const args4 = [new rs.Slice(items6, 0, items6.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _81: [Picky.Picky[], Picky.Picky[]] = [_82, [_94, one(args4[0], args4[1])]];
 	const pa: Picky.Picky[] = _82;
 	const pb: Picky.Picky[] = _81[1];
@@ -4429,10 +4399,10 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return !Picky.ne$cmp_PartialEq(a9, b9);
 	})(_111, _112), log, out);
 	const _116: rs.Slice<Picky.Picky> = rs.sliceFrom(pa);
-	const items9: Picky.Picky[] = b.items;
+	const _117: rs.Slice<Picky.Picky> = rs.sliceFrom(b.items);
 	putEq(rs.eqSlice((a10: Picky.Picky, b10: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a10, b10);
-	})(_116, new rs.Slice(items9, 0, items9.length)), log, out);
+	})(_116, _117), log, out);
 	const _123: rs.Vec<rs.Vec<Picky.Picky>> = rs.vecFrom([rs.vecFrom(a.items.map(Picky.clone$Clone)), rs.vecFrom(a.items.map(Picky.clone$Clone))]);
 	const _129: rs.Slice<rs.Vec<Picky.Picky>> = rs.sliceFrom([rs.vecFrom(a.items.map(Picky.clone$Clone)), rs.vecFrom(b.items.map(Picky.clone$Clone))]);
 	putEq(rs.eqSlice(rs.eqSlice((a11: Picky.Picky, b11: Picky.Picky): boolean => {
@@ -4446,120 +4416,110 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const tuple: (a0: rs.Slice<Picky.Picky>) => [Picky.Picky, rs.u8, Picky.Picky] = (v5: rs.Slice<Picky.Picky>): [Picky.Picky, rs.u8, Picky.Picky] => {
 		return [one(v5, 0), _34(v5, 2) & 0xff, one(v5, 1)] as [Picky.Picky, rs.u8, Picky.Picky];
 	};
-	const items10: Picky.Picky[] = a.items;
-	const args5 = [new rs.Slice(items10, 0, items10.length)] as [rs.Slice<Picky.Picky>];
+	const items7: Picky.Picky[] = a.items;
+	const args5 = [new rs.Slice(items7, 0, items7.length)] as [rs.Slice<Picky.Picky>];
 	const _158: [Picky.Picky, rs.u8, Picky.Picky] = tuple(args5[0]);
-	const items11: Picky.Picky[] = b.items;
-	const args6 = [new rs.Slice(items11, 0, items11.length)] as [rs.Slice<Picky.Picky>];
+	const items8: Picky.Picky[] = b.items;
+	const args6 = [new rs.Slice(items8, 0, items8.length)] as [rs.Slice<Picky.Picky>];
 	const _164: [Picky.Picky, rs.u8, Picky.Picky] = tuple(args6[0]);
 	putEq(!rs.eqTuple([(a13: Picky.Picky, b13: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a13, b13);
 	}, rs.same, (a14: Picky.Picky, b14: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a14, b14);
 	}])(_158, _164), log, out);
-	const items12: Picky.Picky[] = a.items;
-	const args7 = [new rs.Slice(items12, 0, items12.length)] as [rs.Slice<Picky.Picky>];
+	const items9: Picky.Picky[] = a.items;
+	const args7 = [new rs.Slice(items9, 0, items9.length)] as [rs.Slice<Picky.Picky>];
 	const _173: [Picky.Picky, rs.u8, Picky.Picky] = tuple(args7[0]);
-	const items13: Picky.Picky[] = b.items;
-	const args8 = [new rs.Slice(items13, 0, items13.length)] as [rs.Slice<Picky.Picky>];
+	const items10: Picky.Picky[] = b.items;
+	const args8 = [new rs.Slice(items10, 0, items10.length)] as [rs.Slice<Picky.Picky>];
 	const _179: [Picky.Picky, rs.u8, Picky.Picky] = tuple(args8[0]);
 	putEq(rs.eqTuple([Picky.eq$cmp_PartialEq, rs.same, Picky.eq$cmp_PartialEq])(_173, _179), log, out);
-	const items14: Picky.Picky[] = a.items;
-	const args9 = [new rs.Slice(items14, 0, items14.length)] as [rs.Slice<Picky.Picky>];
+	const items11: Picky.Picky[] = a.items;
+	const args9 = [new rs.Slice(items11, 0, items11.length)] as [rs.Slice<Picky.Picky>];
 	const _188: [[Picky.Picky, rs.u8, Picky.Picky], rs.u8] = [tuple(args9[0]), 1];
-	const items15: Picky.Picky[] = b.items;
-	const args10 = [new rs.Slice(items15, 0, items15.length)] as [rs.Slice<Picky.Picky>];
+	const items12: Picky.Picky[] = b.items;
+	const args10 = [new rs.Slice(items12, 0, items12.length)] as [rs.Slice<Picky.Picky>];
 	const _195: [[Picky.Picky, rs.u8, Picky.Picky], rs.u8] = [tuple(args10[0]), 1];
 	putEq(!rs.eqTuple([rs.eqTuple([(a15: Picky.Picky, b15: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a15, b15);
 	}, rs.same, (a16: Picky.Picky, b16: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a16, b16);
 	}]), rs.same])(_188, _195), log, out);
-	const items16: Picky.Picky[] = a.items;
-	const _205: rs.Vec<[Picky.Picky, rs.u8]> = each$collections_Picky_tuple2_collections_Picky_u8_collections_own_nes_closure6(new rs.Slice(items16, 0, items16.length), (p2: Picky.Picky): [Picky.Picky, rs.u8] => {
+	const _205: rs.Vec<[Picky.Picky, rs.u8]> = each$collections_Picky_tuple2_collections_Picky_u8_collections_own_nes_closure6(rs.sliceFrom(a.items), (p2: Picky.Picky): [Picky.Picky, rs.u8] => {
 		return [Picky.clone$Clone(p2), p2._0 & 0xff] as [Picky.Picky, rs.u8];
 	});
-	const items17: Picky.Picky[] = b.items;
-	const _209: rs.Vec<[Picky.Picky, rs.u8]> = each$collections_Picky_tuple2_collections_Picky_u8_collections_own_nes_closure7(new rs.Slice(items17, 0, items17.length), (p3: Picky.Picky): [Picky.Picky, rs.u8] => {
+	const _209: rs.Vec<[Picky.Picky, rs.u8]> = each$collections_Picky_tuple2_collections_Picky_u8_collections_own_nes_closure7(rs.sliceFrom(b.items), (p3: Picky.Picky): [Picky.Picky, rs.u8] => {
 		return [Picky.clone$Clone(p3), p3._0 & 0xff] as [Picky.Picky, rs.u8];
 	});
 	putEq(rs.eqSlice(rs.eqTuple([(a17: Picky.Picky, b17: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a17, b17);
 	}, rs.same]))(_205, _209), log, out);
-	const items18: Picky.Picky[] = a.items;
-	const items19: [Picky.Picky, rs.u8][] = each$collections_Picky_tuple2_collections_Picky_u8_collections_own_nes_closure8(new rs.Slice(items18, 0, items18.length), (p4: Picky.Picky): [Picky.Picky, rs.u8] => {
+	const items13: [Picky.Picky, rs.u8][] = each$collections_Picky_tuple2_collections_Picky_u8_collections_own_nes_closure8(rs.sliceFrom(a.items), (p4: Picky.Picky): [Picky.Picky, rs.u8] => {
 		return [Picky.clone$Clone(p4), p4._0 & 0xff] as [Picky.Picky, rs.u8];
 	}).items;
-	const items20: Picky.Picky[] = b.items;
-	const items21: [Picky.Picky, rs.u8][] = each$collections_Picky_tuple2_collections_Picky_u8_collections_own_nes_closure9(new rs.Slice(items20, 0, items20.length), (p5: Picky.Picky): [Picky.Picky, rs.u8] => {
+	const items14: [Picky.Picky, rs.u8][] = each$collections_Picky_tuple2_collections_Picky_u8_collections_own_nes_closure9(rs.sliceFrom(b.items), (p5: Picky.Picky): [Picky.Picky, rs.u8] => {
 		return [Picky.clone$Clone(p5), p5._0 & 0xff] as [Picky.Picky, rs.u8];
 	}).items;
 	putEq(!rs.eqSlice(rs.eqTuple([(a18: Picky.Picky, b18: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a18, b18);
-	}, rs.same]))(new rs.Slice(items19, 0, items19.length), new rs.Slice(items21, 0, items21.length)), log, out);
-	const items22: Picky.Picky[] = a.items;
-	const args11 = [new rs.Slice(items22, 0, items22.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	}, rs.same]))(new rs.Slice(items13, 0, items13.length), new rs.Slice(items14, 0, items14.length)), log, out);
+	const items15: Picky.Picky[] = a.items;
+	const args11 = [new rs.Slice(items15, 0, items15.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _233: [Picky.Picky | undefined] = [one(args11[0], args11[1])];
-	const items23: Picky.Picky[] = b.items;
-	const args12 = [new rs.Slice(items23, 0, items23.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items16: Picky.Picky[] = b.items;
+	const args12 = [new rs.Slice(items16, 0, items16.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _241: [Picky.Picky | undefined] = [one(args12[0], args12[1])];
 	putEq(!rs.eqTuple([rs.eqOption(Picky.eq$cmp_PartialEq)])(_233, _241), log, out);
-	const items24: Picky.Picky[] = a.items;
-	const args13 = [new rs.Slice(items24, 0, items24.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items17: Picky.Picky[] = a.items;
+	const args13 = [new rs.Slice(items17, 0, items17.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _252: [Picky.Picky] = [one(args13[0], args13[1])];
-	const items25: Picky.Picky[] = b.items;
-	const args14 = [new rs.Slice(items25, 0, items25.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items18: Picky.Picky[] = b.items;
+	const args14 = [new rs.Slice(items18, 0, items18.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _260: [Picky.Picky] = [one(args14[0], args14[1])];
 	putEq(!rs.eqTuple([Picky.eq$cmp_PartialEq])(_252, _260), log, out);
-	const items26: Picky.Picky[] = a.items;
-	const args15 = [new rs.Slice(items26, 0, items26.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items19: Picky.Picky[] = a.items;
+	const args15 = [new rs.Slice(items19, 0, items19.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _271: [Picky.Picky] = [one(args15[0], args15[1])];
-	const items27: Picky.Picky[] = b.items;
-	const args16 = [new rs.Slice(items27, 0, items27.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items20: Picky.Picky[] = b.items;
+	const args16 = [new rs.Slice(items20, 0, items20.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _279: [Picky.Picky] = [one(args16[0], args16[1])];
 	putEq(!rs.eqTuple([(a19: Picky.Picky, b19: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a19, b19);
 	}])(_271, _279), log, out);
-	const items28: Picky.Picky[] = a.items;
-	const args17 = [new rs.Slice(items28, 0, items28.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items21: Picky.Picky[] = a.items;
+	const args17 = [new rs.Slice(items21, 0, items21.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _290: [Picky.Picky] = [one(args17[0], args17[1])];
-	const items29: Picky.Picky[] = b.items;
-	const args18 = [new rs.Slice(items29, 0, items29.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items22: Picky.Picky[] = b.items;
+	const args18 = [new rs.Slice(items22, 0, items22.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _298: [Picky.Picky] = [one(args18[0], args18[1])];
 	putEq(!rs.eqTuple([(a20: Picky.Picky, b20: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a20, b20);
 	}])(_290, _298), log, out);
-	const items30: Picky.Picky[] = a.items;
-	const _309: rs.Vec<Picky.Picky | undefined> = each$collections_Picky_Option_collections_Picky_collections_own_nes_closure10(new rs.Slice(items30, 0, items30.length), (p6: Picky.Picky): Picky.Picky | undefined => {
+	const _309: rs.Vec<Picky.Picky | undefined> = each$collections_Picky_Option_collections_Picky_collections_own_nes_closure10(rs.sliceFrom(a.items), (p6: Picky.Picky): Picky.Picky | undefined => {
 		return Picky.clone$Clone(p6);
 	});
-	const items31: Picky.Picky[] = b.items;
-	const _313: rs.Vec<Picky.Picky | undefined> = each$collections_Picky_Option_collections_Picky_collections_own_nes_closure11(new rs.Slice(items31, 0, items31.length), (p7: Picky.Picky): Picky.Picky | undefined => {
+	const _313: rs.Vec<Picky.Picky | undefined> = each$collections_Picky_Option_collections_Picky_collections_own_nes_closure11(rs.sliceFrom(b.items), (p7: Picky.Picky): Picky.Picky | undefined => {
 		return Picky.clone$Clone(p7);
 	});
 	putEq(rs.eqSlice(rs.eqOption(Picky.eq$cmp_PartialEq))(_309, _313), log, out);
-	const items32: Picky.Picky[] = a.items;
-	const _320: rs.Vec<Picky.Picky> = each$collections_Picky_cmp_Reverse_collections_Picky_collections_own_nes_closure12(new rs.Slice(items32, 0, items32.length), (p8: Picky.Picky): Picky.Picky => {
+	const _320: rs.Vec<Picky.Picky> = each$collections_Picky_cmp_Reverse_collections_Picky_collections_own_nes_closure12(rs.sliceFrom(a.items), (p8: Picky.Picky): Picky.Picky => {
 		return Picky.clone$Clone(p8);
 	});
-	const items33: Picky.Picky[] = b.items;
-	const _324: rs.Vec<Picky.Picky> = each$collections_Picky_cmp_Reverse_collections_Picky_collections_own_nes_closure13(new rs.Slice(items33, 0, items33.length), (p9: Picky.Picky): Picky.Picky => {
+	const _324: rs.Vec<Picky.Picky> = each$collections_Picky_cmp_Reverse_collections_Picky_collections_own_nes_closure13(rs.sliceFrom(b.items), (p9: Picky.Picky): Picky.Picky => {
 		return Picky.clone$Clone(p9);
 	});
 	putEq(rs.eqSlice(Picky.eq$cmp_PartialEq)(_320, _324), log, out);
-	const items34: Picky.Picky[] = a.items;
-	const _331: rs.Vec<Picky.Picky> = each$collections_Picky_boxed_Box_collections_Picky_collections_own_nes_closure14(new rs.Slice(items34, 0, items34.length), (p10: Picky.Picky): Picky.Picky => {
+	const _331: rs.Vec<Picky.Picky> = each$collections_Picky_boxed_Box_collections_Picky_collections_own_nes_closure14(rs.sliceFrom(a.items), (p10: Picky.Picky): Picky.Picky => {
 		return Picky.clone$Clone(p10);
 	});
-	const items35: Picky.Picky[] = b.items;
-	const _335: rs.Vec<Picky.Picky> = each$collections_Picky_boxed_Box_collections_Picky_collections_own_nes_closure15(new rs.Slice(items35, 0, items35.length), (p11: Picky.Picky): Picky.Picky => {
+	const _335: rs.Vec<Picky.Picky> = each$collections_Picky_boxed_Box_collections_Picky_collections_own_nes_closure15(rs.sliceFrom(b.items), (p11: Picky.Picky): Picky.Picky => {
 		return Picky.clone$Clone(p11);
 	});
 	putEq(rs.eqSlice((a21: Picky.Picky, b21: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a21, b21);
 	})(_331, _335), log, out);
-	const items36: Picky.Picky[] = a.items;
-	const args19 = [new rs.Slice(items36, 0, items36.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items23: Picky.Picky[] = a.items;
+	const args19 = [new rs.Slice(items23, 0, items23.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const arc: rs.Arc<Picky.Picky> = new rs.Arc(one(args19[0], args19[1]));
 	const _349: rs.Arc<Picky.Picky> = rs.arcClone(arc);
 	putEq(!rs.eqArc((a22: Picky.Picky, b22: Picky.Picky): boolean => {
@@ -4569,45 +4529,44 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _356: rs.Arc<Picky.Picky> = rs.arcClone(arc);
 	putEq(rs.eqArc(Picky.eq$cmp_PartialEq, true)(arc, _356), log, out);
 	_356[Symbol.dispose]();
-	const items37: Picky.Picky[] = a.items;
-	const args20 = [new rs.Slice(items37, 0, items37.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items24: Picky.Picky[] = a.items;
+	const args20 = [new rs.Slice(items24, 0, items24.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _362: rs.Arc<Picky.Picky> = new rs.Arc(one(args20[0], args20[1]));
-	const items38: Picky.Picky[] = b.items;
-	const args21 = [new rs.Slice(items38, 0, items38.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items25: Picky.Picky[] = b.items;
+	const args21 = [new rs.Slice(items25, 0, items25.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _369: rs.Arc<Picky.Picky> = new rs.Arc(one(args21[0], args21[1]));
 	putEq(!rs.eqArc((a23: Picky.Picky, b23: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a23, b23);
 	}, true)(_362, _369), log, out);
 	_369[Symbol.dispose]();
 	_362[Symbol.dispose]();
-	const items39: Picky.Picky[] = a.items;
-	const args22 = [new rs.Slice(items39, 0, items39.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items26: Picky.Picky[] = a.items;
+	const args22 = [new rs.Slice(items26, 0, items26.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const floated: rs.Arc<[Picky.Picky, rs.f32]> = new rs.Arc([one(args22[0], args22[1]), 0.5] as [Picky.Picky, rs.f32]);
 	const _387: rs.Arc<[Picky.Picky, rs.f32]> = rs.arcClone(floated);
 	putEq(!rs.eqArc(rs.eqTuple([(a24: Picky.Picky, b24: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a24, b24);
 	}, rs.same]))(floated, _387), log, out);
 	_387[Symbol.dispose]();
-	const items40: Picky.Picky[] = b.items;
-	const args23 = [new rs.Slice(items40, 0, items40.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items27: Picky.Picky[] = b.items;
+	const args23 = [new rs.Slice(items27, 0, items27.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _394: rs.Arc<[Picky.Picky, rs.f32]> = new rs.Arc([one(args23[0], args23[1]), 0.5] as [Picky.Picky, rs.f32]);
 	putEq(!rs.eqArc(rs.eqTuple([(a25: Picky.Picky, b25: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a25, b25);
 	}, rs.same]))(floated, _394), log, out);
 	_394[Symbol.dispose]();
-	const items41: Picky.Picky[] = a.items;
-	const args24 = [new rs.Slice(items41, 0, items41.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items28: Picky.Picky[] = a.items;
+	const args24 = [new rs.Slice(items28, 0, items28.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _405: rs.Arc<Picky.Picky> = new rs.Arc(one(args24[0], args24[1]));
-	const items42: Picky.Picky[] = b.items;
-	const args25 = [new rs.Slice(items42, 0, items42.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items29: Picky.Picky[] = b.items;
+	const args25 = [new rs.Slice(items29, 0, items29.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _412: rs.Arc<Picky.Picky> = new rs.Arc(one(args25[0], args25[1]));
 	putEq(!rs.eqArc((a26: Picky.Picky, b26: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a26, b26);
 	}, true)(_405, _412), log, out);
 	_412[Symbol.dispose]();
 	_405[Symbol.dispose]();
-	const items43: Picky.Picky[] = a.items;
-	const shared: rs.Vec<rs.Arc<Picky.Picky>> = each$collections_Picky_sync_Arc_collections_Picky_collections_own_nes_closure16(new rs.Slice(items43, 0, items43.length), (p12: Picky.Picky): rs.Arc<Picky.Picky> => {
+	const shared: rs.Vec<rs.Arc<Picky.Picky>> = each$collections_Picky_sync_Arc_collections_Picky_collections_own_nes_closure16(rs.sliceFrom(a.items), (p12: Picky.Picky): rs.Arc<Picky.Picky> => {
 		return new rs.Arc(Picky.clone$Clone(p12));
 	});
 	const _426: rs.Vec<rs.Arc<Picky.Picky>> = rs.vecFrom(shared.items.map((a0: rs.Arc<Picky.Picky>): rs.Arc<Picky.Picky> => {
@@ -4617,8 +4576,7 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		return !Picky.ne$cmp_PartialEq(a27, b27);
 	}, true))(shared, _426), log, out);
 	rs.dropVec(_426);
-	const items44: Picky.Picky[] = b.items;
-	const _433: rs.Vec<rs.Arc<Picky.Picky>> = each$collections_Picky_sync_Arc_collections_Picky_collections_own_nes_closure17(new rs.Slice(items44, 0, items44.length), (p13: Picky.Picky): rs.Arc<Picky.Picky> => {
+	const _433: rs.Vec<rs.Arc<Picky.Picky>> = each$collections_Picky_sync_Arc_collections_Picky_collections_own_nes_closure17(rs.sliceFrom(b.items), (p13: Picky.Picky): rs.Arc<Picky.Picky> => {
 		return new rs.Arc(Picky.clone$Clone(p13));
 	});
 	putEq(rs.eqSlice(rs.eqArc((a28: Picky.Picky, b28: Picky.Picky): boolean => {
@@ -4626,54 +4584,47 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}, true))(shared, _433), log, out);
 	rs.dropVec(_433);
 	const _440: [rs.Arc<Picky.Picky>, rs.u8] = [rs.arcClone(arc), 0];
-	const items45: Picky.Picky[] = b.items;
-	const args26 = [new rs.Slice(items45, 0, items45.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items30: Picky.Picky[] = b.items;
+	const args26 = [new rs.Slice(items30, 0, items30.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _444: [rs.Arc<Picky.Picky>, rs.u8] = [new rs.Arc(one(args26[0], args26[1])), 0];
 	putEq(!rs.eqTuple([rs.eqArc((a29: Picky.Picky, b29: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a29, b29);
 	}, true), rs.same])(_440, _444), log, out);
 	drop$tuple2_sync_Arc_collections_Picky_u8(_444);
 	drop$tuple2_sync_Arc_collections_Picky_u8(_440);
-	const items46: Picky.Picky[] = a.items;
-	const _455: rs.VecDeque<Picky.Picky> = wrapped$collections_Picky(new rs.Slice(items46, 0, items46.length));
-	const items47: Picky.Picky[] = b.items;
-	const _459: rs.VecDeque<Picky.Picky> = wrapped$collections_Picky(new rs.Slice(items47, 0, items47.length));
+	const _455: rs.VecDeque<Picky.Picky> = wrapped$collections_Picky(rs.sliceFrom(a.items));
+	const _459: rs.VecDeque<Picky.Picky> = wrapped$collections_Picky(rs.sliceFrom(b.items));
 	putEq(rs.eqSeq((a30: Picky.Picky, b30: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a30, b30);
 	})(_455, _459), log, out);
-	const items48: Picky.Picky[] = a.items;
-	const _466: rs.VecDeque<Picky.Picky> = wrapped$collections_Picky(new rs.Slice(items48, 0, items48.length));
-	const items49: Picky.Picky[] = b.items;
-	const _470: rs.VecDeque<Picky.Picky> = wrapped$collections_Picky(new rs.Slice(items49, 0, items49.length));
+	const _466: rs.VecDeque<Picky.Picky> = wrapped$collections_Picky(rs.sliceFrom(a.items));
+	const _470: rs.VecDeque<Picky.Picky> = wrapped$collections_Picky(rs.sliceFrom(b.items));
 	putEq(!rs.eqSeq((a31: Picky.Picky, b31: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a31, b31);
 	})(_466, _470), log, out);
-	const items50: Picky.Picky[] = a.items;
-	const _477: rs.VecDeque<Picky.Picky> = wrapped$collections_Picky(new rs.Slice(items50, 0, items50.length));
+	const _477: rs.VecDeque<Picky.Picky> = wrapped$collections_Picky(rs.sliceFrom(a.items));
 	putEq(rs.eqSeq((a32: Picky.Picky, b32: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a32, b32);
 	})(_477, b), log, out);
-	const items51: Picky.Picky[] = a.items;
-	const _485: rs.VecDeque<Picky.Picky> = wrapped$collections_Picky(new rs.Slice(items51, 0, items51.length));
-	const items52: Picky.Picky[] = b.items;
+	const _485: rs.VecDeque<Picky.Picky> = wrapped$collections_Picky(rs.sliceFrom(a.items));
+	const items31: Picky.Picky[] = b.items;
 	putEq(rs.eqSeq((a33: Picky.Picky, b33: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a33, b33);
-	})(_485, new rs.Slice(items52, 0, items52.length)), log, out);
-	const items53: Picky.Picky[] = a.items;
-	const args27 = [new rs.Slice(items53, 0, items53.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	})(_485, new rs.Slice(items31, 0, items31.length)), log, out);
+	const items32: Picky.Picky[] = a.items;
+	const args27 = [new rs.Slice(items32, 0, items32.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _496: [Picky.Picky] = [one(args27[0], args27[1])];
-	const items54: Picky.Picky[] = b.items;
-	const args28 = [new rs.Slice(items54, 0, items54.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items33: Picky.Picky[] = b.items;
+	const args28 = [new rs.Slice(items33, 0, items33.length), 0] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _504: [Picky.Picky] = [one(args28[0], args28[1])];
 	putEq(!rs.eqTuple([Picky.eq$cmp_PartialEq])(_496, _504), log, out);
-	const items55: Picky.Picky[] = a.items;
-	const args29 = [new rs.Slice(items55, 0, items55.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items34: Picky.Picky[] = a.items;
+	const args29 = [new rs.Slice(items34, 0, items34.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
 	const _515: Picky.Picky = one(args29[0], args29[1]);
-	const items56: Picky.Picky[] = b.items;
-	const args30 = [new rs.Slice(items56, 0, items56.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
+	const items35: Picky.Picky[] = b.items;
+	const args30 = [new rs.Slice(items35, 0, items35.length), 1] as [rs.Slice<Picky.Picky>, rs.usize];
 	putEq(Picky.eq$cmp_PartialEq(_515, one(args30[0], args30[1])), log, out);
-	const items57: Picky.Picky[] = a.items;
-	const _531: [rs.Cow<Picky.Picky>, rs.Cow<Picky.Picky>] = [new rs.Borrowed(new rs.Slice(items57, 0, items57.length)), rs.vecFrom(b.items.map(Picky.clone$Clone))];
+	const _531: [rs.Cow<Picky.Picky>, rs.Cow<Picky.Picky>] = [new rs.Borrowed(rs.sliceFrom(a.items)), rs.vecFrom(b.items.map(Picky.clone$Clone))];
 	const ca: rs.Cow<Picky.Picky> = _531[0];
 	const cb: rs.Cow<Picky.Picky> = _531[1];
 	putEq(rs.eqSlice((a34: Picky.Picky, b34: Picky.Picky): boolean => {
@@ -4682,31 +4633,29 @@ export function ownNes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	putEq(!rs.eqSlice((a35: Picky.Picky, b35: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a35, b35);
 	})(rs.cowSlice(ca), rs.cowSlice(cb)), log, out);
-	const items58: Picky.Picky[] = b.items;
+	const items36: Picky.Picky[] = b.items;
 	putEq(rs.eqSlice((a36: Picky.Picky, b36: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a36, b36);
-	})(rs.cowSlice(ca), new rs.Slice(items58, 0, items58.length)), log, out);
+	})(rs.cowSlice(ca), new rs.Slice(items36, 0, items36.length)), log, out);
 	putEq(!rs.eqSlice((a37: Picky.Picky, b37: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a37, b37);
 	})(rs.cowSlice(cb), a), log, out);
 	putEq(rs.eqSlice((a38: Picky.Picky, b38: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a38, b38);
 	})(b, rs.cowSlice(ca)), log, out);
-	const items59: Picky.Picky[] = a.items;
+	const items37: Picky.Picky[] = a.items;
 	putEq(!rs.eqSlice((a39: Picky.Picky, b39: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a39, b39);
-	})(new rs.Slice(items59, 0, items59.length), rs.cowSlice(cb)), log, out);
+	})(new rs.Slice(items37, 0, items37.length), rs.cowSlice(cb)), log, out);
 	const _576: rs.Slice<Picky.Picky> = rs.cowSlice(cb);
 	const _578: rs.Slice<Picky.Picky> = rs.sliceFrom(pa);
 	putEq(rs.eqSlice((a40: Picky.Picky, b40: Picky.Picky): boolean => {
 		return !Picky.ne$cmp_PartialEq(a40, b40);
 	})(_576, _578), log, out);
-	const items60: Picky.Picky[] = a.items;
-	const owned: rs.Vec<rs.Cow<Picky.Picky>> = each$collections_Picky_borrow_Cow_slice_collections_Picky_collections_own_nes_closure18(new rs.Slice(items60, 0, items60.length), (p14: Picky.Picky): rs.Cow<Picky.Picky> => {
+	const owned: rs.Vec<rs.Cow<Picky.Picky>> = each$collections_Picky_borrow_Cow_slice_collections_Picky_collections_own_nes_closure18(rs.sliceFrom(a.items), (p14: Picky.Picky): rs.Cow<Picky.Picky> => {
 		return rs.vecFrom([Picky.clone$Clone(p14)]);
 	});
-	const items61: Picky.Picky[] = b.items;
-	const borrowed: rs.Vec<rs.Cow<Picky.Picky>> = rs.iterToVec(rs.iterMap(rs.sliceChunks(new rs.Slice(items61, 0, items61.length), 1), (a02: rs.Slice<Picky.Picky>): rs.Cow<Picky.Picky> => {
+	const borrowed: rs.Vec<rs.Cow<Picky.Picky>> = rs.iterToVec(rs.iterMap(rs.sliceChunks(rs.sliceFrom(b.items), 1), (a02: rs.Slice<Picky.Picky>): rs.Cow<Picky.Picky> => {
 		return new rs.Borrowed(a02);
 	}), undefined, 12, true);
 	putEq(!rs.eqSlice(rs.cowBy(rs.eqSlice((a41: Picky.Picky, b41: Picky.Picky): boolean => {
@@ -4914,28 +4863,22 @@ export function cellEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	putEq(rs.refCellBy(rs.eqSlice((a2: Quirky.Quirky, b2: Quirky.Quirky): boolean => {
 		return !Quirky.ne$cmp_PartialEq(a2, b2);
 	}))(_603, _607), log, out);
-	const items: Quirky.Quirky[] = va.items;
-	const _614: rs.Cell<rs.Slice<Quirky.Quirky>> = new rs.Cell(new rs.Slice(items, 0, items.length));
-	const items2: Quirky.Quirky[] = vb.items;
-	const _618: rs.Cell<rs.Slice<Quirky.Quirky>> = new rs.Cell(new rs.Slice(items2, 0, items2.length));
+	const _614: rs.Cell<rs.Slice<Quirky.Quirky>> = new rs.Cell(rs.sliceFrom(va.items));
+	const _618: rs.Cell<rs.Slice<Quirky.Quirky>> = new rs.Cell(rs.sliceFrom(vb.items));
 	putEq(!rs.cellBy(rs.eqSlice((a3: Quirky.Quirky, b3: Quirky.Quirky): boolean => {
 		return !Quirky.ne$cmp_PartialEq(a3, b3);
 	}))(_614, _618), log, out);
-	const items3: Quirky.Quirky[] = va.items;
-	const _625: rs.Vec<rs.Cell<Quirky.Quirky>> = each$collections_Quirky_Cell_collections_Quirky_collections_cell_eqs_closure2(new rs.Slice(items3, 0, items3.length), (_2: Quirky.Quirky): rs.Cell<Quirky.Quirky> => {
+	const _625: rs.Vec<rs.Cell<Quirky.Quirky>> = each$collections_Quirky_Cell_collections_Quirky_collections_cell_eqs_closure2(rs.sliceFrom(va.items), (_2: Quirky.Quirky): rs.Cell<Quirky.Quirky> => {
 		return new rs.Cell(copy$collections_Quirky(copy$collections_Quirky(_2)));
 	});
-	const items4: Quirky.Quirky[] = vb.items;
-	const _629: rs.Vec<rs.Cell<Quirky.Quirky>> = each$collections_Quirky_Cell_collections_Quirky_collections_cell_eqs_closure3(new rs.Slice(items4, 0, items4.length), (_22: Quirky.Quirky): rs.Cell<Quirky.Quirky> => {
+	const _629: rs.Vec<rs.Cell<Quirky.Quirky>> = each$collections_Quirky_Cell_collections_Quirky_collections_cell_eqs_closure3(rs.sliceFrom(vb.items), (_22: Quirky.Quirky): rs.Cell<Quirky.Quirky> => {
 		return new rs.Cell(copy$collections_Quirky(copy$collections_Quirky(_22)));
 	});
 	putEq(rs.eqSlice(rs.cellBy(Quirky.eq$cmp_PartialEq, copy$collections_Quirky))(_625, _629), log, out);
-	const items5: Quirky.Quirky[] = va.items;
-	const _636: rs.Vec<rs.RefCell<Quirky.Quirky>> = each$collections_Quirky_cell_RefCell_collections_Quirky_collections_cell_eqs_closure4(new rs.Slice(items5, 0, items5.length), (_26: Quirky.Quirky): rs.RefCell<Quirky.Quirky> => {
+	const _636: rs.Vec<rs.RefCell<Quirky.Quirky>> = each$collections_Quirky_cell_RefCell_collections_Quirky_collections_cell_eqs_closure4(rs.sliceFrom(va.items), (_26: Quirky.Quirky): rs.RefCell<Quirky.Quirky> => {
 		return new rs.RefCell(copy$collections_Quirky(copy$collections_Quirky(_26)));
 	});
-	const items6: Quirky.Quirky[] = vb.items;
-	const _640: rs.Vec<rs.RefCell<Quirky.Quirky>> = each$collections_Quirky_cell_RefCell_collections_Quirky_collections_cell_eqs_closure5(new rs.Slice(items6, 0, items6.length), (_28: Quirky.Quirky): rs.RefCell<Quirky.Quirky> => {
+	const _640: rs.Vec<rs.RefCell<Quirky.Quirky>> = each$collections_Quirky_cell_RefCell_collections_Quirky_collections_cell_eqs_closure5(rs.sliceFrom(vb.items), (_28: Quirky.Quirky): rs.RefCell<Quirky.Quirky> => {
 		return new rs.RefCell(copy$collections_Quirky(copy$collections_Quirky(_28)));
 	});
 	putEq(!rs.eqSlice(rs.refCellBy(Quirky.eq$cmp_PartialEq))(_636, _640), log, out);
@@ -5121,8 +5064,7 @@ export function unlikeCompares(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec)
 	const _12: [rs.Vec<Left.Left>, rs.Vec<Right.Right>] = [lefts(), rights_()];
 	const mine: rs.Vec<Left.Left> = _12[0];
 	const theirs: rs.Vec<Right.Right> = _12[1];
-	const items: Right.Right[] = theirs.items;
-	const s2 = rs.sliceItems(new rs.Slice(items, 0, items.length));
+	const s2 = theirs.items;
 	let front2 = 0;
 	let back2 = s2.length;
 	const v2: rs.Vec<Right.Right> = rs.vecWithCapacity(back2 - front2, 4);
@@ -5131,19 +5073,11 @@ export function unlikeCompares(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec)
 		v2.items.push(x2);
 	}
 	const refs: rs.Vec<Right.Right> = v2;
-	const items2: Left.Left[] = mine.items;
-	putEq(rs.iterEq(rs.iterSlice(rs.sliceItems(new rs.Slice(items2, 0, items2.length))), rs.iterSlice(theirs.items), Left.eq$cmp_PartialEq_collections_Right, true), log, out);
-	const items3: Left.Left[] = mine.items;
-	const _30: rs.Iter<Left.Left> = rs.iterSlice(rs.sliceItems(new rs.Slice(items3, 0, items3.length)));
-	const items4: Right.Right[] = theirs.items;
-	putEq(!rs.iterEq(_30, rs.iterSlice(rs.sliceItems(new rs.Slice(items4, 0, items4.length))), Left.eq$cmp_PartialEq_collections_Right, true), log, out);
+	putEq(rs.iterEq(rs.iterSlice(mine.items), rs.iterSlice(theirs.items), Left.eq$cmp_PartialEq_collections_Right, true), log, out);
+	putEq(!rs.iterEq(rs.iterSlice(mine.items), rs.iterSlice(theirs.items), Left.eq$cmp_PartialEq_collections_Right, true), log, out);
 	putEq(rs.iterEq(rs.vecIntoIter(lefts()), rs.vecIntoIter(rights_()), Left.eq$cmp_PartialEq_collections_Right, true), log, out);
-	const _47: rs.Iter<Left.Left> = rs.vecIntoIter(lefts());
-	const items5: Right.Right[] = refs.items;
-	putEq(rs.iterEq(_47, rs.iterSlice(rs.sliceItems(new rs.Slice(items5, 0, items5.length))), Left.eq$cmp_PartialEq_ref_collections_Right, true), log, out);
-	const _57: rs.Iter<Left.Left> = rs.vecIntoIter(lefts());
-	const items6: Left.Left[] = mine.items;
-	putEq(!rs.iterEq(_57, rs.iterSlice(rs.sliceItems(new rs.Slice(items6, 0, items6.length))), Left.eq$cmp_PartialEq_ref_collections_Left, true), log, out);
+	putEq(rs.iterEq(rs.vecIntoIter(lefts()), rs.iterSlice(refs.items), Left.eq$cmp_PartialEq_ref_collections_Right, true), log, out);
+	putEq(!rs.iterEq(rs.vecIntoIter(lefts()), rs.iterSlice(mine.items), Left.eq$cmp_PartialEq_ref_collections_Left, true), log, out);
 	const s3 = rs.byteSliceView(data);
 	let front3 = 0;
 	let back3 = s3.length;
@@ -5153,14 +5087,8 @@ export function unlikeCompares(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec)
 		v3.items.push(y2);
 	}
 	const odds: rs.Vec<Odd.Odd> = v3;
-	const items7: Odd.Odd[] = odds.items;
-	const _69: rs.Iter<Odd.Odd> = rs.iterSlice(rs.sliceItems(new rs.Slice(items7, 0, items7.length)));
-	const items8: Right.Right[] = refs.items;
-	putEq(rs.iterEq(_69, rs.iterSlice(rs.sliceItems(new rs.Slice(items8, 0, items8.length))), Odd.eq$cmp_PartialEq_ref_collections_Right_ref, true), log, out);
-	const items9: Odd.Odd[] = odds.items;
-	const _81: rs.Iter<Odd.Odd> = rs.iterSlice(rs.sliceItems(new rs.Slice(items9, 0, items9.length)));
-	const items10: Odd.Odd[] = odds.items;
-	const part = rs.iterCmp(_81, rs.iterRev(rs.iterSlice(rs.sliceItems(new rs.Slice(items10, 0, items10.length)))), Odd.partialCmp$cmp_PartialOrd_ref);
+	putEq(rs.iterEq(rs.iterSlice(odds.items), rs.iterSlice(refs.items), Odd.eq$cmp_PartialEq_ref_collections_Right_ref, true), log, out);
+	const part = rs.iterCmp(rs.iterSlice(odds.items), rs.iterRev(rs.iterSlice(odds.items)), Odd.partialCmp$cmp_PartialOrd_ref);
 	_9(part, log, out);
 	putEq(rs.iterEq(rs.iterSlice(rs.byteSliceView(data)), rs.vecIntoIter(rights_()), eq$cmp_PartialEq_collections_Right_u8, true), log, out);
 	const pairs: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterMap(rs.byteSliceChunksExact(data, 2), (c: rs.ByteSlice): Uint8Array => {
@@ -5177,16 +5105,12 @@ export function unlikeCompares(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec)
 	putEq(rs.iterEq(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), rs.iterSlice(theirs.items), (a02: rs.ByteSlice, a12: Right.Right): boolean => {
 		return eq$cmp_PartialEq_collections_Right_array2_u8(a02.data, a02.start, a02.length, a12);
 	}, true), log, out);
-	const items11: Left.Left[] = mine.items;
-	const part3 = rs.iterCmp(rs.iterSlice(rs.sliceItems(new rs.Slice(items11, 0, items11.length))), rs.iterSlice(theirs.items), Left.partialCmp$cmp_PartialOrd_collections_Right);
+	const part3 = rs.iterCmp(rs.iterSlice(mine.items), rs.iterSlice(theirs.items), Left.partialCmp$cmp_PartialOrd_collections_Right);
 	_9(part3, log, out);
 	const part5 = rs.iterCmp(rs.vecIntoIter(lefts()), rs.vecIntoIter(rights_()), Left.partialCmp$cmp_PartialOrd_collections_Right);
 	_9(part5, log, out);
 	putEq(rs.iterCmp(rs.vecIntoIter(lefts()), rs.vecIntoIter(rights_()), Left.partialCmp$cmp_PartialOrd_collections_Right) === -1, log, out);
-	const items12: Left.Left[] = mine.items;
-	const _144: rs.Iter<Left.Left> = rs.iterSlice(rs.sliceItems(new rs.Slice(items12, 0, items12.length)));
-	const items13: Right.Right[] = theirs.items;
-	const order = rs.iterCmp(_144, rs.iterSlice(rs.sliceItems(new rs.Slice(items13, 0, items13.length))), Left.partialCmp$cmp_PartialOrd_collections_Right);
+	const order = rs.iterCmp(rs.iterSlice(mine.items), rs.iterSlice(theirs.items), Left.partialCmp$cmp_PartialOrd_collections_Right);
 	putEq(order !== undefined && order >= 0, log, out);
 	const part7 = rs.iterCmp(rs.iterCopied(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), rs.byteSliceToArray), rs.vecIntoIter(rights_()), (a2: Uint8Array, b4: Right.Right): rs.Ordering | undefined => {
 		return ((a03: rs.ByteSlice, a13: Right.Right): rs.Ordering | undefined => {
@@ -5194,9 +5118,7 @@ export function unlikeCompares(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec)
 		})(rs.byteSliceFrom(a2), b4);
 	});
 	_9(part7, log, out);
-	const _166: rs.Iter<rs.ByteSlice> = rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom));
-	const items14: Right.Right[] = theirs.items;
-	const part9 = rs.iterCmp(_166, rs.iterSlice(rs.sliceItems(new rs.Slice(items14, 0, items14.length))), (a04: rs.ByteSlice, a14: Right.Right): rs.Ordering | undefined => {
+	const part9 = rs.iterCmp(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), rs.iterSlice(theirs.items), (a04: rs.ByteSlice, a14: Right.Right): rs.Ordering | undefined => {
 		return partialCmp$cmp_PartialOrd_collections_Right_array2_u8(a04.data, a04.start, a04.length, a14);
 	});
 	_9(part9, log, out);
@@ -5307,9 +5229,9 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 			return a02 ? 1 : 0;
 		})), undefined, true);
 		rs.byteVecPush(out, result_eq$1a91ieh(rs.Ok(a), rs.Ok(b)) ? 1 : 0);
-		const slice: rs.Slice<ByRef.ByRef> = rs.sliceFrom([a, b]);
-		const slice2: rs.Slice<ByRef.ByRef> = rs.sliceFrom([b, a]);
-		rs.byteVecPush(out, orderByte$ref_orders(rs.cmpSlice(ByRef.partialCmp$cmp_PartialOrd_ref)(slice, slice2)));
+		const _123: rs.Slice<ByRef.ByRef> = rs.sliceFrom([a, b]);
+		const _126: rs.Slice<ByRef.ByRef> = rs.sliceFrom([b, a]);
+		rs.byteVecPush(out, orderByte$ref_orders(rs.cmpSlice(ByRef.partialCmp$cmp_PartialOrd_ref)(_123, _126)));
 		const _133: rs.Slice<ByRef.ByRef> = rs.sliceFrom([a, b]);
 		const _135: rs.Slice<ByRef.ByRef> = rs.sliceFrom([b, a]);
 		const _132: rs.Ordering = rs.cmpSlice(ByRef.cmp$cmp_Ord_ref)(_133, _135);
@@ -5319,9 +5241,9 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		const _148: rs.Slice<ByRef.ByRef> = rs.sliceFrom([a, b]);
 		const _150: rs.Slice<ByRef.ByRef> = rs.sliceFrom([b, a]);
 		const _147: boolean = rs.eqSlice(ByRef.eq$cmp_PartialEq_ref)(_148, _150);
-		const slice3: rs.Slice<ByRef.ByRef> = rs.sliceFrom([a]);
-		const slice4: rs.Slice<ByRef.ByRef> = rs.sliceFrom([b]);
-		const _152: boolean = rs.cmpSlice(ByRef.partialCmp$cmp_PartialOrd_ref)(slice3, slice4) === -1;
+		const _153: rs.Slice<ByRef.ByRef> = rs.sliceFrom([a]);
+		const _156: rs.Slice<ByRef.ByRef> = rs.sliceFrom([b]);
+		const _152: boolean = rs.cmpSlice(ByRef.partialCmp$cmp_PartialOrd_ref)(_153, _156) === -1;
 		const _161: rs.Vec<ByRef.ByRef> = rs.vecFrom([a, b]);
 		const _164: rs.Vec<ByRef.ByRef> = rs.vecFrom([b, a]);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_147, _152, !rs.eqSlice(ByRef.eq$cmp_PartialEq_ref)(_161, _164)], (a03: boolean): rs.u8 => {
@@ -5424,9 +5346,9 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 			return a08 ? 1 : 0;
 		})), undefined, true);
 		rs.byteVecPush(out, result_eq$1a91ieh(rs.Ok(a2), rs.Ok(b2)) ? 1 : 0);
-		const slice6: rs.Slice<ByRef.ByRef> = rs.sliceFrom([a2, b2]);
-		const slice7: rs.Slice<ByRef.ByRef> = rs.sliceFrom([b2, a2]);
-		rs.byteVecPush(out, orderByte$ref_orders(rs.cmpSlice(ByRef.partialCmp$cmp_PartialOrd_ref)(slice6, slice7)));
+		const _434: rs.Slice<ByRef.ByRef> = rs.sliceFrom([a2, b2]);
+		const _437: rs.Slice<ByRef.ByRef> = rs.sliceFrom([b2, a2]);
+		rs.byteVecPush(out, orderByte$ref_orders(rs.cmpSlice(ByRef.partialCmp$cmp_PartialOrd_ref)(_434, _437)));
 		const _444: rs.Slice<ByRef.ByRef> = rs.sliceFrom([a2, b2]);
 		const _446: rs.Slice<ByRef.ByRef> = rs.sliceFrom([b2, a2]);
 		const _443: rs.Ordering = rs.cmpSlice(ByRef.cmp$cmp_Ord_ref)(_444, _446);
@@ -5436,9 +5358,9 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		const _459: rs.Slice<ByRef.ByRef> = rs.sliceFrom([a2, b2]);
 		const _461: rs.Slice<ByRef.ByRef> = rs.sliceFrom([b2, a2]);
 		const _458: boolean = rs.eqSlice(ByRef.eq$cmp_PartialEq_ref)(_459, _461);
-		const slice8: rs.Slice<ByRef.ByRef> = rs.sliceFrom([a2]);
-		const slice9: rs.Slice<ByRef.ByRef> = rs.sliceFrom([b2]);
-		const _463: boolean = rs.cmpSlice(ByRef.partialCmp$cmp_PartialOrd_ref)(slice8, slice9) === -1;
+		const _464: rs.Slice<ByRef.ByRef> = rs.sliceFrom([a2]);
+		const _467: rs.Slice<ByRef.ByRef> = rs.sliceFrom([b2]);
+		const _463: boolean = rs.cmpSlice(ByRef.partialCmp$cmp_PartialOrd_ref)(_464, _467) === -1;
 		const _472: rs.Vec<ByRef.ByRef> = rs.vecFrom([a2, b2]);
 		const _475: rs.Vec<ByRef.ByRef> = rs.vecFrom([b2, a2]);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_458, _463, !rs.eqSlice(ByRef.eq$cmp_PartialEq_ref)(_472, _475)], (a09: boolean): rs.u8 => {
@@ -5541,9 +5463,9 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 			return a014 ? 1 : 0;
 		})), undefined, true);
 		rs.byteVecPush(out, result_eq$122baxc(rs.Ok(a3), rs.Ok(b3)) ? 1 : 0);
-		const slice11: rs.Slice<ByVal.ByVal> = rs.sliceFrom([a3, b3]);
-		const slice12: rs.Slice<ByVal.ByVal> = rs.sliceFrom([b3, a3]);
-		rs.byteVecPush(out, orderByte$ref_orders(rs.cmpSlice(ByVal.partialCmp$cmp_PartialOrd)(slice11, slice12)));
+		const _737: rs.Slice<ByVal.ByVal> = rs.sliceFrom([a3, b3]);
+		const _740: rs.Slice<ByVal.ByVal> = rs.sliceFrom([b3, a3]);
+		rs.byteVecPush(out, orderByte$ref_orders(rs.cmpSlice(ByVal.partialCmp$cmp_PartialOrd)(_737, _740)));
 		const _747: rs.Slice<ByVal.ByVal> = rs.sliceFrom([a3, b3]);
 		const _749: rs.Slice<ByVal.ByVal> = rs.sliceFrom([b3, a3]);
 		const _746: rs.Ordering = rs.cmpSlice(ByVal.cmp$cmp_Ord)(_747, _749);
@@ -5553,9 +5475,9 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		const _762: rs.Slice<ByVal.ByVal> = rs.sliceFrom([a3, b3]);
 		const _764: rs.Slice<ByVal.ByVal> = rs.sliceFrom([b3, a3]);
 		const _761: boolean = rs.eqSlice(ByVal.eq$cmp_PartialEq)(_762, _764);
-		const slice13: rs.Slice<ByVal.ByVal> = rs.sliceFrom([a3]);
-		const slice14: rs.Slice<ByVal.ByVal> = rs.sliceFrom([b3]);
-		const _766: boolean = rs.cmpSlice(ByVal.partialCmp$cmp_PartialOrd)(slice13, slice14) === -1;
+		const _767: rs.Slice<ByVal.ByVal> = rs.sliceFrom([a3]);
+		const _770: rs.Slice<ByVal.ByVal> = rs.sliceFrom([b3]);
+		const _766: boolean = rs.cmpSlice(ByVal.partialCmp$cmp_PartialOrd)(_767, _770) === -1;
 		const _775: rs.Vec<ByVal.ByVal> = rs.vecFrom([a3, b3]);
 		const _778: rs.Vec<ByVal.ByVal> = rs.vecFrom([b3, a3]);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_761, _766, !rs.eqSlice(ByVal.eq$cmp_PartialEq)(_775, _778)], (a015: boolean): rs.u8 => {
@@ -5658,9 +5580,9 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 			return a020 ? 1 : 0;
 		})), undefined, true);
 		rs.byteVecPush(out, result_eq$122baxc(rs.Ok(a4), rs.Ok(b4)) ? 1 : 0);
-		const slice16: rs.Slice<ByVal.ByVal> = rs.sliceFrom([a4, b4]);
-		const slice17: rs.Slice<ByVal.ByVal> = rs.sliceFrom([b4, a4]);
-		rs.byteVecPush(out, orderByte$ref_orders(rs.cmpSlice(ByVal.partialCmp$cmp_PartialOrd)(slice16, slice17)));
+		const _1044: rs.Slice<ByVal.ByVal> = rs.sliceFrom([a4, b4]);
+		const _1047: rs.Slice<ByVal.ByVal> = rs.sliceFrom([b4, a4]);
+		rs.byteVecPush(out, orderByte$ref_orders(rs.cmpSlice(ByVal.partialCmp$cmp_PartialOrd)(_1044, _1047)));
 		const _1054: rs.Slice<ByVal.ByVal> = rs.sliceFrom([a4, b4]);
 		const _1056: rs.Slice<ByVal.ByVal> = rs.sliceFrom([b4, a4]);
 		const _1053: rs.Ordering = rs.cmpSlice(ByVal.cmp$cmp_Ord)(_1054, _1056);
@@ -5670,9 +5592,9 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		const _1069: rs.Slice<ByVal.ByVal> = rs.sliceFrom([a4, b4]);
 		const _1071: rs.Slice<ByVal.ByVal> = rs.sliceFrom([b4, a4]);
 		const _1068: boolean = rs.eqSlice(ByVal.eq$cmp_PartialEq)(_1069, _1071);
-		const slice18: rs.Slice<ByVal.ByVal> = rs.sliceFrom([a4]);
-		const slice19: rs.Slice<ByVal.ByVal> = rs.sliceFrom([b4]);
-		const _1073: boolean = rs.cmpSlice(ByVal.partialCmp$cmp_PartialOrd)(slice18, slice19) === -1;
+		const _1074: rs.Slice<ByVal.ByVal> = rs.sliceFrom([a4]);
+		const _1077: rs.Slice<ByVal.ByVal> = rs.sliceFrom([b4]);
+		const _1073: boolean = rs.cmpSlice(ByVal.partialCmp$cmp_PartialOrd)(_1074, _1077) === -1;
 		const _1082: rs.Vec<ByVal.ByVal> = rs.vecFrom([a4, b4]);
 		const _1085: rs.Vec<ByVal.ByVal> = rs.vecFrom([b4, a4]);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_1068, _1073, !rs.eqSlice(ByVal.eq$cmp_PartialEq)(_1082, _1085)], (a021: boolean): rs.u8 => {
@@ -5800,8 +5722,7 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		})), undefined, true);
 		rs.byteVecPush(out, orderByte$ref_orders(rs.iterCmp(rs.iterSlice([a6]), rs.iterSlice([b6]), partialCmp$cmp_PartialOrd_boxed_Box_collections_Boxed)));
 	}
-	const items: ByRef.ByRef[] = byRef.items;
-	const s4 = rs.sliceItems(new rs.Slice(items, 0, items.length));
+	const s4 = byRef.items;
 	let front4 = 0;
 	let back4 = s4.length;
 	const v11: rs.Vec<ByRef.ByRef> = rs.vecWithCapacity(back4 - front4, 4);
@@ -5812,16 +5733,13 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const _1431: [rs.Vec<ByRef.ByRef>, rs.ByteVec] = [v11, out];
 	const xs: rs.Vec<ByRef.ByRef> = _1431[0];
 	const sorted: rs.Vec<ByRef.ByRef> = rs.vecFrom(xs.items.slice());
-	const items2: ByRef.ByRef[] = sorted.items;
-	rs.sliceSort(new rs.Slice(items2, 0, items2.length), rs.cmpLt(ByRef.partialCmp$cmp_PartialOrd_ref), 4, true);
-	const items3: ByRef.ByRef[] = sorted.items;
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items3, 0, items3.length))), (x10: ByRef.ByRef): rs.u8 => {
+	rs.sliceSort(rs.sliceFrom(sorted.items), rs.cmpLt(ByRef.partialCmp$cmp_PartialOrd_ref), 4, true);
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(sorted.items), (x10: ByRef.ByRef): rs.u8 => {
 		return x10._0 & 0xff;
 	}), undefined, true);
 	const set: rs.BTreeSet<ByRef.ByRef> = rs.btreeNew(ByRef.cmp$cmp_Ord_ref) as rs.BTreeSet<ByRef.ByRef>;
 	const map: rs.BTreeMap<[ByRef.ByRef], rs.usize> = rs.btreeNew(rs.cmpTuple<[ByRef.ByRef], rs.Ordering>([ByRef.cmp$cmp_Ord_ref])) as rs.BTreeMap<[ByRef.ByRef], rs.usize>;
-	const items4: ByRef.ByRef[] = xs.items;
-	const s5: ByRef.ByRef[] = rs.sliceItems(new rs.Slice(items4, 0, items4.length));
+	const s5: ByRef.ByRef[] = xs.items;
 	let front5: number = 0;
 	const back5: number = s5.length;
 	let count: number = 0;
@@ -5843,34 +5761,25 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	rs.iterExtendBytes(out, rs.iterOption(option_map$1pdxnel(rs.btreeKey(set, xs.items[rs.idx(xs.items, 0)]), (x13: ByRef.ByRef): rs.u8 => {
 		return x13._0 & 0xff;
 	})), undefined, true);
-	const items5: ByRef.ByRef[] = xs.items;
-	const _1484: rs.Iter<ByRef.ByRef> = rs.iterSlice(rs.sliceItems(new rs.Slice(items5, 0, items5.length)));
+	const _1484: rs.Iter<ByRef.ByRef> = rs.iterSlice(xs.items);
 	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(ByRef.hash$Hash_ref_hash_DefaultHasher as (a0: ByRef.ByRef, a1: rs.Hasher) => undefined, ByRef.eq$cmp_PartialEq_ref)) as rs.HashSet<ByRef.ByRef>, _1484, undefined, undefined, 234881024)) & 0xff);
-	const items6: ByRef.ByRef[] = xs.items;
-	const _1493: rs.Iter<[ByRef.ByRef, ByRef.ByRef | undefined]> = rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items6, 0, items6.length))), (_216: ByRef.ByRef): [ByRef.ByRef, ByRef.ByRef | undefined] => {
+	const _1493: rs.Iter<[ByRef.ByRef, ByRef.ByRef | undefined]> = rs.iterMap(rs.iterSlice(xs.items), (_216: ByRef.ByRef): [ByRef.ByRef, ByRef.ByRef | undefined] => {
 		const x14: ByRef.ByRef = _216;
 		return [x14, x14] as [ByRef.ByRef, ByRef.ByRef | undefined];
 	});
 	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([ByRef.hash$Hash_ref_hash_DefaultHasher as (a0: ByRef.ByRef, a1: rs.Hasher) => undefined, rs.hashOption(ByRef.hash$Hash_ref_hash_DefaultHasher as (a0: ByRef.ByRef, a1: rs.Hasher) => undefined)]), rs.eqTuple([ByRef.eq$cmp_PartialEq_ref, rs.eqOption(ByRef.eq$cmp_PartialEq_ref)]))) as rs.HashSet<[ByRef.ByRef, ByRef.ByRef | undefined]>, _1493, undefined, undefined, 117440512)) & 0xff);
-	const items7: ByRef.ByRef[] = xs.items;
-	rs.iterExtendBytes(out, rs.iterOption(option_map$1pdxnel(rs.iterMax(rs.iterSlice(rs.sliceItems(new rs.Slice(items7, 0, items7.length))), rs.cmpLt(ByRef.partialCmp$cmp_PartialOrd_ref)), (x15: ByRef.ByRef): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterOption(option_map$1pdxnel(rs.iterMax(rs.iterSlice(xs.items), rs.cmpLt(ByRef.partialCmp$cmp_PartialOrd_ref)), (x15: ByRef.ByRef): rs.u8 => {
 		return x15._0 & 0xff;
 	})), undefined, true);
-	const items8: ByRef.ByRef[] = xs.items;
-	rs.iterExtendBytes(out, rs.iterOption(option_map$1pdxnel(rs.iterMin(rs.iterSlice(rs.sliceItems(new rs.Slice(items8, 0, items8.length))), rs.cmpLt(ByRef.partialCmp$cmp_PartialOrd_ref)), (x16: ByRef.ByRef): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterOption(option_map$1pdxnel(rs.iterMin(rs.iterSlice(xs.items), rs.cmpLt(ByRef.partialCmp$cmp_PartialOrd_ref)), (x16: ByRef.ByRef): rs.u8 => {
 		return x16._0 & 0xff;
 	})), undefined, true);
-	const items9: ByRef.ByRef[] = xs.items;
-	rs.iterExtendBytes(out, rs.iterOption(option_map$1pdxnel(rs.sliceFirst(new rs.Slice(items9, 0, items9.length)), (first: ByRef.ByRef): rs.u8 => {
-		const items10: ByRef.ByRef[] = xs.items;
-		rs.rangeCheck(items10.length, 1, items10.length);
-		return rs.sliceContains(new rs.Slice(items10, 1, items10.length - 1), first, ByRef.eq$cmp_PartialEq_ref) ? 1 : 0;
+	rs.iterExtendBytes(out, rs.iterOption(option_map$1pdxnel(rs.sliceFirst(rs.sliceFrom(xs.items)), (first: ByRef.ByRef): rs.u8 => {
+		return rs.sliceContains(rs.sliceRange(rs.sliceFrom(xs.items), 1), first, ByRef.eq$cmp_PartialEq_ref) ? 1 : 0;
 	})), undefined, true);
-	const items11: ByRef.ByRef[] = xs.items;
-	rs.byteVecPush(out, rs.sliceIsSorted(new rs.Slice(items11, 0, items11.length), rs.cmpLe(ByRef.partialCmp$cmp_PartialOrd_ref)) ? 1 : 0);
+	rs.byteVecPush(out, rs.sliceIsSorted(rs.sliceFrom(xs.items), rs.cmpLe(ByRef.partialCmp$cmp_PartialOrd_ref)) ? 1 : 0);
 	rs.byteVecPush(out, rs.dequeContains(rs.dequeFromVec(rs.vecFrom(xs.items.slice()), 4) as rs.VecDeque<ByRef.ByRef>, xs.items[rs.idx(xs.items, rs.usizeDiv(xs.items.length, 2))], ByRef.eq$cmp_PartialEq_ref) ? 1 : 0);
-	const items12: ByVal.ByVal[] = byVal.items;
-	const s6 = rs.sliceItems(new rs.Slice(items12, 0, items12.length));
+	const s6 = byVal.items;
 	let front6 = 0;
 	let back6 = s6.length;
 	const v12: rs.Vec<ByVal.ByVal> = rs.vecWithCapacity(back6 - front6, 4);
@@ -5881,16 +5790,13 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const _1541: [rs.Vec<ByVal.ByVal>, rs.ByteVec] = [v12, out];
 	const xs2: rs.Vec<ByVal.ByVal> = _1541[0];
 	const sorted2: rs.Vec<ByVal.ByVal> = rs.vecFrom(xs2.items.slice());
-	const items13: ByVal.ByVal[] = sorted2.items;
-	rs.sliceSort(new rs.Slice(items13, 0, items13.length), rs.cmpLt(ByVal.partialCmp$cmp_PartialOrd), 4, true);
-	const items14: ByVal.ByVal[] = sorted2.items;
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items14, 0, items14.length))), (x18: ByVal.ByVal): rs.u8 => {
+	rs.sliceSort(rs.sliceFrom(sorted2.items), rs.cmpLt(ByVal.partialCmp$cmp_PartialOrd), 4, true);
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(sorted2.items), (x18: ByVal.ByVal): rs.u8 => {
 		return x18._0 & 0xff;
 	}), undefined, true);
 	const set2: rs.BTreeSet<ByVal.ByVal> = rs.btreeNew(ByVal.cmp$cmp_Ord) as rs.BTreeSet<ByVal.ByVal>;
 	const map2: rs.BTreeMap<[ByVal.ByVal], rs.usize> = rs.btreeNew(rs.cmpTuple<[ByVal.ByVal], rs.Ordering>([ByVal.cmp$cmp_Ord])) as rs.BTreeMap<[ByVal.ByVal], rs.usize>;
-	const items15: ByVal.ByVal[] = xs2.items;
-	const s7: ByVal.ByVal[] = rs.sliceItems(new rs.Slice(items15, 0, items15.length));
+	const s7: ByVal.ByVal[] = xs2.items;
 	let front7: number = 0;
 	const back7: number = s7.length;
 	let count2: number = 0;
@@ -5912,34 +5818,25 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	rs.iterExtendBytes(out, rs.iterOption(option_map$093awy8(rs.btreeKey(set2, xs2.items[rs.idx(xs2.items, 0)]), (x21: ByVal.ByVal): rs.u8 => {
 		return x21._0 & 0xff;
 	})), undefined, true);
-	const items16: ByVal.ByVal[] = xs2.items;
-	const _1594: rs.Iter<ByVal.ByVal> = rs.iterSlice(rs.sliceItems(new rs.Slice(items16, 0, items16.length)));
+	const _1594: rs.Iter<ByVal.ByVal> = rs.iterSlice(xs2.items);
 	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(ByVal.hash$Hash_hash_DefaultHasher as (a0: ByVal.ByVal, a1: rs.Hasher) => undefined, ByVal.eq$cmp_PartialEq)) as rs.HashSet<ByVal.ByVal>, _1594, undefined, undefined, 234881024)) & 0xff);
-	const items17: ByVal.ByVal[] = xs2.items;
-	const _1603: rs.Iter<[ByVal.ByVal, ByVal.ByVal | undefined]> = rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items17, 0, items17.length))), (_253: ByVal.ByVal): [ByVal.ByVal, ByVal.ByVal | undefined] => {
+	const _1603: rs.Iter<[ByVal.ByVal, ByVal.ByVal | undefined]> = rs.iterMap(rs.iterSlice(xs2.items), (_253: ByVal.ByVal): [ByVal.ByVal, ByVal.ByVal | undefined] => {
 		const x22: ByVal.ByVal = _253;
 		return [x22, x22] as [ByVal.ByVal, ByVal.ByVal | undefined];
 	});
 	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([ByVal.hash$Hash_hash_DefaultHasher as (a0: ByVal.ByVal, a1: rs.Hasher) => undefined, rs.hashOption(ByVal.hash$Hash_hash_DefaultHasher as (a0: ByVal.ByVal, a1: rs.Hasher) => undefined)]), rs.eqTuple([ByVal.eq$cmp_PartialEq, rs.eqOption(ByVal.eq$cmp_PartialEq)]))) as rs.HashSet<[ByVal.ByVal, ByVal.ByVal | undefined]>, _1603, undefined, undefined, 117440512)) & 0xff);
-	const items18: ByVal.ByVal[] = xs2.items;
-	rs.iterExtendBytes(out, rs.iterOption(option_map$093awy8(rs.iterMax(rs.iterSlice(rs.sliceItems(new rs.Slice(items18, 0, items18.length))), rs.cmpLt(ByVal.partialCmp$cmp_PartialOrd)), (x23: ByVal.ByVal): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterOption(option_map$093awy8(rs.iterMax(rs.iterSlice(xs2.items), rs.cmpLt(ByVal.partialCmp$cmp_PartialOrd)), (x23: ByVal.ByVal): rs.u8 => {
 		return x23._0 & 0xff;
 	})), undefined, true);
-	const items19: ByVal.ByVal[] = xs2.items;
-	rs.iterExtendBytes(out, rs.iterOption(option_map$093awy8(rs.iterMin(rs.iterSlice(rs.sliceItems(new rs.Slice(items19, 0, items19.length))), rs.cmpLt(ByVal.partialCmp$cmp_PartialOrd)), (x24: ByVal.ByVal): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterOption(option_map$093awy8(rs.iterMin(rs.iterSlice(xs2.items), rs.cmpLt(ByVal.partialCmp$cmp_PartialOrd)), (x24: ByVal.ByVal): rs.u8 => {
 		return x24._0 & 0xff;
 	})), undefined, true);
-	const items20: ByVal.ByVal[] = xs2.items;
-	rs.iterExtendBytes(out, rs.iterOption(option_map$093awy8(rs.sliceFirst(new rs.Slice(items20, 0, items20.length)), (first2: ByVal.ByVal): rs.u8 => {
-		const items21: ByVal.ByVal[] = xs2.items;
-		rs.rangeCheck(items21.length, 1, items21.length);
-		return rs.sliceContains(new rs.Slice(items21, 1, items21.length - 1), first2, ByVal.eq$cmp_PartialEq) ? 1 : 0;
+	rs.iterExtendBytes(out, rs.iterOption(option_map$093awy8(rs.sliceFirst(rs.sliceFrom(xs2.items)), (first2: ByVal.ByVal): rs.u8 => {
+		return rs.sliceContains(rs.sliceRange(rs.sliceFrom(xs2.items), 1), first2, ByVal.eq$cmp_PartialEq) ? 1 : 0;
 	})), undefined, true);
-	const items22: ByVal.ByVal[] = xs2.items;
-	rs.byteVecPush(out, rs.sliceIsSorted(new rs.Slice(items22, 0, items22.length), rs.cmpLe(ByVal.partialCmp$cmp_PartialOrd)) ? 1 : 0);
+	rs.byteVecPush(out, rs.sliceIsSorted(rs.sliceFrom(xs2.items), rs.cmpLe(ByVal.partialCmp$cmp_PartialOrd)) ? 1 : 0);
 	rs.byteVecPush(out, rs.dequeContains(rs.dequeFromVec(rs.vecFrom(xs2.items.slice()), 4) as rs.VecDeque<ByVal.ByVal>, xs2.items[rs.idx(xs2.items, rs.usizeDiv(xs2.items.length, 2))], ByVal.eq$cmp_PartialEq) ? 1 : 0);
-	const items23: Mixed.Mixed[] = mixed.items;
-	const s8 = rs.sliceItems(new rs.Slice(items23, 0, items23.length));
+	const s8 = mixed.items;
 	let front8 = 0;
 	let back8 = s8.length;
 	const v13: rs.Vec<Mixed.Mixed> = rs.vecWithCapacity(back8 - front8, 4);
@@ -5950,16 +5847,13 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const _1651: [rs.Vec<Mixed.Mixed>, rs.ByteVec] = [v13, out];
 	const xs3: rs.Vec<Mixed.Mixed> = _1651[0];
 	const sorted3: rs.Vec<Mixed.Mixed> = rs.vecFrom(xs3.items.slice());
-	const items24: Mixed.Mixed[] = sorted3.items;
-	rs.sliceSort(new rs.Slice(items24, 0, items24.length), rs.cmpLt(Mixed.partialCmp$cmp_PartialOrd), 4, true);
-	const items25: Mixed.Mixed[] = sorted3.items;
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items25, 0, items25.length))), (x26: Mixed.Mixed): rs.u8 => {
+	rs.sliceSort(rs.sliceFrom(sorted3.items), rs.cmpLt(Mixed.partialCmp$cmp_PartialOrd), 4, true);
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(sorted3.items), (x26: Mixed.Mixed): rs.u8 => {
 		return x26._0 & 0xff;
 	}), undefined, true);
 	const set3: rs.BTreeSet<Mixed.Mixed> = rs.btreeNew(Mixed.cmp$cmp_Ord_ref) as rs.BTreeSet<Mixed.Mixed>;
 	const map3: rs.BTreeMap<[Mixed.Mixed], rs.usize> = rs.btreeNew(rs.cmpTuple<[Mixed.Mixed], rs.Ordering>([Mixed.cmp$cmp_Ord_ref])) as rs.BTreeMap<[Mixed.Mixed], rs.usize>;
-	const items26: Mixed.Mixed[] = xs3.items;
-	const s9: Mixed.Mixed[] = rs.sliceItems(new rs.Slice(items26, 0, items26.length));
+	const s9: Mixed.Mixed[] = xs3.items;
 	let front9: number = 0;
 	const back9: number = s9.length;
 	let count3: number = 0;
@@ -5981,31 +5875,23 @@ export function refOrders(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	rs.iterExtendBytes(out, rs.iterOption(option_map$0aug5m6(rs.btreeKey(set3, xs3.items[rs.idx(xs3.items, 0)]), (x29: Mixed.Mixed): rs.u8 => {
 		return x29._0 & 0xff;
 	})), undefined, true);
-	const items27: Mixed.Mixed[] = xs3.items;
-	const _1704: rs.Iter<Mixed.Mixed> = rs.iterSlice(rs.sliceItems(new rs.Slice(items27, 0, items27.length)));
+	const _1704: rs.Iter<Mixed.Mixed> = rs.iterSlice(xs3.items);
 	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Mixed.hash$Hash_ref_hash_DefaultHasher as (a0: Mixed.Mixed, a1: rs.Hasher) => undefined, Mixed.eq$cmp_PartialEq)) as rs.HashSet<Mixed.Mixed>, _1704, undefined, undefined, 234881024)) & 0xff);
-	const items28: Mixed.Mixed[] = xs3.items;
-	const _1713: rs.Iter<[Mixed.Mixed, Mixed.Mixed | undefined]> = rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items28, 0, items28.length))), (_258: Mixed.Mixed): [Mixed.Mixed, Mixed.Mixed | undefined] => {
+	const _1713: rs.Iter<[Mixed.Mixed, Mixed.Mixed | undefined]> = rs.iterMap(rs.iterSlice(xs3.items), (_258: Mixed.Mixed): [Mixed.Mixed, Mixed.Mixed | undefined] => {
 		const x30: Mixed.Mixed = _258;
 		return [x30, x30] as [Mixed.Mixed, Mixed.Mixed | undefined];
 	});
 	rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([Mixed.hash$Hash_ref_hash_DefaultHasher as (a0: Mixed.Mixed, a1: rs.Hasher) => undefined, rs.hashOption(Mixed.hash$Hash_ref_hash_DefaultHasher as (a0: Mixed.Mixed, a1: rs.Hasher) => undefined)]), rs.eqTuple([Mixed.eq$cmp_PartialEq, rs.eqOption(Mixed.eq$cmp_PartialEq)]))) as rs.HashSet<[Mixed.Mixed, Mixed.Mixed | undefined]>, _1713, undefined, undefined, 117440512)) & 0xff);
-	const items29: Mixed.Mixed[] = xs3.items;
-	rs.iterExtendBytes(out, rs.iterOption(option_map$0aug5m6(rs.iterMax(rs.iterSlice(rs.sliceItems(new rs.Slice(items29, 0, items29.length))), rs.cmpLt(Mixed.partialCmp$cmp_PartialOrd)), (x31: Mixed.Mixed): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterOption(option_map$0aug5m6(rs.iterMax(rs.iterSlice(xs3.items), rs.cmpLt(Mixed.partialCmp$cmp_PartialOrd)), (x31: Mixed.Mixed): rs.u8 => {
 		return x31._0 & 0xff;
 	})), undefined, true);
-	const items30: Mixed.Mixed[] = xs3.items;
-	rs.iterExtendBytes(out, rs.iterOption(option_map$0aug5m6(rs.iterMin(rs.iterSlice(rs.sliceItems(new rs.Slice(items30, 0, items30.length))), rs.cmpLt(Mixed.partialCmp$cmp_PartialOrd)), (x32: Mixed.Mixed): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterOption(option_map$0aug5m6(rs.iterMin(rs.iterSlice(xs3.items), rs.cmpLt(Mixed.partialCmp$cmp_PartialOrd)), (x32: Mixed.Mixed): rs.u8 => {
 		return x32._0 & 0xff;
 	})), undefined, true);
-	const items31: Mixed.Mixed[] = xs3.items;
-	rs.iterExtendBytes(out, rs.iterOption(option_map$0aug5m6(rs.sliceFirst(new rs.Slice(items31, 0, items31.length)), (first3: Mixed.Mixed): rs.u8 => {
-		const items32: Mixed.Mixed[] = xs3.items;
-		rs.rangeCheck(items32.length, 1, items32.length);
-		return rs.sliceContains(new rs.Slice(items32, 1, items32.length - 1), first3, Mixed.eq$cmp_PartialEq) ? 1 : 0;
+	rs.iterExtendBytes(out, rs.iterOption(option_map$0aug5m6(rs.sliceFirst(rs.sliceFrom(xs3.items)), (first3: Mixed.Mixed): rs.u8 => {
+		return rs.sliceContains(rs.sliceRange(rs.sliceFrom(xs3.items), 1), first3, Mixed.eq$cmp_PartialEq) ? 1 : 0;
 	})), undefined, true);
-	const items33: Mixed.Mixed[] = xs3.items;
-	rs.byteVecPush(out, rs.sliceIsSorted(new rs.Slice(items33, 0, items33.length), rs.cmpLe(Mixed.partialCmp$cmp_PartialOrd)) ? 1 : 0);
+	rs.byteVecPush(out, rs.sliceIsSorted(rs.sliceFrom(xs3.items), rs.cmpLe(Mixed.partialCmp$cmp_PartialOrd)) ? 1 : 0);
 	rs.byteVecPush(out, rs.dequeContains(rs.dequeFromVec(rs.vecFrom(xs3.items.slice()), 4) as rs.VecDeque<Mixed.Mixed>, xs3.items[rs.idx(xs3.items, rs.usizeDiv(xs3.items.length, 2))], Mixed.eq$cmp_PartialEq) ? 1 : 0);
 }
 
@@ -6461,8 +6347,7 @@ export function btreeExtracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 		const _274: rs.usize = rs.u8Rem(limit, 8) as rs.usize;
 		const taken4: rs.Vec<[Logged.Logged, Logged.Logged]> = rs.iterToVec(rs.iterTake(rs.iterBorrow(_272), _274, drop$tuple2_collections_Logged_collections_Logged), "next", 16);
 		rs.drop(it3);
-		const items: [Logged.Logged, Logged.Logged][] = taken4.items;
-		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length))), (_2: [Logged.Logged, Logged.Logged]): Uint8Array => {
+		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(taken4.items), (_2: [Logged.Logged, Logged.Logged]): Uint8Array => {
 			return Uint8Array.of(_2[0]._0 & 0xff, _2[1]._0 & 0xff);
 		}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
 		rs.dropVec(taken4, drop$tuple2_collections_Logged_collections_Logged);
@@ -6501,12 +6386,10 @@ export function btreeExtracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 		const _342: (a0: rs.u16, a1: rs.Place<rs.u8>) => boolean = (k4: rs.u16, _315: rs.Place<rs.u8>): boolean => {
 			return rs.u16Rem(k4, every) === 0;
 		};
-		const items2: [rs.u16, rs.u8][] = rs.iterToVec(rs.btreeExtractIfMut(bytes, rs.boundsOf(_335, Window.startBound$ops_RangeBounds_u16, Window.endBound$ops_RangeBounds_u16), _342), "next", 4).items;
-		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items2, 0, items2.length))), (_210: [rs.u16, rs.u8]): rs.u8 => {
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.iterToVec(rs.btreeExtractIfMut(bytes, rs.boundsOf(_335, Window.startBound$ops_RangeBounds_u16, Window.endBound$ops_RangeBounds_u16), _342), "next", 4).items), (_210: [rs.u16, rs.u8]): rs.u8 => {
 			return _210[1];
 		}), undefined, true);
-		const items3: rs.u16[] = rs.refCellReplace(log, new rs.Vec()).items;
-		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items3, 0, items3.length))), (e: rs.u16): Uint8Array => {
+		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.refCellReplace(log, new rs.Vec()).items), (e: rs.u16): Uint8Array => {
 			return rs.u16ToBeBytes(e);
 		}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
 	}
@@ -7201,8 +7084,7 @@ export function btreeDrops(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		mark(1);
 		rs.btreeDrop(copy, undefined, rs.drop);
 	}
-	const items: rs.u16[] = rs.refCellReplace(log, new rs.Vec()).items;
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items, 0, items.length))), (e: rs.u16): Uint8Array => {
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.refCellReplace(log, new rs.Vec()).items), (e: rs.u16): Uint8Array => {
 		return rs.u16ToBeBytes(e);
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
 }

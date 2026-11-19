@@ -470,9 +470,7 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 				d.push(y);
 			}
 			const live2: rs.Vec<rs.usize> = new rs.Vec(d, cap);
-			const items2: rs.usize[] = live2.items;
-			const _400: rs.usize = rs.usizeRem(arg as rs.usize, rs.max(live2.items.length, 1));
-			const _397: rs.usize | undefined = rs.sliceGet(new rs.Slice(items2, 0, items2.length), _400);
+			const _397: rs.usize | undefined = rs.sliceGet(rs.sliceFrom(live2.items), rs.usizeRem(arg as rs.usize, rs.max(live2.items.length, 1)));
 			if (_397 !== undefined) {
 				const i2: rs.usize = _397;
 				note(rs.fmtFormat(["drop sender ", (f: rs.Formatter) => rs.usizeDisplay(i2, f)]));
@@ -511,8 +509,7 @@ export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
 					drop$mpsc_Tx(tx14);
 				}
 			} else if (_440 === 1) {
-				const items: Array<Weak.Weak | undefined> = s.weaks.items;
-				const _456: Weak.Weak | undefined | rs.None = rs.sliceLast(new rs.Slice(items, 0, items.length), rs.None);
+				const _456: Weak.Weak | undefined | rs.None = rs.sliceLast(rs.sliceFrom(s.weaks.items), rs.None);
 				if (_456 !== rs.None) {
 					if (_456 !== undefined) {
 						const _463: Weak.Weak = Weak.clone$Clone(_456);
@@ -1106,8 +1103,7 @@ export function state(s: mpsc_State.State): void {
 		}
 		drop$mpsc_Tx(tx);
 	}
-	const items: Array<Weak.Weak | undefined> = s.weaks.items;
-	const _78: Weak.Weak | undefined | rs.None = rs.sliceLast(new rs.Slice(items, 0, items.length), rs.None);
+	const _78: Weak.Weak | undefined | rs.None = rs.sliceLast(rs.sliceFrom(s.weaks.items), rs.None);
 	if (_78 !== rs.None) {
 		if (_78 !== undefined) {
 			if (_78.tag === "Bounded") {

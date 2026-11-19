@@ -303,8 +303,7 @@ export function arithmetic(data: rs.ByteSlice, out: rs.ByteVec): void {
 				const part = rs.ordMax(a2, b2, rs.cmpLt(Timestamp.partialCmp$cmp_PartialOrd));
 				putText(out, rs.fmtFormat([(f: rs.Formatter) => Timestamp.fmt$fmt_Debug(part, f)]));
 				const sorted: rs.Vec<Timestamp.Timestamp> = rs.iterToVec(rs.iterChain(rs.iterSlice([a2, b2]), rs.iterResult(c)), undefined, 16, true);
-				const items: Timestamp.Timestamp[] = sorted.items;
-				rs.sliceSort(new rs.Slice(items, 0, items.length), rs.cmpLt(Timestamp.partialCmp$cmp_PartialOrd), 16, true);
+				rs.sliceSort(rs.sliceFrom(sorted.items), rs.cmpLt(Timestamp.partialCmp$cmp_PartialOrd), 16, true);
 				for (const _65 of sorted.items) {
 					putTimestamp(out, _65);
 				}

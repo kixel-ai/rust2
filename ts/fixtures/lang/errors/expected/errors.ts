@@ -532,37 +532,21 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	bytes.items.push(data);
 	const _32: rs.u8 = rs.u8Rem(kind, 16);
 	if (_32 === 0) {
-		const items44: string[] = all.items;
-		const items45: rs.Result<boolean, rs.ParseBoolError>[] = parsed$bool(new rs.Slice(items44, 0, items44.length)).items;
-		pairs$Result_bool_str_ParseBoolError(new rs.Slice(items45, 0, items45.length), out);
+		pairs$Result_bool_str_ParseBoolError(rs.sliceFrom(parsed$bool(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 1) {
-		const items42: string[] = all.items;
-		const items43: rs.Result<rs.char, rs.ParseCharError>[] = parsed$char(new rs.Slice(items42, 0, items42.length)).items;
-		pairs$Result_char_char_ParseCharError(new rs.Slice(items43, 0, items43.length), out);
+		pairs$Result_char_char_ParseCharError(rs.sliceFrom(parsed$char(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 2) {
-		const items40: string[] = all.items;
-		const items41: rs.Result<rs.u8, rs.ParseIntError>[] = parsed$u8(new rs.Slice(items40, 0, items40.length)).items;
-		pairs$Result_u8_num_ParseIntError(new rs.Slice(items41, 0, items41.length), out);
+		pairs$Result_u8_num_ParseIntError(rs.sliceFrom(parsed$u8(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 3) {
-		const items38: string[] = all.items;
-		const items39: rs.Result<rs.i8, rs.ParseIntError>[] = parsed$i8(new rs.Slice(items38, 0, items38.length)).items;
-		pairs$Result_i8_num_ParseIntError(new rs.Slice(items39, 0, items39.length), out);
+		pairs$Result_i8_num_ParseIntError(rs.sliceFrom(parsed$i8(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 4) {
-		const items36: string[] = all.items;
-		const items37: rs.Result<rs.u32, rs.ParseIntError>[] = parsed$num_NonZero_u32(new rs.Slice(items36, 0, items36.length)).items;
-		pairs$Result_num_NonZero_u32_num_ParseIntError(new rs.Slice(items37, 0, items37.length), out);
+		pairs$Result_num_NonZero_u32_num_ParseIntError(rs.sliceFrom(parsed$num_NonZero_u32(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 5) {
-		const items34: string[] = all.items;
-		const items35: rs.Result<rs.u64, rs.ParseIntError>[] = parsed$u64(new rs.Slice(items34, 0, items34.length)).items;
-		pairs$Result_u64_num_ParseIntError(new rs.Slice(items35, 0, items35.length), out);
+		pairs$Result_u64_num_ParseIntError(rs.sliceFrom(parsed$u64(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 6) {
-		const items32: string[] = all.items;
-		const items33: rs.Result<rs.i128, rs.ParseIntError>[] = parsed$i128(new rs.Slice(items32, 0, items32.length)).items;
-		pairs$Result_i128_num_ParseIntError(new rs.Slice(items33, 0, items33.length), out);
+		pairs$Result_i128_num_ParseIntError(rs.sliceFrom(parsed$i128(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 7) {
-		const items30: string[] = all.items;
-		const items31: rs.Result<rs.f64, rs.ParseFloatError>[] = parsed$f64(new rs.Slice(items30, 0, items30.length)).items;
-		pairs$Result_f64_num_ParseFloatError(new rs.Slice(items31, 0, items31.length), out);
+		pairs$Result_f64_num_ParseFloatError(rs.sliceFrom(parsed$f64(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 8) {
 		const ints: rs.Vec<rs.i64> = rs.vecFrom([0, 127, 128, -128, -129, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64, { hi: -0x80000000, lo: 0 } as rs.i64]);
 		const _78: rs.Iter<rs.i64> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_218: rs.u8): rs.i64 => {
@@ -577,11 +561,9 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const y11: rs.Result<rs.i8, rs.TryFromIntError> = rs.i8TryFrom(s19[front11++]);
 			v22.items.push(y11);
 		}
-		const items29: rs.Result<rs.i8, rs.TryFromIntError>[] = v22.items;
-		pairs$Result_i8_num_TryFromIntError(new rs.Slice(items29, 0, items29.length), out);
+		pairs$Result_i8_num_TryFromIntError(rs.sliceFrom(v22.items), out);
 	} else if (_32 === 9) {
-		const items27: rs.ByteSlice[] = bytes.items;
-		const s18 = rs.sliceItems(new rs.Slice(items27, 0, items27.length));
+		const s18 = bytes.items;
 		let front10 = 0;
 		let back10 = s18.length;
 		const v21: rs.Vec<rs.Result<string, rs.Utf8Error>> = rs.vecWithCapacity(back10 - front10, 12);
@@ -589,11 +571,9 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const y10: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(s18[front10++]);
 			v21.items.push(y10);
 		}
-		const items28: rs.Result<string, rs.Utf8Error>[] = v21.items;
-		pairs$Result_ref_str_str_Utf8Error(new rs.Slice(items28, 0, items28.length), out);
+		pairs$Result_ref_str_str_Utf8Error(rs.sliceFrom(v21.items), out);
 	} else if (_32 === 10) {
-		const items25: rs.ByteSlice[] = bytes.items;
-		const s17 = rs.sliceItems(new rs.Slice(items25, 0, items25.length));
+		const s17 = bytes.items;
 		let front9 = 0;
 		let back9 = s17.length;
 		const v20: rs.Vec<rs.Result<rs.String, rs.FromUtf8Error>> = rs.vecWithCapacity(back9 - front9, 20);
@@ -601,8 +581,7 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const y9: rs.Result<rs.String, rs.FromUtf8Error> = rs.stringFromUtf8(rs.byteSliceToByteVec(s17[front9++]));
 			v20.items.push(y9);
 		}
-		const items26: rs.Result<rs.String, rs.FromUtf8Error>[] = v20.items;
-		pairs$Result_String_string_FromUtf8Error(new rs.Slice(items26, 0, items26.length), out);
+		pairs$Result_String_string_FromUtf8Error(rs.sliceFrom(v20.items), out);
 	} else if (_32 === 11) {
 		const secs: rs.Vec<rs.f64> = rs.vecFrom([0.0, -0.0, 1.5, -1.0, NaN, Infinity, -Infinity, 1e30]);
 		const _105: rs.Iter<rs.f64> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_211: rs.u8): rs.f64 => {
@@ -617,11 +596,9 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const y8: rs.Result<rs.Duration, rs.TryFromFloatSecsError> = rs.durationTryFromSecsF64(s16[front8++]);
 			v19.items.push(y8);
 		}
-		const items24: rs.Result<rs.Duration, rs.TryFromFloatSecsError>[] = v19.items;
-		pairs$Result_time_Duration_time_TryFromFloatSecsError(new rs.Slice(items24, 0, items24.length), out);
+		pairs$Result_time_Duration_time_TryFromFloatSecsError(rs.sliceFrom(v19.items), out);
 	} else if (_32 === 12) {
-		const items18: string[] = all.items;
-		const s11 = rs.sliceItems(new rs.Slice(items18, 0, items18.length));
+		const s11 = all.items;
 		let front5 = 0;
 		let back5 = s11.length;
 		const f5 = (s10: string): rs.Result<rs.u8 | undefined, rs.ParseIntError> => {
@@ -634,10 +611,8 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const y5: rs.Result<rs.u8 | undefined, rs.ParseIntError> = f5(s11[front5++]);
 			v16.items.push(y5);
 		}
-		const items19: rs.Result<rs.u8 | undefined, rs.ParseIntError>[] = v16.items;
-		pairs$Result_Option_u8_num_ParseIntError(new rs.Slice(items19, 0, items19.length), out);
-		const items20: string[] = all.items;
-		const s13 = rs.sliceItems(new rs.Slice(items20, 0, items20.length));
+		pairs$Result_Option_u8_num_ParseIntError(rs.sliceFrom(v16.items), out);
+		const s13 = all.items;
 		let front6 = 0;
 		let back6 = s13.length;
 		const f6 = (s12: string): rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError> => {
@@ -651,10 +626,8 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const y6: rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError> = f6(s13[front6++]);
 			v17.items.push(y6);
 		}
-		const items21: rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError>[] = v17.items;
-		pairs$Result_Result_char_char_ParseCharError_str_ParseBoolError(new rs.Slice(items21, 0, items21.length), out);
-		const items22: string[] = all.items;
-		const s15 = rs.sliceItems(new rs.Slice(items22, 0, items22.length));
+		pairs$Result_Result_char_char_ParseCharError_str_ParseBoolError(rs.sliceFrom(v17.items), out);
+		const s15 = all.items;
 		let front7 = 0;
 		let back7 = s15.length;
 		const f7 = (s14: string): rs.Result<rs.u8, rs.IntErrorKind> => {
@@ -667,8 +640,7 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const y7: rs.Result<rs.u8, rs.IntErrorKind> = f7(s15[front7++]);
 			v18.items.push(y7);
 		}
-		const items23: rs.Result<rs.u8, rs.IntErrorKind>[] = v18.items;
-		pairs$Result_u8_num_IntErrorKind(new rs.Slice(items23, 0, items23.length), out);
+		pairs$Result_u8_num_IntErrorKind(rs.sliceFrom(v18.items), out);
 	} else if (_32 === 13) {
 		const s8 = rs.byteSliceView(data);
 		let front3 = 0;
@@ -678,8 +650,7 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const y3: rs.Result<rs.u16, never> = rs.Ok(s8[front3++] as rs.u16);
 			v13.items.push(y3);
 		}
-		const items16: rs.Result<rs.u16, never>[] = v13.items;
-		pairs$Result_u16_never(new rs.Slice(items16, 0, items16.length), out);
+		pairs$Result_u16_never(rs.sliceFrom(v13.items), out);
 		const s9 = rs.byteSliceView(data);
 		let front4 = 0;
 		let back4 = s9.length;
@@ -694,8 +665,7 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const y4: rs.Result<undefined, rs.FmtError> = f4(s9[front4++]);
 			v14.items.push(y4);
 		}
-		const items17: rs.Result<undefined, rs.FmtError>[] = v14.items;
-		pairs$Result_unit_fmt_Error(new rs.Slice(items17, 0, items17.length), out);
+		pairs$Result_unit_fmt_Error(rs.sliceFrom(v14.items), out);
 	} else if (_32 === 14) {
 		const v7: rs.Vec<rs.Result<undefined, rs.TryReserveError>> = rs.iterToVec(rs.iterFlatMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 6), (_2: rs.u8): rs.Result<undefined, rs.TryReserveError>[] => {
 			let n!: rs.usize;
@@ -708,16 +678,12 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const text: rs.String = rs.stringFrom(rs.strSlice("ab", 0, rs.u8Rem(b2, 3) as rs.usize));
 			return [rs.byteVecTryReserve(new rs.ByteVec(), n), rs.stringTryReserveExact(text, n), rs.dequeTryReserve(rs.dequeNew(2) as rs.VecDeque<rs.u16>, n), rs.hashTryReserve(rs.hashNew() as rs.HashSet<rs.u8>, n, 469762048)];
 		}, (value: rs.Result<undefined, rs.TryReserveError>[]) => rs.iterSlice(value), true, 4), undefined, 8, true);
-		const items13: rs.Result<undefined, rs.TryReserveError>[] = v7.items;
-		const items14: rs.TryReserveError[] = rs.iterToVec(rs.iterFilterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items13, 0, items13.length))), (r: rs.Result<undefined, rs.TryReserveError>): rs.TryReserveError | undefined => {
+		pairs$collections_TryReserveError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(v7.items), (r: rs.Result<undefined, rs.TryReserveError>): rs.TryReserveError | undefined => {
 			return err$069ojhs(result_clone$0688qis(r));
-		}), "next", 8).items;
-		pairs$collections_TryReserveError(new rs.Slice(items14, 0, items14.length), out);
-		const items15: rs.Result<undefined, rs.TryReserveError>[] = rs.slicesJoin(rs.sliceFrom([rs.vecFrom(v7.items.map(result_clone$0688qis)), v7]), 8, undefined, rs.vecSlice, result_clone$0688qis).items;
-		pairs$Result_unit_collections_TryReserveError(new rs.Slice(items15, 0, items15.length), out);
+		}), "next", 8).items), out);
+		pairs$Result_unit_collections_TryReserveError(rs.sliceFrom(rs.slicesJoin(rs.sliceFrom([rs.vecFrom(v7.items.map(result_clone$0688qis)), v7]), 8, undefined, rs.vecSlice, result_clone$0688qis).items), out);
 	} else {
-		const items: string[] = all.items;
-		const s2 = rs.sliceItems(new rs.Slice(items, 0, items.length));
+		const s2 = all.items;
 		let front = 0;
 		let back = s2.length;
 		const f = (s: string): rs.Result<rs.u8, rs.ParseIntError> | undefined => {
@@ -731,13 +697,9 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const y: rs.Result<rs.u8, rs.ParseIntError> | undefined = f(s2[front++]);
 			v11.items.push(y);
 		}
-		const items2: Array<rs.Result<rs.u8, rs.ParseIntError> | undefined> = v11.items;
-		pairs$Option_Result_u8_num_ParseIntError(new rs.Slice(items2, 0, items2.length), out);
-		const items3: string[] = all.items;
-		const items4: rs.Vec<rs.Result<boolean, rs.ParseBoolError>>[] = rs.iterToVec(rs.iterMap(rs.sliceChunks(new rs.Slice(items3, 0, items3.length), 2), parsed$bool), undefined, 12, true).items;
-		pairs$Vec_Result_bool_str_ParseBoolError(new rs.Slice(items4, 0, items4.length), out);
-		const items5: string[] = all.items;
-		const s4 = rs.sliceItems(new rs.Slice(items5, 0, items5.length));
+		pairs$Option_Result_u8_num_ParseIntError(rs.sliceFrom(v11.items), out);
+		pairs$Vec_Result_bool_str_ParseBoolError(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.sliceChunks(rs.sliceFrom(all.items), 2), parsed$bool), undefined, 12, true).items), out);
+		const s4 = all.items;
 		let front2 = 0;
 		let back2 = s4.length;
 		const v12: rs.Vec<[rs.Result<rs.char, rs.ParseCharError>, rs.usize]> = rs.vecWithCapacity(back2 - front2, 12);
@@ -746,23 +708,16 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const y2: [rs.Result<rs.char, rs.ParseCharError>, rs.usize] = [rs.charFromStr(x2), rs.usizeRem(rs.stringLen(x2), 2)];
 			v12.items.push(y2);
 		}
-		const items6: [rs.Result<rs.char, rs.ParseCharError>, rs.usize][] = v12.items;
-		pairs$tuple2_Result_char_char_ParseCharError_usize(new rs.Slice(items6, 0, items6.length), out);
-		const items7: string[] = all.items;
-		const items8: rs.ParseCharError[] = rs.iterToVec(rs.iterFilterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items7, 0, items7.length))), (s5: string): rs.ParseCharError | undefined => {
+		pairs$tuple2_Result_char_char_ParseCharError_usize(rs.sliceFrom(v12.items), out);
+		pairs$char_ParseCharError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s5: string): rs.ParseCharError | undefined => {
 			return err$0bvotqj(rs.charFromStr(s5));
-		}), "next", 1).items;
-		pairs$char_ParseCharError(new rs.Slice(items8, 0, items8.length), out);
-		const items9: string[] = all.items;
-		const items10: rs.ParseBoolError[] = rs.iterToVec(rs.iterFilterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items9, 0, items9.length))), (s6: string): rs.ParseBoolError | undefined => {
+		}), "next", 1).items), out);
+		pairs$str_ParseBoolError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s6: string): rs.ParseBoolError | undefined => {
 			return err$11tr79p(parse$1yfzdza(s6));
-		}), "next", 0).items;
-		pairs$str_ParseBoolError(new rs.Slice(items10, 0, items10.length), out);
-		const items11: string[] = all.items;
-		const items12: rs.ParseIntError[] = rs.iterToVec(rs.iterFilterMap(rs.iterSlice(rs.sliceItems(new rs.Slice(items11, 0, items11.length))), (s7: string): rs.ParseIntError | undefined => {
+		}), "next", 0).items), out);
+		pairs$num_ParseIntError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s7: string): rs.ParseIntError | undefined => {
 			return err$1tv7qwu(parse$02m1946(s7));
-		}), "next", 1).items;
-		pairs$num_ParseIntError(new rs.Slice(items12, 0, items12.length), out);
+		}), "next", 1).items), out);
 	}
 }
 
