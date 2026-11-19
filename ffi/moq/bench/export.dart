@@ -115,8 +115,9 @@ Future<Span> throughput(moq.TrackProducer track, moq.TrackSubscriber subscriber,
       read.close();
     }
     reader.close();
-    group.finish();
+    group.finish().close();
     group.close();
+    at.close();
   }
   final ns = end(start, name, count * frames * size);
   return Span(1e3 / ns.wall, 1e3 / ns.cpu);
@@ -135,7 +136,9 @@ Future<Map<String, Span>> round() async {
   }
   out['call'] = end(start, 'call');
 
-  final demanded = track.appendGroup(groupStart());
+  final demandedAt = groupStart();
+  final demanded = track.appendGroup(demandedAt);
+  demandedAt.close();
   final demand = demanded.demand();
   start = begin();
   for (var i = 0; i < n; i++) {
@@ -143,7 +146,7 @@ Future<Map<String, Span>> round() async {
   }
   out['getter'] = end(start, 'getter');
   demand.close();
-  demanded.finish();
+  demanded.finish().close();
   demanded.close();
 
   start = begin();
@@ -161,11 +164,15 @@ Future<Map<String, Span>> round() async {
   // Each frame stamped through a fresh timestamp, as a caller holding an int must.
   start = begin();
   for (var g = 0; g < groups; g++) {
-    final group = track.appendGroup(moq.Timestamp.fromMicros(moq.U64(micros)));
+    final first = moq.Timestamp.fromMicros(moq.U64(micros));
+    final group = track.appendGroup(first);
+    first.close();
     for (var f = 0; f < frames; f++) {
-      group.writeFrame(moq.Timestamp.fromMicros(moq.U64(micros++)), frame);
+      final at = moq.Timestamp.fromMicros(moq.U64(micros++));
+      group.writeFrame(at, frame);
+      at.close();
     }
-    group.finish();
+    group.finish().close();
     group.close();
   }
   out['stamped'] = end(start, 'stamped');
@@ -177,8 +184,9 @@ Future<Map<String, Span>> round() async {
     for (var f = 0; f < frames; f++) {
       group.writeFrame(at, frame);
     }
-    group.finish();
+    group.finish().close();
     group.close();
+    at.close();
   }
   out['write'] = end(start, 'write');
 
@@ -200,8 +208,9 @@ Future<Map<String, Span>> round() async {
       last = (await reader.readFrame())!;
     }
     reader.close();
-    group.finish();
+    group.finish().close();
     group.close();
+    at.close();
   }
   out['ready'] = end(start, 'ready');
 
@@ -218,8 +227,9 @@ Future<Map<String, Span>> round() async {
       (await pending)!.close();
     }
     reader.close();
-    group.finish();
+    group.finish().close();
     group.close();
+    at.close();
   }
   out['woken'] = end(start, 'woken');
 
@@ -236,8 +246,9 @@ Future<Map<String, Span>> round() async {
         group.writeFrame(at, frame);
       }
       if (!await next.moveNext()) throw StateError('missing group acknowledgement');
-      group.finish();
+      group.finish().close();
       group.close();
+      at.close();
     }
     await next.cancel();
   }
