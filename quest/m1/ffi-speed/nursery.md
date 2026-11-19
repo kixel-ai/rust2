@@ -19,10 +19,11 @@ The web registers every owned handle and lent `Bytes` with `FinalizationRegistry
 225 to 96. JavaScript may register an object at eviction while the nursery still holds it,
 so the design carries over.
 
-An idle nursery must not hold its last objects forever. Go flushes one when the GC drops
-it from its `sync.Pool` (`ffi/runtime/rt.go:192-200`); Dart holds it until the isolate
-exits. Recommended: the nursery itself is weakly held, through a `WeakReference` on the
-JVM and a `WeakRef` in JavaScript, so a GC that finds it idle flushes it into the
-registry, as Go's does; the PR states the bound on retention it measures.
+An idle nursery must not hold its last objects forever: an object returned in a partial
+batch, then abandoned unclosed with no later return, is still freed once unreachable, and
+a test shows it. Go keeps the cleanup state (`ring_`) apart from the pooled nursery, so a
+GC that drops an idle nursery still reaches cleanup (`ffi/runtime/rt.go:192-200`); Dart
+holds it until the isolate exits. Whatever mechanism the PR picks, a `WeakRef` alone does
+not do: a collected one runs no cleanup. The PR states the bound on retention it measures.
 
 Public API: none.
