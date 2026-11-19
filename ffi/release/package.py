@@ -1,4 +1,4 @@
-"""Build and check the Python wheels and Swift package of a crate's rust2-ffi export.
+"""Build and check the Python wheels, Swift package, and Go module of a crate's rust2-ffi export.
 
 bindings.yml runs each step on the host it needs; release.yml is the caller `init` writes.
 Every fact about the package comes from Cargo metadata or the export, so nothing here
@@ -43,6 +43,21 @@ WHEEL_TARGETS = [
     "aarch64-apple-darwin",
     "x86_64-pc-windows-msvc",
 ]
+# Every target the Go module links a static library of, by its GOOS_GOARCH. Go links
+# Windows through MinGW, so a -gnu library.
+GO_TARGETS = {
+    "x86_64-unknown-linux-gnu": "linux_amd64",
+    "aarch64-unknown-linux-gnu": "linux_arm64",
+    "aarch64-apple-darwin": "darwin_arm64",
+    "x86_64-pc-windows-gnu": "windows_amd64",
+}
+# What the go command refuses to extract: a module zip, or its files, over 500 MiB, and a
+# go.mod over 16 MiB (golang.org/x/mod/zip's MaxZipFile and MaxGoMod).
+GO_ZIP_MAX = 500 << 20
+GO_MOD_MAX = 16 << 20
+# The sections the go command refuses in an archive a #cgo directive names: LLVM's bitcode,
+# which Rust's prebuilt compiler_builtins carries.
+LTO_SECTIONS = [".llvmbc", ".llvmcmd", "__LLVM,__bitcode", "__LLVM,__cmdline"]
 # Cargo metadata names a library target by its crate types; a proc-macro is no library to export.
 LIBRARY_KINDS = {"lib", "rlib", "dylib", "cdylib", "staticlib"}
 COLLECTIONS = "https://github.com/apple/swift-collections"
@@ -255,7 +270,8 @@ def digest(export, lib):
     """A hash of the generated bindings, which every build host's export must agree on."""
     hasher = hashlib.sha256()
     export = Path(export)
-    paths = [export / "python" / f"{lib}.py", export / "include" / f"{lib}.h", *sorted((export / "swift").iterdir())]
+    paths = [export / "python" / f"{lib}.py", export / "include" / f"{lib}.h", *sorted((export / "swift").iterdir()),
+             *sorted(p for p in (export / "go").rglob("*") if p.is_file())]
     for path in paths:
         hasher.update(path.relative_to(export).as_posix().encode() + b"\0")
         # Exact bytes: each wheel ships its own host's module.
@@ -470,7 +486,12 @@ def export(args):
         raise SystemExit(f"{args.api} lacks a staged API for one of {args.targets}")
     targets = [arg for target in args.targets for arg in ("--target", target)]
     withs = [arg for path in others for arg in ("--with", path)]
-    exporter(args.manifest_path, args.features, *targets, *withs, "--out", Path(args.out).resolve())
+    out = Path(args.out).resolve()
+    if args.go_module:
+        # The export keeps a go.mod in go/, whose module its packages import each other by.
+        (out / "go").mkdir(parents=True, exist_ok=True)
+        (out / "go" / "go.mod").write_text(f"module {args.go_module}\n\ngo 1.24\n", newline="\n", encoding="utf-8")
+    exporter(args.manifest_path, args.features, *targets, *withs, "--out", out)
 
 
 def cargo(manifest, *args, env=None):
@@ -479,14 +500,66 @@ def cargo(manifest, *args, env=None):
                capture_output=True, encoding="utf-8")
 
 
+def staticlib(manifest, crate, lib, target, env=None):
+    """The C library alone, apart from the Python extension, whose CPython symbols it would
+    leave undefined, and the system libraries rustc says it needs beside it."""
+    # Its own target directory, since cargo does not rebuild for a changed deployment target.
+    target_dir = crate.parent / ("target-swift" if target in APPLE_TARGETS else "target-go")
+    # cargo-zigbuild links Linux against the glibc floor's symbols, whichever glibc the host has.
+    linux = "linux" in target
+    # Uncolored, so the note below reads as written whatever the caller's terminal.
+    built = run(*(["cargo-zigbuild"] if linux else ["cargo"]), "rustc", "--color", "never", "--locked", "--release",
+                "--manifest-path", crate, "--target", f"{target}.{GLIBC}" if linux else target,
+                "--target-dir", target_dir, "--lib", "--crate-type", "staticlib", "--", "--print=native-static-libs",
+                cwd=Path(manifest).resolve().parent, env={**os.environ, **(env or {})},
+                capture_output=True, encoding="utf-8")
+    sys.stderr.write(built.stderr)
+    notes = re.findall(r"note: native-static-libs: (.*)", built.stderr)
+    if len(notes) != 1:
+        raise SystemExit(f"rustc reported no native libraries for {target}")
+    return target_dir / target / "release" / f"lib{lib}.a", notes[0].strip()
+
+
+def go_links(export, lib, target):
+    """The system libraries the export's Go links beside `target`'s library, from its #cgo line."""
+    platform = GO_TARGETS[target]
+    rt = (Path(export) / "go" / "rt" / "rt.go").read_text(encoding="utf-8")
+    match = re.search(rf"^#cgo \S+ LDFLAGS: \$\{{SRCDIR\}}/lib{lib}_{platform}\.a(.*)$", rt, re.M)
+    if match is None:
+        raise SystemExit(f"the export's Go links no library for {target}")
+    return match.group(1).strip()
+
+
+def llvm_tool(manifest, name):
+    """One of LLVM's tools from the toolchain building the crate, which reads every target's objects."""
+    cwd = Path(manifest).resolve().parent
+    run("rustup", "component", "add", "llvm-tools", cwd=cwd, capture_output=True)
+    sysroot = output("rustc", "--print", "sysroot", cwd=cwd).strip()
+    host = re.search(r"^host: (\S+)$", output("rustc", "-vV", cwd=cwd), re.M).group(1)
+    exe = ".exe" if sys.platform == "win32" else ""
+    return Path(sysroot) / "lib" / "rustlib" / host / "bin" / f"{name}{exe}"
+
+
+def go_library(args, export_dir, lib, target, library, native, out):
+    """The Go module's copy of `target`'s library: checked against the export's #cgo line,
+    without debug info, which only bloats the module, or the bitcode the go command refuses."""
+    want = go_links(export_dir, lib, target)
+    if native != want:
+        raise SystemExit(f"rustc links {target}'s library with `{native}`, but the export's Go with `{want}`")
+    objcopy = llvm_tool(args.manifest_path, "llvm-objcopy")
+    dest = out / "go" / f"lib{lib}_{GO_TARGETS[target]}.a"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    run(objcopy, "--strip-debug", *(f"--remove-section={s}" for s in LTO_SECTIONS), library, dest)
+
+
 def build(args):
-    """This host's wheels and Apple static libraries, the export's sources, and native output."""
+    """This host's wheels, Apple and Go static libraries, the export's sources, and native output."""
     info = facts(args.manifest_path)
     lib, export_dir, out = info["lib"], Path(args.export).resolve(), Path(args.out).resolve()
     crate = export_dir / "Cargo.toml"
     out.mkdir(parents=True, exist_ok=True)
     for target in args.targets:
-        if target not in WHEEL_TARGETS and target not in APPLE_TARGETS:
+        if target not in WHEEL_TARGETS and target not in APPLE_TARGETS and target not in GO_TARGETS:
             raise SystemExit(f"no package ships {target}")
         run("rustup", "target", "add", target, cwd=Path(args.manifest_path).resolve().parent)
         if target in WHEEL_TARGETS:
@@ -503,30 +576,25 @@ def build(args):
         if target in APPLE_TARGETS:
             apple = APPLE_TARGETS[target]
             name = "MACOSX_DEPLOYMENT_TARGET" if apple == "macos" else "IPHONEOS_DEPLOYMENT_TARGET"
-            # The C library alone, apart from the Python extension, whose CPython symbols it
-            # would leave undefined; its own target directory, since cargo does not rebuild
-            # for a changed deployment target.
-            # Uncolored, so the note below reads as written whatever the caller's terminal.
-            built = cargo(args.manifest_path, "rustc", "--color", "never", "--locked", "--release", "--manifest-path", crate,
-                          "--target", target, "--target-dir", export_dir / "target-swift", "--lib",
-                          "--crate-type", "staticlib", "--", "--print=native-static-libs",
-                          env={name: SWIFT_PLATFORMS[apple]})
-            sys.stderr.write(built.stderr)
-            notes = re.findall(r"note: native-static-libs: (.*)", built.stderr)
-            if len(notes) != 1:
-                raise SystemExit(f"rustc reported no native libraries for {target}")
+            library, native = staticlib(args.manifest_path, crate, lib, target, env={name: SWIFT_PLATFORMS[apple]})
             static = out / "static" / target
             static.mkdir(parents=True)
-            shutil.copy(export_dir / "target-swift" / target / "release" / f"lib{lib}.a", static)
-            (static / "native.txt").write_text(notes[0].strip() + "\n", encoding="utf-8")
-    # The generated sources, for the Swift package and the hosts' agreement.
+            shutil.copy(library, static)
+            (static / "native.txt").write_text(native + "\n", encoding="utf-8")
+            # The Go module links the Swift package's macOS library, at its floor.
+            if target in GO_TARGETS:
+                go_library(args, export_dir, lib, target, library, native, out)
+        elif target in GO_TARGETS:
+            library, native = staticlib(args.manifest_path, crate, lib, target)
+            go_library(args, export_dir, lib, target, library, native, out)
+    # The generated sources, for the Swift package, the Go module, and the hosts' agreement.
     # Text this writes is LF on every host, as the jobs reading it compare bytes.
-    for part in ("include", "swift", "python"):
+    for part in ("include", "swift", "python", "go"):
         shutil.copytree(export_dir / part, out / "export" / part, dirs_exist_ok=True)
     shutil.copy(crate, out / "export")
     (out / "digest.txt").write_text(digest(export_dir, lib) + "\n", newline="\n", encoding="utf-8")
     (out / "lib.txt").write_text(lib + "\n", newline="\n", encoding="utf-8")
-    # Native output for a host whose wheel a consumer runs; an iOS slice runs nowhere here.
+    # Native output for a host whose wheel or Go module a consumer runs; an iOS slice runs nowhere here.
     if args.example and any(target in WHEEL_TARGETS for target in args.targets):
         if args.example not in info["examples"]:
             raise SystemExit(f"{info['name']} has no example {args.example}: it has {info['examples']}")
@@ -538,13 +606,134 @@ def build(args):
         (out / "native.txt").write_bytes(native.stdout)
 
 
-def template(info, manifest, rust2, mirror):
+def go_version(version):
+    """Cargo's version as a Go module's: semver with a `v`, refusing build metadata, which Go has no spelling of."""
+    if SEMVER.fullmatch(version) is None:
+        raise SystemExit(f"version {version} is no Go module version: use X.Y.Z or X.Y.Z-(alpha|beta|rc).N")
+    return f"v{version}"
+
+
+def go_module_path(export):
+    """The module the export's go.mod declares."""
+    text = (Path(export) / "go" / "go.mod").read_text(encoding="utf-8")
+    match = re.search(r"^module\s+(\S+)\s*$", text, re.M)
+    if match is None:
+        raise SystemExit("the export's go.mod declares no module")
+    return match.group(1)
+
+
+def check_major(module, version):
+    """Fail unless the module path carries the suffix Go requires of its major version."""
+    major = int(version[1:].split(".")[0])
+    suffix = re.search(r"/v([0-9]+)$", module)
+    if major >= 2 and (suffix is None or int(suffix.group(1)) != major):
+        raise SystemExit(f"Go requires version {version} of {module} to be at a module path ending /v{major}")
+    if major < 2 and suffix is not None:
+        raise SystemExit(f"Go refuses version {version} of {module}, whose path names major version {suffix.group(1)}")
+
+
+def escape(module):
+    """A module path as a proxy's URL spells it, each capital letter as `!` and its lower case."""
+    return re.sub(r"[A-Z]", lambda m: "!" + m.group(0).lower(), module)
+
+
+def go_files(info, export, libs):
+    """The module's files by path: the export's Go, every Go target's library from the
+    directory `libs` beside the runtime, and the license files, at the root where
+    pkg.go.dev looks for them."""
+    root = Path(export) / "go"
+    files = {p.relative_to(root).as_posix(): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+    want = {f"lib{info['lib']}_{platform}.a" for platform in GO_TARGETS.values()}
+    found = {p.name for p in Path(libs).iterdir()}
+    if found != want:
+        raise SystemExit(f"the Go module links {sorted(want)}, given {sorted(found)}")
+    for name in sorted(want):
+        files[f"rt/{name}"] = (Path(libs) / name).read_bytes()
+    for path in licenses(info):
+        files[path.name] = path.read_bytes()
+    # Two files a case-insensitive file system would make one, which the go command refuses.
+    folded = {}
+    for name in files:
+        if folded.setdefault(name.lower(), name) != name:
+            raise SystemExit(f"the Go module holds both {folded[name.lower()]} and {name}")
+    return files
+
+
+def go_module(info, export, libs, out):
+    """The module's .info, .mod, and .zip, laid out as a GOPROXY serves them, under `out`."""
+    module, version = go_module_path(export), go_version(info["version"])
+    check_major(module, version)
+    files = go_files(info, export, libs)
+    if len(files["go.mod"]) > GO_MOD_MAX:
+        raise SystemExit(f"go.mod is {len(files['go.mod'])} bytes, over Go's {GO_MOD_MAX}")
+    size = sum(len(data) for data in files.values())
+    if size > GO_ZIP_MAX:
+        raise SystemExit(f"the Go module's files are {size >> 20} MiB, over Go's {GO_ZIP_MAX >> 20} MiB")
+    versions = Path(out) / escape(module) / "@v"
+    versions.mkdir(parents=True)
+    (versions / f"{version}.info").write_text(json.dumps({"Version": version}) + "\n", encoding="utf-8")
+    (versions / f"{version}.mod").write_bytes(files["go.mod"])
+    archive = versions / f"{version}.zip"
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
+        for name, data in files.items():
+            # A fixed time, so the zip is a function of its files.
+            entry = zipfile.ZipInfo(f"{module}@{version}/{name}", date_time=(1980, 1, 1, 0, 0, 0))
+            entry.compress_type = zipfile.ZIP_DEFLATED
+            entry.external_attr = 0o644 << 16
+            z.writestr(entry, data)
+    if archive.stat().st_size > GO_ZIP_MAX:
+        raise SystemExit(f"the Go module's zip is {archive.stat().st_size >> 20} MiB, over Go's {GO_ZIP_MAX >> 20} MiB")
+    rows = [f"| `{name}` | {len(data) / (1 << 20):.1f} MiB |" for name, data in files.items() if name.endswith(".a")]
+    return "\n".join([
+        f"Go module `{module}` {version}: {size / (1 << 20):.1f} MiB of files, a "
+        f"{archive.stat().st_size / (1 << 20):.1f} MiB zip, of Go's {GO_ZIP_MAX >> 20} MiB limit on each.",
+        "", "| Library | Size |", "| --- | --- |", *rows, "",
+    ])
+
+
+def consume_go(proxy, check, native):
+    """Build and run a check program, or else an import of the runtime, against the module
+    unpacked from its zip, in a new module of its own: no checkout, Rust, or CGO_LDFLAGS."""
+    zips = list(Path(proxy).rglob("*.zip"))
+    if len(zips) != 1:
+        raise SystemExit(f"expected one module zip in {proxy}, found {zips}")
+    with tempfile.TemporaryDirectory() as work, zipfile.ZipFile(zips[0]) as z:
+        work = Path(work)
+        prefix = z.namelist()[0].split("/", 1)[0]
+        module, version = prefix.rsplit("@", 1)
+        z.extractall(work / "mod")
+        consumer = work / "consumer"
+        consumer.mkdir()
+        (consumer / "go.mod").write_text(
+            f"module consumer\n\ngo 1.24\n\nrequire {module} {version}\n\nreplace {module} => ../mod/{prefix}\n",
+            encoding="utf-8")
+        main = Path(check).read_text(encoding="utf-8") if check else f'package main\n\nimport _ "{module}/rt"\n\nfunc main() {{}}\n'
+        (consumer / "main.go").write_text(main, encoding="utf-8")
+        env = {k: v for k, v in os.environ.items() if not k.startswith("CGO_") or k == "CGO_ENABLED"}
+        env.update(CGO_ENABLED="1", GOFLAGS="-mod=mod", GOPROXY="off", GOTOOLCHAIN="local", GOWORK="off")
+        run("go", "vet", f"{module}/...", ".", cwd=consumer, env=env)
+        exe = consumer / ("check.exe" if sys.platform == "win32" else "check")
+        run("go", "build", "-o", exe, ".", cwd=consumer, env=env)
+        result = subprocess.run([exe], capture_output=True, cwd=work)
+    sys.stderr.buffer.write(result.stderr)
+    if result.returncode:
+        raise SystemExit(f"{check or 'the import'} failed on the Go module with status {result.returncode}")
+    if native and check:
+        compare(Path(native).read_bytes(), result.stdout, "Go module")
+
+
+def template(info, manifest, rust2, mirror, go_module):
     """The caller workflow, with every identity Cargo cannot establish spelled out in it."""
     if not re.fullmatch(r"[0-9a-f]{40}", rust2):
         raise SystemExit("pin rust2 by a full commit SHA")
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", mirror):
         raise SystemExit(f"the Swift mirror must be OWNER/REPO, not {mirror!r}")
+    # A proxy serves only a path whose first element is a host name.
+    if not re.fullmatch(r"[a-z0-9-]+(\.[a-z0-9-]+)+(/[A-Za-z0-9._~-]+)*", go_module):
+        raise SystemExit(f"the Go module must be a path a proxy serves, such as example.com/name, not {go_module!r}")
+    check_major(go_module, go_version(info["version"]))
     values = {
+        "GO_MODULE": go_module,
         "NAME": info["name"],
         "MANIFEST": manifest,
         "RUST2": rust2,
@@ -570,7 +759,7 @@ def init(args):
     rust2 = args.rust2 or output("git", "-C", HERE, "rev-parse", "HEAD").strip()
     relative = manifest.resolve().relative_to(root).as_posix()
     path = root / ".github" / "workflows" / f"release-{info['name']}.yml"
-    text = template(info, relative, rust2, args.swift_mirror)
+    text = template(info, relative, rust2, args.swift_mirror, args.go_module)
     if path.exists() and path.read_text(encoding="utf-8") != text:
         raise SystemExit(f"{path} exists; delete it to write the release workflow")
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -593,6 +782,7 @@ def main():
         p.add_argument("targets", nargs="+")
         if name == "export":
             p.add_argument("--api", required=True)
+            p.add_argument("--go-module", default="", help="the Go module path; the export's own, the prefix, by default")
         if name == "build":
             p.add_argument("--export", required=True)
             p.add_argument("--example", default="")
@@ -610,6 +800,15 @@ def main():
     p.add_argument("--state", required=True, help="the swift.json `swift` wrote")
     p.add_argument("--package", required=True)
     p.add_argument("--framework", required=True)
+    p = sub.add_parser("go", help="write the Go module as a GOPROXY serves it")
+    p.add_argument("--manifest-path", required=True)
+    p.add_argument("--export", required=True)
+    p.add_argument("--libs", required=True, help="a directory of every Go target's library, as build names them")
+    p.add_argument("--out", required=True)
+    p = sub.add_parser("consume-go", help="run a check program, or an import, on the unpacked Go module")
+    p.add_argument("--proxy", required=True, help="the directory `go` wrote")
+    p.add_argument("--check")
+    p.add_argument("--native")
     p = sub.add_parser("consume-python", help="run a check program, or an import, on the installed wheel")
     group = p.add_mutually_exclusive_group(required=True)
     group.add_argument("--check")
@@ -622,6 +821,8 @@ def main():
     p.add_argument("--manifest-path", required=True)
     p.add_argument("--swift-mirror", required=True, metavar="OWNER/REPO",
                    help="the repository SwiftPM resolves the package from, whose root holds its Package.swift")
+    p.add_argument("--go-module", required=True, metavar="PATH",
+                   help="the Go module's path, which a proxy you run serves, /vN suffix included")
     p.add_argument("--rust2", help="the rust2 commit to pin; this checkout's by default")
     args = parser.parse_args()
 
@@ -646,6 +847,10 @@ def main():
         release_manifest(args.out, args.url)
     elif args.command == "swift-local":
         local_manifest(args.state, args.package, args.framework)
+    elif args.command == "go":
+        print(go_module(facts(args.manifest_path), args.export, args.libs, args.out))
+    elif args.command == "consume-go":
+        consume_go(args.proxy, args.check, args.native)
     elif args.command == "consume-python":
         consume_python(args.check, args.native, args.module)
     elif args.command == "compare":

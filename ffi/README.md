@@ -970,8 +970,19 @@ value of a Rust type crosses as one Swift type that holds it exactly, and back u
 
 `go/` holds a Go package per crate whose items the facade exports, over the C header
 through cgo, for Go 1.24 or later, and the runtime they share, `go/rt`. Each includes
-`<prefix>.h` from the `include/` beside `go/`, as the export lays them out, and links the
-library through `CGO_LDFLAGS`. A crate's package is its name without the prefix and its
+`<prefix>.h` from `go/rt`, so `go/` is a whole module, as a release's zip holds it. The
+runtime links each exported target's static library from beside itself, as
+`rt/lib<prefix>_<goos>_<goarch>.a`, by a `#cgo <goos>,<goarch> LDFLAGS` line naming it and the
+system libraries it needs, as rustc's `--print native-static-libs` prints them, which the
+check of each target reads from its crates' `#[link]` attributes and build scripts. So a
+build needs no `CGO_LDFLAGS`, and on a platform with no library, `rt/platform.go` fails to
+compile. Go links Windows through MinGW, so only `x86_64-pc-windows-gnu` and
+`aarch64-pc-windows-gnullvm` are Windows targets it links, and iOS the device's library, as
+Go builds the simulator's from the same `ios/arm64`; Linux and macOS lines exclude Android
+and iOS, which Go also counts as `linux` and `darwin`. The export puts no library there:
+copy it in, as [the release builder](release/README.md) does, without the LLVM bitcode
+(`.llvmbc`, `__LLVM`) that Go refuses, from 1.26.11 and 1.27.4, in an archive a `#cgo` line
+names. A crate's package is its name without the prefix and its
 `_`: moq-mux's is `mux`, and serde_json's `serdejson`, but keeps the prefix where its
 strip leaves no leading letter (`moq_2d` is `moq2d`). One that a Go keyword, `C`, `main`,
 the runtime, or an earlier crate's package takes gains a trailing `_`, as a crate `rt` is
@@ -981,10 +992,12 @@ while Rust's modules may, so a package per module could not hold moq. An instanc
 generic type, or a function naming one, belongs to the last of its own and its arguments'
 crates in Cargo's order, which can name them all: moq's
 `mux::catalog::Producer<hang::catalog::Extra>` is in `mux`. The packages' import path is
-the module of the `go.mod` above `--out`, as `go mod edit -json` reads it, with the path to
-`go/`; or else `<prefix>`, the module of the `go.mod` the export writes in `go/`, which a
-caller requires and replaces with that directory. The export needs `go` on PATH whenever it
-reads a go.mod.
+the module of the module `go/` is in, as Go finds it: that of a `go.mod` in `go/` itself,
+which the export keeps as it is, as a release's names its module path, or else of the
+`go.mod` above `--out`, with the path to `go/`, each as `go mod edit -json` reads it; or else
+`<prefix>`, the module of the `go.mod` the export writes in `go/`, which a caller requires and
+replaces with that directory. The export needs `go` on PATH whenever it reads a go.mod
+other than its own.
 
 - **Names** are the C names without the prefix and the segments outside the item's crate,
   such as the facade's module re-exporting it, in Pascal case: `moq_track_Producer` is
