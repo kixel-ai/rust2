@@ -2515,7 +2515,9 @@ export declare class Handle<T extends string = string> {
     closed: boolean;
     readonly owned: boolean;
     readonly checked: boolean;
+    n: number;
     constructor(p: number, k: Kind, owned: boolean);
+    evict(): void;
     hold(): number;
     release(): void;
     free(): void;
