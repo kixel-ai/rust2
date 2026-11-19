@@ -57,11 +57,14 @@ class Baseline(unittest.TestCase):
         ]:
             self.assertEqual(package.compatible(old, new), ok, (old, new))
 
-    def test_previous_is_the_newest_release_below(self):
-        tags = ["moq-ffi-v0.4.10", "moq-ffi-v0.4.12", "moq-ffi-v0.5.0-rc.1", "other-v0.4.11", "moq-ffi-v0.4.11"]
-        self.assertEqual(package.previous_release("moq-ffi", "0.4.12", tags), "0.4.11")
-        self.assertEqual(package.previous_release("moq-ffi", "0.5.0", tags), "0.5.0-rc.1")
-        self.assertIsNone(package.previous_release("moq-ffi", "0.4.10", tags))
+    def test_releases_a_version_answers_to(self):
+        tags = ["moq-ffi-v0.4.10", "moq-ffi-v0.4.12", "moq-ffi-v0.5.0-rc.1", "other-v0.4.11", "moq-ffi-v0.4.11",
+                "moq-ffi-v1.2.3", "moq-ffi-v1.3.0-rc.1"]
+        self.assertEqual(package.earlier_releases("moq-ffi", "0.4.12", tags), ("0.4.11", "0.4.11"))
+        self.assertEqual(package.earlier_releases("moq-ffi", "0.5.0", tags), ("0.5.0-rc.1", None))
+        self.assertEqual(package.earlier_releases("moq-ffi", "0.4.10", tags), (None, None))
+        # A prerelease between them leaves the stable release the baseline.
+        self.assertEqual(package.earlier_releases("moq-ffi", "1.3.0", tags), ("1.3.0-rc.1", "1.2.3"))
 
 
 def api(records, functions):
@@ -88,6 +91,21 @@ class Changes(unittest.TestCase):
         text = package.changes(old, new, "0.4.11")
         self.assertEqual(text, "## API changes since 0.4.11\n\n### Removed\n\n- fn `moq::close`\n"
                                "\n### Added\n\n- fn `moq::seek`\n- struct `moq::Group`\n")
+
+    def test_accessors_and_nested_targets(self):
+        def method(name, access):
+            return {**function(name, None), "access": access}
+        old = api([{**record("Track"), "methods": [method("seq", {"Field": {"shared": False, "set": False}}),
+                                                     method("seq", {"Field": {"shared": False, "set": True}})],
+                    "variants": [{"name": "A", "on": 1}]}], [])
+        # A target sorting first shifts every mask, whose targets stay the same.
+        new = api([{**record("Track"), "on": 2,
+                    "methods": [{**method("seq", {"Field": {"shared": False, "set": False}}), "on": 2}],
+                    "variants": [{"name": "A", "on": 2}]}], [])
+        new["api"]["targets"] = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu"]
+        text = package.changes(old, new, "0.4.11")
+        self.assertIn("### Removed\n\n- set `moq::seq`\n", text)
+        self.assertNotIn("struct `moq::Track`", text)
 
     def test_a_signature_change(self):
         old = api([record("Track"), record("Group")], [function("open", {"Record": 0})])

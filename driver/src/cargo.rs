@@ -175,6 +175,12 @@ impl Check<'_> {
 			}
 			cmd
 		};
+		// A tool that staged files in its target directory made it before cargo could tag it
+		// as its own, and cargo cleans no untagged directory: tag it as cargo would.
+		let tag = target_dir.join("CACHEDIR.TAG");
+		if target_dir.is_dir() && !tag.exists() {
+			std::fs::write(&tag, CACHEDIR_TAG).map_err(|err| format!("writing {}: {err}", tag.display()))?;
+		}
 		run_cargo(cargo("clean").arg("--quiet").args(resolution(self.args)))?;
 		// Its own, since runs may share a target directory.
 		let ran = target_dir.join(format!("{}-{}.ran", self.tool, std::process::id()));
@@ -203,6 +209,9 @@ impl Check<'_> {
 		Ok(ExitCode::SUCCESS)
 	}
 }
+
+/// The tag cargo writes in a target directory it creates, which `cargo clean` requires.
+const CACHEDIR_TAG: &str = "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cargo.\n# For information about cache directory tags see https://bford.info/cachedir/\n";
 
 /// Where `tool` builds, absolute: `CARGO_TARGET_DIR`, or its own directory in the target
 /// directory of the workspace `manifest`, or the current directory, belongs to.

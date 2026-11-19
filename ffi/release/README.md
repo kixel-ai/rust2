@@ -44,12 +44,13 @@ packages. Without a check, a consumer only imports the module.
 
 ## What the builder does
 
-1. Finds the previous release: the newest `<crate>-v<version>` GitHub release below the
-   crate's version, and its `api.json` asset. When Cargo treats the two versions as
-   compatible (the same leftmost nonzero part, neither a prerelease), each export passes it
-   as `--baseline`, so a release that breaks its API without a breaking version fails
-   ([The API lock](/ffi/README.md#the-api-lock)). A previous release without the asset fails
-   the build.
+1. Finds the earlier releases among the `<crate>-v<version>` GitHub releases, and their
+   `api.json` assets: the newest below the crate's version, which the changelog follows,
+   and the newest below it Cargo treats as compatible (the same leftmost nonzero part,
+   neither a prerelease), which each export passes as `--baseline`, so a release that
+   breaks its API without a breaking version fails
+   ([The API lock](/ffi/README.md#the-api-lock)). A release without the asset fails the
+   build.
 2. Stages each target's API on the host whose C toolchain its build scripts need.
 3. On each build host, exports the binding of every target, merging the others' staged
    APIs, so an item only some targets have fails there at run time instead of being

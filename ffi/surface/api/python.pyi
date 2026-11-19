@@ -403,16 +403,37 @@ class TlsPolicyLifetime:
 class Core:
     id: _int
 class Choice:
-    Empty: _typing.TypeAlias
-    Picked: _typing.TypeAlias
+    Empty: _typing.TypeAlias = '_Choice_Empty'
+    Picked: _typing.TypeAlias = '_Choice_Picked'
+@_dataclass(slots=True)
+class _Choice_Empty(Choice):
+    ...
+@_dataclass(slots=True)
+class _Choice_Picked(Choice):
+    _0: Mark
 class Array:
-    U8x4: _typing.TypeAlias
+    U8x4: _typing.TypeAlias = '_Array_U8x4'
+@_dataclass(slots=True)
+class _Array_U8x4(Array):
+    _0: _int
 class Platform:
-    Wasm: _typing.TypeAlias
-    Native: _typing.TypeAlias
+    Wasm: _typing.TypeAlias = '_Platform_Wasm'
+    Native: _typing.TypeAlias = '_Platform_Native'
+@_dataclass(slots=True)
+class _Platform_Wasm(Platform):
+    bits: _int
+@_dataclass(slots=True)
+class _Platform_Native(Platform):
+    _0: _int
 class Placement:
-    Anywhere: _typing.TypeAlias
-    Pinned: _typing.TypeAlias
+    Anywhere: _typing.TypeAlias = '_Placement_Anywhere'
+    Pinned: _typing.TypeAlias = '_Placement_Pinned'
+@_dataclass(slots=True)
+class _Placement_Anywhere(Placement):
+    ...
+@_dataclass(slots=True)
+class _Placement_Pinned(Placement):
+    _0: Core
 class Shape(_enum.Enum):
     CIRCLE = 1
     SQUARE = 4
@@ -423,9 +444,18 @@ class Shape(_enum.Enum):
     BOTH = _Const(_n.Shape_BOTH)
 class Event:
     def __repr__(self) -> _str: ...
-    Moved: _typing.TypeAlias
-    Named: _typing.TypeAlias
-    Done: _typing.TypeAlias
+    Moved: _typing.TypeAlias = '_Event_Moved'
+    Named: _typing.TypeAlias = '_Event_Named'
+    Done: _typing.TypeAlias = '_Event_Done'
+@_dataclass(slots=True, repr=False)
+class _Event_Moved(Event):
+    _0: Point
+@_dataclass(slots=True, repr=False)
+class _Event_Named(Event):
+    name: _str
+@_dataclass(slots=True, repr=False)
+class _Event_Done(Event):
+    ...
 class Clash:
     @_staticmethod
     async def after(first: _typing.Awaitable[None], kotlin: _float) -> Clash: ...
@@ -444,40 +474,112 @@ class Clash:
     @_staticmethod
     def at(api: Point) -> Clash: ...
     def describe(self, text: _str, n: _int, shape: Shape, out: Mut[_int]) -> _str: ...
-    Point: _typing.TypeAlias
-    Shape: _typing.TypeAlias
-    Event: _typing.TypeAlias
-    Double: _typing.TypeAlias
-    Float: _typing.TypeAlias
-    String: _typing.TypeAlias
-    Int: _typing.TypeAlias
-    Boolean: _typing.TypeAlias
-    Native: _typing.TypeAlias
-    Bytes: _typing.TypeAlias
-    Any: _typing.TypeAlias
-    Unit: _typing.TypeAlias
-    Waker: _typing.TypeAlias
-    Mut: _typing.TypeAlias
-    Pair: _typing.TypeAlias
-    Stamp: _typing.TypeAlias
-    Moment: _typing.TypeAlias
+    Point: _typing.TypeAlias = '_Clash_Point'
+    Shape: _typing.TypeAlias = '_Clash_Shape'
+    Event: _typing.TypeAlias = '_Clash_Event'
+    Double: _typing.TypeAlias = '_Clash_Double'
+    Float: _typing.TypeAlias = '_Clash_Float'
+    String: _typing.TypeAlias = '_Clash_String'
+    Int: _typing.TypeAlias = '_Clash_Int'
+    Boolean: _typing.TypeAlias = '_Clash_Boolean'
+    Native: _typing.TypeAlias = '_Clash_Native'
+    Bytes: _typing.TypeAlias = '_Clash_Bytes'
+    Any: _typing.TypeAlias = '_Clash_Any'
+    Unit: _typing.TypeAlias = '_Clash_Unit'
+    Waker: _typing.TypeAlias = '_Clash_Waker'
+    Mut: _typing.TypeAlias = '_Clash_Mut'
+    Pair: _typing.TypeAlias = '_Clash_Pair'
+    Stamp: _typing.TypeAlias = '_Clash_Stamp'
+    Moment: _typing.TypeAlias = '_Clash_Moment'
+@_dataclass(slots=True, repr=False)
+class _Clash_Point(Clash):
+    _0: Point
+@_dataclass(slots=True, repr=False)
+class _Clash_Shape(Clash):
+    _0: Shape
+@_dataclass(slots=True, repr=False)
+class _Clash_Event(Clash):
+    _0: Event
+@_dataclass(slots=True, repr=False)
+class _Clash_Double(Clash):
+    _0: _float
+    def __eq__(self, other: _object) -> _bool: ...
+@_dataclass(slots=True, repr=False)
+class _Clash_Float(Clash):
+    _0: _float
+    def __eq__(self, other: _object) -> _bool: ...
+@_dataclass(slots=True, repr=False)
+class _Clash_String(Clash):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _Clash_Int(Clash):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _Clash_Boolean(Clash):
+    _0: _bool
+@_dataclass(slots=True, repr=False)
+class _Clash_Native(Clash):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _Clash_Bytes(Clash):
+    _0: _bytes | _bytearray | _memoryview
+@_dataclass(slots=True, repr=False)
+class _Clash_Any(Clash):
+    ...
+@_dataclass(slots=True, repr=False)
+class _Clash_Unit(Clash):
+    ...
+@_dataclass(slots=True, repr=False)
+class _Clash_Waker(Clash):
+    ...
+@_dataclass(slots=True, repr=False)
+class _Clash_Mut(Clash):
+    ...
+@_dataclass(slots=True, repr=False)
+class _Clash_Pair(Clash):
+    _0: _int
+    _1: _int
+@_dataclass(slots=True, repr=False)
+class _Clash_Stamp(Clash):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _Clash_Moment(Clash):
+    _0: Moment
 class Stage:
     def __repr__(self) -> _str: ...
-    Init: _typing.TypeAlias
-    Done: _typing.TypeAlias
+    Init: _typing.TypeAlias = '_Stage_Init'
+    Done: _typing.TypeAlias = '_Stage_Done'
+@_dataclass(slots=True, repr=False)
+class _Stage_Init(Stage):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _Stage_Done(Stage):
+    ...
 class Error:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
-    Underflow: _typing.TypeAlias
-    Overflow: _typing.TypeAlias
+    Underflow: _typing.TypeAlias = '_Error_Underflow'
+    Overflow: _typing.TypeAlias = '_Error_Overflow'
+@_dataclass(slots=True, repr=False)
+class _Error_Underflow(Error):
+    by: _int
+@_dataclass(slots=True, repr=False)
+class _Error_Overflow(Error):
+    ...
 class Status(_enum.Enum):
     MOVED = 0
     KEPT = 1
     def __repr__(self) -> _str: ...
 class Labelled:
     def __repr__(self) -> _str: ...
-    Tagged: _typing.TypeAlias
-    Bare: _typing.TypeAlias
+    Tagged: _typing.TypeAlias = '_Labelled_Tagged'
+    Bare: _typing.TypeAlias = '_Labelled_Bare'
+@_dataclass(slots=True, repr=False)
+class _Labelled_Tagged(Labelled):
+    tag: _int
+@_dataclass(slots=True, repr=False)
+class _Labelled_Bare(Labelled):
+    ...
 class Family(_enum.Enum):
     NATIVE = 0
     WASM = 1
@@ -487,13 +589,35 @@ class VecClashTone(_enum.Enum):
     def __repr__(self) -> _str: ...
 class B:
     def __repr__(self) -> _str: ...
-    One: _typing.TypeAlias
-    Two: _typing.TypeAlias
+    One: _typing.TypeAlias = '_B_One'
+    Two: _typing.TypeAlias = '_B_Two'
+@_dataclass(slots=True, repr=False)
+class _B_One(B):
+    ...
+@_dataclass(slots=True, repr=False)
+class _B_Two(B):
+    _0: _int
 class Builtin:
-    Any: _typing.TypeAlias
-    Boolean: _typing.TypeAlias
-    Int: _typing.TypeAlias
-    Native: _typing.TypeAlias
+    Any: _typing.TypeAlias = '_Builtin_Any'
+    Boolean: _typing.TypeAlias = '_Builtin_Boolean'
+    Int: _typing.TypeAlias = '_Builtin_Int'
+    Native: _typing.TypeAlias = '_Builtin_Native'
+@_dataclass(slots=True)
+class _Builtin_Any(Builtin):
+    _0: _array.array[_int] | _memoryview
+    def __eq__(self, other: _object) -> _bool: ...
+@_dataclass(slots=True)
+class _Builtin_Boolean(Builtin):
+    _0: _float
+    def __eq__(self, other: _object) -> _bool: ...
+@_dataclass(slots=True)
+class _Builtin_Int(Builtin):
+    _0: _float
+    def __eq__(self, other: _object) -> _bool: ...
+@_dataclass(slots=True)
+class _Builtin_Native(Builtin):
+    _0: _float
+    def __eq__(self, other: _object) -> _bool: ...
 class Level(_enum.Enum):
     TRACE = 0
     DEBUG = 1

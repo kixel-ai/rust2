@@ -296,6 +296,13 @@ class Point:
     def _hidden(self) -> None: ...
     async def later(self, n: int = 0) -> int:
         return n
+class Event:
+    if _typing.TYPE_CHECKING:
+        Moved: _typing.TypeAlias = "_Event_Moved"
+class _Event_Moved(Event):
+    _0: Point
+class _Hidden:
+    x: int
 if _n.contract() != 1:
     raise ImportError("mismatch")
 '''
@@ -306,6 +313,10 @@ if _n.contract() != 1:
             "    x: int",
             "    def __eq__(self, other: object) -> bool: ...",
             "    async def later(self, n: int=0) -> int: ...",
+            "class Event:",
+            "    Moved: _typing.TypeAlias = '_Event_Moved'",
+            "class _Event_Moved(Event):",
+            "    _0: Point",
         ])
 
 

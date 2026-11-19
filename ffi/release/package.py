@@ -478,36 +478,41 @@ def compatible(old, new):
     return True
 
 
-def previous_release(name, version, tags):
-    """The release a version follows: the newest of `tags`, `<name>-v<version>`, below it."""
+def earlier_releases(name, version, tags):
+    """The releases a version answers to, among `tags`, `<name>-v<version>`: the newest below it,
+    which its changelog follows, and the newest below it Cargo treats as compatible, whose API
+    it must not break, past any prerelease between them. Either may be None."""
     prefix = f"{name}-v"
     versions = [t[len(prefix):] for t in tags if t.startswith(prefix) and SEMVER.fullmatch(t[len(prefix):])]
     below = [v for v in versions if version_key(v) < version_key(version)]
-    return max(below, key=version_key, default=None)
+    newest = max(below, key=version_key, default=None)
+    baseline = max((v for v in below if compatible(v, version)), key=version_key, default=None)
+    return newest, baseline
 
 
 def previous(args):
-    """The API of the release this version follows, if any, and whether this one may break it.
+    """The APIs of the releases this version follows and must not break, if any.
 
-    Prints GitHub outputs: `previous`, its version or nothing, and `baseline`, true when the
-    export must not break the previous release's API, written to <out>/api.json.
+    Prints GitHub outputs: `previous`, the version the changelog follows, its api.json at
+    <out>/previous/api.json, and `baseline`, the version whose API the export must not break,
+    its api.json at <out>/baseline/api.json; each empty for none.
     """
     info = facts(args.manifest_path)
     releases = json.loads(output("gh", "api", "--paginate", "--slurp", f"repos/{args.repo}/releases"))
     tags = [r["tag_name"] for page in releases for r in page if not r["draft"]]
-    found = previous_release(info["name"], info["version"], tags)
-    if found is None:
-        print("previous=\nbaseline=false")
-        return
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    tag = f"{info['name']}-v{found}"
-    fetched = subprocess.run(["gh", "release", "download", tag, "--repo", args.repo, "--pattern", "api.json",
-                              "--dir", str(out), "--clobber"], capture_output=True, encoding="utf-8")
-    if fetched.returncode != 0 or not (out / "api.json").exists():
-        raise SystemExit(f"release {tag} has no api.json asset, which this release's API is checked against: "
-                         f"attach the api.json an export of {tag} writes\n{fetched.stderr}")
-    print(f"previous={found}\nbaseline={'true' if compatible(found, info['version']) else 'false'}")
+    found = dict(zip(("previous", "baseline"), earlier_releases(info["name"], info["version"], tags)))
+    for role, version in found.items():
+        if version is None:
+            continue
+        out = Path(args.out) / role
+        out.mkdir(parents=True, exist_ok=True)
+        tag = f"{info['name']}-v{version}"
+        fetched = subprocess.run(["gh", "release", "download", tag, "--repo", args.repo, "--pattern", "api.json",
+                                  "--dir", str(out), "--clobber"], capture_output=True, encoding="utf-8")
+        if fetched.returncode != 0 or not (out / "api.json").exists():
+            raise SystemExit(f"release {tag} has no api.json asset, which this release's API is checked against: "
+                             f"attach the api.json an export of {tag} writes\n{fetched.stderr}")
+    print("\n".join(f"{role}={version or ''}" for role, version in found.items()))
 
 
 # Each kind of item an API lists, and how a changelog names it.
@@ -530,6 +535,8 @@ def api_items(api):
 
     def resolve(value):
         if isinstance(value, dict):
+            if isinstance(value.get("on"), int):
+                value = {**value, "on": on(value["on"])}
             if len(value) == 1:
                 (key, inner), = value.items()
                 kind = {"Record": "records", "Enum": "enums", "Object": "objects"}.get(key)
@@ -548,12 +555,20 @@ def api_items(api):
     items = {}
     for kind, label in KINDS.items():
         for i, item in enumerate(api[kind]):
-            key = f"{label} `{name(kind, i)}`"
-            items[key] = {**resolve(item), "on": on(item["on"])}
+            key = f"{accessor(item) if kind == 'functions' else label} `{name(kind, i)}`"
+            items[key] = resolve(item)
             for method in item.get("methods", []) if kind != "functions" else []:
                 path = "::".join(method.get("shown") or method["path"])
-                items[f"fn `{path}`"] = {**resolve(method), "on": on(method["on"])}
+                items[f"{accessor(method)} `{path}`"] = resolve(method)
     return items
+
+
+def accessor(function):
+    """How a changelog names a method: a field's getter and setter share its path."""
+    field = function.get("access")
+    if isinstance(field, dict) and "Field" in field:
+        return "set" if field["Field"]["set"] else "get"
+    return "fn"
 
 
 def changes(old, new, since):

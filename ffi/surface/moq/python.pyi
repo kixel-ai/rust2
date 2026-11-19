@@ -652,10 +652,10 @@ class MuxContainerFmp4Fragment:
     def __repr__(self) -> _str: ...
 @_dataclass(slots=True)
 class MuxContainerLegacyWire:
-    ...
+    _0: MuxContainerKind
 @_dataclass(slots=True)
 class MuxContainerLocWire:
-    ...
+    _0: MuxContainerKind
 @_dataclass(slots=True, repr=False)
 class MuxContainerMp4Finish:
     moov_offset: _int
@@ -1543,6 +1543,7 @@ class Mp4AtomIlst:
     def default() -> Mp4AtomIlst: ...
 @_dataclass(slots=True, repr=False)
 class Mp4AtomCovr:
+    _0: _bytes | _bytearray | _memoryview
     def __repr__(self) -> _str: ...
 @_dataclass(slots=True, repr=False)
 class Mp4AtomDesc:
@@ -1560,9 +1561,11 @@ class Mp4AtomTool:
     def new(country_indicator: _int, language_indicator: _int, text: _str) -> Mp4AtomTool: ...
 @_dataclass(slots=True, repr=False)
 class Mp4AtomName:
+    _0: _str
     def __repr__(self) -> _str: ...
 @_dataclass(slots=True, repr=False)
 class Mp4AtomYear:
+    _0: _str
     def __repr__(self) -> _str: ...
 @_dataclass(slots=True, repr=False)
 class Mp4AtomKeys:
@@ -2125,6 +2128,7 @@ class Mp4AtomTrunEntry:
     def default() -> Mp4AtomTrunEntry: ...
 @_dataclass(slots=True, repr=False)
 class RustlsCryptoHpkeHpkePublicKey:
+    _0: _bytes | _bytearray | _memoryview
     def __repr__(self) -> _str: ...
 @_dataclass(slots=True, repr=False)
 class Mp4AtomEqui:
@@ -2173,61 +2177,190 @@ class EncodeError(_enum.Enum):
 class InvalidPattern:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
-    EmptySegment: _typing.TypeAlias
-    InvalidSegment: _typing.TypeAlias
-    MultipleGlobstars: _typing.TypeAlias
-    TooManySegments: _typing.TypeAlias
+    EmptySegment: _typing.TypeAlias = '_InvalidPattern_EmptySegment'
+    InvalidSegment: _typing.TypeAlias = '_InvalidPattern_InvalidSegment'
+    MultipleGlobstars: _typing.TypeAlias = '_InvalidPattern_MultipleGlobstars'
+    TooManySegments: _typing.TypeAlias = '_InvalidPattern_TooManySegments'
+@_dataclass(slots=True, repr=False)
+class _InvalidPattern_EmptySegment(InvalidPattern):
+    ...
+@_dataclass(slots=True, repr=False)
+class _InvalidPattern_InvalidSegment(InvalidPattern):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _InvalidPattern_MultipleGlobstars(InvalidPattern):
+    ...
+@_dataclass(slots=True, repr=False)
+class _InvalidPattern_TooManySegments(InvalidPattern):
+    ...
 class SessionError:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
     def to_code(self) -> _int: ...
     @_staticmethod
     def from_code(code: _int) -> SessionError: ...
-    Cancel: _typing.TypeAlias
-    Internal: _typing.TypeAlias
-    Unauthorized: _typing.TypeAlias
-    Expired: _typing.TypeAlias
-    ProtocolViolation: _typing.TypeAlias
-    KeyValueFormatting: _typing.TypeAlias
-    TooManyRequests: _typing.TypeAlias
-    GoawayTimeout: _typing.TypeAlias
-    Timeout: _typing.TypeAlias
-    AuthTokenCacheOverflow: _typing.TypeAlias
-    Version: _typing.TypeAlias
-    MalformedAuthToken: _typing.TypeAlias
-    UnknownAuthTokenAlias: _typing.TypeAlias
-    TooManyRequestUpdates: _typing.TypeAlias
-    App: _typing.TypeAlias
-    Unknown: _typing.TypeAlias
-    Unsupported: _typing.TypeAlias
-    InvalidRequestId: _typing.TypeAlias
-    InvalidPath: _typing.TypeAlias
-    InvalidAuthority: _typing.TypeAlias
+    Cancel: _typing.TypeAlias = '_SessionError_Cancel'
+    Internal: _typing.TypeAlias = '_SessionError_Internal'
+    Unauthorized: _typing.TypeAlias = '_SessionError_Unauthorized'
+    Expired: _typing.TypeAlias = '_SessionError_Expired'
+    ProtocolViolation: _typing.TypeAlias = '_SessionError_ProtocolViolation'
+    KeyValueFormatting: _typing.TypeAlias = '_SessionError_KeyValueFormatting'
+    TooManyRequests: _typing.TypeAlias = '_SessionError_TooManyRequests'
+    GoawayTimeout: _typing.TypeAlias = '_SessionError_GoawayTimeout'
+    Timeout: _typing.TypeAlias = '_SessionError_Timeout'
+    AuthTokenCacheOverflow: _typing.TypeAlias = '_SessionError_AuthTokenCacheOverflow'
+    Version: _typing.TypeAlias = '_SessionError_Version'
+    MalformedAuthToken: _typing.TypeAlias = '_SessionError_MalformedAuthToken'
+    UnknownAuthTokenAlias: _typing.TypeAlias = '_SessionError_UnknownAuthTokenAlias'
+    TooManyRequestUpdates: _typing.TypeAlias = '_SessionError_TooManyRequestUpdates'
+    App: _typing.TypeAlias = '_SessionError_App'
+    Unknown: _typing.TypeAlias = '_SessionError_Unknown'
+    Unsupported: _typing.TypeAlias = '_SessionError_Unsupported'
+    InvalidRequestId: _typing.TypeAlias = '_SessionError_InvalidRequestId'
+    InvalidPath: _typing.TypeAlias = '_SessionError_InvalidPath'
+    InvalidAuthority: _typing.TypeAlias = '_SessionError_InvalidAuthority'
+@_dataclass(slots=True, repr=False)
+class _SessionError_Cancel(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_Internal(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_Unauthorized(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_Expired(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_ProtocolViolation(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_KeyValueFormatting(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_TooManyRequests(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_GoawayTimeout(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_Timeout(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_AuthTokenCacheOverflow(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_Version(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_MalformedAuthToken(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_UnknownAuthTokenAlias(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_TooManyRequestUpdates(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_App(SessionError):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _SessionError_Unknown(SessionError):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _SessionError_Unsupported(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_InvalidRequestId(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_InvalidPath(SessionError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _SessionError_InvalidAuthority(SessionError):
+    ...
 class StreamError:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
     def to_code(self) -> _int: ...
     @_staticmethod
     def from_code(code: _int) -> StreamError: ...
-    Session: _typing.TypeAlias
-    Internal: _typing.TypeAlias
-    Cancel: _typing.TypeAlias
-    DeliveryTimeout: _typing.TypeAlias
-    ControlTimeout: _typing.TypeAlias
-    GoingAway: _typing.TypeAlias
-    TooFarBehind: _typing.TypeAlias
-    MalformedTrack: _typing.TypeAlias
-    NotFound: _typing.TypeAlias
-    Unroutable: _typing.TypeAlias
-    Old: _typing.TypeAlias
-    Evicted: _typing.TypeAlias
-    WrongSize: _typing.TypeAlias
-    FrameTooLarge: _typing.TypeAlias
-    GroupTooLarge: _typing.TypeAlias
-    TimestampMismatch: _typing.TypeAlias
-    Unauthorized: _typing.TypeAlias
-    App: _typing.TypeAlias
-    Unknown: _typing.TypeAlias
+    Session: _typing.TypeAlias = '_StreamError_Session'
+    Internal: _typing.TypeAlias = '_StreamError_Internal'
+    Cancel: _typing.TypeAlias = '_StreamError_Cancel'
+    DeliveryTimeout: _typing.TypeAlias = '_StreamError_DeliveryTimeout'
+    ControlTimeout: _typing.TypeAlias = '_StreamError_ControlTimeout'
+    GoingAway: _typing.TypeAlias = '_StreamError_GoingAway'
+    TooFarBehind: _typing.TypeAlias = '_StreamError_TooFarBehind'
+    MalformedTrack: _typing.TypeAlias = '_StreamError_MalformedTrack'
+    NotFound: _typing.TypeAlias = '_StreamError_NotFound'
+    Unroutable: _typing.TypeAlias = '_StreamError_Unroutable'
+    Old: _typing.TypeAlias = '_StreamError_Old'
+    Evicted: _typing.TypeAlias = '_StreamError_Evicted'
+    WrongSize: _typing.TypeAlias = '_StreamError_WrongSize'
+    FrameTooLarge: _typing.TypeAlias = '_StreamError_FrameTooLarge'
+    GroupTooLarge: _typing.TypeAlias = '_StreamError_GroupTooLarge'
+    TimestampMismatch: _typing.TypeAlias = '_StreamError_TimestampMismatch'
+    Unauthorized: _typing.TypeAlias = '_StreamError_Unauthorized'
+    App: _typing.TypeAlias = '_StreamError_App'
+    Unknown: _typing.TypeAlias = '_StreamError_Unknown'
+@_dataclass(slots=True, repr=False)
+class _StreamError_Session(StreamError):
+    _0: SessionError
+@_dataclass(slots=True, repr=False)
+class _StreamError_Internal(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_Cancel(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_DeliveryTimeout(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_ControlTimeout(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_GoingAway(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_TooFarBehind(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_MalformedTrack(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_NotFound(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_Unroutable(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_Old(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_Evicted(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_WrongSize(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_FrameTooLarge(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_GroupTooLarge(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_TimestampMismatch(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_Unauthorized(StreamError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _StreamError_App(StreamError):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _StreamError_Unknown(StreamError):
+    _0: _int
 class InvalidHop(_enum.Enum):
     RANGE = 0
     TOO_MANY = 1
@@ -2241,10 +2374,23 @@ class IntersectionError(_enum.Enum):
 class Segment:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
-    Literal: _typing.TypeAlias
-    Wildcard: _typing.TypeAlias
-    Partial: _typing.TypeAlias
-    Globstar: _typing.TypeAlias
+    Literal: _typing.TypeAlias = '_Segment_Literal'
+    Wildcard: _typing.TypeAlias = '_Segment_Wildcard'
+    Partial: _typing.TypeAlias = '_Segment_Partial'
+    Globstar: _typing.TypeAlias = '_Segment_Globstar'
+@_dataclass(slots=True, repr=False)
+class _Segment_Literal(Segment):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _Segment_Wildcard(Segment):
+    ...
+@_dataclass(slots=True, repr=False)
+class _Segment_Partial(Segment):
+    prefix: _str
+    suffix: _str
+@_dataclass(slots=True, repr=False)
+class _Segment_Globstar(Segment):
+    ...
 class ClockMissedTickBehavior(_enum.Enum):
     BURST = 0
     DELAY = 1
@@ -2352,9 +2498,18 @@ class TransportCloseKind(_enum.Enum):
     def default() -> TransportCloseKind: ...
 class TrackAnchor:
     def __repr__(self) -> _str: ...
-    Absolute: _typing.TypeAlias
-    Relative: _typing.TypeAlias
-    Time: _typing.TypeAlias
+    Absolute: _typing.TypeAlias = '_TrackAnchor_Absolute'
+    Relative: _typing.TypeAlias = '_TrackAnchor_Relative'
+    Time: _typing.TypeAlias = '_TrackAnchor_Time'
+@_dataclass(slots=True, repr=False)
+class _TrackAnchor_Absolute(TrackAnchor):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _TrackAnchor_Relative(TrackAnchor):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _TrackAnchor_Time(TrackAnchor):
+    _0: Timestamp
 class TrackOrder(_enum.Enum):
     ASCENDING = 0
     DESCENDING = 1
@@ -2372,8 +2527,14 @@ class OriginSource:
     def __repr__(self) -> _str: ...
     @_staticmethod
     def default() -> OriginSource: ...
-    Local: _typing.TypeAlias
-    Peer: _typing.TypeAlias
+    Local: _typing.TypeAlias = '_OriginSource_Local'
+    Peer: _typing.TypeAlias = '_OriginSource_Peer'
+@_dataclass(slots=True, repr=False)
+class _OriginSource_Local(OriginSource):
+    ...
+@_dataclass(slots=True, repr=False)
+class _OriginSource_Peer(OriginSource):
+    _0: Hop
 class HangHealthVerdict(_enum.Enum):
     UNKNOWN = 0
     HEALTHY = 1
@@ -2403,15 +2564,42 @@ class HangCatalogAudioCodec:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
     def kind(self) -> HangCatalogAudioCodecKind: ...
-    Aac: _typing.TypeAlias
-    Opus: _typing.TypeAlias
-    Pcm: _typing.TypeAlias
-    Flac: _typing.TypeAlias
-    Mp3: _typing.TypeAlias
-    Mp2: _typing.TypeAlias
-    Ac3: _typing.TypeAlias
-    Ec3: _typing.TypeAlias
-    Unknown: _typing.TypeAlias
+    Aac: _typing.TypeAlias = '_HangCatalogAudioCodec_Aac'
+    Opus: _typing.TypeAlias = '_HangCatalogAudioCodec_Opus'
+    Pcm: _typing.TypeAlias = '_HangCatalogAudioCodec_Pcm'
+    Flac: _typing.TypeAlias = '_HangCatalogAudioCodec_Flac'
+    Mp3: _typing.TypeAlias = '_HangCatalogAudioCodec_Mp3'
+    Mp2: _typing.TypeAlias = '_HangCatalogAudioCodec_Mp2'
+    Ac3: _typing.TypeAlias = '_HangCatalogAudioCodec_Ac3'
+    Ec3: _typing.TypeAlias = '_HangCatalogAudioCodec_Ec3'
+    Unknown: _typing.TypeAlias = '_HangCatalogAudioCodec_Unknown'
+@_dataclass(slots=True, repr=False)
+class _HangCatalogAudioCodec_Aac(HangCatalogAudioCodec):
+    _0: HangCatalogAac
+@_dataclass(slots=True, repr=False)
+class _HangCatalogAudioCodec_Opus(HangCatalogAudioCodec):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogAudioCodec_Pcm(HangCatalogAudioCodec):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogAudioCodec_Flac(HangCatalogAudioCodec):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogAudioCodec_Mp3(HangCatalogAudioCodec):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogAudioCodec_Mp2(HangCatalogAudioCodec):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogAudioCodec_Ac3(HangCatalogAudioCodec):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogAudioCodec_Ec3(HangCatalogAudioCodec):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogAudioCodec_Unknown(HangCatalogAudioCodec):
+    _0: _str
 class HangCatalogAudioCodecKind(_enum.Enum):
     AAC = 0
     OPUS = 1
@@ -2425,41 +2613,95 @@ class HangCatalogAudioCodecKind(_enum.Enum):
 class HangCatalogAudioLayout:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
-    Ambisonic: _typing.TypeAlias
-    Unknown: _typing.TypeAlias
+    Ambisonic: _typing.TypeAlias = '_HangCatalogAudioLayout_Ambisonic'
+    Unknown: _typing.TypeAlias = '_HangCatalogAudioLayout_Unknown'
+@_dataclass(slots=True, repr=False)
+class _HangCatalogAudioLayout_Ambisonic(HangCatalogAudioLayout):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogAudioLayout_Unknown(HangCatalogAudioLayout):
+    _0: _str
 class HangCatalogMode:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
-    Snapshot: _typing.TypeAlias
-    Stream: _typing.TypeAlias
-    Unknown: _typing.TypeAlias
+    Snapshot: _typing.TypeAlias = '_HangCatalogMode_Snapshot'
+    Stream: _typing.TypeAlias = '_HangCatalogMode_Stream'
+    Unknown: _typing.TypeAlias = '_HangCatalogMode_Unknown'
+@_dataclass(slots=True, repr=False)
+class _HangCatalogMode_Snapshot(HangCatalogMode):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogMode_Stream(HangCatalogMode):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogMode_Unknown(HangCatalogMode):
+    _0: _str
 class HangCatalogTextFormat:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
     @_staticmethod
     def default() -> HangCatalogTextFormat: ...
-    Vtt: _typing.TypeAlias
-    Ttml: _typing.TypeAlias
-    Utf8: _typing.TypeAlias
-    Unknown: _typing.TypeAlias
+    Vtt: _typing.TypeAlias = '_HangCatalogTextFormat_Vtt'
+    Ttml: _typing.TypeAlias = '_HangCatalogTextFormat_Ttml'
+    Utf8: _typing.TypeAlias = '_HangCatalogTextFormat_Utf8'
+    Unknown: _typing.TypeAlias = '_HangCatalogTextFormat_Unknown'
+@_dataclass(slots=True, repr=False)
+class _HangCatalogTextFormat_Vtt(HangCatalogTextFormat):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogTextFormat_Ttml(HangCatalogTextFormat):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogTextFormat_Utf8(HangCatalogTextFormat):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogTextFormat_Unknown(HangCatalogTextFormat):
+    _0: _str
 class HangCatalogTextRole:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
     @_staticmethod
     def default() -> HangCatalogTextRole: ...
-    Subtitle: _typing.TypeAlias
-    Caption: _typing.TypeAlias
-    Unknown: _typing.TypeAlias
+    Subtitle: _typing.TypeAlias = '_HangCatalogTextRole_Subtitle'
+    Caption: _typing.TypeAlias = '_HangCatalogTextRole_Caption'
+    Unknown: _typing.TypeAlias = '_HangCatalogTextRole_Unknown'
+@_dataclass(slots=True, repr=False)
+class _HangCatalogTextRole_Subtitle(HangCatalogTextRole):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogTextRole_Caption(HangCatalogTextRole):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogTextRole_Unknown(HangCatalogTextRole):
+    _0: _str
 class HangCatalogVideoCodec:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
     def kind(self) -> HangCatalogVideoCodecKind: ...
-    H264: _typing.TypeAlias
-    H265: _typing.TypeAlias
-    Vp9: _typing.TypeAlias
-    Av1: _typing.TypeAlias
-    Vp8: _typing.TypeAlias
-    Unknown: _typing.TypeAlias
+    H264: _typing.TypeAlias = '_HangCatalogVideoCodec_H264'
+    H265: _typing.TypeAlias = '_HangCatalogVideoCodec_H265'
+    Vp9: _typing.TypeAlias = '_HangCatalogVideoCodec_Vp9'
+    Av1: _typing.TypeAlias = '_HangCatalogVideoCodec_Av1'
+    Vp8: _typing.TypeAlias = '_HangCatalogVideoCodec_Vp8'
+    Unknown: _typing.TypeAlias = '_HangCatalogVideoCodec_Unknown'
+@_dataclass(slots=True, repr=False)
+class _HangCatalogVideoCodec_H264(HangCatalogVideoCodec):
+    _0: HangCatalogH264
+@_dataclass(slots=True, repr=False)
+class _HangCatalogVideoCodec_H265(HangCatalogVideoCodec):
+    _0: HangCatalogH265
+@_dataclass(slots=True, repr=False)
+class _HangCatalogVideoCodec_Vp9(HangCatalogVideoCodec):
+    _0: HangCatalogVp9
+@_dataclass(slots=True, repr=False)
+class _HangCatalogVideoCodec_Av1(HangCatalogVideoCodec):
+    _0: HangCatalogAv1
+@_dataclass(slots=True, repr=False)
+class _HangCatalogVideoCodec_Vp8(HangCatalogVideoCodec):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogVideoCodec_Unknown(HangCatalogVideoCodec):
+    _0: _str
 class HangCatalogVideoCodecKind(_enum.Enum):
     H264 = 0
     H265 = 1
@@ -2475,10 +2717,22 @@ class HangCatalogRange(_enum.Enum):
 class HangCatalogStereo:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
-    Mono: _typing.TypeAlias
-    LeftRight: _typing.TypeAlias
-    TopBottom: _typing.TypeAlias
-    Unknown: _typing.TypeAlias
+    Mono: _typing.TypeAlias = '_HangCatalogStereo_Mono'
+    LeftRight: _typing.TypeAlias = '_HangCatalogStereo_LeftRight'
+    TopBottom: _typing.TypeAlias = '_HangCatalogStereo_TopBottom'
+    Unknown: _typing.TypeAlias = '_HangCatalogStereo_Unknown'
+@_dataclass(slots=True, repr=False)
+class _HangCatalogStereo_Mono(HangCatalogStereo):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogStereo_LeftRight(HangCatalogStereo):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogStereo_TopBottom(HangCatalogStereo):
+    ...
+@_dataclass(slots=True, repr=False)
+class _HangCatalogStereo_Unknown(HangCatalogStereo):
+    _0: _str
 class MuxCatalogCatalogFormat(_enum.Enum):
     HANG = 0
     MSF = 1
@@ -2497,9 +2751,21 @@ class MuxContainerKind(_enum.Enum):
     def __repr__(self) -> _str: ...
 class MuxContainerRead:
     def __repr__(self) -> _str: ...
-    Frame: _typing.TypeAlias
-    Gap: _typing.TypeAlias
-    End: _typing.TypeAlias
+    Frame: _typing.TypeAlias = '_MuxContainerRead_Frame'
+    Gap: _typing.TypeAlias = '_MuxContainerRead_Gap'
+    End: _typing.TypeAlias = '_MuxContainerRead_End'
+@_dataclass(slots=True, repr=False)
+class _MuxContainerRead_Frame(MuxContainerRead):
+    group: _int
+    frame: MuxContainerFrame
+@_dataclass(slots=True, repr=False)
+class _MuxContainerRead_Gap(MuxContainerRead):
+    timestamp: Timestamp
+    duration: Timestamp
+@_dataclass(slots=True, repr=False)
+class _MuxContainerRead_End(MuxContainerRead):
+    group: _int
+    end: Timestamp
 class MuxImportAudioFormat(_enum.Enum):
     AAC = 0
     OPUS = 1
@@ -2518,9 +2784,18 @@ class MuxImportFormat:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
     def kind(self) -> MuxImportKind: ...
-    Audio: _typing.TypeAlias
-    Video: _typing.TypeAlias
-    Container: _typing.TypeAlias
+    Audio: _typing.TypeAlias = '_MuxImportFormat_Audio'
+    Video: _typing.TypeAlias = '_MuxImportFormat_Video'
+    Container: _typing.TypeAlias = '_MuxImportFormat_Container'
+@_dataclass(slots=True, repr=False)
+class _MuxImportFormat_Audio(MuxImportFormat):
+    _0: MuxImportAudioFormat
+@_dataclass(slots=True, repr=False)
+class _MuxImportFormat_Video(MuxImportFormat):
+    _0: MuxImportVideoFormat
+@_dataclass(slots=True, repr=False)
+class _MuxImportFormat_Container(MuxImportFormat):
+    _0: MuxImportContainerFormat
 class MuxImportKind(_enum.Enum):
     AUDIO = 0
     VIDEO = 1
@@ -2539,8 +2814,14 @@ class MuxImportVideoFormat(_enum.Enum):
     def __repr__(self) -> _str: ...
 class MuxRateTarget:
     def __repr__(self) -> _str: ...
-    Enabled: _typing.TypeAlias
-    Disabled: _typing.TypeAlias
+    Enabled: _typing.TypeAlias = '_MuxRateTarget_Enabled'
+    Disabled: _typing.TypeAlias = '_MuxRateTarget_Disabled'
+@_dataclass(slots=True, repr=False)
+class _MuxRateTarget_Enabled(MuxRateTarget):
+    _0: BandwidthRate
+@_dataclass(slots=True, repr=False)
+class _MuxRateTarget_Disabled(MuxRateTarget):
+    ...
 class MuxTimelineKind(_enum.Enum):
     VIDEO = 0
     AUDIO = 1
@@ -2554,39 +2835,127 @@ class MuxTimelineError(_enum.Enum):
 class TokioListenBind:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
-    Addr: _typing.TypeAlias
-    Host: _typing.TypeAlias
+    Addr: _typing.TypeAlias = '_TokioListenBind_Addr'
+    Host: _typing.TypeAlias = '_TokioListenBind_Host'
+@_dataclass(slots=True, repr=False)
+class _TokioListenBind_Addr(TokioListenBind):
+    _0: _tuple[_str, _int] | _tuple[_str, _int, _int, _int]
+@_dataclass(slots=True, repr=False)
+class _TokioListenBind_Host(TokioListenBind):
+    _0: _str
+    _1: _int
 class TransportMemoryError:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
-    Session: _typing.TypeAlias
-    Reset: _typing.TypeAlias
-    Stopped: _typing.TypeAlias
-    Closed: _typing.TypeAlias
+    Session: _typing.TypeAlias = '_TransportMemoryError_Session'
+    Reset: _typing.TypeAlias = '_TransportMemoryError_Reset'
+    Stopped: _typing.TypeAlias = '_TransportMemoryError_Stopped'
+    Closed: _typing.TypeAlias = '_TransportMemoryError_Closed'
+@_dataclass(slots=True, repr=False)
+class _TransportMemoryError_Session(TransportMemoryError):
+    code: _int
+    reason: _str
+@_dataclass(slots=True, repr=False)
+class _TransportMemoryError_Reset(TransportMemoryError):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _TransportMemoryError_Stopped(TransportMemoryError):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _TransportMemoryError_Closed(TransportMemoryError):
+    ...
 class MuxCatalogMsfError:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
-    UnresolvableNamespace: _typing.TypeAlias
-    InvalidUtf8: _typing.TypeAlias
-    ParseFrame: _typing.TypeAlias
-    MissingCmafInit: _typing.TypeAlias
-    MalformedInitData: _typing.TypeAlias
-    MissingVideoCodec: _typing.TypeAlias
-    MissingAudioCodec: _typing.TypeAlias
-    UnsupportedPackaging: _typing.TypeAlias
-    MissingTextCodec: _typing.TypeAlias
-    InvalidVideoCodec: _typing.TypeAlias
-    InvalidAudioCodec: _typing.TypeAlias
-    MissingAudioParams: _typing.TypeAlias
-    UnsupportedDerivationPackaging: _typing.TypeAlias
-    MalformedAac: _typing.TypeAlias
-    MalformedOpus: _typing.TypeAlias
-    MalformedFlac: _typing.TypeAlias
-    OpusTrailingBytes: _typing.TypeAlias
-    UnsupportedDerivationCodec: _typing.TypeAlias
-    MalformedInitSegment: _typing.TypeAlias
-    MissingInitMoov: _typing.TypeAlias
-    MissingAudioSampleEntry: _typing.TypeAlias
+    UnresolvableNamespace: _typing.TypeAlias = '_MuxCatalogMsfError_UnresolvableNamespace'
+    InvalidUtf8: _typing.TypeAlias = '_MuxCatalogMsfError_InvalidUtf8'
+    ParseFrame: _typing.TypeAlias = '_MuxCatalogMsfError_ParseFrame'
+    MissingCmafInit: _typing.TypeAlias = '_MuxCatalogMsfError_MissingCmafInit'
+    MalformedInitData: _typing.TypeAlias = '_MuxCatalogMsfError_MalformedInitData'
+    MissingVideoCodec: _typing.TypeAlias = '_MuxCatalogMsfError_MissingVideoCodec'
+    MissingAudioCodec: _typing.TypeAlias = '_MuxCatalogMsfError_MissingAudioCodec'
+    UnsupportedPackaging: _typing.TypeAlias = '_MuxCatalogMsfError_UnsupportedPackaging'
+    MissingTextCodec: _typing.TypeAlias = '_MuxCatalogMsfError_MissingTextCodec'
+    InvalidVideoCodec: _typing.TypeAlias = '_MuxCatalogMsfError_InvalidVideoCodec'
+    InvalidAudioCodec: _typing.TypeAlias = '_MuxCatalogMsfError_InvalidAudioCodec'
+    MissingAudioParams: _typing.TypeAlias = '_MuxCatalogMsfError_MissingAudioParams'
+    UnsupportedDerivationPackaging: _typing.TypeAlias = '_MuxCatalogMsfError_UnsupportedDerivationPackaging'
+    MalformedAac: _typing.TypeAlias = '_MuxCatalogMsfError_MalformedAac'
+    MalformedOpus: _typing.TypeAlias = '_MuxCatalogMsfError_MalformedOpus'
+    MalformedFlac: _typing.TypeAlias = '_MuxCatalogMsfError_MalformedFlac'
+    OpusTrailingBytes: _typing.TypeAlias = '_MuxCatalogMsfError_OpusTrailingBytes'
+    UnsupportedDerivationCodec: _typing.TypeAlias = '_MuxCatalogMsfError_UnsupportedDerivationCodec'
+    MalformedInitSegment: _typing.TypeAlias = '_MuxCatalogMsfError_MalformedInitSegment'
+    MissingInitMoov: _typing.TypeAlias = '_MuxCatalogMsfError_MissingInitMoov'
+    MissingAudioSampleEntry: _typing.TypeAlias = '_MuxCatalogMsfError_MissingAudioSampleEntry'
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_UnresolvableNamespace(MuxCatalogMsfError):
+    name: _str
+    namespace: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_InvalidUtf8(MuxCatalogMsfError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_ParseFrame(MuxCatalogMsfError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_MissingCmafInit(MuxCatalogMsfError):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_MalformedInitData(MuxCatalogMsfError):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_MissingVideoCodec(MuxCatalogMsfError):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_MissingAudioCodec(MuxCatalogMsfError):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_UnsupportedPackaging(MuxCatalogMsfError):
+    name: _str
+    packaging: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_MissingTextCodec(MuxCatalogMsfError):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_InvalidVideoCodec(MuxCatalogMsfError):
+    name: _str
+    codec: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_InvalidAudioCodec(MuxCatalogMsfError):
+    name: _str
+    codec: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_MissingAudioParams(MuxCatalogMsfError):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_UnsupportedDerivationPackaging(MuxCatalogMsfError):
+    name: _str
+    packaging: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_MalformedAac(MuxCatalogMsfError):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_MalformedOpus(MuxCatalogMsfError):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_MalformedFlac(MuxCatalogMsfError):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_OpusTrailingBytes(MuxCatalogMsfError):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_UnsupportedDerivationCodec(MuxCatalogMsfError):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_MalformedInitSegment(MuxCatalogMsfError):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_MissingInitMoov(MuxCatalogMsfError):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _MuxCatalogMsfError_MissingAudioSampleEntry(MuxCatalogMsfError):
+    _0: _str
 class MuxCodecFlacError(_enum.Enum):
     SHORT = 0
     INVALID_MARKER = 1
@@ -2604,13 +2973,34 @@ class MuxCodecMp3Error(_enum.Enum):
 class MuxCodecOpusError:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
-    HeadTooShort: _typing.TypeAlias
-    InvalidSignature: _typing.TypeAlias
-    UnsupportedVersion: _typing.TypeAlias
-    UnsupportedChannelCount: _typing.TypeAlias
-    MappingTableTooShort: _typing.TypeAlias
-    InvalidMappingTable: _typing.TypeAlias
-    UnsupportedMappingFamily: _typing.TypeAlias
+    HeadTooShort: _typing.TypeAlias = '_MuxCodecOpusError_HeadTooShort'
+    InvalidSignature: _typing.TypeAlias = '_MuxCodecOpusError_InvalidSignature'
+    UnsupportedVersion: _typing.TypeAlias = '_MuxCodecOpusError_UnsupportedVersion'
+    UnsupportedChannelCount: _typing.TypeAlias = '_MuxCodecOpusError_UnsupportedChannelCount'
+    MappingTableTooShort: _typing.TypeAlias = '_MuxCodecOpusError_MappingTableTooShort'
+    InvalidMappingTable: _typing.TypeAlias = '_MuxCodecOpusError_InvalidMappingTable'
+    UnsupportedMappingFamily: _typing.TypeAlias = '_MuxCodecOpusError_UnsupportedMappingFamily'
+@_dataclass(slots=True, repr=False)
+class _MuxCodecOpusError_HeadTooShort(MuxCodecOpusError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _MuxCodecOpusError_InvalidSignature(MuxCodecOpusError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _MuxCodecOpusError_UnsupportedVersion(MuxCodecOpusError):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _MuxCodecOpusError_UnsupportedChannelCount(MuxCodecOpusError):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _MuxCodecOpusError_MappingTableTooShort(MuxCodecOpusError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _MuxCodecOpusError_InvalidMappingTable(MuxCodecOpusError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _MuxCodecOpusError_UnsupportedMappingFamily(MuxCodecOpusError):
+    _0: _int
 class MuxCodecVp8Error(_enum.Enum):
     FRAME_TOO_SHORT = 0
     KEYFRAME_HEADER_TOO_SHORT = 1
@@ -2631,8 +3021,14 @@ class MuxContainerFmp4Chunk:
     def into_data(self) -> _memoryview: ...
     def init(self) -> _memoryview | None: ...
     def fragment(self) -> MuxContainerFmp4Fragment | None: ...
-    Init: _typing.TypeAlias
-    Fragment: _typing.TypeAlias
+    Init: _typing.TypeAlias = '_MuxContainerFmp4Chunk_Init'
+    Fragment: _typing.TypeAlias = '_MuxContainerFmp4Chunk_Fragment'
+@_dataclass(slots=True, repr=False)
+class _MuxContainerFmp4Chunk_Init(MuxContainerFmp4Chunk):
+    _0: _bytes | _bytearray | _memoryview
+@_dataclass(slots=True, repr=False)
+class _MuxContainerFmp4Chunk_Fragment(MuxContainerFmp4Chunk):
+    _0: MuxContainerFmp4Fragment
 class MuxContainerTsFraming(_enum.Enum):
     SECTION = 0
     def __repr__(self) -> _str: ...
@@ -2641,8 +3037,15 @@ class MuxContainerTsFraming(_enum.Enum):
 class MuxContainerTsStep:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
-    Rewind: _typing.TypeAlias
-    Leap: _typing.TypeAlias
+    Rewind: _typing.TypeAlias = '_MuxContainerTsStep_Rewind'
+    Leap: _typing.TypeAlias = '_MuxContainerTsStep_Leap'
+@_dataclass(slots=True, repr=False)
+class _MuxContainerTsStep_Rewind(MuxContainerTsStep):
+    by: Duration
+    flagged: _bool
+@_dataclass(slots=True, repr=False)
+class _MuxContainerTsStep_Leap(MuxContainerTsStep):
+    by: Duration
 class MuxCodecAacAdtsError(_enum.Enum):
     TRUNCATED = 0
     SYNCWORD = 1
@@ -2694,22 +3097,65 @@ class MoqTokioRedirect(_enum.Enum):
     def default() -> MoqTokioRedirect: ...
 class MoqQuicRate:
     def __repr__(self) -> _str: ...
-    Unlimited: _typing.TypeAlias
-    BytesPerSecond: _typing.TypeAlias
+    Unlimited: _typing.TypeAlias = '_MoqQuicRate_Unlimited'
+    BytesPerSecond: _typing.TypeAlias = '_MoqQuicRate_BytesPerSecond'
+@_dataclass(slots=True, repr=False)
+class _MoqQuicRate_Unlimited(MoqQuicRate):
+    ...
+@_dataclass(slots=True, repr=False)
+class _MoqQuicRate_BytesPerSecond(MoqQuicRate):
+    _0: _int
 class Mp4AtomColr:
     def __repr__(self) -> _str: ...
     @_staticmethod
     def default() -> Mp4AtomColr: ...
     @_staticmethod
     def new(colour_primaries: _int, transfer_characteristics: _int, matrix_coefficients: _int, full_range_flag: _bool) -> Mp4AtomColr: ...
-    Nclx: _typing.TypeAlias
-    Nclc: _typing.TypeAlias
-    Ricc: _typing.TypeAlias
-    Prof: _typing.TypeAlias
+    Nclx: _typing.TypeAlias = '_Mp4AtomColr_Nclx'
+    Nclc: _typing.TypeAlias = '_Mp4AtomColr_Nclc'
+    Ricc: _typing.TypeAlias = '_Mp4AtomColr_Ricc'
+    Prof: _typing.TypeAlias = '_Mp4AtomColr_Prof'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomColr_Nclx(Mp4AtomColr):
+    colour_primaries: _int
+    transfer_characteristics: _int
+    matrix_coefficients: _int
+    full_range_flag: _bool
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomColr_Nclc(Mp4AtomColr):
+    colour_primaries: _int
+    transfer_characteristics: _int
+    matrix_coefficients: _int
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomColr_Ricc(Mp4AtomColr):
+    profile: _bytes | _bytearray | _memoryview
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomColr_Prof(Mp4AtomColr):
+    profile: _bytes | _bytearray | _memoryview
 class Mp4AtomUncC:
     def __repr__(self) -> _str: ...
-    V1: _typing.TypeAlias
-    V0: _typing.TypeAlias
+    V1: _typing.TypeAlias = '_Mp4AtomUncC_V1'
+    V0: _typing.TypeAlias = '_Mp4AtomUncC_V0'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomUncC_V1(Mp4AtomUncC):
+    profile: Mp4AtomFourCc
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomUncC_V0(Mp4AtomUncC):
+    profile: Mp4AtomFourCc
+    components: _typing.Sequence[Mp4AtomUncompressedComponent]
+    sampling_type: _int
+    interleave_type: _int
+    block_size: _int
+    components_little_endian: _bool
+    block_pad_lsb: _bool
+    block_little_endian: _bool
+    block_reversed: _bool
+    pad_unknown: _bool
+    pixel_size: _int
+    row_align_size: _int
+    tile_align_size: _int
+    num_tile_cols_minus_one: _int
+    num_tile_rows_minus_one: _int
 class Mp4AtomSencBoxVersion(_enum.Enum):
     V0 = 0
     V1 = 1
@@ -2720,23 +3166,62 @@ class Mp4AtomSencBoxVersion(_enum.Enum):
 class MoqTokioConnectError:
     def __str__(self) -> _str: ...
     def __repr__(self) -> _str: ...
-    EmptyAddresses: _typing.TypeAlias
-    UnsupportedScheme: _typing.TypeAlias
-    MissingHost: _typing.TypeAlias
+    EmptyAddresses: _typing.TypeAlias = '_MoqTokioConnectError_EmptyAddresses'
+    UnsupportedScheme: _typing.TypeAlias = '_MoqTokioConnectError_UnsupportedScheme'
+    MissingHost: _typing.TypeAlias = '_MoqTokioConnectError_MissingHost'
+@_dataclass(slots=True, repr=False)
+class _MoqTokioConnectError_EmptyAddresses(MoqTokioConnectError):
+    ...
+@_dataclass(slots=True, repr=False)
+class _MoqTokioConnectError_UnsupportedScheme(MoqTokioConnectError):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _MoqTokioConnectError_MissingHost(MoqTokioConnectError):
+    ...
 class RustlsProtocolVersion:
     def __repr__(self) -> _str: ...
     def to_array(self) -> ArrayU8x2: ...
     def as_str(self) -> _str | None: ...
-    SsLv2: _typing.TypeAlias
-    SsLv3: _typing.TypeAlias
-    TlSv10: _typing.TypeAlias
-    TlSv11: _typing.TypeAlias
-    TlSv12: _typing.TypeAlias
-    TlSv13: _typing.TypeAlias
-    DtlSv10: _typing.TypeAlias
-    DtlSv12: _typing.TypeAlias
-    DtlSv13: _typing.TypeAlias
-    Unknown: _typing.TypeAlias
+    SsLv2: _typing.TypeAlias = '_RustlsProtocolVersion_SsLv2'
+    SsLv3: _typing.TypeAlias = '_RustlsProtocolVersion_SsLv3'
+    TlSv10: _typing.TypeAlias = '_RustlsProtocolVersion_TlSv10'
+    TlSv11: _typing.TypeAlias = '_RustlsProtocolVersion_TlSv11'
+    TlSv12: _typing.TypeAlias = '_RustlsProtocolVersion_TlSv12'
+    TlSv13: _typing.TypeAlias = '_RustlsProtocolVersion_TlSv13'
+    DtlSv10: _typing.TypeAlias = '_RustlsProtocolVersion_DtlSv10'
+    DtlSv12: _typing.TypeAlias = '_RustlsProtocolVersion_DtlSv12'
+    DtlSv13: _typing.TypeAlias = '_RustlsProtocolVersion_DtlSv13'
+    Unknown: _typing.TypeAlias = '_RustlsProtocolVersion_Unknown'
+@_dataclass(slots=True, repr=False)
+class _RustlsProtocolVersion_SsLv2(RustlsProtocolVersion):
+    ...
+@_dataclass(slots=True, repr=False)
+class _RustlsProtocolVersion_SsLv3(RustlsProtocolVersion):
+    ...
+@_dataclass(slots=True, repr=False)
+class _RustlsProtocolVersion_TlSv10(RustlsProtocolVersion):
+    ...
+@_dataclass(slots=True, repr=False)
+class _RustlsProtocolVersion_TlSv11(RustlsProtocolVersion):
+    ...
+@_dataclass(slots=True, repr=False)
+class _RustlsProtocolVersion_TlSv12(RustlsProtocolVersion):
+    ...
+@_dataclass(slots=True, repr=False)
+class _RustlsProtocolVersion_TlSv13(RustlsProtocolVersion):
+    ...
+@_dataclass(slots=True, repr=False)
+class _RustlsProtocolVersion_DtlSv10(RustlsProtocolVersion):
+    ...
+@_dataclass(slots=True, repr=False)
+class _RustlsProtocolVersion_DtlSv12(RustlsProtocolVersion):
+    ...
+@_dataclass(slots=True, repr=False)
+class _RustlsProtocolVersion_DtlSv13(RustlsProtocolVersion):
+    ...
+@_dataclass(slots=True, repr=False)
+class _RustlsProtocolVersion_Unknown(RustlsProtocolVersion):
+    _0: _int
 class RustlsClientTls12Resumption(_enum.Enum):
     DISABLED = 0
     SESSION_ID_ONLY = 1
@@ -2761,23 +3246,74 @@ class Mp4AtomClockType(_enum.Enum):
     def default() -> Mp4AtomClockType: ...
 class Mp4AtomFlacMetadataBlock:
     def __repr__(self) -> _str: ...
-    StreamInfo: _typing.TypeAlias
-    Padding: _typing.TypeAlias
-    Application: _typing.TypeAlias
-    SeekTable: _typing.TypeAlias
-    VorbisComment: _typing.TypeAlias
-    CueSheet: _typing.TypeAlias
-    Picture: _typing.TypeAlias
-    Reserved: _typing.TypeAlias
-    Forbidden: _typing.TypeAlias
+    StreamInfo: _typing.TypeAlias = '_Mp4AtomFlacMetadataBlock_StreamInfo'
+    Padding: _typing.TypeAlias = '_Mp4AtomFlacMetadataBlock_Padding'
+    Application: _typing.TypeAlias = '_Mp4AtomFlacMetadataBlock_Application'
+    SeekTable: _typing.TypeAlias = '_Mp4AtomFlacMetadataBlock_SeekTable'
+    VorbisComment: _typing.TypeAlias = '_Mp4AtomFlacMetadataBlock_VorbisComment'
+    CueSheet: _typing.TypeAlias = '_Mp4AtomFlacMetadataBlock_CueSheet'
+    Picture: _typing.TypeAlias = '_Mp4AtomFlacMetadataBlock_Picture'
+    Reserved: _typing.TypeAlias = '_Mp4AtomFlacMetadataBlock_Reserved'
+    Forbidden: _typing.TypeAlias = '_Mp4AtomFlacMetadataBlock_Forbidden'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomFlacMetadataBlock_StreamInfo(Mp4AtomFlacMetadataBlock):
+    minimum_block_size: _int
+    maximum_block_size: _int
+    minimum_frame_size: Mp4AtomU24
+    maximum_frame_size: Mp4AtomU24
+    sample_rate: _int
+    num_channels_minus_one: _int
+    bits_per_sample_minus_one: _int
+    number_of_interchannel_samples: _int
+    md5_checksum: _bytes | _bytearray | _memoryview
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomFlacMetadataBlock_Padding(Mp4AtomFlacMetadataBlock):
+    ...
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomFlacMetadataBlock_Application(Mp4AtomFlacMetadataBlock):
+    ...
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomFlacMetadataBlock_SeekTable(Mp4AtomFlacMetadataBlock):
+    ...
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomFlacMetadataBlock_VorbisComment(Mp4AtomFlacMetadataBlock):
+    vendor_string: _str
+    comments: _typing.Sequence[_str]
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomFlacMetadataBlock_CueSheet(Mp4AtomFlacMetadataBlock):
+    ...
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomFlacMetadataBlock_Picture(Mp4AtomFlacMetadataBlock):
+    ...
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomFlacMetadataBlock_Reserved(Mp4AtomFlacMetadataBlock):
+    ...
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomFlacMetadataBlock_Forbidden(Mp4AtomFlacMetadataBlock):
+    ...
 class Mp4AtomChannelStructure:
     def __repr__(self) -> _str: ...
-    ExplicitPositions: _typing.TypeAlias
-    DefinedLayout: _typing.TypeAlias
+    ExplicitPositions: _typing.TypeAlias = '_Mp4AtomChannelStructure_ExplicitPositions'
+    DefinedLayout: _typing.TypeAlias = '_Mp4AtomChannelStructure_DefinedLayout'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomChannelStructure_ExplicitPositions(Mp4AtomChannelStructure):
+    positions: _typing.Sequence[Mp4AtomSpeakerPosition]
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomChannelStructure_DefinedLayout(Mp4AtomChannelStructure):
+    layout: _int
+    omitted_channels_map: _int | None
+    channel_order_definition: _int | None
 class Mp4AtomUuid:
     def __repr__(self) -> _str: ...
-    C2pa: _typing.TypeAlias
-    Unknown: _typing.TypeAlias
+    C2pa: _typing.TypeAlias = '_Mp4AtomUuid_C2pa'
+    Unknown: _typing.TypeAlias = '_Mp4AtomUuid_Unknown'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomUuid_C2pa(Mp4AtomUuid):
+    _0: Mp4AtomC2pa
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomUuid_Unknown(Mp4AtomUuid):
+    _0: Mp4AtomExtendedType
+    _1: _bytes | _bytearray | _memoryview
 class MoqSockUdpEcnCodepoint(_enum.Enum):
     ECT0 = 2
     ECT1 = 1
@@ -2798,29 +3334,69 @@ class MoqQuicStreamDir(_enum.Enum):
     def __repr__(self) -> _str: ...
 class Mp4AtomSpeakerPosition:
     def __repr__(self) -> _str: ...
-    Standard: _typing.TypeAlias
-    Explicit: _typing.TypeAlias
+    Standard: _typing.TypeAlias = '_Mp4AtomSpeakerPosition_Standard'
+    Explicit: _typing.TypeAlias = '_Mp4AtomSpeakerPosition_Explicit'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomSpeakerPosition_Standard(Mp4AtomSpeakerPosition):
+    _0: Mp4AtomAudioChannelPosition
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomSpeakerPosition_Explicit(Mp4AtomSpeakerPosition):
+    _0: Mp4AtomExplicitSpeakerPosition
 class Mp4AtomDataType:
     def __repr__(self) -> _str: ...
-    WellKnown: _typing.TypeAlias
-    Custom: _typing.TypeAlias
-    Unknown: _typing.TypeAlias
+    WellKnown: _typing.TypeAlias = '_Mp4AtomDataType_WellKnown'
+    Custom: _typing.TypeAlias = '_Mp4AtomDataType_Custom'
+    Unknown: _typing.TypeAlias = '_Mp4AtomDataType_Unknown'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomDataType_WellKnown(Mp4AtomDataType):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomDataType_Custom(Mp4AtomDataType):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomDataType_Unknown(Mp4AtomDataType):
+    _0: _int
+    _1: _bytes | _bytearray | _memoryview
 class Mp4AtomStszSamples:
     def __repr__(self) -> _str: ...
     @_staticmethod
     def default() -> Mp4AtomStszSamples: ...
-    Identical: _typing.TypeAlias
-    Different: _typing.TypeAlias
+    Identical: _typing.TypeAlias = '_Mp4AtomStszSamples_Identical'
+    Different: _typing.TypeAlias = '_Mp4AtomStszSamples_Different'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomStszSamples_Identical(Mp4AtomStszSamples):
+    count: _int
+    size: _int
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomStszSamples_Different(Mp4AtomStszSamples):
+    sizes: _array.array[_int] | _memoryview
+    def __eq__(self, other: _object) -> _bool: ...
 class Mp4AtomDrefEntry:
     def __repr__(self) -> _str: ...
     def kind(self) -> Mp4AtomFourCc: ...
-    Url: _typing.TypeAlias
-    Urn: _typing.TypeAlias
-    Unknown: _typing.TypeAlias
+    Url: _typing.TypeAlias = '_Mp4AtomDrefEntry_Url'
+    Urn: _typing.TypeAlias = '_Mp4AtomDrefEntry_Urn'
+    Unknown: _typing.TypeAlias = '_Mp4AtomDrefEntry_Unknown'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomDrefEntry_Url(Mp4AtomDrefEntry):
+    _0: Mp4AtomUrl
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomDrefEntry_Urn(Mp4AtomDrefEntry):
+    _0: Mp4AtomUrn
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomDrefEntry_Unknown(Mp4AtomDrefEntry):
+    _0: Mp4AtomFourCc
+    _1: _bytes | _bytearray | _memoryview
 class Mp4AtomEmsgTimestamp:
     def __repr__(self) -> _str: ...
-    Relative: _typing.TypeAlias
-    Absolute: _typing.TypeAlias
+    Relative: _typing.TypeAlias = '_Mp4AtomEmsgTimestamp_Relative'
+    Absolute: _typing.TypeAlias = '_Mp4AtomEmsgTimestamp_Absolute'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomEmsgTimestamp_Relative(Mp4AtomEmsgTimestamp):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomEmsgTimestamp_Absolute(Mp4AtomEmsgTimestamp):
+    _0: _int
 class Mp4AtomTrunSamples:
     def __repr__(self) -> _str: ...
     @_staticmethod
@@ -2828,8 +3404,15 @@ class Mp4AtomTrunSamples:
     def len(self) -> _int: ...
     def is_empty(self) -> _bool: ...
     def get(self, index: _int) -> Mp4AtomTrunEntry | None: ...
-    Inherited: _typing.TypeAlias
-    Explicit: _typing.TypeAlias
+    Inherited: _typing.TypeAlias = '_Mp4AtomTrunSamples_Inherited'
+    Explicit: _typing.TypeAlias = '_Mp4AtomTrunSamples_Explicit'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomTrunSamples_Inherited(Mp4AtomTrunSamples):
+    count: _int
+    first_flags: _int | None
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomTrunSamples_Explicit(Mp4AtomTrunSamples):
+    _0: _typing.Sequence[Mp4AtomTrunEntry]
 class Mp4AtomReferenceTime(_enum.Enum):
     INPUT = 0
     OUTPUT = 1
@@ -2842,9 +3425,18 @@ class Mp4AtomReferenceTime(_enum.Enum):
     def default() -> Mp4AtomReferenceTime: ...
 class Mp4AtomProjKind:
     def __repr__(self) -> _str: ...
-    Equi: _typing.TypeAlias
-    Cbmp: _typing.TypeAlias
-    Mshp: _typing.TypeAlias
+    Equi: _typing.TypeAlias = '_Mp4AtomProjKind_Equi'
+    Cbmp: _typing.TypeAlias = '_Mp4AtomProjKind_Cbmp'
+    Mshp: _typing.TypeAlias = '_Mp4AtomProjKind_Mshp'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomProjKind_Equi(Mp4AtomProjKind):
+    _0: Mp4AtomEqui
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomProjKind_Cbmp(Mp4AtomProjKind):
+    _0: Mp4AtomCbmp
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomProjKind_Mshp(Mp4AtomProjKind):
+    _0: Mp4AtomMshp
 class Mp4AtomVexuProjKind(_enum.Enum):
     RECTILINEAR = 0
     EQUIRECTANGULAR = 1
@@ -2901,28 +3493,79 @@ class Mp4AtomAudioChannelPosition(_enum.Enum):
     def from_u8(value: _int) -> Mp4AtomAudioChannelPosition | None: ...
 class Mp4AtomIlstDataValue:
     def __repr__(self) -> _str: ...
-    Reserved: _typing.TypeAlias
-    Utf8: _typing.TypeAlias
-    Utf16: _typing.TypeAlias
-    Jpeg: _typing.TypeAlias
-    Png: _typing.TypeAlias
-    Bmp: _typing.TypeAlias
-    BeSignedInt: _typing.TypeAlias
-    BeUnsignedInt: _typing.TypeAlias
-    BeFloat32: _typing.TypeAlias
-    BeFloat64: _typing.TypeAlias
-    Unknown: _typing.TypeAlias
+    Reserved: _typing.TypeAlias = '_Mp4AtomIlstDataValue_Reserved'
+    Utf8: _typing.TypeAlias = '_Mp4AtomIlstDataValue_Utf8'
+    Utf16: _typing.TypeAlias = '_Mp4AtomIlstDataValue_Utf16'
+    Jpeg: _typing.TypeAlias = '_Mp4AtomIlstDataValue_Jpeg'
+    Png: _typing.TypeAlias = '_Mp4AtomIlstDataValue_Png'
+    Bmp: _typing.TypeAlias = '_Mp4AtomIlstDataValue_Bmp'
+    BeSignedInt: _typing.TypeAlias = '_Mp4AtomIlstDataValue_BeSignedInt'
+    BeUnsignedInt: _typing.TypeAlias = '_Mp4AtomIlstDataValue_BeUnsignedInt'
+    BeFloat32: _typing.TypeAlias = '_Mp4AtomIlstDataValue_BeFloat32'
+    BeFloat64: _typing.TypeAlias = '_Mp4AtomIlstDataValue_BeFloat64'
+    Unknown: _typing.TypeAlias = '_Mp4AtomIlstDataValue_Unknown'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomIlstDataValue_Reserved(Mp4AtomIlstDataValue):
+    _0: _bytes | _bytearray | _memoryview
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomIlstDataValue_Utf8(Mp4AtomIlstDataValue):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomIlstDataValue_Utf16(Mp4AtomIlstDataValue):
+    _0: _str
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomIlstDataValue_Jpeg(Mp4AtomIlstDataValue):
+    _0: _bytes | _bytearray | _memoryview
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomIlstDataValue_Png(Mp4AtomIlstDataValue):
+    _0: _bytes | _bytearray | _memoryview
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomIlstDataValue_Bmp(Mp4AtomIlstDataValue):
+    _0: _bytes | _bytearray | _memoryview
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomIlstDataValue_BeSignedInt(Mp4AtomIlstDataValue):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomIlstDataValue_BeUnsignedInt(Mp4AtomIlstDataValue):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomIlstDataValue_BeFloat32(Mp4AtomIlstDataValue):
+    _0: _float
+    def __eq__(self, other: _object) -> _bool: ...
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomIlstDataValue_BeFloat64(Mp4AtomIlstDataValue):
+    _0: _float
+    def __eq__(self, other: _object) -> _bool: ...
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomIlstDataValue_Unknown(Mp4AtomIlstDataValue):
+    _0: _int
+    _1: _bytes | _bytearray | _memoryview
 class Mp4AtomAnySampleGroupEntry:
     def __repr__(self) -> _str: ...
-    DirectReferenceSampleList: _typing.TypeAlias
-    UnknownGroupingType: _typing.TypeAlias
+    DirectReferenceSampleList: _typing.TypeAlias = '_Mp4AtomAnySampleGroupEntry_DirectReferenceSampleList'
+    UnknownGroupingType: _typing.TypeAlias = '_Mp4AtomAnySampleGroupEntry_UnknownGroupingType'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomAnySampleGroupEntry_DirectReferenceSampleList(Mp4AtomAnySampleGroupEntry):
+    _0: _int
+    _1: _array.array[_int] | _memoryview
+    def __eq__(self, other: _object) -> _bool: ...
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomAnySampleGroupEntry_UnknownGroupingType(Mp4AtomAnySampleGroupEntry):
+    _0: Mp4AtomFourCc
+    _1: _bytes | _bytearray | _memoryview
 class Mp4AtomSubsSubsampleSize:
     def __repr__(self) -> _str: ...
     @_staticmethod
     def default() -> Mp4AtomSubsSubsampleSize: ...
     def value(self) -> _int: ...
-    U16: _typing.TypeAlias
-    U32: _typing.TypeAlias
+    U16: _typing.TypeAlias = '_Mp4AtomSubsSubsampleSize_U16'
+    U32: _typing.TypeAlias = '_Mp4AtomSubsSubsampleSize_U32'
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomSubsSubsampleSize_U16(Mp4AtomSubsSubsampleSize):
+    _0: _int
+@_dataclass(slots=True, repr=False)
+class _Mp4AtomSubsSubsampleSize_U32(Mp4AtomSubsSubsampleSize):
+    _0: _int
 class Level(_enum.Enum):
     TRACE = 0
     DEBUG = 1

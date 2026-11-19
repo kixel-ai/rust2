@@ -692,30 +692,46 @@ def prune(lines):
 
 def python_stub(text):
     tree = ast.parse(text)
+    # A private class a public alias names, such as `Event.Moved` for `_Event_Moved`, is
+    # public through it.
+    aliased = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.AnnAssign) and alias(node):
+            value = node.value
+            if isinstance(value, ast.Constant) and isinstance(value.value, str):
+                aliased.add(value.value)
+            elif isinstance(value, ast.Name):
+                aliased.add(value.id)
     out = []
-    stub(tree.body, 0, out)
+    stub(tree.body, 0, out, aliased)
     return "".join(line + "\n" for line in out)
 
 
+def alias(node):
+    return node.value is not None and ast.unparse(node.annotation).endswith("TypeAlias")
+
+
 def public_name(name):
-    return not name.startswith("_") or (name.startswith("__") and name.endswith("__"))
+    # `_0` is a tuple payload's field.
+    return not name.startswith("_") or (name.startswith("__") and name.endswith("__")) or \
+        re.fullmatch(r"_\d+", name) is not None
 
 
-def stub(body, level, out):
+def stub(body, level, out, aliased):
     pad = "    " * level
     for node in body:
         if isinstance(node, ast.If):
             test = ast.unparse(node.test)
             if test.endswith("TYPE_CHECKING") and not test.startswith("not "):
-                stub(node.body, level, out)
-                stub(node.orelse, level, out)
+                stub(node.body, level, out, aliased)
+                stub(node.orelse, level, out, aliased)
             elif test.startswith("not ") and test.endswith("TYPE_CHECKING"):
-                stub(node.orelse, level, out)
+                stub(node.orelse, level, out, aliased)
             elif any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
                      for b in (node.body, node.orelse) for n in b):
                 raise Malformed(f"a declaration under `if {test}`")
         elif isinstance(node, ast.ClassDef):
-            if not public_name(node.name):
+            if not public_name(node.name) and node.name not in aliased:
                 continue
             for d in node.decorator_list:
                 out.append(f"{pad}@{ast.unparse(d)}")
@@ -723,7 +739,7 @@ def stub(body, level, out):
             out.append(f"{pad}class {node.name}{'[' + ', '.join(ast.unparse(p) for p in node.type_params) + ']' if node.type_params else ''}"
                        f"{'(' + ', '.join(bases) + ')' if bases else ''}:")
             mark = len(out)
-            stub(node.body, level + 1, out)
+            stub(node.body, level + 1, out, aliased)
             if len(out) == mark:
                 out.append(f"{pad}    ...")
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -738,7 +754,8 @@ def stub(body, level, out):
             out.append(f"{pad}{prefix}{header} ...")
         elif isinstance(node, ast.AnnAssign):
             if isinstance(node.target, ast.Name) and public_name(node.target.id):
-                out.append(f"{pad}{ast.unparse(node.target)}: {ast.unparse(node.annotation)}")
+                value = f" = {ast.unparse(node.value)}" if alias(node) else ""
+                out.append(f"{pad}{ast.unparse(node.target)}: {ast.unparse(node.annotation)}{value}")
         elif isinstance(node, ast.Assign):
             names = [t.id for t in node.targets if isinstance(t, ast.Name)]
             if names and len(names) == len(node.targets) and all(public_name(n) for n in names) \
