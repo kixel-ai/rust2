@@ -39,6 +39,13 @@ pub(super) fn main(t: &Transcript, source: &str) -> (Vec<Step>, BTreeMap<String,
 			_ => {}
 		}
 	}
+	// A module's items see each other in any order, as Rust's do.
+	let module = scope.vars.len();
+	for var in &mut scope.vars {
+		if let Var::Alias(_, _, depth) = var {
+			*depth = module;
+		}
+	}
 	for item in &file.items {
 		if let syn::Item::Fn(f) = item {
 			if f.sig.ident == "main" {
@@ -1177,14 +1184,26 @@ impl Scope<'_> {
 	/// Whether `expr` may be of type `ty`, judged by what it plainly is without checking it:
 	/// a local's type, a struct literal's, or a suffixed literal's. What it cannot judge fits.
 	fn fits_expr(&self, expr: &syn::Expr, ty: &Type) -> bool {
+		self.fits_in(expr, ty, self.vars.len())
+	}
+
+	/// [`Self::fits_expr`] among the first `depth` locals alone, as an alias bound there
+	/// sees them.
+	fn fits_in(&self, expr: &syn::Expr, ty: &Type, depth: usize) -> bool {
 		let guess = match expr {
-			syn::Expr::Reference(r) => return self.fits_expr(&r.expr, ty),
-			syn::Expr::Paren(p) => return self.fits_expr(&p.expr, ty),
-			syn::Expr::Path(p) => match p.path.get_ident().and_then(|i| self.lookup(&i.to_string())) {
-				Some(Var::Typed(_, _, have)) => return fits(have, ty),
-				Some(Var::Alias(_, expr, _)) => return self.fits_expr(&expr.clone(), ty),
-				None => None,
-			},
+			syn::Expr::Reference(r) => return self.fits_in(&r.expr, ty, depth),
+			syn::Expr::Paren(p) => return self.fits_in(&p.expr, ty, depth),
+			syn::Expr::Path(p) => {
+				let name = p.path.get_ident().map(|i| i.to_string());
+				let var = (self.vars[..depth].iter().rev()).find(|v| match v {
+					Var::Typed(n, ..) | Var::Alias(n, ..) => Some(n) == name.as_ref(),
+				});
+				match var {
+					Some(Var::Typed(_, _, have)) => return fits(have, ty),
+					Some(Var::Alias(_, expr, depth)) => return self.fits_in(expr, ty, *depth),
+					None => None,
+				}
+			}
 			syn::Expr::Struct(s) => self.type_of_path(&s.path),
 			syn::Expr::Lit(syn::ExprLit {
 				lit: syn::Lit::Int(i), ..
@@ -1195,7 +1214,7 @@ impl Scope<'_> {
 				lit: syn::Lit::Str(_), ..
 			}) => Some(Type::Str),
 			expr if const_duration(expr).is_some() => Some(Type::Duration),
-			syn::Expr::MethodCall(m) if m.method == "unwrap" => return self.fits_expr(&m.receiver, ty),
+			syn::Expr::MethodCall(m) if m.method == "unwrap" => return self.fits_in(&m.receiver, ty, depth),
 			_ => None,
 		};
 		match (guess, unref(ty).base()) {
@@ -1543,9 +1562,10 @@ impl Scope<'_> {
 		};
 		let none_syn = none;
 		let none = self.infer(none);
-		// Rust evaluates the default before it looks at the option, which a binding that
-		// evaluates only the arm taken would skip.
-		if !pure(&none) {
+		// Rust evaluates the default before it looks at the option, and drops it unused,
+		// which a binding that evaluates only the arm taken would skip: so it holds no local,
+		// whose move and drop a script could see.
+		if !pure(&none) || reads_local(&none) {
 			fail(
 				none_syn,
 				"a map_or default other than a literal, a local, or a value built of them",
@@ -1684,6 +1704,20 @@ fn pure(e: &Expr) -> bool {
 		}
 		Kind::Tuple(items) | Kind::List(items) | Kind::Record(_, items) | Kind::Variant(_, _, items) => {
 			items.iter().all(pure)
+		}
+		_ => false,
+	}
+}
+
+/// Whether `e` reads a local.
+fn reads_local(e: &Expr) -> bool {
+	match &e.kind {
+		Kind::Var(_) => true,
+		Kind::Some(inner) | Kind::Bound(_, Some(inner)) | Kind::Field(inner, _) | Kind::Element(inner, _) => {
+			reads_local(inner)
+		}
+		Kind::Tuple(items) | Kind::List(items) | Kind::Record(_, items) | Kind::Variant(_, _, items) => {
+			items.iter().any(reads_local)
 		}
 		_ => false,
 	}

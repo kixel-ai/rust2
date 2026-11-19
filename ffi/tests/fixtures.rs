@@ -3972,13 +3972,14 @@ fn profiled() {
 /// binds over them, as Rust evaluates it before the body runs.
 #[test]
 fn transcript_loop_scope() {
+	let lock = api().out.join("api.json");
 	let source = scratch().join("api").join("loop-scope.rs");
 	std::fs::write(
 		&source,
 		"fn main() { let x = 1u8; for n in [x] { let x = 2u8; println!(\"{n} {x}\"); } }",
 	)
 	.unwrap();
-	let t = transcript::Transcript::load(&api().out.join("api.json"), &source);
+	let t = transcript::Transcript::load(&lock, &source);
 	let Some(transcript::Step::Print(pieces)) = t.steps.last() else {
 		panic!("the loop's body prints last")
 	};
@@ -3995,4 +3996,14 @@ fn transcript_loop_scope() {
 		})
 		.collect();
 	assert_eq!(names, ["x", "x_2"]);
+
+	// An element naming the loop's own binding, and a constant naming a later one, resolve
+	// as Rust resolves them when an overload is picked.
+	std::fs::write(
+		&source,
+		"const A: u64 = B; const B: u64 = 1; \
+		 fn main() { let x = 1u64; for x in [x] { println!(\"{}\", api::same_u64(x)); } println!(\"{}\", api::same_u64(A)); }",
+	)
+	.unwrap();
+	transcript::Transcript::load(&lock, &source);
 }
