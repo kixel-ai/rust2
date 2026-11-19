@@ -103,3 +103,10 @@ Rejected: an unsafe std gap with no consumer becoming its own quest, as
 ([#647](https://github.com/kixel-ai/rust2/pull/647)), or as `Vec::from_raw_parts`'s adopted
 storage did ([#635](https://github.com/kixel-ai/rust2/pull/635)); and a second, byte-backed
 memory model for values whose address is reinterpreted, without a consumer.
+
+Decided with the maintainer on 2026-11-18, in the per-language audit: ✅
+[free-threaded CPython through abi3t](/quest/m3/python-abi3t.md) waits here with no
+consumer, after m1's refusal fixes the crash; the translator's
+[fuzzing](/quest/m3/ts-fuzz.md) and [random MIR programs](/quest/m3/ts-rustlantis.md) wait
+on the gate. Dropped: rust2-go's checked multiply through `bits.Mul64`, too small for a
+quest while rust2-go is parked.
