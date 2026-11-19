@@ -1035,7 +1035,10 @@ fn api_android() {
 		failed(&output, case);
 		let stdout = String::from_utf8_lossy(&output.stdout);
 		let pid = stdout.lines().next().unwrap_or_default().trim().to_string();
-		assert!(pid.parse::<u32>().is_ok(), "{case} printed no process id first: {stdout}");
+		assert!(
+			pid.parse::<u32>().is_ok(),
+			"{case} printed no process id first: {stdout}"
+		);
 		let ours = format!("pid: {pid},");
 		let log = run(Command::new(&adb).args(["logcat", "-d", "-s", "rust2-ffi:F"]));
 		let log = String::from_utf8_lossy(&log.stdout);
