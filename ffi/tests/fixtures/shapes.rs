@@ -2334,22 +2334,101 @@ func failed[A, B any](f func(A) B, err error) B {
 /// The Dart driver, which prints each digest, a `U64`, unsigned.
 fn dart(built: &Built, calls: &[Call]) -> String {
 	let name = built.name();
+	let source = std::fs::read_to_string(built.out.join("dart").join(format!("{name}.dart"))).unwrap();
+	let mut sinks = String::new();
 	let mut body = String::new();
 	for call in calls {
 		// A seed as the `int` of its bits.
 		let u = |seed: u64| format!("s.U64.fromBits({})", seed as i64);
 		let Call { n, seed, .. } = *call;
+		let other = call.other();
+		let label = call.label();
+		let make = |seed: u64| format!("s.make{n}({})", u(seed));
+		let digest = |v: &str| format!("${{s.digest{n}({v}).toRadixString(10)}}");
 		let value = match call.kind {
-			Kind::Try | Kind::Swap | Kind::Pair | Kind::Maybe | Kind::Held | Kind::Sink => todo!(),
-			Kind::Echo => format!("s.digest{n}(s.echo{n}(s.make{n}({})))", u(seed)),
+			Kind::Echo => format!("s.digest{n}(s.echo{n}({}))", make(seed)),
 			Kind::Lent => format!("s.lent{n}({}, s.digest{n})", u(seed)),
 			Kind::Peek => format!("s.peek{n}({}, s.digest{n})", u(seed)),
 			Kind::Made => format!("s.made{n}({}, s.make{n})", u(seed)),
-			Kind::Later => format!("s.digest{n}(await s.later{n}(s.make{n}({})))", u(seed)),
+			Kind::Later => format!("s.digest{n}(await s.later{n}({}))", make(seed)),
+			Kind::Try => {
+				// What it throws: an exception holding the value, or the value, which is one.
+				let declared = declaration(&source, &format!("try{n}("));
+				let ty = declared.split_once(" try").unwrap().0;
+				let at = source.find(declared).unwrap();
+				let body_ = &source[at..at + source[at..].find("\n}\n").unwrap()];
+				let thrown = body_.split_once("throw ").expect("try_N throws").1;
+				let thrown = &thrown[..thrown.find(['(', '.']).unwrap()];
+				let (thrown, error) = match thrown.ends_with("Exception") {
+					true => (thrown, "e.error"),
+					false => (ty, "e"),
+				};
+				let _ = writeln!(
+					body,
+					"  try {{\n    final v = s.try{n}({});\n    print('{label} ok {}');\n  }} on s.{thrown} catch (e) {{\n    print('{label} err {}');\n  }}",
+					u(seed),
+					digest("v"),
+					digest(error)
+				);
+				continue;
+			}
+			Kind::Swap => {
+				// A value is passed in a `Mut`, which Rust writes back; an object is borrowed.
+				let boxed = declaration(&source, &format!("swap{n}(")).contains("(Mut<");
+				let (v, after) = match boxed {
+					true => (format!("s.Mut({})", make(seed)), "v.value"),
+					false => (make(seed), "v"),
+				};
+				let _ = writeln!(
+					body,
+					"  {{\n    final v = {v};\n    final d = s.swap{n}(v, {});\n    print('{label} ${{d.toRadixString(10)}} {}');\n  }}",
+					u(other),
+					digest(after)
+				);
+				continue;
+			}
+			Kind::Pair => format!("s.pair{n}({}, {}, {})", make(seed), u(seed), make(other)),
+			Kind::Maybe => match seed % 2 {
+				0 => format!("s.maybe{n}(null)"),
+				_ => format!("s.maybe{n}({})", make(seed)),
+			},
+			Kind::Held => {
+				let _ = writeln!(
+					body,
+					"  {{\n    final h = s.Holder{n}({});\n    final old = h.swap({});\n    final d = h.digest();\n\
+					\x20   final c = h.intoInner();\n    h.close();\n    print('{label} {} ${{d.toRadixString(10)}} {}');\n  }}",
+					make(seed),
+					make(other),
+					digest("old"),
+					digest("c")
+				);
+				continue;
+			}
+			Kind::Sink => {
+				if seed == SEEDS[0] {
+					let class = source
+						.split(&format!("\nabstract class Sink{n} {{\n"))
+						.nth(1)
+						.expect("the Dart declares the sink");
+					// Its types, the binding's own prefixed.
+					let echo = class.lines().next().unwrap().trim().trim_end_matches(';');
+					let mut prefixed = String::new();
+					for (i, c) in echo.char_indices() {
+						let starts = !echo[..i].ends_with(|p: char| p.is_alphanumeric() || p == '_' || p == '.');
+						if starts && c.is_uppercase() && !echo[i..].starts_with("String") {
+							prefixed.push_str("s.");
+						}
+						prefixed.push(c);
+					}
+					let echo = prefixed;
+					let _ = writeln!(sinks, "final class Echo{n} extends s.Sink{n} {{\n  @override\n  {echo} => v;\n}}\n");
+				}
+				format!("s.sink{n}({}, Echo{n}())", u(seed))
+			}
 		};
-		let _ = writeln!(body, "  print('{} ${{({value}).toRadixString(10)}}');", call.label());
+		let _ = writeln!(body, "  print('{label} ${{({value}).toRadixString(10)}}');");
 	}
-	format!("import 'package:{name}/{name}.dart' as s;\n\nFuture<void> main() async {{\n{body}}}\n")
+	format!("import 'package:{name}/{name}.dart' as s;\n\n{sinks}Future<void> main() async {{\n{body}}}\n")
 }
 
 /// Build and run `language`'s driver of `built`, checking it against the native transcript.
