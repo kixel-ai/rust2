@@ -279,15 +279,20 @@ jobs:
           mkdir -p why/a why/b
           unzip -q -o dist/wheels/*.whl -d why/a
           unzip -q -o again/dist/wheels/*.whl -d why/b
+          set +e
           for f in why/a/*/*.dylib; do
             g=why/b/${f#why/a/}
-            cmp -l "$f" "$g" | wc -l
-            cmp -l "$f" "$g" | head -3; cmp -l "$f" "$g" | tail -3
+            cmp -l "$f" "$g" | awk '{printf "%s ", $1}'; echo
             diff <(otool -l "$f") <(otool -l "$g") | head -60
             diff <(strings -a "$f") <(strings -a "$g") | head -40
             diff <(codesign -dvvv "$f" 2>&1) <(codesign -dvvv "$g" 2>&1) | head
-            diff <(nm -a "$f") <(nm -a "$g") | head -20
           done
+          exit 0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure() && inputs.reproduce && runner.os == 'macOS'
+        with:
+          name: why
+          path: why
       - name: Checks
         env:
           PYTHON_CHECK: ${{ inputs.python-check }}
