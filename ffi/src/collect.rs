@@ -2629,7 +2629,8 @@ impl<'tcx> Collector<'tcx> {
 				|| (api.records.iter()).any(|r| args(&r.args) || fields(&r.fields) || r.methods.iter().any(signature))
 				|| (api.enums.iter()).any(|e| {
 					args(&e.args) || e.variants.iter().any(|v| fields(&v.fields)) || e.methods.iter().any(signature)
-				}) || (api.objects.iter()).any(|o| args(&o.args) || o.methods.iter().any(signature))
+				})
+				|| (api.objects.iter()).any(|o| args(&o.args) || o.methods.iter().any(signature))
 				|| (api.callbacks.iter()).any(|c| c.methods.iter().any(signature));
 			if !used {
 				self.api.enums.pop();
@@ -2656,10 +2657,12 @@ impl<'tcx> Collector<'tcx> {
 			let used = api.functions.iter().any(signature)
 				|| (api.records.iter().enumerate()).any(|(i, r)| {
 					(!value || i != gone) && (args(&r.args) || fields(&r.fields) || r.methods.iter().any(signature))
-				}) || (api.enums.iter()).any(|e| {
-				args(&e.args) || e.variants.iter().any(|v| fields(&v.fields)) || e.methods.iter().any(signature)
-			}) || (api.objects.iter().enumerate())
-				.any(|(i, o)| (value || i != gone) && (args(&o.args) || o.methods.iter().any(signature)))
+				})
+				|| (api.enums.iter()).any(|e| {
+					args(&e.args) || e.variants.iter().any(|v| fields(&v.fields)) || e.methods.iter().any(signature)
+				})
+				|| (api.objects.iter().enumerate())
+					.any(|(i, o)| (value || i != gone) && (args(&o.args) || o.methods.iter().any(signature)))
 				|| (api.callbacks.iter()).any(|c| c.methods.iter().any(signature));
 			if used {
 				continue;
@@ -3355,7 +3358,8 @@ impl<'tcx> Collector<'tcx> {
 					// is, takes it from the future, as it would a parameter.
 					ty::Ref(_, inner, _)
 						if Some(*inner) == self_ty
-							&& polled.is_some() && let Some(kind) = self.task(ty, true) =>
+							&& polled.is_some()
+							&& let Some(kind) = self.task(ty, true) =>
 					{
 						made = Some(*inner);
 						tasks.push(Task { at: 0, kind });
@@ -4518,7 +4522,8 @@ impl<'tcx> Collector<'tcx> {
 			.inputs()
 			.iter()
 			.filter(|&&input| input == param)
-			.count() > 1
+			.count()
+			> 1
 		{
 			return Some(Err(why("closure type taken twice", param.to_string())));
 		}
@@ -4872,11 +4877,16 @@ impl<'tcx> Collector<'tcx> {
 				let plain = matches!(
 					ty.kind(),
 					ty::Adt(..)
-						| ty::Bool | ty::Char
-						| ty::Int(_) | ty::Uint(_)
-						| ty::Float(_) | ty::Str
-						| ty::Array(..) | ty::Slice(_)
-						| ty::Ref(..) | ty::Tuple(_)
+						| ty::Bool
+						| ty::Char
+						| ty::Int(_)
+						| ty::Uint(_)
+						| ty::Float(_)
+						| ty::Str
+						| ty::Array(..)
+						| ty::Slice(_)
+						| ty::Ref(..)
+						| ty::Tuple(_)
 				);
 				let (method, driven) = match (implements(iterator, ty), implements(into_iterator, ty)) {
 					(true, _) => (next, item),
