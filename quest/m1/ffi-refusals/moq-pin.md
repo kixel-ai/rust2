@@ -123,4 +123,10 @@ crates, which only defers the failure until a later nightly makes it a hard erro
   own `Driver: Send` proof: at `rs/moq-tokio/src/client.rs:789`, on the `Instrumented<...>` from
   `tokio::spawn(panic::isolate(time::run(driver)).instrument(..))`, and in the moq-ffi facade
   on `moq_net::Driver: Sync`, through the lite session driver's `Publisher` and its
-  `kio::Tasks<Control>`.
+  `kio::Tasks<Control>`. Both still overflow on 2026-11-18 at moq `71c6209f` (moq-tokio's now
+  at `client.rs:703`); the export there fails on 16 stale excludes and 5 refusals the bump
+  fixes in `ffi/moq/ffi.toml`: `escape` and `unescape` on the foreign `Cow`,
+  `Mpegts::deserialize`'s generic `Deserializer`, and moq-tokio's `server::Streams::{tcp,
+  unix}` as borrowed returns that are not `Clone`. moq plans the fix in
+  [moq-dev/moq#9136](https://github.com/moq-dev/moq/pull/9136)'s
+  `quest/m1/driver-sync-depth.md`.

@@ -13,3 +13,11 @@ hosting this project would run.
 
 The PR adds what `crabx init` writes: [`crabx/src/binaries.yml`](/crabx/src/binaries.yml)
 with the repository's default branch filled in.
+
+Decided 2026-11-18 (maintainer, /quest-run): ✅ wait for crabx's first publish, since nothing
+can install what the App sets up until then (rejected: start now; delete the App).
+
+## Required
+
+- [First publish](/quest/m2/crabx/first-publish.md) - crabx 0.1.0 on crates.io and npm, so
+  the pipeline the App opens a PR for can run
