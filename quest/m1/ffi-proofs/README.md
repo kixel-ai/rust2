@@ -16,6 +16,6 @@ Go's race detector, Miri, and loom on `rt/borrow.rs` and the hold counts.
 This epic changes no generated API, so it does not hold moq's pin
 ([the exporter epic](/quest/m1/ffi-export/README.md#plan)). Considered and dropped by the
 audit: Kani, since the runtime's `unsafe` is FFI and concurrency, where Miri and loom fit
-better; and mutation testing of the generators until [the shapes](/quest/m1/ffi-proofs/shapes.md)
-and [the transcript as data](/quest/m1/ffi-rules/transcript.md) land, since every mutant
+better; and mutation testing of the generators until
+[the transcript as data](/quest/m1/ffi-rules/transcript.md) lands, since every mutant
 reruns eight languages.

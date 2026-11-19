@@ -2435,13 +2435,23 @@ func failed[A, B any](f func(A) B, err error) B {
 
 ";
 
-/// The Dart driver, which prints each digest, a `U64`, unsigned.
+/// The Dart driver, which prints each digest, a `U64`, unsigned. Each shape's calls are
+/// a function of their own: in one `main` of the nightly set's 37,000 lines, the VM let
+/// a `try350` exception its `on` clause names go uncaught, which alone it catches.
 fn dart(built: &Built, calls: &[Call]) -> String {
 	let name = built.name();
 	let source = std::fs::read_to_string(built.out.join("dart").join(format!("{name}.dart"))).unwrap();
 	let mut sinks = String::new();
 	let mut body = String::new();
+	let mut shapes = Vec::new();
 	for call in calls {
+		if shapes.last() != Some(&call.n) {
+			if !shapes.is_empty() {
+				body.push_str("}\n\n");
+			}
+			let _ = writeln!(body, "Future<void> shape{}() async {{", call.n);
+			shapes.push(call.n);
+		}
 		// A seed as the `int` of its bits.
 		let u = |seed: u64| format!("s.U64.fromBits({})", seed as i64);
 		let Call { n, seed, .. } = *call;
@@ -2463,7 +2473,8 @@ fn dart(built: &Built, calls: &[Call]) -> String {
 				let body_ = &source[at..at + source[at..].find("\n}\n").unwrap()];
 				let thrown = body_.split_once("throw ").expect("try_N throws").1;
 				let thrown = &thrown[..thrown.find(['(', '.']).unwrap()];
-				let (thrown, error) = match thrown.ends_with("Exception") {
+				let wraps = source.contains(&format!("\nfinal class {thrown} implements Exception {{\n\tfinal "));
+				let (thrown, error) = match wraps {
 					true => (thrown, "e.error"),
 					false => (ty, "e"),
 				};
@@ -2535,7 +2546,11 @@ fn dart(built: &Built, calls: &[Call]) -> String {
 		};
 		let _ = writeln!(body, "  print('{label} ${{({value}).toRadixString(10)}}');");
 	}
-	format!("import 'package:{name}/{name}.dart' as s;\n\n{sinks}Future<void> main() async {{\n{body}}}\n")
+	if !shapes.is_empty() {
+		body.push_str("}\n\n");
+	}
+	let main: String = shapes.iter().map(|n| format!("  await shape{n}();\n")).collect();
+	format!("import 'package:{name}/{name}.dart' as s;\n\n{sinks}{body}Future<void> main() async {{\n{main}}}\n")
 }
 
 /// The web driver, run by Node over the module the export's `web` feature builds, which it
@@ -2570,13 +2585,9 @@ fn web(built: &Built, calls: &[Call]) -> String {
 			Kind::Swap => {
 				// A value is passed in a place, which Rust writes back; an object is borrowed.
 				let declared = declaration(&source, &format!("swap{n}("));
-				let (v, after) = match declared.split_once("v: rt.Place<") {
-					// Bytes Rust returned are copied into the array a place holds.
-					Some((_, rest)) if rest.starts_with("Uint8Array>") => {
-						(format!("{{ v: {}.slice() }}", make(seed)), "v.v")
-					}
-					Some(_) => (format!("{{ v: {} }}", make(seed)), "v.v"),
-					None => (make(seed), "v"),
+				let (v, after) = match declared.contains("v: rt.Place<") {
+					true => (format!("{{ v: plain({}) }}", make(seed)), "v.v"),
+					false => (make(seed), "v"),
 				};
 				let _ = writeln!(
 					body,
@@ -2631,6 +2642,13 @@ const print = (line: string) => console.log(line);
 
 /** A `u64` in decimal. */
 const dec = (v: rt.u64) => (typeof v === \"number\" ? `${v}` : `${rt.u64ToBig(v)}`);
+
+/** `v` as a place holds it: the bytes Rust returned copied into arrays. */
+function plain<T>(v: T): never {
+	if (v instanceof rt.Bytes) return v.slice() as never;
+	if (Array.isArray(v)) return v.map(plain) as never;
+	return v as never;
+}
 
 ";
 

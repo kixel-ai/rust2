@@ -1295,7 +1295,8 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 ## Census
 
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
-lists each refused item at its span, then the `exclude` list that exports the rest, and
+lists each refused item at its span, a binding's own refusals such as Swift's included,
+then the `exclude` list that exports the rest, and
 what else it left out, such as what C can never hold and the traits C cannot implement, and why.
 It ignores the config's `exclude`, but lists each exclude that leaves out an item that
 would export, and fails on it, so the list holds only what the export refuses. It also
@@ -1474,15 +1475,20 @@ binding, which builds for each, and staged with `--api` and `--with`; a build fo
 not exported fails, and items that differ between the two are refused, naming both.
 The shape tests (`tests/fixtures/shapes.rs`) sample value types from the IR's `Type`, each
 leaf alone and in each wrapper, then nested to depth 3 from a fixed seed, and emit a crate
-of `make_N(seed)`, `echo_N(v)`, and `digest_N(&v)` per shape, with the shape in a closure's
-parameter and return and in a future besides. Its census decides what exports, so a shape
-refused by design is left out rather than failed. Each language's driver is a generated
-flat list of `digest(echo(make(seed)))` calls whose printed digests must match the crate's
-own, run natively. The gate runs a subset; `just ffi shapes` runs every sampled shape, as
-the nightly does. `KNOWN` lists what a binding still gets wrong, each with the quest that
-fixes it; the driver skips those shapes, so the fix deletes its entry, and the nightly fails
-on an entry that matches no exported shape. A new IR `Type` variant fails `ir_covered`
-until the sampler covers it.
+of `make_N(seed)`, `echo_N(v)`, and `digest_N(&v)` per shape, with the shape in each
+position a binding maps apart: a closure's parameter and return, a future, a `Result`'s
+value and error, a `&mut` written back, beside other parameters, an `Option<&T>`, an
+object's methods, and a trait a caller implements. A digest hashes floats by their bits,
+so a NaN's payload counts, and the sampler draws signaling and quiet NaNs. Its census
+decides what exports, so a shape refused by design is left out rather than failed. Each
+language's driver, the web's on Node included, is a generated list of these calls whose
+printed digests must match the crate's own, run natively, or as wasm under Node's WASI
+for the web, where `usize` is 32 bits. The gate runs a subset; `just ffi shapes` runs
+every sampled shape and, as the nightly does, more drawn from the day's seed, which it
+prints and `RUST2_SHAPES_SEED` replays. `KNOWN` lists what a binding still gets wrong,
+each with the quest that fixes it; the driver skips those calls, so the fix deletes its
+entry, and the nightly fails on an entry that matches no call of the fixed set. A new IR
+`Type` variant fails `ir_covered` until the sampler covers it.
 The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
 The `lock` test exports the `lock` fixture for wasm32, staged, and the host, then again
 against that export's `api.json`: its `added` feature only adds and must pass, and its `next`
