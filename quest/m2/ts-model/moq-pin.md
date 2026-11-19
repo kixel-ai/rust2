@@ -4,8 +4,8 @@
 
 The model fixture's moq pin, the revision `ts/justfile`'s `moq_rev` reads, moves to moq's
 current `main`, so `just ts moq` and `just ts census` measure the model there and the model
-epic's census count is current. The exporter's pin moves on its own, in
-[its bump](/quest/m1/ffi-refusals/moq-pin.md).
+epic's census count is current. The exporter's pin moved on its own, to moq
+`1aa86d5e6` in [kixel-ai/rust2#881](https://github.com/kixel-ai/rust2/pull/881).
 
 ## Plan
 
@@ -37,7 +37,3 @@ Public API: none. The translator's output changes only where moq's API does.
   `cargo search rind` shows 0.4.0. On 2026-11-12 moq `c681b7a` still locks rind 0.3.1, and
   rind 0.3.2, tagged 2026-11-08, predates the fix. Still so on 2026-11-18: crates.io's newest is 0.3.2, and the release
   waits on rind's benchmark refresh ([kixel-ai/rind#619](https://github.com/kixel-ai/rind/pull/619)).
-
-## Related
-
-- [The exporter's moq pin](/quest/m1/ffi-refusals/moq-pin.md) - the same moq `main`, bumped on its own pin

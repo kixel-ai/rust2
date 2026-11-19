@@ -93,8 +93,24 @@ function some<T>(v: T | undefined, what: string): T {
 
 /** A group's end: finished, and its producer disposed. */
 function finish(group: GroupProducer.GroupProducer): void {
-	ok(GroupProducer.finish(group), "finish");
+	ok(GroupProducer.finish(group), "finish")[Symbol.dispose]();
 	group[Symbol.dispose]();
+}
+
+/**
+ * Groups are keyed by their start, which only moves forward on a track: each group starts at
+ * its first frame's time, the next microsecond of the round.
+ */
+let micros = 0;
+
+/** The next group's start, which its frames are stamped with too; the caller disposes it. */
+function next(): Timestamp.Timestamp {
+	return ok(Timestamp.fromMicros(micros++), "fromMicros");
+}
+
+/** A group of `track` starting at `at`. */
+function append(track: TrackProducer.TrackProducer, at: Timestamp.Timestamp): GroupProducer.GroupProducer {
+	return ok(TrackProducer.appendGroup(track, at), "appendGroup");
 }
 
 /** Permits one side gives and the other waits for, as Dart's stream of them. */
@@ -125,14 +141,14 @@ class Permits {
 async function throughput(
 	track: TrackProducer.TrackProducer,
 	subscriber: TrackSubscriber.TrackSubscriber,
-	at: Timestamp.Timestamp,
 	size: number,
 ): Promise<Span> {
 	const count = Math.min(Math.max(Math.floor((64 << 20) / (size * frames)), 3), 2000);
 	const frame = new Uint8Array(size);
 	const start = begin();
 	for (let g = 0; g < count; g++) {
-		const group = ok(TrackProducer.appendGroup(track), "appendGroup");
+		const at = next();
+		const group = append(track, at);
 		const reader = some(ok(await TrackSubscriber.recvGroup(subscriber), "recvGroup"), "recvGroup");
 		for (let f = 0; f < frames; f++) {
 			ok(GroupProducer.writeFrame(group, at, frame), "writeFrame");
@@ -144,6 +160,7 @@ async function throughput(
 		}
 		reader[Symbol.dispose]();
 		finish(group);
+		at[Symbol.dispose]();
 	}
 	const ns = end(start, `throughput[${size}]`, count * frames * size);
 	return { wall: 1e3 / ns.wall, cpu: 1e3 / ns.cpu };
@@ -153,14 +170,15 @@ async function throughput(
 async function payload(
 	track: TrackProducer.TrackProducer,
 	subscriber: TrackSubscriber.TrackSubscriber,
-	at: Timestamp.Timestamp,
 	size: number,
 ): Promise<Span> {
 	// A call a frame, at most a GiB of them copied.
 	const calls = Math.min(n, Math.max(1000, Math.floor((1 << 30) / size)));
-	const group = ok(TrackProducer.appendGroup(track), "appendGroup");
+	const at = next();
+	const group = append(track, at);
 	const reader = some(ok(await TrackSubscriber.recvGroup(subscriber), "recvGroup"), "recvGroup");
 	ok(GroupProducer.writeFrame(group, at, new Uint8Array(size)), "writeFrame");
+	at[Symbol.dispose]();
 	const read = some(ok(await GroupConsumer.readFrame(reader), "readFrame"), "readFrame");
 	reader[Symbol.dispose]();
 	finish(group);
@@ -181,6 +199,7 @@ async function round(): Promise<Map<string, Span>> {
 	const info = TrackInfo.withTimescale(TrackInfo.default(), Timescale.MICRO());
 	const track = ok(BroadcastProducer.createTrack(broadcast, "bench", info), "createTrack");
 	const frame = new Uint8Array(100);
+	micros = 0;
 
 	let start = begin();
 	for (let i = 0; i < n; i++) {
@@ -188,11 +207,13 @@ async function round(): Promise<Map<string, Span>> {
 	}
 	out.set("call", end(start, "call"));
 
-	const demanded = ok(TrackProducer.appendGroup(track), "appendGroup");
+	const demandedAt = next();
+	const demanded = append(track, demandedAt);
+	demandedAt[Symbol.dispose]();
 	const demand = GroupProducer.demand(demanded);
 	start = begin();
 	for (let i = 0; i < n; i++) {
-		sink += GroupDemand.sequence(demand) as number;
+		sink += GroupDemand.start(demand) as number;
 	}
 	out.set("getter", end(start, "getter"));
 	demand[Symbol.dispose]();
@@ -211,25 +232,30 @@ async function round(): Promise<Map<string, Span>> {
 	out.set("object", end(start, "object"));
 
 	// Each frame stamped through a fresh timestamp, as a caller holding a number must.
-	let micros = 0;
 	start = begin();
 	for (let g = 0; g < groups; g++) {
-		const group = ok(TrackProducer.appendGroup(track), "appendGroup");
+		const first = ok(Timestamp.fromMicros(micros), "fromMicros");
+		const group = append(track, first);
+		first[Symbol.dispose]();
 		for (let f = 0; f < frames; f++) {
-			ok(GroupProducer.writeFrame(group, ok(Timestamp.fromMicros(micros++), "fromMicros"), frame), "writeFrame");
+			const at = next();
+			ok(GroupProducer.writeFrame(group, at, frame), "writeFrame");
+			at[Symbol.dispose]();
 		}
 		finish(group);
 	}
 	out.set("stamped", end(start, "stamped"));
 
-	const at = ok(Timestamp.fromMicros(micros), "fromMicros");
+	// One timestamp per group, every frame of it stamped alike.
 	start = begin();
 	for (let g = 0; g < groups; g++) {
-		const group = ok(TrackProducer.appendGroup(track), "appendGroup");
+		const at = next();
+		const group = append(track, at);
 		for (let f = 0; f < frames; f++) {
 			ok(GroupProducer.writeFrame(group, at, frame), "writeFrame");
 		}
 		finish(group);
+		at[Symbol.dispose]();
 	}
 	out.set("write", end(start, "write"));
 
@@ -242,7 +268,8 @@ async function round(): Promise<Map<string, Span>> {
 	let last: FrameFrame.FrameFrame | undefined;
 	start = begin();
 	for (let g = 0; g < groups; g++) {
-		const group = ok(TrackProducer.appendGroup(track), "appendGroup");
+		const at = next();
+		const group = append(track, at);
 		const reader = some(ok(await TrackSubscriber.recvGroup(subscriber), "recvGroup"), "recvGroup");
 		for (let f = 0; f < frames; f++) {
 			ok(GroupProducer.writeFrame(group, at, frame), "writeFrame");
@@ -251,6 +278,7 @@ async function round(): Promise<Map<string, Span>> {
 		}
 		reader[Symbol.dispose]();
 		finish(group);
+		at[Symbol.dispose]();
 	}
 	out.set("ready", end(start, "ready"));
 
@@ -258,7 +286,8 @@ async function round(): Promise<Map<string, Span>> {
 	// write's wake polls it again on a microtask.
 	start = begin();
 	for (let g = 0; g < groups; g++) {
-		const group = ok(TrackProducer.appendGroup(track), "appendGroup");
+		const at = next();
+		const group = append(track, at);
 		const reader = some(ok(await TrackSubscriber.recvGroup(subscriber), "recvGroup"), "recvGroup");
 		for (let f = 0; f < frames; f++) {
 			const pending = GroupConsumer.readFrame(reader);
@@ -267,6 +296,7 @@ async function round(): Promise<Map<string, Span>> {
 		}
 		reader[Symbol.dispose]();
 		finish(group);
+		at[Symbol.dispose]();
 	}
 	out.set("woken", end(start, "woken"));
 
@@ -275,7 +305,8 @@ async function round(): Promise<Map<string, Span>> {
 	const permits = new Permits();
 	const writer = (async () => {
 		for (let g = 0; g < groups; g++) {
-			const group = ok(TrackProducer.appendGroup(track), "appendGroup");
+			const at = next();
+			const group = append(track, at);
 			for (let f = 0; f < frames; f++) {
 				await permits.take();
 				ok(GroupProducer.writeFrame(group, at, frame), "writeFrame");
@@ -283,6 +314,7 @@ async function round(): Promise<Map<string, Span>> {
 			// The reader's acknowledgement of the group, before the next.
 			await permits.take();
 			finish(group);
+			at[Symbol.dispose]();
 		}
 	})();
 	for (let g = 0; g < groups; g++) {
@@ -297,7 +329,7 @@ async function round(): Promise<Map<string, Span>> {
 	await writer;
 	out.set("loop", end(start, "loop"));
 
-	for (const size of sizes) out.set(`mbps:${size}`, await throughput(track, subscriber, at, size));
+	for (const size of sizes) out.set(`mbps:${size}`, await throughput(track, subscriber, size));
 
 	// The last frame's 100 bytes, handed to JavaScript, one of them read, and disposed.
 	start = begin();
@@ -309,7 +341,7 @@ async function round(): Promise<Map<string, Span>> {
 	out.set("payload", end(start, "payload"));
 	last![Symbol.dispose]();
 
-	for (const size of payloads) out.set(`payload:${size}`, await payload(track, subscriber, at, size));
+	for (const size of payloads) out.set(`payload:${size}`, await payload(track, subscriber, size));
 	subscriber[Symbol.dispose]();
 	track[Symbol.dispose]();
 	broadcast[Symbol.dispose]();

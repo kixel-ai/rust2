@@ -127,6 +127,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					_ => value,
 				}
 			}
+			// The length of a slice held as its parts, or of the fake pointer to one a bounds
+			// check reads.
+			Rvalue::UnaryOp(UnOp::PtrMetadata, Operand::Copy(p) | Operand::Move(p))
+				if let Some(len) = self.scalar_len(*p, span) =>
+			{
+				len
+			}
 			Rvalue::UnaryOp(op, operand) => {
 				let aty = operand.ty(&self.mir.local_decls, tcx);
 				let value = self.operand(operand, span, out);

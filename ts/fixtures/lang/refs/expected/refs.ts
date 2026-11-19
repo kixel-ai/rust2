@@ -402,16 +402,11 @@ export function refs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	let total: rs.u32 = 0;
 	const iterS4: Uint8Array = rs.byteSliceView(data);
-	let iterI4: number = 0;
-	while (true) {
-		const _278: rs.u8 | rs.Done = iterI4 < iterS4.length ? iterS4[iterI4++] : rs.DONE;
-		const _275: (a0: rs.Place<rs.u32>, a1: rs.u8) => undefined = (x5: rs.Place<rs.u32>, b9: rs.u8): undefined => {
-			bump(x5, b9);
-		};
-		if (_278 === rs.DONE) {
-			break;
-		}
-		_275(rs.place(() => total, (value15) => total = value15), _278);
+	const _275: (a0: rs.Place<rs.u32>, a1: rs.u8) => undefined = (x5: rs.Place<rs.u32>, b9: rs.u8): undefined => {
+		bump(x5, b9);
+	};
+	for (const b7 of iterS4) {
+		_275(rs.place(() => total, (value15) => total = value15), b7);
 	}
 	const dst9 = out;
 	const word7 = total;

@@ -736,19 +736,13 @@ export function uniqueArcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const strong: rs.Vec<rs.Arc<rs.u8>> = rs.vecFrom([new rs.Arc(0)]);
 	const weak: rs.Vec<rs.Weak<rs.u8>> = new rs.Vec();
 	const iterS: Uint8Array = rs.byteSliceView(data);
-	let iterI: number = 0;
-	while (true) {
-		const _11: rs.u8 | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
-		const getMut: (a0: rs.Place<rs.Arc<rs.u8>>) => rs.Place<rs.u8> | undefined = (a0: rs.Place<rs.Arc<rs.u8>>): rs.Place<rs.u8> | undefined => {
-			return rs.arcGetMutPlace(a0.v);
-		};
-		const makeMut: (a0: rs.Place<rs.Arc<rs.u8>>) => rs.Place<rs.u8> = (a02: rs.Place<rs.Arc<rs.u8>>): rs.Place<rs.u8> => {
-			return rs.arcMakeMutPlace(a02, undefined, rs.drop);
-		};
-		if (_11 === rs.DONE) {
-			break;
-		}
-		const op: rs.u8 = _11;
+	const getMut: (a0: rs.Place<rs.Arc<rs.u8>>) => rs.Place<rs.u8> | undefined = (a0: rs.Place<rs.Arc<rs.u8>>): rs.Place<rs.u8> | undefined => {
+		return rs.arcGetMutPlace(a0.v);
+	};
+	const makeMut: (a0: rs.Place<rs.Arc<rs.u8>>) => rs.Place<rs.u8> = (a02: rs.Place<rs.Arc<rs.u8>>): rs.Place<rs.u8> => {
+		return rs.arcMakeMutPlace(a02, undefined, rs.drop);
+	};
+	for (const op of iterS) {
 		const pick: rs.usize = rs.usizeRem(op >> 3 as rs.usize, strong.items.length);
 		b2: {
 			const _24: rs.u8 = rs.u8Rem(op, 7);
@@ -1580,19 +1574,13 @@ export function uniqueRcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const strong: rs.Vec<rs.Arc<rs.u8>> = rs.vecFrom([new rs.Arc(0)]);
 	const weak: rs.Vec<rs.Weak<rs.u8>> = new rs.Vec();
 	const iterS: Uint8Array = rs.byteSliceView(data);
-	let iterI: number = 0;
-	while (true) {
-		const _11: rs.u8 | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
-		const getMut: (a0: rs.Place<rs.Arc<rs.u8>>) => rs.Place<rs.u8> | undefined = (a0: rs.Place<rs.Arc<rs.u8>>): rs.Place<rs.u8> | undefined => {
-			return rs.arcGetMutPlace(a0.v);
-		};
-		const makeMut: (a0: rs.Place<rs.Arc<rs.u8>>) => rs.Place<rs.u8> = (a02: rs.Place<rs.Arc<rs.u8>>): rs.Place<rs.u8> => {
-			return rs.arcMakeMutPlace(a02, undefined, rs.drop);
-		};
-		if (_11 === rs.DONE) {
-			break;
-		}
-		const op: rs.u8 = _11;
+	const getMut: (a0: rs.Place<rs.Arc<rs.u8>>) => rs.Place<rs.u8> | undefined = (a0: rs.Place<rs.Arc<rs.u8>>): rs.Place<rs.u8> | undefined => {
+		return rs.arcGetMutPlace(a0.v);
+	};
+	const makeMut: (a0: rs.Place<rs.Arc<rs.u8>>) => rs.Place<rs.u8> = (a02: rs.Place<rs.Arc<rs.u8>>): rs.Place<rs.u8> => {
+		return rs.arcMakeMutPlace(a02, undefined, rs.drop);
+	};
+	for (const op of iterS) {
 		const pick: rs.usize = rs.usizeRem(op >> 3 as rs.usize, strong.items.length);
 		b2: {
 			const _24: rs.u8 = rs.u8Rem(op, 7);
