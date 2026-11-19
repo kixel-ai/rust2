@@ -1,8 +1,4 @@
 # What the export refuses at the pinned revision of the wasm32 stand-in, which `just ffi
 # standin` writes into target/moq-ffi-web: moq/ffi.toml's list, less moq-tokio's items, since
 # that facade leaves moq-tokio out, as no wasm32 target builds it.
-exclude = [
-    "escape",
-    "mux::container::ts::Mpegts::deserialize",
-    "unescape",
-]
+exclude = ["escape", "mux::container::ts::Mpegts::deserialize", "unescape"]
