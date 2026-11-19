@@ -614,7 +614,7 @@ fn mixed(selector: u8, data: &[u8], out: &mut Vec<u8>) {
 			}
 			_ => {
 				h = h.wrapping_mul(GOLDEN).wrapping_add(i as u64);
-				sum ^= h / BUCKETS + h % PRIME;
+				sum ^= (h / BUCKETS).wrapping_add(h % PRIME);
 			}
 		}
 	}

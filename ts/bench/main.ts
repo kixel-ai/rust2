@@ -273,6 +273,8 @@ function expected(input: Uint8Array): Uint8Array {
 	return output;
 }
 const prefixes = (args.filter ?? "").split(",");
+// An empty prefix starts every name, so `--filter int/,` would select every workload.
+if (args.filter !== undefined && prefixes.includes("")) throw new Error(`--filter ${args.filter} has an empty prefix`);
 const list = workloads(expected).filter((w) => prefixes.some((p) => w.name.startsWith(p)));
 if (list.length === 0) throw new Error(`--filter ${args.filter} matches no codec workloads`);
 const handoffList = handoffs();

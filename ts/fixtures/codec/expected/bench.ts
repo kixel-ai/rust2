@@ -1081,7 +1081,7 @@ export function mixed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			sum = rs.u64Xor(sum, rs.u64Xor(z, rs.u64Shr(z, 31)));
 		} else {
 			h = rs.u64WrappingAdd(rs.u64WrappingMul(h, { hi: 0x9e3779b9, lo: 0x7f4a7c15 } as rs.u64), i as rs.u64);
-			sum = rs.u64Xor(sum, rs.u64Add(rs.u64Div(h, 4294967297), rs.u64Rem(h, { hi: 0xffffffff, lo: 0xffffffc5 } as rs.u64)));
+			sum = rs.u64Xor(sum, rs.u64WrappingAdd(rs.u64Div(h, 4294967297), rs.u64Rem(h, { hi: 0xffffffff, lo: 0xffffffc5 } as rs.u64)));
 		}
 	}
 	harness_putU64(out, sum);
