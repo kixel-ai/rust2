@@ -1011,7 +1011,9 @@ fn api_android() {
 
 	// An abort or a panic must reach logcat and bionic's abort message, which the tombstone
 	// shows: an app's stderr goes nowhere. The tombstone is logged as the crash dump
-	// finishes, after the process died, so the last read blocks until it arrives.
+	// finishes, after the process died, and one from an earlier run may still arrive, so the
+	// case prints its process id, and the read takes the abort message that follows the
+	// tombstone of that process.
 	for (case, logged, tombstone) in [
 		(
 			"callback threw",
@@ -1025,24 +1027,38 @@ fn api_android() {
 		),
 	] {
 		run(Command::new(&adb).args(["logcat", "-c"]));
-		failed(&self::output(&mut art(&[case])), case);
+		let mut cmd = Command::new(&adb);
+		cmd.arg("shell").arg(format!(
+			"echo $$; ANDROID_DATA={DEVICE} exec dalvikvm -Djava.library.path={DEVICE} -cp {DEVICE}/classes.dex ApiKt '{case}'"
+		));
+		let output = self::output(&mut cmd);
+		failed(&output, case);
+		let stdout = String::from_utf8_lossy(&output.stdout);
+		let pid = stdout.lines().next().unwrap_or_default().trim().to_string();
+		assert!(pid.parse::<u32>().is_ok(), "{case} printed no process id first: {stdout}");
+		let ours = format!("pid: {pid},");
 		let log = run(Command::new(&adb).args(["logcat", "-d", "-s", "rust2-ffi:F"]));
 		let log = String::from_utf8_lossy(&log.stdout);
 		assert!(log.contains(logged), "{case} logged {log}");
-		let dump = run(Command::new(&adb).args([
-			"shell",
-			"timeout",
-			"120",
-			"logcat",
-			"-s",
-			"DEBUG:F",
-			"-e",
-			"Abort message",
-			"-m",
-			"1",
-		]));
-		let dump = String::from_utf8_lossy(&dump.stdout);
-		assert!(dump.contains(tombstone), "{case}'s tombstone showed {dump}");
+		// Read the dump as it arrives, bounded by the device-side timeout.
+		let mut reader = Command::new(&adb)
+			.args(["shell", "timeout", "120", "logcat", "-s", "DEBUG:F"])
+			.stdout(std::process::Stdio::piped())
+			.spawn()
+			.unwrap();
+		let mut found = false;
+		let mut dump = String::new();
+		for line in std::io::BufRead::lines(std::io::BufReader::new(reader.stdout.take().unwrap())) {
+			let line = line.unwrap();
+			found |= line.contains(&ours);
+			if found && line.contains("Abort message") {
+				dump = line;
+				break;
+			}
+		}
+		let _ = reader.kill();
+		let _ = reader.wait();
+		assert!(dump.contains(tombstone), "{case}'s tombstone showed {dump:?}");
 	}
 }
 
