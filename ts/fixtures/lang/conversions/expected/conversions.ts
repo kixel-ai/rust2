@@ -6182,11 +6182,11 @@ export function measured(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _69: rs.usize = 6;
 	const _76: rs.u16 = n & 0xffff;
 	const iter: rs.Iter<[rs.usize, rs.usize]> = rs.iterSlice([_12, _19, _22, _29, _36, _41, _48, _59, [_69, 2] as [rs.usize, rs.usize], [16, 4] as [rs.usize, rs.usize], [12, 4] as [rs.usize, rs.usize], [0, 1] as [rs.usize, rs.usize]]);
+	rs.sliceFrom(Array.from({ length: 3 }, (): rs.u16 => {
+		return _76;
+	}));
 	while (true) {
 		const _94: [rs.usize, rs.usize] | rs.Done = iter.next();
-		rs.sliceFrom(Array.from({ length: 3 }, (): rs.u16 => {
-			return _76;
-		}));
 		if (_94 === rs.DONE) {
 			break;
 		}

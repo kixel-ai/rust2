@@ -2130,16 +2130,25 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// Where `bb` goes, past blocks that do nothing but go on.
 	fn forward(&self, mut bb: BasicBlock) -> BasicBlock {
 		for _ in 0..self.mir.basic_blocks.len() {
-			let data = &self.mir.basic_blocks[bb];
-			let TerminatorKind::Goto { target, .. } = data.terminator().kind else {
-				return bb;
-			};
-			if !self.empty(bb) || data.is_cleanup || self.redirect.contains_key(&bb) {
+			let next = self.forward_step(bb);
+			if next == bb {
 				return bb;
 			}
-			bb = target;
+			bb = next;
 		}
 		bb
+	}
+
+	/// The block an empty `Goto` at `bb` passes to, or `bb` itself where `forward` stops.
+	fn forward_step(&self, bb: BasicBlock) -> BasicBlock {
+		let data = &self.mir.basic_blocks[bb];
+		let TerminatorKind::Goto { target, .. } = data.terminator().kind else {
+			return bb;
+		};
+		if !self.empty(bb) || data.is_cleanup || self.redirect.contains_key(&bb) {
+			return bb;
+		}
+		target
 	}
 
 	/// The JS name of a local held in a variable.
@@ -3459,6 +3468,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				.any(|&p| dominators.is_reachable(p) && dominators.dominates(bb, p))
 	}
 
+	/// Whether a jump to `bb` enters a loop: `bb` or a block `forward` passes from it
+	/// starts one.
+	fn enters_loop(&self, mut bb: BasicBlock) -> bool {
+		for _ in 0..self.mir.basic_blocks.len() {
+			if self.loop_header(bb) {
+				return true;
+			}
+			let next = self.forward_step(bb);
+			if next == bb {
+				return false;
+			}
+			bb = next;
+		}
+		false
+	}
+
 	/// Emit every pending temporary, in order.
 	fn flush_pending(&mut self, out: &mut Vec<Stmt>) {
 		for p in std::mem::take(&mut self.pending) {
@@ -3470,17 +3495,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 impl cfg::Lower<Stmt> for Fx<'_, '_, '_, '_> {
 	fn node(&mut self, node: usize, out: &mut Vec<Stmt>) -> Exit {
 		let exit = self.block(BasicBlock::from_usize(node), out);
-		let forward = |to: usize| self.forward(BasicBlock::from_usize(to)).as_usize();
-		let exit = match exit {
-			Exit::Goto(to) => Exit::Goto(forward(to)),
-			Exit::Branch(arms, default) => Exit::Branch(
-				arms.into_iter().map(|(cond, to)| (cond, forward(to))).collect(),
-				forward(default),
-			),
-			Exit::End => Exit::End,
-		};
 		// A loop runs its body anew each time: what is held back to fold into its one read
-		// runs where it was made, before the loop, if running it again would differ.
+		// runs where it was made, before the loop, if running it again would differ, or
+		// would make an object again, as a constant array would. The check walks each
+		// target's whole forwarding chain, since an empty loop header is forwarded past.
 		let targets: Vec<usize> = match &exit {
 			Exit::Goto(to) => vec![*to],
 			Exit::Branch(arms, default) => arms.iter().map(|(_, to)| *to).chain([*default]).collect(),
@@ -3488,22 +3506,42 @@ impl cfg::Lower<Stmt> for Fx<'_, '_, '_, '_> {
 		};
 		if targets
 			.into_iter()
-			.any(|to| self.loop_header(BasicBlock::from_usize(to)))
+			.any(|to| self.enters_loop(BasicBlock::from_usize(to)))
 		{
 			let (held, kept): (Vec<_>, Vec<_>) = std::mem::take(&mut self.pending)
 				.into_iter()
-				.partition(|p| p.effect || p.memory);
+				.partition(|p| p.effect || p.memory || allocates(&p.value));
 			self.pending = kept;
 			for p in held {
 				self.flush_one(p, out);
 			}
 		}
-		exit
+		let forward = |to: usize| self.forward(BasicBlock::from_usize(to)).as_usize();
+		match exit {
+			Exit::Goto(to) => Exit::Goto(forward(to)),
+			Exit::Branch(arms, default) => Exit::Branch(
+				arms.into_iter().map(|(cond, to)| (cond, forward(to))).collect(),
+				forward(default),
+			),
+			Exit::End => Exit::End,
+		}
 	}
 
 	fn flush(&mut self, out: &mut Vec<Stmt>) {
 		self.flush_pending(out);
 	}
+}
+
+/// Whether evaluating `e` makes a JS object: an array, object, class, or function literal.
+fn allocates(e: &Expr) -> bool {
+	let mut found = false;
+	visit_expr(e, &mut |e| {
+		found |= matches!(
+			e,
+			Expr::Array(_) | Expr::Object(_) | Expr::New(..) | Expr::Arrow(..) | Expr::Lambda(..)
+		)
+	});
+	found
 }
 
 impl Fx<'_, '_, '_, '_> {

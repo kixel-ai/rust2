@@ -751,15 +751,19 @@ impl<'a> Header<'a> {
 				name: abi.object(i),
 				constant: false,
 			};
-			let taken = vec![self.name(&abi.object(i))];
+			let name = self.name(&abi.object(i));
+			let mut taken = Self::made(object.traits, &name);
+			taken.push(name);
 			for method in object.methods.iter().filter(|m| home(&m.home)) {
 				self.function(method, Some(&owner), Some((&taken, Owner::Member)));
 			}
 		}
 		for (i, record) in api.records.iter().enumerate().filter(|(_, r)| !home(&r.home)) {
 			let owner = Ty::Struct(abi.record(i));
+			let name = self.name(&abi.record(i));
 			let mut taken: Vec<String> = record.fields.iter().map(|f| escape(&f.name)).collect();
-			taken.push(self.name(&abi.record(i)));
+			taken.extend(Self::made(record.traits, &name));
+			taken.push(name);
 			for method in record.methods.iter().filter(|m| home(&m.home)) {
 				self.function(method, Some(&owner), Some((&taken, Owner::Member)));
 			}
@@ -877,10 +881,24 @@ impl<'a> Header<'a> {
 			Some(rest) => escape(rest),
 			None => self.name(c),
 		};
-		match taken.contains(&bare) {
-			true => format!("{bare}_"),
-			false => bare,
-		}
+		kept_apart(bare, taken)
+	}
+
+	/// The members `traits` exports on the class `class`, which a method's name keeps apart
+	/// from: an inherent `default`, which C renames `default_` beside the trait's, is
+	/// otherwise the trait's `default_` too, as C++ escapes the keyword.
+	fn made(traits: Traits, class: &str) -> Vec<String> {
+		let names = [
+			(traits.clone, "clone"),
+			(traits.hash, "hash"),
+			(traits.display, "to_string"),
+			(traits.debug, "debug"),
+			(traits.default, "default_"),
+		];
+		(names.into_iter())
+			.filter(|(made, _)| *made)
+			.map(|(_, bare)| apart(bare, class))
+			.collect()
 	}
 
 	/// Check that no two members of `class`, the Rust type `rust`, share a name.
@@ -970,7 +988,8 @@ impl<'a> Header<'a> {
 			name: c.clone(),
 			constant: false,
 		};
-		let taken = vec![name.clone()];
+		let mut taken = Self::made(t, &name);
+		taken.push(name.clone());
 		for method in &object.methods {
 			let (decl, member) = self.function(method, Some(&owner), Some((&taken, Owner::Member)));
 			body.push(decl);
@@ -1188,6 +1207,7 @@ impl<'a> Header<'a> {
 				self.traits(&name, &c, t, Err(ty), &mut body, &mut members);
 				let owner = Ty::Struct(c.clone());
 				let mut taken = fields.clone();
+				taken.extend(Self::made(t, &name));
 				taken.push(name.clone());
 				// An opaque value's bytes are its private member `c_`.
 				if record.opaque.is_some() {
@@ -1914,6 +1934,14 @@ fn apart(bare: &str, class: &str) -> String {
 	}
 }
 
+/// `name`, with `_` appended while `taken` holds it.
+fn kept_apart(mut name: String, taken: &[String]) -> String {
+	while taken.contains(&name) {
+		name.push('_');
+	}
+	name
+}
+
 /// The C++ name of the parameter `rust`, with `_` appended while `taken` holds it or it is
 /// a name the header gives its own locals and members.
 fn parameter(rust: &str, taken: impl Fn(&str) -> bool) -> String {
@@ -2007,8 +2035,20 @@ fn init(ty: &Type) -> &'static str {
 	}
 }
 
-/// C++ comments holding `docs`, each line indented by `indent`, or nothing for none.
+/// C++ comments holding `docs`, each line indented by `indent`, or nothing for none. A line
+/// ending in a backslash, as a string continued in clap's examples does, would continue a
+/// `///` comment onto the next line, so such docs are a block comment instead.
 fn docs(docs: &str, indent: &str) -> String {
+	if docs.lines().any(|line| line.ends_with('\\')) {
+		let docs = docs.replace("*/", "* /").replace("/*", "/ *");
+		let body: String = (docs.lines())
+			.map(|line| match line.is_empty() {
+				true => format!("{indent} *\n"),
+				false => format!("{indent} * {line}\n"),
+			})
+			.collect();
+		return format!("{indent}/**\n{body}{indent} */\n");
+	}
 	docs.lines()
 		.map(|line| match line.is_empty() {
 			true => format!("{indent}///\n"),
@@ -2145,7 +2185,28 @@ pub(crate) fn escape(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{escape, parameter};
+	use super::{Header, escape, kept_apart, parameter};
+	use crate::ir::Traits;
+
+	#[test]
+	fn a_trailing_backslash_ends_no_line_comment() {
+		assert_eq!(super::docs("a\nb", "\t"), "\t/// a\n\t/// b\n");
+		assert_eq!(super::docs("x \\\n\ny */", ""), "/**\n * x \\\n *\n * y * /\n */\n");
+	}
+
+	#[test]
+	fn methods_keep_apart_from_trait_members() {
+		let traits = Traits {
+			default: true,
+			..Traits::default()
+		};
+		let taken = Header::made(traits, "Hasher");
+		// rustc-hash's `FxHasher::default`, which C renames `_default_` beside `Default`'s
+		// `_default`, while C++ escapes the keyword of both to `default_`.
+		assert_eq!(kept_apart(escape("default_"), &taken), "default__");
+		assert_eq!(kept_apart(escape("default"), &taken), "default__");
+		assert_eq!(kept_apart(escape("seed"), &taken), "seed");
+	}
 
 	#[test]
 	fn predefined_macros_escape_apart() {

@@ -324,13 +324,71 @@ export type Kind = {
 	readonly drop?: string;
 };
 
-/** The handles' frees the garbage collector makes, of each that was never disposed. */
+/** The handles' frees the garbage collector makes, of each that left the nursery undisposed. */
 const collected = new FinalizationRegistry<[number, string]>(([p, free]) => {
 	if (!live()) return;
 	s.d++;
 	w[free](p);
 	s.d--;
 });
+
+/**
+ * How many of the latest owned handles and lent bytes returned the nursery holds: one
+ * disposed while there is freed without the garbage collector's registry, which costs a
+ * return more than the rest of it and its disposal together. One that leaves it open,
+ * pushed out by later returns or by [flush], registers then, so this bounds what a
+ * dropped one keeps of Rust's.
+ */
+const NURSERY = 64;
+
+/** The nursery, oldest at [next] once full. Each knows its slot, so disposing clears it. */
+const nursery: (Handle | Bytes | undefined)[] = new Array(NURSERY).fill(undefined);
+let next = 0;
+
+/** A slot of what is in the nursery is its index; of what left it, one of these. */
+const REGISTERED = -1;
+const UNREGISTERED = -2;
+
+/** Put `x` in the nursery, pushing out the oldest: its slot. */
+function nurse(x: Handle | Bytes): number {
+	const i = next;
+	next = (i + 1) & (NURSERY - 1);
+	const old = nursery[i];
+	if (old !== undefined) evict(old);
+	nursery[i] = x;
+	return i;
+}
+
+/** Push `x` out of the nursery, registering it unless disposed. */
+function evict(x: Handle | Bytes): void {
+	if (x instanceof Handle) x.evict();
+	else bytesEvict(x);
+}
+
+/**
+ * Push out all the nursery holds, once a collection ran: so an idle nursery keeps what it
+ * holds for two collections, the one that ran this and the one that finds them, not
+ * forever. A collected sentinel runs it, as a `WeakRef` to the nursery would only lose it.
+ */
+function flush(): void {
+	for (let i = 0; i < NURSERY; i++) {
+		const x = nursery[i];
+		if (x !== undefined) evict(x);
+		nursery[i] = undefined;
+	}
+}
+
+const collections = new FinalizationRegistry<undefined>(() => {
+	flush();
+	watch();
+});
+
+/** Register a sentinel, which nothing reaches, so the next collection runs [flush]. */
+function watch(): void {
+	collections.register({}, undefined);
+}
+
+watch();
 
 /**
  * A handle to a Rust object, which counts the calls holding it. An owned one of a value
@@ -351,13 +409,25 @@ export class Handle<T extends string = string> {
 	readonly owned: boolean;
 	/** Whether disposing it drops its value through Rust's `_drop`. */
 	readonly checked: boolean;
+	/** An owned one's slot in the nursery, or whether it registered once it left. */
+	n: number;
 
 	constructor(p: number, k: Kind, owned: boolean) {
 		this.p = p;
 		this.k = k;
 		this.owned = owned;
 		this.checked = owned && k.drop !== undefined;
-		if (owned) collected.register(this, [p, k.free], this);
+		this.n = owned ? nurse(this) : UNREGISTERED;
+	}
+
+	/** Leave the nursery, registering unless disposed, as its last hold then frees it. */
+	evict(): void {
+		if (this.closed) {
+			this.n = UNREGISTERED;
+			return;
+		}
+		collected.register(this, [this.p, this.k.free], this);
+		this.n = REGISTERED;
 	}
 
 	hold(): number {
@@ -371,7 +441,8 @@ export class Handle<T extends string = string> {
 	}
 
 	free(): void {
-		collected.unregister(this);
+		if (this.n >= 0) nursery[this.n] = undefined;
+		else if (this.n === REGISTERED) collected.unregister(this);
 		const m = enter();
 		s.d++;
 		w[this.k.free](this.p);
@@ -755,6 +826,7 @@ function ownerFree(owner: number, length: number): void {
 let bytesMade: (ptr: number, length: number, owner: number, copy: Uint8Array | undefined) => Bytes;
 let bytesRead: (b: Bytes, hold: boolean) => Uint8Array | [ptr: number, owner: number, length: number];
 let bytesRelease: (b: Bytes) => void;
+let bytesEvict: (b: Bytes) => void;
 
 /**
  * Bytes a call returns. `slice()` copies them into a `Uint8Array`, `at(i)` reads one, and
@@ -775,6 +847,8 @@ export class Bytes {
 	/** The owner's hold until disposed, and one for each call viewing Rust's buffer. */
 	#h = 1;
 	#closed = false;
+	/** A lent one's slot in the nursery, or whether it registered once it left. */
+	#n = UNREGISTERED;
 
 	private constructor(key: symbol, ptr: number, length: number, owner: number, copy: Uint8Array | undefined) {
 		if (key !== minting) throw new TypeError("only Rust makes bytes it returned");
@@ -784,7 +858,7 @@ export class Bytes {
 		this.#copy = copy;
 		if (owner !== 0) {
 			lentLength += length;
-			unlent.register(this, [owner, length], this);
+			this.#n = nurse(this);
 		}
 	}
 
@@ -823,7 +897,8 @@ export class Bytes {
 
 	#release(): void {
 		if (--this.#h === 0 && this.#owner !== 0) {
-			unlent.unregister(this);
+			if (this.#n >= 0) nursery[this.#n] = undefined;
+			else if (this.#n === REGISTERED) unlent.unregister(this);
 			ownerFree(this.#owner, this.#length);
 		}
 	}
@@ -842,6 +917,14 @@ export class Bytes {
 			return [b.#ptr, b.#owner, b.#length];
 		};
 		bytesRelease = (b) => b.#release();
+		bytesEvict = (b) => {
+			if (b.#closed) {
+				b.#n = UNREGISTERED;
+				return;
+			}
+			unlent.register(b, [b.#owner, b.#length], b);
+			b.#n = REGISTERED;
+		};
 	}
 }
 
