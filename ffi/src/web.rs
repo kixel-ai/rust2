@@ -22,6 +22,10 @@
 //! [`runtime/rt.ts`](../runtime/rt.ts), and the module's std imports only web APIs: its
 //! clock is `performance.now`, its randomness `crypto.getRandomValues`, and its output the
 //! console.
+//!
+//! Beside each module it writes the module's JavaScript and declarations, which
+//! [`crate::js`] makes, and a `package.json`, so `web/` is an npm package whose `load`
+//! defaults to the `.wasm` beside it.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;

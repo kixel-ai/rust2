@@ -229,6 +229,14 @@ class Web(unittest.TestCase):
             self.assertEqual(config["name"], "@moq/moq-ffi")
             self.assertEqual(config["exports"], {".": "./index.ts", "./Session": "./Session.ts", "./glue": "./glue.ts", "./rt": "./rt.ts"})
 
+    def test_size_unless_the_crate_chooses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = Path(tmp) / "Cargo.toml"
+            manifest.write_text('[profile.release]\nlto = "fat"\n')
+            self.assertEqual(package.web_profile(manifest), {"CARGO_PROFILE_RELEASE_OPT_LEVEL": "s"})
+            manifest.write_text('[profile.release]\nopt-level = 3\n')
+            self.assertEqual(package.web_profile(manifest), {})
+
     def test_refuses_another_version(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

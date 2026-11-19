@@ -1,7 +1,8 @@
 name: Binding packages
 
-# The shared, read-only builder of a crate's rust2-ffi Python wheels and Swift package, which
-# a release workflow ffi/release/package.py's `init` writes calls at a pinned rust2 commit.
+# The shared, read-only builder of a crate's rust2-ffi Python wheels, Swift package, and web
+# package, which a release workflow ffi/release/package.py's `init` writes calls at a pinned
+# rust2 commit.
 # It publishes nothing and holds no credentials: the caller's own jobs publish what it
 # uploads, once its consumers pass. See ffi/release/README.md.
 on:

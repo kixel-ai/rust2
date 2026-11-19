@@ -20,6 +20,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import zipfile
 
 HERE = Path(__file__).resolve().parent
@@ -610,6 +611,14 @@ def web_package(info, web_dir, wasm, scope, out):
     return npm, jsr
 
 
+def web_profile(manifest):
+    """The web module's build at `opt-level = "s"`, which a page downloads, unless the crate's
+    release profile, which the export carries, chooses its own level."""
+    with open(manifest, "rb") as f:
+        release = tomllib.load(f).get("profile", {}).get("release", {})
+    return {} if "opt-level" in release else {"CARGO_PROFILE_RELEASE_OPT_LEVEL": "s"}
+
+
 def web(args):
     """The web binding's npm tarball and JSR package, and native Rust's output on its target."""
     info = facts(args.manifest_path)
@@ -621,7 +630,8 @@ def web(args):
     manifest = Path(args.manifest_path).resolve()
     run("rustup", "target", "add", WEB_TARGET, cwd=manifest.parent)
     built = cargo(args.manifest_path, "build", "--locked", "--release", "--manifest-path", export_dir / "Cargo.toml",
-                  "--target", WEB_TARGET, "--target-dir", export_dir / "target", "--features", "web")
+                  "--target", WEB_TARGET, "--target-dir", export_dir / "target", "--features", "web",
+                  env=web_profile(export_dir / "Cargo.toml"))
     sys.stderr.write(built.stderr)
     wasm = export_dir / "target" / WEB_TARGET / "release" / f"{info['lib']}.wasm"
     npm, _ = web_package(info, export_dir / "web", wasm, args.scope, out)

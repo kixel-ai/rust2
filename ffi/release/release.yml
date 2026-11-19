@@ -1,8 +1,9 @@
 name: Release @NAME@ bindings
 
 # Written by rust2's `ffi/release/package.py init`; yours to edit. rust2's builder, pinned
-# below, exports @NAME@'s pub API, builds its Python wheels and Swift package, and checks
-# them in clean consumers, all read-only. The jobs after it publish only a tag's build:
+# below, exports @NAME@'s pub API, builds its Python wheels, Swift package, and web package,
+# and checks them in clean consumers, all read-only. The jobs after it publish only a tag's
+# build:
 #
 # - PyPI: the project @NAME@, through the trusted publisher this repository registers there
 #   for this workflow and the `pypi` environment.

@@ -430,12 +430,21 @@ revision later, on the same host and load (1 and 3 rounds).
 | Swift | 3 | 2,147 KiB | 302 KiB | none |
 | Go | 23 | 3,554 KiB | 435 KiB | none |
 | Dart | 1 | 4,034 KiB | 376 KiB | 1,643 KiB / 62 KiB |
+| TypeScript | 684 | 4,498 KiB | 1,000 KiB | 4,535 KiB / 259 KiB |
 
 | native library | as built | stripped |
 |---|---|---|
 | `libmoq.a`, the C ABI that C, C++, Swift, and Go link | 193,455 KiB | 104,224 KiB |
 | `libmoq.so`, with the Kotlin and Dart glue | 61,361 KiB | 46,029 KiB |
 | `python/libmoq.so`, the CPython extension | 56,145 KiB | 42,166 KiB |
+| `moq.wasm`, the wasm32 stand-in's module, with the web glue | 19,596 KiB | 17,632 KiB |
+
+| web binding | raw | gzip | brotli |
+|---|---|---|---|
+| `moq.wasm`, stripped | 17,632 KiB | 4,657 KiB | 2,893 KiB |
+| the TypeScript, 684 modules | 4,498 KiB | 1,000 KiB | 855 KiB |
+| the npm package's JavaScript and declarations | 5,670 KiB | 1,454 KiB | 1,226 KiB |
+| `export.ts` bundled by esbuild, minified | 23 KiB | 7 KiB | 7 KiB |
 
 The stand-in exports all of moq-net, kio, and moq-pattern, and hang, moq-mux, and
 moq-tokio's session side, far more than moq-ffi's UniFFI interface, so its sizes do not
@@ -444,6 +453,17 @@ source each binding builds with: the C ABI's `src/lib.rs` and runtime, which eve
 but Python's links, and `src/jni`, `src/python`, and `src/dart`. The native libraries are
 the export's default `release` build, which links all of moq's crates; "stripped" is
 `strip --strip-all` on a copy.
+
+The web rows (measured 2026-11-19 on fedora at the same moq pin, with this table's other
+rows from 2026-11-13) are the wasm32 stand-in's export, which leaves out moq-tokio, built
+with moq's release profile: fat LTO at `opt-level = 3`. A module "stripped" has no custom
+section, its names among them; each file is compressed alone, gzip at level 6 and brotli at
+11, as a host serves it. The release builder makes the packaged module at `opt-level =
+"s"` when the crate sets no level: 13,359 KiB as built, 10,981 KiB stripped, 3,250 KiB
+gzipped, and 2,135 KiB brotli'd. A caller pays for what it imports: `export.ts`, the
+TypeScript benchmark, names 13 of the 684 modules, and esbuild's bundle of it and the
+binding is 23 KiB, against 4.5 MiB of TypeScript. JSR caps a version at 20 MiB, which the
+TypeScript and the `opt-level = 3` module pass, and the `"s"` module fits.
 
 ### What a call spends
 

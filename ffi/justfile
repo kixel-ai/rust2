@@ -194,7 +194,7 @@ bench-run rounds="3":
             run "$lang"
         done
     done
-    python3 -I ../bench/ffi/report.py "$raw" "$builds" "$out" target/export/moq-web > target/bench/report.md
+    python3 -I ../bench/ffi/report.py "$raw" "$builds" "$out" target/export/moq-web target/bench-ts/export.ts > target/bench/report.md
     cat target/bench/report.md
 
 # Run what bench-build built once each, under `codspeed run` in the bench shell's environment, so CodSpeed's CPU simulation counts each single-threaded case: the CodSpeed workflow's run.
