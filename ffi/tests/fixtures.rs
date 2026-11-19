@@ -1201,7 +1201,7 @@ fn api_python() {
 		api.transcript,
 		"the Python transcript differs from the native one"
 	);
-	for case in ["futures", "owned", "values", "calls"] {
+	for case in ["futures", "owned", "values", "calls", "leaf"] {
 		run(&mut python(&dir, &[case]));
 	}
 	for (case, message) in [
@@ -1942,6 +1942,39 @@ fn api_dart() {
 		writes: &[],
 	};
 	step.run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&generated));
+	// What looks like a leaf but reaches user code is no leaf call. The script catches a
+	// hand-written `PartialEq`; a getter's drain it cannot, as a home drains each drop
+	// queued for it at once, apart from any call. Nor is one walking a length the caller
+	// picks, which would stall the isolate group's collector until it returns.
+	let code = std::fs::read_to_string(generated.join("api.dart")).unwrap();
+	let leaf = |symbol: &str| code.contains(&format!("(symbol: '{symbol}', isLeaf: true)"));
+	assert!(
+		[
+			"api_Plain_eq",
+			"api_Plain_hash",
+			"api_Plain_n_get",
+			"api_Plain_n_set",
+			"api_contract"
+		]
+		.into_iter()
+		.all(leaf),
+		"a leaf is a leaf call"
+	);
+	assert!(
+		[
+			"api_Hooked_eq",
+			"api_Forged_eq",
+			"api_Pinned_value_get",
+			"api_Part_value_get",
+			"api_Part_eq",
+			"api_Part_hash",
+			"api_Labeled_eq",
+			"api_Labeled_hash"
+		]
+		.into_iter()
+		.all(|symbol| !leaf(symbol)),
+		"a call reaching user code or walking a caller's length is no leaf call"
+	);
 	let lib = api.lib.join(PYTHON_LIB);
 	let exe = dart_compile(
 		"api",
@@ -1956,7 +1989,7 @@ fn api_dart() {
 		api.transcript,
 		"the Dart transcript differs from the native one"
 	);
-	for case in ["futures", "owned", "closed", "bytes", "bounds"] {
+	for case in ["futures", "owned", "closed", "bytes", "bounds", "leaf"] {
 		run(&mut dart_run(&exe, &[case]));
 	}
 	// The protocol scripts, through `tests/protocol.dart`.

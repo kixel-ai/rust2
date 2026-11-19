@@ -32,6 +32,8 @@ single-threaded case on every push to main and on each PR that can move one.
 | shared getter, own getter | the u64 getter the same way | none |
 | record return | `track.largest()`: an `Option` of two `u64`s, copied across | `track.info()`, a record |
 | object return | `track.info()`: a new handle, freed | none |
+| field | `info.priority`: an `i8` `pub` field read, which no user code reaches, so a leaf in C, Python, and Dart alone | none |
+| hop call, hop field | Dart's handle call and field read while Rust holds a closure of the isolate | none |
 | write | `group.write_frame(at, frame)` with one `Timestamp` a group and 100 B, copied into Rust | `write_frame` |
 | stamped write | the same with a new `Timestamp` per frame, as a caller holding a `u64` must | none |
 | ready read | a 100 B frame written, then read through a new future ready at its first poll | `await noop_async()`, plus a write |
@@ -211,6 +213,55 @@ them on one die or across both, whose line transfer is slower. Read the shared r
 their order of magnitude, against a handle each, at the same load. Rust's and Python's
 columns are not remeasured: Rust borrows natively, and Python's threads serialize on the
 GIL, which dwarfs the handle's own contention.
+
+## Leaf calls
+
+A leaf is a call the export proves runs no code but std's and the glue's, waits on no
+lock, and calls no binding: a primitive `pub` field of a `Send` object reached without a
+`Deref`, or a `PartialEq` or `Hash` derived down to primitives ([`Abi::leaf`](../../ffi/src/abi.rs)).
+Python keeps the GIL across one, and Dart makes it a leaf call (`isLeaf`) to the C function
+itself on the isolate's thread, with no serving thunk, no thread hop, and no `_Arena`.
+The benchmark's u64 getter, `demand.sequence()`, is a method, which the proof cannot see
+into, so the `field` case reads `track::Info::priority` instead; `group.sequence` is a
+field too, but reached through `group::Producer`'s `Deref`, which is user code.
+
+Measured 2026-11-19 on **fedora**, an AMD Ryzen 9 9950X (16 cores, 32 threads), through
+`quest gate`, against moq `ffcb7cd9`. Before is rust2 `52070b3d` with this change's
+programs; after is this change. Each program alternated before and after for 5 rounds at a
+load average of 4 to 26, and each cell is the median wall time in ns per call.
+
+| case | before | after |
+|---|---|---|
+| C `field`, which no binding wraps | 8.1 | 8.0 |
+| Python `field` | 63.3 | 26.2 |
+| Dart `field` | 30.8 | 12.6 |
+| Dart `hop:field` | 2,296 | 12.3 |
+| Dart `hop:call`, no leaf | 2,718 | 2,549 |
+
+Dart's three levers, apart, as variants of the generated `priorityGet` built over each side's
+library, in the same rounds (wall ns):
+
+| variant | `field` | `hop:field` |
+|---|---|---|
+| through the serving thunk, in an arena holding the handle (before) | 30.8 | 2,296 |
+| through the thunk, with no arena or hold | 21.7 | 2,480 |
+| the C function directly, not as a leaf, with no arena | 21.4 | 21.5 |
+| a leaf call, in an arena holding the handle | 19.6 | 21.4 |
+| a leaf call, with no arena (after) | 12.6 | 12.3 |
+
+So the arena costs about 9 ns, `isLeaf` saves another 9, and the thunk costs nothing until
+Rust holds a closure, when it hands each call to a worker thread for 2 to 3 us. A call that
+is no leaf but holds only its receiver needs no arena either, only the hold: it now holds
+the receiver itself. Measured 2026-11-19 the same way, 5 rounds at a load of 16 to 24,
+against the leaf change alone: Dart's handle call fell from 46.1 to 37.9 ns, the u64 getter
+from 31.1 to 23.4, the record return from 56.5 to 50.0, and `frame.payload` from 65.6 to
+60.7, with `field` at 13.0; a call the arena still serves, such as the write, moved only
+within the spread of its rounds.
+
+Python's 37 ns is more than the 10 to 15 the per-language audit estimated for the GIL's
+round trip, as `rt::call` does more around it: it may look for the event loop running, and
+after the call drains what other threads freed and resumes what the call woke, all of which
+a leaf skips. A getter that is no leaf, such as `demand.sequence()`, still pays it.
 
 ## Swift's inlined calls
 
@@ -522,7 +573,9 @@ frame path:
    its hold), Go 31 (cgo, `defer`, and its hold), and Python 37 (argument parsing and the
    GIL released and taken back, so Rust may call Python from another thread); Python's and
    Dart's hold counts are since dropped for a checked type, as below. BoltFFI's
-   Python getter, which holds the GIL, measured 63 ns.
+   Python getter, which holds the GIL, measured 63 ns. A leaf keeps the GIL in Python and
+   skips Dart's arena, and a Dart call holding only its receiver skips it too:
+   [Leaf calls](#leaf-calls).
 
 ### Per-handle baseline
 
