@@ -666,7 +666,9 @@ def hide(static, shared, lib, target, work):
     roots = [arg for name in keep for arg in ("-u", name)]
     merged, hidden, archive = work / "merged.o", work / "hidden.o", work / static.name
     if "apple" in target:
-        run("cc", "-r", "-nostdlib", "-arch", "arm64", f"-mmacosx-version-min={MACOS_WHEEL}",
+        # -d defines C's tentative definitions, such as aws-lc's `tty_in`, which would
+        # otherwise stay common, and global, past the exported-symbols list.
+        run("cc", "-r", "-nostdlib", "-arch", "arm64", f"-mmacosx-version-min={MACOS_WHEEL}", "-Wl,-d",
             *(f"-Wl,{arg}" for arg in roots), f"-Wl,-exported_symbols_list,{names}", static, "-o", hidden)
         run("libtool", "-static", "-o", archive, hidden)
         # Rust's objects embed LLVM bitcode newer than Xcode's nm reads.
