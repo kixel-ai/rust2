@@ -30,6 +30,8 @@ wasmparser = { version = "0.263.0", default-features = false, features = ["std"]
 
 [dev-dependencies]
 loom = "0.7.3"
+proc-macro2 = { version = "1.0.107", features = ["span-locations"] }
+syn = { version = "3.0.10", default-features = false, features = ["clone-impls", "full", "parsing", "printing"] }
 
 [lints]
 workspace = true

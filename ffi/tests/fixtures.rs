@@ -10,6 +10,8 @@
 mod shapes;
 #[path = "fixtures/step.rs"]
 mod step;
+#[path = "fixtures/transcript/mod.rs"]
+mod transcript;
 
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsString;
@@ -3848,4 +3850,14 @@ fn profiled() {
 		stderr.contains("Cargo.toml:9: `profile.dev.package.\"*\"` would reach"),
 		"{stderr}"
 	);
+}
+
+#[test]
+fn transcript_parses() {
+	let api = api();
+	let t = transcript::Transcript::load(
+		&api.out.join("api.json"),
+		&manifest_dir().join("fixtures/api/examples/transcript.rs"),
+	);
+	assert!(!t.steps.is_empty());
 }
