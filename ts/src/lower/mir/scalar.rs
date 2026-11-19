@@ -109,7 +109,11 @@ impl<'tcx> Shape<'tcx> {
 			Shape::Unit => {}
 			Shape::Leaf(ty) => out.push((suffix.to_string(), Part::Value(*ty))),
 			Shape::Slice(elem) => {
-				for (key, part) in [("Data", Part::Data(*elem)), ("Start", Part::Number), ("Len", Part::Number)] {
+				for (key, part) in [
+					("Data", Part::Data(*elem)),
+					("Start", Part::Number),
+					("Len", Part::Number),
+				] {
 					out.push((format!("{suffix}{key}"), part));
 				}
 			}
@@ -857,8 +861,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let gargs = gargs.skip_binder();
 		let (owner, name) = library::key(tcx, def_id)?;
 		// A `Vec` of elements other than bytes, as its `Deref` and `Index` name it.
-		let vec = |ty: Ty<'tcx>| matches!(ty.kind(), ty::Adt(adt, args)
-			if Std::of(tcx, adt.did()) == Some(Std::Vec) && !crate::lower::byte(args.type_at(0)));
+		let vec = |ty: Ty<'tcx>| {
+			matches!(ty.kind(), ty::Adt(adt, args)
+			if Std::of(tcx, adt.did()) == Some(Std::Vec) && !crate::lower::byte(args.type_at(0)))
+		};
 		match (owner.as_str(), name.as_str()) {
 			("Vec", "as_slice" | "as_mut_slice") if !crate::lower::byte(gargs.type_at(0)) => Some(false),
 			("Deref", "deref") | ("DerefMut", "deref_mut") if vec(gargs.type_at(0)) => Some(false),
@@ -1096,6 +1102,20 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 			shapes.retain(|l, _| !bad.contains(l));
 		}
+		// The fake pointer a bounds check reads the length of, which its parts give.
+		for (bb, data) in mir.basic_blocks.iter_enumerated() {
+			for (i, stmt) in data.statements.iter().enumerate() {
+				if let StatementKind::Assign(assign) = &stmt.kind
+					&& let Rvalue::RawPtr(mir::RawPtrKind::FakeForPtrMetadata, p) = &assign.1
+					&& let Some(shape) = shapes.get(&p.local)
+					&& let (node, n) = walk(shape, p.projection)
+					&& matches!(node.shape, Shape::Slice(_))
+					&& p.projection[n..] == [ProjectionElem::Deref]
+				{
+					self.noops.insert((bb, i));
+				}
+			}
+		}
 		let mut shapes: Vec<(Local, Shape<'tcx>)> = shapes.into_iter().collect();
 		shapes.sort_by_key(|(l, _)| *l);
 		for (local, shape) in shapes {
@@ -1232,6 +1252,15 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							&& let (node, n) = walk(shape, p.projection)
 							&& n == p.projection.len()
 							&& matches!(node.shape, Shape::Slice(_))
+						{
+							taken.insert(at);
+						}
+						// The fake pointer a bounds check reads the length of.
+						if let Rvalue::RawPtr(mir::RawPtrKind::FakeForPtrMetadata, p) = rvalue
+							&& let Some(shape) = shapes.get(&p.local)
+							&& let (node, n) = walk(shape, p.projection)
+							&& matches!(node.shape, Shape::Slice(_))
+							&& p.projection[n..] == [ProjectionElem::Deref]
 						{
 							taken.insert(at);
 						}
@@ -1597,6 +1626,22 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		)
 	}
 
+	/// The length of the slice `place` is, or of the one the fake pointer it is points at,
+	/// if a local holds it as its parts.
+	pub(super) fn scalar_len(&mut self, place: Place<'tcx>, span: Span) -> Option<Expr> {
+		let (place, rest) = match place.as_local().and_then(|l| self.def_rvalue(l)) {
+			Some(Rvalue::RawPtr(mir::RawPtrKind::FakeForPtrMetadata, p)) => (*p, &[ProjectionElem::Deref][..]),
+			_ => (place, &[][..]),
+		};
+		let shape = self.scalars.get(&place.local)?.shape.clone();
+		let (node, n) = walk(&shape, place.projection);
+		if !matches!(node.shape, Shape::Slice(_)) || place.projection[n..] != *rest {
+			return None;
+		}
+		let len = node.at + 2;
+		Some(self.scalar_parts(place.local, len..len + 1, span).remove(0).0)
+	}
+
 	/// Whether `local` is assigned once, and not a parameter, which its caller assigns first.
 	fn once(&self, local: Local) -> bool {
 		self.defs[local] == 1 && !self.is_arg(local)
@@ -1877,7 +1922,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				parts
 			}
 			Producer::Slotted => self.slotted_call(local, args, span, out),
-			Producer::Source { range } => self.source_parts(&args[0].node, range.then(|| &args[1].node), span, out)
+			Producer::Source { range } => self
+				.source_parts(&args[0].node, range.then(|| &args[1].node), span, out)
 				.into_iter()
 				.map(Some)
 				.collect(),
@@ -2484,8 +2530,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// `value`, held where reading it later reads the same: in place if it does, or else
 	/// in a variable named after `base` of type `ty` assigned it now.
 	fn steady_value(&mut self, value: Expr, base: &str, ty: Type, out: &mut Vec<Stmt>) -> (Expr, bool) {
-		let made =
-			matches!(&value, Expr::New(f, args) if matches!(&**f, Expr::Rs(n) if n == "ByteSlice" || n == "Slice") && args.len() == 3);
+		let made = matches!(&value, Expr::New(f, args) if matches!(&**f, Expr::Rs(n) if n == "ByteSlice" || n == "Slice") && args.len() == 3);
 		if made || self.steady_expr(&value) {
 			return (value, true);
 		}

@@ -1174,14 +1174,14 @@ export function subslices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 		} else if (_45 === 6) {
 			const items2: rs.u16[] = words.items;
-			if (new rs.Slice(items2, 0, items2.length).length >= 2) {
+			if (items2.length >= 2) {
 				const swapped = items2[0];
 				items2[0] = items2[items2.length - 1];
 				items2[items2.length - 1] = swapped;
 				pokeWords(13, new rs.Slice(items2, 1, items2.length - 2));
 			}
 			const items3: Pair.Pair[] = pairs.items;
-			if (new rs.Slice(items3, 0, items3.length).length >= 1) {
+			if (items3.length >= 1) {
 				pokePairs(10, new rs.Slice(items3, 0, items3.length - 1));
 			}
 			const slice3: rs.Slice<rs.u32> = rs.sliceFrom(array);
