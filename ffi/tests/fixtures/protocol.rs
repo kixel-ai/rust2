@@ -101,6 +101,10 @@ const DEADLINE: Duration = Duration::from_secs(20 * 60);
 /// `cmd`'s output once it exits, killing it past [`DEADLINE`] and failing with `what`, the
 /// scripts it was running.
 fn within(cmd: &mut Command, what: &str) -> Output {
+	// Its own process group, so the deadline ends what it starts too, such as the JVM the
+	// `kotlin` launcher runs, which would otherwise hold its pipes open.
+	#[cfg(unix)]
+	std::os::unix::process::CommandExt::process_group(cmd, 0);
 	let mut child = cmd
 		.stdout(Stdio::piped())
 		.stderr(Stdio::piped())
@@ -122,6 +126,10 @@ fn within(cmd: &mut Command, what: &str) -> Output {
 			break status;
 		}
 		if start.elapsed() > DEADLINE {
+			#[cfg(unix)]
+			let _ = Command::new("kill")
+				.args(["-KILL", "--", &format!("-{}", child.id())])
+				.status();
 			let _ = child.kill();
 			let _ = child.wait();
 			let stderr = stderr.join().unwrap();
