@@ -41,7 +41,7 @@ The builder takes the crate's `Cargo.toml` and five optional inputs the caller's
 `features` to ship, an `example` whose stdout is native Rust's transcript, and the
 `python-check`, `swift-check`, and `c-check` programs that must print it through the
 installed packages. Without a check, a consumer only imports the module, or links a function
-of each C and C++ header. A `c-check` is C or C++ by its extension, built at C11 or C++17.
+of each C and C++ header. A `c-check` is C or C++ by its extension.
 
 ## What the builder does
 
@@ -80,10 +80,13 @@ of each C and C++ header. A `c-check` is C or C++ by its extension, built at C11
    - `lib/pkgconfig/<lib>.pc`, the shared library by default and the static one with
      `--static`; none on Windows, whose MSVC has no pkg-config convention.
 
-   The shared library's name holds Cargo's compatible line, `lib<lib>.so.1` for 1.x,
-   `.so.0.4` for 0.4.x, the whole version for a 0.0.x or prerelease, as its SONAME, or its
-   `@rpath` install name on macOS (`lib<lib>.1.dylib`); the [API lock](/ffi/README.md#the-api-lock)
-   is what keeps a line's ABI. The CMake and CPS versions accept a request within that line.
+   The shared library's SONAME, or `@rpath` install name on macOS, holds the whole version,
+   `lib<lib>.so.0.4.12` or `lib<lib>.0.4.12.dylib`: every binding checks at load that the
+   library's [contract](/ffi/README.md#the-c-abi) is its header's, so no two releases'
+   libraries can stand in for each other. A build-time request is another matter, as header
+   and library come together: the CMake and CPS versions accept one within Cargo's
+   compatible line, 0.4 for 0.4.12, and a prerelease only by a request naming no version.
+   Both targets require C11 and C++17 of what links them, the headers' floor.
    On Windows it is `bin/<lib>.dll` with `lib/<lib>.dll.lib`, beside the static `lib/<lib>.lib`.
 
    The static library is one object prelinked from Rust's archive (`ld -r`, then `objcopy`

@@ -422,35 +422,43 @@ def local_manifest(state, package, framework):
 CPS_VERSION = "0.14.1"
 
 
-def abi_line(version):
-    """The Cargo-compatible line of `version`: the SONAME's suffix, and the oldest version it serves.
+def compat_version(version):
+    """The oldest version `version` serves a build-time request for, by Cargo's compatibility.
 
     Cargo calls 1.2.3 compatible with 1.x, 0.4.2 with 0.4.x, and 0.0.3 with itself; a
-    prerelease promises nothing, so it serves only itself. The API lock refuses a break,
-    an opaque value's size included, within a line.
+    prerelease promises nothing, so it serves only itself.
     """
     match = re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?", version)
     if match is None:
         raise SystemExit(f"version {version} is not semver")
     major, minor, patch, pre, _ = match.groups()
     if pre:
-        exact = f"{major}.{minor}.{patch}{pre}"
-        return exact, exact
+        return f"{major}.{minor}.{patch}{pre}"
     if major != "0":
-        return major, f"{major}.0.0"
+        return f"{major}.0.0"
     if minor != "0":
-        return f"0.{minor}", f"0.{minor}.0"
-    return f"0.0.{patch}", f"0.0.{patch}"
+        return f"0.{minor}.0"
+    return f"0.0.{patch}"
 
 
-def c_files(lib, target, abi):
+def soname_version(version):
+    """The version a shared library's name holds: all of it, as each release is its own ABI.
+
+    Every binding checks at load that the library's contract, a hash of everything its header
+    declares, is its header's, so even an addition makes two releases' libraries differ.
+    """
+    compat_version(version)
+    return version.split("+")[0]
+
+
+def c_files(lib, target, version):
     """The archive's library paths: static, shared, the shared library's link name, and its import library."""
     if "windows" in target:
         return {"static": f"lib/{lib}.lib", "shared": f"bin/{lib}.dll", "link": None, "implib": f"lib/{lib}.dll.lib"}
     if "apple" in target:
-        return {"static": f"lib/lib{lib}.a", "shared": f"lib/lib{lib}.{abi}.dylib", "link": f"lib/lib{lib}.dylib",
+        return {"static": f"lib/lib{lib}.a", "shared": f"lib/lib{lib}.{soname_version(version)}.dylib", "link": f"lib/lib{lib}.dylib",
                 "implib": None}
-    return {"static": f"lib/lib{lib}.a", "shared": f"lib/lib{lib}.so.{abi}", "link": f"lib/lib{lib}.so", "implib": None}
+    return {"static": f"lib/lib{lib}.a", "shared": f"lib/lib{lib}.so.{soname_version(version)}", "link": f"lib/lib{lib}.so", "implib": None}
 
 
 def native_libs(flags, target):
@@ -502,7 +510,7 @@ def cmake_quote(value):
 
 
 def cmake_config(info, target, files, natives):
-    """`<lib>-config.cmake`: `<lib>::<lib>` the static library, `<lib>::shared` the shared one."""
+    """`<lib>-config.cmake`: `<lib>::<lib>` the static library, `<lib>::shared` the shared one, each at C11 and C++17 or newer."""
     lib = info["lib"]
     libs = [name if kind == "lib" else f"-framework {name}" for kind, name in natives if kind != "flag"]
     options = [name for kind, name in natives if kind == "flag"]
@@ -523,6 +531,7 @@ if(NOT TARGET {lib}::{lib})
         IMPORTED_LOCATION "{prefix}/{files['static']}"
         IMPORTED_LINK_INTERFACE_LANGUAGES C
         INTERFACE_INCLUDE_DIRECTORIES "{prefix}/include"
+        INTERFACE_COMPILE_FEATURES "c_std_11;cxx_std_17"
         INTERFACE_LINK_LIBRARIES {cmake_quote(';'.join(libs))}
         INTERFACE_LINK_OPTIONS {cmake_quote(';'.join(options))}
     )
@@ -533,6 +542,7 @@ if(NOT TARGET {lib}::shared)
     set_target_properties({lib}::shared PROPERTIES
         {shared_props}
         INTERFACE_INCLUDE_DIRECTORIES "{prefix}/include"
+        INTERFACE_COMPILE_FEATURES "c_std_11;cxx_std_17"
     )
 endif()
 
@@ -542,7 +552,7 @@ unset(_{lib}_prefix)
 
 def cmake_version(info):
     """`<lib>-config-version.cmake`: Cargo's compatibility, a range's upper bound, and 64-bit consumers alone."""
-    _, compat = abi_line(info["version"])
+    compat = compat_version(info["version"])
     if "-" in info["version"].split("+")[0]:
         # CMake's versions are numbers alone, so no request can name a prerelease, and none
         # may take one for the release it precedes.
@@ -585,11 +595,12 @@ endif()
 def cps(info, files, natives):
     """`<lib>.cps`, the Common Package Specification's description: the same two components."""
     lib = info["lib"]
-    _, compat = abi_line(info["version"])
+    compat = compat_version(info["version"])
     static = {
         "type": "archive",
         "location": f"@prefix@/{files['static']}",
         "includes": ["@prefix@/include"],
+        "compile_features": ["c11", "c++17"],
         "link_languages": ["c"],
     }
     libs = [name if kind == "lib" else f"-framework {name}" for kind, name in natives if kind != "flag"]
@@ -598,7 +609,8 @@ def cps(info, files, natives):
         static["link_libraries"] = libs
     if flags:
         static["link_flags"] = flags
-    shared = {"type": "dylib", "location": f"@prefix@/{files['shared']}", "includes": ["@prefix@/include"]}
+    shared = {"type": "dylib", "location": f"@prefix@/{files['shared']}", "includes": ["@prefix@/include"],
+              "compile_features": ["c11", "c++17"]}
     if files["implib"]:
         shared["link_location"] = f"@prefix@/{files['implib']}"
     description = {
@@ -728,8 +740,7 @@ def check_soname(shared, soname, target):
 def c_archive(info, manifest, export_dir, target, out):
     """The C and C++ binding for `target`: headers, both libraries, and pkg-config, CMake, and CPS files."""
     lib, version = info["lib"], info["version"]
-    abi, _ = abi_line(version)
-    files = c_files(lib, target, abi)
+    files = c_files(lib, target, version)
     soname = Path(files["shared"]).name
     linux, apple = "linux" in target, "apple" in target
     link_args = []
@@ -862,7 +873,7 @@ def consume_c(archive, check, native):
     target = prefix.name.rsplit(f"-{version}-", 1)[1]
     # CMake spells a version in numbers alone, so a prerelease is found by none.
     request = "" if "-" in version.split("+")[0] else " " + re.match(r"[0-9]+\.[0-9]+\.[0-9]+", version).group()
-    files = c_files(lib, target, abi_line(version)[0])
+    files = c_files(lib, target, version)
     soname = Path(files["shared"]).name
     source = c_check(lib, check, work)
     # Only the caller's check prints the transcript; the smoke program prints nothing.
@@ -877,10 +888,6 @@ def consume_c(archive, check, native):
         found = r"\.cps$" if mode == "cps" else r"-config\.cmake$"
         (project / "CMakeLists.txt").write_text(f"""cmake_minimum_required(VERSION 4.3)
 project(check LANGUAGES C CXX)
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package({lib}{request} REQUIRED{configs})
 if(NOT {lib}_CONFIG MATCHES "{found}")
     message(FATAL_ERROR "found ${{{lib}_CONFIG}}, not the {mode} file")
