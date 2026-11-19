@@ -919,6 +919,12 @@ fun socketHex(addr: SocketAddr): String = when (addr) {
 /** Whether [f] throws `IllegalArgumentException`, as a value its Rust type cannot hold does. */
 fun rejects(f: () -> Any?): Boolean = runCatching(f).exceptionOrNull() is IllegalArgumentException
 
+/** The library's `usize::MAX`, which its target's pointer width sets: 32 bits on armv7 and x86 Android. */
+fun usizeMax(): ULong = if (pointerBits(platform()) == 64u) ULong.MAX_VALUE else UInt.MAX_VALUE.toULong()
+
+/** The library's `isize::MIN` and `isize::MAX`. */
+fun isizeRange(): LongRange = if (pointerBits(platform()) == 64u) Long.MIN_VALUE..Long.MAX_VALUE else Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()
+
 /**
  * Each type's edge values, passed through Rust and back, as transcript.rs prints them; then
  * each value the Kotlin type holds and Rust's cannot, which throws, and each conversion to
@@ -929,8 +935,8 @@ fun lossless() {
 		.map { sameDuration(it) }
 	println("lossless duration ${durations.joinToString(" ") { "${it.secs}.${it.nanos.toString().padStart(9, '0')}" }}")
 	println("lossless u64 ${sameU64(0u)} ${sameU64(1uL shl 63)} ${sameU64(ULong.MAX_VALUE)}")
-	println("lossless usize ${sameUsize(0u)} ${sameUsize(ULong.MAX_VALUE)}")
-	println("lossless isize ${sameIsize(Long.MIN_VALUE)} ${sameIsize(Long.MAX_VALUE)}")
+	println("lossless usize ${sameUsize(0u)} ${sameUsize(usizeMax())}")
+	println("lossless isize ${sameIsize(isizeRange().first)} ${sameIsize(isizeRange().last)}")
 	val two = java.math.BigInteger.valueOf(2)
 	val wides = listOf(java.math.BigInteger.ZERO, two.pow(64), two.pow(128) - java.math.BigInteger.ONE)
 	println("lossless u128 ${wides.joinToString(" ") { sameU128(it).toString(16).padStart(32, '0') }}")
@@ -1356,7 +1362,7 @@ fun readings() {
 	for (n in listOf(1u, 2u, 3u, 127u)) {
 		val r = reading(n)!!
 		check(r.debug() == readingDebug(n), "reading $n crosses as Rust holds it: ${r.debug()}")
-		check(r.count == ULong.MAX_VALUE - n && r.len == ULong.MAX_VALUE - n && r.tag == (UShort.MAX_VALUE - n.toUShort()).toUShort(), "reading $n's unsigned scalars")
+		check(r.count == ULong.MAX_VALUE - n && r.len == usizeMax() - n && r.tag == (UShort.MAX_VALUE - n.toUShort()).toUShort(), "reading $n's unsigned scalars")
 		check(r.at.x == Int.MIN_VALUE + n.toInt() && r.offset == (Byte.MIN_VALUE + n.toInt()).toByte(), "reading $n's signed scalars")
 		check(r.level == -n.toFloat() / 2 && r.ratio == Double.MAX_VALUE / n.toDouble() && r.mark == 0x10FFFF - n.toInt(), "reading $n's floats and char")
 		check(r.ok == (n % 2u == 1u) && r.shape == (if (n % 2u == 1u) Shape.CIRCLE else Shape.SQUARE) && r.note == "reading $n", "reading $n's bool, enum, and text")
@@ -1403,7 +1409,7 @@ fun owned() {
 	check(runCatching { token.idGet }.exceptionOrNull()?.message == "Token is closed", "a call after close throws")
 
 	// The file serves wasm32 too: what only wasm32 has throws on the host's library.
-	check(pointerBits(platform()) == 64u && pointerBits(Platform.Native(64u)) == 64u, "the host is native")
+	check(platform() is Platform.Native && pointerBits(Platform.Native(64u)) == 64u, "the host is native")
 	check(isFamily(Family.NATIVE), "and of the native family")
 	for ((what, call) in listOf<Pair<String, () -> Unit>>(
 		"api_wasm_only" to { wasmOnly() },

@@ -837,12 +837,11 @@ fn api_kotlin() {
 /// The same script on Android: the classes, shrunk by R8 into an app's dex with only the
 /// generated rules keeping what JNI looks up, run on ART under CheckJNI on the device adb
 /// reaches against the library the NDK builds for its ABI, both for API 24, the oldest moq's
-/// Android library supports.
+/// Android library supports, and matched to the script run natively there.
 #[test]
 #[ignore = "needs the Android SDK and NDK, cargo-ndk, and a device: just ffi android"]
 fn api_android() {
 	const DEVICE: &str = "/data/local/tmp/rust2-ffi";
-	let api = api();
 	let sdk = PathBuf::from(std::env::var_os("ANDROID_HOME").expect("ANDROID_HOME names the Android SDK"));
 	let adb = sdk.join("platform-tools").join("adb");
 	let dir = scratch().join("api").join("android");
@@ -875,6 +874,32 @@ fn api_android() {
 		.arg(dir.join("glue"))
 		.args(["--features", "kotlin"])
 		.env("RUSTFLAGS", "-D warnings"));
+
+	// The fixture's script, built for the device as the library is, whose run there is what
+	// the Kotlin must print: a 32-bit ABI's `usize` differs from the host's.
+	let transcript = dir.join("transcript");
+	run(cargo()
+		.args([
+			"ndk",
+			"--target",
+			&abi,
+			"--platform",
+			"24",
+			"build",
+			"--quiet",
+			"--locked",
+		])
+		.args([
+			"--package",
+			"api-fixture",
+			"--example",
+			"transcript",
+			"--features",
+			"doubled",
+		])
+		.arg("--target-dir")
+		.arg(&transcript)
+		.current_dir(manifest_dir()));
 
 	// The app: the script's entry point, kept as an app keeps its own, and everything it
 	// reaches, which R8 shrinks and renames, keeping only what the rules keep: the
@@ -929,7 +954,16 @@ fn api_android() {
 		.arg("push")
 		.arg(dex.join("classes.dex"))
 		.arg(dir.join("lib").join(&abi).join("libapi.so"))
+		.arg(
+			transcript
+				.join(target)
+				.join("debug")
+				.join("examples")
+				.join("transcript"),
+		)
 		.arg(DEVICE));
+	let native = run(Command::new(&adb).args(["shell", &format!("{DEVICE}/transcript")]));
+	let native = String::from_utf8_lossy(&native.stdout);
 	let art = |args: &[&str]| {
 		let args: String = args.iter().map(|arg| format!(" '{arg}'")).collect();
 		let mut cmd = Command::new(&adb);
@@ -938,7 +972,7 @@ fn api_android() {
 		));
 		cmd
 	};
-	kotlin(&api.transcript, &art);
+	kotlin(&native, &art);
 }
 
 /// kotlinc compiling the generated Kotlin with `tests/api.kt` into `dest`.
