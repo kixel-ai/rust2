@@ -143,6 +143,8 @@ impl Driver {
 					(into, made) = (to, api_Receipt_clone(self.at(h), st));
 					Outcome::Ok
 				}
+				Op::Tallied(h) => value(api_tallied(self.at(h), st).into()),
+				Op::Stored(h) => value(api_stored(self.at(h), st).into()),
 				Op::TallyNew(h) => {
 					self.set(h, api_Tally_new());
 					Outcome::Ok
