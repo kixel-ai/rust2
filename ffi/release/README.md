@@ -79,7 +79,8 @@ installed packages. Without a check, a consumer only imports the module.
    `x86_64-pc-windows-gnu` library, for Go's MinGW linker), and the license files. Each
    library must need exactly the system libraries the export's line names, as rustc prints
    them building it, and loses its debug info and the LLVM bitcode Go refuses. The module's
-   `.info`, `.mod`, and `.zip` are laid out as a GOPROXY serves them, under Go's 500 MiB
+   `.info`, `.mod`, and `.zip`, and a version `list` naming this release alone, which a proxy
+   serving earlier releases appends to its own, are laid out as a GOPROXY serves them, under Go's 500 MiB
    limit on the zip and on its files, whose sizes the run's summary reports. One module
    holds every platform, so a release is one version of one module. Should it near the
    limit, each platform's library moves to a module of its own, whose one package's `#cgo`

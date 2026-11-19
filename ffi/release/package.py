@@ -616,10 +616,12 @@ def go_version(version):
 def go_module_path(export):
     """The module the export's go.mod declares."""
     text = (Path(export) / "go" / "go.mod").read_text(encoding="utf-8")
-    match = re.search(r"^module\s+(\S+)\s*$", text, re.M)
+    # A path bare or quoted, then perhaps a comment, as the go command reads the directive.
+    match = re.search(r'^module\s+(?:"((?:[^"\\]|\\.)+)"|`([^`]+)`|([^\s"`/]+(?:/[^\s"`/]+)*))\s*(?://.*)?$', text, re.M)
     if match is None:
-        raise SystemExit("the export's go.mod declares no module")
-    return match.group(1)
+        raise SystemExit("the export's go.mod declares no module on one line")
+    quoted, raw, bare = match.groups()
+    return json.loads(f'"{quoted}"') if quoted else raw or bare
 
 
 def check_major(module, version):
@@ -673,6 +675,9 @@ def go_module(info, export, libs, out):
     versions.mkdir(parents=True)
     (versions / f"{version}.info").write_text(json.dumps({"Version": version}) + "\n", encoding="utf-8")
     (versions / f"{version}.mod").write_bytes(files["go.mod"])
+    # What `go get <module>` lists to pick a version: this release's alone, which a proxy
+    # serving earlier ones appends to its own list.
+    (versions / "list").write_text(version + "\n", encoding="utf-8")
     archive = versions / f"{version}.zip"
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
         for name, data in files.items():

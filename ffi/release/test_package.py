@@ -176,6 +176,16 @@ class Go(unittest.TestCase):
         with self.assertRaises(SystemExit):
             package.zip_root("rt/rt.go")
 
+    def test_module_path_as_go_reads_it(self):
+        with tempfile.TemporaryDirectory() as root:
+            go = Path(root) / "go"
+            go.mkdir()
+            for text, want in [("module example.com/own/v2 // a release\n", "example.com/own/v2"),
+                               ('module "example.com/q"\n', "example.com/q"), ("module `example.com/r`\n", "example.com/r"),
+                               ("// module wrong\nmodule example.com/s\n\ngo 1.24\n", "example.com/s")]:
+                (go / "go.mod").write_text(text)
+                self.assertEqual(package.go_module_path(root), want)
+
     def test_escapes_capitals(self):
         self.assertEqual(package.escape("github.com/Azure/x"), "github.com/!azure/x")
 
@@ -196,6 +206,7 @@ class Go(unittest.TestCase):
             versions = root / "proxy/moq.dev/moq-ffi/@v"
             self.assertEqual((versions / "v0.4.12.mod").read_text(), "module moq.dev/moq-ffi\n\ngo 1.24\n")
             self.assertEqual(json.loads((versions / "v0.4.12.info").read_text()), {"Version": "v0.4.12"})
+            self.assertEqual((versions / "list").read_text(), "v0.4.12\n")
             with zipfile.ZipFile(versions / "v0.4.12.zip") as z:
                 self.assertEqual(sorted(z.namelist()), [f"moq.dev/moq-ffi@v0.4.12/{n}" for n in [
                     "LICENSE-MIT", "go.mod", "rt/libmoq_darwin_arm64.a", "rt/libmoq_linux_amd64.a",

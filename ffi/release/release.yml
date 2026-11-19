@@ -11,7 +11,7 @@ name: Release @NAME@ bindings
 #   The mirror's token comes from a GitHub App installed on it, whose ID and key live in
 #   the `swift-mirror` environment.
 #
-# The Go module @GO_MODULE@ is the build's @NAME@-go artifact, its .info, .mod, and .zip laid
+# The Go module @GO_MODULE@ is the build's @NAME@-go artifact, its .info, .mod, .zip, and list laid
 # out as a GOPROXY serves them; no job here publishes it. Serve it from a module proxy that
 # @GO_MODULE@'s go-import tag names: a git mirror holds no library over GitHub's 100 MiB.
 #
