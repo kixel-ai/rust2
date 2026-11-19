@@ -151,12 +151,12 @@ fn difference(script: &Script, stdout: &str) -> String {
 	": the driver printed more".to_string()
 }
 
-/// Each profile's scripts keep to it: no worker steps, failed checks, frees, polls, or
-/// awaits where it has none, and locals on a home where it says.
+/// Each profile's scripts keep to it: no worker steps, failed checks, frees, drops, polls,
+/// or awaits where it has none, and locals on a home where it says.
 #[test]
 fn protocol_profiles() {
 	use model::{Op, Outcome};
-	for bits in 0..512u16 {
+	for bits in 0..4096u16 {
 		let on = |bit: u16| bits & 1 << bit != 0;
 		let profile = Profile {
 			threads: on(0),
@@ -167,9 +167,15 @@ fn protocol_profiles() {
 			failures: on(5),
 			settles: on(6),
 			cancels: on(7),
-			closes: on(8),
+			lazy: on(8),
+			drops: on(9),
+			closes: on(10),
+			moves_close: on(11),
 		};
-		for script in scripts(0, 5, 100, profile) {
+		if (profile.lazy && profile.polls) || !(profile.frees || profile.drops) {
+			continue;
+		}
+		for script in scripts(u64::from(bits), 1, 100, profile) {
 			for step in &script.steps {
 				let line = format!("script {}: {} -> {}", script.seed, step.line(), step.expect.line());
 				assert!(profile.threads || step.thread == 0, "{profile:?}: {line}");
@@ -182,6 +188,7 @@ fn protocol_profiles() {
 						profile.frees || (profile.cancels && script.kinds[h].future()),
 						"{profile:?}: {line}"
 					),
+					Op::Drop(_) => assert!(profile.drops, "{profile:?}: {line}"),
 					Op::Poll(_) => assert!(profile.polls, "{profile:?}: {line}"),
 					Op::Await(_) => assert!(!profile.polls, "{profile:?}: {line}"),
 					Op::LocalNew(_, homed) => assert!(
