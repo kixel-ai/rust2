@@ -1254,12 +1254,16 @@ fn kotlin_contract(kotlin: &Path) -> u64 {
 #[test]
 fn api_swift() {
 	let api = api();
-	let dir = scratch().join("api").join("swift");
-	let module = api.out.join("swift");
-	let include = api.out.join("include");
-	let source = module.join("api.swift");
-	let collections = swift_collections();
-	let built = collections_dir();
+	let SwiftApi {
+		dir,
+		module,
+		include,
+		source,
+		collections,
+		built,
+		swiftmodule,
+		lib,
+	} = swift_api(api);
 	let step = Step {
 		stamp: &dir.join("typecheck.stamp"),
 		reads: &[&module, &include, &built],
@@ -1268,21 +1272,6 @@ fn api_swift() {
 	step.run(
 		swiftc(&module, 13)
 			.args(["-swift-version", "5", "-typecheck"])
-			.arg(&source),
-	);
-	let (swiftmodule, lib) = (dir.join("Api.swiftmodule"), dir.join("libApi.a"));
-	let step = Step {
-		stamp: &dir.join("Api.stamp"),
-		reads: &[&module, &include, &built],
-		writes: &[&swiftmodule, &lib],
-	};
-	step.run(
-		swiftc(&module, 13)
-			.args(["-swift-version", "6", "-parse-as-library", "-module-name", "Api"])
-			.args(["-emit-module", "-emit-module-path"])
-			.arg(&swiftmodule)
-			.args(["-emit-library", "-static", "-o"])
-			.arg(&lib)
 			.arg(&source),
 	);
 	// The test's executor preference is macOS 15's.
@@ -1407,6 +1396,110 @@ fn api_swift() {
 		stderr.contains("api.swift and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+}
+
+/// The api fixture's Swift, built as the module `Api` in Swift 6's language mode.
+struct SwiftApi {
+	dir: PathBuf,
+	/// The generated Swift's directory, with the C header's module map.
+	module: PathBuf,
+	include: PathBuf,
+	source: PathBuf,
+	/// swift-collections' libraries, and where they were built.
+	collections: Vec<PathBuf>,
+	built: PathBuf,
+	swiftmodule: PathBuf,
+	lib: PathBuf,
+}
+
+fn swift_api(api: &Api) -> SwiftApi {
+	let dir = scratch().join("api").join("swift");
+	let module = api.out.join("swift");
+	let include = api.out.join("include");
+	let source = module.join("api.swift");
+	let collections = swift_collections();
+	let built = collections_dir();
+	let (swiftmodule, lib) = (dir.join("Api.swiftmodule"), dir.join("libApi.a"));
+	let step = Step {
+		stamp: &dir.join("Api.stamp"),
+		reads: &[&module, &include, &built],
+		writes: &[&swiftmodule, &lib],
+	};
+	step.run(
+		swiftc(&module, 13)
+			.args(["-swift-version", "6", "-parse-as-library", "-module-name", "Api"])
+			.args(["-emit-module", "-emit-module-path"])
+			.arg(&swiftmodule)
+			.args(["-emit-library", "-static", "-o"])
+			.arg(&lib)
+			.arg(&source),
+	);
+	SwiftApi {
+		dir,
+		module,
+		include,
+		source,
+		collections,
+		built,
+		swiftmodule,
+		lib,
+	}
+}
+
+/// Random sequences of the ownership protocol's steps through the Swift, by
+/// `tests/protocol.swift`, each matching what the model says each step returns: none Swift's
+/// compiler would refuse, and each future an async call awaited as it is made.
+#[test]
+fn api_swift_protocol() {
+	swift_protocol(&protocol::scripts(
+		0,
+		PROTOCOL_SEEDS,
+		PROTOCOL_STEPS,
+		protocol::Profile::SWIFT,
+	));
+}
+
+/// Longer protocol scripts through the Swift, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_swift_protocol_nightly() {
+	swift_protocol(&protocol::scripts(PROTOCOL_SEEDS, 5000, 400, protocol::Profile::SWIFT));
+}
+
+fn swift_protocol(scripts: &[protocol::Script]) {
+	let api = api();
+	let swift = swift_api(api);
+	let dir = scratch().join("api").join("protocol-swift");
+	let exe = dir.join(format!("protocol{EXE_SUFFIX}"));
+	let src = manifest_dir().join("tests").join("protocol.swift");
+	let step = Step {
+		stamp: &step::stamp(&exe),
+		reads: &[
+			&src,
+			&swift.module,
+			&swift.include,
+			&swift.built,
+			&swift.swiftmodule,
+			&swift.lib,
+			&api.staticlib(),
+		],
+		writes: &[&exe],
+	};
+	std::fs::create_dir_all(&dir).unwrap();
+	// Its executor preference is macOS 15's.
+	step.run(
+		swiftc(&swift.module, 15)
+			.args(["-parse-as-library", "-I"])
+			.arg(&swift.dir)
+			.arg(&src)
+			.arg(&swift.lib)
+			.args(&swift.collections)
+			.arg(api.staticlib())
+			.args(&api.native)
+			.arg("-o")
+			.arg(&exe),
+	);
+	protocol::check(&dir.join("scripts"), scripts, |_| Command::new(&exe));
 }
 
 /// The fixture's script compiled for wasm32-wasip1 and run under Node's WASI: native Rust on

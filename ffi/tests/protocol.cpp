@@ -130,6 +130,8 @@ void run(step &st) {
 	else if (op == "draft_write") slots[a].draft->write("line");
 	else if (op == "draft_lines") st.out = value(slots[a].draft->lines());
 	else if (op == "draft_commit") st.out = value(std::move(*slots[a].draft).commit());
+	else if (op == "tallied") st.out = value(api::tallied(std::move(*slots[a].receipt)));
+	else if (op == "stored") st.out = value(api::stored(std::move(*slots[a].receipt)));
 	else if (op == "receipt_count") st.out = value(slots[a].receipt->count());
 	else if (op == "receipt_clone") slots[a].receipt.emplace(slots[b].receipt->clone());
 	else if (op == "tally_new") slots[a].tally.emplace(api::Tally::new_());

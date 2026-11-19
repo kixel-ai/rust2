@@ -43,6 +43,9 @@ pub struct Profile {
 	/// or dropped, but for a free of it, which then frees nothing, and one passing a value
 	/// exclusively beside another borrow of it.
 	pub borrowck: bool,
+	/// A call moving a value out frees its handle even when a check refuses it, as a
+	/// surface's consuming parameter does, which takes the value whether or not it moves.
+	pub consumes: bool,
 	/// Futures held between steps; else each is awaited, on its thread, in the step after
 	/// the one that makes it, as a surface whose futures are its own async calls runs it.
 	pub held: bool,
@@ -59,6 +62,7 @@ impl Profile {
 		failures: true,
 		drops: true,
 		borrowck: true,
+		consumes: false,
 		held: true,
 	};
 
@@ -79,11 +83,13 @@ impl Profile {
 
 	/// Swift's: noncopyable objects free in `deinit`, with no `_drop`, and its compiler
 	/// checks moves and borrows as Rust's does; a future is an `async` call, awaited as it
-	/// is made, whose own waker the script cannot count.
+	/// is made, whose own waker the script cannot count; a call that consumes an object
+	/// frees it whether or not its check passes.
 	pub const SWIFT: Self = Self {
 		homes: false,
 		drops: false,
 		borrowck: false,
+		consumes: true,
 		polls: false,
 		held: false,
 		..Self::C
@@ -304,6 +310,14 @@ impl Op {
 		}
 	}
 
+	/// The handle a step moves the value out of.
+	pub fn moved(self) -> Option<usize> {
+		match self {
+			Op::CounterIntoSum(h, _) | Op::DraftCommit(h) | Op::Tallied(h) | Op::Stored(h) => Some(h),
+			_ => None,
+		}
+	}
+
 	/// The handles a step passes.
 	pub fn named(self) -> Vec<usize> {
 		match self {
@@ -342,7 +356,9 @@ impl Op {
 			| Op::Drop(h)
 			| Op::Free(h)
 			| Op::Poll(h)
-			| Op::Await(h) => vec![h],
+			| Op::Await(h)
+			| Op::Tallied(h)
+			| Op::Stored(h) => vec![h],
 		}
 	}
 }
@@ -529,6 +545,8 @@ impl Slot {
 struct Model {
 	/// Whether every value that is not `Send` is made on a home.
 	homed: bool,
+	/// Whether a call moving a value out frees its handle even when a check refuses it.
+	consumes: bool,
 	slots: Vec<Slot>,
 	/// Each thread's drops other threads queued, run at its next check of one of its values.
 	queued: [Vec<Release>; THREADS],
@@ -539,9 +557,10 @@ struct Model {
 }
 
 impl Model {
-	fn new(homed: bool) -> Self {
+	fn new(homed: bool, consumes: bool) -> Self {
 		Self {
 			homed,
+			consumes,
 			slots: Vec::new(),
 			queued: Default::default(),
 			groups: Vec::new(),
@@ -698,7 +717,14 @@ impl Model {
 	fn step(&mut self, thread: usize, op: Op) -> Outcome {
 		match self.run(thread, op) {
 			Ok(outcome) => outcome,
-			Err(status) => Outcome::Failed(status),
+			Err(status) => {
+				if self.consumes
+					&& let Some(h) = op.moved()
+				{
+					self.run(thread, Op::Free(h)).expect("a free never fails");
+				}
+				Outcome::Failed(status)
+			}
 		}
 	}
 
@@ -1071,7 +1097,7 @@ pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
 		"a future awaited as it is made is never polled"
 	);
 	let mut rng = Rng(seed);
-	let mut model = Model::new(profile.homed);
+	let mut model = Model::new(profile.homed, profile.consumes);
 	let mut steps = Vec::new();
 	let push = |model: &mut Model, steps: &mut Vec<Step>, thread: usize, op: Op| {
 		let expect = model.step(thread, op);

@@ -117,7 +117,7 @@ fn difference(script: &Script, stdout: &str) -> String {
 #[test]
 fn protocol_profiles() {
 	use model::{Op, Outcome, Status};
-	for bits in 0..512u16 {
+	for bits in 0..1024u16 {
 		let on = |bit: u16| bits & 1 << bit != 0;
 		let profile = Profile {
 			threads: on(0),
@@ -129,6 +129,7 @@ fn protocol_profiles() {
 			drops: on(6),
 			borrowck: on(7),
 			held: on(8),
+			consumes: on(9),
 		};
 		if !(profile.frees || profile.drops) || (profile.polls && !profile.held) {
 			continue;
