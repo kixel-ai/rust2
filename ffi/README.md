@@ -418,6 +418,11 @@ where it was while its file is unchanged.
   built with the header. A binding checks the two match before any other call, so a header
   and a library from different builds refuse to mix.
 - **Panics** abort, as an `extern "C"` function's do.
+- **Android**: the build script links the library with 16 KB pages, which Google Play
+  requires of a 64-bit library from 2027-02-01 and an NDK before r28 does not do itself. A
+  panic or a failed check that aborts goes to logcat as `rust2-ffi` and to bionic's abort
+  message, which shows in the tombstone, `ApplicationExitInfo`, and Play vitals, since an
+  app's stderr goes nowhere.
 - **Names** are the prefix, then the item's path from the facade's root, each segment in
   Rust's case, joined by `_`: `track::Producer::append_group` is
   `moq_track_Producer_append_group`, and moq-net's `session::Stats` and `Session::stats`
@@ -659,7 +664,7 @@ the rest cross encoded.
   which is never negative or infinite in Rust and drops what is below a millisecond past
   about 146 years. A path is a `PathBuf` of the OS's bytes, any on Unix and WTF-8 on
   Windows, made from them or from a `String`, and converted to one or to a
-  `java.nio.file.Path` by `toText()` and `toPath()`, which throw where it is not UTF-8;
+  `java.nio.file.Path` by `toText()` and `toPath()` (Android's `java.nio.file` starts at API 26), which throw where it is not UTF-8;
   its `toString()` shows what is not as U+FFFD, as Rust's `display` does. An `IpAddr`
   is a sealed `IpAddr` of an `Ipv4Addr`, a value class of its bits, or an `Ipv6Addr`,
   each kept of its family, so an IPv4-mapped address stays IPv6, and a `SocketAddr` a
@@ -1448,8 +1453,11 @@ record they came from, until the GC frees it, and that calls racing `close()` or
 read live values, and breaks each runtime check, which must throw or abort with its message. `just ffi android` runs
 the same on ART: the Kotlin and `tests/api.kt`, shrunk by R8 into an app's dex with only the
 generated rules keeping what JNI looks up, against the library built by the NDK for the
-device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. Nightly runs it on an
-x86_64 emulator at API 24, the oldest moq's Android library supports, and at API 35.
+device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. It also reads the library's
+segment alignment with `readelf`, which must be 16 KB, and checks that a failed check and a
+panic reach logcat and bionic's abort message, which the tombstone shows. Nightly runs it on an
+x86_64 emulator at API 24, the oldest moq's Android library supports, at API 35, and at
+API 35 on an image whose kernel pages by 16 KB.
 `tests/api.py` runs the script through the Python, in CPython's development mode with
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
