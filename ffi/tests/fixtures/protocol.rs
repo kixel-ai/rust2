@@ -127,7 +127,7 @@ fn protocol_profiles() {
 			polls: on(4),
 			failures: on(5),
 			drops: on(6),
-			moved: on(7),
+			borrowck: on(7),
 			held: on(8),
 		};
 		if !(profile.frees || profile.drops) || (profile.polls && !profile.held) {
@@ -142,7 +142,7 @@ fn protocol_profiles() {
 					"{profile:?}: {line}"
 				);
 				assert!(
-					profile.moved || step.expect != Outcome::Failed(Status::Moved),
+					profile.borrowck || step.expect != Outcome::Failed(Status::Moved),
 					"{profile:?}: {line}"
 				);
 				match step.op {

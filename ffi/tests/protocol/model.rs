@@ -38,9 +38,11 @@ pub struct Profile {
 	pub failures: bool,
 	/// `_drop`, which a surface that frees only by letting go of a value has none of.
 	pub drops: bool,
-	/// Steps naming a value moved out or dropped, which a surface whose compiler tracks
-	/// each move never writes: only a free of it, which then frees nothing.
-	pub moved: bool,
+	/// Steps Rust's borrow checker refuses at compile time, which a surface whose compiler
+	/// tracks moves and borrows as Rust's does cannot write: one naming a value moved out
+	/// or dropped, but for a free of it, which then frees nothing, and one passing a value
+	/// exclusively beside another borrow of it.
+	pub borrowck: bool,
 	/// Futures held between steps; else each is awaited, on its thread, in the step after
 	/// the one that makes it, as a surface whose futures are its own async calls runs it.
 	pub held: bool,
@@ -56,7 +58,7 @@ impl Profile {
 		polls: true,
 		failures: true,
 		drops: true,
-		moved: true,
+		borrowck: true,
 		held: true,
 	};
 
@@ -76,12 +78,12 @@ impl Profile {
 	};
 
 	/// Swift's: noncopyable objects free in `deinit`, with no `_drop`, and its compiler
-	/// refuses a use of one moved out; a future is an `async` call, awaited as it is made,
-	/// whose own waker the script cannot count.
+	/// checks moves and borrows as Rust's does; a future is an `async` call, awaited as it
+	/// is made, whose own waker the script cannot count.
 	pub const SWIFT: Self = Self {
 		homes: false,
 		drops: false,
-		moved: false,
+		borrowck: false,
 		polls: false,
 		held: false,
 		..Self::C
@@ -665,6 +667,12 @@ impl Model {
 		self.slots[f].done = true;
 	}
 
+	/// Whether Rust's borrow checker would refuse `op` at compile time.
+	fn refused(&self, op: Op) -> bool {
+		let aliased = matches!(op, Op::CounterAddTo(h, Some(o)) if h == o);
+		aliased || (!matches!(op, Op::Free(_)) && op.named().iter().any(|&h| self.slots[h].gone))
+	}
+
 	/// Run `op` on `thread`: what it returns.
 	fn step(&mut self, thread: usize, op: Op) -> Outcome {
 		match self.run(thread, op) {
@@ -1058,7 +1066,7 @@ pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
 		if !profile.failures && matches!(model.clone().step(thread, op), Outcome::Failed(_)) {
 			continue;
 		}
-		if !profile.moved && !matches!(op, Op::Free(_)) && op.named().iter().any(|&h| model.slots[h].gone) {
+		if !profile.borrowck && model.refused(op) {
 			continue;
 		}
 		push(&mut model, &mut steps, thread, op);
