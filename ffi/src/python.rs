@@ -210,6 +210,7 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		from builtins import TypeError as _TypeError\n\
 		from builtins import ValueError as _ValueError\n\
 		from builtins import all as _all\n\
+		from builtins import any as _any\n\
 		from builtins import bool as _bool\n\
 		from builtins import bytearray as _bytearray\n\
 		from builtins import bytes as _bytes\n\
@@ -255,7 +256,17 @@ pub(crate) fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<O
 		def _load() -> _object:\n\
 		\timport importlib.machinery\n\
 		\timport importlib.util\n\
-		\timport os\n\n\
+		\timport os\n\
+		\timport re\n\n\
+		\t# Loading by path skips the filename tag that keeps a GIL build's library out of a\n\
+		\t# free-threaded interpreter, which the stable ABI does not cover and which would crash.\n\
+		\t# Its extension suffixes carry the tag (`314t`), where sysconfig's `Py_GIL_DISABLED`\n\
+		\t# follows an overridden sysconfig data file, as a Nix shell sets.\n\
+		\tif _any(re.match(r\"\\.(?:cpython-|cp)\\d+t[-.]\", s) for s in importlib.machinery.EXTENSION_SUFFIXES):\n\
+		\t\traise _ImportError(\n\
+		\t\t\t\"{p}.py loads a library for CPython's GIL build, which a free-threaded CPython cannot use: \"\n\
+		\t\t\tf\"{{_sys.implementation.name}} {{_sys.version.partition(' ')[0]}}, free-threaded\"\n\
+		\t\t)\n\n\
 		\tname = {{\"win32\": \"{p}.dll\", \"darwin\": \"lib{p}.dylib\"}}.get(_sys.platform, \"lib{p}.so\")\n\
 		\tpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), name)\n\
 		\tloader = importlib.machinery.ExtensionFileLoader(\"_{p}\", path)\n\

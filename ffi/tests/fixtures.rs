@@ -1072,6 +1072,43 @@ fn api_python() {
 	);
 }
 
+/// A free-threaded CPython refuses the module with an `ImportError`: the library is for the
+/// GIL's ABI, which it would load through its explicit path and crash in. `PYTHON_FREE_THREADED`
+/// or `python3.14t` is the interpreter, which the dev shell provides.
+#[test]
+fn api_free_threaded() {
+	let python = std::env::var_os("PYTHON_FREE_THREADED").unwrap_or_else(|| "python3.14t".into());
+	let dir = api().out.join("python");
+	let probe = |code: &str| {
+		let mut cmd = Command::new(&python);
+		// `-P` keeps the working directory off the path; PYTHONPATH replaces the dev shell's,
+		// which names the GIL build's packages.
+		cmd.args(["-P", "-c", code]).env("PYTHONPATH", &dir);
+		cmd.output().unwrap_or_else(|err| panic!("running {cmd:?}: {err}"))
+	};
+	// A GIL build would pass for the refusal's test, so check the interpreter first.
+	let build = probe("import sys; sys.exit(sys._is_gil_enabled())");
+	assert!(
+		build.status.success(),
+		"{python:?} is not a free-threaded CPython: {}",
+		String::from_utf8_lossy(&build.stderr)
+	);
+	let output = probe("import api");
+	// Exit 1 is an uncaught exception, where a crash has no code.
+	assert_eq!(
+		output.status.code(),
+		Some(1),
+		"importing under a free-threaded CPython: {output:?}"
+	);
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains(
+			"ImportError: api.py loads a library for CPython's GIL build, which a free-threaded CPython cannot use"
+		),
+		"importing under a free-threaded CPython printed {stderr}"
+	);
+}
+
 /// The api fixture's Python, and `tests/api_types.py` calling it as a typed caller does,
 /// pass mypy and pyright, both strict, at the oldest CPython its extension loads in, and
 /// `tests/bare_builtins.py` finds it reading no builtin by its bare name. Apart from
