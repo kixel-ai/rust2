@@ -18,6 +18,9 @@ jobs:
       features: doubled
       example: transcript
       python-check: ffi/tests/api.py
+      # A module path a proxy could serve. No go-check, as no swift-check: api.go needs the
+      # wasm32 items this export lacks, so the consumer only loads the runtime.
+      go-module: example.com/api
       # No swift-check: api.swift compiles against the fixture's own test export, of the host
       # and wasm32-wasip1, not this one's targets. Its transcript stays the exporter's tests'.
 
@@ -28,3 +31,5 @@ jobs:
       manifest-path: ffi/target/moq-ffi/Cargo.toml
       python-check: ffi/moq/moq.py
       swift-check: ffi/moq/moq.swift
+      # Under the export's own module, `moq`, which moq.go imports.
+      go-check: ffi/moq/moq.go

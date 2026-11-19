@@ -1230,11 +1230,11 @@ export function btrees(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.iterExtendBytes(out, rs.iterFlatMap(rs.btreeIter(map), (_26: [Torn.Torn, rs.u8]): Uint8Array => {
 			return Uint8Array.of(_26[0].tag, _26[1]);
 		}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
-		const _57: rs.Slice<Torn.Torn> = rs.sliceFrom(keys2.items);
-		if (_57.length >= 3) {
-			const a: Torn.Torn = _57.data[_57.start];
-			const b: Torn.Torn = _57.data[_57.start + 1];
-			const c: Torn.Torn = _57.data[_57.start + 2];
+		const items: Torn.Torn[] = keys2.items;
+		if (items.length >= 3) {
+			const a: Torn.Torn = items[0];
+			const b: Torn.Torn = items[1];
+			const c: Torn.Torn = items[2];
 			rs.iterExtendBytes(out, rs.iterMap(rs.btreeKeys(rs.btreeCollectKeys(rs.btreeNew(Torn.cmp$cmp_Ord) as rs.BTreeSet<Torn.Torn>, rs.iterToVec(rs.iterSlice([a, b, c]), undefined, 3, true).items, 3, true, Torn.lt$cmp_PartialOrd, (a4: Torn.Torn, b5: Torn.Torn): boolean => {
 				return !Torn.ne$cmp_PartialEq(a4, b5);
 			})), (k3: Torn.Torn): rs.u8 => {

@@ -11,6 +11,7 @@ import { type String as RsString, strChars, stringCased, stringExtendChars, stri
 import { drop as dispose } from "./task.ts";
 import { ALPHABETIC, CASE_IGNORABLE, LOWERCASE, NUMERIC, TITLECASE, TO_LOWERCASE, TO_LOWERCASE_MULTI, TO_UPPERCASE, TO_UPPERCASE_MULTI, UNPRINTABLE, UPPERCASE } from "./unicode.ts";
 import type { Location } from "./location.ts";
+import { charWrite } from "./utf8.ts";
 
 /** A class of chars, as runs from one of `rs/unicode.ts`'s tables, decoded once one is looked up. */
 class Runs {
@@ -461,9 +462,8 @@ class EncodedUtf8 implements Place<string> {
 export function charEncodeUtf8(c: char, dst: ByteSlice): Place<string> {
 	const len = charLenUtf8(c);
 	if (dst.length < len) tooShort("encode_utf8", c, len, dst.length);
-	const bytes = dst.data.subarray(dst.start, dst.start + len);
-	encoder.encodeInto(String.fromCodePoint(c), bytes);
-	return new EncodedUtf8(bytes);
+	charWrite(c, dst.data, dst.start);
+	return new EncodedUtf8(dst.data.subarray(dst.start, dst.start + len));
 }
 
 /** `char::encode_utf16`: its UTF-16 written to the front of `dst`, and a view of that part of it. */

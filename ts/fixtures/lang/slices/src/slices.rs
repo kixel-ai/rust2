@@ -472,6 +472,12 @@ pub fn subslices(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let (front, back) = words.split_at_mut(l);
 			poke_words(14, back);
 			out.push(unsafe { back.as_ptr().offset_from(front.as_ptr()) } as u8);
+			// A length read of a `Vec`'s slice, held past a push that changes the `Vec`'s.
+			let n = words.as_slice().len();
+			words.push(a as u16);
+			let m = words[1..].len();
+			words.truncate(n);
+			out.push((n * 16 + m) as u8);
 		}
 		_ => {
 			let (l, r) = bytes.split_at_mut(a);

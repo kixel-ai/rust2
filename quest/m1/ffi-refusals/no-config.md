@@ -27,12 +27,15 @@ ClientConfig` field `ffi/moq/ffi.toml` excludes: no rule yet exports an object's
 holding a reference, which would need its own rule, such as a getter through the reference
 and no setter.
 
+At the pin, moq `1aa86d5e6` since [kixel-ai/rust2#881](https://github.com/kixel-ai/rust2/pull/881),
+the census refuses 6 items and no type, each needing a rule before the config can go:
+moq-pattern's `escape` and `unescape`, which return `Cow<'_, str>`; moq-mux's derived
+`Mpegts::deserialize`, generic over serde's `Deserializer`; moq-tokio's
+`server::Streams::{tcp, unix}`, `Option`s of std listeners that are not `Clone`; and
+`DangerousClientConfig::cfg` above.
+
 One deletion needs no clean census and may land in any sibling's PR first:
 `go/bench/ffi.toml` with the `--config` in `go/justfile`'s bench recipe.
 
 Public API: the `--config` flag and `RUST2_FFI_CONFIG` are removed (breaking for a caller
 that passes them).
-
-## Required
-
-- [The moq pin bump](/quest/m1/ffi-refusals/moq-pin.md) - the pin is at moq's `main`, where the census is taken
