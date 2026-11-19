@@ -253,6 +253,22 @@ class Reproducible(unittest.TestCase):
             self.assertEqual(apple["ZERO_AR_DATE"], "1")
             self.assertIn("link-arg=-Wl,-install_name,@rpath/libmoq.dylib", apple["CARGO_ENCODED_RUSTFLAGS"])
 
+    def test_an_empty_encoded_rustflags_is_no_flags(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_ENCODED_RUSTFLAGS": "", "RUSTFLAGS": "-C x", "CARGO_HOME": tmp + "/home"}):
+            env = package.reproducible(info(tmp), Path(tmp) / "export", "x86_64-unknown-linux-gnu")
+            flags = env["CARGO_ENCODED_RUSTFLAGS"].split("\x1f")
+            self.assertTrue(flags[0].startswith("--remap-path-prefix="), flags)
+            self.assertNotIn("-C", flags)
+
+    def test_a_path_cc_would_split_fails(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
+            os.environ.pop("CARGO_ENCODED_RUSTFLAGS", None)
+            spaced = Path(tmp) / "a b"
+            with self.assertRaises(SystemExit):
+                package.reproducible(info(tmp), spaced, "x86_64-unknown-linux-gnu")
+            # MSVC's C flags are not CFLAGS, so a space there is harmless.
+            package.reproducible(info(tmp), spaced, "x86_64-pc-windows-msvc")
+
     def test_a_cargo_config_that_RUSTFLAGS_would_replace_fails(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
             crate = Path(tmp) / "crate"
@@ -334,6 +350,20 @@ class Sbom(unittest.TestCase):
             self.assertEqual(len(refs), 2)
             self.assertIn("pkg:cargo/dep@1.2.3", refs)
             self.assertTrue(any(ref.startswith("pkg:cargo/dep@1.2.3?vcs_url=git%2Bfile") for ref in refs), refs)
+
+
+class Purl(unittest.TestCase):
+    def test_each_registry_is_its_own_package(self):
+        def purl(source):
+            return package.purl({"name": "dep", "version": "1.2.3", "source": source})
+        crates_io = "registry+https://github.com/rust-lang/crates.io-index"
+        self.assertEqual(purl(crates_io), "pkg:cargo/dep@1.2.3")
+        self.assertEqual(purl(None), "pkg:cargo/dep@1.2.3")
+        git = purl("registry+https://example.com/index")
+        sparse = purl("sparse+https://example.com/index/")
+        self.assertIn("?repository_url=https%3A%2F%2Fexample.com%2Findex", git)
+        self.assertIn("?repository_url=https%3A%2F%2Fexample.com%2Findex%2F", sparse)
+        self.assertEqual(len({purl(crates_io), git, sparse}), 3)
 
 
 class Digest(unittest.TestCase):

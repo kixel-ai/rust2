@@ -589,14 +589,22 @@ def reproducible(info, export_dir, target):
     pairs = sorted(pairs.items(), key=lambda pair: len(pair[0]))
     for found in rustflags_config(info["dir"], target):
         raise SystemExit(f"{found} sets rustflags, which the reproducible build's RUSTFLAGS would replace: export RUSTFLAGS instead")
-    flags = os.environ.get("CARGO_ENCODED_RUSTFLAGS", "").split("\x1f") if "CARGO_ENCODED_RUSTFLAGS" in os.environ \
-        else os.environ.get("RUSTFLAGS", "").split()
+    encoded = os.environ.get("CARGO_ENCODED_RUSTFLAGS")
+    if encoded is None:
+        flags = os.environ.get("RUSTFLAGS", "").split()
+    else:
+        # Cargo reads an empty value as no flags, not as one empty flag.
+        flags = encoded.split("\x1f") if encoded else []
     flags += [f"--remap-path-prefix={old}={new}" for old, new in pairs]
     env = {"SOURCE_DATE_EPOCH": str(info["epoch"])}
     if "msvc" in target:
         # link.exe stamps the build time into the DLL unless told to hash its content.
         flags += ["-C", "link-arg=/Brepro"]
     else:
+        # cc splits CFLAGS on whitespace, and quoting them would change how a caller's own flags read.
+        for old, _ in pairs:
+            if any(c.isspace() for c in old):
+                raise SystemExit(f"{old} holds whitespace, which would split its -ffile-prefix-map in CFLAGS: build from a path without it")
         env["CFLAGS"] = " ".join(filter(None, [os.environ.get("CFLAGS"), *(f"-ffile-prefix-map={old}={new}" for old, new in pairs)]))
     if "apple" in target:
         # Apple's ar and libtool stamp archive members with the time unless told not to, and
@@ -607,6 +615,18 @@ def reproducible(info, export_dir, target):
     return env
 
 
+def purl(package):
+    """The crate's package URL, qualified by its source unless that is crates.io, so two sources of one version stay two components."""
+    base = f"pkg:cargo/{package['name']}@{package['version']}"
+    source = package.get("source") or ""
+    # An alternate registry may speak the git or the sparse protocol; crates.io reports the former either way.
+    if source.startswith(("registry+", "sparse+")) and source != CRATES_IO:
+        return f"{base}?repository_url={urllib.parse.quote(source.split('+', 1)[1], safe='')}"
+    if source.startswith("git+"):
+        return f"{base}?vcs_url={urllib.parse.quote(source, safe='')}"
+    return base
+
+
 def sbom(info, crate):
     """A CycloneDX SBOM of the crates the binding is built from, the same for every host and target."""
     meta = json.loads(output("cargo", "metadata", "--locked", "--format-version", "1", "--features", "python",
@@ -615,16 +635,6 @@ def sbom(info, crate):
     checksums = {(p["name"], p["version"], p.get("source")): p["checksum"] for p in lock["package"] if "checksum" in p}
     packages = {p["id"]: p for p in meta["packages"]}
     nodes = {n["id"]: n for n in meta["resolve"]["nodes"]}
-    def purl(package):
-        """The crate's package URL, qualified by its source unless that is crates.io, so two sources of one version stay two components."""
-        base = f"pkg:cargo/{package['name']}@{package['version']}"
-        source = package.get("source") or ""
-        if source.startswith("registry+") and source != CRATES_IO:
-            return f"{base}?repository_url={urllib.parse.quote(source[len('registry+'):], safe='')}"
-        if source.startswith("git+"):
-            return f"{base}?vcs_url={urllib.parse.quote(source, safe='')}"
-        return base
-
     root = f"pkg:cargo/{info['name']}@{info['version']}"
     # The generated crate is the package it exports: its dependencies are the package's.
     ref = lambda i: root if i == meta["resolve"]["root"] or purl(packages[i]) == root else purl(packages[i])  # noqa: E731

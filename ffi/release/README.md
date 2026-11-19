@@ -90,9 +90,8 @@ holding exactly the files it would upload, and anyone with the commit can check 
 - **Paths.** The crate's workspace, the exported crate, and `CARGO_HOME` are remapped to
   fixed names for rustc and the C compilers, so panic messages and debug info name no
   checkout. This takes `RUSTFLAGS` over a `.cargo/config.toml`'s `rustflags`, so a config
-  that sets any fails the build: export them as `RUSTFLAGS`, which the builder keeps. Linux
-  and macOS builds also stamp no archive time (`ZERO_AR_DATE`), and Windows links with
-  `/Brepro`.
+  that sets any fails the build: export them as `RUSTFLAGS`, which the builder keeps. Apple
+  builds also stamp no archive time (`ZERO_AR_DATE`), and Windows links with `/Brepro`.
 - **Checked.** The Swift job builds the XCFramework twice and fails unless both ZIPs match.
   With `reproduce: true`, every build host builds a second time, from a new export, and
   `package.py same` fails unless each wheel and static library matches byte for byte; rust2
