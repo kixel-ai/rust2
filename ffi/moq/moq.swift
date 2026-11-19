@@ -7,7 +7,6 @@
 // script drains, after the write that wakes it. A session over QUIC runs on moq-tokio's
 // fallback runtime, whose threads resume Swift's.
 
-import BasicContainers
 import Foundation
 import Moq
 
@@ -172,9 +171,9 @@ func origin(_ waiter: borrowing Waiter, _ wakes: Cell<Int>, _ before: inout Int)
 	let consumer = try scoped.consume()
 	expect(try consumer.absolute("bob").asStr() == "room/bob", "a scope's consumer shares its root")
 
-	// A broadcast the origin creates is stamped with its path, which its info lends.
+	// A broadcast the origin routes is stamped with its path, which its info lends.
 	do {
-		let publication = try origin.createBroadcast("room/alice")
+		let publication = try origin.route("room/alice", OriginRouteOptions.default())
 		let path = try publication.broadcast().info().pathGet()
 		expect(try path.asStr() == "room/alice", "a broadcast has its path")
 
@@ -228,7 +227,8 @@ func script() throws {
 	}
 	q.drain()
 	expect(group.isEmpty, "a receive waits for a group")
-	var writer = try track.appendGroup()
+	// The track is untimed, so its group's start is a bare key.
+	var writer = try track.appendGroup(Timestamp.unscaled(0))
 	expect(q.size == 1, "a group's arrival wakes the receive")
 	q.drain()
 	let first = Held(group.take()!)
@@ -243,31 +243,31 @@ func script() throws {
 	}
 	q.drain()
 	expect(frame.isEmpty, "a read waits for a frame")
-	try writer.writeFrame(nil, Bytes("hello".utf8))
+	try writer.writeFrame(Timestamp.unscaled(0), Bytes("hello".utf8))
 	expect(q.size == 1, "a frame's arrival wakes the read")
 	q.drain()
 	let hello = frame.take()!
 	expect(text(try hello.payloadGet) == "hello", "a frame has its payload")
-	expect(try hello.timestampGet == nil, "an untimed frame has no timestamp")
+	expect(try hello.timestampGet.scale() == nil, "an untimed frame's timestamp has no scale")
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(try clockNow().checkedDurationSince(hello.arrived()) != nil, "a frame arrived before now")
 
 	// A timestamp is a `Copy` value copied across, which allocates nothing. The track is
-	// untimed, so a timestamped frame is refused.
+	// untimed, so a timed frame is refused.
 	let at = try Timestamp.fromMillis(1500)
-	expect(at.asSecs() == 1, "1500 ms is 1 s")
+	expect(try at.asSecs() == 1, "1500 ms is 1 s")
 	do {
 		try writer.writeFrame(at, Bytes("late".utf8))
-		expect(false, "a timestamped frame on an untimed track is an error")
+		expect(false, "a timed frame on an untimed track is an error")
 	} catch let e as Moq.Error {
 		expect(try e.description == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
 	}
-	expect(at.asSecs() == 1, "a copied timestamp stays usable")
+	expect(try at.asSecs() == 1, "a copied timestamp stays usable")
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as nil.
 	let world = Bytes(Data([0xff]) + Data("world".utf8))
-	try writer.writeFrame(nil, world)
-	try writer.finish()
+	try writer.writeFrame(Timestamp.unscaled(0), world)
+	_ = try writer.finish()
 	try block {
 		let last = try await first.value.readFrame()
 		expect(try last?.payloadGet == world, "the last frame reads")
@@ -307,14 +307,14 @@ func script() throws {
 	}
 
 	// A subscription's ranges, from any iterable of them: an array.
-	let groups = TrackRange.groups(BoundsU64(start: .included(2), end: .excluded(6)))
+	let groups = TrackRange(start: .time(2), end: .time(6))
 	let ranged = try TrackSubscription.default().withRanges([TrackRange.live(), groups]).rangesGet
 	expect(
 		ranged.count == 2 && ranged[0] == TrackRange.live() && ranged[1] == groups,
 		"a subscription keeps its ranges"
 	)
-	expect(groups.start == .absolute(2), "groups start at their first")
-	expect(groups.end.map { $0 == .absolute(6) } == true, "groups end before their end")
+	expect(ranged[1].start == .time(2), "a range starts at its first")
+	expect(ranged[1].end.map { $0 == .time(6) } == true, "a range ends at its last")
 
 	// A catalog at moq-mux's untyped extension, from the config Swift builds, whose generic
 	// `is_claimed` is named by the last segment of its argument, and whose `mutate` lends
@@ -334,14 +334,14 @@ func script() throws {
 	// A JSON track the catalog lists, published through moq-mux's generic `json_snapshot` at
 	// a JSON document, and a section Swift parses from text, set in the lent catalog and
 	// read back as text.
-	var status = try catalog.jsonSnapshotConfig(
+	let status = try catalog.jsonSnapshotConfig(
 		try publisher.createTrack("status", TrackInfo.default().withTimescale(Timescale.MILLI)), MuxJsonConfig.default(), MuxJsonOptions.default())
 	expect(try status.name() == "status", "a JSON snapshot has its track's name")
 	expect(try catalog.isClaimedJsonConfig("status"), "the JSON snapshot claims its name")
 	// A value Swift parses is published as the track's latest, which a subscriber reads
 	// back as JSON text.
 	let on = try Json.parse(#"{"on": true}"#)
-	try status.update(on, Timestamp.now())
+	try status.update(on, Timestamp.fromMillis(1))
 	let latest = Held(try status.consume())
 	try block {
 		var group = try await latest.value.recvGroup()
@@ -394,8 +394,8 @@ func script() throws {
 	expect(try connect.tlsGet().fingerprintGet == ["ab:cd"], "a TLS config keeps its fingerprints")
 	let url = try connect.urlGet()!
 	let versions = Versions.default()
-	let dialed = try AuthTokens.new(UniqueArray()).dial(url, versions).urlGet()
-	expect(try dialed == url, "a dial keeps its URL")
+	let dialed = try Client.new().withUrl(url.clone()).url()!
+	expect(try dialed == url, "a client keeps its URL")
 	expect(try dialed.description == "https://relay.example:4443/demo", "a URL prints as Rust's")
 	// A `Vec<String>`, as an array.
 	expect(!ALPNS.isEmpty, "a constant slice crosses as an array")
@@ -426,12 +426,11 @@ func script() throws {
 	}
 	try block {
 		let served = tokioOriginSpawn()
-		let live = try served.createBroadcast("live")
-		try live.announce(OriginRoute.default())
+		let live = try served.route("live", OriginRouteOptions.default())
 		let liveTrack = try live.broadcast().createTrack("video", nil)
-		var liveGroup = try liveTrack.appendGroup()
-		try liveGroup.writeFrame(nil, Bytes("hello".utf8))
-		try liveGroup.finish()
+		var liveGroup = try liveTrack.appendGroup(Timestamp.unscaled(0))
+		try liveGroup.writeFrame(Timestamp.unscaled(0), Bytes("hello".utf8))
+		_ = try liveGroup.finish()
 
 		var serverConfig = TokioServerConfig.default()
 		var listen = try serverConfig.listenGet()

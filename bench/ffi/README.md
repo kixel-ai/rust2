@@ -9,7 +9,7 @@ nix develop .#bench --command just ffi bench-run 5  # rerun what bench-build bui
 ```
 
 `ffi/moq/bench/export.*` time the same cases in each language, `export.rs` the floor
-on the stand-in's API from Rust, and `moq-c.c` moq's hand-written rs/moq-c, which
+on the stand-in's API from Rust, and `moq-c.c` moq's hand-written rs/libmoq, which
 has only the stamped write. `export.ts` runs on Node and, through `browser.ts`, in
 headless Chromium and Firefox, over a wasm32-wasip1 build of the stand-in
 ([TypeScript](#typescript)). Each program runs its cases twice and prints the second,
@@ -27,7 +27,7 @@ single-threaded case on every push to main and on each PR that can move one.
 | case | what it times | BoltFFI's nearest |
 |---|---|---|
 | handle call | `track.is_closed()`: one borrowed handle, a bool back, and moq's own read lock | `noop()` |
-| u64 getter | `demand.sequence()`: one borrowed handle and a field read, so all but 0.4 ns is the binding's | `group.sequence()` |
+| u64 getter | `demand.start()`: one borrowed handle and a field read, so all but 0.4 ns is the binding's | `group.sequence()` |
 | shared call, own call | the handle call on 4 threads at once, on one handle they share, then on a clone each | none |
 | shared getter, own getter | the u64 getter the same way | none |
 | record return | `track.largest()`: an `Option` of two `u64`s, copied across | `track.info()`, a record |

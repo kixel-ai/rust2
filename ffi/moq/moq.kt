@@ -67,7 +67,8 @@ fun main() {
 	scope.launch { group = subscriber.recvGroup() }
 	q.drain()
 	expect(group == null, "a receive waits for a group")
-	val writer = track.appendGroup()
+	// The track is untimed, so its group's start is a bare key.
+	val writer = track.appendGroup(Timestamp.unscaled(0u))
 	expect(q.size == 1, "a group's arrival wakes the receive")
 	q.drain()
 	val first = group!!
@@ -78,22 +79,22 @@ fun main() {
 	scope.launch { frame = first.readFrame() }
 	q.drain()
 	expect(frame == null, "a read waits for a frame")
-	writer.writeFrame(null, Bytes("hello".encodeToByteArray()))
+	writer.writeFrame(Timestamp.unscaled(0u), Bytes("hello".encodeToByteArray()))
 	expect(q.size == 1, "a frame's arrival wakes the read")
 	q.drain()
 	val hello = frame!!
 	expect(hello.payloadGet.toByteArray().decodeToString() == "hello", "a frame has its payload")
-	expect(hello.timestampGet == null, "an untimed frame has no timestamp")
+	expect(hello.timestampGet.scale() == null, "an untimed frame's timestamp has no scale")
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(clockNow().checkedDurationSince(hello.arrived()) != null, "a frame arrived before now")
 
 	// A timestamp is a `Copy` value copied across, which allocates nothing. The track is
-	// untimed, so a timestamped frame is refused.
+	// untimed, so a timed frame is refused.
 	val at = Timestamp.fromMillis(1500u)
 	expect(at.asSecs() == 1uL, "1500 ms is 1 s")
 	try {
 		writer.writeFrame(at, Bytes("late".encodeToByteArray()))
-		expect(false, "a timestamped frame on an untimed track is an error")
+		expect(false, "a timed frame on an untimed track is an error")
 	} catch (e: ErrorException) {
 		expect(e.message == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
 	}
@@ -101,7 +102,7 @@ fun main() {
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as null.
 	val world = byteArrayOf(0xff.toByte()) + "world".encodeToByteArray()
-	writer.writeFrame(null, Bytes(world))
+	writer.writeFrame(Timestamp.unscaled(0u), Bytes(world))
 	writer.finish()
 	runBlocking {
 		expect(first.readFrame()?.payloadGet?.toByteArray()?.contentEquals(world) == true, "the last frame reads")
@@ -128,9 +129,9 @@ fun main() {
 		}
 	}
 
-	// A broadcast the origin creates is stamped with its path, which its info lends. Each
+	// A broadcast the origin routes is stamped with its path, which its info lends. Each
 	// handle to it is closed, since an open one keeps it, and so the origin, alive.
-	origin.createBroadcast("room/alice").use { publication ->
+	origin.route("room/alice", OriginRouteOptions.default()).use { publication ->
 		val path = publication.broadcast().use { it.info().pathGet }
 		expect(path.asStr() == "room/alice", "a broadcast has its path")
 
@@ -187,11 +188,11 @@ fun main() {
 	}
 
 	// A subscription's ranges, from any iterable of them: a list.
-	val groups = TrackRange.groups(BoundsU64(BoundU64(Bound.INCLUDED, 2u), BoundU64(Bound.EXCLUDED, 6u)))
-	val ranged = TrackSubscription.default().withRanges(listOf(TrackRange.live(), groups)).rangesGet
-	expect(ranged == listOf(TrackRange.live(), groups), "a subscription keeps its ranges")
-	expect(groups.start == TrackAnchor.Absolute(2u), "groups start at their first")
-	expect(groups.end == TrackAnchor.Absolute(6u), "groups end before their end")
+	val times = TrackRange(TrackAnchor.Time(2u), TrackAnchor.Time(6u))
+	val ranged = TrackSubscription.default().withRanges(listOf(TrackRange.live(), times)).rangesGet
+	expect(ranged == listOf(TrackRange.live(), times), "a subscription keeps its ranges")
+	expect(ranged[1].start == TrackAnchor.Time(2u), "a range starts at its first time")
+	expect(ranged[1].end == TrackAnchor.Time(6u), "a range ends at its last time, included")
 
 	// A catalog at moq-mux's untyped extension, from the config Kotlin builds, whose generic
 	// `is_claimed` is named by the last segment of its argument, and whose `mutate` lends
@@ -214,7 +215,7 @@ fun main() {
 	expect(catalog.isClaimedJsonConfig("status"), "the JSON snapshot claims its name")
 	// A value Kotlin parses is published as the track's latest, which a subscriber reads
 	// back as JSON text.
-	Json.parse("""{"on": true}""").use { status.update(it, Timestamp.now()) }
+	Json.parse("""{"on": true}""").use { status.update(it, Timestamp.fromMillis(1u)) }
 	runBlocking {
 		val frame = status.consume().recvGroup()?.readFrame()
 		expect(frame?.payloadGet?.toByteArray()?.decodeToString() == """{"on":true}""", "a subscriber reads the latest value")
@@ -265,16 +266,9 @@ fun main() {
 	connect.tlsGet.use { tls -> expect(tls.fingerprintGet == listOf("ab:cd"), "a TLS config keeps its fingerprints") }
 	val url = connect.urlGet!!
 	connect.close()
-	val versions = Versions.default()
-	AuthTokens.new(emptyList()).use { tokens ->
-		tokens.dial(url, versions).use { dial ->
-			dial.urlGet.use { dialed ->
-				expect(dialed == url, "a dial keeps its URL")
-				expect(dialed.toString() == "https://relay.example:4443/demo", "a URL prints as Rust's")
-			}
-		}
-	}
+	expect(url.toString() == "https://relay.example:4443/demo", "a URL prints as Rust's")
 	url.close()
+	val versions = Versions.default()
 	// A `Vec<String>`, as a List.
 	expect(ALPNS.isNotEmpty(), "a constant slice crosses as a List")
 	val alpns = versions.alpns()
@@ -306,11 +300,10 @@ fun main() {
 	runBlocking {
 		withTimeout(30.seconds) {
 			val served = tokioOriginSpawn()
-			val live = served.createBroadcast("live")
-			live.announce(OriginRoute.default())
+			val live = served.route("live", OriginRouteOptions.default())
 			val liveTrack = live.broadcast().createTrack("video", null)
-			val liveGroup = liveTrack.appendGroup()
-			liveGroup.writeFrame(null, Bytes("hello".encodeToByteArray()))
+			val liveGroup = liveTrack.appendGroup(Timestamp.unscaled(0u))
+			liveGroup.writeFrame(Timestamp.unscaled(0u), Bytes("hello".encodeToByteArray()))
 			liveGroup.finish()
 
 			val serverConfig = TokioServerConfig.default()
