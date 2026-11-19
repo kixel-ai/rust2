@@ -655,8 +655,9 @@ def web(args):
 def check_program(check, name):
     """A check written beside an export, importing `./web/<module>.ts`, as it imports the package."""
     text = Path(check).read_text(encoding="utf-8")
-    text = text.replace('"./web/index.ts"', json.dumps(name))
-    text = re.sub(r'"\./web/([A-Za-z0-9_$]+)\.ts"', lambda m: json.dumps(f"{name}/{m.group(1)}"), text)
+    # Either quote, kept as written.
+    text = re.sub(r"""(["'])\./web/([A-Za-z0-9_$]+)\.ts\1""",
+                  lambda m: m.group(1) + (name if m.group(2) == "index" else f"{name}/{m.group(2)}") + m.group(1), text)
     if "./web/" in text:
         raise SystemExit(f"{check} imports the binding by a path other than ./web/<module>.ts")
     return text

@@ -256,10 +256,10 @@ class Web(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             check = Path(tmp) / "check.ts"
             check.write_text('import * as api from "./web/index.ts";\nimport type * as rt from "./web/rt.ts";\n'
-                             'import * as Error_ from "./web/Error_.ts";\n')
+                             "import * as Error_ from './web/Error_.ts';\n")
             self.assertEqual(package.check_program(check, "@moq/moq-ffi"),
                              'import * as api from "@moq/moq-ffi";\nimport type * as rt from "@moq/moq-ffi/rt";\n'
-                             'import * as Error_ from "@moq/moq-ffi/Error_";\n')
+                             "import * as Error_ from '@moq/moq-ffi/Error_';\n")
             check.write_text('import * as api from "./web/nested/index.ts";\n')
             with self.assertRaises(SystemExit):
                 package.check_program(check, "@moq/moq-ffi")
