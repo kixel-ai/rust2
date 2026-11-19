@@ -37,6 +37,7 @@ func Choose(choice Choice) (uint64, error)
 func Chunks(bytes p_rt.Bytes, size uint) []p_rt.Bytes
 func ClashAudioEncoderFinish() uint8
 func ClashAudioEncoderFinish_() uint8
+func ClashIgnore(arg0 uint8, arg1 uint8, arg2 uint8) uint8
 func ClashListed(java []uint32, kotlin *uint32) [][]uint32
 func ClashNested(a *p_rt.Tuple2[p_rt.Tuple2[uint8, uint16], uint32], b *p_rt.Tuple3[uint8, uint16, uint32]) uint32
 func Coordinates(point *Point) int32
@@ -93,6 +94,7 @@ func HasText(note Note) (bool, error)
 func Heft(marked p_rt.Tuple2[*Mark, p_rt.Bytes], lent Parcel, moved p_rt.Tuple2[*Counter, p_rt.Bytes]) (uint64, error)
 func HeldCount(held **Counter) (*uint64, error)
 func Hex(payload p_rt.Bytes) string
+func Hook(f func()) error
 func Host(url *p_url.Url) (*string, error)
 func IsFamily(family Family) bool
 func IsKept(status Status) bool
@@ -226,6 +228,7 @@ func Title(formal bool) *string
 func TokenBytes(id uint32, len_ uint32) p_rt.Bytes
 func TokenSlice(id uint32, len_ uint32, of uint32) p_rt.Bytes
 func Total(range_ p_rt.RangeU64) uint64
+func Unhook() error
 func Verify(cert *p_tls.Cert) (uint32, error)
 func VisitStray(visit func(string))
 func WaiterPollFuture(ctx context.Context, future func(context.Context)) error
@@ -403,17 +406,23 @@ func ClashAfter(ctx context.Context, first func(context.Context), kotlin float64
 func ClashAt(api Point) Clash
 func ClashOf(value float64) Clash
 type ClashAny struct {
+	TypeUrl string
 }
-func (self ClashAny) Bytes() (p_rt.Bytes, error)
-func (self ClashAny) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
-func (self ClashAny) Equal(other Clash) (bool, error)
+func NewClashAny(typeUrl string) (ClashAny, error)
+func (self ClashAny) Equal(other ClashAny) (bool, error)
 func (self ClashAny) GoString() string
-func (self ClashAny) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
-func (self ClashAny) Moment(kotlin uint64) (Moment, error)
-func (self ClashAny) Point() (*Point, error)
-func (self ClashAny) Reading(kotlin uint32) (Reading, error)
-func (self ClashAny) Stamp(kotlin uint64) (Stamp, error)
-func (self ClashAny) Tagged(ctx context.Context, tag string) (string, error)
+type ClashAny_ struct {
+}
+func (self ClashAny_) Bytes() (p_rt.Bytes, error)
+func (self ClashAny_) Describe(text string, n uint32, shape Shape, out *uint32) (string, error)
+func (self ClashAny_) Equal(other Clash) (bool, error)
+func (self ClashAny_) GoString() string
+func (self ClashAny_) Joined(lent p_rt.Bytes, owned p_rt.Bytes, maybe *p_rt.Bytes) (p_rt.Bytes, error)
+func (self ClashAny_) Moment(kotlin uint64) (Moment, error)
+func (self ClashAny_) Point() (*Point, error)
+func (self ClashAny_) Reading(kotlin uint32) (Reading, error)
+func (self ClashAny_) Stamp(kotlin uint64) (Stamp, error)
+func (self ClashAny_) Tagged(ctx context.Context, tag string) (string, error)
 type ClashBoolean struct {
 	V0 bool
 }
@@ -427,6 +436,13 @@ func (self ClashBoolean) Point() (*Point, error)
 func (self ClashBoolean) Reading(kotlin uint32) (Reading, error)
 func (self ClashBoolean) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashBoolean) Tagged(ctx context.Context, tag string) (string, error)
+type ClashBreak struct {
+	V0 uint8
+}
+func ClashBreakSP() ClashBreak
+func ClashBreakSP_() ClashBreak
+func (self ClashBreak) Equal(other ClashBreak) bool
+func (self ClashBreak) GoString() string
 type ClashBytes struct {
 	V0 p_rt.Bytes
 }
@@ -440,6 +456,20 @@ func (self ClashBytes) Point() (*Point, error)
 func (self ClashBytes) Reading(kotlin uint32) (Reading, error)
 func (self ClashBytes) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashBytes) Tagged(ctx context.Context, tag string) (string, error)
+type ClashCandidate interface {
+	GoString() string
+	Equal(other ClashCandidate) bool
+}
+func NewClashCandidate(at uint8) ClashCandidate
+type ClashCandidateMatch struct {
+	V0 uint8
+}
+func (self ClashCandidateMatch) Equal(other ClashCandidate) bool
+func (self ClashCandidateMatch) GoString() string
+type ClashCandidateNone struct {
+}
+func (self ClashCandidateNone) Equal(other ClashCandidate) bool
+func (self ClashCandidateNone) GoString() string
 type ClashDouble struct {
 	V0 float64
 }
@@ -453,6 +483,12 @@ func (self ClashDouble) Point() (*Point, error)
 func (self ClashDouble) Reading(kotlin uint32) (Reading, error)
 func (self ClashDouble) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashDouble) Tagged(ctx context.Context, tag string) (string, error)
+type ClashEmptyString struct {
+	Handle_ *p_rt.Handle_
+}
+func ClashEmpty() *ClashEmptyString
+func (self *ClashEmptyString) Close() error
+func (self *ClashEmptyString) IsEmpty() (bool, error)
 type ClashEvent struct {
 	V0 Event
 }
@@ -557,6 +593,14 @@ func (self ClashPoint) Point() (*Point, error)
 func (self ClashPoint) Reading(kotlin uint32) (Reading, error)
 func (self ClashPoint) Stamp(kotlin uint64) (Stamp, error)
 func (self ClashPoint) Tagged(ctx context.Context, tag string) (string, error)
+type ClashSeed struct {
+	Handle_ *p_rt.Handle_
+}
+func ClashSeedDefault() *ClashSeed
+func ClashSeedDefault_() *ClashSeed
+func (self *ClashSeed) Bool() (bool, error)
+func (self *ClashSeed) Close() error
+func (self *ClashSeed) Value() (uint32, error)
 type ClashShape struct {
 	V0 Shape
 }
@@ -794,6 +838,15 @@ type FiledReceipt struct {
 func (self *FiledReceipt) Clone() (*FiledReceipt, error)
 func (self *FiledReceipt) Close() error
 func (self *FiledReceipt) Count() (uint32, error)
+type Forged struct {
+	Handle_ *p_rt.Handle_
+}
+func NewForged(n uint64) (*Forged, error)
+func (self *Forged) Close() error
+func (self *Forged) Equal(other *Forged) (bool, error)
+func (self *Forged) GoString() string
+func (self *Forged) NGet() (uint64, error)
+func (self *Forged) NSet(value uint64) error
 type Gap struct {
 	Handle_ *p_rt.Handle_
 }
@@ -838,6 +891,15 @@ func (self Hits) HitsGet() uint64
 func (self *Hits) HitsSet(value uint64)
 func (self Hits) MissesGet() uint64
 func (self *Hits) MissesSet(value uint64)
+type Hooked struct {
+	Handle_ *p_rt.Handle_
+}
+func NewHooked(n uint64) (*Hooked, error)
+func (self *Hooked) Close() error
+func (self *Hooked) Equal(other *Hooked) (bool, error)
+func (self *Hooked) GoString() string
+func (self *Hooked) NGet() (uint64, error)
+func (self *Hooked) NSet(value uint64) error
 type InnerU8 struct {
 	Value uint8
 }
@@ -876,6 +938,13 @@ type Label struct {
 }
 func (self Label) Equal(other Label) (bool, error)
 func (self Label) GoString() string
+type Labeled struct {
+	Handle_ *p_rt.Handle_
+}
+func NewLabeled(label string) (*Labeled, error)
+func (self *Labeled) Close() error
+func (self *Labeled) Equal(other *Labeled) (bool, error)
+func (self *Labeled) GoString() string
 type Labelled interface {
 	GoString() string
 	Equal(other Labelled) bool
@@ -1209,6 +1278,14 @@ type Parcel struct {
 	Mark    *Mark
 	Payload p_rt.Bytes
 }
+type Part struct {
+	Handle_ *p_rt.Handle_
+}
+func (self *Part) Close() error
+func (self *Part) Equal(other *Part) (bool, error)
+func (self *Part) GoString() string
+func (self *Part) ValueGet() (uint64, error)
+func (self *Part) ValueSet(value uint64) error
 type Peer struct {
 	Addr  p_rt.SocketAddr
 	Names []string
@@ -1217,6 +1294,14 @@ func (self Peer) Aliases() ([]string, error)
 func (self Peer) Equal(other Peer) (bool, error)
 func (self Peer) GoString() string
 func (self Peer) Next(name string) (Peer, error)
+type Pinned struct {
+	Handle_ *p_rt.Handle_
+}
+func NewPinned(value uint64) (*Pinned, error)
+func (self *Pinned) Close() error
+func (self *Pinned) Part() (*Part, error)
+func (self *Pinned) ValueGet() (uint64, error)
+func (self *Pinned) ValueSet(value uint64) error
 type Placement interface {
 }
 func NewPlacement() Placement
@@ -1225,6 +1310,17 @@ type PlacementAnywhere struct {
 type PlacementPinned struct {
 	V0 Core
 }
+type Plain struct {
+	Handle_ *p_rt.Handle_
+}
+func NewPlain(n uint64, on bool) *Plain
+func (self *Plain) Close() error
+func (self *Plain) Equal(other *Plain) (bool, error)
+func (self *Plain) GoString() string
+func (self *Plain) NGet() (uint64, error)
+func (self *Plain) NSet(value uint64) error
+func (self *Plain) OnGet() (bool, error)
+func (self *Plain) OnSet(value bool) error
 type Platform interface {
 }
 func NewPlatform() Platform

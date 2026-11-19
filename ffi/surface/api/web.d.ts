@@ -246,6 +246,48 @@ export declare function moment(self: Clash, kotlin: rt.u64): Moment;
 export declare function at(api: Point): Clash;
 export declare function describe(self: Clash, text: string, n: number, shape: Shape, out: rt.Place<number>): string;
 
+// ClashAny.ts
+import * as rt from "./rt.ts";
+export type ClashAny = {
+    typeUrl: string;
+};
+export declare function debug(self: ClashAny): string;
+export declare function eq(a: ClashAny, b: ClashAny): boolean;
+export declare function hash(self: ClashAny): rt.u64;
+
+// ClashBreak.ts
+export type ClashBreak = {
+    _0: number;
+};
+export declare function debug(self: ClashBreak): string;
+export declare function eq(a: ClashBreak, b: ClashBreak): boolean;
+export declare function SP(): ClashBreak;
+export declare function SP_(): ClashBreak;
+
+// ClashCandidate.ts
+export type ClashCandidate = {
+    tag: "None";
+} | {
+    tag: "Match";
+    _0: number;
+};
+export declare function debug(self: ClashCandidate): string;
+export declare function eq(a: ClashCandidate, b: ClashCandidate): boolean;
+
+// ClashEmptyString.ts
+import * as rt from "./rt.ts";
+export type ClashEmptyString = rt.Handle<"ClashEmptyString">;
+export declare function isEmpty(self: ClashEmptyString): boolean;
+
+// ClashSeed.ts
+import * as rt from "./rt.ts";
+export type ClashSeed = rt.Handle<"ClashSeed">;
+export declare function default$(): ClashSeed;
+export declare function default_(): ClashSeed;
+export declare function value(self: ClashSeed): number;
+export declare function bool(self: ClashSeed): boolean;
+export { default$ as default };
+
 // ClashSpan.ts
 export type ClashSpan = {
     width: number;
@@ -534,6 +576,15 @@ export type Label = {
 };
 export declare function debug(self: Label): string;
 export declare function eq(a: Label, b: Label): boolean;
+
+// Labeled.ts
+import * as rt from "./rt.ts";
+export type Labeled = rt.Handle<"Labeled">;
+export declare function debug(self: Labeled): string;
+export declare function eq(a: Labeled, b: Labeled): boolean;
+export declare function hash(self: Labeled): rt.u64;
+export declare function new$(label: string): Labeled;
+export { new$ as new };
 
 // Labelled.ts
 export type Labelled = {
@@ -943,6 +994,19 @@ export declare function next(self: Peer, name: string): Peer;
 export type Placement = {
     tag: "Anywhere";
 };
+
+// Plain.ts
+import * as rt from "./rt.ts";
+export type Plain = rt.Handle<"Plain">;
+export declare function debug(self: Plain): string;
+export declare function eq(a: Plain, b: Plain): boolean;
+export declare function hash(self: Plain): rt.u64;
+export declare function nGet(self: Plain): rt.u64;
+export declare function nSet(self: Plain, value: rt.u64): void;
+export declare function onGet(self: Plain): boolean;
+export declare function onSet(self: Plain, value: boolean): void;
+export declare function new$(n: rt.u64, on: boolean): Plain;
+export { new$ as new };
 
 // Platform.ts
 export type Platform = {
@@ -1426,6 +1490,9 @@ import type { Builtin } from "./Builtin.ts";
 import type { Cancelled } from "./Cancelled.ts";
 import type { Choice } from "./Choice.ts";
 import type { Clash } from "./Clash.ts";
+import type { ClashAny } from "./ClashAny.ts";
+import type { ClashBreak } from "./ClashBreak.ts";
+import type { ClashCandidate } from "./ClashCandidate.ts";
 import type { ClashSpan } from "./ClashSpan.ts";
 import type { ClashTone } from "./ClashTone.ts";
 import type { ClashTone_ } from "./ClashTone_.ts";
@@ -1547,6 +1614,7 @@ export declare const k_Instant: rt.Kind;
 export declare const k_Journal: rt.Kind;
 export declare const k_Json: rt.Kind;
 export declare const k_Key: rt.Kind;
+export declare const k_Labeled: rt.Kind;
 export declare const k_Latch: rt.Kind;
 export declare const k_Layered: rt.Kind;
 export declare const k_Ledger: rt.Kind;
@@ -1563,6 +1631,7 @@ export declare const k_Node: rt.Kind;
 export declare const k_Outer_Inner_u8: rt.Kind;
 export declare const k_Pad_u16: rt.Kind;
 export declare const k_Pad_u8: rt.Kind;
+export declare const k_Plain: rt.Kind;
 export declare const k_Receipt: rt.Kind;
 export declare const k_Refusal: rt.Kind;
 export declare const k_Registry: rt.Kind;
@@ -1583,6 +1652,8 @@ export declare const k_Verbosity: rt.Kind;
 export declare const k_Waiter: rt.Kind;
 export declare const k_Worker: rt.Kind;
 export declare const k_c: rt.Kind;
+export declare const k_clash_Empty_string: rt.Kind;
+export declare const k_clash_Seed: rt.Kind;
 export declare const k_clash_Store: rt.Kind;
 export declare const k_std_io_Error: rt.Kind;
 export declare const k_tls_Cert: rt.Kind;
@@ -1691,6 +1762,9 @@ export declare function r_bounds_u64(p: number, o: boolean): {
         readonly tag: "Unbounded";
     };
 };
+export declare function r_clash_Any(p: number, o: boolean): ClashAny;
+export declare function r_clash_Break(p: number, o: boolean): ClashBreak;
+export declare function r_clash_Candidate(p: number, o: boolean): ClashCandidate;
 export declare function r_clash_Tone(p: number, o: boolean): ClashTone;
 export declare function r_option_Level(p: number, o: boolean): Level | undefined;
 export declare function r_option_Moment(p: number, o: boolean): Moment | undefined;
@@ -1881,6 +1955,9 @@ export declare function w_bounds_u64(p: number, v: {
         readonly tag: "Unbounded";
     };
 }): void;
+export declare function w_clash_Any(p: number, v: ClashAny): void;
+export declare function w_clash_Break(p: number, v: ClashBreak): void;
+export declare function w_clash_Candidate(p: number, v: ClashCandidate): void;
 export declare function w_clash_Span(p: number, v: ClashSpan): void;
 export declare function w_clash_TONE(p: number, v: ClashTone_): void;
 export declare function w_clash_Tone(p: number, v: ClashTone): void;
@@ -1992,6 +2069,9 @@ import type { Booth } from "./Booth.ts";
 import type { BoxedU16 } from "./BoxedU16.ts";
 import type { BoxedU8 } from "./BoxedU8.ts";
 import type { Choice } from "./Choice.ts";
+import type { ClashAny } from "./ClashAny.ts";
+import type { ClashCandidate } from "./ClashCandidate.ts";
+import type { ClashEmptyString } from "./ClashEmptyString.ts";
 import type { ClashTone } from "./ClashTone.ts";
 import type { Clocked } from "./Clocked.ts";
 import type { Counter } from "./Counter.ts";
@@ -2053,7 +2133,7 @@ import type { TlsSession } from "./TlsSession.ts";
 import type { Url } from "./Url.ts";
 import type { Waiter } from "./Waiter.ts";
 import type { WrapU32 } from "./WrapU32.ts";
-export declare function load(source: rt.Source): Promise<void>;
+export declare function load(source?: rt.Source): Promise<void>;
 export declare const LIMIT: rt.u64;
 export declare const FAR: rt.i64;
 export declare function hasText(note: Note): boolean;
@@ -2385,6 +2465,10 @@ export declare function crowded(reading: Reading, a: Stamp, b: Stamp, n0: rt.u64
 export declare function crammed(a: Moment, b: Moment, n0: rt.u64, n1: rt.u64, n2: rt.u64, n3: rt.u64, n4: rt.u64, n5: rt.u64, n6: rt.u64, n7: rt.u64, n8: rt.u64, n9: rt.u64, n10: rt.u64, n11: rt.u64, n12: rt.u64, n13: rt.u64, n14: rt.u64, n15: rt.u64, n16: rt.u64, n17: rt.u64, n18: rt.u64, n19: rt.u64, n20: rt.u64, n21: rt.u64, n22: rt.u64, n23: rt.u64, n24: rt.u64, n25: rt.u64, n26: rt.u64, n27: rt.u64, n28: rt.u64, n29: rt.u64, n30: rt.u64, n31: rt.u64, n32: rt.u64, n33: rt.u64, n34: rt.u64, n35: rt.u64, n36: rt.u64, n37: rt.u64, n38: rt.u64, n39: rt.u64, n40: rt.u64, n41: rt.u64, n42: rt.u64, n43: rt.u64, n44: rt.u64, n45: rt.u64, n46: rt.u64, n47: rt.u64, n48: rt.u64, n49: rt.u64, n50: rt.u64, n51: rt.u64, n52: rt.u64, n53: rt.u64, n54: rt.u64, n55: rt.u64, n56: rt.u64, n57: rt.u64, n58: rt.u64, n59: rt.u64, n60: rt.u64, n61: rt.u64, n62: rt.u64, n63: rt.u64, n64: rt.u64, n65: rt.u64, n66: rt.u64, n67: rt.u64, n68: rt.u64, n69: rt.u64, n70: rt.u64, n71: rt.u64, n72: rt.u64, n73: rt.u64, n74: rt.u64, n75: rt.u64, n76: rt.u64, n77: rt.u64, n78: rt.u64, n79: rt.u64, n80: rt.u64, n81: rt.u64, n82: rt.u64, n83: rt.u64, n84: rt.u64, n85: rt.u64, n86: rt.u64, n87: rt.u64, n88: rt.u64, n89: rt.u64, n90: rt.u64, n91: rt.u64, n92: rt.u64, n93: rt.u64, n94: rt.u64, n95: rt.u64, n96: rt.u64, n97: rt.u64, n98: rt.u64, n99: rt.u64, n100: rt.u64, n101: rt.u64, n102: rt.u64, n103: rt.u64, n104: rt.u64, n105: rt.u64, n106: rt.u64, n107: rt.u64, n108: rt.u64, n109: rt.u64, n110: rt.u64, n111: rt.u64, n112: rt.u64, n113: rt.u64, n114: rt.u64, n115: rt.u64, n116: rt.u64, n117: rt.u64, n118: rt.u64, n119: rt.u64, n120: rt.u64, n121: rt.u64, n122: rt.u64, n123: rt.u64): rt.u64;
 export declare function jniOne(): number;
 export declare function polarPoint(distance: number): PolarPoint | undefined;
+export declare function clashAny(typeUrl: string): ClashAny;
+export declare function clashCandidate(at: number): ClashCandidate;
+export declare function clashIgnore(arg0: number, arg1: number, arg2: number): number;
+export declare function clashEmpty(): ClashEmptyString;
 export declare function clashAudible(tone: ClashTone): rt.Result<ClashTone, ClashTone[]>;
 export declare function clashNested(a: [[number, number], number] | undefined, b: [[number, number, number]] | undefined): number;
 export declare function clashAudioEncoderFinish(): number;
@@ -2429,9 +2513,11 @@ export type None = typeof None;
 export type Place<T> = {
     v: T;
 };
+export interface Opaque<T extends string = string> {
+    readonly [brand]: T;
+}
 export declare class Opaque<T extends string = string> {
     #private;
-    readonly [brand]: T;
     private constructor();
 }
 export declare function opaqueMade(bytes: Uint8Array): Opaque;
@@ -2507,8 +2593,10 @@ export type Kind = {
     readonly free: string;
     readonly drop?: string;
 };
-export declare class Handle<T extends string = string> {
+export interface Handle<T extends string = string> {
     readonly [brand]: T;
+}
+export declare class Handle<T extends string = string> {
     readonly p: number;
     readonly k: Kind;
     h: number;
@@ -2607,7 +2695,7 @@ export declare function readerOf(dst: number, reader: Reader): void;
 export declare function pending<T>(f: number, poll: (f: number, waker: number) => [boolean, T], free: string): Call<T>;
 export declare function ready<T>(value: T): Call<T>;
 export declare function failed<T>(error: unknown): Call<T>;
-export type Source = WebAssembly.Module | BufferSource | Response | PromiseLike<Response>;
+export type Source = WebAssembly.Module | BufferSource | Response | PromiseLike<Response> | URL;
 export type Glue = {
     readonly prefix: string;
     readonly space: string;

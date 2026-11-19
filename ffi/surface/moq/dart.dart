@@ -7578,7 +7578,7 @@ final class RustlsClientResumption extends _Object {
 	String debug();
 	RustlsClientResumption clone();
 	factory RustlsClientResumption.default_();
-	factory RustlsClientResumption.inMemorySessions(U64 num);
+	factory RustlsClientResumption.inMemorySessions(U64 num_);
 	factory RustlsClientResumption.disabled();
 	RustlsClientResumption tls12Resumption(RustlsClientTls12Resumption tls12);
 }

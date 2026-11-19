@@ -453,6 +453,28 @@ namespace api {
 		static ::api::Tallies new_();
 		RUST2_FFI_CALLABLE ::api::Tally first() const;
 	};
+	class RUST2_FFI_CONSUMABLE Plain {
+		RUST2_FFI_UNCONSUMED Plain(Plain &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Plain &operator=(Plain &&other) noexcept = default;
+		friend bool operator==(const Plain &a__, const Plain &b_);
+		friend bool operator!=(const Plain &a__, const Plain &b_);
+		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
+		RUST2_FFI_CALLABLE ::api::buf debug() const;
+		RUST2_FFI_CALLABLE ::std::uint64_t n_get() const;
+		RUST2_FFI_CALLABLE void n_set(::std::uint64_t value);
+		RUST2_FFI_CALLABLE bool on_get() const;
+		RUST2_FFI_CALLABLE void on_set(bool value);
+		static ::api::Plain new_(::std::uint64_t n, bool on);
+	};
+	class RUST2_FFI_CONSUMABLE Labeled {
+		RUST2_FFI_UNCONSUMED Labeled(Labeled &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Labeled &operator=(Labeled &&other) noexcept = default;
+		friend bool operator==(const Labeled &a__, const Labeled &b_);
+		friend bool operator!=(const Labeled &a__, const Labeled &b_);
+		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
+		RUST2_FFI_CALLABLE ::api::buf debug() const;
+		static ::api::Labeled new_(::api::input label);
+	};
 	class RUST2_FFI_CONSUMABLE Gauge {
 		RUST2_FFI_UNCONSUMED Gauge(Gauge &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		Gauge &operator=(Gauge &&other) noexcept = default;
@@ -522,6 +544,19 @@ namespace api {
 		static ::api::Key new_(::api::input name);
 		RUST2_FFI_CALLABLE ::std::uint64_t hash_of() const;
 	};
+	class RUST2_FFI_CONSUMABLE clash_Seed {
+		RUST2_FFI_UNCONSUMED clash_Seed(clash_Seed &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		clash_Seed &operator=(clash_Seed &&other) noexcept = default;
+		static clash_Seed default_();
+		static ::api::clash_Seed default__();
+		RUST2_FFI_CALLABLE ::std::uint32_t value() const;
+		RUST2_FFI_CALLABLE bool bool_() const;
+	};
+	class RUST2_FFI_CONSUMABLE clash_Empty_string {
+		RUST2_FFI_UNCONSUMED clash_Empty_string(clash_Empty_string &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		clash_Empty_string &operator=(clash_Empty_string &&other) noexcept = default;
+		RUST2_FFI_CALLABLE bool is_empty() const;
+	};
 	class RUST2_FFI_CONSUMABLE clash_Store {
 		RUST2_FFI_UNCONSUMED clash_Store(clash_Store &&other RUST2_FFI_MOVED_FROM) noexcept = default;
 		clash_Store &operator=(clash_Store &&other) noexcept = default;
@@ -540,6 +575,44 @@ namespace api {
 		LogThread &operator=(LogThread &&other) noexcept = default;
 		static ::api::LogThread new_(::std::unique_ptr<::api::Log> log, ::api::input line);
 		RUST2_FFI_CONSUMES bool join() &&;
+	};
+	class RUST2_FFI_CONSUMABLE Pinned {
+		RUST2_FFI_UNCONSUMED Pinned(Pinned &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Pinned &operator=(Pinned &&other) noexcept = default;
+		RUST2_FFI_CALLABLE ::std::uint64_t value_get() const;
+		RUST2_FFI_CALLABLE void value_set(::std::uint64_t value);
+		static ::api::Pinned new_(::std::uint64_t value);
+		RUST2_FFI_CALLABLE ::api::Part part() const;
+	};
+	class RUST2_FFI_CONSUMABLE Hooked {
+		RUST2_FFI_UNCONSUMED Hooked(Hooked &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Hooked &operator=(Hooked &&other) noexcept = default;
+		friend bool operator==(const Hooked &a__, const Hooked &b_);
+		friend bool operator!=(const Hooked &a__, const Hooked &b_);
+		RUST2_FFI_CALLABLE ::api::buf debug() const;
+		RUST2_FFI_CALLABLE ::std::uint64_t n_get() const;
+		RUST2_FFI_CALLABLE void n_set(::std::uint64_t value);
+		static ::api::Hooked new_(::std::uint64_t n);
+	};
+	class RUST2_FFI_CONSUMABLE Forged {
+		RUST2_FFI_UNCONSUMED Forged(Forged &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Forged &operator=(Forged &&other) noexcept = default;
+		friend bool operator==(const Forged &a__, const Forged &b_);
+		friend bool operator!=(const Forged &a__, const Forged &b_);
+		RUST2_FFI_CALLABLE ::api::buf debug() const;
+		RUST2_FFI_CALLABLE ::std::uint64_t n_get() const;
+		RUST2_FFI_CALLABLE void n_set(::std::uint64_t value);
+		static ::api::Forged new_(::std::uint64_t n);
+	};
+	class RUST2_FFI_CONSUMABLE Part {
+		RUST2_FFI_UNCONSUMED Part(Part &&other RUST2_FFI_MOVED_FROM) noexcept = default;
+		Part &operator=(Part &&other) noexcept = default;
+		friend bool operator==(const Part &a__, const Part &b_);
+		friend bool operator!=(const Part &a__, const Part &b_);
+		RUST2_FFI_CALLABLE ::std::uint64_t hash() const;
+		RUST2_FFI_CALLABLE ::api::buf debug() const;
+		RUST2_FFI_CALLABLE ::std::uint64_t value_get() const;
+		RUST2_FFI_CALLABLE void value_set(::std::uint64_t value);
 	};
 	class Log {
 		virtual ~Log() = default;
@@ -993,6 +1066,20 @@ namespace api {
 		::std::uint32_t width_() const;
 		::api::buf to_string_() const;
 	};
+	struct clash_Any {
+		::api::buf type_url;
+		friend bool operator==(const clash_Any &a__, const clash_Any &b_);
+		friend bool operator!=(const clash_Any &a__, const clash_Any &b_);
+		::api::buf debug() const;
+	};
+	struct clash_Break {
+		::std::uint8_t _0;
+		friend bool operator==(const clash_Break &a__, const clash_Break &b_);
+		friend bool operator!=(const clash_Break &a__, const clash_Break &b_);
+		::api::buf debug() const;
+		static ::api::clash_Break Sp();
+		static ::api::clash_Break SP();
+	};
 	struct Core {
 		::std::uint32_t id;
 	};
@@ -1103,6 +1190,11 @@ namespace api {
 	struct Builtin_Native {
 		double _0;
 	};
+	struct clash_Candidate_None {
+	};
+	struct clash_Candidate_Match {
+		::std::uint8_t _0;
+	};
 	inline bool operator==(const Stamp &a__, const Stamp &b_);
 	inline bool operator==(const Point &a__, const Point &b_);
 	inline bool operator==(const Label &a__, const Label &b_);
@@ -1155,6 +1247,8 @@ namespace api {
 	inline bool operator==(const clash_Tone &a__, const clash_Tone &b_);
 	inline bool operator==(const clash_TONE &a__, const clash_TONE &b_);
 	inline bool operator==(const clash_Span &a__, const clash_Span &b_);
+	inline bool operator==(const clash_Any &a__, const clash_Any &b_);
+	inline bool operator==(const clash_Break &a__, const clash_Break &b_);
 	inline bool operator==(::api::Shape a__, ::api::Shape b_);
 	inline bool operator!=(::api::Shape a__, ::api::Shape b_);
 	inline ::api::buf Shape_debug(::api::Shape self);
@@ -1202,6 +1296,9 @@ namespace api {
 	inline ::api::buf b_debug(const ::api::b &self);
 	inline bool operator==(const ::api::Builtin &a__, const ::api::Builtin &b_);
 	inline bool operator!=(const ::api::Builtin &a__, const ::api::Builtin &b_);
+	inline bool operator==(const ::api::clash_Candidate &a__, const ::api::clash_Candidate &b_);
+	inline bool operator!=(const ::api::clash_Candidate &a__, const ::api::clash_Candidate &b_);
+	inline ::api::buf clash_Candidate_debug(const ::api::clash_Candidate &self);
 	inline bool has_text(const ::api::Note &note);
 	inline ::std::uint64_t marked(const ::api::Mark &api_marked);
 	inline ::std::optional<::api::Reading> reading(::std::uint32_t n);
@@ -1460,6 +1557,10 @@ namespace api {
 	inline ::std::uint64_t crammed(const ::api::Moment &a__, const ::api::Moment &b_, ::std::uint64_t n0, ::std::uint64_t n1, ::std::uint64_t n2, ::std::uint64_t n3, ::std::uint64_t n4, ::std::uint64_t n5, ::std::uint64_t n6, ::std::uint64_t n7, ::std::uint64_t n8, ::std::uint64_t n9, ::std::uint64_t n10, ::std::uint64_t n11, ::std::uint64_t n12, ::std::uint64_t n13, ::std::uint64_t n14, ::std::uint64_t n15, ::std::uint64_t n16, ::std::uint64_t n17, ::std::uint64_t n18, ::std::uint64_t n19, ::std::uint64_t n20, ::std::uint64_t n21, ::std::uint64_t n22, ::std::uint64_t n23, ::std::uint64_t n24, ::std::uint64_t n25, ::std::uint64_t n26, ::std::uint64_t n27, ::std::uint64_t n28, ::std::uint64_t n29, ::std::uint64_t n30, ::std::uint64_t n31, ::std::uint64_t n32, ::std::uint64_t n33, ::std::uint64_t n34, ::std::uint64_t n35, ::std::uint64_t n36, ::std::uint64_t n37, ::std::uint64_t n38, ::std::uint64_t n39, ::std::uint64_t n40, ::std::uint64_t n41, ::std::uint64_t n42, ::std::uint64_t n43, ::std::uint64_t n44, ::std::uint64_t n45, ::std::uint64_t n46, ::std::uint64_t n47, ::std::uint64_t n48, ::std::uint64_t n49, ::std::uint64_t n50, ::std::uint64_t n51, ::std::uint64_t n52, ::std::uint64_t n53, ::std::uint64_t n54, ::std::uint64_t n55, ::std::uint64_t n56, ::std::uint64_t n57, ::std::uint64_t n58, ::std::uint64_t n59, ::std::uint64_t n60, ::std::uint64_t n61, ::std::uint64_t n62, ::std::uint64_t n63, ::std::uint64_t n64, ::std::uint64_t n65, ::std::uint64_t n66, ::std::uint64_t n67, ::std::uint64_t n68, ::std::uint64_t n69, ::std::uint64_t n70, ::std::uint64_t n71, ::std::uint64_t n72, ::std::uint64_t n73, ::std::uint64_t n74, ::std::uint64_t n75, ::std::uint64_t n76, ::std::uint64_t n77, ::std::uint64_t n78, ::std::uint64_t n79, ::std::uint64_t n80, ::std::uint64_t n81, ::std::uint64_t n82, ::std::uint64_t n83, ::std::uint64_t n84, ::std::uint64_t n85, ::std::uint64_t n86, ::std::uint64_t n87, ::std::uint64_t n88, ::std::uint64_t n89, ::std::uint64_t n90, ::std::uint64_t n91, ::std::uint64_t n92, ::std::uint64_t n93, ::std::uint64_t n94, ::std::uint64_t n95, ::std::uint64_t n96, ::std::uint64_t n97, ::std::uint64_t n98, ::std::uint64_t n99, ::std::uint64_t n100, ::std::uint64_t n101, ::std::uint64_t n102, ::std::uint64_t n103, ::std::uint64_t n104, ::std::uint64_t n105, ::std::uint64_t n106, ::std::uint64_t n107, ::std::uint64_t n108, ::std::uint64_t n109, ::std::uint64_t n110, ::std::uint64_t n111, ::std::uint64_t n112, ::std::uint64_t n113, ::std::uint64_t n114, ::std::uint64_t n115, ::std::uint64_t n116, ::std::uint64_t n117, ::std::uint64_t n118, ::std::uint64_t n119, ::std::uint64_t n120, ::std::uint64_t n121, ::std::uint64_t n122, ::std::uint64_t n123);
 	inline ::std::uint32_t jni_one();
 	inline ::std::optional<::api::polar_Point> polar_point(::std::uint32_t distance);
+	inline ::api::clash_Any clash_any(::api::input type_url);
+	inline ::api::clash_Candidate clash_candidate(::std::uint8_t at);
+	inline ::std::uint8_t clash_ignore(::std::uint8_t arg0, ::std::uint8_t arg1, ::std::uint8_t arg2);
+	inline ::api::clash_Empty_string clash_empty();
 	inline ::api::result<::api::clash_Tone, ::std::vector<::api::clash_Tone>> clash_audible(const ::api::clash_Tone &tone);
 	inline ::std::uint32_t clash_nested(const ::std::optional<::std::tuple<::std::tuple<::std::uint8_t, ::std::uint16_t>, ::std::uint32_t>> &a__, const ::std::optional<::std::tuple<::std::tuple<::std::uint8_t, ::std::uint16_t, ::std::uint32_t>>> &b_);
 	inline ::std::uint8_t clash_audio_encoder_finish();
@@ -1468,6 +1569,8 @@ namespace api {
 	inline ::api::emit_later_future emit_later(::std::unique_ptr<::api::Log> log, ::api::input lines);
 	inline ::api::log_on_drop_future log_on_drop(::std::unique_ptr<::api::Log> log);
 	inline ::api::waker log_waker(::std::unique_ptr<::api::Log> log);
+	template <class F0> inline void hook(F0 &&f);
+	inline void unhook();
 }
 namespace std {
 	template <> struct hash<::api::Local> {
@@ -1475,8 +1578,23 @@ namespace std {
 	};
 }
 namespace std {
+	template <> struct hash<::api::Plain> {
+		size_t operator()(const ::api::Plain &value) const noexcept;
+	};
+}
+namespace std {
+	template <> struct hash<::api::Labeled> {
+		size_t operator()(const ::api::Labeled &value) const noexcept;
+	};
+}
+namespace std {
 	template <> struct hash<::api::Key> {
 		size_t operator()(const ::api::Key &value) const noexcept;
+	};
+}
+namespace std {
+	template <> struct hash<::api::Part> {
+		size_t operator()(const ::api::Part &value) const noexcept;
 	};
 }
 #endif
@@ -1761,6 +1879,8 @@ namespace api {
 	struct clash_Tone;
 	struct clash_TONE;
 	struct clash_Span;
+	struct clash_Any;
+	struct clash_Break;
 	struct tls_policy_Lifetime;
 	struct Core;
 	class Board;
@@ -1809,6 +1929,8 @@ namespace api {
 	class Node;
 	class Tally;
 	class Tallies;
+	class Plain;
+	class Labeled;
 	class Gauge;
 	class Latch;
 	class Token;
@@ -1816,6 +1938,8 @@ namespace api {
 	class Refusal;
 	class c;
 	class Key;
+	class clash_Seed;
+	class clash_Empty_string;
 	class clash_Store;
 	class tls_Session;
 	class Url;
@@ -1828,6 +1952,10 @@ namespace api {
 	class tls_Codec;
 	class Spawned;
 	class LogThread;
+	class Pinned;
+	class Hooked;
+	class Forged;
+	class Part;
 	class Log;
 	class Beat;
 	struct Choice_Empty;
@@ -1880,6 +2008,9 @@ namespace api {
 	struct Builtin_Int;
 	struct Builtin_Native;
 	using Builtin = ::std::variant<Builtin_Any, Builtin_Boolean, Builtin_Int, Builtin_Native>;
+	struct clash_Candidate_None;
+	struct clash_Candidate_Match;
+	using clash_Candidate = ::std::variant<clash_Candidate_None, clash_Candidate_Match>;
 	using Clash_after_future = ::api::future<detail::Clash_after_future_op>;
 	using Clash_tagged_future = ::api::future<detail::Clash_tagged_future_op>;
 	using Waiter_poll_future_future = ::api::future<detail::Waiter_poll_future_future_op>;

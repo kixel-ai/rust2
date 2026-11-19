@@ -10450,7 +10450,7 @@ import type { TrackInfo } from "./TrackInfo.ts";
 import type { TransportMemoryConfig } from "./TransportMemoryConfig.ts";
 import type { TransportMemorySession } from "./TransportMemorySession.ts";
 import type { Waiter } from "./Waiter.ts";
-export declare function load(source: rt.Source): Promise<void>;
+export declare function load(source?: rt.Source): Promise<void>;
 export declare const PATH_MAX_PARTS: number;
 export declare const PATH_MAX_BYTES: number;
 export declare const PATTERN_MAX_SEGMENTS: number;
@@ -10545,9 +10545,11 @@ export type None = typeof None;
 export type Place<T> = {
     v: T;
 };
+export interface Opaque<T extends string = string> {
+    readonly [brand]: T;
+}
 export declare class Opaque<T extends string = string> {
     #private;
-    readonly [brand]: T;
     private constructor();
 }
 export declare function opaqueMade(bytes: Uint8Array): Opaque;
@@ -10623,8 +10625,10 @@ export type Kind = {
     readonly free: string;
     readonly drop?: string;
 };
-export declare class Handle<T extends string = string> {
+export interface Handle<T extends string = string> {
     readonly [brand]: T;
+}
+export declare class Handle<T extends string = string> {
     readonly p: number;
     readonly k: Kind;
     h: number;
@@ -10723,7 +10727,7 @@ export declare function readerOf(dst: number, reader: Reader): void;
 export declare function pending<T>(f: number, poll: (f: number, waker: number) => [boolean, T], free: string): Call<T>;
 export declare function ready<T>(value: T): Call<T>;
 export declare function failed<T>(error: unknown): Call<T>;
-export type Source = WebAssembly.Module | BufferSource | Response | PromiseLike<Response>;
+export type Source = WebAssembly.Module | BufferSource | Response | PromiseLike<Response> | URL;
 export type Glue = {
     readonly prefix: string;
     readonly space: string;

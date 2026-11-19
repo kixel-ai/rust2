@@ -823,7 +823,7 @@ def undocumented(text):
 
 
 def web_declarations(root):
-    sources = sorted(root.glob("*.ts"))
+    sources = sorted(p for p in root.glob("*.ts") if not p.name.endswith(".d.ts"))
     with tempfile.TemporaryDirectory(dir=root.parent) as tmp:
         result = subprocess.run(
             ["tsc", "--declaration", "--emitDeclarationOnly", "--removeComments", "--strict", "--skipLibCheck",

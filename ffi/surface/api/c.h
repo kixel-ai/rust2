@@ -7,7 +7,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define API_CONTRACT ((uint64_t)0x20a58f2a80705774ULL)
+#define API_CONTRACT ((uint64_t)0xdcf4774fd2b0babdULL)
 uint64_t api_contract(void);
 uint32_t api_target(void);
 typedef int32_t api_status;
@@ -135,6 +135,8 @@ typedef struct api_Message api_Message;
 typedef struct api_Node api_Node;
 typedef struct api_Tally api_Tally;
 typedef struct api_Tallies api_Tallies;
+typedef struct api_Plain api_Plain;
+typedef struct api_Labeled api_Labeled;
 typedef struct api_Gauge api_Gauge;
 typedef struct api_Latch api_Latch;
 typedef struct api_Token api_Token;
@@ -142,6 +144,8 @@ typedef struct api_Stack api_Stack;
 typedef struct api_Refusal api_Refusal;
 typedef struct api_c api_c;
 typedef struct api_Key api_Key;
+typedef struct api_clash_Seed api_clash_Seed;
+typedef struct api_clash_Empty_string api_clash_Empty_string;
 typedef struct api_clash_Store api_clash_Store;
 typedef struct api_tls_Session api_tls_Session;
 typedef struct api_Url api_Url;
@@ -154,6 +158,10 @@ typedef struct api_tls_Resolver api_tls_Resolver;
 typedef struct api_tls_Codec api_tls_Codec;
 typedef struct api_Spawned api_Spawned;
 typedef struct api_LogThread api_LogThread;
+typedef struct api_Pinned api_Pinned;
+typedef struct api_Hooked api_Hooked;
+typedef struct api_Forged api_Forged;
+typedef struct api_Part api_Part;
 typedef enum api_Shape {
 	API_SHAPE_CIRCLE = 1,
 	API_SHAPE_SQUARE = 4,
@@ -806,6 +814,12 @@ typedef struct api_clash_TONE {
 typedef struct api_clash_Span {
 	uint32_t width;
 } api_clash_Span;
+typedef struct api_clash_Any {
+	api_buf type_url;
+} api_clash_Any;
+typedef struct api_clash_Break {
+	uint8_t _0;
+} api_clash_Break;
 typedef struct api_tls_policy_Lifetime {
 	uint32_t seconds;
 } api_tls_policy_Lifetime;
@@ -1028,6 +1042,19 @@ typedef struct api_Builtin {
 		api_Builtin_Native native;
 	};
 } api_Builtin;
+typedef enum api_clash_Candidate_tag {
+	API_CLASH_CANDIDATE_NONE = 0,
+	API_CLASH_CANDIDATE_MATCH = 1,
+} api_clash_Candidate_tag;
+typedef struct api_clash_Candidate_Match {
+	uint8_t _0;
+} api_clash_Candidate_Match;
+typedef struct api_clash_Candidate {
+	api_clash_Candidate_tag tag;
+	union {
+		api_clash_Candidate_Match match;
+	};
+} api_clash_Candidate;
 typedef struct api_Log_vtable {
 	void (*free)(void *data);
 	bool (*log)(void *data, uint8_t level, api_buf line);
@@ -1269,6 +1296,15 @@ api_buf api_clash_Span_to_string(const api_clash_Span *self);
 api_buf api_clash_Span_debug(const api_clash_Span *self);
 uint32_t api_clash_Span_width(const api_clash_Span *self);
 api_buf api_clash_Span_to_string_(const api_clash_Span *self);
+void api_clash_Any_free(api_clash_Any *self);
+bool api_clash_Any_eq(const api_clash_Any *a, const api_clash_Any *b);
+uint64_t api_clash_Any_hash(const api_clash_Any *self);
+api_buf api_clash_Any_debug(const api_clash_Any *self);
+void api_clash_Break_free(api_clash_Break *self);
+bool api_clash_Break_eq(const api_clash_Break *a, const api_clash_Break *b);
+api_buf api_clash_Break_debug(const api_clash_Break *self);
+api_clash_Break api_clash_Break_Sp(void);
+api_clash_Break api_clash_Break_SP(void);
 void api_tls_policy_Lifetime_free(api_tls_policy_Lifetime *self);
 bool api_tls_policy_Lifetime_eq(const api_tls_policy_Lifetime *a, const api_tls_policy_Lifetime *b);
 api_buf api_tls_policy_Lifetime_debug(const api_tls_policy_Lifetime *self);
@@ -1328,6 +1364,9 @@ bool api_b_eq(const api_b *a, const api_b *b);
 api_buf api_b_debug(const api_b *self);
 void api_Builtin_free(api_Builtin *self);
 bool api_Builtin_eq(const api_Builtin *a, const api_Builtin *b);
+void api_clash_Candidate_free(api_clash_Candidate *self);
+bool api_clash_Candidate_eq(const api_clash_Candidate *a, const api_clash_Candidate *b);
+api_buf api_clash_Candidate_debug(const api_clash_Candidate *self);
 bool api_Level_eq(const api_Level *a, const api_Level *b);
 uint64_t api_Level_hash(const api_Level *self);
 api_buf api_Level_to_string(const api_Level *self);
@@ -1727,6 +1766,21 @@ void api_Tallies_drop(api_Tallies *self, api_status *status);
 api_Tallies *api_Tallies_default(void);
 api_Tallies *api_Tallies_new(void);
 api_Tally *api_Tallies_first(const api_Tallies *self, api_status *status);
+void api_Plain_free(api_Plain *self);
+void api_Plain_drop(api_Plain *self, api_status *status);
+bool api_Plain_eq(const api_Plain *a, const api_Plain *b, api_status *status);
+uint64_t api_Plain_hash(const api_Plain *self, api_status *status);
+api_buf api_Plain_debug(const api_Plain *self, api_status *status);
+uint64_t api_Plain_n_get(const api_Plain *self, api_status *status);
+void api_Plain_n_set(api_Plain *self, uint64_t value, api_status *status);
+bool api_Plain_on_get(const api_Plain *self, api_status *status);
+void api_Plain_on_set(api_Plain *self, bool value, api_status *status);
+api_Plain *api_Plain_new(uint64_t n, bool on);
+void api_Labeled_free(api_Labeled *self);
+bool api_Labeled_eq(const api_Labeled *a, const api_Labeled *b);
+uint64_t api_Labeled_hash(const api_Labeled *self);
+api_buf api_Labeled_debug(const api_Labeled *self);
+api_Labeled *api_Labeled_new(api_buf label);
 void api_Gauge_free(api_Gauge *self);
 void api_Gauge_drop(api_Gauge *self, api_status *status);
 bool api_Gauge_borrowed(const api_Gauge *self);
@@ -1785,6 +1839,13 @@ uint64_t api_Key_hash(const api_Key *self);
 api_buf api_Key_debug(const api_Key *self);
 api_Key *api_Key_new(api_buf name);
 uint64_t api_Key_hash_of(const api_Key *self);
+void api_clash_Seed_free(api_clash_Seed *self);
+api_clash_Seed *api_clash_Seed_default(void);
+api_clash_Seed *api_clash_Seed_default_(void);
+uint32_t api_clash_Seed_value(const api_clash_Seed *self);
+bool api_clash_Seed_bool(const api_clash_Seed *self);
+void api_clash_Empty_string_free(api_clash_Empty_string *self);
+bool api_clash_Empty_string_is_empty(const api_clash_Empty_string *self);
 void api_clash_Store_free(api_clash_Store *self);
 api_clash_Store *api_clash_Store_new(uint32_t count);
 uint32_t api_clash_Store_free_(const api_clash_Store *self);
@@ -1833,6 +1894,34 @@ void api_LogThread_free(api_LogThread *self);
 void api_LogThread_drop(api_LogThread *self, api_status *status);
 api_LogThread *api_LogThread_new(api_Log log, api_buf line);
 bool api_LogThread_join(api_LogThread *self, api_status *status);
+void api_Pinned_free(api_Pinned *self);
+void api_Pinned_drop(api_Pinned *self, api_status *status);
+uint64_t api_Pinned_value_get(const api_Pinned *self, api_status *status);
+void api_Pinned_value_set(api_Pinned *self, uint64_t value, api_status *status);
+api_Pinned *api_Pinned_new(uint64_t value);
+api_Pinned *api_Pinned_new_homed(uint64_t value);
+api_Part *api_Pinned_part(const api_Pinned *self, api_status *status);
+void api_Hooked_free(api_Hooked *self);
+void api_Hooked_drop(api_Hooked *self, api_status *status);
+bool api_Hooked_eq(const api_Hooked *a, const api_Hooked *b, api_status *status);
+api_buf api_Hooked_debug(const api_Hooked *self, api_status *status);
+uint64_t api_Hooked_n_get(const api_Hooked *self, api_status *status);
+void api_Hooked_n_set(api_Hooked *self, uint64_t value, api_status *status);
+api_Hooked *api_Hooked_new(uint64_t n);
+void api_Forged_free(api_Forged *self);
+void api_Forged_drop(api_Forged *self, api_status *status);
+bool api_Forged_eq(const api_Forged *a, const api_Forged *b, api_status *status);
+api_buf api_Forged_debug(const api_Forged *self, api_status *status);
+uint64_t api_Forged_n_get(const api_Forged *self, api_status *status);
+void api_Forged_n_set(api_Forged *self, uint64_t value, api_status *status);
+api_Forged *api_Forged_new(uint64_t n);
+void api_Part_free(api_Part *self);
+void api_Part_drop(api_Part *self, api_status *status);
+bool api_Part_eq(const api_Part *a, const api_Part *b, api_status *status);
+uint64_t api_Part_hash(const api_Part *self, api_status *status);
+api_buf api_Part_debug(const api_Part *self, api_status *status);
+uint64_t api_Part_value_get(const api_Part *self, api_status *status);
+void api_Part_value_set(api_Part *self, uint64_t value, api_status *status);
 bool api_has_text(api_Note note);
 uint64_t api_marked(const api_Mark *api_marked, api_status *status);
 api_option_Reading api_reading(uint32_t n);
@@ -2168,6 +2257,10 @@ uint64_t api_crowded(api_Reading reading, api_Stamp a, api_Stamp b, uint64_t n0,
 uint64_t api_crammed(api_Moment a, api_Moment b, uint64_t n0, uint64_t n1, uint64_t n2, uint64_t n3, uint64_t n4, uint64_t n5, uint64_t n6, uint64_t n7, uint64_t n8, uint64_t n9, uint64_t n10, uint64_t n11, uint64_t n12, uint64_t n13, uint64_t n14, uint64_t n15, uint64_t n16, uint64_t n17, uint64_t n18, uint64_t n19, uint64_t n20, uint64_t n21, uint64_t n22, uint64_t n23, uint64_t n24, uint64_t n25, uint64_t n26, uint64_t n27, uint64_t n28, uint64_t n29, uint64_t n30, uint64_t n31, uint64_t n32, uint64_t n33, uint64_t n34, uint64_t n35, uint64_t n36, uint64_t n37, uint64_t n38, uint64_t n39, uint64_t n40, uint64_t n41, uint64_t n42, uint64_t n43, uint64_t n44, uint64_t n45, uint64_t n46, uint64_t n47, uint64_t n48, uint64_t n49, uint64_t n50, uint64_t n51, uint64_t n52, uint64_t n53, uint64_t n54, uint64_t n55, uint64_t n56, uint64_t n57, uint64_t n58, uint64_t n59, uint64_t n60, uint64_t n61, uint64_t n62, uint64_t n63, uint64_t n64, uint64_t n65, uint64_t n66, uint64_t n67, uint64_t n68, uint64_t n69, uint64_t n70, uint64_t n71, uint64_t n72, uint64_t n73, uint64_t n74, uint64_t n75, uint64_t n76, uint64_t n77, uint64_t n78, uint64_t n79, uint64_t n80, uint64_t n81, uint64_t n82, uint64_t n83, uint64_t n84, uint64_t n85, uint64_t n86, uint64_t n87, uint64_t n88, uint64_t n89, uint64_t n90, uint64_t n91, uint64_t n92, uint64_t n93, uint64_t n94, uint64_t n95, uint64_t n96, uint64_t n97, uint64_t n98, uint64_t n99, uint64_t n100, uint64_t n101, uint64_t n102, uint64_t n103, uint64_t n104, uint64_t n105, uint64_t n106, uint64_t n107, uint64_t n108, uint64_t n109, uint64_t n110, uint64_t n111, uint64_t n112, uint64_t n113, uint64_t n114, uint64_t n115, uint64_t n116, uint64_t n117, uint64_t n118, uint64_t n119, uint64_t n120, uint64_t n121, uint64_t n122, uint64_t n123);
 uint32_t api_jni_one(void);
 api_option_polar_Point api_polar_point(uint32_t distance);
+api_clash_Any api_clash_any(api_buf type_url);
+api_clash_Candidate api_clash_candidate(uint8_t at);
+uint8_t api_clash_ignore(uint8_t arg0, uint8_t arg1, uint8_t arg2);
+api_clash_Empty_string *api_clash_empty(void);
 bool api_clash_audible(api_clash_Tone tone, api_clash_Tone *out, api_vec_clash_Tone *err);
 uint32_t api_clash_nested(api_option_tuple_tuple_u8_u16_u32 a, api_option_tuple_tuple_u8_u16_u32_ b);
 uint8_t api_clash_audio_encoder_finish(void);
@@ -2184,6 +2277,8 @@ api_poll api_log_on_drop_start(api_Log log, api_log_on_drop_future **future);
 api_poll api_log_on_drop_poll(api_log_on_drop_future *future, api_waker waker);
 void api_log_on_drop_future_free(api_log_on_drop_future *future);
 api_waker api_log_waker(api_Log log);
+void api_hook(void (*f)(void *data), void *f_data, void (*f_free)(void *data));
+void api_unhook(void);
 #ifdef __cplusplus
 }
 #endif

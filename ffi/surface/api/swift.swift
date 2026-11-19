@@ -605,6 +605,21 @@ public struct ClashSpan: Sendable, CustomStringConvertible, CustomDebugStringCon
 	@inlinable public func width_() -> Swift.UInt32
 	@inlinable public func toString() -> Swift.String
 }
+public struct ClashAny: Sendable, CustomDebugStringConvertible, Hashable {
+	public var typeUrl: Swift.String
+	@inlinable public init(typeUrl: Swift.String)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashAny, b: ClashAny) -> Swift.Bool
+	@inlinable public func hash(into hasher: inout Swift.Hasher)
+}
+public struct ClashBreak: Sendable, CustomDebugStringConvertible, Equatable {
+	public var _0: Swift.UInt8
+	@inlinable public init(_ _0: Swift.UInt8)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashBreak, b: ClashBreak) -> Swift.Bool
+	@inlinable public static var SP: ClashBreak { get }
+	@inlinable public static var SP_: ClashBreak { get }
+}
 public struct TlsPolicyLifetime: Sendable, CustomDebugStringConvertible, Equatable {
 	public var seconds: Swift.UInt32
 	@inlinable public init(seconds: Swift.UInt32)
@@ -726,6 +741,12 @@ public enum Builtin: Sendable, Equatable {
 	case int(Swift.Double)
 	case native(Swift.Double)
 	@inlinable public static func == (a: Builtin, b: Builtin) -> Swift.Bool
+}
+public enum ClashCandidate: Sendable, CustomDebugStringConvertible, Equatable {
+	case none
+	case match(Swift.UInt8)
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: ClashCandidate, b: ClashCandidate) -> Swift.Bool
 }
 public enum Level: Sendable, CustomStringConvertible, Hashable {
 	case trace
@@ -1079,6 +1100,25 @@ public struct Tallies: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new() -> Tallies
 	@inlinable public func first() throws -> Tally
 }
+public struct Plain: ~Copyable, @unchecked Sendable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: borrowing Plain, b: borrowing Plain) throws -> Swift.Bool
+	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
+	@inlinable public var nGet: Swift.UInt64 { get }
+	@inlinable public mutating func nSet(_ value: Swift.UInt64) throws
+	@inlinable public var onGet: Swift.Bool { get }
+	@inlinable public mutating func onSet(_ value: Swift.Bool) throws
+	@inlinable public static func new(_ n: Swift.UInt64, _ on: Swift.Bool) -> Plain
+}
+public struct Labeled: ~Copyable, @unchecked Sendable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: borrowing Labeled, b: borrowing Labeled) -> Swift.Bool
+	@inlinable public func hash(into hasher: inout Swift.Hasher)
+	@inlinable public static func new(_ label: Swift.String) -> Labeled
+}
+#if compiler(>=6.4)
+extension Labeled: Hashable {}
+#endif
 public struct Gauge: ~Copyable, @unchecked Sendable {
 	@inlinable public func clone() throws -> Gauge
 	@inlinable public static func new(_ level: Swift.UInt64) -> Gauge
@@ -1136,6 +1176,15 @@ public struct Key: ~Copyable, @unchecked Sendable {
 #if compiler(>=6.4)
 extension Key: Hashable {}
 #endif
+public struct ClashSeed: ~Copyable, @unchecked Sendable {
+	@inlinable public static func `default`() -> ClashSeed
+	@inlinable public static func default_() -> ClashSeed
+	@inlinable public func value() -> Swift.UInt32
+	@inlinable public func bool() -> Swift.Bool
+}
+public struct ClashEmptyString: ~Copyable, @unchecked Sendable {
+	@inlinable public func isEmpty() -> Swift.Bool
+}
 public struct ClashStore: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ count: Swift.UInt32) -> ClashStore
 	@inlinable public func free() -> Swift.UInt32
@@ -1179,6 +1228,33 @@ public struct Spawned: ~Copyable, @unchecked Sendable {
 public struct LogThread: ~Copyable, @unchecked Sendable {
 	@inlinable public static func new(_ log: any Log, _ line: Swift.String) throws -> LogThread
 	@inlinable public consuming func join() throws -> Swift.Bool
+}
+public struct Pinned: ~Copyable {
+	@inlinable public func valueGet() throws -> Swift.UInt64
+	@inlinable public mutating func valueSet(_ value: Swift.UInt64) throws
+	@inlinable public static func new(_ value: Swift.UInt64) throws -> Pinned
+	@inlinable public func part() throws -> Part
+}
+public struct Hooked: ~Copyable, @unchecked Sendable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: borrowing Hooked, b: borrowing Hooked) throws -> Swift.Bool
+	@inlinable public func nGet() throws -> Swift.UInt64
+	@inlinable public mutating func nSet(_ value: Swift.UInt64) throws
+	@inlinable public static func new(_ n: Swift.UInt64) throws -> Hooked
+}
+public struct Forged: ~Copyable, @unchecked Sendable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: borrowing Forged, b: borrowing Forged) throws -> Swift.Bool
+	@inlinable public func nGet() throws -> Swift.UInt64
+	@inlinable public mutating func nSet(_ value: Swift.UInt64) throws
+	@inlinable public static func new(_ n: Swift.UInt64) throws -> Forged
+}
+public struct Part: ~Copyable, @unchecked Sendable {
+	@inlinable public var debugDescription: Swift.String { get }
+	@inlinable public static func == (a: borrowing Part, b: borrowing Part) throws -> Swift.Bool
+	@inlinable public func hash(into hasher: inout Swift.Hasher) throws
+	@inlinable public func valueGet() throws -> Swift.UInt64
+	@inlinable public mutating func valueSet(_ value: Swift.UInt64) throws
 }
 public protocol Log: Sendable {
 	func log(_ level: Swift.UInt8, _ line: Swift.String) -> Swift.Bool
@@ -1466,6 +1542,10 @@ public let FAR: Swift.Int64
 @inlinable public func crammed(_ a: Moment, _ b: Moment, _ n0: Swift.UInt64, _ n1: Swift.UInt64, _ n2: Swift.UInt64, _ n3: Swift.UInt64, _ n4: Swift.UInt64, _ n5: Swift.UInt64, _ n6: Swift.UInt64, _ n7: Swift.UInt64, _ n8: Swift.UInt64, _ n9: Swift.UInt64, _ n10: Swift.UInt64, _ n11: Swift.UInt64, _ n12: Swift.UInt64, _ n13: Swift.UInt64, _ n14: Swift.UInt64, _ n15: Swift.UInt64, _ n16: Swift.UInt64, _ n17: Swift.UInt64, _ n18: Swift.UInt64, _ n19: Swift.UInt64, _ n20: Swift.UInt64, _ n21: Swift.UInt64, _ n22: Swift.UInt64, _ n23: Swift.UInt64, _ n24: Swift.UInt64, _ n25: Swift.UInt64, _ n26: Swift.UInt64, _ n27: Swift.UInt64, _ n28: Swift.UInt64, _ n29: Swift.UInt64, _ n30: Swift.UInt64, _ n31: Swift.UInt64, _ n32: Swift.UInt64, _ n33: Swift.UInt64, _ n34: Swift.UInt64, _ n35: Swift.UInt64, _ n36: Swift.UInt64, _ n37: Swift.UInt64, _ n38: Swift.UInt64, _ n39: Swift.UInt64, _ n40: Swift.UInt64, _ n41: Swift.UInt64, _ n42: Swift.UInt64, _ n43: Swift.UInt64, _ n44: Swift.UInt64, _ n45: Swift.UInt64, _ n46: Swift.UInt64, _ n47: Swift.UInt64, _ n48: Swift.UInt64, _ n49: Swift.UInt64, _ n50: Swift.UInt64, _ n51: Swift.UInt64, _ n52: Swift.UInt64, _ n53: Swift.UInt64, _ n54: Swift.UInt64, _ n55: Swift.UInt64, _ n56: Swift.UInt64, _ n57: Swift.UInt64, _ n58: Swift.UInt64, _ n59: Swift.UInt64, _ n60: Swift.UInt64, _ n61: Swift.UInt64, _ n62: Swift.UInt64, _ n63: Swift.UInt64, _ n64: Swift.UInt64, _ n65: Swift.UInt64, _ n66: Swift.UInt64, _ n67: Swift.UInt64, _ n68: Swift.UInt64, _ n69: Swift.UInt64, _ n70: Swift.UInt64, _ n71: Swift.UInt64, _ n72: Swift.UInt64, _ n73: Swift.UInt64, _ n74: Swift.UInt64, _ n75: Swift.UInt64, _ n76: Swift.UInt64, _ n77: Swift.UInt64, _ n78: Swift.UInt64, _ n79: Swift.UInt64, _ n80: Swift.UInt64, _ n81: Swift.UInt64, _ n82: Swift.UInt64, _ n83: Swift.UInt64, _ n84: Swift.UInt64, _ n85: Swift.UInt64, _ n86: Swift.UInt64, _ n87: Swift.UInt64, _ n88: Swift.UInt64, _ n89: Swift.UInt64, _ n90: Swift.UInt64, _ n91: Swift.UInt64, _ n92: Swift.UInt64, _ n93: Swift.UInt64, _ n94: Swift.UInt64, _ n95: Swift.UInt64, _ n96: Swift.UInt64, _ n97: Swift.UInt64, _ n98: Swift.UInt64, _ n99: Swift.UInt64, _ n100: Swift.UInt64, _ n101: Swift.UInt64, _ n102: Swift.UInt64, _ n103: Swift.UInt64, _ n104: Swift.UInt64, _ n105: Swift.UInt64, _ n106: Swift.UInt64, _ n107: Swift.UInt64, _ n108: Swift.UInt64, _ n109: Swift.UInt64, _ n110: Swift.UInt64, _ n111: Swift.UInt64, _ n112: Swift.UInt64, _ n113: Swift.UInt64, _ n114: Swift.UInt64, _ n115: Swift.UInt64, _ n116: Swift.UInt64, _ n117: Swift.UInt64, _ n118: Swift.UInt64, _ n119: Swift.UInt64, _ n120: Swift.UInt64, _ n121: Swift.UInt64, _ n122: Swift.UInt64, _ n123: Swift.UInt64) -> Swift.UInt64
 @inlinable public func jniOne() -> Swift.UInt32
 @inlinable public func polarPoint(_ distance: Swift.UInt32) -> PolarPoint?
+@inlinable public func clashAny(_ typeUrl: Swift.String) -> ClashAny
+@inlinable public func clashCandidate(_ at: Swift.UInt8) -> ClashCandidate
+@inlinable public func clashIgnore(_ arg0: Swift.UInt8, _ arg1: Swift.UInt8, _ arg2: Swift.UInt8) -> Swift.UInt8
+@inlinable public func clashEmpty() -> ClashEmptyString
 @inlinable public func clashAudible(_ tone: ClashTone) throws -> ClashTone
 @inlinable public func clashNested(_ a: ((Swift.UInt8, Swift.UInt16), Swift.UInt32)?, _ b: (Swift.UInt8, Swift.UInt16, Swift.UInt32)?) -> Swift.UInt32
 @inlinable public func clashAudioEncoderFinish() -> Swift.UInt8
@@ -1474,3 +1554,5 @@ public let FAR: Swift.Int64
 @inlinable nonisolated(nonsending) public func emitLater(_ log: any Log, _ lines: Bytes) async throws -> Swift.UInt32
 @inlinable nonisolated(nonsending) public func logOnDrop(_ log: any Log) async throws
 @inlinable public func logWaker(_ log: any Log) throws -> @Sendable () -> Void
+@inlinable public func hook(_ f: @escaping @Sendable () -> Void) throws
+@inlinable public func unhook() throws
