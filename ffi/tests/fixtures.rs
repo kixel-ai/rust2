@@ -1495,30 +1495,48 @@ fn api_web() {
 	);
 }
 
-/// `api_web`'s checks in headless Chromium and Firefox, which only the bench shell carries:
-/// `tests/browser.ts` bundles the script with Bun and runs each case in a frame of its own.
-/// Firefox exposes no garbage collector to a page, so it runs neither `owned` nor `bytes`.
+/// Where the engine lacks `Symbol.dispose`, as stable Safari does, the web runtime defines it
+/// as the registry's symbol before its classes key a method on it, which `dispose.ts` checks.
+#[test]
+fn web_without_dispose() {
+	run(Command::new("node")
+		.arg(manifest_dir().join("tests").join("dispose.ts"))
+		.arg(manifest_dir().join("runtime").join("rt.ts")));
+}
+
+/// `api_web`'s checks in headless Chromium, Firefox, and WebKit, which only the bench shell
+/// carries: `tests/browser.ts` bundles the script and runs each case in a frame of its own.
+/// Firefox and WebKit expose no garbage collector to a page, so they run neither `owned` nor
+/// `bytes`. The script's `using` runs in WebKit as the engine has it, and lowered as `tsc` and
+/// esbuild lower it, each of which keys on `Symbol.dispose`. Playwright's WebKit has the symbol,
+/// which stable Safari lacks: `web_without_dispose` covers its absence.
 #[test]
 #[ignore = "the nightly's, in the bench shell: just ffi browsers"]
 fn api_browsers() {
 	let web = web();
-	for browser in ["chromium", "firefox"] {
+	for (browser, lowering) in [
+		("chromium", "bun"),
+		("firefox", "bun"),
+		("webkit", "native"),
+		("webkit", "esbuild"),
+		("webkit", "tsc"),
+	] {
 		let cases: Vec<&str> = match browser {
-			"firefox" => WEB_CASES
+			"chromium" => WEB_CASES.to_vec(),
+			_ => WEB_CASES
 				.into_iter()
 				.filter(|c| !matches!(*c, "owned" | "bytes"))
 				.collect(),
-			_ => WEB_CASES.to_vec(),
 		};
 		let all = std::iter::once("-")
 			.chain(cases.iter().copied())
 			.chain(WEB_BROKEN.iter().map(|(case, _)| *case));
 		let output = run(Command::new("bun")
 			.arg(manifest_dir().join("tests").join("browser.ts"))
-			.arg(browser)
+			.args([browser, lowering])
 			.arg(&web.dir)
 			.arg(&web.wasm)
-			.arg(scratch().join("api").join(browser))
+			.arg(scratch().join("api").join(format!("{browser}-{lowering}")))
 			.args(all));
 		let mut runs: std::collections::HashMap<String, Ran> = String::from_utf8_lossy(&output.stdout)
 			.lines()
@@ -1533,7 +1551,7 @@ fn api_browsers() {
 				(text("case"), ran)
 			})
 			.collect();
-		web_checks(browser, &cases, &mut |case| {
+		web_checks(&format!("{browser} ({lowering})"), &cases, &mut |case| {
 			let case = case.unwrap_or("-");
 			runs.remove(case).unwrap_or_else(|| panic!("{browser} ran no {case}"))
 		});
@@ -1547,6 +1565,7 @@ const TSCONFIG: &str = r#"{
 		"strict": true,
 		"noEmit": true,
 		"pretty": false,
+		"noImplicitOverride": true,
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
 		"target": "es2024",

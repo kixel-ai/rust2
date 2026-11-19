@@ -522,3 +522,16 @@ fn pointers_apart() {
 		.expect("running node, which the dev shell provides");
 	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
 }
+
+/// Where the engine lacks `Symbol.dispose`, as stable Safari does, the runtime defines it as
+/// the registry's symbol before its classes key a method on it, which `dispose.ts` checks.
+#[test]
+fn dispose_absent() {
+	let tests = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests");
+	let output = Command::new("node")
+		.arg(tests.join("dispose.ts"))
+		.arg(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("runtime").join("rs.ts"))
+		.output()
+		.expect("running node, which the dev shell provides");
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+}

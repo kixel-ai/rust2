@@ -21,6 +21,7 @@ pub(crate) const RUNTIME: &[(&str, &str)] = &[
 	("rs/bytes.ts", include_str!("../runtime/rs/bytes.ts")),
 	("rs/char.ts", include_str!("../runtime/rs/char.ts")),
 	("rs/collections.ts", include_str!("../runtime/rs/collections.ts")),
+	("rs/dispose.ts", include_str!("../runtime/rs/dispose.ts")),
 	("rs/float.ts", include_str!("../runtime/rs/float.ts")),
 	("rs/hash.ts", include_str!("../runtime/rs/hash.ts")),
 	("rs/hook.ts", include_str!("../runtime/rs/hook.ts")),

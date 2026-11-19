@@ -1348,11 +1348,18 @@ async function owned(): Promise<void> {
 	close(token);
 	check(api.dropped() === before + 1, "disposing again frees nothing");
 	closed(() => Token.idGet(token), "Token", "a disposed token refuses a read");
+	// `using` disposes at the end of its scope, as stable Safari, which lacks `Symbol.dispose`,
+	// needs the runtime's own symbol for, however the bundler lowers it.
+	{
+		using scoped = Token.new(2);
+		check(api.dropped() === before + 1 && Token.idGet(scoped) === 2, "a `using` object is open in its scope");
+	}
+	check(api.dropped() === before + 2, "a `using` object frees at the end of its scope");
 
 	unclosed();
-	await collect(() => api.dropped() >= before + 2, "the garbage collector frees what nobody disposed");
+	await collect(() => api.dropped() >= before + 3, "the garbage collector frees what nobody disposed");
 	await settle();
-	check(api.dropped() === before + 2, "the garbage collector frees each once");
+	check(api.dropped() === before + 3, "the garbage collector frees each once");
 
 	// An implementation an object the garbage collector frees held is closed.
 	const log = new CountLog();

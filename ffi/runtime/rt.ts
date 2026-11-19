@@ -3,6 +3,11 @@
 // past 32 bits, futures as promises, what JavaScript implements for Rust, and the web APIs
 // that stand in for what the module's std imports.
 
+// `Symbol.dispose` where the engine lacks it, as stable Safari does: the registry's symbol,
+// which esbuild's `using` helper falls back to too, though TypeScript's throws without one.
+// It runs before any class below keys a method on it.
+if (!Symbol.dispose) Object.defineProperty(Symbol, "dispose", { value: Symbol.for("Symbol.dispose") });
+
 declare const brand: unique symbol;
 
 /** A `u64` past 2^53: its high and low 32 bits, each a uint32. */

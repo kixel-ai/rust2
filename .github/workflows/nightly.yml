@@ -211,7 +211,7 @@ jobs:
       - name: Clang
         run: nix develop .#clang --command bash -c 'export CC=gcc; just ffi test cpp && just ffi moq-cpp'
 
-  # The api fixture's web test in headless Chromium and Firefox, which only the bench shell
+  # The api fixture's web test in headless Chromium, Firefox, and WebKit, which only the bench shell
   # carries: a job of its own, so a browser's failure hides no other result.
   ffi-web:
     name: Web binding in browsers
