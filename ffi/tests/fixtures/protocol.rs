@@ -121,6 +121,7 @@ fn within(cmd: &mut Command, what: &str) -> Output {
 	let stdout = read(child.stdout.take().map(|pipe| Box::new(pipe) as _));
 	let stderr = read(child.stderr.take().map(|pipe| Box::new(pipe) as _));
 	let start = Instant::now();
+	let mut wait = Duration::from_millis(1);
 	let status = loop {
 		if let Some(status) = child.try_wait().unwrap() {
 			break status;
@@ -138,7 +139,8 @@ fn within(cmd: &mut Command, what: &str) -> Output {
 				String::from_utf8_lossy(&stderr)
 			);
 		}
-		std::thread::sleep(Duration::from_millis(50));
+		std::thread::sleep(wait);
+		wait = (wait * 2).min(Duration::from_millis(50));
 	};
 	Output {
 		status,
