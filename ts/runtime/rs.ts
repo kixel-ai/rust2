@@ -334,7 +334,8 @@ function textWrite(): never {
 
 /** `str::as_ptr`: the read-only pointer to the first byte of its UTF-8. */
 export function strAsPtr(s: string): Place<number> {
-	return new TextAt(utf8Encode(s), 0);
+	// A buffer of its own, so `offset_from` tells this encoding from any other.
+	return new TextAt(utf8Encode(s).slice(), 0);
 }
 
 /** The pointer to the first byte of `v`'s storage. */

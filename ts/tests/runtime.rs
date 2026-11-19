@@ -550,7 +550,23 @@ fn utf8() {
 		}
 	}
 	// Text of each width of char, each run then corrupted at one byte.
-	let chars = ['\0', 'a', '\u{7f}', '\u{80}', 'é', '\u{7ff}', '\u{800}', 'ア', '\u{d7ff}', '\u{e000}', '\u{feff}', '\u{ffff}', '\u{10000}', '📷', '\u{10ffff}'];
+	let chars = [
+		'\0',
+		'a',
+		'\u{7f}',
+		'\u{80}',
+		'é',
+		'\u{7ff}',
+		'\u{800}',
+		'ア',
+		'\u{d7ff}',
+		'\u{e000}',
+		'\u{feff}',
+		'\u{ffff}',
+		'\u{10000}',
+		'📷',
+		'\u{10ffff}',
+	];
 	let mut state: u32 = 0x2545f491;
 	let mut rand = move || {
 		state ^= state << 13;
@@ -585,10 +601,25 @@ fn utf8() {
 		let lossy = hex(String::from_utf8_lossy(run).as_bytes());
 		want.push(match std::str::from_utf8(run) {
 			Ok(s) => format!("ok {0} {0} {0} {1} {2}", hex(s.as_bytes()), s.len(), lossy),
-			Err(e) => format!("err {} {} {lossy}", e.valid_up_to(), e.error_len().map_or("-".to_string(), |n| n.to_string())),
+			Err(e) => format!(
+				"err {} {} {lossy}",
+				e.valid_up_to(),
+				e.error_len().map_or("-".to_string(), |n| n.to_string())
+			),
 		});
 	}
-	for c in ['\0', '\u{7f}', '\u{80}', '\u{7ff}', '\u{800}', '\u{d7ff}', '\u{e000}', '\u{ffff}', '\u{10000}', '\u{10ffff}'] {
+	for c in [
+		'\0',
+		'\u{7f}',
+		'\u{80}',
+		'\u{7ff}',
+		'\u{800}',
+		'\u{d7ff}',
+		'\u{e000}',
+		'\u{ffff}',
+		'\u{10000}',
+		'\u{10ffff}',
+	] {
 		input += &format!("char {:x}\n", c as u32);
 		let mut dst = [0xaa; 6];
 		let s = hex(c.encode_utf8(&mut dst).as_bytes());
@@ -609,7 +640,11 @@ fn utf8() {
 	writer.join().unwrap().unwrap();
 	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
 	let got = String::from_utf8(output.stdout).unwrap();
-	for ((got, want), run) in got.lines().zip(&want).zip(runs.iter().map(|r| hex(r)).chain(std::iter::repeat_with(String::new))) {
+	for ((got, want), run) in got
+		.lines()
+		.zip(&want)
+		.zip(runs.iter().map(|r| hex(r)).chain(std::iter::repeat_with(String::new)))
+	{
 		assert_eq!(got, want, "{run}");
 	}
 	assert_eq!(got.lines().count(), want.len());
