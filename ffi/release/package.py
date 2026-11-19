@@ -569,6 +569,9 @@ def web_package(info, web_dir, wasm, scope, out):
     if manifest["version"] != info["version"]:
         raise SystemExit(f"the export's package.json is {manifest['version']}, not the crate's {info['version']}")
     npm, jsr = out / "npm", out / "jsr"
+    # A tarball of an earlier build, which `consume-web` would find beside this one.
+    for tarball in out.glob("*.tgz") if out.exists() else []:
+        tarball.unlink()
     for part in (npm, jsr):
         if part.exists():
             shutil.rmtree(part)
@@ -596,6 +599,8 @@ def web_package(info, web_dir, wasm, scope, out):
     if info["homepage"]:
         said["homepage"] = info["homepage"]
     manifest = {**said, **{k: v for k, v in manifest.items() if k not in said}}
+    # npm packs a license file by a name of its own only if `files` names it.
+    manifest["files"] = manifest["files"] + [p.name for p in licenses(info) if p.name not in manifest["files"]]
     (npm / "package.json").write_text(json.dumps(manifest, indent="\t") + "\n", newline="\n", encoding="utf-8")
     # JSR takes no export pattern: each module by its name. The module ships unexported,
     # as Deno would link an exported one as a module of its own, whose imports none serves.

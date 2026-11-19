@@ -1911,6 +1911,16 @@ fn closed(lines: &[String], body: &[String], lent: &[String]) -> String {
 	code.join("\n")
 }
 
+/// A constant's local name in `index.ts`: its own, but `URL`'s, which would shadow the global
+/// `load` takes the module's URL by, so it is exported from `URL$`. Bundlers find the
+/// module by `new URL(...)` written so, which `globalThis.URL` would hide from them.
+fn constant_local(name: &str) -> String {
+	match name {
+		"URL" => format!("{name}$"),
+		_ => name.to_string(),
+	}
+}
+
 /// A trait method's name in camel case, with `$` appended if a reserved word or `close`.
 fn method_name(name: &str) -> String {
 	let name = camel(name);
@@ -1959,7 +1969,11 @@ impl Gen<'_> {
 				Literal::Int(Int::I64, _) => "rt.i64",
 				Literal::Int(..) => "number",
 			};
-			let code = format!("{}export const {name}: {ty} = {value};\n\n", docs(&constant.docs, ""));
+			let local = constant_local(&name);
+			if local != name {
+				self.out().renames.insert(local.clone(), name.clone());
+			}
+			let code = format!("{}export const {local}: {ty} = {value};\n\n", docs(&constant.docs, ""));
 			self.out().body.push_str(&code);
 		}
 		for i in 0..api.records.len() {
@@ -2733,5 +2747,12 @@ mod tests {
 	fn field_names_distinct() {
 		assert_eq!(variant_fields(&fields(&["tag", "tag_name"])), ["tag$", "tagName"]);
 		assert_eq!(field_names(&fields(&["tag", "foo", "foo_"])), ["tag", "foo", "foo2"]);
+	}
+
+	/// A constant named `URL` keeps clear of the global `load` constructs.
+	#[test]
+	fn constant_url() {
+		assert_eq!(constant_local("URL"), "URL$");
+		assert_eq!(constant_local("LIMIT"), "LIMIT");
 	}
 }

@@ -201,7 +201,8 @@ def web_export(root, version="0.4.12"):
         (web / f"{stem}.js").write_text(f"// {stem}\n")
         (web / f"{stem}.d.ts").write_text(f"// {stem}\n")
     manifest = {"name": "moq-ffi", "version": version, "description": "generated", "type": "module",
-                "sideEffects": False, "exports": {".": {"types": "./index.d.ts", "default": "./index.js"}}}
+                "sideEffects": False, "exports": {".": {"types": "./index.d.ts", "default": "./index.js"}},
+                "files": ["*.js", "*.d.ts", "moq.wasm"]}
     (web / "package.json").write_text(package.json.dumps(manifest))
     (root / "moq.wasm").write_bytes(b"\0asm\1\0\0\0")
     return web
@@ -225,6 +226,7 @@ class Web(unittest.TestCase):
             self.assertEqual(manifest["description"], "Media over QUIC, bindings")
             self.assertEqual(manifest["repository"], {"type": "git", "url": "git+https://github.com/moq-dev/moq"})
             self.assertEqual(manifest["exports"]["."]["types"], "./index.d.ts")
+            self.assertIn("LICENSE-MIT", manifest["files"])
             config = package.json.loads((jsr / "jsr.json").read_text())
             self.assertEqual(config["name"], "@moq/moq-ffi")
             self.assertEqual(config["exports"], {".": "./index.ts", "./Session": "./Session.ts", "./glue": "./glue.ts", "./rt": "./rt.ts"})
@@ -236,6 +238,15 @@ class Web(unittest.TestCase):
             self.assertEqual(package.web_profile(manifest), {"CARGO_PROFILE_RELEASE_OPT_LEVEL": "s"})
             manifest.write_text('[profile.release]\nopt-level = 3\n')
             self.assertEqual(package.web_profile(manifest), {})
+
+    def test_drops_an_earlier_tarball(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            web = web_export(root / "export")
+            (root / "out").mkdir()
+            (root / "out/moq-moq-ffi-0.4.11.tgz").write_bytes(b"old")
+            package.web_package(info(root), web, root / "export/moq.wasm", "moq", root / "out")
+            self.assertEqual(list((root / "out").glob("*.tgz")), [])
 
     def test_refuses_another_version(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -56,6 +56,23 @@ jobs:
             echo "::error::$TAG is not the crate's version, $WANT: bump Cargo.toml before tagging."
             exit 1
           fi
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.web == 'true'
+        with:
+          name: @NAME@-web
+          path: web
+      # npm's provenance refuses a package whose repository is not the one publishing it,
+      # which is checked here, before any registry takes this release.
+      - name: Web package names this repository
+        if: needs.build.outputs.web == 'true'
+        run: |
+          url=$(jq -r '.repository.url // ""' web/npm/package.json)
+          url=${url#git+}
+          url=${url%.git}
+          if [[ "${url%/}" != "https://github.com/$GITHUB_REPOSITORY" ]]; then
+            echo "::error::the web package's repository is '$url', not https://github.com/$GITHUB_REPOSITORY: set Cargo's repository to it."
+            exit 1
+          fi
 
   pypi:
     needs: [build, tag]

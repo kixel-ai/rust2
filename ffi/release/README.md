@@ -34,7 +34,9 @@ outside the repository:
   publisher only for a package it holds, then register the workflow and the `npm`
   environment as its trusted publisher; and create the package in the JSR scope and link
   it to the repository, which JSR's publishing from GitHub Actions trusts. Make `npm` and
-  `jsr` environments that only release tags may deploy to.
+  `jsr` environments that only release tags may deploy to. npm's provenance needs Cargo's
+  `repository` to be the publishing repository, which the release checks before any
+  registry takes it.
 
 Releasing is pushing `<crate>-v<version>`, the crate's version, which the release checks.
 Called without a tag, such as from a nightly, it runs everything up to publication.
