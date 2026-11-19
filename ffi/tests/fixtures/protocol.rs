@@ -152,14 +152,15 @@ fn difference(script: &Script, stdout: &str) -> String {
 }
 
 /// Each profile's scripts keep to it: no worker steps, failed checks, frees, drops, polls,
-/// or awaits where it has none, and locals on a home where it says. Of the profiles its
-/// flags make, a fixed sample, each with a script of its own seed.
+/// awaits, or drains where it has none, locals on a home where it says, and each future
+/// awaited in the next step where none pends. Of the profiles its flags make, a fixed
+/// sample, each with a script of its own seed.
 #[test]
 fn protocol_profiles() {
 	use model::{Op, Outcome, Status};
 	for seed in 0..4096u64 {
 		// Fibonacci hashing spreads consecutive seeds over the flags' bits.
-		let bits = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 48;
+		let bits = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 44;
 		let on = |bit: u16| bits & 1 << bit != 0;
 		let profile = Profile {
 			threads: on(0),
@@ -175,14 +176,20 @@ fn protocol_profiles() {
 			closes: on(10),
 			moves_close: on(11),
 			borrowck: on(12),
-			held: on(13),
-			consumes: on(14),
-			pooled: on(15),
+			consumes: on(13),
+			pooled: on(14),
+			drain: on(15),
+			pending: match bits >> 16 & 3 {
+				0 => 0,
+				1 => 1,
+				_ => usize::MAX,
+			},
 		};
 		if (profile.lazy && profile.polls)
 			|| !(profile.frees || profile.drops)
-			|| (profile.polls && !profile.held)
+			|| (profile.polls && profile.pending == 0)
 			|| (profile.lazy && !(profile.borrowck && profile.failures))
+			|| !(profile.failures || profile.drain || !profile.threads)
 		{
 			continue;
 		}
@@ -206,17 +213,18 @@ fn protocol_profiles() {
 					Op::Drop(_) => assert!(profile.drops, "{profile:?}: {line}"),
 					Op::Poll(_) => assert!(profile.polls, "{profile:?}: {line}"),
 					Op::Await(_) => assert!(!profile.polls, "{profile:?}: {line}"),
+					Op::Drain => assert!(profile.drain, "{profile:?}: {line}"),
 					Op::LocalNew(_, homed) => assert!(
 						if profile.homed { homed } else { profile.homes || !homed },
 						"{profile:?}: {line}"
 					),
 					_ => {}
 				}
-				// A future not held is awaited in the next step, on its thread.
+				// A future where none pends is awaited in the next step, on its thread.
 				if let Some(f) = step.op.made()
 					&& script.kinds.get(f).is_some_and(|kind| kind.future())
 					&& step.expect == Outcome::Ok
-					&& !profile.held
+					&& profile.pending == 0
 				{
 					let next = &script.steps[i + 1];
 					assert!(
