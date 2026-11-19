@@ -558,11 +558,8 @@ export function encodeStrings(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteV
 	const w: Encoder.Encoder = Encoder.new(out, { tag: "Quic" } as Form.Form);
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = rs.u64Low(count);
-	while (true) {
-		const _7: string[] = ["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"];
-		if (!(iterStart++ < iterEnd)) {
-			break;
-		}
+	const _7: string[] = ["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"];
+	while (iterStart++ < iterEnd) {
 		const _24: rs.Result<undefined, EncodeError.EncodeError> = Encoder.string(w, _7[_8]);
 		if (!_24.ok) {
 			return _24;
@@ -1153,11 +1150,8 @@ export function stamp(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let stamped: rs.u64 = 0;
 	let overflowed: rs.u64 = 0;
 	const iter: rs.Range<rs.u64> = new rs.Range(0, count, rs.u64Step);
-	while (true) {
-		const step2: Timestamp.Timestamp = { value: step, scale };
-		if (iter.next() === rs.DONE) {
-			break;
-		}
+	const step2: Timestamp.Timestamp = { value: step, scale };
+	while (iter.next() !== rs.DONE) {
 		const _25: Timestamp.Timestamp | undefined = Timestamp.checkedAdd(time, step2);
 		if (_25 === undefined) {
 			overflowed = rs.u64Add(overflowed, 1);
