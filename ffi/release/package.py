@@ -434,7 +434,8 @@ def swift(info, export, libs, natives, out):
         args = ["xcodebuild", "-create-xcframework"]
         for target in APPLE_TARGETS:
             args += ["-library", libs[target], "-headers", headers]
-        run(*args, "-output", tree)
+        # libtool, which xcodebuild runs on each library, stamps the time unless told not to.
+        run(*args, "-output", tree, env={**os.environ, "ZERO_AR_DATE": "1"})
         zip_tree(tree, zipped, info["epoch"])
     if archive.read_bytes() != (again / archive.name).read_bytes():
         raise SystemExit("xcodebuild made different XCFrameworks from the same libraries:\n"
@@ -585,8 +586,10 @@ def reproducible(info, export_dir, target):
     else:
         env["CFLAGS"] = " ".join(filter(None, [os.environ.get("CFLAGS"), *(f"-ffile-prefix-map={old}={new}" for old, new in pairs)]))
     if "apple" in target:
-        # Apple's ar and libtool stamp archive members with the time unless told not to.
+        # Apple's ar and libtool stamp archive members with the time unless told not to, and
+        # the linker names a dylib after the path it wrote it to, in the export's build directory.
         env["ZERO_AR_DATE"] = "1"
+        flags += ["-C", f"link-arg=-Wl,-install_name,@rpath/{library_name(info['lib'], target)}"]
     env["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(flags)
     return env
 

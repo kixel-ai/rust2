@@ -235,7 +235,9 @@ class Reproducible(unittest.TestCase):
             windows = package.reproducible(info(tmp), Path(tmp) / "export", "x86_64-pc-windows-msvc")
             self.assertIn("link-arg=/Brepro", windows["CARGO_ENCODED_RUSTFLAGS"])
             self.assertNotIn("CFLAGS", windows)
-            self.assertEqual(package.reproducible(info(tmp), Path(tmp), "aarch64-apple-darwin")["ZERO_AR_DATE"], "1")
+            apple = package.reproducible(info(tmp), Path(tmp), "aarch64-apple-darwin")
+            self.assertEqual(apple["ZERO_AR_DATE"], "1")
+            self.assertIn("link-arg=-Wl,-install_name,@rpath/libmoq.dylib", apple["CARGO_ENCODED_RUSTFLAGS"])
 
     def test_a_cargo_config_that_RUSTFLAGS_would_replace_fails(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"CARGO_HOME": tmp + "/home"}):
