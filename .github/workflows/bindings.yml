@@ -1,8 +1,8 @@
 name: Binding packages
 
-# The shared, read-only builder of a crate's rust2-ffi Python wheels, Swift package, and Go
-# module, which
-# a release workflow ffi/release/package.py's `init` writes calls at a pinned rust2 commit.
+# The shared, read-only builder of a crate's rust2-ffi Python wheels, Swift package, Go
+# module, and web package, which a release workflow ffi/release/package.py's `init` writes
+# calls at a pinned rust2 commit.
 # It publishes nothing and holds no credentials: the caller's own jobs publish what it
 # uploads, once its consumers pass. See ffi/release/README.md.
 on:
@@ -28,6 +28,26 @@ on:
         description: The main.swift of an executable run on the installed Swift package
         default: ''
         type: string
+      web-manifest-path:
+        description: The Cargo.toml of the package whose wasm32-wasip1 export the npm and JSR package holds, often manifest-path; without it, no web package
+        default: ''
+        type: string
+      scope:
+        description: The npm and JSR scope the web package is named under, @<scope>/<crate>, without its @
+        default: ''
+        type: string
+      web-check:
+        description: A TypeScript module run on the installed npm package, importing the binding as ./web/<module>.ts does beside the export
+        default: ''
+        type: string
+      web-features:
+        description: Cargo features of a web crate apart from manifest-path's, which takes features
+        default: ''
+        type: string
+      web-example:
+        description: The example of a web crate apart from manifest-path's whose stdout web-check must print, which takes example
+        default: ''
+        type: string
       go-module:
         description: The Go module's path; without it, the export's own, which no proxy serves
         default: ''
@@ -46,6 +66,9 @@ on:
       module:
         description: The Swift module, whose XCFramework is <module>FFI.xcframework.zip
         value: ${{ jobs.facts.outputs.module }}
+      web:
+        description: Whether the build made the web package, <name>-web
+        value: ${{ inputs.web-manifest-path != '' }}
 
 permissions:
   contents: read
@@ -65,6 +88,7 @@ jobs:
       tag: ${{ steps.facts.outputs.tag }}
       module: ${{ steps.facts.outputs.module }}
       fixture: ${{ steps.mode.outputs.fixture }}
+      web-fixture: ${{ steps.mode.outputs.web-fixture }}
       rust2: ${{ steps.identity.outputs.workflow_repository }}
       rust2-sha: ${{ steps.identity.outputs.workflow_sha }}
     steps:
@@ -82,11 +106,17 @@ jobs:
       - id: mode
         env:
           RUST2: ${{ steps.identity.outputs.workflow_repository }}
+          WEB_MANIFEST: ${{ inputs.web-manifest-path }}
         run: |
           if [[ "$RUST2" == "$GITHUB_REPOSITORY" && "$MANIFEST" == ffi/target/moq-ffi/Cargo.toml ]]; then
             echo fixture=true >> "$GITHUB_OUTPUT"
           else
             echo fixture=false >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$RUST2" == "$GITHUB_REPOSITORY" && "$WEB_MANIFEST" == ffi/target/moq-ffi-web/Cargo.toml ]]; then
+            echo web-fixture=true >> "$GITHUB_OUTPUT"
+          else
+            echo web-fixture=false >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -432,6 +462,100 @@ jobs:
         env:
           MODULE: ${{ needs.facts.outputs.module }}
         run: bash rust2/ffi/release/consume-swift.sh swift apple
+
+  # The web binding's npm and JSR packages: web-manifest-path exported for wasm32-wasip1
+  # alone, the binding's only target, and its module built beside it; with native Rust's
+  # output on that target, which the consumers compare with.
+  web:
+    needs: facts
+    if: inputs.web-manifest-path != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          persist-credentials: false
+      - uses: taiki-e/install-action@3a3daafd3b7f23b8f65d9f5ba2db203fb59b79e2 # v2.90.2
+        if: needs.facts.outputs.web-fixture == 'true'
+        with:
+          tool: just
+      - name: Stand-in
+        if: needs.facts.outputs.web-fixture == 'true'
+        working-directory: source
+        run: just ffi standin "" web && cp ffi/moq/web.toml ffi/target/moq-ffi-web/ffi.toml
+      # npm packs, and Node's WASI runs the native example.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Exporter
+        working-directory: rust2/ffi
+        run: cargo build --locked --release
+      # The crate's own features and example, or a web crate's apart from it.
+      - name: Package
+        env:
+          WEB_MANIFEST: ${{ inputs.web-manifest-path }}
+          SCOPE: ${{ inputs.scope }}
+          VERSION: ${{ needs.facts.outputs.version }}
+          EXAMPLE: ${{ inputs.example }}
+          WEB_FEATURES: ${{ inputs.web-features }}
+          WEB_EXAMPLE: ${{ inputs.web-example }}
+          WEB_CHECK: ${{ inputs.web-check }}
+        run: |
+          if [[ "$(realpath -m "source/$WEB_MANIFEST")" == "$(realpath -m "source/$MANIFEST")" ]]; then
+            if [[ -n "$WEB_FEATURES$WEB_EXAMPLE" ]]; then
+              echo "::error::web-features and web-example are for a web crate apart from manifest-path's: set features and example"
+              exit 1
+            fi
+            features=$FEATURES example=$EXAMPLE
+          else
+            features=$WEB_FEATURES example=$WEB_EXAMPLE
+          fi
+          python3 -I rust2/ffi/release/package.py web --manifest-path "source/$WEB_MANIFEST" --features "$features" --scope "$SCOPE" --version "$VERSION" --example "$example" --out web
+          if [[ -n "$WEB_CHECK" ]]; then cp "source/$WEB_CHECK" web/check.ts; fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-web
+          path: web
+          if-no-files-found: error
+
+  # A new npm project depending on only the packed tarball, as an app's would, run on
+  # Node, Deno, and Bun and bundled by Vite and webpack; and JSR's checks of its package.
+  web-consumer:
+    needs: [facts, web]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.facts.outputs.rust2 }}
+          ref: ${{ needs.facts.outputs.rust2-sha }}
+          path: rust2
+          sparse-checkout: ffi/release
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.facts.outputs.name }}-web
+          path: web
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.x
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Install and run
+        run: |
+          args=()
+          if [[ -f web/check.ts ]]; then args+=(--check web/check.ts); fi
+          if [[ -f web/native.txt ]]; then args+=(--native web/native.txt); fi
+          python3 -I rust2/ffi/release/package.py consume-web --dist web "${args[@]}"
 
   # The module as a GOPROXY serves it: the export's packages, and each Go target's library
   # beside the runtime that links it.

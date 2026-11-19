@@ -40,6 +40,7 @@ mod driver;
 mod glue;
 mod go;
 mod ir;
+mod js;
 mod kotlin;
 mod lock;
 mod merge;

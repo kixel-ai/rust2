@@ -365,6 +365,7 @@ fn facade(manifest: &Path, target: &str, picks: &Picks<'_>) -> Result<(config::P
 	let facade = config::Package {
 		name: top.name.clone(),
 		lib: lib.name.replace('-', "_"),
+		version: top.version.clone(),
 		dir: manifest.parent().expect("a manifest path has a parent").into(),
 		features: Vec::new(),
 	};
