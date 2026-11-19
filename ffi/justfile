@@ -368,7 +368,7 @@ ts-program:
     printf '%s\n' '{"compilerOptions": {"strict": true, "noEmit": true, "noUnusedLocals": true, "noUnusedParameters": true,' \
         '"target": "es2024", "lib": ["es2024", "esnext.disposable", "dom"], "module": "esnext", "moduleResolution": "bundler",' \
         '"allowImportingTsExtensions": true, "verbatimModuleSyntax": true, "erasableSyntaxOnly": true, "skipLibCheck": true, "types": []},' \
-        '"include": ["export.ts", "web/*.ts"]}' > "$dir/tsconfig.json"
+        '"include": ["export.ts", "web/*.ts"], "exclude": ["web/*.d.ts"]}' > "$dir/tsconfig.json"
     tsc -p "$dir"
 
 # Lay out target/<dir> as a Dart program whose main is <main>, importing the export's Dart as package:moq/moq.dart, whose native asset is the shared library, as a package's build hook would bundle it, which `dart compile` has no flag for; analyze it, and compile it into target/<dir>/main.dill.

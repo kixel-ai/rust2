@@ -59,12 +59,16 @@ const minting: unique symbol = Symbol("minting");
 let made: (bytes: Uint8Array) => Opaque;
 let bytesOf: (v: Opaque) => Uint8Array | undefined;
 
+// Its brand, which a class field keyed by a symbol would not declare without a type checker.
+export interface Opaque<T extends string = string> {
+	readonly [brand]: T;
+}
+
 /**
  * A `Copy` type whose fields are private: its bytes, which only Rust makes or reads, so
  * JavaScript copies one but never makes one.
  */
 export class Opaque<T extends string = string> {
-	declare readonly [brand]: T;
 	// Private, so no caller makes or changes one: the bytes may hold what Rust forbids, such
 	// as a zero `NonZero`.
 	readonly #bytes: Uint8Array;
@@ -332,6 +336,11 @@ const collected = new FinalizationRegistry<[number, string]>(([p, free]) => {
 	s.d--;
 });
 
+// Its brand, which a class field keyed by a symbol would not declare without a type checker.
+export interface Handle<T extends string = string> {
+	readonly [brand]: T;
+}
+
 /**
  * A handle to a Rust object, which counts the calls holding it. An owned one of a value
  * Rust checks is Rust's to account: disposing it drops the value as Rust's own drop does,
@@ -341,7 +350,6 @@ const collected = new FinalizationRegistry<[number, string]>(([p, free]) => {
  * it unreachable, if it was never disposed.
  */
 export class Handle<T extends string = string> {
-	declare readonly [brand]: T;
 	/** The handle's pointer. */
 	readonly p: number;
 	readonly k: Kind;
@@ -1436,8 +1444,25 @@ const wasi = {
 	},
 };
 
-/** What `load` takes the module from. */
-export type Source = WebAssembly.Module | BufferSource | Response | PromiseLike<Response>;
+/**
+ * What `load` takes the module from: a compiled module, its bytes, a `Response` such as
+ * `fetch` gives, or its URL, which a `file:` URL reads through Node's file system where the
+ * runtime has one, as Node's `fetch` refuses that scheme, and any other fetches.
+ */
+export type Source = WebAssembly.Module | BufferSource | Response | PromiseLike<Response> | URL;
+
+/** Node's file system, where the runtime has one: Node, Bun, and Deno, but no browser. */
+type Files = { readFile(path: URL): Promise<Uint8Array<ArrayBuffer>> };
+
+/**
+ * The bytes or the response at `url`. Node's file system is found by
+ * `process.getBuiltinModule`, a call no bundler follows, so a browser's bundle imports none.
+ */
+function fetchUrl(url: URL): Promise<BufferSource | Response> {
+	const node = (globalThis as { process?: { getBuiltinModule?(id: string): unknown } }).process;
+	const files = url.protocol === "file:" ? (node?.getBuiltinModule?.("node:fs/promises") as Files | undefined) : undefined;
+	return files ? files.readFile(url) : fetch(url);
+}
 
 /** What a binding's `load` passes: its C prefix and glue's namespace, its contract and target, and its imports. */
 export type Glue = {
@@ -1477,6 +1502,7 @@ let loaded = false;
 
 async function instantiate(source: Source, glue: Glue): Promise<void> {
 	let module: WebAssembly.Module;
+	if (source instanceof URL) source = await fetchUrl(source);
 	if (source instanceof WebAssembly.Module) module = source;
 	else if (source instanceof ArrayBuffer || ArrayBuffer.isView(source)) module = await WebAssembly.compile(source);
 	else module = await WebAssembly.compileStreaming(source as Response | PromiseLike<Response>);

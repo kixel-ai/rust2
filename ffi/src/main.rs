@@ -39,6 +39,7 @@ mod dart;
 mod driver;
 mod glue;
 mod go;
+mod js;
 mod ir;
 mod kotlin;
 mod lock;
