@@ -365,7 +365,13 @@ fn api_valgrind() {
 	let api = api();
 	let c = api_c_exe(api);
 	let cpp = scratch().join("api").join(format!("api-c++17{EXE_SUFFIX}"));
-	cxx(&api.link(), 17, true, &manifest_dir().join("tests").join("api.cpp"), &cpp);
+	cxx(
+		&api.link(),
+		17,
+		true,
+		&manifest_dir().join("tests").join("api.cpp"),
+		&cpp,
+	);
 	for (exe, cases) in [(&c, &["statuses", "threads"][..]), (&cpp, &["futures", "lifetimes"])] {
 		for case in std::iter::once(None).chain(cases.iter().copied().map(Some)) {
 			let output = run(Command::new("valgrind")
@@ -434,7 +440,11 @@ fn sanitized(sanitizer: &str) {
 	// undefined behavior Rust's checks cannot see. `-fno-wrapv` overrides a hardened
 	// compiler's, such as Nix's, which would define signed overflow and so hide it.
 	let sanitize: &[&str] = match sanitizer {
-		"address" => &["-fsanitize=address,undefined", "-fno-sanitize-recover=all", "-fno-wrapv"],
+		"address" => &[
+			"-fsanitize=address,undefined",
+			"-fno-sanitize-recover=all",
+			"-fno-wrapv",
+		],
 		"thread" => &["-fsanitize=thread"],
 		other => panic!("no C flags for the {other} sanitizer"),
 	};
@@ -1089,7 +1099,11 @@ fn api_python_debug() {
 		.arg(manifest_dir().join("tests").join("api.py"))
 		.arg("leaks")
 		.env("PYTHONPATH", api().out.join("python")));
-	assert!(output.stdout.is_empty(), "leaks printed {}", String::from_utf8_lossy(&output.stdout));
+	assert!(
+		output.stdout.is_empty(),
+		"leaks printed {}",
+		String::from_utf8_lossy(&output.stdout)
+	);
 }
 
 /// `api_python`'s checks, run by `interpreter`.
@@ -1396,7 +1410,14 @@ fn api_swift_tsan() {
 	let (swiftmodule, lib) = (dir.join("Api.swiftmodule"), dir.join("libApi.a"));
 	std::fs::create_dir_all(&dir).unwrap();
 	run(swiftc(&module, 13)
-		.args(["-sanitize=thread", "-swift-version", "6", "-parse-as-library", "-module-name", "Api"])
+		.args([
+			"-sanitize=thread",
+			"-swift-version",
+			"6",
+			"-parse-as-library",
+			"-module-name",
+			"Api",
+		])
 		.args(["-emit-module", "-emit-module-path"])
 		.arg(&swiftmodule)
 		.args(["-emit-library", "-static", "-o"])
