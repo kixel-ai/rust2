@@ -239,7 +239,12 @@ int main(int argc, char **argv) {
 		snprintf(kinds[n++], sizeof kinds[0], "%s", kind);
 	}
 	pthread_t thread;
-	pthread_create(&thread, NULL, worker, NULL);
+	int err = pthread_create(&thread, NULL, worker, NULL);
+	if (err) {
+		fprintf(stderr, "pthread_create: %s\n", strerror(err));
+		fclose(script);
+		return 2;
+	}
 	while (fgets(line, sizeof line, script)) {
 		struct step s;
 		memset(&s, 0, sizeof s);

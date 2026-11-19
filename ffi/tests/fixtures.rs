@@ -2000,8 +2000,6 @@ fn api_dart() {
 	);
 }
 
-/// `main` compiled into a kernel snapshot in `dir`, importing the generated Dart in
-/// `package` as `package:<name>/<name>.dart`, whose native asset is the shared library
 /// The gate's Dart protocol scripts, fewer than C's, as each step costs Dart more.
 const DART_PROTOCOL_SEEDS: u64 = 100;
 
@@ -2029,6 +2027,8 @@ fn api_dart_protocol_nightly() {
 	);
 }
 
+/// `main` compiled into a kernel snapshot in `dir`, importing the generated Dart in
+/// `package` as `package:<name>/<name>.dart`, whose native asset is the shared library
 /// `lib`: as a package's build hook would bundle it, which `dart compile` has no flag for.
 fn dart_compile(name: &str, dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
 	let sdk = std::fs::canonicalize(which("dart"))

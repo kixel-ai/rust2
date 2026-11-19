@@ -23,9 +23,12 @@ pub struct Waker {
 }
 
 impl Waker {
-	/// Whether `other` is this waker again, which a poll reuses rather than wrapping anew.
+	/// Whether `other` is this waker again, which a poll reuses rather than wrapping anew:
+	/// one that differs in any function is another, whose `drop` must run.
 	fn same(&self, other: &Self) -> bool {
-		self.wake.map(|f| f as usize) == other.wake.map(|f| f as usize) && self.data == other.data
+		self.wake.map(|f| f as usize) == other.wake.map(|f| f as usize)
+			&& self.drop.map(|f| f as usize) == other.drop.map(|f| f as usize)
+			&& self.data == other.data
 	}
 
 	/// The Rust waker around it, which calls `drop` once its last clone drops. One Rust
@@ -213,16 +216,16 @@ impl Future {
 		if future.is_null() {
 			fail(what, "a future is null");
 		}
-		// SAFETY: the caller's contract; only the flag and the owner are touched before
-		// it is held.
-		let head = unsafe { &*future };
-		if let Some(owner) = &head.owner {
+		// SAFETY: the caller's contract. Only the flag and the owner are borrowed, each
+		// through its own field, as another poll may hold the rest while this one is refused.
+		let (polling, owner) = unsafe { (&(*future).polling, &(*future).owner) };
+		if let Some(owner) = owner {
 			if owner.away() {
 				// SAFETY: a home, and this thread waits while it polls.
 				return unsafe { owner.run(|| Self::poll(future, waker, outs, err, status, what)) };
 			}
 			if let Err(refused) = owner.own() {
-				if head.polling.swap(true, Ordering::Acquire) {
+				if polling.swap(true, Ordering::Acquire) {
 					fail(what, "a future is polled concurrently");
 				}
 				// A waker it never adopted is Rust's to drop, as a poll drops the one it
@@ -235,18 +238,17 @@ impl Future {
 					// SAFETY: the caller gave it, and nothing else holds it.
 					unsafe { waker.release() };
 				}
-				head.polling.store(false, Ordering::Release);
+				polling.store(false, Ordering::Release);
 				// SAFETY: the caller's contract.
 				return unsafe { failed(status, refused, what) };
 			}
 		}
-		if head.polling.swap(true, Ordering::Acquire) {
+		if polling.swap(true, Ordering::Acquire) {
 			fail(what, "a future is polled concurrently");
 		}
 		// SAFETY: the flag makes this the only access, and `new` made the allocation.
-		let result = unsafe { (head.poll)(future, waker, outs, err, what) };
-		// SAFETY: as above; the allocation outlives the poll.
-		unsafe { &*future }.polling.store(false, Ordering::Release);
+		let result = unsafe { ((*future).poll)(future, waker, outs, err, what) };
+		polling.store(false, Ordering::Release);
 		result
 	}
 
@@ -331,22 +333,24 @@ unsafe fn poll_typed<F: std::future::Future, L: Fn(F::Output, &[*mut c_void], *m
 	err: *mut c_void,
 	what: &str,
 ) -> i32 {
-	// SAFETY: the caller's contract.
-	let Typed { head, future, lower } = unsafe { &mut *future.cast::<Typed<F, L>>() };
+	let typed = future.cast::<Typed<F, L>>();
+	// SAFETY: the caller's contract. Only the fields the polling flag guards are borrowed,
+	// not the flag or the owner, which a concurrent poll reads before it is refused.
+	let (last, future, lower) = unsafe { (&mut (*typed).head.waker, &mut (*typed).future, &(*typed).lower) };
 	let Some(inner) = future.as_mut() else {
 		fail(what, "a future is polled after it finished");
 	};
-	if !head.waker.as_ref().is_some_and(|(last, _)| last.same(&waker)) {
-		head.waker = Some((waker, waker.lift()));
+	if !last.as_ref().is_some_and(|(last, _)| last.same(&waker)) {
+		*last = Some((waker, waker.lift()));
 	}
-	let (_, rust) = head.waker.as_ref().expect("set above");
+	let (_, rust) = last.as_ref().expect("set above");
 	let mut cx = Context::from_waker(rust);
 	// SAFETY: the allocation never moves, and the future drops in place.
 	match unsafe { Pin::new_unchecked(inner) }.poll(&mut cx) {
 		std::task::Poll::Pending => PENDING,
 		std::task::Poll::Ready(value) => {
 			*future = None;
-			head.waker = None;
+			*last = None;
 			lower(value, outs, err)
 		}
 	}

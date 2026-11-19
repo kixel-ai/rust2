@@ -178,11 +178,17 @@ fn free_races_exit() {
 			};
 			let probe = slot.lock().unwrap().take().unwrap();
 			// SAFETY: as above.
-			unsafe { Dropped::new(probe, owner, "a probe") }.send();
+			unsafe { Dropped::new(probe, owner, "a probe") }.send()
 		});
 		owner.join().unwrap();
-		freer.join().unwrap();
-		assert!(drops.count() <= 1);
+		let queued = freer.join().unwrap();
+		// Queued, it drops as its thread exits; refused, it leaks. loom's join returns before
+		// the thread's locals drop, where std's waits for them, so a queued drop is awaited.
+		let mut spins = 0;
+		while queued && drops.count() == 0 {
+			relax(&mut spins);
+		}
+		assert_eq!(drops.count(), usize::from(queued));
 		drops.assert_home();
 	});
 }
@@ -197,14 +203,16 @@ fn wake_schedules_drain() {
 			let probe = Probe::new(&drops);
 			let here = Thread::here();
 			let scheduled = Arc::new(AtomicUsize::new(0));
+			let calls = Arc::new(AtomicUsize::new(0));
 			let freer = thread::spawn(move || {
 				// SAFETY: as above.
 				unsafe { Dropped::new(probe, here, "a probe") }.send();
 			});
 			let wake = {
-				let scheduled = scheduled.clone();
+				let (scheduled, calls) = (scheduled.clone(), calls.clone());
 				Arc::from_std(std::sync::Arc::new(move || {
 					scheduled.fetch_add(1, SeqCst);
+					calls.fetch_add(1, SeqCst);
 				}) as std::sync::Arc<dyn Fn() + Send + Sync>)
 			};
 			Thread::wake_here(wake);
@@ -218,8 +226,8 @@ fn wake_schedules_drain() {
 			}
 			freer.join().unwrap();
 			drops.assert_home();
-			// One free, so one wake, or none if it was drained at once.
-			assert!(scheduled.load(SeqCst) <= 1);
+			// One free, so one wake: from the push, or from `wake_here` finding it pending.
+			assert_eq!(calls.load(SeqCst), 1);
 		});
 		owner.join().unwrap();
 	});

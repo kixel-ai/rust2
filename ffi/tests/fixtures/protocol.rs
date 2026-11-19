@@ -6,8 +6,10 @@
 #[allow(dead_code, reason = "the Miri driver reads what writing scripts does not")]
 pub mod model;
 
+use std::io::Read;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Output, Stdio};
+use std::time::{Duration, Instant};
 
 pub use model::{Profile, Script};
 
@@ -40,9 +42,13 @@ pub fn covered(scripts: &[Script]) {
 			"no step fails as {status:?}"
 		);
 	}
-	for outcome in [Outcome::Pending, Outcome::Error] {
+	for outcome in [Outcome::Ok, Outcome::Pending, Outcome::Error] {
 		assert!(outcomes.contains(&outcome), "no step returns {outcome:?}");
 	}
+	assert!(
+		outcomes.iter().any(|outcome| matches!(outcome, Outcome::Value(_))),
+		"no step returns a value"
+	);
 	for kind in [
 		Kind::Counter,
 		Kind::Ledger,
@@ -70,18 +76,66 @@ pub fn check(dir: &Path, scripts: &[Script], driver: impl Fn(&Path) -> Command) 
 	for script in scripts {
 		let path = dir.join(format!("script-{}.txt", script.seed));
 		std::fs::write(&path, script.text()).unwrap();
-		let output = driver(&path).arg(&path).output().unwrap();
+		let output = within(driver(&path).arg(&path), &path.display().to_string());
 		let stdout = String::from_utf8_lossy(&output.stdout);
 		if output.status.success() && stdout == script.transcript() {
 			continue;
 		}
+		let why = match stdout == script.transcript() {
+			true => format!(": every line matches, but the driver exited with {}", output.status),
+			false => difference(script, &stdout),
+		};
 		panic!(
-			"script {} ({}) differs from the model{}\nstderr:\n{}",
+			"script {} ({}) differs from the model{why}\nstderr:\n{}",
 			script.seed,
 			path.display(),
-			difference(script, &stdout),
 			String::from_utf8_lossy(&output.stderr),
 		);
+	}
+}
+
+/// How long one driver process may run: far longer than any batch takes, so only a step
+/// that never returns, such as a future whose wake was lost, reaches it.
+const DEADLINE: Duration = Duration::from_secs(20 * 60);
+
+/// `cmd`'s output once it exits, killing it past [`DEADLINE`] and failing with `what`, the
+/// scripts it was running.
+fn within(cmd: &mut Command, what: &str) -> Output {
+	let mut child = cmd
+		.stdout(Stdio::piped())
+		.stderr(Stdio::piped())
+		.spawn()
+		.unwrap_or_else(|err| panic!("running {cmd:?}: {err}"));
+	// Read both pipes as the child writes, so neither fills and stalls it.
+	let read = |pipe: Option<Box<dyn Read + Send>>| {
+		std::thread::spawn(move || {
+			let mut bytes = Vec::new();
+			pipe.unwrap().read_to_end(&mut bytes).unwrap();
+			bytes
+		})
+	};
+	let stdout = read(child.stdout.take().map(|pipe| Box::new(pipe) as _));
+	let stderr = read(child.stderr.take().map(|pipe| Box::new(pipe) as _));
+	let start = Instant::now();
+	let status = loop {
+		if let Some(status) = child.try_wait().unwrap() {
+			break status;
+		}
+		if start.elapsed() > DEADLINE {
+			let _ = child.kill();
+			let _ = child.wait();
+			let stderr = stderr.join().unwrap();
+			panic!(
+				"{what} never finished within {DEADLINE:?}\nstderr:\n{}",
+				String::from_utf8_lossy(&stderr)
+			);
+		}
+		std::thread::sleep(Duration::from_millis(50));
+	};
+	Output {
+		status,
+		stdout: stdout.join().unwrap(),
+		stderr: stderr.join().unwrap(),
 	}
 }
 
@@ -104,7 +158,8 @@ pub fn check_all(dir: &Path, scripts: &[Script], driver: impl Fn() -> Command) {
 				path
 			})
 			.collect();
-		let output = driver().args(&paths).output().unwrap();
+		let what = format!("the {} scripts from {}", paths.len(), paths[0].display());
+		let output = within(driver().args(&paths), &what);
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		for (script, path) in batch.iter().zip(&paths) {
 			let got = std::fs::read_to_string(out(path)).unwrap_or_default();
@@ -153,7 +208,10 @@ fn difference(script: &Script, stdout: &str) -> String {
 			context.join("\n")
 		);
 	}
-	": the driver printed more".to_string()
+	match got.next() {
+		Some(line) => format!(": the driver printed more, from `{line}`"),
+		None => ": every line matches, but not the last line's end".to_string(),
+	}
 }
 
 /// Each profile's scripts keep to it: no worker steps, failed checks, frees, drops, polls,

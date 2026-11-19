@@ -4,10 +4,9 @@ transcript must match line for line. A free lets go of the slot's last reference
 CPython's counting frees at once; a future is an `async def`, made as it is awaited."""
 
 import asyncio
+import concurrent.futures
 import gc
-import queue
 import sys
-import threading
 import typing
 
 import api
@@ -156,29 +155,20 @@ def step(op: str, args: list[str]) -> str:
 	return out
 
 
-def worker(steps: "queue.Queue[tuple[str, list[str]] | None]", done: "queue.Queue[str]") -> None:
-	while (item := steps.get()) is not None:
-		done.put(step(*item))
-
-
 def main() -> None:
 	with open(sys.argv[1]) as script:
 		lines = script.read().splitlines()
 	slots.extend(None for _ in lines[0].split())
-	steps: queue.Queue[tuple[str, list[str]] | None] = queue.Queue()
-	done: queue.Queue[str] = queue.Queue()
-	thread = threading.Thread(target=worker, args=(steps, done))
-	thread.start()
 	out = []
-	for line in lines[1:]:
-		thread_id, op, *args = line.split()
-		if thread_id == "0":
-			out.append(step(op, args))
-		else:
-			steps.put((op, args))
-			out.append(done.get())
-	steps.put(None)
-	thread.join()
+	# One worker thread, kept for the whole script: a step's exception reaches main through
+	# its result, and leaving the block joins the worker however main leaves it.
+	with concurrent.futures.ThreadPoolExecutor(max_workers=1) as worker:
+		for line in lines[1:]:
+			thread_id, op, *args = line.split()
+			if thread_id == "0":
+				out.append(step(op, args))
+			else:
+				out.append(worker.submit(step, op, args).result())
 	sys.stdout.write("".join(f"{line}\n" for line in out))
 
 

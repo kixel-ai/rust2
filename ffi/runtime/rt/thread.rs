@@ -79,18 +79,24 @@ impl Dropped {
 		}
 	}
 
-	/// Queue it to its thread, or leak it, saying so, if that exited.
-	pub fn send(self) {
+	/// Queue it to its thread, or leak it, saying so, if that exited: whether it queued.
+	pub fn send(self) -> bool {
 		// Kept until the push returns, so its thread may run the drop first: then this is
 		// the last record, which lets the home go idle.
 		let owner = self.owner.clone();
-		if let Err(Job::Drop(dropped)) = owner.push(Job::Drop(self)) {
-			eprintln!(
-				"rust2-ffi: {} leaks: it is not Send, and its thread exited before it was freed",
-				dropped.what
-			);
-		}
+		let queued = match owner.push(Job::Drop(self)) {
+			Ok(()) => true,
+			Err(Job::Drop(dropped)) => {
+				eprintln!(
+					"rust2-ffi: {} leaks: it is not Send, and its thread exited before it was freed",
+					dropped.what
+				);
+				false
+			}
+			Err(_) => unreachable!("a push returns the job it was given"),
+		};
 		Thread::let_go(owner);
+		queued
 	}
 }
 
