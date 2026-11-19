@@ -2,17 +2,17 @@
 
 ## Goal
 
-Two Rust names in one C++ scope that escape to the same C++ name, such as the enum
-variants `Unix` and `Unix_` (both `unix_`), or `Delete` and `Delete_` (both `delete_`),
-export to distinct names or fail the export with a span at the second item, never a
+Two Rust names in one C++ scope that escape to one C++ name, such as the enum variants
+`Delete` and `Delete_` (both `delete_`), export to distinct names or fail the export with a span at the second item, never a
 header with a duplicate member that fails at the consumer's compile. This covers enum
 values, record fields, methods, and parameters.
 
 ## Plan
 
-Found by the review of [kixel-ai/rust2#873](https://github.com/kixel-ai/rust2/pull/873),
-which added `unix`, `linux`, and `i386` to `cpp::escape`'s list, since GNU dialects
-predefine them as macros. The collision was already possible for keywords.
+Found by the review of [kixel-ai/rust2#873](https://github.com/kixel-ai/rust2/pull/873).
+That PR escapes the macros GNU dialects predefine (`unix`, `linux`, `i386`) so that the
+whole family stays apart: `unix_` becomes `unix__`. Keywords keep their older single
+escape, since a field `type_` is common Rust and renaming it would touch every such API.
 
 `cpp::escape` cannot simply append another `_` to a name that already ends in one, as
 `abi::escape` does for C: it also escapes C names, which C's clash rule keeps unique and
