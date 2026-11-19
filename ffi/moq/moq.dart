@@ -121,8 +121,8 @@ Future<void> local() async {
   // When it arrived: kio's clock's `Instant`, from kio's own export.
   expect(moq.clockNow().checkedDurationSince(hello.arrived()) != null, 'a frame arrived before now');
 
-  // A timestamp is a `Copy` value copied across, which allocates nothing. The track is
-  // untimed, so a timed frame is refused.
+  // A timestamp is a handle, which a call borrows and leaves usable. The track is untimed,
+  // so a timed frame is refused.
   final at = moq.Timestamp.fromMillis(moq.U64(1500));
   expect(at.asSecs() == moq.U64(1), '1500 ms is 1 s');
   throws<moq.Error>(
@@ -130,7 +130,7 @@ Future<void> local() async {
     (e) => '$e' == "frame timestamp doesn't fit its track",
     "the late frame's error is Rust's",
   );
-  expect(at.asSecs() == 1, 'a copied timestamp stays usable');
+  expect(at.asSecs() == 1, 'a lent timestamp stays usable');
 
   // The last frame, bytes that are not UTF-8, then the group's end, which reads as null.
   final world = [0xff, ...utf8.encode('world')];

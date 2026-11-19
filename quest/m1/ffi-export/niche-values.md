@@ -14,6 +14,10 @@ object.
 
 ## Plan
 
+This is a general rule for every `Copy` type with a niche-encoded enum field, not a fix for
+moq: `Timestamp` is only the case that found it, and nothing in the rule or its tests names
+moq (maintainer decision on [kixel-ai/rust2#881](https://github.com/kixel-ai/rust2/pull/881)).
+
 `full` in `ffi/src/collect.rs` takes an enum's fewest initialized bytes as its smallest
 variant's fields, so `None` of `Option<NonZero<u64>>` counts as 0 bytes and `Timestamp`
 falls back to an object. With a niche, though, rustc writes a dataless variant as the

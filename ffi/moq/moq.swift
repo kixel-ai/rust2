@@ -252,8 +252,8 @@ func script() throws {
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(try clockNow().checkedDurationSince(hello.arrived()) != nil, "a frame arrived before now")
 
-	// A timestamp is a `Copy` value copied across, which allocates nothing. The track is
-	// untimed, so a timed frame is refused.
+	// A timestamp is a handle, which a call borrows and leaves usable. The track is untimed,
+	// so a timed frame is refused.
 	let at = try Timestamp.fromMillis(1500)
 	expect(try at.asSecs() == 1, "1500 ms is 1 s")
 	do {
@@ -262,7 +262,7 @@ func script() throws {
 	} catch let e as Moq.Error {
 		expect(try e.description == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
 	}
-	expect(try at.asSecs() == 1, "a copied timestamp stays usable")
+	expect(try at.asSecs() == 1, "a lent timestamp stays usable")
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as nil.
 	let world = Bytes(Data([0xff]) + Data("world".utf8))

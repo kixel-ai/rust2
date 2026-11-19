@@ -162,13 +162,13 @@ func script() {
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(kio.ClockNow().CheckedDurationSince(must(hello.Arrived())) != nil, "a frame arrived before now")
 
-	// A timestamp is a `Copy` value a call borrows, so Go keeps its handle. The track is
+	// A timestamp is a handle a call borrows, so Go keeps it. The track is
 	// untimed, so a timed frame is refused.
 	at := must(net.TimestampFromMillis(1500))
 	expect(must(at.AsSecs()) == 1, "1500 ms is 1 s")
 	err = writer.WriteFrame(at, rt.NewBytes([]byte("late")))
 	expect(errors.As(err, &merr) && err.Error() == "frame timestamp doesn't fit its track", "the late frame's error is Rust's")
-	expect(must(at.AsSecs()) == 1, "a copied timestamp stays usable")
+	expect(must(at.AsSecs()) == 1, "a lent timestamp stays usable")
 	at.Close()
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as nil.
