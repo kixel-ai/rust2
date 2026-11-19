@@ -128,7 +128,7 @@ function approx(v: Limbs): number {
 // Limbs and bigints trade through this buffer, as little-endian bytes: a store of each limb
 // and one load is several times faster than a shift and an add per limb, and a store of a
 // bigint wraps it into 64 bits as `BigInt.asUintN` does.
-const bridge = /* @__PURE__ */ new DataView(new ArrayBuffer(16));
+const bridge = /* @__PURE__ */ new DataView(/* @__PURE__ */ new ArrayBuffer(16));
 
 /** A wide integer's exact value. */
 function exact(v: Limbs): bigint {

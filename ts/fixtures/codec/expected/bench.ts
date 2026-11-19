@@ -66,6 +66,8 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 				join(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else if (op === 22) {
 				keyed(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
+			} else if (op === 23) {
+				mixed(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else {
 				decoded(decodeGroup(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), liteVersion(selector), out), out);
 			}
@@ -1054,6 +1056,35 @@ export function iterate(chain: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}
 		putUsize(out, last);
 	}
+}
+
+/**
+ * `count` rounds of 64-bit arithmetic on values that stay past 2^53, as a hash or a
+ * generator makes them: splitmix64's steps, or a multiplicative hash (`selector` 1)
+ * reduced by a divisor and a modulus past 2^32. The xor of the results.
+ */
+export function mixed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	let _16!: rs.usize;
+	const _6: [rs.u64, rs.ByteSlice] = takeU64(data);
+	const count: rs.u64 = _6[0];
+	const _11: [rs.u64, rs.u64] = [takeU64(_6[1])[0], 0];
+	let h: rs.u64 = _11[0];
+	let sum: rs.u64 = 0;
+	let iterStart: rs.usize = 0;
+	const iterEnd: rs.usize = rs.u64Low(count);
+	while ((_16 = iterStart++) < iterEnd) {
+		const i: rs.usize = _16;
+		if (selector === 0) {
+			h = rs.u64WrappingAdd(h, { hi: 0x9e3779b9, lo: 0x7f4a7c15 } as rs.u64);
+			let z: rs.u64 = rs.u64WrappingMul(rs.u64Xor(h, rs.u64Shr(h, 30)), { hi: 0xbf58476d, lo: 0x1ce4e5b9 } as rs.u64);
+			z = rs.u64WrappingMul(rs.u64Xor(z, rs.u64Shr(z, 27)), { hi: 0x94d049bb, lo: 0x133111eb } as rs.u64);
+			sum = rs.u64Xor(sum, rs.u64Xor(z, rs.u64Shr(z, 31)));
+		} else {
+			h = rs.u64WrappingAdd(rs.u64WrappingMul(h, { hi: 0x9e3779b9, lo: 0x7f4a7c15 } as rs.u64), i as rs.u64);
+			sum = rs.u64Xor(sum, rs.u64Add(rs.u64Div(h, 4294967297), rs.u64Rem(h, { hi: 0xffffffff, lo: 0xffffffc5 } as rs.u64)));
+		}
+	}
+	harness_putU64(out, sum);
 }
 
 /**
