@@ -317,7 +317,7 @@ fn api_protocol() {
 		&api.staticlib(),
 		&api.native,
 	);
-	let scripts = protocol::scripts(0, PROTOCOL_SEEDS, PROTOCOL_STEPS, true);
+	let scripts = protocol::scripts(0, PROTOCOL_SEEDS, PROTOCOL_STEPS, protocol::Profile::C);
 	protocol::covered(&scripts);
 	protocol::check(
 		&scratch().join("api").join("protocol").join("scripts"),
@@ -344,7 +344,7 @@ fn api_protocol_nightly() {
 	);
 	protocol::check(
 		&scratch().join("api").join("protocol").join("nightly"),
-		&protocol::scripts(PROTOCOL_SEEDS, 20_000, 400, true),
+		&protocol::scripts(PROTOCOL_SEEDS, 20_000, 400, protocol::Profile::C),
 		|_| Command::new(&exe),
 	);
 }
@@ -479,7 +479,7 @@ fn sanitized(sanitizer: &str) {
 	let exe = protocol_c(api, &dir.join("protocol"), &[&sanitize], &lib, &native);
 	protocol::check(
 		&dir.join("protocol").join("scripts"),
-		&protocol::scripts(0, PROTOCOL_SEEDS, 200, true),
+		&protocol::scripts(0, PROTOCOL_SEEDS, 200, protocol::Profile::C),
 		|_| {
 			let mut cmd = Command::new(&exe);
 			cmd.envs(env);

@@ -9,12 +9,13 @@ pub mod model;
 use std::path::Path;
 use std::process::Command;
 
-pub use model::Script;
+pub use model::{Profile, Script};
 
-/// The scripts of `count` seeds from `first`, each `len` random steps long.
-pub fn scripts(first: u64, count: u64, len: usize, homes: bool) -> Vec<Script> {
+/// The scripts of `count` seeds from `first`, each `len` random steps long, for a surface
+/// of `profile`.
+pub fn scripts(first: u64, count: u64, len: usize, profile: Profile) -> Vec<Script> {
 	(first..first + count)
-		.map(|seed| model::script(seed, len, homes))
+		.map(|seed| model::script(seed, len, profile))
 		.collect()
 }
 
@@ -109,4 +110,42 @@ fn difference(script: &Script, stdout: &str) -> String {
 		);
 	}
 	": the driver printed more".to_string()
+}
+
+/// Each profile's scripts keep to it: no worker steps, failed checks, frees, polls, or
+/// awaits where it has none, and locals on a home where it says.
+#[test]
+fn protocol_profiles() {
+	use model::{Op, Outcome};
+	for bits in 0..64u8 {
+		let on = |bit: u8| bits & 1 << bit != 0;
+		let profile = Profile {
+			threads: on(0),
+			homes: on(1),
+			homed: on(2),
+			frees: on(3),
+			polls: on(4),
+			failures: on(5),
+		};
+		for script in scripts(0, 20, 100, profile) {
+			for step in &script.steps {
+				let line = step.line();
+				assert!(profile.threads || step.thread == 0, "{profile:?}: {line}");
+				assert!(
+					profile.failures || !matches!(step.expect, Outcome::Failed(_)),
+					"{profile:?}: {line}"
+				);
+				match step.op {
+					Op::Free(_) => assert!(profile.frees, "{profile:?}: {line}"),
+					Op::Poll(_) => assert!(profile.polls, "{profile:?}: {line}"),
+					Op::Await(_) => assert!(!profile.polls, "{profile:?}: {line}"),
+					Op::LocalNew(_, homed) => assert!(
+						if profile.homed { homed } else { profile.homes || !homed },
+						"{profile:?}: {line}"
+					),
+					_ => {}
+				}
+			}
+		}
+	}
 }

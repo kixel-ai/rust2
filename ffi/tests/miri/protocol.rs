@@ -196,6 +196,7 @@ impl Driver {
 					Outcome::Ok
 				}
 				Op::Poll(f) => self.poll(f, st),
+				Op::Await(_) => unreachable!("the C ABI's scripts poll a step at a time"),
 				Op::Drain => {
 					api_thread_drain();
 					Outcome::Ok
@@ -324,6 +325,6 @@ fn run(script: &Script) {
 #[test]
 fn scripts() {
 	for seed in 0..SEEDS {
-		run(&model::script(seed, STEPS, false));
+		run(&model::script(seed, STEPS, model::Profile::MIRI));
 	}
 }

@@ -18,6 +18,44 @@ use std::fmt::Write as _;
 /// The threads a script runs on: the first, which runs the cleanup, and a worker.
 pub const THREADS: usize = 2;
 
+/// What a driver's surface can run, which shapes the scripts written for it.
+#[derive(Clone, Copy, Debug)]
+pub struct Profile {
+	/// Steps on the worker thread too.
+	pub threads: bool,
+	/// Locals made on a home now and then, through `Local::new_homed`.
+	pub homes: bool,
+	/// Every value that is not `Send` made on a home, through each `_homed` twin, as a
+	/// binding whose threads move makes them.
+	pub homed: bool,
+	/// Frees amid the steps, which a binding whose collector frees in its own time cannot
+	/// make: it closes instead, and its cleanup drops what is left.
+	pub frees: bool,
+	/// Polls a step at a time with the script's waker, whose counts end the transcript;
+	/// else each future is awaited to its end in one step.
+	pub polls: bool,
+	/// Steps whose check fails, which a surface that aborts on one never runs.
+	pub failures: bool,
+}
+
+impl Profile {
+	/// The C ABI's: everything.
+	pub const C: Self = Self {
+		threads: true,
+		homes: true,
+		homed: false,
+		frees: true,
+		polls: true,
+		failures: true,
+	};
+
+	/// The C ABI's under Miri, which counts a home's thread outliving the script as a leak.
+	pub const MIRI: Self = Self {
+		homes: false,
+		..Self::C
+	};
+}
+
 /// [`crate`]'s `rt::Status`, as each driver prints it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Status {
@@ -163,6 +201,8 @@ pub enum Op {
 	Free(usize),
 	/// A future's poll with the script's counting waker.
 	Poll(usize),
+	/// A future awaited to its end, as a binding awaits one.
+	Await(usize),
 	/// `<prefix>_thread_drain`: run what other threads queued for this one.
 	Drain,
 }
@@ -243,6 +283,7 @@ impl Step {
 			Op::Drop(h) => format!("drop {h}"),
 			Op::Free(h) => format!("free {h}"),
 			Op::Poll(h) => format!("poll {h}"),
+			Op::Await(h) => format!("await {h}"),
 			Op::Drain => "drain".to_string(),
 		};
 		format!("{} {op}", self.thread)
@@ -253,6 +294,7 @@ impl Step {
 /// once every step ran and each thread exited.
 pub struct Script {
 	pub seed: u64,
+	pub profile: Profile,
 	pub steps: Vec<Step>,
 	pub kinds: Vec<Kind>,
 	pub wakes: u64,
@@ -272,13 +314,16 @@ impl Script {
 		text
 	}
 
-	/// What a driver prints: each step's outcome a line, then the waker's counts.
+	/// What a driver prints: each step's outcome a line, then the waker's counts if it polls
+	/// with the script's waker.
 	pub fn transcript(&self) -> String {
 		let mut text = String::new();
 		for step in &self.steps {
 			writeln!(text, "{}", step.expect.line()).unwrap();
 		}
-		writeln!(text, "wakes {} drops {}", self.wakes, self.drops).unwrap();
+		if self.profile.polls {
+			writeln!(text, "wakes {} drops {}", self.wakes, self.drops).unwrap();
+		}
 		text
 	}
 }
@@ -374,7 +419,10 @@ impl Slot {
 }
 
 /// The model's state as a script runs.
+#[derive(Clone)]
 struct Model {
+	/// Whether every value that is not `Send` is made on a home.
+	homed: bool,
 	slots: Vec<Slot>,
 	/// Each thread's drops other threads queued, run at its next check of one of its values.
 	queued: [Vec<Release>; THREADS],
@@ -385,8 +433,9 @@ struct Model {
 }
 
 impl Model {
-	fn new() -> Self {
+	fn new(homed: bool) -> Self {
 		Self {
+			homed,
 			slots: Vec::new(),
 			queued: Default::default(),
 			groups: Vec::new(),
@@ -527,7 +576,11 @@ impl Model {
 	}
 
 	fn run(&mut self, thread: usize, op: Op) -> Result<Outcome, Status> {
-		let here = Owner::Thread(thread);
+		// Where a value that is not `Send` a call makes stays.
+		let here = match self.homed {
+			true => Owner::Home,
+			false => Owner::Thread(thread),
+		};
 		Ok(match op {
 			Op::CounterNew(h, n) => {
 				let mut slot = Slot::new(Kind::Counter, Owner::Any);
@@ -702,6 +755,7 @@ impl Model {
 			}
 			Op::LocalNew(h, homed) => {
 				let mut slot = Slot::new(Kind::Local, if homed { Owner::Home } else { here });
+				assert!(homed || !self.homed, "a homed profile makes every local on a home");
 				self.groups.push(0);
 				slot.n = (self.groups.len() - 1) as u64;
 				assert_eq!(self.add(slot), h);
@@ -798,6 +852,13 @@ impl Model {
 				}
 				Outcome::Ok
 			}
+			Op::Await(f) => {
+				let mut outcome = self.run(thread, Op::Poll(f))?;
+				while outcome == Outcome::Pending {
+					outcome = self.run(thread, Op::Poll(f))?;
+				}
+				outcome
+			}
 			Op::Poll(f) => {
 				if let Owner::Thread(t) = self.slots[f].owner
 					&& t != thread
@@ -870,12 +931,13 @@ impl Rng {
 /// The most handles a script keeps live at once, so steps meet the ones they conflict with.
 const LIVE: usize = 8;
 
-/// A script of `len` random steps from `seed`, then a free of every handle left and a drain
-/// of each thread. Without `homes`, it makes nothing on a home, whose thread outlives the
-/// script, which Miri counts as a leak.
-pub fn script(seed: u64, len: usize, homes: bool) -> Script {
+/// A script of `len` random steps from `seed` for a surface of `profile`, then the steps
+/// that end every handle left: each future freed, or awaited where the profile frees
+/// nothing amid the steps, then each object freed or dropped, each on its own thread, and
+/// a drain of each thread, so nothing is left for a thread's exit to drop.
+pub fn script(seed: u64, len: usize, profile: Profile) -> Script {
 	let mut rng = Rng(seed);
-	let mut model = Model::new();
+	let mut model = Model::new(profile.homed);
 	let mut steps = Vec::new();
 	let push = |model: &mut Model, steps: &mut Vec<Step>, thread: usize, op: Op| {
 		let expect = model.step(thread, op);
@@ -883,33 +945,67 @@ pub fn script(seed: u64, len: usize, homes: bool) -> Script {
 	};
 	while steps.len() < len {
 		// Most steps run on the first thread, so its values meet one another.
-		let thread = if rng.chance(25) { 1 } else { 0 };
-		if let Some(op) = pick(&mut rng, &model, homes) {
-			push(&mut model, &mut steps, thread, op);
+		let thread = usize::from(profile.threads && rng.chance(25));
+		let Some(op) = pick(&mut rng, &model, profile) else {
+			continue;
+		};
+		if !profile.failures && matches!(model.clone().step(thread, op), Outcome::Failed(_)) {
+			continue;
 		}
+		push(&mut model, &mut steps, thread, op);
 	}
-	// Free futures first, which may hold the objects, then the rest, each on its own thread
-	// where it has one, so nothing is left for a thread's exit to drop.
-	let live = |model: &Model, futures: bool| -> Vec<usize> {
+	let live = |model: &Model, kinds: &[Kind]| -> Vec<usize> {
 		(0..model.slots.len())
-			.filter(|&h| !model.slots[h].freed && model.slots[h].kind.future() == futures)
+			.filter(|&h| {
+				let slot = &model.slots[h];
+				!slot.freed && kinds.contains(&slot.kind) && !(slot.kind.future() && slot.done && !profile.frees)
+			})
 			.collect()
 	};
-	for futures in [true, false] {
-		for h in live(&model, futures) {
-			let thread = match model.slots[h].owner {
-				Owner::Thread(t) => t,
-				_ => 0,
-			};
-			push(&mut model, &mut steps, thread, Op::Free(h));
+	let home = |model: &Model, h: usize| match model.slots[h].owner {
+		Owner::Thread(t) => t,
+		_ => 0,
+	};
+	// Futures first, which may hold the objects, then each lend's holder, then the rest.
+	let futures = [Kind::PlusLater, Kind::BumpLater, Kind::LocalLater];
+	let lends = [Kind::Draft, Kind::Receipt];
+	let rest = [
+		Kind::Counter,
+		Kind::Ledger,
+		Kind::Tally,
+		Kind::Local,
+		Kind::Meters,
+		Kind::Meter,
+	];
+	// Without frees, a future runs to its end: polled until it is, where the profile polls.
+	if !profile.frees && profile.polls {
+		for f in live(&model, &futures) {
+			let thread = home(&model, f);
+			while !model.slots[f].done {
+				push(&mut model, &mut steps, thread, Op::Poll(f));
+			}
+			model.slots[f].freed = true;
 		}
 	}
-	for thread in 0..THREADS {
+	for (kinds, end) in [
+		(&futures[..], if profile.frees { Op::Free } else { Op::Await }),
+		(&lends[..], if profile.frees { Op::Free } else { Op::Drop }),
+		(&rest[..], if profile.frees { Op::Free } else { Op::Drop }),
+	] {
+		for h in live(&model, kinds) {
+			let thread = home(&model, h);
+			push(&mut model, &mut steps, thread, end(h));
+			// Ended, whether freed or awaited or dropped.
+			model.slots[h].freed = true;
+		}
+	}
+	for thread in 0..if profile.threads { THREADS } else { 1 } {
 		push(&mut model, &mut steps, thread, Op::Drain);
 	}
 	assert!(model.queued.iter().all(Vec::is_empty), "a drop is left queued");
 	Script {
 		seed,
+		profile,
 		steps,
 		kinds: model.slots.iter().map(|slot| slot.kind).collect(),
 		wakes: model.wakes,
@@ -918,8 +1014,9 @@ pub fn script(seed: u64, len: usize, homes: bool) -> Script {
 }
 
 /// A random op valid to run on any thread: one naming no freed handle, polling no finished
-/// future, and breaking no contract that aborts rather than fails a check.
-fn pick(rng: &mut Rng, model: &Model, homes: bool) -> Option<Op> {
+/// future, breaking no contract that aborts rather than fails a check, and freeing no value
+/// on a home whose drop the script would observe, since the home drops it in its own time.
+fn pick(rng: &mut Rng, model: &Model, profile: Profile) -> Option<Op> {
 	let next = model.slots.len();
 	let live: Vec<usize> = (0..next).filter(|&h| !model.slots[h].freed).collect();
 	let of = |kinds: &[Kind]| -> Vec<usize> {
@@ -947,7 +1044,7 @@ fn pick(rng: &mut Rng, model: &Model, homes: bool) -> Option<Op> {
 			0 => Op::CounterNew(next, rng.next() % 100),
 			1 => Op::LedgerNew(next),
 			2 => Op::TallyNew(next),
-			3 => Op::LocalNew(next, homes && rng.chance(25)),
+			3 => Op::LocalNew(next, profile.homed || (profile.homes && rng.chance(25))),
 			4 => Op::MetersNew(next),
 			_ => Op::MeterNew(next),
 		},
@@ -1000,8 +1097,8 @@ fn pick(rng: &mut Rng, model: &Model, homes: bool) -> Option<Op> {
 			match rng.below(3) {
 				0 if making => Op::LocalShare(next, h),
 				// A home's future would drop on the home in its own time, after its waker's
-				// last count is read: only a thread's locals make one.
-				1 if making && model.slots[h].owner != Owner::Home => Op::LocalLater(next, h),
+				// last count is read: only a thread's locals make one for the script's waker.
+				1 if making && (model.slots[h].owner != Owner::Home || !profile.polls) => Op::LocalLater(next, h),
 				_ => Op::LocalBump(h),
 			}
 		}
@@ -1019,9 +1116,21 @@ fn pick(rng: &mut Rng, model: &Model, homes: bool) -> Option<Op> {
 				_ => Op::MeterReset(h),
 			}
 		}
-		9 | 10 => Op::Poll(rng.pick(&futures)?),
+		9 | 10 => {
+			let f = rng.pick(&futures)?;
+			if profile.polls { Op::Poll(f) } else { Op::Await(f) }
+		}
 		11 => Op::Drop(rng.pick(&objects)?),
-		12 => Op::Free(rng.pick(&live)?),
+		12 if profile.frees => {
+			let h = rng.pick(&live)?;
+			let slot = &model.slots[h];
+			let racy =
+				slot.owner == Owner::Home && !slot.gone && !slot.done && !matches!(model.releases(h), Release::Nothing);
+			if racy {
+				return None;
+			}
+			Op::Free(h)
+		}
 		_ => Op::Drain,
 	})
 }
