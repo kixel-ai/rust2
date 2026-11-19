@@ -3967,3 +3967,32 @@ fn profiled() {
 		"{stderr}"
 	);
 }
+
+/// A loop's element is typed among the locals in scope at the loop, not those its body
+/// binds over them, as Rust evaluates it before the body runs.
+#[test]
+fn transcript_loop_scope() {
+	let source = scratch().join("api").join("loop-scope.rs");
+	std::fs::write(
+		&source,
+		"fn main() { let x = 1u8; for n in [x] { let x = 2u8; println!(\"{n} {x}\"); } }",
+	)
+	.unwrap();
+	let t = transcript::Transcript::load(&api().out.join("api.json"), &source);
+	let Some(transcript::Step::Print(pieces)) = t.steps.last() else {
+		panic!("the loop's body prints last")
+	};
+	let names: Vec<&str> = (pieces.iter())
+		.filter_map(|p| match p {
+			transcript::Piece::Value(
+				transcript::Expr {
+					kind: transcript::Kind::Var(name),
+					..
+				},
+				_,
+			) => Some(name.as_str()),
+			_ => None,
+		})
+		.collect();
+	assert_eq!(names, ["x", "x_2"]);
+}

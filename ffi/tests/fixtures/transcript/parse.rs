@@ -26,8 +26,16 @@ pub(super) fn main(t: &Transcript, source: &str) -> (Vec<Step>, BTreeMap<String,
 		match item {
 			syn::Item::Use(u) => scope.import(&u.tree, &mut Vec::new()),
 			syn::Item::Struct(s) if matches!(s.fields, syn::Fields::Unit) => scope.units.push(s.ident.to_string()),
-			syn::Item::Static(s) => scope.vars.push(Var::Alias(s.ident.to_string(), (*s.expr).clone())),
-			syn::Item::Const(c) => scope.vars.push(Var::Alias(c.ident.to_string(), (*c.expr).clone())),
+			syn::Item::Static(s) => {
+				scope
+					.vars
+					.push(Var::Alias(s.ident.to_string(), (*s.expr).clone(), scope.vars.len()))
+			}
+			syn::Item::Const(c) => {
+				scope
+					.vars
+					.push(Var::Alias(c.ident.to_string(), (*c.expr).clone(), scope.vars.len()))
+			}
 			_ => {}
 		}
 	}
@@ -56,10 +64,11 @@ fn fail(node: &dyn Spanned, message: impl std::fmt::Display) -> ! {
 	panic!("{}: {message}", at(node.span()))
 }
 
-/// A local in scope: its unique name and type, or a loop's literal, typed at each use.
+/// A local in scope: its unique name and type, or a loop's literal, typed at each use
+/// among the locals in scope where it was bound, the first `depth` of the scope's.
 enum Var {
 	Typed(String, String, Type),
-	Alias(String, syn::Expr),
+	Alias(String, syn::Expr, usize),
 }
 
 struct Scope<'t> {
@@ -128,9 +137,17 @@ impl Scope<'_> {
 		steps
 	}
 
+	/// `f` run among the first `depth` locals alone, as an alias bound there sees them.
+	fn at<R>(&mut self, depth: usize, f: impl FnOnce(&mut Self) -> R) -> R {
+		let hidden = self.vars.split_off(depth);
+		let r = f(self);
+		self.vars.extend(hidden);
+		r
+	}
+
 	fn lookup(&self, name: &str) -> Option<&Var> {
 		self.vars.iter().rev().find(|v| match v {
-			Var::Typed(n, ..) | Var::Alias(n, _) => n == name,
+			Var::Typed(n, ..) | Var::Alias(n, ..) => n == name,
 		})
 	}
 
@@ -180,7 +197,8 @@ impl Scope<'_> {
 							"a for loop over an element other than a literal, a local, or a value built of them",
 						)
 					}
-					self.vars.push(Var::Alias(name.ident.to_string(), item.clone()));
+					self.vars
+						.push(Var::Alias(name.ident.to_string(), item.clone(), self.vars.len()));
 					let body = self.block(&f.body.stmts);
 					self.vars.pop();
 					steps.extend(body);
@@ -527,9 +545,9 @@ impl Scope<'_> {
 				if let Some(name) = p.path.get_ident().map(|i| i.to_string()) {
 					match self.lookup(&name) {
 						Some(Var::Typed(_, unique, ty)) => return Expr::new(Kind::Var(unique.clone()), ty.clone()),
-						Some(Var::Alias(_, expr)) => {
-							let expr = expr.clone();
-							return self.infer(&expr);
+						Some(Var::Alias(_, expr, depth)) => {
+							let (expr, depth) = (expr.clone(), *depth);
+							return self.at(depth, |s| s.infer(&expr));
 						}
 						None => {}
 					}
@@ -601,9 +619,9 @@ impl Scope<'_> {
 			}
 			syn::Expr::Path(p) if p.path.get_ident().is_some() => {
 				let name = p.path.get_ident().unwrap().to_string();
-				if let Some(Var::Alias(_, alias)) = self.lookup(&name) {
-					let alias = alias.clone();
-					return self.check(&alias, ty);
+				if let Some(Var::Alias(_, alias, depth)) = self.lookup(&name) {
+					let (alias, depth) = (alias.clone(), *depth);
+					return self.at(depth, |s| s.check(&alias, ty));
 				}
 				if self.lookup(&name).is_none() && self.units.contains(&name) {
 					return Expr::new(Kind::Local(name, Vec::new()), ty.clone());
@@ -760,7 +778,13 @@ impl Scope<'_> {
 		match ty {
 			Type::Int(_) | Type::U128 | Type::NonZero(_) => match expr {
 				syn::Expr::Lit(_) => None,
-				expr => const_int(expr).map(Kind::Int),
+				expr => {
+					let width = match ty {
+						Type::Int(int) | Type::NonZero(int) => (int.bits(), int.signed()),
+						_ => (128, false),
+					};
+					const_int(expr, Some(width)).map(Kind::Int)
+				}
 			},
 			Type::F32 | Type::F64 => const_float(expr).map(Kind::Float),
 			Type::Char if path_is(expr, "char::MAX") => Some(Kind::Char(char::MAX)),
@@ -893,7 +917,11 @@ impl Scope<'_> {
 				let depth = self.vars.len();
 				for (p, value) in pat.elems.iter().zip(&values.elems) {
 					let syn::Pat::Ident(name) = p else { fail(p, "a name") };
-					self.vars.push(Var::Alias(name.ident.to_string(), value.clone()));
+					// Spelled again at each use in the body, as a loop's element is.
+					if !spelled(value) {
+						fail(value, "an item other than a literal, a local, or a value built of them")
+					}
+					self.vars.push(Var::Alias(name.ident.to_string(), value.clone(), depth));
 				}
 				let value = self.check(&closure.body, item);
 				self.vars.truncate(depth);
@@ -1154,7 +1182,7 @@ impl Scope<'_> {
 			syn::Expr::Paren(p) => return self.fits_expr(&p.expr, ty),
 			syn::Expr::Path(p) => match p.path.get_ident().and_then(|i| self.lookup(&i.to_string())) {
 				Some(Var::Typed(_, _, have)) => return fits(have, ty),
-				Some(Var::Alias(_, expr)) => return self.fits_expr(&expr.clone(), ty),
+				Some(Var::Alias(_, expr, _)) => return self.fits_expr(&expr.clone(), ty),
 				None => None,
 			},
 			syn::Expr::Struct(s) => self.type_of_path(&s.path),
@@ -1631,8 +1659,10 @@ fn literalish(expr: &syn::Expr) -> bool {
 	}
 }
 
-/// Whether evaluating `e` has no effect a script could see, so a writer may evaluate it
-/// once per use, or not at all: no call of the API's or a hook's, and no closure.
+/// Whether evaluating `e` can neither fail nor have an effect a script could see, so a
+/// writer may evaluate it once per use, or not at all: no call of the API's or a hook's, no
+/// arithmetic, which may overflow or divide by zero, and no formatting, which may call a
+/// type's own `Display`.
 fn pure(e: &Expr) -> bool {
 	match &e.kind {
 		Kind::Unit
@@ -1655,11 +1685,6 @@ fn pure(e: &Expr) -> bool {
 		Kind::Tuple(items) | Kind::List(items) | Kind::Record(_, items) | Kind::Variant(_, _, items) => {
 			items.iter().all(pure)
 		}
-		Kind::Binary(_, a, b) => pure(a) && pure(b),
-		Kind::Format(pieces) => pieces.iter().all(|p| match p {
-			Piece::Text(_) => true,
-			Piece::Value(e, _) => pure(e),
-		}),
 		_ => false,
 	}
 }
@@ -1716,14 +1741,19 @@ fn sum(l: Num, r: Num) -> Option<Num> {
 	})
 }
 
-/// `n as` an integer of `bits` bits: its two's complement truncated to them, then read as
-/// signed or unsigned.
-fn truncated(n: Num, bits: u32, signed: bool) -> Num {
-	let raw = if n.negative {
+/// `n`'s two's complement in 128 bits.
+fn raw(n: Num) -> u128 {
+	if n.negative {
 		n.magnitude.wrapping_neg()
 	} else {
 		n.magnitude
-	};
+	}
+}
+
+/// `n as` an integer of `bits` bits: its two's complement truncated to them, then read as
+/// signed or unsigned.
+fn truncated(n: Num, bits: u32, signed: bool) -> Num {
+	let raw = raw(n);
 	let raw = if bits == 128 { raw } else { raw & ((1u128 << bits) - 1) };
 	match signed && raw >> (bits - 1) & 1 == 1 {
 		true => Num {
@@ -1757,11 +1787,43 @@ fn int_named(name: &str) -> Option<Int> {
 	})
 }
 
+/// An integer type's width in bits, and whether it is signed.
+type Width = (u32, bool);
+
+/// The width of the integer type `expr`'s own spelling fixes: a literal's suffix, a cast's
+/// type, a constant's type, or an operand's.
+fn typed_width(expr: &syn::Expr) -> Option<Width> {
+	let named = |name: &str| match name {
+		"u128" => Some((128, false)),
+		name => int_named(name).map(|int| (int.bits(), int.signed())),
+	};
+	match expr {
+		syn::Expr::Lit(syn::ExprLit {
+			lit: syn::Lit::Int(i), ..
+		}) => named(i.suffix()),
+		syn::Expr::Paren(p) => typed_width(&p.expr),
+		syn::Expr::Unary(u) => typed_width(&u.expr),
+		syn::Expr::Cast(c) => match &*c.ty {
+			syn::Type::Path(ty) => named(&ty.path.get_ident()?.to_string()),
+			_ => None,
+		},
+		syn::Expr::Binary(b) if matches!(b.op, syn::BinOp::Shl(_)) => typed_width(&b.left),
+		syn::Expr::Binary(b) => typed_width(&b.left).or_else(|| typed_width(&b.right)),
+		syn::Expr::Path(p) => match &p.path.segments.iter().map(|s| s.ident.to_string()).collect::<Vec<_>>()[..] {
+			[ty, _] => named(ty),
+			_ => None,
+		},
+		_ => None,
+	}
+}
+
 /// An integer spelled by literals, constants such as `u64::MAX`, shifts, sums,
-/// differences, and casts, or `NonZero::new(..).unwrap()` of one, folded as Rust folds it:
-/// signs kept, and each cast truncating to its type's width.
-fn const_int(expr: &syn::Expr) -> Option<Num> {
+/// differences, and casts, or `NonZero::new(..).unwrap()` of one, folded as Rust folds it
+/// at `width`, the type its context gives it where its spelling does not: signs kept, each
+/// shift dropping the bits past its type's width, and each cast truncating to its own.
+fn const_int(expr: &syn::Expr, width: Option<Width>) -> Option<Num> {
 	let num = |v: i128| Some(Num::new(v));
+	let width = typed_width(expr).or(width);
 	match expr {
 		syn::Expr::Lit(syn::ExprLit {
 			lit: syn::Lit::Int(i), ..
@@ -1769,34 +1831,35 @@ fn const_int(expr: &syn::Expr) -> Option<Num> {
 			negative: false,
 			magnitude: i.base10_parse().ok()?,
 		}),
-		syn::Expr::Paren(p) => const_int(&p.expr),
+		syn::Expr::Paren(p) => const_int(&p.expr, width),
 		syn::Expr::Cast(c) => {
-			let n = const_int(&c.expr)?;
-			let syn::Type::Path(ty) = &*c.ty else { return None };
-			match ty.path.get_ident()?.to_string().as_str() {
-				"u128" => Some(truncated(n, 128, false)),
-				name => {
-					let int = int_named(name)?;
-					Some(truncated(n, int.bits(), int.signed()))
-				}
-			}
+			// What is cast has its own type, `i32` where nothing spells one.
+			let n = const_int(&c.expr, Some(typed_width(&c.expr).unwrap_or((32, true))))?;
+			let (bits, signed) = width?;
+			Some(truncated(n, bits, signed))
 		}
-		syn::Expr::Unary(u) if matches!(u.op, syn::UnOp::Neg(_)) => Some(negated(const_int(&u.expr)?)),
-		syn::Expr::Binary(b) => {
-			let (l, r) = (const_int(&b.left)?, const_int(&b.right)?);
-			match b.op {
-				syn::BinOp::Shl(_) => {
-					let by = u32::try_from(r.magnitude).ok().filter(|by| !r.negative && *by < 128)?;
-					let magnitude = l.magnitude << by;
-					(magnitude >> by == l.magnitude).then_some(Num { magnitude, ..l })
-				}
-				syn::BinOp::Add(_) => sum(l, r),
-				syn::BinOp::Sub(_) => sum(l, negated(r)),
-				_ => None,
+		syn::Expr::Unary(u) if matches!(u.op, syn::UnOp::Neg(_)) => Some(negated(const_int(&u.expr, width)?)),
+		syn::Expr::Binary(b) => match b.op {
+			syn::BinOp::Shl(_) => {
+				let (bits, signed) = width?;
+				let l = const_int(&b.left, width)?;
+				let r = const_int(&b.right, typed_width(&b.right))?;
+				let by = u32::try_from(r.magnitude).ok().filter(|by| !r.negative && *by < bits)?;
+				Some(truncated(
+					Num {
+						negative: false,
+						magnitude: raw(l) << by,
+					},
+					bits,
+					signed,
+				))
 			}
-		}
+			syn::BinOp::Add(_) => sum(const_int(&b.left, width)?, const_int(&b.right, width)?),
+			syn::BinOp::Sub(_) => sum(const_int(&b.left, width)?, negated(const_int(&b.right, width)?)),
+			_ => None,
+		},
 		syn::Expr::MethodCall(m) if m.method == "unwrap" => match &*m.receiver {
-			syn::Expr::Call(c) if path_is(&c.func, "NonZero::new") => const_int(&c.args[0]),
+			syn::Expr::Call(c) if path_is(&c.func, "NonZero::new") => const_int(&c.args[0], width),
 			_ => None,
 		},
 		syn::Expr::Path(p) => {
@@ -1840,7 +1903,9 @@ fn const_float(expr: &syn::Expr) -> Option<f64> {
 		}) => i.base10_parse().ok(),
 		syn::Expr::Unary(u) if matches!(u.op, syn::UnOp::Neg(_)) => const_float(&u.expr).map(|f| -f),
 		syn::Expr::Path(p) if p.path.segments.last()?.ident == "NAN" => Some(f64::NAN),
-		syn::Expr::Call(c) if path_is(&c.func, "f64::from_bits") => Some(f64::from_bits(const_int(&c.args[0])?.bits())),
+		syn::Expr::Call(c) if path_is(&c.func, "f64::from_bits") => {
+			Some(f64::from_bits(const_int(&c.args[0], Some((64, false)))?.bits()))
+		}
 		_ => None,
 	}
 }
@@ -1854,7 +1919,7 @@ fn const_duration(expr: &syn::Expr) -> Option<(u64, u32)> {
 			_ => None,
 		},
 		syn::Expr::Call(c) => {
-			let v = const_int(c.args.first()?)?.magnitude as u64;
+			let v = const_int(c.args.first()?, Some((64, false)))?.magnitude as u64;
 			let syn::Expr::Path(p) = &*c.func else { return None };
 			match p.path.segments.last()?.ident.to_string().as_str() {
 				"from_secs" => Some((v, 0)),
@@ -1877,7 +1942,7 @@ enum Net {
 
 fn const_net(expr: &syn::Expr) -> Option<Net> {
 	use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
-	let int = |e: &syn::Expr| const_int(e).map(|n| n.magnitude);
+	let int = |e: &syn::Expr| const_int(e, None).map(|n| n.magnitude);
 	match expr {
 		syn::Expr::Paren(p) => const_net(&p.expr),
 		syn::Expr::MethodCall(m) if m.method == "into" => const_net(&m.receiver),
@@ -1971,12 +2036,16 @@ fn folds_like_rust() {
 		-5 - 3,
 		2 - 7,
 		(1u128 << 127) as i8,
-		(1i128 << 64) + 1,
+		(1u128 << 64) + 1,
+		128u8 << 1,
+		(128u8 << 1) as u64,
+		1i8 << 7,
+		(3u16 << 15) as i64,
 		-(1i64 << 62) as u32,
 		u32::MAX as i16 as u64,
 	];
 	for (text, want) in cases {
 		let expr: syn::Expr = syn::parse_str(text).unwrap();
-		assert_eq!(const_int(&expr), Some(Num::new(want)), "{text}");
+		assert_eq!(const_int(&expr, None), Some(Num::new(want)), "{text}");
 	}
 }
