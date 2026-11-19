@@ -99,7 +99,8 @@ fn mutated(steps: &[Step], t: &Transcript, out: &mut Vec<String>, vars: &mut Vec
 				let f = t.function(*id);
 				for (arg, param) in args.iter().zip(params(t, *id)) {
 					if let Kind::Var(name) = &arg.kind
-						&& written(&param) && !out.contains(name)
+						&& written(&param)
+						&& !out.contains(name)
 					{
 						out.push(name.clone());
 					}
@@ -941,7 +942,7 @@ impl Emitter<'_> {
 		};
 		// A handle made for the call is a temporary, which Rust drops once the statement
 		// ends, ending any borrow it holds: Kotlin closes it once the call returns.
-		let temporary = receiver.is_some_and(|r| temporary(r)) && f.receiver != Some(Receiver::Owned);
+		let temporary = receiver.is_some_and(temporary) && f.receiver != Some(Receiver::Owned);
 		let (target, close) = match temporary {
 			true => {
 				let tmp = self.fresh("h");

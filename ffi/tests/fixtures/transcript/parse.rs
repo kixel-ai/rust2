@@ -925,7 +925,7 @@ impl Scope<'_> {
 			}
 			Type::Bounds(int) => {
 				let bound = Type::Bound(*int);
-				let mut end = |s: &mut Self, e: Option<&syn::Expr>, kind: BoundKind| match e {
+				let end = |s: &mut Self, e: Option<&syn::Expr>, kind: BoundKind| match e {
 					None => Expr::new(Kind::Bound(BoundKind::Unbounded, None), bound.clone()),
 					Some(e) => {
 						let v = s.check(e, &Type::Int(*int));

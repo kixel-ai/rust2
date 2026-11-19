@@ -1153,7 +1153,7 @@ impl Emitter<'_> {
 						self.lent(&v);
 						let made = self.hoist(
 							&format!("{v}.Clone()"),
-							&[inner.ty.clone()],
+							std::slice::from_ref(&inner.ty),
 							true,
 							Failure::Panic,
 							true,

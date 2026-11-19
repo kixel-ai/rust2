@@ -112,20 +112,13 @@ pub(crate) struct Object {
 	#[serde(default)]
 	pub(crate) shown: Option<Vec<String>>,
 	pub(crate) args: Vec<Type>,
-	#[serde(default = "yes")]
-	pub(crate) send: bool,
 	pub(crate) sync: bool,
 	pub(crate) copy: bool,
 	pub(crate) shared: bool,
 	pub(crate) methods: Vec<Function>,
 	pub(crate) traits: Traits,
-	pub(crate) foreign: bool,
 	/// The targets it is on.
 	pub(crate) on: u64,
-}
-
-fn yes() -> bool {
-	true
 }
 
 #[derive(serde::Deserialize)]
@@ -138,10 +131,8 @@ pub(crate) struct Callback {
 #[derive(Clone, Copy, Default, serde::Deserialize)]
 pub(crate) struct Traits {
 	pub(crate) clone: bool,
-	pub(crate) eq: bool,
 	pub(crate) display: bool,
 	pub(crate) debug: bool,
-	pub(crate) default: bool,
 }
 
 #[derive(serde::Deserialize)]
@@ -155,7 +146,6 @@ pub(crate) struct Function {
 	pub(crate) ok: Type,
 	pub(crate) err: Option<Type>,
 	pub(crate) future: bool,
-	pub(crate) collect: bool,
 	pub(crate) lends: bool,
 	#[serde(default)]
 	pub(crate) lends_mut: bool,
