@@ -235,7 +235,8 @@ impl Callbacks for Export {
 	}
 }
 
-/// A function or method Swift refuses, by its shown path, as a census refusal.
+/// A function or method Swift refuses, by the path the config names it by, as a census
+/// refusal.
 struct SwiftRefused {
 	path: ir::Path,
 	refusal: collect::Refusal,
@@ -260,16 +261,17 @@ fn swift_refused(api: &Api, lib: &str) -> (Api, Vec<SwiftRefused>) {
 				detail: String::new(),
 				note: None,
 			};
+			let path = configured(r.function);
 			match found.last_mut() {
-				Some(last) if last.path == r.function.shown => last.refusal.why.push(why),
+				Some(last) if last.path == path => last.refusal.why.push(why),
 				_ => found.push(SwiftRefused {
-					path: r.function.shown.clone(),
 					refusal: collect::Refusal {
-						path: r.function.shown[1..].join("::"),
+						path: path[1..].join("::"),
 						kind: r.kind,
 						span: r.function.span,
 						why: vec![why],
 					},
+					path,
 				}),
 			}
 		}
@@ -277,7 +279,7 @@ fn swift_refused(api: &Api, lib: &str) -> (Api, Vec<SwiftRefused>) {
 			return (api, refused);
 		}
 		let gone: FxHashSet<&ir::Path> = found.iter().map(|r| &r.path).collect();
-		let keep = |methods: &mut Vec<ir::Function>| methods.retain(|f| !gone.contains(&f.shown));
+		let keep = |methods: &mut Vec<ir::Function>| methods.retain(|f| !gone.contains(&configured(f)));
 		api.records.iter_mut().for_each(|r| keep(&mut r.methods));
 		api.enums.iter_mut().for_each(|e| keep(&mut e.methods));
 		api.objects.iter_mut().for_each(|o| keep(&mut o.methods));
@@ -286,9 +288,19 @@ fn swift_refused(api: &Api, lib: &str) -> (Api, Vec<SwiftRefused>) {
 	}
 }
 
+/// The path the config names `f` by: a field's getter and setter alike, by `field@` where
+/// a method or constant of its type shares its path, so refusing that one keeps the other.
+fn configured(f: &ir::Function) -> ir::Path {
+	let mut path = f.shown.clone();
+	if let ir::Access::Field { shared: true, .. } = f.access {
+		path[1].insert_str(0, "field@");
+	}
+	path
+}
+
 /// Each exclude whose item would export without it, and that item's paths: what an
 /// exclude checked, from [`collect::Report::audited`], that the census's API holds by the
-/// same path, except a function `refused` names by its shown path, since a generic's
+/// same path, except a function `refused` names by its configured path, since a generic's
 /// instances share a span but Swift may refuse only some.
 fn exporting(
 	api: &Api,
@@ -301,7 +313,7 @@ fn exporting(
 		paths.insert(path[1..].join("::"));
 	};
 	let methods = |methods: &[ir::Function], add: &mut dyn FnMut(&[String])| {
-		for f in methods.iter().filter(|f| !refused.contains(&f.shown)) {
+		for f in methods.iter().filter(|f| !refused.contains(&configured(f))) {
 			match f.access {
 				// A field is checked by `field@` and, unless a method or constant takes its
 				// name, by its path, which then names that method or constant instead.

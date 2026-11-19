@@ -2364,16 +2364,19 @@ fn relative_target() {
 		errors.iter().all(|error| error.ends_with(", which exports")),
 		"the census failed otherwise:\n{stderr}"
 	);
-	assert!(
-		errors.contains(
-			&"error: rust2-ffi: exclude `field@Retry::jitter` in the config leaves out `field@Retry::jitter`, which exports"
-		),
-		"the census does not fail on `field@Retry::jitter`:\n{stderr}"
-	);
-	assert!(
-		!errors.iter().any(|error| error.contains("exclude `Retry::jitter`")),
-		"the census fails on `Retry::jitter`:\n{stderr}"
-	);
+	// Nor on a method Swift alone refuses, though not its field, which Swift keeps.
+	for exclude in ["jitter", "spread"] {
+		assert!(
+			errors.contains(&format!(
+				"error: rust2-ffi: exclude `field@Retry::{exclude}` in the config leaves out `field@Retry::{exclude}`, which exports"
+			).as_str()),
+			"the census does not fail on `field@Retry::{exclude}`:\n{stderr}"
+		);
+		assert!(
+			!errors.iter().any(|error| error.contains(&format!("exclude `Retry::{exclude}`"))),
+			"the census fails on `Retry::{exclude}`:\n{stderr}"
+		);
+	}
 	assert!(
 		!errors.iter().any(|error| error.contains("exclude `among`")),
 		"the census fails on `among`, which Swift refuses:\n{stderr}"
@@ -2395,6 +2398,7 @@ fn relative_target() {
 		"- `Pair<u8, api::Size>::swap`: `Pair<u8, api::Size>::swap`",
 		"- `Slot<u32>::value`: `Slot<u32>::value`",
 		"- `field@Retry::jitter`: `field@Retry::jitter`",
+		"- `field@Retry::spread`: `field@Retry::spread`",
 		"- `Stack::depth_past<api::polar::Point>`: `Stack::depth_past<api::polar::Point>`",
 	] {
 		assert!(text.contains(line), "the census lists no `{line}`:\n{text}");
@@ -2411,6 +2415,7 @@ fn relative_target() {
 		"- `Queued`",
 		"- `Layer`",
 		"- `Retry::jitter`",
+		"- `Retry::spread`",
 	] {
 		assert!(
 			!exporting.contains(refused),
@@ -2763,6 +2768,29 @@ fn lock() {
 	assert!(
 		output.status.success(),
 		"an addition broke a baseline without native exception keys:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	// A generator that respells a native type, such as an alias it renames, renames no class.
+	let mut respelled: serde_json::Value = serde_json::from_slice(&before).unwrap();
+	for names in respelled["names"].as_object_mut().unwrap().values_mut() {
+		let names = names.as_object_mut().unwrap();
+		*names = std::mem::take(names)
+			.into_iter()
+			.map(|(key, name)| match key.contains(" / as ") {
+				true => (format!("{key}_respelled"), name),
+				false => (key, name),
+			})
+			.collect();
+	}
+	let path = dir.join("respelled.json");
+	std::fs::write(&path, serde_json::to_vec(&respelled).unwrap()).unwrap();
+	let args = ["--baseline".as_ref(), path.as_os_str()];
+	let output = exporter("lock", &dir.join("respelled"), &targets, &args, &["--features", "added"])
+		.output()
+		.unwrap();
+	assert!(
+		output.status.success(),
+		"respelling a native exception type broke the baseline:\n{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
 	let names = locked("names");

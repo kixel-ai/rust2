@@ -264,7 +264,8 @@ it compares C's names and the C++, Kotlin, Python, Swift, Go, and Dart generator
 public names. A clash that renames a kept class, function, or member reports its language
 and old and new names at the item's span. An error type's exception class is known by its
 error type and the type the language holds it as, since Kotlin's `UShortArray` and
-`List<UShort>` may share one error type: one added beside another adds a class. Staged `--api` files have no binding names; a
+`List<UShort>` may share one error type: one added beside another adds a class, and a
+native type respelled or gone breaks nothing while a class still bears its old name. Staged `--api` files have no binding names; a
 baseline must be a complete export. An older baseline without name tables still has its
 structure checked, reporting each break before the error that it lacks names, so its
 re-export with this version accepts no break that check would have caught. A binding

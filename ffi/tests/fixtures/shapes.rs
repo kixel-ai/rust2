@@ -1396,22 +1396,34 @@ const KNOWN: &[Known] = &[
 	Known {
 		language: "python",
 		what: "a signaling NaN of an f32, which a float holds quieted",
-		skips: |_, _, nans| nans.contains(&"signaling f32"),
+		skips: |shape, _, nans| nans.contains(&"signaling f32") && crosses(shape, &|s| matches!(s, Shape::F32)),
 		quest: "quest/m1/ffi-export/signaling-nan.md",
 	},
 	Known {
 		language: "dart",
 		what: "a signaling NaN of an f32, which a double holds quieted",
-		skips: |_, _, nans| nans.contains(&"signaling f32"),
+		skips: |shape, _, nans| nans.contains(&"signaling f32") && crosses(shape, &|s| matches!(s, Shape::F32)),
 		quest: "quest/m1/ffi-export/signaling-nan.md",
 	},
 	Known {
 		language: "web",
 		what: "a NaN's bits, which a number loses: quieted, and canonicalized once V8 optimizes",
-		skips: |_, _, nans| !nans.is_empty(),
+		skips: |shape, _, nans| !nans.is_empty() && crosses(shape, &|s| matches!(s, Shape::F32 | Shape::F64)),
 		quest: "quest/m1/ffi-export/signaling-nan.md",
 	},
 ];
+
+/// Whether a value of `shape` holds a `leaf` the binding converts, which one inside an
+/// object does not: the object crosses as a handle, and only Rust reads its field.
+fn crosses(shape: &Shape, leaf: &dyn Fn(&Shape) -> bool) -> bool {
+	match shape {
+		Shape::Object(_) => false,
+		Shape::Option(s) | Shape::Vec(s) | Shape::Set(s) | Shape::Box(s) | Shape::Enum(s) => crosses(s, leaf),
+		Shape::Map(k, v) => crosses(k, leaf) || crosses(v, leaf),
+		Shape::Tuple(s) | Shape::Record(s) => s.iter().any(|s| crosses(s, leaf)),
+		s => leaf(s),
+	}
+}
 
 /// A function the C header declares: each parameter's type and name.
 struct Proto {
@@ -1817,6 +1829,8 @@ fn cpp(built: &Built, calls: &[Call]) -> String {
 	let name = built.name();
 	let header = std::fs::read_to_string(built.out.join("include").join(&name).join(format!("{name}.hpp"))).unwrap();
 	let mut sinks = String::new();
+	// Each sink's class, defined by its first call the driver runs.
+	let mut echoes = std::collections::BTreeSet::new();
 	let mut body = String::new();
 	for call in calls {
 		let Call { n, seed, .. } = *call;
@@ -1876,7 +1890,7 @@ fn cpp(built: &Built, calls: &[Call]) -> String {
 				digest("std::move(c)")
 			),
 			Kind::Sink => {
-				if seed == SEEDS[0] {
+				if echoes.insert(n) {
 					let class = header
 						.split(&format!("\nclass Sink{n} {{"))
 						.nth(1)
@@ -2003,6 +2017,8 @@ fn python(built: &Built, calls: &[Call]) -> String {
 	let name = built.name();
 	let source = std::fs::read_to_string(built.out.join("python").join(format!("{name}.py"))).unwrap();
 	let mut sinks = String::new();
+	// Each sink's class, defined by its first call the driver runs.
+	let mut echoes = std::collections::BTreeSet::new();
 	let mut body = String::new();
 	for call in calls {
 		let Call { n, seed, .. } = *call;
@@ -2027,7 +2043,7 @@ fn python(built: &Built, calls: &[Call]) -> String {
 			},
 			Kind::Held => format!("held(s.Holder{n}, s.make_{n}, s.digest_{n}, {seed}, {other})"),
 			Kind::Sink => {
-				if seed == SEEDS[0] {
+				if echoes.insert(n) {
 					let _ = writeln!(
 						sinks,
 						"class Echo{n}(s.Sink{n}):\n\tdef echo(self, v: typing.Any) -> typing.Any:\n\t\treturn v\n\n"
@@ -2091,6 +2107,8 @@ fn swift(calls: &[Call], source: &str) -> String {
 		false => "",
 	};
 	let mut sinks = String::new();
+	// Each sink's class, defined by its first call the driver runs.
+	let mut echoes = std::collections::BTreeSet::new();
 	let shapes = by_shape(calls, |call| {
 		let Call { n, seed, .. } = call;
 		let other = call.other();
@@ -2168,7 +2186,7 @@ fn swift(calls: &[Call], source: &str) -> String {
 				);
 			}
 			Kind::Sink => {
-				if seed == SEEDS[0] {
+				if echoes.insert(n) {
 					let protocol = source
 						.split(&format!("public protocol Sink{n}: Sendable {{\n"))
 						.nth(1)
@@ -2299,6 +2317,8 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 		line[..line.find(") ").unwrap()].to_string()
 	};
 	let mut sinks = String::new();
+	// Each sink's class, defined by its first call the driver runs.
+	let mut echoes = std::collections::BTreeSet::new();
 	for call in calls {
 		let Call { n, seed, .. } = *call;
 		let other = call.other();
@@ -2369,7 +2389,7 @@ fn go(built: &Built, calls: &[Call], source: &str, rt: &str) -> String {
 				continue;
 			}
 			Kind::Sink => {
-				if seed == SEEDS[0] {
+				if echoes.insert(n) {
 					let interface = source
 						.split(&format!("\ntype Sink{n} interface {{\n"))
 						.nth(1)
@@ -2461,6 +2481,8 @@ fn dart(built: &Built, calls: &[Call]) -> String {
 	let name = built.name();
 	let source = std::fs::read_to_string(built.out.join("dart").join(format!("{name}.dart"))).unwrap();
 	let mut sinks = String::new();
+	// Each sink's class, defined by its first call the driver runs.
+	let mut echoes = std::collections::BTreeSet::new();
 	let mut body = String::new();
 	let mut shapes = Vec::new();
 	for call in calls {
@@ -2539,7 +2561,7 @@ fn dart(built: &Built, calls: &[Call]) -> String {
 				continue;
 			}
 			Kind::Sink => {
-				if seed == SEEDS[0] {
+				if echoes.insert(n) {
 					let class = source
 						.split(&format!("\nabstract class Sink{n} {{\n"))
 						.nth(1)
@@ -2673,6 +2695,11 @@ function plain<T>(v: T): never {
 
 /// Build and run `language`'s driver of `built`, checking it against the native transcript.
 fn round_trip(built: &Built, language: &str) {
+	// The test that drew the shapes may have passed, its message captured: each failing one
+	// names the seed again.
+	if let Some((_, seed)) = built.krate.drawn {
+		eprintln!("shapes past the fixed set drawn from RUST2_SHAPES_SEED={seed}");
+	}
 	let name = built.name();
 	let dir = built.dir(language);
 	let exe = dir.join(format!("shapes{}", std::env::consts::EXE_SUFFIX));
@@ -2843,15 +2870,13 @@ fn round_trip(built: &Built, language: &str) {
 			step::mirror(&built.out.join("web"), &dir.join("web"));
 			step::write(&main, web(built, calls));
 			// Type-checked as a caller's project would be, then run by Node.
-			step::write(
-				&dir.join("tsconfig.json"),
-				super::TSCONFIG.replace("\"api.ts\"", "\"main.ts\""),
-			);
+			let config = dir.join("tsconfig.json");
+			step::write(&config, super::TSCONFIG.replace("\"api.ts\"", "\"main.ts\""));
 			let checked = dir.join("checked");
 			let web = dir.join("web");
 			let step = Step {
 				stamp: &step::stamp(&checked),
-				reads: &[&main, &web],
+				reads: &[&main, &web, &config],
 				writes: &[],
 			};
 			step.run(Command::new("tsc").arg("-p").arg(&dir));
