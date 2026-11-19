@@ -759,7 +759,8 @@ fn api_kotlin() {
 	step.run(&mut kotlinc(&api.out, &classes));
 	let java = |classpath: &[&Path], args: &[&str]| {
 		let mut cmd = Command::new("kotlin");
-		cmd.arg(format!("-Djava.library.path={}", api.lib.display()))
+		cmd.arg("-J-Xcheck:jni")
+			.arg(format!("-Djava.library.path={}", api.lib.display()))
 			.arg("-cp")
 			.arg(std::env::join_paths(classpath.iter().copied().chain([jar.as_path()])).unwrap())
 			.arg("ApiKt")
@@ -815,9 +816,9 @@ fn api_kotlin() {
 }
 
 /// The same script on Android: the classes, shrunk by R8 into an app's dex with only the
-/// generated rules keeping what JNI looks up, run on ART on the device adb reaches against
-/// the library the NDK builds for its ABI, both for API 24, the oldest moq's Android library
-/// supports.
+/// generated rules keeping what JNI looks up, run on ART under CheckJNI on the device adb
+/// reaches against the library the NDK builds for its ABI, both for API 24, the oldest moq's
+/// Android library supports.
 #[test]
 #[ignore = "needs the Android SDK and NDK, cargo-ndk, and a device: just ffi android"]
 fn api_android() {
@@ -835,6 +836,7 @@ fn api_android() {
 	let target = match abi.as_str() {
 		"arm64-v8a" => "aarch64-linux-android",
 		"x86_64" => "x86_64-linux-android",
+		"x86" => "i686-linux-android",
 		abi => panic!("the android shell's toolchain has no target for the device's ABI {abi}"),
 	};
 	let out = dir.join("out");
@@ -913,7 +915,7 @@ fn api_android() {
 		let args: String = args.iter().map(|arg| format!(" '{arg}'")).collect();
 		let mut cmd = Command::new(&adb);
 		cmd.arg("shell").arg(format!(
-			"ANDROID_DATA={DEVICE} dalvikvm -Djava.library.path={DEVICE} -cp {DEVICE}/classes.dex ApiKt{args}"
+			"ANDROID_DATA={DEVICE} dalvikvm -Xcheck:jni -Djava.library.path={DEVICE} -cp {DEVICE}/classes.dex ApiKt{args}"
 		));
 		cmd
 	};
@@ -957,14 +959,15 @@ fn newest(dir: &Path) -> PathBuf {
 /// transcript; then its futures, what the GC frees, and each contract it fails loud on.
 fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 	let kt = run(&mut vm(&[]));
+	jni_checked(&kt, "the Kotlin transcript");
 	assert_eq!(
 		String::from_utf8_lossy(&kt.stdout),
 		native,
 		"the Kotlin transcript differs from the native one"
 	);
-	run(&mut vm(&["futures"]));
-	run(&mut vm(&["owned"]));
-	run(&mut vm(&["clash"]));
+	for case in ["futures", "owned", "clash"] {
+		jni_checked(&run(&mut vm(&[case])), case);
+	}
 	for (case, message) in [
 		("moved", "IllegalStateException: Counter is closed"),
 		("boxed moved", "IllegalStateException: Node is closed"),
@@ -988,6 +991,19 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		assert!(!output.status.success(), "Kotlin {case} did not fail");
 		let stderr = String::from_utf8_lossy(&output.stderr);
 		assert!(stderr.contains(message), "Kotlin {case} printed {stderr}");
+	}
+}
+
+/// Asserts the run of `what` drew no warning from HotSpot's CheckJNI, which only warns of
+/// a JNI call while an exception may be pending or of a local reference past its frame's
+/// capacity, and on stdout. ART's CheckJNI aborts instead.
+fn jni_checked(output: &Output, what: &str) {
+	for printed in [&output.stdout, &output.stderr] {
+		let printed = String::from_utf8_lossy(printed);
+		assert!(
+			!printed.contains("WARNING in native method") && !printed.contains("WARNING: JNI"),
+			"CheckJNI warned in {what}:\n{printed}"
+		);
 	}
 }
 
