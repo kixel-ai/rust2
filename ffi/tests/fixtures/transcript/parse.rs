@@ -6,7 +6,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use syn::spanned::Spanned;
 
 use super::ir::{Access, Collection, Family, Function, Int, Literal, Mutability, Receiver, Type};
-use super::{Arm, BoundKind, Expr, FnId, Kind, Num, Op, Owner, Pat, Piece, Spec, Step, Transcript, unref};
+use super::{
+	Arm, BoundKind, Expr, FnId, Kind, Num, Op, Owner, Pat, Piece, Spec, Step, Transcript, each_expr, unref, walk,
+};
 
 /// The steps of `source`'s `main`, and the parameters' types of each function it defines
 /// that `main` calls.
@@ -97,8 +99,14 @@ struct Scope<'t> {
 	/// The method call a statement's value is, alone where a value's `&mut self` method may
 	/// be called: a binding hands back the receiver it changed beside what Rust returns,
 	/// which only a statement can store back.
-	whole: Option<*const syn::ExprMethodCall>,
+	whole: Option<*const ()>,
 }
+
+/// A pointer-sized value wasm32's 32-bit pointer does not hold, which it folds otherwise.
+const PAST_WASM32: &str = "a pointer-sized value past 32 bits, which wasm32 folds otherwise";
+
+/// A call whose arguments C and C++ may evaluate in another order than Rust's.
+const UNORDERED: &str = "a call of more than one argument with an effect, which C and C++ evaluate in no set order";
 
 /// Conversions that leave a value as the binding has it.
 const CONVERSIONS: &[&str] = &[
@@ -215,10 +223,17 @@ impl Scope<'_> {
 							"a for loop over an element other than a literal, a local, or a value built of them",
 						)
 					}
+					let mut read = Vec::new();
+					self.locals_read(item, &mut read);
 					self.vars
 						.push(Var::Alias(name.ident.to_string(), item.clone(), self.vars.len()));
 					let body = self.block(&f.body.stmts);
 					self.vars.pop();
+					// Rust evaluates the element once, before the body changes what it reads.
+					let changed = self.changed(&body);
+					if read.iter().any(|name| changed.contains(name)) {
+						fail(item, "a for loop over an element reading a local its body changes");
+					}
 					steps.extend(body);
 				}
 			}
@@ -239,6 +254,62 @@ impl Scope<'_> {
 				steps.push(Step::Do(self.infer(expr)))
 			}
 		}
+	}
+
+	/// The unique names of the locals `expr`, an element [`spelled`] of them, reads.
+	fn locals_read(&mut self, expr: &syn::Expr, out: &mut Vec<String>) {
+		let parts: Vec<&syn::Expr> = match expr {
+			syn::Expr::Path(p) => {
+				match p.path.get_ident().and_then(|i| self.lookup(&i.to_string())) {
+					Some(Var::Typed(_, unique, _)) => out.push(unique.clone()),
+					Some(Var::Alias(_, alias, depth)) => {
+						let (alias, depth) = (alias.clone(), *depth);
+						self.at(depth, |s| s.locals_read(&alias, out));
+					}
+					None => {}
+				}
+				Vec::new()
+			}
+			syn::Expr::Paren(p) => vec![&p.expr],
+			syn::Expr::Group(g) => vec![&g.expr],
+			syn::Expr::Reference(r) => vec![&r.expr],
+			syn::Expr::Unary(u) => vec![&u.expr],
+			syn::Expr::Index(i) => vec![&i.expr],
+			syn::Expr::MethodCall(m) => vec![&m.receiver],
+			syn::Expr::Array(a) => a.elems.iter().collect(),
+			syn::Expr::Tuple(t) => t.elems.iter().collect(),
+			syn::Expr::Struct(st) => st.fields.iter().map(|f| &f.expr).collect(),
+			syn::Expr::Call(c) => c.args.iter().collect(),
+			_ => Vec::new(),
+		};
+		parts.into_iter().for_each(|e| self.locals_read(e, out));
+	}
+
+	/// The locals `steps` change in place: each a value's `&mut self` receiver, a setter's,
+	/// or an argument passed `&mut`.
+	fn changed(&self, steps: &[Step]) -> Vec<String> {
+		let mut out = Vec::new();
+		for step in steps {
+			each_expr(step, &mut |e| {
+				walk(e, &mut |e| {
+					let Kind::Call(id, receiver, args) = &e.kind else {
+						return;
+					};
+					let f = self.t.function(*id);
+					if let Some(Kind::Var(name)) = receiver.as_ref().map(|r| &r.kind)
+						&& (f.receiver == Some(Receiver::Mut) || matches!(f.access, Access::Field { set: true, .. }))
+					{
+						out.push(name.clone());
+					}
+					for (arg, param) in args.iter().zip(&f.params) {
+						if let (Kind::Var(name), Type::Ref(Mutability::Mut, _)) = (&arg.kind, &param.ty) {
+							out.push(name.clone());
+						}
+					}
+				})
+			});
+		}
+		out
 	}
 
 	/// `place.field = value`: the field's setter, called on the place's receiver.
@@ -544,6 +615,9 @@ impl Scope<'_> {
 				("None", true) => (&mut err, None),
 				_ => fail(&arm.pat, format!("{variant} in this match")),
 			};
+			if slot.is_some() {
+				fail(&arm.pat, format!("a second {variant} arm"));
+			}
 			let pat = inner.map(|p| self.bind(p, ty.as_ref().unwrap()));
 			let mut steps = Vec::new();
 			match &*arm.body {
@@ -815,14 +889,14 @@ impl Scope<'_> {
 						_ => (128, false),
 					};
 					let n = const_int(expr, Some(width))?;
-					if let Type::Int(int @ (Int::Usize | Int::Isize)) | Type::NonZero(int @ (Int::Usize | Int::Isize)) =
-						ty
-						&& !wasm32_holds(n, *int)
-						&& !["usize::MAX", "isize::MAX", "isize::MIN"]
-							.iter()
-							.any(|p| path_is(expr, p))
-					{
-						fail(expr, "a pointer-sized value past 32 bits, which wasm32 folds otherwise");
+					let pointer = match ty {
+						Type::Int(int @ (Int::Usize | Int::Isize)) | Type::NonZero(int @ (Int::Usize | Int::Isize)) => {
+							Some(*int)
+						}
+						_ => None,
+					};
+					if let Some(part) = past_wasm32(expr, pointer, true) {
+						fail(part, PAST_WASM32);
 					}
 					Some(Kind::Int(n))
 				}
@@ -979,7 +1053,17 @@ impl Scope<'_> {
 			(syn::Lit::Byte(b), Type::Int(Int::U8)) => Kind::Int(Num::new(b.value().into())),
 			(syn::Lit::Bool(b), Type::Bool) => Kind::Bool(b.value),
 			(syn::Lit::Char(c), Type::Char) => Kind::Char(c.value()),
-			(syn::Lit::Int(i), Type::Int(_) | Type::U128 | Type::NonZero(_)) => Kind::Int(Num {
+			(syn::Lit::Int(i), Type::Int(int) | Type::NonZero(int)) => {
+				let n = Num {
+					negative: false,
+					magnitude: i.base10_parse().unwrap_or_else(|e| fail(i, e)),
+				};
+				if matches!(int, Int::Usize | Int::Isize) && !wasm32_holds(n, *int) {
+					fail(i, PAST_WASM32);
+				}
+				Kind::Int(n)
+			}
+			(syn::Lit::Int(i), Type::U128) => Kind::Int(Num {
 				negative: false,
 				magnitude: i.base10_parse().unwrap_or_else(|e| fail(i, e)),
 			}),
@@ -1416,6 +1500,7 @@ impl Scope<'_> {
 
 	/// A call of a path: the API's function, a variant, or a local function.
 	fn call(&mut self, call: &syn::ExprCall, expected: Option<&Type>) -> Expr {
+		let whole = self.whole == Some(node(call));
 		let syn::Expr::Path(p) = &*call.func else {
 			fail(call, "a call of anything but a path")
 		};
@@ -1429,7 +1514,10 @@ impl Scope<'_> {
 				syn::ReturnType::Default => Type::Unit,
 				syn::ReturnType::Type(_, ty) => self.ty(&ty),
 			};
-			let args = args.iter().map(|a| self.infer(a)).collect();
+			let args: Vec<Expr> = args.iter().map(|a| self.infer(a)).collect();
+			if args.iter().filter(|a| effect(a)).count() > 1 {
+				fail(call, UNORDERED);
+			}
 			return Expr::new(Kind::Local(name, args), ty);
 		}
 		if path_is(&call.func, "String::from_utf8_lossy") {
@@ -1462,20 +1550,31 @@ impl Scope<'_> {
 			// A method called by its path, its receiver first.
 			Some(_) => {
 				let receiver = self.infer(&args[0]);
-				self.apply(call, id, Some(receiver), &args[1..])
+				self.apply(call, id, Some(receiver), &args[1..], whole)
 			}
-			None => self.apply(call, id, None, &args),
+			None => self.apply(call, id, None, &args, whole),
 		}
 	}
 
 	/// The call of `id` on `receiver`, with `args` checked against its parameters.
-	fn apply(&mut self, at: &dyn Spanned, id: FnId, receiver: Option<Expr>, args: &[syn::Expr]) -> Expr {
-		let params: Vec<Type> = self.t.function(id).params.iter().map(|p| p.ty.clone()).collect();
+	/// A call of `id` at `at`, `whole` when it is its statement's value.
+	fn apply(&mut self, at: &dyn Spanned, id: FnId, receiver: Option<Expr>, args: &[syn::Expr], whole: bool) -> Expr {
+		let f = self.t.function(id);
+		if f.receiver == Some(Receiver::Mut) && matches!(id.owner, Owner::Record(_)) && !whole {
+			fail(
+				at,
+				"a value's &mut self method called other than as a statement or a let's value",
+			);
+		}
+		let params: Vec<Type> = f.params.iter().map(|p| p.ty.clone()).collect();
 		let args: Vec<&syn::Expr> = args.iter().filter(|a| !is_unit(a)).collect();
 		if params.len() != args.len() {
 			fail(at, format!("{} takes {} arguments", self.t.key(id), params.len()));
 		}
-		let args = args.iter().zip(&params).map(|(a, ty)| self.check(a, ty)).collect();
+		let args: Vec<Expr> = args.iter().zip(&params).map(|(a, ty)| self.check(a, ty)).collect();
+		if receiver.iter().chain(&args).filter(|e| effect(e)).count() > 1 {
+			fail(at, UNORDERED);
+		}
 		self.apply_checked(id, receiver, args)
 	}
 
@@ -1490,7 +1589,7 @@ impl Scope<'_> {
 
 	fn method(&mut self, m: &syn::ExprMethodCall, expected: Option<&Type>) -> Expr {
 		// Taken before the receiver and arguments, whose closures' statements are their own.
-		let whole = self.whole == Some(m as *const syn::ExprMethodCall);
+		let whole = self.whole == Some(node(m));
 		let name = m.method.to_string();
 		let args: Vec<syn::Expr> = m.args.iter().cloned().collect();
 		match name.as_str() {
@@ -1588,14 +1687,7 @@ impl Scope<'_> {
 		let id = self
 			.pick(api, &with_receiver, expected, &turbofish)
 			.unwrap_or_else(|| fail(m, format!("no instance of {name} on {} fits", self.describe(&rty))));
-		let f = self.t.function(id);
-		if f.receiver == Some(Receiver::Mut) && matches!(id.owner, Owner::Record(_)) && !whole {
-			fail(
-				m,
-				"a value's &mut self method called other than as a statement or a let's value",
-			);
-		}
-		self.apply(m, id, Some(receiver), &args)
+		self.apply(m, id, Some(receiver), &args, whole)
 	}
 
 	/// `option.map_or(none, |v| some)`.
@@ -1700,12 +1792,24 @@ impl Scope<'_> {
 }
 
 /// Whether `expr` is `()`, an argument the IR drops.
-/// The method call `expr` is, if it is one.
-fn whole(expr: &syn::Expr) -> Option<*const syn::ExprMethodCall> {
+/// The call `expr` is, if it is one.
+fn whole(expr: &syn::Expr) -> Option<*const ()> {
 	match expr {
-		syn::Expr::MethodCall(m) => Some(m),
+		syn::Expr::MethodCall(m) => Some(node(m)),
+		syn::Expr::Call(c) => Some(node(c)),
 		_ => None,
 	}
+}
+
+/// A syntax node's identity, which [`Scope::whole`] compares.
+fn node<T>(n: &T) -> *const () {
+	(n as *const T).cast()
+}
+
+/// Whether evaluating `e` has an effect a call's other arguments could see, which C and
+/// C++ order no way Rust does: a closure built runs nothing.
+fn effect(e: &Expr) -> bool {
+	!pure(e) && !matches!(e.kind, Kind::Closure(..))
 }
 
 /// Whether `name` is lowercase words joined by single `_`s, each beginning with a letter:
@@ -1899,24 +2003,67 @@ type Width = (u32, bool);
 /// The width of the integer type `expr`'s own spelling fixes: a literal's suffix, a cast's
 /// type, a constant's type, or an operand's.
 fn typed_width(expr: &syn::Expr) -> Option<Width> {
-	let named = |name: &str| match name {
+	match typed(expr)?.as_str() {
 		"u128" => Some((128, false)),
 		name => int_named(name).map(|int| (int.bits(), int.signed())),
-	};
+	}
+}
+
+/// The name of the type `expr`'s own spelling fixes, as [`typed_width`] reads it.
+fn typed(expr: &syn::Expr) -> Option<String> {
 	match expr {
 		syn::Expr::Lit(syn::ExprLit {
 			lit: syn::Lit::Int(i), ..
-		}) => named(i.suffix()),
-		syn::Expr::Paren(p) => typed_width(&p.expr),
-		syn::Expr::Unary(u) => typed_width(&u.expr),
+		}) => Some(i.suffix().to_string()).filter(|s| !s.is_empty()),
+		syn::Expr::Paren(p) => typed(&p.expr),
+		syn::Expr::Unary(u) => typed(&u.expr),
 		syn::Expr::Cast(c) => match &*c.ty {
-			syn::Type::Path(ty) => named(&ty.path.get_ident()?.to_string()),
+			syn::Type::Path(ty) => Some(ty.path.get_ident()?.to_string()),
 			_ => None,
 		},
-		syn::Expr::Binary(b) if matches!(b.op, syn::BinOp::Shl(_)) => typed_width(&b.left),
-		syn::Expr::Binary(b) => typed_width(&b.left).or_else(|| typed_width(&b.right)),
+		syn::Expr::Binary(b) if matches!(b.op, syn::BinOp::Shl(_)) => typed(&b.left),
+		syn::Expr::Binary(b) => typed(&b.left).or_else(|| typed(&b.right)),
 		syn::Expr::Path(p) => match &p.path.segments.iter().map(|s| s.ident.to_string()).collect::<Vec<_>>()[..] {
-			[ty, _] => named(ty),
+			[ty, _] => Some(ty.clone()),
+			_ => None,
+		},
+		_ => None,
+	}
+}
+
+/// The part of the constant `expr` that is pointer-sized, by its own spelling or, as
+/// `pointer` gives, its context's, and folds past what wasm32's 32-bit pointer holds. A
+/// `whole` `usize::MAX`, `isize::MAX`, or `isize::MIN` is each target's own bound.
+fn past_wasm32(expr: &syn::Expr, pointer: Option<Int>, whole: bool) -> Option<&syn::Expr> {
+	let pointer = match typed(expr).as_deref() {
+		Some("u128") => None,
+		Some(name) => match int_named(name) {
+			Some(int) => Some(int).filter(|int| matches!(int, Int::Usize | Int::Isize)),
+			None => pointer,
+		},
+		None => pointer,
+	};
+	if let Some(int) = pointer
+		&& !(whole
+			&& ["usize::MAX", "isize::MAX", "isize::MIN"]
+				.iter()
+				.any(|p| path_is(expr, p)))
+		&& let Some(n) = const_int(expr, Some((int.bits(), int.signed())))
+		&& !wasm32_holds(n, int)
+	{
+		return Some(expr);
+	}
+	match expr {
+		syn::Expr::Paren(p) => past_wasm32(&p.expr, pointer, whole),
+		syn::Expr::Unary(u) => past_wasm32(&u.expr, pointer, false),
+		// What is cast has its own type, `i32` where nothing spells one.
+		syn::Expr::Cast(c) => past_wasm32(&c.expr, None, false),
+		syn::Expr::Binary(b) if matches!(b.op, syn::BinOp::Shl(_)) => {
+			past_wasm32(&b.left, pointer, false).or_else(|| past_wasm32(&b.right, None, false))
+		}
+		syn::Expr::Binary(b) => past_wasm32(&b.left, pointer, false).or_else(|| past_wasm32(&b.right, pointer, false)),
+		syn::Expr::MethodCall(m) if m.method == "unwrap" => match &*m.receiver {
+			syn::Expr::Call(c) if path_is(&c.func, "NonZero::new") => past_wasm32(&c.args[0], pointer, false),
 			_ => None,
 		},
 		_ => None,

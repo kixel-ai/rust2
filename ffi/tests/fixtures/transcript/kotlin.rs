@@ -4,7 +4,9 @@
 use std::fmt::Write;
 
 use super::ir::{Access, Collection, Int, Mutability, Receiver, Type};
-use super::{Arm, BoundKind, Expr, FnId, Kind, Num, Op, Owner, Pat, Piece, Spec, Step, Transcript, unref};
+use super::{
+	Arm, BoundKind, Expr, FnId, Kind, Num, Op, Owner, Pat, Piece, Spec, Step, Transcript, each_expr, unref, walk,
+};
 
 const LANGUAGE: &str = "Kotlin";
 
@@ -132,66 +134,6 @@ fn params(t: &Transcript, id: FnId) -> Vec<Type> {
 /// Whether a parameter of `ty` is a `Mut` Rust writes back through.
 fn written(ty: &Type) -> bool {
 	matches!(ty, Type::Ref(Mutability::Mut, inner) if !matches!(**inner, Type::Object(_) | Type::Reader))
-}
-
-/// Each expression a step holds, its arms' and closures' steps included.
-fn each_expr(step: &Step, f: &mut dyn FnMut(&Expr)) {
-	match step {
-		Step::Let(_, e) | Step::Do(e) => f(e),
-		Step::Print(pieces) => pieces.iter().for_each(|p| {
-			if let Piece::Value(e, _) = p {
-				f(e)
-			}
-		}),
-		Step::Drop(_) => {}
-		Step::Match { value, ok, err } => {
-			f(value);
-			ok.steps.iter().chain(&err.steps).for_each(|s| each_expr(s, f));
-		}
-	}
-}
-
-/// `f` on `expr` and each expression inside it.
-fn walk(expr: &Expr, f: &mut dyn FnMut(&Expr)) {
-	f(expr);
-	let mut inner = |e: &Expr| walk(e, f);
-	match &expr.kind {
-		Kind::Some(e)
-		| Kind::Field(e, _)
-		| Kind::Element(e, _)
-		| Kind::Clone(e)
-		| Kind::Unwrap(e)
-		| Kind::UnwrapErr(e) => inner(e),
-		Kind::IsSome(e) | Kind::IsNone(e) | Kind::IsErr(e) | Kind::Utf8(e) | Kind::Len(e) => inner(e),
-		Kind::Tuple(es) | Kind::List(es) | Kind::Record(_, es) | Kind::Variant(_, _, es) | Kind::Local(_, es) => {
-			es.iter().for_each(inner)
-		}
-		Kind::Call(_, r, args) => r.iter().map(|b| &**b).chain(args).for_each(inner),
-		Kind::Binary(_, a, b) => {
-			inner(a);
-			inner(b);
-		}
-		Kind::Bound(_, Some(e)) => inner(e),
-		Kind::Closure(_, steps, value) => {
-			steps.iter().for_each(|s| each_expr(s, &mut |e| walk(e, f)));
-			walk(value, f);
-		}
-		Kind::Format(pieces) => pieces.iter().for_each(|p| {
-			if let Piece::Value(e, _) = p {
-				walk(e, f)
-			}
-		}),
-		Kind::Join { items, body, .. } => {
-			walk(items, f);
-			walk(body, f);
-		}
-		Kind::MapOr { option, none, some, .. } => {
-			walk(option, f);
-			walk(none, f);
-			walk(some, f);
-		}
-		_ => {}
-	}
 }
 
 struct Emitter<'t> {

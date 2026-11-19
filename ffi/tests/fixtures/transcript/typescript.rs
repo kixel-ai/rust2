@@ -5,7 +5,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
 use super::ir::{Access, Collection, Family, Int, Mutability, Receiver, Type};
-use super::{Arm, BoundKind, Expr, FnId, Kind, Num, Op, Owner, Pat, Piece, Spec, Step, Transcript, bound, unref};
+use super::{
+	Arm, BoundKind, Expr, FnId, Kind, Num, Op, Owner, Pat, Piece, Spec, Step, Transcript, bound, each_expr, unref, walk,
+};
 
 const LANGUAGE: &str = "TypeScript";
 
@@ -224,66 +226,6 @@ fn mutated(steps: &[Step], t: &Transcript, out: &mut Vec<String>) {
 	};
 	for step in steps {
 		each_expr(step, &mut visit);
-	}
-}
-
-/// Each expression a step holds, its arms' and closures' steps included.
-fn each_expr(step: &Step, f: &mut dyn FnMut(&Expr)) {
-	match step {
-		Step::Let(_, e) | Step::Do(e) => f(e),
-		Step::Print(pieces) => pieces.iter().for_each(|p| {
-			if let Piece::Value(e, _) = p {
-				f(e)
-			}
-		}),
-		Step::Drop(_) => {}
-		Step::Match { value, ok, err } => {
-			f(value);
-			ok.steps.iter().chain(&err.steps).for_each(|s| each_expr(s, f));
-		}
-	}
-}
-
-/// `f` on `expr` and each expression inside it.
-fn walk(expr: &Expr, f: &mut dyn FnMut(&Expr)) {
-	f(expr);
-	let mut inner = |e: &Expr| walk(e, f);
-	match &expr.kind {
-		Kind::Some(e)
-		| Kind::Field(e, _)
-		| Kind::Element(e, _)
-		| Kind::Clone(e)
-		| Kind::Unwrap(e)
-		| Kind::UnwrapErr(e) => inner(e),
-		Kind::IsSome(e) | Kind::IsNone(e) | Kind::IsErr(e) | Kind::Utf8(e) | Kind::Len(e) => inner(e),
-		Kind::Tuple(es) | Kind::List(es) | Kind::Record(_, es) | Kind::Variant(_, _, es) | Kind::Local(_, es) => {
-			es.iter().for_each(inner)
-		}
-		Kind::Call(_, r, args) => r.iter().map(|b| &**b).chain(args).for_each(inner),
-		Kind::Binary(_, a, b) => {
-			inner(a);
-			inner(b);
-		}
-		Kind::Bound(_, Some(e)) => inner(e),
-		Kind::Closure(_, steps, value) => {
-			steps.iter().for_each(|s| each_expr(s, &mut |e| walk(e, f)));
-			walk(value, f);
-		}
-		Kind::Format(pieces) => pieces.iter().for_each(|p| {
-			if let Piece::Value(e, _) = p {
-				walk(e, f)
-			}
-		}),
-		Kind::Join { items, body, .. } => {
-			walk(items, f);
-			walk(body, f);
-		}
-		Kind::MapOr { option, none, some, .. } => {
-			walk(option, f);
-			walk(none, f);
-			walk(some, f);
-		}
-		_ => {}
 	}
 }
 
@@ -585,20 +527,36 @@ impl Emitter<'_> {
 		}
 	}
 
-	/// A pattern binding a closure's parameters, of which none is a place.
+	/// A pattern binding a closure's parameter: an ignored one kept in the list as an
+	/// unused name, and a place left in [`Emitter::places`] for [`Emitter::arrow`].
 	fn param(&mut self, pat: &Pat, ty: &Type) -> String {
-		let target = match pat {
-			// Kept in a parameter list, as an unused name.
+		match pat {
 			Pat::Ignore(_) => {
 				self.fresh += 1;
 				format!("_{}", self.fresh)
 			}
 			pat => self.pat(pat, ty),
-		};
-		if let Some((_, name, _)) = self.places.first() {
-			panic!("a closure's parameter {name} passed &mut");
 		}
-		target
+	}
+
+	/// The statements binding each place a closure's parameters left, as its body begins.
+	fn places(&mut self) -> Vec<String> {
+		std::mem::take(&mut self.places)
+			.into_iter()
+			.map(|(element, name, ty)| {
+				let ty = self.ts(&ty);
+				format!("let {}: rt.Place<{ty}> = {{ v: {element} }};", ident(&name))
+			})
+			.collect()
+	}
+
+	/// An arrow function of `params` returning `body`, binding the places they left first.
+	fn arrow(&mut self, params: &str, places: Vec<String>, body: String) -> String {
+		match (places.is_empty(), body.starts_with('{')) {
+			(true, true) => format!("({params}) => ({body})"),
+			(true, false) => format!("({params}) => {body}"),
+			(false, _) => format!("({params}) => {{ {} return {body}; }}", places.join(" ")),
+		}
 	}
 
 	/// A pattern binding a value of `ty`: a `Bounds`'s by its start and end.
@@ -1097,10 +1055,12 @@ impl Emitter<'_> {
 					items = format!("Array.from({items}, (v) => rt.{wide}FromBig(v))");
 				}
 				let target = self.param(pat, &item);
+				let places = self.places();
 				self.closures += 1;
 				let body = self.expr(body);
 				self.closures -= 1;
-				format!("Array.from({items}, ({target}) => {body}).join({})", string(sep))
+				let arrow = self.arrow(&target, places, body);
+				format!("Array.from({items}, {arrow}).join({})", string(sep))
 			}
 			Kind::MapOr {
 				option,
@@ -1115,14 +1075,16 @@ impl Emitter<'_> {
 				let option = self.expr(option);
 				let none = self.expr(none);
 				let target = self.param(pat, &inner);
+				let places = self.places();
 				self.closures += 1;
 				let some = self.expr(some);
 				self.closures -= 1;
+				let arrow = self.arrow(&target, places, some);
 				let helper = match undefinable(&inner) {
 					true => format!("_mapOrN<{}, {}>", self.ts(&inner), self.ts(&e.ty)),
 					false => "_mapOr".to_string(),
 				};
-				format!("{helper}({option}, {none}, ({target}) => {some})")
+				format!("{helper}({option}, {none}, {arrow})")
 			}
 			Kind::Utf8(inner) => format!("_text({})", self.expr(inner)),
 			Kind::Len(inner) => {
@@ -1270,18 +1232,20 @@ impl Emitter<'_> {
 	fn closure(&mut self, params: &[Pat], types: &[Type], steps: &[Step], value: &Expr) -> String {
 		let params: Vec<String> = params.iter().zip(types).map(|(p, ty)| self.param(p, ty)).collect();
 		let params = params.join(", ");
+		let places = self.places();
 		self.closures += 1;
 		let arrow = match steps.is_empty() {
 			true => {
 				let v = self.expr(value);
-				match v.starts_with('{') {
-					true => format!("({params}) => ({v})"),
-					false => format!("({params}) => {v}"),
-				}
+				self.arrow(&params, places, v)
 			}
 			false => {
 				self.depth += 1;
-				let mut body = self.steps(steps);
+				let mut body = String::new();
+				for place in &places {
+					self.line(&mut body, place);
+				}
+				body.push_str(&self.steps(steps));
 				if !matches!(value.kind, Kind::Unit) {
 					let v = self.expr(value);
 					self.line(&mut body, &format!("return {v};"));

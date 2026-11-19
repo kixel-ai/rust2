@@ -4032,6 +4032,31 @@ fn transcript_refusals() {
 			"let mut s = api::Score::of(2); println!(\"{} {}\", s.take(), s.count());",
 			"a value's &mut self method",
 		),
+		(
+			"let mut s = api::Score::of(2); println!(\"{} {}\", api::Score::take(&mut s), s.count());",
+			"a value's &mut self method",
+		),
+		(
+			"println!(\"{}\", api::same_u64(usize::MAX as u64));",
+			"a pointer-sized value past 32 bits",
+		),
+		(
+			"match api::divide(7, 2) { Ok(_) if true => println!(\"a\"), Ok(_) => println!(\"b\"), Err(_) => println!(\"c\") }",
+			"an arm other than Ok, Err, Some, or None",
+		),
+		(
+			"match api::divide(7, 2) { Ok(_) => println!(\"a\"), Ok(_) => println!(\"b\"), Err(_) => println!(\"c\") }",
+			"a second Ok arm",
+		),
+		(
+			"let mut s = api::Score::of(2); let t = api::Score::of(3); \
+			 for n in [s, s] { s.add(t); println!(\"{}\", n.count()); }",
+			"an element reading a local its body changes",
+		),
+		(
+			"let t = api::Tally::new(); println!(\"{}\", api::reach(t.bump(), (), t.bump()));",
+			"more than one argument with an effect",
+		),
 	] {
 		std::fs::write(&source, format!("fn main() {{ {body} }}")).unwrap();
 		let panic = std::panic::catch_unwind(|| transcript::Transcript::load(&lock, &source))
