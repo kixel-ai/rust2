@@ -6,6 +6,8 @@
 //! The reject fixture's export must fail at each item it cannot export, and generated
 //! type shapes round-trip in every language ([`shapes`]).
 
+#[path = "fixtures/protocol.rs"]
+mod protocol;
 #[path = "fixtures/shapes.rs"]
 mod shapes;
 #[path = "fixtures/step.rs"]
@@ -303,6 +305,78 @@ fn api_c() {
 	}
 }
 
+/// Random sequences of the ownership protocol's steps through the C ABI, by
+/// `tests/protocol.c`, each matching what the model says each step returns.
+#[test]
+fn api_protocol() {
+	let api = api();
+	let exe = protocol_c(
+		api,
+		&scratch().join("api").join("protocol"),
+		&[],
+		&api.staticlib(),
+		&api.native,
+	);
+	let scripts = protocol::scripts(0, PROTOCOL_SEEDS, PROTOCOL_STEPS, protocol::Profile::C);
+	protocol::covered(&scripts);
+	protocol::check(
+		&scratch().join("api").join("protocol").join("scripts"),
+		&scripts,
+		|_| Command::new(&exe),
+	);
+}
+
+/// The gate's protocol scripts: how many, and their random steps each.
+const PROTOCOL_SEEDS: u64 = 500;
+const PROTOCOL_STEPS: usize = 100;
+
+/// Longer protocol scripts from other seeds, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_protocol_nightly() {
+	let api = api();
+	let exe = protocol_c(
+		api,
+		&scratch().join("api").join("protocol"),
+		&[],
+		&api.staticlib(),
+		&api.native,
+	);
+	protocol::check(
+		&scratch().join("api").join("protocol").join("nightly"),
+		&protocol::scripts(PROTOCOL_SEEDS, 20_000, 400, protocol::Profile::C),
+		|_| Command::new(&exe),
+	);
+}
+
+/// `tests/protocol.c` built in `dir` against `lib`, with `flags` to the compiler.
+fn protocol_c(api: &Api, dir: &Path, flags: &[&str], lib: &Path, native: &[String]) -> PathBuf {
+	std::fs::create_dir_all(dir).unwrap();
+	let exe = dir.join(format!("protocol{EXE_SUFFIX}"));
+	let cc = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
+	let compiler = if flags.is_empty() { cc } else { "clang".into() };
+	let src = manifest_dir().join("tests").join("protocol.c");
+	let include = api.out.join("include");
+	Step {
+		stamp: &step::stamp(&exe),
+		reads: &[&src, &include, lib],
+		writes: &[&exe],
+	}
+	.run(
+		Command::new(compiler)
+			.args(["-std=c11", "-pedantic", "-g", "-Wall", "-Wextra", "-Werror"])
+			.args(flags)
+			.arg("-I")
+			.arg(&include)
+			.arg(&src)
+			.arg(lib)
+			.args(native)
+			.arg("-o")
+			.arg(&exe),
+	);
+	exe
+}
+
 /// The C and C++ scripts against the glue built under AddressSanitizer, whose leak check
 /// catches what a cancelled future or a freed handle keeps.
 #[test]
@@ -333,7 +407,7 @@ fn api_go_race() {
 		&std::fs::read_to_string(manifest_dir().join("tests").join("api.go")).unwrap(),
 	);
 	let exe = dir.join(format!("api-test{EXE_SUFFIX}"));
-	run(go(&module, api, &["build", "-race", "-o"]).arg(&exe));
+	run(go(&module, &["build", "-race", "-o"]).arg(&exe));
 	// Every report fails the run.
 	let env = [("GORACE", "halt_on_error=1")];
 	let output = run(Command::new(&exe).envs(env));
@@ -348,7 +422,8 @@ fn api_go_race() {
 }
 
 /// Build the api fixture's glue, std included, under the `sanitizer`, and run the C and
-/// C++ scripts against it, built by clang under the same one.
+/// C++ scripts and the protocol scripts' C driver against it, built by clang under the
+/// same one.
 fn sanitized(sanitizer: &str) {
 	let api = api();
 	let dir = scratch().join("api").join(sanitizer);
@@ -400,10 +475,22 @@ fn sanitized(sanitizer: &str) {
 			run(Command::new(&exe).arg(arg).envs(env));
 		}
 	}
+	// The protocol scripts, whose steps on two threads free and drop what the other made.
+	let exe = protocol_c(api, &dir.join("protocol"), &[&sanitize], &lib, &native);
+	protocol::check(
+		&dir.join("protocol").join("scripts"),
+		&protocol::scripts(0, PROTOCOL_SEEDS, 200, protocol::Profile::C),
+		|_| {
+			let mut cmd = Command::new(&exe);
+			cmd.envs(env);
+			cmd
+		},
+	);
 }
 
 /// The glue's `extern "C"` functions driven from Rust under Miri, by `tests/miri/api.rs`
-/// mounted as a test module of a copy of the export.
+/// and the protocol scripts' driver `tests/miri/protocol.rs`, mounted as test modules of a
+/// copy of the export.
 #[test]
 #[ignore = "needs the nightly's miri: just ffi sanitize"]
 fn api_miri() {
@@ -415,14 +502,20 @@ fn api_miri() {
 		std::fs::copy(api.out.join(file), copy.join(file)).unwrap();
 	}
 	std::fs::create_dir_all(copy.join("src").join("rt")).unwrap();
-	for file in ["rt.rs", "rt/borrow.rs", "rt/thread.rs", "lib.rs"] {
+	for file in ["rt.rs", "lib.rs"] {
 		std::fs::copy(api.out.join("src").join(file), copy.join("src").join(file)).unwrap();
 	}
+	for entry in std::fs::read_dir(api.out.join("src").join("rt")).unwrap() {
+		let entry = entry.unwrap();
+		std::fs::copy(entry.path(), copy.join("src").join("rt").join(entry.file_name())).unwrap();
+	}
 	let mut lib = std::fs::read_to_string(copy.join("src").join("lib.rs")).unwrap();
-	lib.push_str(&format!(
-		"\n#[cfg(test)]\n#[path = {:?}]\nmod miri;\n",
-		manifest_dir().join("tests").join("miri").join("api.rs")
-	));
+	for (module, file) in [("miri", "api.rs"), ("protocol", "protocol.rs")] {
+		lib.push_str(&format!(
+			"\n#[cfg(test)]\n#[path = {:?}]\nmod {module};\n",
+			manifest_dir().join("tests").join("miri").join(file)
+		));
+	}
 	std::fs::write(copy.join("src").join("lib.rs"), lib).unwrap();
 	run(cargo()
 		.args(["miri", "test", "--locked", "--lib", "--manifest-path"])
@@ -686,23 +779,48 @@ fn cxx_command(link: &Link, standard: u8, plain: bool, src: &Path, exe: &Path) -
 	cmd
 }
 
+/// Random sequences of the ownership protocol's steps through the C++ header, by
+/// `tests/protocol.cpp`, each matching what the model says each step returns: never a
+/// failed check, which aborts in C++.
+#[test]
+fn api_cpp_protocol() {
+	cpp_protocol(&protocol::scripts(
+		0,
+		PROTOCOL_SEEDS,
+		PROTOCOL_STEPS,
+		protocol::Profile::CPP,
+	));
+}
+
+/// Longer protocol scripts through the C++ header, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_cpp_protocol_nightly() {
+	cpp_protocol(&protocol::scripts(PROTOCOL_SEEDS, 5000, 400, protocol::Profile::CPP));
+}
+
+fn cpp_protocol(scripts: &[protocol::Script]) {
+	let api = api();
+	let dir = scratch().join("api").join("protocol-cpp");
+	std::fs::create_dir_all(&dir).unwrap();
+	let exe = dir.join(format!("protocol{EXE_SUFFIX}"));
+	cxx(
+		&api.link(),
+		17,
+		true,
+		&manifest_dir().join("tests").join("protocol.cpp"),
+		&exe,
+	);
+	protocol::check(&dir.join("scripts"), scripts, |_| Command::new(&exe));
+}
+
 /// The generated Kotlin, compiled with `tests/api.kt` against the library's JNI
 /// functions, runs its script on the JVM, then refuses a library of another contract.
 #[test]
 fn api_kotlin() {
 	let api = api();
-	let classes = scratch().join("api").join("kotlin");
+	let classes = kotlin_classes(api);
 	let jar = PathBuf::from(coroutines());
-	let step = Step {
-		stamp: &step::stamp(&classes),
-		reads: &[
-			&api.out.join("kotlin").join("api.kt"),
-			&manifest_dir().join("tests").join("api.kt"),
-			&jar,
-		],
-		writes: &[&classes],
-	};
-	step.run(&mut kotlinc(&api.out, &classes));
 	let java = |classpath: &[&Path], args: &[&str]| {
 		let mut cmd = Command::new("kotlin");
 		cmd.arg(format!("-Djava.library.path={}", api.lib.display()))
@@ -713,6 +831,12 @@ fn api_kotlin() {
 		cmd
 	};
 	kotlin(&api.transcript, &|args| java(&[&classes], args));
+	// The protocol scripts, through `tests/protocol.kt`, compiled with the rest.
+	protocol::check_all(
+		&scratch().join("api").join("protocol").join("kotlin"),
+		&protocol::scripts(0, KOTLIN_PROTOCOL_SEEDS, PROTOCOL_STEPS, protocol::Profile::KOTLIN),
+		|| protocol_kotlin(api, &classes),
+	);
 
 	let native_returns = run(cargo()
 		.arg("run")
@@ -866,13 +990,59 @@ fn api_android() {
 	kotlin(&api.transcript, &art);
 }
 
-/// kotlinc compiling the generated Kotlin with `tests/api.kt` into `dest`.
+/// The gate's Kotlin protocol scripts, fewer than C's, as each costs the JVM more.
+const KOTLIN_PROTOCOL_SEEDS: u64 = 100;
+
+/// `tests/protocol.kt`, compiled into `classes` with the api fixture's Kotlin, on the JVM.
+fn protocol_kotlin(api: &Api, classes: &Path) -> Command {
+	let mut cmd = Command::new("kotlin");
+	cmd.arg(format!("-Djava.library.path={}", api.lib.display()))
+		.arg("-cp")
+		.arg(std::env::join_paths([classes.as_os_str(), &coroutines()]).unwrap())
+		.arg("ProtocolKt");
+	cmd
+}
+
+/// Longer Kotlin protocol scripts from other seeds, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_kotlin_protocol_nightly() {
+	let api = api();
+	let classes = kotlin_classes(api);
+	protocol::check_all(
+		&scratch().join("api").join("protocol").join("kotlin-nightly"),
+		&protocol::scripts(PROTOCOL_SEEDS, 2000, 400, protocol::Profile::KOTLIN),
+		|| protocol_kotlin(api, &classes),
+	);
+}
+
+/// The api fixture's Kotlin, `tests/api.kt`, and `tests/protocol.kt`, compiled.
+fn kotlin_classes(api: &Api) -> PathBuf {
+	let classes = scratch().join("api").join("kotlin");
+	let jar = PathBuf::from(coroutines());
+	Step {
+		stamp: &step::stamp(&classes),
+		reads: &[
+			&api.out.join("kotlin").join("api.kt"),
+			&manifest_dir().join("tests").join("api.kt"),
+			&manifest_dir().join("tests").join("protocol.kt"),
+			&jar,
+		],
+		writes: &[&classes],
+	}
+	.run(&mut kotlinc(&api.out, &classes));
+	classes
+}
+
+/// kotlinc compiling the generated Kotlin with `tests/api.kt` and `tests/protocol.kt` into
+/// `dest`.
 fn kotlinc(out: &Path, dest: &Path) -> Command {
 	let mut cmd = Command::new("kotlinc");
 	cmd.args(["-Werror", "-cp"])
 		.arg(coroutines())
 		.arg(out.join("kotlin").join("api.kt"))
 		.arg(manifest_dir().join("tests").join("api.kt"))
+		.arg(manifest_dir().join("tests").join("protocol.kt"))
 		.arg("-d")
 		.arg(dest);
 	cmd
@@ -1072,6 +1242,37 @@ fn api_python() {
 	);
 }
 
+/// Random sequences of the ownership protocol's steps through the Python, by
+/// `tests/protocol.py`, each matching what the model says each step returns.
+#[test]
+fn api_python_protocol() {
+	python_protocol(&protocol::scripts(0, 40, 100, protocol::Profile::PYTHON), "scripts");
+}
+
+/// Longer Python protocol scripts from other seeds, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_python_protocol_nightly() {
+	python_protocol(&protocol::scripts(40, 1000, 400, protocol::Profile::PYTHON), "nightly");
+}
+
+fn python_protocol(scripts: &[protocol::Script], dir: &str) {
+	let api = api();
+	let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
+	protocol::check(
+		&scratch().join("api").join("python-protocol").join(dir),
+		scripts,
+		|_| {
+			let mut cmd = Command::new(&python);
+			// As `api_python` runs its script: off the path, in dev mode, warnings as errors.
+			cmd.args(["-P", "-X", "dev", "-W", "error"])
+				.arg(manifest_dir().join("tests").join("protocol.py"))
+				.env("PYTHONPATH", api.out.join("python"));
+			cmd
+		},
+	);
+}
+
 /// The api fixture's Python, and `tests/api_types.py` calling it as a typed caller does,
 /// pass mypy and pyright, both strict, at the oldest CPython its extension loads in, and
 /// `tests/bare_builtins.py` finds it reading no builtin by its bare name. Apart from
@@ -1126,12 +1327,16 @@ fn kotlin_contract(kotlin: &Path) -> u64 {
 #[test]
 fn api_swift() {
 	let api = api();
-	let dir = scratch().join("api").join("swift");
-	let module = api.out.join("swift");
-	let include = api.out.join("include");
-	let source = module.join("api.swift");
-	let collections = swift_collections();
-	let built = collections_dir();
+	let SwiftApi {
+		dir,
+		module,
+		include,
+		source,
+		collections,
+		built,
+		swiftmodule,
+		lib,
+	} = swift_api(api);
 	let step = Step {
 		stamp: &dir.join("typecheck.stamp"),
 		reads: &[&module, &include, &built],
@@ -1140,21 +1345,6 @@ fn api_swift() {
 	step.run(
 		swiftc(&module, 13)
 			.args(["-swift-version", "5", "-typecheck"])
-			.arg(&source),
-	);
-	let (swiftmodule, lib) = (dir.join("Api.swiftmodule"), dir.join("libApi.a"));
-	let step = Step {
-		stamp: &dir.join("Api.stamp"),
-		reads: &[&module, &include, &built],
-		writes: &[&swiftmodule, &lib],
-	};
-	step.run(
-		swiftc(&module, 13)
-			.args(["-swift-version", "6", "-parse-as-library", "-module-name", "Api"])
-			.args(["-emit-module", "-emit-module-path"])
-			.arg(&swiftmodule)
-			.args(["-emit-library", "-static", "-o"])
-			.arg(&lib)
 			.arg(&source),
 	);
 	// The test's executor preference is macOS 15's.
@@ -1281,6 +1471,116 @@ fn api_swift() {
 	);
 }
 
+/// The api fixture's Swift, built as the module `Api` in Swift 6's language mode.
+struct SwiftApi {
+	dir: PathBuf,
+	/// The generated Swift's directory, with the C header's module map.
+	module: PathBuf,
+	include: PathBuf,
+	source: PathBuf,
+	/// swift-collections' libraries, and where they were built.
+	collections: Vec<PathBuf>,
+	built: PathBuf,
+	swiftmodule: PathBuf,
+	lib: PathBuf,
+}
+
+fn swift_api(api: &Api) -> SwiftApi {
+	let dir = scratch().join("api").join("swift");
+	let module = api.out.join("swift");
+	let include = api.out.join("include");
+	let source = module.join("api.swift");
+	let collections = swift_collections();
+	let built = collections_dir();
+	let (swiftmodule, lib) = (dir.join("Api.swiftmodule"), dir.join("libApi.a"));
+	let step = Step {
+		stamp: &dir.join("Api.stamp"),
+		reads: &[&module, &include, &built],
+		writes: &[&swiftmodule, &lib],
+	};
+	// Once per process: the Swift tests share its outputs, which a second build running
+	// beside the first would remove.
+	static BUILT: OnceLock<()> = OnceLock::new();
+	BUILT.get_or_init(|| {
+		std::fs::create_dir_all(&dir).unwrap();
+		step.run(
+			swiftc(&module, 13)
+				.args(["-swift-version", "6", "-parse-as-library", "-module-name", "Api"])
+				.args(["-emit-module", "-emit-module-path"])
+				.arg(&swiftmodule)
+				.args(["-emit-library", "-static", "-o"])
+				.arg(&lib)
+				.arg(&source),
+		);
+	});
+	SwiftApi {
+		dir,
+		module,
+		include,
+		source,
+		collections,
+		built,
+		swiftmodule,
+		lib,
+	}
+}
+
+/// Random sequences of the ownership protocol's steps through the Swift, by
+/// `tests/protocol.swift`, each matching what the model says each step returns: none Swift's
+/// compiler would refuse, and each future an async call awaited as it is made.
+#[test]
+fn api_swift_protocol() {
+	swift_protocol(&protocol::scripts(
+		0,
+		PROTOCOL_SEEDS,
+		PROTOCOL_STEPS,
+		protocol::Profile::SWIFT,
+	));
+}
+
+/// Longer protocol scripts through the Swift, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_swift_protocol_nightly() {
+	swift_protocol(&protocol::scripts(PROTOCOL_SEEDS, 5000, 400, protocol::Profile::SWIFT));
+}
+
+fn swift_protocol(scripts: &[protocol::Script]) {
+	let api = api();
+	let swift = swift_api(api);
+	let dir = scratch().join("api").join("protocol-swift");
+	let exe = dir.join(format!("protocol{EXE_SUFFIX}"));
+	let src = manifest_dir().join("tests").join("protocol.swift");
+	let step = Step {
+		stamp: &step::stamp(&exe),
+		reads: &[
+			&src,
+			&swift.module,
+			&swift.include,
+			&swift.built,
+			&swift.swiftmodule,
+			&swift.lib,
+			&api.staticlib(),
+		],
+		writes: &[&exe],
+	};
+	std::fs::create_dir_all(&dir).unwrap();
+	// Its executor preference is macOS 15's.
+	step.run(
+		swiftc(&swift.module, 15)
+			.args(["-parse-as-library", "-I"])
+			.arg(&swift.dir)
+			.arg(&src)
+			.arg(&swift.lib)
+			.args(&swift.collections)
+			.arg(api.staticlib())
+			.args(&api.native)
+			.arg("-o")
+			.arg(&exe),
+	);
+	protocol::check(&dir.join("scripts"), scripts, |_| Command::new(&exe));
+}
+
 /// Node's script running the WASI program its first argument names.
 const WASI_MAIN: &str = "import { WASI } from 'node:wasi';\n\
 	import { readFileSync } from 'node:fs';\n\
@@ -1322,8 +1622,8 @@ fn wasm_transcript() -> String {
 	String::from_utf8_lossy(&transcript.stdout).into_owned()
 }
 
-/// The api fixture's web binding, beside a copy of `tests/api.ts` as a caller's project
-/// holds it, type-checked with no issue, and the module the crate's `web` feature builds
+/// The api fixture's web binding, beside copies of `tests/api.ts` and `tests/protocol.ts`
+/// as a caller's project holds them, type-checked with no issue, and the module the crate's `web` feature builds
 /// for wasm32-wasip1, built once for each runtime's test.
 struct Web {
 	dir: PathBuf,
@@ -1347,6 +1647,10 @@ fn web() -> &'static Web {
 			.env("RUSTFLAGS", "-D warnings"));
 		step::mirror(&api.out.join("web"), &dir.join("web"));
 		step::copy(&manifest_dir().join("tests").join("api.ts"), &dir.join("api.ts"));
+		step::copy(
+			&manifest_dir().join("tests").join("protocol.ts"),
+			&dir.join("protocol.ts"),
+		);
 		step::write(&dir.join("tsconfig.json"), TSCONFIG);
 		run(Command::new("tsc").arg("-p").arg(&dir));
 		Web {
@@ -1450,6 +1754,47 @@ fn web_script(runtime: &str, case: Option<&str>) -> Command {
 		.current_dir(&web.dir)
 		.env("RUST2_WASM", &web.wasm);
 	cmd
+}
+
+/// Random sequences of the ownership protocol's steps through the web binding on Node and
+/// on Deno, by `tests/protocol.ts`, each matching what the model says each step returns.
+#[test]
+fn api_web_protocol() {
+	for runtime in ["node", "deno"] {
+		web_protocol(runtime, "scripts", 0, PROTOCOL_SEEDS, PROTOCOL_STEPS);
+	}
+}
+
+/// Longer protocol scripts from other seeds through the web binding on Node, as the
+/// nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_web_protocol_nightly() {
+	web_protocol("node", "nightly", PROTOCOL_SEEDS, 5000, 400);
+}
+
+/// `count` scripts from `first` of `steps` each, through `tests/protocol.ts` in one process
+/// of `runtime`, Node or Deno.
+fn web_protocol(runtime: &str, name: &str, first: u64, count: u64, steps: usize) {
+	let web = web();
+	let scripts = protocol::scripts(first, count, steps, protocol::Profile::TS);
+	let driver = || {
+		let mut cmd = Command::new(runtime);
+		match runtime {
+			"deno" => cmd
+				.args(["run", "--allow-read", "--allow-write", "--allow-env"])
+				.env("DENO_DIR", scratch().join("deno"))
+				.env("DENO_NO_UPDATE_CHECK", "1")
+				.env("NO_COLOR", "1"),
+			_ => cmd.arg("--no-warnings"),
+		};
+		cmd.arg("protocol.ts")
+			.current_dir(&web.dir)
+			.env("RUST2_WASM", &web.wasm);
+		cmd
+	};
+	let dir = scratch().join("api").join("web-protocol").join(runtime).join(name);
+	protocol::check_all(&dir, &scripts, driver);
 }
 
 /// The generated TypeScript runs `tests/api.ts`'s script on Node and on Deno, over the module
@@ -1561,7 +1906,7 @@ const TSCONFIG: &str = r#"{
 		"skipLibCheck": true,
 		"types": []
 	},
-	"include": ["api.ts", "web/*.ts"]
+	"include": ["api.ts", "protocol.ts", "web/*.ts"]
 }
 "#;
 
@@ -1596,6 +1941,13 @@ fn api_dart() {
 	for case in ["futures", "owned", "closed", "bytes", "bounds"] {
 		run(&mut dart_run(&exe, &[case]));
 	}
+	// The protocol scripts, through `tests/protocol.dart`.
+	let protocol = protocol_dart(api, &dir);
+	protocol::check_all(
+		&scratch().join("api").join("protocol").join("dart"),
+		&protocol::scripts(0, DART_PROTOCOL_SEEDS, PROTOCOL_STEPS, protocol::Profile::DART),
+		|| dart_run(&protocol, &[]),
+	);
 	for (case, message) in [
 		("moved", "Bad state: api_Counter_get: a handle's value was moved out"),
 		("boxed moved", "Bad state: api_Node_sum: a handle's value was moved out"),
@@ -1647,6 +1999,33 @@ fn api_dart() {
 	assert!(
 		stderr.contains("api.dart and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
+	);
+}
+
+/// The gate's Dart protocol scripts, fewer than C's, as each step costs Dart more.
+const DART_PROTOCOL_SEEDS: u64 = 100;
+
+/// `tests/protocol.dart`, compiled in `dir` against the api fixture's Dart.
+fn protocol_dart(api: &Api, dir: &Path) -> PathBuf {
+	dart_compile(
+		"api",
+		dir,
+		&api.out.join("dart"),
+		&api.lib.join(PYTHON_LIB),
+		&manifest_dir().join("tests").join("protocol.dart"),
+	)
+}
+
+/// Longer Dart protocol scripts from other seeds, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_dart_protocol_nightly() {
+	let api = api();
+	let protocol = protocol_dart(api, &scratch().join("api").join("dart"));
+	protocol::check_all(
+		&scratch().join("api").join("protocol").join("dart-nightly"),
+		&protocol::scripts(PROTOCOL_SEEDS, 2000, 400, protocol::Profile::DART),
+		|| dart_run(&protocol, &[]),
 	);
 }
 
@@ -1796,7 +2175,7 @@ fn api_go() {
 			reads: &[&module],
 			writes: &[],
 		};
-		step.run(&mut go(root, api, &["vet", "./..."]));
+		step.run(&mut go(root, &["vet", "./..."]));
 	}
 	let exe = dir.join(format!("api-test{EXE_SUFFIX}"));
 	go_build(api, &module, &exe);
@@ -1860,18 +2239,43 @@ fn api_go() {
 }
 
 /// Lay out `module` as a Go module whose main package is `main`, requiring the export's
-/// module of a package per crate, beside the header as the export lays them out.
+/// module of a package per crate, with the static library its runtime links.
 fn go_layout(api: &Api, module: &Path, main: &str) {
 	step::mirror(&api.out.join("go"), &module.join("export"));
-	step::copy(
-		&api.out.join("include").join("api.h"),
-		&module.join("include").join("api.h"),
-	);
+	go_library(&api.staticlib(), &module.join("export"));
 	step::write(&module.join("main.go"), main);
 	step::write(
 		&module.join("go.mod"),
 		"module apitest\n\ngo 1.24\n\nrequire api v0.0.0\n\nreplace api => ./export\n",
 	);
+}
+
+/// Random sequences of the ownership protocol's steps through the Go, by
+/// `tests/protocol.go`, each matching what the model says each step returns.
+#[test]
+fn api_go_protocol() {
+	go_protocol(&protocol::scripts(0, 100, 100, protocol::Profile::GO), "scripts");
+}
+
+/// Longer Go protocol scripts from other seeds, as the nightly runs them.
+#[test]
+#[ignore = "slow: just ffi protocol"]
+fn api_go_protocol_nightly() {
+	go_protocol(&protocol::scripts(100, 5000, 400, protocol::Profile::GO), "nightly");
+}
+
+fn go_protocol(scripts: &[protocol::Script], dir: &str) {
+	let api = api();
+	let built = scratch().join("api").join("go-protocol");
+	let module = built.join("module");
+	go_layout(
+		api,
+		&module,
+		&std::fs::read_to_string(manifest_dir().join("tests").join("protocol.go")).unwrap(),
+	);
+	let exe = built.join(format!("protocol{EXE_SUFFIX}"));
+	go_build(api, &module, &exe);
+	protocol::check(&built.join(dir), scripts, |_| Command::new(&exe));
 }
 
 /// Build the Go `module` into `exe` against the api fixture's static library.
@@ -1881,7 +2285,7 @@ fn go_build(api: &Api, module: &Path, exe: &Path) {
 		reads: &[module, &api.staticlib()],
 		writes: &[exe],
 	};
-	step.run(go(module, api, &["build", "-o"]).arg(exe));
+	step.run(go(module, &["build", "-o"]).arg(exe));
 }
 
 /// Under a `go.mod`, the generated packages import each other by its module, as the go
@@ -1909,6 +2313,23 @@ fn go_module() {
 	);
 	let api = std::fs::read_to_string(out.join("go").join("api").join("api.go")).unwrap();
 	assert!(api.contains("\"example.com/app/sub/out/go/rt\""), "{api}");
+
+	// A go.mod in go/ itself makes it a module, as a release's is, which the export keeps
+	// as it is, above any other.
+	let own = module.join("own");
+	let go_mod = "module example.com/own/v2 // a release\n\ngo 1.24\n";
+	std::fs::create_dir_all(own.join("go")).unwrap();
+	std::fs::write(own.join("go").join("go.mod"), go_mod).unwrap();
+	let output = export("api", &own, &[], &[]);
+	assert!(
+		output.status.success(),
+		"exporting failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	assert_eq!(std::fs::read_to_string(own.join("go").join("go.mod")).unwrap(), go_mod);
+	let api = std::fs::read_to_string(own.join("go").join("api").join("api.go")).unwrap();
+	assert!(api.contains("\"example.com/own/v2/rt\""), "{api}");
+	vet(&own.join("go"));
 }
 
 /// A crate named as the runtime, a Go keyword, or `main` is the Go package of that name and
@@ -2216,18 +2637,54 @@ fn vet(go: &Path) {
 		.env("GOTOOLCHAIN", "local"));
 }
 
-/// The go command in `module`, linking cgo against the api fixture's static library.
-fn go(module: &Path, api: &Api, args: &[&str]) -> Command {
-	let mut ldflags = api.staticlib().into_os_string();
-	for lib in &api.native {
-		ldflags.push(" ");
-		ldflags.push(lib);
+/// Put the static library `lib` in the Go module `export`'s runtime, as the file the
+/// export's one `#cgo LDFLAGS` line links with what else it needs, without the LLVM bitcode
+/// the go command refuses there.
+fn go_library(lib: &Path, export: &Path) {
+	let rt = std::fs::read_to_string(export.join("rt").join("rt.go")).unwrap();
+	let mut names = rt.lines().filter_map(|line| {
+		let flags = line.strip_prefix("#cgo ")?.split_once(" LDFLAGS: ${SRCDIR}/")?.1;
+		Some(flags.split(' ').next().unwrap().to_string())
+	});
+	let (Some(name), None) = (names.next(), names.next()) else {
+		panic!("the Go links no one library for the host: {rt}");
+	};
+	// Beside the module, so layouts that tests build at once strip apart.
+	let stripped = export.parent().unwrap().with_extension("a");
+	let objcopy = llvm_objcopy();
+	Step {
+		stamp: &step::stamp(&stripped),
+		reads: &[lib, objcopy],
+		writes: &[&stripped],
 	}
+	.run(
+		Command::new(objcopy)
+			.args(["--remove-section=.llvmbc", "--remove-section=.llvmcmd"])
+			.args(["--remove-section=__LLVM,__bitcode", "--remove-section=__LLVM,__cmdline"])
+			.arg(lib)
+			.arg(&stripped),
+	);
+	step::copy(&stripped, &export.join("rt").join(name));
+}
+
+/// The nightly's llvm-objcopy, which reads every target's objects.
+fn llvm_objcopy() -> &'static Path {
+	static OBJCOPY: OnceLock<PathBuf> = OnceLock::new();
+	OBJCOPY.get_or_init(|| {
+		let rustc = std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+		let sysroot = run(Command::new(rustc).args(["--print", "sysroot"]));
+		let sysroot = PathBuf::from(String::from_utf8_lossy(&sysroot.stdout).trim());
+		let bin = sysroot.join("lib").join("rustlib").join(host()).join("bin");
+		bin.join(format!("llvm-objcopy{EXE_SUFFIX}"))
+	})
+}
+
+/// The go command in `module`, whose runtime links the api fixture's static library.
+fn go(module: &Path, args: &[&str]) -> Command {
 	let mut cmd = Command::new("go");
 	cmd.args(args)
 		.current_dir(module)
 		.env("CGO_ENABLED", "1")
-		.env("CGO_LDFLAGS", ldflags)
 		// The module is no checkout of its own, and must build with the Go on PATH.
 		.env("GOFLAGS", "-buildvcs=false")
 		.env("GOTOOLCHAIN", "local");
@@ -2930,6 +3387,40 @@ fn package(name: &str, files: &[(&str, &str)]) -> PathBuf {
 	write_all(&package, &defaults.collect::<Vec<_>>());
 	write_all(&package, files);
 	package
+}
+
+/// A `no_std` facade's API still names the system libraries std links, as the glue's
+/// static library links std whatever the facade does: those rustc prints for the api
+/// fixture's, whose crates link nothing of their own.
+#[test]
+fn no_std_links() {
+	let package = package(
+		"no_std_links",
+		&[(
+			"src/lib.rs",
+			"#![cfg_attr(not(test), no_std)]\n\npub fn one() -> u32 {\n\t1\n}\n",
+		)],
+	);
+	let out = package.join("out");
+	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--manifest-path")
+		.arg(package.join("Cargo.toml"))
+		.arg("--out")
+		.arg(&out)
+		.env("CARGO_TARGET_DIR", package.join("build"))
+		.output()
+		.unwrap();
+	assert!(
+		output.status.success(),
+		"exporting failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let exported: serde_json::Value =
+		serde_json::from_str(&std::fs::read_to_string(out.join("api.json")).unwrap()).unwrap();
+	let links: Vec<String> = serde_json::from_value(exported["api"]["links"][host()].clone()).unwrap();
+	assert_eq!(links, api().native);
 }
 
 /// rustc's arguments in an argfile, as cargo passes them once they overflow a command line:

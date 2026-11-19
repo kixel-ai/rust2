@@ -196,7 +196,7 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let deque = VecDeque::from(v.clone());
 	let map = BTreeMap::from([(u16::from(n), n)]);
 	let set = BTreeSet::from([u16::from(n)]);
-	match kind % 87 {
+	match kind % 91 {
 		0 => out.push(Vec::<u8>::with_capacity(usize::MAX - at).len() as u8),
 		1 => v.clone().rotate_right(at + 3),
 		2 => out.push(n.clamp(n.max(1), n.max(1) - 1)),
@@ -354,6 +354,31 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		83 => out.extend_from_slice(format!("{Failing}").as_bytes()),
 		84 => out.extend_from_slice(Failing.to_string().as_bytes()),
 		85 => out.push(Lying(n).len() as u8),
+		// A range of a `Vec` of words, held as its parts, past its end, past the end of
+		// what it holds, and backwards, then a split of one past its length.
+		87 => {
+			let mut w: Vec<u32> = v.iter().map(|&b| u32::from(b)).collect();
+			let part = &mut w[at % 2 + 3..];
+			part.reverse();
+			out.push(part.len() as u8);
+		}
+		88 => {
+			let mut w = vec![u64::from(n); 2];
+			let part = &mut w[..at % 2 + 3];
+			part[0] = 1;
+			out.push(part.len() as u8);
+		}
+		89 => {
+			let mut w = vec![u16::from(n); 4];
+			let part = &mut w[at % 2 + 2..1];
+			out.push(part.len() as u8);
+		}
+		90 => {
+			let mut w = vec![u32::from(n); 2];
+			let (a, b) = w.split_at_mut(at % 2 + 3);
+			a[0] = b.len() as u32;
+			out.push(a[0] as u8);
+		}
 		_ => out.extend(Short(n % 4).zip(0..n % 4 + 1).rev().map(|(a, b)| a ^ b)),
 	}
 }

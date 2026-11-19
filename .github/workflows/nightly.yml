@@ -189,6 +189,11 @@ jobs:
       - name: Export
         run: nix develop --command just ffi moq
 
+      # Longer random protocol scripts through the C ABI and each binding, against the
+      # model of what each step returns; the gate runs fewer.
+      - name: Protocol
+        run: nix develop --command just ffi protocol
+
       # What exports, and every refusal, ranked.
       - name: Census
         run: nix develop --command just ffi census

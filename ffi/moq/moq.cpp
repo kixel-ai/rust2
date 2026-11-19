@@ -138,7 +138,8 @@ int main() {
 	// A group's arrival wakes the subscriber's pending receive.
 	auto receiving = subscriber.recv_group();
 	CHECK(!receiving.poll(waker));
-	auto writer = track->append_group();
+	// The track is untimed, so its group's start is a bare key.
+	auto writer = track->append_group(moq::Timestamp::unscaled(0));
 	CHECK(writer && wakes == 1);
 	auto received = receiving.poll(waker);
 	CHECK(received && *received && received->value());
@@ -149,28 +150,28 @@ int main() {
 	{
 		auto reading = group.read_frame();
 		CHECK(!reading.poll(waker));
-		CHECK(writer->write_frame(std::nullopt, "hello"));
+		CHECK(writer->write_frame(moq::Timestamp::unscaled(0), "hello"));
 		CHECK(wakes == 2);
 		auto frame = reading.poll(waker);
 		CHECK(frame && *frame && frame->value());
 		const moq::frame_Frame &hello = *frame->value();
 		CHECK(is(hello.payload_get(), "hello"));
-		CHECK(!hello.timestamp_get());
+		CHECK(!hello.timestamp_get().scale());
 		// When it arrived: kio's clock's `Instant`, from kio's own export.
 		CHECK(moq::clock_now().checked_duration_since(hello.arrived()).has_value());
 	}
 
-	// A timestamp is a `Copy` value copied across, which allocates nothing. The track is
-	// untimed, so a timestamped frame is refused.
+	// A timestamp is a handle, which a call borrows and leaves usable. The track is untimed,
+	// so a timed frame is refused.
 	auto at = moq::Timestamp::from_millis(1500);
-	CHECK(at && at->as_secs() == 1);
+	CHECK(at && at->as_secs() && *at->as_secs() == 1);
 	auto late = writer->write_frame(*at, "late");
 	CHECK(!late && is(late.error().to_string(), "frame timestamp doesn't fit its track"));
-	CHECK(at->as_secs() == 1);
+	CHECK(at->as_secs() && *at->as_secs() == 1);
 
 	// The last frame, bytes that are not UTF-8, then the group's end, which reads as None,
 	// both blocking.
-	CHECK(writer->write_frame(std::nullopt, "\xffworld"));
+	CHECK(writer->write_frame(moq::Timestamp::unscaled(0), "\xffworld"));
 	CHECK(std::move(*writer).finish());
 	auto world = group.read_frame().get();
 	CHECK(world && world.value() && is(world.value()->payload_get(), "\xffworld"));
@@ -200,9 +201,9 @@ int main() {
 		CHECK(absolute && is(absolute->as_str(), "room/bob"));
 	}
 
-	// A broadcast the origin creates is stamped with its path, which its info lends.
+	// A broadcast the origin routes is stamped with its path, which its info lends.
 	{
-		auto publication = origin.create_broadcast("room/alice");
+		auto publication = origin.route("room/alice", moq::origin_RouteOptions::default_());
 		CHECK(publication);
 		moq::broadcast_Producer producer = publication->broadcast();
 		moq::Path path = producer.info().path_get();
@@ -268,11 +269,11 @@ int main() {
 	{
 		moq::track_Range live = moq::track_Range::live();
 		moq::track_Subscription ranged = moq::track_Subscription::default_().with_ranges(
-		    {live, moq::track_Range::groups({{MOQ_BOUND_INCLUDED, 2}, {MOQ_BOUND_EXCLUDED, 6}})});
+		    {live, moq::track_Range{moq::track_Anchor_Time{2}, moq::track_Anchor_Time{6}}});
 		std::vector<moq::track_Range> got = ranged.ranges_get();
 		CHECK(got.size() == 2 && got[0] == live);
-		CHECK(got.size() == 2 && std::get<moq::track_Anchor_Absolute>(got[1].start)._0 == 2);
-		CHECK(got.size() == 2 && got[1].end && std::get<moq::track_Anchor_Absolute>(*got[1].end)._0 == 6);
+		CHECK(got.size() == 2 && std::get<moq::track_Anchor_Time>(got[1].start)._0 == 2);
+		CHECK(got.size() == 2 && got[1].end && std::get<moq::track_Anchor_Time>(*got[1].end)._0 == 6);
 	}
 
 	// A catalog at moq-mux's untyped extension, from the config C++ builds, whose generic
@@ -308,7 +309,7 @@ int main() {
 		CHECK(catalog->is_claimed_JsonConfig("status"));
 		// A value C++ parses is published as the track's latest, which a subscriber reads
 		// back as JSON text.
-		CHECK(status_snapshot->update(moq::Json::parse(R"({"on": true})").value(), moq::Timestamp::now()));
+		CHECK(status_snapshot->update(moq::Json::parse(R"({"on": true})").value(), moq::Timestamp::from_millis(1).value()));
 		moq::track_Subscriber status_subscriber = status_snapshot->consume();
 		auto status_group = status_subscriber.recv_group().get();
 		CHECK(status_group && status_group.value());
@@ -385,13 +386,13 @@ int main() {
 	{
 		watchdog limit(std::chrono::seconds(30));
 		moq::origin_Producer served = moq::tokio_origin_spawn();
-		auto live = served.create_broadcast("live");
-		CHECK(live && live->announce(moq::origin_Route::default_()));
+		auto live = served.route("live", moq::origin_RouteOptions::default_());
+		CHECK(live);
 		moq::broadcast_Producer live_broadcast = live->broadcast();
 		auto live_track = live_broadcast.create_track("video", std::nullopt);
 		CHECK(live_track);
-		auto live_group = live_track->append_group();
-		CHECK(live_group && live_group->write_frame(std::nullopt, "hello"));
+		auto live_group = live_track->append_group(moq::Timestamp::unscaled(0));
+		CHECK(live_group && live_group->write_frame(moq::Timestamp::unscaled(0), "hello"));
 		CHECK(std::move(*live_group).finish());
 
 		moq::tokio_server_Config server_config = moq::tokio_server_Config::default_();

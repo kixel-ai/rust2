@@ -2823,11 +2823,7 @@ fn round_trip(built: &Built, language: &str) {
 			let module = dir.join("module");
 			let export = module.join("export");
 			step::mirror(&built.out.join("go"), &export);
-			let header = format!("{name}.h");
-			step::copy(
-				&built.out.join("include").join(&header),
-				&module.join("include").join(&header),
-			);
+			super::go_library(&built.staticlib(), &export);
 			let source = std::fs::read_to_string(export.join(&name).join(format!("{name}.go"))).unwrap();
 			let rt = std::fs::read_to_string(export.join("rt").join("types.go")).unwrap_or_default();
 			step::write(&module.join("main.go"), go(built, calls, &source, &rt));
@@ -2835,11 +2831,6 @@ fn round_trip(built: &Built, language: &str) {
 				&module.join("go.mod"),
 				format!("module shapestest\n\ngo 1.24\n\nrequire {name} v0.0.0\n\nreplace {name} => ./export\n"),
 			);
-			let mut ldflags = built.staticlib().into_os_string();
-			for lib in &built.native {
-				ldflags.push(" ");
-				ldflags.push(lib);
-			}
 			let step = Step {
 				stamp: &step::stamp(&exe),
 				reads: &[&module, &built.staticlib()],
@@ -2851,7 +2842,6 @@ fn round_trip(built: &Built, language: &str) {
 					.arg(&exe)
 					.current_dir(&module)
 					.env("CGO_ENABLED", "1")
-					.env("CGO_LDFLAGS", ldflags)
 					.env("GOFLAGS", "-buildvcs=false")
 					.env("GOTOOLCHAIN", "local"),
 			);
