@@ -1425,6 +1425,7 @@ just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi moq-api <target>  # stage moq's API on another target into target/moq-api, which the exports above merge
 just ffi census   # census each into target/census
 just ffi shapes   # round-trip every sampled type shape in every language but KNOWN's, as the nightly does
+just ffi protocol # run longer protocol scripts from more seeds through the C ABI and every binding, as the nightly does
 nix develop .#bench --command just ffi browsers  # api's TypeScript in headless Chromium and Firefox, as the nightly runs it
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
@@ -1483,6 +1484,27 @@ the nightly does. `KNOWN` lists what a binding still gets wrong, each with the q
 fixes it; the driver skips those shapes, so the fix deletes its entry, and the nightly fails
 on an entry that matches no exported shape. A new IR `Type` variant fails `ir_covered`
 until the sampler covers it.
+The protocol tests run random sequences of borrows, exclusive lends, moves, drops, frees,
+polls, and cancels over the api fixture's checked types, on the thread that made a value
+and another, against `tests/protocol/model.rs`: an executable model of what this README
+says each step returns, the status a check fails with included. A seed makes a script of
+steps and the model's transcript of their outcomes, shaped by what a driver's surface can
+run, and each driver runs the script through its surface and prints the outcomes back, which
+must match line for line, with the counts of the script's waker where it polls with one.
+`tests/protocol.c` runs them through the C ABI, `tests/miri/protocol.rs` under Miri, and
+`just ffi sanitize` runs the C driver under ASan and TSan. The gate runs 500 scripts of 100
+steps, fails unless they meet every status and make every kind of handle, and `just ffi
+protocol` runs 20,000 of 400 steps.
+`tests/borrow.rs` and `tests/hold.rs` model the borrow check and the bindings' hold counts
+under loom, and `tests/future.rs` and `tests/thread.rs` model the runtime's futures and
+threads, each mounting the runtime's own source over loom's primitives. The futures' model
+races a wake from another thread against a poll, a change of waker, a start, and a free:
+each C waker drops once and is never woken after, a pending poll is always woken, and a
+future that is not `Send` refuses a poll elsewhere and drops on its own thread. The threads'
+model races a free elsewhere against its thread's check, wake, drain, and exit, and lends
+calls to homes that call each other: each value drops once on its own thread, or leaks once
+that thread exited, and each home goes idle once no value or call holds it. Each explores
+every interleaving, or for homes those within a preemption bound, in the gate.
 The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
 The `lock` test exports the `lock` fixture for wasm32, staged, and the host, then again
 against that export's `api.json`: its `added` feature only adds and must pass, and its `next`
@@ -1491,7 +1513,8 @@ error matching `fixtures/lock/expected.txt`.
 `just ffi sanitize`, run nightly, rebuilds the `api` export with std under AddressSanitizer
 and then ThreadSanitizer, runs `tests/api.c` and `tests/api.cpp` against it, and matches
 their output to the native transcript; it runs `tests/api.go` under Go's race detector;
-and it drives the C ABI from `tests/miri/api.rs` under Miri with strict provenance.
+and it drives the C ABI from `tests/miri/api.rs` and the protocol scripts from
+`tests/miri/protocol.rs` under Miri with strict provenance.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. The export serves the host and each target
 `just ffi moq-api` staged in `target/moq-api` from the same moq sources, and fails on a

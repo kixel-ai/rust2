@@ -9,13 +9,15 @@
 //! A home is a thread Rust owns, for a binding with no thread of its own that stays put,
 //! as a goroutine or a Dart isolate moves between threads: a call it makes on a value a
 //! home owns runs there while the caller waits, so the value never leaves its thread.
+//!
+//! The runtime compiles this beside `rt.rs`, and `ffi/tests/thread.rs` under loom, each
+//! with its own locks, atomics, `Arc`, and threads.
 
 use std::cell::{Cell, OnceCell};
-use std::sync::OnceLock;
 use std::mem::{ManuallyDrop, MaybeUninit};
 use std::panic::AssertUnwindSafe;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
+
+use super::{Arc, AtomicBool, Mutex, MutexGuard, OnceLock, Ordering, StaticMutex, Status, fail, os};
 
 /// A thread values that are not `Send` stay on.
 pub struct Thread {
@@ -23,7 +25,7 @@ pub struct Thread {
 	pending: AtomicBool,
 	jobs: Mutex<Jobs>,
 	/// A home's thread, which parks for a job, unparked as one is queued.
-	parked: OnceLock<std::thread::Thread>,
+	parked: OnceLock<os::Thread>,
 	/// Whether it is a home, which runs a call from any thread.
 	home: bool,
 }
@@ -102,7 +104,7 @@ struct Run {
 /// What a thread waiting on a call it lent a home waits for.
 struct Done {
 	ran: AtomicBool,
-	waiter: std::thread::Thread,
+	waiter: os::Thread,
 }
 
 impl Job {
@@ -115,7 +117,7 @@ impl Job {
 				// one through the C ABI does.
 				// SAFETY: the waiting thread keeps the call alive until `ran`.
 				if std::panic::catch_unwind(AssertUnwindSafe(|| unsafe { (run.call)(run.data) })).is_err() {
-					crate::rt::fail("a home", "a call panicked");
+					fail("a home", "a call panicked");
 				}
 				// SAFETY: as above; once `ran`, the waiter may return, so it is read first.
 				let done = unsafe { &*run.done };
@@ -142,7 +144,7 @@ impl Drop for Here {
 thread_local!(static HERE: Here = const { Here(OnceCell::new(), Cell::new(false)) });
 
 /// The homes no value lives on, idle until a call takes one.
-static IDLE: Mutex<Vec<Arc<Thread>>> = Mutex::new(Vec::new());
+static IDLE: StaticMutex<Vec<Arc<Thread>>> = StaticMutex::new(Vec::new());
 
 impl Thread {
 	fn new(home: bool, gone: bool) -> Self {
@@ -215,9 +217,9 @@ impl Thread {
 	/// Whether this is its thread, so a value of it may be used, after dropping what other
 	/// threads freed of it meanwhile.
 	#[inline]
-	pub fn own(&self) -> Result<(), crate::rt::Status> {
+	pub fn own(&self) -> Result<(), Status> {
 		if !self.is_here() {
-			return Err(crate::rt::Status::NotSend);
+			return Err(Status::NotSend);
 		}
 		if self.pending.load(Ordering::Acquire) {
 			self.drain();
@@ -292,11 +294,17 @@ impl Thread {
 		}
 		let home = Arc::new(Self::new(true, false));
 		let serving = home.clone();
-		let spawned = std::thread::Builder::new()
+		let spawned = os::Builder::new()
 			.name("rust2-ffi home".to_string())
-			.spawn(move || serving.serve());
-		if spawned.is_err() {
-			crate::rt::fail("a home", "its thread could not be spawned");
+			.spawn(move || Self::serve(serving));
+		match spawned {
+			// Set before the home is returned, so every push to it finds its thread to
+			// unpark: one set by the home's own thread could land after a push that missed
+			// it, and the home, missing the push's pending flag in turn, would park for good.
+			Ok(spawned) => {
+				let _ = home.parked.set(spawned.thread().clone());
+			}
+			Err(_) => fail("a home", "its thread could not be spawned"),
 		}
 		home
 	}
@@ -325,11 +333,10 @@ impl Thread {
 
 	/// A home's thread: run each job queued for it, forever. Idle with no value living on
 	/// it, which a value's record would count.
-	fn serve(self: Arc<Self>) {
-		let me: *const Self = &*self;
-		let _ = self.parked.set(std::thread::current());
+	fn serve(this: Arc<Self>) {
+		let me: *const Self = &*this;
 		HERE.with(|here| {
-			let _ = here.0.set(self);
+			let _ = here.0.set(this);
 		});
 		// SAFETY: this thread's record holds it for as long as the thread runs, which is forever.
 		let me = unsafe { &*me };
@@ -346,14 +353,16 @@ impl Thread {
 				}
 			});
 			if !me.pending.load(Ordering::Acquire) {
-				std::thread::park();
+				os::park();
 			}
 		}
 	}
 
 	/// This thread's record, if it is a home.
 	fn serving() -> Option<Arc<Thread>> {
-		HERE.try_with(|here| here.0.get().filter(|thread| thread.home).cloned()).ok().flatten()
+		HERE.try_with(|here| here.0.get().filter(|thread| thread.home).cloned())
+			.ok()
+			.flatten()
 	}
 
 	/// Wait until `done`, running each job queued for `home`, this thread, meanwhile:
@@ -362,7 +371,7 @@ impl Thread {
 		while !done() {
 			match home.pending.load(Ordering::Acquire) {
 				true => home.drain(),
-				false => std::thread::park(),
+				false => os::park(),
 			}
 		}
 	}
@@ -400,7 +409,7 @@ impl Thread {
 		}
 		let done = Done {
 			ran: AtomicBool::new(false),
-			waiter: std::thread::current(),
+			waiter: os::current(),
 		};
 		let run = Run {
 			call: invoker(&call),
@@ -408,7 +417,7 @@ impl Thread {
 			done: &done,
 		};
 		if self.push(Job::Run(run)).is_err() {
-			crate::rt::fail("a home", "its thread exited");
+			fail("a home", "its thread exited");
 		}
 		let ran = || done.ran.load(Ordering::Acquire);
 		// A home waiting on another runs each call queued for it meanwhile, as one the call
@@ -417,7 +426,7 @@ impl Thread {
 			Some(home) => Self::wait_serving(&home, ran),
 			None => {
 				while !ran() {
-					std::thread::park();
+					os::park();
 				}
 			}
 		}
