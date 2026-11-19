@@ -1122,6 +1122,17 @@ they need.
   where it meets a slot below, and its object, such as an `rs.Ok`, counts as made at each
   read that makes it. An `Option` of a number is one part, that or `undefined`, as its JS
   value is. A return is still a `ByteSlice` but for the `Result`s below.
+- A local of slices of other elements, each an `rs.Slice`, shared or `&mut`, is held as
+  parts the same way, written through them where its object would be, and also when
+  `deref`, `as_slice`, or a range index of a `Vec`, a slice, or an array assigns it, its
+  range checked as std's `Index` checks it, so `split_at_mut` and `&mut v[..k]` make no
+  tuple or slice per step. Only one some read takes apart is held so: one every read makes
+  whole saves nothing, and the call that makes it reads the `Vec`'s items in place. Byte
+  slices keep the rules above. `just ts bench` measured `parts/heap-sift` at 0.24, 0.18,
+  and 0.49 times `main`'s time in Chrome from 16 to 4096 items, 0.26, 0.18, and 0.41 in
+  Firefox, 0.30, 0.29, and 0.51 in Node, and 0.76 in Bun at 4096, with smaller sizes
+  within its noise, and `parts/prefix-writes` at 0.61-0.78 in Chrome, 0.66-0.83 in Node,
+  and 0.71-1.0 in Firefox, with the A/A route within 0.10 at the median workload.
 - A function only translated code calls takes each `&[u8]` or `&[u8; N]` parameter as
   three, its `data`, `start`, and `length`, which its body holds as that local's parts:
   not a root, which the outside calls, a closure, or an `async fn`. One whose object the

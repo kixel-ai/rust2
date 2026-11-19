@@ -11,6 +11,12 @@
 //! `Result` in a slot holds its result so, to hand back the `Ok`'s parts, and its callers
 //! read them back as parts; a local with no slice is held so only there. A byte slice
 //! parameter is passed as its parts when its body holds it so and never makes its object.
+//!
+//! A slice of other elements, an `rs.Slice`, `&mut` too, is held so the same way, written
+//! through its parts where its object would be, and also when all of a `Vec`'s elements or
+//! a range of a `Vec`'s, a slice's, or an array's make it, checked as std's `Index` checks
+//! it; but only where some read takes it apart, since a local every read makes whole saves
+//! nothing, and a `Vec`'s slice made whole by its call is read in place by what reads it.
 
 use rustc_abi::VariantIdx;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
